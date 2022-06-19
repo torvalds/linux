@@ -1066,7 +1066,7 @@ static void midgard_model_get_outputs(void *h)
 	    hw_error_status.gpu_error_irq ||
 #if !MALI_USE_CSF
 	    dummy->prfcnt_sample_completed ||
-#endif /* !MALI_USE_CSF */
+#endif
 	    (dummy->clean_caches_completed && dummy->clean_caches_completed_irq_enabled))
 		gpu_device_raise_irq(dummy, GPU_DUMMY_GPU_IRQ);
 
@@ -1247,7 +1247,7 @@ u8 midgard_model_write_reg(void *h, u32 addr, u32 value)
 
 		if (value & (1 << 17))
 			dummy->clean_caches_completed = false;
-#if !MALI_USE_CSF
+#if   !MALI_USE_CSF
 		if (value & PRFCNT_SAMPLE_COMPLETED)
 			dummy->prfcnt_sample_completed = 0;
 #endif /* !MALI_USE_CSF */
@@ -1274,7 +1274,7 @@ u8 midgard_model_write_reg(void *h, u32 addr, u32 value)
 			pr_debug("clean caches requested");
 			dummy->clean_caches_completed = true;
 			break;
-#if !MALI_USE_CSF
+#if   !MALI_USE_CSF
 		case GPU_COMMAND_PRFCNT_SAMPLE:
 			midgard_model_dump_prfcnt();
 			dummy->prfcnt_sample_completed = 1;
@@ -1545,7 +1545,8 @@ u8 midgard_model_read_reg(void *h, u32 addr, u32 * const value)
 #endif /* !MALI_USE_CSF */
 	else if (addr == GPU_CONTROL_REG(GPU_IRQ_MASK)) {
 		*value = (dummy->reset_completed_mask << 8) |
-				(dummy->power_changed_mask << 9) | (1 << 7) | 1;
+			 ((dummy->clean_caches_completed_irq_enabled ? 1u : 0u) << 17) |
+			 (dummy->power_changed_mask << 9) | (1 << 7) | 1;
 		pr_debug("GPU_IRQ_MASK read %x", *value);
 	} else if (addr == GPU_CONTROL_REG(GPU_IRQ_RAWSTAT)) {
 		*value = (dummy->power_changed << 9) | (dummy->power_changed << 10) |

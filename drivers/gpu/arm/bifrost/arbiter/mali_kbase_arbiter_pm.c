@@ -955,7 +955,6 @@ static inline bool kbase_arbiter_pm_vm_gpu_assigned_lockheld(
 int kbase_arbiter_pm_ctx_active_handle_suspend(struct kbase_device *kbdev,
 	enum kbase_pm_suspend_handler suspend_handler)
 {
-	struct kbasep_js_device_data *js_devdata = &kbdev->js_data;
 	struct kbase_arbiter_vm_state *arb_vm_state = kbdev->pm.arb_vm_state;
 	int res = 0;
 
@@ -1008,11 +1007,9 @@ int kbase_arbiter_pm_ctx_active_handle_suspend(struct kbase_device *kbdev,
 			/* Need to synchronously wait for GPU assignment */
 			atomic_inc(&kbdev->pm.gpu_users_waiting);
 			mutex_unlock(&arb_vm_state->vm_state_lock);
-			mutex_unlock(&kbdev->pm.lock);
-			mutex_unlock(&js_devdata->runpool_mutex);
+			kbase_pm_unlock(kbdev);
 			kbase_arbiter_pm_vm_wait_gpu_assignment(kbdev);
-			mutex_lock(&js_devdata->runpool_mutex);
-			mutex_lock(&kbdev->pm.lock);
+			kbase_pm_lock(kbdev);
 			mutex_lock(&arb_vm_state->vm_state_lock);
 			atomic_dec(&kbdev->pm.gpu_users_waiting);
 		}

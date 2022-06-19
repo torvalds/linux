@@ -55,8 +55,12 @@ struct kbase_hwcnt_backend_csf_if_enable {
 /**
  * struct kbase_hwcnt_backend_csf_if_prfcnt_info - Performance counter
  *                                                 information.
+ * @prfcnt_hw_size:    Total length in bytes of all the hardware counters data. The hardware
+ *                     counters are sub-divided into 4 classes: front-end, shader, tiler, and
+ *                     memory system (l2 cache + MMU).
+ * @prfcnt_fw_size:    Total length in bytes of all the firmware counters data.
  * @dump_bytes:        Bytes of GPU memory required to perform a performance
- *                     counter dump.
+ *                     counter dump. dump_bytes = prfcnt_hw_size + prfcnt_fw_size.
  * @prfcnt_block_size: Bytes of each performance counter block.
  * @l2_count:          The MMU L2 cache count.
  * @core_mask:         Shader core mask.
@@ -65,6 +69,8 @@ struct kbase_hwcnt_backend_csf_if_enable {
  *                     is taken.
  */
 struct kbase_hwcnt_backend_csf_if_prfcnt_info {
+	size_t prfcnt_hw_size;
+	size_t prfcnt_fw_size;
 	size_t dump_bytes;
 	size_t prfcnt_block_size;
 	size_t l2_count;

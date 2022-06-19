@@ -144,7 +144,7 @@ struct kbasep_pm_metrics {
  *  @initialized: tracks whether metrics_state has been initialized or not.
  *  @timer: timer to regularly make DVFS decisions based on the power
  *           management metrics.
- *  @timer_active: boolean indicating @timer is running
+ *  @timer_state: atomic indicating current @timer state, on, off, or stopped.
  *  @dvfs_last: values of the PM metrics from the last DVFS tick
  *  @dvfs_diff: different between the current and previous PM metrics.
  */
@@ -168,7 +168,7 @@ struct kbasep_pm_metrics_state {
 #ifdef CONFIG_MALI_BIFROST_DVFS
 	bool initialized;
 	struct hrtimer timer;
-	bool timer_active;
+	atomic_t timer_state;
 	struct kbasep_pm_metrics dvfs_last;
 	struct kbasep_pm_metrics dvfs_diff;
 #endif

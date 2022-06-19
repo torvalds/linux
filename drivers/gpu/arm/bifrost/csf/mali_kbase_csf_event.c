@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -102,7 +102,7 @@ static void sync_update_notify_gpu(struct kbase_context *kctx)
 
 	if (can_notify_gpu) {
 		kbase_csf_ring_doorbell(kctx->kbdev, CSF_KERNEL_DOORBELL_NR);
-		KBASE_KTRACE_ADD(kctx->kbdev, SYNC_UPDATE_EVENT_NOTIFY_GPU, kctx, 0u);
+		KBASE_KTRACE_ADD(kctx->kbdev, CSF_SYNC_UPDATE_NOTIFY_GPU_EVENT, kctx, 0u);
 	}
 
 	spin_unlock_irqrestore(&kctx->kbdev->hwaccess_lock, flags);
@@ -226,12 +226,15 @@ void kbase_csf_event_add_error(struct kbase_context *const kctx,
 		return;
 
 	spin_lock_irqsave(&kctx->csf.event.lock, flags);
-	if (!WARN_ON(!list_empty(&error->link))) {
+	if (list_empty(&error->link)) {
 		error->data = *data;
 		list_add_tail(&error->link, &kctx->csf.event.error_list);
 		dev_dbg(kctx->kbdev->dev,
 			"Added error %pK of type %d in context %pK\n",
 			(void *)error, data->type, (void *)kctx);
+	} else {
+		dev_dbg(kctx->kbdev->dev, "Error %pK of type %d already pending in context %pK",
+			(void *)error, error->data.type, (void *)kctx);
 	}
 	spin_unlock_irqrestore(&kctx->csf.event.lock, flags);
 }

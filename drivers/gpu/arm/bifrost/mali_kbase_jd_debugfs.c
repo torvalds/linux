@@ -72,9 +72,7 @@ static void kbase_jd_debugfs_fence_info(struct kbase_jd_atom *atom,
 #endif
 
 			seq_printf(sfile,
-#if (KERNEL_VERSION(4, 8, 0) > LINUX_VERSION_CODE)
-				   "Sd(%u#%u: %s) ",
-#elif (KERNEL_VERSION(5, 1, 0) > LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(5, 1, 0) > LINUX_VERSION_CODE)
 				   "Sd(%llu#%u: %s) ",
 #else
 				   "Sd(%llu#%llu: %s) ",
@@ -93,9 +91,7 @@ static void kbase_jd_debugfs_fence_info(struct kbase_jd_atom *atom,
 #endif
 
 			seq_printf(sfile,
-#if (KERNEL_VERSION(4, 8, 0) > LINUX_VERSION_CODE)
-				   "Wd(%u#%u: %s) ",
-#elif (KERNEL_VERSION(5, 1, 0) > LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(5, 1, 0) > LINUX_VERSION_CODE)
 				   "Wd(%llu#%u: %s) ",
 #else
 				   "Wd(%llu#%llu: %s) ",
@@ -230,11 +226,7 @@ static const struct file_operations kbasep_jd_debugfs_atoms_fops = {
 
 void kbasep_jd_debugfs_ctx_init(struct kbase_context *kctx)
 {
-#if (KERNEL_VERSION(4, 7, 0) <= LINUX_VERSION_CODE)
 	const mode_t mode = 0444;
-#else
-	const mode_t mode = 0400;
-#endif
 
 	/* Caller already ensures this, but we keep the pattern for
 	 * maintenance safety.

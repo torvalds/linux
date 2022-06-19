@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2021-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -120,14 +120,10 @@ static const struct file_operations pbha_int_id_overrides_fops = {
 void kbase_pbha_debugfs_init(struct kbase_device *kbdev)
 {
 	if (kbasep_pbha_supported(kbdev)) {
-#if (KERNEL_VERSION(4, 7, 0) <= LINUX_VERSION_CODE)
-		/* only for newer kernel version debug file system is safe */
 		const mode_t mode = 0644;
-#else
-		const mode_t mode = 0600;
-#endif
 		struct dentry *debugfs_pbha_dir = debugfs_create_dir(
 			"pbha", kbdev->mali_debugfs_directory);
+
 		if (IS_ERR_OR_NULL(debugfs_pbha_dir)) {
 			dev_err(kbdev->dev,
 				"Couldn't create mali debugfs page-based hardware attributes directory\n");

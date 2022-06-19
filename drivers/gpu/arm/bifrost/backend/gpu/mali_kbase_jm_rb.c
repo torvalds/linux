@@ -347,16 +347,35 @@ static void kbase_gpu_release_atom(struct kbase_device *kbdev,
 				katom->protected_state.exit !=
 				KBASE_ATOM_EXIT_PROTECTED_CHECK)
 			kbdev->protected_mode_transition = false;
+
+		/* If the atom is at KBASE_ATOM_ENTER_PROTECTED_HWCNT state, it means
+		 * one of two events prevented it from progressing to the next state and
+		 * ultimately reach protected mode:
+		 * - hwcnts were enabled, and the atom had to schedule a worker to
+		 *   disable them.
+		 * - the hwcnts were already disabled, but some other error occurred.
+		 * In the first case, if the worker has not yet completed
+		 * (kbdev->protected_mode_hwcnt_disabled == false), we need to re-enable
+		 * them and signal to the worker they have already been enabled
+		 */
+		if (kbase_jd_katom_is_protected(katom) &&
+		    (katom->protected_state.enter == KBASE_ATOM_ENTER_PROTECTED_HWCNT)) {
+			kbdev->protected_mode_hwcnt_desired = true;
+			if (kbdev->protected_mode_hwcnt_disabled) {
+				kbase_hwcnt_context_enable(kbdev->hwcnt_gpu_ctx);
+				kbdev->protected_mode_hwcnt_disabled = false;
+			}
+		}
+
 		/* If the atom has suspended hwcnt but has not yet entered
 		 * protected mode, then resume hwcnt now. If the GPU is now in
 		 * protected mode then hwcnt will be resumed by GPU reset so
 		 * don't resume it here.
 		 */
 		if (kbase_jd_katom_is_protected(katom) &&
-				((katom->protected_state.enter ==
-				KBASE_ATOM_ENTER_PROTECTED_IDLE_L2) ||
-				 (katom->protected_state.enter ==
-				KBASE_ATOM_ENTER_PROTECTED_SET_COHERENCY))) {
+		    ((katom->protected_state.enter == KBASE_ATOM_ENTER_PROTECTED_IDLE_L2) ||
+		     (katom->protected_state.enter == KBASE_ATOM_ENTER_PROTECTED_SET_COHERENCY) ||
+		     (katom->protected_state.enter == KBASE_ATOM_ENTER_PROTECTED_FINISHED))) {
 			WARN_ON(!kbdev->protected_mode_hwcnt_disabled);
 			kbdev->protected_mode_hwcnt_desired = true;
 			if (kbdev->protected_mode_hwcnt_disabled) {
@@ -507,17 +526,14 @@ static int kbase_jm_protected_entry(struct kbase_device *kbdev,
 	KBASE_TLSTREAM_AUX_PROTECTED_ENTER_END(kbdev, kbdev);
 	if (err) {
 		/*
-		 * Failed to switch into protected mode, resume
-		 * GPU hwcnt and fail atom.
+		 * Failed to switch into protected mode.
+		 *
+		 * At this point we expect:
+		 * katom->gpu_rb_state = KBASE_ATOM_GPU_RB_WAITING_PROTECTED_MODE_TRANSITION &&
+		 * katom->protected_state.enter = KBASE_ATOM_ENTER_PROTECTED_FINISHED
+		 *  ==>
+		 * kbdev->protected_mode_hwcnt_disabled = false
 		 */
-		WARN_ON(!kbdev->protected_mode_hwcnt_disabled);
-		kbdev->protected_mode_hwcnt_desired = true;
-		if (kbdev->protected_mode_hwcnt_disabled) {
-			kbase_hwcnt_context_enable(
-				kbdev->hwcnt_gpu_ctx);
-			kbdev->protected_mode_hwcnt_disabled = false;
-		}
-
 		katom[idx]->event_code = BASE_JD_EVENT_JOB_INVALID;
 		kbase_gpu_mark_atom_for_return(kbdev, katom[idx]);
 		/*
@@ -537,12 +553,9 @@ static int kbase_jm_protected_entry(struct kbase_device *kbdev,
 	/*
 	 * Protected mode sanity checks.
 	 */
-	KBASE_DEBUG_ASSERT_MSG(
-			kbase_jd_katom_is_protected(katom[idx]) ==
-			kbase_gpu_in_protected_mode(kbdev),
-			"Protected mode of atom (%d) doesn't match protected mode of GPU (%d)",
-			kbase_jd_katom_is_protected(katom[idx]),
-			kbase_gpu_in_protected_mode(kbdev));
+	WARN(kbase_jd_katom_is_protected(katom[idx]) != kbase_gpu_in_protected_mode(kbdev),
+	     "Protected mode of atom (%d) doesn't match protected mode of GPU (%d)",
+	     kbase_jd_katom_is_protected(katom[idx]), kbase_gpu_in_protected_mode(kbdev));
 	katom[idx]->gpu_rb_state =
 			KBASE_ATOM_GPU_RB_READY;
 
@@ -952,18 +965,6 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 				cores_ready = kbase_pm_cores_requested(kbdev,
 						true);
 
-				if (katom[idx]->event_code ==
-						BASE_JD_EVENT_PM_EVENT) {
-					KBASE_KTRACE_ADD_JM_SLOT_INFO(
-						kbdev, JM_MARK_FOR_RETURN_TO_JS,
-						katom[idx]->kctx, katom[idx],
-						katom[idx]->jc, js,
-						katom[idx]->event_code);
-					katom[idx]->gpu_rb_state =
-						KBASE_ATOM_GPU_RB_RETURN_TO_JS;
-					break;
-				}
-
 				if (!cores_ready)
 					break;
 
@@ -1012,9 +1013,10 @@ void kbase_backend_slot_update(struct kbase_device *kbdev)
 					kbase_pm_request_gpu_cycle_counter_l2_is_on(
 									kbdev);
 
-				kbase_job_hw_submit(kbdev, katom[idx], js);
-				katom[idx]->gpu_rb_state =
-					KBASE_ATOM_GPU_RB_SUBMITTED;
+				if (!kbase_job_hw_submit(kbdev, katom[idx], js))
+					katom[idx]->gpu_rb_state = KBASE_ATOM_GPU_RB_SUBMITTED;
+				else
+					break;
 
 				/* ***TRANSITION TO HIGHER STATE*** */
 				fallthrough;
@@ -1407,14 +1409,14 @@ void kbase_backend_reset(struct kbase_device *kbdev, ktime_t *end_timestamp)
 			if (katom->protected_state.exit ==
 			    KBASE_ATOM_EXIT_PROTECTED_RESET_WAIT) {
 				/* protected mode sanity checks */
-				KBASE_DEBUG_ASSERT_MSG(
-					kbase_jd_katom_is_protected(katom) == kbase_gpu_in_protected_mode(kbdev),
-					"Protected mode of atom (%d) doesn't match protected mode of GPU (%d)",
-					kbase_jd_katom_is_protected(katom), kbase_gpu_in_protected_mode(kbdev));
-				KBASE_DEBUG_ASSERT_MSG(
-					(kbase_jd_katom_is_protected(katom) && js == 0) ||
-					!kbase_jd_katom_is_protected(katom),
-					"Protected atom on JS%d not supported", js);
+				WARN(kbase_jd_katom_is_protected(katom) !=
+					     kbase_gpu_in_protected_mode(kbdev),
+				     "Protected mode of atom (%d) doesn't match protected mode of GPU (%d)",
+				     kbase_jd_katom_is_protected(katom),
+				     kbase_gpu_in_protected_mode(kbdev));
+				WARN(!(kbase_jd_katom_is_protected(katom) && js == 0) &&
+					     kbase_jd_katom_is_protected(katom),
+				     "Protected atom on JS%d not supported", js);
 			}
 			if ((katom->gpu_rb_state < KBASE_ATOM_GPU_RB_SUBMITTED) &&
 			    !kbase_ctx_flag(katom->kctx, KCTX_DYING))
@@ -1805,11 +1807,9 @@ void kbase_backend_complete_wq_post_sched(struct kbase_device *kbdev,
 		base_jd_core_req core_req)
 {
 	if (!kbdev->pm.active_count) {
-		mutex_lock(&kbdev->js_data.runpool_mutex);
-		mutex_lock(&kbdev->pm.lock);
+		kbase_pm_lock(kbdev);
 		kbase_pm_update_active(kbdev);
-		mutex_unlock(&kbdev->pm.lock);
-		mutex_unlock(&kbdev->js_data.runpool_mutex);
+		kbase_pm_unlock(kbdev);
 	}
 }
 

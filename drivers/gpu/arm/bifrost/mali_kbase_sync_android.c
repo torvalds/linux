@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2012-2017, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2017, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -248,22 +248,17 @@ int kbase_sync_fence_out_create(struct kbase_jd_atom *katom, int tl_fd)
 	/* create a fd representing the fence */
 	fd = get_unused_fd_flags(O_RDWR | O_CLOEXEC);
 	if (fd < 0) {
+		sync_pt_free(pt);
 		sync_fence_put(fence);
+		katom->fence = NULL;
 		goto out;
 	}
+
+	/* Place the successfully created fence in katom */
+	katom->fence = fence;
 
 	/* bind fence to the new fd */
 	sync_fence_install(fence, fd);
-
-	katom->fence = sync_fence_fdget(fd);
-	if (katom->fence == NULL) {
-		/* The only way the fence can be NULL is if userspace closed it
-		 * for us, so we don't need to clear it up
-		 */
-		fd = -EINVAL;
-		goto out;
-	}
-
 out:
 	fput(tl_file);
 
@@ -445,7 +440,7 @@ void kbase_sync_fence_in_cancel_wait(struct kbase_jd_atom *katom)
 	kbasep_remove_waiting_soft_job(katom);
 	kbase_finish_soft_job(katom);
 
-	if (jd_done_nolock(katom, true))
+	if (kbase_jd_done_nolock(katom, true))
 		kbase_js_sched_all(katom->kctx->kbdev);
 }
 

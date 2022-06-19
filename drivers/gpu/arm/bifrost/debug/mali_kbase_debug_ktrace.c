@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -27,13 +27,13 @@ int kbase_ktrace_init(struct kbase_device *kbdev)
 #if KBASE_KTRACE_TARGET_RBUF
 	struct kbase_ktrace_msg *rbuf;
 
+	spin_lock_init(&kbdev->ktrace.lock);
 	rbuf = kmalloc_array(KBASE_KTRACE_SIZE, sizeof(*rbuf), GFP_KERNEL);
 
 	if (!rbuf)
 		return -EINVAL;
 
 	kbdev->ktrace.rbuf = rbuf;
-	spin_lock_init(&kbdev->ktrace.lock);
 #endif /* KBASE_KTRACE_TARGET_RBUF */
 	return 0;
 }
@@ -42,6 +42,7 @@ void kbase_ktrace_term(struct kbase_device *kbdev)
 {
 #if KBASE_KTRACE_TARGET_RBUF
 	kfree(kbdev->ktrace.rbuf);
+	kbdev->ktrace.rbuf = NULL;
 #endif /* KBASE_KTRACE_TARGET_RBUF */
 }
 
@@ -182,6 +183,9 @@ void kbasep_ktrace_add(struct kbase_device *kbdev, enum kbase_ktrace_code code,
 {
 	unsigned long irqflags;
 	struct kbase_ktrace_msg *trace_msg;
+
+	if (unlikely(!kbasep_ktrace_initialized(&kbdev->ktrace)))
+		return;
 
 	WARN_ON((flags & ~KBASE_KTRACE_FLAG_COMMON_ALL));
 

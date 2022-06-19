@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2011-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -198,7 +198,6 @@ static int kbase_gpuprops_get_props(struct base_gpu_props * const gpu_props,
 	gpu_props->raw_props.mem_features = regdump.mem_features;
 	gpu_props->raw_props.mmu_features = regdump.mmu_features;
 	gpu_props->raw_props.l2_features = regdump.l2_features;
-	gpu_props->raw_props.core_features = regdump.core_features;
 
 	gpu_props->raw_props.as_present = regdump.as_present;
 	gpu_props->raw_props.js_present = regdump.js_present;
@@ -323,9 +322,6 @@ static void kbase_gpuprops_calculate_props(
 	gpu_props->core_props.gpu_available_memory_size =
 		totalram_pages() << PAGE_SHIFT;
 #endif
-
-	gpu_props->core_props.num_exec_engines =
-		KBASE_UBFX32(gpu_props->raw_props.core_features, 0, 4);
 
 	for (i = 0; i < BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS; i++)
 		gpu_props->core_props.texture_features[i] = gpu_props->raw_props.texture_features[i];
@@ -506,6 +502,21 @@ int kbase_gpuprops_set_features(struct kbase_device *kbdev)
 
 	if (!kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_THREAD_GROUP_SPLIT))
 		gpu_props->thread_props.max_thread_group_split = 0;
+
+	/*
+	 * The CORE_FEATURES register has different meanings depending on GPU.
+	 * On tGOx, bits[3:0] encode num_exec_engines.
+	 * On CSF GPUs, bits[7:0] is an enumeration that needs to be parsed,
+	 * instead.
+	 * GPUs like tTIx have additional fields like LSC_SIZE that are
+	 * otherwise reserved/RAZ on older GPUs.
+	 */
+	gpu_props->raw_props.core_features = regdump.core_features;
+
+#if !MALI_USE_CSF
+	gpu_props->core_props.num_exec_engines =
+		KBASE_UBFX32(gpu_props->raw_props.core_features, 0, 4);
+#endif
 
 	return err;
 }
@@ -694,94 +705,102 @@ static struct {
 #define PROP(name, member) \
 	{KBASE_GPUPROP_ ## name, offsetof(struct base_gpu_props, member), \
 		sizeof(((struct base_gpu_props *)0)->member)}
-	PROP(PRODUCT_ID,                  core_props.product_id),
-	PROP(VERSION_STATUS,              core_props.version_status),
-	PROP(MINOR_REVISION,              core_props.minor_revision),
-	PROP(MAJOR_REVISION,              core_props.major_revision),
-	PROP(GPU_FREQ_KHZ_MAX,            core_props.gpu_freq_khz_max),
-	PROP(LOG2_PROGRAM_COUNTER_SIZE,   core_props.log2_program_counter_size),
-	PROP(TEXTURE_FEATURES_0,          core_props.texture_features[0]),
-	PROP(TEXTURE_FEATURES_1,          core_props.texture_features[1]),
-	PROP(TEXTURE_FEATURES_2,          core_props.texture_features[2]),
-	PROP(TEXTURE_FEATURES_3,          core_props.texture_features[3]),
-	PROP(GPU_AVAILABLE_MEMORY_SIZE,   core_props.gpu_available_memory_size),
-	PROP(NUM_EXEC_ENGINES,            core_props.num_exec_engines),
+#define BACKWARDS_COMPAT_PROP(name, type)                                                          \
+	{                                                                                          \
+		KBASE_GPUPROP_##name, SIZE_MAX, sizeof(type)                                       \
+	}
+	PROP(PRODUCT_ID, core_props.product_id),
+	PROP(VERSION_STATUS, core_props.version_status),
+	PROP(MINOR_REVISION, core_props.minor_revision),
+	PROP(MAJOR_REVISION, core_props.major_revision),
+	PROP(GPU_FREQ_KHZ_MAX, core_props.gpu_freq_khz_max),
+	PROP(LOG2_PROGRAM_COUNTER_SIZE, core_props.log2_program_counter_size),
+	PROP(TEXTURE_FEATURES_0, core_props.texture_features[0]),
+	PROP(TEXTURE_FEATURES_1, core_props.texture_features[1]),
+	PROP(TEXTURE_FEATURES_2, core_props.texture_features[2]),
+	PROP(TEXTURE_FEATURES_3, core_props.texture_features[3]),
+	PROP(GPU_AVAILABLE_MEMORY_SIZE, core_props.gpu_available_memory_size),
 
-	PROP(L2_LOG2_LINE_SIZE,           l2_props.log2_line_size),
-	PROP(L2_LOG2_CACHE_SIZE,          l2_props.log2_cache_size),
-	PROP(L2_NUM_L2_SLICES,            l2_props.num_l2_slices),
+#if MALI_USE_CSF
+	BACKWARDS_COMPAT_PROP(NUM_EXEC_ENGINES, u8),
+#else
+	PROP(NUM_EXEC_ENGINES, core_props.num_exec_engines),
+#endif
 
-	PROP(TILER_BIN_SIZE_BYTES,        tiler_props.bin_size_bytes),
-	PROP(TILER_MAX_ACTIVE_LEVELS,     tiler_props.max_active_levels),
+	PROP(L2_LOG2_LINE_SIZE, l2_props.log2_line_size),
+	PROP(L2_LOG2_CACHE_SIZE, l2_props.log2_cache_size),
+	PROP(L2_NUM_L2_SLICES, l2_props.num_l2_slices),
 
-	PROP(MAX_THREADS,                 thread_props.max_threads),
-	PROP(MAX_WORKGROUP_SIZE,          thread_props.max_workgroup_size),
-	PROP(MAX_BARRIER_SIZE,            thread_props.max_barrier_size),
-	PROP(MAX_REGISTERS,               thread_props.max_registers),
-	PROP(MAX_TASK_QUEUE,              thread_props.max_task_queue),
-	PROP(MAX_THREAD_GROUP_SPLIT,      thread_props.max_thread_group_split),
-	PROP(IMPL_TECH,                   thread_props.impl_tech),
-	PROP(TLS_ALLOC,                   thread_props.tls_alloc),
+	PROP(TILER_BIN_SIZE_BYTES, tiler_props.bin_size_bytes),
+	PROP(TILER_MAX_ACTIVE_LEVELS, tiler_props.max_active_levels),
 
-	PROP(RAW_SHADER_PRESENT,          raw_props.shader_present),
-	PROP(RAW_TILER_PRESENT,           raw_props.tiler_present),
-	PROP(RAW_L2_PRESENT,              raw_props.l2_present),
-	PROP(RAW_STACK_PRESENT,           raw_props.stack_present),
-	PROP(RAW_L2_FEATURES,             raw_props.l2_features),
-	PROP(RAW_CORE_FEATURES,           raw_props.core_features),
-	PROP(RAW_MEM_FEATURES,            raw_props.mem_features),
-	PROP(RAW_MMU_FEATURES,            raw_props.mmu_features),
-	PROP(RAW_AS_PRESENT,              raw_props.as_present),
-	PROP(RAW_JS_PRESENT,              raw_props.js_present),
-	PROP(RAW_JS_FEATURES_0,           raw_props.js_features[0]),
-	PROP(RAW_JS_FEATURES_1,           raw_props.js_features[1]),
-	PROP(RAW_JS_FEATURES_2,           raw_props.js_features[2]),
-	PROP(RAW_JS_FEATURES_3,           raw_props.js_features[3]),
-	PROP(RAW_JS_FEATURES_4,           raw_props.js_features[4]),
-	PROP(RAW_JS_FEATURES_5,           raw_props.js_features[5]),
-	PROP(RAW_JS_FEATURES_6,           raw_props.js_features[6]),
-	PROP(RAW_JS_FEATURES_7,           raw_props.js_features[7]),
-	PROP(RAW_JS_FEATURES_8,           raw_props.js_features[8]),
-	PROP(RAW_JS_FEATURES_9,           raw_props.js_features[9]),
-	PROP(RAW_JS_FEATURES_10,          raw_props.js_features[10]),
-	PROP(RAW_JS_FEATURES_11,          raw_props.js_features[11]),
-	PROP(RAW_JS_FEATURES_12,          raw_props.js_features[12]),
-	PROP(RAW_JS_FEATURES_13,          raw_props.js_features[13]),
-	PROP(RAW_JS_FEATURES_14,          raw_props.js_features[14]),
-	PROP(RAW_JS_FEATURES_15,          raw_props.js_features[15]),
-	PROP(RAW_TILER_FEATURES,          raw_props.tiler_features),
-	PROP(RAW_TEXTURE_FEATURES_0,      raw_props.texture_features[0]),
-	PROP(RAW_TEXTURE_FEATURES_1,      raw_props.texture_features[1]),
-	PROP(RAW_TEXTURE_FEATURES_2,      raw_props.texture_features[2]),
-	PROP(RAW_TEXTURE_FEATURES_3,      raw_props.texture_features[3]),
-	PROP(RAW_GPU_ID,                  raw_props.gpu_id),
-	PROP(RAW_THREAD_MAX_THREADS,      raw_props.thread_max_threads),
-	PROP(RAW_THREAD_MAX_WORKGROUP_SIZE,
-			raw_props.thread_max_workgroup_size),
+	PROP(MAX_THREADS, thread_props.max_threads),
+	PROP(MAX_WORKGROUP_SIZE, thread_props.max_workgroup_size),
+	PROP(MAX_BARRIER_SIZE, thread_props.max_barrier_size),
+	PROP(MAX_REGISTERS, thread_props.max_registers),
+	PROP(MAX_TASK_QUEUE, thread_props.max_task_queue),
+	PROP(MAX_THREAD_GROUP_SPLIT, thread_props.max_thread_group_split),
+	PROP(IMPL_TECH, thread_props.impl_tech),
+	PROP(TLS_ALLOC, thread_props.tls_alloc),
+
+	PROP(RAW_SHADER_PRESENT, raw_props.shader_present),
+	PROP(RAW_TILER_PRESENT, raw_props.tiler_present),
+	PROP(RAW_L2_PRESENT, raw_props.l2_present),
+	PROP(RAW_STACK_PRESENT, raw_props.stack_present),
+	PROP(RAW_L2_FEATURES, raw_props.l2_features),
+	PROP(RAW_CORE_FEATURES, raw_props.core_features),
+	PROP(RAW_MEM_FEATURES, raw_props.mem_features),
+	PROP(RAW_MMU_FEATURES, raw_props.mmu_features),
+	PROP(RAW_AS_PRESENT, raw_props.as_present),
+	PROP(RAW_JS_PRESENT, raw_props.js_present),
+	PROP(RAW_JS_FEATURES_0, raw_props.js_features[0]),
+	PROP(RAW_JS_FEATURES_1, raw_props.js_features[1]),
+	PROP(RAW_JS_FEATURES_2, raw_props.js_features[2]),
+	PROP(RAW_JS_FEATURES_3, raw_props.js_features[3]),
+	PROP(RAW_JS_FEATURES_4, raw_props.js_features[4]),
+	PROP(RAW_JS_FEATURES_5, raw_props.js_features[5]),
+	PROP(RAW_JS_FEATURES_6, raw_props.js_features[6]),
+	PROP(RAW_JS_FEATURES_7, raw_props.js_features[7]),
+	PROP(RAW_JS_FEATURES_8, raw_props.js_features[8]),
+	PROP(RAW_JS_FEATURES_9, raw_props.js_features[9]),
+	PROP(RAW_JS_FEATURES_10, raw_props.js_features[10]),
+	PROP(RAW_JS_FEATURES_11, raw_props.js_features[11]),
+	PROP(RAW_JS_FEATURES_12, raw_props.js_features[12]),
+	PROP(RAW_JS_FEATURES_13, raw_props.js_features[13]),
+	PROP(RAW_JS_FEATURES_14, raw_props.js_features[14]),
+	PROP(RAW_JS_FEATURES_15, raw_props.js_features[15]),
+	PROP(RAW_TILER_FEATURES, raw_props.tiler_features),
+	PROP(RAW_TEXTURE_FEATURES_0, raw_props.texture_features[0]),
+	PROP(RAW_TEXTURE_FEATURES_1, raw_props.texture_features[1]),
+	PROP(RAW_TEXTURE_FEATURES_2, raw_props.texture_features[2]),
+	PROP(RAW_TEXTURE_FEATURES_3, raw_props.texture_features[3]),
+	PROP(RAW_GPU_ID, raw_props.gpu_id),
+	PROP(RAW_THREAD_MAX_THREADS, raw_props.thread_max_threads),
+	PROP(RAW_THREAD_MAX_WORKGROUP_SIZE, raw_props.thread_max_workgroup_size),
 	PROP(RAW_THREAD_MAX_BARRIER_SIZE, raw_props.thread_max_barrier_size),
-	PROP(RAW_THREAD_FEATURES,         raw_props.thread_features),
-	PROP(RAW_COHERENCY_MODE,          raw_props.coherency_mode),
-	PROP(RAW_THREAD_TLS_ALLOC,        raw_props.thread_tls_alloc),
-	PROP(RAW_GPU_FEATURES,            raw_props.gpu_features),
-	PROP(COHERENCY_NUM_GROUPS,        coherency_info.num_groups),
-	PROP(COHERENCY_NUM_CORE_GROUPS,   coherency_info.num_core_groups),
-	PROP(COHERENCY_COHERENCY,         coherency_info.coherency),
-	PROP(COHERENCY_GROUP_0,           coherency_info.group[0].core_mask),
-	PROP(COHERENCY_GROUP_1,           coherency_info.group[1].core_mask),
-	PROP(COHERENCY_GROUP_2,           coherency_info.group[2].core_mask),
-	PROP(COHERENCY_GROUP_3,           coherency_info.group[3].core_mask),
-	PROP(COHERENCY_GROUP_4,           coherency_info.group[4].core_mask),
-	PROP(COHERENCY_GROUP_5,           coherency_info.group[5].core_mask),
-	PROP(COHERENCY_GROUP_6,           coherency_info.group[6].core_mask),
-	PROP(COHERENCY_GROUP_7,           coherency_info.group[7].core_mask),
-	PROP(COHERENCY_GROUP_8,           coherency_info.group[8].core_mask),
-	PROP(COHERENCY_GROUP_9,           coherency_info.group[9].core_mask),
-	PROP(COHERENCY_GROUP_10,          coherency_info.group[10].core_mask),
-	PROP(COHERENCY_GROUP_11,          coherency_info.group[11].core_mask),
-	PROP(COHERENCY_GROUP_12,          coherency_info.group[12].core_mask),
-	PROP(COHERENCY_GROUP_13,          coherency_info.group[13].core_mask),
-	PROP(COHERENCY_GROUP_14,          coherency_info.group[14].core_mask),
-	PROP(COHERENCY_GROUP_15,          coherency_info.group[15].core_mask),
+	PROP(RAW_THREAD_FEATURES, raw_props.thread_features),
+	PROP(RAW_COHERENCY_MODE, raw_props.coherency_mode),
+	PROP(RAW_THREAD_TLS_ALLOC, raw_props.thread_tls_alloc),
+	PROP(RAW_GPU_FEATURES, raw_props.gpu_features),
+	PROP(COHERENCY_NUM_GROUPS, coherency_info.num_groups),
+	PROP(COHERENCY_NUM_CORE_GROUPS, coherency_info.num_core_groups),
+	PROP(COHERENCY_COHERENCY, coherency_info.coherency),
+	PROP(COHERENCY_GROUP_0, coherency_info.group[0].core_mask),
+	PROP(COHERENCY_GROUP_1, coherency_info.group[1].core_mask),
+	PROP(COHERENCY_GROUP_2, coherency_info.group[2].core_mask),
+	PROP(COHERENCY_GROUP_3, coherency_info.group[3].core_mask),
+	PROP(COHERENCY_GROUP_4, coherency_info.group[4].core_mask),
+	PROP(COHERENCY_GROUP_5, coherency_info.group[5].core_mask),
+	PROP(COHERENCY_GROUP_6, coherency_info.group[6].core_mask),
+	PROP(COHERENCY_GROUP_7, coherency_info.group[7].core_mask),
+	PROP(COHERENCY_GROUP_8, coherency_info.group[8].core_mask),
+	PROP(COHERENCY_GROUP_9, coherency_info.group[9].core_mask),
+	PROP(COHERENCY_GROUP_10, coherency_info.group[10].core_mask),
+	PROP(COHERENCY_GROUP_11, coherency_info.group[11].core_mask),
+	PROP(COHERENCY_GROUP_12, coherency_info.group[12].core_mask),
+	PROP(COHERENCY_GROUP_13, coherency_info.group[13].core_mask),
+	PROP(COHERENCY_GROUP_14, coherency_info.group[14].core_mask),
+	PROP(COHERENCY_GROUP_15, coherency_info.group[15].core_mask),
 
 #undef PROP
 };
@@ -818,7 +837,14 @@ int kbase_gpuprops_populate_user_buffer(struct kbase_device *kbdev)
 	for (i = 0; i < count; i++) {
 		u32 type = gpu_property_mapping[i].type;
 		u8 type_size;
-		void *field = ((u8 *)props) + gpu_property_mapping[i].offset;
+		const size_t offset = gpu_property_mapping[i].offset;
+		const u64 dummy_backwards_compat_value = (u64)0;
+		const void *field;
+
+		if (likely(offset < sizeof(struct base_gpu_props)))
+			field = ((const u8 *)props) + offset;
+		else
+			field = &dummy_backwards_compat_value;
 
 		switch (gpu_property_mapping[i].size) {
 		case 1:
@@ -844,16 +870,16 @@ int kbase_gpuprops_populate_user_buffer(struct kbase_device *kbdev)
 
 		switch (type_size) {
 		case KBASE_GPUPROP_VALUE_SIZE_U8:
-			WRITE_U8(*((u8 *)field));
+			WRITE_U8(*((const u8 *)field));
 			break;
 		case KBASE_GPUPROP_VALUE_SIZE_U16:
-			WRITE_U16(*((u16 *)field));
+			WRITE_U16(*((const u16 *)field));
 			break;
 		case KBASE_GPUPROP_VALUE_SIZE_U32:
-			WRITE_U32(*((u32 *)field));
+			WRITE_U32(*((const u32 *)field));
 			break;
 		case KBASE_GPUPROP_VALUE_SIZE_U64:
-			WRITE_U64(*((u64 *)field));
+			WRITE_U64(*((const u64 *)field));
 			break;
 		default: /* Cannot be reached */
 			WARN_ON(1);

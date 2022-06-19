@@ -26,12 +26,12 @@
 
 #include <linux/delay.h>
 #include <linux/poll.h>
+#include <linux/version_compat_defs.h>
 
 /* The timeline stream file operations functions. */
 static ssize_t kbasep_timeline_io_read(struct file *filp, char __user *buffer,
 				       size_t size, loff_t *f_pos);
-static unsigned int kbasep_timeline_io_poll(struct file *filp,
-					    poll_table *wait);
+static __poll_t kbasep_timeline_io_poll(struct file *filp, poll_table *wait);
 static int kbasep_timeline_io_release(struct inode *inode, struct file *filp);
 static int kbasep_timeline_io_fsync(struct file *filp, loff_t start, loff_t end,
 				    int datasync);
@@ -292,7 +292,7 @@ static ssize_t kbasep_timeline_io_read(struct file *filp, char __user *buffer,
  *
  * Return: POLLIN if data can be read without blocking, otherwise zero
  */
-static unsigned int kbasep_timeline_io_poll(struct file *filp, poll_table *wait)
+static __poll_t kbasep_timeline_io_poll(struct file *filp, poll_table *wait)
 {
 	struct kbase_tlstream *stream;
 	unsigned int rb_idx;
@@ -302,7 +302,7 @@ static unsigned int kbasep_timeline_io_poll(struct file *filp, poll_table *wait)
 	KBASE_DEBUG_ASSERT(wait);
 
 	if (WARN_ON(!filp->private_data))
-		return -EFAULT;
+		return (__poll_t)-EFAULT;
 
 	timeline = (struct kbase_timeline *)filp->private_data;
 

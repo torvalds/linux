@@ -100,6 +100,7 @@
 
 #define TEXTURE_FEATURES_REG(n) GPU_CONTROL_REG(TEXTURE_FEATURES_0 + ((n) << 2))
 
+
 #define SHADER_PRESENT_LO       0x100   /* (RO) Shader core present bitmap, low word */
 #define SHADER_PRESENT_HI       0x104   /* (RO) Shader core present bitmap, high word */
 
@@ -368,6 +369,11 @@
 	(((reg_val) & ~AS_LOCKADDR_LOCKADDR_BASE_MASK) |                             \
 	 (((value) << AS_LOCKADDR_LOCKADDR_BASE_SHIFT) &                             \
 	 AS_LOCKADDR_LOCKADDR_BASE_MASK))
+#define AS_LOCKADDR_FLUSH_SKIP_LEVELS_SHIFT (6)
+#define AS_LOCKADDR_FLUSH_SKIP_LEVELS_MASK ((0xF) << AS_LOCKADDR_FLUSH_SKIP_LEVELS_SHIFT)
+#define AS_LOCKADDR_FLUSH_SKIP_LEVELS_SET(reg_val, value)                                          \
+	(((reg_val) & ~AS_LOCKADDR_FLUSH_SKIP_LEVELS_MASK) |                                       \
+	 ((value << AS_LOCKADDR_FLUSH_SKIP_LEVELS_SHIFT) & AS_LOCKADDR_FLUSH_SKIP_LEVELS_MASK))
 
 /* GPU_STATUS values */
 #define GPU_STATUS_PRFCNT_ACTIVE            (1 << 2)    /* Set if the performance counters are active. */

@@ -30,9 +30,6 @@
 #include <linux/atomic.h>
 #include <linux/mm.h>
 #include <linux/highmem.h>
-#if (KERNEL_VERSION(4, 8, 0) > LINUX_VERSION_CODE)
-#include <linux/dma-attrs.h>
-#endif
 #include <linux/dma-mapping.h>
 
 /* Maximum size allowed in a single DMA_BUF_TE_ALLOC call */
@@ -211,20 +208,11 @@ static void dma_buf_te_release(struct dma_buf *buf)
 	/* no need for locking */
 
 	if (alloc->contiguous) {
-#if (KERNEL_VERSION(4, 8, 0) <= LINUX_VERSION_CODE)
 		dma_free_attrs(te_device.this_device,
 						alloc->nr_pages * PAGE_SIZE,
 						alloc->contig_cpu_addr,
 						alloc->contig_dma_addr,
 						DMA_ATTR_WRITE_COMBINE);
-#else
-		DEFINE_DMA_ATTRS(attrs);
-
-		dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-		dma_free_attrs(te_device.this_device,
-						alloc->nr_pages * PAGE_SIZE,
-						alloc->contig_cpu_addr, alloc->contig_dma_addr, &attrs);
-#endif
 	} else {
 		for (i = 0; i < alloc->nr_pages; i++)
 			__free_page(alloc->pages[i]);
@@ -269,32 +257,17 @@ static int dma_buf_te_sync(struct dma_buf *dmabuf,
 	return 0;
 }
 
-#if (KERNEL_VERSION(4, 6, 0) <= LINUX_VERSION_CODE)
 static int dma_buf_te_begin_cpu_access(struct dma_buf *dmabuf,
 					enum dma_data_direction direction)
-#else
-static int dma_buf_te_begin_cpu_access(struct dma_buf *dmabuf, size_t start,
-					size_t len,
-					enum dma_data_direction direction)
-#endif
 {
 	return dma_buf_te_sync(dmabuf, direction, true);
 }
 
-#if (KERNEL_VERSION(4, 6, 0) <= LINUX_VERSION_CODE)
 static int dma_buf_te_end_cpu_access(struct dma_buf *dmabuf,
 				enum dma_data_direction direction)
 {
 	return dma_buf_te_sync(dmabuf, direction, false);
 }
-#else
-static void dma_buf_te_end_cpu_access(struct dma_buf *dmabuf, size_t start,
-				size_t len,
-				enum dma_data_direction direction)
-{
-	dma_buf_te_sync(dmabuf, direction, false);
-}
-#endif
 
 static void dma_buf_te_mmap_open(struct vm_area_struct *vma)
 {
@@ -521,21 +494,11 @@ static int do_dma_buf_te_ioctl_alloc(struct dma_buf_te_ioctl_alloc __user *buf, 
 	if (contiguous) {
 		dma_addr_t dma_aux;
 
-#if (KERNEL_VERSION(4, 8, 0) <= LINUX_VERSION_CODE)
 		alloc->contig_cpu_addr = dma_alloc_attrs(te_device.this_device,
 				alloc->nr_pages * PAGE_SIZE,
 				&alloc->contig_dma_addr,
 				GFP_KERNEL | __GFP_ZERO,
 				DMA_ATTR_WRITE_COMBINE);
-#else
-		DEFINE_DMA_ATTRS(attrs);
-
-		dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-		alloc->contig_cpu_addr = dma_alloc_attrs(te_device.this_device,
-				alloc->nr_pages * PAGE_SIZE,
-				&alloc->contig_dma_addr,
-				GFP_KERNEL | __GFP_ZERO, &attrs);
-#endif
 		if (!alloc->contig_cpu_addr) {
 			dev_err(te_device.this_device, "%s: couldn't alloc contiguous buffer %zu pages",
 				__func__, alloc->nr_pages);
@@ -591,20 +554,11 @@ no_export:
 	/* i still valid */
 no_page:
 	if (contiguous) {
-#if (KERNEL_VERSION(4, 8, 0) <= LINUX_VERSION_CODE)
 		dma_free_attrs(te_device.this_device,
 						alloc->nr_pages * PAGE_SIZE,
 						alloc->contig_cpu_addr,
 						alloc->contig_dma_addr,
 						DMA_ATTR_WRITE_COMBINE);
-#else
-		DEFINE_DMA_ATTRS(attrs);
-
-		dma_set_attr(DMA_ATTR_WRITE_COMBINE, &attrs);
-		dma_free_attrs(te_device.this_device,
-						alloc->nr_pages * PAGE_SIZE,
-						alloc->contig_cpu_addr, alloc->contig_dma_addr, &attrs);
-#endif
 	} else {
 		while (i-- > 0)
 			__free_page(alloc->pages[i]);
@@ -703,7 +657,6 @@ static u32 dma_te_buf_fill(struct dma_buf *dma_buf, unsigned int value)
 	struct sg_table *sgt;
 	struct scatterlist *sg;
 	unsigned int count;
-	unsigned int offset = 0;
 	int ret = 0;
 	size_t i;
 
@@ -717,11 +670,7 @@ static u32 dma_te_buf_fill(struct dma_buf *dma_buf, unsigned int value)
 		goto no_import;
 	}
 
-	ret = dma_buf_begin_cpu_access(dma_buf,
-#if KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE
-				       0, dma_buf->size,
-#endif
-				       DMA_BIDIRECTIONAL);
+	ret = dma_buf_begin_cpu_access(dma_buf, DMA_BIDIRECTIONAL);
 	if (ret)
 		goto no_cpu_access;
 
@@ -744,15 +693,10 @@ static u32 dma_te_buf_fill(struct dma_buf *dma_buf, unsigned int value)
 			dma_buf_kunmap(dma_buf, i >> PAGE_SHIFT, addr);
 #endif
 		}
-		offset += sg_dma_len(sg);
 	}
 
 no_kmap:
-	dma_buf_end_cpu_access(dma_buf,
-#if KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE
-			       0, dma_buf->size,
-#endif
-			       DMA_BIDIRECTIONAL);
+	dma_buf_end_cpu_access(dma_buf, DMA_BIDIRECTIONAL);
 no_cpu_access:
 	dma_buf_unmap_attachment(attachment, sgt, DMA_BIDIRECTIONAL);
 no_import:

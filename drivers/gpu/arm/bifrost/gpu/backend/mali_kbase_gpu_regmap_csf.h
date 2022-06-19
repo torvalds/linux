@@ -138,6 +138,7 @@
 #define GPU_COMMAND_CODE_SET_PROTECTED_MODE 0x05 /* Places the GPU in protected mode */
 #define GPU_COMMAND_CODE_FINISH_HALT        0x06 /* Halt CSF */
 #define GPU_COMMAND_CODE_CLEAR_FAULT        0x07 /* Clear GPU_FAULTSTATUS and GPU_FAULTADDRESS, TODX */
+#define GPU_COMMAND_CODE_FLUSH_PA_RANGE 0x08 /* Flush the GPU caches for a physical range, TITX */
 
 /* GPU_COMMAND_RESET payloads */
 
@@ -161,18 +162,29 @@
 #define GPU_COMMAND_TIME_ENABLE  0x01 /* Enable cycle counter */
 
 /* GPU_COMMAND_FLUSH_CACHES payloads bits for L2 caches */
-#define GPU_COMMAND_FLUSH_PAYLOAD_L2_NONE 0x000 /* No flush */
-#define GPU_COMMAND_FLUSH_PAYLOAD_L2_CLEAN 0x001 /* CLN only */
-#define GPU_COMMAND_FLUSH_PAYLOAD_L2_CLEAN_INVALIDATE 0x003 /* CLN + INV */
+#define GPU_COMMAND_FLUSH_CACHES_PAYLOAD_L2_NONE 0x000 /* No flush */
+#define GPU_COMMAND_FLUSH_CACHES_PAYLOAD_L2_CLEAN 0x001 /* CLN only */
+#define GPU_COMMAND_FLUSH_CACHES_PAYLOAD_L2_CLEAN_INVALIDATE 0x003 /* CLN + INV */
 
 /* GPU_COMMAND_FLUSH_CACHES payloads bits for Load-store caches */
-#define GPU_COMMAND_FLUSH_PAYLOAD_LSC_NONE 0x000 /* No flush */
-#define GPU_COMMAND_FLUSH_PAYLOAD_LSC_CLEAN 0x010 /* CLN only */
-#define GPU_COMMAND_FLUSH_PAYLOAD_LSC_CLEAN_INVALIDATE 0x030 /* CLN + INV */
+#define GPU_COMMAND_FLUSH_CACHES_PAYLOAD_LSC_NONE 0x000 /* No flush */
+#define GPU_COMMAND_FLUSH_CACHES_PAYLOAD_LSC_CLEAN 0x010 /* CLN only */
+#define GPU_COMMAND_FLUSH_CACHES_PAYLOAD_LSC_CLEAN_INVALIDATE 0x030 /* CLN + INV */
 
 /* GPU_COMMAND_FLUSH_CACHES payloads bits for Other caches */
-#define GPU_COMMAND_FLUSH_PAYLOAD_OTHER_NONE 0x000 /* No flush */
-#define GPU_COMMAND_FLUSH_PAYLOAD_OTHER_INVALIDATE 0x200 /* INV only */
+#define GPU_COMMAND_FLUSH_CACHES_PAYLOAD_OTHER_NONE 0x000 /* No flush */
+#define GPU_COMMAND_FLUSH_CACHES_PAYLOAD_OTHER_INVALIDATE 0x200 /* INV only */
+
+/* GPU_COMMAND_FLUSH_PA_RANGE payload bits for flush modes */
+#define GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_MODE_NONE 0x00 /* No flush */
+#define GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_MODE_CLEAN 0x01 /* CLN only */
+#define GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_MODE_INVALIDATE 0x02 /* INV only */
+#define GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_MODE_CLEAN_INVALIDATE 0x03 /* CLN + INV */
+
+/* GPU_COMMAND_FLUSH_PA_RANGE payload bits for which caches should be the target of the command */
+#define GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_OTHER_CACHE 0x10 /* Other caches */
+#define GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_LSC_CACHE 0x20 /* Load-store caches */
+#define GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_L2_CACHE 0x40 /* L2 caches */
 
 /* GPU_COMMAND command + payload */
 #define GPU_COMMAND_CODE_PAYLOAD(opcode, payload) \
@@ -200,28 +212,53 @@
 	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_TIME, GPU_COMMAND_TIME_DISABLE)
 
 /* Clean and invalidate L2 cache (Equivalent to FLUSH_PT) */
-#define GPU_COMMAND_CACHE_CLN_INV_L2                                           \
-	GPU_COMMAND_CODE_PAYLOAD(                                              \
-		GPU_COMMAND_CODE_FLUSH_CACHES,                                 \
-		(GPU_COMMAND_FLUSH_PAYLOAD_L2_CLEAN_INVALIDATE |               \
-		 GPU_COMMAND_FLUSH_PAYLOAD_LSC_NONE |                          \
-		 GPU_COMMAND_FLUSH_PAYLOAD_OTHER_NONE))
+#define GPU_COMMAND_CACHE_CLN_INV_L2                                                               \
+	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_FLUSH_CACHES,                                    \
+				 (GPU_COMMAND_FLUSH_CACHES_PAYLOAD_L2_CLEAN_INVALIDATE |           \
+				  GPU_COMMAND_FLUSH_CACHES_PAYLOAD_LSC_NONE |                      \
+				  GPU_COMMAND_FLUSH_CACHES_PAYLOAD_OTHER_NONE))
 
 /* Clean and invalidate L2 and LSC caches (Equivalent to FLUSH_MEM) */
-#define GPU_COMMAND_CACHE_CLN_INV_L2_LSC                                       \
-	GPU_COMMAND_CODE_PAYLOAD(                                              \
-		GPU_COMMAND_CODE_FLUSH_CACHES,                                 \
-		(GPU_COMMAND_FLUSH_PAYLOAD_L2_CLEAN_INVALIDATE |               \
-		 GPU_COMMAND_FLUSH_PAYLOAD_LSC_CLEAN_INVALIDATE |              \
-		 GPU_COMMAND_FLUSH_PAYLOAD_OTHER_NONE))
+#define GPU_COMMAND_CACHE_CLN_INV_L2_LSC                                                           \
+	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_FLUSH_CACHES,                                    \
+				 (GPU_COMMAND_FLUSH_CACHES_PAYLOAD_L2_CLEAN_INVALIDATE |           \
+				  GPU_COMMAND_FLUSH_CACHES_PAYLOAD_LSC_CLEAN_INVALIDATE |          \
+				  GPU_COMMAND_FLUSH_CACHES_PAYLOAD_OTHER_NONE))
 
 /* Clean and invalidate L2, LSC, and Other caches */
-#define GPU_COMMAND_CACHE_CLN_INV_FULL                                         \
-	GPU_COMMAND_CODE_PAYLOAD(                                              \
-		GPU_COMMAND_CODE_FLUSH_CACHES,                                 \
-		(GPU_COMMAND_FLUSH_PAYLOAD_L2_CLEAN_INVALIDATE |               \
-		 GPU_COMMAND_FLUSH_PAYLOAD_LSC_CLEAN_INVALIDATE |              \
-		 GPU_COMMAND_FLUSH_PAYLOAD_OTHER_INVALIDATE))
+#define GPU_COMMAND_CACHE_CLN_INV_FULL                                                             \
+	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_FLUSH_CACHES,                                    \
+				 (GPU_COMMAND_FLUSH_CACHES_PAYLOAD_L2_CLEAN_INVALIDATE |           \
+				  GPU_COMMAND_FLUSH_CACHES_PAYLOAD_LSC_CLEAN_INVALIDATE |          \
+				  GPU_COMMAND_FLUSH_CACHES_PAYLOAD_OTHER_INVALIDATE))
+
+/* Clean and invalidate only LSC cache */
+#define GPU_COMMAND_CACHE_CLN_INV_LSC                                                              \
+	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_FLUSH_CACHES,                                    \
+				  (GPU_COMMAND_FLUSH_CACHES_PAYLOAD_L2_NONE |                      \
+				   GPU_COMMAND_FLUSH_CACHES_PAYLOAD_LSC_CLEAN_INVALIDATE |         \
+				   GPU_COMMAND_FLUSH_CACHES_PAYLOAD_OTHER_NONE))
+
+/* Clean and invalidate physical range L2 cache (equivalent to FLUSH_PT) */
+#define GPU_COMMAND_FLUSH_PA_RANGE_CLN_INV_L2                                                      \
+	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_FLUSH_PA_RANGE,                                  \
+				 (GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_MODE_CLEAN_INVALIDATE |       \
+				  GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_L2_CACHE))
+
+/* Clean and invalidate physical range L2 and LSC cache (equivalent to FLUSH_MEM) */
+#define GPU_COMMAND_FLUSH_PA_RANGE_CLN_INV_L2_LSC                                                  \
+	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_FLUSH_PA_RANGE,                                  \
+				 (GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_MODE_CLEAN_INVALIDATE |       \
+				  GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_LSC_CACHE |                   \
+				  GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_L2_CACHE))
+
+/* Clean and invalidate physical range L2, LSC and Other caches */
+#define GPU_COMMAND_FLUSH_PA_RANGE_CLN_INV_FULL                                                    \
+	GPU_COMMAND_CODE_PAYLOAD(GPU_COMMAND_CODE_FLUSH_PA_RANGE,                                  \
+				 (GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_MODE_CLEAN_INVALIDATE |       \
+				  GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_OTHER_CACHE |                 \
+				  GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_LSC_CACHE |                   \
+				  GPU_COMMAND_FLUSH_PA_RANGE_PAYLOAD_L2_CACHE))
 
 /* Merge cache flush commands */
 #define GPU_COMMAND_FLUSH_CACHE_MERGE(cmd1, cmd2) ((cmd1) | (cmd2))
@@ -302,14 +339,16 @@
 	(((value) << GPU_FAULTSTATUS_ADDRESS_VALID_SHIFT) & GPU_FAULTSTATUS_ADDRESS_VALID_MASK))
 
 /* IRQ flags */
-#define GPU_FAULT               (1 << 0)    /* A GPU Fault has occurred */
-#define GPU_PROTECTED_FAULT     (1 << 1)    /* A GPU fault has occurred in protected mode */
-#define RESET_COMPLETED         (1 << 8)    /* Set when a reset has completed.  */
-#define POWER_CHANGED_SINGLE    (1 << 9)    /* Set when a single core has finished powering up or down. */
-#define POWER_CHANGED_ALL       (1 << 10)   /* Set when all cores have finished powering up or down. */
-#define CLEAN_CACHES_COMPLETED  (1 << 17)   /* Set when a cache clean operation has completed. */
-#define DOORBELL_MIRROR         (1 << 18)   /* Mirrors the doorbell interrupt line to the CPU */
-#define MCU_STATUS_GPU_IRQ      (1 << 19)   /* MCU requires attention */
+#define GPU_FAULT (1 << 0) /* A GPU Fault has occurred */
+#define GPU_PROTECTED_FAULT (1 << 1) /* A GPU fault has occurred in protected mode */
+#define RESET_COMPLETED (1 << 8) /* Set when a reset has completed.  */
+#define POWER_CHANGED_SINGLE (1 << 9) /* Set when a single core has finished powering up or down. */
+#define POWER_CHANGED_ALL (1 << 10) /* Set when all cores have finished powering up or down. */
+#define CLEAN_CACHES_COMPLETED (1 << 17) /* Set when a cache clean operation has completed. */
+#define DOORBELL_MIRROR (1 << 18) /* Mirrors the doorbell interrupt line to the CPU */
+#define MCU_STATUS_GPU_IRQ (1 << 19) /* MCU requires attention */
+#define FLUSH_PA_RANGE_COMPLETED                                                                   \
+	(1 << 20) /* Set when a physical range cache clean operation has completed. */
 
 /*
  * In Debug build,

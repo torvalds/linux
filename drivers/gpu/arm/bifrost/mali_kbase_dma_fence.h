@@ -105,7 +105,7 @@ void kbase_dma_fence_cancel_all_atoms(struct kbase_context *kctx);
  * This function cancels all dma-buf fence callbacks on @katom, but does not
  * cancel the katom itself.
  *
- * The caller is responsible for ensuring that jd_done_nolock is called on
+ * The caller is responsible for ensuring that kbase_jd_done_nolock is called on
  * @katom.
  *
  * Locking: jctx.lock must be held when calling this function.

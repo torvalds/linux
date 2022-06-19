@@ -23,8 +23,7 @@
 #define _UAPI_BASE_MEM_PRIV_H_
 
 #include <linux/types.h>
-
-#include "mali_base_kernel.h"
+#include "mali_base_common_kernel.h"
 
 #define BASE_SYNCSET_OP_MSYNC	(1U << 0)
 #define BASE_SYNCSET_OP_CSYNC	(1U << 1)

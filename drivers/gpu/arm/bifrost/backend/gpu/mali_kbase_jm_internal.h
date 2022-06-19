@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2011-2016, 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2011-2016, 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -76,7 +76,6 @@ static inline int kbasep_jm_is_js_free(struct kbase_device *kbdev, int js,
 }
 #endif
 
-
 /**
  * kbase_job_hw_submit() - Submit a job to the GPU
  * @kbdev:	Device pointer
@@ -88,10 +87,10 @@ static inline int kbasep_jm_is_js_free(struct kbase_device *kbdev, int js,
  *
  * The following locking conditions are made on the caller:
  * - it must hold the hwaccess_lock
+ *
+ * Return: 0 if the job was successfully submitted to hardware, an error otherwise.
  */
-void kbase_job_hw_submit(struct kbase_device *kbdev,
-				struct kbase_jd_atom *katom,
-				int js);
+int kbase_job_hw_submit(struct kbase_device *kbdev, struct kbase_jd_atom *katom, int js);
 
 #if !MALI_USE_CSF
 /**

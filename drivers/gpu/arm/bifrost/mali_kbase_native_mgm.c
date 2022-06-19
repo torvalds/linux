@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -140,6 +140,30 @@ kbase_native_mgm_update_gpu_pte(struct memory_group_manager_device *mgm_dev,
 	return pte;
 }
 
+/**
+ * kbase_native_mgm_pte_to_original_pte - Native method to undo changes done in
+ *                                        kbase_native_mgm_update_gpu_pte()
+ *
+ * @mgm_dev:   The memory group manager the request is being made through.
+ * @group_id:  A physical memory group ID, which must be valid but is not used.
+ *             Its valid range is 0 .. MEMORY_GROUP_MANAGER_NR_GROUPS-1.
+ * @mmu_level: The level of the MMU page table where the page is getting mapped.
+ * @pte:       The prepared page table entry.
+ *
+ * This function simply returns the @pte without modification.
+ *
+ * Return: A GPU page table entry to be stored in a page table.
+ */
+static u64 kbase_native_mgm_pte_to_original_pte(struct memory_group_manager_device *mgm_dev,
+						int group_id, int mmu_level, u64 pte)
+{
+	CSTD_UNUSED(mgm_dev);
+	CSTD_UNUSED(group_id);
+	CSTD_UNUSED(mmu_level);
+
+	return pte;
+}
+
 struct memory_group_manager_device kbase_native_mgm_dev = {
 	.ops = {
 		.mgm_alloc_page = kbase_native_mgm_alloc,
@@ -147,6 +171,7 @@ struct memory_group_manager_device kbase_native_mgm_dev = {
 		.mgm_get_import_memory_id = NULL,
 		.mgm_vmf_insert_pfn_prot = kbase_native_mgm_vmf_insert_pfn_prot,
 		.mgm_update_gpu_pte = kbase_native_mgm_update_gpu_pte,
+		.mgm_pte_to_original_pte = kbase_native_mgm_pte_to_original_pte,
 	},
 	.data = NULL
 };

@@ -939,7 +939,7 @@ static int kbase_pm_mcu_update_state(struct kbase_device *kbdev)
 
 		case KBASE_MCU_ON_PEND_HALT:
 			if (kbase_csf_firmware_mcu_halted(kbdev)) {
-				KBASE_KTRACE_ADD(kbdev, MCU_HALTED, NULL,
+				KBASE_KTRACE_ADD(kbdev, CSF_FIRMWARE_MCU_HALTED, NULL,
 					kbase_csf_ktrace_gpu_cycle_cnt(kbdev));
 				if (kbdev->csf.firmware_hctl_core_pwr)
 					backend->mcu_state =
@@ -986,7 +986,7 @@ static int kbase_pm_mcu_update_state(struct kbase_device *kbdev)
 
 		case KBASE_MCU_ON_PEND_SLEEP:
 			if (kbase_csf_firmware_is_mcu_in_sleep(kbdev)) {
-				KBASE_KTRACE_ADD(kbdev, MCU_IN_SLEEP, NULL,
+				KBASE_KTRACE_ADD(kbdev, CSF_FIRMWARE_MCU_SLEEP, NULL,
 					kbase_csf_ktrace_gpu_cycle_cnt(kbdev));
 				backend->mcu_state = KBASE_MCU_IN_SLEEP;
 				kbase_pm_enable_db_mirror_interrupt(kbdev);
@@ -1108,13 +1108,24 @@ static bool can_power_down_l2(struct kbase_device *kbdev)
 #endif
 }
 
+static bool need_tiler_control(struct kbase_device *kbdev)
+{
+#if MALI_USE_CSF
+	if (kbase_pm_no_mcu_core_pwroff(kbdev))
+		return true;
+	else
+		return false;
+#else
+	return true;
+#endif
+}
+
 static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 {
 	struct kbase_pm_backend_data *backend = &kbdev->pm.backend;
 	u64 l2_present = kbdev->gpu_props.curr_config.l2_present;
-#if !MALI_USE_CSF
 	u64 tiler_present = kbdev->gpu_props.props.raw_props.tiler_present;
-#endif
+	bool l2_power_up_done;
 	enum kbase_l2_core_state prev_state;
 
 	lockdep_assert_held(&kbdev->hwaccess_lock);
@@ -1125,24 +1136,18 @@ static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 				KBASE_PM_CORE_L2);
 		u64 l2_ready = kbase_pm_get_ready_cores(kbdev,
 				KBASE_PM_CORE_L2);
-
-#if !MALI_USE_CSF
-		u64 tiler_trans = kbase_pm_get_trans_cores(kbdev,
-				KBASE_PM_CORE_TILER);
-		u64 tiler_ready = kbase_pm_get_ready_cores(kbdev,
-				KBASE_PM_CORE_TILER);
-#endif
+#ifdef CONFIG_MALI_ARBITER_SUPPORT
+		u64 tiler_trans = kbase_pm_get_trans_cores(
+				kbdev, KBASE_PM_CORE_TILER);
+		u64 tiler_ready = kbase_pm_get_ready_cores(
+				kbdev, KBASE_PM_CORE_TILER);
 
 		/*
 		 * kbase_pm_get_ready_cores and kbase_pm_get_trans_cores
 		 * are vulnerable to corruption if gpu is lost
 		 */
 		if (kbase_is_gpu_removed(kbdev)
-#ifdef CONFIG_MALI_ARBITER_SUPPORT
 				|| kbase_pm_is_gpu_lost(kbdev)) {
-#else
-				) {
-#endif
 			backend->shaders_state =
 				KBASE_SHADERS_OFF_CORESTACK_OFF;
 			backend->hwcnt_desired = false;
@@ -1165,14 +1170,13 @@ static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 			}
 			break;
 		}
+#endif /* CONFIG_MALI_ARBITER_SUPPORT */
 
 		/* mask off ready from trans in case transitions finished
 		 * between the register reads
 		 */
 		l2_trans &= ~l2_ready;
-#if !MALI_USE_CSF
-		tiler_trans &= ~tiler_ready;
-#endif
+
 		prev_state = backend->l2_state;
 
 		switch (backend->l2_state) {
@@ -1184,13 +1188,21 @@ static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 				 */
 				kbase_pm_l2_config_override(kbdev);
 				kbase_pbha_write_settings(kbdev);
-#if !MALI_USE_CSF
-				/* L2 is required, power on.  Powering on the
-				 * tiler will also power the first L2 cache.
-				 */
-				kbase_pm_invoke(kbdev, KBASE_PM_CORE_TILER,
-						tiler_present, ACTION_PWRON);
 
+				/* If Host is controlling the power for shader
+				 * cores, then it also needs to control the
+				 * power for Tiler.
+				 * Powering on the tiler will also power the
+				 * L2 cache.
+				 */
+				if (need_tiler_control(kbdev)) {
+					kbase_pm_invoke(kbdev, KBASE_PM_CORE_TILER, tiler_present,
+							ACTION_PWRON);
+				} else {
+					kbase_pm_invoke(kbdev, KBASE_PM_CORE_L2, l2_present,
+							ACTION_PWRON);
+				}
+#if !MALI_USE_CSF
 				/* If we have more than one L2 cache then we
 				 * must power them on explicitly.
 				 */
@@ -1200,30 +1212,36 @@ static int kbase_pm_l2_update_state(struct kbase_device *kbdev)
 							ACTION_PWRON);
 				/* Clear backend slot submission kctx */
 				kbase_pm_l2_clear_backend_slot_submit_kctx(kbdev);
-#else
-				/* With CSF firmware, Host driver doesn't need to
-				 * handle power management with both shader and tiler cores.
-				 * The CSF firmware will power up the cores appropriately.
-				 * So only power the l2 cache explicitly.
-				 */
-				kbase_pm_invoke(kbdev, KBASE_PM_CORE_L2,
-						l2_present, ACTION_PWRON);
 #endif
 				backend->l2_state = KBASE_L2_PEND_ON;
 			}
 			break;
 
 		case KBASE_L2_PEND_ON:
-#if !MALI_USE_CSF
-			if (!l2_trans && l2_ready == l2_present && !tiler_trans
-					&& tiler_ready == tiler_present) {
-				KBASE_KTRACE_ADD(kbdev, PM_CORES_CHANGE_AVAILABLE_TILER, NULL,
-						tiler_ready);
-#else
+			l2_power_up_done = false;
 			if (!l2_trans && l2_ready == l2_present) {
-				KBASE_KTRACE_ADD(kbdev, PM_CORES_CHANGE_AVAILABLE_L2, NULL,
-						l2_ready);
+				if (need_tiler_control(kbdev)) {
+#ifndef CONFIG_MALI_ARBITER_SUPPORT
+					u64 tiler_trans = kbase_pm_get_trans_cores(
+						kbdev, KBASE_PM_CORE_TILER);
+					u64 tiler_ready = kbase_pm_get_ready_cores(
+						kbdev, KBASE_PM_CORE_TILER);
 #endif
+
+					tiler_trans &= ~tiler_ready;
+					if (!tiler_trans && tiler_ready == tiler_present) {
+						KBASE_KTRACE_ADD(kbdev,
+								 PM_CORES_CHANGE_AVAILABLE_TILER,
+								 NULL, tiler_ready);
+						l2_power_up_done = true;
+					}
+				} else {
+					KBASE_KTRACE_ADD(kbdev, PM_CORES_CHANGE_AVAILABLE_L2, NULL,
+							 l2_ready);
+					l2_power_up_done = true;
+				}
+			}
+			if (l2_power_up_done) {
 				/*
 				 * Ensure snoops are enabled after L2 is powered
 				 * up. Note that kbase keeps track of the snoop
@@ -2248,12 +2266,14 @@ int kbase_pm_wait_for_l2_powered(struct kbase_device *kbdev)
 
 	/* Wait for cores */
 #if KERNEL_VERSION(4, 13, 1) <= LINUX_VERSION_CODE
-	remaining = wait_event_killable_timeout(
+	remaining = wait_event_killable_timeout(kbdev->pm.backend.gpu_in_desired_state_wait,
+						kbase_pm_is_in_desired_state_with_l2_powered(kbdev),
+						timeout);
 #else
 	remaining = wait_event_timeout(
-#endif
 		kbdev->pm.backend.gpu_in_desired_state_wait,
 		kbase_pm_is_in_desired_state_with_l2_powered(kbdev), timeout);
+#endif
 
 	if (!remaining) {
 		kbase_pm_timed_out(kbdev);

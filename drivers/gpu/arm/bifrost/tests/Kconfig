@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 #
-# (C) COPYRIGHT 2017, 2020-2021 ARM Limited. All rights reserved.
+# (C) COPYRIGHT 2017, 2020-2022 ARM Limited. All rights reserved.
 #
 # This program is free software and is provided to you under the terms of the
 # GNU General Public License version 2 as published by the Free Software
@@ -51,6 +51,18 @@ config MALI_KUTF_CLK_RATE_TRACE
 
 	  Modules:
 	    - mali_kutf_clk_rate_trace_test_portal.ko
+
+config MALI_KUTF_MGM_INTEGRATION_TEST
+	bool "Build Mali KUTF MGM integration test module"
+	depends on MALI_KUTF
+	default y
+	help
+	  This option will build the MGM integration test module.
+	  It can test the implementation of PTE translation for specific
+	  group ids.
+
+	  Modules:
+	    - mali_kutf_mgm_integration_test.ko
 
 
 comment "Enable MALI_BIFROST_DEBUG for KUTF modules support"

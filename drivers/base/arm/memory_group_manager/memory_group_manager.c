@@ -42,18 +42,7 @@
 static inline vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma,
 			unsigned long addr, unsigned long pfn, pgprot_t pgprot)
 {
-	int err;
-
-#if ((KERNEL_VERSION(4, 4, 147) >= LINUX_VERSION_CODE) || \
-		((KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE) && \
-		 (KERNEL_VERSION(4, 5, 0) <= LINUX_VERSION_CODE)))
-	if (pgprot_val(pgprot) != pgprot_val(vma->vm_page_prot))
-		return VM_FAULT_SIGBUS;
-
-	err = vm_insert_pfn(vma, addr, pfn);
-#else
-	err = vm_insert_pfn_prot(vma, addr, pfn, pgprot);
-#endif
+	int err = vm_insert_pfn_prot(vma, addr, pfn, pgprot);
 
 	if (unlikely(err == -ENOMEM))
 		return VM_FAULT_OOM;
@@ -63,6 +52,10 @@ static inline vm_fault_t vmf_insert_pfn_prot(struct vm_area_struct *vma,
 	return VM_FAULT_NOPAGE;
 }
 #endif
+
+#define PTE_PBHA_SHIFT (59)
+#define PTE_PBHA_MASK ((uint64_t)0xf << PTE_PBHA_SHIFT)
+#define PTE_RES_BIT_MULTI_AS_SHIFT (63)
 
 #define IMPORTED_MEMORY_ID (MEMORY_GROUP_MANAGER_NR_GROUPS - 1)
 
@@ -335,8 +328,6 @@ static u64 example_mgm_update_gpu_pte(
 	int const mmu_level, u64 pte)
 {
 	struct mgm_groups *const data = mgm_dev->data;
-	const u32 pbha_bit_pos = 59; /* bits 62:59 */
-	const u32 pbha_bit_mask = 0xf; /* 4-bit */
 
 	dev_dbg(data->dev,
 		"%s(mgm_dev=%p, group_id=%d, mmu_level=%d, pte=0x%llx)\n",
@@ -346,9 +337,23 @@ static u64 example_mgm_update_gpu_pte(
 		WARN_ON(group_id >= MEMORY_GROUP_MANAGER_NR_GROUPS))
 		return pte;
 
-	pte |= ((u64)group_id & pbha_bit_mask) << pbha_bit_pos;
+	pte |= ((u64)group_id << PTE_PBHA_SHIFT) & PTE_PBHA_MASK;
+
+	/* Address could be translated into a different bus address here */
+	pte |= ((u64)1 << PTE_RES_BIT_MULTI_AS_SHIFT);
 
 	data->groups[group_id].update_gpu_pte++;
+
+	return pte;
+}
+
+static u64 example_mgm_pte_to_original_pte(struct memory_group_manager_device *const mgm_dev,
+					   int const group_id, int const mmu_level, u64 pte)
+{
+	/* Undo the group ID modification */
+	pte &= ~PTE_PBHA_MASK;
+	/* Undo the bit set */
+	pte &= ~((u64)1 << PTE_RES_BIT_MULTI_AS_SHIFT);
 
 	return pte;
 }
@@ -428,6 +433,7 @@ static int memory_group_manager_probe(struct platform_device *pdev)
 			example_mgm_get_import_memory_id;
 	mgm_dev->ops.mgm_vmf_insert_pfn_prot = example_mgm_vmf_insert_pfn_prot;
 	mgm_dev->ops.mgm_update_gpu_pte = example_mgm_update_gpu_pte;
+	mgm_dev->ops.mgm_pte_to_original_pte = example_mgm_pte_to_original_pte;
 
 	mgm_data = kzalloc(sizeof(*mgm_data), GFP_KERNEL);
 	if (!mgm_data) {

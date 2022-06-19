@@ -261,6 +261,8 @@ enum kbase_queue_group_priority {
  * @CSF_GPU_RESET_TIMEOUT: Waiting timeout for GPU reset to complete.
  * @CSF_CSG_SUSPEND_TIMEOUT: Timeout given for all active CSGs to be suspended.
  * @CSF_FIRMWARE_BOOT_TIMEOUT: Maximum time to wait for firmware to boot.
+ * @CSF_FIRMWARE_PING_TIMEOUT: Maximum time to wait for firmware to respond
+ *                             to a ping from KBase.
  * @CSF_SCHED_PROTM_PROGRESS_TIMEOUT: Timeout used to prevent protected mode execution hang.
  * @KBASE_TIMEOUT_SELECTOR_COUNT: Number of timeout selectors. Must be last in
  *                                the enum.
@@ -271,6 +273,7 @@ enum kbase_timeout_selector {
 	CSF_GPU_RESET_TIMEOUT,
 	CSF_CSG_SUSPEND_TIMEOUT,
 	CSF_FIRMWARE_BOOT_TIMEOUT,
+	CSF_FIRMWARE_PING_TIMEOUT,
 	CSF_SCHED_PROTM_PROGRESS_TIMEOUT,
 
 	/* Must be the last in the enum */
@@ -452,6 +455,7 @@ struct kbase_protected_suspend_buffer {
  *                  allowed to use.
  * @compute_max:    Maximum number of compute endpoints the group is
  *                  allowed to use.
+ * @csi_handlers:   Requested CSI exception handler flags for the group.
  * @tiler_mask:     Mask of tiler endpoints the group is allowed to use.
  * @fragment_mask:  Mask of fragment endpoints the group is allowed to use.
  * @compute_mask:   Mask of compute endpoints the group is allowed to use.
@@ -473,6 +477,10 @@ struct kbase_protected_suspend_buffer {
  * @faulted:          Indicates that a GPU fault occurred for the queue group.
  *                    This flag persists until the fault has been queued to be
  *                    reported to userspace.
+ * @reevaluate_idle_status : Flag set when work is submitted for the normal group
+ *                           or it becomes unblocked during protected mode. The
+ *                           flag helps Scheduler confirm if the group actually
+ *                           became non idle or not.
  * @bound_queues:   Array of registered queues bound to this queue group.
  * @doorbell_nr:    Index of the hardware doorbell page assigned to the
  *                  group.
@@ -500,6 +508,7 @@ struct kbase_queue_group {
 	u8 tiler_max;
 	u8 fragment_max;
 	u8 compute_max;
+	u8 csi_handlers;
 
 	u64 tiler_mask;
 	u64 fragment_mask;
@@ -513,6 +522,7 @@ struct kbase_queue_group {
 	u32 prepared_seq_num;
 	u32 scan_seq_num;
 	bool faulted;
+	bool reevaluate_idle_status;
 
 	struct kbase_queue *bound_queues[MAX_SUPPORTED_STREAMS_PER_GROUP];
 

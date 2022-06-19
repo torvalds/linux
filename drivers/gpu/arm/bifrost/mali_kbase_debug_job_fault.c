@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2012-2016, 2018-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2016, 2018-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -87,8 +87,7 @@ static bool kbase_ctx_has_no_event_pending(struct kbase_context *kctx)
 
 static int wait_for_job_fault(struct kbase_device *kbdev)
 {
-#if KERNEL_VERSION(4, 7, 0) <= LINUX_VERSION_CODE && \
-	KERNEL_VERSION(4, 15, 0) > LINUX_VERSION_CODE
+#if KERNEL_VERSION(4, 15, 0) > LINUX_VERSION_CODE
 	int ret = wait_event_interruptible_timeout(kbdev->job_fault_wq,
 			kbase_is_job_fault_event_pending(kbdev),
 			msecs_to_jiffies(2000));

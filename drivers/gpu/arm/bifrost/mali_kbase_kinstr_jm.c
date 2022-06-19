@@ -45,6 +45,7 @@
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 #include <linux/version.h>
+#include <linux/version_compat_defs.h>
 #include <linux/wait.h>
 
 /* Define static_assert().
@@ -58,10 +59,6 @@
 // Stringify the expression if no message is given.
 #define static_assert(e, ...)  __static_assert(e, #__VA_ARGS__, #e)
 #define __static_assert(e, msg, ...) _Static_assert(e, msg)
-#endif
-
-#if KERNEL_VERSION(4, 16, 0) >= LINUX_VERSION_CODE
-typedef unsigned int __poll_t;
 #endif
 
 #ifndef ENOTSUP
@@ -637,11 +634,11 @@ static __poll_t reader_poll(struct file *const file,
 	struct reader_changes *changes;
 
 	if (unlikely(!file || !wait))
-		return -EINVAL;
+		return (__poll_t)-EINVAL;
 
 	reader = file->private_data;
 	if (unlikely(!reader))
-		return -EBADF;
+		return (__poll_t)-EBADF;
 
 	changes = &reader->changes;
 

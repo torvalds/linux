@@ -26,13 +26,17 @@
 #include <mali_kbase_mem.h>
 #include <mmu/mali_kbase_mmu_hw.h>
 #include <tl/mali_kbase_tracepoints.h>
+#include <linux/delay.h>
+
 
 /**
  * lock_region() - Generate lockaddr to lock memory region in MMU
- * @gpu_props: GPU properties for finding the MMU lock region size
- * @pfn:       Starting page frame number of the region to lock
- * @num_pages: Number of pages to lock. It must be greater than 0.
- * @lockaddr:  Address and size of memory region to lock
+ *
+ * @gpu_props: GPU properties for finding the MMU lock region size.
+ * @lockaddr:  Address and size of memory region to lock.
+ * @op_param:  Pointer to a struct containing the starting page frame number of
+ *             the region to lock, the number of pages to lock and page table
+ *             levels to skip when flushing (if supported).
  *
  * The lockaddr value is a combination of the starting address and
  * the size of the region that encompasses all the memory pages to lock.
@@ -63,14 +67,14 @@
  *
  * Return: 0 if success, or an error code on failure.
  */
-static int lock_region(struct kbase_gpu_props const *gpu_props, u64 pfn, u32 num_pages,
-		       u64 *lockaddr)
+static int lock_region(struct kbase_gpu_props const *gpu_props, u64 *lockaddr,
+		       const struct kbase_mmu_hw_op_param *op_param)
 {
-	const u64 lockaddr_base = pfn << PAGE_SHIFT;
-	const u64 lockaddr_end = ((pfn + num_pages) << PAGE_SHIFT) - 1;
+	const u64 lockaddr_base = op_param->vpfn << PAGE_SHIFT;
+	const u64 lockaddr_end = ((op_param->vpfn + op_param->nr) << PAGE_SHIFT) - 1;
 	u64 lockaddr_size_log2;
 
-	if (num_pages == 0)
+	if (op_param->nr == 0)
 		return -EINVAL;
 
 	/* The MMU lock region is a self-aligned region whose size
@@ -122,7 +126,6 @@ static int lock_region(struct kbase_gpu_props const *gpu_props, u64 pfn, u32 num
 	 */
 	*lockaddr = lockaddr_base & ~((1ull << lockaddr_size_log2) - 1);
 	*lockaddr |= lockaddr_size_log2 - 1;
-
 	return 0;
 }
 
@@ -164,6 +167,100 @@ static int write_cmd(struct kbase_device *kbdev, int as_nr, u32 cmd)
 
 	return status;
 }
+
+#if MALI_USE_CSF && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+static int wait_cores_power_trans_complete(struct kbase_device *kbdev)
+{
+#define WAIT_TIMEOUT 1000 /* 1ms timeout */
+#define DELAY_TIME_IN_US 1
+	const int max_iterations = WAIT_TIMEOUT;
+	int loop;
+
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	for (loop = 0; loop < max_iterations; loop++) {
+		u32 lo =
+		    kbase_reg_read(kbdev, GPU_CONTROL_REG(SHADER_PWRTRANS_LO));
+		u32 hi =
+		    kbase_reg_read(kbdev, GPU_CONTROL_REG(SHADER_PWRTRANS_HI));
+
+		if (!lo && !hi)
+			break;
+
+		udelay(DELAY_TIME_IN_US);
+	}
+
+	if (loop == max_iterations) {
+		dev_warn(kbdev->dev, "SHADER_PWRTRANS set for too long");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
+/**
+ * apply_hw_issue_GPU2019_3901_wa - Apply WA for the HW issue GPU2019_3901
+ *
+ * @kbdev:             Kbase device to issue the MMU operation on.
+ * @mmu_cmd:           Pointer to the variable contain the value of MMU command
+ *                     that needs to be sent to flush the L2 cache and do an
+ *                     implicit unlock.
+ * @as_nr:             Address space number for which MMU command needs to be
+ *                     sent.
+ * @hwaccess_locked:   Flag to indicate if hwaccess_lock is held by the caller.
+ *
+ * This functions ensures that the flush of LSC is not missed for the pages that
+ * were unmapped from the GPU, due to the power down transition of shader cores.
+ *
+ * Return: 0 if the WA was successfully applied, non-zero otherwise.
+ */
+static int apply_hw_issue_GPU2019_3901_wa(struct kbase_device *kbdev,
+			u32 *mmu_cmd, unsigned int as_nr, bool hwaccess_locked)
+{
+	unsigned long flags = 0;
+	int ret = 0;
+
+	if (!hwaccess_locked)
+		spin_lock_irqsave(&kbdev->hwaccess_lock, flags);
+
+	/* Check if L2 is OFF. The cores also must be OFF if L2 is not up, so
+	 * the workaround can be safely skipped.
+	 */
+	if (kbdev->pm.backend.l2_state != KBASE_L2_OFF) {
+		if (*mmu_cmd != AS_COMMAND_FLUSH_MEM) {
+			dev_warn(kbdev->dev,
+				 "Unexpected mmu command received");
+			ret = -EINVAL;
+			goto unlock;
+		}
+
+		/* Wait for the LOCK MMU command to complete, issued by the caller */
+		ret = wait_ready(kbdev, as_nr);
+		if (ret)
+			goto unlock;
+
+		ret = kbase_gpu_cache_flush_and_busy_wait(kbdev,
+				GPU_COMMAND_CACHE_CLN_INV_LSC);
+		if (ret)
+			goto unlock;
+
+		ret = wait_cores_power_trans_complete(kbdev);
+		if (ret)
+			goto unlock;
+
+		/* As LSC is guaranteed to have been flushed we can use FLUSH_PT
+		 * MMU command to only flush the L2.
+		 */
+		*mmu_cmd = AS_COMMAND_FLUSH_PT;
+	}
+
+unlock:
+	if (!hwaccess_locked)
+		spin_unlock_irqrestore(&kbdev->hwaccess_lock, flags);
+
+	return ret;
+}
+#endif
 
 void kbase_mmu_hw_configure(struct kbase_device *kbdev, struct kbase_as *as)
 {
@@ -222,93 +319,243 @@ void kbase_mmu_hw_configure(struct kbase_device *kbdev, struct kbase_as *as)
 #endif
 }
 
-int kbase_mmu_hw_do_operation(struct kbase_device *kbdev, struct kbase_as *as,
-			      struct kbase_mmu_hw_op_param *op_param)
+/**
+ * mmu_command_instr - Record an MMU command for instrumentation purposes.
+ *
+ * @kbdev:          Kbase device used to issue MMU operation on.
+ * @kctx_id:        Kernel context ID for MMU command tracepoint.
+ * @cmd:            Command issued to the MMU.
+ * @lock_addr:      Address of memory region locked for the operation.
+ * @mmu_sync_info:  Indicates whether this call is synchronous wrt MMU ops.
+ */
+static void mmu_command_instr(struct kbase_device *kbdev, u32 kctx_id, u32 cmd, u64 lock_addr,
+				    enum kbase_caller_mmu_sync_info mmu_sync_info)
+{
+	u64 lock_addr_base = AS_LOCKADDR_LOCKADDR_BASE_GET(lock_addr);
+	u32 lock_addr_size = AS_LOCKADDR_LOCKADDR_SIZE_GET(lock_addr);
+
+	bool is_mmu_synchronous = (mmu_sync_info == CALLER_MMU_SYNC);
+
+	KBASE_TLSTREAM_AUX_MMU_COMMAND(kbdev, kctx_id, cmd, is_mmu_synchronous, lock_addr_base,
+				       lock_addr_size);
+}
+
+/* Helper function to program the LOCKADDR register before LOCK/UNLOCK command
+ * is issued.
+ */
+static int mmu_hw_set_lock_addr(struct kbase_device *kbdev, int as_nr, u64 *lock_addr,
+				const struct kbase_mmu_hw_op_param *op_param)
+{
+	int ret;
+
+	ret = lock_region(&kbdev->gpu_props, lock_addr, op_param);
+
+	if (!ret) {
+		/* Set the region that needs to be updated */
+		kbase_reg_write(kbdev, MMU_AS_REG(as_nr, AS_LOCKADDR_LO),
+				*lock_addr & 0xFFFFFFFFUL);
+		kbase_reg_write(kbdev, MMU_AS_REG(as_nr, AS_LOCKADDR_HI),
+				(*lock_addr >> 32) & 0xFFFFFFFFUL);
+	}
+	return ret;
+}
+
+/**
+ * mmu_hw_do_lock_no_wait - Issue LOCK command to the MMU and return without
+ *                          waiting for it's completion.
+ *
+ * @kbdev:      Kbase device to issue the MMU operation on.
+ * @as:         Address space to issue the MMU operation on.
+ * @lock_addr:  Address of memory region locked for this operation.
+ * @op_param:   Pointer to a struct containing information about the MMU operation.
+ *
+ * Return: 0 if issuing the command was successful, otherwise an error code.
+ */
+static int mmu_hw_do_lock_no_wait(struct kbase_device *kbdev, struct kbase_as *as, u64 *lock_addr,
+				  const struct kbase_mmu_hw_op_param *op_param)
+{
+	int ret;
+
+	ret = mmu_hw_set_lock_addr(kbdev, as->number, lock_addr, op_param);
+
+	if (!ret)
+		write_cmd(kbdev, as->number, AS_COMMAND_LOCK);
+
+	return ret;
+}
+
+static int mmu_hw_do_lock(struct kbase_device *kbdev, struct kbase_as *as,
+			  const struct kbase_mmu_hw_op_param *op_param)
 {
 	int ret;
 	u64 lock_addr = 0x0;
 
-	if (WARN_ON(kbdev == NULL) ||
-	    WARN_ON(as == NULL) ||
-	    WARN_ON(op_param == NULL))
+	if (WARN_ON(kbdev == NULL) || WARN_ON(as == NULL))
 		return -EINVAL;
 
-	lockdep_assert_held(&kbdev->mmu_hw_mutex);
+	ret = mmu_hw_do_lock_no_wait(kbdev, as, &lock_addr, op_param);
 
-	if (op_param->op == KBASE_MMU_OP_UNLOCK) {
-		/* Unlock doesn't require a lock first */
-		ret = write_cmd(kbdev, as->number, AS_COMMAND_UNLOCK);
-
-		/* Wait for UNLOCK command to complete */
+	if (!ret)
 		ret = wait_ready(kbdev, as->number);
 
-		if (!ret) {
-			/* read MMU_AS_CONTROL.LOCKADDR register */
-			lock_addr |= (u64)kbase_reg_read(kbdev,
-				MMU_AS_REG(as->number, AS_LOCKADDR_HI)) << 32;
-			lock_addr |= (u64)kbase_reg_read(kbdev,
-				MMU_AS_REG(as->number, AS_LOCKADDR_LO));
-		}
-	} else if (op_param->op >= KBASE_MMU_OP_FIRST &&
-		   op_param->op < KBASE_MMU_OP_COUNT) {
-		ret = lock_region(&kbdev->gpu_props, op_param->vpfn, op_param->nr, &lock_addr);
+	if (!ret)
+		mmu_command_instr(kbdev, op_param->kctx_id, AS_COMMAND_LOCK, lock_addr,
+				  op_param->mmu_sync_info);
 
-		if (!ret) {
-			/* Lock the region that needs to be updated */
-			kbase_reg_write(kbdev,
-				MMU_AS_REG(as->number, AS_LOCKADDR_LO),
-				lock_addr & 0xFFFFFFFFUL);
-			kbase_reg_write(kbdev,
-				MMU_AS_REG(as->number, AS_LOCKADDR_HI),
-				(lock_addr >> 32) & 0xFFFFFFFFUL);
-			write_cmd(kbdev, as->number, AS_COMMAND_LOCK);
+	return ret;
+}
 
-			/* Translate and send operation to HW */
-			switch (op_param->op) {
-			case KBASE_MMU_OP_FLUSH_PT:
-				write_cmd(kbdev, as->number,
-					  AS_COMMAND_FLUSH_PT);
-				break;
-			case KBASE_MMU_OP_FLUSH_MEM:
-				write_cmd(kbdev, as->number,
-					  AS_COMMAND_FLUSH_MEM);
-				break;
-			case KBASE_MMU_OP_LOCK:
-				/* No further operation. */
-				break;
-			default:
-				dev_warn(kbdev->dev,
-					 "Unsupported MMU operation (op=%d).\n",
-					 op_param->op);
-				return -EINVAL;
-			};
+int kbase_mmu_hw_do_unlock_no_addr(struct kbase_device *kbdev, struct kbase_as *as,
+				   const struct kbase_mmu_hw_op_param *op_param)
+{
+	int ret = 0;
 
-			/* Wait for the command to complete */
-			ret = wait_ready(kbdev, as->number);
-		}
-	} else {
-		/* Code should not reach here. */
-		dev_warn(kbdev->dev, "Invalid mmu operation (op=%d).\n",
-			 op_param->op);
+	if (WARN_ON(kbdev == NULL) || WARN_ON(as == NULL))
 		return -EINVAL;
-	}
 
-	/* MMU command instrumentation */
+	ret = write_cmd(kbdev, as->number, AS_COMMAND_UNLOCK);
+
+	/* Wait for UNLOCK command to complete */
+	if (!ret)
+		ret = wait_ready(kbdev, as->number);
+
 	if (!ret) {
-		u64 lock_addr_base = AS_LOCKADDR_LOCKADDR_BASE_GET(lock_addr);
-		u32 lock_addr_size = AS_LOCKADDR_LOCKADDR_SIZE_GET(lock_addr);
+		u64 lock_addr = 0x0;
+		/* read MMU_AS_CONTROL.LOCKADDR register */
+		lock_addr |= (u64)kbase_reg_read(kbdev, MMU_AS_REG(as->number, AS_LOCKADDR_HI))
+			     << 32;
+		lock_addr |= (u64)kbase_reg_read(kbdev, MMU_AS_REG(as->number, AS_LOCKADDR_LO));
 
-		bool is_mmu_synchronous = false;
-
-		if (op_param->mmu_sync_info == CALLER_MMU_SYNC)
-			is_mmu_synchronous = true;
-
-		KBASE_TLSTREAM_AUX_MMU_COMMAND(kbdev, op_param->kctx_id,
-					       op_param->op, is_mmu_synchronous,
-					       lock_addr_base, lock_addr_size);
+		mmu_command_instr(kbdev, op_param->kctx_id, AS_COMMAND_UNLOCK,
+				  lock_addr, op_param->mmu_sync_info);
 	}
 
 	return ret;
+}
+
+int kbase_mmu_hw_do_unlock(struct kbase_device *kbdev, struct kbase_as *as,
+			   const struct kbase_mmu_hw_op_param *op_param)
+{
+	int ret = 0;
+	u64 lock_addr = 0x0;
+
+	if (WARN_ON(kbdev == NULL) || WARN_ON(as == NULL))
+		return -EINVAL;
+
+	ret = mmu_hw_set_lock_addr(kbdev, as->number, &lock_addr, op_param);
+
+	if (!ret)
+		ret = kbase_mmu_hw_do_unlock_no_addr(kbdev, as,
+						     op_param);
+
+	return ret;
+}
+
+static int mmu_hw_do_flush(struct kbase_device *kbdev, struct kbase_as *as,
+	const struct kbase_mmu_hw_op_param *op_param, bool hwaccess_locked)
+{
+	int ret;
+	u64 lock_addr = 0x0;
+	u32 mmu_cmd = AS_COMMAND_FLUSH_MEM;
+
+	if (WARN_ON(kbdev == NULL) || WARN_ON(as == NULL))
+		return -EINVAL;
+
+	/* MMU operations can be either FLUSH_PT or FLUSH_MEM, anything else at
+	 * this point would be unexpected.
+	 */
+	if (op_param->op != KBASE_MMU_OP_FLUSH_PT &&
+	    op_param->op != KBASE_MMU_OP_FLUSH_MEM) {
+		dev_err(kbdev->dev, "Unexpected flush operation received");
+		return -EINVAL;
+	}
+
+	lockdep_assert_held(&kbdev->mmu_hw_mutex);
+
+	if (op_param->op == KBASE_MMU_OP_FLUSH_PT)
+		mmu_cmd = AS_COMMAND_FLUSH_PT;
+
+	/* Lock the region that needs to be updated */
+	ret = mmu_hw_do_lock_no_wait(kbdev, as, &lock_addr, op_param);
+	if (ret)
+		return ret;
+
+#if MALI_USE_CSF && !IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
+	/* WA for the BASE_HW_ISSUE_GPU2019_3901. No runtime check is used here
+	 * as the WA is applicable to all CSF GPUs where FLUSH_MEM/PT command is
+	 * supported, and this function doesn't gets called for the GPUs where
+	 * FLUSH_MEM/PT command is deprecated.
+	 */
+	if (mmu_cmd == AS_COMMAND_FLUSH_MEM) {
+		ret = apply_hw_issue_GPU2019_3901_wa(kbdev, &mmu_cmd,
+						as->number, hwaccess_locked);
+		if (ret)
+			return ret;
+	}
+#endif
+
+	write_cmd(kbdev, as->number, mmu_cmd);
+
+	/* Wait for the command to complete */
+	ret = wait_ready(kbdev, as->number);
+
+	if (!ret)
+		mmu_command_instr(kbdev, op_param->kctx_id, mmu_cmd, lock_addr,
+				  op_param->mmu_sync_info);
+
+	return ret;
+}
+
+int kbase_mmu_hw_do_flush_locked(struct kbase_device *kbdev, struct kbase_as *as,
+				 const struct kbase_mmu_hw_op_param *op_param)
+{
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+
+	return mmu_hw_do_flush(kbdev, as, op_param, true);
+}
+
+int kbase_mmu_hw_do_flush(struct kbase_device *kbdev, struct kbase_as *as,
+			  const struct kbase_mmu_hw_op_param *op_param)
+{
+	return mmu_hw_do_flush(kbdev, as, op_param, false);
+}
+
+int kbase_mmu_hw_do_flush_on_gpu_ctrl(struct kbase_device *kbdev, struct kbase_as *as,
+				      const struct kbase_mmu_hw_op_param *op_param)
+{
+	int ret, ret2;
+	u32 gpu_cmd = GPU_COMMAND_CACHE_CLN_INV_L2_LSC;
+
+	if (WARN_ON(kbdev == NULL) || WARN_ON(as == NULL))
+		return -EINVAL;
+
+	/* MMU operations can be either FLUSH_PT or FLUSH_MEM, anything else at
+	 * this point would be unexpected.
+	 */
+	if (op_param->op != KBASE_MMU_OP_FLUSH_PT &&
+	    op_param->op != KBASE_MMU_OP_FLUSH_MEM) {
+		dev_err(kbdev->dev, "Unexpected flush operation received");
+		return -EINVAL;
+	}
+
+	lockdep_assert_held(&kbdev->hwaccess_lock);
+	lockdep_assert_held(&kbdev->mmu_hw_mutex);
+
+	if (op_param->op == KBASE_MMU_OP_FLUSH_PT)
+		gpu_cmd = GPU_COMMAND_CACHE_CLN_INV_L2;
+
+	/* 1. Issue MMU_AS_CONTROL.COMMAND.LOCK operation. */
+	ret = mmu_hw_do_lock(kbdev, as, op_param);
+	if (ret)
+		return ret;
+
+	/* 2. Issue GPU_CONTROL.COMMAND.FLUSH_CACHES operation */
+	ret = kbase_gpu_cache_flush_and_busy_wait(kbdev, gpu_cmd);
+
+	/* 3. Issue MMU_AS_CONTROL.COMMAND.UNLOCK operation. */
+	ret2 = kbase_mmu_hw_do_unlock_no_addr(kbdev, as, op_param);
+
+	return ret ?: ret2;
 }
 
 void kbase_mmu_hw_clear_fault(struct kbase_device *kbdev, struct kbase_as *as,

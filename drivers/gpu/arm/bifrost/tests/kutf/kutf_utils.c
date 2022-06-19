@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014, 2017, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014, 2017, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -31,7 +31,7 @@
 
 static char tmp_buffer[KUTF_MAX_DSPRINTF_LEN];
 
-DEFINE_MUTEX(buffer_lock);
+static DEFINE_MUTEX(buffer_lock);
 
 const char *kutf_dsprintf(struct kutf_mempool *pool,
 		const char *fmt, ...)

@@ -128,6 +128,16 @@ struct memory_group_manager_ops {
 			int group_id, int mmu_level, u64 pte);
 
 	/*
+	 * Undo any modifications done during mgm_update_gpu_pte().
+	 * This function allows getting back the original PTE entry as given
+	 * to mgm_update_gpu_pte().
+	 *
+	 * Return: PTE entry as originally specified to mgm_update_gpu_pte()
+	 */
+	u64 (*mgm_pte_to_original_pte)(struct memory_group_manager_device *mgm_dev, int group_id,
+				       int mmu_level, u64 pte);
+
+	/*
 	 * mgm_vmf_insert_pfn_prot - Map a physical page in a group for the CPU
 	 *
 	 * @mgm_dev:   The memory group manager through which the request

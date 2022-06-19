@@ -305,11 +305,11 @@ enum tl_msg_id_obj {
 		"@p", \
 		"atom") \
 	TRACEPOINT_DESC(KBASE_TL_JD_DONE_NO_LOCK_START, \
-		"Within function jd_done_nolock", \
+		"Within function kbase_jd_done_nolock", \
 		"@p", \
 		"atom") \
 	TRACEPOINT_DESC(KBASE_TL_JD_DONE_NO_LOCK_END, \
-		"Within function jd_done_nolock - end", \
+		"Within function kbase_jd_done_nolock - end", \
 		"@p", \
 		"atom") \
 	TRACEPOINT_DESC(KBASE_TL_JD_DONE_START, \

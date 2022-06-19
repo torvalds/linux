@@ -272,6 +272,16 @@ bool kbase_fence_free_callbacks(struct kbase_jd_atom *katom);
 #endif /* !MALI_USE_CSF */
 
 /**
+ * kbase_fence_get() - Retrieve fence for a KCPUQ fence command.
+ * @fence_info: KCPUQ fence command
+ *
+ * A ref will be taken for the fence, so use @kbase_fence_put() to release it
+ *
+ * Return: The fence, or NULL if there is no fence for KCPUQ fence command
+ */
+#define kbase_fence_get(fence_info) dma_fence_get((fence_info)->fence)
+
+/**
  * kbase_fence_put() - Releases a reference to a fence
  * @fence: Fence to release reference for.
  */

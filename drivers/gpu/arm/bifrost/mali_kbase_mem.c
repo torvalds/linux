@@ -1802,9 +1802,8 @@ int kbase_gpu_mmap(struct kbase_context *kctx, struct kbase_va_region *reg,
 	return err;
 
 bad_insert:
-	kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu,
-				 reg->start_pfn, reg->nr_pages,
-				 kctx->as_nr);
+	kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu, reg->start_pfn, alloc->pages,
+				 reg->nr_pages, kctx->as_nr);
 
 	kbase_remove_va_region(kctx->kbdev, reg);
 
@@ -1819,6 +1818,7 @@ static void kbase_jd_user_buf_unmap(struct kbase_context *kctx,
 int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 {
 	int err = 0;
+	struct kbase_mem_phy_alloc *alloc;
 
 	if (reg->start_pfn == 0)
 		return 0;
@@ -1826,11 +1826,12 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 	if (!reg->gpu_alloc)
 		return -EINVAL;
 
+	alloc = reg->gpu_alloc;
+
 	/* Tear down GPU page tables, depending on memory type. */
-	switch (reg->gpu_alloc->type) {
+	switch (alloc->type) {
 	case KBASE_MEM_TYPE_ALIAS: {
 			size_t i = 0;
-			struct kbase_mem_phy_alloc *alloc = reg->gpu_alloc;
 
 			/* Due to the way the number of valid PTEs and ATEs are tracked
 			 * currently, only the GPU virtual range that is backed & mapped
@@ -1842,9 +1843,8 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 				if (alloc->imported.alias.aliased[i].alloc) {
 					int err_loop = kbase_mmu_teardown_pages(
 						kctx->kbdev, &kctx->mmu,
-						reg->start_pfn +
-							(i *
-							alloc->imported.alias.stride),
+						reg->start_pfn + (i * alloc->imported.alias.stride),
+						alloc->pages + (i * alloc->imported.alias.stride),
 						alloc->imported.alias.aliased[i].length,
 						kctx->as_nr);
 					if (WARN_ON_ONCE(err_loop))
@@ -1854,39 +1854,37 @@ int kbase_gpu_munmap(struct kbase_context *kctx, struct kbase_va_region *reg)
 		}
 		break;
 	case KBASE_MEM_TYPE_IMPORTED_UMM:
-		err = kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu,
-				reg->start_pfn, reg->nr_pages, kctx->as_nr);
+		err = kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu, reg->start_pfn,
+					       alloc->pages, reg->nr_pages, kctx->as_nr);
 		break;
 	default:
-		err = kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu,
-			reg->start_pfn, kbase_reg_current_backed_size(reg),
-			kctx->as_nr);
+		err = kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu, reg->start_pfn,
+					       alloc->pages, kbase_reg_current_backed_size(reg),
+					       kctx->as_nr);
 		break;
 	}
 
 	/* Update tracking, and other cleanup, depending on memory type. */
-	switch (reg->gpu_alloc->type) {
+	switch (alloc->type) {
 	case KBASE_MEM_TYPE_ALIAS:
 		/* We mark the source allocs as unmapped from the GPU when
 		 * putting reg's allocs
 		 */
 		break;
 	case KBASE_MEM_TYPE_IMPORTED_USER_BUF: {
-			struct kbase_alloc_import_user_buf *user_buf =
-				&reg->gpu_alloc->imported.user_buf;
+		struct kbase_alloc_import_user_buf *user_buf = &alloc->imported.user_buf;
 
-			if (user_buf->current_mapping_usage_count & PINNED_ON_IMPORT) {
-				user_buf->current_mapping_usage_count &=
-					~PINNED_ON_IMPORT;
+		if (user_buf->current_mapping_usage_count & PINNED_ON_IMPORT) {
+			user_buf->current_mapping_usage_count &= ~PINNED_ON_IMPORT;
 
-				/* The allocation could still have active mappings. */
-				if (user_buf->current_mapping_usage_count == 0) {
-					kbase_jd_user_buf_unmap(kctx, reg->gpu_alloc,
-								(reg->flags & (KBASE_REG_CPU_WR |
-									       KBASE_REG_GPU_WR)));
-				}
+			/* The allocation could still have active mappings. */
+			if (user_buf->current_mapping_usage_count == 0) {
+				kbase_jd_user_buf_unmap(kctx, alloc,
+							(reg->flags &
+							 (KBASE_REG_CPU_WR | KBASE_REG_GPU_WR)));
 			}
 		}
+	}
 		fallthrough;
 	default:
 		kbase_mem_phy_alloc_gpu_unmapped(reg->gpu_alloc);
@@ -3687,12 +3685,7 @@ void kbase_jit_debugfs_init(struct kbase_context *kctx)
 	/* prevent unprivileged use of debug file system
 	 * in old kernel version
 	 */
-#if (KERNEL_VERSION(4, 7, 0) <= LINUX_VERSION_CODE)
-	/* only for newer kernel version debug file system is safe */
 	const mode_t mode = 0444;
-#else
-	const mode_t mode = 0400;
-#endif
 
 	/* Caller already ensures this, but we keep the pattern for
 	 * maintenance safety.
@@ -4809,18 +4802,7 @@ int kbase_jd_user_buf_pin_pages(struct kbase_context *kctx,
 
 	write = reg->flags & (KBASE_REG_CPU_WR | KBASE_REG_GPU_WR);
 
-#if KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE
-	pinned_pages = get_user_pages(NULL, mm, address, alloc->imported.user_buf.nr_pages,
-#if KERNEL_VERSION(4, 4, 168) <= LINUX_VERSION_CODE && \
-KERNEL_VERSION(4, 5, 0) > LINUX_VERSION_CODE
-				      write ? FOLL_WRITE : 0, pages, NULL);
-#else
-				      write, 0, pages, NULL);
-#endif
-#elif KERNEL_VERSION(4, 9, 0) > LINUX_VERSION_CODE
-	pinned_pages = get_user_pages_remote(NULL, mm, address, alloc->imported.user_buf.nr_pages,
-					     write, 0, pages, NULL);
-#elif KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE
+#if KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE
 	pinned_pages = get_user_pages_remote(NULL, mm, address, alloc->imported.user_buf.nr_pages,
 					     write ? FOLL_WRITE : 0, pages, NULL);
 #elif KERNEL_VERSION(5, 9, 0) > LINUX_VERSION_CODE
@@ -5056,12 +5038,10 @@ void kbase_unmap_external_resource(struct kbase_context *kctx,
 
 			if (!kbase_is_region_invalid_or_free(reg) &&
 					reg->gpu_alloc == alloc)
-				kbase_mmu_teardown_pages(
-						kctx->kbdev,
-						&kctx->mmu,
-						reg->start_pfn,
-						kbase_reg_current_backed_size(reg),
-						kctx->as_nr);
+				kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu, reg->start_pfn,
+							 alloc->pages,
+							 kbase_reg_current_backed_size(reg),
+							 kctx->as_nr);
 
 			if (reg && ((reg->flags & (KBASE_REG_CPU_WR | KBASE_REG_GPU_WR)) == 0))
 				writeable = false;

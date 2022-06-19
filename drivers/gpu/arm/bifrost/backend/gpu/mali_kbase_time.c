@@ -116,8 +116,6 @@ unsigned int kbase_get_timeout_ms(struct kbase_device *kbdev,
 	 */
 
 	u64 timeout, nr_cycles = 0;
-	/* Default value to mean 'no cap' */
-	u64 timeout_cap = U64_MAX;
 	u64 freq_khz;
 
 	/* Only for debug messages, safe default in case it's mis-maintained */
@@ -144,16 +142,15 @@ unsigned int kbase_get_timeout_ms(struct kbase_device *kbdev,
 		fallthrough;
 	case CSF_FIRMWARE_TIMEOUT:
 		selector_str = "CSF_FIRMWARE_TIMEOUT";
-		nr_cycles = CSF_FIRMWARE_TIMEOUT_CYCLES;
-		/* Setup a cap on CSF FW timeout to FIRMWARE_PING_INTERVAL_MS,
-		 * if calculated timeout exceeds it. This should be adapted to
-		 * a direct timeout comparison once the
-		 * FIRMWARE_PING_INTERVAL_MS option is added to this timeout
-		 * function. A compile-time check such as BUILD_BUG_ON can also
-		 * be done once the firmware ping interval in cycles becomes
-		 * available as a macro.
+		/* Any FW timeout cannot be longer than the FW ping interval, after which
+		 * the firmware_aliveness_monitor will be triggered and may restart
+		 * the GPU if the FW is unresponsive.
 		 */
-		timeout_cap = FIRMWARE_PING_INTERVAL_MS;
+		nr_cycles = min(CSF_FIRMWARE_PING_TIMEOUT_CYCLES, CSF_FIRMWARE_TIMEOUT_CYCLES);
+
+		if (nr_cycles == CSF_FIRMWARE_PING_TIMEOUT_CYCLES)
+			dev_warn(kbdev->dev, "Capping %s to CSF_FIRMWARE_PING_TIMEOUT\n",
+				 selector_str);
 		break;
 	case CSF_PM_TIMEOUT:
 		selector_str = "CSF_PM_TIMEOUT";
@@ -171,6 +168,10 @@ unsigned int kbase_get_timeout_ms(struct kbase_device *kbdev,
 		selector_str = "CSF_FIRMWARE_BOOT_TIMEOUT";
 		nr_cycles = CSF_FIRMWARE_BOOT_TIMEOUT_CYCLES;
 		break;
+	case CSF_FIRMWARE_PING_TIMEOUT:
+		selector_str = "CSF_FIRMWARE_PING_TIMEOUT";
+		nr_cycles = CSF_FIRMWARE_PING_TIMEOUT_CYCLES;
+		break;
 	case CSF_SCHED_PROTM_PROGRESS_TIMEOUT:
 		selector_str = "CSF_SCHED_PROTM_PROGRESS_TIMEOUT";
 		nr_cycles = kbase_csf_timeout_get(kbdev);
@@ -179,11 +180,6 @@ unsigned int kbase_get_timeout_ms(struct kbase_device *kbdev,
 	}
 
 	timeout = div_u64(nr_cycles, freq_khz);
-	if (timeout > timeout_cap) {
-		dev_dbg(kbdev->dev, "Capped %s %llu to %llu", selector_str,
-			(unsigned long long)timeout, (unsigned long long)timeout_cap);
-		timeout = timeout_cap;
-	}
 	if (WARN(timeout > UINT_MAX,
 		 "Capping excessive timeout %llums for %s at freq %llukHz to UINT_MAX ms",
 		 (unsigned long long)timeout, selector_str, (unsigned long long)freq_khz))

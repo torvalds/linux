@@ -167,11 +167,7 @@ static const struct file_operations kbasep_csf_kcpu_debugfs_fops = {
 void kbase_csf_kcpu_debugfs_init(struct kbase_context *kctx)
 {
 	struct dentry *file;
-#if (KERNEL_VERSION(4, 7, 0) <= LINUX_VERSION_CODE)
 	const mode_t mode = 0444;
-#else
-	const mode_t mode = 0400;
-#endif
 
 	if (WARN_ON(!kctx || IS_ERR_OR_NULL(kctx->kctx_dentry)))
 		return;

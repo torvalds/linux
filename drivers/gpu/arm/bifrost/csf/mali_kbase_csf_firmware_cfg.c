@@ -22,6 +22,7 @@
 #include <mali_kbase.h>
 #include "mali_kbase_csf_firmware_cfg.h"
 #include <mali_kbase_reset_gpu.h>
+#include <linux/version.h>
 
 #if CONFIG_SYSFS
 #define CSF_FIRMWARE_CFG_SYSFS_DIR_NAME "firmware_config"
@@ -209,11 +210,18 @@ static struct attribute *fw_cfg_attrs[] = {
 	&fw_cfg_attr_cur,
 	NULL,
 };
+#if (KERNEL_VERSION(5, 2, 0) <= LINUX_VERSION_CODE)
+ATTRIBUTE_GROUPS(fw_cfg);
+#endif
 
 static struct kobj_type fw_cfg_kobj_type = {
 	.release = &fw_cfg_kobj_release,
 	.sysfs_ops = &fw_cfg_ops,
+#if (KERNEL_VERSION(5, 2, 0) <= LINUX_VERSION_CODE)
+	.default_groups = fw_cfg_groups,
+#else
 	.default_attrs = fw_cfg_attrs,
+#endif
 };
 
 int kbase_csf_firmware_cfg_init(struct kbase_device *kbdev)

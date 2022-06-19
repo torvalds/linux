@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -47,7 +47,7 @@
  * 1.3:
  * Add a lot of extra new traces. Tweak some existing scheduler related traces
  * to contain extra information information/happen at slightly different times.
- * SCHEDULER_EXIT_PROTM now has group information
+ * SCHEDULER_PROTM_EXIT now has group information
  */
 #define KBASE_KTRACE_VERSION_MAJOR 1
 #define KBASE_KTRACE_VERSION_MINOR 3

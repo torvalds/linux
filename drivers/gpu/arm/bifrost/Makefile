@@ -130,16 +130,19 @@ ifeq ($(CONFIG_MALI_BIFROST),m)
         ifeq ($(CONFIG_MALI_KUTF), y)
             CONFIG_MALI_KUTF_IRQ_TEST ?= y
             CONFIG_MALI_KUTF_CLK_RATE_TRACE ?= y
+            CONFIG_MALI_KUTF_MGM_INTEGRATION_TEST ?= y
         else
             # Prevent misuse when CONFIG_MALI_KUTF=n
             CONFIG_MALI_KUTF_IRQ_TEST = n
             CONFIG_MALI_KUTF_CLK_RATE_TRACE = n
+            CONFIG_MALI_KUTF_MGM_INTEGRATION_TEST = n
         endif
     else
         # Prevent misuse when CONFIG_MALI_BIFROST_DEBUG=n
         CONFIG_MALI_KUTF = n
         CONFIG_MALI_KUTF_IRQ_TEST = n
         CONFIG_MALI_KUTF_CLK_RATE_TRACE = n
+        CONFIG_MALI_KUTF_MGM_INTEGRATION_TEST = n
     endif
 else
     # Prevent misuse when CONFIG_MALI_BIFROST=n
@@ -149,6 +152,7 @@ else
     CONFIG_MALI_KUTF = n
     CONFIG_MALI_KUTF_IRQ_TEST = n
     CONFIG_MALI_KUTF_CLK_RATE_TRACE = n
+    CONFIG_MALI_KUTF_MGM_INTEGRATION_TEST = n
 endif
 
 # All Mali CONFIG should be listed here
@@ -189,6 +193,7 @@ CONFIGS := \
     CONFIG_MALI_KUTF \
     CONFIG_MALI_KUTF_IRQ_TEST \
     CONFIG_MALI_KUTF_CLK_RATE_TRACE \
+    CONFIG_MALI_KUTF_MGM_INTEGRATION_TEST \
     CONFIG_MALI_XEN
 
 

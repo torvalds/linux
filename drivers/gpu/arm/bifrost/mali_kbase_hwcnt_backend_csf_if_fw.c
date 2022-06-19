@@ -221,30 +221,29 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	struct kbase_hwcnt_backend_csf_if_prfcnt_info *prfcnt_info)
 {
 #if IS_ENABLED(CONFIG_MALI_BIFROST_NO_MALI)
-	size_t dummy_model_blk_count;
 	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx =
 		(struct kbase_hwcnt_backend_csf_if_fw_ctx *)ctx;
 
-	prfcnt_info->l2_count = KBASE_DUMMY_MODEL_MAX_MEMSYS_BLOCKS;
-	prfcnt_info->core_mask =
-		(1ull << KBASE_DUMMY_MODEL_MAX_SHADER_CORES) - 1;
-	/* 1 FE block + 1 Tiler block + l2_count blocks + shader_core blocks */
-	dummy_model_blk_count =
-		2 + prfcnt_info->l2_count + fls64(prfcnt_info->core_mask);
-	prfcnt_info->dump_bytes =
-		dummy_model_blk_count * KBASE_DUMMY_MODEL_BLOCK_SIZE;
-	prfcnt_info->prfcnt_block_size =
-		KBASE_HWCNT_V5_DEFAULT_VALUES_PER_BLOCK *
-		KBASE_HWCNT_VALUE_HW_BYTES;
-	prfcnt_info->clk_cnt = 1;
-	prfcnt_info->clearing_samples = true;
+	*prfcnt_info = (struct kbase_hwcnt_backend_csf_if_prfcnt_info){
+		.l2_count = KBASE_DUMMY_MODEL_MAX_MEMSYS_BLOCKS,
+		.core_mask = (1ull << KBASE_DUMMY_MODEL_MAX_SHADER_CORES) - 1,
+		.prfcnt_hw_size =
+			KBASE_DUMMY_MODEL_MAX_NUM_HARDWARE_BLOCKS * KBASE_DUMMY_MODEL_BLOCK_SIZE,
+		.prfcnt_fw_size =
+			KBASE_DUMMY_MODEL_MAX_FIRMWARE_BLOCKS * KBASE_DUMMY_MODEL_BLOCK_SIZE,
+		.dump_bytes = KBASE_DUMMY_MODEL_MAX_SAMPLE_SIZE,
+		.prfcnt_block_size = KBASE_DUMMY_MODEL_BLOCK_SIZE,
+		.clk_cnt = 1,
+		.clearing_samples = true,
+	};
+
 	fw_ctx->buf_bytes = prfcnt_info->dump_bytes;
 #else
 	struct kbase_hwcnt_backend_csf_if_fw_ctx *fw_ctx;
 	struct kbase_device *kbdev;
 	u32 prfcnt_size;
-	u32 prfcnt_hw_size = 0;
-	u32 prfcnt_fw_size = 0;
+	u32 prfcnt_hw_size;
+	u32 prfcnt_fw_size;
 	u32 prfcnt_block_size = KBASE_HWCNT_V5_DEFAULT_VALUES_PER_BLOCK *
 				KBASE_HWCNT_VALUE_HW_BYTES;
 
@@ -254,8 +253,8 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 	fw_ctx = (struct kbase_hwcnt_backend_csf_if_fw_ctx *)ctx;
 	kbdev = fw_ctx->kbdev;
 	prfcnt_size = kbdev->csf.global_iface.prfcnt_size;
-	prfcnt_hw_size = (prfcnt_size & 0xFF) << 8;
-	prfcnt_fw_size = (prfcnt_size >> 16) << 8;
+	prfcnt_hw_size = GLB_PRFCNT_SIZE_HARDWARE_SIZE_GET(prfcnt_size);
+	prfcnt_fw_size = GLB_PRFCNT_SIZE_FIRMWARE_SIZE_GET(prfcnt_size);
 	fw_ctx->buf_bytes = prfcnt_hw_size + prfcnt_fw_size;
 
 	/* Read the block size if the GPU has the register PRFCNT_FEATURES
@@ -269,14 +268,16 @@ static void kbasep_hwcnt_backend_csf_if_fw_get_prfcnt_info(
 			<< 8;
 	}
 
-	prfcnt_info->dump_bytes = fw_ctx->buf_bytes;
-	prfcnt_info->prfcnt_block_size = prfcnt_block_size;
-	prfcnt_info->l2_count = kbdev->gpu_props.props.l2_props.num_l2_slices;
-	prfcnt_info->core_mask =
-		kbdev->gpu_props.props.coherency_info.group[0].core_mask;
-
-	prfcnt_info->clk_cnt = fw_ctx->clk_cnt;
-	prfcnt_info->clearing_samples = true;
+	*prfcnt_info = (struct kbase_hwcnt_backend_csf_if_prfcnt_info){
+		.prfcnt_hw_size = prfcnt_hw_size,
+		.prfcnt_fw_size = prfcnt_fw_size,
+		.dump_bytes = fw_ctx->buf_bytes,
+		.prfcnt_block_size = prfcnt_block_size,
+		.l2_count = kbdev->gpu_props.props.l2_props.num_l2_slices,
+		.core_mask = kbdev->gpu_props.props.coherency_info.group[0].core_mask,
+		.clk_cnt = fw_ctx->clk_cnt,
+		.clearing_samples = true,
+	};
 
 	/* Block size must be multiple of counter size. */
 	WARN_ON((prfcnt_info->prfcnt_block_size % KBASE_HWCNT_VALUE_HW_BYTES) !=
@@ -506,10 +507,9 @@ static void kbasep_hwcnt_backend_csf_if_fw_ring_buf_free(
 	if (fw_ring_buf->phys) {
 		u64 gpu_va_base = KBASE_HWC_CSF_RING_BUFFER_VA_START;
 
-		WARN_ON(kbase_mmu_teardown_pages(
-			fw_ctx->kbdev, &fw_ctx->kbdev->csf.mcu_mmu,
-			gpu_va_base >> PAGE_SHIFT, fw_ring_buf->num_pages,
-			MCU_AS_NR));
+		WARN_ON(kbase_mmu_teardown_pages(fw_ctx->kbdev, &fw_ctx->kbdev->csf.mcu_mmu,
+						 gpu_va_base >> PAGE_SHIFT, fw_ring_buf->phys,
+						 fw_ring_buf->num_pages, MCU_AS_NR));
 
 		vunmap(fw_ring_buf->cpu_dump_base);
 

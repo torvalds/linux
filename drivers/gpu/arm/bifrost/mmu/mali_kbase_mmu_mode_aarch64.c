@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2010-2014, 2016-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2010-2014, 2016-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -189,14 +189,9 @@ static void set_num_valid_entries(u64 *pgd, unsigned int num_of_valid_entries)
 		   << UNUSED_BIT_POSITION_IN_PAGE_DESCRIPTOR);
 }
 
-static void entry_set_pte(u64 *pgd, u64 vpfn, phys_addr_t phy)
+static void entry_set_pte(u64 *entry, phys_addr_t phy)
 {
-	unsigned int nr_entries = get_num_valid_entries(pgd);
-
-	page_table_entry_set(&pgd[vpfn], (phy & PAGE_MASK) | ENTRY_ACCESS_BIT |
-						 ENTRY_IS_PTE);
-
-	set_num_valid_entries(pgd, nr_entries + 1);
+	page_table_entry_set(entry, (phy & PAGE_MASK) | ENTRY_ACCESS_BIT | ENTRY_IS_PTE);
 }
 
 static void entry_invalidate(u64 *entry)

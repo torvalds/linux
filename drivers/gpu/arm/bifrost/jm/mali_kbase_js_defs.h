@@ -387,7 +387,7 @@ struct kbasep_js_kctx_info {
  * @sched_priority: priority
  * @device_nr: Core group atom was executed on
  *
- * Subset of atom state that can be available after jd_done_nolock() is called
+ * Subset of atom state that can be available after kbase_jd_done_nolock() is called
  * on that atom. A copy must be taken via kbasep_js_atom_retained_state_copy(),
  * because the original atom could disappear.
  */

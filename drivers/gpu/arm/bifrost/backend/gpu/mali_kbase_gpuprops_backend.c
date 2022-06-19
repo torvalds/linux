@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -40,19 +40,7 @@ int kbase_backend_gpuprops_get(struct kbase_device *kbdev,
 
 	registers.l2_features = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(L2_FEATURES));
-	registers.core_features = 0;
-#if !MALI_USE_CSF
-	/* TGOx */
-	registers.core_features = kbase_reg_read(kbdev,
-				GPU_CONTROL_REG(CORE_FEATURES));
-#else /* !MALI_USE_CSF */
-	if (!(((registers.gpu_id & GPU_ID2_PRODUCT_MODEL) ==
-	       GPU_ID2_PRODUCT_TDUX) ||
-	      ((registers.gpu_id & GPU_ID2_PRODUCT_MODEL) ==
-	       GPU_ID2_PRODUCT_TODX)))
-		registers.core_features =
-			kbase_reg_read(kbdev, GPU_CONTROL_REG(CORE_FEATURES));
-#endif /* MALI_USE_CSF */
+
 	registers.tiler_features = kbase_reg_read(kbdev,
 				GPU_CONTROL_REG(TILER_FEATURES));
 	registers.mem_features = kbase_reg_read(kbdev,
@@ -169,6 +157,11 @@ int kbase_backend_gpuprops_get_features(struct kbase_device *kbdev,
 		error = -EIO;
 
 	regdump->coherency_features = coherency_features;
+
+	if (kbase_hw_has_feature(kbdev, BASE_HW_FEATURE_CORE_FEATURES))
+		regdump->core_features = kbase_reg_read(kbdev, GPU_CONTROL_REG(CORE_FEATURES));
+	else
+		regdump->core_features = 0;
 
 	kbase_pm_register_access_disable(kbdev);
 

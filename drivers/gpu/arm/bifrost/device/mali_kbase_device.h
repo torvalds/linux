@@ -116,6 +116,22 @@ u32 kbase_reg_read(struct kbase_device *kbdev, u32 offset);
 bool kbase_is_gpu_removed(struct kbase_device *kbdev);
 
 /**
+ * kbase_gpu_cache_flush_pa_range_and_busy_wait() - Start a cache physical range flush
+ * and busy wait
+ *
+ * @kbdev:    kbase device to issue the MMU operation on.
+ * @phys:     Starting address of the physical range to start the operation on.
+ * @nr_bytes: Number of bytes to work on.
+ * @flush_op: Flush command register value to be sent to HW
+ *
+ * Issue a cache flush physical range command, then busy wait an irq status.
+ * This function will clear FLUSH_PA_RANGE_COMPLETED irq mask bit
+ * and busy-wait the rawstat register.
+ *
+ * Return: 0 if successful or a negative error code on failure.
+ */
+#define kbase_gpu_cache_flush_pa_range_and_busy_wait(kbdev, phys, nr_bytes, flush_op) (0)
+/**
  * kbase_gpu_cache_flush_and_busy_wait - Start a cache flush and busy wait
  * @kbdev: Kbase device
  * @flush_op: Flush command register value to be sent to HW
@@ -188,7 +204,7 @@ int kbase_gpu_wait_cache_clean_timeout(struct kbase_device *kbdev,
 void kbase_gpu_cache_clean_wait_complete(struct kbase_device *kbdev);
 
 /**
- * kbase_clean_caches_done - Issue preiously queued cache clean request or
+ * kbase_clean_caches_done - Issue previously queued cache clean request or
  *                           wake up the requester that issued cache clean.
  * @kbdev: Kbase device
  *

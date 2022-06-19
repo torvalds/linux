@@ -129,11 +129,9 @@ void kbase_mmu_term(struct kbase_device *kbdev, struct kbase_mmu_table *mmut);
 u64 kbase_mmu_create_ate(struct kbase_device *kbdev,
 	struct tagged_addr phy, unsigned long flags, int level, int group_id);
 
-int kbase_mmu_insert_pages_no_flush(struct kbase_device *kbdev,
-				    struct kbase_mmu_table *mmut,
-				    const u64 start_vpfn,
-				    struct tagged_addr *phys, size_t nr,
-				    unsigned long flags, int group_id);
+int kbase_mmu_insert_pages_no_flush(struct kbase_device *kbdev, struct kbase_mmu_table *mmut,
+				    const u64 start_vpfn, struct tagged_addr *phys, size_t nr,
+				    unsigned long flags, int group_id, u64 *dirty_pgds);
 int kbase_mmu_insert_pages(struct kbase_device *kbdev,
 			   struct kbase_mmu_table *mmut, u64 vpfn,
 			   struct tagged_addr *phys, size_t nr,
@@ -144,9 +142,8 @@ int kbase_mmu_insert_single_page(struct kbase_context *kctx, u64 vpfn,
 				 unsigned long flags, int group_id,
 				 enum kbase_caller_mmu_sync_info mmu_sync_info);
 
-int kbase_mmu_teardown_pages(struct kbase_device *kbdev,
-			     struct kbase_mmu_table *mmut, u64 vpfn,
-			     size_t nr, int as_nr);
+int kbase_mmu_teardown_pages(struct kbase_device *kbdev, struct kbase_mmu_table *mmut, u64 vpfn,
+			     struct tagged_addr *phys, size_t nr, int as_nr);
 int kbase_mmu_update_pages(struct kbase_context *kctx, u64 vpfn,
 			   struct tagged_addr *phys, size_t nr,
 			   unsigned long flags, int const group_id);

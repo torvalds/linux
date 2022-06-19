@@ -214,6 +214,20 @@ config MALI_GEM5_BUILD
 comment "Debug options"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT
 
+config MALI_FW_CORE_DUMP
+        bool "Enable support for FW core dump"
+        depends on MALI_BIFROST && MALI_BIFROST_EXPERT && MALI_CSF_SUPPORT
+        default n
+        help
+          Adds ability to request firmware core dump
+
+          Example:
+          * To explicitly request core dump:
+                echo 1 >/sys/kernel/debug/mali0/fw_core_dump
+          * To output current core dump (after explicitly requesting a core dump,
+            or kernel driver reported an internal firmware error):
+                cat /sys/kernel/debug/mali0/fw_core_dump
+
 config MALI_BIFROST_DEBUG
 	bool "Enable debug build"
 	depends on MALI_BIFROST && MALI_BIFROST_EXPERT

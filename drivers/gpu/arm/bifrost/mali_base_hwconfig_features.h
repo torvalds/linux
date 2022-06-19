@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note */
 /*
  *
- * (C) COPYRIGHT 2014-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2014-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -38,6 +38,7 @@ enum base_hw_feature {
 	BASE_HW_FEATURE_ASN_HASH,
 	BASE_HW_FEATURE_GPU_SLEEP,
 	BASE_HW_FEATURE_FLUSH_INV_SHADER_OTHER,
+	BASE_HW_FEATURE_CORE_FEATURES,
 	BASE_HW_FEATURE_END
 };
 
@@ -87,6 +88,7 @@ __attribute__((unused)) static const enum base_hw_feature base_hw_features_tGOx[
 	BASE_HW_FEATURE_PROTECTED_DEBUG_MODE,
 	BASE_HW_FEATURE_TLS_HASHING,
 	BASE_HW_FEATURE_IDVS_GROUP_SIZE,
+	BASE_HW_FEATURE_CORE_FEATURES,
 	BASE_HW_FEATURE_END
 };
 
@@ -151,6 +153,7 @@ __attribute__((unused)) static const enum base_hw_feature base_hw_features_tGRx[
 	BASE_HW_FEATURE_PROTECTED_DEBUG_MODE,
 	BASE_HW_FEATURE_L2_CONFIG,
 	BASE_HW_FEATURE_CLEAN_ONLY_SAFE,
+	BASE_HW_FEATURE_CORE_FEATURES,
 	BASE_HW_FEATURE_END
 };
 
@@ -159,6 +162,7 @@ __attribute__((unused)) static const enum base_hw_feature base_hw_features_tVAx[
 	BASE_HW_FEATURE_PROTECTED_DEBUG_MODE,
 	BASE_HW_FEATURE_L2_CONFIG,
 	BASE_HW_FEATURE_CLEAN_ONLY_SAFE,
+	BASE_HW_FEATURE_CORE_FEATURES,
 	BASE_HW_FEATURE_END
 };
 
@@ -169,6 +173,7 @@ __attribute__((unused)) static const enum base_hw_feature base_hw_features_tTUx[
 	BASE_HW_FEATURE_CLEAN_ONLY_SAFE,
 	BASE_HW_FEATURE_ASN_HASH,
 	BASE_HW_FEATURE_GPU_SLEEP,
+	BASE_HW_FEATURE_CORE_FEATURES,
 	BASE_HW_FEATURE_END
 };
 

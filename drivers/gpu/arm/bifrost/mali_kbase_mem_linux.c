@@ -31,9 +31,6 @@
 #include <linux/fs.h>
 #include <linux/version.h>
 #include <linux/dma-mapping.h>
-#if (KERNEL_VERSION(4, 8, 0) > LINUX_VERSION_CODE)
-#include <linux/dma-attrs.h>
-#endif /* LINUX_VERSION_CODE < 4.8.0 */
 #include <linux/dma-buf.h>
 #include <linux/shrinker.h>
 #include <linux/cache.h>
@@ -103,6 +100,23 @@ static int kbase_tracking_page_setup(struct kbase_context *kctx, struct vm_area_
 static int kbase_mem_shrink_gpu_mapping(struct kbase_context *kctx,
 		struct kbase_va_region *reg,
 		u64 new_pages, u64 old_pages);
+
+static bool is_process_exiting(struct vm_area_struct *vma)
+{
+	/* PF_EXITING flag can't be reliably used here for the detection
+	 * of process exit, as 'mm_users' counter could still be non-zero
+	 * when all threads of the process have exited. Later when the
+	 * thread (which took a reference on the 'mm' of process that
+	 * exited) drops it reference, the vm_ops->close method would be
+	 * called for all the vmas (owned by 'mm' of process that exited)
+	 * but the PF_EXITING flag may not be neccessarily set for the
+	 * thread at that time.
+	 */
+	if (atomic_read(&vma->vm_mm->mm_users))
+		return false;
+
+	return true;
+}
 
 /* Retrieve the associated region pointer if the GPU address corresponds to
  * one of the event memory pages. The enclosing region, if found, shouldn't
@@ -1103,19 +1117,7 @@ int kbase_mem_do_sync_imported(struct kbase_context *kctx,
 			ret = 0;
 		}
 #else
-	/* Though the below version check could be superfluous depending upon the version condition
-	 * used for enabling KBASE_MEM_ION_SYNC_WORKAROUND, we still keep this check here to allow
-	 * ease of modification for non-ION systems or systems where ION has been patched.
-	 */
-#if KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE && !defined(CONFIG_CHROMEOS)
-		dma_buf_end_cpu_access(dma_buf,
-				0, dma_buf->size,
-				dir);
-		ret = 0;
-#else
-		ret = dma_buf_end_cpu_access(dma_buf,
-				dir);
-#endif
+		ret = dma_buf_end_cpu_access(dma_buf, dir);
 #endif /* KBASE_MEM_ION_SYNC_WORKAROUND */
 		break;
 	case KBASE_SYNC_TO_CPU:
@@ -1132,11 +1134,7 @@ int kbase_mem_do_sync_imported(struct kbase_context *kctx,
 			ret = 0;
 		}
 #else
-		ret = dma_buf_begin_cpu_access(dma_buf,
-#if KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE && !defined(CONFIG_CHROMEOS)
-				0, dma_buf->size,
-#endif
-				dir);
+		ret = dma_buf_begin_cpu_access(dma_buf, dir);
 #endif /* KBASE_MEM_ION_SYNC_WORKAROUND */
 		break;
 	}
@@ -1315,11 +1313,8 @@ int kbase_mem_umm_map(struct kbase_context *kctx,
 	return 0;
 
 bad_pad_insert:
-	kbase_mmu_teardown_pages(kctx->kbdev,
-				 &kctx->mmu,
-				 reg->start_pfn,
-				 alloc->nents,
-				 kctx->as_nr);
+	kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu, reg->start_pfn, alloc->pages,
+				 alloc->nents, kctx->as_nr);
 bad_insert:
 	kbase_mem_umm_unmap_attachment(kctx, alloc);
 bad_map_attachment:
@@ -1347,11 +1342,8 @@ void kbase_mem_umm_unmap(struct kbase_context *kctx,
 	if (!kbase_is_region_invalid_or_free(reg) && reg->gpu_alloc == alloc) {
 		int err;
 
-		err = kbase_mmu_teardown_pages(kctx->kbdev,
-					       &kctx->mmu,
-					       reg->start_pfn,
-					       reg->nr_pages,
-					       kctx->as_nr);
+		err = kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu, reg->start_pfn,
+					       alloc->pages, reg->nr_pages, kctx->as_nr);
 		WARN_ON(err);
 	}
 
@@ -1669,18 +1661,7 @@ static struct kbase_va_region *kbase_mem_from_user_buffer(
 
 	write = reg->flags & (KBASE_REG_CPU_WR | KBASE_REG_GPU_WR);
 
-#if KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE
-	faulted_pages = get_user_pages(current, current->mm, address, *va_pages,
-#if KERNEL_VERSION(4, 4, 168) <= LINUX_VERSION_CODE && \
-KERNEL_VERSION(4, 5, 0) > LINUX_VERSION_CODE
-			write ? FOLL_WRITE : 0, pages, NULL);
-#else
-			write, 0, pages, NULL);
-#endif
-#elif KERNEL_VERSION(4, 9, 0) > LINUX_VERSION_CODE
-	faulted_pages = get_user_pages(address, *va_pages,
-			write, 0, pages, NULL);
-#elif KERNEL_VERSION(5, 9, 0) > LINUX_VERSION_CODE
+#if KERNEL_VERSION(5, 9, 0) > LINUX_VERSION_CODE
 	faulted_pages = get_user_pages(address, *va_pages,
 			write ? FOLL_WRITE : 0, pages, NULL);
 #else
@@ -2193,10 +2174,11 @@ static int kbase_mem_shrink_gpu_mapping(struct kbase_context *const kctx,
 		u64 const new_pages, u64 const old_pages)
 {
 	u64 delta = old_pages - new_pages;
+	struct kbase_mem_phy_alloc *alloc = reg->gpu_alloc;
 	int ret = 0;
 
-	ret = kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu,
-			reg->start_pfn + new_pages, delta, kctx->as_nr);
+	ret = kbase_mmu_teardown_pages(kctx->kbdev, &kctx->mmu, reg->start_pfn + new_pages,
+				       alloc->pages + new_pages, delta, kctx->as_nr);
 
 	return ret;
 }
@@ -2414,7 +2396,7 @@ static void kbase_cpu_vm_close(struct vm_area_struct *vma)
 		/* Avoid freeing memory on the process death which results in
 		 * GPU Page Fault. Memory will be freed in kbase_destroy_context
 		 */
-		if (!(current->flags & PF_EXITING))
+		if (!is_process_exiting(vma))
 			kbase_mem_free_region(map->kctx, map->region);
 	}
 
@@ -3314,7 +3296,7 @@ static void kbase_csf_user_io_pages_vm_close(struct vm_area_struct *vma)
 		reset_prevented = true;
 
 	mutex_lock(&kctx->csf.lock);
-	kbase_csf_queue_unbind(queue);
+	kbase_csf_queue_unbind(queue, is_process_exiting(vma));
 	mutex_unlock(&kctx->csf.lock);
 
 	if (reset_prevented)
@@ -3355,13 +3337,6 @@ static vm_fault_t kbase_csf_user_io_pages_vm_fault(struct vm_fault *vmf)
 	/* Always map the doorbell page as uncached */
 	doorbell_pgprot = pgprot_device(vma->vm_page_prot);
 
-#if ((KERNEL_VERSION(4, 4, 147) >= LINUX_VERSION_CODE) || \
-		((KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE) && \
-		 (KERNEL_VERSION(4, 5, 0) <= LINUX_VERSION_CODE)))
-	vma->vm_page_prot = doorbell_pgprot;
-	input_page_pgprot = doorbell_pgprot;
-	output_page_pgprot = doorbell_pgprot;
-#else
 	if (kbdev->system_coherency == COHERENCY_NONE) {
 		input_page_pgprot = pgprot_writecombine(vma->vm_page_prot);
 		output_page_pgprot = pgprot_writecombine(vma->vm_page_prot);
@@ -3369,7 +3344,6 @@ static vm_fault_t kbase_csf_user_io_pages_vm_fault(struct vm_fault *vmf)
 		input_page_pgprot = vma->vm_page_prot;
 		output_page_pgprot = vma->vm_page_prot;
 	}
-#endif
 
 	doorbell_cpu_addr = vma->vm_start;
 

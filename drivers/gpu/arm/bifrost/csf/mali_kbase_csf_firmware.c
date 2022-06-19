@@ -44,6 +44,7 @@
 #include <linux/mman.h>
 #include <linux/string.h>
 #include <linux/mutex.h>
+#include <linux/ctype.h>
 #if (KERNEL_VERSION(4, 13, 0) <= LINUX_VERSION_CODE)
 #include <linux/set_memory.h>
 #endif
@@ -94,6 +95,7 @@ MODULE_PARM_DESC(fw_debug,
 #define CSF_FIRMWARE_ENTRY_TYPE_FUTF_TEST     (2)
 #define CSF_FIRMWARE_ENTRY_TYPE_TRACE_BUFFER  (3)
 #define CSF_FIRMWARE_ENTRY_TYPE_TIMELINE_METADATA (4)
+#define CSF_FIRMWARE_ENTRY_TYPE_BUILD_INFO_METADATA (6)
 
 #define CSF_FIRMWARE_CACHE_MODE_NONE              (0ul << 3)
 #define CSF_FIRMWARE_CACHE_MODE_CACHED            (1ul << 3)
@@ -104,11 +106,17 @@ MODULE_PARM_DESC(fw_debug,
 
 #define TL_METADATA_ENTRY_NAME_OFFSET (0x8)
 
+#define BUILD_INFO_METADATA_SIZE_OFFSET (0x4)
+#define BUILD_INFO_GIT_SHA_LEN (40U)
+#define BUILD_INFO_GIT_DIRTY_LEN (1U)
+#define BUILD_INFO_GIT_SHA_PATTERN "git_sha: "
+
 #define CSF_MAX_FW_STOP_LOOPS            (100000)
 
 #define CSF_GLB_REQ_CFG_MASK                                                                       \
 	(GLB_REQ_CFG_ALLOC_EN_MASK | GLB_REQ_CFG_PROGRESS_TIMER_MASK |                             \
 	 GLB_REQ_CFG_PWROFF_TIMER_MASK | GLB_REQ_IDLE_ENABLE_MASK)
+
 
 static inline u32 input_page_read(const u32 *const input, const u32 offset)
 {
@@ -719,8 +727,9 @@ static int parse_memory_setup_entry(struct kbase_device *kbdev,
 
 	if (!reuse_pages) {
 		ret = kbase_mmu_insert_pages_no_flush(kbdev, &kbdev->csf.mcu_mmu,
-				virtual_start >> PAGE_SHIFT, phys, num_pages_aligned, mem_flags,
-				KBASE_MEM_GROUP_CSF_FW);
+						      virtual_start >> PAGE_SHIFT, phys,
+						      num_pages_aligned, mem_flags,
+						      KBASE_MEM_GROUP_CSF_FW, NULL);
 
 		if (ret != 0) {
 			dev_err(kbdev->dev, "Failed to insert firmware pages\n");
@@ -811,6 +820,57 @@ static int parse_timeline_metadata_entry(struct kbase_device *kbdev,
 }
 
 /**
+ * parse_build_info_metadata_entry() - Process a "build info metadata" section
+ * @kbdev: Kbase device structure
+ * @fw:    Firmware image containing the section
+ * @entry: Pointer to the section
+ * @size:  Size (in bytes) of the section
+ *
+ * This prints the git SHA of the firmware on frimware load.
+ *
+ * Return: 0 if successful, negative error code on failure
+ */
+static int parse_build_info_metadata_entry(struct kbase_device *kbdev,
+					   const struct kbase_csf_mcu_fw *const fw,
+					   const u32 *entry, unsigned int size)
+{
+	const u32 meta_start_addr = entry[0];
+	char *ptr = NULL;
+	size_t sha_pattern_len = strlen(BUILD_INFO_GIT_SHA_PATTERN);
+
+	/* Only print git SHA to avoid releasing sensitive information */
+	ptr = strstr(fw->data + meta_start_addr, BUILD_INFO_GIT_SHA_PATTERN);
+	/* Check that we won't overrun the found string  */
+	if (ptr &&
+	    strlen(ptr) >= BUILD_INFO_GIT_SHA_LEN + BUILD_INFO_GIT_DIRTY_LEN + sha_pattern_len) {
+		char git_sha[BUILD_INFO_GIT_SHA_LEN + BUILD_INFO_GIT_DIRTY_LEN + 1];
+		int i = 0;
+
+		/* Move ptr to start of SHA */
+		ptr += sha_pattern_len;
+		for (i = 0; i < BUILD_INFO_GIT_SHA_LEN; i++) {
+			/* Ensure that the SHA is made up of hex digits */
+			if (!isxdigit(ptr[i]))
+				break;
+
+			git_sha[i] = ptr[i];
+		}
+
+		/* Check if the next char indicates git SHA is dirty */
+		if (ptr[i] == ' ' || ptr[i] == '+') {
+			git_sha[i] = ptr[i];
+			i++;
+		}
+		git_sha[i] = '\0';
+
+		dev_info(kbdev->dev, "Mali firmware git_sha: %s\n", git_sha);
+	} else
+		dev_info(kbdev->dev, "Mali firmware git_sha not found or invalid\n");
+
+	return 0;
+}
+
+/**
  * load_firmware_entry() - Process an entry from a firmware image
  *
  * @kbdev:  Kbase device
@@ -889,6 +949,13 @@ static int load_firmware_entry(struct kbase_device *kbdev, const struct kbase_cs
 			return -EINVAL;
 		}
 		return parse_timeline_metadata_entry(kbdev, fw, entry, size);
+	case CSF_FIRMWARE_ENTRY_TYPE_BUILD_INFO_METADATA:
+		if (size < BUILD_INFO_METADATA_SIZE_OFFSET + sizeof(*entry)) {
+			dev_err(kbdev->dev, "Build info metadata entry too short (size=%u)\n",
+				size);
+			return -EINVAL;
+		}
+		return parse_build_info_metadata_entry(kbdev, fw, entry, size);
 	}
 
 	if (!optional) {
@@ -1491,6 +1558,7 @@ static void enable_gpu_idle_timer(struct kbase_device *const kbdev)
 		kbdev->csf.gpu_idle_dur_count);
 }
 
+
 static void global_init(struct kbase_device *const kbdev, u64 core_mask)
 {
 	u32 const ack_irq_mask =
@@ -1665,7 +1733,7 @@ void kbase_csf_firmware_reload_completed(struct kbase_device *kbdev)
 	if (version != kbdev->csf.global_iface.version)
 		dev_err(kbdev->dev, "Version check failed in firmware reboot.");
 
-	KBASE_KTRACE_ADD(kbdev, FIRMWARE_REBOOT, NULL, 0u);
+	KBASE_KTRACE_ADD(kbdev, CSF_FIRMWARE_REBOOT, NULL, 0u);
 
 	/* Tell MCU state machine to transit to next state */
 	kbdev->csf.firmware_reloaded = true;
@@ -2121,7 +2189,7 @@ int kbase_csf_firmware_init(struct kbase_device *kbdev)
 		goto err_out;
 
 	/* Firmware loaded successfully, ret = 0 */
-	KBASE_KTRACE_ADD(kbdev, FIRMWARE_BOOT, NULL,
+	KBASE_KTRACE_ADD(kbdev, CSF_FIRMWARE_BOOT, NULL,
 			(((u64)version_hash) << 32) |
 			(((u64)version_major) << 8) | version_minor);
 	return 0;
@@ -2611,9 +2679,9 @@ int kbase_csf_firmware_mcu_shared_mapping_init(
 	gpu_map_properties &= (KBASE_REG_GPU_RD | KBASE_REG_GPU_WR);
 	gpu_map_properties |= gpu_map_prot;
 
-	ret = kbase_mmu_insert_pages_no_flush(kbdev, &kbdev->csf.mcu_mmu,
-			va_reg->start_pfn, &phys[0], num_pages,
-			gpu_map_properties, KBASE_MEM_GROUP_CSF_FW);
+	ret = kbase_mmu_insert_pages_no_flush(kbdev, &kbdev->csf.mcu_mmu, va_reg->start_pfn,
+					      &phys[0], num_pages, gpu_map_properties,
+					      KBASE_MEM_GROUP_CSF_FW, NULL);
 	if (ret)
 		goto mmu_insert_pages_error;
 
@@ -2674,3 +2742,4 @@ void kbase_csf_firmware_mcu_shared_mapping_term(
 	vunmap(csf_mapping->cpu_addr);
 	kfree(csf_mapping->phys);
 }
+

@@ -824,12 +824,6 @@ int kbase_devfreq_init(struct kbase_device *kbdev)
 			goto ipa_init_failed;
 		}
 	} else {
-		err = kbase_ipa_init(kbdev);
-		if (err) {
-			dev_err(kbdev->dev, "IPA initialization failed\n");
-			goto ipa_init_failed;
-		}
-
 		kbdev->devfreq_cooling = of_devfreq_cooling_register_power(
 				kbdev->dev->of_node,
 				kbdev->devfreq,

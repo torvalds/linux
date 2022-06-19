@@ -99,6 +99,7 @@
 #include <linux/compat.h>	/* is_compat_task/in_compat_syscall */
 #include <linux/mman.h>
 #include <linux/version.h>
+#include <linux/version_compat_defs.h>
 #include <mali_kbase_hw.h>
 #if defined(CONFIG_SYNC) || defined(CONFIG_SYNC_FILE)
 #include <mali_kbase_sync.h>
@@ -311,10 +312,9 @@ static int kbase_file_create_kctx(struct kbase_file *kfile,
  *
  * @kfile: A device file created by kbase_file_new()
  *
- * This function returns an error code (encoded with ERR_PTR) if no context
- * has been created for the given @kfile. This makes it safe to use in
- * circumstances where the order of initialization cannot be enforced, but
- * only if the caller checks the return value.
+ * This function returns NULL if no context has been created for the given @kfile.
+ * This makes it safe to use in circumstances where the order of initialization
+ * cannot be enforced, but only if the caller checks the return value.
  *
  * Return: Address of the kernel base context associated with the @kfile, or
  *         NULL if no context exists.
@@ -502,27 +502,6 @@ void kbase_release_device(struct kbase_device *kbdev)
 EXPORT_SYMBOL(kbase_release_device);
 
 #if IS_ENABLED(CONFIG_DEBUG_FS)
-#if KERNEL_VERSION(4, 6, 0) > LINUX_VERSION_CODE &&                            \
-	!(KERNEL_VERSION(4, 4, 28) <= LINUX_VERSION_CODE &&                    \
-	  KERNEL_VERSION(4, 5, 0) > LINUX_VERSION_CODE)
-/*
- * Older versions, before v4.6, of the kernel doesn't have
- * kstrtobool_from_user(), except longterm 4.4.y which had it added in 4.4.28
- */
-static int kstrtobool_from_user(const char __user *s, size_t count, bool *res)
-{
-	char buf[4];
-
-	count = min(count, sizeof(buf) - 1);
-
-	if (copy_from_user(buf, s, count))
-		return -EFAULT;
-	buf[count] = '\0';
-
-	return strtobool(buf, res);
-}
-#endif
-
 static ssize_t write_ctx_infinite_cache(struct file *f, const char __user *ubuf, size_t size, loff_t *off)
 {
 	struct kbase_context *kctx = f->private_data;
@@ -634,13 +613,8 @@ static int kbase_file_create_kctx(struct kbase_file *const kfile,
 
 	kbdev = kfile->kbdev;
 
-#if (KERNEL_VERSION(4, 6, 0) <= LINUX_VERSION_CODE)
 	kctx = kbase_create_context(kbdev, in_compat_syscall(),
 		flags, kfile->api_version, kfile->filp);
-#else
-	kctx = kbase_create_context(kbdev, is_compat_task(),
-		flags, kfile->api_version, kfile->filp);
-#endif /* (KERNEL_VERSION(4, 6, 0) <= LINUX_VERSION_CODE) */
 
 	/* if bad flags, will stay stuck in setup mode */
 	if (!kctx)
@@ -661,16 +635,8 @@ static int kbase_file_create_kctx(struct kbase_file *const kfile,
 		/* we don't treat this as a fail - just warn about it */
 		dev_warn(kbdev->dev, "couldn't create debugfs dir for kctx\n");
 	} else {
-#if (KERNEL_VERSION(4, 7, 0) > LINUX_VERSION_CODE)
-		/* prevent unprivileged use of debug file system
-		 * in old kernel version
-		 */
-		debugfs_create_file("infinite_cache", 0600, kctx->kctx_dentry,
-			kctx, &kbase_infinite_cache_fops);
-#else
 		debugfs_create_file("infinite_cache", 0644, kctx->kctx_dentry,
 			kctx, &kbase_infinite_cache_fops);
-#endif
 		debugfs_create_file("force_same_va", 0600, kctx->kctx_dentry,
 			kctx, &kbase_force_same_va_fops);
 
@@ -2200,18 +2166,28 @@ static ssize_t kbase_read(struct file *filp, char __user *buf, size_t count, lof
 }
 #endif /* MALI_USE_CSF */
 
-static unsigned int kbase_poll(struct file *filp, poll_table *wait)
+static __poll_t kbase_poll(struct file *filp, poll_table *wait)
 {
 	struct kbase_file *const kfile = filp->private_data;
 	struct kbase_context *const kctx =
 		kbase_file_get_kctx_if_setup_complete(kfile);
 
-	if (unlikely(!kctx))
+	if (unlikely(!kctx)) {
+#if (KERNEL_VERSION(4, 19, 0) > LINUX_VERSION_CODE)
 		return POLLERR;
+#else
+		return EPOLLERR;
+#endif
+	}
 
 	poll_wait(filp, &kctx->event_queue, wait);
-	if (kbase_event_pending(kctx))
+	if (kbase_event_pending(kctx)) {
+#if (KERNEL_VERSION(4, 19, 0) > LINUX_VERSION_CODE)
 		return POLLIN | POLLRDNORM;
+#else
+		return EPOLLIN | EPOLLRDNORM;
+#endif
+	}
 
 	return 0;
 }
@@ -4542,7 +4518,7 @@ int power_control_init(struct kbase_device *kbdev)
 		}
 	}
 	if (err == -EPROBE_DEFER) {
-		while ((i > 0) && (i < BASE_MAX_NR_CLOCKS_REGULATORS))
+		while (i > 0)
 			regulator_put(kbdev->regulators[--i]);
 		return err;
 	}
@@ -4579,8 +4555,8 @@ int power_control_init(struct kbase_device *kbdev)
 		}
 	}
 	if (err == -EPROBE_DEFER) {
-		while ((i > 0) && (i < BASE_MAX_NR_CLOCKS_REGULATORS)) {
-			clk_unprepare(kbdev->clocks[--i]);
+		while (i > 0) {
+			clk_disable_unprepare(kbdev->clocks[--i]);
 			clk_put(kbdev->clocks[i]);
 		}
 		goto clocks_probe_defer;
@@ -4626,6 +4602,19 @@ int power_control_init(struct kbase_device *kbdev)
 #endif
 #endif /* CONFIG_PM_OPP */
 	return 0;
+
+#if defined(CONFIG_PM_OPP) &&                                                                      \
+	((KERNEL_VERSION(4, 10, 0) <= LINUX_VERSION_CODE) && defined(CONFIG_REGULATOR))
+	for (i = 0; i < BASE_MAX_NR_CLOCKS_REGULATORS; i++) {
+		if (kbdev->clocks[i]) {
+			if (__clk_is_enabled(kbdev->clocks[i]))
+				clk_disable_unprepare(kbdev->clocks[i]);
+			clk_put(kbdev->clocks[i]);
+			kbdev->clocks[i] = NULL;
+		} else
+			break;
+	}
+#endif
 
 clocks_probe_defer:
 #if defined(CONFIG_REGULATOR)
@@ -4819,12 +4808,7 @@ int kbase_device_debugfs_init(struct kbase_device *kbdev)
 	/* prevent unprivileged use of debug file system
 	 * in old kernel version
 	 */
-#if (KERNEL_VERSION(4, 7, 0) <= LINUX_VERSION_CODE)
-	/* only for newer kernel version debug file system is safe */
 	const mode_t mode = 0644;
-#else
-	const mode_t mode = 0600;
-#endif
 
 	kbdev->mali_debugfs_directory = debugfs_create_dir(kbdev->devname,
 			NULL);
@@ -4929,6 +4913,7 @@ int kbase_device_debugfs_init(struct kbase_device *kbdev)
 
 #endif
 	kbase_dvfs_status_debugfs_init(kbdev);
+
 
 	return 0;
 
@@ -5126,10 +5111,11 @@ static ssize_t fw_timeout_store(struct device *dev,
 
 	ret = kstrtouint(buf, 0, &fw_timeout);
 	if (ret || fw_timeout == 0) {
-		dev_err(kbdev->dev, "%s\n%s\n%u",
-			"Couldn't process fw_timeout write operation.",
-			"Use format 'fw_timeout_ms', and fw_timeout_ms > 0",
-			FIRMWARE_PING_INTERVAL_MS);
+		dev_err(kbdev->dev,
+			"Couldn't process fw_timeout write operation.\n"
+			"Use format 'fw_timeout_ms', and fw_timeout_ms > 0\n"
+			"Default fw_timeout: %u",
+			kbase_get_timeout_ms(kbdev, CSF_FIRMWARE_PING_TIMEOUT));
 		return -EINVAL;
 	}
 

@@ -173,23 +173,29 @@ struct kbase_hwcnt_backend_csf_info {
 /**
  * struct kbase_hwcnt_csf_physical_layout - HWC sample memory physical layout
  *                                          information.
+ * @hw_block_cnt:       Total number of hardware counters blocks. The hw counters blocks are
+ *                      sub-categorized into 4 classes: front-end, tiler, memory system, and shader.
+ *                      hw_block_cnt = fe_cnt + tiler_cnt + mmu_l2_cnt + shader_cnt.
  * @fe_cnt:             Front end block count.
  * @tiler_cnt:          Tiler block count.
- * @mmu_l2_cnt:         Memory system(MMU and L2 cache) block count.
+ * @mmu_l2_cnt:         Memory system (MMU and L2 cache) block count.
  * @shader_cnt:         Shader Core block count.
- * @block_cnt:          Total block count (sum of all other block counts).
+ * @fw_block_cnt:       Total number of firmware counters blocks.
+ * @block_cnt:          Total block count (sum of all counter blocks: hw_block_cnt + fw_block_cnt).
  * @shader_avail_mask:  Bitmap of all shader cores in the system.
  * @enable_mask_offset: Offset in array elements of enable mask in each block
  *                      starting from the beginning of block.
- * @headers_per_block:  Header size per block.
- * @counters_per_block: Counters size per block.
- * @values_per_block:   Total size per block.
+ * @headers_per_block:  For any block, the number of counters designated as block's header.
+ * @counters_per_block: For any block, the number of counters designated as block's payload.
+ * @values_per_block:   For any block, the number of counters in total (header + payload).
  */
 struct kbase_hwcnt_csf_physical_layout {
+	u8 hw_block_cnt;
 	u8 fe_cnt;
 	u8 tiler_cnt;
 	u8 mmu_l2_cnt;
 	u8 shader_cnt;
+	u8 fw_block_cnt;
 	u8 block_cnt;
 	u64 shader_avail_mask;
 	size_t enable_mask_offset;
@@ -366,29 +372,38 @@ static void kbasep_hwcnt_backend_csf_init_layout(
 	const struct kbase_hwcnt_backend_csf_if_prfcnt_info *prfcnt_info,
 	struct kbase_hwcnt_csf_physical_layout *phys_layout)
 {
-	u8 shader_core_cnt;
+	size_t shader_core_cnt;
 	size_t values_per_block;
+	size_t fw_blocks_count;
+	size_t hw_blocks_count;
 
 	WARN_ON(!prfcnt_info);
 	WARN_ON(!phys_layout);
 
 	shader_core_cnt = fls64(prfcnt_info->core_mask);
-	values_per_block =
-		prfcnt_info->prfcnt_block_size / KBASE_HWCNT_VALUE_HW_BYTES;
+	values_per_block = prfcnt_info->prfcnt_block_size / KBASE_HWCNT_VALUE_HW_BYTES;
+	fw_blocks_count = div_u64(prfcnt_info->prfcnt_fw_size, prfcnt_info->prfcnt_block_size);
+	hw_blocks_count = div_u64(prfcnt_info->prfcnt_hw_size, prfcnt_info->prfcnt_block_size);
+
+	/* The number of hardware counters reported by the GPU matches the legacy guess-work we
+	 * have done in the past
+	 */
+	WARN_ON(hw_blocks_count != KBASE_HWCNT_V5_FE_BLOCK_COUNT +
+					   KBASE_HWCNT_V5_TILER_BLOCK_COUNT +
+					   prfcnt_info->l2_count + shader_core_cnt);
 
 	*phys_layout = (struct kbase_hwcnt_csf_physical_layout){
 		.fe_cnt = KBASE_HWCNT_V5_FE_BLOCK_COUNT,
 		.tiler_cnt = KBASE_HWCNT_V5_TILER_BLOCK_COUNT,
 		.mmu_l2_cnt = prfcnt_info->l2_count,
 		.shader_cnt = shader_core_cnt,
-		.block_cnt = KBASE_HWCNT_V5_FE_BLOCK_COUNT +
-			     KBASE_HWCNT_V5_TILER_BLOCK_COUNT +
-			     prfcnt_info->l2_count + shader_core_cnt,
+		.fw_block_cnt = fw_blocks_count,
+		.hw_block_cnt = hw_blocks_count,
+		.block_cnt = fw_blocks_count + hw_blocks_count,
 		.shader_avail_mask = prfcnt_info->core_mask,
 		.headers_per_block = KBASE_HWCNT_V5_HEADERS_PER_BLOCK,
 		.values_per_block = values_per_block,
-		.counters_per_block =
-			values_per_block - KBASE_HWCNT_V5_HEADERS_PER_BLOCK,
+		.counters_per_block = values_per_block - KBASE_HWCNT_V5_HEADERS_PER_BLOCK,
 		.enable_mask_offset = KBASE_HWCNT_V5_PRFCNT_EN_HEADER,
 	};
 }
@@ -463,7 +478,15 @@ static void kbasep_hwcnt_backend_csf_accumulate_sample(
 	u64 *acc_block = accum_buf;
 	const size_t values_per_block = phys_layout->values_per_block;
 
-	for (block_idx = 0; block_idx < phys_layout->block_cnt; block_idx++) {
+	/* Performance counter blocks for firmware are stored before blocks for hardware.
+	 * We skip over the firmware's performance counter blocks (counters dumping is not
+	 * supported for firmware blocks, only hardware ones).
+	 */
+	old_block += values_per_block * phys_layout->fw_block_cnt;
+	new_block += values_per_block * phys_layout->fw_block_cnt;
+
+	for (block_idx = phys_layout->fw_block_cnt; block_idx < phys_layout->block_cnt;
+	     block_idx++) {
 		const u32 old_enable_mask =
 			old_block[phys_layout->enable_mask_offset];
 		const u32 new_enable_mask =
@@ -551,8 +574,8 @@ static void kbasep_hwcnt_backend_csf_accumulate_sample(
 		old_sample_buf + (dump_bytes / KBASE_HWCNT_VALUE_HW_BYTES));
 	WARN_ON(new_block !=
 		new_sample_buf + (dump_bytes / KBASE_HWCNT_VALUE_HW_BYTES));
-	WARN_ON(acc_block !=
-		accum_buf + (dump_bytes / KBASE_HWCNT_VALUE_HW_BYTES));
+	WARN_ON(acc_block != accum_buf + (dump_bytes / KBASE_HWCNT_VALUE_HW_BYTES) -
+				     (values_per_block * phys_layout->fw_block_cnt));
 	(void)dump_bytes;
 }
 
@@ -1942,7 +1965,6 @@ void kbase_hwcnt_backend_csf_on_prfcnt_disable(
 int kbase_hwcnt_backend_csf_metadata_init(
 	struct kbase_hwcnt_backend_interface *iface)
 {
-	int errcode;
 	struct kbase_hwcnt_backend_csf_info *csf_info;
 	struct kbase_hwcnt_gpu_info gpu_info;
 
@@ -1968,19 +1990,8 @@ int kbase_hwcnt_backend_csf_metadata_init(
 	gpu_info.prfcnt_values_per_block =
 		csf_info->prfcnt_info.prfcnt_block_size /
 		KBASE_HWCNT_VALUE_HW_BYTES;
-	errcode = kbase_hwcnt_csf_metadata_create(
-		&gpu_info, csf_info->counter_set, &csf_info->metadata);
-	if (errcode)
-		return errcode;
-
-	/*
-	 * Dump abstraction size should be exactly twice the size and layout as
-	 * the physical dump size since 64-bit per value used in metadata.
-	 */
-	WARN_ON(csf_info->prfcnt_info.dump_bytes * 2 !=
-		csf_info->metadata->dump_buf_bytes);
-
-	return 0;
+	return kbase_hwcnt_csf_metadata_create(&gpu_info, csf_info->counter_set,
+					       &csf_info->metadata);
 }
 
 void kbase_hwcnt_backend_csf_metadata_term(

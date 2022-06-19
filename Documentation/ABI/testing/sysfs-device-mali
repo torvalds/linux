@@ -211,6 +211,31 @@ Description:
 		without forward progress to allow to elapse before terminating a
 		GPU command queue group.
 
+What:           /sys/class/misc/mali%u/device/mcu_shader_pwroff_timeout
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. The duration value unit
+		is in micro-seconds and is used for configuring MCU shader Core power-off
+		timer. The configured MCU shader Core power-off timer will only have
+		effect when the host driver has delegated the shader cores
+		power management to MCU. The supplied value will be
+		recorded internally without any change. But the actual field
+		value will be subject to core power-off timer source frequency
+		scaling and maximum value limiting. The default source will be
+		SYSTEM_TIMESTAMP counter. But in case the platform is not able
+		to supply it, the GPU CYCLE_COUNTER source will be used as an
+		alternative.
+
+		If we set the value to zero then MCU-controlled shader/tiler
+		power management will be disabled.
+
+
+What:           /sys/class/misc/mali%u/device/csg_scheduling_period
+Description:
+		This attribute is available only with mali platform
+		device-driver that supports a CSF GPU. The duration value unit
+		is in milliseconds and is used for configuring csf scheduling
+		tick duration.
 What:		/sys/class/misc/mali%u/device/reset_timeout
 Description:
 		This attribute is used to set the number of milliseconds to

@@ -139,6 +139,9 @@ bob_defaults {
     platform_is_fpga: {
         kbuild_options: ["CONFIG_MALI_IS_FPGA=y"],
     },
+    mali_fw_core_dump: {
+        kbuild_options: ["CONFIG_MALI_FW_CORE_DUMP=y"],
+    },
     kbuild_options: [
         "CONFIG_MALI_PLATFORM_NAME={{.mali_platform_name}}",
         "MALI_CUSTOMER_RELEASE={{.release}}",

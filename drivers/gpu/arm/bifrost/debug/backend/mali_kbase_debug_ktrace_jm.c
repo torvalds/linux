@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -79,6 +79,9 @@ void kbasep_ktrace_add_jm(struct kbase_device *kbdev,
 {
 	unsigned long irqflags;
 	struct kbase_ktrace_msg *trace_msg;
+
+	if (unlikely(!kbasep_ktrace_initialized(&kbdev->ktrace)))
+		return;
 
 	spin_lock_irqsave(&kbdev->ktrace.lock, irqflags);
 

@@ -1686,7 +1686,7 @@ struct kbase_tlstream;
 	} while (0)
 
 /**
- * KBASE_TLSTREAM_TL_JD_DONE_NO_LOCK_START - Within function jd_done_nolock
+ * KBASE_TLSTREAM_TL_JD_DONE_NO_LOCK_START - Within function kbase_jd_done_nolock
  *
  * @kbdev: Kbase device
  * @atom: Atom identifier
@@ -1705,7 +1705,7 @@ struct kbase_tlstream;
 	} while (0)
 
 /**
- * KBASE_TLSTREAM_TL_JD_DONE_NO_LOCK_END - Within function jd_done_nolock - end
+ * KBASE_TLSTREAM_TL_JD_DONE_NO_LOCK_END - Within function kbase_jd_done_nolock - end
  *
  * @kbdev: Kbase device
  * @atom: Atom identifier

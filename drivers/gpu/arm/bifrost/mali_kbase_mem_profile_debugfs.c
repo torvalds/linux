@@ -69,11 +69,7 @@ static const struct file_operations kbasep_mem_profile_debugfs_fops = {
 int kbasep_mem_profile_debugfs_insert(struct kbase_context *kctx, char *data,
 					size_t size)
 {
-#if (KERNEL_VERSION(4, 7, 0) <= LINUX_VERSION_CODE)
 	const mode_t mode = 0444;
-#else
-	const mode_t mode = 0400;
-#endif
 	int err = 0;
 
 	mutex_lock(&kctx->mem_profile_lock);

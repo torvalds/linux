@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2012-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -262,7 +262,7 @@ void kbase_sync_fence_in_cancel_wait(struct kbase_jd_atom *katom)
 	kbasep_remove_waiting_soft_job(katom);
 	kbase_finish_soft_job(katom);
 
-	if (jd_done_nolock(katom, true))
+	if (kbase_jd_done_nolock(katom, true))
 		kbase_js_sched_all(katom->kctx->kbdev);
 }
 
@@ -309,10 +309,7 @@ void kbase_sync_fence_info_get(struct dma_fence *fence,
 		info->status = 0; /* still active (unsignaled) */
 	}
 
-#if (KERNEL_VERSION(4, 8, 0) > LINUX_VERSION_CODE)
-	scnprintf(info->name, sizeof(info->name), "%u#%u",
-		  fence->context, fence->seqno);
-#elif (KERNEL_VERSION(5, 1, 0) > LINUX_VERSION_CODE)
+#if (KERNEL_VERSION(5, 1, 0) > LINUX_VERSION_CODE)
 	scnprintf(info->name, sizeof(info->name), "%llu#%u",
 		  fence->context, fence->seqno);
 #else

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -69,9 +69,11 @@ kbase_fence_fence_value_str(struct dma_fence *fence, char *str, int size)
 }
 
 #if (KERNEL_VERSION(4, 10, 0) > LINUX_VERSION_CODE)
+extern const struct fence_ops kbase_fence_ops; /* silence checker warning */
 const struct fence_ops kbase_fence_ops = {
 	.wait = fence_default_wait,
 #else
+extern const struct dma_fence_ops kbase_fence_ops; /* silence checker warning */
 const struct dma_fence_ops kbase_fence_ops = {
 	.wait = dma_fence_default_wait,
 #endif

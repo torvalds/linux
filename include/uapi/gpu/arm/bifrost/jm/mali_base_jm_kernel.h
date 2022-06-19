@@ -23,99 +23,15 @@
 #define _UAPI_BASE_JM_KERNEL_H_
 
 #include <linux/types.h>
+#include "../mali_base_common_kernel.h"
 
-/* Memory allocation, access/hint flags.
+/* Memory allocation, access/hint flags & mask specific to JM GPU.
  *
  * See base_mem_alloc_flags.
  */
 
-/* IN */
-/* Read access CPU side
- */
-#define BASE_MEM_PROT_CPU_RD ((base_mem_alloc_flags)1 << 0)
-
-/* Write access CPU side
- */
-#define BASE_MEM_PROT_CPU_WR ((base_mem_alloc_flags)1 << 1)
-
-/* Read access GPU side
- */
-#define BASE_MEM_PROT_GPU_RD ((base_mem_alloc_flags)1 << 2)
-
-/* Write access GPU side
- */
-#define BASE_MEM_PROT_GPU_WR ((base_mem_alloc_flags)1 << 3)
-
-/* Execute allowed on the GPU side
- */
-#define BASE_MEM_PROT_GPU_EX ((base_mem_alloc_flags)1 << 4)
-
-/* Will be permanently mapped in kernel space.
- * Flag is only allowed on allocations originating from kbase.
- */
-#define BASEP_MEM_PERMANENT_KERNEL_MAPPING ((base_mem_alloc_flags)1 << 5)
-
-/* The allocation will completely reside within the same 4GB chunk in the GPU
- * virtual space.
- * Since this flag is primarily required only for the TLS memory which will
- * not be used to contain executable code and also not used for Tiler heap,
- * it can't be used along with BASE_MEM_PROT_GPU_EX and TILER_ALIGN_TOP flags.
- */
-#define BASE_MEM_GPU_VA_SAME_4GB_PAGE ((base_mem_alloc_flags)1 << 6)
-
-/* Userspace is not allowed to free this memory.
- * Flag is only allowed on allocations originating from kbase.
- */
-#define BASEP_MEM_NO_USER_FREE ((base_mem_alloc_flags)1 << 7)
-
-/* Used as BASE_MEM_FIXED in other backends
- */
+/* Used as BASE_MEM_FIXED in other backends */
 #define BASE_MEM_RESERVED_BIT_8 ((base_mem_alloc_flags)1 << 8)
-
-/* Grow backing store on GPU Page Fault
- */
-#define BASE_MEM_GROW_ON_GPF ((base_mem_alloc_flags)1 << 9)
-
-/* Page coherence Outer shareable, if available
- */
-#define BASE_MEM_COHERENT_SYSTEM ((base_mem_alloc_flags)1 << 10)
-
-/* Page coherence Inner shareable
- */
-#define BASE_MEM_COHERENT_LOCAL ((base_mem_alloc_flags)1 << 11)
-
-/* IN/OUT */
-/* Should be cached on the CPU, returned if actually cached
- */
-#define BASE_MEM_CACHED_CPU ((base_mem_alloc_flags)1 << 12)
-
-/* IN/OUT */
-/* Must have same VA on both the GPU and the CPU
- */
-#define BASE_MEM_SAME_VA ((base_mem_alloc_flags)1 << 13)
-
-/* OUT */
-/* Must call mmap to acquire a GPU address for the allocation
- */
-#define BASE_MEM_NEED_MMAP ((base_mem_alloc_flags)1 << 14)
-
-/* IN */
-/* Page coherence Outer shareable, required.
- */
-#define BASE_MEM_COHERENT_SYSTEM_REQUIRED ((base_mem_alloc_flags)1 << 15)
-
-/* Protected memory
- */
-#define BASE_MEM_PROTECTED ((base_mem_alloc_flags)1 << 16)
-
-/* Not needed physical memory
- */
-#define BASE_MEM_DONT_NEED ((base_mem_alloc_flags)1 << 17)
-
-/* Must use shared CPU/GPU zone (SAME_VA zone) but doesn't require the
- * addresses to be the same
- */
-#define BASE_MEM_IMPORT_SHARED ((base_mem_alloc_flags)1 << 18)
 
 /**
  * BASE_MEM_RESERVED_BIT_19 - Bit 19 is reserved.
@@ -131,47 +47,15 @@
  */
 #define BASE_MEM_TILER_ALIGN_TOP ((base_mem_alloc_flags)1 << 20)
 
-/* Should be uncached on the GPU, will work only for GPUs using AARCH64 mmu
- * mode. Some components within the GPU might only be able to access memory
- * that is GPU cacheable. Refer to the specific GPU implementation for more
- * details. The 3 shareability flags will be ignored for GPU uncached memory.
- * If used while importing USER_BUFFER type memory, then the import will fail
- * if the memory is not aligned to GPU and CPU cache line width.
- */
-#define BASE_MEM_UNCACHED_GPU ((base_mem_alloc_flags)1 << 21)
-
-/*
- * Bits [22:25] for group_id (0~15).
- *
- * base_mem_group_id_set() should be used to pack a memory group ID into a
- * base_mem_alloc_flags value instead of accessing the bits directly.
- * base_mem_group_id_get() should be used to extract the memory group ID from
- * a base_mem_alloc_flags value.
- */
-#define BASEP_MEM_GROUP_ID_SHIFT 22
-#define BASE_MEM_GROUP_ID_MASK \
-	((base_mem_alloc_flags)0xF << BASEP_MEM_GROUP_ID_SHIFT)
-
-/* Must do CPU cache maintenance when imported memory is mapped/unmapped
- * on GPU. Currently applicable to dma-buf type only.
- */
-#define BASE_MEM_IMPORT_SYNC_ON_MAP_UNMAP ((base_mem_alloc_flags)1 << 26)
-
 /* Use the GPU VA chosen by the kernel client */
 #define BASE_MEM_FLAG_MAP_FIXED ((base_mem_alloc_flags)1 << 27)
-
-/* OUT */
-/* Kernel side cache sync ops required */
-#define BASE_MEM_KERNEL_SYNC ((base_mem_alloc_flags)1 << 28)
 
 /* Force trimming of JIT allocations when creating a new allocation */
 #define BASEP_MEM_PERFORM_JIT_TRIM ((base_mem_alloc_flags)1 << 29)
 
-/* Number of bits used as flags for base memory management
- *
- * Must be kept in sync with the base_mem_alloc_flags flags
+/* Note that the number of bits used for base_mem_alloc_flags
+ * must be less than BASE_MEM_FLAGS_NR_BITS !!!
  */
-#define BASE_MEM_FLAGS_NR_BITS 30
 
 /* A mask of all the flags which are only valid for allocations within kbase,
  * and may not be passed from user space.
@@ -180,29 +64,11 @@
 	(BASEP_MEM_PERMANENT_KERNEL_MAPPING | BASEP_MEM_NO_USER_FREE | \
 	 BASE_MEM_FLAG_MAP_FIXED | BASEP_MEM_PERFORM_JIT_TRIM)
 
-/* A mask for all output bits, excluding IN/OUT bits.
- */
-#define BASE_MEM_FLAGS_OUTPUT_MASK BASE_MEM_NEED_MMAP
-
-/* A mask for all input bits, including IN/OUT bits.
- */
-#define BASE_MEM_FLAGS_INPUT_MASK \
-	(((1 << BASE_MEM_FLAGS_NR_BITS) - 1) & ~BASE_MEM_FLAGS_OUTPUT_MASK)
-
 /* A mask of all currently reserved flags
  */
 #define BASE_MEM_FLAGS_RESERVED \
 	(BASE_MEM_RESERVED_BIT_8 | BASE_MEM_RESERVED_BIT_19)
 
-#define BASEP_MEM_INVALID_HANDLE (0ul)
-#define BASE_MEM_MMU_DUMP_HANDLE (1ul << LOCAL_PAGE_SHIFT)
-#define BASE_MEM_TRACE_BUFFER_HANDLE (2ul << LOCAL_PAGE_SHIFT)
-#define BASE_MEM_MAP_TRACKING_HANDLE (3ul << LOCAL_PAGE_SHIFT)
-#define BASEP_MEM_WRITE_ALLOC_PAGES_HANDLE (4ul << LOCAL_PAGE_SHIFT)
-/* reserved handles ..-47<<PAGE_SHIFT> for future special handles */
-#define BASE_MEM_COOKIE_BASE (64ul << LOCAL_PAGE_SHIFT)
-#define BASE_MEM_FIRST_FREE_ADDRESS                                            \
-	((BITS_PER_LONG << LOCAL_PAGE_SHIFT) + BASE_MEM_COOKIE_BASE)
 
 /* Similar to BASE_MEM_TILER_ALIGN_TOP, memory starting from the end of the
  * initial commit is aligned to 'extension' pages, where 'extension' must be a power
@@ -227,47 +93,6 @@
 #define BASE_JIT_ALLOC_VALID_FLAGS \
 	(BASE_JIT_ALLOC_MEM_TILER_ALIGN_TOP | BASE_JIT_ALLOC_HEAP_INFO_IS_SIZE)
 
-/**
- * typedef base_context_create_flags - Flags to pass to ::base_context_init.
- *
- * Flags can be ORed together to enable multiple things.
- *
- * These share the same space as BASEP_CONTEXT_FLAG_*, and so must
- * not collide with them.
- */
-typedef __u32 base_context_create_flags;
-
-/* No flags set */
-#define BASE_CONTEXT_CREATE_FLAG_NONE ((base_context_create_flags)0)
-
-/* Base context is embedded in a cctx object (flag used for CINSTR
- * software counter macros)
- */
-#define BASE_CONTEXT_CCTX_EMBEDDED ((base_context_create_flags)1 << 0)
-
-/* Base context is a 'System Monitor' context for Hardware counters.
- *
- * One important side effect of this is that job submission is disabled.
- */
-#define BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED \
-	((base_context_create_flags)1 << 1)
-
-/* Bit-shift used to encode a memory group ID in base_context_create_flags
- */
-#define BASEP_CONTEXT_MMU_GROUP_ID_SHIFT (3)
-
-/* Bitmask used to encode a memory group ID in base_context_create_flags
- */
-#define BASEP_CONTEXT_MMU_GROUP_ID_MASK \
-	((base_context_create_flags)0xF << BASEP_CONTEXT_MMU_GROUP_ID_SHIFT)
-
-/* Bitpattern describing the base_context_create_flags that can be
- * passed to the kernel
- */
-#define BASEP_CONTEXT_CREATE_KERNEL_FLAGS \
-	(BASE_CONTEXT_SYSTEM_MONITOR_SUBMIT_DISABLED | \
-	 BASEP_CONTEXT_MMU_GROUP_ID_MASK)
-
 /* Bitpattern describing the ::base_context_create_flags that can be
  * passed to base_context_init()
  */
@@ -287,16 +112,7 @@ typedef __u32 base_context_create_flags;
 #define BASEP_CONTEXT_FLAG_JOB_DUMP_DISABLED \
 	((base_context_create_flags)(1 << 31))
 
-/* Enable additional tracepoints for latency measurements (TL_ATOM_READY,
- * TL_ATOM_DONE, TL_ATOM_PRIO_CHANGE, TL_ATOM_EVENT_POST)
- */
-#define BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS (1 << 0)
-
-/* Indicate that job dumping is enabled. This could affect certain timers
- * to account for the performance impact.
- */
-#define BASE_TLSTREAM_JOB_DUMPING_ENABLED (1 << 1)
-
+/* Flags for base tracepoint specific to JM */
 #define BASE_TLSTREAM_FLAGS_MASK (BASE_TLSTREAM_ENABLE_LATENCY_TRACEPOINTS | \
 		BASE_TLSTREAM_JOB_DUMPING_ENABLED)
 /*
@@ -509,9 +325,6 @@ typedef __u32 base_jd_core_req;
  * takes priority
  *
  * This is only guaranteed to work for BASE_JD_REQ_ONLY_COMPUTE atoms.
- *
- * If the core availability policy is keeping the required core group turned
- * off, then the job will fail with a BASE_JD_EVENT_PM_EVENT error code.
  */
 #define BASE_JD_REQ_SPECIFIC_COHERENT_GROUP ((base_jd_core_req)1 << 11)
 
@@ -770,6 +583,9 @@ typedef __u8 base_jd_prio;
  */
 #define BASE_JD_PRIO_REALTIME    ((base_jd_prio)3)
 
+/* Invalid atom priority (max uint8_t value) */
+#define BASE_JD_PRIO_INVALID ((base_jd_prio)255)
+
 /* Count of the number of priority levels. This itself is not a valid
  * base_jd_prio setting
  */
@@ -1016,11 +832,6 @@ enum {
  *                             BASE_JD_EVENT_JOB_CONFIG_FAULT, or if the
  *                             platform doesn't support the feature specified in
  *                             the atom.
- * @BASE_JD_EVENT_PM_EVENT:   TODO: remove as it's not used
- * @BASE_JD_EVENT_TIMED_OUT:   TODO: remove as it's not used
- * @BASE_JD_EVENT_BAG_INVALID:   TODO: remove as it's not used
- * @BASE_JD_EVENT_PROGRESS_REPORT:   TODO: remove as it's not used
- * @BASE_JD_EVENT_BAG_DONE:   TODO: remove as it's not used
  * @BASE_JD_EVENT_DRV_TERMINATED: this is a special event generated to indicate
  *                                to userspace that the KBase context has been
  *                                destroyed and Base should stop listening for
@@ -1115,17 +926,10 @@ enum base_jd_event_code {
 	/* SW defined exceptions */
 	BASE_JD_EVENT_MEM_GROWTH_FAILED =
 		BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x000,
-	BASE_JD_EVENT_TIMED_OUT =
-		BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x001,
 	BASE_JD_EVENT_JOB_CANCELLED =
 		BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x002,
 	BASE_JD_EVENT_JOB_INVALID =
 		BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x003,
-	BASE_JD_EVENT_PM_EVENT =
-		BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_JOB | 0x004,
-
-	BASE_JD_EVENT_BAG_INVALID =
-		BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_BAG | 0x003,
 
 	BASE_JD_EVENT_RANGE_HW_FAULT_OR_SW_ERROR_END = BASE_JD_SW_EVENT |
 		BASE_JD_SW_EVENT_RESERVED | 0x3FF,
@@ -1133,10 +937,6 @@ enum base_jd_event_code {
 	BASE_JD_EVENT_RANGE_SW_SUCCESS_START = BASE_JD_SW_EVENT |
 		BASE_JD_SW_EVENT_SUCCESS | 0x000,
 
-	BASE_JD_EVENT_PROGRESS_REPORT = BASE_JD_SW_EVENT |
-		BASE_JD_SW_EVENT_SUCCESS | BASE_JD_SW_EVENT_JOB | 0x000,
-	BASE_JD_EVENT_BAG_DONE = BASE_JD_SW_EVENT | BASE_JD_SW_EVENT_SUCCESS |
-		BASE_JD_SW_EVENT_BAG | 0x000,
 	BASE_JD_EVENT_DRV_TERMINATED = BASE_JD_SW_EVENT |
 		BASE_JD_SW_EVENT_SUCCESS | BASE_JD_SW_EVENT_INFO | 0x000,
 
@@ -1201,6 +1001,51 @@ struct base_dump_cpu_gpu_counters {
 	__u64 sec;
 	__u32 usec;
 	__u8 padding[36];
+};
+
+/**
+ * struct mali_base_gpu_core_props - GPU core props info
+ *
+ * @product_id: Pro specific value.
+ * @version_status: Status of the GPU release. No defined values, but starts at
+ *   0 and increases by one for each release status (alpha, beta, EAC, etc.).
+ *   4 bit values (0-15).
+ * @minor_revision: Minor release number of the GPU. "P" part of an "RnPn"
+ *   release number.
+ *   8 bit values (0-255).
+ * @major_revision: Major release number of the GPU. "R" part of an "RnPn"
+ *   release number.
+ *   4 bit values (0-15).
+ * @padding: padding to align to 8-byte
+ * @gpu_freq_khz_max: The maximum GPU frequency. Reported to applications by
+ *   clGetDeviceInfo()
+ * @log2_program_counter_size: Size of the shader program counter, in bits.
+ * @texture_features: TEXTURE_FEATURES_x registers, as exposed by the GPU. This
+ *   is a bitpattern where a set bit indicates that the format is supported.
+ *   Before using a texture format, it is recommended that the corresponding
+ *   bit be checked.
+ * @gpu_available_memory_size: Theoretical maximum memory available to the GPU.
+ *   It is unlikely that a client will be able to allocate all of this memory
+ *   for their own purposes, but this at least provides an upper bound on the
+ *   memory available to the GPU.
+ *   This is required for OpenCL's clGetDeviceInfo() call when
+ *   CL_DEVICE_GLOBAL_MEM_SIZE is requested, for OpenCL GPU devices. The
+ *   client will not be expecting to allocate anywhere near this value.
+ * @num_exec_engines: The number of execution engines. Only valid for tGOX
+ *   (Bifrost) GPUs, where GPU_HAS_REG_CORE_FEATURES is defined. Otherwise,
+ *   this is always 0.
+ */
+struct mali_base_gpu_core_props {
+	__u32 product_id;
+	__u16 version_status;
+	__u16 minor_revision;
+	__u16 major_revision;
+	__u16 padding;
+	__u32 gpu_freq_khz_max;
+	__u32 log2_program_counter_size;
+	__u32 texture_features[BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS];
+	__u64 gpu_available_memory_size;
+	__u8 num_exec_engines;
 };
 
 #endif /* _UAPI_BASE_JM_KERNEL_H_ */

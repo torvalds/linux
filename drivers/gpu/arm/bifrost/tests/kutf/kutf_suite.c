@@ -106,22 +106,16 @@ struct kutf_convert_table {
 	enum kutf_result_status result;
 };
 
-struct kutf_convert_table kutf_convert[] = {
-#define ADD_UTF_RESULT(_name) \
-{ \
-	#_name, \
-	_name, \
-},
-ADD_UTF_RESULT(KUTF_RESULT_BENCHMARK)
-ADD_UTF_RESULT(KUTF_RESULT_SKIP)
-ADD_UTF_RESULT(KUTF_RESULT_UNKNOWN)
-ADD_UTF_RESULT(KUTF_RESULT_PASS)
-ADD_UTF_RESULT(KUTF_RESULT_DEBUG)
-ADD_UTF_RESULT(KUTF_RESULT_INFO)
-ADD_UTF_RESULT(KUTF_RESULT_WARN)
-ADD_UTF_RESULT(KUTF_RESULT_FAIL)
-ADD_UTF_RESULT(KUTF_RESULT_FATAL)
-ADD_UTF_RESULT(KUTF_RESULT_ABORT)
+static const struct kutf_convert_table kutf_convert[] = {
+#define ADD_UTF_RESULT(_name)                                                                      \
+	{                                                                                          \
+#_name, _name,                                                                     \
+	}
+	ADD_UTF_RESULT(KUTF_RESULT_BENCHMARK), ADD_UTF_RESULT(KUTF_RESULT_SKIP),
+	ADD_UTF_RESULT(KUTF_RESULT_UNKNOWN),   ADD_UTF_RESULT(KUTF_RESULT_PASS),
+	ADD_UTF_RESULT(KUTF_RESULT_DEBUG),     ADD_UTF_RESULT(KUTF_RESULT_INFO),
+	ADD_UTF_RESULT(KUTF_RESULT_WARN),      ADD_UTF_RESULT(KUTF_RESULT_FAIL),
+	ADD_UTF_RESULT(KUTF_RESULT_FATAL),     ADD_UTF_RESULT(KUTF_RESULT_ABORT),
 };
 
 #define UTF_CONVERT_SIZE (ARRAY_SIZE(kutf_convert))
@@ -191,8 +185,7 @@ static void kutf_set_expected_result(struct kutf_context *context,
  *
  * Return: 1 if test result was successfully converted to string, 0 otherwise
  */
-static int kutf_result_to_string(char **result_str,
-		enum kutf_result_status result)
+static int kutf_result_to_string(const char **result_str, enum kutf_result_status result)
 {
 	int i;
 	int ret = 0;
@@ -382,7 +375,7 @@ static ssize_t kutf_debugfs_run_read(struct file *file, char __user *buf,
 	struct kutf_result *res;
 	unsigned long bytes_not_copied;
 	ssize_t bytes_copied = 0;
-	char *kutf_str_ptr = NULL;
+	const char *kutf_str_ptr = NULL;
 	size_t kutf_str_len = 0;
 	size_t message_len = 0;
 	char separator = ':';
@@ -599,11 +592,7 @@ static int create_fixture_variant(struct kutf_test_function *test_func,
 		goto fail_file;
 	}
 
-#if KERNEL_VERSION(4, 7, 0) <= LINUX_VERSION_CODE
 	tmp = debugfs_create_file_unsafe(
-#else
-	tmp = debugfs_create_file(
-#endif
 			"run", 0600, test_fix->dir,
 			test_fix,
 			&kutf_debugfs_run_ops);

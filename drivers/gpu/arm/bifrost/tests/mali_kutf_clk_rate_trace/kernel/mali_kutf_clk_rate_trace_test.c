@@ -46,7 +46,7 @@
 #define MINOR_FOR_FIRST_KBASE_DEV	(-1)
 
 /* KUTF test application pointer for this test */
-struct kutf_application *kutf_app;
+static struct kutf_application *kutf_app;
 
 enum portal_server_state {
 	PORTAL_STATE_NO_CLK,
@@ -113,7 +113,7 @@ struct kbasep_cmd_name_pair {
 	const char *name;
 };
 
-struct kbasep_cmd_name_pair kbasep_portal_cmd_name_map[] = {
+static const struct kbasep_cmd_name_pair kbasep_portal_cmd_name_map[] = {
 	{ PORTAL_CMD_GET_PLATFORM, GET_PLATFORM },
 	{ PORTAL_CMD_GET_CLK_RATE_MGR, GET_CLK_RATE_MGR },
 	{ PORTAL_CMD_GET_CLK_RATE_TRACE, GET_CLK_RATE_TRACE },
@@ -128,7 +128,7 @@ struct kbasep_cmd_name_pair kbasep_portal_cmd_name_map[] = {
  * this pointer is engaged, new requests for create fixture will fail
  * hence limiting the use of the portal at any time to a singleton.
  */
-struct kutf_clk_rate_trace_fixture_data *g_ptr_portal_data;
+static struct kutf_clk_rate_trace_fixture_data *g_ptr_portal_data;
 
 #define PORTAL_MSG_LEN (KUTF_MAX_LINE_LENGTH - MAX_REPLY_NAME_LEN)
 static char portal_msg_buf[PORTAL_MSG_LEN];
@@ -825,7 +825,7 @@ static void *mali_kutf_clk_rate_trace_create_fixture(
 	if (!data)
 		return NULL;
 
-	*data = (const struct kutf_clk_rate_trace_fixture_data) { 0 };
+	*data = (const struct kutf_clk_rate_trace_fixture_data){ NULL };
 	pr_debug("Hooking up the test portal to kbdev clk rate trace\n");
 	spin_lock(&kbdev->pm.clk_rtm.lock);
 
@@ -909,7 +909,7 @@ static int __init mali_kutf_clk_rate_trace_test_module_init(void)
 {
 	struct kutf_suite *suite;
 	unsigned int filters;
-	union kutf_callback_data suite_data = { 0 };
+	union kutf_callback_data suite_data = { NULL };
 
 	pr_debug("Creating app\n");
 

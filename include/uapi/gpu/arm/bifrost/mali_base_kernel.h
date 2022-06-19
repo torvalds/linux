@@ -27,18 +27,9 @@
 #define _UAPI_BASE_KERNEL_H_
 
 #include <linux/types.h>
-
-struct base_mem_handle {
-	struct {
-		__u64 handle;
-	} basep;
-};
-
 #include "mali_base_mem_priv.h"
 #include "gpu/mali_kbase_gpu_id.h"
 #include "gpu/mali_kbase_gpu_coherency.h"
-
-#define BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS 4
 
 #define BASE_MAX_COHERENT_GROUPS 16
 
@@ -458,49 +449,6 @@ struct base_jd_debug_copy_buffer {
  * 16 coherent groups, since core groups are typically 4 cores.
  */
 
-/**
- * struct mali_base_gpu_core_props - GPU core props info
- *
- * @product_id: Pro specific value.
- * @version_status: Status of the GPU release. No defined values, but starts at
- *   0 and increases by one for each release status (alpha, beta, EAC, etc.).
- *   4 bit values (0-15).
- * @minor_revision: Minor release number of the GPU. "P" part of an "RnPn"
- *   release number.
- *   8 bit values (0-255).
- * @major_revision: Major release number of the GPU. "R" part of an "RnPn"
- *   release number.
- *   4 bit values (0-15).
- * @padding: padding to allign to 8-byte
- * @gpu_freq_khz_max: The maximum GPU frequency. Reported to applications by
- *   clGetDeviceInfo()
- * @log2_program_counter_size: Size of the shader program counter, in bits.
- * @texture_features: TEXTURE_FEATURES_x registers, as exposed by the GPU. This
- *   is a bitpattern where a set bit indicates that the format is supported.
- *   Before using a texture format, it is recommended that the corresponding
- *   bit be checked.
- * @gpu_available_memory_size: Theoretical maximum memory available to the GPU.
- *   It is unlikely that a client will be able to allocate all of this memory
- *   for their own purposes, but this at least provides an upper bound on the
- *   memory available to the GPU.
- *   This is required for OpenCL's clGetDeviceInfo() call when
- *   CL_DEVICE_GLOBAL_MEM_SIZE is requested, for OpenCL GPU devices. The
- *   client will not be expecting to allocate anywhere near this value.
- * @num_exec_engines: The number of execution engines.
- */
-struct mali_base_gpu_core_props {
-	__u32 product_id;
-	__u16 version_status;
-	__u16 minor_revision;
-	__u16 major_revision;
-	__u16 padding;
-	__u32 gpu_freq_khz_max;
-	__u32 log2_program_counter_size;
-	__u32 texture_features[BASE_GPU_NUM_TEXTURE_FEATURES_REGISTERS];
-	__u64 gpu_available_memory_size;
-	__u8 num_exec_engines;
-};
-
 /*
  * More information is possible - but associativity and bus width are not
  * required by upper-level apis.
@@ -531,7 +479,7 @@ struct mali_base_gpu_tiler_props {
  *                          field.
  * @impl_tech:              0 = Not specified, 1 = Silicon, 2 = FPGA,
  *                          3 = SW Model/Emulation
- * @padding:                padding to allign to 8-byte
+ * @padding:                padding to align to 8-byte
  * @tls_alloc:              Number of threads per core that TLS must be
  *                          allocated for
  */
@@ -551,7 +499,7 @@ struct mali_base_gpu_thread_props {
  * struct mali_base_gpu_coherent_group - descriptor for a coherent group
  * @core_mask: Core restriction mask required for the group
  * @num_cores: Number of cores in the group
- * @padding:   padding to allign to 8-byte
+ * @padding:   padding to align to 8-byte
  *
  * \c core_mask exposes all cores in that coherent group, and \c num_cores
  * provides a cached population-count for that mask.
@@ -581,7 +529,7 @@ struct mali_base_gpu_coherent_group {
  *                         are in the group[] member. Use num_groups instead.
  * @coherency: Coherency features of the memory, accessed by gpu_mem_features
  *             methods
- * @padding: padding to allign to 8-byte
+ * @padding: padding to align to 8-byte
  * @group: Descriptors of coherent groups
  *
  * Note that the sizes of the members could be reduced. However, the \c group
@@ -598,6 +546,12 @@ struct mali_base_gpu_coherent_group_info {
 	__u32 padding;
 	struct mali_base_gpu_coherent_group group[BASE_MAX_COHERENT_GROUPS];
 };
+
+#if MALI_USE_CSF
+#include "csf/mali_base_csf_kernel.h"
+#else
+#include "jm/mali_base_jm_kernel.h"
+#endif
 
 /**
  * struct gpu_raw_gpu_props - A complete description of the GPU's Hardware
@@ -695,12 +649,6 @@ struct base_gpu_props {
 	struct gpu_raw_gpu_props raw_props;
 	struct mali_base_gpu_coherent_group_info coherency_info;
 };
-
-#if MALI_USE_CSF
-#include "csf/mali_base_csf_kernel.h"
-#else
-#include "jm/mali_base_jm_kernel.h"
-#endif
 
 #define BASE_MEM_GROUP_ID_GET(flags)                                           \
 	((flags & BASE_MEM_GROUP_ID_MASK) >> BASEP_MEM_GROUP_ID_SHIFT)

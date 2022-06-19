@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2012-2014, 2017-2018, 2020-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2012-2014, 2017-2018, 2020-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -20,6 +20,7 @@
  */
 
 #include <linux/version.h>
+#include <linux/version_compat_defs.h>
 #include <linux/uaccess.h>
 #include <linux/init.h>
 #include <linux/module.h>
@@ -98,9 +99,6 @@ static const struct file_operations dma_buf_lock_fops = {
 #endif
 #if defined(HAVE_COMPAT_IOCTL) || ((KERNEL_VERSION(5, 9, 0) <= LINUX_VERSION_CODE))
 	.compat_ioctl   = dma_buf_lock_ioctl,
-#endif
-#if !defined(HAVE_UNLOCKED_IOCTL) && !defined(HAVE_COMPAT_IOCTL) && ((KERNEL_VERSION(2, 6, 36) > LINUX_VERSION_CODE))
-	.ioctl   = dma_buf_lock_ioctl,
 #endif
 };
 
@@ -480,15 +478,18 @@ static int dma_buf_lock_handle_release(struct inode *inode, struct file *file)
 	return 0;
 }
 
-static unsigned int dma_buf_lock_handle_poll(
-	struct file *file,
-	struct poll_table_struct *wait)
+static __poll_t dma_buf_lock_handle_poll(struct file *file, poll_table *wait)
 {
 	struct dma_buf_lock_resource *resource;
 	unsigned int ret = 0;
 
-	if (!is_dma_buf_lock_file(file))
+	if (!is_dma_buf_lock_file(file)) {
+#if (KERNEL_VERSION(4, 19, 0) > LINUX_VERSION_CODE)
 		return POLLERR;
+#else
+		return EPOLLERR;
+#endif
+	}
 
 	resource = file->private_data;
 #if DMA_BUF_LOCK_DEBUG
@@ -496,9 +497,15 @@ static unsigned int dma_buf_lock_handle_poll(
 #endif
 	if (atomic_read(&resource->locked) == 1) {
 		/* Resources have been locked */
+#if (KERNEL_VERSION(4, 19, 0) > LINUX_VERSION_CODE)
 		ret = POLLIN | POLLRDNORM;
 		if (resource->exclusive)
-			ret |=  POLLOUT | POLLWRNORM;
+			ret |= POLLOUT | POLLWRNORM;
+#else
+		ret = EPOLLIN | EPOLLRDNORM;
+		if (resource->exclusive)
+			ret |= EPOLLOUT | EPOLLWRNORM;
+#endif
 	} else {
 		if (!poll_does_not_wait(wait))
 			poll_wait(file, &resource->wait, wait);
@@ -533,10 +540,12 @@ static int dma_buf_lock_dolock(struct dma_buf_lock_k_request *request)
 {
 	struct dma_buf_lock_resource *resource;
 	struct ww_acquire_ctx ww_ctx;
+	struct file *file;
 	int size;
 	int fd;
 	int i;
 	int ret;
+	int error;
 
 	if (request->list_of_dma_buf_fds == NULL)
 		return -EINVAL;
@@ -634,15 +643,21 @@ static int dma_buf_lock_dolock(struct dma_buf_lock_k_request *request)
 
 	kref_get(&resource->refcount);
 
-	/* Create file descriptor associated with lock request */
-	fd = anon_inode_getfd("dma_buf_lock", &dma_buf_lock_handle_fops,
-		(void *)resource, 0);
-	if (fd < 0) {
+	error = get_unused_fd_flags(0);
+	if (error < 0)
+		return error;
+
+	fd = error;
+
+	file = anon_inode_getfile("dma_buf_lock", &dma_buf_lock_handle_fops, (void *)resource, 0);
+
+	if (IS_ERR(file)) {
+		put_unused_fd(fd);
 		mutex_lock(&dma_buf_lock_mutex);
 		kref_put(&resource->refcount, dma_buf_lock_dounlock);
 		kref_put(&resource->refcount, dma_buf_lock_dounlock);
 		mutex_unlock(&dma_buf_lock_mutex);
-		return fd;
+		return PTR_ERR(file);
 	}
 
 	resource->exclusive = request->exclusive;
@@ -711,9 +726,7 @@ static int dma_buf_lock_dolock(struct dma_buf_lock_k_request *request)
 			dma_resv_add_shared_fence(resv, &resource->fence);
 #endif
 		} else {
-			ret = dma_buf_lock_add_fence_reservation_callback(resource,
-									  resv,
-									  true);
+			ret = dma_buf_lock_add_fence_reservation_callback(resource, resv, true);
 			if (ret) {
 #if DMA_BUF_LOCK_DEBUG
 				pr_debug("%s : Error %d adding reservation to callback.\n", __func__, ret);
@@ -758,6 +771,10 @@ static int dma_buf_lock_dolock(struct dma_buf_lock_k_request *request)
 	kref_put(&resource->refcount, dma_buf_lock_dounlock);
 	mutex_unlock(&dma_buf_lock_mutex);
 
+	/* Installing the fd is deferred to the very last operation before return
+	 * to avoid allowing userspace to close it during the setup.
+	 */
+	fd_install(fd, file);
 	return fd;
 }
 

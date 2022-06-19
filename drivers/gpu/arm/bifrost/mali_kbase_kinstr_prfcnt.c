@@ -36,6 +36,7 @@
 #include <linux/mutex.h>
 #include <linux/poll.h>
 #include <linux/slab.h>
+#include <linux/version_compat_defs.h>
 #include <linux/workqueue.h>
 
 /* The minimum allowed interval between dumps, in nanoseconds
@@ -226,25 +227,19 @@ static struct prfcnt_enum_item kinstr_prfcnt_supported_requests[] = {
  * Return: POLLIN if data can be read without blocking, 0 if data can not be
  *         read without blocking, else error code.
  */
-#if KERNEL_VERSION(4, 16, 0) >= LINUX_VERSION_CODE
-static unsigned int
-kbasep_kinstr_prfcnt_hwcnt_reader_poll(struct file *filp,
-				       struct poll_table_struct *wait)
-#else
 static __poll_t
 kbasep_kinstr_prfcnt_hwcnt_reader_poll(struct file *filp,
 				       struct poll_table_struct *wait)
-#endif
 {
 	struct kbase_kinstr_prfcnt_client *cli;
 
 	if (!filp || !wait)
-		return -EINVAL;
+		return (__poll_t)-EINVAL;
 
 	cli = filp->private_data;
 
 	if (!cli)
-		return -EINVAL;
+		return (__poll_t)-EINVAL;
 
 	poll_wait(filp, &cli->waitq, wait);
 
