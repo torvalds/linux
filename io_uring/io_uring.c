@@ -1250,21 +1250,18 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 	struct io_wq_work_node *node, *prev;
 	struct io_submit_state *state = &ctx->submit_state;
 
-	if (state->flush_cqes) {
-		spin_lock(&ctx->completion_lock);
-		wq_list_for_each(node, prev, &state->compl_reqs) {
-			struct io_kiocb *req = container_of(node, struct io_kiocb,
-						    comp_list);
+	spin_lock(&ctx->completion_lock);
+	wq_list_for_each(node, prev, &state->compl_reqs) {
+		struct io_kiocb *req = container_of(node, struct io_kiocb,
+					    comp_list);
 
-			if (!(req->flags & REQ_F_CQE_SKIP))
-				__io_fill_cqe_req(ctx, req);
-		}
-
-		io_commit_cqring(ctx);
-		spin_unlock(&ctx->completion_lock);
-		io_cqring_ev_posted(ctx);
-		state->flush_cqes = false;
+		if (!(req->flags & REQ_F_CQE_SKIP))
+			__io_fill_cqe_req(ctx, req);
 	}
+
+	io_commit_cqring(ctx);
+	spin_unlock(&ctx->completion_lock);
+	io_cqring_ev_posted(ctx);
 
 	io_free_batch_list(ctx, state->compl_reqs.first);
 	INIT_WQ_LIST(&state->compl_reqs);

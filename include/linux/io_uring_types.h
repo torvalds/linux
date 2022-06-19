@@ -148,7 +148,6 @@ struct io_submit_state {
 
 	bool			plug_started;
 	bool			need_plug;
-	bool			flush_cqes;
 	unsigned short		submit_nr;
 	struct blk_plug		plug;
 };
