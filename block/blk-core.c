@@ -304,9 +304,6 @@ void blk_cleanup_queue(struct request_queue *q)
 	blk_queue_flag_set(QUEUE_FLAG_DYING, q);
 	blk_queue_start_drain(q);
 
-	blk_queue_flag_set(QUEUE_FLAG_NOMERGES, q);
-	blk_queue_flag_set(QUEUE_FLAG_NOXMERGES, q);
-
 	/*
 	 * Drain all requests queued before DYING marking. Set DEAD flag to
 	 * prevent that blk_mq_run_hw_queues() accesses the hardware queues
