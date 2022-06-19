@@ -393,9 +393,8 @@ static int hl_mmu_v1_init(struct hl_device *hdev)
 		goto err_pool_add;
 	}
 
-	hdev->mmu_priv.dr.mmu_shadow_hop0 = kvmalloc_array(prop->max_asid,
-						prop->mmu_hop_table_size,
-						GFP_KERNEL | __GFP_ZERO);
+	hdev->mmu_priv.dr.mmu_shadow_hop0 = kvcalloc(prop->max_asid, prop->mmu_hop_table_size,
+										GFP_KERNEL);
 	if (ZERO_OR_NULL_PTR(hdev->mmu_priv.dr.mmu_shadow_hop0)) {
 		rc = -ENOMEM;
 		goto err_pool_add;
