@@ -462,10 +462,6 @@ struct driver_data {
 
 	int isr_binding;
 
-	struct list_head online_list; /* linkage for online list */
-
-	struct list_head remove_list; /* linkage for removing list */
-
 	int unal_qdepth; /* qdepth of unaligned IO queue */
 };
 
