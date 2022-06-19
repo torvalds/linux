@@ -114,7 +114,6 @@ struct kmem_cache *btrfs_free_space_bitmap_cachep;
 
 static int btrfs_setsize(struct inode *inode, struct iattr *attr);
 static int btrfs_truncate(struct inode *inode, bool skip_writeback);
-static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent);
 static noinline int cow_file_range(struct btrfs_inode *inode,
 				   struct page *locked_page,
 				   u64 start, u64 end, int *page_started,
@@ -124,10 +123,6 @@ static struct extent_map *create_io_em(struct btrfs_inode *inode, u64 start,
 				       u64 block_len, u64 orig_block_len,
 				       u64 ram_bytes, int compress_type,
 				       int type);
-
-static void __endio_write_update_ordered(struct btrfs_inode *inode,
-					 const u64 offset, const u64 bytes,
-					 const bool uptodate);
 
 /*
  * btrfs_inode_lock - lock inode i_rwsem based on arguments passed
@@ -223,7 +218,7 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 
 		/*
 		 * Here we just clear all Ordered bits for every page in the
-		 * range, then __endio_write_update_ordered() will handle
+		 * range, then btrfs_mark_ordered_io_finished() will handle
 		 * the ordered extent accounting for the range.
 		 */
 		btrfs_page_clamp_clear_ordered(inode->root->fs_info, page,
@@ -244,7 +239,7 @@ static inline void btrfs_cleanup_ordered_extents(struct btrfs_inode *inode,
 		offset = page_offset(locked_page) + PAGE_SIZE;
 	}
 
-	return __endio_write_update_ordered(inode, offset, bytes, false);
+	return btrfs_mark_ordered_io_finished(inode, NULL, offset, bytes, false);
 }
 
 static int btrfs_dirty_inode(struct inode *inode);
@@ -3086,7 +3081,7 @@ static int insert_ordered_extent_file_extent(struct btrfs_trans_handle *trans,
  * an ordered extent if the range of bytes in the file it covers are
  * fully written.
  */
-static int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
+int btrfs_finish_ordered_io(struct btrfs_ordered_extent *ordered_extent)
 {
 	struct btrfs_inode *inode = BTRFS_I(ordered_extent->inode);
 	struct btrfs_root *root = inode->root;
@@ -3295,21 +3290,13 @@ out:
 	return ret;
 }
 
-static void finish_ordered_fn(struct btrfs_work *work)
-{
-	struct btrfs_ordered_extent *ordered_extent;
-	ordered_extent = container_of(work, struct btrfs_ordered_extent, work);
-	btrfs_finish_ordered_io(ordered_extent);
-}
-
 void btrfs_writepage_endio_finish_ordered(struct btrfs_inode *inode,
 					  struct page *page, u64 start,
 					  u64 end, bool uptodate)
 {
 	trace_btrfs_writepage_end_io_hook(inode, start, end, uptodate);
 
-	btrfs_mark_ordered_io_finished(inode, page, start, end + 1 - start,
-				       finish_ordered_fn, uptodate);
+	btrfs_mark_ordered_io_finished(inode, page, start, end + 1 - start, uptodate);
 }
 
 /*
@@ -7827,8 +7814,8 @@ static int btrfs_dio_iomap_end(struct inode *inode, loff_t pos, loff_t length,
 		pos += submitted;
 		length -= submitted;
 		if (write)
-			__endio_write_update_ordered(BTRFS_I(inode), pos,
-					length, false);
+			btrfs_mark_ordered_io_finished(BTRFS_I(inode), NULL,
+						       pos, length, false);
 		else
 			unlock_extent(&BTRFS_I(inode)->io_tree, pos,
 				      pos + length - 1);
@@ -7850,10 +7837,9 @@ static void btrfs_dio_private_put(struct btrfs_dio_private *dip)
 		return;
 
 	if (btrfs_op(&dip->bio) == BTRFS_MAP_WRITE) {
-		__endio_write_update_ordered(BTRFS_I(dip->inode),
-					     dip->file_offset,
-					     dip->bytes,
-					     !dip->bio.bi_status);
+		btrfs_mark_ordered_io_finished(BTRFS_I(dip->inode), NULL,
+					       dip->file_offset, dip->bytes,
+					       !dip->bio.bi_status);
 	} else {
 		unlock_extent(&BTRFS_I(dip->inode)->io_tree,
 			      dip->file_offset,
@@ -7914,14 +7900,6 @@ static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,
 	}
 
 	return err;
-}
-
-static void __endio_write_update_ordered(struct btrfs_inode *inode,
-					 const u64 offset, const u64 bytes,
-					 const bool uptodate)
-{
-	btrfs_mark_ordered_io_finished(inode, NULL, offset, bytes,
-				       finish_ordered_fn, uptodate);
 }
 
 static blk_status_t btrfs_submit_bio_start_direct_io(struct inode *inode,

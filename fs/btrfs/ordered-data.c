@@ -272,6 +272,14 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 	spin_unlock_irq(&tree->lock);
 }
 
+static void finish_ordered_fn(struct btrfs_work *work)
+{
+	struct btrfs_ordered_extent *ordered_extent;
+
+	ordered_extent = container_of(work, struct btrfs_ordered_extent, work);
+	btrfs_finish_ordered_io(ordered_extent);
+}
+
 /*
  * Mark all ordered extents io inside the specified range finished.
  *
@@ -281,16 +289,13 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
  *		 Can be NULL for direct IO and compressed write.
  *		 For these cases, callers are ensured they won't execute the
  *		 endio function twice.
- * @finish_func: The function to be executed when all the IO of an ordered
- *		 extent are finished.
  *
  * This function is called for endio, thus the range must have ordered
  * extent(s) covering it.
  */
 void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
-				struct page *page, u64 file_offset,
-				u64 num_bytes, btrfs_func_t finish_func,
-				bool uptodate)
+				    struct page *page, u64 file_offset,
+				    u64 num_bytes, bool uptodate)
 {
 	struct btrfs_ordered_inode_tree *tree = &inode->ordered_tree;
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
@@ -403,7 +408,7 @@ void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
 			refcount_inc(&entry->refs);
 			trace_btrfs_ordered_extent_mark_finished(inode, entry);
 			spin_unlock_irqrestore(&tree->lock, flags);
-			btrfs_init_work(&entry->work, finish_func, NULL, NULL);
+			btrfs_init_work(&entry->work, finish_ordered_fn, NULL, NULL);
 			btrfs_queue_work(wq, &entry->work);
 			spin_lock_irqsave(&tree->lock, flags);
 		}
