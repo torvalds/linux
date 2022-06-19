@@ -3035,8 +3035,8 @@ start_over:
 
 	*pend = requested_offset_record;
 
-	dev_dbg(buf->mmg->dev, "Found available node in TS kernel CB(0x%llx)\n",
-						(u64)(uintptr_t)requested_offset_record);
+	dev_dbg(buf->mmg->dev, "Found available node in TS kernel CB %p\n",
+		requested_offset_record);
 	return 0;
 }
 
