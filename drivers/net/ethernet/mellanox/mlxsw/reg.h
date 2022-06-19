@@ -6885,8 +6885,10 @@ MLXSW_ITEM32(reg, ritr, vlan_if_vid, 0x08, 0, 12);
 /* FID Interface */
 
 /* reg_ritr_fid_if_fid
- * Filtering ID. Used to connect a bridge to the router. Only FIDs from
- * the vFID range are supported.
+ * Filtering ID. Used to connect a bridge to the router.
+ * When legacy bridge model is used, only FIDs from the vFID range are
+ * supported. When unified bridge model is used, this is the egress FID for
+ * router to bridge.
  * Access: RW
  */
 MLXSW_ITEM32(reg, ritr, fid_if_fid, 0x08, 0, 16);
@@ -6916,6 +6918,16 @@ MLXSW_ITEM32(reg, ritr, sp_if_lag, 0x08, 24, 1);
  * Access: RW
  */
 MLXSW_ITEM32(reg, ritr, sp_if_system_port, 0x08, 0, 16);
+
+/* reg_ritr_sp_if_efid
+ * Egress filtering ID.
+ * Used to connect the eRIF to a bridge if eRIF-ACL has modified the DMAC or
+ * the VID.
+ * Access: RW
+ *
+ * Note: Reserved when legacy bridge model is used.
+ */
+MLXSW_ITEM32(reg, ritr, sp_if_efid, 0x0C, 0, 16);
 
 /* reg_ritr_sp_if_vid
  * VLAN ID.
