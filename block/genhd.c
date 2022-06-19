@@ -1432,21 +1432,6 @@ void put_disk(struct gendisk *disk)
 }
 EXPORT_SYMBOL(put_disk);
 
-/**
- * blk_cleanup_disk - shutdown a gendisk allocated by blk_alloc_disk
- * @disk: gendisk to shutdown
- *
- * Mark the queue hanging off @disk DYING, drain all pending requests, then mark
- * the queue DEAD, destroy and put it and the gendisk structure.
- *
- * Context: can sleep
- */
-void blk_cleanup_disk(struct gendisk *disk)
-{
-	put_disk(disk);
-}
-EXPORT_SYMBOL(blk_cleanup_disk);
-
 static void set_disk_ro_uevent(struct gendisk *gd, int ro)
 {
 	char event[] = "DISK_RO=1";

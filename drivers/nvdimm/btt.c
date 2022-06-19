@@ -1548,14 +1548,14 @@ static int btt_blk_init(struct btt *btt)
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(btt->btt_disk);
+	put_disk(btt->btt_disk);
 	return rc;
 }
 
 static void btt_blk_cleanup(struct btt *btt)
 {
 	del_gendisk(btt->btt_disk);
-	blk_cleanup_disk(btt->btt_disk);
+	put_disk(btt->btt_disk);
 }
 
 /**

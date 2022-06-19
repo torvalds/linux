@@ -419,7 +419,7 @@ static int brd_alloc(int i)
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(disk);
+	put_disk(disk);
 out_free_dev:
 	list_del(&brd->brd_list);
 	kfree(brd);
@@ -439,7 +439,7 @@ static void brd_cleanup(void)
 
 	list_for_each_entry_safe(brd, next, &brd_devices, brd_list) {
 		del_gendisk(brd->brd_disk);
-		blk_cleanup_disk(brd->brd_disk);
+		put_disk(brd->brd_disk);
 		brd_free_pages(brd);
 		list_del(&brd->brd_list);
 		kfree(brd);

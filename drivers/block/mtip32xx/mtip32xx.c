@@ -3534,7 +3534,7 @@ init_hw_cmds_error:
 disk_index_error:
 	ida_free(&rssd_index_ida, index);
 ida_get_error:
-	blk_cleanup_disk(dd->disk);
+	put_disk(dd->disk);
 block_queue_alloc_init_error:
 	blk_mq_free_tag_set(&dd->tags);
 block_queue_alloc_tag_error:

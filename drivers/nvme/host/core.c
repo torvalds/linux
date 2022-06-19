@@ -4061,7 +4061,7 @@ static void nvme_alloc_ns(struct nvme_ctrl *ctrl, unsigned nsid,
 	mutex_unlock(&ctrl->subsys->lock);
 	nvme_put_ns_head(ns->head);
  out_cleanup_disk:
-	blk_cleanup_disk(disk);
+	put_disk(disk);
  out_free_ns:
 	kfree(ns);
  out_free_id:

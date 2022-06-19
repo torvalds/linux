@@ -250,7 +250,7 @@ static void nbd_dev_remove(struct nbd_device *nbd)
 	struct gendisk *disk = nbd->disk;
 
 	del_gendisk(disk);
-	blk_cleanup_disk(disk);
+	put_disk(disk);
 	blk_mq_free_tag_set(&nbd->tag_set);
 
 	/*
@@ -1833,7 +1833,7 @@ static struct nbd_device *nbd_dev_add(int index, unsigned int refs)
 out_free_work:
 	destroy_workqueue(nbd->recv_workq);
 out_err_disk:
-	blk_cleanup_disk(disk);
+	put_disk(disk);
 out_free_idr:
 	mutex_lock(&nbd_index_mutex);
 	idr_remove(&nbd_index_idr, index);

@@ -1957,7 +1957,7 @@ static int zram_add(void)
 	return device_id;
 
 out_cleanup_disk:
-	blk_cleanup_disk(zram->disk);
+	put_disk(zram->disk);
 out_free_idr:
 	idr_remove(&zram_index_idr, device_id);
 out_free_dev:
@@ -2008,7 +2008,7 @@ static int zram_remove(struct zram *zram)
 	 */
 	zram_reset_device(zram);
 
-	blk_cleanup_disk(zram->disk);
+	put_disk(zram->disk);
 	kfree(zram);
 	return 0;
 }

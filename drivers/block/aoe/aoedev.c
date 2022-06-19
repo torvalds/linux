@@ -277,7 +277,7 @@ freedev(struct aoedev *d)
 	if (d->gd) {
 		aoedisk_rm_debugfs(d);
 		del_gendisk(d->gd);
-		blk_cleanup_disk(d->gd);
+		put_disk(d->gd);
 		blk_mq_free_tag_set(&d->tag_set);
 	}
 	t = d->targets;

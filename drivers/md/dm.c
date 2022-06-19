@@ -1894,7 +1894,7 @@ static void cleanup_mapped_device(struct mapped_device *md)
 			del_gendisk(md->disk);
 		}
 		dm_queue_destroy_crypto_profile(md->queue);
-		blk_cleanup_disk(md->disk);
+		put_disk(md->disk);
 	}
 
 	if (md->pending_io) {

@@ -925,7 +925,7 @@ static int ubd_add(int n, char **error_out)
 	return 0;
 
 out_cleanup_disk:
-	blk_cleanup_disk(disk);
+	put_disk(disk);
 out_cleanup_tags:
 	blk_mq_free_tag_set(&ubd_dev->tag_set);
 out:
@@ -1032,7 +1032,7 @@ static int ubd_remove(int n, char **error_out)
 	ubd_gendisk[n] = NULL;
 	if(disk != NULL){
 		del_gendisk(disk);
-		blk_cleanup_disk(disk);
+		put_disk(disk);
 	}
 
 	err = 0;

@@ -1408,7 +1408,7 @@ static int rnbd_clt_setup_gen_disk(struct rnbd_clt_dev *dev, int idx)
 	blk_queue_flag_set(QUEUE_FLAG_NONROT, dev->queue);
 	err = add_disk(dev->gd);
 	if (err)
-		blk_cleanup_disk(dev->gd);
+		put_disk(dev->gd);
 
 	return err;
 }
@@ -1630,7 +1630,7 @@ put_sess:
 static void destroy_gen_disk(struct rnbd_clt_dev *dev)
 {
 	del_gendisk(dev->gd);
-	blk_cleanup_disk(dev->gd);
+	put_disk(dev->gd);
 }
 
 static void destroy_sysfs(struct rnbd_clt_dev *dev,

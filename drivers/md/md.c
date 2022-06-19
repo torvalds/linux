@@ -5579,7 +5579,7 @@ static void md_free(struct kobject *ko)
 
 	if (mddev->gendisk) {
 		del_gendisk(mddev->gendisk);
-		blk_cleanup_disk(mddev->gendisk);
+		put_disk(mddev->gendisk);
 	}
 	percpu_ref_exit(&mddev->writes_pending);
 
@@ -5718,7 +5718,7 @@ static int md_alloc(dev_t dev, char *name)
 out_del_gendisk:
 	del_gendisk(disk);
 out_cleanup_disk:
-	blk_cleanup_disk(disk);
+	put_disk(disk);
 out_unlock_disks_mutex:
 	mutex_unlock(&disks_mutex);
 	mddev_put(mddev);

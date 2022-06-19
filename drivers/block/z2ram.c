@@ -337,7 +337,7 @@ static int z2ram_register_disk(int minor)
 	z2ram_gendisk[minor] = disk;
 	err = add_disk(disk);
 	if (err)
-		blk_cleanup_disk(disk);
+		put_disk(disk);
 	return err;
 }
 

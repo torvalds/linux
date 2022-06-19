@@ -1377,7 +1377,7 @@ static void carm_free_disk(struct carm_host *host, unsigned int port_no)
 
 	if (host->state > HST_DEV_ACTIVATE)
 		del_gendisk(disk);
-	blk_cleanup_disk(disk);
+	put_disk(disk);
 }
 
 static int carm_init_shm(struct carm_host *host)

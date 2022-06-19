@@ -884,7 +884,7 @@ static void bcache_device_free(struct bcache_device *d)
 	if (disk) {
 		ida_simple_remove(&bcache_device_idx,
 				  first_minor_to_idx(disk->first_minor));
-		blk_cleanup_disk(disk);
+		put_disk(disk);
 	}
 
 	bioset_exit(&d->bio_split);
