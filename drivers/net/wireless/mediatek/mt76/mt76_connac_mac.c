@@ -3,6 +3,7 @@
 
 #include "mt76_connac.h"
 #include "mt76_connac2_mac.h"
+#include "dma.h"
 
 #define HE_BITS(f)		cpu_to_le16(IEEE80211_RADIOTAP_HE_##f)
 #define HE_PREP(f, m, v)	le16_encode_bits(le32_get_bits(v, MT_CRXV_HE_##m),\
@@ -120,6 +121,36 @@ void mt76_connac_pm_dequeue_skbs(struct mt76_phy *phy,
 	mt76_worker_schedule(&phy->dev->tx_worker);
 }
 EXPORT_SYMBOL_GPL(mt76_connac_pm_dequeue_skbs);
+
+void mt76_connac_tx_complete_skb(struct mt76_dev *mdev,
+				 struct mt76_queue_entry *e)
+{
+	if (!e->txwi) {
+		dev_kfree_skb_any(e->skb);
+		return;
+	}
+
+	/* error path */
+	if (e->skb == DMA_DUMMY_DATA) {
+		struct mt76_connac_txp_common *txp;
+		struct mt76_txwi_cache *t;
+		u16 token;
+
+		txp = mt76_connac_txwi_to_txp(mdev, e->txwi);
+		if (is_mt76_fw_txp(mdev))
+			token = le16_to_cpu(txp->fw.token);
+		else
+			token = le16_to_cpu(txp->hw.msdu_id[0]) &
+				~MT_MSDU_ID_VALID;
+
+		t = mt76_token_put(mdev, token);
+		e->skb = t ? t->skb : NULL;
+	}
+
+	if (e->skb)
+		mt76_tx_complete_skb(mdev, e->wcid, e->skb);
+}
+EXPORT_SYMBOL_GPL(mt76_connac_tx_complete_skb);
 
 static u16
 mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy, struct ieee80211_vif *vif,

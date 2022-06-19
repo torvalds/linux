@@ -27,6 +27,8 @@
 #define MT_SDIO_TAIL_SIZE			8
 #define MT_SDIO_HDR_SIZE			4
 
+#define MT_MSDU_ID_VALID		BIT(15)
+
 enum {
 	CMD_CBW_20MHZ = IEEE80211_STA_RX_BW_20,
 	CMD_CBW_40MHZ = IEEE80211_STA_RX_BW_40,
@@ -198,6 +200,19 @@ static inline bool is_connac_v1(struct mt76_dev *dev)
 	return is_mt7615(dev) || is_mt7663(dev) || is_mt7622(dev);
 }
 
+static inline bool is_mt76_fw_txp(struct mt76_dev *dev)
+{
+	switch (mt76_chip(dev)) {
+	case 0x7961:
+	case 0x7922:
+	case 0x7663:
+	case 0x7622:
+		return false;
+	default:
+		return true;
+	}
+}
+
 static inline u8 mt76_connac_chan_bw(struct cfg80211_chan_def *chandef)
 {
 	static const u8 width_to_bw[] = {
@@ -304,6 +319,8 @@ mt76_connac_mutex_release(struct mt76_dev *dev, struct mt76_connac_pm *pm)
 	mutex_unlock(&dev->mutex);
 }
 
+void mt76_connac_tx_complete_skb(struct mt76_dev *mdev,
+				 struct mt76_queue_entry *e);
 void mt76_connac_pm_queue_skb(struct ieee80211_hw *hw,
 			      struct mt76_connac_pm *pm,
 			      struct mt76_wcid *wcid,
