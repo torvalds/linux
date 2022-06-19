@@ -90,7 +90,7 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 
 		nameoff = le16_to_cpu(de->nameoff);
 		if (nameoff < sizeof(struct erofs_dirent) ||
-		    nameoff >= PAGE_SIZE) {
+		    nameoff >= EROFS_BLKSIZ) {
 			erofs_err(dir->i_sb,
 				  "invalid de[0].nameoff %u @ nid %llu",
 				  nameoff, EROFS_I(dir)->nid);
@@ -99,7 +99,7 @@ static int erofs_readdir(struct file *f, struct dir_context *ctx)
 		}
 
 		maxsize = min_t(unsigned int,
-				dirsize - ctx->pos + ofs, PAGE_SIZE);
+				dirsize - ctx->pos + ofs, EROFS_BLKSIZ);
 
 		/* search dirents at the arbitrary position */
 		if (initial) {
