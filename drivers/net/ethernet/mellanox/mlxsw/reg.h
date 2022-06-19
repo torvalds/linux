@@ -1573,6 +1573,7 @@ MLXSW_ITEM32_LP(reg, svfa, 0x00, 16, 0x00, 12);
 enum mlxsw_reg_svfa_mt {
 	MLXSW_REG_SVFA_MT_VID_TO_FID,
 	MLXSW_REG_SVFA_MT_PORT_VID_TO_FID,
+	MLXSW_REG_SVFA_MT_VNI_TO_FID,
 };
 
 /* reg_svfa_mapping_table
@@ -1622,6 +1623,14 @@ MLXSW_ITEM32(reg, svfa, counter_set_type, 0x08, 24, 8);
  */
 MLXSW_ITEM32(reg, svfa, counter_index, 0x08, 0, 24);
 
+/* reg_svfa_vni
+ * Virtual Network Identifier.
+ * Access: Index
+ *
+ * Note: Reserved when mapping_table is not 2 (VNI mapping table).
+ */
+MLXSW_ITEM32(reg, svfa, vni, 0x10, 0, 24);
+
 /* reg_svfa_irif_v
  * Ingress RIF valid.
  * 0 - Ingress RIF is not valid, no ingress RIF assigned.
@@ -1642,18 +1651,43 @@ MLXSW_ITEM32(reg, svfa, irif_v, 0x14, 24, 1);
  */
 MLXSW_ITEM32(reg, svfa, irif, 0x14, 0, 16);
 
-static inline void mlxsw_reg_svfa_pack(char *payload, u16 local_port,
-				       enum mlxsw_reg_svfa_mt mt, bool valid,
-				       u16 fid, u16 vid)
+static inline void __mlxsw_reg_svfa_pack(char *payload,
+					 enum mlxsw_reg_svfa_mt mt, bool valid,
+					 u16 fid)
 {
 	MLXSW_REG_ZERO(svfa, payload);
-	local_port = mt == MLXSW_REG_SVFA_MT_VID_TO_FID ? 0 : local_port;
 	mlxsw_reg_svfa_swid_set(payload, 0);
-	mlxsw_reg_svfa_local_port_set(payload, local_port);
 	mlxsw_reg_svfa_mapping_table_set(payload, mt);
 	mlxsw_reg_svfa_v_set(payload, valid);
 	mlxsw_reg_svfa_fid_set(payload, fid);
+}
+
+static inline void mlxsw_reg_svfa_port_vid_pack(char *payload, u16 local_port,
+						bool valid, u16 fid, u16 vid)
+{
+	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
+
+	__mlxsw_reg_svfa_pack(payload, mt, valid, fid);
+	mlxsw_reg_svfa_local_port_set(payload, local_port);
 	mlxsw_reg_svfa_vid_set(payload, vid);
+}
+
+static inline void mlxsw_reg_svfa_vid_pack(char *payload, bool valid, u16 fid,
+					   u16 vid)
+{
+	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_VID_TO_FID;
+
+	__mlxsw_reg_svfa_pack(payload, mt, valid, fid);
+	mlxsw_reg_svfa_vid_set(payload, vid);
+}
+
+static inline void mlxsw_reg_svfa_vni_pack(char *payload, bool valid, u16 fid,
+					   u32 vni)
+{
+	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_VNI_TO_FID;
+
+	__mlxsw_reg_svfa_pack(payload, mt, valid, fid);
+	mlxsw_reg_svfa_vni_set(payload, vni);
 }
 
 /*  SPVTR - Switch Port VLAN Stacking Register
@@ -1878,9 +1912,10 @@ MLXSW_ITEM32(reg, sfmr, vv, 0x10, 31, 1);
 
 /* reg_sfmr_vni
  * Virtual Network Identifier.
+ * When legacy bridge model is used, a given VNI can only be assigned to one
+ * FID. When unified bridge model is used, it configures only the FID->VNI,
+ * the VNI->FID is done by SVFA.
  * Access: RW
- *
- * Note: A given VNI can only be assigned to one FID.
  */
 MLXSW_ITEM32(reg, sfmr, vni, 0x10, 0, 24);
 

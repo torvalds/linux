@@ -441,10 +441,10 @@ static int mlxsw_sp_fid_vni_op(struct mlxsw_sp *mlxsw_sp, u16 fid_index,
 static int __mlxsw_sp_fid_port_vid_map(struct mlxsw_sp *mlxsw_sp, u16 fid_index,
 				       u16 local_port, u16 vid, bool valid)
 {
-	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
 	char svfa_pl[MLXSW_REG_SVFA_LEN];
 
-	mlxsw_reg_svfa_pack(svfa_pl, local_port, mt, valid, fid_index, vid);
+	mlxsw_reg_svfa_port_vid_pack(svfa_pl, local_port, valid, fid_index,
+				     vid);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(svfa), svfa_pl);
 }
 
