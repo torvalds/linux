@@ -1831,6 +1831,16 @@ MLXSW_ITEM32(reg, sfmr, fid, 0x00, 0, 16);
  */
 MLXSW_ITEM32(reg, sfmr, flood_rsp, 0x08, 31, 1);
 
+/* reg_sfmr_flood_bridge_type
+ * Flood bridge type (see SFGC.bridge_type).
+ * 0 - type_0.
+ * 1 - type_1.
+ * Access: RW
+ *
+ * Note: Reserved when legacy bridge model is used and when flood_rsp=1.
+ */
+MLXSW_ITEM32(reg, sfmr, flood_bridge_type, 0x08, 28, 1);
+
 /* reg_sfmr_fid_offset
  * FID offset.
  * Used to point into the flooding table selected by SFGC register if
