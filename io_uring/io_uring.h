@@ -18,6 +18,53 @@ enum {
 
 struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx);
 bool io_req_cqe_overflow(struct io_kiocb *req);
+int io_run_task_work_sig(void);
+void io_req_complete_failed(struct io_kiocb *req, s32 res);
+void __io_req_complete(struct io_kiocb *req, unsigned issue_flags);
+void io_req_complete_post(struct io_kiocb *req);
+void __io_req_complete_post(struct io_kiocb *req);
+bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags);
+void io_cqring_ev_posted(struct io_ring_ctx *ctx);
+void __io_commit_cqring_flush(struct io_ring_ctx *ctx);
+
+struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages);
+
+struct file *io_file_get_normal(struct io_kiocb *req, int fd);
+struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
+			       unsigned issue_flags);
+
+bool io_is_uring_fops(struct file *file);
+bool io_alloc_async_data(struct io_kiocb *req);
+void io_req_task_work_add(struct io_kiocb *req);
+void io_req_task_prio_work_add(struct io_kiocb *req);
+void io_req_tw_post_queue(struct io_kiocb *req, s32 res, u32 cflags);
+void io_req_task_queue(struct io_kiocb *req);
+void io_queue_iowq(struct io_kiocb *req, bool *dont_use);
+void io_req_task_complete(struct io_kiocb *req, bool *locked);
+void io_req_task_queue_fail(struct io_kiocb *req, int ret);
+void io_req_task_submit(struct io_kiocb *req, bool *locked);
+void tctx_task_work(struct callback_head *cb);
+__cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
+int io_uring_alloc_task_context(struct task_struct *task,
+				struct io_ring_ctx *ctx);
+
+int io_poll_issue(struct io_kiocb *req, bool *locked);
+int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr);
+int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin);
+void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node);
+int io_req_prep_async(struct io_kiocb *req);
+
+struct io_wq_work *io_wq_free_work(struct io_wq_work *work);
+void io_wq_submit_work(struct io_wq_work *work);
+
+void io_free_req(struct io_kiocb *req);
+void io_queue_next(struct io_kiocb *req);
+
+bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
+			bool cancel_all);
+
+#define io_for_each_link(pos, head) \
+	for (pos = (head); pos; pos = pos->link)
 
 static inline struct io_uring_cqe *io_get_cqe(struct io_ring_ctx *ctx)
 {
@@ -176,53 +223,5 @@ static inline void io_req_add_compl_list(struct io_kiocb *req)
 		state->flush_cqes = true;
 	wq_list_add_tail(&req->comp_list, &state->compl_reqs);
 }
-
-int io_run_task_work_sig(void);
-void io_req_complete_failed(struct io_kiocb *req, s32 res);
-void __io_req_complete(struct io_kiocb *req, unsigned issue_flags);
-void io_req_complete_post(struct io_kiocb *req);
-void __io_req_complete_post(struct io_kiocb *req);
-bool io_post_aux_cqe(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags);
-void io_cqring_ev_posted(struct io_ring_ctx *ctx);
-void __io_commit_cqring_flush(struct io_ring_ctx *ctx);
-
-struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages);
-
-struct file *io_file_get_normal(struct io_kiocb *req, int fd);
-struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
-			       unsigned issue_flags);
-
-bool io_is_uring_fops(struct file *file);
-bool io_alloc_async_data(struct io_kiocb *req);
-void io_req_task_work_add(struct io_kiocb *req);
-void io_req_task_prio_work_add(struct io_kiocb *req);
-void io_req_tw_post_queue(struct io_kiocb *req, s32 res, u32 cflags);
-void io_req_task_queue(struct io_kiocb *req);
-void io_queue_iowq(struct io_kiocb *req, bool *dont_use);
-void io_req_task_complete(struct io_kiocb *req, bool *locked);
-void io_req_task_queue_fail(struct io_kiocb *req, int ret);
-void io_req_task_submit(struct io_kiocb *req, bool *locked);
-void tctx_task_work(struct callback_head *cb);
-__cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
-int io_uring_alloc_task_context(struct task_struct *task,
-				struct io_ring_ctx *ctx);
-
-int io_poll_issue(struct io_kiocb *req, bool *locked);
-int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr);
-int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin);
-void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node);
-int io_req_prep_async(struct io_kiocb *req);
-
-struct io_wq_work *io_wq_free_work(struct io_wq_work *work);
-void io_wq_submit_work(struct io_wq_work *work);
-
-void io_free_req(struct io_kiocb *req);
-void io_queue_next(struct io_kiocb *req);
-
-bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
-			bool cancel_all);
-
-#define io_for_each_link(pos, head) \
-	for (pos = (head); pos; pos = pos->link)
 
 #endif
