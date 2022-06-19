@@ -313,9 +313,6 @@ void blk_cleanup_queue(struct request_queue *q)
 	 * after draining finished.
 	 */
 	blk_freeze_queue(q);
-
-	blk_queue_flag_set(QUEUE_FLAG_DEAD, q);
-
 	blk_sync_queue(q);
 	if (queue_is_mq(q)) {
 		blk_mq_cancel_work_sync(q);
