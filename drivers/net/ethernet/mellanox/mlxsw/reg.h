@@ -1764,6 +1764,18 @@ MLXSW_ITEM32(reg, sfmr, op, 0x00, 24, 4);
  */
 MLXSW_ITEM32(reg, sfmr, fid, 0x00, 0, 16);
 
+/* reg_sfmr_flood_rsp
+ * Router sub-port flooding table.
+ * 0 - Regular flooding table.
+ * 1 - Router sub-port flooding table. For this FID the flooding is per
+ * router-sub-port local_port. Must not be set for a FID which is not a
+ * router-sub-port and must be set prior to enabling the relevant RIF.
+ * Access: RW
+ *
+ * Note: Reserved when legacy bridge model is used.
+ */
+MLXSW_ITEM32(reg, sfmr, flood_rsp, 0x08, 31, 1);
+
 /* reg_sfmr_fid_offset
  * FID offset.
  * Used to point into the flooding table selected by SFGC register if
