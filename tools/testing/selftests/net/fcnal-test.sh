@@ -1800,24 +1800,32 @@ ipv4_addr_bind_novrf()
 	done
 
 	#
-	# raw socket with nonlocal bind
+	# tests for nonlocal bind
 	#
 	a=${NL_IP}
 	log_start
-	run_cmd nettest -s -R -P icmp -f -l ${a} -I ${NSA_DEV} -b
-	log_test_addr ${a} $? 0 "Raw socket bind to nonlocal address after device bind"
+	run_cmd nettest -s -R -f -l ${a} -b
+	log_test_addr ${a} $? 0 "Raw socket bind to nonlocal address"
+
+	log_start
+	run_cmd nettest -s -f -l ${a} -b
+	log_test_addr ${a} $? 0 "TCP socket bind to nonlocal address"
+
+	log_start
+	run_cmd nettest -s -D -P icmp -f -l ${a} -b
+	log_test_addr ${a} $? 0 "ICMP socket bind to nonlocal address"
 
 	#
 	# check that ICMP sockets cannot bind to broadcast and multicast addresses
 	#
 	a=${BCAST_IP}
 	log_start
-	run_cmd nettest -s -R -P icmp -l ${a} -b
+	run_cmd nettest -s -D -P icmp -l ${a} -b
 	log_test_addr ${a} $? 1 "ICMP socket bind to broadcast address"
 
 	a=${MCAST_IP}
 	log_start
-	run_cmd nettest -s -R -P icmp -f -l ${a} -b
+	run_cmd nettest -s -D -P icmp -l ${a} -b
 	log_test_addr ${a} $? 1 "ICMP socket bind to multicast address"
 
 	#
@@ -1870,24 +1878,32 @@ ipv4_addr_bind_vrf()
 	log_test_addr ${a} $? 1 "Raw socket bind to out of scope address after VRF bind"
 
 	#
-	# raw socket with nonlocal bind
+	# tests for nonlocal bind
 	#
 	a=${NL_IP}
 	log_start
-	run_cmd nettest -s -R -P icmp -f -l ${a} -I ${VRF} -b
+	run_cmd nettest -s -R -f -l ${a} -I ${VRF} -b
 	log_test_addr ${a} $? 0 "Raw socket bind to nonlocal address after VRF bind"
+
+	log_start
+	run_cmd nettest -s -f -l ${a} -I ${VRF} -b
+	log_test_addr ${a} $? 0 "TCP socket bind to nonlocal address after VRF bind"
+
+	log_start
+	run_cmd nettest -s -D -P icmp -f -l ${a} -I ${VRF} -b
+	log_test_addr ${a} $? 0 "ICMP socket bind to nonlocal address after VRF bind"
 
 	#
 	# check that ICMP sockets cannot bind to broadcast and multicast addresses
 	#
 	a=${BCAST_IP}
 	log_start
-	run_cmd nettest -s -R -P icmp -l ${a} -I ${VRF} -b
+	run_cmd nettest -s -D -P icmp -l ${a} -I ${VRF} -b
 	log_test_addr ${a} $? 1 "ICMP socket bind to broadcast address after VRF bind"
 
 	a=${MCAST_IP}
 	log_start
-	run_cmd nettest -s -R -P icmp -f -l ${a} -I ${VRF} -b
+	run_cmd nettest -s -D -P icmp -l ${a} -I ${VRF} -b
 	log_test_addr ${a} $? 1 "ICMP socket bind to multicast address after VRF bind"
 
 	#
@@ -1922,10 +1938,12 @@ ipv4_addr_bind()
 
 	log_subsection "No VRF"
 	setup
+	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
 	ipv4_addr_bind_novrf
 
 	log_subsection "With VRF"
 	setup "yes"
+	set_sysctl net.ipv4.ping_group_range='0 2147483647' 2>/dev/null
 	ipv4_addr_bind_vrf
 }
 
