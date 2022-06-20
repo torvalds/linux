@@ -13,10 +13,16 @@
 #include <net/netfilter/nf_tables_offload.h>
 #include <net/netfilter/nf_dup_netdev.h>
 
-static void nf_do_netdev_egress(struct sk_buff *skb, struct net_device *dev)
+static void nf_do_netdev_egress(struct sk_buff *skb, struct net_device *dev,
+				enum nf_dev_hooks hook)
 {
-	if (skb_mac_header_was_set(skb))
+	if (hook == NF_NETDEV_INGRESS && skb_mac_header_was_set(skb)) {
+		if (skb_cow_head(skb, skb->mac_len)) {
+			kfree_skb(skb);
+			return;
+		}
 		skb_push(skb, skb->mac_len);
+	}
 
 	skb->dev = dev;
 	skb_clear_tstamp(skb);
@@ -33,7 +39,7 @@ void nf_fwd_netdev_egress(const struct nft_pktinfo *pkt, int oif)
 		return;
 	}
 
-	nf_do_netdev_egress(pkt->skb, dev);
+	nf_do_netdev_egress(pkt->skb, dev, nft_hook(pkt));
 }
 EXPORT_SYMBOL_GPL(nf_fwd_netdev_egress);
 
@@ -48,7 +54,7 @@ void nf_dup_netdev_egress(const struct nft_pktinfo *pkt, int oif)
 
 	skb = skb_clone(pkt->skb, GFP_ATOMIC);
 	if (skb)
-		nf_do_netdev_egress(skb, dev);
+		nf_do_netdev_egress(skb, dev, nft_hook(pkt));
 }
 EXPORT_SYMBOL_GPL(nf_dup_netdev_egress);
 
