@@ -3862,9 +3862,6 @@ static int amdgpu_dm_mode_config_init(struct amdgpu_device *adev)
 #define AMDGPU_DM_DEFAULT_MAX_BACKLIGHT 255
 #define AUX_BL_DEFAULT_TRANSITION_TIME_MS 50
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||\
-	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
 static void amdgpu_dm_update_backlight_caps(struct amdgpu_display_manager *dm,
 					    int bl_idx)
 {
@@ -4068,7 +4065,6 @@ amdgpu_dm_register_backlight_device(struct amdgpu_display_manager *dm)
 	else
 		DRM_DEBUG_DRIVER("DM: Registered Backlight device: %s\n", bl_name);
 }
-#endif
 
 static int initialize_plane(struct amdgpu_display_manager *dm,
 			    struct amdgpu_mode_info *mode_info, int plane_id,
@@ -4114,9 +4110,6 @@ static int initialize_plane(struct amdgpu_display_manager *dm,
 static void register_backlight_device(struct amdgpu_display_manager *dm,
 				      struct dc_link *link)
 {
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||\
-	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
 	if ((link->connector_signal & (SIGNAL_TYPE_EDP | SIGNAL_TYPE_LVDS)) &&
 	    link->type != dc_connection_none) {
 		/*
@@ -4132,7 +4125,6 @@ static void register_backlight_device(struct amdgpu_display_manager *dm,
 			dm->num_of_edps++;
 		}
 	}
-#endif
 }
 
 
@@ -7064,15 +7056,12 @@ static void amdgpu_dm_connector_destroy(struct drm_connector *connector)
 	if (aconnector->mst_mgr.dev)
 		drm_dp_mst_topology_mgr_destroy(&aconnector->mst_mgr);
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||\
-	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 	for (i = 0; i < dm->num_of_edps; i++) {
 		if ((link == dm->backlight_link[i]) && dm->backlight_dev[i]) {
 			backlight_device_unregister(dm->backlight_dev[i]);
 			dm->backlight_dev[i] = NULL;
 		}
 	}
-#endif
 
 	if (aconnector->dc_em_sink)
 		dc_sink_release(aconnector->dc_em_sink);
@@ -10155,15 +10144,13 @@ static void amdgpu_dm_atomic_commit_tail(struct drm_atomic_state *state)
 	/* Update audio instances for each connector. */
 	amdgpu_dm_commit_audio(dev, state);
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) ||		\
-	defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
 	/* restore the backlight level */
 	for (i = 0; i < dm->num_of_edps; i++) {
 		if (dm->backlight_dev[i] &&
 		    (dm->actual_brightness[i] != dm->brightness[i]))
 			amdgpu_dm_backlight_set_level(dm, i, dm->brightness[i]);
 	}
-#endif
+
 	/*
 	 * send vblank event on all events not handled in flip and
 	 * mark consumed event for drm_atomic_helper_commit_hw_done
