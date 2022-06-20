@@ -13,20 +13,31 @@
 #include <net/netfilter/nf_tables_offload.h>
 #include <net/netfilter/nf_dup_netdev.h>
 
+#define NF_RECURSION_LIMIT	2
+
+static DEFINE_PER_CPU(u8, nf_dup_skb_recursion);
+
 static void nf_do_netdev_egress(struct sk_buff *skb, struct net_device *dev,
 				enum nf_dev_hooks hook)
 {
+	if (__this_cpu_read(nf_dup_skb_recursion) > NF_RECURSION_LIMIT)
+		goto err;
+
 	if (hook == NF_NETDEV_INGRESS && skb_mac_header_was_set(skb)) {
-		if (skb_cow_head(skb, skb->mac_len)) {
-			kfree_skb(skb);
-			return;
-		}
+		if (skb_cow_head(skb, skb->mac_len))
+			goto err;
+
 		skb_push(skb, skb->mac_len);
 	}
 
 	skb->dev = dev;
 	skb_clear_tstamp(skb);
+	__this_cpu_inc(nf_dup_skb_recursion);
 	dev_queue_xmit(skb);
+	__this_cpu_dec(nf_dup_skb_recursion);
+	return;
+err:
+	kfree_skb(skb);
 }
 
 void nf_fwd_netdev_egress(const struct nft_pktinfo *pkt, int oif)
