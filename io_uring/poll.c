@@ -833,6 +833,11 @@ int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 found:
+	if (WARN_ON_ONCE(preq->opcode != IORING_OP_POLL_ADD)) {
+		ret = -EFAULT;
+		goto out;
+	}
+
 	if (poll_update->update_events || poll_update->update_user_data) {
 		/* only mask one event flags, keep behavior flags */
 		if (poll_update->update_events) {
