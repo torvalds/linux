@@ -1344,6 +1344,7 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 	int size, esize;
 	int rctx;
 
+#ifdef CONFIG_BPF_EVENTS
 	if (bpf_prog_array_valid(call)) {
 		u32 ret;
 
@@ -1351,6 +1352,7 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 		if (!ret)
 			return;
 	}
+#endif /* CONFIG_BPF_EVENTS */
 
 	esize = SIZEOF_TRACE_ENTRY(is_ret_probe(tu));
 
