@@ -794,33 +794,34 @@ bool dmcu_load_iram(struct dmcu *dmcu,
  */
 bool is_psr_su_specific_panel(struct dc_link *link)
 {
-	if (link->dpcd_caps.edp_rev >= DP_EDP_14) {
-		if (link->dpcd_caps.psr_info.psr_version >= DP_PSR2_WITH_Y_COORD_ET_SUPPORTED)
-			return true;
+	bool isPSRSUSupported = false;
+	struct dpcd_caps *dpcd_caps = &link->dpcd_caps;
+
+	if (dpcd_caps->edp_rev >= DP_EDP_14) {
+		if (dpcd_caps->psr_info.psr_version >= DP_PSR2_WITH_Y_COORD_ET_SUPPORTED)
+			isPSRSUSupported = true;
 		/*
 		 * Some panels will report PSR capabilities over additional DPCD bits.
 		 * Such panels are approved despite reporting only PSR v3, as long as
 		 * the additional bits are reported.
 		 */
-		if (link->dpcd_caps.psr_info.psr_version < DP_PSR2_WITH_Y_COORD_IS_SUPPORTED)
-			return false;
-
-		if (link->dpcd_caps.sink_dev_id == DP_BRANCH_DEVICE_ID_001CF8) {
+		if (dpcd_caps->sink_dev_id == DP_BRANCH_DEVICE_ID_001CF8) {
 			/*
-			 * FIXME:
 			 * This is the temporary workaround to disable PSRSU when system turned on
-			 * DSC function on the sepcific sink. Once the PSRSU + DSC is fixed, this
-			 * condition should be removed.
+			 * DSC function on the sepcific sink.
 			 */
-			if (link->dpcd_caps.dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT)
-				return false;
-
-			if (link->dpcd_caps.psr_info.force_psrsu_cap == 0x1)
-				return true;
+			if (dpcd_caps->psr_info.psr_version < DP_PSR2_WITH_Y_COORD_IS_SUPPORTED)
+				isPSRSUSupported = false;
+			else if (dpcd_caps->dsc_caps.dsc_basic_caps.fields.dsc_support.DSC_SUPPORT &&
+				((dpcd_caps->sink_dev_id_str[1] == 0x08 && dpcd_caps->sink_dev_id_str[0] == 0x08) ||
+				(dpcd_caps->sink_dev_id_str[1] == 0x08 && dpcd_caps->sink_dev_id_str[0] == 0x07)))
+				isPSRSUSupported = false;
+			else if (dpcd_caps->psr_info.force_psrsu_cap == 0x1)
+				isPSRSUSupported = true;
 		}
 	}
 
-	return false;
+	return isPSRSUSupported;
 }
 
 /**
