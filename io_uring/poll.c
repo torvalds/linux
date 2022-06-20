@@ -595,8 +595,11 @@ __cold bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
 			       bool cancel_all)
 	__must_hold(&ctx->uring_lock)
 {
-	return io_poll_remove_all_table(tsk, &ctx->cancel_table, cancel_all) |
-	       io_poll_remove_all_table(tsk, &ctx->cancel_table_locked, cancel_all);
+	bool ret;
+
+	ret = io_poll_remove_all_table(tsk, &ctx->cancel_table, cancel_all);
+	ret |= io_poll_remove_all_table(tsk, &ctx->cancel_table_locked, cancel_all);
+	return ret;
 }
 
 static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, bool poll_only,
