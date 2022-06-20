@@ -28,6 +28,7 @@ void cedrus_device_run(void *priv)
 	struct cedrus_dev *dev = ctx->dev;
 	struct cedrus_run run = {};
 	struct media_request *src_req;
+	int error;
 
 	run.src = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
 	run.dst = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
@@ -89,16 +90,26 @@ void cedrus_device_run(void *priv)
 
 	cedrus_dst_format_set(dev, &ctx->dst_fmt);
 
-	dev->dec_ops[ctx->current_codec]->setup(ctx, &run);
+	error = dev->dec_ops[ctx->current_codec]->setup(ctx, &run);
+	if (error)
+		v4l2_err(&ctx->dev->v4l2_dev,
+			 "Failed to setup decoding job: %d\n", error);
 
 	/* Complete request(s) controls if needed. */
 
 	if (src_req)
 		v4l2_ctrl_request_complete(src_req, &ctx->hdl);
 
-	dev->dec_ops[ctx->current_codec]->trigger(ctx);
+	/* Trigger decoding if setup went well, bail out otherwise. */
+	if (!error) {
+		dev->dec_ops[ctx->current_codec]->trigger(ctx);
 
-	/* Start the watchdog timer. */
-	schedule_delayed_work(&dev->watchdog_work,
-			      msecs_to_jiffies(2000));
+		/* Start the watchdog timer. */
+		schedule_delayed_work(&dev->watchdog_work,
+				      msecs_to_jiffies(2000));
+	} else {
+		v4l2_m2m_buf_done_and_job_finish(ctx->dev->m2m_dev,
+						 ctx->fh.m2m_ctx,
+						 VB2_BUF_STATE_ERROR);
+	}
 }

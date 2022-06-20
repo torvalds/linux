@@ -326,8 +326,7 @@ static int cedrus_h265_is_low_delay(struct cedrus_run *run)
 	return 0;
 }
 
-static void cedrus_h265_setup(struct cedrus_ctx *ctx,
-			      struct cedrus_run *run)
+static int cedrus_h265_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 {
 	struct cedrus_dev *dev = ctx->dev;
 	const struct v4l2_ctrl_hevc_sps *sps;
@@ -385,8 +384,7 @@ static void cedrus_h265_setup(struct cedrus_ctx *ctx,
 					GFP_KERNEL, DMA_ATTR_NO_KERNEL_MAPPING);
 		if (!ctx->codec.h265.mv_col_buf) {
 			ctx->codec.h265.mv_col_buf_size = 0;
-			// TODO: Abort the process here.
-			return;
+			return -ENOMEM;
 		}
 	}
 
@@ -703,6 +701,8 @@ static void cedrus_h265_setup(struct cedrus_ctx *ctx,
 
 	/* Enable appropriate interruptions. */
 	cedrus_write(dev, VE_DEC_H265_CTRL, VE_DEC_H265_CTRL_IRQ_MASK);
+
+	return 0;
 }
 
 static int cedrus_h265_start(struct cedrus_ctx *ctx)
