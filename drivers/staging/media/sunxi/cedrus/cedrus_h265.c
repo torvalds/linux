@@ -301,6 +301,31 @@ static void cedrus_h265_write_scaling_list(struct cedrus_ctx *ctx,
 		}
 }
 
+static int cedrus_h265_is_low_delay(struct cedrus_run *run)
+{
+	const struct v4l2_ctrl_hevc_slice_params *slice_params;
+	const struct v4l2_hevc_dpb_entry *dpb;
+	s32 poc;
+	int i;
+
+	slice_params = run->h265.slice_params;
+	poc = run->h265.decode_params->pic_order_cnt_val;
+	dpb = run->h265.decode_params->dpb;
+
+	for (i = 0; i < slice_params->num_ref_idx_l0_active_minus1 + 1; i++)
+		if (dpb[slice_params->ref_idx_l0[i]].pic_order_cnt_val > poc)
+			return 1;
+
+	if (slice_params->slice_type != V4L2_HEVC_SLICE_TYPE_B)
+		return 0;
+
+	for (i = 0; i < slice_params->num_ref_idx_l1_active_minus1 + 1; i++)
+		if (dpb[slice_params->ref_idx_l1[i]].pic_order_cnt_val > poc)
+			return 1;
+
+	return 0;
+}
+
 static void cedrus_h265_setup(struct cedrus_ctx *ctx,
 			      struct cedrus_run *run)
 {
@@ -588,7 +613,7 @@ static void cedrus_h265_setup(struct cedrus_ctx *ctx,
 				V4L2_HEVC_SLICE_PARAMS_FLAG_SLICE_LOOP_FILTER_ACROSS_SLICES_ENABLED,
 				slice_params->flags);
 
-	if (decode_params->num_poc_st_curr_after == 0)
+	if (slice_params->slice_type != V4L2_HEVC_SLICE_TYPE_I && !cedrus_h265_is_low_delay(run))
 		reg |= VE_DEC_H265_DEC_SLICE_HDR_INFO1_FLAG_SLICE_NOT_LOW_DELAY;
 
 	cedrus_write(dev, VE_DEC_H265_DEC_SLICE_HDR_INFO1, reg);
