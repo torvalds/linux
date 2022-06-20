@@ -410,7 +410,9 @@ nfp_net_fw_find(struct pci_dev *pdev, struct nfp_pf *pf)
 		return NULL;
 	}
 
-	fw_model = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno");
+	fw_model = nfp_hwinfo_lookup(pf->hwinfo, "nffw.partno");
+	if (!fw_model)
+		fw_model = nfp_hwinfo_lookup(pf->hwinfo, "assembly.partno");
 	if (!fw_model) {
 		dev_err(&pdev->dev, "Error: can't read part number\n");
 		return NULL;
