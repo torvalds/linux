@@ -995,12 +995,6 @@ static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 		     FIELD_PREP(SCL_I3C_TIMING_LCNT, lcnt);
 	writel(scl_timing, master->regs + SCL_I3C_PP_TIMING);
 
-	if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_I2C_SLAVE_PRESENT)) {
-		scl_timing = BUS_I3C_AVAILABLE_TIME(0xffff);
-		scl_timing |= BUS_I3C_MST_FREE(lcnt);
-		writel(scl_timing, master->regs + BUS_FREE_TIMING);
-	}
-
 	/* I3C OD mode:
 	 * User defined
 	 *     check if hcnt/lcnt exceed the max value of the register
@@ -1034,6 +1028,29 @@ static int aspeed_i3c_clk_cfg(struct aspeed_i3c_master *master)
 	scl_timing = FIELD_PREP(SCL_I2C_FM_TIMING_HCNT, hcnt) |
 		     FIELD_PREP(SCL_I2C_FM_TIMING_LCNT, lcnt);
 	writel(scl_timing, master->regs + SCL_I2C_FM_TIMING);
+
+	/*
+	 * I3C register 0xd4[15:0] BUS_FREE_TIMING used to control several parameters:
+	 * - tCAS & tCASr (tHD_STA in JESD403)
+	 * - tCBP & tCBPr (tSU_STO in JESD403)
+	 * - bus free time between a STOP condition and a START condition
+	 *
+	 * The constraints of these two parameters are different in different bus contexts
+	 * - MIPI I3C, mixed bus: 0xd4[15:0] = I2C SCL low period (handled in aspeed_i2c_clk_cfg)
+	 * - MIPI I3C, pure bus : 0xd4[15:0] = I3C SCL PP low period
+	 * - JESD403            : 0xd4[15:0] = I3C SCL OD low period
+	 */
+	if (!(readl(master->regs + DEVICE_CTRL) & DEV_CTRL_I2C_SLAVE_PRESENT)) {
+		if (master->base.jdec_spd)
+			scl_timing = readl(master->regs + SCL_I3C_OD_TIMING);
+		else
+			scl_timing = readl(master->regs + SCL_I3C_PP_TIMING);
+
+		lcnt = FIELD_GET(SCL_I3C_TIMING_LCNT, scl_timing);
+		scl_timing = BUS_I3C_AVAILABLE_TIME(0xffff);
+		scl_timing |= BUS_I3C_MST_FREE(lcnt);
+		writel(scl_timing, master->regs + BUS_FREE_TIMING);
+	}
 
 	/* Extend SDR: use PP mode hcnt */
 	scl_timing = readl(master->regs + SCL_I3C_PP_TIMING);
