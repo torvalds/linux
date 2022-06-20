@@ -199,6 +199,7 @@ struct dc_panel_patch {
 	unsigned int embedded_tiled_slave;
 	unsigned int disable_fams;
 	unsigned int skip_avmute;
+	unsigned int mst_start_top_delay;
 };
 
 struct dc_edid_caps {
