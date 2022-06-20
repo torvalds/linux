@@ -16,25 +16,35 @@
 #include <linux/types.h>
 
 #define TDM_PCMGBCR			0x00
+	#define PCMGBCR_MASK		0x1e
+	#define PCMGBCR_ENABLE		BIT(0)
+	#define PCMGBCR_TRITXEN		BIT(4)
+	#define CLKPOL_BIT		5
+	#define TRITXEN_BIT		4
+	#define ELM_BIT			3
+	#define SYNCM_BIT		2
+	#define MS_BIT			1
 #define TDM_PCMTXCR			0x04
+	#define PCMTXCR_TXEN		BIT(0)
 #define TDM_PCMRXCR			0x08
+	#define PCMRXCR_RXEN		BIT(0)
+	#define PCMRXCR_RXSL_MASK	0xc
+	#define PCMRXCR_RXSL_16BIT	0x4
+	#define PCMRXCR_RXSL_32BIT	0x8
+	#define PCMRXCR_SCALE_MASK	0xf0
+	#define PCMRXCR_SCALE_1CH	0x10
 #define TDM_PCMDIV			0x0c
 
 /*  DMA registers */
-#define TDM_RXDMA			0xc0
-#define TDM_TXDMA			0xd0
-
+#define TDM_FIFO		0x170c0000
 #define TDM_FIFO_DEPTH			16
-
-#define TDM_MAX_CHANNEL_NUM		8
-#define TDM_MIN_CHANNEL_NUM		2
 
 #define TWO_CHANNEL_SUPPORT		2	
 #define FOUR_CHANNEL_SUPPORT		4
 #define SIX_CHANNEL_SUPPORT		6
 #define EIGHT_CHANNEL_SUPPORT		8
 
-enum TDM_MODE {
+enum TDM_MASTER_SLAVE_MODE {
 	TDM_AS_MASTER = 0,
 	TDM_AS_SLAVE,
 };
@@ -42,8 +52,14 @@ enum TDM_MODE {
 enum TDM_CLKPOL {
 	/* tx raising and rx falling */
 	TDM_TX_RASING_RX_FALLING = 0,
-	/* tx raising and rx falling */
+	/* tx falling and rx raising */
 	TDM_TX_FALLING_RX_RASING,
+};
+
+enum TDM_FRAME_MODE {
+	SHORT_EARLY = 0,
+	SHORT_LATER,
+	LONG,
 };
 
 enum TDM_ELM {
@@ -103,7 +119,10 @@ struct sf_tdm_dev {
 	struct clk *clk_tdm_ahb;
 	struct clk *clk_apb0;
 	struct clk *clk_tdm_apb;
-	struct clk *clk_tdm_intl;
+	struct clk *clk_tdm_internal;
+	struct clk *clk_tdm_ext;
+	struct clk *clk_tdm;
+	struct clk *clk_mclk_inner;
 	struct reset_control *rst_ahb;
 	struct reset_control *rst_apb;
 	struct reset_control *rst_tdm;
@@ -112,7 +131,8 @@ struct sf_tdm_dev {
 	enum TDM_CLKPOL clkpolity;
 	enum TDM_ELM	elm;
 	enum TDM_SYNCM	syncm;
-	enum TDM_MODE	mode;
+	enum TDM_MASTER_SLAVE_MODE ms_mode;
+	enum TDM_FRAME_MODE frame_mode;
 	unsigned char	tritxen;
 	
 	tdm_chan_cfg_t tx;

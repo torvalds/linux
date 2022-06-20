@@ -15,6 +15,7 @@
 #include <linux/clk.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/debugfs.h>
 #include <sound/core.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
@@ -22,11 +23,11 @@
 #include <sound/initval.h>
 #include <sound/tlv.h>
 #include <sound/wm8960.h>
-#include <linux/debugfs.h>
 
 #include "wm8960.h"
 
-#define WM8960_MCLK		 51200000//4096000
+#define WM8960_MCLK		 24000000
+
 /* R25 - Power 1 */
 #define WM8960_VMID_MASK 0x180
 #define WM8960_VREF      0x40
@@ -123,7 +124,7 @@ struct wm8960_priv {
 	struct clk *mclk;
 	struct regmap *regmap;
 	int (*set_bias_level)(struct snd_soc_component *,
-			      enum snd_soc_bias_level level);
+			enum snd_soc_bias_level level);
 	struct snd_soc_dapm_widget *lout1;
 	struct snd_soc_dapm_widget *rout1;
 	struct snd_soc_dapm_widget *out3;
@@ -153,6 +154,7 @@ static const char *wm8960_adc_data_output_sel[] = {
 	"Left Data = Right ADC; Right Data = Right ADC",
 	"Left Data = Right ADC; Right Data = Left ADC",
 };
+
 static const char *wm8960_dmonomix[] = {"Stereo", "Mono"};
 
 static const struct soc_enum wm8960_enum[] = {
@@ -514,7 +516,7 @@ static int wm8960_add_widgets(struct snd_soc_component *component)
 		if (strcmp(w->name, "OUT3 VMID") == 0)
 			wm8960->out3 = w;
 	}
-	
+
 	return 0;
 }
 
@@ -697,13 +699,6 @@ int wm8960_configure_pll(struct snd_soc_component *component, int freq_in,
 	lrclk = wm8960->lrclk;
 	closest = freq_in;
 
-	/* Judge whether the lr clock is 0, if equal to 0, there is
-	 * no need to perform the following steps*/
-	if (!lrclk)
-	{
-		return 0;
-	}
-
 	best_freq_out = -EINVAL;
 	*sysclk_idx = *dac_idx = *bclk_idx = -1;
 
@@ -744,6 +739,7 @@ int wm8960_configure_pll(struct snd_soc_component *component, int freq_in,
 
 	return best_freq_out;
 }
+
 static int wm8960_configure_clocking(struct snd_soc_component *component)
 {
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
@@ -863,6 +859,56 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 
 	/* set iface */
 	snd_soc_component_write(component, WM8960_IFACE1, iface);
+
+	/*  Temp add by walker */
+	snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+	snd_soc_component_write(component, WM8960_POWER2, 0x1f8);
+	snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
+	snd_soc_component_write(component, WM8960_PLL1, 0x28);
+	snd_soc_component_write(component, WM8960_PLL1, 0x38);
+	snd_soc_component_write(component, WM8960_CLOCK1, 0xdd);
+	snd_soc_component_write(component, WM8960_CLOCK2, 0x1cc);
+	snd_soc_component_write(component, WM8960_POWER3, 0x3c);
+
+	if (tx) {
+		snd_soc_component_write(component, WM8960_LOUTMIX, 0x100);
+		snd_soc_component_write(component, WM8960_ROUTMIX, 0x100);
+		snd_soc_component_write(component, WM8960_POWER3, 0xc);
+		snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
+		snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
+		snd_soc_component_write(component, WM8960_IFACE1, 0x3);
+		snd_soc_component_write(component, WM8960_IFACE1, 0x43);
+		snd_soc_component_write(component, WM8960_POWER1, 0xd6);
+		snd_soc_component_write(component, WM8960_POWER1, 0xc6);
+	} else {
+		snd_soc_component_write(component, WM8960_POWER3, 0x30);
+		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+		snd_soc_component_write(component, WM8960_POWER3, 0x30);
+		snd_soc_component_write(component, WM8960_POWER3, 0x30);
+		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+		snd_soc_component_write(component, WM8960_ADDCTL2, 0x0);
+		snd_soc_component_write(component, WM8960_IFACE1, 0x3);
+		snd_soc_component_write(component, WM8960_IFACE1, 0x43);
+		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+		snd_soc_component_write(component, WM8960_LINPATH, 0x108);
+		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+		snd_soc_component_write(component, WM8960_RINPATH, 0x108);
+	}
+
+	snd_soc_component_write(component, WM8960_ADDCTL1, 0xc0);
+	snd_soc_component_write(component, WM8960_ADDCTL4, 0x0);
+	snd_soc_component_write(component, WM8960_BYPASS1, 0x0);
+	snd_soc_component_write(component, WM8960_BYPASS2, 0x0);
+	snd_soc_component_write(component, WM8960_CLASSD1, 0xf7);
+	snd_soc_component_write(component, WM8960_DACCTL1, 0x0);
+	snd_soc_component_write(component, WM8960_NOISEG, 0xf9);
+	snd_soc_component_write(component, WM8960_ALC1, 0x1bb);
+	snd_soc_component_write(component, WM8960_ALC2, 0x30);
+	/* bclk inverted */
+	snd_soc_component_update_bits(component, WM8960_IFACE1, 0x80, 0x80);
+	snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
 
 	wm8960->is_stream_in_use[tx] = true;
 
@@ -1290,6 +1336,7 @@ static int wm8960_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 {
 	struct snd_soc_component *component = dai->component;
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
+
 	clk_id = WM8960_SYSCLK_PLL;
 
 	switch (clk_id) {
@@ -1351,11 +1398,15 @@ static struct snd_soc_dai_driver wm8960_dai = {
 static int wm8960_reg_debug_show(struct seq_file *s, void *data)
 {
 	struct snd_soc_component *component = s->private;
-        int i, reg;
-	for (i = 0; i < WM8960_REG_MAX; i++)
-	{
+	int i, reg;
+
+	for (i = 0; i < WM8960_REG_MAX; i++) {
+		if ((i == 0xc) || (i == 0xd) || (i == 0xe) || (i == 0xf) ||
+			(i == 0x1e) || (i == 0x1f) || (i == 0x23) ||
+			(i == 0x24) || (i == 0x32))
+			continue;
 		reg = snd_soc_component_read(component, i);
-		printk("wm8960 reg:0x%x: 0x%x\n", i, reg);
+		pr_info("reg:0x%x  value:0x%x\n", i, reg);
 	}
 	return 0;
 }
@@ -1364,9 +1415,11 @@ DEFINE_SHOW_ATTRIBUTE(wm8960_reg_debug);
 static void wm8960_create_debugfs(struct snd_soc_component *component)
 {
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
+
 	wm8960->debug_file = debugfs_create_file("wm8960_reg", 0666, NULL,
 		component, &wm8960_reg_debug_fops);
 }
+
 static int wm8960_probe(struct snd_soc_component *component)
 {
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
@@ -1377,21 +1430,23 @@ static int wm8960_probe(struct snd_soc_component *component)
 	else
 		wm8960->set_bias_level = wm8960_set_bias_level_out3;
 
-	#if 1
 	snd_soc_component_update_bits(component, WM8960_LDAC, 0x100, 0x100);
 	snd_soc_component_update_bits(component, WM8960_RDAC, 0x100, 0x100);
-	snd_soc_component_update_bits(component, WM8960_LOUT1, 0x100, 0x100); 
-	snd_soc_component_update_bits(component, WM8960_ROUT1, 0x100, 0x100); 
+	snd_soc_component_update_bits(component, WM8960_LOUT1, 0x100, 0x100);
+	snd_soc_component_update_bits(component, WM8960_ROUT1, 0x100, 0x100);
 	snd_soc_component_update_bits(component, WM8960_LOUT2, 0x100, 0x100);
 	snd_soc_component_update_bits(component, WM8960_ROUT2, 0x100, 0x100);
 	snd_soc_component_update_bits(component, WM8960_POWER2, 0x1fB, 0x198);
 	snd_soc_component_update_bits(component, WM8960_LOUTMIX, 0x1F0, 0x100);
 	snd_soc_component_update_bits(component, WM8960_ROUTMIX, 0x1F0, 0x100);
-	snd_soc_component_update_bits(component, WM8960_LOUT1, 0x7f, 0x6f);
-	snd_soc_component_update_bits(component, WM8960_ROUT1, 0x7f, 0x6f);
-	snd_soc_component_update_bits(component, WM8960_LOUT2, 0x7f, 0x7f);
-	snd_soc_component_update_bits(component, WM8960_ROUT2, 0x7f, 0x7f);
-	#endif
+	snd_soc_component_update_bits(component, WM8960_LOUT1, 0x1ff, 0x170);
+	snd_soc_component_update_bits(component, WM8960_ROUT1, 0x1ff, 0x170);
+	snd_soc_component_update_bits(component, WM8960_LOUT2, 0x1ff, 0x170);
+	snd_soc_component_update_bits(component, WM8960_ROUT2, 0x1ff, 0x170);
+	snd_soc_component_write(component, WM8960_LDAC, 0x1e0);
+	snd_soc_component_write(component, WM8960_RDAC, 0x1e0);
+	snd_soc_component_write(component, WM8960_LADC, 0x1e0);
+	snd_soc_component_write(component, WM8960_RADC, 0x1e0);
 
 	snd_soc_add_component_controls(component, wm8960_snd_controls,
 				     ARRAY_SIZE(wm8960_snd_controls));
@@ -1497,14 +1552,14 @@ static int wm8960_i2c_probe(struct i2c_client *i2c,
 	regmap_update_bits(wm8960->regmap, WM8960_ROUT1, 0x100, 0x100);
 	regmap_update_bits(wm8960->regmap, WM8960_LOUT2, 0x100, 0x100);
 	regmap_update_bits(wm8960->regmap, WM8960_ROUT2, 0x100, 0x100);
-	
+
 	regmap_update_bits(wm8960->regmap, WM8960_LINPATH, 0x138, 0x138);
 	regmap_update_bits(wm8960->regmap, WM8960_RINPATH, 0x138, 0x138);
 	regmap_update_bits(wm8960->regmap, WM8960_POWER1, 0x7E, 0x7E);
 	regmap_update_bits(wm8960->regmap, WM8960_POWER3, 0x30, 0x30);
-	regmap_update_bits(wm8960->regmap, WM8960_LINVOL, 0x19F, 0x197);
-	regmap_update_bits(wm8960->regmap, WM8960_RINVOL, 0x19F, 0x197);
-	
+	regmap_update_bits(wm8960->regmap, WM8960_LINVOL, 0x1ff, 0x128);
+	regmap_update_bits(wm8960->regmap, WM8960_RINVOL, 0x1ff, 0x128);
+
 	/* ADCLRC pin configured as GPIO. */
 	regmap_update_bits(wm8960->regmap, WM8960_IFACE2, 1 << 6,
 			   wm8960->pdata.gpio_cfg[0] << 6);
@@ -1558,4 +1613,4 @@ module_i2c_driver(wm8960_i2c_driver);
 
 MODULE_DESCRIPTION("ASoC WM8960 driver");
 MODULE_AUTHOR("Liam Girdwood");
-MODULE_LICENSE("GPL");
+

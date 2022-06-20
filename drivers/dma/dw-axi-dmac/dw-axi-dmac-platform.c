@@ -198,11 +198,18 @@ static inline void axi_chan_disable(struct axi_dma_chan *chan)
 {
 	struct dma_multi *multi = &chan->chip->multi;
 	u32 val;
+	int ret;
+	u32 chan_active = BIT(chan->id) << DMAC_CHAN_EN_SHIFT;
 
 	val = axi_dma_ioread32(chan->chip, multi->en.ch_en);
 	val &= ~(BIT(chan->id) << multi->en.ch_en_shift);
 	val |=   BIT(chan->id) << multi->en.ch_en_we_shift;
 	axi_dma_iowrite32(chan->chip, multi->en.ch_en, val);
+	
+	ret = readl_poll_timeout_atomic(chan->chip->regs + DMAC_CHEN, val,
+					!(val & chan_active), 10, 100000); //10 ms
+	if (ret == -ETIMEDOUT)
+		pr_info("dma: failed to stop\n");
 }
 
 static inline void axi_chan_enable(struct axi_dma_chan *chan)
@@ -337,12 +344,11 @@ dma_chan_tx_status(struct dma_chan *dchan, dma_cookie_t cookie,
 		len = vd_to_axi_desc(vdesc)->hw_desc[0].len;
 		completed_length = completed_blocks * len;
 		bytes = length - completed_length;
+		spin_unlock_irqrestore(&chan->vc.lock, flags);
+		dma_set_residue(txstate, bytes);
 	} else {
-		bytes = vd_to_axi_desc(vdesc)->length;
+		spin_unlock_irqrestore(&chan->vc.lock, flags);
 	}
-
-	spin_unlock_irqrestore(&chan->vc.lock, flags);
-	dma_set_residue(txstate, bytes);
 
 	return status;
 }
@@ -380,6 +386,7 @@ static void dw_axi_dma_set_byte_halfword(struct axi_dma_chan *chan, bool set)
 
 	iowrite32(val, chan->chip->apb_regs + offset);
 }
+
 /* Called in chan locked context */
 static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 				      struct axi_dma_desc *first)
@@ -389,12 +396,11 @@ static void axi_chan_block_xfer_start(struct axi_dma_chan *chan,
 	u32 reg_lo, reg_hi, irq_mask;
 	u8 lms = 0; /* Select AXI0 master for LLI fetching */
 
-	chan->is_err = false;
 	if (unlikely(axi_chan_is_hw_enable(chan))) {
+		//printk(KERN_INFO ">>>>>>>>>>axi_chan_block_xfer_start\n");
 		dev_err(chan2dev(chan), "%s is non-idle!\n",
 			axi_chan_name(chan));
 		axi_chan_disable(chan);
-		chan->is_err = true;
 		//return;
 	}
 
@@ -522,6 +528,7 @@ static int dma_chan_alloc_chan_resources(struct dma_chan *dchan)
 
 	/* ASSERT: channel is idle */
 	if (axi_chan_is_hw_enable(chan)) {
+		printk(KERN_INFO ">>>>>>>>>>dma_chan_alloc_chan_resources\n");
 		dev_err(chan2dev(chan), "%s is non-idle!\n",
 			axi_chan_name(chan));
 		return -EBUSY;
@@ -549,6 +556,7 @@ static void dma_chan_free_chan_resources(struct dma_chan *dchan)
 
 	/* ASSERT: channel is idle */
 	if (axi_chan_is_hw_enable(chan))
+		printk(KERN_INFO ">>>>>>>>>>dma_chan_free_chan_resources\n");
 		dev_err(dchan2dev(dchan), "%s is non-idle!\n",
 			axi_chan_name(chan));
 
@@ -572,7 +580,7 @@ static void dw_axi_dma_set_hw_channel(struct axi_dma_chan *chan, bool set)
 	unsigned long reg_value, val;
 
 	if (!chip->apb_regs) {
-		dev_err(chip->dev, "apb_regs not initialized\n");
+		dev_dbg(chip->dev, "apb_regs not initialized\n");
 		return;
 	}
 
@@ -1068,15 +1076,22 @@ static void axi_chan_list_dump_lli(struct axi_dma_chan *chan,
 		axi_chan_dump_lli(chan, &desc_head->hw_desc[i]);
 }
 
-static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
+static void axi_chan_tasklet(struct tasklet_struct *t)
 {
+	struct axi_dma_chan *chan = from_tasklet(chan, t, dma_tasklet);
 	struct virt_dma_desc *vd;
+	u32 chan_active = BIT(chan->id) << DMAC_CHAN_EN_SHIFT;
 	unsigned long flags;
-	struct axi_dma_desc *desc;
+	u32 val;
+	int ret;
+
+	ret = readl_poll_timeout_atomic(chan->chip->regs + DMAC_CHEN, val,
+					!(val & chan_active), 10, 1000);
+	if (ret == -ETIMEDOUT)
+		dev_warn(chan2dev(chan),
+			 "irq %s failed to stop\n", axi_chan_name(chan));
 
 	spin_lock_irqsave(&chan->vc.lock, flags);
-
-	axi_chan_disable(chan);
 
 	/* The bad descriptor currently is in the head of vc list */
 	vd = vchan_next_desc(&chan->vc);
@@ -1086,18 +1101,18 @@ static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
 		spin_unlock_irqrestore(&chan->vc.lock, flags);
 		return;
 	}
-	if (chan->is_err) {
-		desc = vd_to_axi_desc(vd);
-		axi_chan_block_xfer_start(chan, desc);
-		chan->is_err = false;
+
+	if (chan->cyclic) {
+		vchan_cyclic_callback(vd);
+		axi_chan_enable(chan);
 	} else {
 		/* Remove the completed descriptor from issued list */
 		list_del(&vd->node);
 
 		/* WARN about bad descriptor */
 		dev_err(chan2dev(chan),
-			"Bad descriptor submitted for %s, cookie: %d, irq: 0x%08x\n",
-			axi_chan_name(chan), vd->tx.cookie, status);
+			"Bad descriptor submitted for %s, cookie: %d\n",
+			axi_chan_name(chan), vd->tx.cookie);
 		axi_chan_list_dump_lli(chan, vd_to_axi_desc(vd));
 
 		vchan_cookie_complete(vd);
@@ -1106,6 +1121,20 @@ static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
 		axi_chan_start_first_queued(chan);
 	}
 
+	spin_unlock_irqrestore(&chan->vc.lock, flags);
+}
+
+static noinline void axi_chan_handle_err(struct axi_dma_chan *chan, u32 status)
+{
+	unsigned long flags;
+	
+	spin_lock_irqsave(&chan->vc.lock, flags);
+
+	if (unlikely(axi_chan_is_hw_enable(chan))) {
+		axi_chan_disable(chan);
+	}
+
+	tasklet_schedule(&chan->dma_tasklet);
 	spin_unlock_irqrestore(&chan->vc.lock, flags);
 }
 
@@ -1537,6 +1566,7 @@ static int dw_probe(struct platform_device *pdev)
 
 		chan->vc.desc_free = vchan_desc_put;
 		vchan_init(&chan->vc, &dw->dma);
+		tasklet_setup(&chan->dma_tasklet, axi_chan_tasklet);
 	}
 
 	/* Set capabilities */

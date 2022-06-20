@@ -438,7 +438,7 @@
 &tdm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&tdm0_pins>;
-	status = "disabled";
+	status = "okay";
 };
 
 &spdif0 {

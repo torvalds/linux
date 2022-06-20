@@ -1035,10 +1035,14 @@
 				 <&clkgen JH7110_TDM_CLK_AHB>,
 				 <&clkgen JH7110_APB0>,
 				 <&clkgen JH7110_TDM_CLK_APB>,
-				 <&clkgen JH7110_TDM_INTERNAL>;
+				 <&clkgen JH7110_TDM_INTERNAL>,
+				 <&tdm_ext>,
+				 <&clkgen JH7110_TDM_CLK_TDM>,
+				 <&clkgen JH7110_MCLK_INNER>;
 			clock-names = "clk_ahb0", "clk_tdm_ahb",
 				      "clk_apb0", "clk_tdm_apb",
-				      "clk_tdm_intl";
+				      "clk_tdm_internal", "clk_tdm_ext",
+				      "clk_tdm", "mclk_inner";
 			resets = <&rstgen RSTN_U0_TDM16SLOT_AHB>,
 				 <&rstgen RSTN_U0_TDM16SLOT_APB>,
 				 <&rstgen RSTN_U0_TDM16SLOT_TDM>;
@@ -1588,33 +1592,34 @@
 
 			simple-audio-card,dai-link@0 {
 				reg = <0>;
-				format = "left_j";
-				bitclock-master = <&sndcpu0>;
-				frame-master = <&sndcpu0>;
 				status = "okay";
-
-				sndcpu0: cpu {
-					sound-dai = <&pwmdac>;
-				};
-
-				codec {
-					sound-dai = <&pwmdac_codec>;
-				};
-			};
-
-			simple-audio-card,dai-link@1 {
-				reg = <0>;
-				status = "okay";
-				format = "i2s";
+				format = "dsp_a";
 				bitclock-master = <&dailink_master>;
 				frame-master = <&dailink_master>;
-
-				dailink_master:cpu {
-					sound-dai = <&i2srx_3ch>;
+		
+				widgets =
+						"Microphone", "Mic Jack",
+						"Line", "Line In",
+						"Line", "Line Out",
+						"Speaker", "Speaker",
+						"Headphone", "Headphone Jack";
+				routing =
+						"Headphone Jack", "HP_L",
+						"Headphone Jack", "HP_R",
+						"Speaker", "SPK_LP",
+						"Speaker", "SPK_LN",
+						"LINPUT1", "Mic Jack",
+						"LINPUT3", "Mic Jack",
+						"RINPUT1", "Mic Jack",
+						"RINPUT2", "Mic Jack";
+				cpu {
+					sound-dai = <&tdm>;
 				};
-
-				dailink_slave:codec {
-					sound-dai = <&pdm>;
+		
+				dailink_master:codec {
+					sound-dai = <&wm8960>;
+					clocks = <&wm8960_mclk>;
+					clock-names = "mclk";
 				};
 			};
 		};

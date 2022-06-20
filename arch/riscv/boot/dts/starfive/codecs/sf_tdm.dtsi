@@ -1,0 +1,34 @@
+&sound{
+	simple-audio-card,dai-link@0 {
+		reg = <0>;
+		status = "okay";
+		format = "dsp_a";
+		bitclock-master = <&dailink_master>;
+		frame-master = <&dailink_master>;
+		
+		widgets =
+				"Microphone", "Mic Jack",
+				"Line", "Line In",
+				"Line", "Line Out",
+				"Speaker", "Speaker",
+				"Headphone", "Headphone Jack";
+		routing =
+				"Headphone Jack", "HP_L",
+				"Headphone Jack", "HP_R",
+				"Speaker", "SPK_LP",
+				"Speaker", "SPK_LN",
+				"LINPUT1", "Mic Jack",
+				"LINPUT3", "Mic Jack",
+				"RINPUT1", "Mic Jack",
+				"RINPUT2", "Mic Jack";
+		cpu {
+			sound-dai = <&tdm>;
+		};
+		
+		dailink_master:codec {
+			sound-dai = <&wm8960>;
+			clocks = <&wm8960_mclk>;
+			clock-names = "mclk";
+		};
+	};
+};
