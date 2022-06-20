@@ -19,6 +19,11 @@
 		#size-cells = <1>;
 		ranges;
 
+		rtos@40000 {
+			reg = <0x40000 0x40000>;
+			no-map;
+		};
+
 		ramdisk_r: ramdisk@a00000 {
 			reg = <0x00a00000 (10 * 0x00100000)>;
 		};
