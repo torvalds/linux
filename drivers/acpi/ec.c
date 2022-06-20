@@ -1858,18 +1858,38 @@ static int ec_honor_dsdt_gpe(const struct dmi_system_id *id)
 
 static const struct dmi_system_id ec_dmi_table[] __initconst = {
 	{
-	ec_correct_ecdt, "MSI MS-171F", {
-	DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "MS-171F"),}, NULL},
+		/*
+		 * MSI MS-171F
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=12461
+		 */
+		.callback = ec_correct_ecdt,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Micro-Star"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "MS-171F"),
+		},
+	},
 	{
-	/* https://bugzilla.kernel.org/show_bug.cgi?id=209989 */
-	ec_honor_dsdt_gpe, "HP Pavilion Gaming Laptop 15-cx0xxx", {
-	DMI_MATCH(DMI_SYS_VENDOR, "HP"),
-	DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion Gaming Laptop 15-cx0xxx"),}, NULL},
+		/*
+		 * HP Pavilion Gaming Laptop 15-cx0xxx
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=209989
+		 */
+		.callback = ec_honor_dsdt_gpe,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
+			DMI_MATCH(DMI_PRODUCT_NAME, "HP Pavilion Gaming Laptop 15-cx0xxx"),
+		},
+	},
 	{
-	ec_clear_on_resume, "Samsung hardware", {
-	DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD.")}, NULL},
-	{},
+		/*
+		 * Samsung hardware
+		 * https://bugzilla.kernel.org/show_bug.cgi?id=44161
+		 */
+		.callback = ec_clear_on_resume,
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "SAMSUNG ELECTRONICS CO., LTD."),
+		},
+	},
+	{}
 };
 
 void __init acpi_ec_ecdt_probe(void)
@@ -2147,21 +2167,18 @@ static int acpi_ec_init_workqueues(void)
 
 static const struct dmi_system_id acpi_ec_no_wakeup[] = {
 	{
-		.ident = "Thinkpad X1 Carbon 6th",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "Thinkpad X1 Carbon 6th"),
 		},
 	},
 	{
-		.ident = "ThinkPad X1 Yoga 3rd",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "ThinkPad X1 Yoga 3rd"),
 		},
 	},
 	{
-		.ident = "HP ZHAN 66 Pro",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "HP"),
 			DMI_MATCH(DMI_PRODUCT_FAMILY, "103C_5336AN HP ZHAN 66 Pro"),
