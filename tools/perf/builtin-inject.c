@@ -891,7 +891,9 @@ static int copy_kcore_dir(struct perf_inject *inject)
 	if (ret < 0)
 		return ret;
 	pr_debug("%s\n", cmd);
-	return system(cmd);
+	ret = system(cmd);
+	free(cmd);
+	return ret;
 }
 
 static int output_fd(struct perf_inject *inject)
