@@ -229,4 +229,10 @@ static inline void io_req_add_compl_list(struct io_kiocb *req)
 	wq_list_add_tail(&req->comp_list, &state->compl_reqs);
 }
 
+static inline void io_commit_cqring_flush(struct io_ring_ctx *ctx)
+{
+	if (unlikely(ctx->off_timeout_used || ctx->drain_active || ctx->has_evfd))
+		__io_commit_cqring_flush(ctx);
+}
+
 #endif
