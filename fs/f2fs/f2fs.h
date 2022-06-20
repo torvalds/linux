@@ -152,6 +152,7 @@ struct f2fs_mount_info {
 	int fsync_mode;			/* fsync policy */
 	int fs_mode;			/* fs mode: LFS or ADAPTIVE */
 	int bggc_mode;			/* bggc mode: off, on or sync */
+	int memory_mode;		/* memory mode */
 	struct fscrypt_dummy_policy dummy_enc_policy; /* test dummy encryption */
 	block_t unusable_cap_perc;	/* percentage for cap */
 	block_t unusable_cap;		/* Amount of space allowed to be
@@ -1329,6 +1330,11 @@ enum {
 				 * user can control the file compression
 				 * using ioctls
 				 */
+};
+
+enum {
+	MEMORY_MODE_NORMAL,	/* memory mode for normal devices */
+	MEMORY_MODE_LOW,	/* memory mode for low memry devices */
 };
 
 static inline int f2fs_test_bit(unsigned int nr, char *addr);
@@ -4401,6 +4407,11 @@ static inline bool f2fs_hw_is_readonly(struct f2fs_sb_info *sbi)
 static inline bool f2fs_lfs_mode(struct f2fs_sb_info *sbi)
 {
 	return F2FS_OPTION(sbi).fs_mode == FS_MODE_LFS;
+}
+
+static inline bool f2fs_low_mem_mode(struct f2fs_sb_info *sbi)
+{
+	return F2FS_OPTION(sbi).memory_mode == MEMORY_MODE_LOW;
 }
 
 static inline bool f2fs_may_compress(struct inode *inode)
