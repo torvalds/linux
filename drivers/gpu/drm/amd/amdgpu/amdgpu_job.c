@@ -262,10 +262,6 @@ static struct dma_fence *amdgpu_job_run(struct drm_sched_job *sched_job)
 			DRM_ERROR("Error scheduling IBs (%d)\n", r);
 	}
 
-	if (!job->job_run_counter)
-		dma_fence_get(fence);
-	else if (finished->error < 0)
-		dma_fence_put(&job->hw_fence);
 	job->job_run_counter++;
 	amdgpu_job_free_resources(job);
 
