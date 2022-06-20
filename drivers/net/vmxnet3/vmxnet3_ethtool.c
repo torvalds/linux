@@ -346,6 +346,12 @@ static void vmxnet3_enable_encap_offloads(struct net_device *netdev, netdev_feat
 		adapter->dev_caps[0] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
 		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 
+		if (!(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_GENEVE_CHECKSUM_OFFLOAD)) &&
+		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_VXLAN_CHECKSUM_OFFLOAD)) &&
+		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_GENEVE_TSO)) &&
+		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_VXLAN_TSO))) {
+			netdev->hw_enc_features &= ~NETIF_F_GSO_UDP_TUNNEL;
+		}
 		if (!(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_GENEVE_OUTER_CHECKSUM_OFFLOAD)) &&
 		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_VXLAN_OUTER_CHECKSUM_OFFLOAD))) {
 			netdev->hw_enc_features &= ~NETIF_F_GSO_UDP_TUNNEL_CSUM;
