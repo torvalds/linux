@@ -527,13 +527,26 @@ void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 		io_eventfd_signal(ctx);
 }
 
-void io_cqring_ev_posted(struct io_ring_ctx *ctx)
+static inline void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 {
 	if (unlikely(ctx->off_timeout_used || ctx->drain_active ||
 		     ctx->has_evfd))
 		__io_commit_cqring_flush(ctx);
 
 	io_cqring_wake(ctx);
+}
+
+static inline void __io_cq_unlock_post(struct io_ring_ctx *ctx)
+	__releases(ctx->completion_lock)
+{
+	io_commit_cqring(ctx);
+	spin_unlock(&ctx->completion_lock);
+	io_cqring_ev_posted(ctx);
+}
+
+void io_cq_unlock_post(struct io_ring_ctx *ctx)
+{
+	__io_cq_unlock_post(ctx);
 }
 
 /* Returns true if there are no backlogged entries after the flush */
@@ -548,7 +561,7 @@ static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 	if (ctx->flags & IORING_SETUP_CQE32)
 		cqe_size <<= 1;
 
-	spin_lock(&ctx->completion_lock);
+	io_cq_lock(ctx);
 	while (!list_empty(&ctx->cq_overflow_list)) {
 		struct io_uring_cqe *cqe = io_get_cqe(ctx);
 		struct io_overflow_cqe *ocqe;
@@ -572,9 +585,7 @@ static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 		atomic_andnot(IORING_SQ_CQ_OVERFLOW, &ctx->rings->sq_flags);
 	}
 
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-	io_cqring_ev_posted(ctx);
+	io_cq_unlock_post(ctx);
 	return all_flushed;
 }
 
@@ -760,11 +771,9 @@ bool io_post_aux_cqe(struct io_ring_ctx *ctx,
 {
 	bool filled;
 
-	spin_lock(&ctx->completion_lock);
+	io_cq_lock(ctx);
 	filled = io_fill_cqe_aux(ctx, user_data, res, cflags);
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-	io_cqring_ev_posted(ctx);
+	io_cq_unlock_post(ctx);
 	return filled;
 }
 
@@ -810,11 +819,9 @@ void io_req_complete_post(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	spin_lock(&ctx->completion_lock);
+	io_cq_lock(ctx);
 	__io_req_complete_post(req);
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-	io_cqring_ev_posted(ctx);
+	io_cq_unlock_post(ctx);
 }
 
 inline void __io_req_complete(struct io_kiocb *req, unsigned issue_flags)
@@ -946,11 +953,9 @@ static void __io_req_find_next_prep(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
-	spin_lock(&ctx->completion_lock);
+	io_cq_lock(ctx);
 	io_disarm_next(req);
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-	io_cqring_ev_posted(ctx);
+	io_cq_unlock_post(ctx);
 }
 
 static inline struct io_kiocb *io_req_find_next(struct io_kiocb *req)
@@ -984,13 +989,6 @@ static void ctx_flush_and_put(struct io_ring_ctx *ctx, bool *locked)
 	percpu_ref_put(&ctx->refs);
 }
 
-static inline void ctx_commit_and_unlock(struct io_ring_ctx *ctx)
-{
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-	io_cqring_ev_posted(ctx);
-}
-
 static void handle_prev_tw_list(struct io_wq_work_node *node,
 				struct io_ring_ctx **ctx, bool *uring_locked)
 {
@@ -1006,7 +1004,7 @@ static void handle_prev_tw_list(struct io_wq_work_node *node,
 
 		if (req->ctx != *ctx) {
 			if (unlikely(!*uring_locked && *ctx))
-				ctx_commit_and_unlock(*ctx);
+				io_cq_unlock_post(*ctx);
 
 			ctx_flush_and_put(*ctx, uring_locked);
 			*ctx = req->ctx;
@@ -1014,7 +1012,7 @@ static void handle_prev_tw_list(struct io_wq_work_node *node,
 			*uring_locked = mutex_trylock(&(*ctx)->uring_lock);
 			percpu_ref_get(&(*ctx)->refs);
 			if (unlikely(!*uring_locked))
-				spin_lock(&(*ctx)->completion_lock);
+				io_cq_lock(*ctx);
 		}
 		if (likely(*uring_locked)) {
 			req->io_task_work.func(req, uring_locked);
@@ -1026,7 +1024,7 @@ static void handle_prev_tw_list(struct io_wq_work_node *node,
 	} while (node);
 
 	if (unlikely(!*uring_locked))
-		ctx_commit_and_unlock(*ctx);
+		io_cq_unlock_post(*ctx);
 }
 
 static void handle_tw_list(struct io_wq_work_node *node,
@@ -1261,10 +1259,7 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 		if (!(req->flags & REQ_F_CQE_SKIP))
 			__io_fill_cqe_req(ctx, req);
 	}
-
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-	io_cqring_ev_posted(ctx);
+	__io_cq_unlock_post(ctx);
 
 	io_free_batch_list(ctx, state->compl_reqs.first);
 	INIT_WQ_LIST(&state->compl_reqs);
