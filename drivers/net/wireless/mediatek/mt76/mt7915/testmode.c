@@ -168,13 +168,14 @@ mt7915_tm_set_tam_arb(struct mt7915_phy *phy, bool enable, bool mu)
 }
 
 static int
-mt7915_tm_set_wmm_qid(struct mt7915_dev *dev, u8 qid, u8 aifs, u8 cw_min,
+mt7915_tm_set_wmm_qid(struct mt7915_phy *phy, u8 qid, u8 aifs, u8 cw_min,
 		      u16 cw_max, u16 txop)
 {
+	struct mt7915_vif *mvif = (struct mt7915_vif *)phy->monitor_vif->drv_priv;
 	struct mt7915_mcu_tx req = { .total = 1 };
 	struct edca *e = &req.edca[0];
 
-	e->queue = qid;
+	e->queue = qid + mvif->mt76.wmm_idx * MT76_CONNAC_MAX_WMM_SETS;
 	e->set = WMM_PARAM_SET;
 
 	e->aifs = aifs;
@@ -182,7 +183,7 @@ mt7915_tm_set_wmm_qid(struct mt7915_dev *dev, u8 qid, u8 aifs, u8 cw_min,
 	e->cw_max = cpu_to_le16(cw_max);
 	e->txop = cpu_to_le16(txop);
 
-	return mt7915_mcu_update_edca(dev, &req);
+	return mt7915_mcu_update_edca(phy->dev, &req);
 }
 
 static int
@@ -244,7 +245,7 @@ done:
 
 	mt7915_tm_set_slot_time(phy, slot_time, sifs);
 
-	return mt7915_tm_set_wmm_qid(dev,
+	return mt7915_tm_set_wmm_qid(phy,
 				     mt76_connac_lmac_mapping(IEEE80211_AC_BE),
 				     aifsn, cw, cw, 0);
 }
