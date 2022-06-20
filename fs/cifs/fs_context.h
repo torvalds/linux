@@ -62,6 +62,7 @@ enum cifs_param {
 	Opt_noblocksend,
 	Opt_noautotune,
 	Opt_nolease,
+	Opt_nosparse,
 	Opt_hard,
 	Opt_soft,
 	Opt_perm,
@@ -170,7 +171,7 @@ struct smb3_fs_context {
 	char *server_hostname;
 	char *UNC;
 	char *nodename;
-	char *workstation_name;
+	char workstation_name[CIFS_MAX_WORKSTATION_LEN];
 	char *iocharset;  /* local code page for mapping to and from Unicode */
 	char source_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* clnt nb name */
 	char target_rfc1001_name[RFC1001_NAME_LEN_WITH_NULL]; /* srvr nb name */
@@ -222,6 +223,7 @@ struct smb3_fs_context {
 	bool noautotune:1;
 	bool nostrictsync:1; /* do not force expensive SMBflush on every sync */
 	bool no_lease:1;     /* disable requesting leases */
+	bool no_sparse:1;    /* do not attempt to set files sparse */
 	bool fsc:1;	/* enable fscache */
 	bool mfsymlinks:1; /* use Minshall+French Symlinks */
 	bool multiuser:1;

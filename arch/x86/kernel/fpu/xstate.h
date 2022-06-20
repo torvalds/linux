@@ -16,7 +16,7 @@ static inline void xstate_init_xcomp_bv(struct xregs_state *xsave, u64 mask)
 	 * XRSTORS requires these bits set in xcomp_bv, or it will
 	 * trigger #GP:
 	 */
-	if (cpu_feature_enabled(X86_FEATURE_XSAVES))
+	if (cpu_feature_enabled(X86_FEATURE_XCOMPACTED))
 		xsave->header.xcomp_bv = mask | XCOMP_BV_COMPACTED_FORMAT;
 }
 
@@ -79,6 +79,7 @@ static inline u64 xfeatures_mask_independent(void)
 /* These macros all use (%edi)/(%rdi) as the single memory argument. */
 #define XSAVE		".byte " REX_PREFIX "0x0f,0xae,0x27"
 #define XSAVEOPT	".byte " REX_PREFIX "0x0f,0xae,0x37"
+#define XSAVEC		".byte " REX_PREFIX "0x0f,0xc7,0x27"
 #define XSAVES		".byte " REX_PREFIX "0x0f,0xc7,0x2f"
 #define XRSTOR		".byte " REX_PREFIX "0x0f,0xae,0x2f"
 #define XRSTORS		".byte " REX_PREFIX "0x0f,0xc7,0x1f"
@@ -97,9 +98,11 @@ static inline u64 xfeatures_mask_independent(void)
 		     : "memory")
 
 /*
- * If XSAVES is enabled, it replaces XSAVEOPT because it supports a compact
- * format and supervisor states in addition to modified optimization in
- * XSAVEOPT.
+ * If XSAVES is enabled, it replaces XSAVEC because it supports supervisor
+ * states in addition to XSAVEC.
+ *
+ * Otherwise if XSAVEC is enabled, it replaces XSAVEOPT because it supports
+ * compacted storage format in addition to XSAVEOPT.
  *
  * Otherwise, if XSAVEOPT is enabled, XSAVEOPT replaces XSAVE because XSAVEOPT
  * supports modified optimization which is not supported by XSAVE.
@@ -111,8 +114,9 @@ static inline u64 xfeatures_mask_independent(void)
  * address of the instruction where we might get an exception at.
  */
 #define XSTATE_XSAVE(st, lmask, hmask, err)				\
-	asm volatile(ALTERNATIVE_2(XSAVE,				\
+	asm volatile(ALTERNATIVE_3(XSAVE,				\
 				   XSAVEOPT, X86_FEATURE_XSAVEOPT,	\
+				   XSAVEC,   X86_FEATURE_XSAVEC,	\
 				   XSAVES,   X86_FEATURE_XSAVES)	\
 		     "\n"						\
 		     "xor %[err], %[err]\n"				\

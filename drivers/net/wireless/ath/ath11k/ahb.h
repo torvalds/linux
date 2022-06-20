@@ -12,6 +12,15 @@ struct ath11k_base;
 
 struct ath11k_ahb {
 	struct rproc *tgt_rproc;
+	struct {
+		struct device *dev;
+		struct iommu_domain *iommu_domain;
+		dma_addr_t msa_paddr;
+		u32 msa_size;
+		dma_addr_t ce_paddr;
+		u32 ce_size;
+		bool use_tz;
+	} fw;
 };
 
 static inline struct ath11k_ahb *ath11k_ahb_priv(struct ath11k_base *ab)

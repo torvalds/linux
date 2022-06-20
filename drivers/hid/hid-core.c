@@ -2222,6 +2222,10 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 	case BUS_VIRTUAL:
 		bus = "VIRTUAL";
 		break;
+	case BUS_INTEL_ISHTP:
+	case BUS_AMD_SFH:
+		bus = "SENSOR HUB";
+		break;
 	default:
 		bus = "<UNKNOWN>";
 	}

@@ -1452,10 +1452,10 @@ static void vmballoon_reset(struct vmballoon *b)
 
 	error = vmballoon_vmci_init(b);
 	if (error)
-		pr_err("failed to initialize vmci doorbell\n");
+		pr_err_once("failed to initialize vmci doorbell\n");
 
 	if (vmballoon_send_guest_id(b))
-		pr_err("failed to send guest ID to the host\n");
+		pr_err_once("failed to send guest ID to the host\n");
 
 unlock:
 	up_write(&b->conf_sem);

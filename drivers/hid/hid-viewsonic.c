@@ -24,7 +24,7 @@
 /* Fixed report descriptor of PD1011 signature pad */
 static __u8 pd1011_rdesc_fixed[] = {
 	0x05, 0x0D,             /*  Usage Page (Digitizer),             */
-	0x09, 0x02,             /*  Usage (Pen),                        */
+	0x09, 0x01,             /*  Usage (Digitizer),                  */
 	0xA1, 0x01,             /*  Collection (Application),           */
 	0x85, 0x02,             /*      Report ID (2),                  */
 	0x09, 0x20,             /*      Usage (Stylus),                 */

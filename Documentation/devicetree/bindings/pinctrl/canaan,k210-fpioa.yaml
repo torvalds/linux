@@ -120,6 +120,7 @@ patternProperties:
       input-schmitt-disable: true
 
       input-polarity-invert:
+        type: boolean
         description:
           Enable or disable pin input polarity inversion.
 
@@ -132,6 +133,7 @@ patternProperties:
       output-low: true
 
       output-polarity-invert:
+        type: boolean
         description:
           Enable or disable pin output polarity inversion.
 

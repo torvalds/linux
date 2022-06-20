@@ -292,7 +292,7 @@ starts a new interval.
 must be run as root.
 Alternatively, non-root users can be enabled to run turbostat this way:
 
-# setcap cap_sys_rawio=ep ./turbostat
+# setcap cap_sys_admin,cap_sys_rawio,cap_sys_nice=+ep ./turbostat
 
 # chmod +r /dev/cpu/*/msr
 

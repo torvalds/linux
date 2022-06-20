@@ -24,7 +24,7 @@ properties:
     items:
       - const: USB
       - const: AC
-      
+
 required:
   - compatible
   - interrupts

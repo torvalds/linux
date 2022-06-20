@@ -173,7 +173,6 @@ static int dsi_init_pll_data(struct platform_device *pdev, struct hdmi_pll_data 
 {
 	struct dss_pll *pll = &hpll->pll;
 	struct clk *clk;
-	int r;
 
 	clk = devm_clk_get(&pdev->dev, "sys_clk");
 	if (IS_ERR(clk)) {
@@ -203,12 +202,7 @@ static int dsi_init_pll_data(struct platform_device *pdev, struct hdmi_pll_data 
 	}
 
 	pll->ops = &dsi_pll_ops;
-
-	r = dss_pll_register(pll);
-	if (r)
-		return r;
-
-	return 0;
+	return dss_pll_register(pll);
 }
 
 int hdmi_pll_init(struct platform_device *pdev, struct hdmi_pll_data *pll,

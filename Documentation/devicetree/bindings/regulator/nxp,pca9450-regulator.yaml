@@ -92,6 +92,17 @@ properties:
       LDO5CTRL_L or LDO5CTRL_H register. Use this if the SD_VSEL signal is
       connected to a host GPIO.
 
+  nxp,i2c-lt-enable:
+    type: boolean
+    description:
+      Indicates that the I2C Level Translator is used.
+
+  nxp,wdog_b-warm-reset:
+    type: boolean
+    description:
+      When WDOG_B signal is asserted a warm reset will be done instead of cold
+      reset.
+
 required:
   - compatible
   - reg

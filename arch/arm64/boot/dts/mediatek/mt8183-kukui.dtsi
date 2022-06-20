@@ -849,7 +849,7 @@
 	mediatek,pad-select = <0>;
 	status = "okay";
 
-	w25q64dw: spi-flash@0 {
+	w25q64dw: flash@0 {
 		compatible = "winbond,w25q64dw", "jedec,spi-nor";
 		reg = <0>;
 		spi-max-frequency = <25000000>;

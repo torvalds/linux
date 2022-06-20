@@ -1041,6 +1041,9 @@ static void kfd_process_destroy_pdds(struct kfd_process *p)
 
 		kfd_free_process_doorbells(pdd->dev, pdd->doorbell_index);
 
+		if (pdd->dev->shared_resources.enable_mes)
+			amdgpu_amdkfd_free_gtt_mem(pdd->dev->adev,
+						   pdd->proc_ctx_bo);
 		/*
 		 * before destroying pdd, make sure to report availability
 		 * for auto suspend
@@ -1370,12 +1373,16 @@ static struct kfd_process *create_process(const struct task_struct *thread)
 	INIT_DELAYED_WORK(&process->eviction_work, evict_process_worker);
 	INIT_DELAYED_WORK(&process->restore_work, restore_process_worker);
 	process->last_restore_timestamp = get_jiffies_64();
-	kfd_event_init_process(process);
+	err = kfd_event_init_process(process);
+	if (err)
+		goto err_event_init;
 	process->is_32bit_user_mode = in_compat_syscall();
 
 	process->pasid = kfd_pasid_alloc();
-	if (process->pasid == 0)
+	if (process->pasid == 0) {
+		err = -ENOSPC;
 		goto err_alloc_pasid;
+	}
 
 	err = pqm_init(&process->pqm, process);
 	if (err != 0)
@@ -1424,6 +1431,8 @@ err_init_apertures:
 err_process_pqm_init:
 	kfd_pasid_free(process->pasid);
 err_alloc_pasid:
+	kfd_event_free_process(process);
+err_event_init:
 	mutex_destroy(&process->mutex);
 	kfree(process);
 err_alloc_process:
@@ -1478,6 +1487,7 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 							struct kfd_process *p)
 {
 	struct kfd_process_device *pdd = NULL;
+	int retval = 0;
 
 	if (WARN_ON_ONCE(p->n_pdds >= MAX_GPU_INSTANCE))
 		return NULL;
@@ -1510,6 +1520,21 @@ struct kfd_process_device *kfd_create_process_device_data(struct kfd_dev *dev,
 	pdd->sdma_past_activity_counter = 0;
 	pdd->user_gpu_id = dev->id;
 	atomic64_set(&pdd->evict_duration_counter, 0);
+
+	if (dev->shared_resources.enable_mes) {
+		retval = amdgpu_amdkfd_alloc_gtt_mem(dev->adev,
+						AMDGPU_MES_PROC_CTX_SIZE,
+						&pdd->proc_ctx_bo,
+						&pdd->proc_ctx_gpu_addr,
+						&pdd->proc_ctx_cpu_ptr,
+						false);
+		if (retval) {
+			pr_err("failed to allocate process context bo\n");
+			goto err_free_pdd;
+		}
+		memset(pdd->proc_ctx_cpu_ptr, 0, AMDGPU_MES_PROC_CTX_SIZE);
+	}
+
 	p->pdds[p->n_pdds++] = pdd;
 
 	/* Init idr used for memory handle translation */

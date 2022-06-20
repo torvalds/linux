@@ -91,6 +91,7 @@ struct clk_limit_table_entry {
 	unsigned int dispclk_mhz;
 	unsigned int dppclk_mhz;
 	unsigned int phyclk_mhz;
+	unsigned int phyclk_d18_mhz;
 	unsigned int wck_ratio;
 };
 
@@ -236,6 +237,7 @@ struct clk_mgr_funcs {
 			bool safe_to_lower);
 
 	int (*get_dp_ref_clk_frequency)(struct clk_mgr *clk_mgr);
+	int (*get_dtb_ref_clk_frequency)(struct clk_mgr *clk_mgr);
 
 	void (*set_low_power_state)(struct clk_mgr *clk_mgr);
 

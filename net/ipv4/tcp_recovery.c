@@ -2,11 +2,6 @@
 #include <linux/tcp.h>
 #include <net/tcp.h>
 
-static bool tcp_rack_sent_after(u64 t1, u64 t2, u32 seq1, u32 seq2)
-{
-	return t1 > t2 || (t1 == t2 && after(seq1, seq2));
-}
-
 static u32 tcp_rack_reo_wnd(const struct sock *sk)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
@@ -77,9 +72,9 @@ static void tcp_rack_detect_loss(struct sock *sk, u32 *reo_timeout)
 		    !(scb->sacked & TCPCB_SACKED_RETRANS))
 			continue;
 
-		if (!tcp_rack_sent_after(tp->rack.mstamp,
-					 tcp_skb_timestamp_us(skb),
-					 tp->rack.end_seq, scb->end_seq))
+		if (!tcp_skb_sent_after(tp->rack.mstamp,
+					tcp_skb_timestamp_us(skb),
+					tp->rack.end_seq, scb->end_seq))
 			break;
 
 		/* A packet is lost if it has not been s/acked beyond
@@ -140,8 +135,8 @@ void tcp_rack_advance(struct tcp_sock *tp, u8 sacked, u32 end_seq,
 	}
 	tp->rack.advanced = 1;
 	tp->rack.rtt_us = rtt_us;
-	if (tcp_rack_sent_after(xmit_time, tp->rack.mstamp,
-				end_seq, tp->rack.end_seq)) {
+	if (tcp_skb_sent_after(xmit_time, tp->rack.mstamp,
+			       end_seq, tp->rack.end_seq)) {
 		tp->rack.mstamp = xmit_time;
 		tp->rack.end_seq = end_seq;
 	}

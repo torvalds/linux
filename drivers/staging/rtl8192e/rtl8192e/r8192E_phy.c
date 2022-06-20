@@ -919,7 +919,7 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 				continue;
 			switch (CurrentCmd->CmdID) {
 			case CmdID_SetTxPowerLevel:
-				if (priv->IC_Cut > (u8)VERSION_8190_BD)
+				if (priv->IC_Cut > VERSION_8190_BD)
 					_rtl92e_set_tx_power_level(dev,
 								   channel);
 				break;
@@ -929,11 +929,11 @@ static u8 _rtl92e_phy_switch_channel_step(struct net_device *dev, u8 channel,
 				break;
 			case CmdID_WritePortUshort:
 				rtl92e_writew(dev, CurrentCmd->Para1,
-					      (u16)CurrentCmd->Para2);
+					      CurrentCmd->Para2);
 				break;
 			case CmdID_WritePortUchar:
 				rtl92e_writeb(dev, CurrentCmd->Para1,
-					      (u8)CurrentCmd->Para2);
+					      CurrentCmd->Para2);
 				break;
 			case CmdID_RF_WriteReg:
 				for (eRFPath = 0; eRFPath <
@@ -1299,17 +1299,17 @@ void rtl92e_init_gain(struct net_device *dev, u8 Operation)
 			    DIG_ALGO_BY_FALSE_ALARM)
 				rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x8);
 			priv->initgain_backup.xaagccore1 =
-				 (u8)rtl92e_get_bb_reg(dev, rOFDM0_XAAGCCore1,
-						       BitMask);
+				 rtl92e_get_bb_reg(dev, rOFDM0_XAAGCCore1,
+						   BitMask);
 			priv->initgain_backup.xbagccore1 =
-				 (u8)rtl92e_get_bb_reg(dev, rOFDM0_XBAGCCore1,
-						       BitMask);
+				 rtl92e_get_bb_reg(dev, rOFDM0_XBAGCCore1,
+						   BitMask);
 			priv->initgain_backup.xcagccore1 =
-				 (u8)rtl92e_get_bb_reg(dev, rOFDM0_XCAGCCore1,
-						       BitMask);
+				 rtl92e_get_bb_reg(dev, rOFDM0_XCAGCCore1,
+						   BitMask);
 			priv->initgain_backup.xdagccore1 =
-				 (u8)rtl92e_get_bb_reg(dev, rOFDM0_XDAGCCore1,
-						       BitMask);
+				 rtl92e_get_bb_reg(dev, rOFDM0_XDAGCCore1,
+						   BitMask);
 			BitMask = bMaskByte2;
 			priv->initgain_backup.cca = (u8)rtl92e_get_bb_reg(dev,
 						    rCCK0_CCA, BitMask);

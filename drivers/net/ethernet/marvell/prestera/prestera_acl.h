@@ -56,6 +56,7 @@ enum prestera_acl_rule_action {
 	PRESTERA_ACL_RULE_ACTION_TRAP = 2,
 	PRESTERA_ACL_RULE_ACTION_JUMP = 5,
 	PRESTERA_ACL_RULE_ACTION_COUNT = 7,
+	PRESTERA_ACL_RULE_ACTION_POLICE = 8,
 
 	PRESTERA_ACL_RULE_ACTION_MAX
 };
@@ -74,6 +75,10 @@ struct prestera_acl_action_jump {
 	u32 index;
 };
 
+struct prestera_acl_action_police {
+	u32 id;
+};
+
 struct prestera_acl_action_count {
 	u32 id;
 };
@@ -86,6 +91,7 @@ struct prestera_acl_rule_entry_key {
 struct prestera_acl_hw_action_info {
 	enum prestera_acl_rule_action id;
 	union {
+		struct prestera_acl_action_police police;
 		struct prestera_acl_action_count count;
 		struct prestera_acl_action_jump jump;
 	};
@@ -105,6 +111,12 @@ struct prestera_acl_rule_entry_arg {
 			struct prestera_acl_action_jump i;
 			u8 valid:1;
 		} jump;
+		struct {
+			u8 valid:1;
+			u64 rate;
+			u64 burst;
+			bool ingress;
+		} police;
 		struct {
 			u8 valid:1;
 			u32 client;

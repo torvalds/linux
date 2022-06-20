@@ -177,7 +177,7 @@ static void ar9003_hw_iqcal_collect(struct ath_hw *ah)
 	int i;
 
 	/* Accumulate IQ cal measures for active chains */
-	for (i = 0; i < AR5416_MAX_CHAINS; i++) {
+	for (i = 0; i < AR9300_MAX_CHAINS; i++) {
 		if (ah->txchainmask & BIT(i)) {
 			ah->totalPowerMeasI[i] +=
 				REG_READ(ah, AR_PHY_CAL_MEAS_0(i));

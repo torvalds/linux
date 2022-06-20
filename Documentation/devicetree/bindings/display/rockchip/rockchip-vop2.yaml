@@ -22,7 +22,6 @@ properties:
       - rockchip,rk3568-vop
 
   reg:
-    minItems: 1
     items:
       - description:
           Must contain one entry corresponding to the base address and length
@@ -30,6 +29,11 @@ properties:
       - description:
           Can optionally contain a second entry corresponding to
           the CRTC gamma LUT address.
+
+  reg-names:
+    items:
+      - const: vop
+      - const: gamma-lut
 
   interrupts:
     maxItems: 1
@@ -86,6 +90,7 @@ properties:
 required:
   - compatible
   - reg
+  - reg-names
   - interrupts
   - clocks
   - clock-names
@@ -104,6 +109,7 @@ examples:
             vop: vop@fe040000 {
                 compatible = "rockchip,rk3568-vop";
                 reg = <0x0 0xfe040000 0x0 0x3000>, <0x0 0xfe044000 0x0 0x1000>;
+                reg-names = "vop", "gamma-lut";
                 interrupts = <GIC_SPI 148 IRQ_TYPE_LEVEL_HIGH>;
                 clocks = <&cru ACLK_VOP>,
                          <&cru HCLK_VOP>,

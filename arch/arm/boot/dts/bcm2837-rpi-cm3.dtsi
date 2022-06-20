@@ -41,12 +41,12 @@
 		#gpio-cells = <2>;
 		gpio-line-names = "HDMI_HPD_N",
 				  "EMMC_EN_N",
-				  "NC",
-				  "NC",
-				  "NC",
-				  "NC",
-				  "NC",
-				  "NC";
+				  "",
+				  "",
+				  "",
+				  "",
+				  "",
+				  "";
 		status = "okay";
 	};
 };

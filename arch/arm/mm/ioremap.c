@@ -455,7 +455,7 @@ void iounmap(volatile void __iomem *cookie)
 }
 EXPORT_SYMBOL(iounmap);
 
-#ifdef CONFIG_PCI
+#if defined(CONFIG_PCI) || IS_ENABLED(CONFIG_PCMCIA)
 static int pci_ioremap_mem_type = MT_DEVICE;
 
 void pci_ioremap_set_mem_type(int mem_type)
@@ -492,4 +492,12 @@ EXPORT_SYMBOL_GPL(pci_remap_cfgspace);
 void __init early_ioremap_init(void)
 {
 	early_ioremap_setup();
+}
+
+bool arch_memremap_can_ram_remap(resource_size_t offset, size_t size,
+				 unsigned long flags)
+{
+	unsigned long pfn = PHYS_PFN(offset);
+
+	return memblock_is_map_memory(pfn);
 }

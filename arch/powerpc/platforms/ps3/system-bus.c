@@ -601,7 +601,7 @@ static dma_addr_t ps3_ioc0_map_page(struct device *_dev, struct page *page,
 		iopte_flag |= CBE_IOPTE_PP_W | CBE_IOPTE_SO_RW;
 		break;
 	default:
-		/* not happned */
+		/* not happened */
 		BUG();
 	}
 	result = ps3_dma_map(dev->d_region, (unsigned long)ptr, size,

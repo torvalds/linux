@@ -260,55 +260,6 @@ struct _vcs_dpi_ip_params_st dcn3_15_ip = {
 };
 
 struct _vcs_dpi_soc_bounding_box_st dcn3_15_soc = {
-		/*TODO: correct dispclk/dppclk voltage level determination*/
-	.clock_limits = {
-		{
-			.state = 0,
-			.dispclk_mhz = 1372.0,
-			.dppclk_mhz = 1372.0,
-			.phyclk_mhz = 810.0,
-			.phyclk_d18_mhz = 667.0,
-			.dscclk_mhz = 417.0,
-			.dtbclk_mhz = 600.0,
-		},
-		{
-			.state = 1,
-			.dispclk_mhz = 1372.0,
-			.dppclk_mhz = 1372.0,
-			.phyclk_mhz = 810.0,
-			.phyclk_d18_mhz = 667.0,
-			.dscclk_mhz = 417.0,
-			.dtbclk_mhz = 600.0,
-		},
-		{
-			.state = 2,
-			.dispclk_mhz = 1372.0,
-			.dppclk_mhz = 1372.0,
-			.phyclk_mhz = 810.0,
-			.phyclk_d18_mhz = 667.0,
-			.dscclk_mhz = 417.0,
-			.dtbclk_mhz = 600.0,
-		},
-		{
-			.state = 3,
-			.dispclk_mhz = 1372.0,
-			.dppclk_mhz = 1372.0,
-			.phyclk_mhz = 810.0,
-			.phyclk_d18_mhz = 667.0,
-			.dscclk_mhz = 417.0,
-			.dtbclk_mhz = 600.0,
-		},
-		{
-			.state = 4,
-			.dispclk_mhz = 1372.0,
-			.dppclk_mhz = 1372.0,
-			.phyclk_mhz = 810.0,
-			.phyclk_d18_mhz = 667.0,
-			.dscclk_mhz = 417.0,
-			.dtbclk_mhz = 600.0,
-		},
-	},
-	.num_states = 5,
 	.sr_exit_time_us = 9.0,
 	.sr_enter_plus_exit_time_us = 11.0,
 	.sr_exit_z8_time_us = 50.0,
@@ -696,80 +647,50 @@ void dcn31_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 void dcn315_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
 {
 	struct clk_limit_table *clk_table = &bw_params->clk_table;
-	struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
-	unsigned int i, closest_clk_lvl;
-	int max_dispclk_mhz = 0, max_dppclk_mhz = 0;
-	int j;
+	int i, max_dispclk_mhz = 0, max_dppclk_mhz = 0;
 
 	dc_assert_fp_enabled();
 
-	// Default clock levels are used for diags, which may lead to overclocking.
-	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
+	dcn3_15_ip.max_num_otg = dc->res_pool->res_cap->num_timing_generator;
+	dcn3_15_ip.max_num_dpp = dc->res_pool->pipe_count;
+	dcn3_15_soc.num_chans = bw_params->num_channels;
 
-		dcn3_15_ip.max_num_otg = dc->res_pool->res_cap->num_timing_generator;
-		dcn3_15_ip.max_num_dpp = dc->res_pool->pipe_count;
-		dcn3_15_soc.num_chans = bw_params->num_channels;
+	ASSERT(clk_table->num_entries);
 
-		ASSERT(clk_table->num_entries);
-
-		/* Prepass to find max clocks independent of voltage level. */
-		for (i = 0; i < clk_table->num_entries; ++i) {
-			if (clk_table->entries[i].dispclk_mhz > max_dispclk_mhz)
-				max_dispclk_mhz = clk_table->entries[i].dispclk_mhz;
-			if (clk_table->entries[i].dppclk_mhz > max_dppclk_mhz)
-				max_dppclk_mhz = clk_table->entries[i].dppclk_mhz;
-		}
-
-		for (i = 0; i < clk_table->num_entries; i++) {
-			/* loop backwards*/
-			for (closest_clk_lvl = 0, j = dcn3_15_soc.num_states - 1; j >= 0; j--) {
-				if ((unsigned int) dcn3_15_soc.clock_limits[j].dcfclk_mhz <= clk_table->entries[i].dcfclk_mhz) {
-					closest_clk_lvl = j;
-					break;
-				}
-			}
-			if (clk_table->num_entries == 1) {
-				/*smu gives one DPM level, let's take the highest one*/
-				closest_clk_lvl = dcn3_15_soc.num_states - 1;
-			}
-
-			clock_limits[i].state = i;
-
-			/* Clocks dependent on voltage level. */
-			clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
-			if (clk_table->num_entries == 1 &&
-				clock_limits[i].dcfclk_mhz < dcn3_15_soc.clock_limits[closest_clk_lvl].dcfclk_mhz) {
-				/*SMU fix not released yet*/
-				clock_limits[i].dcfclk_mhz = dcn3_15_soc.clock_limits[closest_clk_lvl].dcfclk_mhz;
-			}
-			clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
-			clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-			clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2 * clk_table->entries[i].wck_ratio;
-
-			/* Clocks independent of voltage level. */
-			clock_limits[i].dispclk_mhz = max_dispclk_mhz ? max_dispclk_mhz :
-				dcn3_15_soc.clock_limits[closest_clk_lvl].dispclk_mhz;
-
-			clock_limits[i].dppclk_mhz = max_dppclk_mhz ? max_dppclk_mhz :
-				dcn3_15_soc.clock_limits[closest_clk_lvl].dppclk_mhz;
-
-			clock_limits[i].dram_bw_per_chan_gbps = dcn3_15_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
-			clock_limits[i].dscclk_mhz = dcn3_15_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
-			clock_limits[i].dtbclk_mhz = dcn3_15_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
-			clock_limits[i].phyclk_d18_mhz = dcn3_15_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
-			clock_limits[i].phyclk_mhz = dcn3_15_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
-		}
-		for (i = 0; i < clk_table->num_entries; i++)
-			dcn3_15_soc.clock_limits[i] = clock_limits[i];
-		if (clk_table->num_entries) {
-			dcn3_15_soc.num_states = clk_table->num_entries;
-		}
+	/* Setup soc to always use max dispclk/dppclk to avoid odm-to-lower-voltage */
+	for (i = 0; i < clk_table->num_entries; ++i) {
+		if (clk_table->entries[i].dispclk_mhz > max_dispclk_mhz)
+			max_dispclk_mhz = clk_table->entries[i].dispclk_mhz;
+		if (clk_table->entries[i].dppclk_mhz > max_dppclk_mhz)
+			max_dppclk_mhz = clk_table->entries[i].dppclk_mhz;
 	}
 
-	if (max_dispclk_mhz) {
-		dcn3_15_soc.dispclk_dppclk_vco_speed_mhz = max_dispclk_mhz * 2;
-		dc->dml.soc.dispclk_dppclk_vco_speed_mhz = max_dispclk_mhz * 2;
+	for (i = 0; i < clk_table->num_entries; i++) {
+		dcn3_15_soc.clock_limits[i].state = i;
+
+		/* Clocks dependent on voltage level. */
+		dcn3_15_soc.clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
+		dcn3_15_soc.clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
+		dcn3_15_soc.clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
+		dcn3_15_soc.clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2 * clk_table->entries[i].wck_ratio;
+
+		/* These aren't actually read from smu, but rather set in clk_mgr defaults */
+		dcn3_15_soc.clock_limits[i].dtbclk_mhz = clk_table->entries[i].dtbclk_mhz;
+		dcn3_15_soc.clock_limits[i].phyclk_d18_mhz = clk_table->entries[i].phyclk_d18_mhz;
+		dcn3_15_soc.clock_limits[i].phyclk_mhz = clk_table->entries[i].phyclk_mhz;
+
+		/* Clocks independent of voltage level. */
+		dcn3_15_soc.clock_limits[i].dispclk_mhz = max_dispclk_mhz;
+		dcn3_15_soc.clock_limits[i].dppclk_mhz = max_dppclk_mhz;
+		dcn3_15_soc.clock_limits[i].dscclk_mhz = max_dispclk_mhz / 3.0;
 	}
+	dcn3_15_soc.num_states = clk_table->num_entries;
+
+
+	/* Set vco to max_dispclk * 2 to make sure the highest dispclk is always available for dml calcs,
+	 * no impact outside of dml validation
+	 */
+	dcn3_15_soc.dispclk_dppclk_vco_speed_mhz = max_dispclk_mhz * 2;
 
 	if (!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment))
 		dml_init_instance(&dc->dml, &dcn3_15_soc, &dcn3_15_ip, DML_PROJECT_DCN31);

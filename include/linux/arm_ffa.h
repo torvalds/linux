@@ -38,7 +38,12 @@ struct ffa_driver {
 
 static inline void ffa_dev_set_drvdata(struct ffa_device *fdev, void *data)
 {
-	fdev->dev.driver_data = data;
+	dev_set_drvdata(&fdev->dev, data);
+}
+
+static inline void *ffa_dev_get_drvdata(struct ffa_device *fdev)
+{
+	return dev_get_drvdata(&fdev->dev);
 }
 
 #if IS_REACHABLE(CONFIG_ARM_FFA_TRANSPORT)

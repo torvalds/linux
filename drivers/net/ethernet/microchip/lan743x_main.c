@@ -1164,9 +1164,14 @@ static int lan743x_phy_open(struct lan743x_adapter *adapter)
 		if (!phydev)
 			goto return_error;
 
-		ret = phy_connect_direct(netdev, phydev,
-					 lan743x_phy_link_status_change,
-					 PHY_INTERFACE_MODE_GMII);
+		if (adapter->is_pci11x1x)
+			ret = phy_connect_direct(netdev, phydev,
+						 lan743x_phy_link_status_change,
+						 PHY_INTERFACE_MODE_RGMII);
+		else
+			ret = phy_connect_direct(netdev, phydev,
+						 lan743x_phy_link_status_change,
+						 PHY_INTERFACE_MODE_GMII);
 		if (ret)
 			goto return_error;
 	}
@@ -2044,9 +2049,9 @@ static int lan743x_tx_open(struct lan743x_tx *tx)
 	tx->vector_flags = lan743x_intr_get_vector_flags(adapter,
 							 INT_BIT_DMA_TX_
 							 (tx->channel_number));
-	netif_tx_napi_add(adapter->netdev,
-			  &tx->napi, lan743x_tx_napi_poll,
-			  tx->ring_size - 1);
+	netif_napi_add_tx_weight(adapter->netdev,
+				 &tx->napi, lan743x_tx_napi_poll,
+				 tx->ring_size - 1);
 	napi_enable(&tx->napi);
 
 	data = 0;
@@ -2936,20 +2941,27 @@ static int lan743x_mdiobus_init(struct lan743x_adapter *adapter)
 			lan743x_csr_write(adapter, SGMII_CTL, sgmii_ctl);
 			netif_dbg(adapter, drv, adapter->netdev,
 				  "SGMII operation\n");
+			adapter->mdiobus->probe_capabilities = MDIOBUS_C22_C45;
+			adapter->mdiobus->read = lan743x_mdiobus_c45_read;
+			adapter->mdiobus->write = lan743x_mdiobus_c45_write;
+			adapter->mdiobus->name = "lan743x-mdiobus-c45";
+			netif_dbg(adapter, drv, adapter->netdev,
+				  "lan743x-mdiobus-c45\n");
 		} else {
 			sgmii_ctl = lan743x_csr_read(adapter, SGMII_CTL);
 			sgmii_ctl &= ~SGMII_CTL_SGMII_ENABLE_;
 			sgmii_ctl |= SGMII_CTL_SGMII_POWER_DN_;
 			lan743x_csr_write(adapter, SGMII_CTL, sgmii_ctl);
 			netif_dbg(adapter, drv, adapter->netdev,
-					  "(R)GMII operation\n");
+				  "RGMII operation\n");
+			// Only C22 support when RGMII I/F
+			adapter->mdiobus->probe_capabilities = MDIOBUS_C22;
+			adapter->mdiobus->read = lan743x_mdiobus_read;
+			adapter->mdiobus->write = lan743x_mdiobus_write;
+			adapter->mdiobus->name = "lan743x-mdiobus";
+			netif_dbg(adapter, drv, adapter->netdev,
+				  "lan743x-mdiobus\n");
 		}
-
-		adapter->mdiobus->probe_capabilities = MDIOBUS_C22_C45;
-		adapter->mdiobus->read = lan743x_mdiobus_c45_read;
-		adapter->mdiobus->write = lan743x_mdiobus_c45_write;
-		adapter->mdiobus->name = "lan743x-mdiobus-c45";
-		netif_dbg(adapter, drv, adapter->netdev, "lan743x-mdiobus-c45\n");
 	} else {
 		adapter->mdiobus->read = lan743x_mdiobus_read;
 		adapter->mdiobus->write = lan743x_mdiobus_write;

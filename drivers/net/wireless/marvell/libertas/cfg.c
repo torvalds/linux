@@ -1053,7 +1053,6 @@ static int lbs_set_authtype(struct lbs_private *priv,
  */
 #define LBS_ASSOC_MAX_CMD_SIZE                     \
 	(sizeof(struct cmd_ds_802_11_associate)    \
-	 - 512 /* cmd_ds_802_11_associate.iebuf */ \
 	 + LBS_MAX_SSID_TLV_SIZE                   \
 	 + LBS_MAX_CHANNEL_TLV_SIZE                \
 	 + LBS_MAX_CF_PARAM_TLV_SIZE               \
@@ -1130,8 +1129,7 @@ static int lbs_associate(struct lbs_private *priv,
 	if (sme->ie && sme->ie_len)
 		pos += lbs_add_wpa_tlv(pos, sme->ie, sme->ie_len);
 
-	len = (sizeof(*cmd) - sizeof(cmd->iebuf)) +
-		(u16)(pos - (u8 *) &cmd->iebuf);
+	len = sizeof(*cmd) + (u16)(pos - (u8 *) &cmd->iebuf);
 	cmd->hdr.size = cpu_to_le16(len);
 
 	lbs_deb_hex(LBS_DEB_ASSOC, "ASSOC_CMD", (u8 *) cmd,

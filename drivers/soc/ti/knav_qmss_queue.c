@@ -758,10 +758,9 @@ void *knav_pool_create(const char *name,
 					int num_desc, int region_id)
 {
 	struct knav_region *reg_itr, *region = NULL;
-	struct knav_pool *pool, *pi;
+	struct knav_pool *pool, *pi = NULL, *iter;
 	struct list_head *node;
 	unsigned last_offset;
-	bool slot_found;
 	int ret;
 
 	if (!kdev)
@@ -790,7 +789,7 @@ void *knav_pool_create(const char *name,
 	}
 
 	pool->queue = knav_queue_open(name, KNAV_QUEUE_GP, 0);
-	if (IS_ERR_OR_NULL(pool->queue)) {
+	if (IS_ERR(pool->queue)) {
 		dev_err(kdev->dev,
 			"failed to open queue for pool(%s), error %ld\n",
 			name, PTR_ERR(pool->queue));
@@ -816,18 +815,17 @@ void *knav_pool_create(const char *name,
 	 * the request
 	 */
 	last_offset = 0;
-	slot_found = false;
 	node = &region->pools;
-	list_for_each_entry(pi, &region->pools, region_inst) {
-		if ((pi->region_offset - last_offset) >= num_desc) {
-			slot_found = true;
+	list_for_each_entry(iter, &region->pools, region_inst) {
+		if ((iter->region_offset - last_offset) >= num_desc) {
+			pi = iter;
 			break;
 		}
-		last_offset = pi->region_offset + pi->num_desc;
+		last_offset = iter->region_offset + iter->num_desc;
 	}
-	node = &pi->region_inst;
 
-	if (slot_found) {
+	if (pi) {
+		node = &pi->region_inst;
 		pool->region = region;
 		pool->num_desc = num_desc;
 		pool->region_offset = last_offset;
@@ -1785,9 +1783,8 @@ static int knav_queue_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&kdev->pdsps);
 
 	pm_runtime_enable(&pdev->dev);
-	ret = pm_runtime_get_sync(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
 	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
 		dev_err(dev, "Failed to enable QMSS\n");
 		return ret;
 	}

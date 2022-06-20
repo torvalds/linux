@@ -138,6 +138,7 @@ properties:
     description: The current active speed of the UART.
 
   reg-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: |
       Offset to apply to the mapbase from the start of the registers.
 

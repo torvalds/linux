@@ -18,6 +18,7 @@
 #include <linux/delay.h>
 #include <linux/mfd/da9063/registers.h>
 #include <linux/mfd/da9063/core.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 
 /*
@@ -26,6 +27,8 @@
  *   others: timeout = 2048 ms * 2^(TWDSCALE-1).
  */
 static const unsigned int wdt_timeout[] = { 0, 2, 4, 8, 16, 32, 65, 131 };
+static bool use_sw_pm;
+
 #define DA9063_TWDSCALE_DISABLE		0
 #define DA9063_TWDSCALE_MIN		1
 #define DA9063_TWDSCALE_MAX		(ARRAY_SIZE(wdt_timeout) - 1)
@@ -218,6 +221,8 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	if (!wdd)
 		return -ENOMEM;
 
+	use_sw_pm = device_property_present(dev, "dlg,use-sw-pm");
+
 	wdd->info = &da9063_watchdog_info;
 	wdd->ops = &da9063_watchdog_ops;
 	wdd->min_timeout = DA9063_WDT_MIN_TIMEOUT;
@@ -228,6 +233,7 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 
 	watchdog_set_restart_priority(wdd, 128);
 	watchdog_set_drvdata(wdd, da9063);
+	dev_set_drvdata(dev, wdd);
 
 	wdd->timeout = DA9063_WDG_TIMEOUT;
 
@@ -249,10 +255,40 @@ static int da9063_wdt_probe(struct platform_device *pdev)
 	return devm_watchdog_register_device(dev, wdd);
 }
 
+static int __maybe_unused da9063_wdt_suspend(struct device *dev)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	if (!use_sw_pm)
+		return 0;
+
+	if (watchdog_active(wdd))
+		return da9063_wdt_stop(wdd);
+
+	return 0;
+}
+
+static int __maybe_unused da9063_wdt_resume(struct device *dev)
+{
+	struct watchdog_device *wdd = dev_get_drvdata(dev);
+
+	if (!use_sw_pm)
+		return 0;
+
+	if (watchdog_active(wdd))
+		return da9063_wdt_start(wdd);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(da9063_wdt_pm_ops,
+			da9063_wdt_suspend, da9063_wdt_resume);
+
 static struct platform_driver da9063_wdt_driver = {
 	.probe = da9063_wdt_probe,
 	.driver = {
 		.name = DA9063_DRVNAME_WATCHDOG,
+		.pm = &da9063_wdt_pm_ops,
 	},
 };
 module_platform_driver(da9063_wdt_driver);

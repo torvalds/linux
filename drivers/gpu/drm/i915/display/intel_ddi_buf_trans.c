@@ -1673,7 +1673,9 @@ void intel_ddi_buf_trans_init(struct intel_encoder *encoder)
 		encoder->get_buf_trans = skl_get_buf_trans;
 	} else if (IS_BROADWELL(i915)) {
 		encoder->get_buf_trans = bdw_get_buf_trans;
-	} else {
+	} else if (IS_HASWELL(i915)) {
 		encoder->get_buf_trans = hsw_get_buf_trans;
+	} else {
+		MISSING_CASE(INTEL_INFO(i915)->platform);
 	}
 }

@@ -183,8 +183,7 @@ static void bcm_kp_stop(const struct bcm_kp *kp)
 	writel(0xFFFFFFFF, kp->base + KPICR0_OFFSET);
 	writel(0xFFFFFFFF, kp->base + KPICR1_OFFSET);
 
-	if (kp->clk)
-		clk_disable_unprepare(kp->clk);
+	clk_disable_unprepare(kp->clk);
 }
 
 static int bcm_kp_open(struct input_dev *dev)

@@ -11,6 +11,7 @@ import importlib.util
 import logging
 import subprocess
 import os
+import shlex
 import shutil
 import signal
 import threading
@@ -29,11 +30,6 @@ OUTFILE_PATH = 'test.log'
 ABS_TOOL_PATH = os.path.abspath(os.path.dirname(__file__))
 QEMU_CONFIGS_DIR = os.path.join(ABS_TOOL_PATH, 'qemu_configs')
 
-def get_file_path(build_dir, default):
-	if build_dir:
-		default = os.path.join(build_dir, default)
-	return default
-
 class ConfigError(Exception):
 	"""Represents an error trying to configure the Linux kernel."""
 
@@ -42,7 +38,7 @@ class BuildError(Exception):
 	"""Represents an error trying to build the Linux kernel."""
 
 
-class LinuxSourceTreeOperations(object):
+class LinuxSourceTreeOperations:
 	"""An abstraction over command line operations performed on a source tree."""
 
 	def __init__(self, linux_arch: str, cross_compile: Optional[str]):
@@ -57,20 +53,18 @@ class LinuxSourceTreeOperations(object):
 		except subprocess.CalledProcessError as e:
 			raise ConfigError(e.output.decode())
 
-	def make_arch_qemuconfig(self, kconfig: kunit_config.Kconfig) -> None:
+	def make_arch_qemuconfig(self, base_kunitconfig: kunit_config.Kconfig) -> None:
 		pass
 
-	def make_allyesconfig(self, build_dir, make_options) -> None:
+	def make_allyesconfig(self, build_dir: str, make_options) -> None:
 		raise ConfigError('Only the "um" arch is supported for alltests')
 
-	def make_olddefconfig(self, build_dir, make_options) -> None:
-		command = ['make', 'ARCH=' + self._linux_arch, 'olddefconfig']
+	def make_olddefconfig(self, build_dir: str, make_options) -> None:
+		command = ['make', 'ARCH=' + self._linux_arch, 'O=' + build_dir, 'olddefconfig']
 		if self._cross_compile:
 			command += ['CROSS_COMPILE=' + self._cross_compile]
 		if make_options:
 			command.extend(make_options)
-		if build_dir:
-			command += ['O=' + build_dir]
 		print('Populating config with:\n$', ' '.join(command))
 		try:
 			subprocess.check_output(command, stderr=subprocess.STDOUT)
@@ -79,14 +73,12 @@ class LinuxSourceTreeOperations(object):
 		except subprocess.CalledProcessError as e:
 			raise ConfigError(e.output.decode())
 
-	def make(self, jobs, build_dir, make_options) -> None:
-		command = ['make', 'ARCH=' + self._linux_arch, '--jobs=' + str(jobs)]
+	def make(self, jobs, build_dir: str, make_options) -> None:
+		command = ['make', 'ARCH=' + self._linux_arch, 'O=' + build_dir, '--jobs=' + str(jobs)]
 		if make_options:
 			command.extend(make_options)
 		if self._cross_compile:
 			command += ['CROSS_COMPILE=' + self._cross_compile]
-		if build_dir:
-			command += ['O=' + build_dir]
 		print('Building with:\n$', ' '.join(command))
 		try:
 			proc = subprocess.Popen(command,
@@ -127,16 +119,17 @@ class LinuxSourceTreeOperationsQemu(LinuxSourceTreeOperations):
 				'-nodefaults',
 				'-m', '1024',
 				'-kernel', kernel_path,
-				'-append', '\'' + ' '.join(params + [self._kernel_command_line]) + '\'',
+				'-append', ' '.join(params + [self._kernel_command_line]),
 				'-no-reboot',
 				'-nographic',
-				'-serial stdio'] + self._extra_qemu_params
-		print('Running tests with:\n$', ' '.join(qemu_command))
-		return subprocess.Popen(' '.join(qemu_command),
-					   stdin=subprocess.PIPE,
-					   stdout=subprocess.PIPE,
-					   stderr=subprocess.STDOUT,
-					   text=True, shell=True, errors='backslashreplace')
+				'-serial', 'stdio'] + self._extra_qemu_params
+		# Note: shlex.join() does what we want, but requires python 3.8+.
+		print('Running tests with:\n$', ' '.join(shlex.quote(arg) for arg in qemu_command))
+		return subprocess.Popen(qemu_command,
+					stdin=subprocess.PIPE,
+					stdout=subprocess.PIPE,
+					stderr=subprocess.STDOUT,
+					text=True, errors='backslashreplace')
 
 class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
 	"""An abstraction over command line operations performed on a source tree."""
@@ -144,14 +137,12 @@ class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
 	def __init__(self, cross_compile=None):
 		super().__init__(linux_arch='um', cross_compile=cross_compile)
 
-	def make_allyesconfig(self, build_dir, make_options) -> None:
+	def make_allyesconfig(self, build_dir: str, make_options) -> None:
 		kunit_parser.print_with_timestamp(
 			'Enabling all CONFIGs for UML...')
-		command = ['make', 'ARCH=um', 'allyesconfig']
+		command = ['make', 'ARCH=um', 'O=' + build_dir, 'allyesconfig']
 		if make_options:
 			command.extend(make_options)
-		if build_dir:
-			command += ['O=' + build_dir]
 		process = subprocess.Popen(
 			command,
 			stdout=subprocess.DEVNULL,
@@ -168,30 +159,30 @@ class LinuxSourceTreeOperationsUml(LinuxSourceTreeOperations):
 
 	def start(self, params: List[str], build_dir: str) -> subprocess.Popen:
 		"""Runs the Linux UML binary. Must be named 'linux'."""
-		linux_bin = get_file_path(build_dir, 'linux')
+		linux_bin = os.path.join(build_dir, 'linux')
 		return subprocess.Popen([linux_bin] + params,
 					   stdin=subprocess.PIPE,
 					   stdout=subprocess.PIPE,
 					   stderr=subprocess.STDOUT,
 					   text=True, errors='backslashreplace')
 
-def get_kconfig_path(build_dir) -> str:
-	return get_file_path(build_dir, KCONFIG_PATH)
+def get_kconfig_path(build_dir: str) -> str:
+	return os.path.join(build_dir, KCONFIG_PATH)
 
-def get_kunitconfig_path(build_dir) -> str:
-	return get_file_path(build_dir, KUNITCONFIG_PATH)
+def get_kunitconfig_path(build_dir: str) -> str:
+	return os.path.join(build_dir, KUNITCONFIG_PATH)
 
-def get_old_kunitconfig_path(build_dir) -> str:
-	return get_file_path(build_dir, OLD_KUNITCONFIG_PATH)
+def get_old_kunitconfig_path(build_dir: str) -> str:
+	return os.path.join(build_dir, OLD_KUNITCONFIG_PATH)
 
-def get_outfile_path(build_dir) -> str:
-	return get_file_path(build_dir, OUTFILE_PATH)
+def get_outfile_path(build_dir: str) -> str:
+	return os.path.join(build_dir, OUTFILE_PATH)
 
 def get_source_tree_ops(arch: str, cross_compile: Optional[str]) -> LinuxSourceTreeOperations:
 	config_path = os.path.join(QEMU_CONFIGS_DIR, arch + '.py')
 	if arch == 'um':
 		return LinuxSourceTreeOperationsUml(cross_compile=cross_compile)
-	elif os.path.isfile(config_path):
+	if os.path.isfile(config_path):
 		return get_source_tree_ops_from_qemu_config(config_path, cross_compile)[1]
 
 	options = [f[:-3] for f in os.listdir(QEMU_CONFIGS_DIR) if f.endswith('.py')]
@@ -222,7 +213,7 @@ def get_source_tree_ops_from_qemu_config(config_path: str,
 	return params.linux_arch, LinuxSourceTreeOperationsQemu(
 			params, cross_compile=cross_compile)
 
-class LinuxSourceTree(object):
+class LinuxSourceTree:
 	"""Represents a Linux kernel source tree with KUnit tests."""
 
 	def __init__(
@@ -260,6 +251,8 @@ class LinuxSourceTree(object):
 			kconfig = kunit_config.parse_from_string('\n'.join(kconfig_add))
 			self._kconfig.merge_in_entries(kconfig)
 
+	def arch(self) -> str:
+		return self._arch
 
 	def clean(self) -> bool:
 		try:
@@ -269,7 +262,7 @@ class LinuxSourceTree(object):
 			return False
 		return True
 
-	def validate_config(self, build_dir) -> bool:
+	def validate_config(self, build_dir: str) -> bool:
 		kconfig_path = get_kconfig_path(build_dir)
 		validated_kconfig = kunit_config.parse_file(kconfig_path)
 		if self._kconfig.is_subset_of(validated_kconfig):
@@ -284,7 +277,7 @@ class LinuxSourceTree(object):
 		logging.error(message)
 		return False
 
-	def build_config(self, build_dir, make_options) -> bool:
+	def build_config(self, build_dir: str, make_options) -> bool:
 		kconfig_path = get_kconfig_path(build_dir)
 		if build_dir and not os.path.exists(build_dir):
 			os.mkdir(build_dir)
@@ -312,7 +305,7 @@ class LinuxSourceTree(object):
 		old_kconfig = kunit_config.parse_file(old_path)
 		return old_kconfig.entries() != self._kconfig.entries()
 
-	def build_reconfig(self, build_dir, make_options) -> bool:
+	def build_reconfig(self, build_dir: str, make_options) -> bool:
 		"""Creates a new .config if it is not a subset of the .kunitconfig."""
 		kconfig_path = get_kconfig_path(build_dir)
 		if not os.path.exists(kconfig_path):
@@ -327,7 +320,7 @@ class LinuxSourceTree(object):
 		os.remove(kconfig_path)
 		return self.build_config(build_dir, make_options)
 
-	def build_kernel(self, alltests, jobs, build_dir, make_options) -> bool:
+	def build_kernel(self, alltests, jobs, build_dir: str, make_options) -> bool:
 		try:
 			if alltests:
 				self._ops.make_allyesconfig(build_dir, make_options)
@@ -375,6 +368,6 @@ class LinuxSourceTree(object):
 			waiter.join()
 			subprocess.call(['stty', 'sane'])
 
-	def signal_handler(self, sig, frame) -> None:
+	def signal_handler(self, unused_sig, unused_frame) -> None:
 		logging.error('Build interruption occurred. Cleaning console.')
 		subprocess.call(['stty', 'sane'])

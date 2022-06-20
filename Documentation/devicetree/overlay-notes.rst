@@ -119,10 +119,32 @@ Finally, if you need to remove all overlays in one-go, just call
 of_overlay_remove_all() which will remove every single one in the correct
 order.
 
-In addition, there is the option to register notifiers that get called on
+There is the option to register notifiers that get called on
 overlay operations. See of_overlay_notifier_register/unregister and
 enum of_overlay_notify_action for details.
 
-Note that a notifier callback is not supposed to store pointers to a device
-tree node or its content beyond OF_OVERLAY_POST_REMOVE corresponding to the
-respective node it received.
+A notifier callback for OF_OVERLAY_PRE_APPLY, OF_OVERLAY_POST_APPLY, or
+OF_OVERLAY_PRE_REMOVE may store pointers to a device tree node in the overlay
+or its content but these pointers must not persist past the notifier callback
+for OF_OVERLAY_POST_REMOVE.  The memory containing the overlay will be
+kfree()ed after OF_OVERLAY_POST_REMOVE notifiers are called.  Note that the
+memory will be kfree()ed even if the notifier for OF_OVERLAY_POST_REMOVE
+returns an error.
+
+The changeset notifiers in drivers/of/dynamic.c are a second type of notifier
+that could be triggered by applying or removing an overlay.  These notifiers
+are not allowed to store pointers to a device tree node in the overlay
+or its content.  The overlay code does not protect against such pointers
+remaining active when the memory containing the overlay is freed as a result
+of removing the overlay.
+
+Any other code that retains a pointer to the overlay nodes or data is
+considered to be a bug because after removing the overlay the pointer
+will refer to freed memory.
+
+Users of overlays must be especially aware of the overall operations that
+occur on the system to ensure that other kernel code does not retain any
+pointers to the overlay nodes or data.  Any example of an inadvertent use
+of such pointers is if a driver or subsystem module is loaded after an
+overlay has been applied, and the driver or subsystem scans the entire
+devicetree or a large portion of it, including the overlay nodes.

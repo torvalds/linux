@@ -38,25 +38,49 @@ properties:
     minItems: 1
     maxItems: 2
 
-  clock-names:
-    oneOf:
-      - items:           # for Pro4, Pro5
-          - const: gio
-          - const: link
-      - items:           # for others
-          - const: link
+  clock-names: true
 
   resets:
     minItems: 1
     maxItems: 2
 
-  reset-names:
-    oneOf:
-      - items:           # for Pro4, Pro5
-          - const: gio
-          - const: link
-      - items:           # for others
-          - const: link
+  reset-names: true
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - socionext,uniphier-pro4-usb3-reset
+              - socionext,uniphier-pro5-usb3-reset
+              - socionext,uniphier-pro4-ahci-reset
+    then:
+      properties:
+        clocks:
+          minItems: 2
+          maxItems: 2
+        clock-names:
+          items:
+            - const: gio
+            - const: link
+        resets:
+          minItems: 2
+          maxItems: 2
+        reset-names:
+          items:
+            - const: gio
+            - const: link
+    else:
+      properties:
+        clocks:
+          maxItems: 1
+        clock-names:
+          const: link
+        resets:
+          maxItems: 1
+        reset-names:
+          const: link
 
 additionalProperties: false
 

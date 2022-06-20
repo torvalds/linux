@@ -123,7 +123,7 @@ struct wilc_remain_ch {
 	u32 duration;
 	void (*expired)(void *priv, u64 cookie);
 	void *arg;
-	u32 cookie;
+	u64 cookie;
 };
 
 struct wilc;

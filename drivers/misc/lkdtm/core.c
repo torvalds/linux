@@ -86,108 +86,20 @@ static struct crashpoint crashpoints[] = {
 #endif
 };
 
-
-/* Crash types. */
-struct crashtype {
-	const char *name;
-	void (*func)(void);
-};
-
-#define CRASHTYPE(_name)			\
-	{					\
-		.name = __stringify(_name),	\
-		.func = lkdtm_ ## _name,	\
-	}
-
-/* Define the possible types of crashes that can be triggered. */
-static const struct crashtype crashtypes[] = {
-	CRASHTYPE(PANIC),
-	CRASHTYPE(BUG),
-	CRASHTYPE(WARNING),
-	CRASHTYPE(WARNING_MESSAGE),
-	CRASHTYPE(EXCEPTION),
-	CRASHTYPE(LOOP),
-	CRASHTYPE(EXHAUST_STACK),
-	CRASHTYPE(CORRUPT_STACK),
-	CRASHTYPE(CORRUPT_STACK_STRONG),
-	CRASHTYPE(REPORT_STACK),
-	CRASHTYPE(REPORT_STACK_CANARY),
-	CRASHTYPE(CORRUPT_LIST_ADD),
-	CRASHTYPE(CORRUPT_LIST_DEL),
-	CRASHTYPE(STACK_GUARD_PAGE_LEADING),
-	CRASHTYPE(STACK_GUARD_PAGE_TRAILING),
-	CRASHTYPE(UNSET_SMEP),
-	CRASHTYPE(CORRUPT_PAC),
-	CRASHTYPE(UNALIGNED_LOAD_STORE_WRITE),
-	CRASHTYPE(SLAB_LINEAR_OVERFLOW),
-	CRASHTYPE(VMALLOC_LINEAR_OVERFLOW),
-	CRASHTYPE(WRITE_AFTER_FREE),
-	CRASHTYPE(READ_AFTER_FREE),
-	CRASHTYPE(WRITE_BUDDY_AFTER_FREE),
-	CRASHTYPE(READ_BUDDY_AFTER_FREE),
-	CRASHTYPE(SLAB_INIT_ON_ALLOC),
-	CRASHTYPE(BUDDY_INIT_ON_ALLOC),
-	CRASHTYPE(SLAB_FREE_DOUBLE),
-	CRASHTYPE(SLAB_FREE_CROSS),
-	CRASHTYPE(SLAB_FREE_PAGE),
-	CRASHTYPE(SOFTLOCKUP),
-	CRASHTYPE(HARDLOCKUP),
-	CRASHTYPE(SPINLOCKUP),
-	CRASHTYPE(HUNG_TASK),
-	CRASHTYPE(OVERFLOW_SIGNED),
-	CRASHTYPE(OVERFLOW_UNSIGNED),
-	CRASHTYPE(ARRAY_BOUNDS),
-	CRASHTYPE(EXEC_DATA),
-	CRASHTYPE(EXEC_STACK),
-	CRASHTYPE(EXEC_KMALLOC),
-	CRASHTYPE(EXEC_VMALLOC),
-	CRASHTYPE(EXEC_RODATA),
-	CRASHTYPE(EXEC_USERSPACE),
-	CRASHTYPE(EXEC_NULL),
-	CRASHTYPE(ACCESS_USERSPACE),
-	CRASHTYPE(ACCESS_NULL),
-	CRASHTYPE(WRITE_RO),
-	CRASHTYPE(WRITE_RO_AFTER_INIT),
-	CRASHTYPE(WRITE_KERN),
-	CRASHTYPE(WRITE_OPD),
-	CRASHTYPE(REFCOUNT_INC_OVERFLOW),
-	CRASHTYPE(REFCOUNT_ADD_OVERFLOW),
-	CRASHTYPE(REFCOUNT_INC_NOT_ZERO_OVERFLOW),
-	CRASHTYPE(REFCOUNT_ADD_NOT_ZERO_OVERFLOW),
-	CRASHTYPE(REFCOUNT_DEC_ZERO),
-	CRASHTYPE(REFCOUNT_DEC_NEGATIVE),
-	CRASHTYPE(REFCOUNT_DEC_AND_TEST_NEGATIVE),
-	CRASHTYPE(REFCOUNT_SUB_AND_TEST_NEGATIVE),
-	CRASHTYPE(REFCOUNT_INC_ZERO),
-	CRASHTYPE(REFCOUNT_ADD_ZERO),
-	CRASHTYPE(REFCOUNT_INC_SATURATED),
-	CRASHTYPE(REFCOUNT_DEC_SATURATED),
-	CRASHTYPE(REFCOUNT_ADD_SATURATED),
-	CRASHTYPE(REFCOUNT_INC_NOT_ZERO_SATURATED),
-	CRASHTYPE(REFCOUNT_ADD_NOT_ZERO_SATURATED),
-	CRASHTYPE(REFCOUNT_DEC_AND_TEST_SATURATED),
-	CRASHTYPE(REFCOUNT_SUB_AND_TEST_SATURATED),
-	CRASHTYPE(REFCOUNT_TIMING),
-	CRASHTYPE(ATOMIC_TIMING),
-	CRASHTYPE(USERCOPY_HEAP_SIZE_TO),
-	CRASHTYPE(USERCOPY_HEAP_SIZE_FROM),
-	CRASHTYPE(USERCOPY_HEAP_WHITELIST_TO),
-	CRASHTYPE(USERCOPY_HEAP_WHITELIST_FROM),
-	CRASHTYPE(USERCOPY_STACK_FRAME_TO),
-	CRASHTYPE(USERCOPY_STACK_FRAME_FROM),
-	CRASHTYPE(USERCOPY_STACK_BEYOND),
-	CRASHTYPE(USERCOPY_KERNEL),
-	CRASHTYPE(STACKLEAK_ERASING),
-	CRASHTYPE(CFI_FORWARD_PROTO),
-	CRASHTYPE(FORTIFIED_OBJECT),
-	CRASHTYPE(FORTIFIED_SUBOBJECT),
-	CRASHTYPE(FORTIFIED_STRSCPY),
-	CRASHTYPE(DOUBLE_FAULT),
+/* List of possible types for crashes that can be triggered. */
+static const struct crashtype_category *crashtype_categories[] = {
+	&bugs_crashtypes,
+	&heap_crashtypes,
+	&perms_crashtypes,
+	&refcount_crashtypes,
+	&usercopy_crashtypes,
+	&stackleak_crashtypes,
+	&cfi_crashtypes,
+	&fortify_crashtypes,
 #ifdef CONFIG_PPC_64S_HASH_MMU
-	CRASHTYPE(PPC_SLB_MULTIHIT),
+	&powerpc_crashtypes,
 #endif
 };
-
 
 /* Global kprobe entry and crashtype. */
 static struct kprobe *lkdtm_kprobe;
@@ -223,11 +135,16 @@ char *lkdtm_kernel_info;
 /* Return the crashtype number or NULL if the name is invalid */
 static const struct crashtype *find_crashtype(const char *name)
 {
-	int i;
+	int cat, idx;
 
-	for (i = 0; i < ARRAY_SIZE(crashtypes); i++) {
-		if (!strcmp(name, crashtypes[i].name))
-			return &crashtypes[i];
+	for (cat = 0; cat < ARRAY_SIZE(crashtype_categories); cat++) {
+		for (idx = 0; idx < crashtype_categories[cat]->len; idx++) {
+			struct crashtype *crashtype;
+
+			crashtype = &crashtype_categories[cat]->crashtypes[idx];
+			if (!strcmp(name, crashtype->name))
+				return crashtype;
+		}
 	}
 
 	return NULL;
@@ -347,17 +264,24 @@ static ssize_t lkdtm_debugfs_entry(struct file *f,
 static ssize_t lkdtm_debugfs_read(struct file *f, char __user *user_buf,
 		size_t count, loff_t *off)
 {
+	int n, cat, idx;
+	ssize_t out;
 	char *buf;
-	int i, n, out;
 
 	buf = (char *)__get_free_page(GFP_KERNEL);
 	if (buf == NULL)
 		return -ENOMEM;
 
 	n = scnprintf(buf, PAGE_SIZE, "Available crash types:\n");
-	for (i = 0; i < ARRAY_SIZE(crashtypes); i++) {
-		n += scnprintf(buf + n, PAGE_SIZE - n, "%s\n",
-			      crashtypes[i].name);
+
+	for (cat = 0; cat < ARRAY_SIZE(crashtype_categories); cat++) {
+		for (idx = 0; idx < crashtype_categories[cat]->len; idx++) {
+			struct crashtype *crashtype;
+
+			crashtype = &crashtype_categories[cat]->crashtypes[idx];
+			n += scnprintf(buf + n, PAGE_SIZE - n, "%s\n",
+				      crashtype->name);
+		}
 	}
 	buf[n] = '\0';
 

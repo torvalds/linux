@@ -18,8 +18,10 @@ it.
 
    kernel-api
    workqueue
+   watch_queue
    printk-basics
    printk-formats
+   printk-index
    symbol-namespaces
 
 Data structures and low-level utilities

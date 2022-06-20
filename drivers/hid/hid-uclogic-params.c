@@ -29,8 +29,8 @@
  * Returns:
  *	The string representing the type, or NULL if the type is unknown.
  */
-const char *uclogic_params_pen_inrange_to_str(
-			enum uclogic_params_pen_inrange inrange)
+static const char *uclogic_params_pen_inrange_to_str(
+				enum uclogic_params_pen_inrange inrange)
 {
 	switch (inrange) {
 	case UCLOGIC_PARAMS_PEN_INRANGE_NORMAL:
@@ -42,6 +42,91 @@ const char *uclogic_params_pen_inrange_to_str(
 	default:
 		return NULL;
 	}
+}
+
+/**
+ * Dump tablet interface pen parameters with hid_dbg(), indented with one tab.
+ *
+ * @hdev:	The HID device the pen parameters describe.
+ * @pen:	The pen parameters to dump.
+ */
+static void uclogic_params_pen_hid_dbg(const struct hid_device *hdev,
+					const struct uclogic_params_pen *pen)
+{
+	size_t i;
+
+	hid_dbg(hdev, "\t.usage_invalid = %s\n",
+		(pen->usage_invalid ? "true" : "false"));
+	hid_dbg(hdev, "\t.desc_ptr = %p\n", pen->desc_ptr);
+	hid_dbg(hdev, "\t.desc_size = %u\n", pen->desc_size);
+	hid_dbg(hdev, "\t.id = %u\n", pen->id);
+	hid_dbg(hdev, "\t.subreport_list = {\n");
+	for (i = 0; i < ARRAY_SIZE(pen->subreport_list); i++) {
+		hid_dbg(hdev, "\t\t{0x%02hhx, %hhu}%s\n",
+			pen->subreport_list[i].value,
+			pen->subreport_list[i].id,
+			i < (ARRAY_SIZE(pen->subreport_list) - 1) ? "," : "");
+	}
+	hid_dbg(hdev, "\t}\n");
+	hid_dbg(hdev, "\t.inrange = %s\n",
+		uclogic_params_pen_inrange_to_str(pen->inrange));
+	hid_dbg(hdev, "\t.fragmented_hires = %s\n",
+		(pen->fragmented_hires ? "true" : "false"));
+	hid_dbg(hdev, "\t.tilt_y_flipped = %s\n",
+		(pen->tilt_y_flipped ? "true" : "false"));
+}
+
+/**
+ * Dump tablet interface frame parameters with hid_dbg(), indented with two
+ * tabs.
+ *
+ * @hdev:	The HID device the pen parameters describe.
+ * @frame:	The frame parameters to dump.
+ */
+static void uclogic_params_frame_hid_dbg(
+				const struct hid_device *hdev,
+				const struct uclogic_params_frame *frame)
+{
+	hid_dbg(hdev, "\t\t.desc_ptr = %p\n", frame->desc_ptr);
+	hid_dbg(hdev, "\t\t.desc_size = %u\n", frame->desc_size);
+	hid_dbg(hdev, "\t\t.id = %u\n", frame->id);
+	hid_dbg(hdev, "\t\t.suffix = %s\n", frame->suffix);
+	hid_dbg(hdev, "\t\t.re_lsb = %u\n", frame->re_lsb);
+	hid_dbg(hdev, "\t\t.dev_id_byte = %u\n", frame->dev_id_byte);
+	hid_dbg(hdev, "\t\t.touch_byte = %u\n", frame->touch_byte);
+	hid_dbg(hdev, "\t\t.touch_max = %hhd\n", frame->touch_max);
+	hid_dbg(hdev, "\t\t.touch_flip_at = %hhd\n",
+		frame->touch_flip_at);
+	hid_dbg(hdev, "\t\t.bitmap_dial_byte = %u\n",
+		frame->bitmap_dial_byte);
+}
+
+/**
+ * Dump tablet interface parameters with hid_dbg().
+ *
+ * @hdev:	The HID device the parameters describe.
+ * @params:	The parameters to dump.
+ */
+void uclogic_params_hid_dbg(const struct hid_device *hdev,
+				const struct uclogic_params *params)
+{
+	size_t i;
+
+	hid_dbg(hdev, ".invalid = %s\n",
+		params->invalid ? "true" : "false");
+	hid_dbg(hdev, ".desc_ptr = %p\n", params->desc_ptr);
+	hid_dbg(hdev, ".desc_size = %u\n", params->desc_size);
+	hid_dbg(hdev, ".pen = {\n");
+	uclogic_params_pen_hid_dbg(hdev, &params->pen);
+	hid_dbg(hdev, "\t}\n");
+	hid_dbg(hdev, ".frame_list = {\n");
+	for (i = 0; i < ARRAY_SIZE(params->frame_list); i++) {
+		hid_dbg(hdev, "\t{\n");
+		uclogic_params_frame_hid_dbg(hdev, &params->frame_list[i]);
+		hid_dbg(hdev, "\t}%s\n",
+			i < (ARRAY_SIZE(params->frame_list) - 1) ? "," : "");
+	}
+	hid_dbg(hdev, "}\n");
 }
 
 /**
@@ -253,28 +338,45 @@ static s32 uclogic_params_get_le24(const void *p)
  * uclogic_params_pen_init_v2() - initialize tablet interface pen
  * input and retrieve its parameters from the device, using v2 protocol.
  *
- * @pen:	Pointer to the pen parameters to initialize (to be
- *		cleaned up with uclogic_params_pen_cleanup()). Not modified in
- *		case of error, or if parameters are not found. Cannot be NULL.
- * @pfound:	Location for a flag which is set to true if the parameters
- *		were found, and to false if not (e.g. device was
- *		incompatible). Not modified in case of error. Cannot be NULL.
- * @hdev:	The HID device of the tablet interface to initialize and get
- *		parameters from. Cannot be NULL.
+ * @pen:		Pointer to the pen parameters to initialize (to be
+ *			cleaned up with uclogic_params_pen_cleanup()). Not
+ *			modified in case of error, or if parameters are not
+ *			found. Cannot be NULL.
+ * @pfound:		Location for a flag which is set to true if the
+ *			parameters were found, and to false if not (e.g.
+ *			device was incompatible). Not modified in case of
+ *			error. Cannot be NULL.
+ * @pparams_ptr:	Location for a kmalloc'ed pointer to the retrieved raw
+ *			parameters, which could be used to identify the tablet
+ *			to some extent. Should be freed with kfree after use.
+ *			NULL, if not needed. Not modified in case of error.
+ *			Only set if *pfound is set to true.
+ * @pparams_len:	Location for the length of the retrieved raw
+ *			parameters. NULL, if not needed. Not modified in case
+ *			of error. Only set if *pfound is set to true.
+ * @hdev:		The HID device of the tablet interface to initialize
+ *			and get parameters from. Cannot be NULL.
  *
  * Returns:
  *	Zero, if successful. A negative errno code on error.
  */
 static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 					bool *pfound,
+					__u8 **pparams_ptr,
+					size_t *pparams_len,
 					struct hid_device *hdev)
 {
 	int rc;
 	bool found = false;
-	/* Buffer for (part of) the string descriptor */
+	/* Buffer for (part of) the parameter string descriptor */
 	__u8 *buf = NULL;
-	/* Descriptor length required */
-	const int len = 18;
+	/* Parameter string descriptor required length */
+	const int params_len_min = 18;
+	/* Parameter string descriptor accepted length */
+	const int params_len_max = 32;
+	/* Parameter string descriptor received length */
+	int params_len;
+	size_t i;
 	s32 resolution;
 	/* Pen report descriptor template parameters */
 	s32 desc_params[UCLOGIC_RDESC_PEN_PH_ID_NUM];
@@ -292,7 +394,7 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 	 * the Windows driver traffic.
 	 * NOTE: This enables fully-functional tablet mode.
 	 */
-	rc = uclogic_params_get_str_desc(&buf, hdev, 200, len);
+	rc = uclogic_params_get_str_desc(&buf, hdev, 200, params_len_max);
 	if (rc == -EPIPE) {
 		hid_dbg(hdev,
 			"string descriptor with pen parameters not found, assuming not compatible\n");
@@ -300,27 +402,28 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 	} else if (rc < 0) {
 		hid_err(hdev, "failed retrieving pen parameters: %d\n", rc);
 		goto cleanup;
-	} else if (rc != len) {
+	} else if (rc < params_len_min) {
 		hid_dbg(hdev,
-			"string descriptor with pen parameters has invalid length (got %d, expected %d), assuming not compatible\n",
-			rc, len);
+			"string descriptor with pen parameters is too short (got %d, expected at least %d), assuming not compatible\n",
+			rc, params_len_min);
 		goto finish;
-	} else {
-		size_t i;
-		/*
-		 * Check it's not just a catch-all UTF-16LE-encoded ASCII
-		 * string (such as the model name) some tablets put into all
-		 * unknown string descriptors.
-		 */
-		for (i = 2;
-		     i < len &&
-			(buf[i] >= 0x20 && buf[i] < 0x7f && buf[i + 1] == 0);
-		     i += 2);
-		if (i >= len) {
-			hid_dbg(hdev,
-				"string descriptor with pen parameters seems to contain only text, assuming not compatible\n");
-			goto finish;
-		}
+	}
+
+	params_len = rc;
+
+	/*
+	 * Check it's not just a catch-all UTF-16LE-encoded ASCII
+	 * string (such as the model name) some tablets put into all
+	 * unknown string descriptors.
+	 */
+	for (i = 2;
+	     i < params_len &&
+		(buf[i] >= 0x20 && buf[i] < 0x7f && buf[i + 1] == 0);
+	     i += 2);
+	if (i >= params_len) {
+		hid_dbg(hdev,
+			"string descriptor with pen parameters seems to contain only text, assuming not compatible\n");
+		goto finish;
 	}
 
 	/*
@@ -344,8 +447,6 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 			desc_params[UCLOGIC_RDESC_PEN_PH_ID_Y_LM] * 1000 /
 			resolution;
 	}
-	kfree(buf);
-	buf = NULL;
 
 	/*
 	 * Generate pen report descriptor
@@ -371,6 +472,13 @@ static int uclogic_params_pen_init_v2(struct uclogic_params_pen *pen,
 	pen->fragmented_hires = true;
 	pen->tilt_y_flipped = true;
 	found = true;
+	if (pparams_ptr != NULL) {
+		*pparams_ptr = buf;
+		buf = NULL;
+	}
+	if (pparams_len != NULL)
+		*pparams_len = params_len;
+
 finish:
 	*pfound = found;
 	rc = 0;
@@ -700,6 +808,14 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 	static const char transition_ver[] = "HUION_T153_160607";
 	char *ver_ptr = NULL;
 	const size_t ver_len = sizeof(transition_ver) + 1;
+	__u8 *params_ptr = NULL;
+	size_t params_len = 0;
+	/* Parameters string descriptor of a model with touch ring (HS610) */
+	const __u8 touch_ring_model_params_buf[] = {
+		0x13, 0x03, 0x70, 0xC6, 0x00, 0x06, 0x7C, 0x00,
+		0xFF, 0x1F, 0xD8, 0x13, 0x03, 0x0D, 0x10, 0x01,
+		0x04, 0x3C, 0x3E
+	};
 
 	/* Check arguments */
 	if (params == NULL || hdev == NULL) {
@@ -711,8 +827,13 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 	iface = to_usb_interface(hdev->dev.parent);
 	bInterfaceNumber = iface->cur_altsetting->desc.bInterfaceNumber;
 
-	/* If it's not a pen interface */
-	if (bInterfaceNumber != 0) {
+	/* If it's a custom keyboard interface */
+	if (bInterfaceNumber == 1) {
+		/* Keep everything intact, but mark pen usage invalid */
+		p.pen.usage_invalid = true;
+		goto output;
+	/* Else, if it's not a pen interface */
+	} else if (bInterfaceNumber != 0) {
 		uclogic_params_init_invalid(&p);
 		goto output;
 	}
@@ -738,29 +859,103 @@ static int uclogic_params_huion_init(struct uclogic_params *params,
 			"transition firmware detected, not probing pen v2 parameters\n");
 	} else {
 		/* Try to probe v2 pen parameters */
-		rc = uclogic_params_pen_init_v2(&p.pen, &found, hdev);
+		rc = uclogic_params_pen_init_v2(&p.pen, &found,
+						&params_ptr, &params_len,
+						hdev);
 		if (rc != 0) {
 			hid_err(hdev,
 				"failed probing pen v2 parameters: %d\n", rc);
 			goto cleanup;
 		} else if (found) {
 			hid_dbg(hdev, "pen v2 parameters found\n");
-			/* Create v2 frame parameters */
+			/* Create v2 frame button parameters */
 			rc = uclogic_params_frame_init_with_desc(
 					&p.frame_list[0],
-					uclogic_rdesc_v2_frame_arr,
-					uclogic_rdesc_v2_frame_size,
-					UCLOGIC_RDESC_V2_FRAME_ID);
+					uclogic_rdesc_v2_frame_buttons_arr,
+					uclogic_rdesc_v2_frame_buttons_size,
+					UCLOGIC_RDESC_V2_FRAME_BUTTONS_ID);
 			if (rc != 0) {
 				hid_err(hdev,
-					"failed creating v2 frame parameters: %d\n",
+					"failed creating v2 frame button parameters: %d\n",
 					rc);
 				goto cleanup;
 			}
-			/* Link frame button subreports from pen reports */
+
+			/* Link from pen sub-report */
 			p.pen.subreport_list[0].value = 0xe0;
 			p.pen.subreport_list[0].id =
-				UCLOGIC_RDESC_V2_FRAME_ID;
+				UCLOGIC_RDESC_V2_FRAME_BUTTONS_ID;
+
+			/* If this is the model with touch ring */
+			if (params_ptr != NULL &&
+			    params_len == sizeof(touch_ring_model_params_buf) &&
+			    memcmp(params_ptr, touch_ring_model_params_buf,
+				   params_len) == 0) {
+				/* Create touch ring parameters */
+				rc = uclogic_params_frame_init_with_desc(
+					&p.frame_list[1],
+					uclogic_rdesc_v2_frame_touch_ring_arr,
+					uclogic_rdesc_v2_frame_touch_ring_size,
+					UCLOGIC_RDESC_V2_FRAME_TOUCH_ID);
+				if (rc != 0) {
+					hid_err(hdev,
+						"failed creating v2 frame touch ring parameters: %d\n",
+						rc);
+					goto cleanup;
+				}
+				p.frame_list[1].suffix = "Touch Ring";
+				p.frame_list[1].dev_id_byte =
+					UCLOGIC_RDESC_V2_FRAME_TOUCH_DEV_ID_BYTE;
+				p.frame_list[1].touch_byte = 5;
+				p.frame_list[1].touch_max = 12;
+				p.frame_list[1].touch_flip_at = 7;
+			} else {
+				/* Create touch strip parameters */
+				rc = uclogic_params_frame_init_with_desc(
+					&p.frame_list[1],
+					uclogic_rdesc_v2_frame_touch_strip_arr,
+					uclogic_rdesc_v2_frame_touch_strip_size,
+					UCLOGIC_RDESC_V2_FRAME_TOUCH_ID);
+				if (rc != 0) {
+					hid_err(hdev,
+						"failed creating v2 frame touch strip parameters: %d\n",
+						rc);
+					goto cleanup;
+				}
+				p.frame_list[1].suffix = "Touch Strip";
+				p.frame_list[1].dev_id_byte =
+					UCLOGIC_RDESC_V2_FRAME_TOUCH_DEV_ID_BYTE;
+				p.frame_list[1].touch_byte = 5;
+				p.frame_list[1].touch_max = 8;
+			}
+
+			/* Link from pen sub-report */
+			p.pen.subreport_list[1].value = 0xf0;
+			p.pen.subreport_list[1].id =
+				UCLOGIC_RDESC_V2_FRAME_TOUCH_ID;
+
+			/* Create v2 frame dial parameters */
+			rc = uclogic_params_frame_init_with_desc(
+					&p.frame_list[2],
+					uclogic_rdesc_v2_frame_dial_arr,
+					uclogic_rdesc_v2_frame_dial_size,
+					UCLOGIC_RDESC_V2_FRAME_DIAL_ID);
+			if (rc != 0) {
+				hid_err(hdev,
+					"failed creating v2 frame dial parameters: %d\n",
+					rc);
+				goto cleanup;
+			}
+			p.frame_list[2].suffix = "Dial";
+			p.frame_list[2].dev_id_byte =
+				UCLOGIC_RDESC_V2_FRAME_DIAL_DEV_ID_BYTE;
+			p.frame_list[2].bitmap_dial_byte = 5;
+
+			/* Link from pen sub-report */
+			p.pen.subreport_list[2].value = 0xf1;
+			p.pen.subreport_list[2].id =
+				UCLOGIC_RDESC_V2_FRAME_DIAL_ID;
+
 			goto output;
 		}
 		hid_dbg(hdev, "pen v2 parameters not found\n");
@@ -801,6 +996,7 @@ output:
 	memset(&p, 0, sizeof(p));
 	rc = 0;
 cleanup:
+	kfree(params_ptr);
 	kfree(ver_ptr);
 	uclogic_params_cleanup(&p);
 	return rc;
@@ -999,6 +1195,8 @@ int uclogic_params_init(struct uclogic_params *params,
 		     USB_DEVICE_ID_UGEE_XPPEN_TABLET_G540):
 	case VID_PID(USB_VENDOR_ID_UGEE,
 		     USB_DEVICE_ID_UGEE_XPPEN_TABLET_G640):
+	case VID_PID(USB_VENDOR_ID_UGEE,
+		     USB_DEVICE_ID_UGEE_XPPEN_TABLET_STAR06):
 	case VID_PID(USB_VENDOR_ID_UGEE,
 		     USB_DEVICE_ID_UGEE_TABLET_RAINBOW_CV720):
 		/* If this is the pen interface */

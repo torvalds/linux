@@ -38,6 +38,7 @@
  * @l4proto    - Layer 4 protocol
  *		 Values:
  *		   IPPROTO_TCP, IPPROTO_UDP
+ * @dir:       - connection tracking tuple direction.
  * @reserved   - Reserved member, will be reused for more options in future
  *		 Values:
  *		   0
@@ -46,7 +47,8 @@ struct bpf_ct_opts {
 	s32 netns_id;
 	s32 error;
 	u8 l4proto;
-	u8 reserved[3];
+	u8 dir;
+	u8 reserved[2];
 };
 
 enum {
@@ -56,10 +58,11 @@ enum {
 static struct nf_conn *__bpf_nf_ct_lookup(struct net *net,
 					  struct bpf_sock_tuple *bpf_tuple,
 					  u32 tuple_len, u8 protonum,
-					  s32 netns_id)
+					  s32 netns_id, u8 *dir)
 {
 	struct nf_conntrack_tuple_hash *hash;
 	struct nf_conntrack_tuple tuple;
+	struct nf_conn *ct;
 
 	if (unlikely(protonum != IPPROTO_TCP && protonum != IPPROTO_UDP))
 		return ERR_PTR(-EPROTO);
@@ -99,7 +102,12 @@ static struct nf_conn *__bpf_nf_ct_lookup(struct net *net,
 		put_net(net);
 	if (!hash)
 		return ERR_PTR(-ENOENT);
-	return nf_ct_tuplehash_to_ctrack(hash);
+
+	ct = nf_ct_tuplehash_to_ctrack(hash);
+	if (dir)
+		*dir = NF_CT_DIRECTION(hash);
+
+	return ct;
 }
 
 __diag_push();
@@ -135,13 +143,13 @@ bpf_xdp_ct_lookup(struct xdp_md *xdp_ctx, struct bpf_sock_tuple *bpf_tuple,
 	if (!opts)
 		return NULL;
 	if (!bpf_tuple || opts->reserved[0] || opts->reserved[1] ||
-	    opts->reserved[2] || opts__sz != NF_BPF_CT_OPTS_SZ) {
+	    opts__sz != NF_BPF_CT_OPTS_SZ) {
 		opts->error = -EINVAL;
 		return NULL;
 	}
 	caller_net = dev_net(ctx->rxq->dev);
 	nfct = __bpf_nf_ct_lookup(caller_net, bpf_tuple, tuple__sz, opts->l4proto,
-				  opts->netns_id);
+				  opts->netns_id, &opts->dir);
 	if (IS_ERR(nfct)) {
 		opts->error = PTR_ERR(nfct);
 		return NULL;
@@ -178,13 +186,13 @@ bpf_skb_ct_lookup(struct __sk_buff *skb_ctx, struct bpf_sock_tuple *bpf_tuple,
 	if (!opts)
 		return NULL;
 	if (!bpf_tuple || opts->reserved[0] || opts->reserved[1] ||
-	    opts->reserved[2] || opts__sz != NF_BPF_CT_OPTS_SZ) {
+	    opts__sz != NF_BPF_CT_OPTS_SZ) {
 		opts->error = -EINVAL;
 		return NULL;
 	}
 	caller_net = skb->dev ? dev_net(skb->dev) : sock_net(skb->sk);
 	nfct = __bpf_nf_ct_lookup(caller_net, bpf_tuple, tuple__sz, opts->l4proto,
-				  opts->netns_id);
+				  opts->netns_id, &opts->dir);
 	if (IS_ERR(nfct)) {
 		opts->error = PTR_ERR(nfct);
 		return NULL;

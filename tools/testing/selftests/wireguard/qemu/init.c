@@ -21,6 +21,7 @@
 #include <sys/utsname.h>
 #include <sys/sendfile.h>
 #include <sys/sysmacros.h>
+#include <sys/random.h>
 #include <linux/random.h>
 #include <linux/version.h>
 
@@ -58,6 +59,8 @@ static void seed_rng(void)
 {
 	int bits = 256, fd;
 
+	if (!getrandom(NULL, 0, GRND_NONBLOCK))
+		return;
 	pretty_message("[+] Fake seeding RNG...");
 	fd = open("/dev/random", O_WRONLY);
 	if (fd < 0)
@@ -108,12 +111,6 @@ static void enable_logging(void)
 	if (fd >= 0) {
 		if (write(fd, "1\n", 2) != 2)
 			panic("write(exception-trace)");
-		close(fd);
-	}
-	fd = open("/proc/sys/kernel/panic_on_warn", O_WRONLY);
-	if (fd >= 0) {
-		if (write(fd, "1\n", 2) != 2)
-			panic("write(panic_on_warn)");
 		close(fd);
 	}
 }

@@ -10,8 +10,6 @@
 #include "intel_gt_regs.h"
 #include "intel_sseu.h"
 
-#include "linux/string_helpers.h"
-
 void intel_sseu_set_info(struct sseu_dev_info *sseu, u8 max_slices,
 			 u8 max_subslices, u8 max_eus_per_subslice)
 {

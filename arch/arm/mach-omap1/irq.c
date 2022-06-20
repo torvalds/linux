@@ -47,9 +47,7 @@
 #include <asm/mach/irq.h>
 
 #include "soc.h"
-
-#include <mach/hardware.h>
-
+#include "hardware.h"
 #include "common.h"
 
 #define IRQ_BANK(irq) ((irq) >> 5)

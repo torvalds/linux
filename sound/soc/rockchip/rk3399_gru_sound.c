@@ -174,7 +174,7 @@ static int rockchip_sound_cdndp_init(struct snd_soc_pcm_runtime *rtd)
 
 	/* Enable jack detection. */
 	ret = snd_soc_card_jack_new(card, "DP Jack", SND_JACK_LINEOUT,
-				    &cdn_dp_card_jack, NULL, 0);
+				    &cdn_dp_card_jack);
 	if (ret) {
 		dev_err(card->dev, "Can't create DP Jack %d\n", ret);
 		return ret;
@@ -204,13 +204,13 @@ static int rockchip_sound_da7219_init(struct snd_soc_pcm_runtime *rtd)
 	}
 
 	/* Enable Headset and 4 Buttons Jack detection */
-	ret = snd_soc_card_jack_new(rtd->card, "Headset Jack",
-				    SND_JACK_HEADSET | SND_JACK_LINEOUT |
-				    SND_JACK_BTN_0 | SND_JACK_BTN_1 |
-				    SND_JACK_BTN_2 | SND_JACK_BTN_3,
-				    &rockchip_sound_jack,
-				    rockchip_sound_jack_pins,
-				    ARRAY_SIZE(rockchip_sound_jack_pins));
+	ret = snd_soc_card_jack_new_pins(rtd->card, "Headset Jack",
+					 SND_JACK_HEADSET | SND_JACK_LINEOUT |
+					 SND_JACK_BTN_0 | SND_JACK_BTN_1 |
+					 SND_JACK_BTN_2 | SND_JACK_BTN_3,
+					 &rockchip_sound_jack,
+					 rockchip_sound_jack_pins,
+					 ARRAY_SIZE(rockchip_sound_jack_pins));
 
 	if (ret) {
 		dev_err(rtd->card->dev, "New Headset Jack failed! (%d)\n", ret);

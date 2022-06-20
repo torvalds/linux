@@ -453,7 +453,14 @@ struct snd_soc_acpi_mach snd_soc_acpi_intel_adl_machines[] = {
 		.drv_name = "adl_mx98360a_nau8825",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &adl_max98360a_amp,
-		.sof_tplg_filename = "sof-adl-mx98360a-nau8825.tplg",
+		.sof_tplg_filename = "sof-adl-max98360a-nau8825.tplg",
+	},
+	{
+		.id = "RTL5682",
+		.drv_name = "adl_rt1019_rt5682s",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &adl_rt1019p_amp,
+		.sof_tplg_filename = "sof-adl-rt1019-rt5682.tplg",
 	},
 	{
 		.id = "10508825",

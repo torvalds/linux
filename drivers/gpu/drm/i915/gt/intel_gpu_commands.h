@@ -39,6 +39,8 @@
 #define  MI_GLOBAL_GTT    (1<<22)
 
 #define MI_NOOP			MI_INSTR(0, 0)
+#define MI_SET_PREDICATE	MI_INSTR(0x01, 0)
+#define   MI_SET_PREDICATE_DISABLE	(0 << 0)
 #define MI_USER_INTERRUPT	MI_INSTR(0x02, 0)
 #define MI_WAIT_FOR_EVENT       MI_INSTR(0x03, 0)
 #define   MI_WAIT_FOR_OVERLAY_FLIP	(1<<16)

@@ -225,7 +225,7 @@
 				function = "uart2";
 			};
 
-			miim1: miim1 {
+			miim1_pins: miim1-pins {
 				pins = "GPIO_14", "GPIO_15";
 				function = "miim";
 			};
@@ -261,7 +261,7 @@
 			reg = <0x10700c0 0x24>;
 			interrupts = <15>;
 			pinctrl-names = "default";
-			pinctrl-0 = <&miim1>;
+			pinctrl-0 = <&miim1_pins>;
 			status = "disabled";
 		};
 

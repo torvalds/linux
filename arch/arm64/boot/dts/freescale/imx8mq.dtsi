@@ -63,6 +63,13 @@
 		clock-output-names = "osc_27m";
 	};
 
+	hdmi_phy_27m: clock-hdmi-phy-27m {
+		compatible = "fixed-clock";
+		#clock-cells = <0>;
+		clock-frequency = <27000000>;
+		clock-output-names = "hdmi_phy_27m";
+	};
+
 	clk_ext1: clock-ext1 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
@@ -791,7 +798,7 @@
 				clocks = <&clk IMX8MQ_CLK_PWM1_ROOT>,
 				         <&clk IMX8MQ_CLK_PWM1_ROOT>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 
@@ -802,7 +809,7 @@
 				clocks = <&clk IMX8MQ_CLK_PWM2_ROOT>,
 				         <&clk IMX8MQ_CLK_PWM2_ROOT>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 
@@ -813,7 +820,7 @@
 				clocks = <&clk IMX8MQ_CLK_PWM3_ROOT>,
 				         <&clk IMX8MQ_CLK_PWM3_ROOT>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 
@@ -824,7 +831,7 @@
 				clocks = <&clk IMX8MQ_CLK_PWM4_ROOT>,
 				         <&clk IMX8MQ_CLK_PWM4_ROOT>;
 				clock-names = "ipg", "per";
-				#pwm-cells = <2>;
+				#pwm-cells = <3>;
 				status = "disabled";
 			};
 

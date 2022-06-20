@@ -1,0 +1,696 @@
+// SPDX-License-Identifier: GPL-2.0+
+
+/*
+ * Copyright 2022 Pengutronix, Lucas Stach <kernel@pengutronix.de>
+ */
+
+#include <linux/clk.h>
+#include <linux/device.h>
+#include <linux/module.h>
+#include <linux/of_device.h>
+#include <linux/platform_device.h>
+#include <linux/pm_domain.h>
+#include <linux/pm_runtime.h>
+#include <linux/regmap.h>
+
+#include <dt-bindings/power/imx8mp-power.h>
+
+#define GPR_REG0		0x0
+#define  PCIE_CLOCK_MODULE_EN	BIT(0)
+#define  USB_CLOCK_MODULE_EN	BIT(1)
+
+struct imx8mp_blk_ctrl_domain;
+
+struct imx8mp_blk_ctrl {
+	struct device *dev;
+	struct notifier_block power_nb;
+	struct device *bus_power_dev;
+	struct regmap *regmap;
+	struct imx8mp_blk_ctrl_domain *domains;
+	struct genpd_onecell_data onecell_data;
+	void (*power_off) (struct imx8mp_blk_ctrl *bc, struct imx8mp_blk_ctrl_domain *domain);
+	void (*power_on) (struct imx8mp_blk_ctrl *bc, struct imx8mp_blk_ctrl_domain *domain);
+};
+
+struct imx8mp_blk_ctrl_domain_data {
+	const char *name;
+	const char * const *clk_names;
+	int num_clks;
+	const char *gpc_name;
+};
+
+#define DOMAIN_MAX_CLKS 2
+
+struct imx8mp_blk_ctrl_domain {
+	struct generic_pm_domain genpd;
+	const struct imx8mp_blk_ctrl_domain_data *data;
+	struct clk_bulk_data clks[DOMAIN_MAX_CLKS];
+	struct device *power_dev;
+	struct imx8mp_blk_ctrl *bc;
+	int id;
+};
+
+struct imx8mp_blk_ctrl_data {
+	int max_reg;
+	notifier_fn_t power_notifier_fn;
+	void (*power_off) (struct imx8mp_blk_ctrl *bc, struct imx8mp_blk_ctrl_domain *domain);
+	void (*power_on) (struct imx8mp_blk_ctrl *bc, struct imx8mp_blk_ctrl_domain *domain);
+	const struct imx8mp_blk_ctrl_domain_data *domains;
+	int num_domains;
+};
+
+static inline struct imx8mp_blk_ctrl_domain *
+to_imx8mp_blk_ctrl_domain(struct generic_pm_domain *genpd)
+{
+	return container_of(genpd, struct imx8mp_blk_ctrl_domain, genpd);
+}
+
+static void imx8mp_hsio_blk_ctrl_power_on(struct imx8mp_blk_ctrl *bc,
+					  struct imx8mp_blk_ctrl_domain *domain)
+{
+	switch (domain->id) {
+	case IMX8MP_HSIOBLK_PD_USB:
+		regmap_set_bits(bc->regmap, GPR_REG0, USB_CLOCK_MODULE_EN);
+		break;
+	case IMX8MP_HSIOBLK_PD_PCIE:
+		regmap_set_bits(bc->regmap, GPR_REG0, PCIE_CLOCK_MODULE_EN);
+		break;
+	default:
+		break;
+	}
+}
+
+static void imx8mp_hsio_blk_ctrl_power_off(struct imx8mp_blk_ctrl *bc,
+					   struct imx8mp_blk_ctrl_domain *domain)
+{
+	switch (domain->id) {
+	case IMX8MP_HSIOBLK_PD_USB:
+		regmap_clear_bits(bc->regmap, GPR_REG0, USB_CLOCK_MODULE_EN);
+		break;
+	case IMX8MP_HSIOBLK_PD_PCIE:
+		regmap_clear_bits(bc->regmap, GPR_REG0, PCIE_CLOCK_MODULE_EN);
+		break;
+	default:
+		break;
+	}
+}
+
+static int imx8mp_hsio_power_notifier(struct notifier_block *nb,
+				      unsigned long action, void *data)
+{
+	struct imx8mp_blk_ctrl *bc = container_of(nb, struct imx8mp_blk_ctrl,
+						 power_nb);
+	struct clk_bulk_data *usb_clk = bc->domains[IMX8MP_HSIOBLK_PD_USB].clks;
+	int num_clks = bc->domains[IMX8MP_HSIOBLK_PD_USB].data->num_clks;
+	int ret;
+
+	switch (action) {
+	case GENPD_NOTIFY_ON:
+		/*
+		 * enable USB clock for a moment for the power-on ADB handshake
+		 * to proceed
+		 */
+		ret = clk_bulk_prepare_enable(num_clks, usb_clk);
+		if (ret)
+			return NOTIFY_BAD;
+		regmap_set_bits(bc->regmap, GPR_REG0, USB_CLOCK_MODULE_EN);
+
+		udelay(5);
+
+		regmap_clear_bits(bc->regmap, GPR_REG0, USB_CLOCK_MODULE_EN);
+		clk_bulk_disable_unprepare(num_clks, usb_clk);
+		break;
+	case GENPD_NOTIFY_PRE_OFF:
+		/* enable USB clock for the power-down ADB handshake to work */
+		ret = clk_bulk_prepare_enable(num_clks, usb_clk);
+		if (ret)
+			return NOTIFY_BAD;
+
+		regmap_set_bits(bc->regmap, GPR_REG0, USB_CLOCK_MODULE_EN);
+		break;
+	case GENPD_NOTIFY_OFF:
+		clk_bulk_disable_unprepare(num_clks, usb_clk);
+		break;
+	default:
+		break;
+	}
+
+	return NOTIFY_OK;
+}
+
+static const struct imx8mp_blk_ctrl_domain_data imx8mp_hsio_domain_data[] = {
+	[IMX8MP_HSIOBLK_PD_USB] = {
+		.name = "hsioblk-usb",
+		.clk_names = (const char *[]){ "usb" },
+		.num_clks = 1,
+		.gpc_name = "usb",
+	},
+	[IMX8MP_HSIOBLK_PD_USB_PHY1] = {
+		.name = "hsioblk-usb-phy1",
+		.gpc_name = "usb-phy1",
+	},
+	[IMX8MP_HSIOBLK_PD_USB_PHY2] = {
+		.name = "hsioblk-usb-phy2",
+		.gpc_name = "usb-phy2",
+	},
+	[IMX8MP_HSIOBLK_PD_PCIE] = {
+		.name = "hsioblk-pcie",
+		.clk_names = (const char *[]){ "pcie" },
+		.num_clks = 1,
+		.gpc_name = "pcie",
+	},
+	[IMX8MP_HSIOBLK_PD_PCIE_PHY] = {
+		.name = "hsioblk-pcie-phy",
+		.gpc_name = "pcie-phy",
+	},
+};
+
+static const struct imx8mp_blk_ctrl_data imx8mp_hsio_blk_ctl_dev_data = {
+	.max_reg = 0x24,
+	.power_on = imx8mp_hsio_blk_ctrl_power_on,
+	.power_off = imx8mp_hsio_blk_ctrl_power_off,
+	.power_notifier_fn = imx8mp_hsio_power_notifier,
+	.domains = imx8mp_hsio_domain_data,
+	.num_domains = ARRAY_SIZE(imx8mp_hsio_domain_data),
+};
+
+#define HDMI_RTX_RESET_CTL0	0x20
+#define HDMI_RTX_CLK_CTL0	0x40
+#define HDMI_RTX_CLK_CTL1	0x50
+#define HDMI_RTX_CLK_CTL2	0x60
+#define HDMI_RTX_CLK_CTL3	0x70
+#define HDMI_RTX_CLK_CTL4	0x80
+#define HDMI_TX_CONTROL0	0x200
+
+static void imx8mp_hdmi_blk_ctrl_power_on(struct imx8mp_blk_ctrl *bc,
+					  struct imx8mp_blk_ctrl_domain *domain)
+{
+	switch (domain->id) {
+	case IMX8MP_HDMIBLK_PD_IRQSTEER:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL0, BIT(9));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(16));
+		break;
+	case IMX8MP_HDMIBLK_PD_LCDIF:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL0,
+				BIT(7) | BIT(16) | BIT(17) | BIT(18) |
+				BIT(19) | BIT(20));
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(11));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0,
+				BIT(4) | BIT(5) | BIT(6));
+		break;
+	case IMX8MP_HDMIBLK_PD_PAI:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(17));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(18));
+		break;
+	case IMX8MP_HDMIBLK_PD_PVI:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(28));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(22));
+		break;
+	case IMX8MP_HDMIBLK_PD_TRNG:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(27) | BIT(30));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(20));
+		break;
+	case IMX8MP_HDMIBLK_PD_HDMI_TX:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL0,
+				BIT(2) | BIT(4) | BIT(5));
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1,
+				BIT(12) | BIT(13) | BIT(14) | BIT(15) | BIT(16) |
+				BIT(18) | BIT(19) | BIT(20) | BIT(21));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0,
+				BIT(7) | BIT(10) | BIT(11));
+		regmap_set_bits(bc->regmap, HDMI_TX_CONTROL0, BIT(1));
+		break;
+	case IMX8MP_HDMIBLK_PD_HDMI_TX_PHY:
+		regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(22) | BIT(24));
+		regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(12));
+		regmap_clear_bits(bc->regmap, HDMI_TX_CONTROL0, BIT(3));
+		break;
+	default:
+		break;
+	}
+}
+
+static void imx8mp_hdmi_blk_ctrl_power_off(struct imx8mp_blk_ctrl *bc,
+					   struct imx8mp_blk_ctrl_domain *domain)
+{
+	switch (domain->id) {
+	case IMX8MP_HDMIBLK_PD_IRQSTEER:
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL0, BIT(9));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(16));
+		break;
+	case IMX8MP_HDMIBLK_PD_LCDIF:
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0,
+				  BIT(4) | BIT(5) | BIT(6));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(11));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL0,
+				  BIT(7) | BIT(16) | BIT(17) | BIT(18) |
+				  BIT(19) | BIT(20));
+		break;
+	case IMX8MP_HDMIBLK_PD_PAI:
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(18));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(17));
+		break;
+	case IMX8MP_HDMIBLK_PD_PVI:
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(22));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(28));
+		break;
+	case IMX8MP_HDMIBLK_PD_TRNG:
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(20));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(27) | BIT(30));
+		break;
+	case IMX8MP_HDMIBLK_PD_HDMI_TX:
+		regmap_clear_bits(bc->regmap, HDMI_TX_CONTROL0, BIT(1));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0,
+				  BIT(7) | BIT(10) | BIT(11));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1,
+				  BIT(12) | BIT(13) | BIT(14) | BIT(15) | BIT(16) |
+				  BIT(18) | BIT(19) | BIT(20) | BIT(21));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL0,
+				  BIT(2) | BIT(4) | BIT(5));
+		break;
+	case IMX8MP_HDMIBLK_PD_HDMI_TX_PHY:
+		regmap_set_bits(bc->regmap, HDMI_TX_CONTROL0, BIT(3));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(12));
+		regmap_clear_bits(bc->regmap, HDMI_RTX_CLK_CTL1, BIT(22) | BIT(24));
+		break;
+	default:
+		break;
+	}
+}
+
+static int imx8mp_hdmi_power_notifier(struct notifier_block *nb,
+				      unsigned long action, void *data)
+{
+	struct imx8mp_blk_ctrl *bc = container_of(nb, struct imx8mp_blk_ctrl,
+						 power_nb);
+
+	if (action != GENPD_NOTIFY_ON)
+		return NOTIFY_OK;
+
+	/*
+	 * Contrary to other blk-ctrls the reset and clock don't clear when the
+	 * power domain is powered down. To ensure the proper reset pulsing,
+	 * first clear them all to asserted state, then enable the bus clocks
+	 * and then release the ADB reset.
+	 */
+	regmap_write(bc->regmap, HDMI_RTX_RESET_CTL0, 0x0);
+	regmap_write(bc->regmap, HDMI_RTX_CLK_CTL0, 0x0);
+	regmap_write(bc->regmap, HDMI_RTX_CLK_CTL1, 0x0);
+	regmap_set_bits(bc->regmap, HDMI_RTX_CLK_CTL0,
+			BIT(0) | BIT(1) | BIT(10));
+	regmap_set_bits(bc->regmap, HDMI_RTX_RESET_CTL0, BIT(0));
+
+	/*
+	 * On power up we have no software backchannel to the GPC to
+	 * wait for the ADB handshake to happen, so we just delay for a
+	 * bit. On power down the GPC driver waits for the handshake.
+	 */
+	udelay(5);
+
+	return NOTIFY_OK;
+}
+
+static const struct imx8mp_blk_ctrl_domain_data imx8mp_hdmi_domain_data[] = {
+	[IMX8MP_HDMIBLK_PD_IRQSTEER] = {
+		.name = "hdmiblk-irqsteer",
+		.clk_names = (const char *[]){ "apb" },
+		.num_clks = 1,
+		.gpc_name = "irqsteer",
+	},
+	[IMX8MP_HDMIBLK_PD_LCDIF] = {
+		.name = "hdmiblk-lcdif",
+		.clk_names = (const char *[]){ "axi", "apb" },
+		.num_clks = 2,
+		.gpc_name = "lcdif",
+	},
+	[IMX8MP_HDMIBLK_PD_PAI] = {
+		.name = "hdmiblk-pai",
+		.clk_names = (const char *[]){ "apb" },
+		.num_clks = 1,
+		.gpc_name = "pai",
+	},
+	[IMX8MP_HDMIBLK_PD_PVI] = {
+		.name = "hdmiblk-pvi",
+		.clk_names = (const char *[]){ "apb" },
+		.num_clks = 1,
+		.gpc_name = "pvi",
+	},
+	[IMX8MP_HDMIBLK_PD_TRNG] = {
+		.name = "hdmiblk-trng",
+		.clk_names = (const char *[]){ "apb" },
+		.num_clks = 1,
+		.gpc_name = "trng",
+	},
+	[IMX8MP_HDMIBLK_PD_HDMI_TX] = {
+		.name = "hdmiblk-hdmi-tx",
+		.clk_names = (const char *[]){ "apb", "ref_266m" },
+		.num_clks = 2,
+		.gpc_name = "hdmi-tx",
+	},
+	[IMX8MP_HDMIBLK_PD_HDMI_TX_PHY] = {
+		.name = "hdmiblk-hdmi-tx-phy",
+		.clk_names = (const char *[]){ "apb", "ref_24m" },
+		.num_clks = 2,
+		.gpc_name = "hdmi-tx-phy",
+	},
+};
+
+static const struct imx8mp_blk_ctrl_data imx8mp_hdmi_blk_ctl_dev_data = {
+	.max_reg = 0x23c,
+	.power_on = imx8mp_hdmi_blk_ctrl_power_on,
+	.power_off = imx8mp_hdmi_blk_ctrl_power_off,
+	.power_notifier_fn = imx8mp_hdmi_power_notifier,
+	.domains = imx8mp_hdmi_domain_data,
+	.num_domains = ARRAY_SIZE(imx8mp_hdmi_domain_data),
+};
+
+static int imx8mp_blk_ctrl_power_on(struct generic_pm_domain *genpd)
+{
+	struct imx8mp_blk_ctrl_domain *domain = to_imx8mp_blk_ctrl_domain(genpd);
+	const struct imx8mp_blk_ctrl_domain_data *data = domain->data;
+	struct imx8mp_blk_ctrl *bc = domain->bc;
+	int ret;
+
+	/* make sure bus domain is awake */
+	ret = pm_runtime_resume_and_get(bc->bus_power_dev);
+	if (ret < 0) {
+		dev_err(bc->dev, "failed to power up bus domain\n");
+		return ret;
+	}
+
+	/* enable upstream clocks */
+	ret = clk_bulk_prepare_enable(data->num_clks, domain->clks);
+	if (ret) {
+		dev_err(bc->dev, "failed to enable clocks\n");
+		goto bus_put;
+	}
+
+	/* domain specific blk-ctrl manipulation */
+	bc->power_on(bc, domain);
+
+	/* power up upstream GPC domain */
+	ret = pm_runtime_resume_and_get(domain->power_dev);
+	if (ret < 0) {
+		dev_err(bc->dev, "failed to power up peripheral domain\n");
+		goto clk_disable;
+	}
+
+	clk_bulk_disable_unprepare(data->num_clks, domain->clks);
+
+	return 0;
+
+clk_disable:
+	clk_bulk_disable_unprepare(data->num_clks, domain->clks);
+bus_put:
+	pm_runtime_put(bc->bus_power_dev);
+
+	return ret;
+}
+
+static int imx8mp_blk_ctrl_power_off(struct generic_pm_domain *genpd)
+{
+	struct imx8mp_blk_ctrl_domain *domain = to_imx8mp_blk_ctrl_domain(genpd);
+	const struct imx8mp_blk_ctrl_domain_data *data = domain->data;
+	struct imx8mp_blk_ctrl *bc = domain->bc;
+	int ret;
+
+	ret = clk_bulk_prepare_enable(data->num_clks, domain->clks);
+	if (ret) {
+		dev_err(bc->dev, "failed to enable clocks\n");
+		return ret;
+	}
+
+	/* domain specific blk-ctrl manipulation */
+	bc->power_off(bc, domain);
+
+	clk_bulk_disable_unprepare(data->num_clks, domain->clks);
+
+	/* power down upstream GPC domain */
+	pm_runtime_put(domain->power_dev);
+
+	/* allow bus domain to suspend */
+	pm_runtime_put(bc->bus_power_dev);
+
+	return 0;
+}
+
+static struct generic_pm_domain *
+imx8m_blk_ctrl_xlate(struct of_phandle_args *args, void *data)
+{
+	struct genpd_onecell_data *onecell_data = data;
+	unsigned int index = args->args[0];
+
+	if (args->args_count != 1 ||
+	    index >= onecell_data->num_domains)
+		return ERR_PTR(-EINVAL);
+
+	return onecell_data->domains[index];
+}
+
+static struct lock_class_key blk_ctrl_genpd_lock_class;
+
+static int imx8mp_blk_ctrl_probe(struct platform_device *pdev)
+{
+	const struct imx8mp_blk_ctrl_data *bc_data;
+	struct device *dev = &pdev->dev;
+	struct imx8mp_blk_ctrl *bc;
+	void __iomem *base;
+	int num_domains, i, ret;
+
+	struct regmap_config regmap_config = {
+		.reg_bits	= 32,
+		.val_bits	= 32,
+		.reg_stride	= 4,
+	};
+
+	bc = devm_kzalloc(dev, sizeof(*bc), GFP_KERNEL);
+	if (!bc)
+		return -ENOMEM;
+
+	bc->dev = dev;
+
+	bc_data = of_device_get_match_data(dev);
+	num_domains = bc_data->num_domains;
+
+	base = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(base))
+		return PTR_ERR(base);
+
+	regmap_config.max_register = bc_data->max_reg;
+	bc->regmap = devm_regmap_init_mmio(dev, base, &regmap_config);
+	if (IS_ERR(bc->regmap))
+		return dev_err_probe(dev, PTR_ERR(bc->regmap),
+				     "failed to init regmap\n");
+
+	bc->domains = devm_kcalloc(dev, num_domains,
+				   sizeof(struct imx8mp_blk_ctrl_domain),
+				   GFP_KERNEL);
+	if (!bc->domains)
+		return -ENOMEM;
+
+	bc->onecell_data.num_domains = num_domains;
+	bc->onecell_data.xlate = imx8m_blk_ctrl_xlate;
+	bc->onecell_data.domains =
+		devm_kcalloc(dev, num_domains,
+			     sizeof(struct generic_pm_domain *), GFP_KERNEL);
+	if (!bc->onecell_data.domains)
+		return -ENOMEM;
+
+	bc->bus_power_dev = genpd_dev_pm_attach_by_name(dev, "bus");
+	if (IS_ERR(bc->bus_power_dev))
+		return dev_err_probe(dev, PTR_ERR(bc->bus_power_dev),
+				     "failed to attach bus power domain\n");
+
+	bc->power_off = bc_data->power_off;
+	bc->power_on = bc_data->power_on;
+
+	for (i = 0; i < num_domains; i++) {
+		const struct imx8mp_blk_ctrl_domain_data *data = &bc_data->domains[i];
+		struct imx8mp_blk_ctrl_domain *domain = &bc->domains[i];
+		int j;
+
+		domain->data = data;
+
+		for (j = 0; j < data->num_clks; j++)
+			domain->clks[j].id = data->clk_names[j];
+
+		ret = devm_clk_bulk_get(dev, data->num_clks, domain->clks);
+		if (ret) {
+			dev_err_probe(dev, ret, "failed to get clock\n");
+			goto cleanup_pds;
+		}
+
+		domain->power_dev =
+			dev_pm_domain_attach_by_name(dev, data->gpc_name);
+		if (IS_ERR(domain->power_dev)) {
+			dev_err_probe(dev, PTR_ERR(domain->power_dev),
+				      "failed to attach power domain %s\n",
+				      data->gpc_name);
+			ret = PTR_ERR(domain->power_dev);
+			goto cleanup_pds;
+		}
+		dev_set_name(domain->power_dev, "%s", data->name);
+
+		domain->genpd.name = data->name;
+		domain->genpd.power_on = imx8mp_blk_ctrl_power_on;
+		domain->genpd.power_off = imx8mp_blk_ctrl_power_off;
+		domain->bc = bc;
+		domain->id = i;
+
+		ret = pm_genpd_init(&domain->genpd, NULL, true);
+		if (ret) {
+			dev_err_probe(dev, ret, "failed to init power domain\n");
+			dev_pm_domain_detach(domain->power_dev, true);
+			goto cleanup_pds;
+		}
+
+		/*
+		 * We use runtime PM to trigger power on/off of the upstream GPC
+		 * domain, as a strict hierarchical parent/child power domain
+		 * setup doesn't allow us to meet the sequencing requirements.
+		 * This means we have nested locking of genpd locks, without the
+		 * nesting being visible at the genpd level, so we need a
+		 * separate lock class to make lockdep aware of the fact that
+		 * this are separate domain locks that can be nested without a
+		 * self-deadlock.
+		 */
+		lockdep_set_class(&domain->genpd.mlock,
+				  &blk_ctrl_genpd_lock_class);
+
+		bc->onecell_data.domains[i] = &domain->genpd;
+	}
+
+	ret = of_genpd_add_provider_onecell(dev->of_node, &bc->onecell_data);
+	if (ret) {
+		dev_err_probe(dev, ret, "failed to add power domain provider\n");
+		goto cleanup_pds;
+	}
+
+	bc->power_nb.notifier_call = bc_data->power_notifier_fn;
+	ret = dev_pm_genpd_add_notifier(bc->bus_power_dev, &bc->power_nb);
+	if (ret) {
+		dev_err_probe(dev, ret, "failed to add power notifier\n");
+		goto cleanup_provider;
+	}
+
+	dev_set_drvdata(dev, bc);
+
+	return 0;
+
+cleanup_provider:
+	of_genpd_del_provider(dev->of_node);
+cleanup_pds:
+	for (i--; i >= 0; i--) {
+		pm_genpd_remove(&bc->domains[i].genpd);
+		dev_pm_domain_detach(bc->domains[i].power_dev, true);
+	}
+
+	dev_pm_domain_detach(bc->bus_power_dev, true);
+
+	return ret;
+}
+
+static int imx8mp_blk_ctrl_remove(struct platform_device *pdev)
+{
+	struct imx8mp_blk_ctrl *bc = dev_get_drvdata(&pdev->dev);
+	int i;
+
+	of_genpd_del_provider(pdev->dev.of_node);
+
+	for (i = 0; bc->onecell_data.num_domains; i++) {
+		struct imx8mp_blk_ctrl_domain *domain = &bc->domains[i];
+
+		pm_genpd_remove(&domain->genpd);
+		dev_pm_domain_detach(domain->power_dev, true);
+	}
+
+	dev_pm_genpd_remove_notifier(bc->bus_power_dev);
+
+	dev_pm_domain_detach(bc->bus_power_dev, true);
+
+	return 0;
+}
+
+#ifdef CONFIG_PM_SLEEP
+static int imx8mp_blk_ctrl_suspend(struct device *dev)
+{
+	struct imx8mp_blk_ctrl *bc = dev_get_drvdata(dev);
+	int ret, i;
+
+	/*
+	 * This may look strange, but is done so the generic PM_SLEEP code
+	 * can power down our domains and more importantly power them up again
+	 * after resume, without tripping over our usage of runtime PM to
+	 * control the upstream GPC domains. Things happen in the right order
+	 * in the system suspend/resume paths due to the device parent/child
+	 * hierarchy.
+	 */
+	ret = pm_runtime_get_sync(bc->bus_power_dev);
+	if (ret < 0) {
+		pm_runtime_put_noidle(bc->bus_power_dev);
+		return ret;
+	}
+
+	for (i = 0; i < bc->onecell_data.num_domains; i++) {
+		struct imx8mp_blk_ctrl_domain *domain = &bc->domains[i];
+
+		ret = pm_runtime_get_sync(domain->power_dev);
+		if (ret < 0) {
+			pm_runtime_put_noidle(domain->power_dev);
+			goto out_fail;
+		}
+	}
+
+	return 0;
+
+out_fail:
+	for (i--; i >= 0; i--)
+		pm_runtime_put(bc->domains[i].power_dev);
+
+	pm_runtime_put(bc->bus_power_dev);
+
+	return ret;
+}
+
+static int imx8mp_blk_ctrl_resume(struct device *dev)
+{
+	struct imx8mp_blk_ctrl *bc = dev_get_drvdata(dev);
+	int i;
+
+	for (i = 0; i < bc->onecell_data.num_domains; i++)
+		pm_runtime_put(bc->domains[i].power_dev);
+
+	pm_runtime_put(bc->bus_power_dev);
+
+	return 0;
+}
+#endif
+
+static const struct dev_pm_ops imx8mp_blk_ctrl_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(imx8mp_blk_ctrl_suspend,
+				imx8mp_blk_ctrl_resume)
+};
+
+static const struct of_device_id imx8mp_blk_ctrl_of_match[] = {
+	{
+		.compatible = "fsl,imx8mp-hsio-blk-ctrl",
+		.data = &imx8mp_hsio_blk_ctl_dev_data,
+	}, {
+		.compatible = "fsl,imx8mp-hdmi-blk-ctrl",
+		.data = &imx8mp_hdmi_blk_ctl_dev_data,
+	}, {
+		/* Sentinel */
+	}
+};
+MODULE_DEVICE_TABLE(of, imx8m_blk_ctrl_of_match);
+
+static struct platform_driver imx8mp_blk_ctrl_driver = {
+	.probe = imx8mp_blk_ctrl_probe,
+	.remove = imx8mp_blk_ctrl_remove,
+	.driver = {
+		.name = "imx8mp-blk-ctrl",
+		.pm = &imx8mp_blk_ctrl_pm_ops,
+		.of_match_table = imx8mp_blk_ctrl_of_match,
+	},
+};
+module_platform_driver(imx8mp_blk_ctrl_driver);

@@ -16,6 +16,8 @@
 #include <linux/thermal.h>
 #include <linux/types.h>
 
+#include "thermal_hwmon.h"
+
 #define K3_VTM_DEVINFO_PWR0_OFFSET		0x4
 #define K3_VTM_DEVINFO_PWR0_TEMPSENS_CT_MASK	0xf0
 #define K3_VTM_TMPSENS0_CTRL_OFFSET	0x80
@@ -219,6 +221,9 @@ static int k3_bandgap_probe(struct platform_device *pdev)
 			ret = PTR_ERR(data[id].tzd);
 			goto err_alloc;
 		}
+
+		if (devm_thermal_add_hwmon_sysfs(data[id].tzd))
+			dev_warn(dev, "Failed to add hwmon sysfs attributes\n");
 	}
 
 	platform_set_drvdata(pdev, bgp);

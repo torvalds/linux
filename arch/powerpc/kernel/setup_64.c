@@ -31,11 +31,12 @@
 #include <linux/memory.h>
 #include <linux/nmi.h>
 #include <linux/pgtable.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 
 #include <asm/kvm_guest.h>
 #include <asm/io.h>
 #include <asm/kdump.h>
-#include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/smp.h>
 #include <asm/elf.h>
@@ -59,7 +60,7 @@
 #include <asm/udbg.h>
 #include <asm/kexec.h>
 #include <asm/code-patching.h>
-#include <asm/livepatch.h>
+#include <asm/ftrace.h>
 #include <asm/opal.h>
 #include <asm/cputhreads.h>
 #include <asm/hw_irq.h>

@@ -389,6 +389,8 @@ static int cht_int33fe_typec_probe(struct platform_device *pdev)
 		goto out_unregister_fusb302;
 	}
 
+	platform_set_drvdata(pdev, data);
+
 	return 0;
 
 out_unregister_fusb302:

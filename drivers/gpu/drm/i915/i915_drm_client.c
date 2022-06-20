@@ -81,6 +81,7 @@ static const char * const uabi_class_names[] = {
 	[I915_ENGINE_CLASS_COPY] = "copy",
 	[I915_ENGINE_CLASS_VIDEO] = "video",
 	[I915_ENGINE_CLASS_VIDEO_ENHANCE] = "video-enhance",
+	[I915_ENGINE_CLASS_COMPUTE] = "compute",
 };
 
 static u64 busy_add(struct i915_gem_context *ctx, unsigned int class)

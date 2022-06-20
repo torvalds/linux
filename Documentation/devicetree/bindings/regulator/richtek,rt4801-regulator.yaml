@@ -17,9 +17,6 @@ description: |
   Datasheet is available at
   https://www.richtek.com/assets/product_file/RT4801H/DS4801H-00.pdf
 
-#The valid names for RT4801 regulator nodes are:
-#DSVP, DSVN
-
 properties:
   compatible:
     enum:
@@ -33,10 +30,13 @@ properties:
       The first one is ENP to enable DSVP, and second one is ENM to enable DSVN.
       Number of GPIO in the array list could be 1 or 2.
       If only one gpio is specified, only one gpio used to control ENP/ENM.
-      Else both are spefied, DSVP/DSVN could be controlled individually.
-      Othersie, this property not specified. treat both as always-on regulator.
+      Else if both are specified, DSVP/DSVN could be controlled individually.
+      If this property not specified, treat both as always-on regulators.
+
+      Property is deprecated. Use enable-gpios in each regulator.
     minItems: 1
     maxItems: 2
+    deprecated: true
 
 patternProperties:
   "^DSV(P|N)$":
@@ -44,6 +44,14 @@ patternProperties:
     $ref: regulator.yaml#
     description:
       Properties for single display bias regulator.
+
+    properties:
+      enable-gpios:
+        description:
+          GPIO to use to enable DSVP/DSVN regulator. One GPIO can be configured
+          for controlling both regulators.  If this property not specified for
+          any regulator, treat both as always-on regulators.
+        maxItems: 1
 
 required:
   - compatible
@@ -60,19 +68,20 @@ examples:
         rt4801@73 {
             compatible = "richtek,rt4801";
             reg = <0x73>;
-            enable-gpios = <&gpio26 2 0>, <&gpio26 3 0>;
 
             dsvp: DSVP {
                 regulator-name = "rt4801,dsvp";
                 regulator-min-microvolt = <4000000>;
                 regulator-max-microvolt = <6000000>;
                 regulator-boot-on;
+                enable-gpios = <&gpio26 2 0>;
             };
             dsvn: DSVN {
                 regulator-name = "rt4801,dsvn";
                 regulator-min-microvolt = <4000000>;
                 regulator-max-microvolt = <6000000>;
                 regulator-boot-on;
+                enable-gpios = <&gpio26 3 0>;
             };
 
         };

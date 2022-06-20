@@ -35,7 +35,7 @@ static int timer_mim(struct timer_mim *timer_skel)
 	ASSERT_EQ(timer_skel->bss->ok, 1 | 2, "ok");
 
 	close(bpf_map__fd(timer_skel->maps.inner_htab));
-	err = bpf_map_delete_elem(bpf_map__fd(timer_skel->maps.outer_arr), &key1);
+	err = bpf_map__delete_elem(timer_skel->maps.outer_arr, &key1, sizeof(key1), 0);
 	ASSERT_EQ(err, 0, "delete inner map");
 
 	/* check that timer_cb[12] are no longer running */

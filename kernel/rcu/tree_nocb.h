@@ -60,9 +60,6 @@ static inline bool rcu_current_is_nocb_kthread(struct rcu_data *rdp)
  * Parse the boot-time rcu_nocb_mask CPU list from the kernel parameters.
  * If the list is invalid, a warning is emitted and all CPUs are offloaded.
  */
-
-static bool rcu_nocb_is_setup;
-
 static int __init rcu_nocb_setup(char *str)
 {
 	alloc_bootmem_cpumask_var(&rcu_nocb_mask);
@@ -72,7 +69,7 @@ static int __init rcu_nocb_setup(char *str)
 			cpumask_setall(rcu_nocb_mask);
 		}
 	}
-	rcu_nocb_is_setup = true;
+	rcu_state.nocb_is_setup = true;
 	return 1;
 }
 __setup("rcu_nocbs", rcu_nocb_setup);
@@ -213,14 +210,6 @@ static void rcu_init_one_nocb(struct rcu_node *rnp)
 {
 	init_swait_queue_head(&rnp->nocb_gp_wq[0]);
 	init_swait_queue_head(&rnp->nocb_gp_wq[1]);
-}
-
-/* Is the specified CPU a no-CBs CPU? */
-bool rcu_is_nocb_cpu(int cpu)
-{
-	if (cpumask_available(rcu_nocb_mask))
-		return cpumask_test_cpu(cpu, rcu_nocb_mask);
-	return false;
 }
 
 static bool __wake_nocb_gp(struct rcu_data *rdp_gp,
@@ -1180,10 +1169,10 @@ void __init rcu_init_nohz(void)
 				return;
 			}
 		}
-		rcu_nocb_is_setup = true;
+		rcu_state.nocb_is_setup = true;
 	}
 
-	if (!rcu_nocb_is_setup)
+	if (!rcu_state.nocb_is_setup)
 		return;
 
 #if defined(CONFIG_NO_HZ_FULL)
@@ -1241,7 +1230,7 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
 	struct task_struct *t;
 	struct sched_param sp;
 
-	if (!rcu_scheduler_fully_active || !rcu_nocb_is_setup)
+	if (!rcu_scheduler_fully_active || !rcu_state.nocb_is_setup)
 		return;
 
 	/* If there already is an rcuo kthread, then nothing to do. */
@@ -1275,22 +1264,6 @@ static void rcu_spawn_cpu_nocb_kthread(int cpu)
 		sched_setscheduler_nocheck(t, SCHED_FIFO, &sp);
 	WRITE_ONCE(rdp->nocb_cb_kthread, t);
 	WRITE_ONCE(rdp->nocb_gp_kthread, rdp_gp->nocb_gp_kthread);
-}
-
-/*
- * Once the scheduler is running, spawn rcuo kthreads for all online
- * no-CBs CPUs.  This assumes that the early_initcall()s happen before
- * non-boot CPUs come online -- if this changes, we will need to add
- * some mutual exclusion.
- */
-static void __init rcu_spawn_nocb_kthreads(void)
-{
-	int cpu;
-
-	if (rcu_nocb_is_setup) {
-		for_each_online_cpu(cpu)
-			rcu_spawn_cpu_nocb_kthread(cpu);
-	}
 }
 
 /* How many CB CPU IDs per GP kthread?  Default of -1 for sqrt(nr_cpu_ids). */
@@ -1546,10 +1519,6 @@ static bool do_nocb_deferred_wakeup(struct rcu_data *rdp)
 }
 
 static void rcu_spawn_cpu_nocb_kthread(int cpu)
-{
-}
-
-static void __init rcu_spawn_nocb_kthreads(void)
 {
 }
 

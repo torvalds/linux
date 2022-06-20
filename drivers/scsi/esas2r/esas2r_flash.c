@@ -232,7 +232,7 @@ static bool load_image(struct esas2r_adapter *a, struct esas2r_request *rq)
 	 */
 	rq->req_stat = RS_PENDING;
 	if (test_bit(AF_DEGRADED_MODE, &a->flags))
-		/* not suppported for now */;
+		/* not supported for now */;
 	else
 		build_flash_msg(a, rq);
 

@@ -6,6 +6,8 @@
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
+#include <linux/irqdomain.h>
+#include <linux/platform_device.h>
 
 #include "cxl.h"
 #include "hcalls.h"

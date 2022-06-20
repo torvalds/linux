@@ -3,6 +3,32 @@
 #include "api/fs/fs.h"
 #include "util/pmu.h"
 #include "util/topdown.h"
+#include "topdown.h"
+#include "evsel.h"
+
+/* Check whether there is a PMU which supports the perf metrics. */
+bool topdown_sys_has_perf_metrics(void)
+{
+	static bool has_perf_metrics;
+	static bool cached;
+	struct perf_pmu *pmu;
+
+	if (cached)
+		return has_perf_metrics;
+
+	/*
+	 * The perf metrics feature is a core PMU feature.
+	 * The PERF_TYPE_RAW type is the type of a core PMU.
+	 * The slots event is only available when the core PMU
+	 * supports the perf metrics feature.
+	 */
+	pmu = perf_pmu__find_by_type(PERF_TYPE_RAW);
+	if (pmu && pmu_have_event(pmu->name, "slots"))
+		has_perf_metrics = true;
+
+	cached = true;
+	return has_perf_metrics;
+}
 
 /*
  * Check whether we can use a group for top down.
@@ -30,33 +56,19 @@ void arch_topdown_group_warn(void)
 
 #define TOPDOWN_SLOTS		0x0400
 
-static bool is_topdown_slots_event(struct evsel *counter)
-{
-	if (!counter->pmu_name)
-		return false;
-
-	if (strcmp(counter->pmu_name, "cpu"))
-		return false;
-
-	if (counter->core.attr.config == TOPDOWN_SLOTS)
-		return true;
-
-	return false;
-}
-
 /*
  * Check whether a topdown group supports sample-read.
  *
- * Only Topdown metic supports sample-read. The slots
+ * Only Topdown metric supports sample-read. The slots
  * event must be the leader of the topdown group.
  */
 
 bool arch_topdown_sample_read(struct evsel *leader)
 {
-	if (!pmu_have_event("cpu", "slots"))
+	if (!evsel__sys_has_perf_metrics(leader))
 		return false;
 
-	if (is_topdown_slots_event(leader))
+	if (leader->core.attr.config == TOPDOWN_SLOTS)
 		return true;
 
 	return false;

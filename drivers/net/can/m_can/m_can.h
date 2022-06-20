@@ -7,7 +7,6 @@
 #define _CAN_M_CAN_H_
 
 #include <linux/can/core.h>
-#include <linux/can/led.h>
 #include <linux/can/rx-offload.h>
 #include <linux/completion.h>
 #include <linux/device.h>
@@ -84,9 +83,6 @@ struct m_can_classdev {
 	struct work_struct tx_work;
 	struct sk_buff *tx_skb;
 	struct phy *transceiver;
-
-	const struct can_bittiming_const *bit_timing;
-	const struct can_bittiming_const *data_timing;
 
 	struct m_can_ops *ops;
 

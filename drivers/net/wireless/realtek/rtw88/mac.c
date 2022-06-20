@@ -75,7 +75,7 @@ static int rtw_mac_pre_system_cfg(struct rtw_dev *rtwdev)
 
 	switch (rtw_hci_type(rtwdev)) {
 	case RTW_HCI_TYPE_PCIE:
-		rtw_write32_set(rtwdev, REG_HCI_OPT_CTRL, BIT_BT_DIG_CLK_EN);
+		rtw_write32_set(rtwdev, REG_HCI_OPT_CTRL, BIT_USB_SUS_DIS);
 		break;
 	case RTW_HCI_TYPE_USB:
 		break;

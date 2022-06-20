@@ -36,6 +36,7 @@ Required properties:
 	ti,clkdm-gate-clock type
 
 Optional properties:
+- clock-output-names : from common clock binding.
 - ti,bit-shift : bit shift for programming the clock gate, invalid for
 		 ti,clkdm-gate-clock type
 - ti,set-bit-to-disable : inverts default gate programming. Setting the bit

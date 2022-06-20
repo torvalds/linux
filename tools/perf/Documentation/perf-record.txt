@@ -33,7 +33,7 @@ OPTIONS
         - a raw PMU event in the form of rN where N is a hexadecimal value
           that represents the raw register encoding with the layout of the
           event control registers as described by entries in
-          /sys/bus/event_sources/devices/cpu/format/*.
+          /sys/bus/event_source/devices/cpu/format/*.
 
         - a symbolic or raw PMU event followed by an optional colon
 	  and a list of event modifiers, e.g., cpu-cycles:p.  See the
@@ -757,6 +757,16 @@ include::intel-hybrid.txt[]
 
 	If the URLs is not specified, the value of DEBUGINFOD_URLS
 	system environment variable is used.
+
+--off-cpu::
+	Enable off-cpu profiling with BPF.  The BPF program will collect
+	task scheduling information with (user) stacktrace and save them
+	as sample data of a software event named "offcpu-time".  The
+	sample period will have the time the task slept in nanoseconds.
+
+	Note that BPF can collect stack traces using frame pointer ("fp")
+	only, as of now.  So the applications built without the frame
+	pointer might see bogus addresses.
 
 SEE ALSO
 --------

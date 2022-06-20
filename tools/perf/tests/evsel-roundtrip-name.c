@@ -64,7 +64,7 @@ static int perf_evsel__roundtrip_cache_name_test(void)
 	return ret;
 }
 
-static int __perf_evsel__name_array_test(const char *names[], int nr_names,
+static int __perf_evsel__name_array_test(const char *const names[], int nr_names,
 					 int distance)
 {
 	int i, err;

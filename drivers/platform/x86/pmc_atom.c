@@ -221,19 +221,6 @@ int pmc_atom_read(int offset, u32 *value)
 	*value = pmc_reg_read(pmc, offset);
 	return 0;
 }
-EXPORT_SYMBOL_GPL(pmc_atom_read);
-
-int pmc_atom_write(int offset, u32 value)
-{
-	struct pmc_dev *pmc = &pmc_device;
-
-	if (!pmc->init)
-		return -ENODEV;
-
-	pmc_reg_write(pmc, offset, value);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(pmc_atom_write);
 
 static void pmc_power_off(void)
 {

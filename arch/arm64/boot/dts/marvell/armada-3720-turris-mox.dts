@@ -211,7 +211,7 @@
 	assigned-clock-parents = <&tbg 1>;
 	assigned-clock-rates = <20000000>;
 
-	spi-flash@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
@@ -303,7 +303,7 @@
 	/* switch nodes are enabled by U-Boot if modules are present */
 	switch0@10 {
 		compatible = "marvell,mv88e6190";
-		reg = <0x10 0>;
+		reg = <0x10>;
 		dsa,member = <0 0>;
 		interrupt-parent = <&moxtet>;
 		interrupts = <MOXTET_IRQ_PERIDOT(0)>;
@@ -428,7 +428,7 @@
 
 	switch0@2 {
 		compatible = "marvell,mv88e6085";
-		reg = <0x2 0>;
+		reg = <0x2>;
 		dsa,member = <0 0>;
 		interrupt-parent = <&moxtet>;
 		interrupts = <MOXTET_IRQ_TOPAZ>;
@@ -495,7 +495,7 @@
 
 	switch1@11 {
 		compatible = "marvell,mv88e6190";
-		reg = <0x11 0>;
+		reg = <0x11>;
 		dsa,member = <0 1>;
 		interrupt-parent = <&moxtet>;
 		interrupts = <MOXTET_IRQ_PERIDOT(1)>;
@@ -620,7 +620,7 @@
 
 	switch1@2 {
 		compatible = "marvell,mv88e6085";
-		reg = <0x2 0>;
+		reg = <0x2>;
 		dsa,member = <0 1>;
 		interrupt-parent = <&moxtet>;
 		interrupts = <MOXTET_IRQ_TOPAZ>;
@@ -687,7 +687,7 @@
 
 	switch2@12 {
 		compatible = "marvell,mv88e6190";
-		reg = <0x12 0>;
+		reg = <0x12>;
 		dsa,member = <0 2>;
 		interrupt-parent = <&moxtet>;
 		interrupts = <MOXTET_IRQ_PERIDOT(2)>;
@@ -803,7 +803,7 @@
 
 	switch2@2 {
 		compatible = "marvell,mv88e6085";
-		reg = <0x2 0>;
+		reg = <0x2>;
 		dsa,member = <0 2>;
 		interrupt-parent = <&moxtet>;
 		interrupts = <MOXTET_IRQ_TOPAZ>;

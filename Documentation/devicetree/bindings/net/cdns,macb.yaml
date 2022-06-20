@@ -84,13 +84,6 @@ properties:
   phys:
     maxItems: 1
 
-  phy-names:
-    const: sgmii-phy
-    description:
-      Required with ZynqMP SoC when in SGMII mode.
-      Should reference PS-GTR generic PHY device for this controller
-      instance. See ZynqMP example.
-
   resets:
     maxItems: 1
     description:
@@ -129,6 +122,7 @@ patternProperties:
       reset-gpios: true
 
       magic-packet:
+        type: boolean
         description:
           Indicates that the hardware supports waking up via magic packet.
 
@@ -197,14 +191,12 @@ examples:
                     clock-names = "pclk", "hclk", "tx_clk", "rx_clk", "tsu_clk";
                     #address-cells = <1>;
                     #size-cells = <0>;
-                    #stream-id-cells = <1>;
                     iommus = <&smmu 0x875>;
                     power-domains = <&zynqmp_firmware PD_ETH_1>;
                     resets = <&zynqmp_reset ZYNQMP_RESET_GEM1>;
                     reset-names = "gem1_rst";
                     status = "okay";
                     phy-mode = "sgmii";
-                    phy-names = "sgmii-phy";
                     phys = <&psgtr 1 PHY_TYPE_SGMII 1 1>;
                     fixed-link {
                             speed = <1000>;

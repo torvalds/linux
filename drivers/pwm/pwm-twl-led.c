@@ -137,6 +137,45 @@ out:
 	mutex_unlock(&twl->mutex);
 }
 
+static int twl4030_pwmled_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+				const struct pwm_state *state)
+{
+	int ret;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			twl4030_pwmled_disable(chip, pwm);
+
+		return 0;
+	}
+
+	/*
+	 * We cannot skip calling ->config even if state->period ==
+	 * pwm->state.period && state->duty_cycle == pwm->state.duty_cycle
+	 * because we might have exited early in the last call to
+	 * pwm_apply_state because of !state->enabled and so the two values in
+	 * pwm->state might not be configured in hardware.
+	 */
+	ret = twl4030_pwmled_config(pwm->chip, pwm,
+				    state->duty_cycle, state->period);
+	if (ret)
+		return ret;
+
+	if (!pwm->state.enabled)
+		ret = twl4030_pwmled_enable(chip, pwm);
+
+	return ret;
+}
+
+
+static const struct pwm_ops twl4030_pwmled_ops = {
+	.apply = twl4030_pwmled_apply,
+	.owner = THIS_MODULE,
+};
+
 static int twl6030_pwmled_config(struct pwm_chip *chip, struct pwm_device *pwm,
 			      int duty_ns, int period_ns)
 {
@@ -206,6 +245,32 @@ out:
 	mutex_unlock(&twl->mutex);
 }
 
+static int twl6030_pwmled_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+				const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != pwm->state.polarity)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			twl6030_pwmled_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = twl6030_pwmled_config(pwm->chip, pwm,
+				    state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		err = twl6030_pwmled_enable(chip, pwm);
+
+	return err;
+}
+
 static int twl6030_pwmled_request(struct pwm_chip *chip, struct pwm_device *pwm)
 {
 	struct twl_pwmled_chip *twl = to_twl(chip);
@@ -257,17 +322,8 @@ out:
 	mutex_unlock(&twl->mutex);
 }
 
-static const struct pwm_ops twl4030_pwmled_ops = {
-	.enable = twl4030_pwmled_enable,
-	.disable = twl4030_pwmled_disable,
-	.config = twl4030_pwmled_config,
-	.owner = THIS_MODULE,
-};
-
 static const struct pwm_ops twl6030_pwmled_ops = {
-	.enable = twl6030_pwmled_enable,
-	.disable = twl6030_pwmled_disable,
-	.config = twl6030_pwmled_config,
+	.apply = twl6030_pwmled_apply,
 	.request = twl6030_pwmled_request,
 	.free = twl6030_pwmled_free,
 	.owner = THIS_MODULE,

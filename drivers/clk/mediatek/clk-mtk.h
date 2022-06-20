@@ -35,9 +35,9 @@ struct mtk_fixed_clk {
 	}
 
 int mtk_clk_register_fixed_clks(const struct mtk_fixed_clk *clks, int num,
-				struct clk_onecell_data *clk_data);
+				struct clk_hw_onecell_data *clk_data);
 void mtk_clk_unregister_fixed_clks(const struct mtk_fixed_clk *clks, int num,
-				   struct clk_onecell_data *clk_data);
+				   struct clk_hw_onecell_data *clk_data);
 
 struct mtk_fixed_factor {
 	int id;
@@ -56,9 +56,9 @@ struct mtk_fixed_factor {
 	}
 
 int mtk_clk_register_factors(const struct mtk_fixed_factor *clks, int num,
-			     struct clk_onecell_data *clk_data);
+			     struct clk_hw_onecell_data *clk_data);
 void mtk_clk_unregister_factors(const struct mtk_fixed_factor *clks, int num,
-				struct clk_onecell_data *clk_data);
+				struct clk_hw_onecell_data *clk_data);
 
 struct mtk_composite {
 	int id;
@@ -147,14 +147,11 @@ struct mtk_composite {
 		.flags = 0,						\
 	}
 
-struct clk *mtk_clk_register_composite(const struct mtk_composite *mc,
-		void __iomem *base, spinlock_t *lock);
-
 int mtk_clk_register_composites(const struct mtk_composite *mcs, int num,
 				void __iomem *base, spinlock_t *lock,
-				struct clk_onecell_data *clk_data);
+				struct clk_hw_onecell_data *clk_data);
 void mtk_clk_unregister_composites(const struct mtk_composite *mcs, int num,
-				   struct clk_onecell_data *clk_data);
+				   struct clk_hw_onecell_data *clk_data);
 
 struct mtk_clk_divider {
 	int id;
@@ -180,14 +177,14 @@ struct mtk_clk_divider {
 
 int mtk_clk_register_dividers(const struct mtk_clk_divider *mcds, int num,
 			      void __iomem *base, spinlock_t *lock,
-			      struct clk_onecell_data *clk_data);
+			      struct clk_hw_onecell_data *clk_data);
 void mtk_clk_unregister_dividers(const struct mtk_clk_divider *mcds, int num,
-				 struct clk_onecell_data *clk_data);
+				 struct clk_hw_onecell_data *clk_data);
 
-struct clk_onecell_data *mtk_alloc_clk_data(unsigned int clk_num);
-void mtk_free_clk_data(struct clk_onecell_data *clk_data);
+struct clk_hw_onecell_data *mtk_alloc_clk_data(unsigned int clk_num);
+void mtk_free_clk_data(struct clk_hw_onecell_data *clk_data);
 
-struct clk *mtk_clk_register_ref2usb_tx(const char *name,
+struct clk_hw *mtk_clk_register_ref2usb_tx(const char *name,
 			const char *parent_name, void __iomem *reg);
 
 void mtk_register_reset_controller(struct device_node *np,

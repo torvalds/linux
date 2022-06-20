@@ -84,7 +84,6 @@ struct gsi_trans_info {
 	struct gsi_trans_pool pool;	/* transaction pool */
 	struct gsi_trans_pool sg_pool;	/* scatterlist pool */
 	struct gsi_trans_pool cmd_pool;	/* command payload DMA pool */
-	struct gsi_trans_pool info_pool;/* command information pool */
 	struct gsi_trans **map;		/* TRE -> transaction map */
 
 	spinlock_t spinlock;		/* protects updates to the lists */

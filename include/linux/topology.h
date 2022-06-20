@@ -240,13 +240,6 @@ static inline const struct cpumask *cpu_smt_mask(int cpu)
 }
 #endif
 
-#if defined(CONFIG_SCHED_CLUSTER) && !defined(cpu_cluster_mask)
-static inline const struct cpumask *cpu_cluster_mask(int cpu)
-{
-	return topology_cluster_cpumask(cpu);
-}
-#endif
-
 static inline const struct cpumask *cpu_cpu_mask(int cpu)
 {
 	return cpumask_of_node(cpu_to_node(cpu));

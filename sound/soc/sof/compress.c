@@ -147,8 +147,7 @@ static int sof_compr_free(struct snd_soc_component *component,
 	stream.comp_id = spcm->stream[cstream->direction].comp_id;
 
 	if (spcm->prepared[cstream->direction]) {
-		ret = sof_ipc_tx_message(sdev->ipc, stream.hdr.cmd,
-					 &stream, sizeof(stream),
+		ret = sof_ipc_tx_message(sdev->ipc, &stream, sizeof(stream),
 					 &reply, sizeof(reply));
 		if (!ret)
 			spcm->prepared[cstream->direction] = false;
@@ -209,7 +208,7 @@ static int sof_compr_set_params(struct snd_soc_component *component,
 		snd_pcm_format_physical_width(SNDRV_PCM_FORMAT_S32) >> 3;
 	pcm.params.host_period_bytes = params->buffer.fragment_size;
 
-	ret = sof_ipc_tx_message(sdev->ipc, pcm.hdr.cmd, &pcm, sizeof(pcm),
+	ret = sof_ipc_tx_message(sdev->ipc, &pcm, sizeof(pcm),
 				 &ipc_params_reply, sizeof(ipc_params_reply));
 	if (ret < 0) {
 		dev_err(component->dev, "error ipc failed\n");
@@ -268,8 +267,7 @@ static int sof_compr_trigger(struct snd_soc_component *component,
 		break;
 	}
 
-	return sof_ipc_tx_message(sdev->ipc, stream.hdr.cmd,
-				  &stream, sizeof(stream),
+	return sof_ipc_tx_message(sdev->ipc, &stream, sizeof(stream),
 				  &reply, sizeof(reply));
 }
 

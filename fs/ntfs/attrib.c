@@ -1719,7 +1719,7 @@ int ntfs_attr_make_non_resident(ntfs_inode *ni, const u32 data_size)
 		vi->i_blocks = ni->allocated_size >> 9;
 	write_unlock_irqrestore(&ni->size_lock, flags);
 	/*
-	 * This needs to be last since the address space operations ->readpage
+	 * This needs to be last since the address space operations ->read_folio
 	 * and ->writepage can run concurrently with us as they are not
 	 * serialized on i_mutex.  Note, we are not allowed to fail once we flip
 	 * this switch, which is another reason to do this last.

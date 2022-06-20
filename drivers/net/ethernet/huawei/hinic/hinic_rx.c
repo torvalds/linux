@@ -481,7 +481,8 @@ static void rx_add_napi(struct hinic_rxq *rxq)
 {
 	struct hinic_dev *nic_dev = netdev_priv(rxq->netdev);
 
-	netif_napi_add(rxq->netdev, &rxq->napi, rx_poll, nic_dev->rx_weight);
+	netif_napi_add_weight(rxq->netdev, &rxq->napi, rx_poll,
+			      nic_dev->rx_weight);
 	napi_enable(&rxq->napi);
 }
 

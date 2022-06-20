@@ -20,7 +20,7 @@
 	_ASM_PTR "%c0 + %c1 - .\n\t"			\
 	".popsection \n\t"
 
-#ifdef CONFIG_STACK_VALIDATION
+#ifdef CONFIG_HAVE_JUMP_LABEL_HACK
 
 static __always_inline bool arch_static_branch(struct static_key *key, bool branch)
 {
@@ -34,7 +34,7 @@ l_yes:
 	return true;
 }
 
-#else
+#else /* !CONFIG_HAVE_JUMP_LABEL_HACK */
 
 static __always_inline bool arch_static_branch(struct static_key * const key, const bool branch)
 {
@@ -48,7 +48,7 @@ l_yes:
 	return true;
 }
 
-#endif /* STACK_VALIDATION */
+#endif /* CONFIG_HAVE_JUMP_LABEL_HACK */
 
 static __always_inline bool arch_static_branch_jump(struct static_key * const key, const bool branch)
 {

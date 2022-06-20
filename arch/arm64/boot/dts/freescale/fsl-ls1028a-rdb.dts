@@ -299,10 +299,10 @@
 };
 
 &usb0 {
+	dr_mode = "host";
 	status = "okay";
 };
 
 &usb1 {
-	dr_mode = "otg";
 	status = "okay";
 };

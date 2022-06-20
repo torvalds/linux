@@ -238,7 +238,7 @@ int trans_pgd_idmap_page(struct trans_pgd_info *info, phys_addr_t *trans_ttbr0,
 	int this_level, index, level_lsb, level_msb;
 
 	dst_addr &= PAGE_MASK;
-	prev_level_entry = pte_val(pfn_pte(pfn, PAGE_KERNEL_EXEC));
+	prev_level_entry = pte_val(pfn_pte(pfn, PAGE_KERNEL_ROX));
 
 	for (this_level = 3; this_level >= 0; this_level--) {
 		levels[this_level] = trans_alloc(info);

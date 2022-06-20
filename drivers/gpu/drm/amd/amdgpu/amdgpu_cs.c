@@ -116,7 +116,7 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, union drm_amdgpu_cs
 	int ret;
 
 	if (cs->in.num_chunks == 0)
-		return 0;
+		return -EINVAL;
 
 	chunk_array = kvmalloc_array(cs->in.num_chunks, sizeof(uint64_t), GFP_KERNEL);
 	if (!chunk_array)
@@ -545,14 +545,15 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 					GFP_KERNEL | __GFP_ZERO);
 		if (!e->user_pages) {
 			DRM_ERROR("kvmalloc_array failure\n");
-			return -ENOMEM;
+			r = -ENOMEM;
+			goto out_free_user_pages;
 		}
 
 		r = amdgpu_ttm_tt_get_user_pages(bo, e->user_pages);
 		if (r) {
 			kvfree(e->user_pages);
 			e->user_pages = NULL;
-			return r;
+			goto out_free_user_pages;
 		}
 
 		for (i = 0; i < bo->tbo.ttm->num_pages; i++) {
@@ -569,7 +570,7 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 	if (unlikely(r != 0)) {
 		if (r != -ERESTARTSYS)
 			DRM_ERROR("ttm_eu_reserve_buffers failed.\n");
-		goto out;
+		goto out_free_user_pages;
 	}
 
 	amdgpu_bo_list_for_each_entry(e, p->bo_list) {
@@ -638,7 +639,19 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 error_validate:
 	if (r)
 		ttm_eu_backoff_reservation(&p->ticket, &p->validated);
-out:
+
+out_free_user_pages:
+	if (r) {
+		amdgpu_bo_list_for_each_userptr_entry(e, p->bo_list) {
+			struct amdgpu_bo *bo = ttm_to_amdgpu_bo(e->tv.bo);
+
+			if (!e->user_pages)
+				continue;
+			amdgpu_ttm_tt_get_user_pages_done(bo->tbo.ttm);
+			kvfree(e->user_pages);
+			e->user_pages = NULL;
+		}
+	}
 	return r;
 }
 
@@ -1239,7 +1252,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 
 	p->fence = dma_fence_get(&job->base.s_fence->finished);
 
-	amdgpu_ctx_add_fence(p->ctx, entity, p->fence, &seq);
+	seq = amdgpu_ctx_add_fence(p->ctx, entity, p->fence);
 	amdgpu_cs_post_dependencies(p);
 
 	if ((job->preamble_status & AMDGPU_PREAMBLE_IB_PRESENT) &&

@@ -97,7 +97,7 @@ static u16 nvmet_passthru_override_id_ctrl(struct nvmet_req *req)
 		id->sgls |= cpu_to_le32(1 << 20);
 
 	/*
-	 * When passsthru controller is setup using nvme-loop transport it will
+	 * When passthru controller is setup using nvme-loop transport it will
 	 * export the passthru ctrl subsysnqn (PCIe NVMe ctrl) and will fail in
 	 * the nvme/host/core.c in the nvme_init_subsystem()->nvme_active_ctrl()
 	 * code path with duplicate ctr subsynqn. In order to prevent that we
@@ -285,8 +285,9 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		req->p.rq = rq;
 		queue_work(nvmet_wq, &req->p.work);
 	} else {
+		rq->end_io = nvmet_passthru_req_done;
 		rq->end_io_data = req;
-		blk_execute_rq_nowait(rq, false, nvmet_passthru_req_done);
+		blk_execute_rq_nowait(rq, false);
 	}
 
 	if (ns)

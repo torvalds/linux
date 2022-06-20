@@ -28,7 +28,7 @@
 unsigned char mcf_irq2imr[NR_IRQS];
 
 /*
- * Define the miniumun and maximum external interrupt numbers.
+ * Define the minimum and maximum external interrupt numbers.
  * This is also used as the "level" interrupt numbers.
  */
 #define	EIRQ1	25

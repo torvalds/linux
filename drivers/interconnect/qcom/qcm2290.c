@@ -1174,7 +1174,7 @@ static struct qcom_icc_node slv_anoc_snoc = {
 };
 
 /* NoC descriptors */
-static struct qcom_icc_node *qcm2290_bimc_nodes[] = {
+static struct qcom_icc_node * const qcm2290_bimc_nodes[] = {
 	[MASTER_APPSS_PROC] = &mas_appss_proc,
 	[MASTER_SNOC_BIMC_RT] = &mas_snoc_bimc_rt,
 	[MASTER_SNOC_BIMC_NRT] = &mas_snoc_bimc_nrt,
@@ -1193,7 +1193,7 @@ static const struct regmap_config qcm2290_bimc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc qcm2290_bimc = {
+static const struct qcom_icc_desc qcm2290_bimc = {
 	.type = QCOM_ICC_BIMC,
 	.nodes = qcm2290_bimc_nodes,
 	.num_nodes = ARRAY_SIZE(qcm2290_bimc_nodes),
@@ -1202,7 +1202,7 @@ static struct qcom_icc_desc qcm2290_bimc = {
 	.qos_offset = 0x8000,
 };
 
-static struct qcom_icc_node *qcm2290_cnoc_nodes[] = {
+static struct qcom_icc_node * const qcm2290_cnoc_nodes[] = {
 	[MASTER_SNOC_CNOC] = &mas_snoc_cnoc,
 	[MASTER_QDSS_DAP] = &mas_qdss_dap,
 	[SLAVE_BIMC_CFG] = &slv_bimc_cfg,
@@ -1248,14 +1248,14 @@ static const struct regmap_config qcm2290_cnoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc qcm2290_cnoc = {
+static const struct qcom_icc_desc qcm2290_cnoc = {
 	.type = QCOM_ICC_NOC,
 	.nodes = qcm2290_cnoc_nodes,
 	.num_nodes = ARRAY_SIZE(qcm2290_cnoc_nodes),
 	.regmap_cfg = &qcm2290_cnoc_regmap_config,
 };
 
-static struct qcom_icc_node *qcm2290_snoc_nodes[] = {
+static struct qcom_icc_node * const qcm2290_snoc_nodes[] = {
 	[MASTER_CRYPTO_CORE0] = &mas_crypto_core0,
 	[MASTER_SNOC_CFG] = &mas_snoc_cfg,
 	[MASTER_TIC] = &mas_tic,
@@ -1289,7 +1289,7 @@ static const struct regmap_config qcm2290_snoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc qcm2290_snoc = {
+static const struct qcom_icc_desc qcm2290_snoc = {
 	.type = QCOM_ICC_QNOC,
 	.nodes = qcm2290_snoc_nodes,
 	.num_nodes = ARRAY_SIZE(qcm2290_snoc_nodes),
@@ -1298,25 +1298,25 @@ static struct qcom_icc_desc qcm2290_snoc = {
 	.qos_offset = 0x15000,
 };
 
-static struct qcom_icc_node *qcm2290_qup_virt_nodes[] = {
+static struct qcom_icc_node * const qcm2290_qup_virt_nodes[] = {
 	[MASTER_QUP_CORE_0] = &mas_qup_core_0,
 	[SLAVE_QUP_CORE_0] = &slv_qup_core_0
 };
 
-static struct qcom_icc_desc qcm2290_qup_virt = {
+static const struct qcom_icc_desc qcm2290_qup_virt = {
 	.type = QCOM_ICC_QNOC,
 	.nodes = qcm2290_qup_virt_nodes,
 	.num_nodes = ARRAY_SIZE(qcm2290_qup_virt_nodes),
 };
 
-static struct qcom_icc_node *qcm2290_mmnrt_virt_nodes[] = {
+static struct qcom_icc_node * const qcm2290_mmnrt_virt_nodes[] = {
 	[MASTER_CAMNOC_SF] = &mas_camnoc_sf,
 	[MASTER_VIDEO_P0] = &mas_video_p0,
 	[MASTER_VIDEO_PROC] = &mas_video_proc,
 	[SLAVE_SNOC_BIMC_NRT] = &slv_snoc_bimc_nrt,
 };
 
-static struct qcom_icc_desc qcm2290_mmnrt_virt = {
+static const struct qcom_icc_desc qcm2290_mmnrt_virt = {
 	.type = QCOM_ICC_QNOC,
 	.nodes = qcm2290_mmnrt_virt_nodes,
 	.num_nodes = ARRAY_SIZE(qcm2290_mmnrt_virt_nodes),
@@ -1324,13 +1324,13 @@ static struct qcom_icc_desc qcm2290_mmnrt_virt = {
 	.qos_offset = 0x15000,
 };
 
-static struct qcom_icc_node *qcm2290_mmrt_virt_nodes[] = {
+static struct qcom_icc_node * const qcm2290_mmrt_virt_nodes[] = {
 	[MASTER_CAMNOC_HF] = &mas_camnoc_hf,
 	[MASTER_MDP0] = &mas_mdp0,
 	[SLAVE_SNOC_BIMC_RT] = &slv_snoc_bimc_rt,
 };
 
-static struct qcom_icc_desc qcm2290_mmrt_virt = {
+static const struct qcom_icc_desc qcm2290_mmrt_virt = {
 	.type = QCOM_ICC_QNOC,
 	.nodes = qcm2290_mmrt_virt_nodes,
 	.num_nodes = ARRAY_SIZE(qcm2290_mmrt_virt_nodes),

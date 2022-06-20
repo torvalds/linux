@@ -14,14 +14,93 @@
 #include <linux/clk-provider.h>
 #include <linux/clkdev.h>
 #include <linux/of.h>
-#include <mach/smemc.h>
-#include <mach/pxa3xx-regs.h>
+#include <linux/soc/pxa/cpu.h>
+#include <linux/soc/pxa/smemc.h>
+#include <linux/clk/pxa.h>
 
 #include <dt-bindings/clock/pxa-clock.h>
 #include "clk-pxa.h"
 
 #define KHz 1000
 #define MHz (1000 * 1000)
+
+#define ACCR			(0x0000)	/* Application Subsystem Clock Configuration Register */
+#define ACSR			(0x0004)	/* Application Subsystem Clock Status Register */
+#define AICSR			(0x0008)	/* Application Subsystem Interrupt Control/Status Register */
+#define CKENA			(0x000C)	/* A Clock Enable Register */
+#define CKENB			(0x0010)	/* B Clock Enable Register */
+#define CKENC			(0x0024)	/* C Clock Enable Register */
+#define AC97_DIV		(0x0014)	/* AC97 clock divisor value register */
+
+#define ACCR_XPDIS		(1 << 31)	/* Core PLL Output Disable */
+#define ACCR_SPDIS		(1 << 30)	/* System PLL Output Disable */
+#define ACCR_D0CS		(1 << 26)	/* D0 Mode Clock Select */
+#define ACCR_PCCE		(1 << 11)	/* Power Mode Change Clock Enable */
+#define ACCR_DDR_D0CS		(1 << 7)	/* DDR SDRAM clock frequency in D0CS (PXA31x only) */
+
+#define ACCR_SMCFS_MASK		(0x7 << 23)	/* Static Memory Controller Frequency Select */
+#define ACCR_SFLFS_MASK		(0x3 << 18)	/* Frequency Select for Internal Memory Controller */
+#define ACCR_XSPCLK_MASK	(0x3 << 16)	/* Core Frequency during Frequency Change */
+#define ACCR_HSS_MASK		(0x3 << 14)	/* System Bus-Clock Frequency Select */
+#define ACCR_DMCFS_MASK		(0x3 << 12)	/* Dynamic Memory Controller Clock Frequency Select */
+#define ACCR_XN_MASK		(0x7 << 8)	/* Core PLL Turbo-Mode-to-Run-Mode Ratio */
+#define ACCR_XL_MASK		(0x1f)		/* Core PLL Run-Mode-to-Oscillator Ratio */
+
+#define ACCR_SMCFS(x)		(((x) & 0x7) << 23)
+#define ACCR_SFLFS(x)		(((x) & 0x3) << 18)
+#define ACCR_XSPCLK(x)		(((x) & 0x3) << 16)
+#define ACCR_HSS(x)		(((x) & 0x3) << 14)
+#define ACCR_DMCFS(x)		(((x) & 0x3) << 12)
+#define ACCR_XN(x)		(((x) & 0x7) << 8)
+#define ACCR_XL(x)		((x) & 0x1f)
+
+/*
+ * Clock Enable Bit
+ */
+#define CKEN_LCD	1	/* < LCD Clock Enable */
+#define CKEN_USBH	2	/* < USB host clock enable */
+#define CKEN_CAMERA	3	/* < Camera interface clock enable */
+#define CKEN_NAND	4	/* < NAND Flash Controller Clock Enable */
+#define CKEN_USB2	6	/* < USB 2.0 client clock enable. */
+#define CKEN_DMC	8	/* < Dynamic Memory Controller clock enable */
+#define CKEN_SMC	9	/* < Static Memory Controller clock enable */
+#define CKEN_ISC	10	/* < Internal SRAM Controller clock enable */
+#define CKEN_BOOT	11	/* < Boot rom clock enable */
+#define CKEN_MMC1	12	/* < MMC1 Clock enable */
+#define CKEN_MMC2	13	/* < MMC2 clock enable */
+#define CKEN_KEYPAD	14	/* < Keypand Controller Clock Enable */
+#define CKEN_CIR	15	/* < Consumer IR Clock Enable */
+#define CKEN_USIM0	17	/* < USIM[0] Clock Enable */
+#define CKEN_USIM1	18	/* < USIM[1] Clock Enable */
+#define CKEN_TPM	19	/* < TPM clock enable */
+#define CKEN_UDC	20	/* < UDC clock enable */
+#define CKEN_BTUART	21	/* < BTUART clock enable */
+#define CKEN_FFUART	22	/* < FFUART clock enable */
+#define CKEN_STUART	23	/* < STUART clock enable */
+#define CKEN_AC97	24	/* < AC97 clock enable */
+#define CKEN_TOUCH	25	/* < Touch screen Interface Clock Enable */
+#define CKEN_SSP1	26	/* < SSP1 clock enable */
+#define CKEN_SSP2	27	/* < SSP2 clock enable */
+#define CKEN_SSP3	28	/* < SSP3 clock enable */
+#define CKEN_SSP4	29	/* < SSP4 clock enable */
+#define CKEN_MSL0	30	/* < MSL0 clock enable */
+#define CKEN_PWM0	32	/* < PWM[0] clock enable */
+#define CKEN_PWM1	33	/* < PWM[1] clock enable */
+#define CKEN_I2C	36	/* < I2C clock enable */
+#define CKEN_INTC	38	/* < Interrupt controller clock enable */
+#define CKEN_GPIO	39	/* < GPIO clock enable */
+#define CKEN_1WIRE	40	/* < 1-wire clock enable */
+#define CKEN_HSIO2	41	/* < HSIO2 clock enable */
+#define CKEN_MINI_IM	48	/* < Mini-IM */
+#define CKEN_MINI_LCD	49	/* < Mini LCD */
+
+#define CKEN_MMC3	5	/* < MMC3 Clock Enable */
+#define CKEN_MVED	43	/* < MVED clock enable */
+
+/* Note: GCU clock enable bit differs on PXA300/PXA310 and PXA320 */
+#define CKEN_PXA300_GCU		42	/* Graphics controller clock enable */
+#define CKEN_PXA320_GCU		7	/* Graphics controller clock enable */
+
 
 enum {
 	PXA_CORE_60Mhz = 0,
@@ -39,11 +118,11 @@ static unsigned char hss_mult[4] = { 8, 12, 16, 24 };
 
 /* crystal frequency to static memory controller multiplier (SMCFS) */
 static unsigned int smcfs_mult[8] = { 6, 0, 8, 0, 0, 16, };
-static unsigned int df_clkdiv[4] = { 1, 2, 4, 1 };
-
 static const char * const get_freq_khz[] = {
 	"core", "ring_osc_60mhz", "run", "cpll", "system_bus"
 };
+
+static void __iomem *clk_regs;
 
 /*
  * Get the clock frequency as reflected by ACSR and the turbo flag.
@@ -78,12 +157,27 @@ unsigned int pxa3xx_get_clk_frequency_khz(int info)
 	return (unsigned int)clks[0] / KHz;
 }
 
+void pxa3xx_clk_update_accr(u32 disable, u32 enable, u32 xclkcfg, u32 mask)
+{
+	u32 accr = readl(clk_regs + ACCR);
+
+	accr &= ~disable;
+	accr |= enable;
+
+	writel(accr, ACCR);
+	if (xclkcfg)
+		__asm__("mcr p14, 0, %0, c6, c0, 0\n" : : "r"(xclkcfg));
+
+	while ((readl(clk_regs + ACSR) & mask) != (accr & mask))
+		cpu_relax();
+}
+
 static unsigned long clk_pxa3xx_ac97_get_rate(struct clk_hw *hw,
 					     unsigned long parent_rate)
 {
 	unsigned long ac97_div, rate;
 
-	ac97_div = AC97_DIV;
+	ac97_div = readl(clk_regs + AC97_DIV);
 
 	/* This may loose precision for some rates but won't for the
 	 * standard 24.576MHz.
@@ -100,18 +194,18 @@ RATE_RO_OPS(clk_pxa3xx_ac97, "ac97");
 static unsigned long clk_pxa3xx_smemc_get_rate(struct clk_hw *hw,
 					      unsigned long parent_rate)
 {
-	unsigned long acsr = ACSR;
-	unsigned long memclkcfg = __raw_readl(MEMCLKCFG);
+	unsigned long acsr = readl(clk_regs + ACSR);
 
 	return (parent_rate / 48)  * smcfs_mult[(acsr >> 23) & 0x7] /
-		df_clkdiv[(memclkcfg >> 16) & 0x3];
+		pxa3xx_smemc_get_memclkdiv();
+
 }
 PARENTS(clk_pxa3xx_smemc) = { "spll_624mhz" };
 RATE_RO_OPS(clk_pxa3xx_smemc, "smemc");
 
 static bool pxa3xx_is_ring_osc_forced(void)
 {
-	unsigned long acsr = ACSR;
+	unsigned long acsr = readl(clk_regs + ACSR);
 
 	return acsr & ACCR_D0CS;
 }
@@ -123,7 +217,7 @@ PARENTS(pxa3xx_ac97_bus) = { "ring_osc_60mhz", "ac97" };
 PARENTS(pxa3xx_sbus) = { "ring_osc_60mhz", "system_bus" };
 PARENTS(pxa3xx_smemcbus) = { "ring_osc_60mhz", "smemc" };
 
-#define CKEN_AB(bit) ((CKEN_ ## bit > 31) ? &CKENB : &CKENA)
+#define CKEN_AB(bit) ((CKEN_ ## bit > 31) ? CKENB : CKENA)
 #define PXA3XX_CKEN(dev_id, con_id, parents, mult_lp, div_lp, mult_hp,	\
 		    div_hp, bit, is_lp, flags)				\
 	PXA_CKEN(dev_id, con_id, bit, parents, mult_lp, div_lp,		\
@@ -191,7 +285,7 @@ static struct desc_clk_cken pxa93x_clocks[] __initdata = {
 static unsigned long clk_pxa3xx_system_bus_get_rate(struct clk_hw *hw,
 					    unsigned long parent_rate)
 {
-	unsigned long acsr = ACSR;
+	unsigned long acsr = readl(clk_regs + ACSR);
 	unsigned int hss = (acsr >> 14) & 0x3;
 
 	if (pxa3xx_is_ring_osc_forced())
@@ -238,7 +332,7 @@ MUX_RO_RATE_RO_OPS(clk_pxa3xx_core, "core");
 static unsigned long clk_pxa3xx_run_get_rate(struct clk_hw *hw,
 					     unsigned long parent_rate)
 {
-	unsigned long acsr = ACSR;
+	unsigned long acsr = readl(clk_regs + ACSR);
 	unsigned int xn = (acsr & ACCR_XN_MASK) >> 8;
 	unsigned int t, xclkcfg;
 
@@ -254,7 +348,7 @@ RATE_RO_OPS(clk_pxa3xx_run, "run");
 static unsigned long clk_pxa3xx_cpll_get_rate(struct clk_hw *hw,
 	unsigned long parent_rate)
 {
-	unsigned long acsr = ACSR;
+	unsigned long acsr = readl(clk_regs + ACSR);
 	unsigned int xn = (acsr & ACCR_XN_MASK) >> 8;
 	unsigned int xl = acsr & ACCR_XL_MASK;
 	unsigned int t, xclkcfg;
@@ -325,7 +419,7 @@ static void __init pxa3xx_dummy_clocks_init(void)
 	}
 }
 
-static void __init pxa3xx_base_clocks_init(void)
+static void __init pxa3xx_base_clocks_init(void __iomem *oscc_reg)
 {
 	struct clk *clk;
 
@@ -335,34 +429,35 @@ static void __init pxa3xx_base_clocks_init(void)
 	clk_register_clk_pxa3xx_ac97();
 	clk_register_clk_pxa3xx_smemc();
 	clk = clk_register_gate(NULL, "CLK_POUT",
-				"osc_13mhz", 0, OSCC, 11, 0, NULL);
+				"osc_13mhz", 0, oscc_reg, 11, 0, NULL);
 	clk_register_clkdev(clk, "CLK_POUT", NULL);
 	clkdev_pxa_register(CLK_OSTIMER, "OSTIMER0", NULL,
 			    clk_register_fixed_factor(NULL, "os-timer0",
 						      "osc_13mhz", 0, 1, 4));
 }
 
-int __init pxa3xx_clocks_init(void)
+int __init pxa3xx_clocks_init(void __iomem *regs, void __iomem *oscc_reg)
 {
 	int ret;
 
-	pxa3xx_base_clocks_init();
+	clk_regs = regs;
+	pxa3xx_base_clocks_init(oscc_reg);
 	pxa3xx_dummy_clocks_init();
-	ret = clk_pxa_cken_init(pxa3xx_clocks, ARRAY_SIZE(pxa3xx_clocks));
+	ret = clk_pxa_cken_init(pxa3xx_clocks, ARRAY_SIZE(pxa3xx_clocks), regs);
 	if (ret)
 		return ret;
 	if (cpu_is_pxa320())
 		return clk_pxa_cken_init(pxa320_clocks,
-					 ARRAY_SIZE(pxa320_clocks));
+					 ARRAY_SIZE(pxa320_clocks), regs);
 	if (cpu_is_pxa300() || cpu_is_pxa310())
 		return clk_pxa_cken_init(pxa300_310_clocks,
-					 ARRAY_SIZE(pxa300_310_clocks));
-	return clk_pxa_cken_init(pxa93x_clocks, ARRAY_SIZE(pxa93x_clocks));
+					 ARRAY_SIZE(pxa300_310_clocks), regs);
+	return clk_pxa_cken_init(pxa93x_clocks, ARRAY_SIZE(pxa93x_clocks), regs);
 }
 
 static void __init pxa3xx_dt_clocks_init(struct device_node *np)
 {
-	pxa3xx_clocks_init();
+	pxa3xx_clocks_init(ioremap(0x41340000, 0x10), ioremap(0x41350000, 4));
 	clk_pxa_dt_common_init(np);
 }
 CLK_OF_DECLARE(pxa_clks, "marvell,pxa300-clocks", pxa3xx_dt_clocks_init);

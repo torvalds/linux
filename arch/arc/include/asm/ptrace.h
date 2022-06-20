@@ -8,6 +8,7 @@
 #define __ASM_ARC_PTRACE_H
 
 #include <uapi/asm/ptrace.h>
+#include <linux/compiler.h>
 
 #ifndef __ASSEMBLY__
 
@@ -54,6 +55,9 @@ struct pt_regs {
 
 	unsigned long user_r25;
 };
+
+#define MAX_REG_OFFSET offsetof(struct pt_regs, user_r25)
+
 #else
 
 struct pt_regs {
@@ -101,6 +105,8 @@ struct pt_regs {
 	unsigned long ret;
 	unsigned long status32;
 };
+
+#define MAX_REG_OFFSET offsetof(struct pt_regs, status32)
 
 #endif
 
@@ -154,6 +160,27 @@ static inline void instruction_pointer_set(struct pt_regs *regs,
 {
 	instruction_pointer(regs) = val;
 }
+
+static inline unsigned long kernel_stack_pointer(struct pt_regs *regs)
+{
+	return regs->sp;
+}
+
+extern int regs_query_register_offset(const char *name);
+extern const char *regs_query_register_name(unsigned int offset);
+extern bool regs_within_kernel_stack(struct pt_regs *regs, unsigned long addr);
+extern unsigned long regs_get_kernel_stack_nth(struct pt_regs *regs,
+					       unsigned int n);
+
+static inline unsigned long regs_get_register(struct pt_regs *regs,
+					      unsigned int offset)
+{
+	if (unlikely(offset > MAX_REG_OFFSET))
+		return 0;
+
+	return *(unsigned long *)((unsigned long)regs + offset);
+}
+
 #endif /* !__ASSEMBLY__ */
 
 #endif /* __ASM_PTRACE_H */

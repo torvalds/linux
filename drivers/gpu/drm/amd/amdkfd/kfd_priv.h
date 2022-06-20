@@ -229,6 +229,8 @@ struct kfd_device_info {
 	bool needs_pci_atomics;
 	uint32_t no_atomic_fw_version;
 	unsigned int num_sdma_queues_per_engine;
+	unsigned int num_reserved_sdma_queues_per_engine;
+	uint64_t reserved_sdma_queues_bitmap;
 };
 
 unsigned int kfd_get_num_sdma_engines(struct kfd_dev *kdev);
@@ -272,6 +274,7 @@ struct kfd_dev {
 
 	struct kgd2kfd_shared_resources shared_resources;
 	struct kfd_vmid_info vm_info;
+	struct kfd_local_mem_info local_mem_info;
 
 	const struct kfd2kgd_calls *kfd2kgd;
 	struct mutex doorbell_mutex;
@@ -564,6 +567,10 @@ struct queue {
 
 	/* procfs */
 	struct kobject kobj;
+
+	void *gang_ctx_bo;
+	uint64_t gang_ctx_gpu_addr;
+	void *gang_ctx_cpu_ptr;
 };
 
 enum KFD_MQD_TYPE {
@@ -779,6 +786,10 @@ struct kfd_process_device {
 	 * checkpointed node to refer to this device.
 	 */
 	uint32_t user_gpu_id;
+
+	void *proc_ctx_bo;
+	uint64_t proc_ctx_gpu_addr;
+	void *proc_ctx_cpu_ptr;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -1170,6 +1181,8 @@ struct mqd_manager *mqd_manager_init_v9(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
 struct mqd_manager *mqd_manager_init_v10(enum KFD_MQD_TYPE type,
 		struct kfd_dev *dev);
+struct mqd_manager *mqd_manager_init_v11(enum KFD_MQD_TYPE type,
+		struct kfd_dev *dev);
 struct device_queue_manager *device_queue_manager_init(struct kfd_dev *dev);
 void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
@@ -1292,10 +1305,11 @@ uint64_t kfd_get_number_elems(struct kfd_dev *kfd);
 /* Events */
 extern const struct kfd_event_interrupt_class event_interrupt_class_cik;
 extern const struct kfd_event_interrupt_class event_interrupt_class_v9;
+extern const struct kfd_event_interrupt_class event_interrupt_class_v11;
 
 extern const struct kfd_device_global_init_class device_global_init_class_cik;
 
-void kfd_event_init_process(struct kfd_process *p);
+int kfd_event_init_process(struct kfd_process *p);
 void kfd_event_free_process(struct kfd_process *p);
 int kfd_event_mmap(struct kfd_process *process, struct vm_area_struct *vma);
 int kfd_wait_on_events(struct kfd_process *p,

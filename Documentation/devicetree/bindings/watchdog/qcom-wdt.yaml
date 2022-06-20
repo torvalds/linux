@@ -14,22 +14,29 @@ allOf:
 
 properties:
   compatible:
-    enum:
-      - qcom,apss-wdt-qcs404
-      - qcom,apss-wdt-sc7180
-      - qcom,apss-wdt-sc7280
-      - qcom,apss-wdt-sdm845
-      - qcom,apss-wdt-sdx55
-      - qcom,apss-wdt-sm6350
-      - qcom,apss-wdt-sm8150
-      - qcom,apss-wdt-sm8250
-      - qcom,kpss-timer
-      - qcom,kpss-wdt
-      - qcom,kpss-wdt-apq8064
-      - qcom,kpss-wdt-ipq4019
-      - qcom,kpss-wdt-ipq8064
-      - qcom,kpss-wdt-msm8960
-      - qcom,scss-timer
+    oneOf:
+      - items:
+          - enum:
+              - qcom,apss-wdt-qcs404
+              - qcom,apss-wdt-sc7180
+              - qcom,apss-wdt-sc7280
+              - qcom,apss-wdt-sc8180x
+              - qcom,apss-wdt-sc8280xp
+              - qcom,apss-wdt-sdm845
+              - qcom,apss-wdt-sdx55
+              - qcom,apss-wdt-sm6350
+              - qcom,apss-wdt-sm8150
+              - qcom,apss-wdt-sm8250
+          - const: qcom,kpss-wdt
+      - items:
+          - enum:
+              - qcom,kpss-wdt
+              - qcom,kpss-timer
+              - qcom,kpss-wdt-apq8064
+              - qcom,kpss-wdt-ipq4019
+              - qcom,kpss-wdt-ipq8064
+              - qcom,kpss-wdt-msm8960
+              - qcom,scss-timer
 
   reg:
     maxItems: 1

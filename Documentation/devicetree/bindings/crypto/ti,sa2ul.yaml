@@ -15,6 +15,7 @@ properties:
       - ti,j721e-sa2ul
       - ti,am654-sa2ul
       - ti,am64-sa2ul
+      - ti,am62-sa3ul
 
   reg:
     maxItems: 1

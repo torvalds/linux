@@ -70,10 +70,10 @@
 /* PSI-L source thread IDs, used for RX (DMA_DEV_TO_MEM) */
 static struct psil_ep am62_src_ep_map[] = {
 	/* SAUL */
-	PSIL_SAUL(0x7500, 20, 35, 8, 35, 0),
-	PSIL_SAUL(0x7501, 21, 35, 8, 36, 0),
-	PSIL_SAUL(0x7502, 22, 43, 8, 43, 0),
-	PSIL_SAUL(0x7503, 23, 43, 8, 44, 0),
+	PSIL_SAUL(0x7504, 20, 35, 8, 35, 0),
+	PSIL_SAUL(0x7505, 21, 35, 8, 36, 0),
+	PSIL_SAUL(0x7506, 22, 43, 8, 43, 0),
+	PSIL_SAUL(0x7507, 23, 43, 8, 44, 0),
 	/* PDMA_MAIN0 - SPI0-3 */
 	PSIL_PDMA_XY_PKT(0x4302),
 	PSIL_PDMA_XY_PKT(0x4303),

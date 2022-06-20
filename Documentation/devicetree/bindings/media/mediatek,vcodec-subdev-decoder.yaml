@@ -47,7 +47,9 @@ description: |
 
 properties:
   compatible:
-    const: mediatek,mt8192-vcodec-dec
+    enum:
+      - mediatek,mt8192-vcodec-dec
+      - mediatek,mt8186-vcodec-dec
 
   reg:
     maxItems: 1

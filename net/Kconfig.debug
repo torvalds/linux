@@ -17,3 +17,10 @@ config NET_NS_REFCNT_TRACKER
 	help
 	  Enable debugging feature to track netns references.
 	  This adds memory and cpu costs.
+
+config DEBUG_NET
+	bool "Add generic networking debug"
+	depends on DEBUG_KERNEL && NET
+	help
+	  Enable extra sanity checks in networking.
+	  This is mostly used by fuzzers, but is safe to select.

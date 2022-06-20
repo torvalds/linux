@@ -36,10 +36,9 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
-#include <mach/serial.h>
-#include <mach/mux.h>
-
+#include "common.h"
+#include "serial.h"
+#include "mux.h"
 #include "davinci.h"
 
 #define NEUROS_OSD2_PHY_ID		"davinci_mdio-0:01"

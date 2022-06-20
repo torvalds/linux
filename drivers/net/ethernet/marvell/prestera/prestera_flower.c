@@ -70,6 +70,24 @@ static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 	if (!flow_action_has_entries(flow_action))
 		return 0;
 
+	if (!flow_action_mixed_hw_stats_check(flow_action, extack))
+		return -EOPNOTSUPP;
+
+	act = flow_action_first_entry_get(flow_action);
+	if (act->hw_stats & FLOW_ACTION_HW_STATS_DISABLED) {
+		/* Nothing to do */
+	} else if (act->hw_stats & FLOW_ACTION_HW_STATS_DELAYED) {
+		/* setup counter first */
+		rule->re_arg.count.valid = true;
+		err = prestera_acl_chain_to_client(chain_index,
+						   &rule->re_arg.count.client);
+		if (err)
+			return err;
+	} else {
+		NL_SET_ERR_MSG_MOD(extack, "Unsupported action HW stats type");
+		return -EOPNOTSUPP;
+	}
+
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
 		case FLOW_ACTION_ACCEPT:
@@ -89,6 +107,16 @@ static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 				return -EEXIST;
 
 			rule->re_arg.trap.valid = 1;
+			break;
+		case FLOW_ACTION_POLICE:
+			if (rule->re_arg.police.valid)
+				return -EEXIST;
+
+			rule->re_arg.police.valid = 1;
+			rule->re_arg.police.rate =
+				act->police.rate_bytes_ps;
+			rule->re_arg.police.burst = act->police.burst;
+			rule->re_arg.police.ingress = true;
 			break;
 		case FLOW_ACTION_GOTO:
 			err = prestera_flower_parse_goto_action(block, rule,

@@ -42,13 +42,6 @@ int xen_setup_shutdown_event(void);
 
 extern unsigned long *xen_contiguous_bitmap;
 
-#if defined(CONFIG_XEN_PV) || defined(CONFIG_ARM) || defined(CONFIG_ARM64)
-int xen_create_contiguous_region(phys_addr_t pstart, unsigned int order,
-				unsigned int address_bits,
-				dma_addr_t *dma_handle);
-void xen_destroy_contiguous_region(phys_addr_t pstart, unsigned int order);
-#endif
-
 #if defined(CONFIG_XEN_PV)
 int xen_remap_pfn(struct vm_area_struct *vma, unsigned long addr,
 		  xen_pfn_t *pfn, int nr, int *err_ptr, pgprot_t prot,
@@ -220,5 +213,18 @@ static inline void xen_preemptible_hcall_begin(void) { }
 static inline void xen_preemptible_hcall_end(void) { }
 
 #endif /* CONFIG_XEN_PV && !CONFIG_PREEMPTION */
+
+#ifdef CONFIG_XEN_GRANT_DMA_OPS
+void xen_grant_setup_dma_ops(struct device *dev);
+bool xen_is_grant_dma_device(struct device *dev);
+#else
+static inline void xen_grant_setup_dma_ops(struct device *dev)
+{
+}
+static inline bool xen_is_grant_dma_device(struct device *dev)
+{
+	return false;
+}
+#endif /* CONFIG_XEN_GRANT_DMA_OPS */
 
 #endif /* INCLUDE_XEN_OPS_H */

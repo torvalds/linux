@@ -162,12 +162,14 @@ union vram_info {
 	struct atom_vram_info_header_v2_4 v24;
 	struct atom_vram_info_header_v2_5 v25;
 	struct atom_vram_info_header_v2_6 v26;
+	struct atom_vram_info_header_v3_0 v30;
 };
 
 union vram_module {
 	struct atom_vram_module_v9 v9;
 	struct atom_vram_module_v10 v10;
 	struct atom_vram_module_v11 v11;
+	struct atom_vram_module_v3_0 v30;
 };
 
 static int convert_atom_mem_type_to_vram_type(struct amdgpu_device *adev,
@@ -186,12 +188,16 @@ static int convert_atom_mem_type_to_vram_type(struct amdgpu_device *adev,
 			vram_type = AMDGPU_VRAM_TYPE_DDR3;
 			break;
 		case Ddr4MemType:
-		case LpDdr4MemType:
 			vram_type = AMDGPU_VRAM_TYPE_DDR4;
 			break;
+		case LpDdr4MemType:
+			vram_type = AMDGPU_VRAM_TYPE_LPDDR4;
+			break;
 		case Ddr5MemType:
-		case LpDdr5MemType:
 			vram_type = AMDGPU_VRAM_TYPE_DDR5;
+			break;
+		case LpDdr5MemType:
+			vram_type = AMDGPU_VRAM_TYPE_LPDDR5;
 			break;
 		default:
 			vram_type = AMDGPU_VRAM_TYPE_UNKNOWN;
@@ -294,88 +300,116 @@ amdgpu_atomfirmware_get_vram_info(struct amdgpu_device *adev,
 			vram_info = (union vram_info *)
 				(mode_info->atom_context->bios + data_offset);
 			module_id = (RREG32(adev->bios_scratch_reg_offset + 4) & 0x00ff0000) >> 16;
-			switch (crev) {
-			case 3:
-				if (module_id > vram_info->v23.vram_module_num)
-					module_id = 0;
-				vram_module = (union vram_module *)vram_info->v23.vram_module;
-				while (i < module_id) {
-					vram_module = (union vram_module *)
-						((u8 *)vram_module + vram_module->v9.vram_module_size);
-					i++;
+			if (frev == 3) {
+				switch (crev) {
+				/* v30 */
+				case 0:
+					vram_module = (union vram_module *)vram_info->v30.vram_module;
+					mem_vendor = (vram_module->v30.dram_vendor_id) & 0xF;
+					if (vram_vendor)
+						*vram_vendor = mem_vendor;
+					mem_type = vram_info->v30.memory_type;
+					if (vram_type)
+						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+					mem_channel_number = vram_info->v30.channel_num;
+					mem_channel_width = vram_info->v30.channel_width;
+					if (vram_width)
+						*vram_width = mem_channel_number * mem_channel_width;
+					break;
+				default:
+					return -EINVAL;
 				}
-				mem_type = vram_module->v9.memory_type;
-				if (vram_type)
-					*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
-				mem_channel_number = vram_module->v9.channel_num;
-				mem_channel_width = vram_module->v9.channel_width;
-				if (vram_width)
-					*vram_width = mem_channel_number * (1 << mem_channel_width);
-				mem_vendor = (vram_module->v9.vender_rev_id) & 0xF;
-				if (vram_vendor)
-					*vram_vendor = mem_vendor;
-				break;
-			case 4:
-				if (module_id > vram_info->v24.vram_module_num)
-					module_id = 0;
-				vram_module = (union vram_module *)vram_info->v24.vram_module;
-				while (i < module_id) {
-					vram_module = (union vram_module *)
-						((u8 *)vram_module + vram_module->v10.vram_module_size);
-					i++;
+			} else if (frev == 2) {
+				switch (crev) {
+				/* v23 */
+				case 3:
+					if (module_id > vram_info->v23.vram_module_num)
+						module_id = 0;
+					vram_module = (union vram_module *)vram_info->v23.vram_module;
+					while (i < module_id) {
+						vram_module = (union vram_module *)
+							((u8 *)vram_module + vram_module->v9.vram_module_size);
+						i++;
+					}
+					mem_type = vram_module->v9.memory_type;
+					if (vram_type)
+						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+					mem_channel_number = vram_module->v9.channel_num;
+					mem_channel_width = vram_module->v9.channel_width;
+					if (vram_width)
+						*vram_width = mem_channel_number * (1 << mem_channel_width);
+					mem_vendor = (vram_module->v9.vender_rev_id) & 0xF;
+					if (vram_vendor)
+						*vram_vendor = mem_vendor;
+					break;
+				/* v24 */
+				case 4:
+					if (module_id > vram_info->v24.vram_module_num)
+						module_id = 0;
+					vram_module = (union vram_module *)vram_info->v24.vram_module;
+					while (i < module_id) {
+						vram_module = (union vram_module *)
+							((u8 *)vram_module + vram_module->v10.vram_module_size);
+						i++;
+					}
+					mem_type = vram_module->v10.memory_type;
+					if (vram_type)
+						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+					mem_channel_number = vram_module->v10.channel_num;
+					mem_channel_width = vram_module->v10.channel_width;
+					if (vram_width)
+						*vram_width = mem_channel_number * (1 << mem_channel_width);
+					mem_vendor = (vram_module->v10.vender_rev_id) & 0xF;
+					if (vram_vendor)
+						*vram_vendor = mem_vendor;
+					break;
+				/* v25 */
+				case 5:
+					if (module_id > vram_info->v25.vram_module_num)
+						module_id = 0;
+					vram_module = (union vram_module *)vram_info->v25.vram_module;
+					while (i < module_id) {
+						vram_module = (union vram_module *)
+							((u8 *)vram_module + vram_module->v11.vram_module_size);
+						i++;
+					}
+					mem_type = vram_module->v11.memory_type;
+					if (vram_type)
+						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+					mem_channel_number = vram_module->v11.channel_num;
+					mem_channel_width = vram_module->v11.channel_width;
+					if (vram_width)
+						*vram_width = mem_channel_number * (1 << mem_channel_width);
+					mem_vendor = (vram_module->v11.vender_rev_id) & 0xF;
+					if (vram_vendor)
+						*vram_vendor = mem_vendor;
+					break;
+				/* v26 */
+				case 6:
+					if (module_id > vram_info->v26.vram_module_num)
+						module_id = 0;
+					vram_module = (union vram_module *)vram_info->v26.vram_module;
+					while (i < module_id) {
+						vram_module = (union vram_module *)
+							((u8 *)vram_module + vram_module->v9.vram_module_size);
+						i++;
+					}
+					mem_type = vram_module->v9.memory_type;
+					if (vram_type)
+						*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
+					mem_channel_number = vram_module->v9.channel_num;
+					mem_channel_width = vram_module->v9.channel_width;
+					if (vram_width)
+						*vram_width = mem_channel_number * (1 << mem_channel_width);
+					mem_vendor = (vram_module->v9.vender_rev_id) & 0xF;
+					if (vram_vendor)
+						*vram_vendor = mem_vendor;
+					break;
+				default:
+					return -EINVAL;
 				}
-				mem_type = vram_module->v10.memory_type;
-				if (vram_type)
-					*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
-				mem_channel_number = vram_module->v10.channel_num;
-				mem_channel_width = vram_module->v10.channel_width;
-				if (vram_width)
-					*vram_width = mem_channel_number * (1 << mem_channel_width);
-				mem_vendor = (vram_module->v10.vender_rev_id) & 0xF;
-				if (vram_vendor)
-					*vram_vendor = mem_vendor;
-				break;
-			case 5:
-				if (module_id > vram_info->v25.vram_module_num)
-					module_id = 0;
-				vram_module = (union vram_module *)vram_info->v25.vram_module;
-				while (i < module_id) {
-					vram_module = (union vram_module *)
-						((u8 *)vram_module + vram_module->v11.vram_module_size);
-					i++;
-				}
-				mem_type = vram_module->v11.memory_type;
-				if (vram_type)
-					*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
-				mem_channel_number = vram_module->v11.channel_num;
-				mem_channel_width = vram_module->v11.channel_width;
-				if (vram_width)
-					*vram_width = mem_channel_number * (1 << mem_channel_width);
-				mem_vendor = (vram_module->v11.vender_rev_id) & 0xF;
-				if (vram_vendor)
-					*vram_vendor = mem_vendor;
-				break;
-			case 6:
-				if (module_id > vram_info->v26.vram_module_num)
-					module_id = 0;
-				vram_module = (union vram_module *)vram_info->v26.vram_module;
-				while (i < module_id) {
-					vram_module = (union vram_module *)
-						((u8 *)vram_module + vram_module->v9.vram_module_size);
-					i++;
-				}
-				mem_type = vram_module->v9.memory_type;
-				if (vram_type)
-					*vram_type = convert_atom_mem_type_to_vram_type(adev, mem_type);
-				mem_channel_number = vram_module->v9.channel_num;
-				mem_channel_width = vram_module->v9.channel_width;
-				if (vram_width)
-					*vram_width = mem_channel_number * (1 << mem_channel_width);
-				mem_vendor = (vram_module->v9.vender_rev_id) & 0xF;
-				if (vram_vendor)
-					*vram_vendor = mem_vendor;
-				break;
-			default:
+			} else {
+				/* invalid frev */
 				return -EINVAL;
 			}
 		}
@@ -526,6 +560,14 @@ bool amdgpu_atomfirmware_ras_rom_addr(struct amdgpu_device *adev,
 
 union smu_info {
 	struct atom_smu_info_v3_1 v31;
+	struct atom_smu_info_v4_0 v40;
+};
+
+union gfx_info {
+	struct atom_gfx_info_v2_2 v22;
+	struct atom_gfx_info_v2_4 v24;
+	struct atom_gfx_info_v2_7 v27;
+	struct atom_gfx_info_v3_0 v30;
 };
 
 int amdgpu_atomfirmware_get_clock_info(struct amdgpu_device *adev)
@@ -565,7 +607,10 @@ int amdgpu_atomfirmware_get_clock_info(struct amdgpu_device *adev)
 					   data_offset);
 
 		/* system clock */
-		spll->reference_freq = le32_to_cpu(smu_info->v31.core_refclk_10khz);
+		if (frev == 3)
+			spll->reference_freq = le32_to_cpu(smu_info->v31.core_refclk_10khz);
+		else if (frev == 4)
+			spll->reference_freq = le32_to_cpu(smu_info->v40.core_refclk_10khz);
 
 		spll->reference_div = 0;
 		spll->min_post_div = 1;
@@ -609,21 +654,25 @@ int amdgpu_atomfirmware_get_clock_info(struct amdgpu_device *adev)
 						   gfx_info);
 		if (amdgpu_atom_parse_data_header(mode_info->atom_context, index, NULL,
 					  &frev, &crev, &data_offset)) {
-			struct atom_gfx_info_v2_2 *gfx_info = (struct atom_gfx_info_v2_2*)
+			union gfx_info *gfx_info = (union gfx_info *)
 				(mode_info->atom_context->bios + data_offset);
-			if ((frev == 2) && (crev >= 2))
-				spll->reference_freq = le32_to_cpu(gfx_info->rlc_gpu_timer_refclk);
-			ret = 0;
+			if ((frev == 3) ||
+			    (frev == 2 && crev == 6)) {
+				spll->reference_freq = le32_to_cpu(gfx_info->v30.golden_tsc_count_lower_refclk);
+				ret = 0;
+			} else if ((frev == 2) &&
+				   (crev >= 2) &&
+				   (crev != 6)) {
+				spll->reference_freq = le32_to_cpu(gfx_info->v22.rlc_gpu_timer_refclk);
+				ret = 0;
+			} else {
+				BUG();
+			}
 		}
 	}
 
 	return ret;
 }
-
-union gfx_info {
-	struct atom_gfx_info_v2_4 v24;
-	struct atom_gfx_info_v2_7 v27;
-};
 
 int amdgpu_atomfirmware_get_gfx_info(struct amdgpu_device *adev)
 {
@@ -638,42 +687,58 @@ int amdgpu_atomfirmware_get_gfx_info(struct amdgpu_device *adev)
 				   &frev, &crev, &data_offset)) {
 		union gfx_info *gfx_info = (union gfx_info *)
 			(mode_info->atom_context->bios + data_offset);
-		switch (crev) {
-		case 4:
-			adev->gfx.config.max_shader_engines = gfx_info->v24.max_shader_engines;
-			adev->gfx.config.max_cu_per_sh = gfx_info->v24.max_cu_per_sh;
-			adev->gfx.config.max_sh_per_se = gfx_info->v24.max_sh_per_se;
-			adev->gfx.config.max_backends_per_se = gfx_info->v24.max_backends_per_se;
-			adev->gfx.config.max_texture_channel_caches = gfx_info->v24.max_texture_channel_caches;
-			adev->gfx.config.max_gprs = le16_to_cpu(gfx_info->v24.gc_num_gprs);
-			adev->gfx.config.max_gs_threads = gfx_info->v24.gc_num_max_gs_thds;
-			adev->gfx.config.gs_vgt_table_depth = gfx_info->v24.gc_gs_table_depth;
-			adev->gfx.config.gs_prim_buffer_depth =
-				le16_to_cpu(gfx_info->v24.gc_gsprim_buff_depth);
-			adev->gfx.config.double_offchip_lds_buf =
-				gfx_info->v24.gc_double_offchip_lds_buffer;
-			adev->gfx.cu_info.wave_front_size = le16_to_cpu(gfx_info->v24.gc_wave_size);
-			adev->gfx.cu_info.max_waves_per_simd = le16_to_cpu(gfx_info->v24.gc_max_waves_per_simd);
-			adev->gfx.cu_info.max_scratch_slots_per_cu = gfx_info->v24.gc_max_scratch_slots_per_cu;
-			adev->gfx.cu_info.lds_size = le16_to_cpu(gfx_info->v24.gc_lds_size);
-			return 0;
-		case 7:
-			adev->gfx.config.max_shader_engines = gfx_info->v27.max_shader_engines;
-			adev->gfx.config.max_cu_per_sh = gfx_info->v27.max_cu_per_sh;
-			adev->gfx.config.max_sh_per_se = gfx_info->v27.max_sh_per_se;
-			adev->gfx.config.max_backends_per_se = gfx_info->v27.max_backends_per_se;
-			adev->gfx.config.max_texture_channel_caches = gfx_info->v27.max_texture_channel_caches;
-			adev->gfx.config.max_gprs = le16_to_cpu(gfx_info->v27.gc_num_gprs);
-			adev->gfx.config.max_gs_threads = gfx_info->v27.gc_num_max_gs_thds;
-			adev->gfx.config.gs_vgt_table_depth = gfx_info->v27.gc_gs_table_depth;
-			adev->gfx.config.gs_prim_buffer_depth = le16_to_cpu(gfx_info->v27.gc_gsprim_buff_depth);
-			adev->gfx.config.double_offchip_lds_buf = gfx_info->v27.gc_double_offchip_lds_buffer;
-			adev->gfx.cu_info.wave_front_size = le16_to_cpu(gfx_info->v27.gc_wave_size);
-			adev->gfx.cu_info.max_waves_per_simd = le16_to_cpu(gfx_info->v27.gc_max_waves_per_simd);
-			adev->gfx.cu_info.max_scratch_slots_per_cu = gfx_info->v27.gc_max_scratch_slots_per_cu;
-			adev->gfx.cu_info.lds_size = le16_to_cpu(gfx_info->v27.gc_lds_size);
-			return 0;
-		default:
+		if (frev == 2) {
+			switch (crev) {
+			case 4:
+				adev->gfx.config.max_shader_engines = gfx_info->v24.max_shader_engines;
+				adev->gfx.config.max_cu_per_sh = gfx_info->v24.max_cu_per_sh;
+				adev->gfx.config.max_sh_per_se = gfx_info->v24.max_sh_per_se;
+				adev->gfx.config.max_backends_per_se = gfx_info->v24.max_backends_per_se;
+				adev->gfx.config.max_texture_channel_caches = gfx_info->v24.max_texture_channel_caches;
+				adev->gfx.config.max_gprs = le16_to_cpu(gfx_info->v24.gc_num_gprs);
+				adev->gfx.config.max_gs_threads = gfx_info->v24.gc_num_max_gs_thds;
+				adev->gfx.config.gs_vgt_table_depth = gfx_info->v24.gc_gs_table_depth;
+				adev->gfx.config.gs_prim_buffer_depth =
+					le16_to_cpu(gfx_info->v24.gc_gsprim_buff_depth);
+				adev->gfx.config.double_offchip_lds_buf =
+					gfx_info->v24.gc_double_offchip_lds_buffer;
+				adev->gfx.cu_info.wave_front_size = le16_to_cpu(gfx_info->v24.gc_wave_size);
+				adev->gfx.cu_info.max_waves_per_simd = le16_to_cpu(gfx_info->v24.gc_max_waves_per_simd);
+				adev->gfx.cu_info.max_scratch_slots_per_cu = gfx_info->v24.gc_max_scratch_slots_per_cu;
+				adev->gfx.cu_info.lds_size = le16_to_cpu(gfx_info->v24.gc_lds_size);
+				return 0;
+			case 7:
+				adev->gfx.config.max_shader_engines = gfx_info->v27.max_shader_engines;
+				adev->gfx.config.max_cu_per_sh = gfx_info->v27.max_cu_per_sh;
+				adev->gfx.config.max_sh_per_se = gfx_info->v27.max_sh_per_se;
+				adev->gfx.config.max_backends_per_se = gfx_info->v27.max_backends_per_se;
+				adev->gfx.config.max_texture_channel_caches = gfx_info->v27.max_texture_channel_caches;
+				adev->gfx.config.max_gprs = le16_to_cpu(gfx_info->v27.gc_num_gprs);
+				adev->gfx.config.max_gs_threads = gfx_info->v27.gc_num_max_gs_thds;
+				adev->gfx.config.gs_vgt_table_depth = gfx_info->v27.gc_gs_table_depth;
+				adev->gfx.config.gs_prim_buffer_depth = le16_to_cpu(gfx_info->v27.gc_gsprim_buff_depth);
+				adev->gfx.config.double_offchip_lds_buf = gfx_info->v27.gc_double_offchip_lds_buffer;
+				adev->gfx.cu_info.wave_front_size = le16_to_cpu(gfx_info->v27.gc_wave_size);
+				adev->gfx.cu_info.max_waves_per_simd = le16_to_cpu(gfx_info->v27.gc_max_waves_per_simd);
+				adev->gfx.cu_info.max_scratch_slots_per_cu = gfx_info->v27.gc_max_scratch_slots_per_cu;
+				adev->gfx.cu_info.lds_size = le16_to_cpu(gfx_info->v27.gc_lds_size);
+				return 0;
+			default:
+				return -EINVAL;
+			}
+		} else if (frev == 3) {
+			switch (crev) {
+			case 0:
+				adev->gfx.config.max_shader_engines = gfx_info->v30.max_shader_engines;
+				adev->gfx.config.max_cu_per_sh = gfx_info->v30.max_cu_per_sh;
+				adev->gfx.config.max_sh_per_se = gfx_info->v30.max_sh_per_se;
+				adev->gfx.config.max_backends_per_se = gfx_info->v30.max_backends_per_se;
+				adev->gfx.config.max_texture_channel_caches = gfx_info->v30.max_texture_channel_caches;
+				return 0;
+			default:
+				return -EINVAL;
+			}
+		} else {
 			return -EINVAL;
 		}
 
@@ -730,4 +795,68 @@ int amdgpu_atomfirmware_get_fw_reserved_fb_size(struct amdgpu_device *adev)
 	}
 
 	return fw_reserved_fb_size;
+}
+
+/*
+ * Helper function to execute asic_init table
+ *
+ * @adev: amdgpu_device pointer
+ * @fb_reset: flag to indicate whether fb is reset or not
+ *
+ * Return 0 if succeed, otherwise failed
+ */
+int amdgpu_atomfirmware_asic_init(struct amdgpu_device *adev, bool fb_reset)
+{
+	struct amdgpu_mode_info *mode_info = &adev->mode_info;
+	struct atom_context *ctx;
+	uint8_t frev, crev;
+	uint16_t data_offset;
+	uint32_t bootup_sclk_in10khz, bootup_mclk_in10khz;
+	struct asic_init_ps_allocation_v2_1 asic_init_ps_v2_1;
+	int index;
+
+	if (!mode_info)
+		return -EINVAL;
+
+	ctx = mode_info->atom_context;
+	if (!ctx)
+		return -EINVAL;
+
+	/* query bootup sclk/mclk from firmware_info table */
+	index = get_index_into_master_table(atom_master_list_of_data_tables_v2_1,
+					    firmwareinfo);
+	if (amdgpu_atom_parse_data_header(ctx, index, NULL,
+				&frev, &crev, &data_offset)) {
+		union firmware_info *firmware_info =
+			(union firmware_info *)(ctx->bios +
+						data_offset);
+
+		bootup_sclk_in10khz =
+			le32_to_cpu(firmware_info->v31.bootup_sclk_in10khz);
+		bootup_mclk_in10khz =
+			le32_to_cpu(firmware_info->v31.bootup_mclk_in10khz);
+	} else {
+		return -EINVAL;
+	}
+
+	index = get_index_into_master_table(atom_master_list_of_command_functions_v2_1,
+                                            asic_init);
+	if (amdgpu_atom_parse_cmd_header(mode_info->atom_context, index, &frev, &crev)) {
+		if (frev == 2 && crev >= 1) {
+			memset(&asic_init_ps_v2_1, 0, sizeof(asic_init_ps_v2_1));
+			asic_init_ps_v2_1.param.engineparam.sclkfreqin10khz = bootup_sclk_in10khz;
+			asic_init_ps_v2_1.param.memparam.mclkfreqin10khz = bootup_mclk_in10khz;
+			asic_init_ps_v2_1.param.engineparam.engineflag = b3NORMAL_ENGINE_INIT;
+			if (!fb_reset)
+				asic_init_ps_v2_1.param.memparam.memflag = b3DRAM_SELF_REFRESH_EXIT;
+			else
+				asic_init_ps_v2_1.param.memparam.memflag = 0;
+		} else {
+			return -EINVAL;
+		}
+	} else {
+		return -EINVAL;
+	}
+
+	return amdgpu_atom_execute_table(ctx, ATOM_CMD_INIT, (uint32_t *)&asic_init_ps_v2_1);
 }

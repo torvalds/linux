@@ -443,8 +443,7 @@ static const struct regmap_config wm8523_regmap = {
 	.volatile_reg = wm8523_volatile_register,
 };
 
-static int wm8523_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8523_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8523_priv *wm8523;
 	unsigned int val;
@@ -529,7 +528,7 @@ static struct i2c_driver wm8523_i2c_driver = {
 		.name = "wm8523",
 		.of_match_table = wm8523_of_match,
 	},
-	.probe =    wm8523_i2c_probe,
+	.probe_new = wm8523_i2c_probe,
 	.id_table = wm8523_i2c_id,
 };
 

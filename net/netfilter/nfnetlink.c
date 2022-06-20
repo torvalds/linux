@@ -654,7 +654,6 @@ static void nfnetlink_rcv(struct sk_buff *skb)
 		netlink_rcv_skb(skb, nfnetlink_rcv_msg);
 }
 
-#ifdef CONFIG_MODULES
 static int nfnetlink_bind(struct net *net, int group)
 {
 	const struct nfnetlink_subsystem *ss;
@@ -670,9 +669,31 @@ static int nfnetlink_bind(struct net *net, int group)
 	rcu_read_unlock();
 	if (!ss)
 		request_module_nowait("nfnetlink-subsys-%d", type);
+
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	if (type == NFNL_SUBSYS_CTNETLINK) {
+		nfnl_lock(NFNL_SUBSYS_CTNETLINK);
+		WRITE_ONCE(net->ct.ctnetlink_has_listener, true);
+		nfnl_unlock(NFNL_SUBSYS_CTNETLINK);
+	}
+#endif
 	return 0;
 }
+
+static void nfnetlink_unbind(struct net *net, int group)
+{
+#ifdef CONFIG_NF_CONNTRACK_EVENTS
+	if (group <= NFNLGRP_NONE || group > NFNLGRP_MAX)
+		return;
+
+	if (nfnl_group2type[group] == NFNL_SUBSYS_CTNETLINK) {
+		nfnl_lock(NFNL_SUBSYS_CTNETLINK);
+		if (!nfnetlink_has_listeners(net, group))
+			WRITE_ONCE(net->ct.ctnetlink_has_listener, false);
+		nfnl_unlock(NFNL_SUBSYS_CTNETLINK);
+	}
 #endif
+}
 
 static int __net_init nfnetlink_net_init(struct net *net)
 {
@@ -680,9 +701,8 @@ static int __net_init nfnetlink_net_init(struct net *net)
 	struct netlink_kernel_cfg cfg = {
 		.groups	= NFNLGRP_MAX,
 		.input	= nfnetlink_rcv,
-#ifdef CONFIG_MODULES
 		.bind	= nfnetlink_bind,
-#endif
+		.unbind	= nfnetlink_unbind,
 	};
 
 	nfnlnet->nfnl = netlink_kernel_create(net, NETLINK_NETFILTER, &cfg);

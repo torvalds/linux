@@ -314,6 +314,30 @@ static const char * const mem_hops[] = {
 	"board",
 };
 
+static int perf_mem__op_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
+{
+	u64 op = PERF_MEM_LOCK_NA;
+	int l;
+
+	if (mem_info)
+		op = mem_info->data_src.mem_op;
+
+	if (op & PERF_MEM_OP_NA)
+		l = scnprintf(out, sz, "N/A");
+	else if (op & PERF_MEM_OP_LOAD)
+		l = scnprintf(out, sz, "LOAD");
+	else if (op & PERF_MEM_OP_STORE)
+		l = scnprintf(out, sz, "STORE");
+	else if (op & PERF_MEM_OP_PFETCH)
+		l = scnprintf(out, sz, "PFETCH");
+	else if (op & PERF_MEM_OP_EXEC)
+		l = scnprintf(out, sz, "EXEC");
+	else
+		l = scnprintf(out, sz, "No");
+
+	return l;
+}
+
 int perf_mem__lvl_scnprintf(char *out, size_t sz, struct mem_info *mem_info)
 {
 	size_t i, l = 0;
@@ -466,7 +490,10 @@ int perf_script__meminfo_scnprintf(char *out, size_t sz, struct mem_info *mem_in
 {
 	int i = 0;
 
-	i += perf_mem__lvl_scnprintf(out, sz, mem_info);
+	i += scnprintf(out, sz, "|OP ");
+	i += perf_mem__op_scnprintf(out + i, sz - i, mem_info);
+	i += scnprintf(out + i, sz - i, "|LVL ");
+	i += perf_mem__lvl_scnprintf(out + i, sz, mem_info);
 	i += scnprintf(out + i, sz - i, "|SNP ");
 	i += perf_mem__snp_scnprintf(out + i, sz - i, mem_info);
 	i += scnprintf(out + i, sz - i, "|TLB ");
@@ -582,6 +609,8 @@ do {				\
 		}
 		if (lvl & P(LVL, MISS))
 			if (lvl & P(LVL, L1)) stats->st_l1miss++;
+		if (lvl & P(LVL, NA))
+			stats->st_na++;
 	} else {
 		/* unparsable data_src? */
 		stats->noparse++;
@@ -608,6 +637,7 @@ void c2c_add_stats(struct c2c_stats *stats, struct c2c_stats *add)
 	stats->st_noadrs	+= add->st_noadrs;
 	stats->st_l1hit		+= add->st_l1hit;
 	stats->st_l1miss	+= add->st_l1miss;
+	stats->st_na		+= add->st_na;
 	stats->load		+= add->load;
 	stats->ld_excl		+= add->ld_excl;
 	stats->ld_shared	+= add->ld_shared;

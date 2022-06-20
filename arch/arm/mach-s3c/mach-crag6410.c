@@ -47,7 +47,7 @@
 #include "map.h"
 #include "regs-gpio.h"
 #include "gpio-samsung.h"
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #include "fb.h"
 #include "sdhci.h"

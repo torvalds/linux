@@ -743,7 +743,6 @@ struct iio_dev *inv_icm42600_gyro_init(struct inv_icm42600_state *st)
 	indio_dev->setup_ops = &inv_icm42600_buffer_ops;
 
 	ret = devm_iio_kfifo_buffer_setup(dev, indio_dev,
-					  INDIO_BUFFER_SOFTWARE,
 					  &inv_icm42600_buffer_ops);
 	if (ret)
 		return ERR_PTR(ret);

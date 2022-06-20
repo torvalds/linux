@@ -583,7 +583,7 @@
 			status = "disabled";
 		};
 
-		pinctrl: pin-controller@58020000 {
+		pinctrl: pinctrl@58020000 {
 			#address-cells = <1>;
 			#size-cells = <1>;
 			compatible = "st,stm32h743-pinctrl";

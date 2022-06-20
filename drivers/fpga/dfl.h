@@ -89,6 +89,7 @@
 #define FME_HDR_NEXT_AFU	NEXT_AFU
 #define FME_HDR_CAP		0x30
 #define FME_HDR_PORT_OFST(n)	(0x38 + ((n) * 0x8))
+#define FME_PORT_OFST_BAR_SKIP	7
 #define FME_HDR_BITSTREAM_ID	0x60
 #define FME_HDR_BITSTREAM_MD	0x68
 

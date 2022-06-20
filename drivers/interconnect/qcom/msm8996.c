@@ -1796,7 +1796,7 @@ static struct qcom_icc_node slv_srvc_snoc = {
 	.qos.qos_mode = NOC_QOS_MODE_INVALID
 };
 
-static struct qcom_icc_node *a0noc_nodes[] = {
+static struct qcom_icc_node * const a0noc_nodes[] = {
 	[MASTER_PCIE_0] = &mas_pcie_0,
 	[MASTER_PCIE_1] = &mas_pcie_1,
 	[MASTER_PCIE_2] = &mas_pcie_2
@@ -1820,7 +1820,7 @@ static const struct qcom_icc_desc msm8996_a0noc = {
 	.regmap_cfg = &msm8996_a0noc_regmap_config
 };
 
-static struct qcom_icc_node *a1noc_nodes[] = {
+static struct qcom_icc_node * const a1noc_nodes[] = {
 	[MASTER_CNOC_A1NOC] = &mas_cnoc_a1noc,
 	[MASTER_CRYPTO_CORE0] = &mas_crypto_c0,
 	[MASTER_PNOC_A1NOC] = &mas_pnoc_a1noc
@@ -1841,7 +1841,7 @@ static const struct qcom_icc_desc msm8996_a1noc = {
 	.regmap_cfg = &msm8996_a1noc_regmap_config
 };
 
-static struct qcom_icc_node *a2noc_nodes[] = {
+static struct qcom_icc_node * const a2noc_nodes[] = {
 	[MASTER_USB3] = &mas_usb3,
 	[MASTER_IPA] = &mas_ipa,
 	[MASTER_UFS] = &mas_ufs
@@ -1862,7 +1862,7 @@ static const struct qcom_icc_desc msm8996_a2noc = {
 	.regmap_cfg = &msm8996_a2noc_regmap_config
 };
 
-static struct qcom_icc_node *bimc_nodes[] = {
+static struct qcom_icc_node * const bimc_nodes[] = {
 	[MASTER_AMPSS_M0] = &mas_apps_proc,
 	[MASTER_GRAPHICS_3D] = &mas_oxili,
 	[MASTER_MNOC_BIMC] = &mas_mnoc_bimc,
@@ -1888,7 +1888,7 @@ static const struct qcom_icc_desc msm8996_bimc = {
 	.regmap_cfg = &msm8996_bimc_regmap_config
 };
 
-static struct qcom_icc_node *cnoc_nodes[] = {
+static struct qcom_icc_node * const cnoc_nodes[] = {
 	[MASTER_SNOC_CNOC] = &mas_snoc_cnoc,
 	[MASTER_QDSS_DAP] = &mas_qdss_dap,
 	[SLAVE_CNOC_A1NOC] = &slv_cnoc_a1noc,
@@ -1946,7 +1946,7 @@ static const struct qcom_icc_desc msm8996_cnoc = {
 	.regmap_cfg = &msm8996_cnoc_regmap_config
 };
 
-static struct qcom_icc_node *mnoc_nodes[] = {
+static struct qcom_icc_node * const mnoc_nodes[] = {
 	[MASTER_CNOC_MNOC_CFG] = &mas_cnoc_mnoc_cfg,
 	[MASTER_CPP] = &mas_cpp,
 	[MASTER_JPEG] = &mas_jpeg,
@@ -2001,7 +2001,7 @@ static const struct qcom_icc_desc msm8996_mnoc = {
 	.regmap_cfg = &msm8996_mnoc_regmap_config
 };
 
-static struct qcom_icc_node *pnoc_nodes[] = {
+static struct qcom_icc_node * const pnoc_nodes[] = {
 	[MASTER_SNOC_PNOC] = &mas_snoc_pnoc,
 	[MASTER_SDCC_1] = &mas_sdcc_1,
 	[MASTER_SDCC_2] = &mas_sdcc_2,
@@ -2037,7 +2037,7 @@ static const struct qcom_icc_desc msm8996_pnoc = {
 	.regmap_cfg = &msm8996_pnoc_regmap_config
 };
 
-static struct qcom_icc_node *snoc_nodes[] = {
+static struct qcom_icc_node * const snoc_nodes[] = {
 	[MASTER_HMSS] = &mas_hmss,
 	[MASTER_QDSS_BAM] = &mas_qdss_bam,
 	[MASTER_SNOC_CFG] = &mas_snoc_cfg,

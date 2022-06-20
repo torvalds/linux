@@ -35,8 +35,10 @@
 	 |((_series)[_index].RateFlags & ATH9K_RATESERIES_HALFGI ?	\
 	   AR_GI##_index : 0)						\
 	 |((_series)[_index].RateFlags & ATH9K_RATESERIES_STBC ?	\
-	   AR_STBC##_index : 0)						\
-	 |SM((_series)[_index].ChSel, AR_ChainSel##_index))
+	   AR_STBC##_index : 0))
+
+#define set11nChainSel(_series, _index)					\
+	(SM((_series)[_index].ChSel, AR_ChainSel##_index))
 
 #define CCK_SIFS_TIME        10
 #define CCK_PREAMBLE_BITS   144

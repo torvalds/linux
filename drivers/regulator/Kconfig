@@ -1057,6 +1057,16 @@ config REGULATOR_RT5190A
 	  buck converters, 1 LDO, mute AC OFF depop function, with the general
 	  I2C control interface.
 
+config REGULATOR_RT5759
+	tristate "Richtek RT5759 Regulator"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  This adds support for voltage regulator in Richtek RT5759.
+	  The RT5759 is a high-performance, synchronous step-down DC-DC
+	  converter that can deliver up to 9A output current from 3V to 6.5V
+	  input supply.
+
 config REGULATOR_RT6160
 	tristate "Richtek RT6160 BuckBoost voltage regulator"
 	depends on I2C
@@ -1156,6 +1166,13 @@ config REGULATOR_SLG51000
 	  Say y here to support for the Dialog Semiconductor SLG51000.
 	  The SLG51000 is seven compact and customizable low dropout
 	  regulators.
+
+config REGULATOR_SM5703
+	tristate "Silicon Mitus SM5703 regulators"
+	depends on MFD_SM5703
+	help
+	  This driver provides support for voltage regulators of SM5703
+	  multi-function device.
 
 config REGULATOR_STM32_BOOSTER
 	tristate "STMicroelectronics STM32 BOOSTER"

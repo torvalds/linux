@@ -204,7 +204,7 @@ void etm_set_default(struct etm_config *config)
 	 *  set all bits in register 0x007, the ETMTECR2, to 0
 	 *  set register 0x008, the ETMTEEVR, to 0x6F (TRUE).
 	 */
-	config->enable_ctrl1 = BIT(24);
+	config->enable_ctrl1 = ETMTECR1_INC_EXC;
 	config->enable_ctrl2 = 0x0;
 	config->enable_event = ETM_HARD_WIRE_RES_A;
 

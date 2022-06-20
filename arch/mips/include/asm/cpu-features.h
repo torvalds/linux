@@ -133,6 +133,9 @@
 #  define raw_cpu_has_fpu	0
 # endif
 #else
+# if cpu_has_fpu
+#  error "Forcing `cpu_has_fpu' to non-zero is not supported"
+# endif
 # define raw_cpu_has_fpu	cpu_has_fpu
 #endif
 #ifndef cpu_has_32fpr

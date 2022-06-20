@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  * Copyright (C) 2015-2017 Intel Deutschland GmbH
  */
@@ -552,6 +552,12 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	/* Fill the common data for all mac context types */
 	iwl_mvm_mac_ctxt_cmd_common(mvm, vif, &cmd, bssid_override, action);
 
+	/*
+	 * We always want to hear MCAST frames, if we're not authorized yet,
+	 * we'll drop them.
+	 */
+	cmd.filter_flags |= cpu_to_le32(MAC_FILTER_ACCEPT_GRP);
+
 	if (vif->p2p) {
 		struct ieee80211_p2p_noa_attr *noa =
 			&vif->bss_conf.p2p_noa_attr;
@@ -567,7 +573,6 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 	if (vif->bss_conf.assoc && vif->bss_conf.dtim_period &&
 	    !force_assoc_off) {
 		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
-		u8 ap_sta_id = mvmvif->ap_sta_id;
 		u32 dtim_offs;
 
 		/*
@@ -609,29 +614,6 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 				IWL_UCODE_TLV_CAPA_COEX_HIGH_PRIO))
 			ctxt_sta->data_policy |=
 				cpu_to_le32(COEX_HIGH_PRIORITY_ENABLE);
-
-		/*
-		 * allow multicast data frames only as long as the station is
-		 * authorized, i.e., GTK keys are already installed (if needed)
-		 */
-		if (ap_sta_id < mvm->fw->ucode_capa.num_stations) {
-			struct ieee80211_sta *sta;
-
-			rcu_read_lock();
-
-			sta = rcu_dereference(mvm->fw_id_to_mac_id[ap_sta_id]);
-			if (!IS_ERR_OR_NULL(sta)) {
-				struct iwl_mvm_sta *mvmsta =
-					iwl_mvm_sta_from_mac80211(sta);
-
-				if (mvmsta->sta_state ==
-				    IEEE80211_STA_AUTHORIZED)
-					cmd.filter_flags |=
-						cpu_to_le32(MAC_FILTER_ACCEPT_GRP);
-			}
-
-			rcu_read_unlock();
-		}
 	} else {
 		ctxt_sta->is_assoc = cpu_to_le32(0);
 

@@ -54,7 +54,7 @@ int bnxt_hwrm_nvm_get_dev_info(struct bnxt *bp,
 int bnxt_hwrm_firmware_reset(struct net_device *dev, u8 proc_type,
 			     u8 self_reset, u8 flags);
 int bnxt_flash_package_from_fw_obj(struct net_device *dev, const struct firmware *fw,
-				   u32 install_type);
+				   u32 install_type, struct netlink_ext_ack *extack);
 int bnxt_get_pkginfo(struct net_device *dev, char *ver, int size);
 void bnxt_ethtool_init(struct bnxt *bp);
 void bnxt_ethtool_free(struct bnxt *bp);

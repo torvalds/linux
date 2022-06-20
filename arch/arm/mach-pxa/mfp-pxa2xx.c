@@ -16,8 +16,9 @@
 #include <linux/init.h>
 #include <linux/io.h>
 #include <linux/syscore_ops.h>
+#include <linux/soc/pxa/cpu.h>
 
-#include <mach/pxa2xx-regs.h>
+#include "pxa2xx-regs.h"
 #include "mfp-pxa2xx.h"
 
 #include "generic.h"

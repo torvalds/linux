@@ -1,0 +1,369 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# System register metadata
+
+# Each System register is described by a Sysreg block:
+
+# Sysreg 	<name>	<op0> 	<op1>	<crn>	<crm>	<op2>
+# <field>
+# ...
+# EndSysreg
+
+# Within a Sysreg block, each field can be described as one of:
+
+# Res0	<msb>[:<lsb>]
+
+# Res1	<msb>[:<lsb>]
+
+# Field	<msb>[:<lsb>]	<name>
+
+# Enum	<msb>[:<lsb>]	<name>
+#	<enumval>	<enumname>
+#	...
+# EndEnum
+
+# Alternatively if multiple registers share the same layout then
+# a SysregFields block can be used to describe the shared layout
+
+# SysregFields	<fieldsname>
+# <field>
+# ...
+# EndSysregFields
+
+# and referenced from within the Sysreg:
+
+# Sysreg 	<name>	<op0> 	<op1>	<crn>	<crm>	<op2>
+# Fields	<fieldsname>
+# EndSysreg
+
+# For ID registers we adopt a few conventions for translating the
+# language in the ARM into defines:
+#
+# NI  - Not implemented
+# IMP - Implemented
+#
+# In general it is recommended that new enumeration items be named for the
+# feature that introduces them (eg, FEAT_LS64_ACCDATA introduces enumeration
+# item ACCDATA) though it may be more taseful to do something else.
+
+Sysreg	ID_AA64ISAR0_EL1	3	0	0	6	0
+Enum	63:60	RNDR
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	59:56	TLB
+	0b0000	NI
+	0b0001	OS
+	0b0010	RANGE
+EndEnum
+Enum	55:52	TS
+	0b0000	NI
+	0b0001	FLAGM
+	0b0010	FLAGM2
+EndEnum
+Enum	51:48	FHM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	47:44	DP
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	43:40	SM4
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	39:36	SM3
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	35:32	SHA3
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	31:28	RDM
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	27:24	TME
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	23:20	ATOMIC
+	0b0000	NI
+	0b0010	IMP
+EndEnum
+Enum	19:16	CRC32
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	SHA2
+	0b0000	NI
+	0b0001	SHA256
+	0b0010	SHA512
+EndEnum
+Enum	11:8	SHA1
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	AES
+	0b0000	NI
+	0b0001	AES
+	0b0010	PMULL
+EndEnum
+Res0	3:0
+EndSysreg
+
+Sysreg	SCTLR_EL1	3	0	1	0	0
+Field	63	TIDCP
+Field	62	SPINMASK
+Field	61	NMI
+Field	60	EnTP2
+Res0	59:58
+Field	57	EPAN
+Field	56	EnALS
+Field	55	EnAS0
+Field	54	EnASR
+Field	53	TME
+Field	52	TME0
+Field	51	TMT
+Field	50	TMT0
+Field	49:46	TWEDEL
+Field	45	TWEDEn
+Field	44	DSSBS
+Field	43	ATA
+Field	42	ATA0
+Enum	41:40	TCF
+	0b00	NONE
+	0b01	SYNC
+	0b10	ASYNC
+	0b11	ASYMM
+EndEnum
+Enum	39:38	TCF0
+	0b00	NONE
+	0b01	SYNC
+	0b10	ASYNC
+	0b11	ASYMM
+EndEnum
+Field	37	ITFSB
+Field	36	BT1
+Field	35	BT0
+Res0	34
+Field	33	MSCEn
+Field	32	CMOW
+Field	31	EnIA
+Field	30	EnIB
+Field	29	LSMAOE
+Field	28	nTLSMD
+Field	27	EnDA
+Field	26	UCI
+Field	25	EE
+Field	24	E0E
+Field	23	SPAN
+Field	22	EIS
+Field	21	IESB
+Field	20	TSCXT
+Field	19	WXN
+Field	18	nTWE
+Res0	17
+Field	16	nTWI
+Field	15	UCT
+Field	14	DZE
+Field	13	EnDB
+Field	12	I
+Field	11	EOS
+Field	10	EnRCTX
+Field	9	UMA
+Field	8	SED
+Field	7	ITD
+Field	6	nAA
+Field	5	CP15BEN
+Field	4	SA0
+Field	3	SA
+Field	2	C
+Field	1	A
+Field	0	M
+EndSysreg
+
+SysregFields	CPACR_ELx
+Res0	63:29
+Field	28	TTA
+Res0	27:26
+Field	25:24	SMEN
+Res0	23:22
+Field	21:20	FPEN
+Res0	19:18
+Field	17:16	ZEN
+Res0	15:0
+EndSysregFields
+
+Sysreg	CPACR_EL1	3	0	1	0	2
+Fields	CPACR_ELx
+EndSysreg
+
+Sysreg	SMPRI_EL1	3	0	1	2	4
+Res0	63:4
+Field	3:0	PRIORITY
+EndSysreg
+
+SysregFields	ZCR_ELx
+Res0	63:9
+Raz	8:4
+Field	3:0	LEN
+EndSysregFields
+
+Sysreg ZCR_EL1	3	0	1	2	0
+Fields ZCR_ELx
+EndSysreg
+
+SysregFields	SMCR_ELx
+Res0	63:32
+Field	31	FA64
+Res0	30:9
+Raz	8:4
+Field	3:0	LEN
+EndSysregFields
+
+Sysreg	SMCR_EL1	3	0	1	2	6
+Fields	SMCR_ELx
+EndSysreg
+
+Sysreg	FAR_EL1	3	0	6	0	0
+Field	63:0	ADDR
+EndSysreg
+
+SysregFields	CONTEXTIDR_ELx
+Res0	63:32
+Field	31:0	PROCID
+EndSysregFields
+
+Sysreg	CONTEXTIDR_EL1	3	0	13	0	1
+Fields	CONTEXTIDR_ELx
+EndSysreg
+
+Sysreg	CLIDR_EL1	3	1	0	0	1
+Res0	63:47
+Field	46:33	Ttypen
+Field	32:30	ICB
+Field	29:27	LoUU
+Field	26:24	LoC
+Field	23:21	LoUIS
+Field	20:18	Ctype7
+Field	17:15	Ctype6
+Field	14:12	Ctype5
+Field	11:9	Ctype4
+Field	8:6	Ctype3
+Field	5:3	Ctype2
+Field	2:0	Ctype1
+EndSysreg
+
+Sysreg	SMIDR_EL1	3	1	0	0	6
+Res0	63:32
+Field	31:24	IMPLEMENTER
+Field	23:16	REVISION
+Field	15	SMPS
+Res0	14:12
+Field	11:0	AFFINITY
+EndSysreg
+
+Sysreg	CSSELR_EL1	3	2	0	0	0
+Res0	63:5
+Field	4	TnD
+Field	3:1	Level
+Field	0	InD
+EndSysreg
+
+Sysreg	SVCR	3	3	4	2	2
+Res0	63:2
+Field	1	ZA
+Field	0	SM
+EndSysreg
+
+Sysreg	ZCR_EL2	3	4	1	2	0
+Fields	ZCR_ELx
+EndSysreg
+
+Sysreg	SMPRIMAP_EL2	3	4	1	2	5
+Field	63:60	P15
+Field	59:56	P14
+Field	55:52	P13
+Field	51:48	P12
+Field	47:44	P11
+Field	43:40	P10
+Field	39:36	F9
+Field	35:32	P8
+Field	31:28	P7
+Field	27:24	P6
+Field	23:20	P5
+Field	19:16	P4
+Field	15:12	P3
+Field	11:8	P2
+Field	7:4	P1
+Field	3:0	P0
+EndSysreg
+
+Sysreg	SMCR_EL2	3	4	1	2	6
+Fields	SMCR_ELx
+EndSysreg
+
+Sysreg	DACR32_EL2	3	4	3	0	0
+Res0	63:32
+Field	31:30	D15
+Field	29:28	D14
+Field	27:26	D13
+Field	25:24	D12
+Field	23:22	D11
+Field	21:20	D10
+Field	19:18	D9
+Field	17:16	D8
+Field	15:14	D7
+Field	13:12	D6
+Field	11:10	D5
+Field	9:8	D4
+Field	7:6	D3
+Field	5:4	D2
+Field	3:2	D1
+Field	1:0	D0
+EndSysreg
+
+Sysreg	FAR_EL2	3	4	6	0	0
+Field	63:0	ADDR
+EndSysreg
+
+Sysreg	CONTEXTIDR_EL2	3	4	13	0	1
+Fields	CONTEXTIDR_ELx
+EndSysreg
+
+Sysreg	CPACR_EL12	3	5	1	0	2
+Fields	CPACR_ELx
+EndSysreg
+
+Sysreg	ZCR_EL12	3	5	1	2	0
+Fields	ZCR_ELx
+EndSysreg
+
+Sysreg	SMCR_EL12	3	5	1	2	6
+Fields	SMCR_ELx
+EndSysreg
+
+Sysreg	FAR_EL12	3	5	6	0	0
+Field	63:0	ADDR
+EndSysreg
+
+Sysreg	CONTEXTIDR_EL12	3	5	13	0	1
+Fields	CONTEXTIDR_ELx
+EndSysreg
+
+SysregFields TTBRx_EL1
+Field	63:48	ASID
+Field	47:1	BADDR
+Field	0	CnP
+EndSysregFields
+
+Sysreg	TTBR0_EL1	3	0	2	0	0
+Fields	TTBRx_EL1
+EndSysreg
+
+Sysreg	TTBR1_EL1	3	0	2	0	1
+Fields	TTBRx_EL1
+EndSysreg

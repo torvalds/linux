@@ -87,6 +87,7 @@ struct fw_priv {
 };
 
 extern struct mutex fw_lock;
+extern struct firmware_cache fw_cache;
 
 static inline bool __fw_state_check(struct fw_priv *fw_priv,
 				    enum fw_status status)
@@ -149,7 +150,22 @@ static inline void fw_state_done(struct fw_priv *fw_priv)
 	__fw_state_set(fw_priv, FW_STATUS_DONE);
 }
 
+static inline bool fw_state_is_done(struct fw_priv *fw_priv)
+{
+	return __fw_state_check(fw_priv, FW_STATUS_DONE);
+}
+
+static inline bool fw_state_is_loading(struct fw_priv *fw_priv)
+{
+	return __fw_state_check(fw_priv, FW_STATUS_LOADING);
+}
+
+int alloc_lookup_fw_priv(const char *fw_name, struct firmware_cache *fwc,
+			 struct fw_priv **fw_priv, void *dbuf, size_t size,
+			 size_t offset, u32 opt_flags);
 int assign_fw(struct firmware *fw, struct device *device);
+void free_fw_priv(struct fw_priv *fw_priv);
+void fw_state_init(struct fw_priv *fw_priv);
 
 #ifdef CONFIG_FW_LOADER
 bool firmware_is_builtin(const struct firmware *fw);

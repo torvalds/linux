@@ -225,7 +225,7 @@ txx9_alloc_pci_controller(struct pci_controller *pcic,
 static int __init
 txx9_arch_pci_init(void)
 {
-	PCIBIOS_MIN_IO = 0x8000;	/* reseve legacy I/O space */
+	PCIBIOS_MIN_IO = 0x8000;	/* reserve legacy I/O space */
 	return 0;
 }
 arch_initcall(txx9_arch_pci_init);

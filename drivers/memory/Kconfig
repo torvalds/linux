@@ -103,7 +103,7 @@ config TI_EMIF
 	  temperature changes
 
 config OMAP_GPMC
-	bool "Texas Instruments OMAP SoC GPMC driver" if COMPILE_TEST
+	tristate "Texas Instruments OMAP SoC GPMC driver"
 	depends on OF_ADDRESS
 	select GPIOLIB
 	help

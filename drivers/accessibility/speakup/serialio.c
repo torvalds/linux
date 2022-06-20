@@ -59,7 +59,7 @@ const struct old_serial_port *spk_serial_init(int index)
 	}
 	ser = rs_table + index;
 
-	/*	Divisor, bytesize and parity */
+	/*	Divisor, byte size and parity */
 	quot = ser->baud_base / baud;
 	cval = cflag & (CSIZE | CSTOPB);
 #if defined(__powerpc__) || defined(__alpha__)

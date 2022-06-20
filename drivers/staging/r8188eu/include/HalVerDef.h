@@ -25,7 +25,6 @@ struct HAL_VERSION {
 	enum HAL_CHIP_TYPE	ChipType;
 	enum HAL_CUT_VERSION	CUTVersion;
 	enum HAL_VENDOR		VendorType;
-	u8			ROMVer;
 };
 
 /*  Get element */
@@ -34,10 +33,10 @@ struct HAL_VERSION {
 
 /* HAL_CHIP_TYPE_E */
 #define IS_NORMAL_CHIP(version)				\
-	((GET_CVID_CHIP_TYPE(version) == NORMAL_CHIP) ? true : false)
+	(GET_CVID_CHIP_TYPE(version) == NORMAL_CHIP)
 
 /* HAL_VENDOR_E */
 #define IS_CHIP_VENDOR_TSMC(version)			\
-	((GET_CVID_MANUFACTUER(version) == CHIP_VENDOR_TSMC) ? true : false)
+	(GET_CVID_MANUFACTUER(version) == CHIP_VENDOR_TSMC)
 
 #endif

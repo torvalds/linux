@@ -311,6 +311,7 @@ err_out:
 
 	/* BUG_ON due to failure in allocation of orig_mask/mask */
 	BUG_ON(-1);
+	return NULL;
 }
 
 static cpu_set_t *bind_to_node(int target_node)
@@ -364,6 +365,7 @@ err_out:
 
 	/* BUG_ON due to failure in allocation of orig_mask/mask */
 	BUG_ON(-1);
+	return NULL;
 }
 
 static void bind_to_cpumask(cpu_set_t *mask)
@@ -1738,7 +1740,7 @@ static int __bench_numa(const char *name)
 		"GB/sec,", "total-speed",	"GB/sec total speed");
 
 	if (g->p.show_details >= 2) {
-		char tname[14 + 2 * 10 + 1];
+		char tname[14 + 2 * 11 + 1];
 		struct thread_data *td;
 		for (p = 0; p < g->p.nr_proc; p++) {
 			for (t = 0; t < g->p.nr_threads; t++) {

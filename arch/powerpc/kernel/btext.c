@@ -10,9 +10,9 @@
 #include <linux/export.h>
 #include <linux/memblock.h>
 #include <linux/pgtable.h>
+#include <linux/of.h>
 
 #include <asm/sections.h>
-#include <asm/prom.h>
 #include <asm/btext.h>
 #include <asm/page.h>
 #include <asm/mmu.h>
@@ -45,8 +45,7 @@ unsigned long disp_BAT[2] __initdata = {0, 0};
 
 static unsigned char vga_font[cmapsz];
 
-int boot_text_mapped __force_data = 0;
-int force_printk_to_btext = 0;
+static int boot_text_mapped __force_data;
 
 extern void rmci_on(void);
 extern void rmci_off(void);

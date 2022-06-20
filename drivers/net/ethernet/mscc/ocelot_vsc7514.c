@@ -190,6 +190,7 @@ static const struct ocelot_stat_layout ocelot_stats_layout[] = {
 	{ .name = "drop_green_prio_5", .offset = 0x8F, },
 	{ .name = "drop_green_prio_6", .offset = 0x90, },
 	{ .name = "drop_green_prio_7", .offset = 0x91, },
+	OCELOT_STAT_END
 };
 
 static void ocelot_pll5_init(struct ocelot *ocelot)
@@ -227,7 +228,6 @@ static int ocelot_chip_init(struct ocelot *ocelot, const struct ocelot_ops *ops)
 
 	ocelot->map = ocelot_regmap;
 	ocelot->stats_layout = ocelot_stats_layout;
-	ocelot->num_stats = ARRAY_SIZE(ocelot_stats_layout);
 	ocelot->num_mact_rows = 1024;
 	ocelot->ops = ops;
 

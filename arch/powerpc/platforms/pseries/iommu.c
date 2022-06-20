@@ -666,8 +666,7 @@ static void pci_dma_bus_setup_pSeries(struct pci_bus *bus)
 
 #ifdef CONFIG_IOMMU_API
 static int tce_exchange_pseries(struct iommu_table *tbl, long index, unsigned
-				long *tce, enum dma_data_direction *direction,
-				bool realmode)
+				long *tce, enum dma_data_direction *direction)
 {
 	long rc;
 	unsigned long ioba = (unsigned long) index << tbl->it_page_shift;
@@ -1430,7 +1429,7 @@ static bool enable_ddw(struct pci_dev *dev, struct device_node *pdn)
 
 		pci->table_group->tables[1] = newtbl;
 
-		/* Keep default DMA window stuct if removed */
+		/* Keep default DMA window struct if removed */
 		if (default_win_removed) {
 			tbl->it_size = 0;
 			vfree(tbl->it_map);

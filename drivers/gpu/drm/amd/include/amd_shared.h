@@ -148,6 +148,8 @@ enum amd_powergating_state {
 #define AMD_CG_SUPPORT_ATHUB_MGCG		(1ULL << 29)
 #define AMD_CG_SUPPORT_JPEG_MGCG		(1ULL << 30)
 #define AMD_CG_SUPPORT_GFX_FGCG			(1ULL << 31)
+#define AMD_CG_SUPPORT_REPEATER_FGCG		(1ULL << 32)
+#define AMD_CG_SUPPORT_GFX_PERF_CLK		(1ULL << 33)
 /* PG flags */
 #define AMD_PG_SUPPORT_GFX_PG			(1 << 0)
 #define AMD_PG_SUPPORT_GFX_SMG			(1 << 1)
@@ -167,6 +169,7 @@ enum amd_powergating_state {
 #define AMD_PG_SUPPORT_VCN_DPG			(1 << 15)
 #define AMD_PG_SUPPORT_ATHUB			(1 << 16)
 #define AMD_PG_SUPPORT_JPEG			(1 << 17)
+#define AMD_PG_SUPPORT_IH_SRAM_PG		(1 << 18)
 
 /**
  * enum PP_FEATURE_MASK - Used to mask power play features.
@@ -234,6 +237,8 @@ enum DC_FEATURE_MASK {
 	DC_EDP_NO_POWER_SEQUENCING = (1 << 4), //0x10, disabled by default
 	DC_DISABLE_LTTPR_DP1_4A = (1 << 5), //0x20, disabled by default
 	DC_DISABLE_LTTPR_DP2_0 = (1 << 6), //0x40, disabled by default
+	DC_PSR_ALLOW_SMU_OPT = (1 << 7), //0x80, disabled by default
+	DC_PSR_ALLOW_MULTI_DISP_OPT = (1 << 8), //0x100, disabled by default
 };
 
 enum DC_DEBUG_MASK {

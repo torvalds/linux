@@ -140,8 +140,7 @@ over a rather long period of time, but improvements are always welcome!
 		prevents destructive compiler optimizations.  However,
 		with a bit of devious creativity, it is possible to
 		mishandle the return value from rcu_dereference().
-		Please see rcu_dereference.txt in this directory for
-		more information.
+		Please see rcu_dereference.rst for more information.
 
 		The rcu_dereference() primitive is used by the
 		various "_rcu()" list-traversal primitives, such
@@ -151,7 +150,7 @@ over a rather long period of time, but improvements are always welcome!
 		primitives.  This is particularly useful in code that
 		is common to readers and updaters.  However, lockdep
 		will complain if you access rcu_dereference() outside
-		of an RCU read-side critical section.  See lockdep.txt
+		of an RCU read-side critical section.  See lockdep.rst
 		to learn what to do about this.
 
 		Of course, neither rcu_dereference() nor the "_rcu()"
@@ -323,7 +322,7 @@ over a rather long period of time, but improvements are always welcome!
 	primitives when the update-side lock is held is that doing so
 	can be quite helpful in reducing code bloat when common code is
 	shared between readers and updaters.  Additional primitives
-	are provided for this case, as discussed in lockdep.txt.
+	are provided for this case, as discussed in lockdep.rst.
 
 	One exception to this rule is when data is only ever added to
 	the linked data structure, and is never removed during any
@@ -480,4 +479,4 @@ over a rather long period of time, but improvements are always welcome!
 	both rcu_barrier() and synchronize_rcu(), if necessary, using
 	something like workqueues to to execute them concurrently.
 
-	See rcubarrier.txt for more information.
+	See rcubarrier.rst for more information.

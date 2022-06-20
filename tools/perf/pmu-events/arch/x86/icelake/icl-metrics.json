@@ -18,18 +18,6 @@
         "MetricName": "IPC"
     },
     {
-        "BriefDescription": "Uops Per Instruction",
-        "MetricExpr": "UOPS_RETIRED.RETIRE_SLOTS / INST_RETIRED.ANY",
-        "MetricGroup": "Pipeline;Ret;Retire",
-        "MetricName": "UPI"
-    },
-    {
-        "BriefDescription": "Instruction per taken branch",
-        "MetricExpr": "UOPS_RETIRED.RETIRE_SLOTS / BR_INST_RETIRED.NEAR_TAKEN",
-        "MetricGroup": "Branches;Fed;FetchBW",
-        "MetricName": "UpTB"
-    },
-    {
         "BriefDescription": "Cycles Per Instruction (per Logical Processor)",
         "MetricExpr": "1 / (INST_RETIRED.ANY / CPU_CLK_UNHALTED.THREAD)",
         "MetricGroup": "Pipeline;Mem",
@@ -409,12 +397,6 @@
         "MetricName": "IpFarBranch"
     },
     {
-        "BriefDescription": "C3 residency percent per core",
-        "MetricExpr": "(cstate_core@c3\\-residency@ / msr@tsc@) * 100",
-        "MetricGroup": "Power",
-        "MetricName": "C3_Core_Residency"
-    },
-    {
         "BriefDescription": "C6 residency percent per core",
         "MetricExpr": "(cstate_core@c6\\-residency@ / msr@tsc@) * 100",
         "MetricGroup": "Power",
@@ -449,5 +431,23 @@
         "MetricExpr": "(cstate_pkg@c7\\-residency@ / msr@tsc@) * 100",
         "MetricGroup": "Power",
         "MetricName": "C7_Pkg_Residency"
+    },
+    {
+        "BriefDescription": "C8 residency percent per package",
+        "MetricExpr": "(cstate_pkg@c8\\-residency@ / msr@tsc@) * 100",
+        "MetricGroup": "Power",
+        "MetricName": "C8_Pkg_Residency"
+    },
+    {
+        "BriefDescription": "C9 residency percent per package",
+        "MetricExpr": "(cstate_pkg@c9\\-residency@ / msr@tsc@) * 100",
+        "MetricGroup": "Power",
+        "MetricName": "C9_Pkg_Residency"
+    },
+    {
+        "BriefDescription": "C10 residency percent per package",
+        "MetricExpr": "(cstate_pkg@c10\\-residency@ / msr@tsc@) * 100",
+        "MetricGroup": "Power",
+        "MetricName": "C10_Pkg_Residency"
     }
 ]

@@ -17,6 +17,9 @@ Required properties:
 - #clock-cells : from common clock binding; shall be set to 0.
 - clocks : link phandles of clocks within this domain
 
+Optional properties:
+- clock-output-names : from common clock binding.
+
 Examples:
 	dss_clkdm: dss_clkdm {
 		compatible = "ti,clockdomain";

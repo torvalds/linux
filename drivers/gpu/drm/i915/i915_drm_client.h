@@ -13,7 +13,7 @@
 
 #include "gt/intel_engine_types.h"
 
-#define I915_LAST_UABI_ENGINE_CLASS I915_ENGINE_CLASS_VIDEO_ENHANCE
+#define I915_LAST_UABI_ENGINE_CLASS I915_ENGINE_CLASS_COMPUTE
 
 struct drm_i915_private;
 

@@ -29,7 +29,6 @@ cleanup_files()
 	rm -f ${file}
 	rm -f "${perfdata}.old"
 	trap - exit term int
-	kill -2 $$
 	exit $glb_err
 }
 

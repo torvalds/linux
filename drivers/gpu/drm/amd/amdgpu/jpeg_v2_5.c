@@ -99,6 +99,18 @@ static int jpeg_v2_5_sw_init(void *handle)
 				VCN_2_0__SRCID__JPEG_DECODE, &adev->jpeg.inst[i].irq);
 		if (r)
 			return r;
+
+		/* JPEG DJPEG POISON EVENT */
+		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_jpeg[i],
+			VCN_2_6__SRCID_DJPEG0_POISON, &adev->jpeg.inst[i].irq);
+		if (r)
+			return r;
+
+		/* JPEG EJPEG POISON EVENT */
+		r = amdgpu_irq_add_id(adev, amdgpu_ih_clientid_jpeg[i],
+			VCN_2_6__SRCID_EJPEG0_POISON, &adev->jpeg.inst[i].irq);
+		if (r)
+			return r;
 	}
 
 	r = amdgpu_jpeg_sw_init(adev);
@@ -402,7 +414,7 @@ static uint64_t jpeg_v2_5_dec_ring_get_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	if (ring->use_doorbell)
-		return adev->wb.wb[ring->wptr_offs];
+		return *ring->wptr_cpu_addr;
 	else
 		return RREG32_SOC15(JPEG, ring->me, mmUVD_JRBC_RB_WPTR);
 }
@@ -419,7 +431,7 @@ static void jpeg_v2_5_dec_ring_set_wptr(struct amdgpu_ring *ring)
 	struct amdgpu_device *adev = ring->adev;
 
 	if (ring->use_doorbell) {
-		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
+		*ring->wptr_cpu_addr = lower_32_bits(ring->wptr);
 		WDOORBELL32(ring->doorbell_index, lower_32_bits(ring->wptr));
 	} else {
 		WREG32_SOC15(JPEG, ring->me, mmUVD_JRBC_RB_WPTR, lower_32_bits(ring->wptr));
@@ -572,6 +584,10 @@ static int jpeg_v2_5_process_interrupt(struct amdgpu_device *adev,
 	switch (entry->src_id) {
 	case VCN_2_0__SRCID__JPEG_DECODE:
 		amdgpu_fence_process(&adev->jpeg.inst[ip_instance].ring_dec);
+		break;
+	case VCN_2_6__SRCID_DJPEG0_POISON:
+	case VCN_2_6__SRCID_EJPEG0_POISON:
+		amdgpu_jpeg_process_poison_irq(adev, source, entry);
 		break;
 	default:
 		DRM_ERROR("Unhandled interrupt: %d %d\n",

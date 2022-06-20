@@ -18,7 +18,10 @@
 #include "vlv_sideband.h"
 
 struct intel_dpll_funcs {
-	int (*crtc_compute_clock)(struct intel_crtc_state *crtc_state);
+	int (*crtc_compute_clock)(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc);
+	int (*crtc_get_shared_dpll)(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc);
 };
 
 struct intel_limit {
@@ -759,8 +762,8 @@ chv_find_best_dpll(const struct intel_limit *limit,
 bool bxt_find_best_dpll(struct intel_crtc_state *crtc_state,
 			struct dpll *best_clock)
 {
-	int refclk = 100000;
 	const struct intel_limit *limit = &intel_limits_bxt;
+	int refclk = 100000;
 
 	return chv_find_best_dpll(limit, crtc_state,
 				  crtc_state->port_clock, refclk,
@@ -927,30 +930,46 @@ static void i8xx_compute_dpll(struct intel_crtc_state *crtc_state,
 	crtc_state->dpll_hw_state.dpll = dpll;
 }
 
-static int hsw_crtc_compute_clock(struct intel_crtc_state *crtc_state)
+static int hsw_crtc_compute_clock(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(crtc_state->uapi.state);
+	return 0;
+}
+
+static int hsw_crtc_get_shared_dpll(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	struct intel_encoder *encoder =
 		intel_get_crtc_new_encoder(state, crtc_state);
-
-	if (IS_DG2(dev_priv))
-		return intel_mpllb_calc_state(crtc_state, encoder);
+	int ret;
 
 	if (DISPLAY_VER(dev_priv) < 11 &&
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
 		return 0;
 
-	if (!intel_reserve_shared_dplls(state, crtc, encoder)) {
+	ret = intel_reserve_shared_dplls(state, crtc, encoder);
+	if (ret) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "failed to find PLL for pipe %c\n",
 			    pipe_name(crtc->pipe));
-		return -EINVAL;
+		return ret;
 	}
 
 	return 0;
+}
+
+static int dg2_crtc_compute_clock(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
+{
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	struct intel_encoder *encoder =
+		intel_get_crtc_new_encoder(state, crtc_state);
+
+	return intel_mpllb_calc_state(crtc_state, encoder);
 }
 
 static bool ilk_needs_fb_cb_tune(const struct dpll *dpll, int factor)
@@ -1068,17 +1087,14 @@ static void ilk_compute_dpll(struct intel_crtc_state *crtc_state,
 	crtc_state->dpll_hw_state.dpll = dpll;
 }
 
-static int ilk_crtc_compute_clock(struct intel_crtc_state *crtc_state)
+static int ilk_crtc_compute_clock(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-	struct intel_atomic_state *state =
-		to_intel_atomic_state(crtc_state->uapi.state);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_limit *limit;
 	int refclk = 120000;
-
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
 
 	/* CPU eDP is the only output that doesn't need a PCH PLL of its own. */
 	if (!crtc_state->has_pch_encoder)
@@ -1118,11 +1134,27 @@ static int ilk_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 	ilk_compute_dpll(crtc_state, &crtc_state->dpll,
 			 &crtc_state->dpll);
 
-	if (!intel_reserve_shared_dplls(state, crtc, NULL)) {
+	return 0;
+}
+
+static int ilk_crtc_get_shared_dpll(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc)
+{
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+	int ret;
+
+	/* CPU eDP is the only output that doesn't need a PCH PLL of its own. */
+	if (!crtc_state->has_pch_encoder)
+		return 0;
+
+	ret = intel_reserve_shared_dplls(state, crtc, NULL);
+	if (ret) {
 		drm_dbg_kms(&dev_priv->drm,
 			    "failed to find PLL for pipe %c\n",
 			    pipe_name(crtc->pipe));
-		return -EINVAL;
+		return ret;
 	}
 
 	return 0;
@@ -1163,14 +1195,14 @@ void chv_compute_dpll(struct intel_crtc_state *crtc_state)
 		(crtc_state->pixel_multiplier - 1) << DPLL_MD_UDI_MULTIPLIER_SHIFT;
 }
 
-static int chv_crtc_compute_clock(struct intel_crtc_state *crtc_state)
+static int chv_crtc_compute_clock(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
 {
-	int refclk = 100000;
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_limit *limit = &intel_limits_chv;
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
-
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
+	int refclk = 100000;
 
 	if (!crtc_state->clock_set &&
 	    !chv_find_best_dpll(limit, crtc_state, crtc_state->port_clock,
@@ -1184,14 +1216,14 @@ static int chv_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
-static int vlv_crtc_compute_clock(struct intel_crtc_state *crtc_state)
+static int vlv_crtc_compute_clock(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
 {
-	int refclk = 100000;
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_limit *limit = &intel_limits_vlv;
-	struct drm_i915_private *i915 = to_i915(crtc_state->uapi.crtc->dev);
-
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
+	int refclk = 100000;
 
 	if (!crtc_state->clock_set &&
 	    !vlv_find_best_dpll(limit, crtc_state, crtc_state->port_clock,
@@ -1205,15 +1237,14 @@ static int vlv_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
-static int g4x_crtc_compute_clock(struct intel_crtc_state *crtc_state)
+static int g4x_crtc_compute_clock(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_limit *limit;
 	int refclk = 96000;
-
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if (intel_panel_use_ssc(dev_priv)) {
@@ -1251,15 +1282,14 @@ static int g4x_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
-static int pnv_crtc_compute_clock(struct intel_crtc_state *crtc_state)
+static int pnv_crtc_compute_clock(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_limit *limit;
 	int refclk = 96000;
-
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if (intel_panel_use_ssc(dev_priv)) {
@@ -1288,15 +1318,14 @@ static int pnv_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
-static int i9xx_crtc_compute_clock(struct intel_crtc_state *crtc_state)
+static int i9xx_crtc_compute_clock(struct intel_atomic_state *state,
+				   struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_limit *limit;
 	int refclk = 96000;
-
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if (intel_panel_use_ssc(dev_priv)) {
@@ -1325,15 +1354,14 @@ static int i9xx_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
-static int i8xx_crtc_compute_clock(struct intel_crtc_state *crtc_state)
+static int i8xx_crtc_compute_clock(struct intel_atomic_state *state,
+				   struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+	struct drm_i915_private *dev_priv = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 	const struct intel_limit *limit;
 	int refclk = 48000;
-
-	memset(&crtc_state->dpll_hw_state, 0,
-	       sizeof(crtc_state->dpll_hw_state));
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_LVDS)) {
 		if (intel_panel_use_ssc(dev_priv)) {
@@ -1364,12 +1392,18 @@ static int i8xx_crtc_compute_clock(struct intel_crtc_state *crtc_state)
 	return 0;
 }
 
+static const struct intel_dpll_funcs dg2_dpll_funcs = {
+	.crtc_compute_clock = dg2_crtc_compute_clock,
+};
+
 static const struct intel_dpll_funcs hsw_dpll_funcs = {
 	.crtc_compute_clock = hsw_crtc_compute_clock,
+	.crtc_get_shared_dpll = hsw_crtc_get_shared_dpll,
 };
 
 static const struct intel_dpll_funcs ilk_dpll_funcs = {
 	.crtc_compute_clock = ilk_crtc_compute_clock,
+	.crtc_get_shared_dpll = ilk_crtc_get_shared_dpll,
 };
 
 static const struct intel_dpll_funcs chv_dpll_funcs = {
@@ -1396,18 +1430,54 @@ static const struct intel_dpll_funcs i8xx_dpll_funcs = {
 	.crtc_compute_clock = i8xx_crtc_compute_clock,
 };
 
-int intel_dpll_crtc_compute_clock(struct intel_crtc_state *crtc_state)
+int intel_dpll_crtc_compute_clock(struct intel_atomic_state *state,
+				  struct intel_crtc *crtc)
 {
-	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
-	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
 
-	return i915->dpll_funcs->crtc_compute_clock(crtc_state);
+	drm_WARN_ON(&i915->drm, !intel_crtc_needs_modeset(crtc_state));
+
+	if (drm_WARN_ON(&i915->drm, crtc_state->shared_dpll))
+		return 0;
+
+	memset(&crtc_state->dpll_hw_state, 0,
+	       sizeof(crtc_state->dpll_hw_state));
+
+	if (!crtc_state->hw.enable)
+		return 0;
+
+	return i915->dpll_funcs->crtc_compute_clock(state, crtc);
+}
+
+int intel_dpll_crtc_get_shared_dpll(struct intel_atomic_state *state,
+				    struct intel_crtc *crtc)
+{
+	struct drm_i915_private *i915 = to_i915(state->base.dev);
+	struct intel_crtc_state *crtc_state =
+		intel_atomic_get_new_crtc_state(state, crtc);
+
+	drm_WARN_ON(&i915->drm, !intel_crtc_needs_modeset(crtc_state));
+
+	if (drm_WARN_ON(&i915->drm, crtc_state->shared_dpll))
+		return 0;
+
+	if (!crtc_state->hw.enable)
+		return 0;
+
+	if (!i915->dpll_funcs->crtc_get_shared_dpll)
+		return 0;
+
+	return i915->dpll_funcs->crtc_get_shared_dpll(state, crtc);
 }
 
 void
 intel_dpll_init_clock_hook(struct drm_i915_private *dev_priv)
 {
-	if (DISPLAY_VER(dev_priv) >= 9 || HAS_DDI(dev_priv))
+	if (IS_DG2(dev_priv))
+		dev_priv->dpll_funcs = &dg2_dpll_funcs;
+	else if (DISPLAY_VER(dev_priv) >= 9 || HAS_DDI(dev_priv))
 		dev_priv->dpll_funcs = &hsw_dpll_funcs;
 	else if (HAS_PCH_SPLIT(dev_priv))
 		dev_priv->dpll_funcs = &ilk_dpll_funcs;

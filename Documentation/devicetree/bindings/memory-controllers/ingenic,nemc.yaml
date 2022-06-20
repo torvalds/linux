@@ -39,38 +39,6 @@ properties:
 patternProperties:
   ".*@[0-9]+$":
     type: object
-    properties:
-      reg:
-        minItems: 1
-        maxItems: 255
-
-      ingenic,nemc-bus-width:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        enum: [8, 16]
-        description: Specifies the bus width in bits.
-
-      ingenic,nemc-tAS:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: Address setup time in nanoseconds.
-
-      ingenic,nemc-tAH:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: Address hold time in nanoseconds.
-
-      ingenic,nemc-tBP:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: Burst pitch time in nanoseconds.
-
-      ingenic,nemc-tAW:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: Address wait time in nanoseconds.
-
-      ingenic,nemc-tSTRV:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: Static memory recovery time in nanoseconds.
-
-    required:
-      - reg
 
 required:
   - compatible

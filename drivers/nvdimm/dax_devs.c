@@ -80,7 +80,7 @@ struct device *nd_dax_create(struct nd_region *nd_region)
 	nd_dax = nd_dax_alloc(nd_region);
 	if (nd_dax)
 		dev = nd_pfn_devinit(&nd_dax->nd_pfn, NULL);
-	__nd_device_register(dev);
+	nd_device_register(dev);
 	return dev;
 }
 
@@ -119,7 +119,7 @@ int nd_dax_probe(struct device *dev, struct nd_namespace_common *ndns)
 		nd_detach_ndns(dax_dev, &nd_pfn->ndns);
 		put_device(dax_dev);
 	} else
-		__nd_device_register(dax_dev);
+		nd_device_register(dax_dev);
 
 	return rc;
 }

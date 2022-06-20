@@ -37,12 +37,18 @@ properties:
           hardware supports just a single, combined interrupt line.
           If provided, then the combined interrupt will be used in preference to
           any others.
-      - minItems: 2
+      - minItems: 1
         items:
-          - const: eventq     # Event Queue not empty
-          - const: gerror     # Global Error activated
-          - const: priq       # PRI Queue not empty
-          - const: cmdq-sync  # CMD_SYNC complete
+          - enum:
+              - eventq     # Event Queue not empty
+              - gerror     # Global Error activated
+          - const: gerror
+          - enum:
+              - cmdq-sync  # CMD_SYNC complete
+              - priq       # PRI Queue not empty
+          - enum:
+              - cmdq-sync
+              - priq
 
   '#iommu-cells':
     const: 1

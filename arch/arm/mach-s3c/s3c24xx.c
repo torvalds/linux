@@ -146,7 +146,7 @@ static struct map_desc s3c_iodesc[] __initdata __maybe_unused = {
 	IODESC_ENT(UART)
 };
 
-/* read cpu identificaiton code */
+/* read cpu identification code */
 
 static unsigned long s3c24xx_read_idcode_v5(void)
 {
@@ -677,4 +677,11 @@ struct platform_device s3c2410_device_dclk = {
 		.platform_data = &s3c_clk_platform_data,
 	},
 };
+#endif
+
+#ifndef CONFIG_COMPILE_TEST
+#pragma message "The platform is deprecated and scheduled for removal. " \
+		"Please reach to the maintainers of the platform " \
+		"and linux-samsung-soc@vger.kernel.org if you still use it." \
+		"Without such feedback, the platform will be removed after 2022."
 #endif

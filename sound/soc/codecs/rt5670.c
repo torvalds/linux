@@ -3046,8 +3046,7 @@ const char *rt5670_components(void)
 }
 EXPORT_SYMBOL_GPL(rt5670_components);
 
-static int rt5670_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5670_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5670_priv *rt5670;
 	int ret;
@@ -3334,7 +3333,7 @@ static struct i2c_driver rt5670_i2c_driver = {
 		.name = "rt5670",
 		.acpi_match_table = ACPI_PTR(rt5670_acpi_match),
 	},
-	.probe = rt5670_i2c_probe,
+	.probe_new = rt5670_i2c_probe,
 	.remove   = rt5670_i2c_remove,
 	.id_table = rt5670_i2c_id,
 };

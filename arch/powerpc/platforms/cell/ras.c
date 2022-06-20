@@ -12,11 +12,11 @@
 #include <linux/reboot.h>
 #include <linux/kexec.h>
 #include <linux/crash_dump.h>
+#include <linux/of.h>
 
 #include <asm/kexec.h>
 #include <asm/reg.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include <asm/cell-regs.h>

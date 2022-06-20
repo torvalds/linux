@@ -17,6 +17,11 @@
 #include "b53_serdes.h"
 #include "b53_regs.h"
 
+static inline struct b53_pcs *pcs_to_b53_pcs(struct phylink_pcs *pcs)
+{
+	return container_of(pcs, struct b53_pcs, pcs);
+}
+
 static void b53_serdes_write_blk(struct b53_device *dev, u8 offset, u16 block,
 				 u16 value)
 {
@@ -60,33 +65,32 @@ static u16 b53_serdes_read(struct b53_device *dev, u8 lane,
 	return b53_serdes_read_blk(dev, offset, block);
 }
 
-void b53_serdes_config(struct b53_device *dev, int port, unsigned int mode,
-		       const struct phylink_link_state *state)
+static int b53_serdes_config(struct phylink_pcs *pcs, unsigned int mode,
+			     phy_interface_t interface,
+			     const unsigned long *advertising,
+			     bool permit_pause_to_mac)
 {
-	u8 lane = b53_serdes_map_lane(dev, port);
+	struct b53_device *dev = pcs_to_b53_pcs(pcs)->dev;
+	u8 lane = pcs_to_b53_pcs(pcs)->lane;
 	u16 reg;
-
-	if (lane == B53_INVALID_LANE)
-		return;
 
 	reg = b53_serdes_read(dev, lane, B53_SERDES_DIGITAL_CONTROL(1),
 			      SERDES_DIGITAL_BLK);
-	if (state->interface == PHY_INTERFACE_MODE_1000BASEX)
+	if (interface == PHY_INTERFACE_MODE_1000BASEX)
 		reg |= FIBER_MODE_1000X;
 	else
 		reg &= ~FIBER_MODE_1000X;
 	b53_serdes_write(dev, lane, B53_SERDES_DIGITAL_CONTROL(1),
 			 SERDES_DIGITAL_BLK, reg);
+
+	return 0;
 }
-EXPORT_SYMBOL(b53_serdes_config);
 
-void b53_serdes_an_restart(struct b53_device *dev, int port)
+static void b53_serdes_an_restart(struct phylink_pcs *pcs)
 {
-	u8 lane = b53_serdes_map_lane(dev, port);
+	struct b53_device *dev = pcs_to_b53_pcs(pcs)->dev;
+	u8 lane = pcs_to_b53_pcs(pcs)->lane;
 	u16 reg;
-
-	if (lane == B53_INVALID_LANE)
-		return;
 
 	reg = b53_serdes_read(dev, lane, B53_SERDES_MII_REG(MII_BMCR),
 			      SERDES_MII_BLK);
@@ -94,16 +98,13 @@ void b53_serdes_an_restart(struct b53_device *dev, int port)
 	b53_serdes_write(dev, lane, B53_SERDES_MII_REG(MII_BMCR),
 			 SERDES_MII_BLK, reg);
 }
-EXPORT_SYMBOL(b53_serdes_an_restart);
 
-int b53_serdes_link_state(struct b53_device *dev, int port,
-			  struct phylink_link_state *state)
+static void b53_serdes_get_state(struct phylink_pcs *pcs,
+				  struct phylink_link_state *state)
 {
-	u8 lane = b53_serdes_map_lane(dev, port);
+	struct b53_device *dev = pcs_to_b53_pcs(pcs)->dev;
+	u8 lane = pcs_to_b53_pcs(pcs)->lane;
 	u16 dig, bmsr;
-
-	if (lane == B53_INVALID_LANE)
-		return 1;
 
 	dig = b53_serdes_read(dev, lane, B53_SERDES_DIGITAL_STATUS,
 			      SERDES_DIGITAL_BLK);
@@ -133,10 +134,7 @@ int b53_serdes_link_state(struct b53_device *dev, int port,
 		state->pause |= MLO_PAUSE_RX;
 	if (dig & PAUSE_RESOLUTION_TX_SIDE)
 		state->pause |= MLO_PAUSE_TX;
-
-	return 0;
 }
-EXPORT_SYMBOL(b53_serdes_link_state);
 
 void b53_serdes_link_set(struct b53_device *dev, int port, unsigned int mode,
 			 phy_interface_t interface, bool link_up)
@@ -157,6 +155,12 @@ void b53_serdes_link_set(struct b53_device *dev, int port, unsigned int mode,
 			 SERDES_MII_BLK, reg);
 }
 EXPORT_SYMBOL(b53_serdes_link_set);
+
+static const struct phylink_pcs_ops b53_pcs_ops = {
+	.pcs_get_state = b53_serdes_get_state,
+	.pcs_config = b53_serdes_config,
+	.pcs_an_restart = b53_serdes_an_restart,
+};
 
 void b53_serdes_phylink_get_caps(struct b53_device *dev, int port,
 				 struct phylink_config *config)
@@ -187,9 +191,28 @@ void b53_serdes_phylink_get_caps(struct b53_device *dev, int port,
 }
 EXPORT_SYMBOL(b53_serdes_phylink_get_caps);
 
+struct phylink_pcs *b53_serdes_phylink_mac_select_pcs(struct b53_device *dev,
+						      int port,
+						      phy_interface_t interface)
+{
+	u8 lane = b53_serdes_map_lane(dev, port);
+
+	if (lane == B53_INVALID_LANE || lane >= B53_N_PCS ||
+	    !dev->pcs[lane].dev)
+		return NULL;
+
+	if (!phy_interface_mode_is_8023z(interface) &&
+	    interface != PHY_INTERFACE_MODE_SGMII)
+		return NULL;
+
+	return &dev->pcs[lane].pcs;
+}
+EXPORT_SYMBOL(b53_serdes_phylink_mac_select_pcs);
+
 int b53_serdes_init(struct b53_device *dev, int port)
 {
 	u8 lane = b53_serdes_map_lane(dev, port);
+	struct b53_pcs *pcs;
 	u16 id0, msb, lsb;
 
 	if (lane == B53_INVALID_LANE)
@@ -211,6 +234,11 @@ int b53_serdes_init(struct b53_device *dev, int port)
 		 (id0 >> SERDES_ID0_REV_LETTER_SHIFT) + 0x41,
 		 (id0 >> SERDES_ID0_REV_NUM_SHIFT) & SERDES_ID0_REV_NUM_MASK,
 		 (u32)msb << 16 | lsb);
+
+	pcs = &dev->pcs[lane];
+	pcs->dev = dev;
+	pcs->lane = lane;
+	pcs->pcs.ops = &b53_pcs_ops;
 
 	return 0;
 }

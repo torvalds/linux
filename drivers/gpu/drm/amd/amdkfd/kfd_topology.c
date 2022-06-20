@@ -1112,15 +1112,12 @@ static uint32_t kfd_generate_gpu_id(struct kfd_dev *gpu)
 	uint32_t buf[7];
 	uint64_t local_mem_size;
 	int i;
-	struct kfd_local_mem_info local_mem_info;
 
 	if (!gpu)
 		return 0;
 
-	amdgpu_amdkfd_get_local_mem_info(gpu->adev, &local_mem_info);
-
-	local_mem_size = local_mem_info.local_mem_size_private +
-			local_mem_info.local_mem_size_public;
+	local_mem_size = gpu->local_mem_info.local_mem_size_private +
+			gpu->local_mem_info.local_mem_size_public;
 
 	buf[0] = gpu->pdev->devfn;
 	buf[1] = gpu->pdev->subsystem_vendor |
@@ -1274,6 +1271,12 @@ static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 		if (!peer_dev)
 			continue;
 
+		/* Include the CPU peer in GPU hive if connected over xGMI. */
+		if (!peer_dev->gpu && !peer_dev->node_props.hive_id &&
+				dev->node_props.hive_id &&
+				dev->gpu->adev->gmc.xgmi.connected_to_cpu)
+			peer_dev->node_props.hive_id = dev->node_props.hive_id;
+
 		list_for_each_entry(inbound_link, &peer_dev->io_link_props,
 									list) {
 			if (inbound_link->node_to != link->node_from)
@@ -1304,22 +1307,6 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	gpu_id = kfd_generate_gpu_id(gpu);
 
 	pr_debug("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
-
-	/* Include the CPU in xGMI hive if xGMI connected by assigning it the hive ID. */
-	if (gpu->hive_id && gpu->adev->gmc.xgmi.connected_to_cpu) {
-		struct kfd_topology_device *top_dev;
-
-		down_read(&topology_lock);
-
-		list_for_each_entry(top_dev, &topology_device_list, list) {
-			if (top_dev->gpu)
-				break;
-
-			top_dev->node_props.hive_id = gpu->hive_id;
-		}
-
-		up_read(&topology_lock);
-	}
 
 	/* Check to see if this gpu device exists in the topology_device_list.
 	 * If so, assign the gpu to that device,
@@ -1415,7 +1402,8 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	dev->node_props.num_sdma_xgmi_engines =
 					kfd_get_num_xgmi_sdma_engines(gpu);
 	dev->node_props.num_sdma_queues_per_engine =
-				gpu->device_info.num_sdma_queues_per_engine;
+				gpu->device_info.num_sdma_queues_per_engine -
+				gpu->device_info.num_reserved_sdma_queues_per_engine;
 	dev->node_props.num_gws = (dev->gpu->gws &&
 		dev->gpu->dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) ?
 		dev->gpu->adev->gds.gws_size : 0;
@@ -1534,13 +1522,13 @@ static void kfd_topology_update_io_links(int proximity_domain)
 				list_del(&iolink->list);
 				dev->io_link_count--;
 				dev->node_props.io_links_count--;
-			} else if (iolink->node_from > proximity_domain) {
-				iolink->node_from--;
-			} else if (iolink->node_to > proximity_domain) {
-				iolink->node_to--;
+			} else {
+				if (iolink->node_from > proximity_domain)
+					iolink->node_from--;
+				if (iolink->node_to > proximity_domain)
+					iolink->node_to--;
 			}
 		}
-
 	}
 }
 

@@ -7,7 +7,7 @@ Intro
 =====
 
 This document is designed to provide a list of the minimum levels of
-software necessary to run the 4.x kernels.
+software necessary to run the current kernel version.
 
 This document is originally based on my "Changes" file for 2.0.x kernels
 and therefore owes credit to the same people as that file (Jared Mauch,
@@ -32,6 +32,7 @@ you probably needn't concern yourself with pcmciautils.
 GNU C                  5.1              gcc --version
 Clang/LLVM (optional)  11.0.0           clang --version
 GNU make               3.81             make --version
+bash                   4.2              bash --version
 binutils               2.23             ld -v
 flex                   2.5.35           flex --version
 bison                  2.0              bison --version
@@ -56,6 +57,7 @@ iptables               1.4.2            iptables -V
 openssl & libcrypto    1.0.0            openssl version
 bc                     1.06.95          bc --version
 Sphinx\ [#f1]_         1.7              sphinx-build --version
+cpio                   any              cpio --version
 ====================== ===============  ========================================
 
 .. [#f1] Sphinx is needed only to build the Kernel documentation
@@ -82,6 +84,12 @@ Make
 ----
 
 You will need GNU make 3.81 or later to build the kernel.
+
+Bash
+----
+
+Some bash scripts are used for the kernel build.
+Bash 4.2 or newer is needed.
 
 Binutils
 --------
@@ -361,6 +369,11 @@ Make
 
 - <ftp://ftp.gnu.org/gnu/make/>
 
+Bash
+----
+
+- <ftp://ftp.gnu.org/gnu/bash/>
+
 Binutils
 --------
 
@@ -457,6 +470,11 @@ mcelog
 ------
 
 - <http://www.mcelog.org/>
+
+cpio
+----
+
+- <https://www.gnu.org/software/cpio/>
 
 Networking
 **********

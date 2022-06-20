@@ -266,7 +266,7 @@ static inline bool handle_tx2_tvm(struct kvm_vcpu *vcpu)
 	return true;
 }
 
-static inline bool esr_is_ptrauth_trap(u32 esr)
+static inline bool esr_is_ptrauth_trap(u64 esr)
 {
 	switch (esr_sys64_to_sysreg(esr)) {
 	case SYS_APIAKEYLO_EL1:

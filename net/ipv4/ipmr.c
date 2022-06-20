@@ -356,7 +356,7 @@ static inline int ipmr_hash_cmp(struct rhashtable_compare_arg *arg,
 				const void *ptr)
 {
 	const struct mfc_cache_cmp_arg *cmparg = arg->key;
-	struct mfc_cache *c = (struct mfc_cache *)ptr;
+	const struct mfc_cache *c = ptr;
 
 	return cmparg->mfc_mcastgrp != c->mfc_mcastgrp ||
 	       cmparg->mfc_origin != c->mfc_origin;

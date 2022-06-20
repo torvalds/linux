@@ -37,9 +37,9 @@ static inline void ntfs_unmap_page(struct page *page)
  * Read a page from the page cache of the address space @mapping at position
  * @index, where @index is in units of PAGE_SIZE, and not in bytes.
  *
- * If the page is not in memory it is loaded from disk first using the readpage
- * method defined in the address space operations of @mapping and the page is
- * added to the page cache of @mapping in the process.
+ * If the page is not in memory it is loaded from disk first using the
+ * read_folio method defined in the address space operations of @mapping
+ * and the page is added to the page cache of @mapping in the process.
  *
  * If the page belongs to an mst protected attribute and it is marked as such
  * in its ntfs inode (NInoMstProtected()) the mst fixups are applied but no

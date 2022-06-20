@@ -55,13 +55,15 @@ properties:
       Translation Unit) registers.
 
   num-ib-windows:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 256
     description: number of inbound address translation windows
-    maxItems: 1
     deprecated: true
 
   num-ob-windows:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 256
     description: number of outbound address translation windows
-    maxItems: 1
     deprecated: true
 
 required:

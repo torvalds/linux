@@ -7,8 +7,8 @@
 
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
-#include <mach/da8xx.h>
+#include "common.h"
+#include "da8xx.h"
 
 #ifdef CONFIG_ARCH_DAVINCI_DA850
 

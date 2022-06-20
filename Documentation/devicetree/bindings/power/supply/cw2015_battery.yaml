@@ -78,4 +78,3 @@ examples:
            power-supplies = <&mains_charger>, <&usb_charger>;
        };
     };
-

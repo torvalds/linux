@@ -184,14 +184,33 @@ again:
 		 * set up a special migration page table entry now.
 		 */
 		if (trylock_page(page)) {
+			bool anon_exclusive;
 			pte_t swp_pte;
 
+			anon_exclusive = PageAnon(page) && PageAnonExclusive(page);
+			if (anon_exclusive) {
+				flush_cache_page(vma, addr, pte_pfn(*ptep));
+				ptep_clear_flush(vma, addr, ptep);
+
+				if (page_try_share_anon_rmap(page)) {
+					set_pte_at(mm, addr, ptep, pte);
+					unlock_page(page);
+					put_page(page);
+					mpfn = 0;
+					goto next;
+				}
+			} else {
+				ptep_get_and_clear(mm, addr, ptep);
+			}
+
 			migrate->cpages++;
-			ptep_get_and_clear(mm, addr, ptep);
 
 			/* Setup special migration page table entry */
 			if (mpfn & MIGRATE_PFN_WRITE)
 				entry = make_writable_migration_entry(
+							page_to_pfn(page));
+			else if (anon_exclusive)
+				entry = make_readable_exclusive_migration_entry(
 							page_to_pfn(page));
 			else
 				entry = make_readable_migration_entry(
@@ -610,7 +629,7 @@ static void migrate_vma_insert_page(struct migrate_vma *migrate,
 		goto unlock_abort;
 
 	inc_mm_counter(mm, MM_ANONPAGES);
-	page_add_new_anon_rmap(page, vma, addr, false);
+	page_add_new_anon_rmap(page, vma, addr);
 	if (!is_zone_device_page(page))
 		lru_cache_add_inactive_or_unevictable(page, vma);
 	get_page(page);

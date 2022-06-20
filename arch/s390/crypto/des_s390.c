@@ -194,7 +194,7 @@ static struct skcipher_alg cbc_des_alg = {
  *   same as DES.  Implementers MUST reject keys that exhibit this
  *   property.
  *
- *   In fips mode additinally check for all 3 keys are unique.
+ *   In fips mode additionally check for all 3 keys are unique.
  *
  */
 static int des3_setkey(struct crypto_tfm *tfm, const u8 *key,

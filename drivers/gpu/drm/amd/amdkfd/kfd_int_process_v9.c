@@ -90,7 +90,7 @@ enum SQ_INTERRUPT_ERROR_TYPE {
 #define KFD_SQ_INT_DATA__ERR_TYPE_MASK 0xF00000
 #define KFD_SQ_INT_DATA__ERR_TYPE__SHIFT 20
 
-static void event_interrupt_poison_consumption(struct kfd_dev *dev,
+static void event_interrupt_poison_consumption_v9(struct kfd_dev *dev,
 				uint16_t pasid, uint16_t client_id)
 {
 	int old_poison, ret = -EINVAL;
@@ -138,6 +138,25 @@ static void event_interrupt_poison_consumption(struct kfd_dev *dev,
 			"RAS poison consumption, fall back to gpu reset flow: client id %d\n",
 			client_id);
 		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, true);
+	}
+}
+
+static bool context_id_expected(struct kfd_dev *dev)
+{
+	switch (KFD_GC_VERSION(dev)) {
+	case IP_VERSION(9, 0, 1):
+		return dev->mec_fw_version >= 0x817a;
+	case IP_VERSION(9, 1, 0):
+	case IP_VERSION(9, 2, 1):
+	case IP_VERSION(9, 2, 2):
+	case IP_VERSION(9, 3, 0):
+	case IP_VERSION(9, 4, 0):
+		return dev->mec_fw_version >= 0x17a;
+	default:
+		/* Other GFXv9 and later GPUs always sent valid context IDs
+		 * on legitimate events
+		 */
+		return KFD_GC_VERSION(dev) >= IP_VERSION(9, 4, 1);
 	}
 }
 
@@ -205,6 +224,20 @@ static bool event_interrupt_isr_v9(struct kfd_dev *dev,
 	/* If there is no valid PASID, it's likely a bug */
 	if (WARN_ONCE(pasid == 0, "Bug: No PASID in KFD interrupt"))
 		return false;
+
+	/* Workaround CP firmware sending bogus signals with 0 context_id.
+	 * Those can be safely ignored on hardware and firmware versions that
+	 * include a valid context_id on legitimate signals. This avoids the
+	 * slow path in kfd_signal_event_interrupt that scans all event slots
+	 * for signaled events.
+	 */
+	if (source_id == SOC15_INTSRC_CP_END_OF_PIPE) {
+		uint32_t context_id =
+			SOC15_CONTEXT_ID0_FROM_IH_ENTRY(ih_ring_entry);
+
+		if (context_id == 0 && context_id_expected(dev))
+			return false;
+	}
 
 	/* Interrupt types we care about: various signals and faults.
 	 * They will be forwarded to a work queue (see below).
@@ -283,7 +316,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 					sq_intr_err);
 				if (sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_ILLEGAL_INST &&
 					sq_intr_err != SQ_INTERRUPT_ERROR_TYPE_MEMVIOL) {
-					event_interrupt_poison_consumption(dev, pasid, client_id);
+					event_interrupt_poison_consumption_v9(dev, pasid, client_id);
 					return;
 				}
 				break;
@@ -304,7 +337,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 		if (source_id == SOC15_INTSRC_SDMA_TRAP) {
 			kfd_signal_event_interrupt(pasid, context_id0 & 0xfffffff, 28);
 		} else if (source_id == SOC15_INTSRC_SDMA_ECC) {
-			event_interrupt_poison_consumption(dev, pasid, client_id);
+			event_interrupt_poison_consumption_v9(dev, pasid, client_id);
 			return;
 		}
 	} else if (client_id == SOC15_IH_CLIENTID_VMC ||
@@ -315,7 +348,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 
 		if (client_id == SOC15_IH_CLIENTID_UTCL2 &&
 		    amdgpu_amdkfd_ras_query_utcl2_poison_status(dev->adev)) {
-			event_interrupt_poison_consumption(dev, pasid, client_id);
+			event_interrupt_poison_consumption_v9(dev, pasid, client_id);
 			return;
 		}
 

@@ -25,6 +25,7 @@ static int rnbd_client_major;
 static DEFINE_IDA(index_ida);
 static DEFINE_MUTEX(sess_lock);
 static LIST_HEAD(sess_list);
+static struct workqueue_struct *rnbd_clt_wq;
 
 /*
  * Maximum number of partitions an instance can have.
@@ -1364,11 +1365,9 @@ static void setup_request_queue(struct rnbd_clt_dev *dev)
 	blk_queue_max_discard_sectors(dev->queue, dev->max_discard_sectors);
 	dev->queue->limits.discard_granularity	= dev->discard_granularity;
 	dev->queue->limits.discard_alignment	= dev->discard_alignment;
-	if (dev->max_discard_sectors)
-		blk_queue_flag_set(QUEUE_FLAG_DISCARD, dev->queue);
 	if (dev->secure_discard)
-		blk_queue_flag_set(QUEUE_FLAG_SECERASE, dev->queue);
-
+		blk_queue_max_secure_erase_sectors(dev->queue,
+				dev->max_discard_sectors);
 	blk_queue_flag_set(QUEUE_FLAG_SAME_COMP, dev->queue);
 	blk_queue_flag_set(QUEUE_FLAG_SAME_FORCE, dev->queue);
 	blk_queue_max_segments(dev->queue, dev->max_segments);
@@ -1761,12 +1760,12 @@ static void rnbd_destroy_sessions(void)
 			 * procedure takes minutes.
 			 */
 			INIT_WORK(&dev->unmap_on_rmmod_work, unmap_device_work);
-			queue_work(system_long_wq, &dev->unmap_on_rmmod_work);
+			queue_work(rnbd_clt_wq, &dev->unmap_on_rmmod_work);
 		}
 		rnbd_clt_put_sess(sess);
 	}
 	/* Wait for all scheduled unmap works */
-	flush_workqueue(system_long_wq);
+	flush_workqueue(rnbd_clt_wq);
 	WARN_ON(!list_empty(&sess_list));
 }
 
@@ -1791,6 +1790,14 @@ static int __init rnbd_client_init(void)
 		pr_err("Failed to load module, creating sysfs device files failed, err: %d\n",
 		       err);
 		unregister_blkdev(rnbd_client_major, "rnbd");
+		return err;
+	}
+	rnbd_clt_wq = alloc_workqueue("rnbd_clt_wq", 0, 0);
+	if (!rnbd_clt_wq) {
+		pr_err("Failed to load module, alloc_workqueue failed.\n");
+		rnbd_clt_destroy_sysfs_files();
+		unregister_blkdev(rnbd_client_major, "rnbd");
+		err = -ENOMEM;
 	}
 
 	return err;
@@ -1801,6 +1808,7 @@ static void __exit rnbd_client_exit(void)
 	rnbd_destroy_sessions();
 	unregister_blkdev(rnbd_client_major, "rnbd");
 	ida_destroy(&index_ida);
+	destroy_workqueue(rnbd_clt_wq);
 }
 
 module_init(rnbd_client_init);

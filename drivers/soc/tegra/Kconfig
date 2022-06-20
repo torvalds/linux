@@ -146,6 +146,7 @@ config SOC_TEGRA_PMC
 	select GENERIC_PINCONF
 	select PM_OPP
 	select PM_GENERIC_DOMAINS
+	select REGMAP
 
 config SOC_TEGRA_POWERGATE_BPMP
 	def_bool y

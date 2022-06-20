@@ -13,7 +13,6 @@ OUTPUT_FORMAT("elf32-powerpcle", "elf32-powerpcle", "elf32-powerpcle")
 OUTPUT_FORMAT("elf32-powerpc", "elf32-powerpc", "elf32-powerpc")
 #endif
 OUTPUT_ARCH(powerpc:common)
-ENTRY(_start)
 
 SECTIONS
 {

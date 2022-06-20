@@ -156,7 +156,7 @@ static inline void check_errata(void)
 		/*
 		 * Erratum "RPS May Cause Incorrect Instruction Execution"
 		 * This code only handles VPE0, any SMP/RTOS code
-		 * making use of VPE1 will be responsable for that VPE.
+		 * making use of VPE1 will be responsible for that VPE.
 		 */
 		if ((c->processor_id & PRID_REV_MASK) <= PRID_REV_34K_V1_0_2)
 			write_c0_config7(read_c0_config7() | MIPS_CONF7_RPS);

@@ -262,6 +262,28 @@ Which shows that the base frequency now increased from 2600 MHz at performance
 level 0 to 2800 MHz at performance level 4. As a result, any workload, which can
 use fewer CPUs, can see a boost of 200 MHz compared to performance level 0.
 
+Changing performance level via BMC Interface
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+It is possible to change SST-PP level using out of band (OOB) agent (Via some
+remote management console, through BMC "Baseboard Management Controller"
+interface). This mode is supported from the Sapphire Rapids processor
+generation. The kernel and tool change to support this mode is added to Linux
+kernel version 5.18. To enable this feature, kernel config
+"CONFIG_INTEL_HFI_THERMAL" is required. The minimum version of the tool
+is "v1.12" to support this feature, which is part of Linux kernel version 5.18.
+
+To support such configuration, this tool can be used as a daemon. Add
+a command line option --oob::
+
+ # intel-speed-select --oob
+ Intel(R) Speed Select Technology
+ Executing on CPU model:143[0x8f]
+ OOB mode is enabled and will run as daemon
+
+In this mode the tool will online/offline CPUs based on the new performance
+level.
+
 Check presence of other Intel(R) SST features
 ---------------------------------------------
 

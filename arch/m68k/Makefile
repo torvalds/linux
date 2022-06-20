@@ -138,5 +138,6 @@ CLEAN_FILES += vmlinux.gz vmlinux.bz2
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/m68k/kernel/syscalls all
 
+install: KBUILD_IMAGE := vmlinux.gz
 install:
-	sh $(srctree)/arch/m68k/install.sh $(KERNELRELEASE) vmlinux.gz System.map "$(INSTALL_PATH)"
+	$(call cmd,install)

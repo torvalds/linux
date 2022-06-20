@@ -15,6 +15,10 @@ properties:
       - fsl,imx6q-snvs-lpgpr
       - fsl,imx6ul-snvs-lpgpr
       - fsl,imx7d-snvs-lpgpr
+      - fsl,imx8mm-snvs-lpgpr
+      - fsl,imx8mn-snvs-lpgpr
+      - fsl,imx8mp-snvs-lpgpr
+      - fsl,imx8mq-snvs-lpgpr
 
 required:
   - compatible

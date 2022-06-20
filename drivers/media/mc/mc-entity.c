@@ -44,6 +44,20 @@ static inline const char *intf_type(struct media_interface *intf)
 	}
 };
 
+static inline const char *link_type_name(struct media_link *link)
+{
+	switch (link->flags & MEDIA_LNK_FL_LINK_TYPE) {
+	case MEDIA_LNK_FL_DATA_LINK:
+		return "data";
+	case MEDIA_LNK_FL_INTERFACE_LINK:
+		return "interface";
+	case MEDIA_LNK_FL_ANCILLARY_LINK:
+		return "ancillary";
+	default:
+		return "unknown";
+	}
+}
+
 __must_check int __media_entity_enum_init(struct media_entity_enum *ent_enum,
 					  int idx_max)
 {
@@ -89,9 +103,7 @@ static void dev_dbg_obj(const char *event_name,  struct media_gobj *gobj)
 
 		dev_dbg(gobj->mdev->dev,
 			"%s id %u: %s link id %u ==> id %u\n",
-			event_name, media_id(gobj),
-			media_type(link->gobj0) == MEDIA_GRAPH_PAD ?
-				"data" : "interface",
+			event_name, media_id(gobj), link_type_name(link),
 			media_id(link->gobj0),
 			media_id(link->gobj1));
 		break;
@@ -294,6 +306,12 @@ static void media_graph_walk_iter(struct media_graph *graph)
 	struct media_entity *next;
 
 	link = list_entry(link_top(graph), typeof(*link), list);
+
+	/* If the link is not a data link, don't follow it */
+	if ((link->flags & MEDIA_LNK_FL_LINK_TYPE) != MEDIA_LNK_FL_DATA_LINK) {
+		link_top(graph) = link_top(graph)->next;
+		return;
+	}
 
 	/* The link is not enabled so we do not follow. */
 	if (!(link->flags & MEDIA_LNK_FL_ENABLED)) {
@@ -579,26 +597,30 @@ static void __media_entity_remove_link(struct media_entity *entity,
 	struct media_link *rlink, *tmp;
 	struct media_entity *remote;
 
-	if (link->source->entity == entity)
-		remote = link->sink->entity;
-	else
-		remote = link->source->entity;
-
-	list_for_each_entry_safe(rlink, tmp, &remote->links, list) {
-		if (rlink != link->reverse)
-			continue;
-
+	/* Remove the reverse links for a data link. */
+	if ((link->flags & MEDIA_LNK_FL_LINK_TYPE) == MEDIA_LNK_FL_DATA_LINK) {
 		if (link->source->entity == entity)
-			remote->num_backlinks--;
+			remote = link->sink->entity;
+		else
+			remote = link->source->entity;
 
-		/* Remove the remote link */
-		list_del(&rlink->list);
-		media_gobj_destroy(&rlink->graph_obj);
-		kfree(rlink);
+		list_for_each_entry_safe(rlink, tmp, &remote->links, list) {
+			if (rlink != link->reverse)
+				continue;
 
-		if (--remote->num_links == 0)
-			break;
+			if (link->source->entity == entity)
+				remote->num_backlinks--;
+
+			/* Remove the remote link */
+			list_del(&rlink->list);
+			media_gobj_destroy(&rlink->graph_obj);
+			kfree(rlink);
+
+			if (--remote->num_links == 0)
+				break;
+		}
 	}
+
 	list_del(&link->list);
 	media_gobj_destroy(&link->graph_obj);
 	kfree(link);
@@ -1007,3 +1029,25 @@ void media_remove_intf_links(struct media_interface *intf)
 	mutex_unlock(&mdev->graph_mutex);
 }
 EXPORT_SYMBOL_GPL(media_remove_intf_links);
+
+struct media_link *media_create_ancillary_link(struct media_entity *primary,
+					       struct media_entity *ancillary)
+{
+	struct media_link *link;
+
+	link = media_add_link(&primary->links);
+	if (!link)
+		return ERR_PTR(-ENOMEM);
+
+	link->gobj0 = &primary->graph_obj;
+	link->gobj1 = &ancillary->graph_obj;
+	link->flags = MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED |
+		      MEDIA_LNK_FL_ANCILLARY_LINK;
+
+	/* Initialize graph object embedded in the new link */
+	media_gobj_create(primary->graph_obj.mdev, MEDIA_GRAPH_LINK,
+			  &link->graph_obj);
+
+	return link;
+}
+EXPORT_SYMBOL_GPL(media_create_ancillary_link);

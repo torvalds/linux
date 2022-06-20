@@ -243,7 +243,7 @@ fp_fdiv(struct fp_ext *dest, struct fp_ext *src)
 		/* infinity / infinity = NaN (quiet, as always) */
 		if (IS_INF(src))
 			fp_set_nan(dest);
-		/* infinity / anything else = infinity (with approprate sign) */
+		/* infinity / anything else = infinity (with appropriate sign) */
 		return dest;
 	}
 	if (IS_INF(src)) {

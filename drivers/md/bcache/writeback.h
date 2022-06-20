@@ -20,7 +20,7 @@
 #define BCH_WRITEBACK_FRAGMENT_THRESHOLD_MID 57
 #define BCH_WRITEBACK_FRAGMENT_THRESHOLD_HIGH 64
 
-#define BCH_DIRTY_INIT_THRD_MAX	64
+#define BCH_DIRTY_INIT_THRD_MAX	12
 /*
  * 14 (16384ths) is chosen here as something that each backing device
  * should be a reasonable fraction of the share, and not to blow up

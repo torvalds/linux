@@ -2,7 +2,6 @@
 // Copyright (C) 2018 Hangzhou C-SKY Microsystems co.,ltd.
 
 #include <linux/module.h>
-#include <linux/version.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/sched/debug.h>
@@ -30,12 +29,11 @@ asmlinkage void ret_from_kernel_thread(void);
  */
 void flush_thread(void){}
 
-int copy_thread(unsigned long clone_flags,
-		unsigned long usp,
-		unsigned long kthread_arg,
-		struct task_struct *p,
-		unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long usp = args->stack;
+	unsigned long tls = args->tls;
 	struct switch_stack *childstack;
 	struct pt_regs *childregs = task_pt_regs(p);
 
@@ -49,11 +47,11 @@ int copy_thread(unsigned long clone_flags,
 	/* setup thread.sp for switch_to !!! */
 	p->thread.sp = (unsigned long)childstack;
 
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childstack->r15 = (unsigned long) ret_from_kernel_thread;
-		childstack->r10 = kthread_arg;
-		childstack->r9 = usp;
+		childstack->r10 = (unsigned long) args->fn_arg;
+		childstack->r9 = (unsigned long) args->fn;
 		childregs->sr = mfcr("psr");
 	} else {
 		*childregs = *(current_pt_regs());

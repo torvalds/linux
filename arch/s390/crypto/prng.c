@@ -528,7 +528,7 @@ static ssize_t prng_tdes_read(struct file *file, char __user *ubuf,
 			/* give mutex free before calling schedule() */
 			mutex_unlock(&prng_data->mutex);
 			schedule();
-			/* occopy mutex again */
+			/* occupy mutex again */
 			if (mutex_lock_interruptible(&prng_data->mutex)) {
 				if (ret == 0)
 					ret = -ERESTARTSYS;

@@ -152,10 +152,10 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 	nr_pages = bio_max_segs(DIV_ROUND_UP(offset + len, PAGE_SIZE));
 
 	ret = -ENOMEM;
-	bio = bio_kmalloc(gfp_mask, nr_pages);
+	bio = bio_kmalloc(nr_pages, gfp_mask);
 	if (!bio)
 		goto out_bmd;
-	bio->bi_opf |= req_op(rq);
+	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, req_op(rq));
 
 	if (map_data) {
 		nr_pages = 1 << map_data->page_order;
@@ -224,7 +224,8 @@ static int bio_copy_user_iov(struct request *rq, struct rq_map_data *map_data,
 cleanup:
 	if (!map_data)
 		bio_free_pages(bio);
-	bio_put(bio);
+	bio_uninit(bio);
+	kfree(bio);
 out_bmd:
 	kfree(bmd);
 	return ret;
@@ -234,6 +235,7 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 		gfp_t gfp_mask)
 {
 	unsigned int max_sectors = queue_max_hw_sectors(rq->q);
+	unsigned int nr_vecs = iov_iter_npages(iter, BIO_MAX_VECS);
 	struct bio *bio;
 	int ret;
 	int j;
@@ -241,10 +243,10 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 	if (!iov_iter_count(iter))
 		return -EINVAL;
 
-	bio = bio_kmalloc(gfp_mask, iov_iter_npages(iter, BIO_MAX_VECS));
+	bio = bio_kmalloc(nr_vecs, gfp_mask);
 	if (!bio)
 		return -ENOMEM;
-	bio->bi_opf |= req_op(rq);
+	bio_init(bio, NULL, bio->bi_inline_vecs, nr_vecs, req_op(rq));
 
 	while (iov_iter_count(iter)) {
 		struct page **pages;
@@ -260,10 +262,9 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 
 		npages = DIV_ROUND_UP(offs + bytes, PAGE_SIZE);
 
-		if (unlikely(offs & queue_dma_alignment(rq->q))) {
-			ret = -EINVAL;
+		if (unlikely(offs & queue_dma_alignment(rq->q)))
 			j = 0;
-		} else {
+		else {
 			for (j = 0; j < npages; j++) {
 				struct page *page = pages[j];
 				unsigned int n = PAGE_SIZE - offs;
@@ -303,7 +304,8 @@ static int bio_map_user_iov(struct request *rq, struct iov_iter *iter,
 
  out_unmap:
 	bio_release_pages(bio, false);
-	bio_put(bio);
+	bio_uninit(bio);
+	kfree(bio);
 	return ret;
 }
 
@@ -323,7 +325,8 @@ static void bio_invalidate_vmalloc_pages(struct bio *bio)
 static void bio_map_kern_endio(struct bio *bio)
 {
 	bio_invalidate_vmalloc_pages(bio);
-	bio_put(bio);
+	bio_uninit(bio);
+	kfree(bio);
 }
 
 /**
@@ -348,9 +351,10 @@ static struct bio *bio_map_kern(struct request_queue *q, void *data,
 	int offset, i;
 	struct bio *bio;
 
-	bio = bio_kmalloc(gfp_mask, nr_pages);
+	bio = bio_kmalloc(nr_pages, gfp_mask);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
+	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, 0);
 
 	if (is_vmalloc) {
 		flush_kernel_vmap_range(data, len);
@@ -374,7 +378,8 @@ static struct bio *bio_map_kern(struct request_queue *q, void *data,
 		if (bio_add_pc_page(q, bio, page, bytes,
 				    offset) < bytes) {
 			/* we don't support partial mappings */
-			bio_put(bio);
+			bio_uninit(bio);
+			kfree(bio);
 			return ERR_PTR(-EINVAL);
 		}
 
@@ -390,7 +395,8 @@ static struct bio *bio_map_kern(struct request_queue *q, void *data,
 static void bio_copy_kern_endio(struct bio *bio)
 {
 	bio_free_pages(bio);
-	bio_put(bio);
+	bio_uninit(bio);
+	kfree(bio);
 }
 
 static void bio_copy_kern_endio_read(struct bio *bio)
@@ -435,9 +441,10 @@ static struct bio *bio_copy_kern(struct request_queue *q, void *data,
 		return ERR_PTR(-EINVAL);
 
 	nr_pages = end - start;
-	bio = bio_kmalloc(gfp_mask, nr_pages);
+	bio = bio_kmalloc(nr_pages, gfp_mask);
 	if (!bio)
 		return ERR_PTR(-ENOMEM);
+	bio_init(bio, NULL, bio->bi_inline_vecs, nr_pages, 0);
 
 	while (len) {
 		struct page *page;
@@ -471,7 +478,8 @@ static struct bio *bio_copy_kern(struct request_queue *q, void *data,
 
 cleanup:
 	bio_free_pages(bio);
-	bio_put(bio);
+	bio_uninit(bio);
+	kfree(bio);
 	return ERR_PTR(-ENOMEM);
 }
 
@@ -602,7 +610,8 @@ int blk_rq_unmap_user(struct bio *bio)
 
 		next_bio = bio;
 		bio = bio->bi_next;
-		bio_put(next_bio);
+		bio_uninit(next_bio);
+		kfree(next_bio);
 	}
 
 	return ret;
@@ -648,8 +657,10 @@ int blk_rq_map_kern(struct request_queue *q, struct request *rq, void *kbuf,
 	bio->bi_opf |= req_op(rq);
 
 	ret = blk_rq_append_bio(rq, bio);
-	if (unlikely(ret))
-		bio_put(bio);
+	if (unlikely(ret)) {
+		bio_uninit(bio);
+		kfree(bio);
+	}
 	return ret;
 }
 EXPORT_SYMBOL(blk_rq_map_kern);

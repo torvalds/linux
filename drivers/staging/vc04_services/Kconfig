@@ -13,6 +13,7 @@ if BCM_VIDEOCORE
 
 config BCM2835_VCHIQ
 	tristate "BCM2835 VCHIQ"
+	depends on HAS_DMA
 	imply VCHIQ_CDEV
 	help
 		Broadcom BCM2835 and similar SoCs have a VPU called VideoCore. This config

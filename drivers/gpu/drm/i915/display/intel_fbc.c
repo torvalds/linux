@@ -811,6 +811,14 @@ static void intel_fbc_program_cfb(struct intel_fbc *fbc)
 	fbc->funcs->program_cfb(fbc);
 }
 
+static void intel_fbc_program_workarounds(struct intel_fbc *fbc)
+{
+	/* Wa_22014263786:icl,jsl,tgl,dg1,rkl,adls,dg2,adlp */
+	if (DISPLAY_VER(fbc->i915) >= 11)
+		intel_de_rmw(fbc->i915, ILK_DPFC_CHICKEN(fbc->id), 0,
+			     DPFC_CHICKEN_FORCE_SLB_INVALIDATION);
+}
+
 static void __intel_fbc_cleanup_cfb(struct intel_fbc *fbc)
 {
 	struct drm_i915_private *i915 = fbc->i915;
@@ -1086,7 +1094,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	 */
 	if (DISPLAY_VER(i915) >= 12 && crtc_state->has_psr2) {
 		plane_state->no_fbc_reason = "PSR2 enabled";
-		return false;
+		return 0;
 	}
 
 	if (!pixel_format_is_valid(plane_state)) {
@@ -1112,7 +1120,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	if (plane_state->hw.pixel_blend_mode != DRM_MODE_BLEND_PIXEL_NONE &&
 	    fb->format->has_alpha) {
 		plane_state->no_fbc_reason = "per-pixel alpha not supported";
-		return false;
+		return 0;
 	}
 
 	if (!intel_fbc_hw_tracking_covers_screen(plane_state)) {
@@ -1128,7 +1136,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	if (DISPLAY_VER(i915) >= 9 &&
 	    plane_state->view.color_plane[0].y & 3) {
 		plane_state->no_fbc_reason = "plane start Y offset misaligned";
-		return false;
+		return 0;
 	}
 
 	/* Wa_22010751166: icl, ehl, tgl, dg1, rkl */
@@ -1136,7 +1144,7 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 	    (plane_state->view.color_plane[0].y +
 	     (drm_rect_height(&plane_state->uapi.src) >> 16)) & 3) {
 		plane_state->no_fbc_reason = "plane end Y offset misaligned";
-		return false;
+		return 0;
 	}
 
 	/* WaFbcExceedCdClockThreshold:hsw,bdw */
@@ -1462,6 +1470,7 @@ static void __intel_fbc_enable(struct intel_atomic_state *state,
 
 	intel_fbc_update_state(state, crtc, plane);
 
+	intel_fbc_program_workarounds(fbc);
 	intel_fbc_program_cfb(fbc);
 }
 

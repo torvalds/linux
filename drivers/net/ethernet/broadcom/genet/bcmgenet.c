@@ -2671,8 +2671,7 @@ static void bcmgenet_init_tx_ring(struct bcmgenet_priv *priv,
 				  DMA_END_ADDR);
 
 	/* Initialize Tx NAPI */
-	netif_tx_napi_add(priv->dev, &ring->napi, bcmgenet_tx_poll,
-			  NAPI_POLL_WEIGHT);
+	netif_napi_add_tx(priv->dev, &ring->napi, bcmgenet_tx_poll);
 }
 
 /* Initialize a RDMA ring */
@@ -3999,6 +3998,10 @@ static int bcmgenet_probe(struct platform_device *pdev)
 		goto err;
 	}
 	priv->wol_irq = platform_get_irq_optional(pdev, 2);
+	if (priv->wol_irq == -EPROBE_DEFER) {
+		err = priv->wol_irq;
+		goto err;
+	}
 
 	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base)) {

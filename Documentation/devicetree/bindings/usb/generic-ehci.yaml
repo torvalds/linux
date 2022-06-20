@@ -55,6 +55,7 @@ properties:
               - brcm,bcm7420-ehci
               - brcm,bcm7425-ehci
               - brcm,bcm7435-ehci
+              - hpe,gxp-ehci
               - ibm,476gtr-ehci
               - nxp,lpc1850-ehci
               - qca,ar7100-ehci

@@ -133,7 +133,7 @@ static void line_timer_cb(struct work_struct *work)
 	struct line *line = container_of(work, struct line, task.work);
 
 	if (!line->throttled)
-		chan_interrupt(line, line->driver->read_irq);
+		chan_interrupt(line, line->read_irq);
 }
 
 int enable_chan(struct line *line)
@@ -195,9 +195,9 @@ void free_irqs(void)
 		chan = list_entry(ele, struct chan, free_list);
 
 		if (chan->input && chan->enabled)
-			um_free_irq(chan->line->driver->read_irq, chan);
+			um_free_irq(chan->line->read_irq, chan);
 		if (chan->output && chan->enabled)
-			um_free_irq(chan->line->driver->write_irq, chan);
+			um_free_irq(chan->line->write_irq, chan);
 		chan->enabled = 0;
 	}
 }
@@ -215,9 +215,9 @@ static void close_one_chan(struct chan *chan, int delay_free_irq)
 		spin_unlock_irqrestore(&irqs_to_free_lock, flags);
 	} else {
 		if (chan->input && chan->enabled)
-			um_free_irq(chan->line->driver->read_irq, chan);
+			um_free_irq(chan->line->read_irq, chan);
 		if (chan->output && chan->enabled)
-			um_free_irq(chan->line->driver->write_irq, chan);
+			um_free_irq(chan->line->write_irq, chan);
 		chan->enabled = 0;
 	}
 	if (chan->ops->close != NULL)

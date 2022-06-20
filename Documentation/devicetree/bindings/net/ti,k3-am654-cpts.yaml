@@ -142,4 +142,3 @@ examples:
                assigned-clock-parents = <&k3_clks 118 11>;
          };
     };
-

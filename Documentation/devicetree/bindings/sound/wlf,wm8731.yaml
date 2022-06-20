@@ -1,0 +1,97 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/wlf,wm8731.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Wolfson Microelectromics WM8731 audio CODEC
+
+maintainers:
+  - patches@opensource.cirrus.com
+
+description: |
+  Wolfson Microelectronics WM8731 audio CODEC
+
+  Pins on the device (for linking into audio routes):
+    * LOUT: Left Channel Line Output
+    * ROUT: Right Channel Line Output
+    * LHPOUT: Left Channel Headphone Output
+    * RHPOUT: Right Channel Headphone Output
+    * LLINEIN: Left Channel Line Input
+    * RLINEIN: Right Channel Line Input
+    * MICIN: Microphone Input
+
+properties:
+  compatible:
+    enum:
+      - wlf,wm8731
+
+  reg:
+    maxItems: 1
+
+  "#sound-dai-cells":
+    const: 0
+
+  clocks:
+    description: Clock provider for MCLK pin.
+    maxItems: 1
+
+  clock-names:
+    items:
+      - const: mclk
+
+  AVDD-supply:
+    description: Analog power supply regulator on the AVDD pin.
+
+  HPVDD-supply:
+    description: Headphone power supply regulator on the HPVDD pin.
+
+  DBVDD-supply:
+    description: Digital buffer supply regulator for the DBVDD pin.
+
+  DCVDD-supply:
+    description: Digital core supply regulator for the DCVDD pin.
+
+  spi-max-frequency: true
+
+additionalProperties: false
+
+required:
+  - reg
+  - compatible
+  - AVDD-supply
+  - HPVDD-supply
+  - DBVDD-supply
+  - DCVDD-supply
+
+examples:
+  - |
+    spi {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        wm8731_i2c: codec@0 {
+            compatible = "wlf,wm8731";
+            reg = <0>;
+            spi-max-frequency = <12500000>;
+
+            AVDD-supply = <&avdd_reg>;
+            HPVDD-supply = <&hpvdd_reg>;
+            DCVDD-supply = <&dcvdd_reg>;
+            DBVDD-supply = <&dbvdd_reg>;
+        };
+    };
+  - |
+
+    i2c {
+        #address-cells = <1>;
+        #size-cells = <0>;
+        wm8731_spi: codec@1b {
+            compatible = "wlf,wm8731";
+            reg = <0x1b>;
+
+            AVDD-supply = <&avdd_reg>;
+            HPVDD-supply = <&hpvdd_reg>;
+            DCVDD-supply = <&dcvdd_reg>;
+            DBVDD-supply = <&dbvdd_reg>;
+        };
+    };

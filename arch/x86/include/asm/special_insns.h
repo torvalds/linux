@@ -184,14 +184,15 @@ static inline void wbinvd(void)
 	native_wbinvd();
 }
 
-#ifdef CONFIG_X86_64
 
 static inline void load_gs_index(unsigned int selector)
 {
+#ifdef CONFIG_X86_64
 	native_load_gs_index(selector);
-}
-
+#else
+	loadsegment(gs, selector);
 #endif
+}
 
 #endif /* CONFIG_PARAVIRT_XXL */
 

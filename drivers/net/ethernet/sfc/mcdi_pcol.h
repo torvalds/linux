@@ -73,8 +73,8 @@
  *               \------------------------------ Resync (always set)
  *
  * The client writes it's request into MC shared memory, and rings the
- * doorbell. Each request is completed by either by the MC writting
- * back into shared memory, or by writting out an event.
+ * doorbell. Each request is completed by either by the MC writing
+ * back into shared memory, or by writing out an event.
  *
  * All MCDI commands support completion by shared memory response. Each
  * request may also contain additional data (accounted for by HEADER.LEN),

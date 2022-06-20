@@ -67,7 +67,6 @@ then:
   properties:
     reg:
       minItems: 2
-      maxItems: 3
       items:
         - description: TSC1 registers
         - description: TSC2 registers

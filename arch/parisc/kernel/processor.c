@@ -171,6 +171,7 @@ static int __init processor_probe(struct parisc_device *dev)
 	p->cpu_num = cpu_info.cpu_num;
 	p->cpu_loc = cpu_info.cpu_loc;
 
+	set_cpu_possible(cpuid, true);
 	store_cpu_topology(cpuid);
 
 #ifdef CONFIG_SMP
@@ -326,8 +327,6 @@ int init_per_cpu(int cpunum)
 	set_firmware_width();
 	ret = pdc_coproc_cfg(&coproc_cfg);
 
-	store_cpu_topology(cpunum);
-
 	if(ret >= 0 && coproc_cfg.ccr_functional) {
 		mtctl(coproc_cfg.ccr_functional, 10);  /* 10 == Coprocessor Control Reg */
 
@@ -419,8 +418,7 @@ show_cpuinfo (struct seq_file *m, void *v)
 		}
 		seq_printf(m, " (0x%02lx)\n", boot_cpu_data.pdc.capabilities);
 
-		seq_printf(m, "model\t\t: %s\n"
-				"model name\t: %s\n",
+		seq_printf(m, "model\t\t: %s - %s\n",
 				 boot_cpu_data.pdc.sys_model_name,
 				 cpuinfo->dev ?
 				 cpuinfo->dev->name : "Unknown");
@@ -461,6 +459,13 @@ static struct parisc_driver cpu_driver __refdata = {
  */
 void __init processor_init(void)
 {
+	unsigned int cpu;
+
 	reset_cpu_topology();
+
+	/* reset possible mask. We will mark those which are possible. */
+	for_each_possible_cpu(cpu)
+		set_cpu_possible(cpu, false);
+
 	register_parisc_driver(&cpu_driver);
 }

@@ -14,16 +14,18 @@
 #include "efs.h"
 #include <linux/efs_fs_sb.h>
 
-static int efs_readpage(struct file *file, struct page *page)
+static int efs_read_folio(struct file *file, struct folio *folio)
 {
-	return block_read_full_page(page,efs_get_block);
+	return block_read_full_folio(folio, efs_get_block);
 }
+
 static sector_t _efs_bmap(struct address_space *mapping, sector_t block)
 {
 	return generic_block_bmap(mapping,block,efs_get_block);
 }
+
 static const struct address_space_operations efs_aops = {
-	.readpage = efs_readpage,
+	.read_folio = efs_read_folio,
 	.bmap = _efs_bmap
 };
 

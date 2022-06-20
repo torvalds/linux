@@ -738,6 +738,50 @@ static struct rcu_torture_ops busted_srcud_ops = {
 };
 
 /*
+ * Definitions for trivial CONFIG_PREEMPT=n-only torture testing.
+ * This implementation does not necessarily work well with CPU hotplug.
+ */
+
+static void synchronize_rcu_trivial(void)
+{
+	int cpu;
+
+	for_each_online_cpu(cpu) {
+		rcutorture_sched_setaffinity(current->pid, cpumask_of(cpu));
+		WARN_ON_ONCE(raw_smp_processor_id() != cpu);
+	}
+}
+
+static int rcu_torture_read_lock_trivial(void) __acquires(RCU)
+{
+	preempt_disable();
+	return 0;
+}
+
+static void rcu_torture_read_unlock_trivial(int idx) __releases(RCU)
+{
+	preempt_enable();
+}
+
+static struct rcu_torture_ops trivial_ops = {
+	.ttype		= RCU_TRIVIAL_FLAVOR,
+	.init		= rcu_sync_torture_init,
+	.readlock	= rcu_torture_read_lock_trivial,
+	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
+	.readunlock	= rcu_torture_read_unlock_trivial,
+	.readlock_held	= torture_readlock_not_held,
+	.get_gp_seq	= rcu_no_completed,
+	.sync		= synchronize_rcu_trivial,
+	.exp_sync	= synchronize_rcu_trivial,
+	.fqs		= NULL,
+	.stats		= NULL,
+	.irq_capable	= 1,
+	.name		= "trivial"
+};
+
+#ifdef CONFIG_TASKS_RCU
+
+/*
  * Definitions for RCU-tasks torture testing.
  */
 
@@ -780,47 +824,16 @@ static struct rcu_torture_ops tasks_ops = {
 	.name		= "tasks"
 };
 
-/*
- * Definitions for trivial CONFIG_PREEMPT=n-only torture testing.
- * This implementation does not necessarily work well with CPU hotplug.
- */
+#define TASKS_OPS &tasks_ops,
 
-static void synchronize_rcu_trivial(void)
-{
-	int cpu;
+#else // #ifdef CONFIG_TASKS_RCU
 
-	for_each_online_cpu(cpu) {
-		rcutorture_sched_setaffinity(current->pid, cpumask_of(cpu));
-		WARN_ON_ONCE(raw_smp_processor_id() != cpu);
-	}
-}
+#define TASKS_OPS
 
-static int rcu_torture_read_lock_trivial(void) __acquires(RCU)
-{
-	preempt_disable();
-	return 0;
-}
+#endif // #else #ifdef CONFIG_TASKS_RCU
 
-static void rcu_torture_read_unlock_trivial(int idx) __releases(RCU)
-{
-	preempt_enable();
-}
 
-static struct rcu_torture_ops trivial_ops = {
-	.ttype		= RCU_TRIVIAL_FLAVOR,
-	.init		= rcu_sync_torture_init,
-	.readlock	= rcu_torture_read_lock_trivial,
-	.read_delay	= rcu_read_delay,  /* just reuse rcu's version. */
-	.readunlock	= rcu_torture_read_unlock_trivial,
-	.readlock_held	= torture_readlock_not_held,
-	.get_gp_seq	= rcu_no_completed,
-	.sync		= synchronize_rcu_trivial,
-	.exp_sync	= synchronize_rcu_trivial,
-	.fqs		= NULL,
-	.stats		= NULL,
-	.irq_capable	= 1,
-	.name		= "trivial"
-};
+#ifdef CONFIG_TASKS_RUDE_RCU
 
 /*
  * Definitions for rude RCU-tasks torture testing.
@@ -850,6 +863,17 @@ static struct rcu_torture_ops tasks_rude_ops = {
 	.irq_capable	= 1,
 	.name		= "tasks-rude"
 };
+
+#define TASKS_RUDE_OPS &tasks_rude_ops,
+
+#else // #ifdef CONFIG_TASKS_RUDE_RCU
+
+#define TASKS_RUDE_OPS
+
+#endif // #else #ifdef CONFIG_TASKS_RUDE_RCU
+
+
+#ifdef CONFIG_TASKS_TRACE_RCU
 
 /*
  * Definitions for tracing RCU-tasks torture testing.
@@ -892,6 +916,15 @@ static struct rcu_torture_ops tasks_tracing_ops = {
 	.slow_gps	= 1,
 	.name		= "tasks-tracing"
 };
+
+#define TASKS_TRACING_OPS &tasks_tracing_ops,
+
+#else // #ifdef CONFIG_TASKS_TRACE_RCU
+
+#define TASKS_TRACING_OPS
+
+#endif // #else #ifdef CONFIG_TASKS_TRACE_RCU
+
 
 static unsigned long rcutorture_seq_diff(unsigned long new, unsigned long old)
 {
@@ -1178,7 +1211,7 @@ rcu_torture_writer(void *arg)
 			 " GP expediting controlled from boot/sysfs for %s.\n",
 			 torture_type, cur_ops->name);
 	if (WARN_ONCE(nsynctypes == 0,
-		      "rcu_torture_writer: No update-side primitives.\n")) {
+		      "%s: No update-side primitives.\n", __func__)) {
 		/*
 		 * No updates primitives, so don't try updating.
 		 * The resulting test won't be testing much, hence the
@@ -1186,6 +1219,7 @@ rcu_torture_writer(void *arg)
 		 */
 		rcu_torture_writer_state = RTWS_STOPPING;
 		torture_kthread_stopping("rcu_torture_writer");
+		return 0;
 	}
 
 	do {
@@ -1321,6 +1355,17 @@ rcu_torture_fakewriter(void *arg)
 
 	VERBOSE_TOROUT_STRING("rcu_torture_fakewriter task started");
 	set_user_nice(current, MAX_NICE);
+
+	if (WARN_ONCE(nsynctypes == 0,
+		      "%s: No update-side primitives.\n", __func__)) {
+		/*
+		 * No updates primitives, so don't try updating.
+		 * The resulting test won't be testing much, hence the
+		 * above WARN_ONCE().
+		 */
+		torture_kthread_stopping("rcu_torture_fakewriter");
+		return 0;
+	}
 
 	do {
 		torture_hrtimeout_jiffies(torture_random(&rand) % 10, &rand);
@@ -2916,10 +2961,12 @@ rcu_torture_cleanup(void)
 			pr_info("%s: Invoking %pS().\n", __func__, cur_ops->cb_barrier);
 			cur_ops->cb_barrier();
 		}
+		rcu_gp_slow_unregister(NULL);
 		return;
 	}
 	if (!cur_ops) {
 		torture_cleanup_end();
+		rcu_gp_slow_unregister(NULL);
 		return;
 	}
 
@@ -3016,6 +3063,7 @@ rcu_torture_cleanup(void)
 	else
 		rcu_torture_print_module_parms(cur_ops, "End of test: SUCCESS");
 	torture_cleanup_end();
+	rcu_gp_slow_unregister(&rcu_fwd_cb_nodelay);
 }
 
 #ifdef CONFIG_DEBUG_OBJECTS_RCU_HEAD
@@ -3096,9 +3144,9 @@ rcu_torture_init(void)
 	int flags = 0;
 	unsigned long gp_seq = 0;
 	static struct rcu_torture_ops *torture_ops[] = {
-		&rcu_ops, &rcu_busted_ops, &srcu_ops, &srcud_ops,
-		&busted_srcud_ops, &tasks_ops, &tasks_rude_ops,
-		&tasks_tracing_ops, &trivial_ops,
+		&rcu_ops, &rcu_busted_ops, &srcu_ops, &srcud_ops, &busted_srcud_ops,
+		TASKS_OPS TASKS_RUDE_OPS TASKS_TRACING_OPS
+		&trivial_ops,
 	};
 
 	if (!torture_init_begin(torture_type, verbose))
@@ -3320,6 +3368,7 @@ rcu_torture_init(void)
 	if (object_debug)
 		rcu_test_debug_objects();
 	torture_init_end();
+	rcu_gp_slow_register(&rcu_fwd_cb_nodelay);
 	return 0;
 
 unwind:

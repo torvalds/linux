@@ -21,9 +21,9 @@
 #define MIN_KIMG_ALIGN		SZ_4M
 #endif
 
-typedef void __noreturn (*jump_kernel_func)(unsigned int, unsigned long);
+typedef void __noreturn (*jump_kernel_func)(unsigned long, unsigned long);
 
-static u32 hartid;
+static unsigned long hartid;
 
 static int get_boot_hartid_from_fdt(void)
 {
@@ -47,14 +47,31 @@ static int get_boot_hartid_from_fdt(void)
 	return 0;
 }
 
+static efi_status_t get_boot_hartid_from_efi(void)
+{
+	efi_guid_t boot_protocol_guid = RISCV_EFI_BOOT_PROTOCOL_GUID;
+	struct riscv_efi_boot_protocol *boot_protocol;
+	efi_status_t status;
+
+	status = efi_bs_call(locate_protocol, &boot_protocol_guid, NULL,
+			     (void **)&boot_protocol);
+	if (status != EFI_SUCCESS)
+		return status;
+	return efi_call_proto(boot_protocol, get_boot_hartid, &hartid);
+}
+
 efi_status_t check_platform_features(void)
 {
+	efi_status_t status;
 	int ret;
 
-	ret = get_boot_hartid_from_fdt();
-	if (ret) {
-		efi_err("/chosen/boot-hartid missing or invalid!\n");
-		return EFI_UNSUPPORTED;
+	status = get_boot_hartid_from_efi();
+	if (status != EFI_SUCCESS) {
+		ret = get_boot_hartid_from_fdt();
+		if (ret) {
+			efi_err("Failed to get boot hartid!\n");
+			return EFI_UNSUPPORTED;
+		}
 	}
 	return EFI_SUCCESS;
 }
@@ -80,7 +97,8 @@ efi_status_t handle_kernel_image(unsigned long *image_addr,
 				 unsigned long *image_size,
 				 unsigned long *reserve_addr,
 				 unsigned long *reserve_size,
-				 efi_loaded_image_t *image)
+				 efi_loaded_image_t *image,
+				 efi_handle_t image_handle)
 {
 	unsigned long kernel_size = 0;
 	unsigned long preferred_addr;

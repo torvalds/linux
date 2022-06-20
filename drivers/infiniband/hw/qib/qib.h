@@ -678,7 +678,7 @@ struct qib_pportdata {
 /* Observers. Not to be taken lightly, possibly not to ship. */
 /*
  * If a diag read or write is to (bottom <= offset <= top),
- * the "hoook" is called, allowing, e.g. shadows to be
+ * the "hook" is called, allowing, e.g. shadows to be
  * updated in sync with the driver. struct diag_observer
  * is the "visible" part.
  */

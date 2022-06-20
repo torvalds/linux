@@ -94,7 +94,7 @@ fscrypt_allocate_skcipher(struct fscrypt_mode *mode, const u8 *raw_key,
 			    mode->cipher_str, PTR_ERR(tfm));
 		return tfm;
 	}
-	if (!xchg(&mode->logged_impl_name, 1)) {
+	if (!xchg(&mode->logged_cryptoapi_impl, 1)) {
 		/*
 		 * fscrypt performance can vary greatly depending on which
 		 * crypto algorithm implementation is used.  Help people debug
@@ -425,23 +425,9 @@ static int setup_file_encryption_key(struct fscrypt_info *ci,
 	if (err)
 		return err;
 
-	switch (ci->ci_policy.version) {
-	case FSCRYPT_POLICY_V1:
-		mk_spec.type = FSCRYPT_KEY_SPEC_TYPE_DESCRIPTOR;
-		memcpy(mk_spec.u.descriptor,
-		       ci->ci_policy.v1.master_key_descriptor,
-		       FSCRYPT_KEY_DESCRIPTOR_SIZE);
-		break;
-	case FSCRYPT_POLICY_V2:
-		mk_spec.type = FSCRYPT_KEY_SPEC_TYPE_IDENTIFIER;
-		memcpy(mk_spec.u.identifier,
-		       ci->ci_policy.v2.master_key_identifier,
-		       FSCRYPT_KEY_IDENTIFIER_SIZE);
-		break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
+	err = fscrypt_policy_to_key_spec(&ci->ci_policy, &mk_spec);
+	if (err)
+		return err;
 
 	key = fscrypt_find_master_key(ci->ci_inode->i_sb, &mk_spec);
 	if (IS_ERR(key)) {

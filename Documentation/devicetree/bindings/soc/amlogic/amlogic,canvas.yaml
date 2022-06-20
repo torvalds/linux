@@ -48,4 +48,3 @@ examples:
         compatible = "amlogic,canvas";
         reg = <0x48 0x14>;
     };
-

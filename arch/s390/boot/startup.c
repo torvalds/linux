@@ -10,7 +10,7 @@
 #include <asm/sclp.h>
 #include <asm/diag.h>
 #include <asm/uv.h>
-#include "compressed/decompressor.h"
+#include "decompressor.h"
 #include "boot.h"
 #include "uv.h"
 

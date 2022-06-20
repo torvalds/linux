@@ -58,7 +58,7 @@ config SND_SOC_DB1200
 	select SND_SOC_AC97_CODEC
 	select SND_SOC_WM9712
 	select SND_SOC_AU1XPSC_I2S
-	select SND_SOC_WM8731
+	select SND_SOC_WM8731_I2C
 	help
 	  Select this option to enable audio (AC97 and I2S) on the
 	  Alchemy/AMD/RMI/NetLogic Db1200, Db1550 and Db1300 evaluation boards.

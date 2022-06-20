@@ -42,9 +42,13 @@ extern int ex_get_fixup_type(unsigned long ip);
 extern void early_fixup_exception(struct pt_regs *regs, int trapnr);
 
 #ifdef CONFIG_X86_MCE
-extern void ex_handler_msr_mce(struct pt_regs *regs, bool wrmsr);
+extern void __noreturn ex_handler_msr_mce(struct pt_regs *regs, bool wrmsr);
 #else
-static inline void ex_handler_msr_mce(struct pt_regs *regs, bool wrmsr) { }
+static inline void __noreturn ex_handler_msr_mce(struct pt_regs *regs, bool wrmsr)
+{
+	for (;;)
+		cpu_relax();
+}
 #endif
 
 #if defined(CONFIG_BPF_JIT) && defined(CONFIG_X86_64)

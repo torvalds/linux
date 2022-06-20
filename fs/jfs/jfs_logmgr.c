@@ -388,14 +388,6 @@ lmWriteRecord(struct jfs_log * log, struct tblock * tblk, struct lrd * lrd,
 			p = (caddr_t) &JFS_IP(tlck->ip)->i_xtroot;
 		linelock = (struct linelock *) & tlck->lock;
 	}
-#ifdef	_JFS_WIP
-	else if (tlck->flag & tlckINLINELOCK) {
-
-		inlinelock = (struct inlinelock *) & tlck;
-		p = (caddr_t) & inlinelock->pxd;
-		linelock = (struct linelock *) & tlck;
-	}
-#endif				/* _JFS_WIP */
 	else {
 		jfs_err("lmWriteRecord: UFO tlck:0x%p", tlck);
 		return 0;	/* Probably should trap */

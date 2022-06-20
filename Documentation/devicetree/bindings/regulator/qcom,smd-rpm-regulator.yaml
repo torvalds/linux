@@ -12,7 +12,7 @@ description:
   resides as a subnode of the SMD.  As such, the SMD-RPM regulator requires
   that the SMD and RPM nodes be present.
 
-  Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd.txt for
+  Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd.yaml for
   information pertaining to the SMD node.
 
   Please refer to Documentation/devicetree/bindings/soc/qcom/qcom,smd-rpm.yaml
@@ -69,7 +69,8 @@ description:
   l12, l13, l14, l15, l16, l17, l18, l19, l20, l21, l22
 
 maintainers:
-  - Kathiravan T <kathirav@codeaurora.org>
+  - Andy Gross <agross@kernel.org>
+  - Bjorn Andersson <bjorn.andersson@linaro.org>
 
 properties:
   compatible:

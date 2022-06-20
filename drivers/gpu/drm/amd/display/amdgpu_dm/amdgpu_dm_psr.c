@@ -29,7 +29,6 @@
 #include "amdgpu_dm.h"
 #include "modules/power/power_helpers.h"
 
-#ifdef CONFIG_DRM_AMD_DC_DCN
 static bool link_supports_psrsu(struct dc_link *link)
 {
 	struct dc *dc = link->ctx->dc;
@@ -53,7 +52,6 @@ static bool link_supports_psrsu(struct dc_link *link)
 
 	return true;
 }
-#endif
 
 /*
  * amdgpu_dm_set_psr_caps() - set link psr capabilities
@@ -73,11 +71,9 @@ void amdgpu_dm_set_psr_caps(struct dc_link *link)
 		link->psr_settings.psr_feature_enabled = false;
 
 	} else {
-#ifdef CONFIG_DRM_AMD_DC_DCN
 		if (link_supports_psrsu(link))
 			link->psr_settings.psr_version = DC_PSR_VERSION_SU_1;
 		else
-#endif
 			link->psr_settings.psr_version = DC_PSR_VERSION_1;
 
 		link->psr_settings.psr_feature_enabled = true;

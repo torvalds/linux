@@ -1567,7 +1567,6 @@ int adxl367_probe(struct device *dev, const struct adxl367_ops *ops,
 		return ret;
 
 	ret = devm_iio_kfifo_buffer_setup_ext(st->dev, indio_dev,
-					      INDIO_BUFFER_SOFTWARE,
 					      &adxl367_buffer_ops,
 					      adxl367_fifo_attributes);
 	if (ret)

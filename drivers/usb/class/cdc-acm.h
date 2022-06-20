@@ -8,14 +8,6 @@
  */
 
 /*
- * CMSPAR, some architectures can't have space and mark parity.
- */
-
-#ifndef CMSPAR
-#define CMSPAR			0
-#endif
-
-/*
  * Major and minor numbers.
  */
 

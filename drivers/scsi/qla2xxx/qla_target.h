@@ -883,7 +883,6 @@ struct qla_tgt_cmd {
 	/* to save extra sess dereferences */
 	unsigned int conf_compl_supported:1;
 	unsigned int sg_mapped:1;
-	unsigned int free_sg:1;
 	unsigned int write_data_transferred:1;
 	unsigned int q_full:1;
 	unsigned int term_exchg:1;

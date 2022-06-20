@@ -38,13 +38,13 @@ static int rxe_mcast_add(struct rxe_dev *rxe, union ib_gid *mgid)
 }
 
 /**
- * rxe_mcast_delete - delete multicast address from rxe device
+ * rxe_mcast_del - delete multicast address from rxe device
  * @rxe: rxe device object
  * @mgid: multicast address as a gid
  *
  * Returns 0 on success else an error
  */
-static int rxe_mcast_delete(struct rxe_dev *rxe, union ib_gid *mgid)
+static int rxe_mcast_del(struct rxe_dev *rxe, union ib_gid *mgid)
 {
 	unsigned char ll_addr[ETH_ALEN];
 
@@ -143,11 +143,10 @@ static struct rxe_mcg *__rxe_lookup_mcg(struct rxe_dev *rxe,
 struct rxe_mcg *rxe_lookup_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 {
 	struct rxe_mcg *mcg;
-	unsigned long flags;
 
-	spin_lock_irqsave(&rxe->mcg_lock, flags);
+	spin_lock_bh(&rxe->mcg_lock);
 	mcg = __rxe_lookup_mcg(rxe, mgid);
-	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+	spin_unlock_bh(&rxe->mcg_lock);
 
 	return mcg;
 }
@@ -159,17 +158,10 @@ struct rxe_mcg *rxe_lookup_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
  * @mcg: new mcg object
  *
  * Context: caller should hold rxe->mcg lock
- * Returns: 0 on success else an error
  */
-static int __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
-			  struct rxe_mcg *mcg)
+static void __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
+			   struct rxe_mcg *mcg)
 {
-	int err;
-
-	err = rxe_mcast_add(rxe, mgid);
-	if (unlikely(err))
-		return err;
-
 	kref_init(&mcg->ref_cnt);
 	memcpy(&mcg->mgid, mgid, sizeof(mcg->mgid));
 	INIT_LIST_HEAD(&mcg->qp_list);
@@ -184,8 +176,6 @@ static int __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
 	 */
 	kref_get(&mcg->ref_cnt);
 	__rxe_insert_mcg(mcg);
-
-	return 0;
 }
 
 /**
@@ -198,7 +188,6 @@ static int __rxe_init_mcg(struct rxe_dev *rxe, union ib_gid *mgid,
 static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 {
 	struct rxe_mcg *mcg, *tmp;
-	unsigned long flags;
 	int err;
 
 	if (rxe->attr.max_mcast_grp == 0)
@@ -209,36 +198,40 @@ static struct rxe_mcg *rxe_get_mcg(struct rxe_dev *rxe, union ib_gid *mgid)
 	if (mcg)
 		return mcg;
 
-	/* speculative alloc of new mcg */
-	mcg = kzalloc(sizeof(*mcg), GFP_KERNEL);
-	if (!mcg)
-		return ERR_PTR(-ENOMEM);
-
-	spin_lock_irqsave(&rxe->mcg_lock, flags);
-	/* re-check to see if someone else just added it */
-	tmp = __rxe_lookup_mcg(rxe, mgid);
-	if (tmp) {
-		kfree(mcg);
-		mcg = tmp;
-		goto out;
-	}
-
+	/* check to see if we have reached limit */
 	if (atomic_inc_return(&rxe->mcg_num) > rxe->attr.max_mcast_grp) {
 		err = -ENOMEM;
 		goto err_dec;
 	}
 
-	err = __rxe_init_mcg(rxe, mgid, mcg);
-	if (err)
+	/* speculative alloc of new mcg */
+	mcg = kzalloc(sizeof(*mcg), GFP_KERNEL);
+	if (!mcg) {
+		err = -ENOMEM;
 		goto err_dec;
-out:
-	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
-	return mcg;
+	}
 
+	spin_lock_bh(&rxe->mcg_lock);
+	/* re-check to see if someone else just added it */
+	tmp = __rxe_lookup_mcg(rxe, mgid);
+	if (tmp) {
+		spin_unlock_bh(&rxe->mcg_lock);
+		atomic_dec(&rxe->mcg_num);
+		kfree(mcg);
+		return tmp;
+	}
+
+	__rxe_init_mcg(rxe, mgid, mcg);
+	spin_unlock_bh(&rxe->mcg_lock);
+
+	/* add mcast address outside of lock */
+	err = rxe_mcast_add(rxe, mgid);
+	if (!err)
+		return mcg;
+
+	kfree(mcg);
 err_dec:
 	atomic_dec(&rxe->mcg_num);
-	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
-	kfree(mcg);
 	return ERR_PTR(err);
 }
 
@@ -268,7 +261,6 @@ static void __rxe_destroy_mcg(struct rxe_mcg *mcg)
 	__rxe_remove_mcg(mcg);
 	kref_put(&mcg->ref_cnt, rxe_cleanup_mcg);
 
-	rxe_mcast_delete(mcg->rxe, &mcg->mgid);
 	atomic_dec(&rxe->mcg_num);
 }
 
@@ -280,11 +272,12 @@ static void __rxe_destroy_mcg(struct rxe_mcg *mcg)
  */
 static void rxe_destroy_mcg(struct rxe_mcg *mcg)
 {
-	unsigned long flags;
+	/* delete mcast address outside of lock */
+	rxe_mcast_del(mcg->rxe, &mcg->mgid);
 
-	spin_lock_irqsave(&mcg->rxe->mcg_lock, flags);
+	spin_lock_bh(&mcg->rxe->mcg_lock);
 	__rxe_destroy_mcg(mcg);
-	spin_unlock_irqrestore(&mcg->rxe->mcg_lock, flags);
+	spin_unlock_bh(&mcg->rxe->mcg_lock);
 }
 
 /**
@@ -339,25 +332,24 @@ static int rxe_attach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
 {
 	struct rxe_dev *rxe = mcg->rxe;
 	struct rxe_mca *mca, *tmp;
-	unsigned long flags;
 	int err;
 
 	/* check to see if the qp is already a member of the group */
-	spin_lock_irqsave(&rxe->mcg_lock, flags);
+	spin_lock_bh(&rxe->mcg_lock);
 	list_for_each_entry(mca, &mcg->qp_list, qp_list) {
 		if (mca->qp == qp) {
-			spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+			spin_unlock_bh(&rxe->mcg_lock);
 			return 0;
 		}
 	}
-	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+	spin_unlock_bh(&rxe->mcg_lock);
 
 	/* speculative alloc new mca without using GFP_ATOMIC */
 	mca = kzalloc(sizeof(*mca), GFP_KERNEL);
 	if (!mca)
 		return -ENOMEM;
 
-	spin_lock_irqsave(&rxe->mcg_lock, flags);
+	spin_lock_bh(&rxe->mcg_lock);
 	/* re-check to see if someone else just attached qp */
 	list_for_each_entry(tmp, &mcg->qp_list, qp_list) {
 		if (tmp->qp == qp) {
@@ -371,7 +363,7 @@ static int rxe_attach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
 	if (err)
 		kfree(mca);
 out:
-	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+	spin_unlock_bh(&rxe->mcg_lock);
 	return err;
 }
 
@@ -405,9 +397,8 @@ static int rxe_detach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
 {
 	struct rxe_dev *rxe = mcg->rxe;
 	struct rxe_mca *mca, *tmp;
-	unsigned long flags;
 
-	spin_lock_irqsave(&rxe->mcg_lock, flags);
+	spin_lock_bh(&rxe->mcg_lock);
 	list_for_each_entry_safe(mca, tmp, &mcg->qp_list, qp_list) {
 		if (mca->qp == qp) {
 			__rxe_cleanup_mca(mca, mcg);
@@ -421,13 +412,13 @@ static int rxe_detach_mcg(struct rxe_mcg *mcg, struct rxe_qp *qp)
 			if (atomic_read(&mcg->qp_num) <= 0)
 				__rxe_destroy_mcg(mcg);
 
-			spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+			spin_unlock_bh(&rxe->mcg_lock);
 			return 0;
 		}
 	}
 
 	/* we didn't find the qp on the list */
-	spin_unlock_irqrestore(&rxe->mcg_lock, flags);
+	spin_unlock_bh(&rxe->mcg_lock);
 	return -EINVAL;
 }
 

@@ -34,4 +34,14 @@
 
 #define MMU_CONFIG_TIMEOUT_USEC		2000 /* 2 ms */
 
+enum mmu_hop_num {
+	MMU_HOP0,
+	MMU_HOP1,
+	MMU_HOP2,
+	MMU_HOP3,
+	MMU_HOP4,
+	MMU_HOP5,
+	MMU_HOP_MAX,
+};
+
 #endif /* INCLUDE_MMU_GENERAL_H_ */

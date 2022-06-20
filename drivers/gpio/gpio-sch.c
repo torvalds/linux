@@ -38,7 +38,6 @@
 
 struct sch_gpio {
 	struct gpio_chip chip;
-	struct irq_chip irqchip;
 	spinlock_t lock;
 	unsigned short iobase;
 	unsigned short resume_base;
@@ -218,11 +217,9 @@ static void sch_irq_ack(struct irq_data *d)
 	spin_unlock_irqrestore(&sch->lock, flags);
 }
 
-static void sch_irq_mask_unmask(struct irq_data *d, int val)
+static void sch_irq_mask_unmask(struct gpio_chip *gc, irq_hw_number_t gpio_num, int val)
 {
-	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
 	struct sch_gpio *sch = gpiochip_get_data(gc);
-	irq_hw_number_t gpio_num = irqd_to_hwirq(d);
 	unsigned long flags;
 
 	spin_lock_irqsave(&sch->lock, flags);
@@ -232,13 +229,31 @@ static void sch_irq_mask_unmask(struct irq_data *d, int val)
 
 static void sch_irq_mask(struct irq_data *d)
 {
-	sch_irq_mask_unmask(d, 0);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	irq_hw_number_t gpio_num = irqd_to_hwirq(d);
+
+	sch_irq_mask_unmask(gc, gpio_num, 0);
+	gpiochip_disable_irq(gc, gpio_num);
 }
 
 static void sch_irq_unmask(struct irq_data *d)
 {
-	sch_irq_mask_unmask(d, 1);
+	struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+	irq_hw_number_t gpio_num = irqd_to_hwirq(d);
+
+	gpiochip_enable_irq(gc, gpio_num);
+	sch_irq_mask_unmask(gc, gpio_num, 1);
 }
+
+static const struct irq_chip sch_irqchip = {
+	.name = "sch_gpio",
+	.irq_ack = sch_irq_ack,
+	.irq_mask = sch_irq_mask,
+	.irq_unmask = sch_irq_unmask,
+	.irq_set_type = sch_irq_type,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
+};
 
 static u32 sch_gpio_gpe_handler(acpi_handle gpe_device, u32 gpe, void *context)
 {
@@ -367,14 +382,8 @@ static int sch_gpio_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sch);
 
-	sch->irqchip.name = "sch_gpio";
-	sch->irqchip.irq_ack = sch_irq_ack;
-	sch->irqchip.irq_mask = sch_irq_mask;
-	sch->irqchip.irq_unmask = sch_irq_unmask;
-	sch->irqchip.irq_set_type = sch_irq_type;
-
 	girq = &sch->chip.irq;
-	girq->chip = &sch->irqchip;
+	gpio_irq_chip_set_chip(girq, &sch_irqchip);
 	girq->num_parents = 0;
 	girq->parents = NULL;
 	girq->parent_handler = NULL;

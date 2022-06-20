@@ -238,12 +238,24 @@ static int create_other_event(struct kfd_process *p, struct kfd_event *ev, const
 	return 0;
 }
 
-void kfd_event_init_process(struct kfd_process *p)
+int kfd_event_init_process(struct kfd_process *p)
 {
+	int id;
+
 	mutex_init(&p->event_mutex);
 	idr_init(&p->event_idr);
 	p->signal_page = NULL;
-	p->signal_event_count = 0;
+	p->signal_event_count = 1;
+	/* Allocate event ID 0. It is used for a fast path to ignore bogus events
+	 * that are sent by the CP without a context ID
+	 */
+	id = idr_alloc(&p->event_idr, NULL, 0, 1, GFP_KERNEL);
+	if (id < 0) {
+		idr_destroy(&p->event_idr);
+		mutex_destroy(&p->event_mutex);
+		return id;
+	}
+	return 0;
 }
 
 static void destroy_event(struct kfd_process *p, struct kfd_event *ev)
@@ -271,8 +283,10 @@ static void destroy_events(struct kfd_process *p)
 	uint32_t id;
 
 	idr_for_each_entry(&p->event_idr, ev, id)
-		destroy_event(p, ev);
+		if (ev)
+			destroy_event(p, ev);
 	idr_destroy(&p->event_idr);
+	mutex_destroy(&p->event_mutex);
 }
 
 /*
@@ -749,7 +763,7 @@ void kfd_signal_event_interrupt(u32 pasid, uint32_t partial_id,
 			 * iterate over the signal slots and lookup
 			 * only signaled events from the IDR.
 			 */
-			for (id = 0; id < KFD_SIGNAL_EVENT_LIMIT; id++)
+			for (id = 1; id < KFD_SIGNAL_EVENT_LIMIT; id++)
 				if (READ_ONCE(slots[id]) != UNSIGNALED_EVENT_SLOT) {
 					ev = lookup_event_by_id(p, id);
 					set_event_from_interrupt(p, ev);

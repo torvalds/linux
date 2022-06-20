@@ -67,7 +67,7 @@ deploy_kernel_headers () {
 	) > debian/hdrsrcfiles
 
 	{
-		if is_enabled CONFIG_STACK_VALIDATION; then
+		if is_enabled CONFIG_OBJTOOL; then
 			echo tools/objtool/objtool
 		fi
 

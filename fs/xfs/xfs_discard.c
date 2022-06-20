@@ -114,7 +114,7 @@ xfs_trim_extents(
 		}
 
 		trace_xfs_discard_extent(mp, agno, fbno, flen);
-		error = blkdev_issue_discard(bdev, dbno, dlen, GFP_NOFS, 0);
+		error = blkdev_issue_discard(bdev, dbno, dlen, GFP_NOFS);
 		if (error)
 			goto out_del_cursor;
 		*blocks_trimmed += flen;
@@ -152,8 +152,8 @@ xfs_ioc_trim(
 	struct xfs_mount		*mp,
 	struct fstrim_range __user	*urange)
 {
-	struct request_queue	*q = bdev_get_queue(mp->m_ddev_targp->bt_bdev);
-	unsigned int		granularity = q->limits.discard_granularity;
+	unsigned int		granularity =
+		bdev_discard_granularity(mp->m_ddev_targp->bt_bdev);
 	struct fstrim_range	range;
 	xfs_daddr_t		start, end, minlen;
 	xfs_agnumber_t		start_agno, end_agno, agno;
@@ -162,7 +162,7 @@ xfs_ioc_trim(
 
 	if (!capable(CAP_SYS_ADMIN))
 		return -EPERM;
-	if (!blk_queue_discard(q))
+	if (!bdev_max_discard_sectors(mp->m_ddev_targp->bt_bdev))
 		return -EOPNOTSUPP;
 
 	/*
