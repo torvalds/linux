@@ -7,6 +7,7 @@
  * Author: Jisheng Zhang <jszhang@kernel.org>
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/dma-mapping.h>
 #include <linux/iopoll.h>
@@ -85,6 +86,7 @@ struct dwcmshc_priv {
 	int txclk_tapnum;
 	unsigned int actual_clk;
 	u32 flags;
+	u32 acpi_en;
 };
 
 struct dwcmshc_driver_data {
@@ -208,9 +210,20 @@ static void dwcmshc_rk_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (clock <= 400000)
 		clock = 375000;
 
-	err = clk_set_rate(pltfm_host->clk, clock);
-	if (err)
-		dev_err(mmc_dev(host->mmc), "fail to set clock %d", clock);
+	if (priv->acpi_en) {
+		union acpi_object params[1];
+		struct acpi_object_list param_objects;
+
+		params[0].type = ACPI_TYPE_INTEGER;
+		params[0].integer.value  = clock;
+		param_objects.count = 1;
+		param_objects.pointer = params;
+		acpi_evaluate_object(ACPI_HANDLE(mmc_dev(host->mmc)), "SCLK", &param_objects, NULL);
+	} else {
+		err = clk_set_rate(pltfm_host->clk, clock);
+		if (err)
+			dev_err(mmc_dev(host->mmc), "fail to set clock %d", clock);
+	}
 
 	sdhci_set_clock(host, clock);
 
@@ -339,8 +352,7 @@ static const struct sdhci_pltfm_data sdhci_dwcmshc_pdata = {
 
 static const struct sdhci_pltfm_data sdhci_dwcmshc_rk_pdata = {
 	.ops = &sdhci_dwcmshc_rk_ops,
-	.quirks = SDHCI_QUIRK_CAP_CLOCK_BASE_BROKEN |
-		  SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
+	.quirks = SDHCI_QUIRK_BROKEN_TIMEOUT_VAL,
 	.quirks2 = SDHCI_QUIRK2_PRESET_VALUE_BROKEN |
 		   SDHCI_QUIRK2_CLOCK_DIV_ZERO_BROKEN,
 };
@@ -427,7 +439,7 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	int err;
 	u32 extra;
 
-	drv_data = of_device_get_match_data(&pdev->dev);
+	drv_data = device_get_match_data(&pdev->dev);
 	if (!drv_data) {
 		dev_err(&pdev->dev, "Error: No device match data found\n");
 		return -ENODEV;
@@ -449,21 +461,24 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	pltfm_host = sdhci_priv(host);
 	priv = sdhci_pltfm_priv(pltfm_host);
 
-	priv->reset = devm_reset_control_array_get_exclusive(&pdev->dev);
+	priv->acpi_en = has_acpi_companion(&pdev->dev);
 
-	pltfm_host->clk = devm_clk_get(&pdev->dev, "core");
-	if (IS_ERR(pltfm_host->clk)) {
-		err = PTR_ERR(pltfm_host->clk);
-		dev_err(&pdev->dev, "failed to get core clk: %d\n", err);
-		goto free_pltfm;
+	if (!priv->acpi_en) {
+		priv->reset = devm_reset_control_array_get_exclusive(&pdev->dev);
+		pltfm_host->clk = devm_clk_get(&pdev->dev, "core");
+		if (IS_ERR(pltfm_host->clk)) {
+			err = PTR_ERR(pltfm_host->clk);
+			dev_err(&pdev->dev, "failed to get core clk: %d\n", err);
+			goto free_pltfm;
+		}
+		err = clk_prepare_enable(pltfm_host->clk);
+		if (err)
+			goto free_pltfm;
+
+		priv->bus_clk = devm_clk_get(&pdev->dev, "bus");
+		if (!IS_ERR(priv->bus_clk))
+			clk_prepare_enable(priv->bus_clk);
 	}
-	err = clk_prepare_enable(pltfm_host->clk);
-	if (err)
-		goto free_pltfm;
-
-	priv->bus_clk = devm_clk_get(&pdev->dev, "bus");
-	if (!IS_ERR(priv->bus_clk))
-		clk_prepare_enable(priv->bus_clk);
 
 	err = mmc_of_parse(host->mmc);
 	if (err)
@@ -472,8 +487,7 @@ static int dwcmshc_probe(struct platform_device *pdev)
 	sdhci_get_of_property(pdev);
 
 	host->mmc_host_ops.request = dwcmshc_request;
-	host->mmc_host_ops.hs400_enhanced_strobe =
-		dwcmshc_hs400_enhanced_strobe;
+	host->mmc_host_ops.hs400_enhanced_strobe = dwcmshc_hs400_enhanced_strobe;
 
 	err = sdhci_add_host(host);
 	if (err)
@@ -486,12 +500,14 @@ static int dwcmshc_probe(struct platform_device *pdev)
 			goto err_clk;
 	}
 
-	pm_runtime_get_noresume(&pdev->dev);
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_put_autosuspend(&pdev->dev);
+	if (!priv->acpi_en) {
+		pm_runtime_get_noresume(&pdev->dev);
+		pm_runtime_set_active(&pdev->dev);
+		pm_runtime_enable(&pdev->dev);
+		pm_runtime_set_autosuspend_delay(&pdev->dev, 50);
+		pm_runtime_use_autosuspend(&pdev->dev);
+		pm_runtime_put_autosuspend(&pdev->dev);
+	}
 
 	return 0;
 
