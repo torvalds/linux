@@ -41,7 +41,7 @@ config SND_SOC_INTEL_SOF_CIRRUS_COMMON
 if SND_SOC_INTEL_CATPT
 
 config SND_SOC_INTEL_HASWELL_MACH
-	tristate "Haswell Lynxpoint"
+	tristate "Haswell with RT5640 I2S codec"
 	depends on I2C
 	depends on I2C_DESIGNWARE_PLATFORM || COMPILE_TEST
 	depends on X86_INTEL_LPSS || COMPILE_TEST
