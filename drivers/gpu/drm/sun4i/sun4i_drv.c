@@ -7,6 +7,7 @@
  */
 
 #include <linux/component.h>
+#include <linux/dma-mapping.h>
 #include <linux/kfifo.h>
 #include <linux/module.h>
 #include <linux/of_graph.h>
@@ -368,6 +369,13 @@ static int sun4i_drv_probe(struct platform_device *pdev)
 	int i, ret, count = 0;
 
 	INIT_KFIFO(list.fifo);
+
+	/*
+	 * DE2 and DE3 cores actually supports 40-bit addresses, but
+	 * driver does not.
+	 */
+	dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
+	dma_set_max_seg_size(&pdev->dev, UINT_MAX);
 
 	for (i = 0;; i++) {
 		struct device_node *pipeline = of_parse_phandle(np,
