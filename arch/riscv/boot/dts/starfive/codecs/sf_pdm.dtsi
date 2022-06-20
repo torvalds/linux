@@ -1,0 +1,17 @@
+&sound{
+	simple-audio-card,dai-link@0 {
+		reg = <0>;
+		status = "okay";
+		format = "i2s";
+		bitclock-master = <&dailink_master>;
+		frame-master = <&dailink_master>;
+
+		dailink_master:cpu {
+			sound-dai = <&i2srx_3ch>;
+		};
+
+		dailink_slave:codec {
+			sound-dai = <&pdm>;
+		};
+	};
+};

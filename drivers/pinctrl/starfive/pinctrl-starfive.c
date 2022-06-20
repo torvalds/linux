@@ -94,7 +94,7 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 		return -EINVAL;
 	}
 
-	nmaps = size / pin_size;
+	nmaps = size / pin_size * 2;
 	ngroups = size / pin_size;
 
 	pgnames = devm_kcalloc(dev, ngroups, sizeof(*pgnames), GFP_KERNEL);
@@ -133,6 +133,11 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 		}
 
 		pgnames[ngroups++] = grpname;
+		map[nmaps].type = PIN_MAP_TYPE_MUX_GROUP;
+		map[nmaps].data.mux.function = np->name;
+		map[nmaps].data.mux.group = grpname;
+		nmaps += 1;
+
 
 		list = of_get_property(child, "sf,pins", &psize);
 		if (!list) {
@@ -155,22 +160,30 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 
 			info->starfive_pinctrl_parse_pin(sfp,
 					pins_id, pin_data, list, child);
+			map[nmaps].type = PIN_MAP_TYPE_CONFIGS_PIN;
+			map[nmaps].data.configs.group_or_pin =
+						pin_get_name(pctldev, pin_data->pin);
+			map[nmaps].data.configs.configs =
+						&pin_data->pin_config.io_config;
+			map[nmaps].data.configs.num_configs = 1;
+			nmaps += 1;
+
 			list++;
 		}
 		offset += i;
-
+/*
 		map[nmaps].type = PIN_MAP_TYPE_MUX_GROUP;
 		map[nmaps].data.mux.function = np->name;
 		map[nmaps].data.mux.group = grpname;
 		nmaps += 1;
-
+*/
 		ret = pinctrl_generic_add_group(pctldev,
 				grpname, pins_id, child_num_pins, pin_data);
 		if (ret < 0) {
 			dev_err(dev, "error adding group %s: %d\n", grpname, ret);
 			goto put_child;
 		}
-
+#if 0
 		ret = pinconf_generic_parse_dt_config(child, pctldev,
 				&map[nmaps].data.configs.configs,
 				&map[nmaps].data.configs.num_configs);
@@ -187,6 +200,7 @@ static int starfive_dt_node_to_map(struct pinctrl_dev *pctldev,
 		map[nmaps].type = PIN_MAP_TYPE_CONFIGS_GROUP;
 		map[nmaps].data.configs.group_or_pin = grpname;
 		nmaps += 1;
+#endif
 	}
 
 	ret = pinmux_generic_add_function(pctldev, np->name, pgnames, ngroups, NULL);
