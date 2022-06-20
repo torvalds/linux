@@ -35,9 +35,7 @@
 #define  BCM6358_MODE_MUX_SYS_IRQ	BIT(15)
 
 struct bcm6358_pingroup {
-	const char *name;
-	const unsigned * const pins;
-	const unsigned num_pins;
+	struct pingroup grp;
 
 	const uint16_t mode_val;
 
@@ -131,9 +129,7 @@ static unsigned sys_irq_grp_pins[] = { 5 };
 
 #define BCM6358_GPIO_MUX_GROUP(n, bit, dir)			\
 	{							\
-		.name = #n,					\
-		.pins = n##_pins,				\
-		.num_pins = ARRAY_SIZE(n##_pins),		\
+		.grp = BCM_PIN_GROUP(n),			\
 		.mode_val = BCM6358_MODE_MUX_##bit,		\
 		.direction = dir,				\
 	}
@@ -219,15 +215,15 @@ static int bcm6358_pinctrl_get_group_count(struct pinctrl_dev *pctldev)
 static const char *bcm6358_pinctrl_get_group_name(struct pinctrl_dev *pctldev,
 						  unsigned group)
 {
-	return bcm6358_groups[group].name;
+	return bcm6358_groups[group].grp.name;
 }
 
 static int bcm6358_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 					  unsigned group, const unsigned **pins,
-					  unsigned *num_pins)
+					  unsigned *npins)
 {
-	*pins = bcm6358_groups[group].pins;
-	*num_pins = bcm6358_groups[group].num_pins;
+	*pins = bcm6358_groups[group].grp.pins;
+	*npins = bcm6358_groups[group].grp.npins;
 
 	return 0;
 }
@@ -264,12 +260,12 @@ static int bcm6358_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 	unsigned int mask = val;
 	unsigned pin;
 
-	for (pin = 0; pin < pg->num_pins; pin++)
+	for (pin = 0; pin < pg->grp.npins; pin++)
 		mask |= (unsigned long)bcm6358_pins[pin].drv_data;
 
 	regmap_field_update_bits(priv->overlays, mask, val);
 
-	for (pin = 0; pin < pg->num_pins; pin++) {
+	for (pin = 0; pin < pg->grp.npins; pin++) {
 		struct pinctrl_gpio_range *range;
 		unsigned int hw_gpio = bcm6358_pins[pin].number;
 

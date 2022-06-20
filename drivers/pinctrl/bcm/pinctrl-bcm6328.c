@@ -125,49 +125,42 @@ static unsigned gpio31_pins[] = { 31 };
 static unsigned hsspi_cs1_pins[] = { 36 };
 static unsigned usb_port1_pins[] = { 38 };
 
-#define BCM6328_GROUP(n)					\
-	{							\
-		.name = #n,					\
-		.pins = n##_pins,				\
-		.num_pins = ARRAY_SIZE(n##_pins),		\
-	}
+static struct pingroup bcm6328_groups[] = {
+	BCM_PIN_GROUP(gpio0),
+	BCM_PIN_GROUP(gpio1),
+	BCM_PIN_GROUP(gpio2),
+	BCM_PIN_GROUP(gpio3),
+	BCM_PIN_GROUP(gpio4),
+	BCM_PIN_GROUP(gpio5),
+	BCM_PIN_GROUP(gpio6),
+	BCM_PIN_GROUP(gpio7),
+	BCM_PIN_GROUP(gpio8),
+	BCM_PIN_GROUP(gpio9),
+	BCM_PIN_GROUP(gpio10),
+	BCM_PIN_GROUP(gpio11),
+	BCM_PIN_GROUP(gpio12),
+	BCM_PIN_GROUP(gpio13),
+	BCM_PIN_GROUP(gpio14),
+	BCM_PIN_GROUP(gpio15),
+	BCM_PIN_GROUP(gpio16),
+	BCM_PIN_GROUP(gpio17),
+	BCM_PIN_GROUP(gpio18),
+	BCM_PIN_GROUP(gpio19),
+	BCM_PIN_GROUP(gpio20),
+	BCM_PIN_GROUP(gpio21),
+	BCM_PIN_GROUP(gpio22),
+	BCM_PIN_GROUP(gpio23),
+	BCM_PIN_GROUP(gpio24),
+	BCM_PIN_GROUP(gpio25),
+	BCM_PIN_GROUP(gpio26),
+	BCM_PIN_GROUP(gpio27),
+	BCM_PIN_GROUP(gpio28),
+	BCM_PIN_GROUP(gpio29),
+	BCM_PIN_GROUP(gpio30),
+	BCM_PIN_GROUP(gpio31),
 
-static struct bcm6328_pingroup bcm6328_groups[] = {
-	BCM6328_GROUP(gpio0),
-	BCM6328_GROUP(gpio1),
-	BCM6328_GROUP(gpio2),
-	BCM6328_GROUP(gpio3),
-	BCM6328_GROUP(gpio4),
-	BCM6328_GROUP(gpio5),
-	BCM6328_GROUP(gpio6),
-	BCM6328_GROUP(gpio7),
-	BCM6328_GROUP(gpio8),
-	BCM6328_GROUP(gpio9),
-	BCM6328_GROUP(gpio10),
-	BCM6328_GROUP(gpio11),
-	BCM6328_GROUP(gpio12),
-	BCM6328_GROUP(gpio13),
-	BCM6328_GROUP(gpio14),
-	BCM6328_GROUP(gpio15),
-	BCM6328_GROUP(gpio16),
-	BCM6328_GROUP(gpio17),
-	BCM6328_GROUP(gpio18),
-	BCM6328_GROUP(gpio19),
-	BCM6328_GROUP(gpio20),
-	BCM6328_GROUP(gpio21),
-	BCM6328_GROUP(gpio22),
-	BCM6328_GROUP(gpio23),
-	BCM6328_GROUP(gpio24),
-	BCM6328_GROUP(gpio25),
-	BCM6328_GROUP(gpio26),
-	BCM6328_GROUP(gpio27),
-	BCM6328_GROUP(gpio28),
-	BCM6328_GROUP(gpio29),
-	BCM6328_GROUP(gpio30),
-	BCM6328_GROUP(gpio31),
-
-	BCM6328_GROUP(hsspi_cs1),
-	BCM6328_GROUP(usb_port1),
+	BCM_PIN_GROUP(hsspi_cs1),
+	BCM_PIN_GROUP(usb_port1),
 };
 
 /* GPIO_MODE */
@@ -292,10 +285,10 @@ static const char *bcm6328_pinctrl_get_group_name(struct pinctrl_dev *pctldev,
 
 static int bcm6328_pinctrl_get_group_pins(struct pinctrl_dev *pctldev,
 					  unsigned group, const unsigned **pins,
-					  unsigned *num_pins)
+					  unsigned *npins)
 {
 	*pins = bcm6328_groups[group].pins;
-	*num_pins = bcm6328_groups[group].num_pins;
+	*npins = bcm6328_groups[group].npins;
 
 	return 0;
 }
@@ -338,7 +331,7 @@ static int bcm6328_pinctrl_set_mux(struct pinctrl_dev *pctldev,
 				   unsigned selector, unsigned group)
 {
 	struct bcm63xx_pinctrl *pc = pinctrl_dev_get_drvdata(pctldev);
-	const struct bcm6328_pingroup *pg = &bcm6328_groups[group];
+	const struct pingroup *pg = &bcm6328_groups[group];
 	const struct bcm6328_function *f = &bcm6328_funcs[selector];
 
 	bcm6328_rmw_mux(pc, pg->pins[0], f->mode_val, f->mux_val);
