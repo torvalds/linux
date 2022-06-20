@@ -77,6 +77,11 @@
 		default-brightness-level = <200>;
 	};
 
+	battery: battery {
+		compatible = "simple-battery";
+		charge-full-design-microamp-hours = <4500000>;
+	};
+
 	charge-animation {
 		compatible = "rockchip,uboot-charge";
 		rockchip,uboot-charge-on = <1>;
@@ -400,6 +405,7 @@
 			 0x2F 0x00 0x64 0xA5 0xB5 0x00 0xF8 0x39>;
 		cellwise,dual-cell = <1>;
 		cellwise,monitor-interval-ms = <5000>;
+		monitored-battery = <&battery>;
 		power-supplies = <&bq25703>;
 	};
 
