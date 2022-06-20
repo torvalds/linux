@@ -690,8 +690,22 @@
 
 			clocks = <&rpmcc RPM_SMD_BB_CLK1>,
 				 <&rpmcc RPM_SMD_LN_BB_CLK>,
-				 <&sleep_clk>;
-			clock-names = "cxo", "cxo2", "sleep_clk";
+				 <&sleep_clk>,
+				 <&pciephy_0>,
+				 <&pciephy_1>,
+				 <&pciephy_2>,
+				 <&ssusb_phy_0>,
+				 <0>, <0>, <0>;
+			clock-names = "cxo",
+				      "cxo2",
+				      "sleep_clk",
+				      "pcie_0_pipe_clk_src",
+				      "pcie_1_pipe_clk_src",
+				      "pcie_2_pipe_clk_src",
+				      "usb3_phy_pipe_clk_src",
+				      "ufs_rx_symbol_0_clk_src",
+				      "ufs_rx_symbol_1_clk_src",
+				      "ufs_tx_symbol_0_clk_src";
 		};
 
 		bimc: interconnect@408000 {
