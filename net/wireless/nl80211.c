@@ -15781,9 +15781,14 @@ nl80211_add_mod_link_station(struct sk_buff *skb, struct genl_info *info,
 	if (err)
 		return err;
 
+	wdev_lock(dev->ieee80211_ptr);
 	if (add)
-		return rdev_add_link_station(rdev, dev, &params);
-	return rdev_mod_link_station(rdev, dev, &params);
+		err = rdev_add_link_station(rdev, dev, &params);
+	else
+		err = rdev_mod_link_station(rdev, dev, &params);
+	wdev_unlock(dev->ieee80211_ptr);
+
+	return err;
 }
 
 static int
@@ -15804,6 +15809,7 @@ nl80211_remove_link_station(struct sk_buff *skb, struct genl_info *info)
 	struct link_station_del_parameters params = {};
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
+	int ret;
 
 	if (!rdev->ops->del_link_station)
 		return -EOPNOTSUPP;
@@ -15815,7 +15821,11 @@ nl80211_remove_link_station(struct sk_buff *skb, struct genl_info *info)
 	params.mld_mac = nla_data(info->attrs[NL80211_ATTR_MLD_ADDR]);
 	params.link_id = nla_get_u8(info->attrs[NL80211_ATTR_MLO_LINK_ID]);
 
-	return rdev_del_link_station(rdev, dev, &params);
+	wdev_lock(dev->ieee80211_ptr);
+	ret = rdev_del_link_station(rdev, dev, &params);
+	wdev_unlock(dev->ieee80211_ptr);
+
+	return ret;
 }
 
 #define NL80211_FLAG_NEED_WIPHY		0x01
