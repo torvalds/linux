@@ -235,13 +235,6 @@ static int bdw_rt286_resume(struct snd_soc_card *card)
 	return 0;
 }
 
-/* Use space before codec name to simplify card ID, and simplify driver name. */
-#define SOF_CARD_NAME "bdw rt286" /* card name will be 'sof-bdw rt286' */
-#define SOF_DRIVER_NAME "SOF"
-
-#define CARD_NAME "broadwell-rt286"
-#define DRIVER_NAME NULL /* card name will be used for driver name */
-
 static struct snd_soc_card bdw_rt286_card = {
 	.owner = THIS_MODULE,
 	.dai_link = card_dai_links,
@@ -257,27 +250,33 @@ static struct snd_soc_card bdw_rt286_card = {
 	.resume_post = bdw_rt286_resume,
 };
 
+/* Use space before codec name to simplify card ID, and simplify driver name. */
+#define SOF_CARD_NAME "bdw rt286" /* card name will be 'sof-bdw rt286' */
+#define SOF_DRIVER_NAME "SOF"
+
+#define CARD_NAME "broadwell-rt286"
+
 static int bdw_rt286_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach;
+	struct device *dev = &pdev->dev;
 	int ret;
 
-	bdw_rt286_card.dev = &pdev->dev;
-	mach = pdev->dev.platform_data;
+	bdw_rt286_card.dev = dev;
+	mach = dev_get_platdata(dev);
 
 	ret = snd_soc_fixup_dai_links_platform_name(&bdw_rt286_card, mach->mach_params.platform);
 	if (ret)
 		return ret;
 
-	if (snd_soc_acpi_sof_parent(&pdev->dev)) {
+	if (snd_soc_acpi_sof_parent(dev)) {
 		bdw_rt286_card.name = SOF_CARD_NAME;
 		bdw_rt286_card.driver_name = SOF_DRIVER_NAME;
 	} else {
 		bdw_rt286_card.name = CARD_NAME;
-		bdw_rt286_card.driver_name = DRIVER_NAME;
 	}
 
-	return devm_snd_soc_register_card(&pdev->dev, &bdw_rt286_card);
+	return devm_snd_soc_register_card(dev, &bdw_rt286_card);
 }
 
 static int bdw_rt286_remove(struct platform_device *pdev)
