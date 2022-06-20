@@ -64,8 +64,8 @@ QEMU_VPORT_RESULT := virtio-serial-device
 ifeq ($(HOST_ARCH),$(ARCH))
 QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
 else
-QEMU_MACHINE := -cpu cortex-a53 -machine virt
-CFLAGS += -march=armv8-a -mtune=cortex-a53
+QEMU_MACHINE := -cpu max -machine virt
+CFLAGS += -march=armv8-a
 endif
 else ifeq ($(ARCH),aarch64_be)
 CHOST := aarch64_be-linux-musl
@@ -76,8 +76,8 @@ QEMU_VPORT_RESULT := virtio-serial-device
 ifeq ($(HOST_ARCH),$(ARCH))
 QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
 else
-QEMU_MACHINE := -cpu cortex-a53 -machine virt
-CFLAGS += -march=armv8-a -mtune=cortex-a53
+QEMU_MACHINE := -cpu max -machine virt
+CFLAGS += -march=armv8-a
 endif
 else ifeq ($(ARCH),arm)
 CHOST := arm-linux-musleabi
@@ -88,8 +88,8 @@ QEMU_VPORT_RESULT := virtio-serial-device
 ifeq ($(HOST_ARCH),$(ARCH))
 QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
 else
-QEMU_MACHINE := -cpu cortex-a15 -machine virt
-CFLAGS += -march=armv7-a -mtune=cortex-a15 -mabi=aapcs-linux
+QEMU_MACHINE := -cpu max -machine virt
+CFLAGS += -march=armv7-a -mabi=aapcs-linux
 endif
 else ifeq ($(ARCH),armeb)
 CHOST := armeb-linux-musleabi
@@ -100,8 +100,8 @@ QEMU_VPORT_RESULT := virtio-serial-device
 ifeq ($(HOST_ARCH),$(ARCH))
 QEMU_MACHINE := -cpu host -machine virt,gic_version=host,accel=kvm
 else
-QEMU_MACHINE := -cpu cortex-a15 -machine virt
-CFLAGS += -march=armv7-a -mabi=aapcs-linux # We don't pass -mtune=cortex-a15 due to a compiler bug on big endian.
+QEMU_MACHINE := -cpu max -machine virt
+CFLAGS += -march=armv7-a -mabi=aapcs-linux
 LDFLAGS += -Wl,--be8
 endif
 else ifeq ($(ARCH),x86_64)
@@ -112,8 +112,7 @@ KERNEL_BZIMAGE := $(KERNEL_BUILD_PATH)/arch/x86/boot/bzImage
 ifeq ($(HOST_ARCH),$(ARCH))
 QEMU_MACHINE := -cpu host -machine q35,accel=kvm
 else
-QEMU_MACHINE := -cpu Skylake-Server -machine q35
-CFLAGS += -march=skylake-avx512
+QEMU_MACHINE := -cpu max -machine q35
 endif
 else ifeq ($(ARCH),i686)
 CHOST := i686-linux-musl
@@ -123,8 +122,7 @@ KERNEL_BZIMAGE := $(KERNEL_BUILD_PATH)/arch/x86/boot/bzImage
 ifeq ($(subst x86_64,i686,$(HOST_ARCH)),$(ARCH))
 QEMU_MACHINE := -cpu host -machine q35,accel=kvm
 else
-QEMU_MACHINE := -cpu coreduo -machine q35
-CFLAGS += -march=prescott
+QEMU_MACHINE := -cpu max -machine q35
 endif
 else ifeq ($(ARCH),mips64)
 CHOST := mips64-linux-musl
@@ -182,7 +180,7 @@ KERNEL_BZIMAGE := $(KERNEL_BUILD_PATH)/vmlinux
 ifeq ($(HOST_ARCH),$(ARCH))
 QEMU_MACHINE := -cpu host,accel=kvm -machine pseries
 else
-QEMU_MACHINE := -machine pseries
+QEMU_MACHINE := -machine pseries -device spapr-rng,rng=rng -object rng-random,id=rng
 endif
 else ifeq ($(ARCH),powerpc64le)
 CHOST := powerpc64le-linux-musl
@@ -192,7 +190,7 @@ KERNEL_BZIMAGE := $(KERNEL_BUILD_PATH)/vmlinux
 ifeq ($(HOST_ARCH),$(ARCH))
 QEMU_MACHINE := -cpu host,accel=kvm -machine pseries
 else
-QEMU_MACHINE := -machine pseries
+QEMU_MACHINE := -machine pseries -device spapr-rng,rng=rng -object rng-random,id=rng
 endif
 else ifeq ($(ARCH),powerpc)
 CHOST := powerpc-linux-musl
@@ -247,7 +245,7 @@ QEMU_VPORT_RESULT := virtio-serial-ccw
 ifeq ($(HOST_ARCH),$(ARCH))
 QEMU_MACHINE := -cpu host,accel=kvm -machine s390-ccw-virtio -append $(KERNEL_CMDLINE)
 else
-QEMU_MACHINE := -machine s390-ccw-virtio -append $(KERNEL_CMDLINE)
+QEMU_MACHINE := -cpu max -machine s390-ccw-virtio -append $(KERNEL_CMDLINE)
 endif
 else
 $(error I only build: x86_64, i686, arm, armeb, aarch64, aarch64_be, mips, mipsel, mips64, mips64el, powerpc64, powerpc64le, powerpc, m68k, riscv64, riscv32, s390x)

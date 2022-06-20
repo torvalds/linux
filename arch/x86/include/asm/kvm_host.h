@@ -653,6 +653,7 @@ struct kvm_vcpu_arch {
 	u64 ia32_misc_enable_msr;
 	u64 smbase;
 	u64 smi_count;
+	bool at_instruction_boundary;
 	bool tpr_access_reporting;
 	bool xsaves_enabled;
 	bool xfd_no_write_intercept;
@@ -1046,14 +1047,77 @@ struct kvm_x86_msr_filter {
 };
 
 enum kvm_apicv_inhibit {
+
+	/********************************************************************/
+	/* INHIBITs that are relevant to both Intel's APICv and AMD's AVIC. */
+	/********************************************************************/
+
+	/*
+	 * APIC acceleration is disabled by a module parameter
+	 * and/or not supported in hardware.
+	 */
 	APICV_INHIBIT_REASON_DISABLE,
+
+	/*
+	 * APIC acceleration is inhibited because AutoEOI feature is
+	 * being used by a HyperV guest.
+	 */
 	APICV_INHIBIT_REASON_HYPERV,
-	APICV_INHIBIT_REASON_NESTED,
-	APICV_INHIBIT_REASON_IRQWIN,
-	APICV_INHIBIT_REASON_PIT_REINJ,
-	APICV_INHIBIT_REASON_X2APIC,
-	APICV_INHIBIT_REASON_BLOCKIRQ,
+
+	/*
+	 * APIC acceleration is inhibited because the userspace didn't yet
+	 * enable the kernel/split irqchip.
+	 */
 	APICV_INHIBIT_REASON_ABSENT,
+
+	/* APIC acceleration is inhibited because KVM_GUESTDBG_BLOCKIRQ
+	 * (out of band, debug measure of blocking all interrupts on this vCPU)
+	 * was enabled, to avoid AVIC/APICv bypassing it.
+	 */
+	APICV_INHIBIT_REASON_BLOCKIRQ,
+
+	/*
+	 * For simplicity, the APIC acceleration is inhibited
+	 * first time either APIC ID or APIC base are changed by the guest
+	 * from their reset values.
+	 */
+	APICV_INHIBIT_REASON_APIC_ID_MODIFIED,
+	APICV_INHIBIT_REASON_APIC_BASE_MODIFIED,
+
+	/******************************************************/
+	/* INHIBITs that are relevant only to the AMD's AVIC. */
+	/******************************************************/
+
+	/*
+	 * AVIC is inhibited on a vCPU because it runs a nested guest.
+	 *
+	 * This is needed because unlike APICv, the peers of this vCPU
+	 * cannot use the doorbell mechanism to signal interrupts via AVIC when
+	 * a vCPU runs nested.
+	 */
+	APICV_INHIBIT_REASON_NESTED,
+
+	/*
+	 * On SVM, the wait for the IRQ window is implemented with pending vIRQ,
+	 * which cannot be injected when the AVIC is enabled, thus AVIC
+	 * is inhibited while KVM waits for IRQ window.
+	 */
+	APICV_INHIBIT_REASON_IRQWIN,
+
+	/*
+	 * PIT (i8254) 're-inject' mode, relies on EOI intercept,
+	 * which AVIC doesn't support for edge triggered interrupts.
+	 */
+	APICV_INHIBIT_REASON_PIT_REINJ,
+
+	/*
+	 * AVIC is inhibited because the guest has x2apic in its CPUID.
+	 */
+	APICV_INHIBIT_REASON_X2APIC,
+
+	/*
+	 * AVIC is disabled because SEV doesn't support it.
+	 */
 	APICV_INHIBIT_REASON_SEV,
 };
 
@@ -1300,6 +1364,8 @@ struct kvm_vcpu_stat {
 	u64 nested_run;
 	u64 directed_yield_attempted;
 	u64 directed_yield_successful;
+	u64 preemption_reported;
+	u64 preemption_other;
 	u64 guest_mode;
 };
 

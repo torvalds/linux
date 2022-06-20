@@ -5,6 +5,7 @@
 #include <linux/module.h>
 #include <linux/idr.h>
 #include <linux/of.h>
+#include <linux/platform-feature.h>
 #include <uapi/linux/virtio_ids.h>
 
 /* Unique numbering for virtio devices. */
@@ -170,12 +171,10 @@ EXPORT_SYMBOL_GPL(virtio_add_status);
 static int virtio_features_ok(struct virtio_device *dev)
 {
 	unsigned int status;
-	int ret;
 
 	might_sleep();
 
-	ret = arch_has_restricted_virtio_memory_access();
-	if (ret) {
+	if (platform_has(PLATFORM_VIRTIO_RESTRICTED_MEM_ACCESS)) {
 		if (!virtio_has_feature(dev, VIRTIO_F_VERSION_1)) {
 			dev_warn(&dev->dev,
 				 "device must provide VIRTIO_F_VERSION_1\n");

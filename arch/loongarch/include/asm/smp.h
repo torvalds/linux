@@ -9,9 +9,15 @@
 #include <linux/atomic.h>
 #include <linux/bitops.h>
 #include <linux/linkage.h>
-#include <linux/smp.h>
 #include <linux/threads.h>
 #include <linux/cpumask.h>
+
+extern int smp_num_siblings;
+extern int num_processors;
+extern int disabled_cpus;
+extern cpumask_t cpu_sibling_map[];
+extern cpumask_t cpu_core_map[];
+extern cpumask_t cpu_foreign_map[];
 
 void loongson3_smp_setup(void);
 void loongson3_prepare_cpus(unsigned int max_cpus);
@@ -25,25 +31,10 @@ int loongson3_cpu_disable(void);
 void loongson3_cpu_die(unsigned int cpu);
 #endif
 
-#ifdef CONFIG_SMP
-
 static inline void plat_smp_setup(void)
 {
 	loongson3_smp_setup();
 }
-
-#else /* !CONFIG_SMP */
-
-static inline void plat_smp_setup(void) { }
-
-#endif /* !CONFIG_SMP */
-
-extern int smp_num_siblings;
-extern int num_processors;
-extern int disabled_cpus;
-extern cpumask_t cpu_sibling_map[];
-extern cpumask_t cpu_core_map[];
-extern cpumask_t cpu_foreign_map[];
 
 static inline int raw_smp_processor_id(void)
 {

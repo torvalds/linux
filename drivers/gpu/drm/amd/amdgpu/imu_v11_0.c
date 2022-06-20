@@ -299,7 +299,7 @@ static const struct imu_rlc_ram_golden imu_rlc_ram_golden_11_0_2[] =
 	IMU_RLC_RAM_GOLDEN_VALUE(GC, 0, regCPG_PSP_DEBUG, CPG_PSP_DEBUG__GPA_OVERRIDE_MASK, 0)
 };
 
-void program_imu_rlc_ram(struct amdgpu_device *adev,
+static void program_imu_rlc_ram(struct amdgpu_device *adev,
 				const struct imu_rlc_ram_golden *regs,
 				const u32 array_size)
 {

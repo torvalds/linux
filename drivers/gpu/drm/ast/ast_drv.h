@@ -73,6 +73,11 @@ enum ast_tx_chip {
 	AST_TX_ASTDP,
 };
 
+#define AST_TX_NONE_BIT		BIT(AST_TX_NONE)
+#define AST_TX_SIL164_BIT	BIT(AST_TX_SIL164)
+#define AST_TX_DP501_BIT	BIT(AST_TX_DP501)
+#define AST_TX_ASTDP_BIT	BIT(AST_TX_ASTDP)
+
 #define AST_DRAM_512Mx16 0
 #define AST_DRAM_1Gx16   1
 #define AST_DRAM_512Mx32 2
@@ -173,7 +178,7 @@ struct ast_private {
 	struct drm_plane primary_plane;
 	struct ast_cursor_plane cursor_plane;
 	struct drm_crtc crtc;
-	union {
+	struct {
 		struct {
 			struct drm_encoder encoder;
 			struct ast_vga_connector vga_connector;
@@ -199,7 +204,7 @@ struct ast_private {
 		ast_use_defaults
 	} config_mode;
 
-	enum ast_tx_chip tx_chip_type;
+	unsigned long tx_chip_types;		/* bitfield of enum ast_chip_type */
 	u8 *dp501_fw_addr;
 	const struct firmware *dp501_fw;	/* dp501 fw */
 };

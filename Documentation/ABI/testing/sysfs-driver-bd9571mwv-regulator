@@ -26,6 +26,6 @@ Description:	Read/write the current state of DDR Backup Mode, which controls
 		     DDR Backup Mode must be explicitly enabled by the user,
 		     to invoke step 1.
 
-		See also Documentation/devicetree/bindings/mfd/bd9571mwv.txt.
+		See also Documentation/devicetree/bindings/mfd/rohm,bd9571mwv.yaml.
 Users:		User space applications for embedded boards equipped with a
 		BD9571MWV PMIC.
