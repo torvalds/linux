@@ -75,6 +75,10 @@ void cedrus_device_run(void *priv)
 			V4L2_CID_STATELESS_HEVC_DECODE_PARAMS);
 		run.h265.scaling_matrix = cedrus_find_control_data(ctx,
 			V4L2_CID_STATELESS_HEVC_SCALING_MATRIX);
+		run.h265.entry_points = cedrus_find_control_data(ctx,
+			V4L2_CID_STATELESS_HEVC_ENTRY_POINT_OFFSETS);
+		run.h265.entry_points_count = cedrus_get_num_of_controls(ctx,
+			V4L2_CID_STATELESS_HEVC_ENTRY_POINT_OFFSETS);
 		break;
 
 	case V4L2_PIX_FMT_VP8_FRAME:

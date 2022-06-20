@@ -191,6 +191,16 @@ static const struct cedrus_control cedrus_controls[] = {
 	},
 	{
 		.cfg = {
+			.id	= V4L2_CID_STATELESS_HEVC_ENTRY_POINT_OFFSETS,
+			/* maximum 256 entry point offsets per slice */
+			.dims	= { 256 },
+			.max = 0xffffffff,
+			.step = 1,
+		},
+		.codec		= CEDRUS_CODEC_H265,
+	},
+	{
+		.cfg = {
 			.id	= V4L2_CID_STATELESS_HEVC_DECODE_MODE,
 			.max	= V4L2_STATELESS_HEVC_DECODE_MODE_SLICE_BASED,
 			.def	= V4L2_STATELESS_HEVC_DECODE_MODE_SLICE_BASED,

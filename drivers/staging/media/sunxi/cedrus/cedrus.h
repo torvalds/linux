@@ -81,6 +81,8 @@ struct cedrus_h265_run {
 	const struct v4l2_ctrl_hevc_slice_params	*slice_params;
 	const struct v4l2_ctrl_hevc_decode_params	*decode_params;
 	const struct v4l2_ctrl_hevc_scaling_matrix	*scaling_matrix;
+	const u32					*entry_points;
+	u32						entry_points_count;
 };
 
 struct cedrus_vp8_run {
@@ -146,6 +148,8 @@ struct cedrus_ctx {
 			ssize_t		mv_col_buf_unit_size;
 			void		*neighbor_info_buf;
 			dma_addr_t	neighbor_info_buf_addr;
+			void		*entry_points_buf;
+			dma_addr_t	entry_points_buf_addr;
 		} h265;
 		struct {
 			unsigned int	last_frame_p_type;
