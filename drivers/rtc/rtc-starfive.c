@@ -445,7 +445,7 @@ static int sft_rtc_set_offset(struct device *dev, long offset)
 }
 
 static __maybe_unused int
-sft_rtc_hw_adjustmen(struct device *dev, unsigned int enable)
+sft_rtc_hw_adjustment(struct device *dev, unsigned int enable)
 {
 	struct sft_rtc *srtc = dev_get_drvdata(dev);
 	u32 val;
@@ -615,7 +615,7 @@ static int sft_rtc_probe(struct platform_device *pdev)
 
 	ret = sft_rtc_get_irq(pdev, srtc);
 	if (ret)
-		return ret;
+		goto err_disable_cal_clk;
 
 	srtc->rtc_dev = devm_rtc_allocate_device(dev);
 	if (IS_ERR(srtc->rtc_dev))
@@ -636,7 +636,7 @@ static int sft_rtc_probe(struct platform_device *pdev)
 	sft_rtc_set_enabled(srtc, true);
 
 	if (device_property_read_bool(dev, "rtc,hw-adjustment"))
-		sft_rtc_hw_adjustmen(dev, true);
+		sft_rtc_hw_adjustment(dev, true);
 
 	ret = devm_rtc_register_device(srtc->rtc_dev);
 	if (ret)
@@ -646,6 +646,9 @@ static int sft_rtc_probe(struct platform_device *pdev)
 
 err_disable_wakeup:
 	device_init_wakeup(dev, false);
+
+err_disable_cal_clk:
+	clk_disable_unprepare(srtc->cal_clk);
 
 err_disable_pclk:
 	clk_disable_unprepare(srtc->pclk);
