@@ -820,7 +820,7 @@ static int au1000_rx(struct net_device *dev)
 				pr_cont("\n");
 			}
 		}
-		prxd->buff_stat = (u32)(pDB->dma_addr | RX_DMA_ENABLE);
+		prxd->buff_stat = lower_32_bits(pDB->dma_addr) | RX_DMA_ENABLE;
 		aup->rx_head = (aup->rx_head + 1) & (NUM_RX_DMA - 1);
 		wmb(); /* drain writebuffer */
 
@@ -996,7 +996,7 @@ static netdev_tx_t au1000_tx(struct sk_buff *skb, struct net_device *dev)
 	ps->tx_packets++;
 	ps->tx_bytes += ptxd->len;
 
-	ptxd->buff_stat = pDB->dma_addr | TX_DMA_ENABLE;
+	ptxd->buff_stat = lower_32_bits(pDB->dma_addr) | TX_DMA_ENABLE;
 	wmb(); /* drain writebuffer */
 	dev_kfree_skb(skb);
 	aup->tx_head = (aup->tx_head + 1) & (NUM_TX_DMA - 1);
@@ -1131,9 +1131,9 @@ static int au1000_probe(struct platform_device *pdev)
 	/* Allocate the data buffers
 	 * Snooping works fine with eth on all au1xxx
 	 */
-	aup->vaddr = (u32)dma_alloc_coherent(&pdev->dev, MAX_BUF_SIZE *
-					  (NUM_TX_BUFFS + NUM_RX_BUFFS),
-					  &aup->dma_addr, 0);
+	aup->vaddr = dma_alloc_coherent(&pdev->dev, MAX_BUF_SIZE *
+					(NUM_TX_BUFFS + NUM_RX_BUFFS),
+					&aup->dma_addr, 0);
 	if (!aup->vaddr) {
 		dev_err(&pdev->dev, "failed to allocate data buffers\n");
 		err = -ENOMEM;
@@ -1234,8 +1234,8 @@ static int au1000_probe(struct platform_device *pdev)
 	for (i = 0; i < (NUM_TX_BUFFS+NUM_RX_BUFFS); i++) {
 		pDB->pnext = pDBfree;
 		pDBfree = pDB;
-		pDB->vaddr = (u32 *)((unsigned)aup->vaddr + MAX_BUF_SIZE*i);
-		pDB->dma_addr = (dma_addr_t)virt_to_bus(pDB->vaddr);
+		pDB->vaddr = aup->vaddr + MAX_BUF_SIZE * i;
+		pDB->dma_addr = aup->dma_addr + MAX_BUF_SIZE * i;
 		pDB++;
 	}
 	aup->pDBfree = pDBfree;
@@ -1246,7 +1246,7 @@ static int au1000_probe(struct platform_device *pdev)
 		if (!pDB)
 			goto err_out;
 
-		aup->rx_dma_ring[i]->buff_stat = (unsigned)pDB->dma_addr;
+		aup->rx_dma_ring[i]->buff_stat = lower_32_bits(pDB->dma_addr);
 		aup->rx_db_inuse[i] = pDB;
 	}
 
@@ -1255,7 +1255,7 @@ static int au1000_probe(struct platform_device *pdev)
 		if (!pDB)
 			goto err_out;
 
-		aup->tx_dma_ring[i]->buff_stat = (unsigned)pDB->dma_addr;
+		aup->tx_dma_ring[i]->buff_stat = lower_32_bits(pDB->dma_addr);
 		aup->tx_dma_ring[i]->len = 0;
 		aup->tx_db_inuse[i] = pDB;
 	}
@@ -1310,7 +1310,7 @@ err_remap2:
 	iounmap(aup->mac);
 err_remap1:
 	dma_free_coherent(&pdev->dev, MAX_BUF_SIZE * (NUM_TX_BUFFS + NUM_RX_BUFFS),
-			(void *)aup->vaddr, aup->dma_addr);
+			  aup->vaddr, aup->dma_addr);
 err_vaddr:
 	free_netdev(dev);
 err_alloc:
@@ -1343,7 +1343,7 @@ static int au1000_remove(struct platform_device *pdev)
 			au1000_ReleaseDB(aup, aup->tx_db_inuse[i]);
 
 	dma_free_coherent(&pdev->dev, MAX_BUF_SIZE * (NUM_TX_BUFFS + NUM_RX_BUFFS),
-			(void *)aup->vaddr, aup->dma_addr);
+			  aup->vaddr, aup->dma_addr);
 
 	iounmap(aup->macdma);
 	iounmap(aup->mac);

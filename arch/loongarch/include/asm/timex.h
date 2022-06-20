@@ -12,13 +12,6 @@
 #include <asm/cpu.h>
 #include <asm/cpu-features.h>
 
-/*
- * Standard way to access the cycle counter.
- * Currently only used on SMP for scheduling.
- *
- * We know that all SMP capable CPUs have cycle counters.
- */
-
 typedef unsigned long cycles_t;
 
 #define get_cycles get_cycles

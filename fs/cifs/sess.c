@@ -81,6 +81,9 @@ cifs_ses_get_chan_index(struct cifs_ses *ses,
 	}
 
 	/* If we didn't find the channel, it is likely a bug */
+	if (server)
+		cifs_dbg(VFS, "unable to get chan index for server: 0x%llx",
+			 server->conn_id);
 	WARN_ON(1);
 	return 0;
 }
@@ -301,7 +304,10 @@ cifs_ses_add_channel(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses,
 	/* Auth */
 	ctx.domainauto = ses->domainAuto;
 	ctx.domainname = ses->domainName;
-	ctx.server_hostname = ses->server->hostname;
+
+	/* no hostname for extra channels */
+	ctx.server_hostname = "";
+
 	ctx.username = ses->user_name;
 	ctx.password = ses->password;
 	ctx.sectype = ses->sectype;

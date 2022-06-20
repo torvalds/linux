@@ -253,7 +253,7 @@ END {
 	next
 }
 
-/0b[01]+/ && block = "Enum" {
+/0b[01]+/ && block == "Enum" {
 	expect_fields(2)
 	val = $1
 	name = $2

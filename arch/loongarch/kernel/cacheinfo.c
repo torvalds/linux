@@ -4,6 +4,7 @@
  *
  * Copyright (C) 2020-2022 Loongson Technology Corporation Limited
  */
+#include <asm/cpu-info.h>
 #include <linux/cacheinfo.h>
 
 /* Populates leaf and increments to next leaf */
