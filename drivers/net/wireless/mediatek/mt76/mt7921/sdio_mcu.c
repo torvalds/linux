@@ -29,9 +29,16 @@ mt7921s_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	if (dev->fw_assert)
 		return -EBUSY;
 
-	ret = mt7921_mcu_fill_message(mdev, skb, cmd, seq);
+	ret = mt76_connac2_mcu_fill_message(mdev, skb, cmd, seq);
 	if (ret)
 		return ret;
+
+	if (cmd == MCU_UNI_CMD(HIF_CTRL) ||
+	    cmd == MCU_UNI_CMD(SUSPEND) ||
+	    cmd == MCU_UNI_CMD(OFFLOAD))
+		mdev->mcu.timeout = HZ;
+	else
+		mdev->mcu.timeout = 3 * HZ;
 
 	if (cmd == MCU_CMD(FW_SCATTER))
 		type = MT7921_SDIO_FWDL;

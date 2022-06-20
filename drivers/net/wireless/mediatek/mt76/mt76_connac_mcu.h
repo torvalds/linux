@@ -33,6 +33,9 @@
 #define PATCH_SEC_ENC_SCRAMBLE_INFO_MASK	GENMASK(15, 0)
 #define PATCH_SEC_ENC_AES_KEY_MASK		GENMASK(7, 0)
 
+#define MCU_PQ_ID(p, q)		(((p) << 15) | ((q) << 10))
+#define MCU_PKT_ID		0xa0
+
 struct mt76_connac2_mcu_txd {
 	__le32 txd[8];
 
@@ -1804,4 +1807,6 @@ int mt76_connac_mcu_rdd_cmd(struct mt76_dev *dev, int cmd, u8 index,
 int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
 			  const char *fw_wa);
 int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name);
+int mt76_connac2_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
+				  int cmd, int *wait_seq);
 #endif /* __MT76_CONNAC_MCU_H */

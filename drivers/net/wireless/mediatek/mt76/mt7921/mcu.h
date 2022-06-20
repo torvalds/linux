@@ -50,9 +50,6 @@ struct mt7921_mcu_eeprom_info {
 #define MT_RA_RATE_DCM_EN		BIT(4)
 #define MT_RA_RATE_BW			GENMASK(14, 13)
 
-#define MCU_PQ_ID(p, q)			(((p) << 15) | ((q) << 10))
-#define MCU_PKT_ID			0xa0
-
 struct mt7921_mcu_uni_event {
 	u8 cid;
 	u8 pad[3];

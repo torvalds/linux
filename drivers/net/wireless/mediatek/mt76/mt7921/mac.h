@@ -29,19 +29,6 @@ enum rx_pkt_type {
 	PKT_TYPE_NORMAL_MCU,
 };
 
-enum tx_port_idx {
-	MT_TX_PORT_IDX_LMAC,
-	MT_TX_PORT_IDX_MCU
-};
-
-enum tx_mcu_port_q_idx {
-	MT_TX_MCU_PORT_RX_Q0 = 0x20,
-	MT_TX_MCU_PORT_RX_Q1,
-	MT_TX_MCU_PORT_RX_Q2,
-	MT_TX_MCU_PORT_RX_Q3,
-	MT_TX_MCU_PORT_RX_FWDL = 0x3e
-};
-
 #define MT_TX_FREE_MSDU_CNT		GENMASK(9, 0)
 #define MT_TX_FREE_WLAN_ID		GENMASK(23, 14)
 #define MT_TX_FREE_LATENCY		GENMASK(12, 0)

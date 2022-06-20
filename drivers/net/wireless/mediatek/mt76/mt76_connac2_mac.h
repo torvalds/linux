@@ -307,4 +307,17 @@ enum {
 #define MT_CT_INFO_HSR2_TX		BIT(4)
 #define MT_CT_INFO_FROM_HOST		BIT(7)
 
+enum tx_mcu_port_q_idx {
+	MT_TX_MCU_PORT_RX_Q0 = 0x20,
+	MT_TX_MCU_PORT_RX_Q1,
+	MT_TX_MCU_PORT_RX_Q2,
+	MT_TX_MCU_PORT_RX_Q3,
+	MT_TX_MCU_PORT_RX_FWDL = 0x3e
+};
+
+enum tx_port_idx {
+	MT_TX_PORT_IDX_LMAC,
+	MT_TX_PORT_IDX_MCU
+};
+
 #endif /* __MT76_CONNAC2_MAC_H */

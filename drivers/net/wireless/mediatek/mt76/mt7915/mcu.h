@@ -233,9 +233,6 @@ struct mt7915_mcu_muru_stats {
 #define WMM_TXOP_SET		BIT(3)
 #define WMM_PARAM_SET		GENMASK(3, 0)
 
-#define MCU_PQ_ID(p, q)			(((p) << 15) | ((q) << 10))
-#define MCU_PKT_ID			0xa0
-
 enum {
 	MCU_FW_LOG_WM,
 	MCU_FW_LOG_WA,
