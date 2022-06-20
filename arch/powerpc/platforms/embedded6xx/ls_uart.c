@@ -124,6 +124,8 @@ static int __init ls_uarts_init(void)
 	avr_clock = *(u32*)of_get_property(avr, "clock-frequency", &len);
 	phys_addr = ((u32*)of_get_property(avr, "reg", &len))[0];
 
+	of_node_put(avr);
+
 	if (!avr_clock || !phys_addr)
 		return -EINVAL;
 
