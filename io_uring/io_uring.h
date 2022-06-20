@@ -222,9 +222,17 @@ static inline void io_tw_lock(struct io_ring_ctx *ctx, bool *locked)
 	}
 }
 
-static inline void io_req_add_compl_list(struct io_kiocb *req)
+/*
+ * Don't complete immediately but use deferred completion infrastructure.
+ * Protected by ->uring_lock and can only be used either with
+ * IO_URING_F_COMPLETE_DEFER or inside a tw handler holding the mutex.
+ */
+static inline void io_req_complete_defer(struct io_kiocb *req)
+	__must_hold(&req->ctx->uring_lock)
 {
 	struct io_submit_state *state = &req->ctx->submit_state;
+
+	lockdep_assert_held(&req->ctx->uring_lock);
 
 	wq_list_add_tail(&req->comp_list, &state->compl_reqs);
 }

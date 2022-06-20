@@ -1380,7 +1380,7 @@ void io_req_task_complete(struct io_kiocb *req, bool *locked)
 	}
 
 	if (*locked)
-		io_req_add_compl_list(req);
+		io_req_complete_defer(req);
 	else
 		io_req_complete_post(req);
 }
@@ -1648,7 +1648,7 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (ret == IOU_OK) {
 		if (issue_flags & IO_URING_F_COMPLETE_DEFER)
-			io_req_add_compl_list(req);
+			io_req_complete_defer(req);
 		else
 			io_req_complete_post(req);
 	} else if (ret != IOU_ISSUE_SKIP_COMPLETE)
