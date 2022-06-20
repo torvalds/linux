@@ -147,16 +147,17 @@ static struct snd_soc_card hsw_rt5640_card = {
 static int hsw_rt5640_probe(struct platform_device *pdev)
 {
 	struct snd_soc_acpi_mach *mach;
+	struct device *dev = &pdev->dev;
 	int ret;
 
-	hsw_rt5640_card.dev = &pdev->dev;
-	mach = pdev->dev.platform_data;
+	hsw_rt5640_card.dev = dev;
+	mach = dev_get_platdata(dev);
 
 	ret = snd_soc_fixup_dai_links_platform_name(&hsw_rt5640_card, mach->mach_params.platform);
 	if (ret)
 		return ret;
 
-	return devm_snd_soc_register_card(&pdev->dev, &hsw_rt5640_card);
+	return devm_snd_soc_register_card(dev, &hsw_rt5640_card);
 }
 
 static struct platform_driver hsw_rt5640_driver = {
