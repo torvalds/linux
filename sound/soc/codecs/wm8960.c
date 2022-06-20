@@ -9,6 +9,7 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
+#include <linux/device.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
@@ -815,6 +816,7 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
 	u16 iface = snd_soc_component_read(component, WM8960_IFACE1) & 0xfff3;
+	u16 audio_format = iface & 0x3;
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
 	int i;
 
@@ -860,55 +862,77 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	/* set iface */
 	snd_soc_component_write(component, WM8960_IFACE1, iface);
 
-	/*  Temp add by walker */
-	snd_soc_component_write(component, WM8960_POWER1, 0xfe);
-	snd_soc_component_write(component, WM8960_POWER2, 0x1f8);
-	snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
-	snd_soc_component_write(component, WM8960_PLL1, 0x28);
-	snd_soc_component_write(component, WM8960_PLL1, 0x38);
-	snd_soc_component_write(component, WM8960_CLOCK1, 0xdd);
-	snd_soc_component_write(component, WM8960_CLOCK2, 0x1cc);
-	snd_soc_component_write(component, WM8960_POWER3, 0x3c);
+	if (audio_format == 0x3) //TDM Format
+	{
+		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+		snd_soc_component_write(component, WM8960_POWER2, 0x1f8);
+		snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
+		snd_soc_component_write(component, WM8960_PLL1, 0x28);
+		snd_soc_component_write(component, WM8960_PLL1, 0x38);
+		snd_soc_component_write(component, WM8960_CLOCK1, 0xdd);
+		snd_soc_component_write(component, WM8960_CLOCK2, 0x1cc);
+		snd_soc_component_write(component, WM8960_POWER3, 0x3c);
 
-	if (tx) {
-		snd_soc_component_write(component, WM8960_LOUTMIX, 0x100);
-		snd_soc_component_write(component, WM8960_ROUTMIX, 0x100);
-		snd_soc_component_write(component, WM8960_POWER3, 0xc);
+		if (tx) {
+			snd_soc_component_write(component, WM8960_LOUTMIX, 0x100);
+			snd_soc_component_write(component, WM8960_ROUTMIX, 0x100);
+			snd_soc_component_write(component, WM8960_POWER3, 0xc);
+			snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
+			snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
+			snd_soc_component_write(component, WM8960_IFACE1, 0x3);
+			snd_soc_component_write(component, WM8960_IFACE1, 0x43);
+			snd_soc_component_write(component, WM8960_POWER1, 0xd6);
+			snd_soc_component_write(component, WM8960_POWER1, 0xc6);
+		} else {
+			snd_soc_component_write(component, WM8960_POWER3, 0x30);
+			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+			snd_soc_component_write(component, WM8960_POWER3, 0x30);
+			snd_soc_component_write(component, WM8960_POWER3, 0x30);
+			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+			snd_soc_component_write(component, WM8960_ADDCTL2, 0x0);
+			snd_soc_component_write(component, WM8960_IFACE1, 0x3);
+			snd_soc_component_write(component, WM8960_IFACE1, 0x43);
+			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+			snd_soc_component_write(component, WM8960_LINPATH, 0x108);
+			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
+			snd_soc_component_write(component, WM8960_RINPATH, 0x108);
+		}
+
+		snd_soc_component_write(component, WM8960_ADDCTL1, 0xc0);
+		snd_soc_component_write(component, WM8960_ADDCTL4, 0x0);
+		snd_soc_component_write(component, WM8960_BYPASS1, 0x0);
+		snd_soc_component_write(component, WM8960_BYPASS2, 0x0);
+		snd_soc_component_write(component, WM8960_CLASSD1, 0xf7);
+		snd_soc_component_write(component, WM8960_DACCTL1, 0x0);
+		snd_soc_component_write(component, WM8960_NOISEG, 0xf9);
+		snd_soc_component_write(component, WM8960_ALC1, 0x1bb);
+		snd_soc_component_write(component, WM8960_ALC2, 0x30);
+		/* bclk inverted */
+		snd_soc_component_update_bits(component, WM8960_IFACE1, 0x80, 0x80);
 		snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
-		snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
-		snd_soc_component_write(component, WM8960_IFACE1, 0x3);
-		snd_soc_component_write(component, WM8960_IFACE1, 0x43);
-		snd_soc_component_write(component, WM8960_POWER1, 0xd6);
-		snd_soc_component_write(component, WM8960_POWER1, 0xc6);
-	} else {
-		snd_soc_component_write(component, WM8960_POWER3, 0x30);
-		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
-		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
-		snd_soc_component_write(component, WM8960_POWER3, 0x30);
-		snd_soc_component_write(component, WM8960_POWER3, 0x30);
-		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
-		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
-		snd_soc_component_write(component, WM8960_ADDCTL2, 0x0);
-		snd_soc_component_write(component, WM8960_IFACE1, 0x3);
-		snd_soc_component_write(component, WM8960_IFACE1, 0x43);
-		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
-		snd_soc_component_write(component, WM8960_LINPATH, 0x108);
-		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
-		snd_soc_component_write(component, WM8960_RINPATH, 0x108);
+	} else if (audio_format == 0x2) { //I2S Format
+		if (!tx)
+		{
+			snd_soc_component_update_bits(component, WM8960_LINVOL, 0x3<<7, 0x2<<7);
+			snd_soc_component_update_bits(component, WM8960_RINVOL, 0x3<<7, 0x2<<7);
+			snd_soc_component_write(component, WM8960_CLOCK1, 0x00); //0xd8
+			snd_soc_component_write(component, WM8960_ALC1, 0x1bb);
+			snd_soc_component_write(component, WM8960_ALC2, 0x30);
+			snd_soc_component_write(component, WM8960_ALC3, 0x30);
+			snd_soc_component_write(component, WM8960_NOISEG, 0xf9);
+			snd_soc_component_write(component, WM8960_LADC, 0x197);
+			snd_soc_component_write(component, WM8960_RADC, 0x197);
+			snd_soc_component_write(component, WM8960_ADDCTL1, 0xc0);
+			snd_soc_component_write(component, WM8960_ADDCTL3, 0x03);
+			snd_soc_component_write(component, WM8960_LOUT2, 0x1ff);
+			snd_soc_component_write(component, WM8960_ROUT2, 0x1ff);
+			snd_soc_component_write(component, WM8960_BYPASS1, 0x00);
+			snd_soc_component_write(component, WM8960_BYPASS2, 0x00);
+			snd_soc_component_write(component, WM8960_ADDCTL4, 0x00);
+		}
 	}
-
-	snd_soc_component_write(component, WM8960_ADDCTL1, 0xc0);
-	snd_soc_component_write(component, WM8960_ADDCTL4, 0x0);
-	snd_soc_component_write(component, WM8960_BYPASS1, 0x0);
-	snd_soc_component_write(component, WM8960_BYPASS2, 0x0);
-	snd_soc_component_write(component, WM8960_CLASSD1, 0xf7);
-	snd_soc_component_write(component, WM8960_DACCTL1, 0x0);
-	snd_soc_component_write(component, WM8960_NOISEG, 0xf9);
-	snd_soc_component_write(component, WM8960_ALC1, 0x1bb);
-	snd_soc_component_write(component, WM8960_ALC2, 0x30);
-	/* bclk inverted */
-	snd_soc_component_update_bits(component, WM8960_IFACE1, 0x80, 0x80);
-	snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
 
 	wm8960->is_stream_in_use[tx] = true;
 
@@ -1610,6 +1634,7 @@ static struct i2c_driver wm8960_i2c_driver = {
 };
 
 module_i2c_driver(wm8960_i2c_driver);
+
 
 MODULE_DESCRIPTION("ASoC WM8960 driver");
 MODULE_AUTHOR("Liam Girdwood");

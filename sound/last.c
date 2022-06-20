@@ -5,12 +5,14 @@
  */
 
 #include <linux/init.h>
+#include <linux/delay.h>
 #include <sound/core.h>
 
 static int __init alsa_sound_last_init(void)
 {
 	struct snd_card *card;
 	int idx, ok = 0;
+	msleep(2000);
 	
 	printk(KERN_INFO "ALSA device list:\n");
 	for (idx = 0; idx < SNDRV_CARDS; idx++) {
