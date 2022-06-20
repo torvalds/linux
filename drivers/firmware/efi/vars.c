@@ -821,16 +821,8 @@ struct efivar_entry *efivar_entry_find(efi_char16_t *name, efi_guid_t guid,
 	if (!found)
 		return NULL;
 
-	if (remove) {
-		if (entry->scanning) {
-			/*
-			 * The entry will be deleted
-			 * after scanning is completed.
-			 */
-			entry->deleting = true;
-		} else
-			list_del(&entry->list);
-	}
+	if (remove)
+		list_del(&entry->list);
 
 	return entry;
 }

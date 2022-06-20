@@ -22,6 +22,7 @@ config EFI_ESRT
 config EFI_VARS_PSTORE
 	tristate "Register efivars backend for pstore"
 	depends on PSTORE
+	select UCS2_STRING
 	default y
 	help
 	  Say Y here to enable use efivars as a backend to pstore. This
