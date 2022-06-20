@@ -1647,12 +1647,12 @@ static void __s5kjn1_power_off(struct s5kjn1 *s5kjn1)
 	}
 
 	if (!IS_ERR(s5kjn1->pwdn_gpio))
-		gpiod_direction_output(s5kjn1->pwdn_gpio, 1);
+		gpiod_direction_output(s5kjn1->pwdn_gpio, 0);
 
 	clk_disable_unprepare(s5kjn1->xvclk);
 
 	if (!IS_ERR(s5kjn1->reset_gpio))
-		gpiod_direction_output(s5kjn1->reset_gpio, 1);
+		gpiod_direction_output(s5kjn1->reset_gpio, 0);
 	if (!IS_ERR_OR_NULL(s5kjn1->pins_sleep)) {
 		ret = pinctrl_select_state(s5kjn1->pinctrl,
 					   s5kjn1->pins_sleep);
