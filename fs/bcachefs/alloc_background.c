@@ -606,21 +606,21 @@ int bch2_trans_mark_alloc(struct btree_trans *trans,
 }
 
 static int bch2_check_alloc_key(struct btree_trans *trans,
-				struct btree_iter *alloc_iter)
+				struct btree_iter *alloc_iter,
+				struct btree_iter *discard_iter,
+				struct btree_iter *freespace_iter)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_dev *ca;
-	struct btree_iter discard_iter, freespace_iter;
 	struct bch_alloc_v4 a;
 	unsigned discard_key_type, freespace_key_type;
 	struct bkey_s_c alloc_k, k;
 	struct printbuf buf = PRINTBUF;
-	struct printbuf buf2 = PRINTBUF;
 	int ret;
 
 	alloc_k = bch2_btree_iter_peek(alloc_iter);
 	if (!alloc_k.k)
-		return 0;
+		return 1;
 
 	ret = bkey_err(alloc_k);
 	if (ret)
@@ -642,12 +642,10 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 	freespace_key_type = a.data_type == BCH_DATA_free
 		? KEY_TYPE_set : 0;
 
-	bch2_trans_iter_init(trans, &discard_iter, BTREE_ID_need_discard,
-			     alloc_k.k->p, 0);
-	bch2_trans_iter_init(trans, &freespace_iter, BTREE_ID_freespace,
-			     alloc_freespace_pos(alloc_k.k->p, a), 0);
+	bch2_btree_iter_set_pos(discard_iter, alloc_k.k->p);
+	bch2_btree_iter_set_pos(freespace_iter, alloc_freespace_pos(alloc_k.k->p, a));
 
-	k = bch2_btree_iter_peek_slot(&discard_iter);
+	k = bch2_btree_iter_peek_slot(discard_iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -667,14 +665,14 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 
 		bkey_init(&update->k);
 		update->k.type	= discard_key_type;
-		update->k.p	= discard_iter.pos;
+		update->k.p	= discard_iter->pos;
 
-		ret = bch2_trans_update(trans, &discard_iter, update, 0);
+		ret = bch2_trans_update(trans, discard_iter, update, 0);
 		if (ret)
 			goto err;
 	}
 
-	k = bch2_btree_iter_peek_slot(&freespace_iter);
+	k = bch2_btree_iter_peek_slot(freespace_iter);
 	ret = bkey_err(k);
 	if (ret)
 		goto err;
@@ -695,18 +693,15 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 
 		bkey_init(&update->k);
 		update->k.type	= freespace_key_type;
-		update->k.p	= freespace_iter.pos;
+		update->k.p	= freespace_iter->pos;
 		bch2_key_resize(&update->k, 1);
 
-		ret = bch2_trans_update(trans, &freespace_iter, update, 0);
+		ret = bch2_trans_update(trans, freespace_iter, update, 0);
 		if (ret)
 			goto err;
 	}
 err:
 fsck_err:
-	bch2_trans_iter_exit(trans, &freespace_iter);
-	bch2_trans_iter_exit(trans, &discard_iter);
-	printbuf_exit(&buf2);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -776,24 +771,34 @@ delete:
 int bch2_check_alloc_info(struct bch_fs *c)
 {
 	struct btree_trans trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
+	struct btree_iter iter, discard_iter, freespace_iter;
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_alloc, POS_MIN,
+			     BTREE_ITER_PREFETCH);
+	bch2_trans_iter_init(&trans, &discard_iter, BTREE_ID_need_discard, POS_MIN,
+			     BTREE_ITER_PREFETCH);
+	bch2_trans_iter_init(&trans, &freespace_iter, BTREE_ID_freespace, POS_MIN,
+			     BTREE_ITER_PREFETCH);
+	while (1) {
 		ret = __bch2_trans_do(&trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
-			bch2_check_alloc_key(&trans, &iter));
+			bch2_check_alloc_key(&trans, &iter,
+					     &discard_iter,
+					     &freespace_iter));
 		if (ret)
 			break;
+
+		bch2_btree_iter_advance(&iter);
 	}
+	bch2_trans_iter_exit(&trans, &freespace_iter);
+	bch2_trans_iter_exit(&trans, &discard_iter);
 	bch2_trans_iter_exit(&trans, &iter);
 
-	if (ret)
+	if (ret < 0)
 		goto err;
 
 	bch2_trans_iter_init(&trans, &iter, BTREE_ID_need_discard, POS_MIN,
@@ -806,11 +811,11 @@ int bch2_check_alloc_info(struct bch_fs *c)
 		if (ret)
 			break;
 
-		bch2_btree_iter_set_pos(&iter, bpos_nosnap_successor(iter.pos));
+		bch2_btree_iter_advance(&iter);
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 
-	if (ret)
+	if (ret < 0)
 		goto err;
 
 	bch2_trans_iter_init(&trans, &iter, BTREE_ID_freespace, POS_MIN,
@@ -823,7 +828,7 @@ int bch2_check_alloc_info(struct bch_fs *c)
 		if (ret)
 			break;
 
-		bch2_btree_iter_set_pos(&iter, bpos_nosnap_successor(iter.pos));
+		bch2_btree_iter_advance(&iter);
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 err:
