@@ -60,7 +60,6 @@ extern int acpi_video_get_edid(struct acpi_device *device, int type,
 			       int device_id, void **edid);
 extern enum acpi_backlight_type acpi_video_get_backlight_type(void);
 extern bool acpi_video_backlight_use_native(void);
-extern void acpi_video_set_dmi_backlight_type(enum acpi_backlight_type type);
 /*
  * Note: The value returned by acpi_video_handles_brightness_key_presses()
  * may change over time and should not be cached.
@@ -85,9 +84,6 @@ static inline enum acpi_backlight_type acpi_video_get_backlight_type(void)
 static inline bool acpi_video_backlight_use_native(void)
 {
 	return true;
-}
-static inline void acpi_video_set_dmi_backlight_type(enum acpi_backlight_type type)
-{
 }
 static inline bool acpi_video_handles_brightness_key_presses(void)
 {
