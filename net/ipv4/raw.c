@@ -95,10 +95,10 @@ int raw_hash_sk(struct sock *sk)
 
 	hlist = &h->ht[inet_sk(sk)->inet_num & (RAW_HTABLE_SIZE - 1)];
 
-	write_lock_bh(&h->lock);
+	spin_lock(&h->lock);
 	__sk_nulls_add_node_rcu(sk, hlist);
 	sock_set_flag(sk, SOCK_RCU_FREE);
-	write_unlock_bh(&h->lock);
+	spin_unlock(&h->lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 
 	return 0;
@@ -109,10 +109,10 @@ void raw_unhash_sk(struct sock *sk)
 {
 	struct raw_hashinfo *h = sk->sk_prot->h.raw_hash;
 
-	write_lock_bh(&h->lock);
+	spin_lock(&h->lock);
 	if (__sk_nulls_del_node_init_rcu(sk))
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
-	write_unlock_bh(&h->lock);
+	spin_unlock(&h->lock);
 }
 EXPORT_SYMBOL_GPL(raw_unhash_sk);
 

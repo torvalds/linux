@@ -156,7 +156,7 @@ static void raw_diag_dump(struct sk_buff *skb, struct netlink_callback *cb,
 	s_slot = cb->args[0];
 	num = s_num = cb->args[1];
 
-	read_lock(&hashinfo->lock);
+	rcu_read_lock();
 	for (slot = s_slot; slot < RAW_HTABLE_SIZE; s_num = 0, slot++) {
 		num = 0;
 
@@ -184,7 +184,7 @@ next:
 	}
 
 out_unlock:
-	read_unlock(&hashinfo->lock);
+	rcu_read_unlock();
 
 	cb->args[0] = slot;
 	cb->args[1] = num;
