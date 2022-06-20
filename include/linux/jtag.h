@@ -21,6 +21,7 @@ struct jtag;
  * @status_set: set JTAG TAPC state function. Mandatory, Filled by dev driver
  * @xfer: send JTAG xfer function. Mandatory func. Filled by dev driver
  * @mode_set: set specific work mode for JTAG. Filled by dev driver
+ * @trst_set: set TRST pin active(pull low) for JTAG. Filled by dev driver
  * @bitbang: set low level bitbang operations. Filled by dev driver
  * @enable: enables JTAG interface in master mode. Filled by dev driver
  * @disable: disables JTAG interface master mode. Filled by dev driver
@@ -32,6 +33,7 @@ struct jtag_ops {
 	int (*status_set)(struct jtag *jtag, struct jtag_tap_state *endst);
 	int (*xfer)(struct jtag *jtag, struct jtag_xfer *xfer, u8 *xfer_data);
 	int (*mode_set)(struct jtag *jtag, struct jtag_mode *jtag_mode);
+	int (*trst_set)(struct jtag *jtag, u32 active);
 	int (*bitbang)(struct jtag *jtag, struct bitbang_packet *bitbang,
 		       struct tck_bitbang *bitbang_data);
 	int (*enable)(struct jtag *jtag);
