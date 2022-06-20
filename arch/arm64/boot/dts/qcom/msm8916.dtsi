@@ -301,6 +301,8 @@
 				rpmcc: clock-controller {
 					compatible = "qcom,rpmcc-msm8916", "qcom,rpmcc";
 					#clock-cells = <1>;
+					clocks = <&xo_board>;
+					clock-names = "xo";
 				};
 
 				rpmpd: power-controller {
@@ -1858,6 +1860,8 @@
 			compatible = "qcom,msm8916-a53pll";
 			reg = <0x0b016000 0x40>;
 			#clock-cells = <0>;
+			clocks = <&xo_board>;
+			clock-names = "xo";
 		};
 
 		timer@b020000 {
