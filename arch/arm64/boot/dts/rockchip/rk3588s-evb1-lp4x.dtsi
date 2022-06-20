@@ -57,6 +57,23 @@
 		};
 	};
 
+	es8326_sound: es8326-sound {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-es8326";
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s1_8ch>;
+		rockchip,codec = <&es8326>;
+		rockchip,audio-routing =
+		"Headphone", "HPOL",
+		"Headphone", "HPOR",
+		"Headphone", "Headphone Power",
+		"Headphone", "Headphone Power",
+		"MIC1", "Headset Mic",
+		"MIC2", "Main Mic";
+	};
+
 	es8388_sound: es8388-sound {
 		status = "okay";
 		compatible = "rockchip,multicodecs-card";
@@ -290,6 +307,23 @@
 		assigned-clock-rates = <12288000>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&i2s0_mclk>;
+	};
+
+	es8326: es8326@18 {
+		status = "disabled";
+		#sound-dai-cells = <0>;
+		compatible = "everest,es8326";
+		reg = <0x18>;
+		clocks = <&cru I2S1_8CH_MCLKOUT>;
+		clock-names = "mclk";
+		assigned-clocks = <&cru I2S1_8CH_MCLKOUT>;
+		assigned-clock-rates = <12288000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&i2s1m0_mclk>;
+		mclk-rate = <12288000>;
+		mic1-src = [22];
+		mic2-src = [44];
+		jack-pol = [0e];
 	};
 
 	es7202: es7202@32 {
