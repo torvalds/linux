@@ -1617,15 +1617,18 @@ static int acpi_ec_add(struct acpi_device *device)
 		}
 
 		if (boot_ec && ec->command_addr == boot_ec->command_addr &&
-		    ec->data_addr == boot_ec->data_addr &&
-		    !EC_FLAGS_TRUST_DSDT_GPE) {
+		    ec->data_addr == boot_ec->data_addr) {
 			/*
-			 * Trust PNP0C09 namespace location rather than
-			 * ECDT ID. But trust ECDT GPE rather than _GPE
-			 * because of ASUS quirks, so do not change
-			 * boot_ec->gpe to ec->gpe.
+			 * Trust PNP0C09 namespace location rather than ECDT ID.
+			 * But trust ECDT GPE rather than _GPE because of ASUS
+			 * quirks. So do not change boot_ec->gpe to ec->gpe,
+			 * except when the TRUST_DSDT_GPE quirk is set.
 			 */
 			boot_ec->handle = ec->handle;
+
+			if (EC_FLAGS_TRUST_DSDT_GPE)
+				boot_ec->gpe = ec->gpe;
+
 			acpi_handle_debug(ec->handle, "duplicated.\n");
 			acpi_ec_free(ec);
 			ec = boot_ec;
