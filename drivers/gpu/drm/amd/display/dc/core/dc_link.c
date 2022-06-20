@@ -2734,6 +2734,22 @@ static void enable_link_lvds(struct pipe_ctx *pipe_ctx)
 
 }
 
+bool dc_power_alpm_dpcd_enable(struct dc_link *link, bool enable)
+{
+	bool ret = false;
+	union dpcd_alpm_configuration alpm_config;
+
+	if (link->psr_settings.psr_version == DC_PSR_VERSION_SU_1) {
+		memset(&alpm_config, 0, sizeof(alpm_config));
+
+		alpm_config.bits.ENABLE = (enable ? true : false);
+		ret = dm_helpers_dp_write_dpcd(link->ctx, link,
+				DP_RECEIVER_ALPM_CONFIG, &alpm_config.raw,
+				sizeof(alpm_config.raw));
+	}
+	return ret;
+}
+
 /****************************enable_link***********************************/
 static enum dc_status enable_link(
 		struct dc_state *state,
@@ -3228,7 +3244,6 @@ bool dc_link_setup_psr(struct dc_link *link,
 	unsigned int panel_inst;
 	/* updateSinkPsrDpcdConfig*/
 	union dpcd_psr_configuration psr_configuration;
-	union dpcd_alpm_configuration alpm_configuration;
 	union dpcd_sink_active_vtotal_control_mode vtotal_control = {0};
 
 	psr_context->controllerId = CONTROLLER_ID_UNDEFINED;
@@ -3284,15 +3299,7 @@ bool dc_link_setup_psr(struct dc_link *link,
 		sizeof(psr_configuration.raw));
 
 	if (link->psr_settings.psr_version == DC_PSR_VERSION_SU_1) {
-		memset(&alpm_configuration, 0, sizeof(alpm_configuration));
-
-		alpm_configuration.bits.ENABLE = 1;
-		dm_helpers_dp_write_dpcd(
-			link->ctx,
-			link,
-			DP_RECEIVER_ALPM_CONFIG,
-			&alpm_configuration.raw,
-			sizeof(alpm_configuration.raw));
+		dc_power_alpm_dpcd_enable(link, true);
 		psr_context->su_granularity_required =
 			psr_config->su_granularity_required;
 		psr_context->su_y_granularity =
