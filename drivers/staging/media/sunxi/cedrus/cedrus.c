@@ -242,7 +242,8 @@ static int cedrus_init_ctrls(struct cedrus_dev *dev, struct cedrus_ctx *ctx)
 	v4l2_ctrl_handler_init(hdl, CEDRUS_CONTROLS_COUNT);
 	if (hdl->error) {
 		v4l2_err(&dev->v4l2_dev,
-			 "Failed to initialize control handler\n");
+			 "Failed to initialize control handler: %d\n",
+			 hdl->error);
 		return hdl->error;
 	}
 
@@ -257,7 +258,9 @@ static int cedrus_init_ctrls(struct cedrus_dev *dev, struct cedrus_ctx *ctx)
 					    NULL);
 		if (hdl->error) {
 			v4l2_err(&dev->v4l2_dev,
-				 "Failed to create new custom control\n");
+				 "Failed to create %s control: %d\n",
+				 v4l2_ctrl_get_name(cedrus_controls[i].cfg.id),
+				 hdl->error);
 
 			v4l2_ctrl_handler_free(hdl);
 			kfree(ctx->ctrls);
