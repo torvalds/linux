@@ -155,7 +155,7 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	hash = nexthdr & (RAW_HTABLE_SIZE - 1);
 	hlist = &raw_v6_hashinfo.ht[hash];
 	rcu_read_lock();
-	hlist_nulls_for_each_entry(sk, hnode, hlist, sk_nulls_node) {
+	sk_nulls_for_each(sk, hnode, hlist) {
 		int filtered;
 
 		if (!raw_v6_match(net, sk, nexthdr, daddr, saddr,
@@ -342,7 +342,7 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 	hash = nexthdr & (RAW_HTABLE_SIZE - 1);
 	hlist = &raw_v6_hashinfo.ht[hash];
 	rcu_read_lock();
-	hlist_nulls_for_each_entry(sk, hnode, hlist, sk_nulls_node) {
+	sk_nulls_for_each(sk, hnode, hlist) {
 		/* Note: ipv6_hdr(skb) != skb->data */
 		const struct ipv6hdr *ip6h = (const struct ipv6hdr *)skb->data;
 		saddr = &ip6h->saddr;
