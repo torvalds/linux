@@ -1303,6 +1303,8 @@ static void __intel_fbc_post_update(struct intel_fbc *fbc)
 
 	drm_WARN_ON(&i915->drm, !mutex_is_locked(&fbc->lock));
 
+	fbc->flip_pending = false;
+
 	if (!fbc->busy_bits)
 		intel_fbc_activate(fbc);
 	else
@@ -1324,10 +1326,8 @@ void intel_fbc_post_update(struct intel_atomic_state *state,
 
 		mutex_lock(&fbc->lock);
 
-		if (fbc->state.plane == plane) {
-			fbc->flip_pending = false;
+		if (fbc->state.plane == plane)
 			__intel_fbc_post_update(fbc);
-		}
 
 		mutex_unlock(&fbc->lock);
 	}
