@@ -450,9 +450,6 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
 						&vendor_guid);
 		switch (status) {
 		case EFI_SUCCESS:
-			if (duplicates)
-				up(&efivars_lock);
-
 			variable_name_size = var_name_strnsize(variable_name,
 							       variable_name_size);
 
@@ -476,14 +473,6 @@ int efivar_init(int (*func)(efi_char16_t *, efi_guid_t, unsigned long, void *),
 				if (err)
 					status = EFI_NOT_FOUND;
 			}
-
-			if (duplicates) {
-				if (down_interruptible(&efivars_lock)) {
-					err = -EINTR;
-					goto free;
-				}
-			}
-
 			break;
 		case EFI_UNSUPPORTED:
 			err = -EOPNOTSUPP;
@@ -525,6 +514,17 @@ int efivar_entry_add(struct efivar_entry *entry, struct list_head *head)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(efivar_entry_add);
+
+/**
+ * __efivar_entry_add - add entry to variable list
+ * @entry: entry to add to list
+ * @head: list head
+ */
+void __efivar_entry_add(struct efivar_entry *entry, struct list_head *head)
+{
+	list_add(&entry->list, head);
+}
+EXPORT_SYMBOL_GPL(__efivar_entry_add);
 
 /**
  * efivar_entry_remove - remove entry from variable list

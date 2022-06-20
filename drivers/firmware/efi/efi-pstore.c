@@ -364,7 +364,6 @@ static int efi_pstore_callback(efi_char16_t *name, efi_guid_t vendor,
 			       unsigned long name_size, void *data)
 {
 	struct efivar_entry *entry;
-	int ret;
 
 	entry = kzalloc(sizeof(*entry), GFP_KERNEL);
 	if (!entry)
@@ -373,11 +372,9 @@ static int efi_pstore_callback(efi_char16_t *name, efi_guid_t vendor,
 	memcpy(entry->var.VariableName, name, name_size);
 	entry->var.VendorGuid = vendor;
 
-	ret = efivar_entry_add(entry, &efi_pstore_list);
-	if (ret)
-		kfree(entry);
+	__efivar_entry_add(entry, &efi_pstore_list);
 
-	return ret;
+	return 0;
 }
 
 static int efi_pstore_update_entry(efi_char16_t *name, efi_guid_t vendor,
