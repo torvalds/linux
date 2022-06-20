@@ -253,9 +253,10 @@ static int bch2_rebalance_thread(void *arg)
 			       BTREE_ID_NR,	POS_MAX,
 			       /* ratelimiting disabled for now */
 			       NULL, /*  &r->pd.rate, */
+			       &move_stats,
 			       writepoint_ptr(&c->rebalance_write_point),
-			       rebalance_pred, NULL,
-			       &move_stats, true);
+			       true,
+			       rebalance_pred, NULL);
 	}
 
 	return 0;

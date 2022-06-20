@@ -314,10 +314,10 @@ static int bch2_copygc(struct bch_fs *c)
 			     0,			POS_MIN,
 			     BTREE_ID_NR,	POS_MAX,
 			     NULL,
-			     writepoint_ptr(&c->copygc_write_point),
-			     copygc_pred, NULL,
 			     &move_stats,
-			     false);
+			     writepoint_ptr(&c->copygc_write_point),
+			     false,
+			     copygc_pred, NULL);
 	if (ret < 0)
 		bch_err(c, "error %i from bch2_move_data() in copygc", ret);
 	if (ret)

@@ -10,11 +10,14 @@
 struct bch_read_bio;
 
 struct moving_context {
-	/* Closure for waiting on all reads and writes to complete */
-	struct closure		cl;
-
+	struct bch_fs		*c;
+	struct bch_ratelimit	*rate;
 	struct bch_move_stats	*stats;
+	struct write_point_specifier wp;
+	bool			wait_on_copygc;
 
+	/* For waiting on outstanding reads and writes: */
+	struct closure		cl;
 	struct list_head	reads;
 
 	/* in flight sectors: */
@@ -25,7 +28,12 @@ struct moving_context {
 };
 
 typedef bool (*move_pred_fn)(struct bch_fs *, void *, struct bkey_s_c,
-				struct bch_io_opts *, struct data_update_opts *);
+			     struct bch_io_opts *, struct data_update_opts *);
+
+void bch2_moving_ctxt_exit(struct moving_context *);
+void bch2_moving_ctxt_init(struct moving_context *, struct bch_fs *,
+			   struct bch_ratelimit *, struct bch_move_stats *,
+			   struct write_point_specifier, bool);
 
 int bch2_scan_old_btree_nodes(struct bch_fs *, struct bch_move_stats *);
 
@@ -33,10 +41,10 @@ int bch2_move_data(struct bch_fs *,
 		   enum btree_id, struct bpos,
 		   enum btree_id, struct bpos,
 		   struct bch_ratelimit *,
-		   struct write_point_specifier,
-		   move_pred_fn, void *,
 		   struct bch_move_stats *,
-		   bool);
+		   struct write_point_specifier,
+		   bool,
+		   move_pred_fn, void *);
 
 int bch2_data_job(struct bch_fs *,
 		  struct bch_move_stats *,
