@@ -61,8 +61,8 @@ static const struct snd_soc_dapm_route card_routes[] = {
 
 static int codec_link_init(struct snd_soc_pcm_runtime *rtd)
 {
-	struct snd_soc_component *component = asoc_rtd_to_codec(rtd, 0)->component;
-	int ret = 0;
+	struct snd_soc_component *codec = asoc_rtd_to_codec(rtd, 0)->component;
+	int ret;
 
 	ret = snd_soc_card_jack_new_pins(rtd->card, "Headset", SND_JACK_HEADSET | SND_JACK_BTN_0,
 					 &card_headset, card_headset_pins,
@@ -70,8 +70,7 @@ static int codec_link_init(struct snd_soc_pcm_runtime *rtd)
 	if (ret)
 		return ret;
 
-	snd_soc_component_set_jack(component, &card_headset, NULL);
-	return 0;
+	return snd_soc_component_set_jack(codec, &card_headset, NULL);
 }
 
 static int codec_link_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
