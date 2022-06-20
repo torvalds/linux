@@ -68,16 +68,28 @@ struct mtk_disp_merge {
 
 void mtk_merge_start(struct device *dev)
 {
-	struct mtk_disp_merge *priv = dev_get_drvdata(dev);
-
-	writel(MERGE_EN, priv->regs + DISP_REG_MERGE_CTRL);
+	mtk_merge_start_cmdq(dev, NULL);
 }
 
 void mtk_merge_stop(struct device *dev)
 {
+	mtk_merge_stop_cmdq(dev, NULL);
+}
+
+void mtk_merge_start_cmdq(struct device *dev, struct cmdq_pkt *cmdq_pkt)
+{
 	struct mtk_disp_merge *priv = dev_get_drvdata(dev);
 
-	writel(0x0, priv->regs + DISP_REG_MERGE_CTRL);
+	mtk_ddp_write(cmdq_pkt, 1, &priv->cmdq_reg, priv->regs,
+		      DISP_REG_MERGE_CTRL);
+}
+
+void mtk_merge_stop_cmdq(struct device *dev, struct cmdq_pkt *cmdq_pkt)
+{
+	struct mtk_disp_merge *priv = dev_get_drvdata(dev);
+
+	mtk_ddp_write(cmdq_pkt, 0, &priv->cmdq_reg, priv->regs,
+		      DISP_REG_MERGE_CTRL);
 }
 
 static void mtk_merge_fifo_setting(struct mtk_disp_merge *priv,
