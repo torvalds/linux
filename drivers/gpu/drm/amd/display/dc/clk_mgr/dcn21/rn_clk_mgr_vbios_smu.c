@@ -101,9 +101,9 @@ static int rn_vbios_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 	uint32_t result;
 
 	result = rn_smu_wait_for_response(clk_mgr, 10, 200000);
-	ASSERT(result == VBIOSSMC_Result_OK);
 
-	smu_print("SMU response after wait: %d\n", result);
+	if (result != VBIOSSMC_Result_OK)
+		smu_print("SMU Response was not OK. SMU response after wait received is: %d\n", result);
 
 	if (result == VBIOSSMC_Status_BUSY) {
 		return -1;
@@ -187,6 +187,10 @@ int rn_vbios_smu_set_hard_min_dcfclk(struct clk_mgr_internal *clk_mgr, int reque
 			clk_mgr,
 			VBIOSSMC_MSG_SetHardMinDcfclkByFreq,
 			khz_to_mhz_ceil(requested_dcfclk_khz));
+
+#ifdef DBG
+	smu_print("actual_dcfclk_set_mhz %d is set to : %d\n", actual_dcfclk_set_mhz, actual_dcfclk_set_mhz * 1000);
+#endif
 
 	return actual_dcfclk_set_mhz * 1000;
 }
