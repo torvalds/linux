@@ -473,6 +473,22 @@ static __cold void io_queue_deferred(struct io_ring_ctx *ctx)
 static void io_eventfd_signal(struct io_ring_ctx *ctx)
 {
 	struct io_ev_fd *ev_fd;
+	bool skip;
+
+	spin_lock(&ctx->completion_lock);
+	/*
+	 * Eventfd should only get triggered when at least one event has been
+	 * posted. Some applications rely on the eventfd notification count only
+	 * changing IFF a new CQE has been added to the CQ ring. There's no
+	 * depedency on 1:1 relationship between how many times this function is
+	 * called (and hence the eventfd count) and number of CQEs posted to the
+	 * CQ ring.
+	 */
+	skip = ctx->cached_cq_tail == ctx->evfd_last_cq_tail;
+	ctx->evfd_last_cq_tail = ctx->cached_cq_tail;
+	spin_unlock(&ctx->completion_lock);
+	if (skip)
+		return;
 
 	rcu_read_lock();
 	/*
@@ -511,13 +527,6 @@ void __io_commit_cqring_flush(struct io_ring_ctx *ctx)
 		io_eventfd_signal(ctx);
 }
 
-/*
- * This should only get called when at least one event has been posted.
- * Some applications rely on the eventfd notification count only changing
- * IFF a new CQE has been added to the CQ ring. There's no depedency on
- * 1:1 relationship between how many times this function is called (and
- * hence the eventfd count) and number of CQEs posted to the CQ ring.
- */
 void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 {
 	if (unlikely(ctx->off_timeout_used || ctx->drain_active ||
@@ -530,7 +539,7 @@ void io_cqring_ev_posted(struct io_ring_ctx *ctx)
 /* Returns true if there are no backlogged entries after the flush */
 static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 {
-	bool all_flushed, posted;
+	bool all_flushed;
 	size_t cqe_size = sizeof(struct io_uring_cqe);
 
 	if (!force && __io_cqring_events(ctx) == ctx->cq_entries)
@@ -539,7 +548,6 @@ static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 	if (ctx->flags & IORING_SETUP_CQE32)
 		cqe_size <<= 1;
 
-	posted = false;
 	spin_lock(&ctx->completion_lock);
 	while (!list_empty(&ctx->cq_overflow_list)) {
 		struct io_uring_cqe *cqe = io_get_cqe(ctx);
@@ -554,7 +562,6 @@ static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 		else
 			io_account_cq_overflow(ctx);
 
-		posted = true;
 		list_del(&ocqe->list);
 		kfree(ocqe);
 	}
@@ -567,8 +574,7 @@ static bool __io_cqring_overflow_flush(struct io_ring_ctx *ctx, bool force)
 
 	io_commit_cqring(ctx);
 	spin_unlock(&ctx->completion_lock);
-	if (posted)
-		io_cqring_ev_posted(ctx);
+	io_cqring_ev_posted(ctx);
 	return all_flushed;
 }
 
@@ -758,8 +764,7 @@ bool io_post_aux_cqe(struct io_ring_ctx *ctx,
 	filled = io_fill_cqe_aux(ctx, user_data, res, cflags);
 	io_commit_cqring(ctx);
 	spin_unlock(&ctx->completion_lock);
-	if (filled)
-		io_cqring_ev_posted(ctx);
+	io_cqring_ev_posted(ctx);
 	return filled;
 }
 
@@ -940,14 +945,12 @@ __cold void io_free_req(struct io_kiocb *req)
 static void __io_req_find_next_prep(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
-	bool posted;
 
 	spin_lock(&ctx->completion_lock);
-	posted = io_disarm_next(req);
+	io_disarm_next(req);
 	io_commit_cqring(ctx);
 	spin_unlock(&ctx->completion_lock);
-	if (posted)
-		io_cqring_ev_posted(ctx);
+	io_cqring_ev_posted(ctx);
 }
 
 static inline struct io_kiocb *io_req_find_next(struct io_kiocb *req)
@@ -2428,6 +2431,11 @@ static int io_eventfd_register(struct io_ring_ctx *ctx, void __user *arg,
 		kfree(ev_fd);
 		return ret;
 	}
+
+	spin_lock(&ctx->completion_lock);
+	ctx->evfd_last_cq_tail = ctx->cached_cq_tail;
+	spin_unlock(&ctx->completion_lock);
+
 	ev_fd->eventfd_async = eventfd_async;
 	ctx->has_evfd = true;
 	rcu_assign_pointer(ctx->io_ev_fd, ev_fd);

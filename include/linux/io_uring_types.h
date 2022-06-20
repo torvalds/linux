@@ -314,6 +314,8 @@ struct io_ring_ctx {
 
 	struct list_head		defer_list;
 	unsigned			sq_thread_idle;
+	/* protected by ->completion_lock */
+	unsigned			evfd_last_cq_tail;
 };
 
 enum {
