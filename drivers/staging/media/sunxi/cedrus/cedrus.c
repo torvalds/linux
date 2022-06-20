@@ -232,6 +232,17 @@ void *cedrus_find_control_data(struct cedrus_ctx *ctx, u32 id)
 	return NULL;
 }
 
+u32 cedrus_get_num_of_controls(struct cedrus_ctx *ctx, u32 id)
+{
+	unsigned int i;
+
+	for (i = 0; ctx->ctrls[i]; i++)
+		if (ctx->ctrls[i]->id == id)
+			return ctx->ctrls[i]->elems;
+
+	return 0;
+}
+
 static int cedrus_init_ctrls(struct cedrus_dev *dev, struct cedrus_ctx *ctx)
 {
 	struct v4l2_ctrl_handler *hdl = &ctx->hdl;
