@@ -6,45 +6,11 @@
 
 #include "../mt76_connac_mcu.h"
 
-struct mt7915_mcu_txd {
-	__le32 txd[8];
-
-	__le16 len;
-	__le16 pq_id;
-
-	u8 cid;
-	u8 pkt_type;
-	u8 set_query; /* FW don't care */
-	u8 seq;
-
-	u8 uc_d2b0_rev;
-	u8 ext_cid;
-	u8 s2d_index;
-	u8 ext_cid_ack;
-
-	u32 reserved[5];
-} __packed __aligned(4);
-
 enum {
 	MCU_ATE_SET_TRX = 0x1,
 	MCU_ATE_SET_FREQ_OFFSET = 0xa,
 	MCU_ATE_SET_SLOT_TIME = 0x13,
 	MCU_ATE_CLEAN_TXQUEUE = 0x1c,
-};
-
-struct mt7915_mcu_rxd {
-	__le32 rxd[6];
-
-	__le16 len;
-	__le16 pkt_type_id;
-
-	u8 eid;
-	u8 seq;
-	__le16 __rsv;
-
-	u8 ext_eid;
-	u8 __rsv1[2];
-	u8 s2d_index;
 };
 
 struct mt7915_mcu_thermal_ctrl {
@@ -63,7 +29,7 @@ struct mt7915_mcu_thermal_ctrl {
 } __packed;
 
 struct mt7915_mcu_thermal_notify {
-	struct mt7915_mcu_rxd rxd;
+	struct mt76_connac2_mcu_rxd rxd;
 
 	struct mt7915_mcu_thermal_ctrl ctrl;
 	__le32 temperature;
@@ -71,7 +37,7 @@ struct mt7915_mcu_thermal_notify {
 } __packed;
 
 struct mt7915_mcu_csa_notify {
-	struct mt7915_mcu_rxd rxd;
+	struct mt76_connac2_mcu_rxd rxd;
 
 	u8 omac_idx;
 	u8 csa_count;
@@ -80,7 +46,7 @@ struct mt7915_mcu_csa_notify {
 } __packed;
 
 struct mt7915_mcu_bcc_notify {
-	struct mt7915_mcu_rxd rxd;
+	struct mt76_connac2_mcu_rxd rxd;
 
 	u8 band_idx;
 	u8 omac_idx;
@@ -89,7 +55,7 @@ struct mt7915_mcu_bcc_notify {
 } __packed;
 
 struct mt7915_mcu_rdd_report {
-	struct mt7915_mcu_rxd rxd;
+	struct mt76_connac2_mcu_rxd rxd;
 
 	u8 band_idx;
 	u8 long_detected;

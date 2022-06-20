@@ -1168,7 +1168,7 @@ void mt7921_scan_work(struct work_struct *work)
 						scan_work.work);
 
 	while (true) {
-		struct mt7921_mcu_rxd *rxd;
+		struct mt76_connac2_mcu_rxd *rxd;
 		struct sk_buff *skb;
 
 		spin_lock_bh(&phy->dev->mt76.lock);
@@ -1178,7 +1178,7 @@ void mt7921_scan_work(struct work_struct *work)
 		if (!skb)
 			break;
 
-		rxd = (struct mt7921_mcu_rxd *)skb->data;
+		rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 		if (rxd->eid == MCU_EVENT_SCHED_SCAN_DONE) {
 			ieee80211_sched_scan_results(phy->mt76->hw);
 		} else if (test_and_clear_bit(MT76_HW_SCANNING,

@@ -72,7 +72,8 @@ static u32 mt7921s_clear_rm3r_drv_own(struct mt7921_dev *dev)
 int mt7921s_mcu_init(struct mt7921_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7921s_mcu_ops = {
-		.headroom = MT_SDIO_HDR_SIZE + sizeof(struct mt7921_mcu_txd),
+		.headroom = MT_SDIO_HDR_SIZE +
+			    sizeof(struct mt76_connac2_mcu_txd),
 		.tailroom = MT_SDIO_TAIL_SIZE,
 		.mcu_skb_send_msg = mt7921s_mcu_send_message,
 		.mcu_parse_response = mt7921_mcu_parse_response,

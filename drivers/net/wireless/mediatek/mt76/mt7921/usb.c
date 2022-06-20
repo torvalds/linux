@@ -125,7 +125,8 @@ mt7921u_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 static int mt7921u_mcu_init(struct mt7921_dev *dev)
 {
 	static const struct mt76_mcu_ops mcu_ops = {
-		.headroom = MT_SDIO_HDR_SIZE + sizeof(struct mt7921_mcu_txd),
+		.headroom = MT_SDIO_HDR_SIZE +
+			    sizeof(struct mt76_connac2_mcu_txd),
 		.tailroom = MT_USB_TAIL_SIZE,
 		.mcu_skb_send_msg = mt7921u_mcu_send_message,
 		.mcu_parse_response = mt7921_mcu_parse_response,

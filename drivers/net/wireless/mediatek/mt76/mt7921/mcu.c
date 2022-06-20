@@ -19,7 +19,7 @@ mt7921_mcu_parse_eeprom(struct mt76_dev *dev, struct sk_buff *skb)
 	if (!skb)
 		return -EINVAL;
 
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 
 	res = (struct mt7921_mcu_eeprom_info *)skb->data;
 	buf = dev->eeprom.data + le32_to_cpu(res->addr);
@@ -32,7 +32,7 @@ int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			      struct sk_buff *skb, int seq)
 {
 	int mcu_cmd = FIELD_GET(__MCU_CMD_FIELD_ID, cmd);
-	struct mt7921_mcu_rxd *rxd;
+	struct mt76_connac2_mcu_rxd *rxd;
 	int ret = 0;
 
 	if (!skb) {
@@ -43,7 +43,7 @@ int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 		return -ETIMEDOUT;
 	}
 
-	rxd = (struct mt7921_mcu_rxd *)skb->data;
+	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 	if (seq != rxd->seq)
 		return -EAGAIN;
 
@@ -77,7 +77,7 @@ int mt7921_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 		event = (struct mt7921_mcu_reg_event *)skb->data;
 		ret = (int)le32_to_cpu(event->val);
 	} else {
-		skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+		skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	}
 
 	return ret;
@@ -89,8 +89,8 @@ int mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 	int txd_len, mcu_cmd = FIELD_GET(__MCU_CMD_FIELD_ID, cmd);
-	struct mt7921_uni_txd *uni_txd;
-	struct mt7921_mcu_txd *mcu_txd;
+	struct mt76_connac2_mcu_uni_txd *uni_txd;
+	struct mt76_connac2_mcu_txd *mcu_txd;
 	__le32 *txd;
 	u32 val;
 	u8 seq;
@@ -122,7 +122,7 @@ int mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
 	txd[1] = cpu_to_le32(val);
 
 	if (cmd & __MCU_CMD_FIELD_UNI) {
-		uni_txd = (struct mt7921_uni_txd *)txd;
+		uni_txd = (struct mt76_connac2_mcu_uni_txd *)txd;
 		uni_txd->len = cpu_to_le16(skb->len - sizeof(uni_txd->txd));
 		uni_txd->option = MCU_CMD_UNI_EXT_ACK;
 		uni_txd->cid = cpu_to_le16(mcu_cmd);
@@ -133,7 +133,7 @@ int mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
 		goto exit;
 	}
 
-	mcu_txd = (struct mt7921_mcu_txd *)txd;
+	mcu_txd = (struct mt76_connac2_mcu_txd *)txd;
 	mcu_txd->len = cpu_to_le16(skb->len - sizeof(mcu_txd->txd));
 	mcu_txd->pq_id = cpu_to_le16(MCU_PQ_ID(MT_TX_PORT_IDX_MCU,
 					       MT_TX_MCU_PORT_RX_Q0));
@@ -241,7 +241,7 @@ mt7921_mcu_connection_loss_event(struct mt7921_dev *dev, struct sk_buff *skb)
 	struct mt76_connac_beacon_loss_event *event;
 	struct mt76_phy *mphy = &dev->mt76.phy;
 
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	event = (struct mt76_connac_beacon_loss_event *)skb->data;
 
 	ieee80211_iterate_active_interfaces_atomic(mphy->hw,
@@ -255,7 +255,7 @@ mt7921_mcu_bss_event(struct mt7921_dev *dev, struct sk_buff *skb)
 	struct mt76_phy *mphy = &dev->mt76.phy;
 	struct mt76_connac_mcu_bss_event *event;
 
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	event = (struct mt76_connac_mcu_bss_event *)skb->data;
 	if (event->is_absent)
 		ieee80211_stop_queues(mphy->hw);
@@ -275,7 +275,7 @@ mt7921_mcu_debug_msg_event(struct mt7921_dev *dev, struct sk_buff *skb)
 		u8 content[512];
 	} __packed * msg;
 
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	msg = (struct mt7921_debug_msg *)skb->data;
 
 	if (msg->type == 3) { /* fw log */
@@ -298,7 +298,7 @@ mt7921_mcu_low_power_event(struct mt7921_dev *dev, struct sk_buff *skb)
 		u8 reserved[3];
 	} __packed * event;
 
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	event = (struct mt7921_mcu_lp_event *)skb->data;
 
 	trace_lp_event(dev, event->state);
@@ -309,7 +309,7 @@ mt7921_mcu_tx_done_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
 	struct mt7921_mcu_tx_done_event *event;
 
-	skb_pull(skb, sizeof(struct mt7921_mcu_rxd));
+	skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	event = (struct mt7921_mcu_tx_done_event *)skb->data;
 
 	mt7921_mac_add_txs(dev, event->txs);
@@ -318,8 +318,9 @@ mt7921_mcu_tx_done_event(struct mt7921_dev *dev, struct sk_buff *skb)
 static void
 mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
-	struct mt7921_mcu_rxd *rxd = (struct mt7921_mcu_rxd *)skb->data;
+	struct mt76_connac2_mcu_rxd *rxd;
 
+	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 	switch (rxd->eid) {
 	case MCU_EVENT_BSS_BEACON_LOSS:
 		mt7921_mcu_connection_loss_event(dev, skb);
@@ -353,12 +354,12 @@ mt7921_mcu_rx_unsolicited_event(struct mt7921_dev *dev, struct sk_buff *skb)
 
 void mt7921_mcu_rx_event(struct mt7921_dev *dev, struct sk_buff *skb)
 {
-	struct mt7921_mcu_rxd *rxd;
+	struct mt76_connac2_mcu_rxd *rxd;
 
 	if (skb_linearize(skb))
 		return;
 
-	rxd = (struct mt7921_mcu_rxd *)skb->data;
+	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 
 	if (rxd->eid == 0x6) {
 		mt76_mcu_rx_event(&dev->mt76, skb);

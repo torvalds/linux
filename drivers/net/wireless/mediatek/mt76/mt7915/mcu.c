@@ -150,7 +150,7 @@ static int
 mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 			  struct sk_buff *skb, int seq)
 {
-	struct mt7915_mcu_rxd *rxd;
+	struct mt76_connac2_mcu_rxd *rxd;
 	int ret = 0;
 
 	if (!skb) {
@@ -159,7 +159,7 @@ mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 		return -ETIMEDOUT;
 	}
 
-	rxd = (struct mt7915_mcu_rxd *)skb->data;
+	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 	if (seq != rxd->seq)
 		return -EAGAIN;
 
@@ -170,7 +170,7 @@ mt7915_mcu_parse_response(struct mt76_dev *mdev, int cmd,
 		skb_pull(skb, sizeof(*rxd) + 4);
 		ret = le32_to_cpu(*(__le32 *)skb->data);
 	} else {
-		skb_pull(skb, sizeof(struct mt7915_mcu_rxd));
+		skb_pull(skb, sizeof(struct mt76_connac2_mcu_rxd));
 	}
 
 	return ret;
@@ -181,7 +181,7 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 			int cmd, int *wait_seq)
 {
 	struct mt7915_dev *dev = container_of(mdev, struct mt7915_dev, mt76);
-	struct mt7915_mcu_txd *mcu_txd;
+	struct mt76_connac2_mcu_txd *mcu_txd;
 	enum mt76_mcuq_id qid;
 	__le32 *txd;
 	u32 val;
@@ -199,7 +199,7 @@ mt7915_mcu_send_message(struct mt76_dev *mdev, struct sk_buff *skb,
 		goto exit;
 	}
 
-	mcu_txd = (struct mt7915_mcu_txd *)skb_push(skb, sizeof(*mcu_txd));
+	mcu_txd = (struct mt76_connac2_mcu_txd *)skb_push(skb, sizeof(*mcu_txd));
 	if (test_bit(MT76_STATE_MCU_RUNNING, &dev->mphy.state))
 		qid = MT_MCUQ_WA;
 	else
@@ -326,10 +326,12 @@ mt7915_mcu_rx_radar_detected(struct mt7915_dev *dev, struct sk_buff *skb)
 static void
 mt7915_mcu_rx_log_message(struct mt7915_dev *dev, struct sk_buff *skb)
 {
-	struct mt7915_mcu_rxd *rxd = (struct mt7915_mcu_rxd *)skb->data;
-	const char *data = (char *)&rxd[1];
-	const char *type;
+	struct mt76_connac2_mcu_rxd *rxd;
 	int len = skb->len - sizeof(*rxd);
+	const char *data, *type;
+
+	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
+	data = (char *)&rxd[1];
 
 	switch (rxd->s2d_index) {
 	case 0:
@@ -377,8 +379,9 @@ mt7915_mcu_rx_bcc_notify(struct mt7915_dev *dev, struct sk_buff *skb)
 static void
 mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
 {
-	struct mt7915_mcu_rxd *rxd = (struct mt7915_mcu_rxd *)skb->data;
+	struct mt76_connac2_mcu_rxd *rxd;
 
+	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 	switch (rxd->ext_eid) {
 	case MCU_EXT_EVENT_THERMAL_PROTECT:
 		mt7915_mcu_rx_thermal_notify(dev, skb);
@@ -403,8 +406,9 @@ mt7915_mcu_rx_ext_event(struct mt7915_dev *dev, struct sk_buff *skb)
 static void
 mt7915_mcu_rx_unsolicited_event(struct mt7915_dev *dev, struct sk_buff *skb)
 {
-	struct mt7915_mcu_rxd *rxd = (struct mt7915_mcu_rxd *)skb->data;
+	struct mt76_connac2_mcu_rxd *rxd;
 
+	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 	switch (rxd->eid) {
 	case MCU_EVENT_EXT:
 		mt7915_mcu_rx_ext_event(dev, skb);
@@ -417,8 +421,9 @@ mt7915_mcu_rx_unsolicited_event(struct mt7915_dev *dev, struct sk_buff *skb)
 
 void mt7915_mcu_rx_event(struct mt7915_dev *dev, struct sk_buff *skb)
 {
-	struct mt7915_mcu_rxd *rxd = (struct mt7915_mcu_rxd *)skb->data;
+	struct mt76_connac2_mcu_rxd *rxd;
 
+	rxd = (struct mt76_connac2_mcu_rxd *)skb->data;
 	if (rxd->ext_eid == MCU_EXT_EVENT_THERMAL_PROTECT ||
 	    rxd->ext_eid == MCU_EXT_EVENT_FW_LOG_2_HOST ||
 	    rxd->ext_eid == MCU_EXT_EVENT_ASSERT_DUMP ||
@@ -2275,7 +2280,7 @@ mt7915_mcu_init_rx_airtime(struct mt7915_dev *dev)
 int mt7915_mcu_init(struct mt7915_dev *dev)
 {
 	static const struct mt76_mcu_ops mt7915_mcu_ops = {
-		.headroom = sizeof(struct mt7915_mcu_txd),
+		.headroom = sizeof(struct mt76_connac2_mcu_txd),
 		.mcu_skb_send_msg = mt7915_mcu_send_message,
 		.mcu_parse_response = mt7915_mcu_parse_response,
 		.mcu_restart = mt76_connac_mcu_restart,
