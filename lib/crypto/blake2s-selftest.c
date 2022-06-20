@@ -593,7 +593,7 @@ bool __init blake2s_selftest(void)
 		enum { TEST_ALIGNMENT = 16 };
 		u8 unaligned_block[BLAKE2S_BLOCK_SIZE + TEST_ALIGNMENT - 1]
 					__aligned(TEST_ALIGNMENT);
-		u8 blocks[BLAKE2S_BLOCK_SIZE * 3];
+		u8 blocks[BLAKE2S_BLOCK_SIZE * 2];
 		struct blake2s_state state1, state2;
 
 		get_random_bytes(blocks, sizeof(blocks));
@@ -603,8 +603,8 @@ bool __init blake2s_selftest(void)
     defined(CONFIG_CRYPTO_ARCH_HAVE_LIB_BLAKE2S)
 		memcpy(&state1, &state, sizeof(state1));
 		memcpy(&state2, &state, sizeof(state2));
-		blake2s_compress(&state1, blocks, 3, BLAKE2S_BLOCK_SIZE);
-		blake2s_compress_generic(&state2, blocks, 3, BLAKE2S_BLOCK_SIZE);
+		blake2s_compress(&state1, blocks, 2, BLAKE2S_BLOCK_SIZE);
+		blake2s_compress_generic(&state2, blocks, 2, BLAKE2S_BLOCK_SIZE);
 		if (memcmp(&state1, &state2, sizeof(state1))) {
 			pr_err("blake2s random compress self-test %d: FAIL\n",
 			       i + 1);
