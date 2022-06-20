@@ -10,6 +10,16 @@
 #include "rk3588s-rk806-dual.dtsi"
 
 / {
+	aw883xx_sound: aw883x-sound {
+		status = "disabled";
+		compatible = "rockchip,multicodecs-card";
+		rockchip,card-name = "rockchip-aw883xx";
+		rockchip,format = "i2s";
+		rockchip,mclk-fs = <256>;
+		rockchip,cpu = <&i2s0_8ch>;
+		rockchip,codec = <&aw883xx_1 &aw883xx_2 &aw883xx_3 &aw883xx_4>;
+	};
+
 	combophy_avdd0v85: combophy-avdd0v85 {
 		compatible = "regulator-fixed";
 		regulator-name = "combophy_avdd0v85";
@@ -289,12 +299,64 @@
 		power-supply = <&vcc_1v8_s0>;	/* only 1v8 or 3v3, default is 3v3 */
 		reg = <0x32>;
 	};
+
+	aw883xx_1: aw883xx@34 {
+		compatible = "awinic,aw883xx_smartpa";
+		reg = <0x34>;
+		#sound-dai-cells = <0>;
+		reset-gpio = <&gpio4 RK_PB3 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&aw_rst1_gpio>;
+		pinctrl-names = "default";
+		sound-channel = <0>;
+		re-min = <1000>;
+		re-max= <40000>;
+		status = "disabled";
+	};
+
+	aw883xx_2: aw883xx@35 {
+		compatible = "awinic,aw883xx_smartpa";
+		reg = <0x35>;
+		#sound-dai-cells = <0>;
+		reset-gpio = <&gpio1 RK_PA5 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&aw_rst2_gpio>;
+		pinctrl-names = "default";
+		sound-channel = <1>;
+		re-min = <1000>;
+		re-max= <40000>;
+		status = "disabled";
+	};
 };
 
 &i2c4 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4m3_xfer>;
 	status = "okay";
+
+	aw883xx_3: aw883xx@34 {
+		compatible = "awinic,aw883xx_smartpa";
+		reg = <0x34>;
+		#sound-dai-cells = <0>;
+		reset-gpio = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&aw_rst3_gpio>;
+		pinctrl-names = "default";
+		sound-channel = <2>;
+		re-min = <1000>;
+		re-max= <40000>;
+		status = "disabled";
+	};
+
+	aw883xx_4: aw883xx@35 {
+		compatible = "awinic,aw883xx_smartpa";
+		reg = <0x35>;
+		#sound-dai-cells = <0>;
+		reset-gpio = <&gpio1 RK_PC4 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&aw_rst4_gpio>;
+		pinctrl-names = "default";
+		sound-channel = <3>;
+		re-min = <1000>;
+		re-max= <40000>;
+		status = "disabled";
+	};
 
 	gsl3673@40 {
 		compatible = "GSL,GSL3673";
@@ -473,6 +535,21 @@
 	lcd {
 		lcd_rst_gpio: lcd-rst-gpio {
 			rockchip,pins = <1 RK_PA4 RK_FUNC_GPIO &pcfg_pull_none>;
+		};
+	};
+
+	aw883x {
+		aw_rst1_gpio: aw-rst1-gpio {
+			rockchip,pins = <4 RK_PB3 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		aw_rst2_gpio: aw-rst2-gpio {
+			rockchip,pins = <1 RK_PA5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		aw_rst3_gpio: aw-rst3-gpio {
+			rockchip,pins = <3 RK_PC5 RK_FUNC_GPIO &pcfg_pull_up>;
+		};
+		aw_rst4_gpio: aw-rst4-gpio {
+			rockchip,pins = <1 RK_PC4 RK_FUNC_GPIO &pcfg_pull_up>;
 		};
 	};
 
