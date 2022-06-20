@@ -884,7 +884,8 @@ mt7915_mac_tx_free_done(struct mt7915_dev *dev,
 static void
 mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
 {
-	struct mt7915_tx_free *free = (struct mt7915_tx_free *)data;
+	struct mt76_connac_tx_free *free = data;
+	__le32 *tx_info = (__le32 *)(data + sizeof(*free));
 	struct mt76_dev *mdev = &dev->mt76;
 	struct mt76_txwi_cache *txwi;
 	struct ieee80211_sta *sta = NULL;
@@ -899,10 +900,10 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
 
 	total = le16_get_bits(free->ctrl, MT_TX_FREE_MSDU_CNT);
 	v3 = (FIELD_GET(MT_TX_FREE_VER, txd) == 0x4);
-	if (WARN_ON_ONCE((void *)&free->info[total >> v3] > end))
+	if (WARN_ON_ONCE((void *)&tx_info[total >> v3] > end))
 		return;
 
-	for (cur_info = &free->info[0]; count < total; cur_info++) {
+	for (cur_info = tx_info; count < total; cur_info++) {
 		u32 msdu, info = le32_to_cpu(*cur_info);
 		u8 i;
 
@@ -955,9 +956,9 @@ mt7915_mac_tx_free(struct mt7915_dev *dev, void *data, int len)
 static void
 mt7915_mac_tx_free_v0(struct mt7915_dev *dev, void *data, int len)
 {
-	struct mt7915_tx_free *free = (struct mt7915_tx_free *)data;
+	struct mt76_connac_tx_free *free = data;
+	__le16 *info = (__le16 *)(data + sizeof(*free));
 	struct mt76_dev *mdev = &dev->mt76;
-	__le16 *info = (__le16 *)free->info;
 	void *end = data + len;
 	LIST_HEAD(free_list);
 	bool wake = false;

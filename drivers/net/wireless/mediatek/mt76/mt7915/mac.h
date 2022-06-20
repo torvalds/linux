@@ -41,14 +41,6 @@ enum tx_mcu_port_q_idx {
 	MT_TX_MCU_PORT_RX_Q3,
 	MT_TX_MCU_PORT_RX_FWDL = 0x3e
 };
-
-struct mt7915_tx_free {
-	__le16 rx_byte_cnt;
-	__le16 ctrl;
-	__le32 txd;
-	__le32 info[];
-} __packed __aligned(4);
-
 #define MT_TX_FREE_VER			GENMASK(18, 16)
 #define MT_TX_FREE_MSDU_CNT		GENMASK(9, 0)
 #define MT_TX_FREE_MSDU_CNT_V0	GENMASK(6, 0)

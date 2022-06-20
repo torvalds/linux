@@ -146,8 +146,7 @@ struct mt76_connac_txp_common {
 struct mt76_connac_tx_free {
 	__le16 rx_byte_cnt;
 	__le16 ctrl;
-	u8 txd_cnt;
-	u8 rsv[3];
+	__le32 txd;
 } __packed __aligned(4);
 
 extern const struct wiphy_wowlan_support mt76_connac_wowlan_support;
