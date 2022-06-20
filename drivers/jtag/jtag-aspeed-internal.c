@@ -16,7 +16,6 @@
 #include <linux/miscdevice.h>
 #include <linux/slab.h>
 #include <linux/sched.h>
-#include <linux/delay.h>
 #include <linux/interrupt.h>
 #include <linux/jtag.h>
 #include <linux/platform_device.h>
@@ -912,6 +911,15 @@ static int aspeed_jtag_mode_set(struct jtag *jtag, struct jtag_mode *jtag_mode)
 	return 0;
 }
 
+static int aspeed_jtag_trst_set(struct jtag *jtag, u32 active)
+{
+	struct aspeed_jtag_info *aspeed_jtag = jtag_priv(jtag);
+
+	aspeed_jtag_write(aspeed_jtag, active ? 0 : JTAG_CTRL_TRSTn_HIGH,
+			  ASPEED_JTAG_IDLE);
+	return 0;
+}
+
 static int aspeed_jtag_enable(struct jtag *jtag)
 {
 	return 0;
@@ -929,6 +937,7 @@ static const struct jtag_ops aspeed_jtag_ops = {
 	.status_set = aspeed_jtag_status_set,
 	.xfer = aspeed_jtag_xfer,
 	.mode_set = aspeed_jtag_mode_set,
+	.trst_set = aspeed_jtag_trst_set,
 	.bitbang = aspeed_jtag_bitbang,
 	.enable = aspeed_jtag_enable,
 	.disable = aspeed_jtag_disable,

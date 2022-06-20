@@ -40,6 +40,7 @@ static long jtag_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	u8 *xfer_data;
 	u32 data_size;
 	u32 value;
+	u32 active;
 	int err;
 
 	if (!arg)
@@ -187,6 +188,15 @@ static long jtag_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 			return -EFAULT;
 
 		err = jtag->ops->mode_set(jtag, &mode);
+		break;
+	case JTAG_SIOCTRST:
+		if (!jtag->ops->trst_set)
+			return -EOPNOTSUPP;
+
+		if (get_user(active, (__u32 __user *)arg))
+			return -EFAULT;
+
+		err = jtag->ops->trst_set(jtag, active);
 		break;
 
 	default:
