@@ -324,6 +324,25 @@ bool dc_is_stream_scaling_unchanged(
 	struct dc_stream_state *old_stream, struct dc_stream_state *stream);
 
 /*
+ * Setup stream attributes if no stream updates are provided
+ * there will be no impact on the stream parameters
+ *
+ * Set up surface attributes and associate to a stream
+ * The surfaces parameter is an absolute set of all surface active for the stream.
+ * If no surfaces are provided, the stream will be blanked; no memory read.
+ * Any flip related attribute changes must be done through this interface.
+ *
+ * After this call:
+ *   Surfaces attributes are programmed and configured to be composed into stream.
+ *   This does not trigger a flip.  No surface address is programmed.
+ *
+ */
+bool dc_update_planes_and_stream(struct dc *dc,
+		struct dc_surface_update *surface_updates, int surface_count,
+		struct dc_stream_state *dc_stream,
+		struct dc_stream_update *stream_update);
+
+/*
  * Set up surface attributes and associate to a stream
  * The surfaces parameter is an absolute set of all surface active for the stream.
  * If no surfaces are provided, the stream will be blanked; no memory read.
@@ -333,7 +352,6 @@ bool dc_is_stream_scaling_unchanged(
  *   Surfaces attributes are programmed and configured to be composed into stream.
  *   This does not trigger a flip.  No surface address is programmed.
  */
-
 void dc_commit_updates_for_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates,
 		int surface_count,
