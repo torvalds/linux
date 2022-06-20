@@ -773,18 +773,18 @@ static const struct of_device_id dw8250_of_match[] = {
 MODULE_DEVICE_TABLE(of, dw8250_of_match);
 
 static const struct acpi_device_id dw8250_acpi_match[] = {
-	{ "INT33C4", 0 },
-	{ "INT33C5", 0 },
-	{ "INT3434", 0 },
-	{ "INT3435", 0 },
-	{ "80860F0A", 0 },
-	{ "8086228A", 0 },
-	{ "APMC0D08", 0},
-	{ "AMD0020", 0 },
-	{ "AMDI0020", 0 },
-	{ "AMDI0022", 0 },
-	{ "BRCM2032", 0 },
-	{ "HISI0031", 0 },
+	{ "80860F0A", (kernel_ulong_t)&dw8250_dw_apb },
+	{ "8086228A", (kernel_ulong_t)&dw8250_dw_apb },
+	{ "AMD0020", (kernel_ulong_t)&dw8250_dw_apb },
+	{ "AMDI0020", (kernel_ulong_t)&dw8250_dw_apb },
+	{ "AMDI0022", (kernel_ulong_t)&dw8250_dw_apb },
+	{ "APMC0D08", (kernel_ulong_t)&dw8250_dw_apb},
+	{ "BRCM2032", (kernel_ulong_t)&dw8250_dw_apb },
+	{ "HISI0031", (kernel_ulong_t)&dw8250_dw_apb },
+	{ "INT33C4", (kernel_ulong_t)&dw8250_dw_apb },
+	{ "INT33C5", (kernel_ulong_t)&dw8250_dw_apb },
+	{ "INT3434", (kernel_ulong_t)&dw8250_dw_apb },
+	{ "INT3435", (kernel_ulong_t)&dw8250_dw_apb },
 	{ },
 };
 MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);
