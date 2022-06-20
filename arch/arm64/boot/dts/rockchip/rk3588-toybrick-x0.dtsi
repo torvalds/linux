@@ -16,11 +16,11 @@
 		#size-cells = <2>;
 		ranges;
 
-		/* Reserve 256MB memory for hdmirx-controller@fdee0000 */
+		/* Reserve 128MB memory for hdmirx-controller@fdee0000 */
 		cma {
 			compatible = "shared-dma-pool";
 			reusable;
-			reg = <0x0 (256 * 0x100000) 0x0 (256 * 0x100000)>;
+			reg = <0x0 (256 * 0x100000) 0x0 (128 * 0x100000)>;
 			linux,cma-default;
 		};
 	};
