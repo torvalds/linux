@@ -603,12 +603,14 @@ get_lfp_data_tail(const struct bdb_lvds_lfp_data *data,
 }
 
 static int opregion_get_panel_type(struct drm_i915_private *i915,
+				   const struct intel_bios_encoder_data *devdata,
 				   const struct edid *edid)
 {
 	return intel_opregion_get_panel_type(i915);
 }
 
 static int vbt_get_panel_type(struct drm_i915_private *i915,
+			      const struct intel_bios_encoder_data *devdata,
 			      const struct edid *edid)
 {
 	const struct bdb_lvds_options *lvds_options;
@@ -624,10 +626,16 @@ static int vbt_get_panel_type(struct drm_i915_private *i915,
 		return -1;
 	}
 
+	if (devdata && devdata->child.handle == DEVICE_HANDLE_LFP2)
+		return lvds_options->panel_type2;
+
+	drm_WARN_ON(&i915->drm, devdata && devdata->child.handle != DEVICE_HANDLE_LFP1);
+
 	return lvds_options->panel_type;
 }
 
 static int pnpid_get_panel_type(struct drm_i915_private *i915,
+				const struct intel_bios_encoder_data *devdata,
 				const struct edid *edid)
 {
 	const struct bdb_lvds_lfp_data *data;
@@ -674,6 +682,7 @@ static int pnpid_get_panel_type(struct drm_i915_private *i915,
 }
 
 static int fallback_get_panel_type(struct drm_i915_private *i915,
+				   const struct intel_bios_encoder_data *devdata,
 				   const struct edid *edid)
 {
 	return 0;
@@ -687,11 +696,13 @@ enum panel_type {
 };
 
 static int get_panel_type(struct drm_i915_private *i915,
+			  const struct intel_bios_encoder_data *devdata,
 			  const struct edid *edid)
 {
 	struct {
 		const char *name;
 		int (*get_panel_type)(struct drm_i915_private *i915,
+				      const struct intel_bios_encoder_data *devdata,
 				      const struct edid *edid);
 		int panel_type;
 	} panel_types[] = {
@@ -715,7 +726,7 @@ static int get_panel_type(struct drm_i915_private *i915,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(panel_types); i++) {
-		panel_types[i].panel_type = panel_types[i].get_panel_type(i915, edid);
+		panel_types[i].panel_type = panel_types[i].get_panel_type(i915, devdata, edid);
 
 		drm_WARN_ON(&i915->drm, panel_types[i].panel_type > 0xf &&
 			    panel_types[i].panel_type != 0xff);
@@ -3126,11 +3137,12 @@ out:
 
 void intel_bios_init_panel(struct drm_i915_private *i915,
 			   struct intel_panel *panel,
+			   const struct intel_bios_encoder_data *devdata,
 			   const struct edid *edid)
 {
 	init_vbt_panel_defaults(panel);
 
-	panel->vbt.panel_type = get_panel_type(i915, edid);
+	panel->vbt.panel_type = get_panel_type(i915, devdata, edid);
 
 	parse_panel_options(i915, panel);
 	parse_generic_dtd(i915, panel);

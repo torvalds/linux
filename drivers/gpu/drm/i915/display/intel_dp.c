@@ -5193,6 +5193,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	struct drm_device *dev = &dev_priv->drm;
 	struct drm_connector *connector = &intel_connector->base;
 	struct drm_display_mode *fixed_mode;
+	struct intel_encoder *encoder = &dp_to_dig_port(intel_dp)->base;
 	bool has_dpcd;
 	enum pipe pipe = INVALID_PIPE;
 	struct edid *edid;
@@ -5250,7 +5251,7 @@ static bool intel_edp_init_connector(struct intel_dp *intel_dp,
 	intel_connector->edid = edid;
 
 	intel_bios_init_panel(dev_priv, &intel_connector->panel,
-			      IS_ERR(edid) ? NULL : edid);
+			      encoder->devdata, IS_ERR(edid) ? NULL : edid);
 
 	intel_panel_add_edid_fixed_modes(intel_connector,
 					 intel_connector->panel.vbt.drrs_type != DRRS_TYPE_NONE,

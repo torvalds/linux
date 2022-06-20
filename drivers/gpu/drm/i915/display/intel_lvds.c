@@ -967,7 +967,7 @@ void intel_lvds_init(struct drm_i915_private *dev_priv)
 	}
 	intel_connector->edid = edid;
 
-	intel_bios_init_panel(dev_priv, &intel_connector->panel,
+	intel_bios_init_panel(dev_priv, &intel_connector->panel, NULL,
 			      IS_ERR(edid) ? NULL : edid);
 
 	/* Try EDID first */
