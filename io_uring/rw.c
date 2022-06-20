@@ -273,14 +273,15 @@ static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 	return IOU_ISSUE_SKIP_COMPLETE;
 }
 
-static int __io_import_fixed(struct io_kiocb *req, int ddir,
-			     struct iov_iter *iter, struct io_mapped_ubuf *imu)
+static int io_import_fixed(int ddir, struct iov_iter *iter,
+			   struct io_mapped_ubuf *imu,
+			   u64 buf_addr, size_t len)
 {
-	struct io_rw *rw = io_kiocb_to_cmd(req);
-	size_t len = rw->len;
-	u64 buf_end, buf_addr = rw->addr;
+	u64 buf_end;
 	size_t offset;
 
+	if (WARN_ON_ONCE(!imu))
+		return -EFAULT;
 	if (unlikely(check_add_overflow(buf_addr, (u64)len, &buf_end)))
 		return -EFAULT;
 	/* not inside the mapped region */
@@ -330,14 +331,6 @@ static int __io_import_fixed(struct io_kiocb *req, int ddir,
 	}
 
 	return 0;
-}
-
-static int io_import_fixed(struct io_kiocb *req, int rw, struct iov_iter *iter,
-			   unsigned int issue_flags)
-{
-	if (WARN_ON_ONCE(!req->imu))
-		return -EFAULT;
-	return __io_import_fixed(req, rw, iter, req->imu);
 }
 
 #ifdef CONFIG_COMPAT
@@ -426,7 +419,7 @@ static struct iovec *__io_import_iovec(int ddir, struct io_kiocb *req,
 	ssize_t ret;
 
 	if (opcode == IORING_OP_READ_FIXED || opcode == IORING_OP_WRITE_FIXED) {
-		ret = io_import_fixed(req, ddir, iter, issue_flags);
+		ret = io_import_fixed(ddir, iter, req->imu, rw->addr, rw->len);
 		if (ret)
 			return ERR_PTR(ret);
 		return NULL;
