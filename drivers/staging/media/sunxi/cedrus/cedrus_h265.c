@@ -435,8 +435,16 @@ static int cedrus_h265_setup(struct cedrus_ctx *ctx, struct cedrus_run *run)
 	 * instead of start of slice data. Padding is 8 bits at most (one bit set to 1 and
 	 * at most seven bits set to 0), so we have to inspect only one byte before slice data.
 	 */
+
+	if (slice_params->data_byte_offset == 0)
+		return -EOPNOTSUPP;
+
 	padding = (u8 *)vb2_plane_vaddr(&run->src->vb2_buf, 0) +
 		slice_params->data_byte_offset - 1;
+
+	/* at least one bit must be set in that byte */
+	if (*padding == 0)
+		return -EINVAL;
 
 	for (count = 0; count < 8; count++)
 		if (*padding & (1 << count))
