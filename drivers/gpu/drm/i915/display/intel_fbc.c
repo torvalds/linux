@@ -670,6 +670,7 @@ static void intel_fbc_nuke(struct intel_fbc *fbc)
 {
 	struct drm_i915_private *i915 = fbc->i915;
 
+	lockdep_assert_held(&fbc->lock);
 	drm_WARN_ON(&i915->drm, fbc->flip_pending);
 
 	trace_intel_fbc_nuke(fbc->state.plane);
@@ -679,6 +680,8 @@ static void intel_fbc_nuke(struct intel_fbc *fbc)
 
 static void intel_fbc_activate(struct intel_fbc *fbc)
 {
+	lockdep_assert_held(&fbc->lock);
+
 	intel_fbc_hw_activate(fbc);
 	intel_fbc_nuke(fbc);
 
@@ -687,9 +690,7 @@ static void intel_fbc_activate(struct intel_fbc *fbc)
 
 static void intel_fbc_deactivate(struct intel_fbc *fbc, const char *reason)
 {
-	struct drm_i915_private *i915 = fbc->i915;
-
-	drm_WARN_ON(&i915->drm, !mutex_is_locked(&fbc->lock));
+	lockdep_assert_held(&fbc->lock);
 
 	if (fbc->active)
 		intel_fbc_hw_deactivate(fbc);
@@ -1227,6 +1228,8 @@ static bool __intel_fbc_pre_update(struct intel_atomic_state *state,
 	struct intel_fbc *fbc = plane->fbc;
 	bool need_vblank_wait = false;
 
+	lockdep_assert_held(&fbc->lock);
+
 	fbc->flip_pending = true;
 
 	if (intel_fbc_can_flip_nuke(state, crtc, plane))
@@ -1284,7 +1287,7 @@ static void __intel_fbc_disable(struct intel_fbc *fbc)
 	struct drm_i915_private *i915 = fbc->i915;
 	struct intel_plane *plane = fbc->state.plane;
 
-	drm_WARN_ON(&i915->drm, !mutex_is_locked(&fbc->lock));
+	lockdep_assert_held(&fbc->lock);
 	drm_WARN_ON(&i915->drm, fbc->active);
 
 	drm_dbg_kms(&i915->drm, "Disabling FBC on [PLANE:%d:%s]\n",
@@ -1299,9 +1302,7 @@ static void __intel_fbc_disable(struct intel_fbc *fbc)
 
 static void __intel_fbc_post_update(struct intel_fbc *fbc)
 {
-	struct drm_i915_private *i915 = fbc->i915;
-
-	drm_WARN_ON(&i915->drm, !mutex_is_locked(&fbc->lock));
+	lockdep_assert_held(&fbc->lock);
 
 	fbc->flip_pending = false;
 
@@ -1436,6 +1437,8 @@ static void __intel_fbc_enable(struct intel_atomic_state *state,
 	const struct intel_plane_state *plane_state =
 		intel_atomic_get_new_plane_state(state, plane);
 	struct intel_fbc *fbc = plane->fbc;
+
+	lockdep_assert_held(&fbc->lock);
 
 	if (fbc->state.plane) {
 		if (fbc->state.plane != plane)
