@@ -8,6 +8,7 @@
 #include <linux/of_device.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
+#include <linux/reset.h>
 #include <linux/soc/mediatek/mtk-cmdq.h>
 
 #include "mtk_drm_ddp_comp.h"
@@ -67,6 +68,7 @@ struct mtk_disp_merge {
 	struct cmdq_client_reg		cmdq_reg;
 	bool				fifo_en;
 	bool				mute_support;
+	struct reset_control		*reset_ctl;
 };
 
 void mtk_merge_start(struct device *dev)
@@ -101,6 +103,9 @@ void mtk_merge_stop_cmdq(struct device *dev, struct cmdq_pkt *cmdq_pkt)
 
 	mtk_ddp_write(cmdq_pkt, 0, &priv->cmdq_reg, priv->regs,
 		      DISP_REG_MERGE_CTRL);
+
+	if (priv->async_clk)
+		reset_control_reset(priv->reset_ctl);
 }
 
 static void mtk_merge_fifo_setting(struct mtk_disp_merge *priv,
@@ -262,6 +267,12 @@ static int mtk_disp_merge_probe(struct platform_device *pdev)
 	if (IS_ERR(priv->async_clk)) {
 		dev_err(dev, "failed to get merge async clock\n");
 		return PTR_ERR(priv->async_clk);
+	}
+
+	if (priv->async_clk) {
+		priv->reset_ctl = devm_reset_control_get_optional_exclusive(dev, NULL);
+		if (IS_ERR(priv->reset_ctl))
+			return PTR_ERR(priv->reset_ctl);
 	}
 
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
