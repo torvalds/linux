@@ -7,22 +7,24 @@
 
 struct io_uring_task {
 	/* submission side */
-	int			cached_refs;
-	struct xarray		xa;
-	struct wait_queue_head	wait;
-	const struct io_ring_ctx *last;
-	struct io_wq		*io_wq;
-	struct percpu_counter	inflight;
-	atomic_t		inflight_tracked;
-	atomic_t		in_idle;
+	int				cached_refs;
+	const struct io_ring_ctx 	*last;
+	struct io_wq			*io_wq;
+	struct file			*registered_rings[IO_RINGFD_REG_MAX];
 
-	spinlock_t		task_lock;
-	struct io_wq_work_list	task_list;
-	struct io_wq_work_list	prio_task_list;
-	struct callback_head	task_work;
-	bool			task_running;
+	struct xarray			xa;
+	struct wait_queue_head		wait;
+	atomic_t			in_idle;
+	atomic_t			inflight_tracked;
+	struct percpu_counter		inflight;
 
-	struct file		*registered_rings[IO_RINGFD_REG_MAX];
+	struct { /* task_work */
+		spinlock_t		task_lock;
+		bool			task_running;
+		struct io_wq_work_list	task_list;
+		struct io_wq_work_list	prio_task_list;
+		struct callback_head	task_work;
+	} ____cacheline_aligned_in_smp;
 };
 
 struct io_tctx_node {
