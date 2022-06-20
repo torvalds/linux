@@ -548,36 +548,6 @@ static void efivar_entry_list_del_unlock(struct efivar_entry *entry)
 }
 
 /**
- * __efivar_entry_delete - delete an EFI variable
- * @entry: entry containing EFI variable to delete
- *
- * Delete the variable from the firmware but leave @entry on the
- * variable list.
- *
- * This function differs from efivar_entry_delete() because it does
- * not remove @entry from the variable list. Also, it is safe to be
- * called from within a efivar_entry_iter_begin() and
- * efivar_entry_iter_end() region, unlike efivar_entry_delete().
- *
- * Returns 0 on success, or a converted EFI status code if
- * set_variable() fails.
- */
-int __efivar_entry_delete(struct efivar_entry *entry)
-{
-	efi_status_t status;
-
-	if (!__efivars)
-		return -EINVAL;
-
-	status = __efivars->ops->set_variable(entry->var.VariableName,
-					      &entry->var.VendorGuid,
-					      0, 0, NULL);
-
-	return efi_status_to_err(status);
-}
-EXPORT_SYMBOL_GPL(__efivar_entry_delete);
-
-/**
  * efivar_entry_delete - delete variable and remove entry from list
  * @entry: entry containing variable to delete
  *
@@ -613,213 +583,6 @@ int efivar_entry_delete(struct efivar_entry *entry)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(efivar_entry_delete);
-
-/**
- * efivar_entry_set - call set_variable()
- * @entry: entry containing the EFI variable to write
- * @attributes: variable attributes
- * @size: size of @data buffer
- * @data: buffer containing variable data
- * @head: head of variable list
- *
- * Calls set_variable() for an EFI variable. If creating a new EFI
- * variable, this function is usually followed by efivar_entry_add().
- *
- * Before writing the variable, the remaining EFI variable storage
- * space is checked to ensure there is enough room available.
- *
- * If @head is not NULL a lookup is performed to determine whether
- * the entry is already on the list.
- *
- * Returns 0 on success, -EINTR if we can't grab the semaphore,
- * -EEXIST if a lookup is performed and the entry already exists on
- * the list, or a converted EFI status code if set_variable() fails.
- */
-int efivar_entry_set(struct efivar_entry *entry, u32 attributes,
-		     unsigned long size, void *data, struct list_head *head)
-{
-	const struct efivar_operations *ops;
-	efi_status_t status;
-	efi_char16_t *name = entry->var.VariableName;
-	efi_guid_t vendor = entry->var.VendorGuid;
-
-	if (down_interruptible(&efivars_lock))
-		return -EINTR;
-
-	if (!__efivars) {
-		up(&efivars_lock);
-		return -EINVAL;
-	}
-	ops = __efivars->ops;
-	if (head && efivar_entry_find(name, vendor, head, false)) {
-		up(&efivars_lock);
-		return -EEXIST;
-	}
-
-	status = check_var_size(attributes, size + ucs2_strsize(name, 1024));
-	if (status == EFI_SUCCESS || status == EFI_UNSUPPORTED)
-		status = ops->set_variable(name, &vendor,
-					   attributes, size, data);
-
-	up(&efivars_lock);
-
-	return efi_status_to_err(status);
-
-}
-EXPORT_SYMBOL_GPL(efivar_entry_set);
-
-/*
- * efivar_entry_set_nonblocking - call set_variable_nonblocking()
- *
- * This function is guaranteed to not block and is suitable for calling
- * from crash/panic handlers.
- *
- * Crucially, this function will not block if it cannot acquire
- * efivars_lock. Instead, it returns -EBUSY.
- */
-static int
-efivar_entry_set_nonblocking(efi_char16_t *name, efi_guid_t vendor,
-			     u32 attributes, unsigned long size, void *data)
-{
-	const struct efivar_operations *ops;
-	efi_status_t status;
-
-	if (down_trylock(&efivars_lock))
-		return -EBUSY;
-
-	if (!__efivars) {
-		up(&efivars_lock);
-		return -EINVAL;
-	}
-
-	status = check_var_size_nonblocking(attributes,
-					    size + ucs2_strsize(name, 1024));
-	if (status != EFI_SUCCESS) {
-		up(&efivars_lock);
-		return -ENOSPC;
-	}
-
-	ops = __efivars->ops;
-	status = ops->set_variable_nonblocking(name, &vendor, attributes,
-					       size, data);
-
-	up(&efivars_lock);
-	return efi_status_to_err(status);
-}
-
-/**
- * efivar_entry_set_safe - call set_variable() if enough space in firmware
- * @name: buffer containing the variable name
- * @vendor: variable vendor guid
- * @attributes: variable attributes
- * @block: can we block in this context?
- * @size: size of @data buffer
- * @data: buffer containing variable data
- *
- * Ensures there is enough free storage in the firmware for this variable, and
- * if so, calls set_variable(). If creating a new EFI variable, this function
- * is usually followed by efivar_entry_add().
- *
- * Returns 0 on success, -ENOSPC if the firmware does not have enough
- * space for set_variable() to succeed, or a converted EFI status code
- * if set_variable() fails.
- */
-int efivar_entry_set_safe(efi_char16_t *name, efi_guid_t vendor, u32 attributes,
-			  bool block, unsigned long size, void *data)
-{
-	const struct efivar_operations *ops;
-	efi_status_t status;
-	unsigned long varsize;
-
-	if (!__efivars)
-		return -EINVAL;
-
-	ops = __efivars->ops;
-	if (!ops->query_variable_store)
-		return -ENOSYS;
-
-	/*
-	 * If the EFI variable backend provides a non-blocking
-	 * ->set_variable() operation and we're in a context where we
-	 * cannot block, then we need to use it to avoid live-locks,
-	 * since the implication is that the regular ->set_variable()
-	 * will block.
-	 *
-	 * If no ->set_variable_nonblocking() is provided then
-	 * ->set_variable() is assumed to be non-blocking.
-	 */
-	if (!block && ops->set_variable_nonblocking)
-		return efivar_entry_set_nonblocking(name, vendor, attributes,
-						    size, data);
-
-	varsize = size + ucs2_strsize(name, 1024);
-	if (!block) {
-		if (down_trylock(&efivars_lock))
-			return -EBUSY;
-		status = check_var_size_nonblocking(attributes, varsize);
-	} else {
-		if (down_interruptible(&efivars_lock))
-			return -EINTR;
-		status = check_var_size(attributes, varsize);
-	}
-
-	if (status != EFI_SUCCESS) {
-		up(&efivars_lock);
-		return -ENOSPC;
-	}
-
-	status = ops->set_variable(name, &vendor, attributes, size, data);
-
-	up(&efivars_lock);
-
-	return efi_status_to_err(status);
-}
-EXPORT_SYMBOL_GPL(efivar_entry_set_safe);
-
-/**
- * efivar_entry_find - search for an entry
- * @name: the EFI variable name
- * @guid: the EFI variable vendor's guid
- * @head: head of the variable list
- * @remove: should we remove the entry from the list?
- *
- * Search for an entry on the variable list that has the EFI variable
- * name @name and vendor guid @guid. If an entry is found on the list
- * and @remove is true, the entry is removed from the list.
- *
- * The caller MUST call efivar_entry_iter_begin() and
- * efivar_entry_iter_end() before and after the invocation of this
- * function, respectively.
- *
- * Returns the entry if found on the list, %NULL otherwise.
- */
-struct efivar_entry *efivar_entry_find(efi_char16_t *name, efi_guid_t guid,
-				       struct list_head *head, bool remove)
-{
-	struct efivar_entry *entry, *n;
-	int strsize1, strsize2;
-	bool found = false;
-
-	list_for_each_entry_safe(entry, n, head, list) {
-		strsize1 = ucs2_strsize(name, 1024);
-		strsize2 = ucs2_strsize(entry->var.VariableName, 1024);
-		if (strsize1 == strsize2 &&
-		    !memcmp(name, &(entry->var.VariableName), strsize1) &&
-		    !efi_guidcmp(guid, entry->var.VendorGuid)) {
-			found = true;
-			break;
-		}
-	}
-
-	if (!found)
-		return NULL;
-
-	if (remove)
-		list_del(&entry->list);
-
-	return entry;
-}
-EXPORT_SYMBOL_GPL(efivar_entry_find);
 
 /**
  * efivar_entry_size - obtain the size of a variable
@@ -1011,30 +774,6 @@ out:
 EXPORT_SYMBOL_GPL(efivar_entry_set_get_size);
 
 /**
- * efivar_entry_iter_begin - begin iterating the variable list
- *
- * Lock the variable list to prevent entry insertion and removal until
- * efivar_entry_iter_end() is called. This function is usually used in
- * conjunction with __efivar_entry_iter() or efivar_entry_iter().
- */
-int efivar_entry_iter_begin(void)
-{
-	return down_interruptible(&efivars_lock);
-}
-EXPORT_SYMBOL_GPL(efivar_entry_iter_begin);
-
-/**
- * efivar_entry_iter_end - finish iterating the variable list
- *
- * Unlock the variable list and allow modifications to the list again.
- */
-void efivar_entry_iter_end(void)
-{
-	up(&efivars_lock);
-}
-EXPORT_SYMBOL_GPL(efivar_entry_iter_end);
-
-/**
  * efivar_entry_iter - iterate over variable list
  * @func: callback function
  * @head: head of variable list
@@ -1054,7 +793,7 @@ int efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
 	struct efivar_entry *entry, *n;
 	int err = 0;
 
-	err = efivar_entry_iter_begin();
+	err = down_interruptible(&efivars_lock);
 	if (err)
 		return err;
 
@@ -1063,7 +802,7 @@ int efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
 		if (err)
 			break;
 	}
-	efivar_entry_iter_end();
+	up(&efivars_lock);
 
 	return err;
 }

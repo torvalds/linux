@@ -2,18 +2,6 @@
 menu "EFI (Extensible Firmware Interface) Support"
 	depends on EFI
 
-config EFI_VARS
-	tristate "EFI Variable Support via sysfs"
-	depends on EFI && (X86 || IA64)
-	default n
-	help
-	  If you say Y here, you are able to get EFI (Extensible Firmware
-	  Interface) variable information via sysfs.  You may read,
-	  write, create, and destroy EFI variables through this interface.
-	  Note that this driver is only retained for compatibility with
-	  legacy users: new users should use the efivarfs filesystem
-	  instead.
-
 config EFI_ESRT
 	bool
 	depends on EFI && !IA64

@@ -29,7 +29,7 @@ Mechanics
   be selected::
 
 	CONFIG_EFI=y
-	CONFIG_EFI_VARS=y or m		# optional
+	CONFIG_EFIVAR_FS=y or m		# optional
 
 - Create a VFAT partition on the disk
 - Copy the following to the VFAT partition:
