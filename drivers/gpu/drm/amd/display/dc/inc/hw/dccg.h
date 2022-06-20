@@ -60,8 +60,17 @@ struct dccg {
 	const struct dccg_funcs *funcs;
 	int pipe_dppclk_khz[MAX_PIPES];
 	int ref_dppclk;
-	int dtbclk_khz[MAX_PIPES];
-	int audio_dtbclk_khz;
+	//int dtbclk_khz[MAX_PIPES];/* TODO needs to be removed */
+	//int audio_dtbclk_khz;/* TODO needs to be removed */
+	int ref_dtbclk_khz;/* TODO needs to be removed */
+};
+
+struct dtbclk_dto_params {
+	const struct dc_crtc_timing *timing;
+	int otg_inst;
+	int pixclk_khz;
+	int req_audio_dtbclk_khz;
+	int num_odm_segments;
 	int ref_dtbclk_khz;
 };
 
@@ -111,10 +120,7 @@ struct dccg_funcs {
 
 	void (*set_dtbclk_dto)(
 			struct dccg *dccg,
-			int dtbclk_inst,
-			int req_dtbclk_khz,
-			int num_odm_segments,
-			const struct dc_crtc_timing *timing);
+			struct dtbclk_dto_params *dto_params);
 
 	void (*set_audio_dtbclk_dto)(
 			struct dccg *dccg,

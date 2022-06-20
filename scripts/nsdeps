@@ -34,9 +34,8 @@ generate_deps() {
 	local mod=${1%.ko:}
 	shift
 	local namespaces="$*"
-	local mod_source_files="`cat $mod.mod | sed -n 1p                      \
-					      | sed -e 's/\.o/\.c/g'           \
-					      | sed "s|[^ ]* *|${src_prefix}&|g"`"
+	local mod_source_files=$(sed "s|^\(.*\)\.o$|${src_prefix}\1.c|" $mod.mod)
+
 	for ns in $namespaces; do
 		echo "Adding namespace $ns to module $mod.ko."
 		generate_deps_for_ns $ns "$mod_source_files"

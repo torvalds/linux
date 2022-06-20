@@ -579,17 +579,6 @@ static void *pci_get_other_drvdata(struct device *this, struct device *other)
 	return pci_get_drvdata(to_pci_dev(other));
 }
 
-static int next_phys_dev(struct device *dev, const void *data)
-{
-	struct mlx5_core_dev *mdev, *this = (struct mlx5_core_dev *)data;
-
-	mdev = pci_get_other_drvdata(this->device, dev);
-	if (!mdev)
-		return 0;
-
-	return _next_phys_dev(mdev, data);
-}
-
 static int next_phys_dev_lag(struct device *dev, const void *data)
 {
 	struct mlx5_core_dev *mdev, *this = (struct mlx5_core_dev *)data;
@@ -621,13 +610,6 @@ static struct mlx5_core_dev *mlx5_get_next_dev(struct mlx5_core_dev *dev,
 
 	put_device(next);
 	return pci_get_drvdata(to_pci_dev(next));
-}
-
-/* Must be called with intf_mutex held */
-struct mlx5_core_dev *mlx5_get_next_phys_dev(struct mlx5_core_dev *dev)
-{
-	lockdep_assert_held(&mlx5_intf_mutex);
-	return mlx5_get_next_dev(dev, &next_phys_dev);
 }
 
 /* Must be called with intf_mutex held */

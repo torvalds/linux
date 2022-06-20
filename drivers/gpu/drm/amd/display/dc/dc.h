@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.186"
+#define DC_VER "3.2.187"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -416,6 +416,7 @@ struct dc_clocks {
 	bool p_state_change_support;
 	enum dcn_zstate_support_state zstate_support;
 	bool dtbclk_en;
+	int ref_dtbclk_khz;
 	enum dcn_pwr_state pwr_state;
 	/*
 	 * Elements below are not compared for the purposes of
@@ -719,6 +720,8 @@ struct dc_debug_options {
 	bool apply_vendor_specific_lttpr_wa;
 	bool extended_blank_optimization;
 	union aux_wake_wa_options aux_wake_wa;
+	/* uses value at boot and disables switch */
+	bool disable_dtb_ref_clk_switch;
 	uint8_t psr_power_use_phy_fsm;
 	enum dml_hostvm_override_opts dml_hostvm_override;
 };

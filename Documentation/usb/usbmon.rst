@@ -42,7 +42,7 @@ if usbmon is built into the kernel::
 	# modprobe usbmon
 	#
 
-Verify that bus sockets are present:
+Verify that bus sockets are present::
 
 	# ls /sys/kernel/debug/usb/usbmon
 	0s  0u  1s  1t  1u  2s  2t  2u  3s  3t  3u  4s  4t  4u
