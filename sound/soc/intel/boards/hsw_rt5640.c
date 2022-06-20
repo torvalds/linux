@@ -188,7 +188,7 @@ static int hsw_rt5640_probe(struct platform_device *pdev)
 static struct platform_driver hsw_rt5640_driver = {
 	.probe = hsw_rt5640_probe,
 	.driver = {
-		.name = "haswell-audio",
+		.name = "hsw_rt5640",
 		.pm = &snd_soc_pm_ops,
 	},
 };
@@ -199,4 +199,4 @@ module_platform_driver(hsw_rt5640_driver)
 MODULE_AUTHOR("Liam Girdwood, Xingchao Wang");
 MODULE_DESCRIPTION("Intel SST Audio for Haswell Lynxpoint");
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("platform:haswell-audio");
+MODULE_ALIAS("platform:hsw_rt5640");
