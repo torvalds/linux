@@ -22,8 +22,6 @@
 #include <linux/ioprio.h>
 #include <linux/kthread.h>
 
-#define SECTORS_IN_FLIGHT_PER_DEVICE	2048
-
 struct moving_io {
 	struct list_head	list;
 	struct closure		cl;
@@ -693,11 +691,11 @@ static int __bch2_move_data(struct bch_fs *c,
 
 		move_ctxt_wait_event(ctxt, &trans,
 			atomic_read(&ctxt->write_sectors) <
-			SECTORS_IN_FLIGHT_PER_DEVICE);
+			c->opts.move_bytes_in_flight >> 9);
 
 		move_ctxt_wait_event(ctxt, &trans,
 			atomic_read(&ctxt->read_sectors) <
-			SECTORS_IN_FLIGHT_PER_DEVICE);
+			c->opts.move_bytes_in_flight >> 9);
 
 		bch2_trans_begin(&trans);
 

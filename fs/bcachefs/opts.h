@@ -290,6 +290,11 @@ enum opt_type {
 	  OPT_UINT(0, U32_MAX),						\
 	  BCH_SB_JOURNAL_RECLAIM_DELAY,	100,				\
 	  NULL,		"Delay in milliseconds before automatic journal reclaim")\
+	x(move_bytes_in_flight,		u32,				\
+	  OPT_HUMAN_READABLE|OPT_FS|OPT_MOUNT|OPT_RUNTIME,		\
+	  OPT_UINT(1024, U32_MAX),					\
+	  BCH2_NO_SB_OPT,		1U << 20,			\
+	  NULL,		"Amount of IO in flight to keep in flight by the move path")\
 	x(fsck,				u8,				\
 	  OPT_FS|OPT_MOUNT,						\
 	  OPT_BOOL(),							\
