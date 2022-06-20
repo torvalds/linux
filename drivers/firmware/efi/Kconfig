@@ -145,6 +145,7 @@ config EFI_GENERIC_STUB_INITRD_CMDLINE_LOADER
 
 config EFI_BOOTLOADER_CONTROL
 	tristate "EFI Bootloader Control"
+	select UCS2_STRING
 	default n
 	help
 	  This module installs a reboot hook, such that if reboot() is
