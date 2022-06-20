@@ -408,7 +408,7 @@
 	hpd-trigger-level = <1>;
 	hdmirx-det-gpios = <&gpio1 RK_PD5 GPIO_ACTIVE_LOW>;
 	pinctrl-names = "default";
-	pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda &hdmirx_det>;
+	pinctrl-0 = <&hdmim1_rx &hdmirx_det>;
 };
 
 &hdptxphy_hdmi0 {
@@ -647,7 +647,7 @@
 		};
 	};
 
-	hdmirx {
+	hdmi {
 		hdmirx_det: hdmirx-det {
 			rockchip,pins = <1 RK_PD5 RK_FUNC_GPIO &pcfg_pull_up>;
 		};

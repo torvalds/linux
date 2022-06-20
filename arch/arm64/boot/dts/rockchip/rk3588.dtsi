@@ -542,7 +542,7 @@
 		resets = <&cru SRST_A_HDMIRX>, <&cru SRST_P_HDMIRX>,
 			 <&cru SRST_HDMIRX_REF>, <&cru SRST_A_HDMIRX_BIU>;
 		reset-names = "rst_a", "rst_p", "rst_ref", "rst_biu";
-		pinctrl-0 = <&hdmim1_rx_cec &hdmim1_rx_hpdin &hdmim1_rx_scl &hdmim1_rx_sda>;
+		pinctrl-0 = <&hdmim1_rx>;
 		pinctrl-names = "default";
 		status = "disabled";
 	};
