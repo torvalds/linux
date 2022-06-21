@@ -564,9 +564,6 @@ static void apple_dart_release_device(struct device *dev)
 {
 	struct apple_dart_master_cfg *cfg = dev_iommu_priv_get(dev);
 
-	if (!cfg)
-		return;
-
 	dev_iommu_priv_set(dev, NULL);
 	kfree(cfg);
 }

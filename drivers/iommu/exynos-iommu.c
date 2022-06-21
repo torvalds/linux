@@ -1251,9 +1251,6 @@ static void exynos_iommu_release_device(struct device *dev)
 	struct exynos_iommu_owner *owner = dev_iommu_priv_get(dev);
 	struct sysmmu_drvdata *data;
 
-	if (!has_sysmmu(dev))
-		return;
-
 	if (owner->domain) {
 		struct iommu_group *group = iommu_group_get(dev);
 

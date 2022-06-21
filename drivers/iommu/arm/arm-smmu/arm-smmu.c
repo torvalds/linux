@@ -1432,27 +1432,19 @@ out_free:
 static void arm_smmu_release_device(struct device *dev)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
-	struct arm_smmu_master_cfg *cfg;
-	struct arm_smmu_device *smmu;
+	struct arm_smmu_master_cfg *cfg = dev_iommu_priv_get(dev);
 	int ret;
 
-	if (!fwspec || fwspec->ops != &arm_smmu_ops)
-		return;
-
-	cfg  = dev_iommu_priv_get(dev);
-	smmu = cfg->smmu;
-
-	ret = arm_smmu_rpm_get(smmu);
+	ret = arm_smmu_rpm_get(cfg->smmu);
 	if (ret < 0)
 		return;
 
 	arm_smmu_master_free_smes(cfg, fwspec);
 
-	arm_smmu_rpm_put(smmu);
+	arm_smmu_rpm_put(cfg->smmu);
 
 	dev_iommu_priv_set(dev, NULL);
 	kfree(cfg);
-	iommu_fwspec_free(dev);
 }
 
 static void arm_smmu_probe_finalize(struct device *dev)

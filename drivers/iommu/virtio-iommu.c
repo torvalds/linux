@@ -981,13 +981,7 @@ static void viommu_probe_finalize(struct device *dev)
 
 static void viommu_release_device(struct device *dev)
 {
-	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
-	struct viommu_endpoint *vdev;
-
-	if (!fwspec || fwspec->ops != &viommu_ops)
-		return;
-
-	vdev = dev_iommu_priv_get(dev);
+	struct viommu_endpoint *vdev = dev_iommu_priv_get(dev);
 
 	generic_iommu_put_resv_regions(dev, &vdev->resv_regions);
 	kfree(vdev);
