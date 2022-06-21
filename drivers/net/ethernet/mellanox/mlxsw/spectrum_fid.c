@@ -201,7 +201,7 @@ int mlxsw_sp_fid_nve_flood_index_set(struct mlxsw_sp_fid *fid,
 	const struct mlxsw_sp_fid_ops *ops = fid_family->ops;
 	int err;
 
-	if (WARN_ON(!ops->nve_flood_index_set || fid->nve_flood_index_valid))
+	if (WARN_ON(fid->nve_flood_index_valid))
 		return -EINVAL;
 
 	err = ops->nve_flood_index_set(fid, nve_flood_index);
@@ -219,7 +219,7 @@ void mlxsw_sp_fid_nve_flood_index_clear(struct mlxsw_sp_fid *fid)
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
 	const struct mlxsw_sp_fid_ops *ops = fid_family->ops;
 
-	if (WARN_ON(!ops->nve_flood_index_clear || !fid->nve_flood_index_valid))
+	if (WARN_ON(!fid->nve_flood_index_valid))
 		return;
 
 	fid->nve_flood_index_valid = false;
@@ -239,7 +239,7 @@ int mlxsw_sp_fid_vni_set(struct mlxsw_sp_fid *fid, enum mlxsw_sp_nve_type type,
 	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
 	int err;
 
-	if (WARN_ON(!ops->vni_set || fid->vni_valid))
+	if (WARN_ON(fid->vni_valid))
 		return -EINVAL;
 
 	fid->nve_type = type;
@@ -271,7 +271,7 @@ void mlxsw_sp_fid_vni_clear(struct mlxsw_sp_fid *fid)
 	const struct mlxsw_sp_fid_ops *ops = fid_family->ops;
 	struct mlxsw_sp *mlxsw_sp = fid_family->mlxsw_sp;
 
-	if (WARN_ON(!ops->vni_clear || !fid->vni_valid))
+	if (WARN_ON(!fid->vni_valid))
 		return;
 
 	fid->vni_valid = false;
@@ -820,6 +820,27 @@ mlxsw_sp_fid_rfid_port_vid_unmap(struct mlxsw_sp_fid *fid,
 	mlxsw_sp->fid_core->port_fid_mappings[local_port]--;
 }
 
+static int mlxsw_sp_fid_rfid_vni_set(struct mlxsw_sp_fid *fid, __be32 vni)
+{
+	return -EOPNOTSUPP;
+}
+
+static void mlxsw_sp_fid_rfid_vni_clear(struct mlxsw_sp_fid *fid)
+{
+	WARN_ON_ONCE(1);
+}
+
+static int mlxsw_sp_fid_rfid_nve_flood_index_set(struct mlxsw_sp_fid *fid,
+						 u32 nve_flood_index)
+{
+	return -EOPNOTSUPP;
+}
+
+static void mlxsw_sp_fid_rfid_nve_flood_index_clear(struct mlxsw_sp_fid *fid)
+{
+	WARN_ON_ONCE(1);
+}
+
 static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_rfid_ops = {
 	.setup			= mlxsw_sp_fid_rfid_setup,
 	.configure		= mlxsw_sp_fid_rfid_configure,
@@ -828,6 +849,10 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_rfid_ops = {
 	.compare		= mlxsw_sp_fid_rfid_compare,
 	.port_vid_map		= mlxsw_sp_fid_rfid_port_vid_map,
 	.port_vid_unmap		= mlxsw_sp_fid_rfid_port_vid_unmap,
+	.vni_set                = mlxsw_sp_fid_rfid_vni_set,
+	.vni_clear		= mlxsw_sp_fid_rfid_vni_clear,
+	.nve_flood_index_set	= mlxsw_sp_fid_rfid_nve_flood_index_set,
+	.nve_flood_index_clear	= mlxsw_sp_fid_rfid_nve_flood_index_clear,
 };
 
 #define MLXSW_SP_RFID_BASE	(15 * 1024)
@@ -874,12 +899,37 @@ static bool mlxsw_sp_fid_dummy_compare(const struct mlxsw_sp_fid *fid,
 	return true;
 }
 
+static int mlxsw_sp_fid_dummy_vni_set(struct mlxsw_sp_fid *fid, __be32 vni)
+{
+	return -EOPNOTSUPP;
+}
+
+static void mlxsw_sp_fid_dummy_vni_clear(struct mlxsw_sp_fid *fid)
+{
+	WARN_ON_ONCE(1);
+}
+
+static int mlxsw_sp_fid_dummy_nve_flood_index_set(struct mlxsw_sp_fid *fid,
+						  u32 nve_flood_index)
+{
+	return -EOPNOTSUPP;
+}
+
+static void mlxsw_sp_fid_dummy_nve_flood_index_clear(struct mlxsw_sp_fid *fid)
+{
+	WARN_ON_ONCE(1);
+}
+
 static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_dummy_ops = {
 	.setup			= mlxsw_sp_fid_dummy_setup,
 	.configure		= mlxsw_sp_fid_dummy_configure,
 	.deconfigure		= mlxsw_sp_fid_dummy_deconfigure,
 	.index_alloc		= mlxsw_sp_fid_dummy_index_alloc,
 	.compare		= mlxsw_sp_fid_dummy_compare,
+	.vni_set                = mlxsw_sp_fid_dummy_vni_set,
+	.vni_clear		= mlxsw_sp_fid_dummy_vni_clear,
+	.nve_flood_index_set	= mlxsw_sp_fid_dummy_nve_flood_index_set,
+	.nve_flood_index_clear	= mlxsw_sp_fid_dummy_nve_flood_index_clear,
 };
 
 static const struct mlxsw_sp_fid_family mlxsw_sp_fid_dummy_family = {
