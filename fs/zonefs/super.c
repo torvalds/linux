@@ -616,7 +616,7 @@ static int zonefs_inode_setattr(struct user_namespace *mnt_userns,
 	     !uid_eq(iattr->ia_uid, inode->i_uid)) ||
 	    ((iattr->ia_valid & ATTR_GID) &&
 	     !gid_eq(iattr->ia_gid, inode->i_gid))) {
-		ret = dquot_transfer(&init_user_ns, inode, iattr);
+		ret = dquot_transfer(mnt_userns, inode, iattr);
 		if (ret)
 			return ret;
 	}

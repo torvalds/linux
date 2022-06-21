@@ -228,6 +228,10 @@ struct iattr {
 	 * are a dedicated type requiring the filesystem to use the dedicated
 	 * helpers. Other filesystem can continue to use ia_{g,u}id until they
 	 * have been ported.
+	 *
+	 * They always contain the same value. In other words FS_ALLOW_IDMAP
+	 * pass down the same value on idmapped mounts as they would on regular
+	 * mounts.
 	 */
 	union {
 		kuid_t		ia_uid;

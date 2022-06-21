@@ -24,8 +24,8 @@ static inline bool is_quota_modification(struct user_namespace *mnt_userns,
 					 struct inode *inode, struct iattr *ia)
 {
 	return ((ia->ia_valid & ATTR_SIZE) ||
-		i_uid_needs_update(&init_user_ns, ia, inode) ||
-		i_gid_needs_update(&init_user_ns, ia, inode));
+		i_uid_needs_update(mnt_userns, ia, inode) ||
+		i_gid_needs_update(mnt_userns, ia, inode));
 }
 
 #if defined(CONFIG_QUOTA)

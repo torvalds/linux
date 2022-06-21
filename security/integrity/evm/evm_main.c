@@ -761,8 +761,8 @@ static int evm_attr_change(struct user_namespace *mnt_userns,
 	struct inode *inode = d_backing_inode(dentry);
 	unsigned int ia_valid = attr->ia_valid;
 
-	if (!i_uid_needs_update(&init_user_ns, attr, inode) &&
-	    !i_gid_needs_update(&init_user_ns, attr, inode) &&
+	if (!i_uid_needs_update(mnt_userns, attr, inode) &&
+	    !i_gid_needs_update(mnt_userns, attr, inode) &&
 	    (!(ia_valid & ATTR_MODE) || attr->ia_mode == inode->i_mode))
 		return 0;
 
