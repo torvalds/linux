@@ -204,9 +204,7 @@ static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 	s_slot = cb->args[0];
 	num = s_num = cb->args[1];
 
-	for (slot = s_slot;
-	     slot < ARRAY_SIZE(unix_socket_table);
-	     s_num = 0, slot++) {
+	for (slot = s_slot; slot < UNIX_HASH_SIZE; s_num = 0, slot++) {
 		struct sock *sk;
 
 		num = 0;
@@ -242,7 +240,7 @@ static struct sock *unix_lookup_by_ino(unsigned int ino)
 	struct sock *sk;
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(unix_socket_table); i++) {
+	for (i = 0; i < UNIX_HASH_SIZE; i++) {
 		spin_lock(&unix_table_locks[i]);
 		sk_for_each(sk, &unix_socket_table[i])
 			if (ino == sock_i_ino(sk)) {

@@ -118,9 +118,9 @@
 
 #include "scm.h"
 
-spinlock_t unix_table_locks[2 * UNIX_HASH_SIZE];
+spinlock_t unix_table_locks[UNIX_HASH_SIZE];
 EXPORT_SYMBOL_GPL(unix_table_locks);
-struct hlist_head unix_socket_table[2 * UNIX_HASH_SIZE];
+struct hlist_head unix_socket_table[UNIX_HASH_SIZE];
 EXPORT_SYMBOL_GPL(unix_socket_table);
 static atomic_long_t unix_nr_socks;
 
@@ -137,12 +137,12 @@ static unsigned int unix_unbound_hash(struct sock *sk)
 	hash ^= hash >> 8;
 	hash ^= sk->sk_type;
 
-	return UNIX_HASH_SIZE + (hash & (UNIX_HASH_SIZE - 1));
+	return UNIX_HASH_MOD + 1 + (hash & UNIX_HASH_MOD);
 }
 
 static unsigned int unix_bsd_hash(struct inode *i)
 {
-	return i->i_ino & (UNIX_HASH_SIZE - 1);
+	return i->i_ino & UNIX_HASH_MOD;
 }
 
 static unsigned int unix_abstract_hash(struct sockaddr_un *sunaddr,
@@ -155,14 +155,14 @@ static unsigned int unix_abstract_hash(struct sockaddr_un *sunaddr,
 	hash ^= hash >> 8;
 	hash ^= type;
 
-	return hash & (UNIX_HASH_SIZE - 1);
+	return hash & UNIX_HASH_MOD;
 }
 
 static void unix_table_double_lock(unsigned int hash1, unsigned int hash2)
 {
 	/* hash1 and hash2 is never the same because
-	 * one is between 0 and UNIX_HASH_SIZE - 1, and
-	 * another is between UNIX_HASH_SIZE and UNIX_HASH_SIZE * 2.
+	 * one is between 0 and UNIX_HASH_MOD, and
+	 * another is between UNIX_HASH_MOD + 1 and UNIX_HASH_SIZE - 1.
 	 */
 	if (hash1 > hash2)
 		swap(hash1, hash2);
@@ -3239,7 +3239,7 @@ static struct sock *unix_get_first(struct seq_file *seq, loff_t *pos)
 	unsigned long bucket = get_bucket(*pos);
 	struct sock *sk;
 
-	while (bucket < ARRAY_SIZE(unix_socket_table)) {
+	while (bucket < UNIX_HASH_SIZE) {
 		spin_lock(&unix_table_locks[bucket]);
 
 		sk = unix_from_bucket(seq, pos);
@@ -3666,7 +3666,7 @@ static int __init af_unix_init(void)
 
 	BUILD_BUG_ON(sizeof(struct unix_skb_parms) > sizeof_field(struct sk_buff, cb));
 
-	for (i = 0; i < 2 * UNIX_HASH_SIZE; i++)
+	for (i = 0; i < UNIX_HASH_SIZE; i++)
 		spin_lock_init(&unix_table_locks[i]);
 
 	rc = proto_register(&unix_dgram_proto, 1);
