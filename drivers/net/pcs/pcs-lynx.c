@@ -71,12 +71,10 @@ static void lynx_pcs_get_state_usxgmii(struct mdio_device *pcs,
 static void lynx_pcs_get_state_2500basex(struct mdio_device *pcs,
 					 struct phylink_link_state *state)
 {
-	struct mii_bus *bus = pcs->bus;
-	int addr = pcs->addr;
 	int bmsr, lpa;
 
-	bmsr = mdiobus_read(bus, addr, MII_BMSR);
-	lpa = mdiobus_read(bus, addr, MII_LPA);
+	bmsr = mdiodev_read(pcs, MII_BMSR);
+	lpa = mdiodev_read(pcs, MII_LPA);
 	if (bmsr < 0 || lpa < 0) {
 		state->link = false;
 		return;
@@ -128,16 +126,14 @@ static int lynx_pcs_config_1000basex(struct mdio_device *pcs,
 				     unsigned int mode,
 				     const unsigned long *advertising)
 {
-	struct mii_bus *bus = pcs->bus;
-	int addr = pcs->addr;
 	u32 link_timer;
 	int err;
 
 	link_timer = LINK_TIMER_VAL(IEEE8023_LINK_TIMER_NS);
-	mdiobus_write(bus, addr, LINK_TIMER_LO, link_timer & 0xffff);
-	mdiobus_write(bus, addr, LINK_TIMER_HI, link_timer >> 16);
+	mdiodev_write(pcs, LINK_TIMER_LO, link_timer & 0xffff);
+	mdiodev_write(pcs, LINK_TIMER_HI, link_timer >> 16);
 
-	err = mdiobus_modify(bus, addr, IF_MODE,
+	err = mdiodev_modify(pcs, IF_MODE,
 			     IF_MODE_SGMII_EN | IF_MODE_USE_SGMII_AN,
 			     0);
 	if (err)
@@ -151,8 +147,6 @@ static int lynx_pcs_config_1000basex(struct mdio_device *pcs,
 static int lynx_pcs_config_sgmii(struct mdio_device *pcs, unsigned int mode,
 				 const unsigned long *advertising)
 {
-	struct mii_bus *bus = pcs->bus;
-	int addr = pcs->addr;
 	u16 if_mode;
 	int err;
 
@@ -164,10 +158,10 @@ static int lynx_pcs_config_sgmii(struct mdio_device *pcs, unsigned int mode,
 
 		/* Adjust link timer for SGMII */
 		link_timer = LINK_TIMER_VAL(SGMII_AN_LINK_TIMER_NS);
-		mdiobus_write(bus, addr, LINK_TIMER_LO, link_timer & 0xffff);
-		mdiobus_write(bus, addr, LINK_TIMER_HI, link_timer >> 16);
+		mdiodev_write(pcs, LINK_TIMER_LO, link_timer & 0xffff);
+		mdiodev_write(pcs, LINK_TIMER_HI, link_timer >> 16);
 	}
-	err = mdiobus_modify(bus, addr, IF_MODE,
+	err = mdiodev_modify(pcs, IF_MODE,
 			     IF_MODE_SGMII_EN | IF_MODE_USE_SGMII_AN,
 			     if_mode);
 	if (err)
@@ -237,9 +231,7 @@ static void lynx_pcs_an_restart(struct phylink_pcs *pcs)
 static void lynx_pcs_link_up_sgmii(struct mdio_device *pcs, unsigned int mode,
 				   int speed, int duplex)
 {
-	struct mii_bus *bus = pcs->bus;
 	u16 if_mode = 0, sgmii_speed;
-	int addr = pcs->addr;
 
 	/* The PCS needs to be configured manually only
 	 * when not operating on in-band mode
@@ -269,7 +261,7 @@ static void lynx_pcs_link_up_sgmii(struct mdio_device *pcs, unsigned int mode,
 	}
 	if_mode |= IF_MODE_SPEED(sgmii_speed);
 
-	mdiobus_modify(bus, addr, IF_MODE,
+	mdiodev_modify(pcs, IF_MODE,
 		       IF_MODE_HALF_DUPLEX | IF_MODE_SPEED_MSK,
 		       if_mode);
 }
@@ -294,8 +286,6 @@ static void lynx_pcs_link_up_2500basex(struct mdio_device *pcs,
 				       unsigned int mode,
 				       int speed, int duplex)
 {
-	struct mii_bus *bus = pcs->bus;
-	int addr = pcs->addr;
 	u16 if_mode = 0;
 
 	if (mode == MLO_AN_INBAND) {
@@ -307,7 +297,7 @@ static void lynx_pcs_link_up_2500basex(struct mdio_device *pcs,
 		if_mode |= IF_MODE_HALF_DUPLEX;
 	if_mode |= IF_MODE_SPEED(SGMII_SPEED_2500);
 
-	mdiobus_modify(bus, addr, IF_MODE,
+	mdiodev_modify(pcs, IF_MODE,
 		       IF_MODE_HALF_DUPLEX | IF_MODE_SPEED_MSK,
 		       if_mode);
 }
