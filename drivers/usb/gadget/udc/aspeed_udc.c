@@ -19,7 +19,7 @@
 #define AST_UDC_NUM_ENDPOINTS		(1 + 4)
 #define AST_UDC_EP0_MAX_PACKET		64	/* EP0's max packet size */
 #define AST_UDC_EPn_MAX_PACKET		1024	/* Generic EPs max packet size */
-#define AST_UDC_DESCS_COUNT		256	/* Use 256 stages descriptor mode (256/32 both valid) */
+#define AST_UDC_DESCS_COUNT		256	/* Use 256 stages descriptor mode (32/256) */
 #define AST_UDC_DESC_MODE		1	/* Single/Multiple Stage(s) Descriptor Mode */
 
 #define AST_UDC_EP_DMA_SIZE		(AST_UDC_EPn_MAX_PACKET + 8 * AST_UDC_DESCS_COUNT)
@@ -34,16 +34,16 @@
 #define AST_UDC_CONFIG			0x04	/* Root Configuration Setting Register */
 #define AST_UDC_IER			0x08	/* Interrupt Control Register */
 #define AST_UDC_ISR			0x0C	/* Interrupt Status Register */
-#define AST_UDC_EP_ACK_IER		0x10	/* Programmable Endpoint Pool ACK Interrupt Enable Register */
-#define AST_UDC_EP_NAK_IER		0x14	/* Programmable Endpoint Pool NAK Interrupt Enable Register */
-#define AST_UDC_EP_ACK_ISR		0x18	/* Programmable Endpoint Pool ACK Interrupt Status Register */
-#define AST_UDC_EP_NAK_ISR		0x1C	/* Programmable Endpoint Pool NAK Interrupt Status Register */
+#define AST_UDC_EP_ACK_IER		0x10	/* Programmable ep Pool ACK Interrupt Enable Reg */
+#define AST_UDC_EP_NAK_IER		0x14	/* Programmable ep Pool NAK Interrupt Enable Reg */
+#define AST_UDC_EP_ACK_ISR		0x18	/* Programmable ep Pool ACK Interrupt Status Reg */
+#define AST_UDC_EP_NAK_ISR		0x1C	/* Programmable ep Pool NAK Interrupt Status Reg */
 #define AST_UDC_DEV_RESET		0x20	/* Device Controller Soft Reset Enable Register */
 #define AST_UDC_STS			0x24	/* USB Status Register */
-#define AST_VHUB_EP_DATA		0x28	/* Programmable Endpoint Pool Data Toggle Value Set */
+#define AST_VHUB_EP_DATA		0x28	/* Programmable ep Pool Data Toggle Value Set */
 #define AST_VHUB_ISO_TX_FAIL		0x2C	/* Isochronous Transaction Fail Accumulator */
 #define AST_UDC_EP0_CTRL		0x30	/* Endpoint 0 Control/Status Register */
-#define AST_UDC_EP0_DATA_BUFF		0x34	/* Base Address of Endpoint 0 IN/OUT Data Buffer Register */
+#define AST_UDC_EP0_DATA_BUFF		0x34	/* Base Address of ep0 IN/OUT Data Buffer Reg */
 #define AST_UDC_SETUP0			0x80    /* Root Device Setup Data Buffer0 */
 #define AST_UDC_SETUP1			0x84    /* Root Device Setup Data Buffer1 */
 
@@ -114,7 +114,7 @@
 #define AST_UDC_EP_CONFIG		0x00	/* Endpoint Configuration Register */
 #define AST_UDC_EP_DMA_CTRL		0x04	/* DMA Descriptor List Control/Status Register */
 #define AST_UDC_EP_DMA_BUFF		0x08	/* DMA Descriptor/Buffer Base Address */
-#define AST_UDC_EP_DMA_STS		0x0C	/* DMA Descriptor List Read(DMA)/Write(CPU) Pointer and Status */
+#define AST_UDC_EP_DMA_STS		0x0C	/* DMA Descriptor List R/W Pointer and Status */
 
 #define AST_UDC_EP_BASE			0x200
 #define AST_UDC_EP_OFFSET		0x10
@@ -305,10 +305,6 @@ static void ast_udc_done(struct ast_udc_ep *ep, struct ast_udc_request *req,
 static void ast_udc_nuke(struct ast_udc_ep *ep, int status)
 {
 	int count = 0;
-
-	/* Sanity check */
-	if (&ep->queue == NULL)
-		return;
 
 	while (!list_empty(&ep->queue)) {
 		struct ast_udc_request *req;
@@ -669,7 +665,8 @@ static int ast_udc_ep_queue(struct usb_ep *_ep, struct usb_request *_req,
 	if (ep->ep.desc == NULL) {
 		if ((req->req.dma % 4) != 0) {
 			dev_warn(dev, "EP0 req dma alignment error\n");
-			return -ESHUTDOWN;
+			rc = -ESHUTDOWN;
+			goto end;
 		}
 
 		ast_udc_ep0_queue(ep, req);
@@ -905,11 +902,10 @@ static void ast_udc_epn_handle_desc(struct ast_udc_dev *udc, u16 ep_num)
 	u32 proc_sts, wr_ptr, rd_ptr;
 	u32 len_in_desc, ctrl;
 	u16 total_len = 0;
-	u16 len;
 	int i;
 
 	if (list_empty(&ep->queue)) {
-		dev_warn(dev, "%s reqest queue empty !\n", ep->ep.name);
+		dev_warn(dev, "%s reqest queue empty!\n", ep->ep.name);
 		return;
 	}
 
@@ -964,7 +960,7 @@ static void ast_udc_epn_handle_desc(struct ast_udc_dev *udc, u16 ep_num)
 
 	} else {
 		/* Check for short packet */
-		if (len < ep->ep.maxpacket) {
+		if (total_len < ep->ep.maxpacket) {
 			ast_udc_done(ep, req, 0);
 			req = list_first_entry_or_null(&ep->queue,
 						       struct ast_udc_request,
@@ -999,7 +995,7 @@ static void ast_udc_getstatus(struct ast_udc_dev *udc)
 	struct usb_ctrlrequest crq;
 	struct ast_udc_ep *ep;
 	u16 status = 0;
-	u16 epnum;
+	u16 epnum = 0;
 
 	memcpy_fromio(&crq, udc->creq, sizeof(crq));
 
@@ -1036,12 +1032,12 @@ static void ast_udc_ep0_handle_setup(struct ast_udc_dev *udc)
 	struct ast_udc_request *req;
 	struct usb_ctrlrequest crq;
 	int req_num = 0;
-	int rc;
+	int rc = 0;
 	u32 reg;
 
 	memcpy_fromio(&crq, udc->creq, sizeof(crq));
 
-	SETUP_DBG(udc, "SETEUP packet: %02x/%02x/%04x/%04x/%04x\n",
+	SETUP_DBG(udc, "SETUP packet: %02x/%02x/%04x/%04x/%04x\n",
 		  crq.bRequestType, crq.bRequest, le16_to_cpu(crq.wValue),
 		  le16_to_cpu(crq.wIndex), le16_to_cpu(crq.wLength));
 
@@ -1548,7 +1544,6 @@ static int ast_udc_probe(struct platform_device *pdev)
 	/* Find interrupt and install handler */
 	udc->irq = platform_get_irq(pdev, 0);
 	if (udc->irq < 0) {
-		dev_err(&pdev->dev, "Failed to get interrupt\n");
 		rc = udc->irq;
 		goto err;
 	}
