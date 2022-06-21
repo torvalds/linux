@@ -5350,7 +5350,7 @@ int ext4_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	if (error)
 		return error;
 
-	if (is_quota_modification(inode, attr)) {
+	if (is_quota_modification(&init_user_ns, inode, attr)) {
 		error = dquot_initialize(inode);
 		if (error)
 			return error;
@@ -5374,7 +5374,7 @@ int ext4_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 		 * counts xattr inode references.
 		 */
 		down_read(&EXT4_I(inode)->xattr_sem);
-		error = dquot_transfer(inode, attr);
+		error = dquot_transfer(&init_user_ns, inode, attr);
 		up_read(&EXT4_I(inode)->xattr_sem);
 
 		if (error) {

@@ -266,7 +266,7 @@ static int recover_quota_data(struct inode *inode, struct page *page)
 	if (!attr.ia_valid)
 		return 0;
 
-	err = dquot_transfer(inode, &attr);
+	err = dquot_transfer(&init_user_ns, inode, &attr);
 	if (err)
 		set_sbi_flag(F2FS_I_SB(inode), SBI_QUOTA_NEED_REPAIR);
 	return err;
