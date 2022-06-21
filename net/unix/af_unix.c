@@ -932,7 +932,7 @@ static struct sock *unix_create1(struct net *net, struct socket *sock, int kern,
 	memset(&u->scm_stat, 0, sizeof(struct scm_stat));
 	unix_insert_unbound_socket(sk);
 
-	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
+	sock_prot_inuse_add(net, sk->sk_prot, 1);
 
 	return sk;
 
@@ -1293,9 +1293,8 @@ static void unix_state_double_unlock(struct sock *sk1, struct sock *sk2)
 static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 			      int alen, int flags)
 {
-	struct sock *sk = sock->sk;
-	struct net *net = sock_net(sk);
 	struct sockaddr_un *sunaddr = (struct sockaddr_un *)addr;
+	struct sock *sk = sock->sk;
 	struct sock *other;
 	int err;
 
@@ -1316,7 +1315,7 @@ static int unix_dgram_connect(struct socket *sock, struct sockaddr *addr,
 		}
 
 restart:
-		other = unix_find_other(net, sunaddr, alen, sock->type);
+		other = unix_find_other(sock_net(sk), sunaddr, alen, sock->type);
 		if (IS_ERR(other)) {
 			err = PTR_ERR(other);
 			goto out;
@@ -1404,15 +1403,13 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 			       int addr_len, int flags)
 {
 	struct sockaddr_un *sunaddr = (struct sockaddr_un *)uaddr;
-	struct sock *sk = sock->sk;
-	struct net *net = sock_net(sk);
+	struct sock *sk = sock->sk, *newsk = NULL, *other = NULL;
 	struct unix_sock *u = unix_sk(sk), *newu, *otheru;
-	struct sock *newsk = NULL;
-	struct sock *other = NULL;
+	struct net *net = sock_net(sk);
 	struct sk_buff *skb = NULL;
-	int st;
-	int err;
 	long timeo;
+	int err;
+	int st;
 
 	err = unix_validate_addr(sunaddr, addr_len);
 	if (err)
@@ -1432,7 +1429,7 @@ static int unix_stream_connect(struct socket *sock, struct sockaddr *uaddr,
 	 */
 
 	/* create new sock for complete connection */
-	newsk = unix_create1(sock_net(sk), NULL, 0, sock->type);
+	newsk = unix_create1(net, NULL, 0, sock->type);
 	if (IS_ERR(newsk)) {
 		err = PTR_ERR(newsk);
 		newsk = NULL;
@@ -1840,17 +1837,15 @@ static void scm_stat_del(struct sock *sk, struct sk_buff *skb)
 static int unix_dgram_sendmsg(struct socket *sock, struct msghdr *msg,
 			      size_t len)
 {
-	struct sock *sk = sock->sk;
-	struct net *net = sock_net(sk);
-	struct unix_sock *u = unix_sk(sk);
 	DECLARE_SOCKADDR(struct sockaddr_un *, sunaddr, msg->msg_name);
-	struct sock *other = NULL;
-	int err;
-	struct sk_buff *skb;
-	long timeo;
+	struct sock *sk = sock->sk, *other = NULL;
+	struct unix_sock *u = unix_sk(sk);
 	struct scm_cookie scm;
+	struct sk_buff *skb;
 	int data_len = 0;
 	int sk_locked;
+	long timeo;
+	int err;
 
 	wait_for_unix_gc();
 	err = scm_send(sock, msg, &scm, false);
@@ -1917,7 +1912,7 @@ restart:
 		if (sunaddr == NULL)
 			goto out_free;
 
-		other = unix_find_other(net, sunaddr, msg->msg_namelen,
+		other = unix_find_other(sock_net(sk), sunaddr, msg->msg_namelen,
 					sk->sk_type);
 		if (IS_ERR(other)) {
 			err = PTR_ERR(other);
