@@ -26,3 +26,13 @@ config SND_DESIGNWARE_I2S_STARFIVE_JH7110
 
 	 This functionality is specially suited for I2S devices that run on
 	 Starfive JH7110 SOC platform.
+
+config SND_I2S_MASTER_STARFIVE
+	tristate "I2S_RX master support on StarFive JH7110 SoC platforms"
+	depends on HAVE_CLK
+	depends on SOC_STARFIVE
+	select SND_SOC_GENERIC_DMAENGINE_PCM
+	help
+	  Say 'Y' or 'M' here if you are building for StarFive SoCs
+	  platforms that contain i2srx_3ch controller core.
+

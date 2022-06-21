@@ -206,6 +206,7 @@
 			sf,pin-gpio-din =  <GPI_I2C0_IC_CLK_IN_A>;
 		};
 
+/*
 		i2c0-pins-sda {
 			sf,pins = <PAD_GPIO58>;
 			sf,pinmux = <PAD_GPIO58_FUNC_SEL 0>;
@@ -214,6 +215,7 @@
 			sf,pin-gpio-doen = <OEN_I2C0_IC_DATA_OE>;
 			sf,pin-gpio-din =  <GPI_I2C0_IC_DATA_IN_A>;
 		};
+*/
 	};
 
 	i2c1_pins: i2c1-pins {
@@ -484,15 +486,6 @@
 	};
 
 	i2s_clk_pins: i2s-clk0 {
-/*
-		i2s-clk0_mclk {
-			sf,pins = <PAD_GPIO58>;
-			sf,pinmux = <PAD_GPIO58_FUNC_SEL 0>;
-			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_CRG0_MCLK_OUT>;
-			sf,pin-gpio-doen = <OEN_LOW>;
-		};
-*/
                 i2s-clk0_bclk {
                        sf,pins = <PAD_GPIO38>;
                        sf,pinmux = <PAD_GPIO38_FUNC_SEL 0>;
@@ -528,6 +521,16 @@
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-doen = <OEN_HIGH>;
 			sf,pin-gpio-din =  <GPI_I2SRX0_EXT_SDIN0>;
+		};
+	};
+
+	i2srx_clk_pins: i2srx-clk-pins {
+		i2srx-clk-pins-mclk {
+			sf,pins = <PAD_GPIO58>;
+			sf,pinmux = <PAD_GPIO58_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_CRG0_MCLK_OUT>;
+			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
 

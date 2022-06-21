@@ -1112,6 +1112,28 @@
 			#sound-dai-cells = <0>;
 		};
 
+		i2srx_mst: i2srx_mst@100e0000 {
+			compatible = "snps,i2srx-master";
+			reg = <0x0 0x100e0000 0x0 0x1000>;
+			clocks = <&clkgen JH7110_APB0>,
+				 <&clkgen JH7110_I2SRX0_3CH_CLK_APB>,
+				 <&clkgen JH7110_I2SRX_3CH_BCLK_MST>,
+				 <&clkgen JH7110_I2SRX_3CH_LRCK_MST>,
+				 <&clkgen JH7110_I2SRX0_3CH_BCLK>,
+				 <&clkgen JH7110_I2SRX0_3CH_LRCK>;
+			clock-names = "apb0", "i2srx_apb",
+				      "i2srx_bclk_mst", "i2srx_lrck_mst",
+				      "i2srx_bclk", "i2srx_lrck";
+			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
+				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
+			reset-names = "rst_apb_rx", "rst_bclk_rx";
+			dmas = <&dma 24 1>;
+			dma-names = "rx";
+			starfive,sys-syscon = <&sys_syscon 0x18 0x34>;
+			#sound-dai-cells = <0>;
+			status = "disabled";
+		};
+
 		i2srx_3ch: i2srx_3ch@100e0000 {
 			compatible = "snps,designware-i2srx";
 			reg = <0x0 0x100e0000 0x0 0x1000>;
@@ -1631,8 +1653,6 @@
 					clock-names = "mclk";
 				};
 			};
-
-
 		};
 
 		co_process: e24@0 {

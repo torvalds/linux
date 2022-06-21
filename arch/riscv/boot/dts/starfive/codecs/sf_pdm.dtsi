@@ -7,7 +7,7 @@
 		frame-master = <&dailink_master>;
 
 		dailink_master:cpu {
-			sound-dai = <&i2srx_3ch>;
+			sound-dai = <&i2srx_mst>;
 		};
 
 		dailink_slave:codec {
