@@ -1708,6 +1708,8 @@ void rkisp_unregister_stream_v32(struct rkisp_device *dev)
 	struct rkisp_capture_device *cap_dev = &dev->cap_dev;
 	struct rkisp_stream *stream;
 
+	rkisp_rockit_dev_deinit();
+
 	stream = &cap_dev->stream[RKISP_STREAM_MP];
 	rkisp_unregister_stream_vdev(stream);
 	stream = &cap_dev->stream[RKISP_STREAM_SP];
