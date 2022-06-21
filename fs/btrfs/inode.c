@@ -7578,8 +7578,12 @@ static int btrfs_dio_iomap_begin(struct inode *inode, loff_t start,
 	const u64 data_alloc_len = length;
 	bool unlock_extents = false;
 
+	/*
+	 * Cap the size of reads to that usually seen in buffered I/O as we need
+	 * to allocate a contiguous array for the checksums.
+	 */
 	if (!write)
-		len = min_t(u64, len, fs_info->sectorsize);
+		len = min_t(u64, len, fs_info->sectorsize * BTRFS_MAX_BIO_SECTORS);
 
 	lockstart = start;
 	lockend = start + len - 1;
