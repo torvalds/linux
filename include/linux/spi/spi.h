@@ -384,6 +384,7 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @queue_lock: spinlock to syncronise access to message queue
  * @queue: message queue
  * @cur_msg: the currently in-flight message
+ * @cur_msg_completion: a completion for the current in-flight message
  * @cur_msg_mapped: message has been mapped for DMA
  * @last_cs: the last chip_select that is recorded by set_cs, -1 on non chip
  *           selected
@@ -615,6 +616,7 @@ struct spi_controller {
 	spinlock_t			queue_lock;
 	struct list_head		queue;
 	struct spi_message		*cur_msg;
+	struct completion               cur_msg_completion;
 	bool				busy;
 	bool				running;
 	bool				rt;
@@ -989,7 +991,6 @@ struct spi_transfer {
  * @state: for use by whichever driver currently owns the message
  * @resources: for resource management when the spi message is processed
  * @prepared: spi_prepare_message was called for the this message
- * @sync: this message took the direct sync path skipping the async queue
  *
  * A @spi_message is used to execute an atomic sequence of data transfers,
  * each represented by a struct spi_transfer.  The sequence is "atomic"
@@ -1042,9 +1043,6 @@ struct spi_message {
 
 	/* spi_prepare_message was called for this message */
 	bool			prepared;
-
-	/* this message is skipping the async queue */
-	bool			sync;
 };
 
 static inline void spi_message_init_no_memset(struct spi_message *m)
