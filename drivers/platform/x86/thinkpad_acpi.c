@@ -4529,6 +4529,7 @@ static void thinkpad_acpi_amd_s2idle_restore(void)
 	iounmap(addr);
 cleanup_resource:
 	release_resource(res);
+	kfree(res);
 }
 
 static struct acpi_s2idle_dev_ops thinkpad_acpi_s2idle_dev_ops = {
