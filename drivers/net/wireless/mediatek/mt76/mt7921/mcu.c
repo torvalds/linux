@@ -779,7 +779,6 @@ int mt7921_mcu_set_beacon_filter(struct mt7921_dev *dev,
 				 struct ieee80211_vif *vif,
 				 bool enable)
 {
-	struct ieee80211_hw *hw = mt76_hw(dev);
 	int err;
 
 	if (enable) {
@@ -787,8 +786,6 @@ int mt7921_mcu_set_beacon_filter(struct mt7921_dev *dev,
 		if (err)
 			return err;
 
-		vif->driver_flags |= IEEE80211_VIF_BEACON_FILTER;
-		ieee80211_hw_set(hw, CONNECTION_MONITOR);
 		mt76_set(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
 
 		return 0;
@@ -798,8 +795,6 @@ int mt7921_mcu_set_beacon_filter(struct mt7921_dev *dev,
 	if (err)
 		return err;
 
-	vif->driver_flags &= ~IEEE80211_VIF_BEACON_FILTER;
-	__clear_bit(IEEE80211_HW_CONNECTION_MONITOR, hw->flags);
 	mt76_clear(dev, MT_WF_RFCR(0), MT_WF_RFCR_DROP_OTHER_BEACON);
 
 	return 0;
