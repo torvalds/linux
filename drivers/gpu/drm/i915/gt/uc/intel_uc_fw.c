@@ -162,6 +162,15 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 	u8 rev = INTEL_REVID(i915);
 	int i;
 
+	/*
+	 * The only difference between the ADL GuC FWs is the HWConfig support.
+	 * ADL-N does not support HWConfig, so we should use the same binary as
+	 * ADL-S, otherwise the GuC might attempt to fetch a config table that
+	 * does not exist.
+	 */
+	if (IS_ADLP_N(i915))
+		p = INTEL_ALDERLAKE_S;
+
 	GEM_BUG_ON(uc_fw->type >= ARRAY_SIZE(blobs_all));
 	fw_blobs = blobs_all[uc_fw->type].blobs;
 	fw_count = blobs_all[uc_fw->type].count;
