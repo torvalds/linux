@@ -720,8 +720,9 @@ static int set_proto_ctx_param(struct drm_i915_file_private *fpriv,
 	case I915_CONTEXT_PARAM_PERSISTENCE:
 		if (args->size)
 			ret = -EINVAL;
-		ret = proto_context_set_persistence(fpriv->dev_priv, pc,
-						    args->value);
+		else
+			ret = proto_context_set_persistence(fpriv->dev_priv, pc,
+							    args->value);
 		break;
 
 	case I915_CONTEXT_PARAM_NO_ZEROMAP:
