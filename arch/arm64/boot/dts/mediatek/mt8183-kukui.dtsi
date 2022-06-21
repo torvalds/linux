@@ -382,7 +382,7 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	cap-sdio-irq;
 	non-removable;
 	no-mmc;

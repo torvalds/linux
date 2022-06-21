@@ -410,7 +410,7 @@
 	sd-uhs-sdr50;
 	sd-uhs-sdr104;
 	keep-power-in-suspend;
-	enable-sdio-wakeup;
+	wakeup-source;
 	cap-sdio-irq;
 	vmmc-supply = <&sdio_fixed_3v3>;
 	vqmmc-supply = <&mt6397_vgp3_reg>;
