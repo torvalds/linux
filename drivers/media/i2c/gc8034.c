@@ -2525,11 +2525,7 @@ static int __gc8034_power_on(struct gc8034 *gc8034)
 		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
 	if (clk_get_rate(gc8034->xvclk) != GC8034_XVCLK_FREQ)
 		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
-	ret = clk_prepare_enable(gc8034->xvclk);
-	if (ret < 0) {
-		dev_err(dev, "Failed to enable xvclk\n");
-		return ret;
-	}
+
 	if (!IS_ERR(gc8034->reset_gpio))
 		gpiod_set_value_cansleep(gc8034->reset_gpio, 1);
 
@@ -2539,13 +2535,20 @@ static int __gc8034_power_on(struct gc8034 *gc8034)
 		goto disable_clk;
 	}
 
-	usleep_range(1000, 1100);
-	if (!IS_ERR(gc8034->reset_gpio))
-		gpiod_set_value_cansleep(gc8034->reset_gpio, 0);
+	usleep_range(100, 200);
+	ret = clk_prepare_enable(gc8034->xvclk);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable xvclk\n");
+		return ret;
+	}
 
-	usleep_range(500, 1000);
+	usleep_range(1000, 1100);
 	if (!IS_ERR(gc8034->pwdn_gpio))
 		gpiod_set_value_cansleep(gc8034->pwdn_gpio, 0);
+
+	usleep_range(500, 1000);
+	if (!IS_ERR(gc8034->reset_gpio))
+		gpiod_set_value_cansleep(gc8034->reset_gpio, 0);
 
 	/* 8192 cycles prior to first SCCB transaction */
 	delay_us = gc8034_cal_delay(8192);
@@ -2565,9 +2568,11 @@ static void __gc8034_power_off(struct gc8034 *gc8034)
 
 	if (!IS_ERR(gc8034->pwdn_gpio))
 		gpiod_set_value_cansleep(gc8034->pwdn_gpio, 1);
-	clk_disable_unprepare(gc8034->xvclk);
+
 	if (!IS_ERR(gc8034->reset_gpio))
 		gpiod_set_value_cansleep(gc8034->reset_gpio, 1);
+
+	clk_disable_unprepare(gc8034->xvclk);
 	if (!IS_ERR_OR_NULL(gc8034->pins_sleep)) {
 		ret = pinctrl_select_state(gc8034->pinctrl,
 					   gc8034->pins_sleep);
