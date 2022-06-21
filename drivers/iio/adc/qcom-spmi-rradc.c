@@ -295,7 +295,7 @@ static int rradc_read(struct rradc_chip *chip, u16 addr, __le16 *buf, int len)
 	}
 
 	if (retry_cnt == RR_ADC_COHERENT_CHECK_RETRY)
-		dev_err(chip->dev, "Retry exceeded for coherrency check\n");
+		dev_err(chip->dev, "Retry exceeded for coherency check\n");
 
 	return ret;
 }
