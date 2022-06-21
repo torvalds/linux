@@ -3725,7 +3725,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				&& (!mode_lib->vba.FCLKChangeRequirementFinal || i == v->soc.num_states - 1
 				|| mode_lib->vba.FCLKChangeSupport[i][j] != dm_fclock_change_unsupported)
 				&& (!mode_lib->vba.USRRetrainingRequiredFinal
-				|| &mode_lib->vba.USRRetrainingSupport[i][j])) {
+				|| mode_lib->vba.USRRetrainingSupport[i][j])) {
 				mode_lib->vba.ModeSupport[i][j] = true;
 			} else {
 				mode_lib->vba.ModeSupport[i][j] = false;
