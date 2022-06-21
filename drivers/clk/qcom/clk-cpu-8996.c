@@ -61,7 +61,7 @@
 #include "clk-regmap.h"
 
 enum _pmux_input {
-	DIV_2_INDEX = 0,
+	SMUX_INDEX = 0,
 	PLL_INDEX,
 	ACD_INDEX,
 	ALT_INDEX,
@@ -468,7 +468,7 @@ static int cpu_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
 	case POST_RATE_CHANGE:
 		if (cnd->new_rate < DIV_2_THRESHOLD)
 			ret = clk_cpu_8996_mux_set_parent(&cpuclk->clkr.hw,
-							  DIV_2_INDEX);
+							  SMUX_INDEX);
 		else
 			ret = clk_cpu_8996_mux_set_parent(&cpuclk->clkr.hw,
 							  ACD_INDEX);
