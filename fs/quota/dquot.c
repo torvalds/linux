@@ -2095,7 +2095,7 @@ int dquot_transfer(struct inode *inode, struct iattr *iattr)
 	if (!dquot_active(inode))
 		return 0;
 
-	if (iattr->ia_valid & ATTR_UID && !uid_eq(iattr->ia_uid, inode->i_uid)){
+	if (i_uid_needs_update(&init_user_ns, iattr, inode)) {
 		dquot = dqget(sb, make_kqid_uid(iattr->ia_uid));
 		if (IS_ERR(dquot)) {
 			if (PTR_ERR(dquot) != -ESRCH) {
@@ -2106,7 +2106,7 @@ int dquot_transfer(struct inode *inode, struct iattr *iattr)
 		}
 		transfer_to[USRQUOTA] = dquot;
 	}
-	if (iattr->ia_valid & ATTR_GID && !gid_eq(iattr->ia_gid, inode->i_gid)){
+	if (i_gid_needs_update(&init_user_ns, iattr, inode)) {
 		dquot = dqget(sb, make_kqid_gid(iattr->ia_gid));
 		if (IS_ERR(dquot)) {
 			if (PTR_ERR(dquot) != -ESRCH) {
