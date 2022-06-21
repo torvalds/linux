@@ -3964,10 +3964,6 @@ static void __spi_transfer_message_noqueue(struct spi_controller *ctlr, struct s
 
 	mutex_lock(&ctlr->io_mutex);
 
-	/* If another context is idling the device then wait */
-	while (ctlr->idling)
-		usleep_range(10000, 11000);
-
 	was_busy = READ_ONCE(ctlr->busy);
 
 	ret = __spi_pump_transfer_message(ctlr, msg, was_busy);
