@@ -808,24 +808,23 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 
 	i2s->bclk_ratio = 64;
 	i2s->pinctrl = devm_pinctrl_get(&pdev->dev);
-	if (IS_ERR(i2s->pinctrl))
+	if (IS_ERR(i2s->pinctrl)) {
 		dev_err(&pdev->dev, "failed to find i2s pinctrl\n");
+	} else {
+		i2s->bclk_on = pinctrl_lookup_state(i2s->pinctrl, "bclk_on");
+		if (IS_ERR_OR_NULL(i2s->bclk_on))
+			dev_err(&pdev->dev, "failed to find i2s default state\n");
+		else
+			dev_dbg(&pdev->dev, "find i2s bclk state\n");
 
-	i2s->bclk_on = pinctrl_lookup_state(i2s->pinctrl,
-				   "bclk_on");
-	if (IS_ERR_OR_NULL(i2s->bclk_on))
-		dev_err(&pdev->dev, "failed to find i2s default state\n");
-	else
-		dev_dbg(&pdev->dev, "find i2s bclk state\n");
+		i2s->bclk_off = pinctrl_lookup_state(i2s->pinctrl, "bclk_off");
+		if (IS_ERR_OR_NULL(i2s->bclk_off))
+			dev_err(&pdev->dev, "failed to find i2s gpio state\n");
+		else
+			dev_dbg(&pdev->dev, "find i2s bclk_off state\n");
 
-	i2s->bclk_off = pinctrl_lookup_state(i2s->pinctrl,
-				  "bclk_off");
-	if (IS_ERR_OR_NULL(i2s->bclk_off))
-		dev_err(&pdev->dev, "failed to find i2s gpio state\n");
-	else
-		dev_dbg(&pdev->dev, "find i2s bclk_off state\n");
-
-	i2s_pinctrl_select_bclk_off(i2s);
+		i2s_pinctrl_select_bclk_off(i2s);
+	}
 
 	i2s->playback_dma_data.addr = res->start + I2S_TXDR;
 	i2s->playback_dma_data.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
