@@ -5456,7 +5456,7 @@ void print_dev_latency(void)
 }
 
 /*
- * Linux-perf manages the the HW instructions-retired counter
+ * Linux-perf manages the HW instructions-retired counter
  * by enabling when requested, and hiding rollover
  */
 void linux_perf_init(void)
