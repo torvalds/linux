@@ -805,8 +805,8 @@ slot_index_alloc_quirk_v2_hw(struct hisi_hba *hisi_hba,
 			return -SAS_QUEUE_FULL;
 		}
 		/*
-		  * SAS IPTT bit0 should be 1, and SATA IPTT bit0 should be 0.
-		  */
+		 * SAS IPTT bit0 should be 1, and SATA IPTT bit0 should be 0.
+		 */
 		if (sata_dev ^ (start & 1))
 			break;
 		start++;
