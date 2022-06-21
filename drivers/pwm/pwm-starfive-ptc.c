@@ -14,6 +14,9 @@
 #include <linux/reset.h>
 #include <linux/io.h>
 
+/* how many parameters can be transferred to ptc */
+#define OF_PWM_N_CELLS		3
+
 /* max channel of pwm */
 #define MAX_PWM							8
 
@@ -53,7 +56,6 @@
 #define PTC_CNTRRST BIT(7)
 #define PTC_CAPTE   BIT(8)
 
-/* pwm ptc device */
 struct starfive_pwm_ptc_device {
 	struct pwm_chip		chip;
 	struct clk		*clk;
@@ -79,23 +81,14 @@ static void starfive_pwm_ptc_get_state(struct pwm_chip *chip,
 	u32 data_hrc;
 	u32 pwm_clk_ns = 0;
 
-	/* get lrc and hrc data from registe*/
 	data_lrc = ioread32(REG_PTC_RPTC_LRC(pwm->regs, dev->hwpwm));
 	data_hrc = ioread32(REG_PTC_RPTC_HRC(pwm->regs, dev->hwpwm));
 
-	/* how many ns does apb clock elapse */
 	pwm_clk_ns = NS_1 / pwm->approx_period;
 
-	/* pwm period(ns) */
 	state->period = data_lrc * pwm_clk_ns;
-
-	/* duty cycle(ns), means high level eclapse ns if it is normal polarity */
 	state->duty_cycle = data_hrc * pwm_clk_ns;
-
-	/* polarity, we don't use it now because it is not in dts */
 	state->polarity = PWM_POLARITY_NORMAL;
-
-	/* enabled or not */
 	state->enabled = 1;
 }
 
@@ -111,46 +104,34 @@ static int starfive_pwm_ptc_apply(struct pwm_chip *chip,
 	u32 duty_data = 0;
 	void __iomem *reg_addr;
 
-	/* duty_cycle should be less or equal than period */
 	if (state->duty_cycle > state->period)
 		state->duty_cycle = state->period;
 
-	/* calculate pwm real period (ns) */
 	pwm_clk_ns = NS_1 / pwm->approx_period;
 
-	/* calculate period count */
 	period_data = state->period / pwm_clk_ns;
 
-	if (!state->enabled) {
-		/* if is unenable, just set duty_dat to 0, means low level always */
+	if (!state->enabled)
 		duty_data = 0;
-	} else {
-		/* calculate duty count*/
+	else
 		duty_data = state->duty_cycle / pwm_clk_ns;
-	}
 
-	if (state->polarity == PWM_POLARITY_NORMAL) {
-		/* calculate data_hrc */
+	if (state->polarity == PWM_POLARITY_NORMAL)
 		data_hrc = period_data - duty_data;
-	} else {
-		/* calculate data_hrc */
+	else
 		data_hrc = duty_data;
-	}
+
 	data_lrc = period_data;
 
-	/* set hrc */
 	reg_addr = REG_PTC_RPTC_HRC(pwm->regs, dev->hwpwm);
 	iowrite32(data_hrc, reg_addr);
 
-	/* set lrc */
 	reg_addr = REG_PTC_RPTC_LRC(pwm->regs, dev->hwpwm);
 	iowrite32(data_lrc, reg_addr);
 
-	/* set REG_RPTC_CNTR*/
 	reg_addr = REG_PTC_RPTC_CNTR(pwm->regs, dev->hwpwm);
 	iowrite32(0, reg_addr);
 
-	/* set REG_PTC_RPTC_CTRL*/
 	reg_addr = REG_PTC_RPTC_CTRL(pwm->regs, dev->hwpwm);
 	iowrite32(PTC_EN | PTC_OE, reg_addr);
 
@@ -181,16 +162,13 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 	chip->dev = dev;
 	chip->ops = &starfive_pwm_ptc_ops;
 
-	/* how many parameters can be transferred to ptc, need to fix */
-	chip->of_pwm_n_cells = 3;
+	chip->of_pwm_n_cells = OF_PWM_N_CELLS;
 	chip->base = -1;
 
-	/* get pwm channels count, max value is 8 */
 	ret = of_property_read_u32(node, "starfive,npwm", &chip->npwm);
 	if (ret < 0 || chip->npwm > MAX_PWM)
 		chip->npwm = MAX_PWM;
 
-	/* get IO base address*/
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	pwm->regs = devm_ioremap_resource(dev, res);
 	if (IS_ERR(pwm->regs)) {
@@ -198,7 +176,6 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 		return PTR_ERR(pwm->regs);
 	}
 
-	/* get and enable clocks/resets */
 	pwm->clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(pwm->clk)) {
 		dev_err(dev, "Unable to get pwm clock\n");
@@ -218,7 +195,6 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 	}
 	reset_control_deassert(pwm->rst);
 
-	/* get apb clock frequency */
 	ret = of_property_read_u32(node, "starfive,approx-period",
 				   &clk_apb_freq);
 	if (!ret)
@@ -226,22 +202,17 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 	else
 		pwm->approx_period = 2000000;
 
-#ifndef HWBOARD_FPGA
 	clk_apb_freq = (unsigned int)clk_get_rate(pwm->clk);
 	if (!clk_apb_freq)
 		dev_warn(dev,
 			 "get pwm apb clock rate failed.\n");
 	else
 		pwm->approx_period = clk_apb_freq;
-#endif
 
-	/*
-	 * after add, /sys/class/pwm/pwmchip0/ will appear,'0' is chip->base
-	 * if execute 'echo 0 > export' in this directory, pwm0/ can be seen
-	 */
 	ret = pwmchip_add(chip);
 	if (ret < 0) {
 		dev_err(dev, "cannot register PTC: %d\n", ret);
+		clk_disable_unprepare(pwm->clk);
 		return ret;
 	}
 
@@ -262,7 +233,7 @@ static int starfive_pwm_ptc_remove(struct platform_device *dev)
 }
 
 static const struct of_device_id starfive_pwm_ptc_of_match[] = {
-	{ .compatible = "starfive,pwm0" },
+	{ .compatible = "starfive,pwm" },
 	{},
 };
 MODULE_DEVICE_TABLE(of, starfive_pwm_ptc_of_match);
