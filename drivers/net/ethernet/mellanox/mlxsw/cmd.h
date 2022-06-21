@@ -731,7 +731,7 @@ enum mlxsw_cmd_mbox_config_profile_flood_mode {
 /* cmd_mbox_config_profile_flood_mode
  * Flooding mode to use.
  */
-MLXSW_ITEM32(cmd_mbox, config_profile, flood_mode, 0x30, 0, 2);
+MLXSW_ITEM32(cmd_mbox, config_profile, flood_mode, 0x30, 0, 3);
 
 /* cmd_mbox_config_profile_max_fid_offset_flood_tables
  * Maximum number of FID-offset flooding tables.
