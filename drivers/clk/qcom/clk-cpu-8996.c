@@ -135,6 +135,34 @@ static struct clk_alpha_pll pwrcl_pll = {
 	},
 };
 
+static struct clk_fixed_factor pwrcl_pll_postdiv = {
+	.mult = 1,
+	.div = 2,
+	.hw.init = &(struct clk_init_data){
+		.name = "pwrcl_pll_postdiv",
+		.parent_data = &(const struct clk_parent_data){
+			.hw = &pwrcl_pll.clkr.hw
+		},
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_fixed_factor perfcl_pll_postdiv = {
+	.mult = 1,
+	.div = 2,
+	.hw.init = &(struct clk_init_data){
+		.name = "perfcl_pll_postdiv",
+		.parent_data = &(const struct clk_parent_data){
+			.hw = &perfcl_pll.clkr.hw
+		},
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 static const struct pll_vco alt_pll_vco_modes[] = {
 	VCO(3,  250000000,  500000000),
 	VCO(2,  500000000,  750000000),
@@ -261,7 +289,7 @@ static struct clk_cpu_8996_mux pwrcl_smux = {
 		.name = "pwrcl_smux",
 		.parent_names = (const char *[]){
 			"xo",
-			"pwrcl_pll_main",
+			"pwrcl_pll_postdiv",
 		},
 		.num_parents = 2,
 		.ops = &clk_cpu_8996_mux_ops,
@@ -277,7 +305,7 @@ static struct clk_cpu_8996_mux perfcl_smux = {
 		.name = "perfcl_smux",
 		.parent_names = (const char *[]){
 			"xo",
-			"perfcl_pll_main",
+			"perfcl_pll_postdiv",
 		},
 		.num_parents = 2,
 		.ops = &clk_cpu_8996_mux_ops,
@@ -354,32 +382,25 @@ static int qcom_cpu_clk_msm8996_register_clks(struct device *dev,
 {
 	int i, ret;
 
-	perfcl_smux.pll = clk_hw_register_fixed_factor(dev, "perfcl_pll_main",
-						       "perfcl_pll",
-						       CLK_SET_RATE_PARENT,
-						       1, 2);
-	if (IS_ERR(perfcl_smux.pll)) {
-		dev_err(dev, "Failed to initialize perfcl_pll_main\n");
-		return PTR_ERR(perfcl_smux.pll);
+	ret = devm_clk_hw_register(dev, &pwrcl_pll_postdiv.hw);
+	if (ret) {
+		dev_err(dev, "Failed to register pwrcl_pll_postdiv: %d", ret);
+		return ret;
 	}
 
-	pwrcl_smux.pll = clk_hw_register_fixed_factor(dev, "pwrcl_pll_main",
-						      "pwrcl_pll",
-						      CLK_SET_RATE_PARENT,
-						      1, 2);
-	if (IS_ERR(pwrcl_smux.pll)) {
-		dev_err(dev, "Failed to initialize pwrcl_pll_main\n");
-		clk_hw_unregister(perfcl_smux.pll);
-		return PTR_ERR(pwrcl_smux.pll);
+	ret = devm_clk_hw_register(dev, &perfcl_pll_postdiv.hw);
+	if (ret) {
+		dev_err(dev, "Failed to register perfcl_pll_postdiv: %d", ret);
+		return ret;
 	}
+
+	pwrcl_smux.pll = &pwrcl_pll_postdiv.hw;
+	perfcl_smux.pll = &perfcl_pll_postdiv.hw;
 
 	for (i = 0; i < ARRAY_SIZE(cpu_msm8996_clks); i++) {
 		ret = devm_clk_register_regmap(dev, cpu_msm8996_clks[i]);
-		if (ret) {
-			clk_hw_unregister(perfcl_smux.pll);
-			clk_hw_unregister(pwrcl_smux.pll);
+		if (ret)
 			return ret;
-		}
 	}
 
 	clk_alpha_pll_configure(&perfcl_pll, regmap, &hfpll_config);
@@ -408,9 +429,6 @@ static int qcom_cpu_clk_msm8996_unregister_clks(void)
 	ret = clk_notifier_unregister(perfcl_pmux.clkr.hw.clk, &perfcl_pmux.nb);
 	if (ret)
 		return ret;
-
-	clk_hw_unregister(perfcl_smux.pll);
-	clk_hw_unregister(pwrcl_smux.pll);
 
 	return 0;
 }
