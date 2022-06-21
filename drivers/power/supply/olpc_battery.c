@@ -635,6 +635,7 @@ static int olpc_battery_probe(struct platform_device *pdev)
 	struct power_supply_config bat_psy_cfg = {};
 	struct power_supply_config ac_psy_cfg = {};
 	struct olpc_battery_data *data;
+	struct device_node *np;
 	uint8_t status;
 	uint8_t ecver;
 	int ret;
@@ -649,7 +650,9 @@ static int olpc_battery_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	if (of_find_compatible_node(NULL, NULL, "olpc,xo1.75-ec")) {
+	np = of_find_compatible_node(NULL, NULL, "olpc,xo1.75-ec");
+	if (np) {
+		of_node_put(np);
 		/* XO 1.75 */
 		data->new_proto = true;
 		data->little_endian = true;
