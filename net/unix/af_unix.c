@@ -3559,7 +3559,7 @@ static const struct net_proto_family unix_family_ops = {
 
 static int __net_init unix_net_init(struct net *net)
 {
-	int error = -ENOMEM;
+	int i;
 
 	net->unx.sysctl_max_dgram_qlen = 10;
 	if (unix_sysctl_register(net))
@@ -3567,18 +3567,44 @@ static int __net_init unix_net_init(struct net *net)
 
 #ifdef CONFIG_PROC_FS
 	if (!proc_create_net("unix", 0, net->proc_net, &unix_seq_ops,
-			sizeof(struct seq_net_private))) {
-		unix_sysctl_unregister(net);
-		goto out;
-	}
+			     sizeof(struct seq_net_private)))
+		goto err_sysctl;
 #endif
-	error = 0;
+
+	net->unx.table.locks = kvmalloc_array(UNIX_HASH_SIZE,
+					      sizeof(spinlock_t), GFP_KERNEL);
+	if (!net->unx.table.locks)
+		goto err_proc;
+
+	net->unx.table.buckets = kvmalloc_array(UNIX_HASH_SIZE,
+						sizeof(struct hlist_head),
+						GFP_KERNEL);
+	if (!net->unx.table.buckets)
+		goto free_locks;
+
+	for (i = 0; i < UNIX_HASH_SIZE; i++) {
+		spin_lock_init(&net->unx.table.locks[i]);
+		INIT_HLIST_HEAD(&net->unx.table.buckets[i]);
+	}
+
+	return 0;
+
+free_locks:
+	kvfree(net->unx.table.locks);
+err_proc:
+#ifdef CONFIG_PROC_FS
+	remove_proc_entry("unix", net->proc_net);
+err_sysctl:
+#endif
+	unix_sysctl_unregister(net);
 out:
-	return error;
+	return -ENOMEM;
 }
 
 static void __net_exit unix_net_exit(struct net *net)
 {
+	kvfree(net->unx.table.buckets);
+	kvfree(net->unx.table.locks);
 	unix_sysctl_unregister(net);
 	remove_proc_entry("unix", net->proc_net);
 }

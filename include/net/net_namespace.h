@@ -120,7 +120,9 @@ struct net {
 	struct netns_core	core;
 	struct netns_mib	mib;
 	struct netns_packet	packet;
+#if IS_ENABLED(CONFIG_UNIX)
 	struct netns_unix	unx;
+#endif
 	struct netns_nexthop	nexthop;
 	struct netns_ipv4	ipv4;
 #if IS_ENABLED(CONFIG_IPV6)
