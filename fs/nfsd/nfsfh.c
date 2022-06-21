@@ -331,8 +331,6 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 	struct dentry	*dentry;
 	__be32		error;
 
-	dprintk("nfsd: fh_verify(%s)\n", SVCFH_fmt(fhp));
-
 	if (!fhp->fh_dentry) {
 		error = nfsd_set_fh_dentry(rqstp, fhp);
 		if (error)
@@ -340,6 +338,9 @@ fh_verify(struct svc_rqst *rqstp, struct svc_fh *fhp, umode_t type, int access)
 	}
 	dentry = fhp->fh_dentry;
 	exp = fhp->fh_export;
+
+	trace_nfsd_fh_verify(rqstp, fhp, type, access);
+
 	/*
 	 * We still have to do all these permission checks, even when
 	 * fh_dentry is already set:
