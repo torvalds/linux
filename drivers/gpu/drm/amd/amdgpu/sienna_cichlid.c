@@ -94,8 +94,11 @@ sienna_cichlid_mode2_prepare_hwcontext(struct amdgpu_reset_control *reset_ctl,
 	int r = 0;
 	struct amdgpu_device *adev = (struct amdgpu_device *)reset_ctl->handle;
 
-	if (!amdgpu_sriov_vf(adev))
+	if (!amdgpu_sriov_vf(adev)) {
+		if (adev->gfxhub.funcs->mode2_save_regs)
+			adev->gfxhub.funcs->mode2_save_regs(adev);
 		r = sienna_cichlid_mode2_suspend_ip(adev);
+	}
 
 	return r;
 }
@@ -151,6 +154,8 @@ static int sienna_cichlid_mode2_restore_ip(struct amdgpu_device *adev)
 	}
 
 	/* Reinit GFXHUB */
+	if (adev->gfxhub.funcs->mode2_restore_regs)
+		adev->gfxhub.funcs->mode2_restore_regs(adev);
 	adev->gfxhub.funcs->init(adev);
 	r = adev->gfxhub.funcs->gart_enable(adev);
 	if (r) {
