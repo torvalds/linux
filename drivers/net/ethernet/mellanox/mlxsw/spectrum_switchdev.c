@@ -643,6 +643,64 @@ err_port_bridge_vlan_flood_set:
 }
 
 static int
+mlxsw_sp_bridge_vlans_flood_set(struct mlxsw_sp_bridge_vlan *bridge_vlan,
+				enum mlxsw_sp_flood_type packet_type,
+				bool member)
+{
+	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
+	int err;
+
+	list_for_each_entry(mlxsw_sp_port_vlan, &bridge_vlan->port_vlan_list,
+			    bridge_vlan_node) {
+		u16 local_port = mlxsw_sp_port_vlan->mlxsw_sp_port->local_port;
+
+		err = mlxsw_sp_fid_flood_set(mlxsw_sp_port_vlan->fid,
+					     packet_type, local_port, member);
+		if (err)
+			goto err_fid_flood_set;
+	}
+
+	return 0;
+
+err_fid_flood_set:
+	list_for_each_entry_continue_reverse(mlxsw_sp_port_vlan,
+					     &bridge_vlan->port_vlan_list,
+					     list) {
+		u16 local_port = mlxsw_sp_port_vlan->mlxsw_sp_port->local_port;
+
+		mlxsw_sp_fid_flood_set(mlxsw_sp_port_vlan->fid, packet_type,
+				       local_port, !member);
+	}
+
+	return err;
+}
+
+static int
+mlxsw_sp_bridge_ports_flood_table_set(struct mlxsw_sp_bridge_port *bridge_port,
+				      enum mlxsw_sp_flood_type packet_type,
+				      bool member)
+{
+	struct mlxsw_sp_bridge_vlan *bridge_vlan;
+	int err;
+
+	list_for_each_entry(bridge_vlan, &bridge_port->vlans_list, list) {
+		err = mlxsw_sp_bridge_vlans_flood_set(bridge_vlan, packet_type,
+						      member);
+		if (err)
+			goto err_bridge_vlans_flood_set;
+	}
+
+	return 0;
+
+err_bridge_vlans_flood_set:
+	list_for_each_entry_continue_reverse(bridge_vlan,
+					     &bridge_port->vlans_list, list)
+		mlxsw_sp_bridge_vlans_flood_set(bridge_vlan, packet_type,
+						!member);
+	return err;
+}
+
+static int
 mlxsw_sp_port_bridge_vlan_learning_set(struct mlxsw_sp_port *mlxsw_sp_port,
 				       struct mlxsw_sp_bridge_vlan *bridge_vlan,
 				       bool set)
@@ -854,18 +912,19 @@ static int mlxsw_sp_port_mc_disabled_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!bridge_device)
 		return 0;
 
-	if (bridge_device->multicast_enabled != !mc_disabled) {
-		bridge_device->multicast_enabled = !mc_disabled;
-		mlxsw_sp_bridge_mdb_mc_enable_sync(mlxsw_sp, bridge_device);
-	}
+	if (bridge_device->multicast_enabled == !mc_disabled)
+		return 0;
+
+	bridge_device->multicast_enabled = !mc_disabled;
+	mlxsw_sp_bridge_mdb_mc_enable_sync(mlxsw_sp, bridge_device);
 
 	list_for_each_entry(bridge_port, &bridge_device->ports_list, list) {
 		enum mlxsw_sp_flood_type packet_type = MLXSW_SP_FLOOD_TYPE_MC;
 		bool member = mlxsw_sp_mc_flood(bridge_port);
 
-		err = mlxsw_sp_bridge_port_flood_table_set(mlxsw_sp_port,
-							   bridge_port,
-							   packet_type, member);
+		err = mlxsw_sp_bridge_ports_flood_table_set(bridge_port,
+							    packet_type,
+							    member);
 		if (err)
 			return err;
 	}
