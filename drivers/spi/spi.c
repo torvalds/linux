@@ -1653,13 +1653,6 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 	if (ctlr->cur_msg)
 		goto out_unlock;
 
-	/* If another context is idling the device then defer */
-	if (ctlr->idling) {
-		kthread_queue_work(ctlr->kworker, &ctlr->pump_messages);
-		spin_unlock_irqrestore(&ctlr->queue_lock, flags);
-		goto out_unlock;
-	}
-
 	/* Check if the queue is idle */
 	if (list_empty(&ctlr->queue) || !ctlr->running) {
 		if (!ctlr->busy)
