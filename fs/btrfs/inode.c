@@ -3129,8 +3129,10 @@ static int insert_ordered_extent_file_extent(struct btrfs_trans_handle *trans,
 	btrfs_set_stack_file_extent_disk_num_bytes(&stack_fi,
 						   oe->disk_num_bytes);
 	btrfs_set_stack_file_extent_offset(&stack_fi, oe->offset);
-	if (test_bit(BTRFS_ORDERED_TRUNCATED, &oe->flags))
-		num_bytes = ram_bytes = oe->truncated_len;
+	if (test_bit(BTRFS_ORDERED_TRUNCATED, &oe->flags)) {
+		num_bytes = oe->truncated_len;
+		ram_bytes = num_bytes;
+	}
 	btrfs_set_stack_file_extent_num_bytes(&stack_fi, num_bytes);
 	btrfs_set_stack_file_extent_ram_bytes(&stack_fi, ram_bytes);
 	btrfs_set_stack_file_extent_compression(&stack_fi, oe->compress_type);
@@ -4317,8 +4319,9 @@ err:
 	btrfs_i_size_write(dir, dir->vfs_inode.i_size - name_len * 2);
 	inode_inc_iversion(&inode->vfs_inode);
 	inode_inc_iversion(&dir->vfs_inode);
-	inode->vfs_inode.i_ctime = dir->vfs_inode.i_mtime =
-		dir->vfs_inode.i_ctime = current_time(&inode->vfs_inode);
+	inode->vfs_inode.i_ctime = current_time(&inode->vfs_inode);
+	dir->vfs_inode.i_mtime = inode->vfs_inode.i_ctime;
+	dir->vfs_inode.i_ctime = inode->vfs_inode.i_ctime;
 	ret = btrfs_update_inode(trans, root, dir);
 out:
 	return ret;
@@ -4480,7 +4483,8 @@ static int btrfs_unlink_subvol(struct btrfs_trans_handle *trans,
 
 	btrfs_i_size_write(BTRFS_I(dir), dir->i_size - name_len * 2);
 	inode_inc_iversion(dir);
-	dir->i_mtime = dir->i_ctime = current_time(dir);
+	dir->i_mtime = current_time(dir);
+	dir->i_ctime = dir->i_mtime;
 	ret = btrfs_update_inode_fallback(trans, root, BTRFS_I(dir));
 	if (ret)
 		btrfs_abort_transaction(trans, ret);
@@ -5121,9 +5125,10 @@ static int btrfs_setsize(struct inode *inode, struct iattr *attr)
 	 */
 	if (newsize != oldsize) {
 		inode_inc_iversion(inode);
-		if (!(mask & (ATTR_CTIME | ATTR_MTIME)))
-			inode->i_ctime = inode->i_mtime =
-				current_time(inode);
+		if (!(mask & (ATTR_CTIME | ATTR_MTIME))) {
+			inode->i_mtime = current_time(inode);
+			inode->i_ctime = inode->i_mtime;
+		}
 	}
 
 	if (newsize > oldsize) {
@@ -7571,7 +7576,8 @@ static int btrfs_get_blocks_direct_write(struct extent_map **map,
 		btrfs_dec_nocow_writers(bg);
 		if (type == BTRFS_ORDERED_PREALLOC) {
 			free_extent_map(em);
-			*map = em = em2;
+			*map = em2;
+			em = em2;
 		}
 
 		if (IS_ERR(em2)) {
@@ -9208,8 +9214,10 @@ static int btrfs_rename_exchange(struct inode *old_dir,
 	inode_inc_iversion(new_dir);
 	inode_inc_iversion(old_inode);
 	inode_inc_iversion(new_inode);
-	old_dir->i_ctime = old_dir->i_mtime = ctime;
-	new_dir->i_ctime = new_dir->i_mtime = ctime;
+	old_dir->i_mtime = ctime;
+	old_dir->i_ctime = ctime;
+	new_dir->i_mtime = ctime;
+	new_dir->i_ctime = ctime;
 	old_inode->i_ctime = ctime;
 	new_inode->i_ctime = ctime;
 
@@ -9472,9 +9480,11 @@ static int btrfs_rename(struct user_namespace *mnt_userns,
 	inode_inc_iversion(old_dir);
 	inode_inc_iversion(new_dir);
 	inode_inc_iversion(old_inode);
-	old_dir->i_ctime = old_dir->i_mtime =
-	new_dir->i_ctime = new_dir->i_mtime =
-	old_inode->i_ctime = current_time(old_dir);
+	old_dir->i_mtime = current_time(old_dir);
+	old_dir->i_ctime = old_dir->i_mtime;
+	new_dir->i_mtime = old_dir->i_mtime;
+	new_dir->i_ctime = old_dir->i_mtime;
+	old_inode->i_ctime = old_dir->i_mtime;
 
 	if (old_dentry->d_parent != new_dentry->d_parent)
 		btrfs_record_unlink_dir(trans, BTRFS_I(old_dir),
@@ -10629,7 +10639,8 @@ ssize_t btrfs_encoded_read(struct kiocb *iocb, struct iov_iter *iter,
 			ret = -ENOBUFS;
 			goto out_em;
 		}
-		disk_io_size = count = em->block_len;
+		disk_io_size = em->block_len;
+		count = em->block_len;
 		encoded->unencoded_len = em->ram_bytes;
 		encoded->unencoded_offset = iocb->ki_pos - em->orig_start;
 		ret = btrfs_encoded_io_compression_from_extent(fs_info,
