@@ -339,7 +339,7 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	if (!gsi_trans_tre_reserve(trans_info, tre_count))
 		return NULL;
 
-	/* Allocate and initialize non-zero fields in the the transaction */
+	/* Allocate and initialize non-zero fields in the transaction */
 	trans = gsi_trans_pool_alloc(&trans_info->pool, 1);
 	trans->gsi = gsi;
 	trans->channel_id = channel_id;
@@ -669,7 +669,7 @@ int gsi_trans_read_byte(struct gsi *gsi, u32 channel_id, dma_addr_t addr)
 	if (!gsi_trans_tre_reserve(trans_info, 1))
 		return -EBUSY;
 
-	/* Now fill the the reserved TRE and tell the hardware */
+	/* Now fill the reserved TRE and tell the hardware */
 
 	dest_tre = gsi_ring_virt(tre_ring, tre_ring->index);
 	gsi_trans_tre_fill(dest_tre, addr, 1, true, false, IPA_CMD_NONE);
