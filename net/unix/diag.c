@@ -13,7 +13,7 @@
 
 static int sk_diag_dump_name(struct sock *sk, struct sk_buff *nlskb)
 {
-	/* might or might not have unix_table_locks */
+	/* might or might not have a hash table lock */
 	struct unix_address *addr = smp_load_acquire(&unix_sk(sk)->addr);
 
 	if (!addr)
@@ -208,7 +208,6 @@ static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 		struct sock *sk;
 
 		num = 0;
-		spin_lock(&unix_table_locks[slot]);
 		spin_lock(&net->unx.table.locks[slot]);
 		sk_for_each(sk, &net->unx.table.buckets[slot]) {
 			if (num < s_num)
@@ -220,14 +219,12 @@ static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 					 cb->nlh->nlmsg_seq,
 					 NLM_F_MULTI) < 0) {
 				spin_unlock(&net->unx.table.locks[slot]);
-				spin_unlock(&unix_table_locks[slot]);
 				goto done;
 			}
 next:
 			num++;
 		}
 		spin_unlock(&net->unx.table.locks[slot]);
-		spin_unlock(&unix_table_locks[slot]);
 	}
 done:
 	cb->args[0] = slot;
@@ -242,18 +239,15 @@ static struct sock *unix_lookup_by_ino(struct net *net, unsigned int ino)
 	int i;
 
 	for (i = 0; i < UNIX_HASH_SIZE; i++) {
-		spin_lock(&unix_table_locks[i]);
 		spin_lock(&net->unx.table.locks[i]);
 		sk_for_each(sk, &net->unx.table.buckets[i]) {
 			if (ino == sock_i_ino(sk)) {
 				sock_hold(sk);
 				spin_unlock(&net->unx.table.locks[i]);
-				spin_unlock(&unix_table_locks[i]);
 				return sk;
 			}
 		}
 		spin_unlock(&net->unx.table.locks[i]);
-		spin_unlock(&unix_table_locks[i]);
 	}
 	return NULL;
 }

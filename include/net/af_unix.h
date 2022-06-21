@@ -21,7 +21,6 @@ struct sock *unix_peer_get(struct sock *sk);
 #define UNIX_HASH_BITS	8
 
 extern unsigned int unix_tot_inflight;
-extern spinlock_t unix_table_locks[UNIX_HASH_SIZE];
 
 struct unix_address {
 	refcount_t	refcnt;
