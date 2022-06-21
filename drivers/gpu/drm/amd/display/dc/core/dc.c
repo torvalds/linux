@@ -3208,15 +3208,21 @@ static void commit_planes_for_stream(struct dc *dc,
 
 		if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
 			dc->hwss.interdependent_update_lock(dc, context, false);
+		} else {
+			dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
+		}
+		dc->hwss.post_unlock_program_front_end(dc, context);
+
+		/* Since phantom pipe programming is moved to post_unlock_program_front_end,
+		 * move the SubVP lock to after the phantom pipes have been setup
+		 */
+		if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
 			if (dc->hwss.subvp_pipe_control_lock)
 				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
 		} else {
-			dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
 			if (dc->hwss.subvp_pipe_control_lock)
 				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
 		}
-
-		dc->hwss.post_unlock_program_front_end(dc, context);
 		return;
 	}
 
@@ -3346,12 +3352,8 @@ static void commit_planes_for_stream(struct dc *dc,
 
 		if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
 			dc->hwss.interdependent_update_lock(dc, context, false);
-			if (dc->hwss.subvp_pipe_control_lock)
-				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
 		} else {
 			dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
-			if (dc->hwss.subvp_pipe_control_lock)
-				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, top_pipe_to_program, subvp_prev_use);
 		}
 
 		if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed)
@@ -3384,6 +3386,17 @@ static void commit_planes_for_stream(struct dc *dc,
 
 	if (update_type != UPDATE_TYPE_FAST)
 		dc->hwss.post_unlock_program_front_end(dc, context);
+
+		/* Since phantom pipe programming is moved to post_unlock_program_front_end,
+		 * move the SubVP lock to after the phantom pipes have been setup
+		 */
+		if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
+			if (dc->hwss.subvp_pipe_control_lock)
+				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, NULL, subvp_prev_use);
+		} else {
+			if (dc->hwss.subvp_pipe_control_lock)
+				dc->hwss.subvp_pipe_control_lock(dc, context, false, should_lock_all_pipes, top_pipe_to_program, subvp_prev_use);
+		}
 
 	// Fire manual trigger only when bottom plane is flipped
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {

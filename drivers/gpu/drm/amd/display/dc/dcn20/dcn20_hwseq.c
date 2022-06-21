@@ -1317,6 +1317,13 @@ static void dcn20_detect_pipe_changes(struct pipe_ctx *old_pipe, struct pipe_ctx
 	if (new_pipe->stream && new_pipe->stream->mall_stream_config.type == SUBVP_PHANTOM)
 		new_pipe->update_flags.bits.enable = 1;
 
+	/* Phantom pipes are effectively disabled, if the pipe was previously phantom
+	 * we have to enable
+	 */
+	if (old_pipe->plane_state && old_pipe->plane_state->is_phantom &&
+			new_pipe->plane_state && !new_pipe->plane_state->is_phantom)
+		new_pipe->update_flags.bits.enable = 1;
+
 	if (old_pipe->plane_state && !new_pipe->plane_state) {
 		new_pipe->update_flags.bits.disable = 1;
 		return;
@@ -1751,7 +1758,14 @@ void dcn20_program_front_end_for_ctx(
 				|| context->res_ctx.pipe_ctx[i].update_flags.bits.opp_changed) {
 			struct hubbub *hubbub = dc->res_pool->hubbub;
 
-			if (hubbub->funcs->program_det_size && context->res_ctx.pipe_ctx[i].update_flags.bits.disable)
+			/* Phantom pipe DET should be 0, but if a pipe in use is being transitioned to phantom
+			 * then we want to do the programming here (effectively it's being disabled). If we do
+			 * the programming later the DET won't be updated until the OTG for the phantom pipe is
+			 * turned on (i.e. in an MCLK switch) which can come in too late and cause issues with
+			 * DET allocation.
+			 */
+			if (hubbub->funcs->program_det_size && (context->res_ctx.pipe_ctx[i].update_flags.bits.disable ||
+					(context->res_ctx.pipe_ctx[i].plane_state && context->res_ctx.pipe_ctx[i].plane_state->is_phantom)))
 				hubbub->funcs->program_det_size(hubbub, dc->current_state->res_ctx.pipe_ctx[i].plane_res.hubp->inst, 0);
 			hws->funcs.plane_atomic_disconnect(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
 			DC_LOG_DC("Reset mpcc for pipe %d\n", dc->current_state->res_ctx.pipe_ctx[i].pipe_idx);
@@ -1768,8 +1782,17 @@ void dcn20_program_front_end_for_ctx(
 			while (pipe) {
 				if (hws->funcs.program_pipe)
 					hws->funcs.program_pipe(dc, pipe, context);
-				else
-					dcn20_program_pipe(dc, pipe, context);
+				else {
+					/* Don't program phantom pipes in the regular front end programming sequence.
+					 * There is an MPO transition case where a pipe being used by a video plane is
+					 * transitioned directly to be a phantom pipe when closing the MPO video. However
+					 * the phantom pipe will program a new HUBP_VTG_SEL (update takes place right away),
+					 * but the MPO still exists until the double buffered update of the main pipe so we
+					 * will get a frame of underflow if the phantom pipe is programmed here.
+					 */
+					if (pipe->stream && pipe->stream->mall_stream_config.type != SUBVP_PHANTOM)
+						dcn20_program_pipe(dc, pipe, context);
+				}
 
 				pipe = pipe->bottom_pipe;
 			}
@@ -1793,8 +1816,6 @@ void dcn20_program_front_end_for_ctx(
 			pipe->plane_res.hubp->funcs->hubp_wait_pipe_read_start(pipe->plane_res.hubp);
 		}
 	}
-	if (hws->funcs.program_mall_pipe_config)
-		hws->funcs.program_mall_pipe_config(dc, context);
 }
 
 void dcn20_post_unlock_program_front_end(
@@ -1848,6 +1869,47 @@ void dcn20_post_unlock_program_front_end(
 					dc->hwss.disable_plane(dc, &dc->current_state->res_ctx.pipe_ctx[i]);
 		}
 	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+		struct pipe_ctx *old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		/* If an active, non-phantom pipe is being transitioned into a phantom
+		 * pipe, wait for the double buffer update to complete first before we do
+		 * phantom pipe programming (HUBP_VTG_SEL updates right away so that can
+		 * cause issues).
+		 */
+		if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM &&
+				old_pipe->stream && old_pipe->stream->mall_stream_config.type != SUBVP_PHANTOM) {
+			old_pipe->stream_res.tg->funcs->wait_for_state(
+					old_pipe->stream_res.tg,
+					CRTC_STATE_VBLANK);
+			old_pipe->stream_res.tg->funcs->wait_for_state(
+					old_pipe->stream_res.tg,
+					CRTC_STATE_VACTIVE);
+		}
+	}
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe->plane_state && !pipe->top_pipe) {
+			/* Program phantom pipe here to prevent a frame of underflow in the MPO transition
+			 * case (if a pipe being used for a video plane transitions to a phantom pipe, it
+			 * can underflow due to HUBP_VTG_SEL programming if done in the regular front end
+			 * programming sequence).
+			 */
+			if (pipe->stream && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM)
+					dcn20_program_pipe(dc, pipe, context);
+		}
+	}
+
+	/* Only program the MALL registers after all the main and phantom pipes
+	 * are done programming.
+	 */
+	if (hwseq->funcs.program_mall_pipe_config)
+		hwseq->funcs.program_mall_pipe_config(dc, context);
+
 	/* WA to apply WM setting*/
 	if (hwseq->wa.DEGVIDCN21)
 		dc->res_pool->hubbub->funcs->apply_DEDCN21_147_wa(dc->res_pool->hubbub);

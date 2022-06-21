@@ -1065,6 +1065,8 @@ struct dc_plane_state {
 	/* HACK: Workaround for forcing full reprogramming under some conditions */
 	bool force_full_update;
 
+	bool is_phantom; // TODO: Change mall_stream_config into mall_plane_config instead
+
 	/* private to dc_surface.c */
 	enum dc_irq_source irq_source;
 	struct kref refcount;
