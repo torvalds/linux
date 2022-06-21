@@ -1684,7 +1684,7 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 			spi_finalize_current_message(ctlr);
 			goto out;
 		}
-		ctlr->cur_msg_prepared = true;
+		msg->prepared = true;
 	}
 
 	ret = spi_map_msg(ctlr, msg);
@@ -1926,7 +1926,7 @@ void spi_finalize_current_message(struct spi_controller *ctlr)
 	 */
 	spi_res_release(ctlr, mesg);
 
-	if (ctlr->cur_msg_prepared && ctlr->unprepare_message) {
+	if (mesg->prepared && ctlr->unprepare_message) {
 		ret = ctlr->unprepare_message(ctlr, mesg);
 		if (ret) {
 			dev_err(&ctlr->dev, "failed to unprepare message: %d\n",
@@ -1934,9 +1934,10 @@ void spi_finalize_current_message(struct spi_controller *ctlr)
 		}
 	}
 
+	mesg->prepared = false;
+
 	spin_lock_irqsave(&ctlr->queue_lock, flags);
 	ctlr->cur_msg = NULL;
-	ctlr->cur_msg_prepared = false;
 	ctlr->fallback = false;
 	kthread_queue_work(ctlr->kworker, &ctlr->pump_messages);
 	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
