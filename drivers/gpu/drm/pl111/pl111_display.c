@@ -249,7 +249,7 @@ static void pl111_display_enable(struct drm_simple_display_pipe *pipe,
 		cntl |= CNTL_ST_CDWID_24;
 
 	/*
-	 * Note that the the ARM hardware's format reader takes 'r' from
+	 * Note that the ARM hardware's format reader takes 'r' from
 	 * the low bit, while DRM formats list channels from high bit
 	 * to low bit as you read left to right. The ST Micro version of
 	 * the PL110 (LCDC) however uses the standard DRM format.
