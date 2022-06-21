@@ -426,7 +426,7 @@ enum snd_soc_pcm_subclass {
 };
 
 int snd_soc_register_card(struct snd_soc_card *card);
-int snd_soc_unregister_card(struct snd_soc_card *card);
+void snd_soc_unregister_card(struct snd_soc_card *card);
 int devm_snd_soc_register_card(struct device *dev, struct snd_soc_card *card);
 #ifdef CONFIG_PM_SLEEP
 int snd_soc_suspend(struct device *dev);

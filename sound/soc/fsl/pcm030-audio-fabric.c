@@ -113,12 +113,11 @@ static int pcm030_fabric_probe(struct platform_device *op)
 static int pcm030_fabric_remove(struct platform_device *op)
 {
 	struct pcm030_audio_data *pdata = platform_get_drvdata(op);
-	int ret;
 
-	ret = snd_soc_unregister_card(pdata->card);
+	snd_soc_unregister_card(pdata->card);
 	platform_device_unregister(pdata->codec_device);
 
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id pcm030_audio_match[] = {

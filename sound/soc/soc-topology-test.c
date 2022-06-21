@@ -271,9 +271,7 @@ static void snd_soc_tplg_test_load_with_null_comp(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, 0, ret);
 
 	/* cleanup */
-	ret = snd_soc_unregister_card(&kunit_comp->card);
-	KUNIT_EXPECT_EQ(test, 0, ret);
-
+	snd_soc_unregister_card(&kunit_comp->card);
 	snd_soc_unregister_component(test_dev);
 }
 

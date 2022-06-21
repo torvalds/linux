@@ -2319,14 +2319,12 @@ EXPORT_SYMBOL_GPL(snd_soc_register_card);
  * @card: Card to unregister
  *
  */
-int snd_soc_unregister_card(struct snd_soc_card *card)
+void snd_soc_unregister_card(struct snd_soc_card *card)
 {
 	mutex_lock(&client_mutex);
 	snd_soc_unbind_card(card, true);
 	mutex_unlock(&client_mutex);
 	dev_dbg(card->dev, "ASoC: Unregistered card '%s'\n", card->name);
-
-	return 0;
 }
 EXPORT_SYMBOL_GPL(snd_soc_unregister_card);
 
