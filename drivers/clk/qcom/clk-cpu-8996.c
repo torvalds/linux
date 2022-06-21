@@ -111,24 +111,24 @@ static const struct alpha_pll_config hfpll_config = {
 	.early_output_mask = BIT(3),
 };
 
-static struct clk_alpha_pll perfcl_pll = {
-	.offset = PERFCL_REG_OFFSET,
-	.regs = prim_pll_regs,
-	.flags = SUPPORTS_DYNAMIC_UPDATE | SUPPORTS_FSM_MODE,
-	.clkr.hw.init = &(struct clk_init_data){
-		.name = "perfcl_pll",
-		.parent_names = (const char *[]){ "xo" },
-		.num_parents = 1,
-		.ops = &clk_alpha_pll_huayra_ops,
-	},
-};
-
 static struct clk_alpha_pll pwrcl_pll = {
 	.offset = PWRCL_REG_OFFSET,
 	.regs = prim_pll_regs,
 	.flags = SUPPORTS_DYNAMIC_UPDATE | SUPPORTS_FSM_MODE,
 	.clkr.hw.init = &(struct clk_init_data){
 		.name = "pwrcl_pll",
+		.parent_names = (const char *[]){ "xo" },
+		.num_parents = 1,
+		.ops = &clk_alpha_pll_huayra_ops,
+	},
+};
+
+static struct clk_alpha_pll perfcl_pll = {
+	.offset = PERFCL_REG_OFFSET,
+	.regs = prim_pll_regs,
+	.flags = SUPPORTS_DYNAMIC_UPDATE | SUPPORTS_FSM_MODE,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "perfcl_pll",
 		.parent_names = (const char *[]){ "xo" },
 		.num_parents = 1,
 		.ops = &clk_alpha_pll_huayra_ops,
@@ -181,20 +181,6 @@ static const struct alpha_pll_config altpll_config = {
 	.early_output_mask = BIT(3),
 };
 
-static struct clk_alpha_pll perfcl_alt_pll = {
-	.offset = PERFCL_REG_OFFSET + ALT_PLL_OFFSET,
-	.regs = alt_pll_regs,
-	.vco_table = alt_pll_vco_modes,
-	.num_vco = ARRAY_SIZE(alt_pll_vco_modes),
-	.flags = SUPPORTS_OFFLINE_REQ | SUPPORTS_FSM_MODE,
-	.clkr.hw.init = &(struct clk_init_data) {
-		.name = "perfcl_alt_pll",
-		.parent_names = (const char *[]){ "xo" },
-		.num_parents = 1,
-		.ops = &clk_alpha_pll_hwfsm_ops,
-	},
-};
-
 static struct clk_alpha_pll pwrcl_alt_pll = {
 	.offset = PWRCL_REG_OFFSET + ALT_PLL_OFFSET,
 	.regs = alt_pll_regs,
@@ -203,6 +189,20 @@ static struct clk_alpha_pll pwrcl_alt_pll = {
 	.flags = SUPPORTS_OFFLINE_REQ | SUPPORTS_FSM_MODE,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "pwrcl_alt_pll",
+		.parent_names = (const char *[]){ "xo" },
+		.num_parents = 1,
+		.ops = &clk_alpha_pll_hwfsm_ops,
+	},
+};
+
+static struct clk_alpha_pll perfcl_alt_pll = {
+	.offset = PERFCL_REG_OFFSET + ALT_PLL_OFFSET,
+	.regs = alt_pll_regs,
+	.vco_table = alt_pll_vco_modes,
+	.num_vco = ARRAY_SIZE(alt_pll_vco_modes),
+	.flags = SUPPORTS_OFFLINE_REQ | SUPPORTS_FSM_MODE,
+	.clkr.hw.init = &(struct clk_init_data) {
+		.name = "perfcl_alt_pll",
 		.parent_names = (const char *[]){ "xo" },
 		.num_parents = 1,
 		.ops = &clk_alpha_pll_hwfsm_ops,
@@ -367,14 +367,14 @@ static const struct regmap_config cpu_msm8996_regmap_config = {
 };
 
 static struct clk_regmap *cpu_msm8996_clks[] = {
-	&perfcl_pll.clkr,
 	&pwrcl_pll.clkr,
-	&perfcl_alt_pll.clkr,
+	&perfcl_pll.clkr,
 	&pwrcl_alt_pll.clkr,
-	&perfcl_smux.clkr,
+	&perfcl_alt_pll.clkr,
 	&pwrcl_smux.clkr,
-	&perfcl_pmux.clkr,
+	&perfcl_smux.clkr,
 	&pwrcl_pmux.clkr,
+	&perfcl_pmux.clkr,
 };
 
 static int qcom_cpu_clk_msm8996_register_clks(struct device *dev,
@@ -403,10 +403,10 @@ static int qcom_cpu_clk_msm8996_register_clks(struct device *dev,
 			return ret;
 	}
 
-	clk_alpha_pll_configure(&perfcl_pll, regmap, &hfpll_config);
 	clk_alpha_pll_configure(&pwrcl_pll, regmap, &hfpll_config);
-	clk_alpha_pll_configure(&perfcl_alt_pll, regmap, &altpll_config);
+	clk_alpha_pll_configure(&perfcl_pll, regmap, &hfpll_config);
 	clk_alpha_pll_configure(&pwrcl_alt_pll, regmap, &altpll_config);
+	clk_alpha_pll_configure(&perfcl_alt_pll, regmap, &altpll_config);
 
 	/* Enable alt PLLs */
 	clk_prepare_enable(pwrcl_alt_pll.clkr.hw.clk);
