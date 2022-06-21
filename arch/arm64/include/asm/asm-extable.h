@@ -9,6 +9,18 @@
 #define EX_TYPE_KACCESS_ERR_ZERO	4
 #define EX_TYPE_LOAD_UNALIGNED_ZEROPAD	5
 
+/* Data fields for EX_TYPE_UACCESS_ERR_ZERO */
+#define EX_DATA_REG_ERR_SHIFT	0
+#define EX_DATA_REG_ERR		GENMASK(4, 0)
+#define EX_DATA_REG_ZERO_SHIFT	5
+#define EX_DATA_REG_ZERO	GENMASK(9, 5)
+
+/* Data fields for EX_TYPE_LOAD_UNALIGNED_ZEROPAD */
+#define EX_DATA_REG_DATA_SHIFT	0
+#define EX_DATA_REG_DATA	GENMASK(4, 0)
+#define EX_DATA_REG_ADDR_SHIFT	5
+#define EX_DATA_REG_ADDR	GENMASK(9, 5)
+
 #ifdef __ASSEMBLY__
 
 #define __ASM_EXTABLE_RAW(insn, fixup, type, data)	\
@@ -57,11 +69,6 @@
 #define _ASM_EXTABLE(insn, fixup) \
 	__ASM_EXTABLE_RAW(#insn, #fixup, __stringify(EX_TYPE_FIXUP), "0")
 
-#define EX_DATA_REG_ERR_SHIFT	0
-#define EX_DATA_REG_ERR		GENMASK(4, 0)
-#define EX_DATA_REG_ZERO_SHIFT	5
-#define EX_DATA_REG_ZERO	GENMASK(9, 5)
-
 #define EX_DATA_REG(reg, gpr)						\
 	"((.L__gpr_num_" #gpr ") << " __stringify(EX_DATA_REG_##reg##_SHIFT) ")"
 
@@ -88,11 +95,6 @@
 
 #define _ASM_EXTABLE_KACCESS_ERR(insn, fixup, err)			\
 	_ASM_EXTABLE_KACCESS_ERR_ZERO(insn, fixup, err, wzr)
-
-#define EX_DATA_REG_DATA_SHIFT	0
-#define EX_DATA_REG_DATA	GENMASK(4, 0)
-#define EX_DATA_REG_ADDR_SHIFT	5
-#define EX_DATA_REG_ADDR	GENMASK(9, 5)
 
 #define _ASM_EXTABLE_LOAD_UNALIGNED_ZEROPAD(insn, fixup, data, addr)		\
 	__DEFINE_ASM_GPR_NUMS							\
