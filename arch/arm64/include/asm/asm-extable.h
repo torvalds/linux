@@ -64,6 +64,14 @@
 	.endm
 
 /*
+ * Create an exception table entry for uaccess `insn`, which will branch to `fixup`
+ * when an unhandled fault is taken.
+ */
+	.macro          _asm_extable_uaccess, insn, fixup
+	_ASM_EXTABLE_UACCESS(\insn, \fixup)
+	.endm
+
+/*
  * Create an exception table entry for `insn` if `fixup` is provided. Otherwise
  * do nothing.
  */
