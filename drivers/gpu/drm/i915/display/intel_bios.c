@@ -2668,8 +2668,6 @@ static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
 
 	sanitize_device_type(devdata, port);
 
-	print_ddi_port(devdata, port);
-
 	if (intel_bios_encoder_supports_dvi(devdata))
 		sanitize_ddc_pin(devdata, port);
 
@@ -2687,12 +2685,18 @@ static bool has_ddi_port_info(struct drm_i915_private *i915)
 static void parse_ddi_ports(struct drm_i915_private *i915)
 {
 	struct intel_bios_encoder_data *devdata;
+	enum port port;
 
 	if (!has_ddi_port_info(i915))
 		return;
 
 	list_for_each_entry(devdata, &i915->vbt.display_devices, node)
 		parse_ddi_port(devdata);
+
+	for_each_port(port) {
+		if (i915->vbt.ports[port])
+			print_ddi_port(i915->vbt.ports[port], port);
+	}
 }
 
 static void
