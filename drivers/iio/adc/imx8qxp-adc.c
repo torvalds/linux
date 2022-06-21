@@ -417,7 +417,7 @@ static int imx8qxp_adc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static __maybe_unused int imx8qxp_adc_runtime_suspend(struct device *dev)
+static int imx8qxp_adc_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct imx8qxp_adc *adc = iio_priv(indio_dev);
@@ -431,7 +431,7 @@ static __maybe_unused int imx8qxp_adc_runtime_suspend(struct device *dev)
 	return 0;
 }
 
-static __maybe_unused int imx8qxp_adc_runtime_resume(struct device *dev)
+static int imx8qxp_adc_runtime_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct imx8qxp_adc *adc = iio_priv(indio_dev);
@@ -468,10 +468,9 @@ err_disable_reg:
 	return ret;
 }
 
-static const struct dev_pm_ops imx8qxp_adc_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend, pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(imx8qxp_adc_runtime_suspend, imx8qxp_adc_runtime_resume, NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(imx8qxp_adc_pm_ops,
+				 imx8qxp_adc_runtime_suspend,
+				 imx8qxp_adc_runtime_resume, NULL);
 
 static const struct of_device_id imx8qxp_adc_match[] = {
 	{ .compatible = "nxp,imx8qxp-adc", },
@@ -485,7 +484,7 @@ static struct platform_driver imx8qxp_adc_driver = {
 	.driver		= {
 		.name	= ADC_DRIVER_NAME,
 		.of_match_table = imx8qxp_adc_match,
-		.pm	= &imx8qxp_adc_pm_ops,
+		.pm	= pm_ptr(&imx8qxp_adc_pm_ops),
 	},
 };
 
