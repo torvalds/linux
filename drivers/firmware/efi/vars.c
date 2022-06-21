@@ -1035,59 +1035,6 @@ void efivar_entry_iter_end(void)
 EXPORT_SYMBOL_GPL(efivar_entry_iter_end);
 
 /**
- * __efivar_entry_iter - iterate over variable list
- * @func: callback function
- * @head: head of the variable list
- * @data: function-specific data to pass to callback
- * @prev: entry to begin iterating from
- *
- * Iterate over the list of EFI variables and call @func with every
- * entry on the list. It is safe for @func to remove entries in the
- * list via efivar_entry_delete().
- *
- * You MUST call efivar_entry_iter_begin() before this function, and
- * efivar_entry_iter_end() afterwards.
- *
- * It is possible to begin iteration from an arbitrary entry within
- * the list by passing @prev. @prev is updated on return to point to
- * the last entry passed to @func. To begin iterating from the
- * beginning of the list @prev must be %NULL.
- *
- * The restrictions for @func are the same as documented for
- * efivar_entry_iter().
- */
-int __efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
-			struct list_head *head, void *data,
-			struct efivar_entry **prev)
-{
-	struct efivar_entry *entry, *n;
-	int err = 0;
-
-	if (!prev || !*prev) {
-		list_for_each_entry_safe(entry, n, head, list) {
-			err = func(entry, data);
-			if (err)
-				break;
-		}
-
-		if (prev)
-			*prev = entry;
-
-		return err;
-	}
-
-
-	list_for_each_entry_safe_continue((*prev), n, head, list) {
-		err = func(*prev, data);
-		if (err)
-			break;
-	}
-
-	return err;
-}
-EXPORT_SYMBOL_GPL(__efivar_entry_iter);
-
-/**
  * efivar_entry_iter - iterate over variable list
  * @func: callback function
  * @head: head of variable list
@@ -1104,12 +1051,18 @@ EXPORT_SYMBOL_GPL(__efivar_entry_iter);
 int efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
 		      struct list_head *head, void *data)
 {
+	struct efivar_entry *entry, *n;
 	int err = 0;
 
 	err = efivar_entry_iter_begin();
 	if (err)
 		return err;
-	err = __efivar_entry_iter(func, head, data, NULL);
+
+	list_for_each_entry_safe(entry, n, head, list) {
+		err = func(entry, data);
+		if (err)
+			break;
+	}
 	efivar_entry_iter_end();
 
 	return err;

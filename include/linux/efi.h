@@ -1083,9 +1083,6 @@ int efivar_entry_set_safe(efi_char16_t *name, efi_guid_t vendor, u32 attributes,
 int efivar_entry_iter_begin(void);
 void efivar_entry_iter_end(void);
 
-int __efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
-			struct list_head *head, void *data,
-			struct efivar_entry **prev);
 int efivar_entry_iter(int (*func)(struct efivar_entry *, void *),
 		      struct list_head *head, void *data);
 
