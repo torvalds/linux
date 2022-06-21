@@ -6,7 +6,8 @@
 #define EX_TYPE_FIXUP			1
 #define EX_TYPE_BPF			2
 #define EX_TYPE_UACCESS_ERR_ZERO	3
-#define EX_TYPE_LOAD_UNALIGNED_ZEROPAD	4
+#define EX_TYPE_KACCESS_ERR_ZERO	4
+#define EX_TYPE_LOAD_UNALIGNED_ZEROPAD	5
 
 #ifdef __ASSEMBLY__
 
@@ -73,8 +74,20 @@
 			    EX_DATA_REG(ZERO, zero)			\
 			  ")")
 
+#define _ASM_EXTABLE_KACCESS_ERR_ZERO(insn, fixup, err, zero)		\
+	__DEFINE_ASM_GPR_NUMS						\
+	__ASM_EXTABLE_RAW(#insn, #fixup, 				\
+			  __stringify(EX_TYPE_KACCESS_ERR_ZERO),	\
+			  "("						\
+			    EX_DATA_REG(ERR, err) " | "			\
+			    EX_DATA_REG(ZERO, zero)			\
+			  ")")
+
 #define _ASM_EXTABLE_UACCESS_ERR(insn, fixup, err)			\
 	_ASM_EXTABLE_UACCESS_ERR_ZERO(insn, fixup, err, wzr)
+
+#define _ASM_EXTABLE_KACCESS_ERR(insn, fixup, err)			\
+	_ASM_EXTABLE_KACCESS_ERR_ZERO(insn, fixup, err, wzr)
 
 #define EX_DATA_REG_DATA_SHIFT	0
 #define EX_DATA_REG_DATA	GENMASK(4, 0)
