@@ -11,6 +11,7 @@ maintainers:
 
 allOf:
   - $ref: usb-drd.yaml#
+  - $ref: usb-hcd.yaml#
 
 properties:
   compatible:
@@ -160,6 +161,8 @@ properties:
       using the OF graph bindings specified, if the "usb-role-switch"
       property is used.
     $ref: /schemas/graph.yaml#/properties/port
+
+  tpl-support: true
 
 dependencies:
   port: [ usb-role-switch ]
