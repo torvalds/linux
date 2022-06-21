@@ -540,14 +540,15 @@ static int imx7d_adc_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static SIMPLE_DEV_PM_OPS(imx7d_adc_pm_ops, imx7d_adc_disable, imx7d_adc_enable);
+static DEFINE_SIMPLE_DEV_PM_OPS(imx7d_adc_pm_ops, imx7d_adc_disable,
+				imx7d_adc_enable);
 
 static struct platform_driver imx7d_adc_driver = {
 	.probe		= imx7d_adc_probe,
 	.driver		= {
 		.name	= "imx7d_adc",
 		.of_match_table = imx7d_adc_match,
-		.pm	= &imx7d_adc_pm_ops,
+		.pm	= pm_sleep_ptr(&imx7d_adc_pm_ops),
 	},
 };
 
