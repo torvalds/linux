@@ -24,6 +24,12 @@
 
 #include "clk-starfive-jh7110.h"
 
+/* external clocks */
+#define JH7110_ISP_TOP_CLK_ISPCORE_2X_CLKGEN   (JH7110_CLK_ISP_END + 0)
+#define JH7110_ISP_TOP_CLK_ISP_AXI_CLKGEN      (JH7110_CLK_ISP_END + 1)
+#define JH7110_ISP_TOP_CLK_BIST_APB_CLKGEN     (JH7110_CLK_ISP_END + 2)
+#define JH7110_ISP_TOP_CLK_DVP_CLKGEN          (JH7110_CLK_ISP_END + 3)
+
 static const struct jh7110_clk_data jh7110_clk_isp_data[] __initconst = {
 	//syscon
 	JH7110__DIV(JH7110_DOM4_APB_FUNC, "dom4_apb_func",

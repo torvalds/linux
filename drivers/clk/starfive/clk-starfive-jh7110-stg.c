@@ -13,6 +13,11 @@
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 #include "clk-starfive-jh7110.h"
 
+/* external clocks */
+#define JH7110_OSC				(JH7110_CLK_END + 0)
+/* stg external clocks */
+#define JH7110_STG_APB				(JH7110_CLK_END + 11)
+
 static const struct jh7110_clk_data jh7110_clk_stg_data[] __initconst = {
 	//hifi4
 	JH7110_GATE(JH7110_HIFI4_CLK_CORE, "u0_hifi4_clk_core",
@@ -145,6 +150,8 @@ int __init clk_starfive_jh7110_stg_init(struct platform_device *pdev,
 			else if ((pidx < JH7110_CLK_STG_END) && \
 				(pidx > JH7110_CLK_SYS_END))
 				parents[i].hw = priv->pll[PLL_OF(pidx)];
+			else if (pidx == JH7110_OSC)
+				parents[i].fw_name = "osc";
 			else if (pidx == JH7110_STG_APB)
 				parents[i].fw_name = "stg_apb";
 		}

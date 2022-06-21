@@ -13,6 +13,13 @@
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 #include "clk-starfive-jh7110.h"
 
+/* external clocks */
+#define JH7110_OSC				(JH7110_CLK_END + 0)
+/* aon external clocks */
+#define JH7110_GMAC0_RMII_REFIN			(JH7110_CLK_END + 12)
+#define JH7110_GMAC0_RGMII_RXIN			(JH7110_CLK_END + 13)
+#define JH7110_CLK_RTC				(JH7110_CLK_END + 14)
+
 static const struct jh7110_clk_data jh7110_clk_aon_data[] __initconst = {
 	//source
 	JH7110__DIV(JH7110_OSC_DIV4, "osc_div4", 4, JH7110_OSC),
@@ -133,6 +140,8 @@ int __init clk_starfive_jh7110_aon_init(struct platform_device *pdev,
 			else if ((pidx < JH7110_CLK_END) && \
 				(pidx > JH7110_RTC_HMS_CLK_CAL))
 				parents[i].hw = priv->pll[PLL_OF(pidx)];
+			else if (pidx == JH7110_OSC)
+				parents[i].fw_name = "osc";
 			else if (pidx == JH7110_GMAC0_RMII_REFIN)
 				parents[i].fw_name = "gmac0_rmii_refin";
 			else if (pidx == JH7110_GMAC0_RGMII_RXIN)

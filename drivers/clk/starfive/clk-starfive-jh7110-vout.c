@@ -23,6 +23,11 @@
 #include <dt-bindings/clock/starfive-jh7110-vout.h>
 #include "clk-starfive-jh7110.h"
 
+/* external clocks */
+#define JH7110_HDMITX0_PIXELCLK			(JH7110_CLK_VOUT_END + 0)
+#define JH7110_MIPITX_DPHY_RXESC		(JH7110_CLK_VOUT_END + 1)
+#define JH7110_MIPITX_DPHY_TXBYTEHS		(JH7110_CLK_VOUT_END + 2)
+
 static const struct jh7110_clk_data jh7110_clk_vout_data[] __initconst = {
 	//divider
 	JH7110__DIV(JH7110_APB, "apb", 8, JH7110_DISP_AHB),
