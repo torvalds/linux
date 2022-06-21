@@ -5,6 +5,7 @@
 #include <linux/lockdep.h>
 #include <linux/io_uring_types.h>
 #include "io-wq.h"
+#include "slist.h"
 #include "filetable.h"
 
 #ifndef CREATE_TRACE_POINTS

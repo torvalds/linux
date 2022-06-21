@@ -18,6 +18,7 @@
 #include <uapi/linux/io_uring.h>
 
 #include "io-wq.h"
+#include "slist.h"
 
 #define WORKER_IDLE_TIMEOUT	(5 * HZ)
 
