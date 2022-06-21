@@ -2,6 +2,8 @@
 #ifndef IOU_FILE_TABLE_H
 #define IOU_FILE_TABLE_H
 
+#include <linux/file.h>
+
 struct io_ring_ctx;
 struct io_kiocb;
 
