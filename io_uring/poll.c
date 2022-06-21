@@ -325,6 +325,31 @@ static void io_poll_cancel_req(struct io_kiocb *req)
 
 #define IO_ASYNC_POLL_COMMON	(EPOLLONESHOT | EPOLLPRI)
 
+static __cold int io_pollfree_wake(struct io_kiocb *req, struct io_poll *poll)
+{
+	io_poll_mark_cancelled(req);
+	/* we have to kick tw in case it's not already */
+	io_poll_execute(req, 0);
+
+	/*
+	 * If the waitqueue is being freed early but someone is already
+	 * holds ownership over it, we have to tear down the request as
+	 * best we can. That means immediately removing the request from
+	 * its waitqueue and preventing all further accesses to the
+	 * waitqueue via the request.
+	 */
+	list_del_init(&poll->wait.entry);
+
+	/*
+	 * Careful: this *must* be the last step, since as soon
+	 * as req->head is NULL'ed out, the request can be
+	 * completed and freed, since aio_poll_complete_work()
+	 * will no longer need to take the waitqueue lock.
+	 */
+	smp_store_release(&poll->head, NULL);
+	return 1;
+}
+
 static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 			void *key)
 {
@@ -332,29 +357,8 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	struct io_poll *poll = container_of(wait, struct io_poll, wait);
 	__poll_t mask = key_to_poll(key);
 
-	if (unlikely(mask & POLLFREE)) {
-		io_poll_mark_cancelled(req);
-		/* we have to kick tw in case it's not already */
-		io_poll_execute(req, 0);
-
-		/*
-		 * If the waitqueue is being freed early but someone is already
-		 * holds ownership over it, we have to tear down the request as
-		 * best we can. That means immediately removing the request from
-		 * its waitqueue and preventing all further accesses to the
-		 * waitqueue via the request.
-		 */
-		list_del_init(&poll->wait.entry);
-
-		/*
-		 * Careful: this *must* be the last step, since as soon
-		 * as req->head is NULL'ed out, the request can be
-		 * completed and freed, since aio_poll_complete_work()
-		 * will no longer need to take the waitqueue lock.
-		 */
-		smp_store_release(&poll->head, NULL);
-		return 1;
-	}
+	if (unlikely(mask & POLLFREE))
+		return io_pollfree_wake(req, poll);
 
 	/* for instances that support it check for an event match first */
 	if (mask && !(mask & (poll->events & ~IO_ASYNC_POLL_COMMON)))
