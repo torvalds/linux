@@ -22,7 +22,7 @@ menuconfig JTAG_ASPEED_INTERNAL
 	depends on ARCH_ASPEED || COMPILE_TEST
 	help
 	  This provides a support for Aspeed JTAG device, equipped on
-	  Aspeed SoC 24xx and 25xx families. Drivers allows programming
+	  Aspeed SoC 24xx, 25xx and 26xx families. Drivers allows programming
 	  of hardware devices, connected to SoC through the JTAG interface.
 
 	  If you want this support, you should say Y here.
