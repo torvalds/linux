@@ -900,6 +900,7 @@ static int mlxsw_sp_port_mc_disabled_set(struct mlxsw_sp_port *mlxsw_sp_port,
 					 struct net_device *orig_dev,
 					 bool mc_disabled)
 {
+	enum mlxsw_sp_flood_type packet_type = MLXSW_SP_FLOOD_TYPE_MC;
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct mlxsw_sp_bridge_port *bridge_port;
@@ -919,17 +920,29 @@ static int mlxsw_sp_port_mc_disabled_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	mlxsw_sp_bridge_mdb_mc_enable_sync(mlxsw_sp, bridge_device);
 
 	list_for_each_entry(bridge_port, &bridge_device->ports_list, list) {
-		enum mlxsw_sp_flood_type packet_type = MLXSW_SP_FLOOD_TYPE_MC;
 		bool member = mlxsw_sp_mc_flood(bridge_port);
 
 		err = mlxsw_sp_bridge_ports_flood_table_set(bridge_port,
 							    packet_type,
 							    member);
 		if (err)
-			return err;
+			goto err_flood_table_set;
 	}
 
 	return 0;
+
+err_flood_table_set:
+	list_for_each_entry_continue_reverse(bridge_port,
+					     &bridge_device->ports_list, list) {
+		bool member = mlxsw_sp_mc_flood(bridge_port);
+
+		mlxsw_sp_bridge_ports_flood_table_set(bridge_port, packet_type,
+						      !member);
+	}
+
+	bridge_device->multicast_enabled = mc_disabled;
+	mlxsw_sp_bridge_mdb_mc_enable_sync(mlxsw_sp, bridge_device);
+	return err;
 }
 
 static int mlxsw_sp_smid_router_port_set(struct mlxsw_sp *mlxsw_sp,
