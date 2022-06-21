@@ -67,6 +67,15 @@ static void mpp_dma_release_buffer(struct kref *ref)
 	dma_buf_unmap_attachment(buffer->attach, buffer->sgt, buffer->dir);
 	dma_buf_detach(buffer->dmabuf, buffer->attach);
 	dma_buf_put(buffer->dmabuf);
+	buffer->dma = NULL;
+	buffer->dmabuf = NULL;
+	buffer->attach = NULL;
+	buffer->sgt = NULL;
+	buffer->copy_sgt = NULL;
+	buffer->iova = 0;
+	buffer->size = 0;
+	buffer->vaddr = NULL;
+	buffer->last_used = 0;
 }
 
 /* Remove the oldest buffer when count more than the setting */
