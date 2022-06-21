@@ -918,7 +918,7 @@ static int __cmd_inject(struct perf_inject *inject)
 		inject->tool.tracing_data = perf_event__repipe_tracing_data;
 	}
 
-	output_data_offset = session->header.data_offset;
+	output_data_offset = perf_session__data_offset(session->evlist);
 
 	if (inject->build_id_all) {
 		inject->tool.mmap	  = perf_event__repipe_buildid_mmap;
