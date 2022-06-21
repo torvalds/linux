@@ -102,7 +102,6 @@ struct mlxsw_sp_fid_family {
 	enum mlxsw_sp_rif_type rif_type;
 	const struct mlxsw_sp_fid_ops *ops;
 	struct mlxsw_sp *mlxsw_sp;
-	u8 lag_vid_valid:1;
 };
 
 static const int mlxsw_sp_sfgc_uc_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
@@ -135,11 +134,6 @@ bool mlxsw_sp_fid_is_dummy(struct mlxsw_sp *mlxsw_sp, u16 fid_index)
 	fid_family = mlxsw_sp->fid_core->fid_family_arr[fid_type];
 
 	return fid_family->start_index == fid_index;
-}
-
-bool mlxsw_sp_fid_lag_vid_valid(const struct mlxsw_sp_fid *fid)
-{
-	return fid->fid_family->lag_vid_valid;
 }
 
 struct mlxsw_sp_fid *mlxsw_sp_fid_lookup_by_index(struct mlxsw_sp *mlxsw_sp,
@@ -699,7 +693,6 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021d_family = {
 	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
 	.rif_type		= MLXSW_SP_RIF_TYPE_FID,
 	.ops			= &mlxsw_sp_fid_8021d_ops,
-	.lag_vid_valid		= 1,
 };
 
 static bool
@@ -748,7 +741,6 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021q_emu_family = {
 	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
 	.rif_type		= MLXSW_SP_RIF_TYPE_VLAN,
 	.ops			= &mlxsw_sp_fid_8021q_emu_ops,
-	.lag_vid_valid		= 1,
 };
 
 static int mlxsw_sp_fid_rfid_configure(struct mlxsw_sp_fid *fid)
