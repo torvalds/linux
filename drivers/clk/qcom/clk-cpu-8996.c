@@ -59,6 +59,7 @@
 
 #include "clk-alpha-pll.h"
 #include "clk-regmap.h"
+#include "clk-regmap-mux.h"
 
 enum _pmux_input {
 	SMUX_INDEX = 0,
@@ -209,7 +210,7 @@ static struct clk_alpha_pll perfcl_alt_pll = {
 	},
 };
 
-struct clk_cpu_8996_mux {
+struct clk_cpu_8996_pmux {
 	u32	reg;
 	u8	shift;
 	u8	width;
@@ -222,18 +223,18 @@ struct clk_cpu_8996_mux {
 static int cpu_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
 			       void *data);
 
-#define to_clk_cpu_8996_mux_nb(_nb) \
-	container_of(_nb, struct clk_cpu_8996_mux, nb)
+#define to_clk_cpu_8996_pmux_nb(_nb) \
+	container_of(_nb, struct clk_cpu_8996_pmux, nb)
 
-static inline struct clk_cpu_8996_mux *to_clk_cpu_8996_mux_hw(struct clk_hw *hw)
+static inline struct clk_cpu_8996_pmux *to_clk_cpu_8996_pmux_hw(struct clk_hw *hw)
 {
-	return container_of(to_clk_regmap(hw), struct clk_cpu_8996_mux, clkr);
+	return container_of(to_clk_regmap(hw), struct clk_cpu_8996_pmux, clkr);
 }
 
-static u8 clk_cpu_8996_mux_get_parent(struct clk_hw *hw)
+static u8 clk_cpu_8996_pmux_get_parent(struct clk_hw *hw)
 {
 	struct clk_regmap *clkr = to_clk_regmap(hw);
-	struct clk_cpu_8996_mux *cpuclk = to_clk_cpu_8996_mux_hw(hw);
+	struct clk_cpu_8996_pmux *cpuclk = to_clk_cpu_8996_pmux_hw(hw);
 	u32 mask = GENMASK(cpuclk->width - 1, 0);
 	u32 val;
 
@@ -243,10 +244,10 @@ static u8 clk_cpu_8996_mux_get_parent(struct clk_hw *hw)
 	return val & mask;
 }
 
-static int clk_cpu_8996_mux_set_parent(struct clk_hw *hw, u8 index)
+static int clk_cpu_8996_pmux_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_regmap *clkr = to_clk_regmap(hw);
-	struct clk_cpu_8996_mux *cpuclk = to_clk_cpu_8996_mux_hw(hw);
+	struct clk_cpu_8996_pmux *cpuclk = to_clk_cpu_8996_pmux_hw(hw);
 	u32 mask = GENMASK(cpuclk->width + cpuclk->shift - 1, cpuclk->shift);
 	u32 val;
 
@@ -256,10 +257,10 @@ static int clk_cpu_8996_mux_set_parent(struct clk_hw *hw, u8 index)
 	return regmap_update_bits(clkr->regmap, cpuclk->reg, mask, val);
 }
 
-static int clk_cpu_8996_mux_determine_rate(struct clk_hw *hw,
+static int clk_cpu_8996_pmux_determine_rate(struct clk_hw *hw,
 					   struct clk_rate_request *req)
 {
-	struct clk_cpu_8996_mux *cpuclk = to_clk_cpu_8996_mux_hw(hw);
+	struct clk_cpu_8996_pmux *cpuclk = to_clk_cpu_8996_pmux_hw(hw);
 	struct clk_hw *parent = cpuclk->pll;
 
 	if (cpuclk->pll_div_2 && req->rate < DIV_2_THRESHOLD) {
@@ -275,13 +276,13 @@ static int clk_cpu_8996_mux_determine_rate(struct clk_hw *hw,
 	return 0;
 }
 
-static const struct clk_ops clk_cpu_8996_mux_ops = {
-	.set_parent = clk_cpu_8996_mux_set_parent,
-	.get_parent = clk_cpu_8996_mux_get_parent,
-	.determine_rate = clk_cpu_8996_mux_determine_rate,
+static const struct clk_ops clk_cpu_8996_pmux_ops = {
+	.set_parent = clk_cpu_8996_pmux_set_parent,
+	.get_parent = clk_cpu_8996_pmux_get_parent,
+	.determine_rate = clk_cpu_8996_pmux_determine_rate,
 };
 
-static struct clk_cpu_8996_mux pwrcl_smux = {
+static struct clk_regmap_mux pwrcl_smux = {
 	.reg = PWRCL_REG_OFFSET + MUX_OFFSET,
 	.shift = 2,
 	.width = 2,
@@ -292,12 +293,12 @@ static struct clk_cpu_8996_mux pwrcl_smux = {
 			"pwrcl_pll_postdiv",
 		},
 		.num_parents = 2,
-		.ops = &clk_cpu_8996_mux_ops,
+		.ops = &clk_regmap_mux_closest_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_cpu_8996_mux perfcl_smux = {
+static struct clk_regmap_mux perfcl_smux = {
 	.reg = PERFCL_REG_OFFSET + MUX_OFFSET,
 	.shift = 2,
 	.width = 2,
@@ -308,12 +309,12 @@ static struct clk_cpu_8996_mux perfcl_smux = {
 			"perfcl_pll_postdiv",
 		},
 		.num_parents = 2,
-		.ops = &clk_cpu_8996_mux_ops,
+		.ops = &clk_regmap_mux_closest_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	},
 };
 
-static struct clk_cpu_8996_mux pwrcl_pmux = {
+static struct clk_cpu_8996_pmux pwrcl_pmux = {
 	.reg = PWRCL_REG_OFFSET + MUX_OFFSET,
 	.shift = 0,
 	.width = 2,
@@ -329,13 +330,13 @@ static struct clk_cpu_8996_mux pwrcl_pmux = {
 			"pwrcl_alt_pll",
 		},
 		.num_parents = 4,
-		.ops = &clk_cpu_8996_mux_ops,
+		.ops = &clk_cpu_8996_pmux_ops,
 		/* CPU clock is critical and should never be gated */
 		.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 	},
 };
 
-static struct clk_cpu_8996_mux perfcl_pmux = {
+static struct clk_cpu_8996_pmux perfcl_pmux = {
 	.reg = PERFCL_REG_OFFSET + MUX_OFFSET,
 	.shift = 0,
 	.width = 2,
@@ -351,7 +352,7 @@ static struct clk_cpu_8996_mux perfcl_pmux = {
 			"perfcl_alt_pll",
 		},
 		.num_parents = 4,
-		.ops = &clk_cpu_8996_mux_ops,
+		.ops = &clk_cpu_8996_pmux_ops,
 		/* CPU clock is critical and should never be gated */
 		.flags = CLK_SET_RATE_PARENT | CLK_IS_CRITICAL,
 	},
@@ -393,9 +394,6 @@ static int qcom_cpu_clk_msm8996_register_clks(struct device *dev,
 		dev_err(dev, "Failed to register perfcl_pll_postdiv: %d", ret);
 		return ret;
 	}
-
-	pwrcl_smux.pll = &pwrcl_pll_postdiv.hw;
-	perfcl_smux.pll = &perfcl_pll_postdiv.hw;
 
 	for (i = 0; i < ARRAY_SIZE(cpu_msm8996_clks); i++) {
 		ret = devm_clk_register_regmap(dev, cpu_msm8996_clks[i]);
@@ -474,22 +472,22 @@ static void qcom_cpu_clk_msm8996_acd_init(void __iomem *base)
 static int cpu_clk_notifier_cb(struct notifier_block *nb, unsigned long event,
 			       void *data)
 {
-	struct clk_cpu_8996_mux *cpuclk = to_clk_cpu_8996_mux_nb(nb);
+	struct clk_cpu_8996_pmux *cpuclk = to_clk_cpu_8996_pmux_nb(nb);
 	struct clk_notifier_data *cnd = data;
 	int ret;
 
 	switch (event) {
 	case PRE_RATE_CHANGE:
-		ret = clk_cpu_8996_mux_set_parent(&cpuclk->clkr.hw, ALT_INDEX);
+		ret = clk_cpu_8996_pmux_set_parent(&cpuclk->clkr.hw, ALT_INDEX);
 		qcom_cpu_clk_msm8996_acd_init(base);
 		break;
 	case POST_RATE_CHANGE:
 		if (cnd->new_rate < DIV_2_THRESHOLD)
-			ret = clk_cpu_8996_mux_set_parent(&cpuclk->clkr.hw,
-							  SMUX_INDEX);
+			ret = clk_cpu_8996_pmux_set_parent(&cpuclk->clkr.hw,
+							   SMUX_INDEX);
 		else
-			ret = clk_cpu_8996_mux_set_parent(&cpuclk->clkr.hw,
-							  ACD_INDEX);
+			ret = clk_cpu_8996_pmux_set_parent(&cpuclk->clkr.hw,
+							   ACD_INDEX);
 		break;
 	default:
 		ret = 0;
