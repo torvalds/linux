@@ -1549,6 +1549,80 @@ static void spi_idle_runtime_pm(struct spi_controller *ctlr)
 	}
 }
 
+static int __spi_pump_transfer_message(struct spi_controller *ctlr,
+		struct spi_message *msg, bool was_busy)
+{
+	struct spi_transfer *xfer;
+	int ret;
+
+	if (!was_busy && ctlr->auto_runtime_pm) {
+		ret = pm_runtime_get_sync(ctlr->dev.parent);
+		if (ret < 0) {
+			pm_runtime_put_noidle(ctlr->dev.parent);
+			dev_err(&ctlr->dev, "Failed to power device: %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	if (!was_busy)
+		trace_spi_controller_busy(ctlr);
+
+	if (!was_busy && ctlr->prepare_transfer_hardware) {
+		ret = ctlr->prepare_transfer_hardware(ctlr);
+		if (ret) {
+			dev_err(&ctlr->dev,
+				"failed to prepare transfer hardware: %d\n",
+				ret);
+
+			if (ctlr->auto_runtime_pm)
+				pm_runtime_put(ctlr->dev.parent);
+
+			msg->status = ret;
+			spi_finalize_current_message(ctlr);
+
+			return ret;
+		}
+	}
+
+	trace_spi_message_start(msg);
+
+	if (ctlr->prepare_message) {
+		ret = ctlr->prepare_message(ctlr, msg);
+		if (ret) {
+			dev_err(&ctlr->dev, "failed to prepare message: %d\n",
+				ret);
+			msg->status = ret;
+			spi_finalize_current_message(ctlr);
+			return ret;
+		}
+		msg->prepared = true;
+	}
+
+	ret = spi_map_msg(ctlr, msg);
+	if (ret) {
+		msg->status = ret;
+		spi_finalize_current_message(ctlr);
+		return ret;
+	}
+
+	if (!ctlr->ptp_sts_supported && !ctlr->transfer_one) {
+		list_for_each_entry(xfer, &msg->transfers, transfer_list) {
+			xfer->ptp_sts_word_pre = 0;
+			ptp_read_system_prets(xfer->ptp_sts);
+		}
+	}
+
+	ret = ctlr->transfer_one_message(ctlr, msg);
+	if (ret) {
+		dev_err(&ctlr->dev,
+			"failed to transfer one message from queue\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 /**
  * __spi_pump_messages - function which processes spi message queue
  * @ctlr: controller to process queue for
@@ -1564,7 +1638,6 @@ static void spi_idle_runtime_pm(struct spi_controller *ctlr)
  */
 static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 {
-	struct spi_transfer *xfer;
 	struct spi_message *msg;
 	bool was_busy = false;
 	unsigned long flags;
@@ -1599,6 +1672,7 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 			    !ctlr->unprepare_transfer_hardware) {
 				spi_idle_runtime_pm(ctlr);
 				ctlr->busy = false;
+				ctlr->queue_empty = true;
 				trace_spi_controller_idle(ctlr);
 			} else {
 				kthread_queue_work(ctlr->kworker,
@@ -1625,6 +1699,7 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 
 		spin_lock_irqsave(&ctlr->queue_lock, flags);
 		ctlr->idling = false;
+		ctlr->queue_empty = true;
 		spin_unlock_irqrestore(&ctlr->queue_lock, flags);
 		return;
 	}
@@ -1641,75 +1716,7 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
 
 	mutex_lock(&ctlr->io_mutex);
-
-	if (!was_busy && ctlr->auto_runtime_pm) {
-		ret = pm_runtime_resume_and_get(ctlr->dev.parent);
-		if (ret < 0) {
-			dev_err(&ctlr->dev, "Failed to power device: %d\n",
-				ret);
-			mutex_unlock(&ctlr->io_mutex);
-			return;
-		}
-	}
-
-	if (!was_busy)
-		trace_spi_controller_busy(ctlr);
-
-	if (!was_busy && ctlr->prepare_transfer_hardware) {
-		ret = ctlr->prepare_transfer_hardware(ctlr);
-		if (ret) {
-			dev_err(&ctlr->dev,
-				"failed to prepare transfer hardware: %d\n",
-				ret);
-
-			if (ctlr->auto_runtime_pm)
-				pm_runtime_put(ctlr->dev.parent);
-
-			msg->status = ret;
-			spi_finalize_current_message(ctlr);
-
-			mutex_unlock(&ctlr->io_mutex);
-			return;
-		}
-	}
-
-	trace_spi_message_start(msg);
-
-	if (ctlr->prepare_message) {
-		ret = ctlr->prepare_message(ctlr, msg);
-		if (ret) {
-			dev_err(&ctlr->dev, "failed to prepare message: %d\n",
-				ret);
-			msg->status = ret;
-			spi_finalize_current_message(ctlr);
-			goto out;
-		}
-		msg->prepared = true;
-	}
-
-	ret = spi_map_msg(ctlr, msg);
-	if (ret) {
-		msg->status = ret;
-		spi_finalize_current_message(ctlr);
-		goto out;
-	}
-
-	if (!ctlr->ptp_sts_supported && !ctlr->transfer_one) {
-		list_for_each_entry(xfer, &msg->transfers, transfer_list) {
-			xfer->ptp_sts_word_pre = 0;
-			ptp_read_system_prets(xfer->ptp_sts);
-		}
-	}
-
-	ret = ctlr->transfer_one_message(ctlr, msg);
-	if (ret) {
-		dev_err(&ctlr->dev,
-			"failed to transfer one message from queue: %d\n",
-			ret);
-		goto out;
-	}
-
-out:
+	ret = __spi_pump_transfer_message(ctlr, msg, was_busy);
 	mutex_unlock(&ctlr->io_mutex);
 
 	/* Prod the scheduler in case transfer_one() was busy waiting */
@@ -1839,6 +1846,7 @@ static int spi_init_queue(struct spi_controller *ctlr)
 {
 	ctlr->running = false;
 	ctlr->busy = false;
+	ctlr->queue_empty = true;
 
 	ctlr->kworker = kthread_create_worker(0, dev_name(&ctlr->dev));
 	if (IS_ERR(ctlr->kworker)) {
@@ -1936,11 +1944,20 @@ void spi_finalize_current_message(struct spi_controller *ctlr)
 
 	mesg->prepared = false;
 
-	spin_lock_irqsave(&ctlr->queue_lock, flags);
-	ctlr->cur_msg = NULL;
-	ctlr->fallback = false;
-	kthread_queue_work(ctlr->kworker, &ctlr->pump_messages);
-	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
+	if (!mesg->sync) {
+		/*
+		 * This message was sent via the async message queue. Handle
+		 * the queue and kick the worker thread to do the
+		 * idling/shutdown or send the next message if needed.
+		 */
+		spin_lock_irqsave(&ctlr->queue_lock, flags);
+		WARN(ctlr->cur_msg != mesg,
+			"Finalizing queued message that is not the current head of queue!");
+		ctlr->cur_msg = NULL;
+		ctlr->fallback = false;
+		kthread_queue_work(ctlr->kworker, &ctlr->pump_messages);
+		spin_unlock_irqrestore(&ctlr->queue_lock, flags);
+	}
 
 	trace_spi_message_done(mesg);
 
@@ -2043,6 +2060,7 @@ static int __spi_queued_transfer(struct spi_device *spi,
 	msg->status = -EINPROGRESS;
 
 	list_add_tail(&msg->queue, &ctlr->queue);
+	ctlr->queue_empty = false;
 	if (!ctlr->busy && need_pump)
 		kthread_queue_work(ctlr->kworker, &ctlr->pump_messages);
 
@@ -3938,6 +3956,39 @@ static int spi_async_locked(struct spi_device *spi, struct spi_message *message)
 
 }
 
+static void __spi_transfer_message_noqueue(struct spi_controller *ctlr, struct spi_message *msg)
+{
+	bool was_busy;
+	int ret;
+
+	mutex_lock(&ctlr->io_mutex);
+
+	/* If another context is idling the device then wait */
+	while (ctlr->idling)
+		usleep_range(10000, 11000);
+
+	was_busy = READ_ONCE(ctlr->busy);
+
+	ret = __spi_pump_transfer_message(ctlr, msg, was_busy);
+	if (ret)
+		goto out;
+
+	if (!was_busy) {
+		kfree(ctlr->dummy_rx);
+		ctlr->dummy_rx = NULL;
+		kfree(ctlr->dummy_tx);
+		ctlr->dummy_tx = NULL;
+		if (ctlr->unprepare_transfer_hardware &&
+		    ctlr->unprepare_transfer_hardware(ctlr))
+			dev_err(&ctlr->dev,
+				"failed to unprepare transfer hardware\n");
+		spi_idle_runtime_pm(ctlr);
+	}
+
+out:
+	mutex_unlock(&ctlr->io_mutex);
+}
+
 /*-------------------------------------------------------------------------*/
 
 /*
@@ -3956,51 +4007,52 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 	DECLARE_COMPLETION_ONSTACK(done);
 	int status;
 	struct spi_controller *ctlr = spi->controller;
-	unsigned long flags;
 
 	status = __spi_validate(spi, message);
 	if (status != 0)
 		return status;
 
-	message->complete = spi_complete;
-	message->context = &done;
 	message->spi = spi;
 
 	SPI_STATISTICS_INCREMENT_FIELD(ctlr->pcpu_statistics, spi_sync);
 	SPI_STATISTICS_INCREMENT_FIELD(spi->pcpu_statistics, spi_sync);
 
 	/*
-	 * If we're not using the legacy transfer method then we will
-	 * try to transfer in the calling context so special case.
-	 * This code would be less tricky if we could remove the
-	 * support for driver implemented message queues.
+	 * Checking queue_empty here only guarantees async/sync message
+	 * ordering when coming from the same context. It does not need to
+	 * guard against reentrancy from a different context. The io_mutex
+	 * will catch those cases.
 	 */
-	if (ctlr->transfer == spi_queued_transfer) {
-		spin_lock_irqsave(&ctlr->bus_lock_spinlock, flags);
+	if (READ_ONCE(ctlr->queue_empty)) {
+		message->sync = true;
+		message->actual_length = 0;
+		message->status = -EINPROGRESS;
 
 		trace_spi_message_submit(message);
 
-		status = __spi_queued_transfer(spi, message, false);
+		SPI_STATISTICS_INCREMENT_FIELD(ctlr->pcpu_statistics, spi_sync_immediate);
+		SPI_STATISTICS_INCREMENT_FIELD(spi->pcpu_statistics, spi_sync_immediate);
 
-		spin_unlock_irqrestore(&ctlr->bus_lock_spinlock, flags);
-	} else {
-		status = spi_async_locked(spi, message);
+		__spi_transfer_message_noqueue(ctlr, message);
+
+		return message->status;
 	}
 
+	/*
+	 * There are messages in the async queue that could have originated
+	 * from the same context, so we need to preserve ordering.
+	 * Therefor we send the message to the async queue and wait until they
+	 * are completed.
+	 */
+	message->complete = spi_complete;
+	message->context = &done;
+	status = spi_async_locked(spi, message);
 	if (status == 0) {
-		/* Push out the messages in the calling context if we can */
-		if (ctlr->transfer == spi_queued_transfer) {
-			SPI_STATISTICS_INCREMENT_FIELD(ctlr->pcpu_statistics,
-						       spi_sync_immediate);
-			SPI_STATISTICS_INCREMENT_FIELD(spi->pcpu_statistics,
-						       spi_sync_immediate);
-			__spi_pump_messages(ctlr, false);
-		}
-
 		wait_for_completion(&done);
 		status = message->status;
 	}
 	message->context = NULL;
+
 	return status;
 }
 
