@@ -303,23 +303,20 @@ static const unsigned usbhs_c_1_pins[] = { STN8815_PIN_E21, STN8815_PIN_E20,
 					   STN8815_PIN_C16, STN8815_PIN_A15,
 					   STN8815_PIN_D17, STN8815_PIN_C17 };
 
-#define STN8815_PIN_GROUP(a, b) { .name = #a, .pins = a##_pins,		\
-			.npins = ARRAY_SIZE(a##_pins), .altsetting = b }
-
 static const struct nmk_pingroup nmk_stn8815_groups[] = {
-	STN8815_PIN_GROUP(u0txrx_a_1, NMK_GPIO_ALT_A),
-	STN8815_PIN_GROUP(u0ctsrts_a_1, NMK_GPIO_ALT_A),
-	STN8815_PIN_GROUP(u0modem_a_1, NMK_GPIO_ALT_A),
-	STN8815_PIN_GROUP(mmcsd_a_1, NMK_GPIO_ALT_A),
-	STN8815_PIN_GROUP(mmcsd_b_1, NMK_GPIO_ALT_B),
-	STN8815_PIN_GROUP(u1_a_1, NMK_GPIO_ALT_A),
-	STN8815_PIN_GROUP(i2c1_a_1, NMK_GPIO_ALT_A),
-	STN8815_PIN_GROUP(i2c0_a_1, NMK_GPIO_ALT_A),
-	STN8815_PIN_GROUP(u1_b_1, NMK_GPIO_ALT_B),
-	STN8815_PIN_GROUP(i2cusb_b_1, NMK_GPIO_ALT_B),
-	STN8815_PIN_GROUP(clcd_16_23_b_1, NMK_GPIO_ALT_B),
-	STN8815_PIN_GROUP(usbfs_b_1, NMK_GPIO_ALT_B),
-	STN8815_PIN_GROUP(usbhs_c_1, NMK_GPIO_ALT_C),
+	NMK_PIN_GROUP(u0txrx_a_1, NMK_GPIO_ALT_A),
+	NMK_PIN_GROUP(u0ctsrts_a_1, NMK_GPIO_ALT_A),
+	NMK_PIN_GROUP(u0modem_a_1, NMK_GPIO_ALT_A),
+	NMK_PIN_GROUP(mmcsd_a_1, NMK_GPIO_ALT_A),
+	NMK_PIN_GROUP(mmcsd_b_1, NMK_GPIO_ALT_B),
+	NMK_PIN_GROUP(u1_a_1, NMK_GPIO_ALT_A),
+	NMK_PIN_GROUP(i2c1_a_1, NMK_GPIO_ALT_A),
+	NMK_PIN_GROUP(i2c0_a_1, NMK_GPIO_ALT_A),
+	NMK_PIN_GROUP(u1_b_1, NMK_GPIO_ALT_B),
+	NMK_PIN_GROUP(i2cusb_b_1, NMK_GPIO_ALT_B),
+	NMK_PIN_GROUP(clcd_16_23_b_1, NMK_GPIO_ALT_B),
+	NMK_PIN_GROUP(usbfs_b_1, NMK_GPIO_ALT_B),
+	NMK_PIN_GROUP(usbhs_c_1, NMK_GPIO_ALT_C),
 };
 
 /* We use this macro to define the groups applicable to a function */

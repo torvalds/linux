@@ -1179,17 +1179,17 @@ static const char *nmk_get_group_name(struct pinctrl_dev *pctldev,
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 
-	return npct->soc->groups[selector].name;
+	return npct->soc->groups[selector].grp.name;
 }
 
 static int nmk_get_group_pins(struct pinctrl_dev *pctldev, unsigned selector,
 			      const unsigned **pins,
-			      unsigned *num_pins)
+			      unsigned *npins)
 {
 	struct nmk_pinctrl *npct = pinctrl_dev_get_drvdata(pctldev);
 
-	*pins = npct->soc->groups[selector].pins;
-	*num_pins = npct->soc->groups[selector].npins;
+	*pins = npct->soc->groups[selector].grp.pins;
+	*npins = npct->soc->groups[selector].grp.npins;
 	return 0;
 }
 
@@ -1531,7 +1531,7 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned function,
 	if (g->altsetting < 0)
 		return -EINVAL;
 
-	dev_dbg(npct->dev, "enable group %s, %u pins\n", g->name, g->npins);
+	dev_dbg(npct->dev, "enable group %s, %u pins\n", g->grp.name, g->grp.npins);
 
 	/*
 	 * If we're setting altfunc C by setting both AFSLA and AFSLB to 1,
@@ -1566,26 +1566,26 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned function,
 		 * Then mask the pins that need to be sleeping now when we're
 		 * switching to the ALT C function.
 		 */
-		for (i = 0; i < g->npins; i++)
-			slpm[g->pins[i] / NMK_GPIO_PER_CHIP] &= ~BIT(g->pins[i]);
+		for (i = 0; i < g->grp.npins; i++)
+			slpm[g->grp.pins[i] / NMK_GPIO_PER_CHIP] &= ~BIT(g->grp.pins[i]);
 		nmk_gpio_glitch_slpm_init(slpm);
 	}
 
-	for (i = 0; i < g->npins; i++) {
+	for (i = 0; i < g->grp.npins; i++) {
 		struct nmk_gpio_chip *nmk_chip;
 		unsigned bit;
 
-		nmk_chip = find_nmk_gpio_from_pin(g->pins[i]);
+		nmk_chip = find_nmk_gpio_from_pin(g->grp.pins[i]);
 		if (!nmk_chip) {
 			dev_err(npct->dev,
 				"invalid pin offset %d in group %s at index %d\n",
-				g->pins[i], g->name, i);
+				g->grp.pins[i], g->grp.name, i);
 			goto out_glitch;
 		}
-		dev_dbg(npct->dev, "setting pin %d to altsetting %d\n", g->pins[i], g->altsetting);
+		dev_dbg(npct->dev, "setting pin %d to altsetting %d\n", g->grp.pins[i], g->altsetting);
 
 		clk_enable(nmk_chip->clk);
-		bit = g->pins[i] % NMK_GPIO_PER_CHIP;
+		bit = g->grp.pins[i] % NMK_GPIO_PER_CHIP;
 		/*
 		 * If the pin is switching to altfunc, and there was an
 		 * interrupt installed on it which has been lazy disabled,
@@ -1608,7 +1608,7 @@ static int nmk_pmx_set(struct pinctrl_dev *pctldev, unsigned function,
 		 *   then some bits in PRCM GPIOCR registers must be cleared.
 		 */
 		if ((g->altsetting & NMK_GPIO_ALT_C) == NMK_GPIO_ALT_C)
-			nmk_prcm_altcx_set_mode(npct, g->pins[i],
+			nmk_prcm_altcx_set_mode(npct, g->grp.pins[i],
 				g->altsetting >> NMK_GPIO_ALT_CX_SHIFT);
 	}
 
