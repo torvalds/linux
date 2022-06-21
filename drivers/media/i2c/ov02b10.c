@@ -5,6 +5,7 @@
  * Copyright (C) 2020 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
+ * V0.0X01.0X01 fix power on & off sequence
  */
 
 #include <linux/clk.h>
@@ -27,7 +28,7 @@
 #include <linux/rk-preisp.h>
 #include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -91,9 +92,8 @@
 #define SENSOR_ID(_msb, _lsb)   ((_msb) << 8 | (_lsb))
 
 static const char * const OV02B10_supply_names[] = {
-	"avdd",		/* Analog power */
 	"dovdd",	/* Digital I/O power */
-	"dvdd",         /* Digital core power */
+	"avdd",		/* Analog power */
 };
 
 #define OV02B10_NUM_SUPPLIES ARRAY_SIZE(OV02B10_supply_names)
@@ -631,8 +631,11 @@ static long ov02b10_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = ov02b10_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -645,6 +648,8 @@ static long ov02b10_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
 		if (!ret)
 			ret = ov02b10_ioctl(sd, cmd, cfg);
+		else
+			ret = -EFAULT;
 		kfree(cfg);
 		break;
 	case RKMODULE_GET_HDR_CFG:
@@ -655,8 +660,11 @@ static long ov02b10_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = ov02b10_ioctl(sd, cmd, hdr);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, hdr, sizeof(*hdr));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(hdr);
 		break;
 	case RKMODULE_SET_HDR_CFG:
@@ -669,6 +677,8 @@ static long ov02b10_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(hdr, up, sizeof(*hdr));
 		if (!ret)
 			ret = ov02b10_ioctl(sd, cmd, hdr);
+		else
+			ret = -EFAULT;
 		kfree(hdr);
 		break;
 	case PREISP_CMD_SET_HDRAE_EXP:
@@ -681,17 +691,23 @@ static long ov02b10_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(hdrae, up, sizeof(*hdrae));
 		if (!ret)
 			ret = ov02b10_ioctl(sd, cmd, hdrae);
+		else
+			ret = -EFAULT;
 		kfree(hdrae);
 		break;
 	case RKMODULE_SET_CONVERSION_GAIN:
 		ret = copy_from_user(&cg, up, sizeof(cg));
 		if (!ret)
 			ret = ov02b10_ioctl(sd, cmd, &cg);
+		else
+			ret = -EFAULT;
 		break;
 	case RKMODULE_SET_QUICK_STREAM:
 		ret = copy_from_user(&stream, up, sizeof(u32));
 		if (!ret)
 			ret = ov02b10_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -805,6 +821,31 @@ unlock_and_return:
 	return ret;
 }
 
+static int ov02b10_enable_regulators(struct ov02b10 *ov02b10,
+				    struct regulator_bulk_data *consumers)
+{
+	int i, j;
+	int ret = 0;
+	struct device *dev = &ov02b10->client->dev;
+	int num_consumers = OV02B10_NUM_SUPPLIES;
+
+	for (i = 0; i < num_consumers; i++) {
+
+		ret = regulator_enable(consumers[i].consumer);
+		if (ret < 0) {
+			dev_err(dev, "Failed to enable regulator: %s\n",
+				consumers[i].supply);
+			goto err;
+		}
+	}
+	return 0;
+err:
+	for (j = 0; j < i; j++)
+		regulator_disable(consumers[j].consumer);
+
+	return ret;
+}
+
 static int __ov02b10_power_on(struct ov02b10 *ov02b10)
 {
 	int ret;
@@ -821,11 +862,6 @@ static int __ov02b10_power_on(struct ov02b10 *ov02b10)
 		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
 	if (clk_get_rate(ov02b10->xvclk) != OV02B10_XVCLK_FREQ)
 		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
-	ret = clk_prepare_enable(ov02b10->xvclk);
-	if (ret < 0) {
-		dev_err(dev, "Failed to enable xvclk\n");
-		return ret;
-	}
 
 	if (!IS_ERR(ov02b10->pwdn_gpio))
 		gpiod_direction_output(ov02b10->pwdn_gpio, 1);
@@ -833,10 +869,16 @@ static int __ov02b10_power_on(struct ov02b10 *ov02b10)
 	if (!IS_ERR(ov02b10->reset_gpio))
 		gpiod_direction_output(ov02b10->reset_gpio, 1);
 
-	ret = regulator_bulk_enable(OV02B10_NUM_SUPPLIES, ov02b10->supplies);
+	ret = ov02b10_enable_regulators(ov02b10, ov02b10->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators\n");
 		goto disable_clk;
+	}
+	usleep_range(100, 110);
+	ret = clk_prepare_enable(ov02b10->xvclk);
+	if (ret < 0) {
+		dev_err(dev, "Failed to enable xvclk\n");
+		return ret;
 	}
 
 	/* From spec: delay from power stable to pwdn off: 5ms */
@@ -864,13 +906,14 @@ static void __ov02b10_power_off(struct ov02b10 *ov02b10)
 	int ret;
 	struct device *dev = &ov02b10->client->dev;
 
-	if (!IS_ERR(ov02b10->pwdn_gpio))
-		gpiod_direction_output(ov02b10->pwdn_gpio, 1);
+	if (!IS_ERR(ov02b10->reset_gpio))
+		gpiod_direction_output(ov02b10->reset_gpio, 1);
 
 	clk_disable_unprepare(ov02b10->xvclk);
 
-	if (!IS_ERR(ov02b10->reset_gpio))
-		gpiod_direction_output(ov02b10->reset_gpio, 1);
+	if (!IS_ERR(ov02b10->pwdn_gpio))
+		gpiod_direction_output(ov02b10->pwdn_gpio, 1);
+
 	if (!IS_ERR_OR_NULL(ov02b10->pins_sleep)) {
 		ret = pinctrl_select_state(ov02b10->pinctrl,
 					   ov02b10->pins_sleep);
