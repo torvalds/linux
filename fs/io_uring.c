@@ -7145,6 +7145,7 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 		if (unlikely(ipt->error || !ipt->nr_entries)) {
 			poll->events |= EPOLLONESHOT;
 			req->apoll_events |= EPOLLONESHOT;
+			ipt->error = 0;
 		}
 		__io_poll_execute(req, mask, poll->events);
 		return 0;
