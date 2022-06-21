@@ -898,29 +898,6 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 	}
 }
 
-static enum dsa_tag_protocol ksz8_get_tag_protocol(struct dsa_switch *ds,
-						   int port,
-						   enum dsa_tag_protocol mp)
-{
-	struct ksz_device *dev = ds->priv;
-
-	/* ksz88x3 uses the same tag schema as KSZ9893 */
-	return ksz_is_ksz88x3(dev) ?
-		DSA_TAG_PROTO_KSZ9893 : DSA_TAG_PROTO_KSZ8795;
-}
-
-static u32 ksz8_sw_get_phy_flags(struct dsa_switch *ds, int port)
-{
-	/* Silicon Errata Sheet (DS80000830A):
-	 * Port 1 does not work with LinkMD Cable-Testing.
-	 * Port 1 does not respond to received PAUSE control frames.
-	 */
-	if (!port)
-		return MICREL_KSZ8_P1_ERRATA;
-
-	return 0;
-}
-
 static void ksz8_cfg_port_member(struct ksz_device *dev, int port, u8 member)
 {
 	u8 data;
@@ -929,11 +906,6 @@ static void ksz8_cfg_port_member(struct ksz_device *dev, int port, u8 member)
 	data &= ~PORT_VLAN_MEMBERSHIP;
 	data |= (member & dev->port_mask);
 	ksz_pwrite8(dev, port, P_MIRROR_CTRL, data);
-}
-
-static void ksz8_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
-{
-	ksz_port_stp_state_set(ds, port, state, P_STP_CTRL);
 }
 
 static void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
@@ -969,11 +941,111 @@ static void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 	}
 }
 
-static int ksz8_port_vlan_filtering(struct dsa_switch *ds, int port, bool flag,
+static int ksz8_fdb_dump(struct ksz_device *dev, int port,
+			 dsa_fdb_dump_cb_t *cb, void *data)
+{
+	int ret = 0;
+	u16 i = 0;
+	u16 entries = 0;
+	u8 timestamp = 0;
+	u8 fid;
+	u8 member;
+	struct alu_struct alu;
+
+	do {
+		alu.is_static = false;
+		ret = ksz8_r_dyn_mac_table(dev, i, alu.mac, &fid, &member,
+					   &timestamp, &entries);
+		if (!ret && (member & BIT(port))) {
+			ret = cb(alu.mac, alu.fid, alu.is_static, data);
+			if (ret)
+				break;
+		}
+		i++;
+	} while (i < entries);
+	if (i >= entries)
+		ret = 0;
+
+	return ret;
+}
+
+static int ksz8_mdb_add(struct ksz_device *dev, int port,
+			const struct switchdev_obj_port_mdb *mdb,
+			struct dsa_db db)
+{
+	struct alu_struct alu;
+	int index;
+	int empty = 0;
+
+	alu.port_forward = 0;
+	for (index = 0; index < dev->info->num_statics; index++) {
+		if (!ksz8_r_sta_mac_table(dev, index, &alu)) {
+			/* Found one already in static MAC table. */
+			if (!memcmp(alu.mac, mdb->addr, ETH_ALEN) &&
+			    alu.fid == mdb->vid)
+				break;
+		/* Remember the first empty entry. */
+		} else if (!empty) {
+			empty = index + 1;
+		}
+	}
+
+	/* no available entry */
+	if (index == dev->info->num_statics && !empty)
+		return -ENOSPC;
+
+	/* add entry */
+	if (index == dev->info->num_statics) {
+		index = empty - 1;
+		memset(&alu, 0, sizeof(alu));
+		memcpy(alu.mac, mdb->addr, ETH_ALEN);
+		alu.is_static = true;
+	}
+	alu.port_forward |= BIT(port);
+	if (mdb->vid) {
+		alu.is_use_fid = true;
+
+		/* Need a way to map VID to FID. */
+		alu.fid = mdb->vid;
+	}
+	ksz8_w_sta_mac_table(dev, index, &alu);
+
+	return 0;
+}
+
+static int ksz8_mdb_del(struct ksz_device *dev, int port,
+			const struct switchdev_obj_port_mdb *mdb,
+			struct dsa_db db)
+{
+	struct alu_struct alu;
+	int index;
+
+	for (index = 0; index < dev->info->num_statics; index++) {
+		if (!ksz8_r_sta_mac_table(dev, index, &alu)) {
+			/* Found one already in static MAC table. */
+			if (!memcmp(alu.mac, mdb->addr, ETH_ALEN) &&
+			    alu.fid == mdb->vid)
+				break;
+		}
+	}
+
+	/* no available entry */
+	if (index == dev->info->num_statics)
+		goto exit;
+
+	/* clear port */
+	alu.port_forward &= ~BIT(port);
+	if (!alu.port_forward)
+		alu.is_static = false;
+	ksz8_w_sta_mac_table(dev, index, &alu);
+
+exit:
+	return 0;
+}
+
+static int ksz8_port_vlan_filtering(struct ksz_device *dev, int port, bool flag,
 				    struct netlink_ext_ack *extack)
 {
-	struct ksz_device *dev = ds->priv;
-
 	if (ksz_is_ksz88x3(dev))
 		return -ENOTSUPP;
 
@@ -998,12 +1070,11 @@ static void ksz8_port_enable_pvid(struct ksz_device *dev, int port, bool state)
 	}
 }
 
-static int ksz8_port_vlan_add(struct dsa_switch *ds, int port,
+static int ksz8_port_vlan_add(struct ksz_device *dev, int port,
 			      const struct switchdev_obj_port_vlan *vlan,
 			      struct netlink_ext_ack *extack)
 {
 	bool untagged = vlan->flags & BRIDGE_VLAN_INFO_UNTAGGED;
-	struct ksz_device *dev = ds->priv;
 	struct ksz_port *p = &dev->ports[port];
 	u16 data, new_pvid = 0;
 	u8 fid, member, valid;
@@ -1071,10 +1142,9 @@ static int ksz8_port_vlan_add(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int ksz8_port_vlan_del(struct dsa_switch *ds, int port,
+static int ksz8_port_vlan_del(struct ksz_device *dev, int port,
 			      const struct switchdev_obj_port_vlan *vlan)
 {
-	struct ksz_device *dev = ds->priv;
 	u16 data, pvid;
 	u8 fid, member, valid;
 
@@ -1104,12 +1174,10 @@ static int ksz8_port_vlan_del(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static int ksz8_port_mirror_add(struct dsa_switch *ds, int port,
+static int ksz8_port_mirror_add(struct ksz_device *dev, int port,
 				struct dsa_mall_mirror_tc_entry *mirror,
 				bool ingress, struct netlink_ext_ack *extack)
 {
-	struct ksz_device *dev = ds->priv;
-
 	if (ingress) {
 		ksz_port_cfg(dev, port, P_MIRROR_CTRL, PORT_MIRROR_RX, true);
 		dev->mirror_rx |= BIT(port);
@@ -1128,10 +1196,9 @@ static int ksz8_port_mirror_add(struct dsa_switch *ds, int port,
 	return 0;
 }
 
-static void ksz8_port_mirror_del(struct dsa_switch *ds, int port,
+static void ksz8_port_mirror_del(struct ksz_device *dev, int port,
 				 struct dsa_mall_mirror_tc_entry *mirror)
 {
-	struct ksz_device *dev = ds->priv;
 	u8 data;
 
 	if (mirror->ingress) {
@@ -1258,7 +1325,7 @@ static void ksz8_config_cpu_port(struct dsa_switch *ds)
 	for (i = 0; i < dev->phy_port_cnt; i++) {
 		p = &dev->ports[i];
 
-		ksz8_port_stp_state_set(ds, i, BR_STATE_DISABLED);
+		ksz_port_stp_state_set(ds, i, BR_STATE_DISABLED);
 
 		/* Last port may be disabled. */
 		if (i == dev->phy_port_cnt)
@@ -1272,7 +1339,7 @@ static void ksz8_config_cpu_port(struct dsa_switch *ds)
 			continue;
 		if (!ksz_is_ksz88x3(dev)) {
 			ksz_pread8(dev, i, regs[P_REMOTE_STATUS], &remote);
-			if (remote & PORT_FIBER_MODE)
+			if (remote & KSZ8_PORT_FIBER_MODE)
 				p->fiber = 1;
 		}
 		if (p->fiber)
@@ -1371,13 +1438,9 @@ static int ksz8_setup(struct dsa_switch *ds)
 	return ksz8_handle_global_errata(ds);
 }
 
-static void ksz8_get_caps(struct dsa_switch *ds, int port,
+static void ksz8_get_caps(struct ksz_device *dev, int port,
 			  struct phylink_config *config)
 {
-	struct ksz_device *dev = ds->priv;
-
-	ksz_phylink_get_caps(ds, port, config);
-
 	config->mac_capabilities = MAC_10 | MAC_100;
 
 	/* Silicon Errata Sheet (DS80000830A):
@@ -1394,12 +1457,12 @@ static void ksz8_get_caps(struct dsa_switch *ds, int port,
 }
 
 static const struct dsa_switch_ops ksz8_switch_ops = {
-	.get_tag_protocol	= ksz8_get_tag_protocol,
-	.get_phy_flags		= ksz8_sw_get_phy_flags,
+	.get_tag_protocol	= ksz_get_tag_protocol,
+	.get_phy_flags		= ksz_get_phy_flags,
 	.setup			= ksz8_setup,
 	.phy_read		= ksz_phy_read16,
 	.phy_write		= ksz_phy_write16,
-	.phylink_get_caps	= ksz8_get_caps,
+	.phylink_get_caps	= ksz_phylink_get_caps,
 	.phylink_mac_link_down	= ksz_mac_link_down,
 	.port_enable		= ksz_enable_port,
 	.get_strings		= ksz_get_strings,
@@ -1407,66 +1470,21 @@ static const struct dsa_switch_ops ksz8_switch_ops = {
 	.get_sset_count		= ksz_sset_count,
 	.port_bridge_join	= ksz_port_bridge_join,
 	.port_bridge_leave	= ksz_port_bridge_leave,
-	.port_stp_state_set	= ksz8_port_stp_state_set,
+	.port_stp_state_set	= ksz_port_stp_state_set,
 	.port_fast_age		= ksz_port_fast_age,
-	.port_vlan_filtering	= ksz8_port_vlan_filtering,
-	.port_vlan_add		= ksz8_port_vlan_add,
-	.port_vlan_del		= ksz8_port_vlan_del,
+	.port_vlan_filtering	= ksz_port_vlan_filtering,
+	.port_vlan_add		= ksz_port_vlan_add,
+	.port_vlan_del		= ksz_port_vlan_del,
 	.port_fdb_dump		= ksz_port_fdb_dump,
 	.port_mdb_add           = ksz_port_mdb_add,
 	.port_mdb_del           = ksz_port_mdb_del,
-	.port_mirror_add	= ksz8_port_mirror_add,
-	.port_mirror_del	= ksz8_port_mirror_del,
+	.port_mirror_add	= ksz_port_mirror_add,
+	.port_mirror_del	= ksz_port_mirror_del,
 };
 
 static u32 ksz8_get_port_addr(int port, int offset)
 {
 	return PORT_CTRL_ADDR(port, offset);
-}
-
-static int ksz8_switch_detect(struct ksz_device *dev)
-{
-	u8 id1, id2;
-	u16 id16;
-	int ret;
-
-	/* read chip id */
-	ret = ksz_read16(dev, REG_CHIP_ID0, &id16);
-	if (ret)
-		return ret;
-
-	id1 = id16 >> 8;
-	id2 = id16 & SW_CHIP_ID_M;
-
-	switch (id1) {
-	case KSZ87_FAMILY_ID:
-		if ((id2 != CHIP_ID_94 && id2 != CHIP_ID_95))
-			return -ENODEV;
-
-		if (id2 == CHIP_ID_95) {
-			u8 val;
-
-			id2 = 0x95;
-			ksz_read8(dev, REG_PORT_STATUS_0, &val);
-			if (val & PORT_FIBER_MODE)
-				id2 = 0x65;
-		} else if (id2 == CHIP_ID_94) {
-			id2 = 0x94;
-		}
-		break;
-	case KSZ88_FAMILY_ID:
-		if (id2 != CHIP_ID_63)
-			return -ENODEV;
-		break;
-	default:
-		dev_err(dev->dev, "invalid family id: %d\n", id1);
-		return -ENODEV;
-	}
-	id16 &= ~0xff;
-	id16 |= id2;
-	dev->chip_id = id16;
-
-	return 0;
 }
 
 static int ksz8_switch_init(struct ksz_device *dev)
@@ -1514,15 +1532,20 @@ static const struct ksz_dev_ops ksz8_dev_ops = {
 	.port_setup = ksz8_port_setup,
 	.r_phy = ksz8_r_phy,
 	.w_phy = ksz8_w_phy,
-	.r_dyn_mac_table = ksz8_r_dyn_mac_table,
-	.r_sta_mac_table = ksz8_r_sta_mac_table,
-	.w_sta_mac_table = ksz8_w_sta_mac_table,
 	.r_mib_cnt = ksz8_r_mib_cnt,
 	.r_mib_pkt = ksz8_r_mib_pkt,
 	.freeze_mib = ksz8_freeze_mib,
 	.port_init_cnt = ksz8_port_init_cnt,
+	.fdb_dump = ksz8_fdb_dump,
+	.mdb_add = ksz8_mdb_add,
+	.mdb_del = ksz8_mdb_del,
+	.vlan_filtering = ksz8_port_vlan_filtering,
+	.vlan_add = ksz8_port_vlan_add,
+	.vlan_del = ksz8_port_vlan_del,
+	.mirror_add = ksz8_port_mirror_add,
+	.mirror_del = ksz8_port_mirror_del,
+	.get_caps = ksz8_get_caps,
 	.shutdown = ksz8_reset_switch,
-	.detect = ksz8_switch_detect,
 	.init = ksz8_switch_init,
 	.exit = ksz8_switch_exit,
 };
