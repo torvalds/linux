@@ -994,7 +994,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 							+ mode_lib->vba.DPPPerPlane[k]
 									* (v->PDEAndMetaPTEBytesFrame[k]
 											+ v->MetaRowByte[k]);
-					if (v->use_one_row_for_frame_flip[k]) {
+					if (v->use_one_row_for_frame_flip[k][0][0]) {
 						mode_lib->vba.TotImmediateFlipBytes =
 								mode_lib->vba.TotImmediateFlipBytes
 										+ 2 * v->PixelPTEBytesPerRow[k];
