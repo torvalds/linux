@@ -101,7 +101,7 @@
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins>;
-	status = "okay";
+	status = "disabled";
 
 	ac108_a: ac108@3b {
 		compatible = "x-power,ac108_0";
@@ -458,6 +458,12 @@
 &pdm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pdm0_pins>;
+	status = "okay";
+};
+
+&i2srx_mst {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2srx_clk_pins>;
 	status = "okay";
 };
 
