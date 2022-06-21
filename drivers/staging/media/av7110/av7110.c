@@ -2364,7 +2364,7 @@ static int av7110_attach(struct saa7146_dev* dev,
 		budgetpatch = 0;
 		/* autodetect the presence of budget patch
 		 * this only works if saa7146 has been recently
-		 * reset with with MASK_31 to MC1
+		 * reset with MASK_31 to MC1
 		 *
 		 * will wait for VBI_B event (vertical blank at port B)
 		 * and will reset GPIO3 after VBI_B is detected.
