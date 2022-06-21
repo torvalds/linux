@@ -1746,7 +1746,7 @@ mlxsw_sp_mc_get_mrouters_bitmap(unsigned long *flood_bitmap,
 	}
 }
 
-static bool
+static int
 mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_mid *mid,
 			    struct mlxsw_sp_bridge_device *bridge_device)
@@ -1759,12 +1759,12 @@ mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 	mid_idx = find_first_zero_bit(mlxsw_sp->bridge->mids_bitmap,
 				      MLXSW_SP_MID_MAX);
 	if (mid_idx == MLXSW_SP_MID_MAX)
-		return false;
+		return -ENOBUFS;
 
 	num_of_ports = mlxsw_core_max_ports(mlxsw_sp->core);
 	flood_bitmap = bitmap_alloc(num_of_ports, GFP_KERNEL);
 	if (!flood_bitmap)
-		return false;
+		return -ENOMEM;
 
 	bitmap_copy(flood_bitmap, mid->ports_in_mid, num_of_ports);
 	mlxsw_sp_mc_get_mrouters_bitmap(flood_bitmap, bridge_device, mlxsw_sp);
@@ -1774,16 +1774,16 @@ mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 					    bridge_device->mrouter);
 	bitmap_free(flood_bitmap);
 	if (err)
-		return false;
+		return err;
 
 	err = mlxsw_sp_port_mdb_op(mlxsw_sp, mid->addr, mid->fid, mid_idx,
 				   true);
 	if (err)
-		return false;
+		return err;
 
 	set_bit(mid_idx, mlxsw_sp->bridge->mids_bitmap);
 	mid->in_hw = true;
-	return true;
+	return 0;
 }
 
 static int mlxsw_sp_mc_remove_mdb_entry(struct mlxsw_sp *mlxsw_sp,
@@ -1805,6 +1805,7 @@ mlxsw_sp_mid *__mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
 				  u16 fid)
 {
 	struct mlxsw_sp_mid *mid;
+	int err;
 
 	mid = kzalloc(sizeof(*mid), GFP_KERNEL);
 	if (!mid)
@@ -1822,7 +1823,8 @@ mlxsw_sp_mid *__mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
 	if (!bridge_device->multicast_enabled)
 		goto out;
 
-	if (!mlxsw_sp_mc_write_mdb_entry(mlxsw_sp, mid, bridge_device))
+	err = mlxsw_sp_mc_write_mdb_entry(mlxsw_sp, mid, bridge_device);
+	if (err)
 		goto err_write_mdb_entry;
 
 out:
