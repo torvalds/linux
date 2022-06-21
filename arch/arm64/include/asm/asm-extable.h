@@ -75,9 +75,9 @@
  * Create an exception table entry for `insn` if `fixup` is provided. Otherwise
  * do nothing.
  */
-	.macro		_cond_extable, insn, fixup
-	.ifnc		\fixup,
-	_asm_extable	\insn, \fixup
+	.macro		_cond_uaccess_extable, insn, fixup
+	.ifnc			\fixup,
+	_asm_extable_uaccess	\insn, \fixup
 	.endif
 	.endm
 
