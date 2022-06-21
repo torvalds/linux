@@ -1324,7 +1324,8 @@ int security_inode_permission(struct inode *inode, int mask)
 	return call_int_hook(inode_permission, 0, inode, mask);
 }
 
-int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
+int security_inode_setattr(struct user_namespace *mnt_userns,
+			   struct dentry *dentry, struct iattr *attr)
 {
 	int ret;
 
@@ -1333,7 +1334,7 @@ int security_inode_setattr(struct dentry *dentry, struct iattr *attr)
 	ret = call_int_hook(inode_setattr, 0, dentry, attr);
 	if (ret)
 		return ret;
-	return evm_inode_setattr(dentry, attr);
+	return evm_inode_setattr(mnt_userns, dentry, attr);
 }
 EXPORT_SYMBOL_GPL(security_inode_setattr);
 
