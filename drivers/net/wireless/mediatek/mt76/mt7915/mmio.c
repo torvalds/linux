@@ -661,16 +661,11 @@ struct mt7915_dev *mt7915_mmio_probe(struct device *pdev,
 		.sta_remove = mt7915_mac_sta_remove,
 		.update_survey = mt7915_update_channel,
 	};
-	struct ieee80211_ops *ops;
 	struct mt7915_dev *dev;
 	struct mt76_dev *mdev;
 	int ret;
 
-	ops = devm_kmemdup(pdev, &mt7915_ops, sizeof(mt7915_ops), GFP_KERNEL);
-	if (!ops)
-		return ERR_PTR(-ENOMEM);
-
-	mdev = mt76_alloc_device(pdev, sizeof(*dev), ops, &drv_ops);
+	mdev = mt76_alloc_device(pdev, sizeof(*dev), &mt7915_ops, &drv_ops);
 	if (!mdev)
 		return ERR_PTR(-ENOMEM);
 
