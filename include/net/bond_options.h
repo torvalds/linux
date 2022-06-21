@@ -83,7 +83,10 @@ struct bond_opt_value {
 	char *string;
 	u64 value;
 	u32 flags;
-	char extra[BOND_OPT_EXTRA_MAXLEN];
+	union {
+		char extra[BOND_OPT_EXTRA_MAXLEN];
+		struct net_device *slave_dev;
+	};
 };
 
 struct bonding;
@@ -133,13 +136,16 @@ static inline void __bond_opt_init(struct bond_opt_value *optval,
 		optval->value = value;
 	else if (string)
 		optval->string = string;
-	else if (extra_len <= BOND_OPT_EXTRA_MAXLEN)
+
+	if (extra && extra_len <= BOND_OPT_EXTRA_MAXLEN)
 		memcpy(optval->extra, extra, extra_len);
 }
 #define bond_opt_initval(optval, value) __bond_opt_init(optval, NULL, value, NULL, 0)
 #define bond_opt_initstr(optval, str) __bond_opt_init(optval, str, ULLONG_MAX, NULL, 0)
 #define bond_opt_initextra(optval, extra, extra_len) \
 	__bond_opt_init(optval, NULL, ULLONG_MAX, extra, extra_len)
+#define bond_opt_slave_initval(optval, slave_dev, value) \
+	__bond_opt_init(optval, NULL, value, slave_dev, sizeof(struct net_device *))
 
 void bond_option_arp_ip_targets_clear(struct bonding *bond);
 #if IS_ENABLED(CONFIG_IPV6)
