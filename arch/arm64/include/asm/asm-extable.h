@@ -6,11 +6,10 @@
 #include <asm/gpr-num.h>
 
 #define EX_TYPE_NONE			0
-#define EX_TYPE_FIXUP			1
-#define EX_TYPE_BPF			2
-#define EX_TYPE_UACCESS_ERR_ZERO	3
-#define EX_TYPE_KACCESS_ERR_ZERO	4
-#define EX_TYPE_LOAD_UNALIGNED_ZEROPAD	5
+#define EX_TYPE_BPF			1
+#define EX_TYPE_UACCESS_ERR_ZERO	2
+#define EX_TYPE_KACCESS_ERR_ZERO	3
+#define EX_TYPE_LOAD_UNALIGNED_ZEROPAD	4
 
 /* Data fields for EX_TYPE_UACCESS_ERR_ZERO */
 #define EX_DATA_REG_ERR_SHIFT	0
@@ -35,9 +34,6 @@
 	.short		(data);				\
 	.popsection;
 
-#define _ASM_EXTABLE(insn, fixup)	\
-	__ASM_EXTABLE_RAW(insn, fixup, EX_TYPE_FIXUP, 0)
-
 #define EX_DATA_REG(reg, gpr)	\
 	(.L__gpr_num_##gpr << EX_DATA_REG_##reg##_SHIFT)
 
@@ -54,14 +50,6 @@
 
 #define _ASM_EXTABLE_UACCESS(insn, fixup)				\
 	_ASM_EXTABLE_UACCESS_ERR_ZERO(insn, fixup, wzr, wzr)
-
-/*
- * Create an exception table entry for `insn`, which will branch to `fixup`
- * when an unhandled fault is taken.
- */
-	.macro		_asm_extable, insn, fixup
-	_ASM_EXTABLE(\insn, \fixup)
-	.endm
 
 /*
  * Create an exception table entry for uaccess `insn`, which will branch to `fixup`
@@ -93,9 +81,6 @@
 	".short		(" type ")\n"			\
 	".short		(" data ")\n"			\
 	".popsection\n"
-
-#define _ASM_EXTABLE(insn, fixup) \
-	__ASM_EXTABLE_RAW(#insn, #fixup, __stringify(EX_TYPE_FIXUP), "0")
 
 #define EX_DATA_REG(reg, gpr)						\
 	"((.L__gpr_num_" #gpr ") << " __stringify(EX_DATA_REG_##reg##_SHIFT) ")"
