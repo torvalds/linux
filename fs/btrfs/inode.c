@@ -1413,7 +1413,7 @@ out_unlock:
 					     page_ops);
 		start += cur_alloc_size;
 		if (start >= end)
-			goto out;
+			return ret;
 	}
 
 	/*
@@ -1425,7 +1425,7 @@ out_unlock:
 	extent_clear_unlock_delalloc(inode, start, end, locked_page,
 				     clear_bits | EXTENT_CLEAR_DATA_RESV,
 				     page_ops);
-	goto out;
+	return ret;
 }
 
 /*
