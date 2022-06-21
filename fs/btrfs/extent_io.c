@@ -5110,20 +5110,6 @@ retry:
 	return ret;
 }
 
-int extent_write_full_page(struct page *page, struct writeback_control *wbc)
-{
-	int ret;
-	struct extent_page_data epd = {
-		.bio_ctrl = { 0 },
-		.extent_locked = 0,
-		.sync_io = wbc->sync_mode == WB_SYNC_ALL,
-	};
-
-	ret = __extent_writepage(page, wbc, &epd);
-	submit_write_bio(&epd, ret);
-	return ret;
-}
-
 /*
  * Submit the pages in the range to bio for call sites which delalloc range has
  * already been ran (aka, ordered extent inserted) and all pages are still

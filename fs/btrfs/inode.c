@@ -8133,31 +8133,6 @@ static int btrfs_fiemap(struct inode *inode, struct fiemap_extent_info *fieinfo,
 	return extent_fiemap(BTRFS_I(inode), fieinfo, start, len);
 }
 
-static int btrfs_writepage(struct page *page, struct writeback_control *wbc)
-{
-	struct inode *inode = page->mapping->host;
-	int ret;
-
-	if (current->flags & PF_MEMALLOC) {
-		redirty_page_for_writepage(wbc, page);
-		unlock_page(page);
-		return 0;
-	}
-
-	/*
-	 * If we are under memory pressure we will call this directly from the
-	 * VM, we need to make sure we have the inode referenced for the ordered
-	 * extent.  If not just return like we didn't do anything.
-	 */
-	if (!igrab(inode)) {
-		redirty_page_for_writepage(wbc, page);
-		return AOP_WRITEPAGE_ACTIVATE;
-	}
-	ret = extent_write_full_page(page, wbc);
-	btrfs_add_delayed_iput(inode);
-	return ret;
-}
-
 static int btrfs_writepages(struct address_space *mapping,
 			    struct writeback_control *wbc)
 {
@@ -8461,7 +8436,7 @@ vm_fault_t btrfs_page_mkwrite(struct vm_fault *vmf)
 	 * Reserving delalloc space after obtaining the page lock can lead to
 	 * deadlock. For example, if a dirty page is locked by this function
 	 * and the call to btrfs_delalloc_reserve_space() ends up triggering
-	 * dirty page write out, then the btrfs_writepage() function could
+	 * dirty page write out, then the btrfs_writepages() function could
 	 * end up waiting indefinitely to get a lock on the page currently
 	 * being processed by btrfs_page_mkwrite() function.
 	 */
@@ -11379,7 +11354,6 @@ static const struct file_operations btrfs_dir_file_operations = {
  */
 static const struct address_space_operations btrfs_aops = {
 	.read_folio	= btrfs_read_folio,
-	.writepage	= btrfs_writepage,
 	.writepages	= btrfs_writepages,
 	.readahead	= btrfs_readahead,
 	.direct_IO	= noop_direct_IO,
