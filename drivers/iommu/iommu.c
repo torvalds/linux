@@ -259,7 +259,8 @@ static int __iommu_probe_device(struct device *dev, struct list_head *group_list
 	return 0;
 
 out_release:
-	ops->release_device(dev);
+	if (ops->release_device)
+		ops->release_device(dev);
 
 out_module_put:
 	module_put(ops->owner);
@@ -337,7 +338,8 @@ void iommu_release_device(struct device *dev)
 	iommu_device_unlink(dev->iommu->iommu_dev, dev);
 
 	ops = dev_iommu_ops(dev);
-	ops->release_device(dev);
+	if (ops->release_device)
+		ops->release_device(dev);
 
 	iommu_group_remove_device(dev);
 	module_put(ops->owner);
