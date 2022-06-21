@@ -1117,13 +1117,16 @@
 			reg = <0x0 0x100e0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_APB0>,
 				 <&clkgen JH7110_I2SRX0_3CH_CLK_APB>,
+				 <&clkgen JH7110_AUDIO_ROOT>,
+				 <&clkgen JH7110_MCLK_INNER>,
 				 <&clkgen JH7110_I2SRX_3CH_BCLK_MST>,
 				 <&clkgen JH7110_I2SRX_3CH_LRCK_MST>,
 				 <&clkgen JH7110_I2SRX0_3CH_BCLK>,
 				 <&clkgen JH7110_I2SRX0_3CH_LRCK>;
-			clock-names = "apb0", "i2srx_apb",
-				      "i2srx_bclk_mst", "i2srx_lrck_mst",
-				      "i2srx_bclk", "i2srx_lrck";
+			clock-names = "apb0", "3ch-apb",
+					"audioroot", "mclk-inner",
+					"bclk_mst", "3ch-lrck",
+					"rx-bclk", "rx-lrck";
 			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
 				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
 			reset-names = "rst_apb_rx", "rst_bclk_rx";
@@ -1149,8 +1152,6 @@
 			resets = <&rstgen RSTN_U0_I2STX_4CH_APB>,
 				 <&rstgen RSTN_U0_I2STX_4CH_BCLK>;
 			reset-names = "rst_apb0", "rst_bclk0";
-			interrupts = <58>;
-			interrupt-names = "tx";
 			dmas = <&dma 47 1>;
 			dma-names = "tx";
 			#sound-dai-cells = <0>;
@@ -1160,20 +1161,28 @@
 		i2stx_4ch1: i2stx_4ch1@120c0000 {
 			compatible = "snps,designware-i2stx-4ch1";
 			reg = <0x0 0x120c0000 0x0 0x1000>;
-			clocks = <&clkgen JH7110_MCLK_INNER>,
+			clocks = <&clkgen JH7110_AUDIO_ROOT>,
+				 <&clkgen JH7110_MCLK_INNER>,
 				 <&clkgen JH7110_I2STX_4CH1_BCLK_MST>,
 				 <&clkgen JH7110_I2STX_4CH1_LRCK_MST>,
 				 <&clkgen JH7110_MCLK>,
 				 <&clkgen JH7110_I2STX1_4CHBCLK>,
-				 <&clkgen JH7110_I2STX1_4CHLRCK>;
-			clock-names = "inner", "bclk-mst1",
-					"lrck-mst1", "mclk",
-					"bclk1", "lrck1";
+				 <&clkgen JH7110_I2STX1_4CHLRCK>,
+				 <&clkgen JH7110_MCLK_OUT>,
+				 <&clkgen JH7110_APB0>,
+				 <&clkgen JH7110_I2STX1_4CHCLK_APB>,
+				 <&mclk_ext>,
+				 <&i2stx_bclk_ext>,
+				 <&i2stx_lrck_ext>;
+                        clock-names = "audroot", "mclk_inner", "bclk_mst",
+                                        "lrck_mst", "mclk", "4chbclk",
+                                        "4chlrck", "mclk_out",
+					"apb0", "clk_apb",
+					"mclk_ext", "bclk_ext", "lrck_ext";
+
 			resets = <&rstgen RSTN_U1_I2STX_4CH_APB>,
 				 <&rstgen RSTN_U1_I2STX_4CH_BCLK>;
 			reset-names = "rst_apb1", "rst_bclk1";
-			interrupts = <59>;
-			interrupt-names = "tx";
 			dmas = <&dma 48 1>;
 			dma-names = "tx";
 			#sound-dai-cells = <0>;
@@ -1622,6 +1631,8 @@
 					clock-names = "mclk";
 				};
 			};
+
+
 		};
 
 		co_process: e24@0 {
