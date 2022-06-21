@@ -1308,7 +1308,7 @@ static unsigned long first_iovec_segment(const struct iov_iter *i,
 			continue;
 		if (len > maxsize)
 			len = maxsize;
-		len += (*start = addr % PAGE_SIZE);
+		*start = addr % PAGE_SIZE;
 		*size = len;
 		return addr & PAGE_MASK;
 	}
@@ -1328,7 +1328,7 @@ static struct page *first_bvec_segment(const struct iov_iter *i,
 		len = maxsize;
 	skip += i->bvec->bv_offset;
 	page = i->bvec->bv_page + skip / PAGE_SIZE;
-	len += (*start = skip % PAGE_SIZE);
+	*start = skip % PAGE_SIZE;
 	*size = len;
 	return page;
 }
@@ -1357,24 +1357,24 @@ ssize_t iov_iter_get_pages(struct iov_iter *i,
 			gup_flags |= FOLL_NOFAULT;
 
 		addr = first_iovec_segment(i, &len, start, maxsize);
-		if (len > maxpages * PAGE_SIZE)
-			len = maxpages * PAGE_SIZE;
-		n = DIV_ROUND_UP(len, PAGE_SIZE);
+		n = DIV_ROUND_UP(len + *start, PAGE_SIZE);
+		if (n > maxpages)
+			n = maxpages;
 		res = get_user_pages_fast(addr, n, gup_flags, pages);
 		if (unlikely(res <= 0))
 			return res;
-		return (res == n ? len : res * PAGE_SIZE) - *start;
+		return min_t(size_t, len, res * PAGE_SIZE - *start);
 	}
 	if (iov_iter_is_bvec(i)) {
 		struct page *page;
 
 		page = first_bvec_segment(i, &len, start, maxsize);
-		if (len > maxpages * PAGE_SIZE)
-			len = maxpages * PAGE_SIZE;
-		n = DIV_ROUND_UP(len, PAGE_SIZE);
-		while (n--)
+		n = DIV_ROUND_UP(len + *start, PAGE_SIZE);
+		if (n > maxpages)
+			n = maxpages;
+		for (int k = 0; k < n; k++)
 			get_page(*pages++ = page++);
-		return len - *start;
+		return min_t(size_t, len, n * PAGE_SIZE - *start);
 	}
 	if (iov_iter_is_pipe(i))
 		return pipe_get_pages(i, pages, maxsize, maxpages, start);
@@ -1489,7 +1489,7 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
 			gup_flags |= FOLL_NOFAULT;
 
 		addr = first_iovec_segment(i, &len, start, maxsize);
-		n = DIV_ROUND_UP(len, PAGE_SIZE);
+		n = DIV_ROUND_UP(len + *start, PAGE_SIZE);
 		p = get_pages_array(n);
 		if (!p)
 			return -ENOMEM;
@@ -1500,19 +1500,19 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
 			return res;
 		}
 		*pages = p;
-		return (res == n ? len : res * PAGE_SIZE) - *start;
+		return min_t(size_t, len, res * PAGE_SIZE - *start);
 	}
 	if (iov_iter_is_bvec(i)) {
 		struct page *page;
 
 		page = first_bvec_segment(i, &len, start, maxsize);
-		n = DIV_ROUND_UP(len, PAGE_SIZE);
+		n = DIV_ROUND_UP(len + *start, PAGE_SIZE);
 		*pages = p = get_pages_array(n);
 		if (!p)
 			return -ENOMEM;
-		while (n--)
+		for (int k = 0; k < n; k++)
 			get_page(*p++ = page++);
-		return len - *start;
+		return min_t(size_t, len, n * PAGE_SIZE - *start);
 	}
 	if (iov_iter_is_pipe(i))
 		return pipe_get_pages_alloc(i, pages, maxsize, start);
