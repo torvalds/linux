@@ -2081,3 +2081,179 @@ out:
 
 	return err;
 }
+
+/*
+ * attr_insert_range - Insert range (hole) in file.
+ * Not for normal files.
+ */
+int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
+{
+	int err = 0;
+	struct runs_tree *run = &ni->file.run;
+	struct ntfs_sb_info *sbi = ni->mi.sbi;
+	struct ATTRIB *attr = NULL, *attr_b;
+	struct ATTR_LIST_ENTRY *le, *le_b;
+	struct mft_inode *mi, *mi_b;
+	CLST vcn, svcn, evcn1, len, next_svcn;
+	u64 data_size, alloc_size;
+	u32 mask;
+	__le16 a_flags;
+
+	if (!bytes)
+		return 0;
+
+	le_b = NULL;
+	attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL, &mi_b);
+	if (!attr_b)
+		return -ENOENT;
+
+	if (!is_attr_ext(attr_b)) {
+		/* It was checked above. See fallocate. */
+		return -EOPNOTSUPP;
+	}
+
+	if (!attr_b->non_res) {
+		data_size = le32_to_cpu(attr_b->res.data_size);
+		mask = sbi->cluster_mask; /* cluster_size - 1 */
+	} else {
+		data_size = le64_to_cpu(attr_b->nres.data_size);
+		mask = (sbi->cluster_size << attr_b->nres.c_unit) - 1;
+	}
+
+	if (vbo > data_size) {
+		/* Insert range after the file size is not allowed. */
+		return -EINVAL;
+	}
+
+	if ((vbo & mask) || (bytes & mask)) {
+		/* Allow to insert only frame aligned ranges. */
+		return -EINVAL;
+	}
+
+	vcn = vbo >> sbi->cluster_bits;
+	len = bytes >> sbi->cluster_bits;
+
+	down_write(&ni->file.run_lock);
+
+	if (!attr_b->non_res) {
+		err = attr_set_size(ni, ATTR_DATA, NULL, 0, run,
+				    data_size + bytes, NULL, false, &attr);
+		if (err)
+			goto out;
+		if (!attr->non_res) {
+			/* Still resident. */
+			char *data = Add2Ptr(attr, attr->res.data_off);
+
+			memmove(data + bytes, data, bytes);
+			memset(data, 0, bytes);
+			err = 0;
+			goto out;
+		}
+		/* Resident files becomes nonresident. */
+		le_b = NULL;
+		attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL,
+				      &mi_b);
+		if (!attr_b)
+			return -ENOENT;
+		if (!attr_b->non_res) {
+			err = -EINVAL;
+			goto out;
+		}
+		data_size = le64_to_cpu(attr_b->nres.data_size);
+		alloc_size = le64_to_cpu(attr_b->nres.alloc_size);
+	}
+
+	/*
+	 * Enumerate all attribute segments and shift start vcn.
+	 */
+	a_flags = attr_b->flags;
+	svcn = le64_to_cpu(attr_b->nres.svcn);
+	evcn1 = le64_to_cpu(attr_b->nres.evcn) + 1;
+
+	if (svcn <= vcn && vcn < evcn1) {
+		attr = attr_b;
+		le = le_b;
+		mi = mi_b;
+	} else if (!le_b) {
+		err = -EINVAL;
+		goto out;
+	} else {
+		le = le_b;
+		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0, &vcn,
+				    &mi);
+		if (!attr) {
+			err = -EINVAL;
+			goto out;
+		}
+
+		svcn = le64_to_cpu(attr->nres.svcn);
+		evcn1 = le64_to_cpu(attr->nres.evcn) + 1;
+	}
+
+	run_truncate(run, 0); /* clear cached values. */
+	err = attr_load_runs(attr, ni, run, NULL);
+	if (err)
+		goto out;
+
+	if (!run_insert_range(run, vcn, len)) {
+		err = -ENOMEM;
+		goto out;
+	}
+
+	/* Try to pack in current record as much as possible. */
+	err = mi_pack_runs(mi, attr, run, evcn1 + len - svcn);
+	if (err)
+		goto out;
+
+	next_svcn = le64_to_cpu(attr->nres.evcn) + 1;
+	run_truncate_head(run, next_svcn);
+
+	while ((attr = ni_enum_attr_ex(ni, attr, &le, &mi)) &&
+	       attr->type == ATTR_DATA && !attr->name_len) {
+		le64_add_cpu(&attr->nres.svcn, len);
+		le64_add_cpu(&attr->nres.evcn, len);
+		if (le) {
+			le->vcn = attr->nres.svcn;
+			ni->attr_list.dirty = true;
+		}
+		mi->dirty = true;
+	}
+
+	/*
+	 * Update primary attribute segment in advance.
+	 * pointer attr_b may become invalid (layout of mft is changed)
+	 */
+	if (vbo <= ni->i_valid)
+		ni->i_valid += bytes;
+
+	attr_b->nres.data_size = le64_to_cpu(data_size + bytes);
+	attr_b->nres.alloc_size = le64_to_cpu(alloc_size + bytes);
+
+	/* ni->valid may be not equal valid_size (temporary). */
+	if (ni->i_valid > data_size + bytes)
+		attr_b->nres.valid_size = attr_b->nres.data_size;
+	else
+		attr_b->nres.valid_size = cpu_to_le64(ni->i_valid);
+	mi_b->dirty = true;
+
+	if (next_svcn < evcn1 + len) {
+		err = ni_insert_nonresident(ni, ATTR_DATA, NULL, 0, run,
+					    next_svcn, evcn1 + len - next_svcn,
+					    a_flags, NULL, NULL);
+		if (err)
+			goto out;
+	}
+
+	ni->vfs_inode.i_size += bytes;
+	ni->ni_flags |= NI_FLAG_UPDATE_PARENT;
+	mark_inode_dirty(&ni->vfs_inode);
+
+out:
+	run_truncate(run, 0); /* clear cached values. */
+
+	up_write(&ni->file.run_lock);
+	if (err)
+		make_bad_inode(&ni->vfs_inode);
+
+	return err;
+}

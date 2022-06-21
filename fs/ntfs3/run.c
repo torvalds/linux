@@ -547,6 +547,49 @@ bool run_collapse_range(struct runs_tree *run, CLST vcn, CLST len)
 	return true;
 }
 
+/* run_insert_range
+ *
+ * Helper for attr_insert_range(),
+ * which is helper for fallocate(insert_range).
+ */
+bool run_insert_range(struct runs_tree *run, CLST vcn, CLST len)
+{
+	size_t index;
+	struct ntfs_run *r, *e;
+
+	if (WARN_ON(!run_lookup(run, vcn, &index)))
+		return false; /* Should never be here. */
+
+	e = run->runs + run->count;
+	r = run->runs + index;
+
+	r = run->runs + index;
+	if (vcn > r->vcn)
+		r += 1;
+
+	for (; r < e; r++)
+		r->vcn += len;
+
+	r = run->runs + index;
+
+	if (vcn > r->vcn) {
+		/* split fragment. */
+		CLST len1 = vcn - r->vcn;
+		CLST len2 = r->len - len1;
+		CLST lcn2 = r->lcn == SPARSE_LCN ? SPARSE_LCN : (r->lcn + len1);
+
+		r->len = len1;
+
+		if (!run_add_entry(run, vcn + len, lcn2, len2, false))
+			return false;
+	}
+
+	if (!run_add_entry(run, vcn, SPARSE_LCN, len, false))
+		return false;
+
+	return true;
+}
+
 /*
  * run_get_entry - Return index-th mapped region.
  */
