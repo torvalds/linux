@@ -9,6 +9,7 @@ pinctrl-pineapple.ko
 clk-qcom.ko
 clk-dummy.ko
 dispcc-pineapple.ko
+tcsrcc-pineapple.ko
 gcc-pineapple.ko
 videocc-pineapple.ko
 debug-regulator.ko
