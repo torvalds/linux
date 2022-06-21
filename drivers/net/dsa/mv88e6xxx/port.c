@@ -294,21 +294,6 @@ static int mv88e6xxx_port_set_speed_duplex(struct mv88e6xxx_chip *chip,
 	return 0;
 }
 
-/* Support 10, 100, 200 Mbps (e.g. 88E6065 family) */
-int mv88e6065_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
-				    int speed, int duplex)
-{
-	if (speed == SPEED_MAX)
-		speed = 200;
-
-	if (speed > 200)
-		return -EOPNOTSUPP;
-
-	/* Setting 200 Mbps on port 0 to 3 selects 100 Mbps */
-	return mv88e6xxx_port_set_speed_duplex(chip, port, speed, false, false,
-					       duplex);
-}
-
 /* Support 10, 100, 1000 Mbps (e.g. 88E6185 family) */
 int mv88e6185_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
