@@ -283,6 +283,8 @@ DECLARE_HOOK(android_vh_set_wake_flags,
 	TP_PROTO(int *wake_flags, unsigned int *mode),
 	TP_ARGS(wake_flags, mode));
 
+/* Conditionally defined upon CONFIG_UCLAMP_TASK */
+struct uclamp_se;
 DECLARE_RESTRICTED_HOOK(android_rvh_uclamp_eff_get,
 	TP_PROTO(struct task_struct *p, enum uclamp_id clamp_id,
 		 struct uclamp_se *uclamp_max, struct uclamp_se *uclamp_eff, int *ret),
