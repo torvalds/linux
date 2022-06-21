@@ -195,9 +195,9 @@ static int sk_diag_dump(struct sock *sk, struct sk_buff *skb, struct unix_diag_r
 
 static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 {
-	struct unix_diag_req *req;
-	int num, s_num, slot, s_slot;
 	struct net *net = sock_net(skb->sk);
+	int num, s_num, slot, s_slot;
+	struct unix_diag_req *req;
 
 	req = nlmsg_data(cb->nlh);
 
@@ -209,6 +209,7 @@ static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 
 		num = 0;
 		spin_lock(&unix_table_locks[slot]);
+		spin_lock(&net->unx.table.locks[slot]);
 		sk_for_each(sk, &unix_socket_table[slot]) {
 			if (!net_eq(sock_net(sk), net))
 				continue;
@@ -220,12 +221,14 @@ static int unix_diag_dump(struct sk_buff *skb, struct netlink_callback *cb)
 					 NETLINK_CB(cb->skb).portid,
 					 cb->nlh->nlmsg_seq,
 					 NLM_F_MULTI) < 0) {
+				spin_unlock(&net->unx.table.locks[slot]);
 				spin_unlock(&unix_table_locks[slot]);
 				goto done;
 			}
 next:
 			num++;
 		}
+		spin_unlock(&net->unx.table.locks[slot]);
 		spin_unlock(&unix_table_locks[slot]);
 	}
 done:
@@ -235,19 +238,22 @@ done:
 	return skb->len;
 }
 
-static struct sock *unix_lookup_by_ino(unsigned int ino)
+static struct sock *unix_lookup_by_ino(struct net *net, unsigned int ino)
 {
 	struct sock *sk;
 	int i;
 
 	for (i = 0; i < UNIX_HASH_SIZE; i++) {
 		spin_lock(&unix_table_locks[i]);
+		spin_lock(&net->unx.table.locks[i]);
 		sk_for_each(sk, &unix_socket_table[i])
 			if (ino == sock_i_ino(sk)) {
 				sock_hold(sk);
+				spin_unlock(&net->unx.table.locks[i]);
 				spin_unlock(&unix_table_locks[i]);
 				return sk;
 			}
+		spin_unlock(&net->unx.table.locks[i]);
 		spin_unlock(&unix_table_locks[i]);
 	}
 	return NULL;
@@ -257,16 +263,17 @@ static int unix_diag_get_exact(struct sk_buff *in_skb,
 			       const struct nlmsghdr *nlh,
 			       struct unix_diag_req *req)
 {
-	int err = -EINVAL;
-	struct sock *sk;
-	struct sk_buff *rep;
-	unsigned int extra_len;
 	struct net *net = sock_net(in_skb->sk);
+	unsigned int extra_len;
+	struct sk_buff *rep;
+	struct sock *sk;
+	int err;
 
+	err = -EINVAL;
 	if (req->udiag_ino == 0)
 		goto out_nosk;
 
-	sk = unix_lookup_by_ino(req->udiag_ino);
+	sk = unix_lookup_by_ino(net, req->udiag_ino);
 	err = -ENOENT;
 	if (sk == NULL)
 		goto out_nosk;

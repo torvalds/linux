@@ -158,7 +158,8 @@ static unsigned int unix_abstract_hash(struct sockaddr_un *sunaddr,
 	return hash & UNIX_HASH_MOD;
 }
 
-static void unix_table_double_lock(unsigned int hash1, unsigned int hash2)
+static void unix_table_double_lock(struct net *net,
+				   unsigned int hash1, unsigned int hash2)
 {
 	/* hash1 and hash2 is never the same because
 	 * one is between 0 and UNIX_HASH_MOD, and
@@ -169,10 +170,17 @@ static void unix_table_double_lock(unsigned int hash1, unsigned int hash2)
 
 	spin_lock(&unix_table_locks[hash1]);
 	spin_lock_nested(&unix_table_locks[hash2], SINGLE_DEPTH_NESTING);
+
+	spin_lock(&net->unx.table.locks[hash1]);
+	spin_lock_nested(&net->unx.table.locks[hash2], SINGLE_DEPTH_NESTING);
 }
 
-static void unix_table_double_unlock(unsigned int hash1, unsigned int hash2)
+static void unix_table_double_unlock(struct net *net,
+				     unsigned int hash1, unsigned int hash2)
 {
+	spin_unlock(&net->unx.table.locks[hash1]);
+	spin_unlock(&net->unx.table.locks[hash2]);
+
 	spin_unlock(&unix_table_locks[hash1]);
 	spin_unlock(&unix_table_locks[hash2]);
 }
@@ -316,17 +324,21 @@ static void __unix_set_addr_hash(struct sock *sk, struct unix_address *addr,
 	__unix_insert_socket(sk);
 }
 
-static void unix_remove_socket(struct sock *sk)
+static void unix_remove_socket(struct net *net, struct sock *sk)
 {
 	spin_lock(&unix_table_locks[sk->sk_hash]);
+	spin_lock(&net->unx.table.locks[sk->sk_hash]);
 	__unix_remove_socket(sk);
+	spin_unlock(&net->unx.table.locks[sk->sk_hash]);
 	spin_unlock(&unix_table_locks[sk->sk_hash]);
 }
 
-static void unix_insert_unbound_socket(struct sock *sk)
+static void unix_insert_unbound_socket(struct net *net, struct sock *sk)
 {
 	spin_lock(&unix_table_locks[sk->sk_hash]);
+	spin_lock(&net->unx.table.locks[sk->sk_hash]);
 	__unix_insert_socket(sk);
+	spin_unlock(&net->unx.table.locks[sk->sk_hash]);
 	spin_unlock(&unix_table_locks[sk->sk_hash]);
 }
 
@@ -356,28 +368,33 @@ static inline struct sock *unix_find_socket_byname(struct net *net,
 	struct sock *s;
 
 	spin_lock(&unix_table_locks[hash]);
+	spin_lock(&net->unx.table.locks[hash]);
 	s = __unix_find_socket_byname(net, sunname, len, hash);
 	if (s)
 		sock_hold(s);
+	spin_unlock(&net->unx.table.locks[hash]);
 	spin_unlock(&unix_table_locks[hash]);
 	return s;
 }
 
-static struct sock *unix_find_socket_byinode(struct inode *i)
+static struct sock *unix_find_socket_byinode(struct net *net, struct inode *i)
 {
 	unsigned int hash = unix_bsd_hash(i);
 	struct sock *s;
 
 	spin_lock(&unix_table_locks[hash]);
+	spin_lock(&net->unx.table.locks[hash]);
 	sk_for_each(s, &unix_socket_table[hash]) {
 		struct dentry *dentry = unix_sk(s)->path.dentry;
 
 		if (dentry && d_backing_inode(dentry) == i) {
 			sock_hold(s);
+			spin_unlock(&net->unx.table.locks[hash]);
 			spin_unlock(&unix_table_locks[hash]);
 			return s;
 		}
 	}
+	spin_unlock(&net->unx.table.locks[hash]);
 	spin_unlock(&unix_table_locks[hash]);
 	return NULL;
 }
@@ -576,12 +593,12 @@ static void unix_sock_destructor(struct sock *sk)
 static void unix_release_sock(struct sock *sk, int embrion)
 {
 	struct unix_sock *u = unix_sk(sk);
-	struct path path;
 	struct sock *skpair;
 	struct sk_buff *skb;
+	struct path path;
 	int state;
 
-	unix_remove_socket(sk);
+	unix_remove_socket(sock_net(sk), sk);
 
 	/* Clear state */
 	unix_state_lock(sk);
@@ -930,7 +947,7 @@ static struct sock *unix_create1(struct net *net, struct socket *sock, int kern,
 	init_waitqueue_head(&u->peer_wait);
 	init_waitqueue_func_entry(&u->peer_wake, unix_dgram_peer_wake_relay);
 	memset(&u->scm_stat, 0, sizeof(struct scm_stat));
-	unix_insert_unbound_socket(sk);
+	unix_insert_unbound_socket(net, sk);
 
 	sock_prot_inuse_add(net, sk->sk_prot, 1);
 
@@ -1015,7 +1032,7 @@ static struct sock *unix_find_bsd(struct net *net, struct sockaddr_un *sunaddr,
 	if (!S_ISSOCK(inode->i_mode))
 		goto path_put;
 
-	sk = unix_find_socket_byinode(inode);
+	sk = unix_find_socket_byinode(net, inode);
 	if (!sk)
 		goto path_put;
 
@@ -1074,6 +1091,7 @@ static int unix_autobind(struct sock *sk)
 {
 	unsigned int new_hash, old_hash = sk->sk_hash;
 	struct unix_sock *u = unix_sk(sk);
+	struct net *net = sock_net(sk);
 	struct unix_address *addr;
 	u32 lastnum, ordernum;
 	int err;
@@ -1102,11 +1120,10 @@ retry:
 	sprintf(addr->name->sun_path + 1, "%05x", ordernum);
 
 	new_hash = unix_abstract_hash(addr->name, addr->len, sk->sk_type);
-	unix_table_double_lock(old_hash, new_hash);
+	unix_table_double_lock(net, old_hash, new_hash);
 
-	if (__unix_find_socket_byname(sock_net(sk), addr->name, addr->len,
-				      new_hash)) {
-		unix_table_double_unlock(old_hash, new_hash);
+	if (__unix_find_socket_byname(net, addr->name, addr->len, new_hash)) {
+		unix_table_double_unlock(net, old_hash, new_hash);
 
 		/* __unix_find_socket_byname() may take long time if many names
 		 * are already in use.
@@ -1124,7 +1141,7 @@ retry:
 	}
 
 	__unix_set_addr_hash(sk, addr, new_hash);
-	unix_table_double_unlock(old_hash, new_hash);
+	unix_table_double_unlock(net, old_hash, new_hash);
 	err = 0;
 
 out:	mutex_unlock(&u->bindlock);
@@ -1138,6 +1155,7 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 	       (SOCK_INODE(sk->sk_socket)->i_mode & ~current_umask());
 	unsigned int new_hash, old_hash = sk->sk_hash;
 	struct unix_sock *u = unix_sk(sk);
+	struct net *net = sock_net(sk);
 	struct user_namespace *ns; // barf...
 	struct unix_address *addr;
 	struct dentry *dentry;
@@ -1178,11 +1196,11 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 		goto out_unlock;
 
 	new_hash = unix_bsd_hash(d_backing_inode(dentry));
-	unix_table_double_lock(old_hash, new_hash);
+	unix_table_double_lock(net, old_hash, new_hash);
 	u->path.mnt = mntget(parent.mnt);
 	u->path.dentry = dget(dentry);
 	__unix_set_addr_hash(sk, addr, new_hash);
-	unix_table_double_unlock(old_hash, new_hash);
+	unix_table_double_unlock(net, old_hash, new_hash);
 	mutex_unlock(&u->bindlock);
 	done_path_create(&parent, dentry);
 	return 0;
@@ -1205,6 +1223,7 @@ static int unix_bind_abstract(struct sock *sk, struct sockaddr_un *sunaddr,
 {
 	unsigned int new_hash, old_hash = sk->sk_hash;
 	struct unix_sock *u = unix_sk(sk);
+	struct net *net = sock_net(sk);
 	struct unix_address *addr;
 	int err;
 
@@ -1222,19 +1241,18 @@ static int unix_bind_abstract(struct sock *sk, struct sockaddr_un *sunaddr,
 	}
 
 	new_hash = unix_abstract_hash(addr->name, addr->len, sk->sk_type);
-	unix_table_double_lock(old_hash, new_hash);
+	unix_table_double_lock(net, old_hash, new_hash);
 
-	if (__unix_find_socket_byname(sock_net(sk), addr->name, addr->len,
-				      new_hash))
+	if (__unix_find_socket_byname(net, addr->name, addr->len, new_hash))
 		goto out_spin;
 
 	__unix_set_addr_hash(sk, addr, new_hash);
-	unix_table_double_unlock(old_hash, new_hash);
+	unix_table_double_unlock(net, old_hash, new_hash);
 	mutex_unlock(&u->bindlock);
 	return 0;
 
 out_spin:
-	unix_table_double_unlock(old_hash, new_hash);
+	unix_table_double_unlock(net, old_hash, new_hash);
 	err = -EADDRINUSE;
 out_mutex:
 	mutex_unlock(&u->bindlock);
@@ -3237,15 +3255,18 @@ static struct sock *unix_from_bucket(struct seq_file *seq, loff_t *pos)
 static struct sock *unix_get_first(struct seq_file *seq, loff_t *pos)
 {
 	unsigned long bucket = get_bucket(*pos);
+	struct net *net = seq_file_net(seq);
 	struct sock *sk;
 
 	while (bucket < UNIX_HASH_SIZE) {
 		spin_lock(&unix_table_locks[bucket]);
+		spin_lock(&net->unx.table.locks[bucket]);
 
 		sk = unix_from_bucket(seq, pos);
 		if (sk)
 			return sk;
 
+		spin_unlock(&net->unx.table.locks[bucket]);
 		spin_unlock(&unix_table_locks[bucket]);
 
 		*pos = set_bucket_offset(++bucket, 1);
@@ -3258,11 +3279,13 @@ static struct sock *unix_get_next(struct seq_file *seq, struct sock *sk,
 				  loff_t *pos)
 {
 	unsigned long bucket = get_bucket(*pos);
+	struct net *net = seq_file_net(seq);
 
 	for (sk = sk_next(sk); sk; sk = sk_next(sk))
-		if (sock_net(sk) == seq_file_net(seq))
+		if (sock_net(sk) == net)
 			return sk;
 
+	spin_unlock(&net->unx.table.locks[bucket]);
 	spin_unlock(&unix_table_locks[bucket]);
 
 	*pos = set_bucket_offset(++bucket, 1);
@@ -3292,8 +3315,10 @@ static void unix_seq_stop(struct seq_file *seq, void *v)
 {
 	struct sock *sk = v;
 
-	if (sk)
+	if (sk) {
+		spin_unlock(&seq_file_net(seq)->unx.table.locks[sk->sk_hash]);
 		spin_unlock(&unix_table_locks[sk->sk_hash]);
+	}
 }
 
 static int unix_seq_show(struct seq_file *seq, void *v)
@@ -3381,6 +3406,7 @@ static int bpf_iter_unix_hold_batch(struct seq_file *seq, struct sock *start_sk)
 
 {
 	struct bpf_unix_iter_state *iter = seq->private;
+	struct net *net = seq_file_net(seq);
 	unsigned int expected = 1;
 	struct sock *sk;
 
@@ -3388,7 +3414,7 @@ static int bpf_iter_unix_hold_batch(struct seq_file *seq, struct sock *start_sk)
 	iter->batch[iter->end_sk++] = start_sk;
 
 	for (sk = sk_next(start_sk); sk; sk = sk_next(sk)) {
-		if (sock_net(sk) != seq_file_net(seq))
+		if (sock_net(sk) != net)
 			continue;
 
 		if (iter->end_sk < iter->max_sk) {
@@ -3399,6 +3425,7 @@ static int bpf_iter_unix_hold_batch(struct seq_file *seq, struct sock *start_sk)
 		expected++;
 	}
 
+	spin_unlock(&net->unx.table.locks[start_sk->sk_hash]);
 	spin_unlock(&unix_table_locks[start_sk->sk_hash]);
 
 	return expected;
