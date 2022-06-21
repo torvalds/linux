@@ -298,9 +298,6 @@ static int mv88e6xxx_port_set_speed_duplex(struct mv88e6xxx_chip *chip,
 int mv88e6185_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
-	if (speed == SPEED_MAX)
-		speed = 1000;
-
 	if (speed == 200 || speed > 1000)
 		return -EOPNOTSUPP;
 
@@ -312,9 +309,6 @@ int mv88e6185_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 int mv88e6250_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
-	if (speed == SPEED_MAX)
-		speed = 100;
-
 	if (speed > 100)
 		return -EOPNOTSUPP;
 
@@ -326,9 +320,6 @@ int mv88e6250_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 int mv88e6341_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
-	if (speed == SPEED_MAX)
-		speed = port < 5 ? 1000 : 2500;
-
 	if (speed > 2500)
 		return -EOPNOTSUPP;
 
@@ -354,9 +345,6 @@ phy_interface_t mv88e6341_port_max_speed_mode(int port)
 int mv88e6352_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
-	if (speed == SPEED_MAX)
-		speed = 1000;
-
 	if (speed > 1000)
 		return -EOPNOTSUPP;
 
@@ -371,9 +359,6 @@ int mv88e6352_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 int mv88e6390_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				    int speed, int duplex)
 {
-	if (speed == SPEED_MAX)
-		speed = port < 9 ? 1000 : 2500;
-
 	if (speed > 2500)
 		return -EOPNOTSUPP;
 
@@ -399,9 +384,6 @@ phy_interface_t mv88e6390_port_max_speed_mode(int port)
 int mv88e6390x_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 				     int speed, int duplex)
 {
-	if (speed == SPEED_MAX)
-		speed = port < 9 ? 1000 : 10000;
-
 	if (speed == 200 && port != 0)
 		return -EOPNOTSUPP;
 
@@ -429,9 +411,6 @@ int mv88e6393x_port_set_speed_duplex(struct mv88e6xxx_chip *chip, int port,
 {
 	u16 reg, ctrl;
 	int err;
-
-	if (speed == SPEED_MAX)
-		speed = (port > 0 && port < 9) ? 1000 : 10000;
 
 	if (speed == 200 && port != 0)
 		return -EOPNOTSUPP;

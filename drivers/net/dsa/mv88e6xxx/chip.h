@@ -488,14 +488,13 @@ struct mv88e6xxx_ops {
 	int (*port_set_pause)(struct mv88e6xxx_chip *chip, int port,
 			      int pause);
 
-#define SPEED_MAX		INT_MAX
 #define SPEED_UNFORCED		-2
 #define DUPLEX_UNFORCED		-2
 
 	/* Port's MAC speed (in Mbps) and MAC duplex mode
 	 *
 	 * Depending on the chip, 10, 100, 200, 1000, 2500, 10000 are valid.
-	 * Use SPEED_UNFORCED for normal detection, SPEED_MAX for max value.
+	 * Use SPEED_UNFORCED for normal detection.
 	 *
 	 * Use DUPLEX_HALF or DUPLEX_FULL to force half or full duplex,
 	 * or DUPLEX_UNFORCED for normal duplex detection.
