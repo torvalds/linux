@@ -605,7 +605,7 @@ static int __rk_add_cma_heap(struct cma *cma, void *data)
 	return 0;
 }
 
-static int rk_add_default_cma_heap(void)
+static int __init rk_add_default_cma_heap(void)
 {
 	struct cma *cma = rk_dma_heap_get_cma();
 
@@ -614,7 +614,12 @@ static int rk_add_default_cma_heap(void)
 
 	return __rk_add_cma_heap(cma, NULL);
 }
+
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
+subsys_initcall(rk_add_default_cma_heap);
+#else
 module_init(rk_add_default_cma_heap);
+#endif
 
 static void cma_procfs_format_array(char *buf, size_t bufsize, u32 *array, int array_size)
 {
