@@ -105,4 +105,6 @@ int hci_resume_sync(struct hci_dev *hdev);
 
 struct hci_conn;
 
+int hci_abort_conn_sync(struct hci_dev *hdev, struct hci_conn *conn, u8 reason);
+
 int hci_le_create_conn_sync(struct hci_dev *hdev, struct hci_conn *conn);
