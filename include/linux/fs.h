@@ -1600,13 +1600,30 @@ static inline void i_gid_write(struct inode *inode, gid_t gid)
  * @mnt_userns: user namespace of the mount the inode was found from
  * @inode: inode to map
  *
+ * Note, this will eventually be removed completely in favor of the type-safe
+ * i_uid_into_vfsuid().
+ *
  * Return: the inode's i_uid mapped down according to @mnt_userns.
  * If the inode's i_uid has no mapping INVALID_UID is returned.
  */
 static inline kuid_t i_uid_into_mnt(struct user_namespace *mnt_userns,
 				    const struct inode *inode)
 {
-	return mapped_kuid_fs(mnt_userns, i_user_ns(inode), inode->i_uid);
+	return AS_KUIDT(make_vfsuid(mnt_userns, i_user_ns(inode), inode->i_uid));
+}
+
+/**
+ * i_uid_into_vfsuid - map an inode's i_uid down into a mnt_userns
+ * @mnt_userns: user namespace of the mount the inode was found from
+ * @inode: inode to map
+ *
+ * Return: whe inode's i_uid mapped down according to @mnt_userns.
+ * If the inode's i_uid has no mapping INVALID_VFSUID is returned.
+ */
+static inline vfsuid_t i_uid_into_vfsuid(struct user_namespace *mnt_userns,
+					 const struct inode *inode)
+{
+	return make_vfsuid(mnt_userns, i_user_ns(inode), inode->i_uid);
 }
 
 /**
@@ -1614,13 +1631,30 @@ static inline kuid_t i_uid_into_mnt(struct user_namespace *mnt_userns,
  * @mnt_userns: user namespace of the mount the inode was found from
  * @inode: inode to map
  *
+ * Note, this will eventually be removed completely in favor of the type-safe
+ * i_gid_into_vfsgid().
+ *
  * Return: the inode's i_gid mapped down according to @mnt_userns.
  * If the inode's i_gid has no mapping INVALID_GID is returned.
  */
 static inline kgid_t i_gid_into_mnt(struct user_namespace *mnt_userns,
 				    const struct inode *inode)
 {
-	return mapped_kgid_fs(mnt_userns, i_user_ns(inode), inode->i_gid);
+	return AS_KGIDT(make_vfsgid(mnt_userns, i_user_ns(inode), inode->i_gid));
+}
+
+/**
+ * i_gid_into_vfsgid - map an inode's i_gid down into a mnt_userns
+ * @mnt_userns: user namespace of the mount the inode was found from
+ * @inode: inode to map
+ *
+ * Return: the inode's i_gid mapped down according to @mnt_userns.
+ * If the inode's i_gid has no mapping INVALID_VFSGID is returned.
+ */
+static inline vfsgid_t i_gid_into_vfsgid(struct user_namespace *mnt_userns,
+					 const struct inode *inode)
+{
+	return make_vfsgid(mnt_userns, i_user_ns(inode), inode->i_gid);
 }
 
 /**
