@@ -1015,7 +1015,7 @@ static const struct dpu_lm_cfg sm8150_lm[] = {
 
 static const struct dpu_lm_cfg sc7280_lm[] = {
 	LM_BLK("lm_0", LM_0, 0x44000, MIXER_SC7180_MASK,
-		&sc7180_lm_sblk, PINGPONG_0, 0, 0),
+		&sc7180_lm_sblk, PINGPONG_0, 0, DSPP_0),
 	LM_BLK("lm_2", LM_2, 0x46000, MIXER_SC7180_MASK,
 		&sc7180_lm_sblk, PINGPONG_2, LM_3, 0),
 	LM_BLK("lm_3", LM_3, 0x47000, MIXER_SC7180_MASK,
@@ -1884,6 +1884,8 @@ static const struct dpu_mdss_cfg sc7280_dpu_cfg = {
 	.ctl = sc7280_ctl,
 	.sspp_count = ARRAY_SIZE(sc7280_sspp),
 	.sspp = sc7280_sspp,
+	.dspp_count = ARRAY_SIZE(sc7180_dspp),
+	.dspp = sc7180_dspp,
 	.mixer_count = ARRAY_SIZE(sc7280_lm),
 	.mixer = sc7280_lm,
 	.pingpong_count = ARRAY_SIZE(sc7280_pp),
