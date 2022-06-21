@@ -469,8 +469,8 @@ static int aspeed_g6_reset_deassert(struct reset_controller_dev *rcdev,
 
 	/* Use set to clear register */
 	ret = regmap_write(ar->map, reg + 0x04, rst);
-	/* Add dummy read to ensure reset clear is finished */
-	regmap_read(ar->map, reg, &val);
+	/* Add dummy read to ensure the write transfer is finished */
+	regmap_read(ar->map, reg + 4, &val);
 	return ret;
 }
 
