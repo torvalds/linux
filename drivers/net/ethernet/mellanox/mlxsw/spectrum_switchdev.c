@@ -870,8 +870,6 @@ static int mlxsw_sp_port_mc_disabled_set(struct mlxsw_sp_port *mlxsw_sp_port,
 			return err;
 	}
 
-	bridge_device->multicast_enabled = !mc_disabled;
-
 	return 0;
 }
 
