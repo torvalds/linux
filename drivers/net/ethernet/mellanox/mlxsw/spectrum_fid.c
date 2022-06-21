@@ -27,6 +27,7 @@ struct mlxsw_sp_fid {
 	struct mlxsw_sp_rif *rif;
 	refcount_t ref_count;
 	u16 fid_index;
+	u16 fid_offset;
 	struct mlxsw_sp_fid_family *fid_family;
 	struct rhash_head ht_node;
 
@@ -399,6 +400,7 @@ static void mlxsw_sp_fid_8021q_setup(struct mlxsw_sp_fid *fid, const void *arg)
 	u16 vid = *(u16 *) arg;
 
 	mlxsw_sp_fid_8021q_fid(fid)->vid = vid;
+	fid->fid_offset = 0;
 }
 
 static enum mlxsw_reg_sfmr_op mlxsw_sp_sfmr_op(bool valid)
@@ -453,20 +455,23 @@ static void mlxsw_sp_fid_8021d_setup(struct mlxsw_sp_fid *fid, const void *arg)
 	int br_ifindex = *(int *) arg;
 
 	mlxsw_sp_fid_8021d_fid(fid)->br_ifindex = br_ifindex;
+	fid->fid_offset = 0;
 }
 
 static int mlxsw_sp_fid_8021d_configure(struct mlxsw_sp_fid *fid)
 {
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
 
-	return mlxsw_sp_fid_op(fid_family->mlxsw_sp, fid->fid_index, 0, true);
+	return mlxsw_sp_fid_op(fid_family->mlxsw_sp, fid->fid_index,
+			       fid->fid_offset, true);
 }
 
 static void mlxsw_sp_fid_8021d_deconfigure(struct mlxsw_sp_fid *fid)
 {
 	if (fid->vni_valid)
 		mlxsw_sp_nve_fid_disable(fid->fid_family->mlxsw_sp, fid);
-	mlxsw_sp_fid_op(fid->fid_family->mlxsw_sp, fid->fid_index, 0, false);
+	mlxsw_sp_fid_op(fid->fid_family->mlxsw_sp, fid->fid_index,
+			fid->fid_offset, false);
 }
 
 static int mlxsw_sp_fid_8021d_index_alloc(struct mlxsw_sp_fid *fid,
@@ -743,6 +748,11 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021q_emu_family = {
 	.ops			= &mlxsw_sp_fid_8021q_emu_ops,
 };
 
+static void mlxsw_sp_fid_rfid_setup(struct mlxsw_sp_fid *fid, const void *arg)
+{
+	fid->fid_offset = 0;
+}
+
 static int mlxsw_sp_fid_rfid_configure(struct mlxsw_sp_fid *fid)
 {
 	/* rFIDs are allocated by the device during init */
@@ -808,6 +818,7 @@ mlxsw_sp_fid_rfid_port_vid_unmap(struct mlxsw_sp_fid *fid,
 }
 
 static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_rfid_ops = {
+	.setup			= mlxsw_sp_fid_rfid_setup,
 	.configure		= mlxsw_sp_fid_rfid_configure,
 	.deconfigure		= mlxsw_sp_fid_rfid_deconfigure,
 	.index_alloc		= mlxsw_sp_fid_rfid_index_alloc,
@@ -828,16 +839,22 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_rfid_family = {
 	.ops			= &mlxsw_sp_fid_rfid_ops,
 };
 
+static void mlxsw_sp_fid_dummy_setup(struct mlxsw_sp_fid *fid, const void *arg)
+{
+	fid->fid_offset = 0;
+}
+
 static int mlxsw_sp_fid_dummy_configure(struct mlxsw_sp_fid *fid)
 {
 	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
 
-	return mlxsw_sp_fid_op(mlxsw_sp, fid->fid_index, 0, true);
+	return mlxsw_sp_fid_op(mlxsw_sp, fid->fid_index, fid->fid_offset, true);
 }
 
 static void mlxsw_sp_fid_dummy_deconfigure(struct mlxsw_sp_fid *fid)
 {
-	mlxsw_sp_fid_op(fid->fid_family->mlxsw_sp, fid->fid_index, 0, false);
+	mlxsw_sp_fid_op(fid->fid_family->mlxsw_sp, fid->fid_index,
+			fid->fid_offset, false);
 }
 
 static int mlxsw_sp_fid_dummy_index_alloc(struct mlxsw_sp_fid *fid,
@@ -855,6 +872,7 @@ static bool mlxsw_sp_fid_dummy_compare(const struct mlxsw_sp_fid *fid,
 }
 
 static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_dummy_ops = {
+	.setup			= mlxsw_sp_fid_dummy_setup,
 	.configure		= mlxsw_sp_fid_dummy_configure,
 	.deconfigure		= mlxsw_sp_fid_dummy_deconfigure,
 	.index_alloc		= mlxsw_sp_fid_dummy_index_alloc,
@@ -919,8 +937,7 @@ static struct mlxsw_sp_fid *mlxsw_sp_fid_get(struct mlxsw_sp *mlxsw_sp,
 	fid->fid_index = fid_index;
 	__set_bit(fid_index - fid_family->start_index, fid_family->fids_bitmap);
 
-	if (fid->fid_family->ops->setup)
-		fid->fid_family->ops->setup(fid, arg);
+	fid->fid_family->ops->setup(fid, arg);
 
 	err = fid->fid_family->ops->configure(fid);
 	if (err)
