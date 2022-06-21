@@ -52,6 +52,7 @@
 
 #include <linux/usb/hcd.h>
 #include <linux/usb/ch11.h>
+#include <linux/usb/of.h>
 
 #include "core.h"
 #include "hcd.h"
@@ -5338,6 +5339,8 @@ int dwc2_hcd_init(struct dwc2_hsotg *hsotg)
 
 	/* Don't support SG list at this point */
 	hcd->self.sg_tablesize = 0;
+
+	hcd->tpl_support = of_usb_host_tpl_support(hsotg->dev->of_node);
 
 	if (!IS_ERR_OR_NULL(hsotg->uphy))
 		otg_set_host(hsotg->uphy->otg, &hcd->self);
