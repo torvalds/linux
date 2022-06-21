@@ -16,11 +16,6 @@ enum rga_mmu {
 	RGA_IOMMU	= 2,
 };
 
-struct rga_rect {
-	int w;
-	int h;
-};
-
 struct rga_win_data {
 	const char *name;
 	const uint32_t *raster_formats;
@@ -37,6 +32,16 @@ struct rga_win_data {
 
 };
 
+struct rga_rect {
+	int width;
+	int height;
+};
+
+struct rga_rect_range {
+	struct rga_rect min;
+	struct rga_rect max;
+};
+
 struct rga_hw_data {
 	uint32_t version;
 	uint32_t feature;
@@ -44,15 +49,13 @@ struct rga_hw_data {
 	uint32_t csc_r2y_mode;
 	uint32_t csc_y2r_mode;
 
-	struct rga_rect max_input;
-	struct rga_rect max_output;
-	struct rga_rect min_input;
-	struct rga_rect min_output;
+	struct rga_rect_range input_range;
+	struct rga_rect_range output_range;
 
 	unsigned int max_upscale_factor;
 	unsigned int max_downscale_factor;
 
-	uint32_t byte_stride;
+	uint32_t byte_stride_align;
 
 	const struct rga_win_data *win;
 	unsigned int win_size;
