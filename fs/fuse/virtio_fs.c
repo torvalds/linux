@@ -756,7 +756,7 @@ static long virtio_fs_direct_access(struct dax_device *dax_dev, pgoff_t pgoff,
 {
 	struct virtio_fs *fs = dax_get_private(dax_dev);
 	phys_addr_t offset = PFN_PHYS(pgoff);
-	size_t max_nr_pages = fs->window_len/PAGE_SIZE - pgoff;
+	size_t max_nr_pages = fs->window_len / PAGE_SIZE - pgoff;
 
 	if (kaddr)
 		*kaddr = fs->window_kaddr + offset;
