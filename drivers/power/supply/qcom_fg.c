@@ -29,16 +29,11 @@
 
 /* MEMIF */
 #define MEM_INTF_STS			0x410
-#define MEM_INTF_CFG			0x450
-#define MEM_INTF_CTL			0x451
 #define MEM_INTF_IMA_CFG		0x452
 #define MEM_INTF_IMA_EXP_STS		0x455
 #define MEM_INTF_IMA_HW_STS		0x456
 #define MEM_INTF_IMA_ERR_STS		0x45f
 #define MEM_INTF_IMA_BYTE_EN		0x460
-#define MEM_INTF_ADDR_LSB		0x461
-#define MEM_INTF_RD_DATA0		0x467
-#define MEM_INTF_WR_DATA0		0x463
 #define MEM_IF_DMA_STS			0x470
 #define MEM_IF_DMA_CTL			0x471
 
@@ -63,6 +58,14 @@
 #define MEM_IF_TIMEOUT_MS		5000
 #define SRAM_ACCESS_RELEASE_DELAY_MS	500
 
+struct qcom_fg_sram_regs {
+	const unsigned int cfg;
+	const unsigned int ctl;
+	const unsigned int addr;
+	const unsigned int wr0;
+	const unsigned int rd0;
+};
+
 struct qcom_fg_chip;
 
 struct qcom_fg_ops {
@@ -76,6 +79,11 @@ struct qcom_fg_ops {
 			enum power_supply_property psp, int);
 };
 
+struct qcom_fg_data {
+	const struct qcom_fg_ops *ops;
+	const struct qcom_fg_sram_regs *sram_regs;
+};
+
 struct qcom_fg_chip {
 	struct device *dev;
 	unsigned int base;
@@ -87,6 +95,7 @@ struct qcom_fg_chip {
 	struct power_supply *chg_psy;
 	int status;
 
+	const struct qcom_fg_sram_regs *sram_regs;
 	struct completion sram_access_granted;
 	struct completion sram_access_revoked;
 	struct workqueue_struct *sram_wq;
@@ -197,7 +206,7 @@ static bool qcom_fg_sram_check_access(struct qcom_fg_chip *chip)
 		return false;
 
 	ret = qcom_fg_read(chip, &mem_if_status,
-		MEM_INTF_CFG, 1);
+		chip->sram_regs->cfg, 1);
 
 	if (ret)
 		return false;
@@ -224,7 +233,7 @@ static int qcom_fg_sram_request_access(struct qcom_fg_chip *chip)
 		sram_accessible, chip->sram_requests);
 
 	if (!sram_accessible && chip->sram_requests == 0) {
-		ret = qcom_fg_masked_write(chip, MEM_INTF_CFG,
+		ret = qcom_fg_masked_write(chip, chip->sram_regs->cfg,
 				RIF_MEM_ACCESS_REQ, RIF_MEM_ACCESS_REQ);
 		if (ret) {
 			dev_err(chip->dev,
@@ -298,7 +307,7 @@ static void qcom_fg_sram_release_access_worker(struct work_struct *work)
 
 	/* Request access release if there are still no access requests */
 	if(chip->sram_requests == 0) {
-		qcom_fg_masked_write(chip, MEM_INTF_CFG, RIF_MEM_ACCESS_REQ, 0);
+		qcom_fg_masked_write(chip, chip->sram_regs->cfg, RIF_MEM_ACCESS_REQ, 0);
 		wait = true;
 	}
 
@@ -335,7 +344,7 @@ static int qcom_fg_sram_config_access(struct qcom_fg_chip *chip,
 			| (burst ? MEM_INTF_CTL_BURST : 0);
 
 	ret = qcom_fg_write(chip, &intf_ctl,
-			MEM_INTF_CTL, 1);
+			chip->sram_regs->ctl, 1);
 	if (ret) {
 		dev_err(chip->dev, "Failed to configure SRAM access: %d\n", ret);
 		return ret;
@@ -380,14 +389,14 @@ static int qcom_fg_sram_read(struct qcom_fg_chip *chip,
 	while(len > 0) {
 		/* Set SRAM address register */
 		ret = qcom_fg_write(chip, (u8 *) &addr,
-				MEM_INTF_ADDR_LSB, 2);
+				chip->sram_regs->addr, 2);
 		if (ret) {
 			dev_err(chip->dev, "Failed to set SRAM address: %d", ret);
 			goto out;
 		}
 
 		ret = qcom_fg_read(chip, rd_data,
-				MEM_INTF_RD_DATA0 + offset, len);
+				chip->sram_regs->rd0 + offset, len);
 
 		addr += 4;
 
@@ -441,14 +450,14 @@ static int qcom_fg_sram_write(struct qcom_fg_chip *chip,
 	while(len > 0) {
 		/* Set SRAM address register */
 		ret = qcom_fg_write(chip, (u8 *) &addr,
-				MEM_INTF_ADDR_LSB, 2);
+				chip->sram_regs->addr, 2);
 		if (ret) {
 			dev_err(chip->dev, "Failed to set SRAM address: %d", ret);
 			goto out;
 		}
 
 		ret = qcom_fg_write(chip, wr_data,
-				MEM_INTF_WR_DATA0 + offset, len);
+				chip->sram_regs->wr0 + offset, len);
 
 		addr += 4;
 
@@ -786,25 +795,6 @@ static int qcom_fg_gen3_get_temp_threshold(struct qcom_fg_chip *chip,
  * BATTERY POWER SUPPLY
  * **********************/
 
-/* Pre-Gen3 fuel gauge. PMI8996 and older */
-static const struct qcom_fg_ops ops_fg = {
-	.get_capacity = qcom_fg_get_capacity,
-	.get_temperature = qcom_fg_get_temperature,
-	.get_current = qcom_fg_get_current,
-	.get_voltage = qcom_fg_get_voltage,
-	.get_temp_threshold = qcom_fg_get_temp_threshold,
-	.set_temp_threshold = qcom_fg_set_temp_threshold,
-};
-
-/* Gen3 fuel gauge. PMI8998 and newer */
-static const struct qcom_fg_ops ops_fg_gen3 = {
-	.get_capacity = qcom_fg_get_capacity,
-	.get_temperature = qcom_fg_gen3_get_temperature,
-	.get_current = qcom_fg_gen3_get_current,
-	.get_voltage = qcom_fg_gen3_get_voltage,
-	.get_temp_threshold = qcom_fg_gen3_get_temp_threshold,
-};
-
 static enum power_supply_property qcom_fg_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
 	POWER_SUPPLY_PROP_HEALTH,
@@ -909,20 +899,20 @@ static int qcom_fg_iacs_clear_sequence(struct qcom_fg_chip *chip)
 	}
 
 	temp = 0x4;
-	ret = qcom_fg_write(chip, &temp, MEM_INTF_ADDR_LSB + 1, 1);
+	ret = qcom_fg_write(chip, &temp, chip->sram_regs->addr + 1, 1);
 	if (ret) {
 		dev_err(chip->dev, "Failed to write MEM_INTF_ADDR_MSB: %d\n", ret);
 		return ret;
 	}
 
 	temp = 0x0;
-	ret = qcom_fg_write(chip, &temp, MEM_INTF_WR_DATA0 + 3, 1);
+	ret = qcom_fg_write(chip, &temp, chip->sram_regs->wr0 + 3, 1);
 	if (ret) {
 		dev_err(chip->dev, "Failed to write WR_DATA3: %d\n", ret);
 		return ret;
 	}
 
-	ret = qcom_fg_read(chip, &temp, MEM_INTF_RD_DATA0 + 3, 1);
+	ret = qcom_fg_read(chip, &temp, chip->sram_regs->rd0 + 3, 1);
 	if (ret) {
 		dev_err(chip->dev, "Failed to write RD_DATA3: %d\n", ret);
 		return ret;
@@ -1018,10 +1008,61 @@ irqreturn_t qcom_fg_handle_mem_avail(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
+/* Pre-Gen3 fuel gauge. PMI8996 and older */
+static const struct qcom_fg_ops ops_fg = {
+	.get_capacity = qcom_fg_get_capacity,
+	.get_temperature = qcom_fg_get_temperature,
+	.get_current = qcom_fg_get_current,
+	.get_voltage = qcom_fg_get_voltage,
+	.get_temp_threshold = qcom_fg_get_temp_threshold,
+	.set_temp_threshold = qcom_fg_set_temp_threshold,
+};
+
+/* Gen3 fuel gauge. PMI8998 and newer */
+static const struct qcom_fg_ops ops_fg_gen3 = {
+	.get_capacity = qcom_fg_get_capacity,
+	.get_temperature = qcom_fg_gen3_get_temperature,
+	.get_current = qcom_fg_gen3_get_current,
+	.get_voltage = qcom_fg_gen3_get_voltage,
+	.get_temp_threshold = qcom_fg_gen3_get_temp_threshold,
+};
+
+static const struct qcom_fg_sram_regs sram_regs_rev1 = {
+	.cfg = 0x440,
+	.ctl = 0x441,
+	.addr = 0x442,
+	.wr0 = 0x448,
+	.rd0 = 0x44c,
+};
+
+static const struct qcom_fg_sram_regs sram_regs_rev3 = {
+	.cfg = 0x450,
+	.ctl = 0x451,
+	.addr = 0x461,
+	.wr0 = 0x463,
+	.rd0 = 0x467,
+};
+
+static const struct qcom_fg_data pmi8994_data = {
+	.ops = &ops_fg,
+	.sram_regs = &sram_regs_rev1,
+};
+
+static const struct qcom_fg_data pmi8996_data = {
+	.ops = &ops_fg,
+	.sram_regs = &sram_regs_rev3,
+};
+
+static const struct qcom_fg_data pmi8998_data = {
+	.ops = &ops_fg_gen3,
+	.sram_regs = NULL,
+};
+
 static int qcom_fg_probe(struct platform_device *pdev)
 {
 	struct power_supply_config supply_config = {};
 	struct qcom_fg_chip *chip;
+	const struct qcom_fg_data *data;
 	const __be32 *prop_addr;
 	int irq;
 	u8 dma_status;
@@ -1034,7 +1075,9 @@ static int qcom_fg_probe(struct platform_device *pdev)
 	}
 
 	chip->dev = &pdev->dev;
-	chip->ops = of_device_get_match_data(&pdev->dev);
+	data = of_device_get_match_data(&pdev->dev);
+	chip->ops = data->ops;
+	chip->sram_regs = data->sram_regs;
 
 	chip->regmap = dev_get_regmap(pdev->dev.parent, NULL);
 	if (!chip->regmap) {
@@ -1112,8 +1155,8 @@ static int qcom_fg_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	/* Initialize SRAM */
-	if (of_device_is_compatible(pdev->dev.of_node, "qcom,pmi8994-fg")) {
+	/* Initialize SRAM if available */
+	if (chip->sram_regs) {
 		irq = of_irq_get_byname(pdev->dev.of_node, "mem-avail");
 		if (irq < 0) {
 			dev_err(&pdev->dev, "Failed to get irq mem-avail byname: %d\n",
@@ -1208,8 +1251,9 @@ static void qcom_fg_remove(struct platform_device *pdev)
 }
 
 static const struct of_device_id fg_match_id_table[] = {
-	{ .compatible = "qcom,pmi8994-fg", .data = &ops_fg },
-	{ .compatible = "qcom,pmi8998-fg", .data = &ops_fg_gen3 },
+	{ .compatible = "qcom,pmi8994-fg", .data = &pmi8994_data },
+	{ .compatible = "qcom,pmi8996-fg", .data = &pmi8996_data },
+	{ .compatible = "qcom,pmi8998-fg", .data = &pmi8998_data },
 	{ /* sentinel */ }
 };
 MODULE_DEVICE_TABLE(of, fg_match_id_table);
