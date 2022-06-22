@@ -2312,6 +2312,61 @@ static void cros_ec_proto_test_get_next_event_mkbp_event_host_event_masked(struc
 	}
 }
 
+static void cros_ec_proto_test_get_host_event_no_mkbp_event(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	int ret;
+
+	ec_dev->mkbp_event_supported = 0;
+
+	ret = cros_ec_get_host_event(ec_dev);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+}
+
+static void cros_ec_proto_test_get_host_event_not_host_event(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	int ret;
+
+	ec_dev->mkbp_event_supported = 1;
+	ec_dev->event_data.event_type = EC_MKBP_EVENT_FINGERPRINT;
+
+	ret = cros_ec_get_host_event(ec_dev);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+}
+
+static void cros_ec_proto_test_get_host_event_wrong_event_size(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	int ret;
+
+	ec_dev->mkbp_event_supported = 1;
+	ec_dev->event_data.event_type = EC_MKBP_EVENT_HOST_EVENT;
+	ec_dev->event_size = 0xff;
+
+	ret = cros_ec_get_host_event(ec_dev);
+	KUNIT_EXPECT_EQ(test, ret, 0);
+}
+
+static void cros_ec_proto_test_get_host_event_normal(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	int ret;
+
+	ec_dev->mkbp_event_supported = 1;
+	ec_dev->event_data.event_type = EC_MKBP_EVENT_HOST_EVENT;
+	ec_dev->event_size = sizeof(ec_dev->event_data.data.host_event);
+	put_unaligned_le32(EC_HOST_EVENT_MASK(EC_HOST_EVENT_RTC),
+			   &ec_dev->event_data.data.host_event);
+
+	ret = cros_ec_get_host_event(ec_dev);
+	KUNIT_EXPECT_EQ(test, ret, EC_HOST_EVENT_MASK(EC_HOST_EVENT_RTC));
+}
+
 static void cros_ec_proto_test_release(struct device *dev)
 {
 }
@@ -2401,6 +2456,10 @@ static struct kunit_case cros_ec_proto_test_cases[] = {
 	KUNIT_CASE(cros_ec_proto_test_get_next_event_mkbp_event_version2),
 	KUNIT_CASE(cros_ec_proto_test_get_next_event_mkbp_event_host_event_rtc),
 	KUNIT_CASE(cros_ec_proto_test_get_next_event_mkbp_event_host_event_masked),
+	KUNIT_CASE(cros_ec_proto_test_get_host_event_no_mkbp_event),
+	KUNIT_CASE(cros_ec_proto_test_get_host_event_not_host_event),
+	KUNIT_CASE(cros_ec_proto_test_get_host_event_wrong_event_size),
+	KUNIT_CASE(cros_ec_proto_test_get_host_event_normal),
 	{}
 };
 
