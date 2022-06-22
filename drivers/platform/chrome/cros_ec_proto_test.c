@@ -2004,6 +2004,54 @@ static void cros_ec_proto_test_cmd_xfer_status_xfer_error(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ret, -EPROTO);
 }
 
+static void cros_ec_proto_test_cmd_xfer_status_return_error(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	struct ec_xfer_mock *mock;
+	int ret, i;
+	struct cros_ec_command msg;
+	static const int map[] = {
+		[EC_RES_SUCCESS] = 0,
+		[EC_RES_INVALID_COMMAND] = -EOPNOTSUPP,
+		[EC_RES_ERROR] = -EIO,
+		[EC_RES_INVALID_PARAM] = -EINVAL,
+		[EC_RES_ACCESS_DENIED] = -EACCES,
+		[EC_RES_INVALID_RESPONSE] = -EPROTO,
+		[EC_RES_INVALID_VERSION] = -ENOPROTOOPT,
+		[EC_RES_INVALID_CHECKSUM] = -EBADMSG,
+		/*
+		 * EC_RES_IN_PROGRESS is special because cros_ec_send_command() has extra logic to
+		 * handle it.  Note that default cros_kunit_ec_xfer_mock_default_ret == 0 thus
+		 * cros_ec_xfer_command() in cros_ec_wait_until_complete() returns 0.  As a result,
+		 * it returns -EPROTO without calling cros_ec_map_error().
+		 */
+		[EC_RES_IN_PROGRESS] = -EPROTO,
+		[EC_RES_UNAVAILABLE] = -ENODATA,
+		[EC_RES_TIMEOUT] = -ETIMEDOUT,
+		[EC_RES_OVERFLOW] = -EOVERFLOW,
+		[EC_RES_INVALID_HEADER] = -EBADR,
+		[EC_RES_REQUEST_TRUNCATED] = -EBADR,
+		[EC_RES_RESPONSE_TOO_BIG] = -EFBIG,
+		[EC_RES_BUS_ERROR] = -EFAULT,
+		[EC_RES_BUSY] = -EBUSY,
+		[EC_RES_INVALID_HEADER_VERSION] = -EBADMSG,
+		[EC_RES_INVALID_HEADER_CRC] = -EBADMSG,
+		[EC_RES_INVALID_DATA_CRC] = -EBADMSG,
+		[EC_RES_DUP_UNAVAILABLE] = -ENODATA,
+	};
+
+	memset(&msg, 0, sizeof(msg));
+
+	for (i = 0; i < ARRAY_SIZE(map); ++i) {
+		mock = cros_kunit_ec_xfer_mock_addx(test, 0, i, 0);
+		KUNIT_ASSERT_PTR_NE(test, mock, NULL);
+
+		ret = cros_ec_cmd_xfer_status(ec_dev, &msg);
+		KUNIT_EXPECT_EQ(test, ret, map[i]);
+	}
+}
+
 static void cros_ec_proto_test_release(struct device *dev)
 {
 }
@@ -2086,6 +2134,7 @@ static struct kunit_case cros_ec_proto_test_cases[] = {
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_in_progress_return0),
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_status_normal),
 	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_status_xfer_error),
+	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_status_return_error),
 	{}
 };
 
