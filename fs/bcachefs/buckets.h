@@ -159,12 +159,12 @@ static inline u64 __dev_buckets_available(struct bch_dev *ca,
 					  enum alloc_reserve reserve)
 {
 	return max_t(s64, 0,
-		     usage.d[BCH_DATA_free].buckets -
-		     usage.d[BCH_DATA_cached].buckets -
-		     usage.d[BCH_DATA_need_gc_gens].buckets -
-		     usage.d[BCH_DATA_need_discard].buckets -
-		     ca->nr_open_buckets -
-		     bch2_dev_buckets_reserved(ca, reserve));
+		       usage.d[BCH_DATA_free].buckets
+		     + usage.d[BCH_DATA_cached].buckets
+		     + usage.d[BCH_DATA_need_gc_gens].buckets
+		     + usage.d[BCH_DATA_need_discard].buckets
+		     - ca->nr_open_buckets
+		     - bch2_dev_buckets_reserved(ca, reserve));
 }
 
 static inline u64 dev_buckets_available(struct bch_dev *ca,
