@@ -71,8 +71,8 @@ static void ksz9477_i2c_shutdown(struct i2c_client *i2c)
 	if (!dev)
 		return;
 
-	if (dev->dev_ops->shutdown)
-		dev->dev_ops->shutdown(dev);
+	if (dev->dev_ops->reset)
+		dev->dev_ops->reset(dev);
 
 	dsa_switch_shutdown(dev->ds);
 

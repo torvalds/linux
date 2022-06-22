@@ -110,8 +110,8 @@ static void ksz8795_spi_shutdown(struct spi_device *spi)
 	if (!dev)
 		return;
 
-	if (dev->dev_ops->shutdown)
-		dev->dev_ops->shutdown(dev);
+	if (dev->dev_ops->reset)
+		dev->dev_ops->reset(dev);
 
 	dsa_switch_shutdown(dev->ds);
 
