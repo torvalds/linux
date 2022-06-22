@@ -138,9 +138,9 @@ TRACE_EVENT(dlm_bast,
 
 TRACE_EVENT(dlm_ast,
 
-	TP_PROTO(struct dlm_ls *ls, struct dlm_lkb *lkb, struct dlm_lksb *lksb),
+	TP_PROTO(struct dlm_ls *ls, struct dlm_lkb *lkb),
 
-	TP_ARGS(ls, lkb, lksb),
+	TP_ARGS(ls, lkb),
 
 	TP_STRUCT__entry(
 		__field(__u32, ls_id)
@@ -152,8 +152,8 @@ TRACE_EVENT(dlm_ast,
 	TP_fast_assign(
 		__entry->ls_id = ls->ls_global_id;
 		__entry->lkb_id = lkb->lkb_id;
-		__entry->sb_flags = lksb->sb_flags;
-		__entry->sb_status = lksb->sb_status;
+		__entry->sb_flags = lkb->lkb_lksb->sb_flags;
+		__entry->sb_status = lkb->lkb_lksb->sb_status;
 	),
 
 	TP_printk("ls_id=%u lkb_id=%x sb_flags=%s sb_status=%d",
