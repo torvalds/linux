@@ -56,16 +56,6 @@ unsigned int sched_get_cluster_util_pct(struct walt_sched_cluster *cluster)
 	return cluster_util_pct;
 }
 
-unsigned int sched_get_cpu_avg_cap(int cpu)
-{
-	unsigned int cpu_avg_cap = 0;
-
-	if (cpu < WALT_NR_CPUS)
-		cpu_avg_cap = stats[cpu].avg_cap;
-
-	return cpu_avg_cap;
-}
-
 /**
  * sched_get_nr_running_avg
  * @return: Average nr_running, iowait and nr_big_tasks value since last poll.
@@ -119,7 +109,6 @@ struct sched_avg_stats *sched_get_nr_running_avg(void)
 						NR_THRESHOLD_PCT), 100);
 		stats[cpu].nr_max = per_cpu(nr_max, cpu);
 		stats[cpu].nr_scaled = tmp_nr;
-		stats[cpu].avg_cap = waltgov_get_avg_cap(cpu);
 
 		trace_sched_get_nr_running_avg(cpu, stats[cpu].nr,
 				stats[cpu].nr_misfit, stats[cpu].nr_max,

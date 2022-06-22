@@ -345,21 +345,6 @@ static void fixup_walt_sched_stats_common(struct rq *rq, struct task_struct *p,
 static void rollover_cpu_window(struct rq *rq, bool full_window);
 static void rollover_top_tasks(struct rq *rq, bool full_window);
 
-/*
- * if last window's average capacity is less than or
- * equal to the current capacity, return true.
- */
-static inline bool is_cpufreq_avg_or_higher(int cpu)
-{
-	unsigned int avg_cap = sched_get_cpu_avg_cap(cpu);
-	unsigned int cur_cap = capacity_curr_of(cpu);
-
-	if (cur_cap >= avg_cap && avg_cap != 0)
-		return true;
-
-	return false;
-}
-
 /* walt_find_cluster_packing_cpu - Return a packing_cpu choice common for this cluster.
  * @start_cpu:  The cpu from the cluster to choose from
  *
@@ -427,10 +412,6 @@ bool walt_choose_packing_cpu(int packing_cpu, struct task_struct *p)
 
 	/* don't pack big tasks */
 	if (task_util(p) >= sysctl_sched_idle_enough)
-		return false;
-
-	/* if cpufreq is lower than the previous window */
-	if (!is_cpufreq_avg_or_higher(packing_cpu))
 		return false;
 
 	/* the packing cpu can be used, so pack! */
