@@ -2263,35 +2263,56 @@ mac80211_hwsim_sta_rc_update(struct ieee80211_hw *hw,
 {
 	struct mac80211_hwsim_data *data = hw->priv;
 	u32 bw = U32_MAX;
-	enum nl80211_chan_width confbw = NL80211_CHAN_WIDTH_20_NOHT;
+	int link_id;
 
-	switch (sta->deflink.bandwidth) {
+	rcu_read_lock();
+	for (link_id = 0;
+	     link_id < ARRAY_SIZE(vif->link_conf);
+	     link_id++) {
+		enum nl80211_chan_width confbw = NL80211_CHAN_WIDTH_20_NOHT;
+		struct ieee80211_bss_conf *vif_conf;
+		struct ieee80211_link_sta *link_sta;
+
+		link_sta = rcu_dereference(sta->link[link_id]);
+
+		if (!link_sta)
+			continue;
+
+		switch (link_sta->bandwidth) {
 #define C(_bw) case IEEE80211_STA_RX_BW_##_bw: bw = _bw; break
-	C(20);
-	C(40);
-	C(80);
-	C(160);
-	C(320);
+		C(20);
+		C(40);
+		C(80);
+		C(160);
+		C(320);
 #undef C
+		}
+
+		if (!data->use_chanctx) {
+			confbw = data->bw;
+		} else {
+			struct ieee80211_chanctx_conf *chanctx_conf;
+
+			vif_conf = rcu_dereference(vif->link_conf[link_id]);
+			if (WARN_ON(!vif_conf))
+				continue;
+
+			chanctx_conf = rcu_dereference(vif_conf->chanctx_conf);
+
+			if (!WARN_ON(!chanctx_conf))
+				confbw = chanctx_conf->def.width;
+		}
+
+		WARN(bw > hwsim_get_chanwidth(confbw),
+		     "intf %pM [link=%d]: bad STA %pM bandwidth %d MHz (%d) > channel config %d MHz (%d)\n",
+		     vif->addr, link_id, sta->addr, bw, sta->deflink.bandwidth,
+		     hwsim_get_chanwidth(data->bw), data->bw);
+
+
 	}
+	rcu_read_unlock();
 
-	if (!data->use_chanctx) {
-		confbw = data->bw;
-	} else {
-		struct ieee80211_chanctx_conf *chanctx_conf;
 
-		rcu_read_lock();
-		chanctx_conf = rcu_dereference(vif->bss_conf.chanctx_conf);
-
-		if (!WARN_ON(!chanctx_conf))
-			confbw = chanctx_conf->def.width;
-		rcu_read_unlock();
-	}
-
-	WARN(bw > hwsim_get_chanwidth(confbw),
-	     "intf %pM: bad STA %pM bandwidth %d MHz (%d) > channel config %d MHz (%d)\n",
-	     vif->addr, sta->addr, bw, sta->deflink.bandwidth,
-	     hwsim_get_chanwidth(data->bw), data->bw);
 }
 
 static int mac80211_hwsim_sta_add(struct ieee80211_hw *hw,
