@@ -70,6 +70,10 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 
 	/*
 	 * Add or remove nodes from the lockspace's ls_nodes list.
+	 *
+	 * Due to the fact that we must report all membership changes to lsops
+	 * or midcomms layer, it is not permitted to abort ls_recover() until
+	 * this is done.
 	 */
 
 	error = dlm_recover_members(ls, rv, &neg);
