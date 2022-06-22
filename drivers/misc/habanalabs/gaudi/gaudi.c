@@ -9350,7 +9350,6 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.get_sob_addr = gaudi_get_sob_addr,
 	.set_pci_memory_regions = gaudi_set_pci_memory_regions,
 	.get_stream_master_qid_arr = gaudi_get_stream_master_qid_arr,
-	.is_valid_dram_page_size = NULL,
 	.mmu_get_real_page_size = hl_mmu_get_real_page_size,
 	.get_valid_dram_page_orders = gaudi_get_valid_dram_page_orders,
 	.access_dev_mem = hl_access_dev_mem,

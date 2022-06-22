@@ -36,8 +36,8 @@ static int set_alloc_page_size(struct hl_device *hdev, struct hl_mem_in *args, u
 	if (prop->supports_user_set_page_size && args->alloc.page_size) {
 		psize = args->alloc.page_size;
 
-		if (!hdev->asic_funcs->is_valid_dram_page_size(psize)) {
-			dev_err(hdev->dev, "user page size (%#x) is not valid\n", psize);
+		if (!is_power_of_2(psize)) {
+			dev_err(hdev->dev, "user page size (%#x) is not power of 2\n", psize);
 			return -EINVAL;
 		}
 	} else {

@@ -1332,8 +1332,6 @@ struct fw_load_mgr {
  * @get_sob_addr: get SOB base address offset.
  * @set_pci_memory_regions: setting properties of PCI memory regions
  * @get_stream_master_qid_arr: get pointer to stream masters QID array
- * @is_valid_dram_page_size: return true if page size is supported in device
- *                           memory allocation, otherwise false.
  * @get_valid_dram_page_orders: get valid device memory allocation page orders
  * @access_dev_mem: access device memory
  * @set_dram_bar_base: set the base of the DRAM BAR
@@ -1453,7 +1451,6 @@ struct hl_asic_funcs {
 	u32 (*get_sob_addr)(struct hl_device *hdev, u32 sob_id);
 	void (*set_pci_memory_regions)(struct hl_device *hdev);
 	u32* (*get_stream_master_qid_arr)(void);
-	bool (*is_valid_dram_page_size)(u32 page_size);
 	int (*mmu_get_real_page_size)(struct hl_device *hdev, struct hl_mmu_properties *mmu_prop,
 					u32 page_size, u32 *real_page_size, bool is_dram_addr);
 	void (*get_valid_dram_page_orders)(struct hl_info_dev_memalloc_page_sizes *info);
