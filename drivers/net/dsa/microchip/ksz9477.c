@@ -1287,9 +1287,6 @@ static int ksz9477_setup(struct dsa_switch *ds)
 	/* enable global MIB counter freeze function */
 	ksz_cfg(dev, REG_SW_MAC_CTRL_6, SW_MIB_COUNTER_FREEZE, true);
 
-	/* start switch */
-	ksz_cfg(dev, REG_SW_OPERATION, SW_START, true);
-
 	return 0;
 }
 

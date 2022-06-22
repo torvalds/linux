@@ -16,7 +16,6 @@
 
 #define SW_REVISION_M			0x0E
 #define SW_REVISION_S			1
-#define SW_START			0x01
 
 #define KSZ8863_REG_SW_RESET		0x43
 

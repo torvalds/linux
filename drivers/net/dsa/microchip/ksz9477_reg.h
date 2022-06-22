@@ -165,7 +165,6 @@
 
 #define SW_DOUBLE_TAG			BIT(7)
 #define SW_RESET			BIT(1)
-#define SW_START			BIT(0)
 
 #define REG_SW_MAC_ADDR_0		0x0302
 #define REG_SW_MAC_ADDR_1		0x0303
