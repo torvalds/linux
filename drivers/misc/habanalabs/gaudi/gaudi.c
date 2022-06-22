@@ -7388,7 +7388,7 @@ static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type, u64 *e
 		if (event_type == GAUDI_EVENT_MME0_QM) {
 			index = 0;
 			qid_base = GAUDI_QUEUE_ID_MME_0_0;
-		} else if (event_type == GAUDI_EVENT_MME2_QM) {
+		} else { /* event_type == GAUDI_EVENT_MME2_QM */
 			index = 2;
 			qid_base = GAUDI_QUEUE_ID_MME_1_0;
 		}
