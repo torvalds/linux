@@ -4094,6 +4094,7 @@ static inline bool _ieee80211_is_robust_mgmt_frame(struct ieee80211_hdr *hdr)
 			*category != WLAN_CATEGORY_SELF_PROTECTED &&
 			*category != WLAN_CATEGORY_UNPROT_DMG &&
 			*category != WLAN_CATEGORY_VHT &&
+			*category != WLAN_CATEGORY_S1G &&
 			*category != WLAN_CATEGORY_VENDOR_SPECIFIC;
 	}
 
