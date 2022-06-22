@@ -1030,6 +1030,9 @@ mt76_check_ccmp_pn(struct sk_buff *skb)
 	if (!(status->flag & RX_FLAG_DECRYPTED))
 		return 0;
 
+	if (status->flag & RX_FLAG_ONLY_MONITOR)
+		return 0;
+
 	if (!wcid || !wcid->rx_check_pn)
 		return 0;
 
