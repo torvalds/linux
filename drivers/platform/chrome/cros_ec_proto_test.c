@@ -2367,6 +2367,81 @@ static void cros_ec_proto_test_get_host_event_normal(struct kunit *test)
 	KUNIT_EXPECT_EQ(test, ret, EC_HOST_EVENT_MASK(EC_HOST_EVENT_RTC));
 }
 
+static void cros_ec_proto_test_check_features_cached(struct kunit *test)
+{
+	int ret, i;
+	struct cros_ec_dev ec;
+
+	ec.features.flags[0] = EC_FEATURE_MASK_0(EC_FEATURE_FINGERPRINT);
+	ec.features.flags[1] = EC_FEATURE_MASK_0(EC_FEATURE_SCP);
+
+	for (i = 0; i < EC_FEATURE_TYPEC_MUX_REQUIRE_AP_ACK; ++i) {
+		ret = cros_ec_check_features(&ec, i);
+		switch (i) {
+		case EC_FEATURE_FINGERPRINT:
+		case EC_FEATURE_SCP:
+			KUNIT_EXPECT_TRUE(test, ret);
+			break;
+		default:
+			KUNIT_EXPECT_FALSE(test, ret);
+			break;
+		}
+	}
+}
+
+static void cros_ec_proto_test_check_features_not_cached(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	struct ec_xfer_mock *mock;
+	int ret, i;
+	struct cros_ec_dev ec;
+
+	ec_dev->max_request = 0xff;
+	ec_dev->max_response = 0xee;
+	ec.ec_dev = ec_dev;
+	ec.dev = ec_dev->dev;
+	ec.cmd_offset = 0;
+	ec.features.flags[0] = -1;
+	ec.features.flags[1] = -1;
+
+	/* For EC_CMD_GET_FEATURES. */
+	{
+		struct ec_response_get_features *data;
+
+		mock = cros_kunit_ec_xfer_mock_add(test, sizeof(*data));
+		KUNIT_ASSERT_PTR_NE(test, mock, NULL);
+
+		data = (struct ec_response_get_features *)mock->o_data;
+		data->flags[0] = EC_FEATURE_MASK_0(EC_FEATURE_FINGERPRINT);
+		data->flags[1] = EC_FEATURE_MASK_0(EC_FEATURE_SCP);
+	}
+
+	for (i = 0; i < EC_FEATURE_TYPEC_MUX_REQUIRE_AP_ACK; ++i) {
+		ret = cros_ec_check_features(&ec, i);
+		switch (i) {
+		case EC_FEATURE_FINGERPRINT:
+		case EC_FEATURE_SCP:
+			KUNIT_EXPECT_TRUE(test, ret);
+			break;
+		default:
+			KUNIT_EXPECT_FALSE(test, ret);
+			break;
+		}
+	}
+
+	/* For EC_CMD_GET_FEATURES. */
+	{
+		mock = cros_kunit_ec_xfer_mock_next();
+		KUNIT_EXPECT_PTR_NE(test, mock, NULL);
+
+		KUNIT_EXPECT_EQ(test, mock->msg.version, 0);
+		KUNIT_EXPECT_EQ(test, mock->msg.command, EC_CMD_GET_FEATURES);
+		KUNIT_EXPECT_EQ(test, mock->msg.insize, sizeof(struct ec_response_get_features));
+		KUNIT_EXPECT_EQ(test, mock->msg.outsize, 0);
+	}
+}
+
 static void cros_ec_proto_test_release(struct device *dev)
 {
 }
@@ -2460,6 +2535,8 @@ static struct kunit_case cros_ec_proto_test_cases[] = {
 	KUNIT_CASE(cros_ec_proto_test_get_host_event_not_host_event),
 	KUNIT_CASE(cros_ec_proto_test_get_host_event_wrong_event_size),
 	KUNIT_CASE(cros_ec_proto_test_get_host_event_normal),
+	KUNIT_CASE(cros_ec_proto_test_check_features_cached),
+	KUNIT_CASE(cros_ec_proto_test_check_features_not_cached),
 	{}
 };
 
