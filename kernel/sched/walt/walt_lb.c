@@ -296,17 +296,19 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 	struct walt_rq *src_wrq = (struct walt_rq *) src_rq->android_vendor_data1;
 	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(dst_cpu)->android_vendor_data1;
 	struct walt_task_struct *wts;
+	struct task_struct *pull_me;
+	int task_visited;
 
 	BUG_ON(src_cpu == dst_cpu);
 
 	to_lower = dst_wrq->cluster->id < src_wrq->cluster->id;
-
 	to_higher = dst_wrq->cluster->id > src_wrq->cluster->id;
 
 	raw_spin_lock_irqsave(&src_rq->__lock, flags);
 
+	pull_me = NULL;
+	task_visited = 0;
 	list_for_each_entry_reverse(p, &src_rq->cfs_tasks, se.group_node) {
-
 		if (!cpumask_test_cpu(dst_cpu, p->cpus_ptr))
 			continue;
 
@@ -317,13 +319,30 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 					false))
 			continue;
 
-		walt_detach_task(p, src_rq, dst_rq);
-		pulled_task = p;
+		if (pull_me == NULL) {
+			pull_me = p;
+		} else {
+			if (to_lower) {
+				if (task_util(p) < task_util(pull_me))
+					pull_me = p;
+			} else if (task_util(p) > task_util(pull_me)) {
+				pull_me = p;
+			}
+		}
+
+		task_visited++;
+		if (task_visited > 5)
+			break;
+	}
+	if (pull_me) {
+		walt_detach_task(pull_me, src_rq, dst_rq);
+		pulled_task = pull_me;
 		goto unlock;
 	}
 
+	pull_me = NULL;
+	task_visited = 0;
 	list_for_each_entry_reverse(p, &src_rq->cfs_tasks, se.group_node) {
-
 		if (!cpumask_test_cpu(dst_cpu, p->cpus_ptr))
 			continue;
 
@@ -334,8 +353,24 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 					true))
 			continue;
 
-		walt_detach_task(p, src_rq, dst_rq);
-		pulled_task = p;
+		if (pull_me == NULL) {
+			pull_me = p;
+		} else {
+			if (to_lower) {
+				if (task_util(p) < task_util(pull_me))
+					pull_me = p;
+			} else if (task_util(p) > task_util(pull_me)) {
+				pull_me = p;
+			}
+		}
+
+		task_visited++;
+		if (task_visited > 5)
+			break;
+	}
+	if (pull_me) {
+		walt_detach_task(pull_me, src_rq, dst_rq);
+		pulled_task = pull_me;
 		goto unlock;
 	}
 
@@ -380,7 +415,7 @@ unlock:
 		return 0;
 
 	raw_spin_lock_irqsave(&dst_rq->__lock, flags);
-	walt_attach_task(p, dst_rq);
+	walt_attach_task(pulled_task, dst_rq);
 	raw_spin_unlock_irqrestore(&dst_rq->__lock, flags);
 
 	return 1; /* we pulled 1 task */
