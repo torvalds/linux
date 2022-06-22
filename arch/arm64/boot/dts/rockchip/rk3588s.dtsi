@@ -3311,8 +3311,8 @@
 		rockchip,core-mask = <0x00010001>;
 		rockchip,taskqueue-node = <9>;
 		rockchip,sram = <&rkvdec0_sram>;
-		/* rcb_iova: start and size */
-		rockchip,rcb-iova = <0x10000000 0x100000>;
+		/* rcb_iova: start and size 1M@4095M */
+		rockchip,rcb-iova = <0xFFF00000 0x100000>;
 		rockchip,rcb-min-width = <512>;
 		power-domains = <&power RK3588_PD_RKVDEC0>;
 		status = "disabled";
@@ -3361,8 +3361,8 @@
 		rockchip,core-mask = <0x00020002>;
 		rockchip,taskqueue-node = <9>;
 		rockchip,sram = <&rkvdec1_sram>;
-		/* rcb_iova: start and size */
-		rockchip,rcb-iova = <0x10100000 0x100000>;
+		/* rcb_iova: start and size 1M@4094M */
+		rockchip,rcb-iova = <0xFFE00000 0x100000>;
 		rockchip,rcb-min-width = <512>;
 		power-domains = <&power RK3588_PD_RKVDEC1>;
 		status = "disabled";
