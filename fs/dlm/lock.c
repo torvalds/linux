@@ -5886,7 +5886,7 @@ int dlm_user_convert(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 
 int dlm_user_adopt_orphan(struct dlm_ls *ls, struct dlm_user_args *ua_tmp,
 		     int mode, uint32_t flags, void *name, unsigned int namelen,
-		     unsigned long timeout_cs, uint32_t *lkid)
+		     uint32_t *lkid)
 {
 	struct dlm_lkb *lkb = NULL, *iter;
 	struct dlm_user_args *ua;

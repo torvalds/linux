@@ -270,7 +270,6 @@ static int device_user_lock(struct dlm_user_proc *proc,
 		error = dlm_user_adopt_orphan(ls, ua,
 					 params->mode, params->flags,
 					 params->name, params->namelen,
-					 (unsigned long) params->timeout,
 					 &lkid);
 		if (!error)
 			error = lkid;
