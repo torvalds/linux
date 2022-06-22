@@ -35,7 +35,6 @@ struct io_buffer {
 
 void __user *io_buffer_select(struct io_kiocb *req, size_t *len,
 			      unsigned int issue_flags);
-void __io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags);
 void io_destroy_buffers(struct io_ring_ctx *ctx);
 
 int io_remove_buffers_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
@@ -49,6 +48,9 @@ int io_unregister_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg);
 
 unsigned int __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags);
 
+void io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags);
+void io_kbuf_recycle_ring(struct io_kiocb *req);
+
 static inline bool io_do_buffer_select(struct io_kiocb *req)
 {
 	if (!(req->flags & REQ_F_BUFFER_SELECT))
@@ -58,18 +60,6 @@ static inline bool io_do_buffer_select(struct io_kiocb *req)
 
 static inline void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 {
-	if (!(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)))
-		return;
-	/*
-	 * For legacy provided buffer mode, don't recycle if we already did
-	 * IO to this buffer. For ring-mapped provided buffer mode, we should
-	 * increment ring->head to explicitly monopolize the buffer to avoid
-	 * multiple use.
-	 */
-	if ((req->flags & REQ_F_BUFFER_SELECTED) &&
-	    (req->flags & REQ_F_PARTIAL_IO))
-		return;
-
 	/*
 	 * READV uses fields in `struct io_rw` (len/addr) to stash the selected
 	 * buffer data. However if that buffer is recycled the original request
@@ -78,7 +68,10 @@ static inline void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 	if (req->opcode == IORING_OP_READV)
 		return;
 
-	__io_kbuf_recycle(req, issue_flags);
+	if (req->flags & REQ_F_BUFFER_SELECTED)
+		io_kbuf_recycle_legacy(req, issue_flags);
+	if (req->flags & REQ_F_BUFFER_RING)
+		io_kbuf_recycle_ring(req);
 }
 
 static inline unsigned int __io_put_kbuf_list(struct io_kiocb *req,

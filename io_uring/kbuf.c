@@ -37,36 +37,30 @@ static inline struct io_buffer_list *io_buffer_get_list(struct io_ring_ctx *ctx,
 	return xa_load(&ctx->io_bl_xa, bgid);
 }
 
-void __io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
+static int io_buffer_add_list(struct io_ring_ctx *ctx,
+			      struct io_buffer_list *bl, unsigned int bgid)
+{
+	bl->bgid = bgid;
+	if (bgid < BGID_ARRAY)
+		return 0;
+
+	return xa_err(xa_store(&ctx->io_bl_xa, bgid, bl, GFP_KERNEL));
+}
+
+void io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_buffer_list *bl;
 	struct io_buffer *buf;
 
 	/*
-	 * We don't need to recycle for REQ_F_BUFFER_RING, we can just clear
-	 * the flag and hence ensure that bl->head doesn't get incremented.
-	 * If the tail has already been incremented, hang on to it.
+	 * For legacy provided buffer mode, don't recycle if we already did
+	 * IO to this buffer. For ring-mapped provided buffer mode, we should
+	 * increment ring->head to explicitly monopolize the buffer to avoid
+	 * multiple use.
 	 */
-	if (req->flags & REQ_F_BUFFER_RING) {
-		if (req->buf_list) {
-			if (req->flags & REQ_F_PARTIAL_IO) {
-				/*
-				 * If we end up here, then the io_uring_lock has
-				 * been kept held since we retrieved the buffer.
-				 * For the io-wq case, we already cleared
-				 * req->buf_list when the buffer was retrieved,
-				 * hence it cannot be set here for that case.
-				 */
-				req->buf_list->head++;
-				req->buf_list = NULL;
-			} else {
-				req->buf_index = req->buf_list->bgid;
-				req->flags &= ~REQ_F_BUFFER_RING;
-			}
-		}
+	if (req->flags & REQ_F_PARTIAL_IO)
 		return;
-	}
 
 	io_ring_submit_lock(ctx, issue_flags);
 
@@ -77,16 +71,35 @@ void __io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 	req->buf_index = buf->bgid;
 
 	io_ring_submit_unlock(ctx, issue_flags);
+	return;
 }
 
-static int io_buffer_add_list(struct io_ring_ctx *ctx,
-			      struct io_buffer_list *bl, unsigned int bgid)
+void io_kbuf_recycle_ring(struct io_kiocb *req)
 {
-	bl->bgid = bgid;
-	if (bgid < BGID_ARRAY)
-		return 0;
-
-	return xa_err(xa_store(&ctx->io_bl_xa, bgid, bl, GFP_KERNEL));
+	/*
+	 * We don't need to recycle for REQ_F_BUFFER_RING, we can just clear
+	 * the flag and hence ensure that bl->head doesn't get incremented.
+	 * If the tail has already been incremented, hang on to it.
+	 * The exception is partial io, that case we should increment bl->head
+	 * to monopolize the buffer.
+	 */
+	if (req->buf_list) {
+		if (req->flags & REQ_F_PARTIAL_IO) {
+			/*
+			 * If we end up here, then the io_uring_lock has
+			 * been kept held since we retrieved the buffer.
+			 * For the io-wq case, we already cleared
+			 * req->buf_list when the buffer was retrieved,
+			 * hence it cannot be set here for that case.
+			 */
+			req->buf_list->head++;
+			req->buf_list = NULL;
+		} else {
+			req->buf_index = req->buf_list->bgid;
+			req->flags &= ~REQ_F_BUFFER_RING;
+		}
+	}
+	return;
 }
 
 unsigned int __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags)
