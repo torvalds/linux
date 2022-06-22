@@ -934,6 +934,8 @@ static int ov7251_set_power_on(struct device *dev)
 					ARRAY_SIZE(ov7251_global_init_setting));
 	if (ret < 0) {
 		dev_err(ov7251->dev, "error during global init\n");
+		gpiod_set_value_cansleep(ov7251->enable_gpio, 0);
+		clk_disable_unprepare(ov7251->xclk);
 		ov7251_regulators_disable(ov7251);
 		return ret;
 	}
