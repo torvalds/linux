@@ -1236,6 +1236,36 @@ static void ksz9477_config_cpu_port(struct dsa_switch *ds)
 	}
 }
 
+static int ksz9477_enable_stp_addr(struct ksz_device *dev)
+{
+	u32 data;
+	int ret;
+
+	/* Enable Reserved multicast table */
+	ksz_cfg(dev, REG_SW_LUE_CTRL_0, SW_RESV_MCAST_ENABLE, true);
+
+	/* Set the Override bit for forwarding BPDU packet to CPU */
+	ret = ksz_write32(dev, REG_SW_ALU_VAL_B,
+			  ALU_V_OVERRIDE | BIT(dev->cpu_port));
+	if (ret < 0)
+		return ret;
+
+	data = ALU_STAT_START | ALU_RESV_MCAST_ADDR;
+
+	ret = ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
+	if (ret < 0)
+		return ret;
+
+	/* wait to be finished */
+	ret = ksz9477_wait_alu_sta_ready(dev);
+	if (ret < 0) {
+		dev_err(dev->dev, "Failed to update Reserved Multicast table\n");
+		return ret;
+	}
+
+	return 0;
+}
+
 static int ksz9477_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
@@ -1280,6 +1310,8 @@ static int ksz9477_setup(struct dsa_switch *ds)
 
 	/* start switch */
 	ksz_cfg(dev, REG_SW_OPERATION, SW_START, true);
+
+	dev->dev_ops->enable_stp_addr(dev);
 
 	ksz_init_mib_timer(dev);
 
@@ -1401,6 +1433,7 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.change_mtu = ksz9477_change_mtu,
 	.max_mtu = ksz9477_max_mtu,
 	.config_cpu_port = ksz9477_config_cpu_port,
+	.enable_stp_addr = ksz9477_enable_stp_addr,
 	.reset = ksz9477_reset_switch,
 	.init = ksz9477_switch_init,
 	.exit = ksz9477_switch_exit,

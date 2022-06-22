@@ -1368,10 +1368,25 @@ static int ksz8_handle_global_errata(struct dsa_switch *ds)
 	return ret;
 }
 
+static int ksz8_enable_stp_addr(struct ksz_device *dev)
+{
+	struct alu_struct alu;
+
+	/* Setup STP address for STP operation. */
+	memset(&alu, 0, sizeof(alu));
+	ether_addr_copy(alu.mac, eth_stp_addr);
+	alu.is_static = true;
+	alu.is_override = true;
+	alu.port_forward = dev->info->cpu_ports;
+
+	ksz8_w_sta_mac_table(dev, 0, &alu);
+
+	return 0;
+}
+
 static int ksz8_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
-	struct alu_struct alu;
 	int i, ret = 0;
 
 	dev->vlan_cache = devm_kcalloc(dev->dev, sizeof(struct vlan_table),
@@ -1422,14 +1437,7 @@ static int ksz8_setup(struct dsa_switch *ds)
 	for (i = 0; i < (dev->info->num_vlans / 4); i++)
 		ksz8_r_vlan_entries(dev, i);
 
-	/* Setup STP address for STP operation. */
-	memset(&alu, 0, sizeof(alu));
-	ether_addr_copy(alu.mac, eth_stp_addr);
-	alu.is_static = true;
-	alu.is_override = true;
-	alu.port_forward = dev->info->cpu_ports;
-
-	ksz8_w_sta_mac_table(dev, 0, &alu);
+	dev->dev_ops->enable_stp_addr(dev);
 
 	ksz_init_mib_timer(dev);
 
@@ -1546,6 +1554,7 @@ static const struct ksz_dev_ops ksz8_dev_ops = {
 	.mirror_del = ksz8_port_mirror_del,
 	.get_caps = ksz8_get_caps,
 	.config_cpu_port = ksz8_config_cpu_port,
+	.enable_stp_addr = ksz8_enable_stp_addr,
 	.reset = ksz8_reset_switch,
 	.init = ksz8_switch_init,
 	.exit = ksz8_switch_exit,
