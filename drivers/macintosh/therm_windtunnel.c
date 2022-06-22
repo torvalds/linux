@@ -317,6 +317,7 @@ static void do_attach(struct i2c_adapter *adapter)
 	if (x.running || strncmp(adapter->name, "uni-n", 5))
 		return;
 
+	of_node_get(adapter->dev.of_node);
 	np = of_find_compatible_node(adapter->dev.of_node, NULL, "MAC,ds1775");
 	if (np) {
 		of_node_put(np);
@@ -325,6 +326,7 @@ static void do_attach(struct i2c_adapter *adapter)
 		i2c_new_scanned_device(adapter, &info, scan_ds1775, NULL);
 	}
 
+	of_node_get(adapter->dev.of_node);
 	np = of_find_compatible_node(adapter->dev.of_node, NULL, "MAC,adm1030");
 	if (np) {
 		of_node_put(np);
