@@ -4031,30 +4031,27 @@ void vlv_wm_sanitize(struct drm_i915_private *dev_priv)
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane_state *plane_state =
 			to_intel_plane_state(plane->base.state);
-		struct vlv_wm_state *wm_state = &crtc_state->wm.vlv.optimal;
-		const struct vlv_fifo_state *fifo_state =
-			&crtc_state->wm.vlv.fifo_state;
 		enum plane_id plane_id = plane->id;
-		int level;
+		int level, num_levels = intel_wm_num_levels(dev_priv);
 
 		if (plane_state->uapi.visible)
 			continue;
 
-		for (level = 0; level < wm_state->num_levels; level++) {
+		for (level = 0; level < num_levels; level++) {
 			struct g4x_pipe_wm *raw =
 				&crtc_state->wm.vlv.raw[level];
 
 			raw->plane[plane_id] = 0;
-
-			wm_state->wm[level].plane[plane_id] =
-				vlv_invert_wm_value(raw->plane[plane_id],
-						    fifo_state->plane[plane_id]);
 		}
 	}
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
+		int ret;
+
+		ret = _vlv_compute_pipe_wm(crtc_state);
+		drm_WARN_ON(&dev_priv->drm, ret);
 
 		crtc_state->wm.vlv.intermediate =
 			crtc_state->wm.vlv.optimal;
