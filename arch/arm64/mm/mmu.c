@@ -672,13 +672,9 @@ static int __init map_entry_trampoline(void)
 		__set_fixmap(FIX_ENTRY_TRAMP_TEXT1 - i,
 			     pa_start + i * PAGE_SIZE, prot);
 
-	if (IS_ENABLED(CONFIG_RANDOMIZE_BASE)) {
-		extern char __entry_tramp_data_start[];
-
-		__set_fixmap(FIX_ENTRY_TRAMP_DATA,
-			     __pa_symbol(__entry_tramp_data_start),
-			     PAGE_KERNEL_RO);
-	}
+	if (IS_ENABLED(CONFIG_RELOCATABLE))
+		__set_fixmap(FIX_ENTRY_TRAMP_TEXT1 - i,
+			     pa_start + i * PAGE_SIZE, PAGE_KERNEL_RO);
 
 	return 0;
 }

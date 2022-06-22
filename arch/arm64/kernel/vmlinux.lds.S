@@ -115,7 +115,8 @@ jiffies = jiffies_64;
 	__entry_tramp_text_start = .;			\
 	*(.entry.tramp.text)				\
 	. = ALIGN(PAGE_SIZE);				\
-	__entry_tramp_text_end = .;
+	__entry_tramp_text_end = .;			\
+	*(.entry.tramp.rodata)
 #else
 #define TRAMP_TEXT
 #endif
