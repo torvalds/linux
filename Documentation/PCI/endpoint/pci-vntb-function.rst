@@ -58,7 +58,10 @@ It is same as PCI NTB Function driver
 Scratchpad Registers:
 ---------------------
 
-  It is appended after Config region.
+It is appended after Config region.
+
+.. code-block:: text
+
 
   +--------------------------------------------------+ Base
   |                                                  |
