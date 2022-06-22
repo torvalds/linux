@@ -850,7 +850,7 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 		if (busy_cpu != -1) {
 			first_idle =
 				find_first_idle_if_others_are_busy(&cpu_array[order_index][1]);
-			if (first_idle != 1)
+			if (first_idle != -1)
 				walt_kick_cpu(first_idle);
 			else
 				goto found_busy_cpu;
