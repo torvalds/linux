@@ -2238,22 +2238,6 @@
 		reg = <0x0 0xfd5f0000 0x0 0x10000>;
 	};
 
-	syssram: sram@fd601000 {
-		compatible = "mmio-sram";
-		reg = <0x0 0xfd601000 0x0 0xef000>;
-
-		#address-cells = <1>;
-		#size-cells = <1>;
-		ranges = <0x0 0x0 0xfd601000 0xef000>;
-		/* start address and size should be 4k algin */
-		rkvdec0_sram: rkvdec-sram@0 {
-			reg = <0x0 0x78000>;
-		};
-		rkvdec1_sram: rkvdec-sram@78000 {
-			reg = <0x78000 0x77000>;
-		};
-	};
-
 	cru: clock-controller@fd7c0000 {
 		compatible = "rockchip,rk3588-cru";
 		rockchip,grf = <&php_grf>;
@@ -5741,6 +5725,22 @@
 		rockchip,pipe-phy-grf = <&pipe_phy2_grf>;
 		rockchip,pcie1ln-sel-bits = <0x100 1 1 0>;
 		status = "disabled";
+	};
+
+	syssram: sram@ff001000 {
+		compatible = "mmio-sram";
+		reg = <0x0 0xff001000 0x0 0xef000>;
+
+		#address-cells = <1>;
+		#size-cells = <1>;
+		ranges = <0x0 0x0 0xff001000 0xef000>;
+		/* start address and size should be 4k algin */
+		rkvdec0_sram: rkvdec-sram@0 {
+			reg = <0x0 0x78000>;
+		};
+		rkvdec1_sram: rkvdec-sram@78000 {
+			reg = <0x78000 0x77000>;
+		};
 	};
 
 	pinctrl: pinctrl {
