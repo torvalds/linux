@@ -3882,37 +3882,30 @@ void g4x_wm_sanitize(struct drm_i915_private *dev_priv)
 			to_intel_crtc_state(crtc->base.state);
 		struct intel_plane_state *plane_state =
 			to_intel_plane_state(plane->base.state);
-		struct g4x_wm_state *wm_state = &crtc_state->wm.g4x.optimal;
 		enum plane_id plane_id = plane->id;
-		int level;
+		int level, num_levels = intel_wm_num_levels(dev_priv);
 
 		if (plane_state->uapi.visible)
 			continue;
 
-		for (level = 0; level < 3; level++) {
+		for (level = 0; level < num_levels; level++) {
 			struct g4x_pipe_wm *raw =
 				&crtc_state->wm.g4x.raw[level];
 
 			raw->plane[plane_id] = 0;
-			wm_state->wm.plane[plane_id] = 0;
-		}
 
-		if (plane_id == PLANE_PRIMARY) {
-			for (level = 0; level < 3; level++) {
-				struct g4x_pipe_wm *raw =
-					&crtc_state->wm.g4x.raw[level];
+			if (plane_id == PLANE_PRIMARY)
 				raw->fbc = 0;
-			}
-
-			wm_state->sr.fbc = 0;
-			wm_state->hpll.fbc = 0;
-			wm_state->fbc_en = false;
 		}
 	}
 
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
+		int ret;
+
+		ret = _g4x_compute_pipe_wm(crtc_state);
+		drm_WARN_ON(&dev_priv->drm, ret);
 
 		crtc_state->wm.g4x.intermediate =
 			crtc_state->wm.g4x.optimal;
