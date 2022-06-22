@@ -216,7 +216,7 @@ static int mes_v11_0_unmap_legacy_queue(struct amdgpu_mes *mes,
 	mes_remove_queue_pkt.header.opcode = MES_SCH_API_REMOVE_QUEUE;
 	mes_remove_queue_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
 
-	mes_remove_queue_pkt.doorbell_offset = input->doorbell_offset << 2;
+	mes_remove_queue_pkt.doorbell_offset = input->doorbell_offset;
 	mes_remove_queue_pkt.gang_context_addr = 0;
 
 	mes_remove_queue_pkt.pipe_id = input->pipe_id;
@@ -228,10 +228,9 @@ static int mes_v11_0_unmap_legacy_queue(struct amdgpu_mes *mes,
 		mes_remove_queue_pkt.tf_data =
 			lower_32_bits(input->trail_fence_data);
 	} else {
-		if (input->queue_type == AMDGPU_RING_TYPE_GFX)
-			mes_remove_queue_pkt.unmap_legacy_gfx_queue = 1;
-		else
-			mes_remove_queue_pkt.unmap_kiq_utility_queue = 1;
+		mes_remove_queue_pkt.unmap_legacy_queue = 1;
+		mes_remove_queue_pkt.queue_type =
+			convert_to_mes_queue_type(input->queue_type);
 	}
 
 	mes_remove_queue_pkt.api_status.api_completion_fence_addr =
