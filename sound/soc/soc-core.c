@@ -3424,26 +3424,26 @@ int snd_soc_of_get_dai_link_cpus(struct device *dev,
 	struct of_phandle_args args;
 	struct snd_soc_dai_link_component *component;
 	char *name;
-	int index, num_codecs, ret;
+	int index, num_cpus, ret;
 
-	/* Count the number of CODECs */
+	/* Count the number of CPUs */
 	name = "sound-dai";
-	num_codecs = of_count_phandle_with_args(of_node, name,
+	num_cpus = of_count_phandle_with_args(of_node, name,
 						"#sound-dai-cells");
-	if (num_codecs <= 0) {
-		if (num_codecs == -ENOENT)
+	if (num_cpus <= 0) {
+		if (num_cpus == -ENOENT)
 			dev_err(dev, "No 'sound-dai' property\n");
 		else
 			dev_err(dev, "Bad phandle in 'sound-dai'\n");
-		return num_codecs;
+		return num_cpus;
 	}
 	component = devm_kcalloc(dev,
-				 num_codecs, sizeof(*component),
+				 num_cpus, sizeof(*component),
 				 GFP_KERNEL);
 	if (!component)
 		return -ENOMEM;
 	dai_link->cpus = component;
-	dai_link->num_cpus = num_codecs;
+	dai_link->num_cpus = num_cpus;
 
 	/* Parse the list */
 	for_each_link_cpus(dai_link, index, component) {
@@ -3459,7 +3459,7 @@ int snd_soc_of_get_dai_link_cpus(struct device *dev,
 	}
 	return 0;
 err:
-	snd_soc_of_put_dai_link_codecs(dai_link);
+	snd_soc_of_put_dai_link_cpus(dai_link);
 	dai_link->cpus = NULL;
 	dai_link->num_cpus = 0;
 	return ret;
