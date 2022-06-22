@@ -429,6 +429,7 @@ out_put:
 static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 {
 	int ret = 0;
+	int driver_id_number;
 	struct usb_raw_init arg;
 	char *udc_driver_name;
 	char *udc_device_name;
@@ -451,10 +452,9 @@ static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 		return -EINVAL;
 	}
 
-	ret = ida_alloc(&driver_id_numbers, GFP_KERNEL);
-	if (ret < 0)
-		return ret;
-	dev->driver_id_number = ret;
+	driver_id_number = ida_alloc(&driver_id_numbers, GFP_KERNEL);
+	if (driver_id_number < 0)
+		return driver_id_number;
 
 	driver_driver_name = kmalloc(DRIVER_DRIVER_NAME_LENGTH_MAX, GFP_KERNEL);
 	if (!driver_driver_name) {
@@ -462,7 +462,7 @@ static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 		goto out_free_driver_id_number;
 	}
 	snprintf(driver_driver_name, DRIVER_DRIVER_NAME_LENGTH_MAX,
-				DRIVER_NAME ".%d", dev->driver_id_number);
+				DRIVER_NAME ".%d", driver_id_number);
 
 	udc_driver_name = kmalloc(UDC_NAME_LENGTH_MAX, GFP_KERNEL);
 	if (!udc_driver_name) {
@@ -506,6 +506,7 @@ static int raw_ioctl_init(struct raw_dev *dev, unsigned long value)
 	dev->driver.driver.name = driver_driver_name;
 	dev->driver.udc_name = udc_device_name;
 	dev->driver.match_existing_only = 1;
+	dev->driver_id_number = driver_id_number;
 
 	dev->state = STATE_DEV_INITIALIZED;
 	spin_unlock_irqrestore(&dev->lock, flags);
@@ -520,7 +521,7 @@ out_free_udc_driver_name:
 out_free_driver_driver_name:
 	kfree(driver_driver_name);
 out_free_driver_id_number:
-	ida_free(&driver_id_numbers, dev->driver_id_number);
+	ida_free(&driver_id_numbers, driver_id_number);
 	return ret;
 }
 
