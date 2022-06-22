@@ -8,7 +8,9 @@
 
 #include <linux/module.h>
 #include <linux/bitfield.h>
+#include <linux/hwmon.h>
 #include <linux/phy.h>
+#include <linux/polynomial.h>
 #include <linux/netdevice.h>
 
 /* PHY ID */
@@ -64,6 +66,10 @@
 #define VSPEC1_SGMII_ANEN_ANRS	(VSPEC1_SGMII_CTRL_ANEN | \
 				 VSPEC1_SGMII_CTRL_ANRS)
 
+/* Temperature sensor */
+#define VPSPEC1_TEMP_STA	0x0E
+#define VPSPEC1_TEMP_STA_DATA	GENMASK(9, 0)
+
 /* WoL */
 #define VPSPEC2_WOL_CTL		0x0E06
 #define VPSPEC2_WOL_AD01	0x0E08
@@ -79,6 +85,102 @@ static const struct {
 	{8, 0x6D},
 	{9, 0x73},
 };
+
+#if IS_ENABLED(CONFIG_HWMON)
+/* The original translation formulae of the temperature (in degrees of Celsius)
+ * are as follows:
+ *
+ *   T = -2.5761e-11*(N^4) + 9.7332e-8*(N^3) + -1.9165e-4*(N^2) +
+ *       3.0762e-1*(N^1) + -5.2156e1
+ *
+ * where [-52.156, 137.961]C and N = [0, 1023].
+ *
+ * They must be accordingly altered to be suitable for the integer arithmetics.
+ * The technique is called 'factor redistribution', which just makes sure the
+ * multiplications and divisions are made so to have a result of the operations
+ * within the integer numbers limit. In addition we need to translate the
+ * formulae to accept millidegrees of Celsius. Here what it looks like after
+ * the alterations:
+ *
+ *   T = -25761e-12*(N^4) + 97332e-9*(N^3) + -191650e-6*(N^2) +
+ *       307620e-3*(N^1) + -52156
+ *
+ * where T = [-52156, 137961]mC and N = [0, 1023].
+ */
+static const struct polynomial poly_N_to_temp = {
+	.terms = {
+		{4,  -25761, 1000, 1},
+		{3,   97332, 1000, 1},
+		{2, -191650, 1000, 1},
+		{1,  307620, 1000, 1},
+		{0,  -52156,    1, 1}
+	}
+};
+
+static int gpy_hwmon_read(struct device *dev,
+			  enum hwmon_sensor_types type,
+			  u32 attr, int channel, long *value)
+{
+	struct phy_device *phydev = dev_get_drvdata(dev);
+	int ret;
+
+	ret = phy_read_mmd(phydev, MDIO_MMD_VEND1, VPSPEC1_TEMP_STA);
+	if (ret < 0)
+		return ret;
+	if (!ret)
+		return -ENODATA;
+
+	*value = polynomial_calc(&poly_N_to_temp,
+				 FIELD_GET(VPSPEC1_TEMP_STA_DATA, ret));
+
+	return 0;
+}
+
+static umode_t gpy_hwmon_is_visible(const void *data,
+				    enum hwmon_sensor_types type,
+				    u32 attr, int channel)
+{
+	return 0444;
+}
+
+static const struct hwmon_channel_info *gpy_hwmon_info[] = {
+	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
+	NULL
+};
+
+static const struct hwmon_ops gpy_hwmon_hwmon_ops = {
+	.is_visible	= gpy_hwmon_is_visible,
+	.read		= gpy_hwmon_read,
+};
+
+static const struct hwmon_chip_info gpy_hwmon_chip_info = {
+	.ops		= &gpy_hwmon_hwmon_ops,
+	.info		= gpy_hwmon_info,
+};
+
+static int gpy_hwmon_register(struct phy_device *phydev)
+{
+	struct device *dev = &phydev->mdio.dev;
+	struct device *hwmon_dev;
+	char *hwmon_name;
+
+	hwmon_name = devm_hwmon_sanitize_name(dev, dev_name(dev));
+	if (IS_ERR(hwmon_name))
+		return PTR_ERR(hwmon_name);
+
+	hwmon_dev = devm_hwmon_device_register_with_info(dev, hwmon_name,
+							 phydev,
+							 &gpy_hwmon_chip_info,
+							 NULL);
+
+	return PTR_ERR_OR_ZERO(hwmon_dev);
+}
+#else
+static int gpy_hwmon_register(struct phy_device *phydev)
+{
+	return 0;
+}
+#endif
 
 static int gpy_config_init(struct phy_device *phydev)
 {
@@ -107,6 +209,10 @@ static int gpy_probe(struct phy_device *phydev)
 	/* Show GPY PHY FW version in dmesg */
 	ret = phy_read(phydev, PHY_FWV);
 	if (ret < 0)
+		return ret;
+
+	ret = gpy_hwmon_register(phydev);
+	if (ret)
 		return ret;
 
 	phydev_info(phydev, "Firmware Version: 0x%04X (%s)\n", ret,
