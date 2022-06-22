@@ -10,9 +10,8 @@
 
 #include <linux/err.h>
 #include <linux/gcd.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
 
@@ -536,7 +535,7 @@ static int rescale_probe(struct platform_device *pdev)
 
 	rescale = iio_priv(indio_dev);
 
-	rescale->cfg = of_device_get_match_data(dev);
+	rescale->cfg = device_get_match_data(dev);
 	rescale->numerator = 1;
 	rescale->denominator = 1;
 	rescale->offset = 0;

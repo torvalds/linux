@@ -348,33 +348,41 @@ enum hl_server_type {
  *                            The address which accessing it caused the razwi.
  *                            Razwi initiator.
  *                            Razwi cause, was it a page fault or MMU access error.
+ * HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES - Retrieve valid page sizes for device memory allocation
+ * HL_INFO_REGISTER_EVENTFD   - Register eventfd for event notifications.
+ * HL_INFO_UNREGISTER_EVENTFD - Unregister eventfd
+ * HL_INFO_GET_EVENTS         - Retrieve the last occurred events
  */
-#define HL_INFO_HW_IP_INFO		0
-#define HL_INFO_HW_EVENTS		1
-#define HL_INFO_DRAM_USAGE		2
-#define HL_INFO_HW_IDLE			3
-#define HL_INFO_DEVICE_STATUS		4
-#define HL_INFO_DEVICE_UTILIZATION	6
-#define HL_INFO_HW_EVENTS_AGGREGATE	7
-#define HL_INFO_CLK_RATE		8
-#define HL_INFO_RESET_COUNT		9
-#define HL_INFO_TIME_SYNC		10
-#define HL_INFO_CS_COUNTERS		11
-#define HL_INFO_PCI_COUNTERS		12
-#define HL_INFO_CLK_THROTTLE_REASON	13
-#define HL_INFO_SYNC_MANAGER		14
-#define HL_INFO_TOTAL_ENERGY		15
-#define HL_INFO_PLL_FREQUENCY		16
-#define HL_INFO_POWER			17
-#define HL_INFO_OPEN_STATS		18
-#define HL_INFO_DRAM_REPLACED_ROWS	21
-#define HL_INFO_DRAM_PENDING_ROWS	22
-#define HL_INFO_LAST_ERR_OPEN_DEV_TIME	23
-#define HL_INFO_CS_TIMEOUT_EVENT	24
-#define HL_INFO_RAZWI_EVENT		25
+#define HL_INFO_HW_IP_INFO			0
+#define HL_INFO_HW_EVENTS			1
+#define HL_INFO_DRAM_USAGE			2
+#define HL_INFO_HW_IDLE				3
+#define HL_INFO_DEVICE_STATUS			4
+#define HL_INFO_DEVICE_UTILIZATION		6
+#define HL_INFO_HW_EVENTS_AGGREGATE		7
+#define HL_INFO_CLK_RATE			8
+#define HL_INFO_RESET_COUNT			9
+#define HL_INFO_TIME_SYNC			10
+#define HL_INFO_CS_COUNTERS			11
+#define HL_INFO_PCI_COUNTERS			12
+#define HL_INFO_CLK_THROTTLE_REASON		13
+#define HL_INFO_SYNC_MANAGER			14
+#define HL_INFO_TOTAL_ENERGY			15
+#define HL_INFO_PLL_FREQUENCY			16
+#define HL_INFO_POWER				17
+#define HL_INFO_OPEN_STATS			18
+#define HL_INFO_DRAM_REPLACED_ROWS		21
+#define HL_INFO_DRAM_PENDING_ROWS		22
+#define HL_INFO_LAST_ERR_OPEN_DEV_TIME		23
+#define HL_INFO_CS_TIMEOUT_EVENT		24
+#define HL_INFO_RAZWI_EVENT			25
+#define HL_INFO_DEV_MEM_ALLOC_PAGE_SIZES	26
+#define HL_INFO_REGISTER_EVENTFD		28
+#define HL_INFO_UNREGISTER_EVENTFD		29
+#define HL_INFO_GET_EVENTS			30
 
-#define HL_INFO_VERSION_MAX_LEN		128
-#define HL_INFO_CARD_NAME_MAX_LEN	16
+#define HL_INFO_VERSION_MAX_LEN			128
+#define HL_INFO_CARD_NAME_MAX_LEN		16
 
 /**
  * struct hl_info_hw_ip_info - hardware information on various IPs in the ASIC
@@ -409,6 +417,7 @@ enum hl_server_type {
  * @dram_page_size: The DRAM physical page size.
  * @number_of_user_interrupts: The number of interrupts that are available to the userspace
  *                             application to use. Relevant for Gaudi2 and later.
+ * @device_mem_alloc_default_page_size: default page size used in device memory allocation.
  */
 struct hl_info_hw_ip_info {
 	__u64 sram_base_address;
@@ -436,6 +445,8 @@ struct hl_info_hw_ip_info {
 	__u32 reserved3;
 	__u16 number_of_user_interrupts;
 	__u16 pad2;
+	__u64 reserved4;
+	__u64 device_mem_alloc_default_page_size;
 };
 
 struct hl_info_dram_usage {
@@ -538,10 +549,15 @@ struct hl_pll_frequency_info {
  * struct hl_open_stats_info - device open statistics information
  * @open_counter: ever growing counter, increased on each successful dev open
  * @last_open_period_ms: duration (ms) device was open last time
+ * @is_compute_ctx_active: Whether there is an active compute context executing
+ * @compute_ctx_in_release: true if the current compute context is being released
  */
 struct hl_open_stats_info {
 	__u64 open_counter;
 	__u64 last_open_period_ms;
+	__u8 is_compute_ctx_active;
+	__u8 compute_ctx_in_release;
+	__u8 pad[6];
 };
 
 /**
@@ -640,6 +656,15 @@ struct hl_info_razwi_event {
 	__u8 pad[2];
 };
 
+/**
+ * struct hl_info_dev_memalloc_page_sizes - valid page sizes in device mem alloc information.
+ * @page_order_bitmask: bitmap in which a set bit represents the order of the supported page size
+ *                      (e.g. 0x2100000 means that 1MB and 32MB pages are supported).
+ */
+struct hl_info_dev_memalloc_page_sizes {
+	__u64 page_order_bitmask;
+};
+
 enum gaudi_dcores {
 	HL_GAUDI_WS_DCORE,
 	HL_GAUDI_WN_DCORE,
@@ -660,6 +685,7 @@ enum gaudi_dcores {
  * @period_ms: Period value, in milliseconds, for utilization rate in range 100ms - 1000ms in 100 ms
  *             resolution. Currently not in use.
  * @pll_index: Index as defined in hl_<asic type>_pll_index enumeration.
+ * @eventfd: event file descriptor for event notifications.
  * @pad: Padding to 64 bit.
  */
 struct hl_info_args {
@@ -672,6 +698,7 @@ struct hl_info_args {
 		__u32 ctx_id;
 		__u32 period_ms;
 		__u32 pll_index;
+		__u32 eventfd;
 	};
 
 	__u32 pad;
@@ -1115,6 +1142,7 @@ union hl_wait_cs_args {
 #define HL_MEM_SHARED		0x2
 #define HL_MEM_USERPTR		0x4
 #define HL_MEM_FORCE_HINT	0x8
+#define HL_MEM_PREFETCH		0x40
 
 /**
  * structure hl_mem_in - structure that handle input args for memory IOCTL
@@ -1369,6 +1397,13 @@ struct hl_debug_args {
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
 };
+
+/*
+ * Notifier event values - for the notification mechanism and the HL_INFO_GET_EVENTS command
+ *
+ * HL_NOTIFIER_EVENT_TPC_ASSERT - Indicates TPC assert event
+ */
+#define HL_NOTIFIER_EVENT_TPC_ASSERT  (1 << 0)
 
 /*
  * Various information operations such as:

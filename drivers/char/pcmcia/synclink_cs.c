@@ -922,7 +922,7 @@ static void rx_ready_async(MGSLPC_INFO *info, int tcd)
 		// BIT7:parity error
 		// BIT6:framing error
 
-		if (status & (BIT7 + BIT6)) {
+		if (status & (BIT7 | BIT6)) {
 			if (status & BIT7)
 				icount->parity++;
 			else

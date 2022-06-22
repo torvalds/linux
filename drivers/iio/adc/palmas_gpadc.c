@@ -376,7 +376,8 @@ static int palmas_gpadc_get_calibrated_code(struct palmas_gpadc *adc,
 					adc->adc_info[adc_chan].gain_error;
 
 	if (val < 0) {
-		dev_err(adc->dev, "Mismatch with calibration\n");
+		if (val < -10)
+			dev_err(adc->dev, "Mismatch with calibration var = %d\n", val);
 		return 0;
 	}
 
