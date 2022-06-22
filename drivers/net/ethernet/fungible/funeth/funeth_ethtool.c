@@ -78,6 +78,7 @@ static const char * const txq_stat_names[] = {
 	"tx_cso",
 	"tx_tso",
 	"tx_encapsulated_tso",
+	"tx_uso",
 	"tx_more",
 	"tx_queue_stops",
 	"tx_queue_restarts",
@@ -778,6 +779,7 @@ static void fun_get_ethtool_stats(struct net_device *netdev,
 		ADD_STAT(txs.tx_cso);
 		ADD_STAT(txs.tx_tso);
 		ADD_STAT(txs.tx_encap_tso);
+		ADD_STAT(txs.tx_uso);
 		ADD_STAT(txs.tx_more);
 		ADD_STAT(txs.tx_nstops);
 		ADD_STAT(txs.tx_nrestarts);

@@ -130,6 +130,7 @@ static unsigned int write_pkt_desc(struct sk_buff *skb, struct funeth_txq *q,
 	struct fun_dataop_gl *gle;
 	const struct tcphdr *th;
 	unsigned int ngle, i;
+	unsigned int l4_hlen;
 	u16 flags;
 
 	if (unlikely(map_skb(skb, q->dma_dev, addrs, lens))) {
@@ -178,6 +179,7 @@ static unsigned int write_pkt_desc(struct sk_buff *skb, struct funeth_txq *q,
 						 FUN_ETH_UPDATE_INNER_L3_LEN;
 			}
 			th = inner_tcp_hdr(skb);
+			l4_hlen = __tcp_hdrlen(th);
 			fun_eth_offload_init(&req->offload, flags,
 					     shinfo->gso_size,
 					     tcp_hdr_doff_flags(th), 0,
@@ -185,6 +187,24 @@ static unsigned int write_pkt_desc(struct sk_buff *skb, struct funeth_txq *q,
 					     skb_inner_transport_offset(skb),
 					     skb_network_offset(skb), ol4_ofst);
 			FUN_QSTAT_INC(q, tx_encap_tso);
+		} else if (shinfo->gso_type & SKB_GSO_UDP_L4) {
+			flags = FUN_ETH_INNER_LSO | FUN_ETH_INNER_UDP |
+				FUN_ETH_UPDATE_INNER_L4_CKSUM |
+				FUN_ETH_UPDATE_INNER_L4_LEN |
+				FUN_ETH_UPDATE_INNER_L3_LEN;
+
+			if (ip_hdr(skb)->version == 4)
+				flags |= FUN_ETH_UPDATE_INNER_L3_CKSUM;
+			else
+				flags |= FUN_ETH_INNER_IPV6;
+
+			l4_hlen = sizeof(struct udphdr);
+			fun_eth_offload_init(&req->offload, flags,
+					     shinfo->gso_size,
+					     cpu_to_be16(l4_hlen << 10), 0,
+					     skb_network_offset(skb),
+					     skb_transport_offset(skb), 0, 0);
+			FUN_QSTAT_INC(q, tx_uso);
 		} else {
 			/* HW considers one set of headers as inner */
 			flags = FUN_ETH_INNER_LSO |
@@ -195,6 +215,7 @@ static unsigned int write_pkt_desc(struct sk_buff *skb, struct funeth_txq *q,
 			else
 				flags |= FUN_ETH_UPDATE_INNER_L3_CKSUM;
 			th = tcp_hdr(skb);
+			l4_hlen = __tcp_hdrlen(th);
 			fun_eth_offload_init(&req->offload, flags,
 					     shinfo->gso_size,
 					     tcp_hdr_doff_flags(th), 0,
@@ -209,7 +230,7 @@ static unsigned int write_pkt_desc(struct sk_buff *skb, struct funeth_txq *q,
 
 		extra_pkts = shinfo->gso_segs - 1;
 		extra_bytes = (be16_to_cpu(req->offload.inner_l4_off) +
-			       __tcp_hdrlen(th)) * extra_pkts;
+			       l4_hlen) * extra_pkts;
 	} else if (likely(skb->ip_summed == CHECKSUM_PARTIAL)) {
 		flags = FUN_ETH_UPDATE_INNER_L4_CKSUM;
 		if (skb->csum_offset == offsetof(struct udphdr, check))
