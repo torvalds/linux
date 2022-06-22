@@ -117,15 +117,6 @@ static void svc_reclassify_socket(struct socket *sock)
  */
 static void svc_tcp_release_rqst(struct svc_rqst *rqstp)
 {
-	struct sk_buff *skb = rqstp->rq_xprt_ctxt;
-
-	if (skb) {
-		struct svc_sock *svsk =
-			container_of(rqstp->rq_xprt, struct svc_sock, sk_xprt);
-
-		rqstp->rq_xprt_ctxt = NULL;
-		skb_free_datagram_locked(svsk->sk_sk, skb);
-	}
 }
 
 /**
@@ -259,8 +250,6 @@ static ssize_t svc_tcp_read_msg(struct svc_rqst *rqstp, size_t buflen,
 	ssize_t len;
 	size_t t;
 
-	rqstp->rq_xprt_hlen = 0;
-
 	clear_bit(XPT_DATA, &svsk->sk_xprt.xpt_flags);
 
 	for (i = 0, t = 0; t < buflen; i++, t += PAGE_SIZE) {
@@ -309,9 +298,9 @@ static void svc_sock_setbufsize(struct svc_sock *svsk, unsigned int nreqs)
 static void svc_sock_secure_port(struct svc_rqst *rqstp)
 {
 	if (svc_port_is_privileged(svc_addr(rqstp)))
-		set_bit(RQ_SECURE, &rqstp->rq_flags);
+		__set_bit(RQ_SECURE, &rqstp->rq_flags);
 	else
-		clear_bit(RQ_SECURE, &rqstp->rq_flags);
+		__clear_bit(RQ_SECURE, &rqstp->rq_flags);
 }
 
 /*
@@ -1019,9 +1008,9 @@ static int svc_tcp_recvfrom(struct svc_rqst *rqstp)
 	rqstp->rq_xprt_ctxt   = NULL;
 	rqstp->rq_prot	      = IPPROTO_TCP;
 	if (test_bit(XPT_LOCAL, &svsk->sk_xprt.xpt_flags))
-		set_bit(RQ_LOCAL, &rqstp->rq_flags);
+		__set_bit(RQ_LOCAL, &rqstp->rq_flags);
 	else
-		clear_bit(RQ_LOCAL, &rqstp->rq_flags);
+		__clear_bit(RQ_LOCAL, &rqstp->rq_flags);
 
 	p = (__be32 *)rqstp->rq_arg.head[0].iov_base;
 	calldir = p[1];

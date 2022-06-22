@@ -1221,8 +1221,8 @@ nvmet_rdma_find_get_device(struct rdma_cm_id *cm_id)
 	ndev->inline_data_size = nport->inline_data_size;
 	ndev->inline_page_count = inline_page_count;
 
-	if (nport->pi_enable && !(cm_id->device->attrs.device_cap_flags &
-				  IB_DEVICE_INTEGRITY_HANDOVER)) {
+	if (nport->pi_enable && !(cm_id->device->attrs.kernel_cap_flags &
+				  IBK_INTEGRITY_HANDOVER)) {
 		pr_warn("T10-PI is not supported by device %s. Disabling it\n",
 			cm_id->device->name);
 		nport->pi_enable = false;

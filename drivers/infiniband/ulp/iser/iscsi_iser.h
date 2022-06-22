@@ -363,7 +363,7 @@ struct iser_fr_pool {
  * @cq:                  Connection completion queue
  * @cq_size:             The number of max outstanding completions
  * @device:              reference to iser device
- * @fr_pool:             connection fast registration poool
+ * @fr_pool:             connection fast registration pool
  * @pi_support:          Indicate device T10-PI support
  * @reg_cqe:             completion handler
  */
