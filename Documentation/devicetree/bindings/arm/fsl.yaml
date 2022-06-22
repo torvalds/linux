@@ -967,6 +967,18 @@ properties:
           - const: toradex,verdin-imx8mp          # Verdin iMX8M Plus Module
           - const: fsl,imx8mp
 
+      - description:
+          TQMa8MPxL is a series of LGA SOM featuring NXP i.MX8MP system-on-chip
+          variants. It is designed to be soldered on different carrier boards.
+          All CPU variants use the same device tree hence only one compatible
+          is needed. MBa8MPxL mainboard can be used as starterkit or in a boxed
+          version as an industrial computing device.
+        items:
+          - enum:
+              - tq,imx8mp-tqma8mpql-mba8mpxl # TQ-Systems GmbH i.MX8MP TQMa8MPQL SOM on MBa8MPxL
+          - const: tq,imx8mp-tqma8mpql       # TQ-Systems GmbH i.MX8MP TQMa8MPQL SOM
+          - const: fsl,imx8mp
+
       - description: i.MX8MQ based Boards
         items:
           - enum:
