@@ -353,7 +353,6 @@ csum_and_copy_from_user(const void __user *src, void *dst, int len)
 		return 0;
 	return __csum_and_copy(src, dst, len);
 }
-EXPORT_SYMBOL(csum_and_copy_from_user);
 
 __wsum
 csum_partial_copy_nocheck(const void *src, void *dst, int len)
