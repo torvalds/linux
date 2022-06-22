@@ -1198,10 +1198,27 @@ struct mac80211_hwsim_addr_match_data {
 static void mac80211_hwsim_addr_iter(void *data, u8 *mac,
 				     struct ieee80211_vif *vif)
 {
+	int i;
 	struct mac80211_hwsim_addr_match_data *md = data;
 
-	if (memcmp(mac, md->addr, ETH_ALEN) == 0)
+	if (memcmp(mac, md->addr, ETH_ALEN) == 0) {
 		md->ret = true;
+		return;
+	}
+
+	/* Match the link address */
+	for (i = 0; i < ARRAY_SIZE(vif->link_conf); i++) {
+		struct ieee80211_bss_conf *conf;
+
+		conf = rcu_dereference(vif->link_conf[i]);
+		if (!conf)
+			continue;
+
+		if (memcmp(conf->addr, md->addr, ETH_ALEN) == 0) {
+			md->ret = true;
+			return;
+		}
+	}
 }
 
 static bool mac80211_hwsim_addr_match(struct mac80211_hwsim_data *data,
