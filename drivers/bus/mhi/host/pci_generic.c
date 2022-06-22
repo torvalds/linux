@@ -580,6 +580,9 @@ static const struct pci_device_id mhi_pci_id_table[] = {
 	/* MV31-W (Cinterion) */
 	{ PCI_DEVICE(0x1269, 0x00b3),
 		.driver_data = (kernel_ulong_t) &mhi_mv31_info },
+	/* MV31-W (Cinterion), based on new baseline */
+	{ PCI_DEVICE(0x1269, 0x00b4),
+		.driver_data = (kernel_ulong_t) &mhi_mv31_info },
 	/* MV32-WA (Cinterion) */
 	{ PCI_DEVICE(0x1269, 0x00ba),
 		.driver_data = (kernel_ulong_t) &mhi_mv32_info },
