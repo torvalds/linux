@@ -453,7 +453,7 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 		goto error_simple;
 	}
 
-	buffer = kmalloc(writesize, GFP_ATOMIC);
+	buffer = kmemdup(buf, writesize, GFP_ATOMIC);
 	if (!buffer) {
 		retval = -ENOMEM;
 		goto error_no_buffer;
@@ -464,8 +464,6 @@ static int sierra_write(struct tty_struct *tty, struct usb_serial_port *port,
 		retval = -ENOMEM;
 		goto error_no_urb;
 	}
-
-	memcpy(buffer, buf, writesize);
 
 	usb_serial_debug_data(&port->dev, __func__, writesize, buffer);
 
