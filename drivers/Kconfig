@@ -225,8 +225,6 @@ source "drivers/mux/Kconfig"
 
 source "drivers/opp/Kconfig"
 
-source "drivers/visorbus/Kconfig"
-
 source "drivers/siox/Kconfig"
 
 source "drivers/slimbus/Kconfig"

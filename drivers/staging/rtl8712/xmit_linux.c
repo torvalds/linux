@@ -95,18 +95,12 @@ void r8712_SetFilter(struct work_struct *work)
 	struct _adapter *adapter = container_of(work, struct _adapter,
 						wk_filter_rx_ff0);
 	u8  oldvalue = 0x00, newvalue = 0x00;
-	unsigned long irqL;
 
 	oldvalue = r8712_read8(adapter, 0x117);
 	newvalue = oldvalue & 0xfe;
 	r8712_write8(adapter, 0x117, newvalue);
 
-	spin_lock_irqsave(&adapter->lock_rx_ff0_filter, irqL);
-	adapter->blnEnableRxFF0Filter = 1;
-	spin_unlock_irqrestore(&adapter->lock_rx_ff0_filter, irqL);
-	do {
-		msleep(100);
-	} while (adapter->blnEnableRxFF0Filter == 1);
+	wait_for_completion(&adapter->rx_filter_ready);
 	r8712_write8(adapter, 0x117, oldvalue);
 }
 
