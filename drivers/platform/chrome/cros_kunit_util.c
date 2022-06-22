@@ -105,6 +105,24 @@ struct ec_xfer_mock *cros_kunit_ec_xfer_mock_next(void)
 }
 EXPORT_SYMBOL_GPL(cros_kunit_ec_xfer_mock_next);
 
+int cros_kunit_readmem_mock_offset;
+EXPORT_SYMBOL_GPL(cros_kunit_readmem_mock_offset);
+u8 *cros_kunit_readmem_mock_data;
+EXPORT_SYMBOL_GPL(cros_kunit_readmem_mock_data);
+int cros_kunit_readmem_mock_ret;
+EXPORT_SYMBOL_GPL(cros_kunit_readmem_mock_ret);
+
+int cros_kunit_readmem_mock(struct cros_ec_device *ec_dev, unsigned int offset,
+			    unsigned int bytes, void *dest)
+{
+	cros_kunit_readmem_mock_offset = offset;
+
+	memcpy(dest, cros_kunit_readmem_mock_data, bytes);
+
+	return cros_kunit_readmem_mock_ret;
+}
+EXPORT_SYMBOL_GPL(cros_kunit_readmem_mock);
+
 void cros_kunit_mock_reset(void)
 {
 	cros_kunit_ec_xfer_mock_default_ret = 0;
@@ -112,6 +130,10 @@ void cros_kunit_mock_reset(void)
 	cros_kunit_ec_pkt_xfer_mock_called = 0;
 	INIT_LIST_HEAD(&cros_kunit_ec_xfer_mock_in);
 	INIT_LIST_HEAD(&cros_kunit_ec_xfer_mock_out);
+
+	cros_kunit_readmem_mock_offset = 0;
+	cros_kunit_readmem_mock_data = NULL;
+	cros_kunit_readmem_mock_ret = 0;
 }
 EXPORT_SYMBOL_GPL(cros_kunit_mock_reset);
 

@@ -2442,6 +2442,156 @@ static void cros_ec_proto_test_check_features_not_cached(struct kunit *test)
 	}
 }
 
+static void cros_ec_proto_test_get_sensor_count_normal(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	struct ec_xfer_mock *mock;
+	int ret;
+	struct cros_ec_dev ec;
+
+	ec_dev->max_request = 0xff;
+	ec_dev->max_response = 0xee;
+	ec.ec_dev = ec_dev;
+	ec.dev = ec_dev->dev;
+	ec.cmd_offset = 0;
+
+	/* For EC_CMD_MOTION_SENSE_CMD. */
+	{
+		struct ec_response_motion_sense *data;
+
+		mock = cros_kunit_ec_xfer_mock_add(test, sizeof(*data));
+		KUNIT_ASSERT_PTR_NE(test, mock, NULL);
+
+		data = (struct ec_response_motion_sense *)mock->o_data;
+		data->dump.sensor_count = 0xbf;
+	}
+
+	ret = cros_ec_get_sensor_count(&ec);
+	KUNIT_EXPECT_EQ(test, ret, 0xbf);
+
+	/* For EC_CMD_MOTION_SENSE_CMD. */
+	{
+		struct ec_params_motion_sense *data;
+
+		mock = cros_kunit_ec_xfer_mock_next();
+		KUNIT_EXPECT_PTR_NE(test, mock, NULL);
+
+		KUNIT_EXPECT_EQ(test, mock->msg.version, 1);
+		KUNIT_EXPECT_EQ(test, mock->msg.command, EC_CMD_MOTION_SENSE_CMD);
+		KUNIT_EXPECT_EQ(test, mock->msg.insize, sizeof(struct ec_response_motion_sense));
+		KUNIT_EXPECT_EQ(test, mock->msg.outsize, sizeof(*data));
+
+		data = (struct ec_params_motion_sense *)mock->i_data;
+		KUNIT_EXPECT_EQ(test, data->cmd, MOTIONSENSE_CMD_DUMP);
+	}
+}
+
+static void cros_ec_proto_test_get_sensor_count_xfer_error(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	struct ec_xfer_mock *mock;
+	int ret;
+	struct cros_ec_dev ec;
+
+	ec_dev->max_request = 0xff;
+	ec_dev->max_response = 0xee;
+	ec.ec_dev = ec_dev;
+	ec.dev = ec_dev->dev;
+	ec.cmd_offset = 0;
+
+	/* For EC_CMD_MOTION_SENSE_CMD. */
+	{
+		mock = cros_kunit_ec_xfer_mock_addx(test, -EPROTO, EC_RES_SUCCESS, 0);
+		KUNIT_ASSERT_PTR_NE(test, mock, NULL);
+	}
+
+	ret = cros_ec_get_sensor_count(&ec);
+	KUNIT_EXPECT_EQ(test, ret, -EPROTO);
+
+	/* For EC_CMD_MOTION_SENSE_CMD. */
+	{
+		struct ec_params_motion_sense *data;
+
+		mock = cros_kunit_ec_xfer_mock_next();
+		KUNIT_EXPECT_PTR_NE(test, mock, NULL);
+
+		KUNIT_EXPECT_EQ(test, mock->msg.version, 1);
+		KUNIT_EXPECT_EQ(test, mock->msg.command, EC_CMD_MOTION_SENSE_CMD);
+		KUNIT_EXPECT_EQ(test, mock->msg.insize, sizeof(struct ec_response_motion_sense));
+		KUNIT_EXPECT_EQ(test, mock->msg.outsize, sizeof(*data));
+
+		data = (struct ec_params_motion_sense *)mock->i_data;
+		KUNIT_EXPECT_EQ(test, data->cmd, MOTIONSENSE_CMD_DUMP);
+	}
+}
+
+static void cros_ec_proto_test_get_sensor_count_legacy(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	struct ec_xfer_mock *mock;
+	int ret, i;
+	struct cros_ec_dev ec;
+	struct {
+		u8 readmem_data;
+		int expected_result;
+	} test_data[] = {
+		{ 0, 0 },
+		{ EC_MEMMAP_ACC_STATUS_PRESENCE_BIT, 2 },
+	};
+
+	ec_dev->max_request = 0xff;
+	ec_dev->max_response = 0xee;
+	ec_dev->cmd_readmem = cros_kunit_readmem_mock;
+	ec.ec_dev = ec_dev;
+	ec.dev = ec_dev->dev;
+	ec.cmd_offset = 0;
+
+	for (i = 0; i < ARRAY_SIZE(test_data); ++i) {
+		/* For EC_CMD_MOTION_SENSE_CMD. */
+		{
+			mock = cros_kunit_ec_xfer_mock_addx(test, -EPROTO, EC_RES_SUCCESS, 0);
+			KUNIT_ASSERT_PTR_NE(test, mock, NULL);
+		}
+
+		/* For readmem. */
+		{
+			cros_kunit_readmem_mock_data = kunit_kzalloc(test, 1, GFP_KERNEL);
+			KUNIT_ASSERT_PTR_NE(test, cros_kunit_readmem_mock_data, NULL);
+			cros_kunit_readmem_mock_data[0] = test_data[i].readmem_data;
+
+			cros_kunit_ec_xfer_mock_default_ret = 1;
+		}
+
+		ret = cros_ec_get_sensor_count(&ec);
+		KUNIT_EXPECT_EQ(test, ret, test_data[i].expected_result);
+
+		/* For EC_CMD_MOTION_SENSE_CMD. */
+		{
+			struct ec_params_motion_sense *data;
+
+			mock = cros_kunit_ec_xfer_mock_next();
+			KUNIT_EXPECT_PTR_NE(test, mock, NULL);
+
+			KUNIT_EXPECT_EQ(test, mock->msg.version, 1);
+			KUNIT_EXPECT_EQ(test, mock->msg.command, EC_CMD_MOTION_SENSE_CMD);
+			KUNIT_EXPECT_EQ(test, mock->msg.insize,
+					sizeof(struct ec_response_motion_sense));
+			KUNIT_EXPECT_EQ(test, mock->msg.outsize, sizeof(*data));
+
+			data = (struct ec_params_motion_sense *)mock->i_data;
+			KUNIT_EXPECT_EQ(test, data->cmd, MOTIONSENSE_CMD_DUMP);
+		}
+
+		/* For readmem. */
+		{
+			KUNIT_EXPECT_EQ(test, cros_kunit_readmem_mock_offset, EC_MEMMAP_ACC_STATUS);
+		}
+	}
+}
+
 static void cros_ec_proto_test_release(struct device *dev)
 {
 }
@@ -2537,6 +2687,9 @@ static struct kunit_case cros_ec_proto_test_cases[] = {
 	KUNIT_CASE(cros_ec_proto_test_get_host_event_normal),
 	KUNIT_CASE(cros_ec_proto_test_check_features_cached),
 	KUNIT_CASE(cros_ec_proto_test_check_features_not_cached),
+	KUNIT_CASE(cros_ec_proto_test_get_sensor_count_normal),
+	KUNIT_CASE(cros_ec_proto_test_get_sensor_count_xfer_error),
+	KUNIT_CASE(cros_ec_proto_test_get_sensor_count_legacy),
 	{}
 };
 

@@ -35,6 +35,13 @@ struct ec_xfer_mock *cros_kunit_ec_xfer_mock_addx(struct kunit *test,
 						  int ret, int result, size_t size);
 struct ec_xfer_mock *cros_kunit_ec_xfer_mock_next(void);
 
+extern int cros_kunit_readmem_mock_offset;
+extern u8 *cros_kunit_readmem_mock_data;
+extern int cros_kunit_readmem_mock_ret;
+
+int cros_kunit_readmem_mock(struct cros_ec_device *ec_dev, unsigned int offset,
+			    unsigned int bytes, void *dest);
+
 void cros_kunit_mock_reset(void);
 
 #endif
