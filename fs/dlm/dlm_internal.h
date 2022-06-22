@@ -606,8 +606,8 @@ struct dlm_ls {
 
 	wait_queue_head_t	ls_uevent_wait;	/* user part of join/leave */
 	int			ls_uevent_result;
-	struct completion	ls_members_done;
-	int			ls_members_result;
+	struct completion	ls_recovery_done;
+	int			ls_recovery_result;
 
 	struct miscdevice       ls_device;
 

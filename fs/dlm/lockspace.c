@@ -548,8 +548,8 @@ static int new_lockspace(const char *name, const char *cluster,
 
 	init_waitqueue_head(&ls->ls_uevent_wait);
 	ls->ls_uevent_result = 0;
-	init_completion(&ls->ls_members_done);
-	ls->ls_members_result = -1;
+	init_completion(&ls->ls_recovery_done);
+	ls->ls_recovery_result = -1;
 
 	mutex_init(&ls->ls_cb_mutex);
 	INIT_LIST_HEAD(&ls->ls_cb_delay);
@@ -645,8 +645,9 @@ static int new_lockspace(const char *name, const char *cluster,
 	if (error)
 		goto out_recoverd;
 
-	wait_for_completion(&ls->ls_members_done);
-	error = ls->ls_members_result;
+	/* wait until recovery is successful or failed */
+	wait_for_completion(&ls->ls_recovery_done);
+	error = ls->ls_recovery_result;
 	if (error)
 		goto out_members;
 

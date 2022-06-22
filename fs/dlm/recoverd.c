@@ -243,6 +243,9 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 		  jiffies_to_msecs(jiffies - start));
 	mutex_unlock(&ls->ls_recoverd_active);
 
+	ls->ls_recovery_result = 0;
+	complete(&ls->ls_recovery_done);
+
 	dlm_lsop_recover_done(ls);
 	return 0;
 
@@ -251,6 +254,16 @@ static int ls_recover(struct dlm_ls *ls, struct dlm_recover *rv)
 	log_rinfo(ls, "dlm_recover %llu error %d",
 		  (unsigned long long)rv->seq, error);
 	mutex_unlock(&ls->ls_recoverd_active);
+
+	/* let new_lockspace() get aware of critical error if recovery
+	 * was interrupted -EINTR we wait for the next ls_recover()
+	 * iteration until it succeeds.
+	 */
+	if (error != -EINTR) {
+		ls->ls_recovery_result = error;
+		complete(&ls->ls_recovery_done);
+	}
+
 	return error;
 }
 
