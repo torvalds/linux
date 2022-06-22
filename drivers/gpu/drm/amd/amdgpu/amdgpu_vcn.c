@@ -330,7 +330,7 @@ int amdgpu_vcn_sw_fini(struct amdgpu_device *adev)
 }
 
 /* from vcn4 and above, only unified queue is used */
-bool amdgpu_vcn_using_unified_queue(struct amdgpu_ring *ring)
+static bool amdgpu_vcn_using_unified_queue(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
 	bool ret = false;
