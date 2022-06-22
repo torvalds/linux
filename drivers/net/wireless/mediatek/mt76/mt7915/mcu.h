@@ -452,6 +452,12 @@ enum {
 	SER_RECOVER
 };
 
+#define MT7915_MAX_BEACON_SIZE		512
+#define MT7915_MAX_INBAND_FRAME_SIZE	256
+#define MT7915_MAX_BSS_OFFLOAD_SIZE	(MT7915_MAX_BEACON_SIZE +	  \
+					 MT7915_MAX_INBAND_FRAME_SIZE +	  \
+					 MT7915_BEACON_UPDATE_SIZE)
+
 #define MT7915_BSS_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct bss_info_omac) +	\
 					 sizeof(struct bss_info_basic) +\
