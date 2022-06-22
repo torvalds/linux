@@ -2425,7 +2425,8 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	int rc;
 
 	dev_info(hdev->dev,
-		"Loading firmware to device, may take some time...\n");
+		"Loading %sfirmware to device, may take some time...\n",
+		hdev->asic_prop.fw_security_enabled ? "secured " : "");
 
 	/* initialize FW descriptor as invalid */
 	fw_loader->dynamic_loader.fw_desc_valid = false;
