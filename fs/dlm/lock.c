@@ -1402,75 +1402,6 @@ static int msg_reply_type(int mstype)
 	return -1;
 }
 
-static int nodeid_warned(int nodeid, int num_nodes, int *warned)
-{
-	int i;
-
-	for (i = 0; i < num_nodes; i++) {
-		if (!warned[i]) {
-			warned[i] = nodeid;
-			return 0;
-		}
-		if (warned[i] == nodeid)
-			return 1;
-	}
-	return 0;
-}
-
-void dlm_scan_waiters(struct dlm_ls *ls)
-{
-	struct dlm_lkb *lkb;
-	s64 us;
-	s64 debug_maxus = 0;
-	u32 debug_scanned = 0;
-	u32 debug_expired = 0;
-	int num_nodes = 0;
-	int *warned = NULL;
-
-	if (!dlm_config.ci_waitwarn_us)
-		return;
-
-	mutex_lock(&ls->ls_waiters_mutex);
-
-	list_for_each_entry(lkb, &ls->ls_waiters, lkb_wait_reply) {
-		if (!lkb->lkb_wait_time)
-			continue;
-
-		debug_scanned++;
-
-		us = ktime_to_us(ktime_sub(ktime_get(), lkb->lkb_wait_time));
-
-		if (us < dlm_config.ci_waitwarn_us)
-			continue;
-
-		lkb->lkb_wait_time = 0;
-
-		debug_expired++;
-		if (us > debug_maxus)
-			debug_maxus = us;
-
-		if (!num_nodes) {
-			num_nodes = ls->ls_num_nodes;
-			warned = kcalloc(num_nodes, sizeof(int), GFP_KERNEL);
-		}
-		if (!warned)
-			continue;
-		if (nodeid_warned(lkb->lkb_wait_nodeid, num_nodes, warned))
-			continue;
-
-		log_error(ls, "waitwarn %x %lld %d us check connection to "
-			  "node %d", lkb->lkb_id, (long long)us,
-			  dlm_config.ci_waitwarn_us, lkb->lkb_wait_nodeid);
-	}
-	mutex_unlock(&ls->ls_waiters_mutex);
-	kfree(warned);
-
-	if (debug_expired)
-		log_debug(ls, "scan_waiters %u warn %u over %d us max %lld us",
-			  debug_scanned, debug_expired,
-			  dlm_config.ci_waitwarn_us, (long long)debug_maxus);
-}
-
 /* add/remove lkb from global waiters list of lkb's waiting for
    a reply from a remote node */
 
@@ -1514,7 +1445,6 @@ static int add_to_waiters(struct dlm_lkb *lkb, int mstype, int to_nodeid)
 
 	lkb->lkb_wait_count++;
 	lkb->lkb_wait_type = mstype;
-	lkb->lkb_wait_time = ktime_get();
 	lkb->lkb_wait_nodeid = to_nodeid; /* for debugging */
 	hold_lkb(lkb);
 	list_add(&lkb->lkb_wait_reply, &ls->ls_waiters);
@@ -1962,16 +1892,6 @@ void dlm_adjust_timeouts(struct dlm_ls *ls)
 	list_for_each_entry(lkb, &ls->ls_timeout, lkb_time_list)
 		lkb->lkb_timestamp = ktime_add_us(lkb->lkb_timestamp, adj_us);
 	mutex_unlock(&ls->ls_timeout_mutex);
-
-	if (!dlm_config.ci_waitwarn_us)
-		return;
-
-	mutex_lock(&ls->ls_waiters_mutex);
-	list_for_each_entry(lkb, &ls->ls_waiters, lkb_wait_reply) {
-		if (ktime_to_us(lkb->lkb_wait_time))
-			lkb->lkb_wait_time = ktime_get();
-	}
-	mutex_unlock(&ls->ls_waiters_mutex);
 }
 
 /* lkb is master or local copy */

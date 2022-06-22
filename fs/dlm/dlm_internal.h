@@ -259,7 +259,6 @@ struct dlm_lkb {
 	struct list_head	lkb_ownqueue;	/* list of locks for a process */
 	struct list_head	lkb_time_list;
 	ktime_t			lkb_timestamp;
-	ktime_t			lkb_wait_time;
 	unsigned long		lkb_timeout_cs;
 
 	struct mutex		lkb_cb_mutex;

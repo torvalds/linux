@@ -275,7 +275,6 @@ static int dlm_scand(void *data)
 				ls->ls_scan_time = jiffies;
 				dlm_scan_rsbs(ls);
 				dlm_scan_timeout(ls);
-				dlm_scan_waiters(ls);
 				dlm_unlock_recovery(ls);
 			} else {
 				ls->ls_scan_time += HZ;

@@ -76,7 +76,6 @@ struct dlm_cluster {
 	unsigned int cl_protocol;
 	unsigned int cl_mark;
 	unsigned int cl_timewarn_cs;
-	unsigned int cl_waitwarn_us;
 	unsigned int cl_new_rsb_count;
 	unsigned int cl_recover_callbacks;
 	char cl_cluster_name[DLM_LOCKSPACE_LEN];
@@ -103,7 +102,6 @@ enum {
 	CLUSTER_ATTR_PROTOCOL,
 	CLUSTER_ATTR_MARK,
 	CLUSTER_ATTR_TIMEWARN_CS,
-	CLUSTER_ATTR_WAITWARN_US,
 	CLUSTER_ATTR_NEW_RSB_COUNT,
 	CLUSTER_ATTR_RECOVER_CALLBACKS,
 	CLUSTER_ATTR_CLUSTER_NAME,
@@ -225,7 +223,6 @@ CLUSTER_ATTR(log_info, NULL);
 CLUSTER_ATTR(protocol, dlm_check_protocol_and_dlm_running);
 CLUSTER_ATTR(mark, NULL);
 CLUSTER_ATTR(timewarn_cs, dlm_check_zero);
-CLUSTER_ATTR(waitwarn_us, NULL);
 CLUSTER_ATTR(new_rsb_count, NULL);
 CLUSTER_ATTR(recover_callbacks, NULL);
 
@@ -241,7 +238,6 @@ static struct configfs_attribute *cluster_attrs[] = {
 	[CLUSTER_ATTR_PROTOCOL] = &cluster_attr_protocol,
 	[CLUSTER_ATTR_MARK] = &cluster_attr_mark,
 	[CLUSTER_ATTR_TIMEWARN_CS] = &cluster_attr_timewarn_cs,
-	[CLUSTER_ATTR_WAITWARN_US] = &cluster_attr_waitwarn_us,
 	[CLUSTER_ATTR_NEW_RSB_COUNT] = &cluster_attr_new_rsb_count,
 	[CLUSTER_ATTR_RECOVER_CALLBACKS] = &cluster_attr_recover_callbacks,
 	[CLUSTER_ATTR_CLUSTER_NAME] = &cluster_attr_cluster_name,
@@ -433,7 +429,6 @@ static struct config_group *make_cluster(struct config_group *g,
 	cl->cl_log_info = dlm_config.ci_log_info;
 	cl->cl_protocol = dlm_config.ci_protocol;
 	cl->cl_timewarn_cs = dlm_config.ci_timewarn_cs;
-	cl->cl_waitwarn_us = dlm_config.ci_waitwarn_us;
 	cl->cl_new_rsb_count = dlm_config.ci_new_rsb_count;
 	cl->cl_recover_callbacks = dlm_config.ci_recover_callbacks;
 	memcpy(cl->cl_cluster_name, dlm_config.ci_cluster_name,
@@ -955,7 +950,6 @@ int dlm_our_addr(struct sockaddr_storage *addr, int num)
 #define DEFAULT_PROTOCOL           DLM_PROTO_TCP
 #define DEFAULT_MARK               0
 #define DEFAULT_TIMEWARN_CS      500 /* 5 sec = 500 centiseconds */
-#define DEFAULT_WAITWARN_US	   0
 #define DEFAULT_NEW_RSB_COUNT    128
 #define DEFAULT_RECOVER_CALLBACKS  0
 #define DEFAULT_CLUSTER_NAME      ""
@@ -972,7 +966,6 @@ struct dlm_config_info dlm_config = {
 	.ci_protocol = DEFAULT_PROTOCOL,
 	.ci_mark = DEFAULT_MARK,
 	.ci_timewarn_cs = DEFAULT_TIMEWARN_CS,
-	.ci_waitwarn_us = DEFAULT_WAITWARN_US,
 	.ci_new_rsb_count = DEFAULT_NEW_RSB_COUNT,
 	.ci_recover_callbacks = DEFAULT_RECOVER_CALLBACKS,
 	.ci_cluster_name = DEFAULT_CLUSTER_NAME
