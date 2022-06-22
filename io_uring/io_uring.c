@@ -986,11 +986,11 @@ static void ctx_flush_and_put(struct io_ring_ctx *ctx, bool *locked)
 	percpu_ref_put(&ctx->refs);
 }
 
-
 static void handle_tw_list(struct llist_node *node,
-			   struct io_ring_ctx **ctx, bool *locked)
+			   struct io_ring_ctx **ctx, bool *locked,
+			   struct llist_node *last)
 {
-	do {
+	while (node != last) {
 		struct llist_node *next = node->next;
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    io_task_work.node);
@@ -1006,7 +1006,7 @@ static void handle_tw_list(struct llist_node *node,
 		}
 		req->io_task_work.func(req, locked);
 		node = next;
-	} while (node);
+	}
 }
 
 /**
@@ -1045,11 +1045,15 @@ void tctx_task_work(struct callback_head *cb)
 	struct io_ring_ctx *ctx = NULL;
 	struct io_uring_task *tctx = container_of(cb, struct io_uring_task,
 						  task_work);
-	struct llist_node *node = llist_del_all(&tctx->task_list);
+	struct llist_node fake = {};
+	struct llist_node *node = io_llist_xchg(&tctx->task_list, &fake);
 
-	if (node) {
-		handle_tw_list(node, &ctx, &uring_locked);
-		cond_resched();
+	handle_tw_list(node, &ctx, &uring_locked, NULL);
+	node = io_llist_cmpxchg(&tctx->task_list, &fake, NULL);
+	while (node != &fake) {
+		node = io_llist_xchg(&tctx->task_list, &fake);
+		handle_tw_list(node, &ctx, &uring_locked, &fake);
+		node = io_llist_cmpxchg(&tctx->task_list, &fake, NULL);
 	}
 
 	ctx_flush_and_put(ctx, &uring_locked);
