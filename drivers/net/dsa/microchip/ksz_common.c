@@ -555,7 +555,6 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 
 	spin_unlock(&mib->stats64_lock);
 }
-EXPORT_SYMBOL_GPL(ksz_r_mib_stats64);
 
 static void ksz_get_stats64(struct dsa_switch *ds, int port,
 			    struct rtnl_link_stats64 *s)
@@ -765,7 +764,6 @@ void ksz_init_mib_timer(struct ksz_device *dev)
 		memset(mib->counters, 0, dev->info->mib_cnt * sizeof(u64));
 	}
 }
-EXPORT_SYMBOL_GPL(ksz_init_mib_timer);
 
 static int ksz_phy_read16(struct dsa_switch *ds, int addr, int reg)
 {
@@ -987,7 +985,6 @@ void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 
 	ksz_update_port_member(dev, port);
 }
-EXPORT_SYMBOL_GPL(ksz_port_stp_state_set);
 
 static enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
 						  int port,
