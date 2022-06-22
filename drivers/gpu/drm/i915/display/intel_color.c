@@ -1287,6 +1287,10 @@ intel_color_add_affected_planes(struct intel_crtc_state *new_crtc_state)
 			return PTR_ERR(plane_state);
 
 		new_crtc_state->update_planes |= BIT(plane->id);
+
+		/* plane control register changes blocked by CxSR */
+		if (HAS_GMCH(dev_priv))
+			new_crtc_state->disable_cxsr = true;
 	}
 
 	return 0;
