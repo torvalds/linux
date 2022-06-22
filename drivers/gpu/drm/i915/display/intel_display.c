@@ -7166,9 +7166,7 @@ static void intel_old_crtc_state_disables(struct intel_atomic_state *state,
 	intel_fbc_disable(crtc);
 	intel_disable_shared_dpll(old_crtc_state);
 
-	/* FIXME unify this for all platforms */
-	if (!new_crtc_state->hw.active &&
-	    !HAS_GMCH(dev_priv))
+	if (!new_crtc_state->hw.active)
 		intel_initial_watermarks(state, crtc);
 }
 
