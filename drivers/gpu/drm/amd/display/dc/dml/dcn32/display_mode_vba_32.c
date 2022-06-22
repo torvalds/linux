@@ -1660,8 +1660,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 
 void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_lib)
 {
-	bool dummy_boolean[2];
-	unsigned int dummy_integer[1];
+	unsigned int dummy_integer[4];
 	bool MPCCombineMethodAsNeededForPStateChangeAndVoltage;
 	bool MPCCombineMethodAsPossible;
 	enum odm_combine_mode dummy_odm_mode[DC__NUM_DPP__MAX];
@@ -1973,10 +1972,10 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[5], /* Long            DETBufferSizeInKByte[]  */
 			v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[6], /* Long            DETBufferSizeY[]  */
 			v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[7], /* Long            DETBufferSizeC[]  */
-			&dummy_boolean[0], /* bool           *UnboundedRequestEnabled  */
-			&dummy_integer[0], /* Long           *CompressedBufferSizeInkByte  */
+			&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_boolean_array[0][0], /* bool           *UnboundedRequestEnabled  */
+			&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[0][0], /* Long           *CompressedBufferSizeInkByte  */
 			mode_lib->vba.SingleDPPViewportSizeSupportPerSurface,/* bool ViewportSizeSupportPerSurface[] */
-			&dummy_boolean[1]); /* bool           *ViewportSizeSupport */
+			&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_boolean_array[1][0]); /* bool           *ViewportSizeSupport */
 
 	MPCCombineMethodAsNeededForPStateChangeAndVoltage = false;
 	MPCCombineMethodAsPossible = false;
@@ -2506,7 +2505,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	//
 	for (i = 0; i < (int) v->soc.num_states; ++i) {
 		for (j = 0; j <= 1; ++j) {
-			bool dummy_boolean_array[1][DC__NUM_DPP__MAX];
 			for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
 				mode_lib->vba.RequiredDPPCLKThisState[k] = mode_lib->vba.RequiredDPPCLK[i][j][k];
 				mode_lib->vba.NoOfDPPThisState[k] = mode_lib->vba.NoOfDPP[i][j][k];
@@ -2570,7 +2568,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					mode_lib->vba.DETBufferSizeCThisState,
 					&mode_lib->vba.UnboundedRequestEnabledThisState,
 					&mode_lib->vba.CompressedBufferSizeInkByteThisState,
-					dummy_boolean_array[0],
+					v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_boolean_array[0],
 					&mode_lib->vba.ViewportSizeSupport[i][j]);
 
 			for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
@@ -2708,9 +2706,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			}
 
 			{
-				bool dummy_boolean_array[2][DC__NUM_DPP__MAX];
-				unsigned int dummy_integer_array[22][DC__NUM_DPP__MAX];
-
 				dml32_CalculateVMRowAndSwath(
 						mode_lib->vba.NumberOfActiveSurfaces,
 						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters,
@@ -2733,32 +2728,32 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						/* Output */
 						mode_lib->vba.PTEBufferSizeNotExceededPerState,
 						mode_lib->vba.DCCMetaBufferSizeNotExceededPerState,
-						dummy_integer_array[0],
-						dummy_integer_array[1],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[0],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[1],
 						mode_lib->vba.dpte_row_height,
 						mode_lib->vba.dpte_row_height_chroma,
-						dummy_integer_array[2],
-						dummy_integer_array[3],
-						dummy_integer_array[4],
-						dummy_integer_array[5],
-						dummy_integer_array[6],
-						dummy_integer_array[7],
-						dummy_integer_array[8],
-						dummy_integer_array[9],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[2],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[3],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[4],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[5],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[6],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[7],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[8],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[9],
 						mode_lib->vba.meta_row_height,
 						mode_lib->vba.meta_row_height_chroma,
-						dummy_integer_array[10],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[10],
 						mode_lib->vba.dpte_group_bytes,
-						dummy_integer_array[11],
-						dummy_integer_array[12],
-						dummy_integer_array[13],
-						dummy_integer_array[14],
-						dummy_integer_array[15],
-						dummy_integer_array[16],
-						dummy_integer_array[17],
-						dummy_integer_array[18],
-						dummy_integer_array[19],
-						dummy_integer_array[20],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[11],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[12],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[13],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[14],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[15],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[16],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[17],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[18],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[19],
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[20],
 						mode_lib->vba.PrefetchLinesYThisState,
 						mode_lib->vba.PrefetchLinesCThisState,
 						mode_lib->vba.PrefillY,
@@ -2772,9 +2767,9 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						mode_lib->vba.MetaRowBytesThisState,
 						mode_lib->vba.use_one_row_for_frame_this_state,
 						mode_lib->vba.use_one_row_for_frame_flip_this_state,
-						dummy_boolean_array[0], // Boolean UsesMALLForStaticScreen[]
-						dummy_boolean_array[1], // Boolean PTE_BUFFER_MODE[]
-						dummy_integer_array[21]); // Long BIGK_FRAGMENT_SIZE[]
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_boolean_array[0], // Boolean UsesMALLForStaticScreen[]
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_boolean_array[1], // Boolean PTE_BUFFER_MODE[]
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[21]); // Long BIGK_FRAGMENT_SIZE[]
 			}
 
 			for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
@@ -3197,7 +3192,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 				for (k = 0; k <= mode_lib->vba.NumberOfActiveSurfaces - 1; k++) {
 					DmlPipe myPipe;
-					unsigned int dummy_integer;
 
 					mode_lib->vba.TWait = dml32_CalculateTWait(
 							mode_lib->vba.PrefetchModePerState[i][j],
@@ -3294,7 +3288,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_single[0],         // double *Tdmdl_vm
 							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_single[1],         // double *Tdmdl
 							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_single[2],         // double *TSetup
-							&dummy_integer,         							    // unsigned int   *VUpdateOffsetPix
+							&dummy_integer[0],         							    // unsigned int   *VUpdateOffsetPix
 							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_single[3],         // unsigned int   *VUpdateWidthPix
 							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_single[4]);        // unsigned int   *VReadyOffsetPix
 				}
@@ -3323,7 +3317,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				}
 
 				{
-					double dummy_single[2];
 					dml32_CalculatePrefetchBandwithSupport(
 							mode_lib->vba.NumberOfActiveSurfaces,
 							mode_lib->vba.ReturnBWPerState[i][j],
@@ -3346,8 +3339,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							mode_lib->vba.UrgentBurstFactorCursorPre,
 
 							/* output */
-							&dummy_single[0],   // Single  *PrefetchBandwidth
-							&dummy_single[1],   // Single  *FractionOfUrgentBandwidth
+							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_single[0],   // Single  *PrefetchBandwidth
+							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_single[1],   // Single  *FractionOfUrgentBandwidth
 							&mode_lib->vba.PrefetchSupported[i][j]);
 				}
 
@@ -3457,7 +3450,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					}
 
 					{
-						double dummy_single[2];
 						dml32_CalculateImmediateFlipBandwithSupport(mode_lib->vba.NumberOfActiveSurfaces,
 								mode_lib->vba.ReturnBWPerState[i][j],
 								mode_lib->vba.ImmediateFlipRequirement,
@@ -3480,8 +3472,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 								mode_lib->vba.UrgentBurstFactorCursorPre,
 
 								/* output */
-								&dummy_single[0], //  Single  *TotalBandwidth
-								&dummy_single[1], //  Single  *FractionOfUrgentBandwidth
+								&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_single[0], //  Single  *TotalBandwidth
+								&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_single[1], //  Single  *FractionOfUrgentBandwidth
 								&mode_lib->vba.ImmediateFlipSupportedForState[i][j]); // Boolean *ImmediateFlipBandwidthSupport
 					}
 
@@ -3534,7 +3526,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.mSOCParameters.SMNLatency = mode_lib->vba.SMNLatency;
 
 			{
-				unsigned int dummy_integer[4];
 				dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 						mode_lib->vba.USRRetrainingRequiredFinal,
 						mode_lib->vba.UsesMALLForPStateChange,

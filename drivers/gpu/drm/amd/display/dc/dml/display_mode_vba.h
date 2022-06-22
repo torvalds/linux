@@ -196,7 +196,7 @@ struct DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCal
 };
 
 struct dml32_ModeSupportAndSystemConfigurationFull {
-	unsigned int dummy_integer_array[8][DC__NUM_DPP__MAX];
+	unsigned int dummy_integer_array[22][DC__NUM_DPP__MAX];
 	double dummy_double_array[2][DC__NUM_DPP__MAX];
 	DmlPipe SurfParameters[DC__NUM_DPP__MAX];
 	double dummy_single[5];
@@ -207,6 +207,7 @@ struct dml32_ModeSupportAndSystemConfigurationFull {
 	double DSTYAfterScaler[DC__NUM_DPP__MAX];
 	double DSTXAfterScaler[DC__NUM_DPP__MAX];
 	double MaxTotalVActiveRDBandwidth;
+	bool dummy_boolean_array[2][DC__NUM_DPP__MAX];
 };
 
 struct dummy_vars {
