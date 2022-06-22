@@ -29,8 +29,14 @@ static int untimeout(struct nf_conn *ct, void *timeout)
 {
 	struct nf_conn_timeout *timeout_ext = nf_ct_timeout_find(ct);
 
-	if (timeout_ext && (!timeout || timeout_ext->timeout == timeout))
-		RCU_INIT_POINTER(timeout_ext->timeout, NULL);
+	if (timeout_ext) {
+		const struct nf_ct_timeout *t;
+
+		t = rcu_access_pointer(timeout_ext->timeout);
+
+		if (!timeout || t == timeout)
+			RCU_INIT_POINTER(timeout_ext->timeout, NULL);
+	}
 
 	/* We are not intended to delete this conntrack. */
 	return 0;
@@ -127,7 +133,11 @@ void nf_ct_destroy_timeout(struct nf_conn *ct)
 	if (h) {
 		timeout_ext = nf_ct_timeout_find(ct);
 		if (timeout_ext) {
-			h->timeout_put(timeout_ext->timeout);
+			struct nf_ct_timeout *t;
+
+			t = rcu_dereference(timeout_ext->timeout);
+			if (t)
+				h->timeout_put(t);
 			RCU_INIT_POINTER(timeout_ext->timeout, NULL);
 		}
 	}
