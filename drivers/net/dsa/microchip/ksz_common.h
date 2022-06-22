@@ -225,60 +225,8 @@ int ksz9477_switch_register(struct ksz_device *dev);
 
 void ksz_init_mib_timer(struct ksz_device *dev);
 void ksz_r_mib_stats64(struct ksz_device *dev, int port);
-void ksz_get_stats64(struct dsa_switch *ds, int port,
-		     struct rtnl_link_stats64 *s);
-void ksz_phylink_get_caps(struct dsa_switch *ds, int port,
-			  struct phylink_config *config);
-extern const struct ksz_chip_data ksz_switch_chips[];
-
-/* Common DSA access functions */
-
-int ksz_setup(struct dsa_switch *ds);
-int ksz_phy_read16(struct dsa_switch *ds, int addr, int reg);
-int ksz_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val);
-u32 ksz_get_phy_flags(struct dsa_switch *ds, int port);
-void ksz_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
-		       phy_interface_t interface);
-int ksz_sset_count(struct dsa_switch *ds, int port, int sset);
-void ksz_get_ethtool_stats(struct dsa_switch *ds, int port, uint64_t *buf);
-int ksz_port_bridge_join(struct dsa_switch *ds, int port,
-			 struct dsa_bridge bridge, bool *tx_fwd_offload,
-			 struct netlink_ext_ack *extack);
-void ksz_port_bridge_leave(struct dsa_switch *ds, int port,
-			   struct dsa_bridge bridge);
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
-void ksz_port_fast_age(struct dsa_switch *ds, int port);
-int ksz_port_fdb_add(struct dsa_switch *ds, int port,
-		     const unsigned char *addr, u16 vid, struct dsa_db db);
-int ksz_port_fdb_del(struct dsa_switch *ds, int port,
-		     const unsigned char *addr, u16 vid, struct dsa_db db);
-int ksz_port_fdb_dump(struct dsa_switch *ds, int port, dsa_fdb_dump_cb_t *cb,
-		      void *data);
-int ksz_port_mdb_add(struct dsa_switch *ds, int port,
-		     const struct switchdev_obj_port_mdb *mdb,
-		     struct dsa_db db);
-int ksz_port_mdb_del(struct dsa_switch *ds, int port,
-		     const struct switchdev_obj_port_mdb *mdb,
-		     struct dsa_db db);
-int ksz_enable_port(struct dsa_switch *ds, int port, struct phy_device *phy);
-void ksz_get_strings(struct dsa_switch *ds, int port,
-		     u32 stringset, uint8_t *buf);
-enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
-					   int port, enum dsa_tag_protocol mp);
-int ksz_port_vlan_filtering(struct dsa_switch *ds, int port,
-			    bool flag, struct netlink_ext_ack *extack);
-int ksz_port_vlan_add(struct dsa_switch *ds, int port,
-		      const struct switchdev_obj_port_vlan *vlan,
-		      struct netlink_ext_ack *extack);
-int ksz_port_vlan_del(struct dsa_switch *ds, int port,
-		      const struct switchdev_obj_port_vlan *vlan);
-int ksz_port_mirror_add(struct dsa_switch *ds, int port,
-			struct dsa_mall_mirror_tc_entry *mirror,
-			bool ingress, struct netlink_ext_ack *extack);
-void ksz_port_mirror_del(struct dsa_switch *ds, int port,
-			 struct dsa_mall_mirror_tc_entry *mirror);
-int ksz_change_mtu(struct dsa_switch *ds, int port, int mtu);
-int ksz_max_mtu(struct dsa_switch *ds, int port);
+extern const struct ksz_chip_data ksz_switch_chips[];
 
 /* Common register access functions */
 

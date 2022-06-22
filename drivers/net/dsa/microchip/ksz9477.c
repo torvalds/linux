@@ -1290,36 +1290,6 @@ static int ksz9477_setup(struct dsa_switch *ds)
 	return 0;
 }
 
-static const struct dsa_switch_ops ksz9477_switch_ops = {
-	.get_tag_protocol	= ksz_get_tag_protocol,
-	.setup			= ksz_setup,
-	.phy_read		= ksz_phy_read16,
-	.phy_write		= ksz_phy_write16,
-	.phylink_mac_link_down	= ksz_mac_link_down,
-	.phylink_get_caps	= ksz_phylink_get_caps,
-	.port_enable		= ksz_enable_port,
-	.get_strings		= ksz_get_strings,
-	.get_ethtool_stats	= ksz_get_ethtool_stats,
-	.get_sset_count		= ksz_sset_count,
-	.port_bridge_join	= ksz_port_bridge_join,
-	.port_bridge_leave	= ksz_port_bridge_leave,
-	.port_stp_state_set	= ksz_port_stp_state_set,
-	.port_fast_age		= ksz_port_fast_age,
-	.port_vlan_filtering	= ksz_port_vlan_filtering,
-	.port_vlan_add		= ksz_port_vlan_add,
-	.port_vlan_del		= ksz_port_vlan_del,
-	.port_fdb_dump		= ksz_port_fdb_dump,
-	.port_fdb_add		= ksz_port_fdb_add,
-	.port_fdb_del		= ksz_port_fdb_del,
-	.port_mdb_add           = ksz_port_mdb_add,
-	.port_mdb_del           = ksz_port_mdb_del,
-	.port_mirror_add	= ksz_port_mirror_add,
-	.port_mirror_del	= ksz_port_mirror_del,
-	.get_stats64		= ksz_get_stats64,
-	.port_change_mtu	= ksz_change_mtu,
-	.port_max_mtu		= ksz_max_mtu,
-};
-
 static u32 ksz9477_get_port_addr(int port, int offset)
 {
 	return PORT_CTRL_ADDR(port, offset);
@@ -1329,8 +1299,6 @@ static int ksz9477_switch_init(struct ksz_device *dev)
 {
 	u8 data8;
 	int ret;
-
-	dev->ds->ops = &ksz9477_switch_ops;
 
 	dev->port_mask = (1 << dev->info->port_cnt) - 1;
 
@@ -1369,6 +1337,7 @@ static int ksz9477_switch_init(struct ksz_device *dev)
 		if (!(data8 & SW_GIGABIT_ABLE))
 			dev->features &= ~GBIT_SUPPORT;
 	}
+
 	return 0;
 }
 
