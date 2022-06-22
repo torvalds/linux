@@ -1059,8 +1059,11 @@ static void ksz9477_phy_errata_setup(struct ksz_device *dev, int port)
 static void ksz9477_get_caps(struct ksz_device *dev, int port,
 			     struct phylink_config *config)
 {
-	config->mac_capabilities = MAC_10 | MAC_100 | MAC_1000FD |
-				   MAC_ASYM_PAUSE | MAC_SYM_PAUSE;
+	config->mac_capabilities = MAC_10 | MAC_100 | MAC_ASYM_PAUSE |
+				   MAC_SYM_PAUSE;
+
+	if (dev->features & GBIT_SUPPORT)
+		config->mac_capabilities |= MAC_1000FD;
 }
 
 static void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
@@ -1381,29 +1384,7 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 
 int ksz9477_switch_register(struct ksz_device *dev)
 {
-	int ret, i;
-	struct phy_device *phydev;
-
-	ret = ksz_switch_register(dev, &ksz9477_dev_ops);
-	if (ret)
-		return ret;
-
-	for (i = 0; i < dev->phy_port_cnt; ++i) {
-		if (!dsa_is_user_port(dev->ds, i))
-			continue;
-
-		phydev = dsa_to_port(dev->ds, i)->slave->phydev;
-
-		/* The MAC actually cannot run in 1000 half-duplex mode. */
-		phy_remove_link_mode(phydev,
-				     ETHTOOL_LINK_MODE_1000baseT_Half_BIT);
-
-		/* PHY does not support gigabit. */
-		if (!(dev->features & GBIT_SUPPORT))
-			phy_remove_link_mode(phydev,
-					     ETHTOOL_LINK_MODE_1000baseT_Full_BIT);
-	}
-	return ret;
+	return ksz_switch_register(dev, &ksz9477_dev_ops);
 }
 EXPORT_SYMBOL(ksz9477_switch_register);
 

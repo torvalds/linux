@@ -1332,7 +1332,7 @@ int ksz_switch_register(struct ksz_device *dev,
 	/* Start the MIB timer. */
 	schedule_delayed_work(&dev->mib_read, 0);
 
-	return 0;
+	return ret;
 }
 EXPORT_SYMBOL(ksz_switch_register);
 
