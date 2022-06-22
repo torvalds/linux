@@ -21,6 +21,8 @@
 
 #include <video/mipi_display.h>
 
+#include <drm/drm_of.h>
+
 #include "dsi.h"
 #include "dsi.xml.h"
 #include "sfpb.xml.h"
@@ -1779,11 +1781,10 @@ static int dsi_host_parse_lane_data(struct msm_dsi_host *msm_host,
 		return 0;
 	}
 
-	num_lanes = len / sizeof(u32);
-
-	if (num_lanes < 1 || num_lanes > 4) {
+	num_lanes = drm_of_get_data_lanes_count(ep, 1, 4);
+	if (num_lanes < 0) {
 		DRM_DEV_ERROR(dev, "bad number of data lanes\n");
-		return -EINVAL;
+		return num_lanes;
 	}
 
 	msm_host->num_data_lanes = num_lanes;

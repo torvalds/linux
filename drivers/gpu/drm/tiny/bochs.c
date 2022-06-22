@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <linux/module.h>
 #include <linux/pci.h>
 
 #include <drm/drm_aperture.h>

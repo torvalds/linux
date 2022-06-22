@@ -354,6 +354,24 @@ drm_helper_probe_detect(struct drm_connector *connector,
 }
 EXPORT_SYMBOL(drm_helper_probe_detect);
 
+static int drm_helper_probe_get_modes(struct drm_connector *connector)
+{
+	const struct drm_connector_helper_funcs *connector_funcs =
+		connector->helper_private;
+	int count;
+
+	count = connector_funcs->get_modes(connector);
+
+	/*
+	 * Fallback for when DDC probe failed in drm_get_edid() and thus skipped
+	 * override/firmware EDID.
+	 */
+	if (count == 0 && connector->status == connector_status_connected)
+		count = drm_add_override_edid_modes(connector);
+
+	return count;
+}
+
 static int __drm_helper_update_and_validate(struct drm_connector *connector,
 					    uint32_t maxX, uint32_t maxY,
 					    struct drm_modeset_acquire_ctx *ctx)
@@ -473,8 +491,6 @@ int drm_helper_probe_single_connector_modes(struct drm_connector *connector,
 {
 	struct drm_device *dev = connector->dev;
 	struct drm_display_mode *mode;
-	const struct drm_connector_helper_funcs *connector_funcs =
-		connector->helper_private;
 	int count = 0, ret;
 	enum drm_connector_status old_status;
 	struct drm_modeset_acquire_ctx ctx;
@@ -559,14 +575,7 @@ retry:
 		goto exit;
 	}
 
-	count = (*connector_funcs->get_modes)(connector);
-
-	/*
-	 * Fallback for when DDC probe failed in drm_get_edid() and thus skipped
-	 * override/firmware EDID.
-	 */
-	if (count == 0 && connector->status == connector_status_connected)
-		count = drm_add_override_edid_modes(connector);
+	count = drm_helper_probe_get_modes(connector);
 
 	if (count == 0 && (connector->status == connector_status_connected ||
 			   connector->status == connector_status_unknown)) {

@@ -23,7 +23,7 @@
  *	memcpy(vaddr, src, len);
  *
  *	void *vaddr_iomem = ...; // pointer to I/O memory
- *	memcpy_toio(vaddr, _iomem, src, len);
+ *	memcpy_toio(vaddr_iomem, src, len);
  *
  * The user of such pointer may not have information about the mapping of that
  * region or may want to have a single code path to handle operations on that

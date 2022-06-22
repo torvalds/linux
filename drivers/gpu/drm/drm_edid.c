@@ -1613,6 +1613,35 @@ static const void *edid_extension_block_data(const struct edid *edid, int index)
 	return edid_block_data(edid, index + 1);
 }
 
+static int drm_edid_block_count(const struct drm_edid *drm_edid)
+{
+	int num_blocks;
+
+	/* Starting point */
+	num_blocks = edid_block_count(drm_edid->edid);
+
+	/* Limit by allocated size */
+	num_blocks = min(num_blocks, (int)drm_edid->size / EDID_LENGTH);
+
+	return num_blocks;
+}
+
+static int drm_edid_extension_block_count(const struct drm_edid *drm_edid)
+{
+	return drm_edid_block_count(drm_edid) - 1;
+}
+
+static const void *drm_edid_block_data(const struct drm_edid *drm_edid, int index)
+{
+	return edid_block_data(drm_edid->edid, index);
+}
+
+static const void *drm_edid_extension_block_data(const struct drm_edid *drm_edid,
+						 int index)
+{
+	return edid_extension_block_data(drm_edid->edid, index);
+}
+
 /*
  * Initializer helper for legacy interfaces, where we have no choice but to
  * trust edid size. Not for general purpose use.
@@ -1665,8 +1694,8 @@ static const void *__drm_edid_iter_next(struct drm_edid_iter *iter)
 	if (!iter->drm_edid)
 		return NULL;
 
-	if (iter->index < edid_block_count(iter->drm_edid->edid))
-		block = edid_block_data(iter->drm_edid->edid, iter->index++);
+	if (iter->index < drm_edid_block_count(iter->drm_edid))
+		block = drm_edid_block_data(iter->drm_edid, iter->index++);
 
 	return block;
 }
@@ -1992,13 +2021,16 @@ bool drm_edid_is_valid(struct edid *edid)
 EXPORT_SYMBOL(drm_edid_is_valid);
 
 static struct edid *edid_filter_invalid_blocks(const struct edid *edid,
-					       int invalid_blocks)
+					       int invalid_blocks,
+					       size_t *alloc_size)
 {
 	struct edid *new, *dest_block;
 	int valid_extensions = edid->extensions - invalid_blocks;
 	int i;
 
-	new = kmalloc(edid_size_by_blocks(valid_extensions + 1), GFP_KERNEL);
+	*alloc_size = edid_size_by_blocks(valid_extensions + 1);
+
+	new = kmalloc(*alloc_size, GFP_KERNEL);
 	if (!new)
 		goto out;
 
@@ -2111,7 +2143,8 @@ static void connector_bad_edid(struct drm_connector *connector,
 }
 
 /* Get override or firmware EDID */
-static struct edid *drm_get_override_edid(struct drm_connector *connector)
+static struct edid *drm_get_override_edid(struct drm_connector *connector,
+					  size_t *alloc_size)
 {
 	struct edid *override = NULL;
 
@@ -2120,6 +2153,10 @@ static struct edid *drm_get_override_edid(struct drm_connector *connector)
 
 	if (!override)
 		override = drm_load_edid_firmware(connector);
+
+	/* FIXME: Get alloc size from deeper down the stack */
+	if (!IS_ERR_OR_NULL(override) && alloc_size)
+		*alloc_size = edid_size(override);
 
 	return IS_ERR(override) ? NULL : override;
 }
@@ -2140,7 +2177,7 @@ int drm_add_override_edid_modes(struct drm_connector *connector)
 	struct edid *override;
 	int num_modes = 0;
 
-	override = drm_get_override_edid(connector);
+	override = drm_get_override_edid(connector, NULL);
 	if (override) {
 		drm_connector_update_edid_property(connector, override);
 		num_modes = drm_add_edid_modes(connector, override);
@@ -2189,39 +2226,20 @@ static enum edid_block_status edid_block_read(void *block, unsigned int block_nu
 	return status;
 }
 
-/**
- * drm_do_get_edid - get EDID data using a custom EDID block read function
- * @connector: connector we're probing
- * @read_block: EDID block read function
- * @context: private data passed to the block read function
- *
- * When the I2C adapter connected to the DDC bus is hidden behind a device that
- * exposes a different interface to read EDID blocks this function can be used
- * to get EDID data using a custom block read function.
- *
- * As in the general case the DDC bus is accessible by the kernel at the I2C
- * level, drivers must make all reasonable efforts to expose it as an I2C
- * adapter and use drm_get_edid() instead of abusing this function.
- *
- * The EDID may be overridden using debugfs override_edid or firmware EDID
- * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
- * order. Having either of them bypasses actual EDID reads.
- *
- * Return: Pointer to valid EDID or NULL if we couldn't find any.
- */
-struct edid *drm_do_get_edid(struct drm_connector *connector,
-			     read_block_fn read_block,
-			     void *context)
+static struct edid *_drm_do_get_edid(struct drm_connector *connector,
+				     read_block_fn read_block, void *context,
+				     size_t *size)
 {
 	enum edid_block_status status;
 	int i, invalid_blocks = 0;
 	struct edid *edid, *new;
+	size_t alloc_size = EDID_LENGTH;
 
-	edid = drm_get_override_edid(connector);
+	edid = drm_get_override_edid(connector, &alloc_size);
 	if (edid)
 		goto ok;
 
-	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
+	edid = kmalloc(alloc_size, GFP_KERNEL);
 	if (!edid)
 		return NULL;
 
@@ -2249,7 +2267,8 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	if (!edid_extension_block_count(edid))
 		goto ok;
 
-	new = krealloc(edid, edid_size(edid), GFP_KERNEL);
+	alloc_size = edid_size(edid);
+	new = krealloc(edid, alloc_size, GFP_KERNEL);
 	if (!new)
 		goto fail;
 	edid = new;
@@ -2271,17 +2290,129 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	if (invalid_blocks) {
 		connector_bad_edid(connector, edid, edid_block_count(edid));
 
-		edid = edid_filter_invalid_blocks(edid, invalid_blocks);
+		edid = edid_filter_invalid_blocks(edid, invalid_blocks,
+						  &alloc_size);
 	}
 
 ok:
+	if (size)
+		*size = alloc_size;
+
 	return edid;
 
 fail:
 	kfree(edid);
 	return NULL;
 }
+
+/**
+ * drm_do_get_edid - get EDID data using a custom EDID block read function
+ * @connector: connector we're probing
+ * @read_block: EDID block read function
+ * @context: private data passed to the block read function
+ *
+ * When the I2C adapter connected to the DDC bus is hidden behind a device that
+ * exposes a different interface to read EDID blocks this function can be used
+ * to get EDID data using a custom block read function.
+ *
+ * As in the general case the DDC bus is accessible by the kernel at the I2C
+ * level, drivers must make all reasonable efforts to expose it as an I2C
+ * adapter and use drm_get_edid() instead of abusing this function.
+ *
+ * The EDID may be overridden using debugfs override_edid or firmware EDID
+ * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
+ * order. Having either of them bypasses actual EDID reads.
+ *
+ * Return: Pointer to valid EDID or NULL if we couldn't find any.
+ */
+struct edid *drm_do_get_edid(struct drm_connector *connector,
+			     read_block_fn read_block,
+			     void *context)
+{
+	return _drm_do_get_edid(connector, read_block, context, NULL);
+}
 EXPORT_SYMBOL_GPL(drm_do_get_edid);
+
+/* Allocate struct drm_edid container *without* duplicating the edid data */
+static const struct drm_edid *_drm_edid_alloc(const void *edid, size_t size)
+{
+	struct drm_edid *drm_edid;
+
+	if (!edid || !size || size < EDID_LENGTH)
+		return NULL;
+
+	drm_edid = kzalloc(sizeof(*drm_edid), GFP_KERNEL);
+	if (drm_edid) {
+		drm_edid->edid = edid;
+		drm_edid->size = size;
+	}
+
+	return drm_edid;
+}
+
+/**
+ * drm_edid_alloc - Allocate a new drm_edid container
+ * @edid: Pointer to raw EDID data
+ * @size: Size of memory allocated for EDID
+ *
+ * Allocate a new drm_edid container. Do not calculate edid size from edid, pass
+ * the actual size that has been allocated for the data. There is no validation
+ * of the raw EDID data against the size, but at least the EDID base block must
+ * fit in the buffer.
+ *
+ * The returned pointer must be freed using drm_edid_free().
+ *
+ * Return: drm_edid container, or NULL on errors
+ */
+const struct drm_edid *drm_edid_alloc(const void *edid, size_t size)
+{
+	const struct drm_edid *drm_edid;
+
+	if (!edid || !size || size < EDID_LENGTH)
+		return NULL;
+
+	edid = kmemdup(edid, size, GFP_KERNEL);
+	if (!edid)
+		return NULL;
+
+	drm_edid = _drm_edid_alloc(edid, size);
+	if (!drm_edid)
+		kfree(edid);
+
+	return drm_edid;
+}
+EXPORT_SYMBOL(drm_edid_alloc);
+
+/**
+ * drm_edid_dup - Duplicate a drm_edid container
+ * @drm_edid: EDID to duplicate
+ *
+ * The returned pointer must be freed using drm_edid_free().
+ *
+ * Returns: drm_edid container copy, or NULL on errors
+ */
+const struct drm_edid *drm_edid_dup(const struct drm_edid *drm_edid)
+{
+	if (!drm_edid)
+		return NULL;
+
+	return drm_edid_alloc(drm_edid->edid, drm_edid->size);
+}
+EXPORT_SYMBOL(drm_edid_dup);
+
+/**
+ * drm_edid_free - Free the drm_edid container
+ * @drm_edid: EDID to free
+ */
+void drm_edid_free(const struct drm_edid *drm_edid)
+{
+	if (!drm_edid)
+		return;
+
+	kfree(drm_edid->edid);
+	kfree(drm_edid);
+}
+EXPORT_SYMBOL(drm_edid_free);
 
 /**
  * drm_probe_ddc() - probe DDC presence
@@ -2319,11 +2450,117 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 	if (connector->force == DRM_FORCE_UNSPECIFIED && !drm_probe_ddc(adapter))
 		return NULL;
 
-	edid = drm_do_get_edid(connector, drm_do_probe_ddc_edid, adapter);
+	edid = _drm_do_get_edid(connector, drm_do_probe_ddc_edid, adapter, NULL);
 	drm_connector_update_edid_property(connector, edid);
 	return edid;
 }
 EXPORT_SYMBOL(drm_get_edid);
+
+/**
+ * drm_edid_read_custom - Read EDID data using given EDID block read function
+ * @connector: Connector to use
+ * @read_block: EDID block read function
+ * @context: Private data passed to the block read function
+ *
+ * When the I2C adapter connected to the DDC bus is hidden behind a device that
+ * exposes a different interface to read EDID blocks this function can be used
+ * to get EDID data using a custom block read function.
+ *
+ * As in the general case the DDC bus is accessible by the kernel at the I2C
+ * level, drivers must make all reasonable efforts to expose it as an I2C
+ * adapter and use drm_edid_read() or drm_edid_read_ddc() instead of abusing
+ * this function.
+ *
+ * The EDID may be overridden using debugfs override_edid or firmware EDID
+ * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
+ * order. Having either of them bypasses actual EDID reads.
+ *
+ * The returned pointer must be freed using drm_edid_free().
+ *
+ * Return: Pointer to EDID, or NULL if probe/read failed.
+ */
+const struct drm_edid *drm_edid_read_custom(struct drm_connector *connector,
+					    read_block_fn read_block,
+					    void *context)
+{
+	const struct drm_edid *drm_edid;
+	struct edid *edid;
+	size_t size = 0;
+
+	edid = _drm_do_get_edid(connector, read_block, context, &size);
+	if (!edid)
+		return NULL;
+
+	/* Sanity check for now */
+	drm_WARN_ON(connector->dev, !size);
+
+	drm_edid = _drm_edid_alloc(edid, size);
+	if (!drm_edid)
+		kfree(edid);
+
+	return drm_edid;
+}
+EXPORT_SYMBOL(drm_edid_read_custom);
+
+/**
+ * drm_edid_read_ddc - Read EDID data using given I2C adapter
+ * @connector: Connector to use
+ * @adapter: I2C adapter to use for DDC
+ *
+ * Read EDID using the given I2C adapter.
+ *
+ * The EDID may be overridden using debugfs override_edid or firmware EDID
+ * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
+ * order. Having either of them bypasses actual EDID reads.
+ *
+ * Prefer initializing connector->ddc with drm_connector_init_with_ddc() and
+ * using drm_edid_read() instead of this function.
+ *
+ * The returned pointer must be freed using drm_edid_free().
+ *
+ * Return: Pointer to EDID, or NULL if probe/read failed.
+ */
+const struct drm_edid *drm_edid_read_ddc(struct drm_connector *connector,
+					 struct i2c_adapter *adapter)
+{
+	const struct drm_edid *drm_edid;
+
+	if (connector->force == DRM_FORCE_OFF)
+		return NULL;
+
+	if (connector->force == DRM_FORCE_UNSPECIFIED && !drm_probe_ddc(adapter))
+		return NULL;
+
+	drm_edid = drm_edid_read_custom(connector, drm_do_probe_ddc_edid, adapter);
+
+	/* Note: Do *not* call connector updates here. */
+
+	return drm_edid;
+}
+EXPORT_SYMBOL(drm_edid_read_ddc);
+
+/**
+ * drm_edid_read - Read EDID data using connector's I2C adapter
+ * @connector: Connector to use
+ *
+ * Read EDID using the connector's I2C adapter.
+ *
+ * The EDID may be overridden using debugfs override_edid or firmware EDID
+ * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
+ * order. Having either of them bypasses actual EDID reads.
+ *
+ * The returned pointer must be freed using drm_edid_free().
+ *
+ * Return: Pointer to EDID, or NULL if probe/read failed.
+ */
+const struct drm_edid *drm_edid_read(struct drm_connector *connector)
+{
+	if (drm_WARN_ON(connector->dev, !connector->ddc))
+		return NULL;
+
+	return drm_edid_read_ddc(connector, connector->ddc);
+}
+EXPORT_SYMBOL(drm_edid_read);
 
 static u32 edid_extract_panel_id(const struct edid *edid)
 {
@@ -3574,22 +3811,21 @@ static int add_detailed_modes(struct drm_connector *connector,
 const u8 *drm_find_edid_extension(const struct drm_edid *drm_edid,
 				  int ext_id, int *ext_index)
 {
-	const struct edid *edid = drm_edid ? drm_edid->edid : NULL;
 	const u8 *edid_ext = NULL;
 	int i;
 
 	/* No EDID or EDID extensions */
-	if (!edid || !edid_extension_block_count(edid))
+	if (!drm_edid || !drm_edid_extension_block_count(drm_edid))
 		return NULL;
 
 	/* Find CEA extension */
-	for (i = *ext_index; i < edid_extension_block_count(edid); i++) {
-		edid_ext = edid_extension_block_data(edid, i);
+	for (i = *ext_index; i < drm_edid_extension_block_count(drm_edid); i++) {
+		edid_ext = drm_edid_extension_block_data(drm_edid, i);
 		if (edid_block_tag(edid_ext) == ext_id)
 			break;
 	}
 
-	if (i >= edid_extension_block_count(edid))
+	if (i >= drm_edid_extension_block_count(drm_edid))
 		return NULL;
 
 	*ext_index = i + 1;
@@ -4484,6 +4720,20 @@ __cea_db_iter_current_block(const struct cea_db_iter *iter)
 
 /*
  * References:
+ * - CTA-861-H section 7.3.3 CTA Extension Version 3
+ */
+static int cea_db_collection_size(const u8 *cta)
+{
+	u8 d = cta[2];
+
+	if (d < 4 || d > 127)
+		return 0;
+
+	return d - 4;
+}
+
+/*
+ * References:
  * - VESA E-EDID v1.4
  * - CTA-861-H section 7.3.3 CTA Extension Version 3
  */
@@ -4492,16 +4742,18 @@ static const void *__cea_db_iter_edid_next(struct cea_db_iter *iter)
 	const u8 *ext;
 
 	drm_edid_iter_for_each(ext, &iter->edid_iter) {
+		int size;
+
 		/* Only support CTA Extension revision 3+ */
 		if (ext[0] != CEA_EXT || cea_revision(ext) < 3)
 			continue;
 
-		iter->index = 4;
-		iter->end = ext[2];
-		if (iter->end == 0)
-			iter->end = 127;
-		if (iter->end < 4 || iter->end > 127)
+		size = cea_db_collection_size(ext);
+		if (!size)
 			continue;
+
+		iter->index = 4;
+		iter->end = iter->index + size;
 
 		return ext;
 	}

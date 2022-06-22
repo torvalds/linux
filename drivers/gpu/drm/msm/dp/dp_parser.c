@@ -102,14 +102,12 @@ static int dp_parser_ctrl_res(struct dp_parser *parser)
 static int dp_parser_misc(struct dp_parser *parser)
 {
 	struct device_node *of_node = parser->pdev->dev.of_node;
-	int len = 0;
-	const char *data_lane_property = "data-lanes";
+	int len;
 
-	len = of_property_count_elems_of_size(of_node,
-			 data_lane_property, sizeof(u32));
+	len = drm_of_get_data_lanes_count(of_node, 1, DP_MAX_NUM_DP_LANES);
 	if (len < 0) {
-		DRM_WARN("Invalid property %s, default max DP lanes = %d\n",
-				data_lane_property, DP_MAX_NUM_DP_LANES);
+		DRM_WARN("Invalid property \"data-lanes\", default max DP lanes = %d\n",
+			 DP_MAX_NUM_DP_LANES);
 		len = DP_MAX_NUM_DP_LANES;
 	}
 

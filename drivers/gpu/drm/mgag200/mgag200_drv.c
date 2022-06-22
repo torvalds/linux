@@ -8,7 +8,6 @@
 
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/vmalloc.h>
 
 #include <drm/drm_aperture.h>
 #include <drm/drm_drv.h>

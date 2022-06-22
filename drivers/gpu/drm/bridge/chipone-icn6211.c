@@ -498,21 +498,18 @@ static int chipone_dsi_attach(struct chipone *icn)
 {
 	struct mipi_dsi_device *dsi = icn->dsi;
 	struct device *dev = icn->dev;
-	struct device_node *endpoint;
 	int dsi_lanes, ret;
 
-	endpoint = of_graph_get_endpoint_by_regs(dev->of_node, 0, 0);
-	dsi_lanes = of_property_count_u32_elems(endpoint, "data-lanes");
-	of_node_put(endpoint);
+	dsi_lanes = drm_of_get_data_lanes_count_ep(dev->of_node, 0, 0, 1, 4);
 
 	/*
 	 * If the 'data-lanes' property does not exist in DT or is invalid,
 	 * default to previously hard-coded behavior, which was 4 data lanes.
 	 */
-	if (dsi_lanes >= 1 && dsi_lanes <= 4)
-		icn->dsi->lanes = dsi_lanes;
-	else
+	if (dsi_lanes < 0)
 		icn->dsi->lanes = 4;
+	else
+		icn->dsi->lanes = dsi_lanes;
 
 	dsi->format = MIPI_DSI_FMT_RGB888;
 	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |

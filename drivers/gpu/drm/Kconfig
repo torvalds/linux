@@ -351,6 +351,8 @@ source "drivers/gpu/drm/etnaviv/Kconfig"
 
 source "drivers/gpu/drm/hisilicon/Kconfig"
 
+source "drivers/gpu/drm/logicvc/Kconfig"
+
 source "drivers/gpu/drm/mediatek/Kconfig"
 
 source "drivers/gpu/drm/mxsfb/Kconfig"
