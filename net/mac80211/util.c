@@ -2839,22 +2839,48 @@ void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata,
 	mutex_unlock(&local->chanctx_mtx);
 }
 
-void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata)
+void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata,
+				  int link_id)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_chanctx *chanctx;
+	int i;
 
 	mutex_lock(&local->chanctx_mtx);
 
-	chanctx_conf = rcu_dereference_protected(sdata->vif.bss_conf.chanctx_conf,
-						 lockdep_is_held(&local->chanctx_mtx));
+	for (i = 0; i < ARRAY_SIZE(sdata->vif.link_conf); i++) {
+		struct ieee80211_bss_conf *bss_conf;
 
-	if (WARN_ON_ONCE(!chanctx_conf))
-		goto unlock;
+		if (link_id >= 0 && link_id != i)
+			continue;
 
-	chanctx = container_of(chanctx_conf, struct ieee80211_chanctx, conf);
-	ieee80211_recalc_chanctx_min_def(local, chanctx);
+		rcu_read_lock();
+		bss_conf = rcu_dereference(sdata->vif.link_conf[i]);
+		if (!bss_conf) {
+			rcu_read_unlock();
+			continue;
+		}
+
+		chanctx_conf = rcu_dereference_protected(bss_conf->chanctx_conf,
+							 lockdep_is_held(&local->chanctx_mtx));
+		/*
+		 * Since we hold the chanctx_mtx (checked above)
+		 * we can take the chanctx_conf pointer out of the
+		 * RCU critical section, it cannot go away without
+		 * the mutex. Just the way we reached it could - in
+		 * theory - go away, but we don't really care and
+		 * it really shouldn't happen anyway.
+		 */
+		rcu_read_unlock();
+
+		if (WARN_ON_ONCE(!chanctx_conf))
+			goto unlock;
+
+		chanctx = container_of(chanctx_conf, struct ieee80211_chanctx,
+				       conf);
+		ieee80211_recalc_chanctx_min_def(local, chanctx);
+	}
  unlock:
 	mutex_unlock(&local->chanctx_mtx);
 }

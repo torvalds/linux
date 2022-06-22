@@ -780,7 +780,7 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 	 * change, this enables driver using the updated channel context right away.
 	 */
 	if (sta->sta_state >= IEEE80211_STA_ASSOC) {
-		ieee80211_recalc_min_chandef(sta->sdata);
+		ieee80211_recalc_min_chandef(sta->sdata, -1);
 		if (!sta->sta.support_p2p_ps)
 			ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
 	}
@@ -2136,7 +2136,7 @@ int sta_info_move_state(struct sta_info *sta,
 			set_bit(WLAN_STA_AUTH, &sta->_flags);
 		} else if (sta->sta_state == IEEE80211_STA_ASSOC) {
 			clear_bit(WLAN_STA_ASSOC, &sta->_flags);
-			ieee80211_recalc_min_chandef(sta->sdata);
+			ieee80211_recalc_min_chandef(sta->sdata, -1);
 			if (!sta->sta.support_p2p_ps)
 				ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
 		}
@@ -2145,7 +2145,7 @@ int sta_info_move_state(struct sta_info *sta,
 		if (sta->sta_state == IEEE80211_STA_AUTH) {
 			set_bit(WLAN_STA_ASSOC, &sta->_flags);
 			sta->assoc_at = ktime_get_boottime_ns();
-			ieee80211_recalc_min_chandef(sta->sdata);
+			ieee80211_recalc_min_chandef(sta->sdata, -1);
 			if (!sta->sta.support_p2p_ps)
 				ieee80211_recalc_p2p_go_ps_allowed(sta->sdata);
 		} else if (sta->sta_state == IEEE80211_STA_AUTHORIZED) {

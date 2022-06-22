@@ -731,7 +731,7 @@ void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 						    opmode, band);
 
 	if (changed > 0) {
-		ieee80211_recalc_min_chandef(sdata);
+		ieee80211_recalc_min_chandef(sdata, link_sta->link_id);
 		rate_control_rate_update(local, sband, link_sta->sta,
 					 link_sta->link_id, changed);
 	}
