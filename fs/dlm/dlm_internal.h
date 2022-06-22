@@ -207,6 +207,14 @@ struct dlm_args {
 #define DLM_IFL_TIMEOUT_CANCEL	0x00800000
 #define DLM_IFL_DEADLOCK_CANCEL	0x01000000
 #define DLM_IFL_STUB_MS		0x02000000 /* magic number for m_flags */
+/* least significant 2 bytes are message changed, they are full transmitted
+ * but at receive side only the 2 bytes LSB will be set.
+ *
+ * Even wireshark dlm dissector does only evaluate the lower bytes and note
+ * that they may not be used on transceiver side, we assume the higher bytes
+ * are for internal use or reserved so long they are not parsed on receiver
+ * side.
+ */
 #define DLM_IFL_USER		0x00000001
 #define DLM_IFL_ORPHAN		0x00000002
 
