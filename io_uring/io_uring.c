@@ -986,10 +986,12 @@ static void ctx_flush_and_put(struct io_ring_ctx *ctx, bool *locked)
 	percpu_ref_put(&ctx->refs);
 }
 
-static void handle_tw_list(struct llist_node *node,
-			   struct io_ring_ctx **ctx, bool *locked,
-			   struct llist_node *last)
+static unsigned int handle_tw_list(struct llist_node *node,
+				   struct io_ring_ctx **ctx, bool *locked,
+				   struct llist_node *last)
 {
+	unsigned int count = 0;
+
 	while (node != last) {
 		struct llist_node *next = node->next;
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
@@ -1006,7 +1008,10 @@ static void handle_tw_list(struct llist_node *node,
 		}
 		req->io_task_work.func(req, locked);
 		node = next;
+		count++;
 	}
+
+	return count;
 }
 
 /**
@@ -1047,12 +1052,14 @@ void tctx_task_work(struct callback_head *cb)
 						  task_work);
 	struct llist_node fake = {};
 	struct llist_node *node = io_llist_xchg(&tctx->task_list, &fake);
+	unsigned int loops = 1;
+	unsigned int count = handle_tw_list(node, &ctx, &uring_locked, NULL);
 
-	handle_tw_list(node, &ctx, &uring_locked, NULL);
 	node = io_llist_cmpxchg(&tctx->task_list, &fake, NULL);
 	while (node != &fake) {
+		loops++;
 		node = io_llist_xchg(&tctx->task_list, &fake);
-		handle_tw_list(node, &ctx, &uring_locked, &fake);
+		count += handle_tw_list(node, &ctx, &uring_locked, &fake);
 		node = io_llist_cmpxchg(&tctx->task_list, &fake, NULL);
 	}
 
@@ -1061,6 +1068,8 @@ void tctx_task_work(struct callback_head *cb)
 	/* relaxed read is enough as only the task itself sets ->in_idle */
 	if (unlikely(atomic_read(&tctx->in_idle)))
 		io_uring_drop_tctx_refs(current);
+
+	trace_io_uring_task_work_run(tctx, count, loops);
 }
 
 void io_req_task_work_add(struct io_kiocb *req)
