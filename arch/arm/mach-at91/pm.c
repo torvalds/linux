@@ -1079,7 +1079,7 @@ securam_fail:
 	return ret;
 }
 
-static void at91_pm_secure_init(void)
+static void __init at91_pm_secure_init(void)
 {
 	int suspend_mode;
 	struct arm_smccc_res res;
