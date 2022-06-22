@@ -1475,12 +1475,6 @@ void ksz8_switch_exit(struct ksz_device *dev)
 	ksz8_reset_switch(dev);
 }
 
-int ksz8_switch_register(struct ksz_device *dev)
-{
-	return ksz_switch_register(dev);
-}
-EXPORT_SYMBOL(ksz8_switch_register);
-
 MODULE_AUTHOR("Tristram Ha <Tristram.Ha@microchip.com>");
 MODULE_DESCRIPTION("Microchip KSZ8795 Series Switch DSA Driver");
 MODULE_LICENSE("GPL");

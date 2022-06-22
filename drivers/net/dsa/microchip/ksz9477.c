@@ -1343,12 +1343,6 @@ void ksz9477_switch_exit(struct ksz_device *dev)
 	ksz9477_reset_switch(dev);
 }
 
-int ksz9477_switch_register(struct ksz_device *dev)
-{
-	return ksz_switch_register(dev);
-}
-EXPORT_SYMBOL(ksz9477_switch_register);
-
 MODULE_AUTHOR("Woojung Huh <Woojung.Huh@microchip.com>");
 MODULE_DESCRIPTION("Microchip KSZ9477 Series Switch DSA Driver");
 MODULE_LICENSE("GPL");

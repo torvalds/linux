@@ -54,7 +54,7 @@ static int ksz9477_spi_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = ksz9477_switch_register(dev);
+	ret = ksz_switch_register(dev);
 
 	/* Main DSA driver may not be started yet. */
 	if (ret)
