@@ -16,14 +16,13 @@
 #include <sys/mount.h>
 #include <malloc.h>
 #include <stdbool.h>
+#include "vm_util.h"
 
 uint64_t pagesize;
 unsigned int pageshift;
 uint64_t pmd_pagesize;
 
-#define PMD_SIZE_PATH "/sys/kernel/mm/transparent_hugepage/hpage_pmd_size"
 #define SPLIT_DEBUGFS "/sys/kernel/debug/split_huge_pages"
-#define SMAP_PATH "/proc/self/smaps"
 #define INPUT_MAX 80
 
 #define PID_FMT "%d,0x%lx,0x%lx"
@@ -49,30 +48,6 @@ int is_backed_by_thp(char *vaddr, int pagemap_file, int kpageflags_file)
 		}
 	}
 	return 0;
-}
-
-
-static uint64_t read_pmd_pagesize(void)
-{
-	int fd;
-	char buf[20];
-	ssize_t num_read;
-
-	fd = open(PMD_SIZE_PATH, O_RDONLY);
-	if (fd == -1) {
-		perror("Open hpage_pmd_size failed");
-		exit(EXIT_FAILURE);
-	}
-	num_read = read(fd, buf, 19);
-	if (num_read < 1) {
-		close(fd);
-		perror("Read hpage_pmd_size failed");
-		exit(EXIT_FAILURE);
-	}
-	buf[num_read] = '\0';
-	close(fd);
-
-	return strtoul(buf, NULL, 10);
 }
 
 static int write_file(const char *path, const char *buf, size_t buflen)
@@ -111,58 +86,6 @@ static void write_debugfs(const char *fmt, ...)
 		perror(SPLIT_DEBUGFS);
 		exit(EXIT_FAILURE);
 	}
-}
-
-#define MAX_LINE_LENGTH 500
-
-static bool check_for_pattern(FILE *fp, const char *pattern, char *buf)
-{
-	while (fgets(buf, MAX_LINE_LENGTH, fp) != NULL) {
-		if (!strncmp(buf, pattern, strlen(pattern)))
-			return true;
-	}
-	return false;
-}
-
-static uint64_t check_huge(void *addr)
-{
-	uint64_t thp = 0;
-	int ret;
-	FILE *fp;
-	char buffer[MAX_LINE_LENGTH];
-	char addr_pattern[MAX_LINE_LENGTH];
-
-	ret = snprintf(addr_pattern, MAX_LINE_LENGTH, "%08lx-",
-		       (unsigned long) addr);
-	if (ret >= MAX_LINE_LENGTH) {
-		printf("%s: Pattern is too long\n", __func__);
-		exit(EXIT_FAILURE);
-	}
-
-
-	fp = fopen(SMAP_PATH, "r");
-	if (!fp) {
-		printf("%s: Failed to open file %s\n", __func__, SMAP_PATH);
-		exit(EXIT_FAILURE);
-	}
-	if (!check_for_pattern(fp, addr_pattern, buffer))
-		goto err_out;
-
-	/*
-	 * Fetch the AnonHugePages: in the same block and check the number of
-	 * hugepages.
-	 */
-	if (!check_for_pattern(fp, "AnonHugePages:", buffer))
-		goto err_out;
-
-	if (sscanf(buffer, "AnonHugePages:%10ld kB", &thp) != 1) {
-		printf("Reading smap error\n");
-		exit(EXIT_FAILURE);
-	}
-
-err_out:
-	fclose(fp);
-	return thp;
 }
 
 void split_pmd_thp(void)

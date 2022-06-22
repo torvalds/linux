@@ -162,13 +162,13 @@ TRACE_EVENT(mm_compaction_try_to_compact_pages,
 
 	TP_STRUCT__entry(
 		__field(int, order)
-		__field(gfp_t, gfp_mask)
+		__field(unsigned long, gfp_mask)
 		__field(int, prio)
 	),
 
 	TP_fast_assign(
 		__entry->order = order;
-		__entry->gfp_mask = gfp_mask;
+		__entry->gfp_mask = (__force unsigned long)gfp_mask;
 		__entry->prio = prio;
 	),
 
