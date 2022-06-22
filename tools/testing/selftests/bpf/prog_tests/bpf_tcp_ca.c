@@ -10,6 +10,7 @@
 #include "bpf_tcp_nogpl.skel.h"
 #include "bpf_dctcp_release.skel.h"
 #include "tcp_ca_write_sk_pacing.skel.h"
+#include "tcp_ca_incompl_cong_ops.skel.h"
 
 #ifndef ENOTSUPP
 #define ENOTSUPP 524
@@ -339,6 +340,25 @@ static void test_write_sk_pacing(void)
 	tcp_ca_write_sk_pacing__destroy(skel);
 }
 
+static void test_incompl_cong_ops(void)
+{
+	struct tcp_ca_incompl_cong_ops *skel;
+	struct bpf_link *link;
+
+	skel = tcp_ca_incompl_cong_ops__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "open_and_load"))
+		return;
+
+	/* That cong_avoid() and cong_control() are missing is only reported at
+	 * this point:
+	 */
+	link = bpf_map__attach_struct_ops(skel->maps.incompl_cong_ops);
+	ASSERT_ERR_PTR(link, "attach_struct_ops");
+
+	bpf_link__destroy(link);
+	tcp_ca_incompl_cong_ops__destroy(skel);
+}
+
 void test_bpf_tcp_ca(void)
 {
 	if (test__start_subtest("dctcp"))
@@ -353,4 +373,6 @@ void test_bpf_tcp_ca(void)
 		test_rel_setsockopt();
 	if (test__start_subtest("write_sk_pacing"))
 		test_write_sk_pacing();
+	if (test__start_subtest("incompl_cong_ops"))
+		test_incompl_cong_ops();
 }
