@@ -11,6 +11,7 @@
 #include "bpf_dctcp_release.skel.h"
 #include "tcp_ca_write_sk_pacing.skel.h"
 #include "tcp_ca_incompl_cong_ops.skel.h"
+#include "tcp_ca_unsupp_cong_op.skel.h"
 
 #ifndef ENOTSUPP
 #define ENOTSUPP 524
@@ -359,6 +360,23 @@ static void test_incompl_cong_ops(void)
 	tcp_ca_incompl_cong_ops__destroy(skel);
 }
 
+static void test_unsupp_cong_op(void)
+{
+	libbpf_print_fn_t old_print_fn;
+	struct tcp_ca_unsupp_cong_op *skel;
+
+	err_str = "attach to unsupported member get_info";
+	found = false;
+	old_print_fn = libbpf_set_print(libbpf_debug_print);
+
+	skel = tcp_ca_unsupp_cong_op__open_and_load();
+	ASSERT_NULL(skel, "open_and_load");
+	ASSERT_EQ(found, true, "expected_err_msg");
+
+	tcp_ca_unsupp_cong_op__destroy(skel);
+	libbpf_set_print(old_print_fn);
+}
+
 void test_bpf_tcp_ca(void)
 {
 	if (test__start_subtest("dctcp"))
@@ -375,4 +393,6 @@ void test_bpf_tcp_ca(void)
 		test_write_sk_pacing();
 	if (test__start_subtest("incompl_cong_ops"))
 		test_incompl_cong_ops();
+	if (test__start_subtest("unsupp_cong_op"))
+		test_unsupp_cong_op();
 }
