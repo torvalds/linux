@@ -679,7 +679,16 @@ int dlm_ls_stop(struct dlm_ls *ls)
 	if (!ls->ls_recover_begin)
 		ls->ls_recover_begin = jiffies;
 
-	dlm_lsop_recover_prep(ls);
+	/* call recover_prep ops only once and not multiple times
+	 * for each possible dlm_ls_stop() when recovery is already
+	 * stopped.
+	 *
+	 * If we successful was able to clear LSFL_RUNNING bit and
+	 * it was set we know it is the first dlm_ls_stop() call.
+	 */
+	if (new)
+		dlm_lsop_recover_prep(ls);
+
 	return 0;
 }
 
