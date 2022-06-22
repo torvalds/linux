@@ -614,7 +614,7 @@ static void __net_exit cttimeout_net_exit(struct net *net)
 
 	nf_ct_untimeout(net, NULL);
 
-	list_for_each_entry_safe(cur, tmp, &pernet->nfct_timeout_freelist, head) {
+	list_for_each_entry_safe(cur, tmp, &pernet->nfct_timeout_freelist, free_head) {
 		list_del(&cur->free_head);
 
 		if (refcount_dec_and_test(&cur->refcnt))
