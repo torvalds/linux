@@ -378,7 +378,7 @@ static ssize_t dev_read(struct file *file, char __user *u, size_t count,
 
 	spin_lock(&ops_lock);
 	if (!list_empty(&send_list)) {
-		op = list_entry(send_list.next, struct plock_op, list);
+		op = list_first_entry(&send_list, struct plock_op, list);
 		if (op->info.flags & DLM_PLOCK_FL_CLOSE)
 			list_del(&op->list);
 		else
