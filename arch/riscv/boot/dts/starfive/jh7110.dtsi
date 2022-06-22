@@ -36,6 +36,8 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
+			cpu-idle-states = <&CPU_RET_0_0 &CPU_NONRET_0_0
+                            &CLUSTER_RET_0 &CLUSTER_NONRET_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imac";
 			tlb-split;
@@ -63,6 +65,8 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
+			cpu-idle-states = <&CPU_RET_0_0 &CPU_NONRET_0_0
+                            &CLUSTER_RET_0 &CLUSTER_NONRET_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
@@ -90,6 +94,8 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
+			cpu-idle-states = <&CPU_RET_0_0 &CPU_NONRET_0_0
+                            &CLUSTER_RET_0 &CLUSTER_NONRET_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
@@ -117,6 +123,8 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
+			cpu-idle-states = <&CPU_RET_0_0 &CPU_NONRET_0_0
+                            &CLUSTER_RET_0 &CLUSTER_NONRET_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
@@ -144,6 +152,8 @@
 			i-tlb-sets = <1>;
 			i-tlb-size = <40>;
 			mmu-type = "riscv,sv39";
+			cpu-idle-states = <&CPU_RET_0_0 &CPU_NONRET_0_0
+                            &CLUSTER_RET_0 &CLUSTER_NONRET_0>;
 			next-level-cache = <&cachectrl>;
 			riscv,isa = "rv64imafdc";
 			tlb-split;
@@ -155,6 +165,44 @@
 				interrupt-controller;
 			};
 		};
+	};
+
+    idle-states {
+        CPU_RET_0_0: cpu-retentive-0-0 {
+            compatible = "riscv,idle-state";
+            riscv,sbi-suspend-param = <0x10000000>;
+            entry-latency-us = <20>;
+            exit-latency-us = <40>;
+            min-residency-us = <80>;
+        };
+
+        CPU_NONRET_0_0: cpu-nonretentive-0-0 {
+            compatible = "riscv,idle-state";
+            riscv,sbi-suspend-param = <0x90000000>;
+            entry-latency-us = <250>;
+            exit-latency-us = <500>;
+            min-residency-us = <950>;
+        };
+
+        CLUSTER_RET_0: cluster-retentive-0 {
+            compatible = "riscv,idle-state";
+            riscv,sbi-suspend-param = <0x11000000>;
+            local-timer-stop;
+            entry-latency-us = <50>;
+            exit-latency-us = <100>;
+            min-residency-us = <250>;
+            wakeup-latency-us = <130>;
+        };
+
+        CLUSTER_NONRET_0: cluster-nonretentive-0 {
+            compatible = "riscv,idle-state";
+            riscv,sbi-suspend-param = <0x91000000>;
+            local-timer-stop;
+            entry-latency-us = <600>;
+            exit-latency-us = <1100>;
+            min-residency-us = <2700>;
+            wakeup-latency-us = <1500>;
+        };
 	};
 
 	soc: soc {
