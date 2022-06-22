@@ -872,10 +872,11 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 		if (busy_cpu != -1) {
 			first_idle =
 				find_first_idle_if_others_are_busy(&cpu_array[order_index][1]);
-			if (first_idle != -1)
+			if (first_idle != -1) {
 				walt_kick_cpu(first_idle);
-			else
+			} else if (walt_rotation_enabled) {
 				goto found_busy_cpu;
+			}
 		}
 	} else if (order_index == 2) {
 		busy_cpu = walt_lb_find_busiest_cpu(this_cpu, &cpu_array[order_index][0],
@@ -896,7 +897,11 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 		if (busy_cpu != -1) {
 			first_idle =
 				find_first_idle_if_others_are_busy(&cpu_array[order_index][1]);
-			walt_kick_cpu(first_idle);
+			if (first_idle != -1) {
+				walt_kick_cpu(first_idle);
+			} else if (walt_rotation_enabled) {
+				goto found_busy_cpu;
+			}
 		}
 	} else {
 		busy_cpu =
