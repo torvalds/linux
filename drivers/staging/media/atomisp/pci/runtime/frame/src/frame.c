@@ -403,10 +403,7 @@ void ia_css_frame_info_set_width(struct ia_css_frame_info *info,
 		IA_CSS_LEAVE_PRIVATE("");
 		return;
 	}
-	if (min_padded_width > width)
-		align = min_padded_width;
-	else
-		align = width;
+	align = max(min_padded_width, width);
 
 	info->res.width = width;
 	/* frames with a U and V plane of 8 bits per pixel need to have
