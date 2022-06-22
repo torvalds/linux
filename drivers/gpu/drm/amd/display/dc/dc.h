@@ -203,7 +203,7 @@ struct dc_caps {
 	struct dc_color_caps color;
 	struct dc_dmub_caps dmub_caps;
 	bool dp_hpo;
-	bool hdmi_frl_pcon_support;
+	bool dp_hdmi21_pcon_support;
 	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
