@@ -22,7 +22,7 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_timeout.h>
 
-const struct nf_ct_timeout_hooks *nf_ct_timeout_hook __read_mostly;
+const struct nf_ct_timeout_hooks __rcu *nf_ct_timeout_hook __read_mostly;
 EXPORT_SYMBOL_GPL(nf_ct_timeout_hook);
 
 static int untimeout(struct nf_conn *ct, void *timeout)
