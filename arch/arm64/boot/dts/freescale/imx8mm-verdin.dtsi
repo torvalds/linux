@@ -154,6 +154,14 @@
 	cpu-supply = <&reg_vdd_arm>;
 };
 
+&cpu_alert0 {
+	temperature = <95000>;
+};
+
+&cpu_crit0 {
+	temperature = <105000>;
+};
+
 &ddrc {
 	operating-points-v2 = <&ddrc_opp_table>;
 
