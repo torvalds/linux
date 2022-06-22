@@ -2592,6 +2592,53 @@ static void cros_ec_proto_test_get_sensor_count_legacy(struct kunit *test)
 	}
 }
 
+static void cros_ec_proto_test_ec_cmd(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	struct ec_xfer_mock *mock;
+	int ret;
+	u8 out[3], in[2];
+
+	ec_dev->max_request = 0xff;
+	ec_dev->max_response = 0xee;
+
+	out[0] = 0xdd;
+	out[1] = 0xcc;
+	out[2] = 0xbb;
+
+	{
+		u8 *data;
+
+		mock = cros_kunit_ec_xfer_mock_add(test, 2);
+		KUNIT_ASSERT_PTR_NE(test, mock, NULL);
+
+		data = (u8 *)mock->o_data;
+		data[0] = 0xaa;
+		data[1] = 0x99;
+	}
+
+	ret = cros_ec_cmd(ec_dev, 0x88, 0x77, out, ARRAY_SIZE(out), in, ARRAY_SIZE(in));
+	KUNIT_EXPECT_EQ(test, ret, 2);
+
+	{
+		u8 *data;
+
+		mock = cros_kunit_ec_xfer_mock_next();
+		KUNIT_EXPECT_PTR_NE(test, mock, NULL);
+
+		KUNIT_EXPECT_EQ(test, mock->msg.version, 0x88);
+		KUNIT_EXPECT_EQ(test, mock->msg.command, 0x77);
+		KUNIT_EXPECT_EQ(test, mock->msg.insize, ARRAY_SIZE(in));
+		KUNIT_EXPECT_EQ(test, mock->msg.outsize, ARRAY_SIZE(out));
+
+		data = (u8 *)mock->i_data;
+		KUNIT_EXPECT_EQ(test, data[0], 0xdd);
+		KUNIT_EXPECT_EQ(test, data[1], 0xcc);
+		KUNIT_EXPECT_EQ(test, data[2], 0xbb);
+	}
+}
+
 static void cros_ec_proto_test_release(struct device *dev)
 {
 }
@@ -2690,6 +2737,7 @@ static struct kunit_case cros_ec_proto_test_cases[] = {
 	KUNIT_CASE(cros_ec_proto_test_get_sensor_count_normal),
 	KUNIT_CASE(cros_ec_proto_test_get_sensor_count_xfer_error),
 	KUNIT_CASE(cros_ec_proto_test_get_sensor_count_legacy),
+	KUNIT_CASE(cros_ec_proto_test_ec_cmd),
 	{}
 };
 
