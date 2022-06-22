@@ -9,6 +9,7 @@
 #include "bpf_cubic.skel.h"
 #include "bpf_tcp_nogpl.skel.h"
 #include "bpf_dctcp_release.skel.h"
+#include "tcp_ca_write_sk_pacing.skel.h"
 
 #ifndef ENOTSUPP
 #define ENOTSUPP 524
@@ -322,6 +323,22 @@ static void test_rel_setsockopt(void)
 	bpf_dctcp_release__destroy(rel_skel);
 }
 
+static void test_write_sk_pacing(void)
+{
+	struct tcp_ca_write_sk_pacing *skel;
+	struct bpf_link *link;
+
+	skel = tcp_ca_write_sk_pacing__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "open_and_load"))
+		return;
+
+	link = bpf_map__attach_struct_ops(skel->maps.write_sk_pacing);
+	ASSERT_OK_PTR(link, "attach_struct_ops");
+
+	bpf_link__destroy(link);
+	tcp_ca_write_sk_pacing__destroy(skel);
+}
+
 void test_bpf_tcp_ca(void)
 {
 	if (test__start_subtest("dctcp"))
@@ -334,4 +351,6 @@ void test_bpf_tcp_ca(void)
 		test_dctcp_fallback();
 	if (test__start_subtest("rel_setsockopt"))
 		test_rel_setsockopt();
+	if (test__start_subtest("write_sk_pacing"))
+		test_write_sk_pacing();
 }
