@@ -204,12 +204,12 @@ int rtw_enqueue_recvframe(struct recv_frame *precvframe, struct __queue *queue)
 }
 
 /*
-caller : defrag ; recvframe_chk_defrag in recv_thread  (passive)
-pframequeue: defrag_queue : will be accessed in recv_thread  (passive)
-
-using spinlock to protect
-
-*/
+ * caller : defrag ; recvframe_chk_defrag in recv_thread  (passive)
+ * pframequeue: defrag_queue : will be accessed in recv_thread  (passive)
+ *
+ * using spinlock to protect
+ *
+ */
 
 void rtw_free_recvframe_queue(struct __queue *pframequeue,  struct __queue *pfree_recv_queue)
 {
@@ -1745,9 +1745,11 @@ static int recv_func(struct adapter *padapter, struct recv_frame *rframe)
 		     !psecuritypriv->busetkipkey) {
 			rtw_enqueue_recvframe(rframe, &padapter->recvpriv.uc_swdec_pending_queue);
 			if (recvpriv->free_recvframe_cnt < NR_RECVFRAME / 4) {
-				/* to prevent from recvframe starvation,
+				/*
+				 * to prevent from recvframe starvation,
 				 * get recvframe from uc_swdec_pending_queue to
-				 * free_recvframe_cnt  */
+				 * free_recvframe_cnt
+				 */
 				rframe = rtw_alloc_recvframe(&padapter->recvpriv.uc_swdec_pending_queue);
 				if (rframe)
 					goto do_posthandle;
