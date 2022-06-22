@@ -990,6 +990,9 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 {
 	struct ast_private *ast = to_ast_private(crtc->dev);
 	u8 ch = AST_DPMS_VSYNC_OFF | AST_DPMS_HSYNC_OFF;
+	struct ast_crtc_state *ast_state;
+	const struct drm_format_info *format;
+	struct ast_vbios_mode_info *vbios_mode_info;
 
 	/* TODO: Maybe control display signal generation with
 	 *       Sync Enable (bit CR17.7).
@@ -1005,6 +1008,16 @@ static void ast_crtc_dpms(struct drm_crtc *crtc, int mode)
 			ast_dp_power_on_off(crtc->dev, AST_DP_POWER_ON);
 			ast_wait_for_vretrace(ast);
 			ast_dp_set_on_off(crtc->dev, 1);
+		}
+
+		ast_state = to_ast_crtc_state(crtc->state);
+		format = ast_state->format;
+
+		if (format) {
+			vbios_mode_info = &ast_state->vbios_mode_info;
+
+			ast_set_color_reg(ast, format);
+			ast_set_vbios_color_reg(ast, format, vbios_mode_info);
 		}
 
 		ast_crtc_load_lut(ast, crtc);
