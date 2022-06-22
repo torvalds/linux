@@ -844,6 +844,7 @@ mt7615_mcu_wtbl_sta_add(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 	struct mt7615_dev *dev = phy->dev;
 	struct wtbl_req_hdr *wtbl_hdr;
 	struct mt7615_sta *msta;
+	bool new_entry = true;
 	int cmd, err;
 
 	msta = sta ? (struct mt7615_sta *)sta->drv_priv : &mvif->sta;
@@ -853,7 +854,13 @@ mt7615_mcu_wtbl_sta_add(struct mt7615_phy *phy, struct ieee80211_vif *vif,
 	if (IS_ERR(sskb))
 		return PTR_ERR(sskb);
 
-	mt76_connac_mcu_sta_basic_tlv(sskb, vif, sta, enable, true);
+	if (!sta) {
+		if (mvif->sta_added)
+			new_entry = false;
+		else
+			mvif->sta_added = true;
+	}
+	mt76_connac_mcu_sta_basic_tlv(sskb, vif, sta, enable, new_entry);
 	if (enable && sta)
 		mt76_connac_mcu_sta_tlv(phy->mt76, sskb, sta, vif, 0,
 					MT76_STA_INFO_STATE_ASSOC);

@@ -141,6 +141,7 @@ struct mt7615_sta {
 struct mt7615_vif {
 	struct mt76_vif mt76; /* must be first */
 	struct mt7615_sta sta;
+	bool sta_added;
 };
 
 struct mib_stats {
