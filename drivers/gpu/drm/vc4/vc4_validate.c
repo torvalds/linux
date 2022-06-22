@@ -170,7 +170,7 @@ vc4_check_tex_size(struct vc4_exec_info *exec, struct drm_gem_cma_object *fbo,
 	uint32_t utile_h = utile_height(cpp);
 
 	if (WARN_ON_ONCE(vc4->is_vc5))
-		return -ENODEV;
+		return false;
 
 	/* The shaded vertex format stores signed 12.4 fixed point
 	 * (-2048,2047) offsets from the viewport center, so we should
