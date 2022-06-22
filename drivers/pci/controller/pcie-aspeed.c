@@ -250,6 +250,7 @@ static int aspeed_h2x_rd_conf(struct pci_bus *bus, unsigned int devfn,
 	u32 bdf_offset;
 	int rx_done_fail = 0;
 	u32 cfg_val, isr, type = 0;
+	u32 link_sts = 0;
 	int ret;
 
 	//H2X80[4] (unlock) is write-only.
@@ -294,6 +295,14 @@ static int aspeed_h2x_rd_conf(struct pci_bus *bus, unsigned int devfn,
 	}
 
 //	printk("[%d]R:b d f [%d:%d:%d] devfn %x\n", pcie->domain, bus->number, PCI_SLOT(devfn), PCI_FUNC(devfn), devfn);
+
+	if (type) {
+		regmap_read(pcie->pciephy, ASPEED_PCIE_LINK, &link_sts);
+		if (!(link_sts & PCIE_LINK_STS)) {
+			*val = 0xffffffff;
+			return PCIBIOS_SUCCESSFUL;
+		}
+	}
 
 	bdf_offset = ((bus->number) << 24) |
 					(PCI_SLOT(devfn) << 19) |
