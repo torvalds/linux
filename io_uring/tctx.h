@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/llist.h>
+
 /*
  * Arbitrary limit, can be raised if need be
  */
@@ -19,9 +21,7 @@ struct io_uring_task {
 	struct percpu_counter		inflight;
 
 	struct { /* task_work */
-		spinlock_t		task_lock;
-		bool			task_running;
-		struct io_wq_work_list	task_list;
+		struct llist_head	task_list;
 		struct callback_head	task_work;
 	} ____cacheline_aligned_in_smp;
 };

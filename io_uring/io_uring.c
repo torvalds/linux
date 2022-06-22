@@ -986,11 +986,12 @@ static void ctx_flush_and_put(struct io_ring_ctx *ctx, bool *locked)
 	percpu_ref_put(&ctx->refs);
 }
 
-static void handle_tw_list(struct io_wq_work_node *node,
+
+static void handle_tw_list(struct llist_node *node,
 			   struct io_ring_ctx **ctx, bool *locked)
 {
 	do {
-		struct io_wq_work_node *next = node->next;
+		struct llist_node *next = node->next;
 		struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    io_task_work.node);
 
@@ -1014,23 +1015,11 @@ void tctx_task_work(struct callback_head *cb)
 	struct io_ring_ctx *ctx = NULL;
 	struct io_uring_task *tctx = container_of(cb, struct io_uring_task,
 						  task_work);
+	struct llist_node *node = llist_del_all(&tctx->task_list);
 
-	while (1) {
-		struct io_wq_work_node *node;
-
-		spin_lock_irq(&tctx->task_lock);
-		node = tctx->task_list.first;
-		INIT_WQ_LIST(&tctx->task_list);
-		if (!node)
-			tctx->task_running = false;
-		spin_unlock_irq(&tctx->task_lock);
-		if (!node)
-			break;
+	if (node) {
 		handle_tw_list(node, &ctx, &uring_locked);
 		cond_resched();
-
-		if (data_race(!tctx->task_list.first) && uring_locked)
-			io_submit_flush_completions(ctx);
 	}
 
 	ctx_flush_and_put(ctx, &uring_locked);
@@ -1044,16 +1033,10 @@ void io_req_task_work_add(struct io_kiocb *req)
 {
 	struct io_uring_task *tctx = req->task->io_uring;
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_wq_work_node *node;
-	unsigned long flags;
+	struct llist_node *node;
 	bool running;
 
-	spin_lock_irqsave(&tctx->task_lock, flags);
-	wq_list_add_tail(&req->io_task_work.node, &tctx->task_list);
-	running = tctx->task_running;
-	if (!running)
-		tctx->task_running = true;
-	spin_unlock_irqrestore(&tctx->task_lock, flags);
+	running = !llist_add(&req->io_task_work.node, &tctx->task_list);
 
 	/* task_work already pending, we're done */
 	if (running)
@@ -1065,11 +1048,8 @@ void io_req_task_work_add(struct io_kiocb *req)
 	if (likely(!task_work_add(req->task, &tctx->task_work, ctx->notify_method)))
 		return;
 
-	spin_lock_irqsave(&tctx->task_lock, flags);
-	tctx->task_running = false;
-	node = tctx->task_list.first;
-	INIT_WQ_LIST(&tctx->task_list);
-	spin_unlock_irqrestore(&tctx->task_lock, flags);
+
+	node = llist_del_all(&tctx->task_list);
 
 	while (node) {
 		req = container_of(node, struct io_kiocb, io_task_work.node);

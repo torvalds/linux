@@ -428,7 +428,7 @@ typedef void (*io_req_tw_func_t)(struct io_kiocb *req, bool *locked);
 
 struct io_task_work {
 	union {
-		struct io_wq_work_node	node;
+		struct llist_node	node;
 		struct llist_node	fallback_node;
 	};
 	io_req_tw_func_t		func;
