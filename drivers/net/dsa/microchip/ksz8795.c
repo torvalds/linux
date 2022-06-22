@@ -1387,18 +1387,7 @@ static int ksz8_enable_stp_addr(struct ksz_device *dev)
 static int ksz8_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
-	int i, ret = 0;
-
-	dev->vlan_cache = devm_kcalloc(dev->dev, sizeof(struct vlan_table),
-				       dev->info->num_vlans, GFP_KERNEL);
-	if (!dev->vlan_cache)
-		return -ENOMEM;
-
-	ret = dev->dev_ops->reset(dev);
-	if (ret) {
-		dev_err(ds->dev, "failed to reset switch\n");
-		return ret;
-	}
+	int i;
 
 	ksz_cfg(dev, S_REPLACE_VID_CTRL, SW_FLOW_CTRL, true);
 
@@ -1417,8 +1406,6 @@ static int ksz8_setup(struct dsa_switch *ds)
 			   UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP,
 			   UNICAST_VLAN_BOUNDARY | NO_EXC_COLLISION_DROP);
 
-	dev->dev_ops->config_cpu_port(ds);
-
 	ksz_cfg(dev, REG_SW_CTRL_2, MULTICAST_STORM_DISABLE, true);
 
 	ksz_cfg(dev, S_REPLACE_VID_CTRL, SW_REPLACE_VID, false);
@@ -1436,12 +1423,6 @@ static int ksz8_setup(struct dsa_switch *ds)
 
 	for (i = 0; i < (dev->info->num_vlans / 4); i++)
 		ksz8_r_vlan_entries(dev, i);
-
-	dev->dev_ops->enable_stp_addr(dev);
-
-	ksz_init_mib_timer(dev);
-
-	ds->configure_vlan_while_not_filtering = false;
 
 	return ksz8_handle_global_errata(ds);
 }
@@ -1467,7 +1448,7 @@ static void ksz8_get_caps(struct ksz_device *dev, int port,
 static const struct dsa_switch_ops ksz8_switch_ops = {
 	.get_tag_protocol	= ksz_get_tag_protocol,
 	.get_phy_flags		= ksz_get_phy_flags,
-	.setup			= ksz8_setup,
+	.setup			= ksz_setup,
 	.phy_read		= ksz_phy_read16,
 	.phy_write		= ksz_phy_write16,
 	.phylink_get_caps	= ksz_phylink_get_caps,
@@ -1534,6 +1515,7 @@ static void ksz8_switch_exit(struct ksz_device *dev)
 }
 
 static const struct ksz_dev_ops ksz8_dev_ops = {
+	.setup = ksz8_setup,
 	.get_port_addr = ksz8_get_port_addr,
 	.cfg_port_member = ksz8_cfg_port_member,
 	.flush_dyn_mac_table = ksz8_flush_dyn_mac_table,

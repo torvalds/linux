@@ -1271,17 +1271,6 @@ static int ksz9477_setup(struct dsa_switch *ds)
 	struct ksz_device *dev = ds->priv;
 	int ret = 0;
 
-	dev->vlan_cache = devm_kcalloc(dev->dev, sizeof(struct vlan_table),
-				       dev->info->num_vlans, GFP_KERNEL);
-	if (!dev->vlan_cache)
-		return -ENOMEM;
-
-	ret = dev->dev_ops->reset(dev);
-	if (ret) {
-		dev_err(ds->dev, "failed to reset switch\n");
-		return ret;
-	}
-
 	/* Required for port partitioning. */
 	ksz9477_cfg32(dev, REG_SW_QM_CTRL__4, UNICAST_VLAN_BOUNDARY,
 		      true);
@@ -1298,8 +1287,6 @@ static int ksz9477_setup(struct dsa_switch *ds)
 	if (ret)
 		return ret;
 
-	dev->dev_ops->config_cpu_port(ds);
-
 	ksz_cfg(dev, REG_SW_MAC_CTRL_1, MULTICAST_STORM_DISABLE, true);
 
 	/* queue based egress rate limit */
@@ -1311,18 +1298,12 @@ static int ksz9477_setup(struct dsa_switch *ds)
 	/* start switch */
 	ksz_cfg(dev, REG_SW_OPERATION, SW_START, true);
 
-	dev->dev_ops->enable_stp_addr(dev);
-
-	ksz_init_mib_timer(dev);
-
-	ds->configure_vlan_while_not_filtering = false;
-
 	return 0;
 }
 
 static const struct dsa_switch_ops ksz9477_switch_ops = {
 	.get_tag_protocol	= ksz_get_tag_protocol,
-	.setup			= ksz9477_setup,
+	.setup			= ksz_setup,
 	.phy_read		= ksz_phy_read16,
 	.phy_write		= ksz_phy_write16,
 	.phylink_mac_link_down	= ksz_mac_link_down,
@@ -1408,6 +1389,7 @@ static void ksz9477_switch_exit(struct ksz_device *dev)
 }
 
 static const struct ksz_dev_ops ksz9477_dev_ops = {
+	.setup = ksz9477_setup,
 	.get_port_addr = ksz9477_get_port_addr,
 	.cfg_port_member = ksz9477_cfg_port_member,
 	.flush_dyn_mac_table = ksz9477_flush_dyn_mac_table,

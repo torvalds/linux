@@ -162,6 +162,7 @@ struct alu_struct {
 };
 
 struct ksz_dev_ops {
+	int (*setup)(struct dsa_switch *ds);
 	u32 (*get_port_addr)(int port, int offset);
 	void (*cfg_port_member)(struct ksz_device *dev, int port, u8 member);
 	void (*flush_dyn_mac_table)(struct ksz_device *dev, int port);
@@ -229,6 +230,7 @@ extern const struct ksz_chip_data ksz_switch_chips[];
 
 /* Common DSA access functions */
 
+int ksz_setup(struct dsa_switch *ds);
 int ksz_phy_read16(struct dsa_switch *ds, int addr, int reg);
 int ksz_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val);
 u32 ksz_get_phy_flags(struct dsa_switch *ds, int port);
