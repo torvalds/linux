@@ -269,7 +269,7 @@ enum opt_type {
 	  BCH2_NO_SB_OPT,		true,				\
 	  NULL,		"Enable discard/TRIM support")			\
 	x(verbose,			u8,				\
-	  OPT_FS|OPT_MOUNT,						\
+	  OPT_FS|OPT_MOUNT|OPT_RUNTIME,					\
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Extra debugging information during mount/recovery")\
