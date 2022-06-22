@@ -10,6 +10,7 @@
 #include "rga3_reg_info.h"
 #include "rga_common.h"
 #include "rga_debugger.h"
+#include "rga_hw_config.h"
 
 #define FACTOR_MAX ((int)(2 << 15))
 
@@ -1721,80 +1722,78 @@ static int rga3_scale_check(const struct rga3_req *req)
 	return 0;
 }
 
-static int rga3_check_param(const struct rga3_req *req)
+static int rga3_check_param(const struct rga_hw_data *data, const struct rga3_req *req)
 {
-	if (!((req->render_mode == COLOR_FILL_MODE))) {
-		if (unlikely((req->win0.src_act_w <= 0) ||
-			(req->win0.src_act_w > 8176)
-			 || (req->win0.src_act_h <= 0)
-			 || (req->win0.src_act_h > 8176)
-			 || (req->win0.dst_act_w <= 0)
-			 || (req->win0.dst_act_w > 8128)
-			 || (req->win0.dst_act_h <= 0)
-			 || (req->win0.dst_act_h > 8128))) {
-			pr_err("invalid win0 act sw = %d, sh = %d, dw = %d, dh = %d\n",
-				 req->win0.src_act_w, req->win0.src_act_h,
-				 req->win0.dst_act_w, req->win0.dst_act_h);
-			return -EINVAL;
-		}
+	if (unlikely(rga_hw_out_of_range(&(data->input_range),
+					 req->win0.src_act_w, req->win0.src_act_h) ||
+		     rga_hw_out_of_range(&(data->input_range),
+					 req->win0.dst_act_w, req->win0.dst_act_h) ||
+		     rga_hw_out_of_range(&(data->input_range),
+					 req->win0.src_act_w + req->win0.x_offset,
+					 req->win0.src_act_h + req->win0.y_offset))) {
+		pr_err("invalid win0, src[w,h] = [%d, %d], dst[w,h] = [%d, %d], off[x,y] = [%d,%d]\n",
+		       req->win0.src_act_w, req->win0.src_act_h,
+		       req->win0.dst_act_w, req->win0.dst_act_h,
+		       req->win0.x_offset, req->win0.y_offset);
+		return -EINVAL;
+	}
+
+	if (unlikely(req->win0.vir_w * rga_get_pixel_stride_from_format(req->win0.format) >
+		     data->max_byte_stride * 8)) {
+		pr_err("invalid win0 stride, stride = %d, pixel_stride = %d, max_byte_stride = %d\n",
+		       req->win0.vir_w, rga_get_pixel_stride_from_format(req->win0.format),
+		       data->max_byte_stride);
+		return -EINVAL;
+	}
+
+	if (unlikely(rga_hw_out_of_range(&(data->output_range),
+					 req->wr.dst_act_w, req->wr.dst_act_h))) {
+		pr_err("invalid wr, [w,h] = [%d, %d]\n", req->wr.dst_act_w, req->wr.dst_act_h);
+		return -EINVAL;
+	}
+
+	if (unlikely(req->wr.vir_w * rga_get_pixel_stride_from_format(req->wr.format) >
+		     data->max_byte_stride * 8)) {
+		pr_err("invalid wr stride, stride = %d, pixel_stride = %d, max_byte_stride = %d\n",
+		       req->wr.vir_w, rga_get_pixel_stride_from_format(req->wr.format),
+		       data->max_byte_stride);
+		return -EINVAL;
 	}
 
 	if (req->win1.yrgb_addr != 0) {
-		if (unlikely((req->win1.src_act_w <= 0) ||
-			(req->win1.src_act_w > 8176)
-			 || (req->win1.src_act_h <= 0)
-			 || (req->win1.src_act_h > 8176)
-			 || (req->win1.dst_act_w <= 0)
-			 || (req->win1.dst_act_w > 8128)
-			 || (req->win1.dst_act_h <= 0)
-			 || (req->win1.dst_act_h > 8128))) {
-			pr_err("invalid win1 act sw = %d, sh = %d, dw = %d, dh = %d\n",
-				 req->win1.src_act_w, req->win1.src_act_h,
-				 req->win1.dst_act_w, req->win1.dst_act_h);
+		if (unlikely(rga_hw_out_of_range(&(data->input_range),
+						 req->win1.src_act_w, req->win1.src_act_h) ||
+			     rga_hw_out_of_range(&(data->input_range),
+						 req->win1.dst_act_w, req->win1.dst_act_h) ||
+			     rga_hw_out_of_range(&(data->input_range),
+						 req->win1.src_act_w + req->win1.x_offset,
+						 req->win1.src_act_h + req->win1.y_offset))) {
+			pr_err("invalid win1, src[w,h] = [%d, %d], dst[w,h] = [%d, %d], off[x,y] = [%d,%d]\n",
+			       req->win1.src_act_w, req->win1.src_act_h,
+			       req->win1.dst_act_w, req->win1.dst_act_h,
+			       req->win1.x_offset, req->win1.y_offset);
 			return -EINVAL;
 		}
 
-		if (unlikely
-			((req->win1.vir_w <= 0) || (req->win1.vir_w > 8192 * 2)
-			 || (req->win1.vir_h <= 0)
-			 || (req->win1.vir_h > 8192 * 2))) {
-			pr_err("invalid win1 stride vir_w = %d, vir_h = %d\n",
-				 req->win1.vir_w, req->win1.vir_h);
+		if (unlikely(req->win1.vir_w * rga_get_pixel_stride_from_format(req->win1.format) >
+			     data->max_byte_stride * 8)) {
+			pr_err("invalid win1 stride, stride = %d, pixel_stride = %d, max_byte_stride = %d\n",
+			       req->win1.vir_w, rga_get_pixel_stride_from_format(req->win1.format),
+			       data->max_byte_stride);
 			return -EINVAL;
 		}
 
 		/* warning: rotate mode skip this judge */
 		if (req->rotate_mode == 0) {
 			/* check win0 dst size > win1 dst size */
-			if (unlikely
-				((req->win1.dst_act_w > req->win0.dst_act_w)
-				|| (req->win1.dst_act_h > req->win0.dst_act_h))) {
-				pr_err("invalid win1.dst size = %d x %d\n",
-					req->win1.dst_act_w, req->win1.dst_act_h);
-				pr_err("invalid win0.dst size = %d x %d\n",
-					req->win0.dst_act_w, req->win0.dst_act_h);
+			if (unlikely((req->win1.dst_act_w > req->win0.dst_act_w) ||
+				     (req->win1.dst_act_h > req->win0.dst_act_h))) {
+				pr_err("invalid output param win0[w,h] = [%d, %d], win1[w,h] = [%d, %d]\n",
+				       req->win0.dst_act_w, req->win0.dst_act_h,
+				       req->win1.dst_act_w, req->win1.dst_act_h);
 				return -EINVAL;
 			}
 		}
-	}
-
-	if (!((req->render_mode == COLOR_FILL_MODE))) {
-		if (unlikely
-			((req->win0.vir_w <= 0) || (req->win0.vir_w > 8192)
-			 || (req->win0.vir_h <= 0)
-			 || (req->win0.vir_h > 8192))) {
-			pr_err("invalid win0 vir_w = %d, vir_h = %d\n",
-				 req->win0.vir_w, req->win0.vir_h);
-			return -EINVAL;
-		}
-	}
-
-	if (unlikely
-		((req->wr.vir_w <= 0) || (req->wr.vir_w > 8192 * 2)
-		 || (req->wr.vir_h <= 0) || (req->wr.vir_h > 8192 * 2))) {
-		pr_err("invalid wr vir_w = %d, vir_h = %d\n",
-			 req->wr.vir_w, req->wr.vir_h);
-		return -EINVAL;
 	}
 
 	if (rga3_scale_check(req) < 0)
@@ -1886,13 +1885,20 @@ int rga3_init_reg(struct rga_job *job)
 {
 	struct rga3_req req;
 	int ret = 0;
+	struct rga_scheduler_t *scheduler = NULL;
+
+	scheduler = job->scheduler;
+	if (unlikely(scheduler == NULL)) {
+		pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
+		return -EINVAL;
+	}
 
 	memset(&req, 0x0, sizeof(req));
 
 	rga_cmd_to_rga3_cmd(&job->rga_command_base, &req);
 
 	/* check value if legal */
-	ret = rga3_check_param(&req);
+	ret = rga3_check_param(scheduler->data, &req);
 	if (ret == -EINVAL) {
 		pr_err("req argument is inval\n");
 		return ret;

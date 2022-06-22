@@ -8,6 +8,9 @@
 
 #include "rga_hw_config.h"
 
+/* RGA 1Word = 4Byte */
+#define WORD_TO_BYTE(w) ((w) * 4)
+
 const uint32_t rga3_input_raster_format[] = {
 	RGA_FORMAT_RGBA_8888,
 	RGA_FORMAT_BGRA_8888,
@@ -263,6 +266,7 @@ const struct rga_hw_data rga3_data = {
 	.max_downscale_factor = 3,
 
 	.byte_stride_align = 16,
+	.max_byte_stride = WORD_TO_BYTE(8192),
 
 	.feature = RGA_COLOR_KEY,
 	.csc_r2y_mode = RGA_MODE_CSC_BT601L | RGA_MODE_CSC_BT601F |
@@ -284,6 +288,7 @@ const struct rga_hw_data rga2e_data = {
 	.max_downscale_factor = 4,
 
 	.byte_stride_align = 4,
+	.max_byte_stride = WORD_TO_BYTE(8192),
 
 	.feature = RGA_COLOR_FILL | RGA_COLOR_PALETTE |
 		   RGA_COLOR_KEY | RGA_ROP_CALCULATE |
@@ -307,6 +312,7 @@ const struct rga_hw_data rga2e_1106_data = {
 	.max_downscale_factor = 4,
 
 	.byte_stride_align = 4,
+	.max_byte_stride = WORD_TO_BYTE(8192),
 
 	.feature = RGA_COLOR_FILL | RGA_COLOR_PALETTE |
 		   RGA_COLOR_KEY | RGA_ROP_CALCULATE |

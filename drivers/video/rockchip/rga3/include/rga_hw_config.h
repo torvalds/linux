@@ -56,6 +56,7 @@ struct rga_hw_data {
 	unsigned int max_downscale_factor;
 
 	uint32_t byte_stride_align;
+	uint32_t max_byte_stride;
 
 	const struct rga_win_data *win;
 	unsigned int win_size;
@@ -66,5 +67,12 @@ struct rga_hw_data {
 extern const struct rga_hw_data rga3_data;
 extern const struct rga_hw_data rga2e_data;
 extern const struct rga_hw_data rga2e_1106_data;
+
+/* Returns false if in range, true otherwise */
+static inline bool rga_hw_out_of_range(const struct rga_rect_range *range, int width, int height)
+{
+	return (width > range->max.width || height > range->max.height ||
+		width < range->min.width || height < range->min.height);
+}
 
 #endif /* __LINUX_RGA_HW_CONFIG_H_ */
