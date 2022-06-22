@@ -20,15 +20,17 @@
 #include <linux/of_irq.h>
 #include <linux/sched_clock.h>
 #include <linux/module.h>
-
 #include "timer-starfive.h"
 
 #define CLOCK_SOURCE_RATE	200
 #define VALID_BITS		32
-#define DELAY_US	0
-#define TIMEOUT_US	10000
+#define DELAY_US		0
+#define TIMEOUT_US		10000
+#define CLOCKEVENT_RATING	300
+#define MAX_TICKS		0xffffffff
+#define MIN_TICKS		0xf
 
-struct starfive_timer __initdata jh7100_starfive_timer = {
+struct starfive_timer __initdata jh7110_starfive_timer = {
 	.ctrl		= STF_TIMER_CTL,
 	.load		= STF_TIMER_LOAD,
 	.enable		= STF_TIMER_ENABLE,
@@ -36,8 +38,9 @@ struct starfive_timer __initdata jh7100_starfive_timer = {
 	.value		= STF_TIMER_VALUE,
 	.intclr		= STF_TIMER_INT_CLR,
 	.intmask	= STF_TIMER_INT_MASK,
-	.timer_base	= {TIMER_BASE(0), TIMER_BASE(1), TIMER_BASE(2), TIMER_BASE(3),
-			TIMER_BASE(4), TIMER_BASE(5), TIMER_BASE(6), TIMER_BASE(7)},
+	.timer_base	= {TIMER_BASE(0), TIMER_BASE(1), TIMER_BASE(2),
+			TIMER_BASE(3), TIMER_BASE(4), TIMER_BASE(5),
+			TIMER_BASE(6), TIMER_BASE(7)},
 };
 
 static struct starfive_clkevt starfive_jh7100_clkevt[NR_TIMERS];
@@ -171,7 +174,8 @@ starfive_get_clock_rate(struct starfive_clkevt *clkevt, struct device_node *np)
 	if (clkevt->clk) {
 		clkevt->rate = clk_get_rate(clkevt->clk);
 		if (clkevt->rate > 0) {
-			pr_debug("clk_get_rate clkevt->rate: %lld\n", clkevt->rate);
+			pr_debug("clk_get_rate clkevt->rate: %lld\n",
+				clkevt->rate);
 			return 0;
 		}
 	}
@@ -192,7 +196,7 @@ static int starfive_clocksource_init(struct starfive_clkevt *clkevt,
 				const char *name, struct device_node *np)
 {
 	timer_set_mod(clkevt, MOD_CONTIN);
-	timer_set_val(clkevt, 0xffffffff);  /* val = rate --> 1s */
+	timer_set_val(clkevt, MAX_TICKS);  /* val = rate --> 1s */
 	timer_int_disable(clkevt);
 	timer_int_clear(clkevt);
 	timer_int_enable(clkevt);
@@ -246,7 +250,7 @@ static int starfive_timer_set_oneshot(struct clock_event_device *evt)
 
 	timer_disable(clkevt);
 	timer_set_mod(clkevt, MOD_SINGLE);
-	timer_set_val(clkevt, 0xffffffff);
+	timer_set_val(clkevt, MAX_TICKS);
 	timer_int_disable(clkevt);
 	timer_int_clear(clkevt);
 	timer_int_enable(clkevt);
@@ -283,7 +287,7 @@ static void starfive_set_clockevent(struct clock_event_device *evt)
 	evt->set_next_event	= starfive_timer_set_next_event;
 	evt->suspend		= starfive_timer_suspend;
 	evt->resume		= starfive_timer_resume;
-	evt->rating		= 300;
+	evt->rating		= CLOCKEVENT_RATING;
 }
 
 static int starfive_clockevents_register(struct starfive_clkevt *clkevt, unsigned int irq,
@@ -307,7 +311,8 @@ static int starfive_clockevents_register(struct starfive_clkevt *clkevt, unsigne
 	if (ret)
 		pr_err("%s: request_irq failed\n", name);
 
-	clockevents_config_and_register(&clkevt->evt, clkevt->rate, 0xf, 0xffffffff);
+	clockevents_config_and_register(&clkevt->evt, clkevt->rate,
+			MIN_TICKS, MAX_TICKS);
 
 	return ret;
 }
@@ -357,7 +362,8 @@ static int __init do_starfive_timer_of_init(struct device_node *np,
 	pclk = of_clk_get_by_name(np, "apb_clk");
 	if (!IS_ERR(pclk))
 		if (clk_prepare_enable(pclk))
-			pr_warn("pclk for %pOFn is present, but could not be activated\n", np);
+			pr_warn("pclk for %pOFn is present,"
+				"but could not be activated\n", np);
 
 	count = of_irq_count(np);
 	if (count > NR_TIMERS || count <= 0) {
@@ -379,8 +385,8 @@ static int __init do_starfive_timer_of_init(struct device_node *np,
 		if (!IS_ERR(clk)) {
 			clkevt->clk = clk;
 			if (clk_prepare_enable(clk))
-				pr_warn("clk for %pOFn is present, but could not be activated\n",
-				np);
+				pr_warn("clk for %pOFn is present,"
+					"but could not be activated\n", np);
 
 		}
 
@@ -409,9 +415,10 @@ err:
 
 static int __init starfive_timer_of_init(struct device_node *np)
 {
-	return do_starfive_timer_of_init(np, &jh7100_starfive_timer);
+	return do_starfive_timer_of_init(np, &jh7110_starfive_timer);
 }
-TIMER_OF_DECLARE(starfive_timer, "starfive,si5-timers", starfive_timer_of_init);
+TIMER_OF_DECLARE(starfive_timer, "starfive,si5-timers",
+			starfive_timer_of_init);
 
 MODULE_AUTHOR("xingyu.wu <xingyu.wu@starfivetech.com>");
 MODULE_AUTHOR("samin.guo <samin.guo@starfivetech.com>");
