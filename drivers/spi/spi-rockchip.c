@@ -1019,51 +1019,6 @@ static int rockchip_spi_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int rockchip_spi_suspend(struct device *dev)
-{
-	int ret;
-	struct spi_controller *ctlr = dev_get_drvdata(dev);
-	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
-
-	ret = spi_controller_suspend(ctlr);
-	if (ret < 0)
-		return ret;
-
-	clk_disable_unprepare(rs->spiclk);
-	clk_disable_unprepare(rs->apb_pclk);
-
-	pinctrl_pm_select_sleep_state(dev);
-
-	return 0;
-}
-
-static int rockchip_spi_resume(struct device *dev)
-{
-	int ret;
-	struct spi_controller *ctlr = dev_get_drvdata(dev);
-	struct rockchip_spi *rs = spi_controller_get_devdata(ctlr);
-
-	pinctrl_pm_select_default_state(dev);
-
-	ret = clk_prepare_enable(rs->apb_pclk);
-	if (ret < 0)
-		return ret;
-
-	ret = clk_prepare_enable(rs->spiclk);
-	if (ret < 0)
-		clk_disable_unprepare(rs->apb_pclk);
-
-	ret = spi_controller_resume(ctlr);
-	if (ret < 0) {
-		clk_disable_unprepare(rs->spiclk);
-		clk_disable_unprepare(rs->apb_pclk);
-	}
-
-	return 0;
-}
-#endif /* CONFIG_PM_SLEEP */
-
 #ifdef CONFIG_PM
 static int rockchip_spi_runtime_suspend(struct device *dev)
 {
@@ -1093,6 +1048,46 @@ static int rockchip_spi_runtime_resume(struct device *dev)
 	return 0;
 }
 #endif /* CONFIG_PM */
+
+#ifdef CONFIG_PM_SLEEP
+static int rockchip_spi_suspend(struct device *dev)
+{
+	int ret;
+	struct spi_controller *ctlr = dev_get_drvdata(dev);
+
+	ret = spi_controller_suspend(ctlr);
+	if (ret < 0)
+		return ret;
+
+	/* Avoid redundant clock disable */
+	if (!pm_runtime_status_suspended(dev))
+		rockchip_spi_runtime_suspend(dev);
+
+	pinctrl_pm_select_sleep_state(dev);
+
+	return 0;
+}
+
+static int rockchip_spi_resume(struct device *dev)
+{
+	int ret;
+	struct spi_controller *ctlr = dev_get_drvdata(dev);
+
+	pinctrl_pm_select_default_state(dev);
+
+	if (!pm_runtime_status_suspended(dev)) {
+		ret = rockchip_spi_runtime_resume(dev);
+		if (ret < 0)
+			return ret;
+	}
+
+	ret = spi_controller_resume(ctlr);
+	if (ret < 0)
+		rockchip_spi_runtime_suspend(dev);
+
+	return 0;
+}
+#endif /* CONFIG_PM_SLEEP */
 
 static const struct dev_pm_ops rockchip_spi_pm = {
 	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(rockchip_spi_suspend, rockchip_spi_resume)
