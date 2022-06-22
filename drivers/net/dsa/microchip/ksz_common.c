@@ -154,6 +154,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x02,
 		.broadcast_ctrl_reg =  0x06,
+		.multicast_ctrl_reg = 0x04,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
@@ -188,6 +189,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x02,
 		.broadcast_ctrl_reg =  0x06,
+		.multicast_ctrl_reg = 0x04,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
@@ -208,6 +210,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x02,
 		.broadcast_ctrl_reg =  0x06,
+		.multicast_ctrl_reg = 0x04,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
@@ -227,6 +230,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x02,
 		.broadcast_ctrl_reg =  0x06,
+		.multicast_ctrl_reg = 0x04,
 		.supports_mii = {false, false, true},
 		.supports_rmii = {false, false, true},
 		.internal_phy = {true, true, false},
@@ -246,6 +250,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x0B04,
 		.broadcast_ctrl_reg =  0x0332,
+		.multicast_ctrl_reg = 0x0331,
 		.supports_mii	= {false, false, false, false,
 				   false, true, false},
 		.supports_rmii	= {false, false, false, false,
@@ -270,6 +275,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x0B04,
 		.broadcast_ctrl_reg =  0x0332,
+		.multicast_ctrl_reg = 0x0331,
 		.supports_mii	= {false, false, false, false,
 				   false, true, true},
 		.supports_rmii	= {false, false, false, false,
@@ -293,6 +299,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x0B04,
 		.broadcast_ctrl_reg =  0x0332,
+		.multicast_ctrl_reg = 0x0331,
 		.supports_mii = {false, false, true},
 		.supports_rmii = {false, false, true},
 		.supports_rgmii = {false, false, true},
@@ -313,6 +320,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x0B04,
 		.broadcast_ctrl_reg =  0x0332,
+		.multicast_ctrl_reg = 0x0331,
 		.supports_mii	= {false, false, false, false,
 				   false, true, true},
 		.supports_rmii	= {false, false, false, false,
@@ -336,6 +344,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x0B04,
 		.broadcast_ctrl_reg =  0x0332,
+		.multicast_ctrl_reg = 0x0331,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
@@ -355,6 +364,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x0B04,
 		.broadcast_ctrl_reg =  0x0332,
+		.multicast_ctrl_reg = 0x0331,
 		.supports_mii = {false, false, false, false, true, true},
 		.supports_rmii = {false, false, false, false, true, true},
 		.supports_rgmii = {false, false, false, false, true, true},
@@ -374,6 +384,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x0B04,
 		.broadcast_ctrl_reg =  0x0332,
+		.multicast_ctrl_reg = 0x0331,
 		.supports_mii	= {false, false, false, false,
 				   true, true, false, false},
 		.supports_rmii	= {false, false, false, false,
@@ -397,6 +408,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x0B04,
 		.broadcast_ctrl_reg =  0x0332,
+		.multicast_ctrl_reg = 0x0331,
 		.supports_mii	= {false, false, false, false,
 				   true, true, false, false},
 		.supports_rmii	= {false, false, false, false,
@@ -420,6 +432,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.stp_ctrl_reg = 0x0B04,
 		.broadcast_ctrl_reg =  0x0332,
+		.multicast_ctrl_reg = 0x0331,
 		.supports_mii	= {false, false, false, false,
 				   true, true, false, false},
 		.supports_rmii	= {false, false, false, false,
@@ -645,6 +658,9 @@ int ksz_setup(struct dsa_switch *ds)
 	dev->dev_ops->config_cpu_port(ds);
 
 	dev->dev_ops->enable_stp_addr(dev);
+
+	regmap_update_bits(dev->regmap[0], dev->info->multicast_ctrl_reg,
+			   MULTICAST_STORM_DISABLE, MULTICAST_STORM_DISABLE);
 
 	ksz_init_mib_timer(dev);
 

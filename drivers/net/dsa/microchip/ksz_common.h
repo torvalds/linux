@@ -48,6 +48,7 @@ struct ksz_chip_data {
 	u8 reg_mib_cnt;
 	int stp_ctrl_reg;
 	int broadcast_ctrl_reg;
+	int multicast_ctrl_reg;
 	bool supports_mii[KSZ_MAX_NUM_PORTS];
 	bool supports_rmii[KSZ_MAX_NUM_PORTS];
 	bool supports_rgmii[KSZ_MAX_NUM_PORTS];
@@ -425,6 +426,8 @@ static inline void ksz_regmap_unlock(void *__mtx)
 #define BROADCAST_STORM_RATE_HI		0x07
 #define BROADCAST_STORM_RATE_LO		0xFF
 #define BROADCAST_STORM_RATE		0x07FF
+
+#define MULTICAST_STORM_DISABLE		BIT(6)
 
 /* Regmap tables generation */
 #define KSZ_SPI_OP_RD		3
