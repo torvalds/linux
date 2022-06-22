@@ -250,6 +250,14 @@ static int device_user_lock(struct dlm_user_proc *proc,
 		goto out;
 	}
 
+#ifdef CONFIG_DLM_DEPRECATED_API
+	if (params->timeout)
+		pr_warn_once("========================================================\n"
+			     "WARNING: the lkb timeout feature is being deprecated and\n"
+			     "         will be removed in v6.2!\n"
+			     "========================================================\n");
+#endif
+
 	ua = kzalloc(sizeof(struct dlm_user_args), GFP_NOFS);
 	if (!ua)
 		goto out;
