@@ -2385,7 +2385,7 @@ svs_probe_free_resource:
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(svs_pm_ops, svs_suspend, svs_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(svs_pm_ops, svs_suspend, svs_resume);
 
 static struct platform_driver svs_driver = {
 	.probe	= svs_probe,
