@@ -343,6 +343,21 @@ config PCIE_MT7621
 	help
 	  This selects a driver for the MediaTek MT7621 PCIe Controller.
 
+config PCI_MSM
+	tristate "MSM PCIe Controller driver"
+	depends on ARCH_QCOM && PCI
+	select PCI_DOMAINS
+	select PCI_DOMAINS_GENERIC
+	select PCI_MSI
+	select CRC8
+	help
+	  Enables the PCIe functionality by configuring PCIe core on
+	  MSM chipset and by enabling the ARM PCI framework extension.
+	  The PCIe core is essential for communication between the host
+	  and an endpoint.
+
+	  If unsure, say N.
+
 source "drivers/pci/controller/dwc/Kconfig"
 source "drivers/pci/controller/mobiveil/Kconfig"
 source "drivers/pci/controller/cadence/Kconfig"
