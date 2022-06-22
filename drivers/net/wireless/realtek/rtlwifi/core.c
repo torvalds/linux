@@ -1703,7 +1703,7 @@ static int rtl_op_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		rtlpriv->sec.key_len[key_idx] = 0;
 		eth_zero_addr(mac_addr);
 		/*
-		 *mac80211 will delete entrys one by one,
+		 *mac80211 will delete entries one by one,
 		 *so don't use rtl_cam_reset_all_entry
 		 *or clear all entry here.
 		 */
