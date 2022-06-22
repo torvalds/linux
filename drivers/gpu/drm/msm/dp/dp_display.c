@@ -316,6 +316,8 @@ static void dp_display_unbind(struct device *dev, struct device *master,
 
 	dp_power_client_deinit(dp->power);
 	dp_aux_unregister(dp->aux);
+	dp->drm_dev = NULL;
+	dp->aux->drm_dev = NULL;
 	priv->dp[dp->id] = NULL;
 }
 
