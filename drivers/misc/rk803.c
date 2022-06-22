@@ -167,7 +167,7 @@ static long rk803_dev_ioctl(struct file *file, unsigned int cmd,
 		int val = (int)arg;
 
 		rk803->current2 = val;
-		rk803_i2c_write_reg(rk803, 0, rk803->current2);
+		rk803_i2c_write_reg(rk803, 1, rk803->current2);
 		break;
 	}
 	default:
