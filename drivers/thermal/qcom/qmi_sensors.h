@@ -82,6 +82,8 @@ enum qmi_ts_sensor {
 	QMI_TS_EPM5,
 	QMI_TS_EPM6,
 	QMI_TS_EPM7,
+	QMI_TS_SDR0_PA,
+	QMI_TS_SDR1_PA,
 	QMI_TS_MAX_NR
 };
 
@@ -158,6 +160,8 @@ static char sensor_clients[QMI_TS_MAX_NR][QMI_CLIENT_NAME_LENGTH] = {
 	{"epm5"},
 	{"epm6"},
 	{"epm7"},
+	{"sdr0_pa"},
+	{"sdr1_pa"},
 };
 
 #endif /* __QMI_SENSORS_H__ */
