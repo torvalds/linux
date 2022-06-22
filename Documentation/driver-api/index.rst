@@ -27,6 +27,7 @@ available subsections can be seen below.
    component
    message-based
    infiniband
+   aperture
    frame-buffer
    regulator
    reset
