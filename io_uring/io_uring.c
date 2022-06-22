@@ -1009,6 +1009,36 @@ static void handle_tw_list(struct llist_node *node,
 	} while (node);
 }
 
+/**
+ * io_llist_xchg - swap all entries in a lock-less list
+ * @head:	the head of lock-less list to delete all entries
+ * @new:	new entry as the head of the list
+ *
+ * If list is empty, return NULL, otherwise, return the pointer to the first entry.
+ * The order of entries returned is from the newest to the oldest added one.
+ */
+static inline struct llist_node *io_llist_xchg(struct llist_head *head,
+					       struct llist_node *new)
+{
+	return xchg(&head->first, new);
+}
+
+/**
+ * io_llist_cmpxchg - possibly swap all entries in a lock-less list
+ * @head:	the head of lock-less list to delete all entries
+ * @old:	expected old value of the first entry of the list
+ * @new:	new entry as the head of the list
+ *
+ * perform a cmpxchg on the first entry of the list.
+ */
+
+static inline struct llist_node *io_llist_cmpxchg(struct llist_head *head,
+						  struct llist_node *old,
+						  struct llist_node *new)
+{
+	return cmpxchg(&head->first, old, new);
+}
+
 void tctx_task_work(struct callback_head *cb)
 {
 	bool uring_locked = false;
