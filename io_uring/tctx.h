@@ -22,7 +22,6 @@ struct io_uring_task {
 		spinlock_t		task_lock;
 		bool			task_running;
 		struct io_wq_work_list	task_list;
-		struct io_wq_work_list	prio_task_list;
 		struct callback_head	task_work;
 	} ____cacheline_aligned_in_smp;
 };

@@ -36,7 +36,6 @@ struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 bool io_is_uring_fops(struct file *file);
 bool io_alloc_async_data(struct io_kiocb *req);
 void io_req_task_work_add(struct io_kiocb *req);
-void io_req_task_prio_work_add(struct io_kiocb *req);
 void io_req_tw_post_queue(struct io_kiocb *req, s32 res, u32 cflags);
 void io_req_task_queue(struct io_kiocb *req);
 void io_queue_iowq(struct io_kiocb *req, bool *dont_use);

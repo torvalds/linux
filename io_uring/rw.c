@@ -215,7 +215,7 @@ static void io_complete_rw(struct kiocb *kiocb, long res)
 		return;
 	io_req_set_res(req, res, 0);
 	req->io_task_work.func = io_req_task_complete;
-	io_req_task_prio_work_add(req);
+	io_req_task_work_add(req);
 }
 
 static void io_complete_rw_iopoll(struct kiocb *kiocb, long res)

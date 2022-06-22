@@ -88,7 +88,6 @@ __cold int io_uring_alloc_task_context(struct task_struct *task,
 	task->io_uring = tctx;
 	spin_lock_init(&tctx->task_lock);
 	INIT_WQ_LIST(&tctx->task_list);
-	INIT_WQ_LIST(&tctx->prio_task_list);
 	init_task_work(&tctx->task_work, tctx_task_work);
 	return 0;
 }

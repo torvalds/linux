@@ -986,44 +986,6 @@ static void ctx_flush_and_put(struct io_ring_ctx *ctx, bool *locked)
 	percpu_ref_put(&ctx->refs);
 }
 
-static void handle_prev_tw_list(struct io_wq_work_node *node,
-				struct io_ring_ctx **ctx, bool *uring_locked)
-{
-	if (*ctx && !*uring_locked)
-		spin_lock(&(*ctx)->completion_lock);
-
-	do {
-		struct io_wq_work_node *next = node->next;
-		struct io_kiocb *req = container_of(node, struct io_kiocb,
-						    io_task_work.node);
-
-		prefetch(container_of(next, struct io_kiocb, io_task_work.node));
-
-		if (req->ctx != *ctx) {
-			if (unlikely(!*uring_locked && *ctx))
-				io_cq_unlock_post(*ctx);
-
-			ctx_flush_and_put(*ctx, uring_locked);
-			*ctx = req->ctx;
-			/* if not contended, grab and improve batching */
-			*uring_locked = mutex_trylock(&(*ctx)->uring_lock);
-			percpu_ref_get(&(*ctx)->refs);
-			if (unlikely(!*uring_locked))
-				io_cq_lock(*ctx);
-		}
-		if (likely(*uring_locked)) {
-			req->io_task_work.func(req, uring_locked);
-		} else {
-			req->cqe.flags = io_put_kbuf_comp(req);
-			__io_req_complete_post(req);
-		}
-		node = next;
-	} while (node);
-
-	if (unlikely(!*uring_locked))
-		io_cq_unlock_post(*ctx);
-}
-
 static void handle_tw_list(struct io_wq_work_node *node,
 			   struct io_ring_ctx **ctx, bool *locked)
 {
@@ -1054,27 +1016,20 @@ void tctx_task_work(struct callback_head *cb)
 						  task_work);
 
 	while (1) {
-		struct io_wq_work_node *node1, *node2;
+		struct io_wq_work_node *node;
 
 		spin_lock_irq(&tctx->task_lock);
-		node1 = tctx->prio_task_list.first;
-		node2 = tctx->task_list.first;
+		node = tctx->task_list.first;
 		INIT_WQ_LIST(&tctx->task_list);
-		INIT_WQ_LIST(&tctx->prio_task_list);
-		if (!node2 && !node1)
+		if (!node)
 			tctx->task_running = false;
 		spin_unlock_irq(&tctx->task_lock);
-		if (!node2 && !node1)
+		if (!node)
 			break;
-
-		if (node1)
-			handle_prev_tw_list(node1, &ctx, &uring_locked);
-		if (node2)
-			handle_tw_list(node2, &ctx, &uring_locked);
+		handle_tw_list(node, &ctx, &uring_locked);
 		cond_resched();
 
-		if (data_race(!tctx->task_list.first) &&
-		    data_race(!tctx->prio_task_list.first) && uring_locked)
+		if (data_race(!tctx->task_list.first) && uring_locked)
 			io_submit_flush_completions(ctx);
 	}
 
@@ -1086,8 +1041,7 @@ void tctx_task_work(struct callback_head *cb)
 }
 
 static void __io_req_task_work_add(struct io_kiocb *req,
-				   struct io_uring_task *tctx,
-				   struct io_wq_work_list *list)
+				   struct io_uring_task *tctx)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_wq_work_node *node;
@@ -1095,7 +1049,7 @@ static void __io_req_task_work_add(struct io_kiocb *req,
 	bool running;
 
 	spin_lock_irqsave(&tctx->task_lock, flags);
-	wq_list_add_tail(&req->io_task_work.node, list);
+	wq_list_add_tail(&req->io_task_work.node, &tctx->task_list);
 	running = tctx->task_running;
 	if (!running)
 		tctx->task_running = true;
@@ -1113,7 +1067,8 @@ static void __io_req_task_work_add(struct io_kiocb *req,
 
 	spin_lock_irqsave(&tctx->task_lock, flags);
 	tctx->task_running = false;
-	node = wq_list_merge(&tctx->prio_task_list, &tctx->task_list);
+	node = tctx->task_list.first;
+	INIT_WQ_LIST(&tctx->task_list);
 	spin_unlock_irqrestore(&tctx->task_lock, flags);
 
 	while (node) {
@@ -1129,17 +1084,7 @@ void io_req_task_work_add(struct io_kiocb *req)
 {
 	struct io_uring_task *tctx = req->task->io_uring;
 
-	__io_req_task_work_add(req, tctx, &tctx->task_list);
-}
-
-void io_req_task_prio_work_add(struct io_kiocb *req)
-{
-	struct io_uring_task *tctx = req->task->io_uring;
-
-	if (req->ctx->flags & IORING_SETUP_SQPOLL)
-		__io_req_task_work_add(req, tctx, &tctx->prio_task_list);
-	else
-		__io_req_task_work_add(req, tctx, &tctx->task_list);
+	__io_req_task_work_add(req, tctx);
 }
 
 static void io_req_tw_post(struct io_kiocb *req, bool *locked)
