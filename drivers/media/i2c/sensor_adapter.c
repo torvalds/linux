@@ -43,7 +43,6 @@
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
 
 #define SENSOR_NAME			"sensor"
-#define MAX_SENSOR_NUM			8
 #define MAX_MIPICLK_NUM			5
 
 struct sensor_crop {
@@ -95,7 +94,7 @@ struct sensor {
 	bool			is_link;
 };
 
-static struct sensor *g_sensor[MAX_SENSOR_NUM];
+static struct sensor *g_sensor[RKMODULE_MAX_SENSOR_NUM];
 static u8 cam_idx;
 
 static s64 link_freq_menu_items[] = {
@@ -311,13 +310,13 @@ int rkcam_sensor_enable_mclk(u8 i2cdev, u32 mclk_index, u32 mclk_rate)
 	int ret = 0;
 	int i = 0;
 
-	for (i = 0; i < MAX_SENSOR_NUM; i++) {
+	for (i = 0; i < RKMODULE_MAX_SENSOR_NUM; i++) {
 		sensor = g_sensor[i];
 		if (sensor->module_index == i2cdev)
 			break;
 	}
 
-	if (i == MAX_SENSOR_NUM)
+	if (i == RKMODULE_MAX_SENSOR_NUM)
 		return -EINVAL;
 
 	dev = &sensor->client->dev;
@@ -342,13 +341,13 @@ int rkcam_sensor_disable_mclk(u8 i2cdev, u32 mclk_index)
 	struct sensor *sensor;
 	int i = 0;
 
-	for (i = 0; i < MAX_SENSOR_NUM; i++) {
+	for (i = 0; i < RKMODULE_MAX_SENSOR_NUM; i++) {
 		sensor = g_sensor[i];
 		if (sensor->module_index == i2cdev)
 			break;
 	}
 
-	if (i == MAX_SENSOR_NUM)
+	if (i == RKMODULE_MAX_SENSOR_NUM)
 		return -EINVAL;
 
 	clk_disable_unprepare(sensor->clks[mclk_index]);
@@ -387,7 +386,7 @@ struct rkcam_bus_callbakck_s {
 	u32 (*prkcam_s_stream)(u32 dev, bool on);
 };
 
-static struct rkcam_bus_callbakck_s g_rkcam_bus_callback[MAX_SENSOR_NUM];
+static struct rkcam_bus_callbakck_s g_rkcam_bus_callback[RKMODULE_MAX_SENSOR_NUM];
 
 static int rkcam_register_bus_callback(int sensor_id,
 				 enum rk_isp_bus_type_e bus_type,
@@ -479,6 +478,43 @@ static int sensor_sync_dev_pipeline(u8 dev_num)
 	return ret;
 }
 
+static struct sensor *find_sensor(int index)
+{
+	int i = 0;
+
+	for (i = 0; i < cam_idx; i++) {
+		if (index == g_sensor[i]->module_index)
+			return g_sensor[i];
+	}
+	return NULL;
+}
+
+static int sensor_set_sensor_info(struct rkmodule_sensor_infos *sensor_infos)
+{
+	int i = 0;
+	int dev_num = 0;
+
+	for (i = 0; i < cam_idx; i++) {
+		struct sensor *sensor = find_sensor(sensor_infos->sensor_fmt[i].sensor_index);
+
+		if (sensor_infos->sensor_fmt[i].sensor_width == 0 ||
+		    sensor_infos->sensor_fmt[i].sensor_height == 0)
+			break;
+		if (sensor) {
+			sensor->cur_mode->width = sensor_infos->sensor_fmt[i].sensor_width;
+			sensor->cur_mode->height = sensor_infos->sensor_fmt[i].sensor_height;
+			sensor->is_link = true;
+			dev_num++;
+		} else {
+			dev_err(&g_sensor[0]->client->dev,
+				"not find the sensor, index %d\n", sensor_infos->sensor_fmt[i].sensor_index);
+			return -EINVAL;
+		}
+	}
+	sensor_sync_dev_pipeline(dev_num);
+	return 0;
+}
+
 static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	void __user *up;
@@ -500,6 +536,7 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct rkmodule_mclk_data *mclk;
 	struct rkmodule_dev_info *dev_info;
 	struct rkmodule_csi_dphy_param *dphy_param;
+	struct rkmodule_sensor_infos *sensor_infos;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -695,6 +732,9 @@ end_set_reg:
 			*dphy_param = rk3588_dcphy_param;
 		dev_dbg(&sensor->client->dev,
 			"sensor get dphy param\n");
+	case RKMODULE_SET_SENSOR_INFOS:
+		sensor_infos = (struct rkmodule_sensor_infos *)arg;
+		ret = sensor_set_sensor_info(sensor_infos);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -722,6 +762,7 @@ static long sensor_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rkmodule_mclk_data *mclk;
 	struct rkmodule_dev_info *dev_info;
 	struct rkmodule_csi_dphy_param *dphy_param;
+	struct rkmodule_sensor_infos *sensor_infos;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -915,6 +956,19 @@ static long sensor_compat_ioctl32(struct v4l2_subdev *sd,
 				ret = -EFAULT;
 		}
 		kfree(dphy_param);
+		break;
+	case RKMODULE_SET_SENSOR_INFOS:
+		sensor_infos = kzalloc(sizeof(*sensor_infos), GFP_KERNEL);
+		if (!sensor_infos) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		ret = copy_from_user(sensor_infos, up, sizeof(*sensor_infos));
+		if (!ret)
+			ret = sensor_ioctl(sd, cmd, sensor_infos);
+		else
+			ret = -EFAULT;
+		kfree(sensor_infos);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
@@ -1366,7 +1420,13 @@ static int sensor_probe(struct i2c_client *client,
 	pm_runtime_set_active(dev);
 	pm_runtime_enable(dev);
 	pm_runtime_idle(dev);
-	cam_idx++;
+	if (cam_idx < RKMODULE_MAX_SENSOR_NUM) {
+		cam_idx++;
+	} else {
+		ret = -EINVAL;
+		dev_err(dev, "max cam num %d\n", RKMODULE_MAX_SENSOR_NUM);
+		goto err_clean_entity;
+	}
 
 	return 0;
 
