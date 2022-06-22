@@ -653,7 +653,7 @@
 			status = "disabled";
 		};
 
-		usb2: usb2@7000000 {
+		usb2: usb@70f8800 {
 			compatible = "qcom,ipq6018-dwc3", "qcom,dwc3";
 			reg = <0x0 0x070F8800 0x0 0x400>;
 			#address-cells = <2>;
@@ -662,7 +662,7 @@
 			clocks = <&gcc GCC_USB1_MASTER_CLK>,
 				 <&gcc GCC_USB1_SLEEP_CLK>,
 				 <&gcc GCC_USB1_MOCK_UTMI_CLK>;
-			clock-names = "master",
+			clock-names = "core",
 				      "sleep",
 				      "mock_utmi";
 
@@ -730,7 +730,7 @@
 			status = "disabled";
 		};
 
-		usb3: usb3@8A00000 {
+		usb3: usb@8af8800 {
 			compatible = "qcom,ipq6018-dwc3", "qcom,dwc3";
 			reg = <0x0 0x8AF8800 0x0 0x400>;
 			#address-cells = <2>;
@@ -741,8 +741,8 @@
 				<&gcc GCC_USB0_MASTER_CLK>,
 				<&gcc GCC_USB0_SLEEP_CLK>,
 				<&gcc GCC_USB0_MOCK_UTMI_CLK>;
-			clock-names = "sys_noc_axi",
-				"master",
+			clock-names = "cfg_noc",
+				"core",
 				"sleep",
 				"mock_utmi";
 
@@ -756,7 +756,7 @@
 			resets = <&gcc GCC_USB0_BCR>;
 			status = "disabled";
 
-			dwc_0: usb@8A00000 {
+			dwc_0: usb@8a00000 {
 				compatible = "snps,dwc3";
 				reg = <0x0 0x8A00000 0x0 0xcd00>;
 				interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;

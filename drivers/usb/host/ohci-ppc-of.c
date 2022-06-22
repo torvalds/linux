@@ -19,9 +19,6 @@
 #include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
-#include <asm/prom.h>
-
-
 static int
 ohci_ppc_of_start(struct usb_hcd *hcd)
 {

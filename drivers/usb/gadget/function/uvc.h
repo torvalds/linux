@@ -80,6 +80,7 @@ struct uvc_request {
 	struct uvc_video *video;
 	struct sg_table sgt;
 	u8 header[UVCG_REQUEST_HEADER_LEN];
+	struct uvc_buffer *last_buf;
 };
 
 struct uvc_video {
