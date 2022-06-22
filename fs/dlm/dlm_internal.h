@@ -145,7 +145,9 @@ struct dlm_args {
 	void			(*bastfn) (void *astparam, int mode);
 	int			mode;
 	struct dlm_lksb		*lksb;
+#ifdef CONFIG_DLM_DEPRECATED_API
 	unsigned long		timeout;
+#endif
 };
 
 
@@ -203,8 +205,10 @@ struct dlm_args {
 #define DLM_IFL_OVERLAP_UNLOCK  0x00080000
 #define DLM_IFL_OVERLAP_CANCEL  0x00100000
 #define DLM_IFL_ENDOFLIFE	0x00200000
+#ifdef CONFIG_DLM_DEPRECATED_API
 #define DLM_IFL_WATCH_TIMEWARN	0x00400000
 #define DLM_IFL_TIMEOUT_CANCEL	0x00800000
+#endif
 #define DLM_IFL_DEADLOCK_CANCEL	0x01000000
 #define DLM_IFL_STUB_MS		0x02000000 /* magic number for m_flags */
 /* least significant 2 bytes are message changed, they are full transmitted
@@ -257,9 +261,12 @@ struct dlm_lkb {
 	struct list_head	lkb_rsb_lookup;	/* waiting for rsb lookup */
 	struct list_head	lkb_wait_reply;	/* waiting for remote reply */
 	struct list_head	lkb_ownqueue;	/* list of locks for a process */
-	struct list_head	lkb_time_list;
 	ktime_t			lkb_timestamp;
+
+#ifdef CONFIG_DLM_DEPRECATED_API
+	struct list_head	lkb_time_list;
 	unsigned long		lkb_timeout_cs;
+#endif
 
 	struct mutex		lkb_cb_mutex;
 	struct work_struct	lkb_cb_work;
@@ -575,8 +582,10 @@ struct dlm_ls {
 	struct mutex		ls_orphans_mutex;
 	struct list_head	ls_orphans;
 
+#ifdef CONFIG_DLM_DEPRECATED_API
 	struct mutex		ls_timeout_mutex;
 	struct list_head	ls_timeout;
+#endif
 
 	spinlock_t		ls_new_rsb_spin;
 	int			ls_new_rsb_count;
@@ -695,7 +704,9 @@ struct dlm_ls {
 #define LSFL_RCOM_READY		5
 #define LSFL_RCOM_WAIT		6
 #define LSFL_UEVENT_WAIT	7
+#ifdef CONFIG_DLM_DEPRECATED_API
 #define LSFL_TIMEWARN		8
+#endif
 #define LSFL_CB_DELAY		9
 #define LSFL_NODIR		10
 
@@ -748,9 +759,15 @@ static inline int dlm_no_directory(struct dlm_ls *ls)
 	return test_bit(LSFL_NODIR, &ls->ls_flags);
 }
 
+#ifdef CONFIG_DLM_DEPRECATED_API
 int dlm_netlink_init(void);
 void dlm_netlink_exit(void);
 void dlm_timeout_warn(struct dlm_lkb *lkb);
+#else
+static inline int dlm_netlink_init(void) { return 0; }
+static inline void dlm_netlink_exit(void) { };
+static inline void dlm_timeout_warn(struct dlm_lkb *lkb) { };
+#endif
 int dlm_plock_init(void);
 void dlm_plock_exit(void);
 

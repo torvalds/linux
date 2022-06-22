@@ -270,10 +270,16 @@ static int device_user_lock(struct dlm_user_proc *proc,
 	ua->xid = params->xid;
 
 	if (params->flags & DLM_LKF_CONVERT) {
+#ifdef CONFIG_DLM_DEPRECATED_API
 		error = dlm_user_convert(ls, ua,
 				         params->mode, params->flags,
 				         params->lkid, params->lvb,
 					 (unsigned long) params->timeout);
+#else
+		error = dlm_user_convert(ls, ua,
+					 params->mode, params->flags,
+					 params->lkid, params->lvb);
+#endif
 	} else if (params->flags & DLM_LKF_ORPHAN) {
 		error = dlm_user_adopt_orphan(ls, ua,
 					 params->mode, params->flags,
@@ -282,10 +288,16 @@ static int device_user_lock(struct dlm_user_proc *proc,
 		if (!error)
 			error = lkid;
 	} else {
+#ifdef CONFIG_DLM_DEPRECATED_API
 		error = dlm_user_request(ls, ua,
 					 params->mode, params->flags,
 					 params->name, params->namelen,
 					 (unsigned long) params->timeout);
+#else
+		error = dlm_user_request(ls, ua,
+					 params->mode, params->flags,
+					 params->name, params->namelen);
+#endif
 		if (!error)
 			error = ua->lksb.sb_lkid;
 	}
