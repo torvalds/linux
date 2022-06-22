@@ -1415,12 +1415,6 @@ static int ksz8_setup(struct dsa_switch *ds)
 	if (!ksz_is_ksz88x3(dev))
 		ksz_cfg(dev, REG_SW_CTRL_19, SW_INS_TAG_ENABLE, true);
 
-	/* set broadcast storm protection 10% rate */
-	regmap_update_bits(dev->regmap[1], S_REPLACE_VID_CTRL,
-			   BROADCAST_STORM_RATE,
-			   (BROADCAST_STORM_VALUE *
-			   BROADCAST_STORM_PROT_RATE) / 100);
-
 	for (i = 0; i < (dev->info->num_vlans / 4); i++)
 		ksz8_r_vlan_entries(dev, i);
 
