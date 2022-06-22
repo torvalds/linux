@@ -160,6 +160,7 @@ amdgpu_dm_mst_connector_early_unregister(struct drm_connector *connector)
 
 		dc_sink_release(dc_sink);
 		aconnector->dc_sink = NULL;
+		aconnector->edid = NULL;
 	}
 	drm_modeset_unlock(&root->mst_mgr.base.lock);
 }
@@ -411,6 +412,7 @@ dm_dp_mst_detect(struct drm_connector *connector,
 
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;
+		aconnector->edid = NULL;
 	}
 
 	return connection_status;
