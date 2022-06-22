@@ -1380,6 +1380,7 @@ struct hl_asic_funcs {
 				enum dma_data_direction dir);
 	void (*add_end_of_cb_packets)(struct hl_device *hdev,
 					void *kernel_address, u32 len,
+					u32 original_len,
 					u64 cq_addr, u32 cq_val, u32 msix_num,
 					bool eb);
 	void (*update_eq_ci)(struct hl_device *hdev, u32 val);

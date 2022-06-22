@@ -308,6 +308,7 @@ static void ext_queue_schedule_job(struct hl_cs_job *job)
 	cq_addr = cq->bus_address + cq->pi * sizeof(struct hl_cq_entry);
 
 	hdev->asic_funcs->add_end_of_cb_packets(hdev, cb->kernel_address, len,
+						job->user_cb_size,
 						cq_addr,
 						le32_to_cpu(cq_pkt.data),
 						q->msi_vec,

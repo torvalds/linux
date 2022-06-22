@@ -1423,6 +1423,19 @@ static int gaudi_collective_wait_init_cs(struct hl_cs *cs)
 	return 0;
 }
 
+static u32 gaudi_get_patched_cb_extra_size(u32 user_cb_size)
+{
+	u32 cacheline_end, additional_commands;
+
+	cacheline_end = round_up(user_cb_size, DEVICE_CACHE_LINE_SIZE);
+	additional_commands = sizeof(struct packet_msg_prot) * 2;
+
+	if (user_cb_size + additional_commands > cacheline_end)
+		return cacheline_end - user_cb_size + additional_commands;
+	else
+		return additional_commands;
+}
+
 static int gaudi_collective_wait_create_job(struct hl_device *hdev,
 		struct hl_ctx *ctx, struct hl_cs *cs,
 		enum hl_collective_mode mode, u32 queue_id, u32 wait_queue_id,
@@ -1443,7 +1456,7 @@ static int gaudi_collective_wait_create_job(struct hl_device *hdev,
 		 * 1 fence packet
 		 * 4 msg short packets for monitor 2 configuration
 		 * 1 fence packet
-		 * 2 msg prot packets for completion and MSI-X
+		 * 2 msg prot packets for completion and MSI
 		 */
 		cb_size = sizeof(struct packet_msg_short) * 8 +
 				sizeof(struct packet_fence) * 2 +
@@ -5337,11 +5350,13 @@ static int gaudi_validate_cb(struct hl_device *hdev,
 
 	/*
 	 * The new CB should have space at the end for two MSG_PROT packets:
-	 * 1. A packet that will act as a completion packet
-	 * 2. A packet that will generate MSI-X interrupt
+	 * 1. Optional NOP padding for cacheline alignment
+	 * 2. A packet that will act as a completion packet
+	 * 3. A packet that will generate MSI interrupt
 	 */
 	if (parser->completion)
-		parser->patched_cb_size += sizeof(struct packet_msg_prot) * 2;
+		parser->patched_cb_size += gaudi_get_patched_cb_extra_size(
+			parser->patched_cb_size);
 
 	return rc;
 }
@@ -5564,13 +5579,14 @@ static int gaudi_parse_cb_mmu(struct hl_device *hdev,
 	int rc;
 
 	/*
-	 * The new CB should have space at the end for two MSG_PROT pkt:
-	 * 1. A packet that will act as a completion packet
-	 * 2. A packet that will generate MSI interrupt
+	 * The new CB should have space at the end for two MSG_PROT packets:
+	 * 1. Optional NOP padding for cacheline alignment
+	 * 2. A packet that will act as a completion packet
+	 * 3. A packet that will generate MSI interrupt
 	 */
 	if (parser->completion)
 		parser->patched_cb_size = parser->user_cb_size +
-				sizeof(struct packet_msg_prot) * 2;
+				gaudi_get_patched_cb_extra_size(parser->user_cb_size);
 	else
 		parser->patched_cb_size = parser->user_cb_size;
 
@@ -5745,17 +5761,23 @@ static int gaudi_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser)
 		return gaudi_parse_cb_no_mmu(hdev, parser);
 }
 
-static void gaudi_add_end_of_cb_packets(struct hl_device *hdev,
-					void *kernel_address, u32 len,
-					u64 cq_addr, u32 cq_val, u32 msi_vec,
-					bool eb)
+static void gaudi_add_end_of_cb_packets(struct hl_device *hdev, void *kernel_address,
+				u32 len, u32 original_len, u64 cq_addr, u32 cq_val,
+				u32 msi_vec, bool eb)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	struct packet_msg_prot *cq_pkt;
+	struct packet_nop *cq_padding;
 	u64 msi_addr;
 	u32 tmp;
 
+	cq_padding = kernel_address + original_len;
 	cq_pkt = kernel_address + len - (sizeof(struct packet_msg_prot) * 2);
+
+	while ((void *)cq_padding < (void *)cq_pkt) {
+		cq_padding->ctl = FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_NOP);
+		cq_padding++;
+	}
 
 	tmp = FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_MSG_PROT);
 	tmp |= FIELD_PREP(GAUDI_PKT_CTL_MB_MASK, 1);

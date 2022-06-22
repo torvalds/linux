@@ -230,8 +230,8 @@ void goya_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry);
 void *goya_get_events_stat(struct hl_device *hdev, bool aggregate, u32 *size);
 
 void goya_add_end_of_cb_packets(struct hl_device *hdev, void *kernel_address,
-				u32 len, u64 cq_addr, u32 cq_val, u32 msix_vec,
-				bool eb);
+				u32 len, u32 original_len, u64 cq_addr, u32 cq_val,
+				u32 msix_vec, bool eb);
 int goya_cs_parser(struct hl_device *hdev, struct hl_cs_parser *parser);
 int goya_scrub_device_mem(struct hl_device *hdev, u64 addr, u64 size);
 void *goya_get_int_queue_base(struct hl_device *hdev, u32 queue_id,
