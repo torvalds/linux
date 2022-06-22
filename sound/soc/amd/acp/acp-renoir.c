@@ -307,16 +307,10 @@ static int renoir_audio_remove(struct platform_device *pdev)
 	int ret;
 
 	chip = dev_get_platdata(&pdev->dev);
-	if (!chip || !chip->base) {
-		dev_err(&pdev->dev, "ACP chip data is NULL\n");
-		return -ENODEV;
-	}
 
 	ret = rn_acp_deinit(chip->base);
-	if (ret) {
-		dev_err(&pdev->dev, "ACP de-init Failed\n");
-		return -EINVAL;
-	}
+	if (ret)
+		dev_err(&pdev->dev, "ACP de-init Failed (%pe)\n", ERR_PTR(ret));
 
 	acp_platform_unregister(dev);
 	return 0;
