@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
@@ -27,11 +28,6 @@
 
 #define LM_MISR_CTRL                     0x310
 #define LM_MISR_SIGNATURE                0x314
-#define LM_MISR_FRAME_COUNT_MASK         0xFF
-#define LM_MISR_CTRL_ENABLE              BIT(8)
-#define LM_MISR_CTRL_STATUS              BIT(9)
-#define LM_MISR_CTRL_STATUS_CLEAR        BIT(10)
-#define LM_MISR_CTRL_FREE_RUN_MASK     BIT(31)
 
 
 static const struct dpu_lm_cfg *_lm_offset(enum dpu_lm mixer,
@@ -107,44 +103,12 @@ static void dpu_hw_lm_setup_border_color(struct dpu_hw_mixer *ctx,
 
 static void dpu_hw_lm_setup_misr(struct dpu_hw_mixer *ctx, bool enable, u32 frame_count)
 {
-	struct dpu_hw_blk_reg_map *c = &ctx->hw;
-	u32 config = 0;
-
-	DPU_REG_WRITE(c, LM_MISR_CTRL, LM_MISR_CTRL_STATUS_CLEAR);
-
-	/* Clear old MISR value (in case it's read before a new value is calculated)*/
-	wmb();
-
-	if (enable) {
-		config = (frame_count & LM_MISR_FRAME_COUNT_MASK) |
-			LM_MISR_CTRL_ENABLE | LM_MISR_CTRL_FREE_RUN_MASK;
-
-		DPU_REG_WRITE(c, LM_MISR_CTRL, config);
-	} else {
-		DPU_REG_WRITE(c, LM_MISR_CTRL, 0);
-	}
-
+	dpu_hw_setup_misr(&ctx->hw, LM_MISR_CTRL, enable, frame_count);
 }
 
 static int dpu_hw_lm_collect_misr(struct dpu_hw_mixer *ctx, u32 *misr_value)
 {
-	struct dpu_hw_blk_reg_map *c = &ctx->hw;
-	u32 ctrl = 0;
-
-	if (!misr_value)
-		return -EINVAL;
-
-	ctrl = DPU_REG_READ(c, LM_MISR_CTRL);
-
-	if (!(ctrl & LM_MISR_CTRL_ENABLE))
-		return -ENODATA;
-
-	if (!(ctrl & LM_MISR_CTRL_STATUS))
-		return -EINVAL;
-
-	*misr_value = DPU_REG_READ(c, LM_MISR_SIGNATURE);
-
-	return 0;
+	return dpu_hw_collect_misr(&ctx->hw, LM_MISR_CTRL, LM_MISR_SIGNATURE, misr_value);
 }
 
 static void dpu_hw_lm_setup_blend_config_combined_alpha(struct dpu_hw_mixer *ctx,
