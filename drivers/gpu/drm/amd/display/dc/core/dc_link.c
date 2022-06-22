@@ -845,7 +845,7 @@ static bool discover_dp_mst_topology(struct dc_link *link, enum dc_detect_reason
 	return link->type == dc_connection_mst_branch;
 }
 
-static bool reset_cur_dp_mst_topology(struct dc_link *link)
+bool reset_cur_dp_mst_topology(struct dc_link *link)
 {
 	bool result = false;
 	DC_LOGGER_INIT(link->ctx->logger);
