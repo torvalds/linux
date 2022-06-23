@@ -3019,7 +3019,7 @@ static void goya_dma_free_coherent(struct hl_device *hdev, size_t size,
 	dma_free_coherent(&hdev->pdev->dev, size, cpu_addr, fixed_dma_handle);
 }
 
-int goya_scrub_device_mem(struct hl_device *hdev, u64 addr, u64 size)
+int goya_scrub_device_mem(struct hl_device *hdev)
 {
 	return 0;
 }

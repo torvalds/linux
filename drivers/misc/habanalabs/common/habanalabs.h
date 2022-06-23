@@ -1248,7 +1248,7 @@ struct fw_load_mgr {
  *                           dma_free_coherent(). This is ASIC function because
  *                           its implementation is not trivial when the driver
  *                           is loaded in simulation mode (not upstreamed).
- * @scrub_device_mem: Scrub device memory given an address and size
+ * @scrub_device_mem: Scrub the entire SRAM and DRAM.
  * @scrub_device_dram: Scrub the dram memory of the device.
  * @get_int_queue_base: get the internal queue base address.
  * @test_queues: run simple test on all queues for sanity check.
@@ -1359,7 +1359,7 @@ struct hl_asic_funcs {
 					dma_addr_t *dma_handle, gfp_t flag);
 	void (*asic_dma_free_coherent)(struct hl_device *hdev, size_t size,
 					void *cpu_addr, dma_addr_t dma_handle);
-	int (*scrub_device_mem)(struct hl_device *hdev, u64 addr, u64 size);
+	int (*scrub_device_mem)(struct hl_device *hdev);
 	int (*scrub_device_dram)(struct hl_device *hdev, u64 val);
 	void* (*get_int_queue_base)(struct hl_device *hdev, u32 queue_id,
 				dma_addr_t *dma_handle, u16 *queue_len);

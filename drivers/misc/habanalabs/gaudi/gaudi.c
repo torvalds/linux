@@ -1657,7 +1657,7 @@ static int gaudi_late_init(struct hl_device *hdev)
 	}
 
 	/* Scrub both SRAM and DRAM */
-	rc = hdev->asic_funcs->scrub_device_mem(hdev, 0, 0);
+	rc = hdev->asic_funcs->scrub_device_mem(hdev);
 	if (rc)
 		goto disable_pci_access;
 
@@ -4846,51 +4846,49 @@ static int gaudi_scrub_device_dram(struct hl_device *hdev, u64 val)
 	return 0;
 }
 
-static int gaudi_scrub_device_mem(struct hl_device *hdev, u64 addr, u64 size)
+static int gaudi_scrub_device_mem(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 addr, size, dummy_val;
 	int rc = 0;
 	u64 val = 0;
 
 	if (!hdev->memory_scrub)
 		return 0;
 
-	if (!addr && !size) {
-		/* Wait till device is idle */
-		rc = hl_poll_timeout(
-				hdev,
-				mmDMA0_CORE_STS0/* dummy */,
-				val/* dummy */,
-				(hdev->asic_funcs->is_device_idle(hdev, NULL,
-						0, NULL)),
-						1000,
-						HBM_SCRUBBING_TIMEOUT_US);
-		if (rc) {
-			dev_err(hdev->dev, "waiting for idle timeout\n");
-			return -EIO;
-		}
-
-		/* Scrub SRAM */
-		addr = prop->sram_user_base_address;
-		size = hdev->pldm ? 0x10000 :
-				(prop->sram_size - SRAM_USER_BASE_OFFSET);
-		val = 0x7777777777777777ull;
-
-		rc = gaudi_memset_device_memory(hdev, addr, size, val);
-		if (rc) {
-			dev_err(hdev->dev,
-				"Failed to clear SRAM in mem scrub all\n");
-			return rc;
-		}
-
-		/* Scrub HBM using all DMA channels in parallel */
-		rc = gaudi_scrub_device_dram(hdev, 0xdeadbeaf);
-		if (rc)
-			dev_err(hdev->dev,
-				"Failed to clear HBM in mem scrub all\n");
+	/* Wait till device is idle */
+	rc = hl_poll_timeout(hdev,
+			mmDMA0_CORE_STS0 /* dummy */,
+			dummy_val /* dummy */,
+			(hdev->asic_funcs->is_device_idle(hdev, NULL, 0, NULL)),
+			1000,
+			HBM_SCRUBBING_TIMEOUT_US);
+	if (rc) {
+		dev_err(hdev->dev, "waiting for idle timeout\n");
+		return -EIO;
 	}
 
-	return rc;
+	/* Scrub SRAM */
+	addr = prop->sram_user_base_address;
+	size = hdev->pldm ? 0x10000 : prop->sram_size - SRAM_USER_BASE_OFFSET;
+	val = 0x7777777777777777ull;
+
+	dev_dbg(hdev->dev, "Scrubing SRAM: 0x%09llx - 0x%09llx val: 0x%llx\n",
+			addr, addr + size, val);
+	rc = gaudi_memset_device_memory(hdev, addr, size, val);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to clear SRAM (%d)\n", rc);
+		return rc;
+	}
+
+	/* Scrub HBM using all DMA channels in parallel */
+	rc = gaudi_scrub_device_dram(hdev, 0xdeadbeaf);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to clear HBM (%d)\n", rc);
+		return rc;
+	}
+
+	return 0;
 }
 
 static void *gaudi_get_int_queue_base(struct hl_device *hdev,
