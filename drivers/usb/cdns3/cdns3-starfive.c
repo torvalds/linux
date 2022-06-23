@@ -53,6 +53,8 @@
 #define PCIE_USB3_PHY_ENABLE_SHIFT	0x4U
 #define PCIE_USB3_PHY_ENABLE_MASK	0x10U
 
+#define USB_125M_CLK_RATE		125000000
+
 struct cdns_starfive {
 	struct device *dev;
 	struct regmap *stg_syscon;
@@ -60,6 +62,7 @@ struct cdns_starfive {
 	struct reset_control *resets;
 	struct clk_bulk_data *clks;
 	int num_clks;
+	struct clk *usb_125m_clk;
 	u32 sys_offset;
 	u32 stg_offset_4;
 	u32 stg_offset_196;
@@ -142,10 +145,27 @@ static int cdns_clk_rst_init(struct cdns_starfive *data)
 {
 	int ret;
 
+	data->usb_125m_clk = devm_clk_get(data->dev, "125m");
+	if (IS_ERR(data->usb_125m_clk)) {
+		dev_err(data->dev, "Failed to get usb 125m clock\n");
+		ret = PTR_ERR(data->usb_125m_clk);
+		goto exit;
+	}
+
 	data->num_clks = devm_clk_bulk_get_all(data->dev, &data->clks);
 	if (data->num_clks < 0) {
 		dev_err(data->dev, "Failed to get usb clocks\n");
 		ret = -ENODEV;
+		goto exit;
+	}
+
+	/* Needs to set the USB_125M clock explicitly,
+	 * since it's divided from pll0 clock, and the pll0 clock
+	 * changes per the cpu frequency.
+	 */
+	ret = clk_set_rate(data->usb_125m_clk, USB_125M_CLK_RATE);
+	if (ret) {
+		dev_err(data->dev, "Failed to set usb 125m clock\n");
 		goto exit;
 	}
 	ret = clk_bulk_prepare_enable(data->num_clks, data->clks);
