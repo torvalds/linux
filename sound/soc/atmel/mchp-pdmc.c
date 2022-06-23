@@ -423,6 +423,7 @@ static const struct snd_soc_component_driver mchp_pdmc_dai_component = {
 	.num_controls = ARRAY_SIZE(mchp_pdmc_snd_controls),
 	.open = &mchp_pdmc_open,
 	.close = &mchp_pdmc_close,
+	.legacy_dai_naming = 1,
 };
 
 static const unsigned int mchp_pdmc_1mic[] = {1};

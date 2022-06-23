@@ -858,9 +858,10 @@ static struct snd_soc_dai_driver atmel_ssc_dai = {
 };
 
 static const struct snd_soc_component_driver atmel_ssc_component = {
-	.name		= "atmel-ssc",
-	.suspend	= atmel_ssc_suspend,
-	.resume		= atmel_ssc_resume,
+	.name			= "atmel-ssc",
+	.suspend		= atmel_ssc_suspend,
+	.resume			= atmel_ssc_resume,
+	.legacy_dai_naming	= 1,
 };
 
 static int asoc_ssc_init(struct device *dev)
