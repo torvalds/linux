@@ -2290,7 +2290,7 @@ int ip6mr_get_route(struct net *net, struct sk_buff *skb, struct rtmsg *rtm,
 	if (!mrt)
 		return -ENOENT;
 
-	read_lock(&mrt_lock);
+	rcu_read_lock();
 	cache = ip6mr_cache_find(mrt, &rt->rt6i_src.addr, &rt->rt6i_dst.addr);
 	if (!cache && skb->dev) {
 		int vif = ip6mr_find_vif(mrt, skb->dev);
@@ -2308,14 +2308,14 @@ int ip6mr_get_route(struct net *net, struct sk_buff *skb, struct rtmsg *rtm,
 
 		dev = skb->dev;
 		if (!dev || (vif = ip6mr_find_vif(mrt, dev)) < 0) {
-			read_unlock(&mrt_lock);
+			rcu_read_unlock();
 			return -ENODEV;
 		}
 
 		/* really correct? */
 		skb2 = alloc_skb(sizeof(struct ipv6hdr), GFP_ATOMIC);
 		if (!skb2) {
-			read_unlock(&mrt_lock);
+			rcu_read_unlock();
 			return -ENOMEM;
 		}
 
@@ -2338,13 +2338,13 @@ int ip6mr_get_route(struct net *net, struct sk_buff *skb, struct rtmsg *rtm,
 		iph->daddr = rt->rt6i_dst.addr;
 
 		err = ip6mr_cache_unresolved(mrt, vif, skb2, dev);
-		read_unlock(&mrt_lock);
+		rcu_read_unlock();
 
 		return err;
 	}
 
 	err = mr_fill_mroute(mrt, skb, &cache->_c, rtm);
-	read_unlock(&mrt_lock);
+	rcu_read_unlock();
 	return err;
 }
 
