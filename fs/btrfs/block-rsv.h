@@ -25,7 +25,7 @@ struct btrfs_block_rsv {
 	u64 reserved;
 	struct btrfs_space_info *space_info;
 	spinlock_t lock;
-	unsigned short full;
+	bool full;
 	unsigned short type;
 	unsigned short failfast;
 
