@@ -273,7 +273,6 @@ struct cxl_nvdimm_bridge {
 struct cxl_nvdimm {
 	struct device dev;
 	struct cxl_memdev *cxlmd;
-	struct nvdimm *nvdimm;
 };
 
 /**
