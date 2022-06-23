@@ -1729,8 +1729,8 @@ free_running:
 				sdtc = mdtc;
 		}
 
-		if (dirty_exceeded && !wb->dirty_exceeded)
-			wb->dirty_exceeded = 1;
+		if (dirty_exceeded != wb->dirty_exceeded)
+			wb->dirty_exceeded = dirty_exceeded;
 
 		if (time_is_before_jiffies(READ_ONCE(wb->bw_time_stamp) +
 					   BANDWIDTH_INTERVAL))
@@ -1834,9 +1834,6 @@ pause:
 		if (fatal_signal_pending(current))
 			break;
 	}
-
-	if (!dirty_exceeded && wb->dirty_exceeded)
-		wb->dirty_exceeded = 0;
 }
 
 static DEFINE_PER_CPU(int, bdp_ratelimits);
