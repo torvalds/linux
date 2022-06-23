@@ -110,7 +110,7 @@ static int ipmr_cache_report(struct mr_table *mrt,
 			     struct sk_buff *pkt, vifi_t vifi, int assert);
 static void mroute_netlink_event(struct mr_table *mrt, struct mfc_cache *mfc,
 				 int cmd);
-static void igmpmsg_netlink_event(struct mr_table *mrt, struct sk_buff *pkt);
+static void igmpmsg_netlink_event(const struct mr_table *mrt, struct sk_buff *pkt);
 static void mroute_clean_tables(struct mr_table *mrt, int flags);
 static void ipmr_expire_process(struct timer_list *t);
 
@@ -2410,7 +2410,7 @@ static size_t igmpmsg_netlink_msgsize(size_t payloadlen)
 	return len;
 }
 
-static void igmpmsg_netlink_event(struct mr_table *mrt, struct sk_buff *pkt)
+static void igmpmsg_netlink_event(const struct mr_table *mrt, struct sk_buff *pkt)
 {
 	struct net *net = read_pnet(&mrt->net);
 	struct nlmsghdr *nlh;
