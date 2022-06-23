@@ -358,20 +358,25 @@ struct ieee80211_roc_work {
 enum ieee80211_sta_flags {
 	IEEE80211_STA_CONNECTION_POLL	= BIT(1),
 	IEEE80211_STA_CONTROL_PORT	= BIT(2),
-	IEEE80211_STA_DISABLE_HT	= BIT(4),
 	IEEE80211_STA_MFP_ENABLED	= BIT(6),
 	IEEE80211_STA_UAPSD_ENABLED	= BIT(7),
 	IEEE80211_STA_NULLFUNC_ACKED	= BIT(8),
 	IEEE80211_STA_RESET_SIGNAL_AVE	= BIT(9),
-	IEEE80211_STA_DISABLE_40MHZ	= BIT(10),
-	IEEE80211_STA_DISABLE_VHT	= BIT(11),
-	IEEE80211_STA_DISABLE_80P80MHZ	= BIT(12),
-	IEEE80211_STA_DISABLE_160MHZ	= BIT(13),
 	IEEE80211_STA_DISABLE_WMM	= BIT(14),
 	IEEE80211_STA_ENABLE_RRM	= BIT(15),
-	IEEE80211_STA_DISABLE_HE	= BIT(16),
-	IEEE80211_STA_DISABLE_EHT	= BIT(17),
-	IEEE80211_STA_DISABLE_320MHZ	= BIT(18),
+};
+
+typedef u32 __bitwise ieee80211_conn_flags_t;
+
+enum ieee80211_conn_flags {
+	IEEE80211_CONN_DISABLE_HT	= (__force ieee80211_conn_flags_t)BIT(0),
+	IEEE80211_CONN_DISABLE_40MHZ	= (__force ieee80211_conn_flags_t)BIT(1),
+	IEEE80211_CONN_DISABLE_VHT	= (__force ieee80211_conn_flags_t)BIT(2),
+	IEEE80211_CONN_DISABLE_80P80MHZ	= (__force ieee80211_conn_flags_t)BIT(3),
+	IEEE80211_CONN_DISABLE_160MHZ	= (__force ieee80211_conn_flags_t)BIT(4),
+	IEEE80211_CONN_DISABLE_HE	= (__force ieee80211_conn_flags_t)BIT(5),
+	IEEE80211_CONN_DISABLE_EHT	= (__force ieee80211_conn_flags_t)BIT(6),
+	IEEE80211_CONN_DISABLE_320MHZ	= (__force ieee80211_conn_flags_t)BIT(7),
 };
 
 struct ieee80211_mgd_auth_data {
@@ -874,6 +879,8 @@ struct ieee80211_link_data_managed {
 	u8 dtim_period;
 	enum ieee80211_smps_mode req_smps, /* requested smps mode */
 				 driver_smps_mode; /* smps mode request */
+
+	ieee80211_conn_flags_t conn_flags;
 
 	s16 p2p_noa_index;
 
@@ -2051,12 +2058,9 @@ void ieee80211_process_measurement_req(struct ieee80211_sub_if_data *sdata,
  * @elems: parsed 802.11 elements received with the frame
  * @current_band: indicates the current band
  * @vht_cap_info: VHT capabilities of the transmitter
- * @sta_flags: contains information about own capabilities and restrictions
- *	to decide which channel switch announcements can be accepted. Only the
- *	following subset of &enum ieee80211_sta_flags are evaluated:
- *	%IEEE80211_STA_DISABLE_HT, %IEEE80211_STA_DISABLE_VHT,
- *	%IEEE80211_STA_DISABLE_40MHZ, %IEEE80211_STA_DISABLE_80P80MHZ,
- *	%IEEE80211_STA_DISABLE_160MHZ.
+ * @conn_flags: contains information about own capabilities and restrictions
+ *	to decide which channel switch announcements can be accepted, using
+ *	flags from &enum ieee80211_conn_flags.
  * @bssid: the currently connected bssid (for reporting)
  * @csa_ie: parsed 802.11 csa elements on count, mode, chandef and mesh ttl.
 	All of them will be filled with if success only.
@@ -2066,7 +2070,7 @@ int ieee80211_parse_ch_switch_ie(struct ieee80211_sub_if_data *sdata,
 				 struct ieee802_11_elems *elems,
 				 enum nl80211_band current_band,
 				 u32 vht_cap_info,
-				 u32 sta_flags, u8 *bssid,
+				 ieee80211_conn_flags_t conn_flags, u8 *bssid,
 				 struct ieee80211_csa_ie *csa_ie);
 
 /* Suspend/resume and hw reconfiguration */
@@ -2297,7 +2301,7 @@ u8 *ieee80211_ie_build_vht_cap(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 u8 *ieee80211_ie_build_vht_oper(u8 *pos, struct ieee80211_sta_vht_cap *vht_cap,
 				const struct cfg80211_chan_def *chandef);
 u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata, u8 iftype);
-u8 *ieee80211_ie_build_he_cap(u32 disable_flags, u8 *pos,
+u8 *ieee80211_ie_build_he_cap(ieee80211_conn_flags_t disable_flags, u8 *pos,
 			      const struct ieee80211_sta_he_cap *he_cap,
 			      u8 *end);
 void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
@@ -2336,7 +2340,7 @@ bool ieee80211_chandef_he_6ghz_oper(struct ieee80211_sub_if_data *sdata,
 				    struct cfg80211_chan_def *chandef);
 bool ieee80211_chandef_s1g_oper(const struct ieee80211_s1g_oper_ie *oper,
 				struct cfg80211_chan_def *chandef);
-u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c);
+ieee80211_conn_flags_t ieee80211_chandef_downgrade(struct cfg80211_chan_def *c);
 
 int __must_check
 ieee80211_link_use_channel(struct ieee80211_link_data *link,

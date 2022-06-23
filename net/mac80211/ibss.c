@@ -770,20 +770,21 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	enum nl80211_channel_type ch_type;
 	int err;
-	u32 sta_flags;
+	ieee80211_conn_flags_t conn_flags;
 	u32 vht_cap_info = 0;
 
 	sdata_assert_lock(sdata);
 
-	sta_flags = IEEE80211_STA_DISABLE_VHT;
+	conn_flags = IEEE80211_CONN_DISABLE_VHT;
+
 	switch (ifibss->chandef.width) {
 	case NL80211_CHAN_WIDTH_5:
 	case NL80211_CHAN_WIDTH_10:
 	case NL80211_CHAN_WIDTH_20_NOHT:
-		sta_flags |= IEEE80211_STA_DISABLE_HT;
+		conn_flags |= IEEE80211_CONN_DISABLE_HT;
 		fallthrough;
 	case NL80211_CHAN_WIDTH_20:
-		sta_flags |= IEEE80211_STA_DISABLE_40MHZ;
+		conn_flags |= IEEE80211_CONN_DISABLE_40MHZ;
 		break;
 	default:
 		break;
@@ -796,7 +797,7 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	err = ieee80211_parse_ch_switch_ie(sdata, elems,
 					   ifibss->chandef.chan->band,
 					   vht_cap_info,
-					   sta_flags, ifibss->bssid, &csa_ie);
+					   conn_flags, ifibss->bssid, &csa_ie);
 	/* can't switch to destination channel, fail */
 	if (err < 0)
 		goto disconnect;
@@ -839,7 +840,7 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		}
 		break;
 	default:
-		/* should not happen, sta_flags should prevent VHT modes. */
+		/* should not happen, conn_flags should prevent VHT modes. */
 		WARN_ON(1);
 		goto disconnect;
 	}

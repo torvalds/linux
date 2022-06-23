@@ -1311,7 +1311,6 @@ static void
 iee80211_tdls_recalc_ht_protection(struct ieee80211_sub_if_data *sdata,
 				   struct sta_info *sta)
 {
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	bool tdls_ht;
 	u16 protection = IEEE80211_HT_OP_MODE_PROTECTION_NONHT_MIXED |
 			 IEEE80211_HT_OP_MODE_NON_GF_STA_PRSNT |
@@ -1319,7 +1318,7 @@ iee80211_tdls_recalc_ht_protection(struct ieee80211_sub_if_data *sdata,
 	u16 opmode;
 
 	/* Nothing to do if the BSS connection uses HT */
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
+	if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT))
 		return;
 
 	tdls_ht = (sta && sta->sta.deflink.ht_cap.ht_supported) ||

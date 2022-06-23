@@ -142,7 +142,7 @@ static int ecw2cw(int ecw)
 	return (1 << ecw) - 1;
 }
 
-static u32
+static ieee80211_conn_flags_t
 ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 			     struct ieee80211_supported_band *sband,
 			     struct ieee80211_channel *channel,
@@ -154,10 +154,10 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 			     const struct ieee80211_s1g_oper_ie *s1g_oper,
 			     struct cfg80211_chan_def *chandef, bool tracking)
 {
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct cfg80211_chan_def vht_chandef;
 	struct ieee80211_sta_ht_cap sta_ht_cap;
-	u32 ht_cfreq, ret;
+	ieee80211_conn_flags_t ret;
+	u32 ht_cfreq;
 
 	memset(chandef, 0, sizeof(struct cfg80211_chan_def));
 	chandef->chan = channel;
@@ -170,10 +170,10 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 						    chandef)) {
 			mlme_dbg(sdata,
 				 "bad 6 GHz operation, disabling HT/VHT/HE/EHT\n");
-			ret = IEEE80211_STA_DISABLE_HT |
-			      IEEE80211_STA_DISABLE_VHT |
-			      IEEE80211_STA_DISABLE_HE |
-			      IEEE80211_STA_DISABLE_EHT;
+			ret = IEEE80211_CONN_DISABLE_HT |
+			      IEEE80211_CONN_DISABLE_VHT |
+			      IEEE80211_CONN_DISABLE_HE |
+			      IEEE80211_CONN_DISABLE_EHT;
 		} else {
 			ret = 0;
 		}
@@ -186,10 +186,10 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 			chandef->width = ieee80211_s1g_channel_width(channel);
 		}
 
-		ret = IEEE80211_STA_DISABLE_HT | IEEE80211_STA_DISABLE_40MHZ |
-		      IEEE80211_STA_DISABLE_VHT |
-		      IEEE80211_STA_DISABLE_80P80MHZ |
-		      IEEE80211_STA_DISABLE_160MHZ;
+		ret = IEEE80211_CONN_DISABLE_HT | IEEE80211_CONN_DISABLE_40MHZ |
+		      IEEE80211_CONN_DISABLE_VHT |
+		      IEEE80211_CONN_DISABLE_80P80MHZ |
+		      IEEE80211_CONN_DISABLE_160MHZ;
 		goto out;
 	}
 
@@ -198,10 +198,10 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 
 	if (!ht_oper || !sta_ht_cap.ht_supported) {
 		mlme_dbg(sdata, "HT operation missing / HT not supported\n");
-		ret = IEEE80211_STA_DISABLE_HT |
-		      IEEE80211_STA_DISABLE_VHT |
-		      IEEE80211_STA_DISABLE_HE |
-		      IEEE80211_STA_DISABLE_EHT;
+		ret = IEEE80211_CONN_DISABLE_HT |
+		      IEEE80211_CONN_DISABLE_VHT |
+		      IEEE80211_CONN_DISABLE_HE |
+		      IEEE80211_CONN_DISABLE_EHT;
 		goto out;
 	}
 
@@ -222,10 +222,10 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 			   "Wrong control channel: center-freq: %d ht-cfreq: %d ht->primary_chan: %d band: %d - Disabling HT\n",
 			   channel->center_freq, ht_cfreq,
 			   ht_oper->primary_chan, channel->band);
-		ret = IEEE80211_STA_DISABLE_HT |
-		      IEEE80211_STA_DISABLE_VHT |
-		      IEEE80211_STA_DISABLE_HE |
-		      IEEE80211_STA_DISABLE_EHT;
+		ret = IEEE80211_CONN_DISABLE_HT |
+		      IEEE80211_CONN_DISABLE_VHT |
+		      IEEE80211_CONN_DISABLE_HE |
+		      IEEE80211_CONN_DISABLE_EHT;
 		goto out;
 	}
 
@@ -235,20 +235,21 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	} else {
 		mlme_dbg(sdata, "40 MHz not supported\n");
 		/* 40 MHz (and 80 MHz) must be supported for VHT */
-		ret = IEEE80211_STA_DISABLE_VHT;
+		ret = IEEE80211_CONN_DISABLE_VHT;
 		/* also mark 40 MHz disabled */
-		ret |= IEEE80211_STA_DISABLE_40MHZ;
+		ret |= IEEE80211_CONN_DISABLE_40MHZ;
 		goto out;
 	}
 
 	if (!vht_oper || !sband->vht_cap.vht_supported) {
 		mlme_dbg(sdata, "VHT operation missing / VHT not supported\n");
-		ret = IEEE80211_STA_DISABLE_VHT;
+		ret = IEEE80211_CONN_DISABLE_VHT;
 		goto out;
 	}
 
 	vht_chandef = *chandef;
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE) && he_oper &&
+	if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
+	    he_oper &&
 	    (le32_to_cpu(he_oper->he_oper_params) &
 	     IEEE80211_HE_OPERATION_VHT_OPER_INFO)) {
 		struct ieee80211_vht_operation he_oper_vht_cap;
@@ -263,28 +264,28 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 		if (!ieee80211_chandef_vht_oper(&sdata->local->hw, vht_cap_info,
 						&he_oper_vht_cap, ht_oper,
 						&vht_chandef)) {
-			if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE))
+			if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE))
 				sdata_info(sdata,
 					   "HE AP VHT information is invalid, disabling HE\n");
-			ret = IEEE80211_STA_DISABLE_HE | IEEE80211_STA_DISABLE_EHT;
+			ret = IEEE80211_CONN_DISABLE_HE | IEEE80211_CONN_DISABLE_EHT;
 			goto out;
 		}
 	} else if (!ieee80211_chandef_vht_oper(&sdata->local->hw,
 					       vht_cap_info,
 					       vht_oper, ht_oper,
 					       &vht_chandef)) {
-		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
+		if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
 			sdata_info(sdata,
 				   "AP VHT information is invalid, disabling VHT\n");
-		ret = IEEE80211_STA_DISABLE_VHT;
+		ret = IEEE80211_CONN_DISABLE_VHT;
 		goto out;
 	}
 
 	if (!cfg80211_chandef_valid(&vht_chandef)) {
-		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
+		if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
 			sdata_info(sdata,
 				   "AP VHT information is invalid, disabling VHT\n");
-		ret = IEEE80211_STA_DISABLE_VHT;
+		ret = IEEE80211_CONN_DISABLE_VHT;
 		goto out;
 	}
 
@@ -294,10 +295,10 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (!cfg80211_chandef_compatible(chandef, &vht_chandef)) {
-		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
+		if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
 			sdata_info(sdata,
 				   "AP VHT information doesn't match HT, disabling VHT\n");
-		ret = IEEE80211_STA_DISABLE_VHT;
+		ret = IEEE80211_CONN_DISABLE_VHT;
 		goto out;
 	}
 
@@ -317,18 +318,18 @@ ieee80211_determine_chantype(struct ieee80211_sub_if_data *sdata,
 					   false, &eht_chandef);
 
 		if (!cfg80211_chandef_valid(&eht_chandef)) {
-			if (!(ifmgd->flags & IEEE80211_STA_DISABLE_EHT))
+			if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT))
 				sdata_info(sdata,
 					   "AP EHT information is invalid, disabling EHT\n");
-			ret = IEEE80211_STA_DISABLE_EHT;
+			ret = IEEE80211_CONN_DISABLE_EHT;
 			goto out;
 		}
 
 		if (!cfg80211_chandef_compatible(chandef, &eht_chandef)) {
-			if (!(ifmgd->flags & IEEE80211_STA_DISABLE_EHT))
+			if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT))
 				sdata_info(sdata,
 					   "AP EHT information is incompatible, disabling EHT\n");
-			ret = IEEE80211_STA_DISABLE_EHT;
+			ret = IEEE80211_CONN_DISABLE_EHT;
 			goto out;
 		}
 
@@ -361,7 +362,7 @@ out:
 		return ret;
 
 	/* don't print the message below for VHT mismatch if VHT is disabled */
-	if (ret & IEEE80211_STA_DISABLE_VHT)
+	if (ret & IEEE80211_CONN_DISABLE_VHT)
 		vht_chandef = *chandef;
 
 	/*
@@ -376,10 +377,10 @@ out:
 					tracking ? 0 :
 						   IEEE80211_CHAN_DISABLED)) {
 		if (WARN_ON(chandef->width == NL80211_CHAN_WIDTH_20_NOHT)) {
-			ret = IEEE80211_STA_DISABLE_HT |
-			      IEEE80211_STA_DISABLE_VHT |
-			      IEEE80211_STA_DISABLE_HE |
-			      IEEE80211_STA_DISABLE_EHT;
+			ret = IEEE80211_CONN_DISABLE_HT |
+			      IEEE80211_CONN_DISABLE_VHT |
+			      IEEE80211_CONN_DISABLE_HE |
+			      IEEE80211_CONN_DISABLE_EHT;
 			break;
 		}
 
@@ -388,11 +389,11 @@ out:
 
 	if (!he_oper || !cfg80211_chandef_usable(sdata->wdev.wiphy, chandef,
 						 IEEE80211_CHAN_NO_HE))
-		ret |= IEEE80211_STA_DISABLE_HE | IEEE80211_STA_DISABLE_EHT;
+		ret |= IEEE80211_CONN_DISABLE_HE | IEEE80211_CONN_DISABLE_EHT;
 
 	if (!eht_oper || !cfg80211_chandef_usable(sdata->wdev.wiphy, chandef,
 						  IEEE80211_CHAN_NO_EHT))
-		ret |= IEEE80211_STA_DISABLE_EHT;
+		ret |= IEEE80211_CONN_DISABLE_EHT;
 
 	if (chandef->width != vht_chandef.width && !tracking)
 		sdata_info(sdata,
@@ -420,20 +421,20 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 		local->hw.wiphy->bands[chan->band];
 	struct cfg80211_chan_def chandef;
 	u16 ht_opmode;
-	u32 flags;
+	ieee80211_conn_flags_t flags;
 	u32 vht_cap_info = 0;
 	int ret;
 
 	/* if HT was/is disabled, don't track any bandwidth changes */
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_HT || !ht_oper)
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT || !ht_oper)
 		return 0;
 
 	/* don't check VHT if we associated as non-VHT station */
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_VHT)
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT)
 		vht_oper = NULL;
 
 	/* don't check HE if we associated as non-HE station */
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_HE ||
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE ||
 	    !ieee80211_get_he_iftype_cap(sband,
 					 ieee80211_vif_type_p2p(&sdata->vif))) {
 		he_oper = NULL;
@@ -441,7 +442,7 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* don't check EHT if we associated as non-EHT station */
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_EHT ||
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT ||
 	    !ieee80211_get_eht_iftype_cap(sband,
 					 ieee80211_vif_type_p2p(&sdata->vif)))
 		eht_oper = NULL;
@@ -475,13 +476,13 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 	 * reasons) then switching to a 40 MHz channel now won't do us
 	 * any good -- we couldn't use it with the AP.
 	 */
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_80P80MHZ &&
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_80P80MHZ &&
 	    chandef.width == NL80211_CHAN_WIDTH_80P80)
 		flags |= ieee80211_chandef_downgrade(&chandef);
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_160MHZ &&
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_160MHZ &&
 	    chandef.width == NL80211_CHAN_WIDTH_160)
 		flags |= ieee80211_chandef_downgrade(&chandef);
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_40MHZ &&
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_40MHZ &&
 	    chandef.width > NL80211_CHAN_WIDTH_20)
 		flags |= ieee80211_chandef_downgrade(&chandef);
 
@@ -496,14 +497,15 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 		   chandef.center_freq1, chandef.freq1_offset,
 		   chandef.center_freq2);
 
-	if (flags != (ifmgd->flags & (IEEE80211_STA_DISABLE_HT |
-				      IEEE80211_STA_DISABLE_VHT |
-				      IEEE80211_STA_DISABLE_HE |
-				      IEEE80211_STA_DISABLE_EHT |
-				      IEEE80211_STA_DISABLE_40MHZ |
-				      IEEE80211_STA_DISABLE_80P80MHZ |
-				      IEEE80211_STA_DISABLE_160MHZ |
-				      IEEE80211_STA_DISABLE_320MHZ)) ||
+	if (flags != (sdata->deflink.u.mgd.conn_flags &
+				(IEEE80211_CONN_DISABLE_HT |
+				 IEEE80211_CONN_DISABLE_VHT |
+				 IEEE80211_CONN_DISABLE_HE |
+				 IEEE80211_CONN_DISABLE_EHT |
+				 IEEE80211_CONN_DISABLE_40MHZ |
+				 IEEE80211_CONN_DISABLE_80P80MHZ |
+				 IEEE80211_CONN_DISABLE_160MHZ |
+				 IEEE80211_CONN_DISABLE_320MHZ)) ||
 	    !cfg80211_chandef_valid(&chandef)) {
 		sdata_info(sdata,
 			   "AP %pM changed caps/bw in a way we can't support (0x%x/0x%x) - disconnect\n",
@@ -564,7 +566,7 @@ static void ieee80211_add_ht_ie(struct ieee80211_sub_if_data *sdata,
 	 * capable of 40 MHz -- some broken APs will never fall
 	 * back to trying to transmit in 20 MHz.
 	 */
-	if (sdata->u.mgd.flags & IEEE80211_STA_DISABLE_40MHZ) {
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_40MHZ) {
 		cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 		cap &= ~IEEE80211_HT_CAP_SGI_40;
 	}
@@ -618,7 +620,7 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 	/* determine capability flags */
 	cap = vht_cap.cap;
 
-	if (sdata->u.mgd.flags & IEEE80211_STA_DISABLE_80P80MHZ) {
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_80P80MHZ) {
 		u32 bw = cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
 
 		cap &= ~IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
@@ -627,7 +629,7 @@ static void ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 			cap |= IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
 	}
 
-	if (sdata->u.mgd.flags & IEEE80211_STA_DISABLE_160MHZ) {
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_160MHZ) {
 		cap &= ~IEEE80211_VHT_CAP_SHORT_GI_160;
 		cap &= ~IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
 	}
@@ -717,7 +719,7 @@ static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 				      he_cap->he_cap_elem.phy_cap_info);
 	pos = skb_put(skb, he_cap_size);
 	pre_he_pos = pos;
-	pos = ieee80211_ie_build_he_cap(sdata->u.mgd.flags,
+	pos = ieee80211_ie_build_he_cap(sdata->deflink.u.mgd.conn_flags,
 					pos, he_cap, pos + he_cap_size);
 	/* trim excess if any */
 	skb_trim(skb, skb->len - (pre_he_pos + he_cap_size - pos));
@@ -977,7 +979,7 @@ skip_rates:
 
 	/* Set MBSSID support for HE AP if needed */
 	if (ieee80211_hw_check(&local->hw, SUPPORTS_ONLY_HE_MULTI_BSSID) &&
-	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HE) && assoc_data->ie_len &&
+	    !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) && assoc_data->ie_len &&
 	    ext_capa && ext_capa->datalen >= 3)
 		ext_capa->data[2] |= WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT;
 
@@ -1022,12 +1024,12 @@ skip_rates:
 		offset = noffset;
 	}
 
-	if (WARN_ON_ONCE((ifmgd->flags & IEEE80211_STA_DISABLE_HT) &&
-			 !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT)))
-		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+	if (WARN_ON_ONCE((sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT) &&
+			 !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT)))
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
 
 	if (sband->band != NL80211_BAND_6GHZ &&
-	    !(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
+	    !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT))
 		ieee80211_add_ht_ie(sdata, skb, assoc_data->ap_ht_param,
 				    sband, chan, sdata->deflink.smps_mode);
 
@@ -1082,7 +1084,7 @@ skip_rates:
 	}
 
 	if (sband->band != NL80211_BAND_6GHZ &&
-	    !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
+	    !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
 		ieee80211_add_vht_ie(sdata, skb, sband,
 				     &assoc_data->ap_vht_cap);
 
@@ -1090,16 +1092,16 @@ skip_rates:
 	 * If AP doesn't support HT, mark HE and EHT as disabled.
 	 * If on the 5GHz band, make sure it supports VHT.
 	 */
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_HT ||
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT ||
 	    (sband->band == NL80211_BAND_5GHZ &&
-	     ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
-		ifmgd->flags |= IEEE80211_STA_DISABLE_HE |
-			        IEEE80211_STA_DISABLE_EHT;
+	     sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE |
+						   IEEE80211_CONN_DISABLE_EHT;
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE)) {
+	if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE)) {
 		ieee80211_add_he_ie(sdata, skb, sband);
 
-		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_EHT))
+		if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT))
 			ieee80211_add_eht_ie(sdata, skb, sband);
 	}
 
@@ -1431,7 +1433,7 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	bss = (void *)cbss->priv;
 	res = ieee80211_parse_ch_switch_ie(sdata, elems, current_band,
 					   bss->vht_cap_info,
-					   ifmgd->flags,
+					   sdata->deflink.u.mgd.conn_flags,
 					   sdata->deflink.u.mgd.bssid, &csa_ie);
 
 	if (!res) {
@@ -2518,6 +2520,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->deflink.u.mgd.have_beacon = false;
 
 	ifmgd->flags = 0;
+	sdata->deflink.u.mgd.conn_flags = 0;
 	mutex_lock(&local->mtx);
 	ieee80211_link_release_channel(&sdata->deflink);
 
@@ -2959,6 +2962,7 @@ static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
 		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
 						  BSS_CHANGED_BSSID);
 		sdata->u.mgd.flags = 0;
+		sdata->deflink.u.mgd.conn_flags = 0;
 		mutex_lock(&sdata->local->mtx);
 		ieee80211_link_release_channel(&sdata->deflink);
 		mutex_unlock(&sdata->local->mtx);
@@ -2989,6 +2993,7 @@ static void ieee80211_destroy_assoc_data(struct ieee80211_sub_if_data *sdata,
 		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
 						  BSS_CHANGED_BSSID);
 		sdata->u.mgd.flags = 0;
+		sdata->deflink.u.mgd.conn_flags = 0;
 		sdata->vif.bss_conf.mu_mimo_owner = false;
 
 		mutex_lock(&sdata->local->mtx);
@@ -3480,9 +3485,9 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	 */
 	if (!is_6ghz &&
 	    ((assoc_data->wmm && !elems->wmm_param) ||
-	     (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT) &&
+	     (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT) &&
 	      (!elems->ht_cap_elem || !elems->ht_operation)) ||
-	     (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) &&
+	     (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT) &&
 	      (!elems->vht_cap_elem || !elems->vht_operation)))) {
 		const struct cfg80211_bss_ies *ies;
 		struct ieee802_11_elems *bss_elems;
@@ -3518,25 +3523,25 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		 * have to include the IEs in the (re)association response.
 		 */
 		if (!elems->ht_cap_elem && bss_elems->ht_cap_elem &&
-		    !(ifmgd->flags & IEEE80211_STA_DISABLE_HT)) {
+		    !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT)) {
 			elems->ht_cap_elem = bss_elems->ht_cap_elem;
 			sdata_info(sdata,
 				   "AP bug: HT capability missing from AssocResp\n");
 		}
 		if (!elems->ht_operation && bss_elems->ht_operation &&
-		    !(ifmgd->flags & IEEE80211_STA_DISABLE_HT)) {
+		    !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT)) {
 			elems->ht_operation = bss_elems->ht_operation;
 			sdata_info(sdata,
 				   "AP bug: HT operation missing from AssocResp\n");
 		}
 		if (!elems->vht_cap_elem && bss_elems->vht_cap_elem &&
-		    !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT)) {
+		    !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT)) {
 			elems->vht_cap_elem = bss_elems->vht_cap_elem;
 			sdata_info(sdata,
 				   "AP bug: VHT capa missing from AssocResp\n");
 		}
 		if (!elems->vht_operation && bss_elems->vht_operation &&
-		    !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT)) {
+		    !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT)) {
 			elems->vht_operation = bss_elems->vht_operation;
 			sdata_info(sdata,
 				   "AP bug: VHT operation missing from AssocResp\n");
@@ -3549,7 +3554,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	 * We previously checked these in the beacon/probe response, so
 	 * they should be present here. This is just a safety net.
 	 */
-	if (!is_6ghz && !(ifmgd->flags & IEEE80211_STA_DISABLE_HT) &&
+	if (!is_6ghz && !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT) &&
 	    (!elems->wmm_param || !elems->ht_cap_elem || !elems->ht_operation)) {
 		sdata_info(sdata,
 			   "HT AP is missing WMM params or HT capability/operation\n");
@@ -3557,7 +3562,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	if (!is_6ghz && !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) &&
+	if (!is_6ghz && !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT) &&
 	    (!elems->vht_cap_elem || !elems->vht_operation)) {
 		sdata_info(sdata,
 			   "VHT AP is missing VHT capability/operation\n");
@@ -3565,7 +3570,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	if (is_6ghz && !(ifmgd->flags & IEEE80211_STA_DISABLE_HE) &&
+	if (is_6ghz && !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
 	    !elems->he_6ghz_capa) {
 		sdata_info(sdata,
 			   "HE 6 GHz AP is missing HE 6 GHz band capability\n");
@@ -3592,7 +3597,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE) &&
+	if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
 	    (!elems->he_cap || !elems->he_operation)) {
 		mutex_unlock(&sdata->local->sta_mtx);
 		sdata_info(sdata,
@@ -3602,17 +3607,17 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	}
 
 	/* Set up internal HT/VHT capabilities */
-	if (elems->ht_cap_elem && !(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
+	if (elems->ht_cap_elem && !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT))
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 						  elems->ht_cap_elem,
 						  &sta->deflink);
 
-	if (elems->vht_cap_elem && !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
+	if (elems->vht_cap_elem && !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
 						    elems->vht_cap_elem,
 						    &sta->deflink);
 
-	if (elems->he_operation && !(ifmgd->flags & IEEE80211_STA_DISABLE_HE) &&
+	if (elems->he_operation && !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
 	    elems->he_cap) {
 		ieee80211_he_cap_ie_to_sta_he_cap(sdata, sband,
 						  elems->he_cap,
@@ -3632,7 +3637,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		changed |= ieee80211_recalc_twt_req(sdata, sta, elems);
 
 		if (elems->eht_operation && elems->eht_cap &&
-		    !(ifmgd->flags & IEEE80211_STA_DISABLE_EHT)) {
+		    !(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT)) {
 			ieee80211_eht_cap_ie_to_sta_eht_cap(sdata, sband,
 							    elems->he_cap,
 							    elems->he_cap_len,
@@ -5041,6 +5046,7 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	ifmgd->uapsd_queues = sdata->local->hw.uapsd_queues;
 	ifmgd->uapsd_max_sp_len = sdata->local->hw.uapsd_max_sp_len;
 	sdata->deflink.u.mgd.p2p_noa_index = -1;
+	sdata->deflink.u.mgd.conn_flags = 0;
 
 	if (sdata->local->hw.wiphy->features & NL80211_FEATURE_DYNAMIC_SMPS)
 		sdata->deflink.u.mgd.req_smps = IEEE80211_SMPS_AUTOMATIC;
@@ -5071,7 +5077,6 @@ static u8 ieee80211_max_rx_chains(struct ieee80211_sub_if_data *sdata,
 				  struct cfg80211_bss *cbss)
 {
 	struct ieee80211_he_mcs_nss_supp *he_mcs_nss_supp;
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	const struct element *ht_cap_elem, *vht_cap_elem;
 	const struct cfg80211_bss_ies *ies;
 	const struct ieee80211_ht_cap *ht_cap;
@@ -5083,7 +5088,7 @@ static u8 ieee80211_max_rx_chains(struct ieee80211_sub_if_data *sdata,
 	bool support_160;
 	u8 chains = 1;
 
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_HT)
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT)
 		return chains;
 
 	ht_cap_elem = ieee80211_bss_get_elem(cbss, WLAN_EID_HT_CAPABILITY);
@@ -5096,7 +5101,7 @@ static u8 ieee80211_max_rx_chains(struct ieee80211_sub_if_data *sdata,
 		 */
 	}
 
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_VHT)
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT)
 		return chains;
 
 	vht_cap_elem = ieee80211_bss_get_elem(cbss, WLAN_EID_VHT_CAPABILITY);
@@ -5115,7 +5120,7 @@ static u8 ieee80211_max_rx_chains(struct ieee80211_sub_if_data *sdata,
 		chains = max(chains, nss);
 	}
 
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_HE)
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE)
 		return chains;
 
 	ies = rcu_dereference(cbss->ies);
@@ -5340,7 +5345,6 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				  struct cfg80211_bss *cbss)
 {
 	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	const struct ieee80211_ht_cap *ht_cap = NULL;
 	const struct ieee80211_ht_operation *ht_oper = NULL;
 	const struct ieee80211_vht_operation *vht_oper = NULL;
@@ -5370,70 +5374,70 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 	sband = local->hw.wiphy->bands[cbss->channel->band];
 
-	ifmgd->flags &= ~(IEEE80211_STA_DISABLE_40MHZ |
-			  IEEE80211_STA_DISABLE_80P80MHZ |
-			  IEEE80211_STA_DISABLE_160MHZ);
+	sdata->deflink.u.mgd.conn_flags &= ~(IEEE80211_CONN_DISABLE_40MHZ |
+					     IEEE80211_CONN_DISABLE_80P80MHZ |
+					     IEEE80211_CONN_DISABLE_160MHZ);
 
 	/* disable HT/VHT/HE if we don't support them */
 	if (!sband->ht_cap.ht_supported && !is_6ghz) {
 		mlme_dbg(sdata, "HT not supported, disabling HT/VHT/HE/EHT\n");
-		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_EHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}
 
 	if (!sband->vht_cap.vht_supported && is_5ghz) {
 		mlme_dbg(sdata, "VHT not supported, disabling VHT/HE/EHT\n");
-		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_EHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}
 
 	if (!ieee80211_get_he_iftype_cap(sband,
 					 ieee80211_vif_type_p2p(&sdata->vif))) {
 		mlme_dbg(sdata, "HE not supported, disabling HE and EHT\n");
-		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_EHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}
 
 	if (!ieee80211_get_eht_iftype_cap(sband,
 					  ieee80211_vif_type_p2p(&sdata->vif))) {
 		mlme_dbg(sdata, "EHT not supported, disabling EHT\n");
-		ifmgd->flags |= IEEE80211_STA_DISABLE_EHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT) && !is_6ghz) {
+	if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT) && !is_6ghz) {
 		ht_oper = elems->ht_operation;
 		ht_cap = elems->ht_cap_elem;
 
 		if (!ht_cap) {
-			ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
+			sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HT;
 			ht_oper = NULL;
 		}
 	}
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) && !is_6ghz) {
+	if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT) && !is_6ghz) {
 		vht_oper = elems->vht_operation;
 		if (vht_oper && !ht_oper) {
 			vht_oper = NULL;
 			sdata_info(sdata,
 				   "AP advertised VHT without HT, disabling HT/VHT/HE\n");
-			ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
-			ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
-			ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
-			ifmgd->flags |= IEEE80211_STA_DISABLE_EHT;
+			sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HT;
+			sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
+			sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE;
+			sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 		}
 
 		if (!elems->vht_cap_elem) {
 			sdata_info(sdata,
 				   "bad VHT capabilities, disabling VHT\n");
-			ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+			sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
 			vht_oper = NULL;
 		}
 	}
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HE)) {
+	if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE)) {
 		he_oper = elems->he_operation;
 
 		if (is_6ghz) {
@@ -5462,8 +5466,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 		if (!ieee80211_verify_peer_he_mcs_support(sdata, ies, he_oper) ||
 		    !ieee80211_verify_sta_he_mcs_support(sdata, sband, he_oper))
-			ifmgd->flags |= IEEE80211_STA_DISABLE_HE |
-				        IEEE80211_STA_DISABLE_EHT;
+			sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE |
+							   IEEE80211_CONN_DISABLE_EHT;
 	}
 
 	/*
@@ -5472,8 +5476,10 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	 * both the 6 GHz operation information (from the HE operation IE) and
 	 * EHT operation.
 	 */
-	if (!(ifmgd->flags & (IEEE80211_STA_DISABLE_HE |
-			      IEEE80211_STA_DISABLE_EHT)) && he_oper) {
+	if (!(sdata->deflink.u.mgd.conn_flags &
+			(IEEE80211_CONN_DISABLE_HE |
+			 IEEE80211_CONN_DISABLE_EHT)) &&
+	    he_oper) {
 		const struct cfg80211_bss_ies *ies;
 		const u8 *eht_oper_ie;
 
@@ -5500,7 +5506,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 	if (!have_80mhz) {
 		sdata_info(sdata, "80 MHz not supported, disabling VHT\n");
-		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
 	}
 
 	if (sband->band == NL80211_BAND_S1GHZ) {
@@ -5510,13 +5516,14 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				   "AP missing S1G operation element?\n");
 	}
 
-	ifmgd->flags |= ieee80211_determine_chantype(sdata, sband,
-						     cbss->channel,
-						     bss->vht_cap_info,
-						     ht_oper, vht_oper,
-						     he_oper, eht_oper,
-						     s1g_oper,
-						     &chandef, false);
+	sdata->deflink.u.mgd.conn_flags |=
+		ieee80211_determine_chantype(sdata, sband,
+					     cbss->channel,
+					     bss->vht_cap_info,
+					     ht_oper, vht_oper,
+					     he_oper, eht_oper,
+					     s1g_oper,
+					     &chandef, false);
 
 	sdata->deflink.needed_rx_chains =
 		min(ieee80211_max_rx_chains(sdata, cbss), local->rx_chains);
@@ -5526,7 +5533,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	kfree(elems);
 	elems = NULL;
 
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_HE && is_6ghz) {
+	if (sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE && is_6ghz) {
 		sdata_info(sdata, "Rejecting non-HE 6/7 GHz connection");
 		return -EINVAL;
 	}
@@ -5549,7 +5556,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		goto out;
 
 	while (ret && chandef.width != NL80211_CHAN_WIDTH_20_NOHT) {
-		ifmgd->flags |= ieee80211_chandef_downgrade(&chandef);
+		sdata->deflink.u.mgd.conn_flags |=
+			ieee80211_chandef_downgrade(&chandef);
 		ret = ieee80211_link_use_channel(&sdata->deflink, &chandef,
 						 IEEE80211_CHANCTX_SHARED);
 	}
@@ -6005,10 +6013,10 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		if (req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP40 ||
 		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_TKIP ||
 		    req->crypto.ciphers_pairwise[i] == WLAN_CIPHER_SUITE_WEP104) {
-			ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
-			ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
-			ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
-			ifmgd->flags |= IEEE80211_STA_DISABLE_EHT;
+			sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HT;
+			sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
+			sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE;
+			sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 			netdev_info(sdata->dev,
 				    "disabling HT/VHT/HE due to WEP/TKIP use\n");
 		}
@@ -6018,10 +6026,10 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 
 	/* also disable HT/VHT/HE/EHT if the AP doesn't use WMM */
 	if (!bss->wmm_used) {
-		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_EHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 		netdev_info(sdata->dev,
 			    "disabling HT/VHT/HE as WMM/QoS is not supported by the AP\n");
 	}
@@ -6069,7 +6077,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		assoc_data->ap_ht_param =
 			((struct ieee80211_ht_operation *)(ht_elem->data))->ht_param;
 	else if (!is_6ghz)
-		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HT;
 	vht_elem = ieee80211_bss_get_elem(req->bss, WLAN_EID_VHT_CAPABILITY);
 	if (vht_elem && vht_elem->datalen >= sizeof(struct ieee80211_vht_cap)) {
 		memcpy(&assoc_data->ap_vht_cap, vht_elem->data,
@@ -6077,9 +6085,9 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	} else if (is_5ghz) {
 		sdata_info(sdata,
 			   "VHT capa missing/short, disabling VHT/HE/EHT\n");
-		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT |
-				IEEE80211_STA_DISABLE_HE |
-				IEEE80211_STA_DISABLE_EHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT |
+				IEEE80211_CONN_DISABLE_HE |
+				IEEE80211_CONN_DISABLE_EHT;
 	}
 	rcu_read_unlock();
 
@@ -6131,7 +6139,7 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	sdata->deflink.u.mgd.have_beacon = false;
 
 	/* override HT/VHT configuration only if the AP and we support it */
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_HT)) {
+	if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT)) {
 		struct ieee80211_sta_ht_cap sta_ht_cap;
 
 		if (req->flags & ASSOC_REQ_DISABLE_HT)
@@ -6141,37 +6149,37 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		ieee80211_apply_htcap_overrides(sdata, &sta_ht_cap);
 
 		/* check for 40 MHz disable override */
-		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_40MHZ) &&
+		if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_40MHZ) &&
 		    sband->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 &&
 		    !(sta_ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40))
 			override = true;
 
-		if (!(ifmgd->flags & IEEE80211_STA_DISABLE_VHT) &&
+		if (!(sdata->deflink.u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT) &&
 		    req->flags & ASSOC_REQ_DISABLE_VHT)
 			override = true;
 	}
 
 	if (req->flags & ASSOC_REQ_DISABLE_HT) {
 		mlme_dbg(sdata, "HT disabled by flag, disabling HT/VHT/HE\n");
-		ifmgd->flags |= IEEE80211_STA_DISABLE_HT;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_EHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}
 
 	if (req->flags & ASSOC_REQ_DISABLE_VHT) {
 		mlme_dbg(sdata, "VHT disabled by flag, disabling VHT\n");
-		ifmgd->flags |= IEEE80211_STA_DISABLE_VHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
 	}
 
 	if (req->flags & ASSOC_REQ_DISABLE_HE) {
 		mlme_dbg(sdata, "HE disabled by flag, disabling HE/EHT\n");
-		ifmgd->flags |= IEEE80211_STA_DISABLE_HE;
-		ifmgd->flags |= IEEE80211_STA_DISABLE_EHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}
 
 	if (req->flags & ASSOC_REQ_DISABLE_EHT)
-		ifmgd->flags |= IEEE80211_STA_DISABLE_EHT;
+		sdata->deflink.u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 
 	err = ieee80211_prep_connection(sdata, req->bss, true, override);
 	if (err)

@@ -1129,7 +1129,8 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_mesh *ifmsh = &sdata->u.mesh;
 	struct ieee80211_supported_band *sband;
 	int err;
-	u32 sta_flags, vht_cap_info = 0;
+	ieee80211_conn_flags_t conn_flags = 0;
+	u32 vht_cap_info = 0;
 
 	sdata_assert_lock(sdata);
 
@@ -1137,16 +1138,15 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	if (!sband)
 		return false;
 
-	sta_flags = 0;
 	switch (sdata->vif.bss_conf.chandef.width) {
 	case NL80211_CHAN_WIDTH_20_NOHT:
-		sta_flags |= IEEE80211_STA_DISABLE_HT;
+		conn_flags |= IEEE80211_CONN_DISABLE_HT;
 		fallthrough;
 	case NL80211_CHAN_WIDTH_20:
-		sta_flags |= IEEE80211_STA_DISABLE_40MHZ;
+		conn_flags |= IEEE80211_CONN_DISABLE_40MHZ;
 		fallthrough;
 	case NL80211_CHAN_WIDTH_40:
-		sta_flags |= IEEE80211_STA_DISABLE_VHT;
+		conn_flags |= IEEE80211_CONN_DISABLE_VHT;
 		break;
 	default:
 		break;
@@ -1159,7 +1159,7 @@ ieee80211_mesh_process_chnswitch(struct ieee80211_sub_if_data *sdata,
 	memset(&params, 0, sizeof(params));
 	err = ieee80211_parse_ch_switch_ie(sdata, elems, sband->band,
 					   vht_cap_info,
-					   sta_flags, sdata->vif.addr,
+					   conn_flags, sdata->vif.addr,
 					   &csa_ie);
 	if (err < 0)
 		return false;

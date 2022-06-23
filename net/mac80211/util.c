@@ -2948,7 +2948,7 @@ u8 ieee80211_ie_len_he_cap(struct ieee80211_sub_if_data *sdata, u8 iftype)
 				     he_cap->he_cap_elem.phy_cap_info);
 }
 
-u8 *ieee80211_ie_build_he_cap(u32 disable_flags, u8 *pos,
+u8 *ieee80211_ie_build_he_cap(ieee80211_conn_flags_t disable_flags, u8 *pos,
 			      const struct ieee80211_sta_he_cap *he_cap,
 			      u8 *end)
 {
@@ -2968,16 +2968,16 @@ u8 *ieee80211_ie_build_he_cap(u32 disable_flags, u8 *pos,
 	/* modify on stack first to calculate 'n' and 'ie_len' correctly */
 	elem = he_cap->he_cap_elem;
 
-	if (disable_flags & IEEE80211_STA_DISABLE_40MHZ)
+	if (disable_flags & IEEE80211_CONN_DISABLE_40MHZ)
 		elem.phy_cap_info[0] &=
 			~(IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G |
 			  IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G);
 
-	if (disable_flags & IEEE80211_STA_DISABLE_160MHZ)
+	if (disable_flags & IEEE80211_CONN_DISABLE_160MHZ)
 		elem.phy_cap_info[0] &=
 			~IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G;
 
-	if (disable_flags & IEEE80211_STA_DISABLE_80P80MHZ)
+	if (disable_flags & IEEE80211_CONN_DISABLE_80P80MHZ)
 		elem.phy_cap_info[0] &=
 			~IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G;
 
@@ -4066,21 +4066,21 @@ void ieee80211_radar_detected(struct ieee80211_hw *hw)
 }
 EXPORT_SYMBOL(ieee80211_radar_detected);
 
-u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c)
+ieee80211_conn_flags_t ieee80211_chandef_downgrade(struct cfg80211_chan_def *c)
 {
-	u32 ret;
+	ieee80211_conn_flags_t ret;
 	int tmp;
 
 	switch (c->width) {
 	case NL80211_CHAN_WIDTH_20:
 		c->width = NL80211_CHAN_WIDTH_20_NOHT;
-		ret = IEEE80211_STA_DISABLE_HT | IEEE80211_STA_DISABLE_VHT;
+		ret = IEEE80211_CONN_DISABLE_HT | IEEE80211_CONN_DISABLE_VHT;
 		break;
 	case NL80211_CHAN_WIDTH_40:
 		c->width = NL80211_CHAN_WIDTH_20;
 		c->center_freq1 = c->chan->center_freq;
-		ret = IEEE80211_STA_DISABLE_40MHZ |
-		      IEEE80211_STA_DISABLE_VHT;
+		ret = IEEE80211_CONN_DISABLE_40MHZ |
+		      IEEE80211_CONN_DISABLE_VHT;
 		break;
 	case NL80211_CHAN_WIDTH_80:
 		tmp = (30 + c->chan->center_freq - c->center_freq1)/20;
@@ -4089,13 +4089,13 @@ u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c)
 		/* freq_P40 */
 		c->center_freq1 = c->center_freq1 - 20 + 40 * tmp;
 		c->width = NL80211_CHAN_WIDTH_40;
-		ret = IEEE80211_STA_DISABLE_VHT;
+		ret = IEEE80211_CONN_DISABLE_VHT;
 		break;
 	case NL80211_CHAN_WIDTH_80P80:
 		c->center_freq2 = 0;
 		c->width = NL80211_CHAN_WIDTH_80;
-		ret = IEEE80211_STA_DISABLE_80P80MHZ |
-		      IEEE80211_STA_DISABLE_160MHZ;
+		ret = IEEE80211_CONN_DISABLE_80P80MHZ |
+		      IEEE80211_CONN_DISABLE_160MHZ;
 		break;
 	case NL80211_CHAN_WIDTH_160:
 		/* n_P20 */
@@ -4104,8 +4104,8 @@ u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c)
 		tmp /= 4;
 		c->center_freq1 = c->center_freq1 - 40 + 80 * tmp;
 		c->width = NL80211_CHAN_WIDTH_80;
-		ret = IEEE80211_STA_DISABLE_80P80MHZ |
-		      IEEE80211_STA_DISABLE_160MHZ;
+		ret = IEEE80211_CONN_DISABLE_80P80MHZ |
+		      IEEE80211_CONN_DISABLE_160MHZ;
 		break;
 	case NL80211_CHAN_WIDTH_320:
 		/* n_P20 */
@@ -4114,13 +4114,13 @@ u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c)
 		tmp /= 8;
 		c->center_freq1 = c->center_freq1 - 80 + 160 * tmp;
 		c->width = NL80211_CHAN_WIDTH_160;
-		ret = IEEE80211_STA_DISABLE_320MHZ;
+		ret = IEEE80211_CONN_DISABLE_320MHZ;
 		break;
 	default:
 	case NL80211_CHAN_WIDTH_20_NOHT:
 		WARN_ON_ONCE(1);
 		c->width = NL80211_CHAN_WIDTH_20_NOHT;
-		ret = IEEE80211_STA_DISABLE_HT | IEEE80211_STA_DISABLE_VHT;
+		ret = IEEE80211_CONN_DISABLE_HT | IEEE80211_CONN_DISABLE_VHT;
 		break;
 	case NL80211_CHAN_WIDTH_1:
 	case NL80211_CHAN_WIDTH_2:
@@ -4131,7 +4131,7 @@ u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c)
 	case NL80211_CHAN_WIDTH_10:
 		WARN_ON_ONCE(1);
 		/* keep c->width */
-		ret = IEEE80211_STA_DISABLE_HT | IEEE80211_STA_DISABLE_VHT;
+		ret = IEEE80211_CONN_DISABLE_HT | IEEE80211_CONN_DISABLE_VHT;
 		break;
 	}
 
