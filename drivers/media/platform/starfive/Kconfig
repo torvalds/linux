@@ -26,8 +26,8 @@ config VIN_SENSOR_OV4689
 	help
 	  Say Y here if you want to have support for VIN sensor OV4689
 
-config VIN_SENSOR_IMX219
-	tristate "VIN SENSOR support imx219"
+config VIN_SENSOR_OV13850
+	bool "VIN SENSOR support OV13850"
 	depends on VIDEO_STF_VIN
 	select V4L2_FWNODE
 	default n
