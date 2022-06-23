@@ -780,6 +780,10 @@ static void ast2600_i2c_slave_packet_irq(struct ast2600_i2c_bus *i2c_bus, u32 st
 			cmd &= ~AST2600_I2CS_PKT_MODE_EN;
 		}
 		break;
+	case AST2600_I2CS_SLAVE_MATCH | AST2600_I2CS_RX_DONE:
+		cmd = 0;
+		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_WRITE_REQUESTED, &value);
+		break;
 	case AST2600_I2CS_STOP:
 		cmd = 0;
 		i2c_slave_event(i2c_bus->slave, I2C_SLAVE_STOP, &value);
