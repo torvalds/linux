@@ -670,30 +670,30 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 
 	if (chip->num_main_regs) {
 		d->main_status_buf = kcalloc(chip->num_main_regs,
-					     sizeof(unsigned int),
+					     sizeof(*d->main_status_buf),
 					     GFP_KERNEL);
 
 		if (!d->main_status_buf)
 			goto err_alloc;
 	}
 
-	d->status_buf = kcalloc(chip->num_regs, sizeof(unsigned int),
+	d->status_buf = kcalloc(chip->num_regs, sizeof(*d->status_buf),
 				GFP_KERNEL);
 	if (!d->status_buf)
 		goto err_alloc;
 
-	d->mask_buf = kcalloc(chip->num_regs, sizeof(unsigned int),
+	d->mask_buf = kcalloc(chip->num_regs, sizeof(*d->mask_buf),
 			      GFP_KERNEL);
 	if (!d->mask_buf)
 		goto err_alloc;
 
-	d->mask_buf_def = kcalloc(chip->num_regs, sizeof(unsigned int),
+	d->mask_buf_def = kcalloc(chip->num_regs, sizeof(*d->mask_buf_def),
 				  GFP_KERNEL);
 	if (!d->mask_buf_def)
 		goto err_alloc;
 
 	if (chip->wake_base) {
-		d->wake_buf = kcalloc(chip->num_regs, sizeof(unsigned int),
+		d->wake_buf = kcalloc(chip->num_regs, sizeof(*d->wake_buf),
 				      GFP_KERNEL);
 		if (!d->wake_buf)
 			goto err_alloc;
@@ -702,11 +702,11 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	num_type_reg = chip->type_in_mask ? chip->num_regs : chip->num_type_reg;
 	if (num_type_reg) {
 		d->type_buf_def = kcalloc(num_type_reg,
-					  sizeof(unsigned int), GFP_KERNEL);
+					  sizeof(*d->type_buf_def), GFP_KERNEL);
 		if (!d->type_buf_def)
 			goto err_alloc;
 
-		d->type_buf = kcalloc(num_type_reg, sizeof(unsigned int),
+		d->type_buf = kcalloc(num_type_reg, sizeof(*d->type_buf),
 				      GFP_KERNEL);
 		if (!d->type_buf)
 			goto err_alloc;
@@ -723,7 +723,7 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 
 		for (i = 0; i < chip->num_virt_regs; i++) {
 			d->virt_buf[i] = kcalloc(chip->num_regs,
-						 sizeof(unsigned int),
+						 sizeof(**d->virt_buf),
 						 GFP_KERNEL);
 			if (!d->virt_buf[i])
 				goto err_alloc;
