@@ -1097,8 +1097,9 @@ static const struct snd_soc_dai_ops intel_pcm_dai_ops = {
 };
 
 static const struct snd_soc_component_driver dai_component = {
-	.name           = "soundwire",
-	.suspend	= intel_component_dais_suspend
+	.name			= "soundwire",
+	.suspend		= intel_component_dais_suspend,
+	.legacy_dai_naming	= 1,
 };
 
 static int intel_create_dai(struct sdw_cdns *cdns,
