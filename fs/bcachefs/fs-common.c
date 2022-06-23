@@ -204,7 +204,9 @@ int bch2_link_trans(struct btree_trans *trans,
 		goto err;
 
 	inode_u->bi_ctime = now;
-	bch2_inode_nlink_inc(inode_u);
+	ret = bch2_inode_nlink_inc(inode_u);
+	if (ret)
+		return ret;
 
 	ret = bch2_inode_peek(trans, &dir_iter, dir_u, dir, BTREE_ITER_INTENT);
 	if (ret)
@@ -297,7 +299,7 @@ int bch2_unlink_trans(struct btree_trans *trans,
 		if (ret)
 			goto err;
 	} else {
-		bch2_inode_nlink_dec(inode_u);
+		bch2_inode_nlink_dec(trans, inode_u);
 	}
 
 	if (inode_u->bi_dir		== dirent_iter.pos.inode &&
@@ -462,7 +464,7 @@ int bch2_rename_trans(struct btree_trans *trans,
 	}
 
 	if (mode == BCH_RENAME_OVERWRITE)
-		bch2_inode_nlink_dec(dst_inode_u);
+		bch2_inode_nlink_dec(trans, dst_inode_u);
 
 	src_dir_u->bi_mtime		= now;
 	src_dir_u->bi_ctime		= now;

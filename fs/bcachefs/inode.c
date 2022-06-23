@@ -716,3 +716,36 @@ int bch2_inode_find_by_inum(struct bch_fs *c, subvol_inum inum,
 	return bch2_trans_do(c, NULL, NULL, 0,
 		bch2_inode_find_by_inum_trans(&trans, inum, inode));
 }
+
+int bch2_inode_nlink_inc(struct bch_inode_unpacked *bi)
+{
+	if (bi->bi_flags & BCH_INODE_UNLINKED)
+		bi->bi_flags &= ~BCH_INODE_UNLINKED;
+	else {
+		if (bi->bi_nlink == U32_MAX)
+			return -EINVAL;
+
+		bi->bi_nlink++;
+	}
+
+	return 0;
+}
+
+void bch2_inode_nlink_dec(struct btree_trans *trans, struct bch_inode_unpacked *bi)
+{
+	if (bi->bi_nlink && (bi->bi_flags & BCH_INODE_UNLINKED)) {
+		bch2_trans_inconsistent(trans, "inode %llu unlinked but link count nonzero",
+					bi->bi_inum);
+		return;
+	}
+
+	if (bi->bi_flags & BCH_INODE_UNLINKED) {
+		bch2_trans_inconsistent(trans, "inode %llu link count underflow", bi->bi_inum);
+		return;
+	}
+
+	if (bi->bi_nlink)
+		bi->bi_nlink--;
+	else
+		bi->bi_flags |= BCH_INODE_UNLINKED;
+}

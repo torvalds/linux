@@ -164,23 +164,6 @@ static inline unsigned nlink_bias(umode_t mode)
 	return S_ISDIR(mode) ? 2 : 1;
 }
 
-static inline void bch2_inode_nlink_inc(struct bch_inode_unpacked *bi)
-{
-	if (bi->bi_flags & BCH_INODE_UNLINKED)
-		bi->bi_flags &= ~BCH_INODE_UNLINKED;
-	else
-		bi->bi_nlink++;
-}
-
-static inline void bch2_inode_nlink_dec(struct bch_inode_unpacked *bi)
-{
-	BUG_ON(bi->bi_flags & BCH_INODE_UNLINKED);
-	if (bi->bi_nlink)
-		bi->bi_nlink--;
-	else
-		bi->bi_flags |= BCH_INODE_UNLINKED;
-}
-
 static inline unsigned bch2_inode_nlink_get(struct bch_inode_unpacked *bi)
 {
 	return bi->bi_flags & BCH_INODE_UNLINKED
@@ -199,5 +182,8 @@ static inline void bch2_inode_nlink_set(struct bch_inode_unpacked *bi,
 		bi->bi_flags |= BCH_INODE_UNLINKED;
 	}
 }
+
+int bch2_inode_nlink_inc(struct bch_inode_unpacked *);
+void bch2_inode_nlink_dec(struct btree_trans *, struct bch_inode_unpacked *);
 
 #endif /* _BCACHEFS_INODE_H */
