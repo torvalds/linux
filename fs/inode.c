@@ -2116,6 +2116,47 @@ int file_update_time(struct file *file)
 EXPORT_SYMBOL(file_update_time);
 
 /**
+ * file_modified_flags - handle mandated vfs changes when modifying a file
+ * @file: file that was modified
+ * @flags: kiocb flags
+ *
+ * When file has been modified ensure that special
+ * file privileges are removed and time settings are updated.
+ *
+ * If IOCB_NOWAIT is set, special file privileges will not be removed and
+ * time settings will not be updated. It will return -EAGAIN.
+ *
+ * Context: Caller must hold the file's inode lock.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+static int file_modified_flags(struct file *file, int flags)
+{
+	int ret;
+	struct inode *inode = file_inode(file);
+	struct timespec64 now = current_time(inode);
+
+	/*
+	 * Clear the security bits if the process is not being run by root.
+	 * This keeps people from modifying setuid and setgid binaries.
+	 */
+	ret = __file_remove_privs(file, flags);
+	if (ret)
+		return ret;
+
+	if (unlikely(file->f_mode & FMODE_NOCMTIME))
+		return 0;
+
+	ret = inode_needs_update_time(inode, &now);
+	if (ret <= 0)
+		return ret;
+	if (flags & IOCB_NOWAIT)
+		return -EAGAIN;
+
+	return __file_update_time(file, &now, ret);
+}
+
+/**
  * file_modified - handle mandated vfs changes when modifying a file
  * @file: file that was modified
  *
@@ -2128,28 +2169,26 @@ EXPORT_SYMBOL(file_update_time);
  */
 int file_modified(struct file *file)
 {
-	int ret;
-	struct inode *inode = file_inode(file);
-	struct timespec64 now = current_time(inode);
-
-	/*
-	 * Clear the security bits if the process is not being run by root.
-	 * This keeps people from modifying setuid and setgid binaries.
-	 */
-	ret = __file_remove_privs(file, 0);
-	if (ret)
-		return ret;
-
-	if (unlikely(file->f_mode & FMODE_NOCMTIME))
-		return 0;
-
-	ret = inode_needs_update_time(inode, &now);
-	if (ret <= 0)
-		return ret;
-
-	return __file_update_time(file, &now, ret);
+	return file_modified_flags(file, 0);
 }
 EXPORT_SYMBOL(file_modified);
+
+/**
+ * kiocb_modified - handle mandated vfs changes when modifying a file
+ * @iocb: iocb that was modified
+ *
+ * When file has been modified ensure that special
+ * file privileges are removed and time settings are updated.
+ *
+ * Context: Caller must hold the file's inode lock.
+ *
+ * Return: 0 on success, negative errno on failure.
+ */
+int kiocb_modified(struct kiocb *iocb)
+{
+	return file_modified_flags(iocb->ki_filp, iocb->ki_flags);
+}
+EXPORT_SYMBOL_GPL(kiocb_modified);
 
 int inode_needs_sync(struct inode *inode)
 {
