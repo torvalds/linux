@@ -79,6 +79,12 @@ struct ipmr_result {
 
 static DEFINE_RWLOCK(mrt_lock);
 
+static struct net_device *vif_dev_read(const struct vif_device *vif)
+{
+	return rcu_dereference_check(vif->dev,
+				     lockdep_is_held(&mrt_lock));
+}
+
 /* Multicast router control variables */
 
 /* Special spinlock for queue of unresolved entries */
@@ -586,7 +592,7 @@ static int __pim_rcv(struct mr_table *mrt, struct sk_buff *skb,
 
 	read_lock(&mrt_lock);
 	if (mrt->mroute_reg_vif_num >= 0)
-		reg_dev = mrt->vif_table[mrt->mroute_reg_vif_num].dev;
+		reg_dev = vif_dev_read(&mrt->vif_table[mrt->mroute_reg_vif_num]);
 	read_unlock(&mrt_lock);
 
 	if (!reg_dev)
@@ -614,10 +620,11 @@ static struct net_device *ipmr_reg_vif(struct net *net, struct mr_table *mrt)
 static int call_ipmr_vif_entry_notifiers(struct net *net,
 					 enum fib_event_type event_type,
 					 struct vif_device *vif,
+					 struct net_device *vif_dev,
 					 vifi_t vif_index, u32 tb_id)
 {
 	return mr_call_vif_notifiers(net, RTNL_FAMILY_IPMR, event_type,
-				     vif, vif_index, tb_id,
+				     vif, vif_dev, vif_index, tb_id,
 				     &net->ipv4.ipmr_seq);
 }
 
@@ -649,18 +656,14 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 
 	v = &mrt->vif_table[vifi];
 
-	if (VIF_EXISTS(mrt, vifi))
-		call_ipmr_vif_entry_notifiers(net, FIB_EVENT_VIF_DEL, v, vifi,
-					      mrt->id);
+	dev = rtnl_dereference(v->dev);
+	if (!dev)
+		return -EADDRNOTAVAIL;
 
 	write_lock_bh(&mrt_lock);
-	dev = v->dev;
-	v->dev = NULL;
-
-	if (!dev) {
-		write_unlock_bh(&mrt_lock);
-		return -EADDRNOTAVAIL;
-	}
+	call_ipmr_vif_entry_notifiers(net, FIB_EVENT_VIF_DEL, v, dev,
+				      vifi, mrt->id);
+	RCU_INIT_POINTER(v->dev, NULL);
 
 	if (vifi == mrt->mroute_reg_vif_num)
 		mrt->mroute_reg_vif_num = -1;
@@ -890,14 +893,15 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 
 	/* And finish update writing critical data */
 	write_lock_bh(&mrt_lock);
-	v->dev = dev;
+	rcu_assign_pointer(v->dev, dev);
 	netdev_tracker_alloc(dev, &v->dev_tracker, GFP_ATOMIC);
 	if (v->flags & VIFF_REGISTER)
 		mrt->mroute_reg_vif_num = vifi;
 	if (vifi+1 > mrt->maxvif)
 		mrt->maxvif = vifi+1;
 	write_unlock_bh(&mrt_lock);
-	call_ipmr_vif_entry_notifiers(net, FIB_EVENT_VIF_ADD, v, vifi, mrt->id);
+	call_ipmr_vif_entry_notifiers(net, FIB_EVENT_VIF_ADD, v, dev,
+				      vifi, mrt->id);
 	return 0;
 }
 
@@ -1726,7 +1730,7 @@ static int ipmr_device_event(struct notifier_block *this, unsigned long event, v
 	ipmr_for_each_table(mrt, net) {
 		v = &mrt->vif_table[0];
 		for (ct = 0; ct < mrt->maxvif; ct++, v++) {
-			if (v->dev == dev)
+			if (rcu_access_pointer(v->dev) == dev)
 				vif_delete(mrt, ct, 1, NULL);
 		}
 	}
@@ -1811,19 +1815,21 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 {
 	const struct iphdr *iph = ip_hdr(skb);
 	struct vif_device *vif = &mrt->vif_table[vifi];
+	struct net_device *vif_dev;
 	struct net_device *dev;
 	struct rtable *rt;
 	struct flowi4 fl4;
 	int    encap = 0;
 
-	if (!vif->dev)
+	vif_dev = vif_dev_read(vif);
+	if (!vif_dev)
 		goto out_free;
 
 	if (vif->flags & VIFF_REGISTER) {
 		vif->pkt_out++;
 		vif->bytes_out += skb->len;
-		vif->dev->stats.tx_bytes += skb->len;
-		vif->dev->stats.tx_packets++;
+		vif_dev->stats.tx_bytes += skb->len;
+		vif_dev->stats.tx_packets++;
 		ipmr_cache_report(mrt, skb, vifi, IGMPMSG_WHOLEPKT);
 		goto out_free;
 	}
@@ -1881,8 +1887,8 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 	if (vif->flags & VIFF_TUNNEL) {
 		ip_encap(net, skb, vif->local, vif->remote);
 		/* FIXME: extra output firewall step used to be here. --RR */
-		vif->dev->stats.tx_packets++;
-		vif->dev->stats.tx_bytes += skb->len;
+		vif_dev->stats.tx_packets++;
+		vif_dev->stats.tx_bytes += skb->len;
 	}
 
 	IPCB(skb)->flags |= IPSKB_FORWARDED;
@@ -1911,7 +1917,7 @@ static int ipmr_find_vif(struct mr_table *mrt, struct net_device *dev)
 	int ct;
 
 	for (ct = mrt->maxvif-1; ct >= 0; ct--) {
-		if (mrt->vif_table[ct].dev == dev)
+		if (rcu_access_pointer(mrt->vif_table[ct].dev) == dev)
 			break;
 	}
 	return ct;
@@ -1944,7 +1950,7 @@ static void ip_mr_forward(struct net *net, struct mr_table *mrt,
 	}
 
 	/* Wrong interface: drop packet and (maybe) send PIM assert. */
-	if (mrt->vif_table[vif].dev != dev) {
+	if (rcu_access_pointer(mrt->vif_table[vif].dev) != dev) {
 		if (rt_is_output_route(skb_rtable(skb))) {
 			/* It is our own packet, looped back.
 			 * Very complicated situation...
@@ -2744,18 +2750,21 @@ static bool ipmr_fill_table(struct mr_table *mrt, struct sk_buff *skb)
 
 static bool ipmr_fill_vif(struct mr_table *mrt, u32 vifid, struct sk_buff *skb)
 {
+	struct net_device *vif_dev;
 	struct nlattr *vif_nest;
 	struct vif_device *vif;
 
+	vif = &mrt->vif_table[vifid];
+	vif_dev = vif_dev_read(vif);
 	/* if the VIF doesn't exist just continue */
-	if (!VIF_EXISTS(mrt, vifid))
+	if (!vif_dev)
 		return true;
 
-	vif = &mrt->vif_table[vifid];
 	vif_nest = nla_nest_start_noflag(skb, IPMRA_VIF);
 	if (!vif_nest)
 		return false;
-	if (nla_put_u32(skb, IPMRA_VIFA_IFINDEX, vif->dev->ifindex) ||
+
+	if (nla_put_u32(skb, IPMRA_VIFA_IFINDEX, vif_dev->ifindex) ||
 	    nla_put_u32(skb, IPMRA_VIFA_VIF_ID, vifid) ||
 	    nla_put_u16(skb, IPMRA_VIFA_FLAGS, vif->flags) ||
 	    nla_put_u64_64bit(skb, IPMRA_VIFA_BYTES_IN, vif->bytes_in,
@@ -2919,9 +2928,11 @@ static int ipmr_vif_seq_show(struct seq_file *seq, void *v)
 			 "Interface      BytesIn  PktsIn  BytesOut PktsOut Flags Local    Remote\n");
 	} else {
 		const struct vif_device *vif = v;
-		const char *name =  vif->dev ?
-				    vif->dev->name : "none";
+		const struct net_device *vif_dev;
+		const char *name;
 
+		vif_dev = vif_dev_read(vif);
+		name = vif_dev ? vif_dev->name : "none";
 		seq_printf(seq,
 			   "%2td %-10s %8ld %7ld  %8ld %7ld %05X %08X %08X\n",
 			   vif - mrt->vif_table,

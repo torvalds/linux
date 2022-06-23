@@ -64,6 +64,12 @@ struct ip6mr_result {
 
 static DEFINE_RWLOCK(mrt_lock);
 
+static struct net_device *vif_dev_read(const struct vif_device *vif)
+{
+	return rcu_dereference_check(vif->dev,
+				     lockdep_is_held(&mrt_lock));
+}
+
 /* Multicast router control variables */
 
 /* Special spinlock for queue of unresolved entries */
@@ -430,7 +436,11 @@ static int ip6mr_vif_seq_show(struct seq_file *seq, void *v)
 			 "Interface      BytesIn  PktsIn  BytesOut PktsOut Flags\n");
 	} else {
 		const struct vif_device *vif = v;
-		const char *name = vif->dev ? vif->dev->name : "none";
+		const struct net_device *vif_dev;
+		const char *name;
+
+		vif_dev = vif_dev_read(vif);
+		name = vif_dev ? vif_dev->name : "none";
 
 		seq_printf(seq,
 			   "%2td %-10s %8ld %7ld  %8ld %7ld %05X\n",
@@ -553,7 +563,7 @@ static int pim6_rcv(struct sk_buff *skb)
 
 	read_lock(&mrt_lock);
 	if (reg_vif_num >= 0)
-		reg_dev = mrt->vif_table[reg_vif_num].dev;
+		reg_dev = vif_dev_read(&mrt->vif_table[reg_vif_num]);
 	read_unlock(&mrt_lock);
 
 	if (!reg_dev)
@@ -668,10 +678,11 @@ failure:
 static int call_ip6mr_vif_entry_notifiers(struct net *net,
 					  enum fib_event_type event_type,
 					  struct vif_device *vif,
+					  struct net_device *vif_dev,
 					  mifi_t vif_index, u32 tb_id)
 {
 	return mr_call_vif_notifiers(net, RTNL_FAMILY_IP6MR, event_type,
-				     vif, vif_index, tb_id,
+				     vif, vif_dev, vif_index, tb_id,
 				     &net->ipv6.ipmr_seq);
 }
 
@@ -696,19 +707,15 @@ static int mif6_delete(struct mr_table *mrt, int vifi, int notify,
 
 	v = &mrt->vif_table[vifi];
 
-	if (VIF_EXISTS(mrt, vifi))
-		call_ip6mr_vif_entry_notifiers(read_pnet(&mrt->net),
-					       FIB_EVENT_VIF_DEL, v, vifi,
-					       mrt->id);
-
-	write_lock_bh(&mrt_lock);
-	dev = v->dev;
-	v->dev = NULL;
-
-	if (!dev) {
-		write_unlock_bh(&mrt_lock);
+	dev = rtnl_dereference(v->dev);
+	if (!dev)
 		return -EADDRNOTAVAIL;
-	}
+
+	call_ip6mr_vif_entry_notifiers(read_pnet(&mrt->net),
+				       FIB_EVENT_VIF_DEL, v, dev,
+				       vifi, mrt->id);
+	write_lock_bh(&mrt_lock);
+	RCU_INIT_POINTER(v->dev, NULL);
 
 #ifdef CONFIG_IPV6_PIMSM_V2
 	if (vifi == mrt->mroute_reg_vif_num)
@@ -911,7 +918,7 @@ static int mif6_add(struct net *net, struct mr_table *mrt,
 
 	/* And finish update writing critical data */
 	write_lock_bh(&mrt_lock);
-	v->dev = dev;
+	rcu_assign_pointer(v->dev, dev);
 	netdev_tracker_alloc(dev, &v->dev_tracker, GFP_ATOMIC);
 #ifdef CONFIG_IPV6_PIMSM_V2
 	if (v->flags & MIFF_REGISTER)
@@ -921,7 +928,7 @@ static int mif6_add(struct net *net, struct mr_table *mrt,
 		mrt->maxvif = vifi + 1;
 	write_unlock_bh(&mrt_lock);
 	call_ip6mr_vif_entry_notifiers(net, FIB_EVENT_VIF_ADD,
-				       v, vifi, mrt->id);
+				       v, dev, vifi, mrt->id);
 	return 0;
 }
 
@@ -1241,7 +1248,7 @@ static int ip6mr_device_event(struct notifier_block *this,
 	ip6mr_for_each_table(mrt, net) {
 		v = &mrt->vif_table[0];
 		for (ct = 0; ct < mrt->maxvif; ct++, v++) {
-			if (v->dev == dev)
+			if (rcu_access_pointer(v->dev) == dev)
 				mif6_delete(mrt, ct, 1, NULL);
 		}
 	}
@@ -2019,21 +2026,22 @@ static inline int ip6mr_forward2_finish(struct net *net, struct sock *sk, struct
 static int ip6mr_forward2(struct net *net, struct mr_table *mrt,
 			  struct sk_buff *skb, int vifi)
 {
-	struct ipv6hdr *ipv6h;
 	struct vif_device *vif = &mrt->vif_table[vifi];
-	struct net_device *dev;
+	struct net_device *vif_dev;
+	struct ipv6hdr *ipv6h;
 	struct dst_entry *dst;
 	struct flowi6 fl6;
 
-	if (!vif->dev)
+	vif_dev = vif_dev_read(vif);
+	if (!vif_dev)
 		goto out_free;
 
 #ifdef CONFIG_IPV6_PIMSM_V2
 	if (vif->flags & MIFF_REGISTER) {
 		vif->pkt_out++;
 		vif->bytes_out += skb->len;
-		vif->dev->stats.tx_bytes += skb->len;
-		vif->dev->stats.tx_packets++;
+		vif_dev->stats.tx_bytes += skb->len;
+		vif_dev->stats.tx_packets++;
 		ip6mr_cache_report(mrt, skb, vifi, MRT6MSG_WHOLEPKT);
 		goto out_free;
 	}
@@ -2066,14 +2074,13 @@ static int ip6mr_forward2(struct net *net, struct mr_table *mrt,
 	 * not mrouter) cannot join to more than one interface - it will
 	 * result in receiving multiple packets.
 	 */
-	dev = vif->dev;
-	skb->dev = dev;
+	skb->dev = vif_dev;
 	vif->pkt_out++;
 	vif->bytes_out += skb->len;
 
 	/* We are about to write */
 	/* XXX: extension headers? */
-	if (skb_cow(skb, sizeof(*ipv6h) + LL_RESERVED_SPACE(dev)))
+	if (skb_cow(skb, sizeof(*ipv6h) + LL_RESERVED_SPACE(vif_dev)))
 		goto out_free;
 
 	ipv6h = ipv6_hdr(skb);
@@ -2082,7 +2089,7 @@ static int ip6mr_forward2(struct net *net, struct mr_table *mrt,
 	IP6CB(skb)->flags |= IP6SKB_FORWARDED;
 
 	return NF_HOOK(NFPROTO_IPV6, NF_INET_FORWARD,
-		       net, NULL, skb, skb->dev, dev,
+		       net, NULL, skb, skb->dev, vif_dev,
 		       ip6mr_forward2_finish);
 
 out_free:
@@ -2095,7 +2102,7 @@ static int ip6mr_find_vif(struct mr_table *mrt, struct net_device *dev)
 	int ct;
 
 	for (ct = mrt->maxvif - 1; ct >= 0; ct--) {
-		if (mrt->vif_table[ct].dev == dev)
+		if (rcu_access_pointer(mrt->vif_table[ct].dev) == dev)
 			break;
 	}
 	return ct;
@@ -2133,7 +2140,7 @@ static void ip6_mr_forward(struct net *net, struct mr_table *mrt,
 	/*
 	 * Wrong interface: drop packet and (maybe) send PIM assert.
 	 */
-	if (mrt->vif_table[vif].dev != dev) {
+	if (rcu_access_pointer(mrt->vif_table[vif].dev) != dev) {
 		c->_c.mfc_un.res.wrong_if++;
 
 		if (true_vifi >= 0 && mrt->mroute_do_assert &&
