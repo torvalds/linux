@@ -442,12 +442,13 @@ static int mlxsw_sp_fid_edit_op(const struct mlxsw_sp_fid *fid)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfmr), sfmr_pl);
 }
 
-static int __mlxsw_sp_fid_port_vid_map(struct mlxsw_sp *mlxsw_sp, u16 fid_index,
+static int __mlxsw_sp_fid_port_vid_map(const struct mlxsw_sp_fid *fid,
 				       u16 local_port, u16 vid, bool valid)
 {
+	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
 	char svfa_pl[MLXSW_REG_SVFA_LEN];
 
-	mlxsw_reg_svfa_port_vid_pack(svfa_pl, local_port, valid, fid_index,
+	mlxsw_reg_svfa_port_vid_pack(svfa_pl, local_port, valid, fid->fid_index,
 				     vid);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(svfa), svfa_pl);
 }
@@ -508,7 +509,6 @@ static u16 mlxsw_sp_fid_8021d_flood_index(const struct mlxsw_sp_fid *fid)
 
 static int mlxsw_sp_port_vp_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 	int err;
 
@@ -520,7 +520,7 @@ static int mlxsw_sp_port_vp_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
 		if (!fid)
 			continue;
 
-		err = __mlxsw_sp_fid_port_vid_map(mlxsw_sp, fid->fid_index,
+		err = __mlxsw_sp_fid_port_vid_map(fid,
 						  mlxsw_sp_port->local_port,
 						  vid, true);
 		if (err)
@@ -543,8 +543,7 @@ err_fid_port_vid_map:
 		if (!fid)
 			continue;
 
-		__mlxsw_sp_fid_port_vid_map(mlxsw_sp, fid->fid_index,
-					    mlxsw_sp_port->local_port, vid,
+		__mlxsw_sp_fid_port_vid_map(fid, mlxsw_sp_port->local_port, vid,
 					    false);
 	}
 	return err;
@@ -552,7 +551,6 @@ err_fid_port_vid_map:
 
 static void mlxsw_sp_port_vlan_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
 {
-	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
 
 	mlxsw_sp_port_vp_mode_set(mlxsw_sp_port, false);
@@ -565,8 +563,7 @@ static void mlxsw_sp_port_vlan_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
 		if (!fid)
 			continue;
 
-		__mlxsw_sp_fid_port_vid_map(mlxsw_sp, fid->fid_index,
-					    mlxsw_sp_port->local_port, vid,
+		__mlxsw_sp_fid_port_vid_map(fid, mlxsw_sp_port->local_port, vid,
 					    false);
 	}
 }
@@ -617,8 +614,8 @@ static int mlxsw_sp_fid_8021d_port_vid_map(struct mlxsw_sp_fid *fid,
 	u16 local_port = mlxsw_sp_port->local_port;
 	int err;
 
-	err = __mlxsw_sp_fid_port_vid_map(mlxsw_sp, fid->fid_index,
-					  mlxsw_sp_port->local_port, vid, true);
+	err = __mlxsw_sp_fid_port_vid_map(fid, mlxsw_sp_port->local_port, vid,
+					  true);
 	if (err)
 		return err;
 
@@ -639,8 +636,7 @@ err_port_vp_mode_trans:
 	mlxsw_sp->fid_core->port_fid_mappings[local_port]--;
 	mlxsw_sp_fid_port_vid_list_del(fid, mlxsw_sp_port->local_port, vid);
 err_port_vid_list_add:
-	__mlxsw_sp_fid_port_vid_map(mlxsw_sp, fid->fid_index,
-				    mlxsw_sp_port->local_port, vid, false);
+	__mlxsw_sp_fid_port_vid_map(fid, mlxsw_sp_port->local_port, vid, false);
 	return err;
 }
 
@@ -655,8 +651,7 @@ mlxsw_sp_fid_8021d_port_vid_unmap(struct mlxsw_sp_fid *fid,
 		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 	mlxsw_sp->fid_core->port_fid_mappings[local_port]--;
 	mlxsw_sp_fid_port_vid_list_del(fid, mlxsw_sp_port->local_port, vid);
-	__mlxsw_sp_fid_port_vid_map(mlxsw_sp, fid->fid_index,
-				    mlxsw_sp_port->local_port, vid, false);
+	__mlxsw_sp_fid_port_vid_map(fid, mlxsw_sp_port->local_port, vid, false);
 }
 
 static int mlxsw_sp_fid_8021d_vni_set(struct mlxsw_sp_fid *fid)
