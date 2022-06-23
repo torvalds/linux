@@ -490,7 +490,7 @@
                        sf,pins = <PAD_GPIO38>;
                        sf,pinmux = <PAD_GPIO38_FUNC_SEL 0>;
                        sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-                       sf,pin-gpio-din = <GPI_I2STX0_BCLK_SLV>;
+                       sf,pin-gpio-din = <GPI_I2STX0_BCLK_SLV GPI_I2SRX0_BCLK_SLV>;
                        sf,pin-gpio-doen = <OEN_HIGH>;
                 };
 
@@ -498,7 +498,7 @@
                        sf,pins = <PAD_GPIO63>;
                        sf,pinmux = <PAD_GPIO63_FUNC_SEL 0>;
                        sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-                       sf,pin-gpio-din = <GPI_I2STX0_LRCK_SLV>;
+                       sf,pin-gpio-din = <GPI_I2STX0_LRCK_SLV GPI_I2SRX0_LRCK_SLV>;
                        sf,pin-gpio-doen = <OEN_HIGH>;
                 };
 
