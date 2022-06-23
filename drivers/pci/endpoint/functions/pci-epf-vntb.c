@@ -597,7 +597,7 @@ static int epf_ntb_mw_bar_init(struct epf_ntb *ntb)
 
 		ntb->epf->bar[barno].barno = barno;
 		ntb->epf->bar[barno].size = size;
-		ntb->epf->bar[barno].addr = 0;
+		ntb->epf->bar[barno].addr = NULL;
 		ntb->epf->bar[barno].phys_addr = 0;
 		ntb->epf->bar[barno].flags |= upper_32_bits(size) ?
 				PCI_BASE_ADDRESS_MEM_TYPE_64 :
