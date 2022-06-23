@@ -706,30 +706,21 @@ static inline bool page_copy_sane(struct page *page, size_t offset, size_t n)
 	return false;
 }
 
-static size_t __copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
-			 struct iov_iter *i)
-{
-	if (unlikely(iov_iter_is_pipe(i))) {
-		return copy_page_to_iter_pipe(page, offset, bytes, i);
-	} else {
-		void *kaddr = kmap_local_page(page);
-		size_t wanted = _copy_to_iter(kaddr + offset, bytes, i);
-		kunmap_local(kaddr);
-		return wanted;
-	}
-}
-
 size_t copy_page_to_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
 {
 	size_t res = 0;
 	if (unlikely(!page_copy_sane(page, offset, bytes)))
 		return 0;
+	if (unlikely(iov_iter_is_pipe(i)))
+		return copy_page_to_iter_pipe(page, offset, bytes, i);
 	page += offset / PAGE_SIZE; // first subpage
 	offset %= PAGE_SIZE;
 	while (1) {
-		size_t n = __copy_page_to_iter(page, offset,
-				min(bytes, (size_t)PAGE_SIZE - offset), i);
+		void *kaddr = kmap_local_page(page);
+		size_t n = min(bytes, (size_t)PAGE_SIZE - offset);
+		n = _copy_to_iter(kaddr + offset, n, i);
+		kunmap_local(kaddr);
 		res += n;
 		bytes -= n;
 		if (!bytes || !n)
