@@ -2042,9 +2042,7 @@ static int ip6mr_forward2(struct net *net, struct mr_table *mrt,
 		WRITE_ONCE(vif->bytes_out, vif->bytes_out + skb->len);
 		vif_dev->stats.tx_bytes += skb->len;
 		vif_dev->stats.tx_packets++;
-		rcu_read_lock();
 		ip6mr_cache_report(mrt, skb, vifi, MRT6MSG_WHOLEPKT);
-		rcu_read_unlock();
 		goto out_free;
 	}
 #endif
@@ -2112,6 +2110,7 @@ static int ip6mr_find_vif(struct mr_table *mrt, struct net_device *dev)
 	return ct;
 }
 
+/* Called under rcu_read_lock() */
 static void ip6_mr_forward(struct net *net, struct mr_table *mrt,
 			   struct net_device *dev, struct sk_buff *skb,
 			   struct mfc6_cache *c)
@@ -2131,14 +2130,12 @@ static void ip6_mr_forward(struct net *net, struct mr_table *mrt,
 		/* For an (*,G) entry, we only check that the incoming
 		 * interface is part of the static tree.
 		 */
-		rcu_read_lock();
 		cache_proxy = mr_mfc_find_any_parent(mrt, vif);
 		if (cache_proxy &&
 		    cache_proxy->_c.mfc_un.res.ttls[true_vifi] < 255) {
 			rcu_read_unlock();
 			goto forward;
 		}
-		rcu_read_unlock();
 	}
 
 	/*
@@ -2159,12 +2156,10 @@ static void ip6_mr_forward(struct net *net, struct mr_table *mrt,
 			       c->_c.mfc_un.res.last_assert +
 			       MFC_ASSERT_THRESH)) {
 			c->_c.mfc_un.res.last_assert = jiffies;
-			rcu_read_lock();
 			ip6mr_cache_report(mrt, skb, true_vifi, MRT6MSG_WRONGMIF);
 			if (mrt->mroute_do_wrvifwhole)
 				ip6mr_cache_report(mrt, skb, true_vifi,
 						   MRT6MSG_WRMIFWHOLE);
-			rcu_read_unlock();
 		}
 		goto dont_forward;
 	}
@@ -2278,10 +2273,7 @@ int ip6_mr_input(struct sk_buff *skb)
 		return -ENODEV;
 	}
 
-	read_lock(&mrt_lock);
 	ip6_mr_forward(net, mrt, dev, skb, cache);
-
-	read_unlock(&mrt_lock);
 
 	return 0;
 }
