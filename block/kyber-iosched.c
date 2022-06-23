@@ -421,6 +421,8 @@ static int kyber_init_sched(struct request_queue *q, struct elevator_type *e)
 
 	blk_stat_enable_accounting(q);
 
+	blk_queue_flag_clear(QUEUE_FLAG_SQ_SCHED, q);
+
 	eq->elevator_data = kqd;
 	q->elevator = eq;
 
@@ -1033,7 +1035,6 @@ static struct elevator_type kyber_sched = {
 #endif
 	.elevator_attrs = kyber_sched_attrs,
 	.elevator_name = "kyber",
-	.elevator_features = ELEVATOR_F_MQ_AWARE,
 	.elevator_owner = THIS_MODULE,
 };
 

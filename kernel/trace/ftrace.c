@@ -8029,15 +8029,23 @@ static int kallsyms_callback(void *data, const char *name,
 			     struct module *mod, unsigned long addr)
 {
 	struct kallsyms_data *args = data;
+	const char **sym;
+	int idx;
 
-	if (!bsearch(&name, args->syms, args->cnt, sizeof(*args->syms), symbols_cmp))
+	sym = bsearch(&name, args->syms, args->cnt, sizeof(*args->syms), symbols_cmp);
+	if (!sym)
+		return 0;
+
+	idx = sym - args->syms;
+	if (args->addrs[idx])
 		return 0;
 
 	addr = ftrace_location(addr);
 	if (!addr)
 		return 0;
 
-	args->addrs[args->found++] = addr;
+	args->addrs[idx] = addr;
+	args->found++;
 	return args->found == args->cnt ? 1 : 0;
 }
 
@@ -8062,6 +8070,7 @@ int ftrace_lookup_symbols(const char **sorted_syms, size_t cnt, unsigned long *a
 	struct kallsyms_data args;
 	int err;
 
+	memset(addrs, 0, sizeof(*addrs) * cnt);
 	args.addrs = addrs;
 	args.syms = sorted_syms;
 	args.cnt = cnt;

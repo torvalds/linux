@@ -97,6 +97,8 @@ static int test__expr(struct test_suite *t __maybe_unused, int subtest __maybe_u
 	ret |= test(ctx, "2.2 > 2.2", 0);
 	ret |= test(ctx, "2.2 < 1.1", 0);
 	ret |= test(ctx, "1.1 > 2.2", 0);
+	ret |= test(ctx, "1.1e10 < 1.1e100", 1);
+	ret |= test(ctx, "1.1e2 > 1.1e-2", 1);
 
 	if (ret) {
 		expr__ctx_free(ctx);

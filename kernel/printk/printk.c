@@ -250,6 +250,9 @@ static atomic_t console_kthreads_active = ATOMIC_INIT(0);
 #define console_kthread_printing_exit() \
 	atomic_dec(&console_kthreads_active)
 
+/* Block console kthreads to avoid processing new messages. */
+bool block_console_kthreads;
+
 /*
  * Helper macros to handle lockdep when locking/unlocking console_sem. We use
  * macros instead of functions so that _RET_IP_ contains useful information.
@@ -3729,7 +3732,10 @@ static bool printer_should_wake(struct console *con, u64 seq)
 		return true;
 
 	if (con->blocked ||
-	    console_kthreads_atomically_blocked()) {
+	    console_kthreads_atomically_blocked() ||
+	    block_console_kthreads ||
+	    system_state > SYSTEM_RUNNING ||
+	    oops_in_progress) {
 		return false;
 	}
 
