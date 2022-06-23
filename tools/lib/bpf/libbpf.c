@@ -5732,77 +5732,7 @@ err_out:
 int bpf_core_types_are_compat(const struct btf *local_btf, __u32 local_id,
 			      const struct btf *targ_btf, __u32 targ_id)
 {
-	const struct btf_type *local_type, *targ_type;
-	int depth = 32; /* max recursion depth */
-
-	/* caller made sure that names match (ignoring flavor suffix) */
-	local_type = btf__type_by_id(local_btf, local_id);
-	targ_type = btf__type_by_id(targ_btf, targ_id);
-	if (!btf_kind_core_compat(local_type, targ_type))
-		return 0;
-
-recur:
-	depth--;
-	if (depth < 0)
-		return -EINVAL;
-
-	local_type = skip_mods_and_typedefs(local_btf, local_id, &local_id);
-	targ_type = skip_mods_and_typedefs(targ_btf, targ_id, &targ_id);
-	if (!local_type || !targ_type)
-		return -EINVAL;
-
-	if (!btf_kind_core_compat(local_type, targ_type))
-		return 0;
-
-	switch (btf_kind(local_type)) {
-	case BTF_KIND_UNKN:
-	case BTF_KIND_STRUCT:
-	case BTF_KIND_UNION:
-	case BTF_KIND_ENUM:
-	case BTF_KIND_ENUM64:
-	case BTF_KIND_FWD:
-		return 1;
-	case BTF_KIND_INT:
-		/* just reject deprecated bitfield-like integers; all other
-		 * integers are by default compatible between each other
-		 */
-		return btf_int_offset(local_type) == 0 && btf_int_offset(targ_type) == 0;
-	case BTF_KIND_PTR:
-		local_id = local_type->type;
-		targ_id = targ_type->type;
-		goto recur;
-	case BTF_KIND_ARRAY:
-		local_id = btf_array(local_type)->type;
-		targ_id = btf_array(targ_type)->type;
-		goto recur;
-	case BTF_KIND_FUNC_PROTO: {
-		struct btf_param *local_p = btf_params(local_type);
-		struct btf_param *targ_p = btf_params(targ_type);
-		__u16 local_vlen = btf_vlen(local_type);
-		__u16 targ_vlen = btf_vlen(targ_type);
-		int i, err;
-
-		if (local_vlen != targ_vlen)
-			return 0;
-
-		for (i = 0; i < local_vlen; i++, local_p++, targ_p++) {
-			skip_mods_and_typedefs(local_btf, local_p->type, &local_id);
-			skip_mods_and_typedefs(targ_btf, targ_p->type, &targ_id);
-			err = bpf_core_types_are_compat(local_btf, local_id, targ_btf, targ_id);
-			if (err <= 0)
-				return err;
-		}
-
-		/* tail recurse for return type check */
-		skip_mods_and_typedefs(local_btf, local_type->type, &local_id);
-		skip_mods_and_typedefs(targ_btf, targ_type->type, &targ_id);
-		goto recur;
-	}
-	default:
-		pr_warn("unexpected kind %s relocated, local [%d], target [%d]\n",
-			btf_kind_str(local_type), local_id, targ_id);
-		return 0;
-	}
+	return __bpf_core_types_are_compat(local_btf, local_id, targ_btf, targ_id, 32);
 }
 
 static size_t bpf_core_hash_fn(const void *key, void *ctx)
