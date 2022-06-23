@@ -281,7 +281,7 @@ void setup_tlb_handler(int cpu)
 		if (pcpu_handlers[cpu])
 			return;
 
-		page = alloc_pages_node(cpu_to_node(cpu), GFP_KERNEL, get_order(vec_sz));
+		page = alloc_pages_node(cpu_to_node(cpu), GFP_ATOMIC, get_order(vec_sz));
 		if (!page)
 			return;
 
