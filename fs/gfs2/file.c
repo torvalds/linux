@@ -1444,6 +1444,22 @@ static int gfs2_lock(struct file *file, int cmd, struct file_lock *fl)
 		return dlm_posix_lock(ls->ls_dlm, ip->i_no_addr, file, cmd, fl);
 }
 
+static void __flock_holder_uninit(struct file *file, struct gfs2_holder *fl_gh)
+{
+	struct gfs2_glock *gl = fl_gh->gh_gl;
+
+	/*
+	 * Make sure gfs2_glock_put() won't sleep under the file->f_lock
+	 * spinlock.
+	 */
+
+	gfs2_glock_hold(gl);
+	spin_lock(&file->f_lock);
+	gfs2_holder_uninit(fl_gh);
+	spin_unlock(&file->f_lock);
+	gfs2_glock_put(gl);
+}
+
 static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 {
 	struct gfs2_file *fp = file->private_data;
@@ -1475,7 +1491,9 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 				       &gfs2_flock_glops, CREATE, &gl);
 		if (error)
 			goto out;
+		spin_lock(&file->f_lock);
 		gfs2_holder_init(gl, state, flags, fl_gh);
+		spin_unlock(&file->f_lock);
 		gfs2_glock_put(gl);
 	}
 	for (sleeptime = 1; sleeptime <= 4; sleeptime <<= 1) {
@@ -1486,7 +1504,7 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 		msleep(sleeptime);
 	}
 	if (error) {
-		gfs2_holder_uninit(fl_gh);
+		__flock_holder_uninit(file, fl_gh);
 		if (error == GLR_TRYFAILED)
 			error = -EAGAIN;
 	} else {
@@ -1508,7 +1526,7 @@ static void do_unflock(struct file *file, struct file_lock *fl)
 	locks_lock_file_wait(file, fl);
 	if (gfs2_holder_initialized(fl_gh)) {
 		gfs2_glock_dq(fl_gh);
-		gfs2_holder_uninit(fl_gh);
+		__flock_holder_uninit(file, fl_gh);
 	}
 	mutex_unlock(&fp->f_fl_mutex);
 }

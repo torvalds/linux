@@ -2846,6 +2846,28 @@ static void gfs2_glockfd_seq_stop(struct seq_file *seq, void *iter_ptr)
 		put_task_struct(i->task);
 }
 
+static void gfs2_glockfd_seq_show_flock(struct seq_file *seq,
+					struct gfs2_glockfd_iter *i)
+{
+	struct gfs2_file *fp = i->file->private_data;
+	struct gfs2_holder *fl_gh = &fp->f_fl_gh;
+	struct lm_lockname gl_name = { .ln_type = LM_TYPE_RESERVED };
+
+	if (!READ_ONCE(fl_gh->gh_gl))
+		return;
+
+	spin_lock(&i->file->f_lock);
+	if (gfs2_holder_initialized(fl_gh))
+		gl_name = fl_gh->gh_gl->gl_name;
+	spin_unlock(&i->file->f_lock);
+
+	if (gl_name.ln_type != LM_TYPE_RESERVED) {
+		seq_printf(seq, "%d %u %u/%llx\n",
+			   i->tgid, i->fd, gl_name.ln_type,
+			   (unsigned long long)gl_name.ln_number);
+	}
+}
+
 static int gfs2_glockfd_seq_show(struct seq_file *seq, void *iter_ptr)
 {
 	struct gfs2_glockfd_iter *i = seq->private;
@@ -2859,6 +2881,7 @@ static int gfs2_glockfd_seq_show(struct seq_file *seq, void *iter_ptr)
 			   i->tgid, i->fd, gl->gl_name.ln_type,
 			   (unsigned long long)gl->gl_name.ln_number);
 	}
+	gfs2_glockfd_seq_show_flock(seq, i);
 	inode_unlock_shared(inode);
 	return 0;
 }
