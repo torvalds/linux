@@ -582,6 +582,7 @@ static int __pim_rcv(struct mr_table *mrt, struct sk_buff *skb,
 {
 	struct net_device *reg_dev = NULL;
 	struct iphdr *encap;
+	int vif_num;
 
 	encap = (struct iphdr *)(skb_transport_header(skb) + pimlen);
 	/* Check that:
@@ -594,11 +595,10 @@ static int __pim_rcv(struct mr_table *mrt, struct sk_buff *skb,
 	    ntohs(encap->tot_len) + pimlen > skb->len)
 		return 1;
 
-	read_lock(&mrt_lock);
-	if (mrt->mroute_reg_vif_num >= 0)
-		reg_dev = vif_dev_read(&mrt->vif_table[mrt->mroute_reg_vif_num]);
-	read_unlock(&mrt_lock);
-
+	/* Pairs with WRITE_ONCE() in vif_add()/vid_delete() */
+	vif_num = READ_ONCE(mrt->mroute_reg_vif_num);
+	if (vif_num >= 0)
+		reg_dev = vif_dev_read(&mrt->vif_table[vif_num]);
 	if (!reg_dev)
 		return 1;
 
