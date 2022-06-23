@@ -246,9 +246,6 @@ struct ab8500_chargalg {
 	struct kobject chargalg_kobject;
 };
 
-/*External charger prepare notifier*/
-BLOCKING_NOTIFIER_HEAD(charger_notifier_list);
-
 /* Main battery properties */
 static enum power_supply_property ab8500_chargalg_props[] = {
 	POWER_SUPPLY_PROP_STATUS,
@@ -343,8 +340,7 @@ static int ab8500_chargalg_check_charger_enable(struct ab8500_chargalg *di)
 		return di->usb_chg->ops.check_enable(di->usb_chg,
 			bi->constant_charge_voltage_max_uv,
 			bi->constant_charge_current_max_ua);
-	} else if ((di->chg_info.charger_type & AC_CHG) &&
-		   !(di->ac_chg->external)) {
+	} else if (di->chg_info.charger_type & AC_CHG) {
 		return di->ac_chg->ops.check_enable(di->ac_chg,
 			bi->constant_charge_voltage_max_uv,
 			bi->constant_charge_current_max_ua);
@@ -473,15 +469,6 @@ static int ab8500_chargalg_kick_watchdog(struct ab8500_chargalg *di)
 	/* Check if charger exists and kick watchdog if charging */
 	if (di->ac_chg && di->ac_chg->ops.kick_wd &&
 	    di->chg_info.online_chg & AC_CHG) {
-		/*
-		 * If AB charger watchdog expired, pm2xxx charging
-		 * gets disabled. To be safe, kick both AB charger watchdog
-		 * and pm2xxx watchdog.
-		 */
-		if (di->ac_chg->external &&
-		    di->usb_chg && di->usb_chg->ops.kick_wd)
-			di->usb_chg->ops.kick_wd(di->usb_chg);
-
 		return di->ac_chg->ops.kick_wd(di->ac_chg);
 	} else if (di->usb_chg && di->usb_chg->ops.kick_wd &&
 			di->chg_info.online_chg & USB_CHG)
@@ -516,14 +503,6 @@ static int ab8500_chargalg_ac_en(struct ab8500_chargalg *di, int enable,
 
 	di->chg_info.ac_iset_ua = iset_ua;
 	di->chg_info.ac_vset_uv = vset_uv;
-
-	/* Enable external charger */
-	if (enable && di->ac_chg->external &&
-	    !ab8500_chargalg_ex_ac_enable_toggle) {
-		blocking_notifier_call_chain(&charger_notifier_list,
-					     0, di->dev);
-		ab8500_chargalg_ex_ac_enable_toggle++;
-	}
 
 	return di->ac_chg->ops.enable(di->ac_chg, enable, vset_uv, iset_ua);
 }

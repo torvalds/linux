@@ -34,7 +34,6 @@ struct ux500_charger_ops {
  * @max_out_volt_uv	maximum output charger voltage in uV
  * @max_out_curr_ua	maximum output charger current in uA
  * @enabled		indicates if this charger is used or not
- * @external		external charger unit (pm2xxx)
  */
 struct ux500_charger {
 	struct power_supply *psy;
@@ -43,9 +42,6 @@ struct ux500_charger {
 	int max_out_curr_ua;
 	int wdt_refresh;
 	bool enabled;
-	bool external;
 };
-
-extern struct blocking_notifier_head charger_notifier_list;
 
 #endif /* _AB8500_CHARGALG_H_ */
