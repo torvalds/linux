@@ -34,6 +34,8 @@ struct io_poll_table {
 	struct io_kiocb *req;
 	int nr_entries;
 	int error;
+	/* output value, set only if arm poll returns >0 */
+	__poll_t result_mask;
 };
 
 #define IO_POLL_CANCEL_FLAG	BIT(31)
@@ -462,8 +464,9 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 	if (mask &&
 	   ((poll->events & (EPOLLET|EPOLLONESHOT)) == (EPOLLET|EPOLLONESHOT))) {
 		io_poll_remove_entries(req);
+		ipt->result_mask = mask;
 		/* no one else has access to the req, forget about the ref */
-		return mask;
+		return 1;
 	}
 
 	if (!mask && unlikely(ipt->error || !ipt->nr_entries)) {
@@ -813,7 +816,7 @@ int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = __io_arm_poll_handler(req, poll, &ipt, poll->events);
 	if (ret) {
-		io_req_set_res(req, ret, 0);
+		io_req_set_res(req, ipt.result_mask, 0);
 		return IOU_OK;
 	}
 	if (ipt.error) {
