@@ -582,7 +582,7 @@ xfs_attri_item_recover(
 	struct xfs_trans_res		tres;
 	struct xfs_attri_log_format	*attrp;
 	struct xfs_attri_log_nameval	*nv = attrip->attri_nameval;
-	int				error, ret = 0;
+	int				error;
 	int				total;
 	int				local;
 	struct xfs_attrd_log_item	*done_item = NULL;
@@ -661,13 +661,31 @@ xfs_attri_item_recover(
 	xfs_ilock(ip, XFS_ILOCK_EXCL);
 	xfs_trans_ijoin(tp, ip, 0);
 
-	ret = xfs_xattri_finish_update(attr, done_item);
-	if (ret == -EAGAIN) {
-		/* There's more work to do, so add it to this transaction */
+	error = xfs_xattri_finish_update(attr, done_item);
+	if (error == -EAGAIN) {
+		/*
+		 * There's more work to do, so add the intent item to this
+		 * transaction so that we can continue it later.
+		 */
 		xfs_defer_add(tp, XFS_DEFER_OPS_TYPE_ATTR, &attr->xattri_list);
-	} else
-		error = ret;
+		error = xfs_defer_ops_capture_and_commit(tp, capture_list);
+		if (error)
+			goto out_unlock;
 
+		/*
+		 * The defer capture structure took its own reference to the
+		 * attr leaf buffer and will give that to the continuation
+		 * transaction.  The attr intent struct drives the continuation
+		 * work, so release our refcount on the attr leaf buffer but
+		 * retain the pointer in the intent structure.
+		 */
+		if (attr->xattri_leaf_bp)
+			xfs_buf_relse(attr->xattri_leaf_bp);
+
+		xfs_iunlock(ip, XFS_ILOCK_EXCL);
+		xfs_irele(ip);
+		return 0;
+	}
 	if (error) {
 		xfs_trans_cancel(tp);
 		goto out_unlock;
@@ -678,24 +696,13 @@ xfs_attri_item_recover(
 out_unlock:
 	if (attr->xattri_leaf_bp) {
 		xfs_buf_relse(attr->xattri_leaf_bp);
-
-		/*
-		 * If there's more work to do to complete the attr intent, the
-		 * defer capture structure will have taken its own reference to
-		 * the attr leaf buffer and will give that to the continuation
-		 * transaction.  The attr intent struct drives the continuation
-		 * work, so release our refcount on the attr leaf buffer but
-		 * retain the pointer in the intent structure.
-		 */
-		if (ret != -EAGAIN)
-			attr->xattri_leaf_bp = NULL;
+		attr->xattri_leaf_bp = NULL;
 	}
 
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	xfs_irele(ip);
 out:
-	if (ret != -EAGAIN)
-		xfs_attr_free_item(attr);
+	xfs_attr_free_item(attr);
 	return error;
 }
 
