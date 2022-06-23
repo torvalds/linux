@@ -799,20 +799,16 @@ static void update_mi(struct rkisp_stream *stream)
 		}
 	} else if (stream->is_using_resmem) {
 		/* resmem for fast stream NV12 output */
-		dma_addr_t max_addr = dev->resmem_addr + dev->resmem_size;
-		u32 bytesperline = stream->out_fmt.plane_fmt[0].bytesperline;
-		u32 buf_size = bytesperline * ALIGN(stream->out_fmt.height, 16) * 3 / 2;
-
 		reg = stream->config->mi.y_base_ad_init;
-		val = dev->resmem_addr_curr;
+		val = dev->tb_stream_info.buf[dev->tb_addr_idx].dma_addr;
 		rkisp_write(dev, reg, val, false);
 
 		reg = stream->config->mi.cb_base_ad_init;
-		val += bytesperline * stream->out_fmt.height;
+		val += dev->tb_stream_info.bytesperline * stream->out_fmt.height;
 		rkisp_write(dev, reg, val, false);
 
-		if (dev->resmem_addr_curr + buf_size * 2 <= max_addr)
-			dev->resmem_addr_curr += buf_size;
+		if (dev->tb_addr_idx < dev->tb_stream_info.buf_max - 1)
+			dev->tb_addr_idx++;
 	} else if (!stream->is_pause) {
 		stream->is_pause = true;
 		stream->ops->disable_mi(stream);
@@ -1758,6 +1754,17 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 		stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
 		stream->dbg.timestamp = ns;
 		stream->dbg.id = seq;
+
+		if (stream->is_using_resmem) {
+			struct rkisp_tb_stream_info *tb_info = &dev->tb_stream_info;
+			u32 idx;
+
+			if (tb_info->buf_cnt < tb_info->buf_max)
+				tb_info->buf_cnt++;
+			idx = tb_info->buf_cnt - 1;
+			dev->tb_stream_info.buf[idx].sequence = seq;
+			dev->tb_stream_info.buf[idx].timestamp = ns;
+		}
 
 		if (stream->stopping) {
 			/*

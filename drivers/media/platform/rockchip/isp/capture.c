@@ -1481,6 +1481,24 @@ static int rkisp_get_fps(struct rkisp_stream *stream, int *fps)
 	return rkisp_rockit_fps_get(fps, stream);
 }
 
+static int rkisp_get_tb_stream_info(struct rkisp_stream *stream,
+				    struct rkisp_tb_stream_info *info)
+{
+	struct rkisp_device *dev = stream->ispdev;
+
+	if (stream->id != RKISP_STREAM_MP) {
+		v4l2_err(&dev->v4l2_dev, "fast only support for MP\n");
+		return -EINVAL;
+	}
+
+	if (!dev->tb_stream_info.buf_max) {
+		v4l2_err(&dev->v4l2_dev, "thunderboot no enough memory for image\n");
+		return -EINVAL;
+	}
+	memcpy(info, &dev->tb_stream_info, sizeof(*info));
+	return 0;
+}
+
 static long rkisp_ioctl_default(struct file *file, void *fh,
 				bool valid_prio, unsigned int cmd, void *arg)
 {
@@ -1544,6 +1562,9 @@ static long rkisp_ioctl_default(struct file *file, void *fh,
 		break;
 	case RKISP_CMD_GET_FPS:
 		ret = rkisp_get_fps(stream, arg);
+		break;
+	case RKISP_CMD_GET_TB_STREAM_INFO:
+		ret = rkisp_get_tb_stream_info(stream, arg);
 		break;
 	default:
 		ret = -EINVAL;
@@ -1801,6 +1822,8 @@ static void rkisp_stream_fast(struct work_struct *work)
 	struct rkisp_stream *stream = &cap_dev->stream[0];
 	struct vb2_queue *q = &stream->vnode.buf_queue;
 	struct rkisp_device *ispdev = cap_dev->ispdev;
+	struct rkisp_tb_stream_info *info = &ispdev->tb_stream_info;
+	u32 i;
 
 	v4l2_pipeline_pm_get(&stream->vnode.vdev.entity);
 	rkisp_chk_tb_over(ispdev);
@@ -1810,12 +1833,23 @@ static void rkisp_stream_fast(struct work_struct *work)
 	}
 	stream->is_pre_on = true;
 	stream->is_using_resmem = true;
-	ispdev->resmem_addr_curr = ispdev->resmem_addr;
-	if (ispdev->resmem_size < stream->out_fmt.plane_fmt[0].sizeimage) {
+	info->width = stream->out_fmt.width;
+	info->height = stream->out_fmt.height;
+	info->bytesperline = stream->out_fmt.plane_fmt[0].bytesperline;
+	info->frame_size = info->bytesperline * ALIGN(info->height, 16) * 3 / 2;
+	info->buf_max = ispdev->resmem_size / info->frame_size;
+	if (!info->buf_max) {
 		stream->is_using_resmem = false;
 		v4l2_warn(&ispdev->v4l2_dev,
 			  "resmem size:%zu no enough for image:%d\n",
-			  ispdev->resmem_size, stream->out_fmt.plane_fmt[0].sizeimage);
+			  ispdev->resmem_size, info->frame_size);
+	} else {
+		ispdev->tb_addr_idx = 0;
+		info->buf_cnt = 0;
+		if (info->buf_max > RKISP_TB_STREAM_BUF_MAX)
+			info->buf_max = RKISP_TB_STREAM_BUF_MAX;
+		for (i = 0; i < info->buf_max; i++)
+			info->buf[i].dma_addr = ispdev->resmem_addr + i * info->frame_size;
 	}
 	q->ops->start_streaming(q, 1);
 }

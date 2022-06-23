@@ -210,12 +210,15 @@ struct rkisp_device {
 	struct mutex apilock; /* mutex to serialize the calls of stream */
 	struct mutex iqlock; /* mutex to serialize the calls of iq */
 	wait_queue_head_t sync_onoff;
+
 	dma_addr_t resmem_addr;
 	phys_addr_t resmem_pa;
-	dma_addr_t resmem_addr_curr;
 	size_t resmem_size;
 	struct rkisp_thunderboot_resmem_head tb_head;
 	bool is_thunderboot;
+	struct rkisp_tb_stream_info tb_stream_info;
+	unsigned int tb_addr_idx;
+
 	int dev_id;
 	unsigned int skip_frame;
 	unsigned int irq_ends;

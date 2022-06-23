@@ -86,6 +86,9 @@
 
 #define RKISP_CMD_GET_FPS \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 110, int)
+
+#define RKISP_CMD_GET_TB_STREAM_INFO \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 111, struct rkisp_tb_stream_info)
 /*************************************************************/
 
 #define ISP2X_ID_DPCC			(0)
@@ -366,6 +369,28 @@ struct rkisp_stream_info {
 struct rkisp_mirror_flip {
 	unsigned char mirror;
 	unsigned char flip;
+} __attribute__ ((packed));
+
+#define RKISP_TB_STREAM_BUF_MAX 5
+struct rkisp_tb_stream_buf {
+	unsigned int dma_addr;
+	unsigned int sequence;
+	long long timestamp;
+} __attribute__ ((packed));
+
+/* struct rkisp_tb_stream_info
+ * frame_size: nv12 frame buf size, bytesperline * height_16align * 1.5
+ * buf_max: memory size / frame_size
+ * buf_cnt: the num of frame write to buf.
+ */
+struct rkisp_tb_stream_info {
+	unsigned int width;
+	unsigned int height;
+	unsigned int bytesperline;
+	unsigned int frame_size;
+	unsigned int buf_max;
+	unsigned int buf_cnt;
+	struct rkisp_tb_stream_buf buf[RKISP_TB_STREAM_BUF_MAX];
 } __attribute__ ((packed));
 
 /* trigger event mode
