@@ -619,7 +619,8 @@ static __init int cxl_test_init(void)
 		goto err_gen_pool_create;
 	}
 
-	rc = gen_pool_add(cxl_mock_pool, SZ_512G, SZ_64G, NUMA_NO_NODE);
+	rc = gen_pool_add(cxl_mock_pool, iomem_resource.end + 1 - SZ_64G,
+			  SZ_64G, NUMA_NO_NODE);
 	if (rc)
 		goto err_gen_pool_add;
 
