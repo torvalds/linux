@@ -1912,7 +1912,7 @@ retry_snap:
 		if (dirty)
 			__mark_inode_dirty(inode, dirty);
 		if (ceph_quota_is_max_bytes_approaching(inode, iocb->ki_pos))
-			ceph_check_caps(ci, 0, NULL);
+			ceph_check_caps(ci, CHECK_CAPS_FLUSH, NULL);
 	}
 
 	dout("aio_write %p %llx.%llx %llu~%u  dropping cap refs on %s\n",
@@ -2529,7 +2529,8 @@ static ssize_t __ceph_copy_file_range(struct file *src_file, loff_t src_off,
 		/* Let the MDS know about dst file size change */
 		if (ceph_inode_set_size(dst_inode, dst_off) ||
 		    ceph_quota_is_max_bytes_approaching(dst_inode, dst_off))
-			ceph_check_caps(dst_ci, CHECK_CAPS_AUTHONLY, NULL);
+			ceph_check_caps(dst_ci, CHECK_CAPS_AUTHONLY | CHECK_CAPS_FLUSH,
+					NULL);
 	}
 	/* Mark Fw dirty */
 	spin_lock(&dst_ci->i_ceph_lock);
