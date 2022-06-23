@@ -178,7 +178,7 @@ static int csi2_dphy_update_sensor_mbus(struct v4l2_subdev *sd)
 				       RKMODULE_GET_CSI_DPHY_PARAM,
 				       &dphy->dphy_param);
 		if (ret) {
-			dev_err(dphy->dev, "%s fail to get dphy param, used default value\n",
+			dev_dbg(dphy->dev, "%s fail to get dphy param, used default value\n",
 				__func__);
 			ret = 0;
 		}

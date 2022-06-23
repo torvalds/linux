@@ -116,6 +116,8 @@ struct csi2_dphy_hw {
 
 	int (*stream_on)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
 	int (*stream_off)(struct csi2_dphy *dphy, struct v4l2_subdev *sd);
+	int (*ttl_mode_enable)(struct csi2_dphy_hw *hw);
+	void (*ttl_mode_disable)(struct csi2_dphy_hw *hw);
 };
 
 #endif

@@ -784,6 +784,29 @@ static int csi2_dphy_hw_stream_off(struct csi2_dphy *dphy,
 	return 0;
 }
 
+static int csi2_dphy_hw_ttl_mode_enable(struct csi2_dphy_hw *hw)
+{
+	int ret = 0;
+
+	ret = clk_bulk_prepare_enable(hw->num_clks, hw->clks_bulk);
+	if (ret) {
+		dev_err(hw->dev, "failed to enable clks\n");
+		return ret;
+	}
+
+	write_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, 0x7d);
+	write_csi2_dphy_reg(hw, CSI2PHY_DUAL_CLK_EN, 0x5f);
+	write_csi2_dphy_reg(hw, CSI2PHY_PATH0_MODEL, 0x1);
+	write_csi2_dphy_reg(hw, CSI2PHY_PATH1_MODEL, 0x1);
+	return ret;
+}
+
+static void csi2_dphy_hw_ttl_mode_disable(struct csi2_dphy_hw *hw)
+{
+	write_csi2_dphy_reg(hw, CSI2PHY_REG_CTRL_LANE_ENABLE, 0x01);
+	clk_bulk_disable_unprepare(hw->num_clks, hw->clks_bulk);
+}
+
 static void rk3568_csi2_dphy_hw_individual_init(struct csi2_dphy_hw *hw)
 {
 	hw->grf_regs = rk3568_grf_dphy_regs;
@@ -916,6 +939,14 @@ static int rockchip_csi2_dphy_hw_probe(struct platform_device *pdev)
 	}
 	dphy_hw->stream_on = drv_data->stream_on;
 	dphy_hw->stream_off = drv_data->stream_off;
+
+	if (drv_data->chip_id == CHIP_ID_RV1106) {
+		dphy_hw->ttl_mode_enable = csi2_dphy_hw_ttl_mode_enable;
+		dphy_hw->ttl_mode_disable = csi2_dphy_hw_ttl_mode_disable;
+	} else {
+		dphy_hw->ttl_mode_enable = NULL;
+		dphy_hw->ttl_mode_disable = NULL;
+	}
 
 	atomic_set(&dphy_hw->stream_cnt, 0);
 
