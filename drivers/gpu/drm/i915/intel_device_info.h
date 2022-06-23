@@ -225,15 +225,16 @@ struct intel_device_info {
 		u8 fbc_mask;
 		u8 abox_mask;
 
+		struct {
+			u16 size; /* in blocks */
+			u8 slice_mask;
+		} dbuf;
+
 #define DEFINE_FLAG(name) u8 name:1
 		DEV_INFO_DISPLAY_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
 	} display;
 
-	struct {
-		u16 size; /* in blocks */
-		u8 slice_mask;
-	} dbuf;
 
 	/* Register offsets for the various display pipes and transcoders */
 	int pipe_offsets[I915_MAX_TRANSCODERS];
