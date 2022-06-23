@@ -1526,16 +1526,20 @@ static int svs_resume(struct device *dev)
 	ret = reset_control_deassert(svsp->rst);
 	if (ret) {
 		dev_err(svsp->dev, "cannot deassert reset %d\n", ret);
-		return ret;
+		goto out_of_resume;
 	}
 
 	ret = svs_init02(svsp);
 	if (ret)
-		return ret;
+		goto out_of_resume;
 
 	svs_mon_mode(svsp);
 
 	return 0;
+
+out_of_resume:
+	clk_disable_unprepare(svsp->main_clk);
+	return ret;
 }
 
 static int svs_bank_resource_setup(struct svs_platform *svsp)
