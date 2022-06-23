@@ -39,6 +39,22 @@ struct io_poll_table {
 #define IO_POLL_CANCEL_FLAG	BIT(31)
 #define IO_POLL_REF_MASK	GENMASK(30, 0)
 
+#define IO_WQE_F_DOUBLE		1
+
+static inline struct io_kiocb *wqe_to_req(struct wait_queue_entry *wqe)
+{
+	unsigned long priv = (unsigned long)wqe->private;
+
+	return (struct io_kiocb *)(priv & ~IO_WQE_F_DOUBLE);
+}
+
+static inline bool wqe_is_double(struct wait_queue_entry *wqe)
+{
+	unsigned long priv = (unsigned long)wqe->private;
+
+	return priv & IO_WQE_F_DOUBLE;
+}
+
 /*
  * If refs part of ->poll_refs (see IO_POLL_REF_MASK) is 0, it's free. We can
  * bump it and acquire ownership. It's disallowed to modify requests while not
@@ -306,8 +322,6 @@ static void io_poll_cancel_req(struct io_kiocb *req)
 	io_poll_execute(req, 0, 0);
 }
 
-#define wqe_to_req(wait)	((void *)((unsigned long) (wait)->private & ~1))
-#define wqe_is_double(wait)	((unsigned long) (wait)->private & 1)
 #define IO_ASYNC_POLL_COMMON	(EPOLLONESHOT | EPOLLPRI)
 
 static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
@@ -392,7 +406,7 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 			return;
 		}
 		/* mark as double wq entry */
-		wqe_private |= 1;
+		wqe_private |= IO_WQE_F_DOUBLE;
 		req->flags |= REQ_F_DOUBLE_POLL;
 		io_init_poll_iocb(poll, first->events, first->wait.func);
 		*poll_ptr = poll;
