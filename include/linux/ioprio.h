@@ -53,10 +53,17 @@ static inline int task_nice_ioclass(struct task_struct *task)
 static inline int get_current_ioprio(void)
 {
 	struct io_context *ioc = current->io_context;
+	int prio;
 
 	if (ioc)
-		return ioc->ioprio;
-	return IOPRIO_DEFAULT;
+		prio = ioc->ioprio;
+	else
+		prio = IOPRIO_DEFAULT;
+
+	if (IOPRIO_PRIO_CLASS(prio) == IOPRIO_CLASS_NONE)
+		prio = IOPRIO_PRIO_VALUE(task_nice_ioclass(current),
+					 task_nice_ioprio(current));
+	return prio;
 }
 
 /*
