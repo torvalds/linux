@@ -821,6 +821,10 @@
 	};
 };
 
+&mfg_async {
+	domain-supply = <&mt6358_vsram_gpu_reg>;
+};
+
 &mfg {
 	domain-supply = <&mt6358_vgpu_reg>;
 };
