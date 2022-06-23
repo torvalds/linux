@@ -12,7 +12,6 @@ extern unsigned long long memory_limit;
 extern void *zalloc_maybe_bootmem(size_t size, gfp_t mask);
 
 struct device_node;
-extern void note_scsi_host(struct device_node *, void *);
 
 /* Used in very early kernel initialization. */
 extern unsigned long reloc_offset(void);
