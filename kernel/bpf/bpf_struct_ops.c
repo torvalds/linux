@@ -503,10 +503,9 @@ static int bpf_struct_ops_map_update_elem(struct bpf_map *map, void *key,
 		goto unlock;
 	}
 
-	/* Error during st_ops->reg().  It is very unlikely since
-	 * the above init_member() should have caught it earlier
-	 * before reg().  The only possibility is if there was a race
-	 * in registering the struct_ops (under the same name) to
+	/* Error during st_ops->reg(). Can happen if this struct_ops needs to be
+	 * verified as a whole, after all init_member() calls. Can also happen if
+	 * there was a race in registering the struct_ops (under the same name) to
 	 * a sub-system through different struct_ops's maps.
 	 */
 	set_memory_nx((long)st_map->image, 1);
