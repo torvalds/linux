@@ -739,6 +739,8 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	}
 
 	if (chip->not_fixed_stride) {
+		dev_warn(map->dev, "not_fixed_stride is deprecated; use ->get_irq_reg() instead");
+
 		for (i = 0; i < chip->num_regs; i++)
 			if (chip->sub_reg_offsets[i].num_regs != 1)
 				return -EINVAL;
