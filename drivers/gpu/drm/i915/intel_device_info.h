@@ -239,15 +239,14 @@ struct intel_device_info {
 		u32 pipe_offsets[I915_MAX_TRANSCODERS];
 		u32 trans_offsets[I915_MAX_TRANSCODERS];
 		u32 cursor_offsets[I915_MAX_PIPES];
+
+		struct {
+			u32 degamma_lut_size;
+			u32 gamma_lut_size;
+			u32 degamma_lut_tests;
+			u32 gamma_lut_tests;
+		} color;
 	} display;
-
-
-	struct color_luts {
-		u32 degamma_lut_size;
-		u32 gamma_lut_size;
-		u32 degamma_lut_tests;
-		u32 gamma_lut_tests;
-	} color;
 };
 
 struct intel_runtime_info {

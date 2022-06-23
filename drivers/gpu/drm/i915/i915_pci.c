@@ -127,30 +127,33 @@
 	}
 
 #define I9XX_COLORS \
-	.color = { .gamma_lut_size = 256 }
+	.display.color = { .gamma_lut_size = 256 }
 #define I965_COLORS \
-	.color = { .gamma_lut_size = 129, \
+	.display.color = { .gamma_lut_size = 129, \
 		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
 #define ILK_COLORS \
-	.color = { .gamma_lut_size = 1024 }
+	.display.color = { .gamma_lut_size = 1024 }
 #define IVB_COLORS \
-	.color = { .degamma_lut_size = 1024, .gamma_lut_size = 1024 }
+	.display.color = { .degamma_lut_size = 1024, .gamma_lut_size = 1024 }
 #define CHV_COLORS \
-	.color = { .degamma_lut_size = 65, .gamma_lut_size = 257, \
-		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
-		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+	.display.color = { \
+		.degamma_lut_size = 65, .gamma_lut_size = 257, \
+		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+		.gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
 #define GLK_COLORS \
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 1024, \
-		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
-					DRM_COLOR_LUT_EQUAL_CHANNELS, \
+	.display.color = { \
+		.degamma_lut_size = 33, .gamma_lut_size = 1024, \
+		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
+				     DRM_COLOR_LUT_EQUAL_CHANNELS, \
 	}
 #define ICL_COLORS \
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145, \
-		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
-					DRM_COLOR_LUT_EQUAL_CHANNELS, \
-		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+	.display.color = { \
+		.degamma_lut_size = 33, .gamma_lut_size = 262145, \
+		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
+				     DRM_COLOR_LUT_EQUAL_CHANNELS, \
+		.gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
 
 /* Keep in gen based order, and chronological order within a gen */
@@ -930,9 +933,10 @@ static const struct intel_device_info adl_s_info = {
 
 #define XE_LPD_FEATURES \
 	.display.abox_mask = GENMASK(1, 0),					\
-	.color = { .degamma_lut_size = 128, .gamma_lut_size = 1024,		\
-		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING |		\
-					DRM_COLOR_LUT_EQUAL_CHANNELS,		\
+	.display.color = {							\
+		.degamma_lut_size = 128, .gamma_lut_size = 1024,		\
+		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING |		\
+				     DRM_COLOR_LUT_EQUAL_CHANNELS,		\
 	},									\
 	.display.dbuf.size = 4096,						\
 	.display.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2) | BIT(DBUF_S3) |	\
