@@ -89,10 +89,9 @@ struct mlxsw_sp_fid_ops {
 			    struct mlxsw_sp_port *port, u16 vid);
 	void (*port_vid_unmap)(struct mlxsw_sp_fid *fid,
 			       struct mlxsw_sp_port *port, u16 vid);
-	int (*vni_set)(struct mlxsw_sp_fid *fid, __be32 vni);
+	int (*vni_set)(struct mlxsw_sp_fid *fid);
 	void (*vni_clear)(struct mlxsw_sp_fid *fid);
-	int (*nve_flood_index_set)(struct mlxsw_sp_fid *fid,
-				   u32 nve_flood_index);
+	int (*nve_flood_index_set)(struct mlxsw_sp_fid *fid);
 	void (*nve_flood_index_clear)(struct mlxsw_sp_fid *fid);
 	void (*fdb_clear_offload)(const struct mlxsw_sp_fid *fid,
 				  const struct net_device *nve_dev);
@@ -211,14 +210,17 @@ int mlxsw_sp_fid_nve_flood_index_set(struct mlxsw_sp_fid *fid,
 	if (WARN_ON(fid->nve_flood_index_valid))
 		return -EINVAL;
 
-	err = ops->nve_flood_index_set(fid, nve_flood_index);
-	if (err)
-		return err;
-
 	fid->nve_flood_index = nve_flood_index;
 	fid->nve_flood_index_valid = true;
+	err = ops->nve_flood_index_set(fid);
+	if (err)
+		goto err_nve_flood_index_set;
 
 	return 0;
+
+err_nve_flood_index_set:
+	fid->nve_flood_index_valid = false;
+	return err;
 }
 
 void mlxsw_sp_fid_nve_flood_index_clear(struct mlxsw_sp_fid *fid)
@@ -258,15 +260,15 @@ int mlxsw_sp_fid_vni_set(struct mlxsw_sp_fid *fid, enum mlxsw_sp_nve_type type,
 	if (err)
 		return err;
 
-	err = ops->vni_set(fid, vni);
+	fid->vni_valid = true;
+	err = ops->vni_set(fid);
 	if (err)
 		goto err_vni_set;
-
-	fid->vni_valid = true;
 
 	return 0;
 
 err_vni_set:
+	fid->vni_valid = false;
 	rhashtable_remove_fast(&mlxsw_sp->fid_core->vni_ht, &fid->vni_ht_node,
 			       mlxsw_sp_fid_vni_ht_params);
 	return err;
@@ -662,12 +664,12 @@ mlxsw_sp_fid_8021d_port_vid_unmap(struct mlxsw_sp_fid *fid,
 				    mlxsw_sp_port->local_port, vid, false);
 }
 
-static int mlxsw_sp_fid_8021d_vni_set(struct mlxsw_sp_fid *fid, __be32 vni)
+static int mlxsw_sp_fid_8021d_vni_set(struct mlxsw_sp_fid *fid)
 {
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
 
 	return mlxsw_sp_fid_vni_op(fid_family->mlxsw_sp, fid->fid_index,
-				   fid->fid_offset, vni, true,
+				   fid->fid_offset, fid->vni, fid->vni_valid,
 				   fid->nve_flood_index,
 				   fid->nve_flood_index_valid);
 }
@@ -677,18 +679,18 @@ static void mlxsw_sp_fid_8021d_vni_clear(struct mlxsw_sp_fid *fid)
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
 
 	mlxsw_sp_fid_vni_op(fid_family->mlxsw_sp, fid->fid_index,
-			    fid->fid_offset, 0, false, fid->nve_flood_index,
-			    fid->nve_flood_index_valid);
+			    fid->fid_offset, 0, fid->vni_valid,
+			    fid->nve_flood_index, fid->nve_flood_index_valid);
 }
 
-static int mlxsw_sp_fid_8021d_nve_flood_index_set(struct mlxsw_sp_fid *fid,
-						  u32 nve_flood_index)
+static int mlxsw_sp_fid_8021d_nve_flood_index_set(struct mlxsw_sp_fid *fid)
 {
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
 
 	return mlxsw_sp_fid_vni_op(fid_family->mlxsw_sp, fid->fid_index,
 				   fid->fid_offset, fid->vni, fid->vni_valid,
-				   nve_flood_index, true);
+				   fid->nve_flood_index,
+				   fid->nve_flood_index_valid);
 }
 
 static void mlxsw_sp_fid_8021d_nve_flood_index_clear(struct mlxsw_sp_fid *fid)
@@ -697,7 +699,7 @@ static void mlxsw_sp_fid_8021d_nve_flood_index_clear(struct mlxsw_sp_fid *fid)
 
 	mlxsw_sp_fid_vni_op(fid_family->mlxsw_sp, fid->fid_index,
 			    fid->fid_offset, fid->vni, fid->vni_valid, 0,
-			    false);
+			    fid->nve_flood_index_valid);
 }
 
 static void
@@ -880,7 +882,7 @@ mlxsw_sp_fid_rfid_port_vid_unmap(struct mlxsw_sp_fid *fid,
 	mlxsw_sp_fid_port_vid_list_del(fid, mlxsw_sp_port->local_port, vid);
 }
 
-static int mlxsw_sp_fid_rfid_vni_set(struct mlxsw_sp_fid *fid, __be32 vni)
+static int mlxsw_sp_fid_rfid_vni_set(struct mlxsw_sp_fid *fid)
 {
 	return -EOPNOTSUPP;
 }
@@ -890,8 +892,7 @@ static void mlxsw_sp_fid_rfid_vni_clear(struct mlxsw_sp_fid *fid)
 	WARN_ON_ONCE(1);
 }
 
-static int mlxsw_sp_fid_rfid_nve_flood_index_set(struct mlxsw_sp_fid *fid,
-						 u32 nve_flood_index)
+static int mlxsw_sp_fid_rfid_nve_flood_index_set(struct mlxsw_sp_fid *fid)
 {
 	return -EOPNOTSUPP;
 }
@@ -959,7 +960,7 @@ static bool mlxsw_sp_fid_dummy_compare(const struct mlxsw_sp_fid *fid,
 	return true;
 }
 
-static int mlxsw_sp_fid_dummy_vni_set(struct mlxsw_sp_fid *fid, __be32 vni)
+static int mlxsw_sp_fid_dummy_vni_set(struct mlxsw_sp_fid *fid)
 {
 	return -EOPNOTSUPP;
 }
@@ -969,8 +970,7 @@ static void mlxsw_sp_fid_dummy_vni_clear(struct mlxsw_sp_fid *fid)
 	WARN_ON_ONCE(1);
 }
 
-static int mlxsw_sp_fid_dummy_nve_flood_index_set(struct mlxsw_sp_fid *fid,
-						  u32 nve_flood_index)
+static int mlxsw_sp_fid_dummy_nve_flood_index_set(struct mlxsw_sp_fid *fid)
 {
 	return -EOPNOTSUPP;
 }
