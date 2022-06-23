@@ -368,7 +368,7 @@ static int __init do_starfive_timer_of_init(struct device_node *np,
 	count = of_irq_count(np);
 	if (count > NR_TIMERS || count <= 0) {
 		ret = -EINVAL;
-		goto err;
+		goto count_err;
 	}
 
 	for (index = 0; index < count; index++) {
@@ -387,27 +387,45 @@ static int __init do_starfive_timer_of_init(struct device_node *np,
 			if (clk_prepare_enable(clk))
 				pr_warn("clk for %pOFn is present,"
 					"but could not be activated\n", np);
-
 		}
 
 		irq = irq_of_parse_and_map(np, index);
 		if (irq < 0) {
 			ret = -EINVAL;
-			goto err;
+			goto irq_err;
 		}
 
 		ret = starfive_clockevents_register(clkevt, irq, np, name);
 		if (ret) {
 			pr_err("%s: init clockevents failed.\n", name);
-			goto err;
+			goto irq_err;
 		}
+		clkevt->irq = irq;
 
 		ret = starfive_clocksource_init(clkevt, name, np);
 		if (ret)
-			goto err;
+			goto irq_err;
 	}
+	if (!IS_ERR(pclk))
+		clk_put(pclk);
 
 	return 0;
+
+irq_err:
+	for (; index > -1; index--) {
+		clkevt = &starfive_jh7100_clkevt[index];
+		if (!clkevt->irq)
+			free_irq(clkevt->irq, &clkevt->evt);
+		if (!clkevt->clk) {
+			clk_disable_unprepare(clkevt->clk);
+			clk_put(clkevt->clk);
+		}
+	}
+count_err:
+	if (!IS_ERR(pclk)) {
+		clk_disable_unprepare(pclk);
+		clk_put(pclk);
+	}
 err:
 	iounmap(base);
 	return ret;
