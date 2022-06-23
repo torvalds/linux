@@ -1401,10 +1401,12 @@ static int rockchip_dai_tdm_slot(struct snd_soc_dai *dai,
 	mask = TDM_SLOT_BIT_WIDTH_MSK | TDM_FRAME_WIDTH_MSK;
 	val = TDM_SLOT_BIT_WIDTH(slot_width) |
 	      TDM_FRAME_WIDTH(slots * slot_width);
+	pm_runtime_get_sync(dai->dev);
 	regmap_update_bits(i2s_tdm->regmap, I2S_TDM_TXCR,
 			   mask, val);
 	regmap_update_bits(i2s_tdm->regmap, I2S_TDM_RXCR,
 			   mask, val);
+	pm_runtime_put(dai->dev);
 
 	return 0;
 }
