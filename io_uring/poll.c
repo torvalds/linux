@@ -435,6 +435,12 @@ static void io_poll_queue_proc(struct file *file, struct wait_queue_head *head,
 			(struct io_poll **) &pt->req->async_data);
 }
 
+/*
+ * Returns 0 when it's handed over for polling. The caller owns the requests if
+ * it returns non-zero, but otherwise should not touch it. Negative values
+ * contain an error code. When the result is >0, the polling has completed
+ * inline and ipt.result_mask is set to the mask.
+ */
 static int __io_arm_poll_handler(struct io_kiocb *req,
 				 struct io_poll *poll,
 				 struct io_poll_table *ipt, __poll_t mask)
@@ -461,6 +467,17 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 	atomic_set(&req->poll_refs, 1);
 	mask = vfs_poll(req->file, &ipt->pt) & poll->events;
 
+	if (unlikely(ipt->error || !ipt->nr_entries)) {
+		io_poll_remove_entries(req);
+
+		if (mask && (poll->events & EPOLLET)) {
+			ipt->result_mask = mask;
+			return 1;
+		} else {
+			return ipt->error ?: -EINVAL;
+		}
+	}
+
 	if (mask &&
 	   ((poll->events & (EPOLLET|EPOLLONESHOT)) == (EPOLLET|EPOLLONESHOT))) {
 		io_poll_remove_entries(req);
@@ -469,25 +486,12 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 		return 1;
 	}
 
-	if (!mask && unlikely(ipt->error || !ipt->nr_entries)) {
-		io_poll_remove_entries(req);
-		if (!ipt->error)
-			ipt->error = -EINVAL;
-		return 0;
-	}
-
 	if (req->flags & REQ_F_HASH_LOCKED)
 		io_poll_req_insert_locked(req);
 	else
 		io_poll_req_insert(req);
 
 	if (mask && (poll->events & EPOLLET)) {
-		/* can't multishot if failed, just queue the event we've got */
-		if (unlikely(ipt->error || !ipt->nr_entries)) {
-			poll->events |= EPOLLONESHOT;
-			req->apoll_events |= EPOLLONESHOT;
-			ipt->error = 0;
-		}
 		__io_poll_execute(req, mask);
 		return 0;
 	}
@@ -582,9 +586,8 @@ int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 	io_kbuf_recycle(req, issue_flags);
 
 	ret = __io_arm_poll_handler(req, &apoll->poll, &ipt, mask);
-	if (ret || ipt.error)
-		return ret ? IO_APOLL_READY : IO_APOLL_ABORTED;
-
+	if (ret)
+		return ret > 0 ? IO_APOLL_READY : IO_APOLL_ABORTED;
 	trace_io_uring_poll_arm(req, mask, apoll->poll.events);
 	return IO_APOLL_OK;
 }
@@ -815,16 +818,11 @@ int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 		req->flags &= ~REQ_F_HASH_LOCKED;
 
 	ret = __io_arm_poll_handler(req, poll, &ipt, poll->events);
-	if (ret) {
+	if (ret > 0) {
 		io_req_set_res(req, ipt.result_mask, 0);
 		return IOU_OK;
 	}
-	if (ipt.error) {
-		req_set_fail(req);
-		return ipt.error;
-	}
-
-	return IOU_ISSUE_SKIP_COMPLETE;
+	return ret ?: IOU_ISSUE_SKIP_COMPLETE;
 }
 
 int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
