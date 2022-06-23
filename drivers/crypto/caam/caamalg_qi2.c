@@ -29,7 +29,7 @@
 				 SHA512_DIGEST_SIZE * 2)
 
 /*
- * This is a a cache of buffers, from which the users of CAAM QI driver
+ * This is a cache of buffers, from which the users of CAAM QI driver
  * can allocate short buffers. It's speedier than doing kmalloc on the hotpath.
  * NOTE: A more elegant solution would be to have some headroom in the frames
  *       being processed. This can be added by the dpaa2-eth driver. This would
