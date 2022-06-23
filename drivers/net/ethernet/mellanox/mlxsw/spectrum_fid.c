@@ -428,18 +428,17 @@ static int mlxsw_sp_fid_op(struct mlxsw_sp *mlxsw_sp, u16 fid_index,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfmr), sfmr_pl);
 }
 
-static int mlxsw_sp_fid_vni_op(struct mlxsw_sp *mlxsw_sp, u16 fid_index,
-			       u16 fid_offset, __be32 vni, bool vni_valid,
-			       u32 nve_flood_index, bool nve_flood_index_valid)
+static int mlxsw_sp_fid_edit_op(const struct mlxsw_sp_fid *fid)
 {
+	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
 	char sfmr_pl[MLXSW_REG_SFMR_LEN];
 
-	mlxsw_reg_sfmr_pack(sfmr_pl, MLXSW_REG_SFMR_OP_CREATE_FID, fid_index,
-			    fid_offset);
-	mlxsw_reg_sfmr_vv_set(sfmr_pl, vni_valid);
-	mlxsw_reg_sfmr_vni_set(sfmr_pl, be32_to_cpu(vni));
-	mlxsw_reg_sfmr_vtfp_set(sfmr_pl, nve_flood_index_valid);
-	mlxsw_reg_sfmr_nve_tunnel_flood_ptr_set(sfmr_pl, nve_flood_index);
+	mlxsw_reg_sfmr_pack(sfmr_pl, MLXSW_REG_SFMR_OP_CREATE_FID,
+			    fid->fid_index, fid->fid_offset);
+	mlxsw_reg_sfmr_vv_set(sfmr_pl, fid->vni_valid);
+	mlxsw_reg_sfmr_vni_set(sfmr_pl, be32_to_cpu(fid->vni));
+	mlxsw_reg_sfmr_vtfp_set(sfmr_pl, fid->nve_flood_index_valid);
+	mlxsw_reg_sfmr_nve_tunnel_flood_ptr_set(sfmr_pl, fid->nve_flood_index);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfmr), sfmr_pl);
 }
 
@@ -666,40 +665,22 @@ mlxsw_sp_fid_8021d_port_vid_unmap(struct mlxsw_sp_fid *fid,
 
 static int mlxsw_sp_fid_8021d_vni_set(struct mlxsw_sp_fid *fid)
 {
-	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
-
-	return mlxsw_sp_fid_vni_op(fid_family->mlxsw_sp, fid->fid_index,
-				   fid->fid_offset, fid->vni, fid->vni_valid,
-				   fid->nve_flood_index,
-				   fid->nve_flood_index_valid);
+	return mlxsw_sp_fid_edit_op(fid);
 }
 
 static void mlxsw_sp_fid_8021d_vni_clear(struct mlxsw_sp_fid *fid)
 {
-	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
-
-	mlxsw_sp_fid_vni_op(fid_family->mlxsw_sp, fid->fid_index,
-			    fid->fid_offset, 0, fid->vni_valid,
-			    fid->nve_flood_index, fid->nve_flood_index_valid);
+	mlxsw_sp_fid_edit_op(fid);
 }
 
 static int mlxsw_sp_fid_8021d_nve_flood_index_set(struct mlxsw_sp_fid *fid)
 {
-	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
-
-	return mlxsw_sp_fid_vni_op(fid_family->mlxsw_sp, fid->fid_index,
-				   fid->fid_offset, fid->vni, fid->vni_valid,
-				   fid->nve_flood_index,
-				   fid->nve_flood_index_valid);
+	return mlxsw_sp_fid_edit_op(fid);
 }
 
 static void mlxsw_sp_fid_8021d_nve_flood_index_clear(struct mlxsw_sp_fid *fid)
 {
-	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
-
-	mlxsw_sp_fid_vni_op(fid_family->mlxsw_sp, fid->fid_index,
-			    fid->fid_offset, fid->vni, fid->vni_valid, 0,
-			    fid->nve_flood_index_valid);
+	mlxsw_sp_fid_edit_op(fid);
 }
 
 static void
