@@ -346,9 +346,9 @@ int clk_hw_register_clkdev(struct clk_hw *hw, const char *con_id,
 }
 EXPORT_SYMBOL(clk_hw_register_clkdev);
 
-static void devm_clkdev_release(struct device *dev, void *res)
+static void devm_clkdev_release(void *res)
 {
-	clkdev_drop(*(struct clk_lookup **)res);
+	clkdev_drop(res);
 }
 
 /**
@@ -369,17 +369,13 @@ static void devm_clkdev_release(struct device *dev, void *res)
 int devm_clk_hw_register_clkdev(struct device *dev, struct clk_hw *hw,
 				const char *con_id, const char *dev_id)
 {
-	int rval = -ENOMEM;
-	struct clk_lookup **cl;
+	struct clk_lookup *cl;
+	int rval;
 
-	cl = devres_alloc(devm_clkdev_release, sizeof(*cl), GFP_KERNEL);
-	if (cl) {
-		rval = do_clk_register_clkdev(hw, cl, con_id, dev_id);
-		if (!rval)
-			devres_add(dev, cl);
-		else
-			devres_free(cl);
-	}
-	return rval;
+	rval = do_clk_register_clkdev(hw, &cl, con_id, dev_id);
+	if (rval)
+		return rval;
+
+	return devm_add_action_or_reset(dev, devm_clkdev_release, cl);
 }
 EXPORT_SYMBOL(devm_clk_hw_register_clkdev);
