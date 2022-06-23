@@ -22,6 +22,12 @@ struct mlxsw_sp_fid_core {
 	unsigned int *port_fid_mappings;
 };
 
+struct mlxsw_sp_fid_port_vid {
+	struct list_head list;
+	u16 local_port;
+	u16 vid;
+};
+
 struct mlxsw_sp_fid {
 	struct list_head list;
 	struct mlxsw_sp_rif *rif;
@@ -38,6 +44,7 @@ struct mlxsw_sp_fid {
 	int nve_ifindex;
 	u8 vni_valid:1,
 	   nve_flood_index_valid:1;
+	struct list_head port_vid_list; /* Ordered by local port. */
 };
 
 struct mlxsw_sp_fid_8021q {
@@ -567,6 +574,44 @@ static void mlxsw_sp_port_vlan_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
 	}
 }
 
+static int
+mlxsw_sp_fid_port_vid_list_add(struct mlxsw_sp_fid *fid, u16 local_port,
+			       u16 vid)
+{
+	struct mlxsw_sp_fid_port_vid *port_vid, *tmp_port_vid;
+
+	port_vid = kzalloc(sizeof(*port_vid), GFP_KERNEL);
+	if (!port_vid)
+		return -ENOMEM;
+
+	port_vid->local_port = local_port;
+	port_vid->vid = vid;
+
+	list_for_each_entry(tmp_port_vid, &fid->port_vid_list, list) {
+		if (tmp_port_vid->local_port > local_port)
+			break;
+	}
+
+	list_add_tail(&port_vid->list, &tmp_port_vid->list);
+	return 0;
+}
+
+static void
+mlxsw_sp_fid_port_vid_list_del(struct mlxsw_sp_fid *fid, u16 local_port,
+			       u16 vid)
+{
+	struct mlxsw_sp_fid_port_vid *port_vid, *tmp;
+
+	list_for_each_entry_safe(port_vid, tmp, &fid->port_vid_list, list) {
+		if (port_vid->local_port != local_port || port_vid->vid != vid)
+			continue;
+
+		list_del(&port_vid->list);
+		kfree(port_vid);
+		return;
+	}
+}
+
 static int mlxsw_sp_fid_8021d_port_vid_map(struct mlxsw_sp_fid *fid,
 					   struct mlxsw_sp_port *mlxsw_sp_port,
 					   u16 vid)
@@ -580,6 +625,11 @@ static int mlxsw_sp_fid_8021d_port_vid_map(struct mlxsw_sp_fid *fid,
 	if (err)
 		return err;
 
+	err = mlxsw_sp_fid_port_vid_list_add(fid, mlxsw_sp_port->local_port,
+					     vid);
+	if (err)
+		goto err_port_vid_list_add;
+
 	if (mlxsw_sp->fid_core->port_fid_mappings[local_port]++ == 0) {
 		err = mlxsw_sp_port_vp_mode_trans(mlxsw_sp_port);
 		if (err)
@@ -590,6 +640,8 @@ static int mlxsw_sp_fid_8021d_port_vid_map(struct mlxsw_sp_fid *fid,
 
 err_port_vp_mode_trans:
 	mlxsw_sp->fid_core->port_fid_mappings[local_port]--;
+	mlxsw_sp_fid_port_vid_list_del(fid, mlxsw_sp_port->local_port, vid);
+err_port_vid_list_add:
 	__mlxsw_sp_fid_port_vid_map(mlxsw_sp, fid->fid_index,
 				    mlxsw_sp_port->local_port, vid, false);
 	return err;
@@ -605,6 +657,7 @@ mlxsw_sp_fid_8021d_port_vid_unmap(struct mlxsw_sp_fid *fid,
 	if (mlxsw_sp->fid_core->port_fid_mappings[local_port] == 1)
 		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 	mlxsw_sp->fid_core->port_fid_mappings[local_port]--;
+	mlxsw_sp_fid_port_vid_list_del(fid, mlxsw_sp_port->local_port, vid);
 	__mlxsw_sp_fid_port_vid_map(mlxsw_sp, fid->fid_index,
 				    mlxsw_sp_port->local_port, vid, false);
 }
@@ -792,6 +845,11 @@ static int mlxsw_sp_fid_rfid_port_vid_map(struct mlxsw_sp_fid *fid,
 	u16 local_port = mlxsw_sp_port->local_port;
 	int err;
 
+	err = mlxsw_sp_fid_port_vid_list_add(fid, mlxsw_sp_port->local_port,
+					     vid);
+	if (err)
+		return err;
+
 	/* We only need to transition the port to virtual mode since
 	 * {Port, VID} => FID is done by the firmware upon RIF creation.
 	 */
@@ -805,6 +863,7 @@ static int mlxsw_sp_fid_rfid_port_vid_map(struct mlxsw_sp_fid *fid,
 
 err_port_vp_mode_trans:
 	mlxsw_sp->fid_core->port_fid_mappings[local_port]--;
+	mlxsw_sp_fid_port_vid_list_del(fid, mlxsw_sp_port->local_port, vid);
 	return err;
 }
 
@@ -818,6 +877,7 @@ mlxsw_sp_fid_rfid_port_vid_unmap(struct mlxsw_sp_fid *fid,
 	if (mlxsw_sp->fid_core->port_fid_mappings[local_port] == 1)
 		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 	mlxsw_sp->fid_core->port_fid_mappings[local_port]--;
+	mlxsw_sp_fid_port_vid_list_del(fid, mlxsw_sp_port->local_port, vid);
 }
 
 static int mlxsw_sp_fid_rfid_vni_set(struct mlxsw_sp_fid *fid, __be32 vni)
@@ -982,6 +1042,8 @@ static struct mlxsw_sp_fid *mlxsw_sp_fid_get(struct mlxsw_sp *mlxsw_sp,
 	fid = kzalloc(fid_family->fid_size, GFP_KERNEL);
 	if (!fid)
 		return ERR_PTR(-ENOMEM);
+
+	INIT_LIST_HEAD(&fid->port_vid_list);
 	fid->fid_family = fid_family;
 
 	err = fid->fid_family->ops->index_alloc(fid, arg, &fid_index);
@@ -1029,6 +1091,7 @@ void mlxsw_sp_fid_put(struct mlxsw_sp_fid *fid)
 	fid->fid_family->ops->deconfigure(fid);
 	__clear_bit(fid->fid_index - fid_family->start_index,
 		    fid_family->fids_bitmap);
+	WARN_ON_ONCE(!list_empty(&fid->port_vid_list));
 	kfree(fid);
 }
 
