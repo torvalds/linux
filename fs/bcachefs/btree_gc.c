@@ -395,6 +395,7 @@ again:
 			bch2_btree_node_evict(c, cur_k.k);
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
 						      b->c.level, cur_k.k->k.p);
+			cur = NULL;
 			if (ret)
 				break;
 			continue;
@@ -413,6 +414,7 @@ again:
 			bch2_btree_node_evict(c, cur_k.k);
 			ret = bch2_journal_key_delete(c, b->c.btree_id,
 						      b->c.level, cur_k.k->k.p);
+			cur = NULL;
 			if (ret)
 				break;
 			continue;
