@@ -924,6 +924,18 @@ fsck_err:
 	return ERR_PTR(ret);
 }
 
+static bool btree_id_is_alloc(enum btree_id id)
+{
+	switch (id) {
+	case BTREE_ID_alloc:
+	case BTREE_ID_need_discard:
+	case BTREE_ID_freespace:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static int read_btree_roots(struct bch_fs *c)
 {
 	unsigned i;
@@ -935,14 +947,14 @@ static int read_btree_roots(struct bch_fs *c)
 		if (!r->alive)
 			continue;
 
-		if (i == BTREE_ID_alloc &&
+		if (btree_id_is_alloc(i) &&
 		    c->opts.reconstruct_alloc) {
 			c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 			continue;
 		}
 
 		if (r->error) {
-			__fsck_err(c, i == BTREE_ID_alloc
+			__fsck_err(c, btree_id_is_alloc(i)
 				   ? FSCK_CAN_IGNORE : 0,
 				   "invalid btree root %s",
 				   bch2_btree_ids[i]);
@@ -952,11 +964,12 @@ static int read_btree_roots(struct bch_fs *c)
 
 		ret = bch2_btree_root_read(c, i, &r->key, r->level);
 		if (ret) {
-			__fsck_err(c, i == BTREE_ID_alloc
+			__fsck_err(c,
+				   btree_id_is_alloc(i)
 				   ? FSCK_CAN_IGNORE : 0,
 				   "error reading btree root %s",
 				   bch2_btree_ids[i]);
-			if (i == BTREE_ID_alloc)
+			if (btree_id_is_alloc(i))
 				c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 		}
 	}
@@ -1191,6 +1204,9 @@ use_clean:
 	ret = bch2_fs_journal_start(&c->journal, journal_seq);
 	if (ret)
 		goto err;
+
+	if (c->opts.reconstruct_alloc)
+		bch2_journal_log_msg(&c->journal, "dropping alloc info");
 
 	/*
 	 * Skip past versions that might have possibly been used (as nonces),
