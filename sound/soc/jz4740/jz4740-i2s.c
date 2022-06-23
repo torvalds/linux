@@ -498,9 +498,10 @@ static const struct i2s_soc_info jz4780_i2s_soc_info = {
 };
 
 static const struct snd_soc_component_driver jz4740_i2s_component = {
-	.name		= "jz4740-i2s",
-	.suspend	= jz4740_i2s_suspend,
-	.resume		= jz4740_i2s_resume,
+	.name			= "jz4740-i2s",
+	.suspend		= jz4740_i2s_suspend,
+	.resume			= jz4740_i2s_resume,
+	.legacy_dai_naming	= 1,
 };
 
 static const struct of_device_id jz4740_of_matches[] = {
