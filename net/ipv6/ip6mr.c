@@ -730,7 +730,7 @@ static int mif6_delete(struct mr_table *mrt, int vifi, int notify,
 			if (VIF_EXISTS(mrt, tmp))
 				break;
 		}
-		mrt->maxvif = tmp + 1;
+		WRITE_ONCE(mrt->maxvif, tmp + 1);
 	}
 
 	write_unlock_bh(&mrt_lock);
@@ -927,7 +927,7 @@ static int mif6_add(struct net *net, struct mr_table *mrt,
 		WRITE_ONCE(mrt->mroute_reg_vif_num, vifi);
 #endif
 	if (vifi + 1 > mrt->maxvif)
-		mrt->maxvif = vifi + 1;
+		WRITE_ONCE(mrt->maxvif, vifi + 1);
 	write_unlock_bh(&mrt_lock);
 	call_ip6mr_vif_entry_notifiers(net, FIB_EVENT_VIF_ADD,
 				       v, dev, vifi, mrt->id);
@@ -2099,11 +2099,13 @@ out_free:
 	return 0;
 }
 
+/* Called with mrt_lock or rcu_read_lock() */
 static int ip6mr_find_vif(struct mr_table *mrt, struct net_device *dev)
 {
 	int ct;
 
-	for (ct = mrt->maxvif - 1; ct >= 0; ct--) {
+	/* Pairs with WRITE_ONCE() in mif6_delete()/mif6_add() */
+	for (ct = READ_ONCE(mrt->maxvif) - 1; ct >= 0; ct--) {
 		if (rcu_access_pointer(mrt->vif_table[ct].dev) == dev)
 			break;
 	}
@@ -2249,7 +2251,6 @@ int ip6_mr_input(struct sk_buff *skb)
 		return err;
 	}
 
-	read_lock(&mrt_lock);
 	cache = ip6mr_cache_find(mrt,
 				 &ipv6_hdr(skb)->saddr, &ipv6_hdr(skb)->daddr);
 	if (!cache) {
@@ -2270,15 +2271,14 @@ int ip6_mr_input(struct sk_buff *skb)
 		vif = ip6mr_find_vif(mrt, dev);
 		if (vif >= 0) {
 			int err = ip6mr_cache_unresolved(mrt, vif, skb, dev);
-			read_unlock(&mrt_lock);
 
 			return err;
 		}
-		read_unlock(&mrt_lock);
 		kfree_skb(skb);
 		return -ENODEV;
 	}
 
+	read_lock(&mrt_lock);
 	ip6_mr_forward(net, mrt, dev, skb, cache);
 
 	read_unlock(&mrt_lock);
