@@ -3,6 +3,7 @@
  * Copyright: 2017-2018 Cadence Design Systems, Inc.
  */
 
+#include <linux/bitfield.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/io.h>
@@ -44,6 +45,10 @@
 #define DPHY_CMN_IPDIV(x)		((x) << 1)
 #define DPHY_CMN_OPDIV_FROM_REG		BIT(6)
 #define DPHY_CMN_OPDIV(x)		((x) << 7)
+
+#define DPHY_BAND_CFG			DPHY_PCS(0x0)
+#define DPHY_BAND_CFG_LEFT_BAND		GENMASK(4, 0)
+#define DPHY_BAND_CFG_RIGHT_BAND	GENMASK(9, 5)
 
 #define DPHY_PSM_CFG			DPHY_PCS(0x4)
 #define DPHY_PSM_CFG_FROM_REG		BIT(0)
@@ -90,6 +95,12 @@ struct cdns_dphy {
 	struct clk *pll_ref_clk;
 	const struct cdns_dphy_ops *ops;
 	struct phy *phy;
+};
+
+/* Order of bands is important since the index is the band number. */
+static const unsigned int tx_bands[] = {
+	80, 100, 120, 160, 200, 240, 320, 390, 450, 510, 560, 640, 690, 770,
+	870, 950, 1000, 1200, 1400, 1600, 1800, 2000, 2200, 2500
 };
 
 static int cdns_dsi_get_dphy_pll_cfg(struct cdns_dphy *dphy,
@@ -232,6 +243,24 @@ static int cdns_dphy_config_from_opts(struct phy *phy,
 	return 0;
 }
 
+static int cdns_dphy_tx_get_band_ctrl(unsigned long hs_clk_rate)
+{
+	unsigned int rate;
+	int i;
+
+	rate = hs_clk_rate / 1000000UL;
+
+	if (rate < tx_bands[0])
+		return -EOPNOTSUPP;
+
+	for (i = 0; i < ARRAY_SIZE(tx_bands) - 1; i++) {
+		if (rate >= tx_bands[i] && rate < tx_bands[i + 1])
+			return i;
+	}
+
+	return -EOPNOTSUPP;
+}
+
 static int cdns_dphy_validate(struct phy *phy, enum phy_mode mode, int submode,
 			      union phy_configure_opts *opts)
 {
@@ -247,7 +276,8 @@ static int cdns_dphy_configure(struct phy *phy, union phy_configure_opts *opts)
 {
 	struct cdns_dphy *dphy = phy_get_drvdata(phy);
 	struct cdns_dphy_cfg cfg = { 0 };
-	int ret;
+	int ret, band_ctrl;
+	unsigned int reg;
 
 	ret = cdns_dphy_config_from_opts(phy, &opts->mipi_dphy, &cfg);
 	if (ret)
@@ -275,6 +305,14 @@ static int cdns_dphy_configure(struct phy *phy, union phy_configure_opts *opts)
 	 * clk.
 	 */
 	cdns_dphy_set_pll_cfg(dphy, &cfg);
+
+	band_ctrl = cdns_dphy_tx_get_band_ctrl(opts->mipi_dphy.hs_clk_rate);
+	if (band_ctrl < 0)
+		return band_ctrl;
+
+	reg = FIELD_PREP(DPHY_BAND_CFG_LEFT_BAND, band_ctrl) |
+	      FIELD_PREP(DPHY_BAND_CFG_RIGHT_BAND, band_ctrl);
+	writel(reg, dphy->regs + DPHY_BAND_CFG);
 
 	return 0;
 }
