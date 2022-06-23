@@ -106,7 +106,7 @@ static void ipmr_free_table(struct mr_table *mrt);
 static void ip_mr_forward(struct net *net, struct mr_table *mrt,
 			  struct net_device *dev, struct sk_buff *skb,
 			  struct mfc_cache *cache, int local);
-static int ipmr_cache_report(struct mr_table *mrt,
+static int ipmr_cache_report(const struct mr_table *mrt,
 			     struct sk_buff *pkt, vifi_t vifi, int assert);
 static void mroute_netlink_event(struct mr_table *mrt, struct mfc_cache *mfc,
 				 int cmd);
@@ -507,11 +507,15 @@ static netdev_tx_t reg_vif_xmit(struct sk_buff *skb, struct net_device *dev)
 		return err;
 	}
 
-	read_lock(&mrt_lock);
 	dev->stats.tx_bytes += skb->len;
 	dev->stats.tx_packets++;
-	ipmr_cache_report(mrt, skb, mrt->mroute_reg_vif_num, IGMPMSG_WHOLEPKT);
-	read_unlock(&mrt_lock);
+	rcu_read_lock();
+
+	/* Pairs with WRITE_ONCE() in vif_add() and vif_delete() */
+	ipmr_cache_report(mrt, skb, READ_ONCE(mrt->mroute_reg_vif_num),
+			  IGMPMSG_WHOLEPKT);
+
+	rcu_read_unlock();
 	kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
@@ -665,9 +669,10 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 				      vifi, mrt->id);
 	RCU_INIT_POINTER(v->dev, NULL);
 
-	if (vifi == mrt->mroute_reg_vif_num)
-		mrt->mroute_reg_vif_num = -1;
-
+	if (vifi == mrt->mroute_reg_vif_num) {
+		/* Pairs with READ_ONCE() in ipmr_cache_report() and reg_vif_xmit() */
+		WRITE_ONCE(mrt->mroute_reg_vif_num, -1);
+	}
 	if (vifi + 1 == mrt->maxvif) {
 		int tmp;
 
@@ -895,8 +900,10 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 	write_lock_bh(&mrt_lock);
 	rcu_assign_pointer(v->dev, dev);
 	netdev_tracker_alloc(dev, &v->dev_tracker, GFP_ATOMIC);
-	if (v->flags & VIFF_REGISTER)
-		mrt->mroute_reg_vif_num = vifi;
+	if (v->flags & VIFF_REGISTER) {
+		/* Pairs with READ_ONCE() in ipmr_cache_report() and reg_vif_xmit() */
+		WRITE_ONCE(mrt->mroute_reg_vif_num, vifi);
+	}
 	if (vifi+1 > mrt->maxvif)
 		mrt->maxvif = vifi+1;
 	write_unlock_bh(&mrt_lock);
@@ -1005,9 +1012,9 @@ static void ipmr_cache_resolve(struct net *net, struct mr_table *mrt,
 
 /* Bounce a cache query up to mrouted and netlink.
  *
- * Called under mrt_lock.
+ * Called under rcu_read_lock().
  */
-static int ipmr_cache_report(struct mr_table *mrt,
+static int ipmr_cache_report(const struct mr_table *mrt,
 			     struct sk_buff *pkt, vifi_t vifi, int assert)
 {
 	const int ihl = ip_hdrlen(pkt);
@@ -1042,8 +1049,11 @@ static int ipmr_cache_report(struct mr_table *mrt,
 			msg->im_vif = vifi;
 			msg->im_vif_hi = vifi >> 8;
 		} else {
-			msg->im_vif = mrt->mroute_reg_vif_num;
-			msg->im_vif_hi = mrt->mroute_reg_vif_num >> 8;
+			/* Pairs with WRITE_ONCE() in vif_add() and vif_delete() */
+			int vif_num = READ_ONCE(mrt->mroute_reg_vif_num);
+
+			msg->im_vif = vif_num;
+			msg->im_vif_hi = vif_num >> 8;
 		}
 		ip_hdr(skb)->ihl = sizeof(struct iphdr) >> 2;
 		ip_hdr(skb)->tot_len = htons(ntohs(ip_hdr(pkt)->tot_len) +
@@ -1068,10 +1078,8 @@ static int ipmr_cache_report(struct mr_table *mrt,
 		skb->transport_header = skb->network_header;
 	}
 
-	rcu_read_lock();
 	mroute_sk = rcu_dereference(mrt->mroute_sk);
 	if (!mroute_sk) {
-		rcu_read_unlock();
 		kfree_skb(skb);
 		return -EINVAL;
 	}
@@ -1080,7 +1088,7 @@ static int ipmr_cache_report(struct mr_table *mrt,
 
 	/* Deliver to mrouted */
 	ret = sock_queue_rcv_skb(mroute_sk, skb);
-	rcu_read_unlock();
+
 	if (ret < 0) {
 		net_warn_ratelimited("mroute: pending queue full, dropping entries\n");
 		kfree_skb(skb);
@@ -1090,6 +1098,7 @@ static int ipmr_cache_report(struct mr_table *mrt,
 }
 
 /* Queue a packet for resolution. It gets locked cache entry! */
+/* Called under rcu_read_lock() */
 static int ipmr_cache_unresolved(struct mr_table *mrt, vifi_t vifi,
 				 struct sk_buff *skb, struct net_device *dev)
 {
@@ -1830,7 +1839,9 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 		vif->bytes_out += skb->len;
 		vif_dev->stats.tx_bytes += skb->len;
 		vif_dev->stats.tx_packets++;
+		rcu_read_lock();
 		ipmr_cache_report(mrt, skb, vifi, IGMPMSG_WHOLEPKT);
+		rcu_read_unlock();
 		goto out_free;
 	}
 
@@ -1980,10 +1991,12 @@ static void ip_mr_forward(struct net *net, struct mr_table *mrt,
 			       c->_c.mfc_un.res.last_assert +
 			       MFC_ASSERT_THRESH)) {
 			c->_c.mfc_un.res.last_assert = jiffies;
+			rcu_read_lock();
 			ipmr_cache_report(mrt, skb, true_vifi, IGMPMSG_WRONGVIF);
 			if (mrt->mroute_do_wrvifwhole)
 				ipmr_cache_report(mrt, skb, true_vifi,
 						  IGMPMSG_WRVIFWHOLE);
+			rcu_read_unlock();
 		}
 		goto dont_forward;
 	}
