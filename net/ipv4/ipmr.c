@@ -680,7 +680,7 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 			if (VIF_EXISTS(mrt, tmp))
 				break;
 		}
-		mrt->maxvif = tmp+1;
+		WRITE_ONCE(mrt->maxvif, tmp + 1);
 	}
 
 	write_unlock_bh(&mrt_lock);
@@ -905,7 +905,7 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 		WRITE_ONCE(mrt->mroute_reg_vif_num, vifi);
 	}
 	if (vifi+1 > mrt->maxvif)
-		mrt->maxvif = vifi+1;
+		WRITE_ONCE(mrt->maxvif, vifi + 1);
 	write_unlock_bh(&mrt_lock);
 	call_ipmr_vif_entry_notifiers(net, FIB_EVENT_VIF_ADD, v, dev,
 				      vifi, mrt->id);
@@ -1923,11 +1923,12 @@ out_free:
 	kfree_skb(skb);
 }
 
-static int ipmr_find_vif(struct mr_table *mrt, struct net_device *dev)
+/* Called with mrt_lock or rcu_read_lock() */
+static int ipmr_find_vif(const struct mr_table *mrt, struct net_device *dev)
 {
 	int ct;
-
-	for (ct = mrt->maxvif-1; ct >= 0; ct--) {
+	/* Pairs with WRITE_ONCE() in vif_delete()/vif_add() */
+	for (ct = READ_ONCE(mrt->maxvif) - 1; ct >= 0; ct--) {
 		if (rcu_access_pointer(mrt->vif_table[ct].dev) == dev)
 			break;
 	}
@@ -2161,15 +2162,9 @@ int ip_mr_input(struct sk_buff *skb)
 			skb = skb2;
 		}
 
-		read_lock(&mrt_lock);
 		vif = ipmr_find_vif(mrt, dev);
-		if (vif >= 0) {
-			int err2 = ipmr_cache_unresolved(mrt, vif, skb, dev);
-			read_unlock(&mrt_lock);
-
-			return err2;
-		}
-		read_unlock(&mrt_lock);
+		if (vif >= 0)
+			return ipmr_cache_unresolved(mrt, vif, skb, dev);
 		kfree_skb(skb);
 		return -ENODEV;
 	}
@@ -2273,18 +2268,15 @@ int ipmr_get_route(struct net *net, struct sk_buff *skb,
 		int vif = -1;
 
 		dev = skb->dev;
-		read_lock(&mrt_lock);
 		if (dev)
 			vif = ipmr_find_vif(mrt, dev);
 		if (vif < 0) {
-			read_unlock(&mrt_lock);
 			rcu_read_unlock();
 			return -ENODEV;
 		}
 
 		skb2 = skb_realloc_headroom(skb, sizeof(struct iphdr));
 		if (!skb2) {
-			read_unlock(&mrt_lock);
 			rcu_read_unlock();
 			return -ENOMEM;
 		}
@@ -2298,7 +2290,6 @@ int ipmr_get_route(struct net *net, struct sk_buff *skb,
 		iph->daddr = daddr;
 		iph->version = 0;
 		err = ipmr_cache_unresolved(mrt, vif, skb2, dev);
-		read_unlock(&mrt_lock);
 		rcu_read_unlock();
 		return err;
 	}
