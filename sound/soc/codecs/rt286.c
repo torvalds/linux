@@ -1058,7 +1058,6 @@ static const struct snd_soc_component_driver soc_component_dev_rt286 = {
 	.num_dapm_routes	= ARRAY_SIZE(rt286_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config rt286_regmap = {
