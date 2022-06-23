@@ -208,8 +208,6 @@ struct intel_device_info {
 
 	u32 memory_regions; /* regions supported by the HW */
 
-	u32 display_mmio_offset;
-
 	u8 gt; /* GT number, 0 if undefined */
 
 #define DEFINE_FLAG(name) u8 name:1
@@ -233,6 +231,9 @@ struct intel_device_info {
 #define DEFINE_FLAG(name) u8 name:1
 		DEV_INFO_DISPLAY_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
+
+		/* Global register offset for the display engine */
+		u32 mmio_offset;
 
 		/* Register offsets for the various display pipes and transcoders */
 		int pipe_offsets[I915_MAX_TRANSCODERS];
