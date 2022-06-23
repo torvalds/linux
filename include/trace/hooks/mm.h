@@ -169,6 +169,12 @@ DECLARE_HOOK(android_vh_show_mapcount_pages,
 DECLARE_HOOK(android_vh_do_traversal_lruvec,
 	TP_PROTO(struct lruvec *lruvec),
 	TP_ARGS(lruvec));
+DECLARE_HOOK(android_vh_page_should_be_protected,
+	TP_PROTO(struct page *page, bool *should_protect),
+	TP_ARGS(page, should_protect));
+DECLARE_HOOK(android_vh_mark_page_accessed,
+	TP_PROTO(struct page *page),
+	TP_ARGS(page));
 DECLARE_HOOK(android_vh_cma_drain_all_pages_bypass,
 	TP_PROTO(unsigned int migratetype, bool *bypass),
 	TP_ARGS(migratetype, bypass));
