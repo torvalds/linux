@@ -67,7 +67,6 @@ properties:
     maxItems: 1
 
   clocks:
-    minItems: 1
     items:
       - description: Controller clock used by normal mode
       - description: Reference clock used by low power mode etc
@@ -76,9 +75,8 @@ properties:
       - description: controller clock
 
   clock-names:
-    minItems: 1
     items:
-      - const: sys_ck  # required, the following ones are optional
+      - const: sys_ck
       - const: ref_ck
       - const: mcu_ck
       - const: dma_ck
