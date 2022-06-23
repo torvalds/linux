@@ -726,6 +726,12 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 				return -EINVAL;
 	}
 
+	if (chip->num_type_reg)
+		dev_warn(map->dev, "type registers are deprecated; use config registers instead");
+
+	if (chip->num_virt_regs || chip->virt_reg_base || chip->set_type_virt)
+		dev_warn(map->dev, "virtual registers are deprecated; use config registers instead");
+
 	if (irq_base) {
 		irq_base = irq_alloc_descs(irq_base, 0, chip->num_irqs, 0);
 		if (irq_base < 0) {

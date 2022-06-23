@@ -1473,8 +1473,10 @@ struct regmap_irq_sub_irq_map {
  * @ack_base:    Base ack address. If zero then the chip is clear on read.
  *               Using zero value is possible with @use_ack bit.
  * @wake_base:   Base address for wake enables.  If zero unsupported.
- * @type_base:   Base address for irq type.  If zero unsupported.
- * @virt_reg_base:   Base addresses for extra config regs.
+ * @type_base:   Base address for irq type.  If zero unsupported.  Deprecated,
+ *		 use @config_base instead.
+ * @virt_reg_base:   Base addresses for extra config regs. Deprecated, use
+ *		     @config_base instead.
  * @config_base: Base address for IRQ type config regs. If null unsupported.
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  * @init_ack_masked: Ack all masked interrupts once during initalization.
@@ -1483,7 +1485,8 @@ struct regmap_irq_sub_irq_map {
  * @ack_invert:  Inverted ack register: cleared bits for ack.
  * @clear_ack:  Use this to set 1 and 0 or vice-versa to clear interrupts.
  * @wake_invert: Inverted wake register: cleared bits are wake enabled.
- * @type_invert: Invert the type flags.
+ * @type_invert: Invert the type flags. Deprecated, use config registers
+ *		 instead.
  * @type_in_mask: Use the mask registers for controlling irq type. Use this if
  *		  the hardware provides separate bits for rising/falling edge
  *		  or low/high level interrupts and they should be combined into
@@ -1502,9 +1505,11 @@ struct regmap_irq_sub_irq_map {
  * @irqs:        Descriptors for individual IRQs.  Interrupt numbers are
  *               assigned based on the index in the array of the interrupt.
  * @num_irqs:    Number of descriptors.
- * @num_type_reg:    Number of type registers.
+ * @num_type_reg:    Number of type registers. Deprecated, use config registers
+ *		     instead.
  * @num_virt_regs:   Number of non-standard irq configuration registers.
- *		     If zero unsupported.
+ *		     If zero unsupported. Deprecated, use config registers
+ *		     instead.
  * @num_config_bases:	Number of config base registers.
  * @num_config_regs:	Number of config registers for each config base register.
  * @handle_pre_irq:  Driver specific callback to handle interrupt from device
@@ -1512,7 +1517,8 @@ struct regmap_irq_sub_irq_map {
  * @handle_post_irq: Driver specific callback to handle interrupt from device
  *		     after handling the interrupts in regmap_irq_handler().
  * @set_type_virt:   Driver specific callback to extend regmap_irq_set_type()
- *		     and configure virt regs.
+ *		     and configure virt regs. Deprecated, use @set_type_config
+ *		     callback and config registers instead.
  * @set_type_config: Callback used for configuring irq types.
  * @irq_drv_data:    Driver specific IRQ data which is passed as parameter when
  *		     driver specific pre/post interrupt handler is called.
