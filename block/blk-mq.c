@@ -2814,6 +2814,8 @@ void blk_mq_submit_bio(struct bio *bio)
 	if (!bio_integrity_prep(bio))
 		return;
 
+	bio_set_ioprio(bio);
+
 	rq = blk_mq_get_cached_request(q, plug, &bio, nr_segs);
 	if (!rq) {
 		if (!bio)
@@ -2824,8 +2826,6 @@ void blk_mq_submit_bio(struct bio *bio)
 	}
 
 	trace_block_getrq(bio);
-
-	bio_set_ioprio(bio);
 
 	rq_qos_track(q, rq, bio);
 
