@@ -1584,6 +1584,8 @@
 		reset-names = "video_a", "video_h", "video_cabac",
 			      "video_core", "video_hevc_cabac";
 		power-domains = <&power RK3568_PD_RKVDEC>;
+		operating-points-v2 = <&rkvdec_opp_table>;
+		vdec-supply = <&vdd_logic>;
 		iommus = <&rkvdec_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <4>;
@@ -1594,6 +1596,19 @@
 		rockchip,rcb-min-width = <512>;
 		rockchip,task-capacity = <16>;
 		status = "disabled";
+	};
+
+	rkvdec_opp_table: rkvdec-opp-table {
+		compatible = "operating-points-v2";
+
+		opp-297000000 {
+			opp-hz = /bits/ 64 <297000000>;
+			opp-microvolt = <0>;
+		};
+		opp-400000000 {
+			opp-hz = /bits/ 64 <400000000>;
+			opp-microvolt = <900000>;
+		};
 	};
 
 	rkvdec_mmu: iommu@fdf80800 {
