@@ -71,13 +71,27 @@ static void ____test_icr(struct xapic_vcpu *x, uint64_t val)
 	vcpu_ioctl(vcpu, KVM_GET_LAPIC, &xapic);
 	icr = (u64)(*((u32 *)&xapic.regs[APIC_ICR])) |
 	      (u64)(*((u32 *)&xapic.regs[APIC_ICR2])) << 32;
-	if (!x->is_x2apic)
+	if (!x->is_x2apic) {
 		val &= (-1u | (0xffull << (32 + 24)));
-	ASSERT_EQ(icr, val & ~APIC_ICR_BUSY);
+		ASSERT_EQ(icr, val & ~APIC_ICR_BUSY);
+	} else {
+		ASSERT_EQ(icr & ~APIC_ICR_BUSY, val & ~APIC_ICR_BUSY);
+	}
 }
+
+#define X2APIC_RSVED_BITS_MASK  (GENMASK_ULL(31,20) | \
+				 GENMASK_ULL(17,16) | \
+				 GENMASK_ULL(13,13))
 
 static void __test_icr(struct xapic_vcpu *x, uint64_t val)
 {
+	if (x->is_x2apic) {
+		/* Hardware writing vICR register requires reserved bits 31:20,
+		 * 17:16 and 13 kept as zero to avoid #GP exception. Data value
+		 * written to vICR should mask out those bits above.
+		 */
+		val &= ~X2APIC_RSVED_BITS_MASK;
+	}
 	____test_icr(x, val | APIC_ICR_BUSY);
 	____test_icr(x, val & ~(u64)APIC_ICR_BUSY);
 }
@@ -102,7 +116,7 @@ static void test_icr(struct xapic_vcpu *x)
 	icr = APIC_INT_ASSERT | 0xff;
 	for (i = vcpu->id + 1; i < 0xff; i++) {
 		for (j = 0; j < 8; j++)
-			__test_icr(x, i << (32 + 24) | APIC_INT_ASSERT | (j << 8));
+			__test_icr(x, i << (32 + 24) | icr | (j << 8));
 	}
 
 	/* And again with a shorthand destination for all types of IPIs. */
