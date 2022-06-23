@@ -1611,20 +1611,20 @@ int ipmr_ioctl(struct sock *sk, int cmd, void __user *arg)
 		if (vr.vifi >= mrt->maxvif)
 			return -EINVAL;
 		vr.vifi = array_index_nospec(vr.vifi, mrt->maxvif);
-		read_lock(&mrt_lock);
+		rcu_read_lock();
 		vif = &mrt->vif_table[vr.vifi];
 		if (VIF_EXISTS(mrt, vr.vifi)) {
-			vr.icount = vif->pkt_in;
-			vr.ocount = vif->pkt_out;
-			vr.ibytes = vif->bytes_in;
-			vr.obytes = vif->bytes_out;
-			read_unlock(&mrt_lock);
+			vr.icount = READ_ONCE(vif->pkt_in);
+			vr.ocount = READ_ONCE(vif->pkt_out);
+			vr.ibytes = READ_ONCE(vif->bytes_in);
+			vr.obytes = READ_ONCE(vif->bytes_out);
+			rcu_read_unlock();
 
 			if (copy_to_user(arg, &vr, sizeof(vr)))
 				return -EFAULT;
 			return 0;
 		}
-		read_unlock(&mrt_lock);
+		rcu_read_unlock();
 		return -EADDRNOTAVAIL;
 	case SIOCGETSGCNT:
 		if (copy_from_user(&sr, arg, sizeof(sr)))
@@ -1686,20 +1686,20 @@ int ipmr_compat_ioctl(struct sock *sk, unsigned int cmd, void __user *arg)
 		if (vr.vifi >= mrt->maxvif)
 			return -EINVAL;
 		vr.vifi = array_index_nospec(vr.vifi, mrt->maxvif);
-		read_lock(&mrt_lock);
+		rcu_read_lock();
 		vif = &mrt->vif_table[vr.vifi];
 		if (VIF_EXISTS(mrt, vr.vifi)) {
-			vr.icount = vif->pkt_in;
-			vr.ocount = vif->pkt_out;
-			vr.ibytes = vif->bytes_in;
-			vr.obytes = vif->bytes_out;
-			read_unlock(&mrt_lock);
+			vr.icount = READ_ONCE(vif->pkt_in);
+			vr.ocount = READ_ONCE(vif->pkt_out);
+			vr.ibytes = READ_ONCE(vif->bytes_in);
+			vr.obytes = READ_ONCE(vif->bytes_out);
+			rcu_read_unlock();
 
 			if (copy_to_user(arg, &vr, sizeof(vr)))
 				return -EFAULT;
 			return 0;
 		}
-		read_unlock(&mrt_lock);
+		rcu_read_unlock();
 		return -EADDRNOTAVAIL;
 	case SIOCGETSGCNT:
 		if (copy_from_user(&sr, arg, sizeof(sr)))
@@ -1835,8 +1835,8 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 		goto out_free;
 
 	if (vif->flags & VIFF_REGISTER) {
-		vif->pkt_out++;
-		vif->bytes_out += skb->len;
+		WRITE_ONCE(vif->pkt_out, vif->pkt_out + 1);
+		WRITE_ONCE(vif->bytes_out, vif->bytes_out + skb->len);
 		vif_dev->stats.tx_bytes += skb->len;
 		vif_dev->stats.tx_packets++;
 		rcu_read_lock();
@@ -1885,8 +1885,8 @@ static void ipmr_queue_xmit(struct net *net, struct mr_table *mrt,
 		goto out_free;
 	}
 
-	vif->pkt_out++;
-	vif->bytes_out += skb->len;
+	WRITE_ONCE(vif->pkt_out, vif->pkt_out + 1);
+	WRITE_ONCE(vif->bytes_out, vif->bytes_out + skb->len);
 
 	skb_dst_drop(skb);
 	skb_dst_set(skb, &rt->dst);
@@ -2002,8 +2002,10 @@ static void ip_mr_forward(struct net *net, struct mr_table *mrt,
 	}
 
 forward:
-	mrt->vif_table[vif].pkt_in++;
-	mrt->vif_table[vif].bytes_in += skb->len;
+	WRITE_ONCE(mrt->vif_table[vif].pkt_in,
+		   mrt->vif_table[vif].pkt_in + 1);
+	WRITE_ONCE(mrt->vif_table[vif].bytes_in,
+		   mrt->vif_table[vif].bytes_in + skb->len);
 
 	/* Forward the frame */
 	if (c->mfc_origin == htonl(INADDR_ANY) &&
