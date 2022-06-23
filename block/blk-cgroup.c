@@ -1299,6 +1299,7 @@ int blkcg_init_queue(struct request_queue *q)
 	ret = blk_iolatency_init(q);
 	if (ret) {
 		blk_throtl_exit(q);
+		blk_ioprio_exit(q);
 		goto err_destroy_all;
 	}
 

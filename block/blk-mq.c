@@ -42,6 +42,7 @@
 #include "blk-stat.h"
 #include "blk-mq-sched.h"
 #include "blk-rq-qos.h"
+#include "blk-ioprio.h"
 
 static DEFINE_PER_CPU(struct llist_head, blk_cpu_done);
 
@@ -2779,6 +2780,11 @@ static inline struct request *blk_mq_get_cached_request(struct request_queue *q,
 	return rq;
 }
 
+static void bio_set_ioprio(struct bio *bio)
+{
+	blkcg_set_ioprio(bio);
+}
+
 /**
  * blk_mq_submit_bio - Create and send a request to block device.
  * @bio: Bio pointer.
@@ -2818,6 +2824,8 @@ void blk_mq_submit_bio(struct bio *bio)
 	}
 
 	trace_block_getrq(bio);
+
+	bio_set_ioprio(bio);
 
 	rq_qos_track(q, rq, bio);
 
