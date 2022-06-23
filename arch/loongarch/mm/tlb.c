@@ -286,10 +286,11 @@ void setup_tlb_handler(int cpu)
 			return;
 
 		addr = page_address(page);
-		pcpu_handlers[cpu] = virt_to_phys(addr);
+		pcpu_handlers[cpu] = (unsigned long)addr;
 		memcpy((void *)addr, (void *)eentry, vec_sz);
 		local_flush_icache_range((unsigned long)addr, (unsigned long)addr + vec_sz);
-		csr_write64(pcpu_handlers[cpu], LOONGARCH_CSR_TLBRENTRY);
+		csr_write64(pcpu_handlers[cpu], LOONGARCH_CSR_EENTRY);
+		csr_write64(pcpu_handlers[cpu], LOONGARCH_CSR_MERRENTRY);
 		csr_write64(pcpu_handlers[cpu] + 80*VECSIZE, LOONGARCH_CSR_TLBRENTRY);
 	}
 #endif
