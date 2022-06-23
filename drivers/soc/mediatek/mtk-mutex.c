@@ -750,7 +750,7 @@ static int mtk_mutex_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct mtk_mutex_ctx *mtx;
-	struct resource *regs, addr;
+	struct resource *regs;
 	int i;
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	int ret;
@@ -774,24 +774,18 @@ static int mtk_mutex_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (of_address_to_resource(dev->of_node, 0, &addr) < 0) {
-		dev_err(dev, "Failed to get addr\n");
-		return -EINVAL;
+	mtx->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &regs);
+	if (IS_ERR(mtx->regs)) {
+		dev_err(dev, "Failed to map mutex registers\n");
+		return PTR_ERR(mtx->regs);
 	}
-	mtx->addr = addr.start;
+	mtx->addr = regs->start;
 
 #if IS_REACHABLE(CONFIG_MTK_CMDQ)
 	ret = cmdq_dev_get_client_reg(dev, &mtx->cmdq_reg, 0);
 	if (ret)
 		dev_dbg(dev, "No mediatek,gce-client-reg!\n");
 #endif
-
-	regs = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mtx->regs = devm_ioremap_resource(dev, regs);
-	if (IS_ERR(mtx->regs)) {
-		dev_err(dev, "Failed to map mutex registers\n");
-		return PTR_ERR(mtx->regs);
-	}
 
 	platform_set_drvdata(pdev, mtx);
 
