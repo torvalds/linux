@@ -289,8 +289,7 @@ static void io_apoll_task_func(struct io_kiocb *req, bool *locked)
 		io_req_complete_failed(req, ret);
 }
 
-static void __io_poll_execute(struct io_kiocb *req, int mask,
-			      __poll_t __maybe_unused events)
+static void __io_poll_execute(struct io_kiocb *req, int mask)
 {
 	io_req_set_res(req, mask, 0);
 	/*
@@ -308,18 +307,17 @@ static void __io_poll_execute(struct io_kiocb *req, int mask,
 	io_req_task_work_add(req);
 }
 
-static inline void io_poll_execute(struct io_kiocb *req, int res,
-		__poll_t events)
+static inline void io_poll_execute(struct io_kiocb *req, int res)
 {
 	if (io_poll_get_ownership(req))
-		__io_poll_execute(req, res, events);
+		__io_poll_execute(req, res);
 }
 
 static void io_poll_cancel_req(struct io_kiocb *req)
 {
 	io_poll_mark_cancelled(req);
 	/* kick tw, which should complete the request */
-	io_poll_execute(req, 0, 0);
+	io_poll_execute(req, 0);
 }
 
 #define IO_ASYNC_POLL_COMMON	(EPOLLONESHOT | EPOLLPRI)
@@ -334,7 +332,7 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	if (unlikely(mask & POLLFREE)) {
 		io_poll_mark_cancelled(req);
 		/* we have to kick tw in case it's not already */
-		io_poll_execute(req, 0, poll->events);
+		io_poll_execute(req, 0);
 
 		/*
 		 * If the waitqueue is being freed early but someone is already
@@ -369,7 +367,7 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 			else
 				req->flags &= ~REQ_F_SINGLE_POLL;
 		}
-		__io_poll_execute(req, mask, poll->events);
+		__io_poll_execute(req, mask);
 	}
 	return 1;
 }
@@ -487,7 +485,7 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 			req->apoll_events |= EPOLLONESHOT;
 			ipt->error = 0;
 		}
-		__io_poll_execute(req, mask, poll->events);
+		__io_poll_execute(req, mask);
 		return 0;
 	}
 
@@ -497,7 +495,7 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 	 */
 	v = atomic_dec_return(&req->poll_refs);
 	if (unlikely(v & IO_POLL_REF_MASK))
-		__io_poll_execute(req, 0, poll->events);
+		__io_poll_execute(req, 0);
 	return 0;
 }
 
