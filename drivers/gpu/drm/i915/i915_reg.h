@@ -168,7 +168,7 @@
 					 INTEL_INFO(dev_priv)->display.trans_offsets[TRANSCODER_A] + \
 					 DISPLAY_MMIO_BASE(dev_priv) + (reg))
 #define _MMIO_TRANS2(tran, reg)		_MMIO(_TRANS2(tran, reg))
-#define _CURSOR2(pipe, reg)		_MMIO(INTEL_INFO(dev_priv)->display.cursor_offsets[(pipe)] - \
+#define _MMIO_CURSOR2(pipe, reg)	_MMIO(INTEL_INFO(dev_priv)->display.cursor_offsets[(pipe)] - \
 					      INTEL_INFO(dev_priv)->display.cursor_offsets[PIPE_A] + \
 					      DISPLAY_MMIO_BASE(dev_priv) + (reg))
 
@@ -4304,12 +4304,12 @@
 #define _CURBBASE_IVB		0x71084
 #define _CURBPOS_IVB		0x71088
 
-#define CURCNTR(pipe) _CURSOR2(pipe, _CURACNTR)
-#define CURBASE(pipe) _CURSOR2(pipe, _CURABASE)
-#define CURPOS(pipe) _CURSOR2(pipe, _CURAPOS)
-#define CURSIZE(pipe) _CURSOR2(pipe, _CURASIZE)
-#define CUR_FBC_CTL(pipe) _CURSOR2(pipe, _CUR_FBC_CTL_A)
-#define CURSURFLIVE(pipe) _CURSOR2(pipe, _CURASURFLIVE)
+#define CURCNTR(pipe) _MMIO_CURSOR2(pipe, _CURACNTR)
+#define CURBASE(pipe) _MMIO_CURSOR2(pipe, _CURABASE)
+#define CURPOS(pipe) _MMIO_CURSOR2(pipe, _CURAPOS)
+#define CURSIZE(pipe) _MMIO_CURSOR2(pipe, _CURASIZE)
+#define CUR_FBC_CTL(pipe) _MMIO_CURSOR2(pipe, _CUR_FBC_CTL_A)
+#define CURSURFLIVE(pipe) _MMIO_CURSOR2(pipe, _CURASURFLIVE)
 
 #define CURSOR_A_OFFSET 0x70080
 #define CURSOR_B_OFFSET 0x700c0
