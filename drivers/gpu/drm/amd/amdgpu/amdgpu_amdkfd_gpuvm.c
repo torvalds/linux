@@ -914,7 +914,7 @@ static int kfd_mem_attach(struct amdgpu_device *adev, struct kgd_mem *mem,
 			ret = kfd_mem_attach_dmabuf(adev, mem, &bo[i]);
 			if (ret)
 				goto unwind;
-			pr_debug("Employ DMABUF mechanim to enable peer GPU access\n");
+			pr_debug("Employ DMABUF mechanism to enable peer GPU access\n");
 		} else {
 			WARN_ONCE(true, "Handling invalid ATTACH request");
 			ret = -EINVAL;
