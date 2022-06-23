@@ -297,7 +297,6 @@ void panic(const char *fmt, ...)
 		 * unfortunately means it may not be hardened to work in a
 		 * panic situation.
 		 */
-		try_block_console_kthreads(10000);
 		smp_send_stop();
 	} else {
 		/*
@@ -305,7 +304,6 @@ void panic(const char *fmt, ...)
 		 * kmsg_dump, we will need architecture dependent extra
 		 * works in addition to stopping other CPUs.
 		 */
-		try_block_console_kthreads(10000);
 		crash_smp_send_stop();
 	}
 
@@ -605,8 +603,6 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 {
 	disable_trace_on_warning();
 
-	printk_prefer_direct_enter();
-
 	if (file)
 		pr_warn("WARNING: CPU: %d PID: %d at %s:%d %pS\n",
 			raw_smp_processor_id(), current->pid, file, line,
@@ -636,8 +632,6 @@ void __warn(const char *file, int line, void *caller, unsigned taint,
 
 	/* Just a warning, don't kill lockdep. */
 	add_taint(taint, LOCKDEP_STILL_OK);
-
-	printk_prefer_direct_exit();
 }
 
 #ifndef __WARN_FLAGS
