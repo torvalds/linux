@@ -1124,7 +1124,11 @@ static void __exit videodev_exit(void)
 	unregister_chrdev_region(dev, VIDEO_NUM_DEVICES);
 }
 
+#ifdef CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP
+arch_initcall_sync(videodev_init);
+#else
 subsys_initcall(videodev_init);
+#endif
 module_exit(videodev_exit)
 
 MODULE_AUTHOR("Alan Cox, Mauro Carvalho Chehab <mchehab@kernel.org>, Bill Dirks, Justin Schoeman, Gerd Knorr");
