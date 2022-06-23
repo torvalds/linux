@@ -1267,7 +1267,7 @@ static int ip6mr_dump(struct net *net, struct notifier_block *nb,
 		      struct netlink_ext_ack *extack)
 {
 	return mr_dump(net, nb, RTNL_FAMILY_IP6MR, ip6mr_rules_dump,
-		       ip6mr_mr_table_iter, &mrt_lock, extack);
+		       ip6mr_mr_table_iter, extack);
 }
 
 static struct notifier_block ip6_mr_notifier = {

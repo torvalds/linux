@@ -399,7 +399,6 @@ int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 			      struct netlink_ext_ack *extack),
 	    struct mr_table *(*mr_iter)(struct net *net,
 					struct mr_table *mrt),
-	    rwlock_t *mrt_lock,
 	    struct netlink_ext_ack *extack)
 {
 	struct mr_table *mrt;
@@ -416,10 +415,9 @@ int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 		int vifi;
 
 		/* Notifiy on table VIF entries */
-		read_lock(mrt_lock);
+		rcu_read_lock();
 		for (vifi = 0; vifi < mrt->maxvif; vifi++, v++) {
-			vif_dev = rcu_dereference_check(v->dev,
-							lockdep_is_held(mrt_lock));
+			vif_dev = rcu_dereference(v->dev);
 			if (!vif_dev)
 				continue;
 
@@ -430,7 +428,7 @@ int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 			if (err)
 				break;
 		}
-		read_unlock(mrt_lock);
+		rcu_read_unlock();
 
 		if (err)
 			return err;

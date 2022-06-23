@@ -3027,7 +3027,7 @@ static int ipmr_dump(struct net *net, struct notifier_block *nb,
 		     struct netlink_ext_ack *extack)
 {
 	return mr_dump(net, nb, RTNL_FAMILY_IPMR, ipmr_rules_dump,
-		       ipmr_mr_table_iter, &mrt_lock, extack);
+		       ipmr_mr_table_iter, extack);
 }
 
 static const struct fib_notifier_ops ipmr_notifier_ops_template = {

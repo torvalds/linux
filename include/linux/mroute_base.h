@@ -308,7 +308,7 @@ int mr_dump(struct net *net, struct notifier_block *nb, unsigned short family,
 			      struct netlink_ext_ack *extack),
 	    struct mr_table *(*mr_iter)(struct net *net,
 					struct mr_table *mrt),
-	    rwlock_t *mrt_lock, struct netlink_ext_ack *extack);
+	    struct netlink_ext_ack *extack);
 #else
 static inline void vif_device_init(struct vif_device *v,
 				   struct net_device *dev,
@@ -363,7 +363,7 @@ static inline int mr_dump(struct net *net, struct notifier_block *nb,
 					    struct netlink_ext_ack *extack),
 			  struct mr_table *(*mr_iter)(struct net *net,
 						      struct mr_table *mrt),
-			  rwlock_t *mrt_lock, struct netlink_ext_ack *extack)
+			  struct netlink_ext_ack *extack)
 {
 	return -EINVAL;
 }
