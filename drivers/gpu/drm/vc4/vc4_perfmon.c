@@ -17,13 +17,27 @@
 
 void vc4_perfmon_get(struct vc4_perfmon *perfmon)
 {
+	struct vc4_dev *vc4 = perfmon->dev;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
+
 	if (perfmon)
 		refcount_inc(&perfmon->refcnt);
 }
 
 void vc4_perfmon_put(struct vc4_perfmon *perfmon)
 {
-	if (perfmon && refcount_dec_and_test(&perfmon->refcnt))
+	struct vc4_dev *vc4;
+
+	if (!perfmon)
+		return;
+
+	vc4 = perfmon->dev;
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
+
+	if (refcount_dec_and_test(&perfmon->refcnt))
 		kfree(perfmon);
 }
 
@@ -31,6 +45,9 @@ void vc4_perfmon_start(struct vc4_dev *vc4, struct vc4_perfmon *perfmon)
 {
 	unsigned int i;
 	u32 mask;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
 
 	if (WARN_ON_ONCE(!perfmon || vc4->active_perfmon))
 		return;
@@ -49,6 +66,9 @@ void vc4_perfmon_stop(struct vc4_dev *vc4, struct vc4_perfmon *perfmon,
 {
 	unsigned int i;
 
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
+
 	if (WARN_ON_ONCE(!vc4->active_perfmon ||
 			 perfmon != vc4->active_perfmon))
 		return;
@@ -64,7 +84,11 @@ void vc4_perfmon_stop(struct vc4_dev *vc4, struct vc4_perfmon *perfmon,
 
 struct vc4_perfmon *vc4_perfmon_find(struct vc4_file *vc4file, int id)
 {
+	struct vc4_dev *vc4 = vc4file->dev;
 	struct vc4_perfmon *perfmon;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return NULL;
 
 	mutex_lock(&vc4file->perfmon.lock);
 	perfmon = idr_find(&vc4file->perfmon.idr, id);
@@ -76,8 +100,14 @@ struct vc4_perfmon *vc4_perfmon_find(struct vc4_file *vc4file, int id)
 
 void vc4_perfmon_open_file(struct vc4_file *vc4file)
 {
+	struct vc4_dev *vc4 = vc4file->dev;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
+
 	mutex_init(&vc4file->perfmon.lock);
 	idr_init_base(&vc4file->perfmon.idr, VC4_PERFMONID_MIN);
+	vc4file->dev = vc4;
 }
 
 static int vc4_perfmon_idr_del(int id, void *elem, void *data)
@@ -91,6 +121,11 @@ static int vc4_perfmon_idr_del(int id, void *elem, void *data)
 
 void vc4_perfmon_close_file(struct vc4_file *vc4file)
 {
+	struct vc4_dev *vc4 = vc4file->dev;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
+
 	mutex_lock(&vc4file->perfmon.lock);
 	idr_for_each(&vc4file->perfmon.idr, vc4_perfmon_idr_del, NULL);
 	idr_destroy(&vc4file->perfmon.idr);
@@ -106,6 +141,9 @@ int vc4_perfmon_create_ioctl(struct drm_device *dev, void *data,
 	struct vc4_perfmon *perfmon;
 	unsigned int i;
 	int ret;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	if (!vc4->v3d) {
 		DRM_DEBUG("Creating perfmon no VC4 V3D probed\n");
@@ -127,6 +165,7 @@ int vc4_perfmon_create_ioctl(struct drm_device *dev, void *data,
 			  GFP_KERNEL);
 	if (!perfmon)
 		return -ENOMEM;
+	perfmon->dev = vc4;
 
 	for (i = 0; i < req->ncounters; i++)
 		perfmon->events[i] = req->events[i];
@@ -157,6 +196,9 @@ int vc4_perfmon_destroy_ioctl(struct drm_device *dev, void *data,
 	struct drm_vc4_perfmon_destroy *req = data;
 	struct vc4_perfmon *perfmon;
 
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
+
 	if (!vc4->v3d) {
 		DRM_DEBUG("Destroying perfmon no VC4 V3D probed\n");
 		return -ENODEV;
@@ -181,6 +223,9 @@ int vc4_perfmon_get_values_ioctl(struct drm_device *dev, void *data,
 	struct drm_vc4_perfmon_get_values *req = data;
 	struct vc4_perfmon *perfmon;
 	int ret;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	if (!vc4->v3d) {
 		DRM_DEBUG("Getting perfmon no VC4 V3D probed\n");
