@@ -89,6 +89,9 @@
 
 #define RKISP_CMD_GET_TB_STREAM_INFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 111, struct rkisp_tb_stream_info)
+
+#define RKISP_CMD_FREE_TB_STREAM_BUF \
+	_IO('V', BASE_VIDIOC_PRIVATE + 112)
 /*************************************************************/
 
 #define ISP2X_ID_DPCC			(0)

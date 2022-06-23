@@ -1499,13 +1499,21 @@ static int rkisp_get_tb_stream_info(struct rkisp_stream *stream,
 	return 0;
 }
 
+static int rkisp_free_tb_stream_buf(struct rkisp_device *dev)
+{
+	struct rkisp_isp_subdev *sdev = &dev->isp_sdev;
+	struct v4l2_subdev *sd = &sdev->sd;
+
+	return sd->ops->core->ioctl(sd, RKISP_CMD_FREE_SHARED_BUF, NULL);
+}
+
 static long rkisp_ioctl_default(struct file *file, void *fh,
 				bool valid_prio, unsigned int cmd, void *arg)
 {
 	struct rkisp_stream *stream = video_drvdata(file);
 	long ret = 0;
 
-	if (!arg)
+	if (!arg && cmd != RKISP_CMD_FREE_TB_STREAM_BUF)
 		return -EINVAL;
 
 	switch (cmd) {
@@ -1565,6 +1573,9 @@ static long rkisp_ioctl_default(struct file *file, void *fh,
 		break;
 	case RKISP_CMD_GET_TB_STREAM_INFO:
 		ret = rkisp_get_tb_stream_info(stream, arg);
+		break;
+	case RKISP_CMD_FREE_TB_STREAM_BUF:
+		ret = rkisp_free_tb_stream_buf(stream->ispdev);
 		break;
 	default:
 		ret = -EINVAL;
