@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ */
+
+/dts-v1/;
+
+#include "rv1106g-evb1-v10.dts"
+
+/ {
+	model = "Rockchip RV1106G EVB1 V11 Board";
+	compatible = "rockchip,rv1106g-evb1-v11", "rockchip,rv1106";
+
+	/delete-node/ vcc5v0-usb;
+};
+
+&pinctrl {
+	/delete-node/ usb;
+};
+
+&u2phy_otg {
+	/delete-property/ vbus-supply;
+};
+
+&usbdrd_dwc3 {
+	dr_mode = "peripheral";
+};
