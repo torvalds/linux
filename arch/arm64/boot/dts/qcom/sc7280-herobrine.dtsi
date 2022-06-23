@@ -387,7 +387,7 @@ ap_sar_sensor_i2c: &i2c1 {
 
 		vdd-supply = <&pp1800_prox>;
 
-		label = "proximity-wifi-lte0";
+		label = "proximity-wifi_cellular-0";
 		status = "disabled";
 	};
 
@@ -403,7 +403,7 @@ ap_sar_sensor_i2c: &i2c1 {
 
 		vdd-supply = <&pp1800_prox>;
 
-		label = "proximity-wifi-lte1";
+		label = "proximity-wifi_cellular-1";
 		status = "disabled";
 	};
 };
