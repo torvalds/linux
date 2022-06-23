@@ -3528,12 +3528,8 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	 * Flag our filesystem as having big metadata blocks if they are bigger
 	 * than the page size.
 	 */
-	if (btrfs_super_nodesize(disk_super) > PAGE_SIZE) {
-		if (!(features & BTRFS_FEATURE_INCOMPAT_BIG_METADATA))
-			btrfs_info(fs_info,
-				"flagging fs with big metadata feature");
+	if (btrfs_super_nodesize(disk_super) > PAGE_SIZE)
 		features |= BTRFS_FEATURE_INCOMPAT_BIG_METADATA;
-	}
 
 	/*
 	 * mixed block groups end up with duplicate but slightly offset
