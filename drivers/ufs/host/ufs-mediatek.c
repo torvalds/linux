@@ -244,8 +244,9 @@ static int ufs_mtk_setup_ref_clk(struct ufs_hba *hba, bool on)
 	if (host->ref_clk_enabled == on)
 		return 0;
 
+	ufs_mtk_ref_clk_notify(on, PRE_CHANGE, res);
+
 	if (on) {
-		ufs_mtk_ref_clk_notify(on, res);
 		ufshcd_writel(hba, REFCLK_REQUEST, REG_UFS_REFCLK_CTRL);
 	} else {
 		ufshcd_delay_us(host->ref_clk_gating_wait_us, 10);
@@ -267,7 +268,7 @@ static int ufs_mtk_setup_ref_clk(struct ufs_hba *hba, bool on)
 
 	dev_err(hba->dev, "missing ack of refclk req, reg: 0x%x\n", value);
 
-	ufs_mtk_ref_clk_notify(host->ref_clk_enabled, res);
+	ufs_mtk_ref_clk_notify(host->ref_clk_enabled, POST_CHANGE, res);
 
 	return -ETIMEDOUT;
 
@@ -275,8 +276,8 @@ out:
 	host->ref_clk_enabled = on;
 	if (on)
 		ufshcd_delay_us(host->ref_clk_ungating_wait_us, 10);
-	else
-		ufs_mtk_ref_clk_notify(on, res);
+
+	ufs_mtk_ref_clk_notify(on, POST_CHANGE, res);
 
 	return 0;
 }
