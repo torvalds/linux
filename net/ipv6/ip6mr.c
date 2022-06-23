@@ -554,7 +554,6 @@ static int pim6_rcv(struct sk_buff *skb)
 	read_lock(&mrt_lock);
 	if (reg_vif_num >= 0)
 		reg_dev = mrt->vif_table[reg_vif_num].dev;
-	dev_hold(reg_dev);
 	read_unlock(&mrt_lock);
 
 	if (!reg_dev)
@@ -570,7 +569,6 @@ static int pim6_rcv(struct sk_buff *skb)
 
 	netif_rx(skb);
 
-	dev_put(reg_dev);
 	return 0;
  drop:
 	kfree_skb(skb);
