@@ -9,7 +9,7 @@
 
 // #define STF_DEBUG
 
-#define USE_CSIDPHY_ONE_CLK_MODE 1
+// #define USE_CSIDPHY_ONE_CLK_MODE 1
 
 enum {
 	ST_DVP = 0x0001,

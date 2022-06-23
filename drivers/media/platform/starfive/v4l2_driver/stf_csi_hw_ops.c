@@ -199,8 +199,13 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 
 	reg = csiphy->num_data_lanes << 8;
 	for (i = 0; i < csiphy->num_data_lanes; i++) {
+#ifndef USE_CSIDPHY_ONE_CLK_MODE
 		reg |= CSI2RX_STATIC_CFG_DLANE_MAP(i, csiphy->data_lanes[i]);
 		set_bit(csiphy->data_lanes[i] - 1, &lanes_used);
+#else
+		reg |= CSI2RX_STATIC_CFG_DLANE_MAP(i, i + 1);
+		set_bit(i, &lanes_used);
+#endif
 	}
 
 	/*
@@ -221,9 +226,14 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 
 	// 0x40 DPHY_LANE_CONTROL
 	reg = 0;
-
+#ifndef USE_CSIDPHY_ONE_CLK_MODE
+	for (i = 0; i < csiphy->num_data_lanes; i++)
+		reg |= 1 << (csiphy->data_lanes[i] - 1)
+			| 1 << (csiphy->data_lanes[i] + 11);
+#else
 	for (i = 0; i < csiphy->num_data_lanes; i++)
 		reg |= 1 << i | 1 << (i + 12);		//data_clane
+#endif
 
 	reg |= 1 << 4 | 1 << 16;		//clk_lane
 	writel(reg, reg_base + CSI2RX_DPHY_LANE_CONTROL);
