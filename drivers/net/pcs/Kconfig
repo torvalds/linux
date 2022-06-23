@@ -6,8 +6,8 @@
 menu "PCS device drivers"
 
 config PCS_XPCS
-	tristate "Synopsys DesignWare XPCS controller"
-	depends on MDIO_DEVICE && MDIO_BUS
+	tristate
+	select PHYLINK
 	help
 	  This module provides helper functions for Synopsys DesignWare XPCS
 	  controllers.
