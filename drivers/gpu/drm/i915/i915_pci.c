@@ -928,14 +928,6 @@ static const struct intel_device_info adl_s_info = {
 	.dma_mask_size = 39,
 };
 
-#define XE_LPD_CURSOR_OFFSETS \
-	.display.cursor_offsets = { \
-		[PIPE_A] = CURSOR_A_OFFSET, \
-		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
-		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
-		[PIPE_D] = TGL_CURSOR_D_OFFSET, \
-	}
-
 #define XE_LPD_FEATURES \
 	.display.abox_mask = GENMASK(1, 0),					\
 	.color = { .degamma_lut_size = 128, .gamma_lut_size = 1024,		\
@@ -974,7 +966,7 @@ static const struct intel_device_info adl_s_info = {
 		[TRANSCODER_DSI_0] = TRANSCODER_DSI0_OFFSET,			\
 		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET,			\
 	},									\
-	XE_LPD_CURSOR_OFFSETS
+	TGL_CURSOR_OFFSETS
 
 static const struct intel_device_info adl_p_info = {
 	GEN12_FEATURES,
