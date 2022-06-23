@@ -236,9 +236,9 @@ struct intel_device_info {
 		u32 mmio_offset;
 
 		/* Register offsets for the various display pipes and transcoders */
-		int pipe_offsets[I915_MAX_TRANSCODERS];
-		int trans_offsets[I915_MAX_TRANSCODERS];
-		int cursor_offsets[I915_MAX_PIPES];
+		u32 pipe_offsets[I915_MAX_TRANSCODERS];
+		u32 trans_offsets[I915_MAX_TRANSCODERS];
+		u32 cursor_offsets[I915_MAX_PIPES];
 	} display;
 
 
