@@ -1056,6 +1056,11 @@ static int rkvdec2_link_power_on(struct mpp_dev *mpp)
 			enable_irq(mpp->irq);
 			link_dec->irq_enabled = 1;
 		}
+
+		mpp_clk_set_rate(&dec->aclk_info, CLK_MODE_ADVANCED);
+		mpp_clk_set_rate(&dec->cabac_clk_info, CLK_MODE_ADVANCED);
+		mpp_clk_set_rate(&dec->hevc_cabac_clk_info, CLK_MODE_ADVANCED);
+		mpp_devfreq_set_core_rate(mpp, CLK_MODE_ADVANCED);
 	}
 	return 0;
 }
@@ -1077,6 +1082,11 @@ static void rkvdec2_link_power_off(struct mpp_dev *mpp)
 
 		link_dec->task_decoded = 0;
 		link_dec->task_total = 0;
+
+		mpp_clk_set_rate(&dec->aclk_info, CLK_MODE_NORMAL);
+		mpp_clk_set_rate(&dec->cabac_clk_info, CLK_MODE_NORMAL);
+		mpp_clk_set_rate(&dec->hevc_cabac_clk_info, CLK_MODE_NORMAL);
+		mpp_devfreq_set_core_rate(mpp, CLK_MODE_NORMAL);
 	}
 }
 
