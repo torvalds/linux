@@ -305,7 +305,7 @@ static int cal_camerarx_start(struct cal_camerarx *phy)
 	/*
 	 * CSI-2 PHY Link Initialization Sequence, according to the DRA74xP /
 	 * DRA75xP / DRA76xP / DRA77xP TRM. The DRA71x / DRA72x and the AM65x /
-	 * DRA80xM TRMs have a a slightly simplified sequence.
+	 * DRA80xM TRMs have a slightly simplified sequence.
 	 */
 
 	/*
