@@ -204,12 +204,12 @@ static void nft_ct_get_eval(const struct nft_expr *expr,
 	case NFT_CT_SRC_IP:
 		if (nf_ct_l3num(ct) != NFPROTO_IPV4)
 			goto err;
-		*dest = tuple->src.u3.ip;
+		*dest = (__force __u32)tuple->src.u3.ip;
 		return;
 	case NFT_CT_DST_IP:
 		if (nf_ct_l3num(ct) != NFPROTO_IPV4)
 			goto err;
-		*dest = tuple->dst.u3.ip;
+		*dest = (__force __u32)tuple->dst.u3.ip;
 		return;
 	case NFT_CT_SRC_IP6:
 		if (nf_ct_l3num(ct) != NFPROTO_IPV6)

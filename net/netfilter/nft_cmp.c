@@ -125,13 +125,13 @@ static void nft_payload_n2h(union nft_cmp_offload_data *data,
 {
 	switch (len) {
 	case 2:
-		data->val16 = ntohs(*((u16 *)val));
+		data->val16 = ntohs(*((__be16 *)val));
 		break;
 	case 4:
-		data->val32 = ntohl(*((u32 *)val));
+		data->val32 = ntohl(*((__be32 *)val));
 		break;
 	case 8:
-		data->val64 = be64_to_cpu(*((u64 *)val));
+		data->val64 = be64_to_cpu(*((__be64 *)val));
 		break;
 	default:
 		WARN_ON_ONCE(1);
