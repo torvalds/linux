@@ -62,12 +62,11 @@ struct ip6mr_result {
    Note that the changes are semaphored via rtnl_lock.
  */
 
-static DEFINE_RWLOCK(mrt_lock);
+static DEFINE_SPINLOCK(mrt_lock);
 
 static struct net_device *vif_dev_read(const struct vif_device *vif)
 {
-	return rcu_dereference_check(vif->dev,
-				     lockdep_is_held(&mrt_lock));
+	return rcu_dereference(vif->dev);
 }
 
 /* Multicast router control variables */
@@ -714,7 +713,7 @@ static int mif6_delete(struct mr_table *mrt, int vifi, int notify,
 	call_ip6mr_vif_entry_notifiers(read_pnet(&mrt->net),
 				       FIB_EVENT_VIF_DEL, v, dev,
 				       vifi, mrt->id);
-	write_lock_bh(&mrt_lock);
+	spin_lock(&mrt_lock);
 	RCU_INIT_POINTER(v->dev, NULL);
 
 #ifdef CONFIG_IPV6_PIMSM_V2
@@ -733,7 +732,7 @@ static int mif6_delete(struct mr_table *mrt, int vifi, int notify,
 		WRITE_ONCE(mrt->maxvif, tmp + 1);
 	}
 
-	write_unlock_bh(&mrt_lock);
+	spin_unlock(&mrt_lock);
 
 	dev_set_allmulti(dev, -1);
 
@@ -833,7 +832,7 @@ static void ipmr_expire_process(struct timer_list *t)
 	spin_unlock(&mfc_unres_lock);
 }
 
-/* Fill oifs list. It is called under write locked mrt_lock. */
+/* Fill oifs list. It is called under locked mrt_lock. */
 
 static void ip6mr_update_thresholds(struct mr_table *mrt,
 				    struct mr_mfc *cache,
@@ -919,7 +918,7 @@ static int mif6_add(struct net *net, struct mr_table *mrt,
 			MIFF_REGISTER);
 
 	/* And finish update writing critical data */
-	write_lock_bh(&mrt_lock);
+	spin_lock(&mrt_lock);
 	rcu_assign_pointer(v->dev, dev);
 	netdev_tracker_alloc(dev, &v->dev_tracker, GFP_ATOMIC);
 #ifdef CONFIG_IPV6_PIMSM_V2
@@ -928,7 +927,7 @@ static int mif6_add(struct net *net, struct mr_table *mrt,
 #endif
 	if (vifi + 1 > mrt->maxvif)
 		WRITE_ONCE(mrt->maxvif, vifi + 1);
-	write_unlock_bh(&mrt_lock);
+	spin_unlock(&mrt_lock);
 	call_ip6mr_vif_entry_notifiers(net, FIB_EVENT_VIF_ADD,
 				       v, dev, vifi, mrt->id);
 	return 0;
@@ -1442,12 +1441,12 @@ static int ip6mr_mfc_add(struct net *net, struct mr_table *mrt,
 				    &mfc->mf6cc_mcastgrp.sin6_addr, parent);
 	rcu_read_unlock();
 	if (c) {
-		write_lock_bh(&mrt_lock);
+		spin_lock(&mrt_lock);
 		c->_c.mfc_parent = mfc->mf6cc_parent;
 		ip6mr_update_thresholds(mrt, &c->_c, ttls);
 		if (!mrtsock)
 			c->_c.mfc_flags |= MFC_STATIC;
-		write_unlock_bh(&mrt_lock);
+		spin_unlock(&mrt_lock);
 		call_ip6mr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_REPLACE,
 					       c, mrt->id);
 		mr6_netlink_event(mrt, c, RTM_NEWROUTE);
@@ -1565,7 +1564,7 @@ static int ip6mr_sk_init(struct mr_table *mrt, struct sock *sk)
 	struct net *net = sock_net(sk);
 
 	rtnl_lock();
-	write_lock_bh(&mrt_lock);
+	spin_lock(&mrt_lock);
 	if (rtnl_dereference(mrt->mroute_sk)) {
 		err = -EADDRINUSE;
 	} else {
@@ -1573,7 +1572,7 @@ static int ip6mr_sk_init(struct mr_table *mrt, struct sock *sk)
 		sock_set_flag(sk, SOCK_RCU_FREE);
 		atomic_inc(&net->ipv6.devconf_all->mc_forwarding);
 	}
-	write_unlock_bh(&mrt_lock);
+	spin_unlock(&mrt_lock);
 
 	if (!err)
 		inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
@@ -1603,14 +1602,14 @@ int ip6mr_sk_done(struct sock *sk)
 	rtnl_lock();
 	ip6mr_for_each_table(mrt, net) {
 		if (sk == rtnl_dereference(mrt->mroute_sk)) {
-			write_lock_bh(&mrt_lock);
+			spin_lock(&mrt_lock);
 			RCU_INIT_POINTER(mrt->mroute_sk, NULL);
 			/* Note that mroute_sk had SOCK_RCU_FREE set,
 			 * so the RCU grace period before sk freeing
 			 * is guaranteed by sk_destruct()
 			 */
 			atomic_dec(&devconf->mc_forwarding);
-			write_unlock_bh(&mrt_lock);
+			spin_unlock(&mrt_lock);
 			inet6_netconf_notify_devconf(net, RTM_NEWNETCONF,
 						     NETCONFA_MC_FORWARDING,
 						     NETCONFA_IFINDEX_ALL,
@@ -2097,7 +2096,7 @@ out_free:
 	return 0;
 }
 
-/* Called with mrt_lock or rcu_read_lock() */
+/* Called with rcu_read_lock() */
 static int ip6mr_find_vif(struct mr_table *mrt, struct net_device *dev)
 {
 	int ct;
