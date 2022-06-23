@@ -16,6 +16,7 @@
 #include <linux/of_device.h>
 #include <linux/phy/phy.h>
 #include <linux/platform_device.h>
+#include <linux/pm_qos.h>
 #include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/sched/clock.h>
@@ -586,17 +587,32 @@ static void ufs_mtk_init_host_caps(struct ufs_hba *hba)
 	dev_info(hba->dev, "caps: 0x%x", host->caps);
 }
 
-static void ufs_mtk_scale_perf(struct ufs_hba *hba, bool up)
+static void ufs_mtk_boost_pm_qos(struct ufs_hba *hba, bool boost)
 {
 	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
 
-	ufs_mtk_boost_crypt(hba, up);
-	ufs_mtk_setup_ref_clk(hba, up);
+	if (!host || !host->pm_qos_init)
+		return;
 
-	if (up)
+	cpu_latency_qos_update_request(&host->pm_qos_req,
+				       boost ? 0 : PM_QOS_DEFAULT_VALUE);
+}
+
+static void ufs_mtk_pwr_ctrl(struct ufs_hba *hba, bool on)
+{
+	struct ufs_mtk_host *host = ufshcd_get_variant(hba);
+
+	if (on) {
 		phy_power_on(host->mphy);
-	else
+		ufs_mtk_setup_ref_clk(hba, on);
+		ufs_mtk_boost_crypt(hba, on);
+		ufs_mtk_boost_pm_qos(hba, on);
+	} else {
+		ufs_mtk_boost_pm_qos(hba, on);
+		ufs_mtk_boost_crypt(hba, on);
+		ufs_mtk_setup_ref_clk(hba, on);
 		phy_power_off(host->mphy);
+	}
 }
 
 /**
@@ -641,9 +657,9 @@ static int ufs_mtk_setup_clocks(struct ufs_hba *hba, bool on,
 		}
 
 		if (clk_pwr_off)
-			ufs_mtk_scale_perf(hba, false);
+			ufs_mtk_pwr_ctrl(hba, false);
 	} else if (on && status == POST_CHANGE) {
-		ufs_mtk_scale_perf(hba, true);
+		ufs_mtk_pwr_ctrl(hba, true);
 	}
 
 	return ret;
@@ -1248,8 +1264,10 @@ static int ufs_mtk_apply_dev_quirks(struct ufs_hba *hba)
 	struct ufs_dev_info *dev_info = &hba->dev_info;
 	u16 mid = dev_info->wmanufacturerid;
 
-	if (mid == UFS_VENDOR_SAMSUNG)
+	if (mid == UFS_VENDOR_SAMSUNG) {
 		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_TACTIVATE), 6);
+		ufshcd_dme_set(hba, UIC_ARG_MIB(PA_HIBERN8TIME), 10);
+	}
 
 	/*
 	 * Decide waiting time before gating reference clock and
