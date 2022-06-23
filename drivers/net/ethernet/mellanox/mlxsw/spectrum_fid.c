@@ -969,7 +969,14 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_dummy_family = {
 	.ops			= &mlxsw_sp_fid_dummy_ops,
 };
 
-static const struct mlxsw_sp_fid_family *mlxsw_sp_fid_family_arr[] = {
+const struct mlxsw_sp_fid_family *mlxsw_sp1_fid_family_arr[] = {
+	[MLXSW_SP_FID_TYPE_8021Q]	= &mlxsw_sp_fid_8021q_emu_family,
+	[MLXSW_SP_FID_TYPE_8021D]	= &mlxsw_sp_fid_8021d_family,
+	[MLXSW_SP_FID_TYPE_RFID]	= &mlxsw_sp_fid_rfid_family,
+	[MLXSW_SP_FID_TYPE_DUMMY]	= &mlxsw_sp_fid_dummy_family,
+};
+
+const struct mlxsw_sp_fid_family *mlxsw_sp2_fid_family_arr[] = {
 	[MLXSW_SP_FID_TYPE_8021Q]	= &mlxsw_sp_fid_8021q_emu_family,
 	[MLXSW_SP_FID_TYPE_8021D]	= &mlxsw_sp_fid_8021d_family,
 	[MLXSW_SP_FID_TYPE_RFID]	= &mlxsw_sp_fid_rfid_family,
@@ -1238,7 +1245,7 @@ int mlxsw_sp_fids_init(struct mlxsw_sp *mlxsw_sp)
 
 	for (i = 0; i < MLXSW_SP_FID_TYPE_MAX; i++) {
 		err = mlxsw_sp_fid_family_register(mlxsw_sp,
-						   mlxsw_sp_fid_family_arr[i]);
+						   mlxsw_sp->fid_family_arr[i]);
 
 		if (err)
 			goto err_fid_ops_register;
