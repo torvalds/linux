@@ -74,34 +74,6 @@ void io_kbuf_recycle_legacy(struct io_kiocb *req, unsigned issue_flags)
 	return;
 }
 
-void io_kbuf_recycle_ring(struct io_kiocb *req)
-{
-	/*
-	 * We don't need to recycle for REQ_F_BUFFER_RING, we can just clear
-	 * the flag and hence ensure that bl->head doesn't get incremented.
-	 * If the tail has already been incremented, hang on to it.
-	 * The exception is partial io, that case we should increment bl->head
-	 * to monopolize the buffer.
-	 */
-	if (req->buf_list) {
-		if (req->flags & REQ_F_PARTIAL_IO) {
-			/*
-			 * If we end up here, then the io_uring_lock has
-			 * been kept held since we retrieved the buffer.
-			 * For the io-wq case, we already cleared
-			 * req->buf_list when the buffer was retrieved,
-			 * hence it cannot be set here for that case.
-			 */
-			req->buf_list->head++;
-			req->buf_list = NULL;
-		} else {
-			req->buf_index = req->buf_list->bgid;
-			req->flags &= ~REQ_F_BUFFER_RING;
-		}
-	}
-	return;
-}
-
 unsigned int __io_put_kbuf(struct io_kiocb *req, unsigned issue_flags)
 {
 	unsigned int cflags;
