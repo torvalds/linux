@@ -77,12 +77,11 @@ struct ipmr_result {
  * Note that the changes are semaphored via rtnl_lock.
  */
 
-static DEFINE_RWLOCK(mrt_lock);
+static DEFINE_SPINLOCK(mrt_lock);
 
 static struct net_device *vif_dev_read(const struct vif_device *vif)
 {
-	return rcu_dereference_check(vif->dev,
-				     lockdep_is_held(&mrt_lock));
+	return rcu_dereference(vif->dev);
 }
 
 /* Multicast router control variables */
@@ -664,7 +663,7 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 	if (!dev)
 		return -EADDRNOTAVAIL;
 
-	write_lock_bh(&mrt_lock);
+	spin_lock(&mrt_lock);
 	call_ipmr_vif_entry_notifiers(net, FIB_EVENT_VIF_DEL, v, dev,
 				      vifi, mrt->id);
 	RCU_INIT_POINTER(v->dev, NULL);
@@ -683,7 +682,7 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 		WRITE_ONCE(mrt->maxvif, tmp + 1);
 	}
 
-	write_unlock_bh(&mrt_lock);
+	spin_unlock(&mrt_lock);
 
 	dev_set_allmulti(dev, -1);
 
@@ -785,7 +784,7 @@ out:
 	spin_unlock(&mfc_unres_lock);
 }
 
-/* Fill oifs list. It is called under write locked mrt_lock. */
+/* Fill oifs list. It is called under locked mrt_lock. */
 static void ipmr_update_thresholds(struct mr_table *mrt, struct mr_mfc *cache,
 				   unsigned char *ttls)
 {
@@ -897,7 +896,7 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 	v->remote = vifc->vifc_rmt_addr.s_addr;
 
 	/* And finish update writing critical data */
-	write_lock_bh(&mrt_lock);
+	spin_lock(&mrt_lock);
 	rcu_assign_pointer(v->dev, dev);
 	netdev_tracker_alloc(dev, &v->dev_tracker, GFP_ATOMIC);
 	if (v->flags & VIFF_REGISTER) {
@@ -906,7 +905,7 @@ static int vif_add(struct net *net, struct mr_table *mrt,
 	}
 	if (vifi+1 > mrt->maxvif)
 		WRITE_ONCE(mrt->maxvif, vifi + 1);
-	write_unlock_bh(&mrt_lock);
+	spin_unlock(&mrt_lock);
 	call_ipmr_vif_entry_notifiers(net, FIB_EVENT_VIF_ADD, v, dev,
 				      vifi, mrt->id);
 	return 0;
@@ -1211,12 +1210,12 @@ static int ipmr_mfc_add(struct net *net, struct mr_table *mrt,
 				   mfc->mfcc_mcastgrp.s_addr, parent);
 	rcu_read_unlock();
 	if (c) {
-		write_lock_bh(&mrt_lock);
+		spin_lock(&mrt_lock);
 		c->_c.mfc_parent = mfc->mfcc_parent;
 		ipmr_update_thresholds(mrt, &c->_c, mfc->mfcc_ttls);
 		if (!mrtsock)
 			c->_c.mfc_flags |= MFC_STATIC;
-		write_unlock_bh(&mrt_lock);
+		spin_unlock(&mrt_lock);
 		call_ipmr_mfc_entry_notifiers(net, FIB_EVENT_ENTRY_REPLACE, c,
 					      mrt->id);
 		mroute_netlink_event(mrt, c, RTM_NEWROUTE);
