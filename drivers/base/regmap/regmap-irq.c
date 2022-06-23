@@ -158,11 +158,11 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 		reg = sub_irq_reg(d, d->chip->wake_base, i);
 		if (d->wake_buf) {
 			if (d->chip->wake_invert)
-				ret = regmap_irq_update_bits(d, reg,
+				ret = regmap_update_bits(d->map, reg,
 							 d->mask_buf_def[i],
 							 ~d->wake_buf[i]);
 			else
-				ret = regmap_irq_update_bits(d, reg,
+				ret = regmap_update_bits(d->map, reg,
 							 d->mask_buf_def[i],
 							 d->wake_buf[i]);
 			if (ret != 0)
@@ -205,10 +205,10 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 				continue;
 			reg = sub_irq_reg(d, d->chip->type_base, i);
 			if (d->chip->type_invert)
-				ret = regmap_irq_update_bits(d, reg,
+				ret = regmap_update_bits(d->map, reg,
 					d->type_buf_def[i], ~d->type_buf[i]);
 			else
-				ret = regmap_irq_update_bits(d, reg,
+				ret = regmap_update_bits(d->map, reg,
 					d->type_buf_def[i], d->type_buf[i]);
 			if (ret != 0)
 				dev_err(d->map->dev, "Failed to sync type in %x\n",
@@ -825,11 +825,11 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 			reg = sub_irq_reg(d, d->chip->wake_base, i);
 
 			if (chip->wake_invert)
-				ret = regmap_irq_update_bits(d, reg,
+				ret = regmap_update_bits(d->map, reg,
 							 d->mask_buf_def[i],
 							 0);
 			else
-				ret = regmap_irq_update_bits(d, reg,
+				ret = regmap_update_bits(d->map, reg,
 							 d->mask_buf_def[i],
 							 d->wake_buf[i]);
 			if (ret != 0) {
