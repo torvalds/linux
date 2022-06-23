@@ -804,6 +804,14 @@ config REGULATOR_MT6360
 	  2-channel buck with Thermal Shutdown and Overload Protection
 	  6-channel High PSRR and Low Dropout LDO.
 
+config REGULATOR_MT6370
+	tristate "MT6370 SubPMIC Regulator"
+	depends on MFD_MT6370
+	help
+	  Say Y here to enable MT6370 regulator support.
+	  This driver supports the control for DisplayBias voltages and one
+	  general purpose LDO which is commonly used to drive the vibrator.
+
 config REGULATOR_MT6380
 	tristate "MediaTek MT6380 PMIC"
 	depends on MTK_PMIC_WRAP
