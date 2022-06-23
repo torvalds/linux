@@ -717,27 +717,30 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	if (!con)
 		return -EINVAL;
 
-	info = kzalloc(sizeof(union ta_ras_cmd_input), GFP_KERNEL);
-	if (!info)
-		return -ENOMEM;
+	if (head->block == AMDGPU_RAS_BLOCK__GFX) {
+		info = kzalloc(sizeof(union ta_ras_cmd_input), GFP_KERNEL);
+		if (!info)
+			return -ENOMEM;
 
-	if (!enable) {
-		info->disable_features = (struct ta_ras_disable_features_input) {
-			.block_id =  amdgpu_ras_block_to_ta(head->block),
-			.error_type = amdgpu_ras_error_to_ta(head->type),
-		};
-	} else {
-		info->enable_features = (struct ta_ras_enable_features_input) {
-			.block_id =  amdgpu_ras_block_to_ta(head->block),
-			.error_type = amdgpu_ras_error_to_ta(head->type),
-		};
+		if (!enable) {
+			info->disable_features = (struct ta_ras_disable_features_input) {
+				.block_id =  amdgpu_ras_block_to_ta(head->block),
+				.error_type = amdgpu_ras_error_to_ta(head->type),
+			};
+		} else {
+			info->enable_features = (struct ta_ras_enable_features_input) {
+				.block_id =  amdgpu_ras_block_to_ta(head->block),
+				.error_type = amdgpu_ras_error_to_ta(head->type),
+			};
+		}
 	}
 
 	/* Do not enable if it is not allowed. */
 	WARN_ON(enable && !amdgpu_ras_is_feature_allowed(adev, head));
 
 	/* Only enable ras feature operation handle on host side */
-	if (!amdgpu_sriov_vf(adev) &&
+	if (head->block == AMDGPU_RAS_BLOCK__GFX &&
+		!amdgpu_sriov_vf(adev) &&
 		!amdgpu_ras_intr_triggered()) {
 		ret = psp_ras_enable_features(&adev->psp, info, enable);
 		if (ret) {
@@ -753,7 +756,8 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	__amdgpu_ras_feature_enable(adev, head, enable);
 	ret = 0;
 out:
-	kfree(info);
+	if (head->block == AMDGPU_RAS_BLOCK__GFX)
+		kfree(info);
 	return ret;
 }
 
