@@ -2736,7 +2736,7 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 		goto out;
 	}
 	rsv->size = btrfs_calc_insert_metadata_size(fs_info, 1);
-	rsv->failfast = 1;
+	rsv->failfast = true;
 
 	/*
 	 * 1 - update the inode

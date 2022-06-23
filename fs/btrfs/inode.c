@@ -5432,7 +5432,7 @@ void btrfs_evict_inode(struct inode *inode)
 	if (!rsv)
 		goto no_delete;
 	rsv->size = btrfs_calc_metadata_size(fs_info, 1);
-	rsv->failfast = 1;
+	rsv->failfast = true;
 
 	btrfs_i_size_write(BTRFS_I(inode), 0);
 
@@ -8686,7 +8686,7 @@ static int btrfs_truncate(struct inode *inode, bool skip_writeback)
 	if (!rsv)
 		return -ENOMEM;
 	rsv->size = min_size;
-	rsv->failfast = 1;
+	rsv->failfast = true;
 
 	/*
 	 * 1 for the truncate slack space

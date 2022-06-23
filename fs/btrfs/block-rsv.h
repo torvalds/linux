@@ -26,8 +26,8 @@ struct btrfs_block_rsv {
 	struct btrfs_space_info *space_info;
 	spinlock_t lock;
 	bool full;
+	bool failfast;
 	unsigned short type;
-	unsigned short failfast;
 
 	/*
 	 * Qgroup equivalent for @size @reserved
