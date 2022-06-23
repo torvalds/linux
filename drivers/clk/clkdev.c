@@ -351,40 +351,6 @@ static void devm_clkdev_release(struct device *dev, void *res)
 	clkdev_drop(*(struct clk_lookup **)res);
 }
 
-static int devm_clk_match_clkdev(struct device *dev, void *res, void *data)
-{
-	struct clk_lookup **l = res;
-
-	return *l == data;
-}
-
-/**
- * devm_clk_release_clkdev - Resource managed clkdev lookup release
- * @dev: device this lookup is bound
- * @con_id: connection ID string on device
- * @dev_id: format string describing device name
- *
- * Drop the clkdev lookup created with devm_clk_hw_register_clkdev.
- * Normally this function will not need to be called and the resource
- * management code will ensure that the resource is freed.
- */
-void devm_clk_release_clkdev(struct device *dev, const char *con_id,
-			     const char *dev_id)
-{
-	struct clk_lookup *cl;
-	int rval;
-
-	mutex_lock(&clocks_mutex);
-	cl = clk_find(dev_id, con_id);
-	mutex_unlock(&clocks_mutex);
-
-	WARN_ON(!cl);
-	rval = devres_release(dev, devm_clkdev_release,
-			      devm_clk_match_clkdev, cl);
-	WARN_ON(rval);
-}
-EXPORT_SYMBOL(devm_clk_release_clkdev);
-
 /**
  * devm_clk_hw_register_clkdev - managed clk lookup registration for clk_hw
  * @dev: device this lookup is bound
