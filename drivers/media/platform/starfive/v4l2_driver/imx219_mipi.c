@@ -1257,6 +1257,9 @@ static int imx219_identify_module(struct imx219 *imx219)
 		return -EIO;
 	}
 
+	dev_err(&client->dev, "%s: chip identifier, got 0x%x\n",
+		__func__, IMX219_CHIP_ID);
+
 	return 0;
 }
 
