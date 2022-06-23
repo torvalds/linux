@@ -5098,7 +5098,7 @@ static inline void amdgpu_device_stop_pending_resets(struct amdgpu_device *adev)
 
 
 /**
- * amdgpu_device_gpu_recover_imp - reset the asic and recover scheduler
+ * amdgpu_device_gpu_recover - reset the asic and recover scheduler
  *
  * @adev: amdgpu_device pointer
  * @job: which job trigger hang
