@@ -182,7 +182,8 @@ Date:           May 2022
 KernelVersion:  5.19
 Contact:        dhirschfeld@habana.ai
 Description:    The value to which the dram will be set to when the user
-                scrubs the dram using 'memory_scrub' debugfs file
+                scrubs the dram using 'memory_scrub' debugfs file and
+                the scrubbing value when using module param 'memory_scrub'
 
 What:           /sys/kernel/debug/habanalabs/hl<n>/mmu
 Date:           Jan 2019

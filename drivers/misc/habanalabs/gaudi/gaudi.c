@@ -4851,7 +4851,7 @@ static int gaudi_scrub_device_mem(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u64 addr, size, dummy_val;
 	int rc = 0;
-	u64 val = 0;
+	u64 val = hdev->memory_scrub_val;
 
 	if (!hdev->memory_scrub)
 		return 0;
@@ -4871,7 +4871,6 @@ static int gaudi_scrub_device_mem(struct hl_device *hdev)
 	/* Scrub SRAM */
 	addr = prop->sram_user_base_address;
 	size = hdev->pldm ? 0x10000 : prop->sram_size - SRAM_USER_BASE_OFFSET;
-	val = 0x7777777777777777ull;
 
 	dev_dbg(hdev->dev, "Scrubing SRAM: 0x%09llx - 0x%09llx val: 0x%llx\n",
 			addr, addr + size, val);
@@ -4882,7 +4881,7 @@ static int gaudi_scrub_device_mem(struct hl_device *hdev)
 	}
 
 	/* Scrub HBM using all DMA channels in parallel */
-	rc = gaudi_scrub_device_dram(hdev, 0xdeadbeaf);
+	rc = gaudi_scrub_device_dram(hdev, val);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to clear HBM (%d)\n", rc);
 		return rc;
