@@ -5273,6 +5273,7 @@ err:
 
 static int dwc3_msm_parse_core_params(struct dwc3_msm *mdwc, struct device_node *dwc3_node)
 {
+	struct device_node *phy_node;
 	int ret;
 	const char *prop_string;
 
@@ -5299,16 +5300,101 @@ static int dwc3_msm_parse_core_params(struct dwc3_msm *mdwc, struct device_node 
 		disable_irq(mdwc->core_irq);
 	}
 
+	phy_node = of_parse_phandle(dwc3_node, "usb-phy", 0);
+	mdwc->hs_phy = devm_usb_get_phy_by_node(mdwc->dev, phy_node, NULL);
+	if (IS_ERR(mdwc->hs_phy)) {
+		dev_err(mdwc->dev, "unable to get hsphy device\n");
+		ret = PTR_ERR(mdwc->hs_phy);
+		return ret;
+	}
+
+	phy_node = of_parse_phandle(dwc3_node, "usb-phy", 1);
+	mdwc->ss_phy = devm_usb_get_phy_by_node(mdwc->dev, phy_node, NULL);
+	if (IS_ERR(mdwc->ss_phy)) {
+		dev_err(mdwc->dev, "unable to get ssphy device\n");
+		ret = PTR_ERR(mdwc->ss_phy);
+		return ret;
+	}
+
 	return ret;
+}
+
+static int dwc3_msm_parse_params(struct dwc3_msm *mdwc, struct device_node *node)
+{
+	struct device	*dev = mdwc->dev;
+	int ret, size = 0, i;
+
+	of_property_read_u32(node, "qcom,num-gsi-evt-buffs",
+				&mdwc->num_gsi_event_buffers);
+
+	if (mdwc->num_gsi_event_buffers) {
+		of_get_property(node, "qcom,gsi-reg-offset", &size);
+		if (size) {
+			mdwc->gsi_reg = devm_kzalloc(dev, size, GFP_KERNEL);
+			if (!mdwc->gsi_reg)
+				return -ENOMEM;
+
+			mdwc->gsi_reg_offset_cnt =
+					(size / sizeof(*mdwc->gsi_reg));
+			if (mdwc->gsi_reg_offset_cnt != GSI_REG_MAX) {
+				dev_err(dev, "invalid reg offset count\n");
+				return -EINVAL;
+			}
+
+			of_property_read_u32_array(dev->of_node,
+				"qcom,gsi-reg-offset", mdwc->gsi_reg,
+				mdwc->gsi_reg_offset_cnt);
+		} else {
+			dev_err(dev, "err provide qcom,gsi-reg-offset\n");
+			return -EINVAL;
+		}
+	}
+
+	mdwc->use_pdc_interrupts = of_property_read_bool(node,
+				"qcom,use-pdc-interrupts");
+
+	mdwc->use_eusb2_phy = of_property_read_bool(node, "qcom,use-eusb2-phy");
+	mdwc->disable_host_ssphy_powerdown = of_property_read_bool(node,
+				"qcom,disable-host-ssphy-powerdown");
+
+	mdwc->dis_sending_cm_l1_quirk = of_property_read_bool(node,
+				"qcom,dis-sending-cm-l1-quirk");
+
+	/* use default as nominal bus voting */
+	mdwc->default_bus_vote = BUS_VOTE_NOMINAL;
+	of_property_read_u32(node, "qcom,default-bus-vote",
+			&mdwc->default_bus_vote);
+
+	if (mdwc->default_bus_vote >= BUS_VOTE_MAX)
+		mdwc->default_bus_vote = BUS_VOTE_MAX - 1;
+	else if (mdwc->default_bus_vote < BUS_VOTE_NONE)
+		mdwc->default_bus_vote = BUS_VOTE_NONE;
+
+	for (i = 0; i < ARRAY_SIZE(mdwc->icc_paths); i++) {
+		mdwc->icc_paths[i] = of_icc_get(dev, icc_path_names[i]);
+		if (IS_ERR(mdwc->icc_paths[i]))
+			mdwc->icc_paths[i] = NULL;
+	}
+
+	ret = of_property_read_u32(node, "qcom,pm-qos-latency",
+				&mdwc->pm_qos_latency);
+	if (ret) {
+		dev_dbg(dev, "setting pm-qos-latency to zero.\n");
+		mdwc->pm_qos_latency = 0;
+	}
+
+	mdwc->force_gen1 = of_property_read_bool(node, "qcom,force-gen1");
+
+	return 0;
 }
 
 static int dwc3_msm_probe(struct platform_device *pdev)
 {
-	struct device_node *node = pdev->dev.of_node, *dwc3_node, *phy_node;
+	struct device_node *node = pdev->dev.of_node, *dwc3_node;
 	struct device	*dev = &pdev->dev;
 	struct dwc3_msm *mdwc;
 	struct resource *res;
-	int ret = 0, size = 0, i;
+	int ret = 0, i;
 	u32 val;
 
 	mdwc = devm_kzalloc(&pdev->dev, sizeof(*mdwc), GFP_KERNEL);
@@ -5462,38 +5548,9 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		}
 	}
 
-	ret = of_property_read_u32(node, "qcom,num-gsi-evt-buffs",
-				&mdwc->num_gsi_event_buffers);
-
-	if (mdwc->num_gsi_event_buffers) {
-		of_get_property(node, "qcom,gsi-reg-offset", &size);
-		if (size) {
-			mdwc->gsi_reg = devm_kzalloc(dev, size, GFP_KERNEL);
-			if (!mdwc->gsi_reg)
-				return -ENOMEM;
-
-			mdwc->gsi_reg_offset_cnt =
-					(size / sizeof(*mdwc->gsi_reg));
-			if (mdwc->gsi_reg_offset_cnt != GSI_REG_MAX) {
-				dev_err(dev, "invalid reg offset count\n");
-				return -EINVAL;
-			}
-
-			of_property_read_u32_array(dev->of_node,
-				"qcom,gsi-reg-offset", mdwc->gsi_reg,
-				mdwc->gsi_reg_offset_cnt);
-		} else {
-			dev_err(dev, "err provide qcom,gsi-reg-offset\n");
-			return -EINVAL;
-		}
-	}
-
-	mdwc->use_pdc_interrupts = of_property_read_bool(node,
-				"qcom,use-pdc-interrupts");
-
-	mdwc->use_eusb2_phy = of_property_read_bool(node, "qcom,use-eusb2-phy");
-	mdwc->disable_host_ssphy_powerdown = of_property_read_bool(node,
-				"qcom,disable-host-ssphy-powerdown");
+	ret = dwc3_msm_parse_params(mdwc, node);
+	if (ret < 0)
+		goto err;
 
 	if (dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64))) {
 		dev_err(&pdev->dev, "setting DMA mask to 64 failed.\n");
@@ -5504,9 +5561,6 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		}
 	}
 
-	mdwc->dis_sending_cm_l1_quirk = of_property_read_bool(node,
-					"qcom,dis-sending-cm-l1-quirk");
-
 	/* Assumes dwc3 is the first DT child of dwc3-msm */
 	dwc3_node = of_get_next_available_child(node, NULL);
 	if (!dwc3_node) {
@@ -5515,39 +5569,9 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	dwc3_msm_parse_core_params(mdwc, dwc3_node);
-
-	phy_node = of_parse_phandle(dwc3_node, "usb-phy", 0);
-	mdwc->hs_phy = devm_usb_get_phy_by_node(mdwc->dev, phy_node, NULL);
-	if (IS_ERR(mdwc->hs_phy)) {
-		dev_err(mdwc->dev, "unable to get hsphy device\n");
-		ret = PTR_ERR(mdwc->hs_phy);
+	ret = dwc3_msm_parse_core_params(mdwc, dwc3_node);
+	if (ret < 0)
 		goto err;
-	}
-
-	phy_node = of_parse_phandle(dwc3_node, "usb-phy", 1);
-	mdwc->ss_phy = devm_usb_get_phy_by_node(mdwc->dev, phy_node, NULL);
-	if (IS_ERR(mdwc->ss_phy)) {
-		dev_err(mdwc->dev, "unable to get ssphy device\n");
-		ret = PTR_ERR(mdwc->ss_phy);
-		goto err;
-	}
-
-	/* use default as nominal bus voting */
-	mdwc->default_bus_vote = BUS_VOTE_NOMINAL;
-	ret = of_property_read_u32(node, "qcom,default-bus-vote",
-			&mdwc->default_bus_vote);
-
-	if (mdwc->default_bus_vote >= BUS_VOTE_MAX)
-		mdwc->default_bus_vote = BUS_VOTE_MAX - 1;
-	else if (mdwc->default_bus_vote < BUS_VOTE_NONE)
-		mdwc->default_bus_vote = BUS_VOTE_NONE;
-
-	for (i = 0; i < ARRAY_SIZE(mdwc->icc_paths); i++) {
-		mdwc->icc_paths[i] = of_icc_get(&pdev->dev, icc_path_names[i]);
-		if (IS_ERR(mdwc->icc_paths[i]))
-			mdwc->icc_paths[i] = NULL;
-	}
 
 	/*
 	 * Clocks and regulators will not be turned on until the first time
@@ -5563,17 +5587,8 @@ static int dwc3_msm_probe(struct platform_device *pdev)
 	if (of_property_read_bool(node, "qcom,disable-dev-mode-pm"))
 		pm_runtime_get_noresume(mdwc->dev);
 
-	ret = of_property_read_u32(node, "qcom,pm-qos-latency",
-				&mdwc->pm_qos_latency);
-	if (ret) {
-		dev_dbg(&pdev->dev, "setting pm-qos-latency to zero.\n");
-		mdwc->pm_qos_latency = 0;
-	}
-
 	mutex_init(&mdwc->suspend_resume_mutex);
 	mutex_init(&mdwc->role_switch_mutex);
-
-	mdwc->force_gen1 = of_property_read_bool(node, "qcom,force-gen1");
 
 	if (of_property_read_bool(node, "usb-role-switch")) {
 		struct usb_role_switch_desc role_desc = {
