@@ -1212,8 +1212,8 @@ static int lan743x_sgmii_config(struct lan743x_adapter *adapter)
 
 	/* SGMII/1000/2500BASE-X PCS power down */
 	mii_ctl = lan743x_sgmii_read(adapter, MDIO_MMD_VEND2, MII_BMCR);
-	if (ret < 0)
-		return ret;
+	if (mii_ctl < 0)
+		return mii_ctl;
 
 	mii_ctl |= BMCR_PDOWN;
 	ret = lan743x_sgmii_write(adapter, MDIO_MMD_VEND2, MII_BMCR, mii_ctl);
