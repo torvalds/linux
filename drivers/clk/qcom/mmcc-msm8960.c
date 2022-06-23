@@ -41,6 +41,52 @@ enum {
 
 #define F_MN(f, s, _m, _n) { .freq = f, .src = s, .m = _m, .n = _n }
 
+static struct clk_pll pll2 = {
+	.l_reg = 0x320,
+	.m_reg = 0x324,
+	.n_reg = 0x328,
+	.config_reg = 0x32c,
+	.mode_reg = 0x31c,
+	.status_reg = 0x334,
+	.status_bit = 16,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "pll2",
+		.parent_names = (const char *[]){ "pxo" },
+		.num_parents = 1,
+		.ops = &clk_pll_ops,
+	},
+};
+
+static struct clk_pll pll15 = {
+	.l_reg = 0x33c,
+	.m_reg = 0x340,
+	.n_reg = 0x344,
+	.config_reg = 0x348,
+	.mode_reg = 0x338,
+	.status_reg = 0x350,
+	.status_bit = 16,
+	.clkr.hw.init = &(struct clk_init_data){
+		.name = "pll15",
+		.parent_names = (const char *[]){ "pxo" },
+		.num_parents = 1,
+		.ops = &clk_pll_ops,
+	},
+};
+
+static const struct pll_config pll15_config = {
+	.l = 33,
+	.m = 1,
+	.n = 3,
+	.vco_val = 0x2 << 16,
+	.vco_mask = 0x3 << 16,
+	.pre_div_val = 0x0,
+	.pre_div_mask = BIT(19),
+	.post_div_val = 0x0,
+	.post_div_mask = 0x3 << 20,
+	.mn_ena_mask = BIT(22),
+	.main_output_mask = BIT(23),
+};
+
 static const struct parent_map mmcc_pxo_pll8_pll2_map[] = {
 	{ P_PXO, 0 },
 	{ P_PLL8, 2 },
@@ -103,52 +149,6 @@ static const char * const mmcc_pxo_dsi1_dsi2_byte[] = {
 	"pxo",
 	"dsi1pllbyte",
 	"dsi2pllbyte",
-};
-
-static struct clk_pll pll2 = {
-	.l_reg = 0x320,
-	.m_reg = 0x324,
-	.n_reg = 0x328,
-	.config_reg = 0x32c,
-	.mode_reg = 0x31c,
-	.status_reg = 0x334,
-	.status_bit = 16,
-	.clkr.hw.init = &(struct clk_init_data){
-		.name = "pll2",
-		.parent_names = (const char *[]){ "pxo" },
-		.num_parents = 1,
-		.ops = &clk_pll_ops,
-	},
-};
-
-static struct clk_pll pll15 = {
-	.l_reg = 0x33c,
-	.m_reg = 0x340,
-	.n_reg = 0x344,
-	.config_reg = 0x348,
-	.mode_reg = 0x338,
-	.status_reg = 0x350,
-	.status_bit = 16,
-	.clkr.hw.init = &(struct clk_init_data){
-		.name = "pll15",
-		.parent_names = (const char *[]){ "pxo" },
-		.num_parents = 1,
-		.ops = &clk_pll_ops,
-	},
-};
-
-static const struct pll_config pll15_config = {
-	.l = 33,
-	.m = 1,
-	.n = 3,
-	.vco_val = 0x2 << 16,
-	.vco_mask = 0x3 << 16,
-	.pre_div_val = 0x0,
-	.pre_div_mask = BIT(19),
-	.post_div_val = 0x0,
-	.post_div_mask = 0x3 << 20,
-	.mn_ena_mask = BIT(22),
-	.main_output_mask = BIT(23),
 };
 
 static struct freq_tbl clk_tbl_cam[] = {
