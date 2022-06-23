@@ -517,6 +517,16 @@ config TSL4531
 	  To compile this driver as a module, choose M here: the
 	  module will be called tsl4531.
 
+config UCS12CM0
+	tristate "UCS12CM0 illuminance and correlated color temperature sensor"
+	depends on I2C
+	help
+	  Say Y here if you want to build a driver for the Ultra Capteur
+	  UCS12CM0 illuminance and correlated color temperature sensor.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called ucs12cm0.
+
 config US5182D
 	tristate "UPISEMI light and proximity sensor"
 	depends on I2C
