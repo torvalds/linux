@@ -43,7 +43,7 @@ struct regmap_irq_chip_data {
 	unsigned int irq_reg_stride;
 	unsigned int type_reg_stride;
 
-	bool clear_status:1;
+	unsigned int clear_status:1;
 };
 
 static int sub_irq_reg(struct regmap_irq_chip_data *data,

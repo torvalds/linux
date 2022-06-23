@@ -1534,19 +1534,19 @@ struct regmap_irq_chip {
 	unsigned int type_base;
 	unsigned int *virt_reg_base;
 	unsigned int irq_reg_stride;
-	bool mask_writeonly:1;
-	bool init_ack_masked:1;
-	bool mask_invert:1;
-	bool use_ack:1;
-	bool ack_invert:1;
-	bool clear_ack:1;
-	bool wake_invert:1;
-	bool runtime_pm:1;
-	bool type_invert:1;
-	bool type_in_mask:1;
-	bool clear_on_unmask:1;
-	bool not_fixed_stride:1;
-	bool status_invert:1;
+	unsigned int mask_writeonly:1;
+	unsigned int init_ack_masked:1;
+	unsigned int mask_invert:1;
+	unsigned int use_ack:1;
+	unsigned int ack_invert:1;
+	unsigned int clear_ack:1;
+	unsigned int wake_invert:1;
+	unsigned int runtime_pm:1;
+	unsigned int type_invert:1;
+	unsigned int type_in_mask:1;
+	unsigned int clear_on_unmask:1;
+	unsigned int not_fixed_stride:1;
+	unsigned int status_invert:1;
 
 	int num_regs;
 
