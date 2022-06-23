@@ -774,7 +774,7 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021q_emu_family = {
 	.end_index		= MLXSW_SP_FID_8021Q_EMU_END,
 	.flood_tables		= mlxsw_sp_fid_8021d_flood_tables,
 	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
-	.rif_type		= MLXSW_SP_RIF_TYPE_VLAN,
+	.rif_type		= MLXSW_SP_RIF_TYPE_VLAN_EMU,
 	.ops			= &mlxsw_sp_fid_8021q_emu_ops,
 };
 

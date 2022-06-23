@@ -84,7 +84,7 @@ struct mlxsw_sp_upper {
 
 enum mlxsw_sp_rif_type {
 	MLXSW_SP_RIF_TYPE_SUBPORT,
-	MLXSW_SP_RIF_TYPE_VLAN,
+	MLXSW_SP_RIF_TYPE_VLAN_EMU,
 	MLXSW_SP_RIF_TYPE_FID,
 	MLXSW_SP_RIF_TYPE_IPIP_LB, /* IP-in-IP loopback. */
 	MLXSW_SP_RIF_TYPE_MAX,
