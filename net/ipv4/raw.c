@@ -278,7 +278,7 @@ void raw_icmp_error(struct sk_buff *skb, int protocol, u32 info)
 	sk_nulls_for_each(sk, hnode, hlist) {
 		iph = (const struct iphdr *)skb->data;
 		if (!raw_v4_match(net, sk, iph->protocol,
-				  iph->saddr, iph->daddr, dif, sdif))
+				  iph->daddr, iph->saddr, dif, sdif))
 			continue;
 		raw_err(sk, skb, info);
 	}
