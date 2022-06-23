@@ -758,6 +758,7 @@ static void ufs_mtk_vreg_fix_vccqx(struct ufs_hba *hba)
 		regulator_disable((*vreg_off)->reg);
 		devm_kfree(hba->dev, (*vreg_off)->name);
 		devm_kfree(hba->dev, *vreg_off);
+		*vreg_off = NULL;
 	}
 }
 
