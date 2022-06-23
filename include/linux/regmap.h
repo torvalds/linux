@@ -1503,8 +1503,6 @@ struct regmap_irq_sub_irq_map {
  * @num_type_reg:    Number of type registers.
  * @num_virt_regs:   Number of non-standard irq configuration registers.
  *		     If zero unsupported.
- * @type_reg_stride: Stride to use for chips where type registers are not
- *			contiguous.
  * @handle_pre_irq:  Driver specific callback to handle interrupt from device
  *		     before regmap_irq_handler process the interrupts.
  * @handle_post_irq: Driver specific callback to handle interrupt from device
@@ -1555,7 +1553,6 @@ struct regmap_irq_chip {
 
 	int num_type_reg;
 	int num_virt_regs;
-	unsigned int type_reg_stride;
 
 	int (*handle_pre_irq)(void *irq_drv_data);
 	int (*handle_post_irq)(void *irq_drv_data);
