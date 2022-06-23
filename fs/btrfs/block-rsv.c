@@ -171,7 +171,7 @@ int btrfs_block_rsv_migrate(struct btrfs_block_rsv *src,
 	return 0;
 }
 
-void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv, unsigned short type)
+void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv, enum btrfs_rsv_type type)
 {
 	memset(rsv, 0, sizeof(*rsv));
 	spin_lock_init(&rsv->lock);
@@ -180,7 +180,7 @@ void btrfs_init_block_rsv(struct btrfs_block_rsv *rsv, unsigned short type)
 
 void btrfs_init_metadata_block_rsv(struct btrfs_fs_info *fs_info,
 				   struct btrfs_block_rsv *rsv,
-				   unsigned short type)
+				   enum btrfs_rsv_type type)
 {
 	btrfs_init_block_rsv(rsv, type);
 	rsv->space_info = btrfs_find_space_info(fs_info,
@@ -188,7 +188,7 @@ void btrfs_init_metadata_block_rsv(struct btrfs_fs_info *fs_info,
 }
 
 struct btrfs_block_rsv *btrfs_alloc_block_rsv(struct btrfs_fs_info *fs_info,
-					      unsigned short type)
+					      enum btrfs_rsv_type type)
 {
 	struct btrfs_block_rsv *block_rsv;
 
