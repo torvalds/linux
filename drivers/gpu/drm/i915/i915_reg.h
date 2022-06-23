@@ -161,16 +161,16 @@
  * Device info offset array based helpers for groups of registers with unevenly
  * spaced base offsets.
  */
-#define _MMIO_PIPE2(pipe, reg)		_MMIO(INTEL_INFO(dev_priv)->pipe_offsets[pipe] - \
-					      INTEL_INFO(dev_priv)->pipe_offsets[PIPE_A] + (reg) + \
-					      DISPLAY_MMIO_BASE(dev_priv))
-#define _TRANS2(tran, reg)		(INTEL_INFO(dev_priv)->trans_offsets[(tran)] - \
-					 INTEL_INFO(dev_priv)->trans_offsets[TRANSCODER_A] + (reg) + \
-					 DISPLAY_MMIO_BASE(dev_priv))
+#define _MMIO_PIPE2(pipe, reg)		_MMIO(INTEL_INFO(dev_priv)->display.pipe_offsets[(pipe)] - \
+					      INTEL_INFO(dev_priv)->display.pipe_offsets[PIPE_A] + \
+					      DISPLAY_MMIO_BASE(dev_priv) + (reg))
+#define _TRANS2(tran, reg)		(INTEL_INFO(dev_priv)->display.trans_offsets[(tran)] - \
+					 INTEL_INFO(dev_priv)->display.trans_offsets[TRANSCODER_A] + \
+					 DISPLAY_MMIO_BASE(dev_priv) + (reg))
 #define _MMIO_TRANS2(tran, reg)		_MMIO(_TRANS2(tran, reg))
-#define _CURSOR2(pipe, reg)		_MMIO(INTEL_INFO(dev_priv)->cursor_offsets[(pipe)] - \
-					      INTEL_INFO(dev_priv)->cursor_offsets[PIPE_A] + (reg) + \
-					      DISPLAY_MMIO_BASE(dev_priv))
+#define _CURSOR2(pipe, reg)		_MMIO(INTEL_INFO(dev_priv)->display.cursor_offsets[(pipe)] - \
+					      INTEL_INFO(dev_priv)->display.cursor_offsets[PIPE_A] + \
+					      DISPLAY_MMIO_BASE(dev_priv) + (reg))
 
 #define __MASKED_FIELD(mask, value) ((mask) << 16 | (value))
 #define _MASKED_FIELD(mask, value) ({					   \

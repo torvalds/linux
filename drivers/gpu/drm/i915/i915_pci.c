@@ -38,43 +38,43 @@
 	.display.ver = (x)
 
 #define I845_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 	}
 
 #define I9XX_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 	}
 
 #define IVB_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = PIPE_C_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
 	}
 
 #define HSW_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = PIPE_C_OFFSET, \
 		[TRANSCODER_EDP] = PIPE_EDP_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
@@ -82,44 +82,44 @@
 	}
 
 #define CHV_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = CHV_PIPE_C_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = CHV_TRANSCODER_C_OFFSET, \
 	}
 
 #define I845_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 	}
 
 #define I9XX_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = CURSOR_B_OFFSET, \
 	}
 
 #define CHV_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = CURSOR_B_OFFSET, \
 		[PIPE_C] = CHV_CURSOR_C_OFFSET, \
 	}
 
 #define IVB_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
 		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
 	}
 
 #define TGL_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
 		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
@@ -801,7 +801,7 @@ static const struct intel_device_info cml_gt2_info = {
 	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP) | \
 		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = PIPE_C_OFFSET, \
@@ -809,7 +809,7 @@ static const struct intel_device_info cml_gt2_info = {
 		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET, \
 		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
@@ -854,7 +854,7 @@ static const struct intel_device_info jsl_info = {
 	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D) | \
 		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = PIPE_C_OFFSET, \
@@ -862,7 +862,7 @@ static const struct intel_device_info jsl_info = {
 		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET, \
 		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
@@ -929,7 +929,7 @@ static const struct intel_device_info adl_s_info = {
 };
 
 #define XE_LPD_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
 		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
@@ -958,7 +958,7 @@ static const struct intel_device_info adl_s_info = {
 	.display.has_psr = 1,							\
 	.display.ver = 13,							\
 	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),	\
-	.pipe_offsets = {							\
+	.display.pipe_offsets = {						\
 		[TRANSCODER_A] = PIPE_A_OFFSET,					\
 		[TRANSCODER_B] = PIPE_B_OFFSET,					\
 		[TRANSCODER_C] = PIPE_C_OFFSET,					\
@@ -966,7 +966,7 @@ static const struct intel_device_info adl_s_info = {
 		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET,				\
 		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET,				\
 	},									\
-	.trans_offsets = {							\
+	.display.trans_offsets = {						\
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET,				\
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET,				\
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET,				\

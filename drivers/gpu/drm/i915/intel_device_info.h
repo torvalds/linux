@@ -233,13 +233,13 @@ struct intel_device_info {
 #define DEFINE_FLAG(name) u8 name:1
 		DEV_INFO_DISPLAY_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
+
+		/* Register offsets for the various display pipes and transcoders */
+		int pipe_offsets[I915_MAX_TRANSCODERS];
+		int trans_offsets[I915_MAX_TRANSCODERS];
+		int cursor_offsets[I915_MAX_PIPES];
 	} display;
 
-
-	/* Register offsets for the various display pipes and transcoders */
-	int pipe_offsets[I915_MAX_TRANSCODERS];
-	int trans_offsets[I915_MAX_TRANSCODERS];
-	int cursor_offsets[I915_MAX_PIPES];
 
 	struct color_luts {
 		u32 degamma_lut_size;
