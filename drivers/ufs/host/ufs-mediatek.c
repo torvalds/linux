@@ -1190,6 +1190,8 @@ static int ufs_mtk_suspend(struct ufs_hba *hba, enum ufs_pm_op pm_op,
 	if (ufshcd_is_link_off(hba))
 		ufs_mtk_device_reset_ctrl(0, res);
 
+	ufs_mtk_host_pwr_ctrl(HOST_PWR_HCI, false, res);
+
 	return 0;
 fail:
 	/*
@@ -1204,9 +1206,12 @@ fail:
 static int ufs_mtk_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 {
 	int err;
+	struct arm_smccc_res res;
 
 	if (hba->ufshcd_state != UFSHCD_STATE_OPERATIONAL)
 		ufs_mtk_dev_vreg_set_lpm(hba, false);
+
+	ufs_mtk_host_pwr_ctrl(HOST_PWR_HCI, true, res);
 
 	err = ufs_mtk_mphy_power_on(hba, true);
 	if (err)
