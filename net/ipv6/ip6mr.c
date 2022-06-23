@@ -559,12 +559,11 @@ static int pim6_rcv(struct sk_buff *skb)
 
 	if (ip6mr_fib_lookup(net, &fl6, &mrt) < 0)
 		goto drop;
-	reg_vif_num = mrt->mroute_reg_vif_num;
 
-	read_lock(&mrt_lock);
+	/* Pairs with WRITE_ONCE() in mif6_add()/mif6_delete() */
+	reg_vif_num = READ_ONCE(mrt->mroute_reg_vif_num);
 	if (reg_vif_num >= 0)
 		reg_dev = vif_dev_read(&mrt->vif_table[reg_vif_num]);
-	read_unlock(&mrt_lock);
 
 	if (!reg_dev)
 		goto drop;
