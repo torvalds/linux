@@ -664,7 +664,7 @@ xfs_ilock_for_iomap(
 	unsigned		flags,
 	unsigned		*lockmode)
 {
-	unsigned		mode = XFS_ILOCK_SHARED;
+	unsigned int		mode = *lockmode;
 	bool			is_write = flags & (IOMAP_WRITE | IOMAP_ZERO);
 
 	/*
@@ -742,7 +742,7 @@ xfs_direct_write_iomap_begin(
 	int			nimaps = 1, error = 0;
 	bool			shared = false;
 	u16			iomap_flags = 0;
-	unsigned		lockmode;
+	unsigned int		lockmode = XFS_ILOCK_SHARED;
 
 	ASSERT(flags & (IOMAP_WRITE | IOMAP_ZERO));
 
@@ -1172,7 +1172,7 @@ xfs_read_iomap_begin(
 	xfs_fileoff_t		end_fsb = xfs_iomap_end_fsb(mp, offset, length);
 	int			nimaps = 1, error = 0;
 	bool			shared = false;
-	unsigned		lockmode;
+	unsigned int		lockmode = XFS_ILOCK_SHARED;
 
 	ASSERT(!(flags & (IOMAP_WRITE | IOMAP_ZERO)));
 
