@@ -51,7 +51,7 @@ static const struct scpsys_domain_data scpsys_domain_data_mt8186[] = {
 				MT8186_TOP_AXI_PROT_EN_1_CLR,
 				MT8186_TOP_AXI_PROT_EN_1_STA),
 		},
-		.caps = MTK_SCPD_KEEP_DEFAULT_OFF,
+		.caps = MTK_SCPD_KEEP_DEFAULT_OFF | MTK_SCPD_DOMAIN_SUPPLY,
 	},
 	[MT8186_POWER_DOMAIN_MFG2] = {
 		.name = "mfg2",
