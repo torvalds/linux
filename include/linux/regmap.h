@@ -1468,7 +1468,6 @@ struct regmap_irq_sub_irq_map {
  *
  * @status_base: Base status register address.
  * @mask_base:   Base mask register address.
- * @mask_writeonly: Base mask register is write only.
  * @unmask_base:  Base unmask register address. for chips who have
  *                separate mask and unmask registers
  * @ack_base:    Base ack address. If zero then the chip is clear on read.
@@ -1534,7 +1533,6 @@ struct regmap_irq_chip {
 	unsigned int type_base;
 	unsigned int *virt_reg_base;
 	unsigned int irq_reg_stride;
-	unsigned int mask_writeonly:1;
 	unsigned int init_ack_masked:1;
 	unsigned int mask_invert:1;
 	unsigned int use_ack:1;
