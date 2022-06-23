@@ -1467,9 +1467,10 @@ struct regmap_irq_sub_irq_map {
  *		   main_status set.
  *
  * @status_base: Base status register address.
- * @mask_base:   Base mask register address.
- * @unmask_base:  Base unmask register address. for chips who have
- *                separate mask and unmask registers
+ * @mask_base:   Base mask register address. Mask bits are set to 1 when an
+ *               interrupt is masked, 0 when unmasked.
+ * @unmask_base:  Base unmask register address. Unmask bits are set to 1 when
+ *                an interrupt is unmasked and 0 when masked.
  * @ack_base:    Base ack address. If zero then the chip is clear on read.
  *               Using zero value is possible with @use_ack bit.
  * @wake_base:   Base address for wake enables.  If zero unsupported.
@@ -1481,6 +1482,16 @@ struct regmap_irq_sub_irq_map {
  * @irq_reg_stride:  Stride to use for chips where registers are not contiguous.
  * @init_ack_masked: Ack all masked interrupts once during initalization.
  * @mask_invert: Inverted mask register: cleared bits are masked out.
+ *		 Deprecated; prefer describing an inverted mask register as
+ *		 an unmask register.
+ * @mask_unmask_non_inverted: Controls mask bit inversion for chips that set
+ *	both @mask_base and @unmask_base. If false, mask and unmask bits are
+ *	inverted (which is deprecated behavior); if true, bits will not be
+ *	inverted and the registers keep their normal behavior. Note that if
+ *	you use only one of @mask_base or @unmask_base, this flag has no
+ *	effect and is unnecessary. Any new drivers that set both @mask_base
+ *	and @unmask_base should set this to true to avoid relying on the
+ *	deprecated behavior.
  * @use_ack:     Use @ack register even if it is zero.
  * @ack_invert:  Inverted ack register: cleared bits for ack.
  * @clear_ack:  Use this to set 1 and 0 or vice-versa to clear interrupts.
@@ -1546,6 +1557,7 @@ struct regmap_irq_chip {
 	unsigned int irq_reg_stride;
 	unsigned int init_ack_masked:1;
 	unsigned int mask_invert:1;
+	unsigned int mask_unmask_non_inverted:1;
 	unsigned int use_ack:1;
 	unsigned int ack_invert:1;
 	unsigned int clear_ack:1;

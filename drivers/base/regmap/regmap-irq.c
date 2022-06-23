@@ -30,6 +30,9 @@ struct regmap_irq_chip_data {
 	int irq;
 	int wake_count;
 
+	unsigned int mask_base;
+	unsigned int unmask_base;
+
 	void *status_reg_buf;
 	unsigned int *main_status_buf;
 	unsigned int *status_buf;
@@ -95,7 +98,6 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 	struct regmap *map = d->map;
 	int i, j, ret;
 	u32 reg;
-	u32 unmask_offset;
 	u32 val;
 
 	if (d->chip->runtime_pm) {
@@ -124,35 +126,23 @@ static void regmap_irq_sync_unlock(struct irq_data *data)
 	 * suppress pointless writes.
 	 */
 	for (i = 0; i < d->chip->num_regs; i++) {
-		if (!d->chip->mask_base)
-			continue;
-
-		reg = sub_irq_reg(d, d->chip->mask_base, i);
-		if (d->chip->mask_invert) {
+		if (d->mask_base) {
+			reg = sub_irq_reg(d, d->mask_base, i);
 			ret = regmap_update_bits(d->map, reg,
-					 d->mask_buf_def[i], ~d->mask_buf[i]);
-		} else if (d->chip->unmask_base) {
-			/* set mask with mask_base register */
+					d->mask_buf_def[i], d->mask_buf[i]);
+			if (ret)
+				dev_err(d->map->dev, "Failed to sync masks in %x\n",
+					reg);
+		}
+
+		if (d->unmask_base) {
+			reg = sub_irq_reg(d, d->unmask_base, i);
 			ret = regmap_update_bits(d->map, reg,
 					d->mask_buf_def[i], ~d->mask_buf[i]);
-			if (ret < 0)
-				dev_err(d->map->dev,
-					"Failed to sync unmasks in %x\n",
+			if (ret)
+				dev_err(d->map->dev, "Failed to sync masks in %x\n",
 					reg);
-			unmask_offset = d->chip->unmask_base -
-							d->chip->mask_base;
-			/* clear mask with unmask_base register */
-			ret = regmap_update_bits(d->map,
-					reg + unmask_offset,
-					d->mask_buf_def[i],
-					d->mask_buf[i]);
-		} else {
-			ret = regmap_update_bits(d->map, reg,
-					 d->mask_buf_def[i], d->mask_buf[i]);
 		}
-		if (ret != 0)
-			dev_err(d->map->dev, "Failed to sync masks in %x\n",
-				reg);
 
 		reg = sub_irq_reg(d, d->chip->wake_base, i);
 		if (d->wake_buf) {
@@ -704,7 +694,6 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	int ret = -ENOMEM;
 	int num_type_reg;
 	u32 reg;
-	u32 unmask_offset;
 
 	if (chip->num_regs <= 0)
 		return -EINVAL;
@@ -832,6 +821,42 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	d->chip = chip;
 	d->irq_base = irq_base;
 
+	if (chip->mask_base && chip->unmask_base &&
+	    !chip->mask_unmask_non_inverted) {
+		/*
+		 * Chips that specify both mask_base and unmask_base used to
+		 * get inverted mask behavior by default, with no way to ask
+		 * for the normal, non-inverted behavior. This "inverted by
+		 * default" behavior is deprecated, but we have to support it
+		 * until existing drivers have been fixed.
+		 *
+		 * Existing drivers should be updated by swapping mask_base
+		 * and unmask_base and setting mask_unmask_non_inverted=true.
+		 * New drivers should always set the flag.
+		 */
+		dev_warn(map->dev, "mask_base and unmask_base are inverted, please fix it");
+
+		/* Might as well warn about mask_invert while we're at it... */
+		if (chip->mask_invert)
+			dev_warn(map->dev, "mask_invert=true ignored");
+
+		d->mask_base = chip->unmask_base;
+		d->unmask_base = chip->mask_base;
+	} else if (chip->mask_invert) {
+		/*
+		 * Swap the roles of mask_base and unmask_base if the bits are
+		 * inverted. This is deprecated, drivers should use unmask_base
+		 * directly.
+		 */
+		dev_warn(map->dev, "mask_invert=true is deprecated; please switch to unmask_base");
+
+		d->mask_base = chip->unmask_base;
+		d->unmask_base = chip->mask_base;
+	} else {
+		d->mask_base = chip->mask_base;
+		d->unmask_base = chip->unmask_base;
+	}
+
 	if (chip->irq_reg_stride)
 		d->irq_reg_stride = chip->irq_reg_stride;
 	else
@@ -854,28 +879,27 @@ int regmap_add_irq_chip_fwnode(struct fwnode_handle *fwnode,
 	/* Mask all the interrupts by default */
 	for (i = 0; i < chip->num_regs; i++) {
 		d->mask_buf[i] = d->mask_buf_def[i];
-		if (!chip->mask_base)
-			continue;
 
-		reg = sub_irq_reg(d, d->chip->mask_base, i);
+		if (d->mask_base) {
+			reg = sub_irq_reg(d, d->mask_base, i);
+			ret = regmap_update_bits(d->map, reg,
+					d->mask_buf_def[i], d->mask_buf[i]);
+			if (ret) {
+				dev_err(map->dev, "Failed to set masks in 0x%x: %d\n",
+					reg, ret);
+				goto err_alloc;
+			}
+		}
 
-		if (chip->mask_invert)
+		if (d->unmask_base) {
+			reg = sub_irq_reg(d, d->unmask_base, i);
 			ret = regmap_update_bits(d->map, reg,
-					 d->mask_buf[i], ~d->mask_buf[i]);
-		else if (d->chip->unmask_base) {
-			unmask_offset = d->chip->unmask_base -
-					d->chip->mask_base;
-			ret = regmap_update_bits(d->map,
-					reg + unmask_offset,
-					d->mask_buf[i],
-					d->mask_buf[i]);
-		} else
-			ret = regmap_update_bits(d->map, reg,
-					 d->mask_buf[i], d->mask_buf[i]);
-		if (ret != 0) {
-			dev_err(map->dev, "Failed to set masks in 0x%x: %d\n",
-				reg, ret);
-			goto err_alloc;
+					d->mask_buf_def[i], ~d->mask_buf[i]);
+			if (ret) {
+				dev_err(map->dev, "Failed to set masks in 0x%x: %d\n",
+					reg, ret);
+				goto err_alloc;
+			}
 		}
 
 		if (!chip->init_ack_masked)
