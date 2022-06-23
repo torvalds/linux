@@ -73,6 +73,37 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,mmcc-apq8064
+              - qcom,mmcc-msm8960
+    then:
+      properties:
+        clocks:
+          items:
+            - description: Board PXO source
+            - description: PLL 3 clock
+            - description: PLL 3 Vote clock
+            - description: DSI phy instance 1 dsi clock
+            - description: DSI phy instance 1 byte clock
+            - description: DSI phy instance 2 dsi clock
+            - description: DSI phy instance 2 byte clock
+            - description: HDMI phy PLL clock
+
+        clock-names:
+          items:
+            - const: pxo
+            - const: pll3
+            - const: pll8_vote
+            - const: dsi1pll
+            - const: dsi1pllbyte
+            - const: dsi2pll
+            - const: dsi2pllbyte
+            - const: hdmipll
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
               - qcom,mmcc-msm8994
               - qcom,mmcc-msm8998
               - qcom,mmcc-sdm630
