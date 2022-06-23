@@ -2289,9 +2289,7 @@ int ipmr_get_route(struct net *net, struct sk_buff *skb,
 		return err;
 	}
 
-	read_lock(&mrt_lock);
 	err = mr_fill_mroute(mrt, skb, &cache->_c, rtm);
-	read_unlock(&mrt_lock);
 	rcu_read_unlock();
 	return err;
 }
