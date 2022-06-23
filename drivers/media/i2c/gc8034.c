@@ -17,6 +17,7 @@
  * V0.0X01.0X08
  * 1. default support 2lane full 30fps.
  * 2. default support rk otp spec.
+ * V0.0X01.0X09 adjust supply sequence to suit spec
  */
 //#define DEBUG
 #include <linux/clk.h>
@@ -46,7 +47,7 @@
 #include <linux/of_graph.h>
 #include "otp_eeprom.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x08)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x09)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -105,9 +106,9 @@
 #define GC8034_2LANE_30FPS
 
 static const char * const gc8034_supply_names[] = {
-	"avdd",		/* Analog power */
 	"dovdd",	/* Digital I/O power */
 	"dvdd",		/* Digital core power */
+	"avdd",		/* Analog power */
 };
 
 #define GC8034_NUM_SUPPLIES ARRAY_SIZE(gc8034_supply_names)
@@ -2503,6 +2504,31 @@ static inline u32 gc8034_cal_delay(u32 cycles)
 	return DIV_ROUND_UP(cycles, GC8034_XVCLK_FREQ / 1000 / 1000);
 }
 
+static int gc8034_enable_regulators(struct gc8034 *gc8034,
+				    struct regulator_bulk_data *consumers)
+{
+	int i, j;
+	int ret = 0;
+	struct device *dev = &gc8034->client->dev;
+	int num_consumers = GC8034_NUM_SUPPLIES;
+
+	for (i = 0; i < num_consumers; i++) {
+
+		ret = regulator_enable(consumers[i].consumer);
+		if (ret < 0) {
+			dev_err(dev, "Failed to enable regulator: %s\n",
+				consumers[i].supply);
+			goto err;
+		}
+	}
+	return 0;
+err:
+	for (j = 0; j < i; j++)
+		regulator_disable(consumers[j].consumer);
+
+	return ret;
+}
+
 static int __gc8034_power_on(struct gc8034 *gc8034)
 {
 	int ret;
@@ -2529,7 +2555,7 @@ static int __gc8034_power_on(struct gc8034 *gc8034)
 	if (!IS_ERR(gc8034->reset_gpio))
 		gpiod_set_value_cansleep(gc8034->reset_gpio, 1);
 
-	ret = regulator_bulk_enable(GC8034_NUM_SUPPLIES, gc8034->supplies);
+	ret = gc8034_enable_regulators(gc8034, gc8034->supplies);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable regulators\n");
 		goto disable_clk;
