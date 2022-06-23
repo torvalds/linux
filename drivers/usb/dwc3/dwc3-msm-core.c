@@ -24,6 +24,7 @@
 #include <linux/of.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
+#include <linux/of_address.h>
 #include <linux/list.h>
 #include <linux/uaccess.h>
 #include <linux/usb/ch9.h>
@@ -44,6 +45,7 @@
 #include <linux/usb/dwc3-msm.h>
 #include <linux/usb/role.h>
 #include <linux/usb/redriver.h>
+#include <linux/usb/composite.h>
 
 #include "core.h"
 #include "gadget.h"
@@ -52,6 +54,11 @@
 #include "debug-ipc.h"
 
 #define NUM_LOG_PAGES   12
+
+/* dload specific suppot */
+#define PID_MAGIC_ID		0x71432909
+#define SERIAL_NUM_MAGIC_ID	0x61945374
+#define SERIAL_NUMBER_LENGTH	128
 
 /* time out to wait for USB cable status notification (in ms)*/
 #define SM_INIT_TIMEOUT 30000
@@ -289,6 +296,13 @@ enum usb_gsi_reg {
 	RING_BASE_ADDR_H,
 	IF_STS,
 	GSI_REG_MAX,
+};
+
+struct dload_struct {
+	u32	pid;
+	char	serial_number[SERIAL_NUMBER_LENGTH];
+	u32	pid_magic;
+	u32	serial_magic;
 };
 
 struct dwc3_hw_ep {
@@ -589,6 +603,8 @@ struct dwc3_msm {
 
 /* unfortunately, dwc3 core doesn't manage multiple dwc3 instances for trace */
 void *dwc_trace_ipc_log_ctxt;
+
+static struct dload_struct __iomem *diag_dload;
 
 static void dwc3_pwr_event_handler(struct dwc3_msm *mdwc);
 
@@ -3127,6 +3143,67 @@ static void dwc3_msm_set_clk_sel(struct dwc3_msm *mdwc)
 		dwc3_msm_switch_utmi(mdwc, 1);
 }
 
+static void *gadget_get_drvdata(struct usb_gadget *g)
+{
+	return g->ep0->driver_data;
+}
+
+static int is_diag_enabled(struct usb_composite_dev *cdev)
+{
+	struct usb_configuration	*c;
+
+	list_for_each_entry(c, &cdev->configs, list) {
+		struct usb_function *f;
+
+		f = c->interface[0];
+		if (!strcmp(f->fi->group.cg_item.ci_name, "ffs.diag"))
+			return 1;
+	}
+
+	return 0;
+}
+
+static void dwc3_msm_update_imem_pid(struct dwc3 *dwc)
+{
+	struct usb_composite_dev	*cdev = NULL;
+	struct dload_struct		local_diag_dload = { 0 };
+
+	if (!diag_dload || !dwc->gadget) {
+		pr_err("%s: diag_dload mem region not defined\n", __func__);
+		return;
+	}
+
+	cdev = gadget_get_drvdata(dwc->gadget);
+
+	if (cdev->desc.idVendor == 0x05c6 && is_diag_enabled(cdev)) {
+		struct usb_gadget_string_container *uc;
+		struct usb_string *s;
+
+		local_diag_dload.pid = cdev->desc.idProduct;
+		local_diag_dload.pid_magic = PID_MAGIC_ID;
+		local_diag_dload.serial_magic = SERIAL_NUM_MAGIC_ID;
+
+		list_for_each_entry(uc, &cdev->gstrings, list) {
+			struct usb_gadget_strings **table;
+
+			table = (struct usb_gadget_strings **)uc->stash;
+			if (!table) {
+				pr_err("%s: can't update dload cookie\n", __func__);
+				return;
+			}
+
+			for (s = (*table)->strings; s && s->s; s++) {
+				if (s->id == cdev->desc.iSerialNumber) {
+					strscpy(local_diag_dload.serial_number, s->s,
+						SERIAL_NUMBER_LENGTH);
+					break;
+				}
+			}
+		}
+		memcpy_toio(diag_dload, &local_diag_dload, sizeof(local_diag_dload));
+	}
+}
+
 void dwc3_msm_notify_event(struct dwc3 *dwc,
 		enum dwc3_notify_event event, unsigned int value)
 {
@@ -3282,6 +3359,9 @@ void dwc3_msm_notify_event(struct dwc3 *dwc,
 				GSI_GENERAL_CFG_REG(mdwc->gsi_reg),
 				GSI_EN_MASK, 0);
 		}
+		break;
+	case DWC3_IMEM_UPDATE_PID:
+		dwc3_msm_update_imem_pid(dwc);
 		break;
 	default:
 		dev_dbg(mdwc->dev, "unknown dwc3 event\n");
@@ -5321,6 +5401,7 @@ static int dwc3_msm_parse_core_params(struct dwc3_msm *mdwc, struct device_node 
 
 static int dwc3_msm_parse_params(struct dwc3_msm *mdwc, struct device_node *node)
 {
+	struct device_node *diag_node;
 	struct device	*dev = mdwc->dev;
 	int ret, size = 0, i;
 
@@ -5384,6 +5465,12 @@ static int dwc3_msm_parse_params(struct dwc3_msm *mdwc, struct device_node *node
 	}
 
 	mdwc->force_gen1 = of_property_read_bool(node, "qcom,force-gen1");
+
+	diag_node = of_find_compatible_node(NULL, NULL, "qcom,msm-imem-diag-dload");
+	if (!diag_node)
+		pr_warn("diag: failed to find diag_dload imem node\n");
+
+	diag_dload  = diag_node ? of_iomap(diag_node, 0) : NULL;
 
 	return 0;
 }
@@ -5690,6 +5777,8 @@ static int dwc3_msm_remove(struct platform_device *pdev)
 	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
 	int i, ret_pm;
 
+	if (diag_dload)
+		iounmap(diag_dload);
 	usb_role_switch_unregister(mdwc->role_switch);
 
 	if (mdwc->dpdm_nb.notifier_call) {
