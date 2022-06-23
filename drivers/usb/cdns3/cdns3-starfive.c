@@ -18,40 +18,37 @@
 #include <linux/reset.h>
 #include <linux/usb/otg.h>
 
-#define USB_STRAP_HOST		(2 << 0x10)
-#define USB_STRAP_DEVICE	(4 << 0X10)
-#define USB_STRAP_MASK		0x70000U
+#define USB_STRAP_HOST			(2 << 0x10)
+#define USB_STRAP_DEVICE		(4 << 0X10)
+#define USB_STRAP_MASK			0x70000
 
-#define USB_SUSPENDM_HOST	(1 << 0x13)
-#define USB_SUSPENDM_DEVICE	(0 << 0x13)
-#define USB_SUSPENDM_MASK	0x80000U
+#define USB_SUSPENDM_HOST		(1 << 0x13)
+#define USB_SUSPENDM_DEVICE		(0 << 0x13)
+#define USB_SUSPENDM_MASK		0x80000
 
-#define USB_SUSPENDM_BYPS_SHIFT	0x14U
-#define USB_SUSPENDM_BYPS_MASK		0x100000U
+#define USB_SUSPENDM_BYPS_SHIFT		0x14
+#define USB_SUSPENDM_BYPS_MASK		0x100000
+#define USB_REFCLK_MODE_SHIFT		0x17
+#define USB_REFCLK_MODE_MASK		0x800000
+#define USB_PLL_EN_SHIFT		0x16
+#define USB_PLL_EN_MASK			0x400000
+#define USB_PDRSTN_SPLIT_SHIFT		0x11
+#define USB_PDRSTN_SPLIT_MASK		0x20000
 
-#define USB_REFCLK_MODE_SHIFT	0x17U
-#define USB_REFCLK_MODE_MASK	0x800000U
-
-#define USB_PLL_EN_SHIFT	0x16U
-#define USB_PLL_EN_MASK		0x400000U
-
-#define USB_PDRSTN_SPLIT_SHIFT	0x11
-#define USB_PDRSTN_SPLIT_MASK	0x20000U
-
-#define PCIE_CKREF_SRC_SHIFT	0x12U
-#define PCIE_CKREF_SRC_MASK	0xC0000U
-#define PCIE_CLK_SEL_SHIFT	0x14U
-#define PCIE_CLK_SEL_MASK	0x300000U
-#define PCIE_PHY_MODE_SHIFT	0x14U
-#define PCIE_PHY_MODE_MASK	0x300000U
-#define PCIE_USB3_BUS_WIDTH_SHIFT	0x2U
-#define PCIE_USB3_BUS_WIDTH_MASK	0xCU
-#define PCIE_USB3_RATE_SHIFT		0x5U
-#define PCIE_USB3_RATE_MASK		0x60U
-#define PCIE_USB3_RX_STANDBY_SHIFT	0x7U
-#define PCIE_USB3_RX_STANDBY_MASK	0x80U
-#define PCIE_USB3_PHY_ENABLE_SHIFT	0x4U
-#define PCIE_USB3_PHY_ENABLE_MASK	0x10U
+#define PCIE_CKREF_SRC_SHIFT		0x12
+#define PCIE_CKREF_SRC_MASK		0xC0000
+#define PCIE_CLK_SEL_SHIFT		0x14
+#define PCIE_CLK_SEL_MASK		0x300000
+#define PCIE_PHY_MODE_SHIFT		0x14
+#define PCIE_PHY_MODE_MASK		0x300000
+#define PCIE_USB3_BUS_WIDTH_SHIFT	0x2
+#define PCIE_USB3_BUS_WIDTH_MASK	0xC
+#define PCIE_USB3_RATE_SHIFT		0x5
+#define PCIE_USB3_RATE_MASK		0x60
+#define PCIE_USB3_RX_STANDBY_SHIFT	0x7
+#define PCIE_USB3_RX_STANDBY_MASK	0x80
+#define PCIE_USB3_PHY_ENABLE_SHIFT	0x4
+#define PCIE_USB3_PHY_ENABLE_MASK	0x10
 
 #define USB_125M_CLK_RATE		125000000
 
@@ -76,7 +73,7 @@ static int cdns_mode_init(struct platform_device *pdev,
 {
 	enum usb_dr_mode mode;
 
-	/*usb 2.0 utmi phy init*/
+	/* Init usb 2.0 utmi phy */
 	regmap_update_bits(data->stg_syscon, data->stg_offset_4,
 		USB_SUSPENDM_BYPS_MASK, BIT(USB_SUSPENDM_BYPS_SHIFT));
 	regmap_update_bits(data->stg_syscon, data->stg_offset_4,
@@ -86,11 +83,11 @@ static int cdns_mode_init(struct platform_device *pdev,
 
 	if (data->usb2_only) {
 
-		/* disconnect usb 3.0 phy mode */
+		/* Disconnect usb 3.0 phy mode */
 		regmap_update_bits(data->sys_syscon, data->sys_offset,
 			USB_PDRSTN_SPLIT_MASK, BIT(USB_PDRSTN_SPLIT_SHIFT));
 	} else {
-		/*usb 3.0 pipe phy config*/
+		/* Config usb 3.0 pipe phy */
 		regmap_update_bits(data->stg_syscon, data->stg_offset_196,
 			PCIE_CKREF_SRC_MASK, (0<<PCIE_CKREF_SRC_SHIFT));
 		regmap_update_bits(data->stg_syscon, data->stg_offset_196,
@@ -106,7 +103,7 @@ static int cdns_mode_init(struct platform_device *pdev,
 		regmap_update_bits(data->stg_syscon, data->stg_offset_500,
 			PCIE_USB3_PHY_ENABLE_MASK, BIT(PCIE_USB3_PHY_ENABLE_SHIFT));
 
-		/* connect usb 3.0 phy mode */
+		/* Connect usb 3.0 phy mode */
 		regmap_update_bits(data->sys_syscon, data->sys_offset,
 			USB_PDRSTN_SPLIT_MASK, (0 << USB_PDRSTN_SPLIT_SHIFT));
 	}
@@ -245,7 +242,7 @@ static int cdns_starfive_probe(struct platform_device *pdev)
 
 	ret = of_platform_populate(node, NULL, NULL, dev);
 	if (ret) {
-		dev_err(dev, "failed to create children: %d\n", ret);
+		dev_err(dev, "Failed to create children: %d\n", ret);
 		goto exit;
 	}
 
@@ -293,5 +290,6 @@ module_platform_driver(cdns_starfive_driver);
 
 MODULE_ALIAS("platform:cdns3-starfive");
 MODULE_AUTHOR("YanHong Wang <yanhong.wang@starfivetech.com>");
+MODULE_AUTHOR("Mason Huo <mason.huo@starfivetech.com>");
 MODULE_LICENSE("GPL v2");
 MODULE_DESCRIPTION("Cadence USB3 StarFive SoC platform");
