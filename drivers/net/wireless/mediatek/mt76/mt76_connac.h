@@ -261,6 +261,12 @@ void mt76_connac_power_save_sched(struct mt76_phy *phy,
 void mt76_connac_free_pending_tx_skbs(struct mt76_connac_pm *pm,
 				      struct mt76_wcid *wcid);
 
+static inline void mt76_connac_tx_cleanup(struct mt76_dev *dev)
+{
+	dev->queue_ops->tx_cleanup(dev, dev->q_mcu[MT_MCUQ_WM], false);
+	dev->queue_ops->tx_cleanup(dev, dev->q_mcu[MT_MCUQ_WA], false);
+}
+
 static inline bool
 mt76_connac_pm_ref(struct mt76_phy *phy, struct mt76_connac_pm *pm)
 {
@@ -323,6 +329,8 @@ mt76_connac_mutex_release(struct mt76_dev *dev, struct mt76_connac_pm *pm)
 	mutex_unlock(&dev->mutex);
 }
 
+int mt76_connac_init_tx_queues(struct mt76_phy *phy, int idx, int n_desc,
+			       int ring_base, u32 flags);
 void mt76_connac_write_hw_txp(struct mt76_dev *dev,
 			      struct mt76_tx_info *tx_info,
 			      void *txp_ptr, u32 id);

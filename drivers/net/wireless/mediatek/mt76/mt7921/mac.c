@@ -894,7 +894,7 @@ void mt7921_pm_wake_work(struct work_struct *work)
 				napi_schedule(&mdev->napi[i]);
 			local_bh_enable();
 			mt76_connac_pm_dequeue_skbs(mphy, &dev->pm);
-			mt7921_mcu_tx_cleanup(dev);
+			mt76_connac_tx_cleanup(mdev);
 		}
 		if (test_bit(MT76_STATE_RUNNING, &mphy->state))
 			ieee80211_queue_delayed_work(mphy->hw, &mphy->mac_work,

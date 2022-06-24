@@ -251,6 +251,22 @@ void mt76_connac_txp_skb_unmap(struct mt76_dev *dev,
 }
 EXPORT_SYMBOL_GPL(mt76_connac_txp_skb_unmap);
 
+int mt76_connac_init_tx_queues(struct mt76_phy *phy, int idx, int n_desc,
+			       int ring_base, u32 flags)
+{
+	int i, err;
+
+	err = mt76_init_tx_queue(phy, 0, idx, n_desc, ring_base, flags);
+	if (err < 0)
+		return err;
+
+	for (i = 1; i <= MT_TXQ_PSD; i++)
+		phy->q_tx[i] = phy->q_tx[0];
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mt76_connac_init_tx_queues);
+
 static u16
 mt76_connac2_mac_tx_rate_val(struct mt76_phy *mphy, struct ieee80211_vif *vif,
 			     bool beacon, bool mcast)
