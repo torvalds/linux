@@ -151,6 +151,13 @@ If the theme is not available, it will fall-back to the classic one.
 
 The Sphinx theme can be overridden by using the ``DOCS_THEME`` make variable.
 
+There is another make variable ``SPHINXDIRS``, which is useful when test
+building a subset of documentation.  For example, you can build documents
+under ``Documentation/doc-guide`` by running
+``make SPHINXDIRS=doc-guide htmldocs``.
+The documentation section of ``make help`` will show you the list of
+subdirectories you can specify.
+
 To remove the generated documentation, run ``make cleandocs``.
 
 .. [#ink] Having ``inkscape(1)`` from Inkscape (https://inkscape.org)
