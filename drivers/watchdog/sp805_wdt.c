@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0+
 /*
  * drivers/char/watchdog/sp805-wdt.c
  *
@@ -340,6 +341,10 @@ static const struct amba_id sp805_wdt_ids[] = {
 	{
 		.id	= 0x00141805,
 		.mask	= 0x00ffffff,
+	},
+	{
+		.id     = 0x001bb824,
+		.mask   = 0x00ffffff,
 	},
 	{ 0, 0 },
 };
