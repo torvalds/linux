@@ -293,17 +293,17 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	struct platform_device *pdev = to_platform_device(dev);
 	struct resource_entry *win;
 	struct pci_host_bridge *bridge;
-	struct resource *cfg_res;
+	struct resource *res;
 	int ret;
 
 	raw_spin_lock_init(&pp->lock);
 
-	cfg_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
-	if (cfg_res) {
-		pp->cfg0_size = resource_size(cfg_res);
-		pp->cfg0_base = cfg_res->start;
+	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "config");
+	if (res) {
+		pp->cfg0_size = resource_size(res);
+		pp->cfg0_base = res->start;
 
-		pp->va_cfg0_base = devm_pci_remap_cfg_resource(dev, cfg_res);
+		pp->va_cfg0_base = devm_pci_remap_cfg_resource(dev, res);
 		if (IS_ERR(pp->va_cfg0_base))
 			return PTR_ERR(pp->va_cfg0_base);
 	} else {
@@ -312,8 +312,8 @@ int dw_pcie_host_init(struct pcie_port *pp)
 	}
 
 	if (!pci->dbi_base) {
-		struct resource *dbi_res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
-		pci->dbi_base = devm_pci_remap_cfg_resource(dev, dbi_res);
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "dbi");
+		pci->dbi_base = devm_pci_remap_cfg_resource(dev, res);
 		if (IS_ERR(pci->dbi_base))
 			return PTR_ERR(pci->dbi_base);
 	}
