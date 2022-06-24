@@ -342,11 +342,14 @@ static int max98396_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 {
 	struct snd_soc_component *component = codec_dai->component;
 	struct max98396_priv *max98396 = snd_soc_component_get_drvdata(component);
-	unsigned int format = 0;
+	unsigned int format_mask, format = 0;
 	unsigned int bclk_pol = 0;
 	int ret, status;
 	int reg;
 	bool update = false;
+
+	format_mask = MAX98396_PCM_MODE_CFG_FORMAT_MASK |
+		      MAX98396_PCM_MODE_CFG_LRCLKEDGE;
 
 	dev_dbg(component->dev, "%s: fmt 0x%08X\n", __func__, fmt);
 
@@ -395,7 +398,7 @@ static int max98396_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		ret = regmap_read(max98396->regmap, MAX98396_R2041_PCM_MODE_CFG, &reg);
 		if (ret < 0)
 			return -EINVAL;
-		if (format != (reg & MAX98396_PCM_BCLKEDGE_BSEL_MASK)) {
+		if (format != (reg & format_mask)) {
 			update = true;
 		} else {
 			ret = regmap_read(max98396->regmap,
@@ -412,8 +415,7 @@ static int max98396_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 
 	regmap_update_bits(max98396->regmap,
 			   MAX98396_R2041_PCM_MODE_CFG,
-			   MAX98396_PCM_BCLKEDGE_BSEL_MASK,
-			   format);
+			   format_mask, format);
 
 	regmap_update_bits(max98396->regmap,
 			   MAX98396_R2042_PCM_CLK_SETUP,
