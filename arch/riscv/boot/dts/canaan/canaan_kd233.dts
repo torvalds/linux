@@ -35,7 +35,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		key0 {
+		key {
 			label = "KEY0";
 			linux,code = <BTN_0>;
 			gpios = <&gpio0 10 GPIO_ACTIVE_LOW>;
