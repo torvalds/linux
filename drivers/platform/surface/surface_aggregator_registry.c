@@ -191,6 +191,12 @@ static const struct software_node ssam_node_hid_kip_iid5 = {
 	.parent = &ssam_node_hub_kip,
 };
 
+/* Tablet-mode switch via POS subsystem. */
+static const struct software_node ssam_node_pos_tablet_switch = {
+	.name = "ssam:01:26:01:00:01",
+	.parent = &ssam_node_root,
+};
+
 /*
  * Devices for 5th- and 6th-generations models:
  * - Surface Book 2,
@@ -237,6 +243,7 @@ static const struct software_node *ssam_node_group_sls[] = {
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
 	&ssam_node_tmp_pprof,
+	&ssam_node_pos_tablet_switch,
 	&ssam_node_hid_tid1_keyboard,
 	&ssam_node_hid_tid1_penstash,
 	&ssam_node_hid_tid1_touchpad,
