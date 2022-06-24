@@ -44,7 +44,6 @@
 #define NO_EXEC_MAPPINGS	BIT(2)	/* assumes FEAT_HPDS is not used */
 
 int idmap_t0sz __ro_after_init;
-u64 idmap_ptrs_per_pgd = PTRS_PER_PGD;
 
 #if VA_BITS > 48
 u64 vabits_actual __ro_after_init = VA_BITS_MIN;

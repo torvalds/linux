@@ -61,7 +61,6 @@ static inline void cpu_switch_mm(pgd_t *pgd, struct mm_struct *mm)
  * physical memory, in which case it will be smaller.
  */
 extern int idmap_t0sz;
-extern u64 idmap_ptrs_per_pgd;
 
 /*
  * Ensure TCR.T0SZ is set to the provided value.
