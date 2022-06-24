@@ -40,6 +40,8 @@ static int bond_option_arp_validate_set(struct bonding *bond,
 					const struct bond_opt_value *newval);
 static int bond_option_arp_all_targets_set(struct bonding *bond,
 					   const struct bond_opt_value *newval);
+static int bond_option_prio_set(struct bonding *bond,
+				const struct bond_opt_value *newval);
 static int bond_option_primary_set(struct bonding *bond,
 				   const struct bond_opt_value *newval);
 static int bond_option_primary_reselect_set(struct bonding *bond,
@@ -364,6 +366,16 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.desc = "Link check interval in milliseconds",
 		.values = bond_intmax_tbl,
 		.set = bond_option_miimon_set
+	},
+	[BOND_OPT_PRIO] = {
+		.id = BOND_OPT_PRIO,
+		.name = "prio",
+		.desc = "Link priority for failover re-selection",
+		.flags = BOND_OPTFLAG_RAWVAL,
+		.unsuppmodes = BOND_MODE_ALL_EX(BIT(BOND_MODE_ACTIVEBACKUP) |
+						BIT(BOND_MODE_TLB) |
+						BIT(BOND_MODE_ALB)),
+		.set = bond_option_prio_set
 	},
 	[BOND_OPT_PRIMARY] = {
 		.id = BOND_OPT_PRIMARY,
@@ -1302,6 +1314,27 @@ static int bond_option_missed_max_set(struct bonding *bond,
 	netdev_dbg(bond->dev, "Setting missed max to %s (%llu)\n",
 		   newval->string, newval->value);
 	bond->params.missed_max = newval->value;
+
+	return 0;
+}
+
+static int bond_option_prio_set(struct bonding *bond,
+				const struct bond_opt_value *newval)
+{
+	struct slave *slave;
+
+	slave = bond_slave_get_rtnl(newval->slave_dev);
+	if (!slave) {
+		netdev_dbg(newval->slave_dev, "%s called on NULL slave\n", __func__);
+		return -ENODEV;
+	}
+	slave->prio = newval->value;
+
+	if (rtnl_dereference(bond->primary_slave))
+		slave_warn(bond->dev, slave->dev,
+			   "prio updated, but will not affect failover re-selection as primary slave have been set\n");
+	else
+		bond_select_active_slave(bond);
 
 	return 0;
 }
