@@ -3783,7 +3783,8 @@ static void b43_qos_init(struct b43_wldev *dev)
 }
 
 static int b43_op_conf_tx(struct ieee80211_hw *hw,
-			  struct ieee80211_vif *vif, u16 _queue,
+			  struct ieee80211_vif *vif,
+			  unsigned int link_id, u16 _queue,
 			  const struct ieee80211_tx_queue_params *params)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);

@@ -28,7 +28,8 @@ void cw1200_configure_filter(struct ieee80211_hw *dev,
 			     unsigned int *total_flags,
 			     u64 multicast);
 int cw1200_conf_tx(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
-		   u16 queue, const struct ieee80211_tx_queue_params *params);
+		   unsigned int link_id, u16 queue,
+		   const struct ieee80211_tx_queue_params *params);
 int cw1200_get_stats(struct ieee80211_hw *dev,
 		     struct ieee80211_low_level_stats *stats);
 int cw1200_set_key(struct ieee80211_hw *dev, enum set_key_cmd cmd,

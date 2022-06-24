@@ -7814,7 +7814,8 @@ exit:
 }
 
 static int ath10k_conf_tx(struct ieee80211_hw *hw,
-			  struct ieee80211_vif *vif, u16 ac,
+			  struct ieee80211_vif *vif,
+			  unsigned int link_id, u16 ac,
 			  const struct ieee80211_tx_queue_params *params)
 {
 	struct ath10k *ar = hw->priv;

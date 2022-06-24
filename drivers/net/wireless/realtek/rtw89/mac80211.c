@@ -427,7 +427,8 @@ static int rtw89_ops_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 }
 
 static int rtw89_ops_conf_tx(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif, u16 ac,
+			     struct ieee80211_vif *vif,
+			     unsigned int link_id, u16 ac,
 			     const struct ieee80211_tx_queue_params *params)
 {
 	struct rtw89_dev *rtwdev = hw->priv;

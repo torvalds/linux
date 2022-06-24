@@ -1539,7 +1539,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		 * doesn't start up with sane defaults.
 		 * Enable QoS for anything but station interfaces.
 		 */
-		ieee80211_set_wmm_default(sdata, true,
+		ieee80211_set_wmm_default(&sdata->deflink, true,
 			sdata->vif.type != NL80211_IFTYPE_STATION);
 	}
 

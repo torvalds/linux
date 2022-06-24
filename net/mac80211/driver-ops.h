@@ -590,7 +590,7 @@ static inline void drv_sta_statistics(struct ieee80211_local *local,
 }
 
 int drv_conf_tx(struct ieee80211_local *local,
-		struct ieee80211_sub_if_data *sdata, u16 ac,
+		struct ieee80211_link_data *link, u16 ac,
 		const struct ieee80211_tx_queue_params *params);
 
 u64 drv_get_tsf(struct ieee80211_local *local,

@@ -567,7 +567,8 @@ out:
 }
 
 static int
-mt7921_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+mt7921_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       unsigned int link_id, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;

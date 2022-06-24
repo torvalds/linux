@@ -527,7 +527,8 @@ mt7603_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 }
 
 static int
-mt7603_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+mt7603_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       unsigned int link_id, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct mt7603_dev *dev = hw->priv;

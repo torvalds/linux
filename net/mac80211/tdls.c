@@ -293,7 +293,7 @@ static void ieee80211_tdls_add_wmm_param_ie(struct ieee80211_sub_if_data *sdata,
 	 * doesn't support it, as mandated by 802.11-2012 section 10.22.4
 	 */
 	for (i = 0; i < IEEE80211_NUM_ACS; i++) {
-		txq = &sdata->tx_conf[ieee80211_ac_from_wmm(i)];
+		txq = &sdata->deflink.tx_conf[ieee80211_ac_from_wmm(i)];
 		wmm->ac[i].aci_aifsn = ieee80211_wmm_aci_aifsn(txq->aifs,
 							       txq->acm, i);
 		wmm->ac[i].cw = ieee80211_wmm_ecw(txq->cw_min, txq->cw_max);

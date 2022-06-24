@@ -2340,10 +2340,10 @@ static int mac80211_hwsim_set_tim(struct ieee80211_hw *hw,
 	return 0;
 }
 
-static int mac80211_hwsim_conf_tx(
-	struct ieee80211_hw *hw,
-	struct ieee80211_vif *vif, u16 queue,
-	const struct ieee80211_tx_queue_params *params)
+static int mac80211_hwsim_conf_tx(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif,
+				  unsigned int link_id, u16 queue,
+				  const struct ieee80211_tx_queue_params *params)
 {
 	wiphy_dbg(hw->wiphy,
 		  "%s (queue=%d txop=%d cw_min=%d cw_max=%d aifs=%d)\n",

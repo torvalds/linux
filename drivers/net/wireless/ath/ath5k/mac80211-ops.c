@@ -572,7 +572,8 @@ ath5k_get_stats(struct ieee80211_hw *hw,
 
 
 static int
-ath5k_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+ath5k_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	      unsigned int link_id, u16 queue,
 	      const struct ieee80211_tx_queue_params *params)
 {
 	struct ath5k_hw *ah = hw->priv;

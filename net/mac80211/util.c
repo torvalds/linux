@@ -1596,9 +1596,10 @@ void ieee80211_regulatory_limit_wmm_params(struct ieee80211_sub_if_data *sdata,
 	rcu_read_unlock();
 }
 
-void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
+void ieee80211_set_wmm_default(struct ieee80211_link_data *link,
 			       bool bss_notify, bool enable_qos)
 {
+	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_tx_queue_params qparam;
 	struct ieee80211_chanctx_conf *chanctx_conf;
@@ -1616,7 +1617,7 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 	memset(&qparam, 0, sizeof(qparam));
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
+	chanctx_conf = rcu_dereference(link->conf->chanctx_conf);
 	use_11b = (chanctx_conf &&
 		   chanctx_conf->def.chan->band == NL80211_BAND_2GHZ) &&
 		 !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE);
@@ -1693,17 +1694,16 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 
 		qparam.uapsd = false;
 
-		sdata->tx_conf[ac] = qparam;
-		drv_conf_tx(local, sdata, ac, &qparam);
+		link->tx_conf[ac] = qparam;
+		drv_conf_tx(local, link, ac, &qparam);
 	}
 
 	if (sdata->vif.type != NL80211_IFTYPE_MONITOR &&
 	    sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
 	    sdata->vif.type != NL80211_IFTYPE_NAN) {
-		sdata->vif.bss_conf.qos = enable_qos;
+		link->conf->qos = enable_qos;
 		if (bss_notify)
-			ieee80211_link_info_change_notify(sdata,
-							  &sdata->deflink,
+			ieee80211_link_info_change_notify(sdata, link,
 							  BSS_CHANGED_QOS);
 	}
 }
@@ -2520,8 +2520,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 			fallthrough;
 		case NL80211_IFTYPE_AP: /* AP stations are handled later */
 			for (i = 0; i < IEEE80211_NUM_ACS; i++)
-				drv_conf_tx(local, sdata, i,
-					    &sdata->tx_conf[i]);
+				drv_conf_tx(local, &sdata->deflink, i,
+					    &sdata->deflink.tx_conf[i]);
 			break;
 		}
 

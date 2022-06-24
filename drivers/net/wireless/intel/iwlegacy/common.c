@@ -4480,7 +4480,8 @@ il_clear_isr_stats(struct il_priv *il)
 }
 
 int
-il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       unsigned int link_id, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct il_priv *il = hw->priv;

@@ -3349,7 +3349,8 @@ static void iwl_mvm_sta_rc_update(struct ieee80211_hw *hw,
 }
 
 static int iwl_mvm_mac_conf_tx(struct ieee80211_hw *hw,
-			       struct ieee80211_vif *vif, u16 ac,
+			       struct ieee80211_vif *vif,
+			       unsigned int link_id, u16 ac,
 			       const struct ieee80211_tx_queue_params *params)
 {
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);

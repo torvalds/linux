@@ -478,7 +478,8 @@ static int mt7915_config(struct ieee80211_hw *hw, u32 changed)
 }
 
 static int
-mt7915_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+mt7915_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       unsigned int link_id, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct mt7915_vif *mvif = (struct mt7915_vif *)vif->drv_priv;

@@ -356,7 +356,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	else
 		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
 
-	ieee80211_set_wmm_default(sdata, true, false);
+	ieee80211_set_wmm_default(&sdata->deflink, true, false);
 
 	sdata->vif.cfg.ibss_joined = true;
 	sdata->vif.cfg.ibss_creator = creator;

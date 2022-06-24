@@ -2018,10 +2018,11 @@ __ieee80211_sta_handle_tspec_ac_params(struct ieee80211_sub_if_data *sdata)
 		switch (tx_tspec->action) {
 		case TX_TSPEC_ACTION_STOP_DOWNGRADE:
 			/* take the original parameters */
-			if (drv_conf_tx(local, sdata, ac, &sdata->tx_conf[ac]))
-				sdata_err(sdata,
-					  "failed to set TX queue parameters for queue %d\n",
-					  ac);
+			if (drv_conf_tx(local, &sdata->deflink, ac,
+					&sdata->deflink.tx_conf[ac]))
+				link_err(&sdata->deflink,
+					 "failed to set TX queue parameters for queue %d\n",
+					 ac);
 			tx_tspec->action = TX_TSPEC_ACTION_NONE;
 			tx_tspec->downgraded = false;
 			ret = true;
@@ -2047,11 +2048,11 @@ __ieee80211_sta_handle_tspec_ac_params(struct ieee80211_sub_if_data *sdata)
 			 */
 			if (non_acm_ac >= IEEE80211_NUM_ACS)
 				non_acm_ac = IEEE80211_AC_BK;
-			if (drv_conf_tx(local, sdata, ac,
-					&sdata->tx_conf[non_acm_ac]))
-				sdata_err(sdata,
-					  "failed to set TX queue parameters for queue %d\n",
-					  ac);
+			if (drv_conf_tx(local, &sdata->deflink, ac,
+					&sdata->deflink.tx_conf[non_acm_ac]))
+				link_err(&sdata->deflink,
+					 "failed to set TX queue parameters for queue %d\n",
+					 ac);
 			tx_tspec->action = TX_TSPEC_ACTION_NONE;
 			ret = true;
 			schedule_delayed_work(&ifmgd->tx_tspec_wk,
@@ -2085,10 +2086,11 @@ static void ieee80211_sta_handle_tspec_ac_params_wk(struct work_struct *work)
 /* MLME */
 static bool
 ieee80211_sta_wmm_params(struct ieee80211_local *local,
-			 struct ieee80211_sub_if_data *sdata,
+			 struct ieee80211_link_data *link,
 			 const u8 *wmm_param, size_t wmm_param_len,
 			 const struct ieee80211_mu_edca_param_set *mu_edca)
 {
+	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_tx_queue_params params[IEEE80211_NUM_ACS];
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	size_t left;
@@ -2117,11 +2119,11 @@ ieee80211_sta_wmm_params(struct ieee80211_local *local,
 	 * the driver about it.
 	 */
 	mu_edca_count = mu_edca ? mu_edca->mu_qos_info & 0x0f : -1;
-	if (count == sdata->deflink.u.mgd.wmm_last_param_set &&
-	    mu_edca_count == sdata->deflink.u.mgd.mu_edca_last_param_set)
+	if (count == link->u.mgd.wmm_last_param_set &&
+	    mu_edca_count == link->u.mgd.mu_edca_last_param_set)
 		return false;
-	sdata->deflink.u.mgd.wmm_last_param_set = count;
-	sdata->deflink.u.mgd.mu_edca_last_param_set = mu_edca_count;
+	link->u.mgd.wmm_last_param_set = count;
+	link->u.mgd.mu_edca_last_param_set = mu_edca_count;
 
 	pos = wmm_param + 8;
 	left = wmm_param_len - 8;
@@ -2219,16 +2221,16 @@ ieee80211_sta_wmm_params(struct ieee80211_local *local,
 			 params[ac].aifs, params[ac].cw_min, params[ac].cw_max,
 			 params[ac].txop, params[ac].uapsd,
 			 ifmgd->tx_tspec[ac].downgraded);
-		sdata->tx_conf[ac] = params[ac];
+		link->tx_conf[ac] = params[ac];
 		if (!ifmgd->tx_tspec[ac].downgraded &&
-		    drv_conf_tx(local, sdata, ac, &params[ac]))
-			sdata_err(sdata,
-				  "failed to set TX queue parameters for AC %d\n",
-				  ac);
+		    drv_conf_tx(local, link, ac, &params[ac]))
+			link_err(link,
+				 "failed to set TX queue parameters for AC %d\n",
+				 ac);
 	}
 
 	/* enable WMM or activate new settings */
-	sdata->vif.bss_conf.qos = true;
+	link->conf->qos = true;
 	return true;
 }
 
@@ -2508,7 +2510,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	ieee80211_bss_info_change_notify(sdata, changed);
 
 	/* disassociated - set to defaults now */
-	ieee80211_set_wmm_default(sdata, false, false);
+	ieee80211_set_wmm_default(&sdata->deflink, false, false);
 
 	del_timer_sync(&sdata->u.mgd.conn_mon_timer);
 	del_timer_sync(&sdata->u.mgd.bcn_mon_timer);
@@ -3766,12 +3768,13 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	sdata->deflink.u.mgd.mu_edca_last_param_set = -1;
 
 	if (ifmgd->flags & IEEE80211_STA_DISABLE_WMM) {
-		ieee80211_set_wmm_default(sdata, false, false);
-	} else if (!ieee80211_sta_wmm_params(local, sdata, elems->wmm_param,
+		ieee80211_set_wmm_default(&sdata->deflink, false, false);
+	} else if (!ieee80211_sta_wmm_params(local, &sdata->deflink,
+					     elems->wmm_param,
 					     elems->wmm_param_len,
 					     elems->mu_edca_param_set)) {
 		/* still enable QoS since we might have HT/VHT */
-		ieee80211_set_wmm_default(sdata, false, true);
+		ieee80211_set_wmm_default(&sdata->deflink, false, true);
 		/* set the disable-WMM flag in this case to disable
 		 * tracking WMM parameter changes in the beacon if
 		 * the parameters weren't actually valid. Doing so
@@ -3938,7 +3941,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		/* get uapsd queues configuration */
 		uapsd_queues = 0;
 		for (ac = 0; ac < IEEE80211_NUM_ACS; ac++)
-			if (sdata->tx_conf[ac].uapsd)
+			if (sdata->deflink.tx_conf[ac].uapsd)
 				uapsd_queues |= ieee80211_ac_to_qos_mask[ac];
 
 		info.success = 1;
@@ -4363,7 +4366,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 					 elems, true);
 
 	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_WMM) &&
-	    ieee80211_sta_wmm_params(local, sdata, elems->wmm_param,
+	    ieee80211_sta_wmm_params(local, &sdata->deflink, elems->wmm_param,
 				     elems->wmm_param_len,
 				     elems->mu_edca_param_set))
 		changed |= BSS_CHANGED_QOS;

@@ -969,6 +969,8 @@ struct ieee80211_link_data {
 		struct ieee80211_link_data_ap ap;
 	} u;
 
+	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
+
 	struct ieee80211_bss_conf *conf;
 };
 
@@ -1012,7 +1014,6 @@ struct ieee80211_sub_if_data {
 	bool control_port_over_nl80211;
 
 	atomic_t num_tx_queued;
-	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
 	struct mac80211_qos_map __rcu *qos_map;
 
 	/* used to reconfigure hardware SM PS */
@@ -2101,7 +2102,7 @@ int ieee80211_frame_duration(enum nl80211_band band, size_t len,
 void ieee80211_regulatory_limit_wmm_params(struct ieee80211_sub_if_data *sdata,
 					   struct ieee80211_tx_queue_params *qparam,
 					   int ac);
-void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
+void ieee80211_set_wmm_default(struct ieee80211_link_data *link,
 			       bool bss_notify, bool enable_qos);
 void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 		    struct sta_info *sta, struct sk_buff *skb);

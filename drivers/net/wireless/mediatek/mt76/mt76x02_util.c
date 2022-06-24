@@ -487,7 +487,8 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 EXPORT_SYMBOL_GPL(mt76x02_set_key);
 
 int mt76x02_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    u16 queue, const struct ieee80211_tx_queue_params *params)
+		    unsigned int link_id, u16 queue,
+		    const struct ieee80211_tx_queue_params *params)
 {
 	struct mt76x02_dev *dev = hw->priv;
 	u8 cw_min = 5, cw_max = 10, qid;

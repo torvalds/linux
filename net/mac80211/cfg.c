@@ -2570,6 +2570,7 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 {
 	struct ieee80211_local *local = wiphy_priv(wiphy);
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_link_data *link = &sdata->deflink;
 	struct ieee80211_tx_queue_params p;
 
 	if (!local->ops->conf_tx)
@@ -2592,15 +2593,15 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 
 	ieee80211_regulatory_limit_wmm_params(sdata, &p, params->ac);
 
-	sdata->tx_conf[params->ac] = p;
-	if (drv_conf_tx(local, sdata, params->ac, &p)) {
+	link->tx_conf[params->ac] = p;
+	if (drv_conf_tx(local, link, params->ac, &p)) {
 		wiphy_debug(local->hw.wiphy,
 			    "failed to set TX queue parameters for AC %d\n",
 			    params->ac);
 		return -EINVAL;
 	}
 
-	ieee80211_link_info_change_notify(sdata, &sdata->deflink,
+	ieee80211_link_info_change_notify(sdata, link,
 					  BSS_CHANGED_QOS);
 
 	return 0;

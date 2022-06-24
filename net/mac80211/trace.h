@@ -1003,13 +1003,15 @@ DEFINE_EVENT(sta_event, drv_sta_rate_tbl_update,
 TRACE_EVENT(drv_conf_tx,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
+		 unsigned int link_id,
 		 u16 ac, const struct ieee80211_tx_queue_params *params),
 
-	TP_ARGS(local, sdata, ac, params),
+	TP_ARGS(local, sdata, link_id, ac, params),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		VIF_ENTRY
+		__field(unsigned int, link_id)
 		__field(u16, ac)
 		__field(u16, txop)
 		__field(u16, cw_min)
@@ -1021,6 +1023,7 @@ TRACE_EVENT(drv_conf_tx,
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
+		__entry->link_id = link_id;
 		__entry->ac = ac;
 		__entry->txop = params->txop;
 		__entry->cw_max = params->cw_max;
@@ -1030,8 +1033,8 @@ TRACE_EVENT(drv_conf_tx,
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT  VIF_PR_FMT  " AC:%d",
-		LOCAL_PR_ARG, VIF_PR_ARG, __entry->ac
+		LOCAL_PR_FMT  VIF_PR_FMT  " link_id: %d, AC:%d",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->link_id, __entry->ac
 	)
 );
 

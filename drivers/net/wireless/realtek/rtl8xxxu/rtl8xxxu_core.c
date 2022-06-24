@@ -5957,7 +5957,8 @@ exit:
 }
 
 static int rtl8xxxu_conf_tx(struct ieee80211_hw *hw,
-			    struct ieee80211_vif *vif, u16 queue,
+			    struct ieee80211_vif *vif,
+			    unsigned int link_id, u16 queue,
 			    const struct ieee80211_tx_queue_params *param)
 {
 	struct rtl8xxxu_priv *priv = hw->priv;
