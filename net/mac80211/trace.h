@@ -413,6 +413,7 @@ TRACE_EVENT(drv_vif_cfg_changed,
 		__dynamic_array(u8, ssid, sdata->vif.cfg.ssid_len)
 		__field(int, s1g)
 		__field(bool, idle)
+		__field(bool, ps)
 	),
 
 	TP_fast_assign(
@@ -423,6 +424,7 @@ TRACE_EVENT(drv_vif_cfg_changed,
 		__entry->assoc = sdata->vif.cfg.assoc;
 		__entry->ibss_joined = sdata->vif.cfg.ibss_joined;
 		__entry->ibss_creator = sdata->vif.cfg.ibss_creator;
+		__entry->ps = sdata->vif.cfg.ps;
 
 		__entry->arp_addr_cnt = sdata->vif.cfg.arp_addr_cnt;
 		memcpy(__get_dynamic_array(arp_addr_list),
@@ -475,7 +477,6 @@ TRACE_EVENT(drv_link_info_changed,
 		__field(u32, channel_cfreq1)
 		__field(u32, channel_cfreq1_offset)
 		__field(bool, qos)
-		__field(bool, ps)
 		__field(bool, hidden_ssid)
 		__field(int, txpower)
 		__field(u8, p2p_oppps_ctwindow)
@@ -506,7 +507,6 @@ TRACE_EVENT(drv_link_info_changed,
 		__entry->channel_cfreq1 = link_conf->chandef.center_freq1;
 		__entry->channel_cfreq1_offset = link_conf->chandef.freq1_offset;
 		__entry->qos = link_conf->qos;
-		__entry->ps = link_conf->ps;
 		__entry->hidden_ssid = link_conf->hidden_ssid;
 		__entry->txpower = link_conf->txpower;
 		__entry->p2p_oppps_ctwindow = link_conf->p2p_noa_attr.oppps_ctwindow;

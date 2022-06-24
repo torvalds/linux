@@ -202,6 +202,7 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 
 #define BSS_CHANGED_VIF_CFG_FLAGS (BSS_CHANGED_ASSOC |\
 				   BSS_CHANGED_IDLE |\
+				   BSS_CHANGED_PS |\
 				   BSS_CHANGED_IBSS |\
 				   BSS_CHANGED_ARP_FILTER |\
 				   BSS_CHANGED_SSID)

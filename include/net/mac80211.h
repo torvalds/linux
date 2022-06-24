@@ -578,8 +578,6 @@ struct ieee80211_fils_discovery {
  * @cqm_rssi_high: Connection quality monitor RSSI upper threshold.
  * @cqm_rssi_hyst: Connection quality monitor RSSI hysteresis
  * @qos: This is a QoS-enabled BSS.
- * @ps: power-save mode (STA only). This flag is NOT affected by
- *	offchannel/dynamic_ps operations.
  * @hidden_ssid: The SSID of the current vif is hidden. Only valid in AP-mode.
  * @txpower: TX power in dBm.  INT_MIN means not configured.
  * @txpower_type: TX power adjustment used to control per packet Transmit
@@ -673,7 +671,6 @@ struct ieee80211_bss_conf {
 	struct cfg80211_chan_def chandef;
 	struct ieee80211_mu_group_data mu_group;
 	bool qos;
-	bool ps;
 	bool hidden_ssid;
 	int txpower;
 	enum nl80211_tx_power_setting txpower_type;
@@ -1715,6 +1712,8 @@ enum ieee80211_offload_flags {
  * @assoc: association status
  * @ibss_joined: indicates whether this station is part of an IBSS or not
  * @ibss_creator: indicates if a new IBSS network is being created
+ * @ps: power-save mode (STA only). This flag is NOT affected by
+ *	offchannel/dynamic_ps operations.
  * @aid: association ID number, valid only when @assoc is true
  * @arp_addr_list: List of IPv4 addresses for hardware ARP filtering. The
  *	may filter ARP queries targeted for other addresses than listed here.
@@ -1734,6 +1733,7 @@ struct ieee80211_vif_cfg {
 	/* association related data */
 	bool assoc, ibss_joined;
 	bool ibss_creator;
+	bool ps;
 	u16 aid;
 
 	__be32 arp_addr_list[IEEE80211_BSS_ARP_ADDR_LIST_LEN];

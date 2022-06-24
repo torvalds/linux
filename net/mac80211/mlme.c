@@ -1869,10 +1869,9 @@ void ieee80211_recalc_ps_vif(struct ieee80211_sub_if_data *sdata)
 {
 	bool ps_allowed = ieee80211_powersave_allowed(sdata);
 
-	if (sdata->vif.bss_conf.ps != ps_allowed) {
-		sdata->vif.bss_conf.ps = ps_allowed;
-		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
-						  BSS_CHANGED_PS);
+	if (sdata->vif.cfg.ps != ps_allowed) {
+		sdata->vif.cfg.ps = ps_allowed;
+		ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_PS);
 	}
 }
 

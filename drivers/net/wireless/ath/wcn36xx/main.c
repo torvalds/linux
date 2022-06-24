@@ -385,7 +385,7 @@ static void wcn36xx_change_ps(struct wcn36xx *wcn, bool enable)
 	list_for_each_entry(tmp, &wcn->vif_list, list) {
 		vif = wcn36xx_priv_to_vif(tmp);
 		if (enable && !wcn->sw_scan) {
-			if (vif->bss_conf.ps) /* ps allowed ? */
+			if (vif->cfg.ps) /* ps allowed ? */
 				wcn36xx_pmc_enter_bmps_state(wcn, vif);
 		} else {
 			wcn36xx_pmc_exit_bmps_state(wcn, vif);

@@ -972,7 +972,7 @@ int mt7921_mcu_uni_bss_ps(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 		.ps = {
 			.tag = cpu_to_le16(UNI_BSS_INFO_PS),
 			.len = cpu_to_le16(sizeof(struct ps_tlv)),
-			.ps_state = vif->bss_conf.ps ? 2 : 0,
+			.ps_state = vif->cfg.ps ? 2 : 0,
 		},
 	};
 

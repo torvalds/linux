@@ -175,7 +175,7 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 			/* It is useless to enable PS if channels are the same. */
 			if (enable_ps)
 				*enable_ps = false;
-			if (vif->cfg.assoc && vif->bss_conf.ps)
+			if (vif->cfg.assoc && vif->cfg.ps)
 				dev_info(wvif->wdev->dev, "ignoring requested PS mode");
 			return -1;
 		}
@@ -188,8 +188,8 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 			return 30;
 	}
 	if (enable_ps)
-		*enable_ps = vif->bss_conf.ps;
-	if (vif->cfg.assoc && vif->bss_conf.ps)
+		*enable_ps = vif->cfg.ps;
+	if (vif->cfg.assoc && vif->cfg.ps)
 		return conf->dynamic_ps_timeout;
 	else
 		return -1;

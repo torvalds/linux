@@ -3292,7 +3292,7 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_PS &&
 	    ar->ab->hw_params.supports_sta_ps) {
-		arvif->ps = vif->bss_conf.ps;
+		arvif->ps = vif->cfg.ps;
 
 		ret = ath11k_mac_config_ps(ar);
 		if (ret)

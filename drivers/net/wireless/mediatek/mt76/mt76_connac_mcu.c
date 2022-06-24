@@ -193,7 +193,7 @@ int mt76_connac_mcu_set_vif_ps(struct mt76_dev *dev, struct ieee80211_vif *vif)
 			      */
 	} req = {
 		.bss_idx = mvif->idx,
-		.ps_state = vif->bss_conf.ps ? 2 : 0,
+		.ps_state = vif->cfg.ps ? 2 : 0,
 	};
 
 	if (vif->type != NL80211_IFTYPE_STATION)
