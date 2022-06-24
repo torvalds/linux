@@ -19,6 +19,8 @@ properties:
 
   multi-led:
     type: object
+    $ref: leds-class-multicolor.yaml#
+    unevaluatedProperties: false
 
     patternProperties:
       "^led-[0-9a-z]+$":
@@ -45,9 +47,6 @@ properties:
 
 required:
   - compatible
-
-allOf:
-  - $ref: leds-class-multicolor.yaml#
 
 additionalProperties: false
 

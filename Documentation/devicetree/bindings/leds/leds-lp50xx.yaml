@@ -56,6 +56,8 @@ patternProperties:
   '^multi-led@[0-9a-f]$':
     type: object
     $ref: leds-class-multicolor.yaml#
+    unevaluatedProperties: false
+
     properties:
       reg:
         minItems: 1
