@@ -766,9 +766,40 @@ static void __init map_kernel(pgd_t *pgdp)
 	kasan_copy_shadow(pgdp);
 }
 
+static void __init create_idmap(void)
+{
+	u64 start = __pa_symbol(__idmap_text_start);
+	u64 size = __pa_symbol(__idmap_text_end) - start;
+	pgd_t *pgd = idmap_pg_dir;
+	u64 pgd_phys;
+
+	/* check if we need an additional level of translation */
+	if (VA_BITS < 48 && idmap_t0sz < (64 - VA_BITS_MIN)) {
+		pgd_phys = early_pgtable_alloc(PAGE_SHIFT);
+		set_pgd(&idmap_pg_dir[start >> VA_BITS],
+			__pgd(pgd_phys | P4D_TYPE_TABLE));
+		pgd = __va(pgd_phys);
+	}
+	__create_pgd_mapping(pgd, start, start, size, PAGE_KERNEL_ROX,
+			     early_pgtable_alloc, 0);
+
+	if (IS_ENABLED(CONFIG_UNMAP_KERNEL_AT_EL0)) {
+		extern u32 __idmap_kpti_flag;
+		u64 pa = __pa_symbol(&__idmap_kpti_flag);
+
+		/*
+		 * The KPTI G-to-nG conversion code needs a read-write mapping
+		 * of its synchronization flag in the ID map.
+		 */
+		__create_pgd_mapping(pgd, pa, pa, sizeof(u32), PAGE_KERNEL,
+				     early_pgtable_alloc, 0);
+	}
+}
+
 void __init paging_init(void)
 {
 	pgd_t *pgdp = pgd_set_fixmap(__pa_symbol(swapper_pg_dir));
+	extern pgd_t init_idmap_pg_dir[];
 
 	idmap_t0sz = 63UL - __fls(__pa_symbol(_end) | GENMASK(VA_BITS_MIN - 1, 0));
 
@@ -777,13 +808,15 @@ void __init paging_init(void)
 
 	pgd_clear_fixmap();
 
-	cpu_replace_ttbr1(lm_alias(swapper_pg_dir), idmap_pg_dir);
+	cpu_replace_ttbr1(lm_alias(swapper_pg_dir), init_idmap_pg_dir);
 	init_mm.pgd = swapper_pg_dir;
 
 	memblock_phys_free(__pa_symbol(init_pg_dir),
 			   __pa_symbol(init_pg_end) - __pa_symbol(init_pg_dir));
 
 	memblock_allow_resize();
+
+	create_idmap();
 }
 
 /*

@@ -87,6 +87,7 @@
 	 *  x28        clear_page_tables()                      callee preserved temp register
 	 *  x19/x20    __primary_switch()                       callee preserved temp registers
 	 *  x24        __primary_switch() .. relocate_kernel()  current RELR displacement
+	 *  x28        create_idmap()                           callee preserved temp register
 	 */
 SYM_CODE_START(primary_entry)
 	bl	preserve_boot_args
@@ -298,9 +299,7 @@ SYM_FUNC_START_LOCAL(remap_region)
 SYM_FUNC_END(remap_region)
 
 SYM_FUNC_START_LOCAL(create_idmap)
-	adrp	x0, idmap_pg_dir
-	adrp	x3, __idmap_text_start		// __pa(__idmap_text_start)
-
+	mov	x28, lr
 	/*
 	 * The ID map carries a 1:1 mapping of the physical address range
 	 * covered by the loaded image, which could be anywhere in DRAM. This
@@ -347,10 +346,21 @@ SYM_FUNC_START_LOCAL(create_idmap)
 	 * translation level, but the top-level table has more entries.
 	 */
 #endif
-	adr_l	x6, __idmap_text_end		// __pa(__idmap_text_end)
-	mov	x7, SWAPPER_MM_MMUFLAGS
+	adrp	x0, init_idmap_pg_dir
+	adrp	x3, _text
+	adrp	x6, _end
+	mov	x7, SWAPPER_RX_MMUFLAGS
 
 	map_memory x0, x1, x3, x6, x7, x3, IDMAP_PGD_ORDER, x10, x11, x12, x13, x14, EXTRA_SHIFT
+
+	/* Remap the kernel page tables r/w in the ID map */
+	adrp	x1, _text
+	adrp	x2, init_pg_dir
+	adrp	x3, init_pg_end
+	bic	x4, x2, #SWAPPER_BLOCK_SIZE - 1
+	mov	x5, SWAPPER_RW_MMUFLAGS
+	mov	x6, #SWAPPER_BLOCK_SHIFT
+	bl	remap_region
 
 	/*
 	 * Since the page tables have been populated with non-cacheable
@@ -359,9 +369,10 @@ SYM_FUNC_START_LOCAL(create_idmap)
 	 */
 	dmb	sy
 
-	adrp	x0, idmap_pg_dir
-	adrp	x1, idmap_pg_end
-	b	dcache_inval_poc		// tail call
+	adrp	x0, init_idmap_pg_dir
+	adrp	x1, init_idmap_pg_end
+	bl	dcache_inval_poc
+	ret	x28
 SYM_FUNC_END(create_idmap)
 
 SYM_FUNC_START_LOCAL(create_kernel_mapping)
@@ -372,7 +383,7 @@ SYM_FUNC_START_LOCAL(create_kernel_mapping)
 	adrp	x3, _text			// runtime __pa(_text)
 	sub	x6, x6, x3			// _end - _text
 	add	x6, x6, x5			// runtime __va(_end)
-	mov	x7, SWAPPER_MM_MMUFLAGS
+	mov	x7, SWAPPER_RW_MMUFLAGS
 
 	map_memory x0, x1, x5, x6, x7, x3, (VA_BITS - PGDIR_SHIFT), x10, x11, x12, x13, x14
 
@@ -853,7 +864,7 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 #endif
 
 	adrp	x1, init_pg_dir
-	adrp	x2, idmap_pg_dir
+	adrp	x2, init_idmap_pg_dir
 	bl	__enable_mmu
 #ifdef CONFIG_RELOCATABLE
 #ifdef CONFIG_RELR
