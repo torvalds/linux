@@ -265,6 +265,9 @@ struct virtio_mem {
 	struct list_head next;
 };
 
+/* For now, only allow one virtio-mem device */
+static struct virtio_mem *virtio_mem_dev;
+
 /*
  * We have to share a single online_page callback among all virtio-mem
  * devices. We use RCU to iterate the list in the callback.
@@ -2677,6 +2680,8 @@ static int virtio_mem_probe(struct platform_device *vdev)
 	if (rc)
 		goto out_free_vm;
 
+	virtio_mem_dev = vm;
+
 	/* trigger a config update to start processing the requested_size */
 	if (!vm->in_kdump) {
 		atomic_set(&vm->config_changed, 1);
@@ -2788,6 +2793,36 @@ static void __maybe_unused virtio_mem_config_changed(struct platform_device *vde
 
 	atomic_set(&vm->config_changed, 1);
 	virtio_mem_retry(vm);
+}
+
+int virtio_mem_update_config_size(s64 size, bool sync)
+{
+	unsigned long flags;
+	struct virtio_mem *vm = virtio_mem_dev;
+
+	/* In future, may support multiple virtio_mem_devices for different zones */
+	if (!vm)
+		return -EINVAL;
+
+	/* Round up if request not properly aligned. */
+	if (vm->in_sbm)
+		size = ALIGN(size, vm->sbm.sb_size);
+	else
+		size = ALIGN(size, vm->bbm.bb_size);
+
+	if (size < 0 || size > vm->region_size)
+		return -EINVAL;
+
+	spin_lock_irqsave(&vm->config_lock, flags);
+	vm->new_requested_size = size;
+	spin_unlock_irqrestore(&vm->config_lock, flags);
+
+	virtio_mem_config_changed(vm->vdev);
+
+	if (sync)
+		flush_work(&vm->wq);
+
+	return 0;
 }
 
 static const struct of_device_id virtio_mem_id_table[] = {
