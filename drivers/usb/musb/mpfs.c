@@ -181,8 +181,10 @@ static int mpfs_probe(struct platform_device *pdev)
 	glue->clk = clk;
 
 	pdata = devm_kzalloc(dev, sizeof(*pdata), GFP_KERNEL);
-	if (!pdata)
+	if (!pdata) {
+		ret = -ENOMEM;
 		goto err_clk_disable;
+	}
 
 	pdata->config = &mpfs_musb_hdrc_config;
 	pdata->platform_ops = &mpfs_ops;
@@ -197,6 +199,7 @@ static int mpfs_probe(struct platform_device *pdev)
 	if (IS_ERR(glue->phy)) {
 		dev_err(dev, "failed to register usb-phy %ld\n",
 			PTR_ERR(glue->phy));
+		ret = PTR_ERR(glue->phy);
 		goto err_clk_disable;
 	}
 
