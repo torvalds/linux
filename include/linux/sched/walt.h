@@ -136,6 +136,7 @@ struct walt_task_struct {
 	int				load_boost;
 	int64_t				boosted_task_load;
 	int				prev_cpu;
+	int				new_cpu;
 	u8				enqueue_after_migration;
 };
 

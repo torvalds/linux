@@ -203,6 +203,15 @@ void walt_task_dump(struct task_struct *p)
 	SCHED_PRINT(wts->mark_start);
 	SCHED_PRINT(wts->demand);
 	SCHED_PRINT(wts->coloc_demand);
+	SCHED_PRINT(wts->enqueue_after_migration);
+	SCHED_PRINT(wts->last_sleep_ts);
+	SCHED_PRINT(wts->prev_cpu);
+	SCHED_PRINT(wts->new_cpu);
+	SCHED_PRINT(wts->misfit);
+	SCHED_PRINT(wts->prev_on_rq);
+	SCHED_PRINT(wts->prev_on_rq_cpu);
+	SCHED_PRINT(wts->mvp_prio);
+	SCHED_PRINT(wts->iowaited);
 	SCHED_PRINT(sched_ravg_window);
 	SCHED_PRINT(new_sched_ravg_window);
 
@@ -1099,6 +1108,8 @@ static void migrate_busy_time_subtraction(struct task_struct *p, int new_cpu)
 		WALT_BUG(WALT_BUG_UPSTREAM, p, "on CPU %d task %s(%d) not on src_rq %d",
 				raw_smp_processor_id(), p->comm, p->pid, src_rq->cpu);
 
+	wts->new_cpu = new_cpu;
+
 	if (!same_freq_domain(task_cpu(p), new_cpu))
 		wts->enqueue_after_migration = 2; /* 2 is intercluster */
 	else
@@ -1227,6 +1238,7 @@ static void migrate_busy_time_addition(struct task_struct *p, int new_cpu, u64 w
 		dest_wrq->ed_task = p;
 
 	wts->enqueue_after_migration = 0;
+	wts->new_cpu = -1;
 }
 
 #define INC_STEP 8
@@ -2404,6 +2416,7 @@ static void init_new_task_load(struct task_struct *p)
 	INIT_LIST_HEAD(&wts->grp_list);
 
 	wts->prev_cpu = raw_smp_processor_id();
+	wts->new_cpu = -1;
 	wts->enqueue_after_migration = 0;
 	wts->mark_start = 0;
 	wts->window_start = 0;
