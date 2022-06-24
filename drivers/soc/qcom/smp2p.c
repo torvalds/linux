@@ -250,6 +250,9 @@ static void qcom_smp2p_notify_in(struct qcom_smp2p *smp2p)
 
 		status = val ^ entry->last_value;
 		entry->last_value = val;
+
+		/* Ensure irq_pending is read correctly */
+		mb();
 		status |= *entry->irq_pending;
 
 		/* No changes of this entry? */
@@ -356,6 +359,11 @@ static int smp2p_retrigger_irq(struct irq_data *irqd)
 	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 
 	set_bit(irq, entry->irq_pending);
+
+	/* Ensure irq_pending is visible to all cpus that retried interrupt
+	 * can run on
+	 */
+	mb();
 
 	return 0;
 }
