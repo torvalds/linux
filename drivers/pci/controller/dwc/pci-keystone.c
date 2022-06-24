@@ -109,7 +109,7 @@ struct ks_pcie_of_data {
 	enum dw_pcie_device_mode mode;
 	const struct dw_pcie_host_ops *host_ops;
 	const struct dw_pcie_ep_ops *ep_ops;
-	unsigned int version;
+	u32 version;
 };
 
 struct keystone_pcie {
@@ -1069,19 +1069,19 @@ static int ks_pcie_am654_set_mode(struct device *dev,
 
 static const struct ks_pcie_of_data ks_pcie_rc_of_data = {
 	.host_ops = &ks_pcie_host_ops,
-	.version = 0x365A,
+	.version = DW_PCIE_VER_365A,
 };
 
 static const struct ks_pcie_of_data ks_pcie_am654_rc_of_data = {
 	.host_ops = &ks_pcie_am654_host_ops,
 	.mode = DW_PCIE_RC_TYPE,
-	.version = 0x490A,
+	.version = DW_PCIE_VER_490A,
 };
 
 static const struct ks_pcie_of_data ks_pcie_am654_ep_of_data = {
 	.ep_ops = &ks_pcie_am654_ep_ops,
 	.mode = DW_PCIE_EP_TYPE,
-	.version = 0x490A,
+	.version = DW_PCIE_VER_490A,
 };
 
 static const struct of_device_id ks_pcie_of_match[] = {
@@ -1114,12 +1114,12 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 	struct device_link **link;
 	struct gpio_desc *gpiod;
 	struct resource *res;
-	unsigned int version;
 	void __iomem *base;
 	u32 num_viewport;
 	struct phy **phy;
 	u32 num_lanes;
 	char name[10];
+	u32 version;
 	int ret;
 	int irq;
 	int i;
@@ -1233,7 +1233,7 @@ static int __init ks_pcie_probe(struct platform_device *pdev)
 		goto err_get_sync;
 	}
 
-	if (pci->version >= 0x480A)
+	if (pci->version >= DW_PCIE_VER_480A)
 		ret = ks_pcie_am654_set_mode(dev, mode);
 	else
 		ret = ks_pcie_set_mode(dev);

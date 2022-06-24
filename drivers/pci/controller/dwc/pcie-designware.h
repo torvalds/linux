@@ -20,6 +20,14 @@
 #include <linux/pci-epc.h>
 #include <linux/pci-epf.h>
 
+/* DWC PCIe IP-core versions (native support since v4.70a) */
+#define DW_PCIE_VER_365A		0x3336352a
+#define DW_PCIE_VER_460A		0x3436302a
+#define DW_PCIE_VER_470A		0x3437302a
+#define DW_PCIE_VER_480A		0x3438302a
+#define DW_PCIE_VER_490A		0x3439302a
+#define DW_PCIE_VER_520A		0x3532302a
+
 /* Parameters for the waiting for link up routine */
 #define LINK_WAIT_MAX_RETRIES		10
 #define LINK_WAIT_USLEEP_MIN		90000
@@ -270,7 +278,7 @@ struct dw_pcie {
 	struct dw_pcie_rp	pp;
 	struct dw_pcie_ep	ep;
 	const struct dw_pcie_ops *ops;
-	unsigned int		version;
+	u32			version;
 	int			num_lanes;
 	int			link_gen;
 	u8			n_fts[2];

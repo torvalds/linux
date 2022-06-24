@@ -59,7 +59,7 @@
 #define RESET_INTERVAL_MS		100
 
 struct intel_pcie_soc {
-	unsigned int	pcie_ver;
+	u32	pcie_ver;
 };
 
 struct intel_pcie {
@@ -395,7 +395,7 @@ static const struct dw_pcie_host_ops intel_pcie_dw_ops = {
 };
 
 static const struct intel_pcie_soc pcie_data = {
-	.pcie_ver =		0x520A,
+	.pcie_ver =		DW_PCIE_VER_520A,
 };
 
 static int intel_pcie_probe(struct platform_device *pdev)
