@@ -21,7 +21,6 @@
 
 		rtos@40000 {
 			reg = <0x40000 0x40000>;
-			no-map;
 		};
 
 		ramdisk_r: ramdisk@a00000 {
