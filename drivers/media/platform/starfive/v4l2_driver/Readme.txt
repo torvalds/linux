@@ -1,10 +1,11 @@
 
-/dev/video0 sensor配置为直接输出camera数据的设备节点
-/dev/video1 sensor配置为camera数据经ISP处理变成NV12格式的设备节点
+/dev/video0: Output the camera data directly.
+/dev/video1: Output the data of the camera converted by isp.
 
-确认linux/arch/riscv/configs/starfive_jh7110_defconfig文件
+ensure linux/arch/riscv/configs/starfive_jh7110_defconfig:
 CONFIG_VIDEO_STF_VIN=y
 CONFIG_VIN_SENSOR_SC2235=y
 CONFIG_VIN_SENSOR_OV4689=y
 
-只支持DPHY的lane0/lane5做clk通道，lane1/2/3/4做数据通道。
+Only support the lane0/lane5 of dphy as clock lane, lane1/lane2/lane3/lane4
+as data lane.

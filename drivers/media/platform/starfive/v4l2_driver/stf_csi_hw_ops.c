@@ -53,9 +53,7 @@ static int stf_csi_power_on(struct stf_csi_dev *csi_dev, u8 on)
 			st_err(ST_CSI, "Cannot enable mipirx_0p9 regulator\n");
 			goto err_0p9;
 		}
-	}
-	else
-	{
+	} else {
 		regulator_disable(csi_dev->mipirx_1p8);
 		regulator_disable(csi_dev->mipirx_0p9);
 	}
