@@ -425,6 +425,45 @@ static void bpf_fill_torturous_jumps(struct bpf_test *self)
 	}
 }
 
+static void bpf_fill_big_prog_with_loop_1(struct bpf_test *self)
+{
+	struct bpf_insn *insn = self->fill_insns;
+	/* This test was added to catch a specific use after free
+	 * error, which happened upon BPF program reallocation.
+	 * Reallocation is handled by core.c:bpf_prog_realloc, which
+	 * reuses old memory if page boundary is not crossed. The
+	 * value of `len` is chosen to cross this boundary on bpf_loop
+	 * patching.
+	 */
+	const int len = getpagesize() - 25;
+	int callback_load_idx;
+	int callback_idx;
+	int i = 0;
+
+	insn[i++] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_1, 1);
+	callback_load_idx = i;
+	insn[i++] = BPF_RAW_INSN(BPF_LD | BPF_IMM | BPF_DW,
+				 BPF_REG_2, BPF_PSEUDO_FUNC, 0,
+				 777 /* filled below */);
+	insn[i++] = BPF_RAW_INSN(0, 0, 0, 0, 0);
+	insn[i++] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_3, 0);
+	insn[i++] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_4, 0);
+	insn[i++] = BPF_RAW_INSN(BPF_JMP | BPF_CALL, 0, 0, 0, BPF_FUNC_loop);
+
+	while (i < len - 3)
+		insn[i++] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_0, 0);
+	insn[i++] = BPF_EXIT_INSN();
+
+	callback_idx = i;
+	insn[i++] = BPF_ALU64_IMM(BPF_MOV, BPF_REG_0, 0);
+	insn[i++] = BPF_EXIT_INSN();
+
+	insn[callback_load_idx].imm = callback_idx - callback_load_idx - 1;
+	self->func_info[1].insn_off = callback_idx;
+	self->prog_len = i;
+	assert(i == len);
+}
+
 /* BPF_SK_LOOKUP contains 13 instructions, if you need to fix up maps */
 #define BPF_SK_LOOKUP(func)						\
 	/* struct bpf_sock_tuple tuple = {} */				\

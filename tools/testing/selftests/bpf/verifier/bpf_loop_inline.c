@@ -244,6 +244,17 @@
 	.func_info_cnt = 3,
 	BTF_TYPES
 },
+{
+	"inline bpf_loop call in a big program",
+	.insns = {},
+	.fill_helper = bpf_fill_big_prog_with_loop_1,
+	.expected_insns = { PSEUDO_CALL_INSN() },
+	.unexpected_insns = { HELPER_CALL_INSN() },
+	.result = ACCEPT,
+	.func_info = { { 0, MAIN_TYPE }, { 16, CALLBACK_TYPE } },
+	.func_info_cnt = 2,
+	BTF_TYPES
+},
 
 #undef HELPER_CALL_INSN
 #undef PSEUDO_CALL_INSN
