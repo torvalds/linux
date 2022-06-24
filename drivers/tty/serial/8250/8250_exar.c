@@ -195,11 +195,11 @@ static int xr17v35x_startup(struct uart_port *port)
 
 static void exar_shutdown(struct uart_port *port)
 {
-	unsigned char lsr;
 	bool tx_complete = false;
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct circ_buf *xmit = &port->state->xmit;
 	int i = 0;
+	u16 lsr;
 
 	do {
 		lsr = serial_in(up, UART_LSR);

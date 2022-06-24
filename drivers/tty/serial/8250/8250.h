@@ -133,9 +133,9 @@ static inline void serial_out(struct uart_8250_port *up, int offset, int value)
  *
  *	Returns LSR value or'ed with the preserved flags (if any).
  */
-static inline unsigned int serial_lsr_in(struct uart_8250_port *up)
+static inline u16 serial_lsr_in(struct uart_8250_port *up)
 {
-	unsigned int lsr = up->lsr_saved_flags;
+	u16 lsr = up->lsr_saved_flags;
 
 	lsr |= serial_in(up, UART_LSR);
 	up->lsr_saved_flags = lsr & LSR_SAVE_FLAGS;
