@@ -256,29 +256,34 @@ int cifs_try_adding_channels(struct cifs_sb_info *cifs_sb, struct cifs_ses *ses)
 
 /*
  * update the iface for the channel if necessary.
- * will return 0 when iface is updated. 1 otherwise
+ * will return 0 when iface is updated, 1 if removed, 2 otherwise
  * Must be called with chan_lock held.
  */
 int
 cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 {
-	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+	unsigned int chan_index;
 	struct cifs_server_iface *iface = NULL;
 	struct cifs_server_iface *old_iface = NULL;
 	int rc = 0;
 
-	/* primary channel. This can never go away */
-	if (!chan_index)
+	spin_lock(&ses->chan_lock);
+	chan_index = cifs_ses_get_chan_index(ses, server);
+	if (!chan_index) {
+		spin_unlock(&ses->chan_lock);
 		return 0;
+	}
 
 	if (ses->chans[chan_index].iface) {
 		old_iface = ses->chans[chan_index].iface;
-		if (old_iface->is_active)
+		if (old_iface->is_active) {
+			spin_unlock(&ses->chan_lock);
 			return 1;
+		}
 	}
+	spin_unlock(&ses->chan_lock);
 
 	spin_lock(&ses->iface_lock);
-
 	/* then look for a new one */
 	list_for_each_entry(iface, &ses->iface_list, iface_head) {
 		if (!iface->is_active ||
@@ -295,8 +300,6 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 		cifs_dbg(FYI, "unable to find a suitable iface\n");
 	}
 
-	ses->chans[chan_index].iface = iface;
-
 	/* now drop the ref to the current iface */
 	if (old_iface && iface) {
 		kref_put(&old_iface->refcount, release_iface);
@@ -311,14 +314,20 @@ cifs_chan_update_iface(struct cifs_ses *ses, struct TCP_Server_Info *server)
 		WARN_ON(!iface);
 		cifs_dbg(FYI, "adding new iface: %pIS\n", &iface->sockaddr);
 	}
-
 	spin_unlock(&ses->iface_lock);
 
+	spin_lock(&ses->chan_lock);
+	chan_index = cifs_ses_get_chan_index(ses, server);
+	ses->chans[chan_index].iface = iface;
+
 	/* No iface is found. if secondary chan, drop connection */
-	if (!iface && CIFS_SERVER_IS_CHAN(server)) {
-		cifs_put_tcp_session(server, false);
+	if (!iface && CIFS_SERVER_IS_CHAN(server))
 		ses->chans[chan_index].server = NULL;
-	}
+
+	spin_unlock(&ses->chan_lock);
+
+	if (!iface && CIFS_SERVER_IS_CHAN(server))
+		cifs_put_tcp_session(server, false);
 
 	return rc;
 }

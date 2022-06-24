@@ -236,7 +236,7 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 				      bool mark_smb_session)
 {
 	struct TCP_Server_Info *pserver;
-	struct cifs_ses *ses;
+	struct cifs_ses *ses, *nses;
 	struct cifs_tcon *tcon;
 
 	/*
@@ -250,10 +250,19 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 
 
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each_entry(ses, &pserver->smb_ses_list, smb_ses_list) {
+	list_for_each_entry_safe(ses, nses, &pserver->smb_ses_list, smb_ses_list) {
 		/* check if iface is still active */
-		if (!cifs_chan_is_iface_active(ses, server))
+		if (!cifs_chan_is_iface_active(ses, server)) {
+			/*
+			 * HACK: drop the lock before calling
+			 * cifs_chan_update_iface to avoid deadlock
+			 */
+			ses->ses_count++;
+			spin_unlock(&cifs_tcp_ses_lock);
 			cifs_chan_update_iface(ses, server);
+			spin_lock(&cifs_tcp_ses_lock);
+			ses->ses_count--;
+		}
 
 		spin_lock(&ses->chan_lock);
 		if (!mark_smb_session && cifs_chan_needs_reconnect(ses, server))
