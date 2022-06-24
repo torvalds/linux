@@ -1288,6 +1288,17 @@ static int uart_check_rs485_flags(struct uart_port *port, struct serial_rs485 *r
 	if (flags & ~port->rs485_supported->flags)
 		return -EINVAL;
 
+	/* Asking for address w/o addressing mode? */
+	if (!(rs485->flags & SER_RS485_ADDRB) &&
+	    (rs485->flags & (SER_RS485_ADDR_RECV|SER_RS485_ADDR_DEST)))
+		return -EINVAL;
+
+	/* Address given but not enabled? */
+	if (!(rs485->flags & SER_RS485_ADDR_RECV) && rs485->addr_recv)
+		return -EINVAL;
+	if (!(rs485->flags & SER_RS485_ADDR_DEST) && rs485->addr_dest)
+		return -EINVAL;
+
 	return 0;
 }
 
@@ -1343,7 +1354,8 @@ static void uart_sanitize_serial_rs485(struct uart_port *port, struct serial_rs4
 	rs485->flags &= supported_flags;
 
 	/* Return clean padding area to userspace */
-	memset(rs485->padding, 0, sizeof(rs485->padding));
+	memset(rs485->padding0, 0, sizeof(rs485->padding0));
+	memset(rs485->padding1, 0, sizeof(rs485->padding1));
 }
 
 int uart_rs485_config(struct uart_port *port)
@@ -3401,6 +3413,14 @@ int uart_get_rs485_mode(struct uart_port *port)
 	return 0;
 }
 EXPORT_SYMBOL_GPL(uart_get_rs485_mode);
+
+/* Compile-time assertions for serial_rs485 layout */
+static_assert(offsetof(struct serial_rs485, padding) ==
+              (offsetof(struct serial_rs485, delay_rts_after_send) + sizeof(__u32)));
+static_assert(offsetof(struct serial_rs485, padding1) ==
+	      offsetof(struct serial_rs485, padding[1]));
+static_assert((offsetof(struct serial_rs485, padding[4]) + sizeof(__u32)) ==
+	      sizeof(struct serial_rs485));
 
 MODULE_DESCRIPTION("Serial driver core");
 MODULE_LICENSE("GPL");

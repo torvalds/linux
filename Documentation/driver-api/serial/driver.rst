@@ -261,6 +261,8 @@ hardware.
 			- parity enable
 		PARODD
 			- odd parity (when PARENB is in force)
+		ADDRB
+			- address bit (changed through .rs485_config()).
 		CREAD
 			- enable reception of characters (if not set,
 			  still receive characters from the port, but
