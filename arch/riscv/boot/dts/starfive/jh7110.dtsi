@@ -1690,6 +1690,7 @@
 			resets = <&rstgen RSTN_U0_HIFI4_CORE>,
 				 <&rstgen RSTN_U0_HIFI4_AXI>;
 			reset-names = "rst_core","rst_axi";
+			starfive,stg-syscon = <&stg_syscon>;
 			firmware-name = "hifi4_elf";
 			#address-cells = <1>;
 			#size-cells = <1>;
