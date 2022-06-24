@@ -85,8 +85,6 @@
 	 *  x21        primary_entry() .. start_kernel()        FDT pointer passed at boot in x0
 	 *  x22        create_idmap() .. start_kernel()         ID map VA of the DT blob
 	 *  x23        primary_entry() .. start_kernel()        physical misalignment/KASLR offset
-	 *  x28        clear_page_tables()                      callee preserved temp register
-	 *  x19/x20    __primary_switch()                       callee preserved temp registers
 	 *  x24        __primary_switch() .. relocate_kernel()  current RELR displacement
 	 *  x28        create_idmap()                           callee preserved temp register
 	 */
@@ -96,9 +94,7 @@ SYM_CODE_START(primary_entry)
 	adrp	x23, __PHYS_OFFSET
 	and	x23, x23, MIN_KIMG_ALIGN - 1	// KASLR offset, defaults to 0
 	bl	set_cpu_boot_mode_flag
-	bl	clear_page_tables
 	bl	create_idmap
-	bl	create_kernel_mapping
 
 	/*
 	 * The following calls CPU setup code, see arch/arm64/mm/proc.S for
@@ -128,32 +124,14 @@ SYM_CODE_START_LOCAL(preserve_boot_args)
 SYM_CODE_END(preserve_boot_args)
 
 SYM_FUNC_START_LOCAL(clear_page_tables)
-	mov	x28, lr
-
-	/*
-	 * Invalidate the init page tables to avoid potential dirty cache lines
-	 * being evicted. Other page tables are allocated in rodata as part of
-	 * the kernel image, and thus are clean to the PoC per the boot
-	 * protocol.
-	 */
-	adrp	x0, init_pg_dir
-	adrp	x1, init_pg_end
-	bl	dcache_inval_poc
-
 	/*
 	 * Clear the init page tables.
 	 */
 	adrp	x0, init_pg_dir
 	adrp	x1, init_pg_end
-	sub	x1, x1, x0
-1:	stp	xzr, xzr, [x0], #16
-	stp	xzr, xzr, [x0], #16
-	stp	xzr, xzr, [x0], #16
-	stp	xzr, xzr, [x0], #16
-	subs	x1, x1, #64
-	b.ne	1b
-
-	ret	x28
+	sub	x2, x1, x0
+	mov	x1, xzr
+	b	__pi_memset			// tail call
 SYM_FUNC_END(clear_page_tables)
 
 /*
@@ -399,16 +377,8 @@ SYM_FUNC_START_LOCAL(create_kernel_mapping)
 
 	map_memory x0, x1, x5, x6, x7, x3, (VA_BITS - PGDIR_SHIFT), x10, x11, x12, x13, x14
 
-	/*
-	 * Since the page tables have been populated with non-cacheable
-	 * accesses (MMU disabled), invalidate those tables again to
-	 * remove any speculatively loaded cache lines.
-	 */
-	dmb	sy
-
-	adrp	x0, init_pg_dir
-	adrp	x1, init_pg_end
-	b	dcache_inval_poc		// tail call
+	dsb	ishst				// sync with page table walker
+	ret
 SYM_FUNC_END(create_kernel_mapping)
 
 	/*
@@ -863,14 +833,15 @@ SYM_FUNC_END(__relocate_kernel)
 #endif
 
 SYM_FUNC_START_LOCAL(__primary_switch)
-#ifdef CONFIG_RANDOMIZE_BASE
-	mov	x19, x0				// preserve new SCTLR_EL1 value
-	mrs	x20, sctlr_el1			// preserve old SCTLR_EL1 value
-#endif
-
-	adrp	x1, init_pg_dir
+	adrp	x1, reserved_pg_dir
 	adrp	x2, init_idmap_pg_dir
 	bl	__enable_mmu
+
+	bl	clear_page_tables
+	bl	create_kernel_mapping
+
+	adrp	x1, init_pg_dir
+	load_ttbr1 x1, x1, x2
 #ifdef CONFIG_RELOCATABLE
 #ifdef CONFIG_RELR
 	mov	x24, #0				// no RELR displacement yet
@@ -886,9 +857,8 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 	 * to take into account by discarding the current kernel mapping and
 	 * creating a new one.
 	 */
-	pre_disable_mmu_workaround
-	msr	sctlr_el1, x20			// disable the MMU
-	isb
+	adrp	x1, reserved_pg_dir		// Disable translations via TTBR1
+	load_ttbr1 x1, x1, x2
 	bl	clear_page_tables
 	bl	create_kernel_mapping		// Recreate kernel mapping
 
@@ -896,8 +866,8 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 	dsb	nsh
 	isb
 
-	set_sctlr_el1	x19			// re-enable the MMU
-
+	adrp	x1, init_pg_dir			// Re-enable translations via TTBR1
+	load_ttbr1 x1, x1, x2
 	bl	__relocate_kernel
 #endif
 #endif
