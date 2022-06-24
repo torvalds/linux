@@ -757,13 +757,10 @@ SYM_FUNC_START_LOCAL(__relocate_kernel)
 	 * Iterate over each entry in the relocation table, and apply the
 	 * relocations in place.
 	 */
-	ldr	w9, =__rela_offset		// offset to reloc table
-	ldr	w10, =__rela_size		// size of reloc table
-
+	adr_l	x9, __rela_start
+	adr_l	x10, __rela_end
 	mov_q	x11, KIMAGE_VADDR		// default virtual offset
 	add	x11, x11, x23			// actual virtual offset
-	add	x9, x9, x11			// __va(.rela)
-	add	x10, x9, x10			// __va(.rela) + sizeof(.rela)
 
 0:	cmp	x9, x10
 	b.hs	1f
@@ -813,10 +810,8 @@ SYM_FUNC_START_LOCAL(__relocate_kernel)
 	 * __relocate_kernel is called twice with non-zero displacements (i.e.
 	 * if there is both a physical misalignment and a KASLR displacement).
 	 */
-	ldr	w9, =__relr_offset		// offset to reloc table
-	ldr	w10, =__relr_size		// size of reloc table
-	add	x9, x9, x11			// __va(.relr)
-	add	x10, x9, x10			// __va(.relr) + sizeof(.relr)
+	adr_l	x9, __relr_start
+	adr_l	x10, __relr_end
 
 	sub	x15, x23, x24			// delta from previous offset
 	cbz	x15, 7f				// nothing to do if unchanged
