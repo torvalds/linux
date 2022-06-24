@@ -1979,7 +1979,6 @@ static int tegra194_pcie_probe(struct platform_device *pdev)
 	pci->ops = &tegra_dw_pcie_ops;
 	pci->n_fts[0] = N_FTS_VAL;
 	pci->n_fts[1] = FTS_VAL;
-	pci->version = DW_PCIE_VER_490A;
 
 	pp = &pci->pp;
 	pp->num_vectors = MAX_MSI_IRQS;
