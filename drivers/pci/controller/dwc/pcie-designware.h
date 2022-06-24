@@ -103,10 +103,21 @@
 #define PCIE_VERSION_NUMBER		0x8F8
 #define PCIE_VERSION_TYPE		0x8FC
 
+/*
+ * iATU inbound and outbound windows CSRs. Before the IP-core v4.80a each
+ * iATU region CSRs had been indirectly accessible by means of the dedicated
+ * viewport selector. The iATU/eDMA CSRs space was re-designed in DWC PCIe
+ * v4.80a in a way so the viewport was unrolled into the directly accessible
+ * iATU/eDMA CSRs space.
+ */
 #define PCIE_ATU_VIEWPORT		0x900
 #define PCIE_ATU_REGION_DIR_IB		BIT(31)
 #define PCIE_ATU_REGION_DIR_OB		0
-#define PCIE_ATU_CR1			0x904
+#define PCIE_ATU_VIEWPORT_BASE		0x904
+#define PCIE_ATU_UNROLL_BASE(dir, index) \
+	(((index) << 9) | ((dir == PCIE_ATU_REGION_DIR_IB) ? BIT(8) : 0))
+#define PCIE_ATU_VIEWPORT_SIZE		0x2C
+#define PCIE_ATU_REGION_CTRL1		0x000
 #define PCIE_ATU_INCREASE_REGION_SIZE	BIT(13)
 #define PCIE_ATU_TYPE_MEM		0x0
 #define PCIE_ATU_TYPE_IO		0x2
@@ -114,19 +125,19 @@
 #define PCIE_ATU_TYPE_CFG1		0x5
 #define PCIE_ATU_TD			BIT(8)
 #define PCIE_ATU_FUNC_NUM(pf)           ((pf) << 20)
-#define PCIE_ATU_CR2			0x908
+#define PCIE_ATU_REGION_CTRL2		0x004
 #define PCIE_ATU_ENABLE			BIT(31)
 #define PCIE_ATU_BAR_MODE_ENABLE	BIT(30)
 #define PCIE_ATU_FUNC_NUM_MATCH_EN      BIT(19)
-#define PCIE_ATU_LOWER_BASE		0x90C
-#define PCIE_ATU_UPPER_BASE		0x910
-#define PCIE_ATU_LIMIT			0x914
-#define PCIE_ATU_LOWER_TARGET		0x918
+#define PCIE_ATU_LOWER_BASE		0x008
+#define PCIE_ATU_UPPER_BASE		0x00C
+#define PCIE_ATU_LIMIT			0x010
+#define PCIE_ATU_LOWER_TARGET		0x014
 #define PCIE_ATU_BUS(x)			FIELD_PREP(GENMASK(31, 24), x)
 #define PCIE_ATU_DEV(x)			FIELD_PREP(GENMASK(23, 19), x)
 #define PCIE_ATU_FUNC(x)		FIELD_PREP(GENMASK(18, 16), x)
-#define PCIE_ATU_UPPER_TARGET		0x91C
-#define PCIE_ATU_UPPER_LIMIT		0x924
+#define PCIE_ATU_UPPER_TARGET		0x018
+#define PCIE_ATU_UPPER_LIMIT		0x020
 
 #define PCIE_MISC_CONTROL_1_OFF		0x8BC
 #define PCIE_DBI_RO_WR_EN		BIT(0)
@@ -144,32 +155,12 @@
 #define PCIE_PL_CHK_REG_ERR_ADDR			0xB28
 
 /*
- * iATU Unroll-specific register definitions
- * From 4.80 core version the address translation will be made by unroll
- */
-#define PCIE_ATU_UNR_REGION_CTRL1	0x00
-#define PCIE_ATU_UNR_REGION_CTRL2	0x04
-#define PCIE_ATU_UNR_LOWER_BASE		0x08
-#define PCIE_ATU_UNR_UPPER_BASE		0x0C
-#define PCIE_ATU_UNR_LOWER_LIMIT	0x10
-#define PCIE_ATU_UNR_LOWER_TARGET	0x14
-#define PCIE_ATU_UNR_UPPER_TARGET	0x18
-#define PCIE_ATU_UNR_UPPER_LIMIT	0x20
-
-/*
  * The default address offset between dbi_base and atu_base. Root controller
  * drivers are not required to initialize atu_base if the offset matches this
  * default; the driver core automatically derives atu_base from dbi_base using
  * this offset, if atu_base not set.
  */
 #define DEFAULT_DBI_ATU_OFFSET (0x3 << 20)
-
-/* Register address builder */
-#define PCIE_GET_ATU_OUTB_UNR_REG_OFFSET(region) \
-		((region) << 9)
-
-#define PCIE_GET_ATU_INB_UNR_REG_OFFSET(region) \
-		(((region) << 9) | BIT(8))
 
 #define MAX_MSI_IRQS			256
 #define MAX_MSI_IRQS_PER_CTRL		32
@@ -277,7 +268,6 @@ struct dw_pcie {
 	struct device		*dev;
 	void __iomem		*dbi_base;
 	void __iomem		*dbi_base2;
-	/* Used when iatu_unroll_enabled is true */
 	void __iomem		*atu_base;
 	size_t			atu_size;
 	u32			num_ib_windows;
