@@ -42,6 +42,7 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_print.h>
 #include <drm/drm_probe_helper.h>
 
@@ -2666,24 +2667,14 @@ static int drm_dp_check_and_send_link_address(struct drm_dp_mst_topology_mgr *mg
 	}
 
 	list_for_each_entry(port, &mstb->ports, next) {
-		struct drm_dp_mst_branch *mstb_child = NULL;
-
-		if (port->input || !port->ddps)
+		if (port->input || !port->ddps || !port->mstb)
 			continue;
 
-		if (port->mstb)
-			mstb_child = drm_dp_mst_topology_get_mstb_validated(
-			    mgr, port->mstb);
-
-		if (mstb_child) {
-			ret = drm_dp_check_and_send_link_address(mgr,
-								 mstb_child);
-			drm_dp_mst_topology_put_mstb(mstb_child);
-			if (ret == 1)
-				changed = true;
-			else if (ret < 0)
-				return ret;
-		}
+		ret = drm_dp_check_and_send_link_address(mgr, port->mstb);
+		if (ret == 1)
+			changed = true;
+		else if (ret < 0)
+			return ret;
 	}
 
 	return changed;
@@ -5465,8 +5456,7 @@ EXPORT_SYMBOL(drm_dp_mst_topology_state_funcs);
  *
  * This function wraps drm_atomic_get_priv_obj_state() passing in the MST atomic
  * state vtable so that the private object state returned is that of a MST
- * topology object. Also, drm_atomic_get_private_obj_state() expects the caller
- * to care of the locking, so warn if don't hold the connection_mutex.
+ * topology object.
  *
  * RETURNS:
  *

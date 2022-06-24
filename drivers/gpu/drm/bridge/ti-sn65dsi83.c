@@ -344,7 +344,7 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 	}
 
 	/* Deassert reset */
-	gpiod_set_value(ctx->enable_gpio, 1);
+	gpiod_set_value_cansleep(ctx->enable_gpio, 1);
 	usleep_range(1000, 1100);
 
 	/* Get the LVDS format from the bridge state. */
@@ -500,7 +500,7 @@ static void sn65dsi83_atomic_disable(struct drm_bridge *bridge,
 	int ret;
 
 	/* Put the chip in reset, pull EN line low, and assure 10ms reset low timing. */
-	gpiod_set_value(ctx->enable_gpio, 0);
+	gpiod_set_value_cansleep(ctx->enable_gpio, 0);
 	usleep_range(10000, 11000);
 
 	ret = regulator_disable(ctx->vcc);
@@ -677,7 +677,7 @@ static int sn65dsi83_probe(struct i2c_client *client,
 	ctx->enable_gpio = devm_gpiod_get_optional(ctx->dev, "enable",
 						   GPIOD_OUT_LOW);
 	if (IS_ERR(ctx->enable_gpio))
-		return PTR_ERR(ctx->enable_gpio);
+		return dev_err_probe(dev, PTR_ERR(ctx->enable_gpio), "failed to get enable GPIO\n");
 
 	usleep_range(10000, 11000);
 
@@ -687,7 +687,7 @@ static int sn65dsi83_probe(struct i2c_client *client,
 
 	ctx->regmap = devm_regmap_init_i2c(client, &sn65dsi83_regmap_config);
 	if (IS_ERR(ctx->regmap))
-		return PTR_ERR(ctx->regmap);
+		return dev_err_probe(dev, PTR_ERR(ctx->regmap), "failed to get regmap\n");
 
 	dev_set_drvdata(dev, ctx);
 	i2c_set_clientdata(client, ctx);

@@ -6,6 +6,7 @@
 
 #include <linux/delay.h>
 #include <drm/drm_bridge_connector.h>
+#include <drm/drm_edid.h>
 
 #include "msm_kms.h"
 #include "hdmi.h"
