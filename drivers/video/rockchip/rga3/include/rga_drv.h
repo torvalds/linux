@@ -145,7 +145,6 @@ struct rga_dma_buffer {
 	void *vmap_ptr;
 
 	struct iommu_domain *domain;
-	struct rga_iommu_dma_cookie *cookie;
 
 	enum dma_data_direction dir;
 

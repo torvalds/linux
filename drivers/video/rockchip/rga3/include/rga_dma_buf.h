@@ -18,11 +18,13 @@ int rga_buf_size_cal(unsigned long yrgb_addr, unsigned long uv_addr,
 int rga_virtual_memory_check(void *vaddr, u32 w, u32 h, u32 format, int fd);
 int rga_dma_memory_check(struct rga_dma_buffer *rga_dma_buffer, struct rga_img_info_t *img);
 
-int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
-			    struct rga_dma_buffer *virt_dma_buf,
-			    struct device *rga_dev,
-			    struct mm_struct *mm);
-void rga_iommu_unmap_virt_addr(struct rga_dma_buffer *virt_addr);
+int rga_iommu_map_sgt(struct sg_table *sgt, size_t size,
+		      struct rga_dma_buffer *buffer,
+		      struct device *rga_dev);
+int rga_iommu_map(phys_addr_t paddr, size_t size,
+		  struct rga_dma_buffer *buffer,
+		  struct device *rga_dev);
+void rga_iommu_unmap(struct rga_dma_buffer *buffer);
 
 int rga_dma_map_buf(struct dma_buf *dma_buf, struct rga_dma_buffer *rga_dma_buffer,
 		    enum dma_data_direction dir, struct device *rga_dev);

@@ -13,30 +13,15 @@
 #include "rga_job.h"
 #include "rga_debugger.h"
 
-#if LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0) && \
-    LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0)
-#include <linux/dma-noncoherent.h>
-#endif
-
-/**
- * rga_dma_info_to_prot - Translate DMA API directions and attributes to IOMMU API
- *                    page flags.
- * @dir: Direction of DMA transfer
- * @coherent: Is the DMA master cache-coherent?
- *
- * Return: corresponding IOMMU API page protection flags
- */
-static int rga_dma_info_to_prot(enum dma_data_direction dir, bool coherent)
+static int rga_dma_info_to_prot(enum dma_data_direction dir)
 {
-	int prot = coherent ? IOMMU_CACHE : 0;
-
 	switch (dir) {
 	case DMA_BIDIRECTIONAL:
-		return prot | IOMMU_READ | IOMMU_WRITE;
+		return IOMMU_READ | IOMMU_WRITE;
 	case DMA_TO_DEVICE:
-		return prot | IOMMU_READ;
+		return IOMMU_READ;
 	case DMA_FROM_DEVICE:
-		return prot | IOMMU_WRITE;
+		return IOMMU_WRITE;
 	default:
 		return 0;
 	}
@@ -257,33 +242,13 @@ static dma_addr_t rga_iommu_dma_alloc_iova(struct iommu_domain *domain,
 	return (dma_addr_t)iova << shift;
 }
 
-static void rga_iommu_dma_free_iova(struct rga_iommu_dma_cookie *cookie,
-				     dma_addr_t iova, size_t size)
+static void rga_iommu_dma_free_iova(struct iommu_domain *domain,
+				    dma_addr_t iova, size_t size)
 {
+	struct rga_iommu_dma_cookie *cookie = domain->iova_cookie;
 	struct iova_domain *iovad = &cookie->iovad;
 
-	free_iova_fast(iovad, iova_pfn(iovad, iova),
-		size >> iova_shift(iovad));
-}
-
-static inline size_t rga_iommu_map_sg(struct iommu_domain *domain,
-				      unsigned long iova, struct scatterlist *sg,
-				      unsigned int nents, int prot)
-{
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
-	return iommu_map_sg_atomic(domain, iova, sg, nents, prot);
-#else
-	return iommu_map_sg(domain, iova, sg, nents, prot);
-#endif
-}
-
-static inline bool rga_dev_is_dma_coherent(struct device *dev)
-{
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 4, 0))
-	return dev_is_dma_coherent(dev);
-#else
-	return dev->archdata.dma_coherent;
-#endif
+	free_iova_fast(iovad, iova_pfn(iovad, iova), size >> iova_shift(iovad));
 }
 
 static inline struct iommu_domain *rga_iommu_get_dma_domain(struct device *dev)
@@ -291,64 +256,103 @@ static inline struct iommu_domain *rga_iommu_get_dma_domain(struct device *dev)
 	return iommu_get_domain_for_dev(dev);
 }
 
-void rga_iommu_unmap_virt_addr(struct rga_dma_buffer *virt_dma_buf)
+void rga_iommu_unmap(struct rga_dma_buffer *buffer)
 {
-	if (virt_dma_buf == NULL)
+	if (buffer == NULL)
 		return;
-	if (virt_dma_buf->iova == 0)
+	if (buffer->iova == 0)
 		return;
 
-	iommu_unmap(virt_dma_buf->domain, virt_dma_buf->iova, virt_dma_buf->size);
-	rga_iommu_dma_free_iova(virt_dma_buf->cookie, virt_dma_buf->iova, virt_dma_buf->size);
+	iommu_unmap(buffer->domain, buffer->iova, buffer->size);
+	rga_iommu_dma_free_iova(buffer->domain, buffer->iova, buffer->size);
 }
 
-int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
-			    struct rga_dma_buffer *virt_dma_buf,
-			    struct device *rga_dev,
-			    struct mm_struct *mm)
+int rga_iommu_map_sgt(struct sg_table *sgt, size_t size,
+		      struct rga_dma_buffer *buffer,
+		      struct device *rga_dev)
 {
-	unsigned long size;
-	size_t map_size;
-	bool coherent;
-	int ioprot;
 	struct iommu_domain *domain = NULL;
 	struct rga_iommu_dma_cookie *cookie;
 	struct iova_domain *iovad;
 	dma_addr_t iova;
-	struct sg_table *sgt = NULL;
+	size_t map_size;
+	unsigned long align_size;
 
-	coherent = rga_dev_is_dma_coherent(rga_dev);
-	domain = rga_iommu_get_dma_domain(rga_dev);
-	ioprot = rga_dma_info_to_prot(DMA_BIDIRECTIONAL, coherent);
-
-	cookie = domain->iova_cookie;
-	iovad = &cookie->iovad;
-	size = iova_align(iovad, virt_dma_buf->size);
-	sgt = virt_dma_buf->sgt;
 	if (sgt == NULL) {
 		pr_err("can not map iommu, because sgt is null!\n");
-		return -EFAULT;
+		return -EINVAL;
 	}
 
-	if (DEBUGGER_EN(MSG))
-		pr_info("iova_align size = %ld", size);
+	domain = rga_iommu_get_dma_domain(rga_dev);
+	cookie = domain->iova_cookie;
+	iovad = &cookie->iovad;
+	align_size = iova_align(iovad, size);
 
-	iova = rga_iommu_dma_alloc_iova(domain, size, rga_dev->coherent_dma_mask, rga_dev);
+	if (DEBUGGER_EN(MSG))
+		pr_info("iova_align size = %ld", align_size);
+
+	iova = rga_iommu_dma_alloc_iova(domain, align_size, rga_dev->coherent_dma_mask, rga_dev);
 	if (!iova) {
 		pr_err("rga_iommu_dma_alloc_iova failed");
 		return -ENOMEM;
 	}
 
-	map_size = rga_iommu_map_sg(domain, iova, sgt->sgl, sgt->orig_nents, ioprot);
-	if (map_size < size) {
+	map_size = iommu_map_sg(domain, iova, sgt->sgl, sgt->orig_nents,
+				rga_dma_info_to_prot(DMA_BIDIRECTIONAL));
+	if (map_size < align_size) {
 		pr_err("iommu can not map sgt to iova");
+		rga_iommu_dma_free_iova(domain, iova, align_size);
 		return -EINVAL;
 	}
 
-	virt_dma_buf->cookie = cookie;
-	virt_dma_buf->domain = domain;
-	virt_dma_buf->iova = iova;
-	virt_dma_buf->size = size;
+	buffer->domain = domain;
+	buffer->iova = iova;
+	buffer->size = align_size;
+
+	return 0;
+}
+
+int rga_iommu_map(phys_addr_t paddr, size_t size,
+		  struct rga_dma_buffer *buffer,
+		  struct device *rga_dev)
+{
+	int ret;
+	struct iommu_domain *domain = NULL;
+	struct rga_iommu_dma_cookie *cookie;
+	struct iova_domain *iovad;
+	dma_addr_t iova;
+	unsigned long align_size;
+
+	if (paddr == 0) {
+		pr_err("can not map iommu, because phys_addr is 0!\n");
+		return -EINVAL;
+	}
+
+	domain = rga_iommu_get_dma_domain(rga_dev);
+	cookie = domain->iova_cookie;
+	iovad = &cookie->iovad;
+	align_size = iova_align(iovad, size);
+
+	if (DEBUGGER_EN(MSG))
+		pr_info("iova_align size = %ld", align_size);
+
+	iova = rga_iommu_dma_alloc_iova(domain, align_size, rga_dev->coherent_dma_mask, rga_dev);
+	if (!iova) {
+		pr_err("rga_iommu_dma_alloc_iova failed");
+		return -ENOMEM;
+	}
+
+	ret = iommu_map(domain, iova, paddr, align_size,
+			rga_dma_info_to_prot(DMA_BIDIRECTIONAL));
+	if (ret) {
+		pr_err("iommu can not map phys_addr to iova");
+		rga_iommu_dma_free_iova(domain, iova, align_size);
+		return ret;
+	}
+
+	buffer->domain = domain;
+	buffer->iova = iova;
+	buffer->size = align_size;
 
 	return 0;
 }
