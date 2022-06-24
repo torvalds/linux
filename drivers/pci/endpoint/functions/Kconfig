@@ -29,6 +29,7 @@ config PCI_EPF_NTB
 config PCI_EPF_VNTB
         tristate "PCI Endpoint NTB driver"
         depends on PCI_ENDPOINT
+        depends on NTB
         select CONFIGFS_FS
         help
           Select this configuration option to enable the Non-Transparent
