@@ -204,6 +204,17 @@ function prepare_system_dlkm() {
     if [ -e "${KERNEL_DIR}/modules.systemdlkm_blocklist.${CONFIG_TARGET}" ]; then
       SYSTEM_DLKM_MODULES_BLOCKLIST="${KERNEL_DIR}/modules.systemdlkm_blocklist.${CONFIG_TARGET}"
       cp $SYSTEM_DLKM_MODULES_BLOCKLIST ${DIST_DIR}/system_dlkm.modules.blocklist
+
+      if [ "${APPEND_SYSTEM_DLKM_BLOCKLIST_TO_VENDOR_RAMDISK}" == "1" ]; then
+        (cd ${DIST_DIR} && find -name system_dlkm.modules.blocklist | cpio -H newc -o) > ${DIST_DIR}/system_dlkm_blocklist.cpio
+        if [ -n "${TARGET_HAS_SEPARATE_RD}" ]; then
+          ${RAMDISK_COMPRESS} "${DIST_DIR}/system_dlkm_blocklist.cpio" >"${DIST_DIR}/system_dlkm_blocklist.${RAMDISK_EXT}"
+          cat "${DIST_DIR}/system_dlkm_blocklist.${RAMDISK_EXT}" >>"${VENDOR_RAMDISK_BINARY}"
+        else
+	  VENDOR_RAMDISK_BINARY+=" ${DIST_DIR}/system_dlkm_blocklist.cpio"
+        fi
+      fi
+
     fi
     SUPER_IMAGE_CONTENTS+=("${DIST_DIR}/system_dlkm.img")
   fi
