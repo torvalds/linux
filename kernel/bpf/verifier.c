@@ -14417,7 +14417,7 @@ static struct bpf_prog *inline_bpf_loop(struct bpf_verifier_env *env,
 	/* Note: insn_buf[12] is an offset of BPF_CALL_REL instruction */
 	call_insn_offset = position + 12;
 	callback_offset = callback_start - call_insn_offset - 1;
-	env->prog->insnsi[call_insn_offset].imm = callback_offset;
+	new_prog->insnsi[call_insn_offset].imm = callback_offset;
 
 	return new_prog;
 }
