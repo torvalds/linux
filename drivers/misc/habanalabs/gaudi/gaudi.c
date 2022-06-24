@@ -5772,7 +5772,7 @@ static void gaudi_add_end_of_cb_packets(struct hl_device *hdev, void *kernel_add
 	cq_pkt = kernel_address + len - (sizeof(struct packet_msg_prot) * 2);
 
 	while ((void *)cq_padding < (void *)cq_pkt) {
-		cq_padding->ctl = FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_NOP);
+		cq_padding->ctl = cpu_to_le32(FIELD_PREP(GAUDI_PKT_CTL_OPCODE_MASK, PACKET_NOP));
 		cq_padding++;
 	}
 
