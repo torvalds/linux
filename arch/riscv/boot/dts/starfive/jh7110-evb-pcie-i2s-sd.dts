@@ -1,0 +1,70 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 Hal Feng <hal.feng@starfivetech.com>
+ */
+
+/dts-v1/;
+#include "jh7110-evb.dtsi"
+#include "codecs/sf_wm8960.dtsi"
+
+/ {
+	model = "StarFive JH7110 EVB";
+	compatible = "starfive,jh7110-evb", "starfive,jh7110";
+};
+
+/* default sd card */
+&sdio0 {
+	clock-frequency = <102400000>;
+	max-frequency = <200000000>;
+	card-detect-delay = <300>;
+	bus-width = <4>;
+	broken-cd;
+	cap-sd-highspeed;
+	post-power-on-delay-ms = <200>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdcard0_pins>;
+	status = "okay";
+};
+
+&pcie1 {
+	status = "okay";
+};
+
+&sdio1 {
+	clock-frequency = <4000000>;
+	max-frequency = <1000000>;
+	card-detect-delay = <300>;
+	bus-width = <4>;
+	cap-sd-highspeed;
+	cap-sdio-irq;
+	cap-mmc-hw-reset;
+	non-removable;
+	enable-sdio-wakeup;
+	keep-power-in-suspend;
+	cap-mmc-highspeed;
+	post-power-on-delay-ms = <200>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdcard1_pins>;
+	status = "okay";
+};
+
+&pcie0 {
+	status = "okay";
+};
+
+&uart3 {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2srx_3ch {
+	status = "okay";
+};
+
+&i2stx_4ch1 {
+	status = "okay";
+};

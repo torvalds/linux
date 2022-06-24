@@ -12,23 +12,23 @@
 	compatible = "starfive,jh7110-evb", "starfive,jh7110";
 };
 
-/* default sd card */
-&sdio0 {
-	clock-frequency = <102400000>;
-	max-frequency = <200000000>;
-	card-detect-delay = <300>;
-	bus-width = <4>;
-	broken-cd;
-	cap-sd-highspeed;
-	post-power-on-delay-ms = <200>;
+&vin_sysctl {
+	pinctrl-names = "default";
+	pinctrl-0 = <&dvp_pins>;
+};
+
+&hdmi_output {
 	status = "okay";
 };
 
-&usbdrd30 {
+&tda988x_pin {
 	status = "okay";
 };
 
+&encoder {
+	status = "diabled";
+};
 
-&pcie1 {
-	status = "okay";
+&mipi_dsi {
+	status = "diabled";
 };

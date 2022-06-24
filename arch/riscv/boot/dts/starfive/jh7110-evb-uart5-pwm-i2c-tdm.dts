@@ -6,6 +6,7 @@
 
 /dts-v1/;
 #include "jh7110-evb.dtsi"
+#include "codecs/sf_tdm.dtsi"
 
 / {
 	model = "StarFive JH7110 EVB";
@@ -21,6 +22,8 @@
 	broken-cd;
 	cap-sd-highspeed;
 	post-power-on-delay-ms = <200>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdcard0_pins>;
 	status = "okay";
 };
 
@@ -28,7 +31,32 @@
 	status = "okay";
 };
 
-
 &pcie1 {
+	status = "okay";
+};
+
+&uart5 {
+	status = "okay";
+};
+
+&ptc {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pwm_ch0to3_pins &pwm_ch4to5_pins>;
+	status = "okay";
+};
+
+&tdm {
+	status = "okay";
+};
+
+&i2c0 {
+	status = "okay";
+};
+
+&i2c1 {
+	status = "okay";
+};
+
+&i2c3 {
 	status = "okay";
 };
