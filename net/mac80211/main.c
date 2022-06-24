@@ -984,7 +984,8 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 			return -EINVAL;
 
 		if (WARN_ON(ieee80211_hw_check(hw, SUPPORTS_PS) &&
-			    !ieee80211_hw_check(hw, SUPPORTS_DYNAMIC_PS)))
+			    (!ieee80211_hw_check(hw, SUPPORTS_DYNAMIC_PS) ||
+			     ieee80211_hw_check(hw, PS_NULLFUNC_STACK))))
 			return -EINVAL;
 
 		if (WARN_ON(!ieee80211_hw_check(hw, MFP_CAPABLE)))
