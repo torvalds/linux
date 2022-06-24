@@ -83,6 +83,7 @@
 	 *
 	 *  Register   Scope                      Purpose
 	 *  x21        primary_entry() .. start_kernel()        FDT pointer passed at boot in x0
+	 *  x22        create_idmap() .. start_kernel()         ID map VA of the DT blob
 	 *  x23        primary_entry() .. start_kernel()        physical misalignment/KASLR offset
 	 *  x28        clear_page_tables()                      callee preserved temp register
 	 *  x19/x20    __primary_switch()                       callee preserved temp registers
@@ -348,7 +349,7 @@ SYM_FUNC_START_LOCAL(create_idmap)
 #endif
 	adrp	x0, init_idmap_pg_dir
 	adrp	x3, _text
-	adrp	x6, _end
+	adrp	x6, _end + MAX_FDT_SIZE + SWAPPER_BLOCK_SIZE
 	mov	x7, SWAPPER_RX_MMUFLAGS
 
 	map_memory x0, x1, x3, x6, x7, x3, IDMAP_PGD_ORDER, x10, x11, x12, x13, x14, EXTRA_SHIFT
@@ -358,6 +359,17 @@ SYM_FUNC_START_LOCAL(create_idmap)
 	adrp	x2, init_pg_dir
 	adrp	x3, init_pg_end
 	bic	x4, x2, #SWAPPER_BLOCK_SIZE - 1
+	mov	x5, SWAPPER_RW_MMUFLAGS
+	mov	x6, #SWAPPER_BLOCK_SHIFT
+	bl	remap_region
+
+	/* Remap the FDT after the kernel image */
+	adrp	x1, _text
+	adrp	x22, _end + SWAPPER_BLOCK_SIZE
+	bic	x2, x22, #SWAPPER_BLOCK_SIZE - 1
+	bfi	x22, x21, #0, #SWAPPER_BLOCK_SHIFT		// remapped FDT address
+	add	x3, x2, #MAX_FDT_SIZE + SWAPPER_BLOCK_SIZE
+	bic	x4, x21, #SWAPPER_BLOCK_SIZE - 1
 	mov	x5, SWAPPER_RW_MMUFLAGS
 	mov	x6, #SWAPPER_BLOCK_SHIFT
 	bl	remap_region

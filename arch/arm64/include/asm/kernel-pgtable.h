@@ -8,6 +8,7 @@
 #ifndef __ASM_KERNEL_PGTABLE_H
 #define __ASM_KERNEL_PGTABLE_H
 
+#include <asm/boot.h>
 #include <asm/pgtable-hwdef.h>
 #include <asm/sparsemem.h>
 
@@ -88,10 +89,11 @@
 
 /* the initial ID map may need two extra pages if it needs to be extended */
 #if VA_BITS < 48
-#define INIT_IDMAP_DIR_SIZE	(INIT_DIR_SIZE + (2 * PAGE_SIZE))
+#define INIT_IDMAP_DIR_SIZE	((INIT_IDMAP_DIR_PAGES + 2) * PAGE_SIZE)
 #else
-#define INIT_IDMAP_DIR_SIZE	INIT_DIR_SIZE
+#define INIT_IDMAP_DIR_SIZE	(INIT_IDMAP_DIR_PAGES * PAGE_SIZE)
 #endif
+#define INIT_IDMAP_DIR_PAGES	EARLY_PAGES(KIMAGE_VADDR, _end + MAX_FDT_SIZE + SWAPPER_BLOCK_SIZE)
 
 /* Initial memory map size */
 #if ARM64_KERNEL_USES_PMD_MAPS
