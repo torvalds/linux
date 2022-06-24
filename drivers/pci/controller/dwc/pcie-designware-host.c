@@ -618,7 +618,7 @@ void dw_pcie_setup_rc(struct dw_pcie_rp *pp)
 		 * can't match multiple windows.
 		 */
 		for (i = 0; i < pci->num_ob_windows; i++)
-			dw_pcie_disable_atu(pci, i, DW_PCIE_REGION_OUTBOUND);
+			dw_pcie_disable_atu(pci, PCIE_ATU_REGION_DIR_OB, i);
 
 		/* Get last memory resource entry */
 		resource_list_for_each_entry(entry, &pp->bridge->windows) {

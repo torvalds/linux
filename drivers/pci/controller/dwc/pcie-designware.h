@@ -104,8 +104,8 @@
 #define PCIE_VERSION_TYPE		0x8FC
 
 #define PCIE_ATU_VIEWPORT		0x900
-#define PCIE_ATU_REGION_INBOUND		BIT(31)
-#define PCIE_ATU_REGION_OUTBOUND	0
+#define PCIE_ATU_REGION_DIR_IB		BIT(31)
+#define PCIE_ATU_REGION_DIR_OB		0
 #define PCIE_ATU_CR1			0x904
 #define PCIE_ATU_INCREASE_REGION_SIZE	BIT(13)
 #define PCIE_ATU_TYPE_MEM		0x0
@@ -184,12 +184,6 @@
 struct dw_pcie;
 struct dw_pcie_rp;
 struct dw_pcie_ep;
-
-enum dw_pcie_region_type {
-	DW_PCIE_REGION_UNKNOWN,
-	DW_PCIE_REGION_INBOUND,
-	DW_PCIE_REGION_OUTBOUND,
-};
 
 enum dw_pcie_device_mode {
 	DW_PCIE_UNKNOWN_TYPE,
@@ -326,8 +320,7 @@ void dw_pcie_prog_ep_outbound_atu(struct dw_pcie *pci, u8 func_no, int index,
 				  u64 size);
 int dw_pcie_prog_inbound_atu(struct dw_pcie *pci, u8 func_no, int index,
 			     int type, u64 cpu_addr, u8 bar);
-void dw_pcie_disable_atu(struct dw_pcie *pci, int index,
-			 enum dw_pcie_region_type type);
+void dw_pcie_disable_atu(struct dw_pcie *pci, u32 dir, int index);
 void dw_pcie_setup(struct dw_pcie *pci);
 void dw_pcie_iatu_detect(struct dw_pcie *pci);
 

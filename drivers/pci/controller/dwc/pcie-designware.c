@@ -353,7 +353,7 @@ static void __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_no,
 	limit_addr = cpu_addr + size - 1;
 
 	dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT,
-			   PCIE_ATU_REGION_OUTBOUND | index);
+			   PCIE_ATU_REGION_DIR_OB | index);
 	dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_BASE,
 			   lower_32_bits(cpu_addr));
 	dw_pcie_writel_dbi(pci, PCIE_ATU_UPPER_BASE,
@@ -464,7 +464,7 @@ int dw_pcie_prog_inbound_atu(struct dw_pcie *pci, u8 func_no, int index,
 		return dw_pcie_prog_inbound_atu_unroll(pci, func_no, index,
 						       type, cpu_addr, bar);
 
-	dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, PCIE_ATU_REGION_INBOUND |
+	dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, PCIE_ATU_REGION_DIR_IB |
 			   index);
 	dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_TARGET, lower_32_bits(cpu_addr));
 	dw_pcie_writel_dbi(pci, PCIE_ATU_UPPER_TARGET, upper_32_bits(cpu_addr));
@@ -491,24 +491,10 @@ int dw_pcie_prog_inbound_atu(struct dw_pcie *pci, u8 func_no, int index,
 	return -EBUSY;
 }
 
-void dw_pcie_disable_atu(struct dw_pcie *pci, int index,
-			 enum dw_pcie_region_type type)
+void dw_pcie_disable_atu(struct dw_pcie *pci, u32 dir, int index)
 {
-	u32 region;
-
-	switch (type) {
-	case DW_PCIE_REGION_INBOUND:
-		region = PCIE_ATU_REGION_INBOUND;
-		break;
-	case DW_PCIE_REGION_OUTBOUND:
-		region = PCIE_ATU_REGION_OUTBOUND;
-		break;
-	default:
-		return;
-	}
-
 	if (pci->iatu_unroll_enabled) {
-		if (region == PCIE_ATU_REGION_INBOUND) {
+		if (dir == PCIE_ATU_REGION_DIR_IB) {
 			dw_pcie_writel_ib_unroll(pci, index, PCIE_ATU_UNR_REGION_CTRL2,
 						 ~(u32)PCIE_ATU_ENABLE);
 		} else {
@@ -516,7 +502,7 @@ void dw_pcie_disable_atu(struct dw_pcie *pci, int index,
 						 ~(u32)PCIE_ATU_ENABLE);
 		}
 	} else {
-		dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, region | index);
+		dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, dir | index);
 		dw_pcie_writel_dbi(pci, PCIE_ATU_CR2, ~(u32)PCIE_ATU_ENABLE);
 	}
 }
@@ -661,7 +647,7 @@ static void dw_pcie_iatu_detect_regions(struct dw_pcie *pci)
 	max_region = dw_pcie_readl_dbi(pci, PCIE_ATU_VIEWPORT) + 1;
 
 	for (i = 0; i < max_region; i++) {
-		dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, PCIE_ATU_REGION_OUTBOUND | i);
+		dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, PCIE_ATU_REGION_DIR_OB | i);
 		dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_TARGET, 0x11110000);
 		val = dw_pcie_readl_dbi(pci, PCIE_ATU_LOWER_TARGET);
 		if (val == 0x11110000)
@@ -671,7 +657,7 @@ static void dw_pcie_iatu_detect_regions(struct dw_pcie *pci)
 	}
 
 	for (i = 0; i < max_region; i++) {
-		dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, PCIE_ATU_REGION_INBOUND | i);
+		dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, PCIE_ATU_REGION_DIR_IB | i);
 		dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_TARGET, 0x11110000);
 		val = dw_pcie_readl_dbi(pci, PCIE_ATU_LOWER_TARGET);
 		if (val == 0x11110000)
