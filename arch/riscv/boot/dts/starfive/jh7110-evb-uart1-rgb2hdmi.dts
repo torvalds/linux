@@ -21,6 +21,8 @@
 	broken-cd;
 	cap-sd-highspeed;
 	post-power-on-delay-ms = <200>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdcard0_pins>;
 	status = "okay";
 };
 
@@ -31,4 +33,24 @@
 
 &pcie1 {
 	status = "okay";
+};
+
+&uart1 {
+	status = "okay";
+};
+
+&hdmi_output {
+	status = "okay";
+};
+
+&tda988x_pin {
+	status = "okay";
+};
+
+&encoder {
+	status = "diabled";
+};
+
+&mipi_dsi {
+	status = "diabled";
 };

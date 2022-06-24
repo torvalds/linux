@@ -5,7 +5,7 @@
  */
 
 /dts-v1/;
-#include "jh7110_clk.dtsi"
+#include "jh7110-clk.dtsi"
 #include <dt-bindings/reset/starfive-jh7110.h>
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 #include <dt-bindings/clock/starfive-jh7110-vout.h>
@@ -1480,6 +1480,11 @@
 			reg = <0 0x295B0000 0 0x90>;
 		};
 
+		tda988x_pin: tda988x_pin {
+			compatible = "starfive,tda998x_rgb_pin";
+			status = "disabled";
+		};
+
 		hdmi_output: hdmi-output {
 			compatible = "verisilicon,hdmi-encoder";
 			verisilicon,dss-syscon = <&dssctrl>;
@@ -1593,7 +1598,7 @@
 
 			mipi_panel: panel@0 {
 				/*compatible = "";*/
-				status = "disabled";
+				status = "okay";
 			};
 		};
 
@@ -1621,39 +1626,6 @@
 			simple-audio-card,name = "Starfive-Multi-Sound-Card";
 			#address-cells = <1>;
 			#size-cells = <0>;
-
-			simple-audio-card,dai-link@0 {
-				reg = <0>;
-				status = "okay";
-				format = "dsp_a";
-				bitclock-master = <&dailink_master>;
-				frame-master = <&dailink_master>;
-		
-				widgets =
-						"Microphone", "Mic Jack",
-						"Line", "Line In",
-						"Line", "Line Out",
-						"Speaker", "Speaker",
-						"Headphone", "Headphone Jack";
-				routing =
-						"Headphone Jack", "HP_L",
-						"Headphone Jack", "HP_R",
-						"Speaker", "SPK_LP",
-						"Speaker", "SPK_LN",
-						"LINPUT1", "Mic Jack",
-						"LINPUT3", "Mic Jack",
-						"RINPUT1", "Mic Jack",
-						"RINPUT2", "Mic Jack";
-				cpu {
-					sound-dai = <&tdm>;
-				};
-		
-				dailink_master:codec {
-					sound-dai = <&wm8960>;
-					clocks = <&wm8960_mclk>;
-					clock-names = "mclk";
-				};
-			};
 		};
 
 		co_process: e24@0 {

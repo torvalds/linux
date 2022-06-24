@@ -1,0 +1,183 @@
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/starfive,jh7110-pinfunc.h>
+/ {
+	compatible = "starfive,jh7110";
+
+	//gpio
+	fragment@0 {
+		target-path = "/soc/gpio@13040000";
+		__overlay__ {
+			dt_emmc0_pins: dt-emmc0-pins {
+				emmc0-pins-rest {
+					sf,pins = <PAD_GPIO22>;
+					sf,pinmux = <PAD_GPIO22_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_SDIO0_RST_N>;
+					sf,pin-gpio-doen = <OEN_LOW>;
+				};
+			};
+
+			dt_emmc1_pins: dt-emmc1-pins {
+				emmc1-pins0-rest {
+					sf,pins = <PAD_GPIO51>;
+					sf,pinmux = <PAD_GPIO51_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_SDIO1_RST_N>;
+					sf,pin-gpio-doen = <OEN_LOW>;
+				};
+
+				emmc1-pins1 {
+					sf,pins = <PAD_GPIO38>;
+					sf,pinmux = <PAD_GPIO38_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_SDIO1_CCLK_OUT>;
+					sf,pin-gpio-doen = <OEN_LOW>;
+				};
+
+
+				emmc1-pins2 {
+					sf,pins = <PAD_GPIO36>;
+					sf,pinmux = <PAD_GPIO36_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_SDIO1_CCMD_OUT>;
+					sf,pin-gpio-doen = <OEN_SDIO1_CCMD_OUT_EN>;
+					sf,pin-gpio-din =  <GPI_SDIO1_CCMD_IN>;
+				};
+
+				emmc1-pins3 {
+					sf,pins = <PAD_GPIO43>;
+					sf,pinmux = <PAD_GPIO43_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_0>;
+					sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_0>;
+					sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_0>;
+				};
+
+				emmc1-pins4 {
+					sf,pins = <PAD_GPIO48>;
+					sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_1>;
+					sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_1>;
+					sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_1>;
+				};
+
+				emmc1-pins5 {
+					sf,pins = <PAD_GPIO53>;
+					sf,pinmux = <PAD_GPIO53_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_2>;
+					sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_2>;
+					sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_2>;
+				};
+
+				emmc1-pins6 {
+					sf,pins = <PAD_GPIO63>;
+					sf,pinmux = <PAD_GPIO63_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_3>;
+					sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_3>;
+					sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_3>;
+				};
+
+				emmc1-pins7 {
+					sf,pins = <PAD_GPIO52>;
+					sf,pinmux = <PAD_GPIO52_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_4>;
+					sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_4>;
+					sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_4>;
+				};
+
+				emmc1-pins8 {
+					sf,pins = <PAD_GPIO39>;
+					sf,pinmux = <PAD_GPIO39_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_5>;
+					sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_5>;
+					sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_5>;
+				};
+
+				emmc1-pins9 {
+					sf,pins = <PAD_GPIO46>;
+					sf,pinmux = <PAD_GPIO46_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_6>;
+					sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_6>;
+					sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_6>;
+				};
+
+				emmc1-pins10 {
+					sf,pins = <PAD_GPIO47>;
+					sf,pinmux = <PAD_GPIO47_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_SDIO1_CDATA_OUT_7>;
+					sf,pin-gpio-doen = <OEN_SDIO1_CDATA_OUT_EN_7>;
+					sf,pin-gpio-din =  <GPI_SDIO1_CDATA_IN_7>;
+				};
+			};
+		};
+	};
+
+	//gpioa
+  	fragment@1 {
+		target-path = "/soc/gpio@17020000";
+		__overlay__ {
+			pwm_ch6to7_pins: pwm-ch6to7-pins {
+				pwm-ch6-pins {
+					sf,pins = <PAD_RGPIO0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+					sf,pin-gpio-dout = <U0_PWM_8CH_PTC_PWM_6>;
+					sf,pin-gpio-doen = <U0_PWM_8CH_PTC_OE_N_6>;
+				};
+
+				pwm-ch7-pins {
+					sf,pins = <PAD_RGPIO1>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+					sf,pin-gpio-dout = <U0_PWM_8CH_PTC_PWM_7>;
+					sf,pin-gpio-doen = <U0_PWM_8CH_PTC_OE_N_7>;
+				};
+			};
+		};
+	};
+
+	//uart4
+	fragment@2 {
+		target-path = "/soc/serial@12010000";
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	//sdio1
+	fragment@3 {
+		target-path = "/soc/sdio1@16020000";
+		__overlay__ {
+			clock-frequency = <102400000>;
+			max-frequency = <100000000>;
+			card-detect-delay = <300>;
+			bus-width = <8>;
+			cap-mmc-hw-reset;
+			non-removable;
+			cap-mmc-highspeed;
+			post-power-on-delay-ms = <200>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&dt_emmc1_pins>;
+			status = "okay";
+		};
+	};
+
+	//ptc
+	fragment@4 {
+		target-path = "/soc/pwm@120d0000";
+		__overlay__ {
+			pinctrl-names = "default";
+			pinctrl-0 = <&pwm_ch6to7_pins>;
+			status = "okay";
+		};
+	};
+};
+
+ 

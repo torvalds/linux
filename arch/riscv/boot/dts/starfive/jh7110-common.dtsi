@@ -6,7 +6,7 @@
 
 /dts-v1/;
 #include "jh7110.dtsi"
-#include "jh7110_pinctrl.dtsi"
+#include "jh7110-evb-pinctrl.dtsi"
 
 / {
 	aliases {
@@ -71,10 +71,34 @@
 	status = "okay";
 };
 
+&uart1 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart1_pins>;
+       status = "disabled";
+};
+
+&uart2 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart2_pins>;
+       status = "disabled";
+};
+
 &uart3 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&uart3_pins>;
-	status = "okay";
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart3_pins>;
+       status = "disabled";
+};
+
+&uart4 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart4_pins>;
+       status = "disabled";
+};
+
+&uart5 {
+       pinctrl-names = "default";
+       pinctrl-0 = <&uart5_pins>;
+       status = "disabled";
 };
 
 &dma {
@@ -128,7 +152,6 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins>;
 	status = "disabled";
-
 };
 
 &i2c2 {
@@ -139,7 +162,7 @@
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
-	status = "disabled";
+	status = "okay";
 
 	seeed_plane_i2c@45 {
 		compatible = "seeed_panel";
@@ -162,18 +185,7 @@
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pins>;
-	status = "okay";
-
-	tda998x@70 {
-		compatible = "nxp,tda998x";
-		reg = <0x70>;
-
-		port {
-			tda998x_0_input: endpoint {
-				remote-endpoint = <&hdmi_out>;
-			};
-		};
-	};
+	status = "disabled";
 };
 
 &i2c4 {
@@ -223,6 +235,17 @@
 				hsync-active = <1>;
 				vsync-active = <1>;
 				pclk-sample = <1>;
+			};
+		};
+	};
+
+	tda998x@70 {
+		compatible = "nxp,tda998x";
+		reg = <0x70>;
+
+		port {
+			tda998x_0_input: endpoint {
+				remote-endpoint = <&hdmi_out>;
 			};
 		};
 	};
@@ -287,43 +310,17 @@
 		};
 	};
 };
-/* default sd card */
+
 &sdio0 {
-	clock-frequency = <102400000>;
-	max-frequency = <200000000>;
-	card-detect-delay = <300>;
-	bus-width = <4>;
-	broken-cd;
-	cap-sd-highspeed;
-	post-power-on-delay-ms = <200>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&sdcard0_pins>;
-	//cd-gpios = <&gpio 23 0>;
-	status = "okay";
+	status = "disabled";
 };
 
 &sdio1 {
-	clock-frequency = <4000000>;
-	max-frequency = <1000000>;
-	card-detect-delay = <300>;
-	bus-width = <4>;
-	cap-sd-highspeed;
-	cap-sdio-irq;
-	cap-mmc-hw-reset;
-	non-removable;
-	enable-sdio-wakeup;
-	keep-power-in-suspend;
-	cap-mmc-highspeed;
-	post-power-on-delay-ms = <200>;
-	pinctrl-names = "default";
-	pinctrl-0 = <&mmc1_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &vin_sysctl {
 	/* when use dvp open this pinctrl*/
-	//pinctrl-names = "default";
-	//pinctrl-0 = <&dvp_pins>;
 	status = "okay";
 
 	ports {
@@ -432,23 +429,25 @@
 };
 
 &can1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&can1_pins>;
 	status = "disabled";
 };
 
 &tdm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&tdm0_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &spdif0 {
-	status = "okay";
+	status = "disabled";
 };
 
 &pwmdac {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwmdac0_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &i2stx {
@@ -458,19 +457,19 @@
 &pdm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pdm0_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &i2srx_mst {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2srx_clk_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &i2srx_3ch {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2srx_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &i2stx_4ch0 {
@@ -480,21 +479,15 @@
 &i2stx_4ch1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2s_clk_pins &i2stx_pins>;
-	status = "okay";
-};
-
-&ptc {
-	pinctrl-names = "default";
-	pinctrl-0 = <&pwm_ch0_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &spdif_transmitter {
-	status = "okay";
+	status = "disabled";
 };
 
 &spdif_receiver {
-	status = "okay";
+	status = "disabled";
 };
 
 &pwmdac_codec {
@@ -508,7 +501,7 @@
 &spi0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&ssp0_pins>;
-	status = "okay";
+	status = "disabled";
 
 	spi_dev0: spi@0 {
 		compatible = "rohm,dh2228fv";
@@ -608,7 +601,7 @@
 	pinctrl-0 = <&pcie0_perst_default>;
 	pinctrl-1 = <&pcie0_perst_active>;
 	pinctrl-2 = <&pcie0_power_active>;
-	status = "okay";
+	status = "disabled";
 };
 
 &pcie1 {
@@ -616,7 +609,7 @@
 	pinctrl-0 = <&pcie1_perst_default>;
 	pinctrl-1 = <&pcie1_perst_active>;
 	pinctrl-2 = <&pcie1_power_active>;
-	status = "okay";
+	status = "disabled";
 };
 
 &mailbox_contrl0 {
@@ -647,8 +640,6 @@
 };
 
 &dc8200 {
-	//pinctrl-names = "default";
-	//pinctrl-0 = <&rgb_pad_pins>;
 	status = "okay";
 
 	dc_out: port {
@@ -672,8 +663,6 @@
 
 &hdmi_output {
 	status = "okay";
-	pinctrl-names = "default";
-	pinctrl-0 = <&rgb_pad_pins>;
 
 	ports {
 		#address-cells = <1>;
@@ -696,8 +685,14 @@
 	};
 };
 
-&encoder {
+&tda988x_pin {
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgb_pad_pins>;
 	status = "disabled";
+};
+
+&encoder {
+	status = "okay";
 
 	ports {
 		#address-cells = <1>;
@@ -720,9 +715,11 @@
 };
 
 &mipi_dsi {
-	//pinctrl-names = "default";
-	//pinctrl-0 = <&mipitx_pins>;
-	status = "disabled";
+	status = "okay";
+};
+
+&mipi_dphy {
+	status = "okay";
 };
 
 &co_process {
@@ -733,7 +730,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&usb_pins>;
 	dr_mode = "host"; /*host or peripheral*/
-	status = "okay";
+	status = "disabled";
 };
 
 &xrp {

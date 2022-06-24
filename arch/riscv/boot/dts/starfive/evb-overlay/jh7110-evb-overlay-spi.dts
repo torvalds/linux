@@ -1,0 +1,73 @@
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/starfive,jh7110-pinfunc.h>
+/ {
+	compatible = "starfive,jh7110";
+
+	//spi0
+  	fragment@0 {
+		target-path = "/soc/spi@10060000";
+		__overlay__ {
+			status = "okay";
+		};
+ 	};
+
+	//spi1
+	fragment@1 {
+		target-path = "/soc/spi@10070000";
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	//spi2
+	fragment@2 {
+		target-path = "/soc/spi@10080000";
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	//spi3
+	fragment@3 {
+		target-path = "/soc/spi@12070000";
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	//spi4
+	fragment@4 {
+		target-path = "/soc/spi@12080000";
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	//spi5
+	fragment@5 {
+		target-path = "/soc/spi@12090000";
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	//spi6
+	fragment@6 {
+		target-path = "/soc/spi@120A0000";
+		__overlay__ {
+			status = "disabled";
+		};
+	};
+
+	//uart2
+	fragment@7 {
+		target-path = "/soc/serial@10020000";
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};
+
+ 

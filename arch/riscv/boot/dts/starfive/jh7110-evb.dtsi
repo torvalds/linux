@@ -1,0 +1,53 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
+/*
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
+ * Copyright (C) 2022 Hal Feng <hal.feng@starfivetech.com>
+ */
+
+/dts-v1/;
+#include "jh7110-common.dtsi"
+
+&i2c5 {
+	pmic: stf7110_evb_reg@50 {
+		compatible = "stf,jh7110-evb-regulator";
+		reg = <0x50>;
+
+		regulators {
+			hdmi_1p8: LDO_REG1 {
+				regulator-name = "hdmi_1p8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+			mipitx_1p8: LDO_REG2 {
+				regulator-name = "mipitx_1p8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+			mipirx_1p8: LDO_REG3 {
+				regulator-name = "mipirx_1p8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+			hdmi_0p9: LDO_REG4 {
+				regulator-name = "hdmi_0p9";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+			};
+			mipitx_0p9: LDO_REG5 {
+				regulator-name = "mipitx_0p9";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+			};
+			mipirx_0p9: LDO_REG6 {
+				regulator-name = "mipirx_0p9";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+			};
+			sdio_vdd: LDO_REG7 {
+				regulator-name = "sdio_vdd";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+			};
+		};
+	};
+};

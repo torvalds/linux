@@ -1,0 +1,121 @@
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/starfive,jh7110-pinfunc.h>
+/ {
+	compatible = "starfive,jh7110";
+
+	//gpio
+	fragment@0 {
+		target-path = "/soc/gpio@13040000";
+		__overlay__ {
+			dt_pwm_ch0to3_pins: dt-pwm-ch0to3-pins {
+				pwm_ch0-pins {
+					sf,pins = <PAD_GPIO45>;
+					sf,pinmux = <PAD_GPIO45_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+					sf,pin-gpio-dout = <GPO_PTC0_PWM_0>;
+					sf,pin-gpio-doen = <OEN_PTC0_PWM_0_OE_N>;
+				};
+
+				pwm_ch1-pins {
+					sf,pins = <PAD_GPIO46>;
+					sf,pinmux = <PAD_GPIO46_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+					sf,pin-gpio-dout = <GPO_PTC0_PWM_1>;
+					sf,pin-gpio-doen = <OEN_PTC0_PWM_1_OE_N>;
+				};
+
+				pwm_ch2-pins {
+					sf,pins = <PAD_GPIO47>;
+					sf,pinmux = <PAD_GPIO47_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+					sf,pin-gpio-dout = <GPO_PTC0_PWM_2>;
+					sf,pin-gpio-doen = <OEN_PTC0_PWM_2_OE_N>;
+				};
+
+				pwm_ch3-pins {
+					sf,pins = <PAD_GPIO48>;
+					sf,pinmux = <PAD_GPIO48_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+					sf,pin-gpio-dout = <GPO_PTC0_PWM_3>;
+					sf,pin-gpio-doen = <OEN_PTC0_PWM_3_OE_N>;
+				};
+			};
+		};
+	};
+
+	//gpioa
+  	fragment@1 {
+		target-path = "/soc/gpio@17020000";
+		__overlay__ {
+			dt_pwm_ch4to5_pins: dt-pwm-ch4to5-pins {
+				pwm-ch4-pins {
+					sf,pins = <PAD_RGPIO0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+					sf,pin-gpio-dout = <U0_PWM_8CH_PTC_PWM_4>;
+					sf,pin-gpio-doen = <U0_PWM_8CH_PTC_OE_N_4>;
+				};
+
+				pwm-ch5-pins {
+					sf,pins = <PAD_RGPIO1>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+					sf,pin-gpio-dout = <U0_PWM_8CH_PTC_PWM_5>;
+					sf,pin-gpio-doen = <U0_PWM_8CH_PTC_OE_N_5>;
+				};
+			};
+		};
+	};
+
+	//uart5
+	fragment@2 {
+		target-path = "/soc/serial@12020000";
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	//ptc
+	fragment@3 {
+		target-path = "/soc/pwm@120d0000";
+		__overlay__ {
+			pinctrl-names = "default";
+			pinctrl-0 = <&dt_pwm_ch0to3_pins &dt_pwm_ch4to5_pins>;
+			status = "okay";
+		};
+	};
+
+	//tdm
+	fragment@4 {
+		target-path = "/soc/tdm@10090000";
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	//i2c0
+  	fragment@5 {
+		target-path = "/soc/i2c@10030000";
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	//i2c1
+  	fragment@6 {
+		target-path = "/soc/i2c@10040000";
+		__overlay__ {
+			status = "okay";
+		};
+	};
+
+	//i2c3
+  	fragment@7 {
+		target-path = "/soc/i2c@12030000";
+		__overlay__ {
+			status = "okay";
+		};
+	};
+};
+
+ 

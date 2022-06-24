@@ -21,6 +21,8 @@
 	broken-cd;
 	cap-sd-highspeed;
 	post-power-on-delay-ms = <200>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&sdcard0_pins>;
 	status = "okay";
 };
 
@@ -32,3 +34,37 @@
 &pcie1 {
 	status = "okay";
 };
+
+&uart2 {
+	status = "okay";
+};
+
+&spi0 {
+	status = "okay";
+};
+
+&spi1 {
+	status = "okay";
+};
+
+&spi2 {
+	status = "okay";
+};
+
+&spi3 {
+	status = "okay";
+};
+
+&spi4 {
+	status = "okay";
+};
+
+&spi5 {
+	status = "okay";
+};
+
+&spi6 {
+	status = "okay";
+};
+
+
