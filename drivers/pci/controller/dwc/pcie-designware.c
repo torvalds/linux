@@ -421,27 +421,15 @@ static void dw_pcie_writel_ib_unroll(struct dw_pcie *pci, u32 index, u32 reg,
 }
 
 static int dw_pcie_prog_inbound_atu_unroll(struct dw_pcie *pci, u8 func_no,
-					   int index, int bar, u64 cpu_addr,
-					   enum dw_pcie_as_type as_type)
+					   int index, int type,
+					   u64 cpu_addr, u8 bar)
 {
-	int type;
 	u32 retries, val;
 
 	dw_pcie_writel_ib_unroll(pci, index, PCIE_ATU_UNR_LOWER_TARGET,
 				 lower_32_bits(cpu_addr));
 	dw_pcie_writel_ib_unroll(pci, index, PCIE_ATU_UNR_UPPER_TARGET,
 				 upper_32_bits(cpu_addr));
-
-	switch (as_type) {
-	case DW_PCIE_AS_MEM:
-		type = PCIE_ATU_TYPE_MEM;
-		break;
-	case DW_PCIE_AS_IO:
-		type = PCIE_ATU_TYPE_IO;
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	dw_pcie_writel_ib_unroll(pci, index, PCIE_ATU_UNR_REGION_CTRL1, type |
 				 PCIE_ATU_FUNC_NUM(func_no));
@@ -468,31 +456,18 @@ static int dw_pcie_prog_inbound_atu_unroll(struct dw_pcie *pci, u8 func_no,
 }
 
 int dw_pcie_prog_inbound_atu(struct dw_pcie *pci, u8 func_no, int index,
-			     int bar, u64 cpu_addr,
-			     enum dw_pcie_as_type as_type)
+			     int type, u64 cpu_addr, u8 bar)
 {
-	int type;
 	u32 retries, val;
 
 	if (pci->iatu_unroll_enabled)
-		return dw_pcie_prog_inbound_atu_unroll(pci, func_no, index, bar,
-						       cpu_addr, as_type);
+		return dw_pcie_prog_inbound_atu_unroll(pci, func_no, index,
+						       type, cpu_addr, bar);
 
 	dw_pcie_writel_dbi(pci, PCIE_ATU_VIEWPORT, PCIE_ATU_REGION_INBOUND |
 			   index);
 	dw_pcie_writel_dbi(pci, PCIE_ATU_LOWER_TARGET, lower_32_bits(cpu_addr));
 	dw_pcie_writel_dbi(pci, PCIE_ATU_UPPER_TARGET, upper_32_bits(cpu_addr));
-
-	switch (as_type) {
-	case DW_PCIE_AS_MEM:
-		type = PCIE_ATU_TYPE_MEM;
-		break;
-	case DW_PCIE_AS_IO:
-		type = PCIE_ATU_TYPE_IO;
-		break;
-	default:
-		return -EINVAL;
-	}
 
 	dw_pcie_writel_dbi(pci, PCIE_ATU_CR1, type |
 			   PCIE_ATU_FUNC_NUM(func_no));
