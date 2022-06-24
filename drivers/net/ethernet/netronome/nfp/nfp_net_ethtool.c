@@ -29,6 +29,7 @@
 #include "nfp_net_dp.h"
 #include "nfp_net.h"
 #include "nfp_port.h"
+#include "nfpcore/nfp_cpp.h"
 
 struct nfp_et_stat {
 	char name[ETH_GSTRING_LEN];
@@ -442,6 +443,160 @@ static int nfp_net_set_ringparam(struct net_device *netdev,
 	return nfp_net_set_ring_size(nn, rxd_cnt, txd_cnt);
 }
 
+static int nfp_test_link(struct net_device *netdev)
+{
+	if (!netif_carrier_ok(netdev) || !(netdev->flags & IFF_UP))
+		return 1;
+
+	return 0;
+}
+
+static int nfp_test_nsp(struct net_device *netdev)
+{
+	struct nfp_app *app = nfp_app_from_netdev(netdev);
+	struct nfp_nsp_identify *nspi;
+	struct nfp_nsp *nsp;
+	int err;
+
+	nsp = nfp_nsp_open(app->cpp);
+	if (IS_ERR(nsp)) {
+		err = PTR_ERR(nsp);
+		netdev_info(netdev, "NSP Test: failed to access the NSP: %d\n", err);
+		goto exit;
+	}
+
+	if (nfp_nsp_get_abi_ver_minor(nsp) < 15) {
+		err = -EOPNOTSUPP;
+		goto exit_close_nsp;
+	}
+
+	nspi = kzalloc(sizeof(*nspi), GFP_KERNEL);
+	if (!nspi) {
+		err = -ENOMEM;
+		goto exit_close_nsp;
+	}
+
+	err = nfp_nsp_read_identify(nsp, nspi, sizeof(*nspi));
+	if (err < 0)
+		netdev_info(netdev, "NSP Test: reading bsp version failed %d\n", err);
+
+	kfree(nspi);
+exit_close_nsp:
+	nfp_nsp_close(nsp);
+exit:
+	return err;
+}
+
+static int nfp_test_fw(struct net_device *netdev)
+{
+	struct nfp_net *nn = netdev_priv(netdev);
+	int err;
+
+	err = nfp_net_reconfig(nn, NFP_NET_CFG_UPDATE_GEN);
+	if (err)
+		netdev_info(netdev, "FW Test: update failed %d\n", err);
+
+	return err;
+}
+
+static int nfp_test_reg(struct net_device *netdev)
+{
+	struct nfp_app *app = nfp_app_from_netdev(netdev);
+	struct nfp_cpp *cpp = app->cpp;
+	u32 model = nfp_cpp_model(cpp);
+	u32 value;
+	int err;
+
+	err = nfp_cpp_model_autodetect(cpp, &value);
+	if (err < 0) {
+		netdev_info(netdev, "REG Test: NFP model detection failed %d\n", err);
+		return err;
+	}
+
+	return (value == model) ? 0 : 1;
+}
+
+static bool link_test_supported(struct net_device *netdev)
+{
+	return true;
+}
+
+static bool nsp_test_supported(struct net_device *netdev)
+{
+	if (nfp_app_from_netdev(netdev))
+		return true;
+
+	return false;
+}
+
+static bool fw_test_supported(struct net_device *netdev)
+{
+	if (nfp_netdev_is_nfp_net(netdev))
+		return true;
+
+	return false;
+}
+
+static bool reg_test_supported(struct net_device *netdev)
+{
+	if (nfp_app_from_netdev(netdev))
+		return true;
+
+	return false;
+}
+
+static struct nfp_self_test_item {
+	char name[ETH_GSTRING_LEN];
+	bool (*is_supported)(struct net_device *dev);
+	int (*func)(struct net_device *dev);
+} nfp_self_test[] = {
+	{"Link Test", link_test_supported, nfp_test_link},
+	{"NSP Test", nsp_test_supported, nfp_test_nsp},
+	{"Firmware Test", fw_test_supported, nfp_test_fw},
+	{"Register Test", reg_test_supported, nfp_test_reg}
+};
+
+#define NFP_TEST_TOTAL_NUM ARRAY_SIZE(nfp_self_test)
+
+static void nfp_get_self_test_strings(struct net_device *netdev, u8 *data)
+{
+	int i;
+
+	for (i = 0; i < NFP_TEST_TOTAL_NUM; i++)
+		if (nfp_self_test[i].is_supported(netdev))
+			ethtool_sprintf(&data, nfp_self_test[i].name);
+}
+
+static int nfp_get_self_test_count(struct net_device *netdev)
+{
+	int i, count = 0;
+
+	for (i = 0; i < NFP_TEST_TOTAL_NUM; i++)
+		if (nfp_self_test[i].is_supported(netdev))
+			count++;
+
+	return count;
+}
+
+static void nfp_net_self_test(struct net_device *netdev, struct ethtool_test *eth_test,
+			      u64 *data)
+{
+	int i, ret, count = 0;
+
+	netdev_info(netdev, "Start self test\n");
+
+	for (i = 0; i < NFP_TEST_TOTAL_NUM; i++) {
+		if (nfp_self_test[i].is_supported(netdev)) {
+			ret = nfp_self_test[i].func(netdev);
+			if (ret)
+				eth_test->flags |= ETH_TEST_FL_FAILED;
+			data[count++] = ret;
+		}
+	}
+
+	netdev_info(netdev, "Test end\n");
+}
+
 static unsigned int nfp_vnic_get_sw_stats_count(struct net_device *netdev)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
@@ -705,6 +860,9 @@ static void nfp_net_get_strings(struct net_device *netdev,
 		data = nfp_mac_get_stats_strings(netdev, data);
 		data = nfp_app_port_get_stats_strings(nn->port, data);
 		break;
+	case ETH_SS_TEST:
+		nfp_get_self_test_strings(netdev, data);
+		break;
 	}
 }
 
@@ -739,6 +897,8 @@ static int nfp_net_get_sset_count(struct net_device *netdev, int sset)
 		cnt += nfp_mac_get_stats_count(netdev);
 		cnt += nfp_app_port_get_stats_count(nn->port);
 		return cnt;
+	case ETH_SS_TEST:
+		return nfp_get_self_test_count(netdev);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -756,6 +916,9 @@ static void nfp_port_get_strings(struct net_device *netdev,
 		else
 			data = nfp_mac_get_stats_strings(netdev, data);
 		data = nfp_app_port_get_stats_strings(port, data);
+		break;
+	case ETH_SS_TEST:
+		nfp_get_self_test_strings(netdev, data);
 		break;
 	}
 }
@@ -786,6 +949,8 @@ static int nfp_port_get_sset_count(struct net_device *netdev, int sset)
 			count = nfp_mac_get_stats_count(netdev);
 		count += nfp_app_port_get_stats_count(port);
 		return count;
+	case ETH_SS_TEST:
+		return nfp_get_self_test_count(netdev);
 	default:
 		return -EOPNOTSUPP;
 	}
@@ -1517,6 +1682,7 @@ static const struct ethtool_ops nfp_net_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_ringparam		= nfp_net_get_ringparam,
 	.set_ringparam		= nfp_net_set_ringparam,
+	.self_test		= nfp_net_self_test,
 	.get_strings		= nfp_net_get_strings,
 	.get_ethtool_stats	= nfp_net_get_stats,
 	.get_sset_count		= nfp_net_get_sset_count,
@@ -1550,6 +1716,7 @@ const struct ethtool_ops nfp_port_ethtool_ops = {
 	.get_link		= ethtool_op_get_link,
 	.get_strings		= nfp_port_get_strings,
 	.get_ethtool_stats	= nfp_port_get_stats,
+	.self_test		= nfp_net_self_test,
 	.get_sset_count		= nfp_port_get_sset_count,
 	.set_dump		= nfp_app_set_dump,
 	.get_dump_flag		= nfp_app_get_dump_flag,
