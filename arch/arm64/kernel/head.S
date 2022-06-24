@@ -82,6 +82,7 @@
 	 * primary lowlevel boot path:
 	 *
 	 *  Register   Scope                      Purpose
+	 *  x20        primary_entry() .. __primary_switch()    CPU boot mode
 	 *  x21        primary_entry() .. start_kernel()        FDT pointer passed at boot in x0
 	 *  x22        create_idmap() .. start_kernel()         ID map VA of the DT blob
 	 *  x23        primary_entry() .. start_kernel()        physical misalignment/KASLR offset
@@ -91,9 +92,9 @@
 SYM_CODE_START(primary_entry)
 	bl	preserve_boot_args
 	bl	init_kernel_el			// w0=cpu_boot_mode
+	mov	x20, x0
 	adrp	x23, __PHYS_OFFSET
 	and	x23, x23, MIN_KIMG_ALIGN - 1	// KASLR offset, defaults to 0
-	bl	set_cpu_boot_mode_flag
 	bl	create_idmap
 
 	/*
@@ -429,6 +430,9 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 	sub	x4, x4, x0			// the kernel virtual and
 	str_l	x4, kimage_voffset, x5		// physical mappings
 
+	mov	x0, x20
+	bl	set_cpu_boot_mode_flag
+
 	// Clear BSS
 	adr_l	x0, __bss_start
 	mov	x1, xzr
@@ -454,6 +458,7 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 	ret					// to __primary_switch()
 0:
 #endif
+	mov	x0, x20
 	bl	switch_to_vhe			// Prefer VHE if possible
 	ldp	x29, x30, [sp], #16
 	bl	start_kernel
@@ -553,38 +558,8 @@ SYM_FUNC_START_LOCAL(set_cpu_boot_mode_flag)
 	b.ne	1f
 	add	x1, x1, #4
 1:	str	w0, [x1]			// Save CPU boot mode
-	dmb	sy
-	dc	ivac, x1			// Invalidate potentially stale cache line
 	ret
 SYM_FUNC_END(set_cpu_boot_mode_flag)
-
-/*
- * These values are written with the MMU off, but read with the MMU on.
- * Writers will invalidate the corresponding address, discarding up to a
- * 'Cache Writeback Granule' (CWG) worth of data. The linker script ensures
- * sufficient alignment that the CWG doesn't overlap another section.
- */
-	.pushsection ".mmuoff.data.write", "aw"
-/*
- * We need to find out the CPU boot mode long after boot, so we need to
- * store it in a writable variable.
- *
- * This is not in .bss, because we set it sufficiently early that the boot-time
- * zeroing of .bss would clobber it.
- */
-SYM_DATA_START(__boot_cpu_mode)
-	.long	BOOT_CPU_MODE_EL2
-	.long	BOOT_CPU_MODE_EL1
-SYM_DATA_END(__boot_cpu_mode)
-/*
- * The booting CPU updates the failed status @__early_cpu_boot_status,
- * with MMU turned off.
- */
-SYM_DATA_START(__early_cpu_boot_status)
-	.quad 	0
-SYM_DATA_END(__early_cpu_boot_status)
-
-	.popsection
 
 	/*
 	 * This provides a "holding pen" for platforms to hold all secondary
@@ -592,13 +567,12 @@ SYM_DATA_END(__early_cpu_boot_status)
 	 */
 SYM_FUNC_START(secondary_holding_pen)
 	bl	init_kernel_el			// w0=cpu_boot_mode
-	bl	set_cpu_boot_mode_flag
-	mrs	x0, mpidr_el1
+	mrs	x2, mpidr_el1
 	mov_q	x1, MPIDR_HWID_BITMASK
-	and	x0, x0, x1
+	and	x2, x2, x1
 	adr_l	x3, secondary_holding_pen_release
 pen:	ldr	x4, [x3]
-	cmp	x4, x0
+	cmp	x4, x2
 	b.eq	secondary_startup
 	wfe
 	b	pen
@@ -610,7 +584,6 @@ SYM_FUNC_END(secondary_holding_pen)
 	 */
 SYM_FUNC_START(secondary_entry)
 	bl	init_kernel_el			// w0=cpu_boot_mode
-	bl	set_cpu_boot_mode_flag
 	b	secondary_startup
 SYM_FUNC_END(secondary_entry)
 
@@ -618,6 +591,7 @@ SYM_FUNC_START_LOCAL(secondary_startup)
 	/*
 	 * Common entry point for secondary CPUs.
 	 */
+	mov	x20, x0				// preserve boot mode
 	bl	switch_to_vhe
 	bl	__cpu_secondary_check52bitva
 	bl	__cpu_setup			// initialise processor
@@ -629,6 +603,9 @@ SYM_FUNC_START_LOCAL(secondary_startup)
 SYM_FUNC_END(secondary_startup)
 
 SYM_FUNC_START_LOCAL(__secondary_switched)
+	mov	x0, x20
+	bl	set_cpu_boot_mode_flag
+	str_l	xzr, __early_cpu_boot_status, x3
 	adr_l	x5, vectors
 	msr	vbar_el1, x5
 	isb
@@ -691,7 +668,6 @@ SYM_FUNC_START(__enable_mmu)
 	b.lt    __no_granule_support
 	cmp     x3, #ID_AA64MMFR0_TGRAN_SUPPORTED_MAX
 	b.gt    __no_granule_support
-	update_early_cpu_boot_status 0, x3, x4
 	phys_to_ttbr x2, x2
 	msr	ttbr0_el1, x2			// load TTBR0
 	load_ttbr1 x1, x1, x3

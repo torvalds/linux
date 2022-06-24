@@ -223,11 +223,11 @@ SYM_FUNC_END(__hyp_reset_vectors)
 
 /*
  * Entry point to switch to VHE if deemed capable
+ *
+ * w0: boot mode, as returned by init_kernel_el()
  */
 SYM_FUNC_START(switch_to_vhe)
 	// Need to have booted at EL2
-	adr_l	x1, __boot_cpu_mode
-	ldr	w0, [x1]
 	cmp	w0, #BOOT_CPU_MODE_EL2
 	b.ne	1f
 

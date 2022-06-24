@@ -56,6 +56,14 @@ EXPORT_SYMBOL(kimage_vaddr);
 u64 kimage_voffset __ro_after_init;
 EXPORT_SYMBOL(kimage_voffset);
 
+u32 __boot_cpu_mode[] = { BOOT_CPU_MODE_EL2, BOOT_CPU_MODE_EL1 };
+
+/*
+ * The booting CPU updates the failed status @__early_cpu_boot_status,
+ * with MMU turned off.
+ */
+long __section(".mmuoff.data.write") __early_cpu_boot_status;
+
 /*
  * Empty_zero_page is a special page that is used for zero-initialized data
  * and COW.
