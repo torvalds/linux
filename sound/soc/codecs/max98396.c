@@ -5,10 +5,17 @@
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <sound/pcm_params.h>
+#include <linux/regulator/consumer.h>
 #include <sound/soc.h>
 #include <linux/gpio.h>
 #include <sound/tlv.h>
 #include "max98396.h"
+
+static const char * const max98396_core_supplies[MAX98396_NUM_CORE_SUPPLIES] = {
+	"avdd",
+	"dvdd",
+	"dvddio",
+};
 
 static struct reg_default max98396_reg[] = {
 	{MAX98396_R2000_SW_RESET, 0x00},
@@ -1329,6 +1336,12 @@ static int max98396_probe(struct snd_soc_component *component)
 		regmap_write(max98396->regmap,
 			     MAX98397_R2057_PCM_RX_SRC2, 0x10);
 	}
+	/* Supply control */
+	regmap_update_bits(max98396->regmap,
+			   MAX98396_R20A0_AMP_SUPPLY_CTL,
+			   MAX98396_AMP_SUPPLY_NOVBAT,
+			   (max98396->vbat == NULL) ?
+				MAX98396_AMP_SUPPLY_NOVBAT : 0);
 	/* Enable DC blocker */
 	regmap_update_bits(max98396->regmap,
 			   MAX98396_R2092_AMP_DSP_CFG, 1, 1);
@@ -1424,12 +1437,38 @@ static int max98396_suspend(struct device *dev)
 
 	regcache_cache_only(max98396->regmap, true);
 	regcache_mark_dirty(max98396->regmap);
+	regulator_bulk_disable(MAX98396_NUM_CORE_SUPPLIES,
+			       max98396->core_supplies);
+	if (max98396->pvdd)
+		regulator_disable(max98396->pvdd);
+
+	if (max98396->vbat)
+		regulator_disable(max98396->vbat);
+
 	return 0;
 }
 
 static int max98396_resume(struct device *dev)
 {
 	struct max98396_priv *max98396 = dev_get_drvdata(dev);
+	int ret;
+
+	ret = regulator_bulk_enable(MAX98396_NUM_CORE_SUPPLIES,
+				    max98396->core_supplies);
+	if (ret < 0)
+		return ret;
+
+	if (max98396->pvdd) {
+		ret = regulator_enable(max98396->pvdd);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (max98396->vbat) {
+		ret = regulator_enable(max98396->vbat);
+		if (ret < 0)
+			return ret;
+	}
 
 	regcache_cache_only(max98396->regmap, false);
 	max98396_reset(max98396, dev);
@@ -1513,11 +1552,24 @@ static void max98396_read_device_property(struct device *dev,
 		max98396->bypass_slot = 0;
 }
 
+static void max98396_core_supplies_disable(void *priv)
+{
+	struct max98396_priv *max98396 = priv;
+
+	regulator_bulk_disable(MAX98396_NUM_CORE_SUPPLIES,
+			       max98396->core_supplies);
+}
+
+static void max98396_supply_disable(void *r)
+{
+	regulator_disable((struct regulator *) r);
+}
+
 static int max98396_i2c_probe(struct i2c_client *i2c,
 			      const struct i2c_device_id *id)
 {
 	struct max98396_priv *max98396 = NULL;
-	int ret, reg;
+	int i, ret, reg;
 
 	max98396 = devm_kzalloc(&i2c->dev, sizeof(*max98396), GFP_KERNEL);
 
@@ -1541,6 +1593,69 @@ static int max98396_i2c_probe(struct i2c_client *i2c,
 		dev_err(&i2c->dev,
 			"Failed to allocate regmap: %d\n", ret);
 		return ret;
+	}
+
+	/* Obtain regulator supplies */
+	for (i = 0; i < MAX98396_NUM_CORE_SUPPLIES; i++)
+		max98396->core_supplies[i].supply = max98396_core_supplies[i];
+
+	ret = devm_regulator_bulk_get(&i2c->dev, MAX98396_NUM_CORE_SUPPLIES,
+				      max98396->core_supplies);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Failed to request core supplies: %d\n", ret);
+		return ret;
+	}
+
+	max98396->vbat = devm_regulator_get_optional(&i2c->dev, "vbat");
+	if (IS_ERR(max98396->vbat)) {
+		if (PTR_ERR(max98396->vbat) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		max98396->vbat = NULL;
+	}
+
+	max98396->pvdd = devm_regulator_get_optional(&i2c->dev, "pvdd");
+	if (IS_ERR(max98396->pvdd)) {
+		if (PTR_ERR(max98396->pvdd) == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		max98396->pvdd = NULL;
+	}
+
+	ret = regulator_bulk_enable(MAX98396_NUM_CORE_SUPPLIES,
+				    max98396->core_supplies);
+	if (ret < 0) {
+		dev_err(&i2c->dev, "Unable to enable core supplies: %d", ret);
+		return ret;
+	}
+
+	ret = devm_add_action_or_reset(&i2c->dev, max98396_core_supplies_disable,
+				       max98396);
+	if (ret < 0)
+		return ret;
+
+	if (max98396->pvdd) {
+		ret = regulator_enable(max98396->pvdd);
+		if (ret < 0)
+			return ret;
+
+		ret = devm_add_action_or_reset(&i2c->dev,
+					       max98396_supply_disable,
+					       max98396->pvdd);
+		if (ret < 0)
+			return ret;
+	}
+
+	if (max98396->vbat) {
+		ret = regulator_enable(max98396->vbat);
+		if (ret < 0)
+			return ret;
+
+		ret = devm_add_action_or_reset(&i2c->dev,
+					       max98396_supply_disable,
+					       max98396->vbat);
+		if (ret < 0)
+			return ret;
 	}
 
 	/* update interleave mode info */
