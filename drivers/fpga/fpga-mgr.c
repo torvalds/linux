@@ -158,7 +158,7 @@ static int fpga_mgr_parse_header_mapped(struct fpga_manager *mgr,
 	ret = fpga_mgr_parse_header(mgr, info, buf, count);
 
 	if (info->header_size + info->data_size > count) {
-		dev_err(&mgr->dev, "Bitsream data outruns FPGA image\n");
+		dev_err(&mgr->dev, "Bitstream data outruns FPGA image\n");
 		ret = -EINVAL;
 	}
 
