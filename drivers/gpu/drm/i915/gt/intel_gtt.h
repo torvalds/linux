@@ -306,6 +306,15 @@ struct i915_address_space {
 			       struct i915_vma_resource *vma_res,
 			       enum i915_cache_level cache_level,
 			       u32 flags);
+	void (*raw_insert_page)(struct i915_address_space *vm,
+				dma_addr_t addr,
+				u64 offset,
+				enum i915_cache_level cache_level,
+				u32 flags);
+	void (*raw_insert_entries)(struct i915_address_space *vm,
+				   struct i915_vma_resource *vma_res,
+				   enum i915_cache_level cache_level,
+				   u32 flags);
 	void (*cleanup)(struct i915_address_space *vm);
 
 	void (*foreach)(struct i915_address_space *vm,

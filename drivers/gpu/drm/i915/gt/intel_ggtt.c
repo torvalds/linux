@@ -960,6 +960,16 @@ static int gen8_gmch_probe(struct i915_ggtt *ggtt)
 	if (intel_vm_no_concurrent_access_wa(i915)) {
 		ggtt->vm.insert_entries = bxt_vtd_ggtt_insert_entries__BKL;
 		ggtt->vm.insert_page    = bxt_vtd_ggtt_insert_page__BKL;
+
+		/*
+		 * Calling stop_machine() version of GGTT update function
+		 * at error capture/reset path will raise lockdep warning.
+		 * Allow calling gen8_ggtt_insert_* directly at reset path
+		 * which is safe from parallel GGTT updates.
+		 */
+		ggtt->vm.raw_insert_page = gen8_ggtt_insert_page;
+		ggtt->vm.raw_insert_entries = gen8_ggtt_insert_entries;
+
 		ggtt->vm.bind_async_flags =
 			I915_VMA_GLOBAL_BIND | I915_VMA_LOCAL_BIND;
 	}
