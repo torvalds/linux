@@ -58,10 +58,6 @@
 #define BUS_IATU_OFFSET			SZ_256M
 #define RESET_INTERVAL_MS		100
 
-struct intel_pcie_soc {
-	u32	pcie_ver;
-};
-
 struct intel_pcie {
 	struct dw_pcie		pci;
 	void __iomem		*app_base;
@@ -394,13 +390,8 @@ static const struct dw_pcie_host_ops intel_pcie_dw_ops = {
 	.host_init =		intel_pcie_rc_init,
 };
 
-static const struct intel_pcie_soc pcie_data = {
-	.pcie_ver =		DW_PCIE_VER_520A,
-};
-
 static int intel_pcie_probe(struct platform_device *pdev)
 {
-	const struct intel_pcie_soc *data;
 	struct device *dev = &pdev->dev;
 	struct intel_pcie *pcie;
 	struct dw_pcie_rp *pp;
@@ -424,12 +415,7 @@ static int intel_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	data = device_get_match_data(dev);
-	if (!data)
-		return -ENODEV;
-
 	pci->ops = &intel_pcie_ops;
-	pci->version = data->pcie_ver;
 	pp->ops = &intel_pcie_dw_ops;
 
 	ret = dw_pcie_host_init(pp);
@@ -447,7 +433,7 @@ static const struct dev_pm_ops intel_pcie_pm_ops = {
 };
 
 static const struct of_device_id of_intel_pcie_match[] = {
-	{ .compatible = "intel,lgm-pcie", .data = &pcie_data },
+	{ .compatible = "intel,lgm-pcie" },
 	{}
 };
 
