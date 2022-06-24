@@ -703,8 +703,6 @@ static int siu_init_ports(struct platform_device *pdev)
 
 #ifdef CONFIG_SERIAL_VR41XX_CONSOLE
 
-#define BOTH_EMPTY	(UART_LSR_TEMT | UART_LSR_THRE)
-
 static void wait_for_xmitr(struct uart_port *port)
 {
 	int timeout = 10000;
@@ -715,7 +713,7 @@ static void wait_for_xmitr(struct uart_port *port)
 		if (lsr & UART_LSR_BI)
 			lsr_break_flag[port->line] = UART_LSR_BI;
 
-		if ((lsr & BOTH_EMPTY) == BOTH_EMPTY)
+		if (uart_lsr_tx_empty(lsr))
 			break;
 	} while (timeout-- > 0);
 

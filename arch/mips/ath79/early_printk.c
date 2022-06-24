@@ -8,6 +8,7 @@
 
 #include <linux/io.h>
 #include <linux/errno.h>
+#include <linux/serial.h>
 #include <linux/serial_reg.h>
 #include <asm/addrspace.h>
 #include <asm/setup.h>
@@ -29,15 +30,15 @@ static inline void prom_putchar_wait(void __iomem *reg, u32 mask, u32 val)
 	} while (1);
 }
 
-#define BOTH_EMPTY (UART_LSR_TEMT | UART_LSR_THRE)
-
 static void prom_putchar_ar71xx(char ch)
 {
 	void __iomem *base = (void __iomem *)(KSEG1ADDR(AR71XX_UART_BASE));
 
-	prom_putchar_wait(base + UART_LSR * 4, BOTH_EMPTY, BOTH_EMPTY);
+	prom_putchar_wait(base + UART_LSR * 4, UART_LSR_BOTH_EMPTY,
+			  UART_LSR_BOTH_EMPTY);
 	__raw_writel((unsigned char)ch, base + UART_TX * 4);
-	prom_putchar_wait(base + UART_LSR * 4, BOTH_EMPTY, BOTH_EMPTY);
+	prom_putchar_wait(base + UART_LSR * 4, UART_LSR_BOTH_EMPTY,
+			  UART_LSR_BOTH_EMPTY);
 }
 
 static void prom_putchar_ar933x(char ch)

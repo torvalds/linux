@@ -50,8 +50,6 @@
 #define DEBUG_AUTOCONF(fmt...)	do { } while (0)
 #endif
 
-#define BOTH_EMPTY	(UART_LSR_TEMT | UART_LSR_THRE)
-
 /*
  * Here we define the default xmit fifo size used for each type of UART.
  */
@@ -1843,7 +1841,7 @@ void serial8250_tx_chars(struct uart_8250_port *up)
 		if (uart_circ_empty(xmit))
 			break;
 		if ((up->capabilities & UART_CAP_HFIFO) &&
-		    (serial_in(up, UART_LSR) & BOTH_EMPTY) != BOTH_EMPTY)
+		    !uart_lsr_tx_empty(serial_in(up, UART_LSR)))
 			break;
 		/* The BCM2835 MINI UART THRE bit is really a not-full bit. */
 		if ((up->capabilities & UART_CAP_MINI) &&
@@ -2003,7 +2001,7 @@ static unsigned int serial8250_tx_empty(struct uart_port *port)
 
 	serial8250_rpm_put(up);
 
-	return (lsr & BOTH_EMPTY) == BOTH_EMPTY ? TIOCSER_TEMT : 0;
+	return uart_lsr_tx_empty(lsr) ? TIOCSER_TEMT : 0;
 }
 
 unsigned int serial8250_do_get_mctrl(struct uart_port *port)
@@ -2151,7 +2149,7 @@ static void serial8250_put_poll_char(struct uart_port *port,
 	else
 		serial_port_out(port, UART_IER, 0);
 
-	wait_for_xmitr(up, BOTH_EMPTY);
+	wait_for_xmitr(up, UART_LSR_BOTH_EMPTY);
 	/*
 	 *	Send the character out.
 	 */
@@ -2161,7 +2159,7 @@ static void serial8250_put_poll_char(struct uart_port *port,
 	 *	Finally, wait for transmitter to become empty
 	 *	and restore the IER
 	 */
-	wait_for_xmitr(up, BOTH_EMPTY);
+	wait_for_xmitr(up, UART_LSR_BOTH_EMPTY);
 	serial_port_out(port, UART_IER, ier);
 	serial8250_rpm_put(up);
 }
@@ -3431,7 +3429,7 @@ void serial8250_console_write(struct uart_8250_port *up, const char *s,
 	 *	Finally, wait for transmitter to become empty
 	 *	and restore the IER
 	 */
-	wait_for_xmitr(up, BOTH_EMPTY);
+	wait_for_xmitr(up, UART_LSR_BOTH_EMPTY);
 
 	if (em485) {
 		mdelay(port->rs485.delay_rts_after_send);
