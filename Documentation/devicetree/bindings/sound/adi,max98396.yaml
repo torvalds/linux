@@ -51,10 +51,19 @@ properties:
     $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 0
     maximum: 15
-    default: 0
+    default: 1
 
   adi,spkfb-slot-no:
     description: slot number of speaker DSP monitor
+    $ref: "/schemas/types.yaml#/definitions/uint32"
+    minimum: 0
+    maximum: 15
+    default: 2
+
+  adi,bypass-slot-no:
+    description:
+      Selects the PCM data input channel that is routed to the speaker
+      audio processing bypass path.
     $ref: "/schemas/types.yaml#/definitions/uint32"
     minimum: 0
     maximum: 15
