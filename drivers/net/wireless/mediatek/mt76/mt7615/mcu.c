@@ -391,6 +391,9 @@ mt7615_mcu_rx_radar_detected(struct mt7615_dev *dev, struct sk_buff *skb)
 	if (r->band_idx && dev->mt76.phy2)
 		mphy = dev->mt76.phy2;
 
+	if (mt76_phy_dfs_state(mphy) < MT_DFS_STATE_CAC)
+		return;
+
 	ieee80211_radar_detected(mphy->hw);
 	dev->hw_pattern++;
 }
