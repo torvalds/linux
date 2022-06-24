@@ -354,13 +354,14 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 			pp->num_vectors = MSI_DEF_NUM_VECTORS;
 		} else if (pp->num_vectors > MAX_MSI_IRQS) {
 			dev_err(dev, "Invalid number of vectors\n");
-			return -EINVAL;
+			ret = -EINVAL;
+			goto err_deinit_host;
 		}
 
 		if (pp->ops->msi_host_init) {
 			ret = pp->ops->msi_host_init(pp);
 			if (ret < 0)
-				return ret;
+				goto err_deinit_host;
 		} else if (pp->has_msi_ctrl) {
 			u32 ctrl, num_ctrls;
 
@@ -372,8 +373,10 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 				pp->msi_irq = platform_get_irq_byname_optional(pdev, "msi");
 				if (pp->msi_irq < 0) {
 					pp->msi_irq = platform_get_irq(pdev, 0);
-					if (pp->msi_irq < 0)
-						return pp->msi_irq;
+					if (pp->msi_irq < 0) {
+						ret = pp->msi_irq;
+						goto err_deinit_host;
+					}
 				}
 			}
 
@@ -381,7 +384,7 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 
 			ret = dw_pcie_allocate_domains(pp);
 			if (ret)
-				return ret;
+				goto err_deinit_host;
 
 			if (pp->msi_irq > 0)
 				irq_set_chained_handler_and_data(pp->msi_irq,
@@ -434,6 +437,11 @@ err_stop_link:
 err_free_msi:
 	if (pp->has_msi_ctrl)
 		dw_pcie_free_msi(pp);
+
+err_deinit_host:
+	if (pp->ops->host_deinit)
+		pp->ops->host_deinit(pp);
+
 	return ret;
 }
 EXPORT_SYMBOL_GPL(dw_pcie_host_init);
@@ -449,6 +457,9 @@ void dw_pcie_host_deinit(struct dw_pcie_rp *pp)
 
 	if (pp->has_msi_ctrl)
 		dw_pcie_free_msi(pp);
+
+	if (pp->ops->host_deinit)
+		pp->ops->host_deinit(pp);
 }
 EXPORT_SYMBOL_GPL(dw_pcie_host_deinit);
 
