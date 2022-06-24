@@ -5,7 +5,7 @@
 #include <linux/bits.h>
 
 /**
- * __set_bit - Set a bit in memory
+ * ___set_bit - Set a bit in memory
  * @nr: the bit to set
  * @addr: the address to start counting from
  *
@@ -14,7 +14,7 @@
  * may be that only one operation succeeds.
  */
 static __always_inline void
-__set_bit(unsigned long nr, volatile unsigned long *addr)
+___set_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -23,7 +23,7 @@ __set_bit(unsigned long nr, volatile unsigned long *addr)
 }
 
 static __always_inline void
-__clear_bit(unsigned long nr, volatile unsigned long *addr)
+___clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -32,7 +32,7 @@ __clear_bit(unsigned long nr, volatile unsigned long *addr)
 }
 
 /**
- * __change_bit - Toggle a bit in memory
+ * ___change_bit - Toggle a bit in memory
  * @nr: the bit to change
  * @addr: the address to start counting from
  *
@@ -41,7 +41,7 @@ __clear_bit(unsigned long nr, volatile unsigned long *addr)
  * may be that only one operation succeeds.
  */
 static __always_inline void
-__change_bit(unsigned long nr, volatile unsigned long *addr)
+___change_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -50,7 +50,7 @@ __change_bit(unsigned long nr, volatile unsigned long *addr)
 }
 
 /**
- * __test_and_set_bit - Set a bit and return its old value
+ * ___test_and_set_bit - Set a bit and return its old value
  * @nr: Bit to set
  * @addr: Address to count from
  *
@@ -59,7 +59,7 @@ __change_bit(unsigned long nr, volatile unsigned long *addr)
  * but actually fail.  You must protect multiple accesses with a lock.
  */
 static __always_inline bool
-__test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
+___test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -70,7 +70,7 @@ __test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
 }
 
 /**
- * __test_and_clear_bit - Clear a bit and return its old value
+ * ___test_and_clear_bit - Clear a bit and return its old value
  * @nr: Bit to clear
  * @addr: Address to count from
  *
@@ -79,7 +79,7 @@ __test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
  * but actually fail.  You must protect multiple accesses with a lock.
  */
 static __always_inline bool
-__test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
+___test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -91,7 +91,7 @@ __test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
 
 /* WARNING: non atomic and it can be reordered! */
 static __always_inline bool
-__test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
+___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -102,12 +102,12 @@ __test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 }
 
 /**
- * test_bit - Determine whether a bit is set
+ * _test_bit - Determine whether a bit is set
  * @nr: bit number to test
  * @addr: Address to start counting from
  */
 static __always_inline bool
-test_bit(unsigned long nr, const volatile unsigned long *addr)
+_test_bit(unsigned long nr, const volatile unsigned long *addr)
 {
 	return 1UL & (addr[BIT_WORD(nr)] >> (nr & (BITS_PER_LONG-1)));
 }

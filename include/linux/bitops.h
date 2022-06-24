@@ -26,7 +26,23 @@ extern unsigned int __sw_hweight16(unsigned int w);
 extern unsigned int __sw_hweight32(unsigned int w);
 extern unsigned long __sw_hweight64(__u64 w);
 
+/*
+ * Defined here because those may be needed by architecture-specific static
+ * inlines.
+ */
+
 #include <asm-generic/bitops/generic-non-atomic.h>
+
+#define bitop(op, nr, addr)						\
+	op(nr, addr)
+
+#define __set_bit(nr, addr)		bitop(___set_bit, nr, addr)
+#define __clear_bit(nr, addr)		bitop(___clear_bit, nr, addr)
+#define __change_bit(nr, addr)		bitop(___change_bit, nr, addr)
+#define __test_and_set_bit(nr, addr)	bitop(___test_and_set_bit, nr, addr)
+#define __test_and_clear_bit(nr, addr)	bitop(___test_and_clear_bit, nr, addr)
+#define __test_and_change_bit(nr, addr)	bitop(___test_and_change_bit, nr, addr)
+#define test_bit(nr, addr)		bitop(_test_bit, nr, addr)
 
 /*
  * Include this here because some architectures need generic_ffs/fls in
@@ -38,7 +54,7 @@ extern unsigned long __sw_hweight64(__u64 w);
 #define __check_bitop_pr(name)						\
 	static_assert(__same_type(arch_##name, generic_##name) &&	\
 		      __same_type(const_##name, generic_##name) &&	\
-		      __same_type(name, generic_##name))
+		      __same_type(_##name, generic_##name))
 
 __check_bitop_pr(__set_bit);
 __check_bitop_pr(__clear_bit);

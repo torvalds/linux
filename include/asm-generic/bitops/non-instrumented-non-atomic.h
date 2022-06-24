@@ -3,14 +3,14 @@
 #ifndef __ASM_GENERIC_BITOPS_NON_INSTRUMENTED_NON_ATOMIC_H
 #define __ASM_GENERIC_BITOPS_NON_INSTRUMENTED_NON_ATOMIC_H
 
-#define __set_bit		arch___set_bit
-#define __clear_bit		arch___clear_bit
-#define __change_bit		arch___change_bit
+#define ___set_bit		arch___set_bit
+#define ___clear_bit		arch___clear_bit
+#define ___change_bit		arch___change_bit
 
-#define __test_and_set_bit	arch___test_and_set_bit
-#define __test_and_clear_bit	arch___test_and_clear_bit
-#define __test_and_change_bit	arch___test_and_change_bit
+#define ___test_and_set_bit	arch___test_and_set_bit
+#define ___test_and_clear_bit	arch___test_and_clear_bit
+#define ___test_and_change_bit	arch___test_and_change_bit
 
-#define test_bit		arch_test_bit
+#define _test_bit		arch_test_bit
 
 #endif /* __ASM_GENERIC_BITOPS_NON_INSTRUMENTED_NON_ATOMIC_H */
