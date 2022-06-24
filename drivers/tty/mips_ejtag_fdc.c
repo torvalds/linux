@@ -916,7 +916,7 @@ static int mips_ejtag_fdc_tty_probe(struct mips_cdmm_device *dev)
 	mips_ejtag_fdc_write(priv, REG_FDCFG, cfg);
 
 	/* Make each port's xmit FIFO big enough to fill FDC TX FIFO */
-	priv->xmit_size = min(tx_fifo * 4, (unsigned int)SERIAL_XMIT_SIZE);
+	priv->xmit_size = min(tx_fifo * 4, (unsigned int)UART_XMIT_SIZE);
 
 	driver = tty_alloc_driver(NUM_TTY_CHANNELS, TTY_DRIVER_REAL_RAW);
 	if (IS_ERR(driver))
