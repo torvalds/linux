@@ -5018,6 +5018,18 @@ void ieee80211_sta_restart(struct ieee80211_sub_if_data *sdata)
 	sdata_unlock(sdata);
 }
 
+static void ieee80211_request_smps_mgd_work(struct work_struct *work)
+{
+	struct ieee80211_link_data *link =
+		container_of(work, struct ieee80211_link_data,
+			     u.mgd.request_smps_work);
+
+	sdata_lock(link->sdata);
+	__ieee80211_request_smps_mgd(link->sdata, link,
+				     link->u.mgd.driver_smps_mode);
+	sdata_unlock(link->sdata);
+}
+
 /* interface setup */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 {

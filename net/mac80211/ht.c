@@ -550,18 +550,6 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
-void ieee80211_request_smps_mgd_work(struct work_struct *work)
-{
-	struct ieee80211_link_data *link =
-		container_of(work, struct ieee80211_link_data,
-			     u.mgd.request_smps_work);
-
-	sdata_lock(link->sdata);
-	__ieee80211_request_smps_mgd(link->sdata, link,
-				     link->u.mgd.driver_smps_mode);
-	sdata_unlock(link->sdata);
-}
-
 void ieee80211_request_smps(struct ieee80211_vif *vif, unsigned int link_id,
 			    enum ieee80211_smps_mode smps_mode)
 {
