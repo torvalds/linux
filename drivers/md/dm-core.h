@@ -319,4 +319,6 @@ extern atomic_t dm_global_event_nr;
 extern wait_queue_head_t dm_global_eventq;
 void dm_issue_global_event(void);
 
+void dm_bio_rewind(struct bio *bio, unsigned bytes);
+
 #endif
