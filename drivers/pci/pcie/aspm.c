@@ -1347,4 +1347,3 @@ bool pcie_aspm_support_enabled(void)
 {
 	return aspm_support_enabled;
 }
-EXPORT_SYMBOL(pcie_aspm_support_enabled);
