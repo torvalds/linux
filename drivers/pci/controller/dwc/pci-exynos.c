@@ -249,7 +249,7 @@ static int exynos_pcie_link_up(struct dw_pcie *pci)
 	return (val & PCIE_ELBI_XMLH_LINKUP);
 }
 
-static int exynos_pcie_host_init(struct pcie_port *pp)
+static int exynos_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct exynos_pcie *ep = to_exynos_pcie(pci);
@@ -276,7 +276,7 @@ static int exynos_add_pcie_port(struct exynos_pcie *ep,
 				       struct platform_device *pdev)
 {
 	struct dw_pcie *pci = &ep->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_rp *pp = &pci->pp;
 	struct device *dev = &pdev->dev;
 	int ret;
 
@@ -406,7 +406,7 @@ static int __maybe_unused exynos_pcie_resume_noirq(struct device *dev)
 {
 	struct exynos_pcie *ep = dev_get_drvdata(dev);
 	struct dw_pcie *pci = &ep->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_rp *pp = &pci->pp;
 	int ret;
 
 	ret = regulator_bulk_enable(ARRAY_SIZE(ep->supplies), ep->supplies);

@@ -155,8 +155,8 @@
 #define MAX_IATU_IN			256
 #define MAX_IATU_OUT			256
 
-struct pcie_port;
 struct dw_pcie;
+struct dw_pcie_rp;
 struct dw_pcie_ep;
 
 enum dw_pcie_region_type {
@@ -173,11 +173,11 @@ enum dw_pcie_device_mode {
 };
 
 struct dw_pcie_host_ops {
-	int (*host_init)(struct pcie_port *pp);
-	int (*msi_host_init)(struct pcie_port *pp);
+	int (*host_init)(struct dw_pcie_rp *pp);
+	int (*msi_host_init)(struct dw_pcie_rp *pp);
 };
 
-struct pcie_port {
+struct dw_pcie_rp {
 	bool			has_msi_ctrl:1;
 	bool			cfg0_io_shared:1;
 	u64			cfg0_base;
@@ -267,7 +267,7 @@ struct dw_pcie {
 	size_t			atu_size;
 	u32			num_ib_windows;
 	u32			num_ob_windows;
-	struct pcie_port	pp;
+	struct dw_pcie_rp	pp;
 	struct dw_pcie_ep	ep;
 	const struct dw_pcie_ops *ops;
 	unsigned int		version;
@@ -380,33 +380,33 @@ static inline void dw_pcie_stop_link(struct dw_pcie *pci)
 }
 
 #ifdef CONFIG_PCIE_DW_HOST
-irqreturn_t dw_handle_msi_irq(struct pcie_port *pp);
-void dw_pcie_setup_rc(struct pcie_port *pp);
-int dw_pcie_host_init(struct pcie_port *pp);
-void dw_pcie_host_deinit(struct pcie_port *pp);
-int dw_pcie_allocate_domains(struct pcie_port *pp);
+irqreturn_t dw_handle_msi_irq(struct dw_pcie_rp *pp);
+void dw_pcie_setup_rc(struct dw_pcie_rp *pp);
+int dw_pcie_host_init(struct dw_pcie_rp *pp);
+void dw_pcie_host_deinit(struct dw_pcie_rp *pp);
+int dw_pcie_allocate_domains(struct dw_pcie_rp *pp);
 void __iomem *dw_pcie_own_conf_map_bus(struct pci_bus *bus, unsigned int devfn,
 				       int where);
 #else
-static inline irqreturn_t dw_handle_msi_irq(struct pcie_port *pp)
+static inline irqreturn_t dw_handle_msi_irq(struct dw_pcie_rp *pp)
 {
 	return IRQ_NONE;
 }
 
-static inline void dw_pcie_setup_rc(struct pcie_port *pp)
+static inline void dw_pcie_setup_rc(struct dw_pcie_rp *pp)
 {
 }
 
-static inline int dw_pcie_host_init(struct pcie_port *pp)
+static inline int dw_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	return 0;
 }
 
-static inline void dw_pcie_host_deinit(struct pcie_port *pp)
+static inline void dw_pcie_host_deinit(struct dw_pcie_rp *pp)
 {
 }
 
-static inline int dw_pcie_allocate_domains(struct pcie_port *pp)
+static inline int dw_pcie_allocate_domains(struct dw_pcie_rp *pp)
 {
 	return 0;
 }

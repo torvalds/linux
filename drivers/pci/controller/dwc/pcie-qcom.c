@@ -1381,7 +1381,7 @@ static int qcom_pcie_config_sid_sm8250(struct qcom_pcie *pcie)
 	return 0;
 }
 
-static int qcom_pcie_host_init(struct pcie_port *pp)
+static int qcom_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct qcom_pcie *pcie = to_qcom_pcie(pci);
@@ -1564,7 +1564,7 @@ static const struct dw_pcie_ops dw_pcie_ops = {
 static int qcom_pcie_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct pcie_port *pp;
+	struct dw_pcie_rp *pp;
 	struct dw_pcie *pci;
 	struct qcom_pcie *pcie;
 	const struct qcom_pcie_cfg *pcie_cfg;

@@ -863,7 +863,7 @@ err_reset_phy:
 	return ret;
 }
 
-static int imx6_pcie_host_init(struct pcie_port *pp)
+static int imx6_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pci);
@@ -992,7 +992,7 @@ static int imx6_pcie_resume_noirq(struct device *dev)
 {
 	int ret;
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
-	struct pcie_port *pp = &imx6_pcie->pci->pp;
+	struct dw_pcie_rp *pp = &imx6_pcie->pci->pp;
 
 	if (!(imx6_pcie->drvdata->flags & IMX6_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
@@ -1291,7 +1291,7 @@ static struct platform_driver imx6_pcie_driver = {
 static void imx6_pcie_quirk(struct pci_dev *dev)
 {
 	struct pci_bus *bus = dev->bus;
-	struct pcie_port *pp = bus->sysdata;
+	struct dw_pcie_rp *pp = bus->sysdata;
 
 	/* Bus parent is the PCI bridge, its parent is this platform driver */
 	if (!bus->dev.parent || !bus->dev.parent->parent)

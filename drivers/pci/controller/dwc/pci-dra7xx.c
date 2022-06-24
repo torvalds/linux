@@ -178,7 +178,7 @@ static void dra7xx_pcie_enable_interrupts(struct dra7xx_pcie *dra7xx)
 	dra7xx_pcie_enable_msi_interrupts(dra7xx);
 }
 
-static int dra7xx_pcie_host_init(struct pcie_port *pp)
+static int dra7xx_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct dra7xx_pcie *dra7xx = to_dra7xx_pcie(pci);
@@ -202,7 +202,7 @@ static const struct irq_domain_ops intx_domain_ops = {
 	.xlate = pci_irqd_intx_xlate,
 };
 
-static int dra7xx_pcie_handle_msi(struct pcie_port *pp, int index)
+static int dra7xx_pcie_handle_msi(struct dw_pcie_rp *pp, int index)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	unsigned long val;
@@ -224,7 +224,7 @@ static int dra7xx_pcie_handle_msi(struct pcie_port *pp, int index)
 	return 1;
 }
 
-static void dra7xx_pcie_handle_msi_irq(struct pcie_port *pp)
+static void dra7xx_pcie_handle_msi_irq(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	int ret, i, count, num_ctrls;
@@ -255,8 +255,8 @@ static void dra7xx_pcie_msi_irq_handler(struct irq_desc *desc)
 {
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct dra7xx_pcie *dra7xx;
+	struct dw_pcie_rp *pp;
 	struct dw_pcie *pci;
-	struct pcie_port *pp;
 	unsigned long reg;
 	u32 bit;
 
@@ -344,7 +344,7 @@ static irqreturn_t dra7xx_pcie_irq_handler(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-static int dra7xx_pcie_init_irq_domain(struct pcie_port *pp)
+static int dra7xx_pcie_init_irq_domain(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct device *dev = pci->dev;
@@ -475,7 +475,7 @@ static int dra7xx_add_pcie_port(struct dra7xx_pcie *dra7xx,
 {
 	int ret;
 	struct dw_pcie *pci = dra7xx->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_rp *pp = &pci->pp;
 	struct device *dev = pci->dev;
 
 	pp->irq = platform_get_irq(pdev, 1);

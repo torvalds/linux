@@ -85,7 +85,7 @@ static irqreturn_t spear13xx_pcie_irq_handler(int irq, void *arg)
 	struct spear13xx_pcie *spear13xx_pcie = arg;
 	struct pcie_app_reg __iomem *app_reg = spear13xx_pcie->app_base;
 	struct dw_pcie *pci = spear13xx_pcie->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_rp *pp = &pci->pp;
 	unsigned int status;
 
 	status = readl(&app_reg->int_sts);
@@ -121,7 +121,7 @@ static int spear13xx_pcie_link_up(struct dw_pcie *pci)
 	return 0;
 }
 
-static int spear13xx_pcie_host_init(struct pcie_port *pp)
+static int spear13xx_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct spear13xx_pcie *spear13xx_pcie = to_spear13xx_pcie(pci);
@@ -155,7 +155,7 @@ static int spear13xx_add_pcie_port(struct spear13xx_pcie *spear13xx_pcie,
 				   struct platform_device *pdev)
 {
 	struct dw_pcie *pci = spear13xx_pcie->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_rp *pp = &pci->pp;
 	struct device *dev = &pdev->dev;
 	int ret;
 

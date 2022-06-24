@@ -311,7 +311,7 @@ struct tegra_pcie_soc {
 	enum dw_pcie_device_mode mode;
 };
 
-static void apply_bad_link_workaround(struct pcie_port *pp)
+static void apply_bad_link_workaround(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct tegra194_pcie *pcie = to_tegra_pcie(pci);
@@ -349,7 +349,7 @@ static irqreturn_t tegra_pcie_rp_irq_handler(int irq, void *arg)
 {
 	struct tegra194_pcie *pcie = arg;
 	struct dw_pcie *pci = &pcie->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_rp *pp = &pci->pp;
 	u32 val, tmp;
 	u16 val_w;
 
@@ -698,7 +698,7 @@ static inline void init_host_aspm(struct tegra194_pcie *pcie) { return; }
 static inline void init_debugfs(struct tegra194_pcie *pcie) { return; }
 #endif
 
-static void tegra_pcie_enable_system_interrupts(struct pcie_port *pp)
+static void tegra_pcie_enable_system_interrupts(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct tegra194_pcie *pcie = to_tegra_pcie(pci);
@@ -736,7 +736,7 @@ static void tegra_pcie_enable_system_interrupts(struct pcie_port *pp)
 			   val_w);
 }
 
-static void tegra_pcie_enable_legacy_interrupts(struct pcie_port *pp)
+static void tegra_pcie_enable_legacy_interrupts(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct tegra194_pcie *pcie = to_tegra_pcie(pci);
@@ -757,7 +757,7 @@ static void tegra_pcie_enable_legacy_interrupts(struct pcie_port *pp)
 	appl_writel(pcie, val, APPL_INTR_EN_L1_8_0);
 }
 
-static void tegra_pcie_enable_msi_interrupts(struct pcie_port *pp)
+static void tegra_pcie_enable_msi_interrupts(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct tegra194_pcie *pcie = to_tegra_pcie(pci);
@@ -770,7 +770,7 @@ static void tegra_pcie_enable_msi_interrupts(struct pcie_port *pp)
 	appl_writel(pcie, val, APPL_INTR_EN_L0_0);
 }
 
-static void tegra_pcie_enable_interrupts(struct pcie_port *pp)
+static void tegra_pcie_enable_interrupts(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct tegra194_pcie *pcie = to_tegra_pcie(pci);
@@ -851,7 +851,7 @@ static void config_gen3_gen4_eq_presets(struct tegra194_pcie *pcie)
 	dw_pcie_writel_dbi(pci, GEN3_RELATED_OFF, val);
 }
 
-static int tegra194_pcie_host_init(struct pcie_port *pp)
+static int tegra194_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
 	struct tegra194_pcie *pcie = to_tegra_pcie(pci);
@@ -916,7 +916,7 @@ static int tegra194_pcie_start_link(struct dw_pcie *pci)
 {
 	u32 val, offset, speed, tmp;
 	struct tegra194_pcie *pcie = to_tegra_pcie(pci);
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_rp *pp = &pci->pp;
 	bool retry = true;
 
 	if (pcie->mode == DW_PCIE_EP_TYPE) {
@@ -1212,7 +1212,7 @@ static int tegra_pcie_bpmp_set_pll_state(struct tegra194_pcie *pcie,
 
 static void tegra_pcie_downstream_dev_to_D0(struct tegra194_pcie *pcie)
 {
-	struct pcie_port *pp = &pcie->pci.pp;
+	struct dw_pcie_rp *pp = &pcie->pci.pp;
 	struct pci_bus *child, *root_bus = NULL;
 	struct pci_dev *pdev;
 
@@ -1443,7 +1443,7 @@ static void tegra_pcie_unconfig_controller(struct tegra194_pcie *pcie)
 static int tegra_pcie_init_controller(struct tegra194_pcie *pcie)
 {
 	struct dw_pcie *pci = &pcie->pci;
-	struct pcie_port *pp = &pci->pp;
+	struct dw_pcie_rp *pp = &pci->pp;
 	int ret;
 
 	ret = tegra_pcie_config_controller(pcie, false);
@@ -1961,7 +1961,7 @@ static int tegra194_pcie_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct resource *atu_dma_res;
 	struct tegra194_pcie *pcie;
-	struct pcie_port *pp;
+	struct dw_pcie_rp *pp;
 	struct dw_pcie *pci;
 	struct phy **phys;
 	char *name;
