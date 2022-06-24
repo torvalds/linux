@@ -302,7 +302,11 @@ static int intel_pcie_host_setup(struct intel_pcie *pcie)
 	intel_pcie_ltssm_disable(pcie);
 	intel_pcie_link_setup(pcie);
 	intel_pcie_init_n_fts(pci);
-	dw_pcie_setup_rc(&pci->pp);
+
+	ret = dw_pcie_setup_rc(&pci->pp);
+	if (ret)
+		goto app_init_err;
+
 	dw_pcie_upconfig_setup(pci);
 
 	intel_pcie_device_rst_deassert(pcie);

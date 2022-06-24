@@ -387,7 +387,7 @@ static inline void dw_pcie_stop_link(struct dw_pcie *pci)
 
 #ifdef CONFIG_PCIE_DW_HOST
 irqreturn_t dw_handle_msi_irq(struct dw_pcie_rp *pp);
-void dw_pcie_setup_rc(struct dw_pcie_rp *pp);
+int dw_pcie_setup_rc(struct dw_pcie_rp *pp);
 int dw_pcie_host_init(struct dw_pcie_rp *pp);
 void dw_pcie_host_deinit(struct dw_pcie_rp *pp);
 int dw_pcie_allocate_domains(struct dw_pcie_rp *pp);
@@ -399,8 +399,9 @@ static inline irqreturn_t dw_handle_msi_irq(struct dw_pcie_rp *pp)
 	return IRQ_NONE;
 }
 
-static inline void dw_pcie_setup_rc(struct dw_pcie_rp *pp)
+static inline int dw_pcie_setup_rc(struct dw_pcie_rp *pp)
 {
+	return 0;
 }
 
 static inline int dw_pcie_host_init(struct dw_pcie_rp *pp)
