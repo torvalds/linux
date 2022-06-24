@@ -10846,6 +10846,7 @@ M:	Marc Zyngier <maz@kernel.org>
 R:	James Morse <james.morse@arm.com>
 R:	Alexandru Elisei <alexandru.elisei@arm.com>
 R:	Suzuki K Poulose <suzuki.poulose@arm.com>
+R:	Oliver Upton <oliver.upton@linux.dev>
 L:	linux-arm-kernel@lists.infradead.org (moderated for non-subscribers)
 L:	kvmarm@lists.cs.columbia.edu (moderated for non-subscribers)
 S:	Maintained
@@ -10912,27 +10913,50 @@ F:	tools/testing/selftests/kvm/*/s390x/
 F:	tools/testing/selftests/kvm/s390x/
 
 KERNEL VIRTUAL MACHINE FOR X86 (KVM/x86)
+M:	Sean Christopherson <seanjc@google.com>
 M:	Paolo Bonzini <pbonzini@redhat.com>
-R:	Sean Christopherson <seanjc@google.com>
-R:	Vitaly Kuznetsov <vkuznets@redhat.com>
-R:	Wanpeng Li <wanpengli@tencent.com>
-R:	Jim Mattson <jmattson@google.com>
-R:	Joerg Roedel <joro@8bytes.org>
 L:	kvm@vger.kernel.org
 S:	Supported
-W:	http://www.linux-kvm.org
 T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
 F:	arch/x86/include/asm/kvm*
-F:	arch/x86/include/asm/pvclock-abi.h
 F:	arch/x86/include/asm/svm.h
 F:	arch/x86/include/asm/vmx*.h
 F:	arch/x86/include/uapi/asm/kvm*
 F:	arch/x86/include/uapi/asm/svm.h
 F:	arch/x86/include/uapi/asm/vmx.h
-F:	arch/x86/kernel/kvm.c
-F:	arch/x86/kernel/kvmclock.c
 F:	arch/x86/kvm/
 F:	arch/x86/kvm/*/
+
+KVM PARAVIRT (KVM/paravirt)
+M:	Paolo Bonzini <pbonzini@redhat.com>
+R:	Wanpeng Li <wanpengli@tencent.com>
+R:	Vitaly Kuznetsov <vkuznets@redhat.com>
+L:	kvm@vger.kernel.org
+S:	Supported
+T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
+F:	arch/x86/kernel/kvm.c
+F:	arch/x86/kernel/kvmclock.c
+F:	arch/x86/include/asm/pvclock-abi.h
+F:	include/linux/kvm_para.h
+F:	include/uapi/linux/kvm_para.h
+F:	include/uapi/asm-generic/kvm_para.h
+F:	include/asm-generic/kvm_para.h
+F:	arch/um/include/asm/kvm_para.h
+F:	arch/x86/include/asm/kvm_para.h
+F:	arch/x86/include/uapi/asm/kvm_para.h
+
+KVM X86 HYPER-V (KVM/hyper-v)
+M:	Vitaly Kuznetsov <vkuznets@redhat.com>
+M:	Sean Christopherson <seanjc@google.com>
+M:	Paolo Bonzini <pbonzini@redhat.com>
+L:	kvm@vger.kernel.org
+S:	Supported
+T:	git git://git.kernel.org/pub/scm/virt/kvm/kvm.git
+F:	arch/x86/kvm/hyperv.*
+F:	arch/x86/kvm/kvm_onhyperv.*
+F:	arch/x86/kvm/svm/hyperv.*
+F:	arch/x86/kvm/svm/svm_onhyperv.*
+F:	arch/x86/kvm/vmx/evmcs.*
 
 KERNFS
 M:	Greg Kroah-Hartman <gregkh@linuxfoundation.org>
