@@ -30,6 +30,11 @@
 #include <drm/drm_vblank.h>
 #endif
 
+//syscon panel
+#include <linux/regmap.h>
+#include <linux/mfd/syscon.h>
+//syscon panel
+
 static inline void update_format(u32 format, u64 mod, struct dc_hw_fb *fb)
 {
 	u8 f = FORMAT_A8R8G8B8;
@@ -332,10 +337,7 @@ static int vs_dc_get_clock(struct device *dev, struct vs_dc *dc)
 	}
 	return ret;
 }
-//noc bus clk get
 
-
-//noc bus clk enable
 static int  vs_dc_clock_enable(struct device *dev, struct vs_dc *dc)
 {
 	int ret;
@@ -590,16 +592,16 @@ static int vs_dc_vouttop_resets_assert(struct device *dev, struct vs_dc *dc)
 static int vs_dc_dc8200_get_clock(struct device *dev, struct vs_dc *dc)
 {
 	int ret;
-	dc->dc8200_pix0 = devm_clk_get(dev, "pix_clk");
-	if (IS_ERR(dc->dc8200_pix0)) {
-		dev_err(dev, "---dc8200_pix0 get error\n");
-		return PTR_ERR(dc->dc8200_pix0);
+	dc->dc8200_clk_pix0 = devm_clk_get(dev, "pix_clk");
+	if (IS_ERR(dc->dc8200_clk_pix0)) {
+		dev_err(dev, "---dc8200_clk_pix0 get error\n");
+		return PTR_ERR(dc->dc8200_clk_pix0);
 	}
 
-	dc->dc8200_pix1 = devm_clk_get(dev, "vout_pix1");
-	if (IS_ERR(dc->dc8200_pix1)) {
-		dev_err(dev, "---dc8200_pix1 get error\n");
-		return PTR_ERR(dc->dc8200_pix1);
+	dc->dc8200_clk_pix1 = devm_clk_get(dev, "vout_pix1");
+	if (IS_ERR(dc->dc8200_clk_pix1)) {
+		dev_err(dev, "---dc8200_clk_pix1 get error\n");
+		return PTR_ERR(dc->dc8200_clk_pix1);
 	}
 
 	dc->dc8200_axi = devm_clk_get(dev, "axi_clk");
@@ -626,14 +628,14 @@ static int  vs_dc_dc8200_clock_enable(struct device *dev, struct vs_dc *dc)
 {
 	int ret;
 	/*clk_prepare_enable(dc->sys_clk);*/
-	ret = clk_prepare_enable(dc->dc8200_pix0);
+	ret = clk_prepare_enable(dc->dc8200_clk_pix0);
 	if (ret) {
-		dev_err(dev, "failed to prepare/enable dc8200_pix0\n");
+		dev_err(dev, "failed to prepare/enable dc8200_clk_pix0\n");
 		return ret;
 	}
-	ret = clk_prepare_enable(dc->dc8200_pix1);
+	ret = clk_prepare_enable(dc->dc8200_clk_pix1);
 	if (ret) {
-		dev_err(dev, "failed to prepare/enable dc8200_pix1\n");
+		dev_err(dev, "failed to prepare/enable dc8200_clk_pix1\n");
 		return ret;
 	}
 	ret = clk_prepare_enable(dc->dc8200_axi);
@@ -657,8 +659,8 @@ static int  vs_dc_dc8200_clock_enable(struct device *dev, struct vs_dc *dc)
 
 static void  vs_dc_dc8200_clock_disable(struct vs_dc *dc)
 {
-	clk_disable_unprepare(dc->dc8200_pix0);
-	clk_disable_unprepare(dc->dc8200_pix1);
+	clk_disable_unprepare(dc->dc8200_clk_pix0);
+	clk_disable_unprepare(dc->dc8200_clk_pix1);
 	clk_disable_unprepare(dc->dc8200_axi);
 	clk_disable_unprepare(dc->dc8200_core);
 	clk_disable_unprepare(dc->dc8200_ahb);
@@ -731,7 +733,6 @@ static int vs_dc_dc8200_resets_assert(struct device *dev, struct vs_dc *dc)
 static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
 {
 	int ret;
-	#if 1	//noc bus
 	ret = vs_dc_get_clock(dev, dc);
 	if (ret) {
 		dev_err(dev, "failed to get clock\n");
@@ -752,9 +753,7 @@ static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
 		dev_err(dev, "failed to deassert reset\n");
 		return ret;
 	}
-	#endif
 
-	#if 1	//vout top
 	ret = vs_dc_vouttop_get_clock(dev, dc);
 	if (ret) {
 		dev_err(dev, "failed to get clock\n");
@@ -775,9 +774,7 @@ static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
 		dev_err(dev, "failed to deassert reset\n");
 		return ret;
 	}
-	#endif
 
-	#if 1	//dc8200
 	ret = vs_dc_dc8200_get_clock(dev, dc);
 	if (ret) {
 		dev_err(dev, "failed to get clock\n");
@@ -798,40 +795,73 @@ static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
 		dev_err(dev, "failed to deassert reset\n");
 		return ret;
 	}
-	#endif
 
 	return ret;
 }
 
-int sys_vout_mux_config(void)
-{
-	#ifdef CONFIG_DRM_I2C_NXP_TDA998X//tda998x-rgb2hdmi
-		SET_U0_LCD_DATA_MAPPING_DPI_DP_SEL(0);//DC8200_INTERFACE_DPI
-		SET_U0_LCD_DATA_MAPPING_DP_RGB_FMT(0);//0-RGB888
-		SET_U0_DISPLAY_PANEL_MUX_PANEL_SEL(0);//panel 0
-	#else
-    if(1){
-		SET_U0_HDMI_DATA_MAPPING_DPI_DP_SEL(0);
-		SET_U0_HDMI_DATA_MAPPING_DPI_BIT_DEPTH(0);
-		SET_U0_HDMI_DATA_MAPPING_DP_BIT_DEPTH(0);
-		SET_U0_HDMI_DATA_MAPPING_DP_YUV_MODE(0);
-		SET_U2_DISPLAY_PANEL_MUX_PANEL_SEL(0);
 
-    }
-	#endif
-    return 0;
+static int syscon_panel_parse_dt(struct device *dev)
+{
+	struct vs_dc *dc = dev_get_drvdata(dev);
+	int ret = 0;
+
+	dc->dss_regmap = syscon_regmap_lookup_by_phandle(dev->of_node,
+						"verisilicon,dss-syscon");
+
+	if (IS_ERR(dc->dss_regmap)) {
+		if (PTR_ERR(dc->dss_regmap) != -ENODEV) {
+			dev_err(dev, "failed to get dss-syscon\n");
+			ret = PTR_ERR(dc->dss_regmap);
+			goto err;
+		}
+		dc->dss_regmap = NULL;
+		goto err;
+	}
+
+err:
+	return ret;
 }
 
-int sys_dispctrl_clk(void)
+int sys_dispctrl_clk_standard(struct vs_dc *dc, struct device *dev)
 {
-	#ifdef CONFIG_DRM_I2C_NXP_TDA998X//tda998x-rgb2hdmi
-		_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX1_SOURCE_CLK_HDMITX0_PIXELCLK_;
-		_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_HDMITX0_PIXELCLK_;
-		//_ENABLE_CLOCK_CLK_DOM_VOUT_TOP_LCD_CLK_;//disabled standard
-	#else
-		_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_HDMITX0_PIXELCLK_;
-		//_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_DC8200_PIX0_;
-	#endif
+#ifdef CONFIG_DRM_I2C_NXP_TDA998X
+	dc->dc8200_clk_pix1 = devm_clk_get(dev, "vout_pix1");
+	if (IS_ERR(dc->dc8200_clk_pix1)) {
+		dev_err(dev, "---dc8200_clk_pix1 get error\n");
+		return PTR_ERR(dc->dc8200_clk_pix1);
+	}
+
+	dc->hdmitx0_pixelclk = devm_clk_get(dev, "hdmitx0_pixelclk");
+	if (IS_ERR(dc->hdmitx0_pixelclk)) {
+		dev_err(dev, "---hdmitx0_pixelclk get error\n");
+		return PTR_ERR(dc->hdmitx0_pixelclk);
+	}
+
+	dc->dc8200_clk_pix0 = devm_clk_get(dev, "pix_clk");
+	if (IS_ERR(dc->dc8200_clk_pix0)) {
+		dev_err(dev, "---dc8200_clk_pix0 get error\n");
+		return PTR_ERR(dc->dc8200_clk_pix0);
+	}
+
+	clk_set_parent( dc->dc8200_clk_pix1, dc->hdmitx0_pixelclk );
+	clk_set_parent( dc->dc8200_clk_pix0, dc->hdmitx0_pixelclk );
+
+#else
+	//_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_HDMITX0_PIXELCLK_;
+	dc->dc8200_clk_pix0 = devm_clk_get(dev, "pix_clk");	//dc8200_clk_pix0
+	if (IS_ERR(dc->dc8200_clk_pix0)) {
+		dev_err(dev, "---dc8200_clk_pix0 get error\n");
+		return PTR_ERR(dc->dc8200_clk_pix0);
+	}
+
+	dc->hdmitx0_pixelclk = devm_clk_get(dev, "hdmitx0_pixelclk");//hdmitx0_pixelclk
+	if (IS_ERR(dc->hdmitx0_pixelclk)) {
+		dev_err(dev, "---hdmitx0_pixelclk get error\n");
+		return PTR_ERR(dc->hdmitx0_pixelclk);
+	}
+	clk_set_parent( dc->dc8200_clk_pix0, dc->hdmitx0_pixelclk );//parent,child
+
+#endif
 
     return 0;
 }
@@ -841,11 +871,7 @@ int drv_config_dc_4_dsi(struct vs_dc *dc, struct device *dev)//for dc_dsi config
 	int ret;
 
 	dev_info(dev, "====> %s, %d.\n", __func__, __LINE__);
-	/*---------------------mux config------------*/
-	SET_U0_DSITX_DATA_MAPPING_DPI_DP_SEL(0);
-	//SET_U0_DSITX_DATA_MAPPING_DP_MODE(vout_sys->vout_dsitx.dp_color_mode);
-	SET_U1_DISPLAY_PANEL_MUX_PANEL_SEL(0);
-	//_ENABLE_CLOCK_CLK_DOM_VOUT_TOP_LCD_CLK_;
+
 	ret = clk_prepare_enable(dc->vout_top_lcd);
 	if (ret) {
 		dev_err(dev, "failed to prepare/enable vout_top_lcd\n");
@@ -854,15 +880,6 @@ int drv_config_dc_4_dsi(struct vs_dc *dc, struct device *dev)//for dc_dsi config
 	/*----------mux config------------*/
 	dev_info(dev, "====> %s, %d.\n", __func__, __LINE__);
 	return 0;
-}
-
-int sys_dispctrl_init(void)
-{
-    sys_vout_mux_config();
-    sys_dispctrl_clk();
-
-	mdelay(1);    
-    return 0;
 }
 
 static void dc_deinit(struct device *dev)
@@ -890,20 +907,26 @@ static int dc_init(struct device *dev)
 
 	dc->first_frame = true;
 
-	//power_set(dev, 1);
+	ret = syscon_panel_parse_dt(dev);
+	if (ret){
+		dev_err(dev,"syscon_panel_parse_dt failed\n");
+		return ret;
+	}
 
 	starfive_power_domain_set(POWER_DOMAIN_VOUT, 1);
 
 	//ret = plda_clk_rst_init(dev);
 	ret = dc_vout_clk_rst_init(dev, dc);
 
-	ret = sys_dispctrl_init();
-	if (ret < 0) {
-		dev_err(dev, "failed to init vout clk reset: %d\n", ret);
-		return ret;
-	}
+	#ifdef CONFIG_DRM_I2C_NXP_TDA998X//tda998x-rgb2hdmi
+			regmap_update_bits(dc->dss_regmap, 0x4, BIT(20), 1<<20);
+	#endif
+
+	ret = sys_dispctrl_clk_standard(dc, dev);
+
 	#ifdef CONFIG_STARFIVE_DSI
 	dev_info(dev, "dc mipi channel\n");
+	regmap_update_bits(dc->dss_regmap, 0x8, BIT(3), 1<<3);
 	dc->vout_src = devm_clk_get(dev, "vout_src");
 	if (IS_ERR(dc->vout_src)){
 		dev_err(dev,"failed to get dc->vout_src\n");
@@ -914,6 +937,15 @@ static int dc_init(struct device *dev)
 		dev_err(dev,"failed to get dc->vout_top_lcd\n");
 		return PTR_ERR(dc->vout_top_lcd);
 	}
+	#if 1	//parent for dc8200_clk_pix0 !!
+	dc->dc8200_pix0 = devm_clk_get(dev, "dc8200_pix0");	//dc8200_pix0
+	if (IS_ERR(dc->dc8200_pix0)) {
+		dev_err(dev, "---dc8200_pix0 get error\n");
+		return PTR_ERR(dc->dc8200_pix0);
+	}
+	#endif
+	//_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_DC8200_PIX0_;
+	clk_set_parent( dc->dc8200_clk_pix0, dc->dc8200_pix0 );//child,parent
 	ret = drv_config_dc_4_dsi(dc,dev);
 	if (ret < 0) {
 		dev_err(dev, "failed to drv_config_dc_4_dsi: %d\n", ret);
@@ -923,19 +955,22 @@ static int dc_init(struct device *dev)
 
 	#ifdef CONFIG_DRM_I2C_NXP_TDA998X
 	_ENABLE_CLOCK_CLK_DOM_VOUT_TOP_LCD_CLK_;
-	/*
+	#if 0 //to do fix
 	dev_info(dev, "dc rgb2hdmi channel\n");
 	dc->vout_top_lcd = devm_clk_get(dev, "vout_top_lcd");
 	if (IS_ERR(dc->vout_top_lcd)){
 		dev_err(dev,"failed to get dc->vout_top_lcd\n");
 		return PTR_ERR(dc->vout_top_lcd);
 	}
+
+	clk_set_parent( dc->vout_top_lcd, dc->dc8200_clk_pix1);
+
 	ret = clk_prepare_enable(dc->vout_top_lcd);
 	if (ret) {
 		dev_err(dev, "failed to prepare/enable vout_top_lcd\n");
 		return ret;
 	}
-	*/
+	#endif
 	#endif
 	printk("====> %s, %d.\n", __func__, __LINE__);
 
@@ -970,10 +1005,14 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 	struct vs_crtc_state *crtc_state = to_vs_crtc_state(crtc->state);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct dc_hw_display display;
+#ifdef CONFIG_STARFIVE_DSI//7110 mipi
+	#if 0
 	uint32_t vout_clock;
 	uint32_t div;
 	uint32_t div_new;
 	const uint32_t wanted_pxclk = mode->clock * 1000;
+	#endif
+#endif
 
 	display.bus_format = crtc_state->output_fmt;
 	display.h_active = mode->hdisplay;
@@ -1003,47 +1042,8 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 
 	display.enable = true;
 
-#if 1
-	;//printk("====> %s, %d--pix_clk.\n", __func__, __LINE__);
-#else
-	//used for div clock
-	if (dc->pix_clk_rate != mode->clock) {
-		printk("====> %s, %d--pix_clk.mode->clock = %d\n", __func__, __LINE__,mode->clock);
-		u32 div = _GET_CLOCK_DIVIDE_STATUS_CLK_DC8200_PIX0_;
-	printk("====> %s, %d--pix_clk.div = %d\n", __func__, __LINE__,div);
-
-	//148500
-         div = 1228800/mode->clock;
-		//148500
-		printk("====> %s, %d--pix_clk.div = %d\n", __func__, __LINE__,div);
-
-		_DIVIDE_CLOCK_CLK_DC8200_PIX0_(div);
-		_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_DC8200_PIX0_;
-		_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX1_SOURCE_CLK_DC8200_PIX0_;
-
-		_SWITCH_CLOCK_CLK_DOM_VOUT_TOP_LCD_CLK_SOURCE_CLK_U0_DC8200_CLK_PIX0_OUT_;
-
-		//clk_set_rate(dc->pix_clk, mode->clock * 1000);
-		dc->pix_clk_rate = mode->clock;
-	}
-#endif
-
-#ifdef CONFIG_STARFIVE_DSI//7110 mipi
-	/*-----------------div freq clk  sys_dispctrl_clk()----------*/
-	//const uint32_t wanted_pxclk = 20144262;//dpi->pixelclock;
-	//wanted_pxclk = mode->clock * 1000;
-	dev_info(dev, "wanted_pxclk = %d\n",wanted_pxclk);
-    //uint32_t vout_clock = 614400000;
-	vout_clock = clk_get_rate(dc->vout_src);
-	dev_info(dev, "vout_clock = %d\n", vout_clock);	
-	div = _GET_CLOCK_DIVIDE_STATUS_CLK_DC8200_PIX0_;
-	div_new = vout_clock / wanted_pxclk;
-	if (div != div_new) {
-		div = div_new;
-		_DIVIDE_CLOCK_CLK_DC8200_PIX0_(div);
-		_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_DC8200_PIX0_;
-	}
-	/*-----------------div freq clk  sys_dispctrl_clk()----------*/
+#ifdef CONFIG_STARFIVE_DSI//
+	clk_set_rate(dc->dc8200_pix0, 20144263);//round up, 20144262+1
 #endif
 
 	if (crtc_state->encoder_type == DRM_MODE_ENCODER_DSI)

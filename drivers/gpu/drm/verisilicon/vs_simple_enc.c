@@ -38,6 +38,7 @@ static inline struct simple_encoder *to_simple_encoder(struct drm_encoder *enc)
 	return container_of(enc, struct simple_encoder, encoder);
 }
 
+#if 0
 static int encoder_parse_dt(struct device *dev)
 {
 	struct simple_encoder *simple = dev_get_drvdata(dev);
@@ -103,6 +104,7 @@ err_free_masks:
 err:
 	return ret;
 }
+#endif
 
 #define DOM_VOUT_SYSCON_8									0x8U
 #define U0_LCD_DATA_MAPPING_DPI_DP_SEL_SHIFT				0x2U
@@ -116,6 +118,8 @@ void encoder_atomic_enable(struct drm_encoder *encoder,
 						struct drm_atomic_state *state)
 {
 	struct simple_encoder *simple = to_simple_encoder(encoder);
+	printk("encoder_atomic_enable\n");
+	#if 0
 	struct dss_data *data = simple->dss_regdatas;
 	int crtc_id;
 
@@ -130,6 +134,7 @@ void encoder_atomic_enable(struct drm_encoder *encoder,
 
 	regmap_update_bits(simple->dss_regmap, DOM_VOUT_SYSCON_8, U0_LCD_DATA_MAPPING_DPI_DP_SEL_MASK, 0);
 	regmap_update_bits(simple->dss_regmap, DOM_VOUT_SYSCON_4, U0_DISPLAY_PANEL_MUX_PANEL_SEL_MASK, 0);
+	#endif
 }
 
 int encoder_atomic_check(struct drm_encoder *encoder,
@@ -221,6 +226,7 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 
 	encoder->possible_crtcs =
 			drm_of_find_possible_crtcs(drm_dev, dev->of_node);
+	encoder->possible_crtcs = 3;
 
 	/* output port is port1*/
 
@@ -289,11 +295,11 @@ static int encoder_probe(struct platform_device *pdev)
 	simple->dev = dev;
 
 	dev_set_drvdata(dev, simple);
-
+#if 0
 	ret = encoder_parse_dt(dev);
 	if (ret)
 		return ret;
-
+#endif
 	return component_add(dev, &encoder_component_ops);
 }
 
