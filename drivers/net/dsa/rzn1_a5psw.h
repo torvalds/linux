@@ -146,6 +146,51 @@
 
 #define A5PSW_STATS_HIWORD		0x900
 
+/* Stats */
+#define A5PSW_aFramesTransmittedOK		0x868
+#define A5PSW_aFramesReceivedOK			0x86C
+#define A5PSW_aFrameCheckSequenceErrors		0x870
+#define A5PSW_aAlignmentErrors			0x874
+#define A5PSW_aOctetsTransmittedOK		0x878
+#define A5PSW_aOctetsReceivedOK			0x87C
+#define A5PSW_aTxPAUSEMACCtrlFrames		0x880
+#define A5PSW_aRxPAUSEMACCtrlFrames		0x884
+/* If */
+#define A5PSW_ifInErrors			0x888
+#define A5PSW_ifOutErrors			0x88C
+#define A5PSW_ifInUcastPkts			0x890
+#define A5PSW_ifInMulticastPkts			0x894
+#define A5PSW_ifInBroadcastPkts			0x898
+#define A5PSW_ifOutDiscards			0x89C
+#define A5PSW_ifOutUcastPkts			0x8A0
+#define A5PSW_ifOutMulticastPkts		0x8A4
+#define A5PSW_ifOutBroadcastPkts		0x8A8
+/* Ether */
+#define A5PSW_etherStatsDropEvents		0x8AC
+#define A5PSW_etherStatsOctets			0x8B0
+#define A5PSW_etherStatsPkts			0x8B4
+#define A5PSW_etherStatsUndersizePkts		0x8B8
+#define A5PSW_etherStatsOversizePkts		0x8BC
+#define A5PSW_etherStatsPkts64Octets		0x8C0
+#define A5PSW_etherStatsPkts65to127Octets	0x8C4
+#define A5PSW_etherStatsPkts128to255Octets	0x8C8
+#define A5PSW_etherStatsPkts256to511Octets	0x8CC
+#define A5PSW_etherStatsPkts512to1023Octets	0x8D0
+#define A5PSW_etherStatsPkts1024to1518Octets	0x8D4
+#define A5PSW_etherStatsPkts1519toXOctets	0x8D8
+#define A5PSW_etherStatsJabbers			0x8DC
+#define A5PSW_etherStatsFragments		0x8E0
+
+#define A5PSW_VLANReceived			0x8E8
+#define A5PSW_VLANTransmitted			0x8EC
+
+#define A5PSW_aDeferred				0x910
+#define A5PSW_aMultipleCollisions		0x914
+#define A5PSW_aSingleCollisions			0x918
+#define A5PSW_aLateCollisions			0x91C
+#define A5PSW_aExcessiveCollisions		0x920
+#define A5PSW_aCarrierSenseErrors		0x924
+
 #define A5PSW_VLAN_TAG(prio, id)	(((prio) << 12) | (id))
 #define A5PSW_PORTS_NUM			5
 #define A5PSW_CPU_PORT			(A5PSW_PORTS_NUM - 1)
@@ -176,6 +221,7 @@
  * @mdio_freq: MDIO bus frequency requested
  * @pcs: Array of PCS connected to the switch ports (not for the CPU)
  * @ds: DSA switch struct
+ * @stats_lock: lock to access statistics (shared HI counter)
  * @lk_lock: Lock for the lookup table
  * @reg_lock: Lock for register read-modify-write operation
  * @bridged_ports: Mask of ports that are bridged and should be flooded

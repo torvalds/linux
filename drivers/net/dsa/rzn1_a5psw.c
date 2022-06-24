@@ -17,6 +17,57 @@
 
 #include "rzn1_a5psw.h"
 
+struct a5psw_stats {
+	u16 offset;
+	const char name[ETH_GSTRING_LEN];
+};
+
+#define STAT_DESC(_offset) {	\
+	.offset = A5PSW_##_offset,	\
+	.name = __stringify(_offset),	\
+}
+
+static const struct a5psw_stats a5psw_stats[] = {
+	STAT_DESC(aFramesTransmittedOK),
+	STAT_DESC(aFramesReceivedOK),
+	STAT_DESC(aFrameCheckSequenceErrors),
+	STAT_DESC(aAlignmentErrors),
+	STAT_DESC(aOctetsTransmittedOK),
+	STAT_DESC(aOctetsReceivedOK),
+	STAT_DESC(aTxPAUSEMACCtrlFrames),
+	STAT_DESC(aRxPAUSEMACCtrlFrames),
+	STAT_DESC(ifInErrors),
+	STAT_DESC(ifOutErrors),
+	STAT_DESC(ifInUcastPkts),
+	STAT_DESC(ifInMulticastPkts),
+	STAT_DESC(ifInBroadcastPkts),
+	STAT_DESC(ifOutDiscards),
+	STAT_DESC(ifOutUcastPkts),
+	STAT_DESC(ifOutMulticastPkts),
+	STAT_DESC(ifOutBroadcastPkts),
+	STAT_DESC(etherStatsDropEvents),
+	STAT_DESC(etherStatsOctets),
+	STAT_DESC(etherStatsPkts),
+	STAT_DESC(etherStatsUndersizePkts),
+	STAT_DESC(etherStatsOversizePkts),
+	STAT_DESC(etherStatsPkts64Octets),
+	STAT_DESC(etherStatsPkts65to127Octets),
+	STAT_DESC(etherStatsPkts128to255Octets),
+	STAT_DESC(etherStatsPkts256to511Octets),
+	STAT_DESC(etherStatsPkts1024to1518Octets),
+	STAT_DESC(etherStatsPkts1519toXOctets),
+	STAT_DESC(etherStatsJabbers),
+	STAT_DESC(etherStatsFragments),
+	STAT_DESC(VLANReceived),
+	STAT_DESC(VLANTransmitted),
+	STAT_DESC(aDeferred),
+	STAT_DESC(aMultipleCollisions),
+	STAT_DESC(aSingleCollisions),
+	STAT_DESC(aLateCollisions),
+	STAT_DESC(aExcessiveCollisions),
+	STAT_DESC(aCarrierSenseErrors),
+};
+
 static void a5psw_reg_writel(struct a5psw *a5psw, int offset, u32 value)
 {
 	writel(value, a5psw->base + offset);
@@ -324,6 +375,123 @@ static void a5psw_port_fast_age(struct dsa_switch *ds, int port)
 	a5psw_port_fdb_flush(a5psw, port);
 }
 
+static u64 a5psw_read_stat(struct a5psw *a5psw, u32 offset, int port)
+{
+	u32 reg_lo, reg_hi;
+
+	reg_lo = a5psw_reg_readl(a5psw, offset + A5PSW_PORT_OFFSET(port));
+	/* A5PSW_STATS_HIWORD is latched on stat read */
+	reg_hi = a5psw_reg_readl(a5psw, A5PSW_STATS_HIWORD);
+
+	return ((u64)reg_hi << 32) | reg_lo;
+}
+
+static void a5psw_get_strings(struct dsa_switch *ds, int port, u32 stringset,
+			      uint8_t *data)
+{
+	unsigned int u;
+
+	if (stringset != ETH_SS_STATS)
+		return;
+
+	for (u = 0; u < ARRAY_SIZE(a5psw_stats); u++) {
+		memcpy(data + u * ETH_GSTRING_LEN, a5psw_stats[u].name,
+		       ETH_GSTRING_LEN);
+	}
+}
+
+static void a5psw_get_ethtool_stats(struct dsa_switch *ds, int port,
+				    uint64_t *data)
+{
+	struct a5psw *a5psw = ds->priv;
+	unsigned int u;
+
+	for (u = 0; u < ARRAY_SIZE(a5psw_stats); u++)
+		data[u] = a5psw_read_stat(a5psw, a5psw_stats[u].offset, port);
+}
+
+static int a5psw_get_sset_count(struct dsa_switch *ds, int port, int sset)
+{
+	if (sset != ETH_SS_STATS)
+		return 0;
+
+	return ARRAY_SIZE(a5psw_stats);
+}
+
+static void a5psw_get_eth_mac_stats(struct dsa_switch *ds, int port,
+				    struct ethtool_eth_mac_stats *mac_stats)
+{
+	struct a5psw *a5psw = ds->priv;
+
+#define RD(name) a5psw_read_stat(a5psw, A5PSW_##name, port)
+	mac_stats->FramesTransmittedOK = RD(aFramesTransmittedOK);
+	mac_stats->SingleCollisionFrames = RD(aSingleCollisions);
+	mac_stats->MultipleCollisionFrames = RD(aMultipleCollisions);
+	mac_stats->FramesReceivedOK = RD(aFramesReceivedOK);
+	mac_stats->FrameCheckSequenceErrors = RD(aFrameCheckSequenceErrors);
+	mac_stats->AlignmentErrors = RD(aAlignmentErrors);
+	mac_stats->OctetsTransmittedOK = RD(aOctetsTransmittedOK);
+	mac_stats->FramesWithDeferredXmissions = RD(aDeferred);
+	mac_stats->LateCollisions = RD(aLateCollisions);
+	mac_stats->FramesAbortedDueToXSColls = RD(aExcessiveCollisions);
+	mac_stats->FramesLostDueToIntMACXmitError = RD(ifOutErrors);
+	mac_stats->CarrierSenseErrors = RD(aCarrierSenseErrors);
+	mac_stats->OctetsReceivedOK = RD(aOctetsReceivedOK);
+	mac_stats->FramesLostDueToIntMACRcvError = RD(ifInErrors);
+	mac_stats->MulticastFramesXmittedOK = RD(ifOutMulticastPkts);
+	mac_stats->BroadcastFramesXmittedOK = RD(ifOutBroadcastPkts);
+	mac_stats->FramesWithExcessiveDeferral = RD(aDeferred);
+	mac_stats->MulticastFramesReceivedOK = RD(ifInMulticastPkts);
+	mac_stats->BroadcastFramesReceivedOK = RD(ifInBroadcastPkts);
+#undef RD
+}
+
+static const struct ethtool_rmon_hist_range a5psw_rmon_ranges[] = {
+	{ 0, 64 },
+	{ 65, 127 },
+	{ 128, 255 },
+	{ 256, 511 },
+	{ 512, 1023 },
+	{ 1024, 1518 },
+	{ 1519, A5PSW_MAX_MTU },
+	{}
+};
+
+static void a5psw_get_rmon_stats(struct dsa_switch *ds, int port,
+				 struct ethtool_rmon_stats *rmon_stats,
+				 const struct ethtool_rmon_hist_range **ranges)
+{
+	struct a5psw *a5psw = ds->priv;
+
+#define RD(name) a5psw_read_stat(a5psw, A5PSW_##name, port)
+	rmon_stats->undersize_pkts = RD(etherStatsUndersizePkts);
+	rmon_stats->oversize_pkts = RD(etherStatsOversizePkts);
+	rmon_stats->fragments = RD(etherStatsFragments);
+	rmon_stats->jabbers = RD(etherStatsJabbers);
+	rmon_stats->hist[0] = RD(etherStatsPkts64Octets);
+	rmon_stats->hist[1] = RD(etherStatsPkts65to127Octets);
+	rmon_stats->hist[2] = RD(etherStatsPkts128to255Octets);
+	rmon_stats->hist[3] = RD(etherStatsPkts256to511Octets);
+	rmon_stats->hist[4] = RD(etherStatsPkts512to1023Octets);
+	rmon_stats->hist[5] = RD(etherStatsPkts1024to1518Octets);
+	rmon_stats->hist[6] = RD(etherStatsPkts1519toXOctets);
+#undef RD
+
+	*ranges = a5psw_rmon_ranges;
+}
+
+static void a5psw_get_eth_ctrl_stats(struct dsa_switch *ds, int port,
+				     struct ethtool_eth_ctrl_stats *ctrl_stats)
+{
+	struct a5psw *a5psw = ds->priv;
+	u64 stat;
+
+	stat = a5psw_read_stat(a5psw, A5PSW_aTxPAUSEMACCtrlFrames, port);
+	ctrl_stats->MACControlFramesTransmitted = stat;
+	stat = a5psw_read_stat(a5psw, A5PSW_aRxPAUSEMACCtrlFrames, port);
+	ctrl_stats->MACControlFramesReceived = stat;
+}
+
 static int a5psw_setup(struct dsa_switch *ds)
 {
 	struct a5psw *a5psw = ds->priv;
@@ -412,6 +580,12 @@ static const struct dsa_switch_ops a5psw_switch_ops = {
 	.phylink_mac_link_up = a5psw_phylink_mac_link_up,
 	.port_change_mtu = a5psw_port_change_mtu,
 	.port_max_mtu = a5psw_port_max_mtu,
+	.get_sset_count = a5psw_get_sset_count,
+	.get_strings = a5psw_get_strings,
+	.get_ethtool_stats = a5psw_get_ethtool_stats,
+	.get_eth_mac_stats = a5psw_get_eth_mac_stats,
+	.get_eth_ctrl_stats = a5psw_get_eth_ctrl_stats,
+	.get_rmon_stats = a5psw_get_rmon_stats,
 	.set_ageing_time = a5psw_set_ageing_time,
 	.port_bridge_join = a5psw_port_bridge_join,
 	.port_bridge_leave = a5psw_port_bridge_leave,
