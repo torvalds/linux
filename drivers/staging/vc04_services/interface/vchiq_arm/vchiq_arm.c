@@ -602,6 +602,10 @@ static struct vchiq_arm_state *vchiq_platform_get_arm_state(struct vchiq_state *
 void
 remote_event_signal(struct remote_event *event)
 {
+	/*
+	 * Ensure that all writes to shared data structures have completed
+	 * before signalling the peer.
+	 */
 	wmb();
 
 	event->fired = 1;
