@@ -1638,7 +1638,7 @@ static u32 icl_gamma_mode(const struct intel_crtc_state *crtc_state)
 	/*
 	 * Enable 10bit gamma for D13
 	 * ToDo: Extend to Logarithmic Gamma once the new UAPI
-	 * is acccepted and implemented by a userspace consumer
+	 * is accepted and implemented by a userspace consumer
 	 */
 	else if (DISPLAY_VER(i915) >= 13)
 		gamma_mode |= GAMMA_MODE_MODE_10BIT;

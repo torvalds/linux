@@ -299,7 +299,8 @@ u32 *intel_ring_begin(struct i915_request *rq, unsigned int num_dwords)
 	GEM_BUG_ON(ring->emit > ring->size - bytes);
 	GEM_BUG_ON(ring->space < bytes);
 	cs = ring->vaddr + ring->emit;
-	GEM_DEBUG_EXEC(memset32(cs, POISON_INUSE, bytes / sizeof(*cs)));
+	if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
+		memset32(cs, POISON_INUSE, bytes / sizeof(*cs));
 	ring->emit += bytes;
 	ring->space -= bytes;
 

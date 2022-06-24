@@ -494,7 +494,8 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 	}
 
 	live_status_mask = tc_port_live_status_mask(dig_port);
-	if (!(live_status_mask & (BIT(TC_PORT_DP_ALT) | BIT(TC_PORT_LEGACY)))) {
+	if (!(live_status_mask & (BIT(TC_PORT_DP_ALT) | BIT(TC_PORT_LEGACY))) &&
+	    !dig_port->tc_legacy_port) {
 		drm_dbg_kms(&i915->drm, "Port %s: PHY ownership not required (live status %02x)\n",
 			    dig_port->tc_port_name, live_status_mask);
 		goto out_set_tbt_alt_mode;
