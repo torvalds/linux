@@ -47,6 +47,7 @@ struct instruction {
 	unsigned long immediate;
 	bool dead_end, ignore, ignore_alts;
 	bool hint;
+	bool save, restore;
 	bool retpoline_safe;
 	bool entry;
 	s8 instr;
