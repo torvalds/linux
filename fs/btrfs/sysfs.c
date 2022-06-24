@@ -276,7 +276,6 @@ static umode_t btrfs_feature_visible(struct kobject *kobj,
 	return mode;
 }
 
-BTRFS_FEAT_ATTR_INCOMPAT(mixed_backref, MIXED_BACKREF);
 BTRFS_FEAT_ATTR_INCOMPAT(default_subvol, DEFAULT_SUBVOL);
 BTRFS_FEAT_ATTR_INCOMPAT(mixed_groups, MIXED_GROUPS);
 BTRFS_FEAT_ATTR_INCOMPAT(compress_lzo, COMPRESS_LZO);
@@ -308,7 +307,6 @@ BTRFS_FEAT_ATTR_COMPAT_RO(verity, VERITY);
  *                               can be changed on a mounted filesystem.
  */
 static struct attribute *btrfs_supported_feature_attrs[] = {
-	BTRFS_FEAT_ATTR_PTR(mixed_backref),
 	BTRFS_FEAT_ATTR_PTR(default_subvol),
 	BTRFS_FEAT_ATTR_PTR(mixed_groups),
 	BTRFS_FEAT_ATTR_PTR(compress_lzo),
