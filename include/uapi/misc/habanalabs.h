@@ -276,6 +276,33 @@ enum hl_gaudi_pll_index {
 };
 
 /**
+ * enum hl_goya_dma_direction - Direction of DMA operation inside a LIN_DMA packet that is
+ *                              submitted to the GOYA's DMA QMAN. This attribute is not relevant
+ *                              to the H/W but the kernel driver use it to parse the packet's
+ *                              addresses and patch/validate them.
+ * @HL_DMA_HOST_TO_DRAM: DMA operation from Host memory to GOYA's DDR.
+ * @HL_DMA_HOST_TO_SRAM: DMA operation from Host memory to GOYA's SRAM.
+ * @HL_DMA_DRAM_TO_SRAM: DMA operation from GOYA's DDR to GOYA's SRAM.
+ * @HL_DMA_SRAM_TO_DRAM: DMA operation from GOYA's SRAM to GOYA's DDR.
+ * @HL_DMA_SRAM_TO_HOST: DMA operation from GOYA's SRAM to Host memory.
+ * @HL_DMA_DRAM_TO_HOST: DMA operation from GOYA's DDR to Host memory.
+ * @HL_DMA_DRAM_TO_DRAM: DMA operation from GOYA's DDR to GOYA's DDR.
+ * @HL_DMA_SRAM_TO_SRAM: DMA operation from GOYA's SRAM to GOYA's SRAM.
+ * @HL_DMA_ENUM_MAX: number of values in enum
+ */
+enum hl_goya_dma_direction {
+	HL_DMA_HOST_TO_DRAM,
+	HL_DMA_HOST_TO_SRAM,
+	HL_DMA_DRAM_TO_SRAM,
+	HL_DMA_SRAM_TO_DRAM,
+	HL_DMA_SRAM_TO_HOST,
+	HL_DMA_DRAM_TO_HOST,
+	HL_DMA_DRAM_TO_DRAM,
+	HL_DMA_SRAM_TO_SRAM,
+	HL_DMA_ENUM_MAX
+};
+
+/**
  * enum hl_device_status - Device status information.
  * @HL_DEVICE_STATUS_OPERATIONAL: Device is operational.
  * @HL_DEVICE_STATUS_IN_RESET: Device is currently during reset.

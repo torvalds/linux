@@ -3403,7 +3403,7 @@ static int goya_validate_dma_pkt_host(struct hl_device *hdev,
 {
 	u64 device_memory_addr, addr;
 	enum dma_data_direction dir;
-	enum goya_dma_direction user_dir;
+	enum hl_goya_dma_direction user_dir;
 	bool sram_addr = true;
 	bool skip_host_mem_pin = false;
 	bool user_memset;
@@ -3419,7 +3419,7 @@ static int goya_validate_dma_pkt_host(struct hl_device *hdev,
 			GOYA_PKT_LIN_DMA_CTL_MEMSET_SHIFT;
 
 	switch (user_dir) {
-	case DMA_HOST_TO_DRAM:
+	case HL_DMA_HOST_TO_DRAM:
 		dev_dbg(hdev->dev, "DMA direction is HOST --> DRAM\n");
 		dir = DMA_TO_DEVICE;
 		sram_addr = false;
@@ -3429,7 +3429,7 @@ static int goya_validate_dma_pkt_host(struct hl_device *hdev,
 			skip_host_mem_pin = true;
 		break;
 
-	case DMA_DRAM_TO_HOST:
+	case HL_DMA_DRAM_TO_HOST:
 		dev_dbg(hdev->dev, "DMA direction is DRAM --> HOST\n");
 		dir = DMA_FROM_DEVICE;
 		sram_addr = false;
@@ -3437,7 +3437,7 @@ static int goya_validate_dma_pkt_host(struct hl_device *hdev,
 		device_memory_addr = le64_to_cpu(user_dma_pkt->src_addr);
 		break;
 
-	case DMA_HOST_TO_SRAM:
+	case HL_DMA_HOST_TO_SRAM:
 		dev_dbg(hdev->dev, "DMA direction is HOST --> SRAM\n");
 		dir = DMA_TO_DEVICE;
 		addr = le64_to_cpu(user_dma_pkt->src_addr);
@@ -3446,14 +3446,14 @@ static int goya_validate_dma_pkt_host(struct hl_device *hdev,
 			skip_host_mem_pin = true;
 		break;
 
-	case DMA_SRAM_TO_HOST:
+	case HL_DMA_SRAM_TO_HOST:
 		dev_dbg(hdev->dev, "DMA direction is SRAM --> HOST\n");
 		dir = DMA_FROM_DEVICE;
 		addr = le64_to_cpu(user_dma_pkt->dst_addr);
 		device_memory_addr = le64_to_cpu(user_dma_pkt->src_addr);
 		break;
 	default:
-		dev_err(hdev->dev, "DMA direction is undefined\n");
+		dev_err(hdev->dev, "DMA direction %d is unsupported/undefined\n", user_dir);
 		return -EFAULT;
 	}
 
@@ -3505,14 +3505,14 @@ static int goya_validate_dma_pkt_no_host(struct hl_device *hdev,
 				struct packet_lin_dma *user_dma_pkt)
 {
 	u64 sram_memory_addr, dram_memory_addr;
-	enum goya_dma_direction user_dir;
+	enum hl_goya_dma_direction user_dir;
 	u32 ctl;
 
 	ctl = le32_to_cpu(user_dma_pkt->ctl);
 	user_dir = (ctl & GOYA_PKT_LIN_DMA_CTL_DMA_DIR_MASK) >>
 			GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT;
 
-	if (user_dir == DMA_DRAM_TO_SRAM) {
+	if (user_dir == HL_DMA_DRAM_TO_SRAM) {
 		dev_dbg(hdev->dev, "DMA direction is DRAM --> SRAM\n");
 		dram_memory_addr = le64_to_cpu(user_dma_pkt->src_addr);
 		sram_memory_addr = le64_to_cpu(user_dma_pkt->dst_addr);
@@ -3549,7 +3549,7 @@ static int goya_validate_dma_pkt_no_mmu(struct hl_device *hdev,
 				struct hl_cs_parser *parser,
 				struct packet_lin_dma *user_dma_pkt)
 {
-	enum goya_dma_direction user_dir;
+	enum hl_goya_dma_direction user_dir;
 	u32 ctl;
 	int rc;
 
@@ -3574,7 +3574,7 @@ static int goya_validate_dma_pkt_no_mmu(struct hl_device *hdev,
 		return -EINVAL;
 	}
 
-	if ((user_dir == DMA_DRAM_TO_SRAM) || (user_dir == DMA_SRAM_TO_DRAM))
+	if ((user_dir == HL_DMA_DRAM_TO_SRAM) || (user_dir == HL_DMA_SRAM_TO_DRAM))
 		rc = goya_validate_dma_pkt_no_host(hdev, parser, user_dma_pkt);
 	else
 		rc = goya_validate_dma_pkt_host(hdev, parser, user_dma_pkt);
@@ -3781,7 +3781,7 @@ static int goya_patch_dma_packet(struct hl_device *hdev,
 	u32 count, dma_desc_cnt;
 	u64 len, len_next;
 	dma_addr_t dma_addr, dma_addr_next;
-	enum goya_dma_direction user_dir;
+	enum hl_goya_dma_direction user_dir;
 	u64 device_memory_addr, addr;
 	enum dma_data_direction dir;
 	struct sg_table *sgt;
@@ -3797,14 +3797,14 @@ static int goya_patch_dma_packet(struct hl_device *hdev,
 	user_memset = (ctl & GOYA_PKT_LIN_DMA_CTL_MEMSET_MASK) >>
 			GOYA_PKT_LIN_DMA_CTL_MEMSET_SHIFT;
 
-	if ((user_dir == DMA_DRAM_TO_SRAM) || (user_dir == DMA_SRAM_TO_DRAM) ||
+	if ((user_dir == HL_DMA_DRAM_TO_SRAM) || (user_dir == HL_DMA_SRAM_TO_DRAM) ||
 			(user_dma_pkt->tsize == 0)) {
 		memcpy(new_dma_pkt, user_dma_pkt, sizeof(*new_dma_pkt));
 		*new_dma_pkt_size = sizeof(*new_dma_pkt);
 		return 0;
 	}
 
-	if ((user_dir == DMA_HOST_TO_DRAM) || (user_dir == DMA_HOST_TO_SRAM)) {
+	if ((user_dir == HL_DMA_HOST_TO_DRAM) || (user_dir == HL_DMA_HOST_TO_SRAM)) {
 		addr = le64_to_cpu(user_dma_pkt->src_addr);
 		device_memory_addr = le64_to_cpu(user_dma_pkt->dst_addr);
 		dir = DMA_TO_DEVICE;
@@ -4804,7 +4804,7 @@ static int goya_memset_device_memory(struct hl_device *hdev, u64 addr, u64 size,
 				(1 << GOYA_PKT_LIN_DMA_CTL_WO_SHIFT) |
 				(1 << GOYA_PKT_CTL_RB_SHIFT) |
 				(1 << GOYA_PKT_CTL_MB_SHIFT));
-		ctl |= (is_dram ? DMA_HOST_TO_DRAM : DMA_HOST_TO_SRAM) <<
+		ctl |= (is_dram ? HL_DMA_HOST_TO_DRAM : HL_DMA_HOST_TO_SRAM) <<
 				GOYA_PKT_LIN_DMA_CTL_DMA_DIR_SHIFT;
 		lin_dma_pkt->ctl = cpu_to_le32(ctl);
 
