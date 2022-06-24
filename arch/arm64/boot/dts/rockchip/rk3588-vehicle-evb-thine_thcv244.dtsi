@@ -1,0 +1,133 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+&mipi_dcphy0 {
+	status = "okay";
+};
+
+&csi2_dcphy0 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi_dcphy0_in: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&thcv244_out>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			csidcphy0_out: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&mipi0_csi2_input>;
+			};
+		};
+	};
+};
+
+&i2c8 {
+	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c8m2_xfer>;
+
+	thcv244: thcv244@b {
+		compatible = "thine,thcv244";
+		status = "okay";
+		reg = <0xb>;
+		// clocks = <&cru CLK_MIPI_CAMARAOUT_M1>;
+		// clock-names = "xvclk";
+		// power-domains = <&power RK3588_PD_VI>;
+		// pinctrl-names = "default";
+		// pinctrl-0 = <&mipim0_camera1_clk>;
+		// rockchip,grf = <&sys_grf>;
+		/*power-gpios = <&gpio3 RK_PC6 GPIO_ACTIVE_HIGH>;*/
+		// reset-gpios = <&gpio3 RK_PA0 GPIO_ACTIVE_HIGH>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "thcv244";
+		rockchip,camera-module-lens-name = "thcv244";
+
+		port {
+			thcv244_out: endpoint {
+				remote-endpoint = <&mipi_dcphy0_in>;
+				data-lanes = <1 2 3 4>;
+			};
+		};
+	};
+};
+
+&mipi0_csi2 {
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_input: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&csidcphy0_out>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			mipi0_csi2_output: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&cif_mipi0_in>;
+			};
+		};
+	};
+};
+
+&rkcif_mipi_lvds {
+	status = "okay";
+	/* parameters for do cif reset detecting:
+	 * index0: monitor mode,
+		   0 for idle,
+		   1 for continue,
+		   2 for trigger,
+		   3 for hotplug (for nextchip)
+	 * index1: the frame id to start timer,
+		   min is 2
+	 * index2: frame num of monitoring cycle
+	 * index3: err time for keep monitoring
+		   after finding out err (ms)
+	 * index4: csi2 err reference val for resetting
+	 */
+	rockchip,cif-monitor = <3 2 1 1000 5>;
+
+	port {
+		cif_mipi0_in: endpoint {
+			remote-endpoint = <&mipi0_csi2_output>;
+		};
+	};
+};
+
+&rkcif {
+	status = "okay";
+};
+
+&rkcif_mmu {
+	status = "okay";
+};
