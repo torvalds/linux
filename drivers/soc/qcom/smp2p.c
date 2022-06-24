@@ -261,11 +261,7 @@ static void qcom_smp2p_notify_in(struct qcom_smp2p *smp2p)
 			    (!(val & BIT(i)) && test_bit(i, entry->irq_falling))) {
 				irq_pin = irq_find_mapping(entry->domain, i);
 				handle_nested_irq(irq_pin);
-
-				if (test_bit(i, entry->irq_enabled))
-					clear_bit(i, entry->irq_pending);
-				else
-					set_bit(i, entry->irq_pending);
+				clear_bit(i, entry->irq_pending);
 			}
 		}
 	}
@@ -354,11 +350,22 @@ static int smp2p_set_irq_type(struct irq_data *irqd, unsigned int type)
 	return 0;
 }
 
+static int smp2p_retrigger_irq(struct irq_data *irqd)
+{
+	struct smp2p_entry *entry = irq_data_get_irq_chip_data(irqd);
+	irq_hw_number_t irq = irqd_to_hwirq(irqd);
+
+	set_bit(irq, entry->irq_pending);
+
+	return 0;
+}
+
 static struct irq_chip smp2p_irq_chip = {
 	.name           = "smp2p",
 	.irq_mask       = smp2p_mask_irq,
 	.irq_unmask     = smp2p_unmask_irq,
 	.irq_set_type	= smp2p_set_irq_type,
+	.irq_retrigger	= smp2p_retrigger_irq,
 };
 
 static int smp2p_irq_map(struct irq_domain *d,
