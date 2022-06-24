@@ -179,31 +179,20 @@ SYM_CODE_END(preserve_boot_args)
  *	vstart:	virtual address of start of range
  *	vend:	virtual address of end of range - we map [vstart, vend]
  *	shift:	shift used to transform virtual address into index
- *	ptrs:	number of entries in page table
+ *	order:  #imm 2log(number of entries in page table)
  *	istart:	index in table corresponding to vstart
  *	iend:	index in table corresponding to vend
  *	count:	On entry: how many extra entries were required in previous level, scales
  *			  our end index.
  *		On exit: returns how many extra entries required for next page table level
  *
- * Preserves:	vstart, vend, shift, ptrs
+ * Preserves:	vstart, vend
  * Returns:	istart, iend, count
  */
-	.macro compute_indices, vstart, vend, shift, ptrs, istart, iend, count
-	lsr	\iend, \vend, \shift
-	mov	\istart, \ptrs
-	sub	\istart, \istart, #1
-	and	\iend, \iend, \istart	// iend = (vend >> shift) & (ptrs - 1)
-	mov	\istart, \ptrs
-	mul	\istart, \istart, \count
-	add	\iend, \iend, \istart	// iend += count * ptrs
-					// our entries span multiple tables
-
-	lsr	\istart, \vstart, \shift
-	mov	\count, \ptrs
-	sub	\count, \count, #1
-	and	\istart, \istart, \count
-
+	.macro compute_indices, vstart, vend, shift, order, istart, iend, count
+	ubfx	\istart, \vstart, \shift, \order
+	ubfx	\iend, \vend, \shift, \order
+	add	\iend, \iend, \count, lsl \order
 	sub	\count, \iend, \istart
 	.endm
 
@@ -218,38 +207,39 @@ SYM_CODE_END(preserve_boot_args)
  *	vend:	virtual address of end of range - we map [vstart, vend - 1]
  *	flags:	flags to use to map last level entries
  *	phys:	physical address corresponding to vstart - physical memory is contiguous
- *	pgds:	the number of pgd entries
+ *	order:  #imm 2log(number of entries in PGD table)
  *
  * Temporaries:	istart, iend, tmp, count, sv - these need to be different registers
  * Preserves:	vstart, flags
  * Corrupts:	tbl, rtbl, vend, istart, iend, tmp, count, sv
  */
-	.macro map_memory, tbl, rtbl, vstart, vend, flags, phys, pgds, istart, iend, tmp, count, sv
+	.macro map_memory, tbl, rtbl, vstart, vend, flags, phys, order, istart, iend, tmp, count, sv
 	sub \vend, \vend, #1
 	add \rtbl, \tbl, #PAGE_SIZE
-	mov \sv, \rtbl
 	mov \count, #0
-	compute_indices \vstart, \vend, #PGDIR_SHIFT, \pgds, \istart, \iend, \count
+
+	compute_indices \vstart, \vend, #PGDIR_SHIFT, #\order, \istart, \iend, \count
+	mov \sv, \rtbl
 	populate_entries \tbl, \rtbl, \istart, \iend, #PMD_TYPE_TABLE, #PAGE_SIZE, \tmp
 	mov \tbl, \sv
-	mov \sv, \rtbl
 
 #if SWAPPER_PGTABLE_LEVELS > 3
-	compute_indices \vstart, \vend, #PUD_SHIFT, #PTRS_PER_PUD, \istart, \iend, \count
+	compute_indices \vstart, \vend, #PUD_SHIFT, #(PAGE_SHIFT - 3), \istart, \iend, \count
+	mov \sv, \rtbl
 	populate_entries \tbl, \rtbl, \istart, \iend, #PMD_TYPE_TABLE, #PAGE_SIZE, \tmp
 	mov \tbl, \sv
-	mov \sv, \rtbl
 #endif
 
 #if SWAPPER_PGTABLE_LEVELS > 2
-	compute_indices \vstart, \vend, #SWAPPER_TABLE_SHIFT, #PTRS_PER_PMD, \istart, \iend, \count
+	compute_indices \vstart, \vend, #SWAPPER_TABLE_SHIFT, #(PAGE_SHIFT - 3), \istart, \iend, \count
+	mov \sv, \rtbl
 	populate_entries \tbl, \rtbl, \istart, \iend, #PMD_TYPE_TABLE, #PAGE_SIZE, \tmp
 	mov \tbl, \sv
 #endif
 
-	compute_indices \vstart, \vend, #SWAPPER_BLOCK_SHIFT, #PTRS_PER_PTE, \istart, \iend, \count
-	bic \count, \phys, #SWAPPER_BLOCK_SIZE - 1
-	populate_entries \tbl, \count, \istart, \iend, \flags, #SWAPPER_BLOCK_SIZE, \tmp
+	compute_indices \vstart, \vend, #SWAPPER_BLOCK_SHIFT, #(PAGE_SHIFT - 3), \istart, \iend, \count
+	bic \rtbl, \phys, #SWAPPER_BLOCK_SIZE - 1
+	populate_entries \tbl, \rtbl, \istart, \iend, \flags, #SWAPPER_BLOCK_SIZE, \tmp
 	.endm
 
 /*
@@ -300,12 +290,12 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 	 * range in that case, and configure an additional translation level
 	 * if needed.
 	 */
-	mov	x4, #PTRS_PER_PGD
 	idmap_get_t0sz x5
 	cmp	x5, TCR_T0SZ(VA_BITS_MIN) // default T0SZ small enough?
 	b.ge	1f			// .. then skip VA range extension
 
 #if (VA_BITS < 48)
+#define IDMAP_PGD_ORDER	(VA_BITS - PGDIR_SHIFT)
 #define EXTRA_SHIFT	(PGDIR_SHIFT + PAGE_SHIFT - 3)
 #define EXTRA_PTRS	(1 << (PHYS_MASK_SHIFT - EXTRA_SHIFT))
 
@@ -323,16 +313,16 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 	mov	x2, EXTRA_PTRS
 	create_table_entry x0, x3, EXTRA_SHIFT, x2, x5, x6
 #else
+#define IDMAP_PGD_ORDER	(PHYS_MASK_SHIFT - PGDIR_SHIFT)
 	/*
 	 * If VA_BITS == 48, we don't have to configure an additional
 	 * translation level, but the top-level table has more entries.
 	 */
-	mov	x4, #1 << (PHYS_MASK_SHIFT - PGDIR_SHIFT)
 #endif
 1:
 	adr_l	x6, __idmap_text_end		// __pa(__idmap_text_end)
 
-	map_memory x0, x1, x3, x6, x7, x3, x4, x10, x11, x12, x13, x14
+	map_memory x0, x1, x3, x6, x7, x3, IDMAP_PGD_ORDER, x10, x11, x12, x13, x14
 
 	/*
 	 * Map the kernel image (starting with PHYS_OFFSET).
@@ -340,13 +330,12 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 	adrp	x0, init_pg_dir
 	mov_q	x5, KIMAGE_VADDR		// compile time __va(_text)
 	add	x5, x5, x23			// add KASLR displacement
-	mov	x4, PTRS_PER_PGD
 	adrp	x6, _end			// runtime __pa(_end)
 	adrp	x3, _text			// runtime __pa(_text)
 	sub	x6, x6, x3			// _end - _text
 	add	x6, x6, x5			// runtime __va(_end)
 
-	map_memory x0, x1, x5, x6, x7, x3, x4, x10, x11, x12, x13, x14
+	map_memory x0, x1, x5, x6, x7, x3, (VA_BITS - PGDIR_SHIFT), x10, x11, x12, x13, x14
 
 	/*
 	 * Since the page tables have been populated with non-cacheable
