@@ -84,7 +84,7 @@
 	 *  Register   Scope                      Purpose
 	 *  x21        primary_entry() .. start_kernel()        FDT pointer passed at boot in x0
 	 *  x23        primary_entry() .. start_kernel()        physical misalignment/KASLR offset
-	 *  x28        __create_page_tables()                   callee preserved temp register
+	 *  x28        clear_page_tables()                      callee preserved temp register
 	 *  x19/x20    __primary_switch()                       callee preserved temp registers
 	 *  x24        __primary_switch() .. relocate_kernel()  current RELR displacement
 	 */
@@ -94,7 +94,10 @@ SYM_CODE_START(primary_entry)
 	adrp	x23, __PHYS_OFFSET
 	and	x23, x23, MIN_KIMG_ALIGN - 1	// KASLR offset, defaults to 0
 	bl	set_cpu_boot_mode_flag
-	bl	__create_page_tables
+	bl	clear_page_tables
+	bl	create_idmap
+	bl	create_kernel_mapping
+
 	/*
 	 * The following calls CPU setup code, see arch/arm64/mm/proc.S for
 	 * details.
@@ -121,6 +124,35 @@ SYM_CODE_START_LOCAL(preserve_boot_args)
 	add	x1, x0, #0x20			// 4 x 8 bytes
 	b	dcache_inval_poc		// tail call
 SYM_CODE_END(preserve_boot_args)
+
+SYM_FUNC_START_LOCAL(clear_page_tables)
+	mov	x28, lr
+
+	/*
+	 * Invalidate the init page tables to avoid potential dirty cache lines
+	 * being evicted. Other page tables are allocated in rodata as part of
+	 * the kernel image, and thus are clean to the PoC per the boot
+	 * protocol.
+	 */
+	adrp	x0, init_pg_dir
+	adrp	x1, init_pg_end
+	bl	dcache_inval_poc
+
+	/*
+	 * Clear the init page tables.
+	 */
+	adrp	x0, init_pg_dir
+	adrp	x1, init_pg_end
+	sub	x1, x1, x0
+1:	stp	xzr, xzr, [x0], #16
+	stp	xzr, xzr, [x0], #16
+	stp	xzr, xzr, [x0], #16
+	stp	xzr, xzr, [x0], #16
+	subs	x1, x1, #64
+	b.ne	1b
+
+	ret	x28
+SYM_FUNC_END(clear_page_tables)
 
 /*
  * Macro to populate page table entries, these entries can be pointers to the next level
@@ -231,44 +263,8 @@ SYM_CODE_END(preserve_boot_args)
 	populate_entries \tbl, \rtbl, \istart, \iend, \flags, #SWAPPER_BLOCK_SIZE, \tmp
 	.endm
 
-/*
- * Setup the initial page tables. We only setup the barest amount which is
- * required to get the kernel running. The following sections are required:
- *   - identity mapping to enable the MMU (low address, TTBR0)
- *   - first few MB of the kernel linear mapping to jump to once the MMU has
- *     been enabled
- */
-SYM_FUNC_START_LOCAL(__create_page_tables)
-	mov	x28, lr
 
-	/*
-	 * Invalidate the init page tables to avoid potential dirty cache lines
-	 * being evicted. Other page tables are allocated in rodata as part of
-	 * the kernel image, and thus are clean to the PoC per the boot
-	 * protocol.
-	 */
-	adrp	x0, init_pg_dir
-	adrp	x1, init_pg_end
-	bl	dcache_inval_poc
-
-	/*
-	 * Clear the init page tables.
-	 */
-	adrp	x0, init_pg_dir
-	adrp	x1, init_pg_end
-	sub	x1, x1, x0
-1:	stp	xzr, xzr, [x0], #16
-	stp	xzr, xzr, [x0], #16
-	stp	xzr, xzr, [x0], #16
-	stp	xzr, xzr, [x0], #16
-	subs	x1, x1, #64
-	b.ne	1b
-
-	mov	x7, SWAPPER_MM_MMUFLAGS
-
-	/*
-	 * Create the identity mapping.
-	 */
+SYM_FUNC_START_LOCAL(create_idmap)
 	adrp	x0, idmap_pg_dir
 	adrp	x3, __idmap_text_start		// __pa(__idmap_text_start)
 
@@ -319,21 +315,9 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 	 */
 #endif
 	adr_l	x6, __idmap_text_end		// __pa(__idmap_text_end)
+	mov	x7, SWAPPER_MM_MMUFLAGS
 
 	map_memory x0, x1, x3, x6, x7, x3, IDMAP_PGD_ORDER, x10, x11, x12, x13, x14, EXTRA_SHIFT
-
-	/*
-	 * Map the kernel image (starting with PHYS_OFFSET).
-	 */
-	adrp	x0, init_pg_dir
-	mov_q	x5, KIMAGE_VADDR		// compile time __va(_text)
-	add	x5, x5, x23			// add KASLR displacement
-	adrp	x6, _end			// runtime __pa(_end)
-	adrp	x3, _text			// runtime __pa(_text)
-	sub	x6, x6, x3			// _end - _text
-	add	x6, x6, x5			// runtime __va(_end)
-
-	map_memory x0, x1, x5, x6, x7, x3, (VA_BITS - PGDIR_SHIFT), x10, x11, x12, x13, x14
 
 	/*
 	 * Since the page tables have been populated with non-cacheable
@@ -344,14 +328,32 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 
 	adrp	x0, idmap_pg_dir
 	adrp	x1, idmap_pg_end
-	bl	dcache_inval_poc
+	b	dcache_inval_poc		// tail call
+SYM_FUNC_END(create_idmap)
+
+SYM_FUNC_START_LOCAL(create_kernel_mapping)
+	adrp	x0, init_pg_dir
+	mov_q	x5, KIMAGE_VADDR		// compile time __va(_text)
+	add	x5, x5, x23			// add KASLR displacement
+	adrp	x6, _end			// runtime __pa(_end)
+	adrp	x3, _text			// runtime __pa(_text)
+	sub	x6, x6, x3			// _end - _text
+	add	x6, x6, x5			// runtime __va(_end)
+	mov	x7, SWAPPER_MM_MMUFLAGS
+
+	map_memory x0, x1, x5, x6, x7, x3, (VA_BITS - PGDIR_SHIFT), x10, x11, x12, x13, x14
+
+	/*
+	 * Since the page tables have been populated with non-cacheable
+	 * accesses (MMU disabled), invalidate those tables again to
+	 * remove any speculatively loaded cache lines.
+	 */
+	dmb	sy
 
 	adrp	x0, init_pg_dir
 	adrp	x1, init_pg_end
-	bl	dcache_inval_poc
-
-	ret	x28
-SYM_FUNC_END(__create_page_tables)
+	b	dcache_inval_poc		// tail call
+SYM_FUNC_END(create_kernel_mapping)
 
 	/*
 	 * Initialize CPU registers with task-specific and cpu-specific context.
@@ -836,7 +838,8 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 	pre_disable_mmu_workaround
 	msr	sctlr_el1, x20			// disable the MMU
 	isb
-	bl	__create_page_tables		// recreate kernel mapping
+	bl	clear_page_tables
+	bl	create_kernel_mapping		// Recreate kernel mapping
 
 	tlbi	vmalle1				// Remove any stale TLB entries
 	dsb	nsh
