@@ -86,15 +86,13 @@
 	 *  x21        primary_entry() .. start_kernel()        FDT pointer passed at boot in x0
 	 *  x22        create_idmap() .. start_kernel()         ID map VA of the DT blob
 	 *  x23        primary_entry() .. start_kernel()        physical misalignment/KASLR offset
-	 *  x24        __primary_switch() .. relocate_kernel()  current RELR displacement
+	 *  x24        __primary_switch()                       linear map KASLR seed
 	 *  x28        create_idmap()                           callee preserved temp register
 	 */
 SYM_CODE_START(primary_entry)
 	bl	preserve_boot_args
 	bl	init_kernel_el			// w0=cpu_boot_mode
 	mov	x20, x0
-	adrp	x23, __PHYS_OFFSET
-	and	x23, x23, MIN_KIMG_ALIGN - 1	// KASLR offset, defaults to 0
 	bl	create_idmap
 
 	/*
@@ -441,6 +439,10 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 	bl	__pi_memset
 	dsb	ishst				// Make zero page visible to PTW
 
+#ifdef CONFIG_RANDOMIZE_BASE
+	adrp	x5, memstart_offset_seed	// Save KASLR linear map seed
+	strh	w24, [x5, :lo12:memstart_offset_seed]
+#endif
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 	bl	kasan_early_init
 #endif
@@ -448,16 +450,6 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 	bl	early_fdt_map			// Try mapping the FDT early
 	mov	x0, x22				// pass FDT address in x0
 	bl	init_feature_override		// Parse cpu feature overrides
-#ifdef CONFIG_RANDOMIZE_BASE
-	tst	x23, ~(MIN_KIMG_ALIGN - 1)	// already running randomized?
-	b.ne	0f
-	bl	kaslr_early_init		// parse FDT for KASLR options
-	cbz	x0, 0f				// KASLR disabled? just proceed
-	orr	x23, x23, x0			// record KASLR offset
-	ldp	x29, x30, [sp], #16		// we must enable KASLR, return
-	ret					// to __primary_switch()
-0:
-#endif
 	mov	x0, x20
 	bl	switch_to_vhe			// Prefer VHE if possible
 	ldp	x29, x30, [sp], #16
@@ -759,19 +751,9 @@ SYM_FUNC_START_LOCAL(__relocate_kernel)
 	 * entry in x9, the address being relocated by the current address or
 	 * bitmap entry in x13 and the address being relocated by the current
 	 * bit in x14.
-	 *
-	 * Because addends are stored in place in the binary, RELR relocations
-	 * cannot be applied idempotently. We use x24 to keep track of the
-	 * currently applied displacement so that we can correctly relocate if
-	 * __relocate_kernel is called twice with non-zero displacements (i.e.
-	 * if there is both a physical misalignment and a KASLR displacement).
 	 */
 	adr_l	x9, __relr_start
 	adr_l	x10, __relr_end
-
-	sub	x15, x23, x24			// delta from previous offset
-	cbz	x15, 7f				// nothing to do if unchanged
-	mov	x24, x23			// save new offset
 
 2:	cmp	x9, x10
 	b.hs	7f
@@ -779,7 +761,7 @@ SYM_FUNC_START_LOCAL(__relocate_kernel)
 	tbnz	x11, #0, 3f			// branch to handle bitmaps
 	add	x13, x11, x23
 	ldr	x12, [x13]			// relocate address entry
-	add	x12, x12, x15
+	add	x12, x12, x23
 	str	x12, [x13], #8			// adjust to start of bitmap
 	b	2b
 
@@ -788,7 +770,7 @@ SYM_FUNC_START_LOCAL(__relocate_kernel)
 	cbz	x11, 6f
 	tbz	x11, #0, 5f			// skip bit if not set
 	ldr	x12, [x14]			// relocate bit
-	add	x12, x12, x15
+	add	x12, x12, x23
 	str	x12, [x14]
 
 5:	add	x14, x14, #8			// move to next bit's address
@@ -812,40 +794,27 @@ SYM_FUNC_START_LOCAL(__primary_switch)
 	adrp	x1, reserved_pg_dir
 	adrp	x2, init_idmap_pg_dir
 	bl	__enable_mmu
-
+#ifdef CONFIG_RELOCATABLE
+	adrp	x23, __PHYS_OFFSET
+	and	x23, x23, MIN_KIMG_ALIGN - 1
+#ifdef CONFIG_RANDOMIZE_BASE
+	mov	x0, x22
+	adrp	x1, init_pg_end
+	mov	sp, x1
+	mov	x29, xzr
+	bl	__pi_kaslr_early_init
+	and	x24, x0, #SZ_2M - 1		// capture memstart offset seed
+	bic	x0, x0, #SZ_2M - 1
+	orr	x23, x23, x0			// record kernel offset
+#endif
+#endif
 	bl	clear_page_tables
 	bl	create_kernel_mapping
 
 	adrp	x1, init_pg_dir
 	load_ttbr1 x1, x1, x2
 #ifdef CONFIG_RELOCATABLE
-#ifdef CONFIG_RELR
-	mov	x24, #0				// no RELR displacement yet
-#endif
 	bl	__relocate_kernel
-#ifdef CONFIG_RANDOMIZE_BASE
-	ldr	x8, =__primary_switched
-	adrp	x0, __PHYS_OFFSET
-	blr	x8
-
-	/*
-	 * If we return here, we have a KASLR displacement in x23 which we need
-	 * to take into account by discarding the current kernel mapping and
-	 * creating a new one.
-	 */
-	adrp	x1, reserved_pg_dir		// Disable translations via TTBR1
-	load_ttbr1 x1, x1, x2
-	bl	clear_page_tables
-	bl	create_kernel_mapping		// Recreate kernel mapping
-
-	tlbi	vmalle1				// Remove any stale TLB entries
-	dsb	nsh
-	isb
-
-	adrp	x1, init_pg_dir			// Re-enable translations via TTBR1
-	load_ttbr1 x1, x1, x2
-	bl	__relocate_kernel
-#endif
 #endif
 	ldr	x8, =__primary_switched
 	adrp	x0, __PHYS_OFFSET

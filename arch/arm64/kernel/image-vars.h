@@ -41,6 +41,10 @@ __efistub_dcache_clean_poc = __pi_dcache_clean_poc;
 __efistub___memcpy		= __pi_memcpy;
 __efistub___memmove		= __pi_memmove;
 __efistub___memset		= __pi_memset;
+
+__pi___memcpy			= __pi_memcpy;
+__pi___memmove			= __pi_memmove;
+__pi___memset			= __pi_memset;
 #endif
 
 __efistub__text			= _text;
