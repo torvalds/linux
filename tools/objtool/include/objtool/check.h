@@ -46,18 +46,19 @@ struct instruction {
 	enum insn_type type;
 	unsigned long immediate;
 
-	u8 dead_end	: 1,
-	   ignore	: 1,
-	   ignore_alts	: 1,
-	   hint		: 1,
-	   retpoline_safe : 1,
-	   noendbr	: 1,
-	   entry	: 1;
-		/* 1 bit hole */
+	u16 dead_end		: 1,
+	   ignore		: 1,
+	   ignore_alts		: 1,
+	   hint			: 1,
+	   save			: 1,
+	   restore		: 1,
+	   retpoline_safe	: 1,
+	   noendbr		: 1,
+	   entry		: 1;
+		/* 7 bit hole */
 
 	s8 instr;
 	u8 visited;
-	/* u8 hole */
 
 	struct alt_group *alt_group;
 	struct symbol *call_dest;
