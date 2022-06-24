@@ -361,7 +361,6 @@ enum ieee80211_sta_flags {
 	IEEE80211_STA_MFP_ENABLED	= BIT(6),
 	IEEE80211_STA_UAPSD_ENABLED	= BIT(7),
 	IEEE80211_STA_NULLFUNC_ACKED	= BIT(8),
-	IEEE80211_STA_RESET_SIGNAL_AVE	= BIT(9),
 	IEEE80211_STA_DISABLE_WMM	= BIT(14),
 	IEEE80211_STA_ENABLE_RRM	= BIT(15),
 };
@@ -885,6 +884,7 @@ struct ieee80211_link_data_managed {
 	s16 p2p_noa_index;
 
 	bool have_beacon;
+	bool tracking_signal_avg;
 
 	bool csa_waiting_bcn;
 	bool csa_ignored_same_chan;

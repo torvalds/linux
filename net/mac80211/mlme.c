@@ -2317,8 +2317,6 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 
 	ieee80211_check_rate_mask(sdata);
 
-	sdata->u.mgd.flags |= IEEE80211_STA_RESET_SIGNAL_AVE;
-
 	if (sdata->vif.p2p ||
 	    sdata->vif.driver_flags & IEEE80211_VIF_GET_NOA_UPDATE) {
 		const struct cfg80211_bss_ies *ies;
@@ -2523,6 +2521,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.beacon_rate = NULL;
 
 	sdata->deflink.u.mgd.have_beacon = false;
+	sdata->deflink.u.mgd.tracking_signal_avg = false;
 
 	ifmgd->flags = 0;
 	sdata->deflink.u.mgd.conn_flags = 0;
@@ -4052,8 +4051,8 @@ static void ieee80211_handle_beacon_sig(struct ieee80211_sub_if_data *sdata,
 {
 	/* Track average RSSI from the Beacon frames of the current AP */
 
-	if (ifmgd->flags & IEEE80211_STA_RESET_SIGNAL_AVE) {
-		ifmgd->flags &= ~IEEE80211_STA_RESET_SIGNAL_AVE;
+	if (!sdata->deflink.u.mgd.tracking_signal_avg) {
+		sdata->deflink.u.mgd.tracking_signal_avg = true;
 		ewma_beacon_signal_init(&sdata->deflink.u.mgd.ave_beacon_signal);
 		sdata->deflink.u.mgd.last_cqm_event_signal = 0;
 		sdata->deflink.u.mgd.count_beacon_signal = 1;
