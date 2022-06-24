@@ -677,8 +677,7 @@ static void dw_pcie_iatu_detect_regions(struct dw_pcie *pci)
 
 void dw_pcie_iatu_detect(struct dw_pcie *pci)
 {
-	struct device *dev = pci->dev;
-	struct platform_device *pdev = to_platform_device(dev);
+	struct platform_device *pdev = to_platform_device(pci->dev);
 
 	pci->iatu_unroll_enabled = dw_pcie_iatu_unroll_enabled(pci);
 	if (pci->iatu_unroll_enabled) {
@@ -687,7 +686,7 @@ void dw_pcie_iatu_detect(struct dw_pcie *pci)
 				platform_get_resource_byname(pdev, IORESOURCE_MEM, "atu");
 			if (res) {
 				pci->atu_size = resource_size(res);
-				pci->atu_base = devm_ioremap_resource(dev, res);
+				pci->atu_base = devm_ioremap_resource(pci->dev, res);
 			}
 			if (!pci->atu_base || IS_ERR(pci->atu_base))
 				pci->atu_base = pci->dbi_base + DEFAULT_DBI_ATU_OFFSET;
@@ -711,9 +710,8 @@ void dw_pcie_iatu_detect(struct dw_pcie *pci)
 
 void dw_pcie_setup(struct dw_pcie *pci)
 {
+	struct device_node *np = pci->dev->of_node;
 	u32 val;
-	struct device *dev = pci->dev;
-	struct device_node *np = dev->of_node;
 
 	if (pci->link_gen > 0)
 		dw_pcie_link_set_max_speed(pci, pci->link_gen);
