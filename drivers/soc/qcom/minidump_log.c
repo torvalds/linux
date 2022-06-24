@@ -1159,7 +1159,6 @@ static void md_register_panic_data(void)
 	md_register_memory_dump(md_dma_buf_procs_size, "DMABUF_PROCS");
 	md_debugfs_dmabufprocs(minidump_dir);
 }
-#endif
 
 static int register_vmap_mem(const char *name, void *virual_addr, size_t dump_len)
 {
@@ -1281,6 +1280,7 @@ static void md_register_module_data(void)
 
 	android_debug_for_each_module(md_get_present_module, NULL);
 }
+#endif
 
 #ifdef CONFIG_QCOM_MINIDUMP_PSTORE
 static void register_pstore_info(void)
@@ -1384,8 +1384,8 @@ int msm_minidump_log_init(void)
 #ifdef CONFIG_QCOM_MINIDUMP_FTRACE
 	md_register_trace_buf();
 #endif
-	md_register_module_data();
 #ifdef CONFIG_QCOM_MINIDUMP_PANIC_DUMP
+	md_register_module_data();
 	md_register_panic_data();
 	atomic_notifier_chain_register(&panic_notifier_list, &md_panic_blk);
 #ifdef CONFIG_QCOM_MINIDUMP_PANIC_CPU_CONTEXT
