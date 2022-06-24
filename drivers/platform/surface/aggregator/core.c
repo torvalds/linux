@@ -7,7 +7,7 @@
  * Handles communication via requests as well as enabling, disabling, and
  * relaying of events.
  *
- * Copyright (C) 2019-2021 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2019-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <linux/acpi.h>

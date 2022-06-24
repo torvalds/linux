@@ -6,7 +6,7 @@
  * cannot be auto-detected. Provides device-hubs and performs instantiation
  * for these devices.
  *
- * Copyright (C) 2020-2021 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2020-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #include <linux/acpi.h>

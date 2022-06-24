@@ -4,7 +4,7 @@
  * properly configuring the respective GPEs. Required for wakeup via lid on
  * newer Intel-based Microsoft Surface devices.
  *
- * Copyright (C) 2020 Maximilian Luz <luzmaximilian@gmail.com>
+ * Copyright (C) 2020-2022 Maximilian Luz <luzmaximilian@gmail.com>
  */
 
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
