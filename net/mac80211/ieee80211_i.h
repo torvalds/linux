@@ -448,9 +448,7 @@ struct ieee80211_if_managed {
 	struct timer_list timer;
 	struct timer_list conn_mon_timer;
 	struct timer_list bcn_mon_timer;
-	struct timer_list chswitch_timer;
 	struct work_struct monitor_work;
-	struct work_struct chswitch_work;
 	struct work_struct beacon_connection_loss_work;
 	struct work_struct csa_connection_drop_work;
 
@@ -888,6 +886,8 @@ struct ieee80211_link_data_managed {
 
 	bool csa_waiting_bcn;
 	bool csa_ignored_same_chan;
+	struct timer_list chswitch_timer;
+	struct work_struct chswitch_work;
 
 	struct work_struct request_smps_work;
 	bool beacon_crc_valid;

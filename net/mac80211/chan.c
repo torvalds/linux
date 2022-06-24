@@ -1188,7 +1188,7 @@ ieee80211_link_chanctx_reservation_complete(struct ieee80211_link_data *link)
 		break;
 	case NL80211_IFTYPE_STATION:
 		ieee80211_queue_work(&sdata->local->hw,
-				     &sdata->u.mgd.chswitch_work);
+				     &link->u.mgd.chswitch_work);
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_AP_VLAN:
