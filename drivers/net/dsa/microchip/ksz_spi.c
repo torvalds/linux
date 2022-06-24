@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * Microchip KSZ8795 series register access through SPI
+ * Microchip ksz series register access through SPI
  *
  * Copyright (C) 2017 Microchip Technology Inc.
  *	Tristram Ha <Tristram.Ha@microchip.com>
@@ -25,13 +25,20 @@
 #define KSZ8863_SPI_ADDR_ALIGN			8
 #define KSZ8863_SPI_TURNAROUND_SHIFT		0
 
+#define KSZ9477_SPI_ADDR_SHIFT			24
+#define KSZ9477_SPI_ADDR_ALIGN			3
+#define KSZ9477_SPI_TURNAROUND_SHIFT		5
+
 KSZ_REGMAP_TABLE(ksz8795, 16, KSZ8795_SPI_ADDR_SHIFT,
 		 KSZ8795_SPI_TURNAROUND_SHIFT, KSZ8795_SPI_ADDR_ALIGN);
 
 KSZ_REGMAP_TABLE(ksz8863, 16, KSZ8863_SPI_ADDR_SHIFT,
 		 KSZ8863_SPI_TURNAROUND_SHIFT, KSZ8863_SPI_ADDR_ALIGN);
 
-static int ksz8795_spi_probe(struct spi_device *spi)
+KSZ_REGMAP_TABLE(ksz9477, 32, KSZ9477_SPI_ADDR_SHIFT,
+		 KSZ9477_SPI_TURNAROUND_SHIFT, KSZ9477_SPI_ADDR_ALIGN);
+
+static int ksz_spi_probe(struct spi_device *spi)
 {
 	const struct regmap_config *regmap_config;
 	const struct ksz_chip_data *chip;
@@ -57,8 +64,12 @@ static int ksz8795_spi_probe(struct spi_device *spi)
 
 	if (chip->chip_id == KSZ8830_CHIP_ID)
 		regmap_config = ksz8863_regmap_config;
-	else
+	else if (chip->chip_id == KSZ8795_CHIP_ID ||
+		 chip->chip_id == KSZ8794_CHIP_ID ||
+		 chip->chip_id == KSZ8765_CHIP_ID)
 		regmap_config = ksz8795_regmap_config;
+	else
+		regmap_config = ksz9477_regmap_config;
 
 	for (i = 0; i < ARRAY_SIZE(ksz8795_regmap_config); i++) {
 		rc = regmap_config[i];
@@ -82,7 +93,7 @@ static int ksz8795_spi_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	ret = ksz8_switch_register(dev);
+	ret = ksz_switch_register(dev);
 
 	/* Main DSA driver may not be started yet. */
 	if (ret)
@@ -93,7 +104,7 @@ static int ksz8795_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static void ksz8795_spi_remove(struct spi_device *spi)
+static void ksz_spi_remove(struct spi_device *spi)
 {
 	struct ksz_device *dev = spi_get_drvdata(spi);
 
@@ -103,22 +114,22 @@ static void ksz8795_spi_remove(struct spi_device *spi)
 	spi_set_drvdata(spi, NULL);
 }
 
-static void ksz8795_spi_shutdown(struct spi_device *spi)
+static void ksz_spi_shutdown(struct spi_device *spi)
 {
 	struct ksz_device *dev = spi_get_drvdata(spi);
 
 	if (!dev)
 		return;
 
-	if (dev->dev_ops->shutdown)
-		dev->dev_ops->shutdown(dev);
+	if (dev->dev_ops->reset)
+		dev->dev_ops->reset(dev);
 
 	dsa_switch_shutdown(dev->ds);
 
 	spi_set_drvdata(spi, NULL);
 }
 
-static const struct of_device_id ksz8795_dt_ids[] = {
+static const struct of_device_id ksz_dt_ids[] = {
 	{
 		.compatible = "microchip,ksz8765",
 		.data = &ksz_switch_chips[KSZ8765]
@@ -139,34 +150,70 @@ static const struct of_device_id ksz8795_dt_ids[] = {
 		.compatible = "microchip,ksz8873",
 		.data = &ksz_switch_chips[KSZ8830]
 	},
+	{
+		.compatible = "microchip,ksz9477",
+		.data = &ksz_switch_chips[KSZ9477]
+	},
+	{
+		.compatible = "microchip,ksz9897",
+		.data = &ksz_switch_chips[KSZ9897]
+	},
+	{
+		.compatible = "microchip,ksz9893",
+		.data = &ksz_switch_chips[KSZ9893]
+	},
+	{
+		.compatible = "microchip,ksz9563",
+		.data = &ksz_switch_chips[KSZ9893]
+	},
+	{
+		.compatible = "microchip,ksz8563",
+		.data = &ksz_switch_chips[KSZ9893]
+	},
+	{
+		.compatible = "microchip,ksz9567",
+		.data = &ksz_switch_chips[KSZ9567]
+	},
 	{},
 };
-MODULE_DEVICE_TABLE(of, ksz8795_dt_ids);
+MODULE_DEVICE_TABLE(of, ksz_dt_ids);
 
-static const struct spi_device_id ksz8795_spi_ids[] = {
+static const struct spi_device_id ksz_spi_ids[] = {
 	{ "ksz8765" },
 	{ "ksz8794" },
 	{ "ksz8795" },
 	{ "ksz8863" },
 	{ "ksz8873" },
+	{ "ksz9477" },
+	{ "ksz9897" },
+	{ "ksz9893" },
+	{ "ksz9563" },
+	{ "ksz8563" },
+	{ "ksz9567" },
 	{ },
 };
-MODULE_DEVICE_TABLE(spi, ksz8795_spi_ids);
+MODULE_DEVICE_TABLE(spi, ksz_spi_ids);
 
-static struct spi_driver ksz8795_spi_driver = {
+static struct spi_driver ksz_spi_driver = {
 	.driver = {
-		.name	= "ksz8795-switch",
+		.name	= "ksz-switch",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(ksz8795_dt_ids),
+		.of_match_table = of_match_ptr(ksz_dt_ids),
 	},
-	.id_table = ksz8795_spi_ids,
-	.probe	= ksz8795_spi_probe,
-	.remove	= ksz8795_spi_remove,
-	.shutdown = ksz8795_spi_shutdown,
+	.id_table = ksz_spi_ids,
+	.probe	= ksz_spi_probe,
+	.remove	= ksz_spi_remove,
+	.shutdown = ksz_spi_shutdown,
 };
 
-module_spi_driver(ksz8795_spi_driver);
+module_spi_driver(ksz_spi_driver);
 
+MODULE_ALIAS("spi:ksz9477");
+MODULE_ALIAS("spi:ksz9897");
+MODULE_ALIAS("spi:ksz9893");
+MODULE_ALIAS("spi:ksz9563");
+MODULE_ALIAS("spi:ksz8563");
+MODULE_ALIAS("spi:ksz9567");
 MODULE_AUTHOR("Tristram Ha <Tristram.Ha@microchip.com>");
-MODULE_DESCRIPTION("Microchip KSZ8795 Series Switch SPI Driver");
+MODULE_DESCRIPTION("Microchip ksz Series Switch SPI Driver");
 MODULE_LICENSE("GPL");

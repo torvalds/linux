@@ -16,7 +16,6 @@
 
 #define SW_REVISION_M			0x0E
 #define SW_REVISION_S			1
-#define SW_START			0x01
 
 #define KSZ8863_REG_SW_RESET		0x43
 
@@ -44,7 +43,6 @@
 #define REG_SW_CTRL_2			0x04
 
 #define UNICAST_VLAN_BOUNDARY		BIT(7)
-#define MULTICAST_STORM_DISABLE		BIT(6)
 #define SW_BACK_PRESSURE		BIT(5)
 #define FAIR_FLOW_CTRL			BIT(4)
 #define NO_EXC_COLLISION_DROP		BIT(3)
@@ -64,12 +62,8 @@
 #define SW_FLOW_CTRL			BIT(5)
 #define SW_10_MBIT			BIT(4)
 #define SW_REPLACE_VID			BIT(3)
-#define BROADCAST_STORM_RATE_HI		0x07
 
 #define REG_SW_CTRL_5			0x07
-
-#define BROADCAST_STORM_RATE_LO		0xFF
-#define BROADCAST_STORM_RATE		0x07FF
 
 #define REG_SW_CTRL_6			0x08
 
@@ -796,12 +790,6 @@
 /* */
 #define REG_IND_EEE_GLOB2_LO		0x34
 #define REG_IND_EEE_GLOB2_HI		0x35
-
-/* Driver set switch broadcast storm protection at 10% rate. */
-#define BROADCAST_STORM_PROT_RATE	10
-
-/* 148,800 frames * 67 ms / 100 */
-#define BROADCAST_STORM_VALUE		9969
 
 /**
  * MIB_COUNTER_VALUE			00-00000000-3FFFFFFF

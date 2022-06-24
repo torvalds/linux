@@ -165,7 +165,6 @@
 
 #define SW_DOUBLE_TAG			BIT(7)
 #define SW_RESET			BIT(1)
-#define SW_START			BIT(0)
 
 #define REG_SW_MAC_ADDR_0		0x0302
 #define REG_SW_MAC_ADDR_1		0x0303
@@ -265,7 +264,6 @@
 
 #define REG_SW_MAC_CTRL_1		0x0331
 
-#define MULTICAST_STORM_DISABLE		BIT(6)
 #define SW_BACK_PRESSURE		BIT(5)
 #define FAIR_FLOW_CTRL			BIT(4)
 #define NO_EXC_COLLISION_DROP		BIT(3)
@@ -276,12 +274,8 @@
 #define REG_SW_MAC_CTRL_2		0x0332
 
 #define SW_REPLACE_VID			BIT(3)
-#define BROADCAST_STORM_RATE_HI		0x07
 
 #define REG_SW_MAC_CTRL_3		0x0333
-
-#define BROADCAST_STORM_RATE_LO		0xFF
-#define BROADCAST_STORM_RATE		0x07FF
 
 #define REG_SW_MAC_CTRL_4		0x0334
 
@@ -1651,12 +1645,6 @@
 
 #define PTP_TRIG_UNIT_M			(BIT(MAX_TRIG_UNIT) - 1)
 #define PTP_TS_UNIT_M			(BIT(MAX_TIMESTAMP_UNIT) - 1)
-
-/* Driver set switch broadcast storm protection at 10% rate. */
-#define BROADCAST_STORM_PROT_RATE	10
-
-/* 148,800 frames * 67 ms / 100 */
-#define BROADCAST_STORM_VALUE		9969
 
 #define KSZ9477_MAX_FRAME_SIZE		9000
 
