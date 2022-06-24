@@ -4,17 +4,11 @@
 #ifndef __MT7915_REGS_H
 #define __MT7915_REGS_H
 
-struct __map {
-	u32 phys;
-	u32 maps;
-	u32 size;
-};
-
 /* used to differentiate between generations */
 struct mt7915_reg_desc {
 	const u32 *reg_rev;
 	const u32 *offs_rev;
-	const struct __map *map;
+	const struct mt76_connac_reg_map *map;
 	u32 map_size;
 };
 

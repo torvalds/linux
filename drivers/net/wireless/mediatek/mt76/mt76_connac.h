@@ -63,6 +63,12 @@ enum {
 	REPEATER_BSSID_MAX = 0x3f,
 };
 
+struct mt76_connac_reg_map {
+	u32 phys;
+	u32 maps;
+	u32 size;
+};
+
 struct mt76_connac_pm {
 	bool enable:1;
 	bool enable_user:1;
