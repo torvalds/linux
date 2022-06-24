@@ -524,20 +524,30 @@ void dw_pcie_disable_atu(struct dw_pcie *pci, int index,
 
 int dw_pcie_wait_for_link(struct dw_pcie *pci)
 {
+	u32 offset, val;
 	int retries;
 
 	/* Check if the link is up or not */
 	for (retries = 0; retries < LINK_WAIT_MAX_RETRIES; retries++) {
-		if (dw_pcie_link_up(pci)) {
-			dev_info(pci->dev, "Link up\n");
-			return 0;
-		}
+		if (dw_pcie_link_up(pci))
+			break;
+
 		usleep_range(LINK_WAIT_USLEEP_MIN, LINK_WAIT_USLEEP_MAX);
 	}
 
-	dev_info(pci->dev, "Phy link never came up\n");
+	if (retries >= LINK_WAIT_MAX_RETRIES) {
+		dev_err(pci->dev, "Phy link never came up\n");
+		return -ETIMEDOUT;
+	}
 
-	return -ETIMEDOUT;
+	offset = dw_pcie_find_capability(pci, PCI_CAP_ID_EXP);
+	val = dw_pcie_readw_dbi(pci, offset + PCI_EXP_LNKSTA);
+
+	dev_info(pci->dev, "PCIe Gen.%u x%u link up\n",
+		 FIELD_GET(PCI_EXP_LNKSTA_CLS, val),
+		 FIELD_GET(PCI_EXP_LNKSTA_NLW, val));
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(dw_pcie_wait_for_link);
 
