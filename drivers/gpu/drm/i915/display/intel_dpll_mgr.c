@@ -3184,7 +3184,7 @@ static int icl_compute_combo_phy_dpll(struct intel_atomic_state *state,
 	struct icl_port_dpll *port_dpll =
 		&crtc_state->icl_port_dplls[ICL_PORT_DPLL_DEFAULT];
 	struct skl_wrpll_params pll_params = {};
-	bool ret;
+	int ret;
 
 	if (intel_crtc_has_type(crtc_state, INTEL_OUTPUT_HDMI) ||
 	    intel_crtc_has_type(crtc_state, INTEL_OUTPUT_DSI))
