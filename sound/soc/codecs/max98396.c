@@ -372,7 +372,8 @@ static int max98396_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		break;
 
 	default:
-		dev_err(component->dev, "DAI invert mode unsupported\n");
+		dev_err(component->dev, "DAI invert mode %d unsupported\n",
+			fmt & SND_SOC_DAIFMT_INV_MASK);
 		return -EINVAL;
 	}
 
@@ -391,6 +392,8 @@ static int max98396_dai_set_fmt(struct snd_soc_dai *codec_dai, unsigned int fmt)
 		format |= MAX98396_PCM_FORMAT_TDM_MODE0;
 		break;
 	default:
+		dev_err(component->dev, "DAI format %d unsupported\n",
+			fmt & SND_SOC_DAIFMT_FORMAT_MASK);
 		return -EINVAL;
 	}
 
@@ -461,8 +464,9 @@ static int max98396_set_clock(struct snd_soc_component *component,
 		/* BCLK configuration */
 		value = max98396_get_bclk_sel(blr_clk_ratio);
 		if (!value) {
-			dev_err(component->dev, "format unsupported %d\n",
-				params_format(params));
+			dev_err(component->dev,
+				"blr_clk_ratio %d unsupported, format %d\n",
+				blr_clk_ratio, params_format(params));
 			return -EINVAL;
 		}
 
@@ -647,7 +651,7 @@ static int max98396_dai_tdm_slot(struct snd_soc_dai *dai,
 		chan_sz = MAX98396_PCM_MODE_CFG_CHANSZ_32;
 		break;
 	default:
-		dev_err(component->dev, "format unsupported %d\n",
+		dev_err(component->dev, "slot width %d unsupported\n",
 			slot_width);
 		return -EINVAL;
 	}
