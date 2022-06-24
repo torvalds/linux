@@ -72,18 +72,45 @@ config SURFACE_AGGREGATOR_CDEV
 	  The provided interface is intended for debugging and development only,
 	  and should not be used otherwise.
 
+config SURFACE_AGGREGATOR_HUB
+	tristate "Surface System Aggregator Module Subsystem Device Hubs"
+	depends on SURFACE_AGGREGATOR
+	depends on SURFACE_AGGREGATOR_BUS
+	help
+	  Device-hub drivers for Surface System Aggregator Module (SSAM) subsystem
+	  devices.
+
+	  Provides subsystem hub drivers which manage client devices on various
+	  SSAM subsystems. In some subsystems, notably the BAS subsystem managing
+	  devices contained in the base of the Surface Book 3 and the KIP subsystem
+	  managing type-cover devices in the Surface Pro 8 and Surface Pro X,
+	  devices can be (hot-)removed. Hub devices and drivers are required to
+	  manage these subdevices.
+
+	  Devices managed via these hubs are:
+	  - Battery/AC devices (Surface Book 3).
+	  - HID input devices (7th-generation and later models with detachable
+	    input devices).
+
+	  Select M (recommended) or Y here if you want support for the above
+	  mentioned devices on the corresponding Surface models. Without this
+	  module, the respective devices mentioned above will not be instantiated
+	  and thus any functionality provided by them will be missing, even when
+	  drivers for these devices are present. This module only provides the
+	  respective subsystem hubs. Both drivers and device specification (e.g.
+	  via the Surface Aggregator Registry) for these devices still need to be
+	  selected via other options.
+
 config SURFACE_AGGREGATOR_REGISTRY
 	tristate "Surface System Aggregator Module Device Registry"
 	depends on SURFACE_AGGREGATOR
 	depends on SURFACE_AGGREGATOR_BUS
 	help
-	  Device-registry and device-hubs for Surface System Aggregator Module
-	  (SSAM) devices.
+	  Device-registry for Surface System Aggregator Module (SSAM) devices.
 
 	  Provides a module and driver which act as a device-registry for SSAM
 	  client devices that cannot be detected automatically, e.g. via ACPI.
-	  Such devices are instead provided via this registry and attached via
-	  device hubs, also provided in this module.
+	  Such devices are instead provided and managed via this registry.
 
 	  Devices provided via this registry are:
 	  - Platform profile (performance-/cooling-mode) device (5th- and later
