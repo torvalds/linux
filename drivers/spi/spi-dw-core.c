@@ -942,7 +942,9 @@ int dw_spi_add_host(struct device *dev, struct dw_spi *dws)
 
 	if (dws->dma_ops && dws->dma_ops->dma_init) {
 		ret = dws->dma_ops->dma_init(dev, dws);
-		if (ret) {
+		if (ret == -EPROBE_DEFER) {
+			goto err_free_irq;
+		} else if (ret) {
 			dev_warn(dev, "DMA init failed\n");
 		} else {
 			master->can_dma = dws->dma_ops->can_dma;
@@ -963,6 +965,7 @@ err_dma_exit:
 	if (dws->dma_ops && dws->dma_ops->dma_exit)
 		dws->dma_ops->dma_exit(dws);
 	dw_spi_enable_chip(dws, 0);
+err_free_irq:
 	free_irq(dws->irq, master);
 err_free_master:
 	spi_controller_put(master);
