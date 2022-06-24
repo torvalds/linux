@@ -322,7 +322,7 @@ renesas_sdhi_internal_dmac_dataend_dma(struct tmio_mmc_host *host)
 }
 
 /*
- * renesas_sdhi_internal_dmac_map() will be called with two difference
+ * renesas_sdhi_internal_dmac_map() will be called with two different
  * sg pointers in two mmc_data by .pre_req(), but tmio host can have a single
  * sg_ptr only. So, renesas_sdhi_internal_dmac_{un}map() should use a sg
  * pointer in a mmc_data instead of host->sg_ptr.
@@ -356,7 +356,7 @@ renesas_sdhi_internal_dmac_map(struct tmio_mmc_host *host,
 
 	data->host_cookie = cookie;
 
-	/* This DMAC cannot handle if buffer is not 128-bytes alignment */
+	/* This DMAC needs buffers to be 128-byte aligned */
 	if (!IS_ALIGNED(sg_dma_address(data->sg), 128)) {
 		renesas_sdhi_internal_dmac_unmap(host, data, cookie);
 		return false;
