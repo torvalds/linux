@@ -272,7 +272,6 @@ mt7921_hw_dev(struct ieee80211_hw *hw)
 	mt76_connac_mutex_release(&(dev)->mt76, &(dev)->pm)
 
 extern const struct ieee80211_ops mt7921_ops;
-extern struct pci_driver mt7921_pci_driver;
 
 u32 mt7921_reg_map(struct mt7921_dev *dev, u32 addr);
 
