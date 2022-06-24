@@ -1775,7 +1775,8 @@ svm_range_evict(struct svm_range *prange, struct mm_struct *mm,
 	pr_debug("invalidate svms 0x%p prange [0x%lx 0x%lx] [0x%lx 0x%lx]\n",
 		 svms, prange->start, prange->last, start, last);
 
-	if (!p->xnack_enabled) {
+	if (!p->xnack_enabled ||
+	    (prange->flags & KFD_IOCTL_SVM_FLAG_GPU_ALWAYS_MAPPED)) {
 		int evicted_ranges;
 
 		list_for_each_entry(pchild, &prange->child_list, child_list) {
@@ -3343,7 +3344,8 @@ svm_range_set_attr(struct kfd_process *p, struct mm_struct *mm,
 		if (r)
 			goto out_unlock_range;
 
-		if (migrated && !p->xnack_enabled) {
+		if (migrated && (!p->xnack_enabled ||
+		    (prange->flags & KFD_IOCTL_SVM_FLAG_GPU_ALWAYS_MAPPED))) {
 			pr_debug("restore_work will update mappings of GPUs\n");
 			mutex_unlock(&prange->migrate_mutex);
 			continue;
