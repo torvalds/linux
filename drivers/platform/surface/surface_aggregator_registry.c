@@ -77,6 +77,12 @@ static const struct software_node ssam_node_tmp_pprof = {
 	.parent = &ssam_node_root,
 };
 
+/* Tablet-mode switch via KIP subsystem. */
+static const struct software_node ssam_node_kip_tablet_switch = {
+	.name = "ssam:01:0e:01:00:01",
+	.parent = &ssam_node_root,
+};
+
 /* DTX / detachment-system device (Surface Book 3). */
 static const struct software_node ssam_node_bas_dtx = {
 	.name = "ssam:01:11:01:00:00",
@@ -264,11 +270,11 @@ static const struct software_node *ssam_node_group_sp8[] = {
 	&ssam_node_bat_ac,
 	&ssam_node_bat_main,
 	&ssam_node_tmp_pprof,
+	&ssam_node_kip_tablet_switch,
 	&ssam_node_hid_kip_keyboard,
 	&ssam_node_hid_kip_penstash,
 	&ssam_node_hid_kip_touchpad,
 	&ssam_node_hid_kip_iid5,
-	/* TODO: Add support for tablet mode switch. */
 	NULL,
 };
 
