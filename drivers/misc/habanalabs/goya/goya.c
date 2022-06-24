@@ -389,11 +389,12 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 		prop->hw_queues_props[i].cb_alloc_flags = CB_ALLOC_USER;
 	}
 
+	prop->cfg_base_address = CFG_BASE;
 	prop->device_dma_offset_for_host_access = HOST_PHYS_BASE;
 	prop->host_base_address = HOST_PHYS_BASE;
 	prop->host_end_address = prop->host_base_address + HOST_PHYS_SIZE;
 	prop->completion_queues_count = NUMBER_OF_CMPLT_QUEUES;
-
+	prop->completion_mode = HL_COMPLETION_MODE_JOB;
 	prop->dram_base_address = DRAM_PHYS_BASE;
 	prop->dram_size = DRAM_PHYS_DEFAULT_SIZE;
 	prop->dram_end_address = prop->dram_base_address + prop->dram_size;

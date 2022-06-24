@@ -47,7 +47,7 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	u32 size = args->return_size;
 	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u64 sram_kmd_size, dram_kmd_size;
+	u64 sram_kmd_size, dram_kmd_size, dram_available_size;
 
 	if ((!size) || (!out))
 		return -EINVAL;
@@ -62,19 +62,22 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.dram_base_address =
 			hdev->mmu_enable && prop->dram_supports_virtual_memory ?
 			prop->dmmu.start_addr : prop->dram_user_base_address;
-	hw_ip.tpc_enabled_mask = prop->tpc_enabled_mask;
+	hw_ip.tpc_enabled_mask = prop->tpc_enabled_mask & 0xFF;
+	hw_ip.tpc_enabled_mask_ext = prop->tpc_enabled_mask;
+
 	hw_ip.sram_size = prop->sram_size - sram_kmd_size;
 
+	dram_available_size = prop->dram_size - dram_kmd_size;
+
 	if (hdev->mmu_enable)
-		hw_ip.dram_size =
-			DIV_ROUND_DOWN_ULL(prop->dram_size - dram_kmd_size,
-						prop->dram_page_size) *
-							prop->dram_page_size;
+		hw_ip.dram_size = DIV_ROUND_DOWN_ULL(dram_available_size,
+				prop->dram_page_size) * prop->dram_page_size;
 	else
-		hw_ip.dram_size = prop->dram_size - dram_kmd_size;
+		hw_ip.dram_size = dram_available_size;
 
 	if (hw_ip.dram_size > PAGE_SIZE)
 		hw_ip.dram_enabled = 1;
+
 	hw_ip.dram_page_size = prop->dram_page_size;
 	hw_ip.device_mem_alloc_default_page_size = prop->device_mem_alloc_default_page_size;
 	hw_ip.num_of_events = prop->num_of_events;
@@ -93,8 +96,12 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 	hw_ip.psoc_pci_pll_od = prop->psoc_pci_pll_od;
 	hw_ip.psoc_pci_pll_div_factor = prop->psoc_pci_pll_div_factor;
 
+	hw_ip.decoder_enabled_mask = prop->decoder_enabled_mask;
+	hw_ip.mme_master_slave_mode = prop->mme_master_slave_mode;
 	hw_ip.first_available_interrupt_id = prop->first_available_user_interrupt;
 	hw_ip.number_of_user_interrupts = prop->user_interrupt_count;
+
+	hw_ip.edma_enabled_mask = prop->edma_enabled_mask;
 	hw_ip.server_type = prop->server_type;
 
 	return copy_to_user(out, &hw_ip,

@@ -582,10 +582,13 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 						get_collective_mode(hdev, i);
 	}
 
+	prop->cache_line_size = DEVICE_CACHE_LINE_SIZE;
+	prop->cfg_base_address = CFG_BASE;
 	prop->device_dma_offset_for_host_access = HOST_PHYS_BASE;
 	prop->host_base_address = HOST_PHYS_BASE;
 	prop->host_end_address = prop->host_base_address + HOST_PHYS_SIZE;
 	prop->completion_queues_count = NUMBER_OF_CMPLT_QUEUES;
+	prop->completion_mode = HL_COMPLETION_MODE_JOB;
 	prop->collective_first_sob = 0;
 	prop->collective_first_mon = 0;
 
@@ -611,6 +614,9 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 	prop->sram_end_address = prop->sram_base_address + prop->sram_size;
 	prop->sram_user_base_address =
 			prop->sram_base_address + SRAM_USER_BASE_OFFSET;
+
+	prop->mmu_cache_mng_addr = MMU_CACHE_MNG_ADDR;
+	prop->mmu_cache_mng_size = MMU_CACHE_MNG_SIZE;
 
 	prop->mmu_pgt_addr = MMU_PAGE_TABLES_ADDR;
 	if (hdev->pldm)
@@ -3871,8 +3877,8 @@ static int gaudi_mmu_init(struct hl_device *hdev)
 	}
 
 	/* init MMU cache manage page */
-	WREG32(mmSTLB_CACHE_INV_BASE_39_8, MMU_CACHE_MNG_ADDR >> 8);
-	WREG32(mmSTLB_CACHE_INV_BASE_49_40, MMU_CACHE_MNG_ADDR >> 40);
+	WREG32(mmSTLB_CACHE_INV_BASE_39_8, prop->mmu_cache_mng_addr >> 8);
+	WREG32(mmSTLB_CACHE_INV_BASE_49_40, prop->mmu_cache_mng_addr >> 40);
 
 	/* mem cache invalidation */
 	WREG32(mmSTLB_MEM_CACHE_INVALIDATION, 1);
@@ -4763,7 +4769,7 @@ static void gaudi_dma_free_coherent(struct hl_device *hdev, size_t size,
 static int gaudi_scrub_device_dram(struct hl_device *hdev, u64 val)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u64  cur_addr = DRAM_BASE_ADDR_USER;
+	u64 cur_addr = prop->dram_user_base_address;
 	u32 chunk_size, busy;
 	int rc, dma_id;
 
@@ -6068,10 +6074,10 @@ static int gaudi_context_switch(struct hl_device *hdev, u32 asid)
 
 static int gaudi_mmu_clear_pgt_range(struct hl_device *hdev)
 {
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u32 size = hdev->asic_prop.mmu_pgt_size +
+			hdev->asic_prop.mmu_cache_mng_size;
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	u64 addr = prop->mmu_pgt_addr;
-	u32 size = prop->mmu_pgt_size + MMU_CACHE_MNG_SIZE;
+	u64 addr = hdev->asic_prop.mmu_pgt_addr;
 
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MMU))
 		return 0;
