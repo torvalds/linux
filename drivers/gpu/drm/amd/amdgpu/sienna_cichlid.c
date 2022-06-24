@@ -97,6 +97,8 @@ sienna_cichlid_mode2_prepare_hwcontext(struct amdgpu_reset_control *reset_ctl,
 	if (!amdgpu_sriov_vf(adev)) {
 		if (adev->gfxhub.funcs->mode2_save_regs)
 			adev->gfxhub.funcs->mode2_save_regs(adev);
+		if (adev->gfxhub.funcs->halt)
+			adev->gfxhub.funcs->halt(adev);
 		r = sienna_cichlid_mode2_suspend_ip(adev);
 	}
 

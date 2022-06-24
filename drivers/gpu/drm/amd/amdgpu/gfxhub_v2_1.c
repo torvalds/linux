@@ -646,6 +646,41 @@ static void gfxhub_v2_1_restore_regs(struct amdgpu_device *adev)
 	WREG32_SOC15(GC, 0, mmGCMC_VM_MX_L1_TLB_CNTL, adev->gmc.MC_VM_MX_L1_TLB_CNTL);
 }
 
+static void gfxhub_v2_1_halt(struct amdgpu_device *adev)
+{
+	struct amdgpu_vmhub *hub = &adev->vmhub[AMDGPU_GFXHUB_0];
+	int i;
+	uint32_t tmp;
+	int time = 1000;
+
+	gfxhub_v2_1_set_fault_enable_default(adev, false);
+
+	for (i = 0; i <= 14; i++) {
+		WREG32_SOC15_OFFSET(GC, 0, mmGCVM_CONTEXT1_PAGE_TABLE_START_ADDR_LO32,
+				    i * hub->ctx_addr_distance, ~0);
+		WREG32_SOC15_OFFSET(GC, 0, mmGCVM_CONTEXT1_PAGE_TABLE_START_ADDR_HI32,
+				    i * hub->ctx_addr_distance, ~0);
+		WREG32_SOC15_OFFSET(GC, 0, mmGCVM_CONTEXT1_PAGE_TABLE_END_ADDR_LO32,
+				    i * hub->ctx_addr_distance,
+				    0);
+		WREG32_SOC15_OFFSET(GC, 0, mmGCVM_CONTEXT1_PAGE_TABLE_END_ADDR_HI32,
+				    i * hub->ctx_addr_distance,
+				    0);
+	}
+	tmp = RREG32_SOC15(GC, 0, mmGRBM_STATUS2);
+	while ((tmp & (GRBM_STATUS2__EA_BUSY_MASK |
+		      GRBM_STATUS2__EA_LINK_BUSY_MASK)) != 0 &&
+	       time) {
+		udelay(100);
+		time--;
+		tmp = RREG32_SOC15(GC, 0, mmGRBM_STATUS2);
+	}
+
+	if (!time) {
+		DRM_WARN("failed to wait for GRBM(EA) idle\n");
+	}
+}
+
 const struct amdgpu_gfxhub_funcs gfxhub_v2_1_funcs = {
 	.get_fb_location = gfxhub_v2_1_get_fb_location,
 	.get_mc_fb_offset = gfxhub_v2_1_get_mc_fb_offset,
@@ -658,4 +693,5 @@ const struct amdgpu_gfxhub_funcs gfxhub_v2_1_funcs = {
 	.utcl2_harvest = gfxhub_v2_1_utcl2_harvest,
 	.mode2_save_regs = gfxhub_v2_1_save_regs,
 	.mode2_restore_regs = gfxhub_v2_1_restore_regs,
+	.halt = gfxhub_v2_1_halt,
 };
