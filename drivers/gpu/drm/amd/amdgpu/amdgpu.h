@@ -1065,6 +1065,7 @@ struct amdgpu_device {
 	struct work_struct		reset_work;
 
 	uint32_t						amdgpu_reset_level_mask;
+	bool                            job_hang;
 };
 
 static inline struct amdgpu_device *drm_to_adev(struct drm_device *ddev)

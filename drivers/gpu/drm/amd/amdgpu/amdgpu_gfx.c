@@ -477,7 +477,7 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev)
 		kiq->pmf->kiq_unmap_queues(kiq_ring, &adev->gfx.compute_ring[i],
 					   RESET_QUEUES, 0, 0);
 
-	if (adev->gfx.kiq.ring.sched.ready)
+	if (adev->gfx.kiq.ring.sched.ready && !adev->job_hang)
 		r = amdgpu_ring_test_helper(kiq_ring);
 	spin_unlock(&adev->gfx.kiq.ring_lock);
 
