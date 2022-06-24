@@ -21,6 +21,8 @@
 #include <linux/soc/qcom/smem_state.h>
 #include <linux/spinlock.h>
 
+#include <linux/ipc_logging.h>
+
 /*
  * The Shared Memory Point to Point (SMP2P) protocol facilitates communication
  * of a single 32-bit value between two processors.  Each value has a single
@@ -160,6 +162,11 @@ struct qcom_smp2p {
 	struct list_head outbound;
 };
 
+static void *ilc;
+#define SMP2P_LOG_PAGE_CNT 2
+#define SMP2P_INFO(x, ...)	\
+	ipc_log_string(ilc, "[%s]: "x, __func__, ##__VA_ARGS__)
+
 static void qcom_smp2p_kick(struct qcom_smp2p *smp2p)
 {
 	/* Make sure any updated data is written before the kick */
@@ -183,6 +190,7 @@ static bool qcom_smp2p_check_ssr(struct qcom_smp2p *smp2p)
 
 	restart = in->flags & BIT(SMP2P_FLAGS_RESTART_DONE_BIT);
 
+	SMP2P_INFO("%d: SSR DETECTED\n", smp2p->remote_pid);
 	return restart != smp2p->ssr_ack;
 }
 
@@ -213,6 +221,8 @@ static void qcom_smp2p_negotiate(struct qcom_smp2p *smp2p)
 			smp2p->ssr_ack_enabled = true;
 
 		smp2p->negotiation_done = true;
+		SMP2P_INFO("%d: state=open ssr_ack=%d\n", smp2p->remote_pid,
+			   smp2p->ssr_ack_enabled);
 	}
 }
 
@@ -240,11 +250,17 @@ static void qcom_smp2p_notify_in(struct qcom_smp2p *smp2p)
 	}
 	smp2p->valid_entries = i;
 
+	SMP2P_INFO("%d: smp2p_num:%d in_num:%d\n",
+		   smp2p->remote_pid, smp2p->valid_entries, in->valid_entries);
+
 	/* Fire interrupts based on any value changes */
 	list_for_each_entry(entry, &smp2p->inbound, node) {
 		/* Ignore entries not yet allocated by the remote side */
-		if (!entry->value)
+		if (!entry->value) {
+			SMP2P_INFO("%d:\t%s: skipping not ready\n",
+				   smp2p->remote_pid, entry->name);
 			continue;
+		}
 
 		val = readl(entry->value);
 
@@ -254,6 +270,9 @@ static void qcom_smp2p_notify_in(struct qcom_smp2p *smp2p)
 		/* Ensure irq_pending is read correctly */
 		mb();
 		status |= *entry->irq_pending;
+
+		SMP2P_INFO("%d:\t%s: status:%0lx val:%0x\n",
+			   smp2p->remote_pid, entry->name, status, val);
 
 		/* No changes of this entry? */
 		if (!status)
@@ -358,6 +377,7 @@ static int smp2p_retrigger_irq(struct irq_data *irqd)
 	struct smp2p_entry *entry = irq_data_get_irq_chip_data(irqd);
 	irq_hw_number_t irq = irqd_to_hwirq(irqd);
 
+	SMP2P_INFO("%d: %s: %lu\n", entry->smp2p->remote_pid, entry->name, irq);
 	set_bit(irq, entry->irq_pending);
 
 	/* Ensure irq_pending is visible to all cpus that retried interrupt
@@ -423,6 +443,8 @@ static int smp2p_update_bits(void *data, u32 mask, u32 value)
 	val |= value;
 	writel(val, entry->value);
 	spin_unlock_irqrestore(&entry->lock, flags);
+	SMP2P_INFO("%d: %s: orig:0x%0x new:0x%0x\n",
+		   entry->smp2p->remote_pid, entry->name, orig, val);
 
 	if (val != orig)
 		qcom_smp2p_kick(entry->smp2p);
@@ -543,6 +565,9 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 	const char *key;
 	int irq;
 	int ret;
+
+	if (!ilc)
+		ilc = ipc_log_context_create(SMP2P_LOG_PAGE_CNT, "smp2p", 0);
 
 	smp2p = devm_kzalloc(&pdev->dev, sizeof(*smp2p), GFP_KERNEL);
 	if (!smp2p)
