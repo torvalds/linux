@@ -132,6 +132,7 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
+#include <acpi/video.h>
 
 MODULE_AUTHOR("Hiroshi Miura <miura@da-cha.org>");
 MODULE_AUTHOR("David Bronaugh <dbronaugh@linuxboxen.org>");
@@ -782,6 +783,13 @@ static void acpi_pcc_generate_keyinput(struct pcc_acpi *pcc)
 			sparse_keymap_report_event(hotk_input_dev,
 					key, 0x80, false);
 	}
+
+	/*
+	 * Don't report brightness key-presses if they are also reported
+	 * by the ACPI video bus.
+	 */
+	if ((key == 1 || key == 2) && acpi_video_handles_brightness_key_presses())
+		return;
 
 	if (!sparse_keymap_report_event(hotk_input_dev, key, updown, false))
 		pr_err("Unknown hotkey event: 0x%04llx\n", result);
