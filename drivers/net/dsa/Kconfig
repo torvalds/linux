@@ -70,6 +70,15 @@ config NET_DSA_QCA8K
 
 source "drivers/net/dsa/realtek/Kconfig"
 
+config NET_DSA_RZN1_A5PSW
+	tristate "Renesas RZ/N1 A5PSW Ethernet switch support"
+	depends on OF && ARCH_RZN1
+	select NET_DSA_TAG_RZN1_A5PSW
+	select PCS_RZN1_MIIC
+	help
+	  This driver supports the A5PSW switch, which is embedded in Renesas
+	  RZ/N1 SoC.
+
 config NET_DSA_SMSC_LAN9303
 	tristate
 	select NET_DSA_TAG_LAN9303
