@@ -3322,6 +3322,7 @@ void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context, display
 {
 	int i, pipe_idx;
 	bool usr_retraining_support = false;
+	bool unbounded_req_enabled = false;
 
 	/* Writeback MCIF_WB arbitration parameters */
 	dc->res_pool->funcs->set_mcif_arb_params(dc, context, pipes, pipe_cnt);
@@ -3357,6 +3358,14 @@ void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context, display
 	if (context->bw_ctx.bw.dcn.clk.dispclk_khz < dc->debug.min_disp_clk_khz)
 		context->bw_ctx.bw.dcn.clk.dispclk_khz = dc->debug.min_disp_clk_khz;
 
+	unbounded_req_enabled = get_unbounded_request_enabled(&context->bw_ctx.dml, pipes, pipe_cnt);
+
+	if (unbounded_req_enabled && pipe_cnt > 1) {
+		// Unbounded requesting should not ever be used when more than 1 pipe is enabled.
+		ASSERT(false);
+		unbounded_req_enabled = false;
+	}
+
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
 			continue;
@@ -3375,7 +3384,7 @@ void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context, display
 		} else {
 			context->res_ctx.pipe_ctx[i].det_buffer_size_kb = get_det_buffer_size_kbytes(&context->bw_ctx.dml, pipes, pipe_cnt,
 							pipe_idx);
-			context->res_ctx.pipe_ctx[i].unbounded_req = pipes[pipe_idx].pipe.src.unbounded_req_mode;
+			context->res_ctx.pipe_ctx[i].unbounded_req = unbounded_req_enabled;
 		}
 		if (context->bw_ctx.bw.dcn.clk.dppclk_khz < pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000)
 			context->bw_ctx.bw.dcn.clk.dppclk_khz = pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000;

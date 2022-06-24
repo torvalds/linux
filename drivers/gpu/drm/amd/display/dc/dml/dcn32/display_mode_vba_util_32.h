@@ -90,6 +90,9 @@ void dml32_CalculateSwathAndDETConfiguration(
 		unsigned int NumberOfActiveSurfaces,
 		unsigned int nomDETInKByte,
 		enum unbounded_requesting_policy UseUnboundedRequestingFinal,
+		bool DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment,
+		unsigned int PixelChunkSizeKBytes,
+		unsigned int ROBSizeKBytes,
 		unsigned int CompressedBufferSegmentSizeInkByteFinal,
 		enum output_encoder_class Output[],
 		double ReadBandwidthLuma[],
@@ -137,6 +140,8 @@ void dml32_CalculateSwathAndDETConfiguration(
 		unsigned int DETBufferSizeC[],
 		bool *UnboundedRequestEnabled,
 		unsigned int *CompressedBufferSizeInkByte,
+		unsigned int *CompBufReservedSpaceKBytes,
+		bool *CompBufReservedSpaceNeedAdjustment,
 		bool ViewportSizeSupportPerSurface[],
 		bool *ViewportSizeSupport);
 
@@ -181,7 +186,10 @@ void dml32_CalculateSwathWidth(
 bool dml32_UnboundedRequest(enum unbounded_requesting_policy UseUnboundedRequestingFinal,
 		unsigned int TotalNumberOfActiveDPP,
 		bool NoChroma,
-		enum output_encoder_class Output);
+		enum output_encoder_class Output,
+		enum dm_swizzle_mode SurfaceTiling,
+		bool CompBufReservedSpaceNeedAdjustment,
+		bool DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment);
 
 void dml32_CalculateDETBufferSize(
 		unsigned int DETSizeOverride[],

@@ -224,6 +224,9 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				mode_lib->vba.NumberOfActiveSurfaces,
 				mode_lib->vba.nomDETInKByte,
 				mode_lib->vba.UseUnboundedRequesting,
+				mode_lib->vba.DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment,
+				mode_lib->vba.ip.pixel_chunk_size_kbytes,
+				mode_lib->vba.ip.rob_buffer_size_kbytes,
 				mode_lib->vba.CompressedBufferSegmentSizeInkByteFinal,
 				v->dummy_vars
 					.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation
@@ -285,6 +288,10 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				mode_lib->vba.DETBufferSizeC,
 				&v->UnboundedRequestEnabled,
 				&v->CompressedBufferSizeInkByte,
+				&v->CompBufReservedSpaceKBytes,
+				&v->dummy_vars
+					.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation
+					.dummy_boolean,       /* bool *CompBufReservedSpaceNeedAjustment */
 				v->dummy_vars
 					.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation
 					.dummy_boolean_array, /* bool ViewportSizeSupportPerSurface[] */
@@ -292,6 +299,9 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 					 .DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation
 					 .dummy_boolean); /* bool *ViewportSizeSupport */
 	}
+
+	v->CompBufReservedSpaceZs     = v->CompBufReservedSpaceKBytes * 1024.0 / 256.0;
+	v->CompBufReservedSpace64B    = v->CompBufReservedSpaceKBytes * 1024.0 / 64.0;
 
 	// DCFCLK Deep Sleep
 	dml32_CalculateDCFCLKDeepSleep(
@@ -1530,8 +1540,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 			v->TotalDataReadBandwidth,
 			mode_lib->vba.DCFCLK,
 			mode_lib->vba.ReturnBW,
-			mode_lib->vba.CompbufReservedSpace64B,
-			mode_lib->vba.CompbufReservedSpaceZs,
+			v->CompbufReservedSpace64B,
+			v->CompbufReservedSpaceZs,
 			mode_lib->vba.SRExitTime,
 			mode_lib->vba.SRExitZ8Time,
 			mode_lib->vba.SynchronizeTimingsFinal,
@@ -1596,8 +1606,8 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				v->TotalDataReadBandwidth,
 				mode_lib->vba.DCFCLK,
 				mode_lib->vba.ReturnBW,
-				0, //mode_lib->vba.CompbufReservedSpace64B,
-				0, //mode_lib->vba.CompbufReservedSpaceZs,
+				0, //CompbufReservedSpace64B,
+				0, //CompbufReservedSpaceZs,
 				mode_lib->vba.SRExitTime,
 				mode_lib->vba.SRExitZ8Time,
 				mode_lib->vba.SynchronizeTimingsFinal,
@@ -1659,6 +1669,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_lib)
 {
 	unsigned int dummy_integer[4];
+	bool dummy_boolean[2];
 	bool MPCCombineMethodAsNeededForPStateChangeAndVoltage;
 	bool MPCCombineMethodAsPossible;
 	enum odm_combine_mode dummy_odm_mode[DC__NUM_DPP__MAX];
@@ -1673,6 +1684,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	bool SubViewportMALLPStateMethod;
 	bool PhantomPipeMALLPStateMethod;
 	unsigned int MaximumMPCCombine;
+	bool CompBufReservedSpaceNeedAdjustment;
+	bool CompBufReservedSpaceNeedAdjustmentSingleDPP;
 
 #ifdef __DML_VBA_DEBUG__
 	dml_print("DML::%s: called\n", __func__);
@@ -1905,6 +1918,9 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			mode_lib->vba.NumberOfActiveSurfaces,
 			mode_lib->vba.nomDETInKByte,
 			mode_lib->vba.UseUnboundedRequesting,
+			mode_lib->vba.DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment,
+			mode_lib->vba.ip.pixel_chunk_size_kbytes,
+			mode_lib->vba.ip.rob_buffer_size_kbytes,
 			mode_lib->vba.CompressedBufferSegmentSizeInkByteFinal,
 			mode_lib->vba.Output,
 			mode_lib->vba.ReadBandwidthLuma,
@@ -1952,6 +1968,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[7], /* Long            DETBufferSizeC[]  */
 			&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_boolean_array[0][0], /* bool           *UnboundedRequestEnabled  */
 			&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[0][0], /* Long           *CompressedBufferSizeInkByte  */
+			&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_integer_array[1][0], /* Long           *CompBufReservedSpaceKBytes */
+			&CompBufReservedSpaceNeedAdjustmentSingleDPP,
 			mode_lib->vba.SingleDPPViewportSizeSupportPerSurface,/* bool ViewportSizeSupportPerSurface[] */
 			&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_boolean_array[1][0]); /* bool           *ViewportSizeSupport */
 
@@ -2120,9 +2138,18 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				}
 			}
 
+			// if TotalNumberOfActiveDPP is > 1, then there should be no unbounded req mode (hw limitation), the comp buf reserved adjustment is not needed regardless
+			// if TotalNumberOfActiveDPP is == 1, then will use the SingleDPP version of unbounded_req for the decision
+			CompBufReservedSpaceNeedAdjustment = (mode_lib->vba.TotalNumberOfActiveDPP[i][j] > 1) ? 0 : CompBufReservedSpaceNeedAdjustmentSingleDPP;
+
+
+
 			if (j == 1 && !dml32_UnboundedRequest(mode_lib->vba.UseUnboundedRequesting,
-							mode_lib->vba.TotalNumberOfActiveDPP[i][j], NoChroma,
-							mode_lib->vba.Output[0])) {
+					mode_lib->vba.TotalNumberOfActiveDPP[i][j], NoChroma,
+					mode_lib->vba.Output[0],
+					mode_lib->vba.SurfaceTiling[0],
+					CompBufReservedSpaceNeedAdjustment,
+					mode_lib->vba.DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment)) {
 				while (!(mode_lib->vba.TotalNumberOfActiveDPP[i][j] >= mode_lib->vba.MaxNumDPP
 						|| mode_lib->vba.TotalNumberOfSingleDPPSurfaces[i][j] == 0)) {
 					double BWOfNonCombinedSurfaceOfMaximumBandwidth = 0;
@@ -2500,6 +2527,9 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					mode_lib->vba.NumberOfActiveSurfaces,
 					mode_lib->vba.nomDETInKByte,
 					mode_lib->vba.UseUnboundedRequesting,
+					mode_lib->vba.DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment,
+					mode_lib->vba.ip.pixel_chunk_size_kbytes,
+					mode_lib->vba.ip.rob_buffer_size_kbytes,
 					mode_lib->vba.CompressedBufferSegmentSizeInkByteFinal,
 					mode_lib->vba.Output,
 					mode_lib->vba.ReadBandwidthLuma,
@@ -2546,6 +2576,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					mode_lib->vba.DETBufferSizeCThisState,
 					&mode_lib->vba.UnboundedRequestEnabledThisState,
 					&mode_lib->vba.CompressedBufferSizeInkByteThisState,
+					&dummy_integer[0], /* Long CompBufReservedSpaceKBytes */
+					&dummy_boolean[0], /* bool CompBufReservedSpaceNeedAdjustment */
 					v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.dummy_boolean_array[0],
 					&mode_lib->vba.ViewportSizeSupport[i][j]);
 
