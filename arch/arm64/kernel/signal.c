@@ -280,6 +280,9 @@ static int restore_sve_fpsimd_context(struct user_ctxs *user)
 
 		vl = task_get_sme_vl(current);
 	} else {
+		if (!system_supports_sve())
+			return -EINVAL;
+
 		vl = task_get_sve_vl(current);
 	}
 
@@ -342,9 +345,14 @@ fpsimd_only:
 
 #else /* ! CONFIG_ARM64_SVE */
 
-/* Turn any non-optimised out attempts to use these into a link error: */
+static int restore_sve_fpsimd_context(struct user_ctxs *user)
+{
+	WARN_ON_ONCE(1);
+	return -EINVAL;
+}
+
+/* Turn any non-optimised out attempts to use this into a link error: */
 extern int preserve_sve_context(void __user *ctx);
-extern int restore_sve_fpsimd_context(struct user_ctxs *user);
 
 #endif /* ! CONFIG_ARM64_SVE */
 
@@ -649,14 +657,10 @@ static int restore_sigframe(struct pt_regs *regs,
 		if (!user.fpsimd)
 			return -EINVAL;
 
-		if (user.sve) {
-			if (!system_supports_sve())
-				return -EINVAL;
-
+		if (user.sve)
 			err = restore_sve_fpsimd_context(&user);
-		} else {
+		else
 			err = restore_fpsimd_context(user.fpsimd);
-		}
 	}
 
 	if (err == 0 && system_supports_sme() && user.za)
