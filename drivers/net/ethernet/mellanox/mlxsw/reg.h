@@ -6937,16 +6937,6 @@ MLXSW_ITEM32(reg, ritr, vlan_if_efid, 0x0C, 0, 16);
  */
 MLXSW_ITEM32(reg, ritr, fid_if_fid, 0x08, 0, 16);
 
-static inline void mlxsw_reg_ritr_fid_set(char *payload,
-					  enum mlxsw_reg_ritr_if_type rif_type,
-					  u16 fid)
-{
-	if (rif_type == MLXSW_REG_RITR_FID_IF)
-		mlxsw_reg_ritr_fid_if_fid_set(payload, fid);
-	else
-		mlxsw_reg_ritr_vlan_if_vlan_id_set(payload, fid);
-}
-
 /* Sub-port Interface */
 
 /* reg_ritr_sp_if_lag
