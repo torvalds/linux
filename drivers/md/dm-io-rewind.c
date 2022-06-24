@@ -131,7 +131,7 @@ static inline void dm_bio_rewind_iter(const struct bio *bio,
  * rewinding from end of bio and restoring its original position.
  * Caller is also responsibile for restoring bio's size.
  */
-void dm_bio_rewind(struct bio *bio, unsigned bytes)
+static void dm_bio_rewind(struct bio *bio, unsigned bytes)
 {
 	if (bio_integrity(bio))
 		dm_bio_integrity_rewind(bio, bytes);
@@ -140,4 +140,27 @@ void dm_bio_rewind(struct bio *bio, unsigned bytes)
 		dm_bio_crypt_rewind(bio, bytes);
 
 	dm_bio_rewind_iter(bio, &bio->bi_iter, bytes);
+}
+
+void dm_io_rewind(struct dm_io *io, struct bio_set *bs)
+{
+	struct bio *orig = io->orig_bio;
+	struct bio *new_orig = bio_alloc_clone(orig->bi_bdev, orig,
+					       GFP_NOIO, bs);
+	/*
+	 * dm_bio_rewind can restore to previous position since the
+	 * end sector is fixed for original bio, but we still need
+	 * to restore bio's size manually (using io->sectors).
+	 */
+	dm_bio_rewind(new_orig, ((io->sector_offset << 9) -
+				 orig->bi_iter.bi_size));
+	bio_trim(new_orig, 0, io->sectors);
+
+	bio_chain(new_orig, orig);
+	/*
+	 * __bi_remaining was increased (by dm_split_and_process_bio),
+	 * so must drop the one added in bio_chain.
+	 */
+	atomic_dec(&orig->__bi_remaining);
+	io->orig_bio = new_orig;
 }
