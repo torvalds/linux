@@ -702,7 +702,7 @@ static unsigned int iio_storage_bytes_for_timestamp(struct iio_dev *indio_dev)
 static int iio_compute_scan_bytes(struct iio_dev *indio_dev,
 				const unsigned long *mask, bool timestamp)
 {
-	unsigned bytes = 0;
+	unsigned int bytes = 0;
 	int length, i, largest = 0;
 
 	/* How much space will the demuxed element take? */
@@ -931,9 +931,9 @@ static int iio_verify_update(struct iio_dev *indio_dev,
  * @l:		list head used for management
  */
 struct iio_demux_table {
-	unsigned from;
-	unsigned to;
-	unsigned length;
+	unsigned int from;
+	unsigned int to;
+	unsigned int length;
 	struct list_head l;
 };
 
@@ -971,7 +971,7 @@ static int iio_buffer_update_demux(struct iio_dev *indio_dev,
 				   struct iio_buffer *buffer)
 {
 	int ret, in_ind = -1, out_ind, length;
-	unsigned in_loc = 0, out_loc = 0;
+	unsigned int in_loc = 0, out_loc = 0;
 	struct iio_demux_table *p = NULL;
 
 	/* Clear out any old demux */

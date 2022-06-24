@@ -375,7 +375,7 @@ static ssize_t iio_debugfs_read_reg(struct file *file, char __user *userbuf,
 {
 	struct iio_dev *indio_dev = file->private_data;
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
-	unsigned val = 0;
+	unsigned int val = 0;
 	int ret;
 
 	if (*ppos > 0)
@@ -405,7 +405,7 @@ static ssize_t iio_debugfs_write_reg(struct file *file,
 {
 	struct iio_dev *indio_dev = file->private_data;
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
-	unsigned reg, val;
+	unsigned int reg, val;
 	char buf[80];
 	int ret;
 
