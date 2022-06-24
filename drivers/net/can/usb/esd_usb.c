@@ -163,7 +163,7 @@ struct set_baudrate_msg {
 };
 
 /* Main message type used between library and application */
-struct __attribute__ ((packed)) esd_usb_msg {
+struct __packed esd_usb_msg {
 	union {
 		struct header_msg hdr;
 		struct version_msg version;
@@ -343,8 +343,6 @@ static void esd_usb_rx_can_msg(struct esd_usb_net_priv *priv,
 
 		netif_rx(skb);
 	}
-
-	return;
 }
 
 static void esd_usb_tx_done_msg(struct esd_usb_net_priv *priv,
@@ -447,13 +445,9 @@ resubmit_urb:
 		dev_err(dev->udev->dev.parent,
 			"failed resubmitting read bulk urb: %d\n", retval);
 	}
-
-	return;
 }
 
-/*
- * callback for bulk IN urb
- */
+/* callback for bulk IN urb */
 static void esd_usb_write_bulk_callback(struct urb *urb)
 {
 	struct esd_tx_urb_context *context = urb->context;
@@ -611,9 +605,7 @@ freeurb:
 	return 0;
 }
 
-/*
- * Start interface
- */
+/* Start interface */
 static int esd_usb_start(struct esd_usb_net_priv *priv)
 {
 	struct esd_usb *dev = priv->usb;
@@ -627,8 +619,7 @@ static int esd_usb_start(struct esd_usb_net_priv *priv)
 		goto out;
 	}
 
-	/*
-	 * Enable all IDs
+	/* Enable all IDs
 	 * The IDADD message takes up to 64 32 bit bitmasks (2048 bits).
 	 * Each bit represents one 11 bit CAN identifier. A set bit
 	 * enables reception of the corresponding CAN identifier. A cleared
@@ -776,9 +767,7 @@ static netdev_tx_t esd_usb_start_xmit(struct sk_buff *skb,
 		}
 	}
 
-	/*
-	 * This may never happen.
-	 */
+	/* This may never happen */
 	if (!context) {
 		netdev_warn(netdev, "couldn't find free context\n");
 		ret = NETDEV_TX_BUSY;
@@ -826,8 +815,7 @@ static netdev_tx_t esd_usb_start_xmit(struct sk_buff *skb,
 
 	netif_trans_update(netdev);
 
-	/*
-	 * Release our reference to this URB, the USB core will eventually free
+	/* Release our reference to this URB, the USB core will eventually free
 	 * it entirely.
 	 */
 	usb_free_urb(urb);
@@ -1043,8 +1031,7 @@ done:
 	return err;
 }
 
-/*
- * probe function for new USB devices
+/* probe function for new USB devices
  *
  * check version information and number of available
  * CAN interfaces
@@ -1120,9 +1107,7 @@ done:
 	return err;
 }
 
-/*
- * called by the usb core when the device is removed from the system
- */
+/* called by the usb core when the device is removed from the system */
 static void esd_usb_disconnect(struct usb_interface *intf)
 {
 	struct esd_usb *dev = usb_get_intfdata(intf);
