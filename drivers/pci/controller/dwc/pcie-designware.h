@@ -179,6 +179,7 @@ struct dw_pcie_host_ops {
 
 struct pcie_port {
 	bool			has_msi_ctrl:1;
+	bool			cfg0_io_shared:1;
 	u64			cfg0_base;
 	void __iomem		*va_cfg0_base;
 	u32			cfg0_size;
@@ -274,7 +275,6 @@ struct dw_pcie {
 	int			link_gen;
 	u8			n_fts[2];
 	bool			iatu_unroll_enabled: 1;
-	bool			io_cfg_atu_shared: 1;
 };
 
 #define to_dw_pcie_from_pp(port) container_of((port), struct dw_pcie, pp)

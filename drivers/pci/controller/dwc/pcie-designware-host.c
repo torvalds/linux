@@ -492,7 +492,7 @@ static int dw_pcie_rd_other_conf(struct pci_bus *bus, unsigned int devfn,
 
 	ret = pci_generic_config_read(bus, devfn, where, size, val);
 
-	if (!ret && pci->io_cfg_atu_shared)
+	if (!ret && pp->cfg0_io_shared)
 		dw_pcie_prog_outbound_atu(pci, 0, PCIE_ATU_TYPE_IO, pp->io_base,
 					  pp->io_bus_addr, pp->io_size);
 
@@ -508,7 +508,7 @@ static int dw_pcie_wr_other_conf(struct pci_bus *bus, unsigned int devfn,
 
 	ret = pci_generic_config_write(bus, devfn, where, size, val);
 
-	if (!ret && pci->io_cfg_atu_shared)
+	if (!ret && pp->cfg0_io_shared)
 		dw_pcie_prog_outbound_atu(pci, 0, PCIE_ATU_TYPE_IO, pp->io_base,
 					  pp->io_bus_addr, pp->io_size);
 
@@ -627,7 +627,7 @@ void dw_pcie_setup_rc(struct pcie_port *pp)
 							  PCIE_ATU_TYPE_IO, pp->io_base,
 							  pp->io_bus_addr, pp->io_size);
 			else
-				pci->io_cfg_atu_shared = true;
+				pp->cfg0_io_shared = true;
 		}
 
 		if (pci->num_ob_windows <= atu_idx)
