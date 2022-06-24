@@ -523,7 +523,11 @@ struct kvm_vcpu_arch {
 	struct kvmppc_book3s_shadow_vcpu *shadow_vcpu;
 #endif
 
-	struct pt_regs regs;
+	/*
+	 * This is passed along to the HV via H_ENTER_NESTED. Align to
+	 * prevent it crossing a real 4K page.
+	 */
+	struct pt_regs regs __aligned(512);
 
 	struct thread_fp_state fp;
 
