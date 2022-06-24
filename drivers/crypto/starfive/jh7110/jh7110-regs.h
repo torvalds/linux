@@ -270,10 +270,10 @@ union jh7110_sha_shacsr {
 #define JH7110_SHA_HMAC_FLAGS					0x800
 		u32 hmac			:1;
 		u32 rsvd_2			:1;
+#define JH7110_SHA_KEY_DONE					BIT(13)
 		u32 key_done			:1;
 		u32 key_flag			:1;
 		u32 hmac_done			:1;
-
 #define JH7110_SHA_BUSY						BIT(16)
 		u32 busy			:1;
 		u32 shadone			:1;
