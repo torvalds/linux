@@ -3321,6 +3321,9 @@ void dwc3_msm_notify_event(struct dwc3 *dwc,
 		break;
 	case DWC3_GSI_EVT_BUF_SETUP:
 		dev_dbg(mdwc->dev, "DWC3_GSI_EVT_BUF_SETUP\n");
+		if (!mdwc->gsi_ev_buff)
+			break;
+
 		for (i = 0; i < mdwc->num_gsi_event_buffers; i++) {
 			evt = mdwc->gsi_ev_buff[i];
 			if (!evt)
