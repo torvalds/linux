@@ -129,7 +129,7 @@ static void dw8250_tx_wait_empty(struct uart_port *p)
 
 	while (tries--) {
 		lsr = readb (p->membase + (UART_LSR << p->regshift));
-		up->lsr_saved_flags |= lsr & LSR_SAVE_FLAGS;
+		up->lsr_saved_flags |= lsr & up->lsr_save_mask;
 
 		if (lsr & UART_LSR_TEMT)
 			break;
