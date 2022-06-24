@@ -8,9 +8,11 @@
  * Author: Jingoo Han <jg1.han@samsung.com>
  */
 
+#include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/of.h>
 #include <linux/of_platform.h>
+#include <linux/sizes.h>
 #include <linux/types.h>
 
 #include "../../pci.h"
@@ -522,7 +524,8 @@ static bool dw_pcie_iatu_unroll_enabled(struct dw_pcie *pci)
 static void dw_pcie_iatu_detect_regions(struct dw_pcie *pci)
 {
 	int max_region, ob, ib;
-	u32 val;
+	u32 val, min, dir;
+	u64 max;
 
 	if (pci->iatu_unroll_enabled) {
 		max_region = min((int)pci->atu_size / 512, 256);
@@ -545,8 +548,29 @@ static void dw_pcie_iatu_detect_regions(struct dw_pcie *pci)
 			break;
 	}
 
-	pci->num_ib_windows = ib;
+	if (ob) {
+		dir = PCIE_ATU_REGION_DIR_OB;
+	} else if (ib) {
+		dir = PCIE_ATU_REGION_DIR_IB;
+	} else {
+		dev_err(pci->dev, "No iATU regions found\n");
+		return;
+	}
+
+	dw_pcie_writel_atu(pci, dir, 0, PCIE_ATU_LIMIT, 0x0);
+	min = dw_pcie_readl_atu(pci, dir, 0, PCIE_ATU_LIMIT);
+
+	if (dw_pcie_ver_is_ge(pci, 460A)) {
+		dw_pcie_writel_atu(pci, dir, 0, PCIE_ATU_UPPER_LIMIT, 0xFFFFFFFF);
+		max = dw_pcie_readl_atu(pci, dir, 0, PCIE_ATU_UPPER_LIMIT);
+	} else {
+		max = 0;
+	}
+
 	pci->num_ob_windows = ob;
+	pci->num_ib_windows = ib;
+	pci->region_align = 1 << fls(min);
+	pci->region_limit = (max << 32) | (SZ_4G - 1);
 }
 
 void dw_pcie_iatu_detect(struct dw_pcie *pci)
@@ -579,8 +603,9 @@ void dw_pcie_iatu_detect(struct dw_pcie *pci)
 	dev_info(pci->dev, "iATU unroll: %s\n", pci->iatu_unroll_enabled ?
 		"enabled" : "disabled");
 
-	dev_info(pci->dev, "Detected iATU regions: %u outbound, %u inbound\n",
-		 pci->num_ob_windows, pci->num_ib_windows);
+	dev_info(pci->dev, "iATU regions: %u ob, %u ib, align %uK, limit %lluG\n",
+		 pci->num_ob_windows, pci->num_ib_windows,
+		 pci->region_align / SZ_1K, (pci->region_limit + 1) / SZ_1G);
 }
 
 void dw_pcie_setup(struct dw_pcie *pci)
