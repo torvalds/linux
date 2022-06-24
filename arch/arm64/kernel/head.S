@@ -446,8 +446,6 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 #if defined(CONFIG_KASAN_GENERIC) || defined(CONFIG_KASAN_SW_TAGS)
 	bl	kasan_early_init
 #endif
-	mov	x0, x21				// pass FDT address in x0
-	bl	early_fdt_map			// Try mapping the FDT early
 	mov	x0, x22				// pass FDT address in x0
 	bl	init_feature_override		// Parse cpu feature overrides
 	mov	x0, x20
