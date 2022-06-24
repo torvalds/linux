@@ -6118,17 +6118,25 @@ static bool need_topup_split_caches_or_resched(struct kvm *kvm)
 
 static int topup_split_caches(struct kvm *kvm)
 {
+	/*
+	 * Allocating rmap list entries when splitting huge pages for nested
+	 * MMUs is uncommon as KVM needs to allocate if and only if there is
+	 * more than one rmap entry for a gfn, i.e. requires an L1 gfn to be
+	 * aliased by multiple L2 gfns.  Aliasing gfns when using TDP is very
+	 * atypical for VMMs; a few gfns are often aliased during boot, e.g.
+	 * when remapping firmware, but aliasing rarely occurs post-boot).  If
+	 * there is only one rmap entry, rmap->val points directly at that one
+	 * entry and doesn't need to allocate a list.  Buffer the cache by the
+	 * default capacity so that KVM doesn't have to topup the cache if it
+	 * encounters an aliased gfn or two.
+	 */
+	const int capacity = SPLIT_DESC_CACHE_MIN_NR_OBJECTS +
+			     KVM_ARCH_NR_OBJS_PER_MEMORY_CACHE;
 	int r;
 
 	lockdep_assert_held(&kvm->slots_lock);
 
-	/*
-	 * Setting capacity == min would cause KVM to drop mmu_lock even if
-	 * just one object was consumed from the cache, so make capacity
-	 * larger than min.
-	 */
-	r = __kvm_mmu_topup_memory_cache(&kvm->arch.split_desc_cache,
-					 2 * SPLIT_DESC_CACHE_MIN_NR_OBJECTS,
+	r = __kvm_mmu_topup_memory_cache(&kvm->arch.split_desc_cache, capacity,
 					 SPLIT_DESC_CACHE_MIN_NR_OBJECTS);
 	if (r)
 		return r;
