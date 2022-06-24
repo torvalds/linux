@@ -722,12 +722,9 @@ SYM_FUNC_START(__enable_mmu)
 	cmp     x3, #ID_AA64MMFR0_TGRAN_SUPPORTED_MAX
 	b.gt    __no_granule_support
 	update_early_cpu_boot_status 0, x3, x4
-	phys_to_ttbr x1, x1
 	phys_to_ttbr x2, x2
 	msr	ttbr0_el1, x2			// load TTBR0
-	offset_ttbr1 x1, x3
-	msr	ttbr1_el1, x1			// load TTBR1
-	isb
+	load_ttbr1 x1, x1, x3
 
 	set_sctlr_el1	x0
 

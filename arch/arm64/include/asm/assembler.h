@@ -480,6 +480,18 @@ alternative_endif
 	.endm
 
 /*
+ * load_ttbr1 - install @pgtbl as a TTBR1 page table
+ * pgtbl preserved
+ * tmp1/tmp2 clobbered, either may overlap with pgtbl
+ */
+	.macro		load_ttbr1, pgtbl, tmp1, tmp2
+	phys_to_ttbr	\tmp1, \pgtbl
+	offset_ttbr1 	\tmp1, \tmp2
+	msr		ttbr1_el1, \tmp1
+	isb
+	.endm
+
+/*
  * To prevent the possibility of old and new partial table walks being visible
  * in the tlb, switch the ttbr to a zero page when we invalidate the old
  * records. D4.7.1 'General TLB maintenance requirements' in ARM DDI 0487A.i
@@ -492,10 +504,7 @@ alternative_endif
 	isb
 	tlbi	vmalle1
 	dsb	nsh
-	phys_to_ttbr \tmp, \page_table
-	offset_ttbr1 \tmp, \tmp2
-	msr	ttbr1_el1, \tmp
-	isb
+	load_ttbr1 \page_table, \tmp, \tmp2
 	.endm
 
 /*
