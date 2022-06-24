@@ -263,6 +263,39 @@ SYM_FUNC_END(clear_page_tables)
 	populate_entries \tbl, \rtbl, \istart, \iend, \flags, #SWAPPER_BLOCK_SIZE, \tmp
 	.endm
 
+/*
+ * Remap a subregion created with the map_memory macro with modified attributes
+ * or output address. The entire remapped region must have been covered in the
+ * invocation of map_memory.
+ *
+ * x0: last level table address (returned in first argument to map_memory)
+ * x1: start VA of the existing mapping
+ * x2: start VA of the region to update
+ * x3: end VA of the region to update (exclusive)
+ * x4: start PA associated with the region to update
+ * x5: attributes to set on the updated region
+ * x6: order of the last level mappings
+ */
+SYM_FUNC_START_LOCAL(remap_region)
+	sub	x3, x3, #1		// make end inclusive
+
+	// Get the index offset for the start of the last level table
+	lsr	x1, x1, x6
+	bfi	x1, xzr, #0, #PAGE_SHIFT - 3
+
+	// Derive the start and end indexes into the last level table
+	// associated with the provided region
+	lsr	x2, x2, x6
+	lsr	x3, x3, x6
+	sub	x2, x2, x1
+	sub	x3, x3, x1
+
+	mov	x1, #1
+	lsl	x6, x1, x6		// block size at this level
+
+	populate_entries x0, x4, x2, x3, x5, x6, x7
+	ret
+SYM_FUNC_END(remap_region)
 
 SYM_FUNC_START_LOCAL(create_idmap)
 	adrp	x0, idmap_pg_dir
