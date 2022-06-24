@@ -664,7 +664,8 @@ EXPORT_SYMBOL_GPL(serial8250_em485_supported);
  * if the uart is incapable of driving RTS as a Transmit Enable signal in
  * hardware, relying on software emulation instead.
  */
-int serial8250_em485_config(struct uart_port *port, struct serial_rs485 *rs485)
+int serial8250_em485_config(struct uart_port *port, struct ktermios *termios,
+			    struct serial_rs485 *rs485)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 

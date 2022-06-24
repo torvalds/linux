@@ -85,7 +85,8 @@ void dw8250_do_set_termios(struct uart_port *p, struct ktermios *termios, struct
 }
 EXPORT_SYMBOL_GPL(dw8250_do_set_termios);
 
-static int dw8250_rs485_config(struct uart_port *p, struct serial_rs485 *rs485)
+static int dw8250_rs485_config(struct uart_port *p, struct ktermios *termios,
+			       struct serial_rs485 *rs485)
 {
 	u32 tcr;
 

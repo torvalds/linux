@@ -1353,7 +1353,7 @@ int uart_rs485_config(struct uart_port *port)
 
 	uart_sanitize_serial_rs485(port, rs485);
 
-	ret = port->rs485_config(port, rs485);
+	ret = port->rs485_config(port, NULL, rs485);
 	if (ret)
 		memset(rs485, 0, sizeof(*rs485));
 
@@ -1377,7 +1377,7 @@ static int uart_get_rs485_config(struct uart_port *port,
 	return 0;
 }
 
-static int uart_set_rs485_config(struct uart_port *port,
+static int uart_set_rs485_config(struct tty_struct *tty, struct uart_port *port,
 			 struct serial_rs485 __user *rs485_user)
 {
 	struct serial_rs485 rs485;
@@ -1396,7 +1396,7 @@ static int uart_set_rs485_config(struct uart_port *port,
 	uart_sanitize_serial_rs485(port, &rs485);
 
 	spin_lock_irqsave(&port->lock, flags);
-	ret = port->rs485_config(port, &rs485);
+	ret = port->rs485_config(port, &tty->termios, &rs485);
 	if (!ret)
 		port->rs485 = rs485;
 	spin_unlock_irqrestore(&port->lock, flags);
@@ -1505,6 +1505,10 @@ uart_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 	if (ret != -ENOIOCTLCMD)
 		goto out;
 
+	/* rs485_config requires more locking than others */
+	if (cmd == TIOCGRS485)
+		down_write(&tty->termios_rwsem);
+
 	mutex_lock(&port->mutex);
 	uport = uart_port_check(state);
 
@@ -1528,7 +1532,7 @@ uart_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 		break;
 
 	case TIOCSRS485:
-		ret = uart_set_rs485_config(uport, uarg);
+		ret = uart_set_rs485_config(tty, uport, uarg);
 		break;
 
 	case TIOCSISO7816:
@@ -1545,6 +1549,8 @@ uart_ioctl(struct tty_struct *tty, unsigned int cmd, unsigned long arg)
 	}
 out_up:
 	mutex_unlock(&port->mutex);
+	if (cmd == TIOCGRS485)
+		up_write(&tty->termios_rwsem);
 out:
 	return ret;
 }

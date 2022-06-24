@@ -431,7 +431,8 @@ static int mcf_verify_port(struct uart_port *port, struct serial_struct *ser)
 /****************************************************************************/
 
 /* Enable or disable the RS485 support */
-static int mcf_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
+static int mcf_config_rs485(struct uart_port *port, struct ktermios *termios,
+			    struct serial_rs485 *rs485)
 {
 	unsigned char mr1, mr2;
 

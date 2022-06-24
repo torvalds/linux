@@ -580,7 +580,7 @@ static const struct uart_ops ar933x_uart_ops = {
 	.verify_port	= ar933x_uart_verify_port,
 };
 
-static int ar933x_config_rs485(struct uart_port *port,
+static int ar933x_config_rs485(struct uart_port *port, struct ktermios *termios,
 				struct serial_rs485 *rs485conf)
 {
 	struct ar933x_uart_port *up =

@@ -283,7 +283,7 @@ static void atmel_tasklet_schedule(struct atmel_uart_port *atmel_port,
 }
 
 /* Enable or disable the rs485 support */
-static int atmel_config_rs485(struct uart_port *port,
+static int atmel_config_rs485(struct uart_port *port, struct ktermios *termios,
 			      struct serial_rs485 *rs485conf)
 {
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);

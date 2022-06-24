@@ -32,7 +32,7 @@ struct lpc18xx_uart_data {
 	int line;
 };
 
-static int lpc18xx_rs485_config(struct uart_port *port,
+static int lpc18xx_rs485_config(struct uart_port *port, struct ktermios *termios,
 				struct serial_rs485 *rs485)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);

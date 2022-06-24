@@ -1355,7 +1355,7 @@ static void lpuart_dma_rx_free(struct uart_port *port)
 	sport->dma_rx_cookie = -EINVAL;
 }
 
-static int lpuart_config_rs485(struct uart_port *port,
+static int lpuart_config_rs485(struct uart_port *port, struct ktermios *termios,
 			struct serial_rs485 *rs485)
 {
 	struct lpuart_port *sport = container_of(port,
@@ -1385,7 +1385,7 @@ static int lpuart_config_rs485(struct uart_port *port,
 	return 0;
 }
 
-static int lpuart32_config_rs485(struct uart_port *port,
+static int lpuart32_config_rs485(struct uart_port *port, struct ktermios *termios,
 			struct serial_rs485 *rs485)
 {
 	struct lpuart_port *sport = container_of(port,

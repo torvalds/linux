@@ -97,7 +97,7 @@ static void stm32_usart_config_reg_rs485(u32 *cr1, u32 *cr3, u32 delay_ADE,
 	*cr1 |= rs485_deat_dedt;
 }
 
-static int stm32_usart_config_rs485(struct uart_port *port,
+static int stm32_usart_config_rs485(struct uart_port *port, struct ktermios *termios,
 				    struct serial_rs485 *rs485conf)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);

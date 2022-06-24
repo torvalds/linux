@@ -112,7 +112,8 @@
 struct exar8250;
 
 struct exar8250_platform {
-	int (*rs485_config)(struct uart_port *, struct serial_rs485 *);
+	int (*rs485_config)(struct uart_port *port, struct ktermios *termios,
+			    struct serial_rs485 *rs485);
 	const struct serial_rs485 *rs485_supported;
 	int (*register_gpio)(struct pci_dev *, struct uart_8250_port *);
 	void (*unregister_gpio)(struct uart_8250_port *);
@@ -409,7 +410,7 @@ static void xr17v35x_unregister_gpio(struct uart_8250_port *port)
 	port->port.private_data = NULL;
 }
 
-static int generic_rs485_config(struct uart_port *port,
+static int generic_rs485_config(struct uart_port *port, struct ktermios *termios,
 				struct serial_rs485 *rs485)
 {
 	bool is_rs485 = !!(rs485->flags & SER_RS485_ENABLED);
@@ -441,7 +442,7 @@ static const struct exar8250_platform exar8250_default_platform = {
 	.rs485_supported = &generic_rs485_supported,
 };
 
-static int iot2040_rs485_config(struct uart_port *port,
+static int iot2040_rs485_config(struct uart_port *port, struct ktermios *termios,
 				struct serial_rs485 *rs485)
 {
 	bool is_rs485 = !!(rs485->flags & SER_RS485_ENABLED);
@@ -471,7 +472,7 @@ static int iot2040_rs485_config(struct uart_port *port,
 	value |= mode;
 	writeb(value, p + UART_EXAR_MPIOLVL_7_0);
 
-	return generic_rs485_config(port, rs485);
+	return generic_rs485_config(port, termios, rs485);
 }
 
 static const struct serial_rs485 iot2040_rs485_supported = {

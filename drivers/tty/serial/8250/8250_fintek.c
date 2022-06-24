@@ -191,7 +191,7 @@ static int fintek_8250_get_ldn_range(struct fintek_8250 *pdata, int *min,
 	return -ENODEV;
 }
 
-static int fintek_8250_rs485_config(struct uart_port *port,
+static int fintek_8250_rs485_config(struct uart_port *port, struct ktermios *termios,
 			      struct serial_rs485 *rs485)
 {
 	uint8_t config = 0;
