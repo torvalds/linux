@@ -8,6 +8,7 @@
  * Author: Jingoo Han <jg1.han@samsung.com>
  */
 
+#include <linux/align.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
 #include <linux/of.h>
@@ -305,9 +306,9 @@ static inline u32 dw_pcie_enable_ecrc(u32 val)
 	return val | PCIE_ATU_TD;
 }
 
-static void __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_no,
-					int index, int type, u64 cpu_addr,
-					u64 pci_addr, u64 size)
+static int __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_no,
+				       int index, int type, u64 cpu_addr,
+				       u64 pci_addr, u64 size)
 {
 	u32 retries, val;
 	u64 limit_addr;
@@ -316,6 +317,12 @@ static void __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_no,
 		cpu_addr = pci->ops->cpu_addr_fixup(pci, cpu_addr);
 
 	limit_addr = cpu_addr + size - 1;
+
+	if ((limit_addr & ~pci->region_limit) != (cpu_addr & ~pci->region_limit) ||
+	    !IS_ALIGNED(cpu_addr, pci->region_align) ||
+	    !IS_ALIGNED(pci_addr, pci->region_align) || !size) {
+		return -EINVAL;
+	}
 
 	dw_pcie_writel_atu_ob(pci, index, PCIE_ATU_LOWER_BASE,
 			      lower_32_bits(cpu_addr));
@@ -350,27 +357,29 @@ static void __dw_pcie_prog_outbound_atu(struct dw_pcie *pci, u8 func_no,
 	for (retries = 0; retries < LINK_WAIT_MAX_IATU_RETRIES; retries++) {
 		val = dw_pcie_readl_atu_ob(pci, index, PCIE_ATU_REGION_CTRL2);
 		if (val & PCIE_ATU_ENABLE)
-			return;
+			return 0;
 
 		mdelay(LINK_WAIT_IATU);
 	}
 
 	dev_err(pci->dev, "Outbound iATU is not being enabled\n");
+
+	return -ETIMEDOUT;
 }
 
-void dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index, int type,
-			       u64 cpu_addr, u64 pci_addr, u64 size)
+int dw_pcie_prog_outbound_atu(struct dw_pcie *pci, int index, int type,
+			      u64 cpu_addr, u64 pci_addr, u64 size)
 {
-	__dw_pcie_prog_outbound_atu(pci, 0, index, type,
-				    cpu_addr, pci_addr, size);
+	return __dw_pcie_prog_outbound_atu(pci, 0, index, type,
+					   cpu_addr, pci_addr, size);
 }
 
-void dw_pcie_prog_ep_outbound_atu(struct dw_pcie *pci, u8 func_no, int index,
-				  int type, u64 cpu_addr, u64 pci_addr,
-				  u64 size)
+int dw_pcie_prog_ep_outbound_atu(struct dw_pcie *pci, u8 func_no, int index,
+				 int type, u64 cpu_addr, u64 pci_addr,
+				 u64 size)
 {
-	__dw_pcie_prog_outbound_atu(pci, func_no, index, type,
-				    cpu_addr, pci_addr, size);
+	return __dw_pcie_prog_outbound_atu(pci, func_no, index, type,
+					   cpu_addr, pci_addr, size);
 }
 
 static inline u32 dw_pcie_readl_atu_ib(struct dw_pcie *pci, u32 index, u32 reg)
@@ -388,6 +397,9 @@ int dw_pcie_prog_inbound_atu(struct dw_pcie *pci, u8 func_no, int index,
 			     int type, u64 cpu_addr, u8 bar)
 {
 	u32 retries, val;
+
+	if (!IS_ALIGNED(cpu_addr, pci->region_align))
+		return -EINVAL;
 
 	dw_pcie_writel_atu_ib(pci, index, PCIE_ATU_LOWER_TARGET,
 			      lower_32_bits(cpu_addr));
