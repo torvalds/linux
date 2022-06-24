@@ -303,6 +303,7 @@ struct max98396_priv {
 	struct regulator *pvdd, *vbat;
 	unsigned int v_slot;
 	unsigned int i_slot;
+	unsigned int spkfb_slot;
 	unsigned int bypass_slot;
 	bool interleave_mode;
 	unsigned int ch_size;

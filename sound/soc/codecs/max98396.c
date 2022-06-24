@@ -1377,6 +1377,9 @@ static int max98396_probe(struct snd_soc_component *component)
 	regmap_write(max98396->regmap,
 		     MAX98396_R2045_PCM_TX_CTRL_2,
 		     max98396->i_slot);
+	regmap_write(max98396->regmap,
+		     MAX98396_R204A_PCM_TX_CTRL_7,
+		     max98396->spkfb_slot);
 
 	if (max98396->v_slot < 8)
 		if (max98396->device_id == CODEC_TYPE_MAX98396)
@@ -1551,6 +1554,11 @@ static void max98396_read_device_property(struct device *dev,
 		max98396->i_slot = value & 0xF;
 	else
 		max98396->i_slot = 1;
+
+	if (!device_property_read_u32(dev, "adi,spkfb-slot-no", &value))
+		max98396->spkfb_slot = value & 0xF;
+	else
+		max98396->spkfb_slot = 2;
 
 	if (!device_property_read_u32(dev, "adi,bypass-slot-no", &value))
 		max98396->bypass_slot = value & 0xF;
