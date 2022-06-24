@@ -110,6 +110,7 @@ dml_get_attr_func(return_bw, mode_lib->vba.ReturnBW);
 dml_get_attr_func(tcalc, mode_lib->vba.TCalc);
 dml_get_attr_func(fraction_of_urgent_bandwidth, mode_lib->vba.FractionOfUrgentBandwidth);
 dml_get_attr_func(fraction_of_urgent_bandwidth_imm_flip, mode_lib->vba.FractionOfUrgentBandwidthImmediateFlip);
+
 dml_get_attr_func(cstate_max_cap_mode, mode_lib->vba.DCHUBBUB_ARB_CSTATE_MAX_CAP_MODE);
 dml_get_attr_func(comp_buffer_size_kbytes, mode_lib->vba.CompressedBufferSizeInkByte);
 dml_get_attr_func(pixel_chunk_size_in_kbyte, mode_lib->vba.PixelChunkSizeInKByte);
@@ -119,6 +120,11 @@ dml_get_attr_func(min_pixel_chunk_size_in_byte, mode_lib->vba.MinPixelChunkSizeB
 dml_get_attr_func(min_meta_chunk_size_in_byte, mode_lib->vba.MinMetaChunkSizeBytes);
 dml_get_attr_func(fclk_watermark, mode_lib->vba.Watermark.FCLKChangeWatermark);
 dml_get_attr_func(usr_retraining_watermark, mode_lib->vba.Watermark.USRRetrainingWatermark);
+
+dml_get_attr_func(comp_buffer_reserved_space_kbytes, mode_lib->vba.CompBufReservedSpaceKBytes);
+dml_get_attr_func(comp_buffer_reserved_space_64bytes, mode_lib->vba.CompBufReservedSpace64B);
+dml_get_attr_func(comp_buffer_reserved_space_zs, mode_lib->vba.CompBufReservedSpaceZs);
+dml_get_attr_func(unbounded_request_enabled, mode_lib->vba.UnboundedRequestEnabled);
 
 #define dml_get_pipe_attr_func(attr, var)  double get_##attr(struct display_mode_lib *mode_lib, const display_e2e_pipe_params_st *pipes, unsigned int num_pipes, unsigned int which_pipe) \
 {\
@@ -841,6 +847,9 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 
 	mode_lib->vba.SynchronizeTimingsFinal = pipes[0].pipe.dest.synchronize_timings;
 	mode_lib->vba.DCCProgrammingAssumesScanDirectionUnknownFinal = false;
+
+	mode_lib->vba.DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment = 0;
+
 	mode_lib->vba.UseUnboundedRequesting = dm_unbounded_requesting;
 	for (k = 0; k < mode_lib->vba.cache_num_pipes; ++k) {
 		if (pipes[k].pipe.src.unbounded_req_mode == 0)

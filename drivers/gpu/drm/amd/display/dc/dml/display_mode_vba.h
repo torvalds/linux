@@ -67,6 +67,10 @@ dml_get_attr_decl(min_pixel_chunk_size_in_byte);
 dml_get_attr_decl(min_meta_chunk_size_in_byte);
 dml_get_attr_decl(fclk_watermark);
 dml_get_attr_decl(usr_retraining_watermark);
+dml_get_attr_decl(comp_buffer_reserved_space_kbytes);
+dml_get_attr_decl(comp_buffer_reserved_space_64bytes);
+dml_get_attr_decl(comp_buffer_reserved_space_zs);
+dml_get_attr_decl(unbounded_request_enabled);
 
 #define dml_get_pipe_attr_decl(attr) double get_##attr(struct display_mode_lib *mode_lib, const display_e2e_pipe_params_st *pipes, unsigned int num_pipes, unsigned int which_pipe)
 
@@ -467,6 +471,7 @@ struct vba_vars_st {
 	bool XFCEnabled[DC__NUM_DPP__MAX];
 	bool ScalerEnabled[DC__NUM_DPP__MAX];
 	unsigned int VBlankNom[DC__NUM_DPP__MAX];
+	bool DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment;
 
 	// Intermediates/Informational
 	bool ImmediateFlipSupport;
@@ -510,6 +515,10 @@ struct vba_vars_st {
 	double StutterPeriodBestCase;
 	Watermarks      Watermark;
 	bool DCHUBBUB_ARB_CSTATE_MAX_CAP_MODE;
+	unsigned int CompBufReservedSpaceKBytes;
+	unsigned int CompBufReservedSpace64B;
+	unsigned int CompBufReservedSpaceZs;
+	bool CompBufReservedSpaceNeedAdjustment;
 
 	// These are the clocks calcuated by the library but they are not actually
 	// used explicitly. They are fetched by tests and then possibly used. The
