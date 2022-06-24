@@ -1728,6 +1728,8 @@ enum ieee80211_offload_flags {
  * @idle: This interface is idle. There's also a global idle flag in the
  *	hardware config which may be more appropriate depending on what
  *	your driver/device needs to do.
+ * @ap_addr: AP MLD address, or BSSID for non-MLO connections
+ *	(station mode only)
  */
 struct ieee80211_vif_cfg {
 	/* association related data */
@@ -1742,6 +1744,7 @@ struct ieee80211_vif_cfg {
 	size_t ssid_len;
 	bool s1g;
 	bool idle;
+	u8 ap_addr[ETH_ALEN] __aligned(2);
 };
 
 /**
