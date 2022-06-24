@@ -8496,23 +8496,6 @@ enum skl_power_gate {
 #define   SGGI_DIS			REG_BIT(15)
 #define   SGR_DIS			REG_BIT(13)
 
-#define XEHPSDV_TILE0_ADDR_RANGE	_MMIO(0x4900)
-#define   XEHPSDV_TILE_LMEM_RANGE_SHIFT  8
-
-#define XEHPSDV_FLAT_CCS_BASE_ADDR	_MMIO(0x4910)
-#define   XEHPSDV_CCS_BASE_SHIFT	8
-
-/* gamt regs */
-#define GEN8_L3_LRA_1_GPGPU _MMIO(0x4dd4)
-#define   GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_BDW  0x67F1427F /* max/min for LRA1/2 */
-#define   GEN8_L3_LRA_1_GPGPU_DEFAULT_VALUE_CHV  0x5FF101FF /* max/min for LRA1/2 */
-#define   GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_SKL  0x67F1427F /*    "        " */
-#define   GEN9_L3_LRA_1_GPGPU_DEFAULT_VALUE_BXT  0x5FF101FF /*    "        " */
-
-#define MMCD_MISC_CTRL		_MMIO(0x4ddc) /* skl+ */
-#define  MMCD_PCLA		(1 << 31)
-#define  MMCD_HOTSPOT_EN	(1 << 27)
-
 #define _ICL_PHY_MISC_A		0x64C00
 #define _ICL_PHY_MISC_B		0x64C04
 #define _DG2_PHY_MISC_TC1	0x64C14 /* TC1="PHY E" but offset as if "PHY F" */
