@@ -241,12 +241,6 @@ gaudi_qman_arb_error_cause[GAUDI_NUM_OF_QM_ARB_ERR_CAUSE] = {
 	"MSG AXI LBW returned with error"
 };
 
-enum gaudi_sm_sei_cause {
-	GAUDI_SM_SEI_SO_OVERFLOW,
-	GAUDI_SM_SEI_LBW_4B_UNALIGNED,
-	GAUDI_SM_SEI_AXI_RESPONSE_ERR
-};
-
 static enum hl_queue_type gaudi_queue_type[GAUDI_QUEUE_ID_SIZE] = {
 	QUEUE_TYPE_EXT, /* GAUDI_QUEUE_ID_DMA_0_0 */
 	QUEUE_TYPE_EXT, /* GAUDI_QUEUE_ID_DMA_0_1 */
@@ -609,16 +603,14 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 
 	prop->dram_base_address = DRAM_PHYS_BASE;
 	prop->dram_size = GAUDI_HBM_SIZE_32GB;
-	prop->dram_end_address = prop->dram_base_address +
-					prop->dram_size;
+	prop->dram_end_address = prop->dram_base_address + prop->dram_size;
 	prop->dram_user_base_address = DRAM_BASE_ADDR_USER;
 
 	prop->sram_base_address = SRAM_BASE_ADDR;
 	prop->sram_size = SRAM_SIZE;
-	prop->sram_end_address = prop->sram_base_address +
-					prop->sram_size;
-	prop->sram_user_base_address = prop->sram_base_address +
-					SRAM_USER_BASE_OFFSET;
+	prop->sram_end_address = prop->sram_base_address + prop->sram_size;
+	prop->sram_user_base_address =
+			prop->sram_base_address + SRAM_USER_BASE_OFFSET;
 
 	prop->mmu_pgt_addr = MMU_PAGE_TABLES_ADDR;
 	if (hdev->pldm)
@@ -7766,8 +7758,7 @@ static int tpc_krn_event_to_tpc_id(u16 tpc_dec_event_type)
 	return (tpc_dec_event_type - GAUDI_EVENT_TPC0_KRN_ERR) / 6;
 }
 
-static void gaudi_print_clk_change_info(struct hl_device *hdev,
-					u16 event_type)
+static void gaudi_print_clk_change_info(struct hl_device *hdev, u16 event_type)
 {
 	ktime_t zero_time = ktime_set(0, 0);
 
@@ -7815,8 +7806,7 @@ static void gaudi_print_clk_change_info(struct hl_device *hdev,
 	mutex_unlock(&hdev->clk_throttling.lock);
 }
 
-static void gaudi_handle_eqe(struct hl_device *hdev,
-				struct hl_eq_entry *eq_entry)
+static void gaudi_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_entry)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	u64 data = le64_to_cpu(eq_entry->data[0]), event_mask = 0;
@@ -8103,8 +8093,7 @@ reset_device:
 		hl_fw_unmask_irq(hdev, event_type);
 }
 
-static void *gaudi_get_events_stat(struct hl_device *hdev, bool aggregate,
-					u32 *size)
+static void *gaudi_get_events_stat(struct hl_device *hdev, bool aggregate, u32 *size)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 
@@ -8117,8 +8106,7 @@ static void *gaudi_get_events_stat(struct hl_device *hdev, bool aggregate,
 	return gaudi->events_stat;
 }
 
-static int gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard,
-					u32 flags)
+static int gaudi_mmu_invalidate_cache(struct hl_device *hdev, bool is_hard, u32 flags)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	u32 status, timeout_usec;
@@ -8161,8 +8149,7 @@ static int gaudi_mmu_invalidate_cache_range(struct hl_device *hdev,
 	return hdev->asic_funcs->mmu_invalidate_cache(hdev, is_hard, flags);
 }
 
-static int gaudi_mmu_update_asid_hop0_addr(struct hl_device *hdev,
-					u32 asid, u64 phys_addr)
+static int gaudi_mmu_update_asid_hop0_addr(struct hl_device *hdev, u32 asid, u64 phys_addr)
 {
 	u32 status, timeout_usec;
 	int rc;
