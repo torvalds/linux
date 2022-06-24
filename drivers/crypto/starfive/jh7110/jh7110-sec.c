@@ -85,14 +85,12 @@ static irqreturn_t jh7110_cryp_irq(int irq, void *arg)
 	switch (sdev->cry_type) {
 	case JH7110_SHA_TYPE:
 		sha_csr.v = jh7110_sec_read(sdev, JH7110_SHA_SHACSR);
-		if (sha_csr.key_done)
-			sdev->done_flags |= JH7110_SHA_KEY_DONE;
 		if (sha_csr.hmac_done)
 			sdev->done_flags |= JH7110_SHA_HMAC_DONE;
 		if (sha_csr.shadone)
 			sdev->done_flags |= JH7110_SHA_SHA_DONE;
 
-		jh7110_sec_write(sdev, JH7110_SHA_SHACSR, sha_csr.v | BIT(17));
+		jh7110_sec_write(sdev, JH7110_SHA_SHACSR, sha_csr.v | BIT(15) | BIT(17));
 		break;
 	case JH7110_AES_TYPE:
 		aes_csr.v = jh7110_sec_read(sdev, JH7110_AES_CSR);

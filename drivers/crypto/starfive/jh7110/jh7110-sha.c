@@ -42,13 +42,14 @@
 
 #define JH7110_HASH_BUFLEN		8192
 
-static inline int jh7110_hash_wait_done(struct jh7110_sec_ctx *ctx)
+static inline int jh7110_hash_wait_hmac_done(struct jh7110_sec_ctx *ctx)
 {
 	struct jh7110_sec_dev *sdev = ctx->sdev;
 	int ret = -1;
 
-	if (sdev->done_flags & (JH7110_SHA_KEY_DONE | JH7110_SHA_HMAC_DONE | JH7110_SHA_SHA_DONE))
+	if (sdev->done_flags & JH7110_SHA_HMAC_DONE)
 		ret = 0;
+
 	return ret;
 }
 
@@ -58,7 +59,16 @@ static inline int jh7110_hash_wait_busy(struct jh7110_sec_ctx *ctx)
 	u32 status;
 
 	return readl_relaxed_poll_timeout(sdev->io_base + JH7110_SHA_SHACSR, status,
-					!(status & JH7110_SHA_BUSY), 10, 100000);
+			!(status & JH7110_SHA_BUSY), 10, 100000);
+}
+
+static inline int jh7110_hash_wait_key_done(struct jh7110_sec_ctx *ctx)
+{
+	struct jh7110_sec_dev *sdev = ctx->sdev;
+	u32 status;
+
+	return readl_relaxed_poll_timeout(sdev->io_base + JH7110_SHA_SHACSR, status,
+			(status & JH7110_SHA_KEY_DONE), 10, 100000);
 }
 
 static unsigned int jh7110_hash_reverse(unsigned int data)
@@ -114,18 +124,18 @@ static void jh7110_hash_start(struct jh7110_sec_ctx *ctx, int flags)
 	jh7110_sec_write(sdev, JH7110_SHA_SHACSR, rctx->csr.sha_csr.v);
 }
 
-static void jh7110_sha_hmac_key(struct jh7110_sec_ctx *ctx)
+static int jh7110_sha_hmac_key(struct jh7110_sec_ctx *ctx)
 {
 	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
 	struct jh7110_sec_dev *sdev = ctx->sdev;
 	int klen = ctx->keylen, loop;
 	unsigned int *key_tmp;
 
-	sdev->done_flags = 0;
-	sdev->cry_type = JH7110_SHA_TYPE;
-
 	jh7110_sec_write(sdev, JH7110_SHA_SHAWKLEN, ctx->keylen);
+
+	rctx->csr.sha_csr.hmac = !!(ctx->sha_mode & JH7110_SHA_HMAC_FLAGS);
 	rctx->csr.sha_csr.key_flag = 1;
+
 	jh7110_sec_write(sdev, JH7110_SHA_SHACSR, rctx->csr.sha_csr.v);
 
 	key_tmp = (unsigned int *)ctx->key;
@@ -133,7 +143,11 @@ static void jh7110_sha_hmac_key(struct jh7110_sec_ctx *ctx)
 	for (loop = 0; loop < klen / sizeof(unsigned int); loop++)
 		jh7110_sec_write(sdev, JH7110_SHA_SHAWKR, key_tmp[loop]);
 
-	jh7110_hash_wait_done(ctx);
+	if (jh7110_hash_wait_key_done(ctx)) {
+		dev_err(sdev->dev, " jh7110_hash_wait_key_done error\n");
+		return -ETIMEDOUT;
+	}
+	return 0;
 }
 
 static void jh7110_hash_write_back(struct jh7110_sec_ctx *ctx)
@@ -252,6 +266,7 @@ static int jh7110_hash_xmit_cpu(struct jh7110_sec_ctx *ctx, int flags)
 	total_len = rctx->bufcnt;
 	mlen = total_len / sizeof(u32);// DIV_ROUND_UP(total_len, sizeof(u32));
 	buffer = (unsigned int *)ctx->buffer;
+
 	for (loop = 0; loop < mlen; loop++, buffer++)
 		jh7110_sec_write(sdev, JH7110_SHA_SHAWDR, *buffer);
 
@@ -303,10 +318,7 @@ static int jh7110_hash_xmit(struct jh7110_sec_ctx *ctx, int flags)
 {
 	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
 	struct jh7110_sec_dev *sdev = ctx->sdev;
-	int count, *data, mlen;
 	int ret;
-
-	mlen = jh7110_get_hash_size(ctx) / sizeof(unsigned int);
 
 	sdev->cry_type = JH7110_SHA_TYPE;
 
@@ -319,35 +331,22 @@ static int jh7110_hash_xmit(struct jh7110_sec_ctx *ctx, int flags)
 		return -ETIMEDOUT;
 	}
 
-	if (ctx->sha_mode & JH7110_SHA_HMAC_FLAGS)
-		jh7110_sha_hmac_key(ctx);
-
 	rctx->csr.sha_csr.v = 0;
-	rctx->csr.sha_csr.start = 1;
 	rctx->csr.sha_csr.mode = ctx->sha_mode & JH7110_SHA_MODE_MASK;
-
-	if (ctx->sec_init) {
-		rctx->csr.sha_csr.firstb = 1;
-		ctx->sec_init = 0;
-	} else {
-		jh7110_sec_write(sdev, JH7110_SHA_SHAWLEN3, 0X00000000);
-		jh7110_sec_write(sdev, JH7110_SHA_SHAWLEN2, 0X00000000);
-		jh7110_sec_write(sdev, JH7110_SHA_SHAWLEN1,
-					jh7110_hash_reverse(ctx->sha_len_total >> 32));
-		jh7110_sec_write(sdev, JH7110_SHA_SHAWLEN0,
-					jh7110_hash_reverse(ctx->sha_len_total & 0xffffffff));
-		jh7110_hash_write_back(ctx);
-	}
-
-	rctx->csr.sha_csr.hmac = !!(ctx->sha_mode & JH7110_SHA_HMAC_FLAGS);
-	if (!ctx->sdev->use_dma)
+	if (ctx->sdev->use_dma)
 		rctx->csr.sha_csr.ie = 1;
 
-	jh7110_sec_write(sdev, JH7110_SHA_SHACSR, rctx->csr.sha_csr.v);
+	if (ctx->sha_mode & JH7110_SHA_HMAC_FLAGS)
+		ret = jh7110_sha_hmac_key(ctx);
 
-	if (jh7110_hash_wait_busy(ctx)) {
-		dev_err(sdev->dev, "jh7110_hash_wait_busy error\n");
-		return -ETIMEDOUT;
+	if (ret)
+		return ret;
+
+	if (ctx->sec_init && !rctx->csr.sha_csr.hmac) {
+		rctx->csr.sha_csr.start = 1;
+		rctx->csr.sha_csr.firstb = 1;
+		ctx->sec_init = 0;
+		jh7110_sec_write(sdev, JH7110_SHA_SHACSR, rctx->csr.sha_csr.v);
 	}
 
 	if (ctx->sdev->use_dma) {
@@ -363,27 +362,18 @@ static int jh7110_hash_xmit(struct jh7110_sec_ctx *ctx, int flags)
 	if (ret)
 		return ret;
 
+	jh7110_hash_start(ctx, flags);
+
 	if (jh7110_hash_wait_busy(ctx)) {
 		dev_err(sdev->dev, "jh7110_hash_wait_busy error\n");
 		return -ETIMEDOUT;
 	}
 
-	jh7110_hash_start(ctx, flags);
-
-	if (ctx->sha_mode & JH7110_SHA_HMAC_FLAGS) {
-		rctx->csr.sha_csr.final = 1;
-		jh7110_sec_write(sdev, JH7110_SHA_SHACSR, rctx->csr.sha_csr.v);
-	}
-
-	if (jh7110_hash_wait_busy(ctx))
-		dev_dbg(sdev->dev, "this is debug  %s %s %d\n", __FILE__, __func__, __LINE__);
-
-	if (!flags) {
-		data = (unsigned int *)rctx->sha_digest_mid;
-		for (count = 0; count < mlen; count++)
-			data[count] = jh7110_sec_read(ctx->sdev, JH7110_SHA_SHARDR);
-	}
-
+	if (ctx->sha_mode & JH7110_SHA_HMAC_FLAGS)
+		if (jh7110_hash_wait_hmac_done(ctx)) {
+			dev_err(sdev->dev, "jh7110_hash_wait_hmac_done error\n");
+			return -ETIMEDOUT;
+		}
 	return 0;
 }
 
@@ -437,13 +427,6 @@ static int jh7110_hash_out_cpu(struct ahash_request *req)
 
 	mlen = jh7110_get_hash_size(ctx) / sizeof(u32);
 
-	if (mlen == 28)
-		jh7110_sec_read(ctx->sdev, JH7110_SHA_SHARDR);
-
-	if (mlen == 48) {
-		for (count = 0; count < 4; count++)
-			jh7110_sec_read(ctx->sdev, JH7110_SHA_SHARDR);
-	}
 	data = (u32 *)req->result;
 	for (count = 0; count < mlen; count++)
 		data[count] = jh7110_sec_read(ctx->sdev, JH7110_SHA_SHARDR);
@@ -1257,4 +1240,3 @@ void jh7110_hash_unregister_algs(void)
 {
 	crypto_unregister_ahashes(algs_sha0_sha512_sm3, ARRAY_SIZE(algs_sha0_sha512_sm3));
 }
-
