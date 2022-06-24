@@ -359,40 +359,34 @@ static int free_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args)
 
 	spin_lock(&vm->idr_lock);
 	phys_pg_pack = idr_find(&vm->phys_pg_pack_handles, handle);
-	if (phys_pg_pack) {
-		if (atomic_read(&phys_pg_pack->mapping_cnt) > 0) {
-			dev_err(hdev->dev, "handle %u is mapped, cannot free\n",
-				handle);
-			spin_unlock(&vm->idr_lock);
-			return -EINVAL;
-		}
-
-		if (phys_pg_pack->exporting_cnt) {
-			dev_dbg(hdev->dev, "handle %u is exported, cannot free\n", handle);
-			spin_unlock(&vm->idr_lock);
-			return -EINVAL;
-		}
-
-		/*
-		 * must remove from idr before the freeing of the physical
-		 * pages as the refcount of the pool is also the trigger of the
-		 * idr destroy
-		 */
-		idr_remove(&vm->phys_pg_pack_handles, handle);
+	if (!phys_pg_pack) {
 		spin_unlock(&vm->idr_lock);
-
-		atomic64_sub(phys_pg_pack->total_size, &ctx->dram_phys_mem);
-		atomic64_sub(phys_pg_pack->total_size, &hdev->dram_used_mem);
-
-		free_phys_pg_pack(hdev, phys_pg_pack);
-		return 0;
-	} else {
-		spin_unlock(&vm->idr_lock);
-		dev_err(hdev->dev,
-			"free device memory failed, no match for handle %u\n",
-			handle);
+		dev_err(hdev->dev, "free device memory failed, no match for handle %u\n", handle);
 		return -EINVAL;
 	}
+
+	if (atomic_read(&phys_pg_pack->mapping_cnt) > 0) {
+		spin_unlock(&vm->idr_lock);
+		dev_err(hdev->dev, "handle %u is mapped, cannot free\n", handle);
+		return -EINVAL;
+	}
+
+	if (phys_pg_pack->exporting_cnt) {
+		spin_unlock(&vm->idr_lock);
+		dev_dbg(hdev->dev, "handle %u is exported, cannot free\n", handle);
+		return -EINVAL;
+	}
+
+	/* must remove from idr before the freeing of the physical pages as the refcount of the pool
+	 * is also the trigger of the idr destroy
+	 */
+	idr_remove(&vm->phys_pg_pack_handles, handle);
+	spin_unlock(&vm->idr_lock);
+
+	atomic64_sub(phys_pg_pack->total_size, &ctx->dram_phys_mem);
+	atomic64_sub(phys_pg_pack->total_size, &hdev->dram_used_mem);
+
+	free_phys_pg_pack(hdev, phys_pg_pack);
 
 	return 0;
 }
