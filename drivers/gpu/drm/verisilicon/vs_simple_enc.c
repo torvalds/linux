@@ -117,24 +117,7 @@ err:
 void encoder_atomic_enable(struct drm_encoder *encoder,
 						struct drm_atomic_state *state)
 {
-	struct simple_encoder *simple = to_simple_encoder(encoder);
-	printk("encoder_atomic_enable\n");
-	#if 0
-	struct dss_data *data = simple->dss_regdatas;
-	int crtc_id;
-
-	if (!simple->dss_regmap)
-		return;
-
-	crtc_id = drm_of_encoder_active_endpoint_id(
-				simple->dev->of_node, encoder);
-
-	regmap_update_bits(simple->dss_regmap, 0, data[crtc_id].mask,
-			  data[crtc_id].value);
-
-	regmap_update_bits(simple->dss_regmap, DOM_VOUT_SYSCON_8, U0_LCD_DATA_MAPPING_DPI_DP_SEL_MASK, 0);
-	regmap_update_bits(simple->dss_regmap, DOM_VOUT_SYSCON_4, U0_DISPLAY_PANEL_MUX_PANEL_SEL_MASK, 0);
-	#endif
+	return;
 }
 
 int encoder_atomic_check(struct drm_encoder *encoder,
@@ -210,7 +193,7 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 	struct simple_encoder *simple = dev_get_drvdata(dev);
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
-	struct drm_panel *tmp_panel;
+	
 	int ret;
 
 	encoder = &simple->encoder;
@@ -231,6 +214,8 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 	/* output port is port1*/
 
 #ifdef CONFIG_STARFIVE_DSI
+	struct drm_panel *tmp_panel;
+
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0,&tmp_panel, &bridge);
 	if (ret){
 		printk("==no panel, %d\n",ret);
@@ -284,7 +269,6 @@ static int encoder_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct simple_encoder *simple;
-	int ret;
 
 	simple = devm_kzalloc(dev, sizeof(*simple), GFP_KERNEL);
 	if (!simple)

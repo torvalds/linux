@@ -72,14 +72,14 @@ struct inno_hdmi {
 	struct inno_hdmi_i2c *i2c;
 	struct i2c_adapter *ddc;
 
-	unsigned int tmds_rate;
+	unsigned long tmds_rate;
 
 	struct hdmi_data_info	hdmi_data;
 	struct drm_display_mode previous_mode;
 	struct regulator *hdmi_1p8;
 	struct regulator *hdmi_0p9;
-	struct pre_pll_config 	*pre_cfg;
-	struct post_pll_config 	*post_cfg;
+	const struct pre_pll_config 	*pre_cfg;
+	const struct post_pll_config 	*post_cfg;
 };
 
 enum {
@@ -242,7 +242,7 @@ void inno_hdmi_srcdata_fmt_config(int panel_sel, int dpi_dp_sel, int dpi_dp_dept
 
 static void inno_hdmi_power_up(struct inno_hdmi *hdmi)
 {
-	int val;
+	u8 val;
 
 	val = readl_relaxed(hdmi->regs + (0x1b0) * 0x04);
 	val |= 0x4;
@@ -694,11 +694,10 @@ static int inno_hdmi_config_video_timing(struct inno_hdmi *hdmi,
 
  static int inno_hdmi_phy_clk_set_rate(struct inno_hdmi *hdmi,unsigned long rate)
  {
+ 	unsigned long tmdsclock;
 	hdmi->post_cfg = post_pll_cfg_table;
-	unsigned long tmdsclock = hdmi->tmds_rate;
-	u32 v;
-	int ret;
 
+	tmdsclock = hdmi->tmds_rate;
 	dev_info(hdmi->dev, "%s rate %lu tmdsclk %lu\n",__func__, rate, tmdsclock);
 
 	hdmi->pre_cfg = inno_hdmi_phy_get_pre_pll_cfg(hdmi, tmdsclock);
@@ -836,13 +835,11 @@ static int inno_hdmi_config_video_timing(struct inno_hdmi *hdmi,
 static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 			   struct drm_display_mode *mode)
 {
+	u8 val;
+	int value;
 	hdmi->hdmi_data.vic = drm_match_cea_mode(mode);
 
 	dev_info(hdmi->dev, "%s %d,hdmi->hdmi_data.vic = %d\n",__func__, __LINE__,hdmi->hdmi_data.vic);
-	
-
-	int val;
-
 	val = readl_relaxed(hdmi->regs + (0x1b0) * 0x04);
 	val |= 0x4;
 	writel_relaxed(val, hdmi->regs + (0x1b0) * 0x04);
@@ -875,7 +872,6 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 	/* Set HDMI Mode */
 	hdmi_writeb(hdmi, 0x100,0x3);
 	//hdmi_writeb(hdmi, 0x8,0x00);
-	int value;
 
 	/* Set detail external video timing polarity and interlace mode */
 	value = v_EXTERANL_VIDEO(0);
