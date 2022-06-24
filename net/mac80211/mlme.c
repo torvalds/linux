@@ -5033,17 +5033,14 @@ static void ieee80211_request_smps_mgd_work(struct work_struct *work)
 /* interface setup */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 {
-	struct ieee80211_if_managed *ifmgd;
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 
-	ifmgd = &sdata->u.mgd;
 	INIT_WORK(&ifmgd->monitor_work, ieee80211_sta_monitor_work);
 	INIT_WORK(&ifmgd->chswitch_work, ieee80211_chswitch_work);
 	INIT_WORK(&ifmgd->beacon_connection_loss_work,
 		  ieee80211_beacon_connection_loss_work);
 	INIT_WORK(&ifmgd->csa_connection_drop_work,
 		  ieee80211_csa_connection_drop_work);
-	INIT_WORK(&sdata->deflink.u.mgd.request_smps_work,
-		  ieee80211_request_smps_mgd_work);
 	INIT_DELAYED_WORK(&ifmgd->tdls_peer_del_work,
 			  ieee80211_tdls_peer_del_work);
 	timer_setup(&ifmgd->timer, ieee80211_sta_timer, 0);
@@ -5057,18 +5054,26 @@ void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata)
 	ifmgd->powersave = sdata->wdev.ps;
 	ifmgd->uapsd_queues = sdata->local->hw.uapsd_queues;
 	ifmgd->uapsd_max_sp_len = sdata->local->hw.uapsd_max_sp_len;
-	sdata->deflink.u.mgd.p2p_noa_index = -1;
-	sdata->deflink.u.mgd.conn_flags = 0;
-
-	if (sdata->local->hw.wiphy->features & NL80211_FEATURE_DYNAMIC_SMPS)
-		sdata->deflink.u.mgd.req_smps = IEEE80211_SMPS_AUTOMATIC;
-	else
-		sdata->deflink.u.mgd.req_smps = IEEE80211_SMPS_OFF;
-
 	/* Setup TDLS data */
 	spin_lock_init(&ifmgd->teardown_lock);
 	ifmgd->teardown_skb = NULL;
 	ifmgd->orig_teardown_skb = NULL;
+}
+
+void ieee80211_mgd_setup_link(struct ieee80211_link_data *link)
+{
+	struct ieee80211_local *local = link->sdata->local;
+
+	link->u.mgd.p2p_noa_index = -1;
+	link->u.mgd.conn_flags = 0;
+	link->conf->bssid = link->u.mgd.bssid;
+
+	INIT_WORK(&link->u.mgd.request_smps_work,
+		  ieee80211_request_smps_mgd_work);
+	if (local->hw.wiphy->features & NL80211_FEATURE_DYNAMIC_SMPS)
+		link->u.mgd.req_smps = IEEE80211_SMPS_AUTOMATIC;
+	else
+		link->u.mgd.req_smps = IEEE80211_SMPS_OFF;
 }
 
 /* scan finished notification */
@@ -6383,6 +6388,11 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 	return 0;
 }
 
+void ieee80211_mgd_stop_link(struct ieee80211_link_data *link)
+{
+	cancel_work_sync(&link->u.mgd.request_smps_work);
+}
+
 void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
@@ -6394,7 +6404,6 @@ void ieee80211_mgd_stop(struct ieee80211_sub_if_data *sdata)
 	 */
 	cancel_work_sync(&ifmgd->monitor_work);
 	cancel_work_sync(&ifmgd->beacon_connection_loss_work);
-	cancel_work_sync(&sdata->deflink.u.mgd.request_smps_work);
 	cancel_work_sync(&ifmgd->csa_connection_drop_work);
 	cancel_work_sync(&ifmgd->chswitch_work);
 	cancel_delayed_work_sync(&ifmgd->tdls_peer_del_work);
