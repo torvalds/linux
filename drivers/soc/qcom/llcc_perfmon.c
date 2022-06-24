@@ -548,6 +548,7 @@ static ssize_t perfmon_start_store(struct device *dev,
 			}
 		}
 		val = MANUAL_MODE | MONITOR_EN;
+		val &= ~DUMP_SEL;
 		if (llcc_priv->expires) {
 			if (hrtimer_is_queued(&llcc_priv->hrtimer))
 				hrtimer_forward_now(&llcc_priv->hrtimer,
@@ -567,7 +568,7 @@ static ssize_t perfmon_start_store(struct device *dev,
 	}
 
 	mask_val = PERFMON_MODE_MONITOR_MODE_MASK |
-		PERFMON_MODE_MONITOR_EN_MASK;
+		PERFMON_MODE_MONITOR_EN_MASK | PERFMON_MODE_DUMP_SEL_MASK;
 	offset = PERFMON_MODE(llcc_priv->drv_ver);
 	llcc_bcast_modify(llcc_priv, offset, val, mask_val);
 
