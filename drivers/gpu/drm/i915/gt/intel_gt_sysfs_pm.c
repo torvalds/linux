@@ -679,7 +679,7 @@ static ssize_t media_RP0_freq_mhz_show(struct device *dev,
 	u32 val;
 	int err;
 
-	err = snb_pcode_read_p(gt->uncore, XEHPSDV_PCODE_FREQUENCY_CONFIG,
+	err = snb_pcode_read_p(gt->uncore, XEHP_PCODE_FREQUENCY_CONFIG,
 			       PCODE_MBOX_FC_SC_READ_FUSED_P0,
 			       PCODE_MBOX_DOMAIN_MEDIAFF, &val);
 
@@ -700,7 +700,7 @@ static ssize_t media_RPn_freq_mhz_show(struct device *dev,
 	u32 val;
 	int err;
 
-	err = snb_pcode_read_p(gt->uncore, XEHPSDV_PCODE_FREQUENCY_CONFIG,
+	err = snb_pcode_read_p(gt->uncore, XEHP_PCODE_FREQUENCY_CONFIG,
 			       PCODE_MBOX_FC_SC_READ_FUSED_PN,
 			       PCODE_MBOX_DOMAIN_MEDIAFF, &val);
 
