@@ -10,6 +10,9 @@
 
 #include <linux/platform_device.h>
 #include <linux/of_address.h>
+#include <linux/mem-buf.h>
+#include <soc/qcom/secure_buffer.h>
+#include <linux/xarray.h>
 #include <linux/virtio.h>
 #include <linux/virtio_mem.h>
 #include <linux/workqueue.h>
@@ -267,6 +270,7 @@ struct virtio_mem {
 
 /* For now, only allow one virtio-mem device */
 static struct virtio_mem *virtio_mem_dev;
+static DEFINE_XARRAY(xa_membuf);
 
 /*
  * We have to share a single online_page callback among all virtio-mem
@@ -283,6 +287,8 @@ static void virtio_mem_fake_offline_cancel_offline(unsigned long pfn,
 static void virtio_mem_retry(struct virtio_mem *vm);
 static int virtio_mem_create_resource(struct virtio_mem *vm);
 static void virtio_mem_delete_resource(struct virtio_mem *vm);
+static int virtio_mem_send_unplug_request(struct virtio_mem *vm, uint64_t addr,
+					  uint64_t size);
 
 /*
  * Register a virtio-mem device so it will be considered for the online_page
@@ -1325,23 +1331,103 @@ static void virtio_mem_online_page_cb(struct page *page, unsigned int order)
 	generic_online_page(page, order);
 }
 
+/* Default error values to -ENOMEM - virtio_mem_run_wq expects certain rc only */
+static int virtio_mem_convert_error_code(int rc)
+{
+	if (rc == -ENOSPC || rc == -ETXTBSY || rc == -EBUSY || rc == -EAGAIN)
+		return rc;
+	return -ENOMEM;
+}
+
+/*
+ * mem-buf currently is handle based. This means we must break up requests into
+ * the common unit size(device_block_size). GH_RM_MEM_DONATE does not actually require
+ * tracking the handle, so this could be optimized further.
+ *
+ * This function must return one of ENOSPC, ETXTBSY, EBUSY, ENOMEM, EAGAIN
+ */
 static int virtio_mem_send_plug_request(struct virtio_mem *vm, uint64_t addr,
 					uint64_t size)
 {
+	void *membuf;
+	struct mem_buf_allocation_data alloc_data;
+	u32 vmids[1];
+	u32 perms[1] = {PERM_READ | PERM_WRITE | PERM_EXEC};
+	struct gh_sgl_desc *gh_sgl;
+	uint64_t orig_addr = addr;
+	int ret;
+	u64 block_size = vm->in_sbm ? vm->sbm.sb_size : vm->bbm.bb_size;
 
 	dev_dbg(&vm->vdev->dev, "plugging memory: 0x%llx - 0x%llx\n", addr,
 		addr + size - 1);
-	WARN_ON(1);
-	return -EINVAL;
+
+	vmids[0] = mem_buf_current_vmid();
+
+	alloc_data.size = block_size;
+	alloc_data.nr_acl_entries = ARRAY_SIZE(vmids);
+	alloc_data.vmids = vmids;
+	alloc_data.perms = perms;
+	alloc_data.trans_type = GH_RM_TRANS_TYPE_DONATE;
+	gh_sgl = kzalloc(offsetof(struct gh_sgl_desc, sgl_entries[1]), GFP_KERNEL);
+	if (!gh_sgl)
+		return -ENOMEM;
+	/* ipa_base/size configured below */
+	gh_sgl->n_sgl_entries = 1;
+
+	alloc_data.sgl_desc = gh_sgl;
+	alloc_data.src_mem_type = MEM_BUF_BUDDY_MEM_TYPE;
+	alloc_data.src_data = NULL;
+	alloc_data.dst_mem_type = MEM_BUF_BUDDY_MEM_TYPE;
+	alloc_data.dst_data = NULL;
+
+	while (size) {
+		gh_sgl->sgl_entries[0].ipa_base = addr;
+		gh_sgl->sgl_entries[0].size = block_size;
+
+		membuf = mem_buf_alloc(&alloc_data);
+		if (IS_ERR(membuf)) {
+			dev_err(&vm->vdev->dev, "mem_buf_alloc failed with %d\n", PTR_ERR(membuf));
+			ret = virtio_mem_convert_error_code(PTR_ERR(membuf));
+			goto err_mem_buf_alloc;
+		}
+
+		xa_store(&xa_membuf, addr, membuf, GFP_KERNEL);
+		vm->plugged_size += block_size;
+
+		size -= block_size;
+		addr += block_size;
+	}
+
+	kfree(gh_sgl);
+	return 0;
+
+err_mem_buf_alloc:
+	if (addr > orig_addr)
+		virtio_mem_send_unplug_request(vm, orig_addr, addr - orig_addr);
+	kfree(gh_sgl);
+	return ret;
 }
 
 static int virtio_mem_send_unplug_request(struct virtio_mem *vm, uint64_t addr,
 					  uint64_t size)
 {
+	void *membuf;
+	u64 block_size = vm->in_sbm ? vm->sbm.sb_size : vm->bbm.bb_size;
+
 	dev_dbg(&vm->vdev->dev, "unplugging memory: 0x%llx - 0x%llx\n", addr,
 		addr + size - 1);
-	WARN_ON(1);
-	return -EINVAL;
+
+	while (size) {
+		membuf = xa_load(&xa_membuf, addr);
+		if (!WARN(membuf, "No membuf for %llx\n", addr)) {
+			mem_buf_free(membuf);
+			vm->plugged_size -= block_size;
+
+			size -= block_size;
+			addr += block_size;
+		}
+	}
+	return 0;
 }
 
 static int virtio_mem_send_unplug_all_request(struct virtio_mem *vm)
@@ -2784,7 +2870,7 @@ static int virtio_mem_remove(struct platform_device *vdev)
 	return 0;
 }
 
-static void __maybe_unused virtio_mem_config_changed(struct platform_device *vdev)
+static void virtio_mem_config_changed(struct platform_device *vdev)
 {
 	struct virtio_mem *vm = platform_get_drvdata(vdev);
 
@@ -2819,8 +2905,15 @@ int virtio_mem_update_config_size(s64 size, bool sync)
 
 	virtio_mem_config_changed(vm->vdev);
 
-	if (sync)
+	if (sync) {
 		flush_work(&vm->wq);
+
+		if (vm->requested_size != vm->plugged_size) {
+			dev_err(&vm->vdev->dev, "Request failed: 0x%llx, plugged: 0x%llx\n",
+				vm->requested_size, vm->plugged_size);
+			return -ENOMEM;
+		}
+	}
 
 	return 0;
 }

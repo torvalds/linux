@@ -1181,6 +1181,7 @@ static void mem_buf_free_alloc_data(struct mem_buf_allocation_data *alloc_data)
 	kfree(alloc_data->perms);
 }
 
+/* FIXME - remove is_valid_ioctl_mem_type. Its already handled */
 int mem_buf_alloc_fd(struct mem_buf_alloc_ioctl_arg *allocation_args)
 {
 	struct mem_buf_allocation_data alloc_data;
