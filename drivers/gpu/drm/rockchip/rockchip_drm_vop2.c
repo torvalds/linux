@@ -5163,6 +5163,9 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 	struct drm_crtc_state *crtc_state;
 	struct drm_display_mode *mode;
 	struct vop2_win *win, *splice_win;
+	struct vop2_extend_pll *ext_pll;
+	struct clk *parent_clk;
+	const char *clk_name;
 
 	if (on == vp->loader_protect)
 		return 0;
@@ -5199,6 +5202,17 @@ static int vop2_crtc_loader_protect(struct drm_crtc *crtc, bool on)
 					}
 				}
 			}
+		}
+		parent_clk = clk_get_parent(vp->dclk);
+		clk_name = __clk_get_name(parent_clk);
+		if (!strcmp(clk_name, "clk_hdmiphy_pixel0")) {
+			ext_pll = vop2_extend_clk_find_by_name(vop2, "hdmi0_phy_pll");
+			if (ext_pll)
+				ext_pll->vp_mask |= BIT(vp->id);
+		} else if (!strcmp(clk_name, "clk_hdmiphy_pixel1")) {
+			ext_pll = vop2_extend_clk_find_by_name(vop2, "hdmi1_phy_pll");
+			if (ext_pll)
+				ext_pll->vp_mask |= BIT(vp->id);
 		}
 		drm_crtc_vblank_on(crtc);
 		if (private->cubic_lut[vp->id].enable) {
