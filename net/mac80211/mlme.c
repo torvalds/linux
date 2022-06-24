@@ -6365,7 +6365,6 @@ int ieee80211_mgd_deauth(struct ieee80211_sub_if_data *sdata,
 int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 			   struct cfg80211_disassoc_request *req)
 {
-	u8 bssid[ETH_ALEN];
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 
 	/*
@@ -6381,7 +6380,6 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 		   "disassociating from %pM by local choice (Reason: %u=%s)\n",
 		   req->bss->bssid, req->reason_code, ieee80211_get_reason_code_string(req->reason_code));
 
-	memcpy(bssid, req->bss->bssid, ETH_ALEN);
 	ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DISASSOC,
 			       req->reason_code, !req->local_state_change,
 			       frame_buf);
