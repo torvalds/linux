@@ -293,19 +293,6 @@ SYM_FUNC_START_LOCAL(__create_page_tables)
 	adrp	x0, idmap_pg_dir
 	adrp	x3, __idmap_text_start		// __pa(__idmap_text_start)
 
-#ifdef CONFIG_ARM64_VA_BITS_52
-	mrs_s	x6, SYS_ID_AA64MMFR2_EL1
-	and	x6, x6, #(0xf << ID_AA64MMFR2_LVA_SHIFT)
-	mov	x5, #52
-	cbnz	x6, 1f
-#endif
-	mov	x5, #VA_BITS_MIN
-1:
-	adr_l	x6, vabits_actual
-	str	x5, [x6]
-	dmb	sy
-	dc	ivac, x6		// Invalidate potentially stale cache line
-
 	/*
 	 * VA_BITS may be too small to allow for an ID mapping to be created
 	 * that covers system RAM if that is located sufficiently high in the
@@ -713,7 +700,7 @@ SYM_FUNC_START(__enable_mmu)
 SYM_FUNC_END(__enable_mmu)
 
 SYM_FUNC_START(__cpu_secondary_check52bitva)
-#ifdef CONFIG_ARM64_VA_BITS_52
+#if VA_BITS > 48
 	ldr_l	x0, vabits_actual
 	cmp	x0, #52
 	b.ne	2f

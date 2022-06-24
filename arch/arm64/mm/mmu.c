@@ -46,8 +46,10 @@
 u64 idmap_t0sz = TCR_T0SZ(VA_BITS_MIN);
 u64 idmap_ptrs_per_pgd = PTRS_PER_PGD;
 
-u64 __section(".mmuoff.data.write") vabits_actual;
+#if VA_BITS > 48
+u64 vabits_actual __ro_after_init = VA_BITS_MIN;
 EXPORT_SYMBOL(vabits_actual);
+#endif
 
 u64 kimage_vaddr __ro_after_init = (u64)&_text;
 EXPORT_SYMBOL(kimage_vaddr);
