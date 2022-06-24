@@ -99,6 +99,29 @@ config SURFACE_AGGREGATOR_REGISTRY
 	  the respective client devices. Drivers for these devices still need to
 	  be selected via the other options.
 
+config SURFACE_AGGREGATOR_TABLET_SWITCH
+	tristate "Surface Aggregator Generic Tablet-Mode Switch Driver"
+	depends on SURFACE_AGGREGATOR
+	depends on SURFACE_AGGREGATOR_BUS
+	depends on INPUT
+	help
+	  Provides a tablet-mode switch input device on Microsoft Surface models
+	  using the KIP subsystem for detachable keyboards (e.g. keyboard covers)
+	  or the POS subsystem for device/screen posture changes.
+
+	  The KIP subsystem is used on newer Surface generations to handle
+	  detachable input peripherals, specifically the keyboard cover (containing
+	  keyboard and touchpad) on the Surface Pro 8 and Surface Pro X. The POS
+	  subsystem is used for device posture change notifications on the Surface
+	  Laptop Studio. This module provides a driver to let user-space know when
+	  the device should be considered in tablet-mode due to the keyboard cover
+	  being detached or folded back (essentially signaling when the keyboard is
+	  not available for input). It does so by creating a tablet-mode switch
+	  input device, sending the standard SW_TABLET_MODE event on mode change.
+
+	  Select M or Y here, if you want to provide tablet-mode switch input
+	  events on the Surface Pro 8, Surface Pro X, and Surface Laptop Studio.
+
 config SURFACE_DTX
 	tristate "Surface DTX (Detachment System) Driver"
 	depends on SURFACE_AGGREGATOR
