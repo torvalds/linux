@@ -26,11 +26,28 @@ extern unsigned int __sw_hweight16(unsigned int w);
 extern unsigned int __sw_hweight32(unsigned int w);
 extern unsigned long __sw_hweight64(__u64 w);
 
+#include <asm-generic/bitops/generic-non-atomic.h>
+
 /*
  * Include this here because some architectures need generic_ffs/fls in
  * scope
  */
 #include <asm/bitops.h>
+
+/* Check that the bitops prototypes are sane */
+#define __check_bitop_pr(name)						\
+	static_assert(__same_type(arch_##name, generic_##name) &&	\
+		      __same_type(name, generic_##name))
+
+__check_bitop_pr(__set_bit);
+__check_bitop_pr(__clear_bit);
+__check_bitop_pr(__change_bit);
+__check_bitop_pr(__test_and_set_bit);
+__check_bitop_pr(__test_and_clear_bit);
+__check_bitop_pr(__test_and_change_bit);
+__check_bitop_pr(test_bit);
+
+#undef __check_bitop_pr
 
 static inline int get_bitmask_order(unsigned int count)
 {

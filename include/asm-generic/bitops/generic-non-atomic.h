@@ -24,7 +24,7 @@
  * may be that only one operation succeeds.
  */
 static __always_inline void
-generic___set_bit(unsigned int nr, volatile unsigned long *addr)
+generic___set_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -33,7 +33,7 @@ generic___set_bit(unsigned int nr, volatile unsigned long *addr)
 }
 
 static __always_inline void
-generic___clear_bit(unsigned int nr, volatile unsigned long *addr)
+generic___clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -50,8 +50,8 @@ generic___clear_bit(unsigned int nr, volatile unsigned long *addr)
  * If it's called on the same region of memory simultaneously, the effect
  * may be that only one operation succeeds.
  */
-static __always_inline
-void generic___change_bit(unsigned int nr, volatile unsigned long *addr)
+static __always_inline void
+generic___change_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -68,8 +68,8 @@ void generic___change_bit(unsigned int nr, volatile unsigned long *addr)
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
-static __always_inline int
-generic___test_and_set_bit(unsigned int nr, volatile unsigned long *addr)
+static __always_inline bool
+generic___test_and_set_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -88,8 +88,8 @@ generic___test_and_set_bit(unsigned int nr, volatile unsigned long *addr)
  * If two examples of this operation race, one can appear to succeed
  * but actually fail.  You must protect multiple accesses with a lock.
  */
-static __always_inline int
-generic___test_and_clear_bit(unsigned int nr, volatile unsigned long *addr)
+static __always_inline bool
+generic___test_and_clear_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -100,8 +100,8 @@ generic___test_and_clear_bit(unsigned int nr, volatile unsigned long *addr)
 }
 
 /* WARNING: non atomic and it can be reordered! */
-static __always_inline int
-generic___test_and_change_bit(unsigned int nr, volatile unsigned long *addr)
+static __always_inline bool
+generic___test_and_change_bit(unsigned long nr, volatile unsigned long *addr)
 {
 	unsigned long mask = BIT_MASK(nr);
 	unsigned long *p = ((unsigned long *)addr) + BIT_WORD(nr);
@@ -116,8 +116,8 @@ generic___test_and_change_bit(unsigned int nr, volatile unsigned long *addr)
  * @nr: bit number to test
  * @addr: Address to start counting from
  */
-static __always_inline int
-generic_test_bit(unsigned int nr, const volatile unsigned long *addr)
+static __always_inline bool
+generic_test_bit(unsigned long nr, const volatile unsigned long *addr)
 {
 	/*
 	 * Unlike the bitops with the '__' prefix above, this one *is* atomic,
