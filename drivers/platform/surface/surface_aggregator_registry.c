@@ -286,76 +286,6 @@ static const struct software_node *ssam_node_group_sp8[] = {
 };
 
 
-/* -- Device registry helper functions. ------------------------------------- */
-
-static int ssam_uid_from_string(const char *str, struct ssam_device_uid *uid)
-{
-	u8 d, tc, tid, iid, fn;
-	int n;
-
-	n = sscanf(str, "ssam:%hhx:%hhx:%hhx:%hhx:%hhx", &d, &tc, &tid, &iid, &fn);
-	if (n != 5)
-		return -EINVAL;
-
-	uid->domain = d;
-	uid->category = tc;
-	uid->target = tid;
-	uid->instance = iid;
-	uid->function = fn;
-
-	return 0;
-}
-
-static int ssam_hub_add_device(struct device *parent, struct ssam_controller *ctrl,
-			       struct fwnode_handle *node)
-{
-	struct ssam_device_uid uid;
-	struct ssam_device *sdev;
-	int status;
-
-	status = ssam_uid_from_string(fwnode_get_name(node), &uid);
-	if (status)
-		return status;
-
-	sdev = ssam_device_alloc(ctrl, uid);
-	if (!sdev)
-		return -ENOMEM;
-
-	sdev->dev.parent = parent;
-	sdev->dev.fwnode = node;
-
-	status = ssam_device_add(sdev);
-	if (status)
-		ssam_device_put(sdev);
-
-	return status;
-}
-
-static int ssam_hub_register_clients(struct device *parent, struct ssam_controller *ctrl,
-				     struct fwnode_handle *node)
-{
-	struct fwnode_handle *child;
-	int status;
-
-	fwnode_for_each_child_node(node, child) {
-		/*
-		 * Try to add the device specified in the firmware node. If
-		 * this fails with -EINVAL, the node does not specify any SSAM
-		 * device, so ignore it and continue with the next one.
-		 */
-
-		status = ssam_hub_add_device(parent, ctrl, child);
-		if (status && status != -EINVAL)
-			goto err;
-	}
-
-	return 0;
-err:
-	ssam_remove_clients(parent);
-	return status;
-}
-
-
 /* -- SSAM generic subsystem hub driver framework. -------------------------- */
 
 enum ssam_hub_state {
@@ -385,7 +315,6 @@ struct ssam_hub {
 static void ssam_hub_update_workfn(struct work_struct *work)
 {
 	struct ssam_hub *hub = container_of(work, struct ssam_hub, update_work.work);
-	struct fwnode_handle *node = dev_fwnode(&hub->sdev->dev);
 	enum ssam_hub_state state;
 	int status = 0;
 
@@ -425,7 +354,7 @@ static void ssam_hub_update_workfn(struct work_struct *work)
 	hub->state = state;
 
 	if (hub->state == SSAM_HUB_CONNECTED)
-		status = ssam_hub_register_clients(&hub->sdev->dev, hub->sdev->ctrl, node);
+		status = ssam_device_register_clients(hub->sdev);
 	else
 		ssam_remove_clients(&hub->sdev->dev);
 
@@ -769,7 +698,7 @@ static int ssam_platform_hub_probe(struct platform_device *pdev)
 
 	set_secondary_fwnode(&pdev->dev, root);
 
-	status = ssam_hub_register_clients(&pdev->dev, ctrl, root);
+	status = __ssam_register_clients(&pdev->dev, ctrl, root);
 	if (status) {
 		set_secondary_fwnode(&pdev->dev, NULL);
 		software_node_unregister_node_group(nodes);

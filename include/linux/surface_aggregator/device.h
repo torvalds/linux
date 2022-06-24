@@ -15,6 +15,7 @@
 
 #include <linux/device.h>
 #include <linux/mod_devicetable.h>
+#include <linux/property.h>
 #include <linux/types.h>
 
 #include <linux/surface_aggregator/controller.h>
@@ -375,10 +376,61 @@ void ssam_device_driver_unregister(struct ssam_device_driver *d);
 /* -- Helpers for controller and hub devices. ------------------------------- */
 
 #ifdef CONFIG_SURFACE_AGGREGATOR_BUS
+
+int __ssam_register_clients(struct device *parent, struct ssam_controller *ctrl,
+			    struct fwnode_handle *node);
 void ssam_remove_clients(struct device *dev);
+
 #else /* CONFIG_SURFACE_AGGREGATOR_BUS */
+
+static inline int __ssam_register_clients(struct device *parent, struct ssam_controller *ctrl,
+					  struct fwnode_handle *node)
+{
+	return 0;
+}
+
 static inline void ssam_remove_clients(struct device *dev) {}
+
 #endif /* CONFIG_SURFACE_AGGREGATOR_BUS */
+
+/**
+ * ssam_register_clients() - Register all client devices defined under the
+ * given parent device.
+ * @dev: The parent device under which clients should be registered.
+ * @ctrl: The controller with which client should be registered.
+ *
+ * Register all clients that have via firmware nodes been defined as children
+ * of the given (parent) device. The respective child firmware nodes will be
+ * associated with the correspondingly created child devices.
+ *
+ * The given controller will be used to instantiate the new devices. See
+ * ssam_device_add() for details.
+ *
+ * Return: Returns zero on success, nonzero on failure.
+ */
+static inline int ssam_register_clients(struct device *dev, struct ssam_controller *ctrl)
+{
+	return __ssam_register_clients(dev, ctrl, dev_fwnode(dev));
+}
+
+/**
+ * ssam_device_register_clients() - Register all client devices defined under
+ * the given SSAM parent device.
+ * @sdev: The parent device under which clients should be registered.
+ *
+ * Register all clients that have via firmware nodes been defined as children
+ * of the given (parent) device. The respective child firmware nodes will be
+ * associated with the correspondingly created child devices.
+ *
+ * The controller used by the parent device will be used to instantiate the new
+ * devices. See ssam_device_add() for details.
+ *
+ * Return: Returns zero on success, nonzero on failure.
+ */
+static inline int ssam_device_register_clients(struct ssam_device *sdev)
+{
+	return ssam_register_clients(&sdev->dev, sdev->ctrl);
+}
 
 
 /* -- Helpers for client-device requests. ----------------------------------- */
