@@ -180,6 +180,7 @@ int __cold unregister_random_ready_notifier(struct notifier_block *nb)
 }
 EXPORT_SYMBOL(unregister_random_ready_notifier);
 
+static void process_oldschool_random_ready_list(void);
 static void __cold process_random_ready_list(void)
 {
 	unsigned long flags;
@@ -187,6 +188,8 @@ static void __cold process_random_ready_list(void)
 	spin_lock_irqsave(&random_ready_chain_lock, flags);
 	raw_notifier_call_chain(&random_ready_chain, 0, NULL);
 	spin_unlock_irqrestore(&random_ready_chain_lock, flags);
+
+	process_oldschool_random_ready_list();
 }
 
 #define warn_unseeded_randomness() \
@@ -1533,3 +1536,76 @@ struct ctl_table random_table[] = {
 	{ }
 };
 #endif	/* CONFIG_SYSCTL */
+
+/*
+ * Android KABI fixups
+ *
+ * Add back two functions that were being used by out-of-tree drivers.
+ *
+ * Yes, horrible hack, the things we do for FIPS "compliance"...
+ */
+static DEFINE_SPINLOCK(random_ready_list_lock);
+static LIST_HEAD(random_ready_list);
+
+int add_random_ready_callback(struct random_ready_callback *rdy)
+{
+	struct module *owner;
+	unsigned long flags;
+	int err = -EALREADY;
+
+	if (crng_ready())
+		return err;
+
+	owner = rdy->owner;
+	if (!try_module_get(owner))
+		return -ENOENT;
+
+	spin_lock_irqsave(&random_ready_list_lock, flags);
+	if (crng_ready())
+		goto out;
+
+	owner = NULL;
+
+	list_add(&rdy->list, &random_ready_list);
+	err = 0;
+
+out:
+	spin_unlock_irqrestore(&random_ready_list_lock, flags);
+
+	module_put(owner);
+
+	return err;
+}
+EXPORT_SYMBOL(add_random_ready_callback);
+
+void del_random_ready_callback(struct random_ready_callback *rdy)
+{
+	unsigned long flags;
+	struct module *owner = NULL;
+
+	spin_lock_irqsave(&random_ready_list_lock, flags);
+	if (!list_empty(&rdy->list)) {
+		list_del_init(&rdy->list);
+		owner = rdy->owner;
+	}
+	spin_unlock_irqrestore(&random_ready_list_lock, flags);
+
+	module_put(owner);
+}
+EXPORT_SYMBOL(del_random_ready_callback);
+
+static void process_oldschool_random_ready_list(void)
+{
+	unsigned long flags;
+	struct random_ready_callback *rdy, *tmp;
+
+	spin_lock_irqsave(&random_ready_list_lock, flags);
+	list_for_each_entry_safe(rdy, tmp, &random_ready_list, list) {
+		struct module *owner = rdy->owner;
+
+		list_del_init(&rdy->list);
+		rdy->func(rdy);
+		module_put(owner);
+	}
+	spin_unlock_irqrestore(&random_ready_list_lock, flags);
+}

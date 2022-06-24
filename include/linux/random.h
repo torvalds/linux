@@ -138,4 +138,17 @@ int random_online_cpu(unsigned int cpu);
 extern const struct file_operations random_fops, urandom_fops;
 #endif
 
+/*
+ * Android KABI fixups
+ * Added back the following structure and calls to preserve the ABI for
+ * out-of-tree drivers that were using them.
+ */
+struct random_ready_callback {
+	struct list_head list;
+	void (*func)(struct random_ready_callback *rdy);
+	struct module *owner;
+};
+extern int add_random_ready_callback(struct random_ready_callback *rdy);
+extern void del_random_ready_callback(struct random_ready_callback *rdy);
+
 #endif /* _LINUX_RANDOM_H */
