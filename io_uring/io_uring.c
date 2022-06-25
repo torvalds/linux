@@ -3049,14 +3049,10 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 			return -EBADF;
 		ret = -EOPNOTSUPP;
 		if (unlikely(!io_is_uring_fops(f.file)))
-			goto out_fput;
+			goto out;
 	}
 
-	ret = -ENXIO;
 	ctx = f.file->private_data;
-	if (unlikely(!percpu_ref_tryget(&ctx->refs)))
-		goto out_fput;
-
 	ret = -EBADFD;
 	if (unlikely(ctx->flags & IORING_SETUP_R_DISABLED))
 		goto out;
@@ -3141,10 +3137,7 @@ iopoll_locked:
 					  &ctx->check_cq);
 		}
 	}
-
 out:
-	percpu_ref_put(&ctx->refs);
-out_fput:
 	fdput(f);
 	return ret;
 }
@@ -3730,11 +3723,10 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 	int ret;
 
 	/*
-	 * We're inside the ring mutex, if the ref is already dying, then
-	 * someone else killed the ctx or is already going through
-	 * io_uring_register().
+	 * We don't quiesce the refs for register anymore and so it can't be
+	 * dying as we're holding a file ref here.
 	 */
-	if (percpu_ref_is_dying(&ctx->refs))
+	if (WARN_ON_ONCE(percpu_ref_is_dying(&ctx->refs)))
 		return -ENXIO;
 
 	if (ctx->restricted) {
