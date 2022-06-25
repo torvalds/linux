@@ -561,6 +561,8 @@ err_alloc_peer_mem:
 	return -1;
 }
 
+static void epf_ntb_mw_bar_clear(struct epf_ntb *ntb, int num_mws);
+
 /**
  * epf_ntb_db_bar_clear() - Clear doorbell BAR and free memory
  *   allocated in peer's outbound address space
@@ -617,13 +619,21 @@ static int epf_ntb_mw_bar_init(struct epf_ntb *ntb)
 							      &ntb->vpci_mw_phy[i],
 							      size);
 		if (!ntb->vpci_mw_addr[i]) {
+			ret = -ENOMEM;
 			dev_err(dev, "Failed to allocate source address\n");
-			goto err_alloc_mem;
+			goto err_set_bar;
 		}
 	}
 
 	return ret;
+
+err_set_bar:
+	pci_epc_clear_bar(ntb->epf->epc,
+			  ntb->epf->func_no,
+			  ntb->epf->vfunc_no,
+			  &ntb->epf->bar[barno]);
 err_alloc_mem:
+	epf_ntb_mw_bar_clear(ntb, i);
 	return ret;
 }
 
@@ -631,12 +641,12 @@ err_alloc_mem:
  * epf_ntb_mw_bar_clear() - Clear Memory window BARs
  * @ntb: NTB device that facilitates communication between HOST and vHOST
  */
-static void epf_ntb_mw_bar_clear(struct epf_ntb *ntb)
+static void epf_ntb_mw_bar_clear(struct epf_ntb *ntb, int num_mws)
 {
 	enum pci_barno barno;
 	int i;
 
-	for (i = 0; i < ntb->num_mws; i++) {
+	for (i = 0; i < num_mws; i++) {
 		barno = ntb->epf_ntb_bar[BAR_MW0 + i];
 		pci_epc_clear_bar(ntb->epf->epc,
 				  ntb->epf->func_no,
@@ -764,7 +774,7 @@ static int epf_ntb_epc_init(struct epf_ntb *ntb)
 	return 0;
 
 err_write_header:
-	epf_ntb_mw_bar_clear(ntb);
+	epf_ntb_mw_bar_clear(ntb, ntb->num_mws);
 err_mw_bar_init:
 	epf_ntb_db_bar_clear(ntb);
 err_db_bar_init:
@@ -784,7 +794,7 @@ err_config_interrupt:
 static void epf_ntb_epc_cleanup(struct epf_ntb *ntb)
 {
 	epf_ntb_db_bar_clear(ntb);
-	epf_ntb_mw_bar_clear(ntb);
+	epf_ntb_mw_bar_clear(ntb, ntb->num_mws);
 }
 
 #define EPF_NTB_R(_name)						\
