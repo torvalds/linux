@@ -930,14 +930,10 @@ xfs_attr_shortform_getvalue(
 	return -ENOATTR;
 }
 
-/*
- * Convert from using the shortform to the leaf.  On success, return the
- * buffer so that we can keep it locked until we're totally done with it.
- */
+/* Convert from using the shortform to the leaf format. */
 int
 xfs_attr_shortform_to_leaf(
-	struct xfs_da_args		*args,
-	struct xfs_buf			**leaf_bp)
+	struct xfs_da_args		*args)
 {
 	struct xfs_inode		*dp;
 	struct xfs_attr_shortform	*sf;
@@ -999,7 +995,6 @@ xfs_attr_shortform_to_leaf(
 		sfe = xfs_attr_sf_nextentry(sfe);
 	}
 	error = 0;
-	*leaf_bp = bp;
 out:
 	kmem_free(tmpbuffer);
 	return error;

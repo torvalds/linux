@@ -515,11 +515,6 @@ struct xfs_attr_intent {
 	 */
 	struct xfs_attri_log_nameval	*xattri_nameval;
 
-	/*
-	 * Used by xfs_attr_set to hold a leaf buffer across a transaction roll
-	 */
-	struct xfs_buf			*xattri_leaf_bp;
-
 	/* Used to keep track of current state of delayed operation */
 	enum xfs_delattr_state		xattri_dela_state;
 

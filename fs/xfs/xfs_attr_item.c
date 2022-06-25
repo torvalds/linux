@@ -455,8 +455,6 @@ static inline void
 xfs_attr_free_item(
 	struct xfs_attr_intent		*attr)
 {
-	ASSERT(attr->xattri_leaf_bp == NULL);
-
 	if (attr->xattri_da_state)
 		xfs_da_state_free(attr->xattri_da_state);
 	xfs_attri_log_nameval_put(attr->xattri_nameval);
@@ -511,10 +509,6 @@ xfs_attr_cancel_item(
 	struct xfs_attr_intent		*attr;
 
 	attr = container_of(item, struct xfs_attr_intent, xattri_list);
-	if (attr->xattri_leaf_bp) {
-		xfs_buf_relse(attr->xattri_leaf_bp);
-		attr->xattri_leaf_bp = NULL;
-	}
 	xfs_attr_free_item(attr);
 }
 
@@ -672,16 +666,6 @@ xfs_attri_item_recover(
 		if (error)
 			goto out_unlock;
 
-		/*
-		 * The defer capture structure took its own reference to the
-		 * attr leaf buffer and will give that to the continuation
-		 * transaction.  The attr intent struct drives the continuation
-		 * work, so release our refcount on the attr leaf buffer but
-		 * retain the pointer in the intent structure.
-		 */
-		if (attr->xattri_leaf_bp)
-			xfs_buf_relse(attr->xattri_leaf_bp);
-
 		xfs_iunlock(ip, XFS_ILOCK_EXCL);
 		xfs_irele(ip);
 		return 0;
@@ -692,13 +676,7 @@ xfs_attri_item_recover(
 	}
 
 	error = xfs_defer_ops_capture_and_commit(tp, capture_list);
-
 out_unlock:
-	if (attr->xattri_leaf_bp) {
-		xfs_buf_relse(attr->xattri_leaf_bp);
-		attr->xattri_leaf_bp = NULL;
-	}
-
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 	xfs_irele(ip);
 out:
