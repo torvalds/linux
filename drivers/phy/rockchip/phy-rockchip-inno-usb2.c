@@ -1283,7 +1283,7 @@ static int rockchip_usb2phy_probe(struct platform_device *pdev)
 
 		phy = devm_phy_create(dev, child_np, &rockchip_usb2phy_ops);
 		if (IS_ERR(phy)) {
-			dev_err(dev, "failed to create phy\n");
+			dev_err_probe(dev, PTR_ERR(phy), "failed to create phy\n");
 			ret = PTR_ERR(phy);
 			goto put_child;
 		}
