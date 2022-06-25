@@ -42,6 +42,14 @@ static int bcm2835_pm_get_pdata(struct platform_device *pdev,
 				pm->asb = NULL;
 		}
 
+		res = platform_get_resource_byname(pdev, IORESOURCE_MEM,
+						    "rpivid_asb");
+		if (res) {
+			pm->rpivid_asb = devm_ioremap_resource(&pdev->dev, res);
+			if (IS_ERR(pm->rpivid_asb))
+				pm->rpivid_asb = NULL;
+		}
+
 		return 0;
 	}
 
@@ -53,6 +61,10 @@ static int bcm2835_pm_get_pdata(struct platform_device *pdev,
 	pm->asb = devm_platform_ioremap_resource(pdev, 1);
 	if (IS_ERR(pm->asb))
 		pm->asb = NULL;
+
+	pm->rpivid_asb = devm_platform_ioremap_resource(pdev, 2);
+	if (IS_ERR(pm->rpivid_asb))
+		pm->rpivid_asb = NULL;
 
 	return 0;
 }
@@ -95,6 +107,7 @@ static int bcm2835_pm_probe(struct platform_device *pdev)
 static const struct of_device_id bcm2835_pm_of_match[] = {
 	{ .compatible = "brcm,bcm2835-pm-wdt", },
 	{ .compatible = "brcm,bcm2835-pm", },
+	{ .compatible = "brcm,bcm2711-pm", },
 	{},
 };
 MODULE_DEVICE_TABLE(of, bcm2835_pm_of_match);
