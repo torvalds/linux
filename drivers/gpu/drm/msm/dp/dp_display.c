@@ -1624,8 +1624,6 @@ int msm_dp_modeset_init(struct msm_dp *dp_display, struct drm_device *dev,
 		return ret;
 	}
 
-	dp_display->encoder = encoder;
-
 	ret = dp_display_get_next_bridge(dp_display);
 	if (ret)
 		return ret;
@@ -1641,7 +1639,7 @@ int msm_dp_modeset_init(struct msm_dp *dp_display, struct drm_device *dev,
 
 	priv->bridges[priv->num_bridges++] = dp_display->bridge;
 
-	dp_display->connector = dp_drm_connector_init(dp_display);
+	dp_display->connector = dp_drm_connector_init(dp_display, encoder);
 	if (IS_ERR(dp_display->connector)) {
 		ret = PTR_ERR(dp_display->connector);
 		DRM_DEV_ERROR(dev->dev,
