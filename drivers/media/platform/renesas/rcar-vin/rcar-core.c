@@ -845,7 +845,7 @@ static int rvin_csi2_link_notify(struct media_link *link, u32 flags,
 				continue;
 
 			/* Get remote CSI-2, if any. */
-			csi_pad = media_entity_remote_pad(
+			csi_pad = media_pad_remote_pad_first(
 					&group->vin[i]->vdev.entity.pads[0]);
 			if (!csi_pad)
 				continue;

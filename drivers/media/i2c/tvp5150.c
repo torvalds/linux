@@ -1285,7 +1285,7 @@ static int tvp5150_disable_all_input_links(struct tvp5150 *decoder)
 	int err;
 
 	for (i = 0; i < TVP5150_NUM_PADS - 1; i++) {
-		connector_pad = media_entity_remote_pad(&decoder->pads[i]);
+		connector_pad = media_pad_remote_pad_first(&decoder->pads[i]);
 		if (!connector_pad)
 			continue;
 

@@ -937,7 +937,7 @@ struct media_entity *camss_find_sensor(struct media_entity *entity)
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			return NULL;
 
-		pad = media_entity_remote_pad(pad);
+		pad = media_pad_remote_pad_first(pad);
 		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
 			return NULL;
 

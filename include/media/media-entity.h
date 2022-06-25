@@ -848,7 +848,7 @@ struct media_link *media_entity_find_link(struct media_pad *source,
 		struct media_pad *sink);
 
 /**
- * media_entity_remote_pad - Find the pad at the remote end of a link
+ * media_pad_remote_pad_first - Find the first pad at the remote end of a link
  * @pad: Pad at the local end of the link
  *
  * Search for a remote pad connected to the given pad by iterating over all
@@ -857,7 +857,7 @@ struct media_link *media_entity_find_link(struct media_pad *source,
  * Return: returns a pointer to the pad at the remote end of the first found
  * enabled link, or %NULL if no enabled link has been found.
  */
-struct media_pad *media_entity_remote_pad(const struct media_pad *pad);
+struct media_pad *media_pad_remote_pad_first(const struct media_pad *pad);
 
 /**
  * media_entity_is_streaming - Test if an entity is part of a streaming pipeline

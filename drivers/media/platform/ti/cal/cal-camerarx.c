@@ -592,7 +592,7 @@ int cal_camerarx_get_remote_frame_desc(struct cal_camerarx *phy,
 	if (!phy->source)
 		return -EPIPE;
 
-	pad = media_entity_remote_pad(&phy->pads[CAL_CAMERARX_PAD_SINK]);
+	pad = media_pad_remote_pad_first(&phy->pads[CAL_CAMERARX_PAD_SINK]);
 	if (!pad)
 		return -EPIPE;
 

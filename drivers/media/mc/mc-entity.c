@@ -901,7 +901,7 @@ media_entity_find_link(struct media_pad *source, struct media_pad *sink)
 }
 EXPORT_SYMBOL_GPL(media_entity_find_link);
 
-struct media_pad *media_entity_remote_pad(const struct media_pad *pad)
+struct media_pad *media_pad_remote_pad_first(const struct media_pad *pad)
 {
 	struct media_link *link;
 
@@ -919,7 +919,7 @@ struct media_pad *media_entity_remote_pad(const struct media_pad *pad)
 	return NULL;
 
 }
-EXPORT_SYMBOL_GPL(media_entity_remote_pad);
+EXPORT_SYMBOL_GPL(media_pad_remote_pad_first);
 
 static void media_interface_init(struct media_device *mdev,
 				 struct media_interface *intf,

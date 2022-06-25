@@ -685,7 +685,7 @@ static int cal_video_check_format(struct cal_ctx *ctx)
 	const struct v4l2_mbus_framefmt *format;
 	struct media_pad *remote_pad;
 
-	remote_pad = media_entity_remote_pad(&ctx->pad);
+	remote_pad = media_pad_remote_pad_first(&ctx->pad);
 	if (!remote_pad)
 		return -ENODEV;
 

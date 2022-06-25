@@ -812,7 +812,7 @@ static int ispif_set_stream(struct v4l2_subdev *sd, int enable)
 	int ret;
 
 	if (enable) {
-		if (!media_entity_remote_pad(&line->pads[MSM_ISPIF_PAD_SINK]))
+		if (!media_pad_remote_pad_first(&line->pads[MSM_ISPIF_PAD_SINK]))
 			return -ENOLINK;
 
 		/* Config */
@@ -1301,7 +1301,7 @@ static int ispif_link_setup(struct media_entity *entity,
 			    const struct media_pad *remote, u32 flags)
 {
 	if (flags & MEDIA_LNK_FL_ENABLED) {
-		if (media_entity_remote_pad(local))
+		if (media_pad_remote_pad_first(local))
 			return -EBUSY;
 
 		if (local->flags & MEDIA_PAD_FL_SINK) {

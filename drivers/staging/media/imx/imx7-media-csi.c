@@ -1963,7 +1963,7 @@ static int imx7_csi_pad_link_validate(struct v4l2_subdev *sd,
 			if (!(spad->flags & MEDIA_PAD_FL_SINK))
 				continue;
 
-			pad = media_entity_remote_pad(spad);
+			pad = media_pad_remote_pad_first(spad);
 			if (pad)
 				break;
 		}

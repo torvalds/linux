@@ -357,7 +357,7 @@ static int ccp2_if_configure(struct isp_ccp2_device *ccp2)
 
 	ccp2_pwr_cfg(ccp2);
 
-	pad = media_entity_remote_pad(&ccp2->pads[CCP2_PAD_SINK]);
+	pad = media_pad_remote_pad_first(&ccp2->pads[CCP2_PAD_SINK]);
 	sensor = media_entity_to_v4l2_subdev(pad->entity);
 	buscfg = v4l2_subdev_to_bus_cfg(pipe->external);
 
