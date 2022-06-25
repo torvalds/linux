@@ -401,6 +401,8 @@ enum hl_device_hw_state {
  * @hop_masks: array holds HOPs masks.
  * @last_mask: mask to get the bit indicating this is the last hop.
  * @pgt_size: size for page tables.
+ * @supported_pages_mask: bitmask for supported page size (relevant only for MMUs
+ *                        supporting multiple page size).
  * @page_size: default page size used to allocate memory.
  * @num_hops: The amount of hops supported by the translation table.
  * @hop_table_size: HOP table size.
@@ -415,6 +417,7 @@ struct hl_mmu_properties {
 	u64	hop_masks[MMU_HOP_MAX];
 	u64	last_mask;
 	u64	pgt_size;
+	u64	supported_pages_mask;
 	u32	page_size;
 	u32	num_hops;
 	u32	hop_table_size;
@@ -1332,7 +1335,6 @@ struct fw_load_mgr {
  * @get_sob_addr: get SOB base address offset.
  * @set_pci_memory_regions: setting properties of PCI memory regions
  * @get_stream_master_qid_arr: get pointer to stream masters QID array
- * @get_valid_dram_page_orders: get valid device memory allocation page orders
  * @access_dev_mem: access device memory
  * @set_dram_bar_base: set the base of the DRAM BAR
  */
@@ -1453,7 +1455,6 @@ struct hl_asic_funcs {
 	u32* (*get_stream_master_qid_arr)(void);
 	int (*mmu_get_real_page_size)(struct hl_device *hdev, struct hl_mmu_properties *mmu_prop,
 					u32 page_size, u32 *real_page_size, bool is_dram_addr);
-	void (*get_valid_dram_page_orders)(struct hl_info_dev_memalloc_page_sizes *info);
 	int (*access_dev_mem)(struct hl_device *hdev, struct pci_mem_region *region,
 		enum pci_region region_type, u64 addr, u64 *val, enum debugfs_access_type acc_type);
 	u64 (*set_dram_bar_base)(struct hl_device *hdev, u64 addr);

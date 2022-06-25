@@ -27,7 +27,7 @@ static int allocate_timestamps_buffers(struct hl_fpriv *hpriv,
 static int set_alloc_page_size(struct hl_device *hdev, struct hl_mem_in *args, u32 *page_size)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 psize;
+	u64 psize;
 
 	/*
 	 * for ASIC that supports setting the allocation page size by user we will address
@@ -37,7 +37,7 @@ static int set_alloc_page_size(struct hl_device *hdev, struct hl_mem_in *args, u
 		psize = args->alloc.page_size;
 
 		if (!is_power_of_2(psize)) {
-			dev_err(hdev->dev, "user page size (%#x) is not power of 2\n", psize);
+			dev_err(hdev->dev, "user page size (%#llx) is not power of 2\n", psize);
 			return -EINVAL;
 		}
 	} else {

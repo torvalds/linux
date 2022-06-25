@@ -648,7 +648,7 @@ static int dev_mem_alloc_page_sizes_info(struct hl_fpriv *hpriv, struct hl_info_
 	 * For this reason for all ASICs that not support multiple page size the function will
 	 * return an empty bitmask indicating that multiple page sizes is not supported.
 	 */
-	hdev->asic_funcs->get_valid_dram_page_orders(&info);
+	info.page_order_bitmask = hdev->asic_prop.dmmu.supported_pages_mask;
 
 	return copy_to_user(out, &info, min_t(size_t, max_size, sizeof(info))) ? -EFAULT : 0;
 }
