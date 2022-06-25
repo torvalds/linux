@@ -3783,7 +3783,6 @@ enum dc_status dc_link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw
 	struct fixed31_32 pbn_per_slot;
 	struct dp_mst_stream_allocation_table proposed_table = {0};
 	uint8_t i;
-	enum act_return_status ret;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	DC_LOGGER_INIT(link->ctx->logger);
 
@@ -3857,7 +3856,7 @@ enum dc_status dc_link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t bw
 			&link->mst_stream_alloc_table);
 
 	/* poll for immediate branch device ACT handled */
-	ret = dm_helpers_dp_mst_poll_for_allocation_change_trigger(
+	dm_helpers_dp_mst_poll_for_allocation_change_trigger(
 			stream->ctx,
 			stream);
 
