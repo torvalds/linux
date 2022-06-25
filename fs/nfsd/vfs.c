@@ -1142,6 +1142,7 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 						nfsd_net_id));
 			err2 = filemap_check_wb_err(nf->nf_file->f_mapping,
 						    since);
+			err = nfserrno(err2);
 			break;
 		case -EINVAL:
 			err = nfserr_notsupp;
@@ -1149,8 +1150,8 @@ nfsd_commit(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		default:
 			nfsd_reset_boot_verifier(net_generic(nf->nf_net,
 						 nfsd_net_id));
+			err = nfserrno(err2);
 		}
-		err = nfserrno(err2);
 	} else
 		nfsd_copy_boot_verifier(verf, net_generic(nf->nf_net,
 					nfsd_net_id));
