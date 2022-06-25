@@ -3036,21 +3036,21 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 	if (flags & IORING_ENTER_REGISTERED_RING) {
 		struct io_uring_task *tctx = current->io_uring;
 
-		if (!tctx || fd >= IO_RINGFD_REG_MAX)
+		if (unlikely(!tctx || fd >= IO_RINGFD_REG_MAX))
 			return -EINVAL;
 		fd = array_index_nospec(fd, IO_RINGFD_REG_MAX);
 		f.file = tctx->registered_rings[fd];
 		f.flags = 0;
+		if (unlikely(!f.file))
+			return -EBADF;
 	} else {
 		f = fdget(fd);
+		if (unlikely(!f.file))
+			return -EBADF;
+		ret = -EOPNOTSUPP;
+		if (unlikely(!io_is_uring_fops(f.file)))
+			goto out_fput;
 	}
-
-	if (unlikely(!f.file))
-		return -EBADF;
-
-	ret = -EOPNOTSUPP;
-	if (unlikely(!io_is_uring_fops(f.file)))
-		goto out_fput;
 
 	ret = -ENXIO;
 	ctx = f.file->private_data;
