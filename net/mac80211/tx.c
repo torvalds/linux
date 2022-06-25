@@ -3800,6 +3800,13 @@ out:
 }
 EXPORT_SYMBOL(ieee80211_tx_dequeue);
 
+static inline s32 ieee80211_sta_deficit(struct sta_info *sta, u8 ac)
+{
+	struct airtime_info *air_info = &sta->airtime[ac];
+
+	return air_info->deficit - atomic_read(&air_info->aql_tx_pending);
+}
+
 struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -3830,7 +3837,7 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
 		struct sta_info *sta = container_of(txqi->txq.sta,
 						    struct sta_info, sta);
 		bool aql_check = ieee80211_txq_airtime_check(hw, &txqi->txq);
-		s32 deficit = sta->airtime[txqi->txq.ac].deficit;
+		s32 deficit = ieee80211_sta_deficit(sta, txqi->txq.ac);
 
 		if (aql_check)
 			found_eligible_txq = true;
@@ -3955,7 +3962,7 @@ bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
 			continue;
 		}
 		sta = container_of(iter->txq.sta, struct sta_info, sta);
-		if (sta->airtime[ac].deficit < 0)
+		if (ieee80211_sta_deficit(sta, ac) < 0)
 			sta->airtime[ac].deficit += sta->airtime_weight;
 		list_move_tail(&iter->schedule_order, &local->active_txqs[ac]);
 	}
