@@ -43,16 +43,23 @@ static void aspeed_pciecfg_init(struct aspeed_pciecfg *pciecfg)
 
 	reset_control_deassert(pciecfg->rst);
 
+	//workaround : Send vender define message for avoid when PCIE RESET send unknown message out
+	writel(0x34000000, pciecfg->reg + 0x10);
+	writel(0x0000007f, pciecfg->reg + 0x14);
+	writel(0x00001a03, pciecfg->reg + 0x18);
+	writel(0x00000000, pciecfg->reg + 0x1C);
+
 	regmap_write(pciecfg->ahbc, 0x00, AHBC_UNLOCK);
 	regmap_update_bits(pciecfg->ahbc, 0x8C, BIT(5), BIT(5));
 	regmap_write(pciecfg->ahbc, 0x00, 0x1);
-
-	writel(BIT(0), pciecfg->reg + 0x00);
 
 	//ahb to pcie rc
 	writel(0xe0006000, pciecfg->reg + 0x60);
 	writel(0x00000000, pciecfg->reg + 0x64);
 	writel(0xFFFFFFFF, pciecfg->reg + 0x68);
+
+	//PCIe Host Enable
+	writel(BIT(0), pciecfg->reg + 0x00);
 
 }
 
