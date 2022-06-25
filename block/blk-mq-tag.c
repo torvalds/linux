@@ -37,29 +37,25 @@ static void blk_mq_update_wake_batch(struct blk_mq_tags *tags,
  * to get tag when first time, the other shared-tag users could reserve
  * budget for it.
  */
-bool __blk_mq_tag_busy(struct blk_mq_hw_ctx *hctx)
+void __blk_mq_tag_busy(struct blk_mq_hw_ctx *hctx)
 {
 	unsigned int users;
 
 	if (blk_mq_is_shared_tags(hctx->flags)) {
 		struct request_queue *q = hctx->queue;
 
-		if (test_bit(QUEUE_FLAG_HCTX_ACTIVE, &q->queue_flags) ||
-		    test_and_set_bit(QUEUE_FLAG_HCTX_ACTIVE, &q->queue_flags)) {
-			return true;
-		}
+		if (test_bit(QUEUE_FLAG_HCTX_ACTIVE, &q->queue_flags))
+			return;
+		set_bit(QUEUE_FLAG_HCTX_ACTIVE, &q->queue_flags);
 	} else {
-		if (test_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state) ||
-		    test_and_set_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state)) {
-			return true;
-		}
+		if (test_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state))
+			return;
+		set_bit(BLK_MQ_S_TAG_ACTIVE, &hctx->state);
 	}
 
 	users = atomic_inc_return(&hctx->tags->active_queues);
 
 	blk_mq_update_wake_batch(hctx->tags, users);
-
-	return true;
 }
 
 /*
