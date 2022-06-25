@@ -15,7 +15,6 @@
 #define INCVALUE_MASK		0x7fffffff
 #define ISGN			0x80000000
 
-#define IGC_SYSTIM_OVERFLOW_PERIOD	(HZ * 60 * 9)
 #define IGC_PTP_TX_TIMEOUT		(HZ * 15)
 
 #define IGC_PTM_STAT_SLEEP		2
