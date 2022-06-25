@@ -202,7 +202,7 @@ static ssize_t sta_airtime_read(struct file *file, char __user *userbuf,
 	size_t bufsz = 400;
 	char *buf = kzalloc(bufsz, GFP_KERNEL), *p = buf;
 	u64 rx_airtime = 0, tx_airtime = 0;
-	s64 deficit[IEEE80211_NUM_ACS];
+	s32 deficit[IEEE80211_NUM_ACS];
 	ssize_t rv;
 	int ac;
 
@@ -219,7 +219,7 @@ static ssize_t sta_airtime_read(struct file *file, char __user *userbuf,
 
 	p += scnprintf(p, bufsz + buf - p,
 		"RX: %llu us\nTX: %llu us\nWeight: %u\n"
-		"Deficit: VO: %lld us VI: %lld us BE: %lld us BK: %lld us\n",
+		"Deficit: VO: %d us VI: %d us BE: %d us BK: %d us\n",
 		rx_airtime, tx_airtime, sta->airtime_weight,
 		deficit[0], deficit[1], deficit[2], deficit[3]);
 

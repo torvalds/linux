@@ -3830,7 +3830,7 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
 		struct sta_info *sta = container_of(txqi->txq.sta,
 						    struct sta_info, sta);
 		bool aql_check = ieee80211_txq_airtime_check(hw, &txqi->txq);
-		s64 deficit = sta->airtime[txqi->txq.ac].deficit;
+		s32 deficit = sta->airtime[txqi->txq.ac].deficit;
 
 		if (aql_check)
 			found_eligible_txq = true;
