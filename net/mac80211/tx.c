@@ -3807,6 +3807,36 @@ static inline s32 ieee80211_sta_deficit(struct sta_info *sta, u8 ac)
 	return air_info->deficit - atomic_read(&air_info->aql_tx_pending);
 }
 
+static void
+ieee80211_txq_set_active(struct txq_info *txqi)
+{
+	struct sta_info *sta;
+
+	if (!txqi->txq.sta)
+		return;
+
+	sta = container_of(txqi->txq.sta, struct sta_info, sta);
+	sta->airtime[txqi->txq.ac].last_active = (u32)jiffies;
+}
+
+static bool
+ieee80211_txq_keep_active(struct txq_info *txqi)
+{
+	struct sta_info *sta;
+	u32 diff;
+
+	if (!txqi->txq.sta)
+		return false;
+
+	sta = container_of(txqi->txq.sta, struct sta_info, sta);
+	if (ieee80211_sta_deficit(sta, txqi->txq.ac) >= 0)
+		return false;
+
+	diff = (u32)jiffies - sta->airtime[txqi->txq.ac].last_active;
+
+	return diff <= AIRTIME_ACTIVE_DURATION;
+}
+
 struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
@@ -3853,7 +3883,6 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
 		}
 	}
 
-
 	if (txqi->schedule_round == local->schedule_round[ac])
 		goto out;
 
@@ -3873,12 +3902,13 @@ void __ieee80211_schedule_txq(struct ieee80211_hw *hw,
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct txq_info *txqi = to_txq_info(txq);
+	bool has_queue;
 
 	spin_lock_bh(&local->active_txq_lock[txq->ac]);
 
+	has_queue = force || txq_has_queue(txq);
 	if (list_empty(&txqi->schedule_order) &&
-	    (force || !skb_queue_empty(&txqi->frags) ||
-	     txqi->tin.backlog_packets)) {
+	    (has_queue || ieee80211_txq_keep_active(txqi))) {
 		/* If airtime accounting is active, always enqueue STAs at the
 		 * head of the list to ensure that they only get moved to the
 		 * back by the airtime DRR scheduler once they have a negative
@@ -3886,7 +3916,7 @@ void __ieee80211_schedule_txq(struct ieee80211_hw *hw,
 		 * get immediately moved to the back of the list on the next
 		 * call to ieee80211_next_txq().
 		 */
-		if (txqi->txq.sta && local->airtime_flags &&
+		if (txqi->txq.sta && local->airtime_flags && has_queue &&
 		    wiphy_ext_feature_isset(local->hw.wiphy,
 					    NL80211_EXT_FEATURE_AIRTIME_FAIRNESS))
 			list_add(&txqi->schedule_order,
@@ -3894,6 +3924,8 @@ void __ieee80211_schedule_txq(struct ieee80211_hw *hw,
 		else
 			list_add_tail(&txqi->schedule_order,
 				      &local->active_txqs[txq->ac]);
+		if (has_queue)
+			ieee80211_txq_set_active(txqi);
 	}
 
 	spin_unlock_bh(&local->active_txq_lock[txq->ac]);

@@ -83,6 +83,13 @@ extern const u8 ieee80211_ac_to_qos_mask[IEEE80211_NUM_ACS];
 
 #define IEEE80211_MAX_NAN_INSTANCE_ID 255
 
+
+/*
+ * Keep a station's queues on the active list for deficit accounting purposes
+ * if it was active or queued during the last 100ms
+ */
+#define AIRTIME_ACTIVE_DURATION (HZ / 10)
+
 struct ieee80211_bss {
 	u32 device_ts_beacon, device_ts_presp;
 
