@@ -234,6 +234,13 @@ static void rockchip_dp_loader_protect(struct drm_encoder *encoder, bool on)
 	struct rockchip_dp_device *dp = to_dp(encoder);
 	struct analogix_dp_plat_data *plat_data = &dp->plat_data;
 
+	if (plat_data->right) {
+		struct rockchip_dp_device *secondary =
+				rockchip_dp_find_by_id(dp->dev->driver, !dp->id);
+
+		rockchip_dp_loader_protect(&secondary->encoder, on);
+	}
+
 	if (!on)
 		return;
 
