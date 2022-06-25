@@ -3846,6 +3846,9 @@ struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
 
 	spin_lock_bh(&local->active_txq_lock[ac]);
 
+	if (!local->schedule_round[ac])
+		goto out;
+
  begin:
 	txqi = list_first_entry_or_null(&local->active_txqs[ac],
 					struct txq_info,
@@ -3967,6 +3970,25 @@ bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
 }
 EXPORT_SYMBOL(ieee80211_txq_airtime_check);
 
+static bool
+ieee80211_txq_schedule_airtime_check(struct ieee80211_local *local, u8 ac)
+{
+	unsigned int num_txq = 0;
+	struct txq_info *txq;
+	u32 aql_limit;
+
+	if (!wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL))
+		return true;
+
+	list_for_each_entry(txq, &local->active_txqs[ac], schedule_order)
+		num_txq++;
+
+	aql_limit = (num_txq - 1) * local->aql_txq_limit_low[ac] / 2 +
+		    local->aql_txq_limit_high[ac];
+
+	return atomic_read(&local->aql_ac_pending_airtime[ac]) < aql_limit;
+}
+
 bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
 				struct ieee80211_txq *txq)
 {
@@ -3981,6 +4003,9 @@ bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
 		goto out;
 
 	if (list_empty(&txqi->schedule_order))
+		goto out;
+
+	if (!ieee80211_txq_schedule_airtime_check(local, ac))
 		goto out;
 
 	list_for_each_entry_safe(iter, tmp, &local->active_txqs[ac],
@@ -4022,7 +4047,15 @@ void ieee80211_txq_schedule_start(struct ieee80211_hw *hw, u8 ac)
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	spin_lock_bh(&local->active_txq_lock[ac]);
-	local->schedule_round[ac]++;
+
+	if (ieee80211_txq_schedule_airtime_check(local, ac)) {
+		local->schedule_round[ac]++;
+		if (!local->schedule_round[ac])
+			local->schedule_round[ac]++;
+	} else {
+		local->schedule_round[ac] = 0;
+	}
+
 	spin_unlock_bh(&local->active_txq_lock[ac]);
 }
 EXPORT_SYMBOL(ieee80211_txq_schedule_start);
