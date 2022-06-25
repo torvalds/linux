@@ -1012,6 +1012,8 @@ int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		io_file_bitmap_set(&ctx->file_table, i);
 	}
 
+	/* default it to the whole table */
+	io_file_table_set_alloc_range(ctx, 0, ctx->nr_user_files);
 	io_rsrc_node_switch(ctx, NULL);
 	return 0;
 fail:

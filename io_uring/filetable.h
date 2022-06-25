@@ -3,9 +3,7 @@
 #define IOU_FILE_TABLE_H
 
 #include <linux/file.h>
-
-struct io_ring_ctx;
-struct io_kiocb;
+#include <linux/io_uring_types.h>
 
 /*
  * FFS_SCM is only available on 64-bit archs, for 32-bit we just define it as 0
@@ -32,6 +30,9 @@ int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
 int __io_fixed_fd_install(struct io_ring_ctx *ctx, struct file *file,
 				unsigned int file_slot);
 int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset);
+
+int io_register_file_alloc_range(struct io_ring_ctx *ctx,
+				 struct io_uring_file_index_range __user *arg);
 
 unsigned int io_file_get_flags(struct file *file);
 
@@ -69,6 +70,19 @@ static inline void io_fixed_file_set(struct io_fixed_file *file_slot,
 
 	file_ptr |= io_file_get_flags(file);
 	file_slot->file_ptr = file_ptr;
+}
+
+static inline void io_reset_alloc_hint(struct io_ring_ctx *ctx)
+{
+	ctx->file_table.alloc_hint = ctx->file_alloc_start;
+}
+
+static inline void io_file_table_set_alloc_range(struct io_ring_ctx *ctx,
+						 unsigned off, unsigned len)
+{
+	ctx->file_alloc_start = off;
+	ctx->file_alloc_end = off + len;
+	io_reset_alloc_hint(ctx);
 }
 
 #endif

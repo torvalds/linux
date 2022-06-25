@@ -233,6 +233,9 @@ struct io_ring_ctx {
 
 	unsigned long		check_cq;
 
+	unsigned int		file_alloc_start;
+	unsigned int		file_alloc_end;
+
 	struct {
 		/*
 		 * We cache a range of free CQEs we can use, once exhausted it

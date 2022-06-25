@@ -449,6 +449,9 @@ enum {
 	/* sync cancelation API */
 	IORING_REGISTER_SYNC_CANCEL		= 24,
 
+	/* register a range of fixed file slots for automatic slot allocation */
+	IORING_REGISTER_FILE_ALLOC_RANGE	= 25,
+
 	/* this goes last */
 	IORING_REGISTER_LAST
 };
@@ -593,6 +596,16 @@ struct io_uring_sync_cancel_reg {
 	__u32				flags;
 	struct __kernel_timespec	timeout;
 	__u64				pad[4];
+};
+
+/*
+ * Argument for IORING_REGISTER_FILE_ALLOC_RANGE
+ * The range is specified as [off, off + len)
+ */
+struct io_uring_file_index_range {
+	__u32	off;
+	__u32	len;
+	__u64	resv;
 };
 
 #endif
