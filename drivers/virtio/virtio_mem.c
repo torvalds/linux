@@ -173,6 +173,12 @@ struct virtio_mem {
 	 */
 	bool memmap_on_memory;
 
+	/*
+	 * Indicates the virtio_mem driver should enable memory encryption on
+	 * any transferred memory regions.
+	 */
+	bool use_memory_encryption;
+
 	union {
 		struct {
 			/* Id of the first memory block of this device. */
@@ -2730,11 +2736,72 @@ static int virtio_mem_init_kdump(struct virtio_mem *vm)
 #endif /* CONFIG_PROC_VMCORE */
 }
 
+static int virtio_mem_encryption_setup(struct virtio_mem *vm)
+{
+	char *propname;
+	struct device_node *np = vm->vdev->dev.of_node;
+	u32 flags;
+	u64 size, ipa_base;
+	const struct range pluggable_range = mhp_get_pluggable_range(true);
+	struct range range;
+	int ret;
+
+	propname = "qcom,memory-encryption";
+	vm->use_memory_encryption = of_property_read_bool(np, propname);
+
+	propname = "qcom,max-size";
+	ret = of_property_read_u64(np, propname, &size);
+	if (ret) {
+		dev_err(&vm->vdev->dev, "Missing %s\n", propname);
+		return -EINVAL;
+	}
+	if (!IS_ALIGNED(size, memory_block_size_bytes())) {
+		dev_err(&vm->vdev->dev, "%s must be aligned to %lx\n",
+			propname, memory_block_size_bytes());
+		return -EINVAL;
+	}
+
+	/* qcom,ipa-range includes range.start & range.end */
+	propname = "qcom,ipa-range";
+	ret = of_property_read_u64_index(np, propname, 0, &range.start);
+	ret |= of_property_read_u64_index(np, propname, 1, &range.end);
+	if (ret) {
+		dev_err(&vm->vdev->dev, "Missing %s\n", propname);
+		return -EINVAL;
+	}
+
+	range.start = max(range.start, pluggable_range.start);
+	range.end = min(range.end, pluggable_range.end);
+
+	/*
+	 * Using the DEFAULT flag will request the same encryption level
+	 * as the base kernel memory.
+	 */
+	if (vm->use_memory_encryption)
+		flags = GH_RM_IPA_RESERVE_DEFAULT;
+	else
+		flags = GH_RM_IPA_RESERVE_NORMAL;
+
+	ret = gh_rm_ipa_reserve(size, memory_block_size_bytes(),
+				range, flags, 0,
+				&ipa_base);
+	if (ret) {
+		if (ret == -EPROBE_DEFER)
+			return -EPROBE_DEFER;
+
+		dev_err(&vm->vdev->dev, "Hypervisor ipa reserve not supported\n");
+		return ret;
+	}
+
+	vm->addr = ipa_base;
+	vm->region_size = size;
+	return 0;
+}
+
 static int virtio_mem_init(struct virtio_mem *vm)
 {
 	uint16_t node_id;
 	int ret;
-	struct resource res;
 	u32 device_block_size;
 
 	/* Fetch all properties that can't change. */
@@ -2749,13 +2816,11 @@ static int virtio_mem_init(struct virtio_mem *vm)
 
 	node_id = NUMA_NO_NODE;
 	vm->nid = virtio_mem_translate_node_id(vm, node_id);
-	ret = of_address_to_resource(vm->vdev->dev.of_node, 0, &res);
-	if (ret) {
-		dev_err(&vm->vdev->dev, "Failed to parse reg property\n");
-		return -EINVAL;
-	}
-	vm->addr = res.start;
-	vm->region_size = resource_size(&res);
+
+	/* Also determines the ipa_address and size */
+	ret = virtio_mem_encryption_setup(vm);
+	if (ret)
+		return ret;
 
 	/* Determine the nid for the device based on the lowest address. */
 	if (vm->nid == NUMA_NO_NODE)
