@@ -126,9 +126,6 @@
 
 #define ASB_AXI_BRDG_ID			0x20
 
-#define ASB_READ(reg) readl(power->asb + (reg))
-#define ASB_WRITE(reg, val) writel(PM_PASSWORD | (val), power->asb + (reg))
-
 struct bcm2835_power_domain {
 	struct generic_pm_domain base;
 	struct bcm2835_power *power;
@@ -150,7 +147,9 @@ struct bcm2835_power {
 
 static int bcm2835_asb_control(struct bcm2835_power *power, u32 reg, bool enable)
 {
+	void __iomem *base = power->asb;
 	u64 start;
+	u32 val;
 
 	if (!reg)
 		return 0;
@@ -159,12 +158,13 @@ static int bcm2835_asb_control(struct bcm2835_power *power, u32 reg, bool enable
 
 	/* Enable the module's async AXI bridges. */
 	if (enable) {
-		ASB_WRITE(reg, ASB_READ(reg) & ~ASB_REQ_STOP);
+		val = readl(base + reg) & ~ASB_REQ_STOP;
 	} else {
-		ASB_WRITE(reg, ASB_READ(reg) | ASB_REQ_STOP);
+		val = readl(base + reg) | ASB_REQ_STOP;
 	}
+	writel(PM_PASSWORD | val, base + reg);
 
-	while (ASB_READ(reg) & ASB_ACK) {
+	while (readl(base + reg) & ASB_ACK) {
 		cpu_relax();
 		if (ktime_get_ns() - start >= 1000)
 			return -ETIMEDOUT;
@@ -622,7 +622,7 @@ static int bcm2835_power_probe(struct platform_device *pdev)
 	power->base = pm->base;
 	power->asb = pm->asb;
 
-	id = ASB_READ(ASB_AXI_BRDG_ID);
+	id = readl(power->asb + ASB_AXI_BRDG_ID);
 	if (id != 0x62726467 /* "BRDG" */) {
 		dev_err(dev, "ASB register ID returned 0x%08x\n", id);
 		return -ENODEV;
