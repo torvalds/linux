@@ -2753,7 +2753,7 @@ static bool ipmr_fill_vif(struct mr_table *mrt, u32 vifid, struct sk_buff *skb)
 	struct vif_device *vif;
 
 	vif = &mrt->vif_table[vifid];
-	vif_dev = vif_dev_read(vif);
+	vif_dev = rtnl_dereference(vif->dev);
 	/* if the VIF doesn't exist just continue */
 	if (!vif_dev)
 		return true;
