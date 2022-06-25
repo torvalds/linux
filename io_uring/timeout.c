@@ -101,32 +101,44 @@ __cold void io_flush_timeouts(struct io_ring_ctx *ctx)
 	spin_unlock_irq(&ctx->timeout_lock);
 }
 
-static void io_fail_links(struct io_kiocb *req)
-	__must_hold(&req->ctx->completion_lock)
+static void io_req_tw_fail_links(struct io_kiocb *link, bool *locked)
 {
-	struct io_kiocb *nxt, *link = req->link;
-	bool ignore_cqes = req->flags & REQ_F_SKIP_LINK_CQES;
-
-	req->link = NULL;
+	io_tw_lock(link->ctx, locked);
 	while (link) {
+		struct io_kiocb *nxt = link->link;
 		long res = -ECANCELED;
 
 		if (link->flags & REQ_F_FAIL)
 			res = link->cqe.res;
-
-		nxt = link->link;
 		link->link = NULL;
+		io_req_set_res(link, res, 0);
+		io_req_task_complete(link, locked);
+		link = nxt;
+	}
+}
 
-		trace_io_uring_fail_link(req, link);
+static void io_fail_links(struct io_kiocb *req)
+	__must_hold(&req->ctx->completion_lock)
+{
+	struct io_kiocb *link = req->link;
+	bool ignore_cqes = req->flags & REQ_F_SKIP_LINK_CQES;
 
+	if (!link)
+		return;
+
+	while (link) {
 		if (ignore_cqes)
 			link->flags |= REQ_F_CQE_SKIP;
 		else
 			link->flags &= ~REQ_F_CQE_SKIP;
-		io_req_set_res(link, res, 0);
-		__io_req_complete_post(link);
-		link = nxt;
+		trace_io_uring_fail_link(req, link);
+		link = link->link;
 	}
+
+	link = req->link;
+	link->io_task_work.func = io_req_tw_fail_links;
+	io_req_task_work_add(link);
+	req->link = NULL;
 }
 
 static inline void io_remove_next_linked(struct io_kiocb *req)
