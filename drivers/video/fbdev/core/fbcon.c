@@ -2752,7 +2752,7 @@ int fbcon_modechange_possible(struct fb_info *info, struct fb_var_screeninfo *va
 	for (i = first_fb_vc; i <= last_fb_vc; i++) {
 		vc = vc_cons[i].d;
 		if (!vc || vc->vc_mode != KD_TEXT ||
-			   registered_fb[con2fb_map[i]] != info)
+			   fbcon_info_from_console(i) != info)
 			continue;
 
 		if (vc->vc_font.width  > FBCON_SWAP(var->rotate, var->xres, var->yres) ||
