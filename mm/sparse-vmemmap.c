@@ -548,7 +548,7 @@ pte_t * __meminit vmemmap_pte_populate(pmd_t *pmd, unsigned long addr, int node,
 		} else {
 			/*
 			 * When a PTE/PMD entry is freed from the init_mm
-			 * there's a a free_pages() call to this page allocated
+			 * there's a free_pages() call to this page allocated
 			 * above. Thus this get_page() is paired with the
 			 * put_page_testzero() on the freeing path.
 			 * This can only called by certain ZONE_DEVICE path,
