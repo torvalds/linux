@@ -2245,8 +2245,8 @@ static int msb_resume(struct memstick_dev *card)
 		goto out;
 
 	if (msb->block_count != new_msb->block_count ||
-		memcmp(msb->used_blocks_bitmap, new_msb->used_blocks_bitmap,
-							msb->block_count / 8))
+	    !bitmap_equal(msb->used_blocks_bitmap, new_msb->used_blocks_bitmap,
+							msb->block_count))
 		goto out;
 
 	card_dead = false;
