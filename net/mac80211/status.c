@@ -998,25 +998,6 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 		if (!(info->flags & IEEE80211_TX_CTL_INJECTED) && acked)
 			ieee80211_frame_acked(sta, skb);
 
-	} else if (wiphy_ext_feature_isset(local->hw.wiphy,
-					   NL80211_EXT_FEATURE_AIRTIME_FAIRNESS)) {
-		struct ieee80211_sub_if_data *sdata;
-		struct ieee80211_txq *txq;
-		u32 airtime;
-
-		/* Account airtime to multicast queue */
-		sdata = ieee80211_sdata_from_skb(local, skb);
-
-		if (sdata && (txq = sdata->vif.txq)) {
-			airtime = info->status.tx_time ?:
-				ieee80211_calc_expected_tx_airtime(hw,
-								   &sdata->vif,
-								   NULL,
-								   skb->len,
-								   false);
-
-			ieee80211_register_airtime(txq, airtime, 0);
-		}
 	}
 
 	/* SNMP counters

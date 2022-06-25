@@ -18,7 +18,6 @@
 #include <linux/bitmap.h>
 #include <linux/rcupdate.h>
 #include <linux/export.h>
-#include <linux/timekeeping.h>
 #include <net/net_namespace.h>
 #include <net/ieee80211_radiotap.h>
 #include <net/cfg80211.h>
@@ -1479,7 +1478,7 @@ void ieee80211_txq_init(struct ieee80211_sub_if_data *sdata,
 	codel_vars_init(&txqi->def_cvars);
 	codel_stats_init(&txqi->cstats);
 	__skb_queue_head_init(&txqi->frags);
-	RB_CLEAR_NODE(&txqi->schedule_order);
+	INIT_LIST_HEAD(&txqi->schedule_order);
 
 	txqi->txq.vif = &sdata->vif;
 
@@ -1523,7 +1522,9 @@ void ieee80211_txq_purge(struct ieee80211_local *local,
 	ieee80211_purge_tx_queue(&local->hw, &txqi->frags);
 	spin_unlock_bh(&fq->lock);
 
-	ieee80211_unschedule_txq(&local->hw, &txqi->txq, true);
+	spin_lock_bh(&local->active_txq_lock[txqi->txq.ac]);
+	list_del_init(&txqi->schedule_order);
+	spin_unlock_bh(&local->active_txq_lock[txqi->txq.ac]);
 }
 
 void ieee80211_txq_set_params(struct ieee80211_local *local)
@@ -3802,259 +3803,102 @@ EXPORT_SYMBOL(ieee80211_tx_dequeue);
 struct ieee80211_txq *ieee80211_next_txq(struct ieee80211_hw *hw, u8 ac)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct airtime_sched_info *air_sched;
-	u64 now = ktime_get_coarse_boottime_ns();
 	struct ieee80211_txq *ret = NULL;
-	struct airtime_info *air_info;
-	struct txq_info *txqi = NULL;
-	struct rb_node *node;
-	bool first = false;
+	struct txq_info *txqi = NULL, *head = NULL;
+	bool found_eligible_txq = false;
 
-	air_sched = &local->airtime[ac];
-	spin_lock_bh(&air_sched->lock);
+	spin_lock_bh(&local->active_txq_lock[ac]);
 
-	node = air_sched->schedule_pos;
-
-begin:
-	if (!node) {
-		node = rb_first_cached(&air_sched->active_txqs);
-		first = true;
-	} else {
-		node = rb_next(node);
-	}
-
-	if (!node)
+ begin:
+	txqi = list_first_entry_or_null(&local->active_txqs[ac],
+					struct txq_info,
+					schedule_order);
+	if (!txqi)
 		goto out;
 
-	txqi = container_of(node, struct txq_info, schedule_order);
-	air_info = to_airtime_info(&txqi->txq);
-
-	if (air_info->v_t > air_sched->v_t &&
-	    (!first || !airtime_catchup_v_t(air_sched, air_info->v_t, now)))
-		goto out;
-
-	if (!ieee80211_txq_airtime_check(hw, &txqi->txq)) {
-		first = false;
-		goto begin;
+	if (txqi == head) {
+		if (!found_eligible_txq)
+			goto out;
+		else
+			found_eligible_txq = false;
 	}
 
-	air_sched->schedule_pos = node;
-	air_sched->last_schedule_activity = now;
+	if (!head)
+		head = txqi;
+
+	if (txqi->txq.sta) {
+		struct sta_info *sta = container_of(txqi->txq.sta,
+						    struct sta_info, sta);
+		bool aql_check = ieee80211_txq_airtime_check(hw, &txqi->txq);
+		s64 deficit = sta->airtime[txqi->txq.ac].deficit;
+
+		if (aql_check)
+			found_eligible_txq = true;
+
+		if (deficit < 0)
+			sta->airtime[txqi->txq.ac].deficit +=
+				sta->airtime_weight;
+
+		if (deficit < 0 || !aql_check) {
+			list_move_tail(&txqi->schedule_order,
+				       &local->active_txqs[txqi->txq.ac]);
+			goto begin;
+		}
+	}
+
+
+	if (txqi->schedule_round == local->schedule_round[ac])
+		goto out;
+
+	list_del_init(&txqi->schedule_order);
+	txqi->schedule_round = local->schedule_round[ac];
 	ret = &txqi->txq;
+
 out:
-	spin_unlock_bh(&air_sched->lock);
+	spin_unlock_bh(&local->active_txq_lock[ac]);
 	return ret;
 }
 EXPORT_SYMBOL(ieee80211_next_txq);
 
-static void __ieee80211_insert_txq(struct rb_root_cached *root,
-				   struct txq_info *txqi)
-{
-	struct rb_node **new = &root->rb_root.rb_node;
-	struct airtime_info *old_air, *new_air;
-	struct rb_node *parent = NULL;
-	struct txq_info *__txqi;
-	bool leftmost = true;
-
-	while (*new) {
-		parent = *new;
-		__txqi = rb_entry(parent, struct txq_info, schedule_order);
-		old_air = to_airtime_info(&__txqi->txq);
-		new_air = to_airtime_info(&txqi->txq);
-
-		if (new_air->v_t <= old_air->v_t) {
-			new = &parent->rb_left;
-		} else {
-			new = &parent->rb_right;
-			leftmost = false;
-		}
-	}
-
-	rb_link_node(&txqi->schedule_order, parent, new);
-	rb_insert_color_cached(&txqi->schedule_order, root, leftmost);
-}
-
-void ieee80211_resort_txq(struct ieee80211_hw *hw,
-			  struct ieee80211_txq *txq)
-{
-	struct airtime_info *air_info = to_airtime_info(txq);
-	struct ieee80211_local *local = hw_to_local(hw);
-	struct txq_info *txqi = to_txq_info(txq);
-	struct airtime_sched_info *air_sched;
-
-	air_sched = &local->airtime[txq->ac];
-
-	lockdep_assert_held(&air_sched->lock);
-
-	if (!RB_EMPTY_NODE(&txqi->schedule_order)) {
-		struct airtime_info *a_prev = NULL, *a_next = NULL;
-		struct txq_info *t_prev, *t_next;
-		struct rb_node *n_prev, *n_next;
-
-		/* Erasing a node can cause an expensive rebalancing operation,
-		 * so we check the previous and next nodes first and only remove
-		 * and re-insert if the current node is not already in the
-		 * correct position.
-		 */
-		if ((n_prev = rb_prev(&txqi->schedule_order)) != NULL) {
-			t_prev = container_of(n_prev, struct txq_info,
-					      schedule_order);
-			a_prev = to_airtime_info(&t_prev->txq);
-		}
-
-		if ((n_next = rb_next(&txqi->schedule_order)) != NULL) {
-			t_next = container_of(n_next, struct txq_info,
-					      schedule_order);
-			a_next = to_airtime_info(&t_next->txq);
-		}
-
-		if ((!a_prev || a_prev->v_t <= air_info->v_t) &&
-		    (!a_next || a_next->v_t > air_info->v_t))
-			return;
-
-		if (air_sched->schedule_pos == &txqi->schedule_order)
-			air_sched->schedule_pos = n_prev;
-
-		rb_erase_cached(&txqi->schedule_order,
-				&air_sched->active_txqs);
-		RB_CLEAR_NODE(&txqi->schedule_order);
-		__ieee80211_insert_txq(&air_sched->active_txqs, txqi);
-	}
-}
-
-void ieee80211_update_airtime_weight(struct ieee80211_local *local,
-				     struct airtime_sched_info *air_sched,
-				     u64 now, bool force)
-{
-	struct airtime_info *air_info, *tmp;
-	u64 weight_sum = 0;
-
-	if (unlikely(!now))
-		now = ktime_get_coarse_boottime_ns();
-
-	lockdep_assert_held(&air_sched->lock);
-
-	if (!force && (air_sched->last_weight_update <
-		       now - AIRTIME_ACTIVE_DURATION))
-		return;
-
-	list_for_each_entry_safe(air_info, tmp,
-				 &air_sched->active_list, list) {
-		if (airtime_is_active(air_info, now))
-			weight_sum += air_info->weight;
-		else
-			list_del_init(&air_info->list);
-	}
-	airtime_weight_sum_set(air_sched, weight_sum);
-	air_sched->last_weight_update = now;
-}
-
-void ieee80211_schedule_txq(struct ieee80211_hw *hw,
-			    struct ieee80211_txq *txq)
-	__acquires(txq_lock) __releases(txq_lock)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-	struct txq_info *txqi = to_txq_info(txq);
-	struct airtime_sched_info *air_sched;
-	u64 now = ktime_get_coarse_boottime_ns();
-	struct airtime_info *air_info;
-	u8 ac = txq->ac;
-	bool was_active;
-
-	air_sched = &local->airtime[ac];
-	air_info = to_airtime_info(txq);
-
-	spin_lock_bh(&air_sched->lock);
-	was_active = airtime_is_active(air_info, now);
-	airtime_set_active(air_sched, air_info, now);
-
-	if (!RB_EMPTY_NODE(&txqi->schedule_order))
-		goto out;
-
-	/* If the station has been inactive for a while, catch up its v_t so it
-	 * doesn't get indefinite priority; see comment above the definition of
-	 * AIRTIME_MAX_BEHIND.
-	 */
-	if ((!was_active && air_info->v_t < air_sched->v_t) ||
-	    air_info->v_t < air_sched->v_t - AIRTIME_MAX_BEHIND)
-		air_info->v_t = air_sched->v_t;
-
-	ieee80211_update_airtime_weight(local, air_sched, now, !was_active);
-	__ieee80211_insert_txq(&air_sched->active_txqs, txqi);
-
-out:
-	spin_unlock_bh(&air_sched->lock);
-}
-EXPORT_SYMBOL(ieee80211_schedule_txq);
-
-static void __ieee80211_unschedule_txq(struct ieee80211_hw *hw,
-				       struct ieee80211_txq *txq,
-				       bool purge)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-	struct txq_info *txqi = to_txq_info(txq);
-	struct airtime_sched_info *air_sched;
-	struct airtime_info *air_info;
-
-	air_sched = &local->airtime[txq->ac];
-	air_info = to_airtime_info(&txqi->txq);
-
-	lockdep_assert_held(&air_sched->lock);
-
-	if (purge) {
-		list_del_init(&air_info->list);
-		ieee80211_update_airtime_weight(local, air_sched, 0, true);
-	}
-
-	if (RB_EMPTY_NODE(&txqi->schedule_order))
-		return;
-
-	if (air_sched->schedule_pos == &txqi->schedule_order)
-		air_sched->schedule_pos = rb_prev(&txqi->schedule_order);
-
-	if (!purge)
-		airtime_set_active(air_sched, air_info,
-				   ktime_get_coarse_boottime_ns());
-
-	rb_erase_cached(&txqi->schedule_order,
-			&air_sched->active_txqs);
-	RB_CLEAR_NODE(&txqi->schedule_order);
-}
-
-void ieee80211_unschedule_txq(struct ieee80211_hw *hw,
+void __ieee80211_schedule_txq(struct ieee80211_hw *hw,
 			      struct ieee80211_txq *txq,
-			      bool purge)
-	__acquires(txq_lock) __releases(txq_lock)
-{
-	struct ieee80211_local *local = hw_to_local(hw);
-
-	spin_lock_bh(&local->airtime[txq->ac].lock);
-	__ieee80211_unschedule_txq(hw, txq, purge);
-	spin_unlock_bh(&local->airtime[txq->ac].lock);
-}
-
-void ieee80211_return_txq(struct ieee80211_hw *hw,
-			  struct ieee80211_txq *txq, bool force)
+			      bool force)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
 	struct txq_info *txqi = to_txq_info(txq);
 
-	spin_lock_bh(&local->airtime[txq->ac].lock);
+	spin_lock_bh(&local->active_txq_lock[txq->ac]);
 
-	if (!RB_EMPTY_NODE(&txqi->schedule_order) && !force &&
-	    !txq_has_queue(txq))
-		__ieee80211_unschedule_txq(hw, txq, false);
+	if (list_empty(&txqi->schedule_order) &&
+	    (force || !skb_queue_empty(&txqi->frags) ||
+	     txqi->tin.backlog_packets)) {
+		/* If airtime accounting is active, always enqueue STAs at the
+		 * head of the list to ensure that they only get moved to the
+		 * back by the airtime DRR scheduler once they have a negative
+		 * deficit. A station that already has a negative deficit will
+		 * get immediately moved to the back of the list on the next
+		 * call to ieee80211_next_txq().
+		 */
+		if (txqi->txq.sta && local->airtime_flags &&
+		    wiphy_ext_feature_isset(local->hw.wiphy,
+					    NL80211_EXT_FEATURE_AIRTIME_FAIRNESS))
+			list_add(&txqi->schedule_order,
+				 &local->active_txqs[txq->ac]);
+		else
+			list_add_tail(&txqi->schedule_order,
+				      &local->active_txqs[txq->ac]);
+	}
 
-	spin_unlock_bh(&local->airtime[txq->ac].lock);
+	spin_unlock_bh(&local->active_txq_lock[txq->ac]);
 }
-EXPORT_SYMBOL(ieee80211_return_txq);
+EXPORT_SYMBOL(__ieee80211_schedule_txq);
 
 DEFINE_STATIC_KEY_FALSE(aql_disable);
 
 bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
 				 struct ieee80211_txq *txq)
 {
-	struct airtime_info *air_info = to_airtime_info(txq);
+	struct sta_info *sta;
 	struct ieee80211_local *local = hw_to_local(hw);
 
 	if (!wiphy_ext_feature_isset(local->hw.wiphy, NL80211_EXT_FEATURE_AQL))
@@ -4069,12 +3913,15 @@ bool ieee80211_txq_airtime_check(struct ieee80211_hw *hw,
 	if (unlikely(txq->tid == IEEE80211_NUM_TIDS))
 		return true;
 
-	if (atomic_read(&air_info->aql_tx_pending) < air_info->aql_limit_low)
+	sta = container_of(txq->sta, struct sta_info, sta);
+	if (atomic_read(&sta->airtime[txq->ac].aql_tx_pending) <
+	    sta->airtime[txq->ac].aql_limit_low)
 		return true;
 
 	if (atomic_read(&local->aql_total_pending_airtime) <
 	    local->aql_threshold &&
-	    atomic_read(&air_info->aql_tx_pending) < air_info->aql_limit_high)
+	    atomic_read(&sta->airtime[txq->ac].aql_tx_pending) <
+	    sta->airtime[txq->ac].aql_limit_high)
 		return true;
 
 	return false;
@@ -4084,59 +3931,60 @@ EXPORT_SYMBOL(ieee80211_txq_airtime_check);
 bool ieee80211_txq_may_transmit(struct ieee80211_hw *hw,
 				struct ieee80211_txq *txq)
 {
-	struct txq_info *first_txqi = NULL, *txqi = to_txq_info(txq);
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct airtime_sched_info *air_sched;
-	struct airtime_info *air_info;
-	struct rb_node *node = NULL;
-	bool ret = false;
-	u64 now;
+	struct txq_info *iter, *tmp, *txqi = to_txq_info(txq);
+	struct sta_info *sta;
+	u8 ac = txq->ac;
 
+	spin_lock_bh(&local->active_txq_lock[ac]);
 
-	if (!ieee80211_txq_airtime_check(hw, txq))
-		return false;
-
-	air_sched = &local->airtime[txq->ac];
-	spin_lock_bh(&air_sched->lock);
-
-	if (RB_EMPTY_NODE(&txqi->schedule_order))
+	if (!txqi->txq.sta)
 		goto out;
 
-	now = ktime_get_coarse_boottime_ns();
+	if (list_empty(&txqi->schedule_order))
+		goto out;
 
-	/* Like in ieee80211_next_txq(), make sure the first station in the
-	 * scheduling order is eligible for transmission to avoid starvation.
-	 */
-	node = rb_first_cached(&air_sched->active_txqs);
-	if (node) {
-		first_txqi = container_of(node, struct txq_info,
-					  schedule_order);
-		air_info = to_airtime_info(&first_txqi->txq);
+	list_for_each_entry_safe(iter, tmp, &local->active_txqs[ac],
+				 schedule_order) {
+		if (iter == txqi)
+			break;
 
-		if (air_sched->v_t < air_info->v_t)
-			airtime_catchup_v_t(air_sched, air_info->v_t, now);
+		if (!iter->txq.sta) {
+			list_move_tail(&iter->schedule_order,
+				       &local->active_txqs[ac]);
+			continue;
+		}
+		sta = container_of(iter->txq.sta, struct sta_info, sta);
+		if (sta->airtime[ac].deficit < 0)
+			sta->airtime[ac].deficit += sta->airtime_weight;
+		list_move_tail(&iter->schedule_order, &local->active_txqs[ac]);
 	}
 
-	air_info = to_airtime_info(&txqi->txq);
-	if (air_info->v_t <= air_sched->v_t) {
-		air_sched->last_schedule_activity = now;
-		ret = true;
-	}
+	sta = container_of(txqi->txq.sta, struct sta_info, sta);
+	if (sta->airtime[ac].deficit >= 0)
+		goto out;
 
+	sta->airtime[ac].deficit += sta->airtime_weight;
+	list_move_tail(&txqi->schedule_order, &local->active_txqs[ac]);
+	spin_unlock_bh(&local->active_txq_lock[ac]);
+
+	return false;
 out:
-	spin_unlock_bh(&air_sched->lock);
-	return ret;
+	if (!list_empty(&txqi->schedule_order))
+		list_del_init(&txqi->schedule_order);
+	spin_unlock_bh(&local->active_txq_lock[ac]);
+
+	return true;
 }
 EXPORT_SYMBOL(ieee80211_txq_may_transmit);
 
 void ieee80211_txq_schedule_start(struct ieee80211_hw *hw, u8 ac)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct airtime_sched_info *air_sched = &local->airtime[ac];
 
-	spin_lock_bh(&air_sched->lock);
-	air_sched->schedule_pos = NULL;
-	spin_unlock_bh(&air_sched->lock);
+	spin_lock_bh(&local->active_txq_lock[ac]);
+	local->schedule_round[ac]++;
+	spin_unlock_bh(&local->active_txq_lock[ac]);
 }
 EXPORT_SYMBOL(ieee80211_txq_schedule_start);
 

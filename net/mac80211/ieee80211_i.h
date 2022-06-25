@@ -818,16 +818,20 @@ enum txq_info_flags {
  * @def_flow: used as a fallback flow when a packet destined to @tin hashes to
  *	a fq_flow which is already owned by a different tin
  * @def_cvars: codel vars for @def_flow
- * @schedule_order: used with ieee80211_local->active_txqs
  * @frags: used to keep fragments created after dequeue
+ * @schedule_order: used with ieee80211_local->active_txqs
+ * @schedule_round: counter to prevent infinite loops on TXQ scheduling
  */
 struct txq_info {
 	struct fq_tin tin;
 	struct codel_vars def_cvars;
 	struct codel_stats cstats;
-	struct rb_node schedule_order;
+
+	u16 schedule_round;
+	struct list_head schedule_order;
 
 	struct sk_buff_head frags;
+
 	unsigned long flags;
 
 	/* keep last! */
@@ -922,8 +926,6 @@ struct ieee80211_link_data {
 	struct ieee80211_key __rcu *default_multicast_key;
 	struct ieee80211_key __rcu *default_mgmt_key;
 	struct ieee80211_key __rcu *default_beacon_key;
-
-	struct airtime_info airtime[IEEE80211_NUM_ACS];
 
 	struct work_struct csa_finalize_work;
 	bool csa_block_tx; /* write-protected by sdata_lock and local->mtx */
@@ -1208,44 +1210,6 @@ enum mac80211_scan_state {
 	SCAN_ABORT,
 };
 
-/**
- * struct airtime_sched_info - state used for airtime scheduling and AQL
- *
- * @lock: spinlock that protects all the fields in this struct
- * @active_txqs: rbtree of currently backlogged queues, sorted by virtual time
- * @schedule_pos: the current position maintained while a driver walks the tree
- *                with ieee80211_next_txq()
- * @active_list: list of struct airtime_info structs that were active within
- *               the last AIRTIME_ACTIVE_DURATION (100 ms), used to compute
- *               weight_sum
- * @last_weight_update: used for rate limiting walking active_list
- * @last_schedule_time: tracks the last time a transmission was scheduled; used
- *                      for catching up v_t if no stations are eligible for
- *                      transmission.
- * @v_t: global virtual time; queues with v_t < this are eligible for
- *       transmission
- * @weight_sum: total sum of all active stations used for dividing airtime
- * @weight_sum_reciprocal: reciprocal of weight_sum (to avoid divisions in fast
- *                         path - see comment above
- *                         IEEE80211_RECIPROCAL_DIVISOR_64)
- * @aql_txq_limit_low: AQL limit when total outstanding airtime
- *                     is < IEEE80211_AQL_THRESHOLD
- * @aql_txq_limit_high: AQL limit when total outstanding airtime
- *                      is > IEEE80211_AQL_THRESHOLD
- */
-struct airtime_sched_info {
-	spinlock_t lock;
-	struct rb_root_cached active_txqs;
-	struct rb_node *schedule_pos;
-	struct list_head active_list;
-	u64 last_weight_update;
-	u64 last_schedule_activity;
-	u64 v_t;
-	u64 weight_sum;
-	u64 weight_sum_reciprocal;
-	u32 aql_txq_limit_low;
-	u32 aql_txq_limit_high;
-};
 DECLARE_STATIC_KEY_FALSE(aql_disable);
 
 struct ieee80211_local {
@@ -1259,8 +1223,13 @@ struct ieee80211_local {
 	struct codel_params cparams;
 
 	/* protects active_txqs and txqi->schedule_order */
-	struct airtime_sched_info airtime[IEEE80211_NUM_ACS];
+	spinlock_t active_txq_lock[IEEE80211_NUM_ACS];
+	struct list_head active_txqs[IEEE80211_NUM_ACS];
+	u16 schedule_round[IEEE80211_NUM_ACS];
+
 	u16 airtime_flags;
+	u32 aql_txq_limit_low[IEEE80211_NUM_ACS];
+	u32 aql_txq_limit_high[IEEE80211_NUM_ACS];
 	u32 aql_threshold;
 	atomic_t aql_total_pending_airtime;
 
@@ -1683,125 +1652,6 @@ static inline bool txq_has_queue(struct ieee80211_txq *txq)
 	return !(skb_queue_empty(&txqi->frags) && !txqi->tin.backlog_packets);
 }
 
-static inline struct airtime_info *to_airtime_info(struct ieee80211_txq *txq)
-{
-	struct ieee80211_sub_if_data *sdata;
-	struct sta_info *sta;
-
-	if (txq->sta) {
-		sta = container_of(txq->sta, struct sta_info, sta);
-		return &sta->airtime[txq->ac];
-	}
-
-	sdata = vif_to_sdata(txq->vif);
-	return &sdata->deflink.airtime[txq->ac];
-}
-
-/* To avoid divisions in the fast path, we keep pre-computed reciprocals for
- * airtime weight calculations. There are two different weights to keep track
- * of: The per-station weight and the sum of weights per phy.
- *
- * For the per-station weights (kept in airtime_info below), we use 32-bit
- * reciprocals with a devisor of 2^19. This lets us keep the multiplications and
- * divisions for the station weights as 32-bit operations at the cost of a bit
- * of rounding error for high weights; but the choice of divisor keeps rounding
- * errors <10% for weights <2^15, assuming no more than 8ms of airtime is
- * reported at a time.
- *
- * For the per-phy sum of weights the values can get higher, so we use 64-bit
- * operations for those with a 32-bit divisor, which should avoid any
- * significant rounding errors.
- */
-#define IEEE80211_RECIPROCAL_DIVISOR_64 0x100000000ULL
-#define IEEE80211_RECIPROCAL_SHIFT_64 32
-#define IEEE80211_RECIPROCAL_DIVISOR_32 0x80000U
-#define IEEE80211_RECIPROCAL_SHIFT_32 19
-
-static inline void airtime_weight_set(struct airtime_info *air_info, u16 weight)
-{
-	if (air_info->weight == weight)
-		return;
-
-	air_info->weight = weight;
-	if (weight) {
-		air_info->weight_reciprocal =
-			IEEE80211_RECIPROCAL_DIVISOR_32 / weight;
-	} else {
-		air_info->weight_reciprocal = 0;
-	}
-}
-
-static inline void airtime_weight_sum_set(struct airtime_sched_info *air_sched,
-					  int weight_sum)
-{
-	if (air_sched->weight_sum == weight_sum)
-		return;
-
-	air_sched->weight_sum = weight_sum;
-	if (air_sched->weight_sum) {
-		air_sched->weight_sum_reciprocal = IEEE80211_RECIPROCAL_DIVISOR_64;
-		do_div(air_sched->weight_sum_reciprocal, air_sched->weight_sum);
-	} else {
-		air_sched->weight_sum_reciprocal = 0;
-	}
-}
-
-/* A problem when trying to enforce airtime fairness is that we want to divide
- * the airtime between the currently *active* stations. However, basing this on
- * the instantaneous queue state of stations doesn't work, as queues tend to
- * oscillate very quickly between empty and occupied, leading to the scheduler
- * thinking only a single station is active when deciding whether to allow
- * transmission (and thus not throttling correctly).
- *
- * To fix this we use a timer-based notion of activity: a station is considered
- * active if it has been scheduled within the last 100 ms; we keep a separate
- * list of all the stations considered active in this manner, and lazily update
- * the total weight of active stations from this list (filtering the stations in
- * the list by their 'last active' time).
- *
- * We add one additional safeguard to guard against stations that manage to get
- * scheduled every 100 ms but don't transmit a lot of data, and thus don't use
- * up any airtime. Such stations would be able to get priority for an extended
- * period of time if they do start transmitting at full capacity again, and so
- * we add an explicit maximum for how far behind a station is allowed to fall in
- * the virtual airtime domain. This limit is set to a relatively high value of
- * 20 ms because the main mechanism for catching up idle stations is the active
- * state as described above; i.e., the hard limit should only be hit in
- * pathological cases.
- */
-#define AIRTIME_ACTIVE_DURATION (100 * NSEC_PER_MSEC)
-#define AIRTIME_MAX_BEHIND 20000 /* 20 ms */
-
-static inline bool airtime_is_active(struct airtime_info *air_info, u64 now)
-{
-	return air_info->last_scheduled >= now - AIRTIME_ACTIVE_DURATION;
-}
-
-static inline void airtime_set_active(struct airtime_sched_info *air_sched,
-				      struct airtime_info *air_info, u64 now)
-{
-	air_info->last_scheduled = now;
-	air_sched->last_schedule_activity = now;
-	list_move_tail(&air_info->list, &air_sched->active_list);
-}
-
-static inline bool airtime_catchup_v_t(struct airtime_sched_info *air_sched,
-				       u64 v_t, u64 now)
-{
-	air_sched->v_t = v_t;
-	return true;
-}
-
-static inline void init_airtime_info(struct airtime_info *air_info,
-				     struct airtime_sched_info *air_sched)
-{
-	atomic_set(&air_info->aql_tx_pending, 0);
-	air_info->aql_limit_low = air_sched->aql_txq_limit_low;
-	air_info->aql_limit_high = air_sched->aql_txq_limit_high;
-	airtime_weight_set(air_info, IEEE80211_DEFAULT_AIRTIME_WEIGHT);
-	INIT_LIST_HEAD(&air_info->list);
-}
-
 static inline bool
 ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 {
@@ -2047,14 +1897,6 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 			      u64 *cookie);
 int ieee80211_probe_mesh_link(struct wiphy *wiphy, struct net_device *dev,
 			      const u8 *buf, size_t len);
-void ieee80211_resort_txq(struct ieee80211_hw *hw,
-			  struct ieee80211_txq *txq);
-void ieee80211_unschedule_txq(struct ieee80211_hw *hw,
-			      struct ieee80211_txq *txq,
-			      bool purge);
-void ieee80211_update_airtime_weight(struct ieee80211_local *local,
-				     struct airtime_sched_info *air_sched,
-				     u64 now, bool force);
 
 /* HT */
 void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
