@@ -41,7 +41,6 @@ void __delete_from_swap_cache(struct folio *folio,
 void delete_from_swap_cache(struct folio *folio);
 void clear_shadow_from_swap_cache(int type, unsigned long begin,
 				  unsigned long end);
-void free_swap_cache(struct page *page);
 struct page *lookup_swap_cache(swp_entry_t entry,
 			       struct vm_area_struct *vma,
 			       unsigned long addr);
@@ -79,10 +78,6 @@ static inline void swap_write_unplug(struct swap_iocb *sio)
 static inline struct address_space *swap_address_space(swp_entry_t entry)
 {
 	return NULL;
-}
-
-static inline void free_swap_cache(struct page *page)
-{
 }
 
 static inline void show_swap_cache_info(void)
