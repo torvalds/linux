@@ -427,10 +427,7 @@ enum {
 typedef void (*io_req_tw_func_t)(struct io_kiocb *req, bool *locked);
 
 struct io_task_work {
-	union {
-		struct llist_node	node;
-		struct llist_node	fallback_node;
-	};
+	struct llist_node		node;
 	io_req_tw_func_t		func;
 };
 

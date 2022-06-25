@@ -233,7 +233,7 @@ static __cold void io_fallback_req_func(struct work_struct *work)
 	bool locked = false;
 
 	percpu_ref_get(&ctx->refs);
-	llist_for_each_entry_safe(req, tmp, node, io_task_work.fallback_node)
+	llist_for_each_entry_safe(req, tmp, node, io_task_work.node)
 		req->io_task_work.func(req, &locked);
 
 	if (locked) {
@@ -1091,13 +1091,12 @@ void io_req_task_work_add(struct io_kiocb *req)
 	if (likely(!task_work_add(req->task, &tctx->task_work, ctx->notify_method)))
 		return;
 
-
 	node = llist_del_all(&tctx->task_list);
 
 	while (node) {
 		req = container_of(node, struct io_kiocb, io_task_work.node);
 		node = node->next;
-		if (llist_add(&req->io_task_work.fallback_node,
+		if (llist_add(&req->io_task_work.node,
 			      &req->ctx->fallback_llist))
 			schedule_delayed_work(&req->ctx->fallback_work, 1);
 	}
