@@ -10,8 +10,8 @@
 #include "rv1106-thunder-boot-spi-nor.dtsi"
 
 / {
-	model = "Rockchip RV1103G Anker V10 Board";
-	compatible = "rockchip,rv1103g-anker-v10", "rockchip,rv1103";
+	model = "Rockchip RV1103G Battery IPC V10 Board";
+	compatible = "rockchip,rv1103g-battery-ipc-v10", "rockchip,rv1103";
 
 	aliases {
 		/delete-property/ csi2dphy1;
