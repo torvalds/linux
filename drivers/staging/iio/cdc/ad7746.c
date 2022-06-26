@@ -21,9 +21,7 @@
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
-/*
- * AD7746 Register Definition
- */
+/* AD7746 Register Definition */
 
 #define AD7746_REG_STATUS		0
 #define AD7746_REG_CAP_DATA_HIGH	1
@@ -244,12 +242,12 @@ static const struct iio_chan_spec ad7746_channels[] = {
 
 /* Values are Update Rate (Hz), Conversion Time (ms) + 1*/
 static const unsigned char ad7746_vt_filter_rate_table[][2] = {
-	{50, 20 + 1}, {31, 32 + 1}, {16, 62 + 1}, {8, 122 + 1},
+	{ 50, 20 + 1 }, { 31, 32 + 1 }, { 16, 62 + 1 }, { 8, 122 + 1 },
 };
 
 static const unsigned char ad7746_cap_filter_rate_table[][2] = {
-	{91, 11 + 1}, {84, 12 + 1}, {50, 20 + 1}, {26, 38 + 1},
-	{16, 62 + 1}, {13, 77 + 1}, {11, 92 + 1}, {9, 110 + 1},
+	{ 91, 11 + 1 }, { 84, 12 + 1 }, { 50, 20 + 1 }, { 26, 38 + 1 },
+	{ 16, 62 + 1 }, { 13, 77 + 1 }, { 11, 92 + 1 }, { 9, 110 + 1 },
 };
 
 static int ad7746_set_capdac(struct ad7746_chip_info *chip, int channel)
@@ -732,6 +730,7 @@ static int ad7746_probe(struct i2c_client *client,
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*chip));
 	if (!indio_dev)
 		return -ENOMEM;
+
 	chip = iio_priv(indio_dev);
 	mutex_init(&chip->lock);
 
@@ -782,8 +781,8 @@ static int ad7746_probe(struct i2c_client *client,
 		}
 	}
 
-	ret = i2c_smbus_write_byte_data(chip->client,
-					AD7746_REG_EXC_SETUP, regval);
+	ret = i2c_smbus_write_byte_data(chip->client, AD7746_REG_EXC_SETUP,
+					regval);
 	if (ret < 0)
 		return ret;
 
@@ -796,7 +795,6 @@ static const struct i2c_device_id ad7746_id[] = {
 	{ "ad7747", 7747 },
 	{}
 };
-
 MODULE_DEVICE_TABLE(i2c, ad7746_id);
 
 static const struct of_device_id ad7746_of_match[] = {
@@ -805,7 +803,6 @@ static const struct of_device_id ad7746_of_match[] = {
 	{ .compatible = "adi,ad7747" },
 	{ },
 };
-
 MODULE_DEVICE_TABLE(of, ad7746_of_match);
 
 static struct i2c_driver ad7746_driver = {
