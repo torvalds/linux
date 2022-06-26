@@ -207,7 +207,7 @@ static const struct iio_chan_spec ad7746_channels[] = {
 		.channel = 0,
 		.channel2 = 2,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-		BIT(IIO_CHAN_INFO_CALIBSCALE) | BIT(IIO_CHAN_INFO_OFFSET),
+		BIT(IIO_CHAN_INFO_CALIBSCALE) | BIT(IIO_CHAN_INFO_ZEROPOINT),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_CALIBBIAS) |
 		BIT(IIO_CHAN_INFO_SCALE) | BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.address = CIN1_DIFF,
@@ -229,7 +229,7 @@ static const struct iio_chan_spec ad7746_channels[] = {
 		.channel = 1,
 		.channel2 = 3,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
-		BIT(IIO_CHAN_INFO_CALIBSCALE) | BIT(IIO_CHAN_INFO_OFFSET),
+		BIT(IIO_CHAN_INFO_CALIBSCALE) | BIT(IIO_CHAN_INFO_ZEROPOINT),
 		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_CALIBBIAS) |
 		BIT(IIO_CHAN_INFO_SCALE) | BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.address = CIN2_DIFF,
@@ -506,6 +506,7 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 
 		return 0;
 	case IIO_CHAN_INFO_OFFSET:
+	case IIO_CHAN_INFO_ZEROPOINT:
 		if (val < 0 || val > 43008000) /* 21pF */
 			return -EINVAL;
 
@@ -581,6 +582,10 @@ static int ad7746_read_channel(struct iio_dev *indio_dev,
 	if (ret < 0)
 		return ret;
 
+	/*
+	 * Offset applied internally becaue the _offset userspace interface is
+	 * needed for the CAP DACs which apply a controllable offset.
+	 */
 	*val = get_unaligned_be24(data) - 0x800000;
 
 	return 0;
@@ -637,6 +642,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_OFFSET:
+	case IIO_CHAN_INFO_ZEROPOINT:
 		*val = FIELD_GET(AD7746_CAPDAC_DACP_MASK,
 				 chip->capdac[chan->channel][chan->differential]) * 338646;
 
