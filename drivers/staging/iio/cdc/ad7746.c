@@ -96,8 +96,6 @@ struct ad7746_chip_info {
 	u8	vt_setup;
 	u8	capdac[2][2];
 	s8	capdac_set;
-
-	u8 data[3] ____cacheline_aligned;
 };
 
 enum ad7746_chan {
@@ -522,6 +520,7 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
 	int ret, delay, idx;
 	u8 regval, reg;
+	u8 data[3];
 
 	mutex_lock(&chip->lock);
 
@@ -544,13 +543,11 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 
 		ret = i2c_smbus_read_i2c_block_data(chip->client,
 						    chan->address >> 8,
-						    sizeof(chip->data),
-						    chip->data);
-
+						    sizeof(data), data);
 		if (ret < 0)
 			goto out;
 
-		*val = get_unaligned_be24(chip->data) - 0x800000;
+		*val = get_unaligned_be24(data) - 0x800000;
 
 		switch (chan->type) {
 		case IIO_TEMP:
