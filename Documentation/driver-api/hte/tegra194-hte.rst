@@ -36,7 +36,7 @@ LIC (Legacy Interrupt Controller) IRQ GTE
 
 This GTE instance timestamps LIC IRQ lines in real time. There are 352 IRQ
 lines which this instance can add timestamps to in real time. The hte
-devicetree binding described at ``Documentation/devicetree/bindings/hte/``
+devicetree binding described at ``Documentation/devicetree/bindings/timestamp``
 provides an example of how a consumer can request an IRQ line. Since it is a
 one-to-one mapping with IRQ GTE provider, consumers can simply specify the IRQ
 number that they are interested in. There is no userspace consumer support for
