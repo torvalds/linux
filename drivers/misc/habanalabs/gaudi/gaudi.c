@@ -4827,23 +4827,22 @@ static int gaudi_scrub_device_dram(struct hl_device *hdev, u64 val)
 static int gaudi_scrub_device_mem(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u64 addr, size, dummy_val;
+	u64 wait_to_idle_time = hdev->pdev ? HBM_SCRUBBING_TIMEOUT_US :
+			min_t(u64, HBM_SCRUBBING_TIMEOUT_US * 10, HL_SIM_MAX_TIMEOUT_US);
+	u64 addr, size, val = hdev->memory_scrub_val;
+	ktime_t timeout;
 	int rc = 0;
-	u64 val = hdev->memory_scrub_val;
 
 	if (!hdev->memory_scrub)
 		return 0;
 
-	/* Wait till device is idle */
-	rc = hl_poll_timeout(hdev,
-			mmDMA0_CORE_STS0 /* dummy */,
-			dummy_val /* dummy */,
-			(hdev->asic_funcs->is_device_idle(hdev, NULL, 0, NULL)),
-			1000,
-			HBM_SCRUBBING_TIMEOUT_US);
-	if (rc) {
-		dev_err(hdev->dev, "waiting for idle timeout\n");
-		return -EIO;
+	timeout = ktime_add_us(ktime_get(), wait_to_idle_time);
+	while (!hdev->asic_funcs->is_device_idle(hdev, NULL, 0, NULL)) {
+		if (ktime_compare(ktime_get(), timeout) > 0) {
+			dev_err(hdev->dev, "waiting for idle timeout\n");
+			return -ETIMEDOUT;
+		}
+		usleep_range((1000 >> 2) + 1, 1000);
 	}
 
 	/* Scrub SRAM */
