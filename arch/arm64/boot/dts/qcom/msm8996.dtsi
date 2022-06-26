@@ -358,7 +358,7 @@
 
 	firmware {
 		scm {
-			compatible = "qcom,scm-msm8996";
+			compatible = "qcom,scm-msm8996", "qcom,scm";
 			qcom,dload-mode = <&tcsr 0x13000>;
 		};
 	};

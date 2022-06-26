@@ -125,7 +125,7 @@
 
 	firmware {
 		scm {
-			compatible = "qcom,scm";
+			compatible = "qcom,scm-ipq6018", "qcom,scm";
 		};
 	};
 

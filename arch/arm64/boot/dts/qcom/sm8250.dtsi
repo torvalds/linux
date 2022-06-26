@@ -630,7 +630,7 @@
 
 	firmware {
 		scm: scm {
-			compatible = "qcom,scm";
+			compatible = "qcom,scm-sm8250", "qcom,scm";
 			#reset-cells = <1>;
 		};
 	};
