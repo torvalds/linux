@@ -10,8 +10,8 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
-#ifdef __GENKSYMS__
 struct cgroup_taskset;
+#ifdef __GENKSYMS__
 struct cgroup_subsys_state;
 struct cpufreq_policy;
 struct em_perf_domain;
@@ -20,8 +20,6 @@ struct sched_entity;
 struct task_struct;
 struct uclamp_se;
 #else
-/* struct cgroup_taskset */
-#include <../kernel/cgroup/cgroup-internal.h>
 /* struct cgroup_subsys_state */
 #include <linux/cgroup-defs.h>
 /* struct cpufreq_policy */

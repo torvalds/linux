@@ -8,13 +8,11 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-#ifdef __GENKSYMS__
 struct cgroup_taskset;
+#ifdef __GENKSYMS__
 struct cgroup_subsys;
 struct task_struct;
 #else
-/* struct cgroup_taskset */
-#include <../kernel/cgroup/cgroup-internal.h>
 /* struct cgroup_subsys */
 #include <linux/cgroup-defs.h>
 /* struct task_struct */
