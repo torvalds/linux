@@ -2,7 +2,7 @@
 
 This module is part of the DA9061/DA9062/DA9063. For more details about entire
 DA9062 and DA9061 chips see Documentation/devicetree/bindings/mfd/da9062.txt
-For DA9063 see Documentation/devicetree/bindings/mfd/da9063.txt
+For DA9063 see Documentation/devicetree/bindings/mfd/dlg,da9063.yaml
 
 This module provides the KEY_POWER event.
 
