@@ -173,7 +173,23 @@ enum hl_mmu_page_table_location {
  * Security
  */
 
+#define HL_PB_SHARED		1
+#define HL_PB_NA		0
+#define HL_PB_SINGLE_INSTANCE	1
 #define HL_BLOCK_SIZE		0x1000
+#define HL_BLOCK_GLBL_ERR_MASK	0xF40
+#define HL_BLOCK_GLBL_ERR_ADDR	0xF44
+#define HL_BLOCK_GLBL_ERR_CAUSE	0xF48
+#define HL_BLOCK_GLBL_SEC_OFFS	0xF80
+#define HL_BLOCK_GLBL_SEC_SIZE	(HL_BLOCK_SIZE - HL_BLOCK_GLBL_SEC_OFFS)
+#define HL_BLOCK_GLBL_SEC_LEN	(HL_BLOCK_GLBL_SEC_SIZE / sizeof(u32))
+#define UNSET_GLBL_SEC_BIT(array, b) ((array)[((b) / 32)] |= (1 << ((b) % 32)))
+
+enum hl_protection_levels {
+	SECURED_LVL,
+	PRIVILEGED_LVL,
+	NON_SECURED_LVL
+};
 
 /**
  * struct iterate_module_ctx - HW module iterator
@@ -192,6 +208,10 @@ struct iterate_module_ctx {
 	 */
 	void (*fn)(struct hl_device *hdev, int block, int inst, u32 offset, void *data);
 	void *data;
+};
+
+struct hl_block_glbl_sec {
+	u32 sec_array[HL_BLOCK_GLBL_SEC_LEN];
 };
 
 #define HL_MAX_SOBS_PER_MONITOR	8
@@ -3664,6 +3684,55 @@ static inline void hl_debugfs_set_state_dump(struct hl_device *hdev,
 }
 
 #endif
+
+/* Security */
+int hl_unsecure_register(struct hl_device *hdev, u32 mm_reg_addr, int offset,
+		const u32 pb_blocks[], struct hl_block_glbl_sec sgs_array[],
+		int array_size);
+int hl_unsecure_registers(struct hl_device *hdev, const u32 mm_reg_array[],
+		int mm_array_size, int offset, const u32 pb_blocks[],
+		struct hl_block_glbl_sec sgs_array[], int blocks_array_size);
+void hl_config_glbl_sec(struct hl_device *hdev, const u32 pb_blocks[],
+		struct hl_block_glbl_sec sgs_array[], u32 block_offset,
+		int array_size);
+void hl_secure_block(struct hl_device *hdev,
+		struct hl_block_glbl_sec sgs_array[], int array_size);
+int hl_init_pb_with_mask(struct hl_device *hdev, u32 num_dcores,
+		u32 dcore_offset, u32 num_instances, u32 instance_offset,
+		const u32 pb_blocks[], u32 blocks_array_size,
+		const u32 *regs_array, u32 regs_array_size, u64 mask);
+int hl_init_pb(struct hl_device *hdev, u32 num_dcores, u32 dcore_offset,
+		u32 num_instances, u32 instance_offset,
+		const u32 pb_blocks[], u32 blocks_array_size,
+		const u32 *regs_array, u32 regs_array_size);
+int hl_init_pb_ranges_with_mask(struct hl_device *hdev, u32 num_dcores,
+		u32 dcore_offset, u32 num_instances, u32 instance_offset,
+		const u32 pb_blocks[], u32 blocks_array_size,
+		const struct range *regs_range_array, u32 regs_range_array_size,
+		u64 mask);
+int hl_init_pb_ranges(struct hl_device *hdev, u32 num_dcores,
+		u32 dcore_offset, u32 num_instances, u32 instance_offset,
+		const u32 pb_blocks[], u32 blocks_array_size,
+		const struct range *regs_range_array,
+		u32 regs_range_array_size);
+int hl_init_pb_single_dcore(struct hl_device *hdev, u32 dcore_offset,
+		u32 num_instances, u32 instance_offset,
+		const u32 pb_blocks[], u32 blocks_array_size,
+		const u32 *regs_array, u32 regs_array_size);
+int hl_init_pb_ranges_single_dcore(struct hl_device *hdev, u32 dcore_offset,
+		u32 num_instances, u32 instance_offset,
+		const u32 pb_blocks[], u32 blocks_array_size,
+		const struct range *regs_range_array,
+		u32 regs_range_array_size);
+void hl_ack_pb(struct hl_device *hdev, u32 num_dcores, u32 dcore_offset,
+		u32 num_instances, u32 instance_offset,
+		const u32 pb_blocks[], u32 blocks_array_size);
+void hl_ack_pb_with_mask(struct hl_device *hdev, u32 num_dcores,
+		u32 dcore_offset, u32 num_instances, u32 instance_offset,
+		const u32 pb_blocks[], u32 blocks_array_size, u64 mask);
+void hl_ack_pb_single_dcore(struct hl_device *hdev, u32 dcore_offset,
+		u32 num_instances, u32 instance_offset,
+		const u32 pb_blocks[], u32 blocks_array_size);
 
 /* IOCTLs */
 long hl_ioctl(struct file *filep, unsigned int cmd, unsigned long arg);
