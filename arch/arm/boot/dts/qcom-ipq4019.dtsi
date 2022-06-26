@@ -156,7 +156,7 @@
 
 	firmware {
 		scm {
-			compatible = "qcom,scm-ipq4019";
+			compatible = "qcom,scm-ipq4019", "qcom,scm";
 		};
 	};
 

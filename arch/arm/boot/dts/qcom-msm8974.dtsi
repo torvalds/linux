@@ -96,7 +96,7 @@
 
 	firmware {
 		scm {
-			compatible = "qcom,scm";
+			compatible = "qcom,scm-msm8974", "qcom,scm";
 			clocks = <&gcc GCC_CE1_CLK>, <&gcc GCC_CE1_AXI_CLK>, <&gcc GCC_CE1_AHB_CLK>;
 			clock-names = "core", "bus", "iface";
 		};

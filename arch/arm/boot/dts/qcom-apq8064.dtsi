@@ -315,7 +315,7 @@
 
 	firmware {
 		scm {
-			compatible = "qcom,scm-apq8064";
+			compatible = "qcom,scm-apq8064", "qcom,scm";
 
 			clocks = <&rpmcc RPM_DAYTONA_FABRIC_CLK>;
 			clock-names = "core";
