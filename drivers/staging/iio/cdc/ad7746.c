@@ -708,8 +708,6 @@ static int ad7746_probe(struct i2c_client *client,
 		return -ENOMEM;
 	chip = iio_priv(indio_dev);
 	mutex_init(&chip->lock);
-	/* this is only used for device removal purposes */
-	i2c_set_clientdata(client, indio_dev);
 
 	chip->client = client;
 	chip->capdac_set = -1;
