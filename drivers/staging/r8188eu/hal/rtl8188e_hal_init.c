@@ -243,7 +243,7 @@ static int efuse_read_phymap_from_txpktbuf(
 			if (reg)
 				break;
 
-			rtw_usleep_os(100);
+			msleep(1);
 		} while (time_before(jiffies, timeout));
 
 		/* data from EEPROM needs to be in LE */
