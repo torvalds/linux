@@ -1794,15 +1794,15 @@
 
 	spi2_pins_a: spi2-0 {
 		pins1 {
-			pinmux = <STM32_PINMUX('B', 10, AF5)>, /* SPI1_SCK */
-				 <STM32_PINMUX('I', 3, AF5)>; /* SPI1_MOSI */
+			pinmux = <STM32_PINMUX('B', 10, AF5)>, /* SPI2_SCK */
+				 <STM32_PINMUX('I', 3, AF5)>; /* SPI2_MOSI */
 			bias-disable;
 			drive-push-pull;
 			slew-rate = <1>;
 		};
 
 		pins2 {
-			pinmux = <STM32_PINMUX('I', 2, AF5)>; /* SPI1_MISO */
+			pinmux = <STM32_PINMUX('I', 2, AF5)>; /* SPI2_MISO */
 			bias-disable;
 		};
 	};
