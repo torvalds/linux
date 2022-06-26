@@ -5032,6 +5032,10 @@ static int gaudi2_hw_init(struct hl_device *hdev)
 	gaudi2_init_dec(hdev);
 	gaudi2_enable_timestamp(hdev);
 
+	rc = gaudi2_coresight_init(hdev);
+	if (rc)
+		goto disable_queues;
+
 	rc = gaudi2_enable_msix(hdev);
 	if (rc)
 		goto disable_queues;
@@ -9711,7 +9715,7 @@ static const struct hl_asic_funcs gaudi2_funcs = {
 	.mmu_invalidate_cache_range = gaudi2_mmu_invalidate_cache_range,
 	.mmu_prefetch_cache_range = NULL,
 	.send_heartbeat = gaudi2_send_heartbeat,
-	.debug_coresight = NULL,
+	.debug_coresight = gaudi2_debug_coresight,
 	.is_device_idle = gaudi2_is_device_idle,
 	.non_hard_reset_late_init = gaudi2_non_hard_reset_late_init,
 	.hw_queues_lock = gaudi2_hw_queues_lock,
@@ -9726,7 +9730,7 @@ static const struct hl_asic_funcs gaudi2_funcs = {
 	.init_iatu = gaudi2_init_iatu,
 	.rreg = hl_rreg,
 	.wreg = hl_wreg,
-	.halt_coresight = NULL,
+	.halt_coresight = gaudi2_halt_coresight,
 	.ctx_init = gaudi2_ctx_init,
 	.ctx_fini = gaudi2_ctx_fini,
 	.pre_schedule_cs = gaudi2_pre_schedule_cs,
