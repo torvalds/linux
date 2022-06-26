@@ -98,6 +98,26 @@ static inline bool vfsgid_eq_kgid(vfsgid_t vfsgid, kgid_t kgid)
 	return vfsgid_valid(vfsgid) && __vfsgid_val(vfsgid) == __kgid_val(kgid);
 }
 
+static inline bool vfsuid_gt_kuid(vfsuid_t vfsuid, kuid_t kuid)
+{
+	return __vfsuid_val(vfsuid) > __kuid_val(kuid);
+}
+
+static inline bool vfsgid_gt_kgid(vfsgid_t vfsgid, kgid_t kgid)
+{
+	return __vfsgid_val(vfsgid) > __kgid_val(kgid);
+}
+
+static inline bool vfsuid_lt_kuid(vfsuid_t vfsuid, kuid_t kuid)
+{
+	return __vfsuid_val(vfsuid) < __kuid_val(kuid);
+}
+
+static inline bool vfsgid_lt_kgid(vfsgid_t vfsgid, kgid_t kgid)
+{
+	return __vfsgid_val(vfsgid) < __kgid_val(kgid);
+}
+
 /*
  * vfs{g,u}ids are created from k{g,u}ids.
  * We don't allow them to be created from regular {u,g}id.
@@ -333,6 +353,12 @@ static inline bool vfsuid_has_fsmapping(struct user_namespace *mnt_userns,
 	return uid_valid(from_vfsuid(mnt_userns, fs_userns, vfsuid));
 }
 
+static inline bool vfsuid_has_mapping(struct user_namespace *userns,
+				      vfsuid_t vfsuid)
+{
+	return from_kuid(userns, AS_KUIDT(vfsuid)) != (uid_t)-1;
+}
+
 /**
  * vfsuid_into_kuid - convert vfsuid into kuid
  * @vfsuid: the vfsuid to convert
@@ -417,6 +443,12 @@ static inline bool vfsgid_has_fsmapping(struct user_namespace *mnt_userns,
 					vfsgid_t vfsgid)
 {
 	return gid_valid(from_vfsgid(mnt_userns, fs_userns, vfsgid));
+}
+
+static inline bool vfsgid_has_mapping(struct user_namespace *userns,
+				      vfsgid_t vfsgid)
+{
+	return from_kgid(userns, AS_KGIDT(vfsgid)) != (gid_t)-1;
 }
 
 /**
