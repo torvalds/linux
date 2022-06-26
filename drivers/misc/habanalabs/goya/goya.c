@@ -470,7 +470,7 @@ int goya_set_fixed_properties(struct hl_device *hdev)
 
 	prop->max_pending_cs = GOYA_MAX_PENDING_CS;
 
-	prop->first_available_user_msix_interrupt = USHRT_MAX;
+	prop->first_available_user_interrupt = USHRT_MAX;
 
 	for (i = 0 ; i < HL_MAX_DCORES ; i++)
 		prop->first_available_cq[i] = USHRT_MAX;

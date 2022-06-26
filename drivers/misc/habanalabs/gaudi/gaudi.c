@@ -679,7 +679,7 @@ static int gaudi_set_fixed_properties(struct hl_device *hdev)
 			prop->sync_stream_first_mon +
 			(num_sync_stream_queues * HL_RSVD_MONS);
 
-	prop->first_available_user_msix_interrupt = USHRT_MAX;
+	prop->first_available_user_interrupt = USHRT_MAX;
 
 	for (i = 0 ; i < HL_MAX_DCORES ; i++)
 		prop->first_available_cq[i] = USHRT_MAX;

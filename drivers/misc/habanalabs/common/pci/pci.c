@@ -280,21 +280,19 @@ int hl_pci_set_inbound_region(struct hl_device *hdev, u8 region,
 	}
 
 	/* Point to the specified address */
-	rc |= hl_pci_iatu_write(hdev, offset + 0x14,
-			lower_32_bits(pci_region->addr));
-	rc |= hl_pci_iatu_write(hdev, offset + 0x18,
-			upper_32_bits(pci_region->addr));
+	rc |= hl_pci_iatu_write(hdev, offset + 0x14, lower_32_bits(pci_region->addr));
+	rc |= hl_pci_iatu_write(hdev, offset + 0x18, upper_32_bits(pci_region->addr));
+
+	/* Set bar type as memory */
 	rc |= hl_pci_iatu_write(hdev, offset + 0x0, 0);
 
 	/* Enable + bar/address match + match enable + bar number */
 	ctrl_reg_val = FIELD_PREP(IATU_REGION_CTRL_REGION_EN_MASK, 1);
-	ctrl_reg_val |= FIELD_PREP(IATU_REGION_CTRL_MATCH_MODE_MASK,
-			pci_region->mode);
+	ctrl_reg_val |= FIELD_PREP(IATU_REGION_CTRL_MATCH_MODE_MASK, pci_region->mode);
 	ctrl_reg_val |= FIELD_PREP(IATU_REGION_CTRL_NUM_MATCH_EN_MASK, 1);
 
 	if (pci_region->mode == PCI_BAR_MATCH_MODE)
-		ctrl_reg_val |= FIELD_PREP(IATU_REGION_CTRL_BAR_NUM_MASK,
-				pci_region->bar);
+		ctrl_reg_val |= FIELD_PREP(IATU_REGION_CTRL_BAR_NUM_MASK, pci_region->bar);
 
 	rc |= hl_pci_iatu_write(hdev, offset + 0x4, ctrl_reg_val);
 

@@ -15,6 +15,14 @@
 
 #define FW_FILE_MAX_SIZE		0x1400000 /* maximum size of 20MB */
 
+struct fw_binning_conf {
+	u64 tpc_binning;
+	u32 dec_binning;
+	u32 hbm_binning;
+	u32 edma_binning;
+	u32 mme_redundancy;
+};
+
 static char *extract_fw_ver_from_str(const char *fw_str)
 {
 	char *str, *fw_ver, *whitespace;
@@ -521,6 +529,11 @@ static bool fw_report_boot_dev0(struct hl_device *hdev, u32 err_val,
 		/* Ignore this bit, don't prevent driver loading */
 		dev_dbg(hdev->dev, "device unusable status is set\n");
 		err_val &= ~CPU_BOOT_ERR0_DEVICE_UNUSABLE_FAIL;
+	}
+
+	if (err_val & CPU_BOOT_ERR0_BINNING_FAIL) {
+		dev_err(hdev->dev, "Device boot error - binning failure\n");
+		err_exists = true;
 	}
 
 	if (sts_val & CPU_BOOT_DEV_STS0_ENABLED)
@@ -2359,6 +2372,19 @@ static int hl_fw_dynamic_send_msg(struct hl_device *hdev,
 	case HL_COMMS_RESET_CAUSE_TYPE:
 		msg.reset_cause = *(__u8 *) data;
 		break;
+
+	case HL_COMMS_BINNING_CONF_TYPE:
+	{
+		struct fw_binning_conf *binning_conf = (struct fw_binning_conf *) data;
+
+		msg.tpc_binning_conf = cpu_to_le64(binning_conf->tpc_binning);
+		msg.dec_binning_conf = cpu_to_le32(binning_conf->dec_binning);
+		msg.hbm_binning_conf = cpu_to_le32(binning_conf->hbm_binning);
+		msg.edma_binning_conf = cpu_to_le32(binning_conf->edma_binning);
+		msg.mme_redundancy_conf = cpu_to_le32(binning_conf->mme_redundancy);
+		break;
+	}
+
 	default:
 		dev_err(hdev->dev,
 			"Send COMMS message - invalid message type %u\n",

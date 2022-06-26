@@ -1348,6 +1348,17 @@ static ssize_t hl_timeout_locked_write(struct file *f, const char __user *buf,
 	return count;
 }
 
+static ssize_t hl_check_razwi_happened(struct file *f, char __user *buf,
+					size_t count, loff_t *ppos)
+{
+	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
+	struct hl_device *hdev = entry->hdev;
+
+	hdev->asic_funcs->check_if_razwi_happened(hdev);
+
+	return 0;
+}
+
 static const struct file_operations hl_mem_scrub_fops = {
 	.owner = THIS_MODULE,
 	.write = hl_memory_scrub,
@@ -1435,6 +1446,11 @@ static const struct file_operations hl_timeout_locked_fops = {
 	.owner = THIS_MODULE,
 	.read = hl_timeout_locked_read,
 	.write = hl_timeout_locked_write
+};
+
+static const struct file_operations hl_razwi_check_fops = {
+	.owner = THIS_MODULE,
+	.read = hl_check_razwi_happened
 };
 
 static const struct hl_info_list hl_debugfs_list[] = {
@@ -1613,6 +1629,12 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry->root,
 				dev_entry,
 				&hl_security_violations_fops);
+
+	debugfs_create_file("dump_razwi_events",
+				0644,
+				dev_entry->root,
+				dev_entry,
+				&hl_razwi_check_fops);
 
 	debugfs_create_file("dma_size",
 				0200,

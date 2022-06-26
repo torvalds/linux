@@ -3334,9 +3334,8 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	interrupt_id = FIELD_GET(HL_WAIT_CS_FLAGS_INTERRUPT_MASK, args->in.flags);
 
-	first_interrupt = prop->first_available_user_msix_interrupt;
-	last_interrupt = prop->first_available_user_msix_interrupt +
-						prop->user_interrupt_count - 1;
+	first_interrupt = prop->first_available_user_interrupt;
+	last_interrupt = prop->first_available_user_interrupt + prop->user_interrupt_count - 1;
 
 	if ((interrupt_id < first_interrupt || interrupt_id > last_interrupt) &&
 			interrupt_id != HL_COMMON_USER_INTERRUPT_ID) {

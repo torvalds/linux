@@ -102,6 +102,9 @@ static void hl_ctx_fini(struct hl_ctx *ctx)
 			hl_device_set_debug_mode(hdev, ctx, false);
 
 		hdev->asic_funcs->ctx_fini(ctx);
+
+		hl_dec_ctx_fini(ctx);
+
 		hl_cb_va_pool_fini(ctx);
 		hl_vm_ctx_fini(ctx);
 		hl_asid_free(hdev, ctx->asid);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -217,8 +217,7 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 	return 0;
 }
 
-static void handle_user_cq(struct hl_device *hdev,
-			struct hl_user_interrupt *user_cq)
+static void handle_user_cq(struct hl_device *hdev, struct hl_user_interrupt *user_cq)
 {
 	struct hl_user_pending_interrupt *pend, *temp_pend;
 	struct list_head *ts_reg_free_list_head = NULL;
@@ -271,22 +270,27 @@ static void handle_user_cq(struct hl_device *hdev,
 }
 
 /**
- * hl_irq_handler_user_cq - irq handler for user completion queues
+ * hl_irq_handler_user_interrupt - irq handler for user interrupts
  *
  * @irq: irq number
  * @arg: pointer to user interrupt structure
  *
  */
-irqreturn_t hl_irq_handler_user_cq(int irq, void *arg)
+irqreturn_t hl_irq_handler_user_interrupt(int irq, void *arg)
 {
-	struct hl_user_interrupt *user_cq = arg;
-	struct hl_device *hdev = user_cq->hdev;
+	struct hl_user_interrupt *user_int = arg;
+	struct hl_device *hdev = user_int->hdev;
 
-	/* Handle user cq interrupts registered on all interrupts */
-	handle_user_cq(hdev, &hdev->common_user_interrupt);
+	/* If the interrupt is not a decoder interrupt, it means the interrupt
+	 * belongs to a user cq. In that case, before handling it, we need to handle the common
+	 * user cq
+	 */
+	if (!user_int->is_decoder)
+		/* Handle user cq interrupts registered on all interrupts */
+		handle_user_cq(hdev, &hdev->common_user_interrupt);
 
-	/* Handle user cq interrupts registered on this specific interrupt */
-	handle_user_cq(hdev, user_cq);
+	/* Handle user cq or decoder interrupts registered on this specific irq */
+	handle_user_cq(hdev, user_int);
 
 	return IRQ_HANDLED;
 }
@@ -304,9 +308,7 @@ irqreturn_t hl_irq_handler_default(int irq, void *arg)
 	struct hl_device *hdev = user_interrupt->hdev;
 	u32 interrupt_id = user_interrupt->interrupt_id;
 
-	dev_err(hdev->dev,
-		"got invalid user interrupt %u",
-		interrupt_id);
+	dev_err(hdev->dev, "got invalid user interrupt %u", interrupt_id);
 
 	return IRQ_HANDLED;
 }
@@ -390,11 +392,26 @@ skip_irq:
 }
 
 /**
+ * hl_irq_handler_dec_abnrm - Decoder error interrupt handler
+ * @irq: IRQ number
+ * @arg: pointer to decoder structure.
+ */
+irqreturn_t hl_irq_handler_dec_abnrm(int irq, void *arg)
+{
+	struct hl_dec *dec = arg;
+
+	schedule_work(&dec->completion_abnrm_work);
+
+	return IRQ_HANDLED;
+}
+
+/**
  * hl_cq_init - main initialization function for an cq object
  *
  * @hdev: pointer to device structure
  * @q: pointer to cq structure
  * @hw_queue_id: The H/W queue ID this completion queue belongs to
+ *               HL_INVALID_QUEUE if cq is not attached to any specific queue
  *
  * Allocate dma-able memory for the completion queue and initialize fields
  * Returns 0 on success

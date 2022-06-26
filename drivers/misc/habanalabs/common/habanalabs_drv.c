@@ -293,7 +293,6 @@ static void set_driver_behavior_per_device(struct hl_device *hdev)
 	hdev->reset_if_device_not_idle = 1;
 
 	hdev->reset_pcilink = 0;
-	hdev->axi_drain = 0;
 }
 
 static void copy_kernel_module_params_to_device(struct hl_device *hdev)

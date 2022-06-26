@@ -1822,6 +1822,12 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		goto release_ctx;
 	}
 
+	rc = hl_dec_init(hdev);
+	if (rc) {
+		dev_err(hdev->dev, "Failed to initialize the decoder module\n");
+		goto cb_pool_fini;
+	}
+
 	/*
 	 * From this point, override rc (=0) in case of an error to allow
 	 * debugging (by adding char devices and create sysfs nodes as part of
@@ -1915,6 +1921,8 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 
 	return 0;
 
+cb_pool_fini:
+	hl_cb_pool_fini(hdev);
 release_ctx:
 	if (hl_ctx_put(hdev->kernel_ctx) != 1)
 		dev_err(hdev->dev,
@@ -2064,6 +2072,8 @@ void hl_device_fini(struct hl_device *hdev)
 		dev_err(hdev->dev, "kernel ctx is still alive\n");
 
 	hl_debugfs_remove_device(hdev);
+
+	hl_dec_fini(hdev);
 
 	hl_vm_fini(hdev);
 
