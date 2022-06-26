@@ -15,6 +15,8 @@
 #include <linux/stat.h>
 #include <linux/sysfs.h>
 
+#include <asm/unaligned.h>
+
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
 
@@ -95,10 +97,7 @@ struct ad7746_chip_info {
 	u8	capdac[2][2];
 	s8	capdac_set;
 
-	union {
-		__be32 d32;
-		u8 d8[4];
-	} data ____cacheline_aligned;
+	u8 data[3] ____cacheline_aligned;
 };
 
 enum ad7746_chan {
@@ -546,13 +545,14 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		/* Now read the actual register */
 
 		ret = i2c_smbus_read_i2c_block_data(chip->client,
-						    chan->address >> 8, 3,
-						    &chip->data.d8[1]);
+						    chan->address >> 8,
+						    sizeof(chip->data),
+						    chip->data);
 
 		if (ret < 0)
 			goto out;
 
-		*val = (be32_to_cpu(chip->data.d32) & 0xFFFFFF) - 0x800000;
+		*val = get_unaligned_be24(chip->data) - 0x800000;
 
 		switch (chan->type) {
 		case IIO_TEMP:
