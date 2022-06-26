@@ -116,9 +116,8 @@ static const struct iio_chan_spec ad7746_channels[] = {
 		.type = IIO_VOLTAGE,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |
-			BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.address = AD7746_REG_VT_DATA_HIGH << 8 |
 			AD7746_VTSETUP_VTMD_EXT_VIN,
 	},
@@ -127,9 +126,8 @@ static const struct iio_chan_spec ad7746_channels[] = {
 		.indexed = 1,
 		.channel = 1,
 		.extend_name = "supply",
-		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE) |
-			BIT(IIO_CHAN_INFO_SAMP_FREQ),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) | BIT(IIO_CHAN_INFO_SCALE),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SAMP_FREQ),
 		.address = AD7746_REG_VT_DATA_HIGH << 8 |
 			AD7746_VTSETUP_VTMD_VDD_MON,
 	},
@@ -562,10 +560,6 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 			 */
 			*val = (*val * 125) / 256;
 			break;
-		case IIO_VOLTAGE:
-			if (chan->channel == 1) /* supply_raw*/
-				*val = *val * 6;
-			break;
 		default:
 			break;
 		}
@@ -620,6 +614,8 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 		case IIO_VOLTAGE:
 			/* 1170mV / 2^23 */
 			*val = 1170;
+			if (chan->channel == 1)
+				*val *= 6;
 			*val2 = 23;
 			ret = IIO_VAL_FRACTIONAL_LOG2;
 			break;
