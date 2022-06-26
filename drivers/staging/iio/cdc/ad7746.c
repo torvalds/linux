@@ -178,14 +178,16 @@ static const struct iio_chan_spec ad7746_channels[] = {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 0,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
 		.address = TEMP_INT,
 	},
 	[TEMP_EXT] = {
 		.type = IIO_TEMP,
 		.indexed = 1,
 		.channel = 1,
-		.info_mask_separate = BIT(IIO_CHAN_INFO_PROCESSED),
+		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
+		.info_mask_shared_by_type = BIT(IIO_CHAN_INFO_SCALE),
 		.address = TEMP_EXT,
 	},
 	[CIN1] = {
@@ -581,18 +583,6 @@ static int ad7746_read_channel(struct iio_dev *indio_dev,
 
 	*val = get_unaligned_be24(data) - 0x800000;
 
-	switch (chan->type) {
-	case IIO_TEMP:
-		/*
-		 * temperature in milli degrees Celsius
-		 * T = ((*val / 2048) - 4096) * 1000
-		 */
-		*val = (*val  * 125) / 256;
-		break;
-	default:
-		break;
-	}
-
 	return 0;
 }
 
@@ -607,7 +597,6 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
-	case IIO_CHAN_INFO_PROCESSED:
 		mutex_lock(&chip->lock);
 		ret = ad7746_read_channel(indio_dev, chan, val);
 		mutex_unlock(&chip->lock);
@@ -665,6 +654,10 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 			if (chan->channel == 1)
 				*val *= 6;
 			*val2 = 23;
+			return IIO_VAL_FRACTIONAL_LOG2;
+		case IIO_TEMP:
+			*val = 125;
+			*val2 = 8;
 			return IIO_VAL_FRACTIONAL_LOG2;
 		default:
 			return -EINVAL;
