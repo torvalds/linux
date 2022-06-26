@@ -512,54 +512,66 @@ out:
 	return ret;
 }
 
+static int ad7746_read_channel(struct iio_dev *indio_dev,
+			       struct iio_chan_spec const *chan,
+			       int *val)
+{
+	struct ad7746_chip_info *chip = iio_priv(indio_dev);
+	int ret, delay;
+	u8 data[3];
+	u8 regval;
+
+	ret = ad7746_select_channel(indio_dev, chan);
+	if (ret < 0)
+		return ret;
+	delay = ret;
+
+	regval = chip->config | AD7746_CONF_MODE_SINGLE_CONV;
+	ret = i2c_smbus_write_byte_data(chip->client, AD7746_REG_CFG, regval);
+	if (ret < 0)
+		return ret;
+
+	msleep(delay);
+	/* Now read the actual register */
+	ret = i2c_smbus_read_i2c_block_data(chip->client,  chan->address >> 8,
+					    sizeof(data), data);
+	if (ret < 0)
+		return ret;
+
+	*val = get_unaligned_be24(data) - 0x800000;
+
+	switch (chan->type) {
+	case IIO_TEMP:
+		/*
+		 * temperature in milli degrees Celsius
+		 * T = ((*val / 2048) - 4096) * 1000
+		 */
+		*val = (*val  * 125) / 256;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int ad7746_read_raw(struct iio_dev *indio_dev,
 			   struct iio_chan_spec const *chan,
 			   int *val, int *val2,
 			   long mask)
 {
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
-	int ret, delay, idx;
-	u8 regval, reg;
-	u8 data[3];
+	int ret, idx;
+	u8 reg;
 
 	mutex_lock(&chip->lock);
 
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 	case IIO_CHAN_INFO_PROCESSED:
-		ret = ad7746_select_channel(indio_dev, chan);
+		ret = ad7746_read_channel(indio_dev, chan, val);
 		if (ret < 0)
 			goto out;
-		delay = ret;
-
-		regval = chip->config | AD7746_CONF_MODE_SINGLE_CONV;
-		ret = i2c_smbus_write_byte_data(chip->client, AD7746_REG_CFG,
-						regval);
-		if (ret < 0)
-			goto out;
-
-		msleep(delay);
-		/* Now read the actual register */
-
-		ret = i2c_smbus_read_i2c_block_data(chip->client,
-						    chan->address >> 8,
-						    sizeof(data), data);
-		if (ret < 0)
-			goto out;
-
-		*val = get_unaligned_be24(data) - 0x800000;
-
-		switch (chan->type) {
-		case IIO_TEMP:
-			/*
-			 * temperature in milli degrees Celsius
-			 * T = ((*val / 2048) - 4096) * 1000
-			 */
-			*val = (*val * 125) / 256;
-			break;
-		default:
-			break;
-		}
 
 		ret = IIO_VAL_INT;
 		break;
