@@ -420,14 +420,10 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 	struct ad7746_chip_info *chip = iio_priv(indio_dev);
 	int ret, reg;
 
-	mutex_lock(&chip->lock);
-
 	switch (mask) {
 	case IIO_CHAN_INFO_CALIBSCALE:
-		if (val != 1) {
-			ret = -EINVAL;
-			goto out;
-		}
+		if (val != 1)
+			return -EINVAL;
 
 		val = (val2 * 1024) / 15625;
 
@@ -439,33 +435,31 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 			reg = AD7746_REG_VOLT_GAINH;
 			break;
 		default:
-			ret = -EINVAL;
-			goto out;
+			return -EINVAL;
 		}
 
+		mutex_lock(&chip->lock);
 		ret = i2c_smbus_write_word_swapped(chip->client, reg, val);
+		mutex_unlock(&chip->lock);
 		if (ret < 0)
-			goto out;
+			return ret;
 
-		ret = 0;
-		break;
+		return 0;
 	case IIO_CHAN_INFO_CALIBBIAS:
-		if (val < 0 || val > 0xFFFF) {
-			ret = -EINVAL;
-			goto out;
-		}
+		if (val < 0 || val > 0xFFFF)
+			return -EINVAL;
+
+		mutex_lock(&chip->lock);
 		ret = i2c_smbus_write_word_swapped(chip->client,
 						   AD7746_REG_CAP_OFFH, val);
+		mutex_unlock(&chip->lock);
 		if (ret < 0)
-			goto out;
+			return ret;
 
-		ret = 0;
-		break;
+		return 0;
 	case IIO_CHAN_INFO_OFFSET:
-		if (val < 0 || val > 43008000) { /* 21pF */
-			ret = -EINVAL;
-			goto out;
-		}
+		if (val < 0 || val > 43008000) /* 21pF */
+			return -EINVAL;
 
 		/*
 		 * CAPDAC Scale = 21pF_typ / 127
@@ -474,42 +468,41 @@ static int ad7746_write_raw(struct iio_dev *indio_dev,
 		 */
 
 		val /= 338646;
-
+		mutex_lock(&chip->lock);
 		chip->capdac[chan->channel][chan->differential] = val > 0 ?
 			AD7746_CAPDAC_DACP(val) | AD7746_CAPDAC_DACEN : 0;
 
 		ret = ad7746_set_capdac(chip, chan->channel);
-		if (ret < 0)
-			goto out;
+		if (ret < 0) {
+			mutex_unlock(&chip->lock);
+			return ret;
+		}
 
 		chip->capdac_set = chan->channel;
+		mutex_unlock(&chip->lock);
 
-		ret = 0;
-		break;
+		return 0;
 	case IIO_CHAN_INFO_SAMP_FREQ:
-		if (val2) {
-			ret = -EINVAL;
-			goto out;
-		}
+		if (val2)
+			return -EINVAL;
 
 		switch (chan->type) {
 		case IIO_CAPACITANCE:
+			mutex_lock(&chip->lock);
 			ret = ad7746_store_cap_filter_rate_setup(chip, val);
-			break;
+			mutex_unlock(&chip->lock);
+			return ret;
 		case IIO_VOLTAGE:
+			mutex_lock(&chip->lock);
 			ret = ad7746_store_vt_filter_rate_setup(chip, val);
-			break;
+			mutex_unlock(&chip->lock);
+			return ret;
 		default:
-			ret = -EINVAL;
+			return -EINVAL;
 		}
-		break;
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
-
-out:
-	mutex_unlock(&chip->lock);
-	return ret;
 }
 
 static int ad7746_read_channel(struct iio_dev *indio_dev,
@@ -564,17 +557,16 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 	int ret, idx;
 	u8 reg;
 
-	mutex_lock(&chip->lock);
-
 	switch (mask) {
 	case IIO_CHAN_INFO_RAW:
 	case IIO_CHAN_INFO_PROCESSED:
+		mutex_lock(&chip->lock);
 		ret = ad7746_read_channel(indio_dev, chan, val);
+		mutex_unlock(&chip->lock);
 		if (ret < 0)
-			goto out;
+			return ret;
 
-		ret = IIO_VAL_INT;
-		break;
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_CALIBSCALE:
 		switch (chan->type) {
 		case IIO_CAPACITANCE:
@@ -584,80 +576,69 @@ static int ad7746_read_raw(struct iio_dev *indio_dev,
 			reg = AD7746_REG_VOLT_GAINH;
 			break;
 		default:
-			ret = -EINVAL;
-			goto out;
+			return -EINVAL;
 		}
 
+		mutex_lock(&chip->lock);
 		ret = i2c_smbus_read_word_swapped(chip->client, reg);
+		mutex_unlock(&chip->lock);
 		if (ret < 0)
-			goto out;
+			return ret;
 		/* 1 + gain_val / 2^16 */
 		*val = 1;
 		*val2 = (15625 * ret) / 1024;
 
-		ret = IIO_VAL_INT_PLUS_MICRO;
-		break;
+		return IIO_VAL_INT_PLUS_MICRO;
 	case IIO_CHAN_INFO_CALIBBIAS:
+		mutex_lock(&chip->lock);
 		ret = i2c_smbus_read_word_swapped(chip->client,
 						  AD7746_REG_CAP_OFFH);
+		mutex_unlock(&chip->lock);
 		if (ret < 0)
-			goto out;
+			return ret;
 		*val = ret;
 
-		ret = IIO_VAL_INT;
-		break;
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_OFFSET:
 		*val = AD7746_CAPDAC_DACP(chip->capdac[chan->channel]
 					  [chan->differential]) * 338646;
 
-		ret = IIO_VAL_INT;
-		break;
+		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		switch (chan->type) {
 		case IIO_CAPACITANCE:
 			/* 8.192pf / 2^24 */
 			*val =  0;
 			*val2 = 488;
-			ret = IIO_VAL_INT_PLUS_NANO;
-			break;
+			return IIO_VAL_INT_PLUS_NANO;
 		case IIO_VOLTAGE:
 			/* 1170mV / 2^23 */
 			*val = 1170;
 			if (chan->channel == 1)
 				*val *= 6;
 			*val2 = 23;
-			ret = IIO_VAL_FRACTIONAL_LOG2;
-			break;
+			return IIO_VAL_FRACTIONAL_LOG2;
 		default:
-			ret = -EINVAL;
-			break;
+			return -EINVAL;
 		}
-
-		break;
 	case IIO_CHAN_INFO_SAMP_FREQ:
 		switch (chan->type) {
 		case IIO_CAPACITANCE:
 			idx = (chip->config & AD7746_CONF_CAPFS_MASK) >>
 				AD7746_CONF_CAPFS_SHIFT;
 			*val = ad7746_cap_filter_rate_table[idx][0];
-			ret = IIO_VAL_INT;
-			break;
+			return IIO_VAL_INT;
 		case IIO_VOLTAGE:
 			idx = (chip->config & AD7746_CONF_VTFS_MASK) >>
 				AD7746_CONF_VTFS_SHIFT;
 			*val = ad7746_vt_filter_rate_table[idx][0];
-			ret = IIO_VAL_INT;
-			break;
+			return IIO_VAL_INT;
 		default:
-			ret = -EINVAL;
+			return -EINVAL;
 		}
-		break;
 	default:
-		ret = -EINVAL;
+		return -EINVAL;
 	}
-out:
-	mutex_unlock(&chip->lock);
-	return ret;
 }
 
 static const struct iio_info ad7746_info = {
