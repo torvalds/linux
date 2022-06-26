@@ -2696,6 +2696,7 @@ static int gaudi2_late_init(struct hl_device *hdev)
 
 	gaudi2_init_arcs(hdev);
 	gaudi2_scrub_arcs_dccm(hdev);
+	gaudi2_init_security(hdev);
 
 	return 0;
 
@@ -5176,6 +5177,17 @@ static void gaudi2_execute_soft_reset(struct hl_device *hdev, u32 reset_sleep_ms
 		return;
 	}
 
+	/* Block access to engines, QMANs and SM during reset, these
+	 * RRs will be reconfigured after soft reset.
+	 * PCIE_MSIX is left unsecured to allow NIC packets processing during the reset.
+	 */
+	gaudi2_write_rr_to_all_lbw_rtrs(hdev, RR_TYPE_LONG, NUM_LONG_LBW_RR - 1,
+					mmDCORE0_TPC0_QM_DCCM_BASE, mmPCIE_MSIX_BASE);
+
+	gaudi2_write_rr_to_all_lbw_rtrs(hdev, RR_TYPE_LONG, NUM_LONG_LBW_RR - 2,
+				mmPCIE_MSIX_BASE + HL_BLOCK_SIZE,
+				mmPCIE_VDEC1_MSTR_IF_RR_SHRD_HBW_BASE + HL_BLOCK_SIZE);
+
 	WREG32(mmPSOC_RESET_CONF_SOFT_RST, 1);
 }
 
@@ -5954,6 +5966,7 @@ static int gaudi2_non_hard_reset_late_init(struct hl_device *hdev)
 	 */
 	gaudi2_init_arcs(hdev);
 	gaudi2_scrub_arcs_dccm(hdev);
+	gaudi2_init_security(hdev);
 
 	/* Unmask all IRQs since some could have been received during the soft reset */
 	irq_arr_size = gaudi2->num_of_valid_hw_events * sizeof(gaudi2->hw_events[0]);
@@ -9727,12 +9740,13 @@ static const struct hl_asic_funcs gaudi2_funcs = {
 	.reset_sob = gaudi2_reset_sob,
 	.reset_sob_group = gaudi2_reset_sob_group,
 	.get_device_time = gaudi2_get_device_time,
-	.pb_print_security_errors = NULL,
+	.pb_print_security_errors = gaudi2_pb_print_security_errors,
 	.collective_wait_init_cs = gaudi2_collective_wait_init_cs,
 	.collective_wait_create_jobs = gaudi2_collective_wait_create_jobs,
 	.get_dec_base_addr = gaudi2_get_dec_base_addr,
 	.scramble_addr = gaudi2_mmu_scramble_addr,
 	.descramble_addr = gaudi2_mmu_descramble_addr,
+	.ack_protection_bits_errors = gaudi2_ack_protection_bits_errors,
 	.get_hw_block_id = gaudi2_get_hw_block_id,
 	.hw_block_mmap = gaudi2_block_mmap,
 	.enable_events_from_fw = gaudi2_enable_events_from_fw,

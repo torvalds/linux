@@ -530,5 +530,7 @@ void gaudi2_write_rr_to_all_lbw_rtrs(struct hl_device *hdev, u8 rr_type, u32 rr_
 					u64 max_val);
 void gaudi2_pb_print_security_errors(struct hl_device *hdev, u32 block_addr, u32 cause,
 					u32 offended_addr);
+int gaudi2_init_security(struct hl_device *hdev);
+void gaudi2_ack_protection_bits_errors(struct hl_device *hdev);
 
 #endif /* GAUDI2P_H_ */
