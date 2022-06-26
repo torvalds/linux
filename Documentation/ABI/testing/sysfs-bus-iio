@@ -107,6 +107,9 @@ Description:
 		relevant directories.  If it affects all of the above
 		then it is to be found in the base device directory.
 
+		The stm32-timer-trigger has the additional characteristic that
+		a sampling_frequency of 0 is defined to stop sampling.
+
 What:		/sys/bus/iio/devices/iio:deviceX/sampling_frequency_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_intensity_sampling_frequency_available
 What:		/sys/bus/iio/devices/iio:deviceX/in_proximity_sampling_frequency_available
