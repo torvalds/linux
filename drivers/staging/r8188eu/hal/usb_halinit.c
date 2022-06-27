@@ -11,7 +11,7 @@
 #include "../include/rtw_iol.h"
 #include "../include/usb_ops.h"
 #include "../include/usb_osintf.h"
-#include "../include/Hal8188EPwrSeq.h"
+#include "../include/HalPwrSeqCmd.h"
 
 static void _ConfigNormalChipOutEP_8188E(struct adapter *adapt, u8 NumOutPipe)
 {
@@ -59,7 +59,7 @@ u32 rtl8188eu_InitPowerOn(struct adapter *adapt)
 	if (haldata->bMacPwrCtrlOn)
 		return _SUCCESS;
 
-	if (!HalPwrSeqCmdParsing(adapt, Rtl8188E_NIC_PWR_ON_FLOW))
+	if (!HalPwrSeqCmdParsing(adapt, PWR_ON_FLOW))
 		return _FAIL;
 
 	/*  Enable MAC DMA/WMAC/SCHEDULE/SEC block */
@@ -798,7 +798,7 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 	rtw_write8(Adapter, REG_CR, 0x0);
 
 	/*  Run LPS WL RFOFF flow */
-	HalPwrSeqCmdParsing(Adapter, Rtl8188E_NIC_LPS_ENTER_FLOW);
+	HalPwrSeqCmdParsing(Adapter, LPS_ENTER_FLOW);
 
 	/*  2. 0x1F[7:0] = 0		turn off RF */
 
@@ -828,7 +828,7 @@ static void CardDisableRTL8188EU(struct adapter *Adapter)
 	rtw_write8(Adapter, REG_32K_CTRL, val8 & (~BIT(0)));
 
 	/*  Card disable power action flow */
-	HalPwrSeqCmdParsing(Adapter, Rtl8188E_NIC_DISABLE_FLOW);
+	HalPwrSeqCmdParsing(Adapter, DISABLE_FLOW);
 
 	/*  Reset MCU IO Wrapper */
 	res = rtw_read8(Adapter, REG_RSV_CTRL + 1, &val8);

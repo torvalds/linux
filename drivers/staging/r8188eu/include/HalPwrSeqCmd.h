@@ -53,7 +53,13 @@ struct wl_pwr_cfg {
 #define GET_PWR_CFG_MASK(__PWR_CMD)		__PWR_CMD.msk
 #define GET_PWR_CFG_VALUE(__PWR_CMD)		__PWR_CMD.value
 
+enum r8188eu_pwr_seq {
+	PWR_ON_FLOW,
+	DISABLE_FLOW,
+	LPS_ENTER_FLOW,
+};
+
 /*	Prototype of protected function. */
-u8 HalPwrSeqCmdParsing(struct adapter *padapter, struct wl_pwr_cfg PwrCfgCmd[]);
+u8 HalPwrSeqCmdParsing(struct adapter *padapter, enum r8188eu_pwr_seq seq);
 
 #endif
