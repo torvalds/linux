@@ -622,6 +622,18 @@ mlxsw_sp_fid_port_vid_list_del(struct mlxsw_sp_fid *fid, u16 local_port,
 	}
 }
 
+static int
+mlxsw_sp_fid_mpe_table_map(const struct mlxsw_sp_fid *fid, u16 local_port,
+			   u16 vid, bool valid)
+{
+	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
+	char smpe_pl[MLXSW_REG_SMPE_LEN];
+
+	mlxsw_reg_smpe_pack(smpe_pl, local_port, fid->fid_index,
+			    valid ? vid : 0);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smpe), smpe_pl);
+}
+
 static int mlxsw_sp_fid_8021d_port_vid_map(struct mlxsw_sp_fid *fid,
 					   struct mlxsw_sp_port *mlxsw_sp_port,
 					   u16 vid)
@@ -634,6 +646,12 @@ static int mlxsw_sp_fid_8021d_port_vid_map(struct mlxsw_sp_fid *fid,
 					  true);
 	if (err)
 		return err;
+
+	if (fid->fid_family->mlxsw_sp->ubridge) {
+		err = mlxsw_sp_fid_mpe_table_map(fid, local_port, vid, true);
+		if (err)
+			goto err_mpe_table_map;
+	}
 
 	err = mlxsw_sp_fid_port_vid_list_add(fid, mlxsw_sp_port->local_port,
 					     vid);
@@ -652,6 +670,9 @@ err_port_vp_mode_trans:
 	mlxsw_sp->fid_core->port_fid_mappings[local_port]--;
 	mlxsw_sp_fid_port_vid_list_del(fid, mlxsw_sp_port->local_port, vid);
 err_port_vid_list_add:
+	if (fid->fid_family->mlxsw_sp->ubridge)
+		mlxsw_sp_fid_mpe_table_map(fid, local_port, vid, false);
+err_mpe_table_map:
 	__mlxsw_sp_fid_port_vid_map(fid, mlxsw_sp_port->local_port, vid, false);
 	return err;
 }
@@ -667,6 +688,8 @@ mlxsw_sp_fid_8021d_port_vid_unmap(struct mlxsw_sp_fid *fid,
 		mlxsw_sp_port_vlan_mode_trans(mlxsw_sp_port);
 	mlxsw_sp->fid_core->port_fid_mappings[local_port]--;
 	mlxsw_sp_fid_port_vid_list_del(fid, mlxsw_sp_port->local_port, vid);
+	if (fid->fid_family->mlxsw_sp->ubridge)
+		mlxsw_sp_fid_mpe_table_map(fid, local_port, vid, false);
 	__mlxsw_sp_fid_port_vid_map(fid, mlxsw_sp_port->local_port, vid, false);
 }
 
