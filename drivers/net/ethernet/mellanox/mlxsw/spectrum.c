@@ -3010,6 +3010,12 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		return err;
 	}
 
+	err = mlxsw_sp_pgt_init(mlxsw_sp);
+	if (err) {
+		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize PGT\n");
+		goto err_pgt_init;
+	}
+
 	err = mlxsw_sp_fids_init(mlxsw_sp);
 	if (err) {
 		dev_err(mlxsw_sp->bus_info->dev, "Failed to initialize FIDs\n");
@@ -3202,6 +3208,8 @@ err_traps_init:
 err_policers_init:
 	mlxsw_sp_fids_fini(mlxsw_sp);
 err_fids_init:
+	mlxsw_sp_pgt_fini(mlxsw_sp);
+err_pgt_init:
 	mlxsw_sp_kvdl_fini(mlxsw_sp);
 	mlxsw_sp_parsing_fini(mlxsw_sp);
 	return err;
@@ -3370,6 +3378,7 @@ static void mlxsw_sp_fini(struct mlxsw_core *mlxsw_core)
 	mlxsw_sp_traps_fini(mlxsw_sp);
 	mlxsw_sp_policers_fini(mlxsw_sp);
 	mlxsw_sp_fids_fini(mlxsw_sp);
+	mlxsw_sp_pgt_fini(mlxsw_sp);
 	mlxsw_sp_kvdl_fini(mlxsw_sp);
 	mlxsw_sp_parsing_fini(mlxsw_sp);
 }
