@@ -906,7 +906,6 @@ ap_spi_fp: &spi10 {
 	};
 };
 
-#include <arm/cros-ec-keyboard.dtsi>
 #include <arm/cros-ec-sbs.dtsi>
 
 &uart3 {

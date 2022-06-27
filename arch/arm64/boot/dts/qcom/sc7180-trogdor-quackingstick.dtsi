@@ -46,6 +46,12 @@
 	status = "okay";
 };
 
+&cros_ec {
+	keyboard-controller {
+		compatible = "google,cros-ec-keyb-switches";
+	};
+};
+
 &dsi0 {
 	panel: panel@0 {
 		/* Compatible will be filled in per-board */

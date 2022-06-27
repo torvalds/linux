@@ -104,6 +104,10 @@
 	base_detection: cbas {
 		compatible = "google,cros-cbas";
 	};
+
+	keyboard-controller {
+		compatible = "google,cros-ec-keyb-switches";
+	};
 };
 
 &dsi0 {
