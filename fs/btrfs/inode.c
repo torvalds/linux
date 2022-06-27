@@ -333,9 +333,9 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 			cur_size = min_t(unsigned long, compressed_size,
 				       PAGE_SIZE);
 
-			kaddr = kmap_atomic(cpage);
+			kaddr = kmap_local_page(cpage);
 			write_extent_buffer(leaf, kaddr, ptr, cur_size);
-			kunmap_atomic(kaddr);
+			kunmap_local(kaddr);
 
 			i++;
 			ptr += cur_size;
@@ -346,9 +346,9 @@ static int insert_inline_extent(struct btrfs_trans_handle *trans,
 	} else {
 		page = find_get_page(inode->vfs_inode.i_mapping, 0);
 		btrfs_set_file_extent_compression(leaf, ei, 0);
-		kaddr = kmap_atomic(page);
+		kaddr = kmap_local_page(page);
 		write_extent_buffer(leaf, kaddr, ptr, size);
-		kunmap_atomic(kaddr);
+		kunmap_local(kaddr);
 		put_page(page);
 	}
 	btrfs_mark_buffer_dirty(leaf);
