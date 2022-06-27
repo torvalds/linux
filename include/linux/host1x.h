@@ -446,4 +446,38 @@ int tegra_mipi_disable(struct tegra_mipi_device *device);
 int tegra_mipi_start_calibration(struct tegra_mipi_device *device);
 int tegra_mipi_finish_calibration(struct tegra_mipi_device *device);
 
+/* host1x memory contexts */
+
+struct host1x_memory_context {
+	struct host1x *host;
+
+	refcount_t ref;
+	struct pid *owner;
+
+	struct device dev;
+	u64 dma_mask;
+	u32 stream_id;
+};
+
+#ifdef CONFIG_IOMMU_API
+struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
+							  struct pid *pid);
+void host1x_memory_context_get(struct host1x_memory_context *cd);
+void host1x_memory_context_put(struct host1x_memory_context *cd);
+#else
+static inline struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
+									struct pid *pid)
+{
+	return NULL;
+}
+
+static inline void host1x_memory_context_get(struct host1x_memory_context *cd)
+{
+}
+
+static inline void host1x_memory_context_put(struct host1x_memory_context *cd)
+{
+}
+#endif
+
 #endif
