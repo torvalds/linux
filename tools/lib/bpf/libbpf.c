@@ -366,6 +366,16 @@ struct bpf_sec_def {
 	libbpf_prog_attach_fn_t prog_attach_fn;
 };
 
+struct bpf_prog_prep_result {
+	struct bpf_insn *new_insn_ptr;
+	int new_insn_cnt;
+	int *pfd;
+};
+
+typedef int (*bpf_program_prep_t)(struct bpf_program *prog, int n,
+				  struct bpf_insn *insns, int insns_cnt,
+				  struct bpf_prog_prep_result *res);
+
 /*
  * bpf_prog should be a better name but it has been used in
  * linux/filter.h.
@@ -426,8 +436,6 @@ struct bpf_program {
 	bpf_program_prep_t preprocessor;
 
 	struct bpf_object *obj;
-	void *priv;
-	bpf_program_clear_priv_t clear_priv;
 
 	bool autoload;
 	bool mark_btf_static;
@@ -511,8 +519,6 @@ struct bpf_map {
 	__u32 btf_key_type_id;
 	__u32 btf_value_type_id;
 	__u32 btf_vmlinux_value_type_id;
-	void *priv;
-	bpf_map_clear_priv_t clear_priv;
 	enum libbpf_map_type libbpf_type;
 	void *mmaped;
 	struct bpf_struct_ops *st_ops;
@@ -668,9 +674,6 @@ struct bpf_object {
 	size_t log_size;
 	__u32 log_level;
 
-	void *priv;
-	bpf_object_clear_priv_t clear_priv;
-
 	int *fd_array;
 	size_t fd_array_cap;
 	size_t fd_array_cnt;
@@ -720,12 +723,6 @@ static void bpf_program__exit(struct bpf_program *prog)
 {
 	if (!prog)
 		return;
-
-	if (prog->clear_priv)
-		prog->clear_priv(prog, prog->priv);
-
-	prog->priv = NULL;
-	prog->clear_priv = NULL;
 
 	bpf_program__unload(prog);
 	zfree(&prog->name);
@@ -8051,12 +8048,6 @@ static int bpf_program_unpin_instance(struct bpf_program *prog, const char *path
 	return 0;
 }
 
-__attribute__((alias("bpf_program_pin_instance")))
-int bpf_object__pin_instance(struct bpf_program *prog, const char *path, int instance);
-
-__attribute__((alias("bpf_program_unpin_instance")))
-int bpf_program__unpin_instance(struct bpf_program *prog, const char *path, int instance);
-
 int bpf_program__pin(struct bpf_program *prog, const char *path)
 {
 	int i, err;
@@ -8492,11 +8483,6 @@ int bpf_object__pin(struct bpf_object *obj, const char *path)
 
 static void bpf_map__destroy(struct bpf_map *map)
 {
-	if (map->clear_priv)
-		map->clear_priv(map, map->priv);
-	map->priv = NULL;
-	map->clear_priv = NULL;
-
 	if (map->inner_map) {
 		bpf_map__destroy(map->inner_map);
 		zfree(&map->inner_map);
@@ -8531,9 +8517,6 @@ void bpf_object__close(struct bpf_object *obj)
 
 	if (IS_ERR_OR_NULL(obj))
 		return;
-
-	if (obj->clear_priv)
-		obj->clear_priv(obj, obj->priv);
 
 	usdt_manager_free(obj->usdt_man);
 	obj->usdt_man = NULL;
@@ -8592,22 +8575,6 @@ int bpf_object__set_kversion(struct bpf_object *obj, __u32 kern_version)
 	obj->kern_version = kern_version;
 
 	return 0;
-}
-
-int bpf_object__set_priv(struct bpf_object *obj, void *priv,
-			 bpf_object_clear_priv_t clear_priv)
-{
-	if (obj->priv && obj->clear_priv)
-		obj->clear_priv(obj, obj->priv);
-
-	obj->priv = priv;
-	obj->clear_priv = clear_priv;
-	return 0;
-}
-
-void *bpf_object__priv(const struct bpf_object *obj)
-{
-	return obj ? obj->priv : libbpf_err_ptr(-EINVAL);
 }
 
 int bpf_object__gen_loader(struct bpf_object *obj, struct gen_loader_opts *opts)
@@ -8676,22 +8643,6 @@ bpf_object__prev_program(const struct bpf_object *obj, struct bpf_program *next)
 	return prog;
 }
 
-int bpf_program__set_priv(struct bpf_program *prog, void *priv,
-			  bpf_program_clear_priv_t clear_priv)
-{
-	if (prog->priv && prog->clear_priv)
-		prog->clear_priv(prog, prog->priv);
-
-	prog->priv = priv;
-	prog->clear_priv = clear_priv;
-	return 0;
-}
-
-void *bpf_program__priv(const struct bpf_program *prog)
-{
-	return prog ? prog->priv : libbpf_err_ptr(-EINVAL);
-}
-
 void bpf_program__set_ifindex(struct bpf_program *prog, __u32 ifindex)
 {
 	prog->prog_ifindex = ifindex;
@@ -8757,37 +8708,6 @@ int bpf_program__set_insns(struct bpf_program *prog,
 	prog->insns_cnt = new_insn_cnt;
 	return 0;
 }
-
-int bpf_program__set_prep(struct bpf_program *prog, int nr_instances,
-			  bpf_program_prep_t prep)
-{
-	int *instances_fds;
-
-	if (nr_instances <= 0 || !prep)
-		return libbpf_err(-EINVAL);
-
-	if (prog->instances.nr > 0 || prog->instances.fds) {
-		pr_warn("Can't set pre-processor after loading\n");
-		return libbpf_err(-EINVAL);
-	}
-
-	instances_fds = malloc(sizeof(int) * nr_instances);
-	if (!instances_fds) {
-		pr_warn("alloc memory failed for fds\n");
-		return libbpf_err(-ENOMEM);
-	}
-
-	/* fill all fd with -1 */
-	memset(instances_fds, -1, sizeof(int) * nr_instances);
-
-	prog->instances.nr = nr_instances;
-	prog->instances.fds = instances_fds;
-	prog->preprocessor = prep;
-	return 0;
-}
-
-__attribute__((alias("bpf_program_nth_fd")))
-int bpf_program__nth_fd(const struct bpf_program *prog, int n);
 
 static int bpf_program_nth_fd(const struct bpf_program *prog, int n)
 {
@@ -9714,27 +9634,6 @@ __u32 bpf_map__btf_key_type_id(const struct bpf_map *map)
 __u32 bpf_map__btf_value_type_id(const struct bpf_map *map)
 {
 	return map ? map->btf_value_type_id : 0;
-}
-
-int bpf_map__set_priv(struct bpf_map *map, void *priv,
-		     bpf_map_clear_priv_t clear_priv)
-{
-	if (!map)
-		return libbpf_err(-EINVAL);
-
-	if (map->priv) {
-		if (map->clear_priv)
-			map->clear_priv(map, map->priv);
-	}
-
-	map->priv = priv;
-	map->clear_priv = clear_priv;
-	return 0;
-}
-
-void *bpf_map__priv(const struct bpf_map *map)
-{
-	return map ? map->priv : libbpf_err_ptr(-EINVAL);
 }
 
 int bpf_map__set_initial_value(struct bpf_map *map,

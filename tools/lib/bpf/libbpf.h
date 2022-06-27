@@ -231,13 +231,6 @@ LIBBPF_API struct bpf_program *
 bpf_object__find_program_by_name(const struct bpf_object *obj,
 				 const char *name);
 
-typedef void (*bpf_object_clear_priv_t)(struct bpf_object *, void *);
-LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
-LIBBPF_API int bpf_object__set_priv(struct bpf_object *obj, void *priv,
-				    bpf_object_clear_priv_t clear_priv);
-LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
-LIBBPF_API void *bpf_object__priv(const struct bpf_object *prog);
-
 LIBBPF_API int
 libbpf_prog_type_by_name(const char *name, enum bpf_prog_type *prog_type,
 			 enum bpf_attach_type *expected_attach_type);
@@ -260,13 +253,6 @@ bpf_object__next_program(const struct bpf_object *obj, struct bpf_program *prog)
 LIBBPF_API struct bpf_program *
 bpf_object__prev_program(const struct bpf_object *obj, struct bpf_program *prog);
 
-typedef void (*bpf_program_clear_priv_t)(struct bpf_program *, void *);
-
-LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
-LIBBPF_API int bpf_program__set_priv(struct bpf_program *prog, void *priv,
-				     bpf_program_clear_priv_t clear_priv);
-LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
-LIBBPF_API void *bpf_program__priv(const struct bpf_program *prog);
 LIBBPF_API void bpf_program__set_ifindex(struct bpf_program *prog,
 					 __u32 ifindex);
 
@@ -328,14 +314,6 @@ LIBBPF_API int bpf_program__set_insns(struct bpf_program *prog,
 LIBBPF_API size_t bpf_program__insn_cnt(const struct bpf_program *prog);
 
 LIBBPF_API int bpf_program__fd(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 7, "multi-instance bpf_program support is deprecated")
-LIBBPF_API int bpf_program__pin_instance(struct bpf_program *prog,
-					 const char *path,
-					 int instance);
-LIBBPF_DEPRECATED_SINCE(0, 7, "multi-instance bpf_program support is deprecated")
-LIBBPF_API int bpf_program__unpin_instance(struct bpf_program *prog,
-					   const char *path,
-					   int instance);
 
 /**
  * @brief **bpf_program__pin()** pins the BPF program to a file
@@ -635,69 +613,6 @@ LIBBPF_API struct bpf_link *
 bpf_program__attach_iter(const struct bpf_program *prog,
 			 const struct bpf_iter_attach_opts *opts);
 
-/*
- * Libbpf allows callers to adjust BPF programs before being loaded
- * into kernel. One program in an object file can be transformed into
- * multiple variants to be attached to different hooks.
- *
- * bpf_program_prep_t, bpf_program__set_prep and bpf_program__nth_fd
- * form an API for this purpose.
- *
- * - bpf_program_prep_t:
- *   Defines a 'preprocessor', which is a caller defined function
- *   passed to libbpf through bpf_program__set_prep(), and will be
- *   called before program is loaded. The processor should adjust
- *   the program one time for each instance according to the instance id
- *   passed to it.
- *
- * - bpf_program__set_prep:
- *   Attaches a preprocessor to a BPF program. The number of instances
- *   that should be created is also passed through this function.
- *
- * - bpf_program__nth_fd:
- *   After the program is loaded, get resulting FD of a given instance
- *   of the BPF program.
- *
- * If bpf_program__set_prep() is not used, the program would be loaded
- * without adjustment during bpf_object__load(). The program has only
- * one instance. In this case bpf_program__fd(prog) is equal to
- * bpf_program__nth_fd(prog, 0).
- */
-struct bpf_prog_prep_result {
-	/*
-	 * If not NULL, load new instruction array.
-	 * If set to NULL, don't load this instance.
-	 */
-	struct bpf_insn *new_insn_ptr;
-	int new_insn_cnt;
-
-	/* If not NULL, result FD is written to it. */
-	int *pfd;
-};
-
-/*
- * Parameters of bpf_program_prep_t:
- *  - prog:	The bpf_program being loaded.
- *  - n:	Index of instance being generated.
- *  - insns:	BPF instructions array.
- *  - insns_cnt:Number of instructions in insns.
- *  - res:	Output parameter, result of transformation.
- *
- * Return value:
- *  - Zero:	pre-processing success.
- *  - Non-zero:	pre-processing error, stop loading.
- */
-typedef int (*bpf_program_prep_t)(struct bpf_program *prog, int n,
-				  struct bpf_insn *insns, int insns_cnt,
-				  struct bpf_prog_prep_result *res);
-
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_program__insns() for getting bpf_program instructions")
-LIBBPF_API int bpf_program__set_prep(struct bpf_program *prog, int nr_instance,
-				     bpf_program_prep_t prep);
-
-LIBBPF_DEPRECATED_SINCE(0, 7, "multi-instance bpf_program support is deprecated")
-LIBBPF_API int bpf_program__nth_fd(const struct bpf_program *prog, int n);
-
 LIBBPF_API enum bpf_prog_type bpf_program__type(const struct bpf_program *prog);
 
 /**
@@ -846,12 +761,6 @@ LIBBPF_API int bpf_map__set_ifindex(struct bpf_map *map, __u32 ifindex);
 LIBBPF_API __u64 bpf_map__map_extra(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_map_extra(struct bpf_map *map, __u64 map_extra);
 
-typedef void (*bpf_map_clear_priv_t)(struct bpf_map *, void *);
-LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
-LIBBPF_API int bpf_map__set_priv(struct bpf_map *map, void *priv,
-				 bpf_map_clear_priv_t clear_priv);
-LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
-LIBBPF_API void *bpf_map__priv(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_initial_value(struct bpf_map *map,
 					  const void *data, size_t size);
 LIBBPF_API const void *bpf_map__initial_value(struct bpf_map *map, size_t *psize);
