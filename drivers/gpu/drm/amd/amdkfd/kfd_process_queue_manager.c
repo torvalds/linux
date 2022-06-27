@@ -498,6 +498,21 @@ int pqm_update_mqd(struct process_queue_manager *pqm,
 		return -EFAULT;
 	}
 
+	/* ASICs that have WGPs must enforce pairwise enabled mask checks. */
+	if (minfo && minfo->update_flag == UPDATE_FLAG_CU_MASK && minfo->cu_mask.ptr &&
+			KFD_GC_VERSION(pqn->q->device) >= IP_VERSION(10, 0, 0)) {
+		int i;
+
+		for (i = 0; i < minfo->cu_mask.count; i += 2) {
+			uint32_t cu_pair = (minfo->cu_mask.ptr[i / 32] >> (i % 32)) & 0x3;
+
+			if (cu_pair && cu_pair != 0x3) {
+				pr_debug("CUs must be adjacent pairwise enabled.\n");
+				return -EINVAL;
+			}
+		}
+	}
+
 	retval = pqn->q->device->dqm->ops.update_queue(pqn->q->device->dqm,
 							pqn->q, minfo);
 	if (retval != 0)
