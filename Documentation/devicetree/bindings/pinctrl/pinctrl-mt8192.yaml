@@ -90,6 +90,9 @@ patternProperties:
               - enum: [100, 101, 102, 103]
                 description: PUPD/R1/R0 pull down type. See MTK_PUPD_SET_R1R0_
                   defines in dt-bindings/pinctrl/mt65xx.h.
+              - enum: [200, 201, 202, 203]
+                description: RSEL pull down type. See MTK_PULL_SET_RSEL_
+                  defines in dt-bindings/pinctrl/mt65xx.h.
 
           bias-pull-up:
             oneOf:
@@ -97,6 +100,9 @@ patternProperties:
                 description: normal pull up.
               - enum: [100, 101, 102, 103]
                 description: PUPD/R1/R0 pull up type. See MTK_PUPD_SET_R1R0_
+                  defines in dt-bindings/pinctrl/mt65xx.h.
+              - enum: [200, 201, 202, 203]
+                description: RSEL pull up type. See MTK_PULL_SET_RSEL_
                   defines in dt-bindings/pinctrl/mt65xx.h.
 
           bias-disable: true
