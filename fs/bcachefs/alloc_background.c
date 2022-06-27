@@ -618,7 +618,9 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	alloc_k = bch2_btree_iter_peek(alloc_iter);
+	alloc_k = bch2_dev_bucket_exists(c, alloc_iter->pos)
+		? bch2_btree_iter_peek_slot(alloc_iter)
+		: bch2_btree_iter_peek(alloc_iter);
 	if (!alloc_k.k)
 		return 1;
 
