@@ -245,14 +245,13 @@ int hl_access_cfg_region(struct hl_device *hdev, u64 addr, u64 *val,
  * hl_access_dev_mem - access device memory
  *
  * @hdev: pointer to habanalabs device structure
- * @region: the memory region the address belongs to
  * @region_type: the type of the region the address belongs to
  * @addr: the address to access
  * @val: the value to write from or read to
  * @acc_type: the type of access (r/w, 32/64)
  */
-int hl_access_dev_mem(struct hl_device *hdev, struct pci_mem_region *region,
-		enum pci_region region_type, u64 addr, u64 *val, enum debugfs_access_type acc_type)
+int hl_access_dev_mem(struct hl_device *hdev, enum pci_region region_type,
+			u64 addr, u64 *val, enum debugfs_access_type acc_type)
 {
 	switch (region_type) {
 	case PCI_REGION_CFG:

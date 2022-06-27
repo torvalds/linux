@@ -1455,8 +1455,8 @@ struct hl_asic_funcs {
 	u32* (*get_stream_master_qid_arr)(void);
 	int (*mmu_get_real_page_size)(struct hl_device *hdev, struct hl_mmu_properties *mmu_prop,
 					u32 page_size, u32 *real_page_size, bool is_dram_addr);
-	int (*access_dev_mem)(struct hl_device *hdev, struct pci_mem_region *region,
-		enum pci_region region_type, u64 addr, u64 *val, enum debugfs_access_type acc_type);
+	int (*access_dev_mem)(struct hl_device *hdev, enum pci_region region_type,
+				u64 addr, u64 *val, enum debugfs_access_type acc_type);
 	u64 (*set_dram_bar_base)(struct hl_device *hdev, u64 addr);
 };
 
@@ -3133,8 +3133,8 @@ void hl_dma_unmap_sgtable(struct hl_device *hdev, struct sg_table *sgt,
 				enum dma_data_direction dir);
 int hl_access_cfg_region(struct hl_device *hdev, u64 addr, u64 *val,
 	enum debugfs_access_type acc_type);
-int hl_access_dev_mem(struct hl_device *hdev, struct pci_mem_region *region,
-		enum pci_region region_type, u64 addr, u64 *val, enum debugfs_access_type acc_type);
+int hl_access_dev_mem(struct hl_device *hdev, enum pci_region region_type,
+			u64 addr, u64 *val, enum debugfs_access_type acc_type);
 int hl_device_open(struct inode *inode, struct file *filp);
 int hl_device_open_ctrl(struct inode *inode, struct file *filp);
 bool hl_device_operational(struct hl_device *hdev,

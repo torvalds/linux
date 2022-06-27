@@ -695,8 +695,7 @@ static int hl_access_dev_mem_by_region(struct hl_device *hdev, u64 addr,
 		if (addr >= mem_reg->region_base &&
 			addr <= mem_reg->region_base + mem_reg->region_size - acc_size) {
 			*found = true;
-			return hdev->asic_funcs->access_dev_mem(hdev, mem_reg, i,
-				addr, val, acc_type);
+			return hdev->asic_funcs->access_dev_mem(hdev, i, addr, val, acc_type);
 		}
 	}
 	return 0;
