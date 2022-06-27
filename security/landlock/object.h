@@ -76,9 +76,9 @@ struct landlock_object {
 	};
 };
 
-struct landlock_object *landlock_create_object(
-		const struct landlock_object_underops *const underops,
-		void *const underobj);
+struct landlock_object *
+landlock_create_object(const struct landlock_object_underops *const underops,
+		       void *const underobj);
 
 void landlock_put_object(struct landlock_object *const object);
 

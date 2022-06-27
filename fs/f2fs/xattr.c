@@ -782,7 +782,7 @@ int f2fs_setxattr(struct inode *inode, int index, const char *name,
 	if (!f2fs_is_checkpoint_ready(sbi))
 		return -ENOSPC;
 
-	err = dquot_initialize(inode);
+	err = f2fs_dquot_initialize(inode);
 	if (err)
 		return err;
 

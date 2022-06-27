@@ -1336,7 +1336,9 @@ int ovs_ct_clear(struct sk_buff *skb, struct sw_flow_key *key)
 
 	nf_ct_put(ct);
 	nf_ct_set(skb, NULL, IP_CT_UNTRACKED);
-	ovs_ct_fill_key(skb, key, false);
+
+	if (key)
+		ovs_ct_fill_key(skb, key, false);
 
 	return 0;
 }

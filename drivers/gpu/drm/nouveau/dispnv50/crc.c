@@ -411,9 +411,18 @@ void nv50_crc_atomic_check_outp(struct nv50_atom *atom)
 		struct nv50_head_atom *armh = nv50_head_atom(old_crtc_state);
 		struct nv50_head_atom *asyh = nv50_head_atom(new_crtc_state);
 		struct nv50_outp_atom *outp_atom;
-		struct nouveau_encoder *outp =
-			nv50_real_outp(nv50_head_atom_get_encoder(armh));
-		struct drm_encoder *encoder = &outp->base.base;
+		struct nouveau_encoder *outp;
+		struct drm_encoder *encoder, *enc;
+
+		enc = nv50_head_atom_get_encoder(armh);
+		if (!enc)
+			continue;
+
+		outp = nv50_real_outp(enc);
+		if (!outp)
+			continue;
+
+		encoder = &outp->base.base;
 
 		if (!asyh->clr.crc)
 			continue;
@@ -464,8 +473,16 @@ void nv50_crc_atomic_set(struct nv50_head *head,
 	struct drm_device *dev = crtc->dev;
 	struct nv50_crc *crc = &head->crc;
 	const struct nv50_crc_func *func = nv50_disp(dev)->core->func->crc;
-	struct nouveau_encoder *outp =
-		nv50_real_outp(nv50_head_atom_get_encoder(asyh));
+	struct nouveau_encoder *outp;
+	struct drm_encoder *encoder;
+
+	encoder = nv50_head_atom_get_encoder(asyh);
+	if (!encoder)
+		return;
+
+	outp = nv50_real_outp(encoder);
+	if (!outp)
+		return;
 
 	func->set_src(head, outp->or,
 		      nv50_crc_source_type(outp, asyh->crc.src),

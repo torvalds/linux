@@ -81,7 +81,7 @@ static struct fsync_inode_entry *add_fsync_inode(struct f2fs_sb_info *sbi,
 	if (IS_ERR(inode))
 		return ERR_CAST(inode);
 
-	err = dquot_initialize(inode);
+	err = f2fs_dquot_initialize(inode);
 	if (err)
 		goto err_out;
 
@@ -203,7 +203,7 @@ retry:
 			goto out_put;
 		}
 
-		err = dquot_initialize(einode);
+		err = f2fs_dquot_initialize(einode);
 		if (err) {
 			iput(einode);
 			goto out_put;
@@ -508,7 +508,7 @@ got_it:
 		if (IS_ERR(inode))
 			return PTR_ERR(inode);
 
-		ret = dquot_initialize(inode);
+		ret = f2fs_dquot_initialize(inode);
 		if (ret) {
 			iput(inode);
 			return ret;

@@ -1620,13 +1620,6 @@ static void pl011_set_mctrl(struct uart_port *port, unsigned int mctrl)
 	    container_of(port, struct uart_amba_port, port);
 	unsigned int cr;
 
-	if (port->rs485.flags & SER_RS485_ENABLED) {
-		if (port->rs485.flags & SER_RS485_RTS_AFTER_SEND)
-			mctrl &= ~TIOCM_RTS;
-		else
-			mctrl |= TIOCM_RTS;
-	}
-
 	cr = pl011_read(uap, REG_CR);
 
 #define	TIOCMBIT(tiocmbit, uartbit)		\
@@ -1850,14 +1843,8 @@ static int pl011_startup(struct uart_port *port)
 	cr = uap->old_cr & (UART011_CR_RTS | UART011_CR_DTR);
 	cr |= UART01x_CR_UARTEN | UART011_CR_RXE;
 
-	if (port->rs485.flags & SER_RS485_ENABLED) {
-		if (port->rs485.flags & SER_RS485_RTS_AFTER_SEND)
-			cr &= ~UART011_CR_RTS;
-		else
-			cr |= UART011_CR_RTS;
-	} else {
+	if (!(port->rs485.flags & SER_RS485_ENABLED))
 		cr |= UART011_CR_TXE;
-	}
 
 	pl011_write(cr, uap, REG_CR);
 

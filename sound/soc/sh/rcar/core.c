@@ -1159,6 +1159,7 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai, char *name,
 		struct device_node *capture)
 {
 	struct rsnd_priv *priv = rsnd_rdai_to_priv(rdai);
+	struct device *dev = rsnd_priv_to_dev(priv);
 	struct device_node *np;
 	int i;
 
@@ -1169,7 +1170,11 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai, char *name,
 	for_each_child_of_node(node, np) {
 		struct rsnd_mod *mod;
 
-		i = rsnd_node_fixed_index(np, name, i);
+		i = rsnd_node_fixed_index(dev, np, name, i);
+		if (i < 0) {
+			of_node_put(np);
+			break;
+		}
 
 		mod = mod_get(priv, i);
 
@@ -1183,7 +1188,7 @@ void rsnd_parse_connect_common(struct rsnd_dai *rdai, char *name,
 	of_node_put(node);
 }
 
-int rsnd_node_fixed_index(struct device_node *node, char *name, int idx)
+int rsnd_node_fixed_index(struct device *dev, struct device_node *node, char *name, int idx)
 {
 	char node_name[16];
 
@@ -1210,6 +1215,8 @@ int rsnd_node_fixed_index(struct device_node *node, char *name, int idx)
 			return idx;
 	}
 
+	dev_err(dev, "strange node numbering (%s)",
+		of_node_full_name(node));
 	return -EINVAL;
 }
 
@@ -1221,10 +1228,8 @@ int rsnd_node_count(struct rsnd_priv *priv, struct device_node *node, char *name
 
 	i = 0;
 	for_each_child_of_node(node, np) {
-		i = rsnd_node_fixed_index(np, name, i);
+		i = rsnd_node_fixed_index(dev, np, name, i);
 		if (i < 0) {
-			dev_err(dev, "strange node numbering (%s)",
-				of_node_full_name(node));
 			of_node_put(np);
 			return 0;
 		}

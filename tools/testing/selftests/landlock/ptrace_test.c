@@ -26,9 +26,10 @@ static void create_domain(struct __test_metadata *const _metadata)
 		.handled_access_fs = LANDLOCK_ACCESS_FS_MAKE_BLOCK,
 	};
 
-	ruleset_fd = landlock_create_ruleset(&ruleset_attr,
-			sizeof(ruleset_attr), 0);
-	EXPECT_LE(0, ruleset_fd) {
+	ruleset_fd =
+		landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
+	EXPECT_LE(0, ruleset_fd)
+	{
 		TH_LOG("Failed to create a ruleset: %s", strerror(errno));
 	}
 	EXPECT_EQ(0, prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0));
@@ -43,7 +44,7 @@ static int test_ptrace_read(const pid_t pid)
 	int procenv_path_size, fd;
 
 	procenv_path_size = snprintf(procenv_path, sizeof(procenv_path),
-			path_template, pid);
+				     path_template, pid);
 	if (procenv_path_size >= sizeof(procenv_path))
 		return E2BIG;
 
@@ -59,9 +60,12 @@ static int test_ptrace_read(const pid_t pid)
 	return 0;
 }
 
-FIXTURE(hierarchy) { };
+/* clang-format off */
+FIXTURE(hierarchy) {};
+/* clang-format on */
 
-FIXTURE_VARIANT(hierarchy) {
+FIXTURE_VARIANT(hierarchy)
+{
 	const bool domain_both;
 	const bool domain_parent;
 	const bool domain_child;
@@ -83,7 +87,9 @@ FIXTURE_VARIANT(hierarchy) {
  *       \              P2 -> P1 : allow
  *        'P2
  */
+/* clang-format off */
 FIXTURE_VARIANT_ADD(hierarchy, allow_without_domain) {
+	/* clang-format on */
 	.domain_both = false,
 	.domain_parent = false,
 	.domain_child = false,
@@ -98,7 +104,9 @@ FIXTURE_VARIANT_ADD(hierarchy, allow_without_domain) {
  *        |  P2  |
  *        '------'
  */
+/* clang-format off */
 FIXTURE_VARIANT_ADD(hierarchy, allow_with_one_domain) {
+	/* clang-format on */
 	.domain_both = false,
 	.domain_parent = false,
 	.domain_child = true,
@@ -112,7 +120,9 @@ FIXTURE_VARIANT_ADD(hierarchy, allow_with_one_domain) {
  *            '
  *            P2
  */
+/* clang-format off */
 FIXTURE_VARIANT_ADD(hierarchy, deny_with_parent_domain) {
+	/* clang-format on */
 	.domain_both = false,
 	.domain_parent = true,
 	.domain_child = false,
@@ -127,7 +137,9 @@ FIXTURE_VARIANT_ADD(hierarchy, deny_with_parent_domain) {
  *         |  P2  |
  *         '------'
  */
+/* clang-format off */
 FIXTURE_VARIANT_ADD(hierarchy, deny_with_sibling_domain) {
+	/* clang-format on */
 	.domain_both = false,
 	.domain_parent = true,
 	.domain_child = true,
@@ -142,7 +154,9 @@ FIXTURE_VARIANT_ADD(hierarchy, deny_with_sibling_domain) {
  * |         P2  |
  * '-------------'
  */
+/* clang-format off */
 FIXTURE_VARIANT_ADD(hierarchy, allow_sibling_domain) {
+	/* clang-format on */
 	.domain_both = true,
 	.domain_parent = false,
 	.domain_child = false,
@@ -158,7 +172,9 @@ FIXTURE_VARIANT_ADD(hierarchy, allow_sibling_domain) {
  * |        '------' |
  * '-----------------'
  */
+/* clang-format off */
 FIXTURE_VARIANT_ADD(hierarchy, allow_with_nested_domain) {
+	/* clang-format on */
 	.domain_both = true,
 	.domain_parent = false,
 	.domain_child = true,
@@ -174,7 +190,9 @@ FIXTURE_VARIANT_ADD(hierarchy, allow_with_nested_domain) {
  * |             P2  |
  * '-----------------'
  */
+/* clang-format off */
 FIXTURE_VARIANT_ADD(hierarchy, deny_with_nested_and_parent_domain) {
+	/* clang-format on */
 	.domain_both = true,
 	.domain_parent = true,
 	.domain_child = false,
@@ -192,17 +210,21 @@ FIXTURE_VARIANT_ADD(hierarchy, deny_with_nested_and_parent_domain) {
  * |        '------' |
  * '-----------------'
  */
+/* clang-format off */
 FIXTURE_VARIANT_ADD(hierarchy, deny_with_forked_domain) {
+	/* clang-format on */
 	.domain_both = true,
 	.domain_parent = true,
 	.domain_child = true,
 };
 
 FIXTURE_SETUP(hierarchy)
-{ }
+{
+}
 
 FIXTURE_TEARDOWN(hierarchy)
-{ }
+{
+}
 
 /* Test PTRACE_TRACEME and PTRACE_ATTACH for parent and child. */
 TEST_F(hierarchy, trace)
@@ -330,7 +352,7 @@ TEST_F(hierarchy, trace)
 	ASSERT_EQ(1, write(pipe_parent[1], ".", 1));
 	ASSERT_EQ(child, waitpid(child, &status, 0));
 	if (WIFSIGNALED(status) || !WIFEXITED(status) ||
-			WEXITSTATUS(status) != EXIT_SUCCESS)
+	    WEXITSTATUS(status) != EXIT_SUCCESS)
 		_metadata->passed = 0;
 }
 

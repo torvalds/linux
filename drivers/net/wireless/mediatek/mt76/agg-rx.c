@@ -162,8 +162,9 @@ void mt76_rx_aggr_reorder(struct sk_buff *skb, struct sk_buff_head *frames)
 	if (!sta)
 		return;
 
-	if (!status->aggr && !(status->flag & RX_FLAG_8023)) {
-		mt76_rx_aggr_check_ctl(skb, frames);
+	if (!status->aggr) {
+		if (!(status->flag & RX_FLAG_8023))
+			mt76_rx_aggr_check_ctl(skb, frames);
 		return;
 	}
 

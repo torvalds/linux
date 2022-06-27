@@ -2131,6 +2131,7 @@ static int run_cache_set(struct cache_set *c)
 
 	flash_devs_run(c);
 
+	bch_journal_space_reserve(&c->journal);
 	set_bit(CACHE_SET_RUNNING, &c->flags);
 	return 0;
 err:

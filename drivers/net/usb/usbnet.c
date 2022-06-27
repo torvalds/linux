@@ -1614,15 +1614,15 @@ void usbnet_disconnect (struct usb_interface *intf)
 		   xdev->bus->bus_name, xdev->devpath,
 		   dev->driver_info->description);
 
-	if (dev->driver_info->unbind)
-		dev->driver_info->unbind(dev, intf);
-
 	net = dev->net;
 	unregister_netdev (net);
 
 	cancel_work_sync(&dev->kevent);
 
 	usb_scuttle_anchored_urbs(&dev->deferred);
+
+	if (dev->driver_info->unbind)
+		dev->driver_info->unbind(dev, intf);
 
 	usb_kill_urb(dev->interrupt);
 	usb_free_urb(dev->interrupt);

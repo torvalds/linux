@@ -364,6 +364,9 @@ minstrel_ht_get_stats(struct minstrel_priv *mp, struct minstrel_ht_sta *mi,
 
 	group = MINSTREL_CCK_GROUP;
 	for (idx = 0; idx < ARRAY_SIZE(mp->cck_rates); idx++) {
+		if (!(mi->supported[group] & BIT(idx)))
+			continue;
+
 		if (rate->idx != mp->cck_rates[idx])
 			continue;
 

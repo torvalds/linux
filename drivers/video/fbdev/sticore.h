@@ -370,6 +370,9 @@ struct sti_struct {
 
 	/* pointer to all internal data */
 	struct sti_all_data *sti_data;
+
+	/* pa_path of this device */
+	char pa_path[24];
 };
 
 

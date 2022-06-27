@@ -58,6 +58,7 @@ const char *f2fs_fault_name[FAULT_MAX] = {
 	[FAULT_DISCARD]		= "discard error",
 	[FAULT_WRITE_IO]	= "write IO error",
 	[FAULT_SLAB_ALLOC]	= "slab alloc",
+	[FAULT_DQUOT_INIT]	= "dquot initialize",
 };
 
 void f2fs_build_fault_attr(struct f2fs_sb_info *sbi, unsigned int rate,
@@ -2535,6 +2536,16 @@ retry:
 	return len - towrite;
 }
 
+int f2fs_dquot_initialize(struct inode *inode)
+{
+	if (time_to_inject(F2FS_I_SB(inode), FAULT_DQUOT_INIT)) {
+		f2fs_show_injection_info(F2FS_I_SB(inode), FAULT_DQUOT_INIT);
+		return -ESRCH;
+	}
+
+	return dquot_initialize(inode);
+}
+
 static struct dquot **f2fs_get_dquots(struct inode *inode)
 {
 	return F2FS_I(inode)->i_dquot;
@@ -2694,7 +2705,8 @@ int f2fs_quota_sync(struct super_block *sb, int type)
 		if (!sb_has_quota_active(sb, cnt))
 			continue;
 
-		inode_lock(dqopt->files[cnt]);
+		if (!f2fs_sb_has_quota_ino(sbi))
+			inode_lock(dqopt->files[cnt]);
 
 		/*
 		 * do_quotactl
@@ -2713,7 +2725,8 @@ int f2fs_quota_sync(struct super_block *sb, int type)
 		up_read(&sbi->quota_sem);
 		f2fs_unlock_op(sbi);
 
-		inode_unlock(dqopt->files[cnt]);
+		if (!f2fs_sb_has_quota_ino(sbi))
+			inode_unlock(dqopt->files[cnt]);
 
 		if (ret)
 			break;
@@ -2919,6 +2932,11 @@ static const struct quotactl_ops f2fs_quotactl_ops = {
 	.get_nextdqblk	= dquot_get_next_dqblk,
 };
 #else
+int f2fs_dquot_initialize(struct inode *inode)
+{
+	return 0;
+}
+
 int f2fs_quota_sync(struct super_block *sb, int type)
 {
 	return 0;

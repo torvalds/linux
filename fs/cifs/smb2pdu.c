@@ -268,6 +268,9 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 			ses->binding_chan = NULL;
 			mutex_unlock(&tcon->ses->session_mutex);
 			goto failed;
+		} else if (rc) {
+			mutex_unlock(&ses->session_mutex);
+			goto out;
 		}
 	}
 	/*

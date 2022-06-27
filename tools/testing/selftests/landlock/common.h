@@ -29,6 +29,7 @@
  * this to be possible, we must not call abort() but instead exit smoothly
  * (hence the step print).
  */
+/* clang-format off */
 #define TEST_F_FORK(fixture_name, test_name) \
 	static void fixture_name##_##test_name##_child( \
 		struct __test_metadata *_metadata, \
@@ -75,11 +76,12 @@
 		FIXTURE_DATA(fixture_name) __attribute__((unused)) *self, \
 		const FIXTURE_VARIANT(fixture_name) \
 			__attribute__((unused)) *variant)
+/* clang-format on */
 
 #ifndef landlock_create_ruleset
-static inline int landlock_create_ruleset(
-		const struct landlock_ruleset_attr *const attr,
-		const size_t size, const __u32 flags)
+static inline int
+landlock_create_ruleset(const struct landlock_ruleset_attr *const attr,
+			const size_t size, const __u32 flags)
 {
 	return syscall(__NR_landlock_create_ruleset, attr, size, flags);
 }
@@ -87,17 +89,18 @@ static inline int landlock_create_ruleset(
 
 #ifndef landlock_add_rule
 static inline int landlock_add_rule(const int ruleset_fd,
-		const enum landlock_rule_type rule_type,
-		const void *const rule_attr, const __u32 flags)
+				    const enum landlock_rule_type rule_type,
+				    const void *const rule_attr,
+				    const __u32 flags)
 {
-	return syscall(__NR_landlock_add_rule, ruleset_fd, rule_type,
-			rule_attr, flags);
+	return syscall(__NR_landlock_add_rule, ruleset_fd, rule_type, rule_attr,
+		       flags);
 }
 #endif
 
 #ifndef landlock_restrict_self
 static inline int landlock_restrict_self(const int ruleset_fd,
-		const __u32 flags)
+					 const __u32 flags)
 {
 	return syscall(__NR_landlock_restrict_self, ruleset_fd, flags);
 }
@@ -115,69 +118,76 @@ static void _init_caps(struct __test_metadata *const _metadata, bool drop_all)
 	};
 
 	cap_p = cap_get_proc();
-	EXPECT_NE(NULL, cap_p) {
+	EXPECT_NE(NULL, cap_p)
+	{
 		TH_LOG("Failed to cap_get_proc: %s", strerror(errno));
 	}
-	EXPECT_NE(-1, cap_clear(cap_p)) {
+	EXPECT_NE(-1, cap_clear(cap_p))
+	{
 		TH_LOG("Failed to cap_clear: %s", strerror(errno));
 	}
 	if (!drop_all) {
 		EXPECT_NE(-1, cap_set_flag(cap_p, CAP_PERMITTED,
-					ARRAY_SIZE(caps), caps, CAP_SET)) {
+					   ARRAY_SIZE(caps), caps, CAP_SET))
+		{
 			TH_LOG("Failed to cap_set_flag: %s", strerror(errno));
 		}
 	}
-	EXPECT_NE(-1, cap_set_proc(cap_p)) {
+	EXPECT_NE(-1, cap_set_proc(cap_p))
+	{
 		TH_LOG("Failed to cap_set_proc: %s", strerror(errno));
 	}
-	EXPECT_NE(-1, cap_free(cap_p)) {
+	EXPECT_NE(-1, cap_free(cap_p))
+	{
 		TH_LOG("Failed to cap_free: %s", strerror(errno));
 	}
 }
 
 /* We cannot put such helpers in a library because of kselftest_harness.h . */
-__attribute__((__unused__))
-static void disable_caps(struct __test_metadata *const _metadata)
+__attribute__((__unused__)) static void
+disable_caps(struct __test_metadata *const _metadata)
 {
 	_init_caps(_metadata, false);
 }
 
-__attribute__((__unused__))
-static void drop_caps(struct __test_metadata *const _metadata)
+__attribute__((__unused__)) static void
+drop_caps(struct __test_metadata *const _metadata)
 {
 	_init_caps(_metadata, true);
 }
 
 static void _effective_cap(struct __test_metadata *const _metadata,
-		const cap_value_t caps, const cap_flag_value_t value)
+			   const cap_value_t caps, const cap_flag_value_t value)
 {
 	cap_t cap_p;
 
 	cap_p = cap_get_proc();
-	EXPECT_NE(NULL, cap_p) {
+	EXPECT_NE(NULL, cap_p)
+	{
 		TH_LOG("Failed to cap_get_proc: %s", strerror(errno));
 	}
-	EXPECT_NE(-1, cap_set_flag(cap_p, CAP_EFFECTIVE, 1, &caps, value)) {
+	EXPECT_NE(-1, cap_set_flag(cap_p, CAP_EFFECTIVE, 1, &caps, value))
+	{
 		TH_LOG("Failed to cap_set_flag: %s", strerror(errno));
 	}
-	EXPECT_NE(-1, cap_set_proc(cap_p)) {
+	EXPECT_NE(-1, cap_set_proc(cap_p))
+	{
 		TH_LOG("Failed to cap_set_proc: %s", strerror(errno));
 	}
-	EXPECT_NE(-1, cap_free(cap_p)) {
+	EXPECT_NE(-1, cap_free(cap_p))
+	{
 		TH_LOG("Failed to cap_free: %s", strerror(errno));
 	}
 }
 
-__attribute__((__unused__))
-static void set_cap(struct __test_metadata *const _metadata,
-		const cap_value_t caps)
+__attribute__((__unused__)) static void
+set_cap(struct __test_metadata *const _metadata, const cap_value_t caps)
 {
 	_effective_cap(_metadata, caps, CAP_SET);
 }
 
-__attribute__((__unused__))
-static void clear_cap(struct __test_metadata *const _metadata,
-		const cap_value_t caps)
+__attribute__((__unused__)) static void
+clear_cap(struct __test_metadata *const _metadata, const cap_value_t caps)
 {
 	_effective_cap(_metadata, caps, CAP_CLEAR);
 }

@@ -267,7 +267,7 @@ static void isc_sama5d2_config_rlp(struct isc_device *isc)
 	 * Thus, if the YCYC mode is selected, replace it with the
 	 * sama5d2-compliant mode which is YYCC .
 	 */
-	if ((rlp_mode & ISC_RLP_CFG_MODE_YCYC) == ISC_RLP_CFG_MODE_YCYC) {
+	if ((rlp_mode & ISC_RLP_CFG_MODE_MASK) == ISC_RLP_CFG_MODE_YCYC) {
 		rlp_mode &= ~ISC_RLP_CFG_MODE_MASK;
 		rlp_mode |= ISC_RLP_CFG_MODE_YYCC;
 	}
@@ -537,7 +537,7 @@ static int atmel_isc_probe(struct platform_device *pdev)
 	ret = clk_prepare_enable(isc->ispck);
 	if (ret) {
 		dev_err(dev, "failed to enable ispck: %d\n", ret);
-		goto cleanup_subdev;
+		goto disable_pm;
 	}
 
 	/* ispck should be greater or equal to hclock */
@@ -554,6 +554,9 @@ static int atmel_isc_probe(struct platform_device *pdev)
 
 unprepare_clk:
 	clk_disable_unprepare(isc->ispck);
+
+disable_pm:
+	pm_runtime_disable(dev);
 
 cleanup_subdev:
 	isc_subdev_cleanup(isc);

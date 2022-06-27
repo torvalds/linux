@@ -12,6 +12,92 @@
 #include "encls.h"
 #include "sgx.h"
 
+#define PCMDS_PER_PAGE (PAGE_SIZE / sizeof(struct sgx_pcmd))
+/*
+ * 32 PCMD entries share a PCMD page. PCMD_FIRST_MASK is used to
+ * determine the page index associated with the first PCMD entry
+ * within a PCMD page.
+ */
+#define PCMD_FIRST_MASK GENMASK(4, 0)
+
+/**
+ * reclaimer_writing_to_pcmd() - Query if any enclave page associated with
+ *                               a PCMD page is in process of being reclaimed.
+ * @encl:        Enclave to which PCMD page belongs
+ * @start_addr:  Address of enclave page using first entry within the PCMD page
+ *
+ * When an enclave page is reclaimed some Paging Crypto MetaData (PCMD) is
+ * stored. The PCMD data of a reclaimed enclave page contains enough
+ * information for the processor to verify the page at the time
+ * it is loaded back into the Enclave Page Cache (EPC).
+ *
+ * The backing storage to which enclave pages are reclaimed is laid out as
+ * follows:
+ * Encrypted enclave pages:SECS page:PCMD pages
+ *
+ * Each PCMD page contains the PCMD metadata of
+ * PAGE_SIZE/sizeof(struct sgx_pcmd) enclave pages.
+ *
+ * A PCMD page can only be truncated if it is (a) empty, and (b) not in the
+ * process of getting data (and thus soon being non-empty). (b) is tested with
+ * a check if an enclave page sharing the PCMD page is in the process of being
+ * reclaimed.
+ *
+ * The reclaimer sets the SGX_ENCL_PAGE_BEING_RECLAIMED flag when it
+ * intends to reclaim that enclave page - it means that the PCMD page
+ * associated with that enclave page is about to get some data and thus
+ * even if the PCMD page is empty, it should not be truncated.
+ *
+ * Context: Enclave mutex (&sgx_encl->lock) must be held.
+ * Return: 1 if the reclaimer is about to write to the PCMD page
+ *         0 if the reclaimer has no intention to write to the PCMD page
+ */
+static int reclaimer_writing_to_pcmd(struct sgx_encl *encl,
+				     unsigned long start_addr)
+{
+	int reclaimed = 0;
+	int i;
+
+	/*
+	 * PCMD_FIRST_MASK is based on number of PCMD entries within
+	 * PCMD page being 32.
+	 */
+	BUILD_BUG_ON(PCMDS_PER_PAGE != 32);
+
+	for (i = 0; i < PCMDS_PER_PAGE; i++) {
+		struct sgx_encl_page *entry;
+		unsigned long addr;
+
+		addr = start_addr + i * PAGE_SIZE;
+
+		/*
+		 * Stop when reaching the SECS page - it does not
+		 * have a page_array entry and its reclaim is
+		 * started and completed with enclave mutex held so
+		 * it does not use the SGX_ENCL_PAGE_BEING_RECLAIMED
+		 * flag.
+		 */
+		if (addr == encl->base + encl->size)
+			break;
+
+		entry = xa_load(&encl->page_array, PFN_DOWN(addr));
+		if (!entry)
+			continue;
+
+		/*
+		 * VA page slot ID uses same bit as the flag so it is important
+		 * to ensure that the page is not already in backing store.
+		 */
+		if (entry->epc_page &&
+		    (entry->desc & SGX_ENCL_PAGE_BEING_RECLAIMED)) {
+			reclaimed = 1;
+			break;
+		}
+	}
+
+	return reclaimed;
+}
+
 /*
  * Calculate byte offset of a PCMD struct associated with an enclave page. PCMD's
  * follow right after the EPC data in the backing storage. In addition to the
@@ -47,6 +133,7 @@ static int __sgx_encl_eldu(struct sgx_encl_page *encl_page,
 	unsigned long va_offset = encl_page->desc & SGX_ENCL_PAGE_VA_OFFSET_MASK;
 	struct sgx_encl *encl = encl_page->encl;
 	pgoff_t page_index, page_pcmd_off;
+	unsigned long pcmd_first_page;
 	struct sgx_pageinfo pginfo;
 	struct sgx_backing b;
 	bool pcmd_page_empty;
@@ -58,9 +145,14 @@ static int __sgx_encl_eldu(struct sgx_encl_page *encl_page,
 	else
 		page_index = PFN_DOWN(encl->size);
 
+	/*
+	 * Address of enclave page using the first entry within the PCMD page.
+	 */
+	pcmd_first_page = PFN_PHYS(page_index & ~PCMD_FIRST_MASK) + encl->base;
+
 	page_pcmd_off = sgx_encl_get_backing_page_pcmd_offset(encl, page_index);
 
-	ret = sgx_encl_get_backing(encl, page_index, &b);
+	ret = sgx_encl_lookup_backing(encl, page_index, &b);
 	if (ret)
 		return ret;
 
@@ -84,6 +176,7 @@ static int __sgx_encl_eldu(struct sgx_encl_page *encl_page,
 	}
 
 	memset(pcmd_page + b.pcmd_offset, 0, sizeof(struct sgx_pcmd));
+	set_page_dirty(b.pcmd);
 
 	/*
 	 * The area for the PCMD in the page was zeroed above.  Check if the
@@ -94,12 +187,20 @@ static int __sgx_encl_eldu(struct sgx_encl_page *encl_page,
 	kunmap_atomic(pcmd_page);
 	kunmap_atomic((void *)(unsigned long)pginfo.contents);
 
-	sgx_encl_put_backing(&b, false);
+	get_page(b.pcmd);
+	sgx_encl_put_backing(&b);
 
 	sgx_encl_truncate_backing_page(encl, page_index);
 
-	if (pcmd_page_empty)
+	if (pcmd_page_empty && !reclaimer_writing_to_pcmd(encl, pcmd_first_page)) {
 		sgx_encl_truncate_backing_page(encl, PFN_DOWN(page_pcmd_off));
+		pcmd_page = kmap_atomic(b.pcmd);
+		if (memchr_inv(pcmd_page, 0, PAGE_SIZE))
+			pr_warn("PCMD page not empty after truncate.\n");
+		kunmap_atomic(pcmd_page);
+	}
+
+	put_page(b.pcmd);
 
 	return ret;
 }
@@ -617,7 +718,7 @@ static struct page *sgx_encl_get_backing_page(struct sgx_encl *encl,
  *   0 on success,
  *   -errno otherwise.
  */
-int sgx_encl_get_backing(struct sgx_encl *encl, unsigned long page_index,
+static int sgx_encl_get_backing(struct sgx_encl *encl, unsigned long page_index,
 			 struct sgx_backing *backing)
 {
 	pgoff_t page_pcmd_off = sgx_encl_get_backing_page_pcmd_offset(encl, page_index);
@@ -642,18 +743,113 @@ int sgx_encl_get_backing(struct sgx_encl *encl, unsigned long page_index,
 	return 0;
 }
 
+/*
+ * When called from ksgxd, returns the mem_cgroup of a struct mm stored
+ * in the enclave's mm_list. When not called from ksgxd, just returns
+ * the mem_cgroup of the current task.
+ */
+static struct mem_cgroup *sgx_encl_get_mem_cgroup(struct sgx_encl *encl)
+{
+	struct mem_cgroup *memcg = NULL;
+	struct sgx_encl_mm *encl_mm;
+	int idx;
+
+	/*
+	 * If called from normal task context, return the mem_cgroup
+	 * of the current task's mm. The remainder of the handling is for
+	 * ksgxd.
+	 */
+	if (!current_is_ksgxd())
+		return get_mem_cgroup_from_mm(current->mm);
+
+	/*
+	 * Search the enclave's mm_list to find an mm associated with
+	 * this enclave to charge the allocation to.
+	 */
+	idx = srcu_read_lock(&encl->srcu);
+
+	list_for_each_entry_rcu(encl_mm, &encl->mm_list, list) {
+		if (!mmget_not_zero(encl_mm->mm))
+			continue;
+
+		memcg = get_mem_cgroup_from_mm(encl_mm->mm);
+
+		mmput_async(encl_mm->mm);
+
+		break;
+	}
+
+	srcu_read_unlock(&encl->srcu, idx);
+
+	/*
+	 * In the rare case that there isn't an mm associated with
+	 * the enclave, set memcg to the current active mem_cgroup.
+	 * This will be the root mem_cgroup if there is no active
+	 * mem_cgroup.
+	 */
+	if (!memcg)
+		return get_mem_cgroup_from_mm(NULL);
+
+	return memcg;
+}
+
+/**
+ * sgx_encl_alloc_backing() - allocate a new backing storage page
+ * @encl:	an enclave pointer
+ * @page_index:	enclave page index
+ * @backing:	data for accessing backing storage for the page
+ *
+ * When called from ksgxd, sets the active memcg from one of the
+ * mms in the enclave's mm_list prior to any backing page allocation,
+ * in order to ensure that shmem page allocations are charged to the
+ * enclave.
+ *
+ * Return:
+ *   0 on success,
+ *   -errno otherwise.
+ */
+int sgx_encl_alloc_backing(struct sgx_encl *encl, unsigned long page_index,
+			   struct sgx_backing *backing)
+{
+	struct mem_cgroup *encl_memcg = sgx_encl_get_mem_cgroup(encl);
+	struct mem_cgroup *memcg = set_active_memcg(encl_memcg);
+	int ret;
+
+	ret = sgx_encl_get_backing(encl, page_index, backing);
+
+	set_active_memcg(memcg);
+	mem_cgroup_put(encl_memcg);
+
+	return ret;
+}
+
+/**
+ * sgx_encl_lookup_backing() - retrieve an existing backing storage page
+ * @encl:	an enclave pointer
+ * @page_index:	enclave page index
+ * @backing:	data for accessing backing storage for the page
+ *
+ * Retrieve a backing page for loading data back into an EPC page with ELDU.
+ * It is the caller's responsibility to ensure that it is appropriate to use
+ * sgx_encl_lookup_backing() rather than sgx_encl_alloc_backing(). If lookup is
+ * not used correctly, this will cause an allocation which is not accounted for.
+ *
+ * Return:
+ *   0 on success,
+ *   -errno otherwise.
+ */
+int sgx_encl_lookup_backing(struct sgx_encl *encl, unsigned long page_index,
+			   struct sgx_backing *backing)
+{
+	return sgx_encl_get_backing(encl, page_index, backing);
+}
+
 /**
  * sgx_encl_put_backing() - Unpin the backing storage
  * @backing:	data for accessing backing storage for the page
- * @do_write:	mark pages dirty
  */
-void sgx_encl_put_backing(struct sgx_backing *backing, bool do_write)
+void sgx_encl_put_backing(struct sgx_backing *backing)
 {
-	if (do_write) {
-		set_page_dirty(backing->pcmd);
-		set_page_dirty(backing->contents);
-	}
-
 	put_page(backing->pcmd);
 	put_page(backing->contents);
 }

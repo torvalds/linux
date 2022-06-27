@@ -27,7 +27,7 @@
 	};
 
 	/* Fixed crystal oscillator dedicated to MCP2518FD */
-	clk40M: can_clock {
+	clk40M: can-clock {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		clock-frequency = <40000000>;

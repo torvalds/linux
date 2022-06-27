@@ -314,6 +314,9 @@ static int bcm_pmb_probe(struct platform_device *pdev)
 	for (e = table; e->name; e++) {
 		struct bcm_pmb_pm_domain *pd = devm_kzalloc(dev, sizeof(*pd), GFP_KERNEL);
 
+		if (!pd)
+			return -ENOMEM;
+
 		pd->pmb = pmb;
 		pd->data = e;
 		pd->genpd.name = e->name;

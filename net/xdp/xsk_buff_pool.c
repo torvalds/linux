@@ -37,8 +37,19 @@ void xp_destroy(struct xsk_buff_pool *pool)
 	if (!pool)
 		return;
 
+	kvfree(pool->tx_descs);
 	kvfree(pool->heads);
 	kvfree(pool);
+}
+
+int xp_alloc_tx_descs(struct xsk_buff_pool *pool, struct xdp_sock *xs)
+{
+	pool->tx_descs = kvcalloc(xs->tx->nentries, sizeof(*pool->tx_descs),
+				  GFP_KERNEL);
+	if (!pool->tx_descs)
+		return -ENOMEM;
+
+	return 0;
 }
 
 struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
@@ -56,6 +67,10 @@ struct xsk_buff_pool *xp_create_and_assign_umem(struct xdp_sock *xs,
 	pool->heads = kvcalloc(umem->chunks, sizeof(*pool->heads), GFP_KERNEL);
 	if (!pool->heads)
 		goto out;
+
+	if (xs->tx)
+		if (xp_alloc_tx_descs(pool, xs))
+			goto out;
 
 	pool->chunk_mask = ~((u64)umem->chunk_size - 1);
 	pool->addrs_cnt = umem->size;

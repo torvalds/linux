@@ -433,7 +433,7 @@
 			clock-names = "spi", "sf", "axi";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			status = "disable";
+			status = "disabled";
 		};
 
 		i2c3: i2c3@11cb0000 {

@@ -378,7 +378,7 @@ bool ice_alloc_rx_bufs_zc(struct ice_ring *rx_ring, u16 count)
 
 	do {
 		*xdp = xsk_buff_alloc(rx_ring->xsk_pool);
-		if (!xdp) {
+		if (!*xdp) {
 			ok = false;
 			break;
 		}

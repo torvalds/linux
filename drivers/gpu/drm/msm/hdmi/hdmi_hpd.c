@@ -11,13 +11,6 @@
 #include "msm_kms.h"
 #include "hdmi.h"
 
-struct hdmi_connector {
-	struct drm_connector base;
-	struct hdmi *hdmi;
-	struct work_struct hpd_work;
-};
-#define to_hdmi_connector(x) container_of(x, struct hdmi_connector, base)
-
 static void msm_hdmi_phy_reset(struct hdmi *hdmi)
 {
 	unsigned int val;
@@ -139,10 +132,10 @@ static void enable_hpd_clocks(struct hdmi *hdmi, bool enable)
 	}
 }
 
-int msm_hdmi_hpd_enable(struct drm_connector *connector)
+int msm_hdmi_hpd_enable(struct drm_bridge *bridge)
 {
-	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
-	struct hdmi *hdmi = hdmi_connector->hdmi;
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
 	const struct hdmi_platform_config *config = hdmi->config;
 	struct device *dev = &hdmi->pdev->dev;
 	uint32_t hpd_ctrl;
@@ -202,9 +195,9 @@ fail:
 	return ret;
 }
 
-static void hdp_disable(struct hdmi_connector *hdmi_connector)
+void msm_hdmi_hpd_disable(struct hdmi_bridge *hdmi_bridge)
 {
-	struct hdmi *hdmi = hdmi_connector->hdmi;
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
 	const struct hdmi_platform_config *config = hdmi->config;
 	struct device *dev = &hdmi->pdev->dev;
 	int i, ret = 0;
@@ -233,19 +226,10 @@ static void hdp_disable(struct hdmi_connector *hdmi_connector)
 	}
 }
 
-static void
-msm_hdmi_hotplug_work(struct work_struct *work)
+void msm_hdmi_hpd_irq(struct drm_bridge *bridge)
 {
-	struct hdmi_connector *hdmi_connector =
-		container_of(work, struct hdmi_connector, hpd_work);
-	struct drm_connector *connector = &hdmi_connector->base;
-	drm_helper_hpd_irq_event(connector->dev);
-}
-
-void msm_hdmi_connector_irq(struct drm_connector *connector)
-{
-	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
-	struct hdmi *hdmi = hdmi_connector->hdmi;
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
 	uint32_t hpd_int_status, hpd_int_ctrl;
 
 	/* Process HPD: */
@@ -268,7 +252,7 @@ void msm_hdmi_connector_irq(struct drm_connector *connector)
 			hpd_int_ctrl |= HDMI_HPD_INT_CTRL_INT_CONNECT;
 		hdmi_write(hdmi, REG_HDMI_HPD_INT_CTRL, hpd_int_ctrl);
 
-		queue_work(hdmi->workq, &hdmi_connector->hpd_work);
+		queue_work(hdmi->workq, &hdmi_bridge->hpd_work);
 	}
 }
 
@@ -299,11 +283,11 @@ static enum drm_connector_status detect_gpio(struct hdmi *hdmi)
 			connector_status_disconnected;
 }
 
-static enum drm_connector_status hdmi_connector_detect(
-		struct drm_connector *connector, bool force)
+enum drm_connector_status msm_hdmi_bridge_detect(
+		struct drm_bridge *bridge)
 {
-	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
-	struct hdmi *hdmi = hdmi_connector->hdmi;
+	struct hdmi_bridge *hdmi_bridge = to_hdmi_bridge(bridge);
+	struct hdmi *hdmi = hdmi_bridge->hdmi;
 	const struct hdmi_platform_config *config = hdmi->config;
 	struct hdmi_gpio_data hpd_gpio = config->gpios[HPD_GPIO_INDEX];
 	enum drm_connector_status stat_gpio, stat_reg;
@@ -336,116 +320,4 @@ static enum drm_connector_status hdmi_connector_detect(
 	}
 
 	return stat_gpio;
-}
-
-static void hdmi_connector_destroy(struct drm_connector *connector)
-{
-	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
-
-	hdp_disable(hdmi_connector);
-
-	drm_connector_cleanup(connector);
-
-	kfree(hdmi_connector);
-}
-
-static int msm_hdmi_connector_get_modes(struct drm_connector *connector)
-{
-	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
-	struct hdmi *hdmi = hdmi_connector->hdmi;
-	struct edid *edid;
-	uint32_t hdmi_ctrl;
-	int ret = 0;
-
-	hdmi_ctrl = hdmi_read(hdmi, REG_HDMI_CTRL);
-	hdmi_write(hdmi, REG_HDMI_CTRL, hdmi_ctrl | HDMI_CTRL_ENABLE);
-
-	edid = drm_get_edid(connector, hdmi->i2c);
-
-	hdmi_write(hdmi, REG_HDMI_CTRL, hdmi_ctrl);
-
-	hdmi->hdmi_mode = drm_detect_hdmi_monitor(edid);
-	drm_connector_update_edid_property(connector, edid);
-
-	if (edid) {
-		ret = drm_add_edid_modes(connector, edid);
-		kfree(edid);
-	}
-
-	return ret;
-}
-
-static int msm_hdmi_connector_mode_valid(struct drm_connector *connector,
-				 struct drm_display_mode *mode)
-{
-	struct hdmi_connector *hdmi_connector = to_hdmi_connector(connector);
-	struct hdmi *hdmi = hdmi_connector->hdmi;
-	const struct hdmi_platform_config *config = hdmi->config;
-	struct msm_drm_private *priv = connector->dev->dev_private;
-	struct msm_kms *kms = priv->kms;
-	long actual, requested;
-
-	requested = 1000 * mode->clock;
-	actual = kms->funcs->round_pixclk(kms,
-			requested, hdmi_connector->hdmi->encoder);
-
-	/* for mdp5/apq8074, we manage our own pixel clk (as opposed to
-	 * mdp4/dtv stuff where pixel clk is assigned to mdp/encoder
-	 * instead):
-	 */
-	if (config->pwr_clk_cnt > 0)
-		actual = clk_round_rate(hdmi->pwr_clks[0], actual);
-
-	DBG("requested=%ld, actual=%ld", requested, actual);
-
-	if (actual != requested)
-		return MODE_CLOCK_RANGE;
-
-	return 0;
-}
-
-static const struct drm_connector_funcs hdmi_connector_funcs = {
-	.detect = hdmi_connector_detect,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = hdmi_connector_destroy,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static const struct drm_connector_helper_funcs msm_hdmi_connector_helper_funcs = {
-	.get_modes = msm_hdmi_connector_get_modes,
-	.mode_valid = msm_hdmi_connector_mode_valid,
-};
-
-/* initialize connector */
-struct drm_connector *msm_hdmi_connector_init(struct hdmi *hdmi)
-{
-	struct drm_connector *connector = NULL;
-	struct hdmi_connector *hdmi_connector;
-
-	hdmi_connector = kzalloc(sizeof(*hdmi_connector), GFP_KERNEL);
-	if (!hdmi_connector)
-		return ERR_PTR(-ENOMEM);
-
-	hdmi_connector->hdmi = hdmi;
-	INIT_WORK(&hdmi_connector->hpd_work, msm_hdmi_hotplug_work);
-
-	connector = &hdmi_connector->base;
-
-	drm_connector_init_with_ddc(hdmi->dev, connector,
-				    &hdmi_connector_funcs,
-				    DRM_MODE_CONNECTOR_HDMIA,
-				    hdmi->i2c);
-	drm_connector_helper_add(connector, &msm_hdmi_connector_helper_funcs);
-
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-			DRM_CONNECTOR_POLL_DISCONNECT;
-
-	connector->interlace_allowed = 0;
-	connector->doublescan_allowed = 0;
-
-	drm_connector_attach_encoder(connector, hdmi->encoder);
-
-	return connector;
 }

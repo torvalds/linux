@@ -83,6 +83,7 @@ struct mbox_controller {
 				      const struct of_phandle_args *sp);
 	/* Internal to API */
 	struct hrtimer poll_hrt;
+	spinlock_t poll_hrt_lock;
 	struct list_head node;
 };
 

@@ -1221,7 +1221,9 @@ u64 vmbus_next_request_id(struct vmbus_channel *channel, u64 rqst_addr)
 
 	/*
 	 * Cannot return an ID of 0, which is reserved for an unsolicited
-	 * message from Hyper-V.
+	 * message from Hyper-V; Hyper-V does not acknowledge (respond to)
+	 * VMBUS_DATA_PACKET_FLAG_COMPLETION_REQUESTED requests with ID of
+	 * 0 sent by the guest.
 	 */
 	return current_id + 1;
 }
@@ -1246,7 +1248,7 @@ u64 vmbus_request_addr(struct vmbus_channel *channel, u64 trans_id)
 
 	/* Hyper-V can send an unsolicited message with ID of 0 */
 	if (!trans_id)
-		return trans_id;
+		return VMBUS_RQST_ERROR;
 
 	spin_lock_irqsave(&rqstor->req_lock, flags);
 

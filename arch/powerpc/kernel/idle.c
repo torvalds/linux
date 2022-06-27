@@ -37,7 +37,7 @@ static int __init powersave_off(char *arg)
 {
 	ppc_md.power_save = NULL;
 	cpuidle_disable = IDLE_POWERSAVE_OFF;
-	return 0;
+	return 1;
 }
 __setup("powersave=off", powersave_off);
 
@@ -82,7 +82,7 @@ void power4_idle(void)
 		return;
 
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		asm volatile("DSSALL ; sync" ::: "memory");
+		asm volatile(PPC_DSSALL " ; sync" ::: "memory");
 
 	power4_idle_nap();
 

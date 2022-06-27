@@ -33,7 +33,9 @@ struct landlock_ruleset_attr {
  * - %LANDLOCK_CREATE_RULESET_VERSION: Get the highest supported Landlock ABI
  *   version.
  */
+/* clang-format off */
 #define LANDLOCK_CREATE_RULESET_VERSION			(1U << 0)
+/* clang-format on */
 
 /**
  * enum landlock_rule_type - Landlock rule type
@@ -60,8 +62,9 @@ struct landlock_path_beneath_attr {
 	 */
 	__u64 allowed_access;
 	/**
-	 * @parent_fd: File descriptor, open with ``O_PATH``, which identifies
-	 * the parent directory of a file hierarchy, or just a file.
+	 * @parent_fd: File descriptor, preferably opened with ``O_PATH``,
+	 * which identifies the parent directory of a file hierarchy, or just a
+	 * file.
 	 */
 	__s32 parent_fd;
 	/*
@@ -120,6 +123,7 @@ struct landlock_path_beneath_attr {
  *   :manpage:`access(2)`.
  *   Future Landlock evolutions will enable to restrict them.
  */
+/* clang-format off */
 #define LANDLOCK_ACCESS_FS_EXECUTE			(1ULL << 0)
 #define LANDLOCK_ACCESS_FS_WRITE_FILE			(1ULL << 1)
 #define LANDLOCK_ACCESS_FS_READ_FILE			(1ULL << 2)
@@ -133,5 +137,6 @@ struct landlock_path_beneath_attr {
 #define LANDLOCK_ACCESS_FS_MAKE_FIFO			(1ULL << 10)
 #define LANDLOCK_ACCESS_FS_MAKE_BLOCK			(1ULL << 11)
 #define LANDLOCK_ACCESS_FS_MAKE_SYM			(1ULL << 12)
+/* clang-format on */
 
 #endif /* _UAPI_LINUX_LANDLOCK_H */

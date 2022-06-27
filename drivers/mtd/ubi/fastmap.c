@@ -1230,17 +1230,6 @@ static int ubi_write_fastmap(struct ubi_device *ubi,
 		fm_pos += sizeof(*fec);
 		ubi_assert(fm_pos <= ubi->fm_size);
 	}
-	if (ubi->fm_next_anchor) {
-		fec = (struct ubi_fm_ec *)(fm_raw + fm_pos);
-
-		fec->pnum = cpu_to_be32(ubi->fm_next_anchor->pnum);
-		set_seen(ubi, ubi->fm_next_anchor->pnum, seen_pebs);
-		fec->ec = cpu_to_be32(ubi->fm_next_anchor->ec);
-
-		free_peb_count++;
-		fm_pos += sizeof(*fec);
-		ubi_assert(fm_pos <= ubi->fm_size);
-	}
 	fmh->free_peb_count = cpu_to_be32(free_peb_count);
 
 	ubi_for_each_used_peb(ubi, wl_e, tmp_rb) {

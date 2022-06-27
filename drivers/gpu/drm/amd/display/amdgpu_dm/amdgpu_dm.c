@@ -989,6 +989,32 @@ static int dm_dmub_hw_init(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void dm_dmub_hw_resume(struct amdgpu_device *adev)
+{
+	struct dmub_srv *dmub_srv = adev->dm.dmub_srv;
+	enum dmub_status status;
+	bool init;
+
+	if (!dmub_srv) {
+		/* DMUB isn't supported on the ASIC. */
+		return;
+	}
+
+	status = dmub_srv_is_hw_init(dmub_srv, &init);
+	if (status != DMUB_STATUS_OK)
+		DRM_WARN("DMUB hardware init check failed: %d\n", status);
+
+	if (status == DMUB_STATUS_OK && init) {
+		/* Wait for firmware load to finish. */
+		status = dmub_srv_wait_for_auto_load(dmub_srv, 100000);
+		if (status != DMUB_STATUS_OK)
+			DRM_WARN("Wait for DMUB auto-load failed: %d\n", status);
+	} else {
+		/* Perform the full hardware initialization. */
+		dm_dmub_hw_init(adev);
+	}
+}
+
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 static void mmhub_read_system_context(struct amdgpu_device *adev, struct dc_phy_addr_space_config *pa_config)
 {
@@ -2268,9 +2294,7 @@ static int dm_resume(void *handle)
 		amdgpu_dm_outbox_init(adev);
 
 	/* Before powering on DC we need to re-initialize DMUB. */
-	r = dm_dmub_hw_init(adev);
-	if (r)
-		DRM_ERROR("DMUB interface failed to initialize: status=%d\n", r);
+	dm_dmub_hw_resume(adev);
 
 	/* power on hardware */
 	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);
@@ -2417,7 +2441,7 @@ static struct drm_mode_config_helper_funcs amdgpu_dm_mode_config_helperfuncs = {
 
 static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 {
-	u32 max_cll, min_cll, max, min, q, r;
+	u32 max_avg, min_cll, max, min, q, r;
 	struct amdgpu_dm_backlight_caps *caps;
 	struct amdgpu_display_manager *dm;
 	struct drm_connector *conn_base;
@@ -2447,7 +2471,7 @@ static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 	caps = &dm->backlight_caps[i];
 	caps->ext_caps = &aconnector->dc_link->dpcd_sink_ext_caps;
 	caps->aux_support = false;
-	max_cll = conn_base->hdr_sink_metadata.hdmi_type1.max_cll;
+	max_avg = conn_base->hdr_sink_metadata.hdmi_type1.max_fall;
 	min_cll = conn_base->hdr_sink_metadata.hdmi_type1.min_cll;
 
 	if (caps->ext_caps->bits.oled == 1 /*||
@@ -2475,8 +2499,8 @@ static void update_connector_ext_caps(struct amdgpu_dm_connector *aconnector)
 	 * The results of the above expressions can be verified at
 	 * pre_computed_values.
 	 */
-	q = max_cll >> 5;
-	r = max_cll % 32;
+	q = max_avg >> 5;
+	r = max_avg % 32;
 	max = (1 << q) * pre_computed_values[r];
 
 	// min luminance: maxLum * (CV/255)^2 / 100
