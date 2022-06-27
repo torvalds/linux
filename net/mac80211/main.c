@@ -281,6 +281,9 @@ void ieee80211_link_info_change_notify(struct ieee80211_sub_if_data *sdata,
 	if (!changed || sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		return;
 
+	if (!check_sdata_in_driver(sdata))
+		return;
+
 	drv_link_info_changed(local, sdata, link_id, changed);
 }
 
