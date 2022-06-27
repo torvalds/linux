@@ -58,6 +58,7 @@
 /* dw9714 device structure */
 struct dw9714_device {
 	struct v4l2_ctrl_handler ctrls_vcm;
+	struct v4l2_ctrl *focus;
 	struct v4l2_subdev sd;
 	struct v4l2_device vdev;
 	u16 current_val;
@@ -72,6 +73,7 @@ struct dw9714_device {
 	unsigned int dlc_enable;
 	unsigned int t_src;
 	unsigned int mclk;
+	unsigned int max_logicalpos;
 
 	/* advanced mode*/
 	unsigned char adcanced_mode;
@@ -517,11 +519,11 @@ static int dw9714_get_pos(struct dw9714_device *dev_vcm,
 	ret = dw9714_get_dac(dev_vcm, &dac);
 	if (!ret) {
 		if (dac <= dev_vcm->start_current) {
-			position = VCMDRV_MAX_LOG;
+			position = dev_vcm->max_logicalpos;
 		} else if ((dac > dev_vcm->start_current) &&
 			 (dac <= dev_vcm->rated_current)) {
-			position = (dac - dev_vcm->start_current) * VCMDRV_MAX_LOG / range;
-			position = VCMDRV_MAX_LOG - position;
+			position = (dac - dev_vcm->start_current) * dev_vcm->max_logicalpos / range;
+			position = dev_vcm->max_logicalpos - position;
 		} else {
 			position = 0;
 		}
@@ -546,11 +548,11 @@ static int dw9714_set_pos(struct dw9714_device *dev_vcm,
 	int ret;
 
 	range = dev_vcm->rated_current - dev_vcm->start_current;
-	if (dest_pos >= VCMDRV_MAX_LOG)
+	if (dest_pos >= dev_vcm->max_logicalpos)
 		position = dev_vcm->start_current;
 	else
 		position = dev_vcm->start_current +
-			   (range * (VCMDRV_MAX_LOG - dest_pos) / VCMDRV_MAX_LOG);
+			   (range * (dev_vcm->max_logicalpos - dest_pos) / dev_vcm->max_logicalpos);
 
 	if (position > DW9714_MAX_REG)
 		position = DW9714_MAX_REG;
@@ -584,10 +586,10 @@ static int dw9714_set_ctrl(struct v4l2_ctrl *ctrl)
 	int ret = 0;
 
 	if (ctrl->id == V4L2_CID_FOCUS_ABSOLUTE) {
-		if (dest_pos > VCMDRV_MAX_LOG) {
+		if (dest_pos > dev_vcm->max_logicalpos) {
 			dev_err(&client->dev,
 				"%s dest_pos is error. %d > %d\n",
-				__func__, dest_pos, VCMDRV_MAX_LOG);
+				__func__, dest_pos, dev_vcm->max_logicalpos);
 			return -EINVAL;
 		}
 		/* calculate move time */
@@ -600,7 +602,8 @@ static int dw9714_set_ctrl(struct v4l2_ctrl *ctrl)
 			dev_vcm->move_ms = dev_vcm->vcm_movefull_t;
 		else
 			dev_vcm->move_ms =
-				((dev_vcm->vcm_movefull_t * (uint32_t)move_pos) / VCMDRV_MAX_LOG);
+				((dev_vcm->vcm_movefull_t * (uint32_t)move_pos) /
+				dev_vcm->max_logicalpos);
 
 		dev_dbg(&client->dev,
 			"dest_pos %d, dac %d, move_ms %ld\n",
@@ -682,6 +685,7 @@ static long dw9714_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
 	struct rk_cam_vcm_tim *vcm_tim;
 	struct rk_cam_vcm_cfg *vcm_cfg;
+	unsigned int max_logicalpos;
 	int ret = 0;
 
 	if (cmd == RK_VIDIOC_VCM_TIMEINFO) {
@@ -711,6 +715,16 @@ static long dw9714_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		dev_vcm->vcm_cfg.rated_ma = vcm_cfg->rated_ma;
 		dev_vcm->vcm_cfg.step_mode = vcm_cfg->step_mode;
 		dw9714_update_vcm_cfg(dev_vcm);
+	} else if (cmd == RK_VIDIOC_SET_VCM_MAX_LOGICALPOS) {
+		max_logicalpos = *(unsigned int *)arg;
+
+		if (max_logicalpos > 0) {
+			dev_vcm->max_logicalpos = max_logicalpos;
+			__v4l2_ctrl_modify_range(dev_vcm->focus,
+				0, dev_vcm->max_logicalpos, 1, dev_vcm->max_logicalpos);
+		}
+		dev_dbg(&client->dev,
+			"max_logicalpos %d\n", max_logicalpos);
 	} else {
 		dev_err(&client->dev,
 			"cmd 0x%x not supported\n", cmd);
@@ -729,6 +743,7 @@ static long dw9714_compat_ioctl32(struct v4l2_subdev *sd,
 	struct rk_cam_compat_vcm_tim compat_vcm_tim;
 	struct rk_cam_vcm_tim vcm_tim;
 	struct rk_cam_vcm_cfg vcm_cfg;
+	unsigned int max_logicalpos;
 	long ret;
 
 	if (cmd == RK_VIDIOC_COMPAT_VCM_TIMEINFO) {
@@ -759,6 +774,12 @@ static long dw9714_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(&vcm_cfg, up, sizeof(vcm_cfg));
 		if (!ret)
 			ret = dw9714_ioctl(sd, cmd, &vcm_cfg);
+		else
+			ret = -EFAULT;
+	} else if (cmd == RK_VIDIOC_SET_VCM_MAX_LOGICALPOS) {
+		ret = copy_from_user(&max_logicalpos, up, sizeof(max_logicalpos));
+		if (!ret)
+			ret = dw9714_ioctl(sd, cmd, &max_logicalpos);
 		else
 			ret = -EFAULT;
 	} else {
@@ -797,8 +818,8 @@ static int dw9714_init_controls(struct dw9714_device *dev_vcm)
 
 	v4l2_ctrl_handler_init(hdl, 1);
 
-	v4l2_ctrl_new_std(hdl, ops, V4L2_CID_FOCUS_ABSOLUTE,
-			  0, VCMDRV_MAX_LOG, 1, VCMDRV_MAX_LOG);
+	dev_vcm->focus = v4l2_ctrl_new_std(hdl, ops, V4L2_CID_FOCUS_ABSOLUTE,
+				0, dev_vcm->max_logicalpos, 1, dev_vcm->max_logicalpos);
 
 	if (hdl->error)
 		dev_err(dev_vcm->sd.dev, "%s fail error: 0x%x\n",
@@ -1074,6 +1095,7 @@ static int dw9714_probe(struct i2c_client *client,
 	dw9714_dev->sd.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	dw9714_dev->sd.internal_ops = &dw9714_int_ops;
 
+	dw9714_dev->max_logicalpos = VCMDRV_MAX_LOG;
 	ret = dw9714_init_controls(dw9714_dev);
 	if (ret)
 		goto err_cleanup;
@@ -1099,8 +1121,8 @@ static int dw9714_probe(struct i2c_client *client,
 		dev_err(&client->dev, "v4l2 async register subdev failed\n");
 
 	dw9714_update_vcm_cfg(dw9714_dev);
-	dw9714_dev->move_ms       = 0;
-	dw9714_dev->current_related_pos = VCMDRV_MAX_LOG;
+	dw9714_dev->move_ms = 0;
+	dw9714_dev->current_related_pos = dw9714_dev->max_logicalpos;
 	dw9714_dev->current_lens_pos = dw9714_dev->start_current;
 	dw9714_dev->start_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
 	dw9714_dev->end_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
