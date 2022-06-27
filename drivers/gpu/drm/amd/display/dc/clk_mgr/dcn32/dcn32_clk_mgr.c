@@ -291,8 +291,10 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 	/* Get UCLK, update bounding box */
 	clk_mgr_base->funcs->get_memclk_states_from_smu(clk_mgr_base);
 
+	DC_FP_START();
 	/* WM range table */
 	dcn32_build_wm_range_table(clk_mgr);
+	DC_FP_END();
 }
 
 static void dcn32_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr,
@@ -727,9 +729,11 @@ static void dcn32_get_memclk_states_from_smu(struct clk_mgr *clk_mgr_base)
 			&num_levels);
 	clk_mgr_base->bw_params->clk_table.num_entries = num_levels ? num_levels : 1;
 
+	DC_FP_START();
 	/* Refresh bounding box */
 	clk_mgr_base->ctx->dc->res_pool->funcs->update_bw_bounding_box(
 			clk_mgr->base.ctx->dc, clk_mgr_base->bw_params);
+	DC_FP_END();
 }
 
 static bool dcn32_are_clock_states_equal(struct dc_clocks *a,
