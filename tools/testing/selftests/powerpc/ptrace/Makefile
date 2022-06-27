@@ -11,7 +11,6 @@ TM_TESTS += ptrace-tm-vsx
 TESTS_64 := $(TM_TESTS)
 TESTS_64 += core-pkey
 TESTS_64 += perf-hwbreak
-TESTS_64 += ptrace-gpr
 TESTS_64 += ptrace-hwbreak
 TESTS_64 += ptrace-perf-hwbreak
 TESTS_64 += ptrace-pkey
@@ -19,7 +18,9 @@ TESTS_64 += ptrace-syscall
 TESTS_64 += ptrace-tar
 TESTS_64 += ptrace-vsx
 
-TEST_GEN_PROGS := $(TESTS_64)
+TESTS += ptrace-gpr
+
+TEST_GEN_PROGS := $(TESTS) $(TESTS_64)
 
 LOCAL_HDRS += $(patsubst %,$(selfdir)/powerpc/ptrace/%,$(wildcard *.h))
 
