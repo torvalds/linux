@@ -297,15 +297,15 @@ static const struct snd_kcontrol_new rv1106_codec_dapm_controls[] = {
 	/* ADC ALC */
 	SOC_SINGLE_RANGE_TLV("ADC ALC Left Volume",
 			     ACODEC_ADC_ANA_CTL4,
-			     ACODEC_ADC_L_DIG_VOL_SFT,
-			     ACODEC_ADC_L_DIG_VOL_MIN,
-			     ACODEC_ADC_L_DIG_VOL_MAX,
+			     ACODEC_ADC_L_ALC_GAIN_SFT,
+			     ACODEC_ADC_L_ALC_GAIN_MIN,
+			     ACODEC_ADC_L_ALC_GAIN_MAX,
 			     0, rv1106_codec_adc_alc_gain_tlv),
 	SOC_SINGLE_RANGE_TLV("ADC ALC Right Volume",
 			     ACODEC_ADC_ANA_CTL5,
-			     ACODEC_ADC_R_DIG_VOL_SFT,
-			     ACODEC_ADC_R_DIG_VOL_MIN,
-			     ACODEC_ADC_R_DIG_VOL_MAX,
+			     ACODEC_ADC_R_ALC_GAIN_SFT,
+			     ACODEC_ADC_R_ALC_GAIN_MIN,
+			     ACODEC_ADC_R_ALC_GAIN_MAX,
 			     0, rv1106_codec_adc_alc_gain_tlv),
 
 	/* ADC Digital Volume */
