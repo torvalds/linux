@@ -1274,8 +1274,21 @@ static int iqs7222_ati_trigger(struct iqs7222_private *iqs7222)
 	struct i2c_client *client = iqs7222->client;
 	ktime_t ati_timeout;
 	u16 sys_status = 0;
-	u16 sys_setup = iqs7222->sys_setup[0] & ~IQS7222_SYS_SETUP_ACK_RESET;
+	u16 sys_setup;
 	int error, i;
+
+	/*
+	 * The reserved fields of the system setup register may have changed
+	 * as a result of other registers having been written. As such, read
+	 * the register's latest value to avoid unexpected behavior when the
+	 * register is written in the loop that follows.
+	 */
+	error = iqs7222_read_word(iqs7222, IQS7222_SYS_SETUP, &sys_setup);
+	if (error)
+		return error;
+
+	sys_setup &= ~IQS7222_SYS_SETUP_INTF_MODE_MASK;
+	sys_setup &= ~IQS7222_SYS_SETUP_PWR_MODE_MASK;
 
 	for (i = 0; i < IQS7222_NUM_RETRIES; i++) {
 		/*
@@ -2240,9 +2253,6 @@ static int iqs7222_parse_all(struct iqs7222_private *iqs7222)
 		if (error)
 			return error;
 	}
-
-	sys_setup[0] &= ~IQS7222_SYS_SETUP_INTF_MODE_MASK;
-	sys_setup[0] &= ~IQS7222_SYS_SETUP_PWR_MODE_MASK;
 
 	sys_setup[0] |= IQS7222_SYS_SETUP_ACK_RESET;
 
