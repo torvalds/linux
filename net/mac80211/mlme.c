@@ -2540,6 +2540,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	link->u.mgd.have_beacon = false;
 	link->u.mgd.tracking_signal_avg = false;
+	link->u.mgd.disable_wmm_tracking = false;
 
 	ifmgd->flags = 0;
 	link->u.mgd.conn_flags = 0;
@@ -3795,21 +3796,21 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	link->u.mgd.wmm_last_param_set = -1;
 	link->u.mgd.mu_edca_last_param_set = -1;
 
-	if (ifmgd->flags & IEEE80211_STA_DISABLE_WMM) {
+	if (link->u.mgd.disable_wmm_tracking) {
 		ieee80211_set_wmm_default(link, false, false);
 	} else if (!ieee80211_sta_wmm_params(local, link, elems->wmm_param,
 					     elems->wmm_param_len,
 					     elems->mu_edca_param_set)) {
 		/* still enable QoS since we might have HT/VHT */
 		ieee80211_set_wmm_default(link, false, true);
-		/* set the disable-WMM flag in this case to disable
+		/* disable WMM tracking in this case to disable
 		 * tracking WMM parameter changes in the beacon if
 		 * the parameters weren't actually valid. Doing so
 		 * avoids changing parameters very strangely when
 		 * the AP is going back and forth between valid and
 		 * invalid parameters.
 		 */
-		ifmgd->flags |= IEEE80211_STA_DISABLE_WMM;
+		link->u.mgd.disable_wmm_tracking = true;
 	}
 	changed |= BSS_CHANGED_QOS;
 
@@ -4397,7 +4398,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 					 rx_status->device_timestamp,
 					 elems, true);
 
-	if (!(ifmgd->flags & IEEE80211_STA_DISABLE_WMM) &&
+	if (!link->u.mgd.disable_wmm_tracking &&
 	    ieee80211_sta_wmm_params(local, link, elems->wmm_param,
 				     elems->wmm_param_len,
 				     elems->mu_edca_param_set))
