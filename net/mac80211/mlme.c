@@ -3396,7 +3396,7 @@ static void ieee80211_get_rates(struct ieee80211_supported_band *sband,
 	}
 }
 
-static bool ieee80211_twt_req_supported(const struct sta_info *sta,
+static bool ieee80211_twt_req_supported(const struct link_sta_info *link_sta,
 					const struct ieee802_11_elems *elems)
 {
 	if (elems->ext_capab_len < 10)
@@ -3405,15 +3405,15 @@ static bool ieee80211_twt_req_supported(const struct sta_info *sta,
 	if (!(elems->ext_capab[9] & WLAN_EXT_CAPA10_TWT_RESPONDER_SUPPORT))
 		return false;
 
-	return sta->sta.deflink.he_cap.he_cap_elem.mac_cap_info[0] &
+	return link_sta->pub->he_cap.he_cap_elem.mac_cap_info[0] &
 		IEEE80211_HE_MAC_CAP0_TWT_RES;
 }
 
 static int ieee80211_recalc_twt_req(struct ieee80211_link_data *link,
-				    struct sta_info *sta,
+				    struct link_sta_info *link_sta,
 				    struct ieee802_11_elems *elems)
 {
-	bool twt = ieee80211_twt_req_supported(sta, elems);
+	bool twt = ieee80211_twt_req_supported(link_sta, elems);
 
 	if (link->conf->twt_requester != twt) {
 		link->conf->twt_requester = twt;
@@ -3425,14 +3425,14 @@ static int ieee80211_recalc_twt_req(struct ieee80211_link_data *link,
 static bool ieee80211_twt_bcast_support(struct ieee80211_sub_if_data *sdata,
 					struct ieee80211_bss_conf *bss_conf,
 					struct ieee80211_supported_band *sband,
-					struct sta_info *sta)
+					struct link_sta_info *link_sta)
 {
 	const struct ieee80211_sta_he_cap *own_he_cap =
 		ieee80211_get_he_iftype_cap(sband,
 					    ieee80211_vif_type_p2p(&sdata->vif));
 
 	return bss_conf->he_support &&
-		(sta->sta.deflink.he_cap.he_cap_elem.mac_cap_info[2] &
+		(link_sta->pub->he_cap.he_cap_elem.mac_cap_info[2] &
 			IEEE80211_HE_MAC_CAP2_BCAST_TWT) &&
 		own_he_cap &&
 		(own_he_cap->he_cap_elem.mac_cap_info[2] &
@@ -3447,6 +3447,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband;
+	struct link_sta_info *link_sta;
 	struct sta_info *sta;
 	u16 capab_info, aid;
 	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
@@ -3618,6 +3619,14 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
+	link_sta = rcu_dereference_protected(sta->link[link->link_id],
+					     lockdep_is_held(&local->sta_mtx));
+	if (WARN_ON(!link_sta)) {
+		mutex_unlock(&sdata->local->sta_mtx);
+		ret = false;
+		goto out;
+	}
+
 	sband = ieee80211_get_link_sband(link);
 	if (!sband) {
 		mutex_unlock(&sdata->local->sta_mtx);
@@ -3638,12 +3647,12 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	if (elems->ht_cap_elem && !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT))
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 						  elems->ht_cap_elem,
-						  &sta->deflink);
+						  link_sta);
 
 	if (elems->vht_cap_elem && !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
 						    elems->vht_cap_elem,
-						    &sta->deflink);
+						    link_sta);
 
 	if (elems->he_operation && !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
 	    elems->he_cap) {
@@ -3651,9 +3660,9 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 						  elems->he_cap,
 						  elems->he_cap_len,
 						  elems->he_6ghz_capa,
-						  &sta->deflink);
+						  link_sta);
 
-		bss_conf->he_support = sta->sta.deflink.he_cap.has_he;
+		bss_conf->he_support = link_sta->pub->he_cap.has_he;
 		if (elems->rsnx && elems->rsnx_len &&
 		    (elems->rsnx[0] & WLAN_RSNX_CAPA_PROTECTED_TWT) &&
 		    wiphy_ext_feature_isset(local->hw.wiphy,
@@ -3662,7 +3671,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		else
 			bss_conf->twt_protected = false;
 
-		changed |= ieee80211_recalc_twt_req(link, sta, elems);
+		changed |= ieee80211_recalc_twt_req(link, link_sta, elems);
 
 		if (elems->eht_operation && elems->eht_cap &&
 		    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT)) {
@@ -3671,9 +3680,9 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 							    elems->he_cap_len,
 							    elems->eht_cap,
 							    elems->eht_cap_len,
-							    &sta->deflink);
+							    link_sta);
 
-			bss_conf->eht_support = sta->sta.deflink.eht_cap.has_eht;
+			bss_conf->eht_support = link_sta->pub->eht_cap.has_eht;
 		} else {
 			bss_conf->eht_support = false;
 		}
@@ -3685,7 +3694,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	}
 
 	bss_conf->twt_broadcast =
-		ieee80211_twt_bcast_support(sdata, bss_conf, sband, sta);
+		ieee80211_twt_bcast_support(sdata, bss_conf, sband, link_sta);
 
 	if (bss_conf->he_support) {
 		bss_conf->he_bss_color.color =
@@ -3750,7 +3759,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		nss = *elems->opmode_notif & IEEE80211_OPMODE_NOTIF_RX_NSS_MASK;
 		nss >>= IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT;
 		nss += 1;
-		sta->sta.deflink.rx_nss = nss;
+		link_sta->pub->rx_nss = nss;
 	}
 
 	rate_control_rate_init(sta);
@@ -4191,6 +4200,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
+	struct link_sta_info *link_sta;
 	struct sta_info *sta;
 	u32 changed = 0;
 	bool erp_valid;
@@ -4432,8 +4442,14 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 
 	mutex_lock(&local->sta_mtx);
 	sta = sta_info_get(sdata, sdata->vif.cfg.ap_addr);
+	if (WARN_ON(!sta))
+		goto free;
+	link_sta = rcu_dereference_protected(sta->link[link->link_id],
+					     lockdep_is_held(&local->sta_mtx));
+	if (WARN_ON(!link_sta))
+		goto free;
 
-	changed |= ieee80211_recalc_twt_req(link, sta, elems);
+	changed |= ieee80211_recalc_twt_req(link, link_sta, elems);
 
 	if (ieee80211_config_bw(link, elems->ht_cap_elem,
 				elems->vht_cap_elem, elems->ht_operation,
@@ -4455,7 +4471,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	}
 
 	if (sta && elems->opmode_notif)
-		ieee80211_vht_handle_opmode(sdata, &sta->deflink,
+		ieee80211_vht_handle_opmode(sdata, link_sta,
 					    *elems->opmode_notif,
 					    rx_status->band);
 	mutex_unlock(&local->sta_mtx);
