@@ -3981,18 +3981,23 @@ static int _nfs4_discover_trunking(struct nfs_server *server,
 	}
 
 	page = alloc_page(GFP_KERNEL);
+	if (!page)
+		return -ENOMEM;
 	locations = kmalloc(sizeof(struct nfs4_fs_locations), GFP_KERNEL);
-	if (page == NULL || locations == NULL)
-		goto out;
+	if (!locations)
+		goto out_free;
+	locations->fattr = nfs_alloc_fattr();
+	if (!locations->fattr)
+		goto out_free_2;
 
 	status = nfs4_proc_get_locations(server, fhandle, locations, page,
 					 cred);
-	if (status)
-		goto out;
-out:
-	if (page)
-		__free_page(page);
+
+	kfree(locations->fattr);
+out_free_2:
 	kfree(locations);
+out_free:
+	__free_page(page);
 	return status;
 }
 
