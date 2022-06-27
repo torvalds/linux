@@ -611,16 +611,15 @@ patternProperties:
           azoteq,gpio-select:
             $ref: /schemas/types.yaml#/definitions/uint32-array
             minItems: 1
-            maxItems: 1
+            maxItems: 3
             items:
               minimum: 0
-              maximum: 0
+              maximum: 2
             description: |
-              Specifies an individual GPIO mapped to a tap, swipe or flick
-              gesture as follows:
+              Specifies one or more GPIO mapped to the event as follows:
               0: GPIO0
-              1: GPIO3 (reserved)
-              2: GPIO4 (reserved)
+              1: GPIO3 (IQS7222C only)
+              2: GPIO4 (IQS7222C only)
 
               Note that although multiple events can be mapped to a single
               GPIO, they must all be of the same type (proximity, touch or
@@ -705,6 +704,14 @@ allOf:
               multipleOf: 4
               maximum: 1020
 
+          patternProperties:
+            "^event-(press|tap|(swipe|flick)-(pos|neg))$":
+              properties:
+                azoteq,gpio-select:
+                  maxItems: 1
+                  items:
+                    maximum: 0
+
     else:
       patternProperties:
         "^channel-([0-9]|1[0-9])$":
@@ -720,8 +727,6 @@ allOf:
                 azoteq,gesture-min-ms: false
 
                 azoteq,gesture-dist: false
-
-                azoteq,gpio-select: false
 
 required:
   - compatible
