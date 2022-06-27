@@ -32,19 +32,16 @@ static void tout_set(struct mlx5_core_dev *dev, u64 val, enum mlx5_timeouts_type
 	dev->timeouts->to[type] = val;
 }
 
-void mlx5_tout_set_def_val(struct mlx5_core_dev *dev)
+int mlx5_tout_init(struct mlx5_core_dev *dev)
 {
 	int i;
 
-	for (i = 0; i < MAX_TIMEOUT_TYPES; i++)
-		tout_set(dev, tout_def_sw_val[i], i);
-}
-
-int mlx5_tout_init(struct mlx5_core_dev *dev)
-{
 	dev->timeouts = kmalloc(sizeof(*dev->timeouts), GFP_KERNEL);
 	if (!dev->timeouts)
 		return -ENOMEM;
+
+	for (i = 0; i < MAX_TIMEOUT_TYPES; i++)
+		tout_set(dev, tout_def_sw_val[i], i);
 
 	return 0;
 }

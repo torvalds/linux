@@ -1023,8 +1023,6 @@ static int mlx5_function_setup(struct mlx5_core_dev *dev, u64 timeout)
 	if (mlx5_core_is_pf(dev))
 		pcie_print_link_status(dev->pdev);
 
-	mlx5_tout_set_def_val(dev);
-
 	/* wait for firmware to accept initialization segments configurations
 	 */
 	err = wait_fw_init(dev, timeout,
