@@ -373,6 +373,24 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 	return 0;
 }
 
+static int s3c64xx_spi_unprepare_transfer(struct spi_master *spi)
+{
+	struct s3c64xx_spi_driver_data *sdd = spi_master_get_devdata(spi);
+
+	if (is_polling(sdd))
+		return 0;
+
+	/* Releases DMA channels if they are allocated */
+	if (sdd->rx_dma.ch && sdd->tx_dma.ch) {
+		dma_release_channel(sdd->rx_dma.ch);
+		dma_release_channel(sdd->tx_dma.ch);
+		sdd->rx_dma.ch = 0;
+		sdd->tx_dma.ch = 0;
+	}
+
+	return 0;
+}
+
 static bool s3c64xx_spi_can_dma(struct spi_master *master,
 				struct spi_device *spi,
 				struct spi_transfer *xfer)
@@ -804,14 +822,6 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 		xfer->len = origin_len;
 	}
 
-	/* Releases DMA channels after data transfer is completed */
-	if (sdd->rx_dma.ch && sdd->tx_dma.ch) {
-		dma_release_channel(sdd->rx_dma.ch);
-		dma_release_channel(sdd->tx_dma.ch);
-		sdd->rx_dma.ch = NULL;
-		sdd->tx_dma.ch = NULL;
-	}
-
 	return status;
 }
 
@@ -1128,6 +1138,7 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 	master->setup = s3c64xx_spi_setup;
 	master->cleanup = s3c64xx_spi_cleanup;
 	master->prepare_transfer_hardware = s3c64xx_spi_prepare_transfer;
+	master->unprepare_transfer_hardware = s3c64xx_spi_unprepare_transfer;
 	master->prepare_message = s3c64xx_spi_prepare_message;
 	master->transfer_one = s3c64xx_spi_transfer_one;
 	master->num_chipselect = sci->num_cs;
