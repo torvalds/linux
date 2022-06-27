@@ -39,6 +39,7 @@
 #include "hw/host1x05.h"
 #include "hw/host1x06.h"
 #include "hw/host1x07.h"
+#include "hw/host1x08.h"
 
 void host1x_common_writel(struct host1x *host1x, u32 v, u32 r)
 {
@@ -205,7 +206,48 @@ static const struct host1x_info host1x07_info = {
 	.reserve_vblank_syncpts = false,
 };
 
+/*
+ * Tegra234 has two stream ID protection tables, one for setting stream IDs
+ * through the channel path via SETSTREAMID, and one for setting them via
+ * MMIO. We program each engine's data stream ID in the channel path table
+ * and firmware stream ID in the MMIO path table.
+ */
+static const struct host1x_sid_entry tegra234_sid_table[] = {
+	{
+		/* VIC channel */
+		.base = 0x17b8,
+		.offset = 0x30,
+		.limit = 0x30
+	},
+	{
+		/* VIC MMIO */
+		.base = 0x1688,
+		.offset = 0x34,
+		.limit = 0x34
+	},
+};
+
+static const struct host1x_info host1x08_info = {
+	.nb_channels = 63,
+	.nb_pts = 1024,
+	.nb_mlocks = 24,
+	.nb_bases = 0,
+	.init = host1x08_init,
+	.sync_offset = 0x0,
+	.dma_mask = DMA_BIT_MASK(40),
+	.has_wide_gather = true,
+	.has_hypervisor = true,
+	.has_common = true,
+	.num_sid_entries = ARRAY_SIZE(tegra234_sid_table),
+	.sid_table = tegra234_sid_table,
+	.streamid_vm_table = { 0x1004, 128 },
+	.classid_vm_table = { 0x1404, 25 },
+	.mmio_vm_table = { 0x1504, 25 },
+	.reserve_vblank_syncpts = false,
+};
+
 static const struct of_device_id host1x_of_match[] = {
+	{ .compatible = "nvidia,tegra234-host1x", .data = &host1x08_info, },
 	{ .compatible = "nvidia,tegra194-host1x", .data = &host1x07_info, },
 	{ .compatible = "nvidia,tegra186-host1x", .data = &host1x06_info, },
 	{ .compatible = "nvidia,tegra210-host1x", .data = &host1x05_info, },
