@@ -343,7 +343,7 @@
 		};
 	};
 
-	qup_opp_table_100mhz: qup-100mhz-opp-table {
+	qup_opp_table_100mhz: opp-table-qup {
 		compatible = "operating-points-v2";
 
 		opp-50000000 {

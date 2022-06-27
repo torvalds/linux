@@ -638,7 +638,7 @@
 			#mbox-cells = <2>;
 		};
 
-		qup_opp_table_100mhz: qup-100mhz-opp-table {
+		qup_opp_table_100mhz: opp-table-qup100mhz {
 			compatible = "operating-points-v2";
 
 			opp-50000000 {
@@ -657,7 +657,7 @@
 			};
 		};
 
-		qup_opp_table_120mhz: qup-120mhz-opp-table {
+		qup_opp_table_120mhz: opp-table-qup120mhz {
 			compatible = "operating-points-v2";
 
 			opp-50000000 {

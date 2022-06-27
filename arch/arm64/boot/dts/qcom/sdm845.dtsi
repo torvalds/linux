@@ -462,7 +462,7 @@
 		};
 	};
 
-	cpu0_opp_table: cpu0_opp_table {
+	cpu0_opp_table: opp-table-cpu0 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -557,7 +557,7 @@
 		};
 	};
 
-	cpu4_opp_table: cpu4_opp_table {
+	cpu4_opp_table: opp-table-cpu4 {
 		compatible = "operating-points-v2";
 		opp-shared;
 
@@ -1104,7 +1104,7 @@
 			clock-names = "core";
 		};
 
-		qup_opp_table: qup-opp-table {
+		qup_opp_table: opp-table-qup {
 			compatible = "operating-points-v2";
 
 			opp-50000000 {
@@ -3569,7 +3569,7 @@
 
 			status = "disabled";
 
-			sdhc2_opp_table: sdhc2-opp-table {
+			sdhc2_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
 				opp-9600000 {
@@ -3594,7 +3594,7 @@
 			};
 		};
 
-		qspi_opp_table: qspi-opp-table {
+		qspi_opp_table: opp-table-qspi {
 			compatible = "operating-points-v2";
 
 			opp-19200000 {
@@ -3971,7 +3971,7 @@
 				compatible = "venus-encoder";
 			};
 
-			venus_opp_table: venus-opp-table {
+			venus_opp_table: opp-table {
 				compatible = "operating-points-v2";
 
 				opp-100000000 {
@@ -4208,7 +4208,7 @@
 			clock-names = "bi_tcxo";
 		};
 
-		dsi_opp_table: dsi-opp-table {
+		dsi_opp_table: opp-table-dsi {
 			compatible = "operating-points-v2";
 
 			opp-19200000 {
@@ -4305,7 +4305,7 @@
 					};
 				};
 
-				mdp_opp_table: mdp-opp-table {
+				mdp_opp_table: opp-table {
 					compatible = "operating-points-v2";
 
 					opp-19200000 {
