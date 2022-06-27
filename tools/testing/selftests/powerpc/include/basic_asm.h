@@ -58,7 +58,7 @@
 #define PUSH_BASIC_STACK(_extra) \
 	mflr	r0; \
 	std	r0, STACK_FRAME_LR_POS(%r1); \
-	stdu	%r1, -(_extra + STACK_FRAME_MIN_SIZE)(%r1); \
+	stdu	%r1, -(((_extra + 15) & ~15) + STACK_FRAME_MIN_SIZE)(%r1); \
 	mfcr	r0; \
 	stw	r0, STACK_FRAME_CR_POS(%r1); \
 	std	%r2, STACK_FRAME_TOC_POS(%r1);
@@ -67,7 +67,7 @@
 	ld	%r2, STACK_FRAME_TOC_POS(%r1); \
 	lwz	r0, STACK_FRAME_CR_POS(%r1); \
 	mtcr	r0; \
-	addi	%r1, %r1, (_extra + STACK_FRAME_MIN_SIZE); \
+	addi	%r1, %r1, (((_extra + 15) & ~15) + STACK_FRAME_MIN_SIZE); \
 	ld	r0, STACK_FRAME_LR_POS(%r1); \
 	mtlr	r0;
 
