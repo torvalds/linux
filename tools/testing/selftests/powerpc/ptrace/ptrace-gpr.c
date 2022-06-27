@@ -19,7 +19,7 @@ double c = FPR_3;
 extern void gpr_child_loop(int *read_flag, int *write_flag,
 			   unsigned long *gpr_buf, double *fpr_buf);
 
-void gpr(void)
+static int child(void)
 {
 	unsigned long gpr_buf[32];
 	double fpr_buf[32];
@@ -38,13 +38,10 @@ void gpr(void)
 
 	shmdt((void *)cptr);
 
-	if (validate_gpr(gpr_buf, GPR_3))
-		exit(1);
+	FAIL_IF(validate_gpr(gpr_buf, GPR_3));
+	FAIL_IF(validate_fpr_double(fpr_buf, c));
 
-	if (validate_fpr_double(fpr_buf, c))
-		exit(1);
-
-	exit(0);
+	return 0;
 }
 
 int trace_gpr(pid_t child)
@@ -76,7 +73,7 @@ int ptrace_gpr(void)
 		return TEST_FAIL;
 	}
 	if (pid == 0)
-		gpr();
+		exit(child());
 
 	if (pid) {
 		pptr = (int *)shmat(shm_id, NULL, 0);
