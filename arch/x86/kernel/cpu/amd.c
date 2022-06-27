@@ -916,6 +916,7 @@ static void init_amd_bd(struct cpuinfo_x86 *c)
 
 void init_spectral_chicken(struct cpuinfo_x86 *c)
 {
+#ifdef CONFIG_CPU_UNRET_ENTRY
 	u64 value;
 
 	/*
@@ -932,6 +933,7 @@ void init_spectral_chicken(struct cpuinfo_x86 *c)
 			wrmsrl_safe(MSR_ZEN2_SPECTRAL_CHICKEN, value);
 		}
 	}
+#endif
 }
 
 static void init_amd_zn(struct cpuinfo_x86 *c)

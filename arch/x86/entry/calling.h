@@ -323,6 +323,7 @@ For 32-bit we have the following conventions - kernel is built with
  * Assumes x86_spec_ctrl_{base,current} to have SPEC_CTRL_IBRS set.
  */
 .macro IBRS_ENTER save_reg
+#ifdef CONFIG_CPU_IBRS_ENTRY
 	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_KERNEL_IBRS
 	movl	$MSR_IA32_SPEC_CTRL, %ecx
 
@@ -343,6 +344,7 @@ For 32-bit we have the following conventions - kernel is built with
 	shr	$32, %rdx
 	wrmsr
 .Lend_\@:
+#endif
 .endm
 
 /*
@@ -350,6 +352,7 @@ For 32-bit we have the following conventions - kernel is built with
  * regs. Must be called after the last RET.
  */
 .macro IBRS_EXIT save_reg
+#ifdef CONFIG_CPU_IBRS_ENTRY
 	ALTERNATIVE "jmp .Lend_\@", "", X86_FEATURE_KERNEL_IBRS
 	movl	$MSR_IA32_SPEC_CTRL, %ecx
 
@@ -364,6 +367,7 @@ For 32-bit we have the following conventions - kernel is built with
 	shr	$32, %rdx
 	wrmsr
 .Lend_\@:
+#endif
 .endm
 
 /*

@@ -3262,8 +3262,11 @@ static int validate_retpoline(struct objtool_file *file)
 			continue;
 
 		if (insn->type == INSN_RETURN) {
-			WARN_FUNC("'naked' return found in RETPOLINE build",
-				  insn->sec, insn->offset);
+			if (rethunk) {
+				WARN_FUNC("'naked' return found in RETHUNK build",
+					  insn->sec, insn->offset);
+			} else
+				continue;
 		} else {
 			WARN_FUNC("indirect %s found in RETPOLINE build",
 				  insn->sec, insn->offset,
@@ -3533,7 +3536,9 @@ int check(struct objtool_file *file)
 		if (ret < 0)
 			goto out;
 		warnings += ret;
+	}
 
+	if (rethunk) {
 		ret = create_return_sites_sections(file);
 		if (ret < 0)
 			goto out;

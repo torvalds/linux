@@ -227,6 +227,9 @@ endif
 ifdef CONFIG_RETPOLINE
   objtool_args += --retpoline
 endif
+ifdef CONFIG_RETHUNK
+  objtool_args += --rethunk
+endif
 ifdef CONFIG_X86_SMAP
   objtool_args += --uaccess
 endif
