@@ -216,6 +216,7 @@ struct mlxsw_sp {
 	u32 lowest_shaper_bs;
 	struct rhashtable ipv6_addr_ht;
 	struct mutex ipv6_addr_ht_lock; /* Protects ipv6_addr_ht */
+	bool ubridge;
 };
 
 struct mlxsw_sp_ptp_ops {
