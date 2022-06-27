@@ -79,7 +79,7 @@ static int prestera_flower_parse_actions(struct prestera_flow_block *block,
 	} else if (act->hw_stats & FLOW_ACTION_HW_STATS_DELAYED) {
 		/* setup counter first */
 		rule->re_arg.count.valid = true;
-		err = prestera_acl_chain_to_client(chain_index,
+		err = prestera_acl_chain_to_client(chain_index, block->ingress,
 						   &rule->re_arg.count.client);
 		if (err)
 			return err;

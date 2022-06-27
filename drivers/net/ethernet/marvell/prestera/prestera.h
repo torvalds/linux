@@ -107,7 +107,8 @@ struct prestera_port_phy_config {
 struct prestera_port {
 	struct net_device *dev;
 	struct prestera_switch *sw;
-	struct prestera_flow_block *flow_block;
+	struct prestera_flow_block *ingress_flow_block;
+	struct prestera_flow_block *egress_flow_block;
 	struct devlink_port dl_port;
 	struct list_head lag_member;
 	struct prestera_lag *lag;
