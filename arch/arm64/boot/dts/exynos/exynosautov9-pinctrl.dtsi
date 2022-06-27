@@ -1089,21 +1089,21 @@
 
 	/* PERIC1 USI11_SPI */
 	spi11_bus: spi11-pins {
-		samsung,pins = "gpp3-6", "gpp3-5", "gpp3-4";
+		samsung,pins = "gpp5-6", "gpp5-5", "gpp5-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 
 	spi11_cs: spi11-cs-pins {
-		samsung,pins = "gpp3-7";
+		samsung,pins = "gpp5-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
 	};
 
 	spi11_cs_func: spi11-cs-func-pins {
-		samsung,pins = "gpp3-7";
+		samsung,pins = "gpp5-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS5420_PIN_DRV_LV1>;
