@@ -23,6 +23,7 @@
 #include <sys/ipc.h>
 #include <sys/shm.h>
 #include <sys/user.h>
+#include <sys/syscall.h>
 #include <linux/elf.h>
 #include <linux/types.h>
 #include <linux/auxvec.h>
@@ -438,6 +439,70 @@ int show_gpr(pid_t child, unsigned long *gpr)
 	}
 
 	return TEST_PASS;
+}
+
+long sys_ptrace(enum __ptrace_request request, pid_t pid, unsigned long addr, unsigned long data)
+{
+	return syscall(__NR_ptrace, request, pid, (void *)addr, data);
+}
+
+// 33 because of FPSCR
+#define PT_NUM_FPRS	(33 * (sizeof(__u64) / sizeof(unsigned long)))
+
+__u64 *peek_fprs(pid_t child)
+{
+	unsigned long *fprs, *p, addr;
+	long ret;
+	int i;
+
+	fprs = malloc(sizeof(unsigned long) * PT_NUM_FPRS);
+	if (!fprs) {
+		perror("malloc() failed");
+		return NULL;
+	}
+
+	for (i = 0, p = fprs; i < PT_NUM_FPRS; i++, p++) {
+		addr = sizeof(unsigned long) * (PT_FPR0 + i);
+		ret = sys_ptrace(PTRACE_PEEKUSER, child, addr, (unsigned long)p);
+		if (ret) {
+			perror("ptrace(PTRACE_PEEKUSR) failed");
+			return NULL;
+		}
+	}
+
+	addr = sizeof(unsigned long) * (PT_FPR0 + i);
+	ret = sys_ptrace(PTRACE_PEEKUSER, child, addr, (unsigned long)&addr);
+	if (!ret) {
+		printf("ptrace(PTRACE_PEEKUSR) succeeded unexpectedly!\n");
+		return NULL;
+	}
+
+	return (__u64 *)fprs;
+}
+
+int poke_fprs(pid_t child, unsigned long *fprs)
+{
+	unsigned long *p, addr;
+	long ret;
+	int i;
+
+	for (i = 0, p = fprs; i < PT_NUM_FPRS; i++, p++) {
+		addr = sizeof(unsigned long) * (PT_FPR0 + i);
+		ret = sys_ptrace(PTRACE_POKEUSER, child, addr, *p);
+		if (ret) {
+			perror("ptrace(PTRACE_POKEUSR) failed");
+			return -1;
+		}
+	}
+
+	addr = sizeof(unsigned long) * (PT_FPR0 + i);
+	ret = sys_ptrace(PTRACE_POKEUSER, child, addr, addr);
+	if (!ret) {
+		printf("ptrace(PTRACE_POKEUSR) succeeded unexpectedly!\n");
+		return -1;
+	}
+
+	return 0;
 }
 
 int write_gpr(pid_t child, unsigned long val)

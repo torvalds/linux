@@ -46,22 +46,42 @@ static int child(void)
 
 int trace_gpr(pid_t child)
 {
+	__u64 tmp, fpr[32], *peeked_fprs;
 	unsigned long gpr[18];
-	__u64 tmp, fpr[32];
 
 	FAIL_IF(start_trace(child));
+
+	// Check child GPRs match what we expect using GETREGS
 	FAIL_IF(show_gpr(child, gpr));
 	FAIL_IF(validate_gpr(gpr, child_gpr_val));
-	FAIL_IF(show_fpr(child, fpr));
 
+	// Check child FPRs match what we expect using GETFPREGS
+	FAIL_IF(show_fpr(child, fpr));
 	memcpy(&tmp, &child_fpr_val, sizeof(tmp));
 	FAIL_IF(validate_fpr(fpr, tmp));
 
+	// Check child FPRs match what we expect using PEEKUSR
+	peeked_fprs = peek_fprs(child);
+	FAIL_IF(!peeked_fprs);
+	FAIL_IF(validate_fpr(peeked_fprs, tmp));
+	free(peeked_fprs);
+
+	// Write child GPRs using SETREGS
 	FAIL_IF(write_gpr(child, parent_gpr_val));
 
+	// Write child FPRs using SETFPREGS
 	memcpy(&tmp, &parent_fpr_val, sizeof(tmp));
 	FAIL_IF(write_fpr(child, tmp));
 
+	// Check child FPRs match what we just set, using PEEKUSR
+	peeked_fprs = peek_fprs(child);
+	FAIL_IF(!peeked_fprs);
+	FAIL_IF(validate_fpr(peeked_fprs, tmp));
+
+	// Write child FPRs using POKEUSR
+	FAIL_IF(poke_fprs(child, (unsigned long *)peeked_fprs));
+
+	// Child will check its FPRs match before exiting
 	FAIL_IF(stop_trace(child));
 
 	return TEST_PASS;
