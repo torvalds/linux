@@ -147,10 +147,6 @@ int bump_rlimit_memlock(void)
 {
 	struct rlimit rlim;
 
-	/* this the default in libbpf 1.0, but for now user has to opt-in explicitly */
-	if (!(libbpf_mode & LIBBPF_STRICT_AUTO_RLIMIT_MEMLOCK))
-		return 0;
-
 	/* if kernel supports memcg-based accounting, skip bumping RLIMIT_MEMLOCK */
 	if (memlock_bumped || kernel_supports(NULL, FEAT_MEMCG_ACCOUNT))
 		return 0;

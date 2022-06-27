@@ -886,40 +886,6 @@ LIBBPF_API int bpf_map__lookup_and_delete_elem(const struct bpf_map *map,
 LIBBPF_API int bpf_map__get_next_key(const struct bpf_map *map,
 				     const void *cur_key, void *next_key, size_t key_sz);
 
-/**
- * @brief **libbpf_get_error()** extracts the error code from the passed
- * pointer
- * @param ptr pointer returned from libbpf API function
- * @return error code; or 0 if no error occured
- *
- * Many libbpf API functions which return pointers have logic to encode error
- * codes as pointers, and do not return NULL. Meaning **libbpf_get_error()**
- * should be used on the return value from these functions immediately after
- * calling the API function, with no intervening calls that could clobber the
- * `errno` variable. Consult the individual functions documentation to verify
- * if this logic applies should be used.
- *
- * For these API functions, if `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)`
- * is enabled, NULL is returned on error instead.
- *
- * If ptr is NULL, then errno should be already set by the failing
- * API, because libbpf never returns NULL on success and it now always
- * sets errno on error.
- *
- * Example usage:
- *
- *   struct perf_buffer *pb;
- *
- *   pb = perf_buffer__new(bpf_map__fd(obj->maps.events), PERF_BUFFER_PAGES, &opts);
- *   err = libbpf_get_error(pb);
- *   if (err) {
- *	  pb = NULL;
- *	  fprintf(stderr, "failed to open perf buffer: %d\n", err);
- *	  goto cleanup;
- *   }
- */
-LIBBPF_API long libbpf_get_error(const void *ptr);
-
 struct bpf_xdp_set_link_opts {
 	size_t sz;
 	int old_fd;

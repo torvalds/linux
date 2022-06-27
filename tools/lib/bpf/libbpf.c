@@ -278,12 +278,9 @@ static inline __u64 ptr_to_u64(const void *ptr)
 	return (__u64) (unsigned long) ptr;
 }
 
-/* this goes away in libbpf 1.0 */
-enum libbpf_strict_mode libbpf_mode = LIBBPF_STRICT_NONE;
-
 int libbpf_set_strict_mode(enum libbpf_strict_mode mode)
 {
-	libbpf_mode = mode;
+	/* as of v1.0 libbpf_set_strict_mode() is a no-op */
 	return 0;
 }
 
@@ -367,9 +364,10 @@ struct bpf_sec_def {
  * linux/filter.h.
  */
 struct bpf_program {
-	const struct bpf_sec_def *sec_def;
+	char *name;
 	char *sec_name;
 	size_t sec_idx;
+	const struct bpf_sec_def *sec_def;
 	/* this program's instruction offset (in number of instructions)
 	 * within its containing ELF section
 	 */
@@ -388,12 +386,6 @@ struct bpf_program {
 	 * if yes, at which instruction offset.
 	 */
 	size_t sub_insn_off;
-
-	char *name;
-	/* name with / replaced by _; makes recursive pinning
-	 * in bpf_object__pin_programs easier
-	 */
-	char *pin_name;
 
 	/* instructions that belong to BPF program; insns[0] is located at
 	 * sec_insn_off instruction within its ELF section in ELF file, so
@@ -695,33 +687,12 @@ static void bpf_program__exit(struct bpf_program *prog)
 	bpf_program__unload(prog);
 	zfree(&prog->name);
 	zfree(&prog->sec_name);
-	zfree(&prog->pin_name);
 	zfree(&prog->insns);
 	zfree(&prog->reloc_desc);
 
 	prog->nr_reloc = 0;
 	prog->insns_cnt = 0;
 	prog->sec_idx = -1;
-}
-
-static char *__bpf_program__pin_name(struct bpf_program *prog)
-{
-	char *name, *p;
-
-	if (libbpf_mode & LIBBPF_STRICT_SEC_NAME)
-		name = strdup(prog->name);
-	else
-		name = strdup(prog->sec_name);
-
-	if (!name)
-		return NULL;
-
-	p = name;
-
-	while ((p = strchr(p, '/')))
-		*p = '_';
-
-	return name;
 }
 
 static bool insn_is_subprog_call(const struct bpf_insn *insn)
@@ -788,10 +759,6 @@ bpf_object__init_prog(struct bpf_object *obj, struct bpf_program *prog,
 
 	prog->name = strdup(name);
 	if (!prog->name)
-		goto errout;
-
-	prog->pin_name = __bpf_program__pin_name(prog);
-	if (!prog->pin_name)
 		goto errout;
 
 	prog->insns = malloc(insn_data_sz);
@@ -2007,143 +1974,6 @@ static int bpf_object__init_kconfig_map(struct bpf_object *obj)
 	return 0;
 }
 
-static int bpf_object__init_user_maps(struct bpf_object *obj, bool strict)
-{
-	Elf_Data *symbols = obj->efile.symbols;
-	int i, map_def_sz = 0, nr_maps = 0, nr_syms;
-	Elf_Data *data = NULL;
-	Elf_Scn *scn;
-
-	if (obj->efile.maps_shndx < 0)
-		return 0;
-
-	if (libbpf_mode & LIBBPF_STRICT_MAP_DEFINITIONS) {
-		pr_warn("legacy map definitions in SEC(\"maps\") are not supported\n");
-		return -EOPNOTSUPP;
-	}
-
-	if (!symbols)
-		return -EINVAL;
-
-	scn = elf_sec_by_idx(obj, obj->efile.maps_shndx);
-	data = elf_sec_data(obj, scn);
-	if (!scn || !data) {
-		pr_warn("elf: failed to get legacy map definitions for %s\n",
-			obj->path);
-		return -EINVAL;
-	}
-
-	/*
-	 * Count number of maps. Each map has a name.
-	 * Array of maps is not supported: only the first element is
-	 * considered.
-	 *
-	 * TODO: Detect array of map and report error.
-	 */
-	nr_syms = symbols->d_size / sizeof(Elf64_Sym);
-	for (i = 0; i < nr_syms; i++) {
-		Elf64_Sym *sym = elf_sym_by_idx(obj, i);
-
-		if (sym->st_shndx != obj->efile.maps_shndx)
-			continue;
-		if (ELF64_ST_TYPE(sym->st_info) == STT_SECTION)
-			continue;
-		nr_maps++;
-	}
-	/* Assume equally sized map definitions */
-	pr_debug("elf: found %d legacy map definitions (%zd bytes) in %s\n",
-		 nr_maps, data->d_size, obj->path);
-
-	if (!data->d_size || nr_maps == 0 || (data->d_size % nr_maps) != 0) {
-		pr_warn("elf: unable to determine legacy map definition size in %s\n",
-			obj->path);
-		return -EINVAL;
-	}
-	map_def_sz = data->d_size / nr_maps;
-
-	/* Fill obj->maps using data in "maps" section.  */
-	for (i = 0; i < nr_syms; i++) {
-		Elf64_Sym *sym = elf_sym_by_idx(obj, i);
-		const char *map_name;
-		struct bpf_map_def *def;
-		struct bpf_map *map;
-
-		if (sym->st_shndx != obj->efile.maps_shndx)
-			continue;
-		if (ELF64_ST_TYPE(sym->st_info) == STT_SECTION)
-			continue;
-
-		map = bpf_object__add_map(obj);
-		if (IS_ERR(map))
-			return PTR_ERR(map);
-
-		map_name = elf_sym_str(obj, sym->st_name);
-		if (!map_name) {
-			pr_warn("failed to get map #%d name sym string for obj %s\n",
-				i, obj->path);
-			return -LIBBPF_ERRNO__FORMAT;
-		}
-
-		pr_warn("map '%s' (legacy): legacy map definitions are deprecated, use BTF-defined maps instead\n", map_name);
-
-		if (ELF64_ST_BIND(sym->st_info) == STB_LOCAL) {
-			pr_warn("map '%s' (legacy): static maps are not supported\n", map_name);
-			return -ENOTSUP;
-		}
-
-		map->libbpf_type = LIBBPF_MAP_UNSPEC;
-		map->sec_idx = sym->st_shndx;
-		map->sec_offset = sym->st_value;
-		pr_debug("map '%s' (legacy): at sec_idx %d, offset %zu.\n",
-			 map_name, map->sec_idx, map->sec_offset);
-		if (sym->st_value + map_def_sz > data->d_size) {
-			pr_warn("corrupted maps section in %s: last map \"%s\" too small\n",
-				obj->path, map_name);
-			return -EINVAL;
-		}
-
-		map->name = strdup(map_name);
-		if (!map->name) {
-			pr_warn("map '%s': failed to alloc map name\n", map_name);
-			return -ENOMEM;
-		}
-		pr_debug("map %d is \"%s\"\n", i, map->name);
-		def = (struct bpf_map_def *)(data->d_buf + sym->st_value);
-		/*
-		 * If the definition of the map in the object file fits in
-		 * bpf_map_def, copy it.  Any extra fields in our version
-		 * of bpf_map_def will default to zero as a result of the
-		 * calloc above.
-		 */
-		if (map_def_sz <= sizeof(struct bpf_map_def)) {
-			memcpy(&map->def, def, map_def_sz);
-		} else {
-			/*
-			 * Here the map structure being read is bigger than what
-			 * we expect, truncate if the excess bits are all zero.
-			 * If they are not zero, reject this map as
-			 * incompatible.
-			 */
-			char *b;
-
-			for (b = ((char *)def) + sizeof(struct bpf_map_def);
-			     b < ((char *)def) + map_def_sz; b++) {
-				if (*b != 0) {
-					pr_warn("maps section in %s: \"%s\" has unrecognized, non-zero options\n",
-						obj->path, map_name);
-					if (strict)
-						return -EINVAL;
-				}
-			}
-			memcpy(&map->def, def, sizeof(struct bpf_map_def));
-		}
-
-		/* btf info may not exist but fill it in if it does exist */
-		(void) bpf_map_find_btf_info(obj, map);
-	}
-	return 0;
-}
-
 const struct btf_type *
 skip_mods_and_typedefs(const struct btf *btf, __u32 id, __u32 *res_id)
 {
@@ -2700,12 +2530,11 @@ static int bpf_object__init_maps(struct bpf_object *obj,
 {
 	const char *pin_root_path;
 	bool strict;
-	int err;
+	int err = 0;
 
 	strict = !OPTS_GET(opts, relaxed_maps, false);
 	pin_root_path = OPTS_GET(opts, pin_root_path, NULL);
 
-	err = bpf_object__init_user_maps(obj, strict);
 	err = err ?: bpf_object__init_user_btf_maps(obj, strict, pin_root_path);
 	err = err ?: bpf_object__init_global_data_maps(obj);
 	err = err ?: bpf_object__init_kconfig_map(obj);
@@ -3979,28 +3808,8 @@ static int bpf_object__collect_externs(struct bpf_object *obj)
 	return 0;
 }
 
-static bool prog_is_subprog(const struct bpf_object *obj,
-			    const struct bpf_program *prog)
+static bool prog_is_subprog(const struct bpf_object *obj, const struct bpf_program *prog)
 {
-	/* For legacy reasons, libbpf supports an entry-point BPF programs
-	 * without SEC() attribute, i.e., those in the .text section. But if
-	 * there are 2 or more such programs in the .text section, they all
-	 * must be subprograms called from entry-point BPF programs in
-	 * designated SEC()'tions, otherwise there is no way to distinguish
-	 * which of those programs should be loaded vs which are a subprogram.
-	 * Similarly, if there is a function/program in .text and at least one
-	 * other BPF program with custom SEC() attribute, then we just assume
-	 * .text programs are subprograms (even if they are not called from
-	 * other programs), because libbpf never explicitly supported mixing
-	 * SEC()-designated BPF programs and .text entry-point BPF programs.
-	 *
-	 * In libbpf 1.0 strict mode, we always consider .text
-	 * programs to be subprograms.
-	 */
-
-	if (libbpf_mode & LIBBPF_STRICT_SEC_NAME)
-		return prog->sec_idx == obj->efile.text_shndx;
-
 	return prog->sec_idx == obj->efile.text_shndx && obj->nr_programs > 1;
 }
 
@@ -8163,8 +7972,7 @@ int bpf_object__pin_programs(struct bpf_object *obj, const char *path)
 		char buf[PATH_MAX];
 		int len;
 
-		len = snprintf(buf, PATH_MAX, "%s/%s", path,
-			       prog->pin_name);
+		len = snprintf(buf, PATH_MAX, "%s/%s", path, prog->name);
 		if (len < 0) {
 			err = -EINVAL;
 			goto err_unpin_programs;
@@ -8185,8 +7993,7 @@ err_unpin_programs:
 		char buf[PATH_MAX];
 		int len;
 
-		len = snprintf(buf, PATH_MAX, "%s/%s", path,
-			       prog->pin_name);
+		len = snprintf(buf, PATH_MAX, "%s/%s", path, prog->name);
 		if (len < 0)
 			continue;
 		else if (len >= PATH_MAX)
@@ -8210,8 +8017,7 @@ int bpf_object__unpin_programs(struct bpf_object *obj, const char *path)
 		char buf[PATH_MAX];
 		int len;
 
-		len = snprintf(buf, PATH_MAX, "%s/%s", path,
-			       prog->pin_name);
+		len = snprintf(buf, PATH_MAX, "%s/%s", path, prog->name);
 		if (len < 0)
 			return libbpf_err(-EINVAL);
 		else if (len >= PATH_MAX)
