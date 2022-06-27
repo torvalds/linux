@@ -1433,7 +1433,17 @@ EXPORT_SYMBOL(cfg80211_any_usable_channels);
 struct cfg80211_chan_def *wdev_chandef(struct wireless_dev *wdev,
 				       unsigned int link_id)
 {
-	ASSERT_WDEV_LOCK(wdev);
+	/*
+	 * We need to sort out the locking here - in some cases
+	 * where we get here we really just don't care (yet)
+	 * about the valid links, but in others we do. But we
+	 * get here with various driver cases, so we cannot
+	 * easily require the wdev mutex.
+	 */
+	if (link_id || wdev->valid_links & BIT(0)) {
+		ASSERT_WDEV_LOCK(wdev);
+		WARN_ON(!(wdev->valid_links & BIT(link_id)));
+	}
 
 	switch (wdev->iftype) {
 	case NL80211_IFTYPE_MESH_POINT:
