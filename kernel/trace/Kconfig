@@ -128,6 +128,26 @@ config PREEMPTIRQ_TRACEPOINTS
 	  Create preempt/irq toggle tracepoints if needed, so that other parts
 	  of the kernel can use them to generate or add hooks to them.
 
+config IPC_LOGGING
+	tristate "Debug Logging for IPC Drivers"
+	select GENERIC_TRACER
+	depends on DEBUG_FS
+	help
+	  IPC Logging driver provides a logging option for IPC Drivers.
+	  This provides a cyclic buffer based logging support in a driver
+	  specific context. This driver also provides a debugfs interface
+	  to dump the logs in a live fashion.
+
+	  If in doubt, say no.
+
+config IPC_LOG_MINIDUMP_BUFFERS
+        int "Ipc log buffers count that can be dumped with minidump"
+	depends on IPC_LOGGING
+        default 0
+        help
+          This option is used to configure maximum number of ipc log
+          buffers that can be dumped by minidump.
+
 # All tracer options should select GENERIC_TRACER. For those options that are
 # enabled by all tracers (context switch and event tracer) they select TRACING.
 # This allows those options to appear when no other tracer is selected. But the

@@ -1,0 +1,361 @@
+Introduction
+============
+
+This module will be used to log the events by any module/driver which
+enables Inter Processor Communication (IPC). Some of the IPC drivers such
+as Message Routers, Multiplexers etc. which act as a passive pipe need
+some mechanism to log their events. Since all such IPC drivers handle a
+large amount of traffic/events, using kernel logs renders kernel logs
+unusable by other drivers and also degrades the performance of IPC
+drivers. This new module will help in logging such high frequency IPC
+driver events while keeping the standard kernel logging mechanism
+intact.
+
+Hardware description
+====================
+
+This module does not drive any hardware resource and will only use the
+kernel memory-space to log the events.
+
+Software description
+====================
+
+Design Goals
+------------
+This module is designed to
+	* support logging for drivers handling large amount of
+	  traffic/events
+	* define & differentiate events/logs from different drivers
+	* support both id-based and stream-based logging
+	* support extracting the logs from both live target & memory dump
+
+IPC Log Context
+----------------
+
+This module will support logging by multiple drivers. To differentiate
+between the multiple drivers that are using this logging mechanism, each
+driver will be assigned a unique context by this module. Associated with
+each context is the logging space, dynamically allocated from the kernel
+memory-space, specific to that context so that the events logged using that
+context will not interfere with other contexts.
+
+Event Logging
+--------------
+
+Every event will be logged as a <Type: Size: Value> combination. Type
+field identifies the type of the event that is logged. Size field represents
+the size of the log information. Value field represents the actual
+information being logged. This approach will support both id-based logging
+and stream-based logging. This approach will also support logging sub-events
+of an event. This module will provide helper routines to encode/decode the
+logs to/from this format.
+
+Encode Context
+---------------
+
+Encode context is a temporary storage space that will be used by the client
+drivers to log the events in <Type: Size: Value> format. The client drivers
+will perform an encode start operation to initialize the encode context
+data structure. Then the client drivers will log their events into the
+encode context. Upon completion of event logging, the client drivers will
+perform an encode end operation to finalize the encode context data
+structure to be logged. Then this updated encode context data structure
+will be written into the client driver's IPC Log Context. The maximum
+event log size will be defined as 256 bytes.
+
+Log Space
+----------
+
+Each context (Figure 1) has an associated log space, which is dynamically
+allocated from the kernel memory-space. The log space is organized as a list of
+1 or more kernel memory pages. Each page (Figure 2) contains header information
+which is used to differentiate the log kernel page from the other kernel pages.
+
+
+      0 ---------------------------------
+        |     magic_no = 0x25874452     |
+        ---------------------------------
+        |    nmagic_no = 0x52784425     |
+        ---------------------------------
+        |            version            |
+        ---------------------------------
+        |          user_version         |
+        ---------------------------------
+        |            log_id             |
+        ---------------------------------
+        |          header_size          |
+        ---------------------------------
+        |                               |
+        |                               |
+        |       name [20 chars]         |
+        |                               |
+        |                               |
+        ---------------------------------
+        |    run-time data structures   |
+        ---------------------------------
+         Figure 1 - Log Context Structure
+
+
+        31                             0
+      0 ---------------------------------
+        |     magic_no = 0x52784425     |
+        ---------------------------------
+        |    nmagic_no = 0xAD87BBDA     |
+        ---------------------------------
+        |1|         page_num            |
+        ---------------------------------
+        |  read_offset  | write_offset  |
+        ---------------------------------
+        |            log_id             |
+        ---------------------------------
+        |     start_time low word       |
+        |     start_time high word      |
+        ---------------------------------
+        |       end_time low word       |
+        |       end_time high word      |
+        ---------------------------------
+        |         context offset        |
+        ---------------------------------
+        |    run-time data structures   |
+        .            . . .              .
+        ---------------------------------
+        |                               |
+        |           Log Data            |
+        .              .                .
+        .              .                .
+        |                               |
+        --------------------------------- PAGE_SIZE - 1
+            Figure 2 - Log Page Structure
+
+In addition to extracting logs at runtime through DebugFS, IPC Logging has been
+designed to allow extraction of logs from a memory dump.  The magic numbers,
+timestamps, and context offset are all added to support the memory-dump
+extraction use case.
+
+Design
+======
+
+Alternate solutions discussed include using kernel & SMEM logs which are
+limited in size and hence using them render them unusable by other drivers.
+Also kernel logging into serial console is slowing down the performance of
+the drivers by multiple times and sometimes lead to APPs watchdog bite.
+
+Power Management
+================
+
+Not-Applicable
+
+SMP/multi-core
+==============
+
+This module uses spinlocks & mutexes to handle multi-core safety.
+
+Security
+========
+
+Not-Applicable
+
+Performance
+===========
+
+This logging mechanism, based on experimental data, is not expected to
+cause a significant performance degradation. Under worst case, it can
+cause 1 - 2 percent degradation in the throughput of the IPC Drivers.
+
+Interface
+=========
+
+Exported Data Structures
+------------------------
+struct encode_context {
+	struct tsv_header hdr;
+	char buff[MAX_MSG_SIZE];
+	int offset;
+};
+
+struct decode_context {
+	int output_format;
+	char *buff;
+	int size;
+};
+
+Kernel-Space Interface APIs
+----------------------------
+/*
+ * ipc_log_context_create: Create a ipc log context
+ *
+ * @max_num_pages: Number of pages of logging space required (max. 10)
+ * @mod_name     : Name of the directory entry under DEBUGFS
+ * @user_version : Version number of user-defined message formats
+ *
+ * returns reference to context on success, NULL on failure
+ */
+void *ipc_log_context_create(int max_num_pages, const char *mod_name,
+			     uint16_t user_version);
+
+/*
+ * msg_encode_start: Start encoding a log message
+ *
+ * @ectxt: Temporary storage to hold the encoded message
+ * @type:  Root event type defined by the module which is logging
+ */
+void msg_encode_start(struct encode_context *ectxt, uint32_t type);
+
+/*
+ * msg_encode_end: Complete the message encode process
+ *
+ * @ectxt: Temporary storage which holds the encoded message
+ */
+void msg_encode_end(struct encode_context *ectxt);
+
+/*
+ * tsv_timestamp_write: Writes the current timestamp count
+ *
+ * @ectxt: Context initialized by calling msg_encode_start()
+ *
+ * Returns 0 on success, -ve error code on failure
+ */
+int tsv_timestamp_write(struct encode_context *ectxt);
+
+/*
+ * tsv_pointer_write: Writes a data pointer
+ *
+ * @ectxt:   Context initialized by calling msg_encode_start()
+ * @pointer: Pointer value to write
+ *
+ * Returns 0 on success, -ve error code on failure
+ */
+int tsv_pointer_write(struct encode_context *ectxt, void *pointer);
+
+/*
+ * tsv_int32_write: Writes a 32-bit integer value
+ *
+ * @ectxt: Context initialized by calling msg_encode_start()
+ * @n:     Integer to write
+ *
+ * Returns 0 on success, -ve error code on failure
+ */
+int tsv_int32_write(struct encode_context *ectxt, int32_t n);
+
+/*
+ * tsv_byte_array_write: Writes a byte array
+ *
+ * @ectxt: Context initialized by calling msg_encode_start()
+ * @data:  Location of data
+ * @data_size: Size of data to be written
+ *
+ * Returns 0 on success, -ve error code on failure
+ */
+int tsv_byte_array_write(struct encode_context *ectxt,
+			  void *data, int data_size);
+
+/*
+ * ipc_log_write: Write the encoded message into the log space
+ *
+ * @ctxt: IPC log context where the message has to be logged into
+ * @ectxt: Temporary storage containing the encoded message
+ */
+void ipc_log_write(unsigned long ctxt, struct encode_context *ectxt);
+
+/*
+ * ipc_log_string: Helper function to log a string
+ *
+ * @dlctxt: IPC Log Context created using ipc_log_context_create()
+ * @fmt:    Data specified using format specifiers
+ */
+int ipc_log_string(unsigned long dlctxt, const char *fmt, ...);
+
+/*
+ * tsv_timestamp_read: Reads a timestamp
+ *
+ * @ectxt:  Context retrieved by reading from log space
+ * @dctxt:  Temporary storage to hold the decoded message
+ * @format: Output format while dumping through DEBUGFS
+ */
+void tsv_timestamp_read(struct encode_context *ectxt,
+			struct decode_context *dctxt, const char *format);
+
+/*
+ * tsv_pointer_read: Reads a data pointer
+ *
+ * @ectxt:  Context retrieved by reading from log space
+ * @dctxt:  Temporary storage to hold the decoded message
+ * @format: Output format while dumping through DEBUGFS
+ */
+void tsv_pointer_read(struct encode_context *ectxt,
+		      struct decode_context *dctxt, const char *format);
+
+/*
+ * tsv_int32_read: Reads a 32-bit integer value
+ *
+ * @ectxt:  Context retrieved by reading from log space
+ * @dctxt:  Temporary storage to hold the decoded message
+ * @format: Output format while dumping through DEBUGFS
+ */
+void tsv_int32_read(struct encode_context *ectxt,
+		    struct decode_context *dctxt, const char *format);
+
+/*
+ * tsv_byte_array_read: Reads a byte array/string
+ *
+ * @ectxt:  Context retrieved by reading from log space
+ * @dctxt:  Temporary storage to hold the decoded message
+ * @format: Output format while dumping through DEBUGFS
+ */
+void tsv_byte_array_read(struct encode_context *ectxt,
+			 struct decode_context *dctxt, const char *format);
+
+/*
+ * add_deserialization_func: Register a deserialization function to
+ *                           to unpack the subevents of a main event
+ *
+ * @ctxt: IPC log context to which the deserialization function has
+ *        to be registered
+ * @type: Main/Root event, defined by the module which is logging, to
+ *        which this deserialization function has to be registered.
+ * @dfune: Deserialization function to be registered
+ *
+ * return 0 on success, -ve value on FAILURE
+ */
+int add_deserialization_func(unsigned long ctxt, int type,
+			void (*dfunc)(struct encode_context *,
+				      struct decode_context *));
+
+Driver parameters
+=================
+
+Not-Applicable
+
+Config options
+==============
+
+Not-Applicable
+
+Dependencies
+============
+
+This module will partially depend on CONFIG_DEBUGFS, in order to dump the
+logs through debugfs. If CONFIG_DEBUGFS is disabled, the above mentioned
+helper functions will perform no operation and return appropriate error
+code if the return value is non void. Under such circumstances the logs can
+only be extracted through the memory dump.
+
+User space utilities
+====================
+
+DEBUGFS
+
+Other
+=====
+
+Not-Applicable
+
+Known issues
+============
+
+None
+
+To do
+=====
+
+None
