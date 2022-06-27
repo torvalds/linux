@@ -54,10 +54,15 @@ MODULE_PARM_DESC(boot_error_status_mask,
 #define PCI_IDS_GAUDI			0x1000
 #define PCI_IDS_GAUDI_SEC		0x1010
 
+#define PCI_IDS_GAUDI2			0x1020
+#define PCI_IDS_GAUDI2_SEC		0x1030
+
 static const struct pci_device_id ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GOYA), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI), },
 	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI_SEC), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI2), },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HABANALABS, PCI_IDS_GAUDI2_SEC), },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, ids);
@@ -84,6 +89,12 @@ static enum hl_asic_type get_asic_type(u16 device)
 	case PCI_IDS_GAUDI_SEC:
 		asic_type = ASIC_GAUDI_SEC;
 		break;
+	case PCI_IDS_GAUDI2:
+		asic_type = ASIC_GAUDI2;
+		break;
+	case PCI_IDS_GAUDI2_SEC:
+		asic_type = ASIC_GAUDI2_SEC;
+		break;
 	default:
 		asic_type = ASIC_INVALID;
 		break;
@@ -96,6 +107,7 @@ static bool is_asic_secured(enum hl_asic_type asic_type)
 {
 	switch (asic_type) {
 	case ASIC_GAUDI_SEC:
+	case ASIC_GAUDI2_SEC:
 		return true;
 	default:
 		return false;
@@ -282,7 +294,7 @@ static void set_driver_behavior_per_device(struct hl_device *hdev)
 {
 	hdev->nic_ports_mask = 0;
 	hdev->fw_components = FW_TYPE_ALL_TYPES;
-	hdev->mmu_enable = 1;
+	hdev->mmu_enable = MMU_EN_ALL;
 	hdev->cpu_queues_enable = 1;
 	hdev->pldm = 0;
 	hdev->hard_reset_on_fw_events = 1;
@@ -293,24 +305,42 @@ static void set_driver_behavior_per_device(struct hl_device *hdev)
 
 static void copy_kernel_module_params_to_device(struct hl_device *hdev)
 {
+	hdev->asic_prop.fw_security_enabled = is_asic_secured(hdev->asic_type);
+
 	hdev->major = hl_major;
 	hdev->memory_scrub = memory_scrub;
 	hdev->reset_on_lockup = reset_on_lockup;
 	hdev->boot_error_status_mask = boot_error_status_mask;
+}
 
-	if (timeout_locked)
-		hdev->timeout_jiffies = msecs_to_jiffies(timeout_locked * 1000);
-	else
-		hdev->timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
+static void fixup_device_params_per_asic(struct hl_device *hdev)
+{
+	switch (hdev->asic_type) {
+	case ASIC_GOYA:
+	case ASIC_GAUDI:
+	case ASIC_GAUDI_SEC:
+		hdev->reset_upon_device_release = 0;
+		break;
 
+	default:
+		hdev->reset_upon_device_release = 1;
+		break;
+	}
 }
 
 static int fixup_device_params(struct hl_device *hdev)
 {
-	hdev->asic_prop.fw_security_enabled = is_asic_secured(hdev->asic_type);
+	int tmp_timeout;
+
+	tmp_timeout = timeout_locked;
 
 	hdev->fw_poll_interval_usec = HL_FW_STATUS_POLL_INTERVAL_USEC;
 	hdev->fw_comms_poll_interval_usec = HL_FW_STATUS_POLL_INTERVAL_USEC;
+
+	if (tmp_timeout)
+		hdev->timeout_jiffies = msecs_to_jiffies(tmp_timeout * 1000);
+	else
+		hdev->timeout_jiffies = MAX_SCHEDULE_TIMEOUT;
 
 	hdev->stop_on_err = true;
 	hdev->reset_info.curr_reset_cause = HL_RESET_CAUSE_UNKNOWN;
@@ -318,6 +348,18 @@ static int fixup_device_params(struct hl_device *hdev)
 
 	/* Enable only after the initialization of the device */
 	hdev->disabled = true;
+
+	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU) &&
+			(hdev->fw_components & ~FW_TYPE_PREBOOT_CPU)) {
+		pr_err("Preboot must be set along with other components");
+		return -EINVAL;
+	}
+
+	/* If CPU queues not enabled, no way to do heartbeat */
+	if (!hdev->cpu_queues_enable)
+		hdev->heartbeat = 0;
+
+	fixup_device_params_per_asic(hdev);
 
 	return 0;
 }
@@ -343,7 +385,7 @@ static int create_hdev(struct hl_device **dev, struct pci_dev *pdev)
 	if (!hdev)
 		return -ENOMEM;
 
-	/* can be NULL in case of simulator device */
+	/* Will be NULL in case of simulator device */
 	hdev->pdev = pdev;
 
 	/* Assign status description string */
