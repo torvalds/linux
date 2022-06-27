@@ -69,7 +69,7 @@ static int hw_ip_info(struct hl_device *hdev, struct hl_info_args *args)
 
 	dram_available_size = prop->dram_size - dram_kmd_size;
 
-	if (hdev->mmu_enable)
+	if (hdev->mmu_enable == MMU_EN_ALL)
 		hw_ip.dram_size = DIV_ROUND_DOWN_ULL(dram_available_size,
 				prop->dram_page_size) * prop->dram_page_size;
 	else

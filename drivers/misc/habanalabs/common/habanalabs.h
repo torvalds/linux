@@ -104,6 +104,18 @@ enum hl_mmu_page_table_location {
 	MMU_NUM_PGT_LOCATIONS	/* num of PGT locations */
 };
 
+/**
+ * enum hl_mmu_enablement - what mmu modules to enable
+ * @MMU_EN_NONE: mmu disabled.
+ * @MMU_EN_ALL: enable all.
+ * @MMU_EN_PMMU_ONLY: Enable only the PMMU leaving the DMMU disabled.
+ */
+enum hl_mmu_enablement {
+	MMU_EN_NONE = 0,
+	MMU_EN_ALL = 1,
+	MMU_EN_PMMU_ONLY = 3,	/* N/A for Goya/Gaudi */
+};
+
 /*
  * HL_RSVD_SOBS 'sync stream' reserved sync objects per QMAN stream
  * HL_RSVD_MONS 'sync stream' reserved monitors per QMAN stream
@@ -238,20 +250,27 @@ struct hl_gen_wait_properties {
 
 /**
  * struct pgt_info - MMU hop page info.
- * @node: hash linked-list node for the pgts shadow hash of pgts.
+ * @node: hash linked-list node for the pgts on host (shadow pgts for device resident MMU and
+ *        actual pgts for host resident MMU).
  * @phys_addr: physical address of the pgt.
- * @shadow_addr: shadow hop in the host.
+ * @virt_addr: host virtual address of the pgt (see above device/host resident).
+ * @shadow_addr: shadow hop in the host for device resident MMU.
  * @ctx: pointer to the owner ctx.
- * @num_of_ptes: indicates how many ptes are used in the pgt.
+ * @num_of_ptes: indicates how many ptes are used in the pgt. used only for dynamically
+ *               allocated HOPs (all HOPs but HOP0)
  *
- * The MMU page tables hierarchy is placed on the DRAM. When a new level (hop)
- * is needed during mapping, a new page is allocated and this structure holds
- * its essential information. During unmapping, if no valid PTEs remained in the
- * page, it is freed with its pgt_info structure.
+ * The MMU page tables hierarchy can be placed either on the device's DRAM (in which case shadow
+ * pgts will be stored on host memory) or on host memory (in which case no shadow is required).
+ *
+ * When a new level (hop) is needed during mapping this structure will be used to describe
+ * the newly allocated hop as well as to track number of PTEs in it.
+ * During unmapping, if no valid PTEs remained in the page of a newly allocated hop, it is
+ * freed with its pgt_info structure.
  */
 struct pgt_info {
 	struct hlist_node	node;
 	u64			phys_addr;
+	u64			virt_addr;
 	u64			shadow_addr;
 	struct hl_ctx		*ctx;
 	int			num_of_ptes;
@@ -1704,6 +1723,9 @@ struct hl_cs_outcome_store {
  * @mem_hash: holds mapping from virtual address to virtual memory area
  *		descriptor (hl_vm_phys_pg_list or hl_userptr).
  * @mmu_shadow_hash: holds a mapping from shadow address to pgt_info structure.
+ * @hr_mmu_phys_hash: if host-resident MMU is used, holds a mapping from
+ *                    MMU-hop-page physical address to its host-resident
+ *                    pgt_info structure.
  * @hpriv: pointer to the private (Kernel Driver) data of the process (fd).
  * @hdev: pointer to the device structure.
  * @refcount: reference counter for the context. Context is released only when
@@ -1742,6 +1764,7 @@ struct hl_cs_outcome_store {
 struct hl_ctx {
 	DECLARE_HASHTABLE(mem_hash, MEM_HASH_TABLE_BITS);
 	DECLARE_HASHTABLE(mmu_shadow_hash, MMU_HASH_TABLE_BITS);
+	DECLARE_HASHTABLE(hr_mmu_phys_hash, MMU_HASH_TABLE_BITS);
 	struct hl_fpriv			*hpriv;
 	struct hl_device		*hdev;
 	struct kref			refcount;
@@ -2199,6 +2222,7 @@ struct hl_debugfs_entry {
  * @state_dump_sem: protects state_dump.
  * @addr: next address to read/write from/to in read/write32.
  * @mmu_addr: next virtual address to translate to physical address in mmu_show.
+ * @mmu_cap_mask: mmu hw capability mask, to be used in mmu_ack_error.
  * @userptr_lookup: the target user ptr to look up for on demand.
  * @mmu_asid: ASID to use while translating in mmu_show.
  * @state_dump_head: index of the latest state dump
@@ -2229,6 +2253,7 @@ struct hl_dbg_device_entry {
 	struct rw_semaphore		state_dump_sem;
 	u64				addr;
 	u64				mmu_addr;
+	u64				mmu_cap_mask;
 	u64				userptr_lookup;
 	u32				mmu_asid;
 	u32				state_dump_head;
@@ -2612,9 +2637,25 @@ struct hl_mmu_per_hop_info {
 struct hl_mmu_hop_info {
 	u64 scrambled_vaddr;
 	u64 unscrambled_paddr;
-	struct hl_mmu_per_hop_info hop_info[MMU_ARCH_5_HOPS];
+	struct hl_mmu_per_hop_info hop_info[MMU_ARCH_6_HOPS];
 	u32 used_hops;
 	enum hl_va_range_type range_type;
+};
+
+/**
+ * struct hl_hr_mmu_funcs - Device related host resident MMU functions.
+ * @get_hop0_pgt_info: get page table info structure for HOP0.
+ * @get_pgt_info: get page table info structure for HOP other than HOP0.
+ * @add_pgt_info: add page table info structure to hash.
+ * @get_tlb_mapping_params: get mapping parameters needed for getting TLB info for specific mapping.
+ */
+struct hl_hr_mmu_funcs {
+	struct pgt_info *(*get_hop0_pgt_info)(struct hl_ctx *ctx);
+	struct pgt_info *(*get_pgt_info)(struct hl_ctx *ctx, u64 phys_hop_addr);
+	void (*add_pgt_info)(struct hl_ctx *ctx, struct pgt_info *pgt_info, dma_addr_t phys_addr);
+	int (*get_tlb_mapping_params)(struct hl_device *hdev, struct hl_mmu_properties **mmu_prop,
+								struct hl_mmu_hop_info *hops,
+								u64 virt_addr, bool *is_huge);
 };
 
 /**
@@ -2631,22 +2672,21 @@ struct hl_mmu_hop_info {
  * @get_tlb_info: returns the list of hops and hop-entries used that were
  *                created in order to translate the giver virtual address to a
  *                physical one.
+ * @hr_funcs: functions specific to host resident MMU.
  */
 struct hl_mmu_funcs {
 	int (*init)(struct hl_device *hdev);
 	void (*fini)(struct hl_device *hdev);
 	int (*ctx_init)(struct hl_ctx *ctx);
 	void (*ctx_fini)(struct hl_ctx *ctx);
-	int (*map)(struct hl_ctx *ctx,
-			u64 virt_addr, u64 phys_addr, u32 page_size,
-			bool is_dram_addr);
-	int (*unmap)(struct hl_ctx *ctx,
-			u64 virt_addr, bool is_dram_addr);
+	int (*map)(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr, u32 page_size,
+				bool is_dram_addr);
+	int (*unmap)(struct hl_ctx *ctx, u64 virt_addr, bool is_dram_addr);
 	void (*flush)(struct hl_ctx *ctx);
 	void (*swap_out)(struct hl_ctx *ctx);
 	void (*swap_in)(struct hl_ctx *ctx);
-	int (*get_tlb_info)(struct hl_ctx *ctx,
-			u64 virt_addr, struct hl_mmu_hop_info *hops);
+	int (*get_tlb_info)(struct hl_ctx *ctx, u64 virt_addr, struct hl_mmu_hop_info *hops);
+	struct hl_hr_mmu_funcs hr_funcs;
 };
 
 /**
@@ -3461,10 +3501,39 @@ int hl_mmu_prefetch_cache_range(struct hl_ctx *ctx, u32 flags, u32 asid, u64 va,
 u64 hl_mmu_get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte);
 u64 hl_mmu_get_hop_pte_phys_addr(struct hl_ctx *ctx, struct hl_mmu_properties *mmu_prop,
 					u8 hop_idx, u64 hop_addr, u64 virt_addr);
+void hl_mmu_hr_flush(struct hl_ctx *ctx);
+int hl_mmu_hr_init(struct hl_device *hdev, struct hl_mmu_hr_priv *hr_priv, u32 hop_table_size,
+			u64 pgt_size);
+void hl_mmu_hr_fini(struct hl_device *hdev, struct hl_mmu_hr_priv *hr_priv, u32 hop_table_size);
+void hl_mmu_hr_free_hop_remove_pgt(struct pgt_info *pgt_info, struct hl_mmu_hr_priv *hr_priv,
+				u32 hop_table_size);
+u64 hl_mmu_hr_pte_phys_to_virt(struct hl_ctx *ctx, struct pgt_info *pgt, u64 phys_pte_addr,
+							u32 hop_table_size);
+void hl_mmu_hr_write_pte(struct hl_ctx *ctx, struct pgt_info *pgt_info, u64 phys_pte_addr,
+							u64 val, u32 hop_table_size);
+void hl_mmu_hr_clear_pte(struct hl_ctx *ctx, struct pgt_info *pgt_info, u64 phys_pte_addr,
+							u32 hop_table_size);
+int hl_mmu_hr_put_pte(struct hl_ctx *ctx, struct pgt_info *pgt_info, struct hl_mmu_hr_priv *hr_priv,
+							u32 hop_table_size);
+void hl_mmu_hr_get_pte(struct hl_ctx *ctx, struct hl_hr_mmu_funcs *hr_func, u64 phys_hop_addr);
+struct pgt_info *hl_mmu_hr_get_next_hop_pgt_info(struct hl_ctx *ctx,
+							struct hl_hr_mmu_funcs *hr_func,
+							u64 curr_pte);
+struct pgt_info *hl_mmu_hr_alloc_hop(struct hl_ctx *ctx, struct hl_mmu_hr_priv *hr_priv,
+							struct hl_hr_mmu_funcs *hr_func,
+							struct hl_mmu_properties *mmu_prop);
+struct pgt_info *hl_mmu_hr_get_alloc_next_hop(struct hl_ctx *ctx,
+							struct hl_mmu_hr_priv *hr_priv,
+							struct hl_hr_mmu_funcs *hr_func,
+							struct hl_mmu_properties *mmu_prop,
+							u64 curr_pte, bool *is_new_hop);
+int hl_mmu_hr_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr, struct hl_mmu_hop_info *hops,
+							struct hl_hr_mmu_funcs *hr_func);
 void hl_mmu_swap_out(struct hl_ctx *ctx);
 void hl_mmu_swap_in(struct hl_ctx *ctx);
 int hl_mmu_if_set_funcs(struct hl_device *hdev);
 void hl_mmu_v1_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);
+void hl_mmu_v2_hr_set_funcs(struct hl_device *hdev, struct hl_mmu_funcs *mmu);
 int hl_mmu_va_to_pa(struct hl_ctx *ctx, u64 virt_addr, u64 *phys_addr);
 int hl_mmu_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 			struct hl_mmu_hop_info *hops);

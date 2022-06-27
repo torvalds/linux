@@ -450,7 +450,7 @@ static int mmu_show(struct seq_file *s, void *data)
 	if (hl_mmu_get_tlb_info(ctx, virt_addr, &hops_info)) {
 		dev_err(hdev->dev, "virt addr 0x%llx is not mapped to phys addr\n",
 				virt_addr);
-		return 0;
+		goto put_ctx;
 	}
 
 	hl_mmu_va_to_pa(ctx, virt_addr, &phys_addr);
@@ -475,6 +475,10 @@ static int mmu_show(struct seq_file *s, void *data)
 		seq_printf(s, "hop%d_pte: 0x%llx\n",
 				i, hops_info.hop_info[i].hop_pte_val);
 	}
+
+put_ctx:
+	if (dev_entry->mmu_asid != HL_KERNEL_ASID_ID)
+		hl_ctx_put(ctx);
 
 	return 0;
 }
@@ -518,6 +522,66 @@ static ssize_t mmu_asid_va_write(struct file *file, const char __user *buf,
 
 err:
 	dev_err(hdev->dev, "usage: echo <asid> <0xaddr> > mmu\n");
+
+	return -EINVAL;
+}
+
+static int mmu_ack_error(struct seq_file *s, void *data)
+{
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct hl_device *hdev = dev_entry->hdev;
+	int rc;
+
+	if (!hdev->mmu_enable)
+		return 0;
+
+	if (!dev_entry->mmu_cap_mask) {
+		dev_err(hdev->dev, "mmu_cap_mask is not set\n");
+		goto err;
+	}
+
+	rc = hdev->asic_funcs->ack_mmu_errors(hdev, dev_entry->mmu_cap_mask);
+	if (rc)
+		goto err;
+
+	return 0;
+err:
+	return -EINVAL;
+}
+
+static ssize_t mmu_ack_error_value_write(struct file *file,
+		const char __user *buf,
+		size_t count, loff_t *f_pos)
+{
+	struct seq_file *s = file->private_data;
+	struct hl_debugfs_entry *entry = s->private;
+	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
+	struct hl_device *hdev = dev_entry->hdev;
+	char kbuf[MMU_KBUF_SIZE];
+	ssize_t rc;
+
+	if (!hdev->mmu_enable)
+		return count;
+
+	if (count > sizeof(kbuf) - 1)
+		goto err;
+
+	if (copy_from_user(kbuf, buf, count))
+		goto err;
+
+	kbuf[count] = 0;
+
+	if (strncmp(kbuf, "0x", 2))
+		goto err;
+
+	rc = kstrtoull(kbuf, 16, &dev_entry->mmu_cap_mask);
+	if (rc)
+		goto err;
+
+	return count;
+err:
+	dev_err(hdev->dev, "usage: echo <0xmmu_cap_mask > > mmu_error\n");
 
 	return -EINVAL;
 }
@@ -667,7 +731,8 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
 		dev_err(hdev->dev,
 			"virt addr 0x%llx is not mapped\n",
 			virt_addr);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto put_ctx;
 	}
 
 	rc = hl_mmu_va_to_pa(ctx, virt_addr, phys_addr);
@@ -677,6 +742,9 @@ static int device_va_to_pa(struct hl_device *hdev, u64 virt_addr, u32 size,
 			virt_addr);
 		rc = -EINVAL;
 	}
+
+put_ctx:
+	hl_ctx_put(ctx);
 
 	return rc;
 }
@@ -728,7 +796,7 @@ static void hl_access_host_mem(struct hl_device *hdev, u64 addr, u64 *val,
 }
 
 static int hl_access_mem(struct hl_device *hdev, u64 addr, u64 *val,
-	enum debugfs_access_type acc_type)
+				enum debugfs_access_type acc_type)
 {
 	size_t acc_size = (acc_type == DEBUGFS_READ64 || acc_type == DEBUGFS_WRITE64) ?
 		sizeof(u64) : sizeof(u32);
@@ -1462,7 +1530,8 @@ static const struct hl_info_list hl_debugfs_list[] = {
 	{"vm", vm_show, NULL},
 	{"userptr_lookup", userptr_lookup_show, userptr_lookup_write},
 	{"mmu", mmu_show, mmu_asid_va_write},
-	{"engines", engines_show, NULL}
+	{"mmu_error", mmu_ack_error, mmu_ack_error_value_write},
+	{"engines", engines_show, NULL},
 };
 
 static int hl_debugfs_open(struct inode *inode, struct file *file)

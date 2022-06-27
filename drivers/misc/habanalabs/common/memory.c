@@ -627,7 +627,7 @@ static u64 get_va_block(struct hl_device *hdev,
 
 	/* Check if we need to ignore hint address */
 	if ((is_align_pow_2 && (hint_addr & (va_block_align - 1))) ||
-		(!is_align_pow_2 && is_hint_dram_addr &&
+			(!is_align_pow_2 && is_hint_dram_addr &&
 			do_div(tmp_hint_addr, va_range->page_size))) {
 
 		if (force_hint) {
@@ -2476,18 +2476,21 @@ bool hl_userptr_is_pinned(struct hl_device *hdev, u64 addr,
 /**
  * va_range_init() - initialize virtual addresses range.
  * @hdev: pointer to the habanalabs device structure.
- * @va_range: pointer to va_range structure.
- * @start: range start address.
- * @end: range end address.
+ * @va_ranges: pointer to va_ranges array.
+ * @range_type: virtual address range type.
+ * @start: range start address, inclusive.
+ * @end: range end address, inclusive.
  * @page_size: page size for this va_range.
  *
  * This function does the following:
  * - Initializes the virtual addresses list of the given range with the given
  *   addresses.
  */
-static int va_range_init(struct hl_device *hdev, struct hl_va_range *va_range,
-				u64 start, u64 end, u32 page_size)
+static int va_range_init(struct hl_device *hdev, struct hl_va_range **va_ranges,
+				enum hl_va_range_type range_type, u64 start,
+				u64 end, u32 page_size)
 {
+	struct hl_va_range *va_range = va_ranges[range_type];
 	int rc;
 
 	INIT_LIST_HEAD(&va_range->list);
@@ -2605,7 +2608,7 @@ static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
 
 	mutex_init(&ctx->va_range[HL_VA_RANGE_TYPE_HOST]->lock);
 
-	rc = va_range_init(hdev, ctx->va_range[HL_VA_RANGE_TYPE_HOST],
+	rc = va_range_init(hdev, ctx->va_range, HL_VA_RANGE_TYPE_HOST,
 			host_range_start, host_range_end, host_page_size);
 	if (rc) {
 		dev_err(hdev->dev, "failed to init host vm range\n");
@@ -2616,7 +2619,7 @@ static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
 		mutex_init(&ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE]->lock);
 
 		rc = va_range_init(hdev,
-			ctx->va_range[HL_VA_RANGE_TYPE_HOST_HUGE],
+			ctx->va_range, HL_VA_RANGE_TYPE_HOST_HUGE,
 			host_huge_range_start, host_huge_range_end,
 			host_huge_page_size);
 		if (rc) {
@@ -2632,7 +2635,7 @@ static int vm_ctx_init_with_ranges(struct hl_ctx *ctx,
 
 	mutex_init(&ctx->va_range[HL_VA_RANGE_TYPE_DRAM]->lock);
 
-	rc = va_range_init(hdev, ctx->va_range[HL_VA_RANGE_TYPE_DRAM],
+	rc = va_range_init(hdev, ctx->va_range, HL_VA_RANGE_TYPE_DRAM,
 			dram_range_start, dram_range_end, dram_page_size);
 	if (rc) {
 		dev_err(hdev->dev, "failed to init dram vm range\n");
