@@ -49,7 +49,7 @@ static void venus_coredump(struct venus_core *core)
 
 	memcpy(data, mem_va, mem_size);
 	memunmap(mem_va);
-	dev_coredumpv(dev, data, mem_size);
+	dev_coredumpv(dev, data, mem_size, GFP_KERNEL);
 }
 
 static void venus_event_notify(struct venus_core *core, u32 event)

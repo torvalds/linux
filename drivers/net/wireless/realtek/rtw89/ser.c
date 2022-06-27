@@ -127,7 +127,7 @@ static void rtw89_ser_cd_send(struct rtw89_dev *rtwdev,
 	 * will be discarded if a previous one hasn't been released by
 	 * framework yet.
 	 */
-	dev_coredumpv(rtwdev->dev, buf, sizeof(*buf));
+	dev_coredumpv(rtwdev->dev, buf, sizeof(*buf), GFP_KERNEL);
 }
 
 static void rtw89_ser_cd_free(struct rtw89_dev *rtwdev,

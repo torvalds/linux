@@ -414,7 +414,7 @@ static void rtw_fwcd_dump(struct rtw_dev *rtwdev)
 	 * framework. Note that a new dump will be discarded if a previous one
 	 * hasn't been released yet.
 	 */
-	dev_coredumpv(rtwdev->dev, desc->data, desc->size);
+	dev_coredumpv(rtwdev->dev, desc->data, desc->size, GFP_KERNEL);
 }
 
 static void rtw_fwcd_free(struct rtw_dev *rtwdev, bool free_self)

@@ -309,7 +309,7 @@ void rproc_coredump(struct rproc *rproc)
 		phdr += elf_size_of_phdr(class);
 	}
 	if (dump_conf == RPROC_COREDUMP_ENABLED) {
-		dev_coredumpv(&rproc->dev, data, data_size);
+		dev_coredumpv(&rproc->dev, data, data_size, GFP_KERNEL);
 		return;
 	}
 
@@ -318,7 +318,7 @@ void rproc_coredump(struct rproc *rproc)
 	dump_state.header = data;
 	init_completion(&dump_state.dump_done);
 
-	dev_coredumpm(&rproc->dev, NULL, &dump_state, data_size,
+	dev_coredumpm(&rproc->dev, NULL, &dump_state, data_size, GFP_KERNEL,
 		      rproc_coredump_read, rproc_coredump_free);
 
 	/*
@@ -449,7 +449,7 @@ void rproc_coredump_using_sections(struct rproc *rproc)
 	}
 
 	if (dump_conf == RPROC_COREDUMP_ENABLED) {
-		dev_coredumpv(&rproc->dev, data, data_size);
+		dev_coredumpv(&rproc->dev, data, data_size, GFP_KERNEL);
 		return;
 	}
 
@@ -458,7 +458,7 @@ void rproc_coredump_using_sections(struct rproc *rproc)
 	dump_state.header = data;
 	init_completion(&dump_state.dump_done);
 
-	dev_coredumpm(&rproc->dev, NULL, &dump_state, data_size,
+	dev_coredumpm(&rproc->dev, NULL, &dump_state, data_size, GFP_KERNEL,
 		      rproc_coredump_read, rproc_coredump_free);
 
 	/* Wait until the dump is read and free is called. Data is freed

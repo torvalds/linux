@@ -281,5 +281,5 @@ void mcp251xfd_dump(const struct mcp251xfd_priv *priv)
 	mcp251xfd_dump_end(priv, &iter);
 
 	dev_coredumpv(&priv->spi->dev, iter.start,
-		      iter.data - iter.start);
+		      iter.data - iter.start, GFP_KERNEL);
 }

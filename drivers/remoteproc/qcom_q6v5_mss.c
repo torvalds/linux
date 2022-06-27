@@ -597,7 +597,7 @@ static void q6v5_dump_mba_logs(struct q6v5 *qproc)
 	data = vmalloc(MBA_LOG_SIZE);
 	if (data) {
 		memcpy(data, mba_region, MBA_LOG_SIZE);
-		dev_coredumpv(&rproc->dev, data, MBA_LOG_SIZE);
+		dev_coredumpv(&rproc->dev, data, MBA_LOG_SIZE, GFP_KERNEL);
 	}
 	memunmap(mba_region);
 }

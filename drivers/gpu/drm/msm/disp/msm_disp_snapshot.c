@@ -74,8 +74,8 @@ static void _msm_disp_snapshot_work(struct kthread_work *work)
 	 * If there is a codedump pending for the device, the dev_coredumpm()
 	 * will also free new coredump state.
 	 */
-	dev_coredumpm(disp_state->dev, THIS_MODULE, disp_state, 0,
-		      disp_devcoredump_read, msm_disp_state_free);
+	dev_coredumpm(disp_state->dev, THIS_MODULE, disp_state, 0, GFP_KERNEL,
+			disp_devcoredump_read, msm_disp_state_free);
 }
 
 void msm_disp_snapshot_state(struct drm_device *drm_dev)

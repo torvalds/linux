@@ -1115,7 +1115,8 @@ void mwifiex_upload_device_dump(struct mwifiex_adapter *adapter)
 	 */
 	mwifiex_dbg(adapter, MSG,
 		    "== mwifiex dump information to /sys/class/devcoredump start\n");
-	dev_coredumpv(adapter->dev, adapter->devdump_data, adapter->devdump_len);
+	dev_coredumpv(adapter->dev, adapter->devdump_data, adapter->devdump_len,
+		      GFP_KERNEL);
 	mwifiex_dbg(adapter, MSG,
 		    "== mwifiex dump information to /sys/class/devcoredump end\n");
 

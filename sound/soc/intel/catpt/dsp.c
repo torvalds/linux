@@ -539,7 +539,7 @@ int catpt_coredump(struct catpt_dev *cdev)
 		pos += CATPT_DMA_REGS_SIZE;
 	}
 
-	dev_coredumpv(cdev->dev, dump, dump_size);
+	dev_coredumpv(cdev->dev, dump, dump_size, GFP_KERNEL);
 
 	return 0;
 }

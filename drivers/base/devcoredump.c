@@ -173,13 +173,15 @@ static void devcd_freev(void *data)
  * @dev: the struct device for the crashed device
  * @data: vmalloc data containing the device coredump
  * @datalen: length of the data
+ * @gfp: allocation flags
  *
  * This function takes ownership of the vmalloc'ed data and will free
  * it when it is no longer used. See dev_coredumpm() for more information.
  */
-void dev_coredumpv(struct device *dev, void *data, size_t datalen)
+void dev_coredumpv(struct device *dev, void *data, size_t datalen,
+		   gfp_t gfp)
 {
-	dev_coredumpm(dev, NULL, data, datalen, devcd_readv, devcd_freev);
+	dev_coredumpm(dev, NULL, data, datalen, gfp, devcd_readv, devcd_freev);
 }
 EXPORT_SYMBOL_GPL(dev_coredumpv);
 
@@ -234,6 +236,7 @@ static ssize_t devcd_read_from_sgtable(char *buffer, loff_t offset,
  * @owner: the module that contains the read/free functions, use %THIS_MODULE
  * @data: data cookie for the @read/@free functions
  * @datalen: length of the data
+ * @gfp: allocation flags
  * @read: function to read from the given buffer
  * @free: function to free the given buffer
  *
@@ -243,7 +246,7 @@ static ssize_t devcd_read_from_sgtable(char *buffer, loff_t offset,
  * function will be called to free the data.
  */
 void dev_coredumpm(struct device *dev, struct module *owner,
-		   void *data, size_t datalen,
+		   void *data, size_t datalen, gfp_t gfp,
 		   ssize_t (*read)(char *buffer, loff_t offset, size_t count,
 				   void *data, size_t datalen),
 		   void (*free)(void *data))
@@ -265,7 +268,7 @@ void dev_coredumpm(struct device *dev, struct module *owner,
 	if (!try_module_get(owner))
 		goto free;
 
-	devcd = kzalloc(sizeof(*devcd), GFP_KERNEL);
+	devcd = kzalloc(sizeof(*devcd), gfp);
 	if (!devcd)
 		goto put_module;
 
@@ -315,6 +318,7 @@ EXPORT_SYMBOL_GPL(dev_coredumpm);
  * @dev: the struct device for the crashed device
  * @table: the dump data
  * @datalen: length of the data
+ * @gfp: allocation flags
  *
  * Creates a new device coredump for the given device. If a previous one hasn't
  * been read yet, the new coredump is discarded. The data lifetime is determined
@@ -322,9 +326,9 @@ EXPORT_SYMBOL_GPL(dev_coredumpm);
  * it will free the data.
  */
 void dev_coredumpsg(struct device *dev, struct scatterlist *table,
-		    size_t datalen)
+		    size_t datalen, gfp_t gfp)
 {
-	dev_coredumpm(dev, NULL, table, datalen, devcd_read_from_sgtable,
+	dev_coredumpm(dev, NULL, table, datalen, gfp, devcd_read_from_sgtable,
 		      devcd_free_sgtable);
 }
 EXPORT_SYMBOL_GPL(dev_coredumpsg);

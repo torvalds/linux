@@ -164,7 +164,7 @@ static int apl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
 	} while (offset < msg->ext.coredump.stack_dump_size);
 
 exit:
-	dev_coredumpv(adev->dev, dump, dump_size);
+	dev_coredumpv(adev->dev, dump, dump_size, GFP_KERNEL);
 
 	return 0;
 }

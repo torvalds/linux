@@ -88,7 +88,7 @@ static int skl_coredump(struct avs_dev *adev, union avs_notify_msg *msg)
 		return -ENOMEM;
 
 	memcpy_fromio(dump, avs_sram_addr(adev, AVS_FW_REGS_WINDOW), AVS_FW_REGS_SIZE);
-	dev_coredumpv(adev->dev, dump, AVS_FW_REGS_SIZE);
+	dev_coredumpv(adev->dev, dump, AVS_FW_REGS_SIZE, GFP_KERNEL);
 
 	return 0;
 }

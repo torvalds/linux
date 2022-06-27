@@ -2601,7 +2601,8 @@ static void iwl_fw_error_dump(struct iwl_fw_runtime *fwrt,
 					     fw_error_dump.trans_ptr->data,
 					     fw_error_dump.trans_ptr->len,
 					     fw_error_dump.fwrt_len);
-		dev_coredumpsg(fwrt->trans->dev, sg_dump_data, file_len);
+		dev_coredumpsg(fwrt->trans->dev, sg_dump_data, file_len,
+			       GFP_KERNEL);
 	}
 	vfree(fw_error_dump.fwrt_ptr);
 	vfree(fw_error_dump.trans_ptr);
@@ -2646,7 +2647,8 @@ static void iwl_fw_error_ini_dump(struct iwl_fw_runtime *fwrt,
 					     entry->data, entry->size, offs);
 			offs += entry->size;
 		}
-		dev_coredumpsg(fwrt->trans->dev, sg_dump_data, file_len);
+		dev_coredumpsg(fwrt->trans->dev, sg_dump_data, file_len,
+			       GFP_KERNEL);
 	}
 	iwl_dump_ini_list_free(&dump_list);
 }

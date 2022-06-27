@@ -1120,7 +1120,7 @@ static void qca_controller_memdump(struct work_struct *work)
 				    qca_memdump->ram_dump_size);
 			memdump_buf = qca_memdump->memdump_buf_head;
 			dev_coredumpv(&hu->serdev->dev, memdump_buf,
-				      qca_memdump->received_dump);
+				      qca_memdump->received_dump, GFP_KERNEL);
 			cancel_delayed_work(&qca->ctrl_memdump_timeout);
 			kfree(qca->qca_memdump);
 			qca->qca_memdump = NULL;

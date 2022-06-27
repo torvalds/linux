@@ -1607,7 +1607,7 @@ int ath10k_coredump_submit(struct ath10k *ar)
 		return -ENODATA;
 	}
 
-	dev_coredumpv(ar->dev, dump, le32_to_cpu(dump->len));
+	dev_coredumpv(ar->dev, dump, le32_to_cpu(dump->len), GFP_KERNEL);
 
 	return 0;
 }

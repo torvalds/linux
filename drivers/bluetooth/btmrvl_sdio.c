@@ -1515,7 +1515,7 @@ done:
 	/* fw_dump_data will be free in device coredump release function
 	 * after 5 min
 	 */
-	dev_coredumpv(&card->func->dev, fw_dump_data, fw_dump_len);
+	dev_coredumpv(&card->func->dev, fw_dump_data, fw_dump_len, GFP_KERNEL);
 	BT_INFO("== btmrvl firmware dump to /sys/class/devcoredump end");
 }
 
