@@ -7,17 +7,17 @@
 #include "ptrace.h"
 #include "ptrace-gpr.h"
 #include "reg.h"
+#include <time.h>
 
 /* Tracer and Tracee Shared Data */
 int shm_id;
 int *cptr, *pptr;
 
-double a = FPR_1;
-double b = FPR_2;
-double c = FPR_3;
-
 extern void gpr_child_loop(int *read_flag, int *write_flag,
 			   unsigned long *gpr_buf, double *fpr_buf);
+
+unsigned long child_gpr_val, parent_gpr_val;
+double child_fpr_val, parent_fpr_val;
 
 static int child(void)
 {
@@ -30,16 +30,16 @@ static int child(void)
 	memset(fpr_buf, 0, sizeof(fpr_buf));
 
 	for (i = 0; i < 32; i++) {
-		gpr_buf[i] = GPR_1;
-		fpr_buf[i] = a;
+		gpr_buf[i] = child_gpr_val;
+		fpr_buf[i] = child_fpr_val;
 	}
 
 	gpr_child_loop(&cptr[0], &cptr[1], gpr_buf, fpr_buf);
 
 	shmdt((void *)cptr);
 
-	FAIL_IF(validate_gpr(gpr_buf, GPR_3));
-	FAIL_IF(validate_fpr_double(fpr_buf, c));
+	FAIL_IF(validate_gpr(gpr_buf, parent_gpr_val));
+	FAIL_IF(validate_fpr_double(fpr_buf, parent_fpr_val));
 
 	return 0;
 }
@@ -47,24 +47,67 @@ static int child(void)
 int trace_gpr(pid_t child)
 {
 	unsigned long gpr[18];
-	__u64 fpr[32];
+	__u64 tmp, fpr[32];
 
 	FAIL_IF(start_trace(child));
 	FAIL_IF(show_gpr(child, gpr));
-	FAIL_IF(validate_gpr(gpr, GPR_1));
+	FAIL_IF(validate_gpr(gpr, child_gpr_val));
 	FAIL_IF(show_fpr(child, fpr));
-	FAIL_IF(validate_fpr(fpr, FPR_1_REP));
-	FAIL_IF(write_gpr(child, GPR_3));
-	FAIL_IF(write_fpr(child, FPR_3_REP));
+
+	memcpy(&tmp, &child_fpr_val, sizeof(tmp));
+	FAIL_IF(validate_fpr(fpr, tmp));
+
+	FAIL_IF(write_gpr(child, parent_gpr_val));
+
+	memcpy(&tmp, &parent_fpr_val, sizeof(tmp));
+	FAIL_IF(write_fpr(child, tmp));
+
 	FAIL_IF(stop_trace(child));
 
 	return TEST_PASS;
 }
 
+#ifndef __LONG_WIDTH__
+#define __LONG_WIDTH__ (sizeof(long) * 8)
+#endif
+
+static uint64_t rand_reg(void)
+{
+	uint64_t result;
+	long r;
+
+	r = random();
+
+	// Small values are typical
+	result = r & 0xffff;
+	if (r & 0x10000)
+		return result;
+
+	// Pointers tend to have high bits set
+	result |= random() << (__LONG_WIDTH__ - 31);
+	if (r & 0x100000)
+		return result;
+
+	// And sometimes we want a full 64-bit value
+	result ^= random() << 16;
+
+	return result;
+}
+
 int ptrace_gpr(void)
 {
-	pid_t pid;
+	unsigned long seed;
 	int ret, status;
+	pid_t pid;
+
+	seed = getpid() ^ time(NULL);
+	printf("srand(%lu)\n", seed);
+	srand(seed);
+
+	child_gpr_val = rand_reg();
+	child_fpr_val = rand_reg();
+	parent_gpr_val = rand_reg();
+	parent_fpr_val = rand_reg();
 
 	shm_id = shmget(IPC_PRIVATE, sizeof(int) * 2, 0777|IPC_CREAT);
 	pid = fork();
