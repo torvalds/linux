@@ -1164,32 +1164,12 @@ LIBBPF_API int bpf_map__get_next_key(const struct bpf_map *map,
  */
 LIBBPF_API long libbpf_get_error(const void *ptr);
 
-/* XDP related API */
-struct xdp_link_info {
-	__u32 prog_id;
-	__u32 drv_prog_id;
-	__u32 hw_prog_id;
-	__u32 skb_prog_id;
-	__u8 attach_mode;
-};
-
 struct bpf_xdp_set_link_opts {
 	size_t sz;
 	int old_fd;
 	size_t :0;
 };
 #define bpf_xdp_set_link_opts__last_field old_fd
-
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_xdp_attach() instead")
-LIBBPF_API int bpf_set_link_xdp_fd(int ifindex, int fd, __u32 flags);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_xdp_attach() instead")
-LIBBPF_API int bpf_set_link_xdp_fd_opts(int ifindex, int fd, __u32 flags,
-					const struct bpf_xdp_set_link_opts *opts);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_xdp_query_id() instead")
-LIBBPF_API int bpf_get_link_xdp_id(int ifindex, __u32 *prog_id, __u32 flags);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_xdp_query() instead")
-LIBBPF_API int bpf_get_link_xdp_info(int ifindex, struct xdp_link_info *info,
-				     size_t info_size, __u32 flags);
 
 struct bpf_xdp_attach_opts {
 	size_t sz;

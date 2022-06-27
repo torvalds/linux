@@ -91,7 +91,6 @@ LIBBPF_0.0.1 {
 		bpf_prog_linfo__lfind_addr_func;
 		bpf_prog_linfo__lfind;
 		bpf_raw_tracepoint_open;
-		bpf_set_link_xdp_fd;
 		bpf_task_fd_query;
 		btf__fd;
 		btf__find_by_name;
@@ -120,7 +119,6 @@ LIBBPF_0.0.2 {
 		bpf_map_lookup_elem_flags;
 		bpf_object__btf;
 		bpf_object__find_map_fd_by_name;
-		bpf_get_link_xdp_id;
 		btf__dedup;
 		btf__get_map_kv_tids;
 		btf__get_nr_types;
@@ -172,7 +170,6 @@ LIBBPF_0.0.5 {
 
 LIBBPF_0.0.6 {
 	global:
-		bpf_get_link_xdp_info;
 		bpf_map__get_pin_path;
 		bpf_map__is_pinned;
 		bpf_map__set_pin_path;
@@ -231,7 +228,6 @@ LIBBPF_0.0.8 {
 		bpf_program__is_lsm;
 		bpf_program__set_attach_target;
 		bpf_program__set_lsm;
-		bpf_set_link_xdp_fd_opts;
 } LIBBPF_0.0.7;
 
 LIBBPF_0.0.9 {
