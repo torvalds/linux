@@ -4531,16 +4531,24 @@ EXPORT_SYMBOL_GPL(tcp_done);
 
 int tcp_abort(struct sock *sk, int err)
 {
-	if (!sk_fullsock(sk)) {
-		if (sk->sk_state == TCP_NEW_SYN_RECV) {
-			struct request_sock *req = inet_reqsk(sk);
+	int state = inet_sk_state_load(sk);
 
-			local_bh_disable();
-			inet_csk_reqsk_queue_drop(req->rsk_listener, req);
-			local_bh_enable();
-			return 0;
-		}
-		return -EOPNOTSUPP;
+	if (state == TCP_NEW_SYN_RECV) {
+		struct request_sock *req = inet_reqsk(sk);
+
+		local_bh_disable();
+		inet_csk_reqsk_queue_drop(req->rsk_listener, req);
+		local_bh_enable();
+		return 0;
+	}
+	if (state == TCP_TIME_WAIT) {
+		struct inet_timewait_sock *tw = inet_twsk(sk);
+
+		refcount_inc(&tw->tw_refcnt);
+		local_bh_disable();
+		inet_twsk_deschedule_put(tw);
+		local_bh_enable();
+		return 0;
 	}
 
 	/* Don't race with userspace socket closes such as tcp_close. */
