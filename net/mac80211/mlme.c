@@ -405,7 +405,6 @@ out:
 }
 
 static int ieee80211_config_bw(struct ieee80211_link_data *link,
-			       struct sta_info *sta,
 			       const struct ieee80211_ht_cap *ht_cap,
 			       const struct ieee80211_vht_cap *vht_cap,
 			       const struct ieee80211_ht_operation *ht_oper,
@@ -448,9 +447,6 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 	    !ieee80211_get_eht_iftype_cap(sband,
 					 ieee80211_vif_type_p2p(&sdata->vif)))
 		eht_oper = NULL;
-
-	if (WARN_ON_ONCE(!sta))
-		return -EINVAL;
 
 	/*
 	 * if bss configuration changed store the new one -
@@ -4439,7 +4435,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 
 	changed |= ieee80211_recalc_twt_req(link, sta, elems);
 
-	if (ieee80211_config_bw(link, sta, elems->ht_cap_elem,
+	if (ieee80211_config_bw(link, elems->ht_cap_elem,
 				elems->vht_cap_elem, elems->ht_operation,
 				elems->vht_operation, elems->he_operation,
 				elems->eht_operation,
