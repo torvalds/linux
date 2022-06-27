@@ -71,7 +71,6 @@ static const struct rhashtable_params mlxsw_sp_fid_vni_ht_params = {
 
 struct mlxsw_sp_flood_table {
 	enum mlxsw_sp_flood_type packet_type;
-	enum mlxsw_reg_bridge_type bridge_type;
 	enum mlxsw_flood_table_type table_type;
 	int table_index;
 };
@@ -110,6 +109,7 @@ struct mlxsw_sp_fid_family {
 	const struct mlxsw_sp_fid_ops *ops;
 	struct mlxsw_sp *mlxsw_sp;
 	bool flood_rsp;
+	enum mlxsw_reg_bridge_type bridge_type;
 };
 
 static const int mlxsw_sp_sfgc_uc_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
@@ -709,19 +709,16 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021d_ops = {
 static const struct mlxsw_sp_flood_table mlxsw_sp_fid_8021d_flood_tables[] = {
 	{
 		.packet_type	= MLXSW_SP_FLOOD_TYPE_UC,
-		.bridge_type	= MLXSW_REG_BRIDGE_TYPE_1,
 		.table_type	= MLXSW_REG_SFGC_TABLE_TYPE_FID,
 		.table_index	= 0,
 	},
 	{
 		.packet_type	= MLXSW_SP_FLOOD_TYPE_MC,
-		.bridge_type	= MLXSW_REG_BRIDGE_TYPE_1,
 		.table_type	= MLXSW_REG_SFGC_TABLE_TYPE_FID,
 		.table_index	= 1,
 	},
 	{
 		.packet_type	= MLXSW_SP_FLOOD_TYPE_BC,
-		.bridge_type	= MLXSW_REG_BRIDGE_TYPE_1,
 		.table_type	= MLXSW_REG_SFGC_TABLE_TYPE_FID,
 		.table_index	= 2,
 	},
@@ -737,6 +734,7 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021d_family = {
 	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
 	.rif_type		= MLXSW_SP_RIF_TYPE_FID,
 	.ops			= &mlxsw_sp_fid_8021d_ops,
+	.bridge_type		= MLXSW_REG_BRIDGE_TYPE_1,
 };
 
 static bool
@@ -785,6 +783,7 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021q_emu_family = {
 	.nr_flood_tables	= ARRAY_SIZE(mlxsw_sp_fid_8021d_flood_tables),
 	.rif_type		= MLXSW_SP_RIF_TYPE_VLAN_EMU,
 	.ops			= &mlxsw_sp_fid_8021q_emu_ops,
+	.bridge_type            = MLXSW_REG_BRIDGE_TYPE_1,
 };
 
 static void mlxsw_sp_fid_rfid_setup(struct mlxsw_sp_fid *fid, const void *arg)
@@ -1132,7 +1131,7 @@ mlxsw_sp_fid_flood_table_init(struct mlxsw_sp_fid_family *fid_family,
 
 		if (!sfgc_packet_types[i])
 			continue;
-		mlxsw_reg_sfgc_pack(sfgc_pl, i, flood_table->bridge_type,
+		mlxsw_reg_sfgc_pack(sfgc_pl, i, fid_family->bridge_type,
 				    flood_table->table_type,
 				    flood_table->table_index);
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfgc), sfgc_pl);
