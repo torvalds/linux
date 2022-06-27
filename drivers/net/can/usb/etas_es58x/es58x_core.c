@@ -1707,7 +1707,7 @@ static int es58x_alloc_rx_urbs(struct es58x_device *es58x_dev)
 {
 	const struct device *dev = es58x_dev->dev;
 	const struct es58x_parameters *param = es58x_dev->param;
-	size_t rx_buf_len = es58x_dev->rx_max_packet_size;
+	u16 rx_buf_len = usb_maxpacket(es58x_dev->udev, es58x_dev->rx_pipe);
 	struct urb *urb;
 	u8 *buf;
 	int i;
@@ -1739,7 +1739,7 @@ static int es58x_alloc_rx_urbs(struct es58x_device *es58x_dev)
 		dev_err(dev, "%s: Could not setup any rx URBs\n", __func__);
 		return ret;
 	}
-	dev_dbg(dev, "%s: Allocated %d rx URBs each of size %zu\n",
+	dev_dbg(dev, "%s: Allocated %d rx URBs each of size %u\n",
 		__func__, i, rx_buf_len);
 
 	return ret;
@@ -2223,7 +2223,6 @@ static struct es58x_device *es58x_init_es58x_dev(struct usb_interface *intf,
 					     ep_in->bEndpointAddress);
 	es58x_dev->tx_pipe = usb_sndbulkpipe(es58x_dev->udev,
 					     ep_out->bEndpointAddress);
-	es58x_dev->rx_max_packet_size = le16_to_cpu(ep_in->wMaxPacketSize);
 
 	return es58x_dev;
 }
