@@ -5403,6 +5403,14 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	int request_clock = mode->clock;
 	int clock;
 
+	/*
+	 * For RK3588, VP0 and VP1 will be both used in splice mode. All display
+	 * modes of the right VP should be set as invalid when vop2 is working in
+	 * splice mode.
+	 */
+	if (vp->splice_mode_right)
+		return MODE_BAD;
+
 	if (mode->hdisplay > vp_data->max_output.width)
 		return MODE_BAD_HVALUE;
 
