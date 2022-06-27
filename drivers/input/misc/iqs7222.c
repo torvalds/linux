@@ -94,11 +94,11 @@ enum iqs7222_reg_key_id {
 
 enum iqs7222_reg_grp_id {
 	IQS7222_REG_GRP_STAT,
+	IQS7222_REG_GRP_FILT,
 	IQS7222_REG_GRP_CYCLE,
 	IQS7222_REG_GRP_GLBL,
 	IQS7222_REG_GRP_BTN,
 	IQS7222_REG_GRP_CHAN,
-	IQS7222_REG_GRP_FILT,
 	IQS7222_REG_GRP_SLDR,
 	IQS7222_REG_GRP_GPIO,
 	IQS7222_REG_GRP_SYS,
@@ -1349,6 +1349,34 @@ static int iqs7222_dev_init(struct iqs7222_private *iqs7222, int dir)
 	int error, i, j, k;
 
 	/*
+	 * Acknowledge reset before writing any registers in case the device
+	 * suffers a spurious reset during initialization. Because this step
+	 * may change the reserved fields of the second filter beta register,
+	 * its cache must be updated.
+	 *
+	 * Writing the second filter beta register, in turn, may clobber the
+	 * system status register. As such, the filter beta register pair is
+	 * written first to protect against this hazard.
+	 */
+	if (dir == WRITE) {
+		u16 reg = dev_desc->reg_grps[IQS7222_REG_GRP_FILT].base + 1;
+		u16 filt_setup;
+
+		error = iqs7222_write_word(iqs7222, IQS7222_SYS_SETUP,
+					   iqs7222->sys_setup[0] |
+					   IQS7222_SYS_SETUP_ACK_RESET);
+		if (error)
+			return error;
+
+		error = iqs7222_read_word(iqs7222, reg, &filt_setup);
+		if (error)
+			return error;
+
+		iqs7222->filt_setup[1] &= GENMASK(7, 0);
+		iqs7222->filt_setup[1] |= (filt_setup & ~GENMASK(7, 0));
+	}
+
+	/*
 	 * Take advantage of the stop-bit disable function, if available, to
 	 * save the trouble of having to reopen a communication window after
 	 * each burst read or write.
@@ -2253,8 +2281,6 @@ static int iqs7222_parse_all(struct iqs7222_private *iqs7222)
 		if (error)
 			return error;
 	}
-
-	sys_setup[0] |= IQS7222_SYS_SETUP_ACK_RESET;
 
 	return iqs7222_parse_props(iqs7222, NULL, 0, IQS7222_REG_GRP_SYS,
 				   IQS7222_REG_KEY_NONE);
