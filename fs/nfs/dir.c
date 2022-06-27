@@ -1739,6 +1739,10 @@ nfs_do_lookup_revalidate(struct inode *dir, struct dentry *dentry,
 		goto out_bad;
 	}
 
+	if ((flags & LOOKUP_RENAME_TARGET) && d_count(dentry) < 2 &&
+	    nfs_server_capable(dir, NFS_CAP_CASE_INSENSITIVE))
+		goto out_bad;
+
 	if (nfs_verifier_is_delegated(dentry))
 		return nfs_lookup_revalidate_delegated(dir, dentry, inode);
 
