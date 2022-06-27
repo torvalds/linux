@@ -22,7 +22,7 @@
  * chown_ok - verify permissions to chown inode
  * @mnt_userns:	user namespace of the mount @inode was found from
  * @inode:	inode to check permissions on
- * @uid:	uid to chown @inode to
+ * @ia_vfsuid:	uid to chown @inode to
  *
  * If the inode has been found through an idmapped mount the user namespace of
  * the vfsmount must be passed through @mnt_userns. This function will then
@@ -49,7 +49,7 @@ static bool chown_ok(struct user_namespace *mnt_userns,
  * chgrp_ok - verify permissions to chgrp inode
  * @mnt_userns:	user namespace of the mount @inode was found from
  * @inode:	inode to check permissions on
- * @gid:	gid to chown @inode to
+ * @ia_vfsgid:	gid to chown @inode to
  *
  * If the inode has been found through an idmapped mount the user namespace of
  * the vfsmount must be passed through @mnt_userns. This function will then
