@@ -949,9 +949,6 @@ void cfg80211_cac_event(struct net_device *netdev,
 	if (WARN_ON(!wdev->cac_started && event != NL80211_RADAR_CAC_STARTED))
 		return;
 
-	if (WARN_ON(!wdev->links[0].ap.chandef.chan))
-		return;
-
 	switch (event) {
 	case NL80211_RADAR_CAC_FINISHED:
 		timeout = wdev->cac_start_time +
