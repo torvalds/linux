@@ -37,10 +37,6 @@ properties:
       device is temporarily held in hardware reset prior to initialization if
       this property is present.
 
-  azoteq,rf-filt-enable:
-    type: boolean
-    description: Enables the device's internal RF filter.
-
   azoteq,max-counts:
     $ref: /schemas/types.yaml#/definitions/uint32
     enum: [0, 1, 2, 3]
