@@ -457,9 +457,24 @@ syncpt_incr:
 				 * to offset 0xbad. This does nothing but
 				 * has a easily detected signature in debug
 				 * traces.
+				 *
+				 * On systems with MLOCK enforcement enabled,
+				 * the above 0 word writes would fall foul of
+				 * the enforcement. As such, in the first slot
+				 * put a RESTART_W opcode to the beginning
+				 * of the next job. We don't use this for older
+				 * chips since those only support the RESTART
+				 * opcode with inconvenient alignment requirements.
 				 */
-				mapped[2*slot+0] = 0x1bad0000;
-				mapped[2*slot+1] = 0x1bad0000;
+				if (i == 0 && host1x->info->has_wide_gather) {
+					unsigned int next_job = (job->first_get/8 + job->num_slots)
+						% HOST1X_PUSHBUFFER_SLOTS;
+					mapped[2*slot+0] = (0xd << 28) | (next_job * 2);
+					mapped[2*slot+1] = 0x0;
+				} else {
+					mapped[2*slot+0] = 0x1bad0000;
+					mapped[2*slot+1] = 0x1bad0000;
+				}
 			}
 
 			job->cancelled = true;
