@@ -233,11 +233,10 @@ alloc_zero_tailing_info(const void *orecord, __u32 cnt,
 	return info;
 }
 
-DEFAULT_VERSION(bpf_prog_load_v0_6_0, bpf_prog_load, LIBBPF_0.6.0)
-int bpf_prog_load_v0_6_0(enum bpf_prog_type prog_type,
-		         const char *prog_name, const char *license,
-		         const struct bpf_insn *insns, size_t insn_cnt,
-		         const struct bpf_prog_load_opts *opts)
+int bpf_prog_load(enum bpf_prog_type prog_type,
+		  const char *prog_name, const char *license,
+		  const struct bpf_insn *insns, size_t insn_cnt,
+		  const struct bpf_prog_load_opts *opts)
 {
 	void *finfo = NULL, *linfo = NULL;
 	const char *func_info, *line_info;
@@ -381,94 +380,6 @@ done:
 	/* free() doesn't affect errno, so we don't need to restore it */
 	free(finfo);
 	free(linfo);
-	return libbpf_err_errno(fd);
-}
-
-__attribute__((alias("bpf_load_program_xattr2")))
-int bpf_load_program_xattr(const struct bpf_load_program_attr *load_attr,
-			   char *log_buf, size_t log_buf_sz);
-
-static int bpf_load_program_xattr2(const struct bpf_load_program_attr *load_attr,
-				   char *log_buf, size_t log_buf_sz)
-{
-	LIBBPF_OPTS(bpf_prog_load_opts, p);
-
-	if (!load_attr || !log_buf != !log_buf_sz)
-		return libbpf_err(-EINVAL);
-
-	p.expected_attach_type = load_attr->expected_attach_type;
-	switch (load_attr->prog_type) {
-	case BPF_PROG_TYPE_STRUCT_OPS:
-	case BPF_PROG_TYPE_LSM:
-		p.attach_btf_id = load_attr->attach_btf_id;
-		break;
-	case BPF_PROG_TYPE_TRACING:
-	case BPF_PROG_TYPE_EXT:
-		p.attach_btf_id = load_attr->attach_btf_id;
-		p.attach_prog_fd = load_attr->attach_prog_fd;
-		break;
-	default:
-		p.prog_ifindex = load_attr->prog_ifindex;
-		p.kern_version = load_attr->kern_version;
-	}
-	p.log_level = load_attr->log_level;
-	p.log_buf = log_buf;
-	p.log_size = log_buf_sz;
-	p.prog_btf_fd = load_attr->prog_btf_fd;
-	p.func_info_rec_size = load_attr->func_info_rec_size;
-	p.func_info_cnt = load_attr->func_info_cnt;
-	p.func_info = load_attr->func_info;
-	p.line_info_rec_size = load_attr->line_info_rec_size;
-	p.line_info_cnt = load_attr->line_info_cnt;
-	p.line_info = load_attr->line_info;
-	p.prog_flags = load_attr->prog_flags;
-
-	return bpf_prog_load(load_attr->prog_type, load_attr->name, load_attr->license,
-			     load_attr->insns, load_attr->insns_cnt, &p);
-}
-
-int bpf_load_program(enum bpf_prog_type type, const struct bpf_insn *insns,
-		     size_t insns_cnt, const char *license,
-		     __u32 kern_version, char *log_buf,
-		     size_t log_buf_sz)
-{
-	struct bpf_load_program_attr load_attr;
-
-	memset(&load_attr, 0, sizeof(struct bpf_load_program_attr));
-	load_attr.prog_type = type;
-	load_attr.expected_attach_type = 0;
-	load_attr.name = NULL;
-	load_attr.insns = insns;
-	load_attr.insns_cnt = insns_cnt;
-	load_attr.license = license;
-	load_attr.kern_version = kern_version;
-
-	return bpf_load_program_xattr2(&load_attr, log_buf, log_buf_sz);
-}
-
-int bpf_verify_program(enum bpf_prog_type type, const struct bpf_insn *insns,
-		       size_t insns_cnt, __u32 prog_flags, const char *license,
-		       __u32 kern_version, char *log_buf, size_t log_buf_sz,
-		       int log_level)
-{
-	union bpf_attr attr;
-	int fd;
-
-	bump_rlimit_memlock();
-
-	memset(&attr, 0, sizeof(attr));
-	attr.prog_type = type;
-	attr.insn_cnt = (__u32)insns_cnt;
-	attr.insns = ptr_to_u64(insns);
-	attr.license = ptr_to_u64(license);
-	attr.log_buf = ptr_to_u64(log_buf);
-	attr.log_size = log_buf_sz;
-	attr.log_level = log_level;
-	log_buf[0] = 0;
-	attr.kern_version = kern_version;
-	attr.prog_flags = prog_flags;
-
-	fd = sys_bpf_prog_load(&attr, sizeof(attr), PROG_LOAD_ATTEMPTS);
 	return libbpf_err_errno(fd);
 }
 
@@ -910,62 +821,6 @@ int bpf_prog_query(int target_fd, enum bpf_attach_type type, __u32 query_flags,
 	return libbpf_err_errno(ret);
 }
 
-int bpf_prog_test_run(int prog_fd, int repeat, void *data, __u32 size,
-		      void *data_out, __u32 *size_out, __u32 *retval,
-		      __u32 *duration)
-{
-	union bpf_attr attr;
-	int ret;
-
-	memset(&attr, 0, sizeof(attr));
-	attr.test.prog_fd = prog_fd;
-	attr.test.data_in = ptr_to_u64(data);
-	attr.test.data_out = ptr_to_u64(data_out);
-	attr.test.data_size_in = size;
-	attr.test.repeat = repeat;
-
-	ret = sys_bpf(BPF_PROG_TEST_RUN, &attr, sizeof(attr));
-
-	if (size_out)
-		*size_out = attr.test.data_size_out;
-	if (retval)
-		*retval = attr.test.retval;
-	if (duration)
-		*duration = attr.test.duration;
-
-	return libbpf_err_errno(ret);
-}
-
-int bpf_prog_test_run_xattr(struct bpf_prog_test_run_attr *test_attr)
-{
-	union bpf_attr attr;
-	int ret;
-
-	if (!test_attr->data_out && test_attr->data_size_out > 0)
-		return libbpf_err(-EINVAL);
-
-	memset(&attr, 0, sizeof(attr));
-	attr.test.prog_fd = test_attr->prog_fd;
-	attr.test.data_in = ptr_to_u64(test_attr->data_in);
-	attr.test.data_out = ptr_to_u64(test_attr->data_out);
-	attr.test.data_size_in = test_attr->data_size_in;
-	attr.test.data_size_out = test_attr->data_size_out;
-	attr.test.ctx_in = ptr_to_u64(test_attr->ctx_in);
-	attr.test.ctx_out = ptr_to_u64(test_attr->ctx_out);
-	attr.test.ctx_size_in = test_attr->ctx_size_in;
-	attr.test.ctx_size_out = test_attr->ctx_size_out;
-	attr.test.repeat = test_attr->repeat;
-
-	ret = sys_bpf(BPF_PROG_TEST_RUN, &attr, sizeof(attr));
-
-	test_attr->data_size_out = attr.test.data_size_out;
-	test_attr->ctx_size_out = attr.test.ctx_size_out;
-	test_attr->retval = attr.test.retval;
-	test_attr->duration = attr.test.duration;
-
-	return libbpf_err_errno(ret);
-}
-
 int bpf_prog_test_run_opts(int prog_fd, struct bpf_test_run_opts *opts)
 {
 	union bpf_attr attr;
@@ -1159,27 +1014,6 @@ int bpf_btf_load(const void *btf_data, size_t btf_size, const struct bpf_btf_loa
 		attr.btf_log_level = 1;
 		fd = sys_bpf_fd(BPF_BTF_LOAD, &attr, attr_sz);
 	}
-	return libbpf_err_errno(fd);
-}
-
-int bpf_load_btf(const void *btf, __u32 btf_size, char *log_buf, __u32 log_buf_size, bool do_log)
-{
-	LIBBPF_OPTS(bpf_btf_load_opts, opts);
-	int fd;
-
-retry:
-	if (do_log && log_buf && log_buf_size) {
-		opts.log_buf = log_buf;
-		opts.log_size = log_buf_size;
-		opts.log_level = 1;
-	}
-
-	fd = bpf_btf_load(btf, btf_size, &opts);
-	if (fd < 0 && !do_log && log_buf && log_buf_size) {
-		do_log = true;
-		goto retry;
-	}
-
 	return libbpf_err_errno(fd);
 }
 

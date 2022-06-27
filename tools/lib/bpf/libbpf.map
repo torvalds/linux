@@ -1,15 +1,6 @@
 LIBBPF_0.0.1 {
 	global:
 		bpf_btf_get_fd_by_id;
-		bpf_create_map;
-		bpf_create_map_in_map;
-		bpf_create_map_in_map_node;
-		bpf_create_map_name;
-		bpf_create_map_node;
-		bpf_create_map_xattr;
-		bpf_load_btf;
-		bpf_load_program;
-		bpf_load_program_xattr;
 		bpf_map__btf_key_type_id;
 		bpf_map__btf_value_type_id;
 		bpf_map__def;
@@ -61,11 +52,7 @@ LIBBPF_0.0.1 {
 		bpf_prog_detach2;
 		bpf_prog_get_fd_by_id;
 		bpf_prog_get_next_id;
-		bpf_prog_load;
-		bpf_prog_load_xattr;
 		bpf_prog_query;
-		bpf_prog_test_run;
-		bpf_prog_test_run_xattr;
 		bpf_program__fd;
 		bpf_program__is_kprobe;
 		bpf_program__is_perf_event;
@@ -106,7 +93,6 @@ LIBBPF_0.0.1 {
 		bpf_raw_tracepoint_open;
 		bpf_set_link_xdp_fd;
 		bpf_task_fd_query;
-		bpf_verify_program;
 		btf__fd;
 		btf__find_by_name;
 		btf__free;
@@ -218,7 +204,6 @@ LIBBPF_0.0.7 {
 		bpf_object__load_skeleton;
 		bpf_object__open_skeleton;
 		bpf_probe_large_insn_limit;
-		bpf_prog_attach_xattr;
 		bpf_program__attach;
 		bpf_program__name;
 		bpf_program__is_extension;
@@ -387,7 +372,6 @@ LIBBPF_0.6.0 {
 		bpf_object__next_program;
 		bpf_object__prev_map;
 		bpf_object__prev_program;
-		bpf_prog_load_deprecated;
 		bpf_prog_load;
 		bpf_program__flags;
 		bpf_program__insn_cnt;
