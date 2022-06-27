@@ -395,6 +395,31 @@ struct mlxsw_sp_port_type_speed_ops {
 	u32 (*ptys_proto_cap_masked_get)(u32 eth_proto_cap);
 };
 
+struct mlxsw_sp_ports_bitmap {
+	unsigned long *bitmap;
+	unsigned int nbits;
+};
+
+static inline int
+mlxsw_sp_port_bitmap_init(struct mlxsw_sp *mlxsw_sp,
+			  struct mlxsw_sp_ports_bitmap *ports_bm)
+{
+	unsigned int nbits = mlxsw_core_max_ports(mlxsw_sp->core);
+
+	ports_bm->nbits = nbits;
+	ports_bm->bitmap = bitmap_zalloc(nbits, GFP_KERNEL);
+	if (!ports_bm->bitmap)
+		return -ENOMEM;
+
+	return 0;
+}
+
+static inline void
+mlxsw_sp_port_bitmap_fini(struct mlxsw_sp_ports_bitmap *ports_bm)
+{
+	bitmap_free(ports_bm->bitmap);
+}
+
 static inline u8 mlxsw_sp_tunnel_ecn_decap(u8 outer_ecn, u8 inner_ecn,
 					   bool *trap_en)
 {
