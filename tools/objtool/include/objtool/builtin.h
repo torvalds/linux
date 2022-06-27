@@ -9,7 +9,7 @@
 
 extern const struct option check_options[];
 extern bool no_fp, no_unreachable, retpoline, module, backtrace, uaccess, stats,
-            validate_dup, vmlinux, mcount, noinstr, backup, sls, unret;
+            validate_dup, vmlinux, mcount, noinstr, backup, sls, unret, rethunk;
 
 extern int cmd_parse_options(int argc, const char **argv, const char * const usage[]);
 
