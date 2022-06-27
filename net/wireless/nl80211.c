@@ -15433,6 +15433,8 @@ static int nl80211_set_tid_config(struct sk_buff *skb,
 	if (info->attrs[NL80211_ATTR_MAC])
 		tid_config->peer = nla_data(info->attrs[NL80211_ATTR_MAC]);
 
+	wdev_lock(dev->ieee80211_ptr);
+
 	nla_for_each_nested(tid, info->attrs[NL80211_ATTR_TID_CONFIG],
 			    rem_conf) {
 		ret = nla_parse_nested(attrs, NL80211_TID_CONFIG_ATTR_MAX,
@@ -15454,6 +15456,7 @@ static int nl80211_set_tid_config(struct sk_buff *skb,
 
 bad_tid_conf:
 	kfree(tid_config);
+	wdev_unlock(dev->ieee80211_ptr);
 	return ret;
 }
 
