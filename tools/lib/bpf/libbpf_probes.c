@@ -17,47 +17,14 @@
 #include "libbpf.h"
 #include "libbpf_internal.h"
 
-static bool grep(const char *buffer, const char *pattern)
-{
-	return !!strstr(buffer, pattern);
-}
-
-static int get_vendor_id(int ifindex)
-{
-	char ifname[IF_NAMESIZE], path[64], buf[8];
-	ssize_t len;
-	int fd;
-
-	if (!if_indextoname(ifindex, ifname))
-		return -1;
-
-	snprintf(path, sizeof(path), "/sys/class/net/%s/device/vendor", ifname);
-
-	fd = open(path, O_RDONLY | O_CLOEXEC);
-	if (fd < 0)
-		return -1;
-
-	len = read(fd, buf, sizeof(buf));
-	close(fd);
-	if (len < 0)
-		return -1;
-	if (len >= (ssize_t)sizeof(buf))
-		return -1;
-	buf[len] = '\0';
-
-	return strtol(buf, NULL, 0);
-}
-
 static int probe_prog_load(enum bpf_prog_type prog_type,
 			   const struct bpf_insn *insns, size_t insns_cnt,
-			   char *log_buf, size_t log_buf_sz,
-			   __u32 ifindex)
+			   char *log_buf, size_t log_buf_sz)
 {
 	LIBBPF_OPTS(bpf_prog_load_opts, opts,
 		.log_buf = log_buf,
 		.log_size = log_buf_sz,
 		.log_level = log_buf ? 1 : 0,
-		.prog_ifindex = ifindex,
 	);
 	int fd, err, exp_err = 0;
 	const char *exp_msg = NULL;
@@ -161,29 +128,8 @@ int libbpf_probe_bpf_prog_type(enum bpf_prog_type prog_type, const void *opts)
 	if (opts)
 		return libbpf_err(-EINVAL);
 
-	ret = probe_prog_load(prog_type, insns, insn_cnt, NULL, 0, 0);
+	ret = probe_prog_load(prog_type, insns, insn_cnt, NULL, 0);
 	return libbpf_err(ret);
-}
-
-bool bpf_probe_prog_type(enum bpf_prog_type prog_type, __u32 ifindex)
-{
-	struct bpf_insn insns[2] = {
-		BPF_MOV64_IMM(BPF_REG_0, 0),
-		BPF_EXIT_INSN()
-	};
-
-	/* prefer libbpf_probe_bpf_prog_type() unless offload is requested */
-	if (ifindex == 0)
-		return libbpf_probe_bpf_prog_type(prog_type, NULL) == 1;
-
-	if (ifindex && prog_type == BPF_PROG_TYPE_SCHED_CLS)
-		/* nfp returns -EINVAL on exit(0) with TC offload */
-		insns[0].imm = 2;
-
-	errno = 0;
-	probe_prog_load(prog_type, insns, ARRAY_SIZE(insns), NULL, 0, ifindex);
-
-	return errno != EINVAL && errno != EOPNOTSUPP;
 }
 
 int libbpf__load_raw_btf(const char *raw_types, size_t types_len,
@@ -242,14 +188,12 @@ static int load_local_storage_btf(void)
 				     strs, sizeof(strs));
 }
 
-static int probe_map_create(enum bpf_map_type map_type, __u32 ifindex)
+static int probe_map_create(enum bpf_map_type map_type)
 {
 	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	int key_size, value_size, max_entries;
 	__u32 btf_key_type_id = 0, btf_value_type_id = 0;
 	int fd = -1, btf_fd = -1, fd_inner = -1, exp_err = 0, err;
-
-	opts.map_ifindex = ifindex;
 
 	key_size	= sizeof(__u32);
 	value_size	= sizeof(__u32);
@@ -326,12 +270,6 @@ static int probe_map_create(enum bpf_map_type map_type, __u32 ifindex)
 
 	if (map_type == BPF_MAP_TYPE_ARRAY_OF_MAPS ||
 	    map_type == BPF_MAP_TYPE_HASH_OF_MAPS) {
-		/* TODO: probe for device, once libbpf has a function to create
-		 * map-in-map for offload
-		 */
-		if (ifindex)
-			goto cleanup;
-
 		fd_inner = bpf_map_create(BPF_MAP_TYPE_HASH, NULL,
 					  sizeof(__u32), sizeof(__u32), 1, NULL);
 		if (fd_inner < 0)
@@ -370,13 +308,8 @@ int libbpf_probe_bpf_map_type(enum bpf_map_type map_type, const void *opts)
 	if (opts)
 		return libbpf_err(-EINVAL);
 
-	ret = probe_map_create(map_type, 0);
+	ret = probe_map_create(map_type);
 	return libbpf_err(ret);
-}
-
-bool bpf_probe_map_type(enum bpf_map_type map_type, __u32 ifindex)
-{
-	return probe_map_create(map_type, ifindex) == 1;
 }
 
 int libbpf_probe_bpf_helper(enum bpf_prog_type prog_type, enum bpf_func_id helper_id,
@@ -407,7 +340,7 @@ int libbpf_probe_bpf_helper(enum bpf_prog_type prog_type, enum bpf_func_id helpe
 	}
 
 	buf[0] = '\0';
-	ret = probe_prog_load(prog_type, insns, insn_cnt, buf, sizeof(buf), 0);
+	ret = probe_prog_load(prog_type, insns, insn_cnt, buf, sizeof(buf));
 	if (ret < 0)
 		return libbpf_err(ret);
 
@@ -426,52 +359,4 @@ int libbpf_probe_bpf_helper(enum bpf_prog_type prog_type, enum bpf_func_id helpe
 	if (ret == 0 && (strstr(buf, "invalid func ") || strstr(buf, "unknown func ")))
 		return 0;
 	return 1; /* assume supported */
-}
-
-bool bpf_probe_helper(enum bpf_func_id id, enum bpf_prog_type prog_type,
-		      __u32 ifindex)
-{
-	struct bpf_insn insns[2] = {
-		BPF_EMIT_CALL(id),
-		BPF_EXIT_INSN()
-	};
-	char buf[4096] = {};
-	bool res;
-
-	probe_prog_load(prog_type, insns, ARRAY_SIZE(insns), buf, sizeof(buf), ifindex);
-	res = !grep(buf, "invalid func ") && !grep(buf, "unknown func ");
-
-	if (ifindex) {
-		switch (get_vendor_id(ifindex)) {
-		case 0x19ee: /* Netronome specific */
-			res = res && !grep(buf, "not supported by FW") &&
-				!grep(buf, "unsupported function id");
-			break;
-		default:
-			break;
-		}
-	}
-
-	return res;
-}
-
-/*
- * Probe for availability of kernel commit (5.3):
- *
- * c04c0d2b968a ("bpf: increase complexity limit and maximum program size")
- */
-bool bpf_probe_large_insn_limit(__u32 ifindex)
-{
-	struct bpf_insn insns[BPF_MAXINSNS + 1];
-	int i;
-
-	for (i = 0; i < BPF_MAXINSNS; i++)
-		insns[i] = BPF_MOV64_IMM(BPF_REG_0, 1);
-	insns[BPF_MAXINSNS] = BPF_EXIT_INSN();
-
-	errno = 0;
-	probe_prog_load(BPF_PROG_TYPE_SCHED_CLS, insns, ARRAY_SIZE(insns), NULL, 0,
-			ifindex);
-
-	return errno != E2BIG && errno != EINVAL;
 }

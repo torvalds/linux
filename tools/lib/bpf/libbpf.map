@@ -112,9 +112,6 @@ LIBBPF_0.0.1 {
 
 LIBBPF_0.0.2 {
 	global:
-		bpf_probe_helper;
-		bpf_probe_map_type;
-		bpf_probe_prog_type;
 		bpf_map__resize;
 		bpf_map_lookup_elem_flags;
 		bpf_object__btf;
@@ -200,7 +197,6 @@ LIBBPF_0.0.7 {
 		bpf_object__detach_skeleton;
 		bpf_object__load_skeleton;
 		bpf_object__open_skeleton;
-		bpf_probe_large_insn_limit;
 		bpf_program__attach;
 		bpf_program__name;
 		bpf_program__is_extension;
