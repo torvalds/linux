@@ -4,6 +4,9 @@
  *
  * Copyright (C) 2015 Anshuman Khandual, IBM Corporation.
  */
+
+#define __SANE_USERSPACE_TYPES__
+
 #include <inttypes.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -30,8 +33,8 @@
 #define TEST_FAIL 1
 
 struct fpr_regs {
-	unsigned long fpr[32];
-	unsigned long fpscr;
+	__u64 fpr[32];
+	__u64 fpscr;
 };
 
 struct tm_spr_regs {
@@ -318,7 +321,7 @@ fail:
 }
 
 /* FPR */
-int show_fpr(pid_t child, unsigned long *fpr)
+int show_fpr(pid_t child, __u64 *fpr)
 {
 	struct fpr_regs *regs;
 	int ret, i;
@@ -337,7 +340,7 @@ int show_fpr(pid_t child, unsigned long *fpr)
 	return TEST_PASS;
 }
 
-int write_fpr(pid_t child, unsigned long val)
+int write_fpr(pid_t child, __u64 val)
 {
 	struct fpr_regs *regs;
 	int ret, i;
@@ -360,7 +363,7 @@ int write_fpr(pid_t child, unsigned long val)
 	return TEST_PASS;
 }
 
-int show_ckpt_fpr(pid_t child, unsigned long *fpr)
+int show_ckpt_fpr(pid_t child, __u64 *fpr)
 {
 	struct fpr_regs *regs;
 	struct iovec iov;
@@ -742,4 +745,3 @@ void analyse_texasr(unsigned long texasr)
 }
 
 void store_gpr(unsigned long *addr);
-void store_fpr(float *addr);
