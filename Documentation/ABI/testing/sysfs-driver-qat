@@ -1,0 +1,21 @@
+What:		/sys/bus/pci/devices/<BDF>/qat/state
+Date:		June 2022
+KernelVersion:	5.20
+Contact:	qat-linux@intel.com
+Description:	Reports the current state of the QAT device and allows to
+		change it.
+
+		This attribute is RW.
+
+		Returned values:
+			up: the device is up and running
+			down: the device is down
+
+		Allowed values:
+			up: initialize and start the device
+			down: stop the device and bring it down
+
+		It is possible to transition the device from up to down only
+		if the device is up and vice versa.
+
+		This attribute is only available for qat_4xxx devices.
