@@ -2886,7 +2886,7 @@ struct cfg80211_assoc_request {
  * This structure provides information needed to complete IEEE 802.11
  * deauthentication.
  *
- * @bssid: the BSSID of the BSS to deauthenticate from
+ * @bssid: the BSSID or AP MLD address to deauthenticate from
  * @ie: Extra IEs to add to Deauthentication frame or %NULL
  * @ie_len: Length of ie buffer in octets
  * @reason_code: The reason code for the deauthentication
@@ -2907,7 +2907,7 @@ struct cfg80211_deauth_request {
  * This structure provides information needed to complete IEEE 802.11
  * disassociation.
  *
- * @bss: the BSS to disassociate from
+ * @ap_addr: the BSSID or AP MLD address to disassociate from
  * @ie: Extra IEs to add to Disassociation frame or %NULL
  * @ie_len: Length of ie buffer in octets
  * @reason_code: The reason code for the disassociation
@@ -2915,7 +2915,7 @@ struct cfg80211_deauth_request {
  *	Disassociation frame is to be transmitted.
  */
 struct cfg80211_disassoc_request {
-	struct cfg80211_bss *bss;
+	const u8 *ap_addr;
 	const u8 *ie;
 	size_t ie_len;
 	u16 reason_code;

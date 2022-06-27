@@ -6426,18 +6426,14 @@ int ieee80211_mgd_disassoc(struct ieee80211_sub_if_data *sdata,
 {
 	u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
 
-	/*
-	 * cfg80211 should catch this ... but it's racy since
-	 * we can receive a disassoc frame, process it, hand it
-	 * to cfg80211 while that's in a locked section already
-	 * trying to tell us that the user wants to disconnect.
-	 */
-	if (sdata->deflink.u.mgd.bss != req->bss)
-		return -ENOLINK;
+	if (!sdata->u.mgd.associated ||
+	    memcmp(sdata->vif.cfg.ap_addr, req->ap_addr, ETH_ALEN))
+		return -ENOTCONN;
 
 	sdata_info(sdata,
 		   "disassociating from %pM by local choice (Reason: %u=%s)\n",
-		   req->bss->bssid, req->reason_code, ieee80211_get_reason_code_string(req->reason_code));
+		   req->ap_addr, req->reason_code,
+		   ieee80211_get_reason_code_string(req->reason_code));
 
 	ieee80211_set_disassoc(sdata, IEEE80211_STYPE_DISASSOC,
 			       req->reason_code, !req->local_state_change,

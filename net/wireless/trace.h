@@ -1318,10 +1318,7 @@ TRACE_EVENT(rdev_disassoc,
 	TP_fast_assign(
 		WIPHY_ASSIGN;
 		NETDEV_ASSIGN;
-		if (req->bss)
-			MAC_ASSIGN(bssid, req->bss->bssid);
-		else
-			eth_zero_addr(__entry->bssid);
+		MAC_ASSIGN(bssid, req->ap_addr);
 		__entry->reason_code = req->reason_code;
 		__entry->local_state_change = req->local_state_change;
 	),

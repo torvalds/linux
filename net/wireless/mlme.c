@@ -370,7 +370,7 @@ int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 }
 
 int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
-			   struct net_device *dev, const u8 *bssid,
+			   struct net_device *dev, const u8 *ap_addr,
 			   const u8 *ie, int ie_len, u16 reason,
 			   bool local_state_change)
 {
@@ -380,6 +380,7 @@ int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 		.local_state_change = local_state_change,
 		.ie = ie,
 		.ie_len = ie_len,
+		.ap_addr = ap_addr,
 	};
 	int err;
 
@@ -388,10 +389,7 @@ int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
 	if (!wdev->connected)
 		return -ENOTCONN;
 
-	if (ether_addr_equal(wdev->links[0].client.current_bss->pub.bssid,
-			     bssid))
-		req.bss = &wdev->links[0].client.current_bss->pub;
-	else
+	if (memcmp(wdev->u.client.connected_addr, ap_addr, ETH_ALEN))
 		return -ENOTCONN;
 
 	err = rdev_disassoc(rdev, dev, &req);

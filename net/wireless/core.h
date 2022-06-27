@@ -372,7 +372,7 @@ int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			 const u8 *ie, int ie_len, u16 reason,
 			 bool local_state_change);
 int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
-			   struct net_device *dev, const u8 *bssid,
+			   struct net_device *dev, const u8 *ap_addr,
 			   const u8 *ie, int ie_len, u16 reason,
 			   bool local_state_change);
 void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
