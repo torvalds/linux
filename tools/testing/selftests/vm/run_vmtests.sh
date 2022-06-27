@@ -151,7 +151,7 @@ if [ $VADDR64 -ne 0 ]; then
 	run_test ./virtual_address_range
 
 	# virtual address 128TB switch test
-	run_test ./va_128TBswitch
+	run_test ./va_128TBswitch.sh
 fi # VADDR64
 
 # vmalloc stability smoke test
