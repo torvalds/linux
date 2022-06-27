@@ -19,6 +19,7 @@ struct opts {
 	bool noinstr;
 	bool orc;
 	bool retpoline;
+	bool rethunk;
 	bool unret;
 	bool sls;
 	bool stackval;
