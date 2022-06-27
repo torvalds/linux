@@ -105,8 +105,12 @@ size_is_lt(uint32_t width, uint32_t height, int cpp)
 struct drm_gem_cma_object *
 vc4_use_bo(struct vc4_exec_info *exec, uint32_t hindex)
 {
+	struct vc4_dev *vc4 = exec->dev;
 	struct drm_gem_cma_object *obj;
 	struct vc4_bo *bo;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return NULL;
 
 	if (hindex >= exec->bo_count) {
 		DRM_DEBUG("BO index %d greater than BO count %d\n",
@@ -160,9 +164,13 @@ vc4_check_tex_size(struct vc4_exec_info *exec, struct drm_gem_cma_object *fbo,
 		   uint32_t offset, uint8_t tiling_format,
 		   uint32_t width, uint32_t height, uint8_t cpp)
 {
+	struct vc4_dev *vc4 = exec->dev;
 	uint32_t aligned_width, aligned_height, stride, size;
 	uint32_t utile_w = utile_width(cpp);
 	uint32_t utile_h = utile_height(cpp);
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return false;
 
 	/* The shaded vertex format stores signed 12.4 fixed point
 	 * (-2048,2047) offsets from the viewport center, so we should
@@ -482,9 +490,13 @@ vc4_validate_bin_cl(struct drm_device *dev,
 		    void *unvalidated,
 		    struct vc4_exec_info *exec)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint32_t len = exec->args->bin_cl_size;
 	uint32_t dst_offset = 0;
 	uint32_t src_offset = 0;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	while (src_offset < len) {
 		void *dst_pkt = validated + dst_offset;
@@ -926,8 +938,12 @@ int
 vc4_validate_shader_recs(struct drm_device *dev,
 			 struct vc4_exec_info *exec)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint32_t i;
 	int ret = 0;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	for (i = 0; i < exec->shader_state_count; i++) {
 		ret = validate_gl_shader_rec(dev, exec, &exec->shader_state[i]);

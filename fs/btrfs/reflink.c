@@ -344,6 +344,7 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 	int ret;
 	const u64 len = olen_aligned;
 	u64 last_dest_end = destoff;
+	u64 prev_extent_end = off;
 
 	ret = -ENOMEM;
 	buf = kvmalloc(fs_info->nodesize, GFP_KERNEL);
@@ -363,7 +364,6 @@ static int btrfs_clone(struct inode *src, struct inode *inode,
 	key.offset = off;
 
 	while (1) {
-		u64 next_key_min_offset = key.offset + 1;
 		struct btrfs_file_extent_item *extent;
 		u64 extent_gen;
 		int type;
@@ -431,14 +431,21 @@ process_slot:
 		 * The first search might have left us at an extent item that
 		 * ends before our target range's start, can happen if we have
 		 * holes and NO_HOLES feature enabled.
+		 *
+		 * Subsequent searches may leave us on a file range we have
+		 * processed before - this happens due to a race with ordered
+		 * extent completion for a file range that is outside our source
+		 * range, but that range was part of a file extent item that
+		 * also covered a leading part of our source range.
 		 */
-		if (key.offset + datal <= off) {
+		if (key.offset + datal <= prev_extent_end) {
 			path->slots[0]++;
 			goto process_slot;
 		} else if (key.offset >= off + len) {
 			break;
 		}
-		next_key_min_offset = key.offset + datal;
+
+		prev_extent_end = key.offset + datal;
 		size = btrfs_item_size(leaf, slot);
 		read_extent_buffer(leaf, buf, btrfs_item_ptr_offset(leaf, slot),
 				   size);
@@ -489,6 +496,7 @@ process_slot:
 			clone_info.file_offset = new_key.offset;
 			clone_info.extent_buf = buf;
 			clone_info.is_new_extent = false;
+			clone_info.update_times = !no_time_update;
 			ret = btrfs_replace_file_extents(BTRFS_I(inode), path,
 					drop_start, new_key.offset + datal - 1,
 					&clone_info, &trans);
@@ -550,7 +558,7 @@ process_slot:
 			break;
 
 		btrfs_release_path(path);
-		key.offset = next_key_min_offset;
+		key.offset = prev_extent_end;
 
 		if (fatal_signal_pending(current)) {
 			ret = -EINTR;

@@ -110,7 +110,6 @@ examples:
         pinctrl-names = "default";
         pinctrl-0 = <&qup_spi1_default>;
         interrupts = <GIC_SPI 602 IRQ_TYPE_LEVEL_HIGH>;
-        spi-max-frequency = <50000000>;
         #address-cells = <1>;
         #size-cells = <0>;
     };

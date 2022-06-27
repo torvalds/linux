@@ -115,53 +115,12 @@
 		status = "disabled";
 	};
 
-	firmware {
-		optee: optee {
-			compatible = "linaro,optee-tz";
-			method = "smc";
-			status = "disabled";
-		};
-
-		scmi: scmi {
-			compatible = "linaro,scmi-optee";
-			#address-cells = <1>;
-			#size-cells = <0>;
-			linaro,optee-channel-id = <0>;
-			shmem = <&scmi_shm>;
-			status = "disabled";
-
-			scmi_clk: protocol@14 {
-				reg = <0x14>;
-				#clock-cells = <1>;
-			};
-
-			scmi_reset: protocol@16 {
-				reg = <0x16>;
-				#reset-cells = <1>;
-			};
-		};
-	};
-
 	soc {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
 		interrupt-parent = <&intc>;
 		ranges;
-
-		scmi_sram: sram@2ffff000 {
-			compatible = "mmio-sram";
-			reg = <0x2ffff000 0x1000>;
-			#address-cells = <1>;
-			#size-cells = <1>;
-			ranges = <0 0x2ffff000 0x1000>;
-
-			scmi_shm: scmi-sram@0 {
-				compatible = "arm,scmi-shmem";
-				reg = <0 0x80>;
-				status = "disabled";
-			};
-		};
 
 		timers2: timer@40000000 {
 			#address-cells = <1>;

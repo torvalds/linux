@@ -46,12 +46,14 @@ bool msm_fence_completed(struct msm_fence_context *fctx, uint32_t fence)
 		(int32_t)(*fctx->fenceptr - fence) >= 0;
 }
 
-/* called from workqueue */
+/* called from irq handler and workqueue (in recover path) */
 void msm_update_fence(struct msm_fence_context *fctx, uint32_t fence)
 {
-	spin_lock(&fctx->spinlock);
+	unsigned long flags;
+
+	spin_lock_irqsave(&fctx->spinlock, flags);
 	fctx->completed_fence = max(fence, fctx->completed_fence);
-	spin_unlock(&fctx->spinlock);
+	spin_unlock_irqrestore(&fctx->spinlock, flags);
 }
 
 struct msm_fence {
