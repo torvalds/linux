@@ -869,7 +869,7 @@ static int imx219_enum_frame_interval(struct v4l2_subdev *sd,
 	u32 code;
 	int ret;
 
-	if (fie->index >= ARRAY_SIZE(supported_modes) || fie->index)
+	if (fie->index >= ARRAY_SIZE(supported_modes))
 		return -EINVAL;
 
 	mutex_lock(&imx219->mutex);

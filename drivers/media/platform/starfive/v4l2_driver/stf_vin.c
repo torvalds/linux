@@ -134,9 +134,9 @@ static enum isp_line_id stf_vin_map_isp_line(enum vin_line_id line)
 	enum isp_line_id line_id;
 
 	if ((line > VIN_LINE_WR) && (line < VIN_LINE_MAX)) {
-		line_id = line % STF_ISP_LINE_SRC_SCD_Y;
+		line_id = line % STF_ISP_LINE_MAX;
 		if (line_id == 0)
-			line_id = line_id ? line_id : STF_ISP_LINE_SRC_SCD_Y;
+			line_id = STF_ISP_LINE_SRC_SCD_Y;
 	} else
 		line_id = STF_ISP_LINE_INVALID;
 

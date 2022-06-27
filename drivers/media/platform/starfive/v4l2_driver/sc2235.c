@@ -1576,14 +1576,24 @@ static int sc2235_enum_frame_interval(
 	struct v4l2_subdev_frame_interval_enum *fie)
 {
 	struct v4l2_fract tpf;
+	int i;
 
 	if (fie->pad != 0)
 		return -EINVAL;
+
 	if (fie->index >= SC2235_NUM_FRAMERATES)
 		return -EINVAL;
 
 	tpf.numerator = 1;
 	tpf.denominator = sc2235_framerates[fie->index];
+
+	for (i = 0; i < SC2235_NUM_MODES; i++) {
+		if (fie->width == sc2235_mode_data[i].hact &&
+			fie->height == sc2235_mode_data[i].vact)
+			break;
+	}
+	if (i == SC2235_NUM_MODES)
+		return -ENOTTY;
 
 	fie->interval = tpf;
 	return 0;

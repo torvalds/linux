@@ -2662,7 +2662,7 @@ static int ov4689_enum_frame_interval(
 {
 	//struct ov4689_dev *sensor = to_ov4689_dev(sd);
 	struct v4l2_fract tpf;
-	//int ret;
+	int i = 0;
 
 	if (fie->pad != 0)
 		return -EINVAL;
@@ -2677,7 +2677,18 @@ static int ov4689_enum_frame_interval(
 	// if (ret < 0)
 	//	return -EINVAL;
 
+	pr_debug("fie->width = %d, fie->height = %d\n", fie->width, fie->height);
+	for (i = 0; i < OV4689_NUM_MODES; i++) {
+		if (fie->width == ov4689_mode_data[i].hact &&
+			fie->height == ov4689_mode_data[i].vact)
+			break;
+	}
+	if (i == OV4689_NUM_MODES)
+		return -ENOTTY;
+
 	fie->interval = tpf;
+	fie->width = ov4689_mode_data[i].hact;
+	fie->height = ov4689_mode_data[i].vact;
 
 	return 0;
 }
