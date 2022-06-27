@@ -19,8 +19,8 @@
 	cam_ircut0: cam_ircut {
 		status = "okay";
 		compatible = "rockchip,ircut";
-		ircut-open-gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
-		ircut-close-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+		ircut-open-gpios = <&gpio1 RK_PA4 GPIO_ACTIVE_HIGH>;
+		ircut-close-gpios = <&gpio1 RK_PB1 GPIO_ACTIVE_HIGH>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 	};
@@ -124,8 +124,6 @@
 		rockchip,camera-module-name = "default";
 		rockchip,camera-module-lens-name = "default";
 
-		ir-cut = <&cam_ircut0>;
-
 		port {
 			sc132gs_out: endpoint {
 				remote-endpoint = <&dphy2_in>;
@@ -173,7 +171,7 @@
 		rockchip,camera-module-name = "SIDA209300461";
 		rockchip,camera-module-lens-name = "60IRC_F20";
 
-		ir-cut = <&cam_ircut0>;
+		lens-focus = <&cam_ircut0>;
 
 		port {
 			gc2093_out: endpoint {
