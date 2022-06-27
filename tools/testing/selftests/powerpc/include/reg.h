@@ -164,7 +164,6 @@
 #ifndef __ASSEMBLER__
 void store_gpr(unsigned long *addr);
 void load_gpr(unsigned long *addr);
-void load_fpr_single_precision(float *addr);
 void store_fpr_single_precision(float *addr);
 #endif /* end of __ASSEMBLER__ */
 
