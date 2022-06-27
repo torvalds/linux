@@ -2081,16 +2081,18 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222, int sldr_index)
 			sldr_setup[0] |= dev_desc->wheel_enable;
 	}
 
+	/*
+	 * The absence of a register offset makes it safe to assume the device
+	 * supports gestures, each of which is first disabled until explicitly
+	 * enabled.
+	 */
+	if (!reg_offset)
+		for (i = 0; i < ARRAY_SIZE(iqs7222_sl_events); i++)
+			sldr_setup[9] &= ~iqs7222_sl_events[i].enable;
+
 	for (i = 0; i < ARRAY_SIZE(iqs7222_sl_events); i++) {
 		const char *event_name = iqs7222_sl_events[i].name;
 		struct fwnode_handle *event_node;
-
-		/*
-		 * The absence of a register offset means the remaining fields
-		 * in the group represent gesture settings.
-		 */
-		if (iqs7222_sl_events[i].enable && !reg_offset)
-			sldr_setup[9] &= ~iqs7222_sl_events[i].enable;
 
 		event_node = fwnode_get_named_child_node(sldr_node, event_name);
 		if (!event_node)
