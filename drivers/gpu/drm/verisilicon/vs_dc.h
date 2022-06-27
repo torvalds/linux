@@ -54,54 +54,47 @@ struct vs_dc {
 
 	const struct vs_dc_funcs *funcs;
 
-//noc bus clk
 	struct clk *cpu_axi;
 	struct clk *axicfg0_axi;
 	struct clk *disp_axi;
 	struct clk *stg_axi;
-//noc bus clk
-//noc bus rst
+
 	struct reset_control *cpu_axi_n;
 	struct reset_control *axicfg0_axi_n;
 	struct reset_control *apb_bus_n;
 	struct reset_control *disp_axi_n;
 	struct reset_control *stg_axi_n;
-//noc bus rst
 
-//vout top clk
 	struct clk *vout_src;
 	struct clk *vout_axi;
 	struct clk *ahb1;
 	struct clk *vout_ahb;
 	struct clk *hdmitx0_mclk;
 	struct clk *bclk_mst;
-//vout top clk
-//vout top rst
-	struct reset_control *rstn_vout_src;
-//vout top rst
 
-//dc8200 clk
-	struct clk *dc8200_pix0;
-	struct clk *dc8200_pix1;
+	struct reset_control *rstn_vout_src;
+
+	struct clk *dc8200_clk_pix0;
+	struct clk *dc8200_clk_pix1;
 	struct clk *dc8200_axi;
 	struct clk *dc8200_core;
 	struct clk *dc8200_ahb;
-//dc8200 clk
-//dc8200 rst
+
 	struct reset_control *rstn_dc8200_axi;
 	struct reset_control *rstn_dc8200_core;
 	struct reset_control *rstn_dc8200_ahb;
-//dc8200 rst
 
-//7110 mp
-struct clk *vout_top_axi;
-struct clk *vout_top_lcd;
-//7110 mp
+	struct clk *vout_top_axi;
+	struct clk *vout_top_lcd;
+
+	struct clk *hdmitx0_pixelclk;
+	struct clk *dc8200_pix0;
+
+	struct regmap *dss_regmap;
 
 };
 
 extern struct platform_driver dc_platform_driver;
-//extern struct platform_driver simple_encoder_driver;
 extern struct platform_driver starfive_dsi_platform_driver;
 extern int init_seeed_panel(void);
 extern void exit_seeed_panel(void);

@@ -38,6 +38,7 @@ static inline struct simple_encoder *to_simple_encoder(struct drm_encoder *enc)
 	return container_of(enc, struct simple_encoder, encoder);
 }
 
+#if 0
 static int encoder_parse_dt(struct device *dev)
 {
 	struct simple_encoder *simple = dev_get_drvdata(dev);
@@ -103,6 +104,7 @@ err_free_masks:
 err:
 	return ret;
 }
+#endif
 
 #define DOM_VOUT_SYSCON_8									0x8U
 #define U0_LCD_DATA_MAPPING_DPI_DP_SEL_SHIFT				0x2U
@@ -115,21 +117,7 @@ err:
 void encoder_atomic_enable(struct drm_encoder *encoder,
 						struct drm_atomic_state *state)
 {
-	struct simple_encoder *simple = to_simple_encoder(encoder);
-	struct dss_data *data = simple->dss_regdatas;
-	int crtc_id;
-
-	if (!simple->dss_regmap)
-		return;
-
-	crtc_id = drm_of_encoder_active_endpoint_id(
-				simple->dev->of_node, encoder);
-
-	regmap_update_bits(simple->dss_regmap, 0, data[crtc_id].mask,
-			  data[crtc_id].value);
-
-	regmap_update_bits(simple->dss_regmap, DOM_VOUT_SYSCON_8, U0_LCD_DATA_MAPPING_DPI_DP_SEL_MASK, 0);
-	regmap_update_bits(simple->dss_regmap, DOM_VOUT_SYSCON_4, U0_DISPLAY_PANEL_MUX_PANEL_SEL_MASK, 0);
+	return;
 }
 
 int encoder_atomic_check(struct drm_encoder *encoder,
@@ -205,7 +193,7 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 	struct simple_encoder *simple = dev_get_drvdata(dev);
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
-	struct drm_panel *tmp_panel;
+	
 	int ret;
 
 	encoder = &simple->encoder;
@@ -221,10 +209,13 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 
 	encoder->possible_crtcs =
 			drm_of_find_possible_crtcs(drm_dev, dev->of_node);
+	encoder->possible_crtcs = 3;
 
 	/* output port is port1*/
 
 #ifdef CONFIG_STARFIVE_DSI
+	struct drm_panel *tmp_panel;
+
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0,&tmp_panel, &bridge);
 	if (ret){
 		printk("==no panel, %d\n",ret);
@@ -278,7 +269,6 @@ static int encoder_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct simple_encoder *simple;
-	int ret;
 
 	simple = devm_kzalloc(dev, sizeof(*simple), GFP_KERNEL);
 	if (!simple)
@@ -289,11 +279,11 @@ static int encoder_probe(struct platform_device *pdev)
 	simple->dev = dev;
 
 	dev_set_drvdata(dev, simple);
-
+#if 0
 	ret = encoder_parse_dt(dev);
 	if (ret)
 		return ret;
-
+#endif
 	return component_add(dev, &encoder_component_ops);
 }
 

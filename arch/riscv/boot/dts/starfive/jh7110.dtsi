@@ -1487,14 +1487,15 @@
 
 		hdmi_output: hdmi-output {
 			compatible = "verisilicon,hdmi-encoder";
-			verisilicon,dss-syscon = <&dssctrl>;
-			verisilicon,mux-mask = <0x70 0x380>;
-			verisilicon,mux-val = <0x40 0x280>;
+			//verisilicon,dss-syscon = <&dssctrl>;
+			//verisilicon,mux-mask = <0x70 0x380>;
+			//verisilicon,mux-val = <0x40 0x280>;
 			status = "disabled";
 		};
 
 		dc8200: dc8200@29400000 {
 			compatible = "verisilicon,dc8200";
+			verisilicon,dss-syscon = <&dssctrl>;//20220624 panel syscon
 			reg = <0x0 0x29400000 0x0 0x100>,
 			      <0x0 0x29400800 0x0 0x2000>,
 			      <0x0 0x17030000 0x0 0x1000>;
@@ -1520,13 +1521,15 @@
 				 <&clkvout JH7110_U0_DC8200_CLK_CORE>,
 				 <&clkvout JH7110_U0_DC8200_CLK_AHB>,
 				 <&clkgen JH7110_VOUT_TOP_CLK_VOUT_AXI>,
-				 <&clkgen JH7110_DOM_VOUT_TOP_LCD_CLK>;
+				 <&clkgen JH7110_DOM_VOUT_TOP_LCD_CLK>,
+				 <&hdmitx0_pixelclk>,
+				 <&clkvout JH7110_DC8200_PIX0>;
 			clock-names = "noc_cpu","noc_cfg0","noc_gpu","noc_vdec","noc_venc",
 					"noc_disp","noc_isp","noc_stg","vout_src",
 					"top_vout_axi","ahb1","top_vout_ahb",
 					"top_vout_hdmiTX0","i2stx","pix_clk","vout_pix1",
 					"axi_clk","core_clk","vout_ahb",
-					"vout_top_axi","vout_top_lcd";
+					"vout_top_axi","vout_top_lcd","hdmitx0_pixelclk","dc8200_pix0";
 
 			resets = <&rstgen RSTN_U0_DOM_VOUT_TOP_SRC>,
 				 <&rstgen RSTN_U0_DC8200_AXI>,

@@ -374,4 +374,175 @@ typedef enum {
 } vic_code_t;
 
 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#define UPDATE(x, h, l)		(((x) << (l)) & GENMASK((h), (l)))
+
+	/* REG: 0x1a0 */
+#define INNO_PCLK_VCO_DIV_5_MASK			BIT(1)
+#define INNO_PCLK_VCO_DIV_5(x)				UPDATE(x, 1, 1)
+#define INNO_PRE_PLL_POWER_DOWN				BIT(0)
+
+	/* REG: 0x1a1 */
+#define INNO_PRE_PLL_PRE_DIV_MASK			GENMASK(5, 0)
+#define INNO_PRE_PLL_PRE_DIV(x)				UPDATE(x, 5, 0)
+
+
+	/* REG: 0xa2 */
+	/* unset means center spread */
+#define INNO_SPREAD_SPECTRUM_MOD_DOWN			BIT(7)
+#define INNO_SPREAD_SPECTRUM_MOD_DISABLE		BIT(6)
+#define INNO_PRE_PLL_FRAC_DIV_DISABLE			UPDATE(3, 5, 4)
+#define INNO_PRE_PLL_FB_DIV_11_8_MASK			GENMASK(3, 0)
+#define INNO_PRE_PLL_FB_DIV_11_8(x)				UPDATE((x) >> 8, 3, 0)
+
+	/* REG: 0xa3 */
+#define INNO_PRE_PLL_FB_DIV_7_0(x)				UPDATE(x, 7, 0)
+
+	/* REG: 0xa4*/
+#define INNO_PRE_PLL_TMDSCLK_DIV_C_MASK			GENMASK(1, 0)
+#define INNO_PRE_PLL_TMDSCLK_DIV_C(x)			UPDATE(x, 1, 0)
+#define INNO_PRE_PLL_TMDSCLK_DIV_B_MASK			GENMASK(3, 2)
+#define INNO_PRE_PLL_TMDSCLK_DIV_B(x)			UPDATE(x, 3, 2)
+#define INNO_PRE_PLL_TMDSCLK_DIV_A_MASK			GENMASK(5, 4)
+#define INNO_PRE_PLL_TMDSCLK_DIV_A(x)			UPDATE(x, 5, 4)
+	/* REG: 0xa5 */
+#define INNO_PRE_PLL_PCLK_DIV_B_SHIFT			5
+#define INNO_PRE_PLL_PCLK_DIV_B_MASK			GENMASK(6, 5)
+#define INNO_PRE_PLL_PCLK_DIV_B(x)				UPDATE(x, 6, 5)
+#define INNO_PRE_PLL_PCLK_DIV_A_MASK			GENMASK(4, 0)
+#define INNO_PRE_PLL_PCLK_DIV_A(x)				UPDATE(x, 4, 0)
+
+	/* REG: 0xa6 */
+#define INNO_PRE_PLL_PCLK_DIV_C_SHIFT			5
+#define INNO_PRE_PLL_PCLK_DIV_C_MASK			GENMASK(6, 5)
+#define INNO_PRE_PLL_PCLK_DIV_C(x)				UPDATE(x, 6, 5)
+#define INNO_PRE_PLL_PCLK_DIV_D_MASK			GENMASK(4, 0)
+#define INNO_PRE_PLL_PCLK_DIV_D(x)				UPDATE(x, 4, 0)
+
+			/* REG: 0xd1 */
+#define INNO_PRE_PLL_FRAC_DIV_23_16(x)			UPDATE((x) >> 16, 7, 0)
+			/* REG: 0xd2 */
+#define INNO_PRE_PLL_FRAC_DIV_15_8(x)			UPDATE((x) >> 8, 7, 0)
+			/* REG: 0xd3 */
+#define INNO_PRE_PLL_FRAC_DIV_7_0(x)			UPDATE(x, 7, 0)
+
+	/* REG: 0x1aa */
+#define INNO_POST_PLL_POST_DIV_ENABLE			GENMASK(3, 2)
+#define INNO_POST_PLL_REFCLK_SEL_TMDS			BIT(1)
+#define INNO_POST_PLL_POWER_DOWN				BIT(0)
+#define INNO_POST_PLL_FB_DIV_8(x)			UPDATE(((x) >> 8) <<4 , 4, 4)
+
+	/* REG:0x1ab */
+#define INNO_POST_PLL_Pre_DIV_MASK			GENMASK(5, 0)
+#define INNO_POST_PLL_PRE_DIV(x)			UPDATE(x, 5, 0)
+	/* REG: 0x1ac */
+#define INNO_POST_PLL_FB_DIV_7_0(x)			UPDATE(x, 7, 0)
+	/* REG: 0x1ad */
+#define INNO_POST_PLL_POST_DIV_MASK			GENMASK(2, 0)
+#define INNO_POST_PLL_POST_DIV_2			0x0
+#define INNO_POST_PLL_POST_DIV_4			0x1
+#define INNO_POST_PLL_POST_DIV_8			0x3
+	/* REG: 0x1af */
+#define INNO_POST_PLL_LOCK_STATUS			BIT(0)
+	/* REG: 0x1b0 */
+#define INNO_BANDGAP_ENABLE				BIT(2)
+	/* REG: 0x1b2 */
+#define INNO_TMDS_CLK_DRIVER_EN			BIT(3)
+#define INNO_TMDS_D2_DRIVER_EN			BIT(2)
+#define INNO_TMDS_D1_DRIVER_EN			BIT(1)
+#define INNO_TMDS_D0_DRIVER_EN			BIT(0)
+#define INNO_TMDS_DRIVER_ENABLE		(INNO_TMDS_CLK_DRIVER_EN | \
+							INNO_TMDS_D2_DRIVER_EN | \
+							INNO_TMDS_D1_DRIVER_EN | \
+							INNO_TMDS_D0_DRIVER_EN)
+	/* REG:0x1c5 */
+#define INNO_BYPASS_TERM_RESISTOR_CALIB		BIT(7)
+#define INNO_TERM_RESISTOR_CALIB_SPEED_14_8(x)	UPDATE((x) >> 8, 6, 0)
+	/* REG:0x1c6 */
+#define INNO_TERM_RESISTOR_CALIB_SPEED_7_0(x)		UPDATE(x, 7, 0)
+	/* REG:0x1c7 */
+#define INNO_TERM_RESISTOR_100				UPDATE(0, 2, 1)
+#define INNO_TERM_RESISTOR_125				UPDATE(1, 2, 1)
+#define INNO_TERM_RESISTOR_150				UPDATE(2, 2, 1)
+#define INNO_TERM_RESISTOR_200				UPDATE(3, 2, 1)
+	/* REG 0x1c8 - 0x1cb */
+#define INNO_ESD_DETECT_MASK				GENMASK(5, 0)
+#define INNO_ESD_DETECT_340MV				(0x0 << 6)
+#define INNO_ESD_DETECT_280MV				(0x1 << 6)
+#define INNO_ESD_DETECT_260MV				(0x2 << 6)
+#define INNO_ESD_DETECT_240MV				(0x3 << 6)
+	/* resistors can be used in parallel */
+#define INNO_TMDS_TERM_RESIST_MASK			GENMASK(5, 0)
+#define INNO_TMDS_TERM_RESIST_125			BIT(5)
+#define INNO_TMDS_TERM_RESIST_250			BIT(4)
+#define INNO_TMDS_TERM_RESIST_500			BIT(3)
+#define INNO_TMDS_TERM_RESIST_1000			BIT(2)
+#define INNO_TMDS_TERM_RESIST_2000			BIT(1)
+#define INNO_TMDS_TERM_RESIST_4000			BIT(0)
+
+struct pre_pll_config {
+	unsigned long pixclock;
+	unsigned long tmdsclock;
+	u8 prediv;
+	u16 fbdiv;
+	u8 tmds_div_a;
+	u8 tmds_div_b;
+	u8 tmds_div_c;
+	u8 pclk_div_a;
+	u8 pclk_div_b;
+	u8 pclk_div_c;
+	u8 pclk_div_d;
+	u8 vco_div_5_en;
+	u32 fracdiv;
+};
+
+struct post_pll_config {
+	unsigned long tmdsclock;
+	u8 prediv;
+	u16 fbdiv;
+	u8 postdiv;
+	u8 post_div_en;
+	u8 version;
+};
+
+struct phy_config {
+	unsigned long	tmdsclock;
+	u8		regs[14];
+};
+
+typedef struct register_value {
+	u16 reg;
+	u8 value;
+} reg_value_t;
+
 #endif /* __INNO_HDMI_H__ */
