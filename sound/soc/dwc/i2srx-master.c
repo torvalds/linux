@@ -187,29 +187,6 @@ static void i2s_stop(struct dw_i2s_dev *dev,
 	}
 }
 
-static int dw_i2s_startup(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *cpu_dai)
-{
-	struct dw_i2s_dev *dev = snd_soc_dai_get_drvdata(cpu_dai);
-	union dw_i2s_snd_dma_data *dma_data = NULL;
-
-	if (!(dev->capability & DWC_I2S_RECORD) &&
-			(substream->stream == SNDRV_PCM_STREAM_CAPTURE))
-		return -EINVAL;
-
-	if (!(dev->capability & DWC_I2S_PLAY) &&
-			(substream->stream == SNDRV_PCM_STREAM_PLAYBACK))
-		return -EINVAL;
-
-	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK)
-		dma_data = &dev->play_dma_data;
-	else if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
-		dma_data = &dev->capture_dma_data;
-
-	snd_soc_dai_set_dma_data(cpu_dai, substream, (void *)dma_data);
-	return 0;
-}
-
 static void dw_i2s_config(struct dw_i2s_dev *dev, int stream)
 {
 	u32 ch_reg;
@@ -243,6 +220,7 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 	struct i2s_clk_config_data *config = &dev->config;
 	int ret;
 	unsigned int bclk_rate;
+	union dw_i2s_snd_dma_data *dma_data = NULL;
 
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
@@ -294,6 +272,11 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+		dma_data = &dev->capture_dma_data;
+	}
+	snd_soc_dai_set_dma_data(dai, substream, (void *)dma_data);
+
 	dw_i2s_config(dev, substream->stream);
 
 	i2s_write_reg(dev->i2s_base, CCR, dev->ccr);
@@ -317,12 +300,6 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 	return 0;
-}
-
-static void dw_i2s_shutdown(struct snd_pcm_substream *substream,
-		struct snd_soc_dai *dai)
-{
-	snd_soc_dai_set_dma_data(dai, substream, NULL);
 }
 
 static int dw_i2s_prepare(struct snd_pcm_substream *substream,
@@ -396,8 +373,6 @@ static int dw_i2s_set_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 }
 
 static const struct snd_soc_dai_ops dw_i2s_dai_ops = {
-	.startup	= dw_i2s_startup,
-	.shutdown	= dw_i2s_shutdown,
 	.hw_params	= dw_i2s_hw_params,
 	.prepare	= dw_i2s_prepare,
 	.trigger	= dw_i2s_trigger,
