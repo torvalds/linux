@@ -447,11 +447,20 @@ static const struct vic_config vic_t194_config = {
 	.supports_sid = true,
 };
 
+#define NVIDIA_TEGRA_234_VIC_FIRMWARE "nvidia/tegra234/vic.bin"
+
+static const struct vic_config vic_t234_config = {
+	.firmware = NVIDIA_TEGRA_234_VIC_FIRMWARE,
+	.version = 0x23,
+	.supports_sid = true,
+};
+
 static const struct of_device_id tegra_vic_of_match[] = {
 	{ .compatible = "nvidia,tegra124-vic", .data = &vic_t124_config },
 	{ .compatible = "nvidia,tegra210-vic", .data = &vic_t210_config },
 	{ .compatible = "nvidia,tegra186-vic", .data = &vic_t186_config },
 	{ .compatible = "nvidia,tegra194-vic", .data = &vic_t194_config },
+	{ .compatible = "nvidia,tegra234-vic", .data = &vic_t234_config },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, tegra_vic_of_match);
@@ -589,4 +598,7 @@ MODULE_FIRMWARE(NVIDIA_TEGRA_186_VIC_FIRMWARE);
 #endif
 #if IS_ENABLED(CONFIG_ARCH_TEGRA_194_SOC)
 MODULE_FIRMWARE(NVIDIA_TEGRA_194_VIC_FIRMWARE);
+#endif
+#if IS_ENABLED(CONFIG_ARCH_TEGRA_234_SOC)
+MODULE_FIRMWARE(NVIDIA_TEGRA_234_VIC_FIRMWARE);
 #endif
