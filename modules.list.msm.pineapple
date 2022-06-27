@@ -31,3 +31,6 @@ qnoc-qos.ko
 qnoc-pineapple.ko
 icc-debug.ko
 icc-test.ko
+qcom_hwspinlock.ko
+smem.ko
+socinfo.ko
