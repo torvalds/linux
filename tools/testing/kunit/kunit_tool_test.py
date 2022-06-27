@@ -45,7 +45,7 @@ class KconfigTest(unittest.TestCase):
 		self.assertTrue(kconfig0.is_subset_of(kconfig0))
 
 		kconfig1 = kunit_config.Kconfig()
-		kconfig1.add_entry(kunit_config.KconfigEntry('TEST', 'y'))
+		kconfig1.add_entry('TEST', 'y')
 		self.assertTrue(kconfig1.is_subset_of(kconfig1))
 		self.assertTrue(kconfig0.is_subset_of(kconfig1))
 		self.assertFalse(kconfig1.is_subset_of(kconfig0))
@@ -56,40 +56,28 @@ class KconfigTest(unittest.TestCase):
 		kconfig = kunit_config.parse_file(kconfig_path)
 
 		expected_kconfig = kunit_config.Kconfig()
-		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('UML', 'y'))
-		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('MMU', 'y'))
-		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('TEST', 'y'))
-		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('EXAMPLE_TEST', 'y'))
-		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('MK8', 'n'))
+		expected_kconfig.add_entry('UML', 'y')
+		expected_kconfig.add_entry('MMU', 'y')
+		expected_kconfig.add_entry('TEST', 'y')
+		expected_kconfig.add_entry('EXAMPLE_TEST', 'y')
+		expected_kconfig.add_entry('MK8', 'n')
 
-		self.assertEqual(kconfig.entries(), expected_kconfig.entries())
+		self.assertEqual(kconfig, expected_kconfig)
 
 	def test_write_to_file(self):
 		kconfig_path = os.path.join(test_tmpdir, '.config')
 
 		expected_kconfig = kunit_config.Kconfig()
-		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('UML', 'y'))
-		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('MMU', 'y'))
-		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('TEST', 'y'))
-		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('EXAMPLE_TEST', 'y'))
-		expected_kconfig.add_entry(
-			kunit_config.KconfigEntry('MK8', 'n'))
+		expected_kconfig.add_entry('UML', 'y')
+		expected_kconfig.add_entry('MMU', 'y')
+		expected_kconfig.add_entry('TEST', 'y')
+		expected_kconfig.add_entry('EXAMPLE_TEST', 'y')
+		expected_kconfig.add_entry('MK8', 'n')
 
 		expected_kconfig.write_to_file(kconfig_path)
 
 		actual_kconfig = kunit_config.parse_file(kconfig_path)
-
-		self.assertEqual(actual_kconfig.entries(),
-				 expected_kconfig.entries())
+		self.assertEqual(actual_kconfig, expected_kconfig)
 
 class KUnitParserTest(unittest.TestCase):
 
@@ -381,8 +369,11 @@ class LinuxSourceTreeTest(unittest.TestCase):
 			kunit_kernel.LinuxSourceTree('', kunitconfig_path=dir)
 
 	def test_kconfig_add(self):
+		want_kconfig = kunit_config.Kconfig()
+		want_kconfig.add_entry('NOT_REAL', 'y')
+
 		tree = kunit_kernel.LinuxSourceTree('', kconfig_add=['CONFIG_NOT_REAL=y'])
-		self.assertIn(kunit_config.KconfigEntry('NOT_REAL', 'y'), tree._kconfig.entries())
+		self.assertTrue(want_kconfig.is_subset_of(tree._kconfig), msg=tree._kconfig)
 
 	def test_invalid_arch(self):
 		with self.assertRaisesRegex(kunit_kernel.ConfigError, 'not a valid arch, options are.*x86_64'):
