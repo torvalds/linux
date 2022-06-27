@@ -29,6 +29,8 @@
 #define NAU_FVCO_MAX 100000000
 #define NAU_FVCO_MIN 90000000
 
+#define NAU8821_BUTTON SND_JACK_BTN_0
+
 /* the maximum frequency of CLK_ADC and CLK_DAC */
 #define CLK_DA_AD_MAX 6144000
 
@@ -911,6 +913,20 @@ static void nau8821_eject_jack(struct nau8821 *nau8821)
 	/* Recover to normal channel input */
 	regmap_update_bits(regmap, NAU8821_R2B_ADC_RATE,
 			NAU8821_ADC_R_SRC_EN, 0);
+	if (nau8821->key_enable) {
+		regmap_update_bits(regmap, NAU8821_R0F_INTERRUPT_MASK,
+			NAU8821_IRQ_KEY_RELEASE_EN |
+			NAU8821_IRQ_KEY_PRESS_EN,
+			NAU8821_IRQ_KEY_RELEASE_EN |
+			NAU8821_IRQ_KEY_PRESS_EN);
+		regmap_update_bits(regmap,
+			NAU8821_R12_INTERRUPT_DIS_CTRL,
+			NAU8821_IRQ_KEY_RELEASE_DIS |
+			NAU8821_IRQ_KEY_PRESS_DIS,
+			NAU8821_IRQ_KEY_RELEASE_DIS |
+			NAU8821_IRQ_KEY_PRESS_DIS);
+	}
+
 }
 
 static void nau8821_jdet_work(struct work_struct *work)
@@ -940,6 +956,15 @@ static void nau8821_jdet_work(struct work_struct *work)
 		 */
 		regmap_update_bits(regmap, NAU8821_R2B_ADC_RATE,
 			NAU8821_ADC_R_SRC_EN, NAU8821_ADC_R_SRC_EN);
+		if (nau8821->key_enable) {
+			regmap_update_bits(regmap, NAU8821_R0F_INTERRUPT_MASK,
+				NAU8821_IRQ_KEY_RELEASE_EN |
+				NAU8821_IRQ_KEY_PRESS_EN, 0);
+			regmap_update_bits(regmap,
+				NAU8821_R12_INTERRUPT_DIS_CTRL,
+				NAU8821_IRQ_KEY_RELEASE_DIS |
+				NAU8821_IRQ_KEY_PRESS_DIS, 0);
+		}
 	} else {
 		dev_dbg(nau8821->dev, "Headphone connected\n");
 		event |= SND_JACK_HEADPHONE;
@@ -999,6 +1024,13 @@ static irqreturn_t nau8821_interrupt(int irq, void *data)
 		nau8821_eject_jack(nau8821);
 		event_mask |= SND_JACK_HEADSET;
 		clear_irq = NAU8821_JACK_EJECT_IRQ_MASK;
+	} else if (active_irq & NAU8821_KEY_SHORT_PRESS_IRQ) {
+		event |= NAU8821_BUTTON;
+		event_mask |= NAU8821_BUTTON;
+		clear_irq = NAU8821_KEY_SHORT_PRESS_IRQ;
+	} else if (active_irq & NAU8821_KEY_RELEASE_IRQ) {
+		event_mask = NAU8821_BUTTON;
+		clear_irq = NAU8821_KEY_RELEASE_IRQ;
 	} else if ((active_irq & NAU8821_JACK_INSERT_IRQ_MASK) ==
 		NAU8821_JACK_INSERT_DETECTED) {
 		regmap_update_bits(regmap, NAU8821_R71_ANALOG_ADC_1,
@@ -1489,6 +1521,7 @@ static void nau8821_print_device_properties(struct nau8821 *nau8821)
 		nau8821->jack_eject_debounce);
 	dev_dbg(dev, "dmic-clk-threshold:       %d\n",
 		nau8821->dmic_clk_threshold);
+	dev_dbg(dev, "key_enable:       %d\n", nau8821->key_enable);
 }
 
 static int nau8821_read_device_properties(struct device *dev,
@@ -1502,6 +1535,8 @@ static int nau8821_read_device_properties(struct device *dev,
 		"nuvoton,jkdet-pull-enable");
 	nau8821->jkdet_pull_up = device_property_read_bool(dev,
 		"nuvoton,jkdet-pull-up");
+	nau8821->key_enable = device_property_read_bool(dev,
+		"nuvoton,key-enable");
 	ret = device_property_read_u32(dev, "nuvoton,jkdet-polarity",
 		&nau8821->jkdet_polarity);
 	if (ret)
