@@ -558,13 +558,6 @@ static const struct iqs7222_prop_desc iqs7222_props[] = {
 		.label = "current reference trim",
 	},
 	{
-		.name = "azoteq,rf-filt-enable",
-		.reg_grp = IQS7222_REG_GRP_GLBL,
-		.reg_offset = 0,
-		.reg_shift = 15,
-		.reg_width = 1,
-	},
-	{
 		.name = "azoteq,max-counts",
 		.reg_grp = IQS7222_REG_GRP_GLBL,
 		.reg_offset = 0,
