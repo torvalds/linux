@@ -110,6 +110,7 @@ struct mlxsw_sp_fid_family {
 	struct mlxsw_sp *mlxsw_sp;
 	bool flood_rsp;
 	enum mlxsw_reg_bridge_type bridge_type;
+	u16 pgt_base;
 };
 
 static const int mlxsw_sp_sfgc_uc_packet_types[MLXSW_REG_SFGC_TYPE_MAX] = {
@@ -319,6 +320,18 @@ mlxsw_sp_fid_flood_table_lookup(const struct mlxsw_sp_fid *fid,
 	}
 
 	return NULL;
+}
+
+static u16
+mlxsw_sp_fid_flood_table_mid(const struct mlxsw_sp_fid_family *fid_family,
+			     const struct mlxsw_sp_flood_table *flood_table,
+			     u16 fid_offset)
+{
+	u16 num_fids;
+
+	num_fids = fid_family->end_index - fid_family->start_index + 1;
+	return fid_family->pgt_base + num_fids * flood_table->table_index +
+	       fid_offset;
 }
 
 int mlxsw_sp_fid_flood_set(struct mlxsw_sp_fid *fid,
@@ -736,6 +749,10 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021d_ops = {
 	.fdb_clear_offload	= mlxsw_sp_fid_8021d_fdb_clear_offload,
 };
 
+#define MLXSW_SP_FID_8021Q_MAX (VLAN_N_VID - 2)
+#define MLXSW_SP_FID_8021Q_PGT_BASE 0
+#define MLXSW_SP_FID_8021D_PGT_BASE (3 * MLXSW_SP_FID_8021Q_MAX)
+
 static const struct mlxsw_sp_flood_table mlxsw_sp_fid_8021d_flood_tables[] = {
 	{
 		.packet_type	= MLXSW_SP_FLOOD_TYPE_UC,
@@ -765,6 +782,7 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021d_family = {
 	.rif_type		= MLXSW_SP_RIF_TYPE_FID,
 	.ops			= &mlxsw_sp_fid_8021d_ops,
 	.bridge_type		= MLXSW_REG_BRIDGE_TYPE_1,
+	.pgt_base		= MLXSW_SP_FID_8021D_PGT_BASE,
 };
 
 static bool
@@ -801,7 +819,7 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021q_emu_ops = {
 /* There are 4K-2 emulated 802.1Q FIDs, starting right after the 802.1D FIDs */
 #define MLXSW_SP_FID_8021Q_EMU_START	(VLAN_N_VID + MLXSW_SP_FID_8021D_MAX)
 #define MLXSW_SP_FID_8021Q_EMU_END	(MLXSW_SP_FID_8021Q_EMU_START + \
-					 VLAN_VID_MASK - 2)
+					 MLXSW_SP_FID_8021Q_MAX - 1)
 
 /* Range and flood configuration must match mlxsw_config_profile */
 static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021q_emu_family = {
@@ -814,6 +832,7 @@ static const struct mlxsw_sp_fid_family mlxsw_sp_fid_8021q_emu_family = {
 	.rif_type		= MLXSW_SP_RIF_TYPE_VLAN_EMU,
 	.ops			= &mlxsw_sp_fid_8021q_emu_ops,
 	.bridge_type            = MLXSW_REG_BRIDGE_TYPE_1,
+	.pgt_base		= MLXSW_SP_FID_8021Q_PGT_BASE,
 };
 
 static void mlxsw_sp_fid_rfid_setup(struct mlxsw_sp_fid *fid, const void *arg)
@@ -1151,7 +1170,10 @@ mlxsw_sp_fid_flood_table_init(struct mlxsw_sp_fid_family *fid_family,
 {
 	enum mlxsw_sp_flood_type packet_type = flood_table->packet_type;
 	const int *sfgc_packet_types;
+	u16 mid_base, table_index;
 	int i;
+
+	mid_base = mlxsw_sp_fid_flood_table_mid(fid_family, flood_table, 0);
 
 	sfgc_packet_types = mlxsw_sp_packet_type_sfgc_types[packet_type];
 	for (i = 0; i < MLXSW_REG_SFGC_TYPE_MAX; i++) {
@@ -1161,9 +1183,14 @@ mlxsw_sp_fid_flood_table_init(struct mlxsw_sp_fid_family *fid_family,
 
 		if (!sfgc_packet_types[i])
 			continue;
+
+		mid_base = mlxsw_sp->ubridge ? mid_base : 0;
+		table_index = mlxsw_sp->ubridge ? 0 : flood_table->table_index;
+
 		mlxsw_reg_sfgc_pack(sfgc_pl, i, fid_family->bridge_type,
-				    flood_table->table_type,
-				    flood_table->table_index);
+				    flood_table->table_type, table_index,
+				    mid_base);
+
 		err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfgc), sfgc_pl);
 		if (err)
 			return err;
