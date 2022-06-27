@@ -147,12 +147,6 @@ LIBBPF_0.0.2 {
 		btf_ext__new;
 		btf_ext__reloc_func_info;
 		btf_ext__reloc_line_info;
-		xsk_umem__create;
-		xsk_socket__create;
-		xsk_umem__delete;
-		xsk_socket__delete;
-		xsk_umem__fd;
-		xsk_socket__fd;
 		bpf_program__get_prog_info_linear;
 		bpf_program__bpil_addr_to_offs;
 		bpf_program__bpil_offs_to_addr;
@@ -183,7 +177,6 @@ LIBBPF_0.0.4 {
 		perf_buffer__new;
 		perf_buffer__new_raw;
 		perf_buffer__poll;
-		xsk_umem__create;
 } LIBBPF_0.0.3;
 
 LIBBPF_0.0.5 {
@@ -336,7 +329,6 @@ LIBBPF_0.2.0 {
 		perf_buffer__buffer_fd;
 		perf_buffer__epoll_fd;
 		perf_buffer__consume_buffer;
-		xsk_socket__create_shared;
 } LIBBPF_0.1.0;
 
 LIBBPF_0.3.0 {
@@ -348,8 +340,6 @@ LIBBPF_0.3.0 {
 		btf__new_empty_split;
 		btf__new_split;
 		ring_buffer__epoll_fd;
-		xsk_setup_xdp_prog;
-		xsk_socket__update_xskmap;
 } LIBBPF_0.2.0;
 
 LIBBPF_0.4.0 {
@@ -468,6 +458,4 @@ LIBBPF_1.0.0 {
 		libbpf_bpf_link_type_str;
 		libbpf_bpf_map_type_str;
 		libbpf_bpf_prog_type_str;
-
-	local: *;
 };
