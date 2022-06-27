@@ -15,13 +15,13 @@
 
 #define HL_RESET_DELAY_USEC		10000	/* 10ms */
 
-#define MEM_SCRUB_DEFAULT_VAL 0x1122334455667788
-
 enum dma_alloc_type {
 	DMA_ALLOC_COHERENT,
 	DMA_ALLOC_CPU_ACCESSIBLE,
 	DMA_ALLOC_POOL,
 };
+
+#define MEM_SCRUB_DEFAULT_VAL 0x1122334455667788
 
 /*
  * hl_set_dram_bar- sets the bar to allow later access to address
@@ -412,8 +412,8 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	 */
 	hl_release_pending_user_interrupts(hpriv->hdev);
 
-	hl_mem_mgr_fini(&hpriv->mem_mgr);
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
+	hl_mem_mgr_fini(&hpriv->mem_mgr);
 
 	hdev->compute_ctx_in_release = 1;
 
@@ -461,7 +461,7 @@ out:
  * @*filp: pointer to file structure
  * @*vma: pointer to vm_area_struct of the process
  *
- * Called when process does an mmap on habanalabs device. Call the device's mmap
+ * Called when process does an mmap on habanalabs device. Call the relevant mmap
  * function at the end of the common code.
  */
 static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
@@ -486,7 +486,6 @@ static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 	case HL_MMAP_TYPE_TS_BUFF:
 		return hl_mem_mgr_mmap(&hpriv->mem_mgr, vma, NULL);
 	}
-
 	return -EINVAL;
 }
 
@@ -686,12 +685,20 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_cq_wq;
 	}
 
+	hdev->cs_cmplt_wq = alloc_workqueue("hl-cs-completions", WQ_UNBOUND, 0);
+	if (!hdev->cs_cmplt_wq) {
+		dev_err(hdev->dev,
+			"Failed to allocate CS completions workqueue\n");
+		rc = -ENOMEM;
+		goto free_eq_wq;
+	}
+
 	hdev->ts_free_obj_wq = alloc_workqueue("hl-ts-free-obj", WQ_UNBOUND, 0);
 	if (!hdev->ts_free_obj_wq) {
 		dev_err(hdev->dev,
 			"Failed to allocate Timestamp registration free workqueue\n");
 		rc = -ENOMEM;
-		goto free_eq_wq;
+		goto free_cs_cmplt_wq;
 	}
 
 	hdev->pf_wq = alloc_workqueue("hl-prefetch", WQ_UNBOUND, 0);
@@ -748,6 +755,8 @@ free_pf_wq:
 	destroy_workqueue(hdev->pf_wq);
 free_ts_free_wq:
 	destroy_workqueue(hdev->ts_free_obj_wq);
+free_cs_cmplt_wq:
+	destroy_workqueue(hdev->cs_cmplt_wq);
 free_eq_wq:
 	destroy_workqueue(hdev->eq_wq);
 free_cq_wq:
@@ -788,6 +797,7 @@ static void device_early_fini(struct hl_device *hdev)
 
 	destroy_workqueue(hdev->pf_wq);
 	destroy_workqueue(hdev->ts_free_obj_wq);
+	destroy_workqueue(hdev->cs_cmplt_wq);
 	destroy_workqueue(hdev->eq_wq);
 	destroy_workqueue(hdev->device_reset_work.wq);
 
@@ -1706,13 +1716,12 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	if (rc)
 		goto free_dev_ctrl;
 
-	user_interrupt_cnt = hdev->asic_prop.user_interrupt_count;
+	user_interrupt_cnt = hdev->asic_prop.user_dec_intr_count +
+				hdev->asic_prop.user_interrupt_count;
 
 	if (user_interrupt_cnt) {
-		hdev->user_interrupt = kcalloc(user_interrupt_cnt,
-				sizeof(*hdev->user_interrupt),
-				GFP_KERNEL);
-
+		hdev->user_interrupt = kcalloc(user_interrupt_cnt, sizeof(*hdev->user_interrupt),
+						GFP_KERNEL);
 		if (!hdev->user_interrupt) {
 			rc = -ENOMEM;
 			goto early_fini;
@@ -1725,7 +1734,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	 */
 	rc = hdev->asic_funcs->sw_init(hdev);
 	if (rc)
-		goto user_interrupts_fini;
+		goto free_usr_intr_mem;
 
 
 	/* initialize completion structure for multi CS wait */
@@ -1773,6 +1782,13 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 		hdev->completion_queue[i].cq_idx = i;
 	}
 
+	hdev->shadow_cs_queue = kcalloc(hdev->asic_prop.max_pending_cs,
+					sizeof(*hdev->shadow_cs_queue), GFP_KERNEL);
+	if (!hdev->shadow_cs_queue) {
+		rc = -ENOMEM;
+		goto cq_fini;
+	}
+
 	/*
 	 * Initialize the event queue. Must be done before hw_init,
 	 * because there the address of the event queue is being
@@ -1781,7 +1797,7 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	rc = hl_eq_init(hdev, &hdev->event_queue);
 	if (rc) {
 		dev_err(hdev->dev, "failed to initialize event queue\n");
-		goto cq_fini;
+		goto free_shadow_cs_queue;
 	}
 
 	/* MMU S/W must be initialized before kernel context is created */
@@ -1932,6 +1948,8 @@ mmu_fini:
 	hl_mmu_fini(hdev);
 eq_fini:
 	hl_eq_fini(hdev, &hdev->event_queue);
+free_shadow_cs_queue:
+	kfree(hdev->shadow_cs_queue);
 cq_fini:
 	for (i = 0 ; i < cq_ready_cnt ; i++)
 		hl_cq_fini(hdev, &hdev->completion_queue[i]);
@@ -1940,7 +1958,7 @@ hw_queues_destroy:
 	hl_hw_queues_destroy(hdev);
 sw_fini:
 	hdev->asic_funcs->sw_fini(hdev);
-user_interrupts_fini:
+free_usr_intr_mem:
 	kfree(hdev->user_interrupt);
 early_fini:
 	device_early_fini(hdev);
@@ -2079,6 +2097,8 @@ void hl_device_fini(struct hl_device *hdev)
 	hl_mmu_fini(hdev);
 
 	hl_eq_fini(hdev, &hdev->event_queue);
+
+	kfree(hdev->shadow_cs_queue);
 
 	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
 		hl_cq_fini(hdev, &hdev->completion_queue[i]);

@@ -696,6 +696,16 @@ int hl_hw_queue_schedule_cs(struct hl_cs *cs)
 			goto unroll_cq_resv;
 	}
 
+	rc = hdev->asic_funcs->pre_schedule_cs(cs);
+	if (rc) {
+		dev_err(hdev->dev,
+			"Failed in pre-submission operations of CS %d.%llu\n",
+			ctx->asid, cs->sequence);
+		goto unroll_cq_resv;
+	}
+
+	hdev->shadow_cs_queue[cs->sequence &
+				(hdev->asic_prop.max_pending_cs - 1)] = cs;
 
 	if (cs->encaps_signals && cs->staged_first) {
 		rc = encaps_sig_first_staged_cs_handler(hdev, cs);

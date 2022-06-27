@@ -44,7 +44,7 @@ static int hl_get_pb_block(struct hl_device *hdev, u32 mm_reg_addr,
  *
  */
 static int hl_unset_pb_in_block(struct hl_device *hdev, u32 reg_offset,
-		struct hl_block_glbl_sec *sgs_entry)
+				struct hl_block_glbl_sec *sgs_entry)
 {
 	if ((reg_offset >= HL_BLOCK_SIZE) || (reg_offset & 0x3)) {
 		dev_err(hdev->dev,

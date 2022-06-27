@@ -67,6 +67,56 @@ static void irq_handle_eqe(struct work_struct *work)
 }
 
 /**
+ * job_finish - queue job finish work
+ *
+ * @hdev: pointer to device structure
+ * @cs_seq: command submission sequence
+ * @cq: completion queue
+ *
+ */
+static void job_finish(struct hl_device *hdev, u32 cs_seq, struct hl_cq *cq)
+{
+	struct hl_hw_queue *queue;
+	struct hl_cs_job *job;
+
+	queue = &hdev->kernel_queues[cq->hw_queue_id];
+	job = queue->shadow_queue[hl_pi_2_offset(cs_seq)];
+	queue_work(hdev->cq_wq[cq->cq_idx], &job->finish_work);
+
+	atomic_inc(&queue->ci);
+}
+
+/**
+ * cs_finish - queue all cs jobs finish work
+ *
+ * @hdev: pointer to device structure
+ * @cs_seq: command submission sequence
+ *
+ */
+static void cs_finish(struct hl_device *hdev, u16 cs_seq)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct hl_hw_queue *queue;
+	struct hl_cs *cs;
+	struct hl_cs_job *job;
+
+	cs = hdev->shadow_cs_queue[cs_seq & (prop->max_pending_cs - 1)];
+	if (!cs) {
+		dev_warn(hdev->dev,
+			"No pointer to CS in shadow array at index %d\n",
+			cs_seq);
+		return;
+	}
+
+	list_for_each_entry(job, &cs->job_list, cs_node) {
+		queue = &hdev->kernel_queues[job->hw_queue_id];
+		atomic_inc(&queue->ci);
+	}
+
+	queue_work(hdev->cs_cmplt_wq, &cs->finish_work);
+}
+
+/**
  * hl_irq_handler_cq - irq handler for completion queue
  *
  * @irq: irq number
@@ -77,9 +127,7 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 {
 	struct hl_cq *cq = arg;
 	struct hl_device *hdev = cq->hdev;
-	struct hl_hw_queue *queue;
-	struct hl_cs_job *job;
-	bool shadow_index_valid;
+	bool shadow_index_valid, entry_ready;
 	u16 shadow_index;
 	struct hl_cq_entry *cq_entry, *cq_base;
 
@@ -93,36 +141,40 @@ irqreturn_t hl_irq_handler_cq(int irq, void *arg)
 	cq_base = cq->kernel_address;
 
 	while (1) {
-		bool entry_ready = ((le32_to_cpu(cq_base[cq->ci].data) &
-					CQ_ENTRY_READY_MASK)
-						>> CQ_ENTRY_READY_SHIFT);
+		cq_entry = (struct hl_cq_entry *) &cq_base[cq->ci];
 
+		entry_ready = !!FIELD_GET(CQ_ENTRY_READY_MASK,
+				le32_to_cpu(cq_entry->data));
 		if (!entry_ready)
 			break;
-
-		cq_entry = (struct hl_cq_entry *) &cq_base[cq->ci];
 
 		/* Make sure we read CQ entry contents after we've
 		 * checked the ownership bit.
 		 */
 		dma_rmb();
 
-		shadow_index_valid = ((le32_to_cpu(cq_entry->data) &
-					CQ_ENTRY_SHADOW_INDEX_VALID_MASK)
-					>> CQ_ENTRY_SHADOW_INDEX_VALID_SHIFT);
+		shadow_index_valid =
+			!!FIELD_GET(CQ_ENTRY_SHADOW_INDEX_VALID_MASK,
+					le32_to_cpu(cq_entry->data));
 
-		shadow_index = (u16) ((le32_to_cpu(cq_entry->data) &
-					CQ_ENTRY_SHADOW_INDEX_MASK)
-					>> CQ_ENTRY_SHADOW_INDEX_SHIFT);
+		shadow_index = FIELD_GET(CQ_ENTRY_SHADOW_INDEX_MASK,
+				le32_to_cpu(cq_entry->data));
 
-		queue = &hdev->kernel_queues[cq->hw_queue_id];
-
-		if ((shadow_index_valid) && (!hdev->disabled)) {
-			job = queue->shadow_queue[hl_pi_2_offset(shadow_index)];
-			queue_work(hdev->cq_wq[cq->cq_idx], &job->finish_work);
+		/*
+		 * CQ interrupt handler has 2 modes of operation:
+		 * 1. Interrupt per CS completion: (Single CQ for all queues)
+		 *    CQ entry represents a completed CS
+		 *
+		 * 2. Interrupt per CS job completion in queue: (CQ per queue)
+		 *    CQ entry represents a completed job in a certain queue
+		 */
+		if (shadow_index_valid && !hdev->disabled) {
+			if (hdev->asic_prop.completion_mode ==
+					HL_COMPLETION_MODE_CS)
+				cs_finish(hdev, shadow_index);
+			else
+				job_finish(hdev, shadow_index, cq);
 		}
-
-		atomic_inc(&queue->ci);
 
 		/* Clear CQ entry ready bit */
 		cq_entry->data = cpu_to_le32(le32_to_cpu(cq_entry->data) &

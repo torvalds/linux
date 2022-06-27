@@ -2893,9 +2893,13 @@ struct hl_reset_info {
  * @common_user_interrupt: common user interrupt for all user interrupts.
  *                         upon any user interrupt, driver will monitor the
  *                         list of fences registered to this common structure.
+ * @shadow_cs_queue: pointer to a shadow queue that holds pointers to
+ *                   outstanding command submissions.
  * @cq_wq: work queues of completion queues for executing work in process
  *         context.
  * @eq_wq: work queue of event queue for executing work in process context.
+ * @cs_cmplt_wq: work queue of CS completions for executing work in process
+ *               context.
  * @ts_free_obj_wq: work queue for timestamp registration objects release.
  * @pf_wq: work queue for MMU pre-fetch operations.
  * @kernel_ctx: Kernel driver context structure.
@@ -3053,8 +3057,10 @@ struct hl_device {
 	struct hl_cq			*completion_queue;
 	struct hl_user_interrupt	*user_interrupt;
 	struct hl_user_interrupt	common_user_interrupt;
+	struct hl_cs			**shadow_cs_queue;
 	struct workqueue_struct		**cq_wq;
 	struct workqueue_struct		*eq_wq;
+	struct workqueue_struct		*cs_cmplt_wq;
 	struct workqueue_struct		*ts_free_obj_wq;
 	struct workqueue_struct		*pf_wq;
 	struct hl_ctx			*kernel_ctx;
