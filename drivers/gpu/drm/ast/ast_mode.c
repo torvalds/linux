@@ -1091,7 +1091,6 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	struct ast_crtc_state *ast_crtc_state = to_ast_crtc_state(crtc_state);
 	struct ast_crtc_state *old_ast_crtc_state = to_ast_crtc_state(old_crtc_state);
 
-	struct ast_vbios_mode_info *vbios_mode_info = &ast_crtc_state->vbios_mode_info;
 	/*
 	 * The gamma LUT has to be reloaded after changing the primary
 	 * plane's color format.
@@ -1099,9 +1098,6 @@ ast_crtc_helper_atomic_flush(struct drm_crtc *crtc,
 	if (old_ast_crtc_state->format != ast_crtc_state->format)
 		ast_crtc_load_lut(ast, crtc);
 
-	//Set Aspeed Display-Port
-	if (ast->tx_chip_type == AST_TX_ASTDP)
-		ast_dp_SetOutput(crtc, vbios_mode_info);
 }
 
 static void
@@ -1123,6 +1119,10 @@ ast_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 	ast_set_dclk_reg(ast, adjusted_mode, vbios_mode_info);
 	ast_set_crtthd_reg(ast);
 	ast_set_sync_reg(ast, adjusted_mode, vbios_mode_info);
+
+	//Set Aspeed Display-Port
+	if (ast->tx_chip_type == AST_TX_ASTDP)
+		ast_dp_SetOutput(crtc, vbios_mode_info);
 
 	ast_crtc_dpms(crtc, DRM_MODE_DPMS_ON);
 }
@@ -1172,10 +1172,7 @@ static void ast_crtc_reset(struct drm_crtc *crtc)
 	if (crtc->state)
 		crtc->funcs->atomic_destroy_state(crtc, crtc->state);
 
-	if (ast_state)
-		__drm_atomic_helper_crtc_reset(crtc, &ast_state->base);
-	else
-		__drm_atomic_helper_crtc_reset(crtc, NULL);
+	__drm_atomic_helper_crtc_reset(crtc, &ast_state->base);
 }
 
 static struct drm_crtc_state *
@@ -1285,8 +1282,10 @@ static int ast_get_modes(struct drm_connector *connector)
 			return -ENOMEM;
 
 		flags = ast_dp_read_edid(connector->dev, (u8 *)edid);
-		if (!flags)
+		if (!flags) {
+			drm_info(connector->dev, "No DP EDID\n");
 			kfree(edid);
+		}
 	}
 
 	if (!flags)
