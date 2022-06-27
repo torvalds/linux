@@ -667,7 +667,7 @@ static const struct imx8m_blk_ctrl_domain_data imx8mp_media_blk_ctl_domain_data[
 	},
 	[IMX8MP_MEDIABLK_PD_LCDIF_2] = {
 		.name = "mediablk-lcdif-2",
-		.clk_names = (const char *[]){ "disp1", "apb", "axi", },
+		.clk_names = (const char *[]){ "disp2", "apb", "axi", },
 		.num_clks = 3,
 		.gpc_name = "lcdif2",
 		.rst_mask = BIT(11) | BIT(12) | BIT(24),

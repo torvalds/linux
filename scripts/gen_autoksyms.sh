@@ -56,4 +56,7 @@ EOT
 # point addresses.
 sed -e 's/^\.//' |
 sort -u |
+# Ignore __this_module. It's not an exported symbol, and will be resolved
+# when the final .ko's are linked.
+grep -v '^__this_module$' |
 sed -e 's/\(.*\)/#define __KSYM_\1 1/' >> "$output_file"

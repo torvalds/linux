@@ -342,7 +342,6 @@ static inline int blkdev_zone_mgmt_ioctl(struct block_device *bdev,
  */
 struct blk_independent_access_range {
 	struct kobject		kobj;
-	struct request_queue	*queue;
 	sector_t		sector;
 	sector_t		nr_sectors;
 };
@@ -482,7 +481,6 @@ struct request_queue {
 #endif /* CONFIG_BLK_DEV_ZONED */
 
 	int			node;
-	struct mutex		debugfs_mutex;
 #ifdef CONFIG_BLK_DEV_IO_TRACE
 	struct blk_trace __rcu	*blk_trace;
 #endif
@@ -526,11 +524,12 @@ struct request_queue {
 	struct bio_set		bio_split;
 
 	struct dentry		*debugfs_dir;
-
-#ifdef CONFIG_BLK_DEBUG_FS
 	struct dentry		*sched_debugfs_dir;
 	struct dentry		*rqos_debugfs_dir;
-#endif
+	/*
+	 * Serializes all debugfs metadata operations using the above dentries.
+	 */
+	struct mutex		debugfs_mutex;
 
 	bool			mq_sysfs_init_done;
 

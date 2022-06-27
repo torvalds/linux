@@ -144,7 +144,6 @@ int disk_register_independent_access_ranges(struct gendisk *disk,
 	}
 
 	for (i = 0; i < iars->nr_ia_ranges; i++) {
-		iars->ia_range[i].queue = q;
 		ret = kobject_init_and_add(&iars->ia_range[i].kobj,
 					   &blk_ia_range_ktype, &iars->kobj,
 					   "%d", i);
