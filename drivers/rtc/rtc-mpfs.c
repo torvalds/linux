@@ -213,10 +213,7 @@ static inline struct clk *mpfs_rtc_init_clk(struct device *dev)
 static irqreturn_t mpfs_rtc_wakeup_irq_handler(int irq, void *dev)
 {
 	struct mpfs_rtc_dev *rtcdev = dev;
-	unsigned long pending;
 
-	pending = readl(rtcdev->base + CONTROL_REG);
-	pending &= CONTROL_ALARM_ON_BIT;
 	mpfs_rtc_clear_irq(rtcdev);
 
 	rtc_update_irq(rtcdev->rtc, 1, RTC_IRQF | RTC_AF);
