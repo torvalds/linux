@@ -2265,17 +2265,17 @@ static void ieee80211_stop_poll(struct ieee80211_sub_if_data *sdata)
 	mutex_unlock(&sdata->local->mtx);
 }
 
-static u32 ieee80211_handle_bss_capability(struct ieee80211_sub_if_data *sdata,
+static u32 ieee80211_handle_bss_capability(struct ieee80211_link_data *link,
 					   u16 capab, bool erp_valid, u8 erp)
 {
-	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
+	struct ieee80211_bss_conf *bss_conf = link->conf;
 	struct ieee80211_supported_band *sband;
 	u32 changed = 0;
 	bool use_protection;
 	bool use_short_preamble;
 	bool use_short_slot;
 
-	sband = ieee80211_get_sband(sdata);
+	sband = ieee80211_get_link_sband(link);
 	if (!sband)
 		return changed;
 
@@ -2321,7 +2321,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_vif_cfg *vif_cfg = &sdata->vif.cfg;
 
 	bss_info_changed |= BSS_CHANGED_ASSOC;
-	bss_info_changed |= ieee80211_handle_bss_capability(sdata,
+	bss_info_changed |= ieee80211_handle_bss_capability(link,
 		bss_conf->assoc_capability, bss->has_erp_value, bss->erp_value);
 
 	sdata->u.mgd.beacon_timeout = usecs_to_jiffies(ieee80211_tu_to_usec(
@@ -3622,7 +3622,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		goto out;
 	}
 
-	sband = ieee80211_get_sband(sdata);
+	sband = ieee80211_get_link_sband(link);
 	if (!sband) {
 		mutex_unlock(&sdata->local->sta_mtx);
 		ret = false;
@@ -4430,7 +4430,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	}
 
 	if (!ieee80211_is_s1g_beacon(hdr->frame_control))
-		changed |= ieee80211_handle_bss_capability(sdata,
+		changed |= ieee80211_handle_bss_capability(link,
 				le16_to_cpu(mgmt->u.beacon.capab_info),
 				erp_valid, erp_value);
 
