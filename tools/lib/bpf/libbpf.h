@@ -101,11 +101,6 @@ LIBBPF_API libbpf_print_fn_t libbpf_set_print(libbpf_print_fn_t fn);
 /* Hide internal to user */
 struct bpf_object;
 
-struct bpf_object_open_attr {
-	const char *file;
-	enum bpf_prog_type prog_type;
-};
-
 struct bpf_object_open_opts {
 	/* size of this struct, for forward/backward compatibility */
 	size_t sz;
@@ -118,21 +113,12 @@ struct bpf_object_open_opts {
 	const char *object_name;
 	/* parse map definitions non-strictly, allowing extra attributes/data */
 	bool relaxed_maps;
-	/* DEPRECATED: handle CO-RE relocations non-strictly, allowing failures.
-	 * Value is ignored. Relocations always are processed non-strictly.
-	 * Non-relocatable instructions are replaced with invalid ones to
-	 * prevent accidental errors.
-	 * */
-	LIBBPF_DEPRECATED_SINCE(0, 6, "field has no effect")
-	bool relaxed_core_relocs;
 	/* maps that set the 'pinning' attribute in their definition will have
 	 * their pin_path attribute set to a file in this directory, and be
 	 * auto-pinned to that path on load; defaults to "/sys/fs/bpf".
 	 */
 	const char *pin_root_path;
-
-	LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_program__set_attach_target() on each individual bpf_program")
-	__u32 attach_prog_fd;
+	long :0;
 	/* Additional kernel config content that augments and overrides
 	 * system Kconfig for CONFIG_xxx externs.
 	 */
@@ -215,20 +201,10 @@ LIBBPF_API struct bpf_object *
 bpf_object__open_mem(const void *obj_buf, size_t obj_buf_sz,
 		     const struct bpf_object_open_opts *opts);
 
-/* deprecated bpf_object__open variants */
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_object__open_mem() instead")
-LIBBPF_API struct bpf_object *
-bpf_object__open_buffer(const void *obj_buf, size_t obj_buf_sz,
-			const char *name);
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_object__open_file() instead")
-LIBBPF_API struct bpf_object *
-bpf_object__open_xattr(struct bpf_object_open_attr *attr);
+/* Load/unload object into/from kernel */
+LIBBPF_API int bpf_object__load(struct bpf_object *obj);
 
-enum libbpf_pin_type {
-	LIBBPF_PIN_NONE,
-	/* PIN_BY_NAME: pin maps by name (in /sys/fs/bpf by default) */
-	LIBBPF_PIN_BY_NAME,
-};
+LIBBPF_API void bpf_object__close(struct bpf_object *object);
 
 /* pin_maps and unpin_maps can both be called with a NULL path, in which case
  * they will use the pin_path attribute of each map (and ignore all maps that
@@ -242,20 +218,6 @@ LIBBPF_API int bpf_object__pin_programs(struct bpf_object *obj,
 LIBBPF_API int bpf_object__unpin_programs(struct bpf_object *obj,
 					  const char *path);
 LIBBPF_API int bpf_object__pin(struct bpf_object *object, const char *path);
-LIBBPF_API void bpf_object__close(struct bpf_object *object);
-
-struct bpf_object_load_attr {
-	struct bpf_object *obj;
-	int log_level;
-	const char *target_btf_path;
-};
-
-/* Load/unload object into/from kernel */
-LIBBPF_API int bpf_object__load(struct bpf_object *obj);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_object__load() instead")
-LIBBPF_API int bpf_object__load_xattr(struct bpf_object_load_attr *attr);
-LIBBPF_DEPRECATED_SINCE(0, 6, "bpf_object__unload() is deprecated, use bpf_object__close() instead")
-LIBBPF_API int bpf_object__unload(struct bpf_object *obj);
 
 LIBBPF_API const char *bpf_object__name(const struct bpf_object *obj);
 LIBBPF_API unsigned int bpf_object__kversion(const struct bpf_object *obj);
@@ -265,21 +227,9 @@ struct btf;
 LIBBPF_API struct btf *bpf_object__btf(const struct bpf_object *obj);
 LIBBPF_API int bpf_object__btf_fd(const struct bpf_object *obj);
 
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_object__find_program_by_name() instead")
-LIBBPF_API struct bpf_program *
-bpf_object__find_program_by_title(const struct bpf_object *obj,
-				  const char *title);
 LIBBPF_API struct bpf_program *
 bpf_object__find_program_by_name(const struct bpf_object *obj,
 				 const char *name);
-
-LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "track bpf_objects in application code instead")
-struct bpf_object *bpf_object__next(struct bpf_object *prev);
-#define bpf_object__for_each_safe(pos, tmp)			\
-	for ((pos) = bpf_object__next(NULL),		\
-		(tmp) = bpf_object__next(pos);		\
-	     (pos) != NULL;				\
-	     (pos) = (tmp), (tmp) = bpf_object__next(tmp))
 
 typedef void (*bpf_object_clear_priv_t)(struct bpf_object *, void *);
 LIBBPF_DEPRECATED_SINCE(0, 7, "storage via set_priv/priv is deprecated")
@@ -298,9 +248,7 @@ LIBBPF_API int libbpf_find_vmlinux_btf_id(const char *name,
 
 /* Accessors of bpf_program */
 struct bpf_program;
-LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_object__next_program() instead")
-struct bpf_program *bpf_program__next(struct bpf_program *prog,
-				      const struct bpf_object *obj);
+
 LIBBPF_API struct bpf_program *
 bpf_object__next_program(const struct bpf_object *obj, struct bpf_program *prog);
 
@@ -309,9 +257,6 @@ bpf_object__next_program(const struct bpf_object *obj, struct bpf_program *prog)
 	     (pos) != NULL;					\
 	     (pos) = bpf_object__next_program((obj), (pos)))
 
-LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_object__prev_program() instead")
-struct bpf_program *bpf_program__prev(struct bpf_program *prog,
-				      const struct bpf_object *obj);
 LIBBPF_API struct bpf_program *
 bpf_object__prev_program(const struct bpf_object *obj, struct bpf_program *prog);
 
@@ -327,14 +272,8 @@ LIBBPF_API void bpf_program__set_ifindex(struct bpf_program *prog,
 
 LIBBPF_API const char *bpf_program__name(const struct bpf_program *prog);
 LIBBPF_API const char *bpf_program__section_name(const struct bpf_program *prog);
-LIBBPF_API LIBBPF_DEPRECATED("BPF program title is confusing term; please use bpf_program__section_name() instead")
-const char *bpf_program__title(const struct bpf_program *prog, bool needs_copy);
 LIBBPF_API bool bpf_program__autoload(const struct bpf_program *prog);
 LIBBPF_API int bpf_program__set_autoload(struct bpf_program *prog, bool autoload);
-
-/* returns program size in bytes */
-LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_program__insn_cnt() instead")
-LIBBPF_API size_t bpf_program__size(const struct bpf_program *prog);
 
 struct bpf_insn;
 
@@ -388,8 +327,6 @@ LIBBPF_API int bpf_program__set_insns(struct bpf_program *prog,
  */
 LIBBPF_API size_t bpf_program__insn_cnt(const struct bpf_program *prog);
 
-LIBBPF_DEPRECATED_SINCE(0, 6, "use bpf_object__load() instead")
-LIBBPF_API int bpf_program__load(struct bpf_program *prog, const char *license, __u32 kern_version);
 LIBBPF_API int bpf_program__fd(const struct bpf_program *prog);
 LIBBPF_DEPRECATED_SINCE(0, 7, "multi-instance bpf_program support is deprecated")
 LIBBPF_API int bpf_program__pin_instance(struct bpf_program *prog,
@@ -761,36 +698,6 @@ LIBBPF_API int bpf_program__set_prep(struct bpf_program *prog, int nr_instance,
 LIBBPF_DEPRECATED_SINCE(0, 7, "multi-instance bpf_program support is deprecated")
 LIBBPF_API int bpf_program__nth_fd(const struct bpf_program *prog, int n);
 
-/*
- * Adjust type of BPF program. Default is kprobe.
- */
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_socket_filter(struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_tracepoint(struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_raw_tracepoint(struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_kprobe(struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_lsm(struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_sched_cls(struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_sched_act(struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_xdp(struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_perf_event(struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_tracing(struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_struct_ops(struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_extension(struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
-LIBBPF_API int bpf_program__set_sk_lookup(struct bpf_program *prog);
-
 LIBBPF_API enum bpf_prog_type bpf_program__type(const struct bpf_program *prog);
 
 /**
@@ -853,47 +760,6 @@ LIBBPF_API int
 bpf_program__set_attach_target(struct bpf_program *prog, int attach_prog_fd,
 			       const char *attach_func_name);
 
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_socket_filter(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_tracepoint(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_raw_tracepoint(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_kprobe(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_lsm(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_sched_cls(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_sched_act(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_xdp(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_perf_event(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_tracing(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_struct_ops(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_extension(const struct bpf_program *prog);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__type() instead")
-LIBBPF_API bool bpf_program__is_sk_lookup(const struct bpf_program *prog);
-
-/*
- * No need for __attribute__((packed)), all members of 'bpf_map_def'
- * are all aligned.  In addition, using __attribute__((packed))
- * would trigger a -Wpacked warning message, and lead to an error
- * if -Werror is set.
- */
-struct bpf_map_def {
-	unsigned int type;
-	unsigned int key_size;
-	unsigned int value_size;
-	unsigned int max_entries;
-	unsigned int map_flags;
-};
-
 /**
  * @brief **bpf_object__find_map_by_name()** returns BPF map of
  * the given name, if it exists within the passed BPF object
@@ -908,16 +774,6 @@ bpf_object__find_map_by_name(const struct bpf_object *obj, const char *name);
 LIBBPF_API int
 bpf_object__find_map_fd_by_name(const struct bpf_object *obj, const char *name);
 
-/*
- * Get bpf_map through the offset of corresponding struct bpf_map_def
- * in the BPF object file.
- */
-LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_object__find_map_by_name() instead")
-struct bpf_map *
-bpf_object__find_map_by_offset(struct bpf_object *obj, size_t offset);
-
-LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_object__next_map() instead")
-struct bpf_map *bpf_map__next(const struct bpf_map *map, const struct bpf_object *obj);
 LIBBPF_API struct bpf_map *
 bpf_object__next_map(const struct bpf_object *obj, const struct bpf_map *map);
 
@@ -927,8 +783,6 @@ bpf_object__next_map(const struct bpf_object *obj, const struct bpf_map *map);
 	     (pos) = bpf_object__next_map((obj), (pos)))
 #define bpf_map__for_each bpf_object__for_each_map
 
-LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 7, "use bpf_object__prev_map() instead")
-struct bpf_map *bpf_map__prev(const struct bpf_map *map, const struct bpf_object *obj);
 LIBBPF_API struct bpf_map *
 bpf_object__prev_map(const struct bpf_object *obj, const struct bpf_map *map);
 
@@ -962,9 +816,6 @@ LIBBPF_API bool bpf_map__autocreate(const struct bpf_map *map);
  */
 LIBBPF_API int bpf_map__fd(const struct bpf_map *map);
 LIBBPF_API int bpf_map__reuse_fd(struct bpf_map *map, int fd);
-/* get map definition */
-LIBBPF_API LIBBPF_DEPRECATED_SINCE(0, 8, "use appropriate getters or setters instead")
-const struct bpf_map_def *bpf_map__def(const struct bpf_map *map);
 /* get map name */
 LIBBPF_API const char *bpf_map__name(const struct bpf_map *map);
 /* get/set map type */
@@ -973,8 +824,6 @@ LIBBPF_API int bpf_map__set_type(struct bpf_map *map, enum bpf_map_type type);
 /* get/set map size (max_entries) */
 LIBBPF_API __u32 bpf_map__max_entries(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_max_entries(struct bpf_map *map, __u32 max_entries);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_map__set_max_entries() instead")
-LIBBPF_API int bpf_map__resize(struct bpf_map *map, __u32 max_entries);
 /* get/set map flags */
 LIBBPF_API __u32 bpf_map__map_flags(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_map_flags(struct bpf_map *map, __u32 flags);
@@ -1006,8 +855,6 @@ LIBBPF_API void *bpf_map__priv(const struct bpf_map *map);
 LIBBPF_API int bpf_map__set_initial_value(struct bpf_map *map,
 					  const void *data, size_t size);
 LIBBPF_API const void *bpf_map__initial_value(struct bpf_map *map, size_t *psize);
-LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_map__type() instead")
-LIBBPF_API bool bpf_map__is_offload_neutral(const struct bpf_map *map);
 
 /**
  * @brief **bpf_map__is_internal()** tells the caller whether or not the
