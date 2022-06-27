@@ -118,9 +118,6 @@ LIBBPF_0.0.2 {
 		btf_ext__free;
 		btf_ext__get_raw_data;
 		btf_ext__new;
-		bpf_program__get_prog_info_linear;
-		bpf_program__bpil_addr_to_offs;
-		bpf_program__bpil_offs_to_addr;
 } LIBBPF_0.0.1;
 
 LIBBPF_0.0.3 {
