@@ -533,9 +533,8 @@ patternProperties:
 
       azoteq,bottom-speed:
         $ref: /schemas/types.yaml#/definitions/uint32
-        multipleOf: 4
         minimum: 0
-        maximum: 1020
+        maximum: 255
         description:
           Specifies the speed of movement after which coordinate filtering is
           linearly reduced.
