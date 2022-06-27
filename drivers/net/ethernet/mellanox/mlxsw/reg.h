@@ -1960,7 +1960,7 @@ MLXSW_ITEM32(reg, sfmr, smpe, 0x28, 0, 16);
 
 static inline void mlxsw_reg_sfmr_pack(char *payload,
 				       enum mlxsw_reg_sfmr_op op, u16 fid,
-				       u16 fid_offset)
+				       u16 fid_offset, bool flood_rsp)
 {
 	MLXSW_REG_ZERO(sfmr, payload);
 	mlxsw_reg_sfmr_op_set(payload, op);
@@ -1968,6 +1968,7 @@ static inline void mlxsw_reg_sfmr_pack(char *payload,
 	mlxsw_reg_sfmr_fid_offset_set(payload, fid_offset);
 	mlxsw_reg_sfmr_vtfp_set(payload, false);
 	mlxsw_reg_sfmr_vv_set(payload, false);
+	mlxsw_reg_sfmr_flood_rsp_set(payload, flood_rsp);
 }
 
 /* SPVMLR - Switch Port VLAN MAC Learning Register
