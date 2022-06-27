@@ -154,33 +154,35 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr)
 }
 EXPORT_SYMBOL(cfg80211_auth_timeout);
 
-void cfg80211_assoc_timeout(struct net_device *dev, struct cfg80211_bss *bss)
+void cfg80211_assoc_failure(struct net_device *dev,
+			    struct cfg80211_assoc_failure *data)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
+	const u8 *addr = data->ap_mld_addr ?: data->bss[0]->bssid;
+	int i;
 
-	trace_cfg80211_send_assoc_timeout(dev, bss->bssid);
+	trace_cfg80211_send_assoc_failure(dev, data);
 
-	nl80211_send_assoc_timeout(rdev, dev, bss->bssid, GFP_KERNEL);
-	cfg80211_sme_assoc_timeout(wdev);
+	if (data->timeout) {
+		nl80211_send_assoc_timeout(rdev, dev, addr, GFP_KERNEL);
+		cfg80211_sme_assoc_timeout(wdev);
+	} else {
+		cfg80211_sme_abandon_assoc(wdev);
+	}
 
-	cfg80211_unhold_bss(bss_from_pub(bss));
-	cfg80211_put_bss(wiphy, bss);
+	for (i = 0; i < ARRAY_SIZE(data->bss); i++) {
+		struct cfg80211_bss *bss = data->bss[i];
+
+		if (!bss)
+			continue;
+
+		cfg80211_unhold_bss(bss_from_pub(bss));
+		cfg80211_put_bss(wiphy, bss);
+	}
 }
-EXPORT_SYMBOL(cfg80211_assoc_timeout);
-
-void cfg80211_abandon_assoc(struct net_device *dev, struct cfg80211_bss *bss)
-{
-	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct wiphy *wiphy = wdev->wiphy;
-
-	cfg80211_sme_abandon_assoc(wdev);
-
-	cfg80211_unhold_bss(bss_from_pub(bss));
-	cfg80211_put_bss(wiphy, bss);
-}
-EXPORT_SYMBOL(cfg80211_abandon_assoc);
+EXPORT_SYMBOL(cfg80211_assoc_failure);
 
 void cfg80211_tx_mlme_mgmt(struct net_device *dev, const u8 *buf, size_t len,
 			   bool reconnect)

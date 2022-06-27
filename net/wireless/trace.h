@@ -2969,9 +2969,22 @@ DEFINE_EVENT(netdev_mac_evt, cfg80211_send_auth_timeout,
 	TP_ARGS(netdev, mac)
 );
 
-DEFINE_EVENT(netdev_mac_evt, cfg80211_send_assoc_timeout,
-	TP_PROTO(struct net_device *netdev, const u8 *mac),
-	TP_ARGS(netdev, mac)
+TRACE_EVENT(cfg80211_send_assoc_failure,
+	TP_PROTO(struct net_device *netdev,
+		 struct cfg80211_assoc_failure *data),
+	TP_ARGS(netdev, data),
+	TP_STRUCT__entry(
+		NETDEV_ENTRY
+		MAC_ENTRY(ap_addr)
+		__field(bool, timeout)
+	),
+	TP_fast_assign(
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(ap_addr, data->ap_mld_addr ?: data->bss[0]->bssid);
+		__entry->timeout = data->timeout;
+	),
+	TP_printk(NETDEV_PR_FMT ", mac: " MAC_PR_FMT ", timeout: %d",
+		  NETDEV_PR_ARG, MAC_PR_ARG(ap_addr), __entry->timeout)
 );
 
 TRACE_EVENT(cfg80211_michael_mic_failure,
