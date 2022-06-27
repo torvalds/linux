@@ -72,6 +72,9 @@
 #define RK_VIDIOC_MODIFY_POSITION \
 	_IOW('V', BASE_VIDIOC_PRIVATE + 16, struct rk_cam_modify_pos)
 
+#define RK_VIDIOC_SET_VCM_MAX_LOGICALPOS \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 17, unsigned int)
+
 #define RK_VIDIOC_COMPAT_VCM_TIMEINFO \
 	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rk_cam_compat_vcm_tim)
 #define RK_VIDIOC_COMPAT_IRIS_TIMEINFO \
