@@ -31,6 +31,8 @@
 #define TEGRA234_SID_PCIE8	0x09
 #define TEGRA234_SID_PCIE10	0x0b
 #define TEGRA234_SID_BPMP	0x10
+#define TEGRA234_SID_HOST1X	0x27
+#define TEGRA234_SID_VIC	0x34
 
 /*
  * memory client IDs
@@ -38,6 +40,7 @@
 
 /* High-definition audio (HDA) read clients */
 #define TEGRA234_MEMORY_CLIENT_HDAR 0x15
+#define TEGRA234_MEMORY_CLIENT_HOST1XDMAR 0x16
 /* PCIE6 read clients */
 #define TEGRA234_MEMORY_CLIENT_PCIE6AR 0x28
 /* PCIE6 write clients */
@@ -86,6 +89,8 @@
 #define TEGRA234_MEMORY_CLIENT_MGBEDWR 0x65
 /* sdmmcd memory write client */
 #define TEGRA234_MEMORY_CLIENT_SDMMCWAB 0x67
+#define TEGRA234_MEMORY_CLIENT_VICSRD 0x6c
+#define TEGRA234_MEMORY_CLIENT_VICSWR 0x6d
 /* BPMP read client */
 #define TEGRA234_MEMORY_CLIENT_BPMPR 0x93
 /* BPMP write client */
