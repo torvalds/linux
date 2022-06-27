@@ -957,6 +957,50 @@ ENTRY(_switch_to)
 	rtsd	r15, 8
 	nop
 
+#ifdef CONFIG_MB_MANAGER
+.section .data
+.global xmb_manager_dev
+.global xmb_manager_baseaddr
+.global xmb_manager_crval
+.global xmb_manager_callback
+.global xmb_manager_reset_callback
+.align 4
+xmb_manager_dev:
+	.long 0
+xmb_manager_baseaddr:
+	.long 0
+xmb_manager_crval:
+	.long 0
+xmb_manager_callback:
+	.long 0
+xmb_manager_reset_callback:
+	.long 0
+
+/*
+ * When the break vector gets asserted because of error injection,
+ * the break signal must be blocked before exiting from the
+ * break handler, Below api updates the manager address and
+ * control register and error count callback arguments,
+ * which will be used by the break handler to block the
+ * break and call the callback function.
+ */
+.global xmb_manager_register
+.section .text
+.align 2
+.ent xmb_manager_register
+.type xmb_manager_register, @function
+xmb_manager_register:
+	swi	r5, r0, xmb_manager_baseaddr
+	swi	r6, r0, xmb_manager_crval
+	swi	r7, r0, xmb_manager_callback
+	swi	r8, r0, xmb_manager_dev
+	swi	r9, r0, xmb_manager_reset_callback
+
+	rtsd	r15, 8;
+	nop;
+.end xmb_manager_register
+#endif
+
 ENTRY(_reset)
 	VM_OFF
 	brai	0; /* Jump to reset vector */
