@@ -40,7 +40,6 @@
 #define IQS7222_SLDR_SETUP_2_RES_MASK		GENMASK(15, 8)
 #define IQS7222_SLDR_SETUP_2_RES_SHIFT		8
 #define IQS7222_SLDR_SETUP_2_TOP_SPEED_MASK	GENMASK(7, 0)
-#define IQS7222_SLDR_SETUP_3_CHAN_SEL_MASK	GENMASK(9, 0)
 
 #define IQS7222_GPIO_SETUP_0_GPIO_EN		BIT(0)
 
@@ -54,6 +53,9 @@
 #define IQS7222_SYS_SETUP_ACK_RESET		BIT(0)
 
 #define IQS7222_EVENT_MASK_ATI			BIT(12)
+#define IQS7222_EVENT_MASK_SLDR			BIT(10)
+#define IQS7222_EVENT_MASK_TOUCH		BIT(1)
+#define IQS7222_EVENT_MASK_PROX			BIT(0)
 
 #define IQS7222_COMMS_HOLD			BIT(0)
 #define IQS7222_COMMS_ERROR			0xEEEE
@@ -135,12 +137,12 @@ struct iqs7222_event_desc {
 static const struct iqs7222_event_desc iqs7222_kp_events[] = {
 	{
 		.name = "event-prox",
-		.enable = BIT(0),
+		.enable = IQS7222_EVENT_MASK_PROX,
 		.reg_key = IQS7222_REG_KEY_PROX,
 	},
 	{
 		.name = "event-touch",
-		.enable = BIT(1),
+		.enable = IQS7222_EVENT_MASK_TOUCH,
 		.reg_key = IQS7222_REG_KEY_TOUCH,
 	},
 };
@@ -1957,8 +1959,8 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222, int sldr_index)
 	int num_chan = dev_desc->reg_grps[IQS7222_REG_GRP_CHAN].num_row;
 	int ext_chan = rounddown(num_chan, 10);
 	int count, error, reg_offset, i;
+	u16 *event_mask = &iqs7222->sys_setup[dev_desc->event_offset];
 	u16 *sldr_setup = iqs7222->sldr_setup[sldr_index];
-	u16 *sys_setup = iqs7222->sys_setup;
 	unsigned int chan_sel[4], val;
 
 	error = iqs7222_parse_props(iqs7222, &sldr_node, sldr_index,
@@ -2003,7 +2005,7 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222, int sldr_index)
 	reg_offset = dev_desc->sldr_res < U16_MAX ? 0 : 1;
 
 	sldr_setup[0] |= count;
-	sldr_setup[3 + reg_offset] &= ~IQS7222_SLDR_SETUP_3_CHAN_SEL_MASK;
+	sldr_setup[3 + reg_offset] &= ~GENMASK(ext_chan - 1, 0);
 
 	for (i = 0; i < ARRAY_SIZE(chan_sel); i++) {
 		sldr_setup[5 + reg_offset + i] = 0;
@@ -2106,6 +2108,22 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222, int sldr_index)
 		if (error)
 			return error;
 
+		/*
+		 * The press/release event does not expose a direct GPIO link,
+		 * but one can be emulated by tying each of the participating
+		 * channels to the same GPIO.
+		 */
+		error = iqs7222_gpio_select(iqs7222, event_node,
+					    i ? iqs7222_sl_events[i].enable
+					      : sldr_setup[3 + reg_offset],
+					    i ? 1568 + sldr_index * 30
+					      : sldr_setup[4 + reg_offset]);
+		if (error)
+			return error;
+
+		if (!reg_offset)
+			sldr_setup[9] |= iqs7222_sl_events[i].enable;
+
 		error = fwnode_property_read_u32(event_node, "linux,code",
 						 &val);
 		if (error) {
@@ -2117,26 +2135,20 @@ static int iqs7222_parse_sldr(struct iqs7222_private *iqs7222, int sldr_index)
 		iqs7222->sl_code[sldr_index][i] = val;
 		input_set_capability(iqs7222->keypad, EV_KEY, val);
 
-		/*
-		 * The press/release event is determined based on whether the
-		 * coordinate field reports 0xFFFF and has no explicit enable
-		 * control.
-		 */
-		if (!iqs7222_sl_events[i].enable || reg_offset)
-			continue;
-
-		sldr_setup[9] |= iqs7222_sl_events[i].enable;
-
-		error = iqs7222_gpio_select(iqs7222, event_node,
-					    iqs7222_sl_events[i].enable,
-					    1568 + sldr_index * 30);
-		if (error)
-			return error;
-
 		if (!dev_desc->event_offset)
 			continue;
 
-		sys_setup[dev_desc->event_offset] |= BIT(10 + sldr_index);
+		/*
+		 * The press/release event is determined based on whether the
+		 * coordinate field reports 0xFFFF and solely relies on touch
+		 * or proximity interrupts to be unmasked.
+		 */
+		if (i && !reg_offset)
+			*event_mask |= (IQS7222_EVENT_MASK_SLDR << sldr_index);
+		else if (sldr_setup[4 + reg_offset] == dev_desc->touch_link)
+			*event_mask |= IQS7222_EVENT_MASK_TOUCH;
+		else
+			*event_mask |= IQS7222_EVENT_MASK_PROX;
 	}
 
 	/*
@@ -2301,29 +2313,37 @@ static int iqs7222_report(struct iqs7222_private *iqs7222)
 			input_report_abs(iqs7222->keypad, iqs7222->sl_axis[i],
 					 sldr_pos);
 
-		for (j = 0; j < ARRAY_SIZE(iqs7222_sl_events); j++) {
+		input_report_key(iqs7222->keypad, iqs7222->sl_code[i][0],
+				 sldr_pos < dev_desc->sldr_res);
+
+		/*
+		 * A maximum resolution indicates the device does not support
+		 * gestures, in which case the remaining fields are ignored.
+		 */
+		if (dev_desc->sldr_res == U16_MAX)
+			continue;
+
+		if (!(le16_to_cpu(status[1]) & IQS7222_EVENT_MASK_SLDR << i))
+			continue;
+
+		/*
+		 * Skip the press/release event, as it does not have separate
+		 * status fields and is handled separately.
+		 */
+		for (j = 1; j < ARRAY_SIZE(iqs7222_sl_events); j++) {
 			u16 mask = iqs7222_sl_events[j].mask;
 			u16 val = iqs7222_sl_events[j].val;
-
-			if (!iqs7222_sl_events[j].enable) {
-				input_report_key(iqs7222->keypad,
-						 iqs7222->sl_code[i][j],
-						 sldr_pos < dev_desc->sldr_res);
-				continue;
-			}
-
-			/*
-			 * The remaining offsets represent gesture state, and
-			 * are discarded in the case of IQS7222C because only
-			 * absolute position is reported.
-			 */
-			if (num_stat < IQS7222_MAX_COLS_STAT)
-				continue;
 
 			input_report_key(iqs7222->keypad,
 					 iqs7222->sl_code[i][j],
 					 (state & mask) == val);
 		}
+
+		input_sync(iqs7222->keypad);
+
+		for (j = 1; j < ARRAY_SIZE(iqs7222_sl_events); j++)
+			input_report_key(iqs7222->keypad,
+					 iqs7222->sl_code[i][j], 0);
 	}
 
 	input_sync(iqs7222->keypad);
