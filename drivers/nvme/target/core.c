@@ -795,6 +795,7 @@ void nvmet_sq_destroy(struct nvmet_sq *sq)
 	wait_for_completion(&sq->confirm_done);
 	wait_for_completion(&sq->free_done);
 	percpu_ref_exit(&sq->ref);
+	nvmet_auth_sq_free(sq);
 
 	if (ctrl) {
 		/*
@@ -870,6 +871,9 @@ static u16 nvmet_parse_io_cmd(struct nvmet_req *req)
 
 	if (nvme_is_fabrics(cmd))
 		return nvmet_parse_fabrics_io_cmd(req);
+
+	if (unlikely(!nvmet_check_auth_status(req)))
+		return NVME_SC_AUTH_REQUIRED | NVME_SC_DNR;
 
 	ret = nvmet_check_ctrl_status(req);
 	if (unlikely(ret))
@@ -1275,6 +1279,11 @@ u16 nvmet_check_ctrl_status(struct nvmet_req *req)
 		       req->cmd->common.opcode, req->sq->qid);
 		return NVME_SC_CMD_SEQ_ERROR | NVME_SC_DNR;
 	}
+
+	if (unlikely(!nvmet_check_auth_status(req))) {
+		pr_warn("qid %d not authenticated\n", req->sq->qid);
+		return NVME_SC_AUTH_REQUIRED | NVME_SC_DNR;
+	}
 	return 0;
 }
 
@@ -1470,6 +1479,8 @@ static void nvmet_ctrl_free(struct kref *ref)
 
 	flush_work(&ctrl->async_event_work);
 	cancel_work_sync(&ctrl->fatal_err_work);
+
+	nvmet_destroy_auth(ctrl);
 
 	ida_free(&cntlid_ida, ctrl->cntlid);
 
