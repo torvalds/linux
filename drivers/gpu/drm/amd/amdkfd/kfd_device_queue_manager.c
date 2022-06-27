@@ -1881,22 +1881,6 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 
 	}
 
-	if (q->properties.is_active) {
-		if (!dqm->dev->shared_resources.enable_mes) {
-			retval = execute_queues_cpsch(dqm,
-						      KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
-			if (retval == -ETIME)
-				qpd->reset_wavefronts = true;
-		} else {
-			retval = remove_queue_mes(dqm, q, qpd);
-		}
-
-		if (retval)
-			goto failed_unmap_queue;
-
-		decrement_queue_count(dqm, qpd, q);
-	}
-
 	mqd_mgr = dqm->mqd_mgrs[get_mqd_type_from_queue_type(
 			q->properties.type)];
 
@@ -1910,6 +1894,17 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 
 	list_del(&q->list);
 	qpd->queue_count--;
+	if (q->properties.is_active) {
+		if (!dqm->dev->shared_resources.enable_mes) {
+			decrement_queue_count(dqm, qpd, q);
+			retval = execute_queues_cpsch(dqm,
+						      KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES, 0);
+			if (retval == -ETIME)
+				qpd->reset_wavefronts = true;
+		} else {
+			retval = remove_queue_mes(dqm, q, qpd);
+		}
+	}
 
 	/*
 	 * Unconditionally decrement this counter, regardless of the queue's
@@ -1926,7 +1921,6 @@ static int destroy_queue_cpsch(struct device_queue_manager *dqm,
 
 	return retval;
 
-failed_unmap_queue:
 failed_try_destroy_debugged_queue:
 
 	dqm_unlock(dqm);

@@ -422,6 +422,7 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 	}
 
 	if (pqn->q) {
+		kfd_procfs_del_queue(pqn->q);
 		dqm = pqn->q->device->dqm;
 		retval = dqm->ops.destroy_queue(dqm, &pdd->qpd, pqn->q);
 		if (retval) {
@@ -445,7 +446,6 @@ int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid)
 				amdgpu_amdkfd_free_gtt_mem(dev->adev, pqn->q->wptr_bo);
 
 		}
-		kfd_procfs_del_queue(pqn->q);
 		uninit_queue(pqn->q);
 	}
 
