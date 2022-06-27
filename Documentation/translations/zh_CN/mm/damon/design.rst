@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-:Original: Documentation/vm/damon/design.rst
+:Original: Documentation/mm/damon/design.rst
 
 :翻译:
 

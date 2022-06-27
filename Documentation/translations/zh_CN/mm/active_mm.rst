@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/vm/active_mm.rst
+:Original: Documentation/mm/active_mm.rst
 
 :翻译:
 

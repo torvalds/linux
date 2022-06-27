@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/vm/balance.rst
+:Original: Documentation/mm/balance.rst
 
 :翻译:
 

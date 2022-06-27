@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/vm/hmm.rst
+:Original: Documentation/mm/hmm.rst
 
 :翻译:
 

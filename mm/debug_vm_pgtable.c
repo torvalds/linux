@@ -35,7 +35,7 @@
 #include <asm/tlbflush.h>
 
 /*
- * Please refer Documentation/vm/arch_pgtable_helpers.rst for the semantics
+ * Please refer Documentation/mm/arch_pgtable_helpers.rst for the semantics
  * expectations that are being validated here. All future changes in here
  * or the documentation need to be in sync.
  */

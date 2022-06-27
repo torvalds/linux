@@ -1,4 +1,4 @@
-:Original: Documentation/vm/z3fold.rst
+:Original: Documentation/mm/z3fold.rst
 
 :翻译:
 

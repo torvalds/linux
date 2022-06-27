@@ -1,5 +1,5 @@
 
-:Original: Documentation/vm/hwpoison.rst
+:Original: Documentation/mm/hwpoison.rst
 
 :翻译:
 

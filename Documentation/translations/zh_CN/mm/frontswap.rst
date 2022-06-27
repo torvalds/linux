@@ -1,4 +1,4 @@
-:Original: Documentation/vm/_free_page_reporting.rst
+:Original: Documentation/mm/_free_page_reporting.rst
 
 :翻译:
 

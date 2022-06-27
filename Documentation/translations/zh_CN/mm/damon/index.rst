@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-:Original: Documentation/vm/damon/index.rst
+:Original: Documentation/mm/damon/index.rst
 
 :翻译:
 
@@ -14,7 +14,7 @@ DAMON:数据访问监视器
 ==========================
 
 DAMON是Linux内核的一个数据访问监控框架子系统。DAMON的核心机制使其成为
-（该核心机制详见(Documentation/translations/zh_CN/vm/damon/design.rst)）
+（该核心机制详见(Documentation/translations/zh_CN/mm/damon/design.rst)）
 
  - *准确度* （监测输出对DRAM级别的内存管理足够有用；但可能不适合CPU Cache级别），
  - *轻量级* （监控开销低到可以在线应用），以及
@@ -30,4 +30,3 @@ DAMON是Linux内核的一个数据访问监控框架子系统。DAMON的核心�
    faq
    design
    api
-

@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/vm/highmem.rst
+:Original: Documentation/mm/highmem.rst
 
 :翻译:
 

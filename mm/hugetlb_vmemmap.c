@@ -6,7 +6,7 @@
  *
  *     Author: Muchun Song <songmuchun@bytedance.com>
  *
- * See Documentation/vm/vmemmap_dedup.rst
+ * See Documentation/mm/vmemmap_dedup.rst
  */
 #define pr_fmt(fmt)	"HugeTLB: " fmt
 

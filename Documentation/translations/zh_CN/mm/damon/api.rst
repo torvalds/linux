@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-:Original: Documentation/vm/damon/api.rst
+:Original: Documentation/mm/damon/api.rst
 
 :翻译:
 

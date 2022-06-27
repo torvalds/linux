@@ -1,4 +1,4 @@
-:Original: Documentation/vm/split_page_table_lock.rst
+:Original: Documentation/mm/split_page_table_lock.rst
 
 :翻译:
 

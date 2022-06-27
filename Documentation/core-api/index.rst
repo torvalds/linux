@@ -87,7 +87,7 @@ Memory management
 =================
 
 How to allocate and use memory in the kernel.  Note that there is a lot
-more memory-management documentation in Documentation/vm/index.rst.
+more memory-management documentation in Documentation/mm/index.rst.
 
 .. toctree::
    :maxdepth: 1

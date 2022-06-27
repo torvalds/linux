@@ -8,7 +8,7 @@
  * Or sort by total memory:
  * ./page_owner_sort -m page_owner_full.txt sorted_page_owner.txt
  *
- * See Documentation/vm/page_owner.rst
+ * See Documentation/mm/page_owner.rst
 */
 
 #include <stdio.h>

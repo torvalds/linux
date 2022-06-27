@@ -1,4 +1,4 @@
-:Original: Documentation/vm/overcommit-accounting.rst
+:Original: Documentation/mm/overcommit-accounting.rst
 
 :翻译:
 

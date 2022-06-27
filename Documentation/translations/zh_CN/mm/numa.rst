@@ -1,4 +1,4 @@
-:Original: Documentation/vm/numa.rst
+:Original: Documentation/mm/numa.rst
 
 :翻译:
 

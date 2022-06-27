@@ -1,4 +1,4 @@
-:Original: Documentation/vm/page_frag.rst
+:Original: Documentation/mm/page_frag.rst
 
 :翻译:
 

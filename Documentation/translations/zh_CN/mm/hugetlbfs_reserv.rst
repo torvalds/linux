@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/vm/hugetlbfs_reserv.rst
+:Original: Documentation/mm/hugetlbfs_reserv.rst
 
 :翻译:
 

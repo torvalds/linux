@@ -170,7 +170,7 @@ The users of `ZONE_DEVICE` are:
 * hmm: Extend `ZONE_DEVICE` with `->page_fault()` and `->page_free()`
   event callbacks to allow a device-driver to coordinate memory management
   events related to device-memory, typically GPU memory. See
-  Documentation/vm/hmm.rst.
+  Documentation/mm/hmm.rst.
 
 * p2pdma: Create `struct page` objects to allow peer devices in a
   PCI/-E topology to coordinate direct-DMA operations between themselves,

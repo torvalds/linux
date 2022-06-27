@@ -1,6 +1,6 @@
 .. include:: ../disclaimer-zh_CN.rst
 
-:Original: Documentation/vm/ksm.rst
+:Original: Documentation/mm/ksm.rst
 
 :翻译:
 

@@ -1,4 +1,4 @@
-:Original: Documentation/vm/mmu_notifier.rst
+:Original: Documentation/mm/mmu_notifier.rst
 
 :翻译:
 

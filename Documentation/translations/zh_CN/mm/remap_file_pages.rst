@@ -1,4 +1,4 @@
-:Original: Documentation/vm/remap_file_pages.rst
+:Original: Documentation/mm/remap_file_pages.rst
 
 :翻译:
 

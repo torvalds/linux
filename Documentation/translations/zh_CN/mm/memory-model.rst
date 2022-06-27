@@ -1,6 +1,6 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-:Original: Documentation/vm/memory-model.rst
+:Original: Documentation/mm/memory-model.rst
 
 :翻译:
 
@@ -129,7 +129,7 @@ ZONE_DEVICE
 * pmem: 通过DAX映射将平台持久性内存作为直接I/O目标使用。
 
 * hmm: 用 `->page_fault()` 和 `->page_free()` 事件回调扩展 `ZONE_DEVICE` ，
-  以允许设备驱动程序协调与设备内存相关的内存管理事件，通常是GPU内存。参见/vm/hmm.rst。
+  以允许设备驱动程序协调与设备内存相关的内存管理事件，通常是GPU内存。参见Documentation/mm/hmm.rst。
 
 * p2pdma: 创建 `struct page` 对象，允许PCI/E拓扑结构中的peer设备协调它们之间的
   直接DMA操作，即绕过主机内存。

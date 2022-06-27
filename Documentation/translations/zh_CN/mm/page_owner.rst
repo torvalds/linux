@@ -1,4 +1,4 @@
-:Original: Documentation/vm/page_owner.rst
+:Original: Documentation/mm/page_owner.rst
 
 :翻译:
 
