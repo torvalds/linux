@@ -1314,11 +1314,14 @@ static int iqs7222_ati_trigger(struct iqs7222_private *iqs7222)
 			if (error)
 				return error;
 
-			if (sys_status & IQS7222_SYS_STATUS_ATI_ACTIVE)
-				continue;
+			if (sys_status & IQS7222_SYS_STATUS_RESET)
+				return 0;
 
 			if (sys_status & IQS7222_SYS_STATUS_ATI_ERROR)
 				break;
+
+			if (sys_status & IQS7222_SYS_STATUS_ATI_ACTIVE)
+				continue;
 
 			/*
 			 * Use stream-in-touch mode if either slider reports
@@ -1336,7 +1339,7 @@ static int iqs7222_ati_trigger(struct iqs7222_private *iqs7222)
 		dev_err(&client->dev,
 			"ATI attempt %d of %d failed with status 0x%02X, %s\n",
 			i + 1, IQS7222_NUM_RETRIES, (u8)sys_status,
-			i < IQS7222_NUM_RETRIES ? "retrying..." : "stopping");
+			i + 1 < IQS7222_NUM_RETRIES ? "retrying" : "stopping");
 	}
 
 	return -ETIMEDOUT;
