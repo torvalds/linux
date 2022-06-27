@@ -162,6 +162,8 @@ cifs_dump_iface(struct seq_file *m, struct cifs_server_iface *iface)
 		seq_printf(m, "\t\tIPv4: %pI4\n", &ipv4->sin_addr);
 	else if (iface->sockaddr.ss_family == AF_INET6)
 		seq_printf(m, "\t\tIPv6: %pI6\n", &ipv6->sin6_addr);
+	if (!iface->is_active)
+		seq_puts(m, "\t\t[for-cleanup]\n");
 }
 
 static int cifs_debug_files_proc_show(struct seq_file *m, void *v)
@@ -221,6 +223,7 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	struct TCP_Server_Info *server;
 	struct cifs_ses *ses;
 	struct cifs_tcon *tcon;
+	struct cifs_server_iface *iface;
 	int c, i, j;
 
 	seq_puts(m,
@@ -456,11 +459,10 @@ skip_rdma:
 			if (ses->iface_count)
 				seq_printf(m, "\n\n\tServer interfaces: %zu",
 					   ses->iface_count);
-			for (j = 0; j < ses->iface_count; j++) {
-				struct cifs_server_iface *iface;
-
-				iface = &ses->iface_list[j];
-				seq_printf(m, "\n\t%d)", j+1);
+			j = 0;
+			list_for_each_entry(iface, &ses->iface_list,
+						 iface_head) {
+				seq_printf(m, "\n\t%d)", ++j);
 				cifs_dump_iface(m, iface);
 				if (is_ses_using_iface(ses, iface))
 					seq_puts(m, "\t\t[CONNECTED]\n");

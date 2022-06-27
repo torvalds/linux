@@ -232,8 +232,11 @@ static void submit_cleanup_bo(struct msm_gem_submit *submit, int i,
 	 */
 	submit->bos[i].flags &= ~cleanup_flags;
 
-	if (flags & BO_PINNED)
-		msm_gem_unpin_vma_locked(obj, submit->bos[i].vma);
+	if (flags & BO_VMA_PINNED)
+		msm_gem_unpin_vma(submit->bos[i].vma);
+
+	if (flags & BO_OBJ_PINNED)
+		msm_gem_unpin_locked(obj);
 
 	if (flags & BO_ACTIVE)
 		msm_gem_active_put(obj);
@@ -244,7 +247,9 @@ static void submit_cleanup_bo(struct msm_gem_submit *submit, int i,
 
 static void submit_unlock_unpin_bo(struct msm_gem_submit *submit, int i)
 {
-	submit_cleanup_bo(submit, i, BO_PINNED | BO_ACTIVE | BO_LOCKED);
+	unsigned cleanup_flags = BO_VMA_PINNED | BO_OBJ_PINNED |
+				 BO_ACTIVE | BO_LOCKED;
+	submit_cleanup_bo(submit, i, cleanup_flags);
 
 	if (!(submit->bos[i].flags & BO_VALID))
 		submit->bos[i].iova = 0;
@@ -375,7 +380,7 @@ static int submit_pin_objects(struct msm_gem_submit *submit)
 		if (ret)
 			break;
 
-		submit->bos[i].flags |= BO_PINNED;
+		submit->bos[i].flags |= BO_OBJ_PINNED | BO_VMA_PINNED;
 		submit->bos[i].vma = vma;
 
 		if (vma->iova == submit->bos[i].iova) {
@@ -511,7 +516,7 @@ static void submit_cleanup(struct msm_gem_submit *submit, bool error)
 	unsigned i;
 
 	if (error)
-		cleanup_flags |= BO_PINNED | BO_ACTIVE;
+		cleanup_flags |= BO_VMA_PINNED | BO_OBJ_PINNED | BO_ACTIVE;
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
@@ -529,7 +534,8 @@ void msm_submit_retire(struct msm_gem_submit *submit)
 		struct drm_gem_object *obj = &submit->bos[i].obj->base;
 
 		msm_gem_lock(obj);
-		submit_cleanup_bo(submit, i, BO_PINNED | BO_ACTIVE);
+		/* Note, VMA already fence-unpinned before submit: */
+		submit_cleanup_bo(submit, i, BO_OBJ_PINNED | BO_ACTIVE);
 		msm_gem_unlock(obj);
 		drm_gem_object_put(obj);
 	}

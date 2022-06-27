@@ -93,6 +93,7 @@ nfs4_file_open(struct inode *inode, struct file *filp)
 	nfs_file_set_open_context(filp, ctx);
 	nfs_fscache_open_file(inode, filp);
 	err = 0;
+	filp->f_mode |= FMODE_CAN_ODIRECT;
 
 out_put_ctx:
 	put_nfs_open_context(ctx);

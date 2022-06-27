@@ -36,7 +36,7 @@ struct scmi_msg_resp_base_attributes {
 
 struct scmi_msg_resp_base_discover_agent {
 	__le32 agent_id;
-	u8 name[SCMI_MAX_STR_SIZE];
+	u8 name[SCMI_SHORT_NAME_MAX_SIZE];
 };
 
 
@@ -119,7 +119,7 @@ scmi_base_vendor_id_get(const struct scmi_protocol_handle *ph, bool sub_vendor)
 
 	ret = ph->xops->do_xfer(ph, t);
 	if (!ret)
-		memcpy(vendor_id, t->rx.buf, size);
+		strscpy(vendor_id, t->rx.buf, size);
 
 	ph->xops->xfer_put(ph, t);
 
@@ -221,11 +221,17 @@ scmi_base_implementation_list_get(const struct scmi_protocol_handle *ph,
 		calc_list_sz = (1 + (loop_num_ret - 1) / sizeof(u32)) *
 				sizeof(u32);
 		if (calc_list_sz != real_list_sz) {
-			dev_err(dev,
-				"Malformed reply - real_sz:%zd  calc_sz:%u\n",
-				real_list_sz, calc_list_sz);
-			ret = -EPROTO;
-			break;
+			dev_warn(dev,
+				 "Malformed reply - real_sz:%zd  calc_sz:%u  (loop_num_ret:%d)\n",
+				 real_list_sz, calc_list_sz, loop_num_ret);
+			/*
+			 * Bail out if the expected list size is bigger than the
+			 * total payload size of the received reply.
+			 */
+			if (calc_list_sz > real_list_sz) {
+				ret = -EPROTO;
+				break;
+			}
 		}
 
 		for (loop = 0; loop < loop_num_ret; loop++)
@@ -270,7 +276,7 @@ static int scmi_base_discover_agent_get(const struct scmi_protocol_handle *ph,
 	ret = ph->xops->do_xfer(ph, t);
 	if (!ret) {
 		agent_info = t->rx.buf;
-		strlcpy(name, agent_info->name, SCMI_MAX_STR_SIZE);
+		strscpy(name, agent_info->name, SCMI_SHORT_NAME_MAX_SIZE);
 	}
 
 	ph->xops->xfer_put(ph, t);
@@ -369,7 +375,7 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 	int id, ret;
 	u8 *prot_imp;
 	u32 version;
-	char name[SCMI_MAX_STR_SIZE];
+	char name[SCMI_SHORT_NAME_MAX_SIZE];
 	struct device *dev = ph->dev;
 	struct scmi_revision_info *rev = scmi_revision_area_get(ph);
 

@@ -4,7 +4,7 @@ GPIO Descriptor Consumer Interface
 
 This document describes the consumer interface of the GPIO framework. Note that
 it describes the new descriptor-based interface. For a description of the
-deprecated integer-based GPIO interface please refer to gpio-legacy.txt.
+deprecated integer-based GPIO interface please refer to legacy.rst.
 
 
 Guidelines for GPIOs consumers
@@ -78,7 +78,7 @@ whether the line is configured active high or active low (see
 
 The two last flags are used for use cases where open drain is mandatory, such
 as I2C: if the line is not already configured as open drain in the mappings
-(see board.txt), then open drain will be enforced anyway and a warning will be
+(see board.rst), then open drain will be enforced anyway and a warning will be
 printed that the board configuration needs to be updated to match the use case.
 
 Both functions return either a valid GPIO descriptor, or an error code checkable
@@ -270,7 +270,7 @@ driven.
 The same is applicable for open drain or open source output lines: those do not
 actively drive their output high (open drain) or low (open source), they just
 switch their output to a high impedance value. The consumer should not need to
-care. (For details read about open drain in driver.txt.)
+care. (For details read about open drain in driver.rst.)
 
 With this, all the gpiod_set_(array)_value_xxx() functions interpret the
 parameter "value" as "asserted" ("1") or "de-asserted" ("0"). The physical line

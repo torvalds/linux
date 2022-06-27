@@ -193,8 +193,9 @@ static int paicrypt_event_init(struct perf_event *event)
 	/* PAI crypto PMU registered as PERF_TYPE_RAW, check event type */
 	if (a->type != PERF_TYPE_RAW && event->pmu->type != a->type)
 		return -ENOENT;
-	/* PAI crypto event must be valid */
-	if (a->config > PAI_CRYPTO_BASE + paicrypt_cnt)
+	/* PAI crypto event must be in valid range */
+	if (a->config < PAI_CRYPTO_BASE ||
+	    a->config > PAI_CRYPTO_BASE + paicrypt_cnt)
 		return -EINVAL;
 	/* Allow only CPU wide operation, no process context for now. */
 	if (event->hw.target || event->cpu == -1)
@@ -208,6 +209,12 @@ static int paicrypt_event_init(struct perf_event *event)
 	if (rc)
 		return rc;
 
+	/* Event initialization sets last_tag to 0. When later on the events
+	 * are deleted and re-added, do not reset the event count value to zero.
+	 * Events are added, deleted and re-added when 2 or more events
+	 * are active at the same time.
+	 */
+	event->hw.last_tag = 0;
 	cpump->event = event;
 	event->destroy = paicrypt_event_destroy;
 
@@ -242,9 +249,12 @@ static void paicrypt_start(struct perf_event *event, int flags)
 {
 	u64 sum;
 
-	sum = paicrypt_getall(event);		/* Get current value */
-	local64_set(&event->hw.prev_count, sum);
-	local64_set(&event->count, 0);
+	if (!event->hw.last_tag) {
+		event->hw.last_tag = 1;
+		sum = paicrypt_getall(event);		/* Get current value */
+		local64_set(&event->count, 0);
+		local64_set(&event->hw.prev_count, sum);
+	}
 }
 
 static int paicrypt_add(struct perf_event *event, int flags)

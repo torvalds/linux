@@ -314,15 +314,11 @@ static int host_stage2_adjust_range(u64 addr, struct kvm_mem_range *range)
 int host_stage2_idmap_locked(phys_addr_t addr, u64 size,
 			     enum kvm_pgtable_prot prot)
 {
-	hyp_assert_lock_held(&host_kvm.lock);
-
 	return host_stage2_try(__host_stage2_idmap, addr, addr + size, prot);
 }
 
 int host_stage2_set_owner_locked(phys_addr_t addr, u64 size, u8 owner_id)
 {
-	hyp_assert_lock_held(&host_kvm.lock);
-
 	return host_stage2_try(kvm_pgtable_stage2_set_owner, &host_kvm.pgt,
 			       addr, size, &host_s2_pool, owner_id);
 }

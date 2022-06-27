@@ -550,7 +550,7 @@ static void dcn315_clk_mgr_helper_populate_bw_params(
 		if (!bw_params->clk_table.entries[i].dtbclk_mhz)
 			bw_params->clk_table.entries[i].dtbclk_mhz = def_max.dtbclk_mhz;
 	}
-	ASSERT(bw_params->clk_table.entries[i].dcfclk_mhz);
+	ASSERT(bw_params->clk_table.entries[i-1].dcfclk_mhz);
 	bw_params->vram_type = bios_info->memory_type;
 	bw_params->num_channels = bios_info->ma_channel_number;
 	if (!bw_params->num_channels)
