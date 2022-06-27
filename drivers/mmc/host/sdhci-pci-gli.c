@@ -142,6 +142,9 @@
 #define PCI_GLI_9755_MISC	    0x78
 #define   PCI_GLI_9755_MISC_SSC_OFF    BIT(26)
 
+#define PCI_GLI_9755_PM_CTRL     0xFC
+#define   PCI_GLI_9755_PM_STATE    GENMASK(1, 0)
+
 #define GLI_MAX_TUNING_LOOP 40
 
 /* Genesys Logic chipset */
@@ -675,6 +678,13 @@ static void gl9755_hw_setting(struct sdhci_pci_slot *slot)
 	value |= FIELD_PREP(PCI_GLI_9755_CFG2_L1DLY,
 			    GLI_9755_CFG2_L1DLY_VALUE);
 	pci_write_config_dword(pdev, PCI_GLI_9755_CFG2, value);
+
+	/* toggle PM state to allow GL9755 to enter ASPM L1.2 */
+	pci_read_config_dword(pdev, PCI_GLI_9755_PM_CTRL, &value);
+	value |= PCI_GLI_9755_PM_STATE;
+	pci_write_config_dword(pdev, PCI_GLI_9755_PM_CTRL, value);
+	value &= ~PCI_GLI_9755_PM_STATE;
+	pci_write_config_dword(pdev, PCI_GLI_9755_PM_CTRL, value);
 
 	gl9755_wt_off(pdev);
 }

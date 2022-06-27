@@ -38,12 +38,11 @@
 
 void mlx5e_mkey_set_relaxed_ordering(struct mlx5_core_dev *mdev, void *mkc)
 {
-	bool ro_pci_enable = pcie_relaxed_ordering_enabled(mdev->pdev);
 	bool ro_write = MLX5_CAP_GEN(mdev, relaxed_ordering_write);
 	bool ro_read = MLX5_CAP_GEN(mdev, relaxed_ordering_read);
 
-	MLX5_SET(mkc, mkc, relaxed_ordering_read, ro_pci_enable && ro_read);
-	MLX5_SET(mkc, mkc, relaxed_ordering_write, ro_pci_enable && ro_write);
+	MLX5_SET(mkc, mkc, relaxed_ordering_read, ro_read);
+	MLX5_SET(mkc, mkc, relaxed_ordering_write, ro_write);
 }
 
 static int mlx5e_create_mkey(struct mlx5_core_dev *mdev, u32 pdn,

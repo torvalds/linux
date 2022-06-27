@@ -7,7 +7,6 @@
 #define _CAN_M_CAN_H_
 
 #include <linux/can/core.h>
-#include <linux/can/led.h>
 #include <linux/can/rx-offload.h>
 #include <linux/completion.h>
 #include <linux/device.h>

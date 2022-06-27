@@ -84,6 +84,13 @@
 #define LIRC_CAN_SEND(x) ((x)&LIRC_CAN_SEND_MASK)
 #define LIRC_CAN_REC(x) ((x)&LIRC_CAN_REC_MASK)
 
+/*
+ * Unused features. These features were never implemented, in tree or
+ * out of tree. These definitions are here so not to break the lircd build.
+ */
+#define LIRC_CAN_SET_REC_FILTER		0
+#define LIRC_CAN_NOTIFY_DECODE		0
+
 /*** IOCTL commands for lirc driver ***/
 
 #define LIRC_GET_FEATURES              _IOR('i', 0x00000000, __u32)

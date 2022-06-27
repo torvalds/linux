@@ -1141,6 +1141,20 @@ static void dcn10_destroy_resource_pool(struct resource_pool **pool)
 	*pool = NULL;
 }
 
+static bool dcn10_validate_bandwidth(
+		struct dc *dc,
+		struct dc_state *context,
+		bool fast_validate)
+{
+	bool voltage_supported;
+
+	DC_FP_START();
+	voltage_supported = dcn_validate_bandwidth(dc, context, fast_validate);
+	DC_FP_END();
+
+	return voltage_supported;
+}
+
 static enum dc_status dcn10_validate_plane(const struct dc_plane_state *plane_state, struct dc_caps *caps)
 {
 	if (plane_state->format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN
@@ -1492,6 +1506,7 @@ static bool dcn10_resource_construct(
 			&& pool->base.pp_smu->rv_funcs.set_pme_wa_enable != NULL)
 		dc->debug.az_endpoint_mute_only = false;
 
+	DC_FP_START();
 	if (!dc->debug.disable_pplib_clock_request)
 		dcn_bw_update_from_pplib(dc);
 	dcn_bw_sync_calcs_and_dml(dc);
@@ -1499,6 +1514,7 @@ static bool dcn10_resource_construct(
 		dc->res_pool = &pool->base;
 		dcn_bw_notify_pplib_of_wm_ranges(dc);
 	}
+	DC_FP_END();
 
 	{
 		struct irq_service_init_data init_data;

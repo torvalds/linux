@@ -36,10 +36,7 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/mux.h>
-#include <mach/common.h>
 #include <linux/platform_data/i2c-davinci.h>
-#include <mach/serial.h>
 #include <linux/platform_data/mmc-davinci.h>
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/keyscan-davinci.h>
@@ -47,6 +44,9 @@
 #include <media/i2c/ths7303.h>
 #include <media/i2c/tvp514x.h>
 
+#include "mux.h"
+#include "common.h"
+#include "serial.h"
 #include "davinci.h"
 
 static inline int have_imager(void)

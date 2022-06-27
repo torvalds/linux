@@ -926,7 +926,7 @@ static int sctp_inet6_af_supported(sa_family_t family, struct sctp_sock *sp)
 		return 1;
 	/* v4-mapped-v6 addresses */
 	case AF_INET:
-		if (!__ipv6_only_sock(sctp_opt2sk(sp)))
+		if (!ipv6_only_sock(sctp_opt2sk(sp)))
 			return 1;
 		fallthrough;
 	default:
@@ -952,7 +952,7 @@ static int sctp_inet6_cmp_addr(const union sctp_addr *addr1,
 		return 0;
 
 	/* If the socket is IPv6 only, v4 addrs will not match */
-	if (__ipv6_only_sock(sk) && af1 != af2)
+	if (ipv6_only_sock(sk) && af1 != af2)
 		return 0;
 
 	/* Today, wildcard AF_INET/AF_INET6. */

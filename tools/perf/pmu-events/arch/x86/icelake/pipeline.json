@@ -13,6 +13,18 @@
         "UMask": "0x9"
     },
     {
+        "BriefDescription": "Number of occurrences where a microcode assist is invoked by hardware.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc1",
+        "EventName": "ASSISTS.ANY",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Counts the number of occurrences where a microcode assist is invoked by hardware Examples include AD (page Access Dirty), FP and AVX related assists.",
+        "SampleAfterValue": "100003",
+        "Speculative": "1",
+        "UMask": "0x7"
+    },
+    {
         "BriefDescription": "All branch instructions retired.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
@@ -437,6 +449,18 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts cycles that the Instruction Length decoder (ILD) stalls occurred due to dynamically changing prefix length of the decoded instruction (by operand size prefix instruction 0x66, address size prefix instruction 0x67 or REX.W for Intel64). Count is proportional to the number of prefixes in a 16B-line. This may result in a three-cycle penalty for each LCP (Length changing prefix) in a 16-byte chunk.",
         "SampleAfterValue": "500009",
+        "Speculative": "1",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Instruction decoders utilized in a cycle",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x55",
+        "EventName": "INST_DECODED.DECODERS",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Number of decoders utilized in a cycle when the MITE (legacy decode pipeline) fetches instructions.",
+        "SampleAfterValue": "2000003",
         "Speculative": "1",
         "UMask": "0x1"
     },

@@ -6276,6 +6276,32 @@ static int mv88e6xxx_detect(struct mv88e6xxx_chip *chip)
 	return 0;
 }
 
+static int mv88e6xxx_single_chip_detect(struct mv88e6xxx_chip *chip,
+					struct mdio_device *mdiodev)
+{
+	int err;
+
+	/* dual_chip takes precedence over single/multi-chip modes */
+	if (chip->info->dual_chip)
+		return -EINVAL;
+
+	/* If the mdio addr is 16 indicating the first port address of a switch
+	 * (e.g. mv88e6*41) in single chip addressing mode the device may be
+	 * configured in single chip addressing mode. Setup the smi access as
+	 * single chip addressing mode and attempt to detect the model of the
+	 * switch, if this fails the device is not configured in single chip
+	 * addressing mode.
+	 */
+	if (mdiodev->addr != 16)
+		return -EINVAL;
+
+	err = mv88e6xxx_smi_init(chip, mdiodev->bus, 0);
+	if (err)
+		return err;
+
+	return mv88e6xxx_detect(chip);
+}
+
 static struct mv88e6xxx_chip *mv88e6xxx_alloc_chip(struct device *dev)
 {
 	struct mv88e6xxx_chip *chip;
@@ -6303,11 +6329,12 @@ static enum dsa_tag_protocol mv88e6xxx_get_tag_protocol(struct dsa_switch *ds,
 	return chip->tag_protocol;
 }
 
-static int mv88e6xxx_change_tag_protocol(struct dsa_switch *ds, int port,
+static int mv88e6xxx_change_tag_protocol(struct dsa_switch *ds,
 					 enum dsa_tag_protocol proto)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	enum dsa_tag_protocol old_protocol;
+	struct dsa_port *cpu_dp;
 	int err;
 
 	switch (proto) {
@@ -6332,11 +6359,24 @@ static int mv88e6xxx_change_tag_protocol(struct dsa_switch *ds, int port,
 	chip->tag_protocol = proto;
 
 	mv88e6xxx_reg_lock(chip);
-	err = mv88e6xxx_setup_port_mode(chip, port);
+	dsa_switch_for_each_cpu_port(cpu_dp, ds) {
+		err = mv88e6xxx_setup_port_mode(chip, cpu_dp->index);
+		if (err) {
+			mv88e6xxx_reg_unlock(chip);
+			goto unwind;
+		}
+	}
 	mv88e6xxx_reg_unlock(chip);
 
-	if (err)
-		chip->tag_protocol = old_protocol;
+	return 0;
+
+unwind:
+	chip->tag_protocol = old_protocol;
+
+	mv88e6xxx_reg_lock(chip);
+	dsa_switch_for_each_cpu_port_continue_reverse(cpu_dp, ds)
+		mv88e6xxx_setup_port_mode(chip, cpu_dp->index);
+	mv88e6xxx_reg_unlock(chip);
 
 	return err;
 }
@@ -6830,11 +6870,11 @@ static const struct dsa_switch_ops mv88e6xxx_switch_ops = {
 	.port_vlan_add		= mv88e6xxx_port_vlan_add,
 	.port_vlan_del		= mv88e6xxx_port_vlan_del,
 	.vlan_msti_set		= mv88e6xxx_vlan_msti_set,
-	.port_fdb_add           = mv88e6xxx_port_fdb_add,
-	.port_fdb_del           = mv88e6xxx_port_fdb_del,
-	.port_fdb_dump          = mv88e6xxx_port_fdb_dump,
-	.port_mdb_add           = mv88e6xxx_port_mdb_add,
-	.port_mdb_del           = mv88e6xxx_port_mdb_del,
+	.port_fdb_add		= mv88e6xxx_port_fdb_add,
+	.port_fdb_del		= mv88e6xxx_port_fdb_del,
+	.port_fdb_dump		= mv88e6xxx_port_fdb_dump,
+	.port_mdb_add		= mv88e6xxx_port_mdb_add,
+	.port_mdb_del		= mv88e6xxx_port_mdb_del,
 	.port_mirror_add	= mv88e6xxx_port_mirror_add,
 	.port_mirror_del	= mv88e6xxx_port_mirror_del,
 	.crosschip_bridge_join	= mv88e6xxx_crosschip_bridge_join,
@@ -6959,10 +6999,6 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 
 	chip->info = compat_info;
 
-	err = mv88e6xxx_smi_init(chip, mdiodev->bus, mdiodev->addr);
-	if (err)
-		goto out;
-
 	chip->reset = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_LOW);
 	if (IS_ERR(chip->reset)) {
 		err = PTR_ERR(chip->reset);
@@ -6971,9 +7007,19 @@ static int mv88e6xxx_probe(struct mdio_device *mdiodev)
 	if (chip->reset)
 		usleep_range(1000, 2000);
 
-	err = mv88e6xxx_detect(chip);
-	if (err)
-		goto out;
+	/* Detect if the device is configured in single chip addressing mode,
+	 * otherwise continue with address specific smi init/detection.
+	 */
+	err = mv88e6xxx_single_chip_detect(chip, mdiodev);
+	if (err) {
+		err = mv88e6xxx_smi_init(chip, mdiodev->bus, mdiodev->addr);
+		if (err)
+			goto out;
+
+		err = mv88e6xxx_detect(chip);
+		if (err)
+			goto out;
+	}
 
 	if (chip->info->edsa_support == MV88E6XXX_EDSA_SUPPORTED)
 		chip->tag_protocol = DSA_TAG_PROTO_EDSA;

@@ -16,11 +16,3 @@
 	model = "Renesas SMARC EVK based on r9a07g054l2";
 	compatible = "renesas,smarc-evk", "renesas,r9a07g054l2", "renesas,r9a07g054";
 };
-
-&pinctrl {
-	/delete-node/ can0-stb-hog;
-	/delete-node/ can1-stb-hog;
-	/delete-node/ gpio-sd0-pwr-en-hog;
-	/delete-node/ sd0-dev-sel-hog;
-	/delete-node/ sd1-pwr-en-hog;
-};

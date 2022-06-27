@@ -738,7 +738,7 @@ EXPORT_SYMBOL_GPL(wbc_attach_and_unlock_inode);
  * incorrectly attributed).
  *
  * To resolve this issue, cgroup writeback detects the majority dirtier of
- * an inode and transfers the ownership to it.  To avoid unnnecessary
+ * an inode and transfers the ownership to it.  To avoid unnecessary
  * oscillation, the detection mechanism keeps track of history and gives
  * out the switch verdict only if the foreign usage pattern is stable over
  * a certain amount of time and/or writeback attempts.

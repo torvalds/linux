@@ -2839,7 +2839,7 @@ static int igmp_mc_seq_show(struct seq_file *seq, void *v)
 		seq_puts(seq,
 			 "Idx\tDevice    : Count Querier\tGroup    Users Timer\tReporter\n");
 	else {
-		struct ip_mc_list *im = (struct ip_mc_list *)v;
+		struct ip_mc_list *im = v;
 		struct igmp_mc_iter_state *state = igmp_mc_seq_private(seq);
 		char   *querier;
 		long delta;
@@ -2983,7 +2983,7 @@ static void igmp_mcf_seq_stop(struct seq_file *seq, void *v)
 
 static int igmp_mcf_seq_show(struct seq_file *seq, void *v)
 {
-	struct ip_sf_list *psf = (struct ip_sf_list *)v;
+	struct ip_sf_list *psf = v;
 	struct igmp_mcf_iter_state *state = igmp_mcf_seq_private(seq);
 
 	if (v == SEQ_START_TOKEN) {

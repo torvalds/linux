@@ -75,6 +75,9 @@ static const struct cachefiles_daemon_cmd cachefiles_daemon_cmds[] = {
 	{ "inuse",	cachefiles_daemon_inuse		},
 	{ "secctx",	cachefiles_daemon_secctx	},
 	{ "tag",	cachefiles_daemon_tag		},
+#ifdef CONFIG_CACHEFILES_ONDEMAND
+	{ "copen",	cachefiles_ondemand_copen	},
+#endif
 	{ "",		NULL				}
 };
 
@@ -108,6 +111,9 @@ static int cachefiles_daemon_open(struct inode *inode, struct file *file)
 	INIT_LIST_HEAD(&cache->volumes);
 	INIT_LIST_HEAD(&cache->object_list);
 	spin_lock_init(&cache->object_list_lock);
+	refcount_set(&cache->unbind_pincount, 1);
+	xa_init_flags(&cache->reqs, XA_FLAGS_ALLOC);
+	xa_init_flags(&cache->ondemand_ids, XA_FLAGS_ALLOC1);
 
 	/* set default caching limits
 	 * - limit at 1% free space and/or free files
@@ -126,6 +132,53 @@ static int cachefiles_daemon_open(struct inode *inode, struct file *file)
 	return 0;
 }
 
+static void cachefiles_flush_reqs(struct cachefiles_cache *cache)
+{
+	struct xarray *xa = &cache->reqs;
+	struct cachefiles_req *req;
+	unsigned long index;
+
+	/*
+	 * Make sure the following two operations won't be reordered.
+	 *   1) set CACHEFILES_DEAD bit
+	 *   2) flush requests in the xarray
+	 * Otherwise the request may be enqueued after xarray has been
+	 * flushed, leaving the orphan request never being completed.
+	 *
+	 * CPU 1			CPU 2
+	 * =====			=====
+	 * flush requests in the xarray
+	 *				test CACHEFILES_DEAD bit
+	 *				enqueue the request
+	 * set CACHEFILES_DEAD bit
+	 */
+	smp_mb();
+
+	xa_lock(xa);
+	xa_for_each(xa, index, req) {
+		req->error = -EIO;
+		complete(&req->done);
+	}
+	xa_unlock(xa);
+
+	xa_destroy(&cache->reqs);
+	xa_destroy(&cache->ondemand_ids);
+}
+
+void cachefiles_put_unbind_pincount(struct cachefiles_cache *cache)
+{
+	if (refcount_dec_and_test(&cache->unbind_pincount)) {
+		cachefiles_daemon_unbind(cache);
+		cachefiles_open = 0;
+		kfree(cache);
+	}
+}
+
+void cachefiles_get_unbind_pincount(struct cachefiles_cache *cache)
+{
+	refcount_inc(&cache->unbind_pincount);
+}
+
 /*
  * Release a cache.
  */
@@ -139,35 +192,26 @@ static int cachefiles_daemon_release(struct inode *inode, struct file *file)
 
 	set_bit(CACHEFILES_DEAD, &cache->flags);
 
-	cachefiles_daemon_unbind(cache);
+	if (cachefiles_in_ondemand_mode(cache))
+		cachefiles_flush_reqs(cache);
 
 	/* clean up the control file interface */
 	cache->cachefilesd = NULL;
 	file->private_data = NULL;
-	cachefiles_open = 0;
 
-	kfree(cache);
+	cachefiles_put_unbind_pincount(cache);
 
 	_leave("");
 	return 0;
 }
 
-/*
- * Read the cache state.
- */
-static ssize_t cachefiles_daemon_read(struct file *file, char __user *_buffer,
-				      size_t buflen, loff_t *pos)
+static ssize_t cachefiles_do_daemon_read(struct cachefiles_cache *cache,
+					 char __user *_buffer, size_t buflen)
 {
-	struct cachefiles_cache *cache = file->private_data;
 	unsigned long long b_released;
 	unsigned f_released;
 	char buffer[256];
 	int n;
-
-	//_enter(",,%zu,", buflen);
-
-	if (!test_bit(CACHEFILES_READY, &cache->flags))
-		return 0;
 
 	/* check how much space the cache has */
 	cachefiles_has_space(cache, 0, 0, cachefiles_has_space_check);
@@ -204,6 +248,25 @@ static ssize_t cachefiles_daemon_read(struct file *file, char __user *_buffer,
 		return -EFAULT;
 
 	return n;
+}
+
+/*
+ * Read the cache state.
+ */
+static ssize_t cachefiles_daemon_read(struct file *file, char __user *_buffer,
+				      size_t buflen, loff_t *pos)
+{
+	struct cachefiles_cache *cache = file->private_data;
+
+	//_enter(",,%zu,", buflen);
+
+	if (!test_bit(CACHEFILES_READY, &cache->flags))
+		return 0;
+
+	if (cachefiles_in_ondemand_mode(cache))
+		return cachefiles_ondemand_daemon_read(cache, _buffer, buflen);
+	else
+		return cachefiles_do_daemon_read(cache, _buffer, buflen);
 }
 
 /*
@@ -297,8 +360,13 @@ static __poll_t cachefiles_daemon_poll(struct file *file,
 	poll_wait(file, &cache->daemon_pollwq, poll);
 	mask = 0;
 
-	if (test_bit(CACHEFILES_STATE_CHANGED, &cache->flags))
-		mask |= EPOLLIN;
+	if (cachefiles_in_ondemand_mode(cache)) {
+		if (!xa_empty(&cache->reqs))
+			mask |= EPOLLIN;
+	} else {
+		if (test_bit(CACHEFILES_STATE_CHANGED, &cache->flags))
+			mask |= EPOLLIN;
+	}
 
 	if (test_bit(CACHEFILES_CULLING, &cache->flags))
 		mask |= EPOLLOUT;
@@ -687,11 +755,6 @@ static int cachefiles_daemon_bind(struct cachefiles_cache *cache, char *args)
 	    cache->brun_percent  >= 100)
 		return -ERANGE;
 
-	if (*args) {
-		pr_err("'bind' command doesn't take an argument\n");
-		return -EINVAL;
-	}
-
 	if (!cache->rootdirname) {
 		pr_err("No cache directory specified\n");
 		return -EINVAL;
@@ -701,6 +764,18 @@ static int cachefiles_daemon_bind(struct cachefiles_cache *cache, char *args)
 	if (test_bit(CACHEFILES_READY, &cache->flags)) {
 		pr_err("Cache already bound\n");
 		return -EBUSY;
+	}
+
+	if (IS_ENABLED(CONFIG_CACHEFILES_ONDEMAND)) {
+		if (!strcmp(args, "ondemand")) {
+			set_bit(CACHEFILES_ONDEMAND_MODE, &cache->flags);
+		} else if (*args) {
+			pr_err("Invalid argument to the 'bind' command\n");
+			return -EINVAL;
+		}
+	} else if (*args) {
+		pr_err("'bind' command doesn't take an argument\n");
+		return -EINVAL;
 	}
 
 	/* Make sure we have copies of the tag string */

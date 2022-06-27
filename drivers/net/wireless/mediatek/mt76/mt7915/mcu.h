@@ -304,16 +304,6 @@ enum mcu_mmps_mode {
 	MCU_MMPS_DISABLE,
 };
 
-enum {
-	SCS_SEND_DATA,
-	SCS_SET_MANUAL_PD_TH,
-	SCS_CONFIG,
-	SCS_ENABLE,
-	SCS_SHOW_INFO,
-	SCS_GET_GLO_ADDR,
-	SCS_GET_GLO_ADDR_EVENT,
-};
-
 struct bss_info_bmc_rate {
 	__le16 tag;
 	__le16 len;
@@ -414,11 +404,23 @@ struct bss_info_bcn_cont {
 	__le16 pkt_len;
 } __packed __aligned(4);
 
+struct bss_info_inband_discovery {
+	__le16 tag;
+	__le16 len;
+	u8 tx_type;
+	u8 tx_mode;
+	u8 tx_interval;
+	u8 enable;
+	__le16 rsv;
+	__le16 prob_rsp_len;
+} __packed __aligned(4);
+
 enum {
 	BSS_INFO_BCN_CSA,
 	BSS_INFO_BCN_BCC,
 	BSS_INFO_BCN_MBSSID,
 	BSS_INFO_BCN_CONTENT,
+	BSS_INFO_BCN_DISCOV,
 	BSS_INFO_BCN_MAX
 };
 
@@ -473,6 +475,20 @@ enum {
 	MURU_GET_TXC_TX_STATS = 151,
 };
 
+enum {
+	SER_QUERY,
+	/* recovery */
+	SER_SET_RECOVER_L1,
+	SER_SET_RECOVER_L2,
+	SER_SET_RECOVER_L3_RX_ABORT,
+	SER_SET_RECOVER_L3_TX_ABORT,
+	SER_SET_RECOVER_L3_TX_DISABLE,
+	SER_SET_RECOVER_L3_BF,
+	/* action */
+	SER_ENABLE = 2,
+	SER_RECOVER
+};
+
 #define MT7915_BSS_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct bss_info_omac) +	\
 					 sizeof(struct bss_info_basic) +\
@@ -486,6 +502,7 @@ enum {
 #define MT7915_BEACON_UPDATE_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct bss_info_bcn_cntdwn) + \
 					 sizeof(struct bss_info_bcn_mbss) + \
-					 sizeof(struct bss_info_bcn_cont))
+					 sizeof(struct bss_info_bcn_cont) + \
+					 sizeof(struct bss_info_inband_discovery))
 
 #endif

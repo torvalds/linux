@@ -1280,7 +1280,7 @@ static void iwlagn_check_needed_chains(struct iwl_priv *priv,
 			break;
 		}
 
-		ht_cap = &sta->ht_cap;
+		ht_cap = &sta->deflink.ht_cap;
 
 		need_multiple = true;
 

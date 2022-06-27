@@ -32,8 +32,6 @@
 #define PCI_DEVICE_ID_ROHM_ML7223_GBE		0x8013
 #define PCI_DEVICE_ID_ROHM_ML7831_GBE		0x8802
 
-#define PCH_GBE_TX_WEIGHT         64
-#define PCH_GBE_RX_WEIGHT         64
 #define PCH_GBE_RX_BUFFER_WRITE   16
 
 /* Initialize the wake-on-LAN settings */
@@ -1469,7 +1467,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 		   tx_desc->gbec_status, tx_desc->dma_status);
 
 	unused = PCH_GBE_DESC_UNUSED(tx_ring);
-	thresh = tx_ring->count - PCH_GBE_TX_WEIGHT;
+	thresh = tx_ring->count - NAPI_POLL_WEIGHT;
 	if ((tx_desc->gbec_status == DSC_INIT16) && (unused < thresh))
 	{  /* current marked clean, tx queue filling up, do extra clean */
 		int j, k;
@@ -1482,13 +1480,13 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 
 		/* current marked clean, scan for more that need cleaning. */
 		k = i;
-		for (j = 0; j < PCH_GBE_TX_WEIGHT; j++)
+		for (j = 0; j < NAPI_POLL_WEIGHT; j++)
 		{
 			tx_desc = PCH_GBE_TX_DESC(*tx_ring, k);
 			if (tx_desc->gbec_status != DSC_INIT16) break; /*found*/
 			if (++k >= tx_ring->count) k = 0;  /*increment, wrap*/
 		}
-		if (j < PCH_GBE_TX_WEIGHT) {
+		if (j < NAPI_POLL_WEIGHT) {
 			netdev_dbg(adapter->netdev,
 				   "clean_tx: unused=%d loops=%d found tx_desc[%x,%x:%x].gbec_status=%04x\n",
 				   unused, j, i, k, tx_ring->next_to_use,
@@ -1547,7 +1545,7 @@ pch_gbe_clean_tx(struct pch_gbe_adapter *adapter,
 		tx_desc = PCH_GBE_TX_DESC(*tx_ring, i);
 
 		/* weight of a sort for tx, to avoid endless transmit cleanup */
-		if (cleaned_count++ == PCH_GBE_TX_WEIGHT) {
+		if (cleaned_count++ == NAPI_POLL_WEIGHT) {
 			cleaned = false;
 			break;
 		}
@@ -2519,7 +2517,7 @@ static int pch_gbe_probe(struct pci_dev *pdev,
 	netdev->netdev_ops = &pch_gbe_netdev_ops;
 	netdev->watchdog_timeo = PCH_GBE_WATCHDOG_PERIOD;
 	netif_napi_add(netdev, &adapter->napi,
-		       pch_gbe_napi_poll, PCH_GBE_RX_WEIGHT);
+		       pch_gbe_napi_poll, NAPI_POLL_WEIGHT);
 	netdev->hw_features = NETIF_F_RXCSUM |
 		NETIF_F_IP_CSUM | NETIF_F_IPV6_CSUM;
 	netdev->features = netdev->hw_features;

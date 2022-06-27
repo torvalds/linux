@@ -132,7 +132,7 @@ struct iwl_tdls_config_cmd {
 
 	__le32 pti_req_data_offset;
 	struct iwl_tx_cmd pti_req_tx_cmd;
-	u8 pti_req_template[0];
+	u8 pti_req_template[];
 } __packed; /* TDLS_CONFIG_CMD_API_S_VER_1 */
 
 /**

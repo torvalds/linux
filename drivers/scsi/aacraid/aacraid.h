@@ -121,7 +121,7 @@ enum {
 #define SA_AIF_PDEV_CHANGE		(1<<4)
 #define SA_AIF_LDEV_CHANGE		(1<<5)
 #define SA_AIF_BPSTAT_CHANGE		(1<<30)
-#define SA_AIF_BPCFG_CHANGE		(1<<31)
+#define SA_AIF_BPCFG_CHANGE		(1U<<31)
 
 #define HBA_MAX_SG_EMBEDDED		28
 #define HBA_MAX_SG_SEPARATE		90

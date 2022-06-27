@@ -17,8 +17,6 @@ static irqreturn_t mlxbf_gige_error_intr(int irq, void *dev_id)
 
 	priv = dev_id;
 
-	priv->error_intr_count++;
-
 	int_status = readq(priv->base + MLXBF_GIGE_INT_STATUS);
 
 	if (int_status & MLXBF_GIGE_INT_STATUS_HW_ACCESS_ERROR)
@@ -75,8 +73,6 @@ static irqreturn_t mlxbf_gige_rx_intr(int irq, void *dev_id)
 
 	priv = dev_id;
 
-	priv->rx_intr_count++;
-
 	/* NOTE: GigE silicon automatically disables "packet rx" interrupt by
 	 *       setting MLXBF_GIGE_INT_MASK bit0 upon triggering the interrupt
 	 *       to the ARM cores.  Software needs to re-enable "packet rx"
@@ -90,11 +86,6 @@ static irqreturn_t mlxbf_gige_rx_intr(int irq, void *dev_id)
 
 static irqreturn_t mlxbf_gige_llu_plu_intr(int irq, void *dev_id)
 {
-	struct mlxbf_gige *priv;
-
-	priv = dev_id;
-	priv->llu_plu_intr_count++;
-
 	return IRQ_HANDLED;
 }
 

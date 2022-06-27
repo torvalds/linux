@@ -34,7 +34,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
-#include <sys/resource.h>
 #include <sys/time.h>
 #include <unistd.h>
 #include <errno.h>
@@ -46,7 +45,6 @@
 #include <bpf/bpf.h>
 #include <getopt.h>
 
-#include "bpf_rlimit.h"
 #include "cgroup_helpers.h"
 #include "hbm.h"
 #include "bpf_util.h"
@@ -509,6 +507,9 @@ int main(int argc, char **argv)
 	if (optind < argc)
 		prog = argv[optind];
 	printf("HBM prog: %s\n", prog != NULL ? prog : "NULL");
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	return run_bpf_prog(prog, cg_id);
 }

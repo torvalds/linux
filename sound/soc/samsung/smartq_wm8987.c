@@ -139,10 +139,10 @@ static int smartq_wm8987_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_nc_pin(dapm, "ROUT1");
 
 	/* Headphone jack detection */
-	err = snd_soc_card_jack_new(rtd->card, "Headphone Jack",
-				    SND_JACK_HEADPHONE, &smartq_jack,
-				    smartq_jack_pins,
-				    ARRAY_SIZE(smartq_jack_pins));
+	err = snd_soc_card_jack_new_pins(rtd->card, "Headphone Jack",
+					 SND_JACK_HEADPHONE, &smartq_jack,
+					 smartq_jack_pins,
+					 ARRAY_SIZE(smartq_jack_pins));
 	if (err)
 		return err;
 

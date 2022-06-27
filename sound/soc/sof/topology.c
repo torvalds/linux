@@ -32,7 +32,6 @@
 #define VOL_HALF_DB_STEP	50
 
 /* TLV data items */
-#define TLV_ITEMS	3
 #define TLV_MIN		0
 #define TLV_STEP	1
 #define TLV_MUTE	2
@@ -134,7 +133,7 @@ int sof_update_ipc_object(struct snd_soc_component *scomp, void *object, enum so
 	return 0;
 }
 
-static inline int get_tlv_data(const int *p, int tlv[TLV_ITEMS])
+static inline int get_tlv_data(const int *p, int tlv[SOF_TLV_ITEMS])
 {
 	/* we only support dB scale TLV type at the moment */
 	if ((int)p[SNDRV_CTL_TLVO_TYPE] != SNDRV_CTL_TLVT_DB_SCALE)
@@ -224,7 +223,7 @@ static u32 vol_pow32(u32 a, int exp, u32 fwl)
  * Function to calculate volume gain from TLV data.
  * This function can only handle gain steps that are multiples of 0.5 dB
  */
-static u32 vol_compute_gain(u32 value, int *tlv)
+u32 vol_compute_gain(u32 value, int *tlv)
 {
 	int dB_gain;
 	u32 linear_gain;
@@ -263,20 +262,17 @@ static u32 vol_compute_gain(u32 value, int *tlv)
  * "size" specifies the number of entries in the table
  */
 static int set_up_volume_table(struct snd_sof_control *scontrol,
-			       int tlv[TLV_ITEMS], int size)
+			       int tlv[SOF_TLV_ITEMS], int size)
 {
-	int j;
+	struct snd_soc_component *scomp = scontrol->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *tplg_ops = sdev->ipc->ops->tplg;
 
-	/* init the volume table */
-	scontrol->volume_table = kcalloc(size, sizeof(u32), GFP_KERNEL);
-	if (!scontrol->volume_table)
-		return -ENOMEM;
+	if (tplg_ops->control->set_up_volume_table)
+		return tplg_ops->control->set_up_volume_table(scontrol, tlv, size);
 
-	/* populate the volume table */
-	for (j = 0; j < size ; j++)
-		scontrol->volume_table[j] = vol_compute_gain(j, tlv);
-
-	return 0;
+	dev_err(scomp->dev, "Mandatory op %s not set\n", __func__);
+	return -EINVAL;
 }
 
 struct sof_dai_types {
@@ -772,7 +768,8 @@ static int sof_control_load_volume(struct snd_soc_component *scomp,
 	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	struct snd_soc_tplg_mixer_control *mc =
 		container_of(hdr, struct snd_soc_tplg_mixer_control, hdr);
-	int tlv[TLV_ITEMS];
+	int tlv[SOF_TLV_ITEMS];
+	unsigned int mask;
 	int ret;
 
 	/* validate topology data */
@@ -819,6 +816,16 @@ skip:
 		dev_err(scomp->dev, "error: parse led tokens failed %d\n",
 			le32_to_cpu(mc->priv.size));
 		goto err;
+	}
+
+	if (scontrol->led_ctl.use_led) {
+		mask = scontrol->led_ctl.direction ? SNDRV_CTL_ELEM_ACCESS_MIC_LED :
+							SNDRV_CTL_ELEM_ACCESS_SPK_LED;
+		scontrol->access &= ~SNDRV_CTL_ELEM_ACCESS_LED_MASK;
+		scontrol->access |= mask;
+		kc->access &= ~SNDRV_CTL_ELEM_ACCESS_LED_MASK;
+		kc->access |= mask;
+		sdev->led_present = true;
 	}
 
 	dev_dbg(scomp->dev, "tplg: load kcontrol index %d chans %d\n",
@@ -1001,15 +1008,18 @@ static int sof_connect_dai_widget(struct snd_soc_component *scomp,
 	struct snd_soc_dai *cpu_dai;
 	int i;
 
+	if (!w->sname) {
+		dev_err(scomp->dev, "Widget %s does not have stream\n", w->name);
+		return -EINVAL;
+	}
+
 	list_for_each_entry(rtd, &card->rtd_list, list) {
 		dev_vdbg(scomp->dev, "tplg: check widget: %s stream: %s dai stream: %s\n",
 			 w->name,  w->sname, rtd->dai_link->stream_name);
 
-		if (!w->sname || !rtd->dai_link->stream_name)
-			continue;
-
 		/* does stream match DAI link ? */
-		if (strcmp(w->sname, rtd->dai_link->stream_name))
+		if (!rtd->dai_link->stream_name ||
+		    strcmp(w->sname, rtd->dai_link->stream_name))
 			continue;
 
 		switch (w->id) {
@@ -1140,7 +1150,6 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 	const struct sof_token_info *token_list = ipc_tplg_ops->token_list;
 	struct snd_soc_tplg_private *private = &tw->priv;
 	int num_tuples = 0;
-	size_t size;
 	int ret, i;
 
 	if (count > 0 && !object_token_list) {
@@ -1153,8 +1162,7 @@ static int sof_widget_parse_tokens(struct snd_soc_component *scomp, struct snd_s
 		num_tuples += token_list[object_token_list[i]].count;
 
 	/* allocate memory for tuples array */
-	size = sizeof(struct snd_sof_tuple) * num_tuples;
-	swidget->tuples = kzalloc(size, GFP_KERNEL);
+	swidget->tuples = kcalloc(num_tuples, sizeof(*swidget->tuples), GFP_KERNEL);
 	if (!swidget->tuples)
 		return -ENOMEM;
 
@@ -1595,7 +1603,6 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 	const struct sof_token_info *token_list = ipc_tplg_ops->token_list;
 	struct snd_soc_tplg_private *private = &cfg->priv;
 	struct snd_sof_dai_link *slink;
-	size_t size;
 	u32 token_id = 0;
 	int num_tuples = 0;
 	int ret, num_sets;
@@ -1707,22 +1714,23 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 	}
 
 	/* allocate memory for tuples array */
-	size = sizeof(struct snd_sof_tuple) * num_tuples;
-	slink->tuples = kzalloc(size, GFP_KERNEL);
+	slink->tuples = kcalloc(num_tuples, sizeof(*slink->tuples), GFP_KERNEL);
 	if (!slink->tuples) {
 		kfree(slink->hw_configs);
 		kfree(slink);
 		return -ENOMEM;
 	}
 
-	/* parse one set of DAI link tokens */
-	ret = sof_copy_tuples(sdev, private->array, le32_to_cpu(private->size),
-			      SOF_DAI_LINK_TOKENS, 1, slink->tuples,
-			      num_tuples, &slink->num_tuples);
-	if (ret < 0) {
-		dev_err(scomp->dev, "failed to parse %s for dai link %s\n",
-			token_list[SOF_DAI_LINK_TOKENS].name, link->name);
-		goto err;
+	if (token_list[SOF_DAI_LINK_TOKENS].tokens) {
+		/* parse one set of DAI link tokens */
+		ret = sof_copy_tuples(sdev, private->array, le32_to_cpu(private->size),
+				      SOF_DAI_LINK_TOKENS, 1, slink->tuples,
+				      num_tuples, &slink->num_tuples);
+		if (ret < 0) {
+			dev_err(scomp->dev, "failed to parse %s for dai link %s\n",
+				token_list[SOF_DAI_LINK_TOKENS].name, link->name);
+			goto err;
+		}
 	}
 
 	/* nothing more to do if there are no DAI type-specific tokens defined */
@@ -2075,6 +2083,7 @@ static struct snd_soc_tplg_ops sof_tplg_ops = {
 
 int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 {
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
 	const struct firmware *fw;
 	int ret;
 
@@ -2097,6 +2106,10 @@ int snd_sof_load_topology(struct snd_soc_component *scomp, const char *file)
 	}
 
 	release_firmware(fw);
+
+	if (ret >= 0 && sdev->led_present)
+		ret = snd_ctl_led_request();
+
 	return ret;
 }
 EXPORT_SYMBOL(snd_sof_load_topology);

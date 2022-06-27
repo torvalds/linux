@@ -6,29 +6,29 @@
 # Author: Felix Guo <felixguoxiuping@gmail.com>
 # Author: Brendan Higgins <brendanhiggins@google.com>
 
-import collections
+from dataclasses import dataclass
 import re
 from typing import List, Set
 
 CONFIG_IS_NOT_SET_PATTERN = r'^# CONFIG_(\w+) is not set$'
 CONFIG_PATTERN = r'^CONFIG_(\w+)=(\S+|".*")$'
 
-KconfigEntryBase = collections.namedtuple('KconfigEntryBase', ['name', 'value'])
-
-class KconfigEntry(KconfigEntryBase):
+@dataclass(frozen=True)
+class KconfigEntry:
+	name: str
+	value: str
 
 	def __str__(self) -> str:
 		if self.value == 'n':
-			return r'# CONFIG_%s is not set' % (self.name)
-		else:
-			return r'CONFIG_%s=%s' % (self.name, self.value)
+			return f'# CONFIG_{self.name} is not set'
+		return f'CONFIG_{self.name}={self.value}'
 
 
 class KconfigParseError(Exception):
 	"""Error parsing Kconfig defconfig or .config."""
 
 
-class Kconfig(object):
+class Kconfig:
 	"""Represents defconfig or .config specified using the Kconfig language."""
 
 	def __init__(self) -> None:
@@ -48,7 +48,7 @@ class Kconfig(object):
 				if a.value == 'n':
 					continue
 				return False
-			elif a.value != b:
+			if a.value != b:
 				return False
 		return True
 
@@ -90,6 +90,5 @@ def parse_from_string(blob: str) -> Kconfig:
 
 		if line[0] == '#':
 			continue
-		else:
-			raise KconfigParseError('Failed to parse: ' + line)
+		raise KconfigParseError('Failed to parse: ' + line)
 	return kconfig

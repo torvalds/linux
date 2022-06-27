@@ -3866,8 +3866,6 @@ void qlt_free_cmd(struct qla_tgt_cmd *cmd)
 
 	BUG_ON(cmd->sg_mapped);
 	cmd->jiffies_at_free = get_jiffies_64();
-	if (unlikely(cmd->free_sg))
-		kfree(cmd->sg);
 
 	if (!sess || !sess->se_sess) {
 		WARN_ON(1);

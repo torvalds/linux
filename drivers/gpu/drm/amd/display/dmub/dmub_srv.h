@@ -243,6 +243,7 @@ struct dmub_srv_hw_params {
 	bool power_optimization;
 	bool dpia_supported;
 	bool disable_dpia;
+	bool usb4_cm_version;
 };
 
 /**

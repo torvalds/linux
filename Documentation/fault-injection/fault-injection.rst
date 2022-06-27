@@ -132,16 +132,16 @@ configuration of fault-injection capabilities.
 
 	Format: { 'Y' | 'N' }
 
-	default is 'N', setting it to 'Y' won't inject failures into
-	highmem/user allocations.
+	default is 'Y', setting it to 'N' will also inject failures into
+	highmem/user allocations (__GFP_HIGHMEM allocations).
 
 - /sys/kernel/debug/failslab/ignore-gfp-wait:
 - /sys/kernel/debug/fail_page_alloc/ignore-gfp-wait:
 
 	Format: { 'Y' | 'N' }
 
-	default is 'N', setting it to 'Y' will inject failures
-	only into non-sleep allocations (GFP_ATOMIC allocations).
+	default is 'Y', setting it to 'N' will also inject failures
+	into allocations that can sleep (__GFP_DIRECT_RECLAIM allocations).
 
 - /sys/kernel/debug/fail_page_alloc/min-order:
 
@@ -280,7 +280,7 @@ Application Examples
     printf %#x -1 > /sys/kernel/debug/$FAILTYPE/times
     echo 0 > /sys/kernel/debug/$FAILTYPE/space
     echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
-    echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
+    echo Y > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
 
     faulty_system()
     {
@@ -334,8 +334,8 @@ Application Examples
     printf %#x -1 > /sys/kernel/debug/$FAILTYPE/times
     echo 0 > /sys/kernel/debug/$FAILTYPE/space
     echo 2 > /sys/kernel/debug/$FAILTYPE/verbose
-    echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
-    echo 1 > /sys/kernel/debug/$FAILTYPE/ignore-gfp-highmem
+    echo Y > /sys/kernel/debug/$FAILTYPE/ignore-gfp-wait
+    echo Y > /sys/kernel/debug/$FAILTYPE/ignore-gfp-highmem
     echo 10 > /sys/kernel/debug/$FAILTYPE/stacktrace-depth
 
     trap "echo 0 > /sys/kernel/debug/$FAILTYPE/probability" SIGINT SIGTERM EXIT

@@ -520,6 +520,7 @@ static void ath11k_dp_tx_complete_msdu(struct ath11k *ar,
 				       struct hal_tx_status *ts)
 {
 	struct ieee80211_tx_status status = { 0 };
+	struct ieee80211_rate_status status_rate = { 0 };
 	struct ath11k_base *ab = ar->ab;
 	struct ieee80211_tx_info *info;
 	struct ath11k_skb_cb *skb_cb;
@@ -603,7 +604,12 @@ static void ath11k_dp_tx_complete_msdu(struct ath11k *ar,
 	status.skb = msdu;
 	status.info = info;
 	rate = arsta->last_txrate;
-	status.rate = &rate;
+
+	status_rate.rate_idx = rate;
+	status_rate.try_count = 1;
+
+	status.rates = &status_rate;
+	status.n_rates = 1;
 
 	spin_unlock_bh(&ab->base_lock);
 

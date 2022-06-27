@@ -96,7 +96,7 @@ attached to an inode (or NULL if fscache is disabled)::
 Buffered Read Helpers
 =====================
 
-The library provides a set of read helpers that handle the ->readpage(),
+The library provides a set of read helpers that handle the ->read_folio(),
 ->readahead() and much of the ->write_begin() VM operations and translate them
 into a common call framework.
 
@@ -136,20 +136,19 @@ Read Helper Functions
 Three read helpers are provided::
 
 	void netfs_readahead(struct readahead_control *ractl);
-	int netfs_readpage(struct file *file,
-			   struct page *page);
+	int netfs_read_folio(struct file *file,
+			   struct folio *folio);
 	int netfs_write_begin(struct file *file,
 			      struct address_space *mapping,
 			      loff_t pos,
 			      unsigned int len,
-			      unsigned int flags,
 			      struct folio **_folio,
 			      void **_fsdata);
 
 Each corresponds to a VM address space operation.  These operations use the
 state in the per-inode context.
 
-For ->readahead() and ->readpage(), the network filesystem just point directly
+For ->readahead() and ->read_folio(), the network filesystem just point directly
 at the corresponding read helper; whereas for ->write_begin(), it may be a
 little more complicated as the network filesystem might want to flush
 conflicting writes or track dirty data and needs to put the acquired folio if

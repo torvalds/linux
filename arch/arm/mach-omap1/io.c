@@ -9,14 +9,13 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
+#include <linux/omap-dma.h>
 
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
 
-#include <mach/mux.h>
-#include <mach/tc.h>
-#include <linux/omap-dma.h>
-
+#include "tc.h"
+#include "mux.h"
 #include "iomap.h"
 #include "common.h"
 #include "clock.h"

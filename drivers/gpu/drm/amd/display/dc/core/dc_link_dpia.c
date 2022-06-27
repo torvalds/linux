@@ -547,11 +547,9 @@ static uint32_t dpia_get_eq_aux_rd_interval(const struct dc_link *link,
 				dp_translate_training_aux_read_interval(
 					link->dpcd_caps.lttpr_caps.aux_rd_interval[hop - 1]);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* Check debug option for extending aux read interval. */
 	if (link->dc->debug.dpia_debug.bits.extend_aux_rd_interval)
 		wait_time_microsec = DPIA_DEBUG_EXTENDED_AUX_RD_INTERVAL_US;
-#endif
 
 	return wait_time_microsec;
 }

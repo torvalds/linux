@@ -12,7 +12,7 @@
 #include <linux/mm.h>
 #include "util.h"
 
-extern int gfs2_releasepage(struct page *page, gfp_t gfp_mask);
+bool gfs2_release_folio(struct folio *folio, gfp_t gfp_mask);
 extern int gfs2_internal_read(struct gfs2_inode *ip,
 			      char *buf, loff_t *pos, unsigned size);
 extern void gfs2_set_aops(struct inode *inode);

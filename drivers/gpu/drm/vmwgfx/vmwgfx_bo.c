@@ -543,8 +543,8 @@ static int vmw_user_bo_synccpu_grab(struct vmw_buffer_object *vmw_bo,
 	if (flags & drm_vmw_synccpu_allow_cs) {
 		long lret;
 
-		lret = dma_resv_wait_timeout(bo->base.resv, true, true,
-					     nonblock ? 0 :
+		lret = dma_resv_wait_timeout(bo->base.resv, DMA_RESV_USAGE_READ,
+					     true, nonblock ? 0 :
 					     MAX_SCHEDULE_TIMEOUT);
 		if (!lret)
 			return -EBUSY;
@@ -763,16 +763,23 @@ void vmw_bo_fence_single(struct ttm_buffer_object *bo,
 			 struct vmw_fence_obj *fence)
 {
 	struct ttm_device *bdev = bo->bdev;
-
 	struct vmw_private *dev_priv =
 		container_of(bdev, struct vmw_private, bdev);
+	int ret;
 
-	if (fence == NULL) {
+	if (fence == NULL)
 		vmw_execbuf_fence_commands(NULL, dev_priv, &fence, NULL);
-		dma_resv_add_excl_fence(bo->base.resv, &fence->base);
-		dma_fence_put(&fence->base);
-	} else
-		dma_resv_add_excl_fence(bo->base.resv, &fence->base);
+	else
+		dma_fence_get(&fence->base);
+
+	ret = dma_resv_reserve_fences(bo->base.resv, 1);
+	if (!ret)
+		dma_resv_add_fence(bo->base.resv, &fence->base,
+				   DMA_RESV_USAGE_KERNEL);
+	else
+		/* Last resort fallback when we are OOM */
+		dma_fence_wait(&fence->base, false);
+	dma_fence_put(&fence->base);
 }
 
 

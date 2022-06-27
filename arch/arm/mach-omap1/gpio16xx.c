@@ -18,9 +18,10 @@
 
 #include <linux/gpio.h>
 #include <linux/platform_data/gpio-omap.h>
+#include <linux/soc/ti/omap1-io.h>
 
-#include <mach/irqs.h>
-
+#include "hardware.h"
+#include "irqs.h"
 #include "soc.h"
 
 #define OMAP1610_GPIO1_BASE		0xfffbe400

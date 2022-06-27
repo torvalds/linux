@@ -2,7 +2,6 @@
 /*
  * Universal Flash Storage Host controller PCI glue driver
  *
- * This code is based on drivers/scsi/ufs/ufshcd-pci.c
  * Copyright (C) 2011-2013 Samsung India Software Operations
  *
  * Authors:
@@ -11,6 +10,8 @@
  */
 
 #include "ufshcd.h"
+#include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/pm_runtime.h>
 #include <linux/pm_qos.h>
@@ -618,4 +619,3 @@ MODULE_AUTHOR("Santosh Yaragnavi <santosh.sy@samsung.com>");
 MODULE_AUTHOR("Vinayak Holikatti <h.vinayak@samsung.com>");
 MODULE_DESCRIPTION("UFS host controller PCI glue driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(UFSHCD_DRIVER_VERSION);

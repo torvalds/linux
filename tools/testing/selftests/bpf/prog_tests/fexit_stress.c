@@ -5,7 +5,7 @@
 /* that's kernel internal BPF_MAX_TRAMP_PROGS define */
 #define CNT 38
 
-void test_fexit_stress(void)
+void serial_test_fexit_stress(void)
 {
 	char test_skb[128] = {};
 	int fexit_fd[CNT] = {};
@@ -53,7 +53,7 @@ void test_fexit_stress(void)
 					    &trace_opts);
 		if (!ASSERT_GE(fexit_fd[i], 0, "fexit load"))
 			goto out;
-		link_fd[i] = bpf_raw_tracepoint_open(NULL, fexit_fd[i]);
+		link_fd[i] = bpf_link_create(fexit_fd[i], 0, BPF_TRACE_FEXIT, NULL);
 		if (!ASSERT_GE(link_fd[i], 0, "fexit attach"))
 			goto out;
 	}

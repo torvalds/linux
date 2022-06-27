@@ -26,7 +26,7 @@
 
 #include "dsc.h"
 #include "dsc/dscc_types.h"
-#include <drm/drm_dsc.h>
+#include <drm/display/drm_dsc.h>
 
 #define TO_DCN20_DSC(dsc)\
 	container_of(dsc, struct dcn20_dsc, base)

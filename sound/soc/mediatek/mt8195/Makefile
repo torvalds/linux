@@ -12,5 +12,4 @@ snd-soc-mt8195-afe-objs := \
 obj-$(CONFIG_SND_SOC_MT8195) += snd-soc-mt8195-afe.o
 
 # machine driver
-obj-$(CONFIG_SND_SOC_MT8195_MT6359_RT1019_RT5682) += mt8195-mt6359-rt1019-rt5682.o
-obj-$(CONFIG_SND_SOC_MT8195_MT6359_RT1011_RT5682) += mt8195-mt6359-rt1011-rt5682.o
+obj-$(CONFIG_SND_SOC_MT8195_MT6359) += mt8195-mt6359.o

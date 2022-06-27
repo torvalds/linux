@@ -130,6 +130,12 @@ static int amd_sfh_irq_init_v2(struct amd_mp2_dev *privdata)
 	return 0;
 }
 
+static int amd_sfh_dis_sts_v2(struct amd_mp2_dev *privdata)
+{
+	return (readl(privdata->mmio + AMD_P2C_MSG(1)) &
+		      SENSOR_DISCOVERY_STATUS_MASK) >> SENSOR_DISCOVERY_STATUS_SHIFT;
+}
+
 void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info)
 {
 	union sfh_cmd_param cmd_param;
@@ -245,6 +251,7 @@ static const struct amd_mp2_ops amd_sfh_ops_v2 = {
 	.response = amd_sfh_wait_response_v2,
 	.clear_intr = amd_sfh_clear_intr_v2,
 	.init_intr = amd_sfh_irq_init_v2,
+	.discovery_status = amd_sfh_dis_sts_v2,
 };
 
 static const struct amd_mp2_ops amd_sfh_ops = {
@@ -346,8 +353,9 @@ static int __maybe_unused amd_mp2_pci_resume(struct device *dev)
 					(mp2, cl_data->sensor_idx[i], SENSOR_ENABLED);
 			if (status == SENSOR_ENABLED)
 				cl_data->sensor_sts[i] = SENSOR_ENABLED;
-			dev_dbg(dev, "resume sid 0x%x status 0x%x\n",
-				cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
+			dev_dbg(dev, "suspend sid 0x%x (%s) status 0x%x\n",
+				cl_data->sensor_idx[i], get_sensor_name(cl_data->sensor_idx[i]),
+				cl_data->sensor_sts[i]);
 		}
 	}
 
@@ -371,8 +379,9 @@ static int __maybe_unused amd_mp2_pci_suspend(struct device *dev)
 					(mp2, cl_data->sensor_idx[i], SENSOR_DISABLED);
 			if (status != SENSOR_ENABLED)
 				cl_data->sensor_sts[i] = SENSOR_DISABLED;
-			dev_dbg(dev, "suspend sid 0x%x status 0x%x\n",
-				cl_data->sensor_idx[i], cl_data->sensor_sts[i]);
+			dev_dbg(dev, "suspend sid 0x%x (%s) status 0x%x\n",
+				cl_data->sensor_idx[i], get_sensor_name(cl_data->sensor_idx[i]),
+				cl_data->sensor_sts[i]);
 		}
 	}
 

@@ -27,6 +27,8 @@
 
 	/* HS USB Host PHY on PORT 1 */
 	hsusb2_phy: hsusb2_phy {
+		pinctrl-names = "default";
+		pinctrl-0 = <&hsusb2_reset_pin>;
 		compatible = "usb-nop-xceiv";
 		reset-gpios = <&gpio1 4 GPIO_ACTIVE_LOW>; /* gpio_4 */
 		#phy-cells = <0>;
@@ -144,6 +146,8 @@
 };
 
 &usbhshost {
+	pinctrl-names = "default";
+	pinctrl-0 = <&hsusb2_pins>;
 	port2-mode = "ehci-phy";
 };
 
@@ -151,10 +155,7 @@
 	phys = <0 &hsusb2_phy>;
 };
 
-
 &omap3_pmx_core {
-	pinctrl-names = "default";
-	pinctrl-0 = <&hsusb2_pins>;
 
 	mmc3_pins: pinmux_mm3_pins {
 		pinctrl-single,pins = <
@@ -250,8 +251,7 @@
 };
 
 &omap3_pmx_wkup {
-	pinctrl-names = "default";
-	pinctrl-0 = <&hsusb2_reset_pin>;
+
 	hsusb2_reset_pin: pinmux_hsusb1_reset_pin {
 		pinctrl-single,pins = <
 			OMAP3_WKUP_IOPAD(0x2a0e, PIN_OUTPUT | MUX_MODE4)	/* sys_boot2.gpio_4 */

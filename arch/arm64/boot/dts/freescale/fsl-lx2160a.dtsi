@@ -698,7 +698,7 @@
 					<9 0 &gic GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
 					<10 0 &gic GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>,
 					<11 0 &gic GIC_SPI 11 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-map-mask = <0xffffffff 0x0>;
+				interrupt-map-mask = <0xf 0x0>;
 			};
 		};
 
@@ -909,7 +909,7 @@
 					    QORIQ_CLK_PLL_DIV(8)>,
 				 <&clockgen QORIQ_CLK_SYSCLK 0>;
 			clock-names = "ipg", "per";
-			fsl,clk-source = <0>;
+			fsl,clk-source = /bits/ 8 <0>;
 			status = "disabled";
 		};
 
@@ -921,7 +921,7 @@
 					    QORIQ_CLK_PLL_DIV(8)>,
 				 <&clockgen QORIQ_CLK_SYSCLK 0>;
 			clock-names = "ipg", "per";
-			fsl,clk-source = <0>;
+			fsl,clk-source = /bits/ 8 <0>;
 			status = "disabled";
 		};
 

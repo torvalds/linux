@@ -14,6 +14,7 @@ LIST_HEAD(mrioc_list);
 DEFINE_SPINLOCK(mrioc_list_lock);
 static int mrioc_ids;
 static int warn_non_secure_ctlr;
+atomic64_t event_counter;
 
 MODULE_AUTHOR(MPI3MR_DRIVER_AUTHOR);
 MODULE_DESCRIPTION(MPI3MR_DRIVER_DESC);
@@ -634,7 +635,7 @@ found_tgtdev:
  *
  * Return: Target device reference.
  */
-static struct mpi3mr_tgt_dev *mpi3mr_get_tgtdev_by_handle(
+struct mpi3mr_tgt_dev *mpi3mr_get_tgtdev_by_handle(
 	struct mpi3mr_ioc *mrioc, u16 handle)
 {
 	struct mpi3mr_tgt_dev *tgtdev;
@@ -910,9 +911,11 @@ void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc)
 
 	list_for_each_entry_safe(tgtdev, tgtdev_next, &mrioc->tgtdev_list,
 	    list) {
-		if ((tgtdev->dev_handle == MPI3MR_INVALID_DEV_HANDLE) &&
-		    tgtdev->host_exposed) {
-			mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
+		if (tgtdev->dev_handle == MPI3MR_INVALID_DEV_HANDLE) {
+			dprint_reset(mrioc, "removing target device with perst_id(%d)\n",
+			    tgtdev->perst_id);
+			if (tgtdev->host_exposed)
+				mpi3mr_remove_tgtdev_from_host(mrioc, tgtdev);
 			mpi3mr_tgtdev_del_from_list(mrioc, tgtdev);
 			mpi3mr_tgtdev_put(tgtdev);
 		}
@@ -1416,6 +1419,23 @@ static void mpi3mr_pcietopochg_evt_bh(struct mpi3mr_ioc *mrioc,
 }
 
 /**
+ * mpi3mr_logdata_evt_bh -  Log data event bottomhalf
+ * @mrioc: Adapter instance reference
+ * @fwevt: Firmware event reference
+ *
+ * Extracts the event data and calls application interfacing
+ * function to process the event further.
+ *
+ * Return: Nothing.
+ */
+static void mpi3mr_logdata_evt_bh(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_fwevt *fwevt)
+{
+	mpi3mr_app_save_logdata(mrioc, fwevt->event_data,
+	    fwevt->event_data_size);
+}
+
+/**
  * mpi3mr_fwevt_bh - Firmware event bottomhalf handler
  * @mrioc: Adapter instance reference
  * @fwevt: Firmware event reference
@@ -1465,6 +1485,11 @@ static void mpi3mr_fwevt_bh(struct mpi3mr_ioc *mrioc,
 	case MPI3_EVENT_PCIE_TOPOLOGY_CHANGE_LIST:
 	{
 		mpi3mr_pcietopochg_evt_bh(mrioc, fwevt);
+		break;
+	}
+	case MPI3_EVENT_LOG_DATA:
+	{
+		mpi3mr_logdata_evt_bh(mrioc, fwevt);
 		break;
 	}
 	default:
@@ -2298,6 +2323,7 @@ void mpi3mr_os_handle_events(struct mpi3mr_ioc *mrioc,
 		break;
 	}
 	case MPI3_EVENT_DEVICE_INFO_CHANGED:
+	case MPI3_EVENT_LOG_DATA:
 	{
 		process_evt_bh = 1;
 		break;
@@ -2996,7 +3022,7 @@ inline void mpi3mr_poll_pend_io_completions(struct mpi3mr_ioc *mrioc)
  *
  * Return: 0 on success, non-zero on errors
  */
-static int mpi3mr_issue_tm(struct mpi3mr_ioc *mrioc, u8 tm_type,
+int mpi3mr_issue_tm(struct mpi3mr_ioc *mrioc, u8 tm_type,
 	u16 handle, uint lun, u16 htag, ulong timeout,
 	struct mpi3mr_drv_cmd *drv_cmd,
 	u8 *resp_code, struct scsi_cmnd *scmd)
@@ -3589,6 +3615,7 @@ static int mpi3mr_scan_finished(struct Scsi_Host *shost,
 
 	mpi3mr_start_watchdog(mrioc);
 	mrioc->is_driver_loading = 0;
+	mrioc->stop_bsgs = 0;
 	return 1;
 }
 
@@ -3700,6 +3727,10 @@ static int mpi3mr_slave_configure(struct scsi_device *sdev)
 		return -ENXIO;
 
 	mpi3mr_change_queue_depth(sdev, tgt_dev->q_depth);
+
+	sdev->eh_timeout = MPI3MR_EH_SCMD_TIMEOUT;
+	blk_queue_rq_timeout(sdev->request_queue, MPI3MR_SCMD_TIMEOUT);
+
 	switch (tgt_dev->dev_type) {
 	case MPI3_DEVICE_DEVFORM_PCIE:
 		/*The block layer hw sector size = 512*/
@@ -3971,6 +4002,12 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 	int iprio_class;
 	u8 is_pcie_dev = 0;
 
+	if (mrioc->unrecoverable) {
+		scmd->result = DID_ERROR << 16;
+		scsi_done(scmd);
+		goto out;
+	}
+
 	sdev_priv_data = scmd->device->hostdata;
 	if (!sdev_priv_data || !sdev_priv_data->tgt_priv_data) {
 		scmd->result = DID_NO_CONNECT << 16;
@@ -4109,6 +4146,8 @@ static struct scsi_host_template mpi3mr_driver_template = {
 	.max_segment_size		= 0xffffffff,
 	.track_queue_depth		= 1,
 	.cmd_size			= sizeof(struct scmd_priv),
+	.shost_groups			= mpi3mr_host_groups,
+	.sdev_groups			= mpi3mr_dev_groups,
 };
 
 /**
@@ -4259,6 +4298,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mutex_init(&mrioc->reset_mutex);
 	mpi3mr_init_drv_cmd(&mrioc->init_cmds, MPI3MR_HOSTTAG_INITCMDS);
 	mpi3mr_init_drv_cmd(&mrioc->host_tm_cmds, MPI3MR_HOSTTAG_BLK_TMS);
+	mpi3mr_init_drv_cmd(&mrioc->bsg_cmds, MPI3MR_HOSTTAG_BSG_CMDS);
 
 	for (i = 0; i < MPI3MR_NUM_DEVRMCMD; i++)
 		mpi3mr_init_drv_cmd(&mrioc->dev_rmhs_cmds[i],
@@ -4271,6 +4311,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	mrioc->logging_level = logging_level;
 	mrioc->shost = shost;
 	mrioc->pdev = pdev;
+	mrioc->stop_bsgs = 1;
 
 	/* init shost parameters */
 	shost->max_cmd_len = MPI3MR_MAX_CDB_LENGTH;
@@ -4345,6 +4386,7 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 
 	scsi_scan_host(shost);
+	mpi3mr_bsg_init(mrioc);
 	return retval;
 
 addhost_failed:
@@ -4389,6 +4431,7 @@ static void mpi3mr_remove(struct pci_dev *pdev)
 	while (mrioc->reset_in_progress || mrioc->is_driver_loading)
 		ssleep(1);
 
+	mpi3mr_bsg_exit(mrioc);
 	mrioc->stop_drv_processing = 1;
 	mpi3mr_cleanup_fwevt_list(mrioc);
 	spin_lock_irqsave(&mrioc->fwevt_lock, flags);
@@ -4563,6 +4606,12 @@ static struct pci_driver mpi3mr_pci_driver = {
 #endif
 };
 
+static ssize_t event_counter_show(struct device_driver *dd, char *buf)
+{
+	return sprintf(buf, "%llu\n", atomic64_read(&event_counter));
+}
+static DRIVER_ATTR_RO(event_counter);
+
 static int __init mpi3mr_init(void)
 {
 	int ret_val;
@@ -4571,6 +4620,16 @@ static int __init mpi3mr_init(void)
 	    MPI3MR_DRIVER_VERSION);
 
 	ret_val = pci_register_driver(&mpi3mr_pci_driver);
+	if (ret_val) {
+		pr_err("%s failed to load due to pci register driver failure\n",
+		    MPI3MR_DRIVER_NAME);
+		return ret_val;
+	}
+
+	ret_val = driver_create_file(&mpi3mr_pci_driver.driver,
+				     &driver_attr_event_counter);
+	if (ret_val)
+		pci_unregister_driver(&mpi3mr_pci_driver);
 
 	return ret_val;
 }
@@ -4585,6 +4644,8 @@ static void __exit mpi3mr_exit(void)
 		pr_info("Unloading %s version %s\n", MPI3MR_DRIVER_NAME,
 		    MPI3MR_DRIVER_VERSION);
 
+	driver_remove_file(&mpi3mr_pci_driver.driver,
+			   &driver_attr_event_counter);
 	pci_unregister_driver(&mpi3mr_pci_driver);
 }
 

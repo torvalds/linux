@@ -345,7 +345,6 @@ void context_clock_trace(
 		struct dc *dc,
 		struct dc_state *context)
 {
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	DC_LOGGER_INIT(dc->ctx->logger);
 	CLOCK_TRACE("Current: dispclk_khz:%d  max_dppclk_khz:%d  dcfclk_khz:%d\n"
 			"dcfclk_deep_sleep_khz:%d  fclk_khz:%d  socclk_khz:%d\n",
@@ -363,7 +362,6 @@ void context_clock_trace(
 			context->bw_ctx.bw.dcn.clk.dcfclk_deep_sleep_khz,
 			context->bw_ctx.bw.dcn.clk.fclk_khz,
 			context->bw_ctx.bw.dcn.clk.socclk_khz);
-#endif
 }
 
 /**

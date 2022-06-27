@@ -114,35 +114,31 @@ struct platform_device *of_device_alloc(struct device_node *np,
 				  struct device *parent)
 {
 	struct platform_device *dev;
-	int rc, i, num_reg = 0, num_irq;
+	int rc, i, num_reg = 0;
 	struct resource *res, temp_res;
 
 	dev = platform_device_alloc("", PLATFORM_DEVID_NONE);
 	if (!dev)
 		return NULL;
 
-	/* count the io and irq resources */
+	/* count the io resources */
 	while (of_address_to_resource(np, num_reg, &temp_res) == 0)
 		num_reg++;
-	num_irq = of_irq_count(np);
 
 	/* Populate the resource table */
-	if (num_irq || num_reg) {
-		res = kcalloc(num_irq + num_reg, sizeof(*res), GFP_KERNEL);
+	if (num_reg) {
+		res = kcalloc(num_reg, sizeof(*res), GFP_KERNEL);
 		if (!res) {
 			platform_device_put(dev);
 			return NULL;
 		}
 
-		dev->num_resources = num_reg + num_irq;
+		dev->num_resources = num_reg;
 		dev->resource = res;
 		for (i = 0; i < num_reg; i++, res++) {
 			rc = of_address_to_resource(np, i, res);
 			WARN_ON(rc);
 		}
-		if (of_irq_to_resource_table(np, res, num_irq) != num_irq)
-			pr_debug("not all legacy IRQ resources mapped for %pOFn\n",
-				 np);
 	}
 
 	dev->dev.of_node = of_node_get(np);
@@ -507,8 +503,8 @@ int of_platform_default_populate(struct device_node *root,
 }
 EXPORT_SYMBOL_GPL(of_platform_default_populate);
 
-#ifndef CONFIG_PPC
 static const struct of_device_id reserved_mem_matches[] = {
+	{ .compatible = "phram" },
 	{ .compatible = "qcom,rmtfs-mem" },
 	{ .compatible = "qcom,cmd-db" },
 	{ .compatible = "qcom,smem" },
@@ -527,26 +523,73 @@ static int __init of_platform_default_populate_init(void)
 	if (!of_have_populated_dt())
 		return -ENODEV;
 
-	/*
-	 * Handle certain compatibles explicitly, since we don't want to create
-	 * platform_devices for every node in /reserved-memory with a
-	 * "compatible",
-	 */
-	for_each_matching_node(node, reserved_mem_matches)
+	if (IS_ENABLED(CONFIG_PPC)) {
+		struct device_node *boot_display = NULL;
+		struct platform_device *dev;
+		int ret;
+
+		/* Check if we have a MacOS display without a node spec */
+		if (of_get_property(of_chosen, "linux,bootx-noscreen", NULL)) {
+			/*
+			 * The old code tried to work out which node was the MacOS
+			 * display based on the address. I'm dropping that since the
+			 * lack of a node spec only happens with old BootX versions
+			 * (users can update) and with this code, they'll still get
+			 * a display (just not the palette hacks).
+			 */
+			dev = platform_device_alloc("bootx-noscreen", 0);
+			if (WARN_ON(!dev))
+				return -ENOMEM;
+			ret = platform_device_add(dev);
+			if (WARN_ON(ret)) {
+				platform_device_put(dev);
+				return ret;
+			}
+		}
+
+		/*
+		 * For OF framebuffers, first create the device for the boot display,
+		 * then for the other framebuffers. Only fail for the boot display;
+		 * ignore errors for the rest.
+		 */
+		for_each_node_by_type(node, "display") {
+			if (!of_get_property(node, "linux,opened", NULL) ||
+			    !of_get_property(node, "linux,boot-display", NULL))
+				continue;
+			dev = of_platform_device_create(node, "of-display", NULL);
+			if (WARN_ON(!dev))
+				return -ENOMEM;
+			boot_display = node;
+			break;
+		}
+		for_each_node_by_type(node, "display") {
+			if (!of_get_property(node, "linux,opened", NULL) || node == boot_display)
+				continue;
+			of_platform_device_create(node, "of-display", NULL);
+		}
+
+	} else {
+		/*
+		 * Handle certain compatibles explicitly, since we don't want to create
+		 * platform_devices for every node in /reserved-memory with a
+		 * "compatible",
+		 */
+		for_each_matching_node(node, reserved_mem_matches)
+			of_platform_device_create(node, NULL, NULL);
+
+		node = of_find_node_by_path("/firmware");
+		if (node) {
+			of_platform_populate(node, NULL, NULL, NULL);
+			of_node_put(node);
+		}
+
+		node = of_get_compatible_child(of_chosen, "simple-framebuffer");
 		of_platform_device_create(node, NULL, NULL);
-
-	node = of_find_node_by_path("/firmware");
-	if (node) {
-		of_platform_populate(node, NULL, NULL, NULL);
 		of_node_put(node);
+
+		/* Populate everything else. */
+		of_platform_default_populate(NULL, NULL, NULL);
 	}
-
-	node = of_get_compatible_child(of_chosen, "simple-framebuffer");
-	of_platform_device_create(node, NULL, NULL);
-	of_node_put(node);
-
-	/* Populate everything else. */
-	of_platform_default_populate(NULL, NULL, NULL);
 
 	return 0;
 }
@@ -558,7 +601,6 @@ static int __init of_platform_sync_state_init(void)
 	return 0;
 }
 late_initcall_sync(of_platform_sync_state_init);
-#endif
 
 int of_platform_device_destroy(struct device *dev, void *data)
 {

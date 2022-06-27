@@ -19,7 +19,7 @@
 #include <asm/cacheflush.h>
 #include <asm/irq.h>
 
-#include <mach/irqs.h>
+#include "irqs.h"
 #include "regs-gpio.h"
 
 #include "cpu.h"

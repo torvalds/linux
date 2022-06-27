@@ -454,6 +454,16 @@ Multiple events are created from a single event specification when:
 2. Aliases, which are listed immediately after the Kernel PMU events
    by perf list, are used.
 
+--hybrid-merge::
+Merge the hybrid event counts from all PMUs.
+
+For hybrid events, by default, the stat aggregates and reports the event
+counts per PMU. But sometimes, it's also useful to aggregate event counts
+from all PMUs. This option enables that behavior and reports the counts
+without PMUs.
+
+For non-hybrid events, it should be no effect.
+
 --smi-cost::
 Measure SMI cost if msr/aperf/ and msr/smi/ events are supported.
 

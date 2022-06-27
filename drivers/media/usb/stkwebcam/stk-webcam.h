@@ -105,6 +105,8 @@ struct stk_camera {
 	struct list_head sio_avail;
 	struct list_head sio_full;
 	unsigned sequence;
+
+	u8 read_reg_scratch;
 };
 
 #define vdev_to_camera(d) container_of(d, struct stk_camera, vdev)

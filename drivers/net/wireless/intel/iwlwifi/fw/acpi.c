@@ -937,6 +937,9 @@ int iwl_sar_geo_init(struct iwl_fw_runtime *fwrt,
 {
 	int i, j;
 
+	if (!fwrt->geo_enabled)
+		return -ENODATA;
+
 	if (!iwl_sar_geo_support(fwrt))
 		return -EOPNOTSUPP;
 

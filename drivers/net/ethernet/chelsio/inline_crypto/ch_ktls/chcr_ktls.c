@@ -483,7 +483,7 @@ static int chcr_ktls_dev_add(struct net_device *netdev, struct sock *sk,
 		tx_info->ip_family = AF_INET;
 #if IS_ENABLED(CONFIG_IPV6)
 	} else {
-		if (!sk->sk_ipv6only &&
+		if (!ipv6_only_sock(sk) &&
 		    ipv6_addr_type(&sk->sk_v6_daddr) == IPV6_ADDR_MAPPED) {
 			memcpy(daaddr, &sk->sk_daddr, 4);
 			tx_info->ip_family = AF_INET;

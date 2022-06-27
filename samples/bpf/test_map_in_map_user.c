@@ -2,7 +2,6 @@
 /*
  * Copyright (c) 2017 Facebook
  */
-#include <sys/resource.h>
 #include <sys/socket.h>
 #include <arpa/inet.h>
 #include <stdint.h>

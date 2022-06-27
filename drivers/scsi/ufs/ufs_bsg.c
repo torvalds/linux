@@ -4,7 +4,13 @@
  *
  * Copyright (C) 2018 Western Digital Corporation
  */
+
+#include <linux/bsg-lib.h>
+#include <scsi/scsi.h>
+#include <scsi/scsi_host.h>
 #include "ufs_bsg.h"
+#include "ufshcd.h"
+#include "ufshcd-priv.h"
 
 static int ufs_bsg_get_query_desc_size(struct ufs_hba *hba, int *desc_len,
 				       struct utp_upiu_query *qr)

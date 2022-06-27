@@ -29,8 +29,8 @@
 #include "mod_hdcp.h"
 #include "hdcp_log.h"
 
-#include <drm/drm_hdcp.h>
-#include <drm/dp/drm_dp_helper.h>
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_hdcp_helper.h>
 
 enum mod_hdcp_trans_input_result {
 	UNKNOWN = 0,
@@ -443,6 +443,14 @@ static inline uint8_t is_in_hdcp2_dp_states(struct mod_hdcp *hdcp)
 {
 	return (current_state(hdcp) > HDCP2_DP_STATE_START &&
 			current_state(hdcp) <= HDCP2_DP_STATE_END);
+}
+
+static inline uint8_t is_in_authenticated_states(struct mod_hdcp *hdcp)
+{
+	return (current_state(hdcp) == D1_A4_AUTHENTICATED ||
+	current_state(hdcp) == H1_A45_AUTHENTICATED ||
+	current_state(hdcp) == D2_A5_AUTHENTICATED ||
+	current_state(hdcp) == H2_A5_AUTHENTICATED);
 }
 
 static inline uint8_t is_hdcp1(struct mod_hdcp *hdcp)

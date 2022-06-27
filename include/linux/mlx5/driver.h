@@ -84,7 +84,7 @@ enum mlx5_sqp_t {
 };
 
 enum {
-	MLX5_MAX_PORTS	= 2,
+	MLX5_MAX_PORTS	= 4,
 };
 
 enum {
@@ -272,6 +272,8 @@ struct mlx5_cmd_stats {
 	u32		last_failed_errno;
 	/* last bad status returned by FW */
 	u8		last_failed_mbox_status;
+	/* last command failed syndrome returned by FW */
+	u32		last_failed_syndrome;
 	struct dentry  *root;
 	/* protect command average calculations */
 	spinlock_t	lock;
@@ -558,6 +560,7 @@ struct mlx5_debugfs_entries {
 	struct dentry *cq_debugfs;
 	struct dentry *cmdif_debugfs;
 	struct dentry *pages_debugfs;
+	struct dentry *lag_debugfs;
 };
 
 struct mlx5_ft_pool;
@@ -632,6 +635,7 @@ enum mlx5_device_state {
 
 enum mlx5_interface_state {
 	MLX5_INTERFACE_STATE_UP = BIT(0),
+	MLX5_BREAK_FW_WAIT = BIT(1),
 };
 
 enum mlx5_pci_status {
@@ -777,9 +781,6 @@ struct mlx5_core_dev {
 	} roce;
 #ifdef CONFIG_MLX5_FPGA
 	struct mlx5_fpga_device *fpga;
-#endif
-#ifdef CONFIG_MLX5_ACCEL
-	const struct mlx5_accel_ipsec_ops *ipsec_ops;
 #endif
 	struct mlx5_clock        clock;
 	struct mlx5_ib_clock_info  *clock_info;
@@ -1052,9 +1053,14 @@ int mlx5_core_access_reg(struct mlx5_core_dev *dev, void *data_in,
 			 int size_in, void *data_out, int size_out,
 			 u16 reg_num, int arg, int write);
 
-int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db);
 int mlx5_db_alloc_node(struct mlx5_core_dev *dev, struct mlx5_db *db,
 		       int node);
+
+static inline int mlx5_db_alloc(struct mlx5_core_dev *dev, struct mlx5_db *db)
+{
+	return mlx5_db_alloc_node(dev, db, dev->priv.numa_node);
+}
+
 void mlx5_db_free(struct mlx5_core_dev *dev, struct mlx5_db *db);
 
 const char *mlx5_command_str(int command);
@@ -1144,6 +1150,7 @@ int mlx5_lag_query_cong_counters(struct mlx5_core_dev *dev,
 				 int num_counters,
 				 size_t *offsets);
 struct mlx5_core_dev *mlx5_lag_get_peer_mdev(struct mlx5_core_dev *dev);
+u8 mlx5_lag_get_num_ports(struct mlx5_core_dev *dev);
 struct mlx5_uars_page *mlx5_get_uars_page(struct mlx5_core_dev *mdev);
 void mlx5_put_uars_page(struct mlx5_core_dev *mdev, struct mlx5_uars_page *up);
 int mlx5_dm_sw_icm_alloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,

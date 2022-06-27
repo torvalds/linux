@@ -33,9 +33,8 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/serial.h>
-#include <mach/common.h>
-
+#include "serial.h"
+#include "common.h"
 #include "davinci.h"
 
 /* NOTE:  this is geared for the standard config, with a socketed

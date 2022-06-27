@@ -1517,7 +1517,7 @@ static int bcm_sysport_init_tx_ring(struct bcm_sysport_priv *priv,
 	/* Initialize SW view of the ring */
 	spin_lock_init(&ring->lock);
 	ring->priv = priv;
-	netif_tx_napi_add(priv->netdev, &ring->napi, bcm_sysport_tx_poll, 64);
+	netif_napi_add_tx(priv->netdev, &ring->napi, bcm_sysport_tx_poll);
 	ring->index = index;
 	ring->size = size;
 	ring->clean_index = 0;

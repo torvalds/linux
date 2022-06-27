@@ -565,13 +565,11 @@ int dce_aux_transfer_raw(struct ddc_service *ddc,
 	struct ddc *ddc_pin = ddc->ddc_pin;
 	struct dce_aux *aux_engine;
 	struct aux_request_transaction_data aux_req;
-	struct aux_reply_transaction_data aux_rep;
 	uint8_t returned_bytes = 0;
 	int res = -1;
 	uint32_t status;
 
 	memset(&aux_req, 0, sizeof(aux_req));
-	memset(&aux_rep, 0, sizeof(aux_rep));
 
 	aux_engine = ddc->ctx->dc->res_pool->engines[ddc_pin->pin_data->en];
 	if (!acquire(aux_engine, ddc_pin)) {

@@ -1013,7 +1013,7 @@ static int __unmap_and_move(struct page *page, struct page *newpage,
 	if (!page->mapping) {
 		VM_BUG_ON_PAGE(PageAnon(page), page);
 		if (page_has_private(page)) {
-			try_to_free_buffers(page);
+			try_to_free_buffers(folio);
 			goto out_unlock_both;
 		}
 	} else if (page_mapped(page)) {

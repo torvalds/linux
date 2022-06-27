@@ -15,10 +15,9 @@
 #include <linux/platform_device.h>
 #include <linux/usb/musb.h>
 
-#include <mach/common.h>
-#include <mach/cputype.h>
-#include <mach/da8xx.h>
-
+#include "common.h"
+#include "cputype.h"
+#include "da8xx.h"
 #include "irqs.h"
 
 #define DA8XX_USB0_BASE		0x01e00000

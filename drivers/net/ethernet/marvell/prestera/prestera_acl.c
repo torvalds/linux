@@ -35,6 +35,10 @@ struct prestera_acl_rule_entry {
 			u8 valid:1;
 		} accept, drop, trap;
 		struct {
+			u8 valid:1;
+			struct prestera_acl_action_police i;
+		} police;
+		struct {
 			struct prestera_acl_action_jump i;
 			u8 valid:1;
 		} jump;
@@ -421,13 +425,6 @@ int prestera_acl_rule_add(struct prestera_switch *sw,
 	rule->re_arg.vtcam_id = ruleset->vtcam_id;
 	rule->re_key.prio = rule->priority;
 
-	/* setup counter */
-	rule->re_arg.count.valid = true;
-	err = prestera_acl_chain_to_client(ruleset->ht_key.chain_index,
-					   &rule->re_arg.count.client);
-	if (err)
-		goto err_rule_add;
-
 	rule->re = prestera_acl_rule_entry_find(sw->acl, &rule->re_key);
 	err = WARN_ON(rule->re) ? -EEXIST : 0;
 	if (err)
@@ -540,6 +537,12 @@ static int __prestera_acl_rule_entry2hw_add(struct prestera_switch *sw,
 		act_hw[act_num].id = PRESTERA_ACL_RULE_ACTION_TRAP;
 		act_num++;
 	}
+	/* police */
+	if (e->police.valid) {
+		act_hw[act_num].id = PRESTERA_ACL_RULE_ACTION_POLICE;
+		act_hw[act_num].police = e->police.i;
+		act_num++;
+	}
 	/* jump */
 	if (e->jump.valid) {
 		act_hw[act_num].id = PRESTERA_ACL_RULE_ACTION_JUMP;
@@ -564,6 +567,9 @@ __prestera_acl_rule_entry_act_destruct(struct prestera_switch *sw,
 {
 	/* counter */
 	prestera_counter_put(sw->counter, e->counter.block, e->counter.id);
+	/* police */
+	if (e->police.valid)
+		prestera_hw_policer_release(sw, e->police.i.id);
 }
 
 void prestera_acl_rule_entry_destroy(struct prestera_acl *acl,
@@ -586,6 +592,8 @@ __prestera_acl_rule_entry_act_construct(struct prestera_switch *sw,
 					struct prestera_acl_rule_entry *e,
 					struct prestera_acl_rule_entry_arg *arg)
 {
+	int err;
+
 	/* accept */
 	e->accept.valid = arg->accept.valid;
 	/* drop */
@@ -595,10 +603,26 @@ __prestera_acl_rule_entry_act_construct(struct prestera_switch *sw,
 	/* jump */
 	e->jump.valid = arg->jump.valid;
 	e->jump.i = arg->jump.i;
+	/* police */
+	if (arg->police.valid) {
+		u8 type = arg->police.ingress ? PRESTERA_POLICER_TYPE_INGRESS :
+						PRESTERA_POLICER_TYPE_EGRESS;
+
+		err = prestera_hw_policer_create(sw, type, &e->police.i.id);
+		if (err)
+			goto err_out;
+
+		err = prestera_hw_policer_sr_tcm_set(sw, e->police.i.id,
+						     arg->police.rate,
+						     arg->police.burst);
+		if (err) {
+			prestera_hw_policer_release(sw, e->police.i.id);
+			goto err_out;
+		}
+		e->police.valid = arg->police.valid;
+	}
 	/* counter */
 	if (arg->count.valid) {
-		int err;
-
 		err = prestera_counter_get(sw->counter, arg->count.client,
 					   &e->counter.block,
 					   &e->counter.id);

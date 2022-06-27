@@ -99,6 +99,7 @@ static void sun4i_hdmi_enable(struct drm_encoder *encoder)
 {
 	struct drm_display_mode *mode = &encoder->crtc->state->adjusted_mode;
 	struct sun4i_hdmi *hdmi = drm_encoder_to_sun4i_hdmi(encoder);
+	struct drm_display_info *display = &hdmi->connector.display_info;
 	u32 val = 0;
 
 	DRM_DEBUG_DRIVER("Enabling the HDMI Output\n");
@@ -111,7 +112,7 @@ static void sun4i_hdmi_enable(struct drm_encoder *encoder)
 	writel(val, hdmi->base + SUN4I_HDMI_PKT_CTRL_REG(0));
 
 	val = SUN4I_HDMI_VID_CTRL_ENABLE;
-	if (hdmi->hdmi_monitor)
+	if (display->is_hdmi)
 		val |= SUN4I_HDMI_VID_CTRL_HDMI_MODE;
 
 	writel(val, hdmi->base + SUN4I_HDMI_VID_CTRL_REG);
@@ -215,9 +216,8 @@ static int sun4i_hdmi_get_modes(struct drm_connector *connector)
 	if (!edid)
 		return 0;
 
-	hdmi->hdmi_monitor = drm_detect_hdmi_monitor(edid);
 	DRM_DEBUG_DRIVER("Monitor is %s monitor\n",
-			 hdmi->hdmi_monitor ? "an HDMI" : "a DVI");
+			 connector->display_info.is_hdmi ? "an HDMI" : "a DVI");
 
 	drm_connector_update_edid_property(connector, edid);
 	cec_s_phys_addr_from_edid(hdmi->cec_adap, edid);

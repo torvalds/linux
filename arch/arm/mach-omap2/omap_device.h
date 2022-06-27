@@ -71,7 +71,6 @@ int omap_device_idle(struct platform_device *pdev);
 struct omap_device *omap_device_alloc(struct platform_device *pdev,
 				      struct omap_hwmod **ohs, int oh_cnt);
 void omap_device_delete(struct omap_device *od);
-int omap_device_register(struct platform_device *pdev);
 
 struct device *omap_device_get_by_hwmod_name(const char *oh_name);
 

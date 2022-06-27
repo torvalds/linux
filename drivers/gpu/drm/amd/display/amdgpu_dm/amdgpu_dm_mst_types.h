@@ -46,8 +46,6 @@ void amdgpu_dm_initialize_dp_connector(struct amdgpu_display_manager *dm,
 void
 dm_dp_create_fake_mst_encoders(struct amdgpu_device *adev);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
-
 struct dsc_mst_fairness_vars {
 	int pbn;
 	bool dsc_enabled;
@@ -64,6 +62,5 @@ bool needs_dsc_aux_workaround(struct dc_link *link);
 void pre_validate_dsc(struct drm_atomic_state *state,
 		      struct dm_atomic_state **dm_state_ptr,
 		      struct dsc_mst_fairness_vars *vars);
-#endif
 
 #endif

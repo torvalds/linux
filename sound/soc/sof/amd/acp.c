@@ -138,23 +138,75 @@ int configure_and_run_dma(struct acp_dev_data *adata, unsigned int src_addr,
 	return ret;
 }
 
-static int psp_fw_validate(struct acp_dev_data *adata)
+/*
+ * psp_mbox_ready- function to poll ready bit of psp mbox
+ * @adata: acp device data
+ * @ack: bool variable to check ready bit status or psp ack
+ */
+
+static int psp_mbox_ready(struct acp_dev_data *adata, bool ack)
 {
 	struct snd_sof_dev *sdev = adata->dev;
 	int timeout;
 	u32 data;
 
-	smn_write(adata->smn_dev, MP0_C2PMSG_26_REG, MBOX_ACP_SHA_DMA_COMMAND);
-
 	for (timeout = ACP_PSP_TIMEOUT_COUNTER; timeout > 0; timeout--) {
 		msleep(20);
-		smn_read(adata->smn_dev, MP0_C2PMSG_26_REG, &data);
+		smn_read(adata->smn_dev, MP0_C2PMSG_114_REG, &data);
 		if (data & MBOX_READY_MASK)
 			return 0;
 	}
 
-	dev_err(sdev->dev, "FW validation timedout: status %x\n", data & MBOX_STATUS_MASK);
-	return -ETIMEDOUT;
+	dev_err(sdev->dev, "PSP error status %x\n", data & MBOX_STATUS_MASK);
+
+	if (ack)
+		return -ETIMEDOUT;
+
+	return -EBUSY;
+}
+
+/*
+ * psp_send_cmd - function to send psp command over mbox
+ * @adata: acp device data
+ * @cmd: non zero integer value for command type
+ */
+
+static int psp_send_cmd(struct acp_dev_data *adata, int cmd)
+{
+	struct snd_sof_dev *sdev = adata->dev;
+	int ret, timeout;
+	u32 data;
+
+	if (!cmd)
+		return -EINVAL;
+
+	/* Get a non-zero Doorbell value from PSP */
+	for (timeout = ACP_PSP_TIMEOUT_COUNTER; timeout > 0; timeout--) {
+		msleep(MBOX_DELAY);
+		smn_read(adata->smn_dev, MP0_C2PMSG_73_REG, &data);
+		if (data)
+			break;
+	}
+
+	if (!timeout) {
+		dev_err(sdev->dev, "Failed to get Doorbell from MBOX %x\n", MP0_C2PMSG_73_REG);
+		return -EINVAL;
+	}
+
+	/* Check if PSP is ready for new command */
+	ret = psp_mbox_ready(adata, 0);
+	if (ret)
+		return ret;
+
+	smn_write(adata->smn_dev, MP0_C2PMSG_114_REG, cmd);
+
+	/* Ring the Doorbell for PSP */
+	smn_write(adata->smn_dev, MP0_C2PMSG_73_REG, data);
+
+	/* Check MBOX ready as PSP ack */
+	ret = psp_mbox_ready(adata, 1);
+
+	return ret;
 }
 
 int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
@@ -196,7 +248,7 @@ int configure_and_run_sha_dma(struct acp_dev_data *adata, void *image_addr,
 		return ret;
 	}
 
-	ret = psp_fw_validate(adata);
+	ret = psp_send_cmd(adata, MBOX_ACP_SHA_DMA_COMMAND);
 	if (ret)
 		return ret;
 

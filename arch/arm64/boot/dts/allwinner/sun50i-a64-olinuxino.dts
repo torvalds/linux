@@ -58,6 +58,15 @@
 	};
 };
 
+&codec {
+	status = "okay";
+};
+
+&codec_analog {
+	cpvdd-supply = <&reg_eldo1>;
+	status = "okay";
+};
+
 &cpu0 {
 	cpu-supply = <&reg_dcdc2>;
 };
@@ -72,6 +81,10 @@
 
 &cpu3 {
 	cpu-supply = <&reg_dcdc2>;
+};
+
+&dai {
+	status = "okay";
 };
 
 &de {
@@ -326,6 +339,23 @@
 
 &simplefb_hdmi {
 	vcc-hdmi-supply = <&reg_dldo1>;
+};
+
+&sound {
+	simple-audio-card,aux-devs = <&codec_analog>;
+	simple-audio-card,widgets = "Microphone", "Microphone Jack Left",
+		    "Microphone", "Microphone Jack Right",
+		    "Headphone", "Headphone Jack";
+	simple-audio-card,routing = "Left DAC", "DACL",
+		    "Right DAC", "DACR",
+		    "Headphone Jack", "HP",
+		    "ADCL", "Left ADC",
+		    "ADCR", "Right ADC",
+		    "Microphone Jack Left", "MBIAS",
+		    "MIC1", "Microphone Jack Left",
+		    "Microphone Jack Right", "MBIAS",
+		    "MIC2", "Microphone Jack Right";
+	status = "okay";
 };
 
 &uart0 {

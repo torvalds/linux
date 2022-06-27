@@ -3068,7 +3068,17 @@ static void _action_wl_scan(struct rtw89_dev *rtwdev)
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 	struct rtw89_btc_wl_dbcc_info *wl_dinfo = &wl->dbcc_info;
 
-	if (rtwdev->dbcc_en) {
+	if (RTW89_CHK_FW_FEATURE(SCAN_OFFLOAD, &rtwdev->fw)) {
+		_set_ant(rtwdev, NM_EXEC, BTC_PHY_ALL, BTC_ANT_W25G);
+		if (btc->mdinfo.ant.type == BTC_ANT_SHARED)
+			_set_policy(rtwdev, BTC_CXP_OFFE_DEF,
+				    BTC_RSN_NTFY_SCAN_START);
+		else
+			_set_policy(rtwdev, BTC_CXP_OFF_EQ0,
+				    BTC_RSN_NTFY_SCAN_START);
+
+		rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], Scan offload!\n");
+	} else if (rtwdev->dbcc_en) {
 		if (wl_dinfo->real_band[RTW89_PHY_0] != RTW89_BAND_2G &&
 		    wl_dinfo->real_band[RTW89_PHY_1] != RTW89_BAND_2G)
 			_action_wl_5g(rtwdev);
@@ -4169,14 +4179,14 @@ void rtw89_btc_ntfy_role_info(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif
 
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], STA support HE=%d VHT=%d HT=%d\n",
-			    sta->he_cap.has_he,
-			    sta->vht_cap.vht_supported,
-			    sta->ht_cap.ht_supported);
-		if (sta->he_cap.has_he)
+			    sta->deflink.he_cap.has_he,
+			    sta->deflink.vht_cap.vht_supported,
+			    sta->deflink.ht_cap.ht_supported);
+		if (sta->deflink.he_cap.has_he)
 			mode |= BIT(BTC_WL_MODE_HE);
-		if (sta->vht_cap.vht_supported)
+		if (sta->deflink.vht_cap.vht_supported)
 			mode |= BIT(BTC_WL_MODE_VHT);
-		if (sta->ht_cap.ht_supported)
+		if (sta->deflink.ht_cap.ht_supported)
 			mode |= BIT(BTC_WL_MODE_HT);
 
 		r.mode = mode;

@@ -2626,6 +2626,7 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 	const struct btf_ext_info_sec *sinfo;
 	struct btf_ext_info *ext_info;
 	__u32 info_left, record_size;
+	size_t sec_cnt = 0;
 	/* The start of the info sec (including the __u32 record_size). */
 	void *info;
 
@@ -2689,8 +2690,7 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 			return -EINVAL;
 		}
 
-		total_record_size = sec_hdrlen +
-				    (__u64)num_records * record_size;
+		total_record_size = sec_hdrlen + (__u64)num_records * record_size;
 		if (info_left < total_record_size) {
 			pr_debug("%s section has incorrect num_records in .BTF.ext\n",
 			     ext_sec->desc);
@@ -2699,12 +2699,14 @@ static int btf_ext_setup_info(struct btf_ext *btf_ext,
 
 		info_left -= total_record_size;
 		sinfo = (void *)sinfo + total_record_size;
+		sec_cnt++;
 	}
 
 	ext_info = ext_sec->ext_info;
 	ext_info->len = ext_sec->len - sizeof(__u32);
 	ext_info->rec_size = record_size;
 	ext_info->info = info + sizeof(__u32);
+	ext_info->sec_cnt = sec_cnt;
 
 	return 0;
 }
@@ -2788,6 +2790,9 @@ void btf_ext__free(struct btf_ext *btf_ext)
 {
 	if (IS_ERR_OR_NULL(btf_ext))
 		return;
+	free(btf_ext->func_info.sec_idxs);
+	free(btf_ext->line_info.sec_idxs);
+	free(btf_ext->core_relo_info.sec_idxs);
 	free(btf_ext->data);
 	free(btf_ext);
 }
@@ -2826,10 +2831,8 @@ struct btf_ext *btf_ext__new(const __u8 *data, __u32 size)
 	if (err)
 		goto done;
 
-	if (btf_ext->hdr->hdr_len < offsetofend(struct btf_ext_header, core_relo_len)) {
-		err = -EINVAL;
-		goto done;
-	}
+	if (btf_ext->hdr->hdr_len < offsetofend(struct btf_ext_header, core_relo_len))
+		goto done; /* skip core relos parsing */
 
 	err = btf_ext_setup_core_relos(btf_ext);
 	if (err)

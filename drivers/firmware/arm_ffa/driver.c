@@ -398,11 +398,15 @@ static int ffa_mem_first_frag(u32 func_id, phys_addr_t buf, u32 buf_sz,
 	if (ret.a0 == FFA_ERROR)
 		return ffa_to_linux_errno((int)ret.a2);
 
-	if (ret.a0 != FFA_SUCCESS)
+	if (ret.a0 == FFA_SUCCESS) {
+		if (handle)
+			*handle = PACK_HANDLE(ret.a2, ret.a3);
+	} else if (ret.a0 == FFA_MEM_FRAG_RX) {
+		if (handle)
+			*handle = PACK_HANDLE(ret.a1, ret.a2);
+	} else {
 		return -EOPNOTSUPP;
-
-	if (handle)
-		*handle = PACK_HANDLE(ret.a2, ret.a3);
+	}
 
 	return frag_len;
 }
@@ -426,10 +430,12 @@ static int ffa_mem_next_frag(u64 handle, u32 frag_len)
 	if (ret.a0 == FFA_ERROR)
 		return ffa_to_linux_errno((int)ret.a2);
 
-	if (ret.a0 != FFA_MEM_FRAG_RX)
-		return -EOPNOTSUPP;
+	if (ret.a0 == FFA_MEM_FRAG_RX)
+		return ret.a3;
+	else if (ret.a0 == FFA_SUCCESS)
+		return 0;
 
-	return ret.a3;
+	return -EOPNOTSUPP;
 }
 
 static int
@@ -582,7 +588,7 @@ static int ffa_partition_info_get(const char *uuid_str,
 		return -ENODEV;
 	}
 
-	count = ffa_partition_probe(&uuid_null, &pbuf);
+	count = ffa_partition_probe(&uuid, &pbuf);
 	if (count <= 0)
 		return -ENOENT;
 
@@ -688,8 +694,6 @@ static void ffa_setup_partitions(void)
 			       __func__, tpbuf->id);
 			continue;
 		}
-
-		ffa_dev_set_drvdata(ffa_dev, drv_info);
 	}
 	kfree(pbuf);
 }

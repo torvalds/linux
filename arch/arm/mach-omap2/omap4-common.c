@@ -139,7 +139,7 @@ static int __init omap4_sram_init(void)
 		pr_warn("%s:Unable to get sram pool needed to handle errata I688\n",
 			__func__);
 	else
-		sram_sync = (void *)gen_pool_alloc(sram_pool, PAGE_SIZE);
+		sram_sync = (void __iomem *)gen_pool_alloc(sram_pool, PAGE_SIZE);
 
 	return 0;
 }

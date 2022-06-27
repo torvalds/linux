@@ -14,7 +14,7 @@ menuconfig SND_SOC
 
 	  If you want ASoC support, you should say Y here and also to the
 	  specific driver for your SoC platform below.
-	  
+
 	  ASoC provides power efficient ALSA support for embedded battery powered
 	  SoC based systems like PDA's, Phones and Personal Media Players.
 
@@ -54,6 +54,13 @@ config SND_SOC_TOPOLOGY_KUNIT_TEST
 	  well with userspace. When running tests one may want to disable
 	  userspace applications such as pulseaudio, to prevent unnecessary
 	  problems.
+
+config SND_SOC_UTILS_KUNIT_TEST
+	tristate "KUnit tests for SoC utils"
+	depends on KUNIT
+	default KUNIT_ALL_TESTS
+	help
+	  If you want to perform tests on ALSA SoC utils library say Y here.
 
 config SND_SOC_ACPI
 	tristate

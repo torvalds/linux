@@ -15,6 +15,4 @@ struct hda_component {
 	struct device *dev;
 	char name[HDA_MAX_NAME_SIZE];
 	void (*playback_hook)(struct device *dev, int action);
-	int (*set_channel_map)(struct device *dev, unsigned int rx_num, unsigned int *rx_slot,
-				unsigned int tx_num, unsigned int *tx_slot);
 };

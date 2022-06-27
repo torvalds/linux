@@ -1193,8 +1193,8 @@ err_remove_dsi_host:
 err_unprotect_clk:
 	clk_rate_exclusive_put(dsi->mod_clk);
 err_attach_clk:
-	if (!IS_ERR(dsi->bus_clk))
-		regmap_mmio_detach_clk(dsi->regs);
+	regmap_mmio_detach_clk(dsi->regs);
+
 	return ret;
 }
 
@@ -1207,8 +1207,7 @@ static int sun6i_dsi_remove(struct platform_device *pdev)
 	mipi_dsi_host_unregister(&dsi->host);
 	clk_rate_exclusive_put(dsi->mod_clk);
 
-	if (!IS_ERR(dsi->bus_clk))
-		regmap_mmio_detach_clk(dsi->regs);
+	regmap_mmio_detach_clk(dsi->regs);
 
 	return 0;
 }

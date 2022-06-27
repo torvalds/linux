@@ -21,7 +21,6 @@ static const char *__doc__ =
 #include <string.h>
 #include <unistd.h>
 #include <locale.h>
-#include <sys/resource.h>
 #include <sys/sysinfo.h>
 #include <getopt.h>
 #include <net/if.h>

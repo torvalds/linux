@@ -39,7 +39,7 @@
 	cs-select = <0>;
 	status = "okay";
 
-	m25p80@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		reg = <0>;

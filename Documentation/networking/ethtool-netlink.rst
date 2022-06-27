@@ -862,6 +862,7 @@ Kernel response contents:
   ``ETHTOOL_A_RINGS_RX_BUF_LEN``        u32     size of buffers on the ring
   ``ETHTOOL_A_RINGS_TCP_DATA_SPLIT``    u8      TCP header / data split
   ``ETHTOOL_A_RINGS_CQE_SIZE``          u32     Size of TX/RX CQE
+  ``ETHTOOL_A_RINGS_TX_PUSH``           u8      flag of TX Push mode
   ====================================  ======  ===========================
 
 ``ETHTOOL_A_RINGS_TCP_DATA_SPLIT`` indicates whether the device is usable with
@@ -871,6 +872,12 @@ separate buffers. The device configuration must make it possible to receive
 full memory pages of data, for example because MTU is high enough or through
 HW-GRO.
 
+``ETHTOOL_A_RINGS_TX_PUSH`` flag is used to enable descriptor fast
+path to send packets. In ordinary path, driver fills descriptors in DRAM and
+notifies NIC hardware. In fast path, driver pushes descriptors to the device
+through MMIO writes, thus reducing the latency. However, enabling this feature
+may increase the CPU cost. Drivers may enforce additional per-packet
+eligibility checks (e.g. on packet size).
 
 RINGS_SET
 =========
@@ -887,6 +894,7 @@ Request contents:
   ``ETHTOOL_A_RINGS_TX``                u32     size of TX ring
   ``ETHTOOL_A_RINGS_RX_BUF_LEN``        u32     size of buffers on the ring
   ``ETHTOOL_A_RINGS_CQE_SIZE``          u32     Size of TX/RX CQE
+  ``ETHTOOL_A_RINGS_TX_PUSH``           u8      flag of TX Push mode
   ====================================  ======  ===========================
 
 Kernel checks that requested ring sizes do not exceed limits reported by

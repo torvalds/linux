@@ -40,8 +40,11 @@
 #include <asm/mach-types.h>
 
 #include <linux/omap-dma.h>
+#include <linux/platform_data/usb-omap1.h>
 
-#include <mach/usb.h>
+#include <linux/soc/ti/omap1-usb.h>
+#include <linux/soc/ti/omap1-soc.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include "omap_udc.h"
 

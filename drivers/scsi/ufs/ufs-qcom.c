@@ -5,6 +5,9 @@
 
 #include <linux/acpi.h>
 #include <linux/time.h>
+#include <linux/clk.h>
+#include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/bitfield.h>
 #include <linux/platform_device.h>
@@ -36,8 +39,6 @@
 #define UFS_DDR "ufs-ddr"
 #define CPU_UFS "cpu-ufs"
 #define MAX_PROP_SIZE		   32
-#define VDDP_REF_CLK_MIN_UV        1200000
-#define VDDP_REF_CLK_MAX_UV        1200000
 
 #define UFS_QCOM_LOAD_MON_DLY_MS 30
 #define UFS_QCOM_DEFAULT_DBG_PRINT_EN	\
@@ -588,6 +589,7 @@ static int ufs_qcom_power_up_sequence(struct ufs_hba *hba)
 	struct ufs_qcom_host *host = ufshcd_get_variant(hba);
 	struct phy *phy = host->generic_phy;
 	int ret = 0;
+
 	enum phy_mode mode = (host->limit_rate == PA_HS_MODE_B) ?
 					PHY_MODE_UFS_HS_B : PHY_MODE_UFS_HS_A;
 	int submode = host->limit_phy_submode;
@@ -1138,34 +1140,14 @@ out:
 static int ufs_qcom_config_vreg(struct device *dev,
 		struct ufs_vreg *vreg, bool on)
 {
-	int ret = 0;
-	struct regulator *reg;
-	int min_uV, uA_load;
-
 	if (!vreg) {
 		WARN_ON(1);
-		ret = -EINVAL;
-		goto out;
+		return -EINVAL;
 	}
 
-	reg = vreg->reg;
-	if (regulator_count_voltages(reg) > 0) {
-		uA_load = on ? vreg->max_uA : 0;
-		ret = regulator_set_load(vreg->reg, uA_load);
-		if (ret)
-			goto out;
-		if (vreg->min_uV && vreg->max_uV) {
-			min_uV = on ? vreg->min_uV : 0;
-			ret = regulator_set_voltage(reg, min_uV, vreg->max_uV);
-			if (ret) {
-				dev_err(dev, "%s: %s failed, err=%d\n",
-					__func__, vreg->name, ret);
-				goto out;
-			}
-		}
-	}
-out:
-	return ret;
+	if (regulator_count_voltages(vreg->reg) <= 0)
+		return 0;
+	return regulator_set_load(vreg->reg, on ? vreg->max_uA : 0);
 }
 
 static int ufs_qcom_enable_vreg(struct device *dev, struct ufs_vreg *vreg)
@@ -1773,8 +1755,11 @@ static void ufs_qcom_dev_ref_clk_ctrl(struct ufs_qcom_host *host, bool enable)
 
 		writel_relaxed(temp, host->dev_ref_clk_ctrl_mmio);
 
-		/* ensure that ref_clk is enabled/disabled before we return */
-		wmb();
+		/*
+		 * Make sure the write to ref_clk reaches the destination and
+		 * not stored in a Write Buffer (WB).
+		 */
+		readl(host->dev_ref_clk_ctrl_mmio);
 
 		/*
 		 * If we call hibern8 exit after this, we need to make sure that
@@ -2096,6 +2081,8 @@ static void ufs_qcom_set_caps(struct ufs_hba *hba)
 	}
 
 	hba->caps |= UFSHCD_CAP_CRYPTO;
+	hba->caps |= UFSHCD_CAP_AGGR_POWER_COLLAPSE;
+	hba->caps |= UFSHCD_CAP_RPM_AUTOSUSPEND;
 
 	if (host->hw_ver.major >= 0x2)
 		host->caps = UFS_QCOM_CAP_QUNIPRO |
@@ -2316,30 +2303,6 @@ static int ufs_qcom_parse_reg_info(struct ufs_qcom_host *host, char *name,
 		ret = PTR_ERR(vreg->reg);
 		dev_err(dev, "%s: %s get failed, err=%d\n",
 			__func__, vreg->name, ret);
-	}
-
-	snprintf(prop_name, MAX_PROP_SIZE, "%s-min-uV", name);
-	ret = of_property_read_u32(np, prop_name, &vreg->min_uV);
-	if (ret) {
-		dev_dbg(dev, "%s: unable to find %s err %d, using default\n",
-			__func__, prop_name, ret);
-		if (!strcmp(name, "qcom,vddp-ref-clk"))
-			vreg->min_uV = VDDP_REF_CLK_MIN_UV;
-		else if (!strcmp(name, "qcom,vccq-parent"))
-			vreg->min_uV = 0;
-		ret = 0;
-	}
-
-	snprintf(prop_name, MAX_PROP_SIZE, "%s-max-uV", name);
-	ret = of_property_read_u32(np, prop_name, &vreg->max_uV);
-	if (ret) {
-		dev_dbg(dev, "%s: unable to find %s err %d, using default\n",
-			__func__, prop_name, ret);
-		if (!strcmp(name, "qcom,vddp-ref-clk"))
-			vreg->max_uV = VDDP_REF_CLK_MAX_UV;
-		else if (!strcmp(name, "qcom,vccq-parent"))
-			vreg->max_uV = 0;
-		ret = 0;
 	}
 
 out:
@@ -3202,13 +3165,12 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 	host->dbg_en = true;
 #endif
 
-	/* Setup the reset control of HCI */
-	host->core_reset = devm_reset_control_get(hba->dev, "rst");
+	/* Setup the optional reset control of HCI */
+	host->core_reset = devm_reset_control_get_optional(hba->dev, "rst");
 	if (IS_ERR(host->core_reset)) {
-		err = PTR_ERR(host->core_reset);
-		dev_warn(dev, "Failed to get reset control %d\n", err);
-		host->core_reset = NULL;
-		err = 0;
+		err = dev_err_probe(dev, PTR_ERR(host->core_reset),
+				    "Failed to get reset control\n");
+		goto out_variant_clear;
 	}
 
 	/* Fire up the reset controller. Failure here is non-fatal. */
@@ -3222,28 +3184,10 @@ static int ufs_qcom_init(struct ufs_hba *hba)
 		err = 0;
 	}
 
-	/*
-	 * voting/devoting device ref_clk source is time consuming hence
-	 * skip devoting it during aggressive clock gating. This clock
-	 * will still be gated off during runtime suspend.
-	 */
-	host->generic_phy = devm_phy_get(dev, "ufsphy");
-
-	if (host->generic_phy == ERR_PTR(-EPROBE_DEFER)) {
-		/*
-		 * UFS driver might be probed before the phy driver does.
-		 * In that case we would like to return EPROBE_DEFER code.
-		 */
-		err = -EPROBE_DEFER;
-		dev_warn(dev, "%s: required phy device. hasn't probed yet. err = %d\n",
-			__func__, err);
-		goto out_variant_clear;
-	} else if (IS_ERR(host->generic_phy)) {
-		if (has_acpi_companion(dev)) {
-			host->generic_phy = NULL;
-		} else {
-			err = PTR_ERR(host->generic_phy);
-			dev_err(dev, "%s: PHY get failed %d\n", __func__, err);
+	if (!has_acpi_companion(dev)) {
+		host->generic_phy = devm_phy_get(dev, "ufsphy");
+		if (IS_ERR(host->generic_phy)) {
+			err = dev_err_probe(dev, PTR_ERR(host->generic_phy), "Failed to get PHY\n");
 			goto out_variant_clear;
 		}
 	}
@@ -3984,32 +3928,38 @@ static int ufs_qcom_device_reset(struct ufs_hba *hba)
 	return 0;
 }
 
+#if IS_ENABLED(CONFIG_DEVFREQ_GOV_SIMPLE_ONDEMAND)
 static void ufs_qcom_config_scaling_param(struct ufs_hba *hba,
-					  struct devfreq_dev_profile *p,
-					  void *data)
+					struct devfreq_dev_profile *p,
+					struct devfreq_simple_ondemand_data *d)
 {
-	static struct devfreq_simple_ondemand_data *d;
-
-	if (!data)
-		return;
-
-	d = (struct devfreq_simple_ondemand_data *)data;
 	p->polling_ms = 60;
 	p->timer = DEVFREQ_TIMER_DELAYED;
 	d->upthreshold = 70;
 	d->downdifferential = 65;
 }
 
-static struct ufs_dev_fix ufs_qcom_dev_fixups[] = {
-	UFS_FIX(UFS_VENDOR_SAMSUNG, UFS_ANY_MODEL,
-		UFS_DEVICE_QUIRK_PA_HIBER8TIME),
-	UFS_FIX(UFS_VENDOR_MICRON, UFS_ANY_MODEL,
-		UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM),
-	UFS_FIX(UFS_VENDOR_SKHYNIX, UFS_ANY_MODEL,
-		UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM),
-	UFS_FIX(UFS_VENDOR_WDC, UFS_ANY_MODEL,
-		UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE),
-	END_FIX
+#else
+static void ufs_qcom_config_scaling_param(struct ufs_hba *hba,
+		struct devfreq_dev_profile *p,
+		struct devfreq_simple_ondemand_data *data)
+
+#endif
+
+static struct ufs_dev_quirk ufs_qcom_dev_fixups[] = {
+	{ .wmanufacturerid = UFS_VENDOR_SAMSUNG,
+	  .model = UFS_ANY_MODEL,
+	  .quirk = UFS_DEVICE_QUIRK_PA_HIBER8TIME },
+	{ .wmanufacturerid = UFS_VENDOR_MICRON,
+	  .model = UFS_ANY_MODEL,
+	  .quirk = UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM },
+	{ .wmanufacturerid = UFS_VENDOR_SKHYNIX,
+	  .model = UFS_ANY_MODEL,
+	  .quirk = UFS_DEVICE_QUIRK_DELAY_BEFORE_LPM },
+	{ .wmanufacturerid = UFS_VENDOR_WDC,
+	  .model = UFS_ANY_MODEL,
+	  .quirk = UFS_DEVICE_QUIRK_HOST_PA_TACTIVATE },
+	{}
 };
 
 static void ufs_qcom_fixup_dev_quirks(struct ufs_hba *hba)

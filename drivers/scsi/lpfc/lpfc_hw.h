@@ -97,6 +97,18 @@ union CtCommandResponse {
 #define FC4_FEATURE_INIT	0x2
 #define FC4_FEATURE_NVME_DISC	0x4
 
+enum rft_word0 {
+	RFT_FCP_REG	= (0x1 << 8),
+};
+
+enum rft_word1 {
+	RFT_NVME_REG	= (0x1 << 8),
+};
+
+enum rft_word3 {
+	RFT_APP_SERV_REG	= (0x1 << 0),
+};
+
 struct lpfc_sli_ct_request {
 	/* Structure is in Big Endian format */
 	union CtRevisionId RevisionId;
@@ -131,25 +143,13 @@ struct lpfc_sli_ct_request {
 			uint8_t Fc4Type;
 		} gid_ff;
 		struct rft {
-			uint32_t PortId;	/* For RFT_ID requests */
+			__be32 port_id; /* For RFT_ID requests */
 
-#ifdef __BIG_ENDIAN_BITFIELD
-			uint32_t rsvd0:16;
-			uint32_t rsvd1:7;
-			uint32_t fcpReg:1;	/* Type 8 */
-			uint32_t rsvd2:2;
-			uint32_t ipReg:1;	/* Type 5 */
-			uint32_t rsvd3:5;
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-			uint32_t rsvd0:16;
-			uint32_t fcpReg:1;	/* Type 8 */
-			uint32_t rsvd1:7;
-			uint32_t rsvd3:5;
-			uint32_t ipReg:1;	/* Type 5 */
-			uint32_t rsvd2:2;
-#endif
-
-			uint32_t rsvd[7];
+			__be32 fcp_reg;	/* rsvd 31:9, fcp_reg 8, rsvd 7:0 */
+			__be32 nvme_reg; /* rsvd 31:9, nvme_reg 8, rsvd 7:0 */
+			__be32 word2;
+			__be32 app_serv_reg; /* rsvd 31:1, app_serv_reg 0 */
+			__be32 word[4];
 		} rft;
 		struct rnn {
 			uint32_t PortId;	/* For RNN_ID requests */
@@ -510,8 +510,6 @@ struct class_parms {
 	uint8_t word3Reserved1;	/* Fc Word 3, bit  8:15 */
 	uint8_t word3Reserved2;	/* Fc Word 3, bit  0: 7 */
 };
-
-#define FAPWWN_KEY_VENDOR	0x42524344 /*valid vendor version fawwpn key*/
 
 struct serv_parm {	/* Structure is in Big Endian format */
 	struct csp cmn;
@@ -2650,19 +2648,26 @@ typedef struct {
 } READ_SPARM_VAR;
 
 /* Structure for MB Command READ_STATUS (14) */
+enum read_status_word1 {
+	RD_ST_CC	= 0x01,
+	RD_ST_XKB	= 0x80,
+};
+
+enum read_status_word17 {
+	RD_ST_XMIT_XKB_MASK = 0x3fffff,
+};
+
+enum read_status_word18 {
+	RD_ST_RCV_XKB_MASK = 0x3fffff,
+};
 
 typedef struct {
-#ifdef __BIG_ENDIAN_BITFIELD
-	uint32_t rsvd1:31;
-	uint32_t clrCounters:1;
-	uint16_t activeXriCnt;
-	uint16_t activeRpiCnt;
-#else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint32_t clrCounters:1;
-	uint32_t rsvd1:31;
-	uint16_t activeRpiCnt;
-	uint16_t activeXriCnt;
-#endif
+	u8 clear_counters; /* rsvd 7:1, cc 0 */
+	u8 rsvd5;
+	u8 rsvd6;
+	u8 xkb; /* xkb 7, rsvd 6:0 */
+
+	u32 rsvd8;
 
 	uint32_t xmitByteCnt;
 	uint32_t rcvByteCnt;
@@ -2674,6 +2679,14 @@ typedef struct {
 	uint32_t totalRespExchanges;
 	uint32_t rcvPbsyCnt;
 	uint32_t rcvFbsyCnt;
+
+	u32 drop_frame_no_rq;
+	u32 empty_rq;
+	u32 drop_frame_no_xri;
+	u32 empty_xri;
+
+	u32 xmit_xkb; /* rsvd 31:22, xmit_xkb 21:0 */
+	u32 rcv_xkb; /* rsvd 31:22, rcv_xkb 21:0 */
 } READ_STATUS_VAR;
 
 /* Structure for MB Command READ_RPI (15) */

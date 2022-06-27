@@ -124,7 +124,7 @@ phys_addr_t omap_secure_ram_mempool_base(void)
 }
 
 #if defined(CONFIG_ARCH_OMAP3) && defined(CONFIG_PM)
-u32 omap3_save_secure_ram(void __iomem *addr, int size)
+u32 omap3_save_secure_ram(void *addr, int size)
 {
 	static u32 param[5];
 	u32 ret;

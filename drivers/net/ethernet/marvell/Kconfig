@@ -62,6 +62,7 @@ config MVNETA
 	select MVMDIO
 	select PHYLINK
 	select PAGE_POOL
+	select PAGE_POOL_STATS
 	help
 	  This driver supports the network interface units in the
 	  Marvell ARMADA XP, ARMADA 370, ARMADA 38x and
@@ -177,6 +178,7 @@ config SKY2_DEBUG
 
 
 source "drivers/net/ethernet/marvell/octeontx2/Kconfig"
+source "drivers/net/ethernet/marvell/octeon_ep/Kconfig"
 source "drivers/net/ethernet/marvell/prestera/Kconfig"
 
 endif # NET_VENDOR_MARVELL

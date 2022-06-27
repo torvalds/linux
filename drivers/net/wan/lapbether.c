@@ -408,7 +408,7 @@ static int lapbeth_new_device(struct net_device *dev)
 	spin_lock_init(&lapbeth->up_lock);
 
 	skb_queue_head_init(&lapbeth->rx_queue);
-	netif_napi_add(ndev, &lapbeth->napi, lapbeth_napi_poll, 16);
+	netif_napi_add_weight(ndev, &lapbeth->napi, lapbeth_napi_poll, 16);
 
 	rc = -EIO;
 	if (register_netdevice(ndev))

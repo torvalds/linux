@@ -24,7 +24,7 @@
 #include <linux/device.h>
 #include <linux/hardirq.h>
 #include <linux/of_device.h>
-#include <asm/prom.h>
+
 #include <asm/machdep.h>
 #include <asm/irq.h>
 #include <asm/pmac_feature.h>

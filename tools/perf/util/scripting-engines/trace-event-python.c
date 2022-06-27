@@ -392,6 +392,18 @@ static const char *get_dsoname(struct map *map)
 	return dsoname;
 }
 
+static unsigned long get_offset(struct symbol *sym, struct addr_location *al)
+{
+	unsigned long offset;
+
+	if (al->addr < sym->end)
+		offset = al->addr - sym->start;
+	else
+		offset = al->addr - al->map->start - sym->start;
+
+	return offset;
+}
+
 static PyObject *python_process_callchain(struct perf_sample *sample,
 					 struct evsel *evsel,
 					 struct addr_location *al)
@@ -443,6 +455,25 @@ static PyObject *python_process_callchain(struct perf_sample *sample,
 					_PyUnicode_FromStringAndSize(node->ms.sym->name,
 							node->ms.sym->namelen));
 			pydict_set_item_string_decref(pyelem, "sym", pysym);
+
+			if (node->ms.map) {
+				struct map *map = node->ms.map;
+				struct addr_location node_al;
+				unsigned long offset;
+
+				node_al.addr = map->map_ip(map, node->ip);
+				node_al.map  = map;
+				offset = get_offset(node->ms.sym, &node_al);
+
+				pydict_set_item_string_decref(
+					pyelem, "sym_off",
+					PyLong_FromUnsignedLongLong(offset));
+			}
+			if (node->srcline && strcmp(":0", node->srcline)) {
+				pydict_set_item_string_decref(
+					pyelem, "sym_srcline",
+					_PyUnicode_FromString(node->srcline));
+			}
 		}
 
 		if (node->ms.map) {
@@ -518,18 +549,6 @@ static PyObject *python_process_brstack(struct perf_sample *sample,
 
 exit:
 	return pylist;
-}
-
-static unsigned long get_offset(struct symbol *sym, struct addr_location *al)
-{
-	unsigned long offset;
-
-	if (al->addr < sym->end)
-		offset = al->addr - sym->start;
-	else
-		offset = al->addr - al->map->start - sym->start;
-
-	return offset;
 }
 
 static int get_symoff(struct symbol *sym, struct addr_location *al,
@@ -2074,7 +2093,11 @@ static int python_generate_script(struct tep_handle *pevent, const char *outfile
 
 		fprintf(ofp, "\t\tfor node in common_callchain:");
 		fprintf(ofp, "\n\t\t\tif 'sym' in node:");
-		fprintf(ofp, "\n\t\t\t\tprint(\"\\t[%%x] %%s\" %% (node['ip'], node['sym']['name']))");
+		fprintf(ofp, "\n\t\t\t\tprint(\"\t[%%x] %%s%%s%%s%%s\" %% (");
+		fprintf(ofp, "\n\t\t\t\t\tnode['ip'], node['sym']['name'],");
+		fprintf(ofp, "\n\t\t\t\t\t\"+0x{:x}\".format(node['sym_off']) if 'sym_off' in node else \"\",");
+		fprintf(ofp, "\n\t\t\t\t\t\" ({})\".format(node['dso'])  if 'dso' in node else \"\",");
+		fprintf(ofp, "\n\t\t\t\t\t\" \" + node['sym_srcline'] if 'sym_srcline' in node else \"\"))");
 		fprintf(ofp, "\n\t\t\telse:");
 		fprintf(ofp, "\n\t\t\t\tprint(\"\t[%%x]\" %% (node['ip']))\n\n");
 		fprintf(ofp, "\t\tprint()\n\n");

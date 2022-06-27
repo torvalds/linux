@@ -30,7 +30,7 @@
  * means a subset of) the @child domain.
  */
 static bool domain_scope_le(const struct landlock_ruleset *const parent,
-		const struct landlock_ruleset *const child)
+			    const struct landlock_ruleset *const child)
 {
 	const struct landlock_hierarchy *walker;
 
@@ -48,7 +48,7 @@ static bool domain_scope_le(const struct landlock_ruleset *const parent,
 }
 
 static bool task_is_scoped(const struct task_struct *const parent,
-		const struct task_struct *const child)
+			   const struct task_struct *const child)
 {
 	bool is_scoped;
 	const struct landlock_ruleset *dom_parent, *dom_child;
@@ -62,7 +62,7 @@ static bool task_is_scoped(const struct task_struct *const parent,
 }
 
 static int task_ptrace(const struct task_struct *const parent,
-		const struct task_struct *const child)
+		       const struct task_struct *const child)
 {
 	/* Quick return for non-landlocked tasks. */
 	if (!landlocked(parent))
@@ -86,7 +86,7 @@ static int task_ptrace(const struct task_struct *const parent,
  * granted, -errno if denied.
  */
 static int hook_ptrace_access_check(struct task_struct *const child,
-		const unsigned int mode)
+				    const unsigned int mode)
 {
 	return task_ptrace(current, child);
 }
@@ -116,5 +116,5 @@ static struct security_hook_list landlock_hooks[] __lsm_ro_after_init = {
 __init void landlock_add_ptrace_hooks(void)
 {
 	security_add_hooks(landlock_hooks, ARRAY_SIZE(landlock_hooks),
-			LANDLOCK_NAME);
+			   LANDLOCK_NAME);
 }

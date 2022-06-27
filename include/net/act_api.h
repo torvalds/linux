@@ -134,7 +134,8 @@ struct tc_action_ops {
 	(*get_psample_group)(const struct tc_action *a,
 			     tc_action_priv_destructor *destructor);
 	int     (*offload_act_setup)(struct tc_action *act, void *entry_data,
-				     u32 *index_inc, bool bind);
+				     u32 *index_inc, bool bind,
+				     struct netlink_ext_ack *extack);
 };
 
 struct tc_action_net {

@@ -32,8 +32,8 @@
 #define GUC_CLIENT_PRIORITY_NORMAL	3
 #define GUC_CLIENT_PRIORITY_NUM		4
 
-#define GUC_MAX_LRC_DESCRIPTORS		65535
-#define	GUC_INVALID_LRC_ID		GUC_MAX_LRC_DESCRIPTORS
+#define GUC_MAX_CONTEXT_ID		65535
+#define	GUC_INVALID_CONTEXT_ID		GUC_MAX_CONTEXT_ID
 
 #define GUC_RENDER_ENGINE		0
 #define GUC_VIDEO_ENGINE		1
@@ -98,7 +98,13 @@
 #define   GUC_LOG_BUF_ADDR_SHIFT	12
 
 #define GUC_CTL_WA			1
-#define   GUC_WA_POLLCS                 BIT(18)
+#define   GUC_WA_GAM_CREDITS		BIT(10)
+#define   GUC_WA_DUAL_QUEUE		BIT(11)
+#define   GUC_WA_RCS_RESET_BEFORE_RC6	BIT(13)
+#define   GUC_WA_CONTEXT_ISOLATION	BIT(15)
+#define   GUC_WA_PRE_PARSER		BIT(14)
+#define   GUC_WA_HOLD_CCS_SWITCHOUT	BIT(17)
+#define   GUC_WA_POLLCS			BIT(18)
 
 #define GUC_CTL_FEATURE			2
 #define   GUC_CTL_ENABLE_SLPC		BIT(2)
@@ -197,54 +203,45 @@ struct guc_wq_item {
 	u32 fence_id;
 } __packed;
 
-struct guc_process_desc {
-	u32 stage_id;
-	u64 db_base_addr;
+struct guc_sched_wq_desc {
 	u32 head;
 	u32 tail;
 	u32 error_offset;
-	u64 wq_base_addr;
-	u32 wq_size_bytes;
 	u32 wq_status;
-	u32 engine_presence;
-	u32 priority;
-	u32 reserved[36];
+	u32 reserved[28];
 } __packed;
 
+/* Helper for context registration H2G */
+struct guc_ctxt_registration_info {
+	u32 flags;
+	u32 context_idx;
+	u32 engine_class;
+	u32 engine_submit_mask;
+	u32 wq_desc_lo;
+	u32 wq_desc_hi;
+	u32 wq_base_lo;
+	u32 wq_base_hi;
+	u32 wq_size;
+	u32 hwlrca_lo;
+	u32 hwlrca_hi;
+};
 #define CONTEXT_REGISTRATION_FLAG_KMD	BIT(0)
 
-#define CONTEXT_POLICY_DEFAULT_EXECUTION_QUANTUM_US 1000000
-#define CONTEXT_POLICY_DEFAULT_PREEMPTION_TIME_US 500000
+/* 32-bit KLV structure as used by policy updates and others */
+struct guc_klv_generic_dw_t {
+	u32 kl;
+	u32 value;
+} __packed;
 
-/* Preempt to idle on quantum expiry */
-#define CONTEXT_POLICY_FLAG_PREEMPT_TO_IDLE	BIT(0)
+/* Format of the UPDATE_CONTEXT_POLICIES H2G data packet */
+struct guc_update_context_policy_header {
+	u32 action;
+	u32 ctx_id;
+} __packed;
 
-/*
- * GuC Context registration descriptor.
- * FIXME: This is only required to exist during context registration.
- * The current 1:1 between guc_lrc_desc and LRCs for the lifetime of the LRC
- * is not required.
- */
-struct guc_lrc_desc {
-	u32 hw_context_desc;
-	u32 slpm_perf_mode_hint;	/* SPLC v1 only */
-	u32 slpm_freq_hint;
-	u32 engine_submit_mask;		/* In logical space */
-	u8 engine_class;
-	u8 reserved0[3];
-	u32 priority;
-	u32 process_desc;
-	u32 wq_addr;
-	u32 wq_size;
-	u32 context_flags;		/* CONTEXT_REGISTRATION_* */
-	/* Time for one workload to execute. (in micro seconds) */
-	u32 execution_quantum;
-	/* Time to wait for a preemption request to complete before issuing a
-	 * reset. (in micro seconds).
-	 */
-	u32 preemption_timeout;
-	u32 policy_flags;		/* CONTEXT_POLICY_* */
-	u32 reserved1[19];
+struct guc_update_context_policy {
+	struct guc_update_context_policy_header header;
+	struct guc_klv_generic_dw_t klv[GUC_CONTEXT_POLICIES_KLV_NUM_IDS];
 } __packed;
 
 #define GUC_POWER_UNSPECIFIED	0
@@ -285,10 +282,13 @@ struct guc_mmio_reg {
 	u32 offset;
 	u32 value;
 	u32 flags;
-	u32 mask;
 #define GUC_REGSET_MASKED		BIT(0)
+#define GUC_REGSET_NEEDS_STEERING	BIT(1)
 #define GUC_REGSET_MASKED_WITH_VALUE	BIT(2)
 #define GUC_REGSET_RESTORE_ONLY		BIT(3)
+#define GUC_REGSET_STEERING_GROUP       GENMASK(15, 12)
+#define GUC_REGSET_STEERING_INSTANCE    GENMASK(23, 20)
+	u32 mask;
 } __packed;
 
 /* GuC register sets */
@@ -309,6 +309,14 @@ enum {
 	GUC_CAPTURE_LIST_INDEX_PF = 0,
 	GUC_CAPTURE_LIST_INDEX_VF = 1,
 	GUC_CAPTURE_LIST_INDEX_MAX = 2,
+};
+
+/*Register-types of GuC capture register lists */
+enum guc_capture_type {
+	GUC_CAPTURE_LIST_TYPE_GLOBAL = 0,
+	GUC_CAPTURE_LIST_TYPE_ENGINE_CLASS,
+	GUC_CAPTURE_LIST_TYPE_ENGINE_INSTANCE,
+	GUC_CAPTURE_LIST_TYPE_MAX,
 };
 
 /* GuC Additional Data Struct */

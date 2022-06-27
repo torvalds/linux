@@ -40,6 +40,8 @@
   autoremove_wake_function
   available_idle_cpu
   balance_push_callback
+  bdev_end_io_acct
+  bdev_start_io_acct
   bio_endio
   bio_end_io_acct_remapped
   bio_start_io_acct
@@ -526,6 +528,7 @@
   flush_delayed_work
   flush_work
   flush_workqueue
+  __folio_lock
   fortify_panic
   fput
   free_io_pgtable_ops
@@ -1555,7 +1558,6 @@
   snprintf
   soc_device_register
   soc_device_unregister
-  sock_alloc_send_skb
   sock_create_kern
   sock_gettstamp
   sock_init_data
@@ -1565,7 +1567,6 @@
   sock_no_sendpage
   sock_no_shutdown
   sock_no_socketpair
-  sock_queue_rcv_skb
   sock_register
   sock_release
   sock_setsockopt
@@ -1629,6 +1630,7 @@
   __sw_hweight32
   __sw_hweight64
   __sw_hweight8
+  sync_blockdev
   synchronize_irq
   synchronize_rcu
   synchronize_rcu_expedited
@@ -1949,3 +1951,13 @@
   xsk_tx_peek_desc
   xsk_tx_release
   xsk_uses_need_wakeup
+  zs_compact
+  zs_create_pool
+  zs_destroy_pool
+  zs_free
+  zs_get_total_pages
+  zs_huge_class_size
+  zs_malloc
+  zs_map_object
+  zs_pool_stats
+  zs_unmap_object

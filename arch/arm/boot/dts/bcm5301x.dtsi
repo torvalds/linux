@@ -455,7 +455,7 @@
 				reg = <0x180 0x4>;
 			};
 
-			pinctrl: pin-controller@1c0 {
+			pinctrl: pinctrl@1c0 {
 				compatible = "brcm,bcm4708-pinmux";
 				reg = <0x1c0 0x24>;
 				reg-names = "cru_gpio_control";

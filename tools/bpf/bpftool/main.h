@@ -102,8 +102,6 @@ int detect_common_prefix(const char *arg, ...);
 void fprint_hex(FILE *f, void *arg, unsigned int n, const char *sep);
 void usage(void) __noreturn;
 
-void set_max_rlimit(void);
-
 int mount_tracefs(const char *target);
 
 struct obj_ref {

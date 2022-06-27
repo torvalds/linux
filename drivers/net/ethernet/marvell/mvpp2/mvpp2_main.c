@@ -1869,7 +1869,7 @@ static u32 mvpp2_read_index(struct mvpp2 *priv, u32 index, u32 reg)
  * design, incremented at different moments in the chain of packet processing,
  * it is very likely that incoming packets could have been dropped after being
  * counted by hardware but before reaching software statistics (most probably
- * multicast packets), and in the oppposite way, during transmission, FCS bytes
+ * multicast packets), and in the opposite way, during transmission, FCS bytes
  * are added in between as well as TSO skb will be split and header bytes added.
  * Hence, statistics gathered from userspace with ifconfig (software) and
  * ethtool (hardware) cannot be compared.
@@ -6861,7 +6861,7 @@ static int mvpp2_port_probe(struct platform_device *pdev,
 		mvpp2_set_hw_csum(port, port->pool_long->id);
 
 	dev->vlan_features |= features;
-	netif_set_gso_max_segs(dev, MVPP2_MAX_TSO_SEGS);
+	netif_set_tso_max_segs(dev, MVPP2_MAX_TSO_SEGS);
 	dev->priv_flags |= IFF_UNICAST_FLT;
 
 	/* MTU range: 68 - 9704 */

@@ -304,6 +304,10 @@
 					pinctrl-1 = <&usb_a_1_sleep>;
 				};
 
+				ab8500_fg {
+					line-impedance-micro-ohms = <36000>;
+				};
+
 				regulator {
 					ab8500_ldo_aux1 {
 						regulator-name = "sensor_3v";

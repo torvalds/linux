@@ -92,6 +92,7 @@
 		pinctrl-0 = <&en_pp3300_codec>;
 
 		vin-supply = <&pp3300_z1>;
+		status = "disabled";
 	};
 
 	pp3300_left_in_mlb: pp3300-left-in-mlb-regulator {
@@ -132,6 +133,7 @@
 		pinctrl-0 = <&en_fp_rails>;
 
 		vin-supply = <&pp3300_z1>;
+		status = "disabled";
 	};
 
 	pp3300_hub: pp3300-hub-regulator {
@@ -178,6 +180,13 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&ssd_en>;
 
+		/*
+		 * The bootloaer may have left PCIe configured. Powering this
+		 * off while the PCIe clocks are still running isn't great,
+		 * so it's better to default to this regulator being on.
+		 */
+		regulator-boot-on;
+
 		vin-supply = <&pp3300_z1>;
 	};
 
@@ -194,6 +203,7 @@
 		pinctrl-0 = <&wf_cam_en>;
 
 		vin-supply = <&pp3300_z1>;
+		status = "disabled";
 	};
 
 	pp2850_wf_cam: pp2850-wf-cam-regulator {
@@ -214,6 +224,7 @@
 		 */
 
 		vin-supply = <&pp3300_z1>;
+		status = "disabled";
 	};
 
 	pp1800_fp: pp1800-fp-regulator {
@@ -258,6 +269,7 @@
 		 */
 
 		vin-supply = <&vreg_l19b_s0>;
+		status = "disabled";
 	};
 
 	pp1200_wf_cam: pp1200-wf-cam-regulator {
@@ -278,6 +290,7 @@
 		 */
 
 		vin-supply = <&pp3300_z1>;
+		status = "disabled";
 	};
 
 	/* BOARD-SPECIFIC TOP LEVEL NODES */
@@ -295,7 +308,10 @@
 };
 
 /*
- * BOARD-LOCAL NAMES FOR REGULATORS THAT CONNECT TO QCARD
+ * ADJUSTMENTS TO QCARD REGULATORS
+ *
+ * Mostly this is just board-local names for regulators that come from
+ * Qcard, but this also has some minor regulator overrides.
  *
  * Names are only listed here if regulators go somewhere other than a
  * testpoint.
@@ -339,7 +355,59 @@ vreg_edp_bl: &ppvar_sys {};
 ts_avdd:      &pp3300_left_in_mlb {};
 vreg_edp_3p3: &pp3300_left_in_mlb {};
 
+/* Regulator overrides from Qcard */
+
+/*
+ * Herobrine boards only use l2c to power an external audio codec (like
+ * alc5682) and we want that to be at 1.8V, not at some slightly lower voltage.
+ */
+&vreg_l2c_1p8 {
+	regulator-min-microvolt = <1800000>;
+};
+
 /* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
+
+&edp_panel {
+	/* Our board provides power to the qcard for the eDP panel. */
+	power-supply = <&vreg_edp_3p3>;
+};
+
+ap_sar_sensor_i2c: &i2c1 {
+	clock-frequency = <400000>;
+	status = "disabled";
+
+	ap_sar_sensor0: proximity@28 {
+		compatible = "semtech,sx9324";
+		reg = <0x28>;
+		#io-channel-cells = <1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sar0_irq_odl>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <141 IRQ_TYPE_LEVEL_LOW>;
+
+		vdd-supply = <&pp1800_prox>;
+
+		label = "proximity-wifi-lte0";
+		status = "disabled";
+	};
+
+	ap_sar_sensor1: proximity@2c {
+		compatible = "semtech,sx9324";
+		reg = <0x2c>;
+		#io-channel-cells = <1>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&sar1_irq_odl>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <140 IRQ_TYPE_LEVEL_LOW>;
+
+		vdd-supply = <&pp1800_prox>;
+
+		label = "proximity-wifi-lte1";
+		status = "disabled";
+	};
+};
 
 ap_i2c_tpm: &i2c14 {
 	status = "okay";
@@ -357,6 +425,14 @@ ap_i2c_tpm: &i2c14 {
 	};
 };
 
+&mdss {
+	status = "okay";
+};
+
+&mdss_mdp {
+	status = "okay";
+};
+
 /* NVMe drive, enabled on a per-board basis */
 &pcie1 {
 	pinctrl-names = "default";
@@ -364,6 +440,17 @@ ap_i2c_tpm: &i2c14 {
 
 	perst-gpio = <&tlmm 2 GPIO_ACTIVE_LOW>;
 	vddpe-3v3-supply = <&pp3300_ssd>;
+};
+
+&pm8350c_pwm {
+	status = "okay";
+};
+
+&pm8350c_pwm_backlight {
+	status = "okay";
+
+	/* Our board provides power to the qcard for the backlight */
+	power-supply = <&vreg_edp_bl>;
 };
 
 &pmk8350_rtc {
@@ -677,7 +764,6 @@ ap_ec_spi: &spi10 {
 		function = "gpio";
 		bias-disable;
 		drive-strength = <2>;
-		output-high;
 	};
 
 	fp_to_ap_irq_l: fp-to-ap-irq-l {
@@ -691,7 +777,6 @@ ap_ec_spi: &spi10 {
 		pins = "gpio68";
 		function = "gpio";
 		bias-disable;
-		output-low;
 	};
 
 	gsc_ap_int_odl: gsc-ap-int-odl {
@@ -741,7 +826,7 @@ ap_ec_spi: &spi10 {
 		bias-pull-up;
 	};
 
-	sar1_irq_odl: sar0-irq-odl {
+	sar1_irq_odl: sar1-irq-odl {
 		pins = "gpio140";
 		function = "gpio";
 		bias-pull-up;

@@ -15,7 +15,6 @@
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
-#include "bpf_rlimit.h"
 #include "cgroup_helpers.h"
 
 static int start_server(const struct sockaddr *addr, socklen_t len, bool dual)
@@ -234,6 +233,9 @@ int main(int argc, char **argv)
 		fprintf(stderr, "Usage: %s prog_id\n", argv[0]);
 		exit(1);
 	}
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	results = get_map_fd_by_prog_id(atoi(argv[1]), &xdp);
 	if (results < 0) {

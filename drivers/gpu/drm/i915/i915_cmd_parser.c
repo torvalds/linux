@@ -25,6 +25,8 @@
  *
  */
 
+#include <linux/highmem.h>
+
 #include <drm/drm_cache.h>
 
 #include "gt/intel_engine.h"

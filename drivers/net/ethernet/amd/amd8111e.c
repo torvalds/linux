@@ -1828,7 +1828,7 @@ static int amd8111e_probe_one(struct pci_dev *pdev,
 	dev->watchdog_timeo = AMD8111E_TX_TIMEOUT;
 	dev->min_mtu = AMD8111E_MIN_MTU;
 	dev->max_mtu = AMD8111E_MAX_MTU;
-	netif_napi_add(dev, &lp->napi, amd8111e_rx_poll, 32);
+	netif_napi_add_weight(dev, &lp->napi, amd8111e_rx_poll, 32);
 
 #if AMD8111E_VLAN_TAG_USED
 	dev->features |= NETIF_F_HW_VLAN_CTAG_TX | NETIF_F_HW_VLAN_CTAG_RX;

@@ -211,7 +211,6 @@ struct i915_vma {
 	 * handles (but same file) for execbuf, i.e. the number of aliases
 	 * that exist in the ctx->handle_vmas LUT for this vma.
 	 */
-	struct kref ref;
 	atomic_t open_count;
 	atomic_t flags;
 	/**
@@ -270,6 +269,13 @@ struct i915_vma {
 #define I915_VMA_PAGES_BIAS 24
 #define I915_VMA_PAGES_ACTIVE (BIT(24) | 1)
 	atomic_t pages_count; /* number of active binds to the pages */
+
+	/**
+	 * Whether we hold a reference on the vm dma_resv lock to temporarily
+	 * block vm freeing until the vma is destroyed.
+	 * Protected by the vm mutex.
+	 */
+	bool vm_ddestroy;
 
 	/**
 	 * Support different GGTT views into the same object.

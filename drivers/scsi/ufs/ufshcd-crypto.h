@@ -6,9 +6,12 @@
 #ifndef _UFSHCD_CRYPTO_H
 #define _UFSHCD_CRYPTO_H
 
-#ifdef CONFIG_SCSI_UFS_CRYPTO
+#include <scsi/scsi_cmnd.h>
 #include "ufshcd.h"
+#include "ufshcd-priv.h"
 #include "ufshci.h"
+
+#ifdef CONFIG_SCSI_UFS_CRYPTO
 
 static inline void ufshcd_prepare_lrbp_crypto(struct request *rq,
 					      struct ufshcd_lrb *lrbp)

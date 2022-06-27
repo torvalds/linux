@@ -304,24 +304,23 @@ static void pdr_indication_cb(struct qmi_handle *qmi,
 					      notifier_hdl);
 	const struct servreg_state_updated_ind *ind_msg = data;
 	struct pdr_list_node *ind;
-	struct pdr_service *pds;
-	bool found = false;
+	struct pdr_service *pds = NULL, *iter;
 
 	if (!ind_msg || !ind_msg->service_path[0] ||
 	    strlen(ind_msg->service_path) > SERVREG_NAME_LENGTH)
 		return;
 
 	mutex_lock(&pdr->list_lock);
-	list_for_each_entry(pds, &pdr->lookups, node) {
-		if (strcmp(pds->service_path, ind_msg->service_path))
+	list_for_each_entry(iter, &pdr->lookups, node) {
+		if (strcmp(iter->service_path, ind_msg->service_path))
 			continue;
 
-		found = true;
+		pds = iter;
 		break;
 	}
 	mutex_unlock(&pdr->list_lock);
 
-	if (!found)
+	if (!pds)
 		return;
 
 	pr_info("PDR: Indication received from %s, state: 0x%x, trans-id: %d\n",

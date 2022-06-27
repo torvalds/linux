@@ -36,6 +36,7 @@ struct ttm_device_funcs *i915_ttm_driver(void);
 #ifdef CONFIG_DRM_I915_SELFTEST
 struct ttm_resource *
 intel_region_ttm_resource_alloc(struct intel_memory_region *mem,
+				resource_size_t offset,
 				resource_size_t size,
 				unsigned int flags);
 #endif

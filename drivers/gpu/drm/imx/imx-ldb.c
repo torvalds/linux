@@ -150,10 +150,9 @@ static int imx_ldb_connector_get_modes(struct drm_connector *connector)
 	if (imx_ldb_ch->mode_valid) {
 		struct drm_display_mode *mode;
 
-		mode = drm_mode_create(connector->dev);
+		mode = drm_mode_duplicate(connector->dev, &imx_ldb_ch->mode);
 		if (!mode)
 			return -EINVAL;
-		drm_mode_copy(mode, &imx_ldb_ch->mode);
 		mode->type |= DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED;
 		drm_mode_probed_add(connector, mode);
 		num_modes++;

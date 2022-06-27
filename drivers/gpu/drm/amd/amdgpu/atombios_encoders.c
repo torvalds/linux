@@ -765,7 +765,6 @@ amdgpu_atombios_encoder_setup_dig_transmitter(struct drm_encoder *encoder, int a
 	int dp_clock = 0;
 	int dp_lane_count = 0;
 	int connector_object_id = 0;
-	int igp_lane_info = 0;
 	int dig_encoder = dig->dig_encoder;
 	int hpd_id = AMDGPU_HPD_NONE;
 
@@ -847,26 +846,6 @@ amdgpu_atombios_encoder_setup_dig_transmitter(struct drm_encoder *encoder, int a
 				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG2_ENCODER;
 			else
 				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_DIG1_ENCODER;
-
-			if ((adev->flags & AMD_IS_APU) &&
-			    (amdgpu_encoder->encoder_id == ENCODER_OBJECT_ID_INTERNAL_UNIPHY)) {
-				if (is_dp ||
-				    !amdgpu_dig_monitor_is_duallink(encoder, amdgpu_encoder->pixel_clock)) {
-					if (igp_lane_info & 0x1)
-						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_3;
-					else if (igp_lane_info & 0x2)
-						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_4_7;
-					else if (igp_lane_info & 0x4)
-						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_11;
-					else if (igp_lane_info & 0x8)
-						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_12_15;
-				} else {
-					if (igp_lane_info & 0x3)
-						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_0_7;
-					else if (igp_lane_info & 0xc)
-						args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LANE_8_15;
-				}
-			}
 
 			if (dig->linkb)
 				args.v1.ucConfig |= ATOM_TRANSMITTER_CONFIG_LINKB;

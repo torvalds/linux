@@ -145,15 +145,15 @@ static int secretmem_migratepage(struct address_space *mapping,
 	return -EBUSY;
 }
 
-static void secretmem_freepage(struct page *page)
+static void secretmem_free_folio(struct folio *folio)
 {
-	set_direct_map_default_noflush(page);
-	clear_highpage(page);
+	set_direct_map_default_noflush(&folio->page);
+	folio_zero_segment(folio, 0, folio_size(folio));
 }
 
 const struct address_space_operations secretmem_aops = {
 	.dirty_folio	= noop_dirty_folio,
-	.freepage	= secretmem_freepage,
+	.free_folio	= secretmem_free_folio,
 	.migratepage	= secretmem_migratepage,
 	.isolate_page	= secretmem_isolate_page,
 };

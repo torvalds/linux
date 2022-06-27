@@ -10,10 +10,30 @@
         "Unit": "iMC"
     },
     {
+        "BriefDescription": "read requests to memory controller",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.RD",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0x3",
+        "Unit": "iMC"
+    },
+    {
         "BriefDescription": "write requests to memory controller. Derived from unc_m_cas_count.wr",
         "Counter": "0,1,2,3",
         "EventCode": "0x4",
         "EventName": "LLC_MISSES.MEM_WRITE",
+        "PerPkg": "1",
+        "ScaleUnit": "64Bytes",
+        "UMask": "0xC",
+        "Unit": "iMC"
+    },
+    {
+        "BriefDescription": "write requests to memory controller",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_M_CAS_COUNT.WR",
         "PerPkg": "1",
         "ScaleUnit": "64Bytes",
         "UMask": "0xC",

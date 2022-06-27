@@ -48,7 +48,7 @@ static int dir_rename(struct inode *old_dir, struct dentry *old_dentry,
 
 static int file_open(struct inode *inode, struct file *file);
 static int file_release(struct inode *inode, struct file *file);
-static int read_single_page(struct file *f, struct page *page);
+static int read_folio(struct file *f, struct folio *folio);
 static long dispatch_ioctl(struct file *f, unsigned int req, unsigned long arg);
 
 #ifdef CONFIG_COMPAT
@@ -114,7 +114,7 @@ static const struct dentry_operations incfs_dentry_ops = {
 };
 
 static const struct address_space_operations incfs_address_space_ops = {
-	.readpage = read_single_page,
+	.read_folio = read_folio,
 	/* .readpages = readpages */
 };
 
@@ -136,7 +136,7 @@ static int incfs_file_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	struct address_space *mapping = file->f_mapping;
 
-	if (!mapping->a_ops->readpage)
+	if (!mapping->a_ops->read_folio)
 		return -ENOEXEC;
 	file_accessed(file);
 	vma->vm_ops = &incfs_file_vm_ops;
@@ -518,8 +518,9 @@ static int read_single_page_timeouts(struct data_file *df, struct file *f,
 					  &timeouts);
 }
 
-static int read_single_page(struct file *f, struct page *page)
+static int read_folio(struct file *f, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	loff_t offset = 0;
 	loff_t size = 0;
 	ssize_t bytes_to_read = 0;

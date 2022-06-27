@@ -255,43 +255,6 @@ drm_atomic_set_fb_for_plane(struct drm_plane_state *plane_state,
 EXPORT_SYMBOL(drm_atomic_set_fb_for_plane);
 
 /**
- * drm_atomic_set_fence_for_plane - set fence for plane
- * @plane_state: atomic state object for the plane
- * @fence: dma_fence to use for the plane
- *
- * Helper to setup the plane_state fence in case it is not set yet.
- * By using this drivers doesn't need to worry if the user choose
- * implicit or explicit fencing.
- *
- * This function will not set the fence to the state if it was set
- * via explicit fencing interfaces on the atomic ioctl. In that case it will
- * drop the reference to the fence as we are not storing it anywhere.
- * Otherwise, if &drm_plane_state.fence is not set this function we just set it
- * with the received implicit fence. In both cases this function consumes a
- * reference for @fence.
- *
- * This way explicit fencing can be used to overrule implicit fencing, which is
- * important to make explicit fencing use-cases work: One example is using one
- * buffer for 2 screens with different refresh rates. Implicit fencing will
- * clamp rendering to the refresh rate of the slower screen, whereas explicit
- * fence allows 2 independent render and display loops on a single buffer. If a
- * driver allows obeys both implicit and explicit fences for plane updates, then
- * it will break all the benefits of explicit fencing.
- */
-void
-drm_atomic_set_fence_for_plane(struct drm_plane_state *plane_state,
-			       struct dma_fence *fence)
-{
-	if (plane_state->fence) {
-		dma_fence_put(fence);
-		return;
-	}
-
-	plane_state->fence = fence;
-}
-EXPORT_SYMBOL(drm_atomic_set_fence_for_plane);
-
-/**
  * drm_atomic_set_crtc_for_connector - set CRTC for connector
  * @conn_state: atomic state object for the connector
  * @crtc: CRTC to use for the connector
@@ -1077,10 +1040,10 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
  *
  * As a contrast, with implicit fencing the kernel keeps track of any
  * ongoing rendering, and automatically ensures that the atomic update waits
- * for any pending rendering to complete. For shared buffers represented with
- * a &struct dma_buf this is tracked in &struct dma_resv.
- * Implicit syncing is how Linux traditionally worked (e.g. DRI2/3 on X.org),
- * whereas explicit fencing is what Android wants.
+ * for any pending rendering to complete. This is usually tracked in &struct
+ * dma_resv which can also contain mandatory kernel fences. Implicit syncing
+ * is how Linux traditionally worked (e.g. DRI2/3 on X.org), whereas explicit
+ * fencing is what Android wants.
  *
  * "IN_FENCE_FD”:
  *	Use this property to pass a fence that DRM should wait on before
@@ -1095,7 +1058,7 @@ int drm_atomic_set_property(struct drm_atomic_state *state,
  *
  *	On the driver side the fence is stored on the @fence parameter of
  *	&struct drm_plane_state. Drivers which also support implicit fencing
- *	should set the implicit fence using drm_atomic_set_fence_for_plane(),
+ *	should extract the implicit fence using drm_gem_plane_helper_prepare_fb(),
  *	to make sure there's consistent behaviour between drivers in precedence
  *	of implicit vs. explicit fencing.
  *
@@ -1328,7 +1291,6 @@ int drm_mode_atomic_ioctl(struct drm_device *dev,
 	struct drm_out_fence_state *fence_state;
 	int ret = 0;
 	unsigned int i, j, num_fences;
-	struct drm_printer p = drm_info_printer(dev->dev);
 
 	/* disallow for drivers not supporting atomic: */
 	if (!drm_core_check_feature(dev, DRIVER_ATOMIC))
@@ -1460,9 +1422,6 @@ retry:
 	} else if (arg->flags & DRM_MODE_ATOMIC_NONBLOCK) {
 		ret = drm_atomic_nonblocking_commit(state);
 	} else {
-		if (drm_debug_enabled(DRM_UT_STATE))
-			drm_atomic_print_new_state(state, &p);
-
 		ret = drm_atomic_commit(state);
 	}
 

@@ -40,9 +40,9 @@ xfs_qm_fill_state(
 	tstate->spc_timelimit = (u32)defq->blk.time;
 	tstate->ino_timelimit = (u32)defq->ino.time;
 	tstate->rt_spc_timelimit = (u32)defq->rtb.time;
-	tstate->spc_warnlimit = defq->blk.warn;
-	tstate->ino_warnlimit = defq->ino.warn;
-	tstate->rt_spc_warnlimit = defq->rtb.warn;
+	tstate->spc_warnlimit = 0;
+	tstate->ino_warnlimit = 0;
+	tstate->rt_spc_warnlimit = 0;
 	if (tempqip)
 		xfs_irele(ip);
 }
@@ -98,7 +98,7 @@ xfs_quota_type(int type)
 	}
 }
 
-#define XFS_QC_SETINFO_MASK (QC_TIMER_MASK | QC_WARNS_MASK)
+#define XFS_QC_SETINFO_MASK (QC_TIMER_MASK)
 
 /*
  * Adjust quota timers & warnings

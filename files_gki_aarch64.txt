@@ -446,6 +446,7 @@ block/blk-mq.c
 block/blk-mq-cpumap.c
 block/blk-mq-debugfs.c
 block/blk-mq-debugfs.h
+block/blk-mq-debugfs-zoned.c
 block/blk-mq.h
 block/blk-mq-pci.c
 block/blk-mq-sched.c
@@ -465,6 +466,7 @@ block/blk-sysfs.c
 block/blk-throttle.h
 block/blk-timeout.c
 block/blk-wbt.h
+block/blk-zoned.c
 block/bsg.c
 block/bsg-lib.c
 block/disk-events.c
@@ -644,6 +646,10 @@ drivers/base/trace.h
 drivers/base/transport_class.c
 drivers/block/brd.c
 drivers/block/loop.c
+drivers/block/zram/zcomp.c
+drivers/block/zram/zcomp.h
+drivers/block/zram/zram_drv.c
+drivers/block/zram/zram_drv.h
 drivers/bluetooth/btbcm.c
 drivers/bluetooth/btbcm.h
 drivers/bluetooth/btintel.h
@@ -786,6 +792,7 @@ drivers/firmware/arm_scmi/notify.c
 drivers/firmware/arm_scmi/notify.h
 drivers/firmware/arm_scmi/perf.c
 drivers/firmware/arm_scmi/power.c
+drivers/firmware/arm_scmi/protocols.h
 drivers/firmware/arm_scmi/reset.c
 drivers/firmware/arm_scmi/sensors.c
 drivers/firmware/arm_scmi/shmem.c
@@ -822,14 +829,12 @@ drivers/firmware/efi/memattr.c
 drivers/firmware/efi/memmap.c
 drivers/firmware/efi/reboot.c
 drivers/firmware/efi/runtime-wrappers.c
-drivers/firmware/efi/sysfb_efi.c
 drivers/firmware/efi/tpm.c
 drivers/firmware/efi/vars.c
 drivers/firmware/psci/psci.c
 drivers/firmware/smccc/kvm_guest.c
 drivers/firmware/smccc/smccc.c
 drivers/firmware/smccc/soc_id.c
-drivers/firmware/sysfb.c
 drivers/gnss/core.c
 drivers/gpio/gpiolib-acpi.h
 drivers/gpio/gpiolib.c
@@ -867,7 +872,6 @@ drivers/gpu/drm/drm_debugfs.c
 drivers/gpu/drm/drm_debugfs_crc.c
 drivers/gpu/drm/drm_displayid.c
 drivers/gpu/drm/drm_drv.c
-drivers/gpu/drm/drm_dsc.c
 drivers/gpu/drm/drm_dumb_buffers.c
 drivers/gpu/drm/drm_edid.c
 drivers/gpu/drm/drm_encoder.c
@@ -881,7 +885,6 @@ drivers/gpu/drm/drm_gem_atomic_helper.c
 drivers/gpu/drm/drm_gem.c
 drivers/gpu/drm/drm_gem_framebuffer_helper.c
 drivers/gpu/drm/drm_gem_shmem_helper.c
-drivers/gpu/drm/drm_hdcp.c
 drivers/gpu/drm/drm_internal.h
 drivers/gpu/drm/drm_ioc32.c
 drivers/gpu/drm/drm_ioctl.c
@@ -908,7 +911,6 @@ drivers/gpu/drm/drm_print.c
 drivers/gpu/drm/drm_probe_helper.c
 drivers/gpu/drm/drm_property.c
 drivers/gpu/drm/drm_rect.c
-drivers/gpu/drm/drm_scdc_helper.c
 drivers/gpu/drm/drm_self_refresh_helper.c
 drivers/gpu/drm/drm_simple_kms_helper.c
 drivers/gpu/drm/drm_syncobj.c
@@ -1110,6 +1112,7 @@ drivers/md/dm-verity-fec.h
 drivers/md/dm-verity.h
 drivers/md/dm-verity-target.c
 drivers/md/dm-verity-verify-sig.h
+drivers/md/dm-zone.c
 drivers/media/cec/core/cec-adap.c
 drivers/media/cec/core/cec-api.c
 drivers/media/cec/core/cec-core.c
@@ -1493,6 +1496,7 @@ drivers/scsi/scsi_trace.c
 drivers/scsi/scsi_transport_api.h
 drivers/scsi/sd.c
 drivers/scsi/sd.h
+drivers/scsi/sd_zbc.c
 drivers/scsi/ufs/tc-dwc-g210.c
 drivers/scsi/ufs/tc-dwc-g210.h
 drivers/scsi/ufs/tc-dwc-g210-pltfrm.c
@@ -1511,6 +1515,7 @@ drivers/scsi/ufs/ufshcd.h
 drivers/scsi/ufs/ufshcd-pci.c
 drivers/scsi/ufs/ufshcd-pltfrm.c
 drivers/scsi/ufs/ufshcd-pltfrm.h
+drivers/scsi/ufs/ufshcd-priv.h
 drivers/scsi/ufs/ufshci-dwc.h
 drivers/scsi/ufs/ufshci.h
 drivers/scsi/ufs/ufs-hisi.c
@@ -1851,6 +1856,7 @@ fs/ext4/acl.h
 fs/ext4/balloc.c
 fs/ext4/bitmap.c
 fs/ext4/block_validity.c
+fs/ext4/crypto.c
 fs/ext4/dir.c
 fs/ext4/ext4_extents.h
 fs/ext4/ext4.h
@@ -2057,6 +2063,7 @@ fs/nls/nls_koi8-r.c
 fs/nls/nls_koi8-ru.c
 fs/nls/nls_koi8-u.c
 fs/nls/nls_utf8.c
+fs/notify/fanotify/fanotify.h
 fs/notify/fdinfo.c
 fs/notify/fdinfo.h
 fs/notify/fsnotify.c
@@ -2351,7 +2358,8 @@ include/crypto/sm3_base.h
 include/crypto/sm3.h
 include/crypto/streebog.h
 include/crypto/xts.h
-include/drm/dp/drm_dp_helper.h
+include/drm/display/drm_dp.h
+include/drm/display/drm_dsc.h
 include/drm/drm_aperture.h
 include/drm/drm_atomic.h
 include/drm/drm_atomic_helper.h
@@ -2373,7 +2381,6 @@ include/drm/drm_debugfs.h
 include/drm/drm_device.h
 include/drm/drm_displayid.h
 include/drm/drm_drv.h
-include/drm/drm_dsc.h
 include/drm/drm_edid.h
 include/drm/drm_encoder.h
 include/drm/drm_encoder_slave.h
@@ -2387,7 +2394,6 @@ include/drm/drm_gem_atomic_helper.h
 include/drm/drm_gem_framebuffer_helper.h
 include/drm/drm_gem.h
 include/drm/drm_gem_shmem_helper.h
-include/drm/drm_hdcp.h
 include/drm/drm_ioctl.h
 include/drm/drm_lease.h
 include/drm/drm_legacy.h
@@ -2411,7 +2417,6 @@ include/drm/drm_privacy_screen_machine.h
 include/drm/drm_probe_helper.h
 include/drm/drm_property.h
 include/drm/drm_rect.h
-include/drm/drm_scdc_helper.h
 include/drm/drm_self_refresh_helper.h
 include/drm/drm_simple_kms_helper.h
 include/drm/drm_syncobj.h
@@ -2458,6 +2463,7 @@ include/keys/system_keyring.h
 include/keys/trusted-type.h
 include/keys/user-type.h
 include/kunit/assert.h
+include/kunit/resource.h
 include/kunit/test-bug.h
 include/kunit/test.h
 include/kunit/try-catch.h
@@ -2561,7 +2567,6 @@ include/linux/can/bittiming.h
 include/linux/can/can-ml.h
 include/linux/can/core.h
 include/linux/can/dev.h
-include/linux/can/led.h
 include/linux/can/length.h
 include/linux/can/rx-offload.h
 include/linux/can/skb.h
@@ -3208,7 +3213,6 @@ include/linux/pipe_fs_i.h
 include/linux/pkeys.h
 include/linux/platform_data/dsa.h
 include/linux/platform_data/pinctrl-single.h
-include/linux/platform_data/simplefb.h
 include/linux/platform_data/syscon.h
 include/linux/platform_data/x86/apple.h
 include/linux/platform_device.h
@@ -3482,7 +3486,6 @@ include/linux/syscalls.h
 include/linux/syscall_user_dispatch.h
 include/linux/syscore_ops.h
 include/linux/sysctl.h
-include/linux/sysfb.h
 include/linux/sysfs.h
 include/linux/syslog.h
 include/linux/sysrq.h
@@ -3636,6 +3639,8 @@ include/linux/xxhash.h
 include/linux/xz.h
 include/linux/zconf.h
 include/linux/zlib.h
+include/linux/zpool.h
+include/linux/zsmalloc.h
 include/linux/zstd_errors.h
 include/linux/zstd.h
 include/linux/zstd_lib.h
@@ -3773,6 +3778,7 @@ include/net/mpls.h
 include/net/mptcp.h
 include/net/ndisc.h
 include/net/neighbour.h
+include/net/net_debug.h
 include/net/netevent.h
 include/net/netfilter/ipv4/nf_conntrack_ipv4.h
 include/net/netfilter/ipv4/nf_defrag_ipv4.h
@@ -4629,6 +4635,7 @@ kernel/bpf/dispatcher.c
 kernel/bpf/hashtab.c
 kernel/bpf/helpers.c
 kernel/bpf/inode.c
+kernel/bpf/link_iter.c
 kernel/bpf/local_storage.c
 kernel/bpf/lpm_trie.c
 kernel/bpf/map_in_map.c
@@ -5014,6 +5021,7 @@ lib/kunit/assert.c
 lib/kunit/debugfs.c
 lib/kunit/debugfs.h
 lib/kunit/executor.c
+lib/kunit/resource.c
 lib/kunit/string-stream.c
 lib/kunit/string-stream.h
 lib/kunit/test.c
@@ -5277,6 +5285,7 @@ mm/vmpressure.c
 mm/vmscan.c
 mm/vmstat.c
 mm/workingset.c
+mm/zsmalloc.c
 net/6lowpan/6lowpan_i.h
 net/6lowpan/core.c
 net/6lowpan/iphc.c
@@ -5375,9 +5384,9 @@ net/can/raw.c
 net/compat.c
 net/core/bpf_sk_storage.c
 net/core/datagram.c
-net/core/datagram.h
 net/core/dev_addr_lists.c
 net/core/dev.c
+net/core/dev.h
 net/core/dev_ioctl.c
 net/core/dst.c
 net/core/dst_cache.c

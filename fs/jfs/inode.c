@@ -293,9 +293,9 @@ static int jfs_writepages(struct address_space *mapping,
 	return mpage_writepages(mapping, wbc, jfs_get_block);
 }
 
-static int jfs_readpage(struct file *file, struct page *page)
+static int jfs_read_folio(struct file *file, struct folio *folio)
 {
-	return mpage_readpage(page, jfs_get_block);
+	return mpage_read_folio(folio, jfs_get_block);
 }
 
 static void jfs_readahead(struct readahead_control *rac)
@@ -314,13 +314,12 @@ static void jfs_write_failed(struct address_space *mapping, loff_t to)
 }
 
 static int jfs_write_begin(struct file *file, struct address_space *mapping,
-				loff_t pos, unsigned len, unsigned flags,
+				loff_t pos, unsigned len,
 				struct page **pagep, void **fsdata)
 {
 	int ret;
 
-	ret = nobh_write_begin(mapping, pos, len, flags, pagep, fsdata,
-				jfs_get_block);
+	ret = nobh_write_begin(mapping, pos, len, pagep, fsdata, jfs_get_block);
 	if (unlikely(ret))
 		jfs_write_failed(mapping, pos + len);
 
@@ -360,7 +359,7 @@ static ssize_t jfs_direct_IO(struct kiocb *iocb, struct iov_iter *iter)
 const struct address_space_operations jfs_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.readpage	= jfs_readpage,
+	.read_folio	= jfs_read_folio,
 	.readahead	= jfs_readahead,
 	.writepage	= jfs_writepage,
 	.writepages	= jfs_writepages,

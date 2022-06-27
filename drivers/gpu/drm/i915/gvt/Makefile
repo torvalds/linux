@@ -1,9 +1,25 @@
 # SPDX-License-Identifier: GPL-2.0
-GVT_DIR := gvt
-GVT_SOURCE := gvt.o aperture_gm.o handlers.o vgpu.o trace_points.o firmware.o \
-	interrupt.o gtt.o cfg_space.o opregion.o mmio.o display.o edid.o \
-	execlist.o scheduler.o sched_policy.o mmio_context.o cmd_parser.o debugfs.o \
-	fb_decoder.o dmabuf.o page_track.o
 
-ccflags-y				+= -I $(srctree)/$(src) -I $(srctree)/$(src)/$(GVT_DIR)/
-i915-y					+= $(addprefix $(GVT_DIR)/, $(GVT_SOURCE))
+kvmgt-$(CONFIG_DRM_I915_GVT) += \
+	gvt/aperture_gm.o \
+	gvt/cfg_space.o \
+	gvt/cmd_parser.o \
+	gvt/debugfs.o \
+	gvt/display.o \
+	gvt/dmabuf.o \
+	gvt/edid.o \
+	gvt/execlist.o \
+	gvt/fb_decoder.o \
+	gvt/firmware.o \
+	gvt/gtt.o \
+	gvt/handlers.o \
+	gvt/interrupt.o \
+	gvt/kvmgt.o \
+	gvt/mmio.o \
+	gvt/mmio_context.o \
+	gvt/opregion.o \
+	gvt/page_track.o \
+	gvt/sched_policy.o \
+	gvt/scheduler.o \
+	gvt/trace_points.o \
+	gvt/vgpu.o

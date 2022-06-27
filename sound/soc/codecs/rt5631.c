@@ -1699,8 +1699,7 @@ static const struct regmap_config rt5631_regmap_config = {
 	.use_single_write = true,
 };
 
-static int rt5631_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5631_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5631_priv *rt5631;
 	int ret;
@@ -1732,7 +1731,7 @@ static struct i2c_driver rt5631_i2c_driver = {
 		.name = "rt5631",
 		.of_match_table = of_match_ptr(rt5631_i2c_dt_ids),
 	},
-	.probe = rt5631_i2c_probe,
+	.probe_new = rt5631_i2c_probe,
 	.remove   = rt5631_i2c_remove,
 	.id_table = rt5631_i2c_id,
 };

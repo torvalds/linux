@@ -166,6 +166,13 @@ static void vpu_session_handle_firmware_xcpt(struct vpu_inst *inst, struct vpu_r
 	vpu_v4l2_set_error(inst);
 }
 
+static void vpu_session_handle_pic_skipped(struct vpu_inst *inst, struct vpu_rpc_event *pkt)
+{
+	vpu_inst_lock(inst);
+	vpu_skip_frame(inst, 1);
+	vpu_inst_unlock(inst);
+}
+
 static struct vpu_msg_handler handlers[] = {
 	{VPU_MSG_ID_START_DONE, vpu_session_handle_start_done},
 	{VPU_MSG_ID_STOP_DONE, vpu_session_handle_stop_done},
@@ -181,6 +188,7 @@ static struct vpu_msg_handler handlers[] = {
 	{VPU_MSG_ID_PIC_EOS, vpu_session_handle_eos},
 	{VPU_MSG_ID_UNSUPPORTED, vpu_session_handle_error},
 	{VPU_MSG_ID_FIRMWARE_XCPT, vpu_session_handle_firmware_xcpt},
+	{VPU_MSG_ID_PIC_SKIPPED, vpu_session_handle_pic_skipped},
 };
 
 static int vpu_session_handle_msg(struct vpu_inst *inst, struct vpu_rpc_event *msg)

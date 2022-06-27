@@ -777,9 +777,6 @@ static void enetc_pf_netdev_setup(struct enetc_si *si, struct net_device *ndev,
 
 	ndev->priv_flags |= IFF_UNICAST_FLT;
 
-	if (si->hw_features & ENETC_SI_F_QBV)
-		priv->active_offloads |= ENETC_F_QBV;
-
 	if (si->hw_features & ENETC_SI_F_PSFP && !enetc_psfp_enable(priv)) {
 		priv->active_offloads |= ENETC_F_QCI;
 		ndev->features |= NETIF_F_HW_TC;
@@ -993,7 +990,8 @@ static void enetc_pl_mac_link_up(struct phylink_config *config,
 	int idx;
 
 	priv = netdev_priv(pf->si->ndev);
-	if (priv->active_offloads & ENETC_F_QBV)
+
+	if (pf->si->hw_features & ENETC_SI_F_QBV)
 		enetc_sched_speed_set(priv, speed);
 
 	if (!phylink_autoneg_inband(mode) &&
@@ -1107,8 +1105,7 @@ static int enetc_phylink_create(struct enetc_ndev_priv *priv,
 
 static void enetc_phylink_destroy(struct enetc_ndev_priv *priv)
 {
-	if (priv->phylink)
-		phylink_destroy(priv->phylink);
+	phylink_destroy(priv->phylink);
 }
 
 /* Initialize the entire shared memory for the flow steering entries
@@ -1275,15 +1272,19 @@ static int enetc_pf_probe(struct pci_dev *pdev,
 		goto err_alloc_msix;
 	}
 
-	if (!of_get_phy_mode(node, &pf->if_mode)) {
-		err = enetc_mdiobus_create(pf, node);
-		if (err)
-			goto err_mdiobus_create;
-
-		err = enetc_phylink_create(priv, node);
-		if (err)
-			goto err_phylink_create;
+	err = of_get_phy_mode(node, &pf->if_mode);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to read PHY mode\n");
+		goto err_phy_mode;
 	}
+
+	err = enetc_mdiobus_create(pf, node);
+	if (err)
+		goto err_mdiobus_create;
+
+	err = enetc_phylink_create(priv, node);
+	if (err)
+		goto err_phylink_create;
 
 	err = register_netdev(ndev);
 	if (err)
@@ -1296,6 +1297,7 @@ err_reg_netdev:
 err_phylink_create:
 	enetc_mdiobus_destroy(pf);
 err_mdiobus_create:
+err_phy_mode:
 	enetc_free_msix(priv);
 err_config_si:
 err_alloc_msix:

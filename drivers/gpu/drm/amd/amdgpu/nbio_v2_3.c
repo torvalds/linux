@@ -278,7 +278,7 @@ static void nbio_v2_3_update_medium_grain_light_sleep(struct amdgpu_device *adev
 }
 
 static void nbio_v2_3_get_clockgating_state(struct amdgpu_device *adev,
-					    u32 *flags)
+					    u64 *flags)
 {
 	int data;
 

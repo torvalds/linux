@@ -12,6 +12,7 @@
 #include <linux/platform_device.h>
 #include <linux/of.h>
 #include <linux/delay.h>
+#include <linux/pm_runtime.h>
 
 #include "ufshcd-pltfrm.h"
 #include "ufshcd-dwc.h"

@@ -12,6 +12,7 @@
 #define OCELOT_PORT_MODE_QSGMII		BIT(2)
 #define OCELOT_PORT_MODE_2500BASEX	BIT(3)
 #define OCELOT_PORT_MODE_USXGMII	BIT(4)
+#define OCELOT_PORT_MODE_1000BASEX	BIT(5)
 
 /* Platform-specific information */
 struct felix_info {
@@ -24,7 +25,6 @@ struct felix_info {
 	const u32			*port_modes;
 	int				num_mact_rows;
 	const struct ocelot_stat_layout	*stats_layout;
-	unsigned int			num_stats;
 	int				num_ports;
 	int				num_tx_queues;
 	struct vcap_props		*vcap;
@@ -59,6 +59,19 @@ struct felix_info {
 				      struct resource *res);
 };
 
+/* Methods for initializing the hardware resources specific to a tagging
+ * protocol (like the NPI port, for "ocelot" or "seville", or the VCAP TCAMs,
+ * for "ocelot-8021q").
+ * It is important that the resources configured here do not have side effects
+ * for the other tagging protocols. If that is the case, their configuration
+ * needs to go to felix_tag_proto_setup_shared().
+ */
+struct felix_tag_proto_ops {
+	int (*setup)(struct dsa_switch *ds);
+	void (*teardown)(struct dsa_switch *ds);
+	unsigned long (*get_host_fwd_mask)(struct dsa_switch *ds);
+};
+
 extern const struct dsa_switch_ops felix_switch_ops;
 
 /* DSA glue / front-end for struct ocelot */
@@ -71,7 +84,10 @@ struct felix {
 	resource_size_t			switch_base;
 	resource_size_t			imdio_base;
 	enum dsa_tag_protocol		tag_proto;
+	const struct felix_tag_proto_ops *tag_proto_ops;
 	struct kthread_worker		*xmit_worker;
+	unsigned long			host_flood_uc_mask;
+	unsigned long			host_flood_mc_mask;
 };
 
 struct net_device *felix_port_to_netdev(struct ocelot *ocelot, int port);

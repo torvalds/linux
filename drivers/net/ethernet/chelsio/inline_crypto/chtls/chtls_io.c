@@ -1426,7 +1426,7 @@ static void chtls_cleanup_rbuf(struct sock *sk, int copied)
 }
 
 static int chtls_pt_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-			    int nonblock, int flags, int *addr_len)
+			    int flags, int *addr_len)
 {
 	struct chtls_sock *csk = rcu_dereference_sk_user_data(sk);
 	struct chtls_hws *hws = &csk->tlshws;
@@ -1441,7 +1441,7 @@ static int chtls_pt_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 
 	buffers_freed = 0;
 
-	timeo = sock_rcvtimeo(sk, nonblock);
+	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
 
 	if (unlikely(csk_flag(sk, CSK_UPDATE_RCV_WND)))
@@ -1616,7 +1616,7 @@ skip_copy:
  * Peek at data in a socket's receive buffer.
  */
 static int peekmsg(struct sock *sk, struct msghdr *msg,
-		   size_t len, int nonblock, int flags)
+		   size_t len, int flags)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	u32 peek_seq, offset;
@@ -1626,7 +1626,7 @@ static int peekmsg(struct sock *sk, struct msghdr *msg,
 	long timeo;
 
 	lock_sock(sk);
-	timeo = sock_rcvtimeo(sk, nonblock);
+	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 	peek_seq = tp->copied_seq;
 
 	do {
@@ -1737,7 +1737,7 @@ found_ok_skb:
 }
 
 int chtls_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
-		  int nonblock, int flags, int *addr_len)
+		  int flags, int *addr_len)
 {
 	struct tcp_sock *tp = tcp_sk(sk);
 	struct chtls_sock *csk;
@@ -1750,25 +1750,23 @@ int chtls_recvmsg(struct sock *sk, struct msghdr *msg, size_t len,
 	buffers_freed = 0;
 
 	if (unlikely(flags & MSG_OOB))
-		return tcp_prot.recvmsg(sk, msg, len, nonblock, flags,
-					addr_len);
+		return tcp_prot.recvmsg(sk, msg, len, flags, addr_len);
 
 	if (unlikely(flags & MSG_PEEK))
-		return peekmsg(sk, msg, len, nonblock, flags);
+		return peekmsg(sk, msg, len, flags);
 
 	if (sk_can_busy_loop(sk) &&
 	    skb_queue_empty_lockless(&sk->sk_receive_queue) &&
 	    sk->sk_state == TCP_ESTABLISHED)
-		sk_busy_loop(sk, nonblock);
+		sk_busy_loop(sk, flags & MSG_DONTWAIT);
 
 	lock_sock(sk);
 	csk = rcu_dereference_sk_user_data(sk);
 
 	if (is_tls_rx(csk))
-		return chtls_pt_recvmsg(sk, msg, len, nonblock,
-					flags, addr_len);
+		return chtls_pt_recvmsg(sk, msg, len, flags, addr_len);
 
-	timeo = sock_rcvtimeo(sk, nonblock);
+	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 	target = sock_rcvlowat(sk, flags & MSG_WAITALL, len);
 
 	if (unlikely(csk_flag(sk, CSK_UPDATE_RCV_WND)))
