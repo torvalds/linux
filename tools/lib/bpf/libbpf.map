@@ -326,10 +326,11 @@ LIBBPF_0.7.0 {
 		bpf_xdp_detach;
 		bpf_xdp_query;
 		bpf_xdp_query_id;
+		btf_ext__raw_data;
 		libbpf_probe_bpf_helper;
 		libbpf_probe_bpf_map_type;
 		libbpf_probe_bpf_prog_type;
-		libbpf_set_memlock_rlim_max;
+		libbpf_set_memlock_rlim;
 } LIBBPF_0.6.0;
 
 LIBBPF_0.8.0 {
