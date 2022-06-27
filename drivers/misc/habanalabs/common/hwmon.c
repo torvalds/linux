@@ -910,3 +910,24 @@ void hl_hwmon_fini(struct hl_device *hdev)
 
 	hwmon_device_unregister(hdev->hwmon_dev);
 }
+
+void hl_hwmon_release_resources(struct hl_device *hdev)
+{
+	const struct hwmon_channel_info **channel_info_arr;
+	int i = 0;
+
+	if (!hdev->hl_chip_info->info)
+		return;
+
+	channel_info_arr = hdev->hl_chip_info->info;
+
+	while (channel_info_arr[i]) {
+		kfree(channel_info_arr[i]->config);
+		kfree(channel_info_arr[i]);
+		i++;
+	}
+
+	kfree(channel_info_arr);
+
+	hdev->hl_chip_info->info = NULL;
+}

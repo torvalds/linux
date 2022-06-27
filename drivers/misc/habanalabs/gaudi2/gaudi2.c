@@ -2711,23 +2711,7 @@ disable_pci_access:
 
 static void gaudi2_late_fini(struct hl_device *hdev)
 {
-	const struct hwmon_channel_info **channel_info_arr;
-	int i = 0;
-
-	if (!hdev->hl_chip_info->info)
-		return;
-
-	channel_info_arr = hdev->hl_chip_info->info;
-
-	while (channel_info_arr[i]) {
-		kfree(channel_info_arr[i]->config);
-		kfree(channel_info_arr[i]);
-		i++;
-	}
-
-	kfree(channel_info_arr);
-
-	hdev->hl_chip_info->info = NULL;
+	hl_hwmon_release_resources(hdev);
 }
 
 static void gaudi2_user_mapped_dec_init(struct gaudi2_device *gaudi2, u32 start_idx)

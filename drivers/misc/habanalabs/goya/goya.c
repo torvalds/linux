@@ -916,26 +916,11 @@ int goya_late_init(struct hl_device *hdev)
  */
 void goya_late_fini(struct hl_device *hdev)
 {
-	const struct hwmon_channel_info **channel_info_arr;
 	struct goya_device *goya = hdev->asic_specific;
-	int i = 0;
 
 	cancel_delayed_work_sync(&goya->goya_work->work_freq);
 
-	if (!hdev->hl_chip_info->info)
-		return;
-
-	channel_info_arr = hdev->hl_chip_info->info;
-
-	while (channel_info_arr[i]) {
-		kfree(channel_info_arr[i]->config);
-		kfree(channel_info_arr[i]);
-		i++;
-	}
-
-	kfree(channel_info_arr);
-
-	hdev->hl_chip_info->info = NULL;
+	hl_hwmon_release_resources(hdev);
 }
 
 static void goya_set_pci_memory_regions(struct hl_device *hdev)

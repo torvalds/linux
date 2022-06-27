@@ -1682,23 +1682,7 @@ disable_pci_access:
 
 static void gaudi_late_fini(struct hl_device *hdev)
 {
-	const struct hwmon_channel_info **channel_info_arr;
-	int i = 0;
-
-	if (!hdev->hl_chip_info->info)
-		return;
-
-	channel_info_arr = hdev->hl_chip_info->info;
-
-	while (channel_info_arr[i]) {
-		kfree(channel_info_arr[i]->config);
-		kfree(channel_info_arr[i]);
-		i++;
-	}
-
-	kfree(channel_info_arr);
-
-	hdev->hl_chip_info->info = NULL;
+	hl_hwmon_release_resources(hdev);
 }
 
 static int gaudi_alloc_cpu_accessible_dma_mem(struct hl_device *hdev)

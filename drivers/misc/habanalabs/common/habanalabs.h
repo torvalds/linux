@@ -3529,6 +3529,7 @@ void hl_sysfs_fini(struct hl_device *hdev);
 
 int hl_hwmon_init(struct hl_device *hdev);
 void hl_hwmon_fini(struct hl_device *hdev);
+void hl_hwmon_release_resources(struct hl_device *hdev);
 
 int hl_cb_create(struct hl_device *hdev, struct hl_mem_mgr *mmg,
 			struct hl_ctx *ctx, u32 cb_size, bool internal_cb,
