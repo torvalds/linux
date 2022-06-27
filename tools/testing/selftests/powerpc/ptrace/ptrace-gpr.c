@@ -16,32 +16,27 @@ double a = FPR_1;
 double b = FPR_2;
 double c = FPR_3;
 
+extern void gpr_child_loop(int *read_flag, int *write_flag,
+			   unsigned long *gpr_buf, double *fpr_buf);
+
 void gpr(void)
 {
-	unsigned long gpr_buf[18];
+	unsigned long gpr_buf[32];
 	double fpr_buf[32];
+	int i;
 
 	cptr = (int *)shmat(shm_id, NULL, 0);
+	memset(gpr_buf, 0, sizeof(gpr_buf));
+	memset(fpr_buf, 0, sizeof(fpr_buf));
 
-	asm __volatile__(
-		ASM_LOAD_GPR_IMMED(gpr_1)
-		ASM_LOAD_FPR(flt_1)
-		:
-		: [gpr_1]"i"(GPR_1), [flt_1] "b" (&a)
-		: "memory", "r6", "r7", "r8", "r9", "r10",
-		"r11", "r12", "r13", "r14", "r15", "r16", "r17",
-		"r18", "r19", "r20", "r21", "r22", "r23", "r24",
-		"r25", "r26", "r27", "r28", "r29", "r30", "r31"
-		);
+	for (i = 0; i < 32; i++) {
+		gpr_buf[i] = GPR_1;
+		fpr_buf[i] = a;
+	}
 
-	cptr[1] = 1;
-
-	while (!cptr[0])
-		asm volatile("" : : : "memory");
+	gpr_child_loop(&cptr[0], &cptr[1], gpr_buf, fpr_buf);
 
 	shmdt((void *)cptr);
-	store_gpr(gpr_buf);
-	store_fpr(fpr_buf);
 
 	if (validate_gpr(gpr_buf, GPR_3))
 		exit(1);

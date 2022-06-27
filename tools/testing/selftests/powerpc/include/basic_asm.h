@@ -94,4 +94,12 @@
 	PPC_LL	r0, STACK_FRAME_LR_POS(%r1); \
 	mtlr	r0;
 
+.macro OP_REGS op, reg_width, start_reg, end_reg, base_reg, base_reg_offset=0, skip=0
+	.set i, \start_reg
+	.rept (\end_reg - \start_reg + 1)
+	\op	i, (\reg_width * (i - \skip) + \base_reg_offset)(\base_reg)
+	.set i, i + 1
+	.endr
+.endm
+
 #endif /* _SELFTESTS_POWERPC_BASIC_ASM_H */
