@@ -8262,7 +8262,7 @@ dump related UV data. Also the vcpu ioctl `KVM_S390_PV_CPU_COMMAND` is
 available and supports the `KVM_PV_DUMP_CPU` subcommand.
 
 8.38 KVM_CAP_VM_DISABLE_NX_HUGE_PAGES
----------------------------
+-------------------------------------
 
 :Capability KVM_CAP_VM_DISABLE_NX_HUGE_PAGES
 :Architectures: x86
