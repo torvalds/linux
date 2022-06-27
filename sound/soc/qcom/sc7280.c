@@ -19,9 +19,11 @@
 #include "../codecs/rt5682s.h"
 #include "common.h"
 #include "lpass.h"
+#include "qdsp6/q6afe.h"
 
 #define DEFAULT_MCLK_RATE              19200000
 #define RT5682_PLL_FREQ (48000 * 512)
+#define MI2S_BCLK_RATE		1536000
 
 struct sc7280_snd_data {
 	struct snd_soc_card card;
@@ -79,6 +81,7 @@ static int sc7280_headset_init(struct snd_soc_pcm_runtime *rtd)
 	case MI2S_PRIMARY:
 	case LPASS_CDC_DMA_RX0:
 	case LPASS_CDC_DMA_TX3:
+	case TX_CODEC_DMA_TX_3:
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
 			rval = snd_soc_component_set_jack(component, &pdata->hs_jack, NULL);
 			if (rval != 0 && rval != -ENOTSUPP) {
@@ -164,10 +167,14 @@ static int sc7280_init(struct snd_soc_pcm_runtime *rtd)
 	switch (cpu_dai->id) {
 	case MI2S_PRIMARY:
 	case LPASS_CDC_DMA_TX3:
+	case TX_CODEC_DMA_TX_3:
 		return sc7280_headset_init(rtd);
 	case LPASS_CDC_DMA_RX0:
 	case LPASS_CDC_DMA_VA_TX0:
 	case MI2S_SECONDARY:
+	case RX_CODEC_DMA_RX_0:
+	case SECONDARY_MI2S_RX:
+	case VA_CODEC_DMA_TX_0:
 		return 0;
 	case LPASS_DP_RX:
 		return sc7280_hdmi_init(rtd);
@@ -195,6 +202,10 @@ static int sc7280_snd_hw_params(struct snd_pcm_substream *substream,
 	switch (cpu_dai->id) {
 	case LPASS_CDC_DMA_TX3:
 	case LPASS_CDC_DMA_RX0:
+	case RX_CODEC_DMA_RX_0:
+	case SECONDARY_MI2S_RX:
+	case TX_CODEC_DMA_TX_3:
+	case VA_CODEC_DMA_TX_0:
 		for_each_rtd_codec_dais(rtd, i, codec_dai) {
 			sruntime = snd_soc_dai_get_stream(codec_dai, substream->stream);
 			if (sruntime != ERR_PTR(-ENOTSUPP))
@@ -245,6 +256,9 @@ static int sc7280_snd_prepare(struct snd_pcm_substream *substream)
 	switch (cpu_dai->id) {
 	case LPASS_CDC_DMA_RX0:
 	case LPASS_CDC_DMA_TX3:
+	case RX_CODEC_DMA_RX_0:
+	case TX_CODEC_DMA_TX_3:
+	case VA_CODEC_DMA_TX_0:
 		return sc7280_snd_swr_prepare(substream);
 	default:
 		break;
@@ -263,6 +277,9 @@ static int sc7280_snd_hw_free(struct snd_pcm_substream *substream)
 	switch (cpu_dai->id) {
 	case LPASS_CDC_DMA_RX0:
 	case LPASS_CDC_DMA_TX3:
+	case RX_CODEC_DMA_RX_0:
+	case TX_CODEC_DMA_TX_3:
+	case VA_CODEC_DMA_TX_0:
 		if (sruntime && data->stream_prepared[cpu_dai->id]) {
 			sdw_disable_stream(sruntime);
 			sdw_deprepare_stream(sruntime);
@@ -291,6 +308,10 @@ static void sc7280_snd_shutdown(struct snd_pcm_substream *substream)
 					       SNDRV_PCM_STREAM_PLAYBACK);
 		}
 		break;
+	case SECONDARY_MI2S_RX:
+		snd_soc_dai_set_sysclk(cpu_dai, Q6AFE_LPASS_CLK_ID_SEC_MI2S_IBIT,
+					       0, SNDRV_PCM_STREAM_PLAYBACK);
+		break;
 	default:
 		break;
 	}
@@ -298,13 +319,25 @@ static void sc7280_snd_shutdown(struct snd_pcm_substream *substream)
 
 static int sc7280_snd_startup(struct snd_pcm_substream *substream)
 {
+	unsigned int fmt = SND_SOC_DAIFMT_CBS_CFS;
+	unsigned int codec_dai_fmt = SND_SOC_DAIFMT_CBS_CFS;
 	struct snd_soc_pcm_runtime *rtd = substream->private_data;
 	struct snd_soc_dai *cpu_dai = asoc_rtd_to_cpu(rtd, 0);
+	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	int ret = 0;
 
 	switch (cpu_dai->id) {
 	case MI2S_PRIMARY:
 		ret = sc7280_rt5682_init(rtd);
+		break;
+	case SECONDARY_MI2S_RX:
+		codec_dai_fmt |= SND_SOC_DAIFMT_NB_NF | SND_SOC_DAIFMT_I2S;
+
+		snd_soc_dai_set_sysclk(cpu_dai, Q6AFE_LPASS_CLK_ID_SEC_MI2S_IBIT,
+			MI2S_BCLK_RATE, SNDRV_PCM_STREAM_PLAYBACK);
+
+		snd_soc_dai_set_fmt(cpu_dai, fmt);
+		snd_soc_dai_set_fmt(codec_dai, codec_dai_fmt);
 		break;
 	default:
 		break;
