@@ -11,6 +11,7 @@ struct mlxsw_sp_pgt {
 	struct idr pgt_idr;
 	u16 end_index; /* Exclusive. */
 	struct mutex lock; /* Protects PGT. */
+	bool smpe_index_valid;
 };
 
 int mlxsw_sp_pgt_mid_alloc(struct mlxsw_sp *mlxsw_sp, u16 *p_mid)
@@ -107,6 +108,7 @@ int mlxsw_sp_pgt_init(struct mlxsw_sp *mlxsw_sp)
 	idr_init(&pgt->pgt_idr);
 	pgt->end_index = MLXSW_CORE_RES_GET(mlxsw_sp->core, PGT_SIZE);
 	mutex_init(&pgt->lock);
+	pgt->smpe_index_valid = mlxsw_sp->pgt_smpe_index_valid;
 	mlxsw_sp->pgt = pgt;
 	return 0;
 }

@@ -219,6 +219,7 @@ struct mlxsw_sp {
 	struct mutex ipv6_addr_ht_lock; /* Protects ipv6_addr_ht */
 	bool ubridge;
 	struct mlxsw_sp_pgt *pgt;
+	bool pgt_smpe_index_valid;
 };
 
 struct mlxsw_sp_ptp_ops {
