@@ -1729,7 +1729,7 @@
 		resets = <&syscon ASPEED_RESET_I3C0>;
 		i2c-scl-hz = <400000>;
 		i3c-scl-hz = <12500000>;
-		sda-tx-hold-ns = <5>;
+		sda-tx-hold-ns = <10>;
 		timed-reset-scl-low-ns = <52428800>;
 		i3c-pp-scl-hi-period-ns = <40>;
 		i3c-pp-scl-lo-period-ns = <40>;
@@ -1754,7 +1754,7 @@
 		resets = <&syscon ASPEED_RESET_I3C1>;
 		i2c-scl-hz = <400000>;
 		i3c-scl-hz = <12500000>;
-		sda-tx-hold-ns = <5>;
+		sda-tx-hold-ns = <10>;
 		timed-reset-scl-low-ns = <52428800>;
 		i3c-pp-scl-hi-period-ns = <40>;
 		i3c-pp-scl-lo-period-ns = <40>;
@@ -1779,7 +1779,7 @@
 		resets = <&syscon ASPEED_RESET_I3C2>;
 		i2c-scl-hz = <400000>;
 		i3c-scl-hz = <12500000>;
-		sda-tx-hold-ns = <5>;
+		sda-tx-hold-ns = <10>;
 		timed-reset-scl-low-ns = <52428800>;
 		i3c-pp-scl-hi-period-ns = <40>;
 		i3c-pp-scl-lo-period-ns = <40>;
@@ -1802,7 +1802,7 @@
 		resets = <&syscon ASPEED_RESET_I3C3>;
 		i2c-scl-hz = <400000>;
 		i3c-scl-hz = <12500000>;
-		sda-tx-hold-ns = <5>;
+		sda-tx-hold-ns = <10>;
 		timed-reset-scl-low-ns = <52428800>;
 		i3c-pp-scl-hi-period-ns = <40>;
 		i3c-pp-scl-lo-period-ns = <40>;
@@ -1825,7 +1825,7 @@
 		resets = <&syscon ASPEED_RESET_I3C4>;
 		i2c-scl-hz = <400000>;
 		i3c-scl-hz = <12500000>;
-		sda-tx-hold-ns = <5>;
+		sda-tx-hold-ns = <10>;
 		timed-reset-scl-low-ns = <52428800>;
 		i3c-pp-scl-hi-period-ns = <40>;
 		i3c-pp-scl-lo-period-ns = <40>;
@@ -1850,7 +1850,7 @@
 		resets = <&syscon ASPEED_RESET_I3C5>;
 		i2c-scl-hz = <400000>;
 		i3c-scl-hz = <12500000>;
-		sda-tx-hold-ns = <5>;
+		sda-tx-hold-ns = <10>;
 		timed-reset-scl-low-ns = <52428800>;
 		i3c-pp-scl-hi-period-ns = <40>;
 		i3c-pp-scl-lo-period-ns = <40>;
