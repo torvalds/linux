@@ -60,12 +60,12 @@ static inline bool vfsgid_valid(vfsgid_t gid)
 
 static inline bool vfsuid_eq(vfsuid_t left, vfsuid_t right)
 {
-	return __vfsuid_val(left) == __vfsuid_val(right);
+	return vfsuid_valid(left) && __vfsuid_val(left) == __vfsuid_val(right);
 }
 
 static inline bool vfsgid_eq(vfsgid_t left, vfsgid_t right)
 {
-	return __vfsgid_val(left) == __vfsgid_val(right);
+	return vfsgid_valid(left) && __vfsgid_val(left) == __vfsgid_val(right);
 }
 
 /**
@@ -76,10 +76,11 @@ static inline bool vfsgid_eq(vfsgid_t left, vfsgid_t right)
  * Check whether @kuid and @vfsuid have the same values.
  *
  * Return: true if @kuid and @vfsuid have the same value, false if not.
+ * Comparison between two invalid uids returns false.
  */
 static inline bool vfsuid_eq_kuid(vfsuid_t vfsuid, kuid_t kuid)
 {
-	return __vfsuid_val(vfsuid) == __kuid_val(kuid);
+	return vfsuid_valid(vfsuid) && __vfsuid_val(vfsuid) == __kuid_val(kuid);
 }
 
 /**
@@ -90,10 +91,11 @@ static inline bool vfsuid_eq_kuid(vfsuid_t vfsuid, kuid_t kuid)
  * Check whether @kgid and @vfsgid have the same values.
  *
  * Return: true if @kgid and @vfsgid have the same value, false if not.
+ * Comparison between two invalid gids returns false.
  */
 static inline bool vfsgid_eq_kgid(kgid_t kgid, vfsgid_t vfsgid)
 {
-	return __vfsgid_val(vfsgid) == __kgid_val(kgid);
+	return vfsgid_valid(vfsgid) && __vfsgid_val(vfsgid) == __kgid_val(kgid);
 }
 
 /*
