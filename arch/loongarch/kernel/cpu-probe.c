@@ -263,7 +263,7 @@ void cpu_probe(void)
 
 	c->cputype	= CPU_UNKNOWN;
 	c->processor_id = read_cpucfg(LOONGARCH_CPUCFG0);
-	c->fpu_vers	= (read_cpucfg(LOONGARCH_CPUCFG2) >> 3) & 0x3;
+	c->fpu_vers     = (read_cpucfg(LOONGARCH_CPUCFG2) & CPUCFG2_FPVERS) >> 3;
 
 	c->fpu_csr0	= FPU_CSR_RN;
 	c->fpu_mask	= FPU_CSR_RSVD;

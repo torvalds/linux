@@ -69,6 +69,8 @@ void pcibios_scan_specific_bus(int busn);
 
 /* pci-irq.c */
 
+struct pci_dev;
+
 struct irq_info {
 	u8 bus, devfn;			/* Bus, device and function */
 	struct {
@@ -245,4 +247,10 @@ static inline void mmio_config_writel(void __iomem *pos, u32 val)
 # define x86_default_pci_init		NULL
 # define x86_default_pci_init_irq	NULL
 # define x86_default_pci_fixup_irqs	NULL
+#endif
+
+#if defined(CONFIG_PCI) && defined(CONFIG_ACPI)
+extern bool pci_use_e820;
+#else
+#define pci_use_e820 false
 #endif
