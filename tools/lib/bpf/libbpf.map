@@ -95,7 +95,6 @@ LIBBPF_0.0.1 {
 		btf__fd;
 		btf__find_by_name;
 		btf__free;
-		btf__get_from_id;
 		btf__name_by_offset;
 		btf__new;
 		btf__resolve_size;
@@ -116,18 +115,10 @@ LIBBPF_0.0.2 {
 		bpf_map_lookup_elem_flags;
 		bpf_object__btf;
 		bpf_object__find_map_fd_by_name;
-		btf__dedup;
-		btf__get_map_kv_tids;
-		btf__get_nr_types;
 		btf__get_raw_data;
-		btf__load;
 		btf_ext__free;
-		btf_ext__func_info_rec_size;
 		btf_ext__get_raw_data;
-		btf_ext__line_info_rec_size;
 		btf_ext__new;
-		btf_ext__reloc_func_info;
-		btf_ext__reloc_line_info;
 		bpf_program__get_prog_info_linear;
 		bpf_program__bpil_addr_to_offs;
 		bpf_program__bpil_offs_to_addr;
@@ -137,7 +128,6 @@ LIBBPF_0.0.3 {
 	global:
 		bpf_map__is_internal;
 		bpf_map_freeze;
-		btf__finalize_data;
 } LIBBPF_0.0.2;
 
 LIBBPF_0.0.4 {
@@ -151,7 +141,6 @@ LIBBPF_0.0.4 {
 		bpf_program__attach_uprobe;
 		btf_dump__dump_type;
 		btf_dump__free;
-		btf_dump__new;
 		btf__parse_elf;
 		libbpf_num_possible_cpus;
 		perf_buffer__free;
@@ -373,11 +362,9 @@ LIBBPF_0.6.0 {
 		btf__add_decl_tag;
 		btf__add_type_tag;
 		btf__dedup;
-		btf__dedup_deprecated;
 		btf__raw_data;
 		btf__type_cnt;
 		btf_dump__new;
-		btf_dump__new_deprecated;
 		libbpf_major_version;
 		libbpf_minor_version;
 		libbpf_version_string;

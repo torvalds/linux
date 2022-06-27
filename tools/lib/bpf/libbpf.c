@@ -3061,11 +3061,6 @@ static int btf_finalize_data(struct bpf_object *obj, struct btf *btf)
 	return libbpf_err(err);
 }
 
-int btf__finalize_data(struct bpf_object *obj, struct btf *btf)
-{
-	return btf_finalize_data(obj, btf);
-}
-
 static int bpf_object__finalize_btf(struct bpf_object *obj)
 {
 	int err;
@@ -4397,9 +4392,7 @@ bpf_object__collect_prog_relos(struct bpf_object *obj, Elf64_Shdr *shdr, Elf_Dat
 
 static int bpf_map_find_btf_info(struct bpf_object *obj, struct bpf_map *map)
 {
-	struct bpf_map_def *def = &map->def;
-	__u32 key_type_id = 0, value_type_id = 0;
-	int ret;
+	int id;
 
 	if (!obj->btf)
 		return -ENOENT;
@@ -4408,31 +4401,22 @@ static int bpf_map_find_btf_info(struct bpf_object *obj, struct bpf_map *map)
 	 * For struct_ops map, it does not need btf_key_type_id and
 	 * btf_value_type_id.
 	 */
-	if (map->sec_idx == obj->efile.btf_maps_shndx ||
-	    bpf_map__is_struct_ops(map))
+	if (map->sec_idx == obj->efile.btf_maps_shndx || bpf_map__is_struct_ops(map))
 		return 0;
 
-	if (!bpf_map__is_internal(map)) {
-		pr_warn("Use of BPF_ANNOTATE_KV_PAIR is deprecated, use BTF-defined maps in .maps section instead\n");
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
-		ret = btf__get_map_kv_tids(obj->btf, map->name, def->key_size,
-					   def->value_size, &key_type_id,
-					   &value_type_id);
-#pragma GCC diagnostic pop
-	} else {
-		/*
-		 * LLVM annotates global data differently in BTF, that is,
-		 * only as '.data', '.bss' or '.rodata'.
-		 */
-		ret = btf__find_by_name(obj->btf, map->real_name);
-	}
-	if (ret < 0)
-		return ret;
+	/*
+	 * LLVM annotates global data differently in BTF, that is,
+	 * only as '.data', '.bss' or '.rodata'.
+	 */
+	if (!bpf_map__is_internal(map))
+		return -ENOENT;
 
-	map->btf_key_type_id = key_type_id;
-	map->btf_value_type_id = bpf_map__is_internal(map) ?
-				 ret : value_type_id;
+	id = btf__find_by_name(obj->btf, map->real_name);
+	if (id < 0)
+		return id;
+
+	map->btf_key_type_id = 0;
+	map->btf_value_type_id = id;
 	return 0;
 }
 
