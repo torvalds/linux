@@ -801,6 +801,7 @@ static int gaudi_early_init(struct hl_device *hdev)
 {
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct pci_dev *pdev = hdev->pdev;
+	resource_size_t pci_bar_size;
 	u32 fw_boot_status;
 	int rc;
 
@@ -811,24 +812,20 @@ static int gaudi_early_init(struct hl_device *hdev)
 	}
 
 	/* Check BAR sizes */
-	if (pci_resource_len(pdev, SRAM_BAR_ID) != SRAM_BAR_SIZE) {
-		dev_err(hdev->dev,
-			"Not " HL_NAME "? BAR %d size %llu, expecting %llu\n",
-			SRAM_BAR_ID,
-			(unsigned long long) pci_resource_len(pdev,
-							SRAM_BAR_ID),
-			SRAM_BAR_SIZE);
+	pci_bar_size = pci_resource_len(pdev, SRAM_BAR_ID);
+
+	if (pci_bar_size != SRAM_BAR_SIZE) {
+		dev_err(hdev->dev, "Not " HL_NAME "? BAR %d size %pa, expecting %llu\n",
+			SRAM_BAR_ID, &pci_bar_size, SRAM_BAR_SIZE);
 		rc = -ENODEV;
 		goto free_queue_props;
 	}
 
-	if (pci_resource_len(pdev, CFG_BAR_ID) != CFG_BAR_SIZE) {
-		dev_err(hdev->dev,
-			"Not " HL_NAME "? BAR %d size %llu, expecting %llu\n",
-			CFG_BAR_ID,
-			(unsigned long long) pci_resource_len(pdev,
-								CFG_BAR_ID),
-			CFG_BAR_SIZE);
+	pci_bar_size = pci_resource_len(pdev, CFG_BAR_ID);
+
+	if (pci_bar_size != CFG_BAR_SIZE) {
+		dev_err(hdev->dev, "Not " HL_NAME "? BAR %d size %pa, expecting %llu\n",
+			CFG_BAR_ID, &pci_bar_size, CFG_BAR_SIZE);
 		rc = -ENODEV;
 		goto free_queue_props;
 	}
