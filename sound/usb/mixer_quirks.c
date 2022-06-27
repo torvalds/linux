@@ -1949,9 +1949,11 @@ static int snd_soundblaster_e1_switch_create(struct usb_mixer_interface *mixer)
 #define REALTEK_HDA_VALUE 0x0038
 
 #define REALTEK_HDA_SET		62
+#define REALTEK_MANUAL_MODE	72
 #define REALTEK_HDA_GET_OUT	88
 #define REALTEK_HDA_GET_IN	89
 
+#define REALTEK_AUDIO_FUNCTION_GROUP	0x01
 #define REALTEK_LINE1			0x1a
 #define REALTEK_VENDOR_REGISTERS	0x20
 #define REALTEK_HP_OUT			0x21
@@ -2084,6 +2086,21 @@ static int realtek_add_jack(struct usb_mixer_interface *mixer,
 static int dell_dock_mixer_create(struct usb_mixer_interface *mixer)
 {
 	int err;
+	struct usb_device *dev = mixer->chip->dev;
+
+	/* Power down the audio codec to avoid loud pops in the next step. */
+	realtek_hda_set(mixer->chip,
+			HDA_VERB_CMD(AC_VERB_SET_POWER_STATE,
+				     REALTEK_AUDIO_FUNCTION_GROUP,
+				     AC_PWRST_D3));
+
+	/*
+	 * Turn off 'manual mode' in case it was enabled. This removes the need
+	 * to power cycle the dock after it was attached to a Windows machine.
+	 */
+	snd_usb_ctl_msg(dev, usb_sndctrlpipe(dev, 0), REALTEK_MANUAL_MODE,
+			USB_RECIP_DEVICE | USB_TYPE_VENDOR | USB_DIR_OUT,
+			0, 0, NULL, 0);
 
 	err = realtek_add_jack(mixer, "Line Out Jack", REALTEK_LINE1);
 	if (err < 0)
@@ -2104,7 +2121,8 @@ static void dell_dock_init_vol(struct snd_usb_audio *chip, int ch, int id)
 
 	snd_usb_ctl_msg(chip->dev, usb_sndctrlpipe(chip->dev, 0), UAC_SET_CUR,
 			USB_RECIP_INTERFACE | USB_TYPE_CLASS | USB_DIR_OUT,
-			ch, snd_usb_ctrl_intf(chip) | (id << 8),
+			(UAC_FU_VOLUME << 8) | ch,
+			snd_usb_ctrl_intf(chip) | (id << 8),
 			&buf, 2);
 }
 
