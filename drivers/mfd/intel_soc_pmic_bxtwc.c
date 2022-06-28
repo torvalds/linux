@@ -429,19 +429,17 @@ static int bxtwc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	int ret;
-	acpi_handle handle;
 	acpi_status status;
 	unsigned long long hrv;
 	struct intel_soc_pmic *pmic;
 
-	handle = ACPI_HANDLE(&pdev->dev);
-	status = acpi_evaluate_integer(handle, "_HRV", NULL, &hrv);
+	status = acpi_evaluate_integer(ACPI_HANDLE(dev), "_HRV", NULL, &hrv);
 	if (ACPI_FAILURE(status))
 		return dev_err_probe(dev, -ENODEV, "Failed to get PMIC hardware revision\n");
 	if (hrv != BROXTON_PMIC_WC_HRV)
 		return dev_err_probe(dev, -ENODEV, "Invalid PMIC hardware revision: %llu\n", hrv);
 
-	pmic = devm_kzalloc(&pdev->dev, sizeof(*pmic), GFP_KERNEL);
+	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
 		return -ENOMEM;
 
@@ -451,18 +449,17 @@ static int bxtwc_probe(struct platform_device *pdev)
 	pmic->irq = ret;
 
 	platform_set_drvdata(pdev, pmic);
-	pmic->dev = &pdev->dev;
+	pmic->dev = dev;
 
-	pmic->scu = devm_intel_scu_ipc_dev_get(&pdev->dev);
+	pmic->scu = devm_intel_scu_ipc_dev_get(dev);
 	if (!pmic->scu)
 		return -EPROBE_DEFER;
 
-	pmic->regmap = devm_regmap_init(&pdev->dev, NULL, pmic,
-					&bxtwc_regmap_config);
+	pmic->regmap = devm_regmap_init(dev, NULL, pmic, &bxtwc_regmap_config);
 	if (IS_ERR(pmic->regmap))
 		return dev_err_probe(dev, PTR_ERR(pmic->regmap), "Failed to initialise regmap\n");
 
-	ret = devm_regmap_add_irq_chip(&pdev->dev, pmic->regmap, pmic->irq,
+	ret = devm_regmap_add_irq_chip(dev, pmic->regmap, pmic->irq,
 				       IRQF_ONESHOT | IRQF_SHARED,
 				       0, &bxtwc_regmap_irq_chip,
 				       &pmic->irq_chip_data);
@@ -521,8 +518,8 @@ static int bxtwc_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to add CRIT IRQ chip\n");
 
-	ret = devm_mfd_add_devices(&pdev->dev, PLATFORM_DEVID_NONE, bxt_wc_dev,
-				   ARRAY_SIZE(bxt_wc_dev), NULL, 0, NULL);
+	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_NONE, bxt_wc_dev, ARRAY_SIZE(bxt_wc_dev),
+				   NULL, 0, NULL);
 	if (ret)
 		return dev_err_probe(dev, ret, "Failed to add devices\n");
 
