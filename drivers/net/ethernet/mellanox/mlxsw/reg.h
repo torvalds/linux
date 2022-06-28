@@ -1054,9 +1054,10 @@ enum mlxsw_reg_sfgc_type {
  */
 MLXSW_ITEM32(reg, sfgc, type, 0x00, 0, 4);
 
-enum mlxsw_reg_sfgc_bridge_type {
-	MLXSW_REG_SFGC_BRIDGE_TYPE_1Q_FID = 0,
-	MLXSW_REG_SFGC_BRIDGE_TYPE_VFID = 1,
+/* bridge_type is used in SFGC and SFMR. */
+enum mlxsw_reg_bridge_type {
+	MLXSW_REG_BRIDGE_TYPE_0 = 0, /* Used for .1q FIDs. */
+	MLXSW_REG_BRIDGE_TYPE_1 = 1, /* Used for .1d FIDs. */
 };
 
 /* reg_sfgc_bridge_type
@@ -1111,15 +1112,16 @@ MLXSW_ITEM32(reg, sfgc, mid_base, 0x10, 0, 16);
 
 static inline void
 mlxsw_reg_sfgc_pack(char *payload, enum mlxsw_reg_sfgc_type type,
-		    enum mlxsw_reg_sfgc_bridge_type bridge_type,
+		    enum mlxsw_reg_bridge_type bridge_type,
 		    enum mlxsw_flood_table_type table_type,
-		    unsigned int flood_table)
+		    unsigned int flood_table, u16 mid_base)
 {
 	MLXSW_REG_ZERO(sfgc, payload);
 	mlxsw_reg_sfgc_type_set(payload, type);
 	mlxsw_reg_sfgc_bridge_type_set(payload, bridge_type);
 	mlxsw_reg_sfgc_table_type_set(payload, table_type);
 	mlxsw_reg_sfgc_flood_table_set(payload, flood_table);
+	mlxsw_reg_sfgc_mid_base_set(payload, mid_base);
 }
 
 /* SFDF - Switch Filtering DB Flush
@@ -1960,7 +1962,8 @@ MLXSW_ITEM32(reg, sfmr, smpe, 0x28, 0, 16);
 
 static inline void mlxsw_reg_sfmr_pack(char *payload,
 				       enum mlxsw_reg_sfmr_op op, u16 fid,
-				       u16 fid_offset)
+				       u16 fid_offset, bool flood_rsp,
+				       enum mlxsw_reg_bridge_type bridge_type)
 {
 	MLXSW_REG_ZERO(sfmr, payload);
 	mlxsw_reg_sfmr_op_set(payload, op);
@@ -1968,6 +1971,8 @@ static inline void mlxsw_reg_sfmr_pack(char *payload,
 	mlxsw_reg_sfmr_fid_offset_set(payload, fid_offset);
 	mlxsw_reg_sfmr_vtfp_set(payload, false);
 	mlxsw_reg_sfmr_vv_set(payload, false);
+	mlxsw_reg_sfmr_flood_rsp_set(payload, flood_rsp);
+	mlxsw_reg_sfmr_flood_bridge_type_set(payload, bridge_type);
 }
 
 /* SPVMLR - Switch Port VLAN MAC Learning Register

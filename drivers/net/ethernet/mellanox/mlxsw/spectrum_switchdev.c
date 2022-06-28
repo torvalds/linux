@@ -1646,9 +1646,10 @@ out:
 	return err;
 }
 
-static int mlxsw_sp_port_smid_full_entry(struct mlxsw_sp *mlxsw_sp, u16 mid_idx,
-					 long *ports_bitmap,
-					 bool set_router_port)
+static int
+mlxsw_sp_port_smid_full_entry(struct mlxsw_sp *mlxsw_sp, u16 mid_idx,
+			      const struct mlxsw_sp_ports_bitmap *ports_bm,
+			      bool set_router_port)
 {
 	char *smid2_pl;
 	int err, i;
@@ -1666,7 +1667,7 @@ static int mlxsw_sp_port_smid_full_entry(struct mlxsw_sp *mlxsw_sp, u16 mid_idx,
 	mlxsw_reg_smid2_port_mask_set(smid2_pl,
 				      mlxsw_sp_router_port(mlxsw_sp), 1);
 
-	for_each_set_bit(i, ports_bitmap, mlxsw_core_max_ports(mlxsw_sp->core))
+	for_each_set_bit(i, ports_bm->bitmap, ports_bm->nbits)
 		mlxsw_reg_smid2_port_set(smid2_pl, i, 1);
 
 	mlxsw_reg_smid2_port_set(smid2_pl, mlxsw_sp_router_port(mlxsw_sp),
@@ -1712,14 +1713,14 @@ mlxsw_sp_mid *__mlxsw_sp_mc_get(struct mlxsw_sp_bridge_device *bridge_device,
 static void
 mlxsw_sp_bridge_port_get_ports_bitmap(struct mlxsw_sp *mlxsw_sp,
 				      struct mlxsw_sp_bridge_port *bridge_port,
-				      unsigned long *ports_bitmap)
+				      struct mlxsw_sp_ports_bitmap *ports_bm)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	u64 max_lag_members, i;
 	int lag_id;
 
 	if (!bridge_port->lagged) {
-		set_bit(bridge_port->system_port, ports_bitmap);
+		set_bit(bridge_port->system_port, ports_bm->bitmap);
 	} else {
 		max_lag_members = MLXSW_CORE_RES_GET(mlxsw_sp->core,
 						     MAX_LAG_MEMBERS);
@@ -1729,13 +1730,13 @@ mlxsw_sp_bridge_port_get_ports_bitmap(struct mlxsw_sp *mlxsw_sp,
 								 lag_id, i);
 			if (mlxsw_sp_port)
 				set_bit(mlxsw_sp_port->local_port,
-					ports_bitmap);
+					ports_bm->bitmap);
 		}
 	}
 }
 
 static void
-mlxsw_sp_mc_get_mrouters_bitmap(unsigned long *flood_bitmap,
+mlxsw_sp_mc_get_mrouters_bitmap(struct mlxsw_sp_ports_bitmap *flood_bm,
 				struct mlxsw_sp_bridge_device *bridge_device,
 				struct mlxsw_sp *mlxsw_sp)
 {
@@ -1745,7 +1746,7 @@ mlxsw_sp_mc_get_mrouters_bitmap(unsigned long *flood_bitmap,
 		if (bridge_port->mrouter) {
 			mlxsw_sp_bridge_port_get_ports_bitmap(mlxsw_sp,
 							      bridge_port,
-							      flood_bitmap);
+							      flood_bm);
 		}
 	}
 }
@@ -1755,8 +1756,7 @@ mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 			    struct mlxsw_sp_mid *mid,
 			    struct mlxsw_sp_bridge_device *bridge_device)
 {
-	long *flood_bitmap;
-	int num_of_ports;
+	struct mlxsw_sp_ports_bitmap flood_bitmap;
 	u16 mid_idx;
 	int err;
 
@@ -1765,18 +1765,17 @@ mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 	if (mid_idx == MLXSW_SP_MID_MAX)
 		return -ENOBUFS;
 
-	num_of_ports = mlxsw_core_max_ports(mlxsw_sp->core);
-	flood_bitmap = bitmap_alloc(num_of_ports, GFP_KERNEL);
-	if (!flood_bitmap)
-		return -ENOMEM;
+	err = mlxsw_sp_port_bitmap_init(mlxsw_sp, &flood_bitmap);
+	if (err)
+		return err;
 
-	bitmap_copy(flood_bitmap, mid->ports_in_mid, num_of_ports);
-	mlxsw_sp_mc_get_mrouters_bitmap(flood_bitmap, bridge_device, mlxsw_sp);
+	bitmap_copy(flood_bitmap.bitmap, mid->ports_in_mid, flood_bitmap.nbits);
+	mlxsw_sp_mc_get_mrouters_bitmap(&flood_bitmap, bridge_device, mlxsw_sp);
 
 	mid->mid = mid_idx;
-	err = mlxsw_sp_port_smid_full_entry(mlxsw_sp, mid_idx, flood_bitmap,
+	err = mlxsw_sp_port_smid_full_entry(mlxsw_sp, mid_idx, &flood_bitmap,
 					    bridge_device->mrouter);
-	bitmap_free(flood_bitmap);
+	mlxsw_sp_port_bitmap_fini(&flood_bitmap);
 	if (err)
 		return err;
 
