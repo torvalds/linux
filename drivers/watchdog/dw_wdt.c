@@ -375,7 +375,6 @@ static irqreturn_t dw_wdt_irq(int irq, void *devid)
 	return IRQ_HANDLED;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int dw_wdt_suspend(struct device *dev)
 {
 	struct dw_wdt *dw_wdt = dev_get_drvdata(dev);
@@ -410,9 +409,8 @@ static int dw_wdt_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(dw_wdt_pm_ops, dw_wdt_suspend, dw_wdt_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(dw_wdt_pm_ops, dw_wdt_suspend, dw_wdt_resume);
 
 /*
  * In case if DW WDT IP core is synthesized with fixed TOP feature disabled the
@@ -710,7 +708,7 @@ static struct platform_driver dw_wdt_driver = {
 	.driver		= {
 		.name	= "dw_wdt",
 		.of_match_table = of_match_ptr(dw_wdt_of_match),
-		.pm	= &dw_wdt_pm_ops,
+		.pm	= pm_sleep_ptr(&dw_wdt_pm_ops),
 	},
 };
 
