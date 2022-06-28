@@ -977,7 +977,9 @@ void rpmh_rsc_debug(struct rsc_drv *drv, struct completion *compl)
 		/* Show fast path status, if the TCS is busy */
 		if (drv->ch[i].tcs[FAST_PATH_TCS].num_tcs) {
 			int tcs_id = drv->ch[i].tcs[FAST_PATH_TCS].offset;
-			bool sts = read_tcs_reg(drv, RSC_DRV_STATUS, tcs_id);
+			bool sts = read_tcs_reg(drv,
+						drv->regs[RSC_DRV_STATUS],
+						tcs_id);
 
 			if (!sts) {
 				pr_err("Fast-path TCS information:\n");
