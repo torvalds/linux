@@ -3507,8 +3507,7 @@ create_host_acc_pipeline(struct ia_css_pipe *pipe)
 	if (pipe->config.acc_extension)
 		pipe->pipeline.pipe_qos_config = 0;
 
-	fw = pipe->vf_stage;
-	for (i = 0; fw; fw = fw->next) {
+	for (fw = pipe->vf_stage; fw; fw = fw->next) {
 		err = sh_css_pipeline_add_acc_stage(&pipe->pipeline, fw);
 		if (err)
 			goto ERR;
