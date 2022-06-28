@@ -2579,26 +2579,31 @@ struct pci_dev *pci_scan_single_device(struct pci_bus *bus, int devfn)
 }
 EXPORT_SYMBOL(pci_scan_single_device);
 
-static int next_fn(struct pci_bus *bus, struct pci_dev *dev, int fn)
+static int next_ari_fn(struct pci_bus *bus, struct pci_dev *dev, int fn)
 {
 	int pos;
 	u16 cap = 0;
 	unsigned int next_fn;
 
-	if (pci_ari_enabled(bus)) {
-		if (!dev)
-			return -ENODEV;
-		pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ARI);
-		if (!pos)
-			return -ENODEV;
+	if (!dev)
+		return -ENODEV;
 
-		pci_read_config_word(dev, pos + PCI_ARI_CAP, &cap);
-		next_fn = PCI_ARI_CAP_NFN(cap);
-		if (next_fn <= fn)
-			return -ENODEV;	/* protect against malformed list */
+	pos = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_ARI);
+	if (!pos)
+		return -ENODEV;
 
-		return next_fn;
-	}
+	pci_read_config_word(dev, pos + PCI_ARI_CAP, &cap);
+	next_fn = PCI_ARI_CAP_NFN(cap);
+	if (next_fn <= fn)
+		return -ENODEV;	/* protect against malformed list */
+
+	return next_fn;
+}
+
+static int next_fn(struct pci_bus *bus, struct pci_dev *dev, int fn)
+{
+	if (pci_ari_enabled(bus))
+		return next_ari_fn(bus, dev, fn);
 
 	if (fn >= 7)
 		return -ENODEV;
