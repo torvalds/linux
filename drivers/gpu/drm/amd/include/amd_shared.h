@@ -193,6 +193,7 @@ enum amd_powergating_state {
  * @PP_ACG_MASK: Adaptive clock generator.
  * @PP_STUTTER_MODE: Stutter mode.
  * @PP_AVFS_MASK: Adaptive voltage and frequency scaling.
+ * @PP_GFX_DCS_MASK: GFX Async DCS.
  *
  * To override these settings on boot, append amdgpu.ppfeaturemask=<mask> to
  * the kernel's command line parameters. This is usually done through a system's
