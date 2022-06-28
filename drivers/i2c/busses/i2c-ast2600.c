@@ -1146,7 +1146,7 @@ static void ast2600_i2c_master_package_irq(struct ast2600_i2c_bus *i2c_bus, u32 
 			} else if (i2c_bus->mode == BUFF_MODE) {
 				u8 wbuf[4];
 
-				cmd |= AST2600_I2CM_RX_BUFF_EN;
+				cmd |= AST2600_I2CM_TX_BUFF_EN;
 				xfer_len = msg->len - i2c_bus->master_xfer_cnt;
 				if (xfer_len > i2c_bus->buf_size) {
 					xfer_len = i2c_bus->buf_size;
