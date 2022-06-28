@@ -194,4 +194,39 @@ void dccg31_set_audio_dtbclk_dto(
 		struct dccg *dccg,
 		const struct dtbclk_dto_params *params);
 
+void dccg31_update_dpp_dto(
+	struct dccg *dccg,
+	int dpp_inst,
+	int req_dppclk);
+
+void dccg31_get_dccg_ref_freq(
+	struct dccg *dccg,
+	unsigned int xtalin_freq_inKhz,
+	unsigned int *dccg_ref_freq_inKhz);
+
+void dccg31_set_dpstreamclk(
+	struct dccg *dccg,
+	enum streamclk_source src,
+	int otg_inst);
+
+void dccg31_set_dtbclk_dto(
+		struct dccg *dccg,
+		const struct dtbclk_dto_params *params);
+
+void dccg31_otg_add_pixel(
+	struct dccg *dccg,
+	uint32_t otg_inst);
+
+void dccg31_otg_drop_pixel(
+	struct dccg *dccg,
+	uint32_t otg_inst);
+
+void dccg31_set_dispclk_change_mode(
+	struct dccg *dccg,
+	enum dentist_dispclk_change_mode change_mode);
+
+void dccg31_disable_dscclk(struct dccg *dccg, int inst);
+
+void dccg31_enable_dscclk(struct dccg *dccg, int inst);
+
 #endif //__DCN31_DCCG_H__

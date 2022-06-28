@@ -63,6 +63,7 @@
 #include "dcn302/dcn302_resource.h"
 #include "dcn303/dcn303_resource.h"
 #include "dcn31/dcn31_resource.h"
+#include "dcn314/dcn314_resource.h"
 #include "dcn315/dcn315_resource.h"
 #include "dcn316/dcn316_resource.h"
 #include "../dcn32/dcn32_resource.h"
@@ -167,6 +168,10 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 		if (ASICREV_IS_GC_11_0_2(asic_id.hw_internal_rev))
 			dc_version = DCN_VERSION_3_21;
 		break;
+	case AMDGPU_FAMILY_GC_11_0_2:
+		if (ASICREV_IS_GC_11_0_2(asic_id.hw_internal_rev))
+			dc_version = DCN_VERSION_3_14;
+		break;
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
 		break;
@@ -255,6 +260,9 @@ struct resource_pool *dc_create_resource_pool(struct dc  *dc,
 		break;
 	case DCN_VERSION_3_1:
 		res_pool = dcn31_create_resource_pool(init_data, dc);
+		break;
+	case DCN_VERSION_3_14:
+		res_pool = dcn314_create_resource_pool(init_data, dc);
 		break;
 	case DCN_VERSION_3_15:
 		res_pool = dcn315_create_resource_pool(init_data, dc);

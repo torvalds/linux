@@ -2162,6 +2162,9 @@ static bool dcn31_resource_construct(
 		pool->base.usb4_dpia_count = 4;
 	}
 
+	if (dc->ctx->asic_id.chip_family == AMDGPU_FAMILY_GC_11_0_2)
+		pool->base.usb4_dpia_count = 4;
+
 	/* Audio, Stream Encoders including HPO and virtual, MPC 3D LUTs */
 	if (!resource_construct(num_virtual_links, dc, &pool->base,
 			(!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment) ?

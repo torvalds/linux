@@ -4292,6 +4292,10 @@ bool dc_is_dmub_outbox_supported(struct dc *dc)
 	    !dc->debug.dpia_debug.bits.disable_dpia)
 		return true;
 
+	if (dc->ctx->asic_id.chip_family == AMDGPU_FAMILY_GC_11_0_2 &&
+	    !dc->debug.dpia_debug.bits.disable_dpia)
+		return true;
+
 	/* dmub aux needs dmub notifications to be enabled */
 	return dc->debug.enable_dmub_aux_for_legacy_ddc;
 }
