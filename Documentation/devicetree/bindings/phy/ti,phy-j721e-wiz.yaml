@@ -83,6 +83,7 @@ properties:
       WIZ node should have subnode for refclk_dig to select the reference
       clock source for the reference clock used in the PHY and PMA digital
       logic.
+    deprecated: true
     properties:
       clocks:
         minItems: 2
@@ -111,6 +112,7 @@ patternProperties:
     description: |
       WIZ node should have subnodes for each of the PLLs present in
       the SERDES.
+    deprecated: true
     properties:
       clocks:
         maxItems: 2
@@ -136,6 +138,7 @@ patternProperties:
     description:
       WIZ node should have subnodes for each of the PMA common refclock
       provided by the SERDES.
+    deprecated: true
     properties:
       clocks:
         maxItems: 1
