@@ -4321,6 +4321,8 @@ mpi3mr_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	shost->max_channel = 0;
 	shost->max_id = 0xFFFFFFFF;
 
+	shost->host_tagset = 1;
+
 	if (prot_mask >= 0)
 		scsi_host_set_prot(shost, prot_mask);
 	else {
