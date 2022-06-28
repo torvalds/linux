@@ -47,10 +47,24 @@ static const struct isp_format isp_formats_st7110_sink[] = {
 };
 
 static const struct isp_format isp_formats_st7110_raw[] = {
-	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12},
 	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12},
 	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12},
 	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12},
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12},
+};
+
+static const struct isp_format isp_formats_st7110_compat_10bit_raw[] = {
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10},
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10},
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10},
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10},
+};
+
+static const struct isp_format isp_formats_st7110_compat_8bit_raw[] = {
+	{ MEDIA_BUS_FMT_SRGGB8_1X8, 8},
+	{ MEDIA_BUS_FMT_SGRBG8_1X8, 8},
+	{ MEDIA_BUS_FMT_SGBRG8_1X8, 8},
+	{ MEDIA_BUS_FMT_SBGGR8_1X8, 8},
 };
 
 static const struct isp_format isp_formats_st7110_uo[] = {
@@ -496,6 +510,28 @@ exit:
 	return ret;
 }
 
+
+static int isp_match_format_get_index(struct isp_format_table *f_table,
+			__u32 mbus_code,
+			unsigned int pad)
+{
+	int i;
+
+	for (i = 0; i < f_table->nfmts; i++) {
+		if (mbus_code == f_table->fmts[i].code) {
+			break;
+		} else {
+			if (pad == STF_ISP_PAD_SRC_RAW || pad == STF_ISP_PAD_SRC_SCD_Y) {
+				if (mbus_code == (isp_formats_st7110_compat_10bit_raw[i].code ||
+					isp_formats_st7110_compat_8bit_raw[i].code))
+					break;
+			}
+		}
+	}
+
+	return i;
+}
+
 static void isp_try_format(struct stf_isp_dev *isp_dev,
 			struct v4l2_subdev_state *state,
 			unsigned int pad,
@@ -543,9 +579,7 @@ static void isp_try_format(struct stf_isp_dev *isp_dev,
 		break;
 	}
 
-	for (i = 0; i < formats->nfmts; i++)
-		if (fmt->code == formats->fmts[i].code)
-			break;
+	i = isp_match_format_get_index(formats, fmt->code, pad);
 
 	if (pad != STF_ISP_PAD_SINK)
 		*fmt = *__isp_get_format(isp_dev, state, STF_ISP_PAD_SINK, which);
