@@ -2,7 +2,7 @@
 /*
  * MFD core driver for Intel Broxton Whiskey Cove PMIC
  *
- * Copyright (C) 2015 Intel Corporation. All rights reserved.
+ * Copyright (C) 2015-2017, 2022 Intel Corporation. All rights reserved.
  */
 
 #include <linux/acpi.h>
@@ -525,11 +525,11 @@ static int bxtwc_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "Failed to add devices\n");
 
 	/*
-	 * There is known hw bug. Upon reset BIT 5 of register
+	 * There is a known H/W bug. Upon reset, BIT 5 of register
 	 * BXTWC_CHGR_LVL1_IRQ is 0 which is the expected value. However,
 	 * later it's set to 1(masked) automatically by hardware. So we
-	 * have the software workaround here to unmaksed it in order to let
-	 * charger interrutp work.
+	 * place the software workaround here to unmask it again in order
+	 * to re-enable the charger interrupt.
 	 */
 	regmap_update_bits(pmic->regmap, BXTWC_MIRQLVL1, BXTWC_MIRQLVL1_MCHGR, 0);
 
@@ -582,4 +582,4 @@ static struct platform_driver bxtwc_driver = {
 module_platform_driver(bxtwc_driver);
 
 MODULE_LICENSE("GPL v2");
-MODULE_AUTHOR("Qipeng Zha<qipeng.zha@intel.com>");
+MODULE_AUTHOR("Qipeng Zha <qipeng.zha@intel.com>");
