@@ -542,7 +542,6 @@ static void bxtwc_shutdown(struct platform_device *pdev)
 	disable_irq(pmic->irq);
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int bxtwc_suspend(struct device *dev)
 {
 	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
@@ -559,8 +558,8 @@ static int bxtwc_resume(struct device *dev)
 	enable_irq(pmic->irq);
 	return 0;
 }
-#endif
-static SIMPLE_DEV_PM_OPS(bxtwc_pm_ops, bxtwc_suspend, bxtwc_resume);
+
+static DEFINE_SIMPLE_DEV_PM_OPS(bxtwc_pm_ops, bxtwc_suspend, bxtwc_resume);
 
 static const struct acpi_device_id bxtwc_acpi_ids[] = {
 	{ "INT34D3", },
@@ -573,7 +572,7 @@ static struct platform_driver bxtwc_driver = {
 	.shutdown = bxtwc_shutdown,
 	.driver	= {
 		.name	= "BXTWC PMIC",
-		.pm     = &bxtwc_pm_ops,
+		.pm     = pm_sleep_ptr(&bxtwc_pm_ops),
 		.acpi_match_table = ACPI_PTR(bxtwc_acpi_ids),
 		.dev_groups = bxtwc_groups,
 	},
