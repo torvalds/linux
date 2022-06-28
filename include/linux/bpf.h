@@ -2508,7 +2508,6 @@ int bpf_arch_text_invalidate(void *dst, size_t len);
 
 struct btf_id_set;
 bool btf_id_set_contains(const struct btf_id_set *set, u32 id);
-int btf_id_set_index(const struct btf_id_set *set, u32 id);
 
 #define MAX_BPRINTF_VARARGS		12
 
@@ -2544,5 +2543,13 @@ void bpf_dynptr_init(struct bpf_dynptr_kern *ptr, void *data,
 		     enum bpf_dynptr_type type, u32 offset, u32 size);
 void bpf_dynptr_set_null(struct bpf_dynptr_kern *ptr);
 int bpf_dynptr_check_size(u32 size);
+
+#ifdef CONFIG_BPF_LSM
+void bpf_cgroup_atype_get(u32 attach_btf_id, int cgroup_atype);
+void bpf_cgroup_atype_put(int cgroup_atype);
+#else
+static inline void bpf_cgroup_atype_get(u32 attach_btf_id, int cgroup_atype) {}
+static inline void bpf_cgroup_atype_put(int cgroup_atype) {}
+#endif /* CONFIG_BPF_LSM */
 
 #endif /* _LINUX_BPF_H */

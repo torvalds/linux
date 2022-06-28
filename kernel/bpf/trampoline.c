@@ -555,6 +555,7 @@ static struct bpf_shim_tramp_link *cgroup_shim_alloc(const struct bpf_prog *prog
 	bpf_prog_inc(p);
 	bpf_link_init(&shim_link->link.link, BPF_LINK_TYPE_UNSPEC,
 		      &bpf_shim_tramp_link_lops, p);
+	bpf_cgroup_atype_get(p->aux->attach_btf_id, cgroup_atype);
 
 	return shim_link;
 }

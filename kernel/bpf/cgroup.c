@@ -127,12 +127,57 @@ unsigned int __cgroup_bpf_run_lsm_current(const void *ctx,
 }
 
 #ifdef CONFIG_BPF_LSM
+struct cgroup_lsm_atype {
+	u32 attach_btf_id;
+	int refcnt;
+};
+
+static struct cgroup_lsm_atype cgroup_lsm_atype[CGROUP_LSM_NUM];
+
 static enum cgroup_bpf_attach_type
 bpf_cgroup_atype_find(enum bpf_attach_type attach_type, u32 attach_btf_id)
 {
+	int i;
+
+	lockdep_assert_held(&cgroup_mutex);
+
 	if (attach_type != BPF_LSM_CGROUP)
 		return to_cgroup_bpf_attach_type(attach_type);
-	return CGROUP_LSM_START + bpf_lsm_hook_idx(attach_btf_id);
+
+	for (i = 0; i < ARRAY_SIZE(cgroup_lsm_atype); i++)
+		if (cgroup_lsm_atype[i].attach_btf_id == attach_btf_id)
+			return CGROUP_LSM_START + i;
+
+	for (i = 0; i < ARRAY_SIZE(cgroup_lsm_atype); i++)
+		if (cgroup_lsm_atype[i].attach_btf_id == 0)
+			return CGROUP_LSM_START + i;
+
+	return -E2BIG;
+
+}
+
+void bpf_cgroup_atype_get(u32 attach_btf_id, int cgroup_atype)
+{
+	int i = cgroup_atype - CGROUP_LSM_START;
+
+	lockdep_assert_held(&cgroup_mutex);
+
+	WARN_ON_ONCE(cgroup_lsm_atype[i].attach_btf_id &&
+		     cgroup_lsm_atype[i].attach_btf_id != attach_btf_id);
+
+	cgroup_lsm_atype[i].attach_btf_id = attach_btf_id;
+	cgroup_lsm_atype[i].refcnt++;
+}
+
+void bpf_cgroup_atype_put(int cgroup_atype)
+{
+	int i = cgroup_atype - CGROUP_LSM_START;
+
+	mutex_lock(&cgroup_mutex);
+	if (--cgroup_lsm_atype[i].refcnt <= 0)
+		cgroup_lsm_atype[i].attach_btf_id = 0;
+	WARN_ON_ONCE(cgroup_lsm_atype[i].refcnt < 0);
+	mutex_unlock(&cgroup_mutex);
 }
 #else
 static enum cgroup_bpf_attach_type

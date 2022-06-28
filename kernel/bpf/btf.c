@@ -6843,16 +6843,6 @@ static int btf_id_cmp_func(const void *a, const void *b)
 	return *pa - *pb;
 }
 
-int btf_id_set_index(const struct btf_id_set *set, u32 id)
-{
-	const u32 *p;
-
-	p = bsearch(&id, set->ids, set->cnt, sizeof(u32), btf_id_cmp_func);
-	if (!p)
-		return -1;
-	return p - set->ids;
-}
-
 bool btf_id_set_contains(const struct btf_id_set *set, u32 id)
 {
 	return bsearch(&id, set->ids, set->cnt, sizeof(u32), btf_id_cmp_func) != NULL;
