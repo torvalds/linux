@@ -152,16 +152,7 @@ tlb_miss_common_bolted:
 	clrrdi	r15,r15,3
 	beq	tlb_miss_fault_bolted	/* No PGDIR, bail */
 
-BEGIN_MMU_FTR_SECTION
-	/* Set the TLB reservation and search for existing entry. Then load
-	 * the entry.
-	 */
-	PPC_TLBSRX_DOT(0,R16)
 	ldx	r14,r14,r15		/* grab pgd entry */
-	beq	tlb_miss_done_bolted	/* tlb exists already, bail */
-MMU_FTR_SECTION_ELSE
-	ldx	r14,r14,r15		/* grab pgd entry */
-ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
 
 	rldicl	r15,r16,64-PUD_SHIFT+3,64-PUD_INDEX_SIZE-3
 	clrrdi	r15,r15,3
@@ -674,16 +665,7 @@ normal_tlb_miss:
 	clrrdi	r14,r14,3
 	or	r10,r15,r14
 
-BEGIN_MMU_FTR_SECTION
-	/* Set the TLB reservation and search for existing entry. Then load
-	 * the entry.
-	 */
-	PPC_TLBSRX_DOT(0,R16)
 	ld	r14,0(r10)
-	beq	normal_tlb_miss_done
-MMU_FTR_SECTION_ELSE
-	ld	r14,0(r10)
-ALT_MMU_FTR_SECTION_END_IFSET(MMU_FTR_USE_TLBRSRV)
 
 finish_normal_tlb_miss:
 	/* Check if required permissions are met */
@@ -727,13 +709,9 @@ finish_normal_tlb_miss:
 	li	r11,MAS3_SW|MAS3_UW
 	andc	r15,r15,r11
 1:
-BEGIN_MMU_FTR_SECTION
 	srdi	r16,r15,32
 	mtspr	SPRN_MAS3,r15
 	mtspr	SPRN_MAS7,r16
-MMU_FTR_SECTION_ELSE
-	mtspr	SPRN_MAS7_MAS3,r15
-ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 
 	tlbwe
 
@@ -809,13 +787,6 @@ virt_page_table_tlb_miss:
 #else
 1:
 #endif
-BEGIN_MMU_FTR_SECTION
-	/* Search if we already have a TLB entry for that virtual address, and
-	 * if we do, bail out.
-	 */
-	PPC_TLBSRX_DOT(0,R16)
-	beq	virt_page_table_tlb_miss_done
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_TLBRSRV)
 
 	/* Now, we need to walk the page tables. First check if we are in
 	 * range.
@@ -866,41 +837,12 @@ END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_TLBRSRV)
 	clrldi	r11,r15,4		/* remove region ID from RPN */
 	ori	r10,r11,1		/* Or-in SR */
 
-BEGIN_MMU_FTR_SECTION
 	srdi	r16,r10,32
 	mtspr	SPRN_MAS3,r10
 	mtspr	SPRN_MAS7,r16
-MMU_FTR_SECTION_ELSE
-	mtspr	SPRN_MAS7_MAS3,r10
-ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 
 	tlbwe
 
-BEGIN_MMU_FTR_SECTION
-virt_page_table_tlb_miss_done:
-
-	/* We have overridden MAS2:EPN but currently our primary TLB miss
-	 * handler will always restore it so that should not be an issue,
-	 * if we ever optimize the primary handler to not write MAS2 on
-	 * some cases, we'll have to restore MAS2:EPN here based on the
-	 * original fault's DEAR. If we do that we have to modify the
-	 * ITLB miss handler to also store SRR0 in the exception frame
-	 * as DEAR.
-	 *
-	 * However, one nasty thing we did is we cleared the reservation
-	 * (well, potentially we did). We do a trick here thus if we
-	 * are not a level 0 exception (we interrupted the TLB miss) we
-	 * offset the return address by -4 in order to replay the tlbsrx
-	 * instruction there
-	 */
-	subf	r10,r13,r12
-	cmpldi	cr0,r10,PACA_EXTLB+EX_TLB_SIZE
-	bne-	1f
-	ld	r11,PACA_EXTLB+EX_TLB_SIZE+EX_TLB_SRR0(r13)
-	addi	r10,r11,-4
-	std	r10,PACA_EXTLB+EX_TLB_SIZE+EX_TLB_SRR0(r13)
-1:
-END_MMU_FTR_SECTION_IFSET(MMU_FTR_USE_TLBRSRV)
 	/* Return to caller, normal case */
 	TLB_MISS_EPILOG_SUCCESS
 	rfi
@@ -1115,13 +1057,9 @@ htw_tlb_miss:
 	 */
 	ori	r10,r15,(BOOK3E_PAGESZ_4K << MAS3_SPSIZE_SHIFT)
 
-BEGIN_MMU_FTR_SECTION
 	srdi	r16,r10,32
 	mtspr	SPRN_MAS3,r10
 	mtspr	SPRN_MAS7,r16
-MMU_FTR_SECTION_ELSE
-	mtspr	SPRN_MAS7_MAS3,r10
-ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 
 	tlbwe
 
@@ -1202,13 +1140,9 @@ tlb_load_linear:
 	clrldi	r10,r10,4		/* clear region bits */
 	ori	r10,r10,MAS3_SR|MAS3_SW|MAS3_SX
 
-BEGIN_MMU_FTR_SECTION
 	srdi	r16,r10,32
 	mtspr	SPRN_MAS3,r10
 	mtspr	SPRN_MAS7,r16
-MMU_FTR_SECTION_ELSE
-	mtspr	SPRN_MAS7_MAS3,r10
-ALT_MMU_FTR_SECTION_END_IFCLR(MMU_FTR_USE_PAIRED_MAS)
 
 	tlbwe
 
