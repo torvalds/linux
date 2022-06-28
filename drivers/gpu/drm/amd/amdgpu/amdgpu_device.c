@@ -5076,7 +5076,7 @@ retry:
 	}
 }
 
-static inline void amdggpu_device_stop_pedning_resets(struct amdgpu_device *adev)
+static inline void amdgpu_device_stop_pending_resets(struct amdgpu_device *adev)
 {
 	struct amdgpu_ras *con = amdgpu_ras_get_context(adev);
 
@@ -5257,7 +5257,7 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		 * Drop all pending non scheduler resets. Scheduler resets
 		 * were already dropped during drm_sched_stop
 		 */
-		amdggpu_device_stop_pedning_resets(tmp_adev);
+		amdgpu_device_stop_pending_resets(tmp_adev);
 	}
 
 	tmp_vram_lost_counter = atomic_read(&((adev)->vram_lost_counter));
