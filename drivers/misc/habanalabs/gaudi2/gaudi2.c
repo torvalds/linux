@@ -6637,7 +6637,7 @@ static void gaudi2_print_irq_info(struct hl_device *hdev, u16 event_type)
 								event_type, desc);
 }
 
-static void gaudi2_handle_ecc_event(struct hl_device *hdev, u16 event_type,
+static bool gaudi2_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 		struct hl_eq_ecc_data *ecc_data)
 {
 	u64 ecc_address = 0, ecc_syndrom = 0;
@@ -6647,8 +6647,11 @@ static void gaudi2_handle_ecc_event(struct hl_device *hdev, u16 event_type,
 	ecc_syndrom = le64_to_cpu(ecc_data->ecc_syndrom);
 	memory_wrapper_idx = ecc_data->memory_wrapper_idx;
 
-	dev_err(hdev->dev, "ECC error detected. address: %#llx. Syndrom: %#llx. block id %u\n",
-		ecc_address, ecc_syndrom, memory_wrapper_idx);
+	dev_err(hdev->dev,
+		"ECC error detected. address: %#llx. Syndrom: %#llx. block id %u. critical %u.\n",
+		ecc_address, ecc_syndrom, memory_wrapper_idx, ecc_data->is_critical);
+
+	return !!ecc_data->is_critical;
 }
 
 /*
@@ -7991,9 +7994,9 @@ static bool gaudi2_handle_hbm_mc_sei_err(struct hl_device *hdev, u16 event_type,
 	}
 
 	dev_err_ratelimited(hdev->dev,
-			"System Error Interrupt - HBM(%u) MC(%u) MC_CH(%u) MC_PC(%u). Error cause: %s\n",
-			hbm_id, mc_id, sei_data->hdr.mc_channel, sei_data->hdr.mc_pseudo_channel,
-			hbm_mc_sei_cause[cause_idx]);
+		"System Error Interrupt - HBM(%u) MC(%u) MC_CH(%u) MC_PC(%u). Critical(%u). Error cause: %s\n",
+		hbm_id, mc_id, sei_data->hdr.mc_channel, sei_data->hdr.mc_pseudo_channel,
+		sei_data->hdr.is_critical, hbm_mc_sei_cause[cause_idx]);
 
 	/* Print error-specific info */
 	switch (cause_idx) {
@@ -8031,6 +8034,8 @@ static bool gaudi2_handle_hbm_mc_sei_err(struct hl_device *hdev, u16 event_type,
 	default:
 		break;
 	}
+
+	require_hard_reset |= !!sei_data->hdr.is_critical;
 
 	return require_hard_reset;
 }
@@ -8199,7 +8204,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 {
 	u32 ctl, reset_flags = HL_DRV_RESET_HARD | HL_DRV_RESET_DELAY;
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
-	bool hbm_require_reset = false, skip_reset = false;
+	bool reset_required = false, skip_reset = false;
 	int index, sbte_index;
 	u16 event_type;
 
@@ -8222,7 +8227,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 		fallthrough;
 	case GAUDI2_EVENT_ROTATOR0_SERR ... GAUDI2_EVENT_ROTATOR1_DERR:
 		reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
-		gaudi2_handle_ecc_event(hdev, event_type, &eq_entry->ecc_data);
+		reset_required = gaudi2_handle_ecc_event(hdev, event_type, &eq_entry->ecc_data);
 		break;
 
 	case GAUDI2_EVENT_TPC0_QM ... GAUDI2_EVENT_PDMA1_QM:
@@ -8387,7 +8392,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 	case GAUDI2_EVENT_HBM0_MC0_SEI_SEVERE ... GAUDI2_EVENT_HBM5_MC1_SEI_NON_SEVERE:
 		if (gaudi2_handle_hbm_mc_sei_err(hdev, event_type, &eq_entry->sei_data)) {
 			reset_flags |= HL_DRV_RESET_FW_FATAL_ERR;
-			hbm_require_reset = true;
+			reset_required = true;
 		}
 		break;
 
@@ -8539,7 +8544,7 @@ static void gaudi2_handle_eqe(struct hl_device *hdev, struct hl_eq_entry *eq_ent
 						event_type);
 	}
 
-	if ((gaudi2_irq_map_table[event_type].reset || hbm_require_reset) && !skip_reset)
+	if ((gaudi2_irq_map_table[event_type].reset || reset_required) && !skip_reset)
 		goto reset_device;
 
 	/* Send unmask irq only for interrupts not classified as MSG */

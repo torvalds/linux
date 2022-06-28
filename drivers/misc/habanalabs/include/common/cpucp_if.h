@@ -192,7 +192,7 @@ struct hl_hbm_sei_header {
 	__u8 sei_cause;		/* enum hl_hbm_sei_cause */
 	__u8 mc_channel;		/* range: 0-3 */
 	__u8 mc_pseudo_channel;	/* range: 0-7 */
-	__u8 pad[1];
+	__u8 is_critical;
 };
 
 #define HBM_RD_ADDR_SID_SHIFT		0
