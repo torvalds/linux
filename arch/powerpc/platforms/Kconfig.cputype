@@ -2,7 +2,6 @@
 config PPC32
 	bool
 	default y if !PPC64
-	select KASAN_VMALLOC if KASAN && MODULES
 
 config PPC64
 	bool "64-bit kernel"
