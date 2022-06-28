@@ -38,15 +38,16 @@
 #define VMALLOC_END	(VMALLOC_START + VMALLOC_SIZE)
 
 /*
- * The second half of the kernel virtual space is used for IO mappings,
+ * The third quarter of the kernel virtual space is used for IO mappings,
  * it's itself carved into the PIO region (ISA and PHB IO space) and
  * the ioremap space
  *
  *  ISA_IO_BASE = KERN_IO_START, 64K reserved area
  *  PHB_IO_BASE = ISA_IO_BASE + 64K to ISA_IO_BASE + 2G, PHB IO spaces
- * IOREMAP_BASE = ISA_IO_BASE + 2G to VMALLOC_START + PGTABLE_RANGE
+ * IOREMAP_BASE = ISA_IO_BASE + 2G to KERN_IO_START + KERN_IO_SIZE
  */
 #define KERN_IO_START	(KERN_VIRT_START + (KERN_VIRT_SIZE >> 1))
+#define KERN_IO_SIZE	(KERN_VIRT_SIZE >> 2)
 #define FULL_IO_SIZE	0x80000000ul
 #define  ISA_IO_BASE	(KERN_IO_START)
 #define  ISA_IO_END	(KERN_IO_START + 0x10000ul)
@@ -54,7 +55,7 @@
 #define  PHB_IO_END	(KERN_IO_START + FULL_IO_SIZE)
 #define IOREMAP_BASE	(PHB_IO_END)
 #define IOREMAP_START	(ioremap_bot)
-#define IOREMAP_END	(KERN_VIRT_START + KERN_VIRT_SIZE - FIXADDR_SIZE)
+#define IOREMAP_END	(KERN_IO_START + KERN_IO_SIZE - FIXADDR_SIZE)
 #define FIXADDR_SIZE	SZ_32M
 
 /*
