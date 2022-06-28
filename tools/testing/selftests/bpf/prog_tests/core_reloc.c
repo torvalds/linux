@@ -555,6 +555,7 @@ static const struct core_reloc_test_case test_cases[] = {
 			.valid = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
 			.comm = "test_progs",
 			.comm_len = sizeof("test_progs"),
+			.local_task_struct_matches = true,
 		},
 		.output_len = sizeof(struct core_reloc_kernel_output),
 		.raw_tp_name = "sys_enter",
