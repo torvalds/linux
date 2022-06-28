@@ -215,7 +215,6 @@ void blk_mq_unregister_dev(struct device *dev, struct request_queue *q)
 
 	kobject_uevent(q->mq_kobj, KOBJ_REMOVE);
 	kobject_del(q->mq_kobj);
-	kobject_put(&dev->kobj);
 
 	q->mq_sysfs_init_done = false;
 }
@@ -261,7 +260,7 @@ int __blk_mq_register_dev(struct device *dev, struct request_queue *q)
 	WARN_ON_ONCE(!q->kobj.parent);
 	lockdep_assert_held(&q->sysfs_dir_lock);
 
-	ret = kobject_add(q->mq_kobj, kobject_get(&dev->kobj), "%s", "mq");
+	ret = kobject_add(q->mq_kobj, &dev->kobj, "%s", "mq");
 	if (ret < 0)
 		goto out;
 
@@ -286,7 +285,6 @@ unreg:
 
 	kobject_uevent(q->mq_kobj, KOBJ_REMOVE);
 	kobject_del(q->mq_kobj);
-	kobject_put(&dev->kobj);
 	return ret;
 }
 
