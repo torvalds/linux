@@ -6,6 +6,7 @@
  */
 
 #include <linux/acpi.h>
+#include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/interrupt.h>
@@ -18,9 +19,9 @@
 #include <asm/intel_scu_ipc.h>
 
 /* PMIC device registers */
-#define REG_ADDR_MASK		0xFF00
+#define REG_ADDR_MASK		GENMASK(15, 8)
 #define REG_ADDR_SHIFT		8
-#define REG_OFFSET_MASK		0xFF
+#define REG_OFFSET_MASK		GENMASK(7, 0)
 
 /* Interrupt Status Registers */
 #define BXTWC_IRQLVL1		0x4E02
@@ -112,29 +113,29 @@ static const struct regmap_irq bxtwc_regmap_irqs[] = {
 };
 
 static const struct regmap_irq bxtwc_regmap_irqs_pwrbtn[] = {
-	REGMAP_IRQ_REG(BXTWC_PWRBTN_IRQ, 0, 0x01),
+	REGMAP_IRQ_REG(BXTWC_PWRBTN_IRQ, 0, BIT(0)),
 };
 
 static const struct regmap_irq bxtwc_regmap_irqs_bcu[] = {
-	REGMAP_IRQ_REG(BXTWC_BCU_IRQ, 0, 0x1f),
+	REGMAP_IRQ_REG(BXTWC_BCU_IRQ, 0, GENMASK(4, 0)),
 };
 
 static const struct regmap_irq bxtwc_regmap_irqs_adc[] = {
-	REGMAP_IRQ_REG(BXTWC_ADC_IRQ, 0, 0xff),
+	REGMAP_IRQ_REG(BXTWC_ADC_IRQ, 0, GENMASK(7, 0)),
 };
 
 static const struct regmap_irq bxtwc_regmap_irqs_chgr[] = {
-	REGMAP_IRQ_REG(BXTWC_USBC_IRQ, 0, 0x20),
-	REGMAP_IRQ_REG(BXTWC_CHGR0_IRQ, 0, 0x1f),
-	REGMAP_IRQ_REG(BXTWC_CHGR1_IRQ, 1, 0x1f),
+	REGMAP_IRQ_REG(BXTWC_USBC_IRQ, 0, BIT(5)),
+	REGMAP_IRQ_REG(BXTWC_CHGR0_IRQ, 0, GENMASK(4, 0)),
+	REGMAP_IRQ_REG(BXTWC_CHGR1_IRQ, 1, GENMASK(4, 0)),
 };
 
 static const struct regmap_irq bxtwc_regmap_irqs_tmu[] = {
-	REGMAP_IRQ_REG(BXTWC_TMU_IRQ, 0, 0x06),
+	REGMAP_IRQ_REG(BXTWC_TMU_IRQ, 0, GENMASK(2, 1)),
 };
 
 static const struct regmap_irq bxtwc_regmap_irqs_crit[] = {
-	REGMAP_IRQ_REG(BXTWC_CRIT_IRQ, 0, 0x03),
+	REGMAP_IRQ_REG(BXTWC_CRIT_IRQ, 0, GENMASK(1, 0)),
 };
 
 static struct regmap_irq_chip bxtwc_regmap_irq_chip = {
