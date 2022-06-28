@@ -1541,7 +1541,7 @@ void sock_map_destroy(struct sock *sk)
 	saved_destroy = psock->saved_destroy;
 	sock_map_remove_links(sk, psock);
 	rcu_read_unlock();
-	sk_psock_stop(psock, true);
+	sk_psock_stop(psock, false);
 	sk_psock_put(sk, psock);
 	saved_destroy(sk);
 }
