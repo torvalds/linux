@@ -670,18 +670,23 @@ void dcn32_update_mall_sel(struct dc *dc, struct dc_state *context)
 {
 	int i;
 	unsigned int num_ways = dcn32_calculate_cab_allocation(dc, context);
+	bool cache_cursor = false;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = pipe->plane_res.hubp;
 
 		if (pipe->stream && pipe->plane_state && hubp && hubp->funcs->hubp_update_mall_sel) {
+			if (hubp->curs_attr.width * hubp->curs_attr.height * 4 > 16384)
+				cache_cursor = true;
+
 			if (pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
-					hubp->funcs->hubp_update_mall_sel(hubp, 1);
+					hubp->funcs->hubp_update_mall_sel(hubp, 1, false);
 			} else {
 				hubp->funcs->hubp_update_mall_sel(hubp,
 					num_ways <= dc->caps.cache_num_ways &&
-					pipe->stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED ? 2 : 0);
+					pipe->stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED ? 2 : 0,
+							cache_cursor);
 			}
 		}
 	}

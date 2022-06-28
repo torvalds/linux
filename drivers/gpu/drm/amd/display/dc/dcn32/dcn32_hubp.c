@@ -47,13 +47,13 @@ void hubp32_update_force_pstate_disallow(struct hubp *hubp, bool pstate_disallow
 			DATA_UCLK_PSTATE_FORCE_VALUE, 0);
 }
 
-void hubp32_update_mall_sel(struct hubp *hubp, uint32_t mall_sel)
+void hubp32_update_mall_sel(struct hubp *hubp, uint32_t mall_sel, bool c_cursor)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
 	// Also cache cursor in MALL if using MALL for SS
 	REG_UPDATE_2(DCHUBP_MALL_CONFIG, USE_MALL_SEL, mall_sel,
-			USE_MALL_FOR_CURSOR, mall_sel == 2 ? 1 : 0);
+			USE_MALL_FOR_CURSOR, c_cursor);
 }
 
 void hubp32_prepare_subvp_buffering(struct hubp *hubp, bool enable)
