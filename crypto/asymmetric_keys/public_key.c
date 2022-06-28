@@ -260,6 +260,10 @@ static int cert_sig_digest_update(const struct public_key_signature *sig,
 
 	BUG_ON(!sig->data);
 
+	/* SM2 signatures always use the SM3 hash algorithm */
+	if (!sig->hash_algo || strcmp(sig->hash_algo, "sm3") != 0)
+		return -EINVAL;
+
 	ret = sm2_compute_z_digest(tfm_pkey, SM2_DEFAULT_USERID,
 					SM2_DEFAULT_USERID_LEN, dgst);
 	if (ret)
@@ -356,8 +360,7 @@ int public_key_verify_signature(const struct public_key *pkey,
 	if (ret)
 		goto error_free_key;
 
-	if (sig->pkey_algo && strcmp(sig->pkey_algo, "sm2") == 0 &&
-	    sig->data_size) {
+	if (strcmp(pkey->pkey_algo, "sm2") == 0 && sig->data_size) {
 		ret = cert_sig_digest_update(sig, tfm);
 		if (ret)
 			goto error_free_key;
