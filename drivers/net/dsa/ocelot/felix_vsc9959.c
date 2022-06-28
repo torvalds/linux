@@ -1210,6 +1210,9 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 			       QSYS_TAG_CONFIG_INIT_GATE_STATE_M,
 			       QSYS_TAG_CONFIG, port);
 
+		taprio_offload_free(ocelot_port->taprio);
+		ocelot_port->taprio = NULL;
+
 		mutex_unlock(&ocelot->tas_lock);
 		return 0;
 	}
@@ -1258,8 +1261,6 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 		       QSYS_TAG_CONFIG_SCH_TRAFFIC_QUEUES_M,
 		       QSYS_TAG_CONFIG, port);
 
-	ocelot_port->base_time = taprio->base_time;
-
 	vsc9959_new_base_time(ocelot, taprio->base_time,
 			      taprio->cycle_time, &base_ts);
 	ocelot_write(ocelot, base_ts.tv_nsec, QSYS_PARAM_CFG_REG_1);
@@ -1282,6 +1283,10 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 	ret = readx_poll_timeout(vsc9959_tas_read_cfg_status, ocelot, val,
 				 !(val & QSYS_TAS_PARAM_CFG_CTRL_CONFIG_CHANGE),
 				 10, 100000);
+	if (ret)
+		goto err;
+
+	ocelot_port->taprio = taprio_offload_get(taprio);
 
 err:
 	mutex_unlock(&ocelot->tas_lock);
@@ -1291,17 +1296,18 @@ err:
 
 static void vsc9959_tas_clock_adjust(struct ocelot *ocelot)
 {
+	struct tc_taprio_qopt_offload *taprio;
 	struct ocelot_port *ocelot_port;
 	struct timespec64 base_ts;
-	u64 cycletime;
 	int port;
 	u32 val;
 
 	mutex_lock(&ocelot->tas_lock);
 
 	for (port = 0; port < ocelot->num_phys_ports; port++) {
-		val = ocelot_read_rix(ocelot, QSYS_TAG_CONFIG, port);
-		if (!(val & QSYS_TAG_CONFIG_ENABLE))
+		ocelot_port = ocelot->ports[port];
+		taprio = ocelot_port->taprio;
+		if (!taprio)
 			continue;
 
 		ocelot_rmw(ocelot,
@@ -1315,11 +1321,8 @@ static void vsc9959_tas_clock_adjust(struct ocelot *ocelot)
 			       QSYS_TAG_CONFIG_INIT_GATE_STATE_M,
 			       QSYS_TAG_CONFIG, port);
 
-		cycletime = ocelot_read(ocelot, QSYS_PARAM_CFG_REG_4);
-		ocelot_port = ocelot->ports[port];
-
-		vsc9959_new_base_time(ocelot, ocelot_port->base_time,
-				      cycletime, &base_ts);
+		vsc9959_new_base_time(ocelot, taprio->base_time,
+				      taprio->cycle_time, &base_ts);
 
 		ocelot_write(ocelot, base_ts.tv_nsec, QSYS_PARAM_CFG_REG_1);
 		ocelot_write(ocelot, lower_32_bits(base_ts.tv_sec),
