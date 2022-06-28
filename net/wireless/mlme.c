@@ -21,36 +21,35 @@
 #include "rdev-ops.h"
 
 
-void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
-			    const u8 *buf, size_t len, int uapsd_queues,
-			    const u8 *req_ies, size_t req_ies_len)
+void cfg80211_rx_assoc_resp(struct net_device *dev,
+			    struct cfg80211_rx_assoc_resp *data)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
-	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)buf;
+	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)data->buf;
 	struct cfg80211_connect_resp_params cr;
 	const u8 *resp_ie = mgmt->u.assoc_resp.variable;
-	size_t resp_ie_len = len - offsetof(struct ieee80211_mgmt,
-					    u.assoc_resp.variable);
+	size_t resp_ie_len = data->len - offsetof(struct ieee80211_mgmt,
+						  u.assoc_resp.variable);
 
-	if (bss->channel->band == NL80211_BAND_S1GHZ) {
+	if (data->bss->channel->band == NL80211_BAND_S1GHZ) {
 		resp_ie = (u8 *)&mgmt->u.s1g_assoc_resp.variable;
-		resp_ie_len = len - offsetof(struct ieee80211_mgmt,
-					     u.s1g_assoc_resp.variable);
+		resp_ie_len = data->len - offsetof(struct ieee80211_mgmt,
+						   u.s1g_assoc_resp.variable);
 	}
 
 	memset(&cr, 0, sizeof(cr));
 	cr.status = (int)le16_to_cpu(mgmt->u.assoc_resp.status_code);
 	cr.links[0].bssid = mgmt->bssid;
-	cr.links[0].bss = bss;
-	cr.req_ie = req_ies;
-	cr.req_ie_len = req_ies_len;
+	cr.links[0].bss = data->bss;
+	cr.req_ie = data->req_ies;
+	cr.req_ie_len = data->req_ies_len;
 	cr.resp_ie = resp_ie;
 	cr.resp_ie_len = resp_ie_len;
 	cr.timeout_reason = NL80211_TIMEOUT_UNSPECIFIED;
 
-	trace_cfg80211_send_rx_assoc(dev, bss);
+	trace_cfg80211_send_rx_assoc(dev, data->bss);
 
 	/*
 	 * This is a bit of a hack, we don't notify userspace of
@@ -59,13 +58,12 @@ void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
 	 * frame instead of reassoc.
 	 */
 	if (cfg80211_sme_rx_assoc_resp(wdev, cr.status)) {
-		cfg80211_unhold_bss(bss_from_pub(bss));
-		cfg80211_put_bss(wiphy, bss);
+		cfg80211_unhold_bss(bss_from_pub(data->bss));
+		cfg80211_put_bss(wiphy, data->bss);
 		return;
 	}
 
-	nl80211_send_rx_assoc(rdev, dev, buf, len, GFP_KERNEL, uapsd_queues,
-			      req_ies, req_ies_len);
+	nl80211_send_rx_assoc(rdev, dev, data);
 	/* update current_bss etc., consumes the bss reference */
 	__cfg80211_connect_result(dev, &cr, cr.status == WLAN_STATUS_SUCCESS);
 }

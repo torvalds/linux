@@ -17432,13 +17432,13 @@ void nl80211_send_rx_auth(struct cfg80211_registered_device *rdev,
 }
 
 void nl80211_send_rx_assoc(struct cfg80211_registered_device *rdev,
-			   struct net_device *netdev, const u8 *buf,
-			   size_t len, gfp_t gfp, int uapsd_queues,
-			   const u8 *req_ies, size_t req_ies_len)
+			   struct net_device *netdev,
+			   struct cfg80211_rx_assoc_resp *data)
 {
-	nl80211_send_mlme_event(rdev, netdev, buf, len,
-				NL80211_CMD_ASSOCIATE, gfp, uapsd_queues,
-				req_ies, req_ies_len, false);
+	nl80211_send_mlme_event(rdev, netdev, data->buf, data->len,
+				NL80211_CMD_ASSOCIATE, GFP_KERNEL,
+				data->uapsd_queues,
+				data->req_ies, data->req_ies_len, false);
 }
 
 void nl80211_send_deauth(struct cfg80211_registered_device *rdev,
