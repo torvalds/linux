@@ -63,6 +63,7 @@ enum hp_wmi_event_ids {
 	HPWMI_BACKLIT_KB_BRIGHTNESS	= 0x0D,
 	HPWMI_PEAKSHIFT_PERIOD		= 0x0F,
 	HPWMI_BATTERY_CHARGE_PERIOD	= 0x10,
+	HPWMI_SANITIZATION_MODE		= 0x17,
 };
 
 struct bios_args {
@@ -637,6 +638,8 @@ static void hp_wmi_notify(u32 value, void *context)
 	case HPWMI_PEAKSHIFT_PERIOD:
 		break;
 	case HPWMI_BATTERY_CHARGE_PERIOD:
+		break;
+	case HPWMI_SANITIZATION_MODE:
 		break;
 	default:
 		pr_info("Unknown event_id - %d - 0x%x\n", event_id, event_data);
