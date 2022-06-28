@@ -259,12 +259,6 @@ static void gmc_v11_0_flush_vm_hub(struct amdgpu_device *adev, uint32_t vmid,
 static void gmc_v11_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 					uint32_t vmhub, uint32_t flush_type)
 {
-	struct amdgpu_ring *ring = adev->mman.buffer_funcs_ring;
-	struct dma_fence *fence;
-	struct amdgpu_job *job;
-
-	int r;
-
 	if ((vmhub == AMDGPU_GFXHUB_0) && !adev->gfx.is_poweron)
 		return;
 
@@ -288,51 +282,8 @@ static void gmc_v11_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	}
 
 	mutex_lock(&adev->mman.gtt_window_lock);
-
-	if (vmhub == AMDGPU_MMHUB_0) {
-		gmc_v11_0_flush_vm_hub(adev, vmid, AMDGPU_MMHUB_0, 0);
-		mutex_unlock(&adev->mman.gtt_window_lock);
-		return;
-	}
-
-	BUG_ON(vmhub != AMDGPU_GFXHUB_0);
-
-	if (!adev->mman.buffer_funcs_enabled ||
-	    !adev->ib_pool_ready ||
-	    amdgpu_in_reset(adev) ||
-	    ring->sched.ready == false) {
-		gmc_v11_0_flush_vm_hub(adev, vmid, AMDGPU_GFXHUB_0, 0);
-		mutex_unlock(&adev->mman.gtt_window_lock);
-		return;
-	}
-
-	r = amdgpu_job_alloc_with_ib(adev, 16 * 4, AMDGPU_IB_POOL_IMMEDIATE,
-				     &job);
-	if (r)
-		goto error_alloc;
-
-	job->vm_pd_addr = amdgpu_gmc_pd_addr(adev->gart.bo);
-	job->vm_needs_flush = true;
-	job->ibs->ptr[job->ibs->length_dw++] = ring->funcs->nop;
-	amdgpu_ring_pad_ib(ring, &job->ibs[0]);
-	r = amdgpu_job_submit(job, &adev->mman.entity,
-			      AMDGPU_FENCE_OWNER_UNDEFINED, &fence);
-	if (r)
-		goto error_submit;
-
+	gmc_v11_0_flush_vm_hub(adev, vmid, vmhub, 0);
 	mutex_unlock(&adev->mman.gtt_window_lock);
-
-	dma_fence_wait(fence, false);
-	dma_fence_put(fence);
-
-	return;
-
-error_submit:
-	amdgpu_job_free(job);
-
-error_alloc:
-	mutex_unlock(&adev->mman.gtt_window_lock);
-	DRM_ERROR("Error flushing GPU TLB using the SDMA (%d)!\n", r);
 	return;
 }
 
