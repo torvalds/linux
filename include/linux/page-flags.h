@@ -208,19 +208,8 @@ enum pageflags {
 DECLARE_STATIC_KEY_FALSE(hugetlb_optimize_vmemmap_key);
 
 /*
- * If HVO is enabled, the head vmemmap page frame is reused and all of the tail
- * vmemmap addresses map to the head vmemmap page frame (furture details can
- * refer to the figure at the head of the mm/hugetlb_vmemmap.c).  In other
- * words, there are more than one page struct with PG_head associated with each
- * HugeTLB page.  We __know__ that there is only one head page struct, the tail
- * page structs with PG_head are fake head page structs.  We need an approach
- * to distinguish between those two different types of page structs so that
- * compound_head() can return the real head page struct when the parameter is
- * the tail page struct but with PG_head.
- *
- * The page_fixed_fake_head() returns the real head page struct if the @page is
- * fake page head, otherwise, returns @page which can either be a true page
- * head or tail.
+ * Return the real head page struct iff the @page is a fake head page, otherwise
+ * return the @page itself. See Documentation/mm/vmemmap_dedup.rst.
  */
 static __always_inline const struct page *page_fixed_fake_head(const struct page *page)
 {
