@@ -447,6 +447,8 @@ static void cscfg_unload_owned_cfgs_feats(void *load_owner)
 	struct cscfg_feature_desc *feat_desc, *feat_tmp;
 	struct cscfg_registered_csdev *csdev_item;
 
+	lockdep_assert_held(&cscfg_mutex);
+
 	/* remove from each csdev instance feature and config lists */
 	list_for_each_entry(csdev_item, &cscfg_mgr->csdev_desc_list, item) {
 		/*
@@ -460,7 +462,6 @@ static void cscfg_unload_owned_cfgs_feats(void *load_owner)
 	/* remove from the config descriptor lists */
 	list_for_each_entry_safe(config_desc, cfg_tmp, &cscfg_mgr->config_desc_list, item) {
 		if (config_desc->load_owner == load_owner) {
-			cscfg_configfs_del_config(config_desc);
 			etm_perf_del_symlink_cscfg(config_desc);
 			list_del(&config_desc->item);
 		}
@@ -469,10 +470,88 @@ static void cscfg_unload_owned_cfgs_feats(void *load_owner)
 	/* remove from the feature descriptor lists */
 	list_for_each_entry_safe(feat_desc, feat_tmp, &cscfg_mgr->feat_desc_list, item) {
 		if (feat_desc->load_owner == load_owner) {
-			cscfg_configfs_del_feature(feat_desc);
 			list_del(&feat_desc->item);
 		}
 	}
+}
+
+/*
+ * load the features and configs to the lists - called with list mutex held
+ */
+static int cscfg_load_owned_cfgs_feats(struct cscfg_config_desc **config_descs,
+				       struct cscfg_feature_desc **feat_descs,
+				       struct cscfg_load_owner_info *owner_info)
+{
+	int i, err;
+
+	lockdep_assert_held(&cscfg_mutex);
+
+	/* load features first */
+	if (feat_descs) {
+		for (i = 0; feat_descs[i]; i++) {
+			err = cscfg_load_feat(feat_descs[i]);
+			if (err) {
+				pr_err("coresight-syscfg: Failed to load feature %s\n",
+				       feat_descs[i]->name);
+				return err;
+			}
+			feat_descs[i]->load_owner = owner_info;
+		}
+	}
+
+	/* next any configurations to check feature dependencies */
+	if (config_descs) {
+		for (i = 0; config_descs[i]; i++) {
+			err = cscfg_load_config(config_descs[i]);
+			if (err) {
+				pr_err("coresight-syscfg: Failed to load configuration %s\n",
+				       config_descs[i]->name);
+				return err;
+			}
+			config_descs[i]->load_owner = owner_info;
+			config_descs[i]->available = false;
+		}
+	}
+	return 0;
+}
+
+/* set configurations as available to activate at the end of the load process */
+static void cscfg_set_configs_available(struct cscfg_config_desc **config_descs)
+{
+	int i;
+
+	lockdep_assert_held(&cscfg_mutex);
+
+	if (config_descs) {
+		for (i = 0; config_descs[i]; i++)
+			config_descs[i]->available = true;
+	}
+}
+
+/*
+ * Create and register each of the configurations and features with configfs.
+ * Called without mutex being held.
+ */
+static int cscfg_fs_register_cfgs_feats(struct cscfg_config_desc **config_descs,
+					struct cscfg_feature_desc **feat_descs)
+{
+	int i, err;
+
+	if (feat_descs) {
+		for (i = 0; feat_descs[i]; i++) {
+			err = cscfg_configfs_add_feature(feat_descs[i]);
+			if (err)
+				return err;
+		}
+	}
+	if (config_descs) {
+		for (i = 0; config_descs[i]; i++) {
+			err = cscfg_configfs_add_config(config_descs[i]);
+			if (err)
+				return err;
+		}
+	}
+	return 0;
 }
 
 /**
@@ -497,57 +576,63 @@ int cscfg_load_config_sets(struct cscfg_config_desc **config_descs,
 			   struct cscfg_feature_desc **feat_descs,
 			   struct cscfg_load_owner_info *owner_info)
 {
-	int err = 0, i = 0;
+	int err = 0;
 
 	mutex_lock(&cscfg_mutex);
-
-	/* load features first */
-	if (feat_descs) {
-		while (feat_descs[i]) {
-			err = cscfg_load_feat(feat_descs[i]);
-			if (!err)
-				err = cscfg_configfs_add_feature(feat_descs[i]);
-			if (err) {
-				pr_err("coresight-syscfg: Failed to load feature %s\n",
-				       feat_descs[i]->name);
-				cscfg_unload_owned_cfgs_feats(owner_info);
-				goto exit_unlock;
-			}
-			feat_descs[i]->load_owner = owner_info;
-			i++;
-		}
+	if (cscfg_mgr->load_state != CSCFG_NONE) {
+		mutex_unlock(&cscfg_mutex);
+		return -EBUSY;
 	}
+	cscfg_mgr->load_state = CSCFG_LOAD;
 
-	/* next any configurations to check feature dependencies */
-	i = 0;
-	if (config_descs) {
-		while (config_descs[i]) {
-			err = cscfg_load_config(config_descs[i]);
-			if (!err)
-				err = cscfg_configfs_add_config(config_descs[i]);
-			if (err) {
-				pr_err("coresight-syscfg: Failed to load configuration %s\n",
-				       config_descs[i]->name);
-				cscfg_unload_owned_cfgs_feats(owner_info);
-				goto exit_unlock;
-			}
-			config_descs[i]->load_owner = owner_info;
-			i++;
-		}
-	}
+	/* first load and add to the lists */
+	err = cscfg_load_owned_cfgs_feats(config_descs, feat_descs, owner_info);
+	if (err)
+		goto err_clean_load;
 
 	/* add the load owner to the load order list */
 	list_add_tail(&owner_info->item, &cscfg_mgr->load_order_list);
 	if (!list_is_singular(&cscfg_mgr->load_order_list)) {
 		/* lock previous item in load order list */
 		err = cscfg_owner_get(list_prev_entry(owner_info, item));
-		if (err) {
-			cscfg_unload_owned_cfgs_feats(owner_info);
-			list_del(&owner_info->item);
-		}
+		if (err)
+			goto err_clean_owner_list;
 	}
 
+	/*
+	 * make visible to configfs - configfs manipulation must occur outside
+	 * the list mutex lock to avoid circular lockdep issues with configfs
+	 * built in mutexes and semaphores. This is safe as it is not possible
+	 * to start a new load/unload operation till the current one is done.
+	 */
+	mutex_unlock(&cscfg_mutex);
+
+	/* create the configfs elements */
+	err = cscfg_fs_register_cfgs_feats(config_descs, feat_descs);
+	mutex_lock(&cscfg_mutex);
+
+	if (err)
+		goto err_clean_cfs;
+
+	/* mark any new configs as available for activation */
+	cscfg_set_configs_available(config_descs);
+	goto exit_unlock;
+
+err_clean_cfs:
+	/* cleanup after error registering with configfs */
+	cscfg_fs_unregister_cfgs_feats(owner_info);
+
+	if (!list_is_singular(&cscfg_mgr->load_order_list))
+		cscfg_owner_put(list_prev_entry(owner_info, item));
+
+err_clean_owner_list:
+	list_del(&owner_info->item);
+
+err_clean_load:
+	cscfg_unload_owned_cfgs_feats(owner_info);
+
 exit_unlock:
+	cscfg_mgr->load_state = CSCFG_NONE;
 	mutex_unlock(&cscfg_mutex);
 	return err;
 }
@@ -564,6 +649,9 @@ EXPORT_SYMBOL_GPL(cscfg_load_config_sets);
  * 1) no configurations are active.
  * 2) the set being unloaded was the last to be loaded to maintain dependencies.
  *
+ * Once the unload operation commences, we disallow any configuration being
+ * made active until it is complete.
+ *
  * @owner_info:	Information on owner for set being unloaded.
  */
 int cscfg_unload_config_sets(struct cscfg_load_owner_info *owner_info)
@@ -572,6 +660,13 @@ int cscfg_unload_config_sets(struct cscfg_load_owner_info *owner_info)
 	struct cscfg_load_owner_info *load_list_item = NULL;
 
 	mutex_lock(&cscfg_mutex);
+	if (cscfg_mgr->load_state != CSCFG_NONE) {
+		mutex_unlock(&cscfg_mutex);
+		return -EBUSY;
+	}
+
+	/* unload op in progress also prevents activation of any config */
+	cscfg_mgr->load_state = CSCFG_UNLOAD;
 
 	/* cannot unload if anything is active */
 	if (atomic_read(&cscfg_mgr->sys_active_cnt)) {
@@ -592,7 +687,12 @@ int cscfg_unload_config_sets(struct cscfg_load_owner_info *owner_info)
 		goto exit_unlock;
 	}
 
-	/* unload all belonging to load_owner */
+	/* remove from configfs - again outside the scope of the list mutex */
+	mutex_unlock(&cscfg_mutex);
+	cscfg_fs_unregister_cfgs_feats(owner_info);
+	mutex_lock(&cscfg_mutex);
+
+	/* unload everything from lists belonging to load_owner */
 	cscfg_unload_owned_cfgs_feats(owner_info);
 
 	/* remove from load order list */
@@ -603,6 +703,7 @@ int cscfg_unload_config_sets(struct cscfg_load_owner_info *owner_info)
 	list_del(&owner_info->item);
 
 exit_unlock:
+	cscfg_mgr->load_state = CSCFG_NONE;
 	mutex_unlock(&cscfg_mutex);
 	return err;
 }
@@ -780,8 +881,15 @@ static int _cscfg_activate_config(unsigned long cfg_hash)
 	struct cscfg_config_desc *config_desc;
 	int err = -EINVAL;
 
+	if (cscfg_mgr->load_state == CSCFG_UNLOAD)
+		return -EBUSY;
+
 	list_for_each_entry(config_desc, &cscfg_mgr->config_desc_list, item) {
 		if ((unsigned long)config_desc->event_ea->var == cfg_hash) {
+			/* if we happen upon a partly loaded config, can't use it */
+			if (config_desc->available == false)
+				return -EBUSY;
+
 			/* must ensure that config cannot be unloaded in use */
 			err = cscfg_owner_get(config_desc->load_owner);
 			if (err)
@@ -1071,6 +1179,7 @@ static int cscfg_create_device(void)
 	INIT_LIST_HEAD(&cscfg_mgr->config_desc_list);
 	INIT_LIST_HEAD(&cscfg_mgr->load_order_list);
 	atomic_set(&cscfg_mgr->sys_active_cnt, 0);
+	cscfg_mgr->load_state = CSCFG_NONE;
 
 	/* setup the device */
 	dev = cscfg_device();
