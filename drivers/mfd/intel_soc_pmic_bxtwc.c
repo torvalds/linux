@@ -346,7 +346,7 @@ static ssize_t addr_store(struct device *dev,
 	if (ret)
 		return ret;
 
-	return (ssize_t)count;
+	return count;
 }
 
 static ssize_t val_show(struct device *dev,
