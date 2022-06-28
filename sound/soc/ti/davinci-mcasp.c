@@ -2111,8 +2111,7 @@ static int davinci_mcasp_gpio_request(struct gpio_chip *chip, unsigned offset)
 	}
 
 	/* Do not change the PIN yet */
-
-	return pm_runtime_get_sync(mcasp->dev);
+	return pm_runtime_resume_and_get(mcasp->dev);
 }
 
 static void davinci_mcasp_gpio_free(struct gpio_chip *chip, unsigned offset)
