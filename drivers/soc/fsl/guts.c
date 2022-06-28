@@ -195,9 +195,9 @@ static int __init fsl_guts_init(void)
 	soc_data = match->data;
 
 	regs = of_iomap(np, 0);
-	if (IS_ERR(regs)) {
+	if (!regs) {
 		of_node_put(np);
-		return PTR_ERR(regs);
+		return -ENOMEM;
 	}
 
 	little_endian = of_property_read_bool(np, "little-endian");
