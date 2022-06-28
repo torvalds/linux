@@ -16,6 +16,7 @@
 #include <linux/iopoll.h>
 #include <linux/mdio.h>
 #include <linux/pci.h>
+#include <linux/time.h>
 #include "felix.h"
 
 #define VSC9959_NUM_PORTS		6
@@ -1235,7 +1236,7 @@ static void vsc9959_tas_guard_bands_update(struct ocelot *ocelot, int port)
 		u32 max_sdu;
 
 		if (min_gate_len[tc] == U64_MAX /* Gate always open */ ||
-		    min_gate_len[tc] * 1000 > needed_bit_time_ps) {
+		    min_gate_len[tc] * PSEC_PER_NSEC > needed_bit_time_ps) {
 			/* Setting QMAXSDU_CFG to 0 disables oversized frame
 			 * dropping.
 			 */
@@ -1249,7 +1250,7 @@ static void vsc9959_tas_guard_bands_update(struct ocelot *ocelot, int port)
 			 * frame, make sure to enable oversize frame dropping
 			 * for frames larger than the smallest that would fit.
 			 */
-			max_sdu = div_u64(min_gate_len[tc] * 1000,
+			max_sdu = div_u64(min_gate_len[tc] * PSEC_PER_NSEC,
 					  picos_per_byte);
 			/* A TC gate may be completely closed, which is a
 			 * special case where all packets are oversized.
