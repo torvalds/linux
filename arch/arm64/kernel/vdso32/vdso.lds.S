@@ -60,6 +60,7 @@ SECTIONS
 	}
 
 	ELF_DETAILS
+	.ARM.exidx : { *(.ARM.exidx*) }
 	.ARM.attributes 0 : { *(.ARM.attributes) }
 
 	/DISCARD/	: {
