@@ -3784,6 +3784,7 @@ vm_fault_t do_swap_page(struct vm_fault *vmf)
 		do_page_add_anon_rmap(page, vma, vmf->address, exclusive);
 	}
 
+	trace_android_vh_swapin_add_anon_rmap(vmf, page);
 	swap_free(entry);
 	if (mem_cgroup_swap_full(page) ||
 	    (vmf->vma_flags & VM_LOCKED) || PageMlocked(page))

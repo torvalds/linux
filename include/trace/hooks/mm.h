@@ -152,6 +152,9 @@ DECLARE_HOOK(android_vh_ra_tuning_max_page,
 DECLARE_HOOK(android_vh_cow_user_page,
 	TP_PROTO(struct vm_fault *vmf, struct page *page),
 	TP_ARGS(vmf, page));
+DECLARE_HOOK(android_vh_swapin_add_anon_rmap,
+	TP_PROTO(struct vm_fault *vmf, struct page *page),
+	TP_ARGS(vmf, page));
 DECLARE_HOOK(android_vh_page_isolated_for_reclaim,
 	TP_PROTO(struct mm_struct *mm, struct page *page),
 	TP_ARGS(mm, page));
