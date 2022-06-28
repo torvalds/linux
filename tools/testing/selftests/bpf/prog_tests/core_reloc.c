@@ -754,6 +754,7 @@ static const struct core_reloc_test_case test_cases[] = {
 	/* validate type existence, match, and size relocations */
 	TYPE_BASED_CASE(type_based, {
 		.struct_exists = 1,
+		.complex_struct_exists = 1,
 		.union_exists = 1,
 		.enum_exists = 1,
 		.typedef_named_struct_exists = 1,
@@ -766,6 +767,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.typedef_arr_exists = 1,
 
 		.struct_matches = 1,
+		.complex_struct_matches = 1,
 		.union_matches = 1,
 		.enum_matches = 1,
 		.typedef_named_struct_matches = 1,
@@ -794,6 +796,7 @@ static const struct core_reloc_test_case test_cases[] = {
 	}),
 	TYPE_BASED_CASE(type_based___diff, {
 		.struct_exists = 1,
+		.complex_struct_exists = 1,
 		.union_exists = 1,
 		.enum_exists = 1,
 		.typedef_named_struct_exists = 1,
@@ -806,6 +809,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.typedef_arr_exists = 1,
 
 		.struct_matches = 1,
+		.complex_struct_matches = 1,
 		.union_matches = 1,
 		.enum_matches = 1,
 		.typedef_named_struct_matches = 1,

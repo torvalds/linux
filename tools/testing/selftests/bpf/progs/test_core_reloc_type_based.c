@@ -19,6 +19,14 @@ struct a_struct {
 	int x;
 };
 
+struct a_complex_struct {
+	union {
+		struct a_struct *a;
+		void *b;
+	} x;
+	volatile long y;
+};
+
 union a_union {
 	int y;
 	int z;
@@ -50,6 +58,7 @@ typedef char arr_typedef[20];
 
 struct core_reloc_type_based_output {
 	bool struct_exists;
+	bool complex_struct_exists;
 	bool union_exists;
 	bool enum_exists;
 	bool typedef_named_struct_exists;
@@ -62,6 +71,7 @@ struct core_reloc_type_based_output {
 	bool typedef_arr_exists;
 
 	bool struct_matches;
+	bool complex_struct_matches;
 	bool union_matches;
 	bool enum_matches;
 	bool typedef_named_struct_matches;
@@ -99,6 +109,7 @@ int test_core_type_based(void *ctx)
 	struct core_reloc_type_based_output *out = (void *)&data.out;
 
 	out->struct_exists = bpf_core_type_exists(struct a_struct);
+	out->complex_struct_exists = bpf_core_type_exists(struct a_complex_struct);
 	out->union_exists = bpf_core_type_exists(union a_union);
 	out->enum_exists = bpf_core_type_exists(enum an_enum);
 	out->typedef_named_struct_exists = bpf_core_type_exists(named_struct_typedef);
@@ -111,6 +122,7 @@ int test_core_type_based(void *ctx)
 	out->typedef_arr_exists = bpf_core_type_exists(arr_typedef);
 
 	out->struct_matches = bpf_core_type_matches(struct a_struct);
+	out->complex_struct_matches = bpf_core_type_matches(struct a_complex_struct);
 	out->union_matches = bpf_core_type_matches(union a_union);
 	out->enum_matches = bpf_core_type_matches(enum an_enum);
 	out->typedef_named_struct_matches = bpf_core_type_matches(named_struct_typedef);

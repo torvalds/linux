@@ -864,6 +864,7 @@ struct core_reloc_size___err_ambiguous2 {
  */
 struct core_reloc_type_based_output {
 	bool struct_exists;
+	bool complex_struct_exists;
 	bool union_exists;
 	bool enum_exists;
 	bool typedef_named_struct_exists;
@@ -876,6 +877,7 @@ struct core_reloc_type_based_output {
 	bool typedef_arr_exists;
 
 	bool struct_matches;
+	bool complex_struct_matches;
 	bool union_matches;
 	bool enum_matches;
 	bool typedef_named_struct_matches;
@@ -902,6 +904,14 @@ struct core_reloc_type_based_output {
 
 struct a_struct {
 	int x;
+};
+
+struct a_complex_struct {
+	union {
+		struct a_struct * restrict a;
+		void *b;
+	} x;
+	volatile long y;
 };
 
 union a_union {
@@ -935,16 +945,17 @@ typedef char arr_typedef[20];
 
 struct core_reloc_type_based {
 	struct a_struct f1;
-	union a_union f2;
-	enum an_enum f3;
-	named_struct_typedef f4;
-	anon_struct_typedef f5;
-	struct_ptr_typedef f6;
-	int_typedef f7;
-	enum_typedef f8;
-	void_ptr_typedef f9;
-	func_proto_typedef f10;
-	arr_typedef f11;
+	struct a_complex_struct f2;
+	union a_union f3;
+	enum an_enum f4;
+	named_struct_typedef f5;
+	anon_struct_typedef f6;
+	struct_ptr_typedef f7;
+	int_typedef f8;
+	enum_typedef f9;
+	void_ptr_typedef f10;
+	func_proto_typedef f11;
+	arr_typedef f12;
 };
 
 /* no types in target */
@@ -955,6 +966,16 @@ struct core_reloc_type_based___all_missing {
 struct a_struct___diff {
 	int x;
 	int a;
+};
+
+struct a_struct___forward;
+
+struct a_complex_struct___diff {
+	union {
+		struct a_struct___forward *a;
+		void *b;
+	} x;
+	volatile long y;
 };
 
 union a_union___diff {
@@ -990,16 +1011,17 @@ typedef char arr_typedef___diff[3];
 
 struct core_reloc_type_based___diff {
 	struct a_struct___diff f1;
-	union a_union___diff f2;
-	enum an_enum___diff f3;
-	named_struct_typedef___diff f4;
-	anon_struct_typedef___diff f5;
-	struct_ptr_typedef___diff f6;
-	int_typedef___diff f7;
-	enum_typedef___diff f8;
-	void_ptr_typedef___diff f9;
-	func_proto_typedef___diff f10;
-	arr_typedef___diff f11;
+	struct a_complex_struct___diff f2;
+	union a_union___diff f3;
+	enum an_enum___diff f4;
+	named_struct_typedef___diff f5;
+	anon_struct_typedef___diff f6;
+	struct_ptr_typedef___diff f7;
+	int_typedef___diff f8;
+	enum_typedef___diff f9;
+	void_ptr_typedef___diff f10;
+	func_proto_typedef___diff f11;
+	arr_typedef___diff f12;
 };
 
 /* different type sizes, extra modifiers, anon vs named enums, etc */
