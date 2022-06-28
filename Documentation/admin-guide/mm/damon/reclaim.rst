@@ -66,6 +66,17 @@ Setting it as ``N`` disables DAMON_RECLAIM.  Note that DAMON_RECLAIM could do
 no real monitoring and reclamation due to the watermarks-based activation
 condition.  Refer to below descriptions for the watermarks parameter for this.
 
+commit_inputs
+-------------
+
+Make DAMON_RECLAIM reads the input parameters again, except ``enabled``.
+
+Input parameters that updated while DAMON_RECLAIM is running are not applied
+by default.  Once this parameter is set as ``Y``, DAMON_RECLAIM reads values
+of parametrs except ``enabled`` again.  Once the re-reading is done, this
+parameter is set as ``N``.  If invalid parameters are found while the
+re-reading, DAMON_RECLAIM will be disabled.
+
 min_age
 -------
 

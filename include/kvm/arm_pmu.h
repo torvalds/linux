@@ -20,13 +20,19 @@ struct kvm_pmc {
 	struct perf_event *perf_event;
 };
 
+struct kvm_pmu_events {
+	u32 events_host;
+	u32 events_guest;
+};
+
 struct kvm_pmu {
-	int irq_num;
+	struct irq_work overflow_work;
+	struct kvm_pmu_events events;
 	struct kvm_pmc pmc[ARMV8_PMU_MAX_COUNTERS];
 	DECLARE_BITMAP(chained, ARMV8_PMU_MAX_COUNTER_PAIRS);
+	int irq_num;
 	bool created;
 	bool irq_level;
-	struct irq_work overflow_work;
 };
 
 struct arm_pmu_entry {
@@ -66,6 +72,25 @@ int kvm_arm_pmu_v3_get_attr(struct kvm_vcpu *vcpu,
 int kvm_arm_pmu_v3_has_attr(struct kvm_vcpu *vcpu,
 			    struct kvm_device_attr *attr);
 int kvm_arm_pmu_v3_enable(struct kvm_vcpu *vcpu);
+
+struct kvm_pmu_events *kvm_get_pmu_events(void);
+void kvm_vcpu_pmu_restore_guest(struct kvm_vcpu *vcpu);
+void kvm_vcpu_pmu_restore_host(struct kvm_vcpu *vcpu);
+
+#define kvm_vcpu_has_pmu(vcpu)					\
+	(test_bit(KVM_ARM_VCPU_PMU_V3, (vcpu)->arch.features))
+
+/*
+ * Updates the vcpu's view of the pmu events for this cpu.
+ * Must be called before every vcpu run after disabling interrupts, to ensure
+ * that an interrupt cannot fire and update the structure.
+ */
+#define kvm_pmu_update_vcpu_events(vcpu)				\
+	do {								\
+		if (!has_vhe() && kvm_vcpu_has_pmu(vcpu))		\
+			vcpu->arch.pmu.events = *kvm_get_pmu_events();	\
+	} while (0)
+
 #else
 struct kvm_pmu {
 };
@@ -126,6 +151,11 @@ static inline u64 kvm_pmu_get_pmceid(struct kvm_vcpu *vcpu, bool pmceid1)
 {
 	return 0;
 }
+
+#define kvm_vcpu_has_pmu(vcpu)		({ false; })
+static inline void kvm_pmu_update_vcpu_events(struct kvm_vcpu *vcpu) {}
+static inline void kvm_vcpu_pmu_restore_guest(struct kvm_vcpu *vcpu) {}
+static inline void kvm_vcpu_pmu_restore_host(struct kvm_vcpu *vcpu) {}
 
 #endif
 

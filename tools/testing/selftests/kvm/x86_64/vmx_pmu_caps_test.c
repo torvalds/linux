@@ -1,15 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * VMX-pmu related msrs test
+ * Test for VMX-pmu perf capability msr
  *
  * Copyright (C) 2021 Intel Corporation
  *
- * Test to check the effect of various CPUID settings
- * on the MSR_IA32_PERF_CAPABILITIES MSR, and check that
- * whatever we write with KVM_SET_MSR is _not_ modified
- * in the guest and test it can be retrieved with KVM_GET_MSR.
- *
- * Test to check that invalid LBR formats are rejected.
+ * Test to check the effect of various CPUID settings on
+ * MSR_IA32_PERF_CAPABILITIES MSR, and check that what
+ * we write with KVM_SET_MSR is _not_ modified by the guest
+ * and check it can be retrieved with KVM_GET_MSR, also test
+ * the invalid LBR formats are rejected.
  */
 
 #define _GNU_SOURCE /* for program_invocation_short_name */
@@ -107,8 +106,11 @@ int main(int argc, char *argv[])
 	ASSERT_EQ(vcpu_get_msr(vm, VCPU_ID, MSR_IA32_PERF_CAPABILITIES), (u64)host_cap.lbr_format);
 
 	/* testcase 3, check invalid LBR format is rejected */
-	ret = _vcpu_set_msr(vm, 0, MSR_IA32_PERF_CAPABILITIES, PMU_CAP_LBR_FMT);
+	/* Note, on Arch LBR capable platforms, LBR_FMT in perf capability msr is 0x3f,
+	 * to avoid the failure, use a true invalid format 0x30 for the test. */
+	ret = _vcpu_set_msr(vm, 0, MSR_IA32_PERF_CAPABILITIES, 0x30);
 	TEST_ASSERT(ret == 0, "Bad PERF_CAPABILITIES didn't fail.");
 
+	printf("Completed perf capability tests.\n");
 	kvm_vm_free(vm);
 }

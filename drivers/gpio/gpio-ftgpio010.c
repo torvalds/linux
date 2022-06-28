@@ -315,8 +315,8 @@ static int ftgpio_gpio_probe(struct platform_device *pdev)
 	return 0;
 
 dis_clk:
-	if (!IS_ERR(g->clk))
-		clk_disable_unprepare(g->clk);
+	clk_disable_unprepare(g->clk);
+
 	return ret;
 }
 
@@ -324,8 +324,8 @@ static int ftgpio_gpio_remove(struct platform_device *pdev)
 {
 	struct ftgpio_gpio *g = platform_get_drvdata(pdev);
 
-	if (!IS_ERR(g->clk))
-		clk_disable_unprepare(g->clk);
+	clk_disable_unprepare(g->clk);
+
 	return 0;
 }
 
