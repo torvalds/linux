@@ -325,7 +325,8 @@ static int wiz_p_mac_div_sel(struct wiz *wiz)
 	int i;
 
 	for (i = 0; i < num_lanes; i++) {
-		if (wiz->lane_phy_type[i] == PHY_TYPE_QSGMII) {
+		if (wiz->lane_phy_type[i] == PHY_TYPE_SGMII ||
+		    wiz->lane_phy_type[i] == PHY_TYPE_QSGMII) {
 			ret = regmap_field_write(wiz->p_mac_div_sel0[i], 1);
 			if (ret)
 				return ret;
@@ -1025,12 +1026,18 @@ static int wiz_phy_reset_assert(struct reset_controller_dev *rcdev,
 
 static int wiz_phy_fullrt_div(struct wiz *wiz, int lane)
 {
-	if (wiz->type != AM64_WIZ_10G)
+	switch (wiz->type) {
+	case AM64_WIZ_10G:
+		if (wiz->lane_phy_type[lane] == PHY_TYPE_PCIE)
+			return regmap_field_write(wiz->p0_fullrt_div[lane], 0x1);
+		break;
+	case J721E_WIZ_10G:
+		if (wiz->lane_phy_type[lane] == PHY_TYPE_SGMII)
+			return regmap_field_write(wiz->p0_fullrt_div[lane], 0x2);
+		break;
+	default:
 		return 0;
-
-	if (wiz->lane_phy_type[lane] == PHY_TYPE_PCIE)
-		return regmap_field_write(wiz->p0_fullrt_div[lane], 0x1);
-
+	}
 	return 0;
 }
 
