@@ -1472,7 +1472,8 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 	 */
 	if (rc == -EPERM) {
 		netif_dbg(efx, probe, efx->net_dev,
-			  "efx_mcdi_drv_attach with fw-variant setting failed EPERM, trying without it\n");
+			  "%s with fw-variant setting failed EPERM, trying without it\n",
+			  __func__);
 		MCDI_SET_DWORD(inbuf, DRV_ATTACH_IN_FIRMWARE_ID,
 			       MC_CMD_FW_DONT_CARE);
 		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_DRV_ATTACH, inbuf,
