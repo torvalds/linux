@@ -71,7 +71,7 @@ extern atomic64_t event_counter;
 #define MPI3MR_SG_DEPTH		(MPI3MR_PAGE_SIZE_4K / sizeof(struct mpi3_sge_common))
 
 /* Definitions for MAX values for shost */
-#define MPI3MR_MAX_CMDS_LUN	7
+#define MPI3MR_MAX_CMDS_LUN	128
 #define MPI3MR_MAX_CDB_LENGTH	32
 
 /* Admin queue management definitions */
