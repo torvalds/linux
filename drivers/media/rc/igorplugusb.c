@@ -170,7 +170,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 
 	ir->request.bRequest = GET_INFRACODE;
 	ir->request.bRequestType = USB_TYPE_VENDOR | USB_DIR_IN;
-	ir->request.wLength = cpu_to_le16(sizeof(ir->buf_in));
+	ir->request.wLength = cpu_to_le16(MAX_PACKET);
 
 	ir->urb = usb_alloc_urb(0, GFP_KERNEL);
 	if (!ir->urb)
@@ -181,7 +181,7 @@ static int igorplugusb_probe(struct usb_interface *intf,
 		goto fail;
 	usb_fill_control_urb(ir->urb, udev,
 		usb_rcvctrlpipe(udev, 0), (uint8_t *)&ir->request,
-		ir->buf_in, sizeof(ir->buf_in), igorplugusb_callback, ir);
+		ir->buf_in, MAX_PACKET, igorplugusb_callback, ir);
 
 	usb_make_path(udev, ir->phys, sizeof(ir->phys));
 
