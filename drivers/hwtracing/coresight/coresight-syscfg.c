@@ -415,6 +415,27 @@ static void cscfg_remove_owned_csdev_features(struct coresight_device *csdev, vo
 }
 
 /*
+ * Unregister all configuration and features from configfs owned by load_owner.
+ * Although this is called without the list mutex being held, it is in the
+ * context of an unload operation which are strictly serialised,
+ * so the lists cannot change during this call.
+ */
+static void cscfg_fs_unregister_cfgs_feats(void *load_owner)
+{
+	struct cscfg_config_desc *config_desc;
+	struct cscfg_feature_desc *feat_desc;
+
+	list_for_each_entry(config_desc, &cscfg_mgr->config_desc_list, item) {
+		if (config_desc->load_owner == load_owner)
+			cscfg_configfs_del_config(config_desc);
+	}
+	list_for_each_entry(feat_desc, &cscfg_mgr->feat_desc_list, item) {
+		if (feat_desc->load_owner == load_owner)
+			cscfg_configfs_del_feature(feat_desc);
+	}
+}
+
+/*
  * removal is relatively easy - just remove from all lists, anything that
  * matches the owner. Memory for the descriptors will be managed by the owner,
  * memory for the csdev items is devm_ allocated with the individual csdev
@@ -1022,8 +1043,10 @@ struct device *cscfg_device(void)
 /* Must have a release function or the kernel will complain on module unload */
 static void cscfg_dev_release(struct device *dev)
 {
+	mutex_lock(&cscfg_mutex);
 	kfree(cscfg_mgr);
 	cscfg_mgr = NULL;
+	mutex_unlock(&cscfg_mutex);
 }
 
 /* a device is needed to "own" some kernel elements such as sysfs entries.  */
@@ -1042,6 +1065,13 @@ static int cscfg_create_device(void)
 	if (!cscfg_mgr)
 		goto create_dev_exit_unlock;
 
+	/* initialise the cscfg_mgr structure */
+	INIT_LIST_HEAD(&cscfg_mgr->csdev_desc_list);
+	INIT_LIST_HEAD(&cscfg_mgr->feat_desc_list);
+	INIT_LIST_HEAD(&cscfg_mgr->config_desc_list);
+	INIT_LIST_HEAD(&cscfg_mgr->load_order_list);
+	atomic_set(&cscfg_mgr->sys_active_cnt, 0);
+
 	/* setup the device */
 	dev = cscfg_device();
 	dev->release = cscfg_dev_release;
@@ -1056,17 +1086,73 @@ create_dev_exit_unlock:
 	return err;
 }
 
+/*
+ * Loading and unloading is generally on user discretion.
+ * If exiting due to coresight module unload, we need to unload any configurations that remain,
+ * before we unregister the configfs intrastructure.
+ *
+ * Do this by walking the load_owner list and taking appropriate action, depending on the load
+ * owner type.
+ */
+static void cscfg_unload_cfgs_on_exit(void)
+{
+	struct cscfg_load_owner_info *owner_info = NULL;
+
+	/*
+	 * grab the mutex - even though we are exiting, some configfs files
+	 * may still be live till we dump them, so ensure list data is
+	 * protected from a race condition.
+	 */
+	mutex_lock(&cscfg_mutex);
+	while (!list_empty(&cscfg_mgr->load_order_list)) {
+
+		/* remove in reverse order of loading */
+		owner_info = list_last_entry(&cscfg_mgr->load_order_list,
+					     struct cscfg_load_owner_info, item);
+
+		/* action according to type */
+		switch (owner_info->type) {
+		case CSCFG_OWNER_PRELOAD:
+			/*
+			 * preloaded  descriptors are statically allocated in
+			 * this module - just need to unload dynamic items from
+			 * csdev lists, and remove from configfs directories.
+			 */
+			pr_info("cscfg: unloading preloaded configurations\n");
+			break;
+
+		case  CSCFG_OWNER_MODULE:
+			/*
+			 * this is an error - the loadable module must have been unloaded prior
+			 * to the coresight module unload. Therefore that module has not
+			 * correctly unloaded configs in its own exit code.
+			 * Nothing to do other than emit an error string as the static descriptor
+			 * references we need to unload will have disappeared with the module.
+			 */
+			pr_err("cscfg: ERROR: prior module failed to unload configuration\n");
+			goto list_remove;
+		}
+
+		/* remove from configfs - outside the scope of the list mutex */
+		mutex_unlock(&cscfg_mutex);
+		cscfg_fs_unregister_cfgs_feats(owner_info);
+		mutex_lock(&cscfg_mutex);
+
+		/* Next unload from csdev lists. */
+		cscfg_unload_owned_cfgs_feats(owner_info);
+
+list_remove:
+		/* remove from load order list */
+		list_del(&owner_info->item);
+	}
+	mutex_unlock(&cscfg_mutex);
+}
+
 static void cscfg_clear_device(void)
 {
-	struct cscfg_config_desc *cfg_desc;
-
-	mutex_lock(&cscfg_mutex);
-	list_for_each_entry(cfg_desc, &cscfg_mgr->config_desc_list, item) {
-		etm_perf_del_symlink_cscfg(cfg_desc);
-	}
+	cscfg_unload_cfgs_on_exit();
 	cscfg_configfs_release(cscfg_mgr);
 	device_unregister(cscfg_device());
-	mutex_unlock(&cscfg_mutex);
 }
 
 /* Initialise system config management API device  */
@@ -1074,19 +1160,15 @@ int __init cscfg_init(void)
 {
 	int err = 0;
 
+	/* create the device and init cscfg_mgr */
 	err = cscfg_create_device();
 	if (err)
 		return err;
 
+	/* initialise configfs subsystem */
 	err = cscfg_configfs_init(cscfg_mgr);
 	if (err)
 		goto exit_err;
-
-	INIT_LIST_HEAD(&cscfg_mgr->csdev_desc_list);
-	INIT_LIST_HEAD(&cscfg_mgr->feat_desc_list);
-	INIT_LIST_HEAD(&cscfg_mgr->config_desc_list);
-	INIT_LIST_HEAD(&cscfg_mgr->load_order_list);
-	atomic_set(&cscfg_mgr->sys_active_cnt, 0);
 
 	/* preload built-in configurations */
 	err = cscfg_preload(THIS_MODULE);
