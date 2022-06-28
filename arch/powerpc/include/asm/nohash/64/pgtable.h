@@ -25,7 +25,7 @@
 /*
  * Define the address range of the kernel non-linear virtual area
  */
-#define KERN_VIRT_START ASM_CONST(0x8000000000000000)
+#define KERN_VIRT_START ASM_CONST(0xc000100000000000)
 #define KERN_VIRT_SIZE	ASM_CONST(0x0000100000000000)
 
 /*

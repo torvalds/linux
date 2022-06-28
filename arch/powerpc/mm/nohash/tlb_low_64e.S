@@ -213,10 +213,11 @@ itlb_miss_kernel_bolted:
 tlb_miss_kernel_bolted:
 	mfspr	r10,SPRN_MAS1
 	ld	r14,PACA_KERNELPGD(r13)
-	cmpldi	cr0,r15,8		/* Check for vmalloc region */
+	srdi	r15,r16,44		/* get kernel region */
+	andi.	r15,r15,1		/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1		/* Clear TID */
 	mtspr	SPRN_MAS1,r10
-	beq+	tlb_miss_common_bolted
+	bne+	tlb_miss_common_bolted
 
 tlb_miss_fault_bolted:
 	/* We need to check if it was an instruction miss */
@@ -498,7 +499,9 @@ tlb_miss_huge_e6500:
 
 tlb_miss_kernel_e6500:
 	ld	r14,PACA_KERNELPGD(r13)
-	cmpldi	cr1,r15,8		/* Check for vmalloc region */
+	srdi	r15,r16,44		/* get kernel region */
+	xoris	r15,r15,0xc		/* Check for vmalloc region */
+	cmplwi	cr1,r15,1
 	beq+	cr1,tlb_miss_common_e6500
 
 tlb_miss_fault_e6500:
@@ -532,16 +535,18 @@ itlb_miss_fault_e6500:
 	 */
 	mfspr	r14,SPRN_ESR
 	mfspr	r16,SPRN_DEAR		/* get faulting address */
-	srdi	r15,r16,60		/* get region */
-	cmpldi	cr0,r15,0xc		/* linear mapping ? */
+	srdi	r15,r16,44		/* get region */
+	xoris	r15,r15,0xc
+	cmpldi	cr0,r15,0		/* linear mapping ? */
 	beq	tlb_load_linear		/* yes -> go to linear map load */
+	cmpldi	cr1,r15,1		/* vmalloc mapping ? */
 
 	/* The page tables are mapped virtually linear. At this point, though,
 	 * we don't know whether we are trying to fault in a first level
 	 * virtual address or a virtual page table address. We can get that
 	 * from bit 0x1 of the region ID which we have set for a page table
 	 */
-	andi.	r10,r15,0x1
+	andis.	r10,r15,0x1
 	bne-	virt_page_table_tlb_miss
 
 	std	r14,EX_TLB_ESR(r12);	/* save ESR */
@@ -553,7 +558,7 @@ itlb_miss_fault_e6500:
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
-	cmpldi	cr0,r15,0		/* Check for user region */
+	srdi.	r15,r16,60		/* Check for user region */
 
 	/* We pre-test some combination of permissions to avoid double
 	 * faults:
@@ -577,10 +582,9 @@ itlb_miss_fault_e6500:
 	beq	normal_tlb_miss_user
 	/* XXX replace the RMW cycles with immediate loads + writes */
 1:	mfspr	r10,SPRN_MAS1
-	cmpldi	cr0,r15,8		/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1		/* Clear TID */
 	mtspr	SPRN_MAS1,r10
-	beq+	normal_tlb_miss
+	beq+	cr1,normal_tlb_miss
 
 	/* We got a crappy address, just fault with whatever DEAR and ESR
 	 * are here
@@ -606,16 +610,18 @@ itlb_miss_fault_e6500:
 	 *
 	 * Faulting address is SRR0 which is already in r16
 	 */
-	srdi	r15,r16,60		/* get region */
-	cmpldi	cr0,r15,0xc		/* linear mapping ? */
+	srdi	r15,r16,44		/* get region */
+	xoris	r15,r15,0xc
+	cmpldi	cr0,r15,0		/* linear mapping ? */
 	beq	tlb_load_linear		/* yes -> go to linear map load */
+	cmpldi	cr1,r15,1		/* vmalloc mapping ? */
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
 	li	r11,_PAGE_PRESENT|_PAGE_BAP_UX	/* Base perm */
 	oris	r11,r11,_PAGE_ACCESSED@h
 
-	cmpldi	cr0,r15,0			/* Check for user region */
+	srdi.	r15,r16,60			/* Check for user region */
 	std	r14,EX_TLB_ESR(r12)		/* write crazy -1 to frame */
 	beq	normal_tlb_miss_user
 
@@ -623,10 +629,9 @@ itlb_miss_fault_e6500:
 	oris	r11,r11,_PAGE_ACCESSED@h
 	/* XXX replace the RMW cycles with immediate loads + writes */
 	mfspr	r10,SPRN_MAS1
-	cmpldi	cr0,r15,8			/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1			/* Clear TID */
 	mtspr	SPRN_MAS1,r10
-	beq+	normal_tlb_miss
+	beq+	cr1,normal_tlb_miss
 
 	/* We got a crappy address, just fault */
 	TLB_MISS_EPILOG_ERROR
@@ -659,10 +664,11 @@ normal_tlb_miss:
 	 * NOTE: For 64K pages, we do things slightly differently in
 	 * order to handle the weird page table format used by linux
 	 */
-	ori	r10,r15,0x1
+	srdi	r15,r16,44
+	oris	r10,r15,0x1
 	rldicl	r14,r16,64-(PAGE_SHIFT-3),PAGE_SHIFT-3+4
-	sldi	r15,r10,60
-	clrrdi	r14,r14,3
+	sldi	r15,r10,44
+	clrrdi	r14,r14,19
 	or	r10,r15,r14
 
 	ld	r14,0(r10)
@@ -763,6 +769,7 @@ normal_tlb_miss_access_fault:
  */
 virt_page_table_tlb_miss:
 	/* Are we hitting a kernel page table ? */
+	srdi	r15,r16,60
 	andi.	r10,r15,0x8
 
 	/* The cool thing now is that r10 contains 0 for user and 8 for kernel,
@@ -791,7 +798,8 @@ virt_page_table_tlb_miss:
 	/* Now, we need to walk the page tables. First check if we are in
 	 * range.
 	 */
-	rldicl.	r10,r16,64-(VPTE_INDEX_SIZE+3),VPTE_INDEX_SIZE+3+4
+	rldicl	r10,r16,64-(VPTE_INDEX_SIZE+3),VPTE_INDEX_SIZE+3+4
+	cmpldi	r10,0x80
 	bne-	virt_page_table_tlb_miss_fault
 
 	/* Get the PGD pointer */
@@ -910,23 +918,24 @@ virt_page_table_tlb_miss_whacko_fault:
 	 */
 	mfspr	r14,SPRN_ESR
 	mfspr	r16,SPRN_DEAR		/* get faulting address */
-	srdi	r11,r16,60		/* get region */
-	cmpldi	cr0,r11,0xc		/* linear mapping ? */
+	srdi	r11,r16,44		/* get region */
+	xoris	r11,r11,0xc
+	cmpldi	cr0,r11,0		/* linear mapping ? */
 	beq	tlb_load_linear		/* yes -> go to linear map load */
+	cmpldi	cr1,r11,1		/* vmalloc mapping ? */
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
-	cmpldi	cr0,r11,0		/* Check for user region */
+	srdi.	r11,r16,60		/* Check for user region */
 	ld	r15,PACAPGD(r13)	/* Load user pgdir */
 	beq	htw_tlb_miss
 
 	/* XXX replace the RMW cycles with immediate loads + writes */
 1:	mfspr	r10,SPRN_MAS1
-	cmpldi	cr0,r11,8		/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1		/* Clear TID */
 	mtspr	SPRN_MAS1,r10
 	ld	r15,PACA_KERNELPGD(r13)	/* Load kernel pgdir */
-	beq+	htw_tlb_miss
+	beq+	cr1,htw_tlb_miss
 
 	/* We got a crappy address, just fault with whatever DEAR and ESR
 	 * are here
@@ -952,19 +961,20 @@ virt_page_table_tlb_miss_whacko_fault:
 	 *
 	 * Faulting address is SRR0 which is already in r16
 	 */
-	srdi	r11,r16,60		/* get region */
-	cmpldi	cr0,r11,0xc		/* linear mapping ? */
+	srdi	r11,r16,44		/* get region */
+	xoris	r11,r11,0xc
+	cmpldi	cr0,r11,0		/* linear mapping ? */
 	beq	tlb_load_linear		/* yes -> go to linear map load */
+	cmpldi	cr1,r11,1		/* vmalloc mapping ? */
 
 	/* We do the user/kernel test for the PID here along with the RW test
 	 */
-	cmpldi	cr0,r11,0			/* Check for user region */
+	srdi.	r11,r16,60		/* Check for user region */
 	ld	r15,PACAPGD(r13)		/* Load user pgdir */
 	beq	htw_tlb_miss
 
 	/* XXX replace the RMW cycles with immediate loads + writes */
 1:	mfspr	r10,SPRN_MAS1
-	cmpldi	cr0,r11,8			/* Check for vmalloc region */
 	rlwinm	r10,r10,0,16,1			/* Clear TID */
 	mtspr	SPRN_MAS1,r10
 	ld	r15,PACA_KERNELPGD(r13)		/* Load kernel pgdir */
