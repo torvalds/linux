@@ -57,18 +57,6 @@
 #define IOREMAP_END	(KERN_VIRT_START + KERN_VIRT_SIZE - FIXADDR_SIZE)
 #define FIXADDR_SIZE	SZ_32M
 
-
-/*
- * Region IDs
- */
-#define REGION_SHIFT		60UL
-#define REGION_MASK		(0xfUL << REGION_SHIFT)
-#define REGION_ID(ea)		(((unsigned long)(ea)) >> REGION_SHIFT)
-
-#define VMALLOC_REGION_ID	(REGION_ID(VMALLOC_START))
-#define KERNEL_REGION_ID	(REGION_ID(PAGE_OFFSET))
-#define USER_REGION_ID		(0UL)
-
 /*
  * Defines the address of the vmemap area, in its own region on
  * after the vmalloc space on Book3E
