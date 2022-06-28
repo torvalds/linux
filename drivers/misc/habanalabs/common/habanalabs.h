@@ -76,7 +76,7 @@ struct hl_fpriv;
 
 #define HL_INVALID_QUEUE		UINT_MAX
 
-#define HL_COMMON_USER_INTERRUPT_ID	0xFFF
+#define HL_COMMON_USER_CQ_INTERRUPT_ID	0xFFF
 
 #define HL_STATE_DUMP_HIST_LEN		5
 
@@ -2952,8 +2952,8 @@ struct hl_reset_info {
  * @user_interrupt: array of hl_user_interrupt. upon the corresponding user
  *                  interrupt, driver will monitor the list of fences
  *                  registered to this interrupt.
- * @common_user_interrupt: common user interrupt for all user interrupts.
- *                         upon any user interrupt, driver will monitor the
+ * @common_user_cq_interrupt: common user CQ interrupt for all user CQ interrupts.
+ *                         upon any user CQ interrupt, driver will monitor the
  *                         list of fences registered to this common structure.
  * @shadow_cs_queue: pointer to a shadow queue that holds pointers to
  *                   outstanding command submissions.
@@ -3118,7 +3118,7 @@ struct hl_device {
 	enum hl_asic_type		asic_type;
 	struct hl_cq			*completion_queue;
 	struct hl_user_interrupt	*user_interrupt;
-	struct hl_user_interrupt	common_user_interrupt;
+	struct hl_user_interrupt	common_user_cq_interrupt;
 	struct hl_cs			**shadow_cs_queue;
 	struct workqueue_struct		**cq_wq;
 	struct workqueue_struct		*eq_wq;

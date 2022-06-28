@@ -1442,6 +1442,7 @@ union hl_cs_args {
 
 #define HL_WAIT_CS_FLAGS_INTERRUPT		0x2
 #define HL_WAIT_CS_FLAGS_INTERRUPT_MASK		0xFFF00000
+#define HL_WAIT_CS_FLAGS_ANY_CQ_INTERRUPT	0xFFF00000
 #define HL_WAIT_CS_FLAGS_MULTI_CS		0x4
 #define HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ	0x10
 #define HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT	0x20
@@ -1491,8 +1492,10 @@ struct hl_wait_cs_in {
 
 	/* HL_WAIT_CS_FLAGS_*
 	 * If HL_WAIT_CS_FLAGS_INTERRUPT is set, this field should include
-	 * interrupt id according to HL_WAIT_CS_FLAGS_INTERRUPT_MASK, in order
-	 * not to specify an interrupt id ,set mask to all 1s.
+	 * interrupt id according to HL_WAIT_CS_FLAGS_INTERRUPT_MASK
+	 *
+	 * in order to wait for any CQ interrupt, set interrupt value to
+	 * HL_WAIT_CS_FLAGS_ANY_CQ_INTERRUPT.
 	 */
 	__u32 flags;
 

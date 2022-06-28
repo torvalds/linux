@@ -1080,7 +1080,7 @@ void hl_release_pending_user_interrupts(struct hl_device *hdev)
 		wake_pending_user_interrupt_threads(interrupt);
 	}
 
-	interrupt = &hdev->common_user_interrupt;
+	interrupt = &hdev->common_user_cq_interrupt;
 	wake_pending_user_interrupt_threads(interrupt);
 }
 
@@ -3373,8 +3373,8 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		int_idx = interrupt_id - first_interrupt + prop->user_dec_intr_count;
 		interrupt = &hdev->user_interrupt[int_idx];
 
-	} else if (interrupt_id == HL_COMMON_USER_INTERRUPT_ID) {
-		interrupt = &hdev->common_user_interrupt;
+	} else if (interrupt_id == HL_COMMON_USER_CQ_INTERRUPT_ID) {
+		interrupt = &hdev->common_user_cq_interrupt;
 	} else {
 		dev_err(hdev->dev, "invalid user interrupt %u", interrupt_id);
 		return -EINVAL;

@@ -2891,9 +2891,9 @@ static void gaudi2_user_interrupt_setup(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	int i, j, k;
 
-	/* Initialize common user interrupt */
-	HL_USR_INTR_STRUCT_INIT(hdev->common_user_interrupt, hdev, HL_COMMON_USER_INTERRUPT_ID,
-				false);
+	/* Initialize common user CQ interrupt */
+	HL_USR_INTR_STRUCT_INIT(hdev->common_user_cq_interrupt, hdev,
+				HL_COMMON_USER_CQ_INTERRUPT_ID, false);
 
 	/* User interrupts structure holds both decoder and user interrupts from various engines.
 	 * We first initialize the decoder interrupts and then we add the user interrupts.

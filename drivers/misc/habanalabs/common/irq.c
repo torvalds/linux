@@ -269,7 +269,7 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 	return 0;
 }
 
-static void handle_user_cq(struct hl_device *hdev, struct hl_user_interrupt *user_cq)
+static void handle_user_interrupt(struct hl_device *hdev, struct hl_user_interrupt *intr)
 {
 	struct hl_user_pending_interrupt *pend, *temp_pend;
 	struct list_head *ts_reg_free_list_head = NULL;
@@ -291,8 +291,8 @@ static void handle_user_cq(struct hl_device *hdev, struct hl_user_interrupt *use
 	if (!job)
 		return;
 
-	spin_lock(&user_cq->wait_list_lock);
-	list_for_each_entry_safe(pend, temp_pend, &user_cq->wait_list_head, wait_list_node) {
+	spin_lock(&intr->wait_list_lock);
+	list_for_each_entry_safe(pend, temp_pend, &intr->wait_list_head, wait_list_node) {
 		if ((pend->cq_kernel_addr && *(pend->cq_kernel_addr) >= pend->cq_target_value) ||
 				!pend->cq_kernel_addr) {
 			if (pend->ts_reg_info.buf) {
@@ -309,7 +309,7 @@ static void handle_user_cq(struct hl_device *hdev, struct hl_user_interrupt *use
 			}
 		}
 	}
-	spin_unlock(&user_cq->wait_list_lock);
+	spin_unlock(&intr->wait_list_lock);
 
 	if (ts_reg_free_list_head) {
 		INIT_WORK(&job->free_obj, hl_ts_free_objects);
@@ -339,10 +339,10 @@ irqreturn_t hl_irq_handler_user_interrupt(int irq, void *arg)
 	 */
 	if (!user_int->is_decoder)
 		/* Handle user cq interrupts registered on all interrupts */
-		handle_user_cq(hdev, &hdev->common_user_interrupt);
+		handle_user_interrupt(hdev, &hdev->common_user_cq_interrupt);
 
 	/* Handle user cq or decoder interrupts registered on this specific irq */
-	handle_user_cq(hdev, user_int);
+	handle_user_interrupt(hdev, user_int);
 
 	return IRQ_HANDLED;
 }
