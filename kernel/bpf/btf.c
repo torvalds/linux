@@ -5363,6 +5363,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 
 	if (arg == nr_args) {
 		switch (prog->expected_attach_type) {
+		case BPF_LSM_CGROUP:
 		case BPF_LSM_MAC:
 		case BPF_TRACE_FEXIT:
 			/* When LSM programs are attached to void LSM hooks
@@ -6840,6 +6841,16 @@ static int btf_id_cmp_func(const void *a, const void *b)
 	const int *pa = a, *pb = b;
 
 	return *pa - *pb;
+}
+
+int btf_id_set_index(const struct btf_id_set *set, u32 id)
+{
+	const u32 *p;
+
+	p = bsearch(&id, set->ids, set->cnt, sizeof(u32), btf_id_cmp_func);
+	if (!p)
+		return -1;
+	return p - set->ids;
 }
 
 bool btf_id_set_contains(const struct btf_id_set *set, u32 id)
