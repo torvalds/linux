@@ -34,6 +34,7 @@
 #include <linux/of.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/reset.h>
+#include <linux/platform_device.h>
 
 /*
  * This macro is used to define some register default values.
@@ -2088,7 +2089,10 @@ pl022_platform_data_dt_get(struct device *dev)
 		return NULL;
 	}
 
-	pd = devm_kzalloc(dev, sizeof(struct pl022_ssp_controller), GFP_KERNEL);
+	if (strncmp(dev->bus->name, "platform", strlen("platform")))
+		pd = devm_kzalloc(dev, sizeof(struct pl022_ssp_controller), GFP_KERNEL);
+	else
+		pd = kzalloc(sizeof(struct pl022_ssp_controller), GFP_KERNEL);
 	if (!pd)
 		return NULL;
 
@@ -2109,6 +2113,14 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	struct spi_master *master;
 	struct pl022 *pl022 = NULL;	/*Data for this driver */
 	int status = 0;
+	int platform_flag = 0;
+
+	if (strncmp(dev->bus->name, "platform", strlen("platform")))
+		platform_flag = 0;
+	else
+		platform_flag = 1;
+	dev_dbg(&adev->dev, "bus name:%s platform flag:%d",
+			dev->bus->name, platform_flag);
 
 	dev_info(&adev->dev,
 		"ARM PL022 driver for StarFive SoC platform, device ID: 0x%08x\n",
@@ -2163,7 +2175,11 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_no_ioregion;
 
 	pl022->phybase = adev->res.start;
-	pl022->virtbase = devm_ioremap(dev, adev->res.start,
+	if (platform_flag)
+		pl022->virtbase = ioremap(adev->res.start,
+				       resource_size(&adev->res));
+	else
+		pl022->virtbase = devm_ioremap(dev, adev->res.start,
 				       resource_size(&adev->res));
 	if (pl022->virtbase == NULL) {
 		status = -ENOMEM;
@@ -2172,7 +2188,10 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	dev_info(&adev->dev, "mapped registers from %pa to %p\n",
 		&adev->res.start, pl022->virtbase);
 
-	pl022->clk = devm_clk_get(&adev->dev, NULL);
+	if (platform_flag)
+		pl022->clk = clk_get(&adev->dev, NULL);
+	else
+		pl022->clk = devm_clk_get(&adev->dev, NULL);
 	if (IS_ERR(pl022->clk)) {
 		status = PTR_ERR(pl022->clk);
 		dev_err(&adev->dev, "could not retrieve SSP/SPI bus clock\n");
@@ -2185,7 +2204,10 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 		goto err_no_clk_en;
 	}
 
-	pl022->rst = devm_reset_control_get_exclusive(&adev->dev, "rst_apb");
+	if (platform_flag)
+		pl022->rst = reset_control_get_exclusive(&adev->dev, "rst_apb");
+	else
+		pl022->rst = devm_reset_control_get_exclusive(&adev->dev, "rst_apb");
 	if (!IS_ERR(pl022->rst)) {
 		status = reset_control_deassert(pl022->rst);
 		if (status) {
@@ -2207,7 +2229,11 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	       SSP_CR1(pl022->virtbase));
 	load_ssp_default_config(pl022);
 
-	status = devm_request_irq(dev, adev->irq[0], pl022_interrupt_handler,
+	if (platform_flag)
+		status = request_irq(adev->irq[0], pl022_interrupt_handler,
+				  0, "pl022", pl022);
+	else
+		status = devm_request_irq(dev, adev->irq[0], pl022_interrupt_handler,
 				  0, "pl022", pl022);
 	if (status < 0) {
 		dev_err(&adev->dev, "probe - cannot get IRQ (%d)\n", status);
@@ -2232,7 +2258,10 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 
 	/* Register with the SPI framework */
 	amba_set_drvdata(adev, pl022);
-	status = devm_spi_register_master(&adev->dev, master);
+	if (platform_flag)
+		status = spi_register_master(master);
+	else
+		status = devm_spi_register_master(&adev->dev, master);
 	if (status != 0) {
 		dev_err(&adev->dev,
 			"probe - problem registering spi master\n");
@@ -2257,16 +2286,26 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	if (platform_info->enable_dma)
 		pl022_dma_remove(pl022);
  err_no_irq:
+	if (platform_flag)
+		free_irq(adev->irq[0], pl022);
 	reset_control_assert(pl022->rst);
  err_no_rst_clr:
+	if (platform_flag)
+		reset_control_put(pl022->rst);
  err_no_rst:
 	clk_disable_unprepare(pl022->clk);
  err_no_clk_en:
+	if (platform_flag)
+		clk_put(pl022->clk);
  err_no_clk:
+	if (platform_flag)
+		iounmap(pl022->virtbase);
  err_no_ioremap:
 	amba_release_regions(adev);
  err_no_ioregion:
 	spi_master_put(master);
+	if (platform_flag)
+		kfree(platform_info);
 	return status;
 }
 
@@ -2467,6 +2506,91 @@ static void __exit pl022_exit(void)
 }
 module_exit(pl022_exit);
 
+/*
+ * Register PL022 in platform bus to accommodate overlay use.
+ * Because overlay only trigger response from the platform bus
+ * not amba bus.
+ */
+static int starfive_of_pl022_probe(struct platform_device *pdev)
+{
+	int ret;
+	const struct amba_id id = {
+		.id = 0x00041022,
+		.mask = 0x000fffff,
+		.data = &vendor_arm
+	};
+	struct amba_device *pcdev;
+	struct device *dev = &pdev->dev;
+
+	pcdev = devm_kzalloc(&pdev->dev, sizeof(*pcdev), GFP_KERNEL);
+	if (!pcdev)
+		return -ENOMEM;
+
+	pcdev->dev = pdev->dev;
+	pcdev->periphid = id.id;
+	pcdev->res = *(pdev->resource);
+
+	pcdev->irq[0] = platform_get_irq(pdev, 0);
+	if (pcdev->irq[0] < 0) {
+		dev_err(dev, "failed to get irq\n");
+		ret = -EINVAL;
+	}
+
+	ret = pl022_probe(pcdev, &id);
+
+	return ret;
+}
+
+static int starfive_of_pl022_remove(struct platform_device *pdev)
+{
+	u32 size;
+	int irq;
+	struct pl022 *pl022 = dev_get_drvdata(&pdev->dev);
+
+	if (!pl022)
+		return 0;
+
+	pm_runtime_get_noresume(&pdev->dev);
+
+	load_ssp_default_config(pl022);
+	if (pl022->master_info->enable_dma)
+		pl022_dma_remove(pl022);
+
+	irq = platform_get_irq(pdev, 0);
+	free_irq(irq, pl022);
+	reset_control_assert(pl022->rst);
+	reset_control_put(pl022->rst);
+	clk_disable_unprepare(pl022->clk);
+	clk_put(pl022->clk);
+	iounmap(pl022->virtbase);
+	kfree(pl022->master_info);
+
+	size = resource_size(pdev->resource);
+	release_mem_region(pdev->resource->start, size);
+	tasklet_disable(&pl022->pump_transfers);
+	return 0;
+}
+
+static const struct of_device_id starfive_of_pl022_match[] = {
+	{ .compatible = "starfive-of,pl022" },
+	{ },
+};
+MODULE_DEVICE_TABLE(of, starfive_of_pl022_match);
+
+static struct platform_driver starfive_of_pl022_driver = {
+	.driver = {
+		.name = "starfive-pl022",
+		.of_match_table = starfive_of_pl022_match,
+		.pm	= &pl022_dev_pm_ops,
+	},
+	.probe = starfive_of_pl022_probe,
+	.remove = starfive_of_pl022_remove,
+};
+
+module_platform_driver(starfive_of_pl022_driver);
+/* platform register end */
+
+MODULE_AUTHOR("xingyu.wu <xingyu.wu@starfivetech.com>");
 MODULE_AUTHOR("Linus Walleij <linus.walleij@stericsson.com>");
 MODULE_DESCRIPTION("PL022 SSP Controller Driver");
 MODULE_LICENSE("GPL");
