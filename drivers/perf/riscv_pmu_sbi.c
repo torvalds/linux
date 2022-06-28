@@ -22,6 +22,25 @@
 #include <asm/sbi.h>
 #include <asm/hwcap.h>
 
+PMU_FORMAT_ATTR(event, "config:0-47");
+PMU_FORMAT_ATTR(firmware, "config:63");
+
+static struct attribute *riscv_arch_formats_attr[] = {
+	&format_attr_event.attr,
+	&format_attr_firmware.attr,
+	NULL,
+};
+
+static struct attribute_group riscv_pmu_format_group = {
+	.name = "format",
+	.attrs = riscv_arch_formats_attr,
+};
+
+static const struct attribute_group *riscv_pmu_attr_groups[] = {
+	&riscv_pmu_format_group,
+	NULL,
+};
+
 union sbi_pmu_ctr_info {
 	unsigned long value;
 	struct {
@@ -788,6 +807,7 @@ static int pmu_sbi_device_probe(struct platform_device *pdev)
 		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_INTERRUPT;
 		pmu->pmu.capabilities |= PERF_PMU_CAP_NO_EXCLUDE;
 	}
+	pmu->pmu.attr_groups = riscv_pmu_attr_groups;
 	pmu->num_counters = num_counters;
 	pmu->ctr_start = pmu_sbi_ctr_start;
 	pmu->ctr_stop = pmu_sbi_ctr_stop;
