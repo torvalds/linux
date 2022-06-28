@@ -1308,6 +1308,24 @@ struct dynamic_fw_load_mgr {
 };
 
 /**
+ * struct pre_fw_load_props - needed properties for pre-FW load
+ * @cpu_boot_status_reg: cpu_boot_status register address
+ * @sts_boot_dev_sts0_reg: sts_boot_dev_sts0 register address
+ * @sts_boot_dev_sts1_reg: sts_boot_dev_sts1 register address
+ * @boot_err0_reg: boot_err0 register address
+ * @boot_err1_reg: boot_err1 register address
+ * @wait_for_preboot_timeout: timeout to poll for preboot ready
+ */
+struct pre_fw_load_props {
+	u32 cpu_boot_status_reg;
+	u32 sts_boot_dev_sts0_reg;
+	u32 sts_boot_dev_sts1_reg;
+	u32 boot_err0_reg;
+	u32 boot_err1_reg;
+	u32 wait_for_preboot_timeout;
+};
+
+/**
  * struct fw_image_props - properties of FW image
  * @image_name: name of the image
  * @src_off: offset in src FW to copy from
@@ -1323,6 +1341,7 @@ struct fw_image_props {
  * struct fw_load_mgr - manager FW loading process
  * @dynamic_loader: specific structure for dynamic load
  * @static_loader: specific structure for static load
+ * @pre_fw_load_props: parameter for pre FW load
  * @boot_fit_img: boot fit image properties
  * @linux_img: linux image properties
  * @cpu_timeout: CPU response timeout in usec
@@ -1338,6 +1357,7 @@ struct fw_load_mgr {
 		struct dynamic_fw_load_mgr dynamic_loader;
 		struct static_fw_load_mgr static_loader;
 	};
+	struct pre_fw_load_props pre_fw_load;
 	struct fw_image_props boot_fit_img;
 	struct fw_image_props linux_img;
 	u32 cpu_timeout;
@@ -1467,6 +1487,7 @@ struct hl_cs;
  * @get_msi_info: Retrieve asic-specific MSI ID of the f/w async event
  * @map_pll_idx_to_fw_idx: convert driver specific per asic PLL index to
  *                         generic f/w compatible PLL Indexes
+ * @init_firmware_preload_params: initialize pre FW-load parameters.
  * @init_firmware_loader: initialize data for FW loader.
  * @init_cpu_scrambler_dram: Enable CPU specific DRAM scrambling
  * @state_dump_init: initialize constants required for state dump
@@ -1599,6 +1620,7 @@ struct hl_asic_funcs {
 	int (*ack_mmu_errors)(struct hl_device *hdev, u64 mmu_cap_mask);
 	void (*get_msi_info)(__le32 *table);
 	int (*map_pll_idx_to_fw_idx)(u32 pll_idx);
+	void (*init_firmware_preload_params)(struct hl_device *hdev);
 	void (*init_firmware_loader)(struct hl_device *hdev);
 	void (*init_cpu_scrambler_dram)(struct hl_device *hdev);
 	void (*state_dump_init)(struct hl_device *hdev);
@@ -3577,10 +3599,7 @@ int hl_fw_cpucp_power_get(struct hl_device *hdev, u64 *power);
 void hl_fw_ask_hard_reset_without_linux(struct hl_device *hdev);
 void hl_fw_ask_halt_machine_without_linux(struct hl_device *hdev);
 int hl_fw_init_cpu(struct hl_device *hdev);
-int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
-				u32 sts_boot_dev_sts0_reg,
-				u32 sts_boot_dev_sts1_reg, u32 boot_err0_reg,
-				u32 boot_err1_reg, u32 timeout);
+int hl_fw_read_preboot_status(struct hl_device *hdev);
 int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
 				struct fw_load_mgr *fw_loader,
 				enum comms_cmd cmd, unsigned int size,

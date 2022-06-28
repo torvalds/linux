@@ -1245,15 +1245,10 @@ static void detect_cpu_boot_status(struct hl_device *hdev, u32 status)
 	}
 }
 
-static int hl_fw_read_preboot_caps(struct hl_device *hdev,
-					u32 cpu_boot_status_reg,
-					u32 sts_boot_dev_sts0_reg,
-					u32 sts_boot_dev_sts1_reg,
-					u32 boot_err0_reg, u32 boot_err1_reg,
-					u32 timeout)
+static int hl_fw_wait_preboot_ready(struct hl_device *hdev)
 {
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
-	u32 status, reg_val;
+	struct pre_fw_load_props *pre_fw_load = &hdev->fw_loader.pre_fw_load;
+	u32 status;
 	int rc;
 
 	/* Need to check two possible scenarios:
@@ -1266,13 +1261,13 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 	 */
 	rc = hl_poll_timeout(
 		hdev,
-		cpu_boot_status_reg,
+		pre_fw_load->cpu_boot_status_reg,
 		status,
 		(status == CPU_BOOT_STATUS_NIC_FW_RDY) ||
 		(status == CPU_BOOT_STATUS_READY_TO_BOOT) ||
 		(status == CPU_BOOT_STATUS_WAITING_FOR_BOOT_FIT),
 		hdev->fw_poll_interval_usec,
-		timeout);
+		pre_fw_load->wait_for_preboot_timeout);
 
 	if (rc) {
 		dev_err(hdev->dev, "CPU boot ready status timeout\n");
@@ -1282,11 +1277,31 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 		 * of reading specific errors
 		 */
 		if (status != -1)
-			fw_read_errors(hdev, boot_err0_reg, boot_err1_reg,
-							sts_boot_dev_sts0_reg,
-							sts_boot_dev_sts1_reg);
+			fw_read_errors(hdev, pre_fw_load->boot_err0_reg,
+						pre_fw_load->boot_err1_reg,
+						pre_fw_load->sts_boot_dev_sts0_reg,
+						pre_fw_load->sts_boot_dev_sts1_reg);
 		return -EIO;
 	}
+
+	hdev->fw_loader.fw_comp_loaded |= FW_TYPE_PREBOOT_CPU;
+
+	return 0;
+}
+
+static int hl_fw_read_preboot_caps(struct hl_device *hdev)
+{
+	struct pre_fw_load_props *pre_fw_load;
+	struct asic_fixed_properties *prop;
+	u32 reg_val;
+	int rc;
+
+	prop = &hdev->asic_prop;
+	pre_fw_load = &hdev->fw_loader.pre_fw_load;
+
+	rc = hl_fw_wait_preboot_ready(hdev);
+	if (rc)
+		return rc;
 
 	/*
 	 * the registers DEV_STS* contain FW capabilities/features.
@@ -1298,13 +1313,13 @@ static int hl_fw_read_preboot_caps(struct hl_device *hdev,
 	 * In case it is not enabled the stored value will be left 0- all
 	 * caps/features are off
 	 */
-	reg_val = RREG32(sts_boot_dev_sts0_reg);
+	reg_val = RREG32(pre_fw_load->sts_boot_dev_sts0_reg);
 	if (reg_val & CPU_BOOT_DEV_STS0_ENABLED) {
 		prop->fw_cpu_boot_dev_sts0_valid = true;
 		prop->fw_preboot_cpu_boot_dev_sts0 = reg_val;
 	}
 
-	reg_val = RREG32(sts_boot_dev_sts1_reg);
+	reg_val = RREG32(pre_fw_load->sts_boot_dev_sts1_reg);
 	if (reg_val & CPU_BOOT_DEV_STS1_ENABLED) {
 		prop->fw_cpu_boot_dev_sts1_valid = true;
 		prop->fw_preboot_cpu_boot_dev_sts1 = reg_val;
@@ -1447,24 +1462,21 @@ static int hl_fw_static_read_preboot_status(struct hl_device *hdev)
 	return 0;
 }
 
-int hl_fw_read_preboot_status(struct hl_device *hdev, u32 cpu_boot_status_reg,
-				u32 sts_boot_dev_sts0_reg,
-				u32 sts_boot_dev_sts1_reg, u32 boot_err0_reg,
-				u32 boot_err1_reg, u32 timeout)
+int hl_fw_read_preboot_status(struct hl_device *hdev)
 {
 	int rc;
 
 	if (!(hdev->fw_components & FW_TYPE_PREBOOT_CPU))
 		return 0;
 
+	/* get FW pre-load parameters  */
+	hdev->asic_funcs->init_firmware_preload_params(hdev);
+
 	/*
 	 * In order to determine boot method (static VS dymanic) we need to
 	 * read the boot caps register
 	 */
-	rc = hl_fw_read_preboot_caps(hdev, cpu_boot_status_reg,
-					sts_boot_dev_sts0_reg,
-					sts_boot_dev_sts1_reg, boot_err0_reg,
-					boot_err1_reg, timeout);
+	rc = hl_fw_read_preboot_caps(hdev);
 	if (rc)
 		return rc;
 
@@ -2453,6 +2465,13 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	 * It will be updated from FW after hl_fw_dynamic_request_descriptor().
 	 */
 	dyn_regs = &fw_loader->dynamic_loader.comm_desc.cpu_dyn_regs;
+
+	/* if no preboot loaded indication- wait for preboot */
+	if (!(hdev->fw_loader.fw_comp_loaded & FW_TYPE_PREBOOT_CPU)) {
+		rc = hl_fw_wait_preboot_ready(hdev);
+		if (rc)
+			return -EIO;
+	}
 
 	rc = hl_fw_dynamic_send_protocol_cmd(hdev, fw_loader, COMMS_RST_STATE,
 						0, true,
