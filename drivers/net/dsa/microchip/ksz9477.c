@@ -338,6 +338,7 @@ void ksz9477_cfg_port_member(struct ksz_device *dev, int port, u8 member)
 
 void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
 {
+	const u16 *regs = dev->info->regs;
 	u8 data;
 
 	regmap_update_bits(dev->regmap[0], REG_SW_LUE_CTRL_2,
@@ -346,12 +347,12 @@ void ksz9477_flush_dyn_mac_table(struct ksz_device *dev, int port)
 
 	if (port < dev->info->port_cnt) {
 		/* flush individual port */
-		ksz_pread8(dev, port, P_STP_CTRL, &data);
+		ksz_pread8(dev, port, regs[P_STP_CTRL], &data);
 		if (!(data & PORT_LEARN_DISABLE))
-			ksz_pwrite8(dev, port, P_STP_CTRL,
+			ksz_pwrite8(dev, port, regs[P_STP_CTRL],
 				    data | PORT_LEARN_DISABLE);
 		ksz_cfg(dev, S_FLUSH_TABLE_CTRL, SW_FLUSH_DYN_MAC_TABLE, true);
-		ksz_pwrite8(dev, port, P_STP_CTRL, data);
+		ksz_pwrite8(dev, port, regs[P_STP_CTRL], data);
 	} else {
 		/* flush all */
 		ksz_cfg(dev, S_FLUSH_TABLE_CTRL, SW_FLUSH_STP_TABLE, true);

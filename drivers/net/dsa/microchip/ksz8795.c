@@ -809,6 +809,9 @@ void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 	u8 learn[DSA_MAX_PORTS];
 	int first, index, cnt;
 	struct ksz_port *p;
+	const u16 *regs;
+
+	regs = dev->info->regs;
 
 	if ((uint)port < dev->info->port_cnt) {
 		first = port;
@@ -822,9 +825,9 @@ void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 		p = &dev->ports[index];
 		if (!p->on)
 			continue;
-		ksz_pread8(dev, index, P_STP_CTRL, &learn[index]);
+		ksz_pread8(dev, index, regs[P_STP_CTRL], &learn[index]);
 		if (!(learn[index] & PORT_LEARN_DISABLE))
-			ksz_pwrite8(dev, index, P_STP_CTRL,
+			ksz_pwrite8(dev, index, regs[P_STP_CTRL],
 				    learn[index] | PORT_LEARN_DISABLE);
 	}
 	ksz_cfg(dev, S_FLUSH_TABLE_CTRL, SW_FLUSH_DYN_MAC_TABLE, true);
@@ -833,7 +836,7 @@ void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 		if (!p->on)
 			continue;
 		if (!(learn[index] & PORT_LEARN_DISABLE))
-			ksz_pwrite8(dev, index, P_STP_CTRL, learn[index]);
+			ksz_pwrite8(dev, index, regs[P_STP_CTRL], learn[index]);
 	}
 }
 
@@ -1236,11 +1239,11 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 				p->fiber = 1;
 		}
 		if (p->fiber)
-			ksz_port_cfg(dev, i, P_STP_CTRL, PORT_FORCE_FLOW_CTRL,
-				     true);
+			ksz_port_cfg(dev, i, regs[P_STP_CTRL],
+				     PORT_FORCE_FLOW_CTRL, true);
 		else
-			ksz_port_cfg(dev, i, P_STP_CTRL, PORT_FORCE_FLOW_CTRL,
-				     false);
+			ksz_port_cfg(dev, i, regs[P_STP_CTRL],
+				     PORT_FORCE_FLOW_CTRL, false);
 	}
 }
 

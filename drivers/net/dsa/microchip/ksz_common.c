@@ -216,6 +216,7 @@ static const u16 ksz8795_regs[] = {
 	[P_REMOTE_STATUS]		= 0x08,
 	[P_SPEED_STATUS]		= 0x09,
 	[S_TAIL_TAG_CTRL]		= 0x0C,
+	[P_STP_CTRL]			= 0x02,
 };
 
 static const u32 ksz8795_masks[] = {
@@ -266,6 +267,7 @@ static const u16 ksz8863_regs[] = {
 	[P_REMOTE_STATUS]		= 0x0E,
 	[P_SPEED_STATUS]		= 0x0F,
 	[S_TAIL_TAG_CTRL]		= 0x03,
+	[P_STP_CTRL]			= 0x02,
 };
 
 static const u32 ksz8863_masks[] = {
@@ -301,6 +303,11 @@ static u8 ksz8863_shifts[] = {
 	[DYNAMIC_MAC_SRC_PORT]		= 20,
 };
 
+static const u16 ksz9477_regs[] = {
+	[P_STP_CTRL]			= 0x0B04,
+
+};
+
 const struct ksz_chip_data ksz_switch_chips[] = {
 	[KSZ8795] = {
 		.chip_id = KSZ8795_CHIP_ID,
@@ -318,7 +325,6 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz8795_regs,
 		.masks = ksz8795_masks,
 		.shifts = ksz8795_shifts,
-		.stp_ctrl_reg = 0x02,
 		.broadcast_ctrl_reg =  0x06,
 		.multicast_ctrl_reg = 0x04,
 		.start_ctrl_reg = 0x01,
@@ -358,7 +364,6 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz8795_regs,
 		.masks = ksz8795_masks,
 		.shifts = ksz8795_shifts,
-		.stp_ctrl_reg = 0x02,
 		.broadcast_ctrl_reg =  0x06,
 		.multicast_ctrl_reg = 0x04,
 		.start_ctrl_reg = 0x01,
@@ -384,7 +389,6 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz8795_regs,
 		.masks = ksz8795_masks,
 		.shifts = ksz8795_shifts,
-		.stp_ctrl_reg = 0x02,
 		.broadcast_ctrl_reg =  0x06,
 		.multicast_ctrl_reg = 0x04,
 		.start_ctrl_reg = 0x01,
@@ -409,7 +413,6 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz8863_regs,
 		.masks = ksz8863_masks,
 		.shifts = ksz8863_shifts,
-		.stp_ctrl_reg = 0x02,
 		.broadcast_ctrl_reg =  0x06,
 		.multicast_ctrl_reg = 0x04,
 		.start_ctrl_reg = 0x01,
@@ -431,7 +434,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
+		.regs = ksz9477_regs,
 		.broadcast_ctrl_reg =  0x0332,
 		.multicast_ctrl_reg = 0x0331,
 		.start_ctrl_reg = 0x0300,
@@ -458,7 +461,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
+		.regs = ksz9477_regs,
 		.broadcast_ctrl_reg =  0x0332,
 		.multicast_ctrl_reg = 0x0331,
 		.start_ctrl_reg = 0x0300,
@@ -484,7 +487,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
+		.regs = ksz9477_regs,
 		.broadcast_ctrl_reg =  0x0332,
 		.multicast_ctrl_reg = 0x0331,
 		.start_ctrl_reg = 0x0300,
@@ -507,7 +510,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
+		.regs = ksz9477_regs,
 		.broadcast_ctrl_reg =  0x0332,
 		.multicast_ctrl_reg = 0x0331,
 		.start_ctrl_reg = 0x0300,
@@ -532,7 +535,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
+		.regs = ksz9477_regs,
 		.broadcast_ctrl_reg =  0x0332,
 		.multicast_ctrl_reg = 0x0331,
 		.start_ctrl_reg = 0x0300,
@@ -553,7 +556,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
+		.regs = ksz9477_regs,
 		.broadcast_ctrl_reg =  0x0332,
 		.multicast_ctrl_reg = 0x0331,
 		.start_ctrl_reg = 0x0300,
@@ -574,7 +577,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
+		.regs = ksz9477_regs,
 		.broadcast_ctrl_reg =  0x0332,
 		.multicast_ctrl_reg = 0x0331,
 		.start_ctrl_reg = 0x0300,
@@ -599,7 +602,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
+		.regs = ksz9477_regs,
 		.broadcast_ctrl_reg =  0x0332,
 		.multicast_ctrl_reg = 0x0331,
 		.start_ctrl_reg = 0x0300,
@@ -624,7 +627,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
+		.regs = ksz9477_regs,
 		.broadcast_ctrl_reg =  0x0332,
 		.multicast_ctrl_reg = 0x0331,
 		.start_ctrl_reg = 0x0300,
@@ -1131,12 +1134,12 @@ void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 {
 	struct ksz_device *dev = ds->priv;
 	struct ksz_port *p;
+	const u16 *regs;
 	u8 data;
-	int reg;
 
-	reg = dev->info->stp_ctrl_reg;
+	regs = dev->info->regs;
 
-	ksz_pread8(dev, port, reg, &data);
+	ksz_pread8(dev, port, regs[P_STP_CTRL], &data);
 	data &= ~(PORT_TX_ENABLE | PORT_RX_ENABLE | PORT_LEARN_DISABLE);
 
 	switch (state) {
@@ -1160,7 +1163,7 @@ void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 		return;
 	}
 
-	ksz_pwrite8(dev, port, reg, data);
+	ksz_pwrite8(dev, port, regs[P_STP_CTRL], data);
 
 	p = &dev->ports[port];
 	p->stp_state = state;
