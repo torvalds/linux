@@ -2138,11 +2138,51 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb_tid(sdata, skb, 7);
 }
 
-struct ieee802_11_elems *ieee802_11_parse_elems_crc(const u8 *start, size_t len,
-						    bool action,
-						    u64 filter, u32 crc,
-						    const u8 *transmitter_bssid,
-						    const u8 *bss_bssid);
+/**
+ * struct ieee80211_elems_parse_params - element parsing parameters
+ * @start: pointer to the elements
+ * @len: length of the elements
+ * @action: %true if the elements came from an action frame
+ * @filter: bitmap of element IDs to filter out while calculating
+ *	the element CRC
+ * @crc: CRC starting value
+ * @transmitter_bssid: transmitter BSSID to parse the multi-BSSID
+ *	element
+ * @bss_bssid: BSSID of the BSS we want to obtain elements for
+ *	when parsing the multi-BSSID element
+ */
+struct ieee80211_elems_parse_params {
+	const u8 *start;
+	size_t len;
+	bool action;
+	u64 filter;
+	u32 crc;
+	const u8 *transmitter_bssid;
+	const u8 *bss_bssid;
+};
+
+struct ieee802_11_elems *
+ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params);
+
+static inline struct ieee802_11_elems *
+ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
+			   u64 filter, u32 crc,
+			   const u8 *transmitter_bssid,
+			   const u8 *bss_bssid)
+{
+	struct ieee80211_elems_parse_params params = {
+		.start = start,
+		.len = len,
+		.action = action,
+		.filter = filter,
+		.crc = crc,
+		.transmitter_bssid = transmitter_bssid,
+		.bss_bssid = bss_bssid,
+	};
+
+	return ieee802_11_parse_elems_full(&params);
+}
+
 static inline struct ieee802_11_elems *
 ieee802_11_parse_elems(const u8 *start, size_t len, bool action,
 		       const u8 *transmitter_bssid,

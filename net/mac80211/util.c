@@ -1026,19 +1026,19 @@ static void ieee80211_parse_extension_element(u32 *crc,
 }
 
 static u32
-_ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
-			    struct ieee802_11_elems *elems,
-			    u64 filter, u32 crc,
-			    const struct element *check_inherit)
+_ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params,
+			     struct ieee802_11_elems *elems,
+			     const struct element *check_inherit)
 {
 	const struct element *elem;
-	bool calc_crc = filter != 0;
+	bool calc_crc = params->filter != 0;
 	DECLARE_BITMAP(seen_elems, 256);
+	u32 crc = params->crc;
 	const u8 *ie;
 
 	bitmap_zero(seen_elems, 256);
 
-	for_each_element(elem, start, len) {
+	for_each_element(elem, params->start, params->len) {
 		bool elem_parse_failed;
 		u8 id = elem->id;
 		u8 elen = elem->datalen;
@@ -1101,7 +1101,7 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			break;
 		}
 
-		if (calc_crc && id < 64 && (filter & (1ULL << id)))
+		if (calc_crc && id < 64 && (params->filter & (1ULL << id)))
 			crc = crc32_be(crc, pos - 2, elen + 2);
 
 		elem_parse_failed = false;
@@ -1282,7 +1282,7 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			elems->mesh_chansw_params_ie = (void *)pos;
 			break;
 		case WLAN_EID_WIDE_BW_CHANNEL_SWITCH:
-			if (!action ||
+			if (!params->action ||
 			    elen < sizeof(*elems->wide_bw_chansw_ie)) {
 				elem_parse_failed = true;
 				break;
@@ -1290,7 +1290,7 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			elems->wide_bw_chansw_ie = (void *)pos;
 			break;
 		case WLAN_EID_CHANNEL_SWITCH_WRAPPER:
-			if (action) {
+			if (params->action) {
 				elem_parse_failed = true;
 				break;
 			}
@@ -1417,7 +1417,7 @@ _ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 			__set_bit(id, seen_elems);
 	}
 
-	if (!for_each_element_completed(elem, start, len))
+	if (!for_each_element_completed(elem, params->start, params->len))
 		elems->parse_error = true;
 
 	return crc;
@@ -1491,11 +1491,8 @@ static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 	return found ? profile_len : 0;
 }
 
-struct ieee802_11_elems *ieee802_11_parse_elems_crc(const u8 *start, size_t len,
-						    bool action, u64 filter,
-						    u32 crc,
-						    const u8 *transmitter_bssid,
-						    const u8 *bss_bssid)
+struct ieee802_11_elems *
+ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 {
 	struct ieee802_11_elems *elems;
 	const struct element *non_inherit = NULL;
@@ -1505,15 +1502,16 @@ struct ieee802_11_elems *ieee802_11_parse_elems_crc(const u8 *start, size_t len,
 	elems = kzalloc(sizeof(*elems), GFP_ATOMIC);
 	if (!elems)
 		return NULL;
-	elems->ie_start = start;
-	elems->total_len = len;
+	elems->ie_start = params->start;
+	elems->total_len = params->len;
 
-	nontransmitted_profile = kmalloc(len, GFP_ATOMIC);
+	nontransmitted_profile = kmalloc(params->len, GFP_ATOMIC);
 	if (nontransmitted_profile) {
 		nontransmitted_profile_len =
-			ieee802_11_find_bssid_profile(start, len, elems,
-						      transmitter_bssid,
-						      bss_bssid,
+			ieee802_11_find_bssid_profile(params->start, params->len,
+						      elems,
+						      params->transmitter_bssid,
+						      params->bss_bssid,
 						      nontransmitted_profile);
 		non_inherit =
 			cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
@@ -1521,14 +1519,18 @@ struct ieee802_11_elems *ieee802_11_parse_elems_crc(const u8 *start, size_t len,
 					       nontransmitted_profile_len);
 	}
 
-	crc = _ieee802_11_parse_elems_crc(start, len, action, elems, filter,
-					  crc, non_inherit);
+	elems->crc = _ieee802_11_parse_elems_full(params, elems, non_inherit);
 
 	/* Override with nontransmitted profile, if found */
-	if (nontransmitted_profile_len)
-		_ieee802_11_parse_elems_crc(nontransmitted_profile,
-					    nontransmitted_profile_len,
-					    action, elems, 0, 0, NULL);
+	if (nontransmitted_profile_len) {
+		struct ieee80211_elems_parse_params sub = {
+			.start = nontransmitted_profile,
+			.len = nontransmitted_profile_len,
+			.action = params->action,
+		};
+
+		_ieee802_11_parse_elems_full(&sub, elems, NULL);
+	}
 
 	if (elems->tim && !elems->parse_error) {
 		const struct ieee80211_tim_ie *tim_ie = elems->tim;
@@ -1549,8 +1551,6 @@ struct ieee802_11_elems *ieee802_11_parse_elems_crc(const u8 *start, size_t len,
 		elems->dtim_count = elems->bssid_index->dtim_count;
 
 	kfree(nontransmitted_profile);
-
-	elems->crc = crc;
 
 	return elems;
 }
