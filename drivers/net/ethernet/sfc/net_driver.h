@@ -623,7 +623,8 @@ enum efx_int_mode {
 
 enum nic_state {
 	STATE_UNINIT = 0,	/* device being probed/removed */
-	STATE_NET_DOWN,		/* hardware probed and netdev registered */
+	STATE_PROBED,		/* hardware probed */
+	STATE_NET_DOWN,		/* netdev registered */
 	STATE_NET_UP,		/* ready for traffic */
 	STATE_DISABLED,		/* device disabled due to hardware errors */
 

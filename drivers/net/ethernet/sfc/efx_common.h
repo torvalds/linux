@@ -43,10 +43,11 @@ void efx_start_monitor(struct efx_nic *efx);
 int __efx_reconfigure_port(struct efx_nic *efx);
 int efx_reconfigure_port(struct efx_nic *efx);
 
-#define EFX_ASSERT_RESET_SERIALISED(efx)		\
-	do {						\
-		if (efx->state != STATE_UNINIT)		\
-			ASSERT_RTNL();			\
+#define EFX_ASSERT_RESET_SERIALISED(efx)				\
+	do {								\
+		if ((efx)->state != STATE_UNINIT &&			\
+		    (efx)->state != STATE_PROBED)			\
+			ASSERT_RTNL();					\
 	} while (0)
 
 int efx_try_recovery(struct efx_nic *efx);

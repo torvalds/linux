@@ -291,7 +291,7 @@ void ef100_unregister_netdev(struct efx_nic *efx)
 {
 	if (efx_dev_registered(efx)) {
 		efx_fini_mcdi_logging(efx);
-		efx->state = STATE_UNINIT;
+		efx->state = STATE_PROBED;
 		unregister_netdev(efx->net_dev);
 	}
 }

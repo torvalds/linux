@@ -1222,8 +1222,10 @@ static pci_ers_result_t efx_io_error_detected(struct pci_dev *pdev,
 
 		efx_device_detach_sync(efx);
 
-		efx_stop_all(efx);
-		efx_disable_interrupts(efx);
+		if (efx_net_active(efx->state)) {
+			efx_stop_all(efx);
+			efx_disable_interrupts(efx);
+		}
 
 		status = PCI_ERS_RESULT_NEED_RESET;
 	} else {
