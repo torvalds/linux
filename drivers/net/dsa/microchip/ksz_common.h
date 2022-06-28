@@ -165,6 +165,9 @@ enum ksz_regs {
 	P_SPEED_STATUS,
 	S_TAIL_TAG_CTRL,
 	P_STP_CTRL,
+	S_START_CTRL,
+	S_BROADCAST_CTRL,
+	S_MULTICAST_CTRL,
 };
 
 enum ksz_masks {
