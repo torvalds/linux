@@ -242,6 +242,13 @@ struct hpd_rx_irq_offload_work {
  * @force_timing_sync: set via debugfs. When set, indicates that all connected
  *		       displays will be forced to synchronize.
  * @dmcub_trace_event_en: enable dmcub trace events
+ * @dmub_outbox_params: DMUB Outbox parameters
+ * @num_of_edps: number of backlight eDPs
+ * @disable_hpd_irq: disables all HPD and HPD RX interrupt handling in the
+ *		     driver when true
+ * @dmub_aux_transfer_done: struct completion used to indicate when DMUB
+ * 			    transfers are done
+ * @delayed_hpd_wq: work queue used to delay DMUB HPD work
  */
 struct amdgpu_display_manager {
 
