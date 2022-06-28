@@ -339,10 +339,12 @@ static ssize_t addr_show(struct device *dev,
 static ssize_t addr_store(struct device *dev,
 			  struct device_attribute *attr, const char *buf, size_t count)
 {
-	if (kstrtoul(buf, 0, &bxtwc_reg_addr)) {
-		dev_err(dev, "Invalid register address\n");
-		return -EINVAL;
-	}
+	int ret;
+
+	ret = kstrtoul(buf, 0, &bxtwc_reg_addr);
+	if (ret)
+		return ret;
+
 	return (ssize_t)count;
 }
 
@@ -354,9 +356,9 @@ static ssize_t val_show(struct device *dev,
 	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
 
 	ret = regmap_read(pmic->regmap, bxtwc_reg_addr, &val);
-	if (ret < 0) {
+	if (ret) {
 		dev_err(dev, "Failed to read 0x%lx\n", bxtwc_reg_addr);
-		return -EIO;
+		return ret;
 	}
 
 	return sprintf(buf, "0x%02x\n", val);
@@ -377,7 +379,7 @@ static ssize_t val_store(struct device *dev,
 	if (ret) {
 		dev_err(dev, "Failed to write value 0x%02x to address 0x%lx",
 			val, bxtwc_reg_addr);
-		return -EIO;
+		return ret;
 	}
 	return count;
 }
