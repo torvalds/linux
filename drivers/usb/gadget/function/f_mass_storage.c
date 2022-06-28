@@ -1191,13 +1191,14 @@ static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 	u8		format;
 	int		i, len;
 
+	format = common->cmnd[2] & 0xf;
+
 	if ((common->cmnd[1] & ~0x02) != 0 ||	/* Mask away MSF */
-			start_track > 1) {
+			(start_track > 1 && format != 0x1)) {
 		curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 		return -EINVAL;
 	}
 
-	format = common->cmnd[2] & 0xf;
 	/*
 	 * Check if CDB is old style SFF-8020i
 	 * i.e. format is in 2 MSBs of byte 9
@@ -1207,8 +1208,8 @@ static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 		format = (common->cmnd[9] >> 6) & 0x3;
 
 	switch (format) {
-	case 0:
-		/* Formatted TOC */
+	case 0:	/* Formatted TOC */
+	case 1:	/* Multi-session info */
 		len = 4 + 2*8;		/* 4 byte header + 2 descriptors */
 		memset(buf, 0, len);
 		buf[1] = len - 2;	/* TOC Length excludes length field */
@@ -1249,7 +1250,7 @@ static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 		return len;
 
 	default:
-		/* Multi-session, PMA, ATIP, CD-TEXT not supported/required */
+		/* PMA, ATIP, CD-TEXT not supported/required */
 		curlun->sense_data = SS_INVALID_FIELD_IN_CDB;
 		return -EINVAL;
 	}
