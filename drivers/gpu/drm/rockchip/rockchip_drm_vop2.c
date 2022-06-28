@@ -5479,6 +5479,7 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	int request_clock = mode->clock;
 	int clock;
 	unsigned long aclk_rate;
+	uint8_t active_vp_mask = vop2->active_vp_mask;
 
 	/*
 	 * For RK3588, VP0 and VP1 will be both used in splice mode. All display
@@ -5487,6 +5488,13 @@ vop2_crtc_mode_valid(struct drm_crtc *crtc, const struct drm_display_mode *mode)
 	 */
 	if (vp->splice_mode_right)
 		return MODE_BAD;
+
+	if ((active_vp_mask & BIT(ROCKCHIP_VOP_VP1)) && !vcstate->splice_mode &&
+	    mode->hdisplay > VOP2_MAX_VP_OUTPUT_WIDTH) {
+		DRM_DEV_DEBUG(vop2->dev, "can not support resolution %dx%d, vp1 is busy\n",
+			      mode->hdisplay, mode->vdisplay);
+		return MODE_BAD;
+	}
 
 	if (mode->hdisplay > vp_data->max_output.width)
 		return MODE_BAD_HVALUE;
