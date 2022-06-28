@@ -6,6 +6,7 @@
 #ifndef __IOSYS_MAP_H__
 #define __IOSYS_MAP_H__
 
+#include <linux/compiler_types.h>
 #include <linux/io.h>
 #include <linux/string.h>
 
@@ -333,6 +334,23 @@ static inline void iosys_map_memset(struct iosys_map *dst, size_t offset,
 		memset(dst->vaddr + offset, value, len);
 }
 
+#ifdef CONFIG_64BIT
+#define __iosys_map_rd_io_u64_case(val_, vaddr_iomem_)				\
+	u64: val_ = readq(vaddr_iomem_)
+#else
+#define __iosys_map_rd_io_u64_case(val_, vaddr_iomem_)				\
+	u64: memcpy_fromio(&(val_), vaddr_iomem_, sizeof(u64))
+#endif
+
+#define __iosys_map_rd_io(val__, vaddr_iomem__, type__) _Generic(val__,		\
+	u8: val__ = readb(vaddr_iomem__),					\
+	u16: val__ = readw(vaddr_iomem__),					\
+	u32: val__ = readl(vaddr_iomem__),					\
+	__iosys_map_rd_io_u64_case(val__, vaddr_iomem__))
+
+#define __iosys_map_rd_sys(val__, vaddr__, type__)				\
+	val__ = READ_ONCE(*(type__ *)(vaddr__))
+
 /**
  * iosys_map_rd - Read a C-type value from the iosys_map
  *
@@ -340,16 +358,21 @@ static inline void iosys_map_memset(struct iosys_map *dst, size_t offset,
  * @offset__:	The offset from which to read
  * @type__:	Type of the value being read
  *
- * Read a C type value from iosys_map, handling possible un-aligned accesses to
- * the mapping.
+ * Read a C type value (u8, u16, u32 and u64) from iosys_map. For other types or
+ * if pointer may be unaligned (and problematic for the architecture supported),
+ * use iosys_map_memcpy_from().
  *
  * Returns:
  * The value read from the mapping.
  */
-#define iosys_map_rd(map__, offset__, type__) ({			\
-	type__ val;							\
-	iosys_map_memcpy_from(&val, map__, offset__, sizeof(val));	\
-	val;								\
+#define iosys_map_rd(map__, offset__, type__) ({				\
+	type__ val;								\
+	if ((map__)->is_iomem) {						\
+		__iosys_map_rd_io(val, (map__)->vaddr_iomem + (offset__), type__);\
+	} else {								\
+		__iosys_map_rd_sys(val, (map__)->vaddr + (offset__), type__);	\
+	}									\
+	val;									\
 })
 
 /**
@@ -379,9 +402,10 @@ static inline void iosys_map_memset(struct iosys_map *dst, size_t offset,
  *
  * Read a value from iosys_map considering its layout is described by a C struct
  * starting at @struct_offset__. The field offset and size is calculated and its
- * value read handling possible un-aligned memory accesses. For example: suppose
- * there is a @struct foo defined as below and the value ``foo.field2.inner2``
- * needs to be read from the iosys_map:
+ * value read. If the field access would incur in un-aligned access, then either
+ * iosys_map_memcpy_from() needs to be used or the architecture must support it.
+ * For example: suppose there is a @struct foo defined as below and the value
+ * ``foo.field2.inner2`` needs to be read from the iosys_map:
  *
  * .. code-block:: c
  *
