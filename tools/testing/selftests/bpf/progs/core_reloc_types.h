@@ -860,7 +860,7 @@ struct core_reloc_size___err_ambiguous2 {
 };
 
 /*
- * TYPE EXISTENCE & SIZE
+ * TYPE EXISTENCE, MATCH & SIZE
  */
 struct core_reloc_type_based_output {
 	bool struct_exists;
@@ -874,6 +874,18 @@ struct core_reloc_type_based_output {
 	bool typedef_void_ptr_exists;
 	bool typedef_func_proto_exists;
 	bool typedef_arr_exists;
+
+	bool struct_matches;
+	bool union_matches;
+	bool enum_matches;
+	bool typedef_named_struct_matches;
+	bool typedef_anon_struct_matches;
+	bool typedef_struct_ptr_matches;
+	bool typedef_int_matches;
+	bool typedef_enum_matches;
+	bool typedef_void_ptr_matches;
+	bool typedef_func_proto_matches;
+	bool typedef_arr_matches;
 
 	int struct_sz;
 	int union_sz;
