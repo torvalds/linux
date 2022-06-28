@@ -1204,10 +1204,7 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 	mutex_lock(&ocelot->tas_lock);
 
 	if (!taprio->enable) {
-		ocelot_rmw_rix(ocelot,
-			       QSYS_TAG_CONFIG_INIT_GATE_STATE(0xFF),
-			       QSYS_TAG_CONFIG_ENABLE |
-			       QSYS_TAG_CONFIG_INIT_GATE_STATE_M,
+		ocelot_rmw_rix(ocelot, 0, QSYS_TAG_CONFIG_ENABLE,
 			       QSYS_TAG_CONFIG, port);
 
 		taprio_offload_free(ocelot_port->taprio);
@@ -1315,10 +1312,8 @@ static void vsc9959_tas_clock_adjust(struct ocelot *ocelot)
 			   QSYS_TAS_PARAM_CFG_CTRL_PORT_NUM_M,
 			   QSYS_TAS_PARAM_CFG_CTRL);
 
-		ocelot_rmw_rix(ocelot,
-			       QSYS_TAG_CONFIG_INIT_GATE_STATE(0xFF),
-			       QSYS_TAG_CONFIG_ENABLE |
-			       QSYS_TAG_CONFIG_INIT_GATE_STATE_M,
+		/* Disable time-aware shaper */
+		ocelot_rmw_rix(ocelot, 0, QSYS_TAG_CONFIG_ENABLE,
 			       QSYS_TAG_CONFIG, port);
 
 		vsc9959_new_base_time(ocelot, taprio->base_time,
@@ -1337,11 +1332,9 @@ static void vsc9959_tas_clock_adjust(struct ocelot *ocelot)
 			   QSYS_TAS_PARAM_CFG_CTRL_CONFIG_CHANGE,
 			   QSYS_TAS_PARAM_CFG_CTRL);
 
-		ocelot_rmw_rix(ocelot,
-			       QSYS_TAG_CONFIG_INIT_GATE_STATE(0xFF) |
+		/* Re-enable time-aware shaper */
+		ocelot_rmw_rix(ocelot, QSYS_TAG_CONFIG_ENABLE,
 			       QSYS_TAG_CONFIG_ENABLE,
-			       QSYS_TAG_CONFIG_ENABLE |
-			       QSYS_TAG_CONFIG_INIT_GATE_STATE_M,
 			       QSYS_TAG_CONFIG, port);
 	}
 	mutex_unlock(&ocelot->tas_lock);
