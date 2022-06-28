@@ -3012,7 +3012,8 @@ struct hl_reset_info {
  * @last_error: holds information about last session in which CS timeout or razwi error occurred.
  * @reset_info: holds current device reset information.
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
- * @fw_major_version: major version of current loaded preboot
+ * @fw_major_version: major version of current loaded preboot.
+ * @fw_minor_version: minor version of current loaded preboot.
  * @dram_used_mem: current DRAM memory consumption.
  * @memory_scrub_val: the value to which the dram will be scrubbed to using cb scrub_device_dram
  * @timeout_jiffies: device CS timeout value.
@@ -3186,6 +3187,7 @@ struct hl_device {
 
 	u32				*stream_master_qid_arr;
 	u32				fw_major_version;
+	u32				fw_minor_version;
 	atomic64_t			dram_used_mem;
 	u64				memory_scrub_val;
 	u64				timeout_jiffies;

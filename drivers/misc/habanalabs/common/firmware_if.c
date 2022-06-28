@@ -41,7 +41,7 @@ static char *extract_fw_ver_from_str(const char *fw_str)
 	ver_offset = str - fw_str;
 
 	/* Copy until the next whitespace */
-	whitespace =  strnstr(str, " ", VERSION_MAX_LEN - ver_offset);
+	whitespace = strnstr(str, " ", VERSION_MAX_LEN - ver_offset);
 	if (!whitespace)
 		goto free_fw_ver;
 
@@ -52,6 +52,43 @@ static char *extract_fw_ver_from_str(const char *fw_str)
 free_fw_ver:
 	kfree(fw_ver);
 	return NULL;
+}
+
+static int extract_fw_sub_versions(struct hl_device *hdev, char *preboot_ver)
+{
+	char major[8], minor[8], *first_dot, *second_dot;
+	int rc;
+
+	first_dot = strnstr(preboot_ver, ".", 10);
+	if (first_dot) {
+		strscpy(major, preboot_ver, first_dot - preboot_ver + 1);
+		rc = kstrtou32(major, 10, &hdev->fw_major_version);
+	} else {
+		rc = -EINVAL;
+	}
+
+	if (rc) {
+		dev_err(hdev->dev, "Error %d parsing preboot major version\n", rc);
+		goto out;
+	}
+
+	/* skip the first dot */
+	first_dot++;
+
+	second_dot = strnstr(first_dot, ".", 10);
+	if (second_dot) {
+		strscpy(minor, first_dot, second_dot - first_dot + 1);
+		rc = kstrtou32(minor, 10, &hdev->fw_minor_version);
+	} else {
+		rc = -EINVAL;
+	}
+
+	if (rc)
+		dev_err(hdev->dev, "Error %d parsing preboot minor version\n", rc);
+
+out:
+	kfree(preboot_ver);
+	return rc;
 }
 
 static int hl_request_fw(struct hl_device *hdev,
@@ -2012,18 +2049,14 @@ static int hl_fw_dynamic_read_device_fw_version(struct hl_device *hdev,
 
 		preboot_ver = extract_fw_ver_from_str(prop->preboot_ver);
 		if (preboot_ver) {
-			char major[8];
 			int rc;
 
 			dev_info(hdev->dev, "preboot version %s\n", preboot_ver);
-			sprintf(major, "%.2s", preboot_ver);
-			kfree(preboot_ver);
 
-			rc = kstrtou32(major, 10, &hdev->fw_major_version);
-			if (rc) {
-				dev_err(hdev->dev, "Error %d parsing preboot major version\n", rc);
+			/* This function takes care of freeing preboot_ver */
+			rc = extract_fw_sub_versions(hdev, preboot_ver);
+			if (rc)
 				return rc;
-			}
 		}
 
 		break;
