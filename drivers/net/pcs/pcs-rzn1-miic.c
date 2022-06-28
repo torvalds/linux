@@ -461,8 +461,8 @@ static int miic_probe(struct platform_device *pdev)
 	spin_lock_init(&miic->lock);
 	miic->dev = dev;
 	miic->base = devm_platform_ioremap_resource(pdev, 0);
-	if (!miic->base)
-		return -EINVAL;
+	if (IS_ERR(miic->base))
+		return PTR_ERR(miic->base);
 
 	ret = devm_pm_runtime_enable(dev);
 	if (ret < 0)
