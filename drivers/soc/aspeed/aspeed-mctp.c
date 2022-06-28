@@ -734,7 +734,7 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 
 	if (priv->match_data->vdm_hdr_direct_xfer && priv->match_data->fifo_auto_surround) {
 		struct mctp_pcie_packet_data *rx_buf;
-		u32 residual_cmds;
+		u32 residual_cmds = 0;
 
 		/* Trigger HW read pointer update, must be done before RX loop */
 		regmap_write(priv->map, ASPEED_MCTP_RX_BUF_RD_PTR, UPDATE_RX_RD_PTR);
@@ -770,7 +770,8 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 			    priv->rx_runaway_wa.first_loop)
 				regmap_write(priv->map, ASPEED_MCTP_RX_BUF_SIZE,
 					     rx->buffer_count - residual_cmds);
-			priv->rx_warmup = false;
+			if (hdr)
+				priv->rx_warmup = false;
 		}
 
 		if (priv->rx_runaway_wa.packet_counter > priv->rx_packet_count &&
