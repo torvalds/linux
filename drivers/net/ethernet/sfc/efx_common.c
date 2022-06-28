@@ -1098,8 +1098,8 @@ int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 	efx->membase_phys = pci_resource_start(efx->pci_dev, bar);
 	if (!efx->membase_phys) {
 		netif_err(efx, probe, efx->net_dev,
-			  "ERROR: No BAR%d mapping from the BIOS. "
-			  "Try pci=realloc on the kernel command line\n", bar);
+			  "ERROR: No BAR%d mapping from the BIOS. Try pci=realloc on the kernel command line\n",
+			  bar);
 		rc = -ENODEV;
 		goto fail3;
 	}
