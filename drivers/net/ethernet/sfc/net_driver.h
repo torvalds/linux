@@ -1166,9 +1166,22 @@ struct efx_nic {
 	atomic_t n_rx_noskb_drops;
 };
 
+/**
+ * struct efx_probe_data - State after hardware probe
+ * @pci_dev: The PCI device
+ * @efx: Efx NIC details
+ */
+struct efx_probe_data {
+	struct pci_dev *pci_dev;
+	struct efx_nic efx;
+};
+
 static inline struct efx_nic *efx_netdev_priv(struct net_device *dev)
 {
-	return netdev_priv(dev);
+	struct efx_probe_data **probe_ptr = netdev_priv(dev);
+	struct efx_probe_data *probe_data = *probe_ptr;
+
+	return &probe_data->efx;
 }
 
 static inline int efx_dev_registered(struct efx_nic *efx)

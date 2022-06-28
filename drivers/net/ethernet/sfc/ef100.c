@@ -423,6 +423,7 @@ static int ef100_pci_find_func_ctrl_window(struct efx_nic *efx,
  */
 static void ef100_pci_remove(struct pci_dev *pci_dev)
 {
+	struct efx_probe_data *probe_data;
 	struct efx_nic *efx;
 
 	efx = pci_get_drvdata(pci_dev);
@@ -448,6 +449,8 @@ static void ef100_pci_remove(struct pci_dev *pci_dev)
 	pci_set_drvdata(pci_dev, NULL);
 	efx_fini_struct(efx);
 	free_netdev(efx->net_dev);
+	probe_data = container_of(efx, struct efx_probe_data, efx);
+	kfree(probe_data);
 
 	pci_disable_pcie_error_reporting(pci_dev);
 };
@@ -455,16 +458,25 @@ static void ef100_pci_remove(struct pci_dev *pci_dev)
 static int ef100_pci_probe(struct pci_dev *pci_dev,
 			   const struct pci_device_id *entry)
 {
+	struct efx_probe_data *probe_data, **probe_ptr;
 	struct ef100_func_ctl_window fcw = { 0 };
 	struct net_device *net_dev;
 	struct efx_nic *efx;
 	int rc;
 
-	/* Allocate and initialise a struct net_device and struct efx_nic */
-	net_dev = alloc_etherdev_mq(sizeof(*efx), EFX_MAX_CORE_TX_QUEUES);
+	/* Allocate probe data and struct efx_nic */
+	probe_data = kzalloc(sizeof(*probe_data), GFP_KERNEL);
+	if (!probe_data)
+		return -ENOMEM;
+	probe_data->pci_dev = pci_dev;
+	efx = &probe_data->efx;
+
+	/* Allocate and initialise a struct net_device */
+	net_dev = alloc_etherdev_mq(sizeof(probe_data), EFX_MAX_CORE_TX_QUEUES);
 	if (!net_dev)
 		return -ENOMEM;
-	efx = efx_netdev_priv(net_dev);
+	probe_ptr = netdev_priv(net_dev);
+	*probe_ptr = probe_data;
 	efx->type = (const struct efx_nic_type *)entry->driver_data;
 
 	pci_set_drvdata(pci_dev, efx);

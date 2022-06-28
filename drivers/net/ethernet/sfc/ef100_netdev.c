@@ -243,7 +243,7 @@ int ef100_netdev_event(struct notifier_block *this,
 	struct efx_nic *efx = container_of(this, struct efx_nic, netdev_notifier);
 	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
 
-	if (efx_netdev_priv(net_dev) == efx && event == NETDEV_CHANGENAME)
+	if (efx->net_dev == net_dev && event == NETDEV_CHANGENAME)
 		ef100_update_name(efx);
 
 	return NOTIFY_DONE;
