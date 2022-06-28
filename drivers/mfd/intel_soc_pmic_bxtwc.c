@@ -457,7 +457,7 @@ static int bxtwc_probe(struct platform_device *pdev)
 		return ret;
 	pmic->irq = ret;
 
-	dev_set_drvdata(&pdev->dev, pmic);
+	platform_set_drvdata(pdev, pmic);
 	pmic->dev = &pdev->dev;
 
 	pmic->scu = devm_intel_scu_ipc_dev_get(&pdev->dev);
@@ -574,7 +574,7 @@ static int bxtwc_probe(struct platform_device *pdev)
 
 static void bxtwc_shutdown(struct platform_device *pdev)
 {
-	struct intel_soc_pmic *pmic = dev_get_drvdata(&pdev->dev);
+	struct intel_soc_pmic *pmic = platform_get_drvdata(pdev);
 
 	disable_irq(pmic->irq);
 }
