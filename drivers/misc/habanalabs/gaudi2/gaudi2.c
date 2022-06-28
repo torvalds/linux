@@ -2895,6 +2895,10 @@ static void gaudi2_user_interrupt_setup(struct hl_device *hdev)
 	HL_USR_INTR_STRUCT_INIT(hdev->common_user_cq_interrupt, hdev,
 				HL_COMMON_USER_CQ_INTERRUPT_ID, false);
 
+	/* Initialize common decoder interrupt */
+	HL_USR_INTR_STRUCT_INIT(hdev->common_decoder_interrupt, hdev,
+				HL_COMMON_DEC_INTERRUPT_ID, true);
+
 	/* User interrupts structure holds both decoder and user interrupts from various engines.
 	 * We first initialize the decoder interrupts and then we add the user interrupts.
 	 * The only limitation is that the last decoder interrupt id must be smaller

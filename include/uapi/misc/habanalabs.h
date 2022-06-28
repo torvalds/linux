@@ -1443,6 +1443,7 @@ union hl_cs_args {
 #define HL_WAIT_CS_FLAGS_INTERRUPT		0x2
 #define HL_WAIT_CS_FLAGS_INTERRUPT_MASK		0xFFF00000
 #define HL_WAIT_CS_FLAGS_ANY_CQ_INTERRUPT	0xFFF00000
+#define HL_WAIT_CS_FLAGS_ANY_DEC_INTERRUPT	0xFFE00000
 #define HL_WAIT_CS_FLAGS_MULTI_CS		0x4
 #define HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ	0x10
 #define HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT	0x20
@@ -1496,6 +1497,9 @@ struct hl_wait_cs_in {
 	 *
 	 * in order to wait for any CQ interrupt, set interrupt value to
 	 * HL_WAIT_CS_FLAGS_ANY_CQ_INTERRUPT.
+	 *
+	 * in order to wait for any decoder interrupt, set interrupt value to
+	 * HL_WAIT_CS_FLAGS_ANY_DEC_INTERRUPT.
 	 */
 	__u32 flags;
 

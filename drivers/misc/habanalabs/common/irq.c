@@ -333,12 +333,9 @@ irqreturn_t hl_irq_handler_user_interrupt(int irq, void *arg)
 	struct hl_user_interrupt *user_int = arg;
 	struct hl_device *hdev = user_int->hdev;
 
-	/* If the interrupt is not a decoder interrupt, it means the interrupt
-	 * belongs to a user cq. In that case, before handling it, we need to handle the common
-	 * user cq
-	 */
-	if (!user_int->is_decoder)
-		/* Handle user cq interrupts registered on all interrupts */
+	if (user_int->is_decoder)
+		handle_user_interrupt(hdev, &hdev->common_decoder_interrupt);
+	else
 		handle_user_interrupt(hdev, &hdev->common_user_cq_interrupt);
 
 	/* Handle user cq or decoder interrupts registered on this specific irq */
