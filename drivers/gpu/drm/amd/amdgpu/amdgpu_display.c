@@ -744,8 +744,7 @@ static int convert_tiling_flags_to_modifier(struct amdgpu_framebuffer *afb)
 			switch (version) {
 			case AMD_FMT_MOD_TILE_VER_GFX11:
 				pipe_xor_bits = min(block_size_bits - 8, pipes);
-				packers = min(block_size_bits - 8 - pipe_xor_bits,
-						ilog2(adev->gfx.config.gb_addr_config_fields.num_pkrs));
+				packers = ilog2(adev->gfx.config.gb_addr_config_fields.num_pkrs);
 				break;
 			case AMD_FMT_MOD_TILE_VER_GFX10_RBPLUS:
 				pipe_xor_bits = min(block_size_bits - 8, pipes);

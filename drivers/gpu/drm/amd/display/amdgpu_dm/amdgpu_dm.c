@@ -5203,6 +5203,7 @@ add_gfx11_modifiers(struct amdgpu_device *adev,
 	int num_pkrs = 0;
 	int pkrs = 0;
 	u32 gb_addr_config;
+	u8 i = 0;
 	unsigned swizzle_r_x;
 	uint64_t modifier_r_x;
 	uint64_t modifier_dcc_best;
@@ -5218,37 +5219,40 @@ add_gfx11_modifiers(struct amdgpu_device *adev,
 	num_pipes = 1 << REG_GET_FIELD(gb_addr_config, GB_ADDR_CONFIG, NUM_PIPES);
 	pipe_xor_bits = ilog2(num_pipes);
 
-	/* R_X swizzle modes are the best for rendering and DCC requires them. */
-	swizzle_r_x = num_pipes > 16 ? AMD_FMT_MOD_TILE_GFX11_256K_R_X :
-                                              AMD_FMT_MOD_TILE_GFX9_64K_R_X;
+	for (i = 0; i < 2; i++) {
+		/* Insert the best one first. */
+		/* R_X swizzle modes are the best for rendering and DCC requires them. */
+		if (num_pipes > 16)
+			swizzle_r_x = !i ? AMD_FMT_MOD_TILE_GFX11_256K_R_X : AMD_FMT_MOD_TILE_GFX9_64K_R_X;
+		else
+			swizzle_r_x = !i ? AMD_FMT_MOD_TILE_GFX9_64K_R_X : AMD_FMT_MOD_TILE_GFX11_256K_R_X;
 
-	modifier_r_x = AMD_FMT_MOD |
-		AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11) |
-		AMD_FMT_MOD_SET(TILE, swizzle_r_x) |
-		AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
-		AMD_FMT_MOD_SET(PACKERS, pkrs);
+		modifier_r_x = AMD_FMT_MOD |
+			       AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11) |
+			       AMD_FMT_MOD_SET(PIPE_XOR_BITS, pipe_xor_bits) |
+			       AMD_FMT_MOD_SET(TILE, swizzle_r_x) |
+			       AMD_FMT_MOD_SET(PACKERS, pkrs);
 
-	/* DCC_CONSTANT_ENCODE is not set because it can't vary with gfx11 (it's implied to be 1). */
-	modifier_dcc_best = modifier_r_x |
-		AMD_FMT_MOD_SET(DCC, 1) |
-		AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 0) |
-		AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
-		AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B);
+		/* DCC_CONSTANT_ENCODE is not set because it can't vary with gfx11 (it's implied to be 1). */
+		modifier_dcc_best = modifier_r_x | AMD_FMT_MOD_SET(DCC, 1) |
+				    AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 0) |
+				    AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
+				    AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_128B);
 
-	/* DCC settings for 4K and greater resolutions. (required by display hw) */
-	modifier_dcc_4k = modifier_r_x |
-			AMD_FMT_MOD_SET(DCC, 1) |
-			AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
-			AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
-			AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B);
+		/* DCC settings for 4K and greater resolutions. (required by display hw) */
+		modifier_dcc_4k = modifier_r_x | AMD_FMT_MOD_SET(DCC, 1) |
+				  AMD_FMT_MOD_SET(DCC_INDEPENDENT_64B, 1) |
+				  AMD_FMT_MOD_SET(DCC_INDEPENDENT_128B, 1) |
+				  AMD_FMT_MOD_SET(DCC_MAX_COMPRESSED_BLOCK, AMD_FMT_MOD_DCC_BLOCK_64B);
 
-	add_modifier(mods, size, capacity, modifier_dcc_best);
-	add_modifier(mods, size, capacity, modifier_dcc_4k);
+		add_modifier(mods, size, capacity, modifier_dcc_best);
+		add_modifier(mods, size, capacity, modifier_dcc_4k);
 
-	add_modifier(mods, size, capacity, modifier_dcc_best | AMD_FMT_MOD_SET(DCC_RETILE, 1));
-	add_modifier(mods, size, capacity, modifier_dcc_4k | AMD_FMT_MOD_SET(DCC_RETILE, 1));
+		add_modifier(mods, size, capacity, modifier_dcc_best | AMD_FMT_MOD_SET(DCC_RETILE, 1));
+		add_modifier(mods, size, capacity, modifier_dcc_4k | AMD_FMT_MOD_SET(DCC_RETILE, 1));
 
-	add_modifier(mods, size, capacity, modifier_r_x);
+		add_modifier(mods, size, capacity, modifier_r_x);
+	}
 
 	add_modifier(mods, size, capacity, AMD_FMT_MOD |
              AMD_FMT_MOD_SET(TILE_VERSION, AMD_FMT_MOD_TILE_VER_GFX11) |
