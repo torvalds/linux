@@ -951,6 +951,57 @@ struct core_reloc_type_based {
 struct core_reloc_type_based___all_missing {
 };
 
+/* different member orders, enum variant values, signedness, etc */
+struct a_struct___diff {
+	int x;
+	int a;
+};
+
+union a_union___diff {
+	int z;
+	int y;
+};
+
+typedef struct a_struct___diff named_struct_typedef___diff;
+
+typedef struct { int z, x, y; } anon_struct_typedef___diff;
+
+typedef struct {
+	int c;
+	int b;
+	int a;
+} *struct_ptr_typedef___diff;
+
+enum an_enum___diff {
+	AN_ENUM_VAL2___diff = 0,
+	AN_ENUM_VAL1___diff = 42,
+	AN_ENUM_VAL3___diff = 1,
+};
+
+typedef unsigned int int_typedef___diff;
+
+typedef enum { TYPEDEF_ENUM_VAL2___diff, TYPEDEF_ENUM_VAL1___diff = 50 } enum_typedef___diff;
+
+typedef const void *void_ptr_typedef___diff;
+
+typedef int_typedef___diff (*func_proto_typedef___diff)(long);
+
+typedef char arr_typedef___diff[3];
+
+struct core_reloc_type_based___diff {
+	struct a_struct___diff f1;
+	union a_union___diff f2;
+	enum an_enum___diff f3;
+	named_struct_typedef___diff f4;
+	anon_struct_typedef___diff f5;
+	struct_ptr_typedef___diff f6;
+	int_typedef___diff f7;
+	enum_typedef___diff f8;
+	void_ptr_typedef___diff f9;
+	func_proto_typedef___diff f10;
+	arr_typedef___diff f11;
+};
+
 /* different type sizes, extra modifiers, anon vs named enums, etc */
 struct a_struct___diff_sz {
 	long x;
