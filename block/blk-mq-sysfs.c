@@ -288,7 +288,7 @@ unreg:
 	return ret;
 }
 
-void blk_mq_sysfs_unregister(struct request_queue *q)
+void blk_mq_sysfs_unregister_hctxs(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
 	unsigned long i;
@@ -304,7 +304,7 @@ unlock:
 	mutex_unlock(&q->sysfs_dir_lock);
 }
 
-int blk_mq_sysfs_register(struct request_queue *q)
+int blk_mq_sysfs_register_hctxs(struct request_queue *q)
 {
 	struct blk_mq_hw_ctx *hctx;
 	unsigned long i;
