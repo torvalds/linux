@@ -49,6 +49,7 @@ struct ksz_chip_data {
 	u8 reg_mib_cnt;
 	const u8 *regs;
 	const u32 *masks;
+	const u8 *shifts;
 	int stp_ctrl_reg;
 	int broadcast_ctrl_reg;
 	int multicast_ctrl_reg;
@@ -185,6 +186,18 @@ enum ksz_masks {
 	DYNAMIC_MAC_TABLE_FID,
 	DYNAMIC_MAC_TABLE_SRC_PORT,
 	DYNAMIC_MAC_TABLE_TIMESTAMP,
+};
+
+enum ksz_shifts {
+	VLAN_TABLE_MEMBERSHIP_S,
+	VLAN_TABLE,
+	STATIC_MAC_FWD_PORTS,
+	STATIC_MAC_FID,
+	DYNAMIC_MAC_ENTRIES_H,
+	DYNAMIC_MAC_ENTRIES,
+	DYNAMIC_MAC_FID,
+	DYNAMIC_MAC_TIMESTAMP,
+	DYNAMIC_MAC_SRC_PORT,
 };
 
 struct alu_struct {

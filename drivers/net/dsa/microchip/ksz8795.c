@@ -26,29 +26,6 @@
 #include "ksz8795_reg.h"
 #include "ksz8.h"
 
-static const u8 ksz8795_shifts[] = {
-	[VLAN_TABLE_MEMBERSHIP_S]	= 7,
-	[VLAN_TABLE]			= 16,
-	[STATIC_MAC_FWD_PORTS]		= 16,
-	[STATIC_MAC_FID]		= 24,
-	[DYNAMIC_MAC_ENTRIES_H]		= 3,
-	[DYNAMIC_MAC_ENTRIES]		= 29,
-	[DYNAMIC_MAC_FID]		= 16,
-	[DYNAMIC_MAC_TIMESTAMP]		= 27,
-	[DYNAMIC_MAC_SRC_PORT]		= 24,
-};
-
-static u8 ksz8863_shifts[] = {
-	[VLAN_TABLE_MEMBERSHIP_S]	= 16,
-	[STATIC_MAC_FWD_PORTS]		= 16,
-	[STATIC_MAC_FID]		= 22,
-	[DYNAMIC_MAC_ENTRIES_H]		= 3,
-	[DYNAMIC_MAC_ENTRIES]		= 24,
-	[DYNAMIC_MAC_FID]		= 16,
-	[DYNAMIC_MAC_TIMESTAMP]		= 24,
-	[DYNAMIC_MAC_SRC_PORT]		= 20,
-};
-
 static bool ksz_is_ksz88x3(struct ksz_device *dev)
 {
 	return dev->chip_id == 0x8830;
@@ -374,7 +351,6 @@ static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 			 u8 *fid, u8 *src_port, u8 *timestamp, u16 *entries)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	u32 data_hi, data_lo;
 	const u8 *shifts;
 	const u32 *masks;
@@ -383,7 +359,7 @@ int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 	u8 data;
 	int rc;
 
-	shifts = ksz8->shifts;
+	shifts = dev->info->shifts;
 	masks = dev->info->masks;
 	regs = dev->info->regs;
 
@@ -438,13 +414,12 @@ int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
 			 struct alu_struct *alu)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	u32 data_hi, data_lo;
 	const u8 *shifts;
 	const u32 *masks;
 	u64 data;
 
-	shifts = ksz8->shifts;
+	shifts = dev->info->shifts;
 	masks = dev->info->masks;
 
 	ksz8_r_table(dev, TABLE_STATIC_MAC, addr, &data);
@@ -477,13 +452,12 @@ int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
 void ksz8_w_sta_mac_table(struct ksz_device *dev, u16 addr,
 			  struct alu_struct *alu)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	u32 data_hi, data_lo;
 	const u8 *shifts;
 	const u32 *masks;
 	u64 data;
 
-	shifts = ksz8->shifts;
+	shifts = dev->info->shifts;
 	masks = dev->info->masks;
 
 	data_lo = ((u32)alu->mac[2] << 24) |
@@ -510,11 +484,10 @@ void ksz8_w_sta_mac_table(struct ksz_device *dev, u16 addr,
 static void ksz8_from_vlan(struct ksz_device *dev, u32 vlan, u8 *fid,
 			   u8 *member, u8 *valid)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	const u8 *shifts;
 	const u32 *masks;
 
-	shifts = ksz8->shifts;
+	shifts = dev->info->shifts;
 	masks = dev->info->masks;
 
 	*fid = vlan & masks[VLAN_TABLE_FID];
@@ -526,11 +499,10 @@ static void ksz8_from_vlan(struct ksz_device *dev, u32 vlan, u8 *fid,
 static void ksz8_to_vlan(struct ksz_device *dev, u8 fid, u8 member, u8 valid,
 			 u16 *vlan)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	const u8 *shifts;
 	const u32 *masks;
 
-	shifts = ksz8->shifts;
+	shifts = dev->info->shifts;
 	masks = dev->info->masks;
 
 	*vlan = fid;
@@ -541,12 +513,11 @@ static void ksz8_to_vlan(struct ksz_device *dev, u8 fid, u8 member, u8 valid,
 
 static void ksz8_r_vlan_entries(struct ksz_device *dev, u16 addr)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	const u8 *shifts;
 	u64 data;
 	int i;
 
-	shifts = ksz8->shifts;
+	shifts = dev->info->shifts;
 
 	ksz8_r_table(dev, TABLE_VLAN, addr, &data);
 	addr *= 4;
@@ -1366,17 +1337,9 @@ u32 ksz8_get_port_addr(int port, int offset)
 
 int ksz8_switch_init(struct ksz_device *dev)
 {
-	struct ksz8 *ksz8 = dev->priv;
-
 	dev->cpu_port = fls(dev->info->cpu_ports) - 1;
 	dev->phy_port_cnt = dev->info->port_cnt - 1;
 	dev->port_mask = (BIT(dev->phy_port_cnt) - 1) | dev->info->cpu_ports;
-
-	if (ksz_is_ksz88x3(dev)) {
-		ksz8->shifts = ksz8863_shifts;
-	} else {
-		ksz8->shifts = ksz8795_shifts;
-	}
 
 	/* We rely on software untagging on the CPU port, so that we
 	 * can support both tagged and untagged VLANs

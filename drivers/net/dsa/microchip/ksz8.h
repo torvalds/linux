@@ -12,20 +12,7 @@
 #include <net/dsa.h>
 #include "ksz_common.h"
 
-enum ksz_shifts {
-	VLAN_TABLE_MEMBERSHIP_S,
-	VLAN_TABLE,
-	STATIC_MAC_FWD_PORTS,
-	STATIC_MAC_FID,
-	DYNAMIC_MAC_ENTRIES_H,
-	DYNAMIC_MAC_ENTRIES,
-	DYNAMIC_MAC_FID,
-	DYNAMIC_MAC_TIMESTAMP,
-	DYNAMIC_MAC_SRC_PORT,
-};
-
 struct ksz8 {
-	const u8 *shifts;
 	void *priv;
 };
 

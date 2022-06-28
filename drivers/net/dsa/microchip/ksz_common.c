@@ -240,6 +240,18 @@ static const u32 ksz8795_masks[] = {
 	[DYNAMIC_MAC_TABLE_TIMESTAMP]	= GENMASK(28, 27),
 };
 
+static const u8 ksz8795_shifts[] = {
+	[VLAN_TABLE_MEMBERSHIP_S]	= 7,
+	[VLAN_TABLE]			= 16,
+	[STATIC_MAC_FWD_PORTS]		= 16,
+	[STATIC_MAC_FID]		= 24,
+	[DYNAMIC_MAC_ENTRIES_H]		= 3,
+	[DYNAMIC_MAC_ENTRIES]		= 29,
+	[DYNAMIC_MAC_FID]		= 16,
+	[DYNAMIC_MAC_TIMESTAMP]		= 27,
+	[DYNAMIC_MAC_SRC_PORT]		= 24,
+};
+
 static const u8 ksz8863_regs[] = {
 	[REG_IND_CTRL_0]		= 0x79,
 	[REG_IND_DATA_8]		= 0x7B,
@@ -278,6 +290,17 @@ static const u32 ksz8863_masks[] = {
 	[DYNAMIC_MAC_TABLE_TIMESTAMP]	= GENMASK(23, 22),
 };
 
+static u8 ksz8863_shifts[] = {
+	[VLAN_TABLE_MEMBERSHIP_S]	= 16,
+	[STATIC_MAC_FWD_PORTS]		= 16,
+	[STATIC_MAC_FID]		= 22,
+	[DYNAMIC_MAC_ENTRIES_H]		= 3,
+	[DYNAMIC_MAC_ENTRIES]		= 24,
+	[DYNAMIC_MAC_FID]		= 16,
+	[DYNAMIC_MAC_TIMESTAMP]		= 24,
+	[DYNAMIC_MAC_SRC_PORT]		= 20,
+};
+
 const struct ksz_chip_data ksz_switch_chips[] = {
 	[KSZ8795] = {
 		.chip_id = KSZ8795_CHIP_ID,
@@ -294,6 +317,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.regs = ksz8795_regs,
 		.masks = ksz8795_masks,
+		.shifts = ksz8795_shifts,
 		.stp_ctrl_reg = 0x02,
 		.broadcast_ctrl_reg =  0x06,
 		.multicast_ctrl_reg = 0x04,
@@ -333,6 +357,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.regs = ksz8795_regs,
 		.masks = ksz8795_masks,
+		.shifts = ksz8795_shifts,
 		.stp_ctrl_reg = 0x02,
 		.broadcast_ctrl_reg =  0x06,
 		.multicast_ctrl_reg = 0x04,
@@ -358,6 +383,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.regs = ksz8795_regs,
 		.masks = ksz8795_masks,
+		.shifts = ksz8795_shifts,
 		.stp_ctrl_reg = 0x02,
 		.broadcast_ctrl_reg =  0x06,
 		.multicast_ctrl_reg = 0x04,
@@ -382,6 +408,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.reg_mib_cnt = MIB_COUNTER_NUM,
 		.regs = ksz8863_regs,
 		.masks = ksz8863_masks,
+		.shifts = ksz8863_shifts,
 		.stp_ctrl_reg = 0x02,
 		.broadcast_ctrl_reg =  0x06,
 		.multicast_ctrl_reg = 0x04,
