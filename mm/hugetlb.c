@@ -1535,7 +1535,7 @@ static void __update_and_free_page(struct hstate *h, struct page *page)
 	if (hstate_is_gigantic(h) && !gigantic_page_runtime_supported())
 		return;
 
-	if (hugetlb_vmemmap_alloc(h, page)) {
+	if (hugetlb_vmemmap_restore(h, page)) {
 		spin_lock_irq(&hugetlb_lock);
 		/*
 		 * If we cannot allocate vmemmap pages, just refuse to free the
@@ -1612,7 +1612,7 @@ static DECLARE_WORK(free_hpage_work, free_hpage_workfn);
 
 static inline void flush_free_hpage_work(struct hstate *h)
 {
-	if (hugetlb_optimize_vmemmap_pages(h))
+	if (hugetlb_vmemmap_optimizable(h))
 		flush_work(&free_hpage_work);
 }
 
@@ -1734,7 +1734,7 @@ static void __prep_account_new_huge_page(struct hstate *h, int nid)
 
 static void __prep_new_huge_page(struct hstate *h, struct page *page)
 {
-	hugetlb_vmemmap_free(h, page);
+	hugetlb_vmemmap_optimize(h, page);
 	INIT_LIST_HEAD(&page->lru);
 	set_compound_page_dtor(page, HUGETLB_PAGE_DTOR);
 	hugetlb_set_page_subpool(page, NULL);
@@ -2107,7 +2107,7 @@ retry:
 		 * Attempt to allocate vmemmmap here so that we can take
 		 * appropriate action on failure.
 		 */
-		rc = hugetlb_vmemmap_alloc(h, head);
+		rc = hugetlb_vmemmap_restore(h, head);
 		if (!rc) {
 			/*
 			 * Move PageHWPoison flag from head page to the raw
@@ -3182,8 +3182,10 @@ static void __init report_hugepages(void)
 		char buf[32];
 
 		string_get_size(huge_page_size(h), 1, STRING_UNITS_2, buf, 32);
-		pr_info("HugeTLB registered %s page size, pre-allocated %ld pages\n",
+		pr_info("HugeTLB: registered %s page size, pre-allocated %ld pages\n",
 			buf, h->free_huge_pages);
+		pr_info("HugeTLB: %d KiB vmemmap can be freed for a %s page\n",
+			hugetlb_vmemmap_optimizable_size(h) / SZ_1K, buf);
 	}
 }
 
@@ -3421,7 +3423,7 @@ static int demote_free_huge_page(struct hstate *h, struct page *page)
 	remove_hugetlb_page_for_demote(h, page, false);
 	spin_unlock_irq(&hugetlb_lock);
 
-	rc = hugetlb_vmemmap_alloc(h, page);
+	rc = hugetlb_vmemmap_restore(h, page);
 	if (rc) {
 		/* Allocation of vmemmmap failed, we can not demote page */
 		spin_lock_irq(&hugetlb_lock);
@@ -4111,7 +4113,6 @@ void __init hugetlb_add_hstate(unsigned int order)
 	h->next_nid_to_free = first_memory_node;
 	snprintf(h->name, HSTATE_NAME_LEN, "hugepages-%lukB",
 					huge_page_size(h)/1024);
-	hugetlb_vmemmap_init(h);
 
 	parsed_hstate = h;
 }

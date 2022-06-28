@@ -11,35 +11,50 @@
 #include <linux/hugetlb.h>
 
 #ifdef CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP
-int hugetlb_vmemmap_alloc(struct hstate *h, struct page *head);
-void hugetlb_vmemmap_free(struct hstate *h, struct page *head);
-void hugetlb_vmemmap_init(struct hstate *h);
+int hugetlb_vmemmap_restore(const struct hstate *h, struct page *head);
+void hugetlb_vmemmap_optimize(const struct hstate *h, struct page *head);
 
 /*
- * How many vmemmap pages associated with a HugeTLB page that can be
- * optimized and freed to the buddy allocator.
+ * Reserve one vmemmap page, all vmemmap addresses are mapped to it. See
+ * Documentation/vm/vmemmap_dedup.rst.
  */
-static inline unsigned int hugetlb_optimize_vmemmap_pages(struct hstate *h)
+#define HUGETLB_VMEMMAP_RESERVE_SIZE	PAGE_SIZE
+
+static inline unsigned int hugetlb_vmemmap_size(const struct hstate *h)
 {
-	return h->optimize_vmemmap_pages;
+	return pages_per_huge_page(h) * sizeof(struct page);
+}
+
+/*
+ * Return how many vmemmap size associated with a HugeTLB page that can be
+ * optimized and can be freed to the buddy allocator.
+ */
+static inline unsigned int hugetlb_vmemmap_optimizable_size(const struct hstate *h)
+{
+	int size = hugetlb_vmemmap_size(h) - HUGETLB_VMEMMAP_RESERVE_SIZE;
+
+	if (!is_power_of_2(sizeof(struct page)))
+		return 0;
+	return size > 0 ? size : 0;
 }
 #else
-static inline int hugetlb_vmemmap_alloc(struct hstate *h, struct page *head)
+static inline int hugetlb_vmemmap_restore(const struct hstate *h, struct page *head)
 {
 	return 0;
 }
 
-static inline void hugetlb_vmemmap_free(struct hstate *h, struct page *head)
+static inline void hugetlb_vmemmap_optimize(const struct hstate *h, struct page *head)
 {
 }
 
-static inline void hugetlb_vmemmap_init(struct hstate *h)
-{
-}
-
-static inline unsigned int hugetlb_optimize_vmemmap_pages(struct hstate *h)
+static inline unsigned int hugetlb_vmemmap_optimizable_size(const struct hstate *h)
 {
 	return 0;
 }
 #endif /* CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP */
+
+static inline bool hugetlb_vmemmap_optimizable(const struct hstate *h)
+{
+	return hugetlb_vmemmap_optimizable_size(h) != 0;
+}
 #endif /* _LINUX_HUGETLB_VMEMMAP_H */
