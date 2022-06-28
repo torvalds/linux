@@ -36,7 +36,15 @@ SECTIONS
 
 	.dynamic	: { *(.dynamic) }		:text	:dynamic
 
-	.rodata		: { *(.rodata*) }		:text
+	.rodata		: {
+		*(.rodata*)
+		*(.got)
+		*(.got.plt)
+		*(.plt)
+		*(.rel.iplt)
+		*(.iplt)
+		*(.igot.plt)
+	}						:text
 
 	.text		: {
 		*(.text*)
@@ -46,18 +54,7 @@ SECTIONS
 		*(.v4_bx)
 	}						:text	=0xe7f001f2
 
-	.rel.dyn	: { *(.rel.text) }
-
-	.got		: { *(.got) }
-	.rel.got	: { *(.rel.got) }
-	.got.plt	: { *(.got.plt) }
-	.rel.plt	: { *(.rel.plt) }
-	.plt		: {
-		*(.plt)
-		*(.rel.iplt)
-		*(.iplt)
-		*(.igot.plt)
-	}
+	.rel.dyn	: { *(.rel*) }
 
 	ELF_DETAILS
 	.ARM.exidx : { *(.ARM.exidx*) }

@@ -52,17 +52,15 @@ SECTIONS
 
 	.rela.dyn	: ALIGN(8) { *(.rela .rela*) }
 
-	.plt		: {
+	.rodata		: {
+		*(.rodata*)
+		*(.got)
+		*(.got.plt)
 		*(.plt)
 		*(.plt.*)
 		*(.iplt)
 		*(.igot .igot.plt)
-	}
-
-	.got		: { *(.got) }
-	.got.plt	: { *(.got.plt) }
-
-	.rodata		: { *(.rodata*) }		:text
+	}						:text
 
 	_end = .;
 	PROVIDE(end = .);
