@@ -12,10 +12,6 @@
 #include <net/dsa.h>
 #include "ksz_common.h"
 
-struct ksz8 {
-	void *priv;
-};
-
 int ksz8_setup(struct dsa_switch *ds);
 u32 ksz8_get_port_addr(int port, int offset);
 void ksz8_cfg_port_member(struct ksz_device *dev, int port, u8 member);
