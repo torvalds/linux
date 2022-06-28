@@ -167,7 +167,7 @@ static void efx_mac_work(struct work_struct *data)
 
 int efx_set_mac_address(struct net_device *net_dev, void *data)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	struct sockaddr *addr = data;
 	u8 *new_addr = addr->sa_data;
 	u8 old_addr[6];
@@ -202,7 +202,7 @@ int efx_set_mac_address(struct net_device *net_dev, void *data)
 /* Context: netif_addr_lock held, BHs disabled. */
 void efx_set_rx_mode(struct net_device *net_dev)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	if (efx->port_enabled)
 		queue_work(efx->workqueue, &efx->mac_work);
@@ -211,7 +211,7 @@ void efx_set_rx_mode(struct net_device *net_dev)
 
 int efx_set_features(struct net_device *net_dev, netdev_features_t data)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	int rc;
 
 	/* If disabling RX n-tuple filtering, clear existing filters */
@@ -285,7 +285,7 @@ unsigned int efx_xdp_max_mtu(struct efx_nic *efx)
 /* Context: process, rtnl_lock() held. */
 int efx_change_mtu(struct net_device *net_dev, int new_mtu)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	int rc;
 
 	rc = efx_check_disabled(efx);
@@ -600,7 +600,7 @@ void efx_stop_all(struct efx_nic *efx)
 /* Context: process, dev_base_lock or RTNL held, non-blocking. */
 void efx_net_stats(struct net_device *net_dev, struct rtnl_link_stats64 *stats)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	spin_lock_bh(&efx->stats_lock);
 	efx_nic_update_stats_atomic(efx, NULL, stats);
@@ -723,7 +723,7 @@ void efx_reset_down(struct efx_nic *efx, enum reset_type method)
 /* Context: netif_tx_lock held, BHs disabled. */
 void efx_watchdog(struct net_device *net_dev, unsigned int txqueue)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	netif_err(efx, tx_err, efx->net_dev,
 		  "TX stuck with port_enabled=%d: resetting channels\n",
@@ -1356,7 +1356,7 @@ static bool efx_can_encap_offloads(struct efx_nic *efx, struct sk_buff *skb)
 netdev_features_t efx_features_check(struct sk_buff *skb, struct net_device *dev,
 				     netdev_features_t features)
 {
-	struct efx_nic *efx = netdev_priv(dev);
+	struct efx_nic *efx = efx_netdev_priv(dev);
 
 	if (skb->encapsulation) {
 		if (features & NETIF_F_GSO_MASK)
@@ -1377,7 +1377,7 @@ netdev_features_t efx_features_check(struct sk_buff *skb, struct net_device *dev
 int efx_get_phys_port_id(struct net_device *net_dev,
 			 struct netdev_phys_item_id *ppid)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	if (efx->type->get_phys_port_id)
 		return efx->type->get_phys_port_id(efx, ppid);
@@ -1387,7 +1387,7 @@ int efx_get_phys_port_id(struct net_device *net_dev,
 
 int efx_get_phys_port_name(struct net_device *net_dev, char *name, size_t len)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	if (snprintf(name, len, "p%u", efx->port_num) >= len)
 		return -EINVAL;

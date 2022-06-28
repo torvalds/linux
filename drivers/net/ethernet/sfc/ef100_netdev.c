@@ -79,7 +79,7 @@ static int ef100_remap_bar(struct efx_nic *efx, int max_vis)
  */
 static int ef100_net_stop(struct net_device *net_dev)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	netif_dbg(efx, ifdown, efx->net_dev, "closing on CPU %d\n",
 		  raw_smp_processor_id());
@@ -104,7 +104,7 @@ static int ef100_net_stop(struct net_device *net_dev)
 /* Context: process, rtnl_lock() held. */
 static int ef100_net_open(struct net_device *net_dev)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	unsigned int allocated_vis;
 	int rc;
 
@@ -193,7 +193,7 @@ fail:
 static netdev_tx_t ef100_hard_start_xmit(struct sk_buff *skb,
 					 struct net_device *net_dev)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	struct efx_tx_queue *tx_queue;
 	struct efx_channel *channel;
 	int rc;
@@ -243,7 +243,7 @@ int ef100_netdev_event(struct notifier_block *this,
 	struct efx_nic *efx = container_of(this, struct efx_nic, netdev_notifier);
 	struct net_device *net_dev = netdev_notifier_info_to_dev(ptr);
 
-	if (netdev_priv(net_dev) == efx && event == NETDEV_CHANGENAME)
+	if (efx_netdev_priv(net_dev) == efx && event == NETDEV_CHANGENAME)
 		ef100_update_name(efx);
 
 	return NOTIFY_DONE;

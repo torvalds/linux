@@ -464,7 +464,7 @@ static int ef100_pci_probe(struct pci_dev *pci_dev,
 	net_dev = alloc_etherdev_mq(sizeof(*efx), EFX_MAX_CORE_TX_QUEUES);
 	if (!net_dev)
 		return -ENOMEM;
-	efx = netdev_priv(net_dev);
+	efx = efx_netdev_priv(net_dev);
 	efx->type = (const struct efx_nic_type *)entry->driver_data;
 
 	pci_set_drvdata(pci_dev, efx);

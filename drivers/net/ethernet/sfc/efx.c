@@ -492,7 +492,7 @@ void efx_get_irq_moderation(struct efx_nic *efx, unsigned int *tx_usecs,
  */
 static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	struct mii_ioctl_data *data = if_mii(ifr);
 
 	if (cmd == SIOCSHWTSTAMP)
@@ -517,7 +517,7 @@ static int efx_ioctl(struct net_device *net_dev, struct ifreq *ifr, int cmd)
 /* Context: process, rtnl_lock() held. */
 int efx_net_open(struct net_device *net_dev)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	int rc;
 
 	netif_dbg(efx, ifup, efx->net_dev, "opening device on CPU %d\n",
@@ -551,7 +551,7 @@ int efx_net_open(struct net_device *net_dev)
  */
 int efx_net_stop(struct net_device *net_dev)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	netif_dbg(efx, ifdown, efx->net_dev, "closing on CPU %d\n",
 		  raw_smp_processor_id());
@@ -564,7 +564,7 @@ int efx_net_stop(struct net_device *net_dev)
 
 static int efx_vlan_rx_add_vid(struct net_device *net_dev, __be16 proto, u16 vid)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	if (efx->type->vlan_rx_add_vid)
 		return efx->type->vlan_rx_add_vid(efx, proto, vid);
@@ -574,7 +574,7 @@ static int efx_vlan_rx_add_vid(struct net_device *net_dev, __be16 proto, u16 vid
 
 static int efx_vlan_rx_kill_vid(struct net_device *net_dev, __be16 proto, u16 vid)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 
 	if (efx->type->vlan_rx_kill_vid)
 		return efx->type->vlan_rx_kill_vid(efx, proto, vid);
@@ -643,7 +643,7 @@ static int efx_xdp_setup_prog(struct efx_nic *efx, struct bpf_prog *prog)
 /* Context: process, rtnl_lock() held. */
 static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 {
-	struct efx_nic *efx = netdev_priv(dev);
+	struct efx_nic *efx = efx_netdev_priv(dev);
 
 	switch (xdp->command) {
 	case XDP_SETUP_PROG:
@@ -656,7 +656,7 @@ static int efx_xdp(struct net_device *dev, struct netdev_bpf *xdp)
 static int efx_xdp_xmit(struct net_device *dev, int n, struct xdp_frame **xdpfs,
 			u32 flags)
 {
-	struct efx_nic *efx = netdev_priv(dev);
+	struct efx_nic *efx = efx_netdev_priv(dev);
 
 	if (!netif_running(dev))
 		return -EINVAL;
@@ -678,7 +678,7 @@ static int efx_netdev_event(struct notifier_block *this,
 
 	if ((net_dev->netdev_ops == &efx_netdev_ops) &&
 	    event == NETDEV_CHANGENAME)
-		efx_update_name(netdev_priv(net_dev));
+		efx_update_name(efx_netdev_priv(net_dev));
 
 	return NOTIFY_DONE;
 }
@@ -774,7 +774,7 @@ static void efx_unregister_netdev(struct efx_nic *efx)
 	if (!efx->net_dev)
 		return;
 
-	if (WARN_ON(netdev_priv(efx->net_dev) != efx))
+	if (WARN_ON(efx_netdev_priv(efx->net_dev) != efx))
 		return;
 
 	if (efx_dev_registered(efx)) {
@@ -1051,7 +1051,7 @@ static int efx_pci_probe(struct pci_dev *pci_dev,
 				     EFX_MAX_RX_QUEUES);
 	if (!net_dev)
 		return -ENOMEM;
-	efx = netdev_priv(net_dev);
+	efx = efx_netdev_priv(net_dev);
 	efx->type = (const struct efx_nic_type *) entry->driver_data;
 	efx->fixed_features |= NETIF_F_HIGHDMA;
 

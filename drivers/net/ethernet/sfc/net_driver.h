@@ -1166,6 +1166,11 @@ struct efx_nic {
 	atomic_t n_rx_noskb_drops;
 };
 
+static inline struct efx_nic *efx_netdev_priv(struct net_device *dev)
+{
+	return netdev_priv(dev);
+}
+
 static inline int efx_dev_registered(struct efx_nic *efx)
 {
 	return efx->net_dev->reg_state == NETREG_REGISTERED;
