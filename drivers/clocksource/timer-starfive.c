@@ -435,8 +435,7 @@ static int __init starfive_timer_of_init(struct device_node *np)
 {
 	return do_starfive_timer_of_init(np, &jh7110_starfive_timer);
 }
-TIMER_OF_DECLARE(starfive_timer, "starfive,si5-timers",
-			starfive_timer_of_init);
+TIMER_OF_DECLARE(starfive_timer, "starfive,timers", starfive_timer_of_init);
 
 MODULE_AUTHOR("xingyu.wu <xingyu.wu@starfivetech.com>");
 MODULE_AUTHOR("samin.guo <samin.guo@starfivetech.com>");
