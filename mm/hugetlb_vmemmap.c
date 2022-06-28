@@ -48,7 +48,7 @@ static int __split_vmemmap_huge_pmd(pmd_t *pmd, unsigned long start)
 
 	pmd_populate_kernel(&init_mm, &__pmd, pgtable);
 
-	for (i = 0; i < PMD_SIZE / PAGE_SIZE; i++, addr += PAGE_SIZE) {
+	for (i = 0; i < PTRS_PER_PTE; i++, addr += PAGE_SIZE) {
 		pte_t entry, *pte;
 		pgprot_t pgprot = PAGE_KERNEL;
 
