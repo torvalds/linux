@@ -334,7 +334,7 @@ static unsigned long bxtwc_reg_addr;
 static ssize_t addr_show(struct device *dev,
 			 struct device_attribute *attr, char *buf)
 {
-	return sprintf(buf, "0x%lx\n", bxtwc_reg_addr);
+	return sysfs_emit(buf, "0x%lx\n", bxtwc_reg_addr);
 }
 
 static ssize_t addr_store(struct device *dev,
@@ -362,7 +362,7 @@ static ssize_t val_show(struct device *dev,
 		return ret;
 	}
 
-	return sprintf(buf, "0x%02x\n", val);
+	return sysfs_emit(buf, "0x%02x\n", val);
 }
 
 static ssize_t val_store(struct device *dev,
