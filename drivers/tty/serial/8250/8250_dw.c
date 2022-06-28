@@ -144,21 +144,6 @@ static void dw8250_tx_wait_empty(struct uart_port *p)
 	}
 }
 
-static void dw8250_serial_out38x(struct uart_port *p, int offset, int value)
-{
-	struct dw8250_data *d = to_dw8250_data(p->private_data);
-
-	/* Allow the TX to drain before we reconfigure */
-	if (offset == UART_LCR)
-		dw8250_tx_wait_empty(p);
-
-	writeb(value, p->membase + (offset << p->regshift));
-
-	if (offset == UART_LCR && !d->uart_16550_compatible)
-		dw8250_check_lcr(p, value);
-}
-
-
 static void dw8250_serial_out(struct uart_port *p, int offset, int value)
 {
 	struct dw8250_data *d = to_dw8250_data(p->private_data);
@@ -167,6 +152,15 @@ static void dw8250_serial_out(struct uart_port *p, int offset, int value)
 
 	if (offset == UART_LCR && !d->uart_16550_compatible)
 		dw8250_check_lcr(p, value);
+}
+
+static void dw8250_serial_out38x(struct uart_port *p, int offset, int value)
+{
+	/* Allow the TX to drain before we reconfigure */
+	if (offset == UART_LCR)
+		dw8250_tx_wait_empty(p);
+
+	dw8250_serial_out(p, offset, value);
 }
 
 static unsigned int dw8250_serial_in(struct uart_port *p, int offset)
