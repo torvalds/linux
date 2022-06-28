@@ -374,6 +374,7 @@ struct ieee80211_sta_he_cap {
  * and NSS Set field"
  *
  * @only_20mhz: MCS/NSS support for 20 MHz-only STA.
+ * @bw: MCS/NSS support for 80, 160 and 320 MHz
  * @bw._80: MCS/NSS support for BW <= 80 MHz
  * @bw._160: MCS/NSS support for BW = 160 MHz
  * @bw._320: MCS/NSS support for BW = 320 MHz
@@ -420,6 +421,7 @@ struct ieee80211_sta_eht_cap {
  * @he_cap: holds the HE capabilities
  * @he_6ghz_capa: HE 6 GHz capabilities, must be filled in for a
  *	6 GHz band channel (and 0 may be valid value).
+ * @eht_cap: STA's EHT capabilities
  * @vendor_elems: vendor element(s) to advertise
  * @vendor_elems.data: vendor element(s) data
  * @vendor_elems.len: vendor element(s) length
@@ -495,7 +497,7 @@ struct ieee80211_edmg {
  * This structure describes most essential parameters needed
  * to describe 802.11ah S1G capabilities for a STA.
  *
- * @s1g_supported: is STA an S1G STA
+ * @s1g: is STA an S1G STA
  * @cap: S1G capabilities information
  * @nss_mcs: Supported NSS MCS set
  */
@@ -1373,8 +1375,8 @@ struct cfg80211_csa_settings {
  * Used for bss color change
  *
  * @beacon_color_change: beacon data while performing the color countdown
- * @counter_offsets_beacon: offsets of the counters within the beacon (tail)
- * @counter_offsets_presp: offsets of the counters within the probe response
+ * @counter_offset_beacon: offsets of the counters within the beacon (tail)
+ * @counter_offset_presp: offsets of the counters within the probe response
  * @beacon_next: beacon data to be used after the color change
  * @count: number of beacons until the color change
  * @color: the color used after the change
@@ -1417,6 +1419,7 @@ struct iface_combination_params {
  * @STATION_PARAM_APPLY_UAPSD: apply new uAPSD parameters (uapsd_queues, max_sp)
  * @STATION_PARAM_APPLY_CAPABILITY: apply new capability
  * @STATION_PARAM_APPLY_PLINK_STATE: apply new plink state
+ * @STATION_PARAM_APPLY_STA_TXPOWER: apply tx power for STA
  *
  * Not all station parameters have in-band "no change" signalling,
  * for those that don't these flags will are used.
@@ -2149,6 +2152,9 @@ struct bss_parameters {
  * @plink_timeout: If no tx activity is seen from a STA we've established
  *	peering with for longer than this time (in seconds), then remove it
  *	from the STA's list of peers.  Default is 30 minutes.
+ * @dot11MeshConnectedToAuthServer: if set to true then this mesh STA
+ *	will advertise that it is connected to a authentication server
+ *	in the mesh formation field.
  * @dot11MeshConnectedToMeshGate: if set to true, advertise that this STA is
  *      connected to a mesh gate in mesh formation info.  If false, the
  *      value in mesh formation is determined by the presence of root paths
@@ -2321,12 +2327,12 @@ struct cfg80211_scan_info {
 /**
  * struct cfg80211_scan_6ghz_params - relevant for 6 GHz only
  *
- * @short_bssid: short ssid to scan for
+ * @short_ssid: short ssid to scan for
  * @bssid: bssid to scan for
  * @channel_idx: idx of the channel in the channel array in the scan request
  *	 which the above info relvant to
  * @unsolicited_probe: the AP transmits unsolicited probe response every 20 TU
- * @short_ssid_valid: short_ssid is valid and can be used
+ * @short_ssid_valid: @short_ssid is valid and can be used
  * @psc_no_listen: when set, and the channel is a PSC channel, no need to wait
  *       20 TUs before starting to send probe requests.
  */
@@ -3317,7 +3323,7 @@ struct cfg80211_wowlan_wakeup {
  * @kck: key confirmation key (@kck_len bytes)
  * @replay_ctr: replay counter (NL80211_REPLAY_CTR_LEN bytes)
  * @kek_len: length of kek
- * @kck_len length of kck
+ * @kck_len: length of kck
  * @akm: akm (oui, id)
  */
 struct cfg80211_gtk_rekey_data {
@@ -3679,6 +3685,7 @@ struct cfg80211_pmsr_ftm_result {
  * @type: type of the measurement reported, note that we only support reporting
  *	one type at a time, but you can report multiple results separately and
  *	they're all aggregated for userspace.
+ * @ftm: FTM result
  */
 struct cfg80211_pmsr_result {
 	u64 host_time, ap_tsf;
@@ -3817,7 +3824,7 @@ struct cfg80211_update_owe_info {
  *	for the entire device
  * @interface_stypes: bitmap of management frame subtypes registered
  *	for the given interface
- * @global_mcast_rx: mcast RX is needed globally for these subtypes
+ * @global_mcast_stypes: mcast RX is needed globally for these subtypes
  * @interface_mcast_stypes: mcast RX is needed on this interface
  *	for these subtypes
  */
@@ -4940,6 +4947,7 @@ struct wiphy_iftype_ext_capab {
  * @max_peers: maximum number of peers in a single measurement
  * @report_ap_tsf: can report assoc AP's TSF for radio resource measurement
  * @randomize_mac_addr: can randomize MAC address for measurement
+ * @ftm: FTM measurement data
  * @ftm.supported: FTM measurement is supported
  * @ftm.asap: ASAP-mode is supported
  * @ftm.non_asap: non-ASAP-mode is supported
@@ -5563,6 +5571,7 @@ static inline void wiphy_unlock(struct wiphy *wiphy)
  * @netdev: (private) Used to reference back to the netdev, may be %NULL
  * @identifier: (private) Identifier used in nl80211 to identify this
  *	wireless device if it has no netdev
+ * @u: union containing data specific to @iftype
  * @connected_addr: (private) BSSID or AP MLD address if connected
  * @connected: indicates if connected or not (STA mode)
  * @current_bss: (private) Used by the internal configuration code
@@ -5624,6 +5633,9 @@ static inline void wiphy_unlock(struct wiphy *wiphy)
  * @pmsr_free_wk: (private) peer measurements cleanup work
  * @unprot_beacon_reported: (private) timestamp of last
  *	unprotected beacon report
+ * @links: array of %IEEE80211_MLD_MAX_NUM_LINKS elements containing @addr
+ *	@ap and @client for each link
+ * @valid_links: bitmap describing what elements of @links are valid
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
@@ -6068,6 +6080,7 @@ unsigned int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr);
  * @addr: the device MAC address
  * @iftype: the virtual interface type
  * @data_offset: offset of payload after the 802.11 header
+ * @is_amsdu: true if the 802.11 header is A-MSDU
  * Return: 0 on success. Non-zero on error.
  */
 int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
@@ -6937,6 +6950,7 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
  * @macaddr: the MAC address of the new candidate
  * @ie: information elements advertised by the peer candidate
  * @ie_len: length of the information elements buffer
+ * @sig_dbm: signal level in dBm
  * @gfp: allocation flags
  *
  * This function notifies cfg80211 that the mesh peer candidate has been
