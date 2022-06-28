@@ -1300,7 +1300,6 @@ static int rkisp_create_dummy_buf(struct rkisp_stream *stream)
 	buf->size = dev->isp_sdev.in_crop.width * dev->cap_dev.wrap_line * 2;
 	if (stream->out_isp_fmt.output_format == ISP32_MI_OUTPUT_YUV420)
 		buf->size = buf->size - buf->size / 4;
-	buf->size = stream->out_fmt.plane_fmt[0].sizeimage;
 	buf->is_need_dbuf = true;
 	ret = rkisp_alloc_buffer(stream->ispdev, buf);
 	if (ret == 0) {
