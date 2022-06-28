@@ -452,8 +452,13 @@ int vpu_inst_unregister(struct vpu_inst *inst)
 	}
 	vpu_core_check_hang(core);
 	if (core->state == VPU_CORE_HANG && !core->instance_mask) {
+		int err;
+
 		dev_info(core->dev, "reset hang core\n");
-		if (!vpu_core_sw_reset(core)) {
+		mutex_unlock(&core->lock);
+		err = vpu_core_sw_reset(core);
+		mutex_lock(&core->lock);
+		if (!err) {
 			core->state = VPU_CORE_ACTIVE;
 			core->hang_mask = 0;
 		}
