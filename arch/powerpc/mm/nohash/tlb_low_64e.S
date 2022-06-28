@@ -583,7 +583,7 @@ itlb_miss_fault_e6500:
 	 */
 	rlwimi	r11,r14,32-19,27,27
 	rlwimi	r11,r14,32-16,19,19
-	beq	normal_tlb_miss
+	beq	normal_tlb_miss_user
 	/* XXX replace the RMW cycles with immediate loads + writes */
 1:	mfspr	r10,SPRN_MAS1
 	cmpldi	cr0,r15,8		/* Check for vmalloc region */
@@ -626,7 +626,7 @@ itlb_miss_fault_e6500:
 
 	cmpldi	cr0,r15,0			/* Check for user region */
 	std	r14,EX_TLB_ESR(r12)		/* write crazy -1 to frame */
-	beq	normal_tlb_miss
+	beq	normal_tlb_miss_user
 
 	li	r11,_PAGE_PRESENT|_PAGE_BAP_SX	/* Base perm */
 	oris	r11,r11,_PAGE_ACCESSED@h
@@ -653,6 +653,12 @@ itlb_miss_fault_e6500:
  * r11 = PTE permission mask
  * r10 = crap (free to use)
  */
+normal_tlb_miss_user:
+#ifdef CONFIG_PPC_KUAP
+	mfspr	r14,SPRN_MAS1
+	rlwinm.	r14,r14,0,0x3fff0000
+	beq-	normal_tlb_miss_access_fault /* KUAP fault */
+#endif
 normal_tlb_miss:
 	/* So we first construct the page table address. We do that by
 	 * shifting the bottom of the address (not the region ID) by
@@ -683,11 +689,6 @@ finish_normal_tlb_miss:
 	/* Check if required permissions are met */
 	andc.	r15,r11,r14
 	bne-	normal_tlb_miss_access_fault
-#ifdef CONFIG_PPC_KUAP
-	mfspr	r11,SPRN_MAS1
-	rlwinm.	r10,r11,0,0x3fff0000
-	beq-	normal_tlb_miss_access_fault /* KUAP fault */
-#endif
 
 	/* Now we build the MAS:
 	 *
@@ -709,9 +710,7 @@ finish_normal_tlb_miss:
 	rldicl	r10,r14,64-8,64-8
 	cmpldi	cr0,r10,BOOK3E_PAGESZ_4K
 	beq-	1f
-#ifndef CONFIG_PPC_KUAP
 	mfspr	r11,SPRN_MAS1
-#endif
 	rlwimi	r11,r14,31,21,24
 	rlwinm	r11,r11,0,21,19
 	mtspr	SPRN_MAS1,r11
