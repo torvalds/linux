@@ -20,6 +20,7 @@
 #include <linux/seqlock.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/mmu_notifier.h>
 #include <asm/debug.h>
 #include <asm/cpu.h>
 #include <asm/fpu/api.h>
@@ -929,6 +930,7 @@ struct kvm_s390_pv {
 	unsigned long stor_base;
 	void *stor_var;
 	bool dumping;
+	struct mmu_notifier mmu_notifier;
 };
 
 struct kvm_arch{
