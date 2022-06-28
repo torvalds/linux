@@ -1397,8 +1397,12 @@ static struct pipe_ctx *acquire_free_pipe_for_head(
 	 * to acquire an idle one to satisfy the request
 	 */
 
-	if (!pool->funcs->acquire_idle_pipe_for_layer)
-		return NULL;
+	if (!pool->funcs->acquire_idle_pipe_for_layer) {
+		if (!pool->funcs->acquire_idle_pipe_for_head_pipe_in_layer)
+			return NULL;
+		else
+			return pool->funcs->acquire_idle_pipe_for_head_pipe_in_layer(context, pool, head_pipe->stream, head_pipe);
+	}
 
 	return pool->funcs->acquire_idle_pipe_for_layer(context, pool, head_pipe->stream);
 }
@@ -1448,6 +1452,8 @@ bool dc_add_plane_to_context(
 	struct resource_pool *pool = dc->res_pool;
 	struct pipe_ctx *head_pipe, *tail_pipe, *free_pipe;
 	struct dc_stream_status *stream_status = NULL;
+	struct pipe_ctx *prev_right_head = NULL;
+	struct pipe_ctx *free_right_pipe = NULL;
 
 	DC_LOGGER_INIT(stream->ctx->logger);
 	for (i = 0; i < context->stream_count; i++)
@@ -1506,6 +1512,28 @@ bool dc_add_plane_to_context(
 						__func__,
 						free_pipe->pipe_idx,
 						tail_pipe->next_odm_pipe ? tail_pipe->next_odm_pipe->pipe_idx : -1);
+
+				/*
+				 * We want to avoid the case where the right side already has a pipe assigned to
+				 *  it and is different from free_pipe ( which would cause trigger a pipe
+				 *  reallocation ).
+				 * Check the old context to see if the right side already has a pipe allocated
+				 * - If not, continue to use free_pipe
+				 * - If the right side already has a pipe, use that pipe instead if its available
+				 */
+				prev_right_head = &dc->current_state->res_ctx.pipe_ctx[tail_pipe->next_odm_pipe->pipe_idx];
+				if ((prev_right_head->bottom_pipe) && (free_pipe->pipe_idx != prev_right_head->bottom_pipe->pipe_idx)) {
+					free_right_pipe = acquire_free_pipe_for_head(context, pool, tail_pipe->next_odm_pipe);
+					if (free_right_pipe) {
+						free_pipe->stream = NULL;
+						memset(&free_pipe->stream_res, 0, sizeof(struct stream_resource));
+						memset(&free_pipe->plane_res, 0, sizeof(struct plane_resource));
+						free_pipe->plane_state = NULL;
+						free_pipe->pipe_idx = 0;
+						free_right_pipe->plane_state = plane_state;
+						free_pipe = free_right_pipe;
+					}
+				}
 
 				free_pipe->stream_res.tg = tail_pipe->next_odm_pipe->stream_res.tg;
 				free_pipe->stream_res.abm = tail_pipe->next_odm_pipe->stream_res.abm;
