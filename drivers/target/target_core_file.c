@@ -438,10 +438,6 @@ fd_execute_write_same(struct se_cmd *cmd)
 	unsigned int len = 0, i;
 	ssize_t ret;
 
-	if (!nolb) {
-		target_complete_cmd(cmd, SAM_STAT_GOOD);
-		return 0;
-	}
 	if (cmd->prot_op) {
 		pr_err("WRITE_SAME: Protection information with FILEIO"
 		       " backends not supported\n");
