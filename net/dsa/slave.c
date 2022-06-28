@@ -1109,6 +1109,16 @@ static int dsa_slave_set_link_ksettings(struct net_device *dev,
 	return phylink_ethtool_ksettings_set(dp->pl, cmd);
 }
 
+static void dsa_slave_get_pause_stats(struct net_device *dev,
+				  struct ethtool_pause_stats *pause_stats)
+{
+	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct dsa_switch *ds = dp->ds;
+
+	if (ds->ops->get_pause_stats)
+		ds->ops->get_pause_stats(ds, dp->index, pause_stats);
+}
+
 static void dsa_slave_get_pauseparam(struct net_device *dev,
 				     struct ethtool_pauseparam *pause)
 {
@@ -2100,6 +2110,7 @@ static const struct ethtool_ops dsa_slave_ethtool_ops = {
 	.get_eee		= dsa_slave_get_eee,
 	.get_link_ksettings	= dsa_slave_get_link_ksettings,
 	.set_link_ksettings	= dsa_slave_set_link_ksettings,
+	.get_pause_stats	= dsa_slave_get_pause_stats,
 	.get_pauseparam		= dsa_slave_get_pauseparam,
 	.set_pauseparam		= dsa_slave_set_pauseparam,
 	.get_rxnfc		= dsa_slave_get_rxnfc,
