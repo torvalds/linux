@@ -396,6 +396,11 @@ static const struct attribute_group bxtwc_group = {
 	.attrs = bxtwc_attrs,
 };
 
+static const struct attribute_group *bxtwc_groups[] = {
+	&bxtwc_group,
+	NULL
+};
+
 static const struct regmap_config bxtwc_regmap_config = {
 	.reg_bits = 16,
 	.val_bits = 8,
@@ -555,12 +560,6 @@ static int bxtwc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = sysfs_create_group(&pdev->dev.kobj, &bxtwc_group);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to create sysfs group %d\n", ret);
-		return ret;
-	}
-
 	/*
 	 * There is known hw bug. Upon reset BIT 5 of register
 	 * BXTWC_CHGR_LVL1_IRQ is 0 which is the expected value. However,
@@ -568,15 +567,7 @@ static int bxtwc_probe(struct platform_device *pdev)
 	 * have the software workaround here to unmaksed it in order to let
 	 * charger interrutp work.
 	 */
-	regmap_update_bits(pmic->regmap, BXTWC_MIRQLVL1,
-				BXTWC_MIRQLVL1_MCHGR, 0);
-
-	return 0;
-}
-
-static int bxtwc_remove(struct platform_device *pdev)
-{
-	sysfs_remove_group(&pdev->dev.kobj, &bxtwc_group);
+	regmap_update_bits(pmic->regmap, BXTWC_MIRQLVL1, BXTWC_MIRQLVL1_MCHGR, 0);
 
 	return 0;
 }
@@ -616,12 +607,12 @@ MODULE_DEVICE_TABLE(acpi, bxtwc_acpi_ids);
 
 static struct platform_driver bxtwc_driver = {
 	.probe = bxtwc_probe,
-	.remove	= bxtwc_remove,
 	.shutdown = bxtwc_shutdown,
 	.driver	= {
 		.name	= "BXTWC PMIC",
 		.pm     = &bxtwc_pm_ops,
 		.acpi_match_table = ACPI_PTR(bxtwc_acpi_ids),
+		.dev_groups = bxtwc_groups,
 	},
 };
 
