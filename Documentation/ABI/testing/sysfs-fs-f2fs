@@ -580,3 +580,9 @@ Date:		January 2022
 Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
 Description:	Controls max # of node block writes to be used for roll forward
 		recovery. This can limit the roll forward recovery time.
+
+What:		/sys/fs/f2fs/<disk>/unusable_blocks_per_sec
+Date:		June 2022
+Contact:	"Jaegeuk Kim" <jaegeuk@kernel.org>
+Description:	Shows the number of unusable blocks in a section which was defined by
+		the zone capacity reported by underlying zoned device.
