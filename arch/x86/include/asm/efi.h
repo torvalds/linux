@@ -100,8 +100,6 @@ static inline void efi_fpu_end(void)
 	efi_fpu_end();							\
 })
 
-#define arch_efi_call_virt(p, f, args...)	p->f(args)
-
 #else /* !CONFIG_X86_32 */
 
 #define EFI_LOADER_SIGNATURE	"EL64"
@@ -121,6 +119,7 @@ extern asmlinkage u64 __efi_call(void *fp, ...);
 	efi_enter_mm();							\
 })
 
+#undef arch_efi_call_virt
 #define arch_efi_call_virt(p, f, args...) ({				\
 	u64 ret, ibt = ibt_save();					\
 	ret = efi_call((void *)p->f, args);				\

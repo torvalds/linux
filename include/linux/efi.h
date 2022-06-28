@@ -1200,6 +1200,8 @@ static inline void efi_check_for_embedded_firmwares(void) { }
 
 efi_status_t efi_random_get_seed(void);
 
+#define arch_efi_call_virt(p, f, args...)	((p)->f(args))
+
 /*
  * Arch code can implement the following three template macros, avoiding
  * reptition for the void/non-void return cases of {__,}efi_call_virt():
