@@ -1205,7 +1205,6 @@ static void update_fb(struct vs_plane *plane, u8 display_id,
 	fb->width = drm_rect_width(src) >> 16;
 	fb->height = drm_rect_height(src) >> 16;
 	fb->tile_mode = to_vs_tile_mode(drm_fb->modifier);
-	printk("update_fb tile_mode = %d\n", to_vs_tile_mode(drm_fb->modifier));
 	//fb->tile_mode = 0x04;
 	fb->rotation = to_vs_rotation(state->rotation);
 	fb->yuv_color_space = to_vs_yuv_color_space(state->color_encoding);
