@@ -462,7 +462,7 @@ cifs_enable_signing(struct TCP_Server_Info *server, bool mnt_sign_required)
 {
 	bool srv_sign_required = server->sec_mode & server->vals->signing_required;
 	bool srv_sign_enabled = server->sec_mode & server->vals->signing_enabled;
-	bool mnt_sign_enabled = global_secflags & CIFSSEC_MAY_SIGN;
+	bool mnt_sign_enabled;
 
 	/*
 	 * Is signing required by mnt options? If not then check
