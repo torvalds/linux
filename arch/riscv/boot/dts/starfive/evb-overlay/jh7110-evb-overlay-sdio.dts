@@ -106,22 +106,6 @@
 			status = "okay";
 		};
 	};
-
-	//i2srx_3ch
-	fragment@7 {
-		target-path = "/soc/i2srx_3ch@100e0000";
-		__overlay__ {
-			status = "okay";
-		};
-	};
-
-	//i2stx_4ch1
-	fragment@8 {
-		target-path = "/soc/i2stx_4ch0@120b0000";
-		__overlay__ {
-			status = "okay";
-		};
-	};
 };
 
  

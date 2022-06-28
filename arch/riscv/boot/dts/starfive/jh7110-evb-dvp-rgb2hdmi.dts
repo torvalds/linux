@@ -26,9 +26,13 @@
 };
 
 &encoder {
-	status = "diabled";
+	status = "disabled";
 };
 
 &mipi_dsi {
-	status = "diabled";
+	status = "disabled";
+};
+
+&mipi_dphy {
+	status = "disabled";
 };
