@@ -30,15 +30,9 @@
 #include <sys/types.h>
 #include <linux/if_link.h>
 
-#include "bpf.h"
-#include "libbpf.h"
-#include "libbpf_internal.h"
+#include <bpf/bpf.h>
+#include <bpf/libbpf.h>
 #include "xsk.h"
-
-/* entire xsk.h and xsk.c is going away in libbpf 1.0, so ignore all internal
- * uses of deprecated APIs
- */
-#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
 
 #ifndef SOL_XDP
  #define SOL_XDP 283
@@ -51,6 +45,8 @@
 #ifndef PF_XDP
  #define PF_XDP AF_XDP
 #endif
+
+#define pr_warn(fmt, ...) fprintf(stderr, fmt, ##__VA_ARGS__)
 
 enum xsk_prog {
 	XSK_PROG_FALLBACK,
@@ -286,11 +282,10 @@ out_mmap:
 	return err;
 }
 
-DEFAULT_VERSION(xsk_umem__create_v0_0_4, xsk_umem__create, LIBBPF_0.0.4)
-int xsk_umem__create_v0_0_4(struct xsk_umem **umem_ptr, void *umem_area,
-			    __u64 size, struct xsk_ring_prod *fill,
-			    struct xsk_ring_cons *comp,
-			    const struct xsk_umem_config *usr_config)
+int xsk_umem__create(struct xsk_umem **umem_ptr, void *umem_area,
+		     __u64 size, struct xsk_ring_prod *fill,
+		     struct xsk_ring_cons *comp,
+		     const struct xsk_umem_config *usr_config)
 {
 	struct xdp_umem_reg mr;
 	struct xsk_umem *umem;
@@ -351,25 +346,9 @@ struct xsk_umem_config_v1 {
 	__u32 frame_headroom;
 };
 
-COMPAT_VERSION(xsk_umem__create_v0_0_2, xsk_umem__create, LIBBPF_0.0.2)
-int xsk_umem__create_v0_0_2(struct xsk_umem **umem_ptr, void *umem_area,
-			    __u64 size, struct xsk_ring_prod *fill,
-			    struct xsk_ring_cons *comp,
-			    const struct xsk_umem_config *usr_config)
-{
-	struct xsk_umem_config config;
-
-	memcpy(&config, usr_config, sizeof(struct xsk_umem_config_v1));
-	config.flags = 0;
-
-	return xsk_umem__create_v0_0_4(umem_ptr, umem_area, size, fill, comp,
-					&config);
-}
-
 static enum xsk_prog get_xsk_prog(void)
 {
 	enum xsk_prog detected = XSK_PROG_FALLBACK;
-	__u32 size_out, retval, duration;
 	char data_in = 0, data_out;
 	struct bpf_insn insns[] = {
 		BPF_LD_MAP_FD(BPF_REG_1, 0),
@@ -378,6 +357,12 @@ static enum xsk_prog get_xsk_prog(void)
 		BPF_EMIT_CALL(BPF_FUNC_redirect_map),
 		BPF_EXIT_INSN(),
 	};
+	LIBBPF_OPTS(bpf_test_run_opts, opts,
+		.data_in = &data_in,
+		.data_size_in = 1,
+		.data_out = &data_out,
+	);
+
 	int prog_fd, map_fd, ret, insn_cnt = ARRAY_SIZE(insns);
 
 	map_fd = bpf_map_create(BPF_MAP_TYPE_XSKMAP, NULL, sizeof(int), sizeof(int), 1, NULL);
@@ -392,8 +377,8 @@ static enum xsk_prog get_xsk_prog(void)
 		return detected;
 	}
 
-	ret = bpf_prog_test_run(prog_fd, 0, &data_in, 1, &data_out, &size_out, &retval, &duration);
-	if (!ret && retval == XDP_PASS)
+	ret = bpf_prog_test_run_opts(prog_fd, &opts);
+	if (!ret && opts.retval == XDP_PASS)
 		detected = XSK_PROG_REDIRECT_FLAGS;
 	close(prog_fd);
 	close(map_fd);
@@ -510,7 +495,7 @@ static int xsk_create_bpf_link(struct xsk_socket *xsk)
 	int link_fd;
 	int err;
 
-	err = bpf_get_link_xdp_id(ctx->ifindex, &prog_id, xsk->config.xdp_flags);
+	err = bpf_xdp_query_id(ctx->ifindex, xsk->config.xdp_flags, &prog_id);
 	if (err) {
 		pr_warn("getting XDP prog id failed\n");
 		return err;
@@ -534,6 +519,25 @@ static int xsk_create_bpf_link(struct xsk_socket *xsk)
 
 	ctx->link_fd = link_fd;
 	return 0;
+}
+
+/* Copy up to sz - 1 bytes from zero-terminated src string and ensure that dst
+ * is zero-terminated string no matter what (unless sz == 0, in which case
+ * it's a no-op). It's conceptually close to FreeBSD's strlcpy(), but differs
+ * in what is returned. Given this is internal helper, it's trivial to extend
+ * this, when necessary. Use this instead of strncpy inside libbpf source code.
+ */
+static inline void libbpf_strlcpy(char *dst, const char *src, size_t sz)
+{
+        size_t i;
+
+        if (sz == 0)
+                return;
+
+        sz--;
+        for (i = 0; i < sz && src[i]; i++)
+                dst[i] = src[i];
+        dst[i] = '\0';
 }
 
 static int xsk_get_max_queues(struct xsk_socket *xsk)
@@ -792,8 +796,8 @@ static int xsk_init_xdp_res(struct xsk_socket *xsk,
 	if (ctx->has_bpf_link)
 		err = xsk_create_bpf_link(xsk);
 	else
-		err = bpf_set_link_xdp_fd(xsk->ctx->ifindex, ctx->prog_fd,
-					  xsk->config.xdp_flags);
+		err = bpf_xdp_attach(xsk->ctx->ifindex, ctx->prog_fd,
+				     xsk->config.xdp_flags, NULL);
 
 	if (err)
 		goto err_attach_xdp_prog;
@@ -811,7 +815,7 @@ err_set_bpf_maps:
 	if (ctx->has_bpf_link)
 		close(ctx->link_fd);
 	else
-		bpf_set_link_xdp_fd(ctx->ifindex, -1, 0);
+		bpf_xdp_detach(ctx->ifindex, 0, NULL);
 err_attach_xdp_prog:
 	close(ctx->prog_fd);
 err_load_xdp_prog:
@@ -862,7 +866,7 @@ static int __xsk_setup_xdp_prog(struct xsk_socket *_xdp, int *xsks_map_fd)
 	if (ctx->has_bpf_link)
 		err = xsk_link_lookup(ctx->ifindex, &prog_id, &ctx->link_fd);
 	else
-		err = bpf_get_link_xdp_id(ctx->ifindex, &prog_id, xsk->config.xdp_flags);
+		err = bpf_xdp_query_id(ctx->ifindex, xsk->config.xdp_flags, &prog_id);
 
 	if (err)
 		return err;

@@ -4651,7 +4651,6 @@ struct btf_file_test {
 };
 
 static struct btf_file_test file_tests[] = {
-	{ .file = "test_btf_haskv.o", },
 	{ .file = "test_btf_newkv.o", },
 	{ .file = "test_btf_nokv.o", .btf_kv_notfound = true, },
 };

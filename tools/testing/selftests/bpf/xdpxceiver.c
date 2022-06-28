@@ -97,7 +97,7 @@
 #include <time.h>
 #include <unistd.h>
 #include <stdatomic.h>
-#include <bpf/xsk.h>
+#include "xsk.h"
 #include "xdpxceiver.h"
 #include "../kselftest.h"
 

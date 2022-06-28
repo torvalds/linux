@@ -144,14 +144,16 @@ static void btf_dump_printf(const struct btf_dump *d, const char *fmt, ...)
 static int btf_dump_mark_referenced(struct btf_dump *d);
 static int btf_dump_resize(struct btf_dump *d);
 
-DEFAULT_VERSION(btf_dump__new_v0_6_0, btf_dump__new, LIBBPF_0.6.0)
-struct btf_dump *btf_dump__new_v0_6_0(const struct btf *btf,
-				      btf_dump_printf_fn_t printf_fn,
-				      void *ctx,
-				      const struct btf_dump_opts *opts)
+struct btf_dump *btf_dump__new(const struct btf *btf,
+			       btf_dump_printf_fn_t printf_fn,
+			       void *ctx,
+			       const struct btf_dump_opts *opts)
 {
 	struct btf_dump *d;
 	int err;
+
+	if (!OPTS_VALID(opts, btf_dump_opts))
+		return libbpf_err_ptr(-EINVAL);
 
 	if (!printf_fn)
 		return libbpf_err_ptr(-EINVAL);
@@ -186,17 +188,6 @@ struct btf_dump *btf_dump__new_v0_6_0(const struct btf *btf,
 err:
 	btf_dump__free(d);
 	return libbpf_err_ptr(err);
-}
-
-COMPAT_VERSION(btf_dump__new_deprecated, btf_dump__new, LIBBPF_0.0.4)
-struct btf_dump *btf_dump__new_deprecated(const struct btf *btf,
-					  const struct btf_ext *btf_ext,
-					  const struct btf_dump_opts *opts,
-					  btf_dump_printf_fn_t printf_fn)
-{
-	if (!printf_fn)
-		return libbpf_err_ptr(-EINVAL);
-	return btf_dump__new_v0_6_0(btf, printf_fn, opts ? opts->ctx : NULL, opts);
 }
 
 static int btf_dump_resize(struct btf_dump *d)
