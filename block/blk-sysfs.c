@@ -812,18 +812,17 @@ struct kobj_type blk_queue_ktype = {
  */
 int blk_register_queue(struct gendisk *disk)
 {
-	int ret;
-	struct device *dev = disk_to_dev(disk);
 	struct request_queue *q = disk->queue;
+	int ret;
 
 	mutex_lock(&q->sysfs_dir_lock);
 
-	ret = kobject_add(&q->kobj, &dev->kobj, "%s", "queue");
+	ret = kobject_add(&q->kobj, &disk_to_dev(disk)->kobj, "queue");
 	if (ret < 0)
 		goto unlock;
 
 	if (queue_is_mq(q))
-		__blk_mq_register_dev(dev, q);
+		blk_mq_sysfs_register(disk);
 	mutex_lock(&q->sysfs_lock);
 
 	mutex_lock(&q->debugfs_mutex);
@@ -919,7 +918,7 @@ void blk_unregister_queue(struct gendisk *disk)
 	 * structures that can be modified through sysfs.
 	 */
 	if (queue_is_mq(q))
-		blk_mq_unregister_dev(disk_to_dev(disk), q);
+		blk_mq_sysfs_unregister(disk);
 	blk_crypto_sysfs_unregister(q);
 
 	mutex_lock(&q->sysfs_lock);
