@@ -737,11 +737,11 @@ static long rga_ioctl_request_submit(unsigned long arg, bool run_enbale)
 				return -EFAULT;
 			}
 		}
-
-		mutex_lock(&request_manager->lock);
-		rga_request_put(request);
-		mutex_unlock(&request_manager->lock);
 	}
+
+	mutex_lock(&request_manager->lock);
+	rga_request_put(request);
+	mutex_unlock(&request_manager->lock);
 
 	return 0;
 }
