@@ -40,7 +40,6 @@ required:
   - compatible
   - reg
   - nvidia,bpmp
-  - status
 
 examples:
   - |
