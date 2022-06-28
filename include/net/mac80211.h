@@ -6238,7 +6238,7 @@ void ieee80211_chswitch_done(struct ieee80211_vif *vif, bool success);
 
 /**
  * ieee80211_channel_switch_disconnect - disconnect due to channel switch error
- * @vif &struct ieee80211_vif pointer from the add_interface callback.
+ * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @block_tx: if %true, do not send deauth frame.
  *
  * Instruct mac80211 to disconnect due to a channel switch error. The channel
