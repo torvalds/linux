@@ -2011,11 +2011,11 @@ config UML_WATCHDOG
 # RISCV Architecture
 
 config STARFIVE_WATCHDOG
-        tristate "StarFive Watchdog support"
-        depends on RISCV
-        select WATCHDOG_CORE
-        help
-          Say Y here to support the starfive jh7100/jh7110 soc watchdog.
+	tristate "StarFive Watchdog support"
+	depends on RISCV
+	select WATCHDOG_CORE
+	help
+	  Say Y here to support the Starfive watchdog.
 
 #
 # ISA-based Watchdog Cards

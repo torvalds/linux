@@ -82,16 +82,16 @@
 /* WDOGLOCK */
 #define WDOG_LOCKED		BIT(0)
 
-#define SI5_WATCHDOG_INTCLR	0x1
-#define SI5_WATCHDOG_ENABLE	0x1
-#define SI5_WATCHDOG_ATBOOT	0x0
-#define SI5_WATCHDOG_MAXCNT	0xffffffff
+#define STARFIVE_WATCHDOG_INTCLR	0x1
+#define STARFIVE_WATCHDOG_ENABLE	0x1
+#define STARFIVE_WATCHDOG_ATBOOT	0x0
+#define STARFIVE_WATCHDOG_MAXCNT	0xffffffff
 
-#define SI5_WATCHDOG_DEFAULT_TIME	(15)
+#define STARFIVE_WATCHDOG_DEFAULT_TIME	(15)
 
 static bool nowayout = WATCHDOG_NOWAYOUT;
 static int tmr_margin;
-static int tmr_atboot = SI5_WATCHDOG_ATBOOT;
+static int tmr_atboot = STARFIVE_WATCHDOG_ATBOOT;
 static int soft_noboot;
 
 module_param(tmr_margin, int, 0);
@@ -100,15 +100,15 @@ module_param(nowayout, bool, 0);
 module_param(soft_noboot, int, 0);
 
 MODULE_PARM_DESC(tmr_margin, "Watchdog tmr_margin in seconds. (default="
-		__MODULE_STRING(SI5_WATCHDOG_DEFAULT_TIME) ")");
+		__MODULE_STRING(STARFIVE_WATCHDOG_DEFAULT_TIME) ")");
 MODULE_PARM_DESC(tmr_atboot,
 		"Watchdog is started at boot time if set to 1, default="
-			__MODULE_STRING(SI5_WATCHDOG_ATBOOT));
+			__MODULE_STRING(STARFIVE_WATCHDOG_ATBOOT));
 MODULE_PARM_DESC(nowayout, "Watchdog cannot be stopped once started (default="
 			__MODULE_STRING(WATCHDOG_NOWAYOUT) ")");
 MODULE_PARM_DESC(soft_noboot, "Watchdog action, set to 1 to ignore reboots, 0 to reboot (default 0)");
 
-struct si5_wdt_variant_t {
+struct starfive_wdt_variant_t {
 	u32 unlock_key;
 	u8 enrst_shift;
 	u8 en_shift;
@@ -116,7 +116,7 @@ struct si5_wdt_variant_t {
 	u8 intclr_ava_shift;
 };
 
-struct si5_wdt_variant {
+struct starfive_wdt_variant {
 	u32 control;
 	u32 load;
 	u32 enable;
@@ -125,10 +125,10 @@ struct si5_wdt_variant {
 	u32 int_clr;
 	u32 int_mask;
 	u32 unlock;
-	struct si5_wdt_variant_t *variant;
+	struct starfive_wdt_variant_t *variant;
 };
 
-struct stf_si5_wdt {
+struct starfive_wdt {
 	u64 freq;
 	struct device *dev;
 	struct watchdog_device wdt_device;
@@ -136,7 +136,7 @@ struct stf_si5_wdt {
 	struct clk *apb_clk;
 	struct reset_control *rst_apb;
 	struct reset_control *rst_core;
-	const struct si5_wdt_variant *drv_data;
+	const struct starfive_wdt_variant *drv_data;
 	u32 count;	/*count of timeout*/
 	u32 reload;	/*restore the count*/
 	void __iomem *base;
@@ -147,7 +147,7 @@ struct stf_si5_wdt {
 };
 
 #ifdef CONFIG_OF
-static struct si5_wdt_variant_t jh7100_variant = {
+static struct starfive_wdt_variant_t jh7100_variant = {
 	.unlock_key = JH7100_UNLOCK_KEY,
 	.enrst_shift = JH7100_RESEN_SHIFT,
 	.en_shift = JH7100_EN_SHIFT,
@@ -155,13 +155,13 @@ static struct si5_wdt_variant_t jh7100_variant = {
 	.intclr_ava_shift = JH7100_INTCLR_AVA_SHIFT,
 };
 
-static struct si5_wdt_variant_t jh7110_variant = {
+static struct starfive_wdt_variant_t jh7110_variant = {
 	.unlock_key = JH7110_UNLOCK_KEY,
 	.enrst_shift = JH7110_RESEN_SHIFT,
 	.en_shift = JH7110_EN_SHIFT,
 };
 
-static const struct si5_wdt_variant drv_data_jh7100 = {
+static const struct starfive_wdt_variant drv_data_jh7100 = {
 	.control = JH7100_WDOGCONTROL,
 	.load = JH7100_WDOGLOAD,
 	.enable = JH7100_WDOGEN,
@@ -173,7 +173,7 @@ static const struct si5_wdt_variant drv_data_jh7100 = {
 	.variant = &jh7100_variant,
 };
 
-static const struct si5_wdt_variant drv_data_jh7110 = {
+static const struct starfive_wdt_variant drv_data_jh7110 = {
 	.control = JH7110_WDOGCONTROL,
 	.load = JH7110_WDOGLOAD,
 	.enable = JH7110_WDOGCONTROL,
@@ -184,7 +184,7 @@ static const struct si5_wdt_variant drv_data_jh7110 = {
 };
 
 static const struct of_device_id starfive_wdt_match[] = {
-	{ .compatible = "starfive,si5-wdt",
+	{ .compatible = "starfive,wdt",
 		.data = &drv_data_jh7100 },
 	{ .compatible = "starfive,dskit-wdt",
 		.data = &drv_data_jh7110 },
@@ -193,9 +193,9 @@ static const struct of_device_id starfive_wdt_match[] = {
 MODULE_DEVICE_TABLE(of, starfive_wdt_match);
 #endif
 
-static const struct platform_device_id si5wdt_ids[] = {
+static const struct platform_device_id starfive_wdt_ids[] = {
 	{
-		.name = "starfive-si5-wdt",
+		.name = "starfive-wdt",
 		.driver_data = (unsigned long)&drv_data_jh7100,
 	},
 	{
@@ -204,9 +204,9 @@ static const struct platform_device_id si5wdt_ids[] = {
 	},
 	{}
 };
-MODULE_DEVICE_TABLE(platform, si5wdt_ids);
+MODULE_DEVICE_TABLE(platform, starfive_wdt_ids);
 
-static int si5wdt_get_clock_rate(struct stf_si5_wdt *wdt)
+static int starfive_wdt_get_clock_rate(struct starfive_wdt *wdt)
 {
 	int ret;
 	u32 freq;
@@ -227,7 +227,7 @@ static int si5wdt_get_clock_rate(struct stf_si5_wdt *wdt)
 	return -ENOENT;
 }
 
-static int si5wdt_enable_clock(struct stf_si5_wdt *wdt)
+static int starfive_wdt_enable_clock(struct starfive_wdt *wdt)
 {
 	int err = 0;
 
@@ -248,7 +248,7 @@ static int si5wdt_enable_clock(struct stf_si5_wdt *wdt)
 	return err;
 }
 
-static int si5wdt_reset_init(struct stf_si5_wdt *wdt)
+static int starfive_wdt_reset_init(struct starfive_wdt *wdt)
 {
 	int err = 0;
 
@@ -269,13 +269,13 @@ static int si5wdt_reset_init(struct stf_si5_wdt *wdt)
 }
 
 static __maybe_unused
-u32 si5wdt_sec_to_ticks(struct stf_si5_wdt *wdt, u32 sec)
+u32 starfive_wdt_sec_to_ticks(struct starfive_wdt *wdt, u32 sec)
 {
 	return sec * wdt->freq;
 }
 
 static __maybe_unused
-u32 si5wdt_ticks_to_sec(struct stf_si5_wdt *wdt, u32 ticks)
+u32 starfive_wdt_ticks_to_sec(struct starfive_wdt *wdt, u32 ticks)
 {
 	return DIV_ROUND_CLOSEST(ticks, wdt->freq);
 }
@@ -284,7 +284,7 @@ u32 si5wdt_ticks_to_sec(struct stf_si5_wdt *wdt, u32 ticks)
  * Write unlock-key to unlock. Write other value to lock. When lock bit is 1,
  * external accesses to other watchdog registers are ignored.
  */
-static int si5wdt_is_locked(struct stf_si5_wdt *wdt)
+static int starfive_wdt_is_locked(struct starfive_wdt *wdt)
 {
 	u32 val;
 
@@ -292,33 +292,33 @@ static int si5wdt_is_locked(struct stf_si5_wdt *wdt)
 	return !!(val & WDOG_LOCKED);
 }
 
-static void si5wdt_unlock(struct stf_si5_wdt *wdt)
+static void starfive_wdt_unlock(struct starfive_wdt *wdt)
 {
-	if (si5wdt_is_locked(wdt))
+	if (starfive_wdt_is_locked(wdt))
 		writel(wdt->drv_data->variant->unlock_key,
 			wdt->base + wdt->drv_data->unlock);
 }
 
-static void si5wdt_lock(struct stf_si5_wdt *wdt)
+static void starfive_wdt_lock(struct starfive_wdt *wdt)
 {
-	if (!si5wdt_is_locked(wdt))
+	if (!starfive_wdt_is_locked(wdt))
 		writel(~wdt->drv_data->variant->unlock_key,
 			wdt->base + wdt->drv_data->unlock);
 }
 
-static int __maybe_unused si5wdt_is_running(struct stf_si5_wdt *wdt)
+static int __maybe_unused starfive_wdt_is_running(struct starfive_wdt *wdt)
 {
 	u32 val;
 
-	si5wdt_unlock(wdt);
+	starfive_wdt_unlock(wdt);
 	val = readl(wdt->base + wdt->drv_data->enable);
-	si5wdt_lock(wdt);
+	starfive_wdt_lock(wdt);
 
-	return !!(val & SI5_WATCHDOG_ENABLE <<
+	return !!(val & STARFIVE_WATCHDOG_ENABLE <<
 		wdt->drv_data->variant->en_shift);
 }
 
-static inline void si5wdt_int_enable(struct stf_si5_wdt *wdt)
+static inline void starfive_wdt_int_enable(struct starfive_wdt *wdt)
 {
 	u32 val;
 
@@ -329,7 +329,7 @@ static inline void si5wdt_int_enable(struct stf_si5_wdt *wdt)
 	}
 }
 
-static inline void si5wdt_int_disable(struct stf_si5_wdt *wdt)
+static inline void starfive_wdt_int_disable(struct starfive_wdt *wdt)
 {
 	u32 val;
 
@@ -340,7 +340,7 @@ static inline void si5wdt_int_disable(struct stf_si5_wdt *wdt)
 	}
 }
 
-static void si5wdt_enable_reset(struct stf_si5_wdt *wdt)
+static void starfive_wdt_enable_reset(struct starfive_wdt *wdt)
 {
 	u32 val;
 
@@ -350,7 +350,7 @@ static void si5wdt_enable_reset(struct stf_si5_wdt *wdt)
 	writel(val, wdt->base + wdt->drv_data->control);
 }
 
-static void si5wdt_disable_reset(struct stf_si5_wdt *wdt)
+static void starfive_wdt_disable_reset(struct starfive_wdt *wdt)
 {
 	u32 val;
 
@@ -360,7 +360,7 @@ static void si5wdt_disable_reset(struct stf_si5_wdt *wdt)
 	writel(val, wdt->base + wdt->drv_data->control);
 }
 
-static void si5wdt_int_clr(struct stf_si5_wdt *wdt)
+static void starfive_wdt_int_clr(struct starfive_wdt *wdt)
 {
 	void __iomem *addr;
 	u8 clr_check;
@@ -379,111 +379,111 @@ static void si5wdt_int_clr(struct stf_si5_wdt *wdt)
 	}
 
 	if (!ret)
-		writel(SI5_WATCHDOG_INTCLR, addr);
+		writel(STARFIVE_WATCHDOG_INTCLR, addr);
 }
 
-static inline void si5wdt_set_count(struct stf_si5_wdt *wdt, u32 val)
+static inline void starfive_wdt_set_count(struct starfive_wdt *wdt, u32 val)
 {
 	writel(val, wdt->base + wdt->drv_data->load);
 }
 
-static inline u32 si5wdt_get_count(struct stf_si5_wdt *wdt)
+static inline u32 starfive_wdt_get_count(struct starfive_wdt *wdt)
 {
 	return readl(wdt->base + wdt->drv_data->value);
 }
 
-static inline void si5wdt_enable(struct stf_si5_wdt *wdt)
+static inline void starfive_wdt_enable(struct starfive_wdt *wdt)
 {
 	u32 val;
 
 	val = readl(wdt->base + wdt->drv_data->enable);
-	val |= SI5_WATCHDOG_ENABLE << wdt->drv_data->variant->en_shift;
+	val |= STARFIVE_WATCHDOG_ENABLE << wdt->drv_data->variant->en_shift;
 	writel(val, wdt->base + wdt->drv_data->enable);
 }
 
-static inline void si5wdt_disable(struct stf_si5_wdt *wdt)
+static inline void starfive_wdt_disable(struct starfive_wdt *wdt)
 {
 	u32 val;
 
 	val = readl(wdt->base + wdt->drv_data->enable);
-	val &= ~(SI5_WATCHDOG_ENABLE << wdt->drv_data->variant->en_shift);
+	val &= ~(STARFIVE_WATCHDOG_ENABLE << wdt->drv_data->variant->en_shift);
 	writel(val, wdt->base + wdt->drv_data->enable);
 }
 
 static inline void
-si5wdt_set_relod_count(struct stf_si5_wdt *wdt, u32 count)
+starfive_wdt_set_relod_count(struct starfive_wdt *wdt, u32 count)
 {
 	writel(count, wdt->base + wdt->drv_data->load);
 	if (wdt->drv_data->reload)
 		writel(0x1, wdt->base + wdt->drv_data->reload);
 	else
 		/* jh7110 need enable controller to reload counter */
-		si5wdt_enable(wdt);
+		starfive_wdt_enable(wdt);
 }
 
-static int si5wdt_mask_and_disable_reset(struct stf_si5_wdt *wdt, bool mask)
+static int starfive_wdt_mask_and_disable_reset(struct starfive_wdt *wdt, bool mask)
 {
-	si5wdt_unlock(wdt);
+	starfive_wdt_unlock(wdt);
 
 	if (mask)
-		si5wdt_disable_reset(wdt);
+		starfive_wdt_disable_reset(wdt);
 	else
-		si5wdt_enable_reset(wdt);
+		starfive_wdt_enable_reset(wdt);
 
-	si5wdt_lock(wdt);
+	starfive_wdt_lock(wdt);
 
 	return 0;
 }
 
-static unsigned int si5wdt_max_timeout(struct stf_si5_wdt *wdt)
+static unsigned int starfive_wdt_max_timeout(struct starfive_wdt *wdt)
 {
-	return DIV_ROUND_UP(SI5_WATCHDOG_MAXCNT, wdt->freq) - 1;
+	return DIV_ROUND_UP(STARFIVE_WATCHDOG_MAXCNT, wdt->freq) - 1;
 }
 
-static unsigned int si5wdt_get_timeleft(struct watchdog_device *wdd)
+static unsigned int starfive_wdt_get_timeleft(struct watchdog_device *wdd)
 {
-	struct stf_si5_wdt *wdt = watchdog_get_drvdata(wdd);
+	struct starfive_wdt *wdt = watchdog_get_drvdata(wdd);
 	u32 count;
 
-	si5wdt_unlock(wdt);
-	count = si5wdt_get_count(wdt) + (1 - wdt->interrupt_flag) * wdt->count;
-	si5wdt_lock(wdt);
+	starfive_wdt_unlock(wdt);
+	count = starfive_wdt_get_count(wdt) + (1 - wdt->interrupt_flag) * wdt->count;
+	starfive_wdt_lock(wdt);
 
-	return si5wdt_ticks_to_sec(wdt, count);
+	return starfive_wdt_ticks_to_sec(wdt, count);
 }
 
-static void si5wdt_irq_flag_clr(struct stf_si5_wdt *wdt)
+static void starfive_wdt_irq_flag_clr(struct starfive_wdt *wdt)
 {
 	if (wdt->interrupt_flag)
 		enable_irq(wdt->wdt_irq->start);
 	wdt->interrupt_flag = 0;
 }
 
-static int si5wdt_keepalive(struct watchdog_device *wdd)
+static int starfive_wdt_keepalive(struct watchdog_device *wdd)
 {
-	struct stf_si5_wdt *wdt = watchdog_get_drvdata(wdd);
+	struct starfive_wdt *wdt = watchdog_get_drvdata(wdd);
 
 	spin_lock(&wdt->lock);
 
-	si5wdt_unlock(wdt);
-	si5wdt_int_clr(wdt);
-	si5wdt_irq_flag_clr(wdt);
-	si5wdt_set_relod_count(wdt, wdt->count);
-	si5wdt_lock(wdt);
+	starfive_wdt_unlock(wdt);
+	starfive_wdt_int_clr(wdt);
+	starfive_wdt_irq_flag_clr(wdt);
+	starfive_wdt_set_relod_count(wdt, wdt->count);
+	starfive_wdt_lock(wdt);
 
 	spin_unlock(&wdt->lock);
 
 	return 0;
 }
 
-static irqreturn_t si5wdt_interrupt_handler(int irq, void *data)
+static irqreturn_t starfive_wdt_interrupt_handler(int irq, void *data)
 {
 	/*
 	 * We don't clear the IRQ status. It's supposed to be done by the
 	 * following ping operations.
 	 */
 	struct platform_device *pdev = data;
-	struct stf_si5_wdt *wdt = platform_get_drvdata(pdev);
+	struct starfive_wdt *wdt = platform_get_drvdata(pdev);
 
 	/* Clear the IRQ status and set flag. */
 	disable_irq_nosync(wdt->wdt_irq->start);
@@ -492,83 +492,83 @@ static irqreturn_t si5wdt_interrupt_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int si5wdt_stop(struct watchdog_device *wdd)
+static int starfive_wdt_stop(struct watchdog_device *wdd)
 {
-	struct stf_si5_wdt *wdt = watchdog_get_drvdata(wdd);
+	struct starfive_wdt *wdt = watchdog_get_drvdata(wdd);
 
 	spin_lock(&wdt->lock);
 
-	si5wdt_unlock(wdt);
-	si5wdt_int_disable(wdt);
-	si5wdt_int_clr(wdt);
-	si5wdt_disable(wdt);
-	si5wdt_lock(wdt);
+	starfive_wdt_unlock(wdt);
+	starfive_wdt_int_disable(wdt);
+	starfive_wdt_int_clr(wdt);
+	starfive_wdt_disable(wdt);
+	starfive_wdt_lock(wdt);
 
 	spin_unlock(&wdt->lock);
 
 	return 0;
 }
 
-static int si5wdt_start(struct watchdog_device *wdd)
+static int starfive_wdt_start(struct watchdog_device *wdd)
 {
-	struct stf_si5_wdt *wdt = watchdog_get_drvdata(wdd);
+	struct starfive_wdt *wdt = watchdog_get_drvdata(wdd);
 
 	spin_lock(&wdt->lock);
 
-	si5wdt_unlock(wdt);
+	starfive_wdt_unlock(wdt);
 
 	if (soft_noboot)
-		si5wdt_disable_reset(wdt);
+		starfive_wdt_disable_reset(wdt);
 	else
-		si5wdt_enable_reset(wdt);
+		starfive_wdt_enable_reset(wdt);
 
-	si5wdt_irq_flag_clr(wdt);
-	si5wdt_set_count(wdt, wdt->count);
-	si5wdt_int_enable(wdt);
-	si5wdt_enable(wdt);
+	starfive_wdt_irq_flag_clr(wdt);
+	starfive_wdt_set_count(wdt, wdt->count);
+	starfive_wdt_int_enable(wdt);
+	starfive_wdt_enable(wdt);
 
-	si5wdt_lock(wdt);
+	starfive_wdt_lock(wdt);
 
 	spin_unlock(&wdt->lock);
 
 	return 0;
 }
 
-static int si5wdt_restart(struct watchdog_device *wdd, unsigned long action,
+static int starfive_wdt_restart(struct watchdog_device *wdd, unsigned long action,
 				void *data)
 {
-	struct stf_si5_wdt *wdt = watchdog_get_drvdata(wdd);
+	struct starfive_wdt *wdt = watchdog_get_drvdata(wdd);
 
-	si5wdt_unlock(wdt);
+	starfive_wdt_unlock(wdt);
 	/* disable watchdog, to be safe */
-	si5wdt_disable(wdt);
+	starfive_wdt_disable(wdt);
 
 	if (soft_noboot)
-		si5wdt_disable_reset(wdt);
+		starfive_wdt_disable_reset(wdt);
 	else
-		si5wdt_enable_reset(wdt);
+		starfive_wdt_enable_reset(wdt);
 
-	si5wdt_irq_flag_clr(wdt);
+	starfive_wdt_irq_flag_clr(wdt);
 	/* put initial values into count and data */
-	si5wdt_set_count(wdt, wdt->count);
+	starfive_wdt_set_count(wdt, wdt->count);
 
 	/* set the watchdog to go and reset... */
-	si5wdt_int_clr(wdt);
-	si5wdt_int_enable(wdt);
-	si5wdt_enable(wdt);
+	starfive_wdt_int_clr(wdt);
+	starfive_wdt_int_enable(wdt);
+	starfive_wdt_enable(wdt);
 
 	/* wait for reset to assert... */
 	mdelay(500);
 
-	si5wdt_lock(wdt);
+	starfive_wdt_lock(wdt);
 
 	return 0;
 }
 
-static int si5wdt_set_timeout(struct watchdog_device *wdd,
-					unsigned int timeout)
+static int starfive_wdt_set_timeout(struct watchdog_device *wdd,
+				    unsigned int timeout)
 {
-	struct stf_si5_wdt *wdt = watchdog_get_drvdata(wdd);
+	struct starfive_wdt *wdt = watchdog_get_drvdata(wdd);
 
 	unsigned long freq = wdt->freq;
 	unsigned int count;
@@ -578,22 +578,22 @@ static int si5wdt_set_timeout(struct watchdog_device *wdd,
 
 	count = timeout * freq / 2;
 
-	if (count > SI5_WATCHDOG_MAXCNT) {
+	if (count > STARFIVE_WATCHDOG_MAXCNT) {
 		dev_warn(wdt->dev, "timeout %d too big,use the MAX-timeout set.\n",
 				timeout);
-		timeout = si5wdt_max_timeout(wdt);
+		timeout = starfive_wdt_max_timeout(wdt);
 		count = timeout * freq;
 	}
 
 	dev_info(wdt->dev, "Heartbeat: timeout=%d, count/2=%d (%08x)\n",
 		timeout, count, count);
 
-	si5wdt_unlock(wdt);
-	si5wdt_disable(wdt);
-	si5wdt_irq_flag_clr(wdt);
-	si5wdt_set_relod_count(wdt, count);
-	si5wdt_enable(wdt);
-	si5wdt_lock(wdt);
+	starfive_wdt_unlock(wdt);
+	starfive_wdt_disable(wdt);
+	starfive_wdt_irq_flag_clr(wdt);
+	starfive_wdt_set_relod_count(wdt, count);
+	starfive_wdt_enable(wdt);
+	starfive_wdt_lock(wdt);
 
 	wdt->count = count;
 	wdd->timeout = timeout;
@@ -603,47 +603,47 @@ static int si5wdt_set_timeout(struct watchdog_device *wdd,
 
 #define OPTIONS (WDIOF_SETTIMEOUT | WDIOF_KEEPALIVEPING | WDIOF_MAGICCLOSE)
 
-static const struct watchdog_info si5_wdt_ident = {
+static const struct watchdog_info starfive_wdt_ident = {
 	.options	= OPTIONS,
 	.firmware_version = 0,
-	.identity	= "StarFive SI5 Watchdog",
+	.identity	= "StarFive Watchdog",
 };
 
-static const struct watchdog_ops si5wdt_ops = {
+static const struct watchdog_ops starfive_wdt_ops = {
 	.owner = THIS_MODULE,
-	.start = si5wdt_start,
-	.stop = si5wdt_stop,
-	.ping = si5wdt_keepalive,
-	.set_timeout = si5wdt_set_timeout,
-	.restart = si5wdt_restart,
-	.get_timeleft = si5wdt_get_timeleft,
+	.start = starfive_wdt_start,
+	.stop = starfive_wdt_stop,
+	.ping = starfive_wdt_keepalive,
+	.set_timeout = starfive_wdt_set_timeout,
+	.restart = starfive_wdt_restart,
+	.get_timeleft = starfive_wdt_get_timeleft,
 };
 
-static const struct watchdog_device starfive_si5_wdd = {
-	.info = &si5_wdt_ident,
-	.ops = &si5wdt_ops,
-	.timeout = SI5_WATCHDOG_DEFAULT_TIME,
+static const struct watchdog_device starfive_wdd = {
+	.info = &starfive_wdt_ident,
+	.ops = &starfive_wdt_ops,
+	.timeout = STARFIVE_WATCHDOG_DEFAULT_TIME,
 };
 
-static inline const struct si5_wdt_variant *
-si5_get_wdt_drv_data(struct platform_device *pdev)
+static inline const struct starfive_wdt_variant *
+starfive_get_wdt_drv_data(struct platform_device *pdev)
 {
-	const struct si5_wdt_variant *variant;
+	const struct starfive_wdt_variant *variant;
 
 	variant = of_device_get_match_data(&pdev->dev);
 	if (!variant) {
 		/* Device matched by platform_device_id */
-		variant = (struct si5_wdt_variant *)
+		variant = (struct starfive_wdt_variant *)
 			platform_get_device_id(pdev)->driver_data;
 	}
 
 	return variant;
 }
 
-static int si5wdt_probe(struct platform_device *pdev)
+static int starfive_wdt_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct stf_si5_wdt *wdt;
+	struct starfive_wdt *wdt;
 	struct resource *wdt_irq;
 	int started = 0;
 	int ret;
@@ -654,9 +654,9 @@ static int si5wdt_probe(struct platform_device *pdev)
 
 	wdt->dev = dev;
 	spin_lock_init(&wdt->lock);
-	wdt->wdt_device = starfive_si5_wdd;
+	wdt->wdt_device = starfive_wdd;
 
-	wdt->drv_data = si5_get_wdt_drv_data(pdev);
+	wdt->drv_data = starfive_get_wdt_drv_data(pdev);
 
 	wdt_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
 	if (wdt_irq == NULL) {
@@ -665,7 +665,7 @@ static int si5wdt_probe(struct platform_device *pdev)
 		goto err;
 	}
 	wdt->wdt_irq = wdt_irq;
-	si5wdt_irq_flag_clr(wdt);
+	starfive_wdt_irq_flag_clr(wdt);
 
 	/* get the memory region for the watchdog timer */
 	wdt->base = devm_platform_ioremap_resource(pdev, 0);
@@ -674,18 +674,18 @@ static int si5wdt_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = si5wdt_enable_clock(wdt);
+	ret = starfive_wdt_enable_clock(wdt);
 	if (ret)
 		dev_warn(wdt->dev, "get & enable clk err\n");
 
-	si5wdt_get_clock_rate(wdt);
+	starfive_wdt_get_clock_rate(wdt);
 
-	ret = si5wdt_reset_init(wdt);
+	ret = starfive_wdt_reset_init(wdt);
 	if (ret)
 		dev_warn(wdt->dev, "get & deassert rst err\n");
 
 	wdt->wdt_device.min_timeout = 1;
-	wdt->wdt_device.max_timeout = si5wdt_max_timeout(wdt);
+	wdt->wdt_device.max_timeout = starfive_wdt_max_timeout(wdt);
 
 	watchdog_set_drvdata(&wdt->wdt_device, wdt);
 
@@ -695,17 +695,17 @@ static int si5wdt_probe(struct platform_device *pdev)
 	 */
 	watchdog_init_timeout(&wdt->wdt_device, tmr_margin, dev);
 
-	ret = si5wdt_set_timeout(&wdt->wdt_device,
-					wdt->wdt_device.timeout);
+	ret = starfive_wdt_set_timeout(&wdt->wdt_device,
+				       wdt->wdt_device.timeout);
 	if (ret) {
 		dev_info(dev, "tmr_margin value out of range, default %d used\n",
-				 SI5_WATCHDOG_DEFAULT_TIME);
-		si5wdt_set_timeout(&wdt->wdt_device,
-				SI5_WATCHDOG_DEFAULT_TIME);
+				 STARFIVE_WATCHDOG_DEFAULT_TIME);
+		starfive_wdt_set_timeout(&wdt->wdt_device,
+					 STARFIVE_WATCHDOG_DEFAULT_TIME);
 	}
 
-	ret = devm_request_irq(dev, wdt_irq->start, si5wdt_interrupt_handler, 0,
-				pdev->name, pdev);
+	ret = devm_request_irq(dev, wdt_irq->start, starfive_wdt_interrupt_handler, 0,
+			       pdev->name, pdev);
 	if (ret != 0) {
 		dev_err(dev, "failed to install irq (%d)\n", ret);
 		goto err;
@@ -720,13 +720,13 @@ static int si5wdt_probe(struct platform_device *pdev)
 	if (ret)
 		goto err;
 
-	ret = si5wdt_mask_and_disable_reset(wdt, false);
+	ret = starfive_wdt_mask_and_disable_reset(wdt, false);
 	if (ret < 0)
 		goto err_unregister;
 
 	if (tmr_atboot && started == 0) {
 		dev_info(dev, "starting watchdog timer\n");
-		si5wdt_start(&wdt->wdt_device);
+		starfive_wdt_start(&wdt->wdt_device);
 	} else if (!tmr_atboot) {
 
 		/*
@@ -734,7 +734,7 @@ static int si5wdt_probe(struct platform_device *pdev)
 		 * disabled if it has been left running from the bootloader
 		 * or other source.
 		 */
-		si5wdt_stop(&wdt->wdt_device);
+		starfive_wdt_stop(&wdt->wdt_device);
 	}
 
 	platform_set_drvdata(pdev, wdt);
@@ -748,12 +748,12 @@ static int si5wdt_probe(struct platform_device *pdev)
 	return ret;
 }
 
-static int si5wdt_remove(struct platform_device *dev)
+static int starfive_wdt_remove(struct platform_device *dev)
 {
 	int ret;
-	struct stf_si5_wdt *wdt = platform_get_drvdata(dev);
+	struct starfive_wdt *wdt = platform_get_drvdata(dev);
 
-	ret = si5wdt_mask_and_disable_reset(wdt, true);
+	ret = starfive_wdt_mask_and_disable_reset(wdt, true);
 	if (ret < 0)
 		return ret;
 
@@ -764,56 +764,56 @@ static int si5wdt_remove(struct platform_device *dev)
 	return 0;
 }
 
-static void si5wdt_shutdown(struct platform_device *dev)
+static void starfive_wdt_shutdown(struct platform_device *dev)
 {
-	struct stf_si5_wdt *wdt = platform_get_drvdata(dev);
+	struct starfive_wdt *wdt = platform_get_drvdata(dev);
 
-	si5wdt_mask_and_disable_reset(wdt, true);
+	starfive_wdt_mask_and_disable_reset(wdt, true);
 
-	si5wdt_stop(&wdt->wdt_device);
+	starfive_wdt_stop(&wdt->wdt_device);
 
 }
 
 #ifdef CONFIG_PM_SLEEP
 
-static int si5wdt_suspend(struct device *dev)
+static int starfive_wdt_suspend(struct device *dev)
 {
 	int ret;
-	struct stf_si5_wdt *wdt = dev_get_drvdata(dev);
+	struct starfive_wdt *wdt = dev_get_drvdata(dev);
 
-	si5wdt_unlock(wdt);
+	starfive_wdt_unlock(wdt);
 
 	/* Save watchdog state, and turn it off. */
-	wdt->reload = si5wdt_get_count(wdt);
+	wdt->reload = starfive_wdt_get_count(wdt);
 
-	ret = si5wdt_mask_and_disable_reset(wdt, true);
+	ret = starfive_wdt_mask_and_disable_reset(wdt, true);
 	if (ret < 0)
 		return ret;
 
 	/* Note that WTCNT doesn't need to be saved. */
-	si5wdt_stop(&wdt->wdt_device);
+	starfive_wdt_stop(&wdt->wdt_device);
 
-	si5wdt_lock(wdt);
+	starfive_wdt_lock(wdt);
 
 	return 0;
 }
 
-static int si5wdt_resume(struct device *dev)
+static int starfive_wdt_resume(struct device *dev)
 {
 	int ret;
-	struct stf_si5_wdt *wdt = dev_get_drvdata(dev);
+	struct starfive_wdt *wdt = dev_get_drvdata(dev);
 
-	si5wdt_unlock(wdt);
+	starfive_wdt_unlock(wdt);
 
-	si5wdt_irq_flag_clr(wdt);
+	starfive_wdt_irq_flag_clr(wdt);
 	/* Restore watchdog state. */
-	si5wdt_set_relod_count(wdt, wdt->reload);
+	starfive_wdt_set_relod_count(wdt, wdt->reload);
 
-	ret = si5wdt_mask_and_disable_reset(wdt, false);
+	ret = starfive_wdt_mask_and_disable_reset(wdt, false);
 	if (ret < 0)
 		return ret;
 
-	si5wdt_lock(wdt);
+	starfive_wdt_lock(wdt);
 
 	dev_info(dev, "watchdog resume\n")
 
@@ -821,24 +821,24 @@ static int si5wdt_resume(struct device *dev)
 }
 #endif /* CONFIG_PM_SLEEP */
 
-static SIMPLE_DEV_PM_OPS(si5wdt_pm_ops, si5wdt_suspend,
-			si5wdt_resume);
+static SIMPLE_DEV_PM_OPS(starfive_wdt_pm_ops, starfive_wdt_suspend,
+			starfive_wdt_resume);
 
-static struct platform_driver starfive_si5wdt_driver = {
-	.probe		= si5wdt_probe,
-	.remove		= si5wdt_remove,
-	.shutdown	= si5wdt_shutdown,
-	.id_table	= si5wdt_ids,
+static struct platform_driver starfive_starfive_wdt_driver = {
+	.probe		= starfive_wdt_probe,
+	.remove		= starfive_wdt_remove,
+	.shutdown	= starfive_wdt_shutdown,
+	.id_table	= starfive_wdt_ids,
 	.driver		= {
-		.name	= "starfive-si5-wdt",
-		.pm	= &si5wdt_pm_ops,
+		.name	= "starfive-wdt",
+		.pm	= &starfive_wdt_pm_ops,
 		.of_match_table = of_match_ptr(starfive_wdt_match),
 	},
 };
 
-module_platform_driver(starfive_si5wdt_driver);
+module_platform_driver(starfive_starfive_wdt_driver);
 
 MODULE_AUTHOR("xingyu.wu <xingyu.wu@starfivetech.com>");
 MODULE_AUTHOR("samin.guo <samin.guo@starfivetech.com>");
-MODULE_DESCRIPTION("StarFive SI5 Watchdog Device Driver");
+MODULE_DESCRIPTION("StarFive Watchdog Device Driver");
 MODULE_LICENSE("GPL v2");
