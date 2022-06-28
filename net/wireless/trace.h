@@ -3764,20 +3764,20 @@ TRACE_EVENT(cfg80211_bss_color_notify,
 );
 
 TRACE_EVENT(cfg80211_assoc_comeback,
-	TP_PROTO(struct wireless_dev *wdev, const u8 *bssid, u32 timeout),
-	TP_ARGS(wdev, bssid, timeout),
+	TP_PROTO(struct wireless_dev *wdev, const u8 *ap_addr, u32 timeout),
+	TP_ARGS(wdev, ap_addr, timeout),
 	TP_STRUCT__entry(
 		WDEV_ENTRY
-		MAC_ENTRY(bssid)
+		MAC_ENTRY(ap_addr)
 		__field(u32, timeout)
 	),
 	TP_fast_assign(
 		WDEV_ASSIGN;
-		MAC_ASSIGN(bssid, bssid);
+		MAC_ASSIGN(ap_addr, ap_addr);
 		__entry->timeout = timeout;
 	),
 	TP_printk(WDEV_PR_FMT ", " MAC_PR_FMT ", timeout: %u TUs",
-		  WDEV_PR_ARG, MAC_PR_ARG(bssid), __entry->timeout)
+		  WDEV_PR_ARG, MAC_PR_ARG(ap_addr), __entry->timeout)
 );
 
 DECLARE_EVENT_CLASS(link_station_add_mod,

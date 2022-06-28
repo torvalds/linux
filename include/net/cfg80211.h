@@ -8592,13 +8592,13 @@ bool cfg80211_iftype_allowed(struct wiphy *wiphy, enum nl80211_iftype iftype,
  * cfg80211_assoc_comeback - notification of association that was
  * temporarly rejected with a comeback
  * @netdev: network device
- * @bss: the bss entry with which association is in progress.
+ * @ap_addr: AP (MLD) address that rejected the assocation
  * @timeout: timeout interval value TUs.
  *
  * this function may sleep. the caller must hold the corresponding wdev's mutex.
  */
 void cfg80211_assoc_comeback(struct net_device *netdev,
-			     struct cfg80211_bss *bss, u32 timeout);
+			     const u8 *ap_addr, u32 timeout);
 
 /* Logging, debugging and troubleshooting/diagnostic helpers. */
 
