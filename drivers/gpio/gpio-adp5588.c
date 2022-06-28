@@ -6,15 +6,15 @@
  * Copyright 2009-2010 Analog Devices Inc.
  */
 
-#include <linux/kernel.h>
-#include <linux/slab.h>
-#include <linux/init.h>
-#include <linux/i2c.h>
 #include <linux/gpio/driver.h>
+#include <linux/i2c.h>
+#include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
+#include <linux/kernel.h>
 #include <linux/mod_devicetable.h>
 #include <linux/module.h>
+#include <linux/slab.h>
 
 #include <linux/platform_data/adp5588.h>
 
