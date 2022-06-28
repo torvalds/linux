@@ -45,6 +45,24 @@ BTF_ID(func, bpf_lsm_sk_alloc_security)
 BTF_ID(func, bpf_lsm_sk_free_security)
 BTF_SET_END(bpf_lsm_current_hooks)
 
+/* List of LSM hooks that trigger while the socket is properly locked.
+ */
+BTF_SET_START(bpf_lsm_locked_sockopt_hooks)
+BTF_ID(func, bpf_lsm_socket_sock_rcv_skb)
+BTF_ID(func, bpf_lsm_sock_graft)
+BTF_ID(func, bpf_lsm_inet_csk_clone)
+BTF_ID(func, bpf_lsm_inet_conn_established)
+BTF_SET_END(bpf_lsm_locked_sockopt_hooks)
+
+/* List of LSM hooks that trigger while the socket is _not_ locked,
+ * but it's ok to call bpf_{g,s}etsockopt because the socket is still
+ * in the early init phase.
+ */
+BTF_SET_START(bpf_lsm_unlocked_sockopt_hooks)
+BTF_ID(func, bpf_lsm_socket_post_create)
+BTF_ID(func, bpf_lsm_socket_socketpair)
+BTF_SET_END(bpf_lsm_unlocked_sockopt_hooks)
+
 void bpf_lsm_find_cgroup_shim(const struct bpf_prog *prog,
 			     bpf_func_t *bpf_func)
 {
@@ -201,6 +219,26 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_get_retval:
 		return prog->expected_attach_type == BPF_LSM_CGROUP ?
 			&bpf_get_retval_proto : NULL;
+	case BPF_FUNC_setsockopt:
+		if (prog->expected_attach_type != BPF_LSM_CGROUP)
+			return NULL;
+		if (btf_id_set_contains(&bpf_lsm_locked_sockopt_hooks,
+					prog->aux->attach_btf_id))
+			return &bpf_sk_setsockopt_proto;
+		if (btf_id_set_contains(&bpf_lsm_unlocked_sockopt_hooks,
+					prog->aux->attach_btf_id))
+			return &bpf_unlocked_sk_setsockopt_proto;
+		return NULL;
+	case BPF_FUNC_getsockopt:
+		if (prog->expected_attach_type != BPF_LSM_CGROUP)
+			return NULL;
+		if (btf_id_set_contains(&bpf_lsm_locked_sockopt_hooks,
+					prog->aux->attach_btf_id))
+			return &bpf_sk_getsockopt_proto;
+		if (btf_id_set_contains(&bpf_lsm_unlocked_sockopt_hooks,
+					prog->aux->attach_btf_id))
+			return &bpf_unlocked_sk_getsockopt_proto;
+		return NULL;
 	default:
 		return tracing_prog_func_proto(func_id, prog);
 	}
