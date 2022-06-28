@@ -129,6 +129,26 @@ static const struct reg_field p0_fullrt_div[WIZ_MAX_LANES] = {
 	REG_FIELD(WIZ_LANECTL(3), 22, 23),
 };
 
+static const struct reg_field p0_mac_src_sel[WIZ_MAX_LANES] = {
+	REG_FIELD(WIZ_LANECTL(0), 20, 21),
+	REG_FIELD(WIZ_LANECTL(1), 20, 21),
+	REG_FIELD(WIZ_LANECTL(2), 20, 21),
+	REG_FIELD(WIZ_LANECTL(3), 20, 21),
+};
+
+static const struct reg_field p0_rxfclk_sel[WIZ_MAX_LANES] = {
+	REG_FIELD(WIZ_LANECTL(0), 6, 7),
+	REG_FIELD(WIZ_LANECTL(1), 6, 7),
+	REG_FIELD(WIZ_LANECTL(2), 6, 7),
+	REG_FIELD(WIZ_LANECTL(3), 6, 7),
+};
+
+static const struct reg_field p0_refclk_sel[WIZ_MAX_LANES] = {
+	REG_FIELD(WIZ_LANECTL(0), 18, 19),
+	REG_FIELD(WIZ_LANECTL(1), 18, 19),
+	REG_FIELD(WIZ_LANECTL(2), 18, 19),
+	REG_FIELD(WIZ_LANECTL(3), 18, 19),
+};
 static const struct reg_field p_mac_div_sel0[WIZ_MAX_LANES] = {
 	REG_FIELD(WIZ_LANEDIV(0), 16, 22),
 	REG_FIELD(WIZ_LANEDIV(1), 16, 22),
@@ -280,6 +300,9 @@ struct wiz {
 	struct regmap_field	*p_mac_div_sel0[WIZ_MAX_LANES];
 	struct regmap_field	*p_mac_div_sel1[WIZ_MAX_LANES];
 	struct regmap_field	*p0_fullrt_div[WIZ_MAX_LANES];
+	struct regmap_field	*p0_mac_src_sel[WIZ_MAX_LANES];
+	struct regmap_field	*p0_rxfclk_sel[WIZ_MAX_LANES];
+	struct regmap_field	*p0_refclk_sel[WIZ_MAX_LANES];
 	struct regmap_field	*pma_cmn_refclk_int_mode;
 	struct regmap_field	*pma_cmn_refclk_mode;
 	struct regmap_field	*pma_cmn_refclk_dig_div;
@@ -326,7 +349,8 @@ static int wiz_p_mac_div_sel(struct wiz *wiz)
 
 	for (i = 0; i < num_lanes; i++) {
 		if (wiz->lane_phy_type[i] == PHY_TYPE_SGMII ||
-		    wiz->lane_phy_type[i] == PHY_TYPE_QSGMII) {
+		    wiz->lane_phy_type[i] == PHY_TYPE_QSGMII ||
+		    wiz->lane_phy_type[i] == PHY_TYPE_USXGMII) {
 			ret = regmap_field_write(wiz->p_mac_div_sel0[i], 1);
 			if (ret)
 				return ret;
@@ -354,6 +378,13 @@ static int wiz_mode_select(struct wiz *wiz)
 			mode = LANE_MODE_GEN2;
 		else
 			continue;
+
+		if (wiz->lane_phy_type[i] == PHY_TYPE_USXGMII) {
+			ret = regmap_field_write(wiz->p0_mac_src_sel[i], 0x3);
+			ret = regmap_field_write(wiz->p0_rxfclk_sel[i], 0x3);
+			ret = regmap_field_write(wiz->p0_refclk_sel[i], 0x3);
+			mode = LANE_MODE_GEN1;
+		}
 
 		ret = regmap_field_write(wiz->p_standard_mode[i], mode);
 		if (ret)
@@ -522,6 +553,24 @@ static int wiz_regfield_init(struct wiz *wiz)
 		if (IS_ERR(wiz->p0_fullrt_div[i])) {
 			dev_err(dev, "P%d_FULLRT_DIV reg field init failed\n", i);
 			return PTR_ERR(wiz->p0_fullrt_div[i]);
+		}
+
+		wiz->p0_mac_src_sel[i] = devm_regmap_field_alloc(dev, regmap, p0_mac_src_sel[i]);
+		if (IS_ERR(wiz->p0_mac_src_sel[i])) {
+			dev_err(dev, "P%d_MAC_SRC_SEL reg field init failed\n", i);
+			return PTR_ERR(wiz->p0_mac_src_sel[i]);
+		}
+
+		wiz->p0_rxfclk_sel[i] = devm_regmap_field_alloc(dev, regmap, p0_rxfclk_sel[i]);
+		if (IS_ERR(wiz->p0_rxfclk_sel[i])) {
+			dev_err(dev, "P%d_RXFCLK_SEL reg field init failed\n", i);
+			return PTR_ERR(wiz->p0_rxfclk_sel[i]);
+		}
+
+		wiz->p0_refclk_sel[i] = devm_regmap_field_alloc(dev, regmap, p0_refclk_sel[i]);
+		if (IS_ERR(wiz->p0_refclk_sel[i])) {
+			dev_err(dev, "P%d_REFCLK_SEL reg field init failed\n", i);
+			return PTR_ERR(wiz->p0_refclk_sel[i]);
 		}
 
 		wiz->p_mac_div_sel0[i] =
