@@ -355,14 +355,7 @@ static void inno_hdmi_tx_ctrl(struct inno_hdmi *hdmi)
 
 static void inno_hdmi_tx_phy_param_config(struct inno_hdmi *hdmi)
 {
-
-	//640x480p60
-	//vic = VIC_640x480p60;
-	//inno_hdmi_config_640x480p60(hdmi);
-	//640x480p60
-	//1920x1080p60
 	inno_hdmi_config_1920x1080p60(hdmi);
-	//1920x1080p60
 	inno_hdmi_tx_ctrl(hdmi);
 
     return;
@@ -372,12 +365,9 @@ static void inno_hdmi_tx_phy_power_on(struct inno_hdmi *hdmi)
 {
 	const reg_value_t pwon_data[] = {
 		{0x00, 0x61},
-		//{0xce, 0x00},//data sync
-		//{0xce, 0x01}
 	};
 	int i;
 	for (i = 0; i < sizeof(pwon_data)/sizeof(reg_value_t); i++) {
-		//hdmi_write(pwon_data[i].value, word_align(pwon_data[i].reg));
 		writel_relaxed(pwon_data[i].value, hdmi->regs + (pwon_data[i].reg) * 0x04);
 	}
 	return;
@@ -386,7 +376,6 @@ static void inno_hdmi_tx_phy_power_on(struct inno_hdmi *hdmi)
 void inno_hdmi_tmds_driver_on(struct inno_hdmi *hdmi)
 {
 	writel_relaxed(0x8f, hdmi->regs + (0x1b2) * 0x04);
-	printk("HDMI tmds encode driver on\r\n");
 }
 
 
@@ -839,7 +828,6 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 	int value;
 	hdmi->hdmi_data.vic = drm_match_cea_mode(mode);
 
-	dev_info(hdmi->dev, "%s %d,hdmi->hdmi_data.vic = %d\n",__func__, __LINE__,hdmi->hdmi_data.vic);
 	val = readl_relaxed(hdmi->regs + (0x1b0) * 0x04);
 	val |= 0x4;
 	writel_relaxed(val, hdmi->regs + (0x1b0) * 0x04);
@@ -856,8 +844,6 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 
 	hdmi->tmds_rate = mode->clock * 1000;
 	inno_hdmi_phy_clk_set_rate(hdmi,hdmi->tmds_rate);
-
-	dev_info(hdmi->dev, "%s %d\n",__func__, __LINE__);
 
 	while (!(readl_relaxed(hdmi->regs + (0x1a9) * 0x04) & 0x1))
 	;
@@ -883,9 +869,7 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 		 v_INETLACE(1) : v_INETLACE(0);
 	hdmi_writeb(hdmi, HDMI_VIDEO_TIMING_CTL, value);
 
-	dev_info(hdmi->dev, "%s %d\n",__func__, __LINE__);
 	hdmi->hdmi_data.vic = drm_match_cea_mode(mode);
-	dev_info(hdmi->dev, "%s %d,hdmi->hdmi_data.vic = %d\n",__func__, __LINE__,hdmi->hdmi_data.vic);
 
 	hdmi->hdmi_data.enc_in_format = HDMI_COLORSPACE_RGB;
 	hdmi->hdmi_data.enc_out_format = HDMI_COLORSPACE_RGB;
@@ -909,7 +893,6 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 
 		inno_hdmi_config_video_csc(hdmi);
     }
-	dev_info(hdmi->dev, "%s %d,hdmi->hdmi_data.sink_is_hdmi = %d\n",__func__, __LINE__,hdmi->hdmi_data.sink_is_hdmi);
 
 	if (hdmi->hdmi_data.sink_is_hdmi) {
 		inno_hdmi_config_video_avi(hdmi, mode);
@@ -921,7 +904,6 @@ static int inno_hdmi_setup(struct inno_hdmi *hdmi,
 
 	writel_relaxed(0x0, hdmi->regs + (0xce) * 0x04);
 	writel_relaxed(0x1, hdmi->regs + (0xce) * 0x04);
-	dev_info(hdmi->dev, "%s %d\n",__func__, __LINE__);
 
 	return 0;
 }
@@ -941,7 +923,7 @@ static void inno_hdmi_encoder_mode_set(struct drm_encoder *encoder,
 static void inno_hdmi_encoder_enable(struct drm_encoder *encoder)
 {
 	struct inno_hdmi *hdmi = to_inno_hdmi(encoder);
-	inno_hdmi_init(hdmi);
+	//inno_hdmi_init(hdmi);
 
 	inno_hdmi_set_pwr_mode(hdmi, NORMAL);
 }
@@ -1363,7 +1345,7 @@ static struct i2c_adapter *inno_hdmi_i2c_adapter(struct inno_hdmi *hdmi)
 
 	hdmi->i2c = i2c;
 
-	DRM_DEV_INFO(hdmi->dev, "registered %s I2C bus driver\n", adap->name);
+	DRM_DEV_INFO(hdmi->dev, "registered %s I2C bus driver success\n", adap->name);
 
 	return adap;
 }
@@ -1533,11 +1515,9 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 		ret = irq;
 		goto err_disable_clk;
 	}
-	//inno_hdmi_set_pinmux();//20220601 disable for testing dts pinctrl setting
 #ifdef CONFIG_DRM_I2C_NXP_TDA998X
 	inno_hdmi_init(hdmi);
 #endif
-	//inno_hdmi_get_edid(hdmi,51200000, data);//20220525
 	inno_hdmi_reset(hdmi);
 
 	hdmi->ddc = inno_hdmi_i2c_adapter(hdmi);
