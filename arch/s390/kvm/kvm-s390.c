@@ -2237,12 +2237,25 @@ out:
 	return r;
 }
 
-static int kvm_s390_cpus_from_pv(struct kvm *kvm, u16 *rcp, u16 *rrcp)
+/**
+ * kvm_s390_cpus_from_pv - Convert all protected vCPUs in a protected VM to
+ * non protected.
+ * @kvm: the VM whose protected vCPUs are to be converted
+ * @rc: return value for the RC field of the UVC (in case of error)
+ * @rrc: return value for the RRC field of the UVC (in case of error)
+ *
+ * Does not stop in case of error, tries to convert as many
+ * CPUs as possible. In case of error, the RC and RRC of the last error are
+ * returned.
+ *
+ * Return: 0 in case of success, otherwise -EIO
+ */
+int kvm_s390_cpus_from_pv(struct kvm *kvm, u16 *rc, u16 *rrc)
 {
 	struct kvm_vcpu *vcpu;
-	u16 rc, rrc;
-	int ret = 0;
 	unsigned long i;
+	u16 _rc, _rrc;
+	int ret = 0;
 
 	/*
 	 * We ignore failures and try to destroy as many CPUs as possible.
@@ -2254,9 +2267,9 @@ static int kvm_s390_cpus_from_pv(struct kvm *kvm, u16 *rcp, u16 *rrcp)
 	 */
 	kvm_for_each_vcpu(i, vcpu, kvm) {
 		mutex_lock(&vcpu->mutex);
-		if (kvm_s390_pv_destroy_cpu(vcpu, &rc, &rrc) && !ret) {
-			*rcp = rc;
-			*rrcp = rrc;
+		if (kvm_s390_pv_destroy_cpu(vcpu, &_rc, &_rrc) && !ret) {
+			*rc = _rc;
+			*rrc = _rrc;
 			ret = -EIO;
 		}
 		mutex_unlock(&vcpu->mutex);
@@ -2267,6 +2280,17 @@ static int kvm_s390_cpus_from_pv(struct kvm *kvm, u16 *rcp, u16 *rrcp)
 	return ret;
 }
 
+/**
+ * kvm_s390_cpus_to_pv - Convert all non-protected vCPUs in a protected VM
+ * to protected.
+ * @kvm: the VM whose protected vCPUs are to be converted
+ * @rc: return value for the RC field of the UVC (in case of error)
+ * @rrc: return value for the RRC field of the UVC (in case of error)
+ *
+ * Tries to undo the conversion in case of error.
+ *
+ * Return: 0 in case of success, otherwise -EIO
+ */
 static int kvm_s390_cpus_to_pv(struct kvm *kvm, u16 *rc, u16 *rrc)
 {
 	unsigned long i;
