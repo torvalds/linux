@@ -683,8 +683,10 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 
 	spin_lock(&mib->stats64_lock);
 
-	stats->rx_packets = raw->rx_bcast + raw->rx_mcast + raw->rx_ucast;
-	stats->tx_packets = raw->tx_bcast + raw->tx_mcast + raw->tx_ucast;
+	stats->rx_packets = raw->rx_bcast + raw->rx_mcast + raw->rx_ucast +
+		raw->rx_pause;
+	stats->tx_packets = raw->tx_bcast + raw->tx_mcast + raw->tx_ucast +
+		raw->tx_pause;
 
 	/* HW counters are counting bytes + FCS which is not acceptable
 	 * for rtnl_link_stats64 interface
