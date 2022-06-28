@@ -469,10 +469,12 @@ static int ef100_pci_probe(struct pci_dev *pci_dev,
 
 	pci_set_drvdata(pci_dev, efx);
 	SET_NETDEV_DEV(net_dev, &pci_dev->dev);
-	rc = efx_init_struct(efx, pci_dev, net_dev);
+	efx->net_dev = net_dev;
+	rc = efx_init_struct(efx, pci_dev);
 	if (rc)
 		goto fail;
 
+	efx->mdio.dev = net_dev;
 	efx->vi_stride = EF100_DEFAULT_VI_STRIDE;
 	netif_info(efx, probe, efx->net_dev,
 		   "Solarflare EF100 NIC detected\n");

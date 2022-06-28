@@ -14,8 +14,7 @@
 int efx_init_io(struct efx_nic *efx, int bar, dma_addr_t dma_mask,
 		unsigned int mem_map_size);
 void efx_fini_io(struct efx_nic *efx);
-int efx_init_struct(struct efx_nic *efx, struct pci_dev *pci_dev,
-		    struct net_device *net_dev);
+int efx_init_struct(struct efx_nic *efx, struct pci_dev *pci_dev);
 void efx_fini_struct(struct efx_nic *efx);
 
 #define EFX_MAX_DMAQ_SIZE 4096UL
