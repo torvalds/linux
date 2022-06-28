@@ -126,6 +126,10 @@ static u64 fsl_guts_get_soc_uid(const char *compat, unsigned int offset)
 		return 0;
 
 	sfp_base = of_iomap(np, 0);
+	if (!sfp_base) {
+		of_node_put(np);
+		return 0;
+	}
 
 	uid = ioread32(sfp_base + offset);
 	uid <<= 32;
