@@ -946,8 +946,8 @@ static int a5psw_probe(struct platform_device *pdev)
 	mutex_init(&a5psw->lk_lock);
 	spin_lock_init(&a5psw->reg_lock);
 	a5psw->base = devm_platform_ioremap_resource(pdev, 0);
-	if (!a5psw->base)
-		return -EINVAL;
+	if (IS_ERR(a5psw->base))
+		return PTR_ERR(a5psw->base);
 
 	ret = a5psw_pcs_get(a5psw);
 	if (ret)
