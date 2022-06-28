@@ -6886,14 +6886,21 @@ void cfg80211_auth_timeout(struct net_device *dev, const u8 *addr);
  *	as the AC bitmap in the QoS info field
  * @req_ies: information elements from the (Re)Association Request frame
  * @req_ies_len: length of req_ies data
+ * @ap_mld_addr: AP MLD address (in case of MLO)
+ * @links: per-link information indexed by link ID, use links[0] for
+ *	non-MLO connections
  */
 struct cfg80211_rx_assoc_resp {
-	struct cfg80211_bss *bss;
 	const u8 *buf;
 	size_t len;
 	const u8 *req_ies;
 	size_t req_ies_len;
 	int uapsd_queues;
+	const u8 *ap_mld_addr;
+	struct {
+		const u8 *addr;
+		struct cfg80211_bss *bss;
+	} links[IEEE80211_MLD_MAX_NUM_LINKS];
 };
 
 /**

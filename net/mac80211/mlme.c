@@ -3995,7 +3995,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		info.success = 1;
 	}
 
-	resp.bss = cbss;
+	resp.links[0].bss = cbss;
 	resp.buf = (u8 *)mgmt;
 	resp.len = len;
 	resp.req_ies = ifmgd->assoc_req_ies;

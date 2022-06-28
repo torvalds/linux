@@ -28,28 +28,41 @@ void cfg80211_rx_assoc_resp(struct net_device *dev,
 	struct wiphy *wiphy = wdev->wiphy;
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wiphy);
 	struct ieee80211_mgmt *mgmt = (struct ieee80211_mgmt *)data->buf;
-	struct cfg80211_connect_resp_params cr;
-	const u8 *resp_ie = mgmt->u.assoc_resp.variable;
-	size_t resp_ie_len = data->len - offsetof(struct ieee80211_mgmt,
-						  u.assoc_resp.variable);
+	struct cfg80211_connect_resp_params cr = {
+		.timeout_reason = NL80211_TIMEOUT_UNSPECIFIED,
+		.req_ie = data->req_ies,
+		.req_ie_len = data->req_ies_len,
+		.resp_ie = mgmt->u.assoc_resp.variable,
+		.resp_ie_len = data->len -
+			       offsetof(struct ieee80211_mgmt,
+					u.assoc_resp.variable),
+		.status = le16_to_cpu(mgmt->u.assoc_resp.status_code),
+		.ap_mld_addr = data->ap_mld_addr,
+	};
+	unsigned int link_id;
 
-	if (data->bss->channel->band == NL80211_BAND_S1GHZ) {
-		resp_ie = (u8 *)&mgmt->u.s1g_assoc_resp.variable;
-		resp_ie_len = data->len - offsetof(struct ieee80211_mgmt,
-						   u.s1g_assoc_resp.variable);
+	for (link_id = 0; link_id < ARRAY_SIZE(data->links); link_id++) {
+		cr.links[link_id].bss = data->links[link_id].bss;
+		if (!cr.links[link_id].bss)
+			continue;
+		cr.links[link_id].bssid = data->links[link_id].bss->bssid;
+		cr.links[link_id].addr = data->links[link_id].addr;
+		/* need to have local link addresses for MLO connections */
+		WARN_ON(cr.ap_mld_addr && !cr.links[link_id].addr);
+
+		if (cr.links[link_id].bss->channel->band == NL80211_BAND_S1GHZ) {
+			WARN_ON(link_id);
+			cr.resp_ie = (u8 *)&mgmt->u.s1g_assoc_resp.variable;
+			cr.resp_ie_len = data->len -
+					 offsetof(struct ieee80211_mgmt,
+						  u.s1g_assoc_resp.variable);
+		}
+
+		if (cr.ap_mld_addr)
+			cr.valid_links |= BIT(link_id);
 	}
 
-	memset(&cr, 0, sizeof(cr));
-	cr.status = (int)le16_to_cpu(mgmt->u.assoc_resp.status_code);
-	cr.links[0].bssid = mgmt->bssid;
-	cr.links[0].bss = data->bss;
-	cr.req_ie = data->req_ies;
-	cr.req_ie_len = data->req_ies_len;
-	cr.resp_ie = resp_ie;
-	cr.resp_ie_len = resp_ie_len;
-	cr.timeout_reason = NL80211_TIMEOUT_UNSPECIFIED;
-
-	trace_cfg80211_send_rx_assoc(dev, data->bss);
+	trace_cfg80211_send_rx_assoc(dev, data);
 
 	/*
 	 * This is a bit of a hack, we don't notify userspace of
@@ -58,8 +71,15 @@ void cfg80211_rx_assoc_resp(struct net_device *dev,
 	 * frame instead of reassoc.
 	 */
 	if (cfg80211_sme_rx_assoc_resp(wdev, cr.status)) {
-		cfg80211_unhold_bss(bss_from_pub(data->bss));
-		cfg80211_put_bss(wiphy, data->bss);
+		for (link_id = 0; link_id < ARRAY_SIZE(data->links); link_id++) {
+			struct cfg80211_bss *bss = data->links[link_id].bss;
+
+			if (!bss)
+				continue;
+
+			cfg80211_unhold_bss(bss_from_pub(bss));
+			cfg80211_put_bss(wiphy, bss);
+		}
 		return;
 	}
 

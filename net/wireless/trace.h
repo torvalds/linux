@@ -2887,20 +2887,20 @@ DEFINE_EVENT(netdev_evt_only, cfg80211_send_rx_auth,
 );
 
 TRACE_EVENT(cfg80211_send_rx_assoc,
-	TP_PROTO(struct net_device *netdev, struct cfg80211_bss *bss),
-	TP_ARGS(netdev, bss),
+	TP_PROTO(struct net_device *netdev,
+		 struct cfg80211_rx_assoc_resp *data),
+	TP_ARGS(netdev, data),
 	TP_STRUCT__entry(
 		NETDEV_ENTRY
-		MAC_ENTRY(bssid)
-		CHAN_ENTRY
+		MAC_ENTRY(ap_addr)
 	),
 	TP_fast_assign(
 		NETDEV_ASSIGN;
-		MAC_ASSIGN(bssid, bss->bssid);
-		CHAN_ASSIGN(bss->channel);
+		MAC_ASSIGN(ap_addr,
+			   data->ap_mld_addr ?: data->links[0].bss->bssid);
 	),
-	TP_printk(NETDEV_PR_FMT ", " MAC_PR_FMT ", " CHAN_PR_FMT,
-		  NETDEV_PR_ARG, MAC_PR_ARG(bssid), CHAN_PR_ARG)
+	TP_printk(NETDEV_PR_FMT ", " MAC_PR_FMT,
+		  NETDEV_PR_ARG, MAC_PR_ARG(ap_addr))
 );
 
 DECLARE_EVENT_CLASS(netdev_frame_event,
