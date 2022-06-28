@@ -573,7 +573,7 @@ static struct platform_driver bxtwc_driver = {
 	.driver	= {
 		.name	= "BXTWC PMIC",
 		.pm     = pm_sleep_ptr(&bxtwc_pm_ops),
-		.acpi_match_table = ACPI_PTR(bxtwc_acpi_ids),
+		.acpi_match_table = bxtwc_acpi_ids,
 		.dev_groups = bxtwc_groups,
 	},
 };
