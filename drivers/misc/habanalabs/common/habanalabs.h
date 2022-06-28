@@ -2968,7 +2968,6 @@ struct hl_reset_info {
  * @disabled: is device disabled.
  * @late_init_done: is late init stage was done during initialization.
  * @hwmon_initialized: is H/W monitor sensors was initialized.
- * @heartbeat: is heartbeat sanity check towards CPU-CP enabled.
  * @reset_on_lockup: true if a reset should be done in case of stuck CS, false
  *                   otherwise.
  * @dram_default_page_mapping: is DRAM default page mapping enabled.
@@ -3001,6 +3000,21 @@ struct hl_reset_info {
  * @is_compute_ctx_active: Whether there is an active compute context executing.
  * @compute_ctx_in_release: true if the current compute context is being released.
  * @supports_mmu_prefetch: true if prefetch is supported, otherwise false.
+ * @reset_upon_device_release: reset the device when the user closes the file descriptor of the
+ *                             device.
+ * @nic_ports_mask: Controls which NIC ports are enabled. Used only for testing.
+ * @fw_components: Controls which f/w components to load to the device. There are multiple f/w
+ *                 stages and sometimes we want to stop at a certain stage. Used only for testing.
+ * @mmu_enable: Whether to enable or disable the device MMU(s). Used only for testing.
+ * @cpu_queues_enable: Whether to enable queues communication vs. the f/w. Used only for testing.
+ * @pldm: Whether we are running in Palladium environment. Used only for testing.
+ * @hard_reset_on_fw_events: Whether to do device hard-reset when a fatal event is received from
+ *                           the f/w. Used only for testing.
+ * @bmc_enable: Whether we are running in a box with BMC. Used only for testing.
+ * @reset_on_preboot_fail: Whether to reset the device if preboot f/w fails to load.
+ *                         Used only for testing.
+ * @heartbeat: Controls if we want to enable the heartbeat mechanism vs. the f/w, which verifies
+ *             that the f/w is always alive. Used only for testing.
  */
 struct hl_device {
 	struct pci_dev			*pdev;
@@ -3108,7 +3122,6 @@ struct hl_device {
 	u8				disabled;
 	u8				late_init_done;
 	u8				hwmon_initialized;
-	u8				heartbeat;
 	u8				reset_on_lockup;
 	u8				dram_default_page_mapping;
 	u8				memory_scrub;
@@ -3132,22 +3145,18 @@ struct hl_device {
 	u8				is_compute_ctx_active;
 	u8				compute_ctx_in_release;
 	u8				supports_mmu_prefetch;
+	u8				reset_upon_device_release;
 
 	/* Parameters for bring-up */
 	u64				nic_ports_mask;
 	u64				fw_components;
 	u8				mmu_enable;
-	u8				mmu_huge_page_opt;
-	u8				reset_pcilink;
 	u8				cpu_queues_enable;
 	u8				pldm;
-	u8				sram_scrambler_enable;
-	u8				dram_scrambler_enable;
 	u8				hard_reset_on_fw_events;
 	u8				bmc_enable;
 	u8				reset_on_preboot_fail;
-	u8				reset_upon_device_release;
-	u8				reset_if_device_not_idle;
+	u8				heartbeat;
 };
 
 

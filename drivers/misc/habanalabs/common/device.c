@@ -348,8 +348,7 @@ static void hpriv_release(struct kref *ref)
 	list_del(&hpriv->dev_node);
 	mutex_unlock(&hdev->fpriv_list_lock);
 
-	if ((hdev->reset_if_device_not_idle && !device_is_idle) ||
-		hdev->reset_upon_device_release) {
+	if (!device_is_idle || hdev->reset_upon_device_release) {
 		hl_device_reset(hdev, HL_DRV_RESET_DEV_RELEASE);
 	} else {
 		int rc = hdev->asic_funcs->scrub_device_mem(hdev);

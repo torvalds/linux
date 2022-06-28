@@ -225,27 +225,6 @@ int hl_pci_iatu_write(struct hl_device *hdev, u32 addr, u32 data)
 }
 
 /**
- * hl_pci_reset_link_through_bridge() - Reset PCI link.
- * @hdev: Pointer to hl_device structure.
- */
-static void hl_pci_reset_link_through_bridge(struct hl_device *hdev)
-{
-	struct pci_dev *pdev = hdev->pdev;
-	struct pci_dev *parent_port;
-	u16 val;
-
-	parent_port = pdev->bus->self;
-	pci_read_config_word(parent_port, PCI_BRIDGE_CONTROL, &val);
-	val |= PCI_BRIDGE_CTL_BUS_RESET;
-	pci_write_config_word(parent_port, PCI_BRIDGE_CONTROL, val);
-	ssleep(1);
-
-	val &= ~(PCI_BRIDGE_CTL_BUS_RESET);
-	pci_write_config_word(parent_port, PCI_BRIDGE_CONTROL, val);
-	ssleep(3);
-}
-
-/**
  * hl_pci_set_inbound_region() - Configure inbound region
  * @hdev: Pointer to hl_device structure.
  * @region: Inbound region number.
@@ -393,9 +372,6 @@ int hl_pci_init(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct pci_dev *pdev = hdev->pdev;
 	int rc;
-
-	if (hdev->reset_pcilink)
-		hl_pci_reset_link_through_bridge(hdev);
 
 	rc = pci_enable_device_mem(pdev);
 	if (rc) {

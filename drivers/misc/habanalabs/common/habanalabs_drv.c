@@ -280,19 +280,15 @@ out_err:
 
 static void set_driver_behavior_per_device(struct hl_device *hdev)
 {
-	hdev->pldm = 0;
+	hdev->nic_ports_mask = 0;
 	hdev->fw_components = FW_TYPE_ALL_TYPES;
-	hdev->cpu_queues_enable = 1;
-	hdev->heartbeat = 1;
 	hdev->mmu_enable = 1;
-	hdev->sram_scrambler_enable = 1;
-	hdev->dram_scrambler_enable = 1;
-	hdev->bmc_enable = 1;
+	hdev->cpu_queues_enable = 1;
+	hdev->pldm = 0;
 	hdev->hard_reset_on_fw_events = 1;
+	hdev->bmc_enable = 1;
 	hdev->reset_on_preboot_fail = 1;
-	hdev->reset_if_device_not_idle = 1;
-
-	hdev->reset_pcilink = 0;
+	hdev->heartbeat = 1;
 }
 
 static void copy_kernel_module_params_to_device(struct hl_device *hdev)
