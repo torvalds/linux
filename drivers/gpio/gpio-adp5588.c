@@ -18,8 +18,6 @@
 
 #include <linux/platform_data/adp5588.h>
 
-#define DRV_NAME	"adp5588-gpio"
-
 /*
  * Early pre 4.0 Silicon required to delay readout by at least 25ms,
  * since the Event Counter Register updated 25ms after the interrupt
@@ -422,20 +420,20 @@ static int adp5588_gpio_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id adp5588_gpio_id[] = {
-	{DRV_NAME, 0},
+	{ "adp5588-gpio" },
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, adp5588_gpio_id);
 
 static const struct of_device_id adp5588_gpio_of_id[] = {
-	{ .compatible = "adi," DRV_NAME, },
-	{},
+	{ .compatible = "adi,adp5588-gpio" },
+	{}
 };
 MODULE_DEVICE_TABLE(of, adp5588_gpio_of_id);
 
 static struct i2c_driver adp5588_gpio_driver = {
 	.driver = {
-		.name = DRV_NAME,
+		.name = "adp5588-gpio",
 		.of_match_table = adp5588_gpio_of_id,
 	},
 	.probe_new = adp5588_gpio_probe,
