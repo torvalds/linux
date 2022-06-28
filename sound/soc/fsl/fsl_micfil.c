@@ -48,6 +48,7 @@ struct fsl_micfil {
 	char name[32];
 	int irq[MICFIL_IRQ_LINES];
 	enum quality quality;
+	int dc_remover;
 };
 
 struct fsl_micfil_soc_data {
@@ -317,12 +318,25 @@ static const struct snd_soc_dai_ops fsl_micfil_dai_ops = {
 static int fsl_micfil_dai_probe(struct snd_soc_dai *cpu_dai)
 {
 	struct fsl_micfil *micfil = dev_get_drvdata(cpu_dai->dev);
-	int ret;
+	struct device *dev = cpu_dai->dev;
+	unsigned int val = 0;
+	int ret, i;
 
-	micfil->quality = QUALITY_MEDIUM;
+	micfil->quality = QUALITY_VLOW0;
 
-	/* set default gain to max_gain */
-	regmap_write(micfil->regmap, REG_MICFIL_OUT_CTRL, 0x77777777);
+	/* set default gain to 2 */
+	regmap_write(micfil->regmap, REG_MICFIL_OUT_CTRL, 0x22222222);
+
+	/* set DC Remover in bypass mode*/
+	for (i = 0; i < MICFIL_OUTPUT_CHANNELS; i++)
+		val |= MICFIL_DC_BYPASS << MICFIL_DC_CHX_SHIFT(i);
+	ret = regmap_update_bits(micfil->regmap, REG_MICFIL_DC_CTRL,
+				 MICFIL_DC_CTRL_CONFIG, val);
+	if (ret) {
+		dev_err(dev, "failed to set DC Remover mode bits\n");
+		return ret;
+	}
+	micfil->dc_remover = MICFIL_DC_BYPASS;
 
 	snd_soc_dai_init_dma_data(cpu_dai, NULL,
 				  &micfil->dma_params_rx);
