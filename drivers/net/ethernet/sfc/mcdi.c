@@ -99,14 +99,12 @@ int efx_mcdi_init(struct efx_nic *efx)
 	 */
 	rc = efx_mcdi_drv_attach(efx, true, &already_attached);
 	if (rc) {
-		netif_err(efx, probe, efx->net_dev,
-			  "Unable to register driver with MCPU\n");
+		pci_err(efx->pci_dev, "Unable to register driver with MCPU\n");
 		goto fail2;
 	}
 	if (already_attached)
 		/* Not a fatal error */
-		netif_err(efx, probe, efx->net_dev,
-			  "Host already registered with MCPU\n");
+		pci_err(efx->pci_dev, "Host already registered with MCPU\n");
 
 	if (efx->mcdi->fn_flags &
 	    (1 << MC_CMD_DRV_ATTACH_EXT_OUT_FLAG_PRIMARY))
@@ -1447,7 +1445,7 @@ void efx_mcdi_print_fwver(struct efx_nic *efx, char *buf, size_t len)
 	return;
 
 fail:
-	netif_err(efx, probe, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	pci_err(efx->pci_dev, "%s: failed rc=%d\n", __func__, rc);
 	buf[0] = 0;
 }
 
@@ -1471,9 +1469,9 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 	 * care what firmware we get.
 	 */
 	if (rc == -EPERM) {
-		netif_dbg(efx, probe, efx->net_dev,
-			  "%s with fw-variant setting failed EPERM, trying without it\n",
-			  __func__);
+		pci_dbg(efx->pci_dev,
+			"%s with fw-variant setting failed EPERM, trying without it\n",
+			__func__);
 		MCDI_SET_DWORD(inbuf, DRV_ATTACH_IN_FIRMWARE_ID,
 			       MC_CMD_FW_DONT_CARE);
 		rc = efx_mcdi_rpc_quiet(efx, MC_CMD_DRV_ATTACH, inbuf,
@@ -1515,7 +1513,7 @@ static int efx_mcdi_drv_attach(struct efx_nic *efx, bool driver_operating,
 	return 0;
 
 fail:
-	netif_err(efx, probe, efx->net_dev, "%s: failed rc=%d\n", __func__, rc);
+	pci_err(efx->pci_dev, "%s: failed rc=%d\n", __func__, rc);
 	return rc;
 }
 
