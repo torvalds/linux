@@ -12,23 +12,6 @@
 #include <net/dsa.h>
 #include "ksz_common.h"
 
-enum ksz_regs {
-	REG_IND_CTRL_0,
-	REG_IND_DATA_8,
-	REG_IND_DATA_CHECK,
-	REG_IND_DATA_HI,
-	REG_IND_DATA_LO,
-	REG_IND_MIB_CHECK,
-	REG_IND_BYTE,
-	P_FORCE_CTRL,
-	P_LINK_STATUS,
-	P_LOCAL_CTRL,
-	P_NEG_RESTART_CTRL,
-	P_REMOTE_STATUS,
-	P_SPEED_STATUS,
-	S_TAIL_TAG_CTRL,
-};
-
 enum ksz_masks {
 	PORT_802_1P_REMAPPING,
 	SW_TAIL_TAG_ENABLE,
@@ -64,7 +47,6 @@ enum ksz_shifts {
 };
 
 struct ksz8 {
-	const u8 *regs;
 	const u32 *masks;
 	const u8 *shifts;
 	void *priv;

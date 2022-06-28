@@ -47,6 +47,7 @@ struct ksz_chip_data {
 	const struct ksz_mib_names *mib_names;
 	int mib_cnt;
 	u8 reg_mib_cnt;
+	const u8 *regs;
 	int stp_ctrl_reg;
 	int broadcast_ctrl_reg;
 	int multicast_ctrl_reg;
@@ -144,6 +145,23 @@ enum ksz_chip_id {
 	LAN9372_CHIP_ID = 0x00937200,
 	LAN9373_CHIP_ID = 0x00937300,
 	LAN9374_CHIP_ID = 0x00937400,
+};
+
+enum ksz_regs {
+	REG_IND_CTRL_0,
+	REG_IND_DATA_8,
+	REG_IND_DATA_CHECK,
+	REG_IND_DATA_HI,
+	REG_IND_DATA_LO,
+	REG_IND_MIB_CHECK,
+	REG_IND_BYTE,
+	P_FORCE_CTRL,
+	P_LINK_STATUS,
+	P_LOCAL_CTRL,
+	P_NEG_RESTART_CTRL,
+	P_REMOTE_STATUS,
+	P_SPEED_STATUS,
+	S_TAIL_TAG_CTRL,
 };
 
 struct alu_struct {

@@ -26,23 +26,6 @@
 #include "ksz8795_reg.h"
 #include "ksz8.h"
 
-static const u8 ksz8795_regs[] = {
-	[REG_IND_CTRL_0]		= 0x6E,
-	[REG_IND_DATA_8]		= 0x70,
-	[REG_IND_DATA_CHECK]		= 0x72,
-	[REG_IND_DATA_HI]		= 0x71,
-	[REG_IND_DATA_LO]		= 0x75,
-	[REG_IND_MIB_CHECK]		= 0x74,
-	[REG_IND_BYTE]			= 0xA0,
-	[P_FORCE_CTRL]			= 0x0C,
-	[P_LINK_STATUS]			= 0x0E,
-	[P_LOCAL_CTRL]			= 0x07,
-	[P_NEG_RESTART_CTRL]		= 0x0D,
-	[P_REMOTE_STATUS]		= 0x08,
-	[P_SPEED_STATUS]		= 0x09,
-	[S_TAIL_TAG_CTRL]		= 0x0C,
-};
-
 static const u32 ksz8795_masks[] = {
 	[PORT_802_1P_REMAPPING]		= BIT(7),
 	[SW_TAIL_TAG_ENABLE]		= BIT(1),
@@ -75,22 +58,6 @@ static const u8 ksz8795_shifts[] = {
 	[DYNAMIC_MAC_FID]		= 16,
 	[DYNAMIC_MAC_TIMESTAMP]		= 27,
 	[DYNAMIC_MAC_SRC_PORT]		= 24,
-};
-
-static const u8 ksz8863_regs[] = {
-	[REG_IND_CTRL_0]		= 0x79,
-	[REG_IND_DATA_8]		= 0x7B,
-	[REG_IND_DATA_CHECK]		= 0x7B,
-	[REG_IND_DATA_HI]		= 0x7C,
-	[REG_IND_DATA_LO]		= 0x80,
-	[REG_IND_MIB_CHECK]		= 0x80,
-	[P_FORCE_CTRL]			= 0x0C,
-	[P_LINK_STATUS]			= 0x0E,
-	[P_LOCAL_CTRL]			= 0x0C,
-	[P_NEG_RESTART_CTRL]		= 0x0D,
-	[P_REMOTE_STATUS]		= 0x0E,
-	[P_SPEED_STATUS]		= 0x0F,
-	[S_TAIL_TAG_CTRL]		= 0x03,
 };
 
 static const u32 ksz8863_masks[] = {
@@ -145,10 +112,11 @@ static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 
 static int ksz8_ind_write8(struct ksz_device *dev, u8 table, u16 addr, u8 data)
 {
-	struct ksz8 *ksz8 = dev->priv;
-	const u8 *regs = ksz8->regs;
+	const u8 *regs;
 	u16 ctrl_addr;
 	int ret = 0;
+
+	regs = dev->info->regs;
 
 	mutex_lock(&dev->alu_mutex);
 
@@ -224,7 +192,7 @@ void ksz8_r_mib_cnt(struct ksz_device *dev, int port, u16 addr, u64 *cnt)
 	int loop;
 
 	masks = ksz8->masks;
-	regs = ksz8->regs;
+	regs = dev->info->regs;
 
 	ctrl_addr = addr + dev->info->reg_mib_cnt * port;
 	ctrl_addr |= IND_ACC_TABLE(TABLE_MIB | TABLE_READ);
@@ -261,7 +229,7 @@ static void ksz8795_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 	int loop;
 
 	masks = ksz8->masks;
-	regs = ksz8->regs;
+	regs = dev->info->regs;
 
 	addr -= dev->info->reg_mib_cnt;
 	ctrl_addr = (KSZ8795_MIB_TOTAL_RX_1 - KSZ8795_MIB_TOTAL_RX_0) * port;
@@ -305,12 +273,13 @@ static void ksz8795_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 static void ksz8863_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 			      u64 *dropped, u64 *cnt)
 {
-	struct ksz8 *ksz8 = dev->priv;
-	const u8 *regs = ksz8->regs;
 	u32 *last = (u32 *)dropped;
+	const u8 *regs;
 	u16 ctrl_addr;
 	u32 data;
 	u32 cur;
+
+	regs = dev->info->regs;
 
 	addr -= dev->info->reg_mib_cnt;
 	ctrl_addr = addr ? KSZ8863_MIB_PACKET_DROPPED_TX_0 :
@@ -392,9 +361,10 @@ void ksz8_port_init_cnt(struct ksz_device *dev, int port)
 
 static void ksz8_r_table(struct ksz_device *dev, int table, u16 addr, u64 *data)
 {
-	struct ksz8 *ksz8 = dev->priv;
-	const u8 *regs = ksz8->regs;
+	const u8 *regs;
 	u16 ctrl_addr;
+
+	regs = dev->info->regs;
 
 	ctrl_addr = IND_ACC_TABLE(table | TABLE_READ) | addr;
 
@@ -406,9 +376,10 @@ static void ksz8_r_table(struct ksz_device *dev, int table, u16 addr, u64 *data)
 
 static void ksz8_w_table(struct ksz_device *dev, int table, u16 addr, u64 data)
 {
-	struct ksz8 *ksz8 = dev->priv;
-	const u8 *regs = ksz8->regs;
+	const u8 *regs;
 	u16 ctrl_addr;
+
+	regs = dev->info->regs;
 
 	ctrl_addr = IND_ACC_TABLE(table) | addr;
 
@@ -426,7 +397,7 @@ static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 	const u8 *regs;
 
 	masks = ksz8->masks;
-	regs = ksz8->regs;
+	regs = dev->info->regs;
 
 	do {
 		ksz_read8(dev, regs[REG_IND_DATA_CHECK], data);
@@ -461,7 +432,7 @@ int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 
 	shifts = ksz8->shifts;
 	masks = ksz8->masks;
-	regs = ksz8->regs;
+	regs = dev->info->regs;
 
 	ctrl_addr = IND_ACC_TABLE(TABLE_DYNAMIC_MAC | TABLE_READ) | addr;
 
@@ -664,13 +635,14 @@ static void ksz8_w_vlan_table(struct ksz_device *dev, u16 vid, u16 vlan)
 
 void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	u8 restart, speed, ctrl, link;
-	const u8 *regs = ksz8->regs;
 	int processed = true;
+	const u8 *regs;
 	u8 val1, val2;
 	u16 data = 0;
 	u8 p = phy;
+
+	regs = dev->info->regs;
 
 	switch (reg) {
 	case MII_BMCR:
@@ -787,10 +759,11 @@ void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 
 void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	u8 restart, speed, ctrl, data;
-	const u8 *regs = ksz8->regs;
+	const u8 *regs;
 	u8 p = phy;
+
+	regs = dev->info->regs;
 
 	switch (reg) {
 	case MII_BMCR:
@@ -1302,13 +1275,14 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
 	struct ksz8 *ksz8 = dev->priv;
-	const u8 *regs = ksz8->regs;
 	struct ksz_port *p;
 	const u32 *masks;
+	const u8 *regs;
 	u8 remote;
 	int i;
 
 	masks = ksz8->masks;
+	regs = dev->info->regs;
 
 	/* Switch marks the maximum frame with extra byte as oversize. */
 	ksz_cfg(dev, REG_SW_CTRL_2, SW_LEGAL_PACKET_DISABLE, true);
@@ -1448,11 +1422,9 @@ int ksz8_switch_init(struct ksz_device *dev)
 	dev->port_mask = (BIT(dev->phy_port_cnt) - 1) | dev->info->cpu_ports;
 
 	if (ksz_is_ksz88x3(dev)) {
-		ksz8->regs = ksz8863_regs;
 		ksz8->masks = ksz8863_masks;
 		ksz8->shifts = ksz8863_shifts;
 	} else {
-		ksz8->regs = ksz8795_regs;
 		ksz8->masks = ksz8795_masks;
 		ksz8->shifts = ksz8795_shifts;
 	}
