@@ -85,16 +85,8 @@
 		};
 	};
 
-	//tdm
-	fragment@4 {
-		target-path = "/soc/tdm@10090000";
-		__overlay__ {
-			status = "okay";
-		};
-	};
-
 	//i2c0
-  	fragment@5 {
+  	fragment@4 {
 		target-path = "/soc/i2c@10030000";
 		__overlay__ {
 			status = "okay";
@@ -102,7 +94,7 @@
 	};
 
 	//i2c1
-  	fragment@6 {
+  	fragment@5 {
 		target-path = "/soc/i2c@10040000";
 		__overlay__ {
 			status = "okay";
@@ -110,7 +102,7 @@
 	};
 
 	//i2c3
-  	fragment@7 {
+  	fragment@6 {
 		target-path = "/soc/i2c@12030000";
 		__overlay__ {
 			status = "okay";
