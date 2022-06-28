@@ -812,14 +812,13 @@ int blk_register_queue(struct gendisk *disk)
 
 	mutex_lock(&q->sysfs_dir_lock);
 
-	ret = kobject_add(&q->kobj, kobject_get(&dev->kobj), "%s", "queue");
+	ret = kobject_add(&q->kobj, &dev->kobj, "%s", "queue");
 	if (ret < 0)
 		goto unlock;
 
 	ret = sysfs_create_group(&q->kobj, &queue_attr_group);
 	if (ret) {
 		kobject_del(&q->kobj);
-		kobject_put(&dev->kobj);
 		goto unlock;
 	}
 
@@ -883,7 +882,6 @@ put_dev:
 	mutex_unlock(&q->sysfs_lock);
 	mutex_unlock(&q->sysfs_dir_lock);
 	kobject_del(&q->kobj);
-	kobject_put(&dev->kobj);
 
 	return ret;
 }
@@ -941,6 +939,4 @@ void blk_unregister_queue(struct gendisk *disk)
 	q->sched_debugfs_dir = NULL;
 	q->rqos_debugfs_dir = NULL;
 	mutex_unlock(&q->debugfs_mutex);
-
-	kobject_put(&disk_to_dev(disk)->kobj);
 }
