@@ -47,7 +47,7 @@ struct ksz_chip_data {
 	const struct ksz_mib_names *mib_names;
 	int mib_cnt;
 	u8 reg_mib_cnt;
-	const u8 *regs;
+	const u16 *regs;
 	const u32 *masks;
 	const u8 *shifts;
 	int stp_ctrl_reg;

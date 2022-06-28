@@ -45,7 +45,7 @@ static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 
 static int ksz8_ind_write8(struct ksz_device *dev, u8 table, u16 addr, u8 data)
 {
-	const u8 *regs;
+	const u16 *regs;
 	u16 ctrl_addr;
 	int ret = 0;
 
@@ -117,7 +117,7 @@ static void ksz8795_set_prio_queue(struct ksz_device *dev, int port, int queue)
 void ksz8_r_mib_cnt(struct ksz_device *dev, int port, u16 addr, u64 *cnt)
 {
 	const u32 *masks;
-	const u8 *regs;
+	const u16 *regs;
 	u16 ctrl_addr;
 	u32 data;
 	u8 check;
@@ -153,7 +153,7 @@ static void ksz8795_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 			      u64 *dropped, u64 *cnt)
 {
 	const u32 *masks;
-	const u8 *regs;
+	const u16 *regs;
 	u16 ctrl_addr;
 	u32 data;
 	u8 check;
@@ -205,7 +205,7 @@ static void ksz8863_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 			      u64 *dropped, u64 *cnt)
 {
 	u32 *last = (u32 *)dropped;
-	const u8 *regs;
+	const u16 *regs;
 	u16 ctrl_addr;
 	u32 data;
 	u32 cur;
@@ -292,7 +292,7 @@ void ksz8_port_init_cnt(struct ksz_device *dev, int port)
 
 static void ksz8_r_table(struct ksz_device *dev, int table, u16 addr, u64 *data)
 {
-	const u8 *regs;
+	const u16 *regs;
 	u16 ctrl_addr;
 
 	regs = dev->info->regs;
@@ -307,7 +307,7 @@ static void ksz8_r_table(struct ksz_device *dev, int table, u16 addr, u64 *data)
 
 static void ksz8_w_table(struct ksz_device *dev, int table, u16 addr, u64 data)
 {
-	const u8 *regs;
+	const u16 *regs;
 	u16 ctrl_addr;
 
 	regs = dev->info->regs;
@@ -324,7 +324,7 @@ static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 {
 	int timeout = 100;
 	const u32 *masks;
-	const u8 *regs;
+	const u16 *regs;
 
 	masks = dev->info->masks;
 	regs = dev->info->regs;
@@ -354,7 +354,7 @@ int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 	u32 data_hi, data_lo;
 	const u8 *shifts;
 	const u32 *masks;
-	const u8 *regs;
+	const u16 *regs;
 	u16 ctrl_addr;
 	u8 data;
 	int rc;
@@ -561,7 +561,7 @@ void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 {
 	u8 restart, speed, ctrl, link;
 	int processed = true;
-	const u8 *regs;
+	const u16 *regs;
 	u8 val1, val2;
 	u16 data = 0;
 	u8 p = phy;
@@ -684,7 +684,7 @@ void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 {
 	u8 restart, speed, ctrl, data;
-	const u8 *regs;
+	const u16 *regs;
 	u8 p = phy;
 
 	regs = dev->info->regs;
@@ -1199,7 +1199,7 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 	struct ksz_device *dev = ds->priv;
 	struct ksz_port *p;
 	const u32 *masks;
-	const u8 *regs;
+	const u16 *regs;
 	u8 remote;
 	int i;
 
