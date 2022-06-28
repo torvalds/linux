@@ -239,6 +239,9 @@ struct switchdev_notifier_info {
 	const void *ctx;
 };
 
+/* Remember to update br_switchdev_fdb_populate() when adding
+ * new members to this structure
+ */
 struct switchdev_notifier_fdb_info {
 	struct switchdev_notifier_info info; /* must be first */
 	const unsigned char *addr;
