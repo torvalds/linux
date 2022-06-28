@@ -6,7 +6,6 @@
  * Copyright 2009-2010 Analog Devices Inc.
  */
 
-#include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/init.h>
@@ -14,7 +13,8 @@
 #include <linux/gpio/driver.h>
 #include <linux/interrupt.h>
 #include <linux/irq.h>
-#include <linux/of_device.h>
+#include <linux/mod_devicetable.h>
+#include <linux/module.h>
 
 #include <linux/platform_data/adp5588.h>
 
@@ -427,18 +427,16 @@ static const struct i2c_device_id adp5588_gpio_id[] = {
 };
 MODULE_DEVICE_TABLE(i2c, adp5588_gpio_id);
 
-#ifdef CONFIG_OF
 static const struct of_device_id adp5588_gpio_of_id[] = {
 	{ .compatible = "adi," DRV_NAME, },
 	{},
 };
 MODULE_DEVICE_TABLE(of, adp5588_gpio_of_id);
-#endif
 
 static struct i2c_driver adp5588_gpio_driver = {
 	.driver = {
 		.name = DRV_NAME,
-		.of_match_table = of_match_ptr(adp5588_gpio_of_id),
+		.of_match_table = adp5588_gpio_of_id,
 	},
 	.probe_new = adp5588_gpio_probe,
 	.remove = adp5588_gpio_remove,
