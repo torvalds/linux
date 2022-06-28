@@ -1617,10 +1617,10 @@ static int sc2235_enum_frame_interval(
 	tpf.numerator = 1;
 	tpf.denominator = sc2235_framerates[fie->index];
 
-	ret = sc2235_try_frame_interval(sensor, &tpf,
-					fie->width, fie->height);
-	if (ret < 0)
-		return -EINVAL;
+	// ret = sc2235_try_frame_interval(sensor, &tpf,
+	//				fie->width, fie->height);
+	// if (ret < 0)
+	//	return -EINVAL;
 
 	fie->interval = tpf;
 	return 0;
