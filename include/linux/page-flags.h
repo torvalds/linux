@@ -208,8 +208,7 @@ enum pageflags {
 DECLARE_STATIC_KEY_FALSE(hugetlb_optimize_vmemmap_key);
 
 /*
- * If the feature of optimizing vmemmap pages associated with each HugeTLB
- * page is enabled, the head vmemmap page frame is reused and all of the tail
+ * If HVO is enabled, the head vmemmap page frame is reused and all of the tail
  * vmemmap addresses map to the head vmemmap page frame (furture details can
  * refer to the figure at the head of the mm/hugetlb_vmemmap.c).  In other
  * words, there are more than one page struct with PG_head associated with each
