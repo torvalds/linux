@@ -59,6 +59,7 @@
 #define S3C64XX_SPI_MODE_BUS_TSZ_HALFWORD	(1<<17)
 #define S3C64XX_SPI_MODE_BUS_TSZ_WORD		(2<<17)
 #define S3C64XX_SPI_MODE_BUS_TSZ_MASK		(3<<17)
+#define S3C64XX_SPI_MODE_SELF_LOOPBACK		(1<<3)
 #define S3C64XX_SPI_MODE_RXDMA_ON		(1<<2)
 #define S3C64XX_SPI_MODE_TXDMA_ON		(1<<1)
 #define S3C64XX_SPI_MODE_4BURST			(1<<0)
@@ -135,6 +136,7 @@ struct s3c64xx_spi_dma_data {
  * @clk_from_cmu: True, if the controller does not include a clock mux and
  *	prescaler unit.
  * @clk_ioclk: True if clock is present on this device
+ * @has_loopback: True if loopback mode can be supported
  *
  * The Samsung s3c64xx SPI controller are used on various Samsung SoC's but
  * differ in some aspects such as the size of the fifo and spi bus clock
@@ -149,6 +151,7 @@ struct s3c64xx_spi_port_config {
 	bool	high_speed;
 	bool	clk_from_cmu;
 	bool	clk_ioclk;
+	bool	has_loopback;
 };
 
 /**
@@ -659,6 +662,9 @@ static int s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 		break;
 	}
 
+	if ((sdd->cur_mode & SPI_LOOP) && sdd->port_conf->has_loopback)
+		val |= S3C64XX_SPI_MODE_SELF_LOOPBACK;
+
 	writel(val, regs + S3C64XX_SPI_MODE_CFG);
 
 	if (sdd->port_conf->clk_from_cmu) {
@@ -1148,6 +1154,8 @@ static int s3c64xx_spi_probe(struct platform_device *pdev)
 					SPI_BPW_MASK(8);
 	/* the spi->mode bits understood by this driver: */
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH;
+	if (sdd->port_conf->has_loopback)
+		master->mode_bits |= SPI_LOOP;
 	master->auto_runtime_pm = true;
 	if (!is_polling(sdd))
 		master->can_dma = s3c64xx_spi_can_dma;
