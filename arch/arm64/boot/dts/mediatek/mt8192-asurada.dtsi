@@ -241,6 +241,23 @@
 	mediatek,mic-type-2 = <2>; /* DMIC */
 };
 
+&nor_flash {
+	status = "okay";
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&nor_flash_pins>;
+	assigned-clocks = <&topckgen CLK_TOP_SFLASH_SEL>;
+	assigned-clock-parents = <&topckgen CLK_TOP_UNIVPLL_D6_D8>;
+
+	flash@0 {
+		compatible = "winbond,w25q64jwm", "jedec,spi-nor";
+		reg = <0>;
+		spi-max-frequency = <52000000>;
+		spi-rx-bus-width = <2>;
+		spi-tx-bus-width = <2>;
+	};
+};
+
 &pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pcie_pins>;
@@ -655,6 +672,29 @@
 			input-enable;
 			drive-strength = <8>;
 			bias-pull-down = <MTK_PUPD_SET_R1R0_10>;
+		};
+	};
+
+	nor_flash_pins: nor-flash-default-pins {
+		pins-cs-io1 {
+			pinmux = <PINMUX_GPIO24__FUNC_SPINOR_CS>,
+				 <PINMUX_GPIO28__FUNC_SPINOR_IO1>;
+			input-enable;
+			bias-pull-up;
+			drive-strength = <10>;
+		};
+
+		pins-io0 {
+			pinmux = <PINMUX_GPIO27__FUNC_SPINOR_IO0>;
+			bias-pull-up;
+			drive-strength = <10>;
+		};
+
+		pins-clk {
+			pinmux = <PINMUX_GPIO25__FUNC_SPINOR_CK>;
+			input-enable;
+			bias-pull-up;
+			drive-strength = <10>;
 		};
 	};
 
