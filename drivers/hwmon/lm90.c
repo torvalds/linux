@@ -693,6 +693,7 @@ struct lm90_data {
 	struct hwmon_chip_info chip;
 	struct mutex update_lock;
 	struct delayed_work alert_work;
+	struct work_struct report_work;
 	bool valid;		/* true if register values are valid */
 	bool alarms_valid;	/* true if status register values are valid */
 	unsigned long last_updated; /* in jiffies */
@@ -1043,12 +1044,17 @@ static int lm90_update_limits(struct device *dev)
 	return 0;
 }
 
-static void lm90_report_alarms(struct device *dev, struct lm90_data *data)
+static void lm90_report_alarms(struct work_struct *work)
 {
-	u16 cleared_alarms = data->reported_alarms & ~data->current_alarms;
-	u16 new_alarms = data->current_alarms & ~data->reported_alarms;
+	struct lm90_data *data = container_of(work, struct lm90_data, report_work);
+	u16 cleared_alarms, new_alarms, current_alarms;
 	struct device *hwmon_dev = data->hwmon_dev;
+	struct device *dev = &data->client->dev;
 	int st, st2;
+
+	current_alarms = data->current_alarms;
+	cleared_alarms = data->reported_alarms & ~current_alarms;
+	new_alarms = current_alarms & ~data->reported_alarms;
 
 	if (!cleared_alarms && !new_alarms)
 		return;
@@ -1101,7 +1107,7 @@ static void lm90_report_alarms(struct device *dev, struct lm90_data *data)
 	if (st2 & MAX6696_STATUS2_R2OT2)
 		hwmon_notify_event(hwmon_dev, hwmon_temp, hwmon_temp_emergency_alarm, 2);
 
-	data->reported_alarms = data->current_alarms;
+	data->reported_alarms = current_alarms;
 }
 
 static int lm90_update_alarms_locked(struct lm90_data *data, bool force)
@@ -1143,7 +1149,7 @@ static int lm90_update_alarms_locked(struct lm90_data *data, bool force)
 			(data->config & 0x80);
 
 		if (force || check_enable)
-			lm90_report_alarms(&client->dev, data);
+			schedule_work(&data->report_work);
 
 		/*
 		 * Re-enable ALERT# output if it was originally enabled, relevant
@@ -2552,6 +2558,7 @@ static void lm90_restore_conf(void *_data)
 	struct i2c_client *client = data->client;
 
 	cancel_delayed_work_sync(&data->alert_work);
+	cancel_work_sync(&data->report_work);
 
 	/* Restore initial configuration */
 	if (data->flags & LM90_HAVE_CONVRATE)
@@ -2769,6 +2776,7 @@ static int lm90_probe(struct i2c_client *client)
 	i2c_set_clientdata(client, data);
 	mutex_init(&data->update_lock);
 	INIT_DELAYED_WORK(&data->alert_work, lm90_alert_work);
+	INIT_WORK(&data->report_work, lm90_report_alarms);
 
 	/* Set the device type */
 	if (client->dev.of_node)
