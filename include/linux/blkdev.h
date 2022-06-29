@@ -171,6 +171,12 @@ struct gendisk {
 	struct badblocks *bb;
 	struct lockdep_map lockdep_map;
 	u64 diskseq;
+
+	/*
+	 * Independent sector access ranges. This is always NULL for
+	 * devices that do not have multiple independent access ranges.
+	 */
+	struct blk_independent_access_ranges *ia_ranges;
 };
 
 static inline bool disk_live(struct gendisk *disk)
@@ -538,12 +544,6 @@ struct request_queue {
 	struct mutex		debugfs_mutex;
 
 	bool			mq_sysfs_init_done;
-
-	/*
-	 * Independent sector access ranges. This is always NULL for
-	 * devices that do not have multiple independent access ranges.
-	 */
-	struct blk_independent_access_ranges *ia_ranges;
 
 	/**
 	 * @srcu: Sleepable RCU. Use as lock when type of the request queue

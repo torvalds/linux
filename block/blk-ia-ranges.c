@@ -106,7 +106,7 @@ static struct kobj_type blk_ia_ranges_ktype = {
  *
  * Register with sysfs a set of independent access ranges for @disk.
  * If @new_iars is not NULL, this set of ranges is registered and the old set
- * specified by q->ia_ranges is unregistered. Otherwise, q->ia_ranges is
+ * specified by disk->ia_ranges is unregistered. Otherwise, disk->ia_ranges is
  * registered if it is not already.
  */
 int disk_register_independent_access_ranges(struct gendisk *disk,
@@ -121,12 +121,12 @@ int disk_register_independent_access_ranges(struct gendisk *disk,
 
 	/* If a new range set is specified, unregister the old one */
 	if (new_iars) {
-		if (q->ia_ranges)
+		if (disk->ia_ranges)
 			disk_unregister_independent_access_ranges(disk);
-		q->ia_ranges = new_iars;
+		disk->ia_ranges = new_iars;
 	}
 
-	iars = q->ia_ranges;
+	iars = disk->ia_ranges;
 	if (!iars)
 		return 0;
 
@@ -138,7 +138,7 @@ int disk_register_independent_access_ranges(struct gendisk *disk,
 	ret = kobject_init_and_add(&iars->kobj, &blk_ia_ranges_ktype,
 				   &q->kobj, "%s", "independent_access_ranges");
 	if (ret) {
-		q->ia_ranges = NULL;
+		disk->ia_ranges = NULL;
 		kobject_put(&iars->kobj);
 		return ret;
 	}
@@ -164,7 +164,7 @@ int disk_register_independent_access_ranges(struct gendisk *disk,
 void disk_unregister_independent_access_ranges(struct gendisk *disk)
 {
 	struct request_queue *q = disk->queue;
-	struct blk_independent_access_ranges *iars = q->ia_ranges;
+	struct blk_independent_access_ranges *iars = disk->ia_ranges;
 	int i;
 
 	lockdep_assert_held(&q->sysfs_dir_lock);
@@ -182,7 +182,7 @@ void disk_unregister_independent_access_ranges(struct gendisk *disk)
 		kfree(iars);
 	}
 
-	q->ia_ranges = NULL;
+	disk->ia_ranges = NULL;
 }
 
 static struct blk_independent_access_range *
@@ -242,7 +242,7 @@ static bool disk_check_ia_ranges(struct gendisk *disk,
 static bool disk_ia_ranges_changed(struct gendisk *disk,
 				   struct blk_independent_access_ranges *new)
 {
-	struct blk_independent_access_ranges *old = disk->queue->ia_ranges;
+	struct blk_independent_access_ranges *old = disk->ia_ranges;
 	int i;
 
 	if (!old)
@@ -331,7 +331,7 @@ reg:
 	if (blk_queue_registered(q)) {
 		disk_register_independent_access_ranges(disk, iars);
 	} else {
-		swap(q->ia_ranges, iars);
+		swap(disk->ia_ranges, iars);
 		kfree(iars);
 	}
 
