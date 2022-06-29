@@ -18,7 +18,7 @@ struct netfs_io_request *netfs_alloc_request(struct address_space *mapping,
 {
 	static atomic_t debug_ids;
 	struct inode *inode = file ? file_inode(file) : mapping->host;
-	struct netfs_i_context *ctx = netfs_i_context(inode);
+	struct netfs_inode *ctx = netfs_inode(inode);
 	struct netfs_io_request *rreq;
 	int ret;
 

@@ -56,6 +56,9 @@ properties:
       - const: core
       - const: axi
 
+  interrupts:
+    maxItems: 1
+
   marvell,xenon-sdhc-id:
     $ref: /schemas/types.yaml#/definitions/uint32
     minimum: 0

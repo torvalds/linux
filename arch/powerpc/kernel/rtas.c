@@ -993,8 +993,8 @@ int rtas_call_reentrant(int token, int nargs, int nret, int *outputs, ...)
  *
  * Return: A pointer to the specified errorlog or NULL if not found.
  */
-struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
-					      uint16_t section_id)
+noinstr struct pseries_errorlog *get_pseries_errorlog(struct rtas_error_log *log,
+						      uint16_t section_id)
 {
 	struct rtas_ext_event_log_v6 *ext_log =
 		(struct rtas_ext_event_log_v6 *)log->buffer;

@@ -28,7 +28,7 @@ void ceph_fscache_invalidate(struct inode *inode, bool dio_write);
 
 static inline struct fscache_cookie *ceph_fscache_cookie(struct ceph_inode_info *ci)
 {
-	return netfs_i_cookie(&ci->vfs_inode);
+	return netfs_i_cookie(&ci->netfs.inode);
 }
 
 static inline void ceph_fscache_resize(struct inode *inode, loff_t to)

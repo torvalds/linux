@@ -140,7 +140,7 @@ static void v9fs_write_to_cache_done(void *priv, ssize_t transferred_or_error,
 	    transferred_or_error != -ENOBUFS) {
 		version = cpu_to_le32(v9inode->qid.version);
 		fscache_invalidate(v9fs_inode_cookie(v9inode), &version,
-				   i_size_read(&v9inode->vfs_inode), 0);
+				   i_size_read(&v9inode->netfs.inode), 0);
 	}
 }
 

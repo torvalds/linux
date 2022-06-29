@@ -955,35 +955,21 @@ static int rtl8365mb_ext_config_forcemode(struct realtek_priv *priv, int port,
 	return 0;
 }
 
-static bool rtl8365mb_phy_mode_supported(struct dsa_switch *ds, int port,
-					 phy_interface_t interface)
-{
-	int ext_int;
-
-	ext_int = rtl8365mb_extint_port_map[port];
-
-	if (ext_int < 0 &&
-	    (interface == PHY_INTERFACE_MODE_NA ||
-	     interface == PHY_INTERFACE_MODE_INTERNAL ||
-	     interface == PHY_INTERFACE_MODE_GMII))
-		/* Internal PHY */
-		return true;
-	else if ((ext_int >= 1) &&
-		 phy_interface_mode_is_rgmii(interface))
-		/* Extension MAC */
-		return true;
-
-	return false;
-}
-
 static void rtl8365mb_phylink_get_caps(struct dsa_switch *ds, int port,
 				       struct phylink_config *config)
 {
-	if (dsa_is_user_port(ds, port))
+	if (dsa_is_user_port(ds, port)) {
 		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
 			  config->supported_interfaces);
-	else if (dsa_is_cpu_port(ds, port))
+
+		/* GMII is the default interface mode for phylib, so
+		 * we have to support it for ports with integrated PHY.
+		 */
+		__set_bit(PHY_INTERFACE_MODE_GMII,
+			  config->supported_interfaces);
+	} else if (dsa_is_cpu_port(ds, port)) {
 		phy_interface_set_rgmii(config->supported_interfaces);
+	}
 
 	config->mac_capabilities = MAC_SYM_PAUSE | MAC_ASYM_PAUSE |
 				   MAC_10 | MAC_100 | MAC_1000FD;
@@ -995,12 +981,6 @@ static void rtl8365mb_phylink_mac_config(struct dsa_switch *ds, int port,
 {
 	struct realtek_priv *priv = ds->priv;
 	int ret;
-
-	if (!rtl8365mb_phy_mode_supported(ds, port, state->interface)) {
-		dev_err(priv->dev, "phy mode %s is unsupported on port %d\n",
-			phy_modes(state->interface), port);
-		return;
-	}
 
 	if (mode != MLO_AN_PHY && mode != MLO_AN_FIXED) {
 		dev_err(priv->dev,
