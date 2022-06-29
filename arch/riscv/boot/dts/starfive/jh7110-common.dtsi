@@ -441,6 +441,8 @@
 };
 
 &spdif0 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&spdif0_pins>;
 	status = "disabled";
 };
 
@@ -483,10 +485,14 @@
 };
 
 &spdif_transmitter {
+	compatible = "linux,spdif-dit";
+	#sound-dai-cells = <0>;
 	status = "disabled";
 };
 
 &spdif_receiver {
+	compatible = "linux,spdif-dir";
+	#sound-dai-cells = <0>;
 	status = "disabled";
 };
 
