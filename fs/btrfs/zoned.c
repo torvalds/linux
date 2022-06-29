@@ -1889,7 +1889,6 @@ static int do_zone_finish(struct btrfs_block_group *block_group, bool fully_writ
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct map_lookup *map;
-	bool need_zone_finish;
 	int ret = 0;
 	int i;
 
@@ -1946,12 +1945,6 @@ static int do_zone_finish(struct btrfs_block_group *block_group, bool fully_writ
 		}
 	}
 
-	/*
-	 * The block group is not fully allocated, so not fully written yet. We
-	 * need to send ZONE_FINISH command to free up an active zone.
-	 */
-	need_zone_finish = !btrfs_zoned_bg_is_full(block_group);
-
 	block_group->zone_is_active = 0;
 	block_group->alloc_offset = block_group->zone_capacity;
 	block_group->free_space_ctl->free_space = 0;
@@ -1967,15 +1960,13 @@ static int do_zone_finish(struct btrfs_block_group *block_group, bool fully_writ
 		if (device->zone_info->max_active_zones == 0)
 			continue;
 
-		if (need_zone_finish) {
-			ret = blkdev_zone_mgmt(device->bdev, REQ_OP_ZONE_FINISH,
-					       physical >> SECTOR_SHIFT,
-					       device->zone_info->zone_size >> SECTOR_SHIFT,
-					       GFP_NOFS);
+		ret = blkdev_zone_mgmt(device->bdev, REQ_OP_ZONE_FINISH,
+				       physical >> SECTOR_SHIFT,
+				       device->zone_info->zone_size >> SECTOR_SHIFT,
+				       GFP_NOFS);
 
-			if (ret)
-				return ret;
-		}
+		if (ret)
+			return ret;
 
 		btrfs_dev_clear_active_zone(device, physical);
 	}
