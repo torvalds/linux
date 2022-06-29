@@ -248,10 +248,13 @@ static void force_shm_swapin_readahead(struct vm_area_struct *vma,
 
 		if (!xa_is_value(page))
 			continue;
+		swap = radix_to_swp_entry(page);
+		/* There might be swapin error entries in shmem mapping. */
+		if (non_swap_entry(swap))
+			continue;
 		xas_pause(&xas);
 		rcu_read_unlock();
 
-		swap = radix_to_swp_entry(page);
 		page = read_swap_cache_async(swap, GFP_HIGHUSER_MOVABLE,
 					     NULL, 0, false, &splug);
 		if (page)
@@ -624,11 +627,14 @@ static int madvise_free_pte_range(pmd_t *pmd, unsigned long addr,
 			swp_entry_t entry;
 
 			entry = pte_to_swp_entry(ptent);
-			if (non_swap_entry(entry))
-				continue;
-			nr_swap--;
-			free_swap_and_cache(entry);
-			pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+			if (!non_swap_entry(entry)) {
+				nr_swap--;
+				free_swap_and_cache(entry);
+				pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+			} else if (is_hwpoison_entry(entry) ||
+				   is_swapin_error_entry(entry)) {
+				pte_clear_not_present_full(mm, addr, pte, tlb->fullmm);
+			}
 			continue;
 		}
 

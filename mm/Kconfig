@@ -270,6 +270,19 @@ config SLAB_FREELIST_HARDENED
 	  sanity-checking than others. This option is most effective with
 	  CONFIG_SLUB.
 
+config SLUB_STATS
+	default n
+	bool "Enable SLUB performance statistics"
+	depends on SLUB && SYSFS
+	help
+	  SLUB statistics are useful to debug SLUBs allocation behavior in
+	  order find ways to optimize the allocator. This should never be
+	  enabled for production use since keeping statistics slows down
+	  the allocator by a few percentage points. The slabinfo command
+	  supports the determination of the most active slabs to figure
+	  out which slabs are relevant to a particular load.
+	  Try running: slabinfo -DA
+
 config SLUB_CPU_PARTIAL
 	default y
 	depends on SLUB && SMP
@@ -306,6 +319,40 @@ config SHUFFLE_PAGE_ALLOCATOR
 	  'page_alloc.shuffle' kernel command line parameter.
 
 	  Say Y if unsure.
+
+config COMPAT_BRK
+	bool "Disable heap randomization"
+	default y
+	help
+	  Randomizing heap placement makes heap exploits harder, but it
+	  also breaks ancient binaries (including anything libc5 based).
+	  This option changes the bootup default to heap randomization
+	  disabled, and can be overridden at runtime by setting
+	  /proc/sys/kernel/randomize_va_space to 2.
+
+	  On non-ancient distros (post-2000 ones) N is usually a safe choice.
+
+config MMAP_ALLOW_UNINITIALIZED
+	bool "Allow mmapped anonymous memory to be uninitialized"
+	depends on EXPERT && !MMU
+	default n
+	help
+	  Normally, and according to the Linux spec, anonymous memory obtained
+	  from mmap() has its contents cleared before it is passed to
+	  userspace.  Enabling this config option allows you to request that
+	  mmap() skip that if it is given an MAP_UNINITIALIZED flag, thus
+	  providing a huge performance boost.  If this option is not enabled,
+	  then the flag will be ignored.
+
+	  This is taken advantage of by uClibc's malloc(), and also by
+	  ELF-FDPIC binfmt's brk and stack allocator.
+
+	  Because of the obvious security issues, this option should only be
+	  enabled on embedded devices where you control what is run in
+	  userspace.  Since that isn't generally a problem on no-MMU systems,
+	  it is normally safe to say Y here.
+
+	  See Documentation/admin-guide/mm/nommu-mmap.rst for more information.
 
 config SELECT_MEMORY_MODEL
 	def_bool y
@@ -963,6 +1010,15 @@ config ARCH_USES_HIGH_VMA_FLAGS
 	bool
 config ARCH_HAS_PKEYS
 	bool
+
+config VM_EVENT_COUNTERS
+	default y
+	bool "Enable VM event counters for /proc/vmstat" if EXPERT
+	help
+	  VM event counters are needed for event counts to be shown.
+	  This option allows the disabling of the VM event counters
+	  on EXPERT systems.  /proc/vmstat will only show page counts
+	  if VM event counters are disabled.
 
 config PERCPU_STATS
 	bool "Collect percpu memory statistics"
