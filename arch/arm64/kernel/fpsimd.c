@@ -445,7 +445,6 @@ static void fpsimd_save(void)
 
 	if (system_supports_sme()) {
 		u64 *svcr = last->svcr;
-		*svcr = read_sysreg_s(SYS_SVCR);
 
 		*svcr = read_sysreg_s(SYS_SVCR);
 
