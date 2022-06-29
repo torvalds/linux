@@ -3536,8 +3536,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		}
 
 		bss_elems = ieee802_11_parse_elems(bss_ies->data, bss_ies->len,
-						   false, mgmt->bssid,
-						   assoc_data->bss->bssid);
+						   false, assoc_data->bss);
 		if (!bss_elems) {
 			ret = false;
 			goto out;
@@ -3927,7 +3926,7 @@ static void ieee80211_rx_mgmt_assoc_resp(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	elems = ieee802_11_parse_elems(pos, len - (pos - (u8 *)mgmt), false,
-				       mgmt->bssid, assoc_data->bss->bssid);
+				       assoc_data->bss);
 	if (!elems)
 		goto notify_driver;
 
@@ -4252,8 +4251,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 	if (ifmgd->assoc_data && ifmgd->assoc_data->need_beacon &&
 	    ieee80211_rx_our_beacon(bssid, ifmgd->assoc_data->bss)) {
 		elems = ieee802_11_parse_elems(variable, len - baselen, false,
-					       bssid,
-					       ifmgd->assoc_data->bss->bssid);
+					       ifmgd->assoc_data->bss);
 		if (!elems)
 			return;
 
@@ -4321,7 +4319,7 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_link_data *link,
 		ncrc = crc32_be(0, (void *)&mgmt->u.beacon.beacon_int, 4);
 	elems = ieee802_11_parse_elems_crc(variable, len - baselen,
 					   false, care_about_ies, ncrc,
-					   mgmt->bssid, bssid);
+					   link->u.mgd.bss);
 	if (!elems)
 		return;
 	ncrc = elems->crc;
@@ -4566,7 +4564,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			/* CSA IE cannot be overridden, no need for BSSID */
 			elems = ieee802_11_parse_elems(
 					mgmt->u.action.u.chan_switch.variable,
-					ies_len, true, mgmt->bssid, NULL);
+					ies_len, true, NULL);
 
 			if (elems && !elems->parse_error)
 				ieee80211_sta_process_chanswitch(link,
@@ -4590,7 +4588,7 @@ void ieee80211_sta_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 			 */
 			elems = ieee802_11_parse_elems(
 					mgmt->u.action.u.ext_chan_switch.variable,
-					ies_len, true, mgmt->bssid, NULL);
+					ies_len, true, NULL);
 
 			if (elems && !elems->parse_error) {
 				/* for the handling code pretend it was an IE */
@@ -5445,8 +5443,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	rcu_read_lock();
 
 	ies = rcu_dereference(cbss->ies);
-	elems = ieee802_11_parse_elems(ies->data, ies->len, false,
-				       NULL, NULL);
+	elems = ieee802_11_parse_elems(ies->data, ies->len, false, cbss);
 	if (!elems) {
 		rcu_read_unlock();
 		return -ENOMEM;

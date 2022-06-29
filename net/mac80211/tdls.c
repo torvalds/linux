@@ -1720,7 +1720,7 @@ ieee80211_process_tdls_channel_switch_resp(struct ieee80211_sub_if_data *sdata,
 	}
 
 	elems = ieee802_11_parse_elems(tf->u.chan_switch_resp.variable,
-				       skb->len - baselen, false, NULL, NULL);
+				       skb->len - baselen, false, NULL);
 	if (!elems) {
 		ret = -ENOMEM;
 		goto out;
@@ -1838,7 +1838,7 @@ ieee80211_process_tdls_channel_switch_req(struct ieee80211_sub_if_data *sdata,
 	}
 
 	elems = ieee802_11_parse_elems(tf->u.chan_switch_req.variable,
-				       skb->len - baselen, false, NULL, NULL);
+				       skb->len - baselen, false, NULL);
 	if (!elems)
 		return -ENOMEM;
 

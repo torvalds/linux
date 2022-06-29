@@ -1601,8 +1601,7 @@ void ieee80211_rx_mgmt_probe_beacon(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	elems = ieee802_11_parse_elems(mgmt->u.probe_resp.variable,
-				       len - baselen, false,
-				       mgmt->bssid, NULL);
+				       len - baselen, false, NULL);
 
 	if (elems) {
 		ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, elems);
@@ -1655,7 +1654,7 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 
 			elems = ieee802_11_parse_elems(
 				mgmt->u.action.u.chan_switch.variable,
-				ies_len, true, mgmt->bssid, NULL);
+				ies_len, true, NULL);
 
 			if (elems && !elems->parse_error)
 				ieee80211_rx_mgmt_spectrum_mgmt(sdata, mgmt,

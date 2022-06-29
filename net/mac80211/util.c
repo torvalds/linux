@@ -1425,15 +1425,14 @@ _ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params,
 
 static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 					    struct ieee802_11_elems *elems,
-					    const u8 *transmitter_bssid,
-					    const u8 *bss_bssid,
+					    struct cfg80211_bss *bss,
 					    u8 *nontransmitted_profile)
 {
 	const struct element *elem, *sub;
 	size_t profile_len = 0;
 	bool found = false;
 
-	if (!bss_bssid || !transmitter_bssid)
+	if (!bss || !bss->transmitted_bss)
 		return profile_len;
 
 	for_each_element_id(elem, WLAN_EID_MULTIPLE_BSSID, start, len) {
@@ -1475,11 +1474,11 @@ static size_t ieee802_11_find_bssid_profile(const u8 *start, size_t len,
 				continue;
 			}
 
-			cfg80211_gen_new_bssid(transmitter_bssid,
+			cfg80211_gen_new_bssid(bss->transmitted_bss->bssid,
 					       elem->data[0],
 					       index[2],
 					       new_bssid);
-			if (ether_addr_equal(new_bssid, bss_bssid)) {
+			if (ether_addr_equal(new_bssid, bss->bssid)) {
 				found = true;
 				elems->bssid_index_len = index[1];
 				elems->bssid_index = (void *)&index[2];
@@ -1509,9 +1508,7 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 	if (nontransmitted_profile) {
 		nontransmitted_profile_len =
 			ieee802_11_find_bssid_profile(params->start, params->len,
-						      elems,
-						      params->transmitter_bssid,
-						      params->bss_bssid,
+						      elems, params->bss,
 						      nontransmitted_profile);
 		non_inherit =
 			cfg80211_find_ext_elem(WLAN_EID_EXT_NON_INHERITANCE,
