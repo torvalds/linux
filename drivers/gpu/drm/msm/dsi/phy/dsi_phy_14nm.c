@@ -711,7 +711,7 @@ static int dsi_14nm_pll_restore_state(struct msm_dsi_phy *phy)
 					cached_state->vco_rate, 0);
 	if (ret) {
 		DRM_DEV_ERROR(&pll_14nm->phy->pdev->dev,
-			"restore vco rate failed. ret=%d\n", ret);
+			      "restore vco rate failed. ret=%d\n", ret);
 		return ret;
 	}
 
@@ -837,7 +837,7 @@ static int pll_14nm_register(struct dsi_pll_14nm *pll_14nm, struct clk_hw **prov
 
 	/* DSI Byte clock = VCO_CLK / N1 / 8 */
 	hw = devm_clk_hw_register_fixed_factor(dev, clk_name, parent,
-					  CLK_SET_RATE_PARENT, 1, 8);
+					       CLK_SET_RATE_PARENT, 1, 8);
 	if (IS_ERR(hw))
 		return PTR_ERR(hw);
 
@@ -952,7 +952,8 @@ static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy,
 
 	if (msm_dsi_dphy_timing_calc_v2(timing, clk_req)) {
 		DRM_DEV_ERROR(&phy->pdev->dev,
-			"%s: D-PHY timing calculation failed\n", __func__);
+			      "%s: D-PHY timing calculation failed\n",
+			      __func__);
 		return -EINVAL;
 	}
 
@@ -1005,7 +1006,7 @@ static int dsi_14nm_phy_enable(struct msm_dsi_phy *phy,
 	ret = dsi_14nm_set_usecase(phy);
 	if (ret) {
 		DRM_DEV_ERROR(&phy->pdev->dev, "%s: set pll usecase failed, %d\n",
-			__func__, ret);
+			      __func__, ret);
 		return ret;
 	}
 
