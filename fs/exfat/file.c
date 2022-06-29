@@ -148,8 +148,17 @@ int __exfat_truncate(struct inode *inode, loff_t new_size)
 	if (ei->type == TYPE_FILE)
 		ei->attr |= ATTR_ARCHIVE;
 
-	/* update the directory entry */
-	inode->i_mtime = current_time(inode);
+	/*
+	 * update the directory entry
+	 *
+	 * If the directory entry is updated by mark_inode_dirty(), the
+	 * directory entry will be written after a writeback cycle of
+	 * updating the bitmap/FAT, which may result in clusters being
+	 * freed but referenced by the directory entry in the event of a
+	 * sudden power failure.
+	 * __exfat_write_inode() is called for directory entry, bitmap
+	 * and FAT to be written in a same writeback.
+	 */
 	if (__exfat_write_inode(inode, inode_needs_sync(inode)))
 		return -EIO;
 
@@ -201,12 +210,6 @@ void exfat_truncate(struct inode *inode, loff_t size)
 	err = __exfat_truncate(inode, i_size_read(inode));
 	if (err)
 		goto write_size;
-
-	inode->i_ctime = inode->i_mtime = current_time(inode);
-	if (IS_DIRSYNC(inode))
-		exfat_sync_inode(inode);
-	else
-		mark_inode_dirty(inode);
 
 	inode->i_blocks = round_up(i_size_read(inode), sbi->cluster_size) >>
 				inode->i_blkbits;
@@ -289,6 +292,12 @@ int exfat_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 			attr->ia_valid &= ~ATTR_MODE;
 	}
 
+	if (attr->ia_valid & ATTR_SIZE)
+		inode->i_mtime = inode->i_ctime = current_time(inode);
+
+	setattr_copy(&init_user_ns, inode, attr);
+	exfat_truncate_atime(&inode->i_atime);
+
 	if (attr->ia_valid & ATTR_SIZE) {
 		error = exfat_block_truncate_page(inode, attr->ia_size);
 		if (error)
@@ -296,13 +305,15 @@ int exfat_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 
 		down_write(&EXFAT_I(inode)->truncate_lock);
 		truncate_setsize(inode, attr->ia_size);
+
+		/*
+		 * __exfat_write_inode() is called from exfat_truncate(), inode
+		 * is already written by it, so mark_inode_dirty() is unneeded.
+		 */
 		exfat_truncate(inode, attr->ia_size);
 		up_write(&EXFAT_I(inode)->truncate_lock);
-	}
-
-	setattr_copy(&init_user_ns, inode, attr);
-	exfat_truncate_atime(&inode->i_atime);
-	mark_inode_dirty(inode);
+	} else
+		mark_inode_dirty(inode);
 
 out:
 	return error;
