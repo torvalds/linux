@@ -773,7 +773,8 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 						ASPEED_MCTP_RX_BUF_SIZE,
 						rx->buffer_count -
 							residual_cmds);
-			priv->rx_warmup = false;
+			if (hdr)
+				priv->rx_warmup = false;
 		}
 
 		if (priv->rx_runaway_wa.packet_counter > priv->rx_packet_count &&
