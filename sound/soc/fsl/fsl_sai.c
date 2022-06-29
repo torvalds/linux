@@ -864,8 +864,9 @@ static struct snd_soc_dai_driver fsl_sai_dai_template = {
 };
 
 static const struct snd_soc_component_driver fsl_component = {
-	.name           = "fsl-sai",
-	.resume         = fsl_sai_dai_resume,
+	.name			= "fsl-sai",
+	.resume			= fsl_sai_dai_resume,
+	.legacy_dai_naming	= 1,
 };
 
 static struct reg_default fsl_sai_reg_defaults_ofs0[] = {

@@ -427,7 +427,6 @@ static const struct snd_soc_component_driver ssm4567_component_driver = {
 	.num_dapm_routes	= ARRAY_SIZE(ssm4567_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_config ssm4567_regmap_config = {

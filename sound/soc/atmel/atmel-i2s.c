@@ -564,7 +564,8 @@ static struct snd_soc_dai_driver atmel_i2s_dai = {
 };
 
 static const struct snd_soc_component_driver atmel_i2s_component = {
-	.name	= "atmel-i2s",
+	.name			= "atmel-i2s",
+	.legacy_dai_naming	= 1,
 };
 
 static int atmel_i2s_sama5d2_mck_init(struct atmel_i2s_dev *dev,

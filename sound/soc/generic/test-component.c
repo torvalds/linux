@@ -564,11 +564,11 @@ static int test_driver_probe(struct platform_device *pdev)
 		cdriv->pcm_construct		= test_component_pcm_construct;
 		cdriv->pointer			= test_component_pointer;
 		cdriv->trigger			= test_component_trigger;
+		cdriv->legacy_dai_naming	= 1;
 	} else {
 		cdriv->name			= "test_codec";
 		cdriv->idle_bias_on		= 1;
 		cdriv->endianness		= 1;
-		cdriv->non_legacy_dai_naming	= 1;
 	}
 
 	cdriv->open		= test_component_open;
