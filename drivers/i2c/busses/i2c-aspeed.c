@@ -130,7 +130,6 @@
 
 enum aspeed_i2c_master_state {
 	ASPEED_I2C_MASTER_INACTIVE,
-	ASPEED_I2C_MASTER_PENDING,
 	ASPEED_I2C_MASTER_START,
 	ASPEED_I2C_MASTER_TX_FIRST,
 	ASPEED_I2C_MASTER_TX,
@@ -187,6 +186,7 @@ static int aspeed_i2c_recover_bus(struct aspeed_i2c_bus *bus)
 	int ret = 0;
 	u32 command;
 
+	bus->cmd_err = 0;
 	spin_lock_irqsave(&bus->lock, flags);
 	command = readl(bus->base + ASPEED_I2C_CMD_REG);
 
@@ -264,13 +264,31 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 	/* Slave was requested, restart state machine. */
 	if (irq_status & ASPEED_I2CD_INTR_SLAVE_MATCH) {
 		if (irq_status & ASPEED_I2CD_INTR_NORMAL_STOP &&
+			bus->master_state == ASPEED_I2C_MASTER_STOP) {
+			if (irq_status & ASPEED_I2CD_INTR_ABNORMAL) {
+				bus->cmd_err = -ENXIO;
+				irq_handled |= ASPEED_I2CD_INTR_ABNORMAL;
+				irq_status &= ~ASPEED_I2CD_INTR_ABNORMAL;
+			}
+			irq_handled |= ASPEED_I2CD_INTR_NORMAL_STOP;
+			irq_status &= ~ASPEED_I2CD_INTR_NORMAL_STOP;
+			if (bus->cmd_err)
+				bus->master_xfer_result = bus->cmd_err;
+			else
+				bus->master_xfer_result = bus->msgs_index + 1;
+			bus->master_state = ASPEED_I2C_MASTER_INACTIVE;
+			complete(&bus->cmd_complete);
+		}
+		if (irq_status & ASPEED_I2CD_INTR_NORMAL_STOP &&
 			bus->slave_state == ASPEED_I2C_SLAVE_WRITE_RECEIVED) {
 			irq_handled |= ASPEED_I2CD_INTR_NORMAL_STOP;
+			irq_status &= ~ASPEED_I2CD_INTR_NORMAL_STOP;
 			i2c_slave_event(slave, I2C_SLAVE_STOP, &value);
 		}
 		if (irq_status & ASPEED_I2CD_INTR_TX_NAK &&
 			bus->slave_state == ASPEED_I2C_SLAVE_READ_PROCESSED) {
 			irq_handled |= ASPEED_I2CD_INTR_TX_NAK;
+			irq_status &= ~ASPEED_I2CD_INTR_TX_NAK;
 			i2c_slave_event(slave, I2C_SLAVE_STOP, &value);
 		}
 		irq_handled |= ASPEED_I2CD_INTR_SLAVE_MATCH;
@@ -283,6 +301,12 @@ static u32 aspeed_i2c_slave_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 
 	dev_dbg(bus->dev, "slave irq status 0x%08x, cmd 0x%08x\n",
 		irq_status, command);
+
+	if (bus->master_state != ASPEED_I2C_MASTER_INACTIVE) {
+		bus->master_state = ASPEED_I2C_MASTER_INACTIVE;
+		bus->cmd_err = -EINVAL;
+		complete(&bus->cmd_complete);
+	}
 
 	/* Slave was sent something. */
 	if (irq_status & ASPEED_I2CD_INTR_RX_DONE) {
@@ -365,18 +389,6 @@ static void aspeed_i2c_do_start(struct aspeed_i2c_bus *bus)
 	struct i2c_msg *msg = &bus->msgs[bus->msgs_index];
 	u8 slave_addr = i2c_8bit_addr_from_msg(msg);
 
-#if IS_ENABLED(CONFIG_I2C_SLAVE)
-	/*
-	 * If it's requested in the middle of a slave session, set the master
-	 * state to 'pending' then H/W will continue handling this master
-	 * command when the bus comes back to the idle state.
-	 */
-	if (bus->slave_state != ASPEED_I2C_SLAVE_INACTIVE) {
-		bus->master_state = ASPEED_I2C_MASTER_PENDING;
-		return;
-	}
-#endif /* CONFIG_I2C_SLAVE */
-
 	bus->master_state = ASPEED_I2C_MASTER_START;
 	bus->buf_index = 0;
 
@@ -456,19 +468,11 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 		}
 	}
 
-	/* Master is not currently active, irq was for someone else. */
-	if (bus->master_state == ASPEED_I2C_MASTER_INACTIVE ||
-	    bus->master_state == ASPEED_I2C_MASTER_PENDING)
-		goto out_no_complete;
-
 	/* We are in an invalid state; reset bus to a known state. */
 	if (!bus->msgs) {
 		dev_err(bus->dev, "bus in unknown state. irq_status: 0x%x\n",
 			irq_status);
 		bus->cmd_err = -EIO;
-		if (bus->master_state != ASPEED_I2C_MASTER_STOP &&
-		    bus->master_state != ASPEED_I2C_MASTER_INACTIVE)
-			aspeed_i2c_do_stop(bus);
 		goto out_no_complete;
 	}
 	msg = &bus->msgs[bus->msgs_index];
@@ -479,24 +483,6 @@ static u32 aspeed_i2c_master_irq(struct aspeed_i2c_bus *bus, u32 irq_status)
 	 * then update the state and handle the new state below.
 	 */
 	if (bus->master_state == ASPEED_I2C_MASTER_START) {
-#if IS_ENABLED(CONFIG_I2C_SLAVE)
-		/*
-		 * If a peer master starts a xfer immediately after it queues a
-		 * master command, clear the queued master command and change
-		 * its state to 'pending'. To simplify handling of pending
-		 * cases, it uses S/W solution instead of H/W command queue
-		 * handling.
-		 */
-		if (unlikely(irq_status & ASPEED_I2CD_INTR_SLAVE_MATCH)) {
-			writel(readl(bus->base + ASPEED_I2C_CMD_REG) &
-				~ASPEED_I2CD_MASTER_CMDS_MASK,
-			       bus->base + ASPEED_I2C_CMD_REG);
-			bus->master_state = ASPEED_I2C_MASTER_PENDING;
-			dev_dbg(bus->dev,
-				"master goes pending due to a slave start\n");
-			goto out_no_complete;
-		}
-#endif /* CONFIG_I2C_SLAVE */
 		if (unlikely(!(irq_status & ASPEED_I2CD_INTR_TX_ACK))) {
 			if (unlikely(!(irq_status & ASPEED_I2CD_INTR_TX_NAK))) {
 				bus->cmd_err = -ENXIO;
@@ -642,27 +628,11 @@ static irqreturn_t aspeed_i2c_bus_irq(int irq, void *dev_id)
 	 * interrupt bits. Each case needs to be handled using corresponding
 	 * handlers depending on the current state.
 	 */
-	if (bus->master_state != ASPEED_I2C_MASTER_INACTIVE &&
-	    bus->master_state != ASPEED_I2C_MASTER_PENDING) {
-		irq_handled = aspeed_i2c_master_irq(bus, irq_remaining);
-		irq_remaining &= ~irq_handled;
-		if (irq_remaining)
-			irq_handled |= aspeed_i2c_slave_irq(bus, irq_remaining);
-	} else {
-		irq_handled = aspeed_i2c_slave_irq(bus, irq_remaining);
-		irq_remaining &= ~irq_handled;
-		if (irq_remaining)
-			irq_handled |= aspeed_i2c_master_irq(bus,
-							     irq_remaining);
-	}
-
-	/*
-	 * Start a pending master command at here if a slave operation is
-	 * completed.
-	 */
-	if (bus->master_state == ASPEED_I2C_MASTER_PENDING &&
-	    bus->slave_state == ASPEED_I2C_SLAVE_INACTIVE)
-		aspeed_i2c_do_start(bus);
+	irq_handled = aspeed_i2c_slave_irq(bus, irq_remaining);
+	irq_remaining &= ~irq_handled;
+	if (irq_remaining)
+		irq_handled |= aspeed_i2c_master_irq(bus,
+						     irq_remaining);
 #else
 	irq_handled = aspeed_i2c_master_irq(bus, irq_remaining);
 #endif /* CONFIG_I2C_SLAVE */
@@ -683,22 +653,23 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
 	struct aspeed_i2c_bus *bus = i2c_get_adapdata(adap);
 	unsigned long time_left, flags;
 
-	spin_lock_irqsave(&bus->lock, flags);
-	bus->cmd_err = 0;
-
 	/* If bus is busy in a single master environment, attempt recovery. */
 	if (!bus->multi_master &&
 	    (readl(bus->base + ASPEED_I2C_CMD_REG) &
 	     ASPEED_I2CD_BUS_BUSY_STS)) {
 		int ret;
 
-		spin_unlock_irqrestore(&bus->lock, flags);
 		ret = aspeed_i2c_recover_bus(bus);
 		if (ret)
 			return ret;
-		spin_lock_irqsave(&bus->lock, flags);
 	}
 
+#if IS_ENABLED(CONFIG_I2C_SLAVE)
+	if (bus->slave_state != ASPEED_I2C_SLAVE_INACTIVE)
+		return -ETIMEDOUT;
+#endif /* CONFIG_I2C_SLAVE */
+
+	spin_lock_irqsave(&bus->lock, flags);
 	bus->cmd_err = 0;
 	bus->msgs = msgs;
 	bus->msgs_index = 0;
@@ -720,15 +691,6 @@ static int aspeed_i2c_master_xfer(struct i2c_adapter *adap,
 		    (readl(bus->base + ASPEED_I2C_CMD_REG) &
 		     ASPEED_I2CD_BUS_BUSY_STS))
 			aspeed_i2c_recover_bus(bus);
-
-		/*
-		 * If timed out and the state is still pending, drop the pending
-		 * master command.
-		 */
-		spin_lock_irqsave(&bus->lock, flags);
-		if (bus->master_state == ASPEED_I2C_MASTER_PENDING)
-			bus->master_state = ASPEED_I2C_MASTER_INACTIVE;
-		spin_unlock_irqrestore(&bus->lock, flags);
 
 		return -ETIMEDOUT;
 	}
@@ -774,12 +736,11 @@ static int aspeed_i2c_reg_slave(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	__aspeed_i2c_reg_slave(bus, client->addr);
-
 	bus->slave = client;
 	bus->slave_state = ASPEED_I2C_SLAVE_INACTIVE;
-	spin_unlock_irqrestore(&bus->lock, flags);
 
+	__aspeed_i2c_reg_slave(bus, client->addr);
+	spin_unlock_irqrestore(&bus->lock, flags);
 	return 0;
 }
 
