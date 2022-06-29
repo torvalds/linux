@@ -781,7 +781,7 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 		// Store the original watermark value for this SubVP config so we can lower it when the
 		// MCLK switch starts
 		wm_val_refclk = context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns *
-				dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000 / 1000;
+				(dc->res_pool->ref_clocks.dchub_ref_clock_inKhz / 1000) / 1000;
 
 		cmd.fw_assisted_mclk_switch_v2.config_data.watermark_a_cache = wm_val_refclk < 0xFFFF ? wm_val_refclk : 0xFFFF;
 	}
