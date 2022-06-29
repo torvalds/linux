@@ -3,6 +3,7 @@ qcom_rpmh.ko
 qcom-pdc.ko
 qcom_iommu_util.ko
 arm_smmu.ko
+secure_buffer.ko
 qcom-scm.ko
 pinctrl-msm.ko
 pinctrl-pineapple.ko
