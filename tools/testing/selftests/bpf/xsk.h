@@ -269,6 +269,7 @@ struct xsk_umem_config {
 	__u32 flags;
 };
 
+int xsk_setup_xdp_prog_xsk(struct xsk_socket *xsk, int *xsks_map_fd);
 int xsk_setup_xdp_prog(int ifindex, int *xsks_map_fd);
 int xsk_socket__update_xskmap(struct xsk_socket *xsk, int xsks_map_fd);
 

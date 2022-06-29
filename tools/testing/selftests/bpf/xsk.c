@@ -880,6 +880,11 @@ static int __xsk_setup_xdp_prog(struct xsk_socket *_xdp, int *xsks_map_fd)
 	return err;
 }
 
+int xsk_setup_xdp_prog_xsk(struct xsk_socket *xsk, int *xsks_map_fd)
+{
+	return __xsk_setup_xdp_prog(xsk, xsks_map_fd);
+}
+
 static struct xsk_ctx *xsk_get_ctx(struct xsk_umem *umem, int ifindex,
 				   __u32 queue_id)
 {

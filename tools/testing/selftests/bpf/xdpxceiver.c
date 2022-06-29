@@ -1130,7 +1130,7 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 	if (!ifindex)
 		exit_with_error(errno);
 
-	ret = xsk_setup_xdp_prog(ifindex, &ifobject->xsk_map_fd);
+	ret = xsk_setup_xdp_prog_xsk(ifobject->xsk->xsk, &ifobject->xsk_map_fd);
 	if (ret)
 		exit_with_error(-ret);
 
