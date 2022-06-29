@@ -41,6 +41,8 @@ struct mtd_erase_region_info {
 };
 
 struct mtd_req_stats {
+	unsigned int uncorrectable_errors;
+	unsigned int corrected_bitflips;
 	unsigned int max_bitflips;
 };
 

@@ -871,6 +871,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	u8 *buf = ops->datbuf;
 	size_t len, ooblen, nbdata, nboob;
 	u8 hwecc[DOC_ECC_BCH_SIZE], eccconf1;
+	struct mtd_ecc_stats old_stats;
 	int max_bitflips = 0;
 
 	if (buf)
@@ -895,6 +896,7 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	ret = 0;
 	skip = from % DOC_LAYOUT_PAGE_SIZE;
 	mutex_lock(&docg3->cascade->lock);
+	old_stats = mtd->ecc_stats;
 	while (ret >= 0 && (len > 0 || ooblen > 0)) {
 		calc_block_sector(from - skip, &block0, &block1, &page, &ofs,
 			docg3->reliable);
@@ -966,6 +968,12 @@ static int doc_read_oob(struct mtd_info *mtd, loff_t from,
 	}
 
 out:
+	if (ops->stats) {
+		ops->stats->uncorrectable_errors +=
+			mtd->ecc_stats.failed - old_stats.failed;
+		ops->stats->corrected_bitflips +=
+			mtd->ecc_stats.corrected - old_stats.corrected;
+	}
 	mutex_unlock(&docg3->cascade->lock);
 	return ret;
 err_in_read:
