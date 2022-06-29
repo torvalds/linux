@@ -98,6 +98,7 @@ define_db845c(
         "drivers/interconnect/qcom/qnoc-sm8450.ko",
         "drivers/iommu/arm/arm-smmu/arm_smmu.ko",
         "drivers/irqchip/qcom-pdc.ko",
+        "drivers/leds/rgb/leds-qcom-lpg.ko",
         "drivers/mailbox/qcom-apcs-ipc-mailbox.ko",
         "drivers/mailbox/qcom-ipcc.ko",
         "drivers/media/platform/qcom/venus/venus-core.ko",
