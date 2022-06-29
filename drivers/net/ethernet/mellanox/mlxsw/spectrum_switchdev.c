@@ -49,6 +49,7 @@ struct mlxsw_sp_bridge_device {
 	struct list_head list;
 	struct list_head ports_list;
 	struct list_head mdb_list;
+	struct rhashtable mdb_ht;
 	u8 vlan_enabled:1,
 	   multicast_enabled:1,
 	   mrouter:1;
@@ -109,10 +110,17 @@ struct mlxsw_sp_mdb_entry_key {
 
 struct mlxsw_sp_mdb_entry {
 	struct list_head list;
+	struct rhash_head ht_node;
 	struct mlxsw_sp_mdb_entry_key key;
 	u16 mid;
 	bool in_hw;
 	unsigned long *ports_in_mid; /* bits array */
+};
+
+static const struct rhashtable_params mlxsw_sp_mdb_ht_params = {
+	.key_offset = offsetof(struct mlxsw_sp_mdb_entry, key),
+	.head_offset = offsetof(struct mlxsw_sp_mdb_entry, ht_node),
+	.key_len = sizeof(struct mlxsw_sp_mdb_entry_key),
 };
 
 static int
@@ -250,6 +258,10 @@ mlxsw_sp_bridge_device_create(struct mlxsw_sp_bridge *bridge,
 	if (!bridge_device)
 		return ERR_PTR(-ENOMEM);
 
+	err = rhashtable_init(&bridge_device->mdb_ht, &mlxsw_sp_mdb_ht_params);
+	if (err)
+		goto err_mdb_rhashtable_init;
+
 	bridge_device->dev = br_dev;
 	bridge_device->vlan_enabled = vlan_enabled;
 	bridge_device->multicast_enabled = br_multicast_enabled(br_dev);
@@ -287,6 +299,8 @@ err_vxlan_init:
 	list_del(&bridge_device->list);
 	if (bridge_device->vlan_enabled)
 		bridge->vlan_enabled_exists = false;
+	rhashtable_destroy(&bridge_device->mdb_ht);
+err_mdb_rhashtable_init:
 	kfree(bridge_device);
 	return ERR_PTR(err);
 }
@@ -305,6 +319,7 @@ mlxsw_sp_bridge_device_destroy(struct mlxsw_sp_bridge *bridge,
 		bridge->vlan_enabled_exists = false;
 	WARN_ON(!list_empty(&bridge_device->ports_list));
 	WARN_ON(!list_empty(&bridge_device->mdb_list));
+	rhashtable_destroy(&bridge_device->mdb_ht);
 	kfree(bridge_device);
 }
 
