@@ -208,16 +208,23 @@ static const char * const hw_platform_feature_code[] = {
 	[SOCINFO_FC_AH] = "AH",
 };
 
-#define SOCINFO_FC_INT_MASK 0x0f
 static const char * const hw_platform_ifeature_code[] = {
-	[SOCINFO_FC_Y0 & SOCINFO_FC_INT_MASK] = "Y0",
-	[SOCINFO_FC_Y1 & SOCINFO_FC_INT_MASK] = "Y1",
-	[SOCINFO_FC_Y2 & SOCINFO_FC_INT_MASK] = "Y2",
-	[SOCINFO_FC_Y3 & SOCINFO_FC_INT_MASK] = "Y3",
-	[SOCINFO_FC_Y4 & SOCINFO_FC_INT_MASK] = "Y4",
-	[SOCINFO_FC_Y5 & SOCINFO_FC_INT_MASK] = "Y5",
-	[SOCINFO_FC_Y6 & SOCINFO_FC_INT_MASK] = "Y6",
-	[SOCINFO_FC_Y7 & SOCINFO_FC_INT_MASK] = "Y7",
+	[SOCINFO_FC_Y0 - SOCINFO_FC_Y0] = "Y0",
+	[SOCINFO_FC_Y1 - SOCINFO_FC_Y0] = "Y1",
+	[SOCINFO_FC_Y2 - SOCINFO_FC_Y0] = "Y2",
+	[SOCINFO_FC_Y3 - SOCINFO_FC_Y0] = "Y3",
+	[SOCINFO_FC_Y4 - SOCINFO_FC_Y0] = "Y4",
+	[SOCINFO_FC_Y5 - SOCINFO_FC_Y0] = "Y5",
+	[SOCINFO_FC_Y6 - SOCINFO_FC_Y0] = "Y6",
+	[SOCINFO_FC_Y7 - SOCINFO_FC_Y0] = "Y7",
+	[SOCINFO_FC_Y8 - SOCINFO_FC_Y0] = "Y8",
+	[SOCINFO_FC_Y9 - SOCINFO_FC_Y0] = "Y9",
+	[SOCINFO_FC_YA - SOCINFO_FC_Y0] = "YA",
+	[SOCINFO_FC_YB - SOCINFO_FC_Y0] = "YB",
+	[SOCINFO_FC_YC - SOCINFO_FC_Y0] = "YC",
+	[SOCINFO_FC_YD - SOCINFO_FC_Y0] = "YD",
+	[SOCINFO_FC_YE - SOCINFO_FC_Y0] = "YE",
+	[SOCINFO_FC_YF - SOCINFO_FC_Y0] = "YF",
 };
 
 /* Socinfo SMEM item structure */
@@ -499,7 +506,7 @@ static const char *socinfo_get_feature_code_mapping(void)
 	if (id > SOCINFO_FC_UNKNOWN && id < SOCINFO_FC_EXT_RESERVE)
 		return hw_platform_feature_code[id];
 	else if (id >= SOCINFO_FC_Y0 && id < SOCINFO_FC_INT_RESERVE)
-		return hw_platform_ifeature_code[id & SOCINFO_FC_INT_MASK];
+		return hw_platform_ifeature_code[id - SOCINFO_FC_Y0];
 
 	return NULL;
 }
