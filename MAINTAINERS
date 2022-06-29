@@ -11345,8 +11345,8 @@ F:	drivers/macintosh/
 
 LINUX FOR POWERPC (32-BIT AND 64-BIT)
 M:	Michael Ellerman <mpe@ellerman.id.au>
-R:	Benjamin Herrenschmidt <benh@kernel.crashing.org>
-R:	Paul Mackerras <paulus@samba.org>
+R:	Nicholas Piggin <npiggin@gmail.com>
+R:	Christophe Leroy <christophe.leroy@csgroup.eu>
 L:	linuxppc-dev@lists.ozlabs.org
 S:	Supported
 W:	https://github.com/linuxppc/wiki/wiki
