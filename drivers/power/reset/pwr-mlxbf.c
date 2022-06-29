@@ -16,9 +16,6 @@
 #include <linux/reboot.h>
 #include <linux/types.h>
 
-const char *rst_pwr_hid = "MLNXBF24";
-const char *low_pwr_hid = "MLNXBF29";
-
 struct pwr_mlxbf {
 	struct work_struct send_work;
 	const char *hid;
@@ -31,6 +28,8 @@ static void pwr_mlxbf_send_work(struct work_struct *work)
 
 static irqreturn_t pwr_mlxbf_irq(int irq, void *ptr)
 {
+	const char *rst_pwr_hid = "MLNXBF24";
+	const char *low_pwr_hid = "MLNXBF29";
 	struct pwr_mlxbf *priv = ptr;
 
 	if (!strncmp(priv->hid, rst_pwr_hid, 8))
