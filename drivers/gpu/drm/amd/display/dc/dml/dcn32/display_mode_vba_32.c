@@ -1897,26 +1897,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 				v->MaximumSwathWidthInLineBufferChroma);
 	}
 
-	/*Number Of DSC Slices*/
-	for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
-		if (mode_lib->vba.BlendingAndTiming[k] == k) {
-			if (mode_lib->vba.PixelClockBackEnd[k] > 4800) {
-				mode_lib->vba.NumberOfDSCSlices[k] = dml_ceil(mode_lib->vba.PixelClockBackEnd[k] / 600,
-						4);
-			} else if (mode_lib->vba.PixelClockBackEnd[k] > 2400) {
-				mode_lib->vba.NumberOfDSCSlices[k] = 8;
-			} else if (mode_lib->vba.PixelClockBackEnd[k] > 1200) {
-				mode_lib->vba.NumberOfDSCSlices[k] = 4;
-			} else if (mode_lib->vba.PixelClockBackEnd[k] > 340) {
-				mode_lib->vba.NumberOfDSCSlices[k] = 2;
-			} else {
-				mode_lib->vba.NumberOfDSCSlices[k] = 1;
-			}
-		} else {
-			mode_lib->vba.NumberOfDSCSlices[k] = 0;
-		}
-	}
-
 	dml32_CalculateSwathAndDETConfiguration(
 			mode_lib->vba.DETSizeOverride,
 			mode_lib->vba.UsesMALLForPStateChange,
