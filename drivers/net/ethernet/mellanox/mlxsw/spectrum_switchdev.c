@@ -2131,7 +2131,7 @@ mlxsw_sp_mc_mdb_mrouters_set(struct mlxsw_sp *mlxsw_sp,
 	return err;
 }
 
-static __always_unused struct mlxsw_sp_mdb_entry *
+static struct mlxsw_sp_mdb_entry *
 mlxsw_sp_mc_mdb_entry_init(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_bridge_device *bridge_device,
 			   const unsigned char *addr, u16 fid, u16 local_port)
@@ -2194,7 +2194,7 @@ err_pgt_mid_alloc:
 	return ERR_PTR(err);
 }
 
-static __always_unused void
+static void
 mlxsw_sp_mc_mdb_entry_fini(struct mlxsw_sp *mlxsw_sp,
 			   struct mlxsw_sp_mdb_entry *mdb_entry,
 			   struct mlxsw_sp_bridge_device *bridge_device,
@@ -2210,6 +2210,82 @@ mlxsw_sp_mc_mdb_entry_fini(struct mlxsw_sp *mlxsw_sp,
 	WARN_ON(!list_empty(&mdb_entry->ports_list));
 	mlxsw_sp_pgt_mid_free(mlxsw_sp, mdb_entry->mid);
 	kfree(mdb_entry);
+}
+
+static __always_unused struct mlxsw_sp_mdb_entry *
+mlxsw_sp_mc_mdb_entry_get(struct mlxsw_sp *mlxsw_sp,
+			  struct mlxsw_sp_bridge_device *bridge_device,
+			  const unsigned char *addr, u16 fid, u16 local_port)
+{
+	struct mlxsw_sp_mdb_entry_key key = {};
+	struct mlxsw_sp_mdb_entry *mdb_entry;
+
+	ether_addr_copy(key.addr, addr);
+	key.fid = fid;
+	mdb_entry = rhashtable_lookup_fast(&bridge_device->mdb_ht, &key,
+					   mlxsw_sp_mdb_ht_params);
+	if (mdb_entry) {
+		struct mlxsw_sp_mdb_entry_port *mdb_entry_port;
+
+		mdb_entry_port = mlxsw_sp_mdb_entry_port_get(mlxsw_sp,
+							     mdb_entry,
+							     local_port);
+		if (IS_ERR(mdb_entry_port))
+			return ERR_CAST(mdb_entry_port);
+
+		return mdb_entry;
+	}
+
+	return mlxsw_sp_mc_mdb_entry_init(mlxsw_sp, bridge_device, addr, fid,
+					  local_port);
+}
+
+static bool
+mlxsw_sp_mc_mdb_entry_remove(struct mlxsw_sp_mdb_entry *mdb_entry,
+			     struct mlxsw_sp_mdb_entry_port *removed_entry_port,
+			     bool force)
+{
+	if (mdb_entry->ports_count > 1)
+		return false;
+
+	if (force)
+		return true;
+
+	if (!removed_entry_port->mrouter &&
+	    refcount_read(&removed_entry_port->refcount) > 1)
+		return false;
+
+	if (removed_entry_port->mrouter &&
+	    refcount_read(&removed_entry_port->refcount) > 2)
+		return false;
+
+	return true;
+}
+
+static __always_unused void
+mlxsw_sp_mc_mdb_entry_put(struct mlxsw_sp *mlxsw_sp,
+			  struct mlxsw_sp_bridge_device *bridge_device,
+			  struct mlxsw_sp_mdb_entry *mdb_entry, u16 local_port,
+			  bool force)
+{
+	struct mlxsw_sp_mdb_entry_port *mdb_entry_port;
+
+	mdb_entry_port = mlxsw_sp_mdb_entry_port_lookup(mdb_entry, local_port);
+	if (!mdb_entry_port)
+		return;
+
+	/* Avoid a temporary situation in which the MDB entry points to an empty
+	 * PGT entry, as otherwise packets will be temporarily dropped instead
+	 * of being flooded. Instead, in this situation, call
+	 * mlxsw_sp_mc_mdb_entry_fini(), which first deletes the MDB entry and
+	 * then releases the PGT entry.
+	 */
+	if (mlxsw_sp_mc_mdb_entry_remove(mdb_entry, mdb_entry_port, force))
+		mlxsw_sp_mc_mdb_entry_fini(mlxsw_sp, mdb_entry, bridge_device,
+					   local_port, force);
+	else
+		mlxsw_sp_mdb_entry_port_put(mlxsw_sp, mdb_entry, local_port,
+					    force);
 }
 
 static int mlxsw_sp_port_mdb_add(struct mlxsw_sp_port *mlxsw_sp_port,
