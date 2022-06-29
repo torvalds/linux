@@ -795,7 +795,7 @@ static void gve_handle_packet_completion(struct gve_priv *priv,
 			     GVE_PACKET_STATE_PENDING_REINJECT_COMPL)) {
 			/* No outstanding miss completion but packet allocated
 			 * implies packet receives a re-injection completion
-			 * without a a prior miss completion. Return without
+			 * without a prior miss completion. Return without
 			 * completing the packet.
 			 */
 			net_err_ratelimited("%s: Re-injection completion received without corresponding miss completion: %d\n",
