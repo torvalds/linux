@@ -1951,6 +1951,17 @@ static int amdgpu_discovery_set_mes_ip_blocks(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void amdgpu_discovery_ip_map_init(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(9, 4, 3):
+		aqua_vanjaram_ip_map_init(adev);
+		break;
+	default:
+		break;
+	}
+}
+
 int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 {
 	int r;
@@ -2127,6 +2138,8 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		amdgpu_discovery_get_vcn_info(adev);
 		break;
 	}
+
+	amdgpu_discovery_ip_map_init(adev);
 
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(9, 0, 1):

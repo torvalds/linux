@@ -50,3 +50,42 @@ void aqua_vanjaram_doorbell_index_init(struct amdgpu_device *adev)
 
 	adev->doorbell_index.max_assignment = AMDGPU_DOORBELL_LAYOUT1_MAX_ASSIGNMENT << 1;
 }
+
+static int8_t aqua_vanjaram_logical_to_dev_inst(struct amdgpu_device *adev,
+					 enum amd_hw_ip_block_type block,
+					 int8_t inst)
+{
+	int8_t dev_inst;
+
+	switch (block) {
+	case GC_HWIP:
+		dev_inst = adev->ip_map.dev_inst[block][inst];
+		break;
+	default:
+		/* For rest of the IPs, no look up required.
+		 * Assume 'logical instance == physical instance' for all configs. */
+		dev_inst = inst;
+		break;
+	}
+
+	return dev_inst;
+}
+
+void aqua_vanjaram_ip_map_init(struct amdgpu_device *adev)
+{
+	int xcc_mask;
+	int l, i;
+
+	/* Map GC instances */
+	l = 0;
+	xcc_mask = adev->gfx.xcc_mask;
+	while (xcc_mask) {
+		i = ffs(xcc_mask) - 1;
+		adev->ip_map.dev_inst[GC_HWIP][l++] = i;
+		xcc_mask &= ~(1 << i);
+	}
+	for (; l < HWIP_MAX_INSTANCE; l++)
+		adev->ip_map.dev_inst[GC_HWIP][l] = -1;
+
+	adev->ip_map.logical_to_dev_inst = aqua_vanjaram_logical_to_dev_inst;
+}
