@@ -48,6 +48,8 @@ enum amdgpu_sdma_irq {
 	AMDGPU_SDMA_IRQ_LAST
 };
 
+#define NUM_SDMA(x) hweight32(x)
+
 struct amdgpu_sdma_instance {
 	/* SDMA firmware */
 	const struct firmware	*fw;
@@ -75,6 +77,7 @@ struct amdgpu_sdma {
 	struct amdgpu_irq_src	srbm_write_irq;
 
 	int			num_instances;
+	uint32_t 		sdma_mask;
 	int			num_inst_per_aid;
 	uint32_t                    srbm_soft_reset;
 	bool			has_page_queue;
