@@ -59,6 +59,7 @@ static int8_t aqua_vanjaram_logical_to_dev_inst(struct amdgpu_device *adev,
 
 	switch (block) {
 	case GC_HWIP:
+	case SDMA0_HWIP:
 		dev_inst = adev->ip_map.dev_inst[block][inst];
 		break;
 	default:
@@ -73,7 +74,7 @@ static int8_t aqua_vanjaram_logical_to_dev_inst(struct amdgpu_device *adev,
 
 void aqua_vanjaram_ip_map_init(struct amdgpu_device *adev)
 {
-	int xcc_mask;
+	int xcc_mask, sdma_mask;
 	int l, i;
 
 	/* Map GC instances */
@@ -86,6 +87,16 @@ void aqua_vanjaram_ip_map_init(struct amdgpu_device *adev)
 	}
 	for (; l < HWIP_MAX_INSTANCE; l++)
 		adev->ip_map.dev_inst[GC_HWIP][l] = -1;
+
+	l = 0;
+	sdma_mask = adev->sdma.sdma_mask;
+	while (sdma_mask) {
+		i = ffs(sdma_mask) - 1;
+		adev->ip_map.dev_inst[SDMA0_HWIP][l++] = i;
+		sdma_mask &= ~(1 << i);
+	}
+	for (; l < HWIP_MAX_INSTANCE; l++)
+		adev->ip_map.dev_inst[SDMA0_HWIP][l] = -1;
 
 	adev->ip_map.logical_to_dev_inst = aqua_vanjaram_logical_to_dev_inst;
 }
