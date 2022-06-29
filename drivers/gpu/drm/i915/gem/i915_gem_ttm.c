@@ -675,7 +675,15 @@ static void i915_ttm_swap_notify(struct ttm_buffer_object *bo)
 		i915_ttm_purge(obj);
 }
 
-static bool i915_ttm_resource_mappable(struct ttm_resource *res)
+/**
+ * i915_ttm_resource_mappable - Return true if the ttm resource is CPU
+ * accessible.
+ * @res: The TTM resource to check.
+ *
+ * This is interesting on small-BAR systems where we may encounter lmem objects
+ * that can't be accessed via the CPU.
+ */
+bool i915_ttm_resource_mappable(struct ttm_resource *res)
 {
 	struct i915_ttm_buddy_resource *bman_res = to_ttm_buddy_resource(res);
 
@@ -687,6 +695,22 @@ static bool i915_ttm_resource_mappable(struct ttm_resource *res)
 
 static int i915_ttm_io_mem_reserve(struct ttm_device *bdev, struct ttm_resource *mem)
 {
+	struct drm_i915_gem_object *obj = i915_ttm_to_gem(mem->bo);
+	bool unknown_state;
+
+	if (!obj)
+		return -EINVAL;
+
+	if (!kref_get_unless_zero(&obj->base.refcount))
+		return -EINVAL;
+
+	assert_object_held(obj);
+
+	unknown_state = i915_gem_object_has_unknown_state(obj);
+	i915_gem_object_put(obj);
+	if (unknown_state)
+		return -EINVAL;
+
 	if (!i915_ttm_cpu_maps_iomem(mem))
 		return 0;
 

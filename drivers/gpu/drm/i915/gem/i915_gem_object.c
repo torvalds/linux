@@ -783,8 +783,29 @@ int i915_gem_object_wait_moving_fence(struct drm_i915_gem_object *obj,
 				    intr, MAX_SCHEDULE_TIMEOUT);
 	if (!ret)
 		ret = -ETIME;
+	else if (ret > 0 && i915_gem_object_has_unknown_state(obj))
+		ret = -EIO;
 
 	return ret < 0 ? ret : 0;
+}
+
+/**
+ * i915_gem_object_has_unknown_state - Return true if the object backing pages are
+ * in an unknown_state. This means that userspace must NEVER be allowed to touch
+ * the pages, with either the GPU or CPU.
+ *
+ * ONLY valid to be called after ensuring that all kernel fences have signalled
+ * (in particular the fence for moving/clearing the object).
+ */
+bool i915_gem_object_has_unknown_state(struct drm_i915_gem_object *obj)
+{
+	/*
+	 * The below barrier pairs with the dma_fence_signal() in
+	 * __memcpy_work(). We should only sample the unknown_state after all
+	 * the kernel fences have signalled.
+	 */
+	smp_rmb();
+	return obj->mm.unknown_state;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)
