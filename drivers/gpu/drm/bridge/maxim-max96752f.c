@@ -53,7 +53,7 @@ max96752f_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	const struct drm_bridge_state *bridge_state;
 	bool oldi_format;
 
-	max96752f_regcache_sync(des->parent);
+	max96752f_init(des->parent);
 
 	bridge_state = drm_atomic_get_new_bridge_state(state, bridge);
 	switch (bridge_state->output_bus_cfg.format) {
@@ -97,12 +97,6 @@ max96752f_bridge_atomic_disable(struct drm_bridge *bridge,
 				struct drm_bridge_state *old_bridge_state)
 {
 	struct max96752f_bridge *des = to_max96752f_bridge(bridge);
-	struct drm_connector *connector =
-		drm_atomic_get_old_connector_for_encoder(old_bridge_state->base.state,
-							 bridge->encoder);
-
-	if (connector->status == connector_status_disconnected)
-		regcache_cache_only(des->regmap, true);
 
 	if (des->panel)
 		drm_panel_disable(des->panel);
