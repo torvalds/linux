@@ -979,7 +979,7 @@ static int hclgevf_update_mac_list(struct hnae3_handle *handle,
 
 	/* if the mac addr is already in the mac list, no need to add a new
 	 * one into it, just check the mac addr state, convert it to a new
-	 * new state, or just remove it, or do nothing.
+	 * state, or just remove it, or do nothing.
 	 */
 	mac_node = hclgevf_find_mac_node(list, addr);
 	if (mac_node) {
