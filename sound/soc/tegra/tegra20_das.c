@@ -102,30 +102,22 @@ static inline void tegra20_das_write(struct tegra20_das *das, u32 reg, u32 val)
 	regmap_write(das->regmap, reg, val);
 }
 
-static int tegra20_das_connect_dap_to_dac(struct tegra20_das *das, int dap, int dac)
+static void tegra20_das_connect_dap_to_dac(struct tegra20_das *das, int dap, int dac)
 {
 	u32 addr;
 	u32 reg;
-
-	if (!das)
-		return -ENODEV;
 
 	addr = TEGRA20_DAS_DAP_CTRL_SEL +
 		(dap * TEGRA20_DAS_DAP_CTRL_SEL_STRIDE);
 	reg = dac << TEGRA20_DAS_DAP_CTRL_SEL_DAP_CTRL_SEL_P;
 
 	tegra20_das_write(das, addr, reg);
-
-	return 0;
 }
 
-static int tegra20_das_connect_dac_to_dap(struct tegra20_das *das, int dac, int dap)
+static void tegra20_das_connect_dac_to_dap(struct tegra20_das *das, int dac, int dap)
 {
 	u32 addr;
 	u32 reg;
-
-	if (!das)
-		return -ENODEV;
 
 	addr = TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL +
 		(dac * TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_STRIDE);
@@ -134,8 +126,6 @@ static int tegra20_das_connect_dac_to_dap(struct tegra20_das *das, int dac, int 
 		dap << TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA2_SEL_P;
 
 	tegra20_das_write(das, addr, reg);
-
-	return 0;
 }
 
 #define LAST_REG(name) \
@@ -167,7 +157,6 @@ static int tegra20_das_probe(struct platform_device *pdev)
 {
 	void __iomem *regs;
 	struct tegra20_das *das;
-	int ret = 0;
 
 	das = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_das), GFP_KERNEL);
 	if (!das)
@@ -186,30 +175,14 @@ static int tegra20_das_probe(struct platform_device *pdev)
 		return PTR_ERR(das->regmap);
 	}
 
-	ret = tegra20_das_connect_dap_to_dac(das, TEGRA20_DAS_DAP_ID_1,
-					     TEGRA20_DAS_DAP_SEL_DAC1);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't set up DAS DAP connection\n");
-		return ret;
-	}
-	ret = tegra20_das_connect_dac_to_dap(das, TEGRA20_DAS_DAC_ID_1,
-					     TEGRA20_DAS_DAC_SEL_DAP1);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't set up DAS DAC connection\n");
-		return ret;
-	}
-	ret = tegra20_das_connect_dap_to_dac(das, TEGRA20_DAS_DAP_ID_3,
-					     TEGRA20_DAS_DAP_SEL_DAC3);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't set up DAS DAP connection\n");
-		return ret;
-	}
-	ret = tegra20_das_connect_dac_to_dap(das, TEGRA20_DAS_DAC_ID_3,
-					     TEGRA20_DAS_DAC_SEL_DAP3);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't set up DAS DAC connection\n");
-		return ret;
-	}
+	tegra20_das_connect_dap_to_dac(das, TEGRA20_DAS_DAP_ID_1,
+				       TEGRA20_DAS_DAP_SEL_DAC1);
+	tegra20_das_connect_dac_to_dap(das, TEGRA20_DAS_DAC_ID_1,
+				       TEGRA20_DAS_DAC_SEL_DAP1);
+	tegra20_das_connect_dap_to_dac(das, TEGRA20_DAS_DAP_ID_3,
+				       TEGRA20_DAS_DAP_SEL_DAC3);
+	tegra20_das_connect_dac_to_dap(das, TEGRA20_DAS_DAC_ID_3,
+				       TEGRA20_DAS_DAC_SEL_DAP3);
 
 	return 0;
 }
