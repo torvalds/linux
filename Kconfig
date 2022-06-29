@@ -33,3 +33,5 @@ source "Documentation/Kconfig"
 
 # ANDROID: Set KCONFIG_EXT_PREFIX to decend into an external project.
 source "$(KCONFIG_EXT_PREFIX)Kconfig.ext"
+
+source "kernel/sched/walt/Kconfig"

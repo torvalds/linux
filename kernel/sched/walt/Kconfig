@@ -1,0 +1,41 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+# QTI WALT based scheduler
+#
+menu "QTI WALT based scheduler features"
+
+config SCHED_WALT
+	tristate "Support window based load tracking"
+	depends on SMP
+	help
+	This feature will allow the scheduler to maintain a tunable window
+	based set of metrics for tasks and runqueues. These metrics can be
+	used to guide task placement as well as task frequency requirements
+	for cpufreq governors.
+
+config SCHED_WALT_DEBUG
+	tristate "WALT debug module"
+	depends on SCHED_WALT
+	select TRACE_PREEMPT_TOGGLE
+	select TRACE_IRQFLAGS
+	help
+	  This module provides the means of debugging long preempt and
+	  irq disable code. This helps in identifying the scheduling
+	  latencies. The module rely on preemptirq trace hooks and
+	  print the stacktrace to the ftrace upon long preempt and irq
+	  events. Sysctl knobs are available for the user to configure
+	  the thresholds.
+
+	  This module also used to crash the system to catch issues
+	  in scenarios like RT throttling and sleeping while in atomic
+	  context etc.
+
+config SCHED_CONSERVATIVE_BOOST_LPM_BIAS
+	bool "Enable LPM bias if conservative boost is enabled"
+	default n
+	help
+	  This feature will allow the scheduler to disable low power
+	  modes on a cpu if conservative boost is active. The cpu
+	  will not enter low power mode for a hysteresis time period,
+	  which can be configured from userspace.
+endmenu
