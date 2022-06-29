@@ -1,0 +1,16 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2021 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588s-evb8-lp4x.dtsi"
+#include "rk3588s-evb1-lp4x-v10-camera.dtsi"
+#include "rk3588-android.dtsi"
+
+/ {
+	model = "Rockchip RK3588S EVB8 LP4X V10 Board";
+	compatible = "rockchip,rk3588s-evb8-lp4x-v10", "rockchip,rk3588";
+};
