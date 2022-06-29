@@ -5928,8 +5928,7 @@ static void drm_update_mso(struct drm_connector *connector,
 /* A connector has no EDID information, so we've got no EDID to compute quirks from. Reset
  * all of the values which would have been set from EDID
  */
-void
-drm_reset_display_info(struct drm_connector *connector)
+static void drm_reset_display_info(struct drm_connector *connector)
 {
 	struct drm_display_info *info = &connector->display_info;
 
@@ -6043,7 +6042,7 @@ out:
 	return quirks;
 }
 
-u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid)
+static u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid)
 {
 	struct drm_edid drm_edid;
 
@@ -6206,6 +6205,83 @@ static int drm_edid_connector_update(struct drm_connector *connector,
 
 	return num_modes;
 }
+
+static void drm_update_tile_info(struct drm_connector *connector,
+				 const struct edid *edid);
+
+/**
+ * drm_connector_update_edid_property - update the edid property of a connector
+ * @connector: drm connector
+ * @edid: new value of the edid property
+ *
+ * This function creates a new blob modeset object and assigns its id to the
+ * connector's edid property.
+ * Since we also parse tile information from EDID's displayID block, we also
+ * set the connector's tile property here. See drm_connector_set_tile_property()
+ * for more details.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_update_edid_property(struct drm_connector *connector,
+				       const struct edid *edid)
+{
+	struct drm_device *dev = connector->dev;
+	size_t size = 0;
+	int ret;
+	const struct edid *old_edid;
+
+	/* ignore requests to set edid when overridden */
+	if (connector->override_edid)
+		return 0;
+
+	if (edid)
+		size = EDID_LENGTH * (1 + edid->extensions);
+
+	/*
+	 * Set the display info, using edid if available, otherwise resetting
+	 * the values to defaults. This duplicates the work done in
+	 * drm_add_edid_modes, but that function is not consistently called
+	 * before this one in all drivers and the computation is cheap enough
+	 * that it seems better to duplicate it rather than attempt to ensure
+	 * some arbitrary ordering of calls.
+	 */
+	if (edid)
+		drm_add_display_info(connector, edid);
+	else
+		drm_reset_display_info(connector);
+
+	drm_update_tile_info(connector, edid);
+
+	if (connector->edid_blob_ptr) {
+		old_edid = (const struct edid *)connector->edid_blob_ptr->data;
+		if (old_edid) {
+			if (!drm_edid_are_equal(edid, old_edid)) {
+				DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Edid was changed.\n",
+					      connector->base.id, connector->name);
+
+				connector->epoch_counter += 1;
+				DRM_DEBUG_KMS("Updating change counter to %llu\n",
+					      connector->epoch_counter);
+			}
+		}
+	}
+
+	drm_object_property_set_value(&connector->base,
+				      dev->mode_config.non_desktop_property,
+				      connector->display_info.non_desktop);
+
+	ret = drm_property_replace_global_blob(dev,
+					       &connector->edid_blob_ptr,
+					       size,
+					       edid,
+					       &connector->base,
+					       dev->mode_config.edid_property);
+	if (ret)
+		return ret;
+	return drm_connector_set_tile_property(connector);
+}
+EXPORT_SYMBOL(drm_connector_update_edid_property);
 
 /**
  * drm_add_edid_modes - add modes from EDID data, if available
@@ -6645,8 +6721,8 @@ static void _drm_update_tile_info(struct drm_connector *connector,
 	}
 }
 
-void drm_update_tile_info(struct drm_connector *connector,
-			  const struct edid *edid)
+static void drm_update_tile_info(struct drm_connector *connector,
+				 const struct edid *edid)
 {
 	struct drm_edid drm_edid;
 
