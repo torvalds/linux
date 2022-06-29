@@ -229,6 +229,10 @@ static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
 	state_bo->size = obj->base.size;
 	state_bo->iova = iova;
 
+	BUILD_BUG_ON(sizeof(state_bo->name) != sizeof(obj->name));
+
+	memcpy(state_bo->name, obj->name, sizeof(state_bo->name));
+
 	if (full) {
 		void *ptr;
 

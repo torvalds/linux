@@ -489,6 +489,7 @@ struct msm_gpu_state_bo {
 	size_t size;
 	void *data;
 	bool encoded;
+	char name[32];
 };
 
 struct msm_gpu_state {
