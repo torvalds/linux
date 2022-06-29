@@ -987,32 +987,38 @@ int drv_switch_vif_chanctx(struct ieee80211_local *local,
 
 static inline int drv_start_ap(struct ieee80211_local *local,
 			       struct ieee80211_sub_if_data *sdata,
-			       unsigned int link_id)
+			       struct ieee80211_bss_conf *link_conf)
 {
 	int ret = 0;
+
+	/* make sure link_conf is protected */
+	sdata_assert_lock(sdata);
 
 	might_sleep();
 
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
 
-	trace_drv_start_ap(local, sdata, link_id);
+	trace_drv_start_ap(local, sdata, link_conf);
 	if (local->ops->start_ap)
-		ret = local->ops->start_ap(&local->hw, &sdata->vif, link_id);
+		ret = local->ops->start_ap(&local->hw, &sdata->vif, link_conf);
 	trace_drv_return_int(local, ret);
 	return ret;
 }
 
 static inline void drv_stop_ap(struct ieee80211_local *local,
 			       struct ieee80211_sub_if_data *sdata,
-			       unsigned int link_id)
+			       struct ieee80211_bss_conf *link_conf)
 {
+	/* make sure link_conf is protected */
+	sdata_assert_lock(sdata);
+
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	trace_drv_stop_ap(local, sdata, link_id);
+	trace_drv_stop_ap(local, sdata, link_conf);
 	if (local->ops->stop_ap)
-		local->ops->stop_ap(&local->hw, &sdata->vif, link_id);
+		local->ops->stop_ap(&local->hw, &sdata->vif, link_conf);
 	trace_drv_return_void(local);
 }
 

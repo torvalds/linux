@@ -382,7 +382,8 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 }
 
 static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
-			      struct ieee80211_vif *vif, unsigned int link_id)
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_bss_conf *link_conf)
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
@@ -403,7 +404,7 @@ static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
 
 static
 void rtw89_ops_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		       unsigned int link_id)
+		       struct ieee80211_bss_conf *link_conf)
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;

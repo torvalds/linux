@@ -2579,7 +2579,8 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 				changed |= BSS_CHANGED_AP_PROBE_RESP;
 
 				if (rcu_access_pointer(sdata->deflink.u.ap.beacon))
-					drv_start_ap(local, sdata, 0);
+					drv_start_ap(local, sdata,
+						     sdata->deflink.conf);
 			}
 			fallthrough;
 		case NL80211_IFTYPE_MESH_POINT:

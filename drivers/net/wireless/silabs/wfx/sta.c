@@ -380,7 +380,7 @@ static void wfx_set_mfp_ap(struct wfx_vif *wvif)
 }
 
 int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		 unsigned int link_id)
+		 struct ieee80211_bss_conf *link_conf)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	struct wfx_dev *wdev = wvif->wdev;
@@ -399,7 +399,7 @@ int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		 unsigned int link_id)
+		 struct ieee80211_bss_conf *link_conf)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 

@@ -4092,9 +4092,9 @@ struct ieee80211_ops {
 				  u64 changed);
 
 	int (*start_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			unsigned int link_id);
+			struct ieee80211_bss_conf *link_conf);
 	void (*stop_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			unsigned int link_id);
+			struct ieee80211_bss_conf *link_conf);
 
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
 				 struct netdev_hw_addr_list *mc_list);
