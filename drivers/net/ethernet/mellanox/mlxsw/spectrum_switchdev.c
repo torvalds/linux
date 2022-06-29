@@ -139,7 +139,8 @@ mlxsw_sp_bridge_port_fdb_flush(struct mlxsw_sp *mlxsw_sp,
 
 static void
 mlxsw_sp_bridge_port_mdb_flush(struct mlxsw_sp_port *mlxsw_sp_port,
-			       struct mlxsw_sp_bridge_port *bridge_port);
+			       struct mlxsw_sp_bridge_port *bridge_port,
+			       u16 fid_index);
 
 static int
 mlxsw_sp_bridge_mdb_mc_enable_sync(struct mlxsw_sp *mlxsw_sp,
@@ -1382,14 +1383,13 @@ mlxsw_sp_port_vlan_bridge_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 	struct mlxsw_sp_bridge_vlan *bridge_vlan;
 	struct mlxsw_sp_bridge_port *bridge_port;
 	u16 vid = mlxsw_sp_port_vlan->vid;
-	bool last_port, last_vlan;
+	bool last_port;
 
 	if (WARN_ON(mlxsw_sp_fid_type(fid) != MLXSW_SP_FID_TYPE_8021Q &&
 		    mlxsw_sp_fid_type(fid) != MLXSW_SP_FID_TYPE_8021D))
 		return;
 
 	bridge_port = mlxsw_sp_port_vlan->bridge_port;
-	last_vlan = list_is_singular(&bridge_port->vlans_list);
 	bridge_vlan = mlxsw_sp_bridge_vlan_find(bridge_port, vid);
 	last_port = list_is_singular(&bridge_vlan->port_vlan_list);
 
@@ -1401,8 +1401,9 @@ mlxsw_sp_port_vlan_bridge_leave(struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan)
 		mlxsw_sp_bridge_port_fdb_flush(mlxsw_sp_port->mlxsw_sp,
 					       bridge_port,
 					       mlxsw_sp_fid_index(fid));
-	if (last_vlan)
-		mlxsw_sp_bridge_port_mdb_flush(mlxsw_sp_port, bridge_port);
+
+	mlxsw_sp_bridge_port_mdb_flush(mlxsw_sp_port, bridge_port,
+				       mlxsw_sp_fid_index(fid));
 
 	mlxsw_sp_port_vlan_fid_leave(mlxsw_sp_port_vlan);
 
@@ -2528,7 +2529,8 @@ static int mlxsw_sp_port_mdb_del(struct mlxsw_sp_port *mlxsw_sp_port,
 
 static void
 mlxsw_sp_bridge_port_mdb_flush(struct mlxsw_sp_port *mlxsw_sp_port,
-			       struct mlxsw_sp_bridge_port *bridge_port)
+			       struct mlxsw_sp_bridge_port *bridge_port,
+			       u16 fid_index)
 {
 	struct mlxsw_sp_bridge_device *bridge_device;
 	struct mlxsw_sp_mdb_entry *mdb_entry, *tmp;
@@ -2538,6 +2540,9 @@ mlxsw_sp_bridge_port_mdb_flush(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	list_for_each_entry_safe(mdb_entry, tmp, &bridge_device->mdb_list,
 				 list) {
+		if (mdb_entry->key.fid != fid_index)
+			continue;
+
 		if (test_bit(local_port, mdb_entry->ports_in_mid)) {
 			__mlxsw_sp_port_mdb_del(mlxsw_sp_port, bridge_port,
 						mdb_entry);
