@@ -6160,8 +6160,8 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
 	return num_modes;
 }
 
-static int drm_edid_connector_update(struct drm_connector *connector,
-				     const struct drm_edid *drm_edid)
+static int _drm_edid_connector_update(struct drm_connector *connector,
+				      const struct drm_edid *drm_edid)
 {
 	int num_modes = 0;
 	u32 quirks;
@@ -6227,30 +6227,11 @@ static int drm_edid_connector_update(struct drm_connector *connector,
 static void _drm_update_tile_info(struct drm_connector *connector,
 				  const struct drm_edid *drm_edid);
 
-static int _drm_connector_update_edid_property(struct drm_connector *connector,
+static int _drm_edid_connector_property_update(struct drm_connector *connector,
 					       const struct drm_edid *drm_edid)
 {
 	struct drm_device *dev = connector->dev;
 	int ret;
-
-	/* ignore requests to set edid when overridden */
-	if (connector->override_edid)
-		return 0;
-
-	/*
-	 * Set the display info, using edid if available, otherwise resetting
-	 * the values to defaults. This duplicates the work done in
-	 * drm_add_edid_modes, but that function is not consistently called
-	 * before this one in all drivers and the computation is cheap enough
-	 * that it seems better to duplicate it rather than attempt to ensure
-	 * some arbitrary ordering of calls.
-	 */
-	if (drm_edid)
-		update_display_info(connector, drm_edid);
-	else
-		drm_reset_display_info(connector);
-
-	_drm_update_tile_info(connector, drm_edid);
 
 	if (connector->edid_blob_ptr) {
 		const struct edid *old_edid = connector->edid_blob_ptr->data;
@@ -6298,6 +6279,76 @@ out:
 }
 
 /**
+ * drm_edid_connector_update - Update connector information from EDID
+ * @connector: Connector
+ * @drm_edid: EDID
+ *
+ * Update the connector mode list, display info, ELD, HDR metadata, relevant
+ * properties, etc. from the passed in EDID.
+ *
+ * If EDID is NULL, reset the information.
+ *
+ * Return: The number of modes added or 0 if we couldn't find any.
+ */
+int drm_edid_connector_update(struct drm_connector *connector,
+			      const struct drm_edid *drm_edid)
+{
+	int count;
+
+	/*
+	 * FIXME: Reconcile the differences in override_edid handling between
+	 * this and drm_connector_update_edid_property().
+	 *
+	 * If override_edid is set, and the EDID passed in here originates from
+	 * drm_edid_read() and friends, it will be the override EDID, and there
+	 * are no issues. drm_connector_update_edid_property() ignoring requests
+	 * to set the EDID dates back to a time when override EDID was not
+	 * handled at the low level EDID read.
+	 *
+	 * The only way the EDID passed in here can be different from the
+	 * override EDID is when a driver passes in an EDID that does *not*
+	 * originate from drm_edid_read() and friends, or passes in a stale
+	 * cached version. This, in turn, is a question of when an override EDID
+	 * set via debugfs should take effect.
+	 */
+
+	count = _drm_edid_connector_update(connector, drm_edid);
+
+	_drm_update_tile_info(connector, drm_edid);
+
+	/* Note: Ignore errors for now. */
+	_drm_edid_connector_property_update(connector, drm_edid);
+
+	return count;
+}
+EXPORT_SYMBOL(drm_edid_connector_update);
+
+static int _drm_connector_update_edid_property(struct drm_connector *connector,
+					       const struct drm_edid *drm_edid)
+{
+	/* ignore requests to set edid when overridden */
+	if (connector->override_edid)
+		return 0;
+
+	/*
+	 * Set the display info, using edid if available, otherwise resetting
+	 * the values to defaults. This duplicates the work done in
+	 * drm_add_edid_modes, but that function is not consistently called
+	 * before this one in all drivers and the computation is cheap enough
+	 * that it seems better to duplicate it rather than attempt to ensure
+	 * some arbitrary ordering of calls.
+	 */
+	if (drm_edid)
+		update_display_info(connector, drm_edid);
+	else
+		drm_reset_display_info(connector);
+
+	_drm_update_tile_info(connector, drm_edid);
+
+	return _drm_edid_connector_property_update(connector, drm_edid);
+}
+
+/**
  * drm_connector_update_edid_property - update the edid property of a connector
  * @connector: drm connector
  * @edid: new value of the edid property
@@ -6307,6 +6358,8 @@ out:
  * Since we also parse tile information from EDID's displayID block, we also
  * set the connector's tile property here. See drm_connector_set_tile_property()
  * for more details.
+ *
+ * This function is deprecated. Use drm_edid_connector_update() instead.
  *
  * Returns:
  * Zero on success, negative errno on failure.
@@ -6330,6 +6383,8 @@ EXPORT_SYMBOL(drm_connector_update_edid_property);
  * &drm_display_info structure and ELD in @connector with any information which
  * can be derived from the edid.
  *
+ * This function is deprecated. Use drm_edid_connector_update() instead.
+ *
  * Return: The number of modes added or 0 if we couldn't find any.
  */
 int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
@@ -6342,8 +6397,8 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 		edid = NULL;
 	}
 
-	return drm_edid_connector_update(connector,
-					 drm_edid_legacy_init(&drm_edid, edid));
+	return _drm_edid_connector_update(connector,
+					  drm_edid_legacy_init(&drm_edid, edid));
 }
 EXPORT_SYMBOL(drm_add_edid_modes);
 
