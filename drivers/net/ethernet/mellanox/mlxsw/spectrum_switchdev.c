@@ -48,7 +48,7 @@ struct mlxsw_sp_bridge_device {
 	struct net_device *dev;
 	struct list_head list;
 	struct list_head ports_list;
-	struct list_head mids_list;
+	struct list_head mdb_list;
 	u8 vlan_enabled:1,
 	   multicast_enabled:1,
 	   mrouter:1;
@@ -263,7 +263,8 @@ mlxsw_sp_bridge_device_create(struct mlxsw_sp_bridge *bridge,
 	} else {
 		bridge_device->ops = bridge->bridge_8021d_ops;
 	}
-	INIT_LIST_HEAD(&bridge_device->mids_list);
+	INIT_LIST_HEAD(&bridge_device->mdb_list);
+
 	if (list_empty(&bridge->bridges_list))
 		mlxsw_sp_fdb_notify_work_schedule(bridge->mlxsw_sp, false);
 	list_add(&bridge_device->list, &bridge->bridges_list);
@@ -299,7 +300,7 @@ mlxsw_sp_bridge_device_destroy(struct mlxsw_sp_bridge *bridge,
 	if (bridge_device->vlan_enabled)
 		bridge->vlan_enabled_exists = false;
 	WARN_ON(!list_empty(&bridge_device->ports_list));
-	WARN_ON(!list_empty(&bridge_device->mids_list));
+	WARN_ON(!list_empty(&bridge_device->mdb_list));
 	kfree(bridge_device);
 }
 
@@ -982,7 +983,7 @@ mlxsw_sp_bridge_mrouter_update_mdb(struct mlxsw_sp *mlxsw_sp,
 {
 	struct mlxsw_sp_mdb_entry *mdb_entry;
 
-	list_for_each_entry(mdb_entry, &bridge_device->mids_list, list)
+	list_for_each_entry(mdb_entry, &bridge_device->mdb_list, list)
 		mlxsw_sp_smid_router_port_set(mlxsw_sp, mdb_entry->mid, add);
 }
 
@@ -1711,7 +1712,7 @@ __mlxsw_sp_mc_get(struct mlxsw_sp_bridge_device *bridge_device,
 {
 	struct mlxsw_sp_mdb_entry *mdb_entry;
 
-	list_for_each_entry(mdb_entry, &bridge_device->mids_list, list) {
+	list_for_each_entry(mdb_entry, &bridge_device->mdb_list, list) {
 		if (ether_addr_equal(mdb_entry->addr, addr) &&
 		    mdb_entry->fid == fid)
 			return mdb_entry;
@@ -1840,7 +1841,7 @@ __mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
 		goto err_write_mdb_entry;
 
 out:
-	list_add_tail(&mdb_entry->list, &bridge_device->mids_list);
+	list_add_tail(&mdb_entry->list, &bridge_device->mdb_list);
 	return mdb_entry;
 
 err_write_mdb_entry:
@@ -1931,7 +1932,7 @@ mlxsw_sp_bridge_mdb_mc_enable_sync(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_mdb_entry *mdb_entry;
 	int err;
 
-	list_for_each_entry(mdb_entry, &bridge_device->mids_list, list) {
+	list_for_each_entry(mdb_entry, &bridge_device->mdb_list, list) {
 		if (mc_enabled)
 			err = mlxsw_sp_mc_write_mdb_entry(mlxsw_sp, mdb_entry,
 							  bridge_device);
@@ -1946,7 +1947,7 @@ mlxsw_sp_bridge_mdb_mc_enable_sync(struct mlxsw_sp *mlxsw_sp,
 
 err_mdb_entry_update:
 	list_for_each_entry_continue_reverse(mdb_entry,
-					     &bridge_device->mids_list, list) {
+					     &bridge_device->mdb_list, list) {
 		if (mc_enabled)
 			mlxsw_sp_mc_remove_mdb_entry(mlxsw_sp, mdb_entry);
 		else
@@ -1966,7 +1967,7 @@ mlxsw_sp_port_mrouter_update_mdb(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	bridge_device = bridge_port->bridge_device;
 
-	list_for_each_entry(mdb_entry, &bridge_device->mids_list, list) {
+	list_for_each_entry(mdb_entry, &bridge_device->mdb_list, list) {
 		if (!test_bit(mlxsw_sp_port->local_port,
 			      mdb_entry->ports_in_mid))
 			mlxsw_sp_port_smid_set(mlxsw_sp_port, mdb_entry->mid,
@@ -2115,7 +2116,7 @@ mlxsw_sp_bridge_port_mdb_flush(struct mlxsw_sp_port *mlxsw_sp_port,
 
 	bridge_device = bridge_port->bridge_device;
 
-	list_for_each_entry_safe(mdb_entry, tmp, &bridge_device->mids_list,
+	list_for_each_entry_safe(mdb_entry, tmp, &bridge_device->mdb_list,
 				 list) {
 		if (test_bit(local_port, mdb_entry->ports_in_mid)) {
 			__mlxsw_sp_port_mdb_del(mlxsw_sp_port, bridge_port,
