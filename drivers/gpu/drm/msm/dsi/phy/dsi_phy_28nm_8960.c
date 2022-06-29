@@ -383,7 +383,7 @@ static int dsi_28nm_pll_restore_state(struct msm_dsi_phy *phy)
 
 static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **provided_clocks)
 {
-	char clk_name[32], parent_name[32], vco_name[32];
+	char clk_name[32];
 	struct clk_init_data vco_init = {
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "ref",
@@ -404,8 +404,8 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 	if (!bytediv)
 		return -ENOMEM;
 
-	snprintf(vco_name, sizeof(vco_name), "dsi%dvco_clk", pll_28nm->phy->id);
-	vco_init.name = vco_name;
+	snprintf(clk_name, sizeof(clk_name), "dsi%dvco_clk", pll_28nm->phy->id);
+	vco_init.name = clk_name;
 
 	pll_28nm->clk_hw.init = &vco_init;
 
@@ -417,13 +417,14 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 	bytediv->hw.init = &bytediv_init;
 	bytediv->reg = pll_28nm->phy->pll_base + REG_DSI_28nm_8960_PHY_PLL_CTRL_9;
 
-	snprintf(parent_name, sizeof(parent_name), "dsi%dvco_clk", pll_28nm->phy->id);
 	snprintf(clk_name, sizeof(clk_name), "dsi%dpllbyte", pll_28nm->phy->id + 1);
 
 	bytediv_init.name = clk_name;
 	bytediv_init.ops = &clk_bytediv_ops;
 	bytediv_init.flags = CLK_SET_RATE_PARENT;
-	bytediv_init.parent_names = (const char * const *) &parent_name;
+	bytediv_init.parent_hws = (const struct clk_hw*[]){
+		&pll_28nm->clk_hw,
+	};
 	bytediv_init.num_parents = 1;
 
 	/* DIV2 */
@@ -434,8 +435,8 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 
 	snprintf(clk_name, sizeof(clk_name), "dsi%dpll", pll_28nm->phy->id + 1);
 	/* DIV3 */
-	hw = devm_clk_hw_register_divider(dev, clk_name, parent_name, 0,
-			pll_28nm->phy->pll_base +
+	hw = devm_clk_hw_register_divider_parent_hw(dev, clk_name,
+			&pll_28nm->clk_hw, 0, pll_28nm->phy->pll_base +
 				REG_DSI_28nm_8960_PHY_PLL_CTRL_10,
 			0, 8, 0, NULL);
 	if (IS_ERR(hw))
