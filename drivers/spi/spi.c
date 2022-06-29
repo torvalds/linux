@@ -1636,12 +1636,12 @@ static int __spi_pump_transfer_message(struct spi_controller *ctlr,
 		dev_err(&ctlr->dev,
 			"failed to transfer one message from queue\n");
 		return ret;
-	} else {
-		WRITE_ONCE(ctlr->cur_msg_need_completion, true);
-		smp_mb(); /* see spi_finalize_current_message()... */
-		if (READ_ONCE(ctlr->cur_msg_incomplete))
-			wait_for_completion(&ctlr->cur_msg_completion);
 	}
+
+	WRITE_ONCE(ctlr->cur_msg_need_completion, true);
+	smp_mb(); /* See spi_finalize_current_message()... */
+	if (READ_ONCE(ctlr->cur_msg_incomplete))
+		wait_for_completion(&ctlr->cur_msg_completion);
 
 	return 0;
 }
