@@ -38,6 +38,8 @@
 #include "xfs_pwork.h"
 #include "xfs_ag.h"
 #include "xfs_defer.h"
+#include "xfs_attr_item.h"
+#include "xfs_xattr.h"
 
 #include <linux/magic.h>
 #include <linux/fs_context.h>
@@ -2079,8 +2081,24 @@ xfs_init_caches(void)
 	if (!xfs_bui_cache)
 		goto out_destroy_bud_cache;
 
+	xfs_attrd_cache = kmem_cache_create("xfs_attrd_item",
+					    sizeof(struct xfs_attrd_log_item),
+					    0, 0, NULL);
+	if (!xfs_attrd_cache)
+		goto out_destroy_bui_cache;
+
+	xfs_attri_cache = kmem_cache_create("xfs_attri_item",
+					    sizeof(struct xfs_attri_log_item),
+					    0, 0, NULL);
+	if (!xfs_attri_cache)
+		goto out_destroy_attrd_cache;
+
 	return 0;
 
+ out_destroy_attrd_cache:
+	kmem_cache_destroy(xfs_attrd_cache);
+ out_destroy_bui_cache:
+	kmem_cache_destroy(xfs_bui_cache);
  out_destroy_bud_cache:
 	kmem_cache_destroy(xfs_bud_cache);
  out_destroy_cui_cache:
@@ -2127,6 +2145,8 @@ xfs_destroy_caches(void)
 	 * destroy caches.
 	 */
 	rcu_barrier();
+	kmem_cache_destroy(xfs_attri_cache);
+	kmem_cache_destroy(xfs_attrd_cache);
 	kmem_cache_destroy(xfs_bui_cache);
 	kmem_cache_destroy(xfs_bud_cache);
 	kmem_cache_destroy(xfs_cui_cache);

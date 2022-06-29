@@ -51,7 +51,7 @@ static int preallocated_oos_pages = 8192;
 
 static bool intel_gvt_is_valid_gfn(struct intel_vgpu *vgpu, unsigned long gfn)
 {
-	struct kvm *kvm = vgpu->kvm;
+	struct kvm *kvm = vgpu->vfio_device.kvm;
 	int idx;
 	bool ret;
 
@@ -1185,7 +1185,7 @@ static int is_2MB_gtt_possible(struct intel_vgpu *vgpu,
 
 	if (!vgpu->attached)
 		return -EINVAL;
-	pfn = gfn_to_pfn(vgpu->kvm, ops->get_pfn(entry));
+	pfn = gfn_to_pfn(vgpu->vfio_device.kvm, ops->get_pfn(entry));
 	if (is_error_noslot_pfn(pfn))
 		return -EINVAL;
 	return PageTransHuge(pfn_to_page(pfn));

@@ -650,6 +650,7 @@ static int pcf85063_probe(struct i2c_client *client)
 }
 
 static const struct i2c_device_id pcf85063_ids[] = {
+	{ "pca85073a", PCF85063A },
 	{ "pcf85063", PCF85063 },
 	{ "pcf85063tp", PCF85063TP },
 	{ "pcf85063a", PCF85063A },
@@ -660,6 +661,7 @@ MODULE_DEVICE_TABLE(i2c, pcf85063_ids);
 
 #ifdef CONFIG_OF
 static const struct of_device_id pcf85063_of_match[] = {
+	{ .compatible = "nxp,pca85073a", .data = &pcf85063_cfg[PCF85063A] },
 	{ .compatible = "nxp,pcf85063", .data = &pcf85063_cfg[PCF85063] },
 	{ .compatible = "nxp,pcf85063tp", .data = &pcf85063_cfg[PCF85063TP] },
 	{ .compatible = "nxp,pcf85063a", .data = &pcf85063_cfg[PCF85063A] },

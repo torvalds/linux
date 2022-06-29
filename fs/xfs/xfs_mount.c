@@ -1356,7 +1356,6 @@ xfs_clear_incompat_log_features(
 
 	if (xfs_sb_has_incompat_log_feature(&mp->m_sb,
 				XFS_SB_FEAT_INCOMPAT_LOG_ALL)) {
-		xfs_info(mp, "Clearing log incompat feature flags.");
 		xfs_sb_remove_incompat_log_features(&mp->m_sb);
 		ret = true;
 	}

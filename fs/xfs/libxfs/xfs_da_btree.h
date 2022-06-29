@@ -225,6 +225,7 @@ enum xfs_dacmp xfs_da_compname(struct xfs_da_args *args,
 
 struct xfs_da_state *xfs_da_state_alloc(struct xfs_da_args *args);
 void xfs_da_state_free(xfs_da_state_t *state);
+void xfs_da_state_reset(struct xfs_da_state *state, struct xfs_da_args *args);
 
 void	xfs_da3_node_hdr_from_disk(struct xfs_mount *mp,
 		struct xfs_da3_icnode_hdr *to, struct xfs_da_intnode *from);

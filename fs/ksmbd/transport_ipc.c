@@ -26,6 +26,7 @@
 #include "mgmt/ksmbd_ida.h"
 #include "connection.h"
 #include "transport_tcp.h"
+#include "transport_rdma.h"
 
 #define IPC_WAIT_TIMEOUT	(2 * HZ)
 
@@ -303,6 +304,8 @@ static int ipc_server_config_on_startup(struct ksmbd_startup_request *req)
 		init_smb2_max_trans_size(req->smb2_max_trans);
 	if (req->smb2_max_credits)
 		init_smb2_max_credits(req->smb2_max_credits);
+	if (req->smbd_max_io_size)
+		init_smbd_max_io_size(req->smbd_max_io_size);
 
 	ret = ksmbd_set_netbios_name(req->netbios_name);
 	ret |= ksmbd_set_server_string(req->server_string);

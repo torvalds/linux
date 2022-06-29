@@ -579,7 +579,7 @@ static inline int ceph_wait_on_async_create(struct inode *inode)
 	struct ceph_inode_info *ci = ceph_inode(inode);
 
 	return wait_on_bit(&ci->i_ceph_flags, CEPH_ASYNC_CREATE_BIT,
-			   TASK_INTERRUPTIBLE);
+			   TASK_KILLABLE);
 }
 
 extern u64 ceph_get_deleg_ino(struct ceph_mds_session *session);
