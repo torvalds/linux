@@ -316,6 +316,7 @@ const char *get_fd_type_name(enum bpf_obj_type type)
 		[BPF_OBJ_UNKNOWN]	= "unknown",
 		[BPF_OBJ_PROG]		= "prog",
 		[BPF_OBJ_MAP]		= "map",
+		[BPF_OBJ_LINK]		= "link",
 	};
 
 	if (type < 0 || type >= ARRAY_SIZE(names) || !names[type])
