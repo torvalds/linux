@@ -113,8 +113,17 @@ struct mlxsw_sp_mdb_entry {
 	struct rhash_head ht_node;
 	struct mlxsw_sp_mdb_entry_key key;
 	u16 mid;
+	struct list_head ports_list;
+	u16 ports_count;
 	bool in_hw;
 	unsigned long *ports_in_mid; /* bits array */
+};
+
+struct mlxsw_sp_mdb_entry_port {
+	struct list_head list; /* Member of 'ports_list'. */
+	u16 local_port;
+	refcount_t refcount;
+	bool mrouter;
 };
 
 static const struct rhashtable_params mlxsw_sp_mdb_ht_params = {
@@ -993,6 +1002,150 @@ static int mlxsw_sp_smid_router_port_set(struct mlxsw_sp *mlxsw_sp,
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid2), smid2_pl);
 	kfree(smid2_pl);
 	return err;
+}
+
+static struct mlxsw_sp_mdb_entry_port *
+mlxsw_sp_mdb_entry_port_lookup(struct mlxsw_sp_mdb_entry *mdb_entry,
+			       u16 local_port)
+{
+	struct mlxsw_sp_mdb_entry_port *mdb_entry_port;
+
+	list_for_each_entry(mdb_entry_port, &mdb_entry->ports_list, list) {
+		if (mdb_entry_port->local_port == local_port)
+			return mdb_entry_port;
+	}
+
+	return NULL;
+}
+
+static __always_unused struct mlxsw_sp_mdb_entry_port *
+mlxsw_sp_mdb_entry_port_get(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_mdb_entry *mdb_entry,
+			    u16 local_port)
+{
+	struct mlxsw_sp_mdb_entry_port *mdb_entry_port;
+	int err;
+
+	mdb_entry_port = mlxsw_sp_mdb_entry_port_lookup(mdb_entry, local_port);
+	if (mdb_entry_port) {
+		if (mdb_entry_port->mrouter &&
+		    refcount_read(&mdb_entry_port->refcount) == 1)
+			mdb_entry->ports_count++;
+
+		refcount_inc(&mdb_entry_port->refcount);
+		return mdb_entry_port;
+	}
+
+	err = mlxsw_sp_pgt_entry_port_set(mlxsw_sp, mdb_entry->mid,
+					  mdb_entry->key.fid, local_port, true);
+	if (err)
+		return ERR_PTR(err);
+
+	mdb_entry_port = kzalloc(sizeof(*mdb_entry_port), GFP_KERNEL);
+	if (!mdb_entry_port) {
+		err = -ENOMEM;
+		goto err_mdb_entry_port_alloc;
+	}
+
+	mdb_entry_port->local_port = local_port;
+	refcount_set(&mdb_entry_port->refcount, 1);
+	list_add(&mdb_entry_port->list, &mdb_entry->ports_list);
+	mdb_entry->ports_count++;
+
+	return mdb_entry_port;
+
+err_mdb_entry_port_alloc:
+	mlxsw_sp_pgt_entry_port_set(mlxsw_sp, mdb_entry->mid,
+				    mdb_entry->key.fid, local_port, false);
+	return ERR_PTR(err);
+}
+
+static __always_unused void
+mlxsw_sp_mdb_entry_port_put(struct mlxsw_sp *mlxsw_sp,
+			    struct mlxsw_sp_mdb_entry *mdb_entry,
+			    u16 local_port, bool force)
+{
+	struct mlxsw_sp_mdb_entry_port *mdb_entry_port;
+
+	mdb_entry_port = mlxsw_sp_mdb_entry_port_lookup(mdb_entry, local_port);
+	if (!mdb_entry_port)
+		return;
+
+	if (!force && !refcount_dec_and_test(&mdb_entry_port->refcount)) {
+		if (mdb_entry_port->mrouter &&
+		    refcount_read(&mdb_entry_port->refcount) == 1)
+			mdb_entry->ports_count--;
+		return;
+	}
+
+	mdb_entry->ports_count--;
+	list_del(&mdb_entry_port->list);
+	kfree(mdb_entry_port);
+	mlxsw_sp_pgt_entry_port_set(mlxsw_sp, mdb_entry->mid,
+				    mdb_entry->key.fid, local_port, false);
+}
+
+static __always_unused struct mlxsw_sp_mdb_entry_port *
+mlxsw_sp_mdb_entry_mrouter_port_get(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_mdb_entry *mdb_entry,
+				    u16 local_port)
+{
+	struct mlxsw_sp_mdb_entry_port *mdb_entry_port;
+	int err;
+
+	mdb_entry_port = mlxsw_sp_mdb_entry_port_lookup(mdb_entry, local_port);
+	if (mdb_entry_port) {
+		if (!mdb_entry_port->mrouter)
+			refcount_inc(&mdb_entry_port->refcount);
+		return mdb_entry_port;
+	}
+
+	err = mlxsw_sp_pgt_entry_port_set(mlxsw_sp, mdb_entry->mid,
+					  mdb_entry->key.fid, local_port, true);
+	if (err)
+		return ERR_PTR(err);
+
+	mdb_entry_port = kzalloc(sizeof(*mdb_entry_port), GFP_KERNEL);
+	if (!mdb_entry_port) {
+		err = -ENOMEM;
+		goto err_mdb_entry_port_alloc;
+	}
+
+	mdb_entry_port->local_port = local_port;
+	refcount_set(&mdb_entry_port->refcount, 1);
+	mdb_entry_port->mrouter = true;
+	list_add(&mdb_entry_port->list, &mdb_entry->ports_list);
+
+	return mdb_entry_port;
+
+err_mdb_entry_port_alloc:
+	mlxsw_sp_pgt_entry_port_set(mlxsw_sp, mdb_entry->mid,
+				    mdb_entry->key.fid, local_port, false);
+	return ERR_PTR(err);
+}
+
+static __always_unused void
+mlxsw_sp_mdb_entry_mrouter_port_put(struct mlxsw_sp *mlxsw_sp,
+				    struct mlxsw_sp_mdb_entry *mdb_entry,
+				    u16 local_port)
+{
+	struct mlxsw_sp_mdb_entry_port *mdb_entry_port;
+
+	mdb_entry_port = mlxsw_sp_mdb_entry_port_lookup(mdb_entry, local_port);
+	if (!mdb_entry_port)
+		return;
+
+	if (!mdb_entry_port->mrouter)
+		return;
+
+	mdb_entry_port->mrouter = false;
+	if (!refcount_dec_and_test(&mdb_entry_port->refcount))
+		return;
+
+	list_del(&mdb_entry_port->list);
+	kfree(mdb_entry_port);
+	mlxsw_sp_pgt_entry_port_set(mlxsw_sp, mdb_entry->mid,
+				    mdb_entry->key.fid, local_port, false);
 }
 
 static void
