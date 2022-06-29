@@ -43,9 +43,10 @@ static uint32_t get_sdma_rlc_reg_offset(struct amdgpu_device *adev,
 					unsigned int engine_id,
 					unsigned int queue_id)
 {
-	uint32_t sdma_engine_reg_base = SOC15_REG_OFFSET(SDMA0, engine_id,
-					regSDMA_RLC0_RB_CNTL) -
-					regSDMA_RLC0_RB_CNTL;
+	uint32_t sdma_engine_reg_base =
+		SOC15_REG_OFFSET(SDMA0, GET_INST(SDMA0, engine_id),
+				 regSDMA_RLC0_RB_CNTL) -
+		regSDMA_RLC0_RB_CNTL;
 	uint32_t retval = sdma_engine_reg_base +
 		  queue_id * (regSDMA_RLC1_RB_CNTL - regSDMA_RLC0_RB_CNTL);
 

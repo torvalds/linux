@@ -75,7 +75,10 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 			bool use_doorbell, int doorbell_index, int doorbell_size)
 {
 	u32 doorbell_range = 0, doorbell_ctrl = 0;
-	int aid_id = adev->sdma.instance[instance].aid_id;
+	int aid_id, dev_inst;
+
+	dev_inst = GET_INST(SDMA0, instance);
+	aid_id = adev->sdma.instance[instance].aid_id;
 
 	if (use_doorbell == false)
 		return;
@@ -93,7 +96,7 @@ static void nbio_v7_9_sdma_doorbell_range(struct amdgpu_device *adev, int instan
 		REG_SET_FIELD(doorbell_ctrl, S2A_DOORBELL_ENTRY_1_CTRL,
 			S2A_DOORBELL_PORT1_RANGE_SIZE, doorbell_size);
 
-	switch (instance % adev->sdma.num_inst_per_aid) {
+	switch (dev_inst % adev->sdma.num_inst_per_aid) {
 	case 0:
 		WREG32(SOC15_REG_OFFSET(NBIO, 0, regDOORBELL0_CTRL_ENTRY_1) +
 			4 * aid_id, doorbell_range);

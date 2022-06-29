@@ -57,7 +57,9 @@ static void sdma_v4_4_2_set_irq_funcs(struct amdgpu_device *adev);
 static u32 sdma_v4_4_2_get_reg_offset(struct amdgpu_device *adev,
 		u32 instance, u32 offset)
 {
-	return (adev->reg_offset[SDMA0_HWIP][instance][0] + offset);
+	u32 dev_inst = GET_INST(SDMA0, instance);
+
+	return (adev->reg_offset[SDMA0_HWIP][dev_inst][0] + offset);
 }
 
 static unsigned sdma_v4_4_2_seq_to_irq_id(int seq_num)
@@ -1475,16 +1477,31 @@ static int sdma_v4_4_2_process_trap_irq(struct amdgpu_device *adev,
 				      struct amdgpu_irq_src *source,
 				      struct amdgpu_iv_entry *entry)
 {
-	uint32_t instance;
+	uint32_t instance, i;
 
 	DRM_DEBUG("IH: SDMA trap\n");
 	instance = sdma_v4_4_2_irq_id_to_seq(entry->client_id);
-	instance += node_id_to_phys_map[entry->node_id] *
-			adev->sdma.num_inst_per_aid;
+
+	/* Client id gives the SDMA instance in AID. To know the exact SDMA
+	 * instance, interrupt entry gives the node id which corresponds to the AID instance.
+	 * Match node id with the AID id associated with the SDMA instance. */
+	for (i = instance; i < adev->sdma.num_instances;
+	     i += adev->sdma.num_inst_per_aid) {
+		if (adev->sdma.instance[i].aid_id ==
+		    node_id_to_phys_map[entry->node_id])
+			break;
+	}
+
+	if (i >= adev->sdma.num_instances) {
+		dev_WARN_ONCE(
+			adev->dev, 1,
+			"Couldn't find the right sdma instance in trap handler");
+		return 0;
+	}
 
 	switch (entry->ring_id) {
 	case 0:
-		amdgpu_fence_process(&adev->sdma.instance[instance].ring);
+		amdgpu_fence_process(&adev->sdma.instance[i].ring);
 		break;
 	default:
 		break;
@@ -1717,12 +1734,12 @@ static void sdma_v4_4_2_get_clockgating_state(void *handle, u64 *flags)
 		*flags = 0;
 
 	/* AMD_CG_SUPPORT_SDMA_MGCG */
-	data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, regSDMA_CLK_CTRL));
+	data = RREG32(SOC15_REG_OFFSET(SDMA0, GET_INST(SDMA0, 0), regSDMA_CLK_CTRL));
 	if (!(data & SDMA_CLK_CTRL__SOFT_OVERRIDE7_MASK))
 		*flags |= AMD_CG_SUPPORT_SDMA_MGCG;
 
 	/* AMD_CG_SUPPORT_SDMA_LS */
-	data = RREG32(SOC15_REG_OFFSET(SDMA0, 0, regSDMA_POWER_CNTL));
+	data = RREG32(SOC15_REG_OFFSET(SDMA0, GET_INST(SDMA0, 0), regSDMA_POWER_CNTL));
 	if (data & SDMA_POWER_CNTL__MEM_POWER_OVERRIDE_MASK)
 		*flags |= AMD_CG_SUPPORT_SDMA_LS;
 }
@@ -1809,7 +1826,7 @@ static const struct amdgpu_ring_funcs sdma_v4_4_2_page_ring_funcs = {
 
 static void sdma_v4_4_2_set_ring_funcs(struct amdgpu_device *adev)
 {
-	int i;
+	int i, dev_inst;
 
 	for (i = 0; i < adev->sdma.num_instances; i++) {
 		adev->sdma.instance[i].ring.funcs = &sdma_v4_4_2_ring_funcs;
@@ -1820,7 +1837,10 @@ static void sdma_v4_4_2_set_ring_funcs(struct amdgpu_device *adev)
 			adev->sdma.instance[i].page.me = i;
 		}
 
-		adev->sdma.instance[i].aid_id = i / adev->sdma.num_inst_per_aid;
+		dev_inst = GET_INST(SDMA0, i);
+		/* AID to which SDMA belongs depends on physical instance */
+		adev->sdma.instance[i].aid_id =
+			dev_inst / adev->sdma.num_inst_per_aid;
 	}
 }
 
