@@ -104,14 +104,6 @@ static inline void tegra20_das_write(u32 reg, u32 val)
 	regmap_write(das->regmap, reg, val);
 }
 
-static inline u32 tegra20_das_read(u32 reg)
-{
-	u32 val;
-
-	regmap_read(das->regmap, reg, &val);
-	return val;
-}
-
 static int tegra20_das_connect_dap_to_dac(int dap, int dac)
 {
 	u32 addr;
