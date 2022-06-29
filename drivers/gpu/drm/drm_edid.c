@@ -6231,19 +6231,13 @@ static int _drm_connector_update_edid_property(struct drm_connector *connector,
 
 		if (old_edid) {
 			if (!drm_edid_are_equal(drm_edid ? drm_edid->edid : NULL, old_edid)) {
-				DRM_DEBUG_KMS("[CONNECTOR:%d:%s] Edid was changed.\n",
-					      connector->base.id, connector->name);
-
-				connector->epoch_counter += 1;
-				DRM_DEBUG_KMS("Updating change counter to %llu\n",
-					      connector->epoch_counter);
+				connector->epoch_counter++;
+				drm_dbg_kms(dev, "[CONNECTOR:%d:%s] EDID changed, epoch counter %llu\n",
+					    connector->base.id, connector->name,
+					    connector->epoch_counter);
 			}
 		}
 	}
-
-	drm_object_property_set_value(&connector->base,
-				      dev->mode_config.non_desktop_property,
-				      connector->display_info.non_desktop);
 
 	ret = drm_property_replace_global_blob(dev,
 					       &connector->edid_blob_ptr,
@@ -6251,9 +6245,30 @@ static int _drm_connector_update_edid_property(struct drm_connector *connector,
 					       drm_edid ? drm_edid->edid : NULL,
 					       &connector->base,
 					       dev->mode_config.edid_property);
-	if (ret)
-		return ret;
-	return drm_connector_set_tile_property(connector);
+	if (ret) {
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] EDID property update failed (%d)\n",
+			    connector->base.id, connector->name, ret);
+		goto out;
+	}
+
+	ret = drm_object_property_set_value(&connector->base,
+					    dev->mode_config.non_desktop_property,
+					    connector->display_info.non_desktop);
+	if (ret) {
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Non-desktop property update failed (%d)\n",
+			    connector->base.id, connector->name, ret);
+		goto out;
+	}
+
+	ret = drm_connector_set_tile_property(connector);
+	if (ret) {
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Tile property update failed (%d)\n",
+			    connector->base.id, connector->name, ret);
+		goto out;
+	}
+
+out:
+	return ret;
 }
 
 /**
