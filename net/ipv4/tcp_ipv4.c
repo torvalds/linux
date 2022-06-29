@@ -1207,8 +1207,8 @@ int tcp_md5_do_add(struct sock *sk, const union tcp_md5_addr *addr,
 	key->l3index = l3index;
 	key->flags = flags;
 	memcpy(&key->addr, addr,
-	       (family == AF_INET6) ? sizeof(struct in6_addr) :
-				      sizeof(struct in_addr));
+	       (IS_ENABLED(CONFIG_IPV6) && family == AF_INET6) ? sizeof(struct in6_addr) :
+								 sizeof(struct in_addr));
 	hlist_add_head_rcu(&key->node, &md5sig->head);
 	return 0;
 }

@@ -123,6 +123,8 @@ static int mlx5e_rx_reporter_err_icosq_cqe_recover(void *ctx)
 		xskrq->stats->recover++;
 	}
 
+	mlx5e_trigger_napi_icosq(icosq->channel);
+
 	mutex_unlock(&icosq->channel->icosq_recovery_lock);
 
 	return 0;
@@ -166,6 +168,10 @@ static int mlx5e_rx_reporter_err_rq_cqe_recover(void *ctx)
 	clear_bit(MLX5E_RQ_STATE_RECOVERING, &rq->state);
 	mlx5e_activate_rq(rq);
 	rq->stats->recover++;
+	if (rq->channel)
+		mlx5e_trigger_napi_icosq(rq->channel);
+	else
+		mlx5e_trigger_napi_sched(rq->cq.napi);
 	return 0;
 out:
 	clear_bit(MLX5E_RQ_STATE_RECOVERING, &rq->state);

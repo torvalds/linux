@@ -433,20 +433,21 @@ static void at803x_context_restore(struct phy_device *phydev,
 static int at803x_set_wol(struct phy_device *phydev,
 			  struct ethtool_wolinfo *wol)
 {
-	struct net_device *ndev = phydev->attached_dev;
-	const u8 *mac;
 	int ret, irq_enabled;
-	unsigned int i;
-	static const unsigned int offsets[] = {
-		AT803X_LOC_MAC_ADDR_32_47_OFFSET,
-		AT803X_LOC_MAC_ADDR_16_31_OFFSET,
-		AT803X_LOC_MAC_ADDR_0_15_OFFSET,
-	};
-
-	if (!ndev)
-		return -ENODEV;
 
 	if (wol->wolopts & WAKE_MAGIC) {
+		struct net_device *ndev = phydev->attached_dev;
+		const u8 *mac;
+		unsigned int i;
+		static const unsigned int offsets[] = {
+			AT803X_LOC_MAC_ADDR_32_47_OFFSET,
+			AT803X_LOC_MAC_ADDR_16_31_OFFSET,
+			AT803X_LOC_MAC_ADDR_0_15_OFFSET,
+		};
+
+		if (!ndev)
+			return -ENODEV;
+
 		mac = (const u8 *) ndev->dev_addr;
 
 		if (!is_valid_ether_addr(mac))
@@ -857,6 +858,9 @@ static int at803x_probe(struct phy_device *phydev)
 	if (phydev->drv->phy_id == ATH8031_PHY_ID) {
 		int ccr = phy_read(phydev, AT803X_REG_CHIP_CONFIG);
 		int mode_cfg;
+		struct ethtool_wolinfo wol = {
+			.wolopts = 0,
+		};
 
 		if (ccr < 0)
 			goto err;
@@ -871,6 +875,13 @@ static int at803x_probe(struct phy_device *phydev)
 		case AT803X_MODE_CFG_FX100_RGMII_75OHM:
 			priv->is_fiber = true;
 			break;
+		}
+
+		/* Disable WOL by default */
+		ret = at803x_set_wol(phydev, &wol);
+		if (ret < 0) {
+			phydev_err(phydev, "failed to disable WOL on probe: %d\n", ret);
+			goto err;
 		}
 	}
 

@@ -35,12 +35,13 @@ static unsigned int nfct_timeout_id __read_mostly;
 
 struct ctnl_timeout {
 	struct list_head	head;
+	struct list_head	free_head;
 	struct rcu_head		rcu_head;
 	refcount_t		refcnt;
 	char			name[CTNL_TIMEOUT_NAME_MAX];
-	struct nf_ct_timeout	timeout;
 
-	struct list_head	free_head;
+	/* must be at the end */
+	struct nf_ct_timeout	timeout;
 };
 
 struct nfct_timeout_pernet {

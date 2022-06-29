@@ -2474,21 +2474,16 @@ drop_unsolicited_na - BOOLEAN
 
 	By default this is turned off.
 
-accept_unsolicited_na - BOOLEAN
-	Add a new neighbour cache entry in STALE state for routers on receiving an
-	unsolicited neighbour advertisement with target link-layer address option
-	specified. This is as per router-side behavior documented in RFC9131.
-	This has lower precedence than drop_unsolicited_na.
+accept_untracked_na - BOOLEAN
+	Add a new neighbour cache entry in STALE state for routers on receiving a
+	neighbour advertisement (either solicited or unsolicited) with target
+	link-layer address option specified if no neighbour entry is already
+	present for the advertised IPv6 address. Without this knob, NAs received
+	for untracked addresses (absent in neighbour cache) are silently ignored.
 
-	 ====   ======  ======  ==============================================
-	 drop   accept  fwding                   behaviour
-	 ----   ------  ------  ----------------------------------------------
-	    1        X       X  Drop NA packet and don't pass up the stack
-	    0        0       X  Pass NA packet up the stack, don't update NC
-	    0        1       0  Pass NA packet up the stack, don't update NC
-	    0        1       1  Pass NA packet up the stack, and add a STALE
-	                        NC entry
-	 ====   ======  ======  ==============================================
+	This is as per router-side behaviour documented in RFC9131.
+
+	This has lower precedence than drop_unsolicited_na.
 
 	This will optimize the return path for the initial off-link communication
 	that is initiated by a directly connected host, by ensuring that

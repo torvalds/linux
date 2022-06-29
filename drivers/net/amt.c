@@ -57,7 +57,7 @@ static char *type_str[] = {
 	"AMT_MSG_MEMBERSHIP_QUERY",
 	"AMT_MSG_MEMBERSHIP_UPDATE",
 	"AMT_MSG_MULTICAST_DATA",
-	"AMT_MSG_TEARDOWM",
+	"AMT_MSG_TEARDOWN",
 };
 
 static char *action_str[] = {
@@ -2423,7 +2423,7 @@ static bool amt_update_handler(struct amt_dev *amt, struct sk_buff *skb)
 		}
 	}
 
-	return false;
+	return true;
 
 report:
 	iph = ip_hdr(skb);
@@ -2679,7 +2679,7 @@ static int amt_rcv(struct sock *sk, struct sk_buff *skb)
 	amt = rcu_dereference_sk_user_data(sk);
 	if (!amt) {
 		err = true;
-		goto out;
+		goto drop;
 	}
 
 	skb->dev = amt->dev;

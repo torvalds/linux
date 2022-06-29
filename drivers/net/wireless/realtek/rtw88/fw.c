@@ -1602,6 +1602,16 @@ free:
 	return ret;
 }
 
+void rtw_fw_update_beacon_work(struct work_struct *work)
+{
+	struct rtw_dev *rtwdev = container_of(work, struct rtw_dev,
+					      update_beacon_work);
+
+	mutex_lock(&rtwdev->mutex);
+	rtw_fw_download_rsvd_page(rtwdev);
+	mutex_unlock(&rtwdev->mutex);
+}
+
 static void rtw_fw_read_fifo_page(struct rtw_dev *rtwdev, u32 offset, u32 size,
 				  u32 *buf, u32 residue, u16 start_pg)
 {
