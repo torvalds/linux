@@ -26,12 +26,15 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <mach/hardware.h>
 #include <asm/mach/irq.h>
 #include <asm/mach-types.h>
 #include <linux/sizes.h>
 
 #include <asm/hardware/sa1111.h>
+
+#ifdef CONFIG_ARCH_SA1100
+#include <mach/hardware.h>
+#endif
 
 /* SA1111 IRQs */
 #define IRQ_GPAIN0		(0)

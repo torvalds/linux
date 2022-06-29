@@ -10,7 +10,6 @@
 #define RESET_STATUS_GPIO	(1 << 3)	/* GPIO Reset */
 #define RESET_STATUS_ALL	(0xf)
 
-extern unsigned int reset_status;
 static inline void clear_reset_status(unsigned int mask)
 {
 	RCSR = mask;
