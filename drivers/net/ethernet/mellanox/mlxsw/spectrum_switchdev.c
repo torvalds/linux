@@ -102,10 +102,14 @@ struct mlxsw_sp_switchdev_ops {
 	void (*init)(struct mlxsw_sp *mlxsw_sp);
 };
 
-struct mlxsw_sp_mdb_entry {
-	struct list_head list;
+struct mlxsw_sp_mdb_entry_key {
 	unsigned char addr[ETH_ALEN];
 	u16 fid;
+};
+
+struct mlxsw_sp_mdb_entry {
+	struct list_head list;
+	struct mlxsw_sp_mdb_entry_key key;
 	u16 mid;
 	bool in_hw;
 	unsigned long *ports_in_mid; /* bits array */
@@ -1713,8 +1717,8 @@ __mlxsw_sp_mc_get(struct mlxsw_sp_bridge_device *bridge_device,
 	struct mlxsw_sp_mdb_entry *mdb_entry;
 
 	list_for_each_entry(mdb_entry, &bridge_device->mdb_list, list) {
-		if (ether_addr_equal(mdb_entry->addr, addr) &&
-		    mdb_entry->fid == fid)
+		if (ether_addr_equal(mdb_entry->key.addr, addr) &&
+		    mdb_entry->key.fid == fid)
 			return mdb_entry;
 	}
 	return NULL;
@@ -1790,8 +1794,8 @@ mlxsw_sp_mc_write_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		return err;
 
-	err = mlxsw_sp_port_mdb_op(mlxsw_sp, mdb_entry->addr, mdb_entry->fid,
-				   mid_idx, true);
+	err = mlxsw_sp_port_mdb_op(mlxsw_sp, mdb_entry->key.addr,
+				   mdb_entry->key.fid, mid_idx, true);
 	if (err)
 		return err;
 
@@ -1808,8 +1812,8 @@ static int mlxsw_sp_mc_remove_mdb_entry(struct mlxsw_sp *mlxsw_sp,
 
 	clear_bit(mdb_entry->mid, mlxsw_sp->bridge->mids_bitmap);
 	mdb_entry->in_hw = false;
-	return mlxsw_sp_port_mdb_op(mlxsw_sp, mdb_entry->addr, mdb_entry->fid,
-				    mdb_entry->mid, false);
+	return mlxsw_sp_port_mdb_op(mlxsw_sp, mdb_entry->key.addr,
+				    mdb_entry->key.fid, mdb_entry->mid, false);
 }
 
 static struct mlxsw_sp_mdb_entry *
@@ -1829,8 +1833,8 @@ __mlxsw_sp_mc_alloc(struct mlxsw_sp *mlxsw_sp,
 	if (!mdb_entry->ports_in_mid)
 		goto err_ports_in_mid_alloc;
 
-	ether_addr_copy(mdb_entry->addr, addr);
-	mdb_entry->fid = fid;
+	ether_addr_copy(mdb_entry->key.addr, addr);
+	mdb_entry->key.fid = fid;
 	mdb_entry->in_hw = false;
 
 	if (!bridge_device->multicast_enabled)
