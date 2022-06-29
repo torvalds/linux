@@ -70,12 +70,12 @@ static inline bool vfsgid_eq(vfsgid_t left, vfsgid_t right)
 
 /**
  * vfsuid_eq_kuid - check whether kuid and vfsuid have the same value
- * @kuid: the kuid to compare
  * @vfsuid: the vfsuid to compare
+ * @kuid: the kuid to compare
  *
- * Check whether @kuid and @vfsuid have the same values.
+ * Check whether @vfsuid and @kuid have the same values.
  *
- * Return: true if @kuid and @vfsuid have the same value, false if not.
+ * Return: true if @vfsuid and @kuid have the same value, false if not.
  * Comparison between two invalid uids returns false.
  */
 static inline bool vfsuid_eq_kuid(vfsuid_t vfsuid, kuid_t kuid)
@@ -85,15 +85,15 @@ static inline bool vfsuid_eq_kuid(vfsuid_t vfsuid, kuid_t kuid)
 
 /**
  * vfsgid_eq_kgid - check whether kgid and vfsgid have the same value
- * @kgid: the kgid to compare
  * @vfsgid: the vfsgid to compare
+ * @kgid: the kgid to compare
  *
- * Check whether @kgid and @vfsgid have the same values.
+ * Check whether @vfsgid and @kgid have the same values.
  *
- * Return: true if @kgid and @vfsgid have the same value, false if not.
+ * Return: true if @vfsgid and @kgid have the same value, false if not.
  * Comparison between two invalid gids returns false.
  */
-static inline bool vfsgid_eq_kgid(kgid_t kgid, vfsgid_t vfsgid)
+static inline bool vfsgid_eq_kgid(vfsgid_t vfsgid, kgid_t kgid)
 {
 	return vfsgid_valid(vfsgid) && __vfsgid_val(vfsgid) == __kgid_val(kgid);
 }
@@ -171,7 +171,7 @@ static inline bool no_idmapping(const struct user_namespace *mnt_userns,
 }
 
 /**
- * mapped_kuid_fs - map a filesystem kuid into a mnt_userns
+ * make_vfsuid - map a filesystem kuid into a mnt_userns
  * @mnt_userns: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
  * @kuid : kuid to be mapped
@@ -216,7 +216,7 @@ static inline kuid_t mapped_kuid_fs(struct user_namespace *mnt_userns,
 }
 
 /**
- * mapped_kgid_fs - map a filesystem kgid into a mnt_userns
+ * make_vfsgid - map a filesystem kgid into a mnt_userns
  * @mnt_userns: the mount's idmapping
  * @fs_userns: the filesystem's idmapping
  * @kgid : kgid to be mapped
