@@ -306,8 +306,8 @@ struct max98396_priv {
 	unsigned int spkfb_slot;
 	unsigned int bypass_slot;
 	bool interleave_mode;
-	unsigned int ch_size;
 	bool tdm_mode;
+	int tdm_max_samplerate;
 	int device_id;
 };
 #endif
