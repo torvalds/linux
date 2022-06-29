@@ -669,6 +669,12 @@ $(JEVENTS_IN): FORCE
 $(JEVENTS): $(JEVENTS_IN)
 	$(QUIET_LINK)$(HOSTCC) $(JEVENTS_IN) -o $@
 
+JEVENTS_PY	:=  pmu-events/jevents.py
+JEVENTS_PY_TEST	:=  pmu-events/jevents-test.sh
+.PHONY: jevents-py-test
+jevents-py-test: $(JEVENTS)
+	$(Q)$(call echo-cmd,gen)$(JEVENTS_PY_TEST) $(JEVENTS) $(JEVENTS_PY) pmu-events/arch
+
 $(PMU_EVENTS_IN): $(JEVENTS) FORCE
 	$(Q)$(MAKE) -f $(srctree)/tools/build/Makefile.build dir=pmu-events obj=pmu-events
 
