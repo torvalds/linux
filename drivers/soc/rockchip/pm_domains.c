@@ -37,6 +37,7 @@
 #include <dt-bindings/power/rk3368-power.h>
 #include <dt-bindings/power/rk3399-power.h>
 #include <dt-bindings/power/rk3528-power.h>
+#include <dt-bindings/power/rk3562-power.h>
 #include <dt-bindings/power/rk3568-power.h>
 #include <dt-bindings/power/rk3588-power.h>
 
@@ -52,6 +53,9 @@ struct rockchip_domain_info {
 	int req_w_mask;
 	int mem_status_mask;
 	int repair_status_mask;
+	int clk_ungate_mask;
+	int clk_ungate_w_mask;
+	int mem_num;
 	bool keepon_startup;
 	bool always_on;
 	u32 pwr_offset;
@@ -69,6 +73,8 @@ struct rockchip_pmu_info {
 	u32 chain_status_offset;
 	u32 mem_status_offset;
 	u32 repair_status_offset;
+	u32 clk_ungate_offset;
+	u32 mem_sd_offset;
 
 	u32 core_pwrcnt_offset;
 	u32 gpu_pwrcnt_offset;
@@ -202,6 +208,23 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 	.keepon_startup = keepon,			\
 }
 
+#define DOMAIN_M_C_SD(_name, pwr, status, req, idle, ack, clk, mem, wakeup, keepon)	\
+{							\
+	.name = _name,					\
+	.pwr_w_mask = (pwr) << 16,			\
+	.pwr_mask = (pwr),				\
+	.status_mask = (status),			\
+	.req_w_mask = (req) << 16,			\
+	.req_mask = (req),				\
+	.idle_mask = (idle),				\
+	.ack_mask = (ack),				\
+	.clk_ungate_mask = (clk),			\
+	.clk_ungate_w_mask = (clk) << 16,		\
+	.mem_num = (mem),				\
+	.active_wakeup = wakeup,			\
+	.keepon_startup = keepon,			\
+}
+
 #define DOMAIN_M_O(_name, pwr, status, p_offset, req, idle, ack, r_offset, wakeup, keepon)	\
 {							\
 	.name = _name,					\
@@ -286,6 +309,12 @@ static void rockchip_pmu_unlock(struct rockchip_pm_domain *pd)
 #define DOMAIN_RK3528(pwr, req, always, wakeup) \
 	DOMAIN_M_A(pwr, pwr, req, req, req, always, wakeup, false)
 
+#define DOMAIN_RK3562(name, pwr, req, mem, wakeup)		\
+	DOMAIN_M_C_SD(name, pwr, pwr, req, req, req, req, mem, wakeup, false)
+
+#define DOMAIN_RK3562_PROTECT(name, pwr, req, mem, wakeup)		\
+	DOMAIN_M_C_SD(name, pwr, pwr, req, req, req, req, mem, wakeup, true)
+
 #define DOMAIN_RK3568(name, pwr, req, wakeup)			\
 	DOMAIN_M(name, pwr, pwr, req, req, req, wakeup, false)
 
@@ -314,6 +343,42 @@ static unsigned int rockchip_pmu_read_ack(struct rockchip_pmu *pmu)
 
 	regmap_read(pmu->regmap, pmu->info->ack_offset, &val);
 	return val;
+}
+
+static int rockchip_pmu_ungate_clk(struct rockchip_pm_domain *pd, bool ungate)
+{
+	const struct rockchip_domain_info *pd_info = pd->info;
+	struct rockchip_pmu *pmu = pd->pmu;
+	unsigned int val;
+
+	if (!pd_info->clk_ungate_mask)
+		return 0;
+	if (!pmu->info->clk_ungate_offset)
+		return 0;
+
+	val = ungate ? (pd_info->clk_ungate_mask | pd_info->clk_ungate_w_mask) :
+			pd_info->clk_ungate_w_mask;
+	regmap_write(pmu->regmap, pmu->info->clk_ungate_offset, val);
+
+	return 0;
+}
+
+static int rockchip_pmu_mem_shut_down(struct rockchip_pm_domain *pd, bool sd)
+{
+	const struct rockchip_domain_info *pd_info = pd->info;
+	struct rockchip_pmu *pmu = pd->pmu;
+	unsigned int i;
+
+	if (!pd_info->mem_num)
+		return 0;
+	if (!pmu->info->mem_sd_offset)
+		return 0;
+
+	for (i = 0; i < pd_info->mem_num; i++)
+		regmap_write(pmu->regmap, pmu->info->mem_sd_offset,
+			     (sd << i) | (1 << (i + 16)));
+
+	return 0;
 }
 
 static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
@@ -709,6 +774,7 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 			rockchip_pmu_unlock(pd);
 			return ret;
 		}
+		rockchip_pmu_ungate_clk(pd, true);
 
 		if (!power_on) {
 			rockchip_pmu_save_qos(pd);
@@ -721,6 +787,7 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 					genpd->name);
 				goto out;
 			}
+			rockchip_pmu_mem_shut_down(pd, true);
 		}
 
 		ret = rockchip_do_pmu_set_power_domain(pd, power_on);
@@ -731,6 +798,7 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 		}
 
 		if (power_on) {
+			rockchip_pmu_mem_shut_down(pd, false);
 			/* if powering up, leave idle mode */
 			ret = rockchip_pmu_set_idle_request(pd, false);
 			if (ret) {
@@ -746,6 +814,7 @@ static int rockchip_pd_power(struct rockchip_pm_domain *pd, bool power_on)
 		}
 
 out:
+		rockchip_pmu_ungate_clk(pd, false);
 		clk_bulk_disable(pd->num_clks, pd->clks);
 
 		if (!power_on && !IS_ERR(pd->supply))
@@ -1569,6 +1638,17 @@ static const struct rockchip_domain_info rk3528_pm_domains[] = {
 	[RK3528_PD_VPU]		= DOMAIN_RK3528(0, BIT(8), true, false),
 };
 
+static const struct rockchip_domain_info rk3562_pm_domains[] = {
+	[RK3562_PD_GPU]		= DOMAIN_RK3562("gpu",         BIT(0), BIT(1), 0, false),
+	[RK3562_PD_NPU]		= DOMAIN_RK3562("npu",         BIT(1), BIT(2), 0, false),
+	[RK3562_PD_VDPU]	= DOMAIN_RK3562("vdpu",        BIT(2), BIT(6), 0, false),
+	[RK3562_PD_VEPU]	= DOMAIN_RK3562("vepu",        BIT(3), BIT(7), 0, false),
+	[RK3562_PD_RGA]		= DOMAIN_RK3562("rga",         BIT(4), BIT(5), 0, false),
+	[RK3562_PD_VI]		= DOMAIN_RK3562("vi",          BIT(5), BIT(3), 0, false),
+	[RK3562_PD_VO]		= DOMAIN_RK3562_PROTECT("vo",  BIT(6), BIT(4), 16, false),
+	[RK3562_PD_PHP]		= DOMAIN_RK3562("php",         BIT(7), BIT(8), 0, false),
+};
+
 static const struct rockchip_domain_info rk3568_pm_domains[] = {
 	[RK3568_PD_NPU]		= DOMAIN_RK3568("npu",        BIT(1), BIT(2),  false),
 	[RK3568_PD_GPU]		= DOMAIN_RK3568("gpu",        BIT(0), BIT(1),  false),
@@ -1782,6 +1862,19 @@ static const struct rockchip_pmu_info rk3528_pmu = {
 	.domain_info = rk3528_pm_domains,
 };
 
+static const struct rockchip_pmu_info rk3562_pmu = {
+	.pwr_offset = 0x210,
+	.status_offset = 0x230,
+	.req_offset = 0x110,
+	.idle_offset = 0x128,
+	.ack_offset = 0x120,
+	.clk_ungate_offset = 0x140,
+	.mem_sd_offset = 0x300,
+
+	.num_domains = ARRAY_SIZE(rk3562_pm_domains),
+	.domain_info = rk3562_pm_domains,
+};
+
 static const struct rockchip_pmu_info rk3568_pmu = {
 	.pwr_offset = 0xa0,
 	.status_offset = 0x98,
@@ -1867,6 +1960,10 @@ static const struct of_device_id rockchip_pm_domain_dt_match[] = {
 		.data = (void *)&rk3528_pmu,
 	},
 #endif
+	{
+		.compatible = "rockchip,rk3562-power-controller",
+		.data = (void *)&rk3562_pmu,
+	},
 	{
 		.compatible = "rockchip,rk3568-power-controller",
 		.data = (void *)&rk3568_pmu,
