@@ -58,9 +58,8 @@ static int pm8916_wdt_ping(struct watchdog_device *wdev)
 {
 	struct pm8916_wdt *wdt = watchdog_get_drvdata(wdev);
 
-	return regmap_update_bits(wdt->regmap,
-				  wdt->baseaddr + PON_PMIC_WD_RESET_PET,
-				  WATCHDOG_PET_BIT, WATCHDOG_PET_BIT);
+	return regmap_write(wdt->regmap, wdt->baseaddr + PON_PMIC_WD_RESET_PET,
+			    WATCHDOG_PET_BIT);
 }
 
 static int pm8916_wdt_configure_timers(struct watchdog_device *wdev)
