@@ -832,7 +832,7 @@ int blk_register_queue(struct gendisk *disk)
 		blk_mq_debugfs_register(q);
 	mutex_unlock(&q->debugfs_mutex);
 
-	ret = disk_register_independent_access_ranges(disk, NULL);
+	ret = disk_register_independent_access_ranges(disk);
 	if (ret)
 		goto put_dev;
 
