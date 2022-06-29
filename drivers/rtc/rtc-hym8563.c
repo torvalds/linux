@@ -412,16 +412,10 @@ static struct clk *hym8563_clkout_register_clk(struct hym8563 *hym8563)
 	struct device_node *node = client->dev.of_node;
 	struct clk *clk;
 	struct clk_init_data init;
-	int ret;
-
-	ret = i2c_smbus_write_byte_data(client, HYM8563_CLKOUT,
-						0);
-	if (ret < 0)
-		return ERR_PTR(ret);
 
 	init.name = "hym8563-clkout";
 	init.ops = &hym8563_clkout_ops;
-	init.flags = 0;
+	init.flags = CLK_IS_CRITICAL;
 	init.parent_names = NULL;
 	init.num_parents = 0;
 	hym8563->clkout_hw.init = &init;
