@@ -77,7 +77,6 @@
 #define TEGRA20_DAS_DAC_ID_3 2
 
 struct tegra20_das {
-	struct device *dev;
 	struct regmap *regmap;
 };
 
@@ -161,8 +160,6 @@ static int tegra20_das_probe(struct platform_device *pdev)
 	das = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_das), GFP_KERNEL);
 	if (!das)
 		return -ENOMEM;
-
-	das->dev = &pdev->dev;
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs))
