@@ -286,3 +286,5 @@ int drm_mode_page_flip_ioctl(struct drm_device *dev,
 
 /* drm_edid.c */
 void drm_mode_fixup_1366x768(struct drm_display_mode *mode);
+int drm_edid_override_set(struct drm_connector *connector, const void *edid, size_t size);
+int drm_edid_override_reset(struct drm_connector *connector);

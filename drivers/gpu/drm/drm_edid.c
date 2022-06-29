@@ -2161,6 +2161,32 @@ static struct edid *drm_get_override_edid(struct drm_connector *connector,
 	return IS_ERR(override) ? NULL : override;
 }
 
+/* For debugfs edid_override implementation */
+int drm_edid_override_set(struct drm_connector *connector, const void *edid,
+			  size_t size)
+{
+	int ret;
+
+	if (size < EDID_LENGTH || edid_size(edid) > size)
+		return -EINVAL;
+
+	connector->override_edid = false;
+
+	ret = drm_connector_update_edid_property(connector, edid);
+	if (!ret)
+		connector->override_edid = true;
+
+	return ret;
+}
+
+/* For debugfs edid_override implementation */
+int drm_edid_override_reset(struct drm_connector *connector)
+{
+	connector->override_edid = false;
+
+	return drm_connector_update_edid_property(connector, NULL);
+}
+
 /**
  * drm_add_override_edid_modes - add modes from override/firmware EDID
  * @connector: connector we're probing
