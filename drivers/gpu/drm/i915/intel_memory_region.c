@@ -279,6 +279,20 @@ void intel_memory_region_set_name(struct intel_memory_region *mem,
 	va_end(ap);
 }
 
+void intel_memory_region_avail(struct intel_memory_region *mr,
+			       u64 *avail, u64 *visible_avail)
+{
+	if (mr->type == INTEL_MEMORY_LOCAL) {
+		i915_ttm_buddy_man_avail(mr->region_private,
+					 avail, visible_avail);
+		*avail <<= PAGE_SHIFT;
+		*visible_avail <<= PAGE_SHIFT;
+	} else {
+		*avail = mr->total;
+		*visible_avail = mr->total;
+	}
+}
+
 void intel_memory_region_destroy(struct intel_memory_region *mem)
 {
 	int ret = 0;
