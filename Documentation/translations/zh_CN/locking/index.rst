@@ -14,6 +14,7 @@
 .. toctree::
     :maxdepth: 1
 
+    mutex-design
     spinlocks
 
 TODOList:
@@ -22,7 +23,6 @@ TODOList:
     * lockdep-design
     * lockstat
     * locktorture
-    * mutex-design
     * rt-mutex-design
     * rt-mutex
     * seqlock
