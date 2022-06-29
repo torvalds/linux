@@ -5,6 +5,7 @@
  */
 /dts-v1/;
 #include "mt8192.dtsi"
+#include "mt6359.dtsi"
 #include <dt-bindings/gpio/gpio.h>
 
 / {
@@ -166,6 +167,31 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7_pins>;
+};
+
+/* for CORE */
+&mt6359_vgpu11_buck_reg {
+	regulator-always-on;
+};
+
+&mt6359_vgpu11_sshub_buck_reg {
+	regulator-always-on;
+	regulator-min-microvolt = <575000>;
+	regulator-max-microvolt = <575000>;
+};
+
+&mt6359_vrf12_ldo_reg {
+	regulator-always-on;
+};
+
+&mt6359_vufs_ldo_reg {
+	regulator-always-on;
+};
+
+&mt6359codec {
+	mediatek,dmic-mode = <1>; /* one-wire */
+	mediatek,mic-type-0 = <2>; /* DMIC */
+	mediatek,mic-type-2 = <2>; /* DMIC */
 };
 
 &pcie {
@@ -553,6 +579,10 @@
 			output-low;
 		};
 	};
+};
+
+&pmic {
+	interrupts-extended = <&pio 214 IRQ_TYPE_LEVEL_HIGH>;
 };
 
 &spi1 {
