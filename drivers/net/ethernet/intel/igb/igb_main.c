@@ -1945,7 +1945,7 @@ static void igb_setup_tx_mode(struct igb_adapter *adapter)
 		 * However, when we do so, no frame from queue 2 and 3 are
 		 * transmitted.  It seems the MAX_TPKT_SIZE should not be great
 		 * or _equal_ to the buffer size programmed in TXPBS. For this
-		 * reason, we set set MAX_ TPKT_SIZE to (4kB - 1) / 64.
+		 * reason, we set MAX_ TPKT_SIZE to (4kB - 1) / 64.
 		 */
 		val = (4096 - 1) / 64;
 		wr32(E1000_I210_DTXMXPKTSZ, val);
@@ -9522,7 +9522,7 @@ static pci_ers_result_t igb_io_error_detected(struct pci_dev *pdev,
 		igb_down(adapter);
 	pci_disable_device(pdev);
 
-	/* Request a slot slot reset. */
+	/* Request a slot reset. */
 	return PCI_ERS_RESULT_NEED_RESET;
 }
 
