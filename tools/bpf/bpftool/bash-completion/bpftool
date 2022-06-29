@@ -1175,9 +1175,14 @@ _bpftool()
                     _bpftool_once_attr 'full unprivileged'
                     return 0
                     ;;
+                list)
+                    [[ $prev != "$command" ]] && return 0
+                    COMPREPLY=( $( compgen -W 'prog_types map_types \
+                        attach_types link_types helpers' -- "$cur" ) )
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
-                        COMPREPLY=( $( compgen -W 'help probe' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W 'help list probe' -- "$cur" ) )
                     ;;
             esac
             ;;
