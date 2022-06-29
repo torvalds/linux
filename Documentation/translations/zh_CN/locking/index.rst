@@ -14,6 +14,8 @@
 .. toctree::
     :maxdepth: 1
 
+    spinlocks
+
 TODOList:
 
     * locktypes
@@ -24,7 +26,6 @@ TODOList:
     * rt-mutex-design
     * rt-mutex
     * seqlock
-    * spinlocks
     * ww-mutex-design
     * preempt-locking
     * pi-futex
