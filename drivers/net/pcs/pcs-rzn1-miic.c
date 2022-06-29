@@ -138,11 +138,13 @@ struct miic {
  * @miic: backiling to MII converter structure
  * @pcs: PCS structure associated to the port
  * @port: port number
+ * @interface: interface mode of the port
  */
 struct miic_port {
 	struct miic *miic;
 	struct phylink_pcs pcs;
 	int port;
+	phy_interface_t interface;
 };
 
 static struct miic_port *phylink_pcs_to_miic_port(struct phylink_pcs *pcs)
@@ -190,8 +192,8 @@ static int miic_config(struct phylink_pcs *pcs, unsigned int mode,
 {
 	struct miic_port *miic_port = phylink_pcs_to_miic_port(pcs);
 	struct miic *miic = miic_port->miic;
+	u32 speed, conv_mode, val, mask;
 	int port = miic_port->port;
-	u32 speed, conv_mode, val;
 
 	switch (interface) {
 	case PHY_INTERFACE_MODE_RMII:
@@ -216,11 +218,20 @@ static int miic_config(struct phylink_pcs *pcs, unsigned int mode,
 		return -EOPNOTSUPP;
 	}
 
-	val = FIELD_PREP(MIIC_CONVCTRL_CONV_MODE, conv_mode) |
-	      FIELD_PREP(MIIC_CONVCTRL_CONV_SPEED, speed);
+	val = FIELD_PREP(MIIC_CONVCTRL_CONV_MODE, conv_mode);
+	mask = MIIC_CONVCTRL_CONV_MODE;
 
-	miic_reg_rmw(miic, MIIC_CONVCTRL(port),
-		     MIIC_CONVCTRL_CONV_MODE | MIIC_CONVCTRL_CONV_SPEED, val);
+	/* Update speed only if we are going to change the interface because
+	 * the link might already be up and it would break it if the speed is
+	 * changed.
+	 */
+	if (interface != miic_port->interface) {
+		val |= FIELD_PREP(MIIC_CONVCTRL_CONV_SPEED, speed);
+		mask |= MIIC_CONVCTRL_CONV_SPEED;
+		miic_port->interface = interface;
+	}
+
+	miic_reg_rmw(miic, MIIC_CONVCTRL(port), mask, val);
 	miic_converter_enable(miic_port->miic, miic_port->port, 1);
 
 	return 0;
