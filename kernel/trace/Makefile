@@ -103,4 +103,7 @@ obj-$(CONFIG_RETHOOK) += rethook.o
 
 obj-$(CONFIG_TRACEPOINT_BENCHMARK) += trace_benchmark.o
 
+obj-$(CONFIG_IPC_LOGGING) += qcom_ipc_logging.o
+qcom_ipc_logging-y := ipc_logging.o  ipc_logging_debug.o
+
 libftrace-y := ftrace.o
