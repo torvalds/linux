@@ -157,10 +157,8 @@ struct rga_dma_buffer {
 	 */
 	size_t offset;
 
-	/* The core of the mapping */
-	int core;
-
-	struct device *dev;
+	/* The scheduler of the mapping */
+	struct rga_scheduler_t *scheduler;
 };
 
 struct rga_virt_addr {

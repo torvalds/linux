@@ -236,8 +236,8 @@ int rga_job_assign(struct rga_job *job)
 		if (DEBUGGER_EN(MSG))
 			pr_info("start policy on core = %d", scheduler->core);
 
-		if (scheduler->core == RGA2_SCHEDULER_CORE0 &&
-		    job->flags & RGA_JOB_UNSUPPORT_RGA2) {
+		if (scheduler->data->mmu == RGA_MMU &&
+		    job->flags & RGA_JOB_UNSUPPORT_RGA_MMU) {
 			if (DEBUGGER_EN(MSG))
 				pr_info("RGA2 only support under 4G memory!\n");
 				continue;

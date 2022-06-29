@@ -182,7 +182,7 @@ static int rga_job_judgment_support_core(struct rga_job *job)
 			mm_flag = (uint32_t)ret;
 
 		if (~mm_flag & RGA_MEM_UNDER_4G) {
-			job->flags |= RGA_JOB_UNSUPPORT_RGA2;
+			job->flags |= RGA_JOB_UNSUPPORT_RGA_MMU;
 			goto out_finish;
 		}
 	}
@@ -195,7 +195,7 @@ static int rga_job_judgment_support_core(struct rga_job *job)
 			mm_flag = (uint32_t)ret;
 
 		if (~mm_flag & RGA_MEM_UNDER_4G) {
-			job->flags |= RGA_JOB_UNSUPPORT_RGA2;
+			job->flags |= RGA_JOB_UNSUPPORT_RGA_MMU;
 			goto out_finish;
 		}
 	}
@@ -208,7 +208,7 @@ static int rga_job_judgment_support_core(struct rga_job *job)
 			mm_flag = (uint32_t)ret;
 
 		if (~mm_flag & RGA_MEM_UNDER_4G) {
-			job->flags |= RGA_JOB_UNSUPPORT_RGA2;
+			job->flags |= RGA_JOB_UNSUPPORT_RGA_MMU;
 			goto out_finish;
 		}
 	}
