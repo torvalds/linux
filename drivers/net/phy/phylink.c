@@ -766,7 +766,7 @@ static void phylink_pcs_poll_stop(struct phylink *pl)
 
 static void phylink_pcs_poll_start(struct phylink *pl)
 {
-	if (pl->pcs->poll && pl->cfg_link_an_mode == MLO_AN_INBAND)
+	if (pl->pcs && pl->pcs->poll && pl->cfg_link_an_mode == MLO_AN_INBAND)
 		mod_timer(&pl->link_poll, jiffies + HZ);
 }
 
