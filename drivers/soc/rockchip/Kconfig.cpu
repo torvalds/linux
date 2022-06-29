@@ -60,6 +60,9 @@ config CPU_RK3399
 config CPU_RK3528
 	bool "RK3528"
 
+config CPU_RK3562
+	bool "RK3562"
+
 config CPU_RK3568
 	bool "RK3566/8"
 
