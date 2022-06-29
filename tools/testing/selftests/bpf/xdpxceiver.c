@@ -1085,6 +1085,7 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 {
 	u64 umem_sz = ifobject->umem->num_frames * ifobject->umem->frame_size;
 	int mmap_flags = MAP_PRIVATE | MAP_ANONYMOUS | MAP_NORESERVE;
+	LIBBPF_OPTS(bpf_xdp_query_opts, opts);
 	int ret, ifindex;
 	void *bufs;
 	u32 i;
@@ -1133,6 +1134,22 @@ static void thread_common_ops(struct test_spec *test, struct ifobject *ifobject)
 	ret = xsk_setup_xdp_prog_xsk(ifobject->xsk->xsk, &ifobject->xsk_map_fd);
 	if (ret)
 		exit_with_error(-ret);
+
+	ret = bpf_xdp_query(ifindex, ifobject->xdp_flags, &opts);
+	if (ret)
+		exit_with_error(-ret);
+
+	if (ifobject->xdp_flags & XDP_FLAGS_SKB_MODE) {
+		if (opts.attach_mode != XDP_ATTACHED_SKB) {
+			ksft_print_msg("ERROR: [%s] XDP prog not in SKB mode\n");
+			exit_with_error(-EINVAL);
+		}
+	} else if (ifobject->xdp_flags & XDP_FLAGS_DRV_MODE) {
+		if (opts.attach_mode != XDP_ATTACHED_DRV) {
+			ksft_print_msg("ERROR: [%s] XDP prog not in DRV mode\n");
+			exit_with_error(-EINVAL);
+		}
+	}
 
 	ret = xsk_socket__update_xskmap(ifobject->xsk->xsk, ifobject->xsk_map_fd);
 	if (ret)
