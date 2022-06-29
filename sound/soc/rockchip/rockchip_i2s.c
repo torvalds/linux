@@ -812,7 +812,7 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 			}
 		}
 	} else {
-		dev_err(&pdev->dev, "failed to find i2s pinctrl\n");
+		dev_dbg(&pdev->dev, "failed to find i2s pinctrl\n");
 	}
 
 	i2s_pinctrl_select_bclk_off(i2s);
