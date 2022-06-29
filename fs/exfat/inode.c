@@ -112,7 +112,7 @@ void exfat_sync_inode(struct inode *inode)
 static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 		unsigned int *clu, int create)
 {
-	int ret, modified = false;
+	int ret;
 	unsigned int last_clu;
 	struct exfat_chain new_clu;
 	struct super_block *sb = inode->i_sb;
@@ -203,7 +203,6 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 			if (new_clu.flags == ALLOC_FAT_CHAIN)
 				ei->flags = ALLOC_FAT_CHAIN;
 			ei->start_clu = new_clu.dir;
-			modified = true;
 		} else {
 			if (new_clu.flags != ei->flags) {
 				/* no-fat-chain bit is disabled,
@@ -213,7 +212,6 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 				exfat_chain_cont_cluster(sb, ei->start_clu,
 					num_clusters);
 				ei->flags = ALLOC_FAT_CHAIN;
-				modified = true;
 			}
 			if (new_clu.flags == ALLOC_FAT_CHAIN)
 				if (exfat_ent_set(sb, last_clu, new_clu.dir))
@@ -222,11 +220,6 @@ static int exfat_map_cluster(struct inode *inode, unsigned int clu_offset,
 
 		num_clusters += num_to_be_allocated;
 		*clu = new_clu.dir;
-
-		if (modified) {
-			if (__exfat_write_inode(inode, inode_needs_sync(inode)))
-				return -EIO;
-		}
 
 		inode->i_blocks +=
 			num_to_be_allocated << sbi->sect_per_clus_bits;

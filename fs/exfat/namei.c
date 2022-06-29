@@ -388,10 +388,6 @@ static int exfat_find_empty_entry(struct inode *inode,
 		ei->i_size_aligned += sbi->cluster_size;
 		ei->flags = p_dir->flags;
 		inode->i_blocks += 1 << sbi->sect_per_clus_bits;
-
-		/* update the directory entry */
-		if (__exfat_write_inode(inode, IS_DIRSYNC(inode)))
-			return -EIO;
 	}
 
 	return dentry;
