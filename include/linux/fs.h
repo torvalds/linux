@@ -2323,8 +2323,8 @@ static inline bool sb_rdonly(const struct super_block *sb) { return sb->s_flags 
 static inline bool HAS_UNMAPPED_ID(struct user_namespace *mnt_userns,
 				   struct inode *inode)
 {
-	return !uid_valid(i_uid_into_mnt(mnt_userns, inode)) ||
-	       !gid_valid(i_gid_into_mnt(mnt_userns, inode));
+	return !vfsuid_valid(i_uid_into_vfsuid(mnt_userns, inode)) ||
+	       !vfsgid_valid(i_gid_into_vfsgid(mnt_userns, inode));
 }
 
 static inline int iocb_flags(struct file *file);
