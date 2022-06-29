@@ -131,6 +131,7 @@ struct s3c64xx_spi_dma_data {
  * @fifo_lvl_mask: Bit-mask for {TX|RX}_FIFO_LVL bits in SPI_STATUS register.
  * @rx_lvl_offset: Bit offset of RX_FIFO_LVL bits in SPI_STATUS regiter.
  * @tx_st_done: Bit offset of TX_DONE bit in SPI_STATUS regiter.
+ * @clk_div: Internal clock divider
  * @quirks: Bitmask of known quirks
  * @high_speed: True, if the controller supports HIGH_SPEED_EN bit.
  * @clk_from_cmu: True, if the controller does not include a clock mux and
@@ -148,6 +149,7 @@ struct s3c64xx_spi_port_config {
 	int	rx_lvl_offset;
 	int	tx_st_done;
 	int	quirks;
+	int	clk_div;
 	bool	high_speed;
 	bool	clk_from_cmu;
 	bool	clk_ioclk;
@@ -620,6 +622,7 @@ static int s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	void __iomem *regs = sdd->regs;
 	int ret;
 	u32 val;
+	int div = sdd->port_conf->clk_div;
 
 	/* Disable Clock */
 	if (!sdd->port_conf->clk_from_cmu) {
@@ -668,16 +671,15 @@ static int s3c64xx_spi_config(struct s3c64xx_spi_driver_data *sdd)
 	writel(val, regs + S3C64XX_SPI_MODE_CFG);
 
 	if (sdd->port_conf->clk_from_cmu) {
-		/* The src_clk clock is divided internally by 2 */
-		ret = clk_set_rate(sdd->src_clk, sdd->cur_speed * 2);
+		ret = clk_set_rate(sdd->src_clk, sdd->cur_speed * div);
 		if (ret)
 			return ret;
-		sdd->cur_speed = clk_get_rate(sdd->src_clk) / 2;
+		sdd->cur_speed = clk_get_rate(sdd->src_clk) / div;
 	} else {
 		/* Configure Clock */
 		val = readl(regs + S3C64XX_SPI_CLK_CFG);
 		val &= ~S3C64XX_SPI_PSR_MASK;
-		val |= ((clk_get_rate(sdd->src_clk) / sdd->cur_speed / 2 - 1)
+		val |= ((clk_get_rate(sdd->src_clk) / sdd->cur_speed / div - 1)
 				& S3C64XX_SPI_PSR_MASK);
 		writel(val, regs + S3C64XX_SPI_CLK_CFG);
 
@@ -871,6 +873,7 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 	struct s3c64xx_spi_csinfo *cs = spi->controller_data;
 	struct s3c64xx_spi_driver_data *sdd;
 	int err;
+	int div;
 
 	sdd = spi_master_get_devdata(spi->master);
 	if (spi->dev.of_node) {
@@ -889,22 +892,24 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 
 	pm_runtime_get_sync(&sdd->pdev->dev);
 
+	div = sdd->port_conf->clk_div;
+
 	/* Check if we can provide the requested rate */
 	if (!sdd->port_conf->clk_from_cmu) {
 		u32 psr, speed;
 
 		/* Max possible */
-		speed = clk_get_rate(sdd->src_clk) / 2 / (0 + 1);
+		speed = clk_get_rate(sdd->src_clk) / div / (0 + 1);
 
 		if (spi->max_speed_hz > speed)
 			spi->max_speed_hz = speed;
 
-		psr = clk_get_rate(sdd->src_clk) / 2 / spi->max_speed_hz - 1;
+		psr = clk_get_rate(sdd->src_clk) / div / spi->max_speed_hz - 1;
 		psr &= S3C64XX_SPI_PSR_MASK;
 		if (psr == S3C64XX_SPI_PSR_MASK)
 			psr--;
 
-		speed = clk_get_rate(sdd->src_clk) / 2 / (psr + 1);
+		speed = clk_get_rate(sdd->src_clk) / div / (psr + 1);
 		if (spi->max_speed_hz < speed) {
 			if (psr+1 < S3C64XX_SPI_PSR_MASK) {
 				psr++;
@@ -914,7 +919,7 @@ static int s3c64xx_spi_setup(struct spi_device *spi)
 			}
 		}
 
-		speed = clk_get_rate(sdd->src_clk) / 2 / (psr + 1);
+		speed = clk_get_rate(sdd->src_clk) / div / (psr + 1);
 		if (spi->max_speed_hz >= speed) {
 			spi->max_speed_hz = speed;
 		} else {
@@ -1396,6 +1401,7 @@ static const struct s3c64xx_spi_port_config s3c2443_spi_port_config = {
 	.fifo_lvl_mask	= { 0x7f },
 	.rx_lvl_offset	= 13,
 	.tx_st_done	= 21,
+	.clk_div	= 2,
 	.high_speed	= true,
 };
 
@@ -1403,12 +1409,14 @@ static const struct s3c64xx_spi_port_config s3c6410_spi_port_config = {
 	.fifo_lvl_mask	= { 0x7f, 0x7F },
 	.rx_lvl_offset	= 13,
 	.tx_st_done	= 21,
+	.clk_div	= 2,
 };
 
 static const struct s3c64xx_spi_port_config s5pv210_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7F },
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
+	.clk_div	= 2,
 	.high_speed	= true,
 };
 
@@ -1416,6 +1424,7 @@ static const struct s3c64xx_spi_port_config exynos4_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7F, 0x7F },
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
+	.clk_div	= 2,
 	.high_speed	= true,
 	.clk_from_cmu	= true,
 	.quirks		= S3C64XX_SPI_QUIRK_CS_AUTO,
@@ -1425,6 +1434,7 @@ static const struct s3c64xx_spi_port_config exynos7_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7F, 0x7F, 0x7F, 0x7F, 0x1ff},
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
+	.clk_div	= 2,
 	.high_speed	= true,
 	.clk_from_cmu	= true,
 	.quirks		= S3C64XX_SPI_QUIRK_CS_AUTO,
@@ -1434,6 +1444,7 @@ static const struct s3c64xx_spi_port_config exynos5433_spi_port_config = {
 	.fifo_lvl_mask	= { 0x1ff, 0x7f, 0x7f, 0x7f, 0x7f, 0x1ff},
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
+	.clk_div	= 2,
 	.high_speed	= true,
 	.clk_from_cmu	= true,
 	.clk_ioclk	= true,
@@ -1444,6 +1455,7 @@ static const struct s3c64xx_spi_port_config fsd_spi_port_config = {
 	.fifo_lvl_mask	= { 0x7f, 0x7f, 0x7f, 0x7f, 0x7f},
 	.rx_lvl_offset	= 15,
 	.tx_st_done	= 25,
+	.clk_div	= 2,
 	.high_speed	= true,
 	.clk_from_cmu	= true,
 	.clk_ioclk	= false,
