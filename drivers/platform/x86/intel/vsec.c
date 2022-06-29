@@ -54,12 +54,6 @@ struct intel_vsec_header {
 	u32	offset;
 };
 
-/* Platform specific data */
-struct intel_vsec_platform_info {
-	struct intel_vsec_header **capabilities;
-	unsigned long quirks;
-};
-
 enum intel_vsec_id {
 	VSEC_ID_TELEMETRY	= 2,
 	VSEC_ID_WATCHER		= 3,
@@ -169,10 +163,11 @@ static int intel_vsec_add_aux(struct pci_dev *pdev, struct intel_vsec_device *in
 }
 
 static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *header,
-			   unsigned long quirks)
+			      struct intel_vsec_platform_info *info)
 {
 	struct intel_vsec_device *intel_vsec_dev;
 	struct resource *res, *tmp;
+	unsigned long quirks = info->quirks;
 	int i;
 
 	if (!intel_vsec_allowed(header->id) || intel_vsec_disabled(header->id, quirks))
@@ -216,7 +211,7 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 	intel_vsec_dev->pcidev = pdev;
 	intel_vsec_dev->resource = res;
 	intel_vsec_dev->num_resources = header->num_entries;
-	intel_vsec_dev->quirks = quirks;
+	intel_vsec_dev->info = info;
 
 	if (header->id == VSEC_ID_SDSI)
 		intel_vsec_dev->ida = &intel_vsec_sdsi_ida;
@@ -226,14 +221,15 @@ static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *he
 	return intel_vsec_add_aux(pdev, intel_vsec_dev, intel_vsec_name(header->id));
 }
 
-static bool intel_vsec_walk_header(struct pci_dev *pdev, unsigned long quirks,
-				struct intel_vsec_header **header)
+static bool intel_vsec_walk_header(struct pci_dev *pdev,
+				   struct intel_vsec_platform_info *info)
 {
+	struct intel_vsec_header **header = info->capabilities;
 	bool have_devices = false;
 	int ret;
 
 	for ( ; *header; header++) {
-		ret = intel_vsec_add_dev(pdev, *header, quirks);
+		ret = intel_vsec_add_dev(pdev, *header, info);
 		if (ret)
 			dev_info(&pdev->dev, "Could not add device for DVSEC id %d\n",
 				 (*header)->id);
@@ -244,7 +240,8 @@ static bool intel_vsec_walk_header(struct pci_dev *pdev, unsigned long quirks,
 	return have_devices;
 }
 
-static bool intel_vsec_walk_dvsec(struct pci_dev *pdev, unsigned long quirks)
+static bool intel_vsec_walk_dvsec(struct pci_dev *pdev,
+				  struct intel_vsec_platform_info *info)
 {
 	bool have_devices = false;
 	int pos = 0;
@@ -283,7 +280,7 @@ static bool intel_vsec_walk_dvsec(struct pci_dev *pdev, unsigned long quirks)
 		pci_read_config_dword(pdev, pos + PCI_DVSEC_HEADER2, &hdr);
 		header.id = PCI_DVSEC_HEADER2_ID(hdr);
 
-		ret = intel_vsec_add_dev(pdev, &header, quirks);
+		ret = intel_vsec_add_dev(pdev, &header, info);
 		if (ret)
 			continue;
 
@@ -293,7 +290,8 @@ static bool intel_vsec_walk_dvsec(struct pci_dev *pdev, unsigned long quirks)
 	return have_devices;
 }
 
-static bool intel_vsec_walk_vsec(struct pci_dev *pdev, unsigned long quirks)
+static bool intel_vsec_walk_vsec(struct pci_dev *pdev,
+				 struct intel_vsec_platform_info *info)
 {
 	bool have_devices = false;
 	int pos = 0;
@@ -327,7 +325,7 @@ static bool intel_vsec_walk_vsec(struct pci_dev *pdev, unsigned long quirks)
 		header.tbir = INTEL_DVSEC_TABLE_BAR(table);
 		header.offset = INTEL_DVSEC_TABLE_OFFSET(table);
 
-		ret = intel_vsec_add_dev(pdev, &header, quirks);
+		ret = intel_vsec_add_dev(pdev, &header, info);
 		if (ret)
 			continue;
 
@@ -341,7 +339,6 @@ static int intel_vsec_pci_probe(struct pci_dev *pdev, const struct pci_device_id
 {
 	struct intel_vsec_platform_info *info;
 	bool have_devices = false;
-	unsigned long quirks = 0;
 	int ret;
 
 	ret = pcim_enable_device(pdev);
@@ -349,17 +346,17 @@ static int intel_vsec_pci_probe(struct pci_dev *pdev, const struct pci_device_id
 		return ret;
 
 	info = (struct intel_vsec_platform_info *)id->driver_data;
-	if (info)
-		quirks = info->quirks;
+	if (!info)
+		return -EINVAL;
 
-	if (intel_vsec_walk_dvsec(pdev, quirks))
+	if (intel_vsec_walk_dvsec(pdev, info))
 		have_devices = true;
 
-	if (intel_vsec_walk_vsec(pdev, quirks))
+	if (intel_vsec_walk_vsec(pdev, info))
 		have_devices = true;
 
 	if (info && (info->quirks & VSEC_QUIRK_NO_DVSEC) &&
-	    intel_vsec_walk_header(pdev, quirks, info->capabilities))
+	    intel_vsec_walk_header(pdev, info))
 		have_devices = true;
 
 	if (!have_devices)
@@ -370,7 +367,8 @@ static int intel_vsec_pci_probe(struct pci_dev *pdev, const struct pci_device_id
 
 /* TGL info */
 static const struct intel_vsec_platform_info tgl_info = {
-	.quirks = VSEC_QUIRK_NO_WATCHER | VSEC_QUIRK_NO_CRASHLOG | VSEC_QUIRK_TABLE_SHIFT,
+	.quirks = VSEC_QUIRK_NO_WATCHER | VSEC_QUIRK_NO_CRASHLOG |
+		  VSEC_QUIRK_TABLE_SHIFT | VSEC_QUIRK_EARLY_HW,
 };
 
 /* DG1 info */
@@ -390,7 +388,7 @@ static struct intel_vsec_header *dg1_capabilities[] = {
 
 static const struct intel_vsec_platform_info dg1_info = {
 	.capabilities = dg1_capabilities,
-	.quirks = VSEC_QUIRK_NO_DVSEC,
+	.quirks = VSEC_QUIRK_NO_DVSEC | VSEC_QUIRK_EARLY_HW,
 };
 
 #define PCI_DEVICE_ID_INTEL_VSEC_ADL		0x467d
@@ -400,7 +398,7 @@ static const struct intel_vsec_platform_info dg1_info = {
 static const struct pci_device_id intel_vsec_pci_ids[] = {
 	{ PCI_DEVICE_DATA(INTEL, VSEC_ADL, &tgl_info) },
 	{ PCI_DEVICE_DATA(INTEL, VSEC_DG1, &dg1_info) },
-	{ PCI_DEVICE_DATA(INTEL, VSEC_OOBMSM, NULL) },
+	{ PCI_DEVICE_DATA(INTEL, VSEC_OOBMSM, &(struct intel_vsec_platform_info) {}) },
 	{ PCI_DEVICE_DATA(INTEL, VSEC_TGL, &tgl_info) },
 	{ }
 };
