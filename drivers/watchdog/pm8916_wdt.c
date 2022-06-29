@@ -142,6 +142,7 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct pm8916_wdt *wdt;
 	struct device *parent;
+	unsigned int val;
 	int err, irq;
 	u8 poff[2];
 
@@ -198,6 +199,15 @@ static int pm8916_wdt_probe(struct platform_device *pdev)
 		wdt->wdev.bootstatus |= WDIOF_POWERUNDER;
 	if (poff[1] & PON_POFF_REASON2_OTST3)
 		wdt->wdev.bootstatus |= WDIOF_OVERHEAT;
+
+	err = regmap_read(wdt->regmap, wdt->baseaddr + PON_PMIC_WD_RESET_S2_CTL2,
+			  &val);
+	if (err)  {
+		dev_err(dev, "failed to check if watchdog is active: %d\n", err);
+		return err;
+	}
+	if (val & S2_RESET_EN_BIT)
+		set_bit(WDOG_HW_RUNNING, &wdt->wdev.status);
 
 	/* Configure watchdog to hard-reset mode */
 	err = regmap_write(wdt->regmap,
