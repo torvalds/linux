@@ -514,7 +514,6 @@ struct ieee80211_if_managed {
 	struct sk_buff *orig_teardown_skb; /* The original teardown skb */
 	struct sk_buff *teardown_skb; /* A copy to send through the AP */
 	spinlock_t teardown_lock; /* To lock changing teardown_skb */
-	bool tdls_chan_switch_prohibited;
 	bool tdls_wider_bw_prohibited;
 
 	/* WMM-AC TSPEC support */
@@ -879,6 +878,8 @@ struct ieee80211_link_data_managed {
 	ieee80211_conn_flags_t conn_flags;
 
 	s16 p2p_noa_index;
+
+	bool tdls_chan_switch_prohibited;
 
 	bool have_beacon;
 	bool tracking_signal_avg;

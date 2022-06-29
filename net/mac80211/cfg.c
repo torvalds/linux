@@ -1759,7 +1759,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 
 	/* mark TDLS channel switch support, if the AP allows it */
 	if (test_sta_flag(sta, WLAN_STA_TDLS_PEER) &&
-	    !sdata->u.mgd.tdls_chan_switch_prohibited &&
+	    !sdata->deflink.u.mgd.tdls_chan_switch_prohibited &&
 	    params->ext_capab_len >= 4 &&
 	    params->ext_capab[3] & WLAN_EXT_CAPA4_TDLS_CHAN_SWITCH)
 		set_sta_flag(sta, WLAN_STA_TDLS_CHAN_SWITCH);
