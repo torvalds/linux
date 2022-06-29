@@ -717,6 +717,32 @@ bool i915_gem_object_placement_possible(struct drm_i915_gem_object *obj,
 	return false;
 }
 
+/**
+ * i915_gem_object_needs_ccs_pages - Check whether the object requires extra
+ * pages when placed in system-memory, in order to save and later restore the
+ * flat-CCS aux state when the object is moved between local-memory and
+ * system-memory
+ * @obj: Pointer to the object
+ *
+ * Return: True if the object needs extra ccs pages. False otherwise.
+ */
+bool i915_gem_object_needs_ccs_pages(struct drm_i915_gem_object *obj)
+{
+	bool lmem_placement = false;
+	int i;
+
+	for (i = 0; i < obj->mm.n_placements; i++) {
+		/* Compression is not allowed for the objects with smem placement */
+		if (obj->mm.placements[i]->type == INTEL_MEMORY_SYSTEM)
+			return false;
+		if (!lmem_placement &&
+		    obj->mm.placements[i]->type == INTEL_MEMORY_LOCAL)
+			lmem_placement = true;
+	}
+
+	return lmem_placement;
+}
+
 void i915_gem_init__objects(struct drm_i915_private *i915)
 {
 	INIT_DELAYED_WORK(&i915->mm.free_work, __i915_gem_free_work);

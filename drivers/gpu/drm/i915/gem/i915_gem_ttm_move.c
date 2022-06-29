@@ -435,6 +435,9 @@ i915_ttm_memcpy_work_arm(struct i915_ttm_memcpy_work *work,
 static bool i915_ttm_memcpy_allowed(struct ttm_buffer_object *bo,
 				    struct ttm_resource *dst_mem)
 {
+	if (i915_gem_object_needs_ccs_pages(i915_ttm_to_gem(bo)))
+		return false;
+
 	if (!(i915_ttm_resource_mappable(bo->resource) &&
 	      i915_ttm_resource_mappable(dst_mem)))
 		return false;
