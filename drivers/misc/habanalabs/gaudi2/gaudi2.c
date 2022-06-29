@@ -1867,8 +1867,8 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 	prop->user_dec_intr_count = NUMBER_OF_DEC;
 	prop->user_interrupt_count = GAUDI2_IRQ_NUM_USER_LAST - GAUDI2_IRQ_NUM_USER_FIRST + 1;
 	prop->completion_mode = HL_COMPLETION_MODE_CS;
-	prop->sync_stream_first_sob = GAUDI2_RESERVED_SOBS;
-	prop->sync_stream_first_mon = GAUDI2_RESERVED_MONITORS;
+	prop->sync_stream_first_sob = GAUDI2_RESERVED_SOB_NUMBER;
+	prop->sync_stream_first_mon = GAUDI2_RESERVED_MON_NUMBER;
 
 	prop->sram_base_address = SRAM_BASE_ADDR;
 	prop->sram_size = SRAM_SIZE;
@@ -1988,10 +1988,10 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 
 	prop->mme_master_slave_mode = 1;
 
-	prop->first_available_user_sob[0] = GAUDI2_RESERVED_SOBS +
+	prop->first_available_user_sob[0] = GAUDI2_RESERVED_SOB_NUMBER +
 					(num_sync_stream_queues * HL_RSVD_SOBS);
 
-	prop->first_available_user_mon[0] = GAUDI2_RESERVED_MONITORS +
+	prop->first_available_user_mon[0] = GAUDI2_RESERVED_MON_NUMBER +
 					(num_sync_stream_queues * HL_RSVD_MONS);
 
 	prop->first_available_user_interrupt = GAUDI2_IRQ_NUM_USER_FIRST;
@@ -3533,7 +3533,7 @@ static int gaudi2_enable_msix(struct hl_device *hdev)
 	}
 
 	irq = pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_COMPLETION);
-	cq = &hdev->completion_queue[GAUDI2_RESERVED_CQ_COMPLETION];
+	cq = &hdev->completion_queue[GAUDI2_RESERVED_CQ_CS_COMPLETION];
 	rc = request_irq(irq, hl_irq_handler_cq, 0, gaudi2_irq_name(GAUDI2_IRQ_NUM_COMPLETION), cq);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to request IRQ %d", irq);
@@ -3643,7 +3643,7 @@ static void gaudi2_disable_msix(struct hl_device *hdev)
 	}
 
 	irq = pci_irq_vector(hdev->pdev, GAUDI2_IRQ_NUM_COMPLETION);
-	cq = &hdev->completion_queue[GAUDI2_RESERVED_CQ_COMPLETION];
+	cq = &hdev->completion_queue[GAUDI2_RESERVED_CQ_CS_COMPLETION];
 	free_irq(irq, cq);
 
 	pci_free_irq_vectors(hdev->pdev);
@@ -4139,7 +4139,7 @@ static void gaudi2_init_qman(struct hl_device *hdev, u32 reg_base,
 	u32 pq_id;
 
 	for (pq_id = 0 ; pq_id < NUM_OF_PQ_PER_QMAN ; pq_id++)
-		hdev->kernel_queues[queue_id_base + pq_id].cq_id = GAUDI2_RESERVED_CQ_COMPLETION;
+		hdev->kernel_queues[queue_id_base + pq_id].cq_id = GAUDI2_RESERVED_CQ_CS_COMPLETION;
 
 	gaudi2_init_qman_pq(hdev, reg_base, queue_id_base);
 	gaudi2_init_qman_cp(hdev, reg_base);
@@ -5762,31 +5762,33 @@ static void gaudi2_kdma_set_mmbp_asid(struct hl_device *hdev,
 	WREG32(mmARC_FARM_KDMA_CTX_AXUSER_HB_MMU_BP, rw_mmu_bp);
 }
 
-static void gaudi2_arm_cq_monitor(struct hl_device *hdev, u32 index, u32 cq_id,
+static void gaudi2_arm_cq_monitor(struct hl_device *hdev, u32 sob_id, u32 mon_id, u32 cq_id,
 						u32 mon_payload, u32 sync_value)
 {
-	u32 sync_group_id, mode, mon_arm;
-	int offset = index * 4;
+	u32 sob_offset, mon_offset, sync_group_id, mode, mon_arm;
 	u8 mask;
 
+	sob_offset = sob_id * 4;
+	mon_offset = mon_id * 4;
+
 	/* Reset the SOB value */
-	WREG32(mmDCORE0_SYNC_MNGR_OBJS_SOB_OBJ_0 + offset, 0);
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_SOB_OBJ_0 + sob_offset, 0);
 
 	/* Configure this address with CQ_ID 0 because CQ_EN is set */
-	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_ADDRL_0 + offset, cq_id);
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_ADDRL_0 + mon_offset, cq_id);
 
 	/* Configure this address with CS index because CQ_EN is set */
-	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_DATA_0 + offset, mon_payload);
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_DATA_0 + mon_offset, mon_payload);
 
-	sync_group_id = index / 8;
-	mask = ~(1 << (index & 0x7));
+	sync_group_id = sob_id / 8;
+	mask = ~(1 << (sob_id & 0x7));
 	mode = 1; /* comparison mode is "equal to" */
 
 	mon_arm = FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_MON_ARM_SOD_MASK, sync_value);
 	mon_arm |= FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_MON_ARM_SOP_MASK, mode);
 	mon_arm |= FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_MON_ARM_MASK_MASK, mask);
 	mon_arm |= FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_MON_ARM_SID_MASK, sync_group_id);
-	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_ARM_0 + offset, mon_arm);
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_ARM_0 + mon_offset, mon_arm);
 }
 
 /* This is an internal helper function used by gaudi2_send_job_to_kdma only */
@@ -5800,11 +5802,12 @@ static int gaudi2_send_job_to_kdma(struct hl_device *hdev,
 	u64 comp_addr;
 	int rc;
 
-	gaudi2_arm_cq_monitor(hdev, GAUDI2_RESERVED_SOB_KDMA_COMP,
+	gaudi2_arm_cq_monitor(hdev, GAUDI2_RESERVED_SOB_KDMA_COMPLETION,
+				GAUDI2_RESERVED_MON_KDMA_COMPLETION,
 				GAUDI2_RESERVED_CQ_KDMA_COMPLETION, 1, 1);
 
 	comp_addr = CFG_BASE + mmDCORE0_SYNC_MNGR_OBJS_SOB_OBJ_0 +
-			(GAUDI2_RESERVED_SOB_KDMA_COMP * sizeof(u32));
+			(GAUDI2_RESERVED_SOB_KDMA_COMPLETION * sizeof(u32));
 
 	comp_val = FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_SOB_OBJ_INC_MASK, 1) |
 			FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_SOB_OBJ_VAL_MASK, 1);
@@ -9125,24 +9128,25 @@ static int gaudi2_pre_schedule_cs(struct hl_cs *cs)
 {
 	struct hl_device *hdev = cs->ctx->hdev;
 	int index = cs->sequence & (hdev->asic_prop.max_pending_cs - 1);
-	u32 mon_payload;
+	u32 mon_payload, sob_id, mon_id;
 
 	if (!cs_needs_completion(cs))
 		return 0;
 
 	/*
-	 * First 1024 SOB/MON are reserved for driver for QMAN auto completion
+	 * First 64 SOB/MON are reserved for driver for QMAN auto completion
 	 * mechanism. Each SOB/MON pair are used for a pending CS with the same
 	 * cyclic index. The SOB value is increased when each of the CS jobs is
 	 * completed. When the SOB reaches the number of CS jobs, the monitor
 	 * generates MSI-X interrupt.
 	 */
 
+	sob_id = mon_id = index;
 	mon_payload = (1 << CQ_ENTRY_SHADOW_INDEX_VALID_SHIFT) |
 				(1 << CQ_ENTRY_READY_SHIFT) | index;
 
-	gaudi2_arm_cq_monitor(hdev, index, GAUDI2_RESERVED_CQ_COMPLETION,
-						mon_payload, cs->jobs_cnt);
+	gaudi2_arm_cq_monitor(hdev, sob_id, mon_id, GAUDI2_RESERVED_CQ_CS_COMPLETION, mon_payload,
+				cs->jobs_cnt);
 
 	return 0;
 }

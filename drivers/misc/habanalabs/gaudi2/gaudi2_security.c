@@ -2703,8 +2703,8 @@ static int gaudi2_init_pb_sm_objs(struct hl_device *hdev)
 	if (!sec_array)
 		return -ENOMEM;
 
-	first_sob = GAUDI2_RESERVED_SOBS;
-	first_mon = GAUDI2_RESERVED_MONITORS;
+	first_sob = GAUDI2_RESERVED_SOB_NUMBER;
+	first_mon = GAUDI2_RESERVED_MON_NUMBER;
 
 	/* 8192 SOB_OBJs skipping first GAUDI2_MAX_PENDING_CS of them */
 	for (j = i = first_sob ; i < DCORE_NUM_OF_SOB ; i++, j++)
