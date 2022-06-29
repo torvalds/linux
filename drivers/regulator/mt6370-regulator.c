@@ -153,7 +153,8 @@ static int mt6370_of_parse_cb(struct device_node *np,
 	struct gpio_desc *enable_gpio;
 	int ret;
 
-	enable_gpio = gpiod_get_from_of_node(np, "enable", 0, GPIOD_OUT_HIGH |
+	enable_gpio = fwnode_gpiod_get_index(of_fwnode_handle(np), "enable", 0,
+					     GPIOD_OUT_HIGH |
 					     GPIOD_FLAGS_BIT_NONEXCLUSIVE,
 					     desc->name);
 	if (IS_ERR(enable_gpio)) {
