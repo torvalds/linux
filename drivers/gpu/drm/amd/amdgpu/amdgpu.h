@@ -669,6 +669,15 @@ enum amd_hw_ip_block_type {
 #define IP_VERSION_MIN(ver) (((ver) >> 8) & 0xFF)
 #define IP_VERSION_REV(ver) ((ver) & 0xFF)
 
+struct amdgpu_ip_map_info {
+	/* Map of logical to actual dev instances */
+	uint32_t 		dev_inst[MAX_HWIP][HWIP_MAX_INSTANCE];
+	int8_t (*logical_to_dev_inst)(struct amdgpu_device *adev,
+				      enum amd_hw_ip_block_type block,
+				      int8_t inst);
+
+};
+
 struct amd_powerplay {
 	void *pp_handle;
 	const struct amd_pm_funcs *pp_funcs;
@@ -968,6 +977,7 @@ struct amdgpu_device {
 
 	/* soc15 register offset based on ip, instance and  segment */
 	uint32_t		*reg_offset[MAX_HWIP][HWIP_MAX_INSTANCE];
+	struct amdgpu_ip_map_info	ip_map;
 
 	/* delayed work_func for deferring clockgating during resume */
 	struct delayed_work     delayed_init_work;
