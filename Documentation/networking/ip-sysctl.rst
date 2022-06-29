@@ -202,6 +202,12 @@ neigh/default/unres_qlen - INTEGER
 
 	Default: 101
 
+neigh/default/interval_probe_time_ms - INTEGER
+	The probe interval for neighbor entries with NTF_MANAGED flag,
+	the min value is 1.
+
+	Default: 5000
+
 mtu_expires - INTEGER
 	Time, in seconds, that cached PMTU information is kept.
 
