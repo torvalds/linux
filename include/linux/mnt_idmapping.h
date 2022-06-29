@@ -422,7 +422,8 @@ static inline bool vfsgid_has_fsmapping(struct user_namespace *mnt_userns,
 static inline kuid_t mapped_fsuid(struct user_namespace *mnt_userns,
 				  struct user_namespace *fs_userns)
 {
-	return mapped_kuid_user(mnt_userns, fs_userns, current_fsuid());
+	return from_vfsuid(mnt_userns, fs_userns,
+			   VFSUIDT_INIT(current_fsuid()));
 }
 
 /**
@@ -441,7 +442,8 @@ static inline kuid_t mapped_fsuid(struct user_namespace *mnt_userns,
 static inline kgid_t mapped_fsgid(struct user_namespace *mnt_userns,
 				  struct user_namespace *fs_userns)
 {
-	return mapped_kgid_user(mnt_userns, fs_userns, current_fsgid());
+	return from_vfsgid(mnt_userns, fs_userns,
+			   VFSGIDT_INIT(current_fsgid()));
 }
 
 #endif /* _LINUX_MNT_IDMAPPING_H */
