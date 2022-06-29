@@ -131,7 +131,7 @@ static void rtsx_comm_pm_full_on(struct rtsx_pcr *pcr)
 
 	rtsx_disable_aspm(pcr);
 
-	/* Fixes DMA transfer timout issue after disabling ASPM on RTS5260 */
+	/* Fixes DMA transfer timeout issue after disabling ASPM on RTS5260 */
 	msleep(1);
 
 	if (option->ltr_enabled)
