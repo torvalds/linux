@@ -112,15 +112,6 @@ enum mlxsw_sp_nve_type {
 	MLXSW_SP_NVE_TYPE_VXLAN,
 };
 
-struct mlxsw_sp_mid {
-	struct list_head list;
-	unsigned char addr[ETH_ALEN];
-	u16 fid;
-	u16 mid;
-	bool in_hw;
-	unsigned long *ports_in_mid; /* bits array */
-};
-
 struct mlxsw_sp_sb;
 struct mlxsw_sp_bridge;
 struct mlxsw_sp_router;
