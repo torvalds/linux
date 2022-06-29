@@ -38,9 +38,7 @@ static void inject_undef64(struct kvm_vcpu *vcpu)
 	*vcpu_pc(vcpu) = read_sysreg_el2(SYS_ELR);
 	*vcpu_cpsr(vcpu) = read_sysreg_el2(SYS_SPSR);
 
-	vcpu->arch.flags |= (KVM_ARM64_EXCEPT_AA64_EL1 |
-			     KVM_ARM64_EXCEPT_AA64_ELx_SYNC |
-			     KVM_ARM64_PENDING_EXCEPTION);
+	kvm_pend_exception(vcpu, EXCEPT_AA64_EL1_SYNC);
 
 	__kvm_adjust_pc(vcpu);
 
