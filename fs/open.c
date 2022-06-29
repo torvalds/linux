@@ -860,8 +860,6 @@ static int do_dentry_open(struct file *f,
 		f->f_mode |= FMODE_CAN_WRITE;
 	if ((f->f_mode & FMODE_LSEEK) && !f->f_op->llseek)
 		f->f_mode &= ~FMODE_LSEEK;
-	if ((f->f_mode & FMODE_LSEEK) && f->f_op->llseek == no_llseek)
-		f->f_mode &= ~FMODE_LSEEK;
 	if (f->f_mapping->a_ops && f->f_mapping->a_ops->direct_IO)
 		f->f_mode |= FMODE_CAN_ODIRECT;
 
