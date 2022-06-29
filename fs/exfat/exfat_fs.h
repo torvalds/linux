@@ -483,6 +483,7 @@ struct inode *exfat_build_inode(struct super_block *sb,
 void exfat_hash_inode(struct inode *inode, loff_t i_pos);
 void exfat_unhash_inode(struct inode *inode);
 struct inode *exfat_iget(struct super_block *sb, loff_t i_pos);
+int __exfat_write_inode(struct inode *inode, int sync);
 int exfat_write_inode(struct inode *inode, struct writeback_control *wbc);
 void exfat_evict_inode(struct inode *inode);
 int exfat_block_truncate_page(struct inode *inode, loff_t from);

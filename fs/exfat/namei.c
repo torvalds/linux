@@ -318,7 +318,6 @@ static int exfat_find_empty_entry(struct inode *inode,
 	unsigned int ret, last_clu;
 	loff_t size = 0;
 	struct exfat_chain clu;
-	struct exfat_dentry *ep = NULL;
 	struct super_block *sb = inode->i_sb;
 	struct exfat_sb_info *sbi = EXFAT_SB(sb);
 	struct exfat_inode_info *ei = EXFAT_I(inode);
@@ -383,31 +382,16 @@ static int exfat_find_empty_entry(struct inode *inode,
 		p_dir->size++;
 		size = EXFAT_CLU_TO_B(p_dir->size, sbi);
 
-		/* update the directory entry */
-		if (p_dir->dir != sbi->root_dir) {
-			struct buffer_head *bh;
-
-			ep = exfat_get_dentry(sb,
-				&(ei->dir), ei->entry + 1, &bh);
-			if (!ep)
-				return -EIO;
-
-			ep->dentry.stream.valid_size = cpu_to_le64(size);
-			ep->dentry.stream.size = ep->dentry.stream.valid_size;
-			ep->dentry.stream.flags = p_dir->flags;
-			exfat_update_bh(bh, IS_DIRSYNC(inode));
-			brelse(bh);
-			if (exfat_update_dir_chksum(inode, &(ei->dir),
-			    ei->entry))
-				return -EIO;
-		}
-
 		/* directory inode should be updated in here */
 		i_size_write(inode, size);
 		ei->i_size_ondisk += sbi->cluster_size;
 		ei->i_size_aligned += sbi->cluster_size;
 		ei->flags = p_dir->flags;
 		inode->i_blocks += 1 << sbi->sect_per_clus_bits;
+
+		/* update the directory entry */
+		if (__exfat_write_inode(inode, IS_DIRSYNC(inode)))
+			return -EIO;
 	}
 
 	return dentry;
