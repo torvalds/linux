@@ -10249,7 +10249,7 @@ static int perf_event_uprobe_open_legacy(const char *probe_name, bool retprobe,
 	type = determine_uprobe_perf_type_legacy(probe_name, retprobe);
 	if (type < 0) {
 		pr_warn("failed to determine legacy uprobe event id for %s:0x%zx: %d\n",
-			binary_path, offset, err);
+			binary_path, offset, type);
 		return type;
 	}
 
