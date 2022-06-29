@@ -97,10 +97,13 @@ int ext4_resize_begin(struct super_block *sb)
 	return ret;
 }
 
-void ext4_resize_end(struct super_block *sb)
+int ext4_resize_end(struct super_block *sb, bool update_backups)
 {
 	clear_bit_unlock(EXT4_FLAGS_RESIZING, &EXT4_SB(sb)->s_ext4_flags);
 	smp_mb__after_atomic();
+	if (update_backups)
+		return ext4_update_overhead(sb, true);
+	return 0;
 }
 
 static ext4_group_t ext4_meta_bg_first_group(struct super_block *sb,

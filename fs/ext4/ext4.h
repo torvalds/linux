@@ -3016,7 +3016,7 @@ int ext4_fileattr_set(struct user_namespace *mnt_userns,
 		      struct dentry *dentry, struct fileattr *fa);
 int ext4_fileattr_get(struct dentry *dentry, struct fileattr *fa);
 extern void ext4_reset_inode_seed(struct inode *inode);
-int ext4_update_overhead(struct super_block *sb);
+int ext4_update_overhead(struct super_block *sb, bool force);
 
 /* migrate.c */
 extern int ext4_ext_migrate(struct inode *);
@@ -3800,7 +3800,7 @@ static inline void set_bitmap_uptodate(struct buffer_head *bh)
 extern wait_queue_head_t ext4__ioend_wq[EXT4_WQ_HASH_SZ];
 
 extern int ext4_resize_begin(struct super_block *sb);
-extern void ext4_resize_end(struct super_block *sb);
+extern int ext4_resize_end(struct super_block *sb, bool update_backups);
 
 static inline void ext4_set_io_unwritten_flag(struct inode *inode,
 					      struct ext4_io_end *io_end)

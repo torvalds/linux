@@ -944,7 +944,9 @@ static long ext4_ioctl_group_add(struct file *file,
 	    test_opt(sb, INIT_INODE_TABLE))
 		err = ext4_register_li_request(sb, input->group);
 group_add_out:
-	ext4_resize_end(sb);
+	err2 = ext4_resize_end(sb, false);
+	if (err == 0)
+		err = err2;
 	return err;
 }
 
@@ -1223,7 +1225,9 @@ setversion_out:
 			err = err2;
 		mnt_drop_write_file(filp);
 group_extend_out:
-		ext4_resize_end(sb);
+		err2 = ext4_resize_end(sb, false);
+		if (err == 0)
+			err = err2;
 		return err;
 	}
 
@@ -1371,7 +1375,9 @@ mext_out:
 			err = ext4_register_li_request(sb, o_group);
 
 resizefs_out:
-		ext4_resize_end(sb);
+		err2 = ext4_resize_end(sb, true);
+		if (err == 0)
+			err = err2;
 		return err;
 	}
 
@@ -1599,13 +1605,15 @@ static void set_overhead(struct ext4_super_block *es, const void *arg)
 	es->s_overhead_clusters = cpu_to_le32(*((unsigned long *) arg));
 }
 
-int ext4_update_overhead(struct super_block *sb)
+int ext4_update_overhead(struct super_block *sb, bool force)
 {
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 
-	if (sb_rdonly(sb) || sbi->s_overhead == 0 ||
-	    sbi->s_overhead == le32_to_cpu(sbi->s_es->s_overhead_clusters))
+	if (sb_rdonly(sb))
 		return 0;
-
+	if (!force &&
+	    (sbi->s_overhead == 0 ||
+	     sbi->s_overhead == le32_to_cpu(sbi->s_es->s_overhead_clusters)))
+		return 0;
 	return ext4_update_superblocks_fn(sb, set_overhead, &sbi->s_overhead);
 }
