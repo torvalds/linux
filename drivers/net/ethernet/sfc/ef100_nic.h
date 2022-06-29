@@ -8,6 +8,8 @@
  * under the terms of the GNU General Public License version 2 as published
  * by the Free Software Foundation, incorporated herein by reference.
  */
+#ifndef EFX_EF100_NIC_H
+#define EFX_EF100_NIC_H
 
 #include "net_driver.h"
 #include "nic_common.h"
@@ -15,7 +17,7 @@
 extern const struct efx_nic_type ef100_pf_nic_type;
 extern const struct efx_nic_type ef100_vf_nic_type;
 
-int ef100_probe_pf(struct efx_nic *efx);
+int ef100_probe_netdev_pf(struct efx_nic *efx);
 int ef100_probe_vf(struct efx_nic *efx);
 void ef100_remove(struct efx_nic *efx);
 
@@ -78,3 +80,9 @@ struct ef100_nic_data {
 
 #define efx_ef100_has_cap(caps, flag) \
 	(!!((caps) & BIT_ULL(MC_CMD_GET_CAPABILITIES_V4_OUT_ ## flag ## _LBN)))
+
+int efx_ef100_init_datapath_caps(struct efx_nic *efx);
+int ef100_phy_probe(struct efx_nic *efx);
+int ef100_filter_table_probe(struct efx_nic *efx);
+
+#endif	/* EFX_EF100_NIC_H */

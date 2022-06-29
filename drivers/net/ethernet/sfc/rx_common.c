@@ -857,7 +857,7 @@ static void efx_filter_rfs_work(struct work_struct *data)
 {
 	struct efx_async_filter_insertion *req = container_of(data, struct efx_async_filter_insertion,
 							      work);
-	struct efx_nic *efx = netdev_priv(req->net_dev);
+	struct efx_nic *efx = efx_netdev_priv(req->net_dev);
 	struct efx_channel *channel = efx_get_channel(efx, req->rxq_index);
 	int slot_idx = req - efx->rps_slot;
 	struct efx_arfs_rule *rule;
@@ -942,7 +942,7 @@ static void efx_filter_rfs_work(struct work_struct *data)
 int efx_filter_rfs(struct net_device *net_dev, const struct sk_buff *skb,
 		   u16 rxq_index, u32 flow_id)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	struct efx_async_filter_insertion *req;
 	struct efx_arfs_rule *rule;
 	struct flow_keys fk;

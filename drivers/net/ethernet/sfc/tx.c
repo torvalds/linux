@@ -512,7 +512,7 @@ unlock:
 netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 				struct net_device *net_dev)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	struct efx_tx_queue *tx_queue;
 	unsigned index, type;
 
@@ -609,7 +609,7 @@ void efx_init_tx_queue_core_txq(struct efx_tx_queue *tx_queue)
 int efx_setup_tc(struct net_device *net_dev, enum tc_setup_type type,
 		 void *type_data)
 {
-	struct efx_nic *efx = netdev_priv(net_dev);
+	struct efx_nic *efx = efx_netdev_priv(net_dev);
 	struct tc_mqprio_qopt *mqprio = type_data;
 	unsigned tc, num_tc;
 

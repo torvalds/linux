@@ -13,5 +13,5 @@
 
 int ef100_netdev_event(struct notifier_block *this,
 		       unsigned long event, void *ptr);
-int ef100_register_netdev(struct efx_nic *efx);
-void ef100_unregister_netdev(struct efx_nic *efx);
+int ef100_probe_netdev(struct efx_probe_data *probe_data);
+void ef100_remove_netdev(struct efx_probe_data *probe_data);
