@@ -26,106 +26,6 @@
 #include "ksz8795_reg.h"
 #include "ksz8.h"
 
-static const u8 ksz8795_regs[] = {
-	[REG_IND_CTRL_0]		= 0x6E,
-	[REG_IND_DATA_8]		= 0x70,
-	[REG_IND_DATA_CHECK]		= 0x72,
-	[REG_IND_DATA_HI]		= 0x71,
-	[REG_IND_DATA_LO]		= 0x75,
-	[REG_IND_MIB_CHECK]		= 0x74,
-	[REG_IND_BYTE]			= 0xA0,
-	[P_FORCE_CTRL]			= 0x0C,
-	[P_LINK_STATUS]			= 0x0E,
-	[P_LOCAL_CTRL]			= 0x07,
-	[P_NEG_RESTART_CTRL]		= 0x0D,
-	[P_REMOTE_STATUS]		= 0x08,
-	[P_SPEED_STATUS]		= 0x09,
-	[S_TAIL_TAG_CTRL]		= 0x0C,
-};
-
-static const u32 ksz8795_masks[] = {
-	[PORT_802_1P_REMAPPING]		= BIT(7),
-	[SW_TAIL_TAG_ENABLE]		= BIT(1),
-	[MIB_COUNTER_OVERFLOW]		= BIT(6),
-	[MIB_COUNTER_VALID]		= BIT(5),
-	[VLAN_TABLE_FID]		= GENMASK(6, 0),
-	[VLAN_TABLE_MEMBERSHIP]		= GENMASK(11, 7),
-	[VLAN_TABLE_VALID]		= BIT(12),
-	[STATIC_MAC_TABLE_VALID]	= BIT(21),
-	[STATIC_MAC_TABLE_USE_FID]	= BIT(23),
-	[STATIC_MAC_TABLE_FID]		= GENMASK(30, 24),
-	[STATIC_MAC_TABLE_OVERRIDE]	= BIT(26),
-	[STATIC_MAC_TABLE_FWD_PORTS]	= GENMASK(24, 20),
-	[DYNAMIC_MAC_TABLE_ENTRIES_H]	= GENMASK(6, 0),
-	[DYNAMIC_MAC_TABLE_MAC_EMPTY]	= BIT(8),
-	[DYNAMIC_MAC_TABLE_NOT_READY]	= BIT(7),
-	[DYNAMIC_MAC_TABLE_ENTRIES]	= GENMASK(31, 29),
-	[DYNAMIC_MAC_TABLE_FID]		= GENMASK(26, 20),
-	[DYNAMIC_MAC_TABLE_SRC_PORT]	= GENMASK(26, 24),
-	[DYNAMIC_MAC_TABLE_TIMESTAMP]	= GENMASK(28, 27),
-};
-
-static const u8 ksz8795_shifts[] = {
-	[VLAN_TABLE_MEMBERSHIP_S]	= 7,
-	[VLAN_TABLE]			= 16,
-	[STATIC_MAC_FWD_PORTS]		= 16,
-	[STATIC_MAC_FID]		= 24,
-	[DYNAMIC_MAC_ENTRIES_H]		= 3,
-	[DYNAMIC_MAC_ENTRIES]		= 29,
-	[DYNAMIC_MAC_FID]		= 16,
-	[DYNAMIC_MAC_TIMESTAMP]		= 27,
-	[DYNAMIC_MAC_SRC_PORT]		= 24,
-};
-
-static const u8 ksz8863_regs[] = {
-	[REG_IND_CTRL_0]		= 0x79,
-	[REG_IND_DATA_8]		= 0x7B,
-	[REG_IND_DATA_CHECK]		= 0x7B,
-	[REG_IND_DATA_HI]		= 0x7C,
-	[REG_IND_DATA_LO]		= 0x80,
-	[REG_IND_MIB_CHECK]		= 0x80,
-	[P_FORCE_CTRL]			= 0x0C,
-	[P_LINK_STATUS]			= 0x0E,
-	[P_LOCAL_CTRL]			= 0x0C,
-	[P_NEG_RESTART_CTRL]		= 0x0D,
-	[P_REMOTE_STATUS]		= 0x0E,
-	[P_SPEED_STATUS]		= 0x0F,
-	[S_TAIL_TAG_CTRL]		= 0x03,
-};
-
-static const u32 ksz8863_masks[] = {
-	[PORT_802_1P_REMAPPING]		= BIT(3),
-	[SW_TAIL_TAG_ENABLE]		= BIT(6),
-	[MIB_COUNTER_OVERFLOW]		= BIT(7),
-	[MIB_COUNTER_VALID]		= BIT(6),
-	[VLAN_TABLE_FID]		= GENMASK(15, 12),
-	[VLAN_TABLE_MEMBERSHIP]		= GENMASK(18, 16),
-	[VLAN_TABLE_VALID]		= BIT(19),
-	[STATIC_MAC_TABLE_VALID]	= BIT(19),
-	[STATIC_MAC_TABLE_USE_FID]	= BIT(21),
-	[STATIC_MAC_TABLE_FID]		= GENMASK(29, 26),
-	[STATIC_MAC_TABLE_OVERRIDE]	= BIT(20),
-	[STATIC_MAC_TABLE_FWD_PORTS]	= GENMASK(18, 16),
-	[DYNAMIC_MAC_TABLE_ENTRIES_H]	= GENMASK(5, 0),
-	[DYNAMIC_MAC_TABLE_MAC_EMPTY]	= BIT(7),
-	[DYNAMIC_MAC_TABLE_NOT_READY]	= BIT(7),
-	[DYNAMIC_MAC_TABLE_ENTRIES]	= GENMASK(31, 28),
-	[DYNAMIC_MAC_TABLE_FID]		= GENMASK(19, 16),
-	[DYNAMIC_MAC_TABLE_SRC_PORT]	= GENMASK(21, 20),
-	[DYNAMIC_MAC_TABLE_TIMESTAMP]	= GENMASK(23, 22),
-};
-
-static u8 ksz8863_shifts[] = {
-	[VLAN_TABLE_MEMBERSHIP_S]	= 16,
-	[STATIC_MAC_FWD_PORTS]		= 16,
-	[STATIC_MAC_FID]		= 22,
-	[DYNAMIC_MAC_ENTRIES_H]		= 3,
-	[DYNAMIC_MAC_ENTRIES]		= 24,
-	[DYNAMIC_MAC_FID]		= 16,
-	[DYNAMIC_MAC_TIMESTAMP]		= 24,
-	[DYNAMIC_MAC_SRC_PORT]		= 20,
-};
-
 static bool ksz_is_ksz88x3(struct ksz_device *dev)
 {
 	return dev->chip_id == 0x8830;
@@ -145,10 +45,11 @@ static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 
 static int ksz8_ind_write8(struct ksz_device *dev, u8 table, u16 addr, u8 data)
 {
-	struct ksz8 *ksz8 = dev->priv;
-	const u8 *regs = ksz8->regs;
+	const u16 *regs;
 	u16 ctrl_addr;
 	int ret = 0;
+
+	regs = dev->info->regs;
 
 	mutex_lock(&dev->alu_mutex);
 
@@ -215,16 +116,15 @@ static void ksz8795_set_prio_queue(struct ksz_device *dev, int port, int queue)
 
 void ksz8_r_mib_cnt(struct ksz_device *dev, int port, u16 addr, u64 *cnt)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	const u32 *masks;
-	const u8 *regs;
+	const u16 *regs;
 	u16 ctrl_addr;
 	u32 data;
 	u8 check;
 	int loop;
 
-	masks = ksz8->masks;
-	regs = ksz8->regs;
+	masks = dev->info->masks;
+	regs = dev->info->regs;
 
 	ctrl_addr = addr + dev->info->reg_mib_cnt * port;
 	ctrl_addr |= IND_ACC_TABLE(TABLE_MIB | TABLE_READ);
@@ -252,16 +152,15 @@ void ksz8_r_mib_cnt(struct ksz_device *dev, int port, u16 addr, u64 *cnt)
 static void ksz8795_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 			      u64 *dropped, u64 *cnt)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	const u32 *masks;
-	const u8 *regs;
+	const u16 *regs;
 	u16 ctrl_addr;
 	u32 data;
 	u8 check;
 	int loop;
 
-	masks = ksz8->masks;
-	regs = ksz8->regs;
+	masks = dev->info->masks;
+	regs = dev->info->regs;
 
 	addr -= dev->info->reg_mib_cnt;
 	ctrl_addr = (KSZ8795_MIB_TOTAL_RX_1 - KSZ8795_MIB_TOTAL_RX_0) * port;
@@ -305,12 +204,13 @@ static void ksz8795_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 static void ksz8863_r_mib_pkt(struct ksz_device *dev, int port, u16 addr,
 			      u64 *dropped, u64 *cnt)
 {
-	struct ksz8 *ksz8 = dev->priv;
-	const u8 *regs = ksz8->regs;
 	u32 *last = (u32 *)dropped;
+	const u16 *regs;
 	u16 ctrl_addr;
 	u32 data;
 	u32 cur;
+
+	regs = dev->info->regs;
 
 	addr -= dev->info->reg_mib_cnt;
 	ctrl_addr = addr ? KSZ8863_MIB_PACKET_DROPPED_TX_0 :
@@ -392,9 +292,10 @@ void ksz8_port_init_cnt(struct ksz_device *dev, int port)
 
 static void ksz8_r_table(struct ksz_device *dev, int table, u16 addr, u64 *data)
 {
-	struct ksz8 *ksz8 = dev->priv;
-	const u8 *regs = ksz8->regs;
+	const u16 *regs;
 	u16 ctrl_addr;
+
+	regs = dev->info->regs;
 
 	ctrl_addr = IND_ACC_TABLE(table | TABLE_READ) | addr;
 
@@ -406,9 +307,10 @@ static void ksz8_r_table(struct ksz_device *dev, int table, u16 addr, u64 *data)
 
 static void ksz8_w_table(struct ksz_device *dev, int table, u16 addr, u64 data)
 {
-	struct ksz8 *ksz8 = dev->priv;
-	const u8 *regs = ksz8->regs;
+	const u16 *regs;
 	u16 ctrl_addr;
+
+	regs = dev->info->regs;
 
 	ctrl_addr = IND_ACC_TABLE(table) | addr;
 
@@ -420,13 +322,12 @@ static void ksz8_w_table(struct ksz_device *dev, int table, u16 addr, u64 data)
 
 static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	int timeout = 100;
 	const u32 *masks;
-	const u8 *regs;
+	const u16 *regs;
 
-	masks = ksz8->masks;
-	regs = ksz8->regs;
+	masks = dev->info->masks;
+	regs = dev->info->regs;
 
 	do {
 		ksz_read8(dev, regs[REG_IND_DATA_CHECK], data);
@@ -450,18 +351,17 @@ static int ksz8_valid_dyn_entry(struct ksz_device *dev, u8 *data)
 int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 			 u8 *fid, u8 *src_port, u8 *timestamp, u16 *entries)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	u32 data_hi, data_lo;
 	const u8 *shifts;
 	const u32 *masks;
-	const u8 *regs;
+	const u16 *regs;
 	u16 ctrl_addr;
 	u8 data;
 	int rc;
 
-	shifts = ksz8->shifts;
-	masks = ksz8->masks;
-	regs = ksz8->regs;
+	shifts = dev->info->shifts;
+	masks = dev->info->masks;
+	regs = dev->info->regs;
 
 	ctrl_addr = IND_ACC_TABLE(TABLE_DYNAMIC_MAC | TABLE_READ) | addr;
 
@@ -514,14 +414,13 @@ int ksz8_r_dyn_mac_table(struct ksz_device *dev, u16 addr, u8 *mac_addr,
 int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
 			 struct alu_struct *alu)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	u32 data_hi, data_lo;
 	const u8 *shifts;
 	const u32 *masks;
 	u64 data;
 
-	shifts = ksz8->shifts;
-	masks = ksz8->masks;
+	shifts = dev->info->shifts;
+	masks = dev->info->masks;
 
 	ksz8_r_table(dev, TABLE_STATIC_MAC, addr, &data);
 	data_hi = data >> 32;
@@ -553,14 +452,13 @@ int ksz8_r_sta_mac_table(struct ksz_device *dev, u16 addr,
 void ksz8_w_sta_mac_table(struct ksz_device *dev, u16 addr,
 			  struct alu_struct *alu)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	u32 data_hi, data_lo;
 	const u8 *shifts;
 	const u32 *masks;
 	u64 data;
 
-	shifts = ksz8->shifts;
-	masks = ksz8->masks;
+	shifts = dev->info->shifts;
+	masks = dev->info->masks;
 
 	data_lo = ((u32)alu->mac[2] << 24) |
 		((u32)alu->mac[3] << 16) |
@@ -586,12 +484,11 @@ void ksz8_w_sta_mac_table(struct ksz_device *dev, u16 addr,
 static void ksz8_from_vlan(struct ksz_device *dev, u32 vlan, u8 *fid,
 			   u8 *member, u8 *valid)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	const u8 *shifts;
 	const u32 *masks;
 
-	shifts = ksz8->shifts;
-	masks = ksz8->masks;
+	shifts = dev->info->shifts;
+	masks = dev->info->masks;
 
 	*fid = vlan & masks[VLAN_TABLE_FID];
 	*member = (vlan & masks[VLAN_TABLE_MEMBERSHIP]) >>
@@ -602,12 +499,11 @@ static void ksz8_from_vlan(struct ksz_device *dev, u32 vlan, u8 *fid,
 static void ksz8_to_vlan(struct ksz_device *dev, u8 fid, u8 member, u8 valid,
 			 u16 *vlan)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	const u8 *shifts;
 	const u32 *masks;
 
-	shifts = ksz8->shifts;
-	masks = ksz8->masks;
+	shifts = dev->info->shifts;
+	masks = dev->info->masks;
 
 	*vlan = fid;
 	*vlan |= (u16)member << shifts[VLAN_TABLE_MEMBERSHIP_S];
@@ -617,12 +513,11 @@ static void ksz8_to_vlan(struct ksz_device *dev, u8 fid, u8 member, u8 valid,
 
 static void ksz8_r_vlan_entries(struct ksz_device *dev, u16 addr)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	const u8 *shifts;
 	u64 data;
 	int i;
 
-	shifts = ksz8->shifts;
+	shifts = dev->info->shifts;
 
 	ksz8_r_table(dev, TABLE_VLAN, addr, &data);
 	addr *= 4;
@@ -664,13 +559,14 @@ static void ksz8_w_vlan_table(struct ksz_device *dev, u16 vid, u16 vlan)
 
 void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	u8 restart, speed, ctrl, link;
-	const u8 *regs = ksz8->regs;
 	int processed = true;
+	const u16 *regs;
 	u8 val1, val2;
 	u16 data = 0;
 	u8 p = phy;
+
+	regs = dev->info->regs;
 
 	switch (reg) {
 	case MII_BMCR:
@@ -787,10 +683,11 @@ void ksz8_r_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 *val)
 
 void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 {
-	struct ksz8 *ksz8 = dev->priv;
 	u8 restart, speed, ctrl, data;
-	const u8 *regs = ksz8->regs;
+	const u16 *regs;
 	u8 p = phy;
+
+	regs = dev->info->regs;
 
 	switch (reg) {
 	case MII_BMCR:
@@ -912,6 +809,9 @@ void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 	u8 learn[DSA_MAX_PORTS];
 	int first, index, cnt;
 	struct ksz_port *p;
+	const u16 *regs;
+
+	regs = dev->info->regs;
 
 	if ((uint)port < dev->info->port_cnt) {
 		first = port;
@@ -925,9 +825,9 @@ void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 		p = &dev->ports[index];
 		if (!p->on)
 			continue;
-		ksz_pread8(dev, index, P_STP_CTRL, &learn[index]);
+		ksz_pread8(dev, index, regs[P_STP_CTRL], &learn[index]);
 		if (!(learn[index] & PORT_LEARN_DISABLE))
-			ksz_pwrite8(dev, index, P_STP_CTRL,
+			ksz_pwrite8(dev, index, regs[P_STP_CTRL],
 				    learn[index] | PORT_LEARN_DISABLE);
 	}
 	ksz_cfg(dev, S_FLUSH_TABLE_CTRL, SW_FLUSH_DYN_MAC_TABLE, true);
@@ -936,7 +836,7 @@ void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 		if (!p->on)
 			continue;
 		if (!(learn[index] & PORT_LEARN_DISABLE))
-			ksz_pwrite8(dev, index, P_STP_CTRL, learn[index]);
+			ksz_pwrite8(dev, index, regs[P_STP_CTRL], learn[index]);
 	}
 }
 
@@ -1264,11 +1164,10 @@ static void ksz8795_cpu_interface_select(struct ksz_device *dev, int port)
 void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
 	struct dsa_switch *ds = dev->ds;
-	struct ksz8 *ksz8 = dev->priv;
 	const u32 *masks;
 	u8 member;
 
-	masks = ksz8->masks;
+	masks = dev->info->masks;
 
 	/* enable broadcast storm limit */
 	ksz_port_cfg(dev, port, P_BCAST_STORM_CTRL, PORT_BROADCAST_STORM, true);
@@ -1301,14 +1200,14 @@ void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 void ksz8_config_cpu_port(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
-	struct ksz8 *ksz8 = dev->priv;
-	const u8 *regs = ksz8->regs;
 	struct ksz_port *p;
 	const u32 *masks;
+	const u16 *regs;
 	u8 remote;
 	int i;
 
-	masks = ksz8->masks;
+	masks = dev->info->masks;
+	regs = dev->info->regs;
 
 	/* Switch marks the maximum frame with extra byte as oversize. */
 	ksz_cfg(dev, REG_SW_CTRL_2, SW_LEGAL_PACKET_DISABLE, true);
@@ -1340,11 +1239,11 @@ void ksz8_config_cpu_port(struct dsa_switch *ds)
 				p->fiber = 1;
 		}
 		if (p->fiber)
-			ksz_port_cfg(dev, i, P_STP_CTRL, PORT_FORCE_FLOW_CTRL,
-				     true);
+			ksz_port_cfg(dev, i, regs[P_STP_CTRL],
+				     PORT_FORCE_FLOW_CTRL, true);
 		else
-			ksz_port_cfg(dev, i, P_STP_CTRL, PORT_FORCE_FLOW_CTRL,
-				     false);
+			ksz_port_cfg(dev, i, regs[P_STP_CTRL],
+				     PORT_FORCE_FLOW_CTRL, false);
 	}
 }
 
@@ -1441,21 +1340,9 @@ u32 ksz8_get_port_addr(int port, int offset)
 
 int ksz8_switch_init(struct ksz_device *dev)
 {
-	struct ksz8 *ksz8 = dev->priv;
-
 	dev->cpu_port = fls(dev->info->cpu_ports) - 1;
 	dev->phy_port_cnt = dev->info->port_cnt - 1;
 	dev->port_mask = (BIT(dev->phy_port_cnt) - 1) | dev->info->cpu_ports;
-
-	if (ksz_is_ksz88x3(dev)) {
-		ksz8->regs = ksz8863_regs;
-		ksz8->masks = ksz8863_masks;
-		ksz8->shifts = ksz8863_shifts;
-	} else {
-		ksz8->regs = ksz8795_regs;
-		ksz8->masks = ksz8795_masks;
-		ksz8->shifts = ksz8795_shifts;
-	}
 
 	/* We rely on software untagging on the CPU port, so that we
 	 * can support both tagged and untagged VLANs

@@ -201,6 +201,122 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.exit = ksz9477_switch_exit,
 };
 
+static const u16 ksz8795_regs[] = {
+	[REG_IND_CTRL_0]		= 0x6E,
+	[REG_IND_DATA_8]		= 0x70,
+	[REG_IND_DATA_CHECK]		= 0x72,
+	[REG_IND_DATA_HI]		= 0x71,
+	[REG_IND_DATA_LO]		= 0x75,
+	[REG_IND_MIB_CHECK]		= 0x74,
+	[REG_IND_BYTE]			= 0xA0,
+	[P_FORCE_CTRL]			= 0x0C,
+	[P_LINK_STATUS]			= 0x0E,
+	[P_LOCAL_CTRL]			= 0x07,
+	[P_NEG_RESTART_CTRL]		= 0x0D,
+	[P_REMOTE_STATUS]		= 0x08,
+	[P_SPEED_STATUS]		= 0x09,
+	[S_TAIL_TAG_CTRL]		= 0x0C,
+	[P_STP_CTRL]			= 0x02,
+	[S_START_CTRL]			= 0x01,
+	[S_BROADCAST_CTRL]		= 0x06,
+	[S_MULTICAST_CTRL]		= 0x04,
+};
+
+static const u32 ksz8795_masks[] = {
+	[PORT_802_1P_REMAPPING]		= BIT(7),
+	[SW_TAIL_TAG_ENABLE]		= BIT(1),
+	[MIB_COUNTER_OVERFLOW]		= BIT(6),
+	[MIB_COUNTER_VALID]		= BIT(5),
+	[VLAN_TABLE_FID]		= GENMASK(6, 0),
+	[VLAN_TABLE_MEMBERSHIP]		= GENMASK(11, 7),
+	[VLAN_TABLE_VALID]		= BIT(12),
+	[STATIC_MAC_TABLE_VALID]	= BIT(21),
+	[STATIC_MAC_TABLE_USE_FID]	= BIT(23),
+	[STATIC_MAC_TABLE_FID]		= GENMASK(30, 24),
+	[STATIC_MAC_TABLE_OVERRIDE]	= BIT(26),
+	[STATIC_MAC_TABLE_FWD_PORTS]	= GENMASK(24, 20),
+	[DYNAMIC_MAC_TABLE_ENTRIES_H]	= GENMASK(6, 0),
+	[DYNAMIC_MAC_TABLE_MAC_EMPTY]	= BIT(8),
+	[DYNAMIC_MAC_TABLE_NOT_READY]	= BIT(7),
+	[DYNAMIC_MAC_TABLE_ENTRIES]	= GENMASK(31, 29),
+	[DYNAMIC_MAC_TABLE_FID]		= GENMASK(26, 20),
+	[DYNAMIC_MAC_TABLE_SRC_PORT]	= GENMASK(26, 24),
+	[DYNAMIC_MAC_TABLE_TIMESTAMP]	= GENMASK(28, 27),
+};
+
+static const u8 ksz8795_shifts[] = {
+	[VLAN_TABLE_MEMBERSHIP_S]	= 7,
+	[VLAN_TABLE]			= 16,
+	[STATIC_MAC_FWD_PORTS]		= 16,
+	[STATIC_MAC_FID]		= 24,
+	[DYNAMIC_MAC_ENTRIES_H]		= 3,
+	[DYNAMIC_MAC_ENTRIES]		= 29,
+	[DYNAMIC_MAC_FID]		= 16,
+	[DYNAMIC_MAC_TIMESTAMP]		= 27,
+	[DYNAMIC_MAC_SRC_PORT]		= 24,
+};
+
+static const u16 ksz8863_regs[] = {
+	[REG_IND_CTRL_0]		= 0x79,
+	[REG_IND_DATA_8]		= 0x7B,
+	[REG_IND_DATA_CHECK]		= 0x7B,
+	[REG_IND_DATA_HI]		= 0x7C,
+	[REG_IND_DATA_LO]		= 0x80,
+	[REG_IND_MIB_CHECK]		= 0x80,
+	[P_FORCE_CTRL]			= 0x0C,
+	[P_LINK_STATUS]			= 0x0E,
+	[P_LOCAL_CTRL]			= 0x0C,
+	[P_NEG_RESTART_CTRL]		= 0x0D,
+	[P_REMOTE_STATUS]		= 0x0E,
+	[P_SPEED_STATUS]		= 0x0F,
+	[S_TAIL_TAG_CTRL]		= 0x03,
+	[P_STP_CTRL]			= 0x02,
+	[S_START_CTRL]			= 0x01,
+	[S_BROADCAST_CTRL]		= 0x06,
+	[S_MULTICAST_CTRL]		= 0x04,
+};
+
+static const u32 ksz8863_masks[] = {
+	[PORT_802_1P_REMAPPING]		= BIT(3),
+	[SW_TAIL_TAG_ENABLE]		= BIT(6),
+	[MIB_COUNTER_OVERFLOW]		= BIT(7),
+	[MIB_COUNTER_VALID]		= BIT(6),
+	[VLAN_TABLE_FID]		= GENMASK(15, 12),
+	[VLAN_TABLE_MEMBERSHIP]		= GENMASK(18, 16),
+	[VLAN_TABLE_VALID]		= BIT(19),
+	[STATIC_MAC_TABLE_VALID]	= BIT(19),
+	[STATIC_MAC_TABLE_USE_FID]	= BIT(21),
+	[STATIC_MAC_TABLE_FID]		= GENMASK(29, 26),
+	[STATIC_MAC_TABLE_OVERRIDE]	= BIT(20),
+	[STATIC_MAC_TABLE_FWD_PORTS]	= GENMASK(18, 16),
+	[DYNAMIC_MAC_TABLE_ENTRIES_H]	= GENMASK(5, 0),
+	[DYNAMIC_MAC_TABLE_MAC_EMPTY]	= BIT(7),
+	[DYNAMIC_MAC_TABLE_NOT_READY]	= BIT(7),
+	[DYNAMIC_MAC_TABLE_ENTRIES]	= GENMASK(31, 28),
+	[DYNAMIC_MAC_TABLE_FID]		= GENMASK(19, 16),
+	[DYNAMIC_MAC_TABLE_SRC_PORT]	= GENMASK(21, 20),
+	[DYNAMIC_MAC_TABLE_TIMESTAMP]	= GENMASK(23, 22),
+};
+
+static u8 ksz8863_shifts[] = {
+	[VLAN_TABLE_MEMBERSHIP_S]	= 16,
+	[STATIC_MAC_FWD_PORTS]		= 16,
+	[STATIC_MAC_FID]		= 22,
+	[DYNAMIC_MAC_ENTRIES_H]		= 3,
+	[DYNAMIC_MAC_ENTRIES]		= 24,
+	[DYNAMIC_MAC_FID]		= 16,
+	[DYNAMIC_MAC_TIMESTAMP]		= 24,
+	[DYNAMIC_MAC_SRC_PORT]		= 20,
+};
+
+static const u16 ksz9477_regs[] = {
+	[P_STP_CTRL]			= 0x0B04,
+	[S_START_CTRL]			= 0x0300,
+	[S_BROADCAST_CTRL]		= 0x0332,
+	[S_MULTICAST_CTRL]		= 0x0331,
+
+};
+
 const struct ksz_chip_data ksz_switch_chips[] = {
 	[KSZ8795] = {
 		.chip_id = KSZ8795_CHIP_ID,
@@ -215,10 +331,9 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x02,
-		.broadcast_ctrl_reg =  0x06,
-		.multicast_ctrl_reg = 0x04,
-		.start_ctrl_reg = 0x01,
+		.regs = ksz8795_regs,
+		.masks = ksz8795_masks,
+		.shifts = ksz8795_shifts,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
@@ -252,10 +367,9 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x02,
-		.broadcast_ctrl_reg =  0x06,
-		.multicast_ctrl_reg = 0x04,
-		.start_ctrl_reg = 0x01,
+		.regs = ksz8795_regs,
+		.masks = ksz8795_masks,
+		.shifts = ksz8795_shifts,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
@@ -275,10 +389,9 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x02,
-		.broadcast_ctrl_reg =  0x06,
-		.multicast_ctrl_reg = 0x04,
-		.start_ctrl_reg = 0x01,
+		.regs = ksz8795_regs,
+		.masks = ksz8795_masks,
+		.shifts = ksz8795_shifts,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
@@ -297,10 +410,9 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz88xx_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz88xx_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x02,
-		.broadcast_ctrl_reg =  0x06,
-		.multicast_ctrl_reg = 0x04,
-		.start_ctrl_reg = 0x01,
+		.regs = ksz8863_regs,
+		.masks = ksz8863_masks,
+		.shifts = ksz8863_shifts,
 		.supports_mii = {false, false, true},
 		.supports_rmii = {false, false, true},
 		.internal_phy = {true, true, false},
@@ -319,10 +431,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
-		.broadcast_ctrl_reg =  0x0332,
-		.multicast_ctrl_reg = 0x0331,
-		.start_ctrl_reg = 0x0300,
+		.regs = ksz9477_regs,
 		.supports_mii	= {false, false, false, false,
 				   false, true, false},
 		.supports_rmii	= {false, false, false, false,
@@ -346,10 +455,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
-		.broadcast_ctrl_reg =  0x0332,
-		.multicast_ctrl_reg = 0x0331,
-		.start_ctrl_reg = 0x0300,
+		.regs = ksz9477_regs,
 		.supports_mii	= {false, false, false, false,
 				   false, true, true},
 		.supports_rmii	= {false, false, false, false,
@@ -372,10 +478,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
-		.broadcast_ctrl_reg =  0x0332,
-		.multicast_ctrl_reg = 0x0331,
-		.start_ctrl_reg = 0x0300,
+		.regs = ksz9477_regs,
 		.supports_mii = {false, false, true},
 		.supports_rmii = {false, false, true},
 		.supports_rgmii = {false, false, true},
@@ -395,10 +498,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
-		.broadcast_ctrl_reg =  0x0332,
-		.multicast_ctrl_reg = 0x0331,
-		.start_ctrl_reg = 0x0300,
+		.regs = ksz9477_regs,
 		.supports_mii	= {false, false, false, false,
 				   false, true, true},
 		.supports_rmii	= {false, false, false, false,
@@ -420,10 +520,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
-		.broadcast_ctrl_reg =  0x0332,
-		.multicast_ctrl_reg = 0x0331,
-		.start_ctrl_reg = 0x0300,
+		.regs = ksz9477_regs,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
@@ -441,10 +538,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
-		.broadcast_ctrl_reg =  0x0332,
-		.multicast_ctrl_reg = 0x0331,
-		.start_ctrl_reg = 0x0300,
+		.regs = ksz9477_regs,
 		.supports_mii = {false, false, false, false, true, true},
 		.supports_rmii = {false, false, false, false, true, true},
 		.supports_rgmii = {false, false, false, false, true, true},
@@ -462,10 +556,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
-		.broadcast_ctrl_reg =  0x0332,
-		.multicast_ctrl_reg = 0x0331,
-		.start_ctrl_reg = 0x0300,
+		.regs = ksz9477_regs,
 		.supports_mii	= {false, false, false, false,
 				   true, true, false, false},
 		.supports_rmii	= {false, false, false, false,
@@ -487,10 +578,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
-		.broadcast_ctrl_reg =  0x0332,
-		.multicast_ctrl_reg = 0x0331,
-		.start_ctrl_reg = 0x0300,
+		.regs = ksz9477_regs,
 		.supports_mii	= {false, false, false, false,
 				   true, true, false, false},
 		.supports_rmii	= {false, false, false, false,
@@ -512,10 +600,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.mib_names = ksz9477_mib_names,
 		.mib_cnt = ARRAY_SIZE(ksz9477_mib_names),
 		.reg_mib_cnt = MIB_COUNTER_NUM,
-		.stp_ctrl_reg = 0x0B04,
-		.broadcast_ctrl_reg =  0x0332,
-		.multicast_ctrl_reg = 0x0331,
-		.start_ctrl_reg = 0x0300,
+		.regs = ksz9477_regs,
 		.supports_mii	= {false, false, false, false,
 				   true, true, false, false},
 		.supports_rmii	= {false, false, false, false,
@@ -715,7 +800,10 @@ static void ksz_update_port_member(struct ksz_device *dev, int port)
 static int ksz_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
+	const u16 *regs;
 	int ret;
+
+	regs = dev->info->regs;
 
 	dev->vlan_cache = devm_kcalloc(dev->dev, sizeof(struct vlan_table),
 				       dev->info->num_vlans, GFP_KERNEL);
@@ -729,7 +817,7 @@ static int ksz_setup(struct dsa_switch *ds)
 	}
 
 	/* set broadcast storm protection 10% rate */
-	regmap_update_bits(dev->regmap[1], dev->info->broadcast_ctrl_reg,
+	regmap_update_bits(dev->regmap[1], regs[S_BROADCAST_CTRL],
 			   BROADCAST_STORM_RATE,
 			   (BROADCAST_STORM_VALUE *
 			   BROADCAST_STORM_PROT_RATE) / 100);
@@ -738,7 +826,7 @@ static int ksz_setup(struct dsa_switch *ds)
 
 	dev->dev_ops->enable_stp_addr(dev);
 
-	regmap_update_bits(dev->regmap[0], dev->info->multicast_ctrl_reg,
+	regmap_update_bits(dev->regmap[0], regs[S_MULTICAST_CTRL],
 			   MULTICAST_STORM_DISABLE, MULTICAST_STORM_DISABLE);
 
 	ksz_init_mib_timer(dev);
@@ -752,7 +840,7 @@ static int ksz_setup(struct dsa_switch *ds)
 	}
 
 	/* start switch */
-	regmap_update_bits(dev->regmap[0], dev->info->start_ctrl_reg,
+	regmap_update_bits(dev->regmap[0], regs[S_START_CTRL],
 			   SW_START, SW_START);
 
 	return 0;
@@ -1019,12 +1107,12 @@ void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 {
 	struct ksz_device *dev = ds->priv;
 	struct ksz_port *p;
+	const u16 *regs;
 	u8 data;
-	int reg;
 
-	reg = dev->info->stp_ctrl_reg;
+	regs = dev->info->regs;
 
-	ksz_pread8(dev, port, reg, &data);
+	ksz_pread8(dev, port, regs[P_STP_CTRL], &data);
 	data &= ~(PORT_TX_ENABLE | PORT_RX_ENABLE | PORT_LEARN_DISABLE);
 
 	switch (state) {
@@ -1048,7 +1136,7 @@ void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 		return;
 	}
 
-	ksz_pwrite8(dev, port, reg, data);
+	ksz_pwrite8(dev, port, regs[P_STP_CTRL], data);
 
 	p = &dev->ports[port];
 	p->stp_state = state;

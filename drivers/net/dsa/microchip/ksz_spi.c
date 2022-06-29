@@ -14,7 +14,6 @@
 #include <linux/regmap.h>
 #include <linux/spi/spi.h>
 
-#include "ksz8.h"
 #include "ksz_common.h"
 
 #define KSZ8795_SPI_ADDR_SHIFT			12
@@ -45,16 +44,9 @@ static int ksz_spi_probe(struct spi_device *spi)
 	struct device *ddev = &spi->dev;
 	struct regmap_config rc;
 	struct ksz_device *dev;
-	struct ksz8 *ksz8;
 	int i, ret = 0;
 
-	ksz8 = devm_kzalloc(&spi->dev, sizeof(struct ksz8), GFP_KERNEL);
-	if (!ksz8)
-		return -ENOMEM;
-
-	ksz8->priv = spi;
-
-	dev = ksz_switch_alloc(&spi->dev, ksz8);
+	dev = ksz_switch_alloc(&spi->dev, spi);
 	if (!dev)
 		return -ENOMEM;
 
