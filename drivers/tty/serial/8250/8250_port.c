@@ -1511,7 +1511,7 @@ static inline void __stop_tx(struct uart_8250_port *p)
 		if (!(lsr & UART_LSR_THRE))
 			return;
 		/*
-		 * To provide required timeing and allow FIFO transfer,
+		 * To provide required timing and allow FIFO transfer,
 		 * __stop_tx_rs485() must be called only when both FIFO and
 		 * shift register are empty. The device driver should either
 		 * enable interrupt on TEMT or set UART_CAP_NOTEMT that will
@@ -2798,7 +2798,7 @@ serial8250_do_set_termios(struct uart_port *port, struct ktermios *termios,
 		port->read_status_mask |= UART_LSR_BI;
 
 	/*
-	 * Characteres to ignore
+	 * Characters to ignore
 	 */
 	port->ignore_status_mask = 0;
 	if (termios->c_iflag & IGNPAR)
