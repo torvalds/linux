@@ -171,6 +171,49 @@ static u64 precise_datala_hsw(struct perf_event *event, u64 status)
 	return dse.val;
 }
 
+static inline void pebs_set_tlb_lock(u64 *val, bool tlb, bool lock)
+{
+	/*
+	 * TLB access
+	 * 0 = did not miss 2nd level TLB
+	 * 1 = missed 2nd level TLB
+	 */
+	if (tlb)
+		*val |= P(TLB, MISS) | P(TLB, L2);
+	else
+		*val |= P(TLB, HIT) | P(TLB, L1) | P(TLB, L2);
+
+	/* locked prefix */
+	if (lock)
+		*val |= P(LOCK, LOCKED);
+}
+
+/* Retrieve the latency data for e-core of ADL */
+u64 adl_latency_data_small(struct perf_event *event, u64 status)
+{
+	union intel_x86_pebs_dse dse;
+	u64 val;
+
+	WARN_ON_ONCE(hybrid_pmu(event->pmu)->cpu_type == hybrid_big);
+
+	dse.val = status;
+
+	val = pebs_data_source[dse.ld_dse];
+
+	/*
+	 * For the atom core on ADL,
+	 * bit 4: lock, bit 5: TLB access.
+	 */
+	pebs_set_tlb_lock(&val, dse.ld_locked, dse.ld_stlb_miss);
+
+	if (dse.ld_data_blk)
+		val |= P(BLK, DATA);
+	else
+		val |= P(BLK, NA);
+
+	return val;
+}
+
 static u64 load_latency_data(u64 status)
 {
 	union intel_x86_pebs_dse dse;
@@ -190,21 +233,8 @@ static u64 load_latency_data(u64 status)
 		val |= P(TLB, NA) | P(LOCK, NA);
 		return val;
 	}
-	/*
-	 * bit 4: TLB access
-	 * 0 = did not miss 2nd level TLB
-	 * 1 = missed 2nd level TLB
-	 */
-	if (dse.ld_stlb_miss)
-		val |= P(TLB, MISS) | P(TLB, L2);
-	else
-		val |= P(TLB, HIT) | P(TLB, L1) | P(TLB, L2);
 
-	/*
-	 * bit 5: locked prefix
-	 */
-	if (dse.ld_locked)
-		val |= P(LOCK, LOCKED);
+	pebs_set_tlb_lock(&val, dse.ld_stlb_miss, dse.ld_locked);
 
 	/*
 	 * Ice Lake and earlier models do not support block infos.
@@ -245,21 +275,7 @@ static u64 store_latency_data(u64 status)
 	 */
 	val = pebs_data_source[dse.st_lat_dse];
 
-	/*
-	 * bit 4: TLB access
-	 * 0 = did not miss 2nd level TLB
-	 * 1 = missed 2nd level TLB
-	 */
-	if (dse.st_lat_stlb_miss)
-		val |= P(TLB, MISS) | P(TLB, L2);
-	else
-		val |= P(TLB, HIT) | P(TLB, L1) | P(TLB, L2);
-
-	/*
-	 * bit 5: locked prefix
-	 */
-	if (dse.st_lat_locked)
-		val |= P(LOCK, LOCKED);
+	pebs_set_tlb_lock(&val, dse.st_lat_stlb_miss, dse.st_lat_locked);
 
 	val |= P(BLK, NA);
 
@@ -781,8 +797,8 @@ struct event_constraint intel_glm_pebs_event_constraints[] = {
 
 struct event_constraint intel_grt_pebs_event_constraints[] = {
 	/* Allow all events as PEBS with no flags */
-	INTEL_PLD_CONSTRAINT(0x5d0, 0xf),
-	INTEL_PSD_CONSTRAINT(0x6d0, 0xf),
+	INTEL_HYBRID_LAT_CONSTRAINT(0x5d0, 0xf),
+	INTEL_HYBRID_LAT_CONSTRAINT(0x6d0, 0xf),
 	EVENT_CONSTRAINT_END
 };
 
@@ -1446,6 +1462,8 @@ static u64 get_data_src(struct perf_event *event, u64 aux)
 		val = load_latency_data(aux);
 	else if (fl & PERF_X86_EVENT_PEBS_STLAT)
 		val = store_latency_data(aux);
+	else if (fl & PERF_X86_EVENT_PEBS_LAT_HYBRID)
+		val = x86_pmu.pebs_latency_data(event, aux);
 	else if (fst && (fl & PERF_X86_EVENT_PEBS_HSW_PREC))
 		val = precise_datala_hsw(event, aux);
 	else if (fst)
