@@ -720,7 +720,7 @@ static void of_gpiochip_remove_hog(struct gpio_chip *chip,
 
 static int of_gpiochip_match_node(struct gpio_chip *chip, void *data)
 {
-	return chip->gpiodev->dev.of_node == data;
+	return device_match_of_node(&chip->gpiodev->dev, data);
 }
 
 static struct gpio_chip *of_find_gpiochip_by_node(struct device_node *np)
