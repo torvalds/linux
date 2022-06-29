@@ -64,6 +64,8 @@ enum amdgpu_gfx_partition {
 	AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE,
 };
 
+#define NUM_XCC(x) hweight16(x)
+
 struct amdgpu_mec {
 	struct amdgpu_bo	*hpd_eop_obj;
 	u64			hpd_eop_gpu_addr;
@@ -396,7 +398,7 @@ struct amdgpu_gfx {
 	bool				cp_gfx_shadow; /* for gfx11 */
 
 	enum amdgpu_gfx_partition	partition_mode;
-	uint32_t			num_xcd;
+	uint16_t 			xcc_mask;
 	uint32_t			num_xcc_per_xcp;
 	struct mutex			partition_mutex;
 };

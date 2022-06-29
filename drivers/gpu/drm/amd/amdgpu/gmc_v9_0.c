@@ -1733,7 +1733,8 @@ static int gmc_v9_0_sw_init(void *handle)
 		adev->gmc.translate_further = adev->vm_manager.num_level > 1;
 		break;
 	case IP_VERSION(9, 4, 3):
-		bitmap_set(adev->vmhubs_mask, AMDGPU_GFXHUB(0), adev->gfx.num_xcd);
+		bitmap_set(adev->vmhubs_mask, AMDGPU_GFXHUB(0),
+				  NUM_XCC(adev->gfx.xcc_mask));
 		bitmap_set(adev->vmhubs_mask, AMDGPU_MMHUB0(0), adev->num_aid);
 
 		amdgpu_vm_adjust_size(adev, 256 * 1024, 9, 3, 48);

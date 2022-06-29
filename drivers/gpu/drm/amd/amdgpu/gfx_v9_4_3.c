@@ -177,16 +177,19 @@ static const struct kiq_pm4_funcs gfx_v9_4_3_kiq_pm4_funcs = {
 
 static void gfx_v9_4_3_set_kiq_pm4_funcs(struct amdgpu_device *adev)
 {
-	int i;
-	for (i = 0; i < adev->gfx.num_xcd; i++)
+	int i, num_xcc;
+
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++)
 		adev->gfx.kiq[i].pmf = &gfx_v9_4_3_kiq_pm4_funcs;
 }
 
 static void gfx_v9_4_3_init_golden_registers(struct amdgpu_device *adev)
 {
-	int i;
+	int i, num_xcc;
 
-	for (i = 2; i < adev->gfx.num_xcd; i++)
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 2; i < num_xcc; i++)
 		WREG32_SOC15(GC, i, regGRBM_MCM_ADDR, 0x4);
 }
 
@@ -499,7 +502,7 @@ static void gfx_v9_4_3_mec_fini(struct amdgpu_device *adev)
 
 static int gfx_v9_4_3_mec_init(struct amdgpu_device *adev)
 {
-	int r, i;
+	int r, i, num_xcc;
 	u32 *hpd;
 	const __le32 *fw_data;
 	unsigned fw_size;
@@ -508,7 +511,8 @@ static int gfx_v9_4_3_mec_init(struct amdgpu_device *adev)
 
 	const struct gfx_firmware_header_v1_0 *mec_hdr;
 
-	for (i = 0; i < adev->gfx.num_xcd; i++)
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++)
 		bitmap_zero(adev->gfx.mec_bitmap[i].queue_bitmap,
 			AMDGPU_MAX_COMPUTE_QUEUES);
 
@@ -683,23 +687,24 @@ static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 						enum amdgpu_gfx_partition mode)
 {
 	u32 tmp = 0;
-	int num_xcc_per_partition, i;
+	int num_xcc_per_partition, i, num_xcc;
 
 	if (mode == adev->gfx.partition_mode)
 		return mode;
 
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	switch (mode) {
 	case AMDGPU_SPX_PARTITION_MODE:
-		num_xcc_per_partition = adev->gfx.num_xcd;
+		num_xcc_per_partition = num_xcc;
 		break;
 	case AMDGPU_DPX_PARTITION_MODE:
-		num_xcc_per_partition = adev->gfx.num_xcd / 2;
+		num_xcc_per_partition = num_xcc / 2;
 		break;
 	case AMDGPU_TPX_PARTITION_MODE:
-		num_xcc_per_partition = adev->gfx.num_xcd / 3;
+		num_xcc_per_partition = num_xcc / 3;
 		break;
 	case AMDGPU_QPX_PARTITION_MODE:
-		num_xcc_per_partition = adev->gfx.num_xcd / 4;
+		num_xcc_per_partition = num_xcc / 4;
 		break;
 	case AMDGPU_CPX_PARTITION_MODE:
 		num_xcc_per_partition = 1;
@@ -712,7 +717,7 @@ static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 	 * Stop user queues and threads, and make sure GPU is empty of work.
 	 */
 
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	for (i = 0; i < num_xcc; i++) {
 		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, NUM_XCC_IN_XCP,
 				    num_xcc_per_partition);
 		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, VIRTUAL_XCC_ID,
@@ -836,13 +841,15 @@ static int gfx_v9_4_3_compute_ring_init(struct amdgpu_device *adev, int ring_id,
 
 static int gfx_v9_4_3_sw_init(void *handle)
 {
-	int i, j, k, r, ring_id, xcc_id;
+	int i, j, k, r, ring_id, xcc_id, num_xcc;
 	struct amdgpu_kiq *kiq;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	adev->gfx.mec.num_mec = 2;
 	adev->gfx.mec.num_pipe_per_mec = 4;
 	adev->gfx.mec.num_queue_per_pipe = 8;
+
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
 	/* EOP Event */
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP, GFX_9_0__SRCID__CP_EOP_INTERRUPT, &adev->gfx.eop_irq);
@@ -877,8 +884,7 @@ static int gfx_v9_4_3_sw_init(void *handle)
 
 	/* set up the compute queues - allocate horizontally across pipes */
 	ring_id = 0;
-	for (xcc_id = 0; xcc_id < adev->gfx.num_xcd; xcc_id++) {
-
+	for (xcc_id = 0; xcc_id < num_xcc; xcc_id++) {
 		for (i = 0; i < adev->gfx.mec.num_mec; ++i) {
 			for (j = 0; j < adev->gfx.mec.num_queue_per_pipe; j++) {
 				for (k = 0; k < adev->gfx.mec.num_pipe_per_mec;
@@ -930,14 +936,14 @@ static int gfx_v9_4_3_sw_init(void *handle)
 
 static int gfx_v9_4_3_sw_fini(void *handle)
 {
-	int i;
+	int i, num_xcc;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	for (i = 0; i < adev->gfx.num_compute_rings *
-		adev->gfx.num_xcd; i++)
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < adev->gfx.num_compute_rings * num_xcc; i++)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	for (i = 0; i < num_xcc; i++) {
 		amdgpu_gfx_mqd_sw_fini(adev, i);
 		amdgpu_gfx_kiq_free_ring(&adev->gfx.kiq[i].ring);
 		amdgpu_gfx_kiq_fini(adev, i);
@@ -1050,9 +1056,10 @@ static void gfx_v9_4_3_init_gds_vmid(struct amdgpu_device *adev, int xcc_id)
 static void gfx_v9_4_3_constants_init(struct amdgpu_device *adev)
 {
 	u32 tmp;
-	int i, j;
+	int i, j, num_xcc;
 
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++) {
 		WREG32_FIELD15_PREREG(GC, i, GRBM_CNTL, READ_TIMEOUT, 0xff);
 		gfx_v9_4_3_setup_rb(adev, i);
 	}
@@ -1064,7 +1071,7 @@ static void gfx_v9_4_3_constants_init(struct amdgpu_device *adev)
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
 	mutex_lock(&adev->srbm_mutex);
 	for (i = 0; i < adev->vm_manager.id_mgr[AMDGPU_GFXHUB(0)].num_ids; i++) {
-		for (j = 0; j < adev->gfx.num_xcd; j++) {
+		for (j = 0; j < num_xcc; j++) {
 			soc15_grbm_select(adev, 0, 0, 0, i, j);
 			/* CP and shaders */
 			if (i == 0) {
@@ -1092,7 +1099,7 @@ static void gfx_v9_4_3_constants_init(struct amdgpu_device *adev)
 
 	mutex_unlock(&adev->srbm_mutex);
 
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	for (i = 0; i < num_xcc; i++) {
 		gfx_v9_4_3_init_compute_vmid(adev, i);
 		gfx_v9_4_3_init_gds_vmid(adev, i);
 	}
@@ -1150,8 +1157,10 @@ static void gfx_v9_4_3_disable_gpa_mode(struct amdgpu_device *adev, int xcc_id)
 static void gfx_v9_4_3_program_xcc_id(struct amdgpu_device *adev, int xcc_id)
 {
 	uint32_t tmp = 0;
+	int num_xcc;
 
-	switch (adev->gfx.num_xcd) {
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	switch (num_xcc) {
 	/* directly config VIRTUAL_XCC_ID to 0 for 1-XCC */
 	case 1:
 		WREG32_SOC15(GC, xcc_id, regCP_HYP_XCP_CTL, 0x8);
@@ -1288,9 +1297,10 @@ static void gfx_v9_4_3_enable_gui_idle_interrupt(struct amdgpu_device *adev,
 
 static void gfx_v9_4_3_rlc_stop(struct amdgpu_device *adev)
 {
-	int i;
+	int i, num_xcc;
 
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++) {
 		WREG32_FIELD15_PREREG(GC, i, RLC_CNTL, RLC_ENABLE_F32, 0);
 		gfx_v9_4_3_enable_gui_idle_interrupt(adev, false, i);
 		gfx_v9_4_3_wait_for_rlc_serdes(adev, i);
@@ -1299,9 +1309,10 @@ static void gfx_v9_4_3_rlc_stop(struct amdgpu_device *adev)
 
 static void gfx_v9_4_3_rlc_reset(struct amdgpu_device *adev)
 {
-	int i;
+	int i, num_xcc;
 
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++) {
 		WREG32_FIELD15_PREREG(GC, i, GRBM_SOFT_RESET, SOFT_RESET_RLC, 1);
 		udelay(50);
 		WREG32_FIELD15_PREREG(GC, i, GRBM_SOFT_RESET, SOFT_RESET_RLC, 0);
@@ -1314,9 +1325,10 @@ static void gfx_v9_4_3_rlc_start(struct amdgpu_device *adev)
 #ifdef AMDGPU_RLC_DEBUG_RETRY
 	u32 rlc_ucode_ver;
 #endif
-	int i;
+	int i, num_xcc;
 
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++) {
 		WREG32_FIELD15_PREREG(GC, i, RLC_CNTL, RLC_ENABLE_F32, 1);
 		udelay(50);
 
@@ -1377,11 +1389,12 @@ static int gfx_v9_4_3_rlc_load_microcode(struct amdgpu_device *adev, int xcc_id)
 
 static int gfx_v9_4_3_rlc_resume(struct amdgpu_device *adev)
 {
-	int r, i;
+	int r, i, num_xcc;
 
 	adev->gfx.rlc.funcs->stop(adev);
 
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++) {
 		/* disable CG */
 		WREG32_SOC15(GC, i, regRLC_CGCG_CGLS_CTRL, 0);
 
@@ -1954,10 +1967,11 @@ done:
 
 static int gfx_v9_4_3_cp_resume(struct amdgpu_device *adev)
 {
-	int r, i, j;
+	int r, i, j, num_xcc;
 	struct amdgpu_ring *ring;
 
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++) {
 		gfx_v9_4_3_enable_gui_idle_interrupt(adev, false, i);
 
 		if (adev->firmware.load_type != AMDGPU_FW_LOAD_PSP) {
@@ -2021,12 +2035,13 @@ static int gfx_v9_4_3_hw_init(void *handle)
 static int gfx_v9_4_3_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int i;
+	int i, num_xcc;
 
 	amdgpu_irq_put(adev, &adev->gfx.priv_reg_irq, 0);
 	amdgpu_irq_put(adev, &adev->gfx.priv_inst_irq, 0);
 
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++) {
 		if (amdgpu_gfx_disable_kcq(adev, i))
 			DRM_ERROR("XCD %d KCQ disable failed\n", i);
 
@@ -2069,9 +2084,10 @@ static int gfx_v9_4_3_resume(void *handle)
 static bool gfx_v9_4_3_is_idle(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int i;
+	int i, num_xcc;
 
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++) {
 		if (REG_GET_FIELD(RREG32_SOC15(GC, i, regGRBM_STATUS),
 					GRBM_STATUS, GUI_ACTIVE))
 			return false;
@@ -2183,30 +2199,30 @@ static void gfx_v9_4_3_ring_emit_gds_switch(struct amdgpu_ring *ring,
 static int gfx_v9_4_3_early_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	int num_xcc;
 
-	/* hardcode in emulation phase */
-	adev->gfx.num_xcd = 1;
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 
 	adev->gfx.partition_mode = amdgpu_user_partt_mode;
 	/* calculate the num_xcc_in_xcp for the partition mode*/
 	switch (amdgpu_user_partt_mode) {
 	case AMDGPU_SPX_PARTITION_MODE:
-		adev->gfx.num_xcc_per_xcp = adev->gfx.num_xcd;
+		adev->gfx.num_xcc_per_xcp = num_xcc;
 		break;
 	case AMDGPU_DPX_PARTITION_MODE:
-		adev->gfx.num_xcc_per_xcp = adev->gfx.num_xcd / 2;
+		adev->gfx.num_xcc_per_xcp = num_xcc / 2;
 		break;
 	case AMDGPU_TPX_PARTITION_MODE:
-		adev->gfx.num_xcc_per_xcp = adev->gfx.num_xcd / 3;
+		adev->gfx.num_xcc_per_xcp = num_xcc / 3;
 		break;
 	case AMDGPU_QPX_PARTITION_MODE:
-		adev->gfx.num_xcc_per_xcp = adev->gfx.num_xcd / 4;
+		adev->gfx.num_xcc_per_xcp = num_xcc / 4;
 		break;
 	case AMDGPU_CPX_PARTITION_MODE:
 		adev->gfx.num_xcc_per_xcp = 1;
 		break;
 	default:
-		adev->gfx.num_xcc_per_xcp = adev->gfx.num_xcd;
+		adev->gfx.num_xcc_per_xcp = num_xcc;
 		break;
 	}
 
@@ -2404,14 +2420,15 @@ static int gfx_v9_4_3_set_clockgating_state(void *handle,
 					  enum amd_clockgating_state state)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	int i;
+	int i, num_xcc;
 
 	if (amdgpu_sriov_vf(adev))
 		return 0;
 
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	switch (adev->ip_versions[GC_HWIP][0]) {
 	case IP_VERSION(9, 4, 3):
-		for (i = 0; i < adev->gfx.num_xcd; i++)
+		for (i = 0; i < num_xcc; i++)
 			gfx_v9_4_3_update_gfx_clock_gating(adev,
 						state == AMD_CG_STATE_GATE, i);
 		break;
@@ -2739,12 +2756,13 @@ static int gfx_v9_4_3_set_priv_reg_fault_state(struct amdgpu_device *adev,
 					     unsigned type,
 					     enum amdgpu_interrupt_state state)
 {
-	int i;
+	int i, num_xcc;
 
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
 	case AMDGPU_IRQ_STATE_ENABLE:
-		for (i = 0; i < adev->gfx.num_xcd; i++)
+		for (i = 0; i < num_xcc; i++)
 			WREG32_FIELD15_PREREG(GC, i, CP_INT_CNTL_RING0,
 				PRIV_REG_INT_ENABLE,
 				state == AMDGPU_IRQ_STATE_ENABLE ? 1 : 0);
@@ -2761,12 +2779,13 @@ static int gfx_v9_4_3_set_priv_inst_fault_state(struct amdgpu_device *adev,
 					      unsigned type,
 					      enum amdgpu_interrupt_state state)
 {
-	int i;
+	int i, num_xcc;
 
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	switch (state) {
 	case AMDGPU_IRQ_STATE_DISABLE:
 	case AMDGPU_IRQ_STATE_ENABLE:
-		for (i = 0; i < adev->gfx.num_xcd; i++)
+		for (i = 0; i < num_xcc; i++)
 			WREG32_FIELD15_PREREG(GC, i, CP_INT_CNTL_RING0,
 				PRIV_INSTR_INT_ENABLE,
 				state == AMDGPU_IRQ_STATE_ENABLE ? 1 : 0);
@@ -2783,8 +2802,10 @@ static int gfx_v9_4_3_set_eop_interrupt_state(struct amdgpu_device *adev,
 					    unsigned type,
 					    enum amdgpu_interrupt_state state)
 {
-	int i;
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	int i, num_xcc;
+
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++) {
 		switch (type) {
 		case AMDGPU_CP_IRQ_COMPUTE_MEC1_PIPE0_EOP:
 			gfx_v9_4_3_set_compute_eop_interrupt_state(adev, 1, 0, state, i);
@@ -2842,6 +2863,7 @@ static int gfx_v9_4_3_eop_irq(struct amdgpu_device *adev,
 			/* Per-queue interrupt is supported for MEC starting from VI.
 			  * The interrupt can only be enabled/disabled per pipe instead of per queue.
 			  */
+
 			if ((ring->me == me_id) && (ring->pipe == pipe_id) && (ring->queue == queue_id))
 				amdgpu_fence_process(ring);
 		}
@@ -3056,9 +3078,10 @@ static const struct amdgpu_ring_funcs gfx_v9_4_3_ring_funcs_kiq = {
 
 static void gfx_v9_4_3_set_ring_funcs(struct amdgpu_device *adev)
 {
-	int i, j;
+	int i, j, num_xcc;
 
-	for (i = 0; i < adev->gfx.num_xcd; i++) {
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	for (i = 0; i < num_xcc; i++) {
 		adev->gfx.kiq[i].ring.funcs = &gfx_v9_4_3_ring_funcs_kiq;
 
 		for (j = 0; j < adev->gfx.num_compute_rings; j++)

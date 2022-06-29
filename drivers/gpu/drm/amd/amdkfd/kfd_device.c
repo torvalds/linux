@@ -592,6 +592,7 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	struct kfd_node *node;
 	uint32_t first_vmid_kfd, last_vmid_kfd, vmid_num_kfd;
 	unsigned int max_proc_per_quantum;
+	int num_xcd;
 
 	kfd->mec_fw_version = amdgpu_amdkfd_get_fw_version(kfd->adev,
 			KGD_ENGINE_MEC1);
@@ -601,16 +602,15 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 			KGD_ENGINE_SDMA1);
 	kfd->shared_resources = *gpu_resources;
 
-	if (kfd->adev->gfx.num_xcd == 0 || kfd->adev->gfx.num_xcd == 1 ||
-	    kfd->adev->gfx.num_xcc_per_xcp == 0)
+	num_xcd = NUM_XCC(kfd->adev->gfx.xcc_mask);
+	if (num_xcd == 0 || num_xcd == 1 || kfd->adev->gfx.num_xcc_per_xcp == 0)
 		kfd->num_nodes = 1;
 	else
-		kfd->num_nodes =
-			kfd->adev->gfx.num_xcd/kfd->adev->gfx.num_xcc_per_xcp;
+		kfd->num_nodes = num_xcd / kfd->adev->gfx.num_xcc_per_xcp;
 	if (kfd->num_nodes == 0) {
 		dev_err(kfd_device,
 			"KFD num nodes cannot be 0, GC inst: %d, num_xcc_in_node: %d\n",
-			kfd->adev->gfx.num_xcd, kfd->adev->gfx.num_xcc_per_xcp);
+			num_xcd, kfd->adev->gfx.num_xcc_per_xcp);
 		goto out;
 	}
 

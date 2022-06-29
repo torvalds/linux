@@ -209,12 +209,12 @@ void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 	int max_queues_per_mec = min(adev->gfx.mec.num_pipe_per_mec *
 				     adev->gfx.mec.num_queue_per_pipe,
 				     adev->gfx.num_compute_rings);
-	int num_xcd = (adev->gfx.num_xcd > 1) ? adev->gfx.num_xcd : 1;
+	int num_xcc = adev->gfx.xcc_mask ? NUM_XCC(adev->gfx.xcc_mask) : 1;
 
 	if (multipipe_policy) {
 		/* policy: make queues evenly cross all pipes on MEC1 only
 		 * for multiple xcc, just use the original policy for simplicity */
-		for (j = 0; j < num_xcd; j++) {
+		for (j = 0; j < num_xcc; j++) {
 			for (i = 0; i < max_queues_per_mec; i++) {
 				pipe = i % adev->gfx.mec.num_pipe_per_mec;
 				queue = (i / adev->gfx.mec.num_pipe_per_mec) %
@@ -226,13 +226,13 @@ void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 		}
 	} else {
 		/* policy: amdgpu owns all queues in the given pipe */
-		for (j = 0; j < num_xcd; j++) {
+		for (j = 0; j < num_xcc; j++) {
 			for (i = 0; i < max_queues_per_mec; ++i)
 				set_bit(i, adev->gfx.mec_bitmap[j].queue_bitmap);
 		}
 	}
 
-	for (j = 0; j < num_xcd; j++) {
+	for (j = 0; j < num_xcc; j++) {
 		dev_dbg(adev->dev, "mec queue bitmap weight=%d\n",
 			bitmap_weight(adev->gfx.mec_bitmap[j].queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES));
 	}
@@ -1207,23 +1207,24 @@ static ssize_t amdgpu_gfx_set_compute_partition(struct device *dev,
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
 	enum amdgpu_gfx_partition mode;
-	int ret;
+	int ret = 0, num_xcc;
 
-	if (adev->gfx.num_xcd % 2 != 0)
+	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
+	if (num_xcc % 2 != 0)
 		return -EINVAL;
 
 	if (!strncasecmp("SPX", buf, strlen("SPX"))) {
 		mode = AMDGPU_SPX_PARTITION_MODE;
 	} else if (!strncasecmp("DPX", buf, strlen("DPX"))) {
-		if (adev->gfx.num_xcd != 4 || adev->gfx.num_xcd != 8)
+		if (num_xcc != 4 || num_xcc != 8)
 			return -EINVAL;
 		mode = AMDGPU_DPX_PARTITION_MODE;
 	} else if (!strncasecmp("TPX", buf, strlen("TPX"))) {
-		if (adev->gfx.num_xcd != 6)
+		if (num_xcc != 6)
 			return -EINVAL;
 		mode = AMDGPU_TPX_PARTITION_MODE;
 	} else if (!strncasecmp("QPX", buf, strlen("QPX"))) {
-		if (adev->gfx.num_xcd != 8)
+		if (num_xcc != 8)
 			return -EINVAL;
 		mode = AMDGPU_QPX_PARTITION_MODE;
 	} else if (!strncasecmp("CPX", buf, strlen("CPX"))) {
@@ -1253,7 +1254,7 @@ static ssize_t amdgpu_gfx_get_available_compute_partition(struct device *dev,
 	char *supported_partition;
 
 	/* TBD */
-	switch (adev->gfx.num_xcd) {
+	switch (NUM_XCC(adev->gfx.xcc_mask)) {
 	case 8:
 		supported_partition = "SPX, DPX, QPX, CPX";
 		break;
