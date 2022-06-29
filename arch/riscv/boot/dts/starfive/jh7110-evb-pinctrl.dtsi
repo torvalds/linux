@@ -510,6 +510,16 @@
 		};
 	};
 
+	spdif0_pins: spdif0-pins {
+		spdif0-pins {
+			sf,pins = <PAD_GPIO57>;
+			sf,pinmux = <PAD_GPIO57_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_SPDIF0_SPDIFO>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
 	pwmdac0_pins: pwmdac0-pins {
 		pwmdac0-pins-left {
 			sf,pins = <PAD_GPIO57>;

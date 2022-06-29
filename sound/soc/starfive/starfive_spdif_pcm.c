@@ -196,7 +196,6 @@ static int sf_pcm_hw_params(struct snd_soc_component *component,
 {
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct sf_spdif_dev *dev = runtime->private_data;
-	int ret;
 
 	switch (params_channels(hw_params)) {
 	case 2:

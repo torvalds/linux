@@ -1,0 +1,19 @@
+&sound {
+
+        simple-audio-card,dai-link@1 {
+                reg = <0>;
+                format = "left_j";
+                bitclock-master = <&sndcpu0>;
+                frame-master = <&sndcpu0>;
+                status = "okay";
+
+                sndcpu0: cpu {
+                        sound-dai = <&spdif0>;
+                };
+
+                codec {
+                        sound-dai = <&spdif_transmitter>;
+                };
+        };
+
+};
