@@ -140,13 +140,15 @@ void bch2_moving_ctxt_exit(struct moving_context *ctxt)
 {
 	move_ctxt_wait_event(ctxt, NULL, list_empty(&ctxt->reads));
 	closure_sync(&ctxt->cl);
-	progress_list_del(ctxt->c, ctxt->stats);
-
 	EBUG_ON(atomic_read(&ctxt->write_sectors));
 
-	trace_move_data(ctxt->c,
-			atomic64_read(&ctxt->stats->sectors_moved),
-			atomic64_read(&ctxt->stats->keys_moved));
+	if (ctxt->stats) {
+		progress_list_del(ctxt->c, ctxt->stats);
+
+		trace_move_data(ctxt->c,
+				atomic64_read(&ctxt->stats->sectors_moved),
+				atomic64_read(&ctxt->stats->keys_moved));
+	}
 }
 
 void bch2_moving_ctxt_init(struct moving_context *ctxt,
@@ -164,13 +166,14 @@ void bch2_moving_ctxt_init(struct moving_context *ctxt,
 	ctxt->wp	= wp;
 	ctxt->wait_on_copygc = wait_on_copygc;
 
-	progress_list_add(c, stats);
 	closure_init_stack(&ctxt->cl);
 	INIT_LIST_HEAD(&ctxt->reads);
 	init_waitqueue_head(&ctxt->wait);
 
-	if (stats)
+	if (stats) {
+		progress_list_add(c, stats);
 		stats->data_type = BCH_DATA_user;
+	}
 }
 
 void bch_move_stats_init(struct bch_move_stats *stats, char *name)
