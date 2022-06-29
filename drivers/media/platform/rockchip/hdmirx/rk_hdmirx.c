@@ -661,12 +661,12 @@ static bool hdmirx_check_timing_valid(struct v4l2_bt_timings *bt)
 	    bt->vsync == 0 || bt->vsync > 100)
 		return false;
 
-	if (bt->hbackporch == 0 || bt->hbackporch > 2000 ||
-	    bt->vbackporch == 0 || bt->vbackporch > 2000)
+	if (bt->hbackporch == 0 || bt->hbackporch > 3000 ||
+	    bt->vbackporch == 0 || bt->vbackporch > 3000)
 		return false;
 
-	if (bt->hfrontporch == 0 || bt->hfrontporch > 2000 ||
-	    bt->vfrontporch == 0 || bt->vfrontporch > 2000)
+	if (bt->hfrontporch == 0 || bt->hfrontporch > 3000 ||
+	    bt->vfrontporch == 0 || bt->vfrontporch > 3000)
 		return false;
 
 	return true;
