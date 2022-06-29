@@ -826,8 +826,7 @@ static int mtk_drm_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
-static int mtk_drm_sys_suspend(struct device *dev)
+static int mtk_drm_sys_prepare(struct device *dev)
 {
 	struct mtk_drm_private *private = dev_get_drvdata(dev);
 	struct drm_device *drm = private->drm;
@@ -838,20 +837,21 @@ static int mtk_drm_sys_suspend(struct device *dev)
 	return ret;
 }
 
-static int mtk_drm_sys_resume(struct device *dev)
+static void mtk_drm_sys_complete(struct device *dev)
 {
 	struct mtk_drm_private *private = dev_get_drvdata(dev);
 	struct drm_device *drm = private->drm;
 	int ret;
 
 	ret = drm_mode_config_helper_resume(drm);
-
-	return ret;
+	if (ret)
+		dev_err(dev, "Failed to resume\n");
 }
-#endif
 
-static SIMPLE_DEV_PM_OPS(mtk_drm_pm_ops, mtk_drm_sys_suspend,
-			 mtk_drm_sys_resume);
+static const struct dev_pm_ops mtk_drm_pm_ops = {
+	.prepare = mtk_drm_sys_prepare,
+	.complete = mtk_drm_sys_complete,
+};
 
 static struct platform_driver mtk_drm_platform_driver = {
 	.probe	= mtk_drm_probe,
