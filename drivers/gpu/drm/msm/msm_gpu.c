@@ -221,7 +221,7 @@ static void msm_gpu_devcoredump_free(void *data)
 }
 
 static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
-		struct msm_gem_object *obj, u64 iova, u32 flags)
+		struct msm_gem_object *obj, u64 iova, bool full)
 {
 	struct msm_gpu_state_bo *state_bo = &state->bos[state->nr_bos];
 
@@ -229,8 +229,7 @@ static void msm_gpu_crashstate_get_bo(struct msm_gpu_state *state,
 	state_bo->size = obj->base.size;
 	state_bo->iova = iova;
 
-	/* Only store data for non imported buffer objects marked for read */
-	if ((flags & MSM_SUBMIT_BO_READ) && !obj->base.import_attach) {
+	if (full) {
 		void *ptr;
 
 		state_bo->data = kvmalloc(obj->base.size, GFP_KERNEL);
@@ -276,34 +275,15 @@ static void msm_gpu_crashstate_capture(struct msm_gpu *gpu,
 	state->fault_info = gpu->fault_info;
 
 	if (submit) {
-		int i, nr = 0;
+		int i;
 
-		/* count # of buffers to dump: */
-		for (i = 0; i < submit->nr_bos; i++)
-			if (should_dump(submit, i))
-				nr++;
-		/* always dump cmd bo's, but don't double count them: */
-		for (i = 0; i < submit->nr_cmds; i++)
-			if (!should_dump(submit, submit->cmd[i].idx))
-				nr++;
-
-		state->bos = kcalloc(nr,
+		state->bos = kcalloc(submit->nr_bos,
 			sizeof(struct msm_gpu_state_bo), GFP_KERNEL);
 
 		for (i = 0; state->bos && i < submit->nr_bos; i++) {
-			if (should_dump(submit, i)) {
-				msm_gpu_crashstate_get_bo(state, submit->bos[i].obj,
-					submit->bos[i].iova, submit->bos[i].flags);
-			}
-		}
-
-		for (i = 0; state->bos && i < submit->nr_cmds; i++) {
-			int idx = submit->cmd[i].idx;
-
-			if (!should_dump(submit, submit->cmd[i].idx)) {
-				msm_gpu_crashstate_get_bo(state, submit->bos[idx].obj,
-					submit->bos[idx].iova, submit->bos[idx].flags);
-			}
+			msm_gpu_crashstate_get_bo(state, submit->bos[i].obj,
+						  submit->bos[i].iova,
+						  should_dump(submit, i));
 		}
 	}
 
