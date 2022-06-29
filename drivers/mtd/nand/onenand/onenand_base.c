@@ -2935,7 +2935,7 @@ static int do_otp_write(struct mtd_info *mtd, loff_t to, size_t len,
 	struct onenand_chip *this = mtd->priv;
 	unsigned char *pbuf = buf;
 	int ret;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 
 	/* Force buffer page aligned */
 	if (len < mtd->writesize) {
@@ -2977,7 +2977,7 @@ static int do_otp_lock(struct mtd_info *mtd, loff_t from, size_t len,
 		size_t *retlen, u_char *buf)
 {
 	struct onenand_chip *this = mtd->priv;
-	struct mtd_oob_ops ops;
+	struct mtd_oob_ops ops = { };
 	int ret;
 
 	if (FLEXONENAND(this)) {
