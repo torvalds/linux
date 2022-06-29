@@ -3470,27 +3470,17 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	bool is_s1g = cbss->channel->band == NL80211_BAND_S1GHZ;
 	struct ieee80211_link_data *link = &sdata->deflink;
 	u32 changed = 0;
-	u8 *pos;
 	int err;
 	bool ret;
 
-	/* AssocResp and ReassocResp have identical structure */
-
-	pos = mgmt->u.assoc_resp.variable;
-	aid = le16_to_cpu(mgmt->u.assoc_resp.aid);
-	if (is_s1g) {
-		pos = (u8 *) mgmt->u.s1g_assoc_resp.variable;
-		aid = 0; /* TODO */
-	}
 	capab_info = le16_to_cpu(mgmt->u.assoc_resp.capab_info);
-	elems = ieee802_11_parse_elems(pos, len - (pos - (u8 *)mgmt), false,
-				       mgmt->bssid, assoc_data->bss->bssid);
-
-	if (!elems)
-		return false;
 
 	if (elems->aid_resp)
 		aid = le16_to_cpu(elems->aid_resp->aid);
+	else if (is_s1g)
+		aid = 0; /* TODO */
+	else
+		aid = le16_to_cpu(mgmt->u.assoc_resp.aid);
 
 	/*
 	 * The 5 MSB of the AID field are reserved
@@ -3865,7 +3855,6 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 
 	ret = true;
  out:
-	kfree(elems);
 	kfree(bss_ies);
 	return ret;
 }
