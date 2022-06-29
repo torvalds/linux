@@ -440,6 +440,10 @@ static const unsigned mc2_a_1_pins[] = { DB8500_PIN_A5, DB8500_PIN_B4,
 	DB8500_PIN_C8, DB8500_PIN_A12, DB8500_PIN_C10, DB8500_PIN_B10,
 	DB8500_PIN_B9, DB8500_PIN_A9, DB8500_PIN_C7, DB8500_PIN_A7,
 	DB8500_PIN_C5 };
+/* MC2 without the feedback clock */
+static const unsigned mc2_a_2_pins[] = { DB8500_PIN_A5, DB8500_PIN_B4,
+	DB8500_PIN_A12, DB8500_PIN_C10, DB8500_PIN_B10, DB8500_PIN_B9,
+	DB8500_PIN_A9, DB8500_PIN_C7, DB8500_PIN_A7, DB8500_PIN_C5 };
 static const unsigned ssp1_a_1_pins[] = { DB8500_PIN_C9, DB8500_PIN_B11,
 					  DB8500_PIN_C12, DB8500_PIN_C11 };
 static const unsigned ssp0_a_1_pins[] = { DB8500_PIN_D12, DB8500_PIN_B13,
@@ -699,6 +703,7 @@ static const struct nmk_pingroup nmk_db8500_groups[] = {
 	DB8500_PIN_GROUP(kp_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(kpskaskb_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(mc2_a_1, NMK_GPIO_ALT_A),
+	DB8500_PIN_GROUP(mc2_a_2, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(ssp1_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(ssp0_a_1, NMK_GPIO_ALT_A),
 	DB8500_PIN_GROUP(i2c0_a_1, NMK_GPIO_ALT_A),
@@ -856,7 +861,7 @@ DB8500_FUNC_GROUPS(lcd, "lcdvsi0_a_1", "lcdvsi1_a_1", "lcd_d0_d7_a_1",
 		   "lcd_d8_d11_a_1", "lcd_d12_d15_a_1", "lcd_d12_d23_a_1", "lcd_b_1",
 		   "lcd_d16_d23_b_1");
 DB8500_FUNC_GROUPS(kp, "kp_a_1", "kp_a_2", "kp_b_1", "kp_b_2", "kp_c_1", "kp_oc1_1");
-DB8500_FUNC_GROUPS(mc2, "mc2_a_1", "mc2rstn_c_1");
+DB8500_FUNC_GROUPS(mc2, "mc2_a_1", "mc2_a_2", "mc2rstn_c_1");
 DB8500_FUNC_GROUPS(ssp1, "ssp1_a_1");
 DB8500_FUNC_GROUPS(ssp0, "ssp0_a_1");
 DB8500_FUNC_GROUPS(i2c0, "i2c0_a_1");

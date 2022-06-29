@@ -11,6 +11,7 @@
 #include <linux/kernel.h>
 #include <linux/pci.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/i2c.h>
 
 #ifdef CONFIG_I2C_BOARDINFO

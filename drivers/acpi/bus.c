@@ -443,7 +443,7 @@ static void acpi_bus_osc_negotiate_usb_control(void)
 	}
 
 	osc_sb_native_usb4_control =
-		control & ((u32 *)context.ret.pointer)[OSC_CONTROL_DWORD];
+		control &  acpi_osc_ctx_get_pci_control(&context);
 
 	acpi_bus_decode_usb_osc("USB4 _OSC: OS supports", control);
 	acpi_bus_decode_usb_osc("USB4 _OSC: OS controls",

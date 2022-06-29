@@ -61,6 +61,8 @@ static struct cppc_workaround_oem_info wa_info[] = {
 	}
 };
 
+static struct cpufreq_driver cppc_cpufreq_driver;
+
 #ifdef CONFIG_ACPI_CPPC_CPUFREQ_FIE
 
 /* Frequency invariance support */
@@ -75,7 +77,6 @@ struct cppc_freq_invariance {
 static DEFINE_PER_CPU(struct cppc_freq_invariance, cppc_freq_inv);
 static struct kthread_worker *kworker_fie;
 
-static struct cpufreq_driver cppc_cpufreq_driver;
 static unsigned int hisi_cppc_cpufreq_get_rate(unsigned int cpu);
 static int cppc_perf_from_fbctrs(struct cppc_cpudata *cpu_data,
 				 struct cppc_perf_fb_ctrs *fb_ctrs_t0,
@@ -440,6 +441,14 @@ static unsigned int cppc_cpufreq_get_transition_delay_us(unsigned int cpu)
 	}
 	return cppc_get_transition_latency(cpu) / NSEC_PER_USEC;
 }
+#else
+static unsigned int cppc_cpufreq_get_transition_delay_us(unsigned int cpu)
+{
+	return cppc_get_transition_latency(cpu) / NSEC_PER_USEC;
+}
+#endif
+
+#if defined(CONFIG_ARM64) && defined(CONFIG_ENERGY_MODEL)
 
 static DEFINE_PER_CPU(unsigned int, efficiency_class);
 static void cppc_cpufreq_register_em(struct cpufreq_policy *policy);
@@ -620,20 +629,11 @@ static void cppc_cpufreq_register_em(struct cpufreq_policy *policy)
 }
 
 #else
-
-static unsigned int cppc_cpufreq_get_transition_delay_us(unsigned int cpu)
-{
-	return cppc_get_transition_latency(cpu) / NSEC_PER_USEC;
-}
 static int populate_efficiency_class(void)
 {
 	return 0;
 }
-static void cppc_cpufreq_register_em(struct cpufreq_policy *policy)
-{
-}
 #endif
-
 
 static struct cppc_cpudata *cppc_cpufreq_get_cpu_data(unsigned int cpu)
 {

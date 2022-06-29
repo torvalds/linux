@@ -241,7 +241,7 @@ cifs_mark_tcp_ses_conns_for_reconnect(struct TCP_Server_Info *server,
 		if (!mark_smb_session && !CIFS_ALL_CHANS_NEED_RECONNECT(ses))
 			goto next_session;
 
-		ses->status = CifsNeedReconnect;
+		ses->ses_status = SES_NEED_RECON;
 
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 			tcon->need_reconnect = true;
@@ -1789,7 +1789,7 @@ cifs_setup_ipc(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 		goto out;
 	}
 
-	cifs_dbg(FYI, "IPC tcon rc = %d ipc tid = %d\n", rc, tcon->tid);
+	cifs_dbg(FYI, "IPC tcon rc=%d ipc tid=0x%x\n", rc, tcon->tid);
 
 	ses->tcon_ipc = tcon;
 out:
@@ -1828,7 +1828,7 @@ cifs_find_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
-		if (ses->status == CifsExiting)
+		if (ses->ses_status == SES_EXITING)
 			continue;
 		if (!match_session(ses, ctx))
 			continue;
@@ -1848,7 +1848,7 @@ void cifs_put_smb_ses(struct cifs_ses *ses)
 	cifs_dbg(FYI, "%s: ses_count=%d\n", __func__, ses->ses_count);
 
 	spin_lock(&cifs_tcp_ses_lock);
-	if (ses->status == CifsExiting) {
+	if (ses->ses_status == SES_EXITING) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return;
 	}
@@ -1864,13 +1864,13 @@ void cifs_put_smb_ses(struct cifs_ses *ses)
 	/* ses_count can never go negative */
 	WARN_ON(ses->ses_count < 0);
 
-	if (ses->status == CifsGood)
-		ses->status = CifsExiting;
+	if (ses->ses_status == SES_GOOD)
+		ses->ses_status = SES_EXITING;
 	spin_unlock(&cifs_tcp_ses_lock);
 
 	cifs_free_ipc(ses);
 
-	if (ses->status == CifsExiting && server->ops->logoff) {
+	if (ses->ses_status == SES_EXITING && server->ops->logoff) {
 		xid = get_xid();
 		rc = server->ops->logoff(xid, ses);
 		if (rc)
@@ -2037,18 +2037,7 @@ cifs_set_cifscreds(struct smb3_fs_context *ctx, struct cifs_ses *ses)
 		}
 	}
 
-	ctx->workstation_name = kstrdup(ses->workstation_name, GFP_KERNEL);
-	if (!ctx->workstation_name) {
-		cifs_dbg(FYI, "Unable to allocate memory for workstation_name\n");
-		rc = -ENOMEM;
-		kfree(ctx->username);
-		ctx->username = NULL;
-		kfree_sensitive(ctx->password);
-		ctx->password = NULL;
-		kfree(ctx->domainname);
-		ctx->domainname = NULL;
-		goto out_key_put;
-	}
+	strscpy(ctx->workstation_name, ses->workstation_name, sizeof(ctx->workstation_name));
 
 out_key_put:
 	up_read(&key->sem);
@@ -2090,7 +2079,7 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 	ses = cifs_find_smb_ses(server, ctx);
 	if (ses) {
 		cifs_dbg(FYI, "Existing smb sess found (status=%d)\n",
-			 ses->status);
+			 ses->ses_status);
 
 		spin_lock(&ses->chan_lock);
 		if (cifs_chan_needs_reconnect(ses, server)) {
@@ -2157,12 +2146,9 @@ cifs_get_smb_ses(struct TCP_Server_Info *server, struct smb3_fs_context *ctx)
 		if (!ses->domainName)
 			goto get_ses_fail;
 	}
-	if (ctx->workstation_name) {
-		ses->workstation_name = kstrdup(ctx->workstation_name,
-						GFP_KERNEL);
-		if (!ses->workstation_name)
-			goto get_ses_fail;
-	}
+
+	strscpy(ses->workstation_name, ctx->workstation_name, sizeof(ses->workstation_name));
+
 	if (ctx->domainauto)
 		ses->domainAuto = ctx->domainauto;
 	ses->cred_uid = ctx->cred_uid;
@@ -2509,6 +2495,7 @@ cifs_get_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 	 */
 	tcon->retry = ctx->retry;
 	tcon->nocase = ctx->nocase;
+	tcon->broken_sparse_sup = ctx->no_sparse;
 	if (ses->server->capabilities & SMB2_GLOBAL_CAP_DIRECTORY_LEASING)
 		tcon->nohandlecache = ctx->nohandlecache;
 	else
@@ -3420,8 +3407,9 @@ cifs_are_all_path_components_accessible(struct TCP_Server_Info *server,
 }
 
 /*
- * Check if path is remote (e.g. a DFS share). Return -EREMOTE if it is,
- * otherwise 0.
+ * Check if path is remote (i.e. a DFS share).
+ *
+ * Return -EREMOTE if it is, otherwise 0 or -errno.
  */
 static int is_path_remote(struct mount_ctx *mnt_ctx)
 {
@@ -3432,6 +3420,9 @@ static int is_path_remote(struct mount_ctx *mnt_ctx)
 	struct cifs_tcon *tcon = mnt_ctx->tcon;
 	struct smb3_fs_context *ctx = mnt_ctx->fs_ctx;
 	char *full_path;
+#ifdef CONFIG_CIFS_DFS_UPCALL
+	bool nodfs = cifs_sb->mnt_cifs_flags & CIFS_MOUNT_NO_DFS;
+#endif
 
 	if (!server->ops->is_path_accessible)
 		return -EOPNOTSUPP;
@@ -3449,14 +3440,20 @@ static int is_path_remote(struct mount_ctx *mnt_ctx)
 	rc = server->ops->is_path_accessible(xid, tcon, cifs_sb,
 					     full_path);
 #ifdef CONFIG_CIFS_DFS_UPCALL
+	if (nodfs) {
+		if (rc == -EREMOTE)
+			rc = -EOPNOTSUPP;
+		goto out;
+	}
+
+	/* path *might* exist with non-ASCII characters in DFS root
+	 * try again with full path (only if nodfs is not set) */
 	if (rc == -ENOENT && is_tcon_dfs(tcon))
 		rc = cifs_dfs_query_info_nonascii_quirk(xid, tcon, cifs_sb,
 							full_path);
 #endif
-	if (rc != 0 && rc != -EREMOTE) {
-		kfree(full_path);
-		return rc;
-	}
+	if (rc != 0 && rc != -EREMOTE)
+		goto out;
 
 	if (rc != -EREMOTE) {
 		rc = cifs_are_all_path_components_accessible(server, xid, tcon,
@@ -3468,6 +3465,7 @@ static int is_path_remote(struct mount_ctx *mnt_ctx)
 		}
 	}
 
+out:
 	kfree(full_path);
 	return rc;
 }
@@ -3703,6 +3701,7 @@ int cifs_mount(struct cifs_sb_info *cifs_sb, struct smb3_fs_context *ctx)
 	if (!isdfs)
 		goto out;
 
+	/* proceed as DFS mount */
 	uuid_gen(&mnt_ctx.mount_id);
 	rc = connect_dfs_root(&mnt_ctx, &tl);
 	dfs_cache_free_tgts(&tl);
@@ -3960,7 +3959,7 @@ cifs_negotiate_protocol(const unsigned int xid, struct cifs_ses *ses,
 	if (rc == 0) {
 		spin_lock(&cifs_tcp_ses_lock);
 		if (server->tcpStatus == CifsInNegotiate)
-			server->tcpStatus = CifsNeedSessSetup;
+			server->tcpStatus = CifsGood;
 		else
 			rc = -EHOSTDOWN;
 		spin_unlock(&cifs_tcp_ses_lock);
@@ -3982,19 +3981,30 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 	int rc = -ENOSYS;
 	bool is_binding = false;
 
-	/* only send once per connect */
+
 	spin_lock(&cifs_tcp_ses_lock);
-	if ((server->tcpStatus != CifsNeedSessSetup) &&
-	    (ses->status == CifsGood)) {
+	if (ses->ses_status != SES_GOOD &&
+	    ses->ses_status != SES_NEW &&
+	    ses->ses_status != SES_NEED_RECON) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		return 0;
 	}
-	server->tcpStatus = CifsInSessSetup;
-	spin_unlock(&cifs_tcp_ses_lock);
 
+	/* only send once per connect */
 	spin_lock(&ses->chan_lock);
+	if (CIFS_ALL_CHANS_GOOD(ses) ||
+	    cifs_chan_in_reconnect(ses, server)) {
+		spin_unlock(&ses->chan_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
+		return 0;
+	}
 	is_binding = !CIFS_ALL_CHANS_NEED_RECONNECT(ses);
+	cifs_chan_set_in_reconnect(ses, server);
 	spin_unlock(&ses->chan_lock);
+
+	if (!is_binding)
+		ses->ses_status = SES_IN_SETUP;
+	spin_unlock(&cifs_tcp_ses_lock);
 
 	if (!is_binding) {
 		ses->capabilities = server->capabilities;
@@ -4019,20 +4029,21 @@ cifs_setup_session(const unsigned int xid, struct cifs_ses *ses,
 	if (rc) {
 		cifs_server_dbg(VFS, "Send error in SessSetup = %d\n", rc);
 		spin_lock(&cifs_tcp_ses_lock);
-		if (server->tcpStatus == CifsInSessSetup)
-			server->tcpStatus = CifsNeedSessSetup;
+		if (ses->ses_status == SES_IN_SETUP)
+			ses->ses_status = SES_NEED_RECON;
+		spin_lock(&ses->chan_lock);
+		cifs_chan_clear_in_reconnect(ses, server);
+		spin_unlock(&ses->chan_lock);
 		spin_unlock(&cifs_tcp_ses_lock);
 	} else {
 		spin_lock(&cifs_tcp_ses_lock);
-		if (server->tcpStatus == CifsInSessSetup)
-			server->tcpStatus = CifsGood;
-		/* Even if one channel is active, session is in good state */
-		ses->status = CifsGood;
-		spin_unlock(&cifs_tcp_ses_lock);
-
+		if (ses->ses_status == SES_IN_SETUP)
+			ses->ses_status = SES_GOOD;
 		spin_lock(&ses->chan_lock);
+		cifs_chan_clear_in_reconnect(ses, server);
 		cifs_chan_clear_need_reconnect(ses, server);
 		spin_unlock(&ses->chan_lock);
+		spin_unlock(&cifs_tcp_ses_lock);
 	}
 
 	return rc;
@@ -4497,7 +4508,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 
 	/* only send once per connect */
 	spin_lock(&cifs_tcp_ses_lock);
-	if (tcon->ses->status != CifsGood ||
+	if (tcon->ses->ses_status != SES_GOOD ||
 	    (tcon->status != TID_NEW &&
 	    tcon->status != TID_NEED_TCON)) {
 		spin_unlock(&cifs_tcp_ses_lock);
@@ -4565,7 +4576,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 
 	/* only send once per connect */
 	spin_lock(&cifs_tcp_ses_lock);
-	if (tcon->ses->status != CifsGood ||
+	if (tcon->ses->ses_status != SES_GOOD ||
 	    (tcon->status != TID_NEW &&
 	    tcon->status != TID_NEED_TCON)) {
 		spin_unlock(&cifs_tcp_ses_lock);

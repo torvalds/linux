@@ -369,7 +369,6 @@ static int devm_of_pci_get_host_bridge_resources(struct device *dev,
 
 	dev_dbg(dev, "Parsing dma-ranges property...\n");
 	for_each_of_pci_range(&parser, &range) {
-		struct resource_entry *entry;
 		/*
 		 * If we failed translation or got a zero-sized region
 		 * then skip this range
@@ -393,12 +392,7 @@ static int devm_of_pci_get_host_bridge_resources(struct device *dev,
 			goto failed;
 		}
 
-		/* Keep the resource list sorted */
-		resource_list_for_each_entry(entry, ib_resources)
-			if (entry->res->start > res->start)
-				break;
-
-		pci_add_resource_offset(&entry->node, res,
+		pci_add_resource_offset(ib_resources, res,
 					res->start - range.pci_addr);
 	}
 

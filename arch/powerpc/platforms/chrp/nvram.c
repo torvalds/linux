@@ -10,7 +10,7 @@
 #include <linux/init.h>
 #include <linux/spinlock.h>
 #include <linux/uaccess.h>
-#include <asm/prom.h>
+#include <linux/of.h>
 #include <asm/machdep.h>
 #include <asm/rtas.h>
 #include "chrp.h"

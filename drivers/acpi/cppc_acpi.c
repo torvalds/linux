@@ -315,7 +315,7 @@ static int send_pcc_cmd(int pcc_ss_id, u16 cmd)
 		goto end;
 	}
 
-	/* wait for completion and check for PCC errro bit */
+	/* wait for completion and check for PCC error bit */
 	ret = check_pcc_chan(pcc_ss_id, true);
 
 	if (pcc_ss_data->pcc_mrtt)

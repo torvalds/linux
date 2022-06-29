@@ -419,6 +419,15 @@ config SC_GCC_8180X
 	  Say Y if you want to use peripheral devices such as UART, SPI,
 	  I2C, USB, UFS, SDCC, etc.
 
+config SC_GCC_8280XP
+	tristate "SC8280XP Global Clock Controller"
+	select QCOM_GDSC
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the global clock controller on SC8280XP devices.
+	  Say Y if you want to use peripheral devices such as UART, SPI,
+	  I2C, USB, UFS, SDCC, etc.
+
 config SC_GPUCC_7180
 	tristate "SC7180 Graphics Clock Controller"
 	select SC_GCC_7180
@@ -449,6 +458,16 @@ config SC_LPASS_CORECC_7180
 	help
 	  Support for the LPASS(Low Power Audio Subsystem) core clock controller
 	  on SC7180 devices.
+	  Say Y if you want to use LPASS clocks and power domains of the LPASS
+	  core clock controller.
+
+config SC_LPASS_CORECC_7280
+	tristate "SC7280 LPASS Core & Audio Clock Controller"
+	select SC_GCC_7280
+	select QCOM_GDSC
+	help
+	  Support for the LPASS(Low Power Audio Subsystem) core and audio clock
+	  controller on SC7280 devices.
 	  Say Y if you want to use LPASS clocks and power domains of the LPASS
 	  core clock controller.
 

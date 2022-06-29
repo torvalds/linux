@@ -12,12 +12,12 @@
  * Author: Stephen Chivers <schivers@csc.com>
  */
 
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 
 #include <asm/i8259.h>
 #include <asm/pci-bridge.h>
 #include <asm/mpic.h>
-#include <asm/prom.h>
 #include <mm/mmu_decl.h>
 #include <asm/udbg.h>
 

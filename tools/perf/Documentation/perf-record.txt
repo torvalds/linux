@@ -758,6 +758,16 @@ include::intel-hybrid.txt[]
 	If the URLs is not specified, the value of DEBUGINFOD_URLS
 	system environment variable is used.
 
+--off-cpu::
+	Enable off-cpu profiling with BPF.  The BPF program will collect
+	task scheduling information with (user) stacktrace and save them
+	as sample data of a software event named "offcpu-time".  The
+	sample period will have the time the task slept in nanoseconds.
+
+	Note that BPF can collect stack traces using frame pointer ("fp")
+	only, as of now.  So the applications built without the frame
+	pointer might see bogus addresses.
+
 SEE ALSO
 --------
 linkperf:perf-stat[1], linkperf:perf-list[1], linkperf:perf-intel-pt[1]

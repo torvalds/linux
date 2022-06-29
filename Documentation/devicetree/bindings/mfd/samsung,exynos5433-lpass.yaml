@@ -79,8 +79,8 @@ examples:
             clocks = <&cmu_aud CLK_ACLK_DMAC>;
             clock-names = "apb_pclk";
             #dma-cells = <1>;
-            #dma-channels = <8>;
-            #dma-requests = <32>;
+            dma-channels = <8>;
+            dma-requests = <32>;
             power-domains = <&pd_aud>;
         };
 

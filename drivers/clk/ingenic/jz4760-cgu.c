@@ -143,6 +143,11 @@ static const struct ingenic_cgu_clk_info jz4760_cgu_clocks[] = {
 
 	[JZ4760_CLK_CCLK] = {
 		"cclk", CGU_CLK_DIV,
+		/*
+		 * Disabling the CPU clock or any parent clocks will hang the
+		 * system; mark it critical.
+		 */
+		.flags = CLK_IS_CRITICAL,
 		.parents = { JZ4760_CLK_PLL0, },
 		.div = {
 			CGU_REG_CPCCR, 0, 1, 4, 22, -1, -1, 0,
@@ -175,6 +180,11 @@ static const struct ingenic_cgu_clk_info jz4760_cgu_clocks[] = {
 	},
 	[JZ4760_CLK_MCLK] = {
 		"mclk", CGU_CLK_DIV,
+		/*
+		 * Disabling MCLK or its parents will render DRAM
+		 * inaccessible; mark it critical.
+		 */
+		.flags = CLK_IS_CRITICAL,
 		.parents = { JZ4760_CLK_PLL0, },
 		.div = {
 			CGU_REG_CPCCR, 12, 1, 4, 22, -1, -1, 0,

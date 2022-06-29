@@ -1898,9 +1898,9 @@ static int npcm7xx_gpio_of(struct npcm7xx_pinctrl *pctrl)
 		}
 
 		ret = irq_of_parse_and_map(np, 0);
-		if (ret < 0) {
+		if (!ret) {
 			dev_err(dev, "No IRQ for GPIO bank %u\n", id);
-			return ret;
+			return -EINVAL;
 		}
 		pctrl->gpio_bank[id].irq = ret;
 		pctrl->gpio_bank[id].irq_chip = npcmgpio_irqchip;

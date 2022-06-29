@@ -28,6 +28,8 @@
 #include <linux/bitops.h>
 #include <linux/pgtable.h>
 #include <linux/printk.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/page.h>
@@ -3416,7 +3418,7 @@ unsigned long __init prom_init(unsigned long r3, unsigned long r4,
 	 *
 	 * PowerMacs use a different mechanism to spin CPUs
 	 *
-	 * (This must be done after instanciating RTAS)
+	 * (This must be done after instantiating RTAS)
 	 */
 	if (of_platform != PLATFORM_POWERMAC)
 		prom_hold_cpus();

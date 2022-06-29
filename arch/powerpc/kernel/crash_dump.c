@@ -12,9 +12,9 @@
 #include <linux/crash_dump.h>
 #include <linux/io.h>
 #include <linux/memblock.h>
+#include <linux/of.h>
 #include <asm/code-patching.h>
 #include <asm/kdump.h>
-#include <asm/prom.h>
 #include <asm/firmware.h>
 #include <linux/uio.h>
 #include <asm/rtas.h>

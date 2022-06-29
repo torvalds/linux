@@ -733,7 +733,6 @@ remove_v4l2:
 	v4l2_device_unregister(&f54->v4l2);
 remove_wq:
 	cancel_delayed_work_sync(&f54->work);
-	flush_workqueue(f54->workqueue);
 	destroy_workqueue(f54->workqueue);
 	return ret;
 }

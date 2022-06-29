@@ -11,9 +11,9 @@
 #include <linux/kernel.h>
 #include <linux/errno.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <sysdev/fsl_soc.h>
 
 #include "mpc83xx.h"

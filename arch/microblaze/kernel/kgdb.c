@@ -31,7 +31,7 @@
 #define GDB_RTLBLO	55
 #define GDB_RTLBHI	56
 
-/* keep pvr separately because it is unchangeble */
+/* keep pvr separately because it is unchangeable */
 static struct pvr_s pvr;
 
 void pt_regs_to_gdb_regs(unsigned long *gdb_regs, struct pt_regs *regs)

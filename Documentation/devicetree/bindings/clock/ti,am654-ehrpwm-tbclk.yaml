@@ -15,6 +15,7 @@ properties:
       - enum:
           - ti,am654-ehrpwm-tbclk
           - ti,am64-epwm-tbclk
+          - ti,am62-epwm-tbclk
       - const: syscon
 
   "#clock-cells":

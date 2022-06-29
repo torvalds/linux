@@ -8,6 +8,7 @@
 
 #include <linux/clk.h>
 #include <linux/dmapool.h>
+#include <linux/dma-mapping.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
@@ -910,6 +911,14 @@ static int jz4780_dma_probe(struct platform_device *pdev)
 				   0, &jzdma->chan_reserved);
 
 	dd = &jzdma->dma_device;
+
+	/*
+	 * The real segment size limit is dependent on the size unit selected
+	 * for the transfer. Because the size unit is selected automatically
+	 * and may be as small as 1 byte, use a safe limit of 2^24-1 bytes to
+	 * ensure the 24-bit transfer count in the descriptor cannot overflow.
+	 */
+	dma_set_max_seg_size(dev, 0xffffff);
 
 	dma_cap_set(DMA_MEMCPY, dd->cap_mask);
 	dma_cap_set(DMA_SLAVE, dd->cap_mask);

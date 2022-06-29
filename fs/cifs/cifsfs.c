@@ -582,6 +582,8 @@ cifs_show_options(struct seq_file *s, struct dentry *root)
 		seq_puts(s, ",nocase");
 	if (tcon->nodelete)
 		seq_puts(s, ",nodelete");
+	if (cifs_sb->ctx->no_sparse)
+		seq_puts(s, ",nosparse");
 	if (tcon->local_lease)
 		seq_puts(s, ",locallease");
 	if (tcon->retry)

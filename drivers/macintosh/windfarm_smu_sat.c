@@ -13,7 +13,7 @@
 #include <linux/wait.h>
 #include <linux/i2c.h>
 #include <linux/mutex.h>
-#include <asm/prom.h>
+
 #include <asm/smu.h>
 #include <asm/pmac_low_i2c.h>
 

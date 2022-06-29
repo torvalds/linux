@@ -90,6 +90,14 @@
 
 #define DMA_CHAN_CUR_PARA	0x1c
 
+/*
+ * LLI address mangling
+ *
+ * The LLI link physical address is also mangled, but we avoid dealing
+ * with that by allocating LLIs from the DMA32 zone.
+ */
+#define SRC_HIGH_ADDR(x)		(((x) & 0x3U) << 16)
+#define DST_HIGH_ADDR(x)		(((x) & 0x3U) << 18)
 
 /*
  * Various hardware related defines
@@ -132,6 +140,7 @@ struct sun6i_dma_config {
 	u32 dst_burst_lengths;
 	u32 src_addr_widths;
 	u32 dst_addr_widths;
+	bool has_high_addr;
 	bool has_mbus_clk;
 };
 
@@ -241,9 +250,7 @@ static inline void sun6i_dma_dump_com_regs(struct sun6i_dma_dev *sdev)
 static inline void sun6i_dma_dump_chan_regs(struct sun6i_dma_dev *sdev,
 					    struct sun6i_pchan *pchan)
 {
-	phys_addr_t reg = virt_to_phys(pchan->base);
-
-	dev_dbg(sdev->slave.dev, "Chan %d reg: %pa\n"
+	dev_dbg(sdev->slave.dev, "Chan %d reg:\n"
 		"\t___en(%04x): \t0x%08x\n"
 		"\tpause(%04x): \t0x%08x\n"
 		"\tstart(%04x): \t0x%08x\n"
@@ -252,7 +259,7 @@ static inline void sun6i_dma_dump_chan_regs(struct sun6i_dma_dev *sdev,
 		"\t__dst(%04x): \t0x%08x\n"
 		"\tcount(%04x): \t0x%08x\n"
 		"\t_para(%04x): \t0x%08x\n\n",
-		pchan->idx, &reg,
+		pchan->idx,
 		DMA_CHAN_ENABLE,
 		readl(pchan->base + DMA_CHAN_ENABLE),
 		DMA_CHAN_PAUSE,
@@ -385,17 +392,16 @@ static void *sun6i_dma_lli_add(struct sun6i_dma_lli *prev,
 }
 
 static inline void sun6i_dma_dump_lli(struct sun6i_vchan *vchan,
-				      struct sun6i_dma_lli *lli)
+				      struct sun6i_dma_lli *v_lli,
+				      dma_addr_t p_lli)
 {
-	phys_addr_t p_lli = virt_to_phys(lli);
-
 	dev_dbg(chan2dev(&vchan->vc.chan),
-		"\n\tdesc:   p - %pa v - 0x%p\n"
+		"\n\tdesc:\tp - %pad v - 0x%p\n"
 		"\t\tc - 0x%08x s - 0x%08x d - 0x%08x\n"
 		"\t\tl - 0x%08x p - 0x%08x n - 0x%08x\n",
-		&p_lli, lli,
-		lli->cfg, lli->src, lli->dst,
-		lli->len, lli->para, lli->p_lli_next);
+		&p_lli, v_lli,
+		v_lli->cfg, v_lli->src, v_lli->dst,
+		v_lli->len, v_lli->para, v_lli->p_lli_next);
 }
 
 static void sun6i_dma_free_desc(struct virt_dma_desc *vd)
@@ -445,7 +451,7 @@ static int sun6i_dma_start_desc(struct sun6i_vchan *vchan)
 	pchan->desc = to_sun6i_desc(&desc->tx);
 	pchan->done = NULL;
 
-	sun6i_dma_dump_lli(vchan, pchan->desc->v_lli);
+	sun6i_dma_dump_lli(vchan, pchan->desc->v_lli, pchan->desc->p_lli);
 
 	irq_reg = pchan->idx / DMA_IRQ_CHAN_NR;
 	irq_offset = pchan->idx % DMA_IRQ_CHAN_NR;
@@ -626,6 +632,18 @@ static int set_config(struct sun6i_dma_dev *sdev,
 	return 0;
 }
 
+static inline void sun6i_dma_set_addr(struct sun6i_dma_dev *sdev,
+				      struct sun6i_dma_lli *v_lli,
+				      dma_addr_t src, dma_addr_t dst)
+{
+	v_lli->src = lower_32_bits(src);
+	v_lli->dst = lower_32_bits(dst);
+
+	if (sdev->cfg->has_high_addr)
+		v_lli->para |= SRC_HIGH_ADDR(upper_32_bits(src)) |
+			       DST_HIGH_ADDR(upper_32_bits(dst));
+}
+
 static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_memcpy(
 		struct dma_chan *chan, dma_addr_t dest, dma_addr_t src,
 		size_t len, unsigned long flags)
@@ -648,16 +666,15 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_memcpy(
 	if (!txd)
 		return NULL;
 
-	v_lli = dma_pool_alloc(sdev->pool, GFP_NOWAIT, &p_lli);
+	v_lli = dma_pool_alloc(sdev->pool, GFP_DMA32 | GFP_NOWAIT, &p_lli);
 	if (!v_lli) {
 		dev_err(sdev->slave.dev, "Failed to alloc lli memory\n");
 		goto err_txd_free;
 	}
 
-	v_lli->src = src;
-	v_lli->dst = dest;
 	v_lli->len = len;
 	v_lli->para = NORMAL_WAIT;
+	sun6i_dma_set_addr(sdev, v_lli, src, dest);
 
 	burst = convert_burst(8);
 	width = convert_buswidth(DMA_SLAVE_BUSWIDTH_4_BYTES);
@@ -670,7 +687,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_memcpy(
 
 	sun6i_dma_lli_add(NULL, v_lli, p_lli, txd);
 
-	sun6i_dma_dump_lli(vchan, v_lli);
+	sun6i_dma_dump_lli(vchan, v_lli, p_lli);
 
 	return vchan_tx_prep(&vchan->vc, &txd->vd, flags);
 
@@ -708,7 +725,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 		return NULL;
 
 	for_each_sg(sgl, sg, sg_len, i) {
-		v_lli = dma_pool_alloc(sdev->pool, GFP_NOWAIT, &p_lli);
+		v_lli = dma_pool_alloc(sdev->pool, GFP_DMA32 | GFP_NOWAIT, &p_lli);
 		if (!v_lli)
 			goto err_lli_free;
 
@@ -716,8 +733,9 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 		v_lli->para = NORMAL_WAIT;
 
 		if (dir == DMA_MEM_TO_DEV) {
-			v_lli->src = sg_dma_address(sg);
-			v_lli->dst = sconfig->dst_addr;
+			sun6i_dma_set_addr(sdev, v_lli,
+					   sg_dma_address(sg),
+					   sconfig->dst_addr);
 			v_lli->cfg = lli_cfg;
 			sdev->cfg->set_drq(&v_lli->cfg, DRQ_SDRAM, vchan->port);
 			sdev->cfg->set_mode(&v_lli->cfg, LINEAR_MODE, IO_MODE);
@@ -729,8 +747,9 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 				sg_dma_len(sg), flags);
 
 		} else {
-			v_lli->src = sconfig->src_addr;
-			v_lli->dst = sg_dma_address(sg);
+			sun6i_dma_set_addr(sdev, v_lli,
+					   sconfig->src_addr,
+					   sg_dma_address(sg));
 			v_lli->cfg = lli_cfg;
 			sdev->cfg->set_drq(&v_lli->cfg, vchan->port, DRQ_SDRAM);
 			sdev->cfg->set_mode(&v_lli->cfg, IO_MODE, LINEAR_MODE);
@@ -746,14 +765,16 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_slave_sg(
 	}
 
 	dev_dbg(chan2dev(chan), "First: %pad\n", &txd->p_lli);
-	for (prev = txd->v_lli; prev; prev = prev->v_lli_next)
-		sun6i_dma_dump_lli(vchan, prev);
+	for (p_lli = txd->p_lli, v_lli = txd->v_lli; v_lli;
+	     p_lli = v_lli->p_lli_next, v_lli = v_lli->v_lli_next)
+		sun6i_dma_dump_lli(vchan, v_lli, p_lli);
 
 	return vchan_tx_prep(&vchan->vc, &txd->vd, flags);
 
 err_lli_free:
-	for (prev = txd->v_lli; prev; prev = prev->v_lli_next)
-		dma_pool_free(sdev->pool, prev, virt_to_phys(prev));
+	for (p_lli = txd->p_lli, v_lli = txd->v_lli; v_lli;
+	     p_lli = v_lli->p_lli_next, v_lli = v_lli->v_lli_next)
+		dma_pool_free(sdev->pool, v_lli, p_lli);
 	kfree(txd);
 	return NULL;
 }
@@ -787,7 +808,7 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_cyclic(
 		return NULL;
 
 	for (i = 0; i < periods; i++) {
-		v_lli = dma_pool_alloc(sdev->pool, GFP_NOWAIT, &p_lli);
+		v_lli = dma_pool_alloc(sdev->pool, GFP_DMA32 | GFP_NOWAIT, &p_lli);
 		if (!v_lli) {
 			dev_err(sdev->slave.dev, "Failed to alloc lli memory\n");
 			goto err_lli_free;
@@ -797,14 +818,16 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_cyclic(
 		v_lli->para = NORMAL_WAIT;
 
 		if (dir == DMA_MEM_TO_DEV) {
-			v_lli->src = buf_addr + period_len * i;
-			v_lli->dst = sconfig->dst_addr;
+			sun6i_dma_set_addr(sdev, v_lli,
+					   buf_addr + period_len * i,
+					   sconfig->dst_addr);
 			v_lli->cfg = lli_cfg;
 			sdev->cfg->set_drq(&v_lli->cfg, DRQ_SDRAM, vchan->port);
 			sdev->cfg->set_mode(&v_lli->cfg, LINEAR_MODE, IO_MODE);
 		} else {
-			v_lli->src = sconfig->src_addr;
-			v_lli->dst = buf_addr + period_len * i;
+			sun6i_dma_set_addr(sdev, v_lli,
+					   sconfig->src_addr,
+					   buf_addr + period_len * i);
 			v_lli->cfg = lli_cfg;
 			sdev->cfg->set_drq(&v_lli->cfg, vchan->port, DRQ_SDRAM);
 			sdev->cfg->set_mode(&v_lli->cfg, IO_MODE, LINEAR_MODE);
@@ -820,8 +843,9 @@ static struct dma_async_tx_descriptor *sun6i_dma_prep_dma_cyclic(
 	return vchan_tx_prep(&vchan->vc, &txd->vd, flags);
 
 err_lli_free:
-	for (prev = txd->v_lli; prev; prev = prev->v_lli_next)
-		dma_pool_free(sdev->pool, prev, virt_to_phys(prev));
+	for (p_lli = txd->p_lli, v_lli = txd->v_lli; v_lli;
+	     p_lli = v_lli->p_lli_next, v_lli = v_lli->v_lli_next)
+		dma_pool_free(sdev->pool, v_lli, p_lli);
 	kfree(txd);
 	return NULL;
 }
@@ -1174,8 +1198,6 @@ static struct sun6i_dma_config sun50i_a64_dma_cfg = {
 };
 
 /*
- * TODO: Add support for more than 4g physical addressing.
- *
  * The A100 binding uses the number of dma channels from the
  * device tree node.
  */
@@ -1194,6 +1216,7 @@ static struct sun6i_dma_config sun50i_a100_dma_cfg = {
 			     BIT(DMA_SLAVE_BUSWIDTH_2_BYTES) |
 			     BIT(DMA_SLAVE_BUSWIDTH_4_BYTES) |
 			     BIT(DMA_SLAVE_BUSWIDTH_8_BYTES),
+	.has_high_addr = true,
 	.has_mbus_clk = true,
 };
 
@@ -1248,6 +1271,7 @@ static const struct of_device_id sun6i_dma_match[] = {
 	{ .compatible = "allwinner,sun8i-a83t-dma", .data = &sun8i_a83t_dma_cfg },
 	{ .compatible = "allwinner,sun8i-h3-dma", .data = &sun8i_h3_dma_cfg },
 	{ .compatible = "allwinner,sun8i-v3s-dma", .data = &sun8i_v3s_dma_cfg },
+	{ .compatible = "allwinner,sun20i-d1-dma", .data = &sun50i_a100_dma_cfg },
 	{ .compatible = "allwinner,sun50i-a64-dma", .data = &sun50i_a64_dma_cfg },
 	{ .compatible = "allwinner,sun50i-a100-dma", .data = &sun50i_a100_dma_cfg },
 	{ .compatible = "allwinner,sun50i-h6-dma", .data = &sun50i_h6_dma_cfg },

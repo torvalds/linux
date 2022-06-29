@@ -1350,7 +1350,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	wait_event(info->wait_send_pending,
 		atomic_read(&info->send_pending) == 0);
 
-	/* It's not posssible for upper layer to get to reassembly */
+	/* It's not possible for upper layer to get to reassembly */
 	log_rdma_event(INFO, "drain the reassembly queue\n");
 	do {
 		spin_lock_irqsave(&info->reassembly_queue_lock, flags);

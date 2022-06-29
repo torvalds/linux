@@ -21,6 +21,10 @@ struct sm4_ctx {
 	u32 rkey_dec[SM4_RKEY_WORDS];
 };
 
+extern const u32 crypto_sm4_fk[];
+extern const u32 crypto_sm4_ck[];
+extern const u8 crypto_sm4_sbox[];
+
 /**
  * sm4_expandkey - Expands the SM4 key as described in GB/T 32907-2016
  * @ctx:	The location where the computed key will be stored.

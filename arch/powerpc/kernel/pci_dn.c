@@ -12,9 +12,9 @@
 #include <linux/export.h>
 #include <linux/init.h>
 #include <linux/gfp.h>
+#include <linux/of.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <asm/firmware.h>

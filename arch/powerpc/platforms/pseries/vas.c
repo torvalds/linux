@@ -801,7 +801,7 @@ int vas_reconfig_capabilties(u8 type, int new_nr_creds)
 	atomic_set(&caps->nr_total_credits, new_nr_creds);
 	/*
 	 * The total number of available credits may be decreased or
-	 * inceased with DLPAR operation. Means some windows have to be
+	 * increased with DLPAR operation. Means some windows have to be
 	 * closed / reopened. Hold the vas_pseries_mutex so that the
 	 * the user space can not open new windows.
 	 */

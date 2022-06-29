@@ -726,7 +726,7 @@ static int allocate_mid(struct cifs_ses *ses, struct smb_hdr *in_buf,
 			struct mid_q_entry **ppmidQ)
 {
 	spin_lock(&cifs_tcp_ses_lock);
-	if (ses->status == CifsNew) {
+	if (ses->ses_status == SES_NEW) {
 		if ((in_buf->Command != SMB_COM_SESSION_SETUP_ANDX) &&
 			(in_buf->Command != SMB_COM_NEGOTIATE)) {
 			spin_unlock(&cifs_tcp_ses_lock);
@@ -735,7 +735,7 @@ static int allocate_mid(struct cifs_ses *ses, struct smb_hdr *in_buf,
 		/* else ok - we are setting up session */
 	}
 
-	if (ses->status == CifsExiting) {
+	if (ses->ses_status == SES_EXITING) {
 		/* check if SMB session is bad because we are setting it up */
 		if (in_buf->Command != SMB_COM_LOGOFF_ANDX) {
 			spin_unlock(&cifs_tcp_ses_lock);
@@ -1187,7 +1187,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 * Compounding is never used during session establish.
 	 */
 	spin_lock(&cifs_tcp_ses_lock);
-	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
+	if ((ses->ses_status == SES_NEW) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
 		spin_unlock(&cifs_tcp_ses_lock);
 
 		mutex_lock(&server->srv_mutex);
@@ -1260,7 +1260,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 * Compounding is never used during session establish.
 	 */
 	spin_lock(&cifs_tcp_ses_lock);
-	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
+	if ((ses->ses_status == SES_NEW) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
 		struct kvec iov = {
 			.iov_base = resp_iov[0].iov_base,
 			.iov_len = resp_iov[0].iov_len
