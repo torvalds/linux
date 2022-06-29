@@ -37,7 +37,7 @@ void aqua_vanjaram_doorbell_index_init(struct amdgpu_device *adev)
 	adev->doorbell_index.userqueue_end = AMDGPU_DOORBELL_LAYOUT1_USERQUEUE_END;
 
 	adev->doorbell_index.sdma_doorbell_range = 20;
-	for (i = 0; i < adev->num_aid * adev->sdma.num_inst_per_aid; i++)
+	for (i = 0; i < adev->sdma.num_instances; i++)
 		adev->doorbell_index.sdma_engine[i] =
 			AMDGPU_DOORBELL_LAYOUT1_sDMA_ENGINE_START +
 			i * (adev->doorbell_index.sdma_doorbell_range >> 1);
