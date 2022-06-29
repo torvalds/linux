@@ -570,9 +570,6 @@ Data in the 10 high bits, zeros in the 6 low bits, arranged in little endian ord
       - Cb\ :sub:`11`
       - Cr\ :sub:`11`
 
-.. raw:: latex
-
-    \endgroup
 
 Fully Planar YUV Formats
 ========================
