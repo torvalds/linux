@@ -105,6 +105,12 @@
 		#size-cells = <2>;
 		ranges;
 
+		scp_mem_reserved: scp@50000000 {
+			compatible = "shared-dma-pool";
+			reg = <0 0x50000000 0 0x2900000>;
+			no-map;
+		};
+
 		wifi_restricted_dma_region: wifi@c0000000 {
 			compatible = "restricted-dma-pool";
 			reg = <0 0xc0000000 0 0x4000000>;
@@ -680,6 +686,12 @@
 		};
 	};
 
+	scp_pins: scp-pins {
+		pins-vreq-vao {
+			pinmux = <PINMUX_GPIO195__FUNC_SCP_VREQ_VAO>;
+		};
+	};
+
 	spi1_pins: spi1-default-pins {
 		pins-cs-mosi-clk {
 			pinmux = <PINMUX_GPIO157__FUNC_SPI1_A_CSB>,
@@ -733,6 +745,20 @@
 
 &pmic {
 	interrupts-extended = <&pio 214 IRQ_TYPE_LEVEL_HIGH>;
+};
+
+&scp {
+	status = "okay";
+
+	firmware-name = "mediatek/mt8192/scp.img";
+	memory-region = <&scp_mem_reserved>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&scp_pins>;
+
+	cros-ec {
+		compatible = "google,cros-ec-rpmsg";
+		mediatek,rpmsg-name = "cros-ec-rpmsg";
+	};
 };
 
 &spi1 {
