@@ -383,7 +383,7 @@ static int dsi_28nm_pll_restore_state(struct msm_dsi_phy *phy)
 
 static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **provided_clocks)
 {
-	char *clk_name, *parent_name, *vco_name;
+	char clk_name[32], parent_name[32], vco_name[32];
 	struct clk_init_data vco_init = {
 		.parent_data = &(const struct clk_parent_data) {
 			.fw_name = "ref",
@@ -402,18 +402,6 @@ static int pll_28nm_register(struct dsi_pll_28nm *pll_28nm, struct clk_hw **prov
 
 	bytediv = devm_kzalloc(dev, sizeof(*bytediv), GFP_KERNEL);
 	if (!bytediv)
-		return -ENOMEM;
-
-	vco_name = devm_kzalloc(dev, 32, GFP_KERNEL);
-	if (!vco_name)
-		return -ENOMEM;
-
-	parent_name = devm_kzalloc(dev, 32, GFP_KERNEL);
-	if (!parent_name)
-		return -ENOMEM;
-
-	clk_name = devm_kzalloc(dev, 32, GFP_KERNEL);
-	if (!clk_name)
 		return -ENOMEM;
 
 	snprintf(vco_name, 32, "dsi%dvco_clk", pll_28nm->phy->id);
