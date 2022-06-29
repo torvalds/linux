@@ -114,6 +114,13 @@ config CLK_RK3528
 	help
 	  Build the driver for RK3528 Clock Driver.
 
+config CLK_RK3562
+	tristate "Rockchip RK3562 clock controller support"
+	depends on CPU_RK3562 || COMPILE_TEST
+	default y
+	help
+	  Build the driver for RK3562 Clock Driver.
+
 config CLK_RK3568
 	tristate "Rockchip RK3568 clock controller support"
 	depends on CPU_RK3568 || COMPILE_TEST
