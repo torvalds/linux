@@ -15,6 +15,7 @@
 
 #include <linux/auxiliary_bus.h>
 #include <linux/bits.h>
+#include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/idr.h>
 #include <linux/module.h>
@@ -30,9 +31,13 @@
 #define INTEL_DVSEC_TABLE_BAR(x)	((x) & GENMASK(2, 0))
 #define INTEL_DVSEC_TABLE_OFFSET(x)	((x) & GENMASK(31, 3))
 #define TABLE_OFFSET_SHIFT		3
+#define PMT_XA_START			0
+#define PMT_XA_MAX			INT_MAX
+#define PMT_XA_LIMIT			XA_LIMIT(PMT_XA_START, PMT_XA_MAX)
 
 static DEFINE_IDA(intel_vsec_ida);
 static DEFINE_IDA(intel_vsec_sdsi_ida);
+static DEFINE_XARRAY_ALLOC(auxdev_array);
 
 /**
  * struct intel_vsec_header - Common fields of Intel VSEC and DVSEC registers.
@@ -132,7 +137,7 @@ static int intel_vsec_add_aux(struct pci_dev *pdev, struct intel_vsec_device *in
 			      const char *name)
 {
 	struct auxiliary_device *auxdev = &intel_vsec_dev->auxdev;
-	int ret;
+	int ret, id;
 
 	ret = ida_alloc(intel_vsec_dev->ida, GFP_KERNEL);
 	if (ret < 0) {
@@ -159,7 +164,18 @@ static int intel_vsec_add_aux(struct pci_dev *pdev, struct intel_vsec_device *in
 		return ret;
 	}
 
-	return devm_add_action_or_reset(&pdev->dev, intel_vsec_remove_aux, auxdev);
+	ret = devm_add_action_or_reset(&pdev->dev, intel_vsec_remove_aux,
+				       auxdev);
+	if (ret < 0)
+		return ret;
+
+	/* Add auxdev to list */
+	ret = xa_alloc(&auxdev_array, &id, intel_vsec_dev, PMT_XA_LIMIT,
+		       GFP_KERNEL);
+	if (ret)
+		return ret;
+
+	return 0;
 }
 
 static int intel_vsec_add_dev(struct pci_dev *pdev, struct intel_vsec_header *header,
@@ -345,6 +361,7 @@ static int intel_vsec_pci_probe(struct pci_dev *pdev, const struct pci_device_id
 	if (ret)
 		return ret;
 
+	pci_save_state(pdev);
 	info = (struct intel_vsec_platform_info *)id->driver_data;
 	if (!info)
 		return -EINVAL;
@@ -406,10 +423,71 @@ static const struct pci_device_id intel_vsec_pci_ids[] = {
 };
 MODULE_DEVICE_TABLE(pci, intel_vsec_pci_ids);
 
+static pci_ers_result_t intel_vsec_pci_error_detected(struct pci_dev *pdev,
+						      pci_channel_state_t state)
+{
+	pci_channel_state_t status = PCI_ERS_RESULT_NEED_RESET;
+
+	dev_info(&pdev->dev, "PCI error detected, state %d", state);
+
+	if (state == pci_channel_io_perm_failure)
+		status = PCI_ERS_RESULT_DISCONNECT;
+	else
+		pci_disable_device(pdev);
+
+	return status;
+}
+
+static pci_ers_result_t intel_vsec_pci_slot_reset(struct pci_dev *pdev)
+{
+	struct intel_vsec_device *intel_vsec_dev;
+	pci_channel_state_t status = PCI_ERS_RESULT_DISCONNECT;
+	const struct pci_device_id *pci_dev_id;
+	unsigned long index;
+
+	dev_info(&pdev->dev, "Resetting PCI slot\n");
+
+	msleep(2000);
+	if (pci_enable_device(pdev)) {
+		dev_info(&pdev->dev,
+			 "Failed to re-enable PCI device after reset.\n");
+		goto out;
+	}
+
+	status =  PCI_ERS_RESULT_RECOVERED;
+
+	xa_for_each(&auxdev_array, index, intel_vsec_dev) {
+		/* check if pdev doesn't match */
+		if (pdev != intel_vsec_dev->pcidev)
+			continue;
+		devm_release_action(&pdev->dev, intel_vsec_remove_aux,
+				    &intel_vsec_dev->auxdev);
+	}
+	pci_disable_device(pdev);
+	pci_restore_state(pdev);
+	pci_dev_id = pci_match_id(intel_vsec_pci_ids, pdev);
+	intel_vsec_pci_probe(pdev, pci_dev_id);
+
+out:
+	return status;
+}
+
+static void intel_vsec_pci_resume(struct pci_dev *pdev)
+{
+	dev_info(&pdev->dev, "Done resuming PCI device\n");
+}
+
+const struct pci_error_handlers intel_vsec_pci_err_handlers = {
+	.error_detected = intel_vsec_pci_error_detected,
+	.slot_reset = intel_vsec_pci_slot_reset,
+	.resume = intel_vsec_pci_resume,
+};
+
 static struct pci_driver intel_vsec_pci_driver = {
 	.name = "intel_vsec",
 	.id_table = intel_vsec_pci_ids,
 	.probe = intel_vsec_pci_probe,
+	.err_handler = &intel_vsec_pci_err_handlers,
 };
 module_pci_driver(intel_vsec_pci_driver);
 
