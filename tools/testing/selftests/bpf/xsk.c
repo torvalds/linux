@@ -958,6 +958,7 @@ static struct xsk_ctx *xsk_create_ctx(struct xsk_socket *xsk,
 	ctx->fill = fill;
 	ctx->comp = comp;
 	list_add(&ctx->list, &umem->ctx_list);
+	ctx->has_bpf_link = xsk_probe_bpf_link();
 	return ctx;
 }
 
@@ -1059,7 +1060,6 @@ int xsk_socket__create_shared(struct xsk_socket **xsk_ptr,
 		}
 	}
 	xsk->ctx = ctx;
-	xsk->ctx->has_bpf_link = xsk_probe_bpf_link();
 
 	if (rx && !rx_setup_done) {
 		err = setsockopt(xsk->fd, SOL_XDP, XDP_RX_RING,
