@@ -830,11 +830,9 @@ static int imx_mu_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 
-	ret = pm_runtime_get_sync(dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(dev);
+	ret = pm_runtime_resume_and_get(dev);
+	if (ret < 0)
 		goto disable_runtime_pm;
-	}
 
 	ret = pm_runtime_put_sync(dev);
 	if (ret < 0)
@@ -886,7 +884,6 @@ static const struct imx_mu_dcfg imx_mu_cfg_imx8ulp = {
 	.rx	= imx_mu_generic_rx,
 	.rxdb	= imx_mu_generic_rxdb,
 	.init	= imx_mu_init_generic,
-	.rxdb	= imx_mu_generic_rxdb,
 	.type	= IMX_MU_V2,
 	.xTR	= 0x200,
 	.xRR	= 0x280,

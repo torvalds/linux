@@ -31,13 +31,13 @@ int kvm_arch_init_vm(struct kvm *kvm, unsigned long type)
 {
 	int r;
 
-	r = kvm_riscv_stage2_alloc_pgd(kvm);
+	r = kvm_riscv_gstage_alloc_pgd(kvm);
 	if (r)
 		return r;
 
-	r = kvm_riscv_stage2_vmid_init(kvm);
+	r = kvm_riscv_gstage_vmid_init(kvm);
 	if (r) {
-		kvm_riscv_stage2_free_pgd(kvm);
+		kvm_riscv_gstage_free_pgd(kvm);
 		return r;
 	}
 
@@ -75,7 +75,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 		r = KVM_USER_MEM_SLOTS;
 		break;
 	case KVM_CAP_VM_GPA_BITS:
-		r = kvm_riscv_stage2_gpa_bits();
+		r = kvm_riscv_gstage_gpa_bits();
 		break;
 	default:
 		r = 0;

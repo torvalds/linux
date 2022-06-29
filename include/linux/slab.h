@@ -217,6 +217,18 @@ void kmem_dump_obj(void *object);
 #endif
 
 /*
+ * Arches can define this function if they want to decide the minimum slab
+ * alignment at runtime. The value returned by the function must be a power
+ * of two and >= ARCH_SLAB_MINALIGN.
+ */
+#ifndef arch_slab_minalign
+static inline unsigned int arch_slab_minalign(void)
+{
+	return ARCH_SLAB_MINALIGN;
+}
+#endif
+
+/*
  * kmem_cache_alloc and friends return pointers aligned to ARCH_SLAB_MINALIGN.
  * kmalloc and friends return pointers aligned to both ARCH_KMALLOC_MINALIGN
  * and ARCH_SLAB_MINALIGN, but here we only assume the former alignment.

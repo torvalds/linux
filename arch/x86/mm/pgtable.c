@@ -608,6 +608,16 @@ int pmdp_clear_flush_young(struct vm_area_struct *vma,
 
 	return young;
 }
+
+pmd_t pmdp_invalidate_ad(struct vm_area_struct *vma, unsigned long address,
+			 pmd_t *pmdp)
+{
+	/*
+	 * No flush is necessary. Once an invalid PTE is established, the PTE's
+	 * access and dirty bits cannot be updated.
+	 */
+	return pmdp_establish(vma, address, pmdp, pmd_mkinvalid(*pmdp));
+}
 #endif
 
 /**
@@ -676,9 +686,8 @@ int p4d_set_huge(p4d_t *p4d, phys_addr_t addr, pgprot_t prot)
  *
  * No 512GB pages yet -- always return 0
  */
-int p4d_clear_huge(p4d_t *p4d)
+void p4d_clear_huge(p4d_t *p4d)
 {
-	return 0;
 }
 #endif
 

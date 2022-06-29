@@ -62,14 +62,14 @@ static inline void tb10x_set_bits(struct tb10x_gpio *gpio, unsigned int offs,
 	u32 r;
 	unsigned long flags;
 
-	spin_lock_irqsave(&gpio->gc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&gpio->gc.bgpio_lock, flags);
 
 	r = tb10x_reg_read(gpio, offs);
 	r = (r & ~mask) | (val & mask);
 
 	tb10x_reg_write(gpio, offs, r);
 
-	spin_unlock_irqrestore(&gpio->gc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&gpio->gc.bgpio_lock, flags);
 }
 
 static int tb10x_gpio_to_irq(struct gpio_chip *chip, unsigned offset)

@@ -287,6 +287,7 @@ void *memremap_pages(struct dev_pagemap *pgmap, int nid)
 {
 	struct mhp_params params = {
 		.altmap = pgmap_altmap(pgmap),
+		.pgmap = pgmap,
 		.pgprot = PAGE_KERNEL,
 	};
 	const int nr_range = pgmap->nr_range;
@@ -457,6 +458,15 @@ void free_zone_device_page(struct page *page)
 		return;
 
 	mem_cgroup_uncharge(page_folio(page));
+
+	/*
+	 * Note: we don't expect anonymous compound pages yet. Once supported
+	 * and we could PTE-map them similar to THP, we'd have to clear
+	 * PG_anon_exclusive on all tail pages.
+	 */
+	VM_BUG_ON_PAGE(PageAnon(page) && PageCompound(page), page);
+	if (PageAnon(page))
+		__ClearPageAnonExclusive(page);
 
 	/*
 	 * When a device managed page is freed, the page->mapping field
