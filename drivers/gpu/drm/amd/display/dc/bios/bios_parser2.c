@@ -2079,6 +2079,7 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 	record = get_encoder_cap_record(bp, object);
 	if (!record)
 		return BP_RESULT_NORECORD;
+	DC_LOG_BIOS("record->encodercaps 0x%x for object_id 0x%x", record->encodercaps, object_id.id);
 
 	info->DP_HBR2_CAP = (record->encodercaps &
 			ATOM_ENCODER_CAP_RECORD_HBR2) ? 1 : 0;
@@ -2098,6 +2099,7 @@ static enum bp_result bios_parser_get_encoder_cap_info(
 			ATOM_ENCODER_CAP_RECORD_UHBR20_EN) ? 1 : 0;
 	info->DP_IS_USB_C = (record->encodercaps &
 			ATOM_ENCODER_CAP_RECORD_USB_C_TYPE) ? 1 : 0;
+	DC_LOG_BIOS("\t info->DP_IS_USB_C %d", info->DP_IS_USB_C);
 
 	return BP_RESULT_OK;
 }
@@ -2944,7 +2946,35 @@ static enum bp_result construct_integrated_info(
 
 	if (result != BP_RESULT_OK)
 		return result;
+	else {
+		// Log each external path
+		for (i = 0; i < MAX_NUMBER_OF_EXT_DISPLAY_PATH; i++) {
+			if (info->ext_disp_conn_info.path[i].device_tag != 0)
+				DC_LOG_BIOS("integrated_info:For EXTERNAL DISPLAY PATH %d --------------\n"
+						"DEVICE_TAG: 0x%x\n"
+						"DEVICE_ACPI_ENUM: 0x%x\n"
+						"DEVICE_CONNECTOR_ID: 0x%x\n"
+						"EXT_AUX_DDC_LUT_INDEX: %d\n"
+						"EXT_HPD_PIN_LUT_INDEX: %d\n"
+						"EXT_ENCODER_OBJ_ID: 0x%x\n"
+						"Encoder CAPS: 0x%x\n",
+						i,
+						info->ext_disp_conn_info.path[i].device_tag,
+						info->ext_disp_conn_info.path[i].device_acpi_enum,
+						info->ext_disp_conn_info.path[i].device_connector_id.id,
+						info->ext_disp_conn_info.path[i].ext_aux_ddc_lut_index,
+						info->ext_disp_conn_info.path[i].ext_hpd_pin_lut_index,
+						info->ext_disp_conn_info.path[i].ext_encoder_obj_id.id,
+						info->ext_disp_conn_info.path[i].caps
+						);
+		}
 
+		// Log the Checksum and Voltage Swing
+		DC_LOG_BIOS("Integrated info table CHECKSUM: %d\n"
+					"Integrated info table FIX_DP_VOLTAGE_SWING: %d\n",
+					info->ext_disp_conn_info.checksum,
+					info->ext_disp_conn_info.fixdpvoltageswing);
+	}
 	/* Sort voltage table from low to high*/
 	for (i = 1; i < NUMBER_OF_DISP_CLK_VOLTAGE; ++i) {
 		for (j = i; j > 0; --j) {
