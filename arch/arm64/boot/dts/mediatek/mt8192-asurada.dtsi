@@ -66,6 +66,19 @@
 		vin-supply = <&pp3300_g>;
 	};
 
+	pp3300_wlan: regulator-3v3-wlan {
+		compatible = "regulator-fixed";
+		regulator-name = "pp3300_wlan";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pp3300_wlan_pins>;
+		enable-active-high;
+		gpio = <&pio 143 GPIO_ACTIVE_HIGH>;
+	};
+
 	/* system wide switching 5.0V power rail */
 	pp5000_a: regulator-5v0-a {
 		compatible = "regulator-fixed";
@@ -83,6 +96,17 @@
 		regulator-name = "ppvar_sys";
 		regulator-always-on;
 		regulator-boot-on;
+	};
+
+	reserved_memory: reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+
+		wifi_restricted_dma_region: wifi@c0000000 {
+			compatible = "restricted-dma-pool";
+			reg = <0 0xc0000000 0 0x4000000>;
+		};
 	};
 };
 
@@ -142,6 +166,28 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7_pins>;
+};
+
+&pcie {
+	pinctrl-names = "default";
+	pinctrl-0 = <&pcie_pins>;
+
+	pcie0: pcie@0,0 {
+		device_type = "pci";
+		reg = <0x0000 0 0 0 0>;
+		num-lanes = <1>;
+		bus-range = <0x1 0x1>;
+
+		#address-cells = <3>;
+		#size-cells = <2>;
+		ranges;
+
+		wifi: wifi@0,0 {
+			reg = <0x10000 0 0 0 0x100000>,
+			      <0x10000 0 0x100000 0 0x100000>;
+			memory-region = <&wifi_restricted_dma_region>;
+		};
+	};
 };
 
 &pio {
@@ -427,6 +473,34 @@
 				 <PINMUX_GPIO125__FUNC_SDA7>;
 			bias-disable;
 			drive-strength-microamp = <1000>;
+		};
+	};
+
+	pcie_pins: pcie-default-pins {
+		pins-pcie-wake {
+			pinmux = <PINMUX_GPIO63__FUNC_PCIE_WAKE_N>;
+			bias-pull-up;
+		};
+
+		pins-pcie-pereset {
+			pinmux = <PINMUX_GPIO64__FUNC_PCIE_PERESET_N>;
+		};
+
+		pins-pcie-clkreq {
+			pinmux = <PINMUX_GPIO65__FUNC_PCIE_CLKREQ_N>;
+			bias-pull-up;
+		};
+
+		pins-wifi-kill {
+			pinmux = <PINMUX_GPIO145__FUNC_GPIO145>; /* WIFI_KILL_L */
+			output-high;
+		};
+	};
+
+	pp3300_wlan_pins: pp3300-wlan-pins {
+		pins-pcie-en-pp3300-wlan {
+			pinmux = <PINMUX_GPIO143__FUNC_GPIO143>;
+			output-high;
 		};
 	};
 
