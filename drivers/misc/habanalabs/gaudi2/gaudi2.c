@@ -2673,9 +2673,11 @@ static void gaudi2_scrub_arcs_dccm(struct hl_device *hdev)
 
 static int gaudi2_late_init(struct hl_device *hdev)
 {
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
 	int rc;
 
-	rc = hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_ENABLE_PCI_ACCESS, 0x0);
+	rc = hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_ENABLE_PCI_ACCESS,
+					gaudi2->virt_msix_db_dma_addr);
 	if (rc) {
 		dev_err(hdev->dev, "Failed to enable PCI access from CPU\n");
 		return rc;
@@ -2922,6 +2924,7 @@ static inline int gaudi2_get_non_zero_random_int(void)
 
 static int gaudi2_sw_init(struct hl_device *hdev)
 {
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct gaudi2_device *gaudi2;
 	int i, rc;
 
@@ -2982,6 +2985,14 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 		goto free_cpu_accessible_dma_pool;
 	}
 
+	gaudi2->virt_msix_db_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev, prop->pmmu.page_size,
+								&gaudi2->virt_msix_db_dma_addr);
+	if (!gaudi2->virt_msix_db_cpu_addr) {
+		dev_err(hdev->dev, "Failed to allocate DMA memory for virtual MSI-X doorbell\n");
+		rc = -ENOMEM;
+		goto free_cpu_accessible_dma_pool;
+	}
+
 	spin_lock_init(&gaudi2->hw_queues_lock);
 	spin_lock_init(&gaudi2->kdma_lock);
 
@@ -2990,7 +3001,7 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 							GFP_KERNEL | __GFP_ZERO);
 	if (!gaudi2->scratchpad_kernel_address) {
 		rc = -ENOMEM;
-		goto free_cpu_accessible_dma_pool;
+		goto free_virt_msix_db_mem;
 	}
 
 	gaudi2_user_mapped_blocks_init(hdev);
@@ -2999,15 +3010,18 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 	gaudi2_user_interrupt_setup(hdev);
 
 	hdev->supports_coresight = true;
-	hdev->asic_prop.supports_soft_reset = true;
 	hdev->supports_sync_stream = true;
 	hdev->supports_cb_mapping = true;
 	hdev->supports_wait_for_multi_cs = false;
+
+	prop->supports_soft_reset = true;
 
 	hdev->asic_funcs->set_pci_memory_regions(hdev);
 
 	return 0;
 
+free_virt_msix_db_mem:
+	hl_cpu_accessible_dma_pool_free(hdev, prop->pmmu.page_size, gaudi2->virt_msix_db_cpu_addr);
 free_cpu_accessible_dma_pool:
 	gen_pool_destroy(hdev->cpu_accessible_dma_pool);
 free_cpu_dma_mem:
@@ -3022,7 +3036,10 @@ free_gaudi2_device:
 
 static int gaudi2_sw_fini(struct hl_device *hdev)
 {
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+
+	hl_cpu_accessible_dma_pool_free(hdev, prop->pmmu.page_size, gaudi2->virt_msix_db_cpu_addr);
 
 	gen_pool_destroy(hdev->cpu_accessible_dma_pool);
 

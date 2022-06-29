@@ -439,6 +439,8 @@ struct dup_block_ctx {
  *                             currently used for HBW QMAN writes which is
  *                             redundant.
  * @scratchpad_bus_address: scratchpad bus address
+ * @virt_msix_db_cpu_addr: host memory page for the virtual MSI-X doorbell.
+ * @virt_msix_db_dma_addr: bus address of the page for the virtual MSI-X doorbell.
  * @dram_bar_cur_addr: current address of DRAM PCI bar.
  * @hw_cap_initialized: This field contains a bit per H/W engine. When that
  *                      engine is initialized, that bit is set by the driver to
@@ -498,6 +500,9 @@ struct gaudi2_device {
 
 	void				*scratchpad_kernel_address;
 	dma_addr_t			scratchpad_bus_address;
+
+	void				*virt_msix_db_cpu_addr;
+	dma_addr_t			virt_msix_db_dma_addr;
 
 	u64				dram_bar_cur_addr;
 	u64				hw_cap_initialized;
