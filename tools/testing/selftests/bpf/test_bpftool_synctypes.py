@@ -471,12 +471,6 @@ class BashcompExtractor(FileExtractor):
     def get_prog_attach_types(self):
         return self.get_bashcomp_list('BPFTOOL_PROG_ATTACH_TYPES')
 
-    def get_map_types(self):
-        return self.get_bashcomp_list('BPFTOOL_MAP_CREATE_TYPES')
-
-    def get_cgroup_attach_types(self):
-        return self.get_bashcomp_list('BPFTOOL_CGROUP_ATTACH_TYPES')
-
 def verify(first_set, second_set, message):
     """
     Print all values that differ between two sets.
@@ -516,17 +510,12 @@ def main():
     man_map_types = man_map_info.get_map_types()
     man_map_info.close()
 
-    bashcomp_info = BashcompExtractor()
-    bashcomp_map_types = bashcomp_info.get_map_types()
-
     verify(source_map_types, help_map_types,
             f'Comparing {BpfHeaderExtractor.filename} (bpf_map_type) and {MapFileExtractor.filename} (do_help() TYPE):')
     verify(source_map_types, man_map_types,
             f'Comparing {BpfHeaderExtractor.filename} (bpf_map_type) and {ManMapExtractor.filename} (TYPE):')
     verify(help_map_options, man_map_options,
             f'Comparing {MapFileExtractor.filename} (do_help() OPTIONS) and {ManMapExtractor.filename} (OPTIONS):')
-    verify(source_map_types, bashcomp_map_types,
-            f'Comparing {BpfHeaderExtractor.filename} (bpf_map_type) and {BashcompExtractor.filename} (BPFTOOL_MAP_CREATE_TYPES):')
 
     # Attach types (names)
 
@@ -542,8 +531,10 @@ def main():
     man_prog_attach_types = man_prog_info.get_attach_types()
     man_prog_info.close()
 
-    bashcomp_info.reset_read() # We stopped at map types, rewind
+
+    bashcomp_info = BashcompExtractor()
     bashcomp_prog_attach_types = bashcomp_info.get_prog_attach_types()
+    bashcomp_info.close()
 
     verify(source_prog_attach_types, help_prog_attach_types,
             f'Comparing {ProgFileExtractor.filename} (bpf_attach_type) and {ProgFileExtractor.filename} (do_help() ATTACH_TYPE):')
@@ -568,17 +559,12 @@ def main():
     man_cgroup_attach_types = man_cgroup_info.get_attach_types()
     man_cgroup_info.close()
 
-    bashcomp_cgroup_attach_types = bashcomp_info.get_cgroup_attach_types()
-    bashcomp_info.close()
-
     verify(source_cgroup_attach_types, help_cgroup_attach_types,
             f'Comparing {BpfHeaderExtractor.filename} (bpf_attach_type) and {CgroupFileExtractor.filename} (do_help() ATTACH_TYPE):')
     verify(source_cgroup_attach_types, man_cgroup_attach_types,
             f'Comparing {BpfHeaderExtractor.filename} (bpf_attach_type) and {ManCgroupExtractor.filename} (ATTACH_TYPE):')
     verify(help_cgroup_options, man_cgroup_options,
             f'Comparing {CgroupFileExtractor.filename} (do_help() OPTIONS) and {ManCgroupExtractor.filename} (OPTIONS):')
-    verify(source_cgroup_attach_types, bashcomp_cgroup_attach_types,
-            f'Comparing {BpfHeaderExtractor.filename} (bpf_attach_type) and {BashcompExtractor.filename} (BPFTOOL_CGROUP_ATTACH_TYPES):')
 
     # Options for remaining commands
 
