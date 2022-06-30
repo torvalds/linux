@@ -112,6 +112,37 @@ TRACE_EVENT(scmi_rx_done,
 		__entry->transfer_id, __entry->msg_id, __entry->protocol_id,
 		__entry->seq, __entry->msg_type)
 );
+
+TRACE_EVENT(scmi_msg_dump,
+	TP_PROTO(u8 protocol_id, u8 msg_id, unsigned char *tag, u16 seq,
+		 int status, void *buf, size_t len),
+	TP_ARGS(protocol_id, msg_id, tag, seq, status, buf, len),
+
+	TP_STRUCT__entry(
+		__field(u8, protocol_id)
+		__field(u8, msg_id)
+		__array(char, tag, 5)
+		__field(u16, seq)
+		__field(int, status)
+		__field(size_t, len)
+		__dynamic_array(unsigned char, cmd, len)
+	),
+
+	TP_fast_assign(
+		__entry->protocol_id = protocol_id;
+		__entry->msg_id = msg_id;
+		strscpy(__entry->tag, tag, 5);
+		__entry->seq = seq;
+		__entry->status = status;
+		__entry->len = len;
+		memcpy(__get_dynamic_array(cmd), buf, __entry->len);
+	),
+
+	TP_printk("pt=%02X t=%s msg_id=%02X seq=%04X s=%d pyld=%s",
+		  __entry->protocol_id, __entry->tag, __entry->msg_id,
+		  __entry->seq, __entry->status,
+		__print_hex_str(__get_dynamic_array(cmd), __entry->len))
+);
 #endif /* _TRACE_SCMI_H */
 
 /* This part must be outside protection */
