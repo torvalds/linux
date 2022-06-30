@@ -722,7 +722,7 @@ int rxe_requester(void *arg)
 						       qp->req.wqe_index);
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
-			__rxe_do_task(&qp->comp.task);
+			rxe_run_task(&qp->comp.task, 0);
 			goto done;
 		}
 		payload = mtu;
@@ -803,7 +803,7 @@ done:
 	goto out;
 err:
 	wqe->state = wqe_state_error;
-	__rxe_do_task(&qp->comp.task);
+	rxe_run_task(&qp->comp.task, 0);
 exit:
 	ret = -EAGAIN;
 out:
