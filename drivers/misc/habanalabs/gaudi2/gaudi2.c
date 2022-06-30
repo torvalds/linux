@@ -5751,8 +5751,9 @@ static void gaudi2_kdma_set_mmbp_asid(struct hl_device *hdev,
 static void gaudi2_arm_cq_monitor(struct hl_device *hdev, u32 index, u32 cq_id,
 						u32 mon_payload, u32 sync_value)
 {
+	u32 sync_group_id, mode, mon_arm;
 	int offset = index * 4;
-	u32 sync_group_id, mask, mode, mon_arm;
+	u8 mask;
 
 	/* Reset the SOB value */
 	WREG32(mmDCORE0_SYNC_MNGR_OBJS_SOB_OBJ_0 + offset, 0);
