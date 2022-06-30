@@ -244,7 +244,7 @@ enum io_uring_op {
 #define IORING_ASYNC_CANCEL_ANY	(1U << 2)
 
 /*
- * send/sendmsg and recv/recvmsg flags (sqe->addr2)
+ * send/sendmsg and recv/recvmsg flags (sqe->ioprio)
  *
  * IORING_RECVSEND_POLL_FIRST	If set, instead of first attempting to send
  *				or receive and arm poll if that yields an
