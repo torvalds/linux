@@ -4252,6 +4252,109 @@ static void gaudi2_init_edma(struct hl_device *hdev)
 	}
 }
 
+/*
+ * gaudi2_arm_monitors_for_virt_msix_db() - Arm monitors for writing to the virtual MSI-X doorbell.
+ * @hdev: pointer to habanalabs device structure.
+ * @sob_id: sync object ID.
+ * @first_mon_id: ID of first monitor out of 3 consecutive monitors.
+ * @interrupt_id: interrupt ID.
+ *
+ * Some initiators cannot have HBW address in their completion address registers, and thus cannot
+ * write directly to the HBW host memory of the virtual MSI-X doorbell.
+ * Instead, they are configured to LBW write to a sync object, and a monitor will do the HBW write.
+ *
+ * The mechanism in the sync manager block is composed of a master monitor with 3 messages.
+ * In addition to the HBW write, the other 2 messages are for preparing the monitor to next
+ * completion, by decrementing the sync object value and re-arming the monitor.
+ */
+static void gaudi2_arm_monitors_for_virt_msix_db(struct hl_device *hdev, u32 sob_id,
+							u32 first_mon_id, u32 interrupt_id)
+{
+	u32 sob_offset, first_mon_offset, mon_offset, payload, sob_group, mode, arm, config;
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+	u64 addr;
+	u8 mask;
+
+	/* Reset the SOB value */
+	sob_offset = sob_id * sizeof(u32);
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_SOB_OBJ_0 + sob_offset, 0);
+
+	/* Configure 3 monitors:
+	 * 1. Write interrupt ID to the virtual MSI-X doorbell (master monitor)
+	 * 2. Decrement SOB value by 1.
+	 * 3. Re-arm the master monitor.
+	 */
+
+	first_mon_offset = first_mon_id * sizeof(u32);
+
+	/* 2nd monitor: Decrement SOB value by 1 */
+	mon_offset = first_mon_offset + sizeof(u32);
+
+	addr = CFG_BASE + mmDCORE0_SYNC_MNGR_OBJS_SOB_OBJ_0 + sob_offset;
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_ADDRL_0 + mon_offset, lower_32_bits(addr));
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_ADDRH_0 + mon_offset, upper_32_bits(addr));
+
+	payload = FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_SOB_OBJ_VAL_MASK, 0x7FFF) | /* "-1" */
+			FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_SOB_OBJ_SIGN_MASK, 1) |
+			FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_SOB_OBJ_INC_MASK, 1);
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_DATA_0 + mon_offset, payload);
+
+	/* 3rd monitor: Re-arm the master monitor */
+	mon_offset = first_mon_offset + 2 * sizeof(u32);
+
+	addr = CFG_BASE + mmDCORE0_SYNC_MNGR_OBJS_MON_ARM_0 + first_mon_offset;
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_ADDRL_0 + mon_offset, lower_32_bits(addr));
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_ADDRH_0 + mon_offset, upper_32_bits(addr));
+
+	sob_group = sob_id / 8;
+	mask = ~BIT(sob_id & 0x7);
+	mode = 0; /* comparison mode is "greater than or equal to" */
+	arm = FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_MON_ARM_SID_MASK, sob_group) |
+			FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_MON_ARM_MASK_MASK, mask) |
+			FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_MON_ARM_SOP_MASK, mode) |
+			FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_MON_ARM_SOD_MASK, 1);
+
+	payload = arm;
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_DATA_0 + mon_offset, payload);
+
+	/* 1st monitor (master): Write interrupt ID to the virtual MSI-X doorbell */
+	mon_offset = first_mon_offset;
+
+	config = FIELD_PREP(DCORE0_SYNC_MNGR_OBJS_MON_CONFIG_WR_NUM_MASK, 2); /* "2": 3 writes */
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_CONFIG_0 + mon_offset, config);
+
+	addr = gaudi2->virt_msix_db_dma_addr;
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_ADDRL_0 + mon_offset, lower_32_bits(addr));
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_ADDRH_0 + mon_offset, upper_32_bits(addr));
+
+	payload = interrupt_id;
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_PAY_DATA_0 + mon_offset, payload);
+
+	WREG32(mmDCORE0_SYNC_MNGR_OBJS_MON_ARM_0 + mon_offset, arm);
+}
+
+static void gaudi2_prepare_sm_for_virt_msix_db(struct hl_device *hdev)
+{
+	u32 decoder_id, sob_id, first_mon_id, interrupt_id;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+
+	/* Decoder normal/abnormal interrupts */
+	for (decoder_id = 0 ; decoder_id < NUMBER_OF_DEC ; ++decoder_id) {
+		if (!(prop->decoder_enabled_mask & BIT(decoder_id)))
+			continue;
+
+		sob_id = GAUDI2_RESERVED_SOB_DEC_NRM_FIRST + decoder_id;
+		first_mon_id = GAUDI2_RESERVED_MON_DEC_NRM_FIRST + 3 * decoder_id;
+		interrupt_id = GAUDI2_IRQ_NUM_DCORE0_DEC0_NRM + 2 * decoder_id;
+		gaudi2_arm_monitors_for_virt_msix_db(hdev, sob_id, first_mon_id, interrupt_id);
+
+		sob_id = GAUDI2_RESERVED_SOB_DEC_ABNRM_FIRST + decoder_id;
+		first_mon_id = GAUDI2_RESERVED_MON_DEC_ABNRM_FIRST + 3 * decoder_id;
+		interrupt_id += 1;
+		gaudi2_arm_monitors_for_virt_msix_db(hdev, sob_id, first_mon_id, interrupt_id);
+	}
+}
+
 static void gaudi2_init_sm(struct hl_device *hdev)
 {
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
@@ -4304,6 +4407,9 @@ static void gaudi2_init_sm(struct hl_device *hdev)
 	/* Configure kernel ASID and MMU BP*/
 	WREG32(mmDCORE0_SYNC_MNGR_GLBL_ASID_SEC, 0x10000);
 	WREG32(mmDCORE0_SYNC_MNGR_GLBL_ASID_NONE_SEC_PRIV, 0);
+
+	/* Initialize sync objects and monitors which are used for the virtual MSI-X doorbell */
+	gaudi2_prepare_sm_for_virt_msix_db(hdev);
 }
 
 static void gaudi2_init_mme_acc(struct hl_device *hdev, u32 reg_base)
@@ -4452,16 +4558,41 @@ static void gaudi2_init_rotator(struct hl_device *hdev)
 	}
 }
 
-static void gaudi2_init_vdec_brdg_ctrl(struct hl_device *hdev, u64 base_addr, u32 msix_id)
+static void gaudi2_init_vdec_brdg_ctrl(struct hl_device *hdev, u64 base_addr, u32 decoder_id)
 {
-	WREG32(base_addr + BRDG_CTRL_NRM_MSIX_LBW_WDATA, msix_id);
-	WREG32(base_addr + BRDG_CTRL_ABNRM_MSIX_LBW_WDATA, msix_id + 1);
+	u32 sob_id;
+
+	/* TODO:
+	 * Remove when virtual MSI-X doorbell is supported in simulator (SW-93022) and in F/W
+	 * (SW-93024).
+	 */
+	if (!hdev->pdev || hdev->asic_prop.fw_security_enabled) {
+		u32 interrupt_id = GAUDI2_IRQ_NUM_DCORE0_DEC0_NRM + 2 * decoder_id;
+
+		WREG32(base_addr + BRDG_CTRL_NRM_MSIX_LBW_AWADDR, mmPCIE_DBI_MSIX_DOORBELL_OFF);
+		WREG32(base_addr + BRDG_CTRL_NRM_MSIX_LBW_WDATA, interrupt_id);
+		WREG32(base_addr + BRDG_CTRL_ABNRM_MSIX_LBW_AWADDR, mmPCIE_DBI_MSIX_DOORBELL_OFF);
+		WREG32(base_addr + BRDG_CTRL_ABNRM_MSIX_LBW_WDATA, interrupt_id + 1);
+		return;
+	}
+
+	/* VCMD normal interrupt */
+	sob_id = GAUDI2_RESERVED_SOB_DEC_NRM_FIRST + decoder_id;
+	WREG32(base_addr + BRDG_CTRL_NRM_MSIX_LBW_AWADDR,
+			mmDCORE0_SYNC_MNGR_OBJS_SOB_OBJ_0 + sob_id * sizeof(u32));
+	WREG32(base_addr + BRDG_CTRL_NRM_MSIX_LBW_WDATA, GAUDI2_SOB_INCREMENT_BY_ONE);
+
+	/* VCMD abnormal interrupt */
+	sob_id = GAUDI2_RESERVED_SOB_DEC_ABNRM_FIRST + decoder_id;
+	WREG32(base_addr + BRDG_CTRL_ABNRM_MSIX_LBW_AWADDR,
+			mmDCORE0_SYNC_MNGR_OBJS_SOB_OBJ_0 + sob_id * sizeof(u32));
+	WREG32(base_addr + BRDG_CTRL_ABNRM_MSIX_LBW_WDATA, GAUDI2_SOB_INCREMENT_BY_ONE);
 }
 
 static void gaudi2_init_dec(struct hl_device *hdev)
 {
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
-	u32 dcore_id, dec_id, dec_bit, msix_id;
+	u32 dcore_id, dec_id, dec_bit;
 	u64 base_addr;
 
 	if (!hdev->asic_prop.decoder_enabled_mask)
@@ -4482,10 +4613,7 @@ static void gaudi2_init_dec(struct hl_device *hdev)
 					dcore_id * DCORE_OFFSET +
 					dec_id * DCORE_VDEC_OFFSET;
 
-			msix_id = GAUDI2_IRQ_NUM_DCORE0_DEC0_NRM +
-				(dcore_id * NUM_OF_DEC_PER_DCORE + dec_id) * 2;
-
-			gaudi2_init_vdec_brdg_ctrl(hdev, base_addr, msix_id);
+			gaudi2_init_vdec_brdg_ctrl(hdev, base_addr, dec_bit);
 
 			gaudi2->dec_hw_cap_initialized |= BIT_ULL(HW_CAP_DEC_SHIFT + dec_bit);
 		}
@@ -4498,9 +4626,7 @@ static void gaudi2_init_dec(struct hl_device *hdev)
 		base_addr = mmPCIE_DEC0_CMD_BASE + BRDG_CTRL_BLOCK_OFFSET +
 				dec_id * DCORE_VDEC_OFFSET;
 
-		msix_id = GAUDI2_IRQ_NUM_SHARED_DEC0_NRM + (dec_id * 2);
-
-		gaudi2_init_vdec_brdg_ctrl(hdev, base_addr, msix_id);
+		gaudi2_init_vdec_brdg_ctrl(hdev, base_addr, dec_bit);
 
 		gaudi2->dec_hw_cap_initialized |= BIT_ULL(HW_CAP_DEC_SHIFT + dec_bit);
 	}
