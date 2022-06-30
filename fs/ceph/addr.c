@@ -337,6 +337,7 @@ static void ceph_netfs_issue_read(struct netfs_io_subrequest *subreq)
 	/* should always give us a page-aligned read */
 	WARN_ON_ONCE(page_off);
 	len = err;
+	err = 0;
 
 	osd_req_op_extent_osd_data_pages(req, 0, pages, len, 0, false, false);
 	req->r_callback = finish_netfs_read;
@@ -344,9 +345,7 @@ static void ceph_netfs_issue_read(struct netfs_io_subrequest *subreq)
 	req->r_inode = inode;
 	ihold(inode);
 
-	err = ceph_osdc_start_request(req->r_osdc, req, false);
-	if (err)
-		iput(inode);
+	ceph_osdc_start_request(req->r_osdc, req);
 out:
 	ceph_osdc_put_request(req);
 	if (err)
@@ -620,9 +619,8 @@ static int writepage_nounlock(struct page *page, struct writeback_control *wbc)
 	dout("writepage %llu~%llu (%llu bytes)\n", page_off, len, len);
 
 	req->r_mtime = inode->i_mtime;
-	err = ceph_osdc_start_request(osdc, req, true);
-	if (!err)
-		err = ceph_osdc_wait_request(osdc, req);
+	ceph_osdc_start_request(osdc, req);
+	err = ceph_osdc_wait_request(osdc, req);
 
 	ceph_update_write_metrics(&fsc->mdsc->metric, req->r_start_latency,
 				  req->r_end_latency, len, err);
@@ -1150,8 +1148,7 @@ new_request:
 		}
 
 		req->r_mtime = inode->i_mtime;
-		rc = ceph_osdc_start_request(&fsc->client->osdc, req, true);
-		BUG_ON(rc);
+		ceph_osdc_start_request(&fsc->client->osdc, req);
 		req = NULL;
 
 		wbc->nr_to_write -= i;
@@ -1692,9 +1689,8 @@ int ceph_uninline_data(struct file *file)
 	}
 
 	req->r_mtime = inode->i_mtime;
-	err = ceph_osdc_start_request(&fsc->client->osdc, req, false);
-	if (!err)
-		err = ceph_osdc_wait_request(&fsc->client->osdc, req);
+	ceph_osdc_start_request(&fsc->client->osdc, req);
+	err = ceph_osdc_wait_request(&fsc->client->osdc, req);
 	ceph_osdc_put_request(req);
 	if (err < 0)
 		goto out_unlock;
@@ -1735,9 +1731,8 @@ int ceph_uninline_data(struct file *file)
 	}
 
 	req->r_mtime = inode->i_mtime;
-	err = ceph_osdc_start_request(&fsc->client->osdc, req, false);
-	if (!err)
-		err = ceph_osdc_wait_request(&fsc->client->osdc, req);
+	ceph_osdc_start_request(&fsc->client->osdc, req);
+	err = ceph_osdc_wait_request(&fsc->client->osdc, req);
 
 	ceph_update_write_metrics(&fsc->mdsc->metric, req->r_start_latency,
 				  req->r_end_latency, len, err);
@@ -1908,15 +1903,13 @@ static int __ceph_pool_perm_get(struct ceph_inode_info *ci,
 
 	osd_req_op_raw_data_in_pages(rd_req, 0, pages, PAGE_SIZE,
 				     0, false, true);
-	err = ceph_osdc_start_request(&fsc->client->osdc, rd_req, false);
+	ceph_osdc_start_request(&fsc->client->osdc, rd_req);
 
 	wr_req->r_mtime = ci->netfs.inode.i_mtime;
-	err2 = ceph_osdc_start_request(&fsc->client->osdc, wr_req, false);
+	ceph_osdc_start_request(&fsc->client->osdc, wr_req);
 
-	if (!err)
-		err = ceph_osdc_wait_request(&fsc->client->osdc, rd_req);
-	if (!err2)
-		err2 = ceph_osdc_wait_request(&fsc->client->osdc, wr_req);
+	err = ceph_osdc_wait_request(&fsc->client->osdc, rd_req);
+	err2 = ceph_osdc_wait_request(&fsc->client->osdc, wr_req);
 
 	if (err >= 0 || err == -ENOENT)
 		have |= POOL_READ;
