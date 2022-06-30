@@ -63,6 +63,7 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 {
 	size_t pushed = 0, to_pull, to_push;
 	struct virtio_blk_outhdr hdr;
+	bool handled = false;
 	ssize_t bytes;
 	loff_t offset;
 	u64 sector;
@@ -78,12 +79,12 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 	if (vq->out_iov.used < 1 || vq->in_iov.used < 1) {
 		dev_dbg(&vdpasim->vdpa.dev, "missing headers - out_iov: %u in_iov %u\n",
 			vq->out_iov.used, vq->in_iov.used);
-		return false;
+		goto err;
 	}
 
 	if (vq->in_iov.iov[vq->in_iov.used - 1].iov_len < 1) {
 		dev_dbg(&vdpasim->vdpa.dev, "request in header too short\n");
-		return false;
+		goto err;
 	}
 
 	/* The last byte is the status and we checked if the last iov has
@@ -97,7 +98,7 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 				      sizeof(hdr));
 	if (bytes != sizeof(hdr)) {
 		dev_dbg(&vdpasim->vdpa.dev, "request out header too short\n");
-		return false;
+		goto err;
 	}
 
 	to_pull -= bytes;
@@ -182,16 +183,19 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 	/* Last byte is the status */
 	bytes = vringh_iov_push_iotlb(&vq->vring, &vq->in_iov, &status, 1);
 	if (bytes != 1)
-		return false;
+		goto err;
 
 	pushed += bytes;
 
 	/* Make sure data is wrote before advancing index */
 	smp_wmb();
 
+	handled = true;
+
+err:
 	vringh_complete_iotlb(&vq->vring, vq->head, pushed);
 
-	return true;
+	return handled;
 }
 
 static void vdpasim_blk_work(struct work_struct *work)
