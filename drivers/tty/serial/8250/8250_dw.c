@@ -695,7 +695,6 @@ static int dw8250_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int dw8250_suspend(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
@@ -713,9 +712,7 @@ static int dw8250_resume(struct device *dev)
 
 	return 0;
 }
-#endif /* CONFIG_PM_SLEEP */
 
-#ifdef CONFIG_PM
 static int dw8250_runtime_suspend(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
@@ -737,11 +734,10 @@ static int dw8250_runtime_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops dw8250_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(dw8250_suspend, dw8250_resume)
-	SET_RUNTIME_PM_OPS(dw8250_runtime_suspend, dw8250_runtime_resume, NULL)
+	SYSTEM_SLEEP_PM_OPS(dw8250_suspend, dw8250_resume)
+	RUNTIME_PM_OPS(dw8250_runtime_suspend, dw8250_runtime_resume, NULL)
 };
 
 static const struct dw8250_platform_data dw8250_dw_apb = {
@@ -799,7 +795,7 @@ MODULE_DEVICE_TABLE(acpi, dw8250_acpi_match);
 static struct platform_driver dw8250_platform_driver = {
 	.driver = {
 		.name		= "dw-apb-uart",
-		.pm		= &dw8250_pm_ops,
+		.pm		= pm_ptr(&dw8250_pm_ops),
 		.of_match_table	= dw8250_of_match,
 		.acpi_match_table = dw8250_acpi_match,
 	},
