@@ -918,6 +918,10 @@
 #define GEN7_L3CNTLREG1				_MMIO(0xb01c)
 #define   GEN7_WA_FOR_GEN7_L3_CONTROL		0x3C47FF8C
 #define   GEN7_L3AGDIS				(1 << 19)
+
+#define XEHPC_LNCFMISCCFGREG0			_MMIO(0xb01c)
+#define   XEHPC_OVRLSCCC			REG_BIT(0)
+
 #define GEN7_L3CNTLREG2				_MMIO(0xb020)
 
 /* MOCS (Memory Object Control State) registers */
