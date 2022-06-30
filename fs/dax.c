@@ -1088,10 +1088,10 @@ static s64 dax_zero_iter(struct iomap_iter *iter, bool *did_zero)
 		pos += size;
 		length -= size;
 		written += size;
-		if (did_zero)
-			*did_zero = true;
 	} while (length > 0);
 
+	if (did_zero)
+		*did_zero = true;
 	return written;
 }
 
