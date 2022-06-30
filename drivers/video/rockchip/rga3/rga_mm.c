@@ -298,6 +298,18 @@ out_free_pages:
 	return ret;
 }
 
+static inline bool rga_mm_check_memory_limit(struct rga_scheduler_t *scheduler, int mm_flag)
+{
+	if (!scheduler)
+		return false;
+
+	if (scheduler->data->mmu == RGA_MMU &&
+	    !(mm_flag & RGA_MEM_UNDER_4G))
+		return false;
+
+	return true;
+}
+
 /* If it is within 0~4G, return 1 (true). */
 static int rga_mm_check_range_sgt(struct sg_table *sgt)
 {
@@ -332,6 +344,9 @@ static void rga_mm_unmap_dma_buffer(struct rga_internal_buffer *internal_buffer)
 	int i;
 
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
+		if (rga_mm_is_invalid_dma_buffer(&internal_buffer->dma_buffer[i]))
+			continue;
+
 		rga_dma_unmap_buf(&internal_buffer->dma_buffer[i]);
 
 		if (i == 0 &&
@@ -364,6 +379,10 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 		scheduler = job ? job->scheduler : rga_drvdata->scheduler[i];
 
 		/* If the physical address is greater than 4G, there is no need to map RAG_MMU. */
+		if (i != 0)
+			if (!rga_mm_check_memory_limit(scheduler, internal_buffer->mm_flag))
+				continue;
+
 		if (scheduler->data->mmu == RGA_MMU &&
 		    ~internal_buffer->mm_flag & RGA_MEM_UNDER_4G &&
 		    i != 0)
@@ -425,7 +444,10 @@ static void rga_mm_unmap_virt_addr(struct rga_internal_buffer *internal_buffer)
 
 	WARN_ON(internal_buffer->dma_buffer == NULL || internal_buffer->virt_addr == NULL);
 
-	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
+	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
+		if (rga_mm_is_invalid_dma_buffer(&internal_buffer->dma_buffer[i]))
+			continue;
+
 		switch (internal_buffer->dma_buffer[i].scheduler->data->mmu) {
 		case RGA_IOMMU:
 			rga_iommu_unmap(&internal_buffer->dma_buffer[i]);
@@ -439,6 +461,7 @@ static void rga_mm_unmap_virt_addr(struct rga_internal_buffer *internal_buffer)
 		default:
 			break;
 		}
+	}
 
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
 		rga_free_sgt(&internal_buffer->dma_buffer[i]);
@@ -513,6 +536,9 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
 		scheduler = job ? job->scheduler : rga_drvdata->scheduler[i];
 
+		if (!rga_mm_check_memory_limit(scheduler, internal_buffer->mm_flag))
+			continue;
+
 		switch (scheduler->data->mmu) {
 		case RGA_IOMMU:
 			ret = rga_iommu_map_sgt(internal_buffer->dma_buffer[i].sgt,
@@ -526,9 +552,6 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 			}
 			break;
 		case RGA_MMU:
-			if (~internal_buffer->mm_flag & RGA_MEM_UNDER_4G)
-				continue;
-
 			ret = dma_map_sg(scheduler->dev,
 					 internal_buffer->dma_buffer[i].sgt->sgl,
 					 internal_buffer->dma_buffer[i].sgt->orig_nents,
@@ -554,7 +577,10 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 	return 0;
 
 unmap_virt_addr:
-	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
+	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
+		if (rga_mm_is_invalid_dma_buffer(&internal_buffer->dma_buffer[i]))
+			continue;
+
 		switch (internal_buffer->dma_buffer[i].scheduler->data->mmu) {
 		case RGA_IOMMU:
 			rga_iommu_unmap(&internal_buffer->dma_buffer[i]);
@@ -568,6 +594,7 @@ unmap_virt_addr:
 		default:
 			break;
 		}
+	}
 free_sgt_and_dma_buffer:
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
 		rga_free_sgt(&internal_buffer->dma_buffer[i]);
@@ -588,9 +615,13 @@ static void rga_mm_unmap_phys_addr(struct rga_internal_buffer *internal_buffer)
 
 	WARN_ON(internal_buffer->dma_buffer == NULL);
 
-	for (i = 0; i < internal_buffer->dma_buffer_size; i++)
+	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
+		if (rga_mm_is_invalid_dma_buffer(&internal_buffer->dma_buffer[i]))
+			continue;
+
 		if (internal_buffer->dma_buffer[i].scheduler->data->mmu == RGA_IOMMU)
 			rga_iommu_unmap(&internal_buffer->dma_buffer[i]);
+	}
 
 	internal_buffer->phys_addr = 0;
 
@@ -631,6 +662,9 @@ static int rga_mm_map_phys_addr(struct rga_external_buffer *external_buffer,
 
 	for (i = 0; i < internal_buffer->dma_buffer_size; i++) {
 		scheduler = job ? job->scheduler : rga_drvdata->scheduler[i];
+
+		if (!rga_mm_check_memory_limit(scheduler, internal_buffer->mm_flag))
+			continue;
 
 		if (scheduler->data->mmu == RGA_IOMMU) {
 			ret = rga_iommu_map(internal_buffer->phys_addr,
@@ -856,9 +890,13 @@ dma_addr_t rga_mm_lookup_iova(struct rga_internal_buffer *buffer, int core)
 {
 	int i;
 
-	for (i = 0; i < buffer->dma_buffer_size; i++)
+	for (i = 0; i < buffer->dma_buffer_size; i++) {
+		if (rga_mm_is_invalid_dma_buffer(&buffer->dma_buffer[i]))
+			continue;
+
 		if (buffer->dma_buffer[i].scheduler->core == core)
 			return buffer->dma_buffer[i].iova + buffer->dma_buffer[i].offset;
+	}
 
 	return 0;
 }
@@ -867,9 +905,13 @@ struct sg_table *rga_mm_lookup_sgt(struct rga_internal_buffer *buffer, int core)
 {
 	int i;
 
-	for (i = 0; i < buffer->dma_buffer_size; i++)
+	for (i = 0; i < buffer->dma_buffer_size; i++) {
+		if (rga_mm_is_invalid_dma_buffer(&buffer->dma_buffer[i]))
+			continue;
+
 		if (buffer->dma_buffer[i].scheduler->core == core)
 			return buffer->dma_buffer[i].sgt;
+	}
 
 	return NULL;
 }
@@ -887,6 +929,9 @@ void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
 	case RGA_DMA_BUFFER_PTR:
 		pr_info("dma_buffer:\n");
 		for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
+			if (rga_mm_is_invalid_dma_buffer(&dump_buffer->dma_buffer[i]))
+				continue;
+
 			pr_info("core %d: dma_buf = %p, iova = 0x%lx\n",
 				dump_buffer->dma_buffer[i].scheduler->core,
 				dump_buffer->dma_buffer[i].dma_buf,
@@ -904,6 +949,9 @@ void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer)
 			dump_buffer->virt_addr->size);
 
 		for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
+			if (rga_mm_is_invalid_dma_buffer(&dump_buffer->dma_buffer[i]))
+				continue;
+
 			pr_info("core %d: iova = 0x%lx, sgt = %p, size = %ld\n",
 				dump_buffer->dma_buffer[i].scheduler->core,
 				(unsigned long)dump_buffer->dma_buffer[i].iova,

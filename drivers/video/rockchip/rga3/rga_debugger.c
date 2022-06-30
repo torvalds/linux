@@ -257,6 +257,9 @@ static int rga_mm_session_show(struct seq_file *m, void *data)
 		case RGA_DMA_BUFFER_PTR:
 			seq_puts(m, "dma_buffer:\n");
 			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
+				if (rga_mm_is_invalid_dma_buffer(&dump_buffer->dma_buffer[i]))
+					continue;
+
 				seq_printf(m, "\t core %d:\n",
 					   dump_buffer->dma_buffer[i].scheduler->core);
 				seq_printf(m, "\t\t dma_buf = %p, iova = 0x%lx\n",
@@ -272,6 +275,9 @@ static int rga_mm_session_show(struct seq_file *m, void *data)
 				   dump_buffer->virt_addr->size);
 
 			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
+				if (rga_mm_is_invalid_dma_buffer(&dump_buffer->dma_buffer[i]))
+					continue;
+
 				seq_printf(m, "\t core %d:\n",
 					   dump_buffer->dma_buffer[i].scheduler->core);
 				seq_printf(m, "\t\t iova = 0x%lx, sgt = %p, size = %ld\n",
