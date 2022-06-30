@@ -917,12 +917,14 @@ static int a5psw_pcs_get(struct a5psw *a5psw)
 		}
 
 		a5psw->pcs[reg] = pcs;
+		of_node_put(pcs_node);
 	}
 	of_node_put(ports);
 
 	return 0;
 
 free_pcs:
+	of_node_put(pcs_node);
 	of_node_put(port);
 	of_node_put(ports);
 	a5psw_pcs_free(a5psw);
