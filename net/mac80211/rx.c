@@ -2532,6 +2532,35 @@ __ieee80211_data_to_8023(struct ieee80211_rx_data *rx, bool *port_control)
 	return 0;
 }
 
+static bool ieee80211_is_our_addr(struct ieee80211_sub_if_data *sdata,
+				  const u8 *addr, int *out_link_id)
+{
+	unsigned int link_id;
+
+	/* non-MLO, or MLD address replaced by hardware */
+	if (ether_addr_equal(sdata->vif.addr, addr))
+		return true;
+
+	if (!sdata->vif.valid_links)
+		return false;
+
+	for (link_id = 0; link_id < ARRAY_SIZE(sdata->vif.link_conf); link_id++) {
+		struct ieee80211_bss_conf *conf;
+
+		conf = rcu_dereference(sdata->vif.link_conf[link_id]);
+
+		if (!conf)
+			continue;
+		if (ether_addr_equal(conf->addr, addr)) {
+			if (out_link_id)
+				*out_link_id = link_id;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 /*
  * requires that rx->skb is a frame with ethernet header
  */
@@ -2547,7 +2576,7 @@ static bool ieee80211_frame_allowed(struct ieee80211_rx_data *rx, __le16 fc)
 	 * all other destination addresses for them.
 	 */
 	if (unlikely(ehdr->h_proto == rx->sdata->control_port_protocol))
-		return ether_addr_equal(ehdr->h_dest, rx->sdata->vif.addr) ||
+		return ieee80211_is_our_addr(rx->sdata, ehdr->h_dest, NULL) ||
 		       ether_addr_equal(ehdr->h_dest, pae_group_addr);
 
 	if (ieee80211_802_1x_port_control(rx) ||
@@ -4141,35 +4170,6 @@ static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 {
 	return ether_addr_equal(raddr, addr) ||
 	       is_broadcast_ether_addr(raddr);
-}
-
-static bool ieee80211_is_our_addr(struct ieee80211_sub_if_data *sdata,
-				  const u8 *addr, int *out_link_id)
-{
-	unsigned int link_id;
-
-	/* non-MLO, or MLD address replaced by hardware */
-	if (ether_addr_equal(sdata->vif.addr, addr))
-		return true;
-
-	if (!sdata->vif.valid_links)
-		return false;
-
-	for (link_id = 0; link_id < ARRAY_SIZE(sdata->vif.link_conf); link_id++) {
-		struct ieee80211_bss_conf *conf;
-
-		conf = rcu_dereference(sdata->vif.link_conf[link_id]);
-
-		if (!conf)
-			continue;
-		if (ether_addr_equal(conf->addr, addr)) {
-			if (out_link_id)
-				*out_link_id = link_id;
-			return true;
-		}
-	}
-
-	return false;
 }
 
 static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
