@@ -1117,7 +1117,7 @@ void rtw_sta_media_status_rpt(struct adapter *adapter, struct sta_info *psta,
 
 	/* MACID|OPMODE:1 connect */
 	media_status_rpt = (u16)((psta->mac_id << 8) | mstatus);
-	SetHwReg8188EU(adapter, HW_VAR_H2C_MEDIA_STATUS_RPT, (u8 *)&media_status_rpt);
+	rtl8188e_set_FwMediaStatus_cmd(adapter, media_status_rpt);
 }
 
 void rtw_stassoc_event_callback(struct adapter *adapter, u8 *pbuf)
@@ -1195,7 +1195,7 @@ void rtw_stadel_event_callback(struct adapter *adapter, u8 *pbuf)
 		u16 media_status;
 		media_status = (mac_id << 8) | 0; /*   MACID|OPMODE:0 means disconnect */
 		/* for STA, AP, ADHOC mode, report disconnect stauts to FW */
-		SetHwReg8188EU(adapter, HW_VAR_H2C_MEDIA_STATUS_RPT, (u8 *)&media_status);
+		rtl8188e_set_FwMediaStatus_cmd(adapter, media_status);
 	}
 
 	if (check_fwstate(pmlmepriv, WIFI_AP_STATE))

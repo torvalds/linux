@@ -6708,7 +6708,7 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 		rtw_set_max_rpt_macid(padapter, psta->mac_id);
 
 		media_status = (psta->mac_id << 8) | 1; /*   MACID|OPMODE: 1 means connect */
-		SetHwReg8188EU(padapter, HW_VAR_H2C_MEDIA_STATUS_RPT, (u8 *)&media_status);
+		rtl8188e_set_FwMediaStatus_cmd(padapter, media_status);
 	}
 
 	mlme_join(padapter, 2);
