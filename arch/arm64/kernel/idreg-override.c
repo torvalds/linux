@@ -19,6 +19,8 @@
 #define FTR_ALIAS_NAME_LEN	30
 #define FTR_ALIAS_OPTION_LEN	116
 
+static u64 __boot_status __initdata;
+
 struct ftr_set_desc {
 	char 				name[FTR_DESC_NAME_LEN];
 	struct arm64_ftr_override	*override;
@@ -37,7 +39,8 @@ static bool __init mmfr1_vh_filter(u64 val)
 	 * the user was trying to force nVHE on us, proceed with
 	 * attitude adjustment.
 	 */
-	return !(is_kernel_in_hyp_mode() && val == 0);
+	return !(__boot_status == (BOOT_CPU_FLAG_E2H | BOOT_CPU_MODE_EL2) &&
+		 val == 0);
 }
 
 static const struct ftr_set_desc mmfr1 __initconst = {
@@ -229,9 +232,9 @@ static __init void parse_cmdline(const void *fdt)
 }
 
 /* Keep checkers quiet */
-void init_feature_override(const void *fdt);
+void init_feature_override(const void *fdt, u64 boot_status);
 
-asmlinkage void __init init_feature_override(const void *fdt)
+asmlinkage void __init init_feature_override(const void *fdt, u64 boot_status)
 {
 	int i;
 
@@ -241,6 +244,8 @@ asmlinkage void __init init_feature_override(const void *fdt)
 			regs[i]->override->mask = 0;
 		}
 	}
+
+	__boot_status = boot_status;
 
 	parse_cmdline(fdt);
 

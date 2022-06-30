@@ -49,6 +49,13 @@
 #define BOOT_CPU_MODE_EL1	(0xe11)
 #define BOOT_CPU_MODE_EL2	(0xe12)
 
+/*
+ * Flags returned together with the boot mode, but not preserved in
+ * __boot_cpu_mode. Used by the idreg override code to work out the
+ * boot state.
+ */
+#define BOOT_CPU_FLAG_E2H	BIT_ULL(32)
+
 #ifndef __ASSEMBLY__
 
 #include <asm/ptrace.h>

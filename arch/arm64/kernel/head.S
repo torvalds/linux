@@ -457,6 +457,7 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 	bl	kasan_early_init
 #endif
 	mov	x0, x22				// pass FDT address in x0
+	mov	x1, x20				// pass the full boot status
 	bl	init_feature_override		// Parse cpu feature overrides
 	mov	x0, x20
 	bl	finalise_el2			// Prefer VHE if possible
@@ -479,8 +480,9 @@ SYM_FUNC_END(__primary_switched)
  * Since we cannot always rely on ERET synchronizing writes to sysregs (e.g. if
  * SCTLR_ELx.EOS is clear), we place an ISB prior to ERET.
  *
- * Returns either BOOT_CPU_MODE_EL1 or BOOT_CPU_MODE_EL2 in w0 if
- * booted in EL1 or EL2 respectively.
+ * Returns either BOOT_CPU_MODE_EL1 or BOOT_CPU_MODE_EL2 in x0 if
+ * booted in EL1 or EL2 respectively, with the top 32 bits containing
+ * potential context flags. These flags are *not* stored in __boot_cpu_mode.
  */
 SYM_FUNC_START(init_kernel_el)
 	mrs	x0, CurrentEL
@@ -545,6 +547,7 @@ __cpu_stick_to_vhe:
 	mov	x0, #HVC_FINALISE_EL2
 	hvc	#0
 	mov	x0, #BOOT_CPU_MODE_EL2
+	orr	x0, x0, #BOOT_CPU_FLAG_E2H
 	ret
 SYM_FUNC_END(init_kernel_el)
 
