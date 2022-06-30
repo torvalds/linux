@@ -122,17 +122,18 @@ SYM_CODE_START_LOCAL(__finalise_el2)
 	msr	sctlr_el2, x1
 	isb
 
-	mov	x1, #0				// SMCR controls
+	mov	x0, #0				// SMCR controls
 
-	mrs_s	x2, SYS_ID_AA64SMFR0_EL1
-	ubfx	x2, x2, #ID_AA64SMFR0_FA64_SHIFT, #1 // Full FP in SM?
-	cbz	x2, .Lskip_sme_fa64
+	// Full FP in SM?
+	mrs_s	x1, SYS_ID_AA64SMFR0_EL1
+	__check_override id_aa64smfr0 ID_AA64SMFR0_FA64_SHIFT 1 .Linit_sme_fa64 .Lskip_sme_fa64
 
-	orr	x1, x1, SMCR_ELx_FA64_MASK
+.Linit_sme_fa64:
+	orr	x0, x0, SMCR_ELx_FA64_MASK
 .Lskip_sme_fa64:
 
-	orr	x1, x1, #SMCR_ELx_LEN_MASK	// Enable full SME vector
-	msr_s	SYS_SMCR_EL2, x1		// length for EL1.
+	orr	x0, x0, #SMCR_ELx_LEN_MASK	// Enable full SME vector
+	msr_s	SYS_SMCR_EL2, x0		// length for EL1.
 
 	mrs_s	x1, SYS_SMIDR_EL1		// Priority mapping supported?
 	ubfx    x1, x1, #SMIDR_EL1_SMPS_SHIFT, #1

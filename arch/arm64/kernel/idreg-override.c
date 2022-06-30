@@ -127,6 +127,16 @@ static const struct ftr_set_desc isar2 __initconst = {
 	},
 };
 
+static const struct ftr_set_desc smfr0 __initconst = {
+	.name		= "id_aa64smfr0",
+	.override	= &id_aa64smfr0_override,
+	.fields		= {
+		/* FA64 is a one bit field... :-/ */
+	        { "fa64", ID_AA64SMFR0_FA64_SHIFT, 1, },
+		{}
+	},
+};
+
 extern struct arm64_ftr_override kaslr_feature_override;
 
 static const struct ftr_set_desc kaslr __initconst = {
@@ -146,6 +156,7 @@ static const struct ftr_set_desc * const regs[] __initconst = {
 	&pfr1,
 	&isar1,
 	&isar2,
+	&smfr0,
 	&kaslr,
 };
 
