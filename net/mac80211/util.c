@@ -1022,6 +1022,10 @@ static void ieee80211_parse_extension_element(u32 *crc,
 		if (ieee80211_eht_oper_size_ok(data, len))
 			elems->eht_operation = data;
 		break;
+	case WLAN_EID_EXT_EHT_MULTI_LINK:
+		if (ieee80211_mle_size_ok(data, len))
+			elems->multi_link = (void *)data;
+		break;
 	}
 }
 
@@ -1524,6 +1528,7 @@ ieee802_11_parse_elems_full(struct ieee80211_elems_parse_params *params)
 			.start = nontransmitted_profile,
 			.len = nontransmitted_profile_len,
 			.action = params->action,
+			.link_id = params->link_id,
 		};
 
 		_ieee802_11_parse_elems_full(&sub, elems, NULL);

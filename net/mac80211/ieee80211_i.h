@@ -1658,6 +1658,7 @@ struct ieee802_11_elems {
 	const struct ieee80211_aid_response_ie *aid_resp;
 	const struct ieee80211_eht_cap_elem *eht_cap;
 	const struct ieee80211_eht_operation *eht_operation;
+	const struct ieee80211_multi_link_elem *multi_link;
 
 	/* length of them, respectively */
 	u8 ext_capab_len;
@@ -2161,6 +2162,8 @@ static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
  * @bss: the BSS to parse this as, for multi-BSSID cases this can
  *	represent a non-transmitting BSS in which case the data
  *	for that non-transmitting BSS is returned
+ * @link_id: the link ID to parse elements for, if a STA profile
+ *	is present in the multi-link element, or -1 to ignore
  */
 struct ieee80211_elems_parse_params {
 	const u8 *start;
@@ -2169,6 +2172,7 @@ struct ieee80211_elems_parse_params {
 	u64 filter;
 	u32 crc;
 	struct cfg80211_bss *bss;
+	int link_id;
 };
 
 struct ieee802_11_elems *
@@ -2186,6 +2190,7 @@ ieee802_11_parse_elems_crc(const u8 *start, size_t len, bool action,
 		.filter = filter,
 		.crc = crc,
 		.bss = bss,
+		.link_id = -1,
 	};
 
 	return ieee802_11_parse_elems_full(&params);
