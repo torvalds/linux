@@ -56,8 +56,8 @@ SECTIONS
 
 	.rel.dyn	: { *(.rel*) }
 
-	ELF_DETAILS
 	.ARM.exidx : { *(.ARM.exidx*) }
+	ELF_DETAILS
 	.ARM.attributes 0 : { *(.ARM.attributes) }
 
 	/DISCARD/	: {
