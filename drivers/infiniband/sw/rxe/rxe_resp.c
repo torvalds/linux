@@ -1276,17 +1276,15 @@ int rxe_responder(void *arg)
 	struct rxe_dev *rxe = to_rdev(qp->ibqp.device);
 	enum resp_states state;
 	struct rxe_pkt_info *pkt = NULL;
-	int ret = 0;
+	int ret;
 
 	if (!rxe_get(qp))
 		return -EAGAIN;
 
 	qp->resp.aeth_syndrome = AETH_ACK_UNLIMITED;
 
-	if (!qp->valid) {
-		ret = -EINVAL;
-		goto done;
-	}
+	if (!qp->valid)
+		goto exit;
 
 	switch (qp->resp.state) {
 	case QP_STATE_RESET:
@@ -1466,9 +1464,16 @@ int rxe_responder(void *arg)
 		}
 	}
 
+	/* A non-zero return value will cause rxe_do_task to
+	 * exit its loop and end the tasklet. A zero return
+	 * will continue looping and return to rxe_responder
+	 */
+done:
+	ret = 0;
+	goto out;
 exit:
 	ret = -EAGAIN;
-done:
+out:
 	rxe_put(qp);
 	return ret;
 }

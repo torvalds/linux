@@ -562,7 +562,7 @@ int rxe_completer(void *arg)
 	struct sk_buff *skb = NULL;
 	struct rxe_pkt_info *pkt = NULL;
 	enum comp_state state;
-	int ret = 0;
+	int ret;
 
 	if (!rxe_get(qp))
 		return -EAGAIN;
@@ -571,8 +571,7 @@ int rxe_completer(void *arg)
 	    qp->req.state == QP_STATE_RESET) {
 		rxe_drain_resp_pkts(qp, qp->valid &&
 				    qp->req.state == QP_STATE_ERROR);
-		ret = -EAGAIN;
-		goto done;
+		goto exit;
 	}
 
 	if (qp->comp.timeout) {
@@ -582,10 +581,8 @@ int rxe_completer(void *arg)
 		qp->comp.timeout_retry = 0;
 	}
 
-	if (qp->req.need_retry) {
-		ret = -EAGAIN;
-		goto done;
-	}
+	if (qp->req.need_retry)
+		goto exit;
 
 	state = COMPST_GET_ACK;
 
@@ -678,8 +675,7 @@ int rxe_completer(void *arg)
 			    qp->qp_timeout_jiffies)
 				mod_timer(&qp->retrans_timer,
 					  jiffies + qp->qp_timeout_jiffies);
-			ret = -EAGAIN;
-			goto done;
+			goto exit;
 
 		case COMPST_ERROR_RETRY:
 			/* we come here if the retry timer fired and we did
@@ -691,10 +687,8 @@ int rxe_completer(void *arg)
 			 */
 
 			/* there is nothing to retry in this case */
-			if (!wqe || (wqe->state == wqe_state_posted)) {
-				ret = -EAGAIN;
-				goto done;
-			}
+			if (!wqe || (wqe->state == wqe_state_posted))
+				goto exit;
 
 			/* if we've started a retry, don't start another
 			 * retry sequence, unless this is a timeout.
@@ -746,8 +740,7 @@ int rxe_completer(void *arg)
 				mod_timer(&qp->rnr_nak_timer,
 					  jiffies + rnrnak_jiffies(aeth_syn(pkt)
 						& ~AETH_TYPE_MASK));
-				ret = -EAGAIN;
-				goto done;
+				goto exit;
 			} else {
 				rxe_counter_inc(rxe,
 						RXE_CNT_RNR_RETRY_EXCEEDED);
@@ -760,12 +753,20 @@ int rxe_completer(void *arg)
 			WARN_ON_ONCE(wqe->status == IB_WC_SUCCESS);
 			do_complete(qp, wqe);
 			rxe_qp_error(qp);
-			ret = -EAGAIN;
-			goto done;
+			goto exit;
 		}
 	}
 
+	/* A non-zero return value will cause rxe_do_task to
+	 * exit its loop and end the tasklet. A zero return
+	 * will continue looping and return to rxe_completer
+	 */
 done:
+	ret = 0;
+	goto out;
+exit:
+	ret = -EAGAIN;
+out:
 	if (pkt)
 		free_pkt(pkt);
 	rxe_put(qp);

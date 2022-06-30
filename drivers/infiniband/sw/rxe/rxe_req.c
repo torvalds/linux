@@ -624,6 +624,7 @@ int rxe_requester(void *arg)
 	u32 payload;
 	int mtu;
 	int opcode;
+	int err;
 	int ret;
 	struct rxe_send_wqe rollback_wqe;
 	u32 rollback_psn;
@@ -634,7 +635,6 @@ int rxe_requester(void *arg)
 	if (!rxe_get(qp))
 		return -EAGAIN;
 
-next_wqe:
 	if (unlikely(!qp->valid || qp->req.state == QP_STATE_ERROR))
 		goto exit;
 
@@ -649,7 +649,7 @@ next_wqe:
 		goto exit;
 	}
 
-	/* we come here if the retransmot timer has fired
+	/* we come here if the retransmit timer has fired
 	 * or if the rnr timer has fired. If the retransmit
 	 * timer fires while we are processing an RNR NAK wait
 	 * until the rnr timer has fired before starting the
@@ -670,11 +670,11 @@ next_wqe:
 	}
 
 	if (wqe->mask & WR_LOCAL_OP_MASK) {
-		ret = rxe_do_local_ops(qp, wqe);
-		if (unlikely(ret))
+		err = rxe_do_local_ops(qp, wqe);
+		if (unlikely(err))
 			goto err;
 		else
-			goto next_wqe;
+			goto done;
 	}
 
 	if (unlikely(qp_type(qp) == IB_QPT_RC &&
@@ -723,8 +723,7 @@ next_wqe:
 			wqe->state = wqe_state_done;
 			wqe->status = IB_WC_SUCCESS;
 			__rxe_do_task(&qp->comp.task);
-			rxe_put(qp);
-			return 0;
+			goto done;
 		}
 		payload = mtu;
 	}
@@ -740,25 +739,29 @@ next_wqe:
 	if (unlikely(!av)) {
 		pr_err("qp#%d Failed no address vector\n", qp_num(qp));
 		wqe->status = IB_WC_LOC_QP_OP_ERR;
-		goto err_drop_ah;
+		goto err;
 	}
 
 	skb = init_req_packet(qp, av, wqe, opcode, payload, &pkt);
 	if (unlikely(!skb)) {
 		pr_err("qp#%d Failed allocating skb\n", qp_num(qp));
 		wqe->status = IB_WC_LOC_QP_OP_ERR;
-		goto err_drop_ah;
+		if (ah)
+			rxe_put(ah);
+		goto err;
 	}
 
-	ret = finish_packet(qp, av, wqe, &pkt, skb, payload);
-	if (unlikely(ret)) {
+	err = finish_packet(qp, av, wqe, &pkt, skb, payload);
+	if (unlikely(err)) {
 		pr_debug("qp#%d Error during finish packet\n", qp_num(qp));
-		if (ret == -EFAULT)
+		if (err == -EFAULT)
 			wqe->status = IB_WC_LOC_PROT_ERR;
 		else
 			wqe->status = IB_WC_LOC_QP_OP_ERR;
 		kfree_skb(skb);
-		goto err_drop_ah;
+		if (ah)
+			rxe_put(ah);
+		goto err;
 	}
 
 	if (ah)
@@ -773,13 +776,14 @@ next_wqe:
 	save_state(wqe, qp, &rollback_wqe, &rollback_psn);
 	update_wqe_state(qp, wqe, &pkt);
 	update_wqe_psn(qp, wqe, &pkt, payload);
-	ret = rxe_xmit_packet(qp, &pkt, skb);
-	if (ret) {
+
+	err = rxe_xmit_packet(qp, &pkt, skb);
+	if (err) {
 		qp->need_req_skb = 1;
 
 		rollback_state(wqe, qp, &rollback_wqe, rollback_psn);
 
-		if (ret == -EAGAIN) {
+		if (err == -EAGAIN) {
 			rxe_run_task(&qp->req.task, 1);
 			goto exit;
 		}
@@ -790,16 +794,20 @@ next_wqe:
 
 	update_state(qp, &pkt);
 
-	goto next_wqe;
-
-err_drop_ah:
-	if (ah)
-		rxe_put(ah);
+	/* A non-zero return value will cause rxe_do_task to
+	 * exit its loop and end the tasklet. A zero return
+	 * will continue looping and return to rxe_requester
+	 */
+done:
+	ret = 0;
+	goto out;
 err:
 	wqe->state = wqe_state_error;
 	__rxe_do_task(&qp->comp.task);
-
 exit:
+	ret = -EAGAIN;
+out:
 	rxe_put(qp);
-	return -EAGAIN;
+
+	return ret;
 }
