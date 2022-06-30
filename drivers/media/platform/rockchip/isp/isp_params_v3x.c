@@ -3678,22 +3678,20 @@ isp_cgc_config(struct rkisp_isp_params_vdev *params_vdev,
 	params_vdev->quantization = V4L2_QUANTIZATION_FULL_RANGE;
 	val &= ~(ISP3X_SW_CGC_YUV_LIMIT | ISP3X_SW_CGC_RATIO_EN);
 	if (arg->yuv_limit) {
-		val |= ISP3X_SW_CGC_YUV_LIMIT;
 		params_vdev->quantization = V4L2_QUANTIZATION_LIM_RANGE;
 	}
 	if (arg->ratio_en)
 		val |= ISP3X_SW_CGC_RATIO_EN;
 	isp3_param_write(params_vdev, val, ISP3X_ISP_CTRL0, id);
 
+	/* cproc limit replace cgc limit config */
 	cproc_ctrl = isp3_param_read(params_vdev, ISP3X_CPROC_CTRL, id);
-	if (cproc_ctrl & CIF_C_PROC_CTR_ENABLE) {
-		val = CIF_C_PROC_YOUT_FULL | CIF_C_PROC_YIN_FULL | CIF_C_PROC_COUT_FULL;
-		if (arg->yuv_limit)
-			cproc_ctrl &= ~val;
-		else
-			cproc_ctrl |= val;
-		isp3_param_write(params_vdev, cproc_ctrl, ISP3X_CPROC_CTRL, id);
+	if (arg->yuv_limit) {
+		cproc_ctrl = CIF_C_PROC_CTR_ENABLE;
+	} else {
+		cproc_ctrl |= CIF_C_PROC_YOUT_FULL | CIF_C_PROC_YIN_FULL | CIF_C_PROC_COUT_FULL;
 	}
+	isp3_param_write(params_vdev, cproc_ctrl, ISP3X_CPROC_CTRL, id);
 
 	eff_ctrl = isp3_param_read(params_vdev, ISP3X_IMG_EFF_CTRL, id);
 	if (eff_ctrl & CIF_IMG_EFF_CTRL_ENABLE) {
