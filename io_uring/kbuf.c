@@ -115,7 +115,7 @@ static void __user *io_provided_buffer_select(struct io_kiocb *req, size_t *len,
 
 		kbuf = list_first_entry(&bl->buf_list, struct io_buffer, list);
 		list_del(&kbuf->list);
-		if (*len > kbuf->len)
+		if (*len == 0 || *len > kbuf->len)
 			*len = kbuf->len;
 		req->flags |= REQ_F_BUFFER_SELECTED;
 		req->kbuf = kbuf;
@@ -145,7 +145,7 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 		buf = page_address(bl->buf_pages[index]);
 		buf += off;
 	}
-	if (*len > buf->len)
+	if (*len == 0 || *len > buf->len)
 		*len = buf->len;
 	req->flags |= REQ_F_BUFFER_RING;
 	req->buf_list = bl;
