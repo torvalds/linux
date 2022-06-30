@@ -628,6 +628,14 @@ config SPI_PL022
 	  controller. If you have an embedded system with an AMBA(R)
 	  bus and a PL022 controller, say Y or M here.
 
+config SPI_PL022_STARFIVE
+	tristate "ARM AMBA PL022 SSP controller on StarFive SoC platform"
+	depends on ARM_AMBA && SOC_STARFIVE
+	default n if SPI_PL022
+	help
+	  Say 'Y' or 'M' here if you are building for StarFive SoCs platforms
+	  that contain AMBA(R) PrimeCell PL022 SSP controller core. 
+
 config SPI_PPC4xx
 	tristate "PPC4xx SPI Controller"
 	depends on PPC32 && 4xx
