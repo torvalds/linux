@@ -562,4 +562,6 @@ config MINIDUMP_MAX_ENTRIES
 	  This defines maximum number of entries to be allocated for application
 	  subsytem in Minidump table.
 
+source "drivers/soc/qcom/mem_buf/Kconfig"
+
 endmenu

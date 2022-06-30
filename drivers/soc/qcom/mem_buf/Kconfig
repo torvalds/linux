@@ -1,0 +1,39 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+config QCOM_MEM_BUF
+	tristate "Qualcomm Technologies, Inc. Memory Buffer Sharing Driver"
+	select QCOM_MEM_BUF_DEV
+	help
+	  Add support for lending memory from one virtual machine to another.
+	  This driver communicates with the hypervisor, as well as other
+	  virtual machines, to request and lend memory from and to VMs
+	  respectively.
+	  If unsure, say N
+
+config QCOM_MEM_BUF_GH
+	bool "Qualcomm Technologies, Inc. Memory Buffer Gunyah Hypervisor Support"
+	depends on GH_RM_DRV
+	select QCOM_MEM_BUF_DEV_GH
+	help
+	  Enables additional support for sharing memory with VMs that have their own
+	  operating systems, as opposed to peripheral VMs, which do not have their
+	  own operating systems. These VMs are managed by the Gunyah Hypervisor, and thus
+	  sharing memory with them requires interacting with the Gunyah Hypervisor.
+	  If unsure, say N.
+
+config QCOM_MEM_BUF_DEV
+	tristate
+
+config QCOM_MEM_BUF_DEV_GH
+	bool
+
+config QCOM_MEM_BUF_MSGQ
+	tristate "Qualcomm Technologies, Inc. Memory Buffer Message Queue Support"
+	depends on GH_MSGQ && QCOM_MEM_BUF_DEV_GH
+	help
+	  Enables support for communicating with VMs over message queues. The communication
+	  with the VMs follows a specific communication format that is defined by the mem-buf
+	  message queue protocol. The protocol allows for allocation requests to be submitted
+	  between VMs, and relinquished when a VM is finished with the memory that it
+	  requested from another VM.
+	  If unsure, say N.
