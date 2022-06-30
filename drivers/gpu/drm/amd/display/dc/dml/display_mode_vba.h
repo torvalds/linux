@@ -232,7 +232,6 @@ struct vba_vars_st {
 	double DISPCLKWithRampingRoundedToDFSGranularity;
 	double DISPCLKWithoutRampingRoundedToDFSGranularity;
 	double MaxDispclkRoundedToDFSGranularity;
-	double MaxDppclkRoundedToDFSGranularity;
 	bool DCCEnabledAnyPlane;
 	double ReturnBandwidthToDCN;
 	unsigned int TotalActiveDPP;
@@ -249,7 +248,6 @@ struct vba_vars_st {
 	double VBlankTime;
 	double SmallestVBlank;
 	enum dm_prefetch_modes AllowForPStateChangeOrStutterInVBlankFinal; // Mode Support only
-	double DCFCLKDeepSleepPerSurface[DC__NUM_DPP__MAX];
 	double DCFCLKDeepSleepPerPlane[DC__NUM_DPP__MAX];
 	double EffectiveDETPlusLBLinesLuma;
 	double EffectiveDETPlusLBLinesChroma;
@@ -297,7 +295,6 @@ struct vba_vars_st {
 	double SMNLatency;
 	double FCLKChangeLatency;
 	unsigned int MALLAllocatedForDCNFinal;
-	double DefaultGPUVMMinPageSizeKBytes; // Default for the project
 	double MaxAveragePercentOfIdealFabricBWDisplayCanUseInNormalSystemOperation;
 	double MaxAveragePercentOfIdealDRAMBWDisplayCanUseInNormalSystemOperationSTROBE;
 	double PercentOfIdealDRAMBWReceivedAfterUrgLatencySTROBE;
@@ -819,8 +816,6 @@ struct vba_vars_st {
 	double         dummy8[DC__NUM_DPP__MAX];
 	double         dummy13[DC__NUM_DPP__MAX];
 	double         dummy_double_array[2][DC__NUM_DPP__MAX];
-	unsigned int        dummyinteger1ms[DC__NUM_DPP__MAX];
-	double        dummyinteger2ms[DC__NUM_DPP__MAX];
 	unsigned int        dummyinteger3[DC__NUM_DPP__MAX];
 	unsigned int        dummyinteger4[DC__NUM_DPP__MAX];
 	unsigned int        dummyinteger5;
@@ -830,16 +825,7 @@ struct vba_vars_st {
 	unsigned int        dummyinteger9;
 	unsigned int        dummyinteger10;
 	unsigned int        dummyinteger11;
-	unsigned int        dummyinteger12;
-	unsigned int        dummyinteger30;
-	unsigned int        dummyinteger31;
-	unsigned int        dummyinteger32;
-	unsigned int        dummyintegerarr1[DC__NUM_DPP__MAX];
-	unsigned int        dummyintegerarr2[DC__NUM_DPP__MAX];
-	unsigned int        dummyintegerarr3[DC__NUM_DPP__MAX];
-	unsigned int        dummyintegerarr4[DC__NUM_DPP__MAX];
 	unsigned int        dummy_integer_array[8][DC__NUM_DPP__MAX];
-	unsigned int        dummy_integer_array22[22][DC__NUM_DPP__MAX];
 
 	bool           dummysinglestring;
 	bool           SingleDPPViewportSizeSupportPerPlane[DC__NUM_DPP__MAX];
@@ -980,7 +966,6 @@ struct vba_vars_st {
 	double TimePerChromaMetaChunkFlip[DC__NUM_DPP__MAX];
 	unsigned int DCCCMaxUncompressedBlock[DC__NUM_DPP__MAX];
 	unsigned int DCCCMaxCompressedBlock[DC__NUM_DPP__MAX];
-	unsigned int DCCCIndependent64ByteBlock[DC__NUM_DPP__MAX];
 	double VStartupMargin;
 	bool NotEnoughTimeForDynamicMetadata[DC__NUM_DPP__MAX];
 
@@ -1085,8 +1070,6 @@ struct vba_vars_st {
 	double WritebackDelayTime[DC__NUM_DPP__MAX];
 	unsigned int DCCYIndependentBlock[DC__NUM_DPP__MAX];
 	unsigned int DCCCIndependentBlock[DC__NUM_DPP__MAX];
-	unsigned int dummyinteger15;
-	unsigned int dummyinteger16;
 	unsigned int dummyinteger17;
 	unsigned int dummyinteger18;
 	unsigned int dummyinteger19;
@@ -1147,17 +1130,11 @@ struct vba_vars_st {
 	int Z8NumberOfStutterBurstsPerFrame;
 	unsigned int MaximumDSCBitsPerComponent;
 	unsigned int NotEnoughUrgentLatencyHidingA[DC__VOLTAGE_STATES][2];
-	double UrgentLatencyWithUSRRetraining;
-	double UrgLatencyWithUSRRetraining[DC__VOLTAGE_STATES];
 	double ReadBandwidthSurfaceLuma[DC__NUM_DPP__MAX];
 	double ReadBandwidthSurfaceChroma[DC__NUM_DPP__MAX];
 	double SurfaceRequiredDISPCLKWithoutODMCombine;
 	double SurfaceRequiredDISPCLK;
-	double SurfaceRequiredDISPCLKWithODMCombine2To1;
-	double SurfaceRequiredDISPCLKWithODMCombine4To1;
 	double MinActiveFCLKChangeLatencySupported;
-	double dummy14;
-	double dummy15;
 	int MinVoltageLevel;
 	int MaxVoltageLevel;
 	unsigned int TotalNumberOfSingleDPPSurfaces[DC__VOLTAGE_STATES][2];
@@ -1168,17 +1145,10 @@ struct vba_vars_st {
 	bool ExceededMALLSize;
 	bool PTE_BUFFER_MODE[DC__NUM_DPP__MAX];
 	unsigned int BIGK_FRAGMENT_SIZE[DC__NUM_DPP__MAX];
-	unsigned int dummyinteger33;
 	unsigned int CompressedBufferSizeInkByteThisState;
 	enum dm_fclock_change_support FCLKChangeSupport[DC__VOLTAGE_STATES][2];
-	Latencies myLatency;
-	Latencies mLatency;
-	Watermarks DummyWatermark;
 	bool USRRetrainingSupport[DC__VOLTAGE_STATES][2];
-	bool dummyBooleanvector1[DC__NUM_DPP__MAX];
-	bool dummyBooleanvector2[DC__NUM_DPP__MAX];
 	enum dm_use_mall_for_pstate_change_mode UsesMALLForPStateChange[DC__NUM_DPP__MAX];
-	bool NotEnoughUrgentLatencyHiding_dml32[DC__VOLTAGE_STATES][2];
 	bool UnboundedRequestEnabledAllStates[DC__VOLTAGE_STATES][2];
 	bool SingleDPPViewportSizeSupportPerSurface[DC__NUM_DPP__MAX];
 	enum dm_use_mall_for_static_screen_mode UseMALLForStaticScreen[DC__NUM_DPP__MAX];
@@ -1186,9 +1156,6 @@ struct vba_vars_st {
 	bool DRAMClockChangeRequirementFinal;
 	bool FCLKChangeRequirementFinal;
 	bool USRRetrainingRequiredFinal;
-	bool MALLUseFinal;
-	bool ConfigurableDETSizeEnFinal;
-	bool dummyboolean;
 	unsigned int DETSizeOverride[DC__NUM_DPP__MAX];
 	unsigned int nomDETInKByte;
 	enum mpc_combine_affinity  MPCCombineUse[DC__NUM_DPP__MAX];
