@@ -20,6 +20,7 @@
 #include <linux/io.h>
 #include <linux/dma-mapping.h>
 #include <linux/uaccess.h>
+#include <linux/mfd/syscon.h>
 
 #include <linux/videodev2.h>
 
@@ -958,6 +959,7 @@ static int stfcamss_probe(struct platform_device *pdev)
 	struct stfcamss *stfcamss;
 	struct stf_vin_dev *vin;
 	struct device *dev = &pdev->dev;
+	struct of_phandle_args args;
 	int ret = 0, num_subdevs;
 
 	dev_info(dev, "stfcamss probe enter!\n");
@@ -1061,6 +1063,20 @@ static int stfcamss_probe(struct platform_device *pdev)
 		st_err(ST_CAMSS, "faied to get reset controls\n");
 		return ret;
 	}
+
+	ret = of_parse_phandle_with_fixed_args(dev->of_node,
+			"starfive,aon-syscon", 1, 0, &args);
+	if (ret < 0) {
+		dev_err(dev, "Failed to parse starfive,aon-syscon\n");
+		return -EINVAL;
+	}
+
+	stfcamss->stf_aon_syscon = syscon_node_to_regmap(args.np);
+	of_node_put(args.np);
+	if (IS_ERR(stfcamss->stf_aon_syscon))
+		return PTR_ERR(stfcamss->stf_aon_syscon);
+
+	stfcamss->aon_gp_reg = args.args[0];
 
 	ret = stfcamss_get_mem_res(pdev, vin);
 	if (ret) {
