@@ -16,6 +16,25 @@
 #include <asm/ptrace.h>
 #include <asm/virt.h>
 
+// Warning, hardcoded register allocation
+// This will clobber x1 and x2.
+.macro check_override idreg, fld, pass, fail
+	mrs	x1, \idreg\()_el1
+	ubfx	x1, x1, #\fld, #4
+	cbz	x1, \fail
+
+	adr_l	x1, \idreg\()_override
+	ldr	x2, [x1, FTR_OVR_VAL_OFFSET]
+	ldr	x1, [x1, FTR_OVR_MASK_OFFSET]
+	ubfx	x2, x2, #\fld, #4
+	ubfx	x1, x1, #\fld, #4
+	cmp	x1, xzr
+	and	x2, x2, x1
+	csinv	x2, x2, xzr, ne
+	cbnz	x2, \pass
+	b	\fail
+.endm
+
 	.text
 	.pushsection	.hyp.text, "ax"
 
@@ -80,20 +99,7 @@ SYM_CODE_START_LOCAL(__finalise_el2)
 	tbnz	x1, #0, 1f
 
 	// Needs to be VHE capable, obviously
-	mrs	x1, id_aa64mmfr1_el1
-	ubfx	x1, x1, #ID_AA64MMFR1_VHE_SHIFT, #4
-	cbz	x1, 1f
-
-	// Check whether VHE is disabled from the command line
-	adr_l	x1, id_aa64mmfr1_override
-	ldr	x2, [x1, FTR_OVR_VAL_OFFSET]
-	ldr	x1, [x1, FTR_OVR_MASK_OFFSET]
-	ubfx	x2, x2, #ID_AA64MMFR1_VHE_SHIFT, #4
-	ubfx	x1, x1, #ID_AA64MMFR1_VHE_SHIFT, #4
-	cmp	x1, xzr
-	and	x2, x2, x1
-	csinv	x2, x2, xzr, ne
-	cbnz	x2, 2f
+	check_override id_aa64mmfr1 ID_AA64MMFR1_VHE_SHIFT 2f 1f
 
 1:	mov_q	x0, HVC_STUB_ERR
 	eret
