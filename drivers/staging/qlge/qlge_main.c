@@ -2461,7 +2461,7 @@ static int qlge_tso(struct sk_buff *skb, struct qlge_ob_mac_tso_iocb_req *mac_io
 		mac_iocb_ptr->flags3 |= OB_MAC_TSO_IOCB_IC;
 		mac_iocb_ptr->frame_len = cpu_to_le32((u32)skb->len);
 		mac_iocb_ptr->total_hdrs_len =
-			cpu_to_le16(skb_transport_offset(skb) + tcp_hdrlen(skb));
+			cpu_to_le16(skb_tcp_all_headers(skb));
 		mac_iocb_ptr->net_trans_offset =
 			cpu_to_le16(skb_network_offset(skb) |
 				    skb_transport_offset(skb)

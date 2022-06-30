@@ -737,9 +737,9 @@ void be_link_status_update(struct be_adapter *adapter, u8 link_status)
 static int be_gso_hdr_len(struct sk_buff *skb)
 {
 	if (skb->encapsulation)
-		return skb_inner_transport_offset(skb) +
-		       inner_tcp_hdrlen(skb);
-	return skb_transport_offset(skb) + tcp_hdrlen(skb);
+		return skb_inner_tcp_all_headers(skb);
+
+	return skb_tcp_all_headers(skb);
 }
 
 static void be_tx_stats_update(struct be_tx_obj *txo, struct sk_buff *skb)

@@ -1187,7 +1187,7 @@ ixgb_tso(struct ixgb_adapter *adapter, struct sk_buff *skb)
 		if (err < 0)
 			return err;
 
-		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdr_len = skb_tcp_all_headers(skb);
 		mss = skb_shinfo(skb)->gso_size;
 		iph = ip_hdr(skb);
 		iph->tot_len = 0;

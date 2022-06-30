@@ -2072,7 +2072,7 @@ static u16 atl1c_cal_tpd_req(const struct sk_buff *skb)
 	tpd_req = skb_shinfo(skb)->nr_frags + 1;
 
 	if (skb_is_gso(skb)) {
-		proto_hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		proto_hdr_len = skb_tcp_all_headers(skb);
 		if (proto_hdr_len < skb_headlen(skb))
 			tpd_req++;
 		if (skb_shinfo(skb)->gso_type & SKB_GSO_TCPV6)
@@ -2107,7 +2107,7 @@ static int atl1c_tso_csum(struct atl1c_adapter *adapter,
 			if (real_len < skb->len)
 				pskb_trim(skb, real_len);
 
-			hdr_len = (skb_transport_offset(skb) + tcp_hdrlen(skb));
+			hdr_len = skb_tcp_all_headers(skb);
 			if (unlikely(skb->len == hdr_len)) {
 				/* only xsum need */
 				if (netif_msg_tx_queued(adapter))
@@ -2132,7 +2132,7 @@ static int atl1c_tso_csum(struct atl1c_adapter *adapter,
 			*tpd = atl1c_get_tpd(adapter, queue);
 			ipv6_hdr(skb)->payload_len = 0;
 			/* check payload == 0 byte ? */
-			hdr_len = (skb_transport_offset(skb) + tcp_hdrlen(skb));
+			hdr_len = skb_tcp_all_headers(skb);
 			if (unlikely(skb->len == hdr_len)) {
 				/* only xsum need */
 				if (netif_msg_tx_queued(adapter))
@@ -2219,7 +2219,8 @@ static int atl1c_tx_map(struct atl1c_adapter *adapter,
 	tso = (tpd->word1 >> TPD_LSO_EN_SHIFT) & TPD_LSO_EN_MASK;
 	if (tso) {
 		/* TSO */
-		map_len = hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdr_len = skb_tcp_all_headers(skb);
+		map_len = hdr_len;
 		use_tpd = tpd;
 
 		buffer_info = atl1c_get_tx_buffer(adapter, use_tpd);

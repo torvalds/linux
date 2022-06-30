@@ -31,8 +31,6 @@
 #define HNS_BUFFER_SIZE_2048 2048
 
 #define BD_MAX_SEND_SIZE 8191
-#define SKB_TMP_LEN(SKB) \
-	(((SKB)->transport_header - (SKB)->mac_header) + tcp_hdrlen(SKB))
 
 static void fill_v2_desc_hw(struct hnae_ring *ring, void *priv, int size,
 			    int send_sz, dma_addr_t dma, int frag_end,
@@ -94,7 +92,7 @@ static void fill_v2_desc_hw(struct hnae_ring *ring, void *priv, int size,
 						     HNSV2_TXD_TSE_B, 1);
 					l4_len = tcp_hdrlen(skb);
 					mss = skb_shinfo(skb)->gso_size;
-					paylen = skb->len - SKB_TMP_LEN(skb);
+					paylen = skb->len - skb_tcp_all_headers(skb);
 				}
 			} else if (skb->protocol == htons(ETH_P_IPV6)) {
 				hnae_set_bit(tvsvsn, HNSV2_TXD_IPV6_B, 1);
@@ -108,7 +106,7 @@ static void fill_v2_desc_hw(struct hnae_ring *ring, void *priv, int size,
 						     HNSV2_TXD_TSE_B, 1);
 					l4_len = tcp_hdrlen(skb);
 					mss = skb_shinfo(skb)->gso_size;
-					paylen = skb->len - SKB_TMP_LEN(skb);
+					paylen = skb->len - skb_tcp_all_headers(skb);
 				}
 			}
 			desc->tx.ip_offset = ip_offset;

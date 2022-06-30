@@ -1838,9 +1838,9 @@ static unsigned int hns3_tx_bd_num(struct sk_buff *skb, unsigned int *bd_size,
 static unsigned int hns3_gso_hdr_len(struct sk_buff *skb)
 {
 	if (!skb->encapsulation)
-		return skb_transport_offset(skb) + tcp_hdrlen(skb);
+		return skb_tcp_all_headers(skb);
 
-	return skb_inner_transport_offset(skb) + inner_tcp_hdrlen(skb);
+	return skb_inner_tcp_all_headers(skb);
 }
 
 /* HW need every continuous max_non_tso_bd_num buffer data to be larger

@@ -386,7 +386,7 @@ static int gve_prep_tso(struct sk_buff *skb)
 				     (__force __wsum)htonl(paylen));
 
 		/* Compute length of segmentation header. */
-		header_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		header_len = skb_tcp_all_headers(skb);
 		break;
 	default:
 		return -EINVAL;
@@ -598,9 +598,9 @@ static int gve_num_buffer_descs_needed(const struct sk_buff *skb)
  */
 static bool gve_can_send_tso(const struct sk_buff *skb)
 {
-	const int header_len = skb_checksum_start_offset(skb) + tcp_hdrlen(skb);
 	const int max_bufs_per_seg = GVE_TX_MAX_DATA_DESCS - 1;
 	const struct skb_shared_info *shinfo = skb_shinfo(skb);
+	const int header_len = skb_tcp_all_headers(skb);
 	const int gso_size = shinfo->gso_size;
 	int cur_seg_num_bufs;
 	int cur_seg_size;

@@ -1264,7 +1264,7 @@ static int emac_tso_csum(struct emac_adapter *adpt,
 				pskb_trim(skb, pkt_len);
 		}
 
-		hdr_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		hdr_len = skb_tcp_all_headers(skb);
 		if (unlikely(skb->len == hdr_len)) {
 			/* we only need to do csum */
 			netif_warn(adpt, tx_err, adpt->netdev,
@@ -1339,7 +1339,7 @@ static void emac_tx_fill_tpd(struct emac_adapter *adpt,
 
 	/* if Large Segment Offload is (in TCP Segmentation Offload struct) */
 	if (TPD_LSO(tpd)) {
-		mapped_len = skb_transport_offset(skb) + tcp_hdrlen(skb);
+		mapped_len = skb_tcp_all_headers(skb);
 
 		tpbuf = GET_TPD_BUFFER(tx_q, tx_q->tpd.produce_idx);
 		tpbuf->length = mapped_len;
