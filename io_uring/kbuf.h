@@ -103,16 +103,21 @@ static inline void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 static inline unsigned int __io_put_kbuf_list(struct io_kiocb *req,
 					      struct list_head *list)
 {
+	unsigned int ret = IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
+
 	if (req->flags & REQ_F_BUFFER_RING) {
-		if (req->buf_list)
+		if (req->buf_list) {
+			req->buf_index = req->buf_list->bgid;
 			req->buf_list->head++;
+		}
 		req->flags &= ~REQ_F_BUFFER_RING;
 	} else {
+		req->buf_index = req->kbuf->bgid;
 		list_add(&req->kbuf->list, list);
 		req->flags &= ~REQ_F_BUFFER_SELECTED;
 	}
 
-	return IORING_CQE_F_BUFFER | (req->buf_index << IORING_CQE_BUFFER_SHIFT);
+	return ret;
 }
 
 static inline unsigned int io_put_kbuf_comp(struct io_kiocb *req)
