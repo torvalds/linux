@@ -396,6 +396,9 @@ static int sparx5_handle_port_mdb_add(struct net_device *dev,
 	u32 mact_entry;
 	int res, err;
 
+	if (!sparx5_netdevice_check(dev))
+		return -EOPNOTSUPP;
+
 	if (netif_is_bridge_master(v->obj.orig_dev)) {
 		sparx5_mact_learn(spx5, PGID_CPU, v->addr, v->vid);
 		return 0;
@@ -465,6 +468,9 @@ static int sparx5_handle_port_mdb_del(struct net_device *dev,
 	u16 pgid_idx, vid;
 	u32 mact_entry, res, pgid_entry[3];
 	int err;
+
+	if (!sparx5_netdevice_check(dev))
+		return -EOPNOTSUPP;
 
 	if (netif_is_bridge_master(v->obj.orig_dev)) {
 		sparx5_mact_forget(spx5, v->addr, v->vid);
