@@ -1354,7 +1354,7 @@ int spi_delay_to_ns(struct spi_delay *_delay, struct spi_transfer *xfer)
 		/* Nothing to do here */
 		break;
 	case SPI_DELAY_UNIT_SCK:
-		/* clock cycles need to be obtained from spi_transfer */
+		/* Clock cycles need to be obtained from spi_transfer */
 		if (!xfer)
 			return -EINVAL;
 		/*
@@ -1403,7 +1403,7 @@ static void _spi_transfer_cs_change_delay(struct spi_message *msg,
 	u32 unit = xfer->cs_change_delay.unit;
 	int ret;
 
-	/* return early on "fast" mode - for everything but USECS */
+	/* Return early on "fast" mode - for everything but USECS */
 	if (!delay) {
 		if (unit == SPI_DELAY_UNIT_USECS)
 			_spi_transfer_delay_ns(default_delay_ns);
@@ -1629,19 +1629,19 @@ static int __spi_pump_transfer_message(struct spi_controller *ctlr,
 	WRITE_ONCE(ctlr->cur_msg_incomplete, true);
 	WRITE_ONCE(ctlr->cur_msg_need_completion, false);
 	reinit_completion(&ctlr->cur_msg_completion);
-	smp_wmb(); /* make these available to spi_finalize_current_message */
+	smp_wmb(); /* Make these available to spi_finalize_current_message() */
 
 	ret = ctlr->transfer_one_message(ctlr, msg);
 	if (ret) {
 		dev_err(&ctlr->dev,
 			"failed to transfer one message from queue\n");
 		return ret;
-	} else {
-		WRITE_ONCE(ctlr->cur_msg_need_completion, true);
-		smp_mb(); /* see spi_finalize_current_message()... */
-		if (READ_ONCE(ctlr->cur_msg_incomplete))
-			wait_for_completion(&ctlr->cur_msg_completion);
 	}
+
+	WRITE_ONCE(ctlr->cur_msg_need_completion, true);
+	smp_mb(); /* See spi_finalize_current_message()... */
+	if (READ_ONCE(ctlr->cur_msg_incomplete))
+		wait_for_completion(&ctlr->cur_msg_completion);
 
 	return 0;
 }
@@ -1727,9 +1727,9 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 	spin_unlock_irqrestore(&ctlr->queue_lock, flags);
 
 	ret = __spi_pump_transfer_message(ctlr, msg, was_busy);
-
 	if (!ret)
 		kthread_queue_work(ctlr->kworker, &ctlr->pump_messages);
+
 	ctlr->cur_msg = NULL;
 	ctlr->fallback = false;
 
@@ -1905,7 +1905,7 @@ struct spi_message *spi_get_next_queued_message(struct spi_controller *ctlr)
 	struct spi_message *next;
 	unsigned long flags;
 
-	/* get a pointer to the next message, if any */
+	/* Get a pointer to the next message, if any */
 	spin_lock_irqsave(&ctlr->queue_lock, flags);
 	next = list_first_entry_or_null(&ctlr->queue, struct spi_message,
 					queue);
@@ -2558,7 +2558,7 @@ struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
 	acpi_dev_free_resource_list(&resource_list);
 
 	if (ret < 0)
-		/* found SPI in _CRS but it points to another controller */
+		/* Found SPI in _CRS but it points to another controller */
 		return ERR_PTR(-ENODEV);
 
 	if (!lookup.max_speed_hz &&
@@ -3014,7 +3014,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 		return status;
 
 	if (ctlr->bus_num >= 0) {
-		/* devices with a fixed bus num must check-in with the num */
+		/* Devices with a fixed bus num must check-in with the num */
 		mutex_lock(&board_lock);
 		id = idr_alloc(&spi_master_idr, ctlr, ctlr->bus_num,
 			ctlr->bus_num + 1, GFP_KERNEL);
@@ -3023,7 +3023,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 			return id == -ENOSPC ? -EBUSY : id;
 		ctlr->bus_num = id;
 	} else if (ctlr->dev.of_node) {
-		/* allocate dynamic bus number using Linux idr */
+		/* Allocate dynamic bus number using Linux idr */
 		id = of_alias_get_id(ctlr->dev.of_node, "spi");
 		if (id >= 0) {
 			ctlr->bus_num = id;
@@ -3082,7 +3082,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 		goto free_bus_id;
 	}
 
-	/* setting last_cs to -1 means no chip selected */
+	/* Setting last_cs to -1 means no chip selected */
 	ctlr->last_cs = -1;
 
 	status = device_add(&ctlr->dev);
@@ -3106,7 +3106,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 			goto free_bus_id;
 		}
 	}
-	/* add statistics */
+	/* Add statistics */
 	ctlr->pcpu_statistics = spi_alloc_pcpu_stats(dev);
 	if (!ctlr->pcpu_statistics) {
 		dev_err(dev, "Error allocating per-cpu statistics\n");
@@ -3209,7 +3209,7 @@ void spi_unregister_controller(struct spi_controller *ctlr)
 
 	device_del(&ctlr->dev);
 
-	/* free bus id */
+	/* Free bus id */
 	mutex_lock(&board_lock);
 	if (found == ctlr)
 		idr_remove(&spi_master_idr, id);
@@ -3268,14 +3268,14 @@ static void __spi_replace_transfers_release(struct spi_controller *ctlr,
 	struct spi_replaced_transfers *rxfer = res;
 	size_t i;
 
-	/* call extra callback if requested */
+	/* Call extra callback if requested */
 	if (rxfer->release)
 		rxfer->release(ctlr, msg, res);
 
-	/* insert replaced transfers back into the message */
+	/* Insert replaced transfers back into the message */
 	list_splice(&rxfer->replaced_transfers, rxfer->replaced_after);
 
-	/* remove the formerly inserted entries */
+	/* Remove the formerly inserted entries */
 	for (i = 0; i < rxfer->inserted; i++)
 		list_del(&rxfer->inserted_transfers[i].transfer_list);
 }
@@ -3308,7 +3308,7 @@ static struct spi_replaced_transfers *spi_replace_transfers(
 	struct spi_transfer *xfer;
 	size_t i;
 
-	/* allocate the structure using spi_res */
+	/* Allocate the structure using spi_res */
 	rxfer = spi_res_alloc(msg->spi, __spi_replace_transfers_release,
 			      struct_size(rxfer, inserted_transfers, insert)
 			      + extradatasize,
@@ -3316,15 +3316,15 @@ static struct spi_replaced_transfers *spi_replace_transfers(
 	if (!rxfer)
 		return ERR_PTR(-ENOMEM);
 
-	/* the release code to invoke before running the generic release */
+	/* The release code to invoke before running the generic release */
 	rxfer->release = release;
 
-	/* assign extradata */
+	/* Assign extradata */
 	if (extradatasize)
 		rxfer->extradata =
 			&rxfer->inserted_transfers[insert];
 
-	/* init the replaced_transfers list */
+	/* Init the replaced_transfers list */
 	INIT_LIST_HEAD(&rxfer->replaced_transfers);
 
 	/*
@@ -3333,7 +3333,7 @@ static struct spi_replaced_transfers *spi_replace_transfers(
 	 */
 	rxfer->replaced_after = xfer_first->transfer_list.prev;
 
-	/* remove the requested number of transfers */
+	/* Remove the requested number of transfers */
 	for (i = 0; i < remove; i++) {
 		/*
 		 * If the entry after replaced_after it is msg->transfers
@@ -3343,14 +3343,14 @@ static struct spi_replaced_transfers *spi_replace_transfers(
 		if (rxfer->replaced_after->next == &msg->transfers) {
 			dev_err(&msg->spi->dev,
 				"requested to remove more spi_transfers than are available\n");
-			/* insert replaced transfers back into the message */
+			/* Insert replaced transfers back into the message */
 			list_splice(&rxfer->replaced_transfers,
 				    rxfer->replaced_after);
 
-			/* free the spi_replace_transfer structure */
+			/* Free the spi_replace_transfer structure... */
 			spi_res_free(rxfer);
 
-			/* and return with an error */
+			/* ...and return with an error */
 			return ERR_PTR(-EINVAL);
 		}
 
@@ -3367,26 +3367,26 @@ static struct spi_replaced_transfers *spi_replace_transfers(
 	 * based on the first transfer to get removed.
 	 */
 	for (i = 0; i < insert; i++) {
-		/* we need to run in reverse order */
+		/* We need to run in reverse order */
 		xfer = &rxfer->inserted_transfers[insert - 1 - i];
 
-		/* copy all spi_transfer data */
+		/* Copy all spi_transfer data */
 		memcpy(xfer, xfer_first, sizeof(*xfer));
 
-		/* add to list */
+		/* Add to list */
 		list_add(&xfer->transfer_list, rxfer->replaced_after);
 
-		/* clear cs_change and delay for all but the last */
+		/* Clear cs_change and delay for all but the last */
 		if (i) {
 			xfer->cs_change = false;
 			xfer->delay.value = 0;
 		}
 	}
 
-	/* set up inserted */
+	/* Set up inserted... */
 	rxfer->inserted = insert;
 
-	/* and register it with spi_res/spi_message */
+	/* ...and register it with spi_res/spi_message */
 	spi_res_add(msg, rxfer);
 
 	return rxfer;
@@ -3403,10 +3403,10 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 	size_t offset;
 	size_t count, i;
 
-	/* calculate how many we have to replace */
+	/* Calculate how many we have to replace */
 	count = DIV_ROUND_UP(xfer->len, maxsize);
 
-	/* create replacement */
+	/* Create replacement */
 	srt = spi_replace_transfers(msg, xfer, 1, count, NULL, 0, gfp);
 	if (IS_ERR(srt))
 		return PTR_ERR(srt);
@@ -3429,9 +3429,9 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 	 */
 	xfers[0].len = min_t(size_t, maxsize, xfer[0].len);
 
-	/* all the others need rx_buf/tx_buf also set */
+	/* All the others need rx_buf/tx_buf also set */
 	for (i = 1, offset = maxsize; i < count; offset += maxsize, i++) {
-		/* update rx_buf, tx_buf and dma */
+		/* Update rx_buf, tx_buf and dma */
 		if (xfers[i].rx_buf)
 			xfers[i].rx_buf += offset;
 		if (xfers[i].rx_dma)
@@ -3441,7 +3441,7 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 		if (xfers[i].tx_dma)
 			xfers[i].tx_dma += offset;
 
-		/* update length */
+		/* Update length */
 		xfers[i].len = min(maxsize, xfers[i].len - offset);
 	}
 
@@ -3451,7 +3451,7 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 	 */
 	*xferp = &xfers[count - 1];
 
-	/* increment statistics counters */
+	/* Increment statistics counters */
 	SPI_STATISTICS_INCREMENT_FIELD(ctlr->pcpu_statistics,
 				       transfers_split_maxsize);
 	SPI_STATISTICS_INCREMENT_FIELD(msg->spi->pcpu_statistics,
@@ -3713,7 +3713,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 			return ret;
 
 		list_for_each_entry(xfer, &message->transfers, transfer_list) {
-			/* don't change cs_change on the last entry in the list */
+			/* Don't change cs_change on the last entry in the list */
 			if (list_is_last(&xfer->transfer_list, &message->transfers))
 				break;
 			xfer->cs_change = 1;
@@ -3806,7 +3806,7 @@ static int __spi_validate(struct spi_device *spi, struct spi_message *message)
 				!(spi->mode & SPI_TX_QUAD))
 				return -EINVAL;
 		}
-		/* check transfer rx_nbits */
+		/* Check transfer rx_nbits */
 		if (xfer->rx_buf) {
 			if (spi->mode & SPI_NO_RX)
 				return -EINVAL;
@@ -4144,7 +4144,7 @@ int spi_bus_lock(struct spi_controller *ctlr)
 	ctlr->bus_lock_flag = 1;
 	spin_unlock_irqrestore(&ctlr->bus_lock_spinlock, flags);
 
-	/* mutex remains locked until spi_bus_unlock is called */
+	/* Mutex remains locked until spi_bus_unlock() is called */
 
 	return 0;
 }
@@ -4173,7 +4173,7 @@ int spi_bus_unlock(struct spi_controller *ctlr)
 }
 EXPORT_SYMBOL_GPL(spi_bus_unlock);
 
-/* portable code must never pass more than 32 bytes */
+/* Portable code must never pass more than 32 bytes */
 #define	SPI_BUFSIZ	max(32, SMP_CACHE_BYTES)
 
 static u8	*buf;
@@ -4239,7 +4239,7 @@ int spi_write_then_read(struct spi_device *spi,
 	x[0].tx_buf = local_buf;
 	x[1].rx_buf = local_buf + n_tx;
 
-	/* do the i/o */
+	/* Do the i/o */
 	status = spi_sync(spi, &message);
 	if (status == 0)
 		memcpy(rxbuf, x[1].rx_buf, n_rx);
@@ -4256,7 +4256,7 @@ EXPORT_SYMBOL_GPL(spi_write_then_read);
 /*-------------------------------------------------------------------------*/
 
 #if IS_ENABLED(CONFIG_OF_DYNAMIC)
-/* must call put_device() when done with returned spi_device device */
+/* Must call put_device() when done with returned spi_device device */
 static struct spi_device *of_find_spi_device_by_node(struct device_node *node)
 {
 	struct device *dev = bus_find_device_by_of_node(&spi_bus_type, node);
@@ -4264,7 +4264,7 @@ static struct spi_device *of_find_spi_device_by_node(struct device_node *node)
 	return dev ? to_spi_device(dev) : NULL;
 }
 
-/* the spi controllers are not using spi_bus, so we find it with another way */
+/* The spi controllers are not using spi_bus, so we find it with another way */
 static struct spi_controller *of_find_spi_controller_by_node(struct device_node *node)
 {
 	struct device *dev;
@@ -4275,7 +4275,7 @@ static struct spi_controller *of_find_spi_controller_by_node(struct device_node 
 	if (!dev)
 		return NULL;
 
-	/* reference got in class_find_device */
+	/* Reference got in class_find_device */
 	return container_of(dev, struct spi_controller, dev);
 }
 
@@ -4290,7 +4290,7 @@ static int of_spi_notify(struct notifier_block *nb, unsigned long action,
 	case OF_RECONFIG_CHANGE_ADD:
 		ctlr = of_find_spi_controller_by_node(rd->dn->parent);
 		if (ctlr == NULL)
-			return NOTIFY_OK;	/* not for us */
+			return NOTIFY_OK;	/* Not for us */
 
 		if (of_node_test_and_set_flag(rd->dn, OF_POPULATED)) {
 			put_device(&ctlr->dev);
@@ -4309,19 +4309,19 @@ static int of_spi_notify(struct notifier_block *nb, unsigned long action,
 		break;
 
 	case OF_RECONFIG_CHANGE_REMOVE:
-		/* already depopulated? */
+		/* Already depopulated? */
 		if (!of_node_check_flag(rd->dn, OF_POPULATED))
 			return NOTIFY_OK;
 
-		/* find our device by node */
+		/* Find our device by node */
 		spi = of_find_spi_device_by_node(rd->dn);
 		if (spi == NULL)
-			return NOTIFY_OK;	/* no? not meant for us */
+			return NOTIFY_OK;	/* No? not meant for us */
 
-		/* unregister takes one ref away */
+		/* Unregister takes one ref away */
 		spi_unregister_device(spi);
 
-		/* and put the reference of the find */
+		/* And put the reference of the find */
 		put_device(&spi->dev);
 		break;
 	}
