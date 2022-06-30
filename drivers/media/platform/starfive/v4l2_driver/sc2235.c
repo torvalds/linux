@@ -161,7 +161,6 @@ struct sc2235_dev {
 	u32 ae_low, ae_high, ae_target;
 
 	bool pending_mode_change;
-
 	int streaming;
 };
 
