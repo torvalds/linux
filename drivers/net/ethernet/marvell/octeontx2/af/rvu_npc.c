@@ -2534,7 +2534,7 @@ alloc:
 
 	/* Copy MCAM entry indices into mbox response entry_list.
 	 * Requester always expects indices in ascending order, so
-	 * so reverse the list if reverse bitmap is used for allocation.
+	 * reverse the list if reverse bitmap is used for allocation.
 	 */
 	if (!req->contig && rsp->count) {
 		index = 0;
