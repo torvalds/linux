@@ -1377,12 +1377,6 @@ again:
 
 		if (!iommu->v2 && iova > dma->iova)
 			break;
-		/*
-		 * Task with same address space who mapped this iova range is
-		 * allowed to unmap the iova range.
-		 */
-		if (dma->task->mm != current->mm)
-			break;
 
 		if (invalidate_vaddr) {
 			if (dma->vaddr_invalid) {
@@ -1677,18 +1671,6 @@ static int vfio_dma_do_map(struct vfio_iommu *iommu,
 out_unlock:
 	mutex_unlock(&iommu->lock);
 	return ret;
-}
-
-static int vfio_bus_type(struct device *dev, void *data)
-{
-	struct bus_type **bus = data;
-
-	if (*bus && *bus != dev->bus)
-		return -EINVAL;
-
-	*bus = dev->bus;
-
-	return 0;
 }
 
 static int vfio_iommu_replay(struct vfio_iommu *iommu,
@@ -2153,13 +2135,26 @@ static void vfio_iommu_iova_insert_copy(struct vfio_iommu *iommu,
 	list_splice_tail(iova_copy, iova);
 }
 
+/* Redundantly walks non-present capabilities to simplify caller */
+static int vfio_iommu_device_capable(struct device *dev, void *data)
+{
+	return device_iommu_capable(dev, (enum iommu_cap)data);
+}
+
+static int vfio_iommu_domain_alloc(struct device *dev, void *data)
+{
+	struct iommu_domain **domain = data;
+
+	*domain = iommu_domain_alloc(dev->bus);
+	return 1; /* Don't iterate */
+}
+
 static int vfio_iommu_type1_attach_group(void *iommu_data,
 		struct iommu_group *iommu_group, enum vfio_group_type type)
 {
 	struct vfio_iommu *iommu = iommu_data;
 	struct vfio_iommu_group *group;
 	struct vfio_domain *domain, *d;
-	struct bus_type *bus = NULL;
 	bool resv_msi, msi_remap;
 	phys_addr_t resv_msi_base = 0;
 	struct iommu_domain_geometry *geo;
@@ -2192,18 +2187,19 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 		goto out_unlock;
 	}
 
-	/* Determine bus_type in order to allocate a domain */
-	ret = iommu_group_for_each_dev(iommu_group, &bus, vfio_bus_type);
-	if (ret)
-		goto out_free_group;
-
 	ret = -ENOMEM;
 	domain = kzalloc(sizeof(*domain), GFP_KERNEL);
 	if (!domain)
 		goto out_free_group;
 
+	/*
+	 * Going via the iommu_group iterator avoids races, and trivially gives
+	 * us a representative device for the IOMMU API call. We don't actually
+	 * want to iterate beyond the first device (if any).
+	 */
 	ret = -EIO;
-	domain->domain = iommu_domain_alloc(bus);
+	iommu_group_for_each_dev(iommu_group, &domain->domain,
+				 vfio_iommu_domain_alloc);
 	if (!domain->domain)
 		goto out_free_domain;
 
@@ -2258,7 +2254,8 @@ static int vfio_iommu_type1_attach_group(void *iommu_data,
 	list_add(&group->next, &domain->group_list);
 
 	msi_remap = irq_domain_check_msi_remap() ||
-		    iommu_capable(bus, IOMMU_CAP_INTR_REMAP);
+		    iommu_group_for_each_dev(iommu_group, (void *)IOMMU_CAP_INTR_REMAP,
+					     vfio_iommu_device_capable);
 
 	if (!allow_unsafe_interrupts && !msi_remap) {
 		pr_warn("%s: No interrupt remapping support.  Use the module param \"allow_unsafe_interrupts\" to enable VFIO IOMMU support on this platform\n",
