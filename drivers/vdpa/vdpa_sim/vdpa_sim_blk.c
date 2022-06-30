@@ -197,6 +197,7 @@ static bool vdpasim_blk_handle_req(struct vdpasim *vdpasim,
 static void vdpasim_blk_work(struct work_struct *work)
 {
 	struct vdpasim *vdpasim = container_of(work, struct vdpasim, work);
+	bool reschedule = false;
 	int i;
 
 	spin_lock(&vdpasim->lock);
@@ -206,6 +207,7 @@ static void vdpasim_blk_work(struct work_struct *work)
 
 	for (i = 0; i < VDPASIM_BLK_VQ_NUM; i++) {
 		struct vdpasim_virtqueue *vq = &vdpasim->vqs[i];
+		int reqs = 0;
 
 		if (!vq->ready)
 			continue;
@@ -218,10 +220,18 @@ static void vdpasim_blk_work(struct work_struct *work)
 			if (vringh_need_notify_iotlb(&vq->vring) > 0)
 				vringh_notify(&vq->vring);
 			local_bh_enable();
+
+			if (++reqs > 4) {
+				reschedule = true;
+				break;
+			}
 		}
 	}
 out:
 	spin_unlock(&vdpasim->lock);
+
+	if (reschedule)
+		schedule_work(&vdpasim->work);
 }
 
 static void vdpasim_blk_get_config(struct vdpasim *vdpasim, void *config)
