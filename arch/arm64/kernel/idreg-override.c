@@ -27,9 +27,12 @@ struct ftr_set_desc {
 	struct {
 		char			name[FTR_DESC_FIELD_LEN];
 		u8			shift;
+		u8			width;
 		bool			(*filter)(u64 val);
 	} 				fields[];
 };
+
+#define FIELD(n, s, f)	{ .name = n, .shift = s, .width = 4, .filter = f }
 
 static bool __init mmfr1_vh_filter(u64 val)
 {
@@ -47,7 +50,7 @@ static const struct ftr_set_desc mmfr1 __initconst = {
 	.name		= "id_aa64mmfr1",
 	.override	= &id_aa64mmfr1_override,
 	.fields		= {
-		{ "vh", ID_AA64MMFR1_VHE_SHIFT, mmfr1_vh_filter },
+		FIELD("vh", ID_AA64MMFR1_VHE_SHIFT, mmfr1_vh_filter),
 		{}
 	},
 };
@@ -56,8 +59,8 @@ static const struct ftr_set_desc pfr1 __initconst = {
 	.name		= "id_aa64pfr1",
 	.override	= &id_aa64pfr1_override,
 	.fields		= {
-	        { "bt", ID_AA64PFR1_BT_SHIFT },
-		{ "mte", ID_AA64PFR1_MTE_SHIFT},
+	        FIELD("bt", ID_AA64PFR1_BT_SHIFT, NULL),
+		FIELD("mte", ID_AA64PFR1_MTE_SHIFT, NULL),
 		{}
 	},
 };
@@ -66,10 +69,10 @@ static const struct ftr_set_desc isar1 __initconst = {
 	.name		= "id_aa64isar1",
 	.override	= &id_aa64isar1_override,
 	.fields		= {
-	        { "gpi", ID_AA64ISAR1_GPI_SHIFT },
-	        { "gpa", ID_AA64ISAR1_GPA_SHIFT },
-	        { "api", ID_AA64ISAR1_API_SHIFT },
-	        { "apa", ID_AA64ISAR1_APA_SHIFT },
+	        FIELD("gpi", ID_AA64ISAR1_GPI_SHIFT, NULL),
+	        FIELD("gpa", ID_AA64ISAR1_GPA_SHIFT, NULL),
+	        FIELD("api", ID_AA64ISAR1_API_SHIFT, NULL),
+	        FIELD("apa", ID_AA64ISAR1_APA_SHIFT, NULL),
 		{}
 	},
 };
@@ -78,8 +81,8 @@ static const struct ftr_set_desc isar2 __initconst = {
 	.name		= "id_aa64isar2",
 	.override	= &id_aa64isar2_override,
 	.fields		= {
-	        { "gpa3", ID_AA64ISAR2_GPA3_SHIFT },
-	        { "apa3", ID_AA64ISAR2_APA3_SHIFT },
+	        FIELD("gpa3", ID_AA64ISAR2_GPA3_SHIFT, NULL),
+	        FIELD("apa3", ID_AA64ISAR2_APA3_SHIFT, NULL),
 		{}
 	},
 };
@@ -92,7 +95,7 @@ static const struct ftr_set_desc kaslr __initconst = {
 	.override	= &kaslr_feature_override,
 #endif
 	.fields		= {
-		{ "disabled", 0 },
+		FIELD("disabled", 0, NULL),
 		{}
 	},
 };
@@ -147,7 +150,8 @@ static void __init match_options(const char *cmdline)
 
 		for (f = 0; strlen(regs[i]->fields[f].name); f++) {
 			u64 shift = regs[i]->fields[f].shift;
-			u64 mask = 0xfUL << shift;
+			u64 width = regs[i]->fields[f].width ?: 4;
+			u64 mask = GENMASK_ULL(shift + width - 1, shift);
 			u64 v;
 
 			if (find_field(cmdline, regs[i], f, &v))
@@ -155,7 +159,7 @@ static void __init match_options(const char *cmdline)
 
 			/*
 			 * If an override gets filtered out, advertise
-			 * it by setting the value to 0xf, but
+			 * it by setting the value to the all-ones while
 			 * clearing the mask... Yes, this is fragile.
 			 */
 			if (regs[i]->fields[f].filter &&
