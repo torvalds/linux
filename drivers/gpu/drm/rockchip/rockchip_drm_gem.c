@@ -701,10 +701,7 @@ void rockchip_gem_free_object(struct drm_gem_object *obj)
 					  DMA_BIDIRECTIONAL, 0);
 		}
 		drm_free_large(rk_obj->pages);
-		if (IS_ENABLED(CONFIG_DMABUF_CACHE))
-			rockchip_gem_destroy(obj, rk_obj->sgt);
-		else
-			drm_prime_gem_destroy(obj, rk_obj->sgt);
+		rockchip_gem_destroy(obj, rk_obj->sgt);
 	} else {
 		rockchip_gem_free_buf(rk_obj);
 	}
