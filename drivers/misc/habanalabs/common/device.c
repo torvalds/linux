@@ -1545,7 +1545,8 @@ kill_processes:
 			goto out_err;
 		}
 
-		hl_fw_set_max_power(hdev);
+		if (!hdev->asic_prop.fw_security_enabled)
+			hl_fw_set_max_power(hdev);
 	} else {
 		rc = hdev->asic_funcs->non_hard_reset_late_init(hdev);
 		if (rc) {
@@ -1914,7 +1915,8 @@ int hl_device_init(struct hl_device *hdev, struct class *hclass)
 	/* Need to call this again because the max power might change,
 	 * depending on card type for certain ASICs
 	 */
-	if (hdev->asic_prop.set_max_power_on_device_init)
+	if (hdev->asic_prop.set_max_power_on_device_init &&
+			!hdev->asic_prop.fw_security_enabled)
 		hl_fw_set_max_power(hdev);
 
 	/*
