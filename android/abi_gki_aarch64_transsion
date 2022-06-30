@@ -1,0 +1,8 @@
+[abi_symbol_list]
+  get_mem_cgroup_from_mm
+  is_swap_slot_cache_enabled
+  swapcache_free_entries
+  swap_type_to_swap_info
+  scan_swap_map_slots
+  swap_alloc_cluster
+  check_cache_active
