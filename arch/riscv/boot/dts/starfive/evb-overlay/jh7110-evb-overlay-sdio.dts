@@ -82,16 +82,8 @@
 		};
 	};
 
-	//usbdrd30
-	fragment@4 {
-		target-path = "/soc/usbdrd";
-		__overlay__ {
-			status = "disabled";
-		};
-	};
-
 	//sdio1
-	fragment@5 {
+	fragment@3 {
 		target-path = "/soc/sdio1@16020000";
 		__overlay__ {
 			clock-frequency = <102400000>;
