@@ -1421,6 +1421,31 @@ static int __init i8042_platform_init(void)
 
 	i8042_check_quirks();
 
+	pr_debug("Active quirks (empty means none):%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+		i8042_nokbd ? " nokbd" : "",
+		i8042_noaux ? " noaux" : "",
+		i8042_nomux ? " nomux" : "",
+		i8042_unlock ? " unlock" : "",
+		i8042_probe_defer ? "probe_defer" : "",
+		i8042_reset == I8042_RESET_DEFAULT ?
+			"" : i8042_reset == I8042_RESET_ALWAYS ?
+				" reset_always" : " reset_never",
+		i8042_direct ? " direct" : "",
+		i8042_dumbkbd ? " dumbkbd" : "",
+		i8042_noloop ? " noloop" : "",
+		i8042_notimeout ? " notimeout" : "",
+		i8042_kbdreset ? " kbdreset" : "",
+#ifdef CONFIG_X86
+		i8042_dritek ? " dritek" : "",
+#else
+		"",
+#endif
+#ifdef CONFIG_PNP
+		i8042_nopnp ? " nopnp" : "");
+#else
+		"");
+#endif
+
 	retval = i8042_pnp_init();
 	if (retval)
 		return retval;
