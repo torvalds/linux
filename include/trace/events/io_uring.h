@@ -594,7 +594,7 @@ TRACE_EVENT(io_uring_cqe_overflow,
 		__entry->ocqe		= ocqe;
 	),
 
-	TP_printk("ring %p, user_data 0x%llx, res %d, flags %x, "
+	TP_printk("ring %p, user_data 0x%llx, res %d, cflags 0x%x, "
 		  "overflow_cqe %p",
 		  __entry->ctx, __entry->user_data, __entry->res,
 		  __entry->cflags, __entry->ocqe)
