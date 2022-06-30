@@ -1481,8 +1481,8 @@ static int rkisp_get_fps(struct rkisp_stream *stream, int *fps)
 	return rkisp_rockit_fps_get(fps, stream);
 }
 
-static int rkisp_get_tb_stream_info(struct rkisp_stream *stream,
-				    struct rkisp_tb_stream_info *info)
+int rkisp_get_tb_stream_info(struct rkisp_stream *stream,
+			     struct rkisp_tb_stream_info *info)
 {
 	struct rkisp_device *dev = stream->ispdev;
 
@@ -1495,12 +1495,14 @@ static int rkisp_get_tb_stream_info(struct rkisp_stream *stream,
 		v4l2_err(&dev->v4l2_dev, "thunderboot no enough memory for image\n");
 		return -EINVAL;
 	}
+	stream->is_using_resmem = false;
 	memcpy(info, &dev->tb_stream_info, sizeof(*info));
 	return 0;
 }
 
-static int rkisp_free_tb_stream_buf(struct rkisp_device *dev)
+int rkisp_free_tb_stream_buf(struct rkisp_stream *stream)
 {
+	struct rkisp_device *dev = stream->ispdev;
 	struct rkisp_isp_subdev *sdev = &dev->isp_sdev;
 	struct v4l2_subdev *sd = &sdev->sd;
 
@@ -1575,7 +1577,7 @@ static long rkisp_ioctl_default(struct file *file, void *fh,
 		ret = rkisp_get_tb_stream_info(stream, arg);
 		break;
 	case RKISP_CMD_FREE_TB_STREAM_BUF:
-		ret = rkisp_free_tb_stream_buf(stream->ispdev);
+		ret = rkisp_free_tb_stream_buf(stream);
 		break;
 	default:
 		ret = -EINVAL;

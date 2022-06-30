@@ -6,6 +6,7 @@
 #define __SOC_ROCKCHIP_ROCKIT_H
 
 #include <linux/dma-buf.h>
+#include <linux/rkisp2-config.h>
 
 #define ROCKIT_BUF_NUM_MAX	5
 #define ROCKIT_ISP_NUM_MAX	3
@@ -82,7 +83,9 @@ int rkisp_rockit_pause_stream(struct rockit_cfg *input_rockit_cfg);
 int rkisp_rockit_resume_stream(struct rockit_cfg *input_rockit_cfg);
 int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 				int width, int height, int wrap_line);
-
+int rkisp_rockit_get_tb_stream_info(struct rockit_cfg *input_rockit_cfg,
+				    struct rkisp_tb_stream_info *info);
+int rkisp_rockit_free_tb_stream_buf(struct rockit_cfg *input_rockit_cfg);
 #else
 
 static inline void *rkisp_rockit_function_register(void *function, int cmd) { return NULL; }
@@ -101,6 +104,17 @@ static inline int rkisp_rockit_resume_stream(struct rockit_cfg *input_rockit_cfg
 }
 static inline int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
 					     int width, int height, int wrap_line)
+{
+	return -EINVAL;
+}
+
+static inline int rkisp_rockit_get_tb_stream_info(struct rockit_cfg *input_rockit_cfg,
+						  struct rkisp_tb_stream_info *info)
+{
+	return -EINVAL;
+}
+
+static inline int rkisp_rockit_free_tb_stream_buf(struct rockit_cfg *input_rockit_cfg)
 {
 	return -EINVAL;
 }

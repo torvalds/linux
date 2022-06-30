@@ -374,6 +374,36 @@ int rkisp_rockit_resume_stream(struct rockit_cfg *input_rockit_cfg)
 }
 EXPORT_SYMBOL(rkisp_rockit_resume_stream);
 
+int rkisp_rockit_get_tb_stream_info(struct rockit_cfg *input_rockit_cfg,
+				    struct rkisp_tb_stream_info *info)
+{
+	struct rkisp_stream *stream;
+
+	if (!input_rockit_cfg || !info)
+		return -EINVAL;
+
+	stream = rkisp_rockit_get_stream(input_rockit_cfg);
+	if (!stream)
+		return -EINVAL;
+
+	return rkisp_get_tb_stream_info(stream, info);
+}
+EXPORT_SYMBOL(rkisp_rockit_get_tb_stream_info);
+
+int rkisp_rockit_free_tb_stream_buf(struct rockit_cfg *input_rockit_cfg)
+{
+	struct rkisp_stream *stream;
+
+	if (!input_rockit_cfg)
+		return -EINVAL;
+	stream = rkisp_rockit_get_stream(input_rockit_cfg);
+	if (!stream)
+		return -EINVAL;
+
+	return rkisp_free_tb_stream_buf(stream);
+}
+EXPORT_SYMBOL(rkisp_rockit_free_tb_stream_buf);
+
 int rkisp_rockit_buf_free(struct rkisp_stream *stream)
 {
 	struct rkisp_rockit_buffer *isprk_buf = NULL;

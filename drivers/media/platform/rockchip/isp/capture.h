@@ -331,4 +331,8 @@ int rkisp_fcc_xysubs(u32 fcc, u32 *xsubs, u32 *ysubs);
 int rkisp_mbus_code_xysubs(u32 code, u32 *xsubs, u32 *ysubs);
 int rkisp_fh_open(struct file *filp);
 int rkisp_fop_release(struct file *file);
+
+int rkisp_get_tb_stream_info(struct rkisp_stream *stream,
+			     struct rkisp_tb_stream_info *info);
+int rkisp_free_tb_stream_buf(struct rkisp_stream *stream);
 #endif /* _RKISP_PATH_VIDEO_H */
