@@ -300,12 +300,18 @@ static int __io_recvmsg_copy_hdr(struct io_kiocb *req,
 		return ret;
 
 	if (req->flags & REQ_F_BUFFER_SELECT) {
-		if (iov_len > 1)
+		if (iov_len == 0) {
+			sr->len = iomsg->fast_iov[0].iov_len = 0;
+			iomsg->fast_iov[0].iov_base = NULL;
+			iomsg->free_iov = NULL;
+		} else if (iov_len > 1) {
 			return -EINVAL;
-		if (copy_from_user(iomsg->fast_iov, uiov, sizeof(*uiov)))
-			return -EFAULT;
-		sr->len = iomsg->fast_iov[0].iov_len;
-		iomsg->free_iov = NULL;
+		} else {
+			if (copy_from_user(iomsg->fast_iov, uiov, sizeof(*uiov)))
+				return -EFAULT;
+			sr->len = iomsg->fast_iov[0].iov_len;
+			iomsg->free_iov = NULL;
+		}
 	} else {
 		iomsg->free_iov = iomsg->fast_iov;
 		ret = __import_iovec(READ, uiov, iov_len, UIO_FASTIOV,
