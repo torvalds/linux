@@ -481,10 +481,13 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	if (kmsg->free_iov)
 		kfree(kmsg->free_iov);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	if (ret >= 0)
+	if (ret > 0)
 		ret += sr->done_io;
 	else if (sr->done_io)
 		ret = sr->done_io;
+	else
+		io_kbuf_recycle(req, issue_flags);
+
 	cflags = io_put_kbuf(req, issue_flags);
 	if (kmsg->msg.msg_inq)
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
@@ -557,10 +560,13 @@ out_free:
 		req_set_fail(req);
 	}
 
-	if (ret >= 0)
+	if (ret > 0)
 		ret += sr->done_io;
 	else if (sr->done_io)
 		ret = sr->done_io;
+	else
+		io_kbuf_recycle(req, issue_flags);
+
 	cflags = io_put_kbuf(req, issue_flags);
 	if (msg.msg_inq)
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
