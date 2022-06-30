@@ -8,6 +8,7 @@
 #include <linux/component.h>
 #include <linux/interrupt.h>
 #include <linux/kernel.h>
+#include <linux/media-bus-format.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
 #include <linux/of_gpio.h>

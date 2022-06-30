@@ -4,6 +4,7 @@
  * Copyright 2019,2020,2022 NXP
  */
 
+#include <linux/media-bus-format.h>
 #include <linux/mfd/syscon.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
