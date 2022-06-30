@@ -15,6 +15,13 @@
 enum {
 	IOU_OK			= 0,
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
+
+	/*
+	 * Intended only when both REQ_F_POLLED and REQ_F_APOLL_MULTISHOT
+	 * are set to indicate to the poll runner that multishot should be
+	 * removed and the result is set on req->cqe.res.
+	 */
+	IOU_STOP_MULTISHOT	= -ECANCELED,
 };
 
 struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx);

@@ -195,6 +195,7 @@ static void io_poll_remove_entries(struct io_kiocb *req)
 enum {
 	IOU_POLL_DONE = 0,
 	IOU_POLL_NO_ACTION = 1,
+	IOU_POLL_REMOVE_POLL_USE_RES = 2,
 };
 
 /*
@@ -204,6 +205,8 @@ enum {
  * Returns a negative error on failure. IOU_POLL_NO_ACTION when no action require,
  * which is either spurious wakeup or multishot CQE is served.
  * IOU_POLL_DONE when it's done with the request, then the mask is stored in req->cqe.res.
+ * IOU_POLL_REMOVE_POLL_USE_RES indicates to remove multishot poll and that the result
+ * is stored in req->cqe.
  */
 static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 {
@@ -244,6 +247,8 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 				return -ECANCELED;
 		} else {
 			ret = io_poll_issue(req, locked);
+			if (ret == IOU_STOP_MULTISHOT)
+				return IOU_POLL_REMOVE_POLL_USE_RES;
 			if (ret < 0)
 				return ret;
 		}
@@ -268,7 +273,7 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 	if (ret == IOU_POLL_DONE) {
 		struct io_poll *poll = io_kiocb_to_cmd(req);
 		req->cqe.res = mangle_poll(req->cqe.res & poll->events);
-	} else {
+	} else if (ret != IOU_POLL_REMOVE_POLL_USE_RES) {
 		req->cqe.res = ret;
 		req_set_fail(req);
 	}
@@ -291,7 +296,9 @@ static void io_apoll_task_func(struct io_kiocb *req, bool *locked)
 	io_poll_remove_entries(req);
 	io_poll_tw_hash_eject(req, locked);
 
-	if (!ret)
+	if (ret == IOU_POLL_REMOVE_POLL_USE_RES)
+		io_req_complete_post(req);
+	else if (ret == IOU_POLL_DONE)
 		io_req_task_submit(req, locked);
 	else
 		io_req_complete_failed(req, ret);
