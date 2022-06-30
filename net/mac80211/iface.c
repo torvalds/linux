@@ -409,9 +409,6 @@ static void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 			WARN_ON(!(sdata->wdev.valid_links & BIT(link_id)));
 			break;
 		case NL80211_IFTYPE_STATION:
-			eth_random_addr(link_conf->addr);
-			ether_addr_copy(sdata->wdev.links[link_id].addr,
-					link_conf->addr);
 			break;
 		default:
 			WARN_ON(1);
