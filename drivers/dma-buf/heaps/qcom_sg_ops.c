@@ -14,6 +14,7 @@
  * https://lore.kernel.org/lkml/20201017013255.43568-2-john.stultz@linaro.org/
  *
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/dma-buf.h>
@@ -456,7 +457,7 @@ static void *qcom_sg_do_vmap(struct qcom_sg_buffer *buffer)
 	return vaddr;
 }
 
-static int qcom_sg_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
+static int qcom_sg_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 	void *vaddr;
@@ -471,7 +472,7 @@ static int qcom_sg_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 	mutex_lock(&buffer->lock);
 	if (buffer->vmap_cnt) {
 		buffer->vmap_cnt++;
-		dma_buf_map_set_vaddr(map, buffer->vaddr);
+		iosys_map_set_vaddr(map, buffer->vaddr);
 		goto out;
 	}
 
@@ -484,14 +485,14 @@ static int qcom_sg_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 
 	buffer->vaddr = vaddr;
 	buffer->vmap_cnt++;
-	dma_buf_map_set_vaddr(map, buffer->vaddr);
+	iosys_map_set_vaddr(map, buffer->vaddr);
 out:
 	mutex_unlock(&buffer->lock);
 
 	return ret;
 }
 
-static void qcom_sg_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
+static void qcom_sg_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	struct qcom_sg_buffer *buffer = dmabuf->priv;
 
@@ -502,7 +503,7 @@ static void qcom_sg_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 	}
 	mem_buf_vmperm_unpin(buffer->vmperm);
 	mutex_unlock(&buffer->lock);
-	dma_buf_map_clear(map);
+	iosys_map_clear(map);
 }
 
 static void qcom_sg_release(struct dma_buf *dmabuf)
