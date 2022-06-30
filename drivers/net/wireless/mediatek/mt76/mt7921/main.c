@@ -1454,15 +1454,14 @@ static void mt7921_ipv6_addr_change(struct ieee80211_hw *hw,
 	if (!idx)
 		return;
 
-	skb = __mt76_mcu_msg_alloc(&dev->mt76, NULL, sizeof(req_hdr) +
-				   idx * sizeof(struct in6_addr), GFP_ATOMIC);
-	if (!skb)
-		return;
-
 	req_hdr.arpns.ips_num = idx;
 	req_hdr.arpns.len = cpu_to_le16(sizeof(struct mt76_connac_arpns_tlv)
 					+ idx * sizeof(struct in6_addr));
-	skb_put_data(skb, &req_hdr, sizeof(req_hdr));
+	skb = __mt76_mcu_msg_alloc(&dev->mt76, &req_hdr,
+			sizeof(req_hdr) + idx * sizeof(struct in6_addr),
+			sizeof(req_hdr), GFP_ATOMIC);
+	if (!skb)
+		return;
 
 	for (i = 0; i < idx; i++)
 		skb_put_data(skb, &ns_addrs[i].in6_u, sizeof(struct in6_addr));
