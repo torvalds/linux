@@ -4179,7 +4179,7 @@ static enum hpd_pin ehl_hpd_pin(struct drm_i915_private *dev_priv,
 	if (port == PORT_D)
 		return HPD_PORT_A;
 
-	if (HAS_PCH_MCC(dev_priv))
+	if (HAS_PCH_TGP(dev_priv))
 		return icl_hpd_pin(dev_priv, port);
 
 	return HPD_PORT_A + port - PORT_A;
