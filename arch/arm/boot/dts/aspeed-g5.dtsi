@@ -276,6 +276,16 @@
 				quality = <100>;
 			};
 
+			hace: crypto@1e6e3000 {
+				compatible = "aspeed,ast2500-hace";
+				reg = <0x1e6e3000 0x200 0x1e728000 0x1000>;
+				interrupts = <4>;
+				clocks = <&syscon ASPEED_CLK_GATE_YCLK>,
+					 <&syscon ASPEED_CLK_GATE_RSACLK>;
+				clock-names = "yclk", "rsaclk";
+				resets = <&syscon ASPEED_RESET_HACE>;
+			};
+
 			jtag: jtag@1e6e4000 {
 				compatible = "aspeed,ast2500-jtag";
 				reg= <0x1e6e4000 0x20>;
