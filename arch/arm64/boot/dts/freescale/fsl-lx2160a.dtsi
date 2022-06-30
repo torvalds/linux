@@ -671,6 +671,14 @@
 			little-endian;
 		};
 
+		sfp: efuse@1e80000 {
+			compatible = "fsl,ls1028a-sfp";
+			reg = <0x0 0x1e80000 0x0 0x10000>;
+			clocks = <&clockgen QORIQ_CLK_PLATFORM_PLL
+					    QORIQ_CLK_PLL_DIV(4)>;
+			clock-names = "sfp";
+		};
+
 		isc: syscon@1f70000 {
 			compatible = "fsl,lx2160a-isc", "syscon";
 			reg = <0x0 0x1f70000 0x0 0x10000>;
