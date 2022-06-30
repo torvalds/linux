@@ -6599,7 +6599,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		VOP_CTRL_SET(vop2, mipi_pin_pol, val);
 		VOP_CTRL_SET(vop2, mipi_dclk_pol, dclk_inv);
 		if (vcstate->hold_mode) {
-			VOP_MODULE_SET(vop2, vp, edpi_te_en, 1);
+			VOP_MODULE_SET(vop2, vp, edpi_te_en, !vcstate->soft_te);
 			VOP_MODULE_SET(vop2, vp, edpi_wms_hold_en, 1);
 		}
 	}
@@ -6621,11 +6621,7 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 		VOP_CTRL_SET(vop2, mipi_pin_pol, val);
 		VOP_CTRL_SET(vop2, mipi_dclk_pol, dclk_inv);
 		if (vcstate->hold_mode) {
-			/* RK3588 VP1->DSC1->DSI1 only can support soft TE mode */
-			if (vop2->version == VOP_VERSION_RK3588 && vp->id == 1)
-				VOP_MODULE_SET(vop2, vp, edpi_te_en, 0);
-			else
-				VOP_MODULE_SET(vop2, vp, edpi_te_en, 1);
+			VOP_MODULE_SET(vop2, vp, edpi_te_en, !vcstate->soft_te);
 			VOP_MODULE_SET(vop2, vp, edpi_wms_hold_en, 1);
 		}
 	}

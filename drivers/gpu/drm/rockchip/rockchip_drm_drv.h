@@ -181,6 +181,11 @@ struct rockchip_crtc_state {
 	 * (3) edp psr mode
 	 */
 	bool hold_mode;
+	/**
+	 * when enable soft_te, use gpio irq to triggle new fs,
+	 * otherwise use hardware te
+	 */
+	bool soft_te;
 
 	struct drm_tv_connector_state *tv_state;
 	int left_margin;
