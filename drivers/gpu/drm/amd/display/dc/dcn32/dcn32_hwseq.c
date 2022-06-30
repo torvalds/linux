@@ -208,12 +208,14 @@ static uint32_t dcn32_cache_lines_for_surface(struct dc *dc, uint32_t surface_si
 	uint32_t num_cached_bytes = 0;
 	uint32_t remaining_size = 0;
 	uint32_t cache_line_size = dc->caps.cache_line_size;
+	uint32_t remainder = 0;
 
 	/* 1. Calculate surface size minus the number of bytes stored
 	 * in the first cache line (all bytes in first cache line might
 	 * not be fully used).
 	 */
-	num_cached_bytes = cache_line_size - (start_address % cache_line_size);
+	div_u64_rem(start_address, cache_line_size, &remainder);
+	num_cached_bytes = cache_line_size - remainder;
 	remaining_size = surface_size - num_cached_bytes;
 
 	/* 2. Calculate number of cache lines that will be fully used with
