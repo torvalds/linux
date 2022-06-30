@@ -51,8 +51,8 @@ SYM_CODE_START_LOCAL(elx_sync)
 	msr	vbar_el2, x1
 	b	9f
 
-1:	cmp	x0, #HVC_VHE_RESTART
-	b.eq	mutate_to_vhe
+1:	cmp	x0, #HVC_FINALISE_EL2
+	b.eq	__finalise_el2
 
 2:	cmp	x0, #HVC_SOFT_RESTART
 	b.ne	3f
@@ -73,8 +73,8 @@ SYM_CODE_START_LOCAL(elx_sync)
 	eret
 SYM_CODE_END(elx_sync)
 
-// nVHE? No way! Give me the real thing!
-SYM_CODE_START_LOCAL(mutate_to_vhe)
+SYM_CODE_START_LOCAL(__finalise_el2)
+	// nVHE? No way! Give me the real thing!
 	// Sanity check: MMU *must* be off
 	mrs	x1, sctlr_el2
 	tbnz	x1, #0, 1f
@@ -140,10 +140,10 @@ SYM_CODE_START_LOCAL(mutate_to_vhe)
 	msr	spsr_el1, x0
 
 	b	enter_vhe
-SYM_CODE_END(mutate_to_vhe)
+SYM_CODE_END(__finalise_el2)
 
 	// At the point where we reach enter_vhe(), we run with
-	// the MMU off (which is enforced by mutate_to_vhe()).
+	// the MMU off (which is enforced by __finalise_el2()).
 	// We thus need to be in the idmap, or everything will
 	// explode when enabling the MMU.
 
@@ -222,11 +222,11 @@ SYM_FUNC_START(__hyp_reset_vectors)
 SYM_FUNC_END(__hyp_reset_vectors)
 
 /*
- * Entry point to switch to VHE if deemed capable
+ * Entry point to finalise EL2 and switch to VHE if deemed capable
  *
  * w0: boot mode, as returned by init_kernel_el()
  */
-SYM_FUNC_START(switch_to_vhe)
+SYM_FUNC_START(finalise_el2)
 	// Need to have booted at EL2
 	cmp	w0, #BOOT_CPU_MODE_EL2
 	b.ne	1f
@@ -236,9 +236,8 @@ SYM_FUNC_START(switch_to_vhe)
 	cmp	x0, #CurrentEL_EL1
 	b.ne	1f
 
-	// Turn the world upside down
-	mov	x0, #HVC_VHE_RESTART
+	mov	x0, #HVC_FINALISE_EL2
 	hvc	#0
 1:
 	ret
-SYM_FUNC_END(switch_to_vhe)
+SYM_FUNC_END(finalise_el2)
