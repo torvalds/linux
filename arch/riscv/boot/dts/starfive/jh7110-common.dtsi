@@ -317,7 +317,7 @@
 
 			/* Parallel bus endpoint */
 			parallel_from_sc2235: endpoint@0 {
-				reg = <1>;
+				reg = <0>;
 				remote-endpoint = <&sc2235_to_parallel>;
 				bus-type = <5>;		/* Parallel */
 				bus-width = <8>;
