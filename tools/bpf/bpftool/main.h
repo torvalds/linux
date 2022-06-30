@@ -63,8 +63,6 @@ static inline void *u64_to_ptr(__u64 ptr)
 #define HELP_SPEC_LINK							\
 	"LINK := { id LINK_ID | pinned FILE }"
 
-extern const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE];
-
 /* keep in sync with the definition in skeleton/pid_iter.bpf.c */
 enum bpf_obj_type {
 	BPF_OBJ_UNKNOWN,
