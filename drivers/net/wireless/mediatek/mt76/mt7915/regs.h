@@ -623,7 +623,7 @@ enum offs_rev {
 
 /* WFDMA COMMON */
 #define __RXQ(q)			((q) + __MT_MCUQ_MAX)
-#define __TXQ(q)			(__RXQ(q) + __MT_RXQ_MAX)
+#define __TXQ(q)			(__RXQ(q) + MT_RXQ_BAND2)
 
 #define MT_Q_ID(q)			(dev->q_id[(q)])
 #define MT_Q_BASE(q)			((dev->wfdma_mask >> (q)) & 0x1 ?	\
@@ -639,7 +639,7 @@ enum offs_rev {
 
 #define MT_MCUQ_EXT_CTRL(q)		(MT_Q_BASE(q) +	0x600 +	\
 					 MT_MCUQ_ID(q)* 0x4)
-#define MT_RXQ_EXT_CTRL(q)		(MT_Q_BASE(__RXQ(q)) + 0x680 +	\
+#define MT_RXQ_BAND1_CTRL(q)		(MT_Q_BASE(__RXQ(q)) + 0x680 +	\
 					 MT_RXQ_ID(q)* 0x4)
 #define MT_TXQ_EXT_CTRL(q)		(MT_Q_BASE(__TXQ(q)) + 0x600 +	\
 					 MT_TXQ_ID(q)* 0x4)
@@ -671,8 +671,8 @@ enum offs_rev {
 #define MT_INT_BAND0_RX_DONE		(MT_INT_RX(MT_RXQ_MAIN) |	\
 					 MT_INT_RX(MT_RXQ_MAIN_WA))
 
-#define MT_INT_BAND1_RX_DONE		(MT_INT_RX(MT_RXQ_EXT) |	\
-					 MT_INT_RX(MT_RXQ_EXT_WA) |	\
+#define MT_INT_BAND1_RX_DONE		(MT_INT_RX(MT_RXQ_BAND1) |	\
+					 MT_INT_RX(MT_RXQ_BAND1_WA) |	\
 					 MT_INT_RX(MT_RXQ_MAIN_WA))
 
 #define MT_INT_RX_DONE_ALL		(MT_INT_RX_DONE_MCU |		\

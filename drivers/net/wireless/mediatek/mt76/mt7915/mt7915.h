@@ -66,7 +66,7 @@
 #define MT7915_MAX_TWT_AGRT		16
 #define MT7915_MAX_STA_TWT_AGRT		8
 #define MT7915_MIN_TWT_DUR 64
-#define MT7915_MAX_QUEUE		(__MT_RXQ_MAX + __MT_MCUQ_MAX + 2)
+#define MT7915_MAX_QUEUE		(MT_RXQ_BAND2 + __MT_MCUQ_MAX + 2)
 
 struct mt7915_vif;
 struct mt7915_sta;

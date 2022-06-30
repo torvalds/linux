@@ -591,8 +591,8 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
 	if (intr & MT_INT_RX(MT_RXQ_MAIN))
 		napi_schedule(&dev->mt76.napi[MT_RXQ_MAIN]);
 
-	if (intr & MT_INT_RX(MT_RXQ_EXT))
-		napi_schedule(&dev->mt76.napi[MT_RXQ_EXT]);
+	if (intr & MT_INT_RX(MT_RXQ_BAND1))
+		napi_schedule(&dev->mt76.napi[MT_RXQ_BAND1]);
 
 	if (intr & MT_INT_RX(MT_RXQ_MCU))
 		napi_schedule(&dev->mt76.napi[MT_RXQ_MCU]);
@@ -604,8 +604,8 @@ static void mt7915_irq_tasklet(struct tasklet_struct *t)
 	    (intr & MT_INT_RX(MT_RXQ_MAIN_WA)))
 		napi_schedule(&dev->mt76.napi[MT_RXQ_MAIN_WA]);
 
-	if (intr & MT_INT_RX(MT_RXQ_EXT_WA))
-		napi_schedule(&dev->mt76.napi[MT_RXQ_EXT_WA]);
+	if (intr & MT_INT_RX(MT_RXQ_BAND1_WA))
+		napi_schedule(&dev->mt76.napi[MT_RXQ_BAND1_WA]);
 
 	if (intr & MT_INT_MCU_CMD) {
 		u32 val = mt76_rr(dev, MT_MCU_CMD);
