@@ -8,6 +8,7 @@
  */
 
 #include <linux/export.h>
+#include <linux/of.h>
 #include <linux/slab.h>
 
 #include <drm/drm_bridge.h>

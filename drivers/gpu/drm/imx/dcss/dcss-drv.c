@@ -5,6 +5,7 @@
 
 #include <linux/module.h>
 #include <linux/kernel.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <drm/drm_module.h>
 #include <drm/drm_of.h>

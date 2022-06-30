@@ -32,6 +32,7 @@
 #include <drm/drm_privacy_screen_consumer.h>
 #include <drm/drm_sysfs.h>
 
+#include <linux/fb.h>
 #include <linux/uaccess.h>
 
 #include "drm_crtc_internal.h"

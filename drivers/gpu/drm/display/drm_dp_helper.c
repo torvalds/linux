@@ -20,6 +20,7 @@
  * OF THIS SOFTWARE.
  */
 
+#include <linux/backlight.h>
 #include <linux/delay.h>
 #include <linux/errno.h>
 #include <linux/i2c.h>
