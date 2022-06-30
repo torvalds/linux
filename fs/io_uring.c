@@ -4318,18 +4318,19 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		if (unlikely(ret < 0))
 			return ret;
 	} else {
+		rw = req->async_data;
+		s = &rw->s;
+
 		/*
 		 * Safe and required to re-import if we're using provided
 		 * buffers, as we dropped the selected one before retry.
 		 */
-		if (req->flags & REQ_F_BUFFER_SELECT) {
+		if (io_do_buffer_select(req)) {
 			ret = io_import_iovec(READ, req, &iovec, s, issue_flags);
 			if (unlikely(ret < 0))
 				return ret;
 		}
 
-		rw = req->async_data;
-		s = &rw->s;
 		/*
 		 * We come here from an earlier attempt, restore our state to
 		 * match in case it doesn't. It's cheap enough that we don't
