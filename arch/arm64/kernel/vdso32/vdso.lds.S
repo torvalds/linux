@@ -57,6 +57,7 @@ SECTIONS
 	.rel.dyn	: { *(.rel*) }
 
 	.ARM.exidx : { *(.ARM.exidx*) }
+	DWARF_DEBUG
 	ELF_DETAILS
 	.ARM.attributes 0 : { *(.ARM.attributes) }
 
