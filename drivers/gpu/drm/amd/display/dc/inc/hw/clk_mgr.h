@@ -208,7 +208,7 @@ struct wm_table {
 
 struct dummy_pstate_entry {
 	unsigned int dram_speed_mts;
-	unsigned int dummy_pstate_latency_us;
+	double dummy_pstate_latency_us;
 };
 
 struct clk_bw_params {
