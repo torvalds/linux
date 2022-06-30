@@ -85,8 +85,6 @@ static int wait_for_reset(struct intel_engine_cs *engine,
 			break;
 	} while (time_before(jiffies, timeout));
 
-	flush_scheduled_work();
-
 	if (rq->fence.error != -EIO) {
 		pr_err("%s: hanging request %llx:%lld not reset\n",
 		       engine->name,
