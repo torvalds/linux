@@ -107,6 +107,7 @@ config SND_HDA_SCODEC_CS35L41_I2C
 	depends on SND_SOC
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
+	select SND_HDA_CS_DSP_CONTROLS
 	help
 	  Say Y or M here to include CS35L41 I2C HD-audio side codec support
 	  in snd-hda-intel driver, such as ALC287.
@@ -121,6 +122,7 @@ config SND_HDA_SCODEC_CS35L41_SPI
 	depends on SND_SOC
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
+	select SND_HDA_CS_DSP_CONTROLS
 	help
 	  Say Y or M here to include CS35L41 SPI HD-audio side codec support
 	  in snd-hda-intel driver, such as ALC287.
