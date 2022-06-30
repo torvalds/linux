@@ -1619,11 +1619,6 @@ static inline void sk_mem_charge(struct sock *sk, int size)
 	sk->sk_forward_alloc -= size;
 }
 
-/* the following macros control memory reclaiming in mptcp_rmem_uncharge()
- */
-#define SK_RECLAIM_THRESHOLD	(1 << 21)
-#define SK_RECLAIM_CHUNK	(1 << 20)
-
 static inline void sk_mem_uncharge(struct sock *sk, int size)
 {
 	if (!sk_has_account(sk))
