@@ -811,6 +811,7 @@
 				"rst_m31dphy_hw", "rst_m31dphy_b09_always_on",
 				"rst_isp_top_n", "rst_isp_top_axi";
 			interrupts = <92 87>;
+			starfive,aon-syscon = <&aon_syscon 0x00>;
 			status = "disabled";
 		};
 

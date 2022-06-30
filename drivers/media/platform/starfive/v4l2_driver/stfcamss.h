@@ -98,6 +98,8 @@ struct stfcamss {
 	int nclks;
 	struct reset_control_bulk_data *sys_rst;
 	int nrsts;
+	struct regmap *stf_aon_syscon;
+	uint32_t aon_gp_reg;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_entry;
 	struct dentry *vin_debugfs;

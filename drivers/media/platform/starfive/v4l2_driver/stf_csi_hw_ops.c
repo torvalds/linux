@@ -38,7 +38,7 @@
 
 static int stf_csi_power_on(struct stf_csi_dev *csi_dev, u8 on)
 {
-	void __iomem *aon_syscon;
+	struct stfcamss *stfcamss = csi_dev->stfcamss;
 	int ret;
 
 	if (on) {
@@ -58,8 +58,7 @@ static int stf_csi_power_on(struct stf_csi_dev *csi_dev, u8 on)
 		regulator_disable(csi_dev->mipirx_0p9);
 	}
 
-	aon_syscon = ioremap(0x17010000, 0x4);
-	reg_write(aon_syscon, 0x00, 0x80000000);
+	regmap_write(stfcamss->stf_aon_syscon, stfcamss->aon_gp_reg, 0x80000000);
 
 	return 0;
 
