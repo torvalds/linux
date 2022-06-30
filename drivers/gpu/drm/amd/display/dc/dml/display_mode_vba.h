@@ -169,7 +169,7 @@ bool get_is_phantom_pipe(struct display_mode_lib *mode_lib,
 		unsigned int pipe_idx);
 void PixelClockAdjustmentForProgressiveToInterlaceUnit(struct display_mode_lib *mode_lib);
 
-bool Calculate256BBlockSizes(
+void Calculate256BBlockSizes(
 		enum source_format_class SourcePixelFormat,
 		enum dm_swizzle_mode SurfaceTiling,
 		unsigned int BytePerPixelY,

@@ -958,7 +958,7 @@ static void recalculate_params(
 	}
 }
 
-bool Calculate256BBlockSizes(
+void Calculate256BBlockSizes(
 		enum source_format_class SourcePixelFormat,
 		enum dm_swizzle_mode SurfaceTiling,
 		unsigned int BytePerPixelY,
@@ -996,7 +996,6 @@ bool Calculate256BBlockSizes(
 		*BlockWidth256BytesY = 256 / BytePerPixelY / *BlockHeight256BytesY;
 		*BlockWidth256BytesC = 256 / BytePerPixelC / *BlockHeight256BytesC;
 	}
-	return true;
 }
 
 bool CalculateMinAndMaxPrefetchMode(
