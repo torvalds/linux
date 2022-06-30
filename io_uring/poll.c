@@ -192,13 +192,18 @@ static void io_poll_remove_entries(struct io_kiocb *req)
 	rcu_read_unlock();
 }
 
+enum {
+	IOU_POLL_DONE = 0,
+	IOU_POLL_NO_ACTION = 1,
+};
+
 /*
  * All poll tw should go through this. Checks for poll events, manages
  * references, does rewait, etc.
  *
- * Returns a negative error on failure. >0 when no action require, which is
- * either spurious wakeup or multishot CQE is served. 0 when it's done with
- * the request, then the mask is stored in req->cqe.res.
+ * Returns a negative error on failure. IOU_POLL_NO_ACTION when no action require,
+ * which is either spurious wakeup or multishot CQE is served.
+ * IOU_POLL_DONE when it's done with the request, then the mask is stored in req->cqe.res.
  */
 static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 {
@@ -214,10 +219,11 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 
 		/* tw handler should be the owner, and so have some references */
 		if (WARN_ON_ONCE(!(v & IO_POLL_REF_MASK)))
-			return 0;
+			return IOU_POLL_DONE;
 		if (v & IO_POLL_CANCEL_FLAG)
 			return -ECANCELED;
 
+		/* the mask was stashed in __io_poll_execute */
 		if (!req->cqe.res) {
 			struct poll_table_struct pt = { ._key = req->apoll_events };
 			req->cqe.res = vfs_poll(req->file, &pt) & req->apoll_events;
@@ -226,7 +232,7 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 		if ((unlikely(!req->cqe.res)))
 			continue;
 		if (req->apoll_events & EPOLLONESHOT)
-			return 0;
+			return IOU_POLL_DONE;
 
 		/* multishot, just fill a CQE and proceed */
 		if (!(req->flags & REQ_F_APOLL_MULTISHOT)) {
@@ -238,7 +244,7 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 				return -ECANCELED;
 		} else {
 			ret = io_poll_issue(req, locked);
-			if (ret)
+			if (ret < 0)
 				return ret;
 		}
 
@@ -248,7 +254,7 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 		 */
 	} while (atomic_sub_return(v & IO_POLL_REF_MASK, &req->poll_refs));
 
-	return 1;
+	return IOU_POLL_NO_ACTION;
 }
 
 static void io_poll_task_func(struct io_kiocb *req, bool *locked)
@@ -256,12 +262,11 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 	int ret;
 
 	ret = io_poll_check_events(req, locked);
-	if (ret > 0)
+	if (ret == IOU_POLL_NO_ACTION)
 		return;
 
-	if (!ret) {
+	if (ret == IOU_POLL_DONE) {
 		struct io_poll *poll = io_kiocb_to_cmd(req);
-
 		req->cqe.res = mangle_poll(req->cqe.res & poll->events);
 	} else {
 		req->cqe.res = ret;
@@ -280,7 +285,7 @@ static void io_apoll_task_func(struct io_kiocb *req, bool *locked)
 	int ret;
 
 	ret = io_poll_check_events(req, locked);
-	if (ret > 0)
+	if (ret == IOU_POLL_NO_ACTION)
 		return;
 
 	io_poll_remove_entries(req);
