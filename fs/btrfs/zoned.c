@@ -1511,12 +1511,14 @@ static int read_zone_info(struct btrfs_fs_info *fs_info, u64 logical,
 	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
 			       &mapped_length, &bioc);
 	if (ret || !bioc || mapped_length < PAGE_SIZE) {
-		btrfs_put_bioc(bioc);
-		return -EIO;
+		ret = -EIO;
+		goto out_put_bioc;
 	}
 
-	if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK)
-		return -EINVAL;
+	if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
+		ret = -EINVAL;
+		goto out_put_bioc;
+	}
 
 	nofs_flag = memalloc_nofs_save();
 	nmirrors = (int)bioc->num_stripes;
@@ -1535,7 +1537,8 @@ static int read_zone_info(struct btrfs_fs_info *fs_info, u64 logical,
 		break;
 	}
 	memalloc_nofs_restore(nofs_flag);
-
+out_put_bioc:
+	btrfs_put_bioc(bioc);
 	return ret;
 }
 
