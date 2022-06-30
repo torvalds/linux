@@ -728,10 +728,6 @@
 	status = "okay";
 };
 
-&mipi_dphy {
-       status = "disabled";
-};
-
 &co_process {
 	status = "okay";
 };
