@@ -450,7 +450,8 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 	if (rkey_is_mw(rkey)) {
 		mw = rxe_lookup_mw(qp, access, rkey);
 		if (!mw) {
-			pr_err("%s: no MW matches rkey %#x\n", __func__, rkey);
+			pr_debug("%s: no MW matches rkey %#x\n",
+					__func__, rkey);
 			state = RESPST_ERR_RKEY_VIOLATION;
 			goto err;
 		}
@@ -470,7 +471,8 @@ static enum resp_states check_rkey(struct rxe_qp *qp,
 	} else {
 		mr = lookup_mr(qp->pd, access, rkey, RXE_LOOKUP_REMOTE);
 		if (!mr) {
-			pr_err("%s: no MR matches rkey %#x\n", __func__, rkey);
+			pr_debug("%s: no MR matches rkey %#x\n",
+					__func__, rkey);
 			state = RESPST_ERR_RKEY_VIOLATION;
 			goto err;
 		}
@@ -1462,7 +1464,7 @@ int rxe_responder(void *arg)
 
 		case RESPST_ERROR:
 			qp->resp.goto_error = 0;
-			pr_warn("qp#%d moved to error state\n", qp_num(qp));
+			pr_debug("qp#%d moved to error state\n", qp_num(qp));
 			rxe_qp_error(qp);
 			goto exit;
 
