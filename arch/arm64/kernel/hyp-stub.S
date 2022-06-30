@@ -17,22 +17,27 @@
 #include <asm/virt.h>
 
 // Warning, hardcoded register allocation
-// This will clobber x1 and x2.
-.macro check_override idreg, fld, pass, fail
-	mrs	x1, \idreg\()_el1
-	ubfx	x1, x1, #\fld, #4
+// This will clobber x1 and x2, and expect x1 to contain
+// the id register value as read from the HW
+.macro __check_override idreg, fld, width, pass, fail
+	ubfx	x1, x1, #\fld, #\width
 	cbz	x1, \fail
 
 	adr_l	x1, \idreg\()_override
 	ldr	x2, [x1, FTR_OVR_VAL_OFFSET]
 	ldr	x1, [x1, FTR_OVR_MASK_OFFSET]
-	ubfx	x2, x2, #\fld, #4
-	ubfx	x1, x1, #\fld, #4
+	ubfx	x2, x2, #\fld, #\width
+	ubfx	x1, x1, #\fld, #\width
 	cmp	x1, xzr
 	and	x2, x2, x1
 	csinv	x2, x2, xzr, ne
 	cbnz	x2, \pass
 	b	\fail
+.endm
+
+.macro check_override idreg, fld, pass, fail
+	mrs	x1, \idreg\()_el1
+	__check_override \idreg \fld 4 \pass \fail
 .endm
 
 	.text
