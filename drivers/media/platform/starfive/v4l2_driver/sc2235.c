@@ -129,13 +129,6 @@ struct sc2235_ctrls {
 	struct v4l2_ctrl *vflip;
 };
 
-struct sensor_pinctrl_info {
-	struct pinctrl *pinctrl;
-	struct pinctrl_state *reset_state_low;
-	struct pinctrl_state *reset_state_high;
-	bool use_pinctrl;
-};
-
 struct sc2235_dev {
 	struct i2c_client *i2c_client;
 	struct v4l2_subdev sd;
@@ -169,37 +162,7 @@ struct sc2235_dev {
 
 	bool pending_mode_change;
 	bool streaming;
-
-	struct sensor_pinctrl_info sc2235_pctrl;
 };
-
-int sc2235_sensor_pinctrl_init(
-	struct sensor_pinctrl_info *sensor_pctrl, struct device *dev)
-{
-	sensor_pctrl->pinctrl = devm_pinctrl_get(dev);
-	if (IS_ERR_OR_NULL(sensor_pctrl->pinctrl)) {
-		pr_err("Getting pinctrl handle failed\n");
-		return -EINVAL;
-	}
-
-	sensor_pctrl->reset_state_low
-		= pinctrl_lookup_state(sensor_pctrl->pinctrl, "reset_low");
-	if (IS_ERR_OR_NULL(sensor_pctrl->reset_state_low)) {
-		pr_err("Failed to get the reset_low pinctrl handle\n");
-		return -EINVAL;
-	}
-
-	sensor_pctrl->reset_state_high
-		= pinctrl_lookup_state(sensor_pctrl->pinctrl, "reset_high");
-	if (IS_ERR_OR_NULL(sensor_pctrl->reset_state_high)) {
-		pr_err("Failed to get the reset_high pinctrl handle\n");
-		return -EINVAL;
-	}
-
-	sensor_pctrl->use_pinctrl = true;
-
-	return 0;
-}
 
 static inline struct sc2235_dev *to_sc2235_dev(struct v4l2_subdev *sd)
 {
@@ -969,7 +932,6 @@ static void sc2235_reset(struct sc2235_dev *sensor)
 static int sc2235_set_power_on(struct sc2235_dev *sensor)
 {
 	struct i2c_client *client = sensor->i2c_client;
-	struct sensor_pinctrl_info *sensor_pctrl = &sensor->sc2235_pctrl;
 	int ret;
 
 	ret = clk_prepare_enable(sensor->xclk);
@@ -987,16 +949,8 @@ static int sc2235_set_power_on(struct sc2235_dev *sensor)
 		goto xclk_off;
 	}
 
-	if (sensor_pctrl->use_pinctrl) {
-		ret = pinctrl_select_state(
-			sensor_pctrl->pinctrl,
-			sensor_pctrl->reset_state_high);
-		if (ret)
-			pr_err("cannot set reset pin to high\n");
-	} else {
-		sc2235_reset(sensor);
-		sc2235_power(sensor, true);
-	}
+	sc2235_reset(sensor);
+	sc2235_power(sensor, true);
 
 	return 0;
 
@@ -1007,18 +961,7 @@ xclk_off:
 
 static void sc2235_set_power_off(struct sc2235_dev *sensor)
 {
-	struct sensor_pinctrl_info *sensor_pctrl = &sensor->sc2235_pctrl;
-	int ret;
-
-	if (sensor_pctrl->use_pinctrl) {
-		ret = pinctrl_select_state(
-			sensor_pctrl->pinctrl,
-			sensor_pctrl->reset_state_low);
-		if (ret)
-			pr_err("cannot set reset pin to low\n");
-	} else {
-		sc2235_power(sensor, false);
-	}
+	sc2235_power(sensor, false);
 
 	regulator_bulk_disable(SC2235_NUM_SUPPLIES, sensor->supplies);
 	clk_disable_unprepare(sensor->xclk);
@@ -1605,9 +1548,7 @@ static int sc2235_enum_frame_interval(
 	struct v4l2_subdev_state *state,
 	struct v4l2_subdev_frame_interval_enum *fie)
 {
-	struct sc2235_dev *sensor = to_sc2235_dev(sd);
 	struct v4l2_fract tpf;
-	int ret;
 
 	if (fie->pad != 0)
 		return -EINVAL;
@@ -1616,11 +1557,6 @@ static int sc2235_enum_frame_interval(
 
 	tpf.numerator = 1;
 	tpf.denominator = sc2235_framerates[fie->index];
-
-	// ret = sc2235_try_frame_interval(sensor, &tpf,
-	//				fie->width, fie->height);
-	// if (ret < 0)
-	//	return -EINVAL;
 
 	fie->interval = tpf;
 	return 0;
@@ -1887,12 +1823,15 @@ static int sc2235_probe(struct i2c_client *client)
 		return -EINVAL;
 	}
 
-	ret = sc2235_sensor_pinctrl_init(&sensor->sc2235_pctrl, dev);
-	if (ret) {
-		pr_err("Can't get pinctrl, use gpio to ctrl\n");
-		sensor->reset_gpio = devm_gpiod_get_optional(dev, "reset", GPIOD_OUT_HIGH);
-		sensor->sc2235_pctrl.use_pinctrl = false;
-	}
+	sensor->pwdn_gpio = devm_gpiod_get_optional(dev, "powerdown",
+						GPIOD_OUT_HIGH);
+	if (IS_ERR(sensor->pwdn_gpio))
+		return PTR_ERR(sensor->pwdn_gpio);
+
+	sensor->reset_gpio = devm_gpiod_get_optional(dev, "reset",
+						GPIOD_OUT_HIGH);
+	if (IS_ERR(sensor->reset_gpio))
+		return PTR_ERR(sensor->reset_gpio);
 
 	v4l2_i2c_subdev_init(&sensor->sd, client, &sc2235_subdev_ops);
 
