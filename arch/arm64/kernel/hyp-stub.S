@@ -98,6 +98,47 @@ SYM_CODE_START_LOCAL(elx_sync)
 SYM_CODE_END(elx_sync)
 
 SYM_CODE_START_LOCAL(__finalise_el2)
+	check_override id_aa64pfr1 ID_AA64PFR1_SME_SHIFT .Linit_sme .Lskip_sme
+
+.Linit_sme:	/* SME register access and priority mapping */
+	mrs	x0, cptr_el2			// Disable SME traps
+	bic	x0, x0, #CPTR_EL2_TSM
+	msr	cptr_el2, x0
+	isb
+
+	mrs	x1, sctlr_el2
+	orr	x1, x1, #SCTLR_ELx_ENTP2	// Disable TPIDR2 traps
+	msr	sctlr_el2, x1
+	isb
+
+	mov	x1, #0				// SMCR controls
+
+	mrs_s	x2, SYS_ID_AA64SMFR0_EL1
+	ubfx	x2, x2, #ID_AA64SMFR0_FA64_SHIFT, #1 // Full FP in SM?
+	cbz	x2, .Lskip_sme_fa64
+
+	orr	x1, x1, SMCR_ELx_FA64_MASK
+.Lskip_sme_fa64:
+
+	orr	x1, x1, #SMCR_ELx_LEN_MASK	// Enable full SME vector
+	msr_s	SYS_SMCR_EL2, x1		// length for EL1.
+
+	mrs_s	x1, SYS_SMIDR_EL1		// Priority mapping supported?
+	ubfx    x1, x1, #SMIDR_EL1_SMPS_SHIFT, #1
+	cbz     x1, .Lskip_sme
+
+	msr_s	SYS_SMPRIMAP_EL2, xzr		// Make all priorities equal
+
+	mrs	x1, id_aa64mmfr1_el1		// HCRX_EL2 present?
+	ubfx	x1, x1, #ID_AA64MMFR1_HCX_SHIFT, #4
+	cbz	x1, .Lskip_sme
+
+	mrs_s	x1, SYS_HCRX_EL2
+	orr	x1, x1, #HCRX_EL2_SMPME_MASK	// Enable priority mapping
+	msr_s	SYS_HCRX_EL2, x1
+
+.Lskip_sme:
+
 	// nVHE? No way! Give me the real thing!
 	// Sanity check: MMU *must* be off
 	mrs	x1, sctlr_el2
