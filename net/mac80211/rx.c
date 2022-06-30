@@ -2532,8 +2532,8 @@ __ieee80211_data_to_8023(struct ieee80211_rx_data *rx, bool *port_control)
 	return 0;
 }
 
-static bool ieee80211_is_our_addr(struct ieee80211_sub_if_data *sdata,
-				  const u8 *addr, int *out_link_id)
+bool ieee80211_is_our_addr(struct ieee80211_sub_if_data *sdata,
+			   const u8 *addr, int *out_link_id)
 {
 	unsigned int link_id;
 

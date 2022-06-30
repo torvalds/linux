@@ -1752,6 +1752,9 @@ void __ieee80211_check_fast_rx_iface(struct ieee80211_sub_if_data *sdata);
 void ieee80211_check_fast_rx_iface(struct ieee80211_sub_if_data *sdata);
 void ieee80211_clear_fast_rx(struct sta_info *sta);
 
+bool ieee80211_is_our_addr(struct ieee80211_sub_if_data *sdata,
+			   const u8 *addr, int *out_link_id);
+
 /* STA code */
 void ieee80211_sta_setup_sdata(struct ieee80211_sub_if_data *sdata);
 int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
