@@ -4254,7 +4254,7 @@ static void gaudi2_init_edma(struct hl_device *hdev)
 
 static void gaudi2_init_sm(struct hl_device *hdev)
 {
-	u64 msix_db_reg = CFG_BASE + mmPCIE_DBI_MSIX_DOORBELL_OFF;
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
 	u64 cq_address;
 	u32 reg_val;
 	int i;
@@ -4272,8 +4272,21 @@ static void gaudi2_init_sm(struct hl_device *hdev)
 
 	/* Init CQ0 DB */
 	/* Configure the monitor to trigger MSI-X interrupt */
-	WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_L_0, lower_32_bits(msix_db_reg));
-	WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_H_0, upper_32_bits(msix_db_reg));
+	/* TODO:
+	 * Remove the if statement when virtual MSI-X doorbell is supported in simulator (SW-93022)
+	 * and in F/W (SW-93024).
+	 */
+	if (!hdev->pdev || hdev->asic_prop.fw_security_enabled) {
+		u64 msix_db_reg = CFG_BASE + mmPCIE_DBI_MSIX_DOORBELL_OFF;
+
+		WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_L_0, lower_32_bits(msix_db_reg));
+		WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_H_0, upper_32_bits(msix_db_reg));
+	} else {
+		WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_L_0,
+				lower_32_bits(gaudi2->virt_msix_db_dma_addr));
+		WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_ADDR_H_0,
+				upper_32_bits(gaudi2->virt_msix_db_dma_addr));
+	}
 	WREG32(mmDCORE0_SYNC_MNGR_GLBL_LBW_DATA_0, GAUDI2_IRQ_NUM_COMPLETION);
 
 	for (i = 0 ; i < GAUDI2_RESERVED_CQ_NUMBER ; i++) {
