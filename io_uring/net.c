@@ -656,11 +656,14 @@ retry:
 		return IOU_OK;
 	}
 
-	if (ret < 0)
-		return ret;
-	if (io_post_aux_cqe(ctx, req->cqe.user_data, ret, IORING_CQE_F_MORE, true))
+	if (ret >= 0 &&
+	    io_post_aux_cqe(ctx, req->cqe.user_data, ret, IORING_CQE_F_MORE, false))
 		goto retry;
-	return -ECANCELED;
+
+	io_req_set_res(req, ret, 0);
+	if (req->flags & REQ_F_POLLED)
+		return IOU_STOP_MULTISHOT;
+	return IOU_OK;
 }
 
 int io_socket_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
