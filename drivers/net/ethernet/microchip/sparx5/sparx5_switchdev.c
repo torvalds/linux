@@ -397,6 +397,9 @@ static int sparx5_handle_port_mdb_add(struct net_device *dev,
 	bool is_host;
 	int res, err;
 
+	if (!sparx5_netdevice_check(dev))
+		return -EOPNOTSUPP;
+
 	is_host = netif_is_bridge_master(v->obj.orig_dev);
 
 	/* When VLAN unaware the vlan value is not parsed and we receive vid 0.
@@ -479,6 +482,9 @@ static int sparx5_handle_port_mdb_del(struct net_device *dev,
 	u16 pgid_idx, vid;
 	u32 mact_entry, res, pgid_entry[3], misc_cfg;
 	bool host_ena;
+
+	if (!sparx5_netdevice_check(dev))
+		return -EOPNOTSUPP;
 
 	if (!br_vlan_enabled(spx5->hw_bridge_dev))
 		vid = 1;

@@ -1212,15 +1212,8 @@ static void init_vmcb(struct kvm_vcpu *vcpu)
 		svm->vmcb->control.int_ctl |= V_GIF_ENABLE_MASK;
 	}
 
-	if (sev_guest(vcpu->kvm)) {
-		svm->vmcb->control.nested_ctl |= SVM_NESTED_CTL_SEV_ENABLE;
-		clr_exception_intercept(svm, UD_VECTOR);
-
-		if (sev_es_guest(vcpu->kvm)) {
-			/* Perform SEV-ES specific VMCB updates */
-			sev_es_init_vmcb(svm);
-		}
-	}
+	if (sev_guest(vcpu->kvm))
+		sev_init_vmcb(svm);
 
 	svm_hv_init_vmcb(vmcb);
 	init_vmcb_after_set_cpuid(vcpu);

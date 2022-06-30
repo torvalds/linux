@@ -152,6 +152,10 @@ static bool no_bt_rfkill;
 module_param(no_bt_rfkill, bool, 0444);
 MODULE_PARM_DESC(no_bt_rfkill, "No rfkill for bluetooth.");
 
+static bool allow_v4_dytc;
+module_param(allow_v4_dytc, bool, 0444);
+MODULE_PARM_DESC(allow_v4_dytc, "Enable DYTC version 4 platform-profile support.");
+
 /*
  * ACPI Helpers
  */
@@ -871,10 +875,16 @@ static void dytc_profile_refresh(struct ideapad_private *priv)
 static const struct dmi_system_id ideapad_dytc_v4_allow_table[] = {
 	{
 		/* Ideapad 5 Pro 16ACH6 */
-		.ident = "LENOVO 82L5",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
 			DMI_MATCH(DMI_PRODUCT_NAME, "82L5")
+		}
+	},
+	{
+		/* Ideapad 5 15ITL05 */
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
+			DMI_MATCH(DMI_PRODUCT_VERSION, "IdeaPad 5 15ITL05")
 		}
 	},
 	{}
@@ -901,13 +911,16 @@ static int ideapad_dytc_profile_init(struct ideapad_private *priv)
 
 	dytc_version = (output >> DYTC_QUERY_REV_BIT) & 0xF;
 
-	if (dytc_version < 5) {
-		if (dytc_version < 4 || !dmi_check_system(ideapad_dytc_v4_allow_table)) {
-			dev_info(&priv->platform_device->dev,
-				 "DYTC_VERSION is less than 4 or is not allowed: %d\n",
-				 dytc_version);
-			return -ENODEV;
-		}
+	if (dytc_version < 4) {
+		dev_info(&priv->platform_device->dev, "DYTC_VERSION < 4 is not supported\n");
+		return -ENODEV;
+	}
+
+	if (dytc_version < 5 &&
+	    !(allow_v4_dytc || dmi_check_system(ideapad_dytc_v4_allow_table))) {
+		dev_info(&priv->platform_device->dev,
+			 "DYTC_VERSION 4 support may not work. Pass ideapad_laptop.allow_v4_dytc=Y on the kernel commandline to enable\n");
+		return -ENODEV;
 	}
 
 	priv->dytc = kzalloc(sizeof(*priv->dytc), GFP_KERNEL);
