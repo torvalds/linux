@@ -2054,6 +2054,7 @@ int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size)
 				if (err)
 					goto out;
 				/* Layout of records maybe changed. */
+				attr_b = NULL;
 			}
 		}
 		/* Free all allocated memory. */
@@ -2073,6 +2074,14 @@ int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size)
 	}
 
 	total_size -= (u64)dealloc << sbi->cluster_bits;
+	if (!attr_b) {
+		attr_b = ni_find_attr(ni, NULL, NULL, ATTR_DATA, NULL, 0, NULL,
+				      &mi_b);
+		if (!attr_b) {
+			err = -EINVAL;
+			goto out;
+		}
+	}
 	attr_b->nres.total_size = cpu_to_le64(total_size);
 	mi_b->dirty = true;
 
@@ -2083,8 +2092,10 @@ int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size)
 
 out:
 	up_write(&ni->file.run_lock);
-	if (err)
+	if (err) {
+		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
 		make_bad_inode(&ni->vfs_inode);
+	}
 
 	return err;
 }
