@@ -671,18 +671,22 @@ static void ksz_phylink_get_caps(struct dsa_switch *ds, int port,
 
 void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 {
+	struct ethtool_pause_stats *pstats;
 	struct rtnl_link_stats64 *stats;
 	struct ksz_stats_raw *raw;
 	struct ksz_port_mib *mib;
 
 	mib = &dev->ports[port].mib;
 	stats = &mib->stats64;
+	pstats = &mib->pause_stats;
 	raw = (struct ksz_stats_raw *)mib->counters;
 
 	spin_lock(&mib->stats64_lock);
 
-	stats->rx_packets = raw->rx_bcast + raw->rx_mcast + raw->rx_ucast;
-	stats->tx_packets = raw->tx_bcast + raw->tx_mcast + raw->tx_ucast;
+	stats->rx_packets = raw->rx_bcast + raw->rx_mcast + raw->rx_ucast +
+		raw->rx_pause;
+	stats->tx_packets = raw->tx_bcast + raw->tx_mcast + raw->tx_ucast +
+		raw->tx_pause;
 
 	/* HW counters are counting bytes + FCS which is not acceptable
 	 * for rtnl_link_stats64 interface
@@ -708,6 +712,9 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port)
 	stats->multicast = raw->rx_mcast;
 	stats->collisions = raw->tx_total_col;
 
+	pstats->tx_pause_frames = raw->tx_pause;
+	pstats->rx_pause_frames = raw->rx_pause;
+
 	spin_unlock(&mib->stats64_lock);
 }
 
@@ -721,6 +728,19 @@ static void ksz_get_stats64(struct dsa_switch *ds, int port,
 
 	spin_lock(&mib->stats64_lock);
 	memcpy(s, &mib->stats64, sizeof(*s));
+	spin_unlock(&mib->stats64_lock);
+}
+
+static void ksz_get_pause_stats(struct dsa_switch *ds, int port,
+				struct ethtool_pause_stats *pause_stats)
+{
+	struct ksz_device *dev = ds->priv;
+	struct ksz_port_mib *mib;
+
+	mib = &dev->ports[port].mib;
+
+	spin_lock(&mib->stats64_lock);
+	memcpy(pause_stats, &mib->pause_stats, sizeof(*pause_stats));
 	spin_unlock(&mib->stats64_lock);
 }
 
@@ -1336,6 +1356,7 @@ static const struct dsa_switch_ops ksz_switch_ops = {
 	.port_mirror_add	= ksz_port_mirror_add,
 	.port_mirror_del	= ksz_port_mirror_del,
 	.get_stats64		= ksz_get_stats64,
+	.get_pause_stats	= ksz_get_pause_stats,
 	.port_change_mtu	= ksz_change_mtu,
 	.port_max_mtu		= ksz_max_mtu,
 };

@@ -25,6 +25,7 @@ struct ksz_port_mib {
 	u8 cnt_ptr;
 	u64 *counters;
 	struct rtnl_link_stats64 stats64;
+	struct ethtool_pause_stats pause_stats;
 	struct spinlock stats64_lock;
 };
 

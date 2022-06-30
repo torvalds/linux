@@ -231,6 +231,7 @@ struct ar9331_sw_port {
 	int idx;
 	struct delayed_work mib_read;
 	struct rtnl_link_stats64 stats;
+	struct ethtool_pause_stats pause_stats;
 	struct spinlock stats_lock;
 };
 
@@ -604,6 +605,7 @@ static void ar9331_sw_phylink_mac_link_up(struct dsa_switch *ds, int port,
 static void ar9331_read_stats(struct ar9331_sw_port *port)
 {
 	struct ar9331_sw_priv *priv = ar9331_sw_port_to_priv(port);
+	struct ethtool_pause_stats *pstats = &port->pause_stats;
 	struct rtnl_link_stats64 *stats = &port->stats;
 	struct ar9331_sw_stats_raw raw;
 	int ret;
@@ -644,6 +646,9 @@ static void ar9331_read_stats(struct ar9331_sw_port *port)
 	stats->multicast += raw.rxmulti;
 	stats->collisions += raw.txcollision;
 
+	pstats->tx_pause_frames += raw.txpause;
+	pstats->rx_pause_frames += raw.rxpause;
+
 	spin_unlock(&port->stats_lock);
 }
 
@@ -668,6 +673,17 @@ static void ar9331_get_stats64(struct dsa_switch *ds, int port,
 	spin_unlock(&p->stats_lock);
 }
 
+static void ar9331_get_pause_stats(struct dsa_switch *ds, int port,
+				   struct ethtool_pause_stats *pause_stats)
+{
+	struct ar9331_sw_priv *priv = (struct ar9331_sw_priv *)ds->priv;
+	struct ar9331_sw_port *p = &priv->port[port];
+
+	spin_lock(&p->stats_lock);
+	memcpy(pause_stats, &p->pause_stats, sizeof(*pause_stats));
+	spin_unlock(&p->stats_lock);
+}
+
 static const struct dsa_switch_ops ar9331_sw_ops = {
 	.get_tag_protocol	= ar9331_sw_get_tag_protocol,
 	.setup			= ar9331_sw_setup,
@@ -677,6 +693,7 @@ static const struct dsa_switch_ops ar9331_sw_ops = {
 	.phylink_mac_link_down	= ar9331_sw_phylink_mac_link_down,
 	.phylink_mac_link_up	= ar9331_sw_phylink_mac_link_up,
 	.get_stats64		= ar9331_get_stats64,
+	.get_pause_stats	= ar9331_get_pause_stats,
 };
 
 static irqreturn_t ar9331_sw_irq(int irq, void *data)
