@@ -6,7 +6,7 @@
 	compatible = "starfive,jh7110";
 
 	//hdmi_output
-  	fragment@2 {
+	fragment@0 {
 		target-path = "/soc/tda988x_pin";
 		__overlay__ {
 			status = "okay";
@@ -14,7 +14,7 @@
 	};
 
 	//uart1
-	fragment@3 {
+	fragment@1 {
 		target-path = "/soc/serial@10010000";
 		__overlay__ {
 			status = "okay";

@@ -32,17 +32,12 @@
 };
 
 &sdio1 {
-	clock-frequency = <4000000>;
-	max-frequency = <1000000>;
+	clock-frequency = <102400000>;
+	max-frequency = <100000000>;
 	card-detect-delay = <300>;
 	bus-width = <4>;
+	broken-cd;
 	cap-sd-highspeed;
-	cap-sdio-irq;
-	cap-mmc-hw-reset;
-	non-removable;
-	enable-sdio-wakeup;
-	keep-power-in-suspend;
-	cap-mmc-highspeed;
 	post-power-on-delay-ms = <200>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdcard1_pins>;
