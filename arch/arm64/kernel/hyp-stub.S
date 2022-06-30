@@ -98,6 +98,17 @@ SYM_CODE_START_LOCAL(elx_sync)
 SYM_CODE_END(elx_sync)
 
 SYM_CODE_START_LOCAL(__finalise_el2)
+	check_override id_aa64pfr0 ID_AA64PFR0_SVE_SHIFT .Linit_sve .Lskip_sve
+
+.Linit_sve:	/* SVE register access */
+	mrs	x0, cptr_el2			// Disable SVE traps
+	bic	x0, x0, #CPTR_EL2_TZ
+	msr	cptr_el2, x0
+	isb
+	mov	x1, #ZCR_ELx_LEN_MASK		// SVE: Enable full vector
+	msr_s	SYS_ZCR_EL2, x1			// length for EL1.
+
+.Lskip_sve:
 	check_override id_aa64pfr1 ID_AA64PFR1_SME_SHIFT .Linit_sme .Lskip_sme
 
 .Linit_sme:	/* SME register access and priority mapping */

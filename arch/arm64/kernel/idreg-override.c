@@ -55,6 +55,30 @@ static const struct ftr_set_desc mmfr1 __initconst = {
 	},
 };
 
+static bool __init pfr0_sve_filter(u64 val)
+{
+	/*
+	 * Disabling SVE also means disabling all the features that
+	 * are associated with it. The easiest way to do it is just to
+	 * override id_aa64zfr0_el1 to be 0.
+	 */
+	if (!val) {
+		id_aa64zfr0_override.val = 0;
+		id_aa64zfr0_override.mask = GENMASK(63, 0);
+	}
+
+	return true;
+}
+
+static const struct ftr_set_desc pfr0 __initconst = {
+	.name		= "id_aa64pfr0",
+	.override	= &id_aa64pfr0_override,
+	.fields		= {
+	        FIELD("sve", ID_AA64PFR0_SVE_SHIFT, pfr0_sve_filter),
+		{}
+	},
+};
+
 static bool __init pfr1_sme_filter(u64 val)
 {
 	/*
@@ -118,6 +142,7 @@ static const struct ftr_set_desc kaslr __initconst = {
 
 static const struct ftr_set_desc * const regs[] __initconst = {
 	&mmfr1,
+	&pfr0,
 	&pfr1,
 	&isar1,
 	&isar2,
@@ -130,6 +155,7 @@ static const struct {
 } aliases[] __initconst = {
 	{ "kvm-arm.mode=nvhe",		"id_aa64mmfr1.vh=0" },
 	{ "kvm-arm.mode=protected",	"id_aa64mmfr1.vh=0" },
+	{ "arm64.nosve",		"id_aa64pfr0.sve=0 id_aa64pfr1.sme=0" },
 	{ "arm64.nosme",		"id_aa64pfr1.sme=0" },
 	{ "arm64.nobti",		"id_aa64pfr1.bt=0" },
 	{ "arm64.nopauth",

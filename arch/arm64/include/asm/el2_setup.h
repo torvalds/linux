@@ -129,20 +129,6 @@
 	msr	cptr_el2, x0			// Disable copro. traps to EL2
 .endm
 
-/* SVE register access */
-.macro __init_el2_nvhe_sve
-	mrs	x1, id_aa64pfr0_el1
-	ubfx	x1, x1, #ID_AA64PFR0_SVE_SHIFT, #4
-	cbz	x1, .Lskip_sve_\@
-
-	bic	x0, x0, #CPTR_EL2_TZ		// Also disable SVE traps
-	msr	cptr_el2, x0			// Disable copro. traps to EL2
-	isb
-	mov	x1, #ZCR_ELx_LEN_MASK		// SVE: Enable full vector
-	msr_s	SYS_ZCR_EL2, x1			// length for EL1.
-.Lskip_sve_\@:
-.endm
-
 /* Disable any fine grained traps */
 .macro __init_el2_fgt
 	mrs	x1, id_aa64mmfr0_el1
@@ -206,7 +192,6 @@
 	__init_el2_hstr
 	__init_el2_nvhe_idregs
 	__init_el2_nvhe_cptr
-	__init_el2_nvhe_sve
 	__init_el2_fgt
 	__init_el2_nvhe_prepare_eret
 .endm
