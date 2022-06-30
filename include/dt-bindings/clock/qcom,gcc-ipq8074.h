@@ -368,4 +368,7 @@
 #define GCC_PCIE1_AXI_MASTER_STICKY_ARES	130
 #define GCC_PCIE0_AXI_SLAVE_STICKY_ARES		131
 
+#define USB0_GDSC				0
+#define USB1_GDSC				1
+
 #endif
