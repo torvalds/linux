@@ -155,10 +155,14 @@ static void dcn32_build_wm_range_table(struct clk_mgr_internal *clk_mgr)
 	uint16_t min_uclk_mhz			= clk_mgr->base.bw_params->clk_table.entries[0].memclk_mhz;
 	uint16_t min_dcfclk_mhz			= clk_mgr->base.bw_params->clk_table.entries[0].dcfclk_mhz;
 	uint16_t setb_min_uclk_mhz		= min_uclk_mhz;
-	uint16_t setb_min_dcfclk_mhz	= min_dcfclk_mhz;
+	uint16_t dcfclk_mhz_for_the_second_state = clk_mgr->base.ctx->dc->dml.soc.clock_limits[2].dcfclk_mhz;
+
 	/* For Set B ranges use min clocks state 2 when available, and report those to PM FW */
-	if (clk_mgr->base.ctx->dc->dml.soc.clock_limits[2].dcfclk_mhz)
-		setb_min_dcfclk_mhz = clk_mgr->base.ctx->dc->dml.soc.clock_limits[2].dcfclk_mhz;
+	if (dcfclk_mhz_for_the_second_state)
+		clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.min_dcfclk = dcfclk_mhz_for_the_second_state;
+	else
+		clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.min_dcfclk = clk_mgr->base.bw_params->clk_table.entries[0].dcfclk_mhz;
+
 	if (clk_mgr->base.bw_params->clk_table.entries[2].memclk_mhz)
 		setb_min_uclk_mhz = clk_mgr->base.bw_params->clk_table.entries[2].memclk_mhz;
 
@@ -181,7 +185,6 @@ static void dcn32_build_wm_range_table(struct clk_mgr_internal *clk_mgr)
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].dml_input.sr_exit_time_us = sr_exit_time_us;
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].dml_input.sr_enter_plus_exit_time_us = sr_enter_plus_exit_time_us;
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.wm_type = WATERMARKS_CLOCK_RANGE;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.min_dcfclk = setb_min_dcfclk_mhz;
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.max_dcfclk = 0xFFFF;
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.min_uclk = setb_min_uclk_mhz;
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.max_uclk = 0xFFFF;
