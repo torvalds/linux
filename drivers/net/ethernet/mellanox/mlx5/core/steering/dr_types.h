@@ -1111,7 +1111,6 @@ int mlx5dr_rule_get_reverse_rule_members(struct mlx5dr_ste **ste_arr,
 
 struct mlx5dr_icm_chunk {
 	struct mlx5dr_icm_buddy_mem *buddy_mem;
-	struct list_head chunk_list;
 
 	/* indicates the index of this chunk in the whole memory,
 	 * used for deleting the chunk from the buddy

@@ -207,17 +207,6 @@ static void dr_icm_chunk_ste_init(struct mlx5dr_icm_chunk *chunk, int offset)
 	       num_of_entries * sizeof(chunk->ste_arr[0]));
 }
 
-static void dr_icm_chunk_destroy(struct mlx5dr_icm_chunk *chunk)
-{
-	struct kmem_cache *chunks_cache =
-		chunk->buddy_mem->pool->chunks_kmem_cache;
-
-	chunk->buddy_mem->used_memory -= mlx5dr_icm_pool_get_chunk_byte_size(chunk);
-	list_del(&chunk->chunk_list);
-
-	kmem_cache_free(chunks_cache, chunk);
-}
-
 static int dr_icm_buddy_init_ste_cache(struct mlx5dr_icm_buddy_mem *buddy)
 {
 	int num_of_entries =
@@ -297,11 +286,6 @@ free_mr:
 
 static void dr_icm_buddy_destroy(struct mlx5dr_icm_buddy_mem *buddy)
 {
-	struct mlx5dr_icm_chunk *chunk, *next;
-
-	list_for_each_entry_safe(chunk, next, &buddy->used_list, chunk_list)
-		dr_icm_chunk_destroy(chunk);
-
 	dr_icm_pool_mr_destroy(buddy->icm_mr);
 
 	mlx5dr_buddy_cleanup(buddy);
@@ -312,36 +296,25 @@ static void dr_icm_buddy_destroy(struct mlx5dr_icm_buddy_mem *buddy)
 	kvfree(buddy);
 }
 
-static struct mlx5dr_icm_chunk *
-dr_icm_chunk_create(struct mlx5dr_icm_pool *pool,
-		    enum mlx5dr_icm_chunk_size chunk_size,
-		    struct mlx5dr_icm_buddy_mem *buddy_mem_pool,
-		    unsigned int seg)
+static void
+dr_icm_chunk_init(struct mlx5dr_icm_chunk *chunk,
+		  struct mlx5dr_icm_pool *pool,
+		  enum mlx5dr_icm_chunk_size chunk_size,
+		  struct mlx5dr_icm_buddy_mem *buddy_mem_pool,
+		  unsigned int seg)
 {
-	struct kmem_cache *chunks_cache = buddy_mem_pool->pool->chunks_kmem_cache;
-	struct mlx5dr_icm_chunk *chunk;
 	int offset;
-
-	chunk = kmem_cache_alloc(chunks_cache, GFP_KERNEL);
-	if (!chunk)
-		return NULL;
-
-	offset = mlx5dr_icm_pool_dm_type_to_entry_size(pool->icm_type) * seg;
 
 	chunk->seg = seg;
 	chunk->size = chunk_size;
 	chunk->buddy_mem = buddy_mem_pool;
 
-	if (pool->icm_type == DR_ICM_TYPE_STE)
+	if (pool->icm_type == DR_ICM_TYPE_STE) {
+		offset = mlx5dr_icm_pool_dm_type_to_entry_size(pool->icm_type) * seg;
 		dr_icm_chunk_ste_init(chunk, offset);
+	}
 
 	buddy_mem_pool->used_memory += mlx5dr_icm_pool_get_chunk_byte_size(chunk);
-	INIT_LIST_HEAD(&chunk->chunk_list);
-
-	/* chunk now is part of the used_list */
-	list_add_tail(&chunk->chunk_list, &buddy_mem_pool->used_list);
-
-	return chunk;
 }
 
 static bool dr_icm_pool_is_sync_required(struct mlx5dr_icm_pool *pool)
@@ -463,9 +436,11 @@ mlx5dr_icm_alloc_chunk(struct mlx5dr_icm_pool *pool,
 	if (ret)
 		goto out;
 
-	chunk = dr_icm_chunk_create(pool, chunk_size, buddy, seg);
+	chunk = kmem_cache_alloc(pool->chunks_kmem_cache, GFP_KERNEL);
 	if (!chunk)
 		goto out_err;
+
+	dr_icm_chunk_init(chunk, pool, chunk_size, buddy, seg);
 
 	goto out;
 
@@ -495,7 +470,6 @@ void mlx5dr_icm_free_chunk(struct mlx5dr_icm_chunk *chunk)
 	hot_chunk->seg = chunk->seg;
 	hot_chunk->size = chunk->size;
 
-	list_del(&chunk->chunk_list);
 	kmem_cache_free(chunks_cache, chunk);
 
 	/* Check if we have chunks that are waiting for sync-ste */
