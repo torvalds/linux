@@ -1455,6 +1455,7 @@ static int __maybe_unused wsa883x_runtime_resume(struct device *dev)
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 	struct regmap *regmap = dev_get_regmap(dev, NULL);
 	struct wsa883x_priv *wsa883x = dev_get_drvdata(dev);
+	unsigned long time;
 	int ret;
 
 	ret = regulator_enable(wsa883x->vdd);
@@ -1465,8 +1466,14 @@ static int __maybe_unused wsa883x_runtime_resume(struct device *dev)
 
 	gpiod_direction_output(wsa883x->sd_n, 1);
 
-	wait_for_completion_timeout(&slave->initialization_complete,
-				    msecs_to_jiffies(WSA883X_PROBE_TIMEOUT));
+	time = wait_for_completion_timeout(&slave->initialization_complete,
+					   msecs_to_jiffies(WSA883X_PROBE_TIMEOUT));
+	if (!time) {
+		dev_err(dev, "Initialization not complete, timed out\n");
+		gpiod_direction_output(wsa883x->sd_n, 0);
+		regulator_disable(wsa883x->vdd);
+		return -ETIMEDOUT;
+	}
 
 	usleep_range(20000, 20010);
 	regcache_cache_only(regmap, false);
