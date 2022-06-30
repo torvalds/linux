@@ -1920,7 +1920,7 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 	prop->pmmu.hop_table_size = prop->mmu_hop_table_size;
 	prop->pmmu.hop0_tables_total_size = prop->mmu_hop0_tables_total_size;
 
-	prop->hints_host_reserved_va_range.start_addr =	RESERVED_VA_RANGE_FOR_ARC_ON_HOST_START;
+	prop->hints_host_reserved_va_range.start_addr = RESERVED_VA_FOR_VIRTUAL_MSIX_DOORBELL_START;
 	prop->hints_host_reserved_va_range.end_addr = RESERVED_VA_RANGE_FOR_ARC_ON_HOST_END;
 	prop->hints_host_hpage_reserved_va_range.start_addr =
 			RESERVED_VA_RANGE_FOR_ARC_ON_HOST_HPAGE_START;
@@ -9236,6 +9236,35 @@ static void gaudi2_restore_user_registers(struct hl_device *hdev)
 	gaudi2_restore_user_qm_registers(hdev);
 }
 
+static int gaudi2_map_virtual_msix_doorbell_memory(struct hl_ctx *ctx)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct gaudi2_device *gaudi2 = hdev->asic_specific;
+	int rc;
+
+	rc = hl_mmu_map_page(ctx, RESERVED_VA_FOR_VIRTUAL_MSIX_DOORBELL_START,
+				gaudi2->virt_msix_db_dma_addr, prop->pmmu.page_size, true);
+	if (rc)
+		dev_err(hdev->dev, "Failed to map VA %#llx for virtual MSI-X doorbell memory\n",
+			RESERVED_VA_FOR_VIRTUAL_MSIX_DOORBELL_START);
+
+	return rc;
+}
+
+static void gaudi2_unmap_virtual_msix_doorbell_memory(struct hl_ctx *ctx)
+{
+	struct hl_device *hdev = ctx->hdev;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	int rc;
+
+	rc = hl_mmu_unmap_page(ctx, RESERVED_VA_FOR_VIRTUAL_MSIX_DOORBELL_START,
+				prop->pmmu.page_size, true);
+	if (rc)
+		dev_err(hdev->dev, "Failed to unmap VA %#llx of virtual MSI-X doorbell memory\n",
+			RESERVED_VA_FOR_VIRTUAL_MSIX_DOORBELL_START);
+}
+
 static int gaudi2_ctx_init(struct hl_ctx *ctx)
 {
 	int rc;
@@ -9252,7 +9281,15 @@ static int gaudi2_ctx_init(struct hl_ctx *ctx)
 	else
 		gaudi2_restore_user_registers(ctx->hdev);
 
-	return gaudi2_internal_cb_pool_init(ctx->hdev, ctx);
+	rc = gaudi2_internal_cb_pool_init(ctx->hdev, ctx);
+	if (rc)
+		return rc;
+
+	rc = gaudi2_map_virtual_msix_doorbell_memory(ctx);
+	if (rc)
+		gaudi2_internal_cb_pool_fini(ctx->hdev, ctx);
+
+	return rc;
 }
 
 static void gaudi2_ctx_fini(struct hl_ctx *ctx)
@@ -9261,6 +9298,8 @@ static void gaudi2_ctx_fini(struct hl_ctx *ctx)
 		return;
 
 	gaudi2_internal_cb_pool_fini(ctx->hdev, ctx);
+
+	gaudi2_unmap_virtual_msix_doorbell_memory(ctx);
 }
 
 static int gaudi2_pre_schedule_cs(struct hl_cs *cs)
