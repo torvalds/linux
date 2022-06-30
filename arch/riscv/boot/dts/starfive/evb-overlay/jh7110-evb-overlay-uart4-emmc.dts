@@ -125,7 +125,7 @@
   	fragment@1 {
 		target-path = "/soc/gpio@17020000";
 		__overlay__ {
-			pwm_ch6to7_pins: pwm-ch6to7-pins {
+			dt_pwm_ch6to7_pins: dt-pwm-ch6to7-pins {
 				pwm-ch6-pins {
 					sf,pins = <PAD_RGPIO0>;
 					sf,pin-ioconfig = <IO(GPIO_IE(1))>;
@@ -174,7 +174,7 @@
 		target-path = "/soc/pwm@120d0000";
 		__overlay__ {
 			pinctrl-names = "default";
-			pinctrl-0 = <&pwm_ch6to7_pins>;
+			pinctrl-0 = <&dt_pwm_ch6to7_pins>;
 			status = "okay";
 		};
 	};
