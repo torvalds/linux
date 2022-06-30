@@ -1223,7 +1223,7 @@ static const struct inode_operations cifs_ipc_inode_ops = {
 static int
 cifs_find_inode(struct inode *inode, void *opaque)
 {
-	struct cifs_fattr *fattr = (struct cifs_fattr *) opaque;
+	struct cifs_fattr *fattr = opaque;
 
 	/* don't match inode with different uniqueid */
 	if (CIFS_I(inode)->uniqueid != fattr->cf_uniqueid)
@@ -1247,7 +1247,7 @@ cifs_find_inode(struct inode *inode, void *opaque)
 static int
 cifs_init_inode(struct inode *inode, void *opaque)
 {
-	struct cifs_fattr *fattr = (struct cifs_fattr *) opaque;
+	struct cifs_fattr *fattr = opaque;
 
 	CIFS_I(inode)->uniqueid = fattr->cf_uniqueid;
 	CIFS_I(inode)->createtime = fattr->cf_createtime;
