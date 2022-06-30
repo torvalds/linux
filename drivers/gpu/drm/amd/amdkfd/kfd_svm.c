@@ -1778,8 +1778,12 @@ svm_range_evict(struct svm_range *prange, struct mm_struct *mm,
 	if (!p->xnack_enabled ||
 	    (prange->flags & KFD_IOCTL_SVM_FLAG_GPU_ALWAYS_MAPPED)) {
 		int evicted_ranges;
+		bool mapped = prange->mapped_to_gpu;
 
 		list_for_each_entry(pchild, &prange->child_list, child_list) {
+			if (!pchild->mapped_to_gpu)
+				continue;
+			mapped = true;
 			mutex_lock_nested(&pchild->lock, 1);
 			if (pchild->start <= last && pchild->last >= start) {
 				pr_debug("increment pchild invalid [0x%lx 0x%lx]\n",
@@ -1788,6 +1792,9 @@ svm_range_evict(struct svm_range *prange, struct mm_struct *mm,
 			}
 			mutex_unlock(&pchild->lock);
 		}
+
+		if (!mapped)
+			return r;
 
 		if (prange->start <= last && prange->last >= start)
 			atomic_inc(&prange->invalid);
@@ -3345,7 +3352,8 @@ svm_range_set_attr(struct kfd_process *p, struct mm_struct *mm,
 			goto out_unlock_range;
 
 		if (migrated && (!p->xnack_enabled ||
-		    (prange->flags & KFD_IOCTL_SVM_FLAG_GPU_ALWAYS_MAPPED))) {
+		    (prange->flags & KFD_IOCTL_SVM_FLAG_GPU_ALWAYS_MAPPED)) &&
+		    prange->mapped_to_gpu) {
 			pr_debug("restore_work will update mappings of GPUs\n");
 			mutex_unlock(&prange->migrate_mutex);
 			continue;
