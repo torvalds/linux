@@ -917,10 +917,10 @@ static loff_t iomap_zero_iter(struct iomap_iter *iter, bool *did_zero)
 		pos += bytes;
 		length -= bytes;
 		written += bytes;
-		if (did_zero)
-			*did_zero = true;
 	} while (length > 0);
 
+	if (did_zero)
+		*did_zero = true;
 	return written;
 }
 
