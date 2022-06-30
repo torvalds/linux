@@ -117,6 +117,22 @@ properties:
 required:
   - compatible
 
+dependencies:
+  brcm,requires-autobaud-mode: [ 'shutdown-gpios' ]
+
+if:
+  not:
+    properties:
+      compatible:
+        contains:
+          enum:
+            - brcm,bcm20702a1
+            - brcm,bcm4329-bt
+            - brcm,bcm4330-bt
+then:
+  properties:
+    reset-gpios: false
+
 additionalProperties: false
 
 examples:
