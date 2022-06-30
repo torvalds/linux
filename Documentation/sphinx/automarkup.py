@@ -121,6 +121,16 @@ def markup_refs(docname, app, node):
     return repl
 
 #
+# Keep track of cross-reference lookups that failed so we don't have to
+# do them again.
+#
+failed_lookups = { }
+def failure_seen(target, reftype):
+    return (target + '::' + reftype) in failed_lookups
+def note_failure(target, reftype):
+    failed_lookups[target + '::' + reftype] = True
+
+#
 # In sphinx3 we can cross-reference to C macro and function, each one with its
 # own C role, but both match the same regex, so we try both.
 #
@@ -145,6 +155,8 @@ def markup_func_ref_sphinx3(docname, app, match):
         for target in possible_targets:
             if target not in Skipfuncs:
                 for class_s, reftype_s in zip(class_str, reftype_str):
+                    if failure_seen(target, reftype_s):
+                        continue
                     lit_text = nodes.literal(classes=['xref', 'c', class_s])
                     lit_text += target_text
                     pxref = addnodes.pending_xref('', refdomain = 'c',
@@ -164,6 +176,7 @@ def markup_func_ref_sphinx3(docname, app, match):
 
                     if xref:
                         return xref
+                    note_failure(target, reftype_s)
 
     return target_text
 
