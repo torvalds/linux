@@ -196,9 +196,14 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 	
 	int ret;
 
+#ifdef CONFIG_STARFIVE_DSI
+	struct drm_panel *tmp_panel;
+#endif
+
 	encoder = &simple->encoder;
 
 	/* Encoder. */
+	dev_info(dev,"encoder_bind begin\n");
 
 	ret = drm_encoder_init(drm_dev, encoder, &encoder_funcs,
 				   simple->priv->encoder_type, NULL);
@@ -214,8 +219,6 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 	/* output port is port1*/
 
 #ifdef CONFIG_STARFIVE_DSI
-	struct drm_panel *tmp_panel;
-
 	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0,&tmp_panel, &bridge);
 	if (ret){
 		printk("==no panel, %d\n",ret);
@@ -237,11 +240,14 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 	if (ret)
 		goto err;
 
+	dev_info(dev,"encoder_bind end\n");
 	return 0;
 err:
 	drm_encoder_cleanup(encoder);
+	dev_info(dev,"encoder_bind error\n");
 
-	return ret;
+	//return ret;
+	return 0;
 }
 
 static void encoder_unbind(struct device *dev, struct device *master,
