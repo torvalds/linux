@@ -511,6 +511,8 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	msr	vbar_el2, x0
 	isb
 
+	mov_q	x1, INIT_SCTLR_EL1_MMU_OFF
+
 	/*
 	 * Fruity CPUs seem to have HCR_EL2.E2H set to RES1,
 	 * making it impossible to start in nVHE mode. Is that
@@ -520,35 +522,19 @@ SYM_INNER_LABEL(init_el2, SYM_L_LOCAL)
 	and	x0, x0, #HCR_E2H
 	cbz	x0, 1f
 
-	/* Switching to VHE requires a sane SCTLR_EL1 as a start */
-	mov_q	x0, INIT_SCTLR_EL1_MMU_OFF
-	msr_s	SYS_SCTLR_EL12, x0
-
-	/*
-	 * Force an eret into a helper "function", and let it return
-	 * to our original caller... This makes sure that we have
-	 * initialised the basic PSTATE state.
-	 */
-	mov	x0, #INIT_PSTATE_EL2
-	msr	spsr_el1, x0
-	adr	x0, __cpu_stick_to_vhe
-	msr	elr_el1, x0
-	eret
+	/* Set a sane SCTLR_EL1, the VHE way */
+	msr_s	SYS_SCTLR_EL12, x1
+	mov	x2, #BOOT_CPU_FLAG_E2H
+	b	2f
 
 1:
-	mov_q	x0, INIT_SCTLR_EL1_MMU_OFF
-	msr	sctlr_el1, x0
-
+	msr	sctlr_el1, x1
+	mov	x2, xzr
+2:
 	msr	elr_el2, lr
 	mov	w0, #BOOT_CPU_MODE_EL2
+	orr	x0, x0, x2
 	eret
-
-__cpu_stick_to_vhe:
-	mov	x0, #HVC_FINALISE_EL2
-	hvc	#0
-	mov	x0, #BOOT_CPU_MODE_EL2
-	orr	x0, x0, #BOOT_CPU_FLAG_E2H
-	ret
 SYM_FUNC_END(init_kernel_el)
 
 /*
