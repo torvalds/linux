@@ -6802,7 +6802,7 @@ static void print_qman_data_on_err(struct hl_device *hdev, u32 qid_base, u32 str
 static void gaudi2_handle_qman_err_generic(struct hl_device *hdev, const char *qm_name,
 						u64 qman_base, u32 qid_base)
 {
-	u32 i, j, glbl_sts_val, arb_err_val, glbl_sts_clr_val, num_error_causes;
+	u32 i, j, glbl_sts_val, arb_err_val, num_error_causes;
 	u64 glbl_sts_addr, arb_err_addr;
 	char reg_desc[32];
 
@@ -6811,7 +6811,6 @@ static void gaudi2_handle_qman_err_generic(struct hl_device *hdev, const char *q
 
 	/* Iterate through all stream GLBL_ERR_STS registers + Lower CP */
 	for (i = 0 ; i < QMAN_STREAMS + 1 ; i++) {
-		glbl_sts_clr_val = 0;
 		glbl_sts_val = RREG32(glbl_sts_addr + 4 * i);
 
 		if (!glbl_sts_val)
@@ -6825,16 +6824,13 @@ static void gaudi2_handle_qman_err_generic(struct hl_device *hdev, const char *q
 			num_error_causes = GAUDI2_NUM_OF_QM_ERR_CAUSE;
 		}
 
-		for (j = 0 ; j < num_error_causes ; j++) {
-			if (glbl_sts_val & BIT(j)) {
+		for (j = 0 ; j < num_error_causes ; j++)
+			if (glbl_sts_val & BIT(j))
 				dev_err_ratelimited(hdev->dev, "%s %s. err cause: %s\n",
 						qm_name, reg_desc,
 						i == QMAN_STREAMS ?
 						gaudi2_qman_lower_cp_error_cause[j] :
 						gaudi2_qman_error_cause[j]);
-				glbl_sts_clr_val |= BIT(j);
-			}
-		}
 
 		print_qman_data_on_err(hdev, qid_base, i, qman_base);
 	}
