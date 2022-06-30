@@ -101,10 +101,6 @@ static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 {
 	struct io_uring_cqe *cqe;
 
-	trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
-				req->cqe.res, req->cqe.flags,
-				(req->flags & REQ_F_CQE32_INIT) ? req->extra1 : 0,
-				(req->flags & REQ_F_CQE32_INIT) ? req->extra2 : 0);
 	/*
 	 * If we can't get a cq entry, userspace overflowed the
 	 * submission (by quite a lot). Increment the overflow count in
@@ -113,6 +109,12 @@ static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 	cqe = io_get_cqe(ctx);
 	if (unlikely(!cqe))
 		return io_req_cqe_overflow(req);
+
+	trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
+				req->cqe.res, req->cqe.flags,
+				(req->flags & REQ_F_CQE32_INIT) ? req->extra1 : 0,
+				(req->flags & REQ_F_CQE32_INIT) ? req->extra2 : 0);
+
 	memcpy(cqe, &req->cqe, sizeof(*cqe));
 
 	if (ctx->flags & IORING_SETUP_CQE32) {

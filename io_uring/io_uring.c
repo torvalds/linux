@@ -742,7 +742,6 @@ static bool io_fill_cqe_aux(struct io_ring_ctx *ctx,
 	struct io_uring_cqe *cqe;
 
 	ctx->cq_extra++;
-	trace_io_uring_complete(ctx, NULL, user_data, res, cflags, 0, 0);
 
 	/*
 	 * If we can't get a cq entry, userspace overflowed the
@@ -751,6 +750,8 @@ static bool io_fill_cqe_aux(struct io_ring_ctx *ctx,
 	 */
 	cqe = io_get_cqe(ctx);
 	if (likely(cqe)) {
+		trace_io_uring_complete(ctx, NULL, user_data, res, cflags, 0, 0);
+
 		WRITE_ONCE(cqe->user_data, user_data);
 		WRITE_ONCE(cqe->res, res);
 		WRITE_ONCE(cqe->flags, cflags);
