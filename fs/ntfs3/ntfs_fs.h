@@ -734,7 +734,6 @@ static inline struct ATTRIB *rec_find_attr_le(struct mft_inode *rec,
 int mi_write(struct mft_inode *mi, int wait);
 int mi_format_new(struct mft_inode *mi, struct ntfs_sb_info *sbi, CLST rno,
 		  __le16 flags, bool is_mft);
-void mi_mark_free(struct mft_inode *mi);
 struct ATTRIB *mi_insert_attr(struct mft_inode *mi, enum ATTR_TYPE type,
 			      const __le16 *name, u8 name_len, u32 asize,
 			      u16 name_off);

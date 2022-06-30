@@ -1377,7 +1377,7 @@ static const struct fs_context_operations ntfs_context_ops = {
 /*
  * ntfs_init_fs_context - Initialize spi and opts
  *
- * This will called when mount/remount. We will first initiliaze
+ * This will called when mount/remount. We will first initialize
  * options so that if remount we can use just that.
  */
 static int ntfs_init_fs_context(struct fs_context *fc)
