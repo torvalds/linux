@@ -160,14 +160,34 @@ static struct rxe_send_wqe *req_next_wqe(struct rxe_qp *qp)
 		     (wqe->state != wqe_state_processing)))
 		return NULL;
 
-	if (unlikely((wqe->wr.send_flags & IB_SEND_FENCE) &&
-						     (index != cons))) {
-		qp->req.wait_fence = 1;
-		return NULL;
-	}
-
 	wqe->mask = wr_opcode_mask(wqe->wr.opcode, qp);
 	return wqe;
+}
+
+/**
+ * rxe_wqe_is_fenced - check if next wqe is fenced
+ * @qp: the queue pair
+ * @wqe: the next wqe
+ *
+ * Returns: 1 if wqe needs to wait
+ *	    0 if wqe is ready to go
+ */
+static int rxe_wqe_is_fenced(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
+{
+	/* Local invalidate fence (LIF) see IBA 10.6.5.1
+	 * Requires ALL previous operations on the send queue
+	 * are complete. Make mandatory for the rxe driver.
+	 */
+	if (wqe->wr.opcode == IB_WR_LOCAL_INV)
+		return qp->req.wqe_index != queue_get_consumer(qp->sq.queue,
+						QUEUE_TYPE_FROM_CLIENT);
+
+	/* Fence see IBA 10.8.3.3
+	 * Requires that all previous read and atomic operations
+	 * are complete.
+	 */
+	return (wqe->wr.send_flags & IB_SEND_FENCE) &&
+		atomic_read(&qp->req.rd_atomic) != qp->attr.max_rd_atomic;
 }
 
 static int next_opcode_rc(struct rxe_qp *qp, u32 opcode, int fits)
@@ -632,6 +652,11 @@ next_wqe:
 	wqe = req_next_wqe(qp);
 	if (unlikely(!wqe))
 		goto exit;
+
+	if (rxe_wqe_is_fenced(qp, wqe)) {
+		qp->req.wait_fence = 1;
+		goto exit;
+	}
 
 	if (wqe->mask & WR_LOCAL_OP_MASK) {
 		ret = rxe_do_local_ops(qp, wqe);
