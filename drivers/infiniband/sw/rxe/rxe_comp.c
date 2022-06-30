@@ -114,6 +114,8 @@ void retransmit_timer(struct timer_list *t)
 {
 	struct rxe_qp *qp = from_timer(qp, t, retrans_timer);
 
+	pr_debug("%s: fired for qp#%d\n", __func__, qp->elem.index);
+
 	if (qp->valid) {
 		qp->comp.timeout = 1;
 		rxe_run_task(&qp->comp.task, 1);
@@ -730,11 +732,15 @@ int rxe_completer(void *arg)
 			break;
 
 		case COMPST_RNR_RETRY:
+			/* we come here if we received an RNR NAK */
 			if (qp->comp.rnr_retry > 0) {
 				if (qp->comp.rnr_retry != 7)
 					qp->comp.rnr_retry--;
 
-				qp->req.need_retry = 1;
+				/* don't start a retry flow until the
+				 * rnr timer has fired
+				 */
+				qp->req.wait_for_rnr_timer = 1;
 				pr_debug("qp#%d set rnr nak timer\n",
 					 qp_num(qp));
 				mod_timer(&qp->rnr_nak_timer,
