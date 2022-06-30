@@ -49,7 +49,7 @@ properties:
     description: The interrupt outputs to sysirq.
     maxItems: 1
 
-  mediatek,rsel_resistance_in_si_unit:
+  mediatek,rsel-resistance-in-si-unit:
     type: boolean
     description: |
       Identifying i2c pins pull up/down type which is RSEL. It can support
@@ -142,7 +142,7 @@ patternProperties:
               "MTK_PUPD_SET_R1R0_11" define in mt8195.
               For pull down type is RSEL, it can add RSEL define & resistance
               value(ohm) to set different resistance by identifying property
-              "mediatek,rsel_resistance_in_si_unit".
+              "mediatek,rsel-resistance-in-si-unit".
               It can support "MTK_PULL_SET_RSEL_000" & "MTK_PULL_SET_RSEL_001"
               & "MTK_PULL_SET_RSEL_010" & "MTK_PULL_SET_RSEL_011"
               & "MTK_PULL_SET_RSEL_100" & "MTK_PULL_SET_RSEL_101"
@@ -161,7 +161,7 @@ patternProperties:
               };
               An example of using si unit resistance value(ohm):
               &pio {
-                mediatek,rsel_resistance_in_si_unit;
+                mediatek,rsel-resistance-in-si-unit;
               }
               pincontroller {
                 i2c0_pin {
@@ -190,7 +190,7 @@ patternProperties:
               "MTK_PUPD_SET_R1R0_11" define in mt8195.
               For pull up type is RSEL, it can add RSEL define & resistance
               value(ohm) to set different resistance by identifying property
-              "mediatek,rsel_resistance_in_si_unit".
+              "mediatek,rsel-resistance-in-si-unit".
               It can support "MTK_PULL_SET_RSEL_000" & "MTK_PULL_SET_RSEL_001"
               & "MTK_PULL_SET_RSEL_010" & "MTK_PULL_SET_RSEL_011"
               & "MTK_PULL_SET_RSEL_100" & "MTK_PULL_SET_RSEL_101"
@@ -209,7 +209,7 @@ patternProperties:
               };
               An example of using si unit resistance value(ohm):
               &pio {
-                mediatek,rsel_resistance_in_si_unit;
+                mediatek,rsel-resistance-in-si-unit;
               }
               pincontroller {
                 i2c0-pins {
