@@ -327,11 +327,15 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 
 	rc = (tmp & CPUCP_PKT_CTL_RC_MASK) >> CPUCP_PKT_CTL_RC_SHIFT;
 	if (rc) {
-		dev_err(hdev->dev, "F/W ERROR %d for CPU packet %d\n",
-			rc,
-			(tmp & CPUCP_PKT_CTL_OPCODE_MASK)
-						>> CPUCP_PKT_CTL_OPCODE_SHIFT);
+		dev_dbg(hdev->dev, "F/W ERROR %d for CPU packet %d\n",
+			rc, (tmp & CPUCP_PKT_CTL_OPCODE_MASK) >> CPUCP_PKT_CTL_OPCODE_SHIFT);
+
+		/* propagate the return code from the f/w to the callers who want to check it */
+		if (result)
+			*result = rc;
+
 		rc = -EIO;
+
 	} else if (result) {
 		*result = le64_to_cpu(pkt->result);
 	}
