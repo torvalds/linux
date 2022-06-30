@@ -1562,6 +1562,53 @@ static const struct file_operations hl_debugfs_fops = {
 	.release = single_release,
 };
 
+static void add_secured_nodes(struct hl_dbg_device_entry *dev_entry)
+{
+	debugfs_create_u8("i2c_bus",
+				0644,
+				dev_entry->root,
+				&dev_entry->i2c_bus);
+
+	debugfs_create_u8("i2c_addr",
+				0644,
+				dev_entry->root,
+				&dev_entry->i2c_addr);
+
+	debugfs_create_u8("i2c_reg",
+				0644,
+				dev_entry->root,
+				&dev_entry->i2c_reg);
+
+	debugfs_create_u8("i2c_len",
+				0644,
+				dev_entry->root,
+				&dev_entry->i2c_len);
+
+	debugfs_create_file("i2c_data",
+				0644,
+				dev_entry->root,
+				dev_entry,
+				&hl_i2c_data_fops);
+
+	debugfs_create_file("led0",
+				0200,
+				dev_entry->root,
+				dev_entry,
+				&hl_led0_fops);
+
+	debugfs_create_file("led1",
+				0200,
+				dev_entry->root,
+				dev_entry,
+				&hl_led1_fops);
+
+	debugfs_create_file("led2",
+				0200,
+				dev_entry->root,
+				dev_entry,
+				&hl_led2_fops);
+}
+
 void hl_debugfs_add_device(struct hl_device *hdev)
 {
 	struct hl_dbg_device_entry *dev_entry = &hdev->hl_debugfs;
@@ -1631,50 +1678,6 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 				dev_entry->root,
 				dev_entry,
 				&hl_power_fops);
-
-	debugfs_create_u8("i2c_bus",
-				0644,
-				dev_entry->root,
-				&dev_entry->i2c_bus);
-
-	debugfs_create_u8("i2c_addr",
-				0644,
-				dev_entry->root,
-				&dev_entry->i2c_addr);
-
-	debugfs_create_u8("i2c_reg",
-				0644,
-				dev_entry->root,
-				&dev_entry->i2c_reg);
-
-	debugfs_create_u8("i2c_len",
-				0644,
-				dev_entry->root,
-				&dev_entry->i2c_len);
-
-	debugfs_create_file("i2c_data",
-				0644,
-				dev_entry->root,
-				dev_entry,
-				&hl_i2c_data_fops);
-
-	debugfs_create_file("led0",
-				0200,
-				dev_entry->root,
-				dev_entry,
-				&hl_led0_fops);
-
-	debugfs_create_file("led1",
-				0200,
-				dev_entry->root,
-				dev_entry,
-				&hl_led1_fops);
-
-	debugfs_create_file("led2",
-				0200,
-				dev_entry->root,
-				dev_entry,
-				&hl_led2_fops);
 
 	debugfs_create_file("device",
 				0200,
@@ -1754,6 +1757,9 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 		entry->info_ent = &hl_debugfs_list[i];
 		entry->dev_entry = dev_entry;
 	}
+
+	if (!hdev->asic_prop.fw_security_enabled)
+		add_secured_nodes(dev_entry);
 }
 
 void hl_debugfs_remove_device(struct hl_device *hdev)
