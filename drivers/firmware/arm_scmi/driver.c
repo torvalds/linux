@@ -660,6 +660,11 @@ static void scmi_handle_notification(struct scmi_chan_info *cinfo,
 		smp_store_mb(xfer->priv, priv);
 	info->desc->ops->fetch_notification(cinfo, info->desc->max_msg_size,
 					    xfer);
+
+	trace_scmi_msg_dump(xfer->hdr.protocol_id, xfer->hdr.id, "NOTI",
+			    xfer->hdr.seq, xfer->hdr.status,
+			    xfer->rx.buf, xfer->rx.len);
+
 	scmi_notify(cinfo->handle, xfer->hdr.protocol_id,
 		    xfer->hdr.id, xfer->rx.buf, xfer->rx.len, ts);
 
@@ -693,6 +698,12 @@ static void scmi_handle_response(struct scmi_chan_info *cinfo,
 		/* Ensure order between xfer->priv store and following ops */
 		smp_store_mb(xfer->priv, priv);
 	info->desc->ops->fetch_response(cinfo, xfer);
+
+	trace_scmi_msg_dump(xfer->hdr.protocol_id, xfer->hdr.id,
+			    xfer->hdr.type == MSG_TYPE_DELAYED_RESP ?
+			    "DLYD" : "RESP",
+			    xfer->hdr.seq, xfer->hdr.status,
+			    xfer->rx.buf, xfer->rx.len);
 
 	trace_scmi_rx_done(xfer->transfer_id, xfer->hdr.id,
 			   xfer->hdr.protocol_id, xfer->hdr.seq,
@@ -827,6 +838,12 @@ static int scmi_wait_for_message_response(struct scmi_chan_info *cinfo,
 				xfer->state = SCMI_XFER_RESP_OK;
 			}
 			spin_unlock_irqrestore(&xfer->lock, flags);
+
+			/* Trace polled replies. */
+			trace_scmi_msg_dump(xfer->hdr.protocol_id, xfer->hdr.id,
+					    "RESP",
+					    xfer->hdr.seq, xfer->hdr.status,
+					    xfer->rx.buf, xfer->rx.len);
 		}
 	} else {
 		/* And we wait for the response. */
@@ -902,6 +919,10 @@ static int do_xfer(const struct scmi_protocol_handle *ph,
 		dev_dbg(dev, "Failed to send message %d\n", ret);
 		return ret;
 	}
+
+	trace_scmi_msg_dump(xfer->hdr.protocol_id, xfer->hdr.id, "CMND",
+			    xfer->hdr.seq, xfer->hdr.status,
+			    xfer->tx.buf, xfer->tx.len);
 
 	ret = scmi_wait_for_message_response(cinfo, xfer);
 	if (!ret && xfer->hdr.status)
