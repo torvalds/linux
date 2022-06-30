@@ -185,7 +185,7 @@ static int vxge_ethtool_idnic(struct net_device *dev,
 }
 
 /**
- * vxge_ethtool_getpause_data - Pause frame frame generation and reception.
+ * vxge_ethtool_getpause_data - Pause frame generation and reception.
  * @dev : device pointer.
  * @ep : pointer to the structure with pause parameters given by ethtool.
  * Description:

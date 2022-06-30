@@ -1899,7 +1899,7 @@ u32 vxge_hw_device_trace_level_get(struct __vxge_hw_device *hldev)
 }
 
 /*
- * vxge_hw_getpause_data -Pause frame frame generation and reception.
+ * vxge_hw_getpause_data -Pause frame generation and reception.
  * Returns the Pause frame generation and reception capability of the NIC.
  */
 enum vxge_hw_status vxge_hw_device_getpause_data(struct __vxge_hw_device *hldev,
