@@ -843,9 +843,6 @@ int sys_dispctrl_clk_standard(struct vs_dc *dc, struct device *dev)
 		return PTR_ERR(dc->dc8200_clk_pix0);
 	}
 
-	//clk_set_parent( dc->dc8200_clk_pix1, dc->hdmitx0_pixelclk );
-	//clk_set_parent( dc->dc8200_clk_pix0, dc->hdmitx0_pixelclk );
-
 #else
 	//_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_HDMITX0_PIXELCLK_;
 	dc->dc8200_clk_pix0 = devm_clk_get(dev, "pix_clk");	//dc8200_clk_pix0
@@ -859,7 +856,6 @@ int sys_dispctrl_clk_standard(struct vs_dc *dc, struct device *dev)
 		dev_err(dev, "---hdmitx0_pixelclk get error\n");
 		return PTR_ERR(dc->hdmitx0_pixelclk);
 	}
-	//clk_set_parent( dc->dc8200_clk_pix0, dc->hdmitx0_pixelclk );//parent,child
 
 #endif
 
@@ -937,22 +933,12 @@ static int dc_init(struct device *dev)
 		dev_err(dev,"failed to get dc->vout_top_lcd\n");
 		return PTR_ERR(dc->vout_top_lcd);
 	}
-	#if 1	//parent for dc8200_clk_pix0 !!
 	dc->dc8200_pix0 = devm_clk_get(dev, "dc8200_pix0");	//dc8200_pix0
 	if (IS_ERR(dc->dc8200_pix0)) {
 		dev_err(dev, "---dc8200_pix0 get error\n");
 		return PTR_ERR(dc->dc8200_pix0);
 	}
-	#endif
 	//_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_DC8200_PIX0_;
-	//clk_set_parent( dc->dc8200_clk_pix0, dc->dc8200_pix0 );//child,parent
-	/*
-	ret = drv_config_dc_4_dsi(dc,dev);
-	if (ret < 0) {
-		dev_err(dev, "failed to drv_config_dc_4_dsi: %d\n", ret);
-		return ret;
-	}
-	*/
 	#endif
 
 	#ifdef CONFIG_DRM_I2C_NXP_TDA998X
@@ -1043,12 +1029,7 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 	display.dither_enable = crtc_state->dither_enable;
 
 	display.enable = true;
-#if 0
-#ifdef CONFIG_STARFIVE_DSI//
-	clk_set_rate(dc->dc8200_pix0, 20144263);//round up, 20144262+1
-	clk_set_parent( dc->dc8200_clk_pix0, dc->dc8200_pix0 );//child,parent
-#endif
-#endif
+
 	if (crtc_state->encoder_type == DRM_MODE_ENCODER_DSI){
 		clk_set_rate(dc->dc8200_pix0, 20144263);//round up, 20144262+1
 		clk_set_parent( dc->dc8200_clk_pix1, dc->dc8200_pix0 );//child,parent
