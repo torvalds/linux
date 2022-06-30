@@ -33,7 +33,7 @@ description:
   it is not included in the interrupt specifier. In the second case, software
   needs to know the trigger type, so it can reorder the interrupt flow to avoid
   missing interrupts. This special handling is needed by at least the Renesas
-  RZ/Five SoC (AX45MP AndesCore with a NCEPLIC100).
+  RZ/Five SoC (AX45MP AndesCore with a NCEPLIC100) and the T-HEAD C900 PLIC.
 
   While the RISC-V ISA doesn't specify a memory layout for the PLIC, the
   "sifive,plic-1.0.0" device is a concrete implementation of the PLIC that
@@ -112,6 +112,7 @@ allOf:
           contains:
             enum:
               - andestech,nceplic100
+              - thead,c900-plic
 
     then:
       properties:
