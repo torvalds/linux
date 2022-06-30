@@ -9,7 +9,6 @@
 
 #include <linux/interrupt.h>
 #include <linux/workqueue.h>
-#include <rdma/rdma_user_rxe.h>
 #include "rxe_pool.h"
 #include "rxe_task.h"
 #include "rxe_hw_counters.h"
