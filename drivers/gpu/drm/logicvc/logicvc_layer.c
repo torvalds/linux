@@ -491,6 +491,7 @@ static int logicvc_layer_init(struct logicvc_drm *logicvc,
 	if (!formats) {
 		drm_err(drm_dev, "Failed to lookup formats for layer #%d\n",
 			index);
+		ret = -EINVAL;
 		goto error;
 	}
 
@@ -612,10 +613,10 @@ int logicvc_layers_init(struct logicvc_drm *logicvc)
 		}
 
 		ret = logicvc_layer_init(logicvc, layer_node, index);
-		if (ret)
+		if (ret) {
+			of_node_put(layers_node);
 			goto error;
-
-		of_node_put(layer_node);
+		}
 	}
 
 	of_node_put(layers_node);

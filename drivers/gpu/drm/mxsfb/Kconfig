@@ -19,3 +19,19 @@ config DRM_MXSFB
 	  i.MX28, i.MX6SX, i.MX7 and i.MX8M).
 
 	  If M is selected the module will be called mxsfb.
+
+config DRM_IMX_LCDIF
+	tristate "i.MX LCDIFv3 LCD controller"
+	depends on DRM && OF
+	depends on COMMON_CLK
+	select DRM_MXS
+	select DRM_KMS_HELPER
+	select DRM_GEM_CMA_HELPER
+	select DRM_PANEL
+	select DRM_PANEL_BRIDGE
+	help
+	  Choose this option if you have an LCDIFv3 LCD controller.
+	  Those devices are found in various i.MX SoC (i.MX8MP,
+	  i.MXRT).
+
+	  If M is selected the module will be called imx-lcdif.
