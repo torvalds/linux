@@ -67,7 +67,7 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, enum r8188eu_pwr_seq seq)
 		break;
 	default:
 		return false;
-	};
+	}
 
 	do {
 		pwrcfgcmd = pwrseqcmd[aryidx];
