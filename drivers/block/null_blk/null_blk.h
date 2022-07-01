@@ -60,6 +60,13 @@ struct nullb_zone {
 	unsigned int capacity;
 };
 
+/* Queue modes */
+enum {
+	NULL_Q_BIO	= 0,
+	NULL_Q_RQ	= 1,
+	NULL_Q_MQ	= 2,
+};
+
 struct nullb_device {
 	struct nullb *nullb;
 	struct config_item item;

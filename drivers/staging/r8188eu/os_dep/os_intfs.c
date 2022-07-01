@@ -441,7 +441,6 @@ static void rtw_init_default_value(struct adapter *padapter)
 u8 rtw_reset_drv_sw(struct adapter *padapter)
 {
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
-	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
 
 	/* hal_priv */
 	rtl8188eu_init_default_value(padapter);
@@ -456,8 +455,6 @@ u8 rtw_reset_drv_sw(struct adapter *padapter)
 	pmlmepriv->LinkDetectInfo.bBusyTraffic = false;
 
 	_clr_fwstate_(pmlmepriv, _FW_UNDER_SURVEY | _FW_UNDER_LINKING);
-
-	pwrctrlpriv->pwr_state_check_cnts = 0;
 
 	/* mlmeextpriv */
 	padapter->mlmeextpriv.sitesurvey_res.state = SCAN_DISABLE;
@@ -490,10 +487,7 @@ u8 rtw_init_drv_sw(struct adapter *padapter)
 	init_wifidirect_info(padapter, P2P_ROLE_DISABLE);
 	reset_global_wifidirect_info(padapter);
 
-	if (init_mlme_ext_priv(padapter) == _FAIL) {
-		dev_err(dvobj_to_dev(padapter->dvobj), "init_mlme_ext_priv failed\n");
-		goto free_mlme_priv;
-	}
+	init_mlme_ext_priv(padapter);
 
 	if (_rtw_init_xmit_priv(&padapter->xmitpriv, padapter) == _FAIL) {
 		dev_err(dvobj_to_dev(padapter->dvobj), "_rtw_init_xmit_priv failed\n");
@@ -534,7 +528,6 @@ free_xmit_priv:
 free_mlme_ext:
 	free_mlme_ext_priv(&padapter->mlmeextpriv);
 
-free_mlme_priv:
 	rtw_free_mlme_priv(&padapter->mlmepriv);
 
 free_evt_priv:
@@ -632,12 +625,6 @@ int _netdev_open(struct net_device *pnetdev)
 {
 	uint status;
 	struct adapter *padapter = (struct adapter *)rtw_netdev_priv(pnetdev);
-	struct pwrctrl_priv *pwrctrlpriv = &padapter->pwrctrlpriv;
-
-	if (pwrctrlpriv->ps_flag) {
-		padapter->net_closed = false;
-		goto netdev_open_normal_process;
-	}
 
 	if (!padapter->bup) {
 		padapter->bDriverStopped = false;
@@ -681,7 +668,6 @@ int _netdev_open(struct net_device *pnetdev)
 
 	netdev_br_init(pnetdev);
 
-netdev_open_normal_process:
 	return 0;
 
 netdev_open_error:
@@ -750,9 +736,36 @@ void rtw_ips_pwr_down(struct adapter *padapter)
 	padapter->bCardDisableWOHSM = false;
 }
 
+static void rtw_fifo_cleanup(struct adapter *adapter)
+{
+	struct pwrctrl_priv *pwrpriv = &adapter->pwrctrlpriv;
+	u8 trycnt = 100;
+
+	/* pause tx */
+	rtw_write8(adapter, REG_TXPAUSE, 0xff);
+
+	/* keep sn */
+	adapter->xmitpriv.nqos_ssn = rtw_read16(adapter, REG_NQOS_SEQ);
+
+	if (!pwrpriv->bkeepfwalive) {
+		/* RX DMA stop */
+		rtw_write32(adapter, REG_RXPKT_NUM,
+			    (rtw_read32(adapter, REG_RXPKT_NUM) | RW_RELEASE_EN));
+		do {
+			if (!(rtw_read32(adapter, REG_RXPKT_NUM) & RXDMA_IDLE))
+				break;
+		} while (trycnt--);
+
+		/* RQPN Load 0 */
+		rtw_write16(adapter, REG_RQPN_NPQ, 0x0);
+		rtw_write32(adapter, REG_RQPN, 0x80000000);
+		mdelay(10);
+	}
+}
+
 void rtw_ips_dev_unload(struct adapter *padapter)
 {
-	SetHwReg8188EU(padapter, HW_VAR_FIFO_CLEARN_UP, NULL);
+	rtw_fifo_cleanup(padapter);
 
 	if (padapter->intf_stop)
 		padapter->intf_stop(padapter);
