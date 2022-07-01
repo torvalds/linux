@@ -1614,7 +1614,8 @@ struct ATTR_FILE_NAME *ni_fname_name(struct ntfs_inode *ni,
 	struct ATTRIB *attr = NULL;
 	struct ATTR_FILE_NAME *fname;
 
-	*le = NULL;
+	if (le)
+		*le = NULL;
 
 	/* Enumerate all names. */
 next:
@@ -1630,7 +1631,7 @@ next:
 		goto next;
 
 	if (!uni)
-		goto next;
+		return fname;
 
 	if (uni->len != fname->name_len)
 		goto next;
@@ -2969,7 +2970,7 @@ bool ni_remove_name_undo(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
 }
 
 /*
- * ni_add_name - Add new name in MFT and in directory.
+ * ni_add_name - Add new name into MFT and into directory.
  */
 int ni_add_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
 		struct NTFS_DE *de)
@@ -2978,13 +2979,20 @@ int ni_add_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
 	struct ATTRIB *attr;
 	struct ATTR_LIST_ENTRY *le;
 	struct mft_inode *mi;
+	struct ATTR_FILE_NAME *fname;
 	struct ATTR_FILE_NAME *de_name = (struct ATTR_FILE_NAME *)(de + 1);
 	u16 de_key_size = le16_to_cpu(de->key_size);
 
 	mi_get_ref(&ni->mi, &de->ref);
 	mi_get_ref(&dir_ni->mi, &de_name->home);
 
-	/* Insert new name in MFT. */
+	/* Fill duplicate from any ATTR_NAME. */
+	fname = ni_fname_name(ni, NULL, NULL, NULL, NULL);
+	if (fname)
+		memcpy(&de_name->dup, &fname->dup, sizeof(fname->dup));
+	de_name->dup.fa = ni->std_fa;
+
+	/* Insert new name into MFT. */
 	err = ni_insert_resident(ni, de_key_size, ATTR_NAME, NULL, 0, &attr,
 				 &mi, &le);
 	if (err)
@@ -2992,7 +3000,7 @@ int ni_add_name(struct ntfs_inode *dir_ni, struct ntfs_inode *ni,
 
 	memcpy(Add2Ptr(attr, SIZEOF_RESIDENT), de_name, de_key_size);
 
-	/* Insert new name in directory. */
+	/* Insert new name into directory. */
 	err = indx_insert_entry(&dir_ni->dir, dir_ni, de, ni->mi.sbi, NULL, 0);
 	if (err)
 		ni_remove_attr_le(ni, attr, mi, le);
@@ -3016,7 +3024,7 @@ int ni_rename(struct ntfs_inode *dir_ni, struct ntfs_inode *new_dir_ni,
 	 * 1) Add new name and remove old name.
 	 * 2) Remove old name and add new name.
 	 *
-	 * In most cases (not all!) adding new name in MFT and in directory can
+	 * In most cases (not all!) adding new name into MFT and into directory can
 	 * allocate additional cluster(s).
 	 * Second way may result to bad inode if we can't add new name
 	 * and then can't restore (add) old name.
