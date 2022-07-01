@@ -8,7 +8,7 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 #include <linux/clk-provider.h>
-#include <soc/starfive/jh7110_pmu.h>
+#include <linux/pm_runtime.h>
 
 static void vin_intr_clear(void __iomem *sysctrl_base)
 {
@@ -216,8 +216,15 @@ static irqreturn_t stf_vin_isp_irq_csiline_handler(int irq, void *priv)
 static int stf_vin_top_clk_init(struct stf_vin2_dev *vin_dev)
 {
 	struct stfcamss *stfcamss = vin_dev->stfcamss;
+	int ret;
 
-	starfive_power_domain_set(POWER_DOMAIN_ISP, 1);
+	pm_runtime_enable(stfcamss->dev);
+	ret = pm_runtime_get_sync(stfcamss->dev);
+	if (ret < 0) {
+		dev_err(stfcamss->dev,
+			"vin_clk_init: failed to get pm runtime: %d\n", ret);
+		return ret;
+    }
 
 	if (!__clk_is_enabled(stfcamss->sys_clk[STFCLK_NOC_BUS_CLK_ISP_AXI].clk))
 		clk_prepare_enable(stfcamss->sys_clk[STFCLK_NOC_BUS_CLK_ISP_AXI].clk);
@@ -241,7 +248,8 @@ static int stf_vin_top_clk_deinit(struct stf_vin2_dev *vin_dev)
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
 
-	starfive_power_domain_set(POWER_DOMAIN_ISP, 0);
+	pm_runtime_put_sync(stfcamss->dev);
+	pm_runtime_disable(stfcamss->dev);
 
 	return 0;
 }

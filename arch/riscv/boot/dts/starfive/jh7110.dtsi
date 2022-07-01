@@ -813,6 +813,7 @@
 				"rst_pixel_clk_if1", "rst_pixel_clk_if2", "rst_pixel_clk_if3",
 				"rst_m31dphy_hw", "rst_m31dphy_b09_always_on",
 				"rst_isp_top_n", "rst_isp_top_axi";
+			starfive,aon-syscon = <&aon_syscon 0x00>;
 			power-domains = <&pwrc JH7110_PD_ISP>;
 			/* irq nr: vin, isp, isp_csi, isp_scd, isp_csiline */
 			interrupts = <92 87 88 89 90>;
