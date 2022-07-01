@@ -1096,8 +1096,10 @@ static int xennet_get_responses(struct netfront_queue *queue,
 			}
 		}
 		rcu_read_unlock();
-next:
+
 		__skb_queue_tail(list, skb);
+
+next:
 		if (!(rx->flags & XEN_NETRXF_more_data))
 			break;
 
