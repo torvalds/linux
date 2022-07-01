@@ -53,45 +53,27 @@ static int qcom_dma_heap_probe(struct platform_device *pdev)
 		switch (heap_data->type) {
 		case HEAP_TYPE_SECURE_CARVEOUT:
 			ret = qcom_secure_carveout_heap_create(heap_data);
-			if (ret < 0)
-				pr_err("%s: DMA-BUF Heap: Failed to create %s, error is %d\n",
-				       __func__, heap_data->name, ret);
-			else if (!ret)
-				pr_info("%s: DMA-BUF Heap: Created %s\n", __func__,
-					heap_data->name);
 			break;
 		case HEAP_TYPE_CARVEOUT:
 			ret = qcom_carveout_heap_create(heap_data);
-			if (ret < 0)
-				pr_err("%s: DMA-BUF Heap: Failed to create %s, error is %d\n",
-				       __func__, heap_data->name, ret);
-			else if (!ret)
-				pr_info("%s: DMA-BUF Heap: Created %s\n", __func__,
-					heap_data->name);
 			break;
 		case HEAP_TYPE_CMA:
 			ret = qcom_add_cma_heap(heap_data);
-			if (ret < 0)
-				pr_err("%s: DMA-BUF Heap: Failed to create %s, error is %d\n",
-				       __func__, heap_data->name, ret);
-			else if (!ret)
-				pr_info("%s: DMA-BUF Heap: Created %s\n", __func__,
-					heap_data->name);
 			break;
 		case HEAP_TYPE_TUI_CARVEOUT:
 			ret = qcom_tui_carveout_heap_create(heap_data);
-			if (ret)
-				pr_err("%s: DMA-BUF Heap: Failed to create %s, error is %d\n",
-				       __func__, heap_data->name, ret);
-			else
-				pr_info("%s: DMA-BUF Heap: Created %s\n", __func__,
-					heap_data->name);
 			break;
-
 		default:
 			pr_err("%s: Unknown heap type %u\n", __func__, heap_data->type);
 			break;
 		}
+
+		if (ret)
+			pr_err("%s: DMA-BUF Heap: Failed to create %s, error is %d\n",
+			       __func__, heap_data->name, ret);
+		else
+			pr_info("%s: DMA-BUF Heap: Created %s\n", __func__,
+				heap_data->name);
 	}
 
 	free_pdata(heaps);
