@@ -27,7 +27,6 @@
 #define I40E_PRTTSYN_CTL1_TSYNTYPE_V2  (2 << \
 					I40E_PRTTSYN_CTL1_TSYNTYPE_SHIFT)
 #define I40E_SUBDEV_ID_25G_PTP_PIN	0xB
-#define to_dev(obj) container_of(obj, struct device, kobj)
 
 enum i40e_ptp_pin {
 	SDP3_2 = 0,

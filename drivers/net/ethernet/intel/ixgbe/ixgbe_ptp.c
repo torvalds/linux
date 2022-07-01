@@ -138,7 +138,6 @@
 #define IXGBE_X550_BASE_PERIOD 0xC80000000ULL
 #define INCVALUE_MASK	0x7FFFFFFF
 #define ISGN		0x80000000
-#define MAX_TIMADJ	0x7FFFFFFF
 
 /**
  * ixgbe_ptp_setup_sdp_X540
