@@ -285,8 +285,9 @@ static void nvmet_passthru_execute_cmd(struct nvmet_req *req)
 		req->p.rq = rq;
 		queue_work(nvmet_wq, &req->p.work);
 	} else {
+		rq->end_io = nvmet_passthru_req_done;
 		rq->end_io_data = req;
-		blk_execute_rq_nowait(rq, false, nvmet_passthru_req_done);
+		blk_execute_rq_nowait(rq, false);
 	}
 
 	if (ns)
