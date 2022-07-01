@@ -17,17 +17,9 @@
 #include <linux/module.h>
 #include <linux/etherdevice.h>
 #include "rtllib.h"
-struct modes_unit {
-	char *mode_string;
-	int mode_size;
-};
-static struct modes_unit rtllib_modes[] = {
-	{"a", 1},
-	{"b", 1},
-	{"g", 1},
-	{"?", 1},
-	{"N-24G", 5},
-	{"N-5G", 4},
+
+static const char * const rtllib_modes[] = {
+	"a", "b", "g", "?", "N-24G", "N-5G"
 };
 
 #define MAX_CUSTOM_LEN 64
@@ -72,10 +64,9 @@ static inline char *rtl819x_translate_scan(struct rtllib_device *ieee,
 	/* Add the protocol name */
 	iwe.cmd = SIOCGIWNAME;
 	for (i = 0; i < ARRAY_SIZE(rtllib_modes); i++) {
-		if (network->mode&(1<<i)) {
-			sprintf(pname, rtllib_modes[i].mode_string,
-				rtllib_modes[i].mode_size);
-			pname += rtllib_modes[i].mode_size;
+		if (network->mode & BIT(i)) {
+			strcpy(pname, rtllib_modes[i]);
+			pname += strlen(rtllib_modes[i]);
 		}
 	}
 	*pname = '\0';
