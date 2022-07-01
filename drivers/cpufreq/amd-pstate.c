@@ -566,6 +566,28 @@ static int amd_pstate_cpu_exit(struct cpufreq_policy *policy)
 	return 0;
 }
 
+static int amd_pstate_cpu_resume(struct cpufreq_policy *policy)
+{
+	int ret;
+
+	ret = amd_pstate_enable(true);
+	if (ret)
+		pr_err("failed to enable amd-pstate during resume, return %d\n", ret);
+
+	return ret;
+}
+
+static int amd_pstate_cpu_suspend(struct cpufreq_policy *policy)
+{
+	int ret;
+
+	ret = amd_pstate_enable(false);
+	if (ret)
+		pr_err("failed to disable amd-pstate during suspend, return %d\n", ret);
+
+	return ret;
+}
+
 /* Sysfs attributes */
 
 /*
@@ -636,6 +658,8 @@ static struct cpufreq_driver amd_pstate_driver = {
 	.target		= amd_pstate_target,
 	.init		= amd_pstate_cpu_init,
 	.exit		= amd_pstate_cpu_exit,
+	.suspend	= amd_pstate_cpu_suspend,
+	.resume		= amd_pstate_cpu_resume,
 	.set_boost	= amd_pstate_set_boost,
 	.name		= "amd-pstate",
 	.attr           = amd_pstate_attr,
