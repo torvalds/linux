@@ -644,10 +644,15 @@ int ksz9477_mdb_add(struct ksz_device *dev, int port,
 		    const struct switchdev_obj_port_mdb *mdb, struct dsa_db db)
 {
 	u32 static_table[4];
+	const u8 *shifts;
+	const u32 *masks;
 	u32 data;
 	int index;
 	u32 mac_hi, mac_lo;
 	int err = 0;
+
+	shifts = dev->info->shifts;
+	masks = dev->info->masks;
 
 	mac_hi = ((mdb->addr[0] << 8) | mdb->addr[1]);
 	mac_lo = ((mdb->addr[2] << 24) | (mdb->addr[3] << 16));
@@ -657,8 +662,8 @@ int ksz9477_mdb_add(struct ksz_device *dev, int port,
 
 	for (index = 0; index < dev->info->num_statics; index++) {
 		/* find empty slot first */
-		data = (index << ALU_STAT_INDEX_S) |
-			ALU_STAT_READ | ALU_STAT_START;
+		data = (index << shifts[ALU_STAT_INDEX]) |
+			masks[ALU_STAT_READ] | ALU_STAT_START;
 		ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 		/* wait to be finished */
@@ -702,7 +707,7 @@ int ksz9477_mdb_add(struct ksz_device *dev, int port,
 
 	ksz9477_write_table(dev, static_table);
 
-	data = (index << ALU_STAT_INDEX_S) | ALU_STAT_START;
+	data = (index << shifts[ALU_STAT_INDEX]) | ALU_STAT_START;
 	ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 	/* wait to be finished */
@@ -718,10 +723,15 @@ int ksz9477_mdb_del(struct ksz_device *dev, int port,
 		    const struct switchdev_obj_port_mdb *mdb, struct dsa_db db)
 {
 	u32 static_table[4];
+	const u8 *shifts;
+	const u32 *masks;
 	u32 data;
 	int index;
 	int ret = 0;
 	u32 mac_hi, mac_lo;
+
+	shifts = dev->info->shifts;
+	masks = dev->info->masks;
 
 	mac_hi = ((mdb->addr[0] << 8) | mdb->addr[1]);
 	mac_lo = ((mdb->addr[2] << 24) | (mdb->addr[3] << 16));
@@ -731,8 +741,8 @@ int ksz9477_mdb_del(struct ksz_device *dev, int port,
 
 	for (index = 0; index < dev->info->num_statics; index++) {
 		/* find empty slot first */
-		data = (index << ALU_STAT_INDEX_S) |
-			ALU_STAT_READ | ALU_STAT_START;
+		data = (index << shifts[ALU_STAT_INDEX]) |
+			masks[ALU_STAT_READ] | ALU_STAT_START;
 		ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 		/* wait to be finished */
@@ -774,7 +784,7 @@ int ksz9477_mdb_del(struct ksz_device *dev, int port,
 
 	ksz9477_write_table(dev, static_table);
 
-	data = (index << ALU_STAT_INDEX_S) | ALU_STAT_START;
+	data = (index << shifts[ALU_STAT_INDEX]) | ALU_STAT_START;
 	ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 
 	/* wait to be finished */
@@ -1230,8 +1240,11 @@ void ksz9477_config_cpu_port(struct dsa_switch *ds)
 
 int ksz9477_enable_stp_addr(struct ksz_device *dev)
 {
+	const u32 *masks;
 	u32 data;
 	int ret;
+
+	masks = dev->info->masks;
 
 	/* Enable Reserved multicast table */
 	ksz_cfg(dev, REG_SW_LUE_CTRL_0, SW_RESV_MCAST_ENABLE, true);
@@ -1242,7 +1255,7 @@ int ksz9477_enable_stp_addr(struct ksz_device *dev)
 	if (ret < 0)
 		return ret;
 
-	data = ALU_STAT_START | ALU_RESV_MCAST_ADDR;
+	data = ALU_STAT_START | ALU_RESV_MCAST_ADDR | masks[ALU_STAT_WRITE];
 
 	ret = ksz_write32(dev, REG_SW_ALU_STAT_CTRL__4, data);
 	if (ret < 0)

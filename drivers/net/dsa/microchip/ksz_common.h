@@ -191,6 +191,8 @@ enum ksz_masks {
 	DYNAMIC_MAC_TABLE_FID,
 	DYNAMIC_MAC_TABLE_SRC_PORT,
 	DYNAMIC_MAC_TABLE_TIMESTAMP,
+	ALU_STAT_WRITE,
+	ALU_STAT_READ,
 };
 
 enum ksz_shifts {
@@ -203,6 +205,7 @@ enum ksz_shifts {
 	DYNAMIC_MAC_FID,
 	DYNAMIC_MAC_TIMESTAMP,
 	DYNAMIC_MAC_SRC_PORT,
+	ALU_STAT_INDEX,
 };
 
 struct alu_struct {
