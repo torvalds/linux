@@ -154,11 +154,12 @@
 
 		codec2codec {
 			ports@0 {
-				rate = <48000>;
+				/* use default settings */
 			c2c:	port@0 { c2cf_ep: endpoint { remote-endpoint = <&codec6_ep>; }; };
 				port@1 { c2cb_ep: endpoint { remote-endpoint = <&codec7_ep>; }; };
 			};
 			ports@1 {
+				/* use original settings */
 				rate = <48000>;
 			c2c_m:	port@0 { c2cmf_ep: endpoint { remote-endpoint = <&mc2c0_ep>; }; };
 				port@1 { c2cmb_ep: endpoint { remote-endpoint = <&mc2c1_ep>; }; };

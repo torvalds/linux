@@ -851,8 +851,6 @@ int audio_graph2_link_c2c(struct asoc_simple_priv *priv,
 			  struct link_info *li)
 {
 	struct snd_soc_dai_link *dai_link = simple_priv_to_link(priv, li->link);
-	struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
-	struct snd_soc_pcm_stream *c2c_conf = dai_props->c2c_conf;
 	struct device_node *port0, *port1, *ports;
 	struct device_node *codec0_port, *codec1_port;
 	struct device_node *ep0, *ep1;
@@ -880,20 +878,29 @@ int audio_graph2_link_c2c(struct asoc_simple_priv *priv,
 	ports = of_get_parent(port0);
 	port1 = of_get_next_child(ports, lnk);
 
+	/*
+	 * Card2 can use original Codec2Codec settings if DT has.
+	 * It will use default settings if no settings on DT.
+	 * see
+	 *	asoc_simple_init_for_codec2codec()
+	 *
+	 * Add more settings here if needed
+	 */
 	of_property_read_u32(ports, "rate", &val);
-	if (!val) {
-		struct device *dev = simple_priv_to_dev(priv);
+	if (val) {
+		struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
+		struct snd_soc_pcm_stream *c2c_conf = dai_props->c2c_conf;
 
-		dev_err(dev, "Codec2Codec needs rate settings\n");
-		goto err1;
+		c2c_conf->formats	= SNDRV_PCM_FMTBIT_S32_LE; /* update ME */
+		c2c_conf->rates		= SNDRV_PCM_RATE_8000_384000;
+		c2c_conf->rate_min	=
+		c2c_conf->rate_max	= val;
+		c2c_conf->channels_min	=
+		c2c_conf->channels_max	= 2; /* update ME */
+
+		dai_link->params	= c2c_conf;
+		dai_link->num_params	= 1;
 	}
-
-	c2c_conf->formats	= SNDRV_PCM_FMTBIT_S32_LE; /* update ME */
-	c2c_conf->rate_min	=
-	c2c_conf->rate_max	= val;
-	c2c_conf->channels_min	=
-	c2c_conf->channels_max	= 2; /* update ME */
-	dai_link->params	= c2c_conf;
 
 	ep0 = port_to_endpoint(port0);
 	ep1 = port_to_endpoint(port1);
@@ -923,7 +930,6 @@ err2:
 	of_node_put(ep1);
 	of_node_put(codec0_port);
 	of_node_put(codec1_port);
-err1:
 	of_node_put(ports);
 	of_node_put(port0);
 	of_node_put(port1);
