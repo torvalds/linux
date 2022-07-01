@@ -153,7 +153,7 @@ static void fsl_ldb_atomic_enable(struct drm_bridge *bridge,
 	reg = LDB_CTRL_CH0_ENABLE;
 
 	if (fsl_ldb->lvds_dual_link)
-		reg |= LDB_CTRL_CH1_ENABLE;
+		reg |= LDB_CTRL_CH1_ENABLE | LDB_CTRL_SPLIT_MODE;
 
 	if (lvds_format_24bpp) {
 		reg |= LDB_CTRL_CH0_DATA_WIDTH;
