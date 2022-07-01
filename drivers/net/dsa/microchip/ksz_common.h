@@ -271,6 +271,11 @@ struct ksz_dev_ops {
 	int (*max_mtu)(struct ksz_device *dev, int port);
 	void (*freeze_mib)(struct ksz_device *dev, int port, bool freeze);
 	void (*port_init_cnt)(struct ksz_device *dev, int port);
+	void (*phylink_mac_link_up)(struct ksz_device *dev, int port,
+				    unsigned int mode,
+				    phy_interface_t interface,
+				    struct phy_device *phydev, int speed,
+				    int duplex, bool tx_pause, bool rx_pause);
 	void (*config_cpu_port)(struct dsa_switch *ds);
 	int (*enable_stp_addr)(struct ksz_device *dev);
 	int (*reset)(struct ksz_device *dev);

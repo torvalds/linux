@@ -312,6 +312,39 @@ int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu)
 	return 0;
 }
 
+static void lan937x_config_interface(struct ksz_device *dev, int port,
+				     int speed, int duplex,
+				     bool tx_pause, bool rx_pause)
+{
+	u8 xmii_ctrl0, xmii_ctrl1;
+
+	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_0, &xmii_ctrl0);
+	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &xmii_ctrl1);
+
+	xmii_ctrl0 &= ~(PORT_MII_100MBIT | PORT_MII_FULL_DUPLEX |
+			PORT_MII_TX_FLOW_CTRL | PORT_MII_RX_FLOW_CTRL);
+
+	if (speed == SPEED_1000)
+		xmii_ctrl1 &= ~PORT_MII_NOT_1GBIT;
+	else
+		xmii_ctrl1 |= PORT_MII_NOT_1GBIT;
+
+	if (speed == SPEED_100)
+		xmii_ctrl0 |= PORT_MII_100MBIT;
+
+	if (duplex)
+		xmii_ctrl0 |= PORT_MII_FULL_DUPLEX;
+
+	if (tx_pause)
+		xmii_ctrl0 |= PORT_MII_TX_FLOW_CTRL;
+
+	if (rx_pause)
+		xmii_ctrl0 |= PORT_MII_RX_FLOW_CTRL;
+
+	ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_0, xmii_ctrl0);
+	ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_1, xmii_ctrl1);
+}
+
 void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
 			      struct phylink_config *config)
 {
@@ -322,6 +355,19 @@ void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
 		config->mac_capabilities |= MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 					    MAC_100HD | MAC_10 | MAC_1000FD;
 	}
+}
+
+void lan937x_phylink_mac_link_up(struct ksz_device *dev, int port,
+				 unsigned int mode, phy_interface_t interface,
+				 struct phy_device *phydev, int speed,
+				 int duplex, bool tx_pause, bool rx_pause)
+{
+	/* Internal PHYs */
+	if (dev->info->internal_phy[port])
+		return;
+
+	lan937x_config_interface(dev, port, speed, duplex,
+				 tx_pause, rx_pause);
 }
 
 int lan937x_setup(struct dsa_switch *ds)

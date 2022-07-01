@@ -17,4 +17,8 @@ void lan937x_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val);
 int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu);
 void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
 			      struct phylink_config *config);
+void lan937x_phylink_mac_link_up(struct ksz_device *dev, int port,
+				 unsigned int mode, phy_interface_t interface,
+				 struct phy_device *phydev, int speed,
+				 int duplex, bool tx_pause, bool rx_pause);
 #endif
