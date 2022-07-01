@@ -1170,7 +1170,6 @@ static struct usb_function_instance *uvc_alloc_inst(void)
 
 	opts->streaming_interval = 1;
 	opts->streaming_maxpacket = 1024;
-	opts->uvc_num_request = UVC_NUM_REQUESTS;
 	opts->pm_qos_latency = 0;
 
 	ret = uvcg_attach_configfs(opts);

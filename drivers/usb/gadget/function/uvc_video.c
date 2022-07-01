@@ -179,13 +179,8 @@ static int
 uvc_video_free_requests(struct uvc_video *video)
 {
 	unsigned int i;
-	struct uvc_device *uvc;
-	struct f_uvc_opts *opts;
 
-	uvc = container_of(video, struct uvc_device, video);
-	opts = fi_to_f_uvc_opts(uvc->func.fi);
-
-	for (i = 0; i < opts->uvc_num_request; ++i) {
+	for (i = 0; i < UVC_NUM_REQUESTS; ++i) {
 		if (video->req[i]) {
 			usb_ep_free_request(video->ep, video->req[i]);
 			video->req[i] = NULL;
@@ -208,11 +203,6 @@ uvc_video_alloc_requests(struct uvc_video *video)
 	unsigned int req_size;
 	unsigned int i;
 	int ret = -ENOMEM;
-	struct uvc_device *uvc;
-	struct f_uvc_opts *opts;
-
-	uvc = container_of(video, struct uvc_device, video);
-	opts = fi_to_f_uvc_opts(uvc->func.fi);
 
 	BUG_ON(video->req_size);
 
@@ -225,7 +215,7 @@ uvc_video_alloc_requests(struct uvc_video *video)
 			 * max_t(unsigned int, video->ep->maxburst, 1);
 	}
 
-	for (i = 0; i < opts->uvc_num_request; ++i) {
+	for (i = 0; i < UVC_NUM_REQUESTS; ++i) {
 		video->req_buffer[i] = kmalloc(req_size, GFP_KERNEL);
 		if (video->req_buffer[i] == NULL)
 			goto error;
@@ -335,7 +325,7 @@ int uvcg_video_enable(struct uvc_video *video, int enable)
 		cancel_work_sync(&video->pump);
 		uvcg_queue_cancel(&video->queue, 0);
 
-		for (i = 0; i < opts->uvc_num_request; ++i)
+		for (i = 0; i < UVC_NUM_REQUESTS; ++i)
 			if (video->req[i])
 				usb_ep_dequeue(video->ep, video->req[i]);
 
