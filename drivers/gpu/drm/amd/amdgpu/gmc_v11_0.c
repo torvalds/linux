@@ -39,6 +39,7 @@
 #include "soc15_common.h"
 #include "nbio_v4_3.h"
 #include "gfxhub_v3_0.h"
+#include "gfxhub_v3_0_3.h"
 #include "mmhub_v3_0.h"
 #include "mmhub_v3_0_1.h"
 #include "mmhub_v3_0_2.h"
@@ -590,7 +591,14 @@ static void gmc_v11_0_set_mmhub_funcs(struct amdgpu_device *adev)
 
 static void gmc_v11_0_set_gfxhub_funcs(struct amdgpu_device *adev)
 {
-	adev->gfxhub.funcs = &gfxhub_v3_0_funcs;
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(11, 0, 3):
+		adev->gfxhub.funcs = &gfxhub_v3_0_3_funcs;
+		break;
+	default:
+		adev->gfxhub.funcs = &gfxhub_v3_0_funcs;
+		break;
+	}
 }
 
 static int gmc_v11_0_early_init(void *handle)
