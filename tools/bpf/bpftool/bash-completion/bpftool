@@ -703,7 +703,7 @@ _bpftool()
                             return 0
                             ;;
                         type)
-                            local BPFTOOL_MAP_CREATE_TYPES="$(bpftool feature list map_types | \
+                            local BPFTOOL_MAP_CREATE_TYPES="$(bpftool feature list_builtins map_types 2>/dev/null | \
                                 grep -v '^unspec$')"
                             COMPREPLY=( $( compgen -W "$BPFTOOL_MAP_CREATE_TYPES" -- "$cur" ) )
                             return 0
@@ -1032,7 +1032,7 @@ _bpftool()
                     return 0
                     ;;
                 attach|detach)
-                    local BPFTOOL_CGROUP_ATTACH_TYPES="$(bpftool feature list attach_types | \
+                    local BPFTOOL_CGROUP_ATTACH_TYPES="$(bpftool feature list_builtins attach_types 2>/dev/null | \
                         grep '^cgroup_')"
                     local ATTACH_FLAGS='multi override'
                     local PROG_TYPE='id pinned tag name'
@@ -1162,14 +1162,14 @@ _bpftool()
                     _bpftool_once_attr 'full unprivileged'
                     return 0
                     ;;
-                list)
+                list_builtins)
                     [[ $prev != "$command" ]] && return 0
                     COMPREPLY=( $( compgen -W 'prog_types map_types \
                         attach_types link_types helpers' -- "$cur" ) )
                     ;;
                 *)
                     [[ $prev == $object ]] && \
-                        COMPREPLY=( $( compgen -W 'help list probe' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W 'help list_builtins probe' -- "$cur" ) )
                     ;;
             esac
             ;;

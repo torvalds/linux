@@ -1266,7 +1266,7 @@ static const char *get_helper_name(unsigned int id)
 	return helper_name[id];
 }
 
-static int do_list(int argc, char **argv)
+static int do_list_builtins(int argc, char **argv)
 {
 	const char *(*get_name)(unsigned int id);
 	unsigned int id = 0;
@@ -1319,7 +1319,7 @@ static int do_help(int argc, char **argv)
 
 	fprintf(stderr,
 		"Usage: %1$s %2$s probe [COMPONENT] [full] [unprivileged] [macros [prefix PREFIX]]\n"
-		"       %1$s %2$s list GROUP\n"
+		"       %1$s %2$s list_builtins GROUP\n"
 		"       %1$s %2$s help\n"
 		"\n"
 		"       COMPONENT := { kernel | dev NAME }\n"
@@ -1332,9 +1332,9 @@ static int do_help(int argc, char **argv)
 }
 
 static const struct cmd cmds[] = {
-	{ "probe",	do_probe },
-	{ "list",	do_list },
-	{ "help",	do_help },
+	{ "probe",		do_probe },
+	{ "list_builtins",	do_list_builtins },
+	{ "help",		do_help },
 	{ 0 }
 };
 

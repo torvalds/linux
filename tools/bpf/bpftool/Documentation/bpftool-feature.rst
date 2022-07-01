@@ -24,7 +24,7 @@ FEATURE COMMANDS
 ================
 
 |	**bpftool** **feature probe** [*COMPONENT*] [**full**] [**unprivileged**] [**macros** [**prefix** *PREFIX*]]
-|	**bpftool** **feature list** *GROUP*
+|	**bpftool** **feature list_builtins** *GROUP*
 |	**bpftool** **feature help**
 |
 |	*COMPONENT* := { **kernel** | **dev** *NAME* }
@@ -72,7 +72,7 @@ DESCRIPTION
 		  The keywords **full**, **macros** and **prefix** have the
 		  same role as when probing the kernel.
 
-	**bpftool feature list** *GROUP*
+	**bpftool feature list_builtins** *GROUP*
 		  List items known to bpftool. These can be BPF program types
 		  (**prog_types**), BPF map types (**map_types**), attach types
 		  (**attach_types**), link types (**link_types**), or BPF helper
