@@ -770,6 +770,75 @@ static void ieee80211_add_eht_ie(struct ieee80211_link_data *link,
 	ieee80211_ie_build_eht_cap(pos, he_cap, eht_cap, pos + eht_cap_size);
 }
 
+static void ieee80211_assoc_add_rates(struct sk_buff *skb,
+				      enum nl80211_chan_width width,
+				      struct ieee80211_supported_band *sband,
+				      struct ieee80211_mgd_assoc_data *assoc_data)
+{
+	unsigned int shift = ieee80211_chanwidth_get_shift(width);
+	unsigned int rates_len, supp_rates_len;
+	u32 rates = 0;
+	int i, count;
+	u8 *pos;
+
+	if (assoc_data->supp_rates_len) {
+		/*
+		 * Get all rates supported by the device and the AP as
+		 * some APs don't like getting a superset of their rates
+		 * in the association request (e.g. D-Link DAP 1353 in
+		 * b-only mode)...
+		 */
+		rates_len = ieee80211_parse_bitrates(width, sband,
+						     assoc_data->supp_rates,
+						     assoc_data->supp_rates_len,
+						     &rates);
+	} else {
+		/*
+		 * In case AP not provide any supported rates information
+		 * before association, we send information element(s) with
+		 * all rates that we support.
+		 */
+		rates_len = sband->n_bitrates;
+		for (i = 0; i < sband->n_bitrates; i++)
+			rates |= BIT(i);
+	}
+
+	supp_rates_len = rates_len;
+	if (supp_rates_len > 8)
+		supp_rates_len = 8;
+
+	pos = skb_put(skb, supp_rates_len + 2);
+	*pos++ = WLAN_EID_SUPP_RATES;
+	*pos++ = supp_rates_len;
+
+	count = 0;
+	for (i = 0; i < sband->n_bitrates; i++) {
+		if (BIT(i) & rates) {
+			int rate = DIV_ROUND_UP(sband->bitrates[i].bitrate,
+						5 * (1 << shift));
+			*pos++ = (u8)rate;
+			if (++count == 8)
+				break;
+		}
+	}
+
+	if (rates_len > count) {
+		pos = skb_put(skb, rates_len - count + 2);
+		*pos++ = WLAN_EID_EXT_SUPP_RATES;
+		*pos++ = rates_len - count;
+
+		for (i++; i < sband->n_bitrates; i++) {
+			if (BIT(i) & rates) {
+				int rate;
+
+				rate = DIV_ROUND_UP(sband->bitrates[i].bitrate,
+						    5 * (1 << shift));
+				*pos++ = (u8)rate;
+			}
+		}
+	}
+}
+
 static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -779,12 +848,11 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos, qos_info, *ie_start;
 	size_t offset = 0, noffset;
-	int i, count, rates_len, supp_rates_len, shift;
+	int i;
 	u16 capab;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
-	u32 rates = 0;
 	__le16 listen_int;
 	struct element *ext_capa = NULL;
 	enum nl80211_iftype iftype = ieee80211_vif_type_p2p(&sdata->vif);
@@ -810,39 +878,13 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	chan = chanctx_conf->def.chan;
 	rcu_read_unlock();
 	sband = local->hw.wiphy->bands[chan->band];
-	shift = ieee80211_vif_get_shift(&sdata->vif);
-
-	if (assoc_data->supp_rates_len) {
-		/*
-		 * Get all rates supported by the device and the AP as
-		 * some APs don't like getting a superset of their rates
-		 * in the association request (e.g. D-Link DAP 1353 in
-		 * b-only mode)...
-		 */
-		rates_len = ieee80211_parse_bitrates(chanctx_conf->def.width,
-						     sband,
-						     assoc_data->supp_rates,
-						     assoc_data->supp_rates_len,
-						     &rates);
-	} else {
-		/*
-		 * In case AP not provide any supported rates information
-		 * before association, we send information element(s) with
-		 * all rates that we support.
-		 */
-		rates_len = 0;
-		for (i = 0; i < sband->n_bitrates; i++) {
-			rates |= BIT(i);
-			rates_len++;
-		}
-	}
 
 	iftd = ieee80211_get_sband_iftype_data(sband, iftype);
 
 	skb = alloc_skb(local->hw.extra_tx_headroom +
 			sizeof(*mgmt) + /* bit too much but doesn't matter */
 			2 + assoc_data->ssid_len + /* SSID */
-			4 + rates_len + /* (extended) rates */
+			4 + sband->n_bitrates + /* (extended) rates */
 			4 + /* power capability */
 			2 + 2 * sband->n_channels + /* supported channels */
 			2 + sizeof(struct ieee80211_ht_cap) + /* HT */
@@ -911,45 +953,10 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	*pos++ = assoc_data->ssid_len;
 	memcpy(pos, assoc_data->ssid, assoc_data->ssid_len);
 
-	if (sband->band == NL80211_BAND_S1GHZ)
-		goto skip_rates;
+	if (sband->band != NL80211_BAND_S1GHZ)
+		ieee80211_assoc_add_rates(skb, chanctx_conf->def.width,
+					  sband, assoc_data);
 
-	/* add all rates which were marked to be used above */
-	supp_rates_len = rates_len;
-	if (supp_rates_len > 8)
-		supp_rates_len = 8;
-
-	pos = skb_put(skb, supp_rates_len + 2);
-	*pos++ = WLAN_EID_SUPP_RATES;
-	*pos++ = supp_rates_len;
-
-	count = 0;
-	for (i = 0; i < sband->n_bitrates; i++) {
-		if (BIT(i) & rates) {
-			int rate = DIV_ROUND_UP(sband->bitrates[i].bitrate,
-						5 * (1 << shift));
-			*pos++ = (u8) rate;
-			if (++count == 8)
-				break;
-		}
-	}
-
-	if (rates_len > count) {
-		pos = skb_put(skb, rates_len - count + 2);
-		*pos++ = WLAN_EID_EXT_SUPP_RATES;
-		*pos++ = rates_len - count;
-
-		for (i++; i < sband->n_bitrates; i++) {
-			if (BIT(i) & rates) {
-				int rate;
-				rate = DIV_ROUND_UP(sband->bitrates[i].bitrate,
-						    5 * (1 << shift));
-				*pos++ = (u8) rate;
-			}
-		}
-	}
-
-skip_rates:
 	if (capab & WLAN_CAPABILITY_SPECTRUM_MGMT ||
 	    capab & WLAN_CAPABILITY_RADIO_MEASURE) {
 		pos = skb_put(skb, 4);
