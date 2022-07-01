@@ -404,7 +404,7 @@
 &cp0_usb3_1 {
 	status = "okay";
 	usb-phy = <&cp0_usb3_0_phy1>;
-	phys =  <&cp0_utmi1>;
+	phys = <&cp0_utmi1>;
 	phy-names = "utmi";
 	dr_mode = "host";
 };
