@@ -312,6 +312,18 @@ int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu)
 	return 0;
 }
 
+void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
+			      struct phylink_config *config)
+{
+	config->mac_capabilities = MAC_100FD;
+
+	if (dev->info->supports_rgmii[port]) {
+		/* MII/RMII/RGMII ports */
+		config->mac_capabilities |= MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+					    MAC_100HD | MAC_10 | MAC_1000FD;
+	}
+}
+
 int lan937x_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
