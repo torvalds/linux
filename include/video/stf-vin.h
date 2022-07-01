@@ -165,14 +165,10 @@
 #define CLK_MIPI_RX1_PXL_2_CTRL     0X30
 #define CLK_MIPI_RX1_PXL_3_CTRL     0X34
 #define CLK_MIPI_RX1_SYS1_CTRL      0x38
-#define CLK_ISP0_CTRL               0x3c
-#define CLK_ISP0_2X_CTRL            0x40
-#define CLK_ISP0_MIPI_CTRL          0x44
-#define CLK_C_ISP0_CTRL             0x64
-#define CLK_ISP1_CTRL               0x48
-#define CLK_ISP1_2X_CTRL            0x4C
-#define CLK_ISP1_MIPI_CTRL          0x50
-#define CLK_C_ISP1_CTRL             0x68
+#define CLK_ISP_CTRL               0x3c
+#define CLK_ISP_2X_CTRL            0x40
+#define CLK_ISP_MIPI_CTRL          0x44
+#define CLK_C_ISP_CTRL             0x64
 #define CLK_CSI2RX0_APB_CTRL        0x58
 
 
@@ -291,7 +287,7 @@
 #define ISP_REG_RGB_TO_YUV_COVERSION6       0x00000E58
 #define ISP_REG_RGB_TO_YUV_COVERSION7       0x00000E5C
 #define ISP_REG_RGB_TO_YUV_COVERSION8       0x00000E60
-#define ISP_REG_CIS_MODULE_CFG              0x00000010
+#define ISP_REG_CSI_MODULE_CFG              0x00000010
 #define ISP_REG_ISP_CTRL_1                  0x00000A08
 #define ISP_REG_ISP_CTRL_0                  0x00000A00
 #define ISP_REG_DC_AXI_ID                   0x00000044
@@ -419,8 +415,7 @@ struct stf_vin_dev {
 	void __iomem *rstgen_base;
 	void __iomem *mipi1_base;
 	void __iomem *sysctrl_base;
-	void __iomem *isp_isp0_base;
-	void __iomem *isp_isp1_base;
+	void __iomem *isp_base;
 	void __iomem *vin_top_clkgen_base;
 	void __iomem *vin_top_rstgen_base;
 	void __iomem *vin_top_iopad_base;
@@ -428,10 +423,11 @@ struct stf_vin_dev {
 	void __iomem * sys_crg;
 	struct vin_framesize frame;
 	struct vin_format format;
-	bool isp0;
-	bool isp1;
-	int isp0_irq;
-	int isp1_irq;
+	bool isp;
+	int isp_irq;
+	int isp_csi_irq;
+	int isp_scd_irq;
+	int isp_irq_csiline;
 	u32 major;
 	struct vin_buf buf;
 

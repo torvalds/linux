@@ -119,13 +119,13 @@ static int stf_csi_config_set(struct stf_csi_dev *csi_dev)
 	case SENSOR_VIN:
 		st_err(ST_CSI, "%s, %d: need todo\n", __func__, __LINE__);
 		break;
-	case SENSOR_ISP0:
+	case SENSOR_ISP:
 		reg_set_bit(vin->clkgen_base,
-				CLK_ISP0_MIPI_CTRL,
+				CLK_ISP_MIPI_CTRL,
 				BIT(24), csi_dev->id << 24);
 
 		reg_set_bit(vin->clkgen_base,
-				CLK_C_ISP0_CTRL,
+				CLK_C_ISP_CTRL,
 				BIT(25) | BIT(24),
 				csi_dev->id << 24);
 
@@ -134,20 +134,6 @@ static int stf_csi_config_set(struct stf_csi_dev *csi_dev)
 				SYSCTRL_VIN_SRC_CHAN_SEL,
 				0xF, mipi_channel_sel);
 		break;
-	case SENSOR_ISP1:
-		reg_set_bit(vin->clkgen_base,
-				CLK_ISP1_MIPI_CTRL,
-				BIT(24), csi_dev->id << 24);
-
-		reg_set_bit(vin->clkgen_base,
-				CLK_C_ISP1_CTRL,
-				BIT(25) | BIT(24),
-				csi_dev->id << 24);
-
-		mipi_channel_sel = csi_dev->id * 4 + mipi_vc;
-		reg_set_bit(vin->sysctrl_base,
-				SYSCTRL_VIN_SRC_CHAN_SEL,
-				0xF << 4, mipi_channel_sel << 4);
 	default:
 		break;
 	}
@@ -172,14 +158,12 @@ static int stf_csi_set_format(struct stf_csi_dev *csi_dev,
 	case SENSOR_VIN:
 		st_err(ST_CSI, "%s, %d: need todo\n", __func__, __LINE__);
 		break;
-	case SENSOR_ISP0:
+	case SENSOR_ISP:
 		if (is_raw10)
 			reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 				BIT(12),
-				1<<12);
+				1 << 12);
 		break;
-	case SENSOR_ISP1:
-		st_err(ST_CSI, "please check csi_dev s_type:%d\n", csi_dev->s_type);
 	default:
 		break;
 	}
@@ -215,8 +199,13 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 
 	reg = csiphy->num_data_lanes << 8;
 	for (i = 0; i < csiphy->num_data_lanes; i++) {
+#ifndef USE_CSIDPHY_ONE_CLK_MODE
 		reg |= CSI2RX_STATIC_CFG_DLANE_MAP(i, csiphy->data_lanes[i]);
 		set_bit(csiphy->data_lanes[i] - 1, &lanes_used);
+#else
+		reg |= CSI2RX_STATIC_CFG_DLANE_MAP(i, i + 1);
+		set_bit(i, &lanes_used);
+#endif
 	}
 
 	/*
@@ -237,9 +226,14 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 
 	// 0x40 DPHY_LANE_CONTROL
 	reg = 0;
-
+#ifndef USE_CSIDPHY_ONE_CLK_MODE
+	for (i = 0; i < csiphy->num_data_lanes; i++)
+		reg |= 1 << (csiphy->data_lanes[i] - 1)
+			| 1 << (csiphy->data_lanes[i] + 11);
+#else
 	for (i = 0; i < csiphy->num_data_lanes; i++)
 		reg |= 1 << i | 1 << (i + 12);		//data_clane
+#endif
 
 	reg |= 1 << 4 | 1 << 16;		//clk_lane
 	writel(reg, reg_base + CSI2RX_DPHY_LANE_CONTROL);
@@ -308,13 +302,13 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 			BIT(12)|BIT(11)|BIT(10)|BIT(9)|BIT(8)|BIT(7)|BIT(6)|BIT(5)|BIT(4)|BIT(3)|BIT(2),
 			(1920 / 4 - 1)<<2);	//u0_vin_cnfg_axiwr0_pix_cnt_end
 		break;
-	case SENSOR_ISP0:
+	case SENSOR_ISP:
 		clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
 			stfcamss->sys_clk[STFCLK_MIPI_RX0_PXL].clk);
 
 		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 			BIT(7)|BIT(6),
-			0<<6);		//u0_vin_cnfg_mipi_byte_en_isp0
+			0<<6);		//u0_vin_cnfg_mipi_byte_en_isp
 		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 			BIT(11)|BIT(10)|BIT(9)|BIT(8),
 			0<<8);		//u0_vin_cnfg_mipi_channel_sel0
@@ -324,9 +318,6 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 			BIT(16)|BIT(15)|BIT(14)|BIT(13),
 			0<<13);		//u0_vin_cnfg_pix_num
-		break;
-	case SENSOR_ISP1:
-		st_err(ST_CSI, "please check csi_dev s_type:%d\n", csi_dev->s_type);
 		break;
 	default:
 		break;

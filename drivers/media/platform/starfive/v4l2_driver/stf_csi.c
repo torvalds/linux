@@ -10,15 +10,13 @@
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
 
-#define STF_CSI_NAME "stf_csi"
-
 static const struct csi_format csi_formats_st7110[] = {
 	{ MEDIA_BUS_FMT_YUYV8_2X8, 16},
 	{ MEDIA_BUS_FMT_RGB565_2X8_LE, 16},
-	{ MEDIA_BUS_FMT_SRGGB10_1X10, 12},
-	{ MEDIA_BUS_FMT_SGRBG10_1X10, 12},
-	{ MEDIA_BUS_FMT_SGBRG10_1X10, 12},
-	{ MEDIA_BUS_FMT_SBGGR10_1X10, 12},
+	{ MEDIA_BUS_FMT_SRGGB10_1X10, 10},
+	{ MEDIA_BUS_FMT_SGRBG10_1X10, 10},
+	{ MEDIA_BUS_FMT_SGBRG10_1X10, 10},
+	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10},
 };
 
 static int csi_find_format(u32 code,
@@ -138,16 +136,17 @@ static void csi_try_format(struct stf_csi_dev *csi_dev,
 				break;
 
 		if (i >= csi_dev->nformats)
-			fmt->code = MEDIA_BUS_FMT_RGB565_2X8_LE;
+			fmt->code = csi_dev->formats[0].code;
 
 		fmt->width = clamp_t(u32,
 				fmt->width,
-				1,
+				STFCAMSS_FRAME_MIN_WIDTH,
 				STFCAMSS_FRAME_MAX_WIDTH);
 		fmt->height = clamp_t(u32,
 				fmt->height,
-				1,
-				STFCAMSS_FRAME_MAX_HEIGHT_PIX);
+				STFCAMSS_FRAME_MIN_HEIGHT,
+				STFCAMSS_FRAME_MAX_HEIGHT);
+
 
 		fmt->field = V4L2_FIELD_NONE;
 		fmt->colorspace = V4L2_COLORSPACE_SRGB;
@@ -245,8 +244,16 @@ static int csi_set_format(struct v4l2_subdev *sd,
 	if (format == NULL)
 		return -EINVAL;
 
-	csi_try_format(csi_dev, state, fmt->pad, &fmt->format, fmt->which);
-	*format = fmt->format;
+	mutex_lock(&csi_dev->stream_lock);
+	if (csi_dev->stream_count) {
+		fmt->format = *format;
+		mutex_unlock(&csi_dev->stream_lock);
+		goto out;
+	} else {
+		csi_try_format(csi_dev, state, fmt->pad, &fmt->format, fmt->which);
+		*format = fmt->format;
+	}
+	mutex_unlock(&csi_dev->stream_lock);
 
 	/* Propagate the format from sink to source */
 	if (fmt->pad == STF_CSI_PAD_SINK) {
@@ -257,7 +264,7 @@ static int csi_set_format(struct v4l2_subdev *sd,
 		csi_try_format(csi_dev, state, STF_CSI_PAD_SRC, format,
 					fmt->which);
 	}
-
+out:
 	return 0;
 }
 
@@ -298,10 +305,8 @@ static int csi_link_setup(struct media_entity *entity,
 		line = v4l2_get_subdevdata(sd);
 		if (line->sdev_type == VIN_DEV_TYPE)
 			csi_dev->s_type = SENSOR_VIN;
-		if (line->sdev_type == ISP0_DEV_TYPE)
-			csi_dev->s_type = SENSOR_ISP0;
-		if (line->sdev_type == ISP1_DEV_TYPE)
-			csi_dev->s_type = SENSOR_ISP1;
+		if (line->sdev_type == ISP_DEV_TYPE)
+			csi_dev->s_type = SENSOR_ISP;
 		st_info(ST_CSI, "CSI%d device sensor type: %d\n",
 				csi_dev->id, csi_dev->s_type);
 	}
@@ -322,7 +327,7 @@ static int csi_link_setup(struct media_entity *entity,
 		csiphy_dev = v4l2_get_subdevdata(sd);
 
 		csi_dev->csiphy_id = csiphy_dev->id;
-		st_info(ST_SENSOR, "CSI%d link to csiphy%d\n",
+		st_info(ST_CSI, "CSI%d link to csiphy%d\n",
 				csi_dev->id, csi_dev->csiphy_id);
 	}
 

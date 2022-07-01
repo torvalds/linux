@@ -130,7 +130,7 @@ static int stf_dvp_stream_set(struct stf_dvp_dev *dvp_dev, int on)
 			U0_VIN_CNFG_AXI_DVP_EN,
 			!!on<<2);
 		break;
-	case SENSOR_ISP0:
+	case SENSOR_ISP:
 		clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
 			stfcamss->sys_clk[STFCLK_DVP_INV].clk);
 
@@ -146,9 +146,6 @@ static int stf_dvp_stream_set(struct stf_dvp_dev *dvp_dev, int on)
 		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_36,
 			U0_VIN_CNFG_GEN_EN_AXIRD,
 			0);
-		break;
-	case SENSOR_ISP1:
-		st_err(ST_DVP, "please check dvp_dev s_type:%d\n", dvp_dev->s_type);
 		break;
 	default:
 		break;

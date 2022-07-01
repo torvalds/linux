@@ -1,8 +1,9 @@
 #
 # VIN sensor driver configuration
 #
+
 config VIN_SENSOR_OV5640
-	bool "VIN SENSOR support OV5640"
+	tristate "VIN SENSOR support OV5640"
 	depends on VIDEO_STF_VIN
 	select V4L2_FWNODE
 	default n
@@ -10,7 +11,7 @@ config VIN_SENSOR_OV5640
 	  Say Y here if you want to have support for VIN sensor OV5640
 
 config VIN_SENSOR_SC2235
-	bool "VIN SENSOR support SC2235"
+	tristate "VIN SENSOR support SC2235"
 	depends on VIDEO_STF_VIN
 	select V4L2_FWNODE
 	default n
@@ -18,7 +19,7 @@ config VIN_SENSOR_SC2235
 	  Say Y here if you want to have support for VIN sensor SC2235
 
 config VIN_SENSOR_OV4689
-	bool "VIN SENSOR support OV4689"
+	tristate "VIN SENSOR support OV4689"
 	depends on VIDEO_STF_VIN
 	select V4L2_FWNODE
 	default n
@@ -32,3 +33,11 @@ config VIN_SENSOR_OV13850
 	default n
 	help
 	  Say Y here if you want to have support for VIN sensor OV13850
+
+config VIN_SENSOR_IMX219
+	bool "VIN SENSOR support IMX219"
+	depends on VIDEO_STF_VIN
+	select V4L2_FWNODE
+	default n
+	help
+	  Say Y here if you want to have support for VIN sensor IMX219

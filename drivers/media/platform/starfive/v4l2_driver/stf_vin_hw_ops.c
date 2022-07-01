@@ -25,11 +25,24 @@ static irqreturn_t stf_vin_wr_irq_handler(int irq, void *priv)
 	static struct vin_params params;
 	struct stf_vin2_dev *vin_dev = priv;
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	struct dummy_buffer *dummy_buffer =
+			&vin_dev->dummy_buffer[STF_DUMMY_VIN];
 
-	vin_dev->hw_ops->isr_buffer_done(&vin_dev->line[VIN_LINE_WR], &params);
+	if (atomic_dec_if_positive(&dummy_buffer->frame_skip) < 0) {
+		vin_dev->hw_ops->isr_change_buffer(&vin_dev->line[VIN_LINE_WR]);
+		vin_dev->hw_ops->isr_buffer_done(&vin_dev->line[VIN_LINE_WR], &params);
+	}
+
 	vin_intr_clear(vin->sysctrl_base);
 
 	return IRQ_HANDLED;
+}
+
+static  void __iomem *stf_vin_get_ispbase(struct stf_vin_dev *vin)
+{
+	void __iomem *base = vin->isp_base;
+
+	return base;
 }
 
 static irqreturn_t stf_vin_isp_irq_handler(int irq, void *priv)
@@ -39,30 +52,166 @@ static irqreturn_t stf_vin_isp_irq_handler(int irq, void *priv)
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 	void __iomem *ispbase;
 	u32 int_status, value;
-	int isp_id = irq == vin->isp0_irq ? 0 : 1;
 
-	if (isp_id == 0)
-		ispbase = vin->isp_isp0_base;
-	else
-		ispbase = vin->isp_isp1_base;
+	ispbase = stf_vin_get_ispbase(vin);
 
 	int_status = reg_read(ispbase, ISP_REG_ISP_CTRL_0);
 
-	// if (int_status & BIT(24))
-	vin_dev->hw_ops->isr_buffer_done(
-		&vin_dev->line[VIN_LINE_ISP0 + isp_id], &params);
+	if (int_status & BIT(24)) {
+		if ((int_status & BIT(11)))
+			vin_dev->hw_ops->isr_buffer_done(
+				&vin_dev->line[VIN_LINE_ISP_SS0], &params);
 
-	value = reg_read(ispbase, ISP_REG_CIS_MODULE_CFG);
-	if ((value & BIT(19)) && (int_status & BIT(25)))
-		vin_dev->hw_ops->isr_buffer_done(
-			&vin_dev->line[VIN_LINE_ISP0_RAW + isp_id], &params);
+		if ((int_status & BIT(12)))
+			vin_dev->hw_ops->isr_buffer_done(
+				&vin_dev->line[VIN_LINE_ISP_SS1], &params);
 
-	/* clear interrupt */
-	reg_write(ispbase, ISP_REG_ISP_CTRL_0, int_status);
+		if ((int_status & BIT(20)))
+			vin_dev->hw_ops->isr_buffer_done(
+				&vin_dev->line[VIN_LINE_ISP], &params);
+
+		value = reg_read(ispbase, ISP_REG_ITIDPSR);
+		if ((value & BIT(17)))
+			vin_dev->hw_ops->isr_buffer_done(
+				&vin_dev->line[VIN_LINE_ISP_ITIW], &params);
+		if ((value & BIT(16)))
+			vin_dev->hw_ops->isr_buffer_done(
+				&vin_dev->line[VIN_LINE_ISP_ITIR], &params);
+
+#ifndef ISP_USE_CSI_AND_SC_DONE_INTERRUPT
+		if (int_status & BIT(25))
+			vin_dev->hw_ops->isr_buffer_done(
+				&vin_dev->line[VIN_LINE_ISP_RAW], &params);
+
+		if (int_status & BIT(26))
+			vin_dev->hw_ops->isr_buffer_done(
+				&vin_dev->line[VIN_LINE_ISP_SCD_Y], &params);
+
+		/* clear interrupt */
+		reg_write(ispbase, ISP_REG_ISP_CTRL_0, (int_status & ~EN_INT_ALL)
+				| EN_INT_ISP_DONE | EN_INT_CSI_DONE | EN_INT_SC_DONE);
+#else
+		/* clear interrupt */
+		reg_write(ispbase, ISP_REG_ISP_CTRL_0,
+			(int_status & ~EN_INT_ALL) | EN_INT_ISP_DONE);
+#endif
+	} else
+		st_debug(ST_VIN, "%s, Unknown interrupt!!!\n", __func__);
 
 	return IRQ_HANDLED;
 }
 
+static irqreturn_t stf_vin_isp_csi_irq_handler(int irq, void *priv)
+{
+	static struct vin_params params;
+	struct stf_vin2_dev *vin_dev = priv;
+	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	void __iomem *ispbase;
+	u32 int_status;
+
+	ispbase = stf_vin_get_ispbase(vin);
+
+	int_status = reg_read(ispbase, ISP_REG_ISP_CTRL_0);
+
+	if (int_status & BIT(25)) {
+		vin_dev->hw_ops->isr_buffer_done(
+			&vin_dev->line[VIN_LINE_ISP_RAW], &params);
+
+		/* clear interrupt */
+		reg_write(ispbase, ISP_REG_ISP_CTRL_0,
+			(int_status & ~EN_INT_ALL) | EN_INT_CSI_DONE);
+	} else
+		st_debug(ST_VIN, "%s, Unknown interrupt!!!\n", __func__);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t stf_vin_isp_scd_irq_handler(int irq, void *priv)
+{
+	static struct vin_params params;
+	struct stf_vin2_dev *vin_dev = priv;
+	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	void __iomem *ispbase;
+	u32 int_status;
+
+	ispbase = stf_vin_get_ispbase(vin);
+
+	int_status = reg_read(ispbase, ISP_REG_ISP_CTRL_0);
+
+	if (int_status & BIT(26)) {
+		vin_dev->hw_ops->isr_buffer_done(
+			&vin_dev->line[VIN_LINE_ISP_SCD_Y], &params);
+
+		/* clear interrupt */
+		reg_write(ispbase, ISP_REG_ISP_CTRL_0, (int_status & ~EN_INT_ALL) | EN_INT_SC_DONE);
+	} else
+		st_debug(ST_VIN, "%s, Unknown interrupt!!!\n", __func__);
+
+	return IRQ_HANDLED;
+}
+
+static irqreturn_t stf_vin_isp_irq_csiline_handler(int irq, void *priv)
+{
+	struct stf_vin2_dev *vin_dev = priv;
+	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	struct stf_isp_dev *isp_dev;
+	void __iomem *ispbase;
+	u32 int_status, value;
+
+	ispbase = stf_vin_get_ispbase(vin);
+
+	isp_dev = vin_dev->stfcamss->isp_dev;
+
+	int_status = reg_read(ispbase, ISP_REG_ISP_CTRL_0);
+	if (int_status & BIT(27)) {
+		struct dummy_buffer *dummy_buffer =
+			&vin_dev->dummy_buffer[STF_DUMMY_ISP];
+
+		if (!atomic_read(&isp_dev->shadow_count)) {
+			if (atomic_dec_if_positive(&dummy_buffer->frame_skip) < 0) {
+				if ((int_status & BIT(11)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP_SS0]);
+				if ((int_status & BIT(12)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP_SS1]);
+				if ((int_status & BIT(20)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP]);
+
+				value = reg_read(ispbase, ISP_REG_ITIDPSR);
+				if ((value & BIT(17)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP_ITIW]);
+				if ((value & BIT(16)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP_ITIR]);
+
+				value = reg_read(ispbase, ISP_REG_CSI_MODULE_CFG);
+				if ((value & BIT(19)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP_RAW]);
+				if ((value & BIT(17)))
+					vin_dev->hw_ops->isr_change_buffer(
+						&vin_dev->line[VIN_LINE_ISP_SCD_Y]);
+			}
+
+			// shadow update
+			reg_set_bit(ispbase, ISP_REG_CSIINTS_ADDR, 0x30000, 0x30000);
+			reg_set_bit(ispbase, ISP_REG_IESHD_ADDR, BIT(1) | BIT(0), 0x3);
+		} else {
+			st_err_ratelimited(ST_VIN,
+				"isp shadow_lock locked. skip this frame\n");
+		}
+
+		/* clear interrupt */
+		reg_write(ispbase, ISP_REG_ISP_CTRL_0,
+			(int_status & ~EN_INT_ALL) | EN_INT_LINE_INT);
+	} else
+		st_debug(ST_VIN, "%s, Unknown interrupt!!!\n", __func__);
+
+	return IRQ_HANDLED;
+}
 
 static int stf_vin_top_clk_init(struct stf_vin2_dev *vin_dev)
 {
@@ -205,31 +354,84 @@ void stf_vin_wr_set_pong_addr(struct stf_vin2_dev *vin_dev, dma_addr_t addr)
 	reg_write(vin->sysctrl_base, SYSCONSAIF_SYSCFG_32, (long)addr);
 }
 
-void stf_vin_isp_set_yuv_addr(struct stf_vin2_dev *vin_dev, int isp_id,
+void stf_vin_isp_set_yuv_addr(struct stf_vin2_dev *vin_dev,
 				dma_addr_t y_addr, dma_addr_t uv_addr)
 {
 
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
-	void __iomem *ispbase =
-		isp_id ? vin->isp_isp1_base : vin->isp_isp0_base;
+	void __iomem *ispbase = stf_vin_get_ispbase(vin);
 
 	reg_write(ispbase, ISP_REG_Y_PLANE_START_ADDR, y_addr);
 	reg_write(ispbase, ISP_REG_UV_PLANE_START_ADDR, uv_addr);
-	// shadow update
-	//reg_set_bit(ispbase, ISP_REG_IESHD_ADDR, BIT(1) | BIT(0), 0x3);    //fw no configure  2021 1110
+	// reg_set_bit(ispbase, ISP_REG_ISP_CTRL_0, BIT(0), 1);
 }
 
-void stf_vin_isp_set_raw_addr(struct stf_vin2_dev *vin_dev, int isp_id,
+void stf_vin_isp_set_raw_addr(struct stf_vin2_dev *vin_dev,
 				dma_addr_t raw_addr)
 {
-#ifdef UNUSED_CODE
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
-	void __iomem *ispbase =
-		isp_id ? vin->isp_isp1_base : vin->isp_isp0_base;
+	void __iomem *ispbase = stf_vin_get_ispbase(vin);
 
 	reg_write(ispbase, ISP_REG_DUMP_CFG_0, raw_addr);
-	reg_set_bit(ispbase, ISP_REG_CSIINTS_ADDR, 0x3FFFF, 0x3000a);
-#endif
+}
+
+void stf_vin_isp_set_ss0_addr(struct stf_vin2_dev *vin_dev,
+				dma_addr_t y_addr, dma_addr_t uv_addr)
+{
+	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	void __iomem *ispbase = stf_vin_get_ispbase(vin);
+
+	reg_write(ispbase, ISP_REG_SS0AY, y_addr);
+	reg_write(ispbase, ISP_REG_SS0AUV, uv_addr);
+}
+
+void stf_vin_isp_set_ss1_addr(struct stf_vin2_dev *vin_dev,
+				dma_addr_t y_addr, dma_addr_t uv_addr)
+{
+	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	void __iomem *ispbase = stf_vin_get_ispbase(vin);
+
+	reg_write(ispbase, ISP_REG_SS1AY, y_addr);
+	reg_write(ispbase, ISP_REG_SS1AUV, uv_addr);
+}
+
+void stf_vin_isp_set_itiw_addr(struct stf_vin2_dev *vin_dev,
+				dma_addr_t y_addr, dma_addr_t uv_addr)
+{
+	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	void __iomem *ispbase = stf_vin_get_ispbase(vin);
+
+	reg_write(ispbase, ISP_REG_ITIDWYSAR, y_addr);
+	reg_write(ispbase, ISP_REG_ITIDWUSAR, uv_addr);
+}
+
+void stf_vin_isp_set_itir_addr(struct stf_vin2_dev *vin_dev,
+				dma_addr_t y_addr, dma_addr_t uv_addr)
+{
+	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	void __iomem *ispbase = stf_vin_get_ispbase(vin);
+
+	reg_write(ispbase, ISP_REG_ITIDRYSAR, y_addr);
+	reg_write(ispbase, ISP_REG_ITIDRUSAR, uv_addr);
+}
+
+int stf_vin_isp_get_scd_type(struct stf_vin2_dev *vin_dev)
+{
+	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	void __iomem *ispbase = stf_vin_get_ispbase(vin);
+
+	return (reg_read(ispbase, ISP_REG_SC_CFG_1) & (0x3 << 30)) >> 30;
+}
+
+void stf_vin_isp_set_scd_addr(struct stf_vin2_dev *vin_dev,
+				dma_addr_t yhist_addr, dma_addr_t scd_addr, int scd_type)
+{
+	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
+	void __iomem *ispbase = stf_vin_get_ispbase(vin);
+
+	reg_set_bit(ispbase, ISP_REG_SC_CFG_1, 0x3 << 30, scd_type << 30);
+	reg_write(ispbase, ISP_REG_SCD_CFG_0, scd_addr);
+	reg_write(ispbase, ISP_REG_YHIST_CFG_4, yhist_addr);
 }
 
 void dump_vin_reg(void *__iomem regbase)
@@ -261,6 +463,15 @@ struct vin_hw_ops vin_ops = {
 	.vin_wr_set_pong_addr  = stf_vin_wr_set_pong_addr,
 	.vin_isp_set_yuv_addr  = stf_vin_isp_set_yuv_addr,
 	.vin_isp_set_raw_addr  = stf_vin_isp_set_raw_addr,
+	.vin_isp_set_ss0_addr  = stf_vin_isp_set_ss0_addr,
+	.vin_isp_set_ss1_addr  = stf_vin_isp_set_ss1_addr,
+	.vin_isp_set_itiw_addr  = stf_vin_isp_set_itiw_addr,
+	.vin_isp_set_itir_addr  = stf_vin_isp_set_itir_addr,
+	.vin_isp_set_scd_addr  = stf_vin_isp_set_scd_addr,
+	.vin_isp_get_scd_type  = stf_vin_isp_get_scd_type,
 	.vin_wr_irq_handler    = stf_vin_wr_irq_handler,
 	.vin_isp_irq_handler   = stf_vin_isp_irq_handler,
+	.vin_isp_csi_irq_handler   = stf_vin_isp_csi_irq_handler,
+	.vin_isp_scd_irq_handler   = stf_vin_isp_scd_irq_handler,
+	.vin_isp_irq_csiline_handler   = stf_vin_isp_irq_csiline_handler,
 };

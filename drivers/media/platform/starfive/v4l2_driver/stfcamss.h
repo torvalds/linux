@@ -12,14 +12,13 @@
 
 enum sensor_type {
 	SENSOR_VIN,
-	SENSOR_ISP0,  // need replace sensor
-	SENSOR_ISP1,  // need replace sensor
+	/* need replace sensor */
+	SENSOR_ISP,
 };
 
 enum subdev_type {
 	VIN_DEV_TYPE,
-	ISP0_DEV_TYPE,
-	ISP1_DEV_TYPE,
+	ISP_DEV_TYPE,
 };
 
 #include "stf_common.h"
@@ -84,6 +83,7 @@ struct stfcamss {
 	struct stf_vin_dev *vin;  // stfcamss phy res
 	struct v4l2_device v4l2_dev;
 	struct media_device media_dev;
+	struct media_pipeline pipe;
 	struct device *dev;
 	struct stf_vin2_dev *vin_dev;  // subdev
 	struct stf_dvp_dev *dvp_dev;   // subdev
@@ -91,7 +91,6 @@ struct stfcamss {
 	struct stf_csi_dev *csi_dev;   // subdev
 	int csiphy_num;
 	struct stf_csiphy_dev *csiphy_dev;   // subdev
-	int isp_num;
 	struct stf_isp_dev *isp_dev;   // subdev
 	struct v4l2_async_notifier notifier;
 	struct clk_bulk_data *sys_clk;

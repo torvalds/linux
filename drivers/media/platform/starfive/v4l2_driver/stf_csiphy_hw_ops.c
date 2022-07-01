@@ -8,7 +8,6 @@
 static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 {
 	struct stfcamss *stfcamss = csiphy_dev->stfcamss;
-	struct stf_vin_dev *vin = csiphy_dev->stfcamss->vin;
 	static int init_flag;
 	static struct mutex count_lock;
 	static int count;
@@ -29,19 +28,6 @@ static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 		reset_control_deassert(stfcamss->sys_rst[STFRST_M31DPHY_HW].rstc);
 		reset_control_deassert(stfcamss->sys_rst[STFRST_M31DPHY_B09_ALWAYS_ON].rstc);
 
-		reg_set_bit(vin->rstgen_base,
-			M31DPHY_APBCFGSAIF__SYSCFG_188,
-			BIT(6), BIT(6));
-//need to check one or two mipi input
-#ifdef USE_CSIDPHY_ONE_CLK_MODE	//one mipi input
-		reg_set_bit(vin->rstgen_base,
-			M31DPHY_APBCFGSAIF__SYSCFG_188,
-			BIT(7), BIT(7));
-#else							//two mipi input
-		reg_set_bit(vin->rstgen_base,
-			M31DPHY_APBCFGSAIF__SYSCFG_188,
-			BIT(7), 0x2<<7);
-#endif
 		count++;
 	} else {
 		if (count == 0)
@@ -78,6 +64,13 @@ int try_cfg(struct csi2phy_cfg2 *cfg, struct csi2phy_cfg *cfg0,
 		struct csi2phy_cfg *cfg1)
 {
 	int i = 0;
+
+	cfg->clock_lane = 0;
+	cfg->clock1_lane = 5;
+	cfg->data_lanes[0] = 1;
+	cfg->data_lanes[1] = 2;
+	cfg->data_lanes[2] = 3;
+	cfg->data_lanes[3] = 4;
 
 	if (cfg0 && cfg1) {
 		st_debug(ST_CSIPHY, "CSIPHY use 2 clk mode\n");
@@ -140,21 +133,38 @@ int try_cfg(struct csi2phy_cfg2 *cfg, struct csi2phy_cfg *cfg0,
 static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 		struct stf_csiphy_dev *csiphy_dev)
 {
-	struct csi2phy_cfg *cfg;
+	struct csi2phy_cfg2 cfg2 = {0};
+	struct csi2phy_cfg2 *cfg = &cfg2;
 	struct stf_csiphy_dev *csiphy0_dev =
 		&csiphy_dev->stfcamss->csiphy_dev[0];
+	struct stf_csiphy_dev *csiphy1_dev =
+		&csiphy_dev->stfcamss->csiphy_dev[1];
 	struct csi2phy_cfg *phy0cfg = csiphy0_dev->csiphy;
+	struct csi2phy_cfg *phy1cfg = csiphy1_dev->csiphy;
 	int id = csiphy_dev->id;
 
-	if (!phy0cfg)
+	st_debug(ST_CSIPHY, "%s, csiphy id = %d\n",
+			__func__, id);
+
+	if (!phy0cfg && !phy1cfg)
 		return -EINVAL;
 
-	if (id == 0)
-		cfg = phy0cfg;
+#ifdef USE_CSIDPHY_ONE_CLK_MODE
+	if (id == 0) {
+		phy0cfg = csiphy0_dev->csiphy;
+		phy1cfg = NULL;
+	} else {
+		phy0cfg = NULL;
+		phy1cfg = csiphy1_dev->csiphy;
+	}
+#endif
+
+	if (try_cfg(cfg, phy0cfg, phy1cfg))
+		return -EINVAL;
 
 	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_4, 0x0);
 	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_8, 0x0);
-	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_12, 0xff0);
+	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_12, 0xfff0);
 	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_16, 0x0);
 	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_20, 0x0);
 	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_24, 0x0);
@@ -212,33 +222,38 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 
 	reg_set_bit(vin->rstgen_base,			//dpdn_swap_clk0
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
-		BIT(0), 0<<0);
+		BIT(0), cfg->lane_polarities[0]<<0);
 	reg_set_bit(vin->rstgen_base,			//dpdn_swap_clk1
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
-		BIT(1), 0<<1);
+		BIT(1), cfg->lane_polarities[1]<<1);
 	reg_set_bit(vin->rstgen_base,			//dpdn_swap_lan0
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
-		BIT(2), 0<<2);
+		BIT(2), cfg->lane_polarities[2]<<2);
 	reg_set_bit(vin->rstgen_base,			//dpdn_swap_lan1
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
-		BIT(3), 0<<3);
+		BIT(3), cfg->lane_polarities[3]<<3);
 	reg_set_bit(vin->rstgen_base,			//dpdn_swap_lan2
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
-		BIT(4), 0<<4);
+		BIT(4), cfg->lane_polarities[4]<<4);
 	reg_set_bit(vin->rstgen_base,			//dpdn_swap_lan3
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
-		BIT(5), 0<<5);
-
-	reg_set_bit(vin->rstgen_base,			//endable lan0
+		BIT(5), cfg->lane_polarities[5]<<5);
+	reg_set_bit(vin->rstgen_base,			//enable clk0
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(6), 1<<6);
+	reg_set_bit(vin->rstgen_base,			//enable clk1
+		M31DPHY_APBCFGSAIF__SYSCFG_188,
+		BIT(7), 1<<7);
+	reg_set_bit(vin->rstgen_base,			//enable lan0
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(8), 1<<8);
-	reg_set_bit(vin->rstgen_base,			//endable lan1
+	reg_set_bit(vin->rstgen_base,			//enable lan1
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(9), 1<<9);
-	reg_set_bit(vin->rstgen_base,			//endable lan2
+	reg_set_bit(vin->rstgen_base,			//enable lan2
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(10), 1<<10);
-	reg_set_bit(vin->rstgen_base,			//endable lan3
+	reg_set_bit(vin->rstgen_base,			//enable lan3
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
 		BIT(11), 1<<11);
 	reg_set_bit(vin->rstgen_base,			//gpi_en
@@ -257,7 +272,7 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 		BIT(22)|BIT(21)|BIT(20), cfg->clock_lane<<20);          //clock lane 0
 	reg_set_bit(vin->rstgen_base,
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
-		BIT(25)|BIT(24)|BIT(23), 5<<23);         //clock lane 1
+		BIT(25)|BIT(24)|BIT(23), cfg->clock1_lane<<23);         //clock lane 1
 
 	reg_set_bit(vin->rstgen_base,
 		M31DPHY_APBCFGSAIF__SYSCFG_188,
@@ -389,18 +404,18 @@ static int stf_csi_config_set(struct stf_csiphy_dev *csiphy_dev, int is_raw10)
 {
 	struct stf_vin_dev *vin = csiphy_dev->stfcamss->vin;
 	u32 mipi_channel_sel, mipi_vc = 0;
-	enum sensor_type s_type = SENSOR_ISP0;
+	enum sensor_type s_type = SENSOR_ISP;
 
 	switch (s_type) {
 	case SENSOR_VIN:
 		break;
-	case SENSOR_ISP0:
+	case SENSOR_ISP:
 		reg_set_bit(vin->clkgen_base,
-				CLK_ISP0_MIPI_CTRL,
+				CLK_ISP_MIPI_CTRL,
 				BIT(24), csiphy_dev->id << 24);
 
 		reg_set_bit(vin->clkgen_base,
-				CLK_C_ISP0_CTRL,
+				CLK_C_ISP_CTRL,
 				BIT(25) | BIT(24),
 				csiphy_dev->id << 24);
 

@@ -198,27 +198,6 @@
 	pinctrl-0 = <&i2c4_pins>;
 	status = "okay";
 
-	ov5640: ov5640@3c {
-		compatible = "ovti,ov5640";
-		reg = <0x3c>;
-		clocks = <&clk_ext_camera>;
-		clock-names = "xclk";
-		//DOVDD-supply = <&v2v8>;
-		rotation = <180>;
-		port {
-			// Parallel bus endpoint
-			ov5640_to_parallel: endpoint {
-				remote-endpoint = <&parallel_from_ov5640>;
-				bus-type = <5>;		/* Parallel */
-				bus-width = <8>;
-				data-shift = <2>;	/* lines 13:6 are used */
-				hsync-active = <0>;
-				vsync-active = <1>;
-				pclk-sample = <1>;
-			};
-		};
-	};
-
 	sc2235: sc2235@30 {
 		compatible = "sc2235";
 		reg = <0x30>;
@@ -291,21 +270,25 @@
 		};
 	};
 
-	ov13850@10 {
-		compatible = "ovti,ov13850";
+	imx219@10 {
+		compatible = "imx219";
 		reg = <0x10>;
 		clocks = <&clk_ext_camera>;
 		clock-names = "xclk";
 		//reset-gpio = <&gpio 18 0>;
+		//DOVDD-supply = <&v2v8>;
 		rotation = <0>;
+		orientation = <1>; //CAMERA_ORIENTATION_BACK
 
 		port {
 			/* CSI2 bus endpoint */
-			ov13850_to_csi2rx0: endpoint {
-				remote-endpoint = <&csi2rx0_from_ov13850>;
+			imx219_to_csi2rx0: endpoint {
+				remote-endpoint = <&csi2rx0_from_imx219>;
 				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
-				clock-lanes = <2>;
-				data-lanes = <0 1>;
+				clock-lanes = <0>;
+				data-lanes = <2 1>;
+				lane-polarities = <1 1 1>;
+				link-frequencies = /bits/ 64 <456000000>;
 			};
 		};
 	};
@@ -333,21 +316,8 @@
 			#size-cells = <0>;
 
 			/* Parallel bus endpoint */
-			parallel_from_ov5640: endpoint@0 {
+			parallel_from_sc2235: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&ov5640_to_parallel>;
-				bus-type = <5>;		/* Parallel */
-				bus-width = <8>;
-				data-shift = <2>;	/* lines 9:2 are used */
-				hsync-active = <1>;
-				vsync-active = <0>;
-				pclk-sample = <1>;
-				status = "failed";
-			};
-
-			/* Parallel bus endpoint */
-			parallel_from_sc2235: endpoint@1 {
-				reg = <1>;
 				remote-endpoint = <&sc2235_to_parallel>;
 				bus-type = <5>;		/* Parallel */
 				bus-width = <8>;
@@ -365,22 +335,23 @@
 			#size-cells = <0>;
 
 			/* CSI2 bus endpoint */
-			csi2rx0_from_ov13850: endpoint@0 {
+			csi2rx0_from_ov4689: endpoint@0 {
 				reg = <0>;
-				remote-endpoint = <&ov13850_to_csi2rx0>;
-				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
-				clock-lanes = <0>;
-				data-lanes = <1 2 3 4>;
-				status = "failed";
-			};
-
-			/* CSI2 bus endpoint */
-			csi2rx0_from_ov4689: endpoint@1 {
-				reg = <1>;
 				remote-endpoint = <&ov4689_to_csi2rx0>;
 				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
 				clock-lanes = <0>;
 				data-lanes = <1 2 3 4>;
+				status = "okay";
+			};
+
+			/* CSI2 bus endpoint */
+			csi2rx0_from_imx219: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&imx219_to_csi2rx0>;
+				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
+				clock-lanes = <0>;
+				data-lanes = <2 1>;
+				lane-polarities = <1 1 1>;
 				status = "okay";
 			};
 		};
@@ -659,7 +630,7 @@
 			reg = <1>;
 			remote-endpoint = <&hdmi_in_lcdc>;
 		};
-		
+
 		dc_out_dpi2: endpoint@2 {
 			reg = <2>;
 			remote-endpoint = <&mipi_in>;
