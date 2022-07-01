@@ -79,7 +79,7 @@ static int sgx_gva_to_gpa(struct kvm_vcpu *vcpu, gva_t gva, bool write,
 	else
 		*gpa = kvm_mmu_gva_to_gpa_read(vcpu, gva, &ex);
 
-	if (*gpa == UNMAPPED_GVA) {
+	if (*gpa == INVALID_GPA) {
 		kvm_inject_emulated_page_fault(vcpu, &ex);
 		return -EFAULT;
 	}

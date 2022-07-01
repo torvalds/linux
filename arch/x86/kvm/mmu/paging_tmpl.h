@@ -378,7 +378,7 @@ retry_walk:
 		 * information to fix the exit_qualification or exit_info_1
 		 * fields.
 		 */
-		if (unlikely(real_gpa == UNMAPPED_GVA))
+		if (unlikely(real_gpa == INVALID_GPA))
 			return 0;
 
 		host_addr = kvm_vcpu_gfn_to_hva_prot(vcpu, gpa_to_gfn(real_gpa),
@@ -431,7 +431,7 @@ retry_walk:
 #endif
 
 	real_gpa = kvm_translate_gpa(vcpu, mmu, gfn_to_gpa(gfn), access, &walker->fault);
-	if (real_gpa == UNMAPPED_GVA)
+	if (real_gpa == INVALID_GPA)
 		return 0;
 
 	walker->gfn = real_gpa >> PAGE_SHIFT;
@@ -962,7 +962,7 @@ static gpa_t FNAME(gva_to_gpa)(struct kvm_vcpu *vcpu, struct kvm_mmu *mmu,
 			       struct x86_exception *exception)
 {
 	struct guest_walker walker;
-	gpa_t gpa = UNMAPPED_GVA;
+	gpa_t gpa = INVALID_GPA;
 	int r;
 
 #ifndef CONFIG_X86_64
