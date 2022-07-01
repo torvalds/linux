@@ -233,7 +233,7 @@ fsl_ldb_mode_valid(struct drm_bridge *bridge,
 {
 	struct fsl_ldb *fsl_ldb = to_fsl_ldb(bridge);
 
-	if (mode->clock > (fsl_ldb->lvds_dual_link ? 80000 : 160000))
+	if (mode->clock > (fsl_ldb->lvds_dual_link ? 160000 : 80000))
 		return MODE_CLOCK_HIGH;
 
 	return MODE_OK;
