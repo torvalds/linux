@@ -160,7 +160,7 @@ static int aspeed_jtag_set_freq(struct jtag *jtag, u32 freq)
 	aspeed_jtag->sw_delay = DIV_ROUND_UP(NSEC_PER_SEC, freq);
 	/*
 	 * HW mode frequency setting
-	 * AST2600: TCK period = Period of PCLK * (JTAG14[10:0] + 1)
+	 * AST2600: TCK period = Period of HCLK * (JTAG14[10:0] + 1)
 	 * AST2500: TCK period = Period of PCLK * (JTAG14[10:0] + 1) * 2
 	 */
 	if (aspeed_jtag->config->jtag_version == 6)
@@ -216,7 +216,7 @@ static int aspeed_jtag_get_freq(struct jtag *jtag, u32 *freq)
 	struct aspeed_jtag_info *aspeed_jtag = jtag_priv(jtag);
 
 	if (aspeed_jtag->config->jtag_version == 6) {
-		/* TCK period = Period of PCLK * (JTAG14[10:0] + 1) */
+		/* TCK period = Period of HCLK * (JTAG14[10:0] + 1) */
 		*freq = aspeed_jtag->clkin /
 		       (JTAG_GET_TCK_DIVISOR(aspeed_jtag_read(
 				aspeed_jtag, ASPEED_JTAG_TCK)) + 1);
