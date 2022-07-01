@@ -3621,27 +3621,23 @@ static const struct pinmux_drive_reg pinmux_drive_regs[] = {
 enum ioctrl_regs {
 	POC0,
 	POC1,
-	POC2,
 	POC3,
 	POC4,
 	POC5,
 	POC6,
 	POC7,
 	POC8,
-	TD0SEL3,
 };
 
 static const struct pinmux_ioctrl_reg pinmux_ioctrl_regs[] = {
 	[POC0]		= { 0xE60500A0, },
 	[POC1]		= { 0xE60508A0, },
-	[POC2]		= { 0xE60580A0, },
 	[POC3]		= { 0xE60588A0, },
 	[POC4]		= { 0xE60600A0, },
 	[POC5]		= { 0xE60608A0, },
 	[POC6]		= { 0xE60610A0, },
 	[POC7]		= { 0xE60618A0, },
 	[POC8]		= { 0xE60680A0, },
-	[TD0SEL3]	= { 0xE60589C0, },
 	{ /* sentinel */ },
 };
 
