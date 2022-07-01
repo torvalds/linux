@@ -8,6 +8,12 @@
 #define PORT_CTRL_ADDR(port, addr)	((addr) | (((port) + 1)  << 12))
 
 /* 0 - Operation */
+#define REG_GLOBAL_CTRL_0		0x0007
+
+#define SW_PHY_REG_BLOCK		BIT(7)
+#define SW_FAST_MODE			BIT(3)
+#define SW_FAST_MODE_OVERRIDE		BIT(2)
+
 #define REG_SW_INT_STATUS__4		0x0010
 #define REG_SW_INT_MASK__4		0x0014
 
@@ -82,6 +88,33 @@
 #define ALU_V_USE_FID			BIT(30)
 #define ALU_V_PORT_MAP			0xFF
 
+/* 7 - VPhy */
+#define REG_VPHY_IND_ADDR__2		0x075C
+#define REG_VPHY_IND_DATA__2		0x0760
+
+#define REG_VPHY_IND_CTRL__2		0x0768
+
+#define VPHY_IND_WRITE			BIT(1)
+#define VPHY_IND_BUSY			BIT(0)
+
+#define REG_VPHY_SPECIAL_CTRL__2	0x077C
+#define VPHY_SMI_INDIRECT_ENABLE	BIT(15)
+#define VPHY_SW_LOOPBACK		BIT(14)
+#define VPHY_MDIO_INTERNAL_ENABLE	BIT(13)
+#define VPHY_SPI_INDIRECT_ENABLE	BIT(12)
+#define VPHY_PORT_MODE_M		0x3
+#define VPHY_PORT_MODE_S		8
+#define VPHY_MODE_RGMII			0
+#define VPHY_MODE_MII_PHY		1
+#define VPHY_MODE_SGMII			2
+#define VPHY_MODE_RMII_PHY		3
+#define VPHY_SW_COLLISION_TEST		BIT(7)
+#define VPHY_SPEED_DUPLEX_STAT_M	0x7
+#define VPHY_SPEED_DUPLEX_STAT_S	2
+#define VPHY_SPEED_1000			BIT(4)
+#define VPHY_SPEED_100			BIT(3)
+#define VPHY_FULL_DUPLEX		BIT(2)
+
 /* Port Registers */
 
 /* 0 - Operation */
@@ -93,6 +126,9 @@
 #define PORT_K2L_DEBUG_ENABLE		BIT(4)
 #define PORT_TAIL_TAG_ENABLE		BIT(2)
 #define PORT_QUEUE_SPLIT_ENABLE		0x3
+
+/* 1 - Phy */
+#define REG_PORT_T1_PHY_CTRL_BASE	0x0100
 
 /* 3 - xMII */
 #define REG_PORT_XMII_CTRL_0		0x0300

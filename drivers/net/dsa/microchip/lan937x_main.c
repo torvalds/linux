@@ -28,6 +28,114 @@ static int lan937x_port_cfg(struct ksz_device *dev, int port, int offset,
 				  bits, set ? bits : 0);
 }
 
+static int lan937x_enable_spi_indirect_access(struct ksz_device *dev)
+{
+	u16 data16;
+	int ret;
+
+	/* Enable Phy access through SPI */
+	ret = lan937x_cfg(dev, REG_GLOBAL_CTRL_0, SW_PHY_REG_BLOCK, false);
+	if (ret < 0)
+		return ret;
+
+	ret = ksz_read16(dev, REG_VPHY_SPECIAL_CTRL__2, &data16);
+	if (ret < 0)
+		return ret;
+
+	/* Allow SPI access */
+	data16 |= VPHY_SPI_INDIRECT_ENABLE;
+
+	return ksz_write16(dev, REG_VPHY_SPECIAL_CTRL__2, data16);
+}
+
+static int lan937x_vphy_ind_addr_wr(struct ksz_device *dev, int addr, int reg)
+{
+	u16 addr_base = REG_PORT_T1_PHY_CTRL_BASE;
+	u16 temp;
+
+	/* get register address based on the logical port */
+	temp = PORT_CTRL_ADDR(addr, (addr_base + (reg << 2)));
+
+	return ksz_write16(dev, REG_VPHY_IND_ADDR__2, temp);
+}
+
+static int lan937x_internal_phy_write(struct ksz_device *dev, int addr, int reg,
+				      u16 val)
+{
+	unsigned int value;
+	int ret;
+
+	/* Check for internal phy port */
+	if (!dev->info->internal_phy[addr])
+		return -EOPNOTSUPP;
+
+	ret = lan937x_vphy_ind_addr_wr(dev, addr, reg);
+	if (ret < 0)
+		return ret;
+
+	/* Write the data to be written to the VPHY reg */
+	ret = ksz_write16(dev, REG_VPHY_IND_DATA__2, val);
+	if (ret < 0)
+		return ret;
+
+	/* Write the Write En and Busy bit */
+	ret = ksz_write16(dev, REG_VPHY_IND_CTRL__2,
+			  (VPHY_IND_WRITE | VPHY_IND_BUSY));
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_read_poll_timeout(dev->regmap[1], REG_VPHY_IND_CTRL__2,
+				       value, !(value & VPHY_IND_BUSY), 10,
+				       1000);
+	if (ret < 0) {
+		dev_err(dev->dev, "Failed to write phy register\n");
+		return ret;
+	}
+
+	return 0;
+}
+
+static int lan937x_internal_phy_read(struct ksz_device *dev, int addr, int reg,
+				     u16 *val)
+{
+	unsigned int value;
+	int ret;
+
+	/* Check for internal phy port, return 0xffff for non-existent phy */
+	if (!dev->info->internal_phy[addr])
+		return 0xffff;
+
+	ret = lan937x_vphy_ind_addr_wr(dev, addr, reg);
+	if (ret < 0)
+		return ret;
+
+	/* Write Read and Busy bit to start the transaction */
+	ret = ksz_write16(dev, REG_VPHY_IND_CTRL__2, VPHY_IND_BUSY);
+	if (ret < 0)
+		return ret;
+
+	ret = regmap_read_poll_timeout(dev->regmap[1], REG_VPHY_IND_CTRL__2,
+				       value, !(value & VPHY_IND_BUSY), 10,
+				       1000);
+	if (ret < 0) {
+		dev_err(dev->dev, "Failed to read phy register\n");
+		return ret;
+	}
+
+	/* Read the VPHY register which has the PHY data */
+	return ksz_read16(dev, REG_VPHY_IND_DATA__2, val);
+}
+
+void lan937x_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
+{
+	lan937x_internal_phy_read(dev, addr, reg, data);
+}
+
+void lan937x_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
+{
+	lan937x_internal_phy_write(dev, addr, reg, val);
+}
+
 int lan937x_reset_switch(struct ksz_device *dev)
 {
 	u32 data32;
@@ -111,6 +219,14 @@ void lan937x_config_cpu_port(struct dsa_switch *ds)
 int lan937x_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;
+	int ret;
+
+	/* enable Indirect Access from SPI to the VPHY registers */
+	ret = lan937x_enable_spi_indirect_access(dev);
+	if (ret < 0) {
+		dev_err(dev->dev, "failed to enable spi indirect access");
+		return ret;
+	}
 
 	/* The VLAN aware is a global setting. Mixed vlan
 	 * filterings are not supported.
