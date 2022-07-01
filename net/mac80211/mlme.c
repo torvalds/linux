@@ -819,7 +819,8 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		 * in the association request (e.g. D-Link DAP 1353 in
 		 * b-only mode)...
 		 */
-		rates_len = ieee80211_parse_bitrates(&chanctx_conf->def, sband,
+		rates_len = ieee80211_parse_bitrates(chanctx_conf->def.width,
+						     sband,
 						     assoc_data->supp_rates,
 						     assoc_data->supp_rates_len,
 						     &rates);

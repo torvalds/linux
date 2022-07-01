@@ -1102,9 +1102,9 @@ sdata_assert_lock(struct ieee80211_sub_if_data *sdata)
 }
 
 static inline int
-ieee80211_chandef_get_shift(struct cfg80211_chan_def *chandef)
+ieee80211_chanwidth_get_shift(enum nl80211_chan_width width)
 {
-	switch (chandef->width) {
+	switch (width) {
 	case NL80211_CHAN_WIDTH_5:
 		return 2;
 	case NL80211_CHAN_WIDTH_10:
@@ -1112,6 +1112,12 @@ ieee80211_chandef_get_shift(struct cfg80211_chan_def *chandef)
 	default:
 		return 0;
 	}
+}
+
+static inline int
+ieee80211_chandef_get_shift(struct cfg80211_chan_def *chandef)
+{
+	return ieee80211_chanwidth_get_shift(chandef->width);
 }
 
 static inline int
@@ -2346,7 +2352,7 @@ u8 *ieee80211_ie_build_he_cap(ieee80211_conn_flags_t disable_flags, u8 *pos,
 void ieee80211_ie_build_he_6ghz_cap(struct ieee80211_sub_if_data *sdata,
 				    struct sk_buff *skb);
 u8 *ieee80211_ie_build_he_oper(u8 *pos, struct cfg80211_chan_def *chandef);
-int ieee80211_parse_bitrates(struct cfg80211_chan_def *chandef,
+int ieee80211_parse_bitrates(enum nl80211_chan_width width,
 			     const struct ieee80211_supported_band *sband,
 			     const u8 *srates, int srates_len, u32 *rates);
 int ieee80211_add_srates_ie(struct ieee80211_sub_if_data *sdata,

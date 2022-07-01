@@ -3689,12 +3689,12 @@ bool ieee80211_chandef_s1g_oper(const struct ieee80211_s1g_oper_ie *oper,
 	return true;
 }
 
-int ieee80211_parse_bitrates(struct cfg80211_chan_def *chandef,
+int ieee80211_parse_bitrates(enum nl80211_chan_width width,
 			     const struct ieee80211_supported_band *sband,
 			     const u8 *srates, int srates_len, u32 *rates)
 {
-	u32 rate_flags = ieee80211_chandef_rate_flags(chandef);
-	int shift = ieee80211_chandef_get_shift(chandef);
+	u32 rate_flags = ieee80211_chanwidth_rate_flags(width);
+	int shift = ieee80211_chanwidth_get_shift(width);
 	struct ieee80211_rate *br;
 	int brate, rate, i, j, count = 0;
 
