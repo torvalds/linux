@@ -29,6 +29,7 @@ struct f_uvc_opts {
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 	bool						device_name_allocated;
 	const char					*device_name;
+	unsigned int					uvc_num_request;
 #endif
 
 	unsigned int					control_interface;
