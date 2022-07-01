@@ -11,7 +11,7 @@
 #include "rga_fence.h"
 #include "rga_dma_buf.h"
 #include "rga_mm.h"
-#include "rga2_mmu_info.h"
+#include "rga_iommu.h"
 #include "rga_debugger.h"
 
 struct rga_job *

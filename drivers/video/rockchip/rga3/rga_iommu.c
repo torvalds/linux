@@ -7,7 +7,7 @@
 
 #define pr_fmt(fmt) "rga2_mmu: " fmt
 
-#include "rga2_mmu_info.h"
+#include "rga_iommu.h"
 #include "rga_dma_buf.h"
 #include "rga_mm.h"
 #include "rga_job.h"

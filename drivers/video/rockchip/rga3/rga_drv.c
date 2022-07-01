@@ -16,7 +16,7 @@
 #include "rga_fence.h"
 #include "rga_hw_config.h"
 
-#include "rga2_mmu_info.h"
+#include "rga_iommu.h"
 #include "rga_debugger.h"
 #include "rga_common.h"
 

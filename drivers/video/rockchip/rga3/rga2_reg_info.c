@@ -9,7 +9,7 @@
 
 #include "rga_job.h"
 #include "rga2_reg_info.h"
-#include "rga2_mmu_info.h"
+#include "rga_iommu.h"
 #include "rga_common.h"
 #include "rga_hw_config.h"
 #include "rga_debugger.h"
