@@ -10,9 +10,18 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
-struct blk_mq_tag_set;
+#ifdef __GENKSYMS__
 struct blk_mq_tags;
 struct blk_mq_alloc_data;
+struct blk_mq_tag_set;
+#else
+/* struct blk_mq_tags */
+#include <../block/blk-mq-tag.h>
+/* struct blk_mq_alloc_data */
+#include <../block/blk-mq.h>
+/* struct blk_mq_tag_set */
+#include <linux/blk-mq.h>
+#endif /* __GENKSYMS__ */
 
 DECLARE_HOOK(android_vh_blk_alloc_rqs,
 	TP_PROTO(size_t *rq_size, struct blk_mq_tag_set *set,

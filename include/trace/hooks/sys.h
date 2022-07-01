@@ -8,7 +8,12 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
+#ifdef __GENKSYMS__
 struct task_struct;
+#else
+/* struct task_struct */
+#include <linux/sched.h>
+#endif /* __GENKSYMS__ */
 DECLARE_HOOK(android_vh_syscall_prctl_finished,
 	TP_PROTO(int option, struct task_struct *task),
 	TP_ARGS(option, task));

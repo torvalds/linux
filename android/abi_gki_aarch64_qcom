@@ -2034,6 +2034,7 @@
   resched_curr
   reset_control_assert
   reset_control_deassert
+  __reset_control_get
   reset_control_put
   reset_control_reset
   resume_cpus

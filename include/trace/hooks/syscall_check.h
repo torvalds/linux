@@ -11,8 +11,15 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
+#ifdef __GENKSYMS__
 struct file;
 union bpf_attr;
+#else
+/* struct file */
+#include <linux/fs.h>
+/* union bpf_attr */
+#include <uapi/linux/bpf.h>
+#endif /* __GENKSYMS__ */
 DECLARE_HOOK(android_vh_check_mmap_file,
 	TP_PROTO(const struct file *file, unsigned long prot,
 		unsigned long flag, unsigned long ret),

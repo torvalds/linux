@@ -10,7 +10,25 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
+struct cgroup_taskset;
+#ifdef __GENKSYMS__
+struct cgroup_subsys_state;
+struct cpufreq_policy;
+struct em_perf_domain;
+enum uclamp_id;
+struct sched_entity;
 struct task_struct;
+struct uclamp_se;
+#else
+/* struct cgroup_subsys_state */
+#include <linux/cgroup-defs.h>
+/* struct cpufreq_policy */
+#include <linux/cpufreq.h>
+/* struct em_perf_domain */
+#include <linux/energy_model.h>
+/* enum uclamp_id, struct sched_entity, struct task_struct, struct uclamp_se */
+#include <linux/sched.h>
+#endif /* __GENKSYMS__ */
 DECLARE_RESTRICTED_HOOK(android_rvh_select_task_rq_fair,
 	TP_PROTO(struct task_struct *p, int prev_cpu, int sd_flag, int wake_flags, int *new_cpu),
 	TP_ARGS(p, prev_cpu, sd_flag, wake_flags, new_cpu), 1);
@@ -178,7 +196,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_account_irq,
 	TP_PROTO(struct task_struct *curr, int cpu, s64 delta),
 	TP_ARGS(curr, cpu, delta), 1);
 
-struct sched_entity;
 DECLARE_RESTRICTED_HOOK(android_rvh_place_entity,
 	TP_PROTO(struct cfs_rq *cfs_rq, struct sched_entity *se, int initial, u64 vruntime),
 	TP_ARGS(cfs_rq, se, initial, vruntime), 1);
@@ -195,7 +212,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_update_misfit_status,
 	TP_PROTO(struct task_struct *p, struct rq *rq, bool *need_update),
 	TP_ARGS(p, rq, need_update), 1);
 
-struct cgroup_taskset;
 DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_attach,
 	TP_PROTO(struct cgroup_taskset *tset),
 	TP_ARGS(tset), 1);
@@ -204,7 +220,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_can_attach,
 	TP_PROTO(struct cgroup_taskset *tset, int *retval),
 	TP_ARGS(tset, retval), 1);
 
-struct cgroup_subsys_state;
 DECLARE_RESTRICTED_HOOK(android_rvh_cpu_cgroup_online,
 	TP_PROTO(struct cgroup_subsys_state *css),
 	TP_ARGS(css), 1);
@@ -225,14 +240,12 @@ DECLARE_RESTRICTED_HOOK(android_rvh_sched_exec,
 	TP_PROTO(bool *cond),
 	TP_ARGS(cond), 1);
 
-struct cpufreq_policy;
 DECLARE_HOOK(android_vh_map_util_freq,
 	TP_PROTO(unsigned long util, unsigned long freq,
 		unsigned long cap, unsigned long *next_freq, struct cpufreq_policy *policy,
 		bool *need_freq_update),
 	TP_ARGS(util, freq, cap, next_freq, policy, need_freq_update));
 
-struct em_perf_domain;
 DECLARE_HOOK(android_vh_em_cpu_energy,
 	TP_PROTO(struct em_perf_domain *pd,
 		unsigned long max_util, unsigned long sum_util,
@@ -268,7 +281,7 @@ DECLARE_HOOK(android_vh_set_wake_flags,
 	TP_PROTO(int *wake_flags, unsigned int *mode),
 	TP_ARGS(wake_flags, mode));
 
-enum uclamp_id;
+/* Conditionally defined upon CONFIG_UCLAMP_TASK */
 struct uclamp_se;
 DECLARE_RESTRICTED_HOOK(android_rvh_uclamp_eff_get,
 	TP_PROTO(struct task_struct *p, enum uclamp_id clamp_id,
@@ -329,7 +342,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_after_dequeue_task,
 	TP_ARGS(rq, p), 1);
 
 struct cfs_rq;
-struct sched_entity;
 struct rq_flags;
 DECLARE_RESTRICTED_HOOK(android_rvh_enqueue_entity,
 	TP_PROTO(struct cfs_rq *cfs, struct sched_entity *se),

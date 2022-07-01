@@ -8,7 +8,16 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
+struct cgroup_taskset;
+#ifdef __GENKSYMS__
+struct cgroup_subsys;
 struct task_struct;
+#else
+/* struct cgroup_subsys */
+#include <linux/cgroup-defs.h>
+/* struct task_struct */
+#include <linux/sched.h>
+#endif /* __GENKSYMS__ */
 DECLARE_HOOK(android_vh_cgroup_set_task,
 	TP_PROTO(int ret, struct task_struct *task),
 	TP_ARGS(ret, task));
@@ -22,8 +31,6 @@ DECLARE_RESTRICTED_HOOK(android_rvh_refrigerator,
 	TP_PROTO(bool f),
 	TP_ARGS(f), 1);
 
-struct cgroup_subsys;
-struct cgroup_taskset;
 DECLARE_HOOK(android_vh_cgroup_attach,
 	TP_PROTO(struct cgroup_subsys *ss, struct cgroup_taskset *tset),
 	TP_ARGS(ss, tset))

@@ -12,6 +12,12 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
+#ifdef __GENKSYMS__
+struct iova_domain;
+#else
+/* struct iova_domain */
+#include <linux/iova.h>
+#endif /* __GENKSYMS__ */
 DECLARE_RESTRICTED_HOOK(android_rvh_iommu_setup_dma_ops,
 	TP_PROTO(struct device *dev, u64 dma_base, u64 size),
 	TP_ARGS(dev, dma_base, size), 1);
@@ -24,7 +30,6 @@ DECLARE_HOOK(android_vh_iommu_alloc_iova,
 	TP_PROTO(struct device *dev, dma_addr_t iova, size_t size),
 	TP_ARGS(dev, iova, size));
 
-struct iova_domain;
 
 DECLARE_HOOK(android_vh_iommu_iovad_alloc_iova,
 	TP_PROTO(struct device *dev, struct iova_domain *iovad, dma_addr_t iova, size_t size),

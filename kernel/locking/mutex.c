@@ -1049,6 +1049,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 				goto err;
 		}
 
+		trace_android_vh_mutex_start_check_new_owner(lock);
 		spin_unlock(&lock->wait_lock);
 		schedule_preempt_disabled();
 

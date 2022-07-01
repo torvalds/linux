@@ -11,7 +11,12 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
+#ifdef __GENKSYMS__
 struct generic_pm_domain;
+#else
+/* struct generic_pm_domain */
+#include <linux/pm_domain.h>
+#endif /* __GENKSYMS__ */
 DECLARE_HOOK(android_vh_allow_domain_state,
 	TP_PROTO(struct generic_pm_domain *genpd, uint32_t idx, bool *allow),
 	TP_ARGS(genpd, idx, allow))

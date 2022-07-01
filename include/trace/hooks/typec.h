@@ -11,8 +11,13 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
-struct tcpci;
+#ifdef __GENKSYMS__
 struct tcpci_data;
+#else
+/* struct tcpci_data */
+#include <../drivers/usb/typec/tcpm/tcpci.h>
+#endif /* __GENKSYMS__ */
+struct tcpci;
 struct tcpm_port;
 
 #ifndef TYPEC_TIMER

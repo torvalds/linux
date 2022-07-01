@@ -29,6 +29,7 @@
 #include <linux/swapops.h>
 #include <linux/shmem_fs.h>
 #include <linux/mmu_notifier.h>
+#include <trace/hooks/mm.h>
 
 #include <asm/tlb.h>
 
@@ -462,8 +463,10 @@ regular_page:
 			if (!isolate_lru_page(page)) {
 				if (PageUnevictable(page))
 					putback_lru_page(page);
-				else
+				else {
 					list_add(&page->lru, &page_list);
+					trace_android_vh_page_isolated_for_reclaim(mm, page);
+				}
 			}
 		} else
 			deactivate_page(page);
