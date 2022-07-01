@@ -1618,6 +1618,26 @@ out_shutdown:
 }
 
 /*
+ * Move dead percpu state to the relevant CIL context structures.
+ *
+ * We have to lock the CIL context here to ensure that nothing is modifying
+ * the percpu state, either addition or removal. Both of these are done under
+ * the CIL context lock, so grabbing that exclusively here will ensure we can
+ * safely drain the cilpcp for the CPU that is dying.
+ */
+void
+xlog_cil_pcp_dead(
+	struct xlog		*log,
+	unsigned int		cpu)
+{
+	struct xfs_cil		*cil = log->l_cilp;
+
+	down_write(&cil->xc_ctx_lock);
+	/* move stuff on dead CPU to context */
+	up_write(&cil->xc_ctx_lock);
+}
+
+/*
  * Perform initial CIL structure initialisation.
  */
 int
@@ -1640,6 +1660,11 @@ xlog_cil_init(
 	if (!cil->xc_push_wq)
 		goto out_destroy_cil;
 
+	cil->xc_log = log;
+	cil->xc_pcp = alloc_percpu(struct xlog_cil_pcp);
+	if (!cil->xc_pcp)
+		goto out_destroy_wq;
+
 	INIT_LIST_HEAD(&cil->xc_cil);
 	INIT_LIST_HEAD(&cil->xc_committing);
 	spin_lock_init(&cil->xc_cil_lock);
@@ -1648,14 +1673,14 @@ xlog_cil_init(
 	init_rwsem(&cil->xc_ctx_lock);
 	init_waitqueue_head(&cil->xc_start_wait);
 	init_waitqueue_head(&cil->xc_commit_wait);
-	cil->xc_log = log;
 	log->l_cilp = cil;
 
 	ctx = xlog_cil_ctx_alloc();
 	xlog_cil_ctx_switch(cil, ctx);
-
 	return 0;
 
+out_destroy_wq:
+	destroy_workqueue(cil->xc_push_wq);
 out_destroy_cil:
 	kmem_free(cil);
 	return -ENOMEM;
@@ -1675,6 +1700,7 @@ xlog_cil_destroy(
 
 	ASSERT(list_empty(&cil->xc_cil));
 	ASSERT(test_bit(XLOG_CIL_EMPTY, &cil->xc_flags));
+	free_percpu(cil->xc_pcp);
 	destroy_workqueue(cil->xc_push_wq);
 	kmem_free(cil);
 }

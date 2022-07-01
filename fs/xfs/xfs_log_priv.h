@@ -232,6 +232,14 @@ struct xfs_cil_ctx {
 };
 
 /*
+ * Per-cpu CIL tracking items
+ */
+struct xlog_cil_pcp {
+	struct list_head	busy_extents;
+	struct list_head	log_items;
+};
+
+/*
  * Committed Item List structure
  *
  * This structure is used to track log items that have been committed but not
@@ -266,6 +274,11 @@ struct xfs_cil {
 	wait_queue_head_t	xc_start_wait;
 	xfs_csn_t		xc_current_sequence;
 	wait_queue_head_t	xc_push_wait;	/* background push throttle */
+
+	void __percpu		*xc_pcp;	/* percpu CIL structures */
+#ifdef CONFIG_HOTPLUG_CPU
+	struct list_head	xc_pcp_list;
+#endif
 } ____cacheline_aligned_in_smp;
 
 /* xc_flags bit values */
@@ -687,5 +700,10 @@ xlog_kvmalloc(
 
 	return p;
 }
+
+/*
+ * CIL CPU dead notifier
+ */
+void xlog_cil_pcp_dead(struct xlog *log, unsigned int cpu);
 
 #endif	/* __XFS_LOG_PRIV_H__ */
