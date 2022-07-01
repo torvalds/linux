@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig NET_DSA_MICROCHIP_KSZ_COMMON
-	tristate "Microchip KSZ8795/KSZ9477 series switch support"
+	tristate "Microchip KSZ8795/KSZ9477/LAN937x series switch support"
 	depends on NET_DSA
 	select NET_DSA_TAG_KSZ
 	help
