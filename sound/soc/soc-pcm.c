@@ -2128,8 +2128,6 @@ int dpcm_be_dai_trigger(struct snd_soc_pcm_runtime *fe, int stream,
 			else
 				ret = soc_pcm_trigger(be_substream,
 						      SNDRV_PCM_TRIGGER_START);
-
-			ret = soc_pcm_trigger(be_substream, cmd);
 			if (ret) {
 				be->dpcm[stream].be_start--;
 				goto next;
