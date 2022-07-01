@@ -4658,7 +4658,6 @@ kernel/bpf/tnum.c
 kernel/bpf/trampoline.c
 kernel/bpf/verifier.c
 kernel/capability.c
-kernel/cfi.c
 kernel/cgroup/cgroup.c
 kernel/cgroup/cgroup-internal.h
 kernel/cgroup/cgroup-v1.c
@@ -5273,6 +5272,7 @@ mm/sparse-vmemmap.c
 mm/swap.c
 mm/swap_cgroup.c
 mm/swapfile.c
+mm/swap.h
 mm/swap_slots.c
 mm/swap_state.c
 mm/truncate.c
@@ -6038,6 +6038,7 @@ scripts/link-vmlinux.sh
 scripts/mod/devicetable-offsets.c
 scripts/mod/empty.c
 scripts/mod/file2alias.c
+scripts/mod/list.h
 scripts/mod/mk_elfconfig.c
 scripts/mod/modpost.c
 scripts/mod/modpost.h

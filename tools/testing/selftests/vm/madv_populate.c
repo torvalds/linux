@@ -18,6 +18,7 @@
 #include <sys/mman.h>
 
 #include "../kselftest.h"
+#include "vm_util.h"
 
 /*
  * For now, we're using 2 MiB of private anonymous memory for all tests.
@@ -26,31 +27,12 @@
 
 static size_t pagesize;
 
-static uint64_t pagemap_get_entry(int fd, char *start)
-{
-	const unsigned long pfn = (unsigned long)start / pagesize;
-	uint64_t entry;
-	int ret;
-
-	ret = pread(fd, &entry, sizeof(entry), pfn * sizeof(entry));
-	if (ret != sizeof(entry))
-		ksft_exit_fail_msg("reading pagemap failed\n");
-	return entry;
-}
-
 static bool pagemap_is_populated(int fd, char *start)
 {
 	uint64_t entry = pagemap_get_entry(fd, start);
 
 	/* Present or swapped. */
 	return entry & 0xc000000000000000ull;
-}
-
-static bool pagemap_is_softdirty(int fd, char *start)
-{
-	uint64_t entry = pagemap_get_entry(fd, start);
-
-	return entry & 0x0080000000000000ull;
 }
 
 static void sense_support(void)
@@ -256,20 +238,6 @@ static bool range_is_not_softdirty(char *start, ssize_t size)
 			ret = false;
 	close(fd);
 	return ret;
-}
-
-static void clear_softdirty(void)
-{
-	int fd = open("/proc/self/clear_refs", O_WRONLY);
-	const char *ctrl = "4";
-	int ret;
-
-	if (fd < 0)
-		ksft_exit_fail_msg("opening clear_refs failed\n");
-	ret = write(fd, ctrl, strlen(ctrl));
-	if (ret != strlen(ctrl))
-		ksft_exit_fail_msg("writing clear_refs failed\n");
-	close(fd);
 }
 
 static void test_softdirty(void)

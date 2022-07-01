@@ -237,7 +237,7 @@ static struct data_file *handle_mapped_file(struct mount_info *mi,
 	if (!index_file_dentry)
 		return ERR_PTR(-ENOENT);
 	if (IS_ERR(index_file_dentry))
-		return (struct data_file *)index_file_dentry;
+		return ERR_CAST(index_file_dentry);
 	if (!d_really_is_positive(index_file_dentry)) {
 		result = ERR_PTR(-ENOENT);
 		goto out;
@@ -254,7 +254,7 @@ static struct data_file *handle_mapped_file(struct mount_info *mi,
 	revert_creds(old_cred);
 
 	if (IS_ERR(bf)) {
-		result = (struct data_file *)bf;
+		result = ERR_CAST(bf);
 		goto out;
 	}
 

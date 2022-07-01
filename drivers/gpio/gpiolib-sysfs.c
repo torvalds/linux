@@ -760,7 +760,6 @@ void gpiochip_sysfs_unregister(struct gpio_device *gdev)
 {
 	struct gpio_desc *desc;
 	struct gpio_chip *chip = gdev->chip;
-	unsigned int i;
 
 	if (!gdev->mockdev)
 		return;
@@ -773,7 +772,7 @@ void gpiochip_sysfs_unregister(struct gpio_device *gdev)
 	mutex_unlock(&sysfs_lock);
 
 	/* unregister gpiod class devices owned by sysfs */
-	for_each_gpio_desc_with_flag(i, chip, desc, FLAG_SYSFS)
+	for_each_gpio_desc_with_flag(chip, desc, FLAG_SYSFS)
 		gpiod_free(desc);
 }
 

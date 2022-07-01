@@ -412,7 +412,7 @@ static int emulate_store(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	return 0;
 }
 
-static int stage2_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
+static int gstage_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			     struct kvm_cpu_trap *trap)
 {
 	struct kvm_memory_slot *memslot;
@@ -440,7 +440,7 @@ static int stage2_page_fault(struct kvm_vcpu *vcpu, struct kvm_run *run,
 		};
 	}
 
-	ret = kvm_riscv_stage2_map(vcpu, memslot, fault_addr, hva,
+	ret = kvm_riscv_gstage_map(vcpu, memslot, fault_addr, hva,
 		(trap->scause == EXC_STORE_GUEST_PAGE_FAULT) ? true : false);
 	if (ret < 0)
 		return ret;
@@ -686,7 +686,7 @@ int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 	case EXC_LOAD_GUEST_PAGE_FAULT:
 	case EXC_STORE_GUEST_PAGE_FAULT:
 		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
-			ret = stage2_page_fault(vcpu, run, trap);
+			ret = gstage_page_fault(vcpu, run, trap);
 		break;
 	case EXC_SUPERVISOR_SYSCALL:
 		if (vcpu->arch.guest_context.hstatus & HSTATUS_SPV)
