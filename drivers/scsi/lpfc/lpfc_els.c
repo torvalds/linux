@@ -1887,7 +1887,6 @@ lpfc_end_rscn(struct lpfc_vport *vport)
 		else {
 			spin_lock_irq(shost->host_lock);
 			vport->fc_flag &= ~FC_RSCN_MODE;
-			vport->fc_flag |= FC_RSCN_MEMENTO;
 			spin_unlock_irq(shost->host_lock);
 		}
 	}
@@ -2435,14 +2434,13 @@ lpfc_issue_els_prli(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	u32 local_nlp_type, elscmd;
 
 	/*
-	 * If discovery was kicked off from RSCN mode,
-	 * the FC4 types supported from a
+	 * If we are in RSCN mode, the FC4 types supported from a
 	 * previous GFT_ID command may not be accurate. So, if we
 	 * are a NVME Initiator, always look for the possibility of
 	 * the remote NPort beng a NVME Target.
 	 */
 	if (phba->sli_rev == LPFC_SLI_REV4 &&
-	    vport->fc_flag & (FC_RSCN_MODE | FC_RSCN_MEMENTO) &&
+	    vport->fc_flag & FC_RSCN_MODE &&
 	    vport->nvmei_support)
 		ndlp->nlp_fc4_type |= NLP_FC4_NVME;
 	local_nlp_type = ndlp->nlp_fc4_type;
@@ -7916,7 +7914,6 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 		if ((rscn_cnt < FC_MAX_HOLD_RSCN) &&
 		    !(vport->fc_flag & FC_RSCN_DISCOVERY)) {
 			vport->fc_flag |= FC_RSCN_MODE;
-			vport->fc_flag &= ~FC_RSCN_MEMENTO;
 			spin_unlock_irq(shost->host_lock);
 			if (rscn_cnt) {
 				cmd = vport->fc_rscn_id_list[rscn_cnt-1]->virt;
@@ -7966,7 +7963,6 @@ lpfc_els_rcv_rscn(struct lpfc_vport *vport, struct lpfc_iocbq *cmdiocb,
 
 	spin_lock_irq(shost->host_lock);
 	vport->fc_flag |= FC_RSCN_MODE;
-	vport->fc_flag &= ~FC_RSCN_MEMENTO;
 	spin_unlock_irq(shost->host_lock);
 	vport->fc_rscn_id_list[vport->fc_rscn_id_cnt++] = pcmd;
 	/* Indicate we are done walking fc_rscn_id_list on this vport */
