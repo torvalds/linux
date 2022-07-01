@@ -14,12 +14,10 @@ virtual context
 
 @r@
 expression x;
-statement S1,S2;
 position p;
 @@
 
-*if@p (&x)
- S1 else S2
+*\(&x@p == NULL \| &x@p != NULL\)
 
 @script:python depends on org@
 p << r.p;
