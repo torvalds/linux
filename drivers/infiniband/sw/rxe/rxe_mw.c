@@ -115,7 +115,7 @@ static int rxe_check_bind_mw(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 		      (IB_ACCESS_REMOTE_WRITE | IB_ACCESS_REMOTE_ATOMIC)) &&
 		     !(mr->access & IB_ACCESS_LOCAL_WRITE))) {
 		pr_err_once(
-			"attempt to bind an writeable MW to an MR without local write access\n");
+			"attempt to bind an writable MW to an MR without local write access\n");
 		return -EINVAL;
 	}
 
