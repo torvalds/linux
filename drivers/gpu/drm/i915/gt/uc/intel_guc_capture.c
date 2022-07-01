@@ -9,6 +9,7 @@
 
 #include "gt/intel_engine_regs.h"
 #include "gt/intel_gt.h"
+#include "gt/intel_gt_mcr.h"
 #include "gt/intel_gt_regs.h"
 #include "gt/intel_lrc.h"
 #include "guc_capture_fwif.h"
@@ -281,8 +282,7 @@ guc_capture_alloc_steered_lists_xe_lpd(struct intel_guc *guc,
 				       const struct __guc_mmio_reg_descr_group *lists)
 {
 	struct intel_gt *gt = guc_to_gt(guc);
-	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
-	int slice, subslice, i, num_steer_regs, num_tot_regs = 0;
+	int slice, subslice, iter, i, num_steer_regs, num_tot_regs = 0;
 	const struct __guc_mmio_reg_descr_group *list;
 	struct __guc_mmio_reg_descr_group *extlists;
 	struct __guc_mmio_reg_descr *extarray;
@@ -298,7 +298,7 @@ guc_capture_alloc_steered_lists_xe_lpd(struct intel_guc *guc,
 	num_steer_regs = ARRAY_SIZE(xe_extregs);
 
 	sseu = &gt->info.sseu;
-	for_each_instdone_slice_subslice(i915, sseu, slice, subslice)
+	for_each_ss_steering(iter, gt, slice, subslice)
 		num_tot_regs += num_steer_regs;
 
 	if (!num_tot_regs)
@@ -315,7 +315,7 @@ guc_capture_alloc_steered_lists_xe_lpd(struct intel_guc *guc,
 	}
 
 	extarray = extlists[0].extlist;
-	for_each_instdone_slice_subslice(i915, sseu, slice, subslice) {
+	for_each_ss_steering(iter, gt, slice, subslice) {
 		for (i = 0; i < num_steer_regs; ++i) {
 			__fill_ext_reg(extarray, &xe_extregs[i], slice, subslice);
 			++extarray;
@@ -359,9 +359,8 @@ guc_capture_alloc_steered_lists_xe_hpg(struct intel_guc *guc,
 		num_steer_regs += ARRAY_SIZE(xehpg_extregs);
 
 	sseu = &gt->info.sseu;
-	for_each_instdone_gslice_dss_xehp(i915, sseu, iter, slice, subslice) {
+	for_each_ss_steering(iter, gt, slice, subslice)
 		num_tot_regs += num_steer_regs;
-	}
 
 	if (!num_tot_regs)
 		return;
@@ -377,7 +376,7 @@ guc_capture_alloc_steered_lists_xe_hpg(struct intel_guc *guc,
 	}
 
 	extarray = extlists[0].extlist;
-	for_each_instdone_gslice_dss_xehp(i915, sseu, iter, slice, subslice) {
+	for_each_ss_steering(iter, gt, slice, subslice) {
 		for (i = 0; i < ARRAY_SIZE(xe_extregs); ++i) {
 			__fill_ext_reg(extarray, &xe_extregs[i], slice, subslice);
 			++extarray;
