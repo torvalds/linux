@@ -9,6 +9,7 @@
 #include <linux/of_net.h>
 #include <linux/of_mdio.h>
 #include <linux/if_bridge.h>
+#include <linux/if_vlan.h>
 #include <linux/math.h>
 #include <net/dsa.h>
 #include <net/switchdev.h>
@@ -282,6 +283,33 @@ void lan937x_config_cpu_port(struct dsa_switch *ds)
 	dsa_switch_for_each_user_port(dp, ds) {
 		ksz_port_stp_state_set(ds, dp->index, BR_STATE_DISABLED);
 	}
+}
+
+int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu)
+{
+	struct dsa_switch *ds = dev->ds;
+	int ret;
+
+	new_mtu += VLAN_ETH_HLEN + ETH_FCS_LEN;
+
+	if (dsa_is_cpu_port(ds, port))
+		new_mtu += LAN937X_TAG_LEN;
+
+	if (new_mtu >= FR_MIN_SIZE)
+		ret = lan937x_port_cfg(dev, port, REG_PORT_MAC_CTRL_0,
+				       PORT_JUMBO_PACKET, true);
+	else
+		ret = lan937x_port_cfg(dev, port, REG_PORT_MAC_CTRL_0,
+				       PORT_JUMBO_PACKET, false);
+	if (ret < 0) {
+		dev_err(ds->dev, "failed to enable jumbo\n");
+		return ret;
+	}
+
+	/* Write the frame size in PORT_MAX_FR_SIZE register */
+	ksz_pwrite16(dev, port, PORT_MAX_FR_SIZE, new_mtu);
+
+	return 0;
 }
 
 int lan937x_setup(struct dsa_switch *ds)

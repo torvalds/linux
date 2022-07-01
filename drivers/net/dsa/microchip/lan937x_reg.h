@@ -149,6 +149,9 @@
 #define PORT_BACK_PRESSURE		BIT(3)
 #define PORT_PASS_ALL			BIT(0)
 
+#define PORT_MAX_FR_SIZE		0x404
+#define FR_MIN_SIZE		1522
+
 /* 8 - Classification and Policing */
 #define REG_PORT_MRI_PRIO_CTRL		0x0801
 #define PORT_HIGHEST_PRIO		BIT(7)
@@ -160,5 +163,7 @@
 #define PORT_ACL_PRIO_ENABLE		BIT(0)
 
 #define P_PRIO_CTRL			REG_PORT_MRI_PRIO_CTRL
+
+#define LAN937X_TAG_LEN			2
 
 #endif
