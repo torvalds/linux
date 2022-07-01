@@ -742,6 +742,7 @@ static const struct of_device_id rkisp_hw_of_match[] = {
 		.data = &rv1126_isp_match_data,
 	},
 #endif
+	{},
 };
 
 static inline bool is_iommu_enable(struct device *dev)
