@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-===========================
-The Linux RapidIO Subsystem
-===========================
+=============
+Block Devices
+=============
 
 .. toctree::
    :maxdepth: 1
