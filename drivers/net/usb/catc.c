@@ -280,7 +280,7 @@ static void catc_irq_done(struct urb *urb)
 	struct catc *catc = urb->context;
 	u8 *data = urb->transfer_buffer;
 	int status = urb->status;
-	unsigned int hasdata = 0, linksts = LinkNoChange;
+	unsigned int hasdata, linksts = LinkNoChange;
 	int res;
 
 	if (!catc->is_f5u011) {
