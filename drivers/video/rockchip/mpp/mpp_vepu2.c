@@ -399,12 +399,14 @@ static int vepu_isr(struct mpp_dev *mpp)
 		atomic_inc(&mpp->reset_request);
 
 	mpp_task_finish(mpp_task->session, mpp_task);
+	/* the whole vepu has no ccu that manage multi core */
+	if (ccu) {
+		core_idle = ccu->core_idle;
+		set_bit(mpp->core_id, &ccu->core_idle);
 
-	core_idle = ccu->core_idle;
-	set_bit(mpp->core_id, &ccu->core_idle);
-
-	mpp_dbg_core("core %d isr idle %lx -> %lx\n", mpp->core_id, core_idle,
-		     ccu->core_idle);
+		mpp_dbg_core("core %d isr idle %lx -> %lx\n", mpp->core_id, core_idle,
+			ccu->core_idle);
+	}
 
 	mpp_debug_leave();
 
@@ -627,9 +629,12 @@ static int vepu_procfs_init(struct mpp_dev *mpp)
 	if (!mpp->dev || !mpp->dev->of_node || !mpp->dev->of_node->name ||
 	    !mpp->srv || !mpp->srv->procfs)
 		return -EINVAL;
-
-	snprintf(name, sizeof(name) - 1, "%s%d",
-		 mpp->dev->of_node->name, mpp->core_id);
+	if (enc->ccu)
+		snprintf(name, sizeof(name) - 1, "%s%d",
+			mpp->dev->of_node->name, mpp->core_id);
+	else
+		snprintf(name, sizeof(name) - 1, "%s",
+			mpp->dev->of_node->name);
 
 	enc->procfs = proc_mkdir(name, mpp->srv->procfs);
 	if (IS_ERR_OR_NULL(enc->procfs)) {
