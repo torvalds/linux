@@ -88,11 +88,11 @@ static int sec_alloc_req_id(struct sec_req *req, struct sec_qp_ctx *qp_ctx)
 {
 	int req_id;
 
-	mutex_lock(&qp_ctx->req_lock);
+	spin_lock_bh(&qp_ctx->req_lock);
 
 	req_id = idr_alloc_cyclic(&qp_ctx->req_idr, NULL,
 				  0, QM_Q_DEPTH, GFP_ATOMIC);
-	mutex_unlock(&qp_ctx->req_lock);
+	spin_unlock_bh(&qp_ctx->req_lock);
 	if (unlikely(req_id < 0)) {
 		dev_err(req->ctx->dev, "alloc req id fail!\n");
 		return req_id;
@@ -116,9 +116,9 @@ static void sec_free_req_id(struct sec_req *req)
 	qp_ctx->req_list[req_id] = NULL;
 	req->qp_ctx = NULL;
 
-	mutex_lock(&qp_ctx->req_lock);
+	spin_lock_bh(&qp_ctx->req_lock);
 	idr_remove(&qp_ctx->req_idr, req_id);
-	mutex_unlock(&qp_ctx->req_lock);
+	spin_unlock_bh(&qp_ctx->req_lock);
 }
 
 static int sec_aead_verify(struct sec_req *req)
@@ -201,7 +201,7 @@ static int sec_bd_send(struct sec_ctx *ctx, struct sec_req *req)
 	    !(req->flag & CRYPTO_TFM_REQ_MAY_BACKLOG))
 		return -EBUSY;
 
-	mutex_lock(&qp_ctx->req_lock);
+	spin_lock_bh(&qp_ctx->req_lock);
 	ret = hisi_qp_send(qp_ctx->qp, &req->sec_sqe);
 
 	if (ctx->fake_req_limit <=
@@ -209,10 +209,10 @@ static int sec_bd_send(struct sec_ctx *ctx, struct sec_req *req)
 		list_add_tail(&req->backlog_head, &qp_ctx->backlog);
 		atomic64_inc(&ctx->sec->debug.dfx.send_cnt);
 		atomic64_inc(&ctx->sec->debug.dfx.send_busy_cnt);
-		mutex_unlock(&qp_ctx->req_lock);
+		spin_unlock_bh(&qp_ctx->req_lock);
 		return -EBUSY;
 	}
-	mutex_unlock(&qp_ctx->req_lock);
+	spin_unlock_bh(&qp_ctx->req_lock);
 
 	if (unlikely(ret == -EBUSY))
 		return -ENOBUFS;
@@ -382,7 +382,7 @@ static int sec_create_qp_ctx(struct hisi_qm *qm, struct sec_ctx *ctx,
 	qp_ctx->qp = qp;
 	qp_ctx->ctx = ctx;
 
-	mutex_init(&qp_ctx->req_lock);
+	spin_lock_init(&qp_ctx->req_lock);
 	idr_init(&qp_ctx->req_idr);
 	INIT_LIST_HEAD(&qp_ctx->backlog);
 
@@ -1067,7 +1067,7 @@ static struct sec_req *sec_back_req_clear(struct sec_ctx *ctx,
 {
 	struct sec_req *backlog_req = NULL;
 
-	mutex_lock(&qp_ctx->req_lock);
+	spin_lock_bh(&qp_ctx->req_lock);
 	if (ctx->fake_req_limit >=
 	    atomic_read(&qp_ctx->qp->qp_status.used) &&
 	    !list_empty(&qp_ctx->backlog)) {
@@ -1075,7 +1075,7 @@ static struct sec_req *sec_back_req_clear(struct sec_ctx *ctx,
 				typeof(*backlog_req), backlog_head);
 		list_del(&backlog_req->backlog_head);
 	}
-	mutex_unlock(&qp_ctx->req_lock);
+	spin_unlock_bh(&qp_ctx->req_lock);
 
 	return backlog_req;
 }
