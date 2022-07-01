@@ -192,6 +192,7 @@ struct ice_adv_rule_info {
 	u32 priority;
 	u8 rx; /* true means LOOKUP_RX otherwise LOOKUP_TX */
 	u16 fltr_rule_id;
+	u16 vlan_type;
 	struct ice_adv_rule_flags_info flags_info;
 };
 
