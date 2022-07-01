@@ -266,6 +266,16 @@
 						 IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
+		pdma0: dma-controller@1b2e0000 {
+			compatible = "arm,pl330", "arm,primecell";
+			reg = <0x1b2e0000 0x1000>;
+			interrupts = <GIC_SPI 48 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_busmc CLK_GOUT_BUSMC_PDMA0_PCLK>;
+			clock-names = "apb_pclk";
+			arm,pl330-broken-no-flushp;
+			#dma-cells = <1>;
+		};
+
 		pinctrl_alive: pinctrl@10450000 {
 			compatible = "samsung,exynosautov9-pinctrl";
 			reg = <0x10450000 0x1000>;
