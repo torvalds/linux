@@ -31,7 +31,7 @@ EXPORT_SYMBOL(cpumask_next);
  *
  * Returns >= nr_cpu_ids if no further cpus set in both.
  */
-int cpumask_next_and(int n, const struct cpumask *src1p,
+unsigned int cpumask_next_and(int n, const struct cpumask *src1p,
 		     const struct cpumask *src2p)
 {
 	/* -1 is a legal arg here. */
@@ -50,7 +50,7 @@ EXPORT_SYMBOL(cpumask_next_and);
  * Often used to find any cpu but smp_processor_id() in a mask.
  * Returns >= nr_cpu_ids if no cpus set.
  */
-int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
+unsigned int cpumask_any_but(const struct cpumask *mask, unsigned int cpu)
 {
 	unsigned int i;
 
@@ -74,9 +74,9 @@ EXPORT_SYMBOL(cpumask_any_but);
  * Note: the @wrap argument is required for the start condition when
  * we cannot assume @start is set in @mask.
  */
-int cpumask_next_wrap(int n, const struct cpumask *mask, int start, bool wrap)
+unsigned int cpumask_next_wrap(int n, const struct cpumask *mask, int start, bool wrap)
 {
-	int next;
+	unsigned int next;
 
 again:
 	next = cpumask_next(n, mask);
@@ -205,7 +205,7 @@ void __init free_bootmem_cpumask_var(cpumask_var_t mask)
  */
 unsigned int cpumask_local_spread(unsigned int i, int node)
 {
-	int cpu;
+	unsigned int cpu;
 
 	/* Wrap: we always want a cpu. */
 	i %= num_online_cpus();
@@ -243,10 +243,10 @@ static DEFINE_PER_CPU(int, distribute_cpu_mask_prev);
  *
  * Returns >= nr_cpu_ids if the intersection is empty.
  */
-int cpumask_any_and_distribute(const struct cpumask *src1p,
+unsigned int cpumask_any_and_distribute(const struct cpumask *src1p,
 			       const struct cpumask *src2p)
 {
-	int next, prev;
+	unsigned int next, prev;
 
 	/* NOTE: our first selection will skip 0. */
 	prev = __this_cpu_read(distribute_cpu_mask_prev);
@@ -262,9 +262,9 @@ int cpumask_any_and_distribute(const struct cpumask *src1p,
 }
 EXPORT_SYMBOL(cpumask_any_and_distribute);
 
-int cpumask_any_distribute(const struct cpumask *srcp)
+unsigned int cpumask_any_distribute(const struct cpumask *srcp)
 {
-	int next, prev;
+	unsigned int next, prev;
 
 	/* NOTE: our first selection will skip 0. */
 	prev = __this_cpu_read(distribute_cpu_mask_prev);
