@@ -3774,8 +3774,22 @@ static void vop2_crtc_atomic_disable_for_psr(struct drm_crtc *crtc,
 	vop2_disable_all_planes_for_crtc(crtc);
 	drm_crtc_vblank_off(crtc);
 	if (hweight8(vop2->active_vp_mask) == 1) {
+		u32 adjust_aclk_rate = 0;
+		u32 htotal = (VOP_MODULE_GET(vop2, vp, htotal_pw) >> 16) & 0xffff;
+		u32 pre_scan_dly = VOP_MODULE_GET(vop2, vp, pre_scan_htiming);
+		u32 pre_scan_hblank = pre_scan_dly & 0x1fff;
+		u32 pre_scan_hactive = (pre_scan_dly >> 16) & 0x1fff;
+		u32 dclk_rate = crtc->state->adjusted_mode.crtc_clock / 1000;
+		/**
+		 * (pre_scan_hblank + pre_scan_hactive) x aclk_margin / adjust_aclk_rate = hotal / dclk_rate
+		 * aclk_margin = 1.2, so
+		 * adjust_aclk_rate = (pre_scan_hblank + pre_scan_hactive) x 1.2 * aclk_margin / htotal
+		 */
+
+		adjust_aclk_rate = (pre_scan_hblank + pre_scan_hactive) * dclk_rate * 12 / 10 / htotal;
+
 		vop2->aclk_rate = clk_get_rate(vop2->aclk);
-		clk_set_rate(vop2->aclk, vop2->aclk_rate / 3);
+		clk_set_rate(vop2->aclk, adjust_aclk_rate * 1000000L);
 		vop2->aclk_rate_reset = true;
 	}
 }
