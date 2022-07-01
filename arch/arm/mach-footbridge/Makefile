@@ -5,7 +5,7 @@
 
 # Object file lists.
 
-obj-y			:= common.o dma.o isa-irq.o
+obj-y			:= common.o isa-irq.o isa.o isa-rtc.o dma-isa.o
 
 pci-y			+= dc21285.o
 pci-$(CONFIG_ARCH_CATS) += cats-pci.o
@@ -18,4 +18,3 @@ obj-$(CONFIG_ARCH_NETWINDER) += netwinder-hw.o isa-timer.o
 
 obj-$(CONFIG_PCI)	+=$(pci-y)
 
-obj-$(CONFIG_ISA)	+= isa.o isa-rtc.o

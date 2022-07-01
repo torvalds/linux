@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- *  linux/arch/arm/kernel/dma-isa.c
- *
  *  Copyright (C) 1999-2000 Russell King
  *
  *  ISA DMA primitives
@@ -157,7 +155,7 @@ static dma_t isa_dma[8];
 /*
  * ISA DMA always starts at channel 0
  */
-void __init isa_init_dma(void)
+static int __init isa_dma_init(void)
 {
 	/*
 	 * Try to autodetect presence of an ISA DMA controller.
@@ -222,4 +220,7 @@ void __init isa_init_dma(void)
 
 		request_dma(DMA_ISA_CASCADE, "cascade");
 	}
+
+	return 0;
 }
+core_initcall(isa_dma_init);

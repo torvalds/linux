@@ -48,7 +48,7 @@ config FOOTBRIDGE
 	def_bool y
 	select ARCH_HAS_PHYS_TO_DMA
 	select ARCH_MIGHT_HAVE_PC_SERIO
-	select ISA_DMA
+	select ISA_DMA_API
 
 config ARCH_EBSA285
 	bool
