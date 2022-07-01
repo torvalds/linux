@@ -10,6 +10,7 @@
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 #include <dt-bindings/clock/starfive-jh7110-vout.h>
 #include <dt-bindings/clock/starfive-jh7110-isp.h>
+#include <dt-bindings/power/jh7110-power.h>
 
 / {
 	compatible = "starfive,jh7110";
@@ -261,6 +262,7 @@
 			resets = <&rstgen RSTN_U0_DOM_VOUT_TOP_SRC>;
 			reset-names = "vout_src";
 			#clock-cells = <1>;
+			power-domains = <&pwrc JH7110_PD_VOUT>;
 			status = "okay";
 		};
 
@@ -282,6 +284,7 @@
 				 <&rstgen RSTN_U0_NOC_BUS_ISP_AXI_N>;
 			reset-names = "rst_isp_top_n", "rst_isp_top_axi",
 				      "rst_isp_noc_bus_n";
+			power-domains = <&pwrc JH7110_PD_ISP>;
 			status = "okay";
 		};
 
@@ -403,10 +406,11 @@
 			status = "okay";
 		};
 
-		pmu: pmu@17030000 {
+		pwrc: power-controller@17030000 {
 			compatible = "starfive,jh7110-pmu";
 			reg = <0x0 0x17030000 0x0 0x10000>;
 			interrupts = <111>;
+			#power-domain-cells = <1>;
 			status = "okay";
 		};
 
@@ -811,7 +815,7 @@
 				"rst_m31dphy_hw", "rst_m31dphy_b09_always_on",
 				"rst_isp_top_n", "rst_isp_top_axi";
 			interrupts = <92 87>;
-			starfive,aon-syscon = <&aon_syscon 0x00>;
+			power-domains = <&pwrc JH7110_PD_ISP>;
 			status = "disabled";
 		};
 
@@ -1060,11 +1064,8 @@
 			reg = <0x0 0x100a0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_SPDIF_CLK_APB>,
 				 <&clkgen JH7110_SPDIF_CLK_CORE>,
-				 <&clkgen JH7110_APB0>,
-				 <&clkgen JH7110_AUDIO_ROOT>,
-				 <&clkgen JH7110_MCLK_INNER>;
-			clock-names = "spdif-apb", "spdif-core", "apb0",
-				      "audroot", "mclk_inner";
+				 <&clkgen JH7110_MCLK>;
+			clock-names = "spdif-apb", "spdif-core", "audioclk";
 			resets = <&rstgen RSTN_U0_CDNS_SPDIF_APB>;
 			reset-names = "rst_apb";
 			interrupts = <84>;
@@ -1553,6 +1554,7 @@
 					"rst_noc_cpu","rst_noc_axicfg0","rst_noc_apb",
 					"rst_noc_gpu","rst_noc_vdec","rst_jtag2apb",
 					"rst_noc_disp","rst_noc_isp","rst_noc_stg","rst_noc_ddrc";
+			power-domains = <&pwrc JH7110_PD_VOUT>;
 		};
 
 		encoder: display-encoder {

@@ -382,33 +382,40 @@ static const struct snd_soc_dai_ops dw_i2s_dai_ops = {
 #ifdef CONFIG_PM
 static int dw_i2s_runtime_suspend(struct device *dev)
 {
+/*
 	struct dw_i2s_dev *dw_dev = dev_get_drvdata(dev);
 
 	if (dw_dev->capability & DW_I2S_MASTER)
 		clk_disable(dw_dev->clk);
+*/
 	return 0;
 }
 
 static int dw_i2s_runtime_resume(struct device *dev)
 {
+/*
 	struct dw_i2s_dev *dw_dev = dev_get_drvdata(dev);
 
 	if (dw_dev->capability & DW_I2S_MASTER)
 		clk_enable(dw_dev->clk);
+*/
 	return 0;
 }
 
 static int dw_i2s_suspend(struct snd_soc_component *component)
 {
+/*
 	struct dw_i2s_dev *dev = snd_soc_component_get_drvdata(component);
 
 	if (dev->capability & DW_I2S_MASTER)
 		clk_disable(dev->clk);
+*/
 	return 0;
 }
 
 static int dw_i2s_resume(struct snd_soc_component *component)
 {
+/*
 	struct dw_i2s_dev *dev = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dai *dai;
 	int stream;
@@ -421,6 +428,7 @@ static int dw_i2s_resume(struct snd_soc_component *component)
 			if (snd_soc_dai_stream_active(dai, stream))
 				dw_i2s_config(dev, stream);
 	}
+*/
 
 	return 0;
 }

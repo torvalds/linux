@@ -384,7 +384,8 @@ static int jh7110_cryp_runtime_suspend(struct device *dev)
 {
 	struct jh7110_sec_dev *sdev = dev_get_drvdata(dev);
 
-	clk_disable_unprepare(sdev->clk);
+	clk_disable_unprepare(sdev->sec_ahb);
+	clk_disable_unprepare(sdev->sec_hclk);
 
 	return 0;
 }
@@ -394,9 +395,15 @@ static int jh7110_cryp_runtime_resume(struct device *dev)
 	struct jh7110_sec_dev *sdev = dev_get_drvdata(dev);
 	int ret;
 
-	ret = clk_prepare_enable(sdev->clk);
+	ret = clk_prepare_enable(sdev->sec_ahb);
 	if (ret) {
-		dev_err(sdev->dev, "Failed to prepare_enable clock\n");
+		dev_err(sdev->dev, "Failed to prepare_enable sec_ahb clock\n");
+		return ret;
+	}
+
+	ret = clk_prepare_enable(sdev->sec_hclk);
+	if (ret) {
+		dev_err(sdev->dev, "Failed to prepare_enable sec_hclk clock\n");
 		return ret;
 	}
 

@@ -1,33 +1,24 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 /*
- * PMU driver for the StarFive JH7110 SoC
+ * JH7110 Power Domain Controller Driver
  *
- * Copyright (C) 2022 samin <samin.guo@starfivetech.com>
+ * Copyright (C) 2022 StarFive Technology Co., Ltd.
  */
-#include <linux/module.h>
-#include <linux/mod_devicetable.h>
+
+#include <dt-bindings/power/jh7110-power.h>
 #include <linux/io.h>
-#include <linux/interrupt.h>
+#include <linux/module.h>
 #include <linux/platform_device.h>
-#include <soc/starfive/jh7110_pmu.h>
+#include <linux/interrupt.h>
+#include <linux/pm_domain.h>
+#include <linux/of.h>
+#include <linux/of_device.h>
 
 /* register define */
 #define HW_EVENT_TURN_ON_MASK		0x04
 #define HW_EVENT_TURN_OFF_MASK		0x08
 #define SW_TURN_ON_POWER_MODE		0x0C
 #define SW_TURN_OFF_POWER_MODE		0x10
-#define THE_SHOLD_SEQ_TIMEOUT		0x14
-#define POWER_DOMAIN_CASCADE_0		0x18
-#define POWER_DOMAIN_CASCADE_1		0x1C
-#define POWER_DOMAIN_CASCADE_2		0x20
-#define POWER_DOMAIN_CASCADE_3		0x24
-#define POWER_DOMAIN_CASCADE_4		0x28
-#define POWER_DOMAIN_CASCADE_5		0x2C
-#define POWER_DOMAIN_CASCADE_6		0x30
-#define POWER_DOMAIN_CASCADE_7		0x34
-#define POWER_DOMAIN_CASCADE_8		0x38
-#define POWER_DOMAIN_CASCADE_9		0x3C
-#define POWER_DOMAIN_CASCADE_10		0x40
 #define SW_ENCOURAGE			0x44
 #define PMU_INT_MASK			0x48
 #define PCH_BYPASS			0x4C
@@ -36,25 +27,8 @@
 #define LP_TIMEOUT			0x58
 #define HW_TURN_ON_MODE			0x5C
 #define CURR_POWER_MODE			0x80
-#define CURR_SEQ_STATE			0x84
 #define PMU_EVENT_STATUS		0x88
 #define PMU_INT_STATUS			0x8C
-#define HW_EVENT_RECORD			0x90
-#define HW_EVENT_TYPE_RECORD		0x94
-#define PCH_PACTIVE_STATUS		0x98
-
-/* pmu int status */
-#define PMU_INT_SEQ_DONE		BIT(0)
-#define PMU_INT_HW_REQ			BIT(1)
-#define PMU_INT_SW_FAIL			GENMASK(3, 2)
-#define PMU_INT_HW_FAIL			GENMASK(5, 4)
-#define PMU_INT_PCH_FAIL		GENMASK(8, 6)
-#define PMU_INT_FAIL_MASK		(PMU_INT_SW_FAIL|\
-					PMU_INT_HW_FAIL	|\
-					PMU_INT_PCH_FAIL)
-#define PMU_INT_ALL_MASK		(PMU_INT_SEQ_DONE|\
-					PMU_INT_HW_REQ	|\
-					PMU_INT_FAIL_MASK)
 
 /* sw encourage cfg */
 #define SW_MODE_ENCOURAGE_EN_LO		0x05
@@ -63,79 +37,81 @@
 #define SW_MODE_ENCOURAGE_DIS_HI	0xA0
 #define SW_MODE_ENCOURAGE_ON		0xFF
 
-u32 power_domain_cascade[] = {
-	GENMASK(4, 0),
-	GENMASK(9, 5),
-	GENMASK(14, 10),
-	GENMASK(19, 15),
-	GENMASK(24, 20),
-	GENMASK(29, 25)
+/* pmu int status */
+#define PMU_INT_SEQ_DONE		BIT(0)
+#define PMU_INT_HW_REQ			BIT(1)
+#define PMU_INT_SW_FAIL			GENMASK(3, 2)
+#define PMU_INT_HW_FAIL			GENMASK(5, 4)
+#define PMU_INT_PCH_FAIL		GENMASK(8, 6)
+#define PMU_INT_FAIL_MASK		(PMU_INT_SW_FAIL | \
+					PMU_INT_HW_FAIL | \
+					PMU_INT_PCH_FAIL)
+#define PMU_INT_ALL_MASK		(PMU_INT_SEQ_DONE | \
+					PMU_INT_HW_REQ | \
+					PMU_INT_FAIL_MASK)
+
+struct jh7110_power_dev {
+	struct generic_pm_domain genpd;
+	struct jh7110_pmu *power;
+	uint32_t mask;
 };
 
-static void __iomem *pmu_base;
-
-struct starfive_pmu {
-	struct device	*dev;
+struct jh7110_pmu {
+	void __iomem *base;
 	spinlock_t lock;
 	int irq;
+	struct device *pdev;
+	struct jh7110_power_dev *dev;
+	struct genpd_onecell_data genpd_data;
+	struct generic_pm_domain **genpd;
 };
 
-static inline u32 pmu_readl(u32 offset)
+struct jh7110_pmu_data {
+	const char * const name;
+	uint8_t bit;
+	unsigned int flags;
+};
+
+static int jh7110_pmu_get_state(struct jh7110_power_dev *pmd, bool *is_on)
 {
-	return readl(pmu_base + offset);
+	struct jh7110_pmu *pmu = pmd->power;
+
+	if (!pmd->mask) {
+		*is_on = false;
+		return -EINVAL;
+	}
+
+	*is_on = __raw_readl(pmu->base + CURR_POWER_MODE) & pmd->mask;
+
+	return 0;
 }
 
-static inline void pmu_writel(u32 val, u32 offset)
+static int jh7110_pmu_set_state(struct jh7110_power_dev *pmd, bool on)
 {
-	writel(val, pmu_base + offset);
-}
+	struct jh7110_pmu *pmu = pmd->power;
+	unsigned long flags;
+	uint32_t val;
+	uint32_t mode;
+	uint32_t encourage_lo;
+	uint32_t encourage_hi;
+	bool is_on;
+	int ret;
 
-static bool pmu_get_current_power_mode(u32 domain)
-{
-	return pmu_readl(CURR_POWER_MODE) & domain;
-}
+	if (!pmd->mask)
+		return -EINVAL;
+	ret = jh7110_pmu_get_state(pmd, &is_on);
+	if (ret)
+		dev_info(pmu->pdev, "unable to get current state for %s\n",
+				pmd->genpd.name);
+	if (is_on == on) {
+		dev_info(pmu->pdev, "pm domain is already %sable status.\n",
+				on ? "en" : "dis");
+		return 0;
+	}
 
-static void starfive_pmu_int_enable(u32 mask, bool enable)
-{
-	u32 val = pmu_readl(PMU_INT_MASK);
+	spin_lock_irqsave(&pmu->lock, flags);
 
-	if (enable)
-		val &= ~mask;
-	else
-		val |= mask;
-
-	pmu_writel(val, PMU_INT_MASK);
-}
-/*
- * mask the hw_evnet
- */
-static void starfive_pmu_hw_event_turn_on_mask(u32 hw_event, bool mask)
-{
-	u32 val = pmu_readl(HW_EVENT_TURN_ON_MASK);
-
-	if (mask)
-		val |= hw_event;
-	else
-		val &= ~hw_event;
-
-	pmu_writel(val, HW_EVENT_TURN_ON_MASK);
-}
-
-void starfive_pmu_hw_event_turn_off_mask(u32 mask)
-{
-	pmu_writel(mask, HW_EVENT_TURN_OFF_MASK);
-}
-EXPORT_SYMBOL(starfive_pmu_hw_event_turn_off_mask);
-
-void starfive_power_domain_set(u32 domain, bool enable)
-{
-	u32 val, mode;
-	u32 encourage_lo, encourage_hi;
-
-	if (!(pmu_get_current_power_mode(domain) ^ enable))
-		return;
-
-	if (enable) {
+	if (on) {
 		mode = SW_TURN_ON_POWER_MODE;
 		encourage_lo = SW_MODE_ENCOURAGE_EN_LO;
 		encourage_hi = SW_MODE_ENCOURAGE_EN_HI;
@@ -145,139 +121,98 @@ void starfive_power_domain_set(u32 domain, bool enable)
 		encourage_hi = SW_MODE_ENCOURAGE_DIS_HI;
 	}
 
-	pr_debug("[pmu]domain: %#x %sable\n", domain, enable ? "en" : "dis");
-	val = pmu_readl(mode);
-	val |= domain;
-	pmu_writel(val, mode);
+	val = __raw_readl(pmu->base + mode);
+	val |= pmd->mask;
+	__raw_writel(val, pmu->base + mode);
 
 	/* write SW_ENCOURAGE to make the configuration take effect */
-	pmu_writel(SW_MODE_ENCOURAGE_ON, SW_ENCOURAGE);
-	pmu_writel(encourage_lo, SW_ENCOURAGE);
-	pmu_writel(encourage_hi, SW_ENCOURAGE);
+	__raw_writel(SW_MODE_ENCOURAGE_ON, pmu->base + SW_ENCOURAGE);
+	__raw_writel(encourage_lo, pmu->base + SW_ENCOURAGE);
+	__raw_writel(encourage_hi, pmu->base + SW_ENCOURAGE);
+
+	spin_unlock_irqrestore(&pmu->lock, flags);
+
+	return 0;
 }
-EXPORT_SYMBOL(starfive_power_domain_set);
 
-void starfive_power_domain_set_by_hwevent(u32 domain, u32 event, bool enable)
+static int jh7110_pmu_on(struct generic_pm_domain *genpd)
 {
-	u32 val;
+	struct jh7110_power_dev *pmd = container_of(genpd,
+		struct jh7110_power_dev, genpd);
 
-	val = pmu_readl(HW_TURN_ON_MODE);
+	return jh7110_pmu_set_state(pmd, true);
+}
+
+static int jh7110_pmu_off(struct generic_pm_domain *genpd)
+{
+	struct jh7110_power_dev *pmd = container_of(genpd,
+		struct jh7110_power_dev, genpd);
+
+	return jh7110_pmu_set_state(pmd, false);
+}
+
+static void starfive_pmu_int_enable(struct jh7110_pmu *pmu, u32 mask, bool enable)
+{
+	u32 val = __raw_readl(pmu->base + PMU_INT_MASK);
 
 	if (enable)
-		val |= domain;
+		val &= ~mask;
 	else
-		val &= ~domain;
+		val |= mask;
 
-	pmu_writel(val, HW_TURN_ON_MODE);
-
-	starfive_pmu_hw_event_turn_on_mask(event, enable);
+	__raw_writel(val, pmu->base + PMU_INT_MASK);
 }
-EXPORT_SYMBOL(starfive_power_domain_set_by_hwevent);
 
 static irqreturn_t starfive_pmu_interrupt(int irq, void *data)
 {
-	struct starfive_pmu *pmu = data;
+	struct jh7110_pmu *pmu = data;
 	unsigned long flags;
 	u32 val;
 
 	spin_lock_irqsave(&pmu->lock, flags);
-	val = pmu_readl(PMU_INT_STATUS);
+	val = __raw_readl(pmu->base + PMU_INT_STATUS);
 
 	if (val & PMU_INT_SEQ_DONE)
-		dev_dbg(pmu->dev, "sequence done.\n");
+		dev_dbg(pmu->pdev, "sequence done.\n");
 	if (val & PMU_INT_HW_REQ)
-		dev_dbg(pmu->dev, "hardware encourage requestion.\n");
+		dev_dbg(pmu->pdev, "hardware encourage requestion.\n");
 	if (val & PMU_INT_SW_FAIL)
-		dev_err(pmu->dev, "software encourage fail.\n");
+		dev_err(pmu->pdev, "software encourage fail.\n");
 	if (val & PMU_INT_HW_FAIL)
-		dev_err(pmu->dev, "hardware encourage fail.\n");
+		dev_err(pmu->pdev, "hardware encourage fail.\n");
 	if (val & PMU_INT_PCH_FAIL)
-		dev_err(pmu->dev, "p-channel fail event.\n");
+		dev_err(pmu->pdev, "p-channel fail event.\n");
 
 	/* clear interrupts */
-	pmu_writel(val, PMU_INT_STATUS);
-	pmu_writel(val, PMU_EVENT_STATUS);
+	__raw_writel(val, pmu->base + PMU_INT_STATUS);
+	__raw_writel(val, pmu->base + PMU_EVENT_STATUS);
 
 	spin_unlock_irqrestore(&pmu->lock, flags);
 
 	return IRQ_HANDLED;
 }
 
-static int starfive_pmu_pad_order_get(u32 domain, bool on_off)
+static int jh7110_pmu_probe(struct platform_device *pdev)
 {
-	unsigned int group;
-	u32 val, offset;
-
-	group = domain / 3;
-	offset = (domain % 3) << 1;
-
-	val = pmu_readl(POWER_DOMAIN_CASCADE_0 + group * 4);
-	if (on_off)
-		val &= power_domain_cascade[offset + 1];
-	else
-		val &= power_domain_cascade[offset];
-
-	return val;
-}
-
-static void starfive_pmu_pad_order_set(u32 domain, bool on_off, u32 order)
-{
-	unsigned int group;
-	u32 val, offset;
-
-	group = domain / 3;
-	offset = (domain % 3) << 1;
-
-	val = pmu_readl(POWER_DOMAIN_CASCADE_0 + group * 4);
-	if (on_off)
-		val |= (order << __ffs(power_domain_cascade[offset + 1]));
-	else
-		val |= (order << __ffs(power_domain_cascade[offset]));
-
-	pmu_writel(val, POWER_DOMAIN_CASCADE_0 + group * 4);
-}
-
-int starfive_power_domain_order_on_get(u32 domain)
-{
-	return starfive_pmu_pad_order_get(domain, true);
-}
-EXPORT_SYMBOL(starfive_power_domain_order_on_get);
-
-int starfive_power_domain_order_off_get(u32 domain)
-{
-	return starfive_pmu_pad_order_get(domain, false);
-}
-EXPORT_SYMBOL(starfive_power_domain_order_off_get);
-
-void starfive_power_domain_order_on_set(u32 domain, u32 order)
-{
-	starfive_pmu_pad_order_set(domain, true, order);
-}
-EXPORT_SYMBOL(starfive_power_domain_order_on_set);
-
-void starfive_power_domain_order_off_set(u32 domain, u32 order)
-{
-	starfive_pmu_pad_order_set(domain, false, order);
-}
-EXPORT_SYMBOL(starfive_power_domain_order_off_set);
-
-static int starfive_pmu_probe(struct platform_device *pdev)
-{
-	struct starfive_pmu *pmu;
 	struct device *dev = &pdev->dev;
+	struct device_node *np = dev->of_node;
+	struct resource *res;
+	const struct jh7110_pmu_data *entry, *table;
+	struct jh7110_pmu *pmu;
+	unsigned int i;
+	uint8_t max_bit = 0;
 	int ret;
 
-	pmu = devm_kzalloc(&pdev->dev, sizeof(*pmu), GFP_KERNEL);
+	pmu = devm_kzalloc(dev, sizeof(*pmu), GFP_KERNEL);
 	if (!pmu)
 		return -ENOMEM;
 
-	pmu->dev = dev;
-	dev->driver_data = pmu;
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	pmu->base = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(pmu->base))
+		return PTR_ERR(pmu->base);
 
-	pmu_base = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(pmu_base))
-		return PTR_ERR(pmu_base);
-
+	/* initialize pmu interrupt  */
 	pmu->irq = platform_get_irq(pdev, 0);
 	if (pmu->irq < 0)
 		return pmu->irq;
@@ -287,45 +222,125 @@ static int starfive_pmu_probe(struct platform_device *pdev)
 	if (ret)
 		dev_err(dev, "request irq failed.\n");
 
+	table = of_device_get_match_data(dev);
+	if (!table)
+		return -EINVAL;
+
+	pmu->pdev = dev;
+	pmu->genpd_data.num_domains = 0;
+	i = 0;
+	for (entry = table; entry->name; entry++) {
+		max_bit = max(max_bit, entry->bit);
+		i++;
+	}
+
+	if (!i)
+		return -ENODEV;
+
+	pmu->genpd_data.num_domains = max_bit + 1;
+
+	pmu->dev = devm_kcalloc(dev, pmu->genpd_data.num_domains,
+				  sizeof(struct jh7110_power_dev),
+				  GFP_KERNEL);
+	if (!pmu->dev)
+		return -ENOMEM;
+
+	pmu->genpd = devm_kcalloc(dev, pmu->genpd_data.num_domains,
+				    sizeof(struct generic_pm_domain *),
+				    GFP_KERNEL);
+	if (!pmu->genpd)
+		return -ENOMEM;
+
+	pmu->genpd_data.domains = pmu->genpd;
+
+	i = 0;
+	for (entry = table; entry->name; entry++) {
+		struct jh7110_power_dev *pmd = &pmu->dev[i];
+		bool is_on;
+
+		pmd->power = pmu;
+		pmd->mask = BIT(entry->bit);
+		pmd->genpd.name = entry->name;
+		pmd->genpd.flags = entry->flags;
+
+		ret = jh7110_pmu_get_state(pmd, &is_on);
+		if (ret)
+			dev_warn(dev, "unable to get current state for %s\n",
+				 pmd->genpd.name);
+
+		pmd->genpd.power_on = jh7110_pmu_on;
+		pmd->genpd.power_off = jh7110_pmu_off;
+
+		pm_genpd_init(&pmd->genpd, NULL, !is_on);
+		pmu->genpd[entry->bit] = &pmd->genpd;
+
+		i++;
+	}
+
 	spin_lock_init(&pmu->lock);
-	starfive_pmu_int_enable(PMU_INT_ALL_MASK & ~PMU_INT_PCH_FAIL, true);
+	starfive_pmu_int_enable(pmu, PMU_INT_ALL_MASK & ~PMU_INT_PCH_FAIL, true);
 
-	return ret;
-}
+	ret = of_genpd_add_provider_onecell(np, &pmu->genpd_data);
+	if (ret) {
+		dev_err(dev, "failed to register genpd driver: %d\n", ret);
+		return ret;
+	}
 
-static int starfive_pmu_remove(struct platform_device *dev)
-{
-	starfive_pmu_int_enable(PMU_INT_ALL_MASK, false);
+	dev_info(dev, "registered %u power domains\n", i);
 
 	return 0;
 }
 
-static const struct of_device_id starfive_pmu_dt_ids[] = {
-	{ .compatible = "starfive,jh7110-pmu" },
-	{ /* sentinel */ }
-};
-
-static struct platform_driver starfive_pmu_driver = {
-	.probe		= starfive_pmu_probe,
-	.remove		= starfive_pmu_remove,
-	.driver		= {
-		.name	= "starfive-pmu",
-		.of_match_table = starfive_pmu_dt_ids,
+static const struct jh7110_pmu_data jh7110_power_domains[] = {
+	{
+		.name = "SYSTOP",
+		.bit = JH7110_PD_SYSTOP,
+		.flags = GENPD_FLAG_ALWAYS_ON,
+	}, {
+		.name = "CPU",
+		.bit = JH7110_PD_CPU,
+		.flags = GENPD_FLAG_ALWAYS_ON,
+	}, {
+		.name = "GPUA",
+		.bit = JH7110_PD_GPUA,
+	}, {
+		.name = "VDEC",
+		.bit = JH7110_PD_VDEC,
+	}, {
+		.name = "VOUT",
+		.bit = JH7110_PD_VOUT,
+	}, {
+		.name = "ISP",
+		.bit = JH7110_PD_ISP,
+	}, {
+		.name = "VENC",
+		.bit = JH7110_PD_VENC,
+	}, {
+		.name = "GPUB",
+		.bit = JH7110_PD_GPUB,
+	}, {
+		/* sentinel */
 	},
 };
 
-static int __init starfive_pmu_init(void)
-{
-	return platform_driver_register(&starfive_pmu_driver);
-}
+static const struct of_device_id jh7110_pmu_of_match[] = {
+	{
+		.compatible = "starfive,jh7110-pmu",
+		.data = &jh7110_power_domains,
+	}, {
+		/* sentinel */
+	}
+};
 
-static void __exit starfive_pmu_exit(void)
-{
-	platform_driver_unregister(&starfive_pmu_driver);
-}
-subsys_initcall(starfive_pmu_init);
-module_exit(starfive_pmu_exit);
+static struct platform_driver jh7110_pmu_driver = {
+	.driver = {
+		.name = "jh7110-pmu",
+		.of_match_table = jh7110_pmu_of_match,
+	},
+	.probe  = jh7110_pmu_probe,
+};
+builtin_platform_driver(jh7110_pmu_driver);
 
-MODULE_AUTHOR("samin <samin.guo@starfivetech.com>");
-MODULE_DESCRIPTION("StarFive JH7110 PMU Device Driver");
-MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Walker Chen <walker.chen@starfivetech.com>");
+MODULE_DESCRIPTION("Starfive JH7110 Power Domain Driver");
+MODULE_LICENSE("GPL");
