@@ -3439,7 +3439,7 @@ static void rkcif_detach_sync_mode(struct rkcif_device *cif_dev)
 	if ((!cif_dev->sync_type) ||
 	    (atomic_read(&cif_dev->pipe.stream_cnt) != 0))
 		return;
-
+	mutex_lock(&hw->dev_lock);
 	hw->sync_config.streaming_cnt--;
 	if (cif_dev->sync_type == EXTERNAL_MASTER_MODE) {
 		for (i = 0; i < hw->sync_config.ext_master.count; i++) {
@@ -3469,6 +3469,7 @@ static void rkcif_detach_sync_mode(struct rkcif_device *cif_dev)
 		for (i = 0; i < hw->dev_num; i++)
 			hw->cif_dev[i]->sync_type = NO_SYNC_MODE;
 	}
+	mutex_unlock(&hw->dev_lock);
 }
 
 void rkcif_do_stop_stream(struct rkcif_stream *stream,
@@ -3599,8 +3600,8 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		rkcif_destroy_dummy_buf(stream);
 	stream->cur_stream_mode &= ~mode;
 	v4l2_info(&dev->v4l2_dev, "stream[%d] stopping finished\n", stream->id);
-	rkcif_detach_sync_mode(dev);
 	mutex_unlock(&dev->stream_lock);
+	rkcif_detach_sync_mode(dev);
 }
 
 static void rkcif_stop_streaming(struct vb2_queue *queue)
@@ -4424,8 +4425,11 @@ static void rkcif_attach_sync_mode(struct rkcif_hw *hw)
 	int sync_type = 0;
 	int count = 0;
 
-	if (hw->sync_config.is_attach)
+	mutex_lock(&hw->dev_lock);
+	if (hw->sync_config.is_attach) {
+		mutex_unlock(&hw->dev_lock);
 		return;
+	}
 
 	memset(&hw->sync_config, 0, sizeof(struct rkcif_multi_sync_config));
 	for (i = 0; i < hw->dev_num; i++) {
@@ -4481,15 +4485,13 @@ static void rkcif_attach_sync_mode(struct rkcif_hw *hw)
 			dev_info(hw->dev,
 				 "Missing slave device, do not use sync mode\n");
 		}
-		if (hw->sync_config.ext_master.count &&
-		    hw->sync_config.slave.count)
-			dev_info(hw->dev,
-				 "There are two types of slave devices, it may cause problems\n");
-	} else {
 		dev_info(hw->dev,
-			 "Only support one master device, master device count %d\n",
-			 hw->sync_config.int_master.count);
+			 "group mode, int_master %d, ext_master %d, slave %d\n",
+			 hw->sync_config.int_master.count,
+			 hw->sync_config.ext_master.count,
+			 hw->sync_config.slave.count);
 	}
+	mutex_unlock(&hw->dev_lock);
 }
 
 int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
@@ -4506,8 +4508,8 @@ int rkcif_do_start_stream(struct rkcif_stream *stream, unsigned int mode)
 
 	v4l2_info(&dev->v4l2_dev, "stream[%d] start streaming\n", stream->id);
 
-	mutex_lock(&dev->stream_lock);
 	rkcif_attach_sync_mode(dev->hw_dev);
+	mutex_lock(&dev->stream_lock);
 	if ((stream->cur_stream_mode & RKCIF_STREAM_MODE_CAPTURE) == mode) {
 		ret = -EBUSY;
 		v4l2_err(v4l2_dev, "stream in busy state\n");

@@ -891,11 +891,13 @@ static void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 	int ret = 0;
 	bool is_streaming = false;
 
-	if (cif_dev->sync_type) {
-		hw->sync_config.streaming_cnt++;
-		if (hw->sync_config.streaming_cnt < hw->sync_config.dev_cnt)
-			return;
-	} else {
+	if (!cif_dev->sync_type)
+		return;
+
+	mutex_lock(&hw->dev_lock);
+	hw->sync_config.streaming_cnt++;
+	if (hw->sync_config.streaming_cnt < hw->sync_config.dev_cnt) {
+		mutex_unlock(&hw->dev_lock);
 		return;
 	}
 
@@ -981,6 +983,7 @@ static void rkcif_set_sensor_streamon_in_sync_mode(struct rkcif_device *cif_dev)
 				 "quick stream in sync mode, int_master_dev[%d]\n", i);
 		}
 	}
+	mutex_unlock(&hw->dev_lock);
 }
 
 /*
