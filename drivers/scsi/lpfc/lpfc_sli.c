@@ -10863,7 +10863,8 @@ lpfc_sli_prep_xmit_seq64(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocbq,
 
 static void
 __lpfc_sli_prep_abort_xri_s3(struct lpfc_iocbq *cmdiocbq, u16 ulp_context,
-			     u16 iotag, u8 ulp_class, u16 cqid, bool ia)
+			     u16 iotag, u8 ulp_class, u16 cqid, bool ia,
+			     bool wqec)
 {
 	IOCB_t *icmd = NULL;
 
@@ -10892,7 +10893,8 @@ __lpfc_sli_prep_abort_xri_s3(struct lpfc_iocbq *cmdiocbq, u16 ulp_context,
 
 static void
 __lpfc_sli_prep_abort_xri_s4(struct lpfc_iocbq *cmdiocbq, u16 ulp_context,
-			     u16 iotag, u8 ulp_class, u16 cqid, bool ia)
+			     u16 iotag, u8 ulp_class, u16 cqid, bool ia,
+			     bool wqec)
 {
 	union lpfc_wqe128 *wqe;
 
@@ -10919,6 +10921,8 @@ __lpfc_sli_prep_abort_xri_s4(struct lpfc_iocbq *cmdiocbq, u16 ulp_context,
 	bf_set(wqe_qosd, &wqe->abort_cmd.wqe_com, 1);
 
 	/* Word 11 */
+	if (wqec)
+		bf_set(wqe_wqec, &wqe->abort_cmd.wqe_com, 1);
 	bf_set(wqe_cqid, &wqe->abort_cmd.wqe_com, cqid);
 	bf_set(wqe_cmd_type, &wqe->abort_cmd.wqe_com, OTHER_COMMAND);
 }
@@ -10926,10 +10930,10 @@ __lpfc_sli_prep_abort_xri_s4(struct lpfc_iocbq *cmdiocbq, u16 ulp_context,
 void
 lpfc_sli_prep_abort_xri(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocbq,
 			u16 ulp_context, u16 iotag, u8 ulp_class, u16 cqid,
-			bool ia)
+			bool ia, bool wqec)
 {
 	phba->__lpfc_sli_prep_abort_xri(cmdiocbq, ulp_context, iotag, ulp_class,
-					cqid, ia);
+					cqid, ia, wqec);
 }
 
 /**
@@ -12207,7 +12211,7 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	lpfc_sli_prep_abort_xri(phba, abtsiocbp, ulp_context, iotag,
 				cmdiocb->iocb.ulpClass,
-				LPFC_WQE_CQ_ID_DEFAULT, ia);
+				LPFC_WQE_CQ_ID_DEFAULT, ia, false);
 
 	abtsiocbp->vport = vport;
 
@@ -12667,7 +12671,7 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 
 		lpfc_sli_prep_abort_xri(phba, abtsiocbq, ulp_context, iotag,
 					iocbq->iocb.ulpClass, cqid,
-					ia);
+					ia, false);
 
 		abtsiocbq->vport = vport;
 

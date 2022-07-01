@@ -986,7 +986,8 @@ struct lpfc_hba {
 					   u8 last_seq, u8 cr_cx_cmd);
 	void (*__lpfc_sli_prep_abort_xri)(struct lpfc_iocbq *cmdiocbq,
 					  u16 ulp_context, u16 iotag,
-					  u8 ulp_class, u16 cqid, bool ia);
+					  u8 ulp_class, u16 cqid, bool ia,
+					  bool wqec);
 
 	/* expedite pool */
 	struct lpfc_epd_pool epd_pool;
