@@ -888,8 +888,12 @@ int audio_graph2_link_c2c(struct asoc_simple_priv *priv,
 	 */
 	of_property_read_u32(ports, "rate", &val);
 	if (val) {
-		struct simple_dai_props *dai_props = simple_priv_to_props(priv, li->link);
-		struct snd_soc_pcm_stream *c2c_conf = dai_props->c2c_conf;
+		struct device *dev = simple_priv_to_dev(priv);
+		struct snd_soc_pcm_stream *c2c_conf;
+
+		c2c_conf = devm_kzalloc(dev, sizeof(*c2c_conf), GFP_KERNEL);
+		if (!c2c_conf)
+			goto err1;
 
 		c2c_conf->formats	= SNDRV_PCM_FMTBIT_S32_LE; /* update ME */
 		c2c_conf->rates		= SNDRV_PCM_RATE_8000_384000;
@@ -930,6 +934,7 @@ err2:
 	of_node_put(ep1);
 	of_node_put(codec0_port);
 	of_node_put(codec1_port);
+err1:
 	of_node_put(ports);
 	of_node_put(port0);
 	of_node_put(port1);
@@ -1093,7 +1098,6 @@ static int graph_count_c2c(struct asoc_simple_priv *priv,
 	li->num[li->link].cpus		=
 	li->num[li->link].platforms	= graph_counter(codec0);
 	li->num[li->link].codecs	= graph_counter(codec1);
-	li->num[li->link].c2c		= 1;
 
 	of_node_put(ports);
 	of_node_put(port1);
