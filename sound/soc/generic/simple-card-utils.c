@@ -531,6 +531,10 @@ static int asoc_simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 	if (dai_link->params)
 		return 0;
 
+	/* Do nothing if it was DPCM :: BE */
+	if (dai_link->no_pcm)
+		return 0;
+
 	/* Only Codecs */
 	for_each_rtd_components(rtd, i, component) {
 		if (!asoc_simple_component_is_codec(component))
