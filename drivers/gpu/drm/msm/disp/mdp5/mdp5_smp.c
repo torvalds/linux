@@ -363,7 +363,7 @@ void mdp5_smp_dump(struct mdp5_smp *smp, struct drm_printer *p)
 	}
 
 	drm_printf(p, "TOTAL:\t%d\t(of %d)\n", total, smp->blk_cnt);
-	drm_printf(p, "AVAIL:\t%d\n", smp->blk_cnt -
+	drm_printf(p, "AVAIL:\t%ld\n", smp->blk_cnt -
 			bitmap_weight(state->state, smp->blk_cnt));
 
 	if (drm_can_sleep())

@@ -296,7 +296,7 @@ static ssize_t read_file_slot(struct file *file, char __user *user_buf,
 	spin_lock_bh(&priv->tx.tx_lock);
 	len = scnprintf(buf, sizeof(buf),
 			"TX slot bitmap : %*pb\n"
-			"Used slots     : %d\n",
+			"Used slots     : %ld\n",
 			MAX_TX_BUF_NUM, priv->tx.tx_slot,
 			bitmap_weight(priv->tx.tx_slot, MAX_TX_BUF_NUM));
 	spin_unlock_bh(&priv->tx.tx_lock);

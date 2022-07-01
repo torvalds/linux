@@ -4997,7 +4997,7 @@ static int setup_resources(struct udma_dev *ud)
 	switch (ud->match_data->type) {
 	case DMA_TYPE_UDMA:
 		dev_info(dev,
-			 "Channels: %d (tchan: %u, rchan: %u, gp-rflow: %u)\n",
+			 "Channels: %d (tchan: %lu, rchan: %lu, gp-rflow: %lu)\n",
 			 ch_count,
 			 ud->tchan_cnt - bitmap_weight(ud->tchan_map,
 						       ud->tchan_cnt),
@@ -5008,7 +5008,7 @@ static int setup_resources(struct udma_dev *ud)
 		break;
 	case DMA_TYPE_BCDMA:
 		dev_info(dev,
-			 "Channels: %d (bchan: %u, tchan: %u, rchan: %u)\n",
+			 "Channels: %d (bchan: %lu, tchan: %lu, rchan: %lu)\n",
 			 ch_count,
 			 ud->bchan_cnt - bitmap_weight(ud->bchan_map,
 						       ud->bchan_cnt),
@@ -5019,7 +5019,7 @@ static int setup_resources(struct udma_dev *ud)
 		break;
 	case DMA_TYPE_PKTDMA:
 		dev_info(dev,
-			 "Channels: %d (tchan: %u, rchan: %u)\n",
+			 "Channels: %d (tchan: %lu, rchan: %lu)\n",
 			 ch_count,
 			 ud->tchan_cnt - bitmap_weight(ud->tchan_map,
 						       ud->tchan_cnt),

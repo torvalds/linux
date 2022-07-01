@@ -195,7 +195,7 @@ void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 			set_bit(i, adev->gfx.mec.queue_bitmap);
 	}
 
-	dev_dbg(adev->dev, "mec queue bitmap weight=%d\n", bitmap_weight(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES));
+	dev_dbg(adev->dev, "mec queue bitmap weight=%ld\n", bitmap_weight(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES));
 }
 
 void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev)

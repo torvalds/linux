@@ -221,7 +221,7 @@ static char *carl9170_debugfs_mem_usage_read(struct ar9170 *ar, char *buf,
 	ADD(buf, *len, bufsize, "jar: [%*pb]\n",
 	    ar->fw.mem_blocks, ar->mem_bitmap);
 
-	ADD(buf, *len, bufsize, "cookies: used:%3d / total:%3d, allocs:%d\n",
+	ADD(buf, *len, bufsize, "cookies: used:%3ld / total:%3d, allocs:%d\n",
 	    bitmap_weight(ar->mem_bitmap, ar->fw.mem_blocks),
 	    ar->fw.mem_blocks, atomic_read(&ar->mem_allocs));
 

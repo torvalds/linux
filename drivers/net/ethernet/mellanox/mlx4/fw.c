@@ -463,7 +463,7 @@ int mlx4_QUERY_FUNC_CAP_wrapper(struct mlx4_dev *dev, int slave,
 
 		field = min(
 			bitmap_weight(actv_ports.ports, dev->caps.num_ports),
-			dev->caps.num_ports);
+			(unsigned long)dev->caps.num_ports);
 		MLX4_PUT(outbox->buf, field, QUERY_FUNC_CAP_NUM_PORTS_OFFSET);
 
 		size = dev->caps.function_caps; /* set PF behaviours */
