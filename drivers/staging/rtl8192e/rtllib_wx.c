@@ -304,8 +304,9 @@ int rtllib_wx_set_encode(struct rtllib_device *ieee,
 			netdev_dbg(ieee->dev,
 				   "Disabling encryption on key %d.\n", key);
 			lib80211_crypt_delayed_deinit(&ieee->crypt_info, crypt);
-		} else
+		} else {
 			netdev_dbg(ieee->dev, "Disabling encryption.\n");
+		}
 
 		/* Check all the keys to see if any are still configured,
 		 * and if no key index was provided, de-init them all
@@ -724,8 +725,9 @@ int rtllib_wx_set_auth(struct rtllib_device *ieee,
 		} else if (data->value & IW_AUTH_ALG_LEAP) {
 			ieee->open_wep = 1;
 			ieee->auth_mode = 2;
-		} else
+		} else {
 			return -EINVAL;
+		}
 		break;
 
 	case IW_AUTH_WPA_ENABLED:
