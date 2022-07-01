@@ -66,6 +66,9 @@ properties:
       - mediatek,mt7531
       - mediatek,mt7621
 
+  reg:
+    maxItems: 1
+
   core-supply:
     description:
       Phandle to the regulator node necessary for the core power.
