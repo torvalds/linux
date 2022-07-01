@@ -567,7 +567,7 @@ static int vdpasim_set_group_asid(struct vdpa_device *vdpa, unsigned int group,
 	if (group > vdpasim->dev_attr.ngroups)
 		return -EINVAL;
 
-	if (asid > vdpasim->dev_attr.nas)
+	if (asid >= vdpasim->dev_attr.nas)
 		return -EINVAL;
 
 	iommu = &vdpasim->iommu[asid];
