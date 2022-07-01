@@ -261,6 +261,7 @@
   del_gendisk
   del_timer
   del_timer_sync
+  desc_to_gpio
   destroy_workqueue
   dev_change_flags
   dev_coredumpm
@@ -293,6 +294,7 @@
   device_property_read_u32_array
   device_register
   device_remove_file
+  device_set_wakeup_capable
   device_unregister
   device_wakeup_disable
   _dev_info
@@ -626,6 +628,7 @@
   gpiod_get_raw_value
   gpiod_get_value
   gpiod_set_raw_value
+  gpiod_set_value
   gpiod_set_value_cansleep
   gpiod_to_irq
   gpio_free
@@ -667,6 +670,7 @@
   i2c_get_dma_safe_msg_buf
   i2c_put_dma_safe_msg_buf
   i2c_register_driver
+  i2c_transfer_buffer_flags
   i3c_generic_ibi_alloc_pool
   i3c_generic_ibi_free_pool
   i3c_generic_ibi_get_free_slot
