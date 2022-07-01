@@ -265,20 +265,7 @@ early_param("mem", early_mem);
 
 void __init arm64_memblock_init(void)
 {
-	s64 linear_region_size;
-
-#if VA_BITS > 48
-	if (cpuid_feature_extract_unsigned_field(
-				read_sysreg_s(SYS_ID_AA64MMFR2_EL1),
-				ID_AA64MMFR2_LVA_SHIFT))
-		vabits_actual = VA_BITS;
-
-	/* make the variable visible to secondaries with the MMU off */
-	dcache_clean_inval_poc((u64)&vabits_actual,
-			       (u64)&vabits_actual + sizeof(vabits_actual));
-#endif
-
-	linear_region_size = PAGE_END - _PAGE_OFFSET(vabits_actual);
+	s64 linear_region_size = PAGE_END - _PAGE_OFFSET(vabits_actual);
 
 	/*
 	 * Corner case: 52-bit VA capable systems running KVM in nVHE mode may

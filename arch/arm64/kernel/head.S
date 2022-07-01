@@ -82,6 +82,7 @@
 	 *  x22        create_idmap() .. start_kernel()         ID map VA of the DT blob
 	 *  x23        primary_entry() .. start_kernel()        physical misalignment/KASLR offset
 	 *  x24        __primary_switch()                       linear map KASLR seed
+	 *  x25        primary_entry() .. start_kernel()        supported VA size
 	 *  x28        create_idmap()                           callee preserved temp register
 	 */
 SYM_CODE_START(primary_entry)
@@ -96,6 +97,14 @@ SYM_CODE_START(primary_entry)
 	 * On return, the CPU will be ready for the MMU to be turned on and
 	 * the TCR will have been set.
 	 */
+#if VA_BITS > 48
+	mrs_s	x0, SYS_ID_AA64MMFR2_EL1
+	tst	x0, #0xf << ID_AA64MMFR2_LVA_SHIFT
+	mov	x0, #VA_BITS
+	mov	x25, #VA_BITS_MIN
+	csel	x25, x25, x0, eq
+	mov	x0, x25
+#endif
 	bl	__cpu_setup			// initialise processor
 	b	__primary_switch
 SYM_CODE_END(primary_entry)
@@ -434,6 +443,12 @@ SYM_FUNC_START_LOCAL(__primary_switched)
 	bl	__pi_memset
 	dsb	ishst				// Make zero page visible to PTW
 
+#if VA_BITS > 48
+	adr_l	x8, vabits_actual		// Set this early so KASAN early init
+	str	x25, [x8]			// ... observes the correct value
+	dc	civac, x8			// Make visible to booting secondaries
+#endif
+
 #ifdef CONFIG_RANDOMIZE_BASE
 	adrp	x5, memstart_offset_seed	// Save KASLR linear map seed
 	strh	w24, [x5, :lo12:memstart_offset_seed]
@@ -579,6 +594,9 @@ SYM_FUNC_START_LOCAL(secondary_startup)
 	mov	x20, x0				// preserve boot mode
 	bl	switch_to_vhe
 	bl	__cpu_secondary_check52bitva
+#if VA_BITS > 48
+	ldr_l	x0, vabits_actual
+#endif
 	bl	__cpu_setup			// initialise processor
 	adrp	x1, swapper_pg_dir
 	adrp	x2, idmap_pg_dir
