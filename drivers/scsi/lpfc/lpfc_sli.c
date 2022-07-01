@@ -10223,16 +10223,6 @@ __lpfc_sli_issue_iocb_s3(struct lpfc_hba *phba, uint32_t ring_number,
 		 * can be issued if the link is not up.
 		 */
 		switch (piocb->iocb.ulpCommand) {
-		case CMD_GEN_REQUEST64_CR:
-		case CMD_GEN_REQUEST64_CX:
-			if (!(phba->sli.sli_flag & LPFC_MENLO_MAINT) ||
-				(piocb->iocb.un.genreq64.w5.hcsw.Rctl !=
-					FC_RCTL_DD_UNSOL_CMD) ||
-				(piocb->iocb.un.genreq64.w5.hcsw.Type !=
-					MENLO_TRANSPORT_TYPE))
-
-				goto iocb_busy;
-			break;
 		case CMD_QUE_RING_BUF_CN:
 		case CMD_QUE_RING_BUF64_CN:
 			/*

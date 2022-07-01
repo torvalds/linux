@@ -48,9 +48,6 @@ struct lpfc_sli2_slim;
 					   the NameServer  before giving up. */
 #define LPFC_CMD_PER_LUN	3	/* max outstanding cmds per lun */
 #define LPFC_DEFAULT_SG_SEG_CNT 64	/* sg element count per scsi cmnd */
-#define LPFC_DEFAULT_MENLO_SG_SEG_CNT 128	/* sg element count per scsi
-		cmnd for menlo needs nearly twice as for firmware
-		downloads using bsg */
 
 #define LPFC_DEFAULT_XPSGL_SIZE	256
 #define LPFC_MAX_SG_TABLESIZE	0xffff
@@ -1439,8 +1436,6 @@ struct lpfc_hba {
 	 */
 #define QUE_BUFTAG_BIT  (1<<31)
 	uint32_t buffer_tag_count;
-	int wait_4_mlo_maint_flg;
-	wait_queue_head_t wait_4_mlo_m_q;
 	/* data structure used for latency data collection */
 #define LPFC_NO_BUCKET	   0
 #define LPFC_LINEAR_BUCKET 1
@@ -1475,8 +1470,6 @@ struct lpfc_hba {
 	/* RAS Support */
 	struct lpfc_ras_fwlog ras_fwlog;
 
-	uint8_t menlo_flag;	/* menlo generic flags */
-#define HBA_MENLO_SUPPORT	0x1 /* HBA supports menlo commands */
 	uint32_t iocb_cnt;
 	uint32_t iocb_max;
 	atomic_t sdev_cnt;

@@ -4570,15 +4570,6 @@ lpfc_els_retry(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	case IOSTAT_LOCAL_REJECT:
 		switch ((ulp_word4 & IOERR_PARAM_MASK)) {
 		case IOERR_LOOP_OPEN_FAILURE:
-			if (cmd == ELS_CMD_FLOGI) {
-				if (PCI_DEVICE_ID_HORNET ==
-					phba->pcidev->device) {
-					phba->fc_topology = LPFC_TOPOLOGY_LOOP;
-					phba->pport->fc_myDID = 0;
-					phba->alpa_map[0] = 0;
-					phba->alpa_map[1] = 0;
-				}
-			}
 			if (cmd == ELS_CMD_PLOGI && cmdiocb->retry == 0)
 				delay = 1000;
 			retry = 1;
