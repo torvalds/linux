@@ -97,8 +97,8 @@ static void rk630_phy_t22_get_tx_level_from_efuse(struct phy_device *phydev)
 		nvmem_cell_put(cell);
 		if (!IS_ERR(efuse_buf)) {
 			if (len == 2 && efuse_buf[0] > 0 && efuse_buf[1] > 0) {
-				tx_level_100M = efuse_buf[0];
-				tx_level_10M = efuse_buf[1];
+				tx_level_100M = efuse_buf[1];
+				tx_level_10M = efuse_buf[0];
 			}
 			kfree(efuse_buf);
 		} else {
