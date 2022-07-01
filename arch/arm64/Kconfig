@@ -1562,6 +1562,9 @@ config THUMB2_COMPAT_VDSO
 	  Compile the compat vDSO with '-mthumb -fomit-frame-pointer' if y,
 	  otherwise with '-marm'.
 
+config COMPAT_ALIGNMENT_FIXUPS
+	bool "Fix up misaligned multi-word loads and stores in user space"
+
 menuconfig ARMV8_DEPRECATED
 	bool "Emulate deprecated/obsolete ARMv8 instructions"
 	depends on SYSCTL
