@@ -2650,8 +2650,13 @@ static int rv1106_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 	/* Always enable pre-emphasis in SOF & EOP & chirp & non-chirp state */
 	phy_update_bits(rphy->phy_base + 0x30, GENMASK(2, 0), 0x07);
 
-	/* Set Tx HS pre_emphasize strength to 3'b010 */
-	phy_update_bits(rphy->phy_base + 0x40, GENMASK(5, 3), (0x02 << 3));
+	if (rockchip_get_cpu_version()) {
+		/* Set Tx HS pre_emphasize strength to 3'b001 */
+		phy_update_bits(rphy->phy_base + 0x40, GENMASK(5, 3), (0x01 << 3));
+	} else {
+		/* Set Tx HS pre_emphasize strength to 3'b011 */
+		phy_update_bits(rphy->phy_base + 0x40, GENMASK(5, 3), (0x03 << 3));
+	}
 
 	/* Set RX Squelch trigger point configure to 4'b0000(112.5 mV) */
 	phy_update_bits(rphy->phy_base + 0x64, GENMASK(6, 3), (0x00 << 3));
@@ -2664,6 +2669,10 @@ static int rv1106_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 
 	/* Set Tx HS eye height tuning to 3'b011(462 mV)*/
 	phy_update_bits(rphy->phy_base + 0x124, GENMASK(4, 2), (0x03 << 2));
+
+	/* Bypass Squelch detector calibration */
+	phy_update_bits(rphy->phy_base + 0x1a4, GENMASK(7, 4), (0x01 << 4));
+	phy_update_bits(rphy->phy_base + 0x1b4, GENMASK(7, 4), (0x01 << 4));
 
 	return 0;
 }
