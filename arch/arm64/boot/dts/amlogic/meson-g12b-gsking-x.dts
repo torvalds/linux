@@ -20,10 +20,16 @@
 		rtc1 = &vrtc;
 	};
 
+	gpio_fan: gpio-fan {
+		compatible = "gpio-fan";
+		gpios = <&gpio GPIOH_5 GPIO_ACTIVE_HIGH>;
+		/* Using Dummy Speed */
+		gpio-fan,speed-map = <0 0>, <1 1>;
+		#cooling-cells = <2>;
+	};
+
 	gpio-keys-polled {
 		compatible = "gpio-keys-polled";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		poll-interval = <100>;
 
 		power-button {
@@ -94,6 +100,23 @@
 
 &clkc_audio {
 	status = "okay";
+};
+
+&cpu_thermal {
+	trips {
+		cpu_active: cpu-active {
+			temperature = <70000>; /* millicelsius */
+			hysteresis = <2000>; /* millicelsius */
+			type = "active";
+		};
+	};
+
+	cooling-maps {
+		map {
+			trip = <&cpu_active>;
+			cooling-device = <&gpio_fan THERMAL_NO_LIMIT THERMAL_NO_LIMIT>;
+		};
+	};
 };
 
 &frddr_a {
