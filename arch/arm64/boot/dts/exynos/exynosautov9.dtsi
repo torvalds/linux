@@ -8,6 +8,7 @@
 
 #include <dt-bindings/clock/samsung,exynosautov9.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
+#include <dt-bindings/soc/samsung,boot-mode.h>
 #include <dt-bindings/soc/samsung,exynos-usi.h>
 
 / {
@@ -312,6 +313,22 @@
 		pmu_system_controller: system-controller@10460000 {
 			compatible = "samsung,exynos7-pmu", "syscon";
 			reg = <0x10460000 0x10000>;
+
+			reboot: syscon-reboot {
+				compatible = "syscon-reboot";
+				regmap = <&pmu_system_controller>;
+				offset = <0x3a00>; /* SYSTEM_CONFIGURATION */
+				value = <0x2>;
+				mask = <0x2>;
+			};
+
+			reboot-mode {
+				compatible = "syscon-reboot-mode";
+				offset = <0x810>; /* SYSIP_DAT0 */
+				mode-bootloader = <EXYNOSAUTOV9_BOOT_BOOTLOADER>;
+				mode-fastboot = <EXYNOSAUTOV9_BOOT_FASTBOOT>;
+				mode-recovery = <EXYNOSAUTOV9_BOOT_RECOVERY>;
+			};
 		};
 
 		syscon_fsys2: syscon@17c20000 {
@@ -352,7 +369,7 @@
 			};
 		};
 
-		ufs_0_phy: ufs0-phy@17e04000 {
+		ufs_0_phy: phy@17e04000 {
 			compatible = "samsung,exynosautov9-ufs-phy";
 			reg = <0x17e04000 0xc00>;
 			reg-names = "phy-pma";
@@ -363,13 +380,13 @@
 			status = "disabled";
 		};
 
-		ufs_0: ufs0@17e00000 {
-			compatible ="samsung,exynosautov9-ufs";
+		ufs_0: ufs@17e00000 {
+			compatible = "samsung,exynosautov9-ufs";
 
-			reg = <0x17e00000 0x100>,  /* 0: HCI standard */
-				<0x17e01100 0x410>,  /* 1: Vendor-specific */
-				<0x17e80000 0x8000>,  /* 2: UNIPRO */
-				<0x17dc0000 0x2200>;  /* 3: UFS protector */
+			reg = <0x17e00000 0x100>,
+			      <0x17e01100 0x410>,
+			      <0x17e80000 0x8000>,
+			      <0x17dc0000 0x2200>;
 			reg-names = "hci", "vs_hci", "unipro", "ufsp";
 			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_fsys2 CLK_GOUT_FSYS2_UFS_EMBD0_ACLK>,
@@ -382,6 +399,58 @@
 			phy-names = "ufs-phy";
 			samsung,sysreg = <&syscon_fsys2 0x710>;
 			status = "disabled";
+		};
+
+		ufs_1_phy: phy@17f04000 {
+			compatible = "samsung,exynosautov9-ufs-phy";
+			reg = <0x17f04000 0xc00>;
+			reg-names = "phy-pma";
+			samsung,pmu-syscon = <&pmu_system_controller 0x72c>;
+			#phy-cells = <0>;
+			clocks = <&xtcxo>;
+			clock-names = "ref_clk";
+			status = "disabled";
+		};
+
+		ufs_1: ufs@17f00000 {
+			compatible = "samsung,exynosautov9-ufs";
+
+			reg = <0x17f00000 0x100>,
+			      <0x17f01100 0x410>,
+			      <0x17f80000 0x8000>,
+			      <0x17de0000 0x2200>;
+			reg-names = "hci", "vs_hci", "unipro", "ufsp";
+			interrupts = <GIC_SPI 235 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_fsys2 CLK_GOUT_FSYS2_UFS_EMBD1_ACLK>,
+				 <&cmu_fsys2 CLK_GOUT_FSYS2_UFS_EMBD1_UNIPRO>;
+			clock-names = "core_clk", "sclk_unipro_main";
+			freq-table-hz = <0 0>, <0 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&ufs_rst_n_1 &ufs_refclk_out_1>;
+			phys = <&ufs_1_phy>;
+			phy-names = "ufs-phy";
+			samsung,sysreg = <&syscon_fsys2 0x714>;
+			status = "disabled";
+		};
+
+		watchdog_cl0: watchdog@10050000 {
+			compatible = "samsung,exynosautov9-wdt";
+			reg = <0x10050000 0x100>;
+			interrupts = <GIC_SPI 476 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_peris CLK_GOUT_WDT_CLUSTER0>, <&xtcxo>;
+			clock-names = "watchdog", "watchdog_src";
+			samsung,syscon-phandle = <&pmu_system_controller>;
+			samsung,cluster-index = <0>;
+		};
+
+		watchdog_cl1: watchdog@10060000 {
+			compatible = "samsung,exynosautov9-wdt";
+			reg = <0x10060000 0x100>;
+			interrupts = <GIC_SPI 475 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cmu_peris CLK_GOUT_WDT_CLUSTER1>, <&xtcxo>;
+			clock-names = "watchdog", "watchdog_src";
+			samsung,syscon-phandle = <&pmu_system_controller>;
+			samsung,cluster-index = <1>;
 		};
 	};
 };
