@@ -527,6 +527,10 @@ static int asoc_simple_init_for_codec2codec(struct snd_soc_pcm_runtime *rtd,
 	struct snd_pcm_hardware hw;
 	int i, ret, stream;
 
+	/* Do nothing if it already has Codec2Codec settings */
+	if (dai_link->params)
+		return 0;
+
 	/* Only Codecs */
 	for_each_rtd_components(rtd, i, component) {
 		if (!asoc_simple_component_is_codec(component))
