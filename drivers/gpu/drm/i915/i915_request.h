@@ -196,6 +196,8 @@ struct i915_request {
 	struct dma_fence fence;
 	spinlock_t lock;
 
+	struct drm_i915_private *i915;
+
 	/**
 	 * Context and ring buffer related to this request
 	 * Contexts are refcounted, so when this request is associated with a

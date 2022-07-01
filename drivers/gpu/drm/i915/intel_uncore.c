@@ -938,36 +938,32 @@ find_fw_domain(struct intel_uncore *uncore, u32 offset)
 	return entry->domains;
 }
 
-#define GEN_FW_RANGE(s, e, d) \
-	{ .start = (s), .end = (e), .domains = (d) }
+/*
+ * Shadowed register tables describe special register ranges that i915 is
+ * allowed to write to without acquiring forcewake.  If these registers' power
+ * wells are down, the hardware will save values written by i915 to a shadow
+ * copy and automatically transfer them into the real register the next time
+ * the power well is woken up.  Shadowing only applies to writes; forcewake
+ * must still be acquired when reading from registers in these ranges.
+ *
+ * The documentation for shadowed registers is somewhat spotty on older
+ * platforms.  However missing registers from these lists is non-fatal; it just
+ * means we'll wake up the hardware for some register accesses where we didn't
+ * really need to.
+ *
+ * The ranges listed in these tables must be sorted by offset.
+ *
+ * When adding new tables here, please also add them to
+ * intel_shadow_table_check() in selftests/intel_uncore.c so that they will be
+ * scanned for obvious mistakes or typos by the selftests.
+ */
 
-/* *Must* be sorted by offset ranges! See intel_fw_table_check(). */
-static const struct intel_forcewake_range __vlv_fw_ranges[] = {
-	GEN_FW_RANGE(0x2000, 0x3fff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x5000, 0x7fff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0xb000, 0x11fff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x12000, 0x13fff, FORCEWAKE_MEDIA),
-	GEN_FW_RANGE(0x22000, 0x23fff, FORCEWAKE_MEDIA),
-	GEN_FW_RANGE(0x2e000, 0x2ffff, FORCEWAKE_RENDER),
-	GEN_FW_RANGE(0x30000, 0x3ffff, FORCEWAKE_MEDIA),
-};
-
-#define __fwtable_reg_read_fw_domains(uncore, offset) \
-({ \
-	enum forcewake_domains __fwd = 0; \
-	if (NEEDS_FORCE_WAKE((offset))) \
-		__fwd = find_fw_domain(uncore, offset); \
-	__fwd; \
-})
-
-/* *Must* be sorted by offset! See intel_shadow_table_check(). */
 static const struct i915_range gen8_shadowed_regs[] = {
 	{ .start =  0x2030, .end =  0x2030 },
 	{ .start =  0xA008, .end =  0xA00C },
 	{ .start = 0x12030, .end = 0x12030 },
 	{ .start = 0x1a030, .end = 0x1a030 },
 	{ .start = 0x22030, .end = 0x22030 },
-	/* TODO: Other registers are not yet used */
 };
 
 static const struct i915_range gen11_shadowed_regs[] = {
@@ -1080,6 +1076,45 @@ static const struct i915_range dg2_shadowed_regs[] = {
 	{ .start = 0x1F8510, .end = 0x1F8550 },
 };
 
+static const struct i915_range pvc_shadowed_regs[] = {
+	{ .start =   0x2030, .end =   0x2030 },
+	{ .start =   0x2510, .end =   0x2550 },
+	{ .start =   0xA008, .end =   0xA00C },
+	{ .start =   0xA188, .end =   0xA188 },
+	{ .start =   0xA278, .end =   0xA278 },
+	{ .start =   0xA540, .end =   0xA56C },
+	{ .start =   0xC4C8, .end =   0xC4C8 },
+	{ .start =   0xC4E0, .end =   0xC4E0 },
+	{ .start =   0xC600, .end =   0xC600 },
+	{ .start =   0xC658, .end =   0xC658 },
+	{ .start =  0x22030, .end =  0x22030 },
+	{ .start =  0x22510, .end =  0x22550 },
+	{ .start = 0x1C0030, .end = 0x1C0030 },
+	{ .start = 0x1C0510, .end = 0x1C0550 },
+	{ .start = 0x1C4030, .end = 0x1C4030 },
+	{ .start = 0x1C4510, .end = 0x1C4550 },
+	{ .start = 0x1C8030, .end = 0x1C8030 },
+	{ .start = 0x1C8510, .end = 0x1C8550 },
+	{ .start = 0x1D0030, .end = 0x1D0030 },
+	{ .start = 0x1D0510, .end = 0x1D0550 },
+	{ .start = 0x1D4030, .end = 0x1D4030 },
+	{ .start = 0x1D4510, .end = 0x1D4550 },
+	{ .start = 0x1D8030, .end = 0x1D8030 },
+	{ .start = 0x1D8510, .end = 0x1D8550 },
+	{ .start = 0x1E0030, .end = 0x1E0030 },
+	{ .start = 0x1E0510, .end = 0x1E0550 },
+	{ .start = 0x1E4030, .end = 0x1E4030 },
+	{ .start = 0x1E4510, .end = 0x1E4550 },
+	{ .start = 0x1E8030, .end = 0x1E8030 },
+	{ .start = 0x1E8510, .end = 0x1E8550 },
+	{ .start = 0x1F0030, .end = 0x1F0030 },
+	{ .start = 0x1F0510, .end = 0x1F0550 },
+	{ .start = 0x1F4030, .end = 0x1F4030 },
+	{ .start = 0x1F4510, .end = 0x1F4550 },
+	{ .start = 0x1F8030, .end = 0x1F8030 },
+	{ .start = 0x1F8510, .end = 0x1F8550 },
+};
+
 static int mmio_range_cmp(u32 key, const struct i915_range *range)
 {
 	if (key < range->start)
@@ -1107,11 +1142,70 @@ gen6_reg_write_fw_domains(struct intel_uncore *uncore, i915_reg_t reg)
 	return FORCEWAKE_RENDER;
 }
 
+#define __fwtable_reg_read_fw_domains(uncore, offset) \
+({ \
+	enum forcewake_domains __fwd = 0; \
+	if (NEEDS_FORCE_WAKE((offset))) \
+		__fwd = find_fw_domain(uncore, offset); \
+	__fwd; \
+})
+
+#define __fwtable_reg_write_fw_domains(uncore, offset) \
+({ \
+	enum forcewake_domains __fwd = 0; \
+	const u32 __offset = (offset); \
+	if (NEEDS_FORCE_WAKE((__offset)) && !is_shadowed(uncore, __offset)) \
+		__fwd = find_fw_domain(uncore, __offset); \
+	__fwd; \
+})
+
+#define GEN_FW_RANGE(s, e, d) \
+	{ .start = (s), .end = (e), .domains = (d) }
+
+/*
+ * All platforms' forcewake tables below must be sorted by offset ranges.
+ * Furthermore, new forcewake tables added should be "watertight" and have
+ * no gaps between ranges.
+ *
+ * When there are multiple consecutive ranges listed in the bspec with
+ * the same forcewake domain, it is customary to combine them into a single
+ * row in the tables below to keep the tables small and lookups fast.
+ * Likewise, reserved/unused ranges may be combined with the preceding and/or
+ * following ranges since the driver will never be making MMIO accesses in
+ * those ranges.
+ *
+ * For example, if the bspec were to list:
+ *
+ *    ...
+ *    0x1000 - 0x1fff:  GT
+ *    0x2000 - 0x2cff:  GT
+ *    0x2d00 - 0x2fff:  unused/reserved
+ *    0x3000 - 0xffff:  GT
+ *    ...
+ *
+ * these could all be represented by a single line in the code:
+ *
+ *   GEN_FW_RANGE(0x1000, 0xffff, FORCEWAKE_GT)
+ *
+ * When adding new forcewake tables here, please also add them to
+ * intel_uncore_mock_selftests in selftests/intel_uncore.c so that they will be
+ * scanned for obvious mistakes or typos by the selftests.
+ */
+
 static const struct intel_forcewake_range __gen6_fw_ranges[] = {
 	GEN_FW_RANGE(0x0, 0x3ffff, FORCEWAKE_RENDER),
 };
 
-/* *Must* be sorted by offset ranges! See intel_fw_table_check(). */
+static const struct intel_forcewake_range __vlv_fw_ranges[] = {
+	GEN_FW_RANGE(0x2000, 0x3fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x5000, 0x7fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0xb000, 0x11fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x12000, 0x13fff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x22000, 0x23fff, FORCEWAKE_MEDIA),
+	GEN_FW_RANGE(0x2e000, 0x2ffff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x30000, 0x3ffff, FORCEWAKE_MEDIA),
+};
+
 static const struct intel_forcewake_range __chv_fw_ranges[] = {
 	GEN_FW_RANGE(0x2000, 0x3fff, FORCEWAKE_RENDER),
 	GEN_FW_RANGE(0x4000, 0x4fff, FORCEWAKE_RENDER | FORCEWAKE_MEDIA),
@@ -1131,16 +1225,6 @@ static const struct intel_forcewake_range __chv_fw_ranges[] = {
 	GEN_FW_RANGE(0x30000, 0x37fff, FORCEWAKE_MEDIA),
 };
 
-#define __fwtable_reg_write_fw_domains(uncore, offset) \
-({ \
-	enum forcewake_domains __fwd = 0; \
-	const u32 __offset = (offset); \
-	if (NEEDS_FORCE_WAKE((__offset)) && !is_shadowed(uncore, __offset)) \
-		__fwd = find_fw_domain(uncore, __offset); \
-	__fwd; \
-})
-
-/* *Must* be sorted by offset ranges! See intel_fw_table_check(). */
 static const struct intel_forcewake_range __gen9_fw_ranges[] = {
 	GEN_FW_RANGE(0x0, 0xaff, FORCEWAKE_GT),
 	GEN_FW_RANGE(0xb00, 0x1fff, 0), /* uncore range */
@@ -1176,7 +1260,6 @@ static const struct intel_forcewake_range __gen9_fw_ranges[] = {
 	GEN_FW_RANGE(0x30000, 0x3ffff, FORCEWAKE_MEDIA),
 };
 
-/* *Must* be sorted by offset ranges! See intel_fw_table_check(). */
 static const struct intel_forcewake_range __gen11_fw_ranges[] = {
 	GEN_FW_RANGE(0x0, 0x1fff, 0), /* uncore range */
 	GEN_FW_RANGE(0x2000, 0x26ff, FORCEWAKE_RENDER),
@@ -1215,14 +1298,6 @@ static const struct intel_forcewake_range __gen11_fw_ranges[] = {
 	GEN_FW_RANGE(0x1d4000, 0x1dbfff, 0)
 };
 
-/*
- * *Must* be sorted by offset ranges! See intel_fw_table_check().
- *
- * Note that the spec lists several reserved/unused ranges that don't
- * actually contain any registers.  In the table below we'll combine those
- * reserved ranges with either the preceding or following range to keep the
- * table small and lookups fast.
- */
 static const struct intel_forcewake_range __gen12_fw_ranges[] = {
 	GEN_FW_RANGE(0x0, 0x1fff, 0), /*
 		0x0   -  0xaff: reserved
@@ -1327,8 +1402,6 @@ static const struct intel_forcewake_range __gen12_fw_ranges[] = {
 /*
  * Graphics IP version 12.55 brings a slight change to the 0xd800 range,
  * switching it from the GT domain to the render domain.
- *
- * *Must* be sorted by offset ranges! See intel_fw_table_check().
  */
 #define XEHP_FWRANGES(FW_RANGE_D800)					\
 	GEN_FW_RANGE(0x0, 0x1fff, 0), /*					\
@@ -1488,6 +1561,103 @@ static const struct intel_forcewake_range __xehp_fw_ranges[] = {
 
 static const struct intel_forcewake_range __dg2_fw_ranges[] = {
 	XEHP_FWRANGES(FORCEWAKE_RENDER)
+};
+
+static const struct intel_forcewake_range __pvc_fw_ranges[] = {
+	GEN_FW_RANGE(0x0, 0xaff, 0),
+	GEN_FW_RANGE(0xb00, 0xbff, FORCEWAKE_GT),
+	GEN_FW_RANGE(0xc00, 0xfff, 0),
+	GEN_FW_RANGE(0x1000, 0x1fff, FORCEWAKE_GT),
+	GEN_FW_RANGE(0x2000, 0x26ff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x2700, 0x2fff, FORCEWAKE_GT),
+	GEN_FW_RANGE(0x3000, 0x3fff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x4000, 0x813f, FORCEWAKE_GT), /*
+		0x4000 - 0x4aff: gt
+		0x4b00 - 0x4fff: reserved
+		0x5000 - 0x51ff: gt
+		0x5200 - 0x52ff: reserved
+		0x5300 - 0x53ff: gt
+		0x5400 - 0x7fff: reserved
+		0x8000 - 0x813f: gt */
+	GEN_FW_RANGE(0x8140, 0x817f, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x8180, 0x81ff, 0),
+	GEN_FW_RANGE(0x8200, 0x94cf, FORCEWAKE_GT), /*
+		0x8200 - 0x82ff: gt
+		0x8300 - 0x84ff: reserved
+		0x8500 - 0x887f: gt
+		0x8880 - 0x8a7f: reserved
+		0x8a80 - 0x8aff: gt
+		0x8b00 - 0x8fff: reserved
+		0x9000 - 0x947f: gt
+		0x9480 - 0x94cf: reserved */
+	GEN_FW_RANGE(0x94d0, 0x955f, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0x9560, 0x967f, 0), /*
+		0x9560 - 0x95ff: always on
+		0x9600 - 0x967f: reserved */
+	GEN_FW_RANGE(0x9680, 0x97ff, FORCEWAKE_RENDER), /*
+		0x9680 - 0x96ff: render
+		0x9700 - 0x97ff: reserved */
+	GEN_FW_RANGE(0x9800, 0xcfff, FORCEWAKE_GT), /*
+		0x9800 - 0xb4ff: gt
+		0xb500 - 0xbfff: reserved
+		0xc000 - 0xcfff: gt */
+	GEN_FW_RANGE(0xd000, 0xd3ff, 0),
+	GEN_FW_RANGE(0xd400, 0xdbff, FORCEWAKE_GT),
+	GEN_FW_RANGE(0xdc00, 0xdcff, FORCEWAKE_RENDER),
+	GEN_FW_RANGE(0xdd00, 0xde7f, FORCEWAKE_GT), /*
+		0xdd00 - 0xddff: gt
+		0xde00 - 0xde7f: reserved */
+	GEN_FW_RANGE(0xde80, 0xe8ff, FORCEWAKE_RENDER), /*
+		0xde80 - 0xdeff: render
+		0xdf00 - 0xe1ff: reserved
+		0xe200 - 0xe7ff: render
+		0xe800 - 0xe8ff: reserved */
+	GEN_FW_RANGE(0xe900, 0x11fff, FORCEWAKE_GT), /*
+		 0xe900 -  0xe9ff: gt
+		 0xea00 -  0xebff: reserved
+		 0xec00 -  0xffff: gt
+		0x10000 - 0x11fff: reserved */
+	GEN_FW_RANGE(0x12000, 0x12fff, 0), /*
+		0x12000 - 0x127ff: always on
+		0x12800 - 0x12fff: reserved */
+	GEN_FW_RANGE(0x13000, 0x23fff, FORCEWAKE_GT), /*
+		0x13000 - 0x135ff: gt
+		0x13600 - 0x147ff: reserved
+		0x14800 - 0x153ff: gt
+		0x15400 - 0x19fff: reserved
+		0x1a000 - 0x1ffff: gt
+		0x20000 - 0x21fff: reserved
+		0x22000 - 0x23fff: gt */
+	GEN_FW_RANGE(0x24000, 0x2417f, 0), /*
+		24000 - 0x2407f: always on
+		24080 - 0x2417f: reserved */
+	GEN_FW_RANGE(0x24180, 0x3ffff, FORCEWAKE_GT), /*
+		0x24180 - 0x241ff: gt
+		0x24200 - 0x251ff: reserved
+		0x25200 - 0x252ff: gt
+		0x25300 - 0x25fff: reserved
+		0x26000 - 0x27fff: gt
+		0x28000 - 0x2ffff: reserved
+		0x30000 - 0x3ffff: gt */
+	GEN_FW_RANGE(0x40000, 0x1bffff, 0),
+	GEN_FW_RANGE(0x1c0000, 0x1c3fff, FORCEWAKE_MEDIA_VDBOX0), /*
+		0x1c0000 - 0x1c2bff: VD0
+		0x1c2c00 - 0x1c2cff: reserved
+		0x1c2d00 - 0x1c2dff: VD0
+		0x1c2e00 - 0x1c3eff: reserved
+		0x1c3f00 - 0x1c3fff: VD0 */
+	GEN_FW_RANGE(0x1c4000, 0x1cffff, FORCEWAKE_MEDIA_VDBOX1), /*
+		0x1c4000 - 0x1c6aff: VD1
+		0x1c6b00 - 0x1c7eff: reserved
+		0x1c7f00 - 0x1c7fff: VD1
+		0x1c8000 - 0x1cffff: reserved */
+	GEN_FW_RANGE(0x1d0000, 0x23ffff, FORCEWAKE_MEDIA_VDBOX2), /*
+		0x1d0000 - 0x1d2aff: VD2
+		0x1d2b00 - 0x1d3eff: reserved
+		0x1d3f00 - 0x1d3fff: VD2
+		0x1d4000 - 0x23ffff: reserved */
+	GEN_FW_RANGE(0x240000, 0x3dffff, 0),
+	GEN_FW_RANGE(0x3e0000, 0x3effff, FORCEWAKE_GT),
 };
 
 static void
@@ -2125,7 +2295,11 @@ static int uncore_forcewake_init(struct intel_uncore *uncore)
 
 	ASSIGN_READ_MMIO_VFUNCS(uncore, fwtable);
 
-	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 60)) {
+		ASSIGN_FW_DOMAINS_TABLE(uncore, __pvc_fw_ranges);
+		ASSIGN_SHADOW_TABLE(uncore, pvc_shadowed_regs);
+		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
+	} else if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
 		ASSIGN_FW_DOMAINS_TABLE(uncore, __dg2_fw_ranges);
 		ASSIGN_SHADOW_TABLE(uncore, dg2_shadowed_regs);
 		ASSIGN_WRITE_MMIO_VFUNCS(uncore, fwtable);
@@ -2468,118 +2642,6 @@ intel_uncore_forcewake_for_reg(struct intel_uncore *uncore,
 	drm_WARN_ON(&uncore->i915->drm, fw_domains & ~uncore->fw_domains);
 
 	return fw_domains;
-}
-
-/**
- * uncore_rw_with_mcr_steering_fw - Access a register after programming
- *				    the MCR selector register.
- * @uncore: pointer to struct intel_uncore
- * @reg: register being accessed
- * @rw_flag: FW_REG_READ for read access or FW_REG_WRITE for write access
- * @slice: slice number (ignored for multi-cast write)
- * @subslice: sub-slice number (ignored for multi-cast write)
- * @value: register value to be written (ignored for read)
- *
- * Return: 0 for write access. register value for read access.
- *
- * Caller needs to make sure the relevant forcewake wells are up.
- */
-static u32 uncore_rw_with_mcr_steering_fw(struct intel_uncore *uncore,
-					  i915_reg_t reg, u8 rw_flag,
-					  int slice, int subslice, u32 value)
-{
-	u32 mcr_mask, mcr_ss, mcr, old_mcr, val = 0;
-
-	lockdep_assert_held(&uncore->lock);
-
-	if (GRAPHICS_VER(uncore->i915) >= 11) {
-		mcr_mask = GEN11_MCR_SLICE_MASK | GEN11_MCR_SUBSLICE_MASK;
-		mcr_ss = GEN11_MCR_SLICE(slice) | GEN11_MCR_SUBSLICE(subslice);
-
-		/*
-		 * Wa_22013088509
-		 *
-		 * The setting of the multicast/unicast bit usually wouldn't
-		 * matter for read operations (which always return the value
-		 * from a single register instance regardless of how that bit
-		 * is set), but some platforms have a workaround requiring us
-		 * to remain in multicast mode for reads.  There's no real
-		 * downside to this, so we'll just go ahead and do so on all
-		 * platforms; we'll only clear the multicast bit from the mask
-		 * when exlicitly doing a write operation.
-		 */
-		if (rw_flag == FW_REG_WRITE)
-			mcr_mask |= GEN11_MCR_MULTICAST;
-	} else {
-		mcr_mask = GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK;
-		mcr_ss = GEN8_MCR_SLICE(slice) | GEN8_MCR_SUBSLICE(subslice);
-	}
-
-	old_mcr = mcr = intel_uncore_read_fw(uncore, GEN8_MCR_SELECTOR);
-
-	mcr &= ~mcr_mask;
-	mcr |= mcr_ss;
-	intel_uncore_write_fw(uncore, GEN8_MCR_SELECTOR, mcr);
-
-	if (rw_flag == FW_REG_READ)
-		val = intel_uncore_read_fw(uncore, reg);
-	else
-		intel_uncore_write_fw(uncore, reg, value);
-
-	mcr &= ~mcr_mask;
-	mcr |= old_mcr & mcr_mask;
-
-	intel_uncore_write_fw(uncore, GEN8_MCR_SELECTOR, mcr);
-
-	return val;
-}
-
-static u32 uncore_rw_with_mcr_steering(struct intel_uncore *uncore,
-				       i915_reg_t reg, u8 rw_flag,
-				       int slice, int subslice,
-				       u32 value)
-{
-	enum forcewake_domains fw_domains;
-	u32 val;
-
-	fw_domains = intel_uncore_forcewake_for_reg(uncore, reg,
-						    rw_flag);
-	fw_domains |= intel_uncore_forcewake_for_reg(uncore,
-						     GEN8_MCR_SELECTOR,
-						     FW_REG_READ | FW_REG_WRITE);
-
-	spin_lock_irq(&uncore->lock);
-	intel_uncore_forcewake_get__locked(uncore, fw_domains);
-
-	val = uncore_rw_with_mcr_steering_fw(uncore, reg, rw_flag,
-					     slice, subslice, value);
-
-	intel_uncore_forcewake_put__locked(uncore, fw_domains);
-	spin_unlock_irq(&uncore->lock);
-
-	return val;
-}
-
-u32 intel_uncore_read_with_mcr_steering_fw(struct intel_uncore *uncore,
-					   i915_reg_t reg, int slice, int subslice)
-{
-	return uncore_rw_with_mcr_steering_fw(uncore, reg, FW_REG_READ,
-					      slice, subslice, 0);
-}
-
-u32 intel_uncore_read_with_mcr_steering(struct intel_uncore *uncore,
-					i915_reg_t reg, int slice, int subslice)
-{
-	return uncore_rw_with_mcr_steering(uncore, reg, FW_REG_READ,
-					   slice, subslice, 0);
-}
-
-void intel_uncore_write_with_mcr_steering(struct intel_uncore *uncore,
-					  i915_reg_t reg, u32 value,
-					  int slice, int subslice)
-{
-	uncore_rw_with_mcr_steering(uncore, reg, FW_REG_WRITE,
-				    slice, subslice, value);
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

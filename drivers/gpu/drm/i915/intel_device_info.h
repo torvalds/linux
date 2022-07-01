@@ -143,6 +143,7 @@ enum intel_ppgtt_type {
 	func(needs_compact_pt); \
 	func(gpu_reset_clobbers_display); \
 	func(has_reset_engine); \
+	func(has_3d_pipeline); \
 	func(has_4tile); \
 	func(has_flat_ccs); \
 	func(has_global_mocs); \
@@ -150,12 +151,14 @@ enum intel_ppgtt_type {
 	func(has_heci_pxp); \
 	func(has_heci_gscfi); \
 	func(has_guc_deprivilege); \
+	func(has_l3_ccs_read); \
 	func(has_l3_dpf); \
 	func(has_llc); \
 	func(has_logical_ring_contexts); \
 	func(has_logical_ring_elsq); \
 	func(has_media_ratio_mode); \
-	func(has_mslices); \
+	func(has_mslice_steering); \
+	func(has_one_eu_per_fuse_bit); \
 	func(has_pooled_eu); \
 	func(has_pxp); \
 	func(has_rc6); \

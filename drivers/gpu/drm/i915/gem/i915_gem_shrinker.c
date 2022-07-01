@@ -36,7 +36,7 @@ static bool can_release_pages(struct drm_i915_gem_object *obj)
 	return swap_available() || obj->mm.madv == I915_MADV_DONTNEED;
 }
 
-static int drop_pages(struct drm_i915_gem_object *obj,
+static bool drop_pages(struct drm_i915_gem_object *obj,
 		       unsigned long shrink, bool trylock_vm)
 {
 	unsigned long flags;
