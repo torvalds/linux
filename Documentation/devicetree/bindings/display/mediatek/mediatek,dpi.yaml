@@ -4,14 +4,14 @@
 $id: http://devicetree.org/schemas/display/mediatek/mediatek,dpi.yaml#
 $schema: http://devicetree.org/meta-schemas/core.yaml#
 
-title: mediatek DPI and DP_INTF Controller
+title: MediaTek DPI and DP_INTF Controller
 
 maintainers:
   - CK Hu <ck.hu@mediatek.com>
   - Jitao shi <jitao.shi@mediatek.com>
 
 description: |
-  The Mediatek DPI and DP_INTF function blocks are a sink of the display
+  The MediaTek DPI and DP_INTF function blocks are a sink of the display
   subsystem and provides 8-bit RGB/YUV444 or 8/10/10-bit YUV422 pixel data on a
   parallel output bus.
 
