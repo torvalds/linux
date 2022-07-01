@@ -312,6 +312,44 @@ int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu)
 	return 0;
 }
 
+static void lan937x_config_gbit(struct ksz_device *dev, bool gbit, u8 *data)
+{
+	if (gbit)
+		*data &= ~PORT_MII_NOT_1GBIT;
+	else
+		*data |= PORT_MII_NOT_1GBIT;
+}
+
+static void lan937x_mac_config(struct ksz_device *dev, int port,
+			       phy_interface_t interface)
+{
+	u8 data8;
+
+	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &data8);
+
+	/* clear MII selection & set it based on interface later */
+	data8 &= ~PORT_MII_SEL_M;
+
+	/* configure MAC based on interface */
+	switch (interface) {
+	case PHY_INTERFACE_MODE_MII:
+		lan937x_config_gbit(dev, false, &data8);
+		data8 |= PORT_MII_SEL;
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+		lan937x_config_gbit(dev, false, &data8);
+		data8 |= PORT_RMII_SEL;
+		break;
+	default:
+		dev_err(dev->dev, "Unsupported interface '%s' for port %d\n",
+			phy_modes(interface), port);
+		return;
+	}
+
+	/* Write the updated value */
+	ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_1, data8);
+}
+
 static void lan937x_config_interface(struct ksz_device *dev, int port,
 				     int speed, int duplex,
 				     bool tx_pause, bool rx_pause)
@@ -325,9 +363,9 @@ static void lan937x_config_interface(struct ksz_device *dev, int port,
 			PORT_MII_TX_FLOW_CTRL | PORT_MII_RX_FLOW_CTRL);
 
 	if (speed == SPEED_1000)
-		xmii_ctrl1 &= ~PORT_MII_NOT_1GBIT;
+		lan937x_config_gbit(dev, true, &xmii_ctrl1);
 	else
-		xmii_ctrl1 |= PORT_MII_NOT_1GBIT;
+		lan937x_config_gbit(dev, false, &xmii_ctrl1);
 
 	if (speed == SPEED_100)
 		xmii_ctrl0 |= PORT_MII_100MBIT;
@@ -368,6 +406,22 @@ void lan937x_phylink_mac_link_up(struct ksz_device *dev, int port,
 
 	lan937x_config_interface(dev, port, speed, duplex,
 				 tx_pause, rx_pause);
+}
+
+void lan937x_phylink_mac_config(struct ksz_device *dev, int port,
+				unsigned int mode,
+				const struct phylink_link_state *state)
+{
+	/* Internal PHYs */
+	if (dev->info->internal_phy[port])
+		return;
+
+	if (phylink_autoneg_inband(mode)) {
+		dev_err(dev->dev, "In-band AN not supported!\n");
+		return;
+	}
+
+	lan937x_mac_config(dev, port, state->interface);
 }
 
 int lan937x_setup(struct dsa_switch *ds)

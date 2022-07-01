@@ -21,4 +21,7 @@ void lan937x_phylink_mac_link_up(struct ksz_device *dev, int port,
 				 unsigned int mode, phy_interface_t interface,
 				 struct phy_device *phydev, int speed,
 				 int duplex, bool tx_pause, bool rx_pause);
+void lan937x_phylink_mac_config(struct ksz_device *dev, int port,
+				unsigned int mode,
+				const struct phylink_link_state *state);
 #endif
