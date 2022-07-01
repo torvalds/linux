@@ -856,7 +856,7 @@ int audio_graph2_link_c2c(struct asoc_simple_priv *priv,
 	struct device_node *port0, *port1, *ports;
 	struct device_node *codec0_port, *codec1_port;
 	struct device_node *ep0, *ep1;
-	u32 val;
+	u32 val = 0;
 	int ret = -EINVAL;
 
 	/*
@@ -880,7 +880,8 @@ int audio_graph2_link_c2c(struct asoc_simple_priv *priv,
 	ports = of_get_parent(port0);
 	port1 = of_get_next_child(ports, lnk);
 
-	if (!of_get_property(ports, "rate", &val)) {
+	of_property_read_u32(ports, "rate", &val);
+	if (!val) {
 		struct device *dev = simple_priv_to_dev(priv);
 
 		dev_err(dev, "Codec2Codec needs rate settings\n");
