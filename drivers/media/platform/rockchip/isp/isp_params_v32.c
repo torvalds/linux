@@ -830,10 +830,6 @@ static void
 isp_cproc_config(struct rkisp_isp_params_vdev *params_vdev,
 		 const struct isp2x_cproc_cfg *arg)
 {
-	struct isp32_isp_params_cfg *params = params_vdev->isp32_params;
-	struct isp32_isp_other_cfg *cur_other_cfg = &params->others;
-	struct isp2x_ie_cfg *cur_ie_config = &cur_other_cfg->ie_cfg;
-	u32 effect = cur_ie_config->effect;
 	u32 quantization = params_vdev->quantization;
 
 	isp3_param_write(params_vdev, arg->contrast, ISP3X_CPROC_CONTRAST);
@@ -841,8 +837,7 @@ isp_cproc_config(struct rkisp_isp_params_vdev *params_vdev,
 	isp3_param_write(params_vdev, arg->sat, ISP3X_CPROC_SATURATION);
 	isp3_param_write(params_vdev, arg->brightness, ISP3X_CPROC_BRIGHTNESS);
 
-	if (quantization != V4L2_QUANTIZATION_FULL_RANGE ||
-	    effect != V4L2_COLORFX_NONE) {
+	if (quantization != V4L2_QUANTIZATION_FULL_RANGE) {
 		isp3_param_clear_bits(params_vdev, ISP3X_CPROC_CTRL,
 				      CIF_C_PROC_YOUT_FULL |
 				      CIF_C_PROC_YIN_FULL |
