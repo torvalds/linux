@@ -368,10 +368,6 @@ static const struct mtk_disp_rdma_data mt8183_rdma_driver_data = {
 	.fifo_size = 5 * SZ_1K,
 };
 
-static const struct mtk_disp_rdma_data mt8192_rdma_driver_data = {
-	.fifo_size = 5 * SZ_1K,
-};
-
 static const struct mtk_disp_rdma_data mt8195_rdma_driver_data = {
 	.fifo_size = 1920,
 };
@@ -383,8 +379,6 @@ static const struct of_device_id mtk_disp_rdma_driver_dt_match[] = {
 	  .data = &mt8173_rdma_driver_data},
 	{ .compatible = "mediatek,mt8183-disp-rdma",
 	  .data = &mt8183_rdma_driver_data},
-	{ .compatible = "mediatek,mt8192-disp-rdma",
-	  .data = &mt8192_rdma_driver_data},
 	{ .compatible = "mediatek,mt8195-disp-rdma",
 	  .data = &mt8195_rdma_driver_data},
 	{},
