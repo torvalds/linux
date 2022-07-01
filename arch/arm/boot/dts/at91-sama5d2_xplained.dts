@@ -205,10 +205,10 @@
 
 							regulator-state-mem {
 								regulator-on-in-suspend;
-								regulator-suspend-min-microvolt=<1400000>;
-								regulator-suspend-max-microvolt=<1400000>;
+								regulator-suspend-min-microvolt = <1400000>;
+								regulator-suspend-max-microvolt = <1400000>;
 								regulator-changeable-in-suspend;
-								regulator-mode=<ACT8945A_REGULATOR_MODE_LOWPOWER>;
+								regulator-mode = <ACT8945A_REGULATOR_MODE_LOWPOWER>;
 							};
 						};
 

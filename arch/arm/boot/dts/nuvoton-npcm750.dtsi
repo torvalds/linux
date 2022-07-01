@@ -51,7 +51,7 @@
 			interrupts = <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "macirq";
 			ethernet = <1>;
-			clocks	= <&clk_rg2refck>, <&clk NPCM7XX_CLK_AHB>;
+			clocks = <&clk_rg2refck>, <&clk NPCM7XX_CLK_AHB>;
 			clock-names = "stmmaceth", "clk_gmac";
 			pinctrl-names = "default";
 			pinctrl-0 = <&rg2_pins

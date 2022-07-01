@@ -186,7 +186,7 @@
 
 &pioA {
 	pinctrl_key_gpio_default: key_gpio_default {
-		pinmux=  <PIN_PA22__GPIO>,
+		pinmux = <PIN_PA22__GPIO>,
 		<PIN_PA24__GPIO>,
 		<PIN_PA26__GPIO>,
 		<PIN_PA29__GPIO>,

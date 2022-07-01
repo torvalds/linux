@@ -20,9 +20,9 @@
 
 	aliases {
 		serial0 = &uart0;	/* DBGU */
-		i2c0	= &i2c0;	/* mikroBUS 1 */
-		i2c1	= &i2c1;	/* XPRO EXT1 */
-		i2c2	= &i2c2;
+		i2c0 = &i2c0;	/* mikroBUS 1 */
+		i2c1 = &i2c1;	/* XPRO EXT1 */
+		i2c2 = &i2c2;
 	};
 
 	chosen {

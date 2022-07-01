@@ -170,7 +170,7 @@
 
 		smi: flash@ea000000 {
 			status = "okay";
-			clock-rate=<50000000>;
+			clock-rate = <50000000>;
 
 			flash@e6000000 {
 				#address-cells = <1>;

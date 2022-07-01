@@ -15,7 +15,7 @@
 	compatible = "atmel,sama5d27-som1", "atmel,sama5d27", "atmel,sama5d2", "atmel,sama5";
 
 	aliases {
-		i2c0	= &i2c0;
+		i2c0 = &i2c0;
 	};
 
 	clocks {

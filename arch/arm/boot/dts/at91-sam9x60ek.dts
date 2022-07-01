@@ -85,7 +85,7 @@
 		sw1 {
 			label = "SW1";
 			gpios = <&pioD 18 GPIO_ACTIVE_LOW>;
-			linux,code=<KEY_PROG1>;
+			linux,code = <KEY_PROG1>;
 			wakeup-source;
 		};
 	};
