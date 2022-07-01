@@ -377,6 +377,43 @@ static int otp_prog_conf(struct aspeed_otp *ctx, u32 value, u32 dw_offset, u32 b
 	return otp_prog_bit(ctx, value, prog_address, bit_offset);
 }
 
+struct aspeed_otp *glob_ctx;
+
+void otp_read_data_buf(u32 offset, u32 *buf, u32 len)
+{
+	int i, j;
+	u32 ret[2];
+
+	aspeed_otp_write(glob_ctx, OTP_PASSWD, OTP_PROTECT_KEY);
+
+	otp_soak(glob_ctx, 0);
+
+	i = offset;
+	j = 0;
+	if (offset % 2) {
+		otp_read_data_2dw(glob_ctx, i - 1, ret);
+		buf[0] = ret[1];
+		i++;
+		j++;
+	}
+	for (; j < len; i += 2, j += 2)
+		otp_read_data_2dw(glob_ctx, i, &buf[j]);
+	aspeed_otp_write(glob_ctx, 0, OTP_PROTECT_KEY);
+}
+EXPORT_SYMBOL(otp_read_data_buf);
+
+void otp_read_conf_buf(u32 offset, u32 *buf, u32 len)
+{
+	int i, j;
+
+	aspeed_otp_write(glob_ctx, OTP_PASSWD, OTP_PROTECT_KEY);
+	otp_soak(glob_ctx, 0);
+	for (i = offset, j = 0; j < len; i++, j++)
+		otp_read_conf_dw(glob_ctx, i, &buf[j]);
+	aspeed_otp_write(glob_ctx, 0, OTP_PROTECT_KEY);
+}
+EXPORT_SYMBOL(otp_read_conf_buf);
+
 static long otp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
 	struct miscdevice *c = file->private_data;
@@ -525,6 +562,7 @@ static int aspeed_otp_probe(struct platform_device *pdev)
 	int rc;
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	glob_ctx = priv;
 	if (!priv)
 		return -ENOMEM;
 
