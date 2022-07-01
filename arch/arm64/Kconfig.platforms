@@ -248,7 +248,8 @@ config ARCH_INTEL_SOCFPGA
 	bool "Intel's SoCFPGA ARMv8 Families"
 	help
 	  This enables support for Intel's SoCFPGA ARMv8 families:
-	  Stratix 10 (ex. Altera), Agilex and eASIC N5X.
+	  Stratix 10 (ex. Altera), Stratix10 Software Virtual Platform,
+	  Agilex and eASIC N5X.
 
 config ARCH_SYNQUACER
 	bool "Socionext SynQuacer SoC Family"
