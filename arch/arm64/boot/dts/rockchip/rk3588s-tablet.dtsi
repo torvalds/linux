@@ -111,6 +111,16 @@
 		status = "okay";
 	};
 
+	dp0_sound: dp0-sound {
+		status = "okay";
+		compatible = "rockchip,hdmi";
+		rockchip,card-name= "rockchip,dp0";
+		rockchip,mclk-fs = <512>;
+		rockchip,cpu = <&spdif_tx2>;
+		rockchip,codec = <&dp0 1>;
+		rockchip,jack-det;
+	};
+
 	es7202_sound_micarray: es7202-sound-micarray {
 		status = "okay";
 		compatible = "simple-audio-card";
@@ -1148,7 +1158,11 @@
 	vqmmc-supply = <&vccio_sd_s0>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdmmc_bus4 &sdmmc_clk &sdmmc_cmd &sdmmc_det>;
-	status = "disabled";
+	status = "okay";
+};
+
+&spdif_tx2 {
+	status = "okay";
 };
 
 &tsadc {
