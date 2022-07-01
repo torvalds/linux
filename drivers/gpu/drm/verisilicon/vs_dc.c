@@ -12,8 +12,8 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/vs_drm.h>
-#include<linux/reset.h>
-
+#include <linux/reset.h>
+#include <linux/pm_runtime.h>
 
 #include "vs_type.h"
 #include "vs_dc_hw.h"
@@ -23,7 +23,7 @@
 #include "vs_clock.h"
 
 #include <soc/starfive/vic7100.h>
-#include <soc/starfive/jh7110_pmu.h>
+//#include <soc/starfive/jh7110_pmu.h>
 
 #if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE
 #include <drm/drm_fourcc.h>
@@ -881,6 +881,7 @@ int drv_config_dc_4_dsi(struct vs_dc *dc, struct device *dev)//for dc_dsi config
 static void dc_deinit(struct device *dev)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
 
 	dc_hw_enable_interrupt(&dc->hw, 0);
 	dc_hw_deinit(&dc->hw);
@@ -891,7 +892,9 @@ static void dc_deinit(struct device *dev)
 	vs_dc_vouttop_resets_assert(dev, dc);
 	//vs_dc_resets_assert(dev, dc);
 	//plda_clk_rst_deinit(dev);
-	starfive_power_domain_set(POWER_DOMAIN_VOUT, 0);
+	//starfive_power_domain_set(POWER_DOMAIN_VOUT, 0);
+	pm_runtime_put_sync(&pdev->dev);
+	pm_runtime_disable(&pdev->dev);
 }
 
 
@@ -899,6 +902,7 @@ static void dc_deinit(struct device *dev)
 static int dc_init(struct device *dev)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
+	struct platform_device *pdev = to_platform_device(dev);
 	int ret;
 
 	dc->first_frame = true;
@@ -909,7 +913,13 @@ static int dc_init(struct device *dev)
 		return ret;
 	}
 
-	starfive_power_domain_set(POWER_DOMAIN_VOUT, 1);
+	//starfive_power_domain_set(POWER_DOMAIN_VOUT, 1);
+	pm_runtime_enable(&pdev->dev);
+	ret = pm_runtime_get_sync(&pdev->dev);
+	if (ret < 0) {
+		dev_err(&pdev->dev, "dc_init: failed to get pm runtime: %d\n", ret);
+		return ret;
+	}
 
 	//ret = plda_clk_rst_init(dev);
 	ret = dc_vout_clk_rst_init(dev, dc);
