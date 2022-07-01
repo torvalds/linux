@@ -833,6 +833,7 @@
 				 <&rstgen RSTN_U0_CODAJ12_CORE>,
 				 <&rstgen RSTN_U0_CODAJ12_APB>;
 			reset-names = "rst_axi", "rst_core", "rst_apb";
+			power-domains = <&pwrc JH7110_PD_VDEC>;
 			status = "disabled";
 		};
 
@@ -855,6 +856,7 @@
 			reset-names = "rst_axi", "rst_bpu", "rst_vce",
 				      "rst_apb", "rst_sram";
 			starfive,vdec_noc_ctrl;
+			power-domains = <&pwrc JH7110_PD_VDEC>;
 			status = "disabled";
 		};
 
@@ -877,6 +879,7 @@
 			reset-names = "rst_axi", "rst_bpu", "rst_vce",
 				      "rst_apb", "rst_sram";
 			starfive,venc_noc_ctrl;
+			power-domains = <&pwrc JH7110_PD_VENC>;
 			status = "disabled";
 		};
 
