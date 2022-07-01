@@ -118,6 +118,15 @@ struct mtk_dpi_yc_limit {
 	u16 c_bottom;
 };
 
+/**
+ * struct mtk_dpi_conf - Configuration of mediatek dpi.
+ * @cal_factor: Callback function to calculate factor value.
+ * @reg_h_fre_con: Register address of frequency control.
+ * @max_clock_khz: Max clock frequency supported for this SoCs in khz units.
+ * @edge_sel_en: Enable of edge selection.
+ * @output_fmts: Array of supported output formats.
+ * @num_output_fmts: Quantity of supported output formats.
+ */
 struct mtk_dpi_conf {
 	unsigned int (*cal_factor)(int clock);
 	u32 reg_h_fre_con;
