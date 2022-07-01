@@ -4045,7 +4045,7 @@ struct ieee80211_prep_tx_info {
  *	removing the old link information is still valid (link_conf pointer),
  *	but may immediately disappear after the function returns. The old or
  *	new links bitmaps may be 0 if going from/to a non-MLO situation.
- *	The @old[] array contains pointers to the old bss_conf structures
+ *	The @old array contains pointers to the old bss_conf structures
  *	that were already removed, in case they're needed.
  *	This callback can sleep.
  * @change_sta_links: Change the valid links of a station, similar to
