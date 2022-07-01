@@ -89,7 +89,6 @@ examples:
 
       #address-cells = <1>;
       #size-cells = <0>;
-      v-i2c-supply = <&db8500_vape_reg>;
 
       clock-frequency = <400000>;
       clocks = <&prcc_kclk 3 3>, <&prcc_pclk 3 3>;
