@@ -23,7 +23,6 @@
 #include "vs_clock.h"
 
 #include <soc/starfive/vic7100.h>
-//#include <soc/starfive/jh7110_pmu.h>
 
 #if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE
 #include <drm/drm_fourcc.h>
@@ -892,7 +891,6 @@ static void dc_deinit(struct device *dev)
 	vs_dc_vouttop_resets_assert(dev, dc);
 	//vs_dc_resets_assert(dev, dc);
 	//plda_clk_rst_deinit(dev);
-	//starfive_power_domain_set(POWER_DOMAIN_VOUT, 0);
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 }
@@ -913,7 +911,6 @@ static int dc_init(struct device *dev)
 		return ret;
 	}
 
-	//starfive_power_domain_set(POWER_DOMAIN_VOUT, 1);
 	pm_runtime_enable(&pdev->dev);
 	ret = pm_runtime_get_sync(&pdev->dev);
 	if (ret < 0) {
