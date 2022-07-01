@@ -265,6 +265,19 @@ static int sensor_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+static int sensor_s_frame_interval(struct v4l2_subdev *sd,
+				   struct v4l2_subdev_frame_interval *fi)
+{
+	struct sensor *sensor = to_sensor(sd);
+	struct sensor_mode *mode = sensor->cur_mode;
+
+	mutex_lock(&sensor->mutex);
+	mode->max_fps = fi->interval;
+	mutex_unlock(&sensor->mutex);
+
+	return 0;
+}
+
 static int sensor_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				struct v4l2_mbus_config *config)
 {
@@ -534,11 +547,11 @@ static long sensor_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_SET_REGISTER:
 		reg_s = (struct rkmodule_reg *)arg;
 		if (reg_s->num_regs == 0) {
-			dev_err(&sensor->client->dev, "sensor reg array num %d\n", reg_s->num_regs);
+			dev_err(&sensor->client->dev, "sensor reg array num %llu\n", reg_s->num_regs);
 			return -EINVAL;
 		}
 
-		dev_dbg(&sensor->client->dev, "sensor reg array num %d\n",
+		dev_dbg(&sensor->client->dev, "sensor reg array num %llu\n",
 			 reg_s->num_regs);
 		lens = sizeof(u32) * reg_s->num_regs;
 		preg_addr = kzalloc(lens, GFP_KERNEL);
@@ -1141,6 +1154,7 @@ static const struct v4l2_subdev_core_ops sensor_core_ops = {
 static const struct v4l2_subdev_video_ops sensor_video_ops = {
 	.s_stream = sensor_s_stream,
 	.g_frame_interval = sensor_g_frame_interval,
+	.s_frame_interval = sensor_s_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops sensor_pad_ops = {
