@@ -22,8 +22,8 @@ struct stat {
 	__kernel_ino_t	st_ino;
 	__kernel_mode_t	st_mode;
 	__u32		st_nlink;
-	__kernel_uid_t	st_uid;
-	__kernel_gid_t	st_gid;
+	__kernel_uid32_t st_uid;
+	__kernel_gid32_t st_gid;
 	unsigned	st_rdev;
 	long		st_pad2[2];
 	long		st_size;
@@ -58,8 +58,8 @@ struct stat64 {
 	__kernel_mode_t	st_mode;
 	__u32		st_nlink;
 
-	__kernel_uid_t	st_uid;
-	__kernel_gid_t	st_gid;
+	__kernel_uid32_t st_uid;
+	__kernel_gid32_t st_gid;
 
 	unsigned long	st_rdev;
 	unsigned long	st_pad1[3];	/* Reserved for st_rdev expansion  */
@@ -99,8 +99,8 @@ struct stat {
 	__kernel_mode_t		st_mode;
 	__u32			st_nlink;
 
-	__kernel_uid_t		st_uid;
-	__kernel_gid_t		st_gid;
+	__kernel_uid32_t	st_uid;
+	__kernel_gid32_t	st_gid;
 
 	unsigned int		st_rdev;
 	unsigned int		st_pad1[3]; /* Reserved for st_rdev expansion */
