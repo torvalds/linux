@@ -839,6 +839,120 @@ static void ieee80211_assoc_add_rates(struct sk_buff *skb,
 	}
 }
 
+static size_t ieee80211_add_before_ht_elems(struct sk_buff *skb,
+					    const u8 *elems,
+					    size_t elems_len,
+					    size_t offset)
+{
+	size_t noffset;
+
+	static const u8 before_ht[] = {
+		WLAN_EID_SSID,
+		WLAN_EID_SUPP_RATES,
+		WLAN_EID_EXT_SUPP_RATES,
+		WLAN_EID_PWR_CAPABILITY,
+		WLAN_EID_SUPPORTED_CHANNELS,
+		WLAN_EID_RSN,
+		WLAN_EID_QOS_CAPA,
+		WLAN_EID_RRM_ENABLED_CAPABILITIES,
+		WLAN_EID_MOBILITY_DOMAIN,
+		WLAN_EID_FAST_BSS_TRANSITION,	/* reassoc only */
+		WLAN_EID_RIC_DATA,		/* reassoc only */
+		WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
+	};
+	static const u8 after_ric[] = {
+		WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
+		WLAN_EID_HT_CAPABILITY,
+		WLAN_EID_BSS_COEX_2040,
+		/* luckily this is almost always there */
+		WLAN_EID_EXT_CAPABILITY,
+		WLAN_EID_QOS_TRAFFIC_CAPA,
+		WLAN_EID_TIM_BCAST_REQ,
+		WLAN_EID_INTERWORKING,
+		/* 60 GHz (Multi-band, DMG, MMS) can't happen */
+		WLAN_EID_VHT_CAPABILITY,
+		WLAN_EID_OPMODE_NOTIF,
+	};
+
+	if (!elems_len)
+		return offset;
+
+	noffset = ieee80211_ie_split_ric(elems, elems_len,
+					 before_ht,
+					 ARRAY_SIZE(before_ht),
+					 after_ric,
+					 ARRAY_SIZE(after_ric),
+					 offset);
+	skb_put_data(skb, elems + offset, noffset - offset);
+
+	return noffset;
+}
+
+static size_t ieee80211_add_before_vht_elems(struct sk_buff *skb,
+					     const u8 *elems,
+					     size_t elems_len,
+					     size_t offset)
+{
+	static const u8 before_vht[] = {
+		/*
+		 * no need to list the ones split off before HT
+		 * or generated here
+		 */
+		WLAN_EID_BSS_COEX_2040,
+		WLAN_EID_EXT_CAPABILITY,
+		WLAN_EID_QOS_TRAFFIC_CAPA,
+		WLAN_EID_TIM_BCAST_REQ,
+		WLAN_EID_INTERWORKING,
+		/* 60 GHz (Multi-band, DMG, MMS) can't happen */
+	};
+	size_t noffset;
+
+	if (!elems_len)
+		return offset;
+
+	/* RIC already taken care of in ieee80211_add_before_ht_elems() */
+	noffset = ieee80211_ie_split(elems, elems_len,
+				     before_vht, ARRAY_SIZE(before_vht),
+				     offset);
+	skb_put_data(skb, elems + offset, noffset - offset);
+
+	return noffset;
+}
+
+static size_t ieee80211_add_before_he_elems(struct sk_buff *skb,
+					    const u8 *elems,
+					    size_t elems_len,
+					    size_t offset)
+{
+	static const u8 before_he[] = {
+		/*
+		 * no need to list the ones split off before VHT
+		 * or generated here
+		 */
+		WLAN_EID_OPMODE_NOTIF,
+		WLAN_EID_EXTENSION, WLAN_EID_EXT_FUTURE_CHAN_GUIDANCE,
+		/* 11ai elements */
+		WLAN_EID_EXTENSION, WLAN_EID_EXT_FILS_SESSION,
+		WLAN_EID_EXTENSION, WLAN_EID_EXT_FILS_PUBLIC_KEY,
+		WLAN_EID_EXTENSION, WLAN_EID_EXT_FILS_KEY_CONFIRM,
+		WLAN_EID_EXTENSION, WLAN_EID_EXT_FILS_HLP_CONTAINER,
+		WLAN_EID_EXTENSION, WLAN_EID_EXT_FILS_IP_ADDR_ASSIGN,
+		/* TODO: add 11ah/11aj/11ak elements */
+	};
+	size_t noffset;
+
+	if (!elems_len)
+		return offset;
+
+	/* RIC already taken care of in ieee80211_add_before_ht_elems() */
+	noffset = ieee80211_ie_split(elems, elems_len,
+				     before_he, ARRAY_SIZE(before_he),
+				     offset);
+	skb_put_data(skb, elems + offset, noffset - offset);
+
+	return noffset;
+}
+
 static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
@@ -994,45 +1108,9 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		ext_capa->data[2] |= WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT;
 
 	/* if present, add any custom IEs that go before HT */
-	if (assoc_data->ie_len) {
-		static const u8 before_ht[] = {
-			WLAN_EID_SSID,
-			WLAN_EID_SUPP_RATES,
-			WLAN_EID_EXT_SUPP_RATES,
-			WLAN_EID_PWR_CAPABILITY,
-			WLAN_EID_SUPPORTED_CHANNELS,
-			WLAN_EID_RSN,
-			WLAN_EID_QOS_CAPA,
-			WLAN_EID_RRM_ENABLED_CAPABILITIES,
-			WLAN_EID_MOBILITY_DOMAIN,
-			WLAN_EID_FAST_BSS_TRANSITION,	/* reassoc only */
-			WLAN_EID_RIC_DATA,		/* reassoc only */
-			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
-		};
-		static const u8 after_ric[] = {
-			WLAN_EID_SUPPORTED_REGULATORY_CLASSES,
-			WLAN_EID_HT_CAPABILITY,
-			WLAN_EID_BSS_COEX_2040,
-			/* luckily this is almost always there */
-			WLAN_EID_EXT_CAPABILITY,
-			WLAN_EID_QOS_TRAFFIC_CAPA,
-			WLAN_EID_TIM_BCAST_REQ,
-			WLAN_EID_INTERWORKING,
-			/* 60 GHz (Multi-band, DMG, MMS) can't happen */
-			WLAN_EID_VHT_CAPABILITY,
-			WLAN_EID_OPMODE_NOTIF,
-		};
-
-		noffset = ieee80211_ie_split_ric(assoc_data->ie,
-						 assoc_data->ie_len,
-						 before_ht,
-						 ARRAY_SIZE(before_ht),
-						 after_ric,
-						 ARRAY_SIZE(after_ric),
-						 offset);
-		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
-		offset = noffset;
-	}
+	offset = ieee80211_add_before_ht_elems(skb, assoc_data->ie,
+					       assoc_data->ie_len,
+					       offset);
 
 	if (WARN_ON_ONCE((link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT) &&
 			 !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT)))
@@ -1044,54 +1122,9 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 				    sband, chan, link->smps_mode);
 
 	/* if present, add any custom IEs that go before VHT */
-	if (assoc_data->ie_len) {
-		static const u8 before_vht[] = {
-			/*
-			 * no need to list the ones split off before HT
-			 * or generated here
-			 */
-			WLAN_EID_BSS_COEX_2040,
-			WLAN_EID_EXT_CAPABILITY,
-			WLAN_EID_QOS_TRAFFIC_CAPA,
-			WLAN_EID_TIM_BCAST_REQ,
-			WLAN_EID_INTERWORKING,
-			/* 60 GHz (Multi-band, DMG, MMS) can't happen */
-		};
-
-		/* RIC already taken above, so no need to handle here anymore */
-		noffset = ieee80211_ie_split(assoc_data->ie, assoc_data->ie_len,
-					     before_vht, ARRAY_SIZE(before_vht),
-					     offset);
-		skb_put_data(skb, assoc_data->ie + offset, noffset - offset);
-		offset = noffset;
-	}
-
-	/* if present, add any custom IEs that go before HE */
-	if (assoc_data->ie_len) {
-		static const u8 before_he[] = {
-			/*
-			 * no need to list the ones split off before VHT
-			 * or generated here
-			 */
-			WLAN_EID_OPMODE_NOTIF,
-			WLAN_EID_EXTENSION, WLAN_EID_EXT_FUTURE_CHAN_GUIDANCE,
-			/* 11ai elements */
-			WLAN_EID_EXTENSION, WLAN_EID_EXT_FILS_SESSION,
-			WLAN_EID_EXTENSION, WLAN_EID_EXT_FILS_PUBLIC_KEY,
-			WLAN_EID_EXTENSION, WLAN_EID_EXT_FILS_KEY_CONFIRM,
-			WLAN_EID_EXTENSION, WLAN_EID_EXT_FILS_HLP_CONTAINER,
-			WLAN_EID_EXTENSION, WLAN_EID_EXT_FILS_IP_ADDR_ASSIGN,
-			/* TODO: add 11ah/11aj/11ak elements */
-		};
-
-		/* RIC already taken above, so no need to handle here anymore */
-		noffset = ieee80211_ie_split(assoc_data->ie, assoc_data->ie_len,
-					     before_he, ARRAY_SIZE(before_he),
-					     offset);
-		pos = skb_put(skb, noffset - offset);
-		memcpy(pos, assoc_data->ie + offset, noffset - offset);
-		offset = noffset;
-	}
+	offset = ieee80211_add_before_vht_elems(skb, assoc_data->ie,
+						assoc_data->ie_len,
+						offset);
 
 	if (sband->band != NL80211_BAND_6GHZ &&
 	    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
@@ -1107,6 +1140,11 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	     link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
 		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE |
 						   IEEE80211_CONN_DISABLE_EHT;
+
+	/* if present, add any custom IEs that go before HE */
+	offset = ieee80211_add_before_he_elems(skb, assoc_data->ie,
+					       assoc_data->ie_len,
+					       offset);
 
 	if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE)) {
 		ieee80211_add_he_ie(link, skb, sband);
