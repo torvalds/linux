@@ -17,7 +17,6 @@ enum hw_variables {
 	HW_VAR_DM_FUNC_OP,
 	HW_VAR_DM_FUNC_RESET,
 	HW_VAR_DM_FUNC_CLR,
-	HW_VAR_AMPDU_FACTOR,
 };
 
 typedef s32 (*c2h_id_filter)(u8 id);

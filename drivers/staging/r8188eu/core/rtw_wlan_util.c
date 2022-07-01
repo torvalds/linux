@@ -805,6 +805,32 @@ static void set_min_ampdu_spacing(struct adapter *adapter, u8 spacing)
 	}
 }
 
+static void set_ampdu_factor(struct adapter *adapter, u8 factor)
+{
+	u8 RegToSet_Normal[4] = {0x41, 0xa8, 0x72, 0xb9};
+	u8 FactorToSet;
+	u8 *pRegToSet;
+	u8 index = 0;
+
+	pRegToSet = RegToSet_Normal; /*  0xb972a841; */
+	FactorToSet = factor;
+	if (FactorToSet <= 3) {
+		FactorToSet = (1 << (FactorToSet + 2));
+		if (FactorToSet > 0xf)
+			FactorToSet = 0xf;
+
+		for (index = 0; index < 4; index++) {
+			if ((pRegToSet[index] & 0xf0) > (FactorToSet << 4))
+				pRegToSet[index] = (pRegToSet[index] & 0x0f) | (FactorToSet << 4);
+
+			if ((pRegToSet[index] & 0x0f) > FactorToSet)
+				pRegToSet[index] = (pRegToSet[index] & 0xf0) | (FactorToSet);
+
+			rtw_write8(adapter, (REG_AGGLEN_LMT + index), pRegToSet[index]);
+		}
+	}
+}
+
 void HTOnAssocRsp(struct adapter *padapter)
 {
 	unsigned char		max_AMPDU_len;
@@ -831,7 +857,7 @@ void HTOnAssocRsp(struct adapter *padapter)
 
 	set_min_ampdu_spacing(padapter, min_MPDU_spacing);
 
-	SetHwReg8188EU(padapter, HW_VAR_AMPDU_FACTOR, (u8 *)(&max_AMPDU_len));
+	set_ampdu_factor(padapter, max_AMPDU_len);
 }
 
 void ERP_IE_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
