@@ -510,8 +510,48 @@ exit:
 	return ret;
 }
 
+/*Try to match sensor format with sink, and then get the index as default.*/
+static int isp_match_sensor_format_get_index(struct stf_isp_dev *isp_dev)
+{
+	int ret, idx;
+	struct media_entity *sensor;
+	struct v4l2_subdev *subdev;
+	struct v4l2_subdev_format fmt;
+	const struct isp_format_table *formats;
 
-static int isp_match_format_get_index(struct isp_format_table *f_table,
+	if (!isp_dev)
+		return -EINVAL;
+
+	sensor = stfcamss_find_sensor(&isp_dev->subdev.entity);
+	if (!sensor)
+		return -EINVAL;
+
+	subdev = media_entity_to_v4l2_subdev(sensor);
+	st_debug(ST_ISP, "Found sensor = %s\n", sensor->name);
+
+	fmt.pad = 0;
+	fmt.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+	ret = v4l2_subdev_call(subdev, pad, get_fmt, NULL, &fmt);
+	if (ret) {
+		st_warn(ST_ISP, "Sonser get format failed !!\n");
+		return -EINVAL;
+	}
+
+	st_debug(ST_ISP, "Got sensor format 0x%x !!\n", fmt.format.code);
+
+	formats = &isp_dev->formats[SINK_FORMATS_INDEX];
+	for (idx = 0; idx < formats->nfmts; idx++) {
+		if (formats->fmts[idx].code == fmt.format.code) {
+			st_info(ST_ISP,
+				"Match sensor format to isp_formats_st7110_sink index %d !!\n",
+				idx);
+			return idx;
+		}
+	}
+	return -ERANGE;
+}
+
+static int isp_match_format_get_index(const struct isp_format_table *f_table,
 			__u32 mbus_code,
 			unsigned int pad)
 {
@@ -580,6 +620,16 @@ static void isp_try_format(struct stf_isp_dev *isp_dev,
 	}
 
 	i = isp_match_format_get_index(formats, fmt->code, pad);
+	st_debug(ST_ISP, "isp_match_format_get_index = %d\n", i);
+
+	if (i >= formats->nfmts &&
+		(pad == STF_ISP_PAD_SRC_RAW || pad == STF_ISP_PAD_SRC_SCD_Y)) {
+		int sensor_idx;
+
+		sensor_idx = isp_match_sensor_format_get_index(isp_dev);
+		if (sensor_idx)
+			i = sensor_idx;
+	}
 
 	if (pad != STF_ISP_PAD_SINK)
 		*fmt = *__isp_get_format(isp_dev, state, STF_ISP_PAD_SINK, which);
@@ -587,19 +637,18 @@ static void isp_try_format(struct stf_isp_dev *isp_dev,
 	if (i >= formats->nfmts) {
 		fmt->code = formats->fmts[0].code;
 		bpp = formats->fmts[0].bpp;
+		st_info(ST_ISP, "Use default index 0 format = 0x%x\n", fmt->code);
 	} else {
 		// sink format and raw format must one by one
-		if (pad == STF_ISP_PAD_SRC_RAW) {
-			formats = &isp_dev->formats[SINK_FORMATS_INDEX];
-			for (i = 0; i < formats->nfmts; i++)
-				if (fmt->code == formats->fmts[i].code)
-					break;
-			formats = &isp_dev->formats[RAW_FORMATS_INDEX];
+		if (pad == STF_ISP_PAD_SRC_RAW || pad == STF_ISP_PAD_SRC_SCD_Y) {
 			fmt->code = formats->fmts[i].code;
 			bpp = formats->fmts[i].bpp;
+			st_info(ST_ISP, "Use mapping format from sink index %d = 0x%x\n",
+					i, fmt->code);
 		} else {
 			fmt->code = code;
 			bpp = formats->fmts[i].bpp;
+			st_info(ST_ISP, "Use input format = 0x%x\n", fmt->code);
 		}
 	}
 

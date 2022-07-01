@@ -169,6 +169,9 @@ struct media_entity *stfcamss_find_sensor(struct media_entity *entity)
 	struct media_pad *pad;
 
 	while (1) {
+		if (!entity->pads)
+			return NULL;
+
 		pad = &entity->pads[0];
 		if (!(pad->flags & MEDIA_PAD_FL_SINK))
 			return NULL;
