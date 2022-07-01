@@ -2,6 +2,7 @@
 
 #include <linux/compat.h>
 #include <linux/context_tracking.h>
+#include <linux/randomize_kstack.h>
 
 #include <asm/interrupt.h>
 #include <asm/kup.h>
@@ -18,10 +19,12 @@ notrace long system_call_exception(long r3, long r4, long r5,
 				   long r6, long r7, long r8,
 				   unsigned long r0, struct pt_regs *regs)
 {
+	long ret;
 	syscall_fn f;
 
 	kuap_lock();
 
+	add_random_kstack_offset();
 	regs->orig_gpr3 = r3;
 
 	if (IS_ENABLED(CONFIG_PPC_IRQ_SOFT_MASK_DEBUG))
@@ -169,5 +172,19 @@ notrace long system_call_exception(long r3, long r4, long r5,
 		f = (void *)sys_call_table[r0];
 	}
 
-	return f(r3, r4, r5, r6, r7, r8);
+	ret = f(r3, r4, r5, r6, r7, r8);
+
+	/*
+	 * Ultimately, this value will get limited by KSTACK_OFFSET_MAX(),
+	 * so the maximum stack offset is 1k bytes (10 bits).
+	 *
+	 * The actual entropy will be further reduced by the compiler when
+	 * applying stack alignment constraints: the powerpc architecture
+	 * may have two kinds of stack alignment (16-bytes and 8-bytes).
+	 *
+	 * So the resulting 6 or 7 bits of entropy is seen in SP[9:4] or SP[9:3].
+	 */
+	choose_random_kstack_offset(mftb());
+
+	return ret;
 }
