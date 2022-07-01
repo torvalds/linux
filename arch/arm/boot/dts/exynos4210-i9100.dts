@@ -89,21 +89,21 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		vol-down {
+		key-vol-down {
 			gpios = <&gpx2 1 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
 			label = "volume down";
 			debounce-interval = <10>;
 		};
 
-		vol-up {
+		key-vol-up {
 			gpios = <&gpx2 0 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
 			label = "volume up";
 			debounce-interval = <10>;
 		};
 
-		power {
+		key-power {
 			gpios = <&gpx2 7 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
 			label = "power";
@@ -111,7 +111,7 @@
 			wakeup-source;
 		};
 
-		ok {
+		key-ok {
 			gpios = <&gpx3 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_OK>;
 			label = "ok";

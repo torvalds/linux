@@ -32,7 +32,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&power_key_irq &lid_irq>;
 
-		power {
+		power-key {
 			label = "Power";
 			gpios = <&gpx1 3 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
