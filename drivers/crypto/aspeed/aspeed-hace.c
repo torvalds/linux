@@ -276,12 +276,6 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 		}
 	}
 
-	err = aspeed_hace_register(hace_dev);
-	if (err) {
-		dev_err(dev, "err in register alg");
-		return err;
-	}
-
 	if (of_find_property(dev->of_node, "dummy-key1", NULL)) {
 		dummy_key1 = kzalloc(DUMMY_KEY_SIZE, GFP_KERNEL);
 		if (dummy_key1) {
@@ -308,6 +302,12 @@ static int aspeed_hace_probe(struct platform_device *pdev)
 		hace_dev->sec_regs = of_iomap(sec_node, 0);
 		if (!hace_dev->sec_regs)
 			dev_err(dev, "[%s:%d] failed to map SEC registers\n", __func__, __LINE__);
+	}
+
+	err = aspeed_hace_register(hace_dev);
+	if (err) {
+		dev_err(dev, "err in register alg");
+		return err;
 	}
 
 	dev_info(dev, "ASPEED Crypto Accelerator successfully registered\n");
