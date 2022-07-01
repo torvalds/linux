@@ -2824,6 +2824,7 @@ lpfc_nvme_cancel_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	wcqep->word0 = 0;
 	bf_set(lpfc_wcqe_c_status, wcqep, stat);
 	wcqep->parameter = param;
+	wcqep->total_data_placed = 0;
 	wcqep->word3 = 0; /* xb is 0 */
 
 	/* Call release with XB=1 to queue the IO into the abort list. */
