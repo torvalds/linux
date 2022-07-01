@@ -171,6 +171,7 @@ static int rockchip_snd_txctrl(struct rk_i2s_dev *i2s, int on)
 				retry--;
 				if (!retry) {
 					dev_warn(i2s->dev, "fail to clear\n");
+					ret = -EBUSY;
 					break;
 				}
 			}
@@ -232,6 +233,7 @@ static int rockchip_snd_rxctrl(struct rk_i2s_dev *i2s, int on)
 				retry--;
 				if (!retry) {
 					dev_warn(i2s->dev, "fail to clear\n");
+					ret = -EBUSY;
 					break;
 				}
 			}
