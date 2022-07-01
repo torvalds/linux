@@ -8016,7 +8016,7 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 		}
 	} else {
 		rkcif_send_sof(cif_dev);
-		if (cif_dev->sditf[0]->toisp_inf.link_mode == TOISP_NONE)
+		if (!cif_dev->sditf[0] || cif_dev->sditf[0]->toisp_inf.link_mode == TOISP_NONE)
 			detect_stream->frame_idx++;
 	}
 }
