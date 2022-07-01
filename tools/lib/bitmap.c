@@ -57,7 +57,7 @@ size_t bitmap_scnprintf(unsigned long *bitmap, unsigned int nbits,
 	return ret;
 }
 
-int __bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
+bool __bitmap_and(unsigned long *dst, const unsigned long *bitmap1,
 		 const unsigned long *bitmap2, unsigned int bits)
 {
 	unsigned int k;
