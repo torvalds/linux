@@ -248,6 +248,7 @@ struct xfs_cil_ctx {
  */
 struct xfs_cil {
 	struct xlog		*xc_log;
+	unsigned long		xc_flags;
 	struct list_head	xc_cil;
 	spinlock_t		xc_cil_lock;
 	struct workqueue_struct	*xc_push_wq;
@@ -264,6 +265,9 @@ struct xfs_cil {
 	xfs_csn_t		xc_current_sequence;
 	wait_queue_head_t	xc_push_wait;	/* background push throttle */
 } ____cacheline_aligned_in_smp;
+
+/* xc_flags bit values */
+#define	XLOG_CIL_EMPTY		1
 
 /*
  * The amount of log space we allow the CIL to aggregate is difficult to size.
