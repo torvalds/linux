@@ -72,6 +72,19 @@ struct jh7110_pmu_data {
 	unsigned int flags;
 };
 
+static void __iomem *pmu_base;
+
+static inline void pmu_writel(u32 val, u32 offset)
+{
+	writel(val, pmu_base + offset);
+}
+
+void starfive_pmu_hw_event_turn_off_mask(u32 mask)
+{
+	pmu_writel(mask, HW_EVENT_TURN_OFF_MASK);
+}
+EXPORT_SYMBOL(starfive_pmu_hw_event_turn_off_mask);
+
 static int jh7110_pmu_get_state(struct jh7110_power_dev *pmd, bool *is_on)
 {
 	struct jh7110_pmu *pmu = pmd->power;
@@ -208,7 +221,7 @@ static int jh7110_pmu_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	pmu->base = devm_ioremap_resource(&pdev->dev, res);
+	pmu_base = pmu->base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(pmu->base))
 		return PTR_ERR(pmu->base);
 
