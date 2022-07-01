@@ -769,7 +769,7 @@ int rtllib_wx_set_gen_ie(struct rtllib_device *ieee, u8 *ie, size_t len)
 	kfree(ieee->wps_ie);
 	ieee->wps_ie = NULL;
 	if (len) {
-		if (len != ie[1]+2)
+		if (len != ie[1] + 2)
 			return -EINVAL;
 		buf = kmemdup(ie, len, GFP_KERNEL);
 		if (!buf)
