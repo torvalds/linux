@@ -17,7 +17,13 @@
 
 #define CPU_ALL_GP(fn, sfx)								\
 	PORT_GP_CFG_19(0,	fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE_18_33),	\
-	PORT_GP_CFG_29(1,	fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE_18_33),	\
+	PORT_GP_CFG_23(1,	fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE_18_33),	\
+	PORT_GP_CFG_1(1, 23,	fn, sfx, CFG_FLAGS),					\
+	PORT_GP_CFG_1(1, 24,	fn, sfx, CFG_FLAGS),					\
+	PORT_GP_CFG_1(1, 25,	fn, sfx, CFG_FLAGS),					\
+	PORT_GP_CFG_1(1, 26,	fn, sfx, CFG_FLAGS),					\
+	PORT_GP_CFG_1(1, 27,	fn, sfx, CFG_FLAGS),					\
+	PORT_GP_CFG_1(1, 28,	fn, sfx, CFG_FLAGS),					\
 	PORT_GP_CFG_20(2,	fn, sfx, CFG_FLAGS),					\
 	PORT_GP_CFG_13(3,	fn, sfx, CFG_FLAGS | SH_PFC_PIN_CFG_IO_VOLTAGE_18_33),	\
 	PORT_GP_CFG_1(3, 13,	fn, sfx, CFG_FLAGS),					\
@@ -3650,7 +3656,7 @@ static int r8a779g0_pin_to_pocctrl(unsigned int pin, u32 *pocctrl)
 		return bit;
 
 	*pocctrl = pinmux_ioctrl_regs[POC1].reg;
-	if (pin >= RCAR_GP_PIN(1, 0) && pin <= RCAR_GP_PIN(1, 28))
+	if (pin >= RCAR_GP_PIN(1, 0) && pin <= RCAR_GP_PIN(1, 22))
 		return bit;
 
 	*pocctrl = pinmux_ioctrl_regs[POC3].reg;
