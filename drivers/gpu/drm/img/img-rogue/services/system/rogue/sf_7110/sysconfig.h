@@ -70,6 +70,7 @@ struct sf7110_cfg {
 
 	/* for gpu device freq/volt update, to be fill later */
 	//struct clk **top_clk;
+	struct device *dev;
 };
 
 #define mk_crg_offset(x)  ((x) - (U0_SYS_CRG__SAIF_BD_APBS__BASE_ADDR))

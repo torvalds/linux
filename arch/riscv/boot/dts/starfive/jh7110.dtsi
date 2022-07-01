@@ -998,6 +998,7 @@
 			resets = <&rstgen RSTN_U0_IMG_GPU_APB>,
 				 <&rstgen RSTN_U0_IMG_GPU_DOMA>;
 			reset-names = "rst_apb", "rst_doma";
+			power-domains = <&pwrc JH7110_PD_GPUA>;
 			interrupts = <82>;
 			current-clock = <8000000>;
 			status = "disabled";

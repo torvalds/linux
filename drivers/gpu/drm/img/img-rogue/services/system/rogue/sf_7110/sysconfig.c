@@ -67,7 +67,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 #include "linux/highmem.h"
 
 #include "kernel_compatibility.h"
-
+#include <linux/pm_runtime.h>
 
 struct sf7110_cfg  sf_cfg_t = {0,};
 
@@ -226,6 +226,7 @@ static int create_sf7110_cfg(struct device *dev)
 {
 	struct sf7110_cfg *psf = &sf_cfg_t;
 
+	psf->dev = dev;
 	mutex_init(&psf->set_power_state);
 	psf->gpu_reg_base = ioremap(STARFIVE_7110_GPU_PBASE, STARFIVE_7110_GPU_SIZE);
 	if(!psf->gpu_reg_base)
@@ -308,8 +309,14 @@ void u0_img_gpu_disable(void)
 
 static int sys_gpu_enable(void)
 {
-	//FIXME: PMU operation shall be implemented in its own module
-	starfive_power_domain_set(POWER_DOMAIN_GPUA,1);
+	int ret;
+	
+	pm_runtime_enable(sf_cfg_t.dev);
+	ret = pm_runtime_get_sync(sf_cfg_t.dev);
+	if (ret < 0) {
+		dev_err(sf_cfg_t.dev, "gpu: failed to get pm runtime: %d\n", ret);
+		return ret;
+	}
 	starfive_pmu_hw_event_turn_off_mask(0);
 	clk_prepare_enable(sf_cfg_t.clk_axi);
 	u0_img_gpu_enable();
@@ -320,7 +327,8 @@ static int sys_gpu_disable(void)
 {
 	u0_img_gpu_disable();
 	starfive_pmu_hw_event_turn_off_mask((uint32_t)-1);
-	starfive_power_domain_set(POWER_DOMAIN_GPUA,0);
+	pm_runtime_put_sync(sf_cfg_t.dev);
+	//pm_runtime_disable(sf_cfg_t.dev);
 	return 0;
 }
 
