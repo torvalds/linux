@@ -408,8 +408,6 @@ enum REPARSE_SIGN {
 };
 
 /* Functions from attrib.c */
-int attr_load_runs(struct ATTRIB *attr, struct ntfs_inode *ni,
-		   struct runs_tree *run, const CLST *vcn);
 int attr_allocate_clusters(struct ntfs_sb_info *sbi, struct runs_tree *run,
 			   CLST vcn, CLST lcn, CLST len, CLST *pre_alloc,
 			   enum ALLOCATE_OPT opt, CLST *alen, const size_t fr,

@@ -84,8 +84,8 @@ static inline bool attr_must_be_resident(struct ntfs_sb_info *sbi,
 /*
  * attr_load_runs - Load all runs stored in @attr.
  */
-int attr_load_runs(struct ATTRIB *attr, struct ntfs_inode *ni,
-		   struct runs_tree *run, const CLST *vcn)
+static int attr_load_runs(struct ATTRIB *attr, struct ntfs_inode *ni,
+			  struct runs_tree *run, const CLST *vcn)
 {
 	int err;
 	CLST svcn = le64_to_cpu(attr->nres.svcn);
