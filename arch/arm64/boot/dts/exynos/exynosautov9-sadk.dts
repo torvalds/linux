@@ -50,6 +50,7 @@
 };
 
 &serial_0 {
+	pinctrl-0 = <&uart0_bus_dual>;
 	status = "okay";
 };
 
@@ -74,6 +75,7 @@
 };
 
 &usi_0 {
+	samsung,clkreq-on; /* needed for UART mode */
 	status = "okay";
 };
 
