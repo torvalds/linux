@@ -987,6 +987,9 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 				sizeof(struct ieee80211_he_mcs_nss_supp) +
 				IEEE80211_HE_PPE_THRES_MAX_LEN +
 			2 + 1 + sizeof(struct ieee80211_he_6ghz_capa) +
+			2 + 1 + sizeof(struct ieee80211_eht_cap_elem) + /* EHT */
+			sizeof(struct ieee80211_eht_mcs_nss_supp) +
+			IEEE80211_EHT_PPE_THRES_MAX_LEN +
 			assoc_data->ie_len + /* extra IEs */
 			(assoc_data->fils_kek_len ? 16 /* AES-SIV */ : 0) +
 			9 + /* WMM */
