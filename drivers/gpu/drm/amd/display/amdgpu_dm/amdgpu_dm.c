@@ -769,7 +769,7 @@ static void dm_dmub_outbox1_low_irq(void *interrupt_params)
 
 		do {
 			dc_stat_get_dmub_notification(adev->dm.dc, &notify);
-			if (notify.type > ARRAY_SIZE(dm->dmub_thread_offload)) {
+			if (notify.type >= ARRAY_SIZE(dm->dmub_thread_offload)) {
 				DRM_ERROR("DM: notify type %d invalid!", notify.type);
 				continue;
 			}
@@ -5381,17 +5381,19 @@ fill_plane_buffer_attributes(struct amdgpu_device *adev,
 
 static void
 fill_blending_from_plane_state(const struct drm_plane_state *plane_state,
-			       bool *per_pixel_alpha, bool *global_alpha,
-			       int *global_alpha_value)
+			       bool *per_pixel_alpha, bool *pre_multiplied_alpha,
+			       bool *global_alpha, int *global_alpha_value)
 {
 	*per_pixel_alpha = false;
+	*pre_multiplied_alpha = true;
 	*global_alpha = false;
 	*global_alpha_value = 0xff;
 
 	if (plane_state->plane->type != DRM_PLANE_TYPE_OVERLAY)
 		return;
 
-	if (plane_state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI) {
+	if (plane_state->pixel_blend_mode == DRM_MODE_BLEND_PREMULTI ||
+		plane_state->pixel_blend_mode == DRM_MODE_BLEND_COVERAGE) {
 		static const uint32_t alpha_formats[] = {
 			DRM_FORMAT_ARGB8888,
 			DRM_FORMAT_RGBA8888,
@@ -5406,6 +5408,9 @@ fill_blending_from_plane_state(const struct drm_plane_state *plane_state,
 				break;
 			}
 		}
+
+		if (per_pixel_alpha && plane_state->pixel_blend_mode == DRM_MODE_BLEND_COVERAGE)
+			*pre_multiplied_alpha = false;
 	}
 
 	if (plane_state->alpha < 0xffff) {
@@ -5568,7 +5573,7 @@ fill_dc_plane_info_and_addr(struct amdgpu_device *adev,
 		return ret;
 
 	fill_blending_from_plane_state(
-		plane_state, &plane_info->per_pixel_alpha,
+		plane_state, &plane_info->per_pixel_alpha, &plane_info->pre_multiplied_alpha,
 		&plane_info->global_alpha, &plane_info->global_alpha_value);
 
 	return 0;
@@ -5615,6 +5620,7 @@ static int fill_dc_plane_attributes(struct amdgpu_device *adev,
 	dc_plane_state->tiling_info = plane_info.tiling_info;
 	dc_plane_state->visible = plane_info.visible;
 	dc_plane_state->per_pixel_alpha = plane_info.per_pixel_alpha;
+	dc_plane_state->pre_multiplied_alpha = plane_info.pre_multiplied_alpha;
 	dc_plane_state->global_alpha = plane_info.global_alpha;
 	dc_plane_state->global_alpha_value = plane_info.global_alpha_value;
 	dc_plane_state->dcc = plane_info.dcc;
@@ -7911,7 +7917,8 @@ static int amdgpu_dm_plane_init(struct amdgpu_display_manager *dm,
 	if (plane->type == DRM_PLANE_TYPE_OVERLAY &&
 	    plane_cap && plane_cap->per_pixel_alpha) {
 		unsigned int blend_caps = BIT(DRM_MODE_BLEND_PIXEL_NONE) |
-					  BIT(DRM_MODE_BLEND_PREMULTI);
+					  BIT(DRM_MODE_BLEND_PREMULTI) |
+					  BIT(DRM_MODE_BLEND_COVERAGE);
 
 		drm_plane_create_alpha_property(plane);
 		drm_plane_create_blend_mode_property(plane, blend_caps);

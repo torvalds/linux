@@ -531,7 +531,7 @@ svm_range_vram_node_new(struct amdgpu_device *adev, struct svm_range *prange,
 	bp.domain = AMDGPU_GEM_DOMAIN_VRAM;
 	bp.flags = AMDGPU_GEM_CREATE_NO_CPU_ACCESS;
 	bp.flags |= clear ? AMDGPU_GEM_CREATE_VRAM_CLEARED : 0;
-	bp.flags |= AMDGPU_AMDKFD_CREATE_SVM_BO;
+	bp.flags |= AMDGPU_GEM_CREATE_DISCARDABLE;
 	bp.type = ttm_bo_type_device;
 	bp.resv = NULL;
 

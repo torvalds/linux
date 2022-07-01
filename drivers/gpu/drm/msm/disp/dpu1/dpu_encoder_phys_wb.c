@@ -574,10 +574,10 @@ static void dpu_encoder_phys_wb_disable(struct dpu_encoder_phys *phys_enc)
  */
 static void dpu_encoder_phys_wb_destroy(struct dpu_encoder_phys *phys_enc)
 {
-	DPU_DEBUG("[wb:%d]\n", phys_enc->wb_idx - WB_0);
-
 	if (!phys_enc)
 		return;
+
+	DPU_DEBUG("[wb:%d]\n", phys_enc->wb_idx - WB_0);
 
 	kfree(phys_enc);
 }
