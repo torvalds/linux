@@ -1394,11 +1394,13 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 	data->num_of_scheduler++;
 
+#ifndef CONFIG_ROCKCHIP_FPGA
 	for (i = scheduler->num_clks - 1; i >= 0; i--)
 		if (!IS_ERR(scheduler->clks[i]))
 			clk_disable_unprepare(scheduler->clks[i]);
 
 	pm_runtime_put_sync(&pdev->dev);
+#endif //CONFIG_ROCKCHIP_FPGA
 
 	pr_info("%s probe successfully\n", dev_driver_string(dev));
 
@@ -1480,10 +1482,14 @@ static int __init rga_init(void)
 	}
 
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		if (rga_drvdata->scheduler[i]->data->mmu == RGA_MMU) {
-			ret = rga2_mmu_base_init();
-			if (ret) {
-				pr_err("rga2 mmu base init failed!\n");
+		struct rga_scheduler_t *scheduler = rga_drvdata->scheduler[i];
+
+		if (scheduler->data->mmu == RGA_MMU) {
+			rga_drvdata->mmu_base = rga_mmu_base_init(RGA2_PHY_PAGE_SIZE);
+			if (IS_ERR(rga_drvdata->mmu_base)) {
+				dev_err(scheduler->dev, "rga mmu base init failed!\n");
+				ret = PTR_ERR(rga_drvdata->mmu_base);
+				rga_drvdata->mmu_base = NULL;
 				goto err_unregister_rga2;
 			}
 
@@ -1518,7 +1524,8 @@ static int __init rga_init(void)
 	return 0;
 
 err_free_mmu_base:
-	rga2_mmu_base_free();
+	if (rga_drvdata->mmu_base)
+		rga_mmu_base_free(&rga_drvdata->mmu_base);
 
 err_unregister_rga2:
 	platform_driver_unregister(&rga2_driver);
@@ -1537,7 +1544,8 @@ err_free_drvdata:
 
 static void __exit rga_exit(void)
 {
-	rga2_mmu_base_free();
+	if (rga_drvdata->mmu_base)
+		rga_mmu_base_free(&rga_drvdata->mmu_base);
 
 #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER
 	rga_debugger_remove(&rga_drvdata->debugger);

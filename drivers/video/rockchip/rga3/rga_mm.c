@@ -1140,11 +1140,16 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 				return -ENOMEM;
 			}
 		} else {
-			page_table = rga2_mmu_buf_get(page_count);
+			mutex_lock(&rga_drvdata->lock);
+
+			page_table = rga_mmu_buf_get(rga_drvdata->mmu_base, page_count);
 			if (page_table == NULL) {
 				pr_err("mmu_buf get error!\n");
+				mutex_unlock(&rga_drvdata->lock);
 				return -EFAULT;
 			}
+
+			mutex_unlock(&rga_drvdata->lock);
 		}
 
 		sgt = rga_mm_lookup_sgt(job_buf->y_addr, job->core);
@@ -1194,11 +1199,16 @@ static int rga_mm_set_mmu_base(struct rga_job *job,
 				return -ENOMEM;
 			}
 		} else {
-			page_table = rga2_mmu_buf_get(page_count);
+			mutex_lock(&rga_drvdata->lock);
+
+			page_table = rga_mmu_buf_get(rga_drvdata->mmu_base, page_count);
 			if (page_table == NULL) {
 				pr_err("mmu_buf get error!\n");
+				mutex_unlock(&rga_drvdata->lock);
 				return -EFAULT;
 			}
+
+			mutex_unlock(&rga_drvdata->lock);
 		}
 
 		sgt = rga_mm_lookup_sgt(job_buf->addr, job->core);

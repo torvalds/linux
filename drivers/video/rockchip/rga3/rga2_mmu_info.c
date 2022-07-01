@@ -13,15 +13,13 @@
 #include "rga_job.h"
 #include "rga_common.h"
 
-struct rga2_mmu_info_t rga2_mmu_info;
-
 static void rga2_dma_sync_flush_range(void *pstart, void *pend, struct rga_scheduler_t *scheduler)
 {
 	dma_sync_single_for_device(scheduler->dev, virt_to_phys(pstart),
 				   pend - pstart, DMA_TO_DEVICE);
 }
 
-int rga2_user_memory_check(struct page **pages, u32 w, u32 h, u32 format, int flag)
+int rga_user_memory_check(struct page **pages, u32 w, u32 h, u32 format, int flag)
 {
 	int bits;
 	void *vaddr = NULL;
@@ -59,7 +57,7 @@ int rga2_user_memory_check(struct page **pages, u32 w, u32 h, u32 format, int fl
 	return 0;
 }
 
-int rga2_set_mmu_base(struct rga_job *job, struct rga2_req *req)
+int rga_set_mmu_base(struct rga_job *job, struct rga2_req *req)
 {
 	if (job->src_buffer.page_table) {
 		rga2_dma_sync_flush_range(job->src_buffer.page_table,
@@ -101,7 +99,7 @@ int rga2_set_mmu_base(struct rga_job *job, struct rga2_req *req)
 	return 0;
 }
 
-static int rga2_mmu_buf_get_try(struct rga2_mmu_info_t *t, uint32_t size)
+static int rga_mmu_buf_get_try(struct rga_mmu_base *t, uint32_t size)
 {
 	int ret = 0;
 
@@ -134,98 +132,97 @@ out:
 	return ret;
 }
 
-unsigned int *rga2_mmu_buf_get(uint32_t size)
+unsigned int *rga_mmu_buf_get(struct rga_mmu_base *mmu_base, uint32_t size)
 {
 	int ret;
-	unsigned int *mmu_base = NULL;
+	unsigned int *buf = NULL;
+
+	WARN_ON(!mutex_is_locked(&rga_drvdata->lock));
 
 	size = ALIGN(size, 16);
 
-	mutex_lock(&rga_drvdata->lock);
-
-	ret = rga2_mmu_buf_get_try(&rga2_mmu_info, size);
+	ret = rga_mmu_buf_get_try(mmu_base, size);
 	if (ret < 0) {
 		pr_err("Get MMU mem failed\n");
-		mutex_unlock(&rga_drvdata->lock);
 		return NULL;
 	}
 
-	mmu_base = rga2_mmu_info.buf_virtual + rga2_mmu_info.front;
+	buf = mmu_base->buf_virtual + mmu_base->front;
 
-	rga2_mmu_info.front += size;
+	mmu_base->front += size;
 
-	if (rga2_mmu_info.back + size > 2 * rga2_mmu_info.size)
-		rga2_mmu_info.back = size + rga2_mmu_info.size;
+	if (mmu_base->back + size > 2 * mmu_base->size)
+		mmu_base->back = size + mmu_base->size;
 	else
-		rga2_mmu_info.back += size;
+		mmu_base->back += size;
 
-	mutex_unlock(&rga_drvdata->lock);
-
-	return mmu_base;
+	return buf;
 }
 
-int rga2_mmu_base_init(void)
+struct rga_mmu_base *rga_mmu_base_init(size_t size)
 {
 	int order = 0;
-	uint32_t *buf_p;
-	uint32_t *buf;
+	struct rga_mmu_base *mmu_base;
+
+	mmu_base = kzalloc(sizeof(*mmu_base), GFP_KERNEL);
+	if (mmu_base == NULL) {
+		pr_err("Cannot alloc mmu_base!\n");
+		return ERR_PTR(-ENOMEM);
+	}
 
 	/*
 	 * malloc pre scale mid buf mmu table:
-	 * RGA2_PHY_PAGE_SIZE * channel_num * address_size
+	 * size * channel_num * address_size
 	 */
-	order = get_order(RGA2_PHY_PAGE_SIZE * 3 * sizeof(buf_p));
-	buf_p = (uint32_t *) __get_free_pages(GFP_KERNEL | GFP_DMA32, order);
-	if (buf_p == NULL) {
+	order = get_order(size * 3 * sizeof(*mmu_base->buf_virtual));
+	mmu_base->buf_virtual = (uint32_t *) __get_free_pages(GFP_KERNEL | GFP_DMA32, order);
+	if (mmu_base->buf_virtual == NULL) {
 		pr_err("Can not alloc pages for mmu_page_table\n");
-		return -ENOMEM;
+		goto err_free_mmu_base;
 	}
+	mmu_base->buf_order = order;
 
-	rga2_mmu_info.buf_order = order;
-
-	order = get_order(RGA2_PHY_PAGE_SIZE * sizeof(struct page *));
-	rga2_mmu_info.pages =
-		(struct page **)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
-	if (rga2_mmu_info.pages == NULL) {
-		pr_err("Can not alloc pages for rga2_mmu_info.pages\n");
+	order = get_order(size * sizeof(*mmu_base->pages));
+	mmu_base->pages = (struct page **)__get_free_pages(GFP_KERNEL | GFP_DMA32, order);
+	if (mmu_base->pages == NULL) {
+		pr_err("Can not alloc pages for mmu_base->pages\n");
 		goto err_free_buf_virtual;
 	}
+	mmu_base->pages_order = order;
 
-	rga2_mmu_info.pages_order = order;
+	mmu_base->front = 0;
+	mmu_base->back = RGA2_PHY_PAGE_SIZE * 3;
+	mmu_base->size = RGA2_PHY_PAGE_SIZE * 3;
 
-#if (defined(CONFIG_ARM) && defined(CONFIG_ARM_LPAE))
-	buf =
-		(uint32_t *) (uint32_t)
-		virt_to_phys((void *)((unsigned long)buf_p));
-#else
-	buf = (uint32_t *) virt_to_phys((void *)((unsigned long)buf_p));
-#endif
-	rga2_mmu_info.buf_virtual = buf_p;
-	rga2_mmu_info.buf = buf;
-	rga2_mmu_info.front = 0;
-	rga2_mmu_info.back = RGA2_PHY_PAGE_SIZE * 3;
-	rga2_mmu_info.size = RGA2_PHY_PAGE_SIZE * 3;
-
-	return 0;
+	return mmu_base;
 
 err_free_buf_virtual:
-	free_pages((unsigned long)buf_p, rga2_mmu_info.buf_order);
-	rga2_mmu_info.buf_order = 0;
+	free_pages((unsigned long)mmu_base->buf_virtual, mmu_base->buf_order);
+	mmu_base->buf_order = 0;
 
-	return -ENOMEM;
+err_free_mmu_base:
+	kfree(mmu_base);
+
+	return ERR_PTR(-ENOMEM);
 }
 
-void rga2_mmu_base_free(void)
+void rga_mmu_base_free(struct rga_mmu_base **mmu_base)
 {
-	if (rga2_mmu_info.buf_virtual != NULL) {
-		free_pages((unsigned long)rga2_mmu_info.buf_virtual, rga2_mmu_info.buf_order);
-		rga2_mmu_info.buf_virtual = NULL;
-		rga2_mmu_info.buf_order = 0;
+	struct rga_mmu_base *base = *mmu_base;
+
+	if (base->buf_virtual != NULL) {
+		free_pages((unsigned long)base->buf_virtual, base->buf_order);
+		base->buf_virtual = NULL;
+		base->buf_order = 0;
 	}
 
-	if (rga2_mmu_info.pages != NULL) {
-		free_pages((unsigned long)rga2_mmu_info.pages, rga2_mmu_info.pages_order);
-		rga2_mmu_info.pages = NULL;
-		rga2_mmu_info.pages_order = 0;
+	if (base->pages != NULL) {
+		free_pages((unsigned long)base->pages, base->pages_order);
+		base->pages = NULL;
+		base->pages_order = 0;
 	}
+
+	kfree(base);
+	*mmu_base = NULL;
 }
+

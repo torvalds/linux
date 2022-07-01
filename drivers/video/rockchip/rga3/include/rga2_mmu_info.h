@@ -12,28 +12,25 @@
  */
 #define RGA2_PHY_PAGE_SIZE	 (((8192 * 8192 * 4) / 4096) + 1)
 
-struct rga2_mmu_info_t {
+struct rga_mmu_base {
+	unsigned int *buf_virtual;
+	struct page **pages;
+	u8 buf_order;
+	u8 pages_order;
+
 	int32_t front;
 	int32_t back;
 	int32_t size;
 	int32_t curr;
-	unsigned int *buf;
-	unsigned int *buf_virtual;
-
-	struct page **pages;
-
-	u8 buf_order;
-	u8 pages_order;
 };
 
-int rga2_user_memory_check(struct page **pages, u32 w, u32 h, u32 format, int flag);
+int rga_user_memory_check(struct page **pages, u32 w, u32 h, u32 format, int flag);
+int rga_set_mmu_base(struct rga_job *job, struct rga2_req *req);
+unsigned int *rga_mmu_buf_get(struct rga_mmu_base *mmu_base, uint32_t size);
 
-int rga2_set_mmu_base(struct rga_job *job, struct rga2_req *req);
+struct rga_mmu_base *rga_mmu_base_init(size_t size);
+void rga_mmu_base_free(struct rga_mmu_base **mmu_base);
 
-unsigned int *rga2_mmu_buf_get(uint32_t size);
-
-int rga2_mmu_base_init(void);
-void rga2_mmu_base_free(void);
 
 #endif
 

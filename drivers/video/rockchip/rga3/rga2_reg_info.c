@@ -14,8 +14,6 @@
 #include "rga_hw_config.h"
 #include "rga_debugger.h"
 
-extern struct rga2_mmu_info_t rga2_mmu_info;
-
 unsigned int rga2_rop_code[256] = {
 	0x00000007, 0x00000451, 0x00006051, 0x00800051,
 	0x00007041, 0x00800041, 0x00804830, 0x000004f0,//0
@@ -2246,7 +2244,7 @@ int rga2_init_reg(struct rga_job *job)
 			return -EINVAL;
 		}
 
-		ret = rga2_set_mmu_base(job, &req);
+		ret = rga_set_mmu_base(job, &req);
 		if (ret < 0) {
 			pr_err("%s, [%d] set mmu info error\n", __func__,
 				 __LINE__);

@@ -368,6 +368,7 @@ struct rga_drvdata_t {
 
 	struct rga_scheduler_t *scheduler[RGA_MAX_SCHEDULER];
 	int num_of_scheduler;
+	struct rga_mmu_base *mmu_base;
 
 	struct delayed_work power_off_work;
 
