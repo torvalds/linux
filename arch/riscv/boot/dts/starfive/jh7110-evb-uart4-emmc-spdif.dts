@@ -6,6 +6,7 @@
 
 /dts-v1/;
 #include "jh7110-evb.dtsi"
+#include "codecs/sf_spdif.dtsi"
 
 / {
 	model = "StarFive JH7110 EVB";
@@ -58,5 +59,17 @@
 &ptc {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pwm_ch6to7_pins>;
+	status = "okay";
+};
+
+&spdif0 {
+	status = "okay";
+};
+
+&spdif_transmitter {
+	status = "okay";
+};
+
+&spdif_receiver {
 	status = "okay";
 };
