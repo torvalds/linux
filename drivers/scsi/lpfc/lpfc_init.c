@@ -375,6 +375,9 @@ lpfc_update_vport_wwn(struct lpfc_vport *vport)
 		if (phba->sli_rev == LPFC_SLI_REV4 &&
 		    vport->port_type == LPFC_PHYSICAL_PORT &&
 		    phba->sli4_hba.fawwpn_flag & LPFC_FAWWPN_FABRIC) {
+			if (!(phba->sli4_hba.fawwpn_flag & LPFC_FAWWPN_CONFIG))
+				phba->sli4_hba.fawwpn_flag &=
+						~LPFC_FAWWPN_FABRIC;
 			lpfc_printf_log(phba, KERN_INFO,
 					LOG_SLI | LOG_DISCOVERY | LOG_ELS,
 					"2701 FA-PWWN change WWPN from %llx to "
@@ -9975,7 +9978,8 @@ lpfc_sli4_read_config(struct lpfc_hba *phba)
 					"configured on\n");
 			phba->sli4_hba.fawwpn_flag |= LPFC_FAWWPN_CONFIG;
 		} else {
-			phba->sli4_hba.fawwpn_flag = 0;
+			/* Clear FW configured flag, preserve driver flag */
+			phba->sli4_hba.fawwpn_flag &= ~LPFC_FAWWPN_CONFIG;
 		}
 
 		phba->sli4_hba.conf_trunk =

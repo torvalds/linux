@@ -5265,7 +5265,8 @@ lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 	phba->pport->stopped = 0;
 	phba->link_state = LPFC_INIT_START;
 	phba->hba_flag = 0;
-	phba->sli4_hba.fawwpn_flag = 0;
+	/* Preserve FA-PWWN expectation */
+	phba->sli4_hba.fawwpn_flag &= LPFC_FAWWPN_FABRIC;
 	spin_unlock_irq(&phba->hbalock);
 
 	memset(&psli->lnk_stat_offsets, 0, sizeof(psli->lnk_stat_offsets));
@@ -6054,6 +6055,10 @@ lpfc_sli4_retrieve_pport_name(struct lpfc_hba *phba)
 	/* obtain link type and link number via READ_CONFIG */
 	phba->sli4_hba.lnk_info.lnk_dv = LPFC_LNK_DAT_INVAL;
 	lpfc_sli4_read_config(phba);
+
+	if (phba->sli4_hba.fawwpn_flag & LPFC_FAWWPN_CONFIG)
+		phba->sli4_hba.fawwpn_flag |= LPFC_FAWWPN_FABRIC;
+
 	if (phba->sli4_hba.lnk_info.lnk_dv == LPFC_LNK_DAT_VAL)
 		goto retrieve_ppname;
 
