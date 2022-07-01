@@ -26,6 +26,22 @@ properties:
   reg:
     maxItems: 1
 
+  interrupts:
+    items:
+      - description: Device Level Ring (DLR) interrupt
+      - description: Switch interrupt
+      - description: Parallel Redundancy Protocol (PRP) interrupt
+      - description: Integrated HUB module interrupt
+      - description: Receive Pattern Match interrupt
+
+  interrupt-names:
+    items:
+      - const: dlr
+      - const: switch
+      - const: prp
+      - const: hub
+      - const: ptrn
+
   power-domains:
     maxItems: 1
 
@@ -76,6 +92,7 @@ examples:
   - |
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/clock/r9a06g032-sysctrl.h>
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
 
     switch@44050000 {
         compatible = "renesas,r9a06g032-a5psw", "renesas,rzn1-a5psw";
@@ -83,6 +100,12 @@ examples:
         clocks = <&sysctrl R9A06G032_HCLK_SWITCH>, <&sysctrl R9A06G032_CLK_SWITCH>;
         clock-names = "hclk", "clk";
         power-domains = <&sysctrl>;
+        interrupts = <GIC_SPI 40 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 42 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 43 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 44 IRQ_TYPE_LEVEL_HIGH>,
+                     <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;
+        interrupt-names = "dlr", "switch", "prp", "hub", "ptrn";
 
         dsa,member = <0 0>;
 
