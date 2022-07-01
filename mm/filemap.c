@@ -1988,6 +1988,10 @@ no_page:
 			gfp |= __GFP_WRITE;
 		if (fgp_flags & FGP_NOFS)
 			gfp &= ~__GFP_FS;
+		if (fgp_flags & FGP_NOWAIT) {
+			gfp &= ~GFP_KERNEL;
+			gfp |= GFP_NOWAIT | __GFP_NOWARN;
+		}
 
 		folio = filemap_alloc_folio(gfp, 0);
 		if (!folio)
