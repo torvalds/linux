@@ -403,6 +403,15 @@ static inline void ksz_regmap_unlock(void *__mtx)
 	mutex_unlock(mtx);
 }
 
+static inline int is_lan937x(struct ksz_device *dev)
+{
+	return dev->chip_id == LAN9370_CHIP_ID ||
+		dev->chip_id == LAN9371_CHIP_ID ||
+		dev->chip_id == LAN9372_CHIP_ID ||
+		dev->chip_id == LAN9373_CHIP_ID ||
+		dev->chip_id == LAN9374_CHIP_ID;
+}
+
 /* STP State Defines */
 #define PORT_TX_ENABLE			BIT(2)
 #define PORT_RX_ENABLE			BIT(1)
