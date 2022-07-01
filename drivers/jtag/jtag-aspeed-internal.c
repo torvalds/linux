@@ -885,6 +885,9 @@ static int aspeed_jtag_bitbang(struct jtag *jtag,
 			TCK_Cycle(aspeed_jtag, bitbang_data[i].tms,
 					      bitbang_data[i].tdi);
 	}
+	if (aspeed_jtag->mode == JTAG_XFER_HW_MODE)
+		aspeed_jtag_write(aspeed_jtag, 0, ASPEED_JTAG_SW);
+
 	return 0;
 }
 
