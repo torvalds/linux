@@ -524,13 +524,13 @@ static int ieee80211_config_bw(struct ieee80211_link_data *link,
 
 /* frame sending functions */
 
-static void ieee80211_add_ht_ie(struct ieee80211_link_data *link,
+static void ieee80211_add_ht_ie(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb, u8 ap_ht_param,
 				struct ieee80211_supported_band *sband,
 				struct ieee80211_channel *channel,
-				enum ieee80211_smps_mode smps)
+				enum ieee80211_smps_mode smps,
+				ieee80211_conn_flags_t conn_flags)
 {
-	struct ieee80211_sub_if_data *sdata = link->sdata;
 	u8 *pos;
 	u32 flags = channel->flags;
 	u16 cap;
@@ -564,7 +564,7 @@ static void ieee80211_add_ht_ie(struct ieee80211_link_data *link,
 	 * capable of 40 MHz -- some broken APs will never fall
 	 * back to trying to transmit in 20 MHz.
 	 */
-	if (link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_40MHZ) {
+	if (conn_flags & IEEE80211_CONN_DISABLE_40MHZ) {
 		cap &= ~IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 		cap &= ~IEEE80211_HT_CAP_SGI_40;
 	}
@@ -597,19 +597,20 @@ static void ieee80211_add_ht_ie(struct ieee80211_link_data *link,
 
 /* This function determines vht capability flags for the association
  * and builds the IE.
- * Note - the function may set the owner of the MU-MIMO capability
+ * Note - the function returns true to own the MU-MIMO capability
  */
-static void ieee80211_add_vht_ie(struct ieee80211_link_data *link,
+static bool ieee80211_add_vht_ie(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb,
 				 struct ieee80211_supported_band *sband,
-				 struct ieee80211_vht_cap *ap_vht_cap)
+				 struct ieee80211_vht_cap *ap_vht_cap,
+				 ieee80211_conn_flags_t conn_flags)
 {
-	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_local *local = sdata->local;
 	u8 *pos;
 	u32 cap;
 	struct ieee80211_sta_vht_cap vht_cap;
 	u32 mask, ap_bf_sts, our_bf_sts;
+	bool mu_mimo_owner = false;
 
 	BUILD_BUG_ON(sizeof(vht_cap) != sizeof(sband->vht_cap));
 
@@ -619,7 +620,7 @@ static void ieee80211_add_vht_ie(struct ieee80211_link_data *link,
 	/* determine capability flags */
 	cap = vht_cap.cap;
 
-	if (link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_80P80MHZ) {
+	if (conn_flags & IEEE80211_CONN_DISABLE_80P80MHZ) {
 		u32 bw = cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
 
 		cap &= ~IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
@@ -628,7 +629,7 @@ static void ieee80211_add_vht_ie(struct ieee80211_link_data *link,
 			cap |= IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ;
 	}
 
-	if (link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_160MHZ) {
+	if (conn_flags & IEEE80211_CONN_DISABLE_160MHZ) {
 		cap &= ~IEEE80211_VHT_CAP_SHORT_GI_160;
 		cap &= ~IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK;
 	}
@@ -665,7 +666,7 @@ static void ieee80211_add_vht_ie(struct ieee80211_link_data *link,
 		if (disable_mu_mimo)
 			cap &= ~IEEE80211_VHT_CAP_MU_BEAMFORMEE_CAPABLE;
 		else
-			link->conf->mu_mimo_owner = true;
+			mu_mimo_owner = true;
 	}
 
 	mask = IEEE80211_VHT_CAP_BEAMFORMEE_STS_MASK;
@@ -681,34 +682,25 @@ static void ieee80211_add_vht_ie(struct ieee80211_link_data *link,
 	/* reserve and fill IE */
 	pos = skb_put(skb, sizeof(struct ieee80211_vht_cap) + 2);
 	ieee80211_ie_build_vht_cap(pos, &vht_cap, cap);
+
+	return mu_mimo_owner;
 }
 
 /* This function determines HE capability flags for the association
  * and builds the IE.
  */
-static void ieee80211_add_he_ie(struct ieee80211_link_data *link,
+static void ieee80211_add_he_ie(struct ieee80211_sub_if_data *sdata,
 				struct sk_buff *skb,
-				struct ieee80211_supported_band *sband)
+				struct ieee80211_supported_band *sband,
+				ieee80211_conn_flags_t conn_flags)
 {
-	struct ieee80211_sub_if_data *sdata = link->sdata;
 	u8 *pos, *pre_he_pos;
-	const struct ieee80211_sta_he_cap *he_cap = NULL;
-	struct ieee80211_chanctx_conf *chanctx_conf;
+	const struct ieee80211_sta_he_cap *he_cap;
 	u8 he_cap_size;
-	bool reg_cap = false;
-
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(link->conf->chanctx_conf);
-	if (!WARN_ON_ONCE(!chanctx_conf))
-		reg_cap = cfg80211_chandef_usable(sdata->wdev.wiphy,
-						  &chanctx_conf->def,
-						  IEEE80211_CHAN_NO_HE);
-
-	rcu_read_unlock();
 
 	he_cap = ieee80211_get_he_iftype_cap(sband,
 					     ieee80211_vif_type_p2p(&sdata->vif));
-	if (!he_cap || !chanctx_conf || !reg_cap)
+	if (WARN_ON(!he_cap))
 		return;
 
 	/* get a max size estimate */
@@ -719,7 +711,7 @@ static void ieee80211_add_he_ie(struct ieee80211_link_data *link,
 				      he_cap->he_cap_elem.phy_cap_info);
 	pos = skb_put(skb, he_cap_size);
 	pre_he_pos = pos;
-	pos = ieee80211_ie_build_he_cap(link->u.mgd.conn_flags,
+	pos = ieee80211_ie_build_he_cap(conn_flags,
 					pos, he_cap, pos + he_cap_size);
 	/* trim excess if any */
 	skb_trim(skb, skb->len - (pre_he_pos + he_cap_size - pos));
@@ -727,26 +719,14 @@ static void ieee80211_add_he_ie(struct ieee80211_link_data *link,
 	ieee80211_ie_build_he_6ghz_cap(sdata, skb);
 }
 
-static void ieee80211_add_eht_ie(struct ieee80211_link_data *link,
+static void ieee80211_add_eht_ie(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb,
 				 struct ieee80211_supported_band *sband)
 {
-	struct ieee80211_sub_if_data *sdata = link->sdata;
 	u8 *pos;
 	const struct ieee80211_sta_he_cap *he_cap;
 	const struct ieee80211_sta_eht_cap *eht_cap;
-	struct ieee80211_chanctx_conf *chanctx_conf;
 	u8 eht_cap_size;
-	bool reg_cap = false;
-
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(link->conf->chanctx_conf);
-	if (!WARN_ON_ONCE(!chanctx_conf))
-		reg_cap = cfg80211_chandef_usable(sdata->wdev.wiphy,
-						  &chanctx_conf->def,
-						  IEEE80211_CHAN_NO_HE |
-						  IEEE80211_CHAN_NO_EHT);
-	rcu_read_unlock();
 
 	he_cap = ieee80211_get_he_iftype_cap(sband,
 					     ieee80211_vif_type_p2p(&sdata->vif));
@@ -757,7 +737,7 @@ static void ieee80211_add_eht_ie(struct ieee80211_link_data *link,
 	 * EHT capabilities element is only added if the HE capabilities element
 	 * was added so assume that 'he_cap' is valid and don't check it.
 	 */
-	if (WARN_ON(!he_cap || !eht_cap || !reg_cap))
+	if (WARN_ON(!he_cap || !eht_cap))
 		return;
 
 	eht_cap_size =
@@ -1118,8 +1098,9 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 	if (sband->band != NL80211_BAND_6GHZ &&
 	    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT))
-		ieee80211_add_ht_ie(link, skb, assoc_data->ap_ht_param,
-				    sband, chan, link->smps_mode);
+		ieee80211_add_ht_ie(sdata, skb, assoc_data->ap_ht_param,
+				    sband, chan, link->smps_mode,
+				    link->u.mgd.conn_flags);
 
 	/* if present, add any custom IEs that go before VHT */
 	offset = ieee80211_add_before_vht_elems(skb, assoc_data->ie,
@@ -1128,8 +1109,10 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 	if (sband->band != NL80211_BAND_6GHZ &&
 	    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
-		ieee80211_add_vht_ie(link, skb, sband,
-				     &assoc_data->ap_vht_cap);
+		link->conf->mu_mimo_owner =
+			ieee80211_add_vht_ie(sdata, skb, sband,
+					     &assoc_data->ap_vht_cap,
+					     link->u.mgd.conn_flags);
 
 	/*
 	 * If AP doesn't support HT, mark HE and EHT as disabled.
@@ -1147,10 +1130,10 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 					       offset);
 
 	if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE)) {
-		ieee80211_add_he_ie(link, skb, sband);
+		ieee80211_add_he_ie(sdata, skb, sband, link->u.mgd.conn_flags);
 
 		if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT))
-			ieee80211_add_eht_ie(link, skb, sband);
+			ieee80211_add_eht_ie(sdata, skb, sband);
 	}
 
 	/* if present, add any custom non-vendor IEs that go after HE */
