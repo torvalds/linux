@@ -86,8 +86,6 @@ static int __must_check smsc95xx_read_reg(struct usbnet *dev, u32 index,
 	int ret;
 	int (*fn)(struct usbnet *, u8, u8, u16, u16, void *, u16);
 
-	BUG_ON(!dev);
-
 	if (current != pdata->pm_task)
 		fn = usbnet_read_cmd;
 	else
@@ -116,8 +114,6 @@ static int __must_check smsc95xx_write_reg(struct usbnet *dev, u32 index,
 	u32 buf;
 	int ret;
 	int (*fn)(struct usbnet *, u8, u8, u16, u16, const void *, u16);
-
-	BUG_ON(!dev);
 
 	if (current != pdata->pm_task)
 		fn = usbnet_write_cmd;
