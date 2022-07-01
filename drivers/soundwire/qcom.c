@@ -181,6 +181,7 @@ struct qcom_swrm_ctrl {
 struct qcom_swrm_data {
 	u32 default_cols;
 	u32 default_rows;
+	bool sw_clk_gate_required;
 };
 
 static const struct qcom_swrm_data swrm_v1_3_data = {
@@ -1309,6 +1310,15 @@ static int qcom_swrm_probe(struct platform_device *pdev)
 		ctrl->mmio = devm_platform_ioremap_resource(pdev, 0);
 		if (IS_ERR(ctrl->mmio))
 			return PTR_ERR(ctrl->mmio);
+	}
+
+	if (data->sw_clk_gate_required) {
+		ctrl->audio_cgcr = devm_reset_control_get_exclusive(dev, "swr_audio_cgcr");
+		if (IS_ERR_OR_NULL(ctrl->audio_cgcr)) {
+			dev_err(dev, "Failed to get cgcr reset ctrl required for SW gating\n");
+			ret = PTR_ERR(ctrl->audio_cgcr);
+			goto err_init;
+		}
 	}
 
 	ctrl->irq = of_irq_get(dev->of_node, 0);
