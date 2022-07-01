@@ -137,6 +137,7 @@ void layout_symtab(struct module *mod, struct load_info *info)
 	info->symoffs = ALIGN(mod->data_layout.size, symsect->sh_addralign ?: 1);
 	info->stroffs = mod->data_layout.size = info->symoffs + ndst * sizeof(Elf_Sym);
 	mod->data_layout.size += strtab_size;
+	/* Note add_kallsyms() computes strtab_size as core_typeoffs - stroffs */
 	info->core_typeoffs = mod->data_layout.size;
 	mod->data_layout.size += ndst * sizeof(char);
 	mod->data_layout.size = strict_align(mod->data_layout.size);
@@ -169,6 +170,7 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 	Elf_Sym *dst;
 	char *s;
 	Elf_Shdr *symsec = &info->sechdrs[info->index.sym];
+	unsigned long strtab_size;
 
 	/* Set up to point into init section. */
 	mod->kallsyms = (void __rcu *)mod->init_layout.base +
@@ -190,19 +192,26 @@ void add_kallsyms(struct module *mod, const struct load_info *info)
 	mod->core_kallsyms.symtab = dst = mod->data_layout.base + info->symoffs;
 	mod->core_kallsyms.strtab = s = mod->data_layout.base + info->stroffs;
 	mod->core_kallsyms.typetab = mod->data_layout.base + info->core_typeoffs;
+	strtab_size = info->core_typeoffs - info->stroffs;
 	src = rcu_dereference_sched(mod->kallsyms)->symtab;
 	for (ndst = i = 0; i < rcu_dereference_sched(mod->kallsyms)->num_symtab; i++) {
 		rcu_dereference_sched(mod->kallsyms)->typetab[i] = elf_type(src + i, info);
 		if (i == 0 || is_livepatch_module(mod) ||
 		    is_core_symbol(src + i, info->sechdrs, info->hdr->e_shnum,
 				   info->index.pcpu)) {
+			ssize_t ret;
+
 			mod->core_kallsyms.typetab[ndst] =
 			    rcu_dereference_sched(mod->kallsyms)->typetab[i];
 			dst[ndst] = src[i];
 			dst[ndst++].st_name = s - mod->core_kallsyms.strtab;
-			s += strscpy(s,
-				     &rcu_dereference_sched(mod->kallsyms)->strtab[src[i].st_name],
-				     KSYM_NAME_LEN) + 1;
+			ret = strscpy(s,
+				      &rcu_dereference_sched(mod->kallsyms)->strtab[src[i].st_name],
+				      strtab_size);
+			if (ret < 0)
+				break;
+			s += ret + 1;
+			strtab_size -= ret + 1;
 		}
 	}
 	preempt_enable();
