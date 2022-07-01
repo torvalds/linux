@@ -74,22 +74,6 @@ static int fsl_ldb_attach(struct drm_bridge *bridge,
 				 bridge, flags);
 }
 
-static int fsl_ldb_atomic_check(struct drm_bridge *bridge,
-				struct drm_bridge_state *bridge_state,
-				struct drm_crtc_state *crtc_state,
-				struct drm_connector_state *conn_state)
-{
-	/* Invert DE signal polarity. */
-	bridge_state->input_bus_cfg.flags &= ~(DRM_BUS_FLAG_DE_LOW |
-					       DRM_BUS_FLAG_DE_HIGH);
-	if (bridge_state->output_bus_cfg.flags & DRM_BUS_FLAG_DE_LOW)
-		bridge_state->input_bus_cfg.flags |= DRM_BUS_FLAG_DE_HIGH;
-	else if (bridge_state->output_bus_cfg.flags & DRM_BUS_FLAG_DE_HIGH)
-		bridge_state->input_bus_cfg.flags |= DRM_BUS_FLAG_DE_LOW;
-
-	return 0;
-}
-
 static void fsl_ldb_atomic_enable(struct drm_bridge *bridge,
 				  struct drm_bridge_state *old_bridge_state)
 {
@@ -241,7 +225,6 @@ fsl_ldb_mode_valid(struct drm_bridge *bridge,
 
 static const struct drm_bridge_funcs funcs = {
 	.attach = fsl_ldb_attach,
-	.atomic_check = fsl_ldb_atomic_check,
 	.atomic_enable = fsl_ldb_atomic_enable,
 	.atomic_disable = fsl_ldb_atomic_disable,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
