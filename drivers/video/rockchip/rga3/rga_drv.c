@@ -1402,6 +1402,14 @@ static int rga_drv_probe(struct platform_device *pdev)
 	pm_runtime_put_sync(&pdev->dev);
 #endif //CONFIG_ROCKCHIP_FPGA
 
+	if (scheduler->data->mmu == RGA_IOMMU) {
+		scheduler->iommu_info = rga_iommu_probe(dev);
+		if (IS_ERR(scheduler->iommu_info)) {
+			dev_err(dev, "failed to attach iommu\n");
+			scheduler->iommu_info = NULL;
+		}
+	}
+
 	pr_info("%s probe successfully\n", dev_driver_string(dev));
 
 	return 0;
@@ -1453,7 +1461,6 @@ static struct platform_driver rga2_driver = {
 static int __init rga_init(void)
 {
 	int ret;
-	int i;
 
 	rga_drvdata = kzalloc(sizeof(struct rga_drvdata_t), GFP_KERNEL);
 	if (rga_drvdata == NULL) {
@@ -1481,26 +1488,16 @@ static int __init rga_init(void)
 		goto err_unregister_rga3_core1;
 	}
 
-	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		struct rga_scheduler_t *scheduler = rga_drvdata->scheduler[i];
-
-		if (scheduler->data->mmu == RGA_MMU) {
-			rga_drvdata->mmu_base = rga_mmu_base_init(RGA2_PHY_PAGE_SIZE);
-			if (IS_ERR(rga_drvdata->mmu_base)) {
-				dev_err(scheduler->dev, "rga mmu base init failed!\n");
-				ret = PTR_ERR(rga_drvdata->mmu_base);
-				rga_drvdata->mmu_base = NULL;
-				goto err_unregister_rga2;
-			}
-
-			break;
-		}
+	ret = rga_iommu_bind();
+	if (ret < 0) {
+		pr_err("rga iommu bind failed!\n");
+		goto err_unregister_rga2;
 	}
 
 	ret = misc_register(&rga_dev);
 	if (ret) {
 		pr_err("cannot register miscdev (%d)\n", ret);
-		goto err_free_mmu_base;
+		goto err_unbind_iommu;
 	}
 
 	rga_init_timer();
@@ -1523,9 +1520,8 @@ static int __init rga_init(void)
 
 	return 0;
 
-err_free_mmu_base:
-	if (rga_drvdata->mmu_base)
-		rga_mmu_base_free(&rga_drvdata->mmu_base);
+err_unbind_iommu:
+	rga_iommu_unbind();
 
 err_unregister_rga2:
 	platform_driver_unregister(&rga2_driver);
@@ -1544,9 +1540,6 @@ err_free_drvdata:
 
 static void __exit rga_exit(void)
 {
-	if (rga_drvdata->mmu_base)
-		rga_mmu_base_free(&rga_drvdata->mmu_base);
-
 #ifdef CONFIG_ROCKCHIP_RGA_DEBUGGER
 	rga_debugger_remove(&rga_drvdata->debugger);
 #endif
@@ -1562,6 +1555,8 @@ static void __exit rga_exit(void)
 	rga_session_manager_remove(&rga_drvdata->session_manager);
 
 	rga_cancel_timer();
+
+	rga_iommu_unbind();
 
 	platform_driver_unregister(&rga3_core0_driver);
 	platform_driver_unregister(&rga3_core1_driver);

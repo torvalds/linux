@@ -137,6 +137,12 @@ struct rga_iommu_dma_cookie {
 	struct iova_domain  iovad;
 };
 
+struct rga_iommu_info {
+	struct device *dev;
+	struct iommu_domain *domain;
+	struct iommu_group *group;
+};
+
 struct rga_dma_buffer {
 	/* DMABUF information */
 	struct dma_buf *dma_buf;
@@ -292,6 +298,7 @@ struct rga_timer {
 struct rga_scheduler_t {
 	struct device *dev;
 	void __iomem *rga_base;
+	struct rga_iommu_info *iommu_info;
 
 	struct clk *clks[RGA_MAX_BUS_CLK];
 	int num_clks;

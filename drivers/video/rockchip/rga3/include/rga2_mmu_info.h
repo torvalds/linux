@@ -31,6 +31,13 @@ unsigned int *rga_mmu_buf_get(struct rga_mmu_base *mmu_base, uint32_t size);
 struct rga_mmu_base *rga_mmu_base_init(size_t size);
 void rga_mmu_base_free(struct rga_mmu_base **mmu_base);
 
+int rga_iommu_detach(struct rga_iommu_info *info);
+int rga_iommu_attach(struct rga_iommu_info *info);
+struct rga_iommu_info *rga_iommu_probe(struct device *dev);
+int rga_iommu_remove(struct rga_iommu_info *info);
+
+int rga_iommu_bind(void);
+void rga_iommu_unbind(void);
 
 #endif
 

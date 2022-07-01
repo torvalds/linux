@@ -12,6 +12,7 @@
 #include "rga_mm.h"
 #include "rga_job.h"
 #include "rga_common.h"
+#include "rga_hw_config.h"
 
 static void rga2_dma_sync_flush_range(void *pstart, void *pend, struct rga_scheduler_t *scheduler)
 {
@@ -226,3 +227,123 @@ void rga_mmu_base_free(struct rga_mmu_base **mmu_base)
 	*mmu_base = NULL;
 }
 
+int rga_iommu_detach(struct rga_iommu_info *info)
+{
+	if (!info)
+		return 0;
+
+	iommu_detach_group(info->domain, info->group);
+	return 0;
+}
+
+int rga_iommu_attach(struct rga_iommu_info *info)
+{
+	if (!info)
+		return 0;
+
+	return iommu_attach_group(info->domain, info->group);
+}
+
+struct rga_iommu_info *rga_iommu_probe(struct device *dev)
+{
+	int ret = 0;
+	struct rga_iommu_info *info = NULL;
+	struct iommu_domain *domain = NULL;
+	struct iommu_group *group = NULL;
+
+	group = iommu_group_get(dev);
+	if (!group)
+		return ERR_PTR(-EINVAL);
+
+	domain = iommu_get_domain_for_dev(dev);
+	if (!domain) {
+		ret = -EINVAL;
+		goto err_put_group;
+	}
+
+	info = devm_kzalloc(dev, sizeof(*info), GFP_KERNEL);
+	if (!info) {
+		ret = -ENOMEM;
+		goto err_put_group;
+	}
+
+	info->dev = dev;
+	info->group = group;
+	info->domain = domain;
+
+	return info;
+
+err_put_group:
+	if (group)
+		iommu_group_put(group);
+
+	return ERR_PTR(ret);
+}
+
+int rga_iommu_remove(struct rga_iommu_info *info)
+{
+	if (!info)
+		return 0;
+
+	iommu_group_put(info->group);
+
+	return 0;
+}
+
+int rga_iommu_bind(void)
+{
+	int i;
+	int ret;
+	struct rga_scheduler_t *scheduler = NULL;
+	struct iommu_domain *main_domain = NULL;
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		scheduler = rga_drvdata->scheduler[i];
+
+		switch (scheduler->data->mmu) {
+		case RGA_IOMMU:
+			if (scheduler->iommu_info == NULL)
+				continue;
+
+			if (main_domain == NULL) {
+				main_domain = scheduler->iommu_info->domain;
+			} else {
+				scheduler->iommu_info->domain = main_domain;
+				rga_iommu_attach(scheduler->iommu_info);
+			}
+
+			break;
+
+		case RGA_MMU:
+			if (rga_drvdata->mmu_base != NULL)
+				continue;
+
+			rga_drvdata->mmu_base = rga_mmu_base_init(RGA2_PHY_PAGE_SIZE);
+			if (IS_ERR(rga_drvdata->mmu_base)) {
+				dev_err(scheduler->dev, "rga mmu base init failed!\n");
+				ret = PTR_ERR(rga_drvdata->mmu_base);
+				rga_drvdata->mmu_base = NULL;
+
+				return ret;
+			}
+
+			break;
+		default:
+			continue;
+		}
+	}
+
+	return 0;
+}
+
+void rga_iommu_unbind(void)
+{
+	int i;
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++)
+		if (rga_drvdata->scheduler[i]->iommu_info != NULL)
+			rga_iommu_detach(rga_drvdata->scheduler[i]->iommu_info);
+
+	if (rga_drvdata->mmu_base)
+		rga_mmu_base_free(&rga_drvdata->mmu_base);
+}
