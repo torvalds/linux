@@ -2,8 +2,8 @@
 
 config STARFIVE_PMU
 	bool "Support PMU for StarFive Soc"
-	depends on SOC_STARFIVE || COMPILE_TEST
-	default SOC_STARFIVE_JH7110
+	depends on PM && (SOC_STARFIVE || COMPILE_TEST)
+	select PM_GENERIC_DOMAINS
 	help
-	  Support PMU for StarFive Soc.
+	  Say y here to enable power domain support.
 
