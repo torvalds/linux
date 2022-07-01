@@ -10549,6 +10549,7 @@ __lpfc_sli_prep_els_req_rsp_s3(struct lpfc_iocbq *cmdiocbq,
 		cmd->un.elsreq64.bdl.bdeSize = sizeof(struct ulp_bde64);
 		cmd->un.genreq64.xmit_els_remoteID = did; /* DID */
 		cmd->ulpCommand = CMD_XMIT_ELS_RSP64_CX;
+		cmd->ulpPU = PARM_NPIV_DID;
 	}
 	cmd->ulpBdeCount = 1;
 	cmd->ulpLe = 1;
