@@ -720,6 +720,12 @@ sub get_virtenv()
 		next if (! -f $sphinx_cmd);
 
 		my $ver = get_sphinx_version($sphinx_cmd);
+
+		if (!$ver) {
+			$f =~ s#/bin/activate##;
+			print("Warning: virtual environment $f is not working.\nPython version upgrade? Remove it with:\n\n\trm -rf $f\n\n");
+		}
+
 		if ($need_sphinx && ($ver ge $min_version)) {
 			return ($f, $ver);
 		} elsif ($ver gt $cur_version) {
