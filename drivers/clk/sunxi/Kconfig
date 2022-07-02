@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig CLK_SUNXI
 	bool "Legacy clock support for Allwinner SoCs"
-	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on (ARM && ARCH_SUNXI) || COMPILE_TEST
 	default y
 
 if CLK_SUNXI
