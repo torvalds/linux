@@ -96,7 +96,7 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 
 	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
 	mt7615_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, sta,
-			      pid, key, false);
+			      pid, key, qid, false);
 
 	txp = txwi + MT_TXD_SIZE;
 	memset(txp, 0, sizeof(struct mt76_connac_txp_common));

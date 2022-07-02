@@ -1812,7 +1812,7 @@ mt7915_mcu_beacon_cont(struct mt7915_dev *dev, struct ieee80211_vif *vif,
 
 	buf = (u8 *)tlv + sizeof(*cont);
 	mt7915_mac_write_txwi(&dev->mt76, (__le32 *)buf, skb, wcid, 0, NULL,
-			      BSS_CHANGED_BEACON);
+			      0, BSS_CHANGED_BEACON);
 	memcpy(buf + MT_TXD_SIZE, skb->data, skb->len);
 }
 
@@ -1957,7 +1957,7 @@ mt7915_mcu_beacon_inband_discov(struct mt7915_dev *dev, struct ieee80211_vif *vi
 	buf = (u8 *)tlv + sizeof(*discov);
 
 	mt7915_mac_write_txwi(&dev->mt76, (__le32 *)buf, skb, wcid, 0, NULL,
-			      changed);
+			      0, changed);
 	memcpy(buf + MT_TXD_SIZE, skb->data, skb->len);
 
 	dev_kfree_skb(skb);

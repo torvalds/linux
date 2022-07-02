@@ -919,7 +919,7 @@ mt7921_mcu_uni_add_beacon_offload(struct mt7921_dev *dev,
 	}
 
 	mt76_connac2_mac_write_txwi(&dev->mt76, (__le32 *)(req.beacon_tlv.pkt),
-				    skb, wcid, NULL, 0, BSS_CHANGED_BEACON);
+				    skb, wcid, NULL, 0, 0, BSS_CHANGED_BEACON);
 	memcpy(req.beacon_tlv.pkt + MT_TXD_SIZE, skb->data, skb->len);
 	req.beacon_tlv.pkt_len = cpu_to_le16(MT_TXD_SIZE + skb->len);
 	req.beacon_tlv.tim_ie_pos = cpu_to_le16(MT_TXD_SIZE + offs.tim_offset);

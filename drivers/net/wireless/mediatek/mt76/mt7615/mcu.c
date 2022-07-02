@@ -714,7 +714,7 @@ mt7615_mcu_add_beacon_offload(struct mt7615_dev *dev,
 	}
 
 	mt7615_mac_write_txwi(dev, (__le32 *)(req.pkt), skb, wcid, NULL,
-			      0, NULL, true);
+			      0, NULL, 0, true);
 	memcpy(req.pkt + MT_TXD_SIZE, skb->data, skb->len);
 	req.pkt_len = cpu_to_le16(MT_TXD_SIZE + skb->len);
 	req.tim_ie_pos = cpu_to_le16(MT_TXD_SIZE + offs.tim_offset);
@@ -1086,7 +1086,7 @@ mt7615_mcu_uni_add_beacon_offload(struct mt7615_dev *dev,
 	}
 
 	mt7615_mac_write_txwi(dev, (__le32 *)(req.beacon_tlv.pkt), skb,
-			      wcid, NULL, 0, NULL, true);
+			      wcid, NULL, 0, NULL, 0, true);
 	memcpy(req.beacon_tlv.pkt + MT_TXD_SIZE, skb->data, skb->len);
 	req.beacon_tlv.pkt_len = cpu_to_le16(MT_TXD_SIZE + skb->len);
 	req.beacon_tlv.tim_ie_pos = cpu_to_le16(MT_TXD_SIZE + offs.tim_offset);

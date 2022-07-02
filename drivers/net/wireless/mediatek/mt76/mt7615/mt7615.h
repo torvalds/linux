@@ -477,7 +477,8 @@ void mt7615_mac_sta_poll(struct mt7615_dev *dev);
 int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 			  struct sk_buff *skb, struct mt76_wcid *wcid,
 			  struct ieee80211_sta *sta, int pid,
-			  struct ieee80211_key_conf *key, bool beacon);
+			  struct ieee80211_key_conf *key,
+			  enum mt76_txq_id qid, bool beacon);
 void mt7615_mac_set_timing(struct mt7615_phy *phy);
 int __mt7615_mac_wtbl_set_key(struct mt7615_dev *dev,
 			      struct mt76_wcid *wcid,

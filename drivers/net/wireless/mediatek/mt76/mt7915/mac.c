@@ -662,7 +662,8 @@ mt7915_mac_write_txwi_tm(struct mt7915_phy *phy, __le32 *txwi,
 
 void mt7915_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid, int pid,
-			   struct ieee80211_key_conf *key, u32 changed)
+			   struct ieee80211_key_conf *key,
+			   enum mt76_txq_id qid, u32 changed)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct mt76_phy *mphy = &dev->phy;
@@ -670,7 +671,7 @@ void mt7915_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 	if ((info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY) && dev->phy2)
 		mphy = dev->phy2;
 
-	mt76_connac2_mac_write_txwi(dev, txwi, skb, wcid, key, pid, changed);
+	mt76_connac2_mac_write_txwi(dev, txwi, skb, wcid, key, pid, qid, changed);
 
 	if (mt76_testmode_enabled(mphy))
 		mt7915_mac_write_txwi_tm(mphy->priv, txwi, skb);
@@ -717,7 +718,8 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 		return id;
 
 	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
-	mt7915_mac_write_txwi(mdev, txwi_ptr, tx_info->skb, wcid, pid, key, 0);
+	mt7915_mac_write_txwi(mdev, txwi_ptr, tx_info->skb, wcid, pid, key,
+			      qid, 0);
 
 	txp = (struct mt76_connac_fw_txp *)(txwi + MT_TXD_SIZE);
 	for (i = 0; i < nbuf; i++) {

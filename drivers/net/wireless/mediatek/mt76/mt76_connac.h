@@ -339,7 +339,7 @@ void mt76_connac_pm_dequeue_skbs(struct mt76_phy *phy,
 void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 				 struct sk_buff *skb, struct mt76_wcid *wcid,
 				 struct ieee80211_key_conf *key, int pid,
-				 u32 changed);
+				 enum mt76_txq_id qid, u32 changed);
 bool mt76_connac2_mac_add_txs_skb(struct mt76_dev *dev, struct mt76_wcid *wcid,
 				  int pid, __le32 *txs_data,
 				  struct mt76_sta_stats *stats);

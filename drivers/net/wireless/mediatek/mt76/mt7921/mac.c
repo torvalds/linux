@@ -999,7 +999,7 @@ mt7921_usb_sdio_write_txwi(struct mt7921_dev *dev, struct mt76_wcid *wcid,
 	__le32 *txwi = (__le32 *)(skb->data - MT_SDIO_TXD_SIZE);
 
 	memset(txwi, 0, MT_SDIO_TXD_SIZE);
-	mt76_connac2_mac_write_txwi(&dev->mt76, txwi, skb, wcid, key, pid, 0);
+	mt76_connac2_mac_write_txwi(&dev->mt76, txwi, skb, wcid, key, pid, qid, 0);
 	skb_push(skb, MT_SDIO_TXD_SIZE);
 }
 
