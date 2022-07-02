@@ -396,7 +396,7 @@ config RISCV_SBI_V01
 config RISCV_BOOT_SPINWAIT
 	bool "Spinwait booting method"
 	depends on SMP
-	default y
+	default y if RISCV_SBI_V01 || RISCV_M_MODE
 	help
 	  This enables support for booting Linux via spinwait method. In the
 	  spinwait method, all cores randomly jump to Linux. One of the cores
@@ -406,6 +406,12 @@ config RISCV_BOOT_SPINWAIT
 	  on older firmware without SBI HSM extension. All other platforms should
 	  rely on ordered booting via SBI HSM extension which gets chosen
 	  dynamically at runtime if the firmware supports it.
+
+	  Since spinwait is incompatible with sparse hart IDs, it requires
+	  NR_CPUS be large enough to contain the physical hart ID of the first
+	  hart to enter Linux.
+
+	  If unsure what to do here, say N.
 
 config KEXEC
 	bool "Kexec system call"
