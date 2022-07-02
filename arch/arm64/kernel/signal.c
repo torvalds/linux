@@ -385,7 +385,7 @@ static int preserve_za_context(struct za_context __user *ctx)
 	return err ? -EFAULT : 0;
 }
 
-static int restore_za_context(struct user_ctxs __user *user)
+static int restore_za_context(struct user_ctxs *user)
 {
 	int err;
 	unsigned int vq;
