@@ -48,6 +48,10 @@
 
 #define NFP_META_PORT_ID_CTRL		~0U
 
+/* Prepend field sizes */
+#define NFP_NET_META_VLAN_SIZE			4
+#define NFP_NET_META_PORTID_SIZE		4
+#define NFP_NET_META_CONN_HANDLE_SIZE		8
 /* Hash type pre-pended when a RSS hash was computed */
 #define NFP_NET_RSS_NONE		0
 #define NFP_NET_RSS_IPV4		1
@@ -103,6 +107,7 @@
 #define   NFP_NET_CFG_CTRL_MSIXAUTO	  (0x1 << 20) /* MSI-X auto-masking */
 #define   NFP_NET_CFG_CTRL_TXRWB	  (0x1 << 21) /* Write-back of TX ring*/
 #define   NFP_NET_CFG_CTRL_VEPA		  (0x1 << 22) /* Enable VEPA mode */
+#define   NFP_NET_CFG_CTRL_TXVLAN_V2	  (0x1 << 23) /* Enable VLAN C-tag insert*/
 #define   NFP_NET_CFG_CTRL_VXLAN	  (0x1 << 24) /* VXLAN tunnel support */
 #define   NFP_NET_CFG_CTRL_NVGRE	  (0x1 << 25) /* NVGRE tunnel support */
 #define   NFP_NET_CFG_CTRL_BPF		  (0x1 << 27) /* BPF offload capable */
@@ -121,6 +126,8 @@
 					 NFP_NET_CFG_CTRL_CSUM_COMPLETE)
 #define NFP_NET_CFG_CTRL_RXVLAN_ANY	(NFP_NET_CFG_CTRL_RXVLAN | \
 					 NFP_NET_CFG_CTRL_RXVLAN_V2)
+#define NFP_NET_CFG_CTRL_TXVLAN_ANY	(NFP_NET_CFG_CTRL_TXVLAN | \
+					 NFP_NET_CFG_CTRL_TXVLAN_V2)
 
 #define NFP_NET_CFG_UPDATE		0x0004
 #define   NFP_NET_CFG_UPDATE_GEN	  (0x1 <<  0) /* General update */

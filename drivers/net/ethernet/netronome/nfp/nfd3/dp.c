@@ -167,30 +167,35 @@ nfp_nfd3_tx_csum(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 	u64_stats_update_end(&r_vec->tx_sync);
 }
 
-static int nfp_nfd3_prep_tx_meta(struct sk_buff *skb, u64 tls_handle)
+static int nfp_nfd3_prep_tx_meta(struct nfp_net_dp *dp, struct sk_buff *skb, u64 tls_handle)
 {
 	struct metadata_dst *md_dst = skb_metadata_dst(skb);
 	unsigned char *data;
+	bool vlan_insert;
 	u32 meta_id = 0;
 	int md_bytes;
 
-	if (likely(!md_dst && !tls_handle))
-		return 0;
-	if (unlikely(md_dst && md_dst->type != METADATA_HW_PORT_MUX)) {
-		if (!tls_handle)
-			return 0;
-		md_dst = NULL;
+	if (unlikely(md_dst || tls_handle)) {
+		if (unlikely(md_dst && md_dst->type != METADATA_HW_PORT_MUX))
+			md_dst = NULL;
 	}
 
-	md_bytes = 4 + !!md_dst * 4 + !!tls_handle * 8;
+	vlan_insert = skb_vlan_tag_present(skb) && (dp->ctrl & NFP_NET_CFG_CTRL_TXVLAN_V2);
+
+	if (!(md_dst || tls_handle || vlan_insert))
+		return 0;
+
+	md_bytes = sizeof(meta_id) +
+		   !!md_dst * NFP_NET_META_PORTID_SIZE +
+		   !!tls_handle * NFP_NET_META_CONN_HANDLE_SIZE +
+		   vlan_insert * NFP_NET_META_VLAN_SIZE;
 
 	if (unlikely(skb_cow_head(skb, md_bytes)))
 		return -ENOMEM;
 
-	meta_id = 0;
 	data = skb_push(skb, md_bytes) + md_bytes;
 	if (md_dst) {
-		data -= 4;
+		data -= NFP_NET_META_PORTID_SIZE;
 		put_unaligned_be32(md_dst->u.port_info.port_id, data);
 		meta_id = NFP_NET_META_PORTID;
 	}
@@ -198,13 +203,23 @@ static int nfp_nfd3_prep_tx_meta(struct sk_buff *skb, u64 tls_handle)
 		/* conn handle is opaque, we just use u64 to be able to quickly
 		 * compare it to zero
 		 */
-		data -= 8;
+		data -= NFP_NET_META_CONN_HANDLE_SIZE;
 		memcpy(data, &tls_handle, sizeof(tls_handle));
 		meta_id <<= NFP_NET_META_FIELD_SIZE;
 		meta_id |= NFP_NET_META_CONN_HANDLE;
 	}
+	if (vlan_insert) {
+		data -= NFP_NET_META_VLAN_SIZE;
+		/* data type of skb->vlan_proto is __be16
+		 * so it fills metadata without calling put_unaligned_be16
+		 */
+		memcpy(data, &skb->vlan_proto, sizeof(skb->vlan_proto));
+		put_unaligned_be16(skb_vlan_tag_get(skb), data + sizeof(skb->vlan_proto));
+		meta_id <<= NFP_NET_META_FIELD_SIZE;
+		meta_id |= NFP_NET_META_VLAN;
+	}
 
-	data -= 4;
+	data -= sizeof(meta_id);
 	put_unaligned_be32(meta_id, data);
 
 	return md_bytes;
@@ -258,7 +273,7 @@ netdev_tx_t nfp_nfd3_tx(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_OK;
 	}
 
-	md_bytes = nfp_nfd3_prep_tx_meta(skb, tls_handle);
+	md_bytes = nfp_nfd3_prep_tx_meta(dp, skb, tls_handle);
 	if (unlikely(md_bytes < 0))
 		goto err_flush;
 

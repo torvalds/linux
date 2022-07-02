@@ -367,7 +367,7 @@ int nfp_repr_init(struct nfp_app *app, struct net_device *netdev,
 
 	if (repr_cap & NFP_NET_CFG_CTRL_RXVLAN_ANY)
 		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX;
-	if (repr_cap & NFP_NET_CFG_CTRL_TXVLAN) {
+	if (repr_cap & NFP_NET_CFG_CTRL_TXVLAN_ANY) {
 		if (repr_cap & NFP_NET_CFG_CTRL_LSO2)
 			netdev_warn(netdev, "Device advertises both TSO2 and TXVLAN. Refusing to enable TXVLAN.\n");
 		else
