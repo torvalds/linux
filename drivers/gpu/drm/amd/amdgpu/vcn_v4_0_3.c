@@ -110,7 +110,7 @@ static int vcn_v4_0_3_sw_init(void *handle)
 
 	ring = &adev->vcn.inst->ring_dec;
 	ring->use_doorbell = true;
-	ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 5;
+	ring->doorbell_index = (adev->doorbell_index.vcn.vcn_ring0_1 << 1);
 	ring->vm_hub = AMDGPU_MMHUB0(0);
 	sprintf(ring->name, "vcn_dec");
 	r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst->irq, 0,
@@ -176,7 +176,7 @@ static int vcn_v4_0_3_hw_init(void *handle)
 	int r;
 
 	adev->nbio.funcs->vcn_doorbell_range(adev, ring->use_doorbell,
-				(adev->doorbell_index.vcn.vcn_ring0_1 << 1), ring->me);
+				(adev->doorbell_index.vcn.vcn_ring0_1 << 1), 0);
 	if (ring->use_doorbell)
 		WREG32_SOC15(VCN, ring->me, regVCN_RB4_DB_CTRL,
 			ring->doorbell_index << VCN_RB4_DB_CTRL__OFFSET__SHIFT |
