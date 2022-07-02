@@ -248,6 +248,8 @@ struct nfp_net_rx_desc {
 };
 
 #define NFP_NET_META_FIELD_MASK GENMASK(NFP_NET_META_FIELD_SIZE - 1, 0)
+#define NFP_NET_VLAN_CTAG	0
+#define NFP_NET_VLAN_STAG	1
 
 struct nfp_meta_parsed {
 	u8 hash_type;
@@ -256,6 +258,11 @@ struct nfp_meta_parsed {
 	u32 mark;
 	u32 portid;
 	__wsum csum;
+	struct {
+		bool stripped;
+		u8 tpid;
+		u16 tci;
+	} vlan;
 };
 
 struct nfp_net_rx_hash {

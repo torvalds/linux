@@ -716,7 +716,7 @@ static bool
 nfp_nfdk_parse_meta(struct net_device *netdev, struct nfp_meta_parsed *meta,
 		    void *data, void *pkt, unsigned int pkt_len, int meta_len)
 {
-	u32 meta_info;
+	u32 meta_info, vlan_info;
 
 	meta_info = get_unaligned_be32(data);
 	data += 4;
@@ -732,6 +732,17 @@ nfp_nfdk_parse_meta(struct net_device *netdev, struct nfp_meta_parsed *meta,
 			break;
 		case NFP_NET_META_MARK:
 			meta->mark = get_unaligned_be32(data);
+			data += 4;
+			break;
+		case NFP_NET_META_VLAN:
+			vlan_info = get_unaligned_be32(data);
+			if (FIELD_GET(NFP_NET_META_VLAN_STRIP, vlan_info)) {
+				meta->vlan.stripped = true;
+				meta->vlan.tpid = FIELD_GET(NFP_NET_META_VLAN_TPID_MASK,
+							    vlan_info);
+				meta->vlan.tci = FIELD_GET(NFP_NET_META_VLAN_TCI_MASK,
+							   vlan_info);
+			}
 			data += 4;
 			break;
 		case NFP_NET_META_PORTID:
@@ -1169,9 +1180,11 @@ static int nfp_nfdk_rx(struct nfp_net_rx_ring *rx_ring, int budget)
 
 		nfp_nfdk_rx_csum(dp, r_vec, rxd, &meta, skb);
 
-		if (rxd->rxd.flags & PCIE_DESC_RX_VLAN)
-			__vlan_hwaccel_put_tag(skb, htons(ETH_P_8021Q),
-					       le16_to_cpu(rxd->rxd.vlan));
+		if (unlikely(!nfp_net_vlan_strip(skb, rxd, &meta))) {
+			nfp_nfdk_rx_drop(dp, r_vec, rx_ring, NULL, skb);
+			continue;
+		}
+
 		if (meta_len_xdp)
 			skb_metadata_set(skb, meta_len_xdp);
 
