@@ -81,13 +81,13 @@ required:
   - dma-ranges
 
 if:
-  properties:
-    compatible:
-      contains:
-        enum:
-          - allwinner,sun8i-h3-mbus
-          - allwinner,sun50i-a64-mbus
-          - allwinner,sun50i-h5-mbus
+  not:
+    properties:
+      compatible:
+        contains:
+          enum:
+            - allwinner,sun5i-a13-mbus
+            - allwinner,sun8i-r40-mbus
 
 then:
   properties:
