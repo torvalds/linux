@@ -25,8 +25,7 @@ and userspace consumers. The kernel space consumers can directly talk to HTE
 subsystem while userspace consumers timestamp requests go through GPIOLIB CDEV
 framework to HTE subsystem.
 
-.. kernel-doc:: drivers/gpio/gpiolib.c
-   :functions: gpiod_enable_hw_timestamp_ns gpiod_disable_hw_timestamp_ns
+See gpiod_enable_hw_timestamp_ns() and gpiod_disable_hw_timestamp_ns().
 
 For userspace consumers, GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE flag must be
 specified during IOCTL calls. Refer to ``tools/gpio/gpio-event-mon.c``, which
