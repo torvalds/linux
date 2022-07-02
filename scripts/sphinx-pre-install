@@ -902,6 +902,10 @@ sub recommend_sphinx_version($)
 	$need = $old_need;
 	$optional = $old_optional;
 
+	printf "\n    Please note that Sphinx >= 3.0 will currently produce false-positive\n";
+	printf "   warning when the same name is used for more than one type (functions,\n";
+	printf "   structs, enums,...). This is known Sphinx bug. For more details, see:\n";
+	printf "\thttps://github.com/sphinx-doc/sphinx/pull/8313\n";
 }
 
 sub check_needs()
