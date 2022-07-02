@@ -1191,7 +1191,7 @@ static struct qcom_icc_node snoc_pcnoc_slv = {
 	.links = snoc_pcnoc_slv_links,
 };
 
-static struct qcom_icc_node *msm8916_snoc_nodes[] = {
+static struct qcom_icc_node * const msm8916_snoc_nodes[] = {
 	[BIMC_SNOC_SLV] = &bimc_snoc_slv,
 	[MASTER_JPEG] = &mas_jpeg,
 	[MASTER_MDP_PORT0] = &mas_mdp,
@@ -1228,7 +1228,7 @@ static const struct regmap_config msm8916_snoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8916_snoc = {
+static const struct qcom_icc_desc msm8916_snoc = {
 	.type = QCOM_ICC_NOC,
 	.nodes = msm8916_snoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8916_snoc_nodes),
@@ -1236,7 +1236,7 @@ static struct qcom_icc_desc msm8916_snoc = {
 	.qos_offset = 0x7000,
 };
 
-static struct qcom_icc_node *msm8916_bimc_nodes[] = {
+static struct qcom_icc_node * const msm8916_bimc_nodes[] = {
 	[BIMC_SNOC_MAS] = &bimc_snoc_mas,
 	[MASTER_AMPSS_M0] = &mas_apss,
 	[MASTER_GRAPHICS_3D] = &mas_gfx,
@@ -1256,7 +1256,7 @@ static const struct regmap_config msm8916_bimc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8916_bimc = {
+static const struct qcom_icc_desc msm8916_bimc = {
 	.type = QCOM_ICC_BIMC,
 	.nodes = msm8916_bimc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8916_bimc_nodes),
@@ -1264,7 +1264,7 @@ static struct qcom_icc_desc msm8916_bimc = {
 	.qos_offset = 0x8000,
 };
 
-static struct qcom_icc_node *msm8916_pcnoc_nodes[] = {
+static struct qcom_icc_node * const msm8916_pcnoc_nodes[] = {
 	[MASTER_BLSP_1] = &mas_blsp_1,
 	[MASTER_DEHR] = &mas_dehr,
 	[MASTER_LPASS] = &mas_audio,
@@ -1325,7 +1325,7 @@ static const struct regmap_config msm8916_pcnoc_regmap_config = {
 	.fast_io	= true,
 };
 
-static struct qcom_icc_desc msm8916_pcnoc = {
+static const struct qcom_icc_desc msm8916_pcnoc = {
 	.type = QCOM_ICC_NOC,
 	.nodes = msm8916_pcnoc_nodes,
 	.num_nodes = ARRAY_SIZE(msm8916_pcnoc_nodes),
