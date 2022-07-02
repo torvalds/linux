@@ -57,4 +57,13 @@ config GH_RM_DRV
 	  interface to other driver in order to obtain the services provided by
 	  the RM-VM.
 
+config GH_IRQ_LEND
+	  tristate "Gunyah IRQ Lending Framework"
+	  depends on GH_RM_DRV
+	  help
+	  Gunyah Resource Manager permits interrupts to be shared between
+	  virtual machines. This config enables a framework which
+	  supports sharing these interrupts. The follows RM recommended
+	  protocol.
+
 endif

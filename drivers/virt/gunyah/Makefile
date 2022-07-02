@@ -4,3 +4,4 @@ obj-$(CONFIG_GH_DBL)            += gh_dbl.o
 obj-$(CONFIG_GH_MSGQ)           += gh_msgq.o
 obj-$(CONFIG_GH_RM_DRV)         += gh_rm_drv.o
 gh_rm_drv-y                     += gh_rm_core.o gh_rm_iface.o
+obj-$(CONFIG_GH_IRQ_LEND)       += gh_irq_lend.o
