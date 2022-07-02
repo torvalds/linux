@@ -785,12 +785,13 @@ sub recommend_sphinx_version($)
 {
 	my $virtualenv_cmd = shift;
 
-	if ($latest_avail_ver lt $min_pdf_version) {
-		print "note: If you want pdf, you need at least Sphinx $min_pdf_version.\n";
-	}
-
 	# Version is OK. Nothing to do.
-	return if ($cur_version && ($cur_version ge $rec_version));
+	if ($cur_version && ($cur_version ge $rec_version)) {
+		if ($cur_version lt $min_pdf_version) {
+			print "note: If you want pdf, you need at least Sphinx $min_pdf_version.\n";
+		}
+		return;
+	};
 
 	if (!$need_sphinx) {
 		# sphinx-build is present and its version is >= $min_version
@@ -836,6 +837,10 @@ sub recommend_sphinx_version($)
 			printf "\nNeed to activate Sphinx (version $latest_avail_ver) on virtualenv with:\n";
 			printf "\t. $activate_cmd\n";
 			deactivate_help();
+
+			if ($latest_avail_ver lt $min_pdf_version) {
+				print "note: If you want pdf, you need at least Sphinx $min_pdf_version.\n";
+			}
 
 			return;
 		}
