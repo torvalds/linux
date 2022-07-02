@@ -197,6 +197,19 @@ it is requested that you make it look like this::
    * another line of text
    */
 
+What is "reverse xmas tree"?
+----------------------------
+
+Netdev has a convention for ordering local variables in functions.
+Order the variable declaration lines longest to shortest, e.g.::
+
+  struct scatterlist *sg;
+  struct sk_buff *skb;
+  int err, i;
+
+If there are dependencies between the variables preventing the ordering
+move the initialization out of line.
+
 I am working in existing code which uses non-standard formatting. Which formatting should I use?
 ------------------------------------------------------------------------------------------------
 Make your code follow the most recent guidelines, so that eventually all code
