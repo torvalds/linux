@@ -34,4 +34,14 @@ config GH_DBL
 	  these doorbells by calling send and/or a receive primitives exposed by
 	  driver and trigger an interrupt to each other and exchange the data.
 
+config GH_MSGQ
+	tristate "Gunyah Message Queue driver"
+	help
+	  Gunyah offers message-queues as one of the IPC mechanisms to
+	  communicate among the Virtual Machines. The message queue drivers
+	  runs on the Virtual machines to provide an interface to the clients
+	  who wish to communicate to other clients on a different VM. Currently,
+	  the services offered by the drivers is simply to send and receive
+	  messages in a blocking manner.
+
 endif
