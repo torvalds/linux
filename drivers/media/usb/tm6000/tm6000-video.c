@@ -570,7 +570,7 @@ static int tm6000_prepare_isoc(struct tm6000_core *dev)
 			       dev->isoc_in.endp->desc.bEndpointAddress &
 			       USB_ENDPOINT_NUMBER_MASK);
 
-	size = usb_maxpacket(dev->udev, pipe, usb_pipeout(pipe));
+	size = usb_maxpacket(dev->udev, pipe);
 
 	if (size > dev->isoc_in.maxsize)
 		size = dev->isoc_in.maxsize;
