@@ -66,4 +66,16 @@ config GH_IRQ_LEND
 	  supports sharing these interrupts. The follows RM recommended
 	  protocol.
 
+config GH_MEM_NOTIFIER
+	tristate "Gunyah Memory Resource Notification Framework"
+	depends on GH_RM_DRV
+	help
+	  The Gunyah Resource Manager allows for different memory resources
+	  to be transferred across virtual machines with different notification
+	  labels assigned to each resource to aid in distinguishing them.
+	  Enabling the Gunyah Memory Resource Notification Framework provides an
+	  interface for clients to transmit memory resources between virtual
+	  machines, and register callbacks that get invoked only when
+	  notifications pertaining to their memory resources arrive.
+
 endif
