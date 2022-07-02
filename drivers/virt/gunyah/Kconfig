@@ -24,4 +24,14 @@ config GH_VIRT_WATCHDOG
 	  actions such as setting the bark/bite time and also petting the
 	  watchdog in the hypervisor.
 
+config GH_DBL
+	tristate "Gunyah Doorbell driver"
+	help
+	  Gunyah offers a simple inter VMs(Virtual Machines) communication
+	  through the use of doorbell interrupts. A single doorbell instance
+	  provides an unidirectional communication between two VMs and it acts
+	  like either a source(Tx) or generate(Rx). Individual VMs make use of
+	  these doorbells by calling send and/or a receive primitives exposed by
+	  driver and trigger an interrupt to each other and exchange the data.
+
 endif
