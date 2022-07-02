@@ -40,6 +40,7 @@ struct amdgpu_jpeg_inst {
 	struct amdgpu_ring ring_dec[AMDGPU_MAX_JPEG_RINGS];
 	struct amdgpu_irq_src irq;
 	struct amdgpu_jpeg_reg external;
+	uint8_t aid_id;
 };
 
 struct amdgpu_jpeg_ras {
@@ -58,6 +59,7 @@ struct amdgpu_jpeg {
 	atomic_t total_submission_cnt;
 	struct ras_common_if	*ras_if;
 	struct amdgpu_jpeg_ras	*ras;
+	uint8_t num_inst_per_aid;
 };
 
 int amdgpu_jpeg_sw_init(struct amdgpu_device *adev);
