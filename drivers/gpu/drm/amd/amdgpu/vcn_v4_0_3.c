@@ -35,7 +35,7 @@
 
 #include "vcn/vcn_4_0_3_offset.h"
 #include "vcn/vcn_4_0_3_sh_mask.h"
-#include "ivsrcid/vcn/irqsrcs_vcn_2_0.h"
+#include "ivsrcid/vcn/irqsrcs_vcn_4_0.h"
 
 #define mmUVD_DPG_LMA_CTL		regUVD_DPG_LMA_CTL
 #define mmUVD_DPG_LMA_CTL_BASE_IDX	regUVD_DPG_LMA_CTL_BASE_IDX
@@ -104,7 +104,7 @@ static int vcn_v4_0_3_sw_init(void *handle)
 
 	/* VCN DEC TRAP */
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_VCN,
-		VCN_2_0__SRCID__UVD_SYSTEM_MESSAGE_INTERRUPT, &adev->vcn.inst->irq);
+		VCN_4_0__SRCID__UVD_TRAP, &adev->vcn.inst->irq);
 	if (r)
 		return r;
 
@@ -1380,7 +1380,7 @@ static int vcn_v4_0_3_process_interrupt(struct amdgpu_device *adev,
 	DRM_DEV_DEBUG(adev->dev, "IH: VCN TRAP\n");
 
 	switch (entry->src_id) {
-	case VCN_2_0__SRCID__UVD_SYSTEM_MESSAGE_INTERRUPT:
+	case VCN_4_0__SRCID__UVD_TRAP:
 		amdgpu_fence_process(&adev->vcn.inst->ring_dec);
 		break;
 	default:
