@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+menu "Gunyah arm64 drivers"
+config GH_ARM64_DRV
+	tristate "Gunyah arm64 support"
+	depends on ARM64
+	help
+	  Gunyah drivers need arch specific support. Add support for
+	  ARM64 features required by Gunyah virtualizaton drivers. All
+	  arm64 specific features like GIC and reset reasons are handled
+	  by drivers under this config.
+endmenu
+
