@@ -6,6 +6,15 @@
 netdev FAQ
 ==========
 
+tl;dr
+-----
+
+ - designate your patch to a tree - ``[PATCH net]`` or ``[PATCH net-next]``
+ - for fixes the ``Fixes:`` tag is required, regardless of the tree
+ - don't post large series (> 15 patches), break them up
+ - don't repost your patches within one 24h period
+ - reverse xmas tree
+
 What is netdev?
 ---------------
 It is a mailing list for all network-related Linux stuff.  This
