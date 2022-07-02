@@ -1120,7 +1120,10 @@ static int rk817_probe(struct snd_soc_component *component)
 	rk817->chip_ver = (chip_ver & 0x0f);
 	dev_info(component->dev, "%s: chip_name:0x%x, chip_ver:0x%x\n", __func__, chip_name, chip_ver);
 
+	clk_prepare_enable(rk817->mclk);
 	rk817_reset(component);
+	clk_disable_unprepare(rk817->mclk);
+
 	snd_soc_add_component_controls(component, rk817_snd_path_controls,
 				       ARRAY_SIZE(rk817_snd_path_controls));
 	return 0;
