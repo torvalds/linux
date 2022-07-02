@@ -484,7 +484,7 @@ static int nfs_fs_context_parse_param(struct fs_context *fc,
 
 	opt = fs_parse(fc, nfs_fs_parameters, param, &result);
 	if (opt < 0)
-		return ctx->sloppy ? 1 : opt;
+		return (opt == -ENOPARAM && ctx->sloppy) ? 1 : opt;
 
 	if (fc->security)
 		ctx->has_sec_mnt_opts = 1;
