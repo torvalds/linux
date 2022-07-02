@@ -136,6 +136,20 @@ it to the maintainer to figure out what is the most recent and current
 version that should be applied. If there is any doubt, the maintainer
 will reply and ask what should be done.
 
+How do I divide my work into patches?
+-------------------------------------
+
+Put yourself in the shoes of the reviewer. Each patch is read separately
+and therefore should constitute a comprehensible step towards your stated
+goal.
+
+Avoid sending series longer than 15 patches. Larger series takes longer
+to review as reviewers will defer looking at it until they find a large
+chunk of time. A small series can be reviewed in a short time, so Maintainers
+just do it. As a result, a sequence of smaller series gets merged quicker and
+with better review coverage. Re-posting large series also increases the mailing
+list traffic.
+
 I made changes to only a few patches in a patch series should I resend only those changed?
 ------------------------------------------------------------------------------------------
 No, please resend the entire patch series and make sure you do number your
