@@ -44,4 +44,17 @@ config GH_MSGQ
 	  the services offered by the drivers is simply to send and receive
 	  messages in a blocking manner.
 
+config GH_RM_DRV
+	tristate "Gunyah Resource Manager driver"
+	help
+	  The Gunyah Resource Manager driver is used to communicate with the
+	  Resource Manager Virtual Machine (RM-VM). The RM-VM acts as a mediator
+	  and provides numerous services to the other VMs running in the system,
+	  such as notifying when a particular VM is up, resource (IRQ/device)
+	  sharing between VMs, information about the IPC mechanisms, and so on.
+
+	  The Resource Manager driver runs on the Virtual Machine and acts as an
+	  interface to other driver in order to obtain the services provided by
+	  the RM-VM.
+
 endif
