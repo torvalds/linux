@@ -242,6 +242,7 @@ struct amdgpu_vcn_inst {
 	uint32_t		*dpg_sram_curr_addr;
 	atomic_t		dpg_enc_submission_cnt;
 	struct amdgpu_vcn_fw_shared fw_shared;
+	uint8_t			aid_id;
 };
 
 struct amdgpu_vcn_ras {
@@ -271,6 +272,8 @@ struct amdgpu_vcn {
 
 	struct ras_common_if    *ras_if;
 	struct amdgpu_vcn_ras   *ras;
+
+	uint8_t	num_inst_per_aid;
 };
 
 struct amdgpu_fw_shared_rb_ptrs_struct {
