@@ -191,6 +191,8 @@ enum ksz_masks {
 	DYNAMIC_MAC_TABLE_FID,
 	DYNAMIC_MAC_TABLE_SRC_PORT,
 	DYNAMIC_MAC_TABLE_TIMESTAMP,
+	ALU_STAT_WRITE,
+	ALU_STAT_READ,
 };
 
 enum ksz_shifts {
@@ -203,6 +205,7 @@ enum ksz_shifts {
 	DYNAMIC_MAC_FID,
 	DYNAMIC_MAC_TIMESTAMP,
 	DYNAMIC_MAC_SRC_PORT,
+	ALU_STAT_INDEX,
 };
 
 struct alu_struct {
@@ -268,6 +271,14 @@ struct ksz_dev_ops {
 	int (*max_mtu)(struct ksz_device *dev, int port);
 	void (*freeze_mib)(struct ksz_device *dev, int port, bool freeze);
 	void (*port_init_cnt)(struct ksz_device *dev, int port);
+	void (*phylink_mac_config)(struct ksz_device *dev, int port,
+				   unsigned int mode,
+				   const struct phylink_link_state *state);
+	void (*phylink_mac_link_up)(struct ksz_device *dev, int port,
+				    unsigned int mode,
+				    phy_interface_t interface,
+				    struct phy_device *phydev, int speed,
+				    int duplex, bool tx_pause, bool rx_pause);
 	void (*config_cpu_port)(struct dsa_switch *ds);
 	int (*enable_stp_addr)(struct ksz_device *dev);
 	int (*reset)(struct ksz_device *dev);
@@ -398,6 +409,15 @@ static inline void ksz_regmap_unlock(void *__mtx)
 {
 	struct mutex *mtx = __mtx;
 	mutex_unlock(mtx);
+}
+
+static inline int is_lan937x(struct ksz_device *dev)
+{
+	return dev->chip_id == LAN9370_CHIP_ID ||
+		dev->chip_id == LAN9371_CHIP_ID ||
+		dev->chip_id == LAN9372_CHIP_ID ||
+		dev->chip_id == LAN9373_CHIP_ID ||
+		dev->chip_id == LAN9374_CHIP_ID;
 }
 
 /* STP State Defines */

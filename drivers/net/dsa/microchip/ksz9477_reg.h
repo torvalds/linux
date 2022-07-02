@@ -419,12 +419,9 @@
 
 #define REG_SW_ALU_STAT_CTRL__4		0x041C
 
-#define ALU_STAT_INDEX_M		(BIT(4) - 1)
-#define ALU_STAT_INDEX_S		16
 #define ALU_RESV_MCAST_INDEX_M		(BIT(6) - 1)
 #define ALU_STAT_START			BIT(7)
 #define ALU_RESV_MCAST_ADDR		BIT(1)
-#define ALU_STAT_READ			BIT(0)
 
 #define REG_SW_ALU_VAL_A		0x0420
 

@@ -166,6 +166,26 @@ static const struct of_device_id ksz_dt_ids[] = {
 		.compatible = "microchip,ksz9567",
 		.data = &ksz_switch_chips[KSZ9567]
 	},
+	{
+		.compatible = "microchip,lan9370",
+		.data = &ksz_switch_chips[LAN9370]
+	},
+	{
+		.compatible = "microchip,lan9371",
+		.data = &ksz_switch_chips[LAN9371]
+	},
+	{
+		.compatible = "microchip,lan9372",
+		.data = &ksz_switch_chips[LAN9372]
+	},
+	{
+		.compatible = "microchip,lan9373",
+		.data = &ksz_switch_chips[LAN9373]
+	},
+	{
+		.compatible = "microchip,lan9374",
+		.data = &ksz_switch_chips[LAN9374]
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ksz_dt_ids);
@@ -182,6 +202,11 @@ static const struct spi_device_id ksz_spi_ids[] = {
 	{ "ksz9563" },
 	{ "ksz8563" },
 	{ "ksz9567" },
+	{ "lan9370" },
+	{ "lan9371" },
+	{ "lan9372" },
+	{ "lan9373" },
+	{ "lan9374" },
 	{ },
 };
 MODULE_DEVICE_TABLE(spi, ksz_spi_ids);
@@ -206,6 +231,7 @@ MODULE_ALIAS("spi:ksz9893");
 MODULE_ALIAS("spi:ksz9563");
 MODULE_ALIAS("spi:ksz8563");
 MODULE_ALIAS("spi:ksz9567");
+MODULE_ALIAS("spi:lan937x");
 MODULE_AUTHOR("Tristram Ha <Tristram.Ha@microchip.com>");
 MODULE_DESCRIPTION("Microchip ksz Series Switch SPI Driver");
 MODULE_LICENSE("GPL");
