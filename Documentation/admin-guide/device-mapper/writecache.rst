@@ -75,6 +75,7 @@ Constructor parameters:
 		the origin volume in the last n milliseconds
 
 Status:
+
 1. error indicator - 0 if there was no error, otherwise error number
 2. the number of blocks
 3. the number of free blocks
