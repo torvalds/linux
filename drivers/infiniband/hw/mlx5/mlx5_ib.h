@@ -259,6 +259,12 @@ struct mlx5_ib_flow_matcher {
 	u8			match_criteria_enable;
 };
 
+struct mlx5_ib_steering_anchor {
+	struct mlx5_ib_flow_prio *ft_prio;
+	struct mlx5_ib_dev *dev;
+	atomic_t usecnt;
+};
+
 struct mlx5_ib_pp {
 	u16 index;
 	struct mlx5_core_dev *mdev;
