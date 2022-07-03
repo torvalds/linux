@@ -178,6 +178,7 @@ struct mlx5_flow_table_attr {
 	int max_fte;
 	u32 level;
 	u32 flags;
+	u16 uid;
 	struct mlx5_flow_table *next_ft;
 
 	struct {
