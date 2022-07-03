@@ -2065,7 +2065,7 @@ build_r4000_tlbchange_handler_head(u32 **p, struct uasm_label **l,
 
 	UASM_i_MFC0(p, wr.r1, C0_BADVADDR);
 	UASM_i_LW(p, wr.r2, 0, wr.r2);
-	UASM_i_SRL(p, wr.r1, wr.r1, PAGE_SHIFT + PTE_ORDER - PTE_T_LOG2);
+	UASM_i_SRL(p, wr.r1, wr.r1, PAGE_SHIFT - PTE_T_LOG2);
 	uasm_i_andi(p, wr.r1, wr.r1, (PTRS_PER_PTE - 1) << PTE_T_LOG2);
 	UASM_i_ADDU(p, wr.r2, wr.r2, wr.r1);
 
