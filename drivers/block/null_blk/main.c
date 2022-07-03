@@ -1655,7 +1655,7 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 
 static void cleanup_queue(struct nullb_queue *nq)
 {
-	kfree(nq->tag_map);
+	bitmap_free(nq->tag_map);
 	kfree(nq->cmds);
 }
 
@@ -1782,14 +1782,13 @@ static const struct block_device_operations null_rq_ops = {
 static int setup_commands(struct nullb_queue *nq)
 {
 	struct nullb_cmd *cmd;
-	int i, tag_size;
+	int i;
 
 	nq->cmds = kcalloc(nq->queue_depth, sizeof(*cmd), GFP_KERNEL);
 	if (!nq->cmds)
 		return -ENOMEM;
 
-	tag_size = ALIGN(nq->queue_depth, BITS_PER_LONG) / BITS_PER_LONG;
-	nq->tag_map = kcalloc(tag_size, sizeof(unsigned long), GFP_KERNEL);
+	nq->tag_map = bitmap_zalloc(nq->queue_depth, GFP_KERNEL);
 	if (!nq->tag_map) {
 		kfree(nq->cmds);
 		return -ENOMEM;
