@@ -5137,8 +5137,8 @@ int goya_cpucp_info_get(struct hl_device *hdev)
 	return 0;
 }
 
-static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
-					u8 mask_len, struct seq_file *s)
+static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask_arr, u8 mask_len,
+				struct engines_data *e)
 {
 	const char *fmt = "%-5d%-9s%#-14x%#-16x%#x\n";
 	const char *dma_fmt = "%-5d%-9s%#-14x%#x\n";
@@ -5149,9 +5149,9 @@ static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 	u64 offset;
 	int i;
 
-	if (s)
-		seq_puts(s, "\nDMA  is_idle  QM_GLBL_STS0  DMA_CORE_STS0\n"
-				"---  -------  ------------  -------------\n");
+	if (e)
+		hl_engine_data_sprintf(e, "\nDMA  is_idle  QM_GLBL_STS0  DMA_CORE_STS0\n"
+					"---  -------  ------------  -------------\n");
 
 	offset = mmDMA_QM_1_GLBL_STS0 - mmDMA_QM_0_GLBL_STS0;
 
@@ -5164,13 +5164,13 @@ static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 
 		if (mask && !is_eng_idle)
 			set_bit(GOYA_ENGINE_ID_DMA_0 + i, mask);
-		if (s)
-			seq_printf(s, dma_fmt, i, is_eng_idle ? "Y" : "N",
+		if (e)
+			hl_engine_data_sprintf(e, dma_fmt, i, is_eng_idle ? "Y" : "N",
 					qm_glbl_sts0, dma_core_sts0);
 	}
 
-	if (s)
-		seq_puts(s,
+	if (e)
+		hl_engine_data_sprintf(e,
 			"\nTPC  is_idle  QM_GLBL_STS0  CMDQ_GLBL_STS0  CFG_STATUS\n"
 			"---  -------  ------------  --------------  ----------\n");
 
@@ -5187,13 +5187,13 @@ static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 
 		if (mask && !is_eng_idle)
 			set_bit(GOYA_ENGINE_ID_TPC_0 + i, mask);
-		if (s)
-			seq_printf(s, fmt, i, is_eng_idle ? "Y" : "N",
+		if (e)
+			hl_engine_data_sprintf(e, fmt, i, is_eng_idle ? "Y" : "N",
 				qm_glbl_sts0, cmdq_glbl_sts0, tpc_cfg_sts);
 	}
 
-	if (s)
-		seq_puts(s,
+	if (e)
+		hl_engine_data_sprintf(e,
 			"\nMME  is_idle  QM_GLBL_STS0  CMDQ_GLBL_STS0  ARCH_STATUS\n"
 			"---  -------  ------------  --------------  -----------\n");
 
@@ -5207,10 +5207,10 @@ static bool goya_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 
 	if (mask && !is_eng_idle)
 		set_bit(GOYA_ENGINE_ID_MME_0, mask);
-	if (s) {
-		seq_printf(s, fmt, 0, is_eng_idle ? "Y" : "N", qm_glbl_sts0,
+	if (e) {
+		hl_engine_data_sprintf(e, fmt, 0, is_eng_idle ? "Y" : "N", qm_glbl_sts0,
 				cmdq_glbl_sts0, mme_arch_sts);
-		seq_puts(s, "\n");
+		hl_engine_data_sprintf(e, "\n");
 	}
 
 	return is_idle;

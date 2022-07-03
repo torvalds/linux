@@ -1372,6 +1372,18 @@ struct fw_load_mgr {
 struct hl_cs;
 
 /**
+ * struct engines_data - asic engines data
+ * @buf: buffer for engines data in ascii
+ * @actual_size: actual size of data that was written by the driver to the allocated buffer
+ * @allocated_buf_size: total size of allocated buffer
+ */
+struct engines_data {
+	char *buf;
+	int actual_size;
+	u32 allocated_buf_size;
+};
+
+/**
  * struct hl_asic_funcs - ASIC specific functions that are can be called from
  *                        common code.
  * @early_init: sets up early driver state (pre sw_init), doesn't configure H/W.
@@ -1570,8 +1582,8 @@ struct hl_asic_funcs {
 	int (*mmu_prefetch_cache_range)(struct hl_ctx *ctx, u32 flags, u32 asid, u64 va, u64 size);
 	int (*send_heartbeat)(struct hl_device *hdev);
 	int (*debug_coresight)(struct hl_device *hdev, struct hl_ctx *ctx, void *data);
-	bool (*is_device_idle)(struct hl_device *hdev, u64 *mask_arr,
-					u8 mask_len, struct seq_file *s);
+	bool (*is_device_idle)(struct hl_device *hdev, u64 *mask_arr, u8 mask_len,
+				struct engines_data *e);
 	int (*non_hard_reset_late_init)(struct hl_device *hdev);
 	void (*hw_queues_lock)(struct hl_device *hdev);
 	void (*hw_queues_unlock)(struct hl_device *hdev);
@@ -3743,6 +3755,7 @@ struct hl_mmap_mem_buf *
 hl_mmap_mem_buf_alloc(struct hl_mem_mgr *mmg,
 		      struct hl_mmap_mem_buf_behavior *behavior, gfp_t gfp,
 		      void *args);
+__printf(2, 3) void hl_engine_data_sprintf(struct engines_data *e, const char *fmt, ...);
 
 #ifdef CONFIG_DEBUG_FS
 

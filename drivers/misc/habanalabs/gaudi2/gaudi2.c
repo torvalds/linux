@@ -1663,7 +1663,7 @@ struct gaudi2_cache_invld_params {
 };
 
 struct gaudi2_tpc_idle_data {
-	struct seq_file *s;
+	struct engines_data *e;
 	unsigned long *mask;
 	bool *is_idle;
 	const char *tpc_fmt;
@@ -6172,14 +6172,15 @@ static void gaudi2_is_tpc_engine_idle(struct hl_device *hdev, int dcore, int ins
 	if (idle_data->mask && !is_eng_idle)
 		set_bit(engine_idx, idle_data->mask);
 
-	if (idle_data->s)
-		seq_printf(idle_data->s, idle_data->tpc_fmt, dcore, inst,
+	if (idle_data->e)
+		hl_engine_data_sprintf(idle_data->e,
+					idle_data->tpc_fmt, dcore, inst,
 					is_eng_idle ? "Y" : "N",
 					qm_glbl_sts0, qm_cgm_sts, tpc_cfg_sts);
 }
 
-static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
-					u8 mask_len, struct seq_file *s)
+static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr, u8 mask_len,
+					struct engines_data *e)
 {
 	u32 qm_glbl_sts0, qm_glbl_sts1, qm_cgm_sts, dma_core_idle_ind_mask,
 		mme_arch_sts, dec_swreg15, dec_enabled_bit;
@@ -6197,7 +6198,7 @@ static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 
 	struct gaudi2_tpc_idle_data tpc_idle_data = {
 		.tpc_fmt = "%-6d%-5d%-9s%#-14x%#-12x%#x\n",
-		.s = s,
+		.e = e,
 		.mask = mask,
 		.is_idle = &is_idle,
 	};
@@ -6209,8 +6210,8 @@ static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 	int engine_idx, i, j;
 
 	/* EDMA, Two engines per Dcore */
-	if (s)
-		seq_puts(s,
+	if (e)
+		hl_engine_data_sprintf(e,
 			"\nCORE  EDMA  is_idle  QM_GLBL_STS0  DMA_CORE_IDLE_IND_MASK\n"
 			"----  ----  -------  ------------  ----------------------\n");
 
@@ -6239,19 +6240,19 @@ static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 			if (mask && !is_eng_idle)
 				set_bit(engine_idx, mask);
 
-			if (s)
-				seq_printf(s, edma_fmt, i, j,
-						is_eng_idle ? "Y" : "N",
-						qm_glbl_sts0,
-						dma_core_idle_ind_mask);
+			if (e)
+				hl_engine_data_sprintf(e, edma_fmt, i, j,
+							is_eng_idle ? "Y" : "N",
+							qm_glbl_sts0,
+							dma_core_idle_ind_mask);
 		}
 	}
 
 	/* PDMA, Two engines in Full chip */
-	if (s)
-		seq_puts(s,
-			"\nPDMA  is_idle  QM_GLBL_STS0  DMA_CORE_IDLE_IND_MASK\n"
-			"----  -------  ------------  ----------------------\n");
+	if (e)
+		hl_engine_data_sprintf(e,
+					"\nPDMA  is_idle  QM_GLBL_STS0  DMA_CORE_IDLE_IND_MASK\n"
+					"----  -------  ------------  ----------------------\n");
 
 	for (i = 0 ; i < NUM_OF_PDMA ; i++) {
 		engine_idx = GAUDI2_ENGINE_ID_PDMA_0 + i;
@@ -6269,16 +6270,16 @@ static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 		if (mask && !is_eng_idle)
 			set_bit(engine_idx, mask);
 
-		if (s)
-			seq_printf(s, pdma_fmt, i, is_eng_idle ? "Y" : "N", qm_glbl_sts0,
-					dma_core_idle_ind_mask);
+		if (e)
+			hl_engine_data_sprintf(e, pdma_fmt, i, is_eng_idle ? "Y" : "N",
+						qm_glbl_sts0, dma_core_idle_ind_mask);
 	}
 
 	/* NIC, twelve macros in Full chip */
-	if (s && hdev->nic_ports_mask)
-		seq_puts(s,
-			"\nNIC  is_idle  QM_GLBL_STS0  QM_CGM_STS\n"
-			"---  -------  ------------  ----------\n");
+	if (e && hdev->nic_ports_mask)
+		hl_engine_data_sprintf(e,
+					"\nNIC  is_idle  QM_GLBL_STS0  QM_CGM_STS\n"
+					"---  -------  ------------  ----------\n");
 
 	for (i = 0 ; i < NIC_NUMBER_OF_ENGINES ; i++) {
 		if (!(i & 1))
@@ -6302,15 +6303,15 @@ static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 		if (mask && !is_eng_idle)
 			set_bit(engine_idx, mask);
 
-		if (s)
-			seq_printf(s, nic_fmt, i, is_eng_idle ? "Y" : "N", qm_glbl_sts0,
-					qm_cgm_sts);
+		if (e)
+			hl_engine_data_sprintf(e, nic_fmt, i, is_eng_idle ? "Y" : "N",
+						qm_glbl_sts0, qm_cgm_sts);
 	}
 
-	if (s)
-		seq_puts(s,
-			"\nMME  Stub  is_idle  QM_GLBL_STS0  MME_ARCH_STATUS\n"
-			"---  ----  -------  ------------  ---------------\n");
+	if (e)
+		hl_engine_data_sprintf(e,
+					"\nMME  Stub  is_idle  QM_GLBL_STS0  MME_ARCH_STATUS\n"
+					"---  ----  -------  ------------  ---------------\n");
 	/* MME, one per Dcore */
 	for (i = 0 ; i < NUM_OF_DCORES ; i++) {
 		engine_idx = GAUDI2_DCORE0_ENGINE_ID_MME + i * GAUDI2_ENGINE_ID_DCORE_OFFSET;
@@ -6327,8 +6328,8 @@ static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 		is_eng_idle &= IS_MME_IDLE(mme_arch_sts);
 		is_idle &= is_eng_idle;
 
-		if (s)
-			seq_printf(s, mme_fmt, i, "N",
+		if (e)
+			hl_engine_data_sprintf(e, mme_fmt, i, "N",
 				is_eng_idle ? "Y" : "N",
 				qm_glbl_sts0,
 				mme_arch_sts);
@@ -6340,16 +6341,16 @@ static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 	/*
 	 * TPC
 	 */
-	if (s && prop->tpc_enabled_mask)
-		seq_puts(s,
+	if (e && prop->tpc_enabled_mask)
+		hl_engine_data_sprintf(e,
 			"\nCORE  TPC   is_idle  QM_GLBL_STS0  QM_CGM_STS  DMA_CORE_IDLE_IND_MASK\n"
 			"----  ---  --------  ------------  ----------  ----------------------\n");
 
 	gaudi2_iterate_tpcs(hdev, &tpc_iter);
 
 	/* Decoders, two each Dcore and two shared PCIe decoders */
-	if (s && (prop->decoder_enabled_mask & (~PCIE_DEC_EN_MASK)))
-		seq_puts(s,
+	if (e && (prop->decoder_enabled_mask & (~PCIE_DEC_EN_MASK)))
+		hl_engine_data_sprintf(e,
 			"\nCORE  DEC  is_idle  VSI_CMD_SWREG15\n"
 			"----  ---  -------  ---------------\n");
 
@@ -6370,13 +6371,14 @@ static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 			if (mask && !is_eng_idle)
 				set_bit(engine_idx, mask);
 
-			if (s)
-				seq_printf(s, dec_fmt, i, j, is_eng_idle ? "Y" : "N", dec_swreg15);
+			if (e)
+				hl_engine_data_sprintf(e, dec_fmt, i, j,
+							is_eng_idle ? "Y" : "N", dec_swreg15);
 		}
 	}
 
-	if (s && (prop->decoder_enabled_mask & PCIE_DEC_EN_MASK))
-		seq_puts(s,
+	if (e && (prop->decoder_enabled_mask & PCIE_DEC_EN_MASK))
+		hl_engine_data_sprintf(e,
 			"\nPCIe DEC  is_idle  VSI_CMD_SWREG15\n"
 			"--------  -------  ---------------\n");
 
@@ -6395,12 +6397,13 @@ static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 		if (mask && !is_eng_idle)
 			set_bit(engine_idx, mask);
 
-		if (s)
-			seq_printf(s, pcie_dec_fmt, i, is_eng_idle ? "Y" : "N", dec_swreg15);
+		if (e)
+			hl_engine_data_sprintf(e, pcie_dec_fmt, i,
+						is_eng_idle ? "Y" : "N", dec_swreg15);
 	}
 
-	if (s)
-		seq_puts(s,
+	if (e)
+		hl_engine_data_sprintf(e,
 			"\nCORE  ROT  is_idle  QM_GLBL_STS0  QM_CGM_STS  DMA_CORE_STS0\n"
 			"----  ----  -------  ------------  ----------  -------------\n");
 
@@ -6419,8 +6422,8 @@ static bool gaudi2_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 		if (mask && !is_eng_idle)
 			set_bit(engine_idx, mask);
 
-		if (s)
-			seq_printf(s, rot_fmt, i, 0, is_eng_idle ? "Y" : "N",
+		if (e)
+			hl_engine_data_sprintf(e, rot_fmt, i, 0, is_eng_idle ? "Y" : "N",
 					qm_glbl_sts0, qm_cgm_sts, "-");
 	}
 

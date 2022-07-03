@@ -8066,8 +8066,8 @@ static int gaudi_cpucp_info_get(struct hl_device *hdev)
 	return 0;
 }
 
-static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
-					u8 mask_len, struct seq_file *s)
+static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask_arr, u8 mask_len,
+		struct engines_data *e)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
 	const char *fmt = "%-5d%-9s%#-14x%#-12x%#x\n";
@@ -8079,8 +8079,8 @@ static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 	u64 offset;
 	int i, dma_id, port;
 
-	if (s)
-		seq_puts(s,
+	if (e)
+		hl_engine_data_sprintf(e,
 			"\nDMA  is_idle  QM_GLBL_STS0  QM_CGM_STS  DMA_CORE_STS0\n"
 			"---  -------  ------------  ----------  -------------\n");
 
@@ -8097,14 +8097,14 @@ static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 
 		if (mask && !is_eng_idle)
 			set_bit(GAUDI_ENGINE_ID_DMA_0 + dma_id, mask);
-		if (s)
-			seq_printf(s, fmt, dma_id,
+		if (e)
+			hl_engine_data_sprintf(e, fmt, dma_id,
 				is_eng_idle ? "Y" : "N", qm_glbl_sts0,
 				qm_cgm_sts, dma_core_sts0);
 	}
 
-	if (s)
-		seq_puts(s,
+	if (e)
+		hl_engine_data_sprintf(e,
 			"\nTPC  is_idle  QM_GLBL_STS0  QM_CGM_STS  CFG_STATUS\n"
 			"---  -------  ------------  ----------  ----------\n");
 
@@ -8119,14 +8119,14 @@ static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 
 		if (mask && !is_eng_idle)
 			set_bit(GAUDI_ENGINE_ID_TPC_0 + i, mask);
-		if (s)
-			seq_printf(s, fmt, i,
+		if (e)
+			hl_engine_data_sprintf(e, fmt, i,
 				is_eng_idle ? "Y" : "N",
 				qm_glbl_sts0, qm_cgm_sts, tpc_cfg_sts);
 	}
 
-	if (s)
-		seq_puts(s,
+	if (e)
+		hl_engine_data_sprintf(e,
 			"\nMME  is_idle  QM_GLBL_STS0  QM_CGM_STS  ARCH_STATUS\n"
 			"---  -------  ------------  ----------  -----------\n");
 
@@ -8147,20 +8147,21 @@ static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 
 		if (mask && !is_eng_idle)
 			set_bit(GAUDI_ENGINE_ID_MME_0 + i, mask);
-		if (s) {
+		if (e) {
 			if (!is_slave)
-				seq_printf(s, fmt, i,
+				hl_engine_data_sprintf(e, fmt, i,
 					is_eng_idle ? "Y" : "N",
 					qm_glbl_sts0, qm_cgm_sts, mme_arch_sts);
 			else
-				seq_printf(s, mme_slave_fmt, i,
+				hl_engine_data_sprintf(e, mme_slave_fmt, i,
 					is_eng_idle ? "Y" : "N", "-",
 					"-", mme_arch_sts);
 		}
 	}
 
-	if (s)
-		seq_puts(s, "\nNIC  is_idle  QM_GLBL_STS0  QM_CGM_STS\n"
+	if (e)
+		hl_engine_data_sprintf(e,
+				"\nNIC  is_idle  QM_GLBL_STS0  QM_CGM_STS\n"
 				"---  -------  ------------  ----------\n");
 
 	for (i = 0 ; i < (NIC_NUMBER_OF_ENGINES / 2) ; i++) {
@@ -8174,8 +8175,8 @@ static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 
 			if (mask && !is_eng_idle)
 				set_bit(GAUDI_ENGINE_ID_NIC_0 + port, mask);
-			if (s)
-				seq_printf(s, nic_fmt, port,
+			if (e)
+				hl_engine_data_sprintf(e, nic_fmt, port,
 						is_eng_idle ? "Y" : "N",
 						qm_glbl_sts0, qm_cgm_sts);
 		}
@@ -8189,15 +8190,15 @@ static bool gaudi_is_device_idle(struct hl_device *hdev, u64 *mask_arr,
 
 			if (mask && !is_eng_idle)
 				set_bit(GAUDI_ENGINE_ID_NIC_0 + port, mask);
-			if (s)
-				seq_printf(s, nic_fmt, port,
+			if (e)
+				hl_engine_data_sprintf(e, nic_fmt, port,
 						is_eng_idle ? "Y" : "N",
 						qm_glbl_sts0, qm_cgm_sts);
 		}
 	}
 
-	if (s)
-		seq_puts(s, "\n");
+	if (e)
+		hl_engine_data_sprintf(e, "\n");
 
 	return is_idle;
 }

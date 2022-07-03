@@ -17,6 +17,7 @@
 #define MMU_ASID_BUF_SIZE	10
 #define MMU_KBUF_SIZE		(MMU_ADDR_BUF_SIZE + MMU_ASID_BUF_SIZE)
 #define I2C_MAX_TRANSACTION_LEN	8
+#define ENGINES_DATA_MAX_SIZE	SZ_16K
 
 static struct dentry *hl_debug_root;
 
@@ -586,11 +587,37 @@ err:
 	return -EINVAL;
 }
 
+void hl_engine_data_sprintf(struct engines_data *e, const char *fmt, ...)
+{
+	va_list args;
+	int str_size;
+
+	va_start(args, fmt);
+	/* Calculate formatted string length. Assuming each string is null terminated, hence
+	 * increment result by 1
+	 */
+	str_size = vsnprintf(NULL, 0, fmt, args) + 1;
+	va_end(args);
+
+	if ((e->actual_size + str_size) < e->allocated_buf_size) {
+		va_start(args, fmt);
+		vsnprintf(e->buf + e->actual_size, str_size, fmt, args);
+		va_end(args);
+	}
+
+	/* Need to update the size even when not updating destination buffer to get the exact size
+	 * of all input strings
+	 */
+	e->actual_size += str_size;
+
+}
+
 static int engines_show(struct seq_file *s, void *data)
 {
 	struct hl_debugfs_entry *entry = s->private;
 	struct hl_dbg_device_entry *dev_entry = entry->dev_entry;
 	struct hl_device *hdev = dev_entry->hdev;
+	struct engines_data eng_data;
 
 	if (hdev->reset_info.in_reset) {
 		dev_warn_ratelimited(hdev->dev,
@@ -598,7 +625,25 @@ static int engines_show(struct seq_file *s, void *data)
 		return 0;
 	}
 
-	hdev->asic_funcs->is_device_idle(hdev, NULL, 0, s);
+	eng_data.actual_size = 0;
+	eng_data.allocated_buf_size = ENGINES_DATA_MAX_SIZE;
+	eng_data.buf = vmalloc(eng_data.allocated_buf_size);
+	if (!eng_data.buf)
+		return -ENOMEM;
+
+	hdev->asic_funcs->is_device_idle(hdev, NULL, 0, &eng_data);
+
+	if (eng_data.actual_size > eng_data.allocated_buf_size) {
+		dev_err(hdev->dev,
+				"Engines data size (%d Bytes) is bigger than allocated size (%u Bytes)\n",
+				eng_data.actual_size, eng_data.allocated_buf_size);
+		vfree(eng_data.buf);
+		return -ENOMEM;
+	}
+
+	seq_write(s, eng_data.buf, eng_data.actual_size);
+
+	vfree(eng_data.buf);
 
 	return 0;
 }
