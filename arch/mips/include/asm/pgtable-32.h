@@ -81,7 +81,7 @@ extern int add_temporary_entry(unsigned long entrylo0, unsigned long entrylo1,
 #endif
 
 #define PGD_ORDER	(__PGD_ORDER >= 0 ? __PGD_ORDER : 0)
-#define PUD_ORDER	aieeee_attempt_to_allocate_pud
+#define PUD_TABLE_ORDER	aieeee_attempt_to_allocate_pud
 #define PMD_TABLE_ORDER	aieeee_attempt_to_allocate_pmd
 #define PTE_ORDER	0
 
