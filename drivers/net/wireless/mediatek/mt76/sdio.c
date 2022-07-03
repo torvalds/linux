@@ -350,7 +350,6 @@ int mt76s_alloc_tx(struct mt76_dev *dev)
 		if (IS_ERR(q))
 			return PTR_ERR(q);
 
-		q->qid = i;
 		dev->phy.q_tx[i] = q;
 	}
 
@@ -358,7 +357,6 @@ int mt76s_alloc_tx(struct mt76_dev *dev)
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 
-	q->qid = MT_MCUQ_WM;
 	dev->q_mcu[MT_MCUQ_WM] = q;
 
 	return 0;

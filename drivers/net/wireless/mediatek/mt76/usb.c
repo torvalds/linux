@@ -937,7 +937,6 @@ static int mt76u_alloc_tx(struct mt76_dev *dev)
 
 		spin_lock_init(&q->lock);
 		q->hw_idx = mt76u_ac_to_hwq(dev, i);
-		q->qid = i;
 
 		dev->phy.q_tx[i] = q;
 

@@ -185,7 +185,6 @@ struct mt76_queue {
 
 	u8 buf_offset;
 	u8 hw_idx;
-	u8 qid;
 	u8 flags;
 
 	u32 wed_regs;
@@ -977,7 +976,6 @@ static inline int mt76_init_tx_queue(struct mt76_phy *phy, int qid, int idx,
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 
-	q->qid = qid;
 	phy->q_tx[qid] = q;
 
 	return 0;
@@ -992,7 +990,6 @@ static inline int mt76_init_mcu_queue(struct mt76_dev *dev, int qid, int idx,
 	if (IS_ERR(q))
 		return PTR_ERR(q);
 
-	q->qid = __MT_TXQ_MAX + qid;
 	dev->q_mcu[qid] = q;
 
 	return 0;
