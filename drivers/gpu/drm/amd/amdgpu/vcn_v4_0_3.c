@@ -417,117 +417,6 @@ static void vcn_v4_0_3_mc_resume_dpg_mode(struct amdgpu_device *adev, bool indir
 }
 
 /**
- * vcn_v4_0_disable_static_power_gating - disable VCN static power gating
- *
- * @adev: amdgpu_device pointer
- *
- * Disable static power gating for VCN block
- */
-static void vcn_v4_0_3_disable_static_power_gating(struct amdgpu_device *adev)
-{
-	uint32_t data = 0;
-
-	if (adev->pg_flags & AMD_PG_SUPPORT_VCN) {
-		data = (1 << UVD_PGFSM_CONFIG__UVDM_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDS_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDLM_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDF_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDTC_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDB_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDTA_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDTD_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDTE_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDE_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDAB_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDTB_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDNA_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDNB_PWR_CONFIG__SHIFT);
-
-		WREG32_SOC15(VCN, 0, regUVD_PGFSM_CONFIG, data);
-		SOC15_WAIT_ON_RREG(VCN, 0, regUVD_PGFSM_STATUS,
-			UVD_PGFSM_STATUS__UVDM_UVDU_UVDLM_PWR_ON_3_0, 0x3F3FFFFF);
-	} else {
-		data = (1 << UVD_PGFSM_CONFIG__UVDM_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDS_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDLM_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDF_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDTC_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDB_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDTA_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDTD_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDTE_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDE_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDAB_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDTB_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDNA_PWR_CONFIG__SHIFT
-			| 1 << UVD_PGFSM_CONFIG__UVDNB_PWR_CONFIG__SHIFT);
-
-		WREG32_SOC15(VCN, 0, regUVD_PGFSM_CONFIG, data);
-		SOC15_WAIT_ON_RREG(VCN, 0, regUVD_PGFSM_STATUS, 0,  0x3F3FFFFF);
-	}
-
-	data = RREG32_SOC15(VCN, 0, regUVD_POWER_STATUS);
-	data &= ~0x103;
-	if (adev->pg_flags & AMD_PG_SUPPORT_VCN)
-		data |= UVD_PGFSM_CONFIG__UVDM_UVDU_PWR_ON |
-			UVD_POWER_STATUS__UVD_PG_EN_MASK;
-
-	WREG32_SOC15(VCN, 0, regUVD_POWER_STATUS, data);
-}
-
-/**
- * vcn_v4_0_3_enable_static_power_gating - enable VCN static power gating
- *
- * @adev: amdgpu_device pointer
- *
- * Enable static power gating for VCN block
- */
-static void vcn_v4_0_3_enable_static_power_gating(struct amdgpu_device *adev)
-{
-	uint32_t data;
-
-	if (adev->pg_flags & AMD_PG_SUPPORT_VCN) {
-		/* Before power off, this indicator has to be turned on */
-		data = RREG32_SOC15(VCN, 0, regUVD_POWER_STATUS);
-		data &= ~UVD_POWER_STATUS__UVD_POWER_STATUS_MASK;
-		data |= UVD_POWER_STATUS__UVD_POWER_STATUS_TILES_OFF;
-		WREG32_SOC15(VCN, 0, regUVD_POWER_STATUS, data);
-
-		data = (2 << UVD_PGFSM_CONFIG__UVDM_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDS_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDF_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDTC_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDB_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDTA_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDLM_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDTD_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDTE_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDE_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDAB_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDTB_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDNA_PWR_CONFIG__SHIFT
-			| 2 << UVD_PGFSM_CONFIG__UVDNB_PWR_CONFIG__SHIFT);
-		WREG32_SOC15(VCN, 0, regUVD_PGFSM_CONFIG, data);
-
-		data = (2 << UVD_PGFSM_STATUS__UVDM_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDS_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDF_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDTC_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDB_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDTA_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDLM_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDTD_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDTE_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDE_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDAB_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDTB_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDNA_PWR_STATUS__SHIFT
-			| 2 << UVD_PGFSM_STATUS__UVDNB_PWR_STATUS__SHIFT);
-		SOC15_WAIT_ON_RREG(VCN, 0, regUVD_PGFSM_STATUS, data, 0x3F3FFFFF);
-	}
-}
-
-/**
  * vcn_v4_0_3_disable_clock_gating - disable VCN clock gating
  *
  * @adev: amdgpu_device pointer
@@ -869,9 +758,6 @@ static int vcn_v4_0_3_start(struct amdgpu_device *adev)
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
 		return vcn_v4_0_3_start_dpg_mode(adev, adev->vcn.indirect_sram);
 
-	/* disable VCN power gating */
-	vcn_v4_0_3_disable_static_power_gating(adev);
-
 	/* set VCN status busy */
 	tmp = RREG32_SOC15(VCN, 0, regUVD_STATUS) | UVD_STATUS__UVD_BUSY;
 	WREG32_SOC15(VCN, 0, regUVD_STATUS, tmp);
@@ -1119,18 +1005,11 @@ static int vcn_v4_0_3_stop(struct amdgpu_device *adev)
 	tmp |= UVD_SOFT_RESET__LMI_SOFT_RESET_MASK;
 	WREG32_SOC15(VCN, 0, regUVD_SOFT_RESET, tmp);
 
-	tmp = RREG32_SOC15(VCN, 0, regUVD_VCPU_CNTL);
-	tmp |= UVD_VCPU_CNTL__BLK_RST_MASK;
-	WREG32_SOC15(VCN, 0, regUVD_SOFT_RESET, tmp);
-
 	/* clear VCN status */
 	WREG32_SOC15(VCN, 0, regUVD_STATUS, 0);
 
 	/* apply HW clock gating */
 	vcn_v4_0_3_enable_clock_gating(adev);
-
-	/* enable VCN power gating */
-	vcn_v4_0_3_enable_static_power_gating(adev);
 
 Done:
 	if (adev->pm.dpm_enabled)
