@@ -1057,7 +1057,7 @@ static int __init slcan_init(void)
 	/* Fill in our line protocol discipline, and register it */
 	status = tty_register_ldisc(&slc_ldisc);
 	if (status)  {
-		printk(KERN_ERR "slcan: can't register line discipline\n");
+		pr_err("slcan: can't register line discipline\n");
 		kfree(slcan_devs);
 	}
 	return status;
