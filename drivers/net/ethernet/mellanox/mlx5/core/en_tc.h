@@ -39,6 +39,7 @@
 #include "en/tc_ct.h"
 #include "en/tc_tun.h"
 #include "en/tc/int_port.h"
+#include "en/tc/meter.h"
 #include "en_rep.h"
 
 #define MLX5E_TC_FLOW_ID_MASK 0x0000ffff
@@ -71,6 +72,7 @@ struct mlx5_flow_attr {
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_ct_attr ct_attr;
 	struct mlx5e_sample_attr sample_attr;
+	struct mlx5e_meter_attr meter_attr;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	u32 chain;
 	u16 prio;
@@ -83,6 +85,7 @@ struct mlx5_flow_attr {
 	u8 tun_ip_version;
 	int tunnel_id; /* mapped tunnel id */
 	u32 flags;
+	u32 exe_aso_type;
 	struct list_head list;
 	struct mlx5e_post_act_handle *post_act_handle;
 	struct {
@@ -229,6 +232,7 @@ enum mlx5e_tc_attr_to_reg {
 	FTEID_TO_REG,
 	NIC_CHAIN_TO_REG,
 	NIC_ZONE_RESTORE_TO_REG,
+	PACKET_COLOR_TO_REG,
 };
 
 struct mlx5e_tc_attr_to_reg_mapping {
@@ -240,6 +244,10 @@ struct mlx5e_tc_attr_to_reg_mapping {
 };
 
 extern struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[];
+
+#define MLX5_REG_MAPPING_MOFFSET(reg_id) (mlx5e_tc_attr_to_reg_mappings[reg_id].moffset)
+#define MLX5_REG_MAPPING_MBITS(reg_id) (mlx5e_tc_attr_to_reg_mappings[reg_id].mlen)
+#define MLX5_REG_MAPPING_MASK(reg_id) (GENMASK(mlx5e_tc_attr_to_reg_mappings[reg_id].mlen - 1, 0))
 
 bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 				    struct net_device *out_dev);

@@ -22,9 +22,9 @@ struct mlx5e_post_act_handle {
 	u32 id;
 };
 
-#define MLX5_POST_ACTION_BITS (mlx5e_tc_attr_to_reg_mappings[FTEID_TO_REG].mlen)
-#define MLX5_POST_ACTION_MAX GENMASK(MLX5_POST_ACTION_BITS - 1, 0)
-#define MLX5_POST_ACTION_MASK MLX5_POST_ACTION_MAX
+#define MLX5_POST_ACTION_BITS MLX5_REG_MAPPING_MBITS(FTEID_TO_REG)
+#define MLX5_POST_ACTION_MASK MLX5_REG_MAPPING_MASK(FTEID_TO_REG)
+#define MLX5_POST_ACTION_MAX MLX5_POST_ACTION_MASK
 
 struct mlx5e_post_act *
 mlx5e_tc_post_act_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,

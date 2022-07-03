@@ -59,6 +59,7 @@
 #include "en/tc_tun_encap.h"
 #include "en/tc/sample.h"
 #include "en/tc/act/act.h"
+#include "en/tc/post_meter.h"
 #include "lib/devcom.h"
 #include "lib/geneve.h"
 #include "lib/fs_chains.h"
@@ -104,6 +105,7 @@ struct mlx5e_tc_attr_to_reg_mapping mlx5e_tc_attr_to_reg_mappings[] = {
 		.mlen = 16,
 	},
 	[NIC_ZONE_RESTORE_TO_REG] = nic_zone_restore_to_reg_ct,
+	[PACKET_COLOR_TO_REG] = packet_color_to_reg,
 };
 
 /* To avoid false lock dependency warning set the tc_ht lock
@@ -240,6 +242,30 @@ mlx5e_get_int_port_priv(struct mlx5e_priv *priv)
 	return NULL;
 }
 
+struct mlx5e_flow_meters *
+mlx5e_get_flow_meters(struct mlx5_core_dev *dev)
+{
+	struct mlx5_eswitch *esw = dev->priv.eswitch;
+	struct mlx5_rep_uplink_priv *uplink_priv;
+	struct mlx5e_rep_priv *uplink_rpriv;
+	struct mlx5e_priv *priv;
+
+	if (is_mdev_switchdev_mode(dev)) {
+		uplink_rpriv = mlx5_eswitch_get_uplink_priv(esw, REP_ETH);
+		uplink_priv = &uplink_rpriv->uplink_priv;
+		priv = netdev_priv(uplink_rpriv->netdev);
+		if (!uplink_priv->flow_meters)
+			uplink_priv->flow_meters =
+				mlx5e_flow_meters_init(priv,
+						       MLX5_FLOW_NAMESPACE_FDB,
+						       uplink_priv->post_act);
+		if (!IS_ERR(uplink_priv->flow_meters))
+			return uplink_priv->flow_meters;
+	}
+
+	return NULL;
+}
+
 static struct mlx5_tc_ct_priv *
 get_ct_priv(struct mlx5e_priv *priv)
 {
@@ -319,12 +345,39 @@ mlx5_tc_rule_delete(struct mlx5e_priv *priv,
 	mlx5e_del_offloaded_nic_rule(priv, rule, attr);
 }
 
+static bool
+is_flow_meter_action(struct mlx5_flow_attr *attr)
+{
+	return ((attr->action & MLX5_FLOW_CONTEXT_ACTION_EXECUTE_ASO) &&
+		(attr->exe_aso_type == MLX5_EXE_ASO_FLOW_METER));
+}
+
+static int
+mlx5e_tc_add_flow_meter(struct mlx5e_priv *priv,
+			struct mlx5_flow_attr *attr)
+{
+	struct mlx5e_flow_meter_handle *meter;
+
+	meter = mlx5e_tc_meter_get(priv->mdev, &attr->meter_attr.params);
+	if (IS_ERR(meter)) {
+		mlx5_core_err(priv->mdev, "Failed to get flow meter\n");
+		return PTR_ERR(meter);
+	}
+
+	attr->meter_attr.meter = meter;
+	attr->dest_ft = mlx5e_tc_meter_get_post_meter_ft(meter->flow_meters);
+	attr->action |= MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
+
+	return 0;
+}
+
 struct mlx5_flow_handle *
 mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
 		      struct mlx5_flow_spec *spec,
 		      struct mlx5_flow_attr *attr)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	int err;
 
 	if (attr->flags & MLX5_ATTR_FLAG_CT) {
 		struct mlx5e_tc_mod_hdr_acts *mod_hdr_acts =
@@ -340,6 +393,12 @@ mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
 
 	if (attr->flags & MLX5_ATTR_FLAG_SAMPLE)
 		return mlx5e_tc_sample_offload(get_sample_priv(priv), spec, attr);
+
+	if (is_flow_meter_action(attr)) {
+		err = mlx5e_tc_add_flow_meter(priv, attr);
+		if (err)
+			return ERR_PTR(err);
+	}
 
 	return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
 }
@@ -367,6 +426,9 @@ mlx5e_tc_rule_unoffload(struct mlx5e_priv *priv,
 	}
 
 	mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
+
+	if (attr->meter_attr.meter)
+		mlx5e_tc_meter_put(attr->meter_attr.meter);
 }
 
 int
@@ -4519,9 +4581,9 @@ static int apply_police_params(struct mlx5e_priv *priv, u64 rate,
 	return err;
 }
 
-static int mlx5e_policer_validate(const struct flow_action *action,
-				  const struct flow_action_entry *act,
-				  struct netlink_ext_ack *extack)
+int mlx5e_policer_validate(const struct flow_action *action,
+			   const struct flow_action_entry *act,
+			   struct netlink_ext_ack *extack)
 {
 	if (act->police.exceed.act_id != FLOW_ACTION_DROP) {
 		NL_SET_ERR_MSG_MOD(extack,
@@ -4956,6 +5018,7 @@ void mlx5e_tc_esw_cleanup(struct mlx5_rep_uplink_priv *uplink_priv)
 	mlx5e_tc_sample_cleanup(uplink_priv->tc_psample);
 	mlx5e_tc_int_port_cleanup(uplink_priv->int_port_priv);
 	mlx5_tc_ct_clean(uplink_priv->ct_priv);
+	mlx5e_flow_meters_cleanup(uplink_priv->flow_meters);
 	mlx5e_tc_post_act_destroy(uplink_priv->post_act);
 }
 
@@ -5061,7 +5124,7 @@ bool mlx5e_tc_update_skb(struct mlx5_cqe64 *cqe,
 
 		tc_skb_ext->chain = chain;
 
-		zone_restore_id = (reg_b >> REG_MAPPING_MOFFSET(NIC_ZONE_RESTORE_TO_REG)) &
+		zone_restore_id = (reg_b >> MLX5_REG_MAPPING_MOFFSET(NIC_ZONE_RESTORE_TO_REG)) &
 			ESW_ZONE_ID_MASK;
 
 		if (!mlx5e_tc_ct_restore_flow(tc->ct, skb,
