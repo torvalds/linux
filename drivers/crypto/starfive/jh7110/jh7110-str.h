@@ -20,7 +20,6 @@
 #define JH7110_AES_IV_LEN			AES_BLOCK_SIZE
 #define JH7110_AES_CTR_LEN			AES_BLOCK_SIZE
 
-
 struct jh7110_rsa_key {
 	u8					*n;
 	u8					*e;
@@ -85,6 +84,7 @@ struct jh7110_sec_dev {
 
 	size_t					data_buf_len;
 	int					pages_count;
+	u32					use_side_channel_mitigation;
 	u32					use_dma;
 	u32					dma_maxburst;
 	struct dma_chan				*sec_xm_m;
@@ -180,6 +180,7 @@ struct jh7110_sec_request_ctx {
 	u32					last_ctr[4];
 	u32					aes_nonce[4];
 	u32					aes_iv[4];
+	u32					aead_tag[4];
 	u8					sha_digest_mid[SHA512_DIGEST_SIZE]__aligned(sizeof(u32));
 	unsigned int				sha_digest_len;
 };

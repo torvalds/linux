@@ -202,6 +202,7 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
 	if (IS_ERR(sdev->dma_base))
 		return PTR_ERR(sdev->dma_base);
 
+	sdev->use_side_channel_mitigation = device_property_read_bool(dev, "enable-side-channel-mitigation");
 	sdev->use_dma = device_property_read_bool(dev, "enable-dma");
 	sdev->dma_maxburst = 32;
 
