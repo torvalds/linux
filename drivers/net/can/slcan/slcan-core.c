@@ -67,8 +67,9 @@ MODULE_AUTHOR("Oliver Hartkopp <socketcan@hartkopp.net>");
 #define SLCAN_MAGIC 0x53CA
 
 static int maxdev = 10;		/* MAX number of SLCAN channels;
-				   This can be overridden with
-				   insmod slcan.ko maxdev=nnn	*/
+				 * This can be overridden with
+				 * insmod slcan.ko maxdev=nnn
+				 */
 module_param(maxdev, int, 0);
 MODULE_PARM_DESC(maxdev, "Maximum number of slcan interfaces");
 
@@ -139,12 +140,11 @@ int slcan_enable_err_rst_on_open(struct net_device *ndev, bool on)
 	return 0;
 }
 
- /************************************************************************
-  *			SLCAN ENCAPSULATION FORMAT			 *
-  ************************************************************************/
+/*************************************************************************
+ *			SLCAN ENCAPSULATION FORMAT			 *
+ *************************************************************************/
 
-/*
- * A CAN frame has a can_id (11 bit standard frame format OR 29 bit extended
+/* A CAN frame has a can_id (11 bit standard frame format OR 29 bit extended
  * frame format) a data length code (len) which can be from 0 to 8
  * and up to <len> data bytes as payload.
  * Additionally a CAN frame may become a remote transmission frame if the
@@ -174,9 +174,9 @@ int slcan_enable_err_rst_on_open(struct net_device *ndev, bool on)
  *
  */
 
- /************************************************************************
-  *			STANDARD SLCAN DECAPSULATION			 *
-  ************************************************************************/
+/*************************************************************************
+ *			STANDARD SLCAN DECAPSULATION			 *
+ *************************************************************************/
 
 /* Send one completely decapsulated can_frame to the network layer */
 static void slc_bump_frame(struct slcan *sl)
@@ -486,9 +486,9 @@ static void slcan_unesc(struct slcan *sl, unsigned char s)
 	}
 }
 
- /************************************************************************
-  *			STANDARD SLCAN ENCAPSULATION			 *
-  ************************************************************************/
+/*************************************************************************
+ *			STANDARD SLCAN ENCAPSULATION			 *
+ *************************************************************************/
 
 /* Encapsulate one can_frame and stuff into a TTY queue. */
 static void slc_encaps(struct slcan *sl, struct can_frame *cf)
@@ -575,7 +575,8 @@ static void slcan_transmit(struct work_struct *work)
 		}
 
 		/* Now serial buffer is almost free & we can start
-		 * transmission of another packet */
+		 * transmission of another packet
+		 */
 		sl->dev->stats.tx_packets++;
 		clear_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
 		spin_unlock_bh(&sl->lock);
@@ -589,8 +590,7 @@ static void slcan_transmit(struct work_struct *work)
 	spin_unlock_bh(&sl->lock);
 }
 
-/*
- * Called by the driver when there's room for more data.
+/* Called by the driver when there's room for more data.
  * Schedule the transmit.
  */
 static void slcan_write_wakeup(struct tty_struct *tty)
@@ -631,7 +631,6 @@ out:
 	kfree_skb(skb);
 	return NETDEV_TX_OK;
 }
-
 
 /******************************************
  *   Routines looking at netdevice side.
@@ -736,7 +735,6 @@ static int slc_open(struct net_device *dev)
 		/* The CAN framework has already validate the bitrate value,
 		 * so we can avoid to check if `s' has been properly set.
 		 */
-
 		snprintf(cmd, sizeof(cmd), "C\rS%d\r", s);
 		err = slcan_transmit_cmd(sl, cmd);
 		if (err) {
@@ -792,18 +790,16 @@ static const struct net_device_ops slc_netdev_ops = {
 };
 
 /******************************************
-  Routines looking at TTY side.
+ *  Routines looking at TTY side.
  ******************************************/
 
-/*
- * Handle the 'receiver data ready' interrupt.
+/* Handle the 'receiver data ready' interrupt.
  * This function is called by the 'tty_io' module in the kernel when
  * a block of SLCAN data has been received, which can now be decapsulated
  * and sent on to some IP layer for further processing. This will not
  * be re-entered while running but other ldisc functions may be called
  * in parallel
  */
-
 static void slcan_receive_buf(struct tty_struct *tty,
 			      const unsigned char *cp, const char *fp,
 			      int count)
@@ -890,8 +886,7 @@ static struct slcan *slc_alloc(void)
 	return sl;
 }
 
-/*
- * Open the high-level part of the SLCAN channel.
+/* Open the high-level part of the SLCAN channel.
  * This function is called by the TTY module when the
  * SLCAN line discipline is called for.  Because we are
  * sure the tty line exists, we only have to link it to
@@ -899,7 +894,6 @@ static struct slcan *slc_alloc(void)
  *
  * Called in process context serialized from other ldisc calls.
  */
-
 static int slcan_open(struct tty_struct *tty)
 {
 	struct slcan *sl;
@@ -912,8 +906,8 @@ static int slcan_open(struct tty_struct *tty)
 		return -EOPNOTSUPP;
 
 	/* RTnetlink lock is misused here to serialize concurrent
-	   opens of slcan channels. There are better ways, but it is
-	   the simplest one.
+	 * opens of slcan channels. There are better ways, but it is
+	 * the simplest one.
 	 */
 	rtnl_lock();
 
@@ -974,14 +968,12 @@ err_exit:
 	return err;
 }
 
-/*
- * Close down a SLCAN channel.
+/* Close down a SLCAN channel.
  * This means flushing out any pending queues, and then returning. This
  * call is serialized against other ldisc functions.
  *
  * We also use this method for a hangup event.
  */
-
 static void slcan_close(struct tty_struct *tty)
 {
 	struct slcan *sl = (struct slcan *) tty->disc_data;
@@ -1104,7 +1096,8 @@ static void __exit slcan_exit(void)
 	} while (busy && time_before(jiffies, timeout));
 
 	/* FIXME: hangup is async so we should wait when doing this second
-	   phase */
+	 * phase
+	 */
 
 	for (i = 0; i < maxdev; i++) {
 		dev = slcan_devs[i];
