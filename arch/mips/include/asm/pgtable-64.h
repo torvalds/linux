@@ -85,35 +85,35 @@
  */
 #ifdef CONFIG_PAGE_SIZE_4KB
 # ifdef CONFIG_MIPS_VA_BITS_48
-#  define PGD_ORDER		0
+#  define PGD_TABLE_ORDER	0
 #  define PUD_TABLE_ORDER	0
 # else
-#  define PGD_ORDER		1
+#  define PGD_TABLE_ORDER	1
 #  define PUD_TABLE_ORDER	aieeee_attempt_to_allocate_pud
 # endif
 #define PMD_TABLE_ORDER		0
 #endif
 #ifdef CONFIG_PAGE_SIZE_8KB
-#define PGD_ORDER		0
+#define PGD_TABLE_ORDER		0
 #define PUD_TABLE_ORDER		aieeee_attempt_to_allocate_pud
 #define PMD_TABLE_ORDER		0
 #endif
 #ifdef CONFIG_PAGE_SIZE_16KB
 #ifdef CONFIG_MIPS_VA_BITS_48
-#define PGD_ORDER               1
+#define PGD_TABLE_ORDER		1
 #else
-#define PGD_ORDER               0
+#define PGD_TABLE_ORDER		0
 #endif
 #define PUD_TABLE_ORDER		aieeee_attempt_to_allocate_pud
 #define PMD_TABLE_ORDER		0
 #endif
 #ifdef CONFIG_PAGE_SIZE_32KB
-#define PGD_ORDER		0
+#define PGD_TABLE_ORDER		0
 #define PUD_TABLE_ORDER		aieeee_attempt_to_allocate_pud
 #define PMD_TABLE_ORDER		0
 #endif
 #ifdef CONFIG_PAGE_SIZE_64KB
-#define PGD_ORDER		0
+#define PGD_TABLE_ORDER		0
 #define PUD_TABLE_ORDER		aieeee_attempt_to_allocate_pud
 #ifdef CONFIG_MIPS_VA_BITS_48
 #define PMD_TABLE_ORDER		0
@@ -122,7 +122,7 @@
 #endif
 #endif
 
-#define PTRS_PER_PGD	((PAGE_SIZE << PGD_ORDER) / sizeof(pgd_t))
+#define PTRS_PER_PGD	((PAGE_SIZE << PGD_TABLE_ORDER) / sizeof(pgd_t))
 #ifndef __PAGETABLE_PUD_FOLDED
 #define PTRS_PER_PUD	((PAGE_SIZE << PUD_TABLE_ORDER) / sizeof(pud_t))
 #endif
