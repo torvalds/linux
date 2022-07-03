@@ -20,18 +20,18 @@ static inline pgd_t *pgd_alloc(struct mm_struct *mm)
 {
 	pgd_t *pgd;
 
-	pgd = (pgd_t *) __get_free_pages(GFP_KERNEL, PGD_ORDER);
+	pgd = (pgd_t *) __get_free_pages(GFP_KERNEL, PGD_TABLE_ORDER);
 	if (unlikely(pgd == NULL))
 		return NULL;
 
-	memset(pgd, 0, PAGE_SIZE << PGD_ORDER);
+	memset(pgd, 0, PAGE_SIZE << PGD_TABLE_ORDER);
 
 	return pgd;
 }
 
 static inline void pgd_free(struct mm_struct *mm, pgd_t *pgd)
 {
-	free_pages((unsigned long)pgd, PGD_ORDER);
+	free_pages((unsigned long)pgd, PGD_TABLE_ORDER);
 }
 
 #if CONFIG_PGTABLE_LEVELS == 3
