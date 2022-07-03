@@ -449,9 +449,9 @@ TRACE_EVENT(drv_link_info_changed,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
 		 struct ieee80211_bss_conf *link_conf,
-		 int link_id, u64 changed),
+		 u64 changed),
 
-	TP_ARGS(local, sdata, link_conf, link_id, changed),
+	TP_ARGS(local, sdata, link_conf, changed),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -486,7 +486,7 @@ TRACE_EVENT(drv_link_info_changed,
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		__entry->changed = changed;
-		__entry->link_id = link_id;
+		__entry->link_id = link_conf->link_id;
 		__entry->shortpre = link_conf->use_short_preamble;
 		__entry->cts = link_conf->use_cts_prot;
 		__entry->shortslot = link_conf->use_short_slot;

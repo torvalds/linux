@@ -190,10 +190,10 @@ static inline void drv_link_info_changed(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	trace_drv_link_info_changed(local, sdata, info, link_id, changed);
+	trace_drv_link_info_changed(local, sdata, info, changed);
 	if (local->ops->link_info_changed)
 		local->ops->link_info_changed(&local->hw, &sdata->vif,
-					      info, link_id, changed);
+					      info, changed);
 	else if (local->ops->bss_info_changed)
 		local->ops->bss_info_changed(&local->hw, &sdata->vif,
 					     info, changed);

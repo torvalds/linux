@@ -248,11 +248,10 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 
 		/* FIXME: should be for each link */
 		trace_drv_link_info_changed(local, sdata, &sdata->vif.bss_conf,
-					    0, changed);
+					    changed);
 		if (local->ops->link_info_changed)
 			local->ops->link_info_changed(&local->hw, &sdata->vif,
-						      &sdata->vif.bss_conf,
-						      0, ch);
+						      &sdata->vif.bss_conf, ch);
 	}
 
 	if (local->ops->bss_info_changed)

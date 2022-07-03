@@ -2178,10 +2178,11 @@ static void mac80211_hwsim_vif_info_changed(struct ieee80211_hw *hw,
 static void mac80211_hwsim_link_info_changed(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif,
 					     struct ieee80211_bss_conf *info,
-					     u32 link_id, u64 changed)
+					     u64 changed)
 {
 	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
 	struct mac80211_hwsim_data *data = hw->priv;
+	unsigned int link_id = info->link_id;
 	struct mac80211_hwsim_link_data *link_data = &data->link_data[link_id];
 
 	hwsim_check_magic(vif);
