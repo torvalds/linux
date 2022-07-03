@@ -1669,7 +1669,7 @@ TRACE_EVENT(drv_switch_vif_chanctx,
 
 				SWITCH_ENTRY_ASSIGN(vif.vif_type, vif->type);
 				SWITCH_ENTRY_ASSIGN(vif.p2p, vif->p2p);
-				SWITCH_ENTRY_ASSIGN(link_id, link_id);
+				SWITCH_ENTRY_ASSIGN(link_id, link_conf->link_id);
 				strncpy(local_vifs[i].vif.vif_name,
 					sdata->name,
 					sizeof(local_vifs[i].vif.vif_name));
@@ -1710,10 +1710,10 @@ TRACE_EVENT(drv_switch_vif_chanctx,
 DECLARE_EVENT_CLASS(local_sdata_chanctx,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
-		 unsigned int link_id,
+		 struct ieee80211_bss_conf *link_conf,
 		 struct ieee80211_chanctx *ctx),
 
-	TP_ARGS(local, sdata, link_id, ctx),
+	TP_ARGS(local, sdata, link_conf, ctx),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
@@ -1726,7 +1726,7 @@ DECLARE_EVENT_CLASS(local_sdata_chanctx,
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		CHANCTX_ASSIGN;
-		__entry->link_id = link_id;
+		__entry->link_id = link_conf->link_id;
 	),
 
 	TP_printk(
@@ -1738,17 +1738,17 @@ DECLARE_EVENT_CLASS(local_sdata_chanctx,
 DEFINE_EVENT(local_sdata_chanctx, drv_assign_vif_chanctx,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
-		 unsigned int link_id,
+		 struct ieee80211_bss_conf *link_conf,
 		 struct ieee80211_chanctx *ctx),
-	TP_ARGS(local, sdata, link_id, ctx)
+	TP_ARGS(local, sdata, link_conf, ctx)
 );
 
 DEFINE_EVENT(local_sdata_chanctx, drv_unassign_vif_chanctx,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
-		 unsigned int link_id,
+		 struct ieee80211_bss_conf *link_conf,
 		 struct ieee80211_chanctx *ctx),
-	TP_ARGS(local, sdata, link_id, ctx)
+	TP_ARGS(local, sdata, link_conf, ctx)
 );
 
 TRACE_EVENT(drv_start_ap,

@@ -835,7 +835,6 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 					 struct ieee80211_chanctx *new_ctx)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
-	unsigned int link_id = link->link_id;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *curr_ctx = NULL;
@@ -850,13 +849,13 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 	if (conf) {
 		curr_ctx = container_of(conf, struct ieee80211_chanctx, conf);
 
-		drv_unassign_vif_chanctx(local, sdata, link_id, curr_ctx);
+		drv_unassign_vif_chanctx(local, sdata, link->conf, curr_ctx);
 		conf = NULL;
 		list_del(&link->assigned_chanctx_list);
 	}
 
 	if (new_ctx) {
-		ret = drv_assign_vif_chanctx(local, sdata, link_id, new_ctx);
+		ret = drv_assign_vif_chanctx(local, sdata, link->conf, new_ctx);
 		if (ret)
 			goto out;
 
@@ -1276,7 +1275,7 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 	vif_chsw[0].vif = &sdata->vif;
 	vif_chsw[0].old_ctx = &old_ctx->conf;
 	vif_chsw[0].new_ctx = &new_ctx->conf;
-	vif_chsw[0].link_id = link->link_id;
+	vif_chsw[0].link_conf = link->conf;
 
 	list_del(&link->reserved_chanctx_list);
 	link->reserved_chanctx = NULL;
@@ -1440,7 +1439,7 @@ static int ieee80211_chsw_switch_vifs(struct ieee80211_local *local,
 			vif_chsw[i].vif = &link->sdata->vif;
 			vif_chsw[i].old_ctx = &old_ctx->conf;
 			vif_chsw[i].new_ctx = &ctx->conf;
-			vif_chsw[i].link_id = link->link_id;
+			vif_chsw[i].link_conf = link->conf;
 
 			i++;
 		}

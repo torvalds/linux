@@ -683,7 +683,7 @@ void wfx_change_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *
 }
 
 int wfx_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			   unsigned int link_id,
+			   struct ieee80211_bss_conf *link_conf,
 			   struct ieee80211_chanctx_conf *conf)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
@@ -696,7 +696,7 @@ int wfx_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			      unsigned int link_id,
+			      struct ieee80211_bss_conf *link_conf,
 			      struct ieee80211_chanctx_conf *conf)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;

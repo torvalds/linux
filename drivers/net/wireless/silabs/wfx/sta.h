@@ -51,10 +51,10 @@ int wfx_add_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf
 void wfx_remove_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf);
 void wfx_change_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *conf, u32 changed);
 int wfx_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			   unsigned int link_id,
+			   struct ieee80211_bss_conf *link_conf,
 			   struct ieee80211_chanctx_conf *conf);
 void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			      unsigned int link_id,
+			      struct ieee80211_bss_conf *link_conf,
 			      struct ieee80211_chanctx_conf *conf);
 
 /* Hardware API Callbacks */

@@ -2270,7 +2270,7 @@ static void ieee80211_assign_chanctx(struct ieee80211_local *local,
 					 lockdep_is_held(&local->chanctx_mtx));
 	if (conf) {
 		ctx = container_of(conf, struct ieee80211_chanctx, conf);
-		drv_assign_vif_chanctx(local, sdata, link->link_id, ctx);
+		drv_assign_vif_chanctx(local, sdata, link->conf, ctx);
 	}
 	mutex_unlock(&local->chanctx_mtx);
 }
