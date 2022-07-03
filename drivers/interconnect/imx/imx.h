@@ -10,9 +10,15 @@
 #ifndef __DRIVERS_INTERCONNECT_IMX_H
 #define __DRIVERS_INTERCONNECT_IMX_H
 
+#include <linux/interconnect-provider.h>
 #include <linux/kernel.h>
 
 #define IMX_ICC_MAX_LINKS	4
+
+struct imx_icc_provider {
+	void __iomem *noc_base;
+	struct icc_provider provider;
+};
 
 /*
  * struct imx_icc_node_adj - Describe a dynamic adjustable node

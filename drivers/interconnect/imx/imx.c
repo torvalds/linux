@@ -134,9 +134,10 @@ static int imx_icc_node_init_qos(struct icc_provider *provider,
 				      DEV_PM_QOS_MIN_FREQUENCY, 0);
 }
 
-static struct icc_node *imx_icc_node_add(struct icc_provider *provider,
+static struct icc_node *imx_icc_node_add(struct imx_icc_provider *imx_provider,
 					 const struct imx_icc_node_desc *node_desc)
 {
+	struct icc_provider *provider = &imx_provider->provider;
 	struct device *dev = provider->dev;
 	struct imx_icc_node *node_data;
 	struct icc_node *node;
@@ -184,10 +185,11 @@ static void imx_icc_unregister_nodes(struct icc_provider *provider)
 		imx_icc_node_destroy(node);
 }
 
-static int imx_icc_register_nodes(struct icc_provider *provider,
+static int imx_icc_register_nodes(struct imx_icc_provider *imx_provider,
 				  const struct imx_icc_node_desc *descs,
 				  int count)
 {
+	struct icc_provider *provider = &imx_provider->provider;
 	struct icc_onecell_data *provider_data = provider->data;
 	int ret;
 	int i;
@@ -197,7 +199,7 @@ static int imx_icc_register_nodes(struct icc_provider *provider,
 		const struct imx_icc_node_desc *node_desc = &descs[i];
 		size_t j;
 
-		node = imx_icc_node_add(provider, node_desc);
+		node = imx_icc_node_add(imx_provider, node_desc);
 		if (IS_ERR(node)) {
 			ret = dev_err_probe(provider->dev, PTR_ERR(node),
 					    "failed to add %s\n", node_desc->name);
@@ -239,6 +241,7 @@ int imx_icc_register(struct platform_device *pdev,
 {
 	struct device *dev = &pdev->dev;
 	struct icc_onecell_data *data;
+	struct imx_icc_provider *imx_provider;
 	struct icc_provider *provider;
 	int num_nodes;
 	int ret;
@@ -251,16 +254,17 @@ int imx_icc_register(struct platform_device *pdev,
 		return -ENOMEM;
 	data->num_nodes = num_nodes;
 
-	provider = devm_kzalloc(dev, sizeof(*provider), GFP_KERNEL);
-	if (!provider)
+	imx_provider = devm_kzalloc(dev, sizeof(*imx_provider), GFP_KERNEL);
+	if (!imx_provider)
 		return -ENOMEM;
+	provider = &imx_provider->provider;
 	provider->set = imx_icc_set;
 	provider->get_bw = imx_icc_get_bw;
 	provider->aggregate = icc_std_aggregate;
 	provider->xlate = of_icc_xlate_onecell;
 	provider->data = data;
 	provider->dev = dev->parent;
-	platform_set_drvdata(pdev, provider);
+	platform_set_drvdata(pdev, imx_provider);
 
 	ret = icc_provider_add(provider);
 	if (ret) {
@@ -268,7 +272,7 @@ int imx_icc_register(struct platform_device *pdev,
 		return ret;
 	}
 
-	ret = imx_icc_register_nodes(provider, nodes, nodes_count);
+	ret = imx_icc_register_nodes(imx_provider, nodes, nodes_count);
 	if (ret)
 		goto provider_del;
 
@@ -282,11 +286,11 @@ EXPORT_SYMBOL_GPL(imx_icc_register);
 
 int imx_icc_unregister(struct platform_device *pdev)
 {
-	struct icc_provider *provider = platform_get_drvdata(pdev);
+	struct imx_icc_provider *imx_provider = platform_get_drvdata(pdev);
 
-	imx_icc_unregister_nodes(provider);
+	imx_icc_unregister_nodes(&imx_provider->provider);
 
-	return icc_provider_del(provider);
+	return icc_provider_del(&imx_provider->provider);
 }
 EXPORT_SYMBOL_GPL(imx_icc_unregister);
 
