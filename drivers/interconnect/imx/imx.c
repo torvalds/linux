@@ -61,6 +61,12 @@ static int imx_icc_node_set(struct icc_node *node)
 
 static int imx_icc_set(struct icc_node *src, struct icc_node *dst)
 {
+	int ret;
+
+	ret = imx_icc_node_set(src);
+	if (ret)
+		return ret;
+
 	return imx_icc_node_set(dst);
 }
 
