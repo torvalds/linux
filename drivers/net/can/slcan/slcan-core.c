@@ -469,19 +469,19 @@ static void slcan_unesc(struct slcan *sl, unsigned char s)
 {
 	if ((s == '\r') || (s == '\a')) { /* CR or BEL ends the pdu */
 		if (!test_and_clear_bit(SLF_ERROR, &sl->flags) &&
-		    (sl->rcount > 4))  {
+		    sl->rcount > 4)
 			slc_bump(sl);
-		}
+
 		sl->rcount = 0;
 	} else {
 		if (!test_bit(SLF_ERROR, &sl->flags))  {
 			if (sl->rcount < SLC_MTU)  {
 				sl->rbuff[sl->rcount++] = s;
 				return;
-			} else {
-				sl->dev->stats.rx_over_errors++;
-				set_bit(SLF_ERROR, &sl->flags);
 			}
+
+			sl->dev->stats.rx_over_errors++;
+			set_bit(SLF_ERROR, &sl->flags);
 		}
 	}
 }
@@ -1104,9 +1104,8 @@ static void __exit slcan_exit(void)
 			continue;
 
 		sl = netdev_priv(dev);
-		if (sl->tty) {
+		if (sl->tty)
 			netdev_err(dev, "tty discipline still running\n");
-		}
 
 		slc_close(dev);
 		unregister_candev(dev);
