@@ -6,3 +6,4 @@ obj-$(CONFIG_GH_RM_DRV)         += gh_rm_drv.o
 gh_rm_drv-y                     += gh_rm_core.o gh_rm_iface.o
 obj-$(CONFIG_GH_IRQ_LEND)       += gh_irq_lend.o
 obj-$(CONFIG_GH_MEM_NOTIFIER)   += gh_mem_notifier.o
+obj-$(CONFIG_GH_GUEST_POPS)     += gh_guest_pops.o
