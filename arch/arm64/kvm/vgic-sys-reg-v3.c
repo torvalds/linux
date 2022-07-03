@@ -263,14 +263,10 @@ static const struct sys_reg_desc gic_v3_icc_reg_descs[] = {
 int vgic_v3_has_cpu_sysregs_attr(struct kvm_vcpu *vcpu, bool is_write, u64 id,
 				u64 *reg)
 {
-	struct sys_reg_params params;
 	u64 sysreg = (id & KVM_DEV_ARM_VGIC_SYSREG_MASK) | KVM_REG_SIZE_U64;
 
-	params.regval = *reg;
-	params.is_write = is_write;
-
-	if (find_reg_by_id(sysreg, &params, gic_v3_icc_reg_descs,
-			      ARRAY_SIZE(gic_v3_icc_reg_descs)))
+	if (get_reg_by_id(sysreg, gic_v3_icc_reg_descs,
+			  ARRAY_SIZE(gic_v3_icc_reg_descs)))
 		return 0;
 
 	return -ENXIO;
