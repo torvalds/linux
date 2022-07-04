@@ -83,7 +83,6 @@ struct mlxsw_sp_fid_ops {
 			   u16 *p_fid_index);
 	bool (*compare)(const struct mlxsw_sp_fid *fid,
 			const void *arg);
-	u16 (*flood_index)(const struct mlxsw_sp_fid *fid);
 	int (*port_vid_map)(struct mlxsw_sp_fid *fid,
 			    struct mlxsw_sp_port *port, u16 vid);
 	void (*port_vid_unmap)(struct mlxsw_sp_fid *fid,
@@ -348,11 +347,10 @@ int mlxsw_sp_fid_flood_set(struct mlxsw_sp_fid *fid,
 			   bool member)
 {
 	struct mlxsw_sp_fid_family *fid_family = fid->fid_family;
-	const struct mlxsw_sp_fid_ops *ops = fid_family->ops;
 	const struct mlxsw_sp_flood_table *flood_table;
 	u16 mid_index;
 
-	if (WARN_ON(!fid_family->flood_tables || !ops->flood_index))
+	if (WARN_ON(!fid_family->flood_tables))
 		return -EINVAL;
 
 	flood_table = mlxsw_sp_fid_flood_table_lookup(fid, packet_type);
@@ -815,11 +813,6 @@ mlxsw_sp_fid_8021d_compare(const struct mlxsw_sp_fid *fid, const void *arg)
 	return mlxsw_sp_fid_8021d_fid(fid)->br_ifindex == br_ifindex;
 }
 
-static u16 mlxsw_sp_fid_8021d_flood_index(const struct mlxsw_sp_fid *fid)
-{
-	return fid->fid_index - VLAN_N_VID;
-}
-
 static int mlxsw_sp_port_vp_mode_trans(struct mlxsw_sp_port *mlxsw_sp_port)
 {
 	struct mlxsw_sp_port_vlan *mlxsw_sp_port_vlan;
@@ -1073,7 +1066,6 @@ static const struct mlxsw_sp_fid_ops mlxsw_sp_fid_8021d_ops = {
 	.deconfigure		= mlxsw_sp_fid_8021d_deconfigure,
 	.index_alloc		= mlxsw_sp_fid_8021d_index_alloc,
 	.compare		= mlxsw_sp_fid_8021d_compare,
-	.flood_index		= mlxsw_sp_fid_8021d_flood_index,
 	.port_vid_map		= mlxsw_sp_fid_8021d_port_vid_map,
 	.port_vid_unmap		= mlxsw_sp_fid_8021d_port_vid_unmap,
 	.vni_set		= mlxsw_sp_fid_8021d_vni_set,
