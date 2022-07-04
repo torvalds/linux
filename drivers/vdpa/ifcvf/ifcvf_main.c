@@ -685,7 +685,7 @@ static struct vdpa_notification_area ifcvf_get_vq_notification(struct vdpa_devic
 }
 
 /*
- * IFCVF currently does't have on-chip IOMMU, so not
+ * IFCVF currently doesn't have on-chip IOMMU, so not
  * implemented set_map()/dma_map()/dma_unmap()
  */
 static const struct vdpa_config_ops ifc_vdpa_ops = {
