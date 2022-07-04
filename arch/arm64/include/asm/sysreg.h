@@ -742,7 +742,7 @@
 #define ID_AA64ISAR2_APA3_SHIFT		12
 #define ID_AA64ISAR2_GPA3_SHIFT		8
 #define ID_AA64ISAR2_RPRES_SHIFT	4
-#define ID_AA64ISAR2_WFXT_SHIFT		0
+#define ID_AA64ISAR2_WFxT_SHIFT		0
 
 #define ID_AA64ISAR2_RPRES_8BIT		0x0
 #define ID_AA64ISAR2_RPRES_12BIT	0x1
@@ -751,8 +751,8 @@
  * reserved, but has not yet been removed from the ARM ARM
  * as of ARM DDI 0487G.b.
  */
-#define ID_AA64ISAR2_WFXT_NI		0x0
-#define ID_AA64ISAR2_WFXT_SUPPORTED	0x2
+#define ID_AA64ISAR2_WFxT_NI		0x0
+#define ID_AA64ISAR2_WFxT_IMP		0x2
 
 #define ID_AA64ISAR2_APA3_NI			0x0
 #define ID_AA64ISAR2_APA3_PAuth			0x1
