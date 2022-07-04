@@ -5,6 +5,7 @@
  * Author: Dingxian Wen <shawn.wen@rock-chips.com>
  */
 
+#include <dt-bindings/soc/rockchip-system-status.h>
 #include <linux/clk.h>
 #include <linux/cpufreq.h>
 #include <linux/debugfs.h>
@@ -40,6 +41,7 @@
 #include <media/v4l2-ioctl.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-v4l2.h>
+#include <soc/rockchip/rockchip-system-status.h>
 #include <sound/hdmi-codec.h>
 #include "rk_hdmirx.h"
 #include "rk_hdmirx_cec.h"
@@ -2361,6 +2363,7 @@ static void hdmirx_plugin(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	int ret;
 
+	rockchip_set_system_status(SYS_STATUS_HDMIRX);
 	cpu_latency_qos_update_request(&hdmirx_dev->pm_qos, 0);
 	schedule_delayed_work_on(hdmirx_dev->bound_cpu,
 		&hdmirx_dev->delayed_work_heartbeat, msecs_to_jiffies(10));
@@ -2414,6 +2417,7 @@ static void hdmirx_plugout(struct rk_hdmirx_dev *hdmirx_dev)
 	cancel_delayed_work(&hdmirx_dev->delayed_work_heartbeat);
 	flush_work(&hdmirx_dev->work_wdt_config);
 	sip_wdt_config(WDT_STOP, 0, 0, 0);
+	rockchip_clear_system_status(SYS_STATUS_HDMIRX);
 }
 
 static void hdmirx_delayed_work_hotplug(struct work_struct *work)
