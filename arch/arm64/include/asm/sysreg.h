@@ -1099,8 +1099,8 @@
 #define CTR_EL0_IDC_SHIFT		28
 #define CTR_EL0_DIC_SHIFT		29
 
-#define DCZID_DZP_SHIFT			4
-#define DCZID_BS_SHIFT			0
+#define DCZID_EL0_DZP_SHIFT		4
+#define DCZID_EL0_BS_SHIFT		0
 
 #define CPACR_EL1_FPEN_EL1EN	(BIT(20)) /* enable EL1 access */
 #define CPACR_EL1_FPEN_EL0EN	(BIT(21)) /* enable EL0 access, if EL1EN set */
