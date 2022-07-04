@@ -16,9 +16,8 @@ e di procedure per la pubblicazione delle patch; seguirle renderà la vita
 più facile a tutti quanti.  Questo documento cercherà di coprire questi
 argomenti con un ragionevole livello di dettaglio; più informazioni possono
 essere trovare nella cartella 'Documentation', nei file
-:ref:`translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`,
-:ref:`translations/it_IT/process/submitting-drivers.rst <it_submittingdrivers>`, e
-:ref:`translations/it_IT/process/submit-checklist.rst <it_submitchecklist>`.
+:ref:`translations/it_IT/process/submitting-patches.rst <it_submittingpatches>`
+e :ref:`translations/it_IT/process/submit-checklist.rst <it_submitchecklist>`.
 
 
 Quando pubblicarle

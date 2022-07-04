@@ -41,7 +41,6 @@ degli sviluppatori:
    :maxdepth: 1
 
    changes
-   submitting-drivers
    stable-api-nonsense
    management-style
    stable-kernel-rules

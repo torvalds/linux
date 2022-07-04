@@ -795,8 +795,7 @@ anche per avere patch pulite, c'è del lavoro amministrativo da fare:
    di un semplice impegno su una parte del codice.
 
 -  Infine, non dimenticatevi di leggere
-   ``Documentation/process/submitting-patches.rst`` e possibilmente anche
-   ``Documentation/process/submitting-drivers.rst``.
+   ``Documentation/process/submitting-patches.rst``.
 
 Trucchetti del kernel
 =====================

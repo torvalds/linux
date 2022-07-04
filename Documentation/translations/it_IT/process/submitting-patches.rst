@@ -18,10 +18,8 @@ Questo documento contiene un vasto numero di suggerimenti concisi. Per maggiori
 dettagli su come funziona il processo di sviluppo del kernel leggete
 Documentation/translations/it_IT/process/development-process.rst. Leggete anche
 Documentation/translations/it_IT/process/submit-checklist.rst per una lista di
-punti da verificare prima di inviare del codice. Se state inviando un driver,
-allora leggete anche
-Documentation/translations/it_IT/process/submitting-drivers.rst; per delle patch
-relative alle associazioni per Device Tree leggete
+punti da verificare prima di inviare del codice.
+Per delle patch relative alle associazioni per Device Tree leggete
 Documentation/translations/it_IT/process/submitting-patches.rst.
 
 Questa documentazione assume che sappiate usare ``git`` per preparare le patch.
