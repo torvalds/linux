@@ -739,7 +739,7 @@ static void mt76_rx_release_burst(struct mt76_phy *phy, enum mt76_rxq_id q,
 void mt76_rx(struct mt76_dev *dev, enum mt76_rxq_id q, struct sk_buff *skb)
 {
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
-	struct mt76_phy *phy = mt76_dev_phy(dev, status->ext_phy);
+	struct mt76_phy *phy = mt76_dev_phy(dev, status->phy_idx);
 
 	if (!test_bit(MT76_STATE_RUNNING, &phy->state)) {
 		dev_kfree_skb(skb);
@@ -1015,7 +1015,7 @@ mt76_rx_convert(struct mt76_dev *dev, struct sk_buff *skb,
 	       sizeof(mstat.chain_signal));
 
 	*sta = wcid_to_sta(mstat.wcid);
-	*hw = mt76_phy_hw(dev, mstat.ext_phy);
+	*hw = mt76_phy_hw(dev, mstat.phy_idx);
 }
 
 static void
@@ -1178,7 +1178,7 @@ mt76_check_sta(struct mt76_dev *dev, struct sk_buff *skb)
 	u8 tidno = status->qos_ctl & IEEE80211_QOS_CTL_TID_MASK;
 	bool ps;
 
-	hw = mt76_phy_hw(dev, status->ext_phy);
+	hw = mt76_phy_hw(dev, status->phy_idx);
 	if (ieee80211_is_pspoll(hdr->frame_control) && !wcid &&
 	    !(status->flag & RX_FLAG_8023)) {
 		sta = ieee80211_find_sta_by_ifaddr(hw, hdr->addr2, NULL);

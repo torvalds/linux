@@ -500,7 +500,7 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	if (phy_idx == 1 && phy2) {
 		mphy = dev->mt76.phy2;
 		phy = phy2;
-		status->ext_phy = true;
+		status->phy_idx = phy_idx;
 	}
 
 	if (!mt7615_firmware_offload(dev) && chfreq != phy->chfreq)

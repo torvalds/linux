@@ -574,7 +574,7 @@ struct mt76_rx_status {
 
 	u8 iv[6];
 
-	u8 ext_phy:1;
+	u8 phy_idx:2;
 	u8 aggr:1;
 	u8 qos_ctl;
 	u16 seqno;
@@ -998,17 +998,18 @@ static inline int mt76_init_mcu_queue(struct mt76_dev *dev, int qid, int idx,
 }
 
 static inline struct mt76_phy *
-mt76_dev_phy(struct mt76_dev *dev, bool phy_ext)
+mt76_dev_phy(struct mt76_dev *dev, u8 phy_idx)
 {
-	if (phy_ext && dev->phy2)
+	if (phy_idx && dev->phy2)
 		return dev->phy2;
+
 	return &dev->phy;
 }
 
 static inline struct ieee80211_hw *
-mt76_phy_hw(struct mt76_dev *dev, bool phy_ext)
+mt76_phy_hw(struct mt76_dev *dev, u8 phy_idx)
 {
-	return mt76_dev_phy(dev, phy_ext)->hw;
+	return mt76_dev_phy(dev, phy_idx)->hw;
 }
 
 static inline u8 *

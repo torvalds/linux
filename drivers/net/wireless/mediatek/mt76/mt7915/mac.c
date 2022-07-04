@@ -247,7 +247,7 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 			return -EINVAL;
 
 		phy = mphy->priv;
-		status->ext_phy = true;
+		status->phy_idx = 1;
 	}
 
 	if (!test_bit(MT76_STATE_RUNNING, &mphy->state))
