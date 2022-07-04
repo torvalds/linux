@@ -1464,7 +1464,7 @@ static bool scrub_possible(struct ubi_device *ubi, struct ubi_wl_entry *e)
  * ubi_bitflip_check - Check an eraseblock for bitflips and scrub it if needed.
  * @ubi: UBI device description object
  * @pnum: the physical eraseblock to schedule
- * @force: dont't read the block, assume bitflips happened and take action.
+ * @force: don't read the block, assume bitflips happened and take action.
  *
  * This function reads the given eraseblock and checks if bitflips occured.
  * In case of bitflips, the eraseblock is scheduled for scrubbing.
