@@ -9,7 +9,6 @@
 #define		HAL_PS_TIMER_INT_DELAY	50	/*   50 microseconds */
 #define		HAL_92C_NAV_UPPER_UNIT	128	/*  micro-second */
 
-#define MAC_ADDR_LEN			6
 /*  8188E PKT_BUFF_ACCESS_CTRL value */
 #define TXPKT_BUF_SELECT		0x69
 #define RXPKT_BUF_SELECT		0xA5
