@@ -7,6 +7,13 @@ config SND_SOC_ROCKCHIP
 	  the Rockchip SoCs' Audio interfaces. You will also need to
 	  select the audio interfaces to support below.
 
+config SND_SOC_ROCKCHIP_DLP
+	tristate "Rockchip Digital Loopback Driver"
+	depends on SND_SOC_ROCKCHIP
+	help
+	  Say Y or M if you want to add support for DLP driver for
+	  Rockchip DMA-Based Digital Loopback.
+
 config SND_SOC_ROCKCHIP_I2S
 	tristate "Rockchip I2S Device Driver"
 	depends on CLKDEV_LOOKUP && SND_SOC_ROCKCHIP
