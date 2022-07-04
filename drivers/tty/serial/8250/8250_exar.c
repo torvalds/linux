@@ -550,7 +550,7 @@ pci_xr17v35x_setup(struct exar8250 *priv, struct pci_dev *pcidev,
 
 	port->port.uartclk = baud * 16;
 	port->port.rs485_config = platform->rs485_config;
-	port->port.rs485_supported = platform->rs485_supported;
+	port->port.rs485_supported = *(platform->rs485_supported);
 
 	/*
 	 * Setup the UART clock for the devices on expansion slot to

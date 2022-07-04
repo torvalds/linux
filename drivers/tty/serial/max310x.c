@@ -1370,7 +1370,7 @@ static int max310x_probe(struct device *dev, const struct max310x_devtype *devty
 		s->p[i].port.membase	= (void __iomem *)~0;
 		s->p[i].port.uartclk	= uartclk;
 		s->p[i].port.rs485_config = max310x_rs485_config;
-		s->p[i].port.rs485_supported = &max310x_rs485_supported;
+		s->p[i].port.rs485_supported = max310x_rs485_supported;
 		s->p[i].port.ops	= &max310x_ops;
 		s->p[i].regmap		= regmaps[i];
 

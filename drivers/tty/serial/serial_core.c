@@ -1285,7 +1285,7 @@ static int uart_check_rs485_flags(struct uart_port *port, struct serial_rs485 *r
 	 * For any bit outside of the legacy ones that is not supported by
 	 * the driver, return -EINVAL.
 	 */
-	if (flags & ~port->rs485_supported->flags)
+	if (flags & ~port->rs485_supported.flags)
 		return -EINVAL;
 
 	/* Asking for address w/o addressing mode? */
@@ -1304,7 +1304,7 @@ static int uart_check_rs485_flags(struct uart_port *port, struct serial_rs485 *r
 
 static void uart_sanitize_serial_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 {
-	u32 supported_flags = port->rs485_supported->flags;
+	u32 supported_flags = port->rs485_supported.flags;
 
 	if (!(rs485->flags & SER_RS485_ENABLED)) {
 		memset(rs485, 0, sizeof(*rs485));
@@ -1323,7 +1323,7 @@ static void uart_sanitize_serial_rs485(struct uart_port *port, struct serial_rs4
 		supported_flags |= SER_RS485_RTS_ON_SEND|SER_RS485_RTS_AFTER_SEND;
 	}
 
-	if (!port->rs485_supported->delay_rts_before_send) {
+	if (!port->rs485_supported.delay_rts_before_send) {
 		if (rs485->delay_rts_before_send) {
 			dev_warn_ratelimited(port->dev,
 				"%s (%d): RTS delay before sending not supported\n",
@@ -1337,7 +1337,7 @@ static void uart_sanitize_serial_rs485(struct uart_port *port, struct serial_rs4
 			port->name, port->line, rs485->delay_rts_before_send);
 	}
 
-	if (!port->rs485_supported->delay_rts_after_send) {
+	if (!port->rs485_supported.delay_rts_after_send) {
 		if (rs485->delay_rts_after_send) {
 			dev_warn_ratelimited(port->dev,
 				"%s (%d): RTS delay after sending not supported\n",

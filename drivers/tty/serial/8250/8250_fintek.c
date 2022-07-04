@@ -433,9 +433,9 @@ static void fintek_8250_set_rs485_handler(struct uart_8250_port *uart)
 	case CHIP_ID_F81865:
 		uart->port.rs485_config = fintek_8250_rs485_config;
 		if (!pdata->index)
-			uart->port.rs485_supported = &fintek_8250_rs485_supported_port0;
+			uart->port.rs485_supported = fintek_8250_rs485_supported_port0;
 		else
-			uart->port.rs485_supported = &fintek_8250_rs485_supported;
+			uart->port.rs485_supported = fintek_8250_rs485_supported;
 		break;
 
 	default: /* No RS485 Auto direction functional */

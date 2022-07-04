@@ -255,10 +255,10 @@ void dw8250_setup_port(struct uart_port *p)
 	if (pd->hw_rs485_support) {
 		p->rs485_config = dw8250_rs485_config;
 		up->lsr_save_mask = LSR_SAVE_FLAGS | DW_UART_LSR_ADDR_RCVD;
-		p->rs485_supported = &dw8250_rs485_supported;
+		p->rs485_supported = dw8250_rs485_supported;
 	} else {
 		p->rs485_config = serial8250_em485_config;
-		p->rs485_supported = &serial8250_em485_supported;
+		p->rs485_supported = serial8250_em485_supported;
 		up->rs485_start_tx = serial8250_em485_start_tx;
 		up->rs485_stop_tx = serial8250_em485_stop_tx;
 	}

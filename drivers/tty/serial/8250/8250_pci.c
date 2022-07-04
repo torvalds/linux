@@ -1607,7 +1607,7 @@ static int pci_fintek_setup(struct serial_private *priv,
 	port->port.iotype = UPIO_PORT;
 	port->port.iobase = iobase;
 	port->port.rs485_config = pci_fintek_rs485_config;
-	port->port.rs485_supported = &pci_fintek_rs485_supported;
+	port->port.rs485_supported = pci_fintek_rs485_supported;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(u8), GFP_KERNEL);
 	if (!data)

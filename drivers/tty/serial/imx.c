@@ -2285,9 +2285,9 @@ static int imx_uart_probe(struct platform_device *pdev)
 	sport->port.rs485_config = imx_uart_rs485_config;
 	/* RTS is required to control the RS485 transmitter */
 	if (sport->have_rtscts || sport->have_rtsgpio)
-		sport->port.rs485_supported = &imx_rs485_supported;
+		sport->port.rs485_supported = imx_rs485_supported;
 	else
-		sport->port.rs485_supported = &imx_no_rs485;
+		sport->port.rs485_supported = imx_no_rs485;
 	sport->port.flags = UPF_BOOT_AUTOCONF;
 	timer_setup(&sport->timer, imx_uart_timeout, 0);
 

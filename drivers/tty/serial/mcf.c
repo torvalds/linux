@@ -506,7 +506,7 @@ int __init early_mcf_setup(struct mcf_platform_uart *platp)
 		port->uartclk = MCF_BUSCLK;
 		port->flags = UPF_BOOT_AUTOCONF;
 		port->rs485_config = mcf_config_rs485;
-		port->rs485_supported = &mcf_rs485_supported;
+		port->rs485_supported = mcf_rs485_supported;
 		port->ops = &mcf_uart_ops;
 	}
 
@@ -634,7 +634,7 @@ static int mcf_probe(struct platform_device *pdev)
 		port->ops = &mcf_uart_ops;
 		port->flags = UPF_BOOT_AUTOCONF;
 		port->rs485_config = mcf_config_rs485;
-		port->rs485_supported = &mcf_rs485_supported;
+		port->rs485_supported = mcf_rs485_supported;
 		port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_MCF_CONSOLE);
 
 		uart_add_one_port(&mcf_driver, port);

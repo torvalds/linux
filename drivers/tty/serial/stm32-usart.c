@@ -1401,7 +1401,7 @@ static int stm32_usart_init_port(struct stm32_port *stm32port,
 	port->has_sysrq = IS_ENABLED(CONFIG_SERIAL_STM32_CONSOLE);
 	port->irq = irq;
 	port->rs485_config = stm32_usart_config_rs485;
-	port->rs485_supported = &stm32_rs485_supported;
+	port->rs485_supported = stm32_rs485_supported;
 
 	ret = stm32_usart_init_rs485(port, pdev);
 	if (ret)
