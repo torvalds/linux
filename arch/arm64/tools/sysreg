@@ -257,6 +257,11 @@ Field	5:3	Ctype2
 Field	2:0	Ctype1
 EndSysreg
 
+Sysreg	GMID_EL1	3	1	0	0	4
+Res0	63:4
+Field	3:0	BS
+EndSysreg
+
 Sysreg	SMIDR_EL1	3	1	0	0	6
 Res0	63:32
 Field	31:24	IMPLEMENTER
