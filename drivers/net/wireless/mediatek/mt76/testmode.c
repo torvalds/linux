@@ -101,7 +101,6 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 	u16 fc = IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA |
 		 IEEE80211_FCTL_FROMDS;
 	struct mt76_testmode_data *td = &phy->test;
-	bool ext_phy = phy != &phy->dev->phy;
 	struct sk_buff **frag_tail, *head;
 	struct ieee80211_tx_info *info;
 	struct ieee80211_hdr *hdr;
@@ -136,9 +135,7 @@ int mt76_testmode_alloc_skb(struct mt76_phy *phy, u32 len)
 		      IEEE80211_TX_CTL_NO_ACK |
 		      IEEE80211_TX_CTL_NO_PS_BUFFER;
 
-	if (ext_phy)
-		info->hw_queue |= MT_TX_HW_QUEUE_EXT_PHY;
-
+	info->hw_queue |= FIELD_PREP(MT_TX_HW_QUEUE_PHY, phy->band_idx);
 	frag_tail = &skb_shinfo(head)->frag_list;
 
 	for (i = 0; i < nfrags; i++) {

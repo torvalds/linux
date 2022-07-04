@@ -262,7 +262,7 @@ enum mt76_wcid_flags {
 #define MT76_N_WCIDS 544
 
 /* stored in ieee80211_tx_info::hw_queue */
-#define MT_TX_HW_QUEUE_EXT_PHY		BIT(3)
+#define MT_TX_HW_QUEUE_PHY		GENMASK(3, 2)
 
 DECLARE_EWMA(signal, 10, 8);
 
@@ -1255,12 +1255,10 @@ static inline struct ieee80211_hw *
 mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
-	struct ieee80211_hw *hw = dev->phy.hw;
+	u8 phy_idx = (info->hw_queue & MT_TX_HW_QUEUE_PHY) >> 2;
+	struct ieee80211_hw *hw = mt76_phy_hw(dev, phy_idx);
 
-	if ((info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY) && dev->phys[MT_BAND1])
-		hw = dev->phys[MT_BAND1]->hw;
-
-	info->hw_queue &= ~MT_TX_HW_QUEUE_EXT_PHY;
+	info->hw_queue &= ~MT_TX_HW_QUEUE_PHY;
 
 	return hw;
 }
