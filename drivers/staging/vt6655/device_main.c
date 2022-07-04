@@ -123,6 +123,7 @@ static void device_free_info(struct vnt_private *priv);
 static void device_print_info(struct vnt_private *priv);
 
 static void vt6655_mac_write_bssid_addr(void __iomem *iobase, const u8 *mac_addr);
+static void vt6655_mac_read_ether_addr(void __iomem *iobase, u8 *mac_addr);
 
 static int device_init_rd0_ring(struct vnt_private *priv);
 static int device_init_rd1_ring(struct vnt_private *priv);
@@ -200,17 +201,17 @@ static void vt6655_mac_write_bssid_addr(void __iomem *iobase, const u8 *mac_addr
 	iowrite8(0, iobase + MAC_REG_PAGE1SEL);
 }
 
-#define vt6655_mac_read_ether_addr(iobase, mac_addr)		\
-do {								\
-	iowrite8(1, iobase + MAC_REG_PAGE1SEL);			\
-	mac_addr[0] = ioread8(iobase + MAC_REG_PAR0);		\
-	mac_addr[1] = ioread8(iobase + MAC_REG_PAR0 + 1);	\
-	mac_addr[2] = ioread8(iobase + MAC_REG_PAR0 + 2);	\
-	mac_addr[3] = ioread8(iobase + MAC_REG_PAR0 + 3);	\
-	mac_addr[4] = ioread8(iobase + MAC_REG_PAR0 + 4);	\
-	mac_addr[5] = ioread8(iobase + MAC_REG_PAR0 + 5);	\
-	iowrite8(0, iobase + MAC_REG_PAGE1SEL);			\
-} while (0)
+static void vt6655_mac_read_ether_addr(void __iomem *iobase, u8 *mac_addr)
+{
+	iowrite8(1, iobase + MAC_REG_PAGE1SEL);
+	mac_addr[0] = ioread8(iobase + MAC_REG_PAR0);
+	mac_addr[1] = ioread8(iobase + MAC_REG_PAR0 + 1);
+	mac_addr[2] = ioread8(iobase + MAC_REG_PAR0 + 2);
+	mac_addr[3] = ioread8(iobase + MAC_REG_PAR0 + 3);
+	mac_addr[4] = ioread8(iobase + MAC_REG_PAR0 + 4);
+	mac_addr[5] = ioread8(iobase + MAC_REG_PAR0 + 5);
+	iowrite8(0, iobase + MAC_REG_PAGE1SEL);
+}
 
 /*
  * Initialisation of MAC & BBP registers
