@@ -2641,8 +2641,7 @@ static void rtw89_init_he_cap(struct rtw89_dev *rtwdev,
 		phy_cap_info = he_cap->he_cap_elem.phy_cap_info;
 
 		he_cap->has_he = true;
-		if (i == NL80211_IFTYPE_AP)
-			mac_cap_info[0] = IEEE80211_HE_MAC_CAP0_HTC_HE;
+		mac_cap_info[0] = IEEE80211_HE_MAC_CAP0_HTC_HE;
 		if (i == NL80211_IFTYPE_STATION)
 			mac_cap_info[1] = IEEE80211_HE_MAC_CAP1_TF_MAC_PAD_DUR_16US;
 		mac_cap_info[2] = IEEE80211_HE_MAC_CAP2_ALL_ACK |
