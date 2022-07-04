@@ -992,8 +992,12 @@ static bool rga_mm_is_need_mmu(struct rga_job *job, struct rga_internal_buffer *
 	if (buffer == NULL || job == NULL || job->scheduler == NULL)
 		return false;
 
-	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS &&
-	    job->scheduler->data->mmu == RGA_MMU)
+	/* RK_IOMMU no need to configure enable or not in the driver. */
+	if (job->scheduler->data->mmu == RGA_IOMMU)
+		return false;
+
+	/* RK_MMU need to configure enable or not in the driver. */
+	if (buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS)
 		return false;
 	else if (buffer->mm_flag & RGA_MEM_NEED_USE_IOMMU)
 		return true;
