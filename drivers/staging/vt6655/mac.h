@@ -565,7 +565,7 @@ do {									\
 	iowrite16(wData & ~(wBits), iobase + byRegOfs);			\
 } while (0)
 
-#define MACvWriteBSSIDAddress(iobase, mac_addr)		\
+#define vt6655_mac_write_bssid_addr(iobase, mac_addr)		\
 do {								\
 	iowrite8(1, iobase + MAC_REG_PAGE1SEL);			\
 	iowrite8(mac_addr[0], iobase + MAC_REG_BSSID0);		\

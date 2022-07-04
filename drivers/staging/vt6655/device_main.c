@@ -1405,7 +1405,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 		spin_lock_irqsave(&priv->lock, flags);
 
-		MACvWriteBSSIDAddress(priv->port_offset, conf->bssid);
+		vt6655_mac_write_bssid_addr(priv->port_offset, conf->bssid);
 
 		spin_unlock_irqrestore(&priv->lock, flags);
 	}
