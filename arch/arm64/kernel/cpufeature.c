@@ -459,7 +459,7 @@ static const struct arm64_ftr_bits ftr_dczid[] = {
 };
 
 static const struct arm64_ftr_bits ftr_gmid[] = {
-	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, SYS_GMID_EL1_BS_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_HIDDEN, FTR_STRICT, FTR_LOWER_SAFE, GMID_EL1_BS_SHIFT, 4, 0),
 	ARM64_FTR_END,
 };
 

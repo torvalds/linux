@@ -1136,8 +1136,8 @@
 #define SYS_RGSR_EL1_SEED_MASK	0xffffUL
 
 /* GMID_EL1 field definitions */
-#define SYS_GMID_EL1_BS_SHIFT	0
-#define SYS_GMID_EL1_BS_SIZE	4
+#define GMID_EL1_BS_SHIFT	0
+#define GMID_EL1_BS_SIZE	4
 
 /* TFSR{,E0}_EL1 bit definitions */
 #define SYS_TFSR_EL1_TF0_SHIFT	0

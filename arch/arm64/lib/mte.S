@@ -18,7 +18,7 @@
  */
 	.macro	multitag_transfer_size, reg, tmp
 	mrs_s	\reg, SYS_GMID_EL1
-	ubfx	\reg, \reg, #SYS_GMID_EL1_BS_SHIFT, #SYS_GMID_EL1_BS_SIZE
+	ubfx	\reg, \reg, #GMID_EL1_BS_SHIFT, #GMID_EL1_BS_SIZE
 	mov	\tmp, #4
 	lsl	\reg, \tmp, \reg
 	.endm
