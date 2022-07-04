@@ -2867,6 +2867,15 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 					    capab->extended_capabilities_mask))
 					goto nla_put_failure;
 
+				if (rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_MLO &&
+				    (nla_put_u16(msg,
+						 NL80211_ATTR_EML_CAPABILITY,
+						 capab->eml_capabilities) ||
+				     nla_put_u16(msg,
+						 NL80211_ATTR_MLD_CAPA_AND_OPS,
+						 capab->mld_capa_and_ops)))
+					goto nla_put_failure;
+
 				nla_nest_end(msg, nested_ext_capab);
 				if (state->split)
 					break;

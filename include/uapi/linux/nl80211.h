@@ -2368,8 +2368,10 @@ enum nl80211_commands {
  *
  * @NL80211_ATTR_IFTYPE_EXT_CAPA: Nested attribute of the following attributes:
  *	%NL80211_ATTR_IFTYPE, %NL80211_ATTR_EXT_CAPA,
- *	%NL80211_ATTR_EXT_CAPA_MASK, to specify the extended capabilities per
- *	interface type.
+ *	%NL80211_ATTR_EXT_CAPA_MASK, to specify the extended capabilities and
+ *	other interface-type specific capabilities per interface type. For MLO,
+ *	%NL80211_ATTR_EML_CAPABILITY and %NL80211_ATTR_MLD_CAPA_AND_OPS are
+ *	present.
  *
  * @NL80211_ATTR_MU_MIMO_GROUP_DATA: array of 24 bytes that defines a MU-MIMO
  *	groupID for monitor mode.
@@ -2708,6 +2710,9 @@ enum nl80211_commands {
  *	attribute is not present userspace shall consider maximum number of AKM
  *	suites allowed as %NL80211_MAX_NR_AKM_SUITES which is the legacy maximum
  *	number prior to the introduction of this attribute.
+ *
+ * @NL80211_ATTR_EML_CAPABILITY: EML Capability information (u16)
+ * @NL80211_ATTR_MLD_CAPA_AND_OPS: MLD Capabilities and Operations (u16)
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -3230,6 +3235,9 @@ enum nl80211_attrs {
 	NL80211_ATTR_MLO_SUPPORT,
 
 	NL80211_ATTR_MAX_NUM_AKM_SUITES,
+
+	NL80211_ATTR_EML_CAPABILITY,
+	NL80211_ATTR_MLD_CAPA_AND_OPS,
 
 	/* add attributes here, update the policy in nl80211.c */
 

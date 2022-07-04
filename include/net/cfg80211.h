@@ -4993,12 +4993,16 @@ struct wiphy_vendor_command {
  *	802.11-2012 8.4.2.29 for the defined fields.
  * @extended_capabilities_mask: mask of the valid values
  * @extended_capabilities_len: length of the extended capabilities
+ * @eml_capabilities: EML capabilities (for MLO)
+ * @mld_capa_and_ops: MLD capabilities and operations (for MLO)
  */
 struct wiphy_iftype_ext_capab {
 	enum nl80211_iftype iftype;
 	const u8 *extended_capabilities;
 	const u8 *extended_capabilities_mask;
 	u8 extended_capabilities_len;
+	u16 eml_capabilities;
+	u16 mld_capa_and_ops;
 };
 
 /**
