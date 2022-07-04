@@ -2871,9 +2871,6 @@ int kvm_arm_sys_reg_get_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return demux_c15_get(reg->id, uaddr);
 
-	if (KVM_REG_SIZE(reg->id) != sizeof(__u64))
-		return -ENOENT;
-
 	err = get_invariant_sys_reg(reg->id, uaddr);
 	if (err != -ENOENT)
 		return err;
@@ -2905,9 +2902,6 @@ int kvm_arm_sys_reg_set_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg
 
 	if ((reg->id & KVM_REG_ARM_COPROC_MASK) == KVM_REG_ARM_DEMUX)
 		return demux_c15_set(reg->id, uaddr);
-
-	if (KVM_REG_SIZE(reg->id) != sizeof(__u64))
-		return -ENOENT;
 
 	err = set_invariant_sys_reg(reg->id, uaddr);
 	if (err != -ENOENT)
