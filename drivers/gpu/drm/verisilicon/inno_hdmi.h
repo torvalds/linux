@@ -10,8 +10,6 @@
 
 #define DDC_SEGMENT_ADDR		0x30
 
-#include "vs_clock.h"
-
 enum PWR_MODE {
 	NORMAL,
 	LOWER_PWR,

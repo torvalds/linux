@@ -20,7 +20,6 @@
 #include "vs_dc.h"
 #include "vs_crtc.h"
 #include "vs_drv.h"
-#include "vs_clock.h"
 
 #include <soc/starfive/vic7100.h>
 
