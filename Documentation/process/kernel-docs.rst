@@ -1,7 +1,7 @@
 .. _kernel_docs:
 
-Index of Documentation for People Interested in Writing and/or Understanding the Linux Kernel
-=============================================================================================
+Index of Further Kernel Documentation
+=====================================
 
           Juan-Mariano de Goyeneche <jmseyas@dit.upm.es>
 
