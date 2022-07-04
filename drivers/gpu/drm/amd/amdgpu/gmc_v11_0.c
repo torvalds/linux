@@ -25,7 +25,7 @@
 #include "amdgpu.h"
 #include "amdgpu_atomfirmware.h"
 #include "gmc_v11_0.h"
-#include "umc_v8_7.h"
+#include "umc_v8_10.h"
 #include "athub/athub_3_0_0_sh_mask.h"
 #include "athub/athub_3_0_0_offset.h"
 #include "oss/osssys_6_0_0_offset.h"
@@ -537,10 +537,35 @@ static void gmc_v11_0_set_umc_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->ip_versions[UMC_HWIP][0]) {
 	case IP_VERSION(8, 10, 0):
+		adev->umc.channel_inst_num = UMC_V8_10_CHANNEL_INSTANCE_NUM;
+		adev->umc.umc_inst_num = UMC_V8_10_UMC_INSTANCE_NUM;
+		adev->umc.node_inst_num = adev->gmc.num_umc;
+		adev->umc.max_ras_err_cnt_per_query = UMC_V8_10_TOTAL_CHANNEL_NUM(adev);
+		adev->umc.channel_offs = UMC_V8_10_PER_CHANNEL_OFFSET;
+		adev->umc.channel_idx_tbl = &umc_v8_10_channel_idx_tbl[0][0][0];
+		adev->umc.ras = &umc_v8_10_ras;
+		break;
 	case IP_VERSION(8, 11, 0):
 		break;
 	default:
 		break;
+	}
+
+	if (adev->umc.ras) {
+		amdgpu_ras_register_ras_block(adev, &adev->umc.ras->ras_block);
+
+		strcpy(adev->umc.ras->ras_block.ras_comm.name, "umc");
+		adev->umc.ras->ras_block.ras_comm.block = AMDGPU_RAS_BLOCK__UMC;
+		adev->umc.ras->ras_block.ras_comm.type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
+		adev->umc.ras_if = &adev->umc.ras->ras_block.ras_comm;
+
+		/* If don't define special ras_late_init function, use default ras_late_init */
+		if (!adev->umc.ras->ras_block.ras_late_init)
+			adev->umc.ras->ras_block.ras_late_init = amdgpu_umc_ras_late_init;
+
+		/* If not define special ras_cb function, use default ras_cb */
+		if (!adev->umc.ras->ras_block.ras_cb)
+			adev->umc.ras->ras_block.ras_cb = amdgpu_umc_process_ras_data_cb;
 	}
 }
 
