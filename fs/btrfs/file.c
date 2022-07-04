@@ -1971,11 +1971,25 @@ again:
 	if (is_sync_write)
 		iocb->ki_flags |= IOCB_DSYNC;
 
-	/* If 'err' is -ENOTBLK then it means we must fallback to buffered IO. */
+	/*
+	 * If 'err' is -ENOTBLK or we have not written all data, then it means
+	 * we must fallback to buffered IO.
+	 */
 	if ((err < 0 && err != -ENOTBLK) || !iov_iter_count(from))
 		goto out;
 
 buffered:
+	/*
+	 * If we are in a NOWAIT context, then return -EAGAIN to signal the caller
+	 * it must retry the operation in a context where blocking is acceptable,
+	 * since we currently don't have NOWAIT semantics support for buffered IO
+	 * and may block there for many reasons (reserving space for example).
+	 */
+	if (iocb->ki_flags & IOCB_NOWAIT) {
+		err = -EAGAIN;
+		goto out;
+	}
+
 	pos = iocb->ki_pos;
 	written_buffered = btrfs_buffered_write(iocb, from);
 	if (written_buffered < 0) {
