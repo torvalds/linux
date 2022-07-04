@@ -48,14 +48,14 @@ extern void nfs_fscache_release_file(struct inode *, struct file *);
 extern int __nfs_fscache_read_page(struct inode *, struct page *);
 extern void __nfs_fscache_write_page(struct inode *, struct page *);
 
-static inline int nfs_fscache_release_page(struct page *page, gfp_t gfp)
+static inline bool nfs_fscache_release_folio(struct folio *folio, gfp_t gfp)
 {
-	if (PageFsCache(page)) {
+	if (folio_test_fscache(folio)) {
 		if (current_is_kswapd() || !(gfp & __GFP_FS))
 			return false;
-		wait_on_page_fscache(page);
-		fscache_note_page_release(nfs_i_fscache(page->mapping->host));
-		nfs_inc_fscache_stats(page->mapping->host,
+		folio_wait_fscache(folio);
+		fscache_note_page_release(nfs_i_fscache(folio->mapping->host));
+		nfs_inc_fscache_stats(folio->mapping->host,
 				      NFSIOS_FSCACHE_PAGES_UNCACHED);
 	}
 	return true;
@@ -129,9 +129,9 @@ static inline void nfs_fscache_open_file(struct inode *inode,
 					 struct file *filp) {}
 static inline void nfs_fscache_release_file(struct inode *inode, struct file *file) {}
 
-static inline int nfs_fscache_release_page(struct page *page, gfp_t gfp)
+static inline bool nfs_fscache_release_folio(struct folio *folio, gfp_t gfp)
 {
-	return 1; /* True: may release page */
+	return true; /* may release folio */
 }
 static inline int nfs_fscache_read_page(struct inode *inode, struct page *page)
 {

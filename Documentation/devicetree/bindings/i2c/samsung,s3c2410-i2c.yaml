@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Samsung S3C/S5P/Exynos SoC I2C Controller
 
 maintainers:
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 properties:
   compatible:
@@ -123,7 +123,7 @@ examples:
         samsung,i2c-slave-addr = <0x66>;
 
         eeprom@50 {
-            compatible = "samsung,s524ad0xd1";
+            compatible = "samsung,s524ad0xd1", "atmel,24c128";
             reg = <0x50>;
         };
     };

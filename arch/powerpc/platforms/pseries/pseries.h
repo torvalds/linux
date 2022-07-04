@@ -38,6 +38,7 @@ static inline void smp_init_pseries(void) { }
 #endif
 
 extern void pseries_kexec_cpu_down(int crash_shutdown, int secondary);
+void pseries_machine_kexec(struct kimage *image);
 
 extern void pSeries_final_fixup(void);
 

@@ -37,7 +37,7 @@
 
 / {
 	model = "NorthStar HR (BCM953012HR)";
-	compatible = "brcm,bcm953012hr", "brcm,brcm53012", "brcm,bcm4708";
+	compatible = "brcm,bcm953012hr", "brcm,bcm53012", "brcm,bcm4708";
 
 	aliases {
 		ethernet0 = &gmac0;

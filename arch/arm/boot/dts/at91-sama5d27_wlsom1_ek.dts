@@ -191,7 +191,7 @@
 &qspi1 {
 	status = "okay";
 
-	qspi1_flash: spi_flash@0 {
+	qspi1_flash: flash@0 {
 		status = "okay";
 	};
 };

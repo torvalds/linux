@@ -135,7 +135,6 @@ static void komeda_plane_destroy(struct drm_plane *plane)
 static void komeda_plane_reset(struct drm_plane *plane)
 {
 	struct komeda_plane_state *state;
-	struct komeda_plane *kplane = to_kplane(plane);
 
 	if (plane->state)
 		__drm_atomic_helper_plane_destroy_state(plane->state);
@@ -144,16 +143,8 @@ static void komeda_plane_reset(struct drm_plane *plane)
 	plane->state = NULL;
 
 	state = kzalloc(sizeof(*state), GFP_KERNEL);
-	if (state) {
-		state->base.rotation = DRM_MODE_ROTATE_0;
-		state->base.pixel_blend_mode = DRM_MODE_BLEND_PREMULTI;
-		state->base.alpha = DRM_BLEND_ALPHA_OPAQUE;
-		state->base.zpos = kplane->layer->base.id;
-		state->base.color_encoding = DRM_COLOR_YCBCR_BT601;
-		state->base.color_range = DRM_COLOR_YCBCR_LIMITED_RANGE;
-		plane->state = &state->base;
-		plane->state->plane = plane;
-	}
+	if (state)
+		__drm_atomic_helper_plane_reset(plane, &state->base);
 }
 
 static struct drm_plane_state *
@@ -265,6 +256,10 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 
 	formats = komeda_get_layer_fourcc_list(&mdev->fmt_tbl,
 					       layer->layer_type, &n_formats);
+	if (!formats) {
+		kfree(kplane);
+		return -ENOMEM;
+	}
 
 	err = drm_universal_plane_init(&kms->base, plane,
 			get_possible_crtcs(kms, c->pipeline),
@@ -275,8 +270,10 @@ static int komeda_plane_add(struct komeda_kms_dev *kms,
 
 	komeda_put_fourcc_list(formats);
 
-	if (err)
-		goto cleanup;
+	if (err) {
+		kfree(kplane);
+		return err;
+	}
 
 	drm_plane_helper_add(plane, &komeda_plane_helper_funcs);
 

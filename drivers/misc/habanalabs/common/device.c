@@ -15,6 +15,182 @@
 
 #define HL_RESET_DELAY_USEC		10000	/* 10ms */
 
+/*
+ * hl_set_dram_bar- sets the bar to allow later access to address
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @addr: the address the caller wants to access.
+ *
+ * @return: the old BAR base address on success, U64_MAX for failure.
+ *	    The caller should set it back to the old address after use.
+ *
+ * In case the bar space does not cover the whole address space,
+ * the bar base address should be set to allow access to a given address.
+ * This function can be called also if the bar doesn't need to be set,
+ * in that case it just won't change the base.
+ */
+static uint64_t hl_set_dram_bar(struct hl_device *hdev, u64 addr)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	u64 bar_base_addr;
+
+	bar_base_addr = addr & ~(prop->dram_pci_bar_size - 0x1ull);
+
+	return hdev->asic_funcs->set_dram_bar_base(hdev, bar_base_addr);
+}
+
+
+static int hl_access_sram_dram_region(struct hl_device *hdev, u64 addr, u64 *val,
+	enum debugfs_access_type acc_type, enum pci_region region_type)
+{
+	struct pci_mem_region *region = &hdev->pci_mem_region[region_type];
+	u64 old_base, rc;
+
+	if (region_type == PCI_REGION_DRAM) {
+		old_base = hl_set_dram_bar(hdev, addr);
+		if (old_base == U64_MAX)
+			return -EIO;
+	}
+
+	switch (acc_type) {
+	case DEBUGFS_READ8:
+		*val = readb(hdev->pcie_bar[region->bar_id] +
+			addr - region->region_base + region->offset_in_bar);
+		break;
+	case DEBUGFS_WRITE8:
+		writeb(*val, hdev->pcie_bar[region->bar_id] +
+			addr - region->region_base + region->offset_in_bar);
+		break;
+	case DEBUGFS_READ32:
+		*val = readl(hdev->pcie_bar[region->bar_id] +
+			addr - region->region_base + region->offset_in_bar);
+		break;
+	case DEBUGFS_WRITE32:
+		writel(*val, hdev->pcie_bar[region->bar_id] +
+			addr - region->region_base + region->offset_in_bar);
+		break;
+	case DEBUGFS_READ64:
+		*val = readq(hdev->pcie_bar[region->bar_id] +
+			addr - region->region_base + region->offset_in_bar);
+		break;
+	case DEBUGFS_WRITE64:
+		writeq(*val, hdev->pcie_bar[region->bar_id] +
+			addr - region->region_base + region->offset_in_bar);
+		break;
+	}
+
+	if (region_type == PCI_REGION_DRAM) {
+		rc = hl_set_dram_bar(hdev, old_base);
+		if (rc == U64_MAX)
+			return -EIO;
+	}
+
+	return 0;
+}
+
+int hl_dma_map_sgtable(struct hl_device *hdev, struct sg_table *sgt, enum dma_data_direction dir)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct scatterlist *sg;
+	int rc, i;
+
+	rc = dma_map_sgtable(&hdev->pdev->dev, sgt, dir, 0);
+	if (rc)
+		return rc;
+
+	/* Shift to the device's base physical address of host memory if necessary */
+	if (prop->device_dma_offset_for_host_access)
+		for_each_sgtable_dma_sg(sgt, sg, i)
+			sg->dma_address += prop->device_dma_offset_for_host_access;
+
+	return 0;
+}
+
+void hl_dma_unmap_sgtable(struct hl_device *hdev, struct sg_table *sgt, enum dma_data_direction dir)
+{
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
+	struct scatterlist *sg;
+	int i;
+
+	/* Cancel the device's base physical address of host memory if necessary */
+	if (prop->device_dma_offset_for_host_access)
+		for_each_sgtable_dma_sg(sgt, sg, i)
+			sg->dma_address -= prop->device_dma_offset_for_host_access;
+
+	dma_unmap_sgtable(&hdev->pdev->dev, sgt, dir, 0);
+}
+
+/*
+ * hl_access_cfg_region - access the config region
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @addr: the address to access
+ * @val: the value to write from or read to
+ * @acc_type: the type of access (read/write 64/32)
+ */
+int hl_access_cfg_region(struct hl_device *hdev, u64 addr, u64 *val,
+	enum debugfs_access_type acc_type)
+{
+	struct pci_mem_region *cfg_region = &hdev->pci_mem_region[PCI_REGION_CFG];
+	u32 val_h, val_l;
+
+	if (!IS_ALIGNED(addr, sizeof(u32))) {
+		dev_err(hdev->dev, "address %#llx not a multiple of %zu\n", addr, sizeof(u32));
+		return -EINVAL;
+	}
+
+	switch (acc_type) {
+	case DEBUGFS_READ32:
+		*val = RREG32(addr - cfg_region->region_base);
+		break;
+	case DEBUGFS_WRITE32:
+		WREG32(addr - cfg_region->region_base, *val);
+		break;
+	case DEBUGFS_READ64:
+		val_l = RREG32(addr - cfg_region->region_base);
+		val_h = RREG32(addr + sizeof(u32) - cfg_region->region_base);
+
+		*val = (((u64) val_h) << 32) | val_l;
+		break;
+	case DEBUGFS_WRITE64:
+		WREG32(addr - cfg_region->region_base, lower_32_bits(*val));
+		WREG32(addr + sizeof(u32) - cfg_region->region_base, upper_32_bits(*val));
+		break;
+	default:
+		dev_err(hdev->dev, "access type %d is not supported\n", acc_type);
+		return -EOPNOTSUPP;
+	}
+
+	return 0;
+}
+
+/*
+ * hl_access_dev_mem - access device memory
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @region: the memory region the address belongs to
+ * @region_type: the type of the region the address belongs to
+ * @addr: the address to access
+ * @val: the value to write from or read to
+ * @acc_type: the type of access (r/w, 32/64)
+ */
+int hl_access_dev_mem(struct hl_device *hdev, struct pci_mem_region *region,
+		enum pci_region region_type, u64 addr, u64 *val, enum debugfs_access_type acc_type)
+{
+	switch (region_type) {
+	case PCI_REGION_CFG:
+		return hl_access_cfg_region(hdev, addr, val, acc_type);
+	case PCI_REGION_SRAM:
+	case PCI_REGION_DRAM:
+		return hl_access_sram_dram_region(hdev, addr, val, acc_type,
+			region_type);
+	default:
+		return -EFAULT;
+	}
+
+	return 0;
+}
+
 enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
 	enum hl_device_status status;
@@ -107,6 +283,14 @@ static void hpriv_release(struct kref *ref)
 	hdev->is_compute_ctx_active = false;
 	mutex_unlock(&hdev->fpriv_list_lock);
 
+	hdev->compute_ctx_in_release = 0;
+
+	/* release the eventfd */
+	if (hpriv->notifier_event.eventfd)
+		eventfd_ctx_put(hpriv->notifier_event.eventfd);
+
+	mutex_destroy(&hpriv->notifier_event.lock);
+
 	kfree(hpriv);
 }
 
@@ -146,9 +330,10 @@ static int hl_device_release(struct inode *inode, struct file *filp)
 	 */
 	hl_release_pending_user_interrupts(hpriv->hdev);
 
-	hl_cb_mgr_fini(hdev, &hpriv->cb_mgr);
-	hl_ts_mgr_fini(hpriv->hdev, &hpriv->ts_mem_mgr);
+	hl_mem_mgr_fini(&hpriv->mem_mgr);
 	hl_ctx_mgr_fini(hdev, &hpriv->ctx_mgr);
+
+	hdev->compute_ctx_in_release = 1;
 
 	if (!hl_hpriv_put(hpriv))
 		dev_notice(hdev->dev,
@@ -176,6 +361,11 @@ static int hl_device_release_ctrl(struct inode *inode, struct file *filp)
 	list_del(&hpriv->dev_node);
 	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 out:
+	/* release the eventfd */
+	if (hpriv->notifier_event.eventfd)
+		eventfd_ctx_put(hpriv->notifier_event.eventfd);
+
+	mutex_destroy(&hpriv->notifier_event.lock);
 	put_pid(hpriv->taskpid);
 
 	kfree(hpriv);
@@ -204,17 +394,15 @@ static int hl_mmap(struct file *filp, struct vm_area_struct *vma)
 	}
 
 	vm_pgoff = vma->vm_pgoff;
-	vma->vm_pgoff = HL_MMAP_OFFSET_VALUE_GET(vm_pgoff);
 
 	switch (vm_pgoff & HL_MMAP_TYPE_MASK) {
-	case HL_MMAP_TYPE_CB:
-		return hl_cb_mmap(hpriv, vma);
-
 	case HL_MMAP_TYPE_BLOCK:
+		vma->vm_pgoff = HL_MMAP_OFFSET_VALUE_GET(vm_pgoff);
 		return hl_hw_block_mmap(hpriv, vma);
 
+	case HL_MMAP_TYPE_CB:
 	case HL_MMAP_TYPE_TS_BUFF:
-		return hl_ts_mmap(hpriv, vma);
+		return hl_mem_mgr_mmap(&hpriv->mem_mgr, vma, NULL);
 	}
 
 	return -EINVAL;
@@ -424,18 +612,25 @@ static int device_early_init(struct hl_device *hdev)
 		goto free_eq_wq;
 	}
 
+	hdev->pf_wq = alloc_workqueue("hl-prefetch", WQ_UNBOUND, 0);
+	if (!hdev->pf_wq) {
+		dev_err(hdev->dev, "Failed to allocate MMU prefetch workqueue\n");
+		rc = -ENOMEM;
+		goto free_ts_free_wq;
+	}
+
 	hdev->hl_chip_info = kzalloc(sizeof(struct hwmon_chip_info),
 					GFP_KERNEL);
 	if (!hdev->hl_chip_info) {
 		rc = -ENOMEM;
-		goto free_ts_free_wq;
+		goto free_pf_wq;
 	}
 
 	rc = hl_mmu_if_set_funcs(hdev);
 	if (rc)
 		goto free_chip_info;
 
-	hl_cb_mgr_init(&hdev->kernel_cb_mgr);
+	hl_mem_mgr_init(hdev->dev, &hdev->kernel_mem_mgr);
 
 	hdev->device_reset_work.wq =
 			create_singlethread_workqueue("hl_device_reset");
@@ -464,9 +659,11 @@ static int device_early_init(struct hl_device *hdev)
 	return 0;
 
 free_cb_mgr:
-	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
+	hl_mem_mgr_fini(&hdev->kernel_mem_mgr);
 free_chip_info:
 	kfree(hdev->hl_chip_info);
+free_pf_wq:
+	destroy_workqueue(hdev->pf_wq);
 free_ts_free_wq:
 	destroy_workqueue(hdev->ts_free_obj_wq);
 free_eq_wq:
@@ -503,10 +700,11 @@ static void device_early_fini(struct hl_device *hdev)
 
 	mutex_destroy(&hdev->clk_throttling.lock);
 
-	hl_cb_mgr_fini(hdev, &hdev->kernel_cb_mgr);
+	hl_mem_mgr_fini(&hdev->kernel_mem_mgr);
 
 	kfree(hdev->hl_chip_info);
 
+	destroy_workqueue(hdev->pf_wq);
 	destroy_workqueue(hdev->ts_free_obj_wq);
 	destroy_workqueue(hdev->eq_wq);
 	destroy_workqueue(hdev->device_reset_work.wq);
@@ -703,6 +901,9 @@ static void cleanup_resources(struct hl_device *hdev, bool hard_reset, bool fw_r
 	/* Go over all the queues, release all CS and their jobs */
 	hl_cs_rollback_all(hdev, skip_wq_flush);
 
+	/* flush the MMU prefetch workqueue */
+	flush_workqueue(hdev->pf_wq);
+
 	/* Release all pending user interrupts, each pending user interrupt
 	 * holds a reference to user context
 	 */
@@ -847,10 +1048,13 @@ static int device_kill_open_processes(struct hl_device *hdev, u32 timeout, bool 
 
 			put_task_struct(task);
 		} else {
-			dev_warn(hdev->dev,
-				"Can't get task struct for PID so giving up on killing process\n");
-			mutex_unlock(fd_lock);
-			return -ETIME;
+			/*
+			 * If we got here, it means that process was killed from outside the driver
+			 * right after it started looping on fd_list and before get_pid_task, thus
+			 * we don't need to kill it.
+			 */
+			dev_dbg(hdev->dev,
+				"Can't get task struct for user process, assuming process was killed from outside the driver\n");
 		}
 	}
 
@@ -1062,9 +1266,9 @@ do_reset:
 		if (hard_reset)
 			dev_info(hdev->dev, "Going to reset device\n");
 		else if (reset_upon_device_release)
-			dev_info(hdev->dev, "Going to reset device after release by user\n");
+			dev_dbg(hdev->dev, "Going to reset device after release by user\n");
 		else
-			dev_info(hdev->dev, "Going to reset engines of inference device\n");
+			dev_dbg(hdev->dev, "Going to reset engines of inference device\n");
 	}
 
 again:
@@ -1270,7 +1474,10 @@ kill_processes:
 
 	hdev->reset_info.needs_reset = false;
 
-	dev_notice(hdev->dev, "Successfully finished resetting the device\n");
+	if (hard_reset)
+		dev_info(hdev->dev, "Successfully finished resetting the device\n");
+	else
+		dev_dbg(hdev->dev, "Successfully finished resetting the device\n");
 
 	if (hard_reset) {
 		hdev->reset_info.hard_reset_cnt++;
@@ -1321,6 +1528,43 @@ out_err:
 	hdev->reset_info.in_reset = 0;
 
 	return rc;
+}
+
+static void hl_notifier_event_send(struct hl_notifier_event *notifier_event, u64 event)
+{
+	mutex_lock(&notifier_event->lock);
+	notifier_event->events_mask |= event;
+	if (notifier_event->eventfd)
+		eventfd_signal(notifier_event->eventfd, 1);
+
+	mutex_unlock(&notifier_event->lock);
+}
+
+/*
+ * hl_notifier_event_send_all - notify all user processes via eventfd
+ *
+ * @hdev: pointer to habanalabs device structure
+ * @event: the occurred event
+ * Returns 0 for success or an error on failure.
+ */
+void hl_notifier_event_send_all(struct hl_device *hdev, u64 event)
+{
+	struct hl_fpriv	*hpriv;
+
+	mutex_lock(&hdev->fpriv_list_lock);
+
+	list_for_each_entry(hpriv, &hdev->fpriv_list, dev_node)
+		hl_notifier_event_send(&hpriv->notifier_event, event);
+
+	mutex_unlock(&hdev->fpriv_list_lock);
+
+	/* control device */
+	mutex_lock(&hdev->fpriv_ctrl_list_lock);
+
+	list_for_each_entry(hpriv, &hdev->fpriv_ctrl_list, dev_node)
+		hl_notifier_event_send(&hpriv->notifier_event, event);
+
+	mutex_unlock(&hdev->fpriv_ctrl_list_lock);
 }
 
 /*

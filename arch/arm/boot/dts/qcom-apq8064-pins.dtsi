@@ -76,7 +76,7 @@
 		pinconf {
 			pins = "gpio20", "gpio21";
 			drive-strength = <2>;
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 
@@ -116,7 +116,7 @@
 		pinconf {
 			pins = "gpio24", "gpio25";
 			drive-strength = <2>;
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 
@@ -141,7 +141,7 @@
 		pinconf {
 			pins = "gpio8", "gpio9";
 			drive-strength = <2>;
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 
@@ -166,7 +166,7 @@
 		pinconf {
 			pins = "gpio12", "gpio13";
 			drive-strength = <2>;
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 
@@ -229,7 +229,7 @@
 		pinconf {
 			pins = "gpio16", "gpio17";
 			drive-strength = <2>;
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 
@@ -282,7 +282,7 @@
 		pinconf {
 			pins = "gpio84", "gpio85";
 			drive-strength = <2>;
-			bias-disable = <0>;
+			bias-disable;
 		};
 	};
 

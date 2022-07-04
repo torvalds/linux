@@ -14,6 +14,7 @@
 #include "wlan_cfg.h"
 
 #define WILC_MULTICAST_TABLE_SIZE	8
+#define WILC_MAX_FW_VERSION_STR_SIZE	50
 
 /* latest API version supported */
 #define WILC1000_API_VER		1
@@ -522,7 +523,7 @@ static int wilc_wlan_initialize(struct net_device *dev, struct wilc_vif *vif)
 
 		if (wilc_wlan_cfg_get(vif, 1, WID_FIRMWARE_VERSION, 1, 0)) {
 			int size;
-			char firmware_ver[20];
+			char firmware_ver[WILC_MAX_FW_VERSION_STR_SIZE];
 
 			size = wilc_wlan_cfg_get_val(wl, WID_FIRMWARE_VERSION,
 						     firmware_ver,

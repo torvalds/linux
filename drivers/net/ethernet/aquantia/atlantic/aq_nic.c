@@ -486,8 +486,8 @@ int aq_nic_start(struct aq_nic_s *self)
 	if (err < 0)
 		goto err_exit;
 
-	for (i = 0U, aq_vec = self->aq_vec[0];
-		self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i]) {
+	for (i = 0U; self->aq_vecs > i; ++i) {
+		aq_vec = self->aq_vec[i];
 		err = aq_vec_start(aq_vec);
 		if (err < 0)
 			goto err_exit;
@@ -517,8 +517,8 @@ int aq_nic_start(struct aq_nic_s *self)
 		mod_timer(&self->polling_timer, jiffies +
 			  AQ_CFG_POLLING_TIMER_INTERVAL);
 	} else {
-		for (i = 0U, aq_vec = self->aq_vec[0];
-			self->aq_vecs > i; ++i, aq_vec = self->aq_vec[i]) {
+		for (i = 0U; self->aq_vecs > i; ++i) {
+			aq_vec = self->aq_vec[i];
 			err = aq_pci_func_alloc_irq(self, i, self->ndev->name,
 						    aq_vec_isr, aq_vec,
 						    aq_vec_get_affinity_mask(aq_vec));
@@ -567,6 +567,103 @@ int aq_nic_start(struct aq_nic_s *self)
 
 err_exit:
 	return err;
+}
+
+static unsigned int aq_nic_map_xdp(struct aq_nic_s *self,
+				   struct xdp_frame *xdpf,
+				   struct aq_ring_s *ring)
+{
+	struct device *dev = aq_nic_get_dev(self);
+	struct aq_ring_buff_s *first = NULL;
+	unsigned int dx = ring->sw_tail;
+	struct aq_ring_buff_s *dx_buff;
+	struct skb_shared_info *sinfo;
+	unsigned int frag_count = 0U;
+	unsigned int nr_frags = 0U;
+	unsigned int ret = 0U;
+	u16 total_len;
+
+	dx_buff = &ring->buff_ring[dx];
+	dx_buff->flags = 0U;
+
+	sinfo = xdp_get_shared_info_from_frame(xdpf);
+	total_len = xdpf->len;
+	dx_buff->len = total_len;
+	if (xdp_frame_has_frags(xdpf)) {
+		nr_frags = sinfo->nr_frags;
+		total_len += sinfo->xdp_frags_size;
+	}
+	dx_buff->pa = dma_map_single(dev, xdpf->data, dx_buff->len,
+				     DMA_TO_DEVICE);
+
+	if (unlikely(dma_mapping_error(dev, dx_buff->pa)))
+		goto exit;
+
+	first = dx_buff;
+	dx_buff->len_pkt = total_len;
+	dx_buff->is_sop = 1U;
+	dx_buff->is_mapped = 1U;
+	++ret;
+
+	for (; nr_frags--; ++frag_count) {
+		skb_frag_t *frag = &sinfo->frags[frag_count];
+		unsigned int frag_len = skb_frag_size(frag);
+		unsigned int buff_offset = 0U;
+		unsigned int buff_size = 0U;
+		dma_addr_t frag_pa;
+
+		while (frag_len) {
+			if (frag_len > AQ_CFG_TX_FRAME_MAX)
+				buff_size = AQ_CFG_TX_FRAME_MAX;
+			else
+				buff_size = frag_len;
+
+			frag_pa = skb_frag_dma_map(dev, frag, buff_offset,
+						   buff_size, DMA_TO_DEVICE);
+
+			if (unlikely(dma_mapping_error(dev, frag_pa)))
+				goto mapping_error;
+
+			dx = aq_ring_next_dx(ring, dx);
+			dx_buff = &ring->buff_ring[dx];
+
+			dx_buff->flags = 0U;
+			dx_buff->len = buff_size;
+			dx_buff->pa = frag_pa;
+			dx_buff->is_mapped = 1U;
+			dx_buff->eop_index = 0xffffU;
+
+			frag_len -= buff_size;
+			buff_offset += buff_size;
+
+			++ret;
+		}
+	}
+
+	first->eop_index = dx;
+	dx_buff->is_eop = 1U;
+	dx_buff->skb = NULL;
+	dx_buff->xdpf = xdpf;
+	goto exit;
+
+mapping_error:
+	for (dx = ring->sw_tail;
+	     ret > 0;
+	     --ret, dx = aq_ring_next_dx(ring, dx)) {
+		dx_buff = &ring->buff_ring[dx];
+
+		if (!dx_buff->pa)
+			continue;
+		if (unlikely(dx_buff->is_sop))
+			dma_unmap_single(dev, dx_buff->pa, dx_buff->len,
+					 DMA_TO_DEVICE);
+		else
+			dma_unmap_page(dev, dx_buff->pa, dx_buff->len,
+				       DMA_TO_DEVICE);
+	}
+
+exit:
+	return ret;
 }
 
 unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
@@ -697,6 +794,7 @@ unsigned int aq_nic_map_skb(struct aq_nic_s *self, struct sk_buff *skb,
 	first->eop_index = dx;
 	dx_buff->is_eop = 1U;
 	dx_buff->skb = skb;
+	dx_buff->xdpf = NULL;
 	goto exit;
 
 mapping_error:
@@ -723,6 +821,44 @@ mapping_error:
 
 exit:
 	return ret;
+}
+
+int aq_nic_xmit_xdpf(struct aq_nic_s *aq_nic, struct aq_ring_s *tx_ring,
+		     struct xdp_frame *xdpf)
+{
+	u16 queue_index = AQ_NIC_RING2QMAP(aq_nic, tx_ring->idx);
+	struct net_device *ndev = aq_nic_get_ndev(aq_nic);
+	struct skb_shared_info *sinfo;
+	int cpu = smp_processor_id();
+	int err = NETDEV_TX_BUSY;
+	struct netdev_queue *nq;
+	unsigned int frags = 1;
+
+	if (xdp_frame_has_frags(xdpf)) {
+		sinfo = xdp_get_shared_info_from_frame(xdpf);
+		frags += sinfo->nr_frags;
+	}
+
+	if (frags > AQ_CFG_SKB_FRAGS_MAX)
+		return err;
+
+	nq = netdev_get_tx_queue(ndev, tx_ring->idx);
+	__netif_tx_lock(nq, cpu);
+
+	aq_ring_update_queue_state(tx_ring);
+
+	/* Above status update may stop the queue. Check this. */
+	if (__netif_subqueue_stopped(aq_nic_get_ndev(aq_nic), queue_index))
+		goto out;
+
+	frags = aq_nic_map_xdp(aq_nic, xdpf, tx_ring);
+	if (likely(frags))
+		err = aq_nic->aq_hw_ops->hw_ring_tx_xmit(aq_nic->aq_hw, tx_ring,
+							 frags);
+out:
+	__netif_tx_unlock(nq);
+
+	return err;
 }
 
 int aq_nic_xmit(struct aq_nic_s *self, struct sk_buff *skb)

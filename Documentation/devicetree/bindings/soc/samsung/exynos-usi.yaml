@@ -8,7 +8,7 @@ title: Samsung's Exynos USI (Universal Serial Interface) binding
 
 maintainers:
   - Sam Protsenko <semen.protsenko@linaro.org>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description: |
   USI IP-core provides selectable serial protocol (UART, SPI or High-Speed I2C).
@@ -77,7 +77,7 @@ patternProperties:
     description: Child node describing underlying UART/serial
 
   "^spi@[0-9a-f]+$":
-    type: object
+    $ref: /schemas/spi/samsung,spi.yaml
     description: Child node describing underlying SPI
 
 required:

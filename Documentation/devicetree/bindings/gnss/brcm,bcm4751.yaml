@@ -1,0 +1,69 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/gnss/brcm,bcm4751.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Broadcom BCM4751 family GNSS Receiver Device Tree Bindings
+
+maintainers:
+  - Johan Hovold <johan@kernel.org>
+  - Linus Walleij <linus.walleij@linaro.org>
+
+description:
+  Broadcom GPS chips can be used over the UART or I2C bus. The UART
+  bus requires CTS/RTS support. The number of the capsule is more
+  elaborate than the compatibles BCM4751 may be printed
+  BCM4751IFBG for example.
+
+allOf:
+  - $ref: gnss-common.yaml#
+
+properties:
+  compatible:
+    enum:
+      - brcm,bcm4751
+      - brcm,bcm4752
+      - brcm,bcm4753
+
+  reg:
+    description:
+      The I2C Address, not required on UART buses.
+
+  vdd-auxin-supply:
+    description:
+      Main voltage supply, pin name VDD_AUXIN, typically connected
+      directly to a battery such as LiIon 3.8V battery or a 2.6V supply.
+
+  vddio-supply:
+    description:
+      IO voltage supply, pin name VDDIO, typically 1.8V
+
+  reset-gpios:
+    maxItems: 1
+    description: An optional active low reset line, should be flagged with
+      GPIO_ACTIVE_LOW.
+
+  enable-gpios:
+    description: Enable GPIO line, connected to pins named REGPU or NSTANDBY.
+      If the line is active low such as NSTANDBY, it should be tagged
+      GPIO_ACTIVE_LOW.
+
+required:
+  - compatible
+  - enable-gpios
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+    serial {
+        gnss {
+            compatible = "brcm,bcm4751";
+            vdd-auxin-supply = <&vbat>;
+            reset-gpios = <&gpio0 15 GPIO_ACTIVE_LOW>;
+            enable-gpios = <&gpio0 16 GPIO_ACTIVE_HIGH>;
+            current-speed = <38400>;
+        };
+    };

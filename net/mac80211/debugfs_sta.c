@@ -441,13 +441,13 @@ static ssize_t sta_ht_capa_read(struct file *file, char __user *userbuf,
 #define PRINT_HT_CAP(_cond, _str) \
 	do { \
 	if (_cond) \
-			p += scnprintf(p, sizeof(buf)+buf-p, "\t" _str "\n"); \
+			p += scnprintf(p, bufsz + buf - p, "\t" _str "\n"); \
 	} while (0)
 	char *buf, *p;
 	int i;
 	ssize_t bufsz = 512;
 	struct sta_info *sta = file->private_data;
-	struct ieee80211_sta_ht_cap *htc = &sta->sta.ht_cap;
+	struct ieee80211_sta_ht_cap *htc = &sta->sta.deflink.ht_cap;
 	ssize_t ret;
 
 	buf = kzalloc(bufsz, GFP_KERNEL);
@@ -531,7 +531,7 @@ static ssize_t sta_vht_capa_read(struct file *file, char __user *userbuf,
 {
 	char *buf, *p;
 	struct sta_info *sta = file->private_data;
-	struct ieee80211_sta_vht_cap *vhtc = &sta->sta.vht_cap;
+	struct ieee80211_sta_vht_cap *vhtc = &sta->sta.deflink.vht_cap;
 	ssize_t ret;
 	ssize_t bufsz = 512;
 
@@ -646,7 +646,7 @@ static ssize_t sta_he_capa_read(struct file *file, char __user *userbuf,
 	char *buf, *p;
 	size_t buf_sz = PAGE_SIZE;
 	struct sta_info *sta = file->private_data;
-	struct ieee80211_sta_he_cap *hec = &sta->sta.he_cap;
+	struct ieee80211_sta_he_cap *hec = &sta->sta.deflink.he_cap;
 	struct ieee80211_he_mcs_nss_supp *nss = &hec->he_mcs_nss_supp;
 	u8 ppe_size;
 	u8 *cap;
@@ -1052,9 +1052,9 @@ void ieee80211_sta_debugfs_add(struct sta_info *sta)
 	DEBUGFS_ADD(vht_capa);
 	DEBUGFS_ADD(he_capa);
 
-	DEBUGFS_ADD_COUNTER(rx_duplicates, rx_stats.num_duplicates);
-	DEBUGFS_ADD_COUNTER(rx_fragments, rx_stats.fragments);
-	DEBUGFS_ADD_COUNTER(tx_filtered, status_stats.filtered);
+	DEBUGFS_ADD_COUNTER(rx_duplicates, deflink.rx_stats.num_duplicates);
+	DEBUGFS_ADD_COUNTER(rx_fragments, deflink.rx_stats.fragments);
+	DEBUGFS_ADD_COUNTER(tx_filtered, deflink.status_stats.filtered);
 
 	if (local->ops->wake_tx_queue) {
 		DEBUGFS_ADD(aqm);

@@ -83,18 +83,17 @@ static int compat_blkpg_ioctl(struct block_device *bdev,
 #endif
 
 static int blk_ioctl_discard(struct block_device *bdev, fmode_t mode,
-		unsigned long arg, unsigned long flags)
+		unsigned long arg)
 {
 	uint64_t range[2];
 	uint64_t start, len;
-	struct request_queue *q = bdev_get_queue(bdev);
 	struct inode *inode = bdev->bd_inode;
 	int err;
 
 	if (!(mode & FMODE_WRITE))
 		return -EBADF;
 
-	if (!blk_queue_discard(q))
+	if (!bdev_max_discard_sectors(bdev))
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(range, (void __user *)arg, sizeof(range)))
@@ -115,14 +114,42 @@ static int blk_ioctl_discard(struct block_device *bdev, fmode_t mode,
 	err = truncate_bdev_range(bdev, mode, start, start + len - 1);
 	if (err)
 		goto fail;
-
-	err = blkdev_issue_discard(bdev, start >> 9, len >> 9,
-				   GFP_KERNEL, flags);
-
+	err = blkdev_issue_discard(bdev, start >> 9, len >> 9, GFP_KERNEL);
 fail:
 	filemap_invalidate_unlock(inode->i_mapping);
 	return err;
 }
+
+static int blk_ioctl_secure_erase(struct block_device *bdev, fmode_t mode,
+		void __user *argp)
+{
+	uint64_t start, len;
+	uint64_t range[2];
+	int err;
+
+	if (!(mode & FMODE_WRITE))
+		return -EBADF;
+	if (!bdev_max_secure_erase_sectors(bdev))
+		return -EOPNOTSUPP;
+	if (copy_from_user(range, argp, sizeof(range)))
+		return -EFAULT;
+
+	start = range[0];
+	len = range[1];
+	if ((start & 511) || (len & 511))
+		return -EINVAL;
+	if (start + len > bdev_nr_bytes(bdev))
+		return -EINVAL;
+
+	filemap_invalidate_lock(bdev->bd_inode->i_mapping);
+	err = truncate_bdev_range(bdev, mode, start, start + len - 1);
+	if (!err)
+		err = blkdev_issue_secure_erase(bdev, start >> 9, len >> 9,
+						GFP_KERNEL);
+	filemap_invalidate_unlock(bdev->bd_inode->i_mapping);
+	return err;
+}
+
 
 static int blk_ioctl_zeroout(struct block_device *bdev, fmode_t mode,
 		unsigned long arg)
@@ -451,10 +478,9 @@ static int blkdev_common_ioctl(struct block_device *bdev, fmode_t mode,
 	case BLKROSET:
 		return blkdev_roset(bdev, mode, cmd, arg);
 	case BLKDISCARD:
-		return blk_ioctl_discard(bdev, mode, arg, 0);
+		return blk_ioctl_discard(bdev, mode, arg);
 	case BLKSECDISCARD:
-		return blk_ioctl_discard(bdev, mode, arg,
-				BLKDEV_DISCARD_SECURE);
+		return blk_ioctl_secure_erase(bdev, mode, argp);
 	case BLKZEROOUT:
 		return blk_ioctl_zeroout(bdev, mode, arg);
 	case BLKGETDISKSEQ:
@@ -489,7 +515,7 @@ static int blkdev_common_ioctl(struct block_device *bdev, fmode_t mode,
 				    queue_max_sectors(bdev_get_queue(bdev)));
 		return put_ushort(argp, max_sectors);
 	case BLKROTATIONAL:
-		return put_ushort(argp, !blk_queue_nonrot(bdev_get_queue(bdev)));
+		return put_ushort(argp, !bdev_nonrot(bdev));
 	case BLKRASET:
 	case BLKFRASET:
 		if(!capable(CAP_SYS_ADMIN))
@@ -629,7 +655,7 @@ long compat_blkdev_ioctl(struct file *file, unsigned cmd, unsigned long arg)
 		return compat_put_long(argp,
 			(bdev->bd_disk->bdi->ra_pages * PAGE_SIZE) / 512);
 	case BLKGETSIZE:
-		if (bdev_nr_sectors(bdev) > ~0UL)
+		if (bdev_nr_sectors(bdev) > ~(compat_ulong_t)0)
 			return -EFBIG;
 		return compat_put_ulong(argp, bdev_nr_sectors(bdev));
 

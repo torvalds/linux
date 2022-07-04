@@ -22,7 +22,7 @@
  * have the same requirement.
  *
  * For a SR-IOV BAR things are a little more awkward since size and alignment
- * are not coupled. The alignment is set based on the the per-VF BAR size, but
+ * are not coupled. The alignment is set based on the per-VF BAR size, but
  * the total BAR area is: number-of-vfs * per-vf-size. The number of VFs
  * isn't necessarily a power of two, so neither is the total size. To fix that
  * we need to finesse (read: hack) the Linux BAR allocator so that it will
@@ -699,7 +699,7 @@ static int pnv_pci_sriov_enable(struct pci_dev *pdev, u16 num_vfs)
 		return -ENOSPC;
 	}
 
-	/* allocate a contigious block of PEs for our VFs */
+	/* allocate a contiguous block of PEs for our VFs */
 	base_pe = pnv_ioda_alloc_pe(phb, num_vfs);
 	if (!base_pe) {
 		pci_err(pdev, "Unable to allocate PEs for %d VFs\n", num_vfs);

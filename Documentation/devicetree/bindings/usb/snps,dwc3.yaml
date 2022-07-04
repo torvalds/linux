@@ -68,6 +68,8 @@ properties:
         - enum: [bus_early, ref, suspend]
         - true
 
+  dma-coherent: true
+
   iommus:
     maxItems: 1
 

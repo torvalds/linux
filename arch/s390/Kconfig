@@ -255,6 +255,10 @@ config HAVE_MARCH_Z15_FEATURES
 	def_bool n
 	select HAVE_MARCH_Z14_FEATURES
 
+config HAVE_MARCH_Z16_FEATURES
+	def_bool n
+	select HAVE_MARCH_Z15_FEATURES
+
 choice
 	prompt "Processor type"
 	default MARCH_Z196
@@ -312,6 +316,14 @@ config MARCH_Z15
 	  and 8561 series). The kernel will be slightly faster but will not
 	  work on older machines.
 
+config MARCH_Z16
+	bool "IBM z16"
+	select HAVE_MARCH_Z16_FEATURES
+	depends on $(cc-option,-march=z16)
+	help
+	  Select this to enable optimizations for IBM z16 (3931 and
+	  3932 series).
+
 endchoice
 
 config MARCH_Z10_TUNE
@@ -331,6 +343,9 @@ config MARCH_Z14_TUNE
 
 config MARCH_Z15_TUNE
 	def_bool TUNE_Z15 || MARCH_Z15 && TUNE_DEFAULT
+
+config MARCH_Z16_TUNE
+	def_bool TUNE_Z16 || MARCH_Z16 && TUNE_DEFAULT
 
 choice
 	prompt "Tune code generation"
@@ -372,6 +387,10 @@ config TUNE_Z15
 	bool "IBM z15"
 	depends on $(cc-option,-mtune=z15)
 
+config TUNE_Z16
+	bool "IBM z16"
+	depends on $(cc-option,-mtune=z16)
+
 endchoice
 
 config 64BIT
@@ -398,9 +417,6 @@ config COMPAT
 	  handle system-calls from ELF binaries for 31 bit ESA.  This option
 	  (and some other stuff like libraries and such) is needed for
 	  executing 31 bit applications.  It is safe to say "Y".
-
-config SYSVIPC_COMPAT
-	def_bool y if COMPAT && SYSVIPC
 
 config SMP
 	def_bool y
@@ -567,7 +583,6 @@ endchoice
 
 config RELOCATABLE
 	bool "Build a relocatable kernel"
-	select MODULE_REL_CRCS if MODVERSIONS
 	default y
 	help
 	  This builds a kernel image that retains relocation information
@@ -717,11 +732,11 @@ config VFIO_AP
 	depends on S390_AP_IOMMU && VFIO_MDEV && KVM
 	depends on ZCRYPT
 	help
-		This driver grants access to Adjunct Processor (AP) devices
-		via the VFIO mediated device interface.
+	  This driver grants access to Adjunct Processor (AP) devices
+	  via the VFIO mediated device interface.
 
-		To compile this driver as a module, choose M here: the module
-		will be called vfio_ap.
+	  To compile this driver as a module, choose M here: the module
+	  will be called vfio_ap.
 
 endmenu
 

@@ -8,7 +8,7 @@ title: Maxim MAX77843 MicroUSB and Companion Power Management IC Extcon
 
 maintainers:
   - Chanwoo Choi <cw00.choi@samsung.com>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description: |
   This is a part of device tree bindings for Maxim MAX77843 MicroUSB
@@ -25,7 +25,7 @@ properties:
     $ref: /schemas/connector/usb-connector.yaml#
 
   ports:
-    $ref: /schemas/graph.yaml#/properties/port
+    $ref: /schemas/graph.yaml#/properties/ports
     description:
       Any connector to the data bus of this controller should be modelled using
       the OF graph bindings specified

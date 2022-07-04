@@ -35,7 +35,6 @@ properties:
       - items:
           - enum:
               - ti,sysc-omap2
-              - ti,sysc-omap2
               - ti,sysc-omap4
               - ti,sysc-omap4-simple
               - ti,sysc-omap2-timer

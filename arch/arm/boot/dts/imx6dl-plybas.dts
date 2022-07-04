@@ -214,7 +214,7 @@
 &uart2 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart2>;
-	fsl,uart-has-rtscts;
+	uart-has-rtscts;
 	linux,rs485-enabled-at-boot-time;
 	rs485-rts-delay = <0 20>;
 	status = "okay";

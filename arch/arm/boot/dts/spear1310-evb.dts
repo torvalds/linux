@@ -379,7 +379,7 @@
 					};
 				};
 
-				m25p80@1 {
+				flash@1 {
 					compatible = "st,m25p80";
 					reg = <1>;
 					spi-max-frequency = <12000000>;

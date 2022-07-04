@@ -152,9 +152,19 @@ static struct attribute *default_attrs[] = {
 	NULL
 };
 
+static umode_t topology_is_visible(struct kobject *kobj,
+				   struct attribute *attr, int unused)
+{
+	if (attr == &dev_attr_ppin.attr && !topology_ppin(kobj_to_dev(kobj)->id))
+		return 0;
+
+	return attr->mode;
+}
+
 static const struct attribute_group topology_attr_group = {
 	.attrs = default_attrs,
 	.bin_attrs = bin_attrs,
+	.is_visible = topology_is_visible,
 	.name = "topology"
 };
 

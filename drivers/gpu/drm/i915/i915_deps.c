@@ -226,7 +226,7 @@ int i915_deps_add_resv(struct i915_deps *deps, struct dma_resv *resv,
 	struct dma_fence *fence;
 
 	dma_resv_assert_held(resv);
-	dma_resv_for_each_fence(&iter, resv, true, fence) {
+	dma_resv_for_each_fence(&iter, resv, dma_resv_usage_rw(true), fence) {
 		int ret = i915_deps_add_dependency(deps, fence, ctx);
 
 		if (ret)

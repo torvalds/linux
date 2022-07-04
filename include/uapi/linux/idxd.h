@@ -53,6 +53,11 @@ enum idxd_scmd_stat {
 
 /* IAX */
 #define IDXD_OP_FLAG_RD_SRC2_AECS	0x010000
+#define IDXD_OP_FLAG_RD_SRC2_2ND	0x020000
+#define IDXD_OP_FLAG_WR_SRC2_AECS_COMP	0x040000
+#define IDXD_OP_FLAG_WR_SRC2_AECS_OVFL	0x080000
+#define IDXD_OP_FLAG_SRC2_STS		0x100000
+#define IDXD_OP_FLAG_CRC_RFC3720	0x200000
 
 /* Opcode */
 enum dsa_opcode {
@@ -81,6 +86,18 @@ enum iax_opcode {
 	IAX_OPCODE_MEMMOVE,
 	IAX_OPCODE_DECOMPRESS = 0x42,
 	IAX_OPCODE_COMPRESS,
+	IAX_OPCODE_CRC64,
+	IAX_OPCODE_ZERO_DECOMP_32 = 0x48,
+	IAX_OPCODE_ZERO_DECOMP_16,
+	IAX_OPCODE_DECOMP_32 = 0x4c,
+	IAX_OPCODE_DECOMP_16,
+	IAX_OPCODE_SCAN = 0x50,
+	IAX_OPCODE_SET_MEMBER,
+	IAX_OPCODE_EXTRACT,
+	IAX_OPCODE_SELECT,
+	IAX_OPCODE_RLE_BURST,
+	IAX_OPCDE_FIND_UNIQUE,
+	IAX_OPCODE_EXPAND,
 };
 
 /* Completion record status */
@@ -120,6 +137,7 @@ enum iax_completion_status {
 	IAX_COMP_NONE = 0,
 	IAX_COMP_SUCCESS,
 	IAX_COMP_PAGE_FAULT_IR = 0x04,
+	IAX_COMP_ANALYTICS_ERROR = 0x0a,
 	IAX_COMP_OUTBUF_OVERFLOW,
 	IAX_COMP_BAD_OPCODE = 0x10,
 	IAX_COMP_INVALID_FLAGS,
@@ -140,7 +158,10 @@ enum iax_completion_status {
 	IAX_COMP_WATCHDOG,
 	IAX_COMP_INVALID_COMP_FLAG = 0x30,
 	IAX_COMP_INVALID_FILTER_FLAG,
-	IAX_COMP_INVALID_NUM_ELEMS = 0x33,
+	IAX_COMP_INVALID_INPUT_SIZE,
+	IAX_COMP_INVALID_NUM_ELEMS,
+	IAX_COMP_INVALID_SRC1_WIDTH,
+	IAX_COMP_INVALID_INVERT_OUT,
 };
 
 #define DSA_COMP_STATUS_MASK		0x7f
@@ -319,8 +340,12 @@ struct iax_completion_record {
 	uint32_t                output_size;
 	uint8_t                 output_bits;
 	uint8_t                 rsvd3;
-	uint16_t                rsvd4;
-	uint64_t                rsvd5[4];
+	uint16_t                xor_csum;
+	uint32_t                crc;
+	uint32_t                min;
+	uint32_t                max;
+	uint32_t                sum;
+	uint64_t                rsvd4[2];
 } __attribute__((packed));
 
 struct iax_raw_completion_record {

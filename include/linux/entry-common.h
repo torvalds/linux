@@ -63,7 +63,7 @@
 	 ARCH_EXIT_TO_USER_MODE_WORK)
 
 /**
- * arch_check_user_regs - Architecture specific sanity check for user mode regs
+ * arch_enter_from_user_mode - Architecture specific sanity check for user mode regs
  * @regs:	Pointer to currents pt_regs
  *
  * Defaults to an empty implementation. Can be replaced by architecture
@@ -73,10 +73,10 @@
  * section. Use __always_inline so the compiler cannot push it out of line
  * and make it instrumentable.
  */
-static __always_inline void arch_check_user_regs(struct pt_regs *regs);
+static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs);
 
-#ifndef arch_check_user_regs
-static __always_inline void arch_check_user_regs(struct pt_regs *regs) {}
+#ifndef arch_enter_from_user_mode
+static __always_inline void arch_enter_from_user_mode(struct pt_regs *regs) {}
 #endif
 
 /**

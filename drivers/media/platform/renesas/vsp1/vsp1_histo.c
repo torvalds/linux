@@ -434,8 +434,6 @@ static int histo_v4l2_querycap(struct file *file, void *fh,
 
 	strscpy(cap->driver, "vsp1", sizeof(cap->driver));
 	strscpy(cap->card, histo->video.name, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(histo->entity.vsp1->dev));
 
 	return 0;
 }

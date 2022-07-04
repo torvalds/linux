@@ -1,3 +1,5 @@
+.. SPDX-License-Identifier: GPL-2.0
+
 ======================================
 Secure Encrypted Virtualization (SEV)
 ======================================

@@ -98,6 +98,7 @@ allOf:
               - ti,adc121s
               - ti,ads7866
               - ti,ads7868
+    then:
       required:
         - vcc-supply
   # Devices with a vref

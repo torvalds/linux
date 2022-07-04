@@ -27,9 +27,9 @@
 #define CHAP_STAGE_SERVER_NR	5
 
 struct iscsi_node_auth;
-struct iscsi_conn;
+struct iscsit_conn;
 
-extern u32 chap_main_loop(struct iscsi_conn *, struct iscsi_node_auth *, char *, char *,
+extern u32 chap_main_loop(struct iscsit_conn *, struct iscsi_node_auth *, char *, char *,
 				int *, int *);
 
 struct iscsi_chap {

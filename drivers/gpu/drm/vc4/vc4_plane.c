@@ -1350,7 +1350,6 @@ static int vc4_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
 	struct vc4_bo *bo;
-	int ret;
 
 	if (!state->fb)
 		return 0;
@@ -1362,11 +1361,7 @@ static int vc4_prepare_fb(struct drm_plane *plane,
 	if (plane->state->fb == state->fb)
 		return 0;
 
-	ret = vc4_bo_inc_usecnt(bo);
-	if (ret)
-		return ret;
-
-	return 0;
+	return vc4_bo_inc_usecnt(bo);
 }
 
 static void vc4_cleanup_fb(struct drm_plane *plane,

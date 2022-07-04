@@ -98,6 +98,7 @@ struct auxtrace_record *auxtrace_record__init(struct evlist *evlist,
 	evlist__for_each_entry(evlist, pos) {
 		if (pos->core.attr.config == PERF_EVENT_CPUM_SF_DIAG) {
 			diagnose = 1;
+			pos->needs_auxtrace_mmap = true;
 			break;
 		}
 	}

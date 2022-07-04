@@ -1287,49 +1287,7 @@ qca8k_internal_mdio_read(struct mii_bus *slave_bus, int phy, int regnum)
 	if (ret >= 0)
 		return ret;
 
-	return qca8k_mdio_read(priv, phy, regnum);
-}
-
-static int
-qca8k_phy_write(struct dsa_switch *ds, int port, int regnum, u16 data)
-{
-	struct qca8k_priv *priv = ds->priv;
-	int ret;
-
-	/* Check if the legacy mapping should be used and the
-	 * port is not correctly mapped to the right PHY in the
-	 * devicetree
-	 */
-	if (priv->legacy_phy_port_mapping)
-		port = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
-
-	/* Use mdio Ethernet when available, fallback to legacy one on error */
-	ret = qca8k_phy_eth_command(priv, false, port, regnum, 0);
-	if (!ret)
-		return ret;
-
-	return qca8k_mdio_write(priv, port, regnum, data);
-}
-
-static int
-qca8k_phy_read(struct dsa_switch *ds, int port, int regnum)
-{
-	struct qca8k_priv *priv = ds->priv;
-	int ret;
-
-	/* Check if the legacy mapping should be used and the
-	 * port is not correctly mapped to the right PHY in the
-	 * devicetree
-	 */
-	if (priv->legacy_phy_port_mapping)
-		port = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
-
-	/* Use mdio Ethernet when available, fallback to legacy one on error */
-	ret = qca8k_phy_eth_command(priv, true, port, regnum, 0);
-	if (ret >= 0)
-		return ret;
-
-	ret = qca8k_mdio_read(priv, port, regnum);
+	ret = qca8k_mdio_read(priv, phy, regnum);
 
 	if (ret < 0)
 		return 0xffff;
@@ -1338,36 +1296,62 @@ qca8k_phy_read(struct dsa_switch *ds, int port, int regnum)
 }
 
 static int
-qca8k_mdio_register(struct qca8k_priv *priv, struct device_node *mdio)
+qca8k_legacy_mdio_write(struct mii_bus *slave_bus, int port, int regnum, u16 data)
+{
+	port = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
+
+	return qca8k_internal_mdio_write(slave_bus, port, regnum, data);
+}
+
+static int
+qca8k_legacy_mdio_read(struct mii_bus *slave_bus, int port, int regnum)
+{
+	port = qca8k_port_to_phy(port) % PHY_MAX_ADDR;
+
+	return qca8k_internal_mdio_read(slave_bus, port, regnum);
+}
+
+static int
+qca8k_mdio_register(struct qca8k_priv *priv)
 {
 	struct dsa_switch *ds = priv->ds;
+	struct device_node *mdio;
 	struct mii_bus *bus;
 
 	bus = devm_mdiobus_alloc(ds->dev);
-
 	if (!bus)
 		return -ENOMEM;
 
 	bus->priv = (void *)priv;
-	bus->name = "qca8k slave mii";
-	bus->read = qca8k_internal_mdio_read;
-	bus->write = qca8k_internal_mdio_write;
-	snprintf(bus->id, MII_BUS_ID_SIZE, "qca8k-%d",
-		 ds->index);
-
+	snprintf(bus->id, MII_BUS_ID_SIZE, "qca8k-%d.%d",
+		 ds->dst->index, ds->index);
 	bus->parent = ds->dev;
 	bus->phy_mask = ~ds->phys_mii_mask;
-
 	ds->slave_mii_bus = bus;
 
-	return devm_of_mdiobus_register(priv->dev, bus, mdio);
+	/* Check if the devicetree declare the port:phy mapping */
+	mdio = of_get_child_by_name(priv->dev->of_node, "mdio");
+	if (of_device_is_available(mdio)) {
+		bus->name = "qca8k slave mii";
+		bus->read = qca8k_internal_mdio_read;
+		bus->write = qca8k_internal_mdio_write;
+		return devm_of_mdiobus_register(priv->dev, bus, mdio);
+	}
+
+	/* If a mapping can't be found the legacy mapping is used,
+	 * using the qca8k_port_to_phy function
+	 */
+	bus->name = "qca8k-legacy slave mii";
+	bus->read = qca8k_legacy_mdio_read;
+	bus->write = qca8k_legacy_mdio_write;
+	return devm_mdiobus_register(priv->dev, bus);
 }
 
 static int
 qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 {
 	u32 internal_mdio_mask = 0, external_mdio_mask = 0, reg;
-	struct device_node *ports, *port, *mdio;
+	struct device_node *ports, *port;
 	phy_interface_t mode;
 	int err;
 
@@ -1429,24 +1413,7 @@ qca8k_setup_mdio_bus(struct qca8k_priv *priv)
 					 QCA8K_MDIO_MASTER_EN);
 	}
 
-	/* Check if the devicetree declare the port:phy mapping */
-	mdio = of_get_child_by_name(priv->dev->of_node, "mdio");
-	if (of_device_is_available(mdio)) {
-		err = qca8k_mdio_register(priv, mdio);
-		if (err)
-			of_node_put(mdio);
-
-		return err;
-	}
-
-	/* If a mapping can't be found the legacy mapping is used,
-	 * using the qca8k_port_to_phy function
-	 */
-	priv->legacy_phy_port_mapping = true;
-	priv->ops.phy_read = qca8k_phy_read;
-	priv->ops.phy_write = qca8k_phy_write;
-
-	return 0;
+	return qca8k_mdio_register(priv);
 }
 
 static int
@@ -2346,7 +2313,7 @@ qca8k_port_enable(struct dsa_switch *ds, int port,
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 
 	qca8k_port_set_status(priv, port, 1);
-	priv->port_sts[port].enabled = 1;
+	priv->port_enabled_map |= BIT(port);
 
 	if (dsa_is_user_port(ds, port))
 		phy_support_asym_pause(phy);
@@ -2360,23 +2327,25 @@ qca8k_port_disable(struct dsa_switch *ds, int port)
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
 
 	qca8k_port_set_status(priv, port, 0);
-	priv->port_sts[port].enabled = 0;
+	priv->port_enabled_map &= ~BIT(port);
 }
 
 static int
 qca8k_port_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 {
 	struct qca8k_priv *priv = ds->priv;
-	int i, mtu = 0;
 
-	priv->port_mtu[port] = new_mtu;
-
-	for (i = 0; i < QCA8K_NUM_PORTS; i++)
-		if (priv->port_mtu[i] > mtu)
-			mtu = priv->port_mtu[i];
+	/* We have only have a general MTU setting.
+	 * DSA always set the CPU port's MTU to the largest MTU of the slave
+	 * ports.
+	 * Setting MTU just for the CPU port is sufficient to correctly set a
+	 * value for every port.
+	 */
+	if (!dsa_is_cpu_port(ds, port))
+		return 0;
 
 	/* Include L2 header / FCS length */
-	return qca8k_write(priv, QCA8K_MAX_FRAME_SIZE, mtu + ETH_HLEN + ETH_FCS_LEN);
+	return qca8k_write(priv, QCA8K_MAX_FRAME_SIZE, new_mtu + ETH_HLEN + ETH_FCS_LEN);
 }
 
 static int
@@ -3033,16 +3002,6 @@ qca8k_setup(struct dsa_switch *ds)
 				  QCA8K_PORT_HOL_CTRL1_WRED_EN,
 				  mask);
 		}
-
-		/* Set initial MTU for every port.
-		 * We have only have a general MTU setting. So track
-		 * every port and set the max across all port.
-		 * Set per port MTU to 1500 as the MTU change function
-		 * will add the overhead and if its set to 1518 then it
-		 * will apply the overhead again and we will end up with
-		 * MTU of 1536 instead of 1518
-		 */
-		priv->port_mtu[i] = ETH_DATA_LEN;
 	}
 
 	/* Special GLOBAL_FC_THRESH value are needed for ar8327 switch */
@@ -3202,8 +3161,7 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	priv->ds->dev = &mdiodev->dev;
 	priv->ds->num_ports = QCA8K_NUM_PORTS;
 	priv->ds->priv = priv;
-	priv->ops = qca8k_switch_ops;
-	priv->ds->ops = &priv->ops;
+	priv->ds->ops = &qca8k_switch_ops;
 	mutex_init(&priv->reg_mutex);
 	dev_set_drvdata(&mdiodev->dev, priv);
 
@@ -3243,13 +3201,16 @@ static void qca8k_sw_shutdown(struct mdio_device *mdiodev)
 static void
 qca8k_set_pm(struct qca8k_priv *priv, int enable)
 {
-	int i;
+	int port;
 
-	for (i = 0; i < QCA8K_NUM_PORTS; i++) {
-		if (!priv->port_sts[i].enabled)
+	for (port = 0; port < QCA8K_NUM_PORTS; port++) {
+		/* Do not enable on resume if the port was
+		 * disabled before.
+		 */
+		if (!(priv->port_enabled_map & BIT(port)))
 			continue;
 
-		qca8k_port_set_status(priv, i, enable);
+		qca8k_port_set_status(priv, port, enable);
 	}
 }
 

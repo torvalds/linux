@@ -17,7 +17,7 @@
 #include <linux/of_platform.h>
 #include <asm/mach/arch.h>
 #include "generic.h"
-#include <mach/spear.h>
+#include "spear.h"
 
 /* DMAC platform data's slave info */
 struct pl08x_channel_data spear300_dma_info[] = {

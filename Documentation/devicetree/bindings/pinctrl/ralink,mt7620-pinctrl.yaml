@@ -1,0 +1,91 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/ralink,mt7620-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ralink MT7620 Pin Controller
+
+maintainers:
+  - Arınç ÜNAL <arinc.unal@arinc9.com>
+  - Sergio Paracuellos <sergio.paracuellos@gmail.com>
+
+description:
+  Ralink MT7620 pin controller for MT7620, MT7628 and MT7688 SoCs.
+  The pin controller can only set the muxing of pin groups. Muxing individual
+  pins is not supported. There is no pinconf support.
+
+properties:
+  compatible:
+    const: ralink,mt7620-pinctrl
+
+patternProperties:
+  '-pins$':
+    type: object
+    patternProperties:
+      '^(.*-)?pinmux$':
+        type: object
+        description: node for pinctrl.
+        $ref: pinmux-node.yaml#
+
+        properties:
+          groups:
+            description: The pin group to select.
+            enum: [
+              # For MT7620 SoC
+              ephy, i2c, mdio, nd_sd, pa, pcie, rgmii1, rgmii2, spi, spi refclk,
+              uartf, uartlite, wdt, wled,
+
+              # For MT7628 and MT7688 SoCs
+              gpio, i2c, i2s, p0led_an, p0led_kn, p1led_an, p1led_kn, p2led_an,
+              p2led_kn, p3led_an, p3led_kn, p4led_an, p4led_kn, perst, pwm0,
+              pwm1, refclk, sdmode, spi, spi cs1, spis, uart0, uart1, uart2,
+              wdt, wled_an, wled_kn,
+            ]
+
+          function:
+            description: The mux function to select.
+            enum: [
+              # For MT7620 SoC
+              ephy, gpio, gpio i2s, gpio uartf, i2c, i2s uartf, mdio, nand, pa,
+              pcie refclk, pcie rst, pcm gpio, pcm i2s, pcm uartf, refclk,
+              rgmii1, rgmii2, sd, spi, spi refclk, uartf, uartlite, wdt refclk,
+              wdt rst, wled,
+
+              # For MT7628 and MT7688 SoCs
+              antenna, debug, gpio, i2c, i2s, jtag, p0led_an, p0led_kn,
+              p1led_an, p1led_kn, p2led_an, p2led_kn, p3led_an, p3led_kn,
+              p4led_an, p4led_kn, pcie, pcm, perst, pwm, pwm0, pwm1, pwm_uart2,
+              refclk, rsvd, sdxc, sdxc d5 d4, sdxc d6, sdxc d7, spi, spi cs1,
+              spis, sw_r, uart0, uart1, uart2, utif, wdt, wled_an, wled_kn, -,
+            ]
+
+        required:
+          - groups
+          - function
+
+        additionalProperties: false
+
+    additionalProperties: false
+
+allOf:
+  - $ref: "pinctrl.yaml#"
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  # Pinmux controller node
+  - |
+    pinctrl {
+      compatible = "ralink,mt7620-pinctrl";
+
+      i2c_pins: i2c0-pins {
+        pinmux {
+          groups = "i2c";
+          function = "i2c";
+        };
+      };
+    };

@@ -79,10 +79,10 @@ static struct rxrpc_local *rxrpc_alloc_local(struct rxrpc_net *rxnet,
 
 	local = kzalloc(sizeof(struct rxrpc_local), GFP_KERNEL);
 	if (local) {
-		atomic_set(&local->usage, 1);
+		refcount_set(&local->ref, 1);
 		atomic_set(&local->active_users, 1);
 		local->rxnet = rxnet;
-		INIT_LIST_HEAD(&local->link);
+		INIT_HLIST_NODE(&local->link);
 		INIT_WORK(&local->processor, rxrpc_local_processor);
 		init_rwsem(&local->defrag_sem);
 		skb_queue_head_init(&local->reject_queue);
@@ -117,6 +117,7 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 	       local, srx->transport_type, srx->transport.family);
 
 	udp_conf.family = srx->transport.family;
+	udp_conf.use_udp_checksums = true;
 	if (udp_conf.family == AF_INET) {
 		udp_conf.local_ip = srx->transport.sin.sin_addr;
 		udp_conf.local_udp_port = srx->transport.sin.sin_port;
@@ -124,6 +125,8 @@ static int rxrpc_open_socket(struct rxrpc_local *local, struct net *net)
 	} else {
 		udp_conf.local_ip6 = srx->transport.sin6.sin6_addr;
 		udp_conf.local_udp_port = srx->transport.sin6.sin6_port;
+		udp_conf.use_udp6_tx_checksums = true;
+		udp_conf.use_udp6_rx_checksums = true;
 #endif
 	}
 	ret = udp_sock_create(net, &udp_conf, &local->socket);
@@ -177,7 +180,7 @@ struct rxrpc_local *rxrpc_lookup_local(struct net *net,
 {
 	struct rxrpc_local *local;
 	struct rxrpc_net *rxnet = rxrpc_net(net);
-	struct list_head *cursor;
+	struct hlist_node *cursor;
 	const char *age;
 	long diff;
 	int ret;
@@ -187,16 +190,12 @@ struct rxrpc_local *rxrpc_lookup_local(struct net *net,
 
 	mutex_lock(&rxnet->local_mutex);
 
-	for (cursor = rxnet->local_endpoints.next;
-	     cursor != &rxnet->local_endpoints;
-	     cursor = cursor->next) {
-		local = list_entry(cursor, struct rxrpc_local, link);
+	hlist_for_each(cursor, &rxnet->local_endpoints) {
+		local = hlist_entry(cursor, struct rxrpc_local, link);
 
 		diff = rxrpc_local_cmp_key(local, srx);
-		if (diff < 0)
+		if (diff != 0)
 			continue;
-		if (diff > 0)
-			break;
 
 		/* Services aren't allowed to share transport sockets, so
 		 * reject that here.  It is possible that the object is dying -
@@ -208,9 +207,10 @@ struct rxrpc_local *rxrpc_lookup_local(struct net *net,
 			goto addr_in_use;
 		}
 
-		/* Found a match.  We replace a dying object.  Attempting to
-		 * bind the transport socket may still fail if we're attempting
-		 * to use a local address that the dying object is still using.
+		/* Found a match.  We want to replace a dying object.
+		 * Attempting to bind the transport socket may still fail if
+		 * we're attempting to use a local address that the dying
+		 * object is still using.
 		 */
 		if (!rxrpc_use_local(local))
 			break;
@@ -227,10 +227,12 @@ struct rxrpc_local *rxrpc_lookup_local(struct net *net,
 	if (ret < 0)
 		goto sock_error;
 
-	if (cursor != &rxnet->local_endpoints)
-		list_replace_init(cursor, &local->link);
-	else
-		list_add_tail(&local->link, cursor);
+	if (cursor) {
+		hlist_replace_rcu(cursor, &local->link);
+		cursor->pprev = NULL;
+	} else {
+		hlist_add_head_rcu(&local->link, &rxnet->local_endpoints);
+	}
 	age = "new";
 
 found:
@@ -263,10 +265,10 @@ addr_in_use:
 struct rxrpc_local *rxrpc_get_local(struct rxrpc_local *local)
 {
 	const void *here = __builtin_return_address(0);
-	int n;
+	int r;
 
-	n = atomic_inc_return(&local->usage);
-	trace_rxrpc_local(local->debug_id, rxrpc_local_got, n, here);
+	__refcount_inc(&local->ref, &r);
+	trace_rxrpc_local(local->debug_id, rxrpc_local_got, r + 1, here);
 	return local;
 }
 
@@ -276,12 +278,12 @@ struct rxrpc_local *rxrpc_get_local(struct rxrpc_local *local)
 struct rxrpc_local *rxrpc_get_local_maybe(struct rxrpc_local *local)
 {
 	const void *here = __builtin_return_address(0);
+	int r;
 
 	if (local) {
-		int n = atomic_fetch_add_unless(&local->usage, 1, 0);
-		if (n > 0)
+		if (__refcount_inc_not_zero(&local->ref, &r))
 			trace_rxrpc_local(local->debug_id, rxrpc_local_got,
-					  n + 1, here);
+					  r + 1, here);
 		else
 			local = NULL;
 	}
@@ -295,10 +297,10 @@ void rxrpc_queue_local(struct rxrpc_local *local)
 {
 	const void *here = __builtin_return_address(0);
 	unsigned int debug_id = local->debug_id;
-	int n = atomic_read(&local->usage);
+	int r = refcount_read(&local->ref);
 
 	if (rxrpc_queue_work(&local->processor))
-		trace_rxrpc_local(debug_id, rxrpc_local_queued, n, here);
+		trace_rxrpc_local(debug_id, rxrpc_local_queued, r + 1, here);
 	else
 		rxrpc_put_local(local);
 }
@@ -310,15 +312,16 @@ void rxrpc_put_local(struct rxrpc_local *local)
 {
 	const void *here = __builtin_return_address(0);
 	unsigned int debug_id;
-	int n;
+	bool dead;
+	int r;
 
 	if (local) {
 		debug_id = local->debug_id;
 
-		n = atomic_dec_return(&local->usage);
-		trace_rxrpc_local(debug_id, rxrpc_local_put, n, here);
+		dead = __refcount_dec_and_test(&local->ref, &r);
+		trace_rxrpc_local(debug_id, rxrpc_local_put, r, here);
 
-		if (n == 0)
+		if (dead)
 			call_rcu(&local->rcu, rxrpc_local_rcu);
 	}
 }
@@ -371,7 +374,7 @@ static void rxrpc_local_destroyer(struct rxrpc_local *local)
 	local->dead = true;
 
 	mutex_lock(&rxnet->local_mutex);
-	list_del_init(&local->link);
+	hlist_del_init_rcu(&local->link);
 	mutex_unlock(&rxnet->local_mutex);
 
 	rxrpc_clean_up_local_conns(local);
@@ -403,7 +406,7 @@ static void rxrpc_local_processor(struct work_struct *work)
 	bool again;
 
 	trace_rxrpc_local(local->debug_id, rxrpc_local_processing,
-			  atomic_read(&local->usage), NULL);
+			  refcount_read(&local->ref), NULL);
 
 	do {
 		again = false;
@@ -455,11 +458,11 @@ void rxrpc_destroy_all_locals(struct rxrpc_net *rxnet)
 
 	flush_workqueue(rxrpc_workqueue);
 
-	if (!list_empty(&rxnet->local_endpoints)) {
+	if (!hlist_empty(&rxnet->local_endpoints)) {
 		mutex_lock(&rxnet->local_mutex);
-		list_for_each_entry(local, &rxnet->local_endpoints, link) {
+		hlist_for_each_entry(local, &rxnet->local_endpoints, link) {
 			pr_err("AF_RXRPC: Leaked local %p {%d}\n",
-			       local, atomic_read(&local->usage));
+			       local, refcount_read(&local->ref));
 		}
 		mutex_unlock(&rxnet->local_mutex);
 		BUG();

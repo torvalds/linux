@@ -798,7 +798,6 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 	int data_disks;
 	int i;
 	int ret = 0;
-	char b[BDEVNAME_SIZE];
 	unsigned int pp_size = le32_to_cpu(e->pp_size);
 	unsigned int data_size = le32_to_cpu(e->data_size);
 
@@ -883,7 +882,9 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 				 (unsigned long long)r_sector, dd_idx,
 				 (unsigned long long)sector);
 
-			rdev = conf->disks[dd_idx].rdev;
+			/* Array has not started so rcu dereference is safe */
+			rdev = rcu_dereference_protected(
+					conf->disks[dd_idx].rdev, 1);
 			if (!rdev || (!test_bit(In_sync, &rdev->flags) &&
 				      sector >= rdev->recovery_offset)) {
 				pr_debug("%s:%*s data member disk %d missing\n",
@@ -892,8 +893,8 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 				break;
 			}
 
-			pr_debug("%s:%*s reading data member disk %s sector %llu\n",
-				 __func__, indent, "", bdevname(rdev->bdev, b),
+			pr_debug("%s:%*s reading data member disk %pg sector %llu\n",
+				 __func__, indent, "", rdev->bdev,
 				 (unsigned long long)sector);
 			if (!sync_page_io(rdev, sector, block_size, page2,
 					REQ_OP_READ, 0, false)) {
@@ -934,13 +935,16 @@ static int ppl_recover_entry(struct ppl_log *log, struct ppl_header_entry *e,
 		parity_sector = raid5_compute_sector(conf, r_sector_first + i,
 				0, &disk, &sh);
 		BUG_ON(sh.pd_idx != le32_to_cpu(e->parity_disk));
-		parity_rdev = conf->disks[sh.pd_idx].rdev;
+
+		/* Array has not started so rcu dereference is safe */
+		parity_rdev = rcu_dereference_protected(
+					conf->disks[sh.pd_idx].rdev, 1);
 
 		BUG_ON(parity_rdev->bdev->bd_dev != log->rdev->bdev->bd_dev);
-		pr_debug("%s:%*s write parity at sector %llu, disk %s\n",
+		pr_debug("%s:%*s write parity at sector %llu, disk %pg\n",
 			 __func__, indent, "",
 			 (unsigned long long)parity_sector,
-			 bdevname(parity_rdev->bdev, b));
+			 parity_rdev->bdev);
 		if (!sync_page_io(parity_rdev, parity_sector, block_size,
 				page1, REQ_OP_WRITE, 0, false)) {
 			pr_debug("%s:%*s parity write error!\n", __func__,
@@ -1250,7 +1254,6 @@ void ppl_exit_log(struct r5conf *conf)
 
 static int ppl_validate_rdev(struct md_rdev *rdev)
 {
-	char b[BDEVNAME_SIZE];
 	int ppl_data_sectors;
 	int ppl_size_new;
 
@@ -1267,8 +1270,8 @@ static int ppl_validate_rdev(struct md_rdev *rdev)
 				RAID5_STRIPE_SECTORS((struct r5conf *)rdev->mddev->private));
 
 	if (ppl_data_sectors <= 0) {
-		pr_warn("md/raid:%s: PPL space too small on %s\n",
-			mdname(rdev->mddev), bdevname(rdev->bdev, b));
+		pr_warn("md/raid:%s: PPL space too small on %pg\n",
+			mdname(rdev->mddev), rdev->bdev);
 		return -ENOSPC;
 	}
 
@@ -1278,16 +1281,16 @@ static int ppl_validate_rdev(struct md_rdev *rdev)
 	     rdev->ppl.sector + ppl_size_new > rdev->data_offset) ||
 	    (rdev->ppl.sector >= rdev->data_offset &&
 	     rdev->data_offset + rdev->sectors > rdev->ppl.sector)) {
-		pr_warn("md/raid:%s: PPL space overlaps with data on %s\n",
-			mdname(rdev->mddev), bdevname(rdev->bdev, b));
+		pr_warn("md/raid:%s: PPL space overlaps with data on %pg\n",
+			mdname(rdev->mddev), rdev->bdev);
 		return -EINVAL;
 	}
 
 	if (!rdev->mddev->external &&
 	    ((rdev->ppl.offset > 0 && rdev->ppl.offset < (rdev->sb_size >> 9)) ||
 	     (rdev->ppl.offset <= 0 && rdev->ppl.offset + ppl_size_new > 0))) {
-		pr_warn("md/raid:%s: PPL space overlaps with superblock on %s\n",
-			mdname(rdev->mddev), bdevname(rdev->bdev, b));
+		pr_warn("md/raid:%s: PPL space overlaps with superblock on %pg\n",
+			mdname(rdev->mddev), rdev->bdev);
 		return -EINVAL;
 	}
 
@@ -1404,7 +1407,9 @@ int ppl_init_log(struct r5conf *conf)
 
 	for (i = 0; i < ppl_conf->count; i++) {
 		struct ppl_log *log = &ppl_conf->child_logs[i];
-		struct md_rdev *rdev = conf->disks[i].rdev;
+		/* Array has not started so rcu dereference is safe */
+		struct md_rdev *rdev =
+			rcu_dereference_protected(conf->disks[i].rdev, 1);
 
 		mutex_init(&log->io_mutex);
 		spin_lock_init(&log->io_list_lock);
@@ -1456,14 +1461,13 @@ int ppl_modify_log(struct r5conf *conf, struct md_rdev *rdev, bool add)
 	struct ppl_conf *ppl_conf = conf->log_private;
 	struct ppl_log *log;
 	int ret = 0;
-	char b[BDEVNAME_SIZE];
 
 	if (!rdev)
 		return -EINVAL;
 
-	pr_debug("%s: disk: %d operation: %s dev: %s\n",
+	pr_debug("%s: disk: %d operation: %s dev: %pg\n",
 		 __func__, rdev->raid_disk, add ? "add" : "remove",
-		 bdevname(rdev->bdev, b));
+		 rdev->bdev);
 
 	if (rdev->raid_disk < 0)
 		return 0;

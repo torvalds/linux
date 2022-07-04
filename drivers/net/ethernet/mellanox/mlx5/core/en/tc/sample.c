@@ -93,6 +93,7 @@ sampler_termtbl_create(struct mlx5e_tc_psample *tc_psample)
 
 	act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
 	dest.vport.num = esw->manager_vport;
+	dest.type = MLX5_FLOW_DESTINATION_TYPE_VPORT;
 	tc_psample->termtbl_rule = mlx5_add_flow_rules(tc_psample->termtbl, NULL, &act, &dest, 1);
 	if (IS_ERR(tc_psample->termtbl_rule)) {
 		err = PTR_ERR(tc_psample->termtbl_rule);

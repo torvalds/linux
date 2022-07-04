@@ -63,7 +63,6 @@ struct tlmi_pwd_setting {
 	int index; /*Used for HDD and NVME auth */
 	enum level_option level;
 	bool cert_installed;
-	char *certificate;
 	char *signature;
 	char *save_signature;
 };

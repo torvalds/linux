@@ -58,7 +58,7 @@ properties:
         type: object
         $ref: regulator.yaml#
         description: |
-          regulator description for buck1 and buck4.
+          regulator description for buck1 to buck4, and ldo.
 
         properties:
           regulator-allowed-modes:

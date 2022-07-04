@@ -20,8 +20,6 @@
 
 static DEFINE_PER_CPU(struct cpu, cpu_devices);
 
-static int dualcores_found;
-
 /*
  * store_cpu_topology is called at boot when only one cpu is running
  * and with the mutex cpu_hotplug.lock locked, when several cpus have booted,
@@ -60,7 +58,6 @@ void store_cpu_topology(unsigned int cpuid)
 			if (p->cpu_loc) {
 				cpuid_topo->core_id++;
 				cpuid_topo->package_id = cpu_topology[cpu].package_id;
-				dualcores_found = 1;
 				continue;
 			}
 		}
@@ -80,22 +77,11 @@ void store_cpu_topology(unsigned int cpuid)
 		cpu_topology[cpuid].package_id);
 }
 
-static struct sched_domain_topology_level parisc_mc_topology[] = {
-#ifdef CONFIG_SCHED_MC
-	{ cpu_coregroup_mask, cpu_core_flags, SD_INIT_NAME(MC) },
-#endif
-
-	{ cpu_cpu_mask, SD_INIT_NAME(DIE) },
-	{ NULL, },
-};
-
 /*
  * init_cpu_topology is called at boot when only one cpu is running
  * which prevent simultaneous write access to cpu_topology array
  */
 void __init init_cpu_topology(void)
 {
-	/* Set scheduler topology descriptor */
-	if (dualcores_found)
-		set_sched_topology(parisc_mc_topology);
+	reset_cpu_topology();
 }

@@ -1793,8 +1793,6 @@ EXPORT_SYMBOL(input_reset_device);
 
 static int input_inhibit_device(struct input_dev *dev)
 {
-	int ret = 0;
-
 	mutex_lock(&dev->mutex);
 
 	if (dev->inhibited)
@@ -1816,7 +1814,7 @@ static int input_inhibit_device(struct input_dev *dev)
 
 out:
 	mutex_unlock(&dev->mutex);
-	return ret;
+	return 0;
 }
 
 static int input_uninhibit_device(struct input_dev *dev)

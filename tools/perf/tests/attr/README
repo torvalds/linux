@@ -60,6 +60,7 @@ Following tests are defined (with perf commands):
   perf record -R kill                           (test-record-raw)
   perf record -c 2 -e arm_spe_0// -- kill       (test-record-spe-period)
   perf record -e arm_spe_0/period=3/ -- kill    (test-record-spe-period-term)
+  perf record -e arm_spe_0/pa_enable=1/ -- kill (test-record-spe-physical-address)
   perf stat -e cycles kill                      (test-stat-basic)
   perf stat kill                                (test-stat-default)
   perf stat -d kill                             (test-stat-detailed-1)

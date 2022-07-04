@@ -249,13 +249,13 @@ examples:
   # be overridden or an appropriate parent bus node should be shown (such as on
   # i2c buses).
   #
-  # Any includes used have to be explicitly included.
+  # Any includes used have to be explicitly included. Use 4-space indentation.
   - |
     node@1000 {
-          compatible = "vendor,soc4-ip", "vendor,soc1-ip";
-          reg = <0x1000 0x80>,
-                <0x3000 0x80>;
-          reg-names = "core", "aux";
-          interrupts = <10>;
-          interrupt-controller;
+        compatible = "vendor,soc4-ip", "vendor,soc1-ip";
+        reg = <0x1000 0x80>,
+              <0x3000 0x80>;
+        reg-names = "core", "aux";
+        interrupts = <10>;
+        interrupt-controller;
     };

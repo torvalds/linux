@@ -12,6 +12,7 @@
 #include <asm/ppc4xx.h>
 #include <asm/udbg.h>
 #include <asm/uic.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/delay.h>
 #include "44x.h"

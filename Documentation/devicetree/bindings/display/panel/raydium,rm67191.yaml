@@ -24,6 +24,7 @@ properties:
 
   dsi-lanes:
     description: Number of DSI lanes to be used must be <3> or <4>
+    $ref: /schemas/types.yaml#/definitions/uint32
     enum: [3, 4]
 
   v3p3-supply:

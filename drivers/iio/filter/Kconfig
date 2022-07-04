@@ -8,6 +8,7 @@ menu "Filters"
 config ADMV8818
 	tristate "Analog Devices ADMV8818 High-Pass and Low-Pass Filter"
 	depends on SPI && COMMON_CLK && 64BIT
+	select REGMAP_SPI
 	help
 	  Say yes here to build support for Analog Devices ADMV8818
 	  2 GHz to 18 GHz, Digitally Tunable, High-Pass and Low-Pass Filter.

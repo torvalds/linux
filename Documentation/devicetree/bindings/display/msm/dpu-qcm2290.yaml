@@ -66,6 +66,10 @@ properties:
   interconnect-names:
     const: mdp0-mem
 
+  resets:
+    items:
+      - description: MDSS_CORE reset
+
 patternProperties:
   "^display-controller@[0-9a-f]+$":
     type: object
@@ -160,7 +164,7 @@ examples:
     mdss: mdss@5e00000 {
         #address-cells = <1>;
         #size-cells = <1>;
-        compatible = "qcom,qcm2290-mdss", "qcom,mdss";
+        compatible = "qcom,qcm2290-mdss";
         reg = <0x05e00000 0x1000>;
         reg-names = "mdss";
         power-domains = <&dispcc MDSS_GDSC>;
@@ -180,7 +184,7 @@ examples:
                  <&apps_smmu 0x421 0x0>;
         ranges;
 
-        mdss_mdp: mdp@5e01000 {
+        mdss_mdp: display-controller@5e01000 {
                 compatible = "qcom,qcm2290-dpu";
                 reg = <0x05e01000 0x8f000>,
                       <0x05eb0000 0x2008>;

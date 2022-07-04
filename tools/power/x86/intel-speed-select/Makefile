@@ -42,7 +42,7 @@ ISST_IN := $(OUTPUT)intel-speed-select-in.o
 $(ISST_IN): prepare FORCE
 	$(Q)$(MAKE) $(build)=intel-speed-select
 $(OUTPUT)intel-speed-select: $(ISST_IN)
-	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
+	$(QUIET_LINK)$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@
 
 clean:
 	rm -f $(ALL_PROGRAMS)

@@ -39,7 +39,6 @@
 #include <linux/stringify.h>
 #include <asm/spu.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/cell-regs.h>
 
 #include "spu_priv1_mmio.h"

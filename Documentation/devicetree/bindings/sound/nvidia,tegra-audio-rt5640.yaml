@@ -82,4 +82,3 @@ examples:
         clocks = <&clk 216>, <&clk 217>, <&clk 120>;
         clock-names = "pll_a", "pll_a_out0", "mclk";
     };
-

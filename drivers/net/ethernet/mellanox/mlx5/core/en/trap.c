@@ -14,19 +14,26 @@ static int mlx5e_trap_napi_poll(struct napi_struct *napi, int budget)
 	bool busy = false;
 	int work_done = 0;
 
+	rcu_read_lock();
+
 	ch_stats->poll++;
 
 	work_done = mlx5e_poll_rx_cq(&rq->cq, budget);
 	busy |= work_done == budget;
 	busy |= rq->post_wqes(rq);
 
-	if (busy)
-		return budget;
+	if (busy) {
+		work_done = budget;
+		goto out;
+	}
 
 	if (unlikely(!napi_complete_done(napi, work_done)))
-		return work_done;
+		goto out;
 
 	mlx5e_cq_arm(&rq->cq);
+
+out:
+	rcu_read_unlock();
 	return work_done;
 }
 
@@ -172,6 +179,7 @@ static void mlx5e_activate_trap(struct mlx5e_trap *trap)
 {
 	napi_enable(&trap->napi);
 	mlx5e_activate_rq(&trap->rq);
+	mlx5e_trigger_napi_sched(&trap->napi);
 }
 
 void mlx5e_deactivate_trap(struct mlx5e_priv *priv)

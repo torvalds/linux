@@ -656,6 +656,12 @@ smb2_is_valid_lease_break(char *buffer)
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 	cifs_dbg(FYI, "Can not process lease break - no lease matched\n");
+	trace_smb3_lease_not_found(le32_to_cpu(rsp->CurrentLeaseState),
+				   le32_to_cpu(rsp->hdr.Id.SyncId.TreeId),
+				   le64_to_cpu(rsp->hdr.SessionId),
+				   *((u64 *)rsp->LeaseKey),
+				   *((u64 *)&rsp->LeaseKey[8]));
+
 	return false;
 }
 
@@ -726,6 +732,10 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
 	cifs_dbg(FYI, "No file id matched, oplock break ignored\n");
+	trace_smb3_oplock_not_found(0 /* no xid */, rsp->PersistentFid,
+				  le32_to_cpu(rsp->hdr.Id.SyncId.TreeId),
+				  le64_to_cpu(rsp->hdr.SessionId));
+
 	return true;
 }
 
@@ -798,7 +808,7 @@ smb2_handle_cancelled_close(struct cifs_tcon *tcon, __u64 persistent_fid,
 		if (tcon->ses)
 			server = tcon->ses->server;
 
-		cifs_server_dbg(FYI, "tid=%u: tcon is closing, skipping async close retry of fid %llu %llu\n",
+		cifs_server_dbg(FYI, "tid=0x%x: tcon is closing, skipping async close retry of fid %llu %llu\n",
 				tcon->tid, persistent_fid, volatile_fid);
 
 		return 0;

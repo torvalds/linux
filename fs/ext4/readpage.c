@@ -163,7 +163,7 @@ static bool bio_post_read_required(struct bio *bio)
  *
  * The mpage code never puts partial pages into a BIO (except for end-of-file).
  * If a page does not map to a contiguous run of blocks then it simply falls
- * back to block_read_full_page().
+ * back to block_read_full_folio().
  *
  * Why is this?  If a page's completion depends on a number of different BIOs
  * which can complete in any order (or at the same time) then determining the
@@ -394,7 +394,7 @@ int ext4_mpage_readpages(struct inode *inode,
 			bio = NULL;
 		}
 		if (!PageUptodate(page))
-			block_read_full_page(page, ext4_get_block);
+			block_read_full_folio(page_folio(page), ext4_get_block);
 		else
 			unlock_page(page);
 	next_page:

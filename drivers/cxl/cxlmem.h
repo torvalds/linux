@@ -85,8 +85,59 @@ struct cxl_mbox_cmd {
 	size_t size_in;
 	size_t size_out;
 	u16 return_code;
-#define CXL_MBOX_SUCCESS 0
 };
+
+/*
+ * Per CXL 2.0 Section 8.2.8.4.5.1
+ */
+#define CMD_CMD_RC_TABLE							\
+	C(SUCCESS, 0, NULL),							\
+	C(BACKGROUND, -ENXIO, "background cmd started successfully"),           \
+	C(INPUT, -ENXIO, "cmd input was invalid"),				\
+	C(UNSUPPORTED, -ENXIO, "cmd is not supported"),				\
+	C(INTERNAL, -ENXIO, "internal device error"),				\
+	C(RETRY, -ENXIO, "temporary error, retry once"),			\
+	C(BUSY, -ENXIO, "ongoing background operation"),			\
+	C(MEDIADISABLED, -ENXIO, "media access is disabled"),			\
+	C(FWINPROGRESS, -ENXIO,	"one FW package can be transferred at a time"), \
+	C(FWOOO, -ENXIO, "FW package content was transferred out of order"),    \
+	C(FWAUTH, -ENXIO, "FW package authentication failed"),			\
+	C(FWSLOT, -ENXIO, "FW slot is not supported for requested operation"),  \
+	C(FWROLLBACK, -ENXIO, "rolled back to the previous active FW"),         \
+	C(FWRESET, -ENXIO, "FW failed to activate, needs cold reset"),		\
+	C(HANDLE, -ENXIO, "one or more Event Record Handles were invalid"),     \
+	C(PADDR, -ENXIO, "physical address specified is invalid"),		\
+	C(POISONLMT, -ENXIO, "poison injection limit has been reached"),        \
+	C(MEDIAFAILURE, -ENXIO, "permanent issue with the media"),		\
+	C(ABORT, -ENXIO, "background cmd was aborted by device"),               \
+	C(SECURITY, -ENXIO, "not valid in the current security state"),         \
+	C(PASSPHRASE, -ENXIO, "phrase doesn't match current set passphrase"),   \
+	C(MBUNSUPPORTED, -ENXIO, "unsupported on the mailbox it was issued on"),\
+	C(PAYLOADLEN, -ENXIO, "invalid payload length")
+
+#undef C
+#define C(a, b, c) CXL_MBOX_CMD_RC_##a
+enum  { CMD_CMD_RC_TABLE };
+#undef C
+#define C(a, b, c) { b, c }
+struct cxl_mbox_cmd_rc {
+	int err;
+	const char *desc;
+};
+
+static const
+struct cxl_mbox_cmd_rc cxl_mbox_cmd_rctable[] ={ CMD_CMD_RC_TABLE };
+#undef C
+
+static inline const char *cxl_mbox_cmd_rc2str(struct cxl_mbox_cmd *mbox_cmd)
+{
+	return cxl_mbox_cmd_rctable[mbox_cmd->return_code].desc;
+}
+
+static inline int cxl_mbox_cmd_rc2errno(struct cxl_mbox_cmd *mbox_cmd)
+{
+	return cxl_mbox_cmd_rctable[mbox_cmd->return_code].err;
+}
 
 /*
  * CXL 2.0 - Memory capacity multiplier
@@ -141,7 +192,6 @@ struct cxl_endpoint_dvsec_info {
  * @info: Cached DVSEC information about the device.
  * @serial: PCIe Device Serial Number
  * @mbox_send: @dev specific transport for transmitting mailbox commands
- * @wait_media_ready: @dev specific method to await media ready
  *
  * See section 8.2.9.5.2 Capacity Configuration and Label Storage for
  * details on capacity parameters.
@@ -172,11 +222,9 @@ struct cxl_dev_state {
 	u64 next_persistent_bytes;
 
 	resource_size_t component_reg_phys;
-	struct cxl_endpoint_dvsec_info info;
 	u64 serial;
 
 	int (*mbox_send)(struct cxl_dev_state *cxlds, struct cxl_mbox_cmd *cmd);
-	int (*wait_media_ready)(struct cxl_dev_state *cxlds);
 };
 
 enum cxl_opcode {
@@ -262,6 +310,13 @@ struct cxl_mbox_set_lsa {
 	u8 data[];
 } __packed;
 
+struct cxl_mbox_set_partition_info {
+	__le64 volatile_capacity;
+	u8 flags;
+} __packed;
+
+#define  CXL_SET_PARTITION_IMMEDIATE_FLAG	BIT(0)
+
 /**
  * struct cxl_mem_command - Driver representation of a memory device command
  * @info: Command information as it exists for the UAPI
@@ -290,11 +345,23 @@ struct cxl_mem_command {
 int cxl_mbox_send_cmd(struct cxl_dev_state *cxlds, u16 opcode, void *in,
 		      size_t in_size, void *out, size_t out_size);
 int cxl_dev_state_identify(struct cxl_dev_state *cxlds);
+int cxl_await_media_ready(struct cxl_dev_state *cxlds);
 int cxl_enumerate_cmds(struct cxl_dev_state *cxlds);
 int cxl_mem_create_range_info(struct cxl_dev_state *cxlds);
 struct cxl_dev_state *cxl_dev_state_create(struct device *dev);
 void set_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds);
 void clear_exclusive_cxl_commands(struct cxl_dev_state *cxlds, unsigned long *cmds);
+#ifdef CONFIG_CXL_SUSPEND
+void cxl_mem_active_inc(void);
+void cxl_mem_active_dec(void);
+#else
+static inline void cxl_mem_active_inc(void)
+{
+}
+static inline void cxl_mem_active_dec(void)
+{
+}
+#endif
 
 struct cxl_hdm {
 	struct cxl_component_regs regs;

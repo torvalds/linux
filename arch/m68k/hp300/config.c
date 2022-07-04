@@ -240,12 +240,6 @@ static int hp300_hwclk(int op, struct rtc_time *t)
 	return 0;
 }
 
-static unsigned int hp300_get_ss(void)
-{
-	return hp300_rtc_read(RTC_REG_SEC1) * 10 +
-		hp300_rtc_read(RTC_REG_SEC2);
-}
-
 static void __init hp300_init_IRQ(void)
 {
 }
@@ -256,7 +250,6 @@ void __init config_hp300(void)
 	mach_init_IRQ        = hp300_init_IRQ;
 	mach_get_model       = hp300_get_model;
 	mach_hwclk	     = hp300_hwclk;
-	mach_get_ss	     = hp300_get_ss;
 	mach_reset           = hp300_reset;
 #ifdef CONFIG_HEARTBEAT
 	mach_heartbeat       = hp300_pulse;

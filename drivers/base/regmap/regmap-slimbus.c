@@ -22,7 +22,7 @@ static int regmap_slimbus_read(void *context, const void *reg, size_t reg_size,
 	return slim_read(sdev, *(u16 *)reg, val_size, val);
 }
 
-static struct regmap_bus regmap_slimbus_bus = {
+static const struct regmap_bus regmap_slimbus_bus = {
 	.write = regmap_slimbus_write,
 	.read = regmap_slimbus_read,
 	.reg_format_endian_default = REGMAP_ENDIAN_LITTLE,

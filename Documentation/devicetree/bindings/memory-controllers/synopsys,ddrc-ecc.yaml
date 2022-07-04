@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Synopsys IntelliDDR Multi Protocol memory controller
 
 maintainers:
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
   - Manish Narani <manish.narani@xilinx.com>
   - Michal Simek <michal.simek@xilinx.com>
 
@@ -24,9 +24,9 @@ description: |
 properties:
   compatible:
     enum:
+      - snps,ddrc-3.80a
       - xlnx,zynq-ddrc-a05
       - xlnx,zynqmp-ddrc-2.40a
-      - snps,ddrc-3.80a
 
   interrupts:
     maxItems: 1
@@ -43,7 +43,9 @@ allOf:
       properties:
         compatible:
           contains:
-            const: xlnx,zynqmp-ddrc-2.40a
+            enum:
+              - snps,ddrc-3.80a
+              - xlnx,zynqmp-ddrc-2.40a
     then:
       required:
         - interrupts

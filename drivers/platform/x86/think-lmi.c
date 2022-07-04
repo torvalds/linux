@@ -740,16 +740,8 @@ static ssize_t certificate_store(struct kobject *kobj,
 	if (!tlmi_priv.certificate_support)
 		return -EOPNOTSUPP;
 
-	new_cert = kstrdup(buf, GFP_KERNEL);
-	if (!new_cert)
-		return -ENOMEM;
-	/* Strip out CR if one is present */
-	strip_cr(new_cert);
-
 	/* If empty then clear installed certificate */
-	if (new_cert[0] == '\0') { /* Clear installed certificate */
-		kfree(new_cert);
-
+	if ((buf[0] == '\0') || (buf[0] == '\n')) { /* Clear installed certificate */
 		/* Check that signature is set */
 		if (!setting->signature || !setting->signature[0])
 			return -EACCES;
@@ -763,13 +755,15 @@ static ssize_t certificate_store(struct kobject *kobj,
 
 		ret = tlmi_simple_call(LENOVO_CLEAR_BIOS_CERT_GUID, auth_str);
 		kfree(auth_str);
-		if (ret)
-			return ret;
 
-		kfree(setting->certificate);
-		setting->certificate = NULL;
-		return count;
+		return ret ?: count;
 	}
+
+	new_cert = kstrdup(buf, GFP_KERNEL);
+	if (!new_cert)
+		return -ENOMEM;
+	/* Strip out CR if one is present */
+	strip_cr(new_cert);
 
 	if (setting->cert_installed) {
 		/* Certificate is installed so this is an update */
@@ -792,21 +786,14 @@ static ssize_t certificate_store(struct kobject *kobj,
 		auth_str = kasprintf(GFP_KERNEL, "%s,%s",
 				new_cert, setting->password);
 	}
-	if (!auth_str) {
-		kfree(new_cert);
+	kfree(new_cert);
+	if (!auth_str)
 		return -ENOMEM;
-	}
 
 	ret = tlmi_simple_call(guid, auth_str);
 	kfree(auth_str);
-	if (ret) {
-		kfree(new_cert);
-		return ret;
-	}
 
-	kfree(setting->certificate);
-	setting->certificate = new_cert;
-	return count;
+	return ret ?: count;
 }
 
 static struct kobj_attribute auth_certificate = __ATTR_WO(certificate);
@@ -1194,6 +1181,10 @@ static void tlmi_release_attr(void)
 
 	kset_unregister(tlmi_priv.attribute_kset);
 
+	/* Free up any saved signatures */
+	kfree(tlmi_priv.pwd_admin->signature);
+	kfree(tlmi_priv.pwd_admin->save_signature);
+
 	/* Authentication structures */
 	sysfs_remove_group(&tlmi_priv.pwd_admin->kobj, &auth_attr_group);
 	kobject_put(&tlmi_priv.pwd_admin->kobj);
@@ -1210,11 +1201,6 @@ static void tlmi_release_attr(void)
 	}
 
 	kset_unregister(tlmi_priv.authentication_kset);
-
-	/* Free up any saved certificates/signatures */
-	kfree(tlmi_priv.pwd_admin->certificate);
-	kfree(tlmi_priv.pwd_admin->signature);
-	kfree(tlmi_priv.pwd_admin->save_signature);
 }
 
 static int tlmi_sysfs_init(void)

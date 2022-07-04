@@ -1067,6 +1067,9 @@
 #define PCR_SETTING_REG1		0x724
 #define PCR_SETTING_REG2		0x814
 #define PCR_SETTING_REG3		0x747
+#define PCR_SETTING_REG4		0x818
+#define PCR_SETTING_REG5		0x81C
+
 
 #define rtsx_pci_init_cmd(pcr)		((pcr)->ci = 0)
 

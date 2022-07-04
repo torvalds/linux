@@ -16,13 +16,14 @@
 #include <linux/device.h>
 #include <linux/etherdevice.h>
 #include <linux/platform_device.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/of_net.h>
 #include <asm/tsi108.h>
 
 #include <linux/atomic.h>
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/prom.h>
 #include <mm/mmu_decl.h>
 
 #undef DEBUG

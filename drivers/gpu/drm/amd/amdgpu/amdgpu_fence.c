@@ -422,8 +422,8 @@ int amdgpu_fence_driver_start_ring(struct amdgpu_ring *ring,
 	uint64_t index;
 
 	if (ring->funcs->type != AMDGPU_RING_TYPE_UVD) {
-		ring->fence_drv.cpu_addr = &adev->wb.wb[ring->fence_offs];
-		ring->fence_drv.gpu_addr = adev->wb.gpu_addr + (ring->fence_offs * 4);
+		ring->fence_drv.cpu_addr = ring->fence_cpu_addr;
+		ring->fence_drv.gpu_addr = ring->fence_gpu_addr;
 	} else {
 		/* put fence directly behind firmware */
 		index = ALIGN(adev->uvd.fw->size, 8);

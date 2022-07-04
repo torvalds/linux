@@ -26,6 +26,7 @@ properties:
     const: 2
 
   registers-number:
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: Number of daisy-chained shift registers
 
   enable-gpios:

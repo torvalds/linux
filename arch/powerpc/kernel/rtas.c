@@ -24,9 +24,10 @@
 #include <linux/slab.h>
 #include <linux/reboot.h>
 #include <linux/syscalls.h>
+#include <linux/of.h>
+#include <linux/of_fdt.h>
 
 #include <asm/interrupt.h>
-#include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/hvcall.h>
 #include <asm/machdep.h>
@@ -49,6 +50,19 @@ void enter_rtas(unsigned long);
 
 static inline void do_enter_rtas(unsigned long args)
 {
+	unsigned long msr;
+
+	/*
+	 * Make sure MSR[RI] is currently enabled as it will be forced later
+	 * in enter_rtas.
+	 */
+	msr = mfmsr();
+	BUG_ON(!(msr & MSR_RI));
+
+	BUG_ON(!irqs_disabled());
+
+	hard_irq_disable(); /* Ensure MSR[EE] is disabled on PPC64 */
+
 	enter_rtas(args);
 
 	srr_regs_clobbered(); /* rtas uses SRRs, invalidate */
@@ -461,6 +475,11 @@ int rtas_call(int token, int nargs, int nret, int *outputs, ...)
 
 	if (!rtas.entry || token == RTAS_UNKNOWN_SERVICE)
 		return -1;
+
+	if ((mfmsr() & (MSR_IR|MSR_DR)) != (MSR_IR|MSR_DR)) {
+		WARN_ON_ONCE(1);
+		return -1;
+	}
 
 	s = lock_rtas();
 
