@@ -469,6 +469,7 @@ static int qcom_cpufreq_hw_cpu_offline(struct cpufreq_policy *policy)
 
 	cancel_delayed_work_sync(&data->throttle_work);
 	irq_set_affinity_hint(data->throttle_irq, NULL);
+	disable_irq_nosync(data->throttle_irq);
 
 	return 0;
 }
