@@ -409,6 +409,8 @@ int io_recvmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if (sr->msg_flags & MSG_ERRQUEUE)
 		req->flags |= REQ_F_CLEAR_POLLIN;
 	if (sr->flags & IORING_RECV_MULTISHOT) {
+		if (req->opcode == IORING_OP_RECVMSG)
+			return -EINVAL;
 		if (!(req->flags & REQ_F_BUFFER_SELECT))
 			return -EINVAL;
 		if (sr->msg_flags & MSG_WAITALL)
@@ -435,7 +437,7 @@ static inline void io_recv_prep_retry(struct io_kiocb *req)
 }
 
 /*
- * Finishes io_recv and io_recvmsg.
+ * Finishes io_recv
  *
  * Returns true if it is actually finished, or false if it should run
  * again (for multishot).
@@ -477,7 +479,6 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	unsigned flags;
 	int ret, min_ret = 0;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
-	size_t len = sr->len;
 
 	sock = sock_from_file(req->file);
 	if (unlikely(!sock))
@@ -496,17 +497,16 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
 		return io_setup_async_msg(req, kmsg);
 
-retry_multishot:
 	if (io_do_buffer_select(req)) {
 		void __user *buf;
 
-		buf = io_buffer_select(req, &len, issue_flags);
+		buf = io_buffer_select(req, &sr->len, issue_flags);
 		if (!buf)
 			return -ENOBUFS;
 		kmsg->fast_iov[0].iov_base = buf;
-		kmsg->fast_iov[0].iov_len = len;
+		kmsg->fast_iov[0].iov_len = sr->len;
 		iov_iter_init(&kmsg->msg.msg_iter, READ, kmsg->fast_iov, 1,
-				len);
+				sr->len);
 	}
 
 	flags = sr->msg_flags;
@@ -518,15 +518,8 @@ retry_multishot:
 	kmsg->msg.msg_get_inq = 1;
 	ret = __sys_recvmsg_sock(sock, &kmsg->msg, sr->umsg, kmsg->uaddr, flags);
 	if (ret < min_ret) {
-		if (ret == -EAGAIN && force_nonblock) {
-			ret = io_setup_async_msg(req, kmsg);
-			if (ret == -EAGAIN && (req->flags & IO_APOLL_MULTI_POLLED) ==
-					       IO_APOLL_MULTI_POLLED) {
-				io_kbuf_recycle(req, issue_flags);
-				return IOU_ISSUE_SKIP_COMPLETE;
-			}
-			return ret;
-		}
+		if (ret == -EAGAIN && force_nonblock)
+			return io_setup_async_msg(req, kmsg);
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
 		if (ret > 0 && io_net_retry(sock, flags)) {
@@ -554,10 +547,8 @@ retry_multishot:
 	if (kmsg->msg.msg_inq)
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
 
-	if (!io_recv_finish(req, &ret, cflags))
-		goto retry_multishot;
-
-	return ret;
+	io_req_set_res(req, ret, cflags);
+	return IOU_OK;
 }
 
 int io_recv(struct io_kiocb *req, unsigned int issue_flags)
