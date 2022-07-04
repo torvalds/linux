@@ -601,6 +601,7 @@ struct scmi_powercap_info {
 	bool powercap_pai_config;
 	bool powercap_scale_mw;
 	bool powercap_scale_uw;
+	bool fastchannels;
 	char name[SCMI_MAX_STR_SIZE];
 	unsigned int min_pai;
 	unsigned int max_pai;
@@ -612,6 +613,7 @@ struct scmi_powercap_info {
 	unsigned int accuracy;
 #define SCMI_POWERCAP_ROOT_ZONE_ID     0xFFFFFFFFUL
 	unsigned int parent_id;
+	struct scmi_fc_info *fc_info;
 };
 
 /**
