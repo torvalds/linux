@@ -2225,6 +2225,11 @@ static const struct rproc_hexagon_res msm8996_mss = {
 			"mnoc_axi",
 			NULL
 	},
+	.proxy_pd_names = (char*[]){
+			"mx",
+			"cx",
+			NULL
+	},
 	.need_mem_protection = true,
 	.has_alt_reset = false,
 	.has_mba_logs = false,
