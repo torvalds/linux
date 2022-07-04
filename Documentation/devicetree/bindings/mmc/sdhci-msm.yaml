@@ -116,6 +116,9 @@ properties:
     description:
       Should specify pin control groups used for this controller.
 
+  resets:
+    maxItems: 1
+
   qcom,ddr-config:
     $ref: /schemas/types.yaml#/definitions/uint32
     description: platform specific settings for DDR_CONFIG reg.
