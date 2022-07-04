@@ -487,6 +487,40 @@ static int mlxsw_sp_fid_edit_op(const struct mlxsw_sp_fid *fid)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfmr), sfmr_pl);
 }
 
+static int mlxsw_sp_fid_vni_to_fid_map(const struct mlxsw_sp_fid *fid,
+				       bool valid)
+{
+	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
+	char svfa_pl[MLXSW_REG_SVFA_LEN];
+
+	mlxsw_reg_svfa_vni_pack(svfa_pl, valid, fid->fid_index,
+				be32_to_cpu(fid->vni));
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(svfa), svfa_pl);
+}
+
+static int mlxsw_sp_fid_vni_op(const struct mlxsw_sp_fid *fid)
+{
+	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
+	int err;
+
+	if (mlxsw_sp->ubridge) {
+		err = mlxsw_sp_fid_vni_to_fid_map(fid, fid->vni_valid);
+		if (err)
+			return err;
+	}
+
+	err = mlxsw_sp_fid_edit_op(fid);
+	if (err)
+		goto err_fid_edit_op;
+
+	return 0;
+
+err_fid_edit_op:
+	if (mlxsw_sp->ubridge)
+		mlxsw_sp_fid_vni_to_fid_map(fid, !fid->vni_valid);
+	return err;
+}
+
 static int __mlxsw_sp_fid_port_vid_map(const struct mlxsw_sp_fid *fid,
 				       u16 local_port, u16 vid, bool valid)
 {
@@ -724,12 +758,12 @@ mlxsw_sp_fid_8021d_port_vid_unmap(struct mlxsw_sp_fid *fid,
 
 static int mlxsw_sp_fid_8021d_vni_set(struct mlxsw_sp_fid *fid)
 {
-	return mlxsw_sp_fid_edit_op(fid);
+	return mlxsw_sp_fid_vni_op(fid);
 }
 
 static void mlxsw_sp_fid_8021d_vni_clear(struct mlxsw_sp_fid *fid)
 {
-	mlxsw_sp_fid_edit_op(fid);
+	mlxsw_sp_fid_vni_op(fid);
 }
 
 static int mlxsw_sp_fid_8021d_nve_flood_index_set(struct mlxsw_sp_fid *fid)
