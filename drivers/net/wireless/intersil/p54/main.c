@@ -831,7 +831,7 @@ void p54_free_common(struct ieee80211_hw *dev)
 	kfree(priv->output_limit);
 	kfree(priv->curve_data);
 	kfree(priv->rssi_db);
-	kfree(priv->used_rxkeys);
+	bitmap_free(priv->used_rxkeys);
 	kfree(priv->survey);
 	priv->iq_autocal = NULL;
 	priv->output_limit = NULL;
