@@ -486,8 +486,14 @@ static const struct tegra186_timer_soc tegra186_timer = {
 	.num_wdts = 3,
 };
 
+static const struct tegra186_timer_soc tegra234_timer = {
+	.num_timers = 16,
+	.num_wdts = 3,
+};
+
 static const struct of_device_id tegra186_timer_of_match[] = {
 	{ .compatible = "nvidia,tegra186-timer", .data = &tegra186_timer },
+	{ .compatible = "nvidia,tegra234-timer", .data = &tegra234_timer },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, tegra186_timer_of_match);
