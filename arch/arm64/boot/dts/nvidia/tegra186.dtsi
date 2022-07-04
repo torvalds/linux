@@ -599,7 +599,7 @@
 			     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
 			     <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
-		status = "disabled";
+		status = "okay";
 	};
 
 	uarta: serial@3100000 {
