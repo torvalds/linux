@@ -461,8 +461,6 @@
 #define SMIDR_EL1_SMPS_SHIFT	15
 #define SMIDR_EL1_AFFINITY_SHIFT	0
 
-#define SYS_DCZID_EL0			sys_reg(3, 3, 0, 0, 7)
-
 #define SYS_RNDR_EL0			sys_reg(3, 3, 2, 4, 0)
 #define SYS_RNDRRS_EL0			sys_reg(3, 3, 2, 4, 1)
 
@@ -1080,9 +1078,6 @@
 
 #define MVFR2_FPMISC_SHIFT		4
 #define MVFR2_SIMDMISC_SHIFT		0
-
-#define DCZID_EL0_DZP_SHIFT		4
-#define DCZID_EL0_BS_SHIFT		0
 
 #define CPACR_EL1_FPEN_EL1EN	(BIT(20)) /* enable EL1 access */
 #define CPACR_EL1_FPEN_EL0EN	(BIT(21)) /* enable EL0 access, if EL1EN set */
