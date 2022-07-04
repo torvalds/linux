@@ -590,8 +590,82 @@ static void mlxsw_sp_fid_vid_to_fid_rif_unset(const struct mlxsw_sp_fid *fid)
 	}
 }
 
+static int mlxsw_sp_fid_reiv_handle(struct mlxsw_sp_fid *fid, u16 rif_index,
+				    bool valid, u8 port_page)
+{
+	u16 local_port_end = (port_page + 1) * MLXSW_REG_REIV_REC_MAX_COUNT - 1;
+	u16 local_port_start = port_page * MLXSW_REG_REIV_REC_MAX_COUNT;
+	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
+	struct mlxsw_sp_fid_port_vid *port_vid;
+	u8 rec_num, entries_num = 0;
+	char *reiv_pl;
+	int err;
+
+	reiv_pl = kmalloc(MLXSW_REG_REIV_LEN, GFP_KERNEL);
+	if (!reiv_pl)
+		return -ENOMEM;
+
+	mlxsw_reg_reiv_pack(reiv_pl, port_page, rif_index);
+
+	list_for_each_entry(port_vid, &fid->port_vid_list, list) {
+		/* port_vid_list is sorted by local_port. */
+		if (port_vid->local_port < local_port_start)
+			continue;
+
+		if (port_vid->local_port > local_port_end)
+			break;
+
+		rec_num = port_vid->local_port % MLXSW_REG_REIV_REC_MAX_COUNT;
+		mlxsw_reg_reiv_rec_update_set(reiv_pl, rec_num, true);
+		mlxsw_reg_reiv_rec_evid_set(reiv_pl, rec_num,
+					    valid ? port_vid->vid : 0);
+		entries_num++;
+	}
+
+	if (!entries_num) {
+		kfree(reiv_pl);
+		return 0;
+	}
+
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(reiv), reiv_pl);
+	if (err)
+		goto err_reg_write;
+
+	kfree(reiv_pl);
+	return 0;
+
+err_reg_write:
+	kfree(reiv_pl);
+	return err;
+}
+
+static int mlxsw_sp_fid_erif_eport_to_vid_map(struct mlxsw_sp_fid *fid,
+					      u16 rif_index, bool valid)
+{
+	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
+	u8 num_port_pages;
+	int err, i;
+
+	num_port_pages = mlxsw_core_max_ports(mlxsw_sp->core) /
+			 MLXSW_REG_REIV_REC_MAX_COUNT + 1;
+
+	for (i = 0; i < num_port_pages; i++) {
+		err = mlxsw_sp_fid_reiv_handle(fid, rif_index, valid, i);
+		if (err)
+			goto err_reiv_handle;
+	}
+
+	return 0;
+
+err_reiv_handle:
+	for (; i >= 0; i--)
+		mlxsw_sp_fid_reiv_handle(fid, rif_index, !valid, i);
+	return err;
+}
+
 int mlxsw_sp_fid_rif_set(struct mlxsw_sp_fid *fid, struct mlxsw_sp_rif *rif)
 {
+	u16 rif_index = mlxsw_sp_rif_index(rif);
 	int err;
 
 	if (!fid->fid_family->mlxsw_sp->ubridge) {
@@ -611,9 +685,15 @@ int mlxsw_sp_fid_rif_set(struct mlxsw_sp_fid *fid, struct mlxsw_sp_rif *rif)
 	if (err)
 		goto err_vid_to_fid_rif_set;
 
+	err = mlxsw_sp_fid_erif_eport_to_vid_map(fid, rif_index, true);
+	if (err)
+		goto err_erif_eport_to_vid_map;
+
 	fid->rif = rif;
 	return 0;
 
+err_erif_eport_to_vid_map:
+	mlxsw_sp_fid_vid_to_fid_rif_unset(fid);
 err_vid_to_fid_rif_set:
 	mlxsw_sp_fid_vni_to_fid_rif_update(fid, NULL);
 err_vni_to_fid_rif_update:
@@ -623,6 +703,8 @@ err_vni_to_fid_rif_update:
 
 void mlxsw_sp_fid_rif_unset(struct mlxsw_sp_fid *fid)
 {
+	u16 rif_index;
+
 	if (!fid->fid_family->mlxsw_sp->ubridge) {
 		fid->rif = NULL;
 		return;
@@ -631,7 +713,10 @@ void mlxsw_sp_fid_rif_unset(struct mlxsw_sp_fid *fid)
 	if (!fid->rif)
 		return;
 
+	rif_index = mlxsw_sp_rif_index(fid->rif);
 	fid->rif = NULL;
+
+	mlxsw_sp_fid_erif_eport_to_vid_map(fid, rif_index, false);
 	mlxsw_sp_fid_vid_to_fid_rif_unset(fid);
 	mlxsw_sp_fid_vni_to_fid_rif_update(fid, NULL);
 	mlxsw_sp_fid_to_fid_rif_update(fid, NULL);
@@ -844,6 +929,53 @@ mlxsw_sp_fid_mpe_table_map(const struct mlxsw_sp_fid *fid, u16 local_port,
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smpe), smpe_pl);
 }
 
+static int
+mlxsw_sp_fid_erif_eport_to_vid_map_one(const struct mlxsw_sp_fid *fid,
+				       u16 local_port, u16 vid, bool valid)
+{
+	u8 port_page = local_port / MLXSW_REG_REIV_REC_MAX_COUNT;
+	u8 rec_num = local_port % MLXSW_REG_REIV_REC_MAX_COUNT;
+	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
+	u16 rif_index = mlxsw_sp_rif_index(fid->rif);
+	char *reiv_pl;
+	int err;
+
+	reiv_pl = kmalloc(MLXSW_REG_REIV_LEN, GFP_KERNEL);
+	if (!reiv_pl)
+		return -ENOMEM;
+
+	mlxsw_reg_reiv_pack(reiv_pl, port_page, rif_index);
+	mlxsw_reg_reiv_rec_update_set(reiv_pl, rec_num, true);
+	mlxsw_reg_reiv_rec_evid_set(reiv_pl, rec_num, valid ? vid : 0);
+	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(reiv), reiv_pl);
+	kfree(reiv_pl);
+	return err;
+}
+
+static int mlxsw_sp_fid_evid_map(const struct mlxsw_sp_fid *fid, u16 local_port,
+				 u16 vid, bool valid)
+{
+	int err;
+
+	err = mlxsw_sp_fid_mpe_table_map(fid, local_port, vid, valid);
+	if (err)
+		return err;
+
+	if (!fid->rif)
+		return 0;
+
+	err = mlxsw_sp_fid_erif_eport_to_vid_map_one(fid, local_port, vid,
+						     valid);
+	if (err)
+		goto err_erif_eport_to_vid_map_one;
+
+	return 0;
+
+err_erif_eport_to_vid_map_one:
+	mlxsw_sp_fid_mpe_table_map(fid, local_port, vid, !valid);
+	return err;
+}
+
 static int mlxsw_sp_fid_8021d_port_vid_map(struct mlxsw_sp_fid *fid,
 					   struct mlxsw_sp_port *mlxsw_sp_port,
 					   u16 vid)
@@ -858,9 +990,9 @@ static int mlxsw_sp_fid_8021d_port_vid_map(struct mlxsw_sp_fid *fid,
 		return err;
 
 	if (fid->fid_family->mlxsw_sp->ubridge) {
-		err = mlxsw_sp_fid_mpe_table_map(fid, local_port, vid, true);
+		err = mlxsw_sp_fid_evid_map(fid, local_port, vid, true);
 		if (err)
-			goto err_mpe_table_map;
+			goto err_fid_evid_map;
 	}
 
 	err = mlxsw_sp_fid_port_vid_list_add(fid, mlxsw_sp_port->local_port,
@@ -881,8 +1013,8 @@ err_port_vp_mode_trans:
 	mlxsw_sp_fid_port_vid_list_del(fid, mlxsw_sp_port->local_port, vid);
 err_port_vid_list_add:
 	if (fid->fid_family->mlxsw_sp->ubridge)
-		mlxsw_sp_fid_mpe_table_map(fid, local_port, vid, false);
-err_mpe_table_map:
+		mlxsw_sp_fid_evid_map(fid, local_port, vid, false);
+err_fid_evid_map:
 	__mlxsw_sp_fid_port_vid_map(fid, mlxsw_sp_port->local_port, vid, false);
 	return err;
 }
@@ -899,7 +1031,7 @@ mlxsw_sp_fid_8021d_port_vid_unmap(struct mlxsw_sp_fid *fid,
 	mlxsw_sp->fid_core->port_fid_mappings[local_port]--;
 	mlxsw_sp_fid_port_vid_list_del(fid, mlxsw_sp_port->local_port, vid);
 	if (fid->fid_family->mlxsw_sp->ubridge)
-		mlxsw_sp_fid_mpe_table_map(fid, local_port, vid, false);
+		mlxsw_sp_fid_evid_map(fid, local_port, vid, false);
 	__mlxsw_sp_fid_port_vid_map(fid, mlxsw_sp_port->local_port, vid, false);
 }
 
