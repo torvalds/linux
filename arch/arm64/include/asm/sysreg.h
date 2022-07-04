@@ -744,8 +744,6 @@
 #define ID_AA64ISAR2_RPRES_SHIFT	4
 #define ID_AA64ISAR2_WFxT_SHIFT		0
 
-#define ID_AA64ISAR2_RPRES_8BIT		0x0
-#define ID_AA64ISAR2_RPRES_12BIT	0x1
 /*
  * Value 0x1 has been removed from the architecture, and is
  * reserved, but has not yet been removed from the ARM ARM
