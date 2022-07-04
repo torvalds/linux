@@ -1754,7 +1754,12 @@ static int scheduler_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 		return ret;
 
 	reg = rtw89_mac_reg_by_idx(R_AX_PREBKF_CFG_1, mac_idx);
-	rtw89_write32_mask(rtwdev, reg, B_AX_SIFS_MACTXEN_T1_MASK, SIFS_MACTXEN_T1);
+	if (rtwdev->chip->chip_id == RTL8852C)
+		rtw89_write32_mask(rtwdev, reg, B_AX_SIFS_MACTXEN_T1_MASK,
+				   SIFS_MACTXEN_T1_V1);
+	else
+		rtw89_write32_mask(rtwdev, reg, B_AX_SIFS_MACTXEN_T1_MASK,
+				   SIFS_MACTXEN_T1);
 
 	if (rtwdev->chip->chip_id == RTL8852B) {
 		reg = rtw89_mac_reg_by_idx(R_AX_SCH_EXT_CTRL, mac_idx);
