@@ -893,16 +893,6 @@ extern struct ieee80211_rate mt76_rates[12];
 
 #define mt76_hw(dev) (dev)->mphy.hw
 
-static inline struct ieee80211_hw *
-mt76_wcid_hw(struct mt76_dev *dev, u16 wcid)
-{
-	if (wcid <= MT76_N_WCIDS &&
-	    mt76_wcid_mask_test(dev->wcid_phy_mask, wcid))
-		return dev->phys[MT_BAND1]->hw;
-
-	return dev->phy.hw;
-}
-
 bool __mt76_poll(struct mt76_dev *dev, u32 offset, u32 mask, u32 val,
 		 int timeout);
 
