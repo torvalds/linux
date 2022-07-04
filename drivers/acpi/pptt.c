@@ -692,43 +692,6 @@ int find_acpi_cpu_topology(unsigned int cpu, int level)
 }
 
 /**
- * find_acpi_cpu_cache_topology() - Determine a unique cache topology value
- * @cpu: Kernel logical CPU number
- * @level: The cache level for which we would like a unique ID
- *
- * Determine a unique ID for each unified cache in the system
- *
- * Return: -ENOENT if the PPTT doesn't exist, or the CPU cannot be found.
- * Otherwise returns a value which represents a unique topological feature.
- */
-int find_acpi_cpu_cache_topology(unsigned int cpu, int level)
-{
-	struct acpi_table_header *table;
-	struct acpi_pptt_cache *found_cache;
-	acpi_status status;
-	u32 acpi_cpu_id = get_acpi_id_for_cpu(cpu);
-	struct acpi_pptt_processor *cpu_node = NULL;
-	int ret = -1;
-
-	status = acpi_get_table(ACPI_SIG_PPTT, 0, &table);
-	if (ACPI_FAILURE(status)) {
-		acpi_pptt_warn_missing();
-		return -ENOENT;
-	}
-
-	found_cache = acpi_find_cache_node(table, acpi_cpu_id,
-					   CACHE_TYPE_UNIFIED,
-					   level,
-					   &cpu_node);
-	if (found_cache)
-		ret = ACPI_PTR_DIFF(cpu_node, table);
-
-	acpi_put_table(table);
-
-	return ret;
-}
-
-/**
  * find_acpi_cpu_topology_package() - Determine a unique CPU package value
  * @cpu: Kernel logical CPU number
  *
