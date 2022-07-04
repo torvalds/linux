@@ -397,7 +397,8 @@
 	phy1: ethernet-phy@1 {
 		compatible = "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
-		marvell,reg-init = <3 18 0 0x4985>;
+		marvell,reg-init = <3 18 0 0x4985>,
+				   <3 16 0xfff0 0x0001>;
 
 		/* irq is connected to &pcawan pin 7 */
 	};
