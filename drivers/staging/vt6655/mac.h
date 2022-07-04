@@ -565,27 +565,27 @@ do {									\
 	iowrite16(wData & ~(wBits), iobase + byRegOfs);			\
 } while (0)
 
-#define MACvWriteBSSIDAddress(iobase, pbyEtherAddr)		\
+#define MACvWriteBSSIDAddress(iobase, mac_addr)		\
 do {								\
 	iowrite8(1, iobase + MAC_REG_PAGE1SEL);			\
-	iowrite8(pbyEtherAddr[0], iobase + MAC_REG_BSSID0);	\
-	iowrite8(pbyEtherAddr[1], iobase + MAC_REG_BSSID0 + 1);	\
-	iowrite8(pbyEtherAddr[2], iobase + MAC_REG_BSSID0 + 2);	\
-	iowrite8(pbyEtherAddr[3], iobase + MAC_REG_BSSID0 + 3);	\
-	iowrite8(pbyEtherAddr[4], iobase + MAC_REG_BSSID0 + 4);	\
-	iowrite8(pbyEtherAddr[5], iobase + MAC_REG_BSSID0 + 5);	\
+	iowrite8(mac_addr[0], iobase + MAC_REG_BSSID0);		\
+	iowrite8(mac_addr[1], iobase + MAC_REG_BSSID0 + 1);	\
+	iowrite8(mac_addr[2], iobase + MAC_REG_BSSID0 + 2);	\
+	iowrite8(mac_addr[3], iobase + MAC_REG_BSSID0 + 3);	\
+	iowrite8(mac_addr[4], iobase + MAC_REG_BSSID0 + 4);	\
+	iowrite8(mac_addr[5], iobase + MAC_REG_BSSID0 + 5);	\
 	iowrite8(0, iobase + MAC_REG_PAGE1SEL);			\
 } while (0)
 
-#define MACvReadEtherAddress(iobase, pbyEtherAddr)		\
+#define MACvReadEtherAddress(iobase, mac_addr)			\
 do {								\
 	iowrite8(1, iobase + MAC_REG_PAGE1SEL);			\
-	pbyEtherAddr[0] = ioread8(iobase + MAC_REG_PAR0);	\
-	pbyEtherAddr[1] = ioread8(iobase + MAC_REG_PAR0 + 1);	\
-	pbyEtherAddr[2] = ioread8(iobase + MAC_REG_PAR0 + 2);	\
-	pbyEtherAddr[3] = ioread8(iobase + MAC_REG_PAR0 + 3);	\
-	pbyEtherAddr[4] = ioread8(iobase + MAC_REG_PAR0 + 4);	\
-	pbyEtherAddr[5] = ioread8(iobase + MAC_REG_PAR0 + 5);	\
+	mac_addr[0] = ioread8(iobase + MAC_REG_PAR0);		\
+	mac_addr[1] = ioread8(iobase + MAC_REG_PAR0 + 1);	\
+	mac_addr[2] = ioread8(iobase + MAC_REG_PAR0 + 2);	\
+	mac_addr[3] = ioread8(iobase + MAC_REG_PAR0 + 3);	\
+	mac_addr[4] = ioread8(iobase + MAC_REG_PAR0 + 4);	\
+	mac_addr[5] = ioread8(iobase + MAC_REG_PAR0 + 5);	\
 	iowrite8(0, iobase + MAC_REG_PAGE1SEL);			\
 } while (0)
 
