@@ -902,6 +902,7 @@ dw_mipi_dsi2_encoder_atomic_check(struct drm_encoder *encoder,
 
 	if (!(dsi2->mode_flags & MIPI_DSI_MODE_VIDEO)) {
 		s->output_flags |= ROCKCHIP_OUTPUT_MIPI_DS_MODE;
+		s->soft_te = dsi2->te_gpio ? true : false;
 		s->hold_mode = true;
 	}
 
