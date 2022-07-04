@@ -541,3 +541,10 @@ Field	9:2	DS
 Res0	1
 Field	0	EN
 EndSysreg
+
+Sysreg	LORID_EL1	3	0	10	4	7
+Res0	63:24
+Field	23:16	LD
+Res0	15:8
+Field	7:0	LR
+EndSysreg
