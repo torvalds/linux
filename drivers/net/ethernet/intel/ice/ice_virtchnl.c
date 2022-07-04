@@ -1046,14 +1046,7 @@ static int ice_vc_cfg_promiscuous_mode_msg(struct ice_vf *vf, u8 *msg)
 		goto error_param;
 	}
 
-	if (ice_vf_is_port_vlan_ena(vf) ||
-	    ice_vsi_has_non_zero_vlans(vsi)) {
-		mcast_m = ICE_MCAST_VLAN_PROMISC_BITS;
-		ucast_m = ICE_UCAST_VLAN_PROMISC_BITS;
-	} else {
-		mcast_m = ICE_MCAST_PROMISC_BITS;
-		ucast_m = ICE_UCAST_PROMISC_BITS;
-	}
+	ice_vf_get_promisc_masks(vf, vsi, &ucast_m, &mcast_m);
 
 	if (!test_bit(ICE_FLAG_VF_TRUE_PROMISC_ENA, pf->flags)) {
 		if (alluni) {
