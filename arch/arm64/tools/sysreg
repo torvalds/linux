@@ -193,7 +193,40 @@ Enum	3:0	DPB
 	0b0010	DPB2
 EndEnum
 EndSysreg
+
+Sysreg	ID_AA64ISAR2_EL1	3	0	0	6	2
+Res0	63:28
+Enum	27:24	PAC_frac
+	0b0000	NI
 	0b0001	IMP
+EndEnum
+Enum	23:20	BC
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	19:16	MOPS
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	15:12	APA3
+	0b0000	NI
+	0b0001	PAuth
+	0b0010	EPAC
+	0b0011	PAuth2
+	0b0100	FPAC
+	0b0101	FPACCOMBINE
+EndEnum
+Enum	11:8	GPA3
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	7:4	RPRES
+	0b0000	NI
+	0b0001	IMP
+EndEnum
+Enum	3:0	WFxT
+	0b0000	NI
+	0b0010	IMP
 EndEnum
 EndSysreg
 

@@ -201,8 +201,6 @@
 #define SYS_ID_AA64AFR0_EL1		sys_reg(3, 0, 0, 5, 4)
 #define SYS_ID_AA64AFR1_EL1		sys_reg(3, 0, 0, 5, 5)
 
-#define SYS_ID_AA64ISAR2_EL1		sys_reg(3, 0, 0, 6, 2)
-
 #define SYS_ID_AA64MMFR0_EL1		sys_reg(3, 0, 0, 7, 0)
 #define SYS_ID_AA64MMFR1_EL1		sys_reg(3, 0, 0, 7, 1)
 #define SYS_ID_AA64MMFR2_EL1		sys_reg(3, 0, 0, 7, 2)
@@ -698,31 +696,6 @@
 
 /* Position the attr at the correct index */
 #define MAIR_ATTRIDX(attr, idx)		((attr) << ((idx) * 8))
-
-/* id_aa64isar2 */
-#define ID_AA64ISAR2_EL1_BC_SHIFT		28
-#define ID_AA64ISAR2_EL1_APA3_SHIFT		12
-#define ID_AA64ISAR2_EL1_GPA3_SHIFT		8
-#define ID_AA64ISAR2_EL1_RPRES_SHIFT	4
-#define ID_AA64ISAR2_EL1_WFxT_SHIFT		0
-
-/*
- * Value 0x1 has been removed from the architecture, and is
- * reserved, but has not yet been removed from the ARM ARM
- * as of ARM DDI 0487G.b.
- */
-#define ID_AA64ISAR2_EL1_WFxT_NI		0x0
-#define ID_AA64ISAR2_EL1_WFxT_IMP		0x2
-
-#define ID_AA64ISAR2_EL1_APA3_NI			0x0
-#define ID_AA64ISAR2_EL1_APA3_PAuth			0x1
-#define ID_AA64ISAR2_EL1_APA3_EPAC			0x2
-#define ID_AA64ISAR2_EL1_APA3_PAuth2			0x3
-#define ID_AA64ISAR2_EL1_APA3_FPAC			0x4
-#define ID_AA64ISAR2_EL1_APA3_FPACCOMBINE		0x5
-
-#define ID_AA64ISAR2_EL1_GPA3_NI			0x0
-#define ID_AA64ISAR2_EL1_GPA3_IMP			0x1
 
 /* id_aa64pfr0 */
 #define ID_AA64PFR0_CSV3_SHIFT		60
