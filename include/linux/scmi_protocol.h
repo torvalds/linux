@@ -624,6 +624,9 @@ struct scmi_notify_ops {
  *
  * @dev: pointer to the SCMI device
  * @version: pointer to the structure containing SCMI version information
+ * @devm_protocol_acquire: devres managed method to get hold of a protocol,
+ *			   causing its initialization and related resource
+ *			   accounting
  * @devm_protocol_get: devres managed method to acquire a protocol and get specific
  *		       operations and a dedicated protocol handler
  * @devm_protocol_put: devres managed method to release a protocol
@@ -642,6 +645,8 @@ struct scmi_handle {
 	struct device *dev;
 	struct scmi_revision_info *version;
 
+	int __must_check (*devm_protocol_acquire)(struct scmi_device *sdev,
+						  u8 proto);
 	const void __must_check *
 		(*devm_protocol_get)(struct scmi_device *sdev, u8 proto,
 				     struct scmi_protocol_handle **ph);
