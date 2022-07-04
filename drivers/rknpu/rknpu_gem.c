@@ -53,6 +53,8 @@ static int rknpu_gem_get_pages(struct rknpu_gem_object *rknpu_obj)
 			 DMA_BIDIRECTIONAL);
 	if (ret == 0) {
 		ret = -EFAULT;
+		LOG_DEV_ERROR(drm->dev, "%s: dma map %zu fail\n", __func__,
+			      rknpu_obj->base.size);
 		goto free_sgt;
 	}
 
