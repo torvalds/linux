@@ -563,7 +563,6 @@ bool run_insert_range(struct runs_tree *run, CLST vcn, CLST len)
 	e = run->runs + run->count;
 	r = run->runs + index;
 
-	r = run->runs + index;
 	if (vcn > r->vcn)
 		r += 1;
 
