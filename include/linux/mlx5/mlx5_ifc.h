@@ -1833,7 +1833,11 @@ struct mlx5_ifc_cmd_hca_cap_2_bits {
 	u8	   sw_vhca_id[0xe];
 	u8	   reserved_at_230[0x10];
 
-	u8	   reserved_at_240[0x5c0];
+	u8	   reserved_at_240[0xb];
+	u8	   ts_cqe_metadata_size2wqe_counter[0x5];
+	u8	   reserved_at_250[0x10];
+
+	u8	   reserved_at_260[0x5a0];
 };
 
 enum mlx5_ifc_flow_destination_type {
