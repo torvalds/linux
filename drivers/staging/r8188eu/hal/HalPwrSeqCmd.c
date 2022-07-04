@@ -20,19 +20,14 @@
      /*  } while (not timeout); */
 
 #define PWR_CMD_DELAY			0x03
-     /*  offset: the value to delay */
+     /*  offset: the value to delay (in us) */
      /*  msk: N/A */
-     /*  value: the unit of delay, 0: us, 1: ms */
+     /*  value: N/A */
 
 #define PWR_CMD_END			0x04
      /*  offset: N/A */
      /*  msk: N/A */
      /*  value: N/A */
-
-enum pwrseq_cmd_delat_unit {
-	PWRSEQ_DELAY_US,
-	PWRSEQ_DELAY_MS,
-};
 
 struct wl_pwr_cfg {
 	u16 offset;
@@ -79,7 +74,7 @@ static struct wl_pwr_cfg rtl8188E_enter_lps_flow[] = {
 	{ 0x05FA, PWR_CMD_POLLING, 0xFF, 0 }, /* Should be zero if no packet is transmitted */
 	{ 0x05FB, PWR_CMD_POLLING, 0xFF, 0 }, /* Should be zero if no packet is transmitted */
 	{ 0x0002, PWR_CMD_WRITE, BIT(0), 0 }, /* CCK and OFDM are disabled, clocks are gated */
-	{ 0x0002, PWR_CMD_DELAY, 0, PWRSEQ_DELAY_US },
+	{ 0x0002, PWR_CMD_DELAY, 0, 0 },
 	{ 0x0100, PWR_CMD_WRITE, 0xFF, 0x3F }, /* Reset MAC TRX */
 	{ 0x0101, PWR_CMD_WRITE, BIT(1), 0 }, /* check if removed later */
 	{ 0x0553, PWR_CMD_WRITE, BIT(5), BIT(5) }, /* Respond TxOK to scheduler */
@@ -149,10 +144,7 @@ u8 HalPwrSeqCmdParsing(struct adapter *padapter, enum r8188eu_pwr_seq seq)
 			} while (!poll_bit);
 			break;
 		case PWR_CMD_DELAY:
-			if (GET_PWR_CFG_VALUE(pwrcfgcmd) == PWRSEQ_DELAY_US)
-				udelay(GET_PWR_CFG_OFFSET(pwrcfgcmd));
-			else
-				udelay(GET_PWR_CFG_OFFSET(pwrcfgcmd) * 1000);
+			udelay(GET_PWR_CFG_OFFSET(pwrcfgcmd));
 			break;
 		case PWR_CMD_END:
 			/*  When this command is parsed, end the process */
