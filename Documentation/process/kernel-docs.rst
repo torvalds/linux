@@ -83,6 +83,18 @@ On-line docs
         Finally this trace-log is used as base for more a exact conceptual
         exploration and description of the Linux TCP/IP implementation.*
 
+    * Title: **The Linux Kernel Module Programming Guide**
+
+      :Author: Peter Jay Salzman, Michael Burian, Ori Pomerantz, Bob Mottram,
+        Jim Huang.
+      :URL: https://sysprog21.github.io/lkmpg/
+      :Date: 2021
+      :Keywords: modules, GPL book, /proc, ioctls, system calls,
+        interrupt handlers .
+      :Description: A very nice GPL book on the topic of modules
+        programming. Lots of examples. Currently the new version is being
+        actively maintained at https://github.com/sysprog21/lkmpg.
+
     * Title: **On submitting kernel Patches**
 
       :Author: Andi Kleen
@@ -125,18 +137,6 @@ On-line docs
         drivers for the Linux PCMCIA Card Services interface. It also
         describes how to write user-mode utilities for communicating with
         Card Services.
-
-    * Title: **The Linux Kernel Module Programming Guide**
-
-      :Author: Peter Jay Salzman, Michael Burian, Ori Pomerantz, Bob Mottram,
-        Jim Huang.
-      :URL: https://sysprog21.github.io/lkmpg/
-      :Date: 2021
-      :Keywords: modules, GPL book, /proc, ioctls, system calls,
-        interrupt handlers .
-      :Description: A very nice GPL book on the topic of modules
-        programming. Lots of examples. Currently the new version is being
-        actively maintained at https://github.com/sysprog21/lkmpg.
 
     * Title: **Global spinlock list and usage**
 
