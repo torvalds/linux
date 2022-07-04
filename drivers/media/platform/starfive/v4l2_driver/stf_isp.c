@@ -620,7 +620,8 @@ static void isp_try_format(struct stf_isp_dev *isp_dev,
 	}
 
 	i = isp_match_format_get_index(formats, fmt->code, pad);
-	st_debug(ST_ISP, "isp_match_format_get_index = %d\n", i);
+	st_debug(ST_ISP, "%s pad=%d, code=%x isp_match_format_get_index = %d\n",
+					__func__, pad, code, i);
 
 	if (i >= formats->nfmts &&
 		(pad == STF_ISP_PAD_SRC_RAW || pad == STF_ISP_PAD_SRC_SCD_Y)) {
@@ -759,6 +760,8 @@ static int isp_set_format(struct v4l2_subdev *sd,
 	struct v4l2_rect *rect = NULL;
 	int ret;
 
+	st_debug(ST_ISP, "%s pad=%d, code=%x, which=%d\n",
+			__func__, fmt->reserved[0], fmt->format.code, fmt->which);
 	format = __isp_get_format(isp_dev, state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;

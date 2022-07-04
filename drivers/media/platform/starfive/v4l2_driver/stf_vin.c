@@ -780,6 +780,9 @@ static int vin_set_format(struct v4l2_subdev *sd,
 	struct vin_line *line = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
 
+	st_debug(ST_VIDEO, "%s, pad %d, fmt code  %x\n",
+			__func__, fmt->pad, fmt->format.code);
+
 	format = __vin_get_format(line, state, fmt->pad, fmt->which);
 	if (format == NULL)
 		return -EINVAL;

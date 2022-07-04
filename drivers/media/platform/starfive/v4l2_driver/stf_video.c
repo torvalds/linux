@@ -872,8 +872,9 @@ static int video_g_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	struct stfcamss_video *video = video_drvdata(file);
 
 	st_debug(ST_VIDEO, "%s, fmt.type = 0x%x\n", __func__, f->type);
-	st_debug(ST_VIDEO, "%s, active_fmt.type = 0x%x\n",
-			__func__, video->active_fmt.type);
+	st_debug(ST_VIDEO, "%s, active_fmt.type = 0x%x,0x%x\n",
+			__func__, video->active_fmt.type,
+			video->active_fmt.fmt.pix.pixelformat);
 	*f = video->active_fmt;
 	return 0;
 }
@@ -915,9 +916,9 @@ static int video_entity_s_fmt(struct stfcamss_video *video,
 				mf->code = dst_code;
 			ret = v4l2_subdev_call(subdev, pad, set_fmt, state, fmt);
 			st_warn(ST_VIDEO,
-				"\"%s\":%d pad fmt set to 0x%x %ux%u, dst_code = 0x%x\n",
+				"\"%s\":%d pad fmt set to 0x%x %ux%u, dst_code = 0x%x, ret=%d\n",
 				subdev->name, fmt->pad, mf->code,
-				mf->width, mf->height, dst_code);
+				mf->width, mf->height, dst_code, ret);
 			if (mf->code != code ||
 				mf->width != width || mf->height != height) {
 				st_warn(ST_VIDEO,
@@ -1011,6 +1012,9 @@ static int video_pipeline_s_fmt(struct stfcamss_video *video,
 	index = video_find_format(mf->code,
 				video->formats[index].pixelformat,
 				video->formats, video->nformats);
+	st_debug(ST_VIDEO, "%s, code=%x, index=%d\n",
+			__func__, mf->code, index);
+
 	if (index < 0)
 		return index;
 
@@ -1033,7 +1037,8 @@ static int video_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	struct stfcamss_video *video = video_drvdata(file);
 	int ret;
 
-	st_debug(ST_VIDEO, "%s, fmt.type = 0x%x\n", __func__, f->type);
+	st_debug(ST_VIDEO, "%s, fmt.type = 0x%x, v4l2fmt=%x\n",
+			__func__, f->type, f->fmt.pix.pixelformat);
 
 	if (vb2_is_busy(&video->vb2_q))
 		return -EBUSY;
@@ -1043,6 +1048,9 @@ static int video_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 		return ret;
 
 	ret = video_pipeline_s_fmt(video, NULL, f);
+
+	st_debug(ST_VIDEO, "%s, pixelformat=0x%x, ret=%d\n",
+			__func__, f->fmt.pix.pixelformat, ret);
 	if (ret < 0)
 		return ret;
 
