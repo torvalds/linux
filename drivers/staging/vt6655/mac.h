@@ -577,7 +577,7 @@ do {								\
 	iowrite8(0, iobase + MAC_REG_PAGE1SEL);			\
 } while (0)
 
-#define MACvReadEtherAddress(iobase, mac_addr)			\
+#define vt6655_mac_read_ether_addr(iobase, mac_addr)		\
 do {								\
 	iowrite8(1, iobase + MAC_REG_PAGE1SEL);			\
 	mac_addr[0] = ioread8(iobase + MAC_REG_PAR0);		\
