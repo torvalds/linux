@@ -279,6 +279,7 @@ static int cache_shared_cpu_map_setup(unsigned int cpu)
 
 			if (i == cpu || !sib_cpu_ci->info_list)
 				continue;/* skip if itself or no cacheinfo */
+
 			sib_leaf = per_cpu_cacheinfo_idx(i, index);
 			if (cache_leaves_are_shared(this_leaf, sib_leaf)) {
 				cpumask_set_cpu(cpu, &sib_leaf->shared_cpu_map);
@@ -301,14 +302,11 @@ static void cache_shared_cpu_map_remove(unsigned int cpu)
 	for (index = 0; index < cache_leaves(cpu); index++) {
 		this_leaf = per_cpu_cacheinfo_idx(cpu, index);
 		for_each_cpu(sibling, &this_leaf->shared_cpu_map) {
-			struct cpu_cacheinfo *sib_cpu_ci;
+			struct cpu_cacheinfo *sib_cpu_ci =
+						get_cpu_cacheinfo(sibling);
 
-			if (sibling == cpu) /* skip itself */
-				continue;
-
-			sib_cpu_ci = get_cpu_cacheinfo(sibling);
-			if (!sib_cpu_ci->info_list)
-				continue;
+			if (sibling == cpu || !sib_cpu_ci->info_list)
+				continue;/* skip if itself or no cacheinfo */
 
 			sib_leaf = per_cpu_cacheinfo_idx(sibling, index);
 			cpumask_clear_cpu(cpu, &sib_leaf->shared_cpu_map);
