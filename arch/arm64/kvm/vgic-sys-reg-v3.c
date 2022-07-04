@@ -278,15 +278,21 @@ int vgic_v3_has_cpu_sysregs_attr(struct kvm_vcpu *vcpu, struct kvm_device_attr *
 	return -ENXIO;
 }
 
-int vgic_v3_cpu_sysregs_uaccess(struct kvm_vcpu *vcpu, bool is_write, u64 id,
-				u64 *reg)
+int vgic_v3_cpu_sysregs_uaccess(struct kvm_vcpu *vcpu,
+				struct kvm_device_attr *attr,
+				bool is_write)
 {
+	u64 __user *uaddr = (u64 __user *)(long)attr->addr;
 	struct sys_reg_params params;
 	const struct sys_reg_desc *r;
-	u64 sysreg = (id & KVM_DEV_ARM_VGIC_SYSREG_MASK) | KVM_REG_SIZE_U64;
+	u64 sysreg;
 
-	if (is_write)
-		params.regval = *reg;
+	sysreg = attr_to_id(attr->attr);
+
+	if (is_write) {
+		if (get_user(params.regval, uaddr))
+			return -EFAULT;
+	}
 	params.is_write = is_write;
 
 	r = find_reg_by_id(sysreg, &params, gic_v3_icc_reg_descs,
@@ -297,8 +303,10 @@ int vgic_v3_cpu_sysregs_uaccess(struct kvm_vcpu *vcpu, bool is_write, u64 id,
 	if (!r->access(vcpu, &params, r))
 		return -EINVAL;
 
-	if (!is_write)
-		*reg = params.regval;
+	if (!is_write) {
+		if (put_user(params.regval, uaddr))
+			return -EFAULT;
+	}
 
 	return 0;
 }
