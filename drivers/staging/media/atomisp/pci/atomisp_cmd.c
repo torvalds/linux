@@ -6490,7 +6490,7 @@ int atomisp_set_raw_buffer_bitmap(struct atomisp_sub_device *asd, int exp_id)
 		ret = atomisp_css_exp_id_unlock(asd, exp_id);
 		if (ret) {
 			dev_err(asd->isp->dev,
-				"%s exp_id is wrapping back to %d but force unlock failed,, err %d.\n",
+				"%s exp_id is wrapping back to %d but force unlock failed, err %d.\n",
 				__func__, exp_id, ret);
 			return ret;
 		}
