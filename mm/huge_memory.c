@@ -581,7 +581,7 @@ static inline struct deferred_split *get_deferred_split_queue(struct page *page)
 void prep_transhuge_page(struct page *page)
 {
 	/*
-	 * we use page->mapping and page->indexlru in second tail page
+	 * we use page->mapping and page->index in second tail page
 	 * as list_head: assuming THP order >= 2
 	 */
 
