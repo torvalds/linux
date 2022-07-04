@@ -23,6 +23,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/reset.h>
 #include <crypto/hash.h>
+#include <crypto/gcm.h>
 
 #include <linux/dma-direct.h>
 #include <crypto/scatterwalk.h>
@@ -34,28 +35,28 @@
 #include "jh7110-str.h"
 
 /* Mode mask = bits [3..0] */
-#define FLG_MODE_MASK					GENMASK(2, 0)
+#define FLG_MODE_MASK				GENMASK(2, 0)
 
 /* Bit [4] encrypt / decrypt */
-#define FLG_ENCRYPT						BIT(4)
+#define FLG_ENCRYPT				BIT(4)
 
 /* Bit [31..16] status  */
-#define FLG_CCM_PADDED_WA				BIT(5)
+#define FLG_CCM_PADDED_WA			BIT(5)
 
-#define SR_BUSY							0x00000010
-#define SR_OFNE							0x00000004
+#define SR_BUSY					0x00000010
+#define SR_OFNE					0x00000004
 
-#define IMSCR_IN						BIT(0)
-#define IMSCR_OUT						BIT(1)
+#define IMSCR_IN				BIT(0)
+#define IMSCR_OUT				BIT(1)
 
-#define MISR_IN							BIT(0)
-#define MISR_OUT						BIT(1)
+#define MISR_IN					BIT(0)
+#define MISR_OUT				BIT(1)
 
 /* Misc */
-#define AES_BLOCK_32					(AES_BLOCK_SIZE / sizeof(u32))
-#define GCM_CTR_INIT					1
-#define _walked_in						(cryp->in_walk.offset - cryp->in_sg->offset)
-#define _walked_out						(cryp->out_walk.offset - cryp->out_sg->offset)
+#define AES_BLOCK_32				(AES_BLOCK_SIZE / sizeof(u32))
+#define GCM_CTR_INIT				1
+#define _walked_in				(cryp->in_walk.offset - cryp->in_sg->offset)
+#define _walked_out				(cryp->out_walk.offset - cryp->out_sg->offset)
 #define CRYP_AUTOSUSPEND_DELAY			50
 
 static inline int jh7110_aes_wait_busy(struct jh7110_sec_ctx *ctx)
@@ -185,9 +186,12 @@ static inline void jh7110_aes_csr_setup(struct jh7110_sec_ctx *ctx)
 	}
 	rctx->csr.aes_csr.mode  = rctx->flags & FLG_MODE_MASK;
 	rctx->csr.aes_csr.cmode = is_decrypt(rctx);
-	if (!ctx->sdev->use_dma || is_ccm(rctx) || is_gcm(rctx))
-		rctx->csr.aes_csr.aesie = 1;
 	rctx->csr.aes_csr.stream_mode = rctx->stmode;
+
+	if (ctx->sdev->use_side_channel_mitigation) {
+		rctx->csr.aes_csr.delay_aes = 1;
+		rctx->csr.aes_csr.vaes_start = 1;
+	}
 
 	if (jh7110_aes_wait_busy(ctx)) {
 		dev_err(ctx->sdev->dev, "reset error\n");
@@ -200,8 +204,12 @@ static inline void jh7110_aes_csr_setup(struct jh7110_sec_ctx *ctx)
 static inline void jh7110_aes_set_ivlen(struct jh7110_sec_ctx *ctx)
 {
 	struct jh7110_sec_dev *sdev = ctx->sdev;
+	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
 
-	jh7110_sec_write(sdev, JH7110_AES_IVLEN, 0x40);
+	if (is_gcm(rctx))
+		jh7110_sec_write(sdev, JH7110_AES_IVLEN, GCM_AES_IV_SIZE);
+	else
+		jh7110_sec_write(sdev, JH7110_AES_IVLEN, AES_BLOCK_SIZE);
 }
 
 static inline void jh7110_aes_set_alen(struct jh7110_sec_ctx *ctx)
@@ -216,39 +224,42 @@ static inline void jh7110_aes_set_mlen(struct jh7110_sec_ctx *ctx)
 {
 	struct jh7110_sec_dev *sdev = ctx->sdev;
 	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
-	size_t data_len = rctx->total_in - rctx->assoclen;
+	size_t data_len;
+
+	if (is_encrypt(rctx))
+		data_len = rctx->total_in - rctx->assoclen;
+	else
+		data_len = rctx->total_in - rctx->assoclen - rctx->authsize;
 
 	jh7110_sec_write(sdev, JH7110_AES_MLEN0, (data_len >> 32) & 0xffffffff);
 	jh7110_sec_write(sdev, JH7110_AES_MLEN1, data_len & 0xffffffff);
 }
 
-static void jh7110_cryp_hw_write_iv(struct jh7110_sec_ctx *ctx, u32 *iv)
+static int jh7110_cryp_hw_write_iv(struct jh7110_sec_ctx *ctx, u32 *iv)
 {
 	struct jh7110_sec_dev *sdev = ctx->sdev;
-	int loop;
+	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
 
 	if (!iv)
-		return;
-
-	for (loop = 0; loop < 4; loop++)
-		dev_dbg(sdev->dev, "iv[%d] = %x\n", loop, iv[loop]);
+		return -EINVAL;
 
 	jh7110_sec_write(sdev, JH7110_AES_IV0, iv[0]);
 	jh7110_sec_write(sdev, JH7110_AES_IV1, iv[1]);
 	jh7110_sec_write(sdev, JH7110_AES_IV2, iv[2]);
-	jh7110_sec_write(sdev, JH7110_AES_IV3, iv[3]);
+
+	if (!is_gcm(rctx))
+		jh7110_sec_write(sdev, JH7110_AES_IV3, iv[3]);
+
+	if (is_gcm(rctx))
+		if (jh7110_aes_wait_gcmdone(ctx))
+			return -ETIMEDOUT;
+
+	return 0;
 }
 
 static void jh7110_cryp_hw_write_ctr(struct jh7110_sec_ctx *ctx, u32 *ctr)
 {
 	struct jh7110_sec_dev *sdev = ctx->sdev;
-	int loop;
-
-	if (!ctr)
-		return;
-
-	for (loop = 0; loop < 4; loop++)
-		dev_dbg(sdev->dev, "ctr[%d] = %x\n", loop, ctr[loop]);
 
 	jh7110_sec_write(sdev, JH7110_AES_NONCE0, ctr[0]);
 	jh7110_sec_write(sdev, JH7110_AES_NONCE1, ctr[1]);
@@ -304,12 +315,15 @@ static unsigned int jh7110_cryp_get_input_text_len(struct jh7110_sec_ctx *ctx)
 static int jh7110_cryp_gcm_init(struct jh7110_sec_ctx *ctx)
 {
 	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
-
+	int ret;
 	/* Phase 1 : init */
 	memcpy(rctx->last_ctr, rctx->req.areq->iv, 12);
-	rctx->last_ctr[3] = cpu_to_be32(GCM_CTR_INIT);
 
-	jh7110_cryp_hw_write_iv(ctx, (u32 *)rctx->last_ctr);
+	ret = jh7110_cryp_hw_write_iv(ctx, (u32 *)rctx->last_ctr);
+
+	if (ret)
+		return ret;
+
 	return 0;
 }
 
@@ -369,7 +383,6 @@ static int jh7110_cryp_hw_init(struct jh7110_sec_ctx *ctx)
 		jh7110_aes_set_mlen(ctx);
 		jh7110_aes_set_ivlen(ctx);
 		ret = jh7110_cryp_hw_write_key(ctx);
-
 		jh7110_aes_xcm_start(ctx, hw_mode);
 
 		if (jh7110_aes_wait_gcmdone(ctx))
@@ -386,7 +399,7 @@ static int jh7110_cryp_hw_init(struct jh7110_sec_ctx *ctx)
 		memset((void *)rctx->last_ctr, 0, sizeof(rctx->last_ctr));
 		jh7110_aes_set_alen(ctx);
 		jh7110_aes_set_mlen(ctx);
-		jh7110_aes_set_ivlen(ctx);
+
 		/* Phase 1 : init */
 		jh7110_cryp_ccm_init(ctx);
 
@@ -404,8 +417,9 @@ static int jh7110_cryp_hw_init(struct jh7110_sec_ctx *ctx)
 				rctx->aes_iv[loop] = (rctx->msg_end[loop]) ^ (rctx->dec_end[loop]);
 		} else
 			memcpy((void *)rctx->aes_iv, (void *)rctx->req.sreq->iv, JH7110_AES_IV_LEN);
-		jh7110_cryp_hw_write_iv(ctx, (u32 *)rctx->aes_iv);
-
+		ret = jh7110_cryp_hw_write_iv(ctx, (u32 *)rctx->aes_iv);
+		if (ret)
+			break;
 		ret = jh7110_cryp_hw_write_key(ctx);
 		ctx->sec_init = 1;
 		break;
@@ -415,8 +429,9 @@ static int jh7110_cryp_hw_init(struct jh7110_sec_ctx *ctx)
 			memcpy((void *)rctx->aes_iv, (void *)rctx->dec_end, JH7110_AES_IV_LEN);
 		else
 			memcpy((void *)rctx->aes_iv, (void *)rctx->req.sreq->iv, JH7110_AES_IV_LEN);
-		jh7110_cryp_hw_write_iv(ctx, (u32 *)rctx->aes_iv);
-
+		ret = jh7110_cryp_hw_write_iv(ctx, (u32 *)rctx->aes_iv);
+		if (ret)
+			break;
 		ret = jh7110_cryp_hw_write_key(ctx);
 		ctx->sec_init = 1;
 		break;
@@ -425,7 +440,9 @@ static int jh7110_cryp_hw_init(struct jh7110_sec_ctx *ctx)
 			memcpy((void *)rctx->aes_iv, (void *)rctx->dec_end, JH7110_AES_IV_LEN);
 		else
 			memcpy((void *)rctx->aes_iv, (void *)rctx->req.sreq->iv, JH7110_AES_IV_LEN);
-		jh7110_cryp_hw_write_iv(ctx, (u32 *)rctx->aes_iv);
+		ret = jh7110_cryp_hw_write_iv(ctx, (u32 *)rctx->aes_iv);
+		if (ret)
+			break;
 		memcpy((void *)rctx->last_ctr, (void *)rctx->aes_iv, JH7110_AES_IV_LEN);
 		ret = jh7110_cryp_hw_write_key(ctx);
 		ctx->sec_init = 1;
@@ -483,23 +500,31 @@ static int jh7110_cryp_read_auth_tag(struct jh7110_sec_ctx *ctx)
 {
 	struct jh7110_sec_dev *sdev = ctx->sdev;
 	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
-	int loop;
-	int err = 0;
+	int loop, total_len, start_addr;
+
+	total_len = rctx->authsize / sizeof(u32);
+
+	start_addr = JH7110_AES_NONCE0;
 
 	if (jh7110_aes_wait_busy(ctx))
 		return -EBUSY;
 
-	for (loop = 0; loop < 3 + rctx->authsize / 4; loop++) {
-		rctx->aes_nonce[loop] = jh7110_sec_read(sdev, JH7110_AES_AESDIO0R);
-		dev_dbg(sdev->dev, "aes_auth[%d] = %x\n", loop, rctx->aes_nonce[loop]);
-	}
+	if (is_gcm(rctx))
+		for (loop = 0; loop < total_len; loop++, start_addr += 4)
+			rctx->aes_nonce[loop] = jh7110_sec_read(sdev, start_addr);
+	else
+		for (loop = 0; loop < total_len; loop++)
+			rctx->aes_nonce[loop] = jh7110_sec_read(sdev, JH7110_AES_AESDIO0R);
 
-	if (is_encrypt(rctx)) {
+	if (is_encrypt(rctx))
 		sg_copy_buffer(rctx->out_sg, sg_nents(rctx->out_sg), rctx->aes_nonce,
-			       rctx->authsize, rctx->offset, 0);
-	}
+				rctx->authsize, rctx->offset, 0);
+	else
+		for (loop = 0; loop < total_len; loop++)
+			if (rctx->aead_tag[loop] != rctx->aes_nonce[loop])
+				return -EBADMSG;
 
-	return err;
+	return 0;
 }
 
 static int jh7110_gcm_zero_message_data(struct jh7110_sec_ctx *ctx);
@@ -698,6 +723,7 @@ static int jh7110_cryp_write_out_dma(struct jh7110_sec_ctx *ctx)
 
 	alg_cr.v = 0;
 	alg_cr.clear = 1;
+
 	jh7110_sec_write(sdev, JH7110_ALG_CR_OFFSET, alg_cr.v);
 
 	return 0;
@@ -719,48 +745,37 @@ static int jh7110_cryp_write_out_cpu(struct jh7110_sec_ctx *ctx)
 		for (loop = 0; loop < 4; loop++, buffer++)
 			jh7110_sec_write(sdev, JH7110_AES_AESDIO0R, *buffer);
 		if (jh7110_aes_wait_busy(ctx)) {
-			dev_err(sdev->dev, "jh7110_hash_wait_busy error\n");
+			dev_err(sdev->dev, "jh7110_aes_wait_busy error\n");
 			return -ETIMEDOUT;
 		}
 
-		for (loop = 0; loop < 4; loop++, out++) {
+		for (loop = 0; loop < 4; loop++, out++)
 			*out = jh7110_sec_read(sdev, JH7110_AES_AESDIO0R);
-			dev_dbg(sdev->dev, "aes_sec_read[%d] = %x\n", loop, *out);
-		}
+
 		total_len -= 16;
 	}
 
 	if (total_len > 0) {
 		mlen = total_len;
+
 		for (; total_len >= 4; total_len -= 4, buffer++)
 			jh7110_sec_write(sdev, JH7110_AES_AESDIO0R, *buffer);
 
 		ci = (unsigned char *)buffer;
 		for (; total_len > 0; total_len--, ci++)
 			jh7110_sec_writeb(sdev, JH7110_AES_AESDIO0R, *ci);
+
 		if (jh7110_aes_wait_busy(ctx)) {
-			dev_err(sdev->dev, "jh7110_hash_wait_busy error\n");
+			dev_err(sdev->dev, "jh7110_aes_wait_busy error\n");
 			return -ETIMEDOUT;
 		}
-		for (; mlen >= 4; mlen -= 4, out++) {
+
+		for (; mlen >= 4; mlen -= 4, out++)
 			*out = jh7110_sec_read(sdev, JH7110_AES_AESDIO0R);
-			dev_dbg(sdev->dev, "aes_sec_read(mlen)[%d] = %x\n", loop, *out);
-		}
+
 		co = (unsigned char *)out;
-		for (; mlen > 0; mlen--, co++) {
+		for (; mlen > 0; mlen--, co++)
 			*co = jh7110_sec_readb(sdev, JH7110_AES_AESDIO0R);
-			dev_dbg(sdev->dev, "aes_sec_read(co)[%d] = %x\n", loop, *co);
-		}
-	}
-
-	if (is_ccm(rctx)) {
-		if (jh7110_aes_wait_busy(ctx))
-			return -EBUSY;
-
-		for (loop = 0; loop < 3 + rctx->authsize / 4; loop++) {
-			rctx->aes_nonce[loop] = jh7110_sec_read(sdev, JH7110_AES_AESDIO0R);
-			dev_dbg(sdev->dev, "aes_auth[%d] = %x\n", loop, rctx->aes_nonce[loop]);
-		}
 	}
 
 	if (rctx->bufcnt >= rctx->total_out)
@@ -783,9 +798,6 @@ static int jh7110_cryp_write_out_cpu(struct jh7110_sec_ctx *ctx)
 		       JH7110_AES_IV_LEN);
 
 	out = (unsigned int *)(sdev->aes_data + (JH7110_MSG_BUFFER_SIZE >> 1));
-
-	for (loop = 0; loop < rctx->bufcnt >> 2; loop++)
-		dev_dbg(sdev->dev, "aes_out[%d] = %x\n", loop, out[loop]);
 
 	return 0;
 }
@@ -812,23 +824,6 @@ static int jh7110_cryp_write_data(struct jh7110_sec_ctx *ctx)
 	rctx->offset = 0;
 	rctx->data_offset = 0;
 
-	if (is_ccm(rctx)) {
-		int index = AES_BLOCK_SIZE;
-
-		if (rctx->assoclen <= 65280) {
-			((u8 *)sdev->aes_data)[index] = (rctx->assoclen >> 8) & 0xff;
-			((u8 *)sdev->aes_data)[index + 1] = rctx->assoclen  & 0xff;
-			rctx->data_offset = index + 2;
-		} else {
-			((u8 *)sdev->aes_data)[index] = 0xff;
-			((u8 *)sdev->aes_data)[index + 1] = 0xfe;
-			((u8 *)sdev->aes_data)[index + 2] = rctx->assoclen & 0xFF000000;
-			((u8 *)sdev->aes_data)[index + 3] = rctx->assoclen & 0x00FF0000;
-			((u8 *)sdev->aes_data)[index + 4] = rctx->assoclen & 0x0000FF00;
-			((u8 *)sdev->aes_data)[index + 5] = rctx->assoclen & 0x000000FF;
-			rctx->data_offset = index + 6;
-		}
-	}
 	data_offset = rctx->data_offset;
 	while (total < rctx->total_in) {
 		data_buf_len = sdev->data_buf_len - (sdev->data_buf_len % ctx->keylen) - data_offset;
@@ -871,7 +866,34 @@ static int jh7110_cryp_write_data(struct jh7110_sec_ctx *ctx)
 	return ret;
 }
 
-static int jh7110_cryp_write_aad(struct jh7110_sec_ctx *ctx)
+static int jh7110_cryp_gcm_write_aad(struct jh7110_sec_ctx *ctx)
+{
+	struct jh7110_sec_dev *sdev = ctx->sdev;
+	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
+	unsigned int *buffer;
+	int total_len, loop;
+
+	total_len = rctx->assoclen / sizeof(u32);
+	buffer = (unsigned int *)sdev->aes_data;
+
+	for (loop = 0; loop < total_len; loop += 4) {
+		jh7110_sec_write(sdev, JH7110_AES_NONCE0, *buffer);
+		buffer++;
+		jh7110_sec_write(sdev, JH7110_AES_NONCE1, *buffer);
+		buffer++;
+		jh7110_sec_write(sdev, JH7110_AES_NONCE2, *buffer);
+		buffer++;
+		jh7110_sec_write(sdev, JH7110_AES_NONCE3, *buffer);
+		buffer++;
+	}
+
+	if (jh7110_aes_wait_gcmdone(ctx))
+		return -ETIMEDOUT;
+
+	return 0;
+}
+
+static int jh7110_cryp_ccm_write_aad(struct jh7110_sec_ctx *ctx)
 {
 	struct jh7110_sec_dev *sdev = ctx->sdev;
 	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
@@ -894,31 +916,18 @@ static int jh7110_cryp_write_aad(struct jh7110_sec_ctx *ctx)
 		jh7110_sec_write(sdev, JH7110_AES_AESDIO0R, *buffer);
 
 	if (jh7110_aes_wait_busy(ctx)) {
-		dev_err(sdev->dev, "jh7110_hash_wait_busy error\n");
+		dev_err(sdev->dev, "jh7110_aes_wait_busy error\n");
 		return -ETIMEDOUT;
 	}
 	total_len -= 12;
-	for (loop = 0; loop < 4; loop++, out++) {
-		unsigned int tmp;
-
-		tmp = jh7110_sec_read(sdev, JH7110_AES_AESDIO0R);
-		dev_dbg(sdev->dev, "aes_aad_read[%d] = %x\n", loop, tmp);
-	}
 
 	while (total_len >= 16) {
 		for (loop = 0; loop < 4; loop++, buffer++)
 			jh7110_sec_write(sdev, JH7110_AES_AESDIO0R, *buffer);
 
 		if (jh7110_aes_wait_busy(ctx)) {
-			dev_err(sdev->dev, "jh7110_hash_wait_busy error\n");
+			dev_err(sdev->dev, "jh7110_aes_wait_busy error\n");
 			return -ETIMEDOUT;
-		}
-
-		for (loop = 0; loop < 4; loop++, out++) {
-			unsigned int tmp;
-
-			tmp = jh7110_sec_read(sdev, JH7110_AES_AESDIO0R);
-			dev_dbg(sdev->dev, "aes_aad_read[%d] = %x\n", loop, tmp);
 		}
 		total_len -= 16;
 	}
@@ -933,13 +942,13 @@ static int jh7110_cryp_write_aad(struct jh7110_sec_ctx *ctx)
 			jh7110_sec_writeb(sdev, JH7110_AES_AESDIO0R, *ci);
 
 		if (jh7110_aes_wait_busy(ctx)) {
-			dev_err(sdev->dev, "jh7110_hash_wait_busy error\n");
+			dev_err(sdev->dev, "jh7110_aes_wait_busy error\n");
 			return -ETIMEDOUT;
 		}
 	}
 
 	if (jh7110_aes_wait_busy(ctx)) {
-		dev_err(sdev->dev, "jh7110_hash_wait_busy error\n");
+		dev_err(sdev->dev, "jh7110_aes_wait_busy error\n");
 		return -ETIMEDOUT;
 	}
 
@@ -991,7 +1000,10 @@ static int jh7110_cryp_xcm_write_data(struct jh7110_sec_ctx *ctx)
 		rctx->bufcnt = data_len;
 
 		total += data_len;
-		ret = jh7110_cryp_write_aad(ctx);
+		if (is_ccm(rctx))
+			ret = jh7110_cryp_ccm_write_aad(ctx);
+		else
+			ret = jh7110_cryp_gcm_write_aad(ctx);
 	}
 
 	total = 0;
@@ -1004,7 +1016,6 @@ static int jh7110_cryp_xcm_write_data(struct jh7110_sec_ctx *ctx)
 		if (is_encrypt(rctx))
 			count = min(count, rctx->total_in - rctx->assoclen - total);
 		else {
-			//count = min (count, rctx->total_in - rctx->assoclen - total);
 			count = min(count, rctx->total_in - rctx->assoclen - total - rctx->authsize);
 			auths = rctx->authsize;
 		}
@@ -1237,7 +1248,7 @@ static int jh7110_cryp_aes_aead_setkey(struct crypto_aead *tfm, const u8 *key,
 static int jh7110_cryp_aes_gcm_setauthsize(struct crypto_aead *tfm,
 					  unsigned int authsize)
 {
-	return authsize == AES_BLOCK_SIZE ? 0 : -EINVAL;
+	return crypto_gcm_check_authsize(authsize);
 }
 
 static int jh7110_cryp_aes_ccm_setauthsize(struct crypto_aead *tfm,
@@ -1413,17 +1424,9 @@ static int jh7110_cryp_prepare_req(struct skcipher_request *req,
 		ret = rctx->out_sg_len;
 		goto out;
 	}
-	if (1) {
-		int loop;
-		u32 idigest[SHA512_DIGEST_SIZE / sizeof(u32)];
-
-		scatterwalk_map_and_copy(idigest, rctx->req.areq->src, rctx->total_in - rctx->authsize,
-					 rctx->authsize, 0);
-		for (loop = 0; loop < rctx->authsize / 4; loop++) {
-			dev_dbg(sdev->dev, "idigest[%d] = %x\n",
-				   loop, idigest[loop]);
-		}
-	}
+	if (!is_encrypt(rctx))
+		scatterwalk_map_and_copy(rctx->aead_tag, rctx->req.areq->src,
+				rctx->total_in - rctx->authsize, rctx->authsize, 0);
 
 	ret = jh7110_cryp_hw_init(ctx);
 	if (ret)
@@ -1602,7 +1605,7 @@ static struct aead_alg aead_algs[] = {
 	.decrypt	                = jh7110_cryp_aes_gcm_decrypt,
 	.init		                = jh7110_cryp_aes_aead_init,
 	.exit		                = jh7110_cryp_aes_aead_exit,
-	.ivsize		                = 12,
+	.ivsize		                = GCM_AES_IV_SIZE,
 	.maxauthsize	                = AES_BLOCK_SIZE,
 
 	.base = {
