@@ -208,10 +208,11 @@ static int fops_vcodec_open(struct file *file)
 
 		dev->dec_capability =
 			mtk_vcodec_fw_get_vdec_capa(dev->fw_handler);
-		ctx->dev->vdec_pdata->init_vdec_params(ctx);
 
 		mtk_v4l2_debug(0, "decoder capability %x", dev->dec_capability);
 	}
+
+	ctx->dev->vdec_pdata->init_vdec_params(ctx);
 
 	list_add(&ctx->list, &dev->ctx_list);
 
