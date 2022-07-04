@@ -7730,7 +7730,8 @@ u16 mlxsw_sp_rif_vid(struct mlxsw_sp *mlxsw_sp, const struct net_device *dev)
 	/* We only return the VID for VLAN RIFs. Otherwise we return an
 	 * invalid value (0).
 	 */
-	if (rif->ops->type != MLXSW_SP_RIF_TYPE_VLAN_EMU)
+	if (rif->ops->type != MLXSW_SP_RIF_TYPE_VLAN_EMU &&
+	    rif->ops->type != MLXSW_SP_RIF_TYPE_VLAN)
 		goto out;
 
 	vid = mlxsw_sp_fid_8021q_vid(rif->fid);
