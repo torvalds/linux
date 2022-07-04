@@ -1909,7 +1909,9 @@ in_root:
 		return ERR_PTR(-ECHILD);
 	if (unlikely(nd->flags & LOOKUP_BENEATH))
 		return ERR_PTR(-ECHILD);
-	return NULL;
+	*seqp = nd->seq;
+	*inodep = nd->path.dentry->d_inode;
+	return nd->path.dentry;
 }
 
 static struct dentry *follow_dotdot(struct nameidata *nd,
@@ -1945,8 +1947,9 @@ static struct dentry *follow_dotdot(struct nameidata *nd,
 in_root:
 	if (unlikely(nd->flags & LOOKUP_BENEATH))
 		return ERR_PTR(-EXDEV);
-	dget(nd->path.dentry);
-	return NULL;
+	*seqp = 0;
+	*inodep = nd->path.dentry->d_inode;
+	return dget(nd->path.dentry);
 }
 
 static const char *handle_dots(struct nameidata *nd, int type)
@@ -1968,12 +1971,7 @@ static const char *handle_dots(struct nameidata *nd, int type)
 			parent = follow_dotdot(nd, &inode, &seq);
 		if (IS_ERR(parent))
 			return ERR_CAST(parent);
-		if (unlikely(!parent))
-			error = step_into(nd, WALK_NOFOLLOW,
-					 nd->path.dentry, nd->inode, nd->seq);
-		else
-			error = step_into(nd, WALK_NOFOLLOW,
-					 parent, inode, seq);
+		error = step_into(nd, WALK_NOFOLLOW, parent, inode, seq);
 		if (unlikely(error))
 			return error;
 
