@@ -29,7 +29,6 @@ u16 ifcvf_set_config_vector(struct ifcvf_hw *hw, int vector)
 {
 	struct virtio_pci_common_cfg __iomem *cfg = hw->common_cfg;
 
-	cfg = hw->common_cfg;
 	vp_iowrite16(vector,  &cfg->msix_config);
 
 	return vp_ioread16(&cfg->msix_config);
