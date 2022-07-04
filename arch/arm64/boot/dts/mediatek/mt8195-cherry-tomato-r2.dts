@@ -1,0 +1,11 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+/*
+ * Copyright (C) 2021 MediaTek Inc.
+ */
+/dts-v1/;
+#include "mt8195-cherry.dtsi"
+
+/ {
+	model = "Acer Tomato (rev2) board";
+	compatible = "google,tomato-rev2", "google,tomato", "mediatek,mt8195";
+};
