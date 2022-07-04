@@ -529,3 +529,8 @@ Field	51:48	EA_51_48
 Field	47:16	EA_47_16
 Res0	15:0
 EndSysreg
+
+Sysreg	LORN_EL1	3	0	10	4	2
+Res0	63:8
+Field	7:0	Num
+EndSysreg
