@@ -75,8 +75,8 @@ static const struct ftr_set_desc isar2 __initconst = {
 	.name		= "id_aa64isar2",
 	.override	= &id_aa64isar2_override,
 	.fields		= {
-		{ "gpa3", ID_AA64ISAR2_GPA3_SHIFT },
-		{ "apa3", ID_AA64ISAR2_APA3_SHIFT },
+		{ "gpa3", ID_AA64ISAR2_EL1_GPA3_SHIFT },
+		{ "apa3", ID_AA64ISAR2_EL1_APA3_SHIFT },
 		{}
 	},
 };

@@ -186,8 +186,8 @@ static u64 get_pvm_id_aa64isar2(const struct kvm_vcpu *vcpu)
 	u64 allow_mask = PVM_ID_AA64ISAR2_ALLOW;
 
 	if (!vcpu_has_ptrauth(vcpu))
-		allow_mask &= ~(ARM64_FEATURE_MASK(ID_AA64ISAR2_APA3) |
-				ARM64_FEATURE_MASK(ID_AA64ISAR2_GPA3));
+		allow_mask &= ~(ARM64_FEATURE_MASK(ID_AA64ISAR2_EL1_APA3) |
+				ARM64_FEATURE_MASK(ID_AA64ISAR2_EL1_GPA3));
 
 	return id_aa64isar2_el1_sys_val & allow_mask;
 }
