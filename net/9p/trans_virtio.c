@@ -199,7 +199,7 @@ static int p9_virtio_cancel(struct p9_client *client, struct p9_req_t *req)
 /* Reply won't come, so drop req ref */
 static int p9_virtio_cancelled(struct p9_client *client, struct p9_req_t *req)
 {
-	p9_req_put(req);
+	p9_req_put(client, req);
 	return 0;
 }
 
@@ -523,7 +523,7 @@ err_out:
 	kvfree(out_pages);
 	if (!kicked) {
 		/* reply won't come */
-		p9_req_put(req);
+		p9_req_put(client, req);
 	}
 	return err;
 }

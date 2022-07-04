@@ -237,7 +237,7 @@ static inline int p9_req_try_get(struct p9_req_t *r)
 	return refcount_inc_not_zero(&r->refcount);
 }
 
-int p9_req_put(struct p9_req_t *r);
+int p9_req_put(struct p9_client *c, struct p9_req_t *r);
 
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status);
 
