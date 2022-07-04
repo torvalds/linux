@@ -137,6 +137,7 @@ struct rockchip_dmcfreq {
 	unsigned long video_4k_10b_rate;
 	unsigned long performance_rate;
 	unsigned long hdmi_rate;
+	unsigned long hdmirx_rate;
 	unsigned long idle_rate;
 	unsigned long suspend_rate;
 	unsigned long reboot_rate;
@@ -2285,6 +2286,9 @@ static int rockchip_get_system_status_rate(struct device_node *np,
 		case SYS_STATUS_HDMI:
 			dmcfreq->hdmi_rate = freq * 1000;
 			break;
+		case SYS_STATUS_HDMIRX:
+			dmcfreq->hdmirx_rate = freq * 1000;
+			break;
 		case SYS_STATUS_IDLE:
 			dmcfreq->idle_rate = freq * 1000;
 			break;
@@ -2429,6 +2433,10 @@ static int rockchip_get_system_status_level(struct device_node *np,
 			dmcfreq->hdmi_rate = rockchip_freq_level_2_rate(dmcfreq, level);
 			dev_info(dmcfreq->dev, "hdmi_rate = %ld\n", dmcfreq->hdmi_rate);
 			break;
+		case SYS_STATUS_HDMIRX:
+			dmcfreq->hdmirx_rate = rockchip_freq_level_2_rate(dmcfreq, level);
+			dev_info(dmcfreq->dev, "hdmirx_rate = %ld\n", dmcfreq->hdmirx_rate);
+			break;
 		case SYS_STATUS_IDLE:
 			dmcfreq->idle_rate = rockchip_freq_level_2_rate(dmcfreq, level);
 			dev_info(dmcfreq->dev, "idle_rate = %ld\n", dmcfreq->idle_rate);
@@ -2517,6 +2525,11 @@ static int rockchip_dmcfreq_system_status_notifier(struct notifier_block *nb,
 	if (dmcfreq->hdmi_rate && (status & SYS_STATUS_HDMI)) {
 		if (dmcfreq->hdmi_rate > target_rate)
 			target_rate = dmcfreq->hdmi_rate;
+	}
+
+	if (dmcfreq->hdmirx_rate && (status & SYS_STATUS_HDMIRX)) {
+		if (dmcfreq->hdmirx_rate > target_rate)
+			target_rate = dmcfreq->hdmirx_rate;
 	}
 
 	if (dmcfreq->video_4k_rate && (status & SYS_STATUS_VIDEO_4K)) {
