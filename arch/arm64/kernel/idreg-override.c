@@ -53,7 +53,7 @@ static const struct ftr_set_desc pfr1 __initconst = {
 	.name		= "id_aa64pfr1",
 	.override	= &id_aa64pfr1_override,
 	.fields		= {
-	        { "bt", ID_AA64PFR1_BT_SHIFT },
+		{ "bt", ID_AA64PFR1_BT_SHIFT },
 		{ "mte", ID_AA64PFR1_MTE_SHIFT},
 		{}
 	},
@@ -63,10 +63,10 @@ static const struct ftr_set_desc isar1 __initconst = {
 	.name		= "id_aa64isar1",
 	.override	= &id_aa64isar1_override,
 	.fields		= {
-	        { "gpi", ID_AA64ISAR1_GPI_SHIFT },
-	        { "gpa", ID_AA64ISAR1_GPA_SHIFT },
-	        { "api", ID_AA64ISAR1_API_SHIFT },
-	        { "apa", ID_AA64ISAR1_APA_SHIFT },
+		{ "gpi", ID_AA64ISAR1_GPI_SHIFT },
+		{ "gpa", ID_AA64ISAR1_GPA_SHIFT },
+		{ "api", ID_AA64ISAR1_API_SHIFT },
+		{ "apa", ID_AA64ISAR1_APA_SHIFT },
 		{}
 	},
 };
@@ -75,8 +75,8 @@ static const struct ftr_set_desc isar2 __initconst = {
 	.name		= "id_aa64isar2",
 	.override	= &id_aa64isar2_override,
 	.fields		= {
-	        { "gpa3", ID_AA64ISAR2_GPA3_SHIFT },
-	        { "apa3", ID_AA64ISAR2_APA3_SHIFT },
+		{ "gpa3", ID_AA64ISAR2_GPA3_SHIFT },
+		{ "apa3", ID_AA64ISAR2_APA3_SHIFT },
 		{}
 	},
 };
