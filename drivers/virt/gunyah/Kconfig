@@ -1,5 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+config GH_PROXY_SCHED
+	tristate "PROXY Scheduling for Secondary VMs"
+	depends on GUNYAH
+	help
+	  Gunyah Proxy Scheduler provides framework to schedule/run VCPUs
+	  of Secondary VMs by exposing required functionality which can be
+	  invoked by the Gunyah driver. Gunyah Proxy Scheduler communicates
+	  with Gunyah hypervisor to run the VCPUs as needed.
+
 menuconfig GUNYAH_DRIVERS
 	bool "Gunyah Virtualization drivers"
 	depends on ARM64
