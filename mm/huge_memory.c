@@ -1184,15 +1184,15 @@ out:
 
 #ifdef CONFIG_HAVE_ARCH_TRANSPARENT_HUGEPAGE_PUD
 static void touch_pud(struct vm_area_struct *vma, unsigned long addr,
-		pud_t *pud, int flags)
+		      pud_t *pud, bool write)
 {
 	pud_t _pud;
 
 	_pud = pud_mkyoung(*pud);
-	if (flags & FOLL_WRITE)
+	if (write)
 		_pud = pud_mkdirty(_pud);
 	if (pudp_set_access_flags(vma, addr & HPAGE_PUD_MASK,
-				pud, _pud, flags & FOLL_WRITE))
+				  pud, _pud, write))
 		update_mmu_cache_pud(vma, addr, pud);
 }
 
@@ -1219,7 +1219,7 @@ struct page *follow_devmap_pud(struct vm_area_struct *vma, unsigned long addr,
 		return NULL;
 
 	if (flags & FOLL_TOUCH)
-		touch_pud(vma, addr, pud, flags);
+		touch_pud(vma, addr, pud, flags & FOLL_WRITE);
 
 	/*
 	 * device mapped pages can only be returned if the
@@ -1284,21 +1284,13 @@ out_unlock:
 
 void huge_pud_set_accessed(struct vm_fault *vmf, pud_t orig_pud)
 {
-	pud_t entry;
-	unsigned long haddr;
 	bool write = vmf->flags & FAULT_FLAG_WRITE;
 
 	vmf->ptl = pud_lock(vmf->vma->vm_mm, vmf->pud);
 	if (unlikely(!pud_same(*vmf->pud, orig_pud)))
 		goto unlock;
 
-	entry = pud_mkyoung(orig_pud);
-	if (write)
-		entry = pud_mkdirty(entry);
-	haddr = vmf->address & HPAGE_PUD_MASK;
-	if (pudp_set_access_flags(vmf->vma, haddr, vmf->pud, entry, write))
-		update_mmu_cache_pud(vmf->vma, vmf->address, vmf->pud);
-
+	touch_pud(vmf->vma, vmf->address, vmf->pud, write);
 unlock:
 	spin_unlock(vmf->ptl);
 }
