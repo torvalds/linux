@@ -2138,7 +2138,7 @@ static int move_module(struct module *mod, struct load_info *info)
 
 #ifdef CONFIG_ARCH_WANTS_MODULES_DATA_IN_VMALLOC
 	/* Do the allocs. */
-	ptr = vmalloc(mod->data_layout.size);
+	ptr = vzalloc(mod->data_layout.size);
 	/*
 	 * The pointer to this block is stored in the module structure
 	 * which is inside the block. Just mark it as not being a
@@ -2151,7 +2151,6 @@ static int move_module(struct module *mod, struct load_info *info)
 		return -ENOMEM;
 	}
 
-	memset(ptr, 0, mod->data_layout.size);
 	mod->data_layout.base = ptr;
 #endif
 	/* Transfer each section which specifies SHF_ALLOC */
