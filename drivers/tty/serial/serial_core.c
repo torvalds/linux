@@ -3409,6 +3409,8 @@ int uart_get_rs485_mode(struct uart_port *port)
 		port->rs485_term_gpio = NULL;
 		return dev_err_probe(dev, ret, "Cannot get rs485-term-gpios\n");
 	}
+	if (port->rs485_term_gpio)
+		port->rs485_supported.flags |= SER_RS485_TERMINATE_BUS;
 
 	return 0;
 }
