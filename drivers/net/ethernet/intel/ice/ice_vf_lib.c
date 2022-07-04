@@ -271,13 +271,14 @@ static int ice_vf_rebuild_vsi(struct ice_vf *vf)
 }
 
 /**
- * ice_is_any_vf_in_promisc - check if any VF(s) are in promiscuous mode
+ * ice_is_any_vf_in_unicast_promisc - check if any VF(s)
+ * are in unicast promiscuous mode
  * @pf: PF structure for accessing VF(s)
  *
- * Return false if no VF(s) are in unicast and/or multicast promiscuous mode,
+ * Return false if no VF(s) are in unicast promiscuous mode,
  * else return true
  */
-bool ice_is_any_vf_in_promisc(struct ice_pf *pf)
+bool ice_is_any_vf_in_unicast_promisc(struct ice_pf *pf)
 {
 	bool is_vf_promisc = false;
 	struct ice_vf *vf;
@@ -286,8 +287,7 @@ bool ice_is_any_vf_in_promisc(struct ice_pf *pf)
 	rcu_read_lock();
 	ice_for_each_vf_rcu(pf, bkt, vf) {
 		/* found a VF that has promiscuous mode configured */
-		if (test_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states) ||
-		    test_bit(ICE_VF_STATE_MC_PROMISC, vf->vf_states)) {
+		if (test_bit(ICE_VF_STATE_UC_PROMISC, vf->vf_states)) {
 			is_vf_promisc = true;
 			break;
 		}
