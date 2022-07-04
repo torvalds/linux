@@ -107,6 +107,13 @@ enum mt76_rxq_id {
 	__MT_RXQ_MAX
 };
 
+enum mt76_band_id {
+	MT_BAND0,
+	MT_BAND1,
+	MT_BAND2,
+	__MT_MAX_BAND
+};
+
 enum mt76_cipher_type {
 	MT_CIPHER_NONE,
 	MT_CIPHER_WEP40,
@@ -661,6 +668,7 @@ struct mt76_phy {
 	void *priv;
 
 	unsigned long state;
+	u8 band_idx;
 
 	struct mt76_queue *q_tx[__MT_TXQ_MAX];
 
@@ -700,8 +708,7 @@ struct mt76_phy {
 
 struct mt76_dev {
 	struct mt76_phy phy; /* must be first */
-
-	struct mt76_phy *phy2;
+	struct mt76_phy *phys[__MT_MAX_BAND];
 
 	struct ieee80211_hw *hw;
 
@@ -891,7 +898,7 @@ mt76_wcid_hw(struct mt76_dev *dev, u16 wcid)
 {
 	if (wcid <= MT76_N_WCIDS &&
 	    mt76_wcid_mask_test(dev->wcid_phy_mask, wcid))
-		return dev->phy2->hw;
+		return dev->phys[MT_BAND1]->hw;
 
 	return dev->phy.hw;
 }
@@ -946,7 +953,8 @@ void mt76_free_device(struct mt76_dev *dev);
 void mt76_unregister_phy(struct mt76_phy *phy);
 
 struct mt76_phy *mt76_alloc_phy(struct mt76_dev *dev, unsigned int size,
-				const struct ieee80211_ops *ops);
+				const struct ieee80211_ops *ops,
+				u8 band_idx);
 int mt76_register_phy(struct mt76_phy *phy, bool vht,
 		      struct ieee80211_rate *rates, int n_rates);
 
@@ -1000,8 +1008,9 @@ static inline int mt76_init_mcu_queue(struct mt76_dev *dev, int qid, int idx,
 static inline struct mt76_phy *
 mt76_dev_phy(struct mt76_dev *dev, u8 phy_idx)
 {
-	if (phy_idx && dev->phy2)
-		return dev->phy2;
+	if ((phy_idx == MT_BAND1 && dev->phys[phy_idx]) ||
+	    (phy_idx == MT_BAND2 && dev->phys[phy_idx]))
+		return dev->phys[phy_idx];
 
 	return &dev->phy;
 }
@@ -1120,13 +1129,17 @@ static inline bool mt76_is_testmode_skb(struct mt76_dev *dev,
 					struct ieee80211_hw **hw)
 {
 #ifdef CONFIG_NL80211_TESTMODE
-	if (skb == dev->phy.test.tx_skb)
-		*hw = dev->phy.hw;
-	else if (dev->phy2 && skb == dev->phy2->test.tx_skb)
-		*hw = dev->phy2->hw;
-	else
-		return false;
-	return true;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dev->phys); i++) {
+		struct mt76_phy *phy = dev->phys[i];
+
+		if (phy && skb == phy->test.tx_skb) {
+			*hw = dev->phys[i]->hw;
+			return true;
+		}
+	}
+	return false;
 #else
 	return false;
 #endif
@@ -1244,8 +1257,8 @@ mt76_tx_status_get_hw(struct mt76_dev *dev, struct sk_buff *skb)
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_hw *hw = dev->phy.hw;
 
-	if ((info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY) && dev->phy2)
-		hw = dev->phy2->hw;
+	if ((info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY) && dev->phys[MT_BAND1])
+		hw = dev->phys[MT_BAND1]->hw;
 
 	info->hw_queue &= ~MT_TX_HW_QUEUE_EXT_PHY;
 

@@ -228,8 +228,8 @@ mt7915_mcu_rx_csa_notify(struct mt7915_dev *dev, struct sk_buff *skb)
 
 	c = (struct mt7915_mcu_csa_notify *)skb->data;
 
-	if ((c->band_idx && !dev->phy.band_idx) && dev->mt76.phy2)
-		mphy = dev->mt76.phy2;
+	if ((c->band_idx && !dev->phy.band_idx) && dev->mt76.phys[MT_BAND1])
+		mphy = dev->mt76.phys[MT_BAND1];
 
 	ieee80211_iterate_active_interfaces_atomic(mphy->hw,
 			IEEE80211_IFACE_ITER_RESUME_ALL,
@@ -247,8 +247,8 @@ mt7915_mcu_rx_thermal_notify(struct mt7915_dev *dev, struct sk_buff *skb)
 	if (t->ctrl.ctrl_id != THERMAL_PROTECT_ENABLE)
 		return;
 
-	if ((t->ctrl.band_idx && !dev->phy.band_idx) && dev->mt76.phy2)
-		mphy = dev->mt76.phy2;
+	if ((t->ctrl.band_idx && !dev->phy.band_idx) && dev->mt76.phys[MT_BAND1])
+		mphy = dev->mt76.phys[MT_BAND1];
 
 	phy = (struct mt7915_phy *)mphy->priv;
 	phy->throttle_state = t->ctrl.duty.duty_cycle;
@@ -262,8 +262,8 @@ mt7915_mcu_rx_radar_detected(struct mt7915_dev *dev, struct sk_buff *skb)
 
 	r = (struct mt7915_mcu_rdd_report *)skb->data;
 
-	if ((r->band_idx && !dev->phy.band_idx) && dev->mt76.phy2)
-		mphy = dev->mt76.phy2;
+	if ((r->band_idx && !dev->phy.band_idx) && dev->mt76.phys[MT_BAND1])
+		mphy = dev->mt76.phys[MT_BAND1];
 
 	if (r->band_idx == MT_RX_SEL2)
 		cfg80211_background_radar_event(mphy->hw->wiphy,
@@ -319,8 +319,8 @@ mt7915_mcu_rx_bcc_notify(struct mt7915_dev *dev, struct sk_buff *skb)
 
 	b = (struct mt7915_mcu_bcc_notify *)skb->data;
 
-	if ((b->band_idx && !dev->phy.band_idx) && dev->mt76.phy2)
-		mphy = dev->mt76.phy2;
+	if ((b->band_idx && !dev->phy.band_idx) && dev->mt76.phys[MT_BAND1])
+		mphy = dev->mt76.phys[MT_BAND1];
 
 	ieee80211_iterate_active_interfaces_atomic(mphy->hw,
 			IEEE80211_IFACE_ITER_RESUME_ALL,

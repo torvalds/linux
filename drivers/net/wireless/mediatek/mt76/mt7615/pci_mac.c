@@ -78,8 +78,8 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if ((info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) && msta) {
 		struct mt7615_phy *phy = &dev->phy;
 
-		if ((info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY) && mdev->phy2)
-			phy = mdev->phy2->priv;
+		if ((info->hw_queue & MT_TX_HW_QUEUE_EXT_PHY) && mdev->phys[MT_BAND1])
+			phy = mdev->phys[MT_BAND1]->priv;
 
 		spin_lock_bh(&dev->mt76.lock);
 		mt7615_mac_set_rates(phy, msta, &info->control.rates[0],
@@ -182,16 +182,18 @@ mt7615_update_vif_beacon(void *priv, u8 *mac, struct ieee80211_vif *vif)
 static void
 mt7615_update_beacons(struct mt7615_dev *dev)
 {
+	struct mt76_phy *mphy_ext = dev->mt76.phys[MT_BAND1];
+
 	ieee80211_iterate_active_interfaces(dev->mt76.hw,
 		IEEE80211_IFACE_ITER_RESUME_ALL,
 		mt7615_update_vif_beacon, dev->mt76.hw);
 
-	if (!dev->mt76.phy2)
+	if (!mphy_ext)
 		return;
 
-	ieee80211_iterate_active_interfaces(dev->mt76.phy2->hw,
+	ieee80211_iterate_active_interfaces(mphy_ext->hw,
 		IEEE80211_IFACE_ITER_RESUME_ALL,
-		mt7615_update_vif_beacon, dev->mt76.phy2->hw);
+		mt7615_update_vif_beacon, mphy_ext->hw);
 }
 
 void mt7615_mac_reset_work(struct work_struct *work)
@@ -203,7 +205,7 @@ void mt7615_mac_reset_work(struct work_struct *work)
 	int i;
 
 	dev = container_of(work, struct mt7615_dev, reset_work);
-	ext_phy = dev->mt76.phy2;
+	ext_phy = dev->mt76.phys[MT_BAND1];
 	phy2 = ext_phy ? ext_phy->priv : NULL;
 
 	if (!(READ_ONCE(dev->reset_state) & MT_MCU_CMD_STOP_PDMA))

@@ -504,7 +504,7 @@ mt7915_alloc_ext_phy(struct mt7915_dev *dev)
 	if (!dev->dbdc_support)
 		return NULL;
 
-	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7915_ops);
+	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7915_ops, MT_BAND1);
 	if (!mphy)
 		return ERR_PTR(-ENOMEM);
 
@@ -1038,7 +1038,7 @@ void mt7915_set_stream_he_caps(struct mt7915_phy *phy)
 static void mt7915_unregister_ext_phy(struct mt7915_dev *dev)
 {
 	struct mt7915_phy *phy = mt7915_ext_phy(dev);
-	struct mt76_phy *mphy = dev->mt76.phy2;
+	struct mt76_phy *mphy = dev->mt76.phys[MT_BAND1];
 
 	if (!phy)
 		return;

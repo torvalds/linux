@@ -345,7 +345,7 @@ mt7615_hw_dev(struct ieee80211_hw *hw)
 static inline struct mt7615_phy *
 mt7615_ext_phy(struct mt7615_dev *dev)
 {
-	struct mt76_phy *phy = dev->mt76.phy2;
+	struct mt76_phy *phy = dev->mt76.phys[MT_BAND1];
 
 	if (!phy)
 		return NULL;

@@ -474,8 +474,8 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 		band_idx = mvif->band_idx;
 	}
 
-	if (ext_phy && dev->phy2)
-		mphy = dev->phy2;
+	if (ext_phy && dev->phys[MT_BAND1])
+		mphy = dev->phys[MT_BAND1];
 
 	if (inband_disc) {
 		p_fmt = MT_TX_TYPE_FW;
@@ -597,8 +597,8 @@ bool mt76_connac2_mac_add_txs_skb(struct mt76_dev *dev, struct mt76_wcid *wcid,
 		fallthrough;
 	case MT_PHY_TYPE_OFDM:
 		mphy = &dev->phy;
-		if (wcid->ext_phy && dev->phy2)
-			mphy = dev->phy2;
+		if (wcid->ext_phy && dev->phys[MT_BAND1])
+			mphy = dev->phys[MT_BAND1];
 
 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
 			sband = &mphy->sband_5g.sband;

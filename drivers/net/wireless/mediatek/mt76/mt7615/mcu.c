@@ -369,7 +369,7 @@ mt7615_mcu_rx_csa_notify(struct mt7615_dev *dev, struct sk_buff *skb)
 		return;
 
 	if (ext_phy && ext_phy->omac_mask & BIT_ULL(c->omac_idx))
-		mphy = dev->mt76.phy2;
+		mphy = dev->mt76.phys[MT_BAND1];
 
 	ieee80211_iterate_active_interfaces_atomic(mphy->hw,
 			IEEE80211_IFACE_ITER_RESUME_ALL,
@@ -388,8 +388,8 @@ mt7615_mcu_rx_radar_detected(struct mt7615_dev *dev, struct sk_buff *skb)
 	    !r->constant_prf_detected && !r->staggered_prf_detected)
 		return;
 
-	if (r->band_idx && dev->mt76.phy2)
-		mphy = dev->mt76.phy2;
+	if (r->band_idx && dev->mt76.phys[MT_BAND1])
+		mphy = dev->mt76.phys[MT_BAND1];
 
 	if (mt76_phy_dfs_state(mphy) < MT_DFS_STATE_CAC)
 		return;
@@ -448,8 +448,8 @@ mt7615_mcu_scan_event(struct mt7615_dev *dev, struct sk_buff *skb)
 	struct mt7615_phy *phy;
 	struct mt76_phy *mphy;
 
-	if (*seq_num & BIT(7) && dev->mt76.phy2)
-		mphy = dev->mt76.phy2;
+	if (*seq_num & BIT(7) && dev->mt76.phys[MT_BAND1])
+		mphy = dev->mt76.phys[MT_BAND1];
 	else
 		mphy = &dev->mt76.phy;
 
@@ -474,8 +474,8 @@ mt7615_mcu_roc_event(struct mt7615_dev *dev, struct sk_buff *skb)
 	skb_pull(skb, sizeof(struct mt7615_mcu_rxd));
 	event = (struct mt7615_roc_tlv *)skb->data;
 
-	if (event->dbdc_band && dev->mt76.phy2)
-		mphy = dev->mt76.phy2;
+	if (event->dbdc_band && dev->mt76.phys[MT_BAND1])
+		mphy = dev->mt76.phys[MT_BAND1];
 	else
 		mphy = &dev->mt76.phy;
 
@@ -499,8 +499,8 @@ mt7615_mcu_beacon_loss_event(struct mt7615_dev *dev, struct sk_buff *skb)
 
 	skb_pull(skb, sizeof(struct mt7615_mcu_rxd));
 	event = (struct mt76_connac_beacon_loss_event *)skb->data;
-	if (band_idx && dev->mt76.phy2)
-		mphy = dev->mt76.phy2;
+	if (band_idx && dev->mt76.phys[MT_BAND1])
+		mphy = dev->mt76.phys[MT_BAND1];
 	else
 		mphy = &dev->mt76.phy;
 
@@ -520,8 +520,8 @@ mt7615_mcu_bss_event(struct mt7615_dev *dev, struct sk_buff *skb)
 	skb_pull(skb, sizeof(struct mt7615_mcu_rxd));
 	event = (struct mt76_connac_mcu_bss_event *)skb->data;
 
-	if (band_idx && dev->mt76.phy2)
-		mphy = dev->mt76.phy2;
+	if (band_idx && dev->mt76.phys[MT_BAND1])
+		mphy = dev->mt76.phys[MT_BAND1];
 	else
 		mphy = &dev->mt76.phy;
 
@@ -2330,7 +2330,7 @@ int mt7615_mcu_apply_rx_dcoc(struct mt7615_phy *phy)
 
 		.bw = mt7615_mcu_chan_bw(chandef),
 		.band = chandef->center_freq1 > 4000,
-		.dbdc_en = !!dev->mt76.phy2,
+		.dbdc_en = !!dev->mt76.phys[MT_BAND1],
 	};
 	u16 center_freq = chandef->center_freq1;
 	int freq_idx;
@@ -2451,7 +2451,7 @@ int mt7615_mcu_apply_tx_dpd(struct mt7615_phy *phy)
 
 		.bw = mt7615_mcu_chan_bw(chandef),
 		.band = chandef->center_freq1 > 4000,
-		.dbdc_en = !!dev->mt76.phy2,
+		.dbdc_en = !!dev->mt76.phys[MT_BAND1],
 	};
 	u16 center_freq = chandef->center_freq1;
 	int freq_idx;

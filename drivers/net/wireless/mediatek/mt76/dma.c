@@ -791,10 +791,15 @@ void mt76_dma_cleanup(struct mt76_dev *dev)
 	mt76_worker_disable(&dev->tx_worker);
 	netif_napi_del(&dev->tx_napi);
 
-	for (i = 0; i < ARRAY_SIZE(dev->phy.q_tx); i++) {
-		mt76_dma_tx_cleanup(dev, dev->phy.q_tx[i], true);
-		if (dev->phy2)
-			mt76_dma_tx_cleanup(dev, dev->phy2->q_tx[i], true);
+	for (i = 0; i < ARRAY_SIZE(dev->phys); i++) {
+		struct mt76_phy *phy = dev->phys[i];
+		int j;
+
+		if (!phy)
+			continue;
+
+		for (j = 0; j < ARRAY_SIZE(phy->q_tx); j++)
+			mt76_dma_tx_cleanup(dev, phy->q_tx[j], true);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(dev->q_mcu); i++)

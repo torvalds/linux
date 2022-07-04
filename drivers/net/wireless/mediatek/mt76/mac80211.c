@@ -452,7 +452,7 @@ mt76_phy_init(struct mt76_phy *phy, struct ieee80211_hw *hw)
 
 struct mt76_phy *
 mt76_alloc_phy(struct mt76_dev *dev, unsigned int size,
-	       const struct ieee80211_ops *ops)
+	       const struct ieee80211_ops *ops, u8 band_idx)
 {
 	struct ieee80211_hw *hw;
 	unsigned int phy_size;
@@ -467,6 +467,7 @@ mt76_alloc_phy(struct mt76_dev *dev, unsigned int size,
 	phy->dev = dev;
 	phy->hw = hw;
 	phy->priv = hw->priv + phy_size;
+	phy->band_idx = band_idx;
 
 	hw->wiphy->flags |= WIPHY_FLAG_IBSS_RSN;
 	hw->wiphy->interface_modes =
@@ -519,7 +520,7 @@ int mt76_register_phy(struct mt76_phy *phy, bool vht,
 	if (ret)
 		return ret;
 
-	phy->dev->phy2 = phy;
+	phy->dev->phys[phy->band_idx] = phy;
 
 	return 0;
 }
@@ -531,7 +532,7 @@ void mt76_unregister_phy(struct mt76_phy *phy)
 
 	mt76_tx_status_check(dev, true);
 	ieee80211_unregister_hw(phy->hw);
-	dev->phy2 = NULL;
+	dev->phys[phy->band_idx] = NULL;
 }
 EXPORT_SYMBOL_GPL(mt76_unregister_phy);
 
@@ -558,6 +559,8 @@ mt76_alloc_device(struct device *pdev, unsigned int size,
 	phy = &dev->phy;
 	phy->dev = dev;
 	phy->hw = hw;
+	phy->band_idx = MT_BAND0;
+	dev->phys[phy->band_idx] = phy;
 
 	spin_lock_init(&dev->rx_lock);
 	spin_lock_init(&dev->lock);

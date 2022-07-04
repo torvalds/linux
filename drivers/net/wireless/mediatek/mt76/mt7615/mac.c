@@ -109,6 +109,7 @@ static struct mt76_wcid *mt7615_rx_get_wcid(struct mt7615_dev *dev,
 
 void mt7615_mac_reset_counters(struct mt7615_dev *dev)
 {
+	struct mt76_phy *mphy_ext = dev->mt76.phys[MT_BAND1];
 	int i;
 
 	for (i = 0; i < 4; i++) {
@@ -118,8 +119,8 @@ void mt7615_mac_reset_counters(struct mt7615_dev *dev)
 
 	memset(dev->mt76.aggr_stats, 0, sizeof(dev->mt76.aggr_stats));
 	dev->mt76.phy.survey_time = ktime_get_boottime();
-	if (dev->mt76.phy2)
-		dev->mt76.phy2->survey_time = ktime_get_boottime();
+	if (mphy_ext)
+		mphy_ext->survey_time = ktime_get_boottime();
 
 	/* reset airtime counters */
 	mt76_rr(dev, MT_MIB_SDR9(0));
@@ -336,9 +337,9 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	struct mt76_rx_status *status = (struct mt76_rx_status *)skb->cb;
 	struct mt76_phy *mphy = &dev->mt76.phy;
 	struct mt7615_phy *phy = &dev->phy;
-	struct mt7615_phy *phy2 = dev->mt76.phy2 ? dev->mt76.phy2->priv : NULL;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_hdr *hdr;
+	struct mt7615_phy *phy2;
 	__le32 *rxd = (__le32 *)skb->data;
 	u32 rxd0 = le32_to_cpu(rxd[0]);
 	u32 rxd1 = le32_to_cpu(rxd[1]);
@@ -355,6 +356,8 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	memset(status, 0, sizeof(*status));
 
 	chfreq = FIELD_GET(MT_RXD1_NORMAL_CH_FREQ, rxd1);
+
+	phy2 = dev->mt76.phys[MT_BAND1] ? dev->mt76.phys[MT_BAND1]->priv : NULL;
 	if (!phy2)
 		phy_idx = 0;
 	else if (phy2->chfreq == phy->chfreq)
@@ -498,7 +501,7 @@ static int mt7615_mac_fill_rx(struct mt7615_dev *dev, struct sk_buff *skb)
 	}
 
 	if (phy_idx == 1 && phy2) {
-		mphy = dev->mt76.phy2;
+		mphy = dev->mt76.phys[MT_BAND1];
 		phy = phy2;
 		status->phy_idx = phy_idx;
 	}
@@ -747,8 +750,8 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 		tx_count = msta->rate_count;
 	}
 
-	if (ext_phy && dev->mt76.phy2)
-		mphy = dev->mt76.phy2;
+	if (ext_phy && dev->mt76.phys[MT_BAND1])
+		mphy = dev->mt76.phys[MT_BAND1];
 
 	fc_type = (le16_to_cpu(fc) & IEEE80211_FCTL_FTYPE) >> 2;
 	fc_stype = (le16_to_cpu(fc) & IEEE80211_FCTL_STYPE) >> 4;
@@ -1386,8 +1389,8 @@ static bool mt7615_fill_txs(struct mt7615_dev *dev, struct mt7615_sta *sta,
 		if (sta->rate_probe) {
 			struct mt7615_phy *phy = &dev->phy;
 
-			if (sta->wcid.ext_phy && dev->mt76.phy2)
-				phy = dev->mt76.phy2->priv;
+			if (sta->wcid.ext_phy && dev->mt76.phys[MT_BAND1])
+				phy = dev->mt76.phys[MT_BAND1]->priv;
 
 			mt7615_mac_set_rates(phy, sta, NULL, sta->rates);
 		}
@@ -1429,8 +1432,8 @@ out:
 		fallthrough;
 	case MT_PHY_TYPE_OFDM:
 		mphy = &dev->mphy;
-		if (sta->wcid.ext_phy && dev->mt76.phy2)
-			mphy = dev->mt76.phy2;
+		if (sta->wcid.ext_phy && dev->mt76.phys[MT_BAND1])
+			mphy = dev->mt76.phys[MT_BAND1];
 
 		if (mphy->chandef.chan->band == NL80211_BAND_5GHZ)
 			sband = &mphy->sband_5g.sband;
@@ -1537,8 +1540,8 @@ static void mt7615_mac_add_txs(struct mt7615_dev *dev, void *data)
 	if (wcidx >= MT7615_WTBL_STA || !sta)
 		goto out;
 
-	if (wcid->ext_phy && dev->mt76.phy2)
-		mphy = dev->mt76.phy2;
+	if (wcid->ext_phy && dev->mt76.phys[MT_BAND1])
+		mphy = dev->mt76.phys[MT_BAND1];
 
 	if (mt7615_fill_txs(dev, msta, &info, txs_data))
 		ieee80211_tx_status_noskb(mphy->hw, sta, &info);
@@ -1955,6 +1958,7 @@ mt7615_phy_update_channel(struct mt76_phy *mphy, int idx)
 static void mt7615_update_survey(struct mt7615_dev *dev)
 {
 	struct mt76_dev *mdev = &dev->mt76;
+	struct mt76_phy *mphy_ext = mdev->phys[MT_BAND1];
 	ktime_t cur_time;
 
 	/* MT7615 can only update both phys simultaneously
@@ -1962,14 +1966,14 @@ static void mt7615_update_survey(struct mt7615_dev *dev)
 	 */
 
 	mt7615_phy_update_channel(&mdev->phy, 0);
-	if (mdev->phy2)
-		mt7615_phy_update_channel(mdev->phy2, 1);
+	if (mphy_ext)
+		mt7615_phy_update_channel(mphy_ext, 1);
 
 	cur_time = ktime_get_boottime();
 
 	mt76_update_survey_active_time(&mdev->phy, cur_time);
-	if (mdev->phy2)
-		mt76_update_survey_active_time(mdev->phy2, cur_time);
+	if (mphy_ext)
+		mt76_update_survey_active_time(mphy_ext, cur_time);
 
 	/* reset obss airtime */
 	mt76_set(dev, MT_WF_RMAC_MIB_TIME0, MT_WF_RMAC_MIB_RXTIME_CLR);

@@ -459,7 +459,7 @@ int mt7615_register_ext_phy(struct mt7615_dev *dev)
 		return 0;
 
 	mt7615_cap_dbdc_enable(dev);
-	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7615_ops);
+	mphy = mt76_alloc_phy(&dev->mt76, sizeof(*phy), &mt7615_ops, MT_BAND1);
 	if (!mphy)
 		return -ENOMEM;
 
@@ -509,7 +509,7 @@ EXPORT_SYMBOL_GPL(mt7615_register_ext_phy);
 void mt7615_unregister_ext_phy(struct mt7615_dev *dev)
 {
 	struct mt7615_phy *phy = mt7615_ext_phy(dev);
-	struct mt76_phy *mphy = dev->mt76.phy2;
+	struct mt76_phy *mphy = dev->mt76.phys[MT_BAND1];
 
 	if (!phy)
 		return;

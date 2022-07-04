@@ -585,15 +585,25 @@ EXPORT_SYMBOL_GPL(mt76_txq_schedule_all);
 
 void mt76_tx_worker_run(struct mt76_dev *dev)
 {
-	mt76_txq_schedule_all(&dev->phy);
-	if (dev->phy2)
-		mt76_txq_schedule_all(dev->phy2);
+	struct mt76_phy *phy;
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(dev->phys); i++) {
+		phy = dev->phys[i];
+		if (!phy)
+			continue;
+
+		mt76_txq_schedule_all(phy);
+	}
 
 #ifdef CONFIG_NL80211_TESTMODE
-	if (dev->phy.test.tx_pending)
-		mt76_testmode_tx_pending(&dev->phy);
-	if (dev->phy2 && dev->phy2->test.tx_pending)
-		mt76_testmode_tx_pending(dev->phy2);
+	for (i = 0; i < ARRAY_SIZE(dev->phys); i++) {
+		phy = dev->phys[i];
+		if (!phy || !phy->test.tx_pending)
+			continue;
+
+		mt76_testmode_tx_pending(phy);
+	}
 #endif
 }
 EXPORT_SYMBOL_GPL(mt76_tx_worker_run);
@@ -696,17 +706,23 @@ EXPORT_SYMBOL_GPL(mt76_queue_tx_complete);
 
 void __mt76_set_tx_blocked(struct mt76_dev *dev, bool blocked)
 {
-	struct mt76_phy *phy = &dev->phy, *phy2 = dev->phy2;
-	struct mt76_queue *q, *q2 = NULL;
+	struct mt76_phy *phy = &dev->phy;
+	struct mt76_queue *q = phy->q_tx[0];
 
-	q = phy->q_tx[0];
 	if (blocked == q->blocked)
 		return;
 
 	q->blocked = blocked;
-	if (phy2) {
-		q2 = phy2->q_tx[0];
-		q2->blocked = blocked;
+
+	phy = dev->phys[MT_BAND1];
+	if (phy) {
+		q = phy->q_tx[0];
+		q->blocked = blocked;
+	}
+	phy = dev->phys[MT_BAND2];
+	if (phy) {
+		q = phy->q_tx[0];
+		q->blocked = blocked;
 	}
 
 	if (!blocked)
