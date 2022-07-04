@@ -383,12 +383,8 @@ static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 
 		value = RREG32_PCIE(*pos);
 		r = put_user(value, (uint32_t *)buf);
-		if (r) {
-			pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-			pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-			amdgpu_virt_disable_access_debugfs(adev);
-			return r;
-		}
+		if (r)
+			goto out;
 
 		result += 4;
 		buf += 4;
@@ -396,11 +392,12 @@ static ssize_t amdgpu_debugfs_regs_pcie_read(struct file *f, char __user *buf,
 		size -= 4;
 	}
 
+	r = result;
+out:
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
 	amdgpu_virt_disable_access_debugfs(adev);
-	return result;
+	return r;
 }
 
 /**
@@ -441,12 +438,8 @@ static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user 
 		uint32_t value;
 
 		r = get_user(value, (uint32_t *)buf);
-		if (r) {
-			pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-			pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-			amdgpu_virt_disable_access_debugfs(adev);
-			return r;
-		}
+		if (r)
+			goto out;
 
 		WREG32_PCIE(*pos, value);
 
@@ -456,11 +449,12 @@ static ssize_t amdgpu_debugfs_regs_pcie_write(struct file *f, const char __user 
 		size -= 4;
 	}
 
+	r = result;
+out:
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
 	amdgpu_virt_disable_access_debugfs(adev);
-	return result;
+	return r;
 }
 
 /**
@@ -502,12 +496,8 @@ static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 
 		value = RREG32_DIDT(*pos >> 2);
 		r = put_user(value, (uint32_t *)buf);
-		if (r) {
-			pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-			pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-			amdgpu_virt_disable_access_debugfs(adev);
-			return r;
-		}
+		if (r)
+			goto out;
 
 		result += 4;
 		buf += 4;
@@ -515,11 +505,12 @@ static ssize_t amdgpu_debugfs_regs_didt_read(struct file *f, char __user *buf,
 		size -= 4;
 	}
 
+	r = result;
+out:
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
 	amdgpu_virt_disable_access_debugfs(adev);
-	return result;
+	return r;
 }
 
 /**
@@ -560,12 +551,8 @@ static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user 
 		uint32_t value;
 
 		r = get_user(value, (uint32_t *)buf);
-		if (r) {
-			pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-			pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-			amdgpu_virt_disable_access_debugfs(adev);
-			return r;
-		}
+		if (r)
+			goto out;
 
 		WREG32_DIDT(*pos >> 2, value);
 
@@ -575,11 +562,12 @@ static ssize_t amdgpu_debugfs_regs_didt_write(struct file *f, const char __user 
 		size -= 4;
 	}
 
+	r = result;
+out:
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
 	amdgpu_virt_disable_access_debugfs(adev);
-	return result;
+	return r;
 }
 
 /**
@@ -621,12 +609,8 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 
 		value = RREG32_SMC(*pos);
 		r = put_user(value, (uint32_t *)buf);
-		if (r) {
-			pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-			pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-			amdgpu_virt_disable_access_debugfs(adev);
-			return r;
-		}
+		if (r)
+			goto out;
 
 		result += 4;
 		buf += 4;
@@ -634,11 +618,12 @@ static ssize_t amdgpu_debugfs_regs_smc_read(struct file *f, char __user *buf,
 		size -= 4;
 	}
 
+	r = result;
+out:
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
 	amdgpu_virt_disable_access_debugfs(adev);
-	return result;
+	return r;
 }
 
 /**
@@ -679,12 +664,8 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 		uint32_t value;
 
 		r = get_user(value, (uint32_t *)buf);
-		if (r) {
-			pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-			pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-			amdgpu_virt_disable_access_debugfs(adev);
-			return r;
-		}
+		if (r)
+			goto out;
 
 		WREG32_SMC(*pos, value);
 
@@ -694,11 +675,12 @@ static ssize_t amdgpu_debugfs_regs_smc_write(struct file *f, const char __user *
 		size -= 4;
 	}
 
+	r = result;
+out:
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-
 	amdgpu_virt_disable_access_debugfs(adev);
-	return result;
+	return r;
 }
 
 /**
@@ -1090,11 +1072,8 @@ static ssize_t amdgpu_debugfs_gfxoff_write(struct file *f, const char __user *bu
 		uint32_t value;
 
 		r = get_user(value, (uint32_t *)buf);
-		if (r) {
-			pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-			pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-			return r;
-		}
+		if (r)
+			goto out;
 
 		amdgpu_gfx_off_ctrl(adev, value ? true : false);
 
@@ -1104,10 +1083,12 @@ static ssize_t amdgpu_debugfs_gfxoff_write(struct file *f, const char __user *bu
 		size -= 4;
 	}
 
+	r = result;
+out:
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
-	return result;
+	return r;
 }
 
 
@@ -1139,18 +1120,12 @@ static ssize_t amdgpu_debugfs_gfxoff_read(struct file *f, char __user *buf,
 		uint32_t value;
 
 		r = amdgpu_get_gfx_off_status(adev, &value);
-		if (r) {
-			pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-			pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-			return r;
-		}
+		if (r)
+			goto out;
 
 		r = put_user(value, (uint32_t *)buf);
-		if (r) {
-			pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
-			pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
-			return r;
-		}
+		if (r)
+			goto out;
 
 		result += 4;
 		buf += 4;
@@ -1158,10 +1133,12 @@ static ssize_t amdgpu_debugfs_gfxoff_read(struct file *f, char __user *buf,
 		size -= 4;
 	}
 
+	r = result;
+out:
 	pm_runtime_mark_last_busy(adev_to_drm(adev)->dev);
 	pm_runtime_put_autosuspend(adev_to_drm(adev)->dev);
 
-	return result;
+	return r;
 }
 
 static const struct file_operations amdgpu_debugfs_regs2_fops = {
