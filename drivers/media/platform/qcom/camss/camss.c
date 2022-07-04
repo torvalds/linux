@@ -1453,7 +1453,6 @@ static const struct media_device_ops camss_media_ops = {
 static int camss_configure_pd(struct camss *camss)
 {
 	struct device *dev = camss->dev;
-	int last_pm_domain = 0;
 	int i;
 	int ret;
 
@@ -1484,32 +1483,34 @@ static int camss_configure_pd(struct camss *camss)
 	if (!camss->genpd_link)
 		return -ENOMEM;
 
+	/*
+	 * VFE power domains are in the beginning of the list, and while all
+	 * power domains should be attached, only if TITAN_TOP power domain is
+	 * found in the list, it should be linked over here.
+	 */
 	for (i = 0; i < camss->genpd_num; i++) {
 		camss->genpd[i] = dev_pm_domain_attach_by_id(camss->dev, i);
 		if (IS_ERR(camss->genpd[i])) {
 			ret = PTR_ERR(camss->genpd[i]);
 			goto fail_pm;
 		}
+	}
 
-		camss->genpd_link[i] = device_link_add(camss->dev, camss->genpd[i],
-						       DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME |
-						       DL_FLAG_RPM_ACTIVE);
-		if (!camss->genpd_link[i]) {
-			dev_pm_domain_detach(camss->genpd[i], true);
+	if (i > camss->vfe_num) {
+		camss->genpd_link[i - 1] = device_link_add(camss->dev, camss->genpd[i - 1],
+							   DL_FLAG_STATELESS | DL_FLAG_PM_RUNTIME |
+							   DL_FLAG_RPM_ACTIVE);
+		if (!camss->genpd_link[i - 1]) {
 			ret = -EINVAL;
 			goto fail_pm;
 		}
-
-		last_pm_domain = i;
 	}
 
 	return 0;
 
 fail_pm:
-	for (i = 0; i < last_pm_domain; i++) {
-		device_link_del(camss->genpd_link[i]);
+	for (--i ; i >= 0; i--)
 		dev_pm_domain_detach(camss->genpd[i], true);
-	}
 
 	return ret;
 }
@@ -1709,10 +1710,11 @@ void camss_delete(struct camss *camss)
 	if (camss->genpd_num == 1)
 		return;
 
-	for (i = 0; i < camss->genpd_num; i++) {
-		device_link_del(camss->genpd_link[i]);
+	if (camss->genpd_num > camss->vfe_num)
+		device_link_del(camss->genpd_link[camss->genpd_num - 1]);
+
+	for (i = 0; i < camss->genpd_num; i++)
 		dev_pm_domain_detach(camss->genpd[i], true);
-	}
 }
 
 /*
