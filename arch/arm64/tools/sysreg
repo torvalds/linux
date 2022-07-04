@@ -523,3 +523,9 @@ Res0	15:1
 Field	0	Valid
 EndSysreg
 
+Sysreg	LOREA_EL1	3	0	10	4	1
+Res0	63:52
+Field	51:48	EA_51_48
+Field	47:16	EA_47_16
+Res0	15:0
+EndSysreg
