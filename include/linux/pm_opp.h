@@ -57,39 +57,6 @@ struct dev_pm_opp_icc_bw {
 	u32 peak;
 };
 
-/**
- * struct dev_pm_opp_info - OPP freq/voltage/current values
- * @rate:	Target clk rate in hz
- * @supplies:	Array of voltage/current values for all power supplies
- *
- * This structure stores the freq/voltage/current values for a single OPP.
- */
-struct dev_pm_opp_info {
-	unsigned long rate;
-	struct dev_pm_opp_supply *supplies;
-};
-
-/**
- * struct dev_pm_set_opp_data - Set OPP data
- * @old_opp:	Old OPP info
- * @new_opp:	New OPP info
- * @regulators:	Array of regulator pointers
- * @regulator_count: Number of regulators
- * @clk:	Pointer to clk
- * @dev:	Pointer to the struct device
- *
- * This structure contains all information required for setting an OPP.
- */
-struct dev_pm_set_opp_data {
-	struct dev_pm_opp_info old_opp;
-	struct dev_pm_opp_info new_opp;
-
-	struct regulator **regulators;
-	unsigned int regulator_count;
-	struct clk *clk;
-	struct device *dev;
-};
-
 typedef int (*config_regulators_t)(struct device *dev,
 			struct dev_pm_opp *old_opp, struct dev_pm_opp *new_opp,
 			struct regulator **regulators, unsigned int count);
@@ -98,7 +65,6 @@ typedef int (*config_regulators_t)(struct device *dev,
  * struct dev_pm_opp_config - Device OPP configuration values
  * @clk_names: Clk names, NULL terminated array, max 1 clock for now.
  * @prop_name: Name to postfix to properties.
- * @set_opp: Custom set OPP helper.
  * @config_regulators: Custom set regulator helper.
  * @supported_hw: Array of hierarchy of versions to match.
  * @supported_hw_count: Number of elements in the array.
@@ -113,7 +79,6 @@ struct dev_pm_opp_config {
 	/* NULL terminated */
 	const char * const *clk_names;
 	const char *prop_name;
-	int (*set_opp)(struct dev_pm_set_opp_data *data);
 	config_regulators_t config_regulators;
 	const unsigned int *supported_hw;
 	unsigned int supported_hw_count;
@@ -608,22 +573,6 @@ static inline int devm_pm_opp_set_clkname(struct device *dev, const char *name)
 	};
 
 	return devm_pm_opp_set_config(dev, &config);
-}
-
-/* set-opp helpers */
-static inline int dev_pm_opp_register_set_opp_helper(struct device *dev,
-			int (*set_opp)(struct dev_pm_set_opp_data *data))
-{
-	struct dev_pm_opp_config config = {
-		.set_opp = set_opp,
-	};
-
-	return dev_pm_opp_set_config(dev, &config);
-}
-
-static inline void dev_pm_opp_unregister_set_opp_helper(int token)
-{
-	dev_pm_opp_clear_config(token);
 }
 
 /* config-regulators helpers */

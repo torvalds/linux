@@ -182,9 +182,6 @@ enum opp_table_access {
  * @enabled: Set to true if the device's resources are enabled/configured.
  * @genpd_performance_state: Device's power domain support performance state.
  * @is_genpd: Marks if the OPP table belongs to a genpd.
- * @set_opp: Platform specific set_opp callback
- * @sod_supplies: Set opp data supplies
- * @set_opp_data: Data to be passed to set_opp callback
  * @dentry:	debugfs dentry pointer of the real device directory (not links).
  * @dentry_name: Name of the real dentry.
  *
@@ -233,10 +230,6 @@ struct opp_table {
 	bool enabled;
 	bool genpd_performance_state;
 	bool is_genpd;
-
-	int (*set_opp)(struct dev_pm_set_opp_data *data);
-	struct dev_pm_opp_supply *sod_supplies;
-	struct dev_pm_set_opp_data *set_opp_data;
 
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *dentry;
