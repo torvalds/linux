@@ -1678,8 +1678,8 @@ indx_insert_into_buffer(struct ntfs_index *indx, struct ntfs_inode *ni,
 {
 	int err;
 	const struct NTFS_DE *sp;
-	struct NTFS_DE *e, *de_t, *up_e = NULL;
-	struct indx_node *n2 = NULL;
+	struct NTFS_DE *e, *de_t, *up_e;
+	struct indx_node *n2;
 	struct indx_node *n1 = fnd->nodes[level];
 	struct INDEX_HDR *hdr1 = &n1->index->ihdr;
 	struct INDEX_HDR *hdr2;
