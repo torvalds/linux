@@ -402,6 +402,7 @@ typedef struct dhd_bus {
 #endif /* PCIE_OOB */
 	bool	irq_registered;
 	bool	d2h_intr_method;
+	bool	d2h_intr_control;
 #ifdef SUPPORT_LINKDOWN_RECOVERY
 #if defined(CONFIG_ARCH_MSM) || (defined(CONFIG_ARCH_EXYNOS) && \
 	!defined(SUPPORT_EXYNOS7420))
@@ -599,6 +600,11 @@ extern uint enable_msi;
 enum {
 	PCIE_INTX = 0,
 	PCIE_MSI = 1
+};
+
+enum {
+	PCIE_D2H_INTMASK_CTRL = 0,
+	PCIE_HOST_IRQ_CTRL = 1
 };
 
 static INLINE bool

@@ -2160,7 +2160,7 @@ dbus_usbos_intf_up(void *bus)
 			return DBUS_ERR;
 		}
 	}
-#endif	
+#endif
 
 	if (usbos_info->ctl_urb) {
 		usbos_info->ctl_in_pipe = usb_rcvctrlpipe(usbos_info->usb, 0);

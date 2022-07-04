@@ -16,4 +16,3 @@ void wl_ext_event_deregister(struct net_device *dev, dhd_pub_t *dhd,
 	uint32 event, void *cb_func);
 void wl_ext_event_send(void *params, const wl_event_msg_t * e, void *data);
 #endif
-

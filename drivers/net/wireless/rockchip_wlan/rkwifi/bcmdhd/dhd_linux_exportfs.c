@@ -177,6 +177,7 @@ dhd_dbg_ring_proc_destroy(dhd_pub_t *dhdp)
  * -----------------------------------------------------------------------------
  */
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
 #if defined(DHD_TRACE_WAKE_LOCK)
 extern atomic_t trace_wklock_onoff;
 
@@ -1030,6 +1031,7 @@ done:
 	return ret;
 }
 #endif /* PWRSTATS_SYSFS */
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0) */
 
 /*
  * Generic Attribute Structure for DHD.
@@ -1046,6 +1048,7 @@ struct dhd_attr {
 	ssize_t(*store)(struct dhd_info *, const char *, size_t count);
 };
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
 #if defined(DHD_TRACE_WAKE_LOCK)
 static struct dhd_attr dhd_attr_wklock =
 	__ATTR(wklock_trace, 0660, show_wklock_trace, wklock_trace_onoff);
@@ -1119,10 +1122,12 @@ static struct dhd_attr dhd_attr_nvram_path =
 static struct dhd_attr dhd_attr_pwrstats_path =
 	__ATTR(power_stats, 0660, show_pwrstats_path, NULL);
 #endif /* PWRSTATS_SYSFS */
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0) */
 
 #define to_dhd(k) container_of(k, struct dhd_info, dhd_kobj)
 #define to_attr(a) container_of(a, struct dhd_attr, attr)
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
 #ifdef DHD_MAC_ADDR_EXPORT
 struct ether_addr sysfs_mac_addr;
 static ssize_t
@@ -1154,6 +1159,7 @@ set_mac_addr(struct dhd_info *dev, const char *buf, size_t count)
 static struct dhd_attr dhd_attr_macaddr =
 	__ATTR(mac_addr, 0660, show_mac_addr, set_mac_addr);
 #endif /* DHD_MAC_ADDR_EXPORT */
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0) */
 
 #ifdef DHD_FW_COREDUMP
 /*
@@ -1262,6 +1268,7 @@ void dhd_get_memdump_info(dhd_pub_t *dhd)
 	DHD_ERROR(("%s: MEMDUMP ENABLED = %u\n", __FUNCTION__, dhd->memdump_enabled));
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
 #ifdef DHD_EXPORT_CNTL_FILE
 static ssize_t
 show_memdump_info(struct dhd_info *dev, char *buf)
@@ -1303,6 +1310,7 @@ set_memdump_info(struct dhd_info *dev, const char *buf, size_t count)
 static struct dhd_attr dhd_attr_memdump =
 	__ATTR(memdump, 0660, show_memdump_info, set_memdump_info);
 #endif /* DHD_EXPORT_CNTL_FILE */
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0) */
 #endif /* DHD_FW_COREDUMP */
 
 #ifdef BCMASSERT_LOG
@@ -1362,6 +1370,7 @@ void dhd_get_assert_info(dhd_pub_t *dhd)
 #endif /* !DHD_EXPORT_CNTL_FILE */
 }
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
 #ifdef DHD_EXPORT_CNTL_FILE
 static ssize_t
 show_assert_info(struct dhd_info *dev, char *buf)
@@ -1396,8 +1405,10 @@ set_assert_info(struct dhd_info *dev, const char *buf, size_t count)
 static struct dhd_attr dhd_attr_assert =
 	__ATTR(assert, 0660, show_assert_info, set_assert_info);
 #endif /* DHD_EXPORT_CNTL_FILE */
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0) */
 #endif /* BCMASSERT_LOG */
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
 #ifdef DHD_EXPORT_CNTL_FILE
 #if defined(WRITE_WLANINFO)
 static ssize_t
@@ -1889,10 +1900,12 @@ store_adps_bam_list(struct dhd_info *dev, const char *buf, size_t count)
 static struct dhd_attr dhd_attr_adps_bam =
 	__ATTR(bad_ap_list, 0660, show_adps_bam_list, store_adps_bam_list);
 #endif	/* DHD_ADPS_BAM_EXPORT && WL_BAM */
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0) */
 
-#ifdef DHD_SEND_HANG_PRIVCMD_ERRORS
 uint32 report_hang_privcmd_err = 1;
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
+#ifdef DHD_SEND_HANG_PRIVCMD_ERRORS
 static ssize_t
 show_hang_privcmd_err(struct dhd_info *dev, char *buf)
 {
@@ -2350,6 +2363,7 @@ static struct attribute *default_file_attrs[] = {
 #endif /* AGG_H2D_DB */
 	NULL
 };
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0) */
 
 /*
  * wifi kobject show function, the "attr" attribute specifices to which
@@ -2406,7 +2420,9 @@ static struct sysfs_ops dhd_sysfs_ops = {
 
 static struct kobj_type dhd_ktype = {
 	.sysfs_ops = &dhd_sysfs_ops,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
 	.default_attrs = default_file_attrs,
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0) */
 };
 
 #ifdef CSI_SUPPORT
@@ -2436,6 +2452,7 @@ static struct bin_attribute dhd_attr_csi = {
  * sysfs for dhd_lb
  */
 #ifdef DHD_LB
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
 #if defined(DHD_LB_TXP)
 static ssize_t
 show_lbtxp(struct dhd_info *dev, char *buf)
@@ -2830,6 +2847,7 @@ static struct attribute *debug_lb_attrs[] = {
 	&dhd_tx_cpu.attr,
 	NULL
 };
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0) */
 
 #define to_dhd_lb(k) container_of(k, struct dhd_info, dhd_lb_kobj)
 
@@ -2888,7 +2906,9 @@ static struct sysfs_ops dhd_sysfs_lb_ops = {
 
 static struct kobj_type dhd_lb_ktype = {
 	.sysfs_ops = &dhd_sysfs_lb_ops,
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0))
 	.default_attrs = debug_lb_attrs,
+#endif /* LINUX_VERSION_CODE < KERNEL_VERSION(5, 18, 0) */
 };
 #endif /* DHD_LB */
 

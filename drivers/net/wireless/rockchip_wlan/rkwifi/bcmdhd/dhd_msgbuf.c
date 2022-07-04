@@ -4156,10 +4156,11 @@ dhd_prot_init(dhd_pub_t *dhd)
 	* only if dongle does not support EDL
 	*/
 #ifdef EWP_EDL
-	if (dhd->bus->api.fw_rev >= PCIE_SHARED_VERSION_6 && !dhd->dongle_edl_support) {
+	if (dhd->bus->api.fw_rev >= PCIE_SHARED_VERSION_6 && !dhd->dongle_edl_support)
 #else
-	if (dhd->bus->api.fw_rev >= PCIE_SHARED_VERSION_6) {
+	if (dhd->bus->api.fw_rev >= PCIE_SHARED_VERSION_6)
 #endif /* EWP_EDL */
+	{
 		if ((ret = dhd_prot_init_info_rings(dhd)) != BCME_OK) {
 			/* For now log and proceed, further clean up action maybe necessary
 			 * when we have more clarity.
@@ -13650,8 +13651,9 @@ dhd_prot_debug_info_print(dhd_pub_t *dhd)
 		prot->device_ipc_version,
 		prot->host_ipc_version,
 		prot->active_ipc_version));
-	DHD_ERROR(("d2h_intr_method -> %s\n",
-			dhd->bus->d2h_intr_method ? "PCIE_MSI" : "PCIE_INTX"));
+	DHD_ERROR(("d2h_intr_method -> %s d2h_intr_control -> %s\n",
+			dhd->bus->d2h_intr_method ? "PCIE_MSI" : "PCIE_INTX",
+			dhd->bus->d2h_intr_control ? "HOST_IRQ" : "D2H_INTMASK"));
 	DHD_ERROR(("max Host TS bufs to post: %d, posted %d\n",
 		prot->max_tsbufpost, prot->cur_ts_bufs_posted));
 	DHD_ERROR(("max INFO bufs to post: %d, posted %d\n",

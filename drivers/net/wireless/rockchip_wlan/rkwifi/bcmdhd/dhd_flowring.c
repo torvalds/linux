@@ -210,6 +210,39 @@ done:
 	return ret;
 }
 
+int BCMFASTPATH
+(dhd_flow_queue_enqueue_head)(dhd_pub_t *dhdp, flow_queue_t *queue, void *pkt)
+{
+	int ret = BCME_OK;
+
+	ASSERT(queue != NULL);
+
+	if (dhd_flow_queue_throttle(queue)) {
+		queue->failures++;
+		ret = (*queue->cb)(queue, pkt);
+		goto done;
+	}
+
+	if (queue->head) {
+		FLOW_QUEUE_PKT_SETNEXT(pkt, queue->head);
+		queue->head = pkt;
+
+	} else {
+		queue->head = pkt;
+		FLOW_QUEUE_PKT_SETNEXT(pkt, NULL);
+		queue->tail = pkt; /* at tail */
+	}
+
+	queue->len++;
+	/* increment parent's cummulative length */
+	DHD_CUMM_CTR_INCR(DHD_FLOW_QUEUE_CLEN_PTR(queue));
+	/* increment grandparent's cummulative length */
+	DHD_CUMM_CTR_INCR(DHD_FLOW_QUEUE_L2CLEN_PTR(queue));
+
+done:
+	return ret;
+}
+
 /** Dequeue an 802.3 packet from a flow ring's queue, from head (FIFO) */
 void *
 BCMFASTPATH(dhd_flow_queue_dequeue)(dhd_pub_t *dhdp, flow_queue_t *queue)

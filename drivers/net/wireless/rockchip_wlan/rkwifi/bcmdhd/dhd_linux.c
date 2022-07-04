@@ -65,7 +65,9 @@
 #include <asm/uaccess.h>
 #include <asm/unaligned.h>
 #include <dhd_linux_priv.h>
+#if defined(CUSTOMER_HW_ROCKCHIP) && defined(BCMPCIE)
 #include <rk_dhd_pcie_linux.h>
+#endif /* CUSTOMER_HW_ROCKCHIP && BCMPCIE */
 
 #include <epivers.h>
 #include <bcmutils.h>
@@ -633,8 +635,8 @@ extern void dhd_netdev_free(struct net_device *ndev);
 static dhd_if_t * dhd_get_ifp_by_ndev(dhd_pub_t *dhdp, struct net_device *ndev);
 
 #if defined(WLDWDS) && defined(FOURADDR_AUTO_BRG)
-static void dhd_bridge_dev_set(dhd_info_t * dhd, int ifidx, struct net_device * dev);
-#endif /* defiend(WLDWDS) && defined(FOURADDR_AUTO_BRG) */
+static void dhd_bridge_dev_set(dhd_info_t *dhd, int ifidx, struct net_device *sdev);
+#endif /* WLDWDS && FOURADDR_AUTO_BRG */
 
 #if (defined(DHD_WET) || defined(DHD_MCAST_REGEN) || defined(DHD_L2_FILTER))
 /* update rx_pkt_chainable state of dhd interface */
@@ -837,20 +839,19 @@ module_param(tpoweron_scale, uint, 0644);
 #endif /* FORCE_TPOWERON */
 
 #ifdef SHOW_LOGTRACE
-#if defined(CUSTOMER_HW4_DEBUG)
-#define WIFI_PATH "/etc/wifi/"
-static char *logstrs_path = VENDOR_PATH WIFI_PATH"logstrs.bin";
-char *st_str_file_path = VENDOR_PATH WIFI_PATH"rtecdc.bin";
-static char *map_file_path = VENDOR_PATH WIFI_PATH"rtecdc.map";
-static char *rom_st_str_file_path = VENDOR_PATH WIFI_PATH"roml.bin";
-static char *rom_map_file_path = VENDOR_PATH WIFI_PATH"roml.map";
+#ifdef DHD_LINUX_STD_FW_API
+static char *logstrs_path = "logstrs.bin";
+char *st_str_file_path = "rtecdc.bin";
+static char *map_file_path = "rtecdc.map";
+static char *rom_st_str_file_path = "roml.bin";
+static char *rom_map_file_path = "roml.map";
 #else
 static char *logstrs_path = PLATFORM_PATH"logstrs.bin";
 char *st_str_file_path = PLATFORM_PATH"rtecdc.bin";
 static char *map_file_path = PLATFORM_PATH"rtecdc.map";
 static char *rom_st_str_file_path = PLATFORM_PATH"roml.bin";
 static char *rom_map_file_path = PLATFORM_PATH"roml.map";
-#endif /* CUSTOMER_HW4_DEBUG */
+#endif /* DHD_LINUX_STD_FW_API */
 
 static char *ram_file_str = "rtecdc";
 static char *rom_file_str = "roml";
@@ -3072,7 +3073,7 @@ _dhd_set_mac_address(dhd_info_t *dhd, int ifidx, uint8 *addr, bool skip_stop)
 			dhd_ifname(&dhd->pub, ifidx), addr, ret));
 		goto exit;
 	} else {
-		memcpy(dhd->iflist[ifidx]->net->dev_addr, addr, ETHER_ADDR_LEN);
+		dev_addr_set(dhd->iflist[ifidx]->net, addr);
 		if (ifidx == 0)
 			memcpy(dhd->pub.mac.octet, addr, ETHER_ADDR_LEN);
 		WL_MSG(dhd_ifname(&dhd->pub, ifidx), "MACID %pM is overwritten\n", addr);
@@ -3262,7 +3263,7 @@ dhd_ifadd_event_handler(void *handle, void *event_info, u8 event)
 	struct wl_if_event_info info;
 #if defined(WLDWDS) && defined(FOURADDR_AUTO_BRG)
 	struct net_device *ndev = NULL;
-#endif
+#endif /* WLDWDS && FOURADDR_AUTO_BRG */
 #else
 	struct net_device *ndev;
 #endif /* WL_CFG80211 && LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0) */
@@ -3315,13 +3316,13 @@ dhd_ifadd_event_handler(void *handle, void *event_info, u8 event)
 			mac_addr = NULL;
 		}
 
-#ifdef WLEASYMESH
+#if defined(WLDWDS) && defined(FOURADDR_AUTO_BRG)
 		if ((ndev = wl_cfg80211_post_ifcreate(dhd->pub.info->iflist[0]->net,
 			&info, mac_addr, if_event->name, true)) == NULL)
 #else
 		if (wl_cfg80211_post_ifcreate(dhd->pub.info->iflist[0]->net,
 			&info, mac_addr, NULL, true) == NULL)
-#endif
+#endif /* WLDWDS && FOURADDR_AUTO_BRG */
 		{
 			/* Do the post interface create ops */
 			DHD_ERROR(("Post ifcreate ops failed. Returning \n"));
@@ -3363,6 +3364,10 @@ dhd_ifadd_event_handler(void *handle, void *event_info, u8 event)
 	}
 #endif /* PCIE_FULL_DONGLE */
 
+#if defined(WLDWDS) && defined(FOURADDR_AUTO_BRG)
+	dhd_bridge_dev_set(dhd, ifidx, ndev);
+#endif /* WLDWDS && FOURADDR_AUTO_BRG */
+
 done:
 #ifdef DHD_AWDL
 	if (ret != BCME_OK && is_awdl_iface) {
@@ -3371,11 +3376,6 @@ done:
 #endif /* DHD_AWDL */
 
 	MFREE(dhd->pub.osh, if_event, sizeof(dhd_if_event_t));
-#if defined(WLDWDS) && defined(FOURADDR_AUTO_BRG)
-	if (dhd->pub.info->iflist[ifidx]) {
-		dhd_bridge_dev_set(dhd, ifidx, ndev);
-    }
-#endif /* defiend(WLDWDS) && defined(FOURADDR_AUTO_BRG) */
 
 	DHD_OS_WAKE_UNLOCK(&dhd->pub);
 	dhd_net_if_unlock_local(dhd);
@@ -3408,17 +3408,15 @@ dhd_ifdel_event_handler(void *handle, void *event_info, u8 event)
 
 	ifidx = if_event->event.ifidx;
 	DHD_TRACE(("Removing interface with idx %d\n", ifidx));
-#if defined(WLDWDS) && defined(FOURADDR_AUTO_BRG)
-	if (dhd->pub.info->iflist[ifidx]) {
-		dhd_bridge_dev_set(dhd, ifidx, NULL);
-    }
-#endif /* defiend(WLDWDS) && defined(FOURADDR_AUTO_BRG) */
 
 	if (!dhd->pub.info->iflist[ifidx]) {
 		/* No matching netdev found */
 		DHD_ERROR(("Netdev not found! Do nothing.\n"));
 		goto done;
 	}
+#if defined(WLDWDS) && defined(FOURADDR_AUTO_BRG)
+	dhd_bridge_dev_set(dhd, ifidx, NULL);
+#endif /* WLDWDS && FOURADDR_AUTO_BRG */
 #if defined(WL_CFG80211) && (LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0))
 	if (if_event->event.ifidx > 0) {
 		/* Do the post interface del ops */
@@ -3519,7 +3517,7 @@ int dhd_op_if_update(dhd_pub_t *dhdpub, int ifidx)
 		           (unsigned char)buf[3], (unsigned char)buf[4], (unsigned char)buf[5]));
 		memcpy(dhdinfo->iflist[ifp->idx]->mac_addr, buf, ETHER_ADDR_LEN);
 		if (dhdinfo->iflist[ifp->idx]->net) {
-		    memcpy(dhdinfo->iflist[ifp->idx]->net->dev_addr, buf, ETHER_ADDR_LEN);
+			dev_addr_set(dhdinfo->iflist[ifp->idx]->net, buf);
 		}
 	}
 
@@ -3662,7 +3660,7 @@ dhd_set_mac_address(struct net_device *dev, void *addr)
 			 * available). Store the address and return. macaddr will be applied
 			 * from interface create context.
 			 */
-			(void)memcpy_s(dev->dev_addr, ETH_ALEN, dhdif->mac_addr, ETH_ALEN);
+			dev_addr_set(dev, dhdif->mac_addr);
 #ifdef DHD_NOTIFY_MAC_CHANGED
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0))
 			dev_open(dev, NULL);
@@ -3793,7 +3791,7 @@ int dhd_sendup(dhd_pub_t *dhdp, int ifidx, void *p)
 			bcm_object_trace_opr(skb, BCM_OBJDBG_REMOVE,
 				__FUNCTION__, __LINE__);
 #if defined(WL_MONITOR) && defined(BCMSDIO)
-			if (dhd_monitor_enabled(dhdp, ifidx)) 
+			if (dhd_monitor_enabled(dhdp, ifidx))
 				dhd_rx_mon_pkt_sdio(dhdp, skb, ifidx);
 			else
 #endif /* WL_MONITOR && BCMSDIO */
@@ -5667,7 +5665,7 @@ dhd_check_shinfo_nrfrags(dhd_pub_t *dhdp, void *pktbuf,
 	shinfo = skb_shinfo(skb);
 
 	if (shinfo->nr_frags) {
-#ifdef CONFIG_64BIT
+#ifdef BCMDMA64OSL
 		DHD_ERROR(("!!Invalid nr_frags: %u pa.loaddr: 0x%llx pa.hiaddr: 0x%llx "
 			"skb: 0x%llx skb_data: 0x%llx skb_head: 0x%llx skb_tail: 0x%llx "
 			"skb_end: 0x%llx skb_len: %u shinfo: 0x%llx pktid: %u\n",
@@ -6515,7 +6513,7 @@ dhd_rx_frame(dhd_pub_t *dhdp, int ifidx, void *pktbuf, int numpkt, uint8 chan)
 			}
 #else
 #if defined(WL_MONITOR) && defined(BCMSDIO)
-			if (dhd_monitor_enabled(dhdp, ifidx)) 
+			if (dhd_monitor_enabled(dhdp, ifidx))
 				dhd_rx_mon_pkt_sdio(dhdp, skb, ifidx);
 			else
 #endif /* WL_MONITOR && BCMSDIO */
@@ -7065,7 +7063,7 @@ dhd_rxf_thread(void *data)
 				bcm_object_trace_opr(skb, BCM_OBJDBG_REMOVE,
 					__FUNCTION__, __LINE__);
 #if defined(WL_MONITOR) && defined(BCMSDIO)
-				if (dhd_monitor_enabled(pub, 0)) 
+				if (dhd_monitor_enabled(pub, 0))
 					dhd_rx_mon_pkt_sdio(pub, skb, 0);
 				else
 #endif /* WL_MONITOR && BCMSDIO */
@@ -9445,7 +9443,7 @@ dhd_open(struct net_device *net)
 #endif
 
 		/* dhd_sync_with_dongle has been called in dhd_bus_start or wl_android_wifi_on */
-		memcpy(net->dev_addr, dhd->pub.mac.octet, ETHER_ADDR_LEN);
+		dev_addr_set(net, dhd->pub.mac.octet);
 
 #ifdef TOE
 		/* Get current TOE mode from dongle */
@@ -9570,15 +9568,16 @@ dhd_open(struct net_device *net)
 
 exit:
 	mutex_unlock(&dhd->pub.ndev_op_sync);
-#if defined(ENABLE_INSMOD_NO_FW_LOAD) && defined(NO_POWER_OFF_AFTER_OPEN)
-	dhd_download_fw_on_driverload = TRUE;
-	dhd_driver_init_done = TRUE;
-#elif defined(ENABLE_INSMOD_NO_FW_LOAD) && defined(ENABLE_INSMOD_NO_POWER_OFF)
-	dhd_download_fw_on_driverload = FALSE;
-	dhd_driver_init_done = TRUE;
-#endif
 	if (ret) {
 		dhd_stop(net);
+	} else {
+#if defined(ENABLE_INSMOD_NO_FW_LOAD) && defined(NO_POWER_OFF_AFTER_OPEN)
+		dhd_download_fw_on_driverload = TRUE;
+		dhd_driver_init_done = TRUE;
+#elif defined(ENABLE_INSMOD_NO_FW_LOAD) && defined(ENABLE_INSMOD_NO_POWER_OFF)
+		dhd_download_fw_on_driverload = FALSE;
+		dhd_driver_init_done = TRUE;
+#endif
 	}
 
 	DHD_OS_WAKE_UNLOCK(&dhd->pub);
@@ -10441,15 +10440,22 @@ dhd_remove_if(dhd_pub_t *dhdpub, int ifidx, bool need_rtnl_lock)
 					unregister_netdev(ifp->net);
 				else
 					unregister_netdevice(ifp->net);
+#if defined(WLDWDS) && defined(WL_EXT_IAPSTA)
+				if (ifp->dwds) {
+					wl_ext_iapsta_dettach_dwds_netdev(ifp->net, ifidx, ifp->bssidx);
+				} else
+#endif /* WLDWDS && WL_EXT_IAPSTA */
+				{
 #ifdef WL_EXT_IAPSTA
-				wl_ext_iapsta_dettach_netdev(ifp->net, ifidx);
+					wl_ext_iapsta_dettach_netdev(ifp->net, ifidx);
 #endif /* WL_EXT_IAPSTA */
 #ifdef WL_ESCAN
-				wl_escan_event_dettach(ifp->net, ifidx);
+					wl_escan_event_dettach(ifp->net, ifidx);
 #endif /* WL_ESCAN */
 #ifdef WL_EVENT
-				wl_ext_event_dettach_netdev(ifp->net, ifidx);
+					wl_ext_event_dettach_netdev(ifp->net, ifidx);
 #endif /* WL_EVENT */
+				}
 			}
 			ifp->net = NULL;
 			DHD_GENERAL_LOCK(dhdpub, flags);
@@ -10608,13 +10614,13 @@ static int
 dhd_init_logstrs_array(osl_t *osh, dhd_event_log_t *temp)
 {
 	struct file *filep = NULL;
-	struct kstat stat;
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+	struct kstat stat;
 	mm_segment_t fs;
+	int error = 0;
 #endif
 	char *raw_fmts =  NULL;
 	int logstrs_size = 0;
-	int error = 0;
 
 	if (control_logtrace != LOGTRACE_PARSED_FMT) {
 		DHD_ERROR_NO_HW4(("%s : turned off logstr parsing\n", __FUNCTION__));
@@ -10632,12 +10638,16 @@ dhd_init_logstrs_array(osl_t *osh, dhd_event_log_t *temp)
 		DHD_ERROR_NO_HW4(("%s: Failed to open the file %s \n", __FUNCTION__, logstrs_path));
 		goto fail;
 	}
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	error = vfs_stat(logstrs_path, &stat);
 	if (error) {
 		DHD_ERROR_NO_HW4(("%s: Failed to stat file %s \n", __FUNCTION__, logstrs_path));
 		goto fail;
 	}
 	logstrs_size = (int) stat.size;
+#else
+	logstrs_size = dhd_os_get_image_size(filep);
+#endif
 
 	if (logstrs_size == 0) {
 		DHD_ERROR(("%s: return as logstrs_size is 0\n", __FUNCTION__));
@@ -10739,10 +10749,15 @@ static int
 dhd_lookup_map(osl_t *osh, char *fname, uint32 pc, char *pc_fn,
 		uint32 lr, char *lr_fn)
 {
+#ifdef DHD_LINUX_STD_FW_API
+	const struct firmware *fw = NULL;
+	uint32 size = 0, mem_offset = 0;
+#else
 	struct file *filep = NULL;
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	mm_segment_t fs;
 #endif
+#endif /* DHD_LINUX_STD_FW_API */
 	char *raw_fmts = NULL, *raw_fmts_loc = NULL, *cptr = NULL;
 	uint32 read_size = READ_NUM_BYTES;
 	int err = BCME_ERROR;
@@ -10769,6 +10784,15 @@ dhd_lookup_map(osl_t *osh, char *fname, uint32 pc, char *pc_fn,
 		return BCME_ERROR;
 	}
 
+#ifdef DHD_LINUX_STD_FW_API
+	err = dhd_os_get_img_fwreq(&fw, fname);
+	if (err < 0) {
+		DHD_ERROR(("dhd_os_get_img(Request Firmware API) error : %d\n",
+			err));
+		goto fail;
+	}
+	size = fw->size;
+#else
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	fs = get_fs();
 	set_fs(KERNEL_DS);
@@ -10779,6 +10803,7 @@ dhd_lookup_map(osl_t *osh, char *fname, uint32 pc, char *pc_fn,
 		DHD_ERROR(("%s: Failed to open %s \n",  __FUNCTION__, fname));
 		goto fail;
 	}
+#endif /* DHD_LINUX_STD_FW_API */
 
 	if (pc_fn == NULL) {
 		count |= PC_FOUND_BIT;
@@ -10788,6 +10813,20 @@ dhd_lookup_map(osl_t *osh, char *fname, uint32 pc, char *pc_fn,
 	}
 	while (count != ALL_ADDR_VAL)
 	{
+#ifdef DHD_LINUX_STD_FW_API
+		/* Bound check for size before doing memcpy() */
+		if ((mem_offset + read_size) > size) {
+			read_size = size - mem_offset;
+		}
+
+		err = memcpy_s(raw_fmts, read_size,
+			((char *)(fw->data) + mem_offset), read_size);
+		if (err) {
+			DHD_ERROR(("%s: failed to copy raw_fmts, err=%d\n",
+				__FUNCTION__, err));
+			goto fail;
+		}
+#else
 		err = dhd_os_read_file(filep, raw_fmts, read_size);
 		if (err < 0) {
 			DHD_ERROR(("%s: map file read failed err:%d \n",
@@ -10795,6 +10834,7 @@ dhd_lookup_map(osl_t *osh, char *fname, uint32 pc, char *pc_fn,
 			goto fail;
 		}
 
+#endif /* DHD_LINUX_STD_FW_API */
 		/* End raw_fmts with NULL as strstr expects NULL terminated
 		* strings
 		*/
@@ -10885,7 +10925,14 @@ dhd_lookup_map(osl_t *osh, char *fname, uint32 pc, char *pc_fn,
 			}
 			offset += (len + 1);
 		}
+#ifdef DHD_LINUX_STD_FW_API
+		if ((mem_offset + read_size) >= size) {
+			break;
+		}
 
+		memset(raw_fmts, 0, read_size);
+		mem_offset += (read_size -(len + 1));
+#else
 		if (err < (int)read_size) {
 			/*
 			* since we reset file pos back to earlier pos by
@@ -10903,10 +10950,16 @@ dhd_lookup_map(osl_t *osh, char *fname, uint32 pc, char *pc_fn,
 		* the string and addr even if it comes as splited in next read.
 		*/
 		dhd_os_seek_file(filep, -(len + 1));
+#endif /* DHD_LINUX_STD_FW_API */
 		DHD_TRACE(("%s: seek %d \n", __FUNCTION__, -(len + 1)));
 	}
 
 fail:
+#ifdef DHD_LINUX_STD_FW_API
+	if (fw) {
+		dhd_os_close_img_fwreq(fw);
+	}
+#else
 	if (!IS_ERR(filep))
 		filp_close(filep, NULL);
 
@@ -10914,6 +10967,7 @@ fail:
 	set_fs(fs);
 #endif
 
+#endif /* DHD_LINUX_STD_FW_API */
 	if (!(count & PC_FOUND_BIT)) {
 		sprintf(pc_fn, "0x%08x", pc);
 	}
@@ -10923,6 +10977,330 @@ fail:
 	return err;
 }
 #endif /* DHD_COREDUMP */
+
+#ifdef DHD_LINUX_STD_FW_API
+static int
+dhd_init_logstrs_array(osl_t *osh, dhd_event_log_t *temp)
+{
+	char *raw_fmts =  NULL;
+	int logstrs_size = 0;
+	int error = 0;
+	const struct firmware *fw = NULL;
+
+	if (control_logtrace != LOGTRACE_PARSED_FMT) {
+		DHD_ERROR_NO_HW4(("%s : turned off logstr parsing\n", __FUNCTION__));
+		return BCME_ERROR;
+	}
+
+	error = dhd_os_get_img_fwreq(&fw, logstrs_path);
+	if (error < 0) {
+		DHD_ERROR(("dhd_os_get_img(Request Firmware API) error : %d\n",
+			error));
+		goto fail;
+	}
+
+	logstrs_size = (int)fw->size;
+	if (logstrs_size == 0) {
+		DHD_ERROR(("%s: return as logstrs_size is 0\n", __FUNCTION__));
+		goto fail;
+	}
+
+	if (temp->raw_fmts != NULL) {
+		raw_fmts = temp->raw_fmts;	/* reuse already malloced raw_fmts */
+	} else {
+		raw_fmts = MALLOC(osh, logstrs_size);
+		if (raw_fmts == NULL) {
+			DHD_ERROR(("%s: Failed to allocate memory \n", __FUNCTION__));
+			goto fail;
+		}
+	}
+	error = memcpy_s(raw_fmts, logstrs_size, (char *)(fw->data), logstrs_size);
+	if (error) {
+		DHD_ERROR(("%s: failed to copy raw_fmts, err=%d\n",
+			__FUNCTION__, error));
+		goto fail;
+	}
+	if (dhd_parse_logstrs_file(osh, raw_fmts, logstrs_size, temp) == BCME_OK) {
+		dhd_os_close_img_fwreq(fw);
+		DHD_ERROR(("%s: return ok\n", __FUNCTION__));
+		return BCME_OK;
+	}
+
+fail:
+	if (fw) {
+		dhd_os_close_img_fwreq(fw);
+	}
+	if (raw_fmts) {
+		MFREE(osh, raw_fmts, logstrs_size);
+	}
+	if (temp->fmts != NULL) {
+		MFREE(osh, temp->fmts, temp->num_fmts * sizeof(char *));
+	}
+
+	temp->fmts = NULL;
+	temp->raw_fmts = NULL;
+
+	return BCME_ERROR;
+}
+
+static int
+dhd_read_map(osl_t *osh, char *fname, uint32 *ramstart, uint32 *rodata_start,
+		uint32 *rodata_end)
+{
+	int err = BCME_ERROR;
+	const struct firmware *fw = NULL;
+
+	if (fname == NULL) {
+		DHD_ERROR(("%s: ERROR fname is NULL \n", __FUNCTION__));
+		return BCME_ERROR;
+	}
+
+	err = dhd_os_get_img_fwreq(&fw, fname);
+	if (err < 0) {
+		DHD_ERROR(("dhd_os_get_img(Request Firmware API) error : %d\n",
+			err));
+		goto fail;
+	}
+
+	if ((err = dhd_parse_map_file(osh, (struct firmware *)fw, ramstart,
+			rodata_start, rodata_end)) < 0) {
+		goto fail;
+	}
+
+fail:
+	if (fw) {
+		dhd_os_close_img_fwreq(fw);
+	}
+
+	return err;
+}
+
+static int
+dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *str_file, char *map_file)
+{
+	char *raw_fmts =  NULL;
+	uint32 logstrs_size = 0;
+	int error = 0;
+	uint32 ramstart = 0;
+	uint32 rodata_start = 0;
+	uint32 rodata_end = 0;
+	uint32 logfilebase = 0;
+	const struct firmware *fw = NULL;
+
+	error = dhd_read_map(osh, map_file, &ramstart, &rodata_start, &rodata_end);
+	if (error != BCME_OK) {
+		DHD_ERROR(("readmap Error!! \n"));
+		/* don't do event log parsing in actual case */
+		if (strstr(str_file, ram_file_str) != NULL) {
+			temp->raw_sstr = NULL;
+		} else if (strstr(str_file, rom_file_str) != NULL) {
+			temp->rom_raw_sstr = NULL;
+		}
+		return error;
+	}
+	DHD_ERROR(("ramstart: 0x%x, rodata_start: 0x%x, rodata_end:0x%x\n",
+		ramstart, rodata_start, rodata_end));
+
+	/* Full file size is huge. Just read required part */
+	logstrs_size = rodata_end - rodata_start;
+	logfilebase = rodata_start - ramstart;
+
+	if (logstrs_size == 0) {
+		DHD_ERROR(("%s: return as logstrs_size is 0\n", __FUNCTION__));
+		goto fail1;
+	}
+
+	if (strstr(str_file, ram_file_str) != NULL && temp->raw_sstr != NULL) {
+		raw_fmts = temp->raw_sstr;	/* reuse already malloced raw_fmts */
+	} else if (strstr(str_file, rom_file_str) != NULL && temp->rom_raw_sstr != NULL) {
+		raw_fmts = temp->rom_raw_sstr;	/* reuse already malloced raw_fmts */
+	} else {
+		raw_fmts = MALLOC(osh, logstrs_size);
+
+		if (raw_fmts == NULL) {
+			DHD_ERROR(("%s: Failed to allocate raw_fmts memory \n", __FUNCTION__));
+			goto fail;
+		}
+	}
+
+	error = dhd_os_get_img_fwreq(&fw, str_file);
+	if (error < 0 || (fw == NULL) || (fw->size < logfilebase)) {
+		DHD_ERROR(("dhd_os_get_img(Request Firmware API) error : %d\n",
+			error));
+		goto fail;
+	}
+
+	error = memcpy_s(raw_fmts, logstrs_size, (char *)((fw->data) + logfilebase),
+		logstrs_size);
+	if (error) {
+		DHD_ERROR(("%s: failed to copy raw_fmts, err=%d\n",
+			__FUNCTION__, error));
+		goto fail;
+	}
+
+	if (strstr(str_file, ram_file_str) != NULL) {
+		temp->raw_sstr = raw_fmts;
+		temp->raw_sstr_size = logstrs_size;
+		temp->rodata_start = rodata_start;
+		temp->rodata_end = rodata_end;
+	} else if (strstr(str_file, rom_file_str) != NULL) {
+		temp->rom_raw_sstr = raw_fmts;
+		temp->rom_raw_sstr_size = logstrs_size;
+		temp->rom_rodata_start = rodata_start;
+		temp->rom_rodata_end = rodata_end;
+	}
+
+	if (fw) {
+		dhd_os_close_img_fwreq(fw);
+	}
+
+	return BCME_OK;
+
+fail:
+	if (raw_fmts) {
+		MFREE(osh, raw_fmts, logstrs_size);
+	}
+
+fail1:
+	if (fw) {
+		dhd_os_close_img_fwreq(fw);
+	}
+
+	if (strstr(str_file, ram_file_str) != NULL) {
+		temp->raw_sstr = NULL;
+	} else if (strstr(str_file, rom_file_str) != NULL) {
+		temp->rom_raw_sstr = NULL;
+	}
+
+	return error;
+} /* dhd_init_static_strs_array */
+#else
+static int
+dhd_init_logstrs_array(osl_t *osh, dhd_event_log_t *temp)
+{
+	struct file *filep = NULL;
+	struct kstat stat;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+	mm_segment_t fs;
+#endif
+	char *raw_fmts =  NULL;
+	int logstrs_size = 0;
+	int error = 0;
+
+	if (control_logtrace != LOGTRACE_PARSED_FMT) {
+		DHD_ERROR_NO_HW4(("%s : turned off logstr parsing\n", __FUNCTION__));
+		return BCME_ERROR;
+	}
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+#endif
+
+	filep = dhd_filp_open(logstrs_path, O_RDONLY, 0);
+
+	if (IS_ERR(filep) || (filep == NULL)) {
+		DHD_ERROR_NO_HW4(("%s: Failed to open the file %s \n",
+			__FUNCTION__, logstrs_path));
+		goto fail;
+	}
+	error = dhd_vfs_stat(logstrs_path, &stat);
+	if (error) {
+		DHD_ERROR_NO_HW4(("%s: Failed to stat file %s \n", __FUNCTION__, logstrs_path));
+		goto fail;
+	}
+	logstrs_size = (int) stat.size;
+
+	if (logstrs_size == 0) {
+		DHD_ERROR(("%s: return as logstrs_size is 0\n", __FUNCTION__));
+		goto fail1;
+	}
+
+	if (temp->raw_fmts != NULL) {
+		raw_fmts = temp->raw_fmts;	   /* reuse already malloced raw_fmts */
+	} else {
+		raw_fmts = MALLOC(osh, logstrs_size);
+		if (raw_fmts == NULL) {
+			DHD_ERROR(("%s: Failed to allocate memory \n", __FUNCTION__));
+			goto fail;
+		}
+	}
+
+	if (dhd_vfs_read(filep, raw_fmts, logstrs_size, &filep->f_pos) != logstrs_size) {
+		DHD_ERROR_NO_HW4(("%s: Failed to read file %s\n", __FUNCTION__, logstrs_path));
+		goto fail;
+	}
+
+	if (dhd_parse_logstrs_file(osh, raw_fmts, logstrs_size, temp)
+			== BCME_OK) {
+		dhd_filp_close(filep, NULL);
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+		set_fs(fs);
+#endif
+		return BCME_OK;
+	}
+
+	fail:
+	if (raw_fmts) {
+		MFREE(osh, raw_fmts, logstrs_size);
+	}
+	if (temp->fmts != NULL) {
+		MFREE(osh, temp->fmts, temp->num_fmts * sizeof(char *));
+	}
+
+	fail1:
+	if (!IS_ERR(filep))
+		dhd_filp_close(filep, NULL);
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+	set_fs(fs);
+#endif
+	temp->fmts = NULL;
+	temp->raw_fmts = NULL;
+
+	return BCME_ERROR;
+}
+
+static int
+dhd_read_map(osl_t *osh, char *fname, uint32 *ramstart, uint32 *rodata_start,
+		uint32 *rodata_end)
+{
+	struct file *filep = NULL;
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+	mm_segment_t fs;
+#endif
+	int err = BCME_ERROR;
+
+	if (fname == NULL) {
+		DHD_ERROR(("%s: ERROR fname is NULL \n", __FUNCTION__));
+		return BCME_ERROR;
+	}
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+	fs = get_fs();
+	set_fs(KERNEL_DS);
+#endif
+
+	filep = dhd_filp_open(fname, O_RDONLY, 0);
+	if (IS_ERR(filep) || (filep == NULL)) {
+		DHD_ERROR_NO_HW4(("%s: Failed to open %s \n",  __FUNCTION__, fname));
+		goto fail;
+	}
+
+	if ((err = dhd_parse_map_file(osh, filep, ramstart,
+			rodata_start, rodata_end)) < 0)
+		goto fail;
+
+fail:
+	if (!IS_ERR(filep))
+		dhd_filp_close(filep, NULL);
+
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
+	set_fs(fs);
+#endif
+
+	return err;
+}
 
 static int
 dhd_init_static_strs_array(osl_t *osh, dhd_event_log_t *temp, char *str_file, char *map_file)
@@ -11042,7 +11420,7 @@ fail1:
 
 	return error;
 } /* dhd_init_static_strs_array */
-
+#endif /* DHD_LINUX_STD_FW_API */
 #endif /* SHOW_LOGTRACE */
 
 #ifdef BT_OVER_PCIE
@@ -11840,7 +12218,7 @@ dhd_attach(osl_t *osh, struct dhd_bus *bus, uint bus_hdrlen
 	dhd->dhd_state = dhd_state;
 
 	dhd_found++;
-	
+
 #ifdef CSI_SUPPORT
 	dhd_csi_init(&dhd->pub);
 #endif /* CSI_SUPPORT */
@@ -11964,7 +12342,6 @@ int dhd_bus_get_fw_mode(dhd_pub_t *dhdp)
 }
 
 extern char * nvram_get(const char *name);
-
 bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 {
 	int fw_len;
@@ -11983,7 +12360,6 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 	int fw_path_len = sizeof(dhdinfo->fw_path);
 	int nv_path_len = sizeof(dhdinfo->nv_path);
 
-
 	/* Update firmware and nvram path. The path may be from adapter info or module parameter
 	 * The path from adapter info is used for initialization only (as it won't change).
 	 *
@@ -11996,12 +12372,17 @@ bool dhd_update_fw_nv_path(dhd_info_t *dhdinfo)
 
 	/* set default firmware and nvram path for built-in type driver */
 //	if (!dhd_download_fw_on_driverload) {
+#ifdef DHD_LINUX_STD_FW_API
+		fw = DHD_FW_NAME;
+		nv = DHD_NVRAM_NAME;
+#else
 #ifdef CONFIG_BCMDHD_FW_PATH
 		fw = VENDOR_PATH CONFIG_BCMDHD_FW_PATH;
 #endif /* CONFIG_BCMDHD_FW_PATH */
 #ifdef CONFIG_BCMDHD_NVRAM_PATH
 		nv = VENDOR_PATH CONFIG_BCMDHD_NVRAM_PATH;
 #endif /* CONFIG_BCMDHD_NVRAM_PATH */
+#endif /* DHD_LINUX_STD_FW_API */
 //	}
 
 	/* check if we need to initialize the path */
@@ -12519,8 +12900,10 @@ dhd_bus_start(dhd_pub_t *dhdp)
 	dhd_bus_l1ss_enable_rc_ep(dhdp->bus, TRUE);
 #endif /* BT_OVER_PCIE */
 
+#if defined(CUSTOMER_HW_ROCKCHIP) && defined(BCMPCIE)
 	if (IS_ENABLED(CONFIG_PCIEASPM_ROCKCHIP_WIFI_EXTENSION))
 		rk_dhd_bus_l1ss_enable_rc_ep(dhdp->bus, TRUE);
+#endif /* CUSTOMER_HW_ROCKCHIP && BCMPCIE */
 
 #if defined(CONFIG_ARCH_EXYNOS) && defined(BCMPCIE)
 #if !defined(CONFIG_SOC_EXYNOS8890) && !defined(SUPPORT_EXYNOS7420)
@@ -15482,9 +15865,7 @@ dhd_legacy_preinit_ioctls(dhd_pub_t *dhd)
 	setbit(mask, WLC_E_ADDTS_IND);
 	setbit(mask, WLC_E_DELTS_IND);
 #endif /* WL_BCNRECV */
-#ifdef CUSTOMER_HW6
 	setbit(mask, WLC_E_COUNTRY_CODE_CHANGED);
-#endif /* CUSTOMER_HW6 */
 
 	/* Write updated Event mask */
 	eventmask_msg->ver = EVENTMSGS_VER;
@@ -16674,7 +17055,7 @@ dhd_register_if(dhd_pub_t *dhdp, int ifidx, bool need_rtnl_lock)
 	 * XXX Linux 2.6.25 does not like a blank MAC address, so use a
 	 * dummy address until the interface is brought up.
 	 */
-	memcpy(net->dev_addr, temp_addr, ETHER_ADDR_LEN);
+	dev_addr_set(net, temp_addr);
 
 	if (ifidx == 0)
 		printf("%s\n", dhd_version);
@@ -16714,16 +17095,23 @@ dhd_register_if(dhd_pub_t *dhdp, int ifidx, bool need_rtnl_lock)
 	}
 #endif /* BCM_ROUTER_DHD && HNDCTF */
 
+#if defined(WLDWDS) && defined(WL_EXT_IAPSTA)
+	if (ifp->dwds) {
+		wl_ext_iapsta_attach_dwds_netdev(net, ifidx, ifp->bssidx);
+	} else
+#endif /* WLDWDS && WL_EXT_IAPSTA */
+	{
 #ifdef WL_EVENT
-	wl_ext_event_attach_netdev(net, ifidx, ifp->bssidx);
+		wl_ext_event_attach_netdev(net, ifidx, ifp->bssidx);
 #endif /* WL_EVENT */
 #ifdef WL_ESCAN
-	wl_escan_event_attach(net, ifidx);
+		wl_escan_event_attach(net, ifidx);
 #endif /* WL_ESCAN */
 #ifdef WL_EXT_IAPSTA
-	wl_ext_iapsta_attach_netdev(net, ifidx, ifp->bssidx);
-	wl_ext_iapsta_attach_name(net, ifidx);
+		wl_ext_iapsta_attach_netdev(net, ifidx, ifp->bssidx);
+		wl_ext_iapsta_attach_name(net, ifidx);
 #endif /* WL_EXT_IAPSTA */
+	}
 
 #if defined(CONFIG_TIZEN)
 	net_stat_tizen_register(net);
@@ -17519,7 +17907,10 @@ _dhd_module_init(void)
 	int err;
 	int retry = POWERUP_MAX_RETRY;
 
-	printf("%s: in %s\n", __FUNCTION__, dhd_version);
+	printk(KERN_ERR PERCENT_S DHD_LOG_PREFIXS "%s: in %s\n",
+		PRINTF_SYSTEM_TIME, __FUNCTION__, dhd_version);
+	if (ANDROID_VERSION > 0)
+		printf("ANDROID_VERSION = %d\n", ANDROID_VERSION);
 
 #ifdef DHD_BUZZZ_LOG_ENABLED
 	dhd_buzzz_attach();
@@ -18121,6 +18512,30 @@ exit:
 }
 
 #endif /* DHD_PCIE_RUNTIMEPM */
+
+#ifdef DHD_LINUX_STD_FW_API
+int
+dhd_os_get_img_fwreq(const struct firmware **fw, char *file_path)
+{
+	int ret = BCME_ERROR;
+
+	ret = request_firmware(fw, file_path, dhd_bus_to_dev(g_dhd_pub->bus));
+	if (ret < 0) {
+		DHD_ERROR(("%s: request_firmware %s err: %d\n", __FUNCTION__, file_path, ret));
+		/* convert to BCME_NOTFOUND error for error handling */
+		ret = BCME_NOTFOUND;
+	} else
+		 DHD_ERROR(("%s: %s (%zu bytes) open success\n", __FUNCTION__, file_path, (*fw)->size));
+
+	return ret;
+}
+
+void
+dhd_os_close_img_fwreq(const struct firmware *fw)
+{
+	release_firmware(fw);
+}
+#endif /* DHD_LINUX_STD_FW_API */
 
 void *
 dhd_os_open_image1(dhd_pub_t *pub, char *filename)
@@ -21666,7 +22081,7 @@ void dhd_set_version_info(dhd_pub_t *dhdp, char *fw)
 		return;
 
 	i = snprintf(&info_string[i], sizeof(info_string) - i,
-		"\n  Chip: %x Rev %x", dhd_conf_get_chip(dhdp),
+		"\n%s  Chip: %x Rev %x", DHD_LOG_PREFIXS, dhd_conf_get_chip(dhdp),
 		dhd_conf_get_chiprev(dhdp));
 }
 
@@ -24146,6 +24561,7 @@ do_dhd_log_dump(dhd_pub_t *dhdp, log_dump_type_t *type)
 	struct file *fp = NULL;
 #if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	mm_segment_t old_fs;
+	struct kstat stat;
 #endif
 	loff_t pos = 0;
 	char dump_path[128];
@@ -24153,10 +24569,10 @@ do_dhd_log_dump(dhd_pub_t *dhdp, log_dump_type_t *type)
 	unsigned long flags = 0;
 	size_t log_size = 0;
 	size_t fspace_remain = 0;
-	struct kstat stat;
 	char time_str[128];
 	unsigned int len = 0;
 	log_dump_section_hdr_t sec_hdr;
+	uint32 file_size = 0;
 
 	DHD_ERROR(("%s: ENTER \n", __FUNCTION__));
 
@@ -24222,15 +24638,24 @@ do_dhd_log_dump(dhd_pub_t *dhdp, log_dump_type_t *type)
 #endif /* CONFIG_X86 && OEM_ANDROID */
 	}
 
+#if (LINUX_VERSION_CODE < KERNEL_VERSION(5, 10, 0))
 	ret = vfs_stat(dump_path, &stat);
 	if (ret < 0) {
 		DHD_ERROR(("file stat error, err = %d\n", ret));
 		goto exit2;
 	}
+	file_size = stat.size;
+#else
+	file_size = dhd_os_get_image_size(fp);
+	if (file_size <= 0) {
+		DHD_ERROR(("%s: get file size fails ! %d\n", __FUNCTION__, file_size));
+		goto exit2;
+	}
+#endif
 
 	/* if some one else has changed the file */
 	if (dhdp->last_file_posn != 0 &&
-			stat.size < dhdp->last_file_posn) {
+			file_size < dhdp->last_file_posn) {
 		dhdp->last_file_posn = 0;
 	}
 
@@ -25788,6 +26213,39 @@ dhd_send_trap_to_fw_for_timeout(dhd_pub_t * pub, timeout_reasons_t reason)
 }
 #endif /* REPORT_FATAL_TIMEOUTS */
 
+char*
+dhd_dbg_get_system_timestamp(void)
+{
+	static char timebuf[DEBUG_DUMP_TIME_BUF_LEN];
+	struct osl_timespec tv;
+	unsigned long local_time;
+	struct rtc_time tm;
+
+	memset_s(timebuf, DEBUG_DUMP_TIME_BUF_LEN, 0, DEBUG_DUMP_TIME_BUF_LEN);
+	osl_do_gettimeofday(&tv);
+	local_time = (u32)(tv.tv_sec - (sys_tz.tz_minuteswest * 60));
+	rtc_time_to_tm(local_time, &tm);
+	scnprintf(timebuf, DEBUG_DUMP_TIME_BUF_LEN,
+			"%02d:%02d:%02d.%06lu",
+			tm.tm_hour, tm.tm_min, tm.tm_sec, tv.tv_usec);
+	return timebuf;
+}
+
+char*
+dhd_log_dump_get_timestamp(void)
+{
+	static char buf[32];
+	u64 ts_nsec;
+	unsigned long rem_nsec;
+
+	ts_nsec = local_clock();
+	rem_nsec = DIV_AND_MOD_U64_BY_U32(ts_nsec, NSEC_PER_SEC);
+	snprintf(buf, sizeof(buf), "%5lu.%06lu",
+		(unsigned long)ts_nsec, rem_nsec / NSEC_PER_USEC);
+
+	return buf;
+}
+
 #ifdef DHD_LOG_DUMP
 bool
 dhd_log_dump_ecntr_enabled(void)
@@ -26161,24 +26619,6 @@ dhd_log_dump_write(int type, char *binary_data,
 }
 
 #ifdef DHD_DEBUGABILITY_LOG_DUMP_RING
-char*
-dhd_dbg_get_system_timestamp(void)
-{
-	static char timebuf[DEBUG_DUMP_TIME_BUF_LEN];
-	struct timeval tv;
-	unsigned long local_time;
-	struct rtc_time tm;
-
-	memset_s(timebuf, DEBUG_DUMP_TIME_BUF_LEN, 0, DEBUG_DUMP_TIME_BUF_LEN);
-	do_gettimeofday(&tv);
-	local_time = (u32)(tv.tv_sec - (sys_tz.tz_minuteswest * 60));
-	rtc_time_to_tm(local_time, &tm);
-	scnprintf(timebuf, DEBUG_DUMP_TIME_BUF_LEN,
-			"%02d:%02d:%02d.%06lu",
-			tm.tm_hour, tm.tm_min, tm.tm_sec, tv.tv_usec);
-	return timebuf;
-}
-
 extern struct dhd_dbg_ring_buf g_ring_buf;
 void
 dhd_dbg_ring_write(int type, char *binary_data,
@@ -26220,21 +26660,6 @@ dhd_dbg_ring_write(int type, char *binary_data,
 	return;
 }
 #endif /* DHD_DEBUGABILITY_LOG_DUMP_RING */
-
-char*
-dhd_log_dump_get_timestamp(void)
-{
-	static char buf[32];
-	u64 ts_nsec;
-	unsigned long rem_nsec;
-
-	ts_nsec = local_clock();
-	rem_nsec = DIV_AND_MOD_U64_BY_U32(ts_nsec, NSEC_PER_SEC);
-	snprintf(buf, sizeof(buf), "%5lu.%06lu",
-		(unsigned long)ts_nsec, rem_nsec / NSEC_PER_USEC);
-
-	return buf;
-}
 #endif /* DHD_LOG_DUMP */
 
 #ifdef DHD_PCIE_NATIVE_RUNTIMEPM
@@ -27354,7 +27779,11 @@ dhd_print_kirqstats(dhd_pub_t *dhd, unsigned int irq_num)
 	char tmp_buf[KIRQ_PRINT_BUF_LEN];
 
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(2, 6, 28))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 11, 0))
+	desc = irq_data_to_desc(irq_get_irq_data(irq_num));
+#else
 	desc = irq_to_desc(irq_num);
+#endif // (LINUX_VERSION_CODE < KERNEL_VERSION(5, 11, 0))
 	if (!desc) {
 		DHD_ERROR(("%s : irqdesc is not found \n", __FUNCTION__));
 		return;
@@ -29816,65 +30245,69 @@ bool dhd_os_wd_timer_enabled(void *bus)
 
 #if defined(WLDWDS) && defined(FOURADDR_AUTO_BRG)
 /* This function is to automatically add/del interface to the bridged dev that priamy dev is in */
-static void dhd_bridge_dev_set(dhd_info_t *dhd, int ifidx, struct net_device *dev)
+static void
+dhd_bridge_dev_set(dhd_info_t *dhd, int ifidx, struct net_device *sdev)
 {
-	struct net_device *primary_ndev = NULL, *br_dev = NULL;
-	int cmd;
-	struct ifreq ifr;
+	struct net_device *pdev = NULL, *br_dev = NULL;
+	int i, err = 0;
 
-	/* add new interface to bridge dev */
-	if (dev) {
-		int found = 0, i;
-		DHD_ERROR(("bssidx %d\n", dhd->pub.info->iflist[ifidx]->bssidx));
-		for (i = 0 ; i < ifidx; i++) {
-			DHD_ERROR(("bssidx %d %d\n", i, dhd->pub.info->iflist[i]->bssidx));
-			/* search the primary interface */
-			if (dhd->pub.info->iflist[i]->bssidx == dhd->pub.info->iflist[ifidx]->bssidx) {
-				primary_ndev = dhd->pub.info->iflist[i]->net;
-				DHD_ERROR(("%dst is primary dev %s\n", i, primary_ndev->name));
-				found = 1;
+	if (sdev) {
+		/* search the primary interface wlan1(wl0.1) with same bssidx */
+		for (i = 0; i < ifidx; i++) {
+			if (dhd->iflist[i]->bssidx == dhd->iflist[ifidx]->bssidx) {
+				pdev = dhd->pub.info->iflist[i]->net;
+				WL_MSG(sdev->name, "found primary dev %s\n", pdev->name);
 				break;
 			}
 		}
-		if (found == 0) {
-			DHD_ERROR(("Can not find primary dev %s\n", dev->name));
+		if (!pdev) {
+			WL_MSG(sdev->name, "can not find primary dev\n");
 			return;
 		}
-		cmd = SIOCBRADDIF;
-		ifr.ifr_ifindex = dev->ifindex;
-	} else { /* del interface from bridge dev */
-		primary_ndev = dhd->pub.info->iflist[ifidx]->net;
-		cmd = SIOCBRDELIF;
-		ifr.ifr_ifindex = primary_ndev->ifindex;
+	} else {
+		pdev = dhd->iflist[ifidx]->net;
 	}
+
 	/* if primary net device is bridged */
-	if (primary_ndev->priv_flags & IFF_BRIDGE_PORT) {
+	if (pdev->priv_flags & IFF_BRIDGE_PORT) {
 		rtnl_lock();
 		/* get bridge device */
-		br_dev = netdev_master_upper_dev_get(primary_ndev);
+		br_dev = netdev_master_upper_dev_get(pdev);
 		if (br_dev) {
 			const struct net_device_ops *ops = br_dev->netdev_ops;
-			DHD_ERROR(("br %s pri %s\n", br_dev->name, primary_ndev->name));
 			if (ops) {
-				if (cmd == SIOCBRADDIF) {
-					DHD_ERROR(("br call ndo_add_slave\n"));
-					ops->ndo_add_slave(br_dev, dev);
+				if (sdev) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0))
+					err = ops->ndo_add_slave(br_dev, sdev, NULL);
+#else
+					err = ops->ndo_add_slave(br_dev, sdev);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(4, 15, 0) */
+					if (err)
+						WL_MSG(sdev->name, "add to %s failed %d\n", br_dev->name, err);
+					else
+						WL_MSG(sdev->name, "slave added to %s\n", br_dev->name);
 					/* Also bring wds0.x interface up automatically */
-					dev_change_flags(dev, dev->flags | IFF_UP);
-				}
-				else {
-					DHD_ERROR(("br call ndo_del_slave\n"));
-					ops->ndo_del_slave(br_dev, primary_ndev);
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0))
+					dev_change_flags(sdev, sdev->flags | IFF_UP, NULL);
+#else
+					dev_change_flags(sdev, sdev->flags | IFF_UP);
+#endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(5, 0, 0) */
+				} else {
+					err = ops->ndo_del_slave(br_dev, pdev);
+					if (err)
+						WL_MSG(pdev->name, "del from %s failed %d\n", br_dev->name, err);
+					else
+						WL_MSG(pdev->name, "slave deleted from %s\n", br_dev->name);
 				}
 			}
 		}
 		else {
-			DHD_ERROR(("no br dev\n"));
+			WL_MSG(pdev->name, "not bridged\n");
 		}
 		rtnl_unlock();
 	}
 	else {
-		DHD_ERROR(("device %s is not bridged\n", primary_ndev->name));
+		WL_MSG(pdev->name, "not bridged\n");
 	}
 }
-#endif /* defiend(WLDWDS) && defined(FOURADDR_AUTO_BRG) */
+#endif /* WLDWDS && FOURADDR_AUTO_BRG */

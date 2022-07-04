@@ -641,10 +641,10 @@ wl_inform_bss(struct bcm_cfg80211 *cfg)
 	if (cfg->autochannel && ndev) {
 #if defined(BSSCACHE)
 		wl_ext_get_best_channel(ndev, &cfg->g_bss_cache_ctrl, ioctl_version,
-			&cfg->best_2g_ch, &cfg->best_5g_ch);
+			&cfg->best_2g_ch, &cfg->best_5g_ch, &cfg->best_6g_ch);
 #else
 		wl_ext_get_best_channel(ndev, bss_list, ioctl_version,
-			&cfg->best_2g_ch, &cfg->best_5g_ch);
+			&cfg->best_2g_ch, &cfg->best_5g_ch, &cfg->best_6g_ch);
 #endif
 	}
 
@@ -1576,29 +1576,24 @@ chanspec_t wl_freq_to_chanspec(int freq)
 static void
 wl_cfgscan_populate_scan_channel(struct bcm_cfg80211 *cfg,
 	struct ieee80211_channel **channels, u32 n_channels,
-	u16 *channel_list, u32 target_channel)
+	u16 *channel_list, struct wl_chan_info *chan_info)
 {
-	u32 i = 0;
-	u32 chanspec = 0;
-	u32 channel;
+	u32 i, chanspec = 0;
 
 	for (i=0; i<n_channels; i++) {
-		channel = ieee80211_frequency_to_channel(channels[i]->center_freq);
-		if (channel != target_channel)
-			continue;
-		if (!dhd_conf_match_channel(cfg->pub, channel))
-			return;
-
 		chanspec = wl_freq_to_chanspec(channels[i]->center_freq);
 		if (chanspec == INVCHANSPEC) {
 			WL_ERR(("Invalid chanspec! Skipping channel\n"));
 			continue;
 		}
-
-		channel_list[0] = chanspec;
-		break;
+		if (chan_info->band == CHSPEC2WLC_BAND(chanspec) &&
+				chan_info->chan == wf_chspec_ctlchan(chanspec)) {
+			channel_list[0] = chanspec;
+			break;
+		}
 	}
-	WL_SCAN(("chan: %d, chanspec: %x\n", target_channel, chanspec));
+	WL_SCAN(("chan: %s-%d, chanspec: %x\n",
+		WLCBAND2STR(chan_info->band), chan_info->chan, chanspec));
 }
 #endif
 
@@ -1768,6 +1763,7 @@ wl_scan_prep(struct bcm_cfg80211 *cfg, struct net_device *ndev, void *scan_param
 	struct cfg80211_scan_request *request)
 {
 #ifdef SCAN_SUPPRESS
+	struct wl_chan_info chan_info;
 	u32 channel;
 #endif
 	wl_scan_params_t *params = NULL;
@@ -1847,14 +1843,14 @@ wl_scan_prep(struct bcm_cfg80211 *cfg, struct net_device *ndev, void *scan_param
 	cur_offset = channel_offset;
 	/* Copy channel array if applicable */
 #ifdef SCAN_SUPPRESS
-	channel = wl_ext_scan_suppress(ndev, scan_params, cfg->scan_params_v2);
+	channel = wl_ext_scan_suppress(ndev, scan_params, cfg->scan_params_v2, &chan_info);
 	if (channel) {
 		n_channels = 1;
 		if ((n_channels > 0) && chan_list) {
 			if (len >= (scan_param_size + (n_channels * sizeof(u16)))) {
 				wl_cfgscan_populate_scan_channel(cfg,
 					request->channels, request->n_channels,
-					chan_list, channel);
+					chan_list, &chan_info);
 				cur_offset += (n_channels * (sizeof(u16)));
 			}
 		}
@@ -2643,12 +2639,13 @@ __wl_cfg80211_scan(struct wiphy *wiphy, struct net_device *ndev,
 		}
 	}
 
-	mutex_lock(&cfg->scan_sync);
 #ifdef WL_EXT_IAPSTA
-	if (wl_ext_in4way_sync(ndev, STA_FAKE_SCAN_IN_CONNECT, WL_EXT_STATUS_SCANNING, NULL))
+	if (wl_ext_in4way_sync(ndev, STA_FAKE_SCAN_IN_CONNECT, WL_EXT_STATUS_SCANNING, NULL)) {
+		mutex_lock(&cfg->scan_sync);
 		goto scan_success;
-	else
+	}
 #endif
+	mutex_lock(&cfg->scan_sync);
 	err = wl_do_escan(cfg, wiphy, ndev, request);
 	if (likely(!err)) {
 		goto scan_success;

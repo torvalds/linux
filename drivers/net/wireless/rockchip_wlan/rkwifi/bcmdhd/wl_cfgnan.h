@@ -95,8 +95,8 @@
 #define NMR2STR(a) (a)[0], (a)[1], (a)[2], (a)[3], (a)[4], (a)[5], (a)[6], (a)[7]
 #define NMRSTR "%02x:%02x:%02x:%02x:%02x:%02x:%02x:%02x"
 
-#define NAN_DBG_ENTER() {WL_DBG(("Enter: %s\n", __FUNCTION__));}
-#define NAN_DBG_EXIT() {WL_DBG(("Exit: %s\n", __FUNCTION__));}
+#define NAN_DBG_ENTER() {WL_DBG(("Enter\n"));}
+#define NAN_DBG_EXIT() {WL_DBG(("Exit\n"));}
 
 /* Service Control Type length */
 #define NAN_SVC_CONTROL_TYPE_MASK	((1 << NAN_SVC_CONTROL_TYPE_LEN) - 1)
@@ -217,6 +217,7 @@
 
 #define NAN_RNG_GEOFENCE_MAX_RETRY_CNT	3u
 
+#define NAN_MAX_CHANNEL_INFO_SUPPORTED	4u
 /*
 * Discovery Beacon Interval config,
 * Default value is 128 msec in 2G DW and 176 msec in 2G/5G DW.
@@ -383,6 +384,17 @@ typedef struct nan_mac_list {
 	uint32 num_mac_addr;
 	uint8 *list;
 } nan_mac_list_t;
+
+typedef struct nan_channel_info {
+	uint32 channel;
+	uint32 bandwidth;
+	uint32 nss;
+} nan_channel_info_t;
+
+typedef struct nan_ndl_sched_info {
+	uint32 num_channels;
+	nan_channel_info_t channel_info[NAN_MAX_CHANNEL_INFO_SUPPORTED];
+} nan_ndl_sched_info_t;
 
 typedef struct wl_nan_sid_beacon_tune {
 	uint8 sid_enable;	/* flag for sending service id in beacon */
@@ -946,7 +958,12 @@ typedef enum {
 	NAN_ATTRIBUTE_DISCOVERY_BEACON_INTERVAL		= 224,
 	NAN_ATTRIBUTE_NSS				= 225,
 	NAN_ATTRIBUTE_ENABLE_RANGING			= 226,
-	NAN_ATTRIBUTE_DW_EARLY_TERM			= 227
+	NAN_ATTRIBUTE_DW_EARLY_TERM			= 227,
+	NAN_ATTRIBUTE_CHANNEL_INFO			= 228,
+	NAN_ATTRIBUTE_NUM_CHANNELS			= 229,
+	NAN_ATTRIBUTE_INSTANT_MODE_ENABLE		= 230,
+	NAN_ATTRIBUTE_INSTANT_COMM_CHAN			= 231,
+	NAN_ATTRIBUTE_MAX				= 232
 } NAN_ATTRIBUTE;
 
 enum geofence_suspend_reason {

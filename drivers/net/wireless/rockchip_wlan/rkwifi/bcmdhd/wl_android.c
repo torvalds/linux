@@ -93,19 +93,19 @@ uint android_msg_level = ANDROID_ERROR_LEVEL | ANDROID_MSG_LEVEL;
 #define ANDROID_ERROR_MSG(x, args...) \
 	do { \
 		if (android_msg_level & ANDROID_ERROR_LEVEL) { \
-			printk(KERN_ERR DHD_LOG_PREFIXS "ANDROID-ERROR) " x, ## args); \
+			printf("ANDROID-ERROR) " x, ## args); \
 		} \
 	} while (0)
 #define ANDROID_TRACE_MSG(x, args...) \
 	do { \
 		if (android_msg_level & ANDROID_TRACE_LEVEL) { \
-			printk(KERN_INFO DHD_LOG_PREFIXS "ANDROID-TRACE) " x, ## args); \
+			printf("ANDROID-TRACE) " x, ## args); \
 		} \
 	} while (0)
 #define ANDROID_INFO_MSG(x, args...) \
 	do { \
 		if (android_msg_level & ANDROID_INFO_LEVEL) { \
-			printk(KERN_INFO DHD_LOG_PREFIXS "ANDROID-INFO) " x, ## args); \
+			printf("ANDROID-INFO) " x, ## args); \
 		} \
 	} while (0)
 #define ANDROID_ERROR(x) ANDROID_ERROR_MSG x
@@ -4901,10 +4901,10 @@ int wl_android_wifi_on(struct net_device *dev)
 			dhd_net_wifi_platform_set_power(dev, TRUE, WIFI_TURNON_DELAY);
 #ifdef BCMSDIO
 			ret = dhd_net_bus_resume(dev, 0);
+			if (ret)
+				goto retry_power;
 #endif /* BCMSDIO */
-#ifdef BCMPCIE
 			ret = dhd_net_bus_devreset(dev, FALSE);
-#endif /* BCMPCIE */
 #ifdef WBRC
 			if (dhdp->dhd_induce_bh_error == DHD_INDUCE_BH_ON_FAIL_ONCE) {
 				ANDROID_ERROR(("%s: dhd_induce_bh_error = %d\n",
@@ -4921,14 +4921,30 @@ int wl_android_wifi_on(struct net_device *dev)
 				ret = BCME_ERROR;
 			}
 #endif /* WBRC */
+			if (ret)
+				goto retry_power;
+#if defined(BCMSDIO) || defined(BCMDBUS)
+#ifdef BCMSDIO
+			dhd_net_bus_resume(dev, 1);
+#endif /* BCMSDIO */
+			ret = dhd_dev_init_ioctl(dev);
+			if (ret < 0) {
+				goto retry_bus;
+			}
+#endif /* BCMSDIO || BCMDBUS */
 			if (ret == 0) {
 				break;
 			}
+#if defined(BCMSDIO) || defined(BCMDBUS)
+retry_bus:
+#ifdef BCMSDIO
+			dhd_net_bus_suspend(dev);
+#endif /* BCMSDIO */
+#endif /* BCMSDIO || BCMDBUS */
+retry_power:
 			ANDROID_ERROR(("failed to power up wifi chip, retry again (%d left) **\n\n",
 				retry));
-#ifdef BCMPCIE
 			dhd_net_bus_devreset(dev, TRUE);
-#endif /* BCMPCIE */
 			dhd_net_wifi_platform_set_power(dev, FALSE, WIFI_TURNOFF_DELAY);
 #ifdef WBRC
 			/* Inform BT reset which will internally wait till BT reset is done */
@@ -4944,41 +4960,16 @@ int wl_android_wifi_on(struct net_device *dev)
 #endif /* BCM_DETECT_TURN_ON_FAILURE */
 			goto exit;
 		}
-#if defined(BCMSDIO) || defined(BCMDBUS)
-		ret = dhd_net_bus_devreset(dev, FALSE);
-		if (ret)
-			goto err;
-#ifdef BCMSDIO
-		dhd_net_bus_resume(dev, 1);
-#endif /* BCMSDIO */
-#endif /* BCMSDIO || BCMDBUS */
-#if defined(BCMSDIO) || defined(BCMDBUS)
-		if (!ret) {
-			if (dhd_dev_init_ioctl(dev) < 0) {
-				ret = -EFAULT;
-				goto err;
-			}
-		}
-#endif /* BCMSDIO || BCMDBUS */
 		g_wifi_on = TRUE;
 	}
 
 exit:
-	WL_MSG(dev->name, "Success\n");
+	if (ret)
+		WL_MSG(dev->name, "Failed %d\n", ret);
+	else
+		WL_MSG(dev->name, "Success\n");
 	dhd_net_if_unlock(dev);
 	return ret;
-
-#if defined(BCMSDIO) || defined(BCMDBUS)
-err:
-	dhd_net_bus_devreset(dev, TRUE);
-#ifdef BCMSDIO
-	dhd_net_bus_suspend(dev);
-#endif /* BCMSDIO */
-	dhd_net_wifi_platform_set_power(dev, FALSE, WIFI_TURNOFF_DELAY);
-	WL_MSG(dev->name, "Failed\n");
-	dhd_net_if_unlock(dev);
-	return ret;
-#endif /* BCMSDIO || BCMDBUS */
 }
 
 int wl_android_wifi_off(struct net_device *dev, bool on_failure)
@@ -13372,7 +13363,7 @@ wl_cfg80211_static_if_open(struct net_device *net)
 	if (cfg->static_ndev_state[static_ifidx] != NDEV_STATE_FW_IF_CREATED) {
 #ifdef CUSTOM_MULTI_MAC
 		if (!wifi_platform_get_mac_addr(dhd->info->adapter, hw_ether, static_ifidx+1))
-			memcpy(net->dev_addr, hw_ether, ETHER_ADDR_LEN);
+			dev_addr_set(net, hw_ether);
 #endif
 		wdev = wl_cfg80211_add_if(cfg, primary_ndev, wl_iftype, net->name, net->dev_addr);
 		if (!wdev) {
@@ -13424,7 +13415,7 @@ wl_cfg80211_post_static_ifcreate(struct bcm_cfg80211 *cfg,
 		wdev = new_ndev->ieee80211_ptr;
 		ASSERT(wdev);
 		wdev->iftype = iface_type;
-		(void)memcpy_s(new_ndev->dev_addr, ETH_ALEN, addr, ETH_ALEN);
+		dev_addr_set(new_ndev, addr);
 	}
 
 	cfg->static_ndev_state[static_ifidx] = NDEV_STATE_FW_IF_CREATED;

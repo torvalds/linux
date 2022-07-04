@@ -84,7 +84,7 @@ dhd_csi_event_handler(dhd_pub_t *dhd, wl_event_msg_t *event, void *event_data)
 					dump_len = p_event->header.cfr_dump_length;
 					if (dump_len < MAX_EVENT_SIZE) {
 						bcopy(&p_event->data, &ptr->entry.data, dump_len);
-					} else { 
+					} else {
 						/* for big csi data */
 						uint8 *p = (uint8 *)&ptr->entry.data;
 						remain = p_event->header.remain_length;
@@ -217,4 +217,3 @@ dhd_csi_dump_list(dhd_pub_t *dhd, char *buf)
 
 	return length;
 }
-

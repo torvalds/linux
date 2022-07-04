@@ -22,7 +22,11 @@
 #define FW_TYPE_AG      1
 
 #define FW_PATH_AUTO_SELECT 1
+#ifdef BCMDHD_MDRIVER
+#define CONFIG_PATH_AUTO_SELECT
+#else
 //#define CONFIG_PATH_AUTO_SELECT
+#endif
 extern char firmware_path[MOD_PARAM_PATHLEN];
 #if defined(BCMSDIO) || defined(BCMPCIE)
 extern uint dhd_rxbound;
@@ -64,9 +68,10 @@ typedef struct wl_chip_nv_path_list_ctrl {
 	struct wl_chip_nv_path *m_chip_nv_path_head;
 } wl_chip_nv_path_list_ctrl_t;
 
+#define MAX_CTRL_CHANSPECS 256
 typedef struct wl_channel_list {
 	uint32 count;
-	uint32 channel[WL_NUMCHANNELS];
+	uint32 channel[MAX_CTRL_CHANSPECS];
 } wl_channel_list_t;
 
 typedef struct wmes_param {
@@ -187,6 +192,13 @@ enum conn_state {
 	CONN_STATE_GROUPKEY_M2 = 24,
 };
 
+enum enq_pkt_type {
+	ENQ_PKT_TYPE_EAPOL	= (1 << (0)),
+	ENQ_PKT_TYPE_ARP	= (1 << (1)),
+	ENQ_PKT_TYPE_DHCP	= (1 << (2)),
+	ENQ_PKT_TYPE_ICMP	= (1 << (3)),
+};
+
 typedef struct dhd_conf {
 	uint devid;
 	uint chip;
@@ -283,6 +295,8 @@ typedef struct dhd_conf {
 	int bus_deepsleep_disable;
 	int flow_ring_queue_threshold;
 	int d2h_intr_method;
+	int d2h_intr_control;
+	int enq_hdr_pkt;
 #endif
 	int dpc_cpucore;
 	int rxf_cpucore;
@@ -433,6 +447,8 @@ void dhd_conf_detach(dhd_pub_t *dhd);
 void *dhd_get_pub(struct net_device *dev);
 int wl_pattern_atoh(char *src, char *dst);
 int dhd_conf_suspend_resume_sta(dhd_pub_t *dhd, int ifidx, int suspend);
+/* Add to adjust 802.1x priority */
+extern void pktset8021xprio(void *pkt, int prio);
 #ifdef BCMSDIO
 extern int dhd_bus_sleep(dhd_pub_t *dhdp, bool sleep, uint32 *intstatus);
 #endif

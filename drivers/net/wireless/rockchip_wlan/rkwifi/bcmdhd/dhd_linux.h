@@ -407,6 +407,9 @@ typedef struct dhd_if {
 	bool recv_reassoc_evt;
 	bool post_roam_evt;
 #endif /* DHD_POST_EAPOL_M1_AFTER_ROAM_EVT */
+#ifdef WLDWDS
+	bool dwds;	/* DWDS interface */
+#endif /* WLDWDS */
 #ifdef WLEASYMESH
 	uint8 _1905_al_ucast[ETHER_ADDR_LEN];
 	uint8 _1905_al_mcast[ETHER_ADDR_LEN];

@@ -1669,7 +1669,7 @@ dhd_dump(dhd_pub_t *dhdp, char *buf, int buflen)
 		}
 #endif /* DHD_WET */
 
-	DHD_ERROR(("%s bufsize: %d free: %d", __FUNCTION__, buflen, strbuf->size));
+	DHD_ERROR(("%s bufsize: %d free: %d\n", __FUNCTION__, buflen, strbuf->size));
 	/* return remaining buffer length */
 	return (!strbuf->size ? BCME_BUFTOOSHORT : strbuf->size);
 }
@@ -7804,6 +7804,82 @@ static int traffic_mgmt_add_dwm_filter(dhd_pub_t *dhd,
 }
 #endif /* BCM_ROUTER_DHD */
 
+#ifdef DHD_LINUX_STD_FW_API
+int dhd_get_download_buffer(dhd_pub_t	*dhd, char *file_path, download_type_t component,
+	char ** buffer, int *length)
+{
+	int ret = BCME_ERROR;
+	const struct firmware *fw = NULL;
+#ifdef SUPPORT_OTA_UPDATE
+	uint8 *buf = NULL;
+	int len = 0;
+	ota_update_info_t *ota_info = &dhd->ota_update_info;
+#endif /* SUPPORT_OTA_UPDATE */
+
+#ifdef SUPPORT_OTA_UPDATE
+	if (component == CLM_BLOB) {
+		if (ota_info->clm_len) {
+			DHD_ERROR(("Using OTA CLM_BLOB\n"));
+			buf = ota_info->clm_buf;
+			len = ota_info->clm_len;
+		}
+	}
+	else if (component == NVRAM) {
+		if (ota_info->nvram_len) {
+			DHD_ERROR(("Using OTA NVRAM.\n"));
+			buf = ota_info->nvram_buf;
+			len = ota_info->nvram_len;
+		}
+	}
+#endif /* SUPPORT_OTA_UPDATE */
+
+#ifdef SUPPORT_OTA_UPDATE
+	if (len) {
+		*buffer = (char *)buf;
+		*length = len;
+	}
+	else
+#endif /* SUPPORT_OTA_UPDATE */
+	{
+		if (file_path) {
+			ret = dhd_os_get_img_fwreq(&fw, file_path);
+			if (ret < 0) {
+				DHD_ERROR(("dhd_os_get_img(Request Firmware API) error : %d\n",
+					ret));
+				goto err;
+			} else {
+				if ((fw->size <= 0 || fw->size > *length)) {
+					DHD_ERROR(("fw->size = %d, *length = %d\n", fw->size, *length));
+					*length = fw->size;
+					goto err;
+				}
+				*buffer = VMALLOCZ(dhd->osh, fw->size);
+				if (*buffer == NULL) {
+					DHD_ERROR(("%s: Failed to allocate memory %d bytes\n",
+						__FUNCTION__, (int)fw->size));
+					ret = BCME_NOMEM;
+					goto err;
+				}
+				*length = fw->size;
+				ret = memcpy_s(*buffer, fw->size, fw->data, fw->size);
+				if (ret != BCME_OK) {
+					DHD_ERROR(("%s: memcpy_s failed, err : %d\n",
+							__FUNCTION__, ret));
+					goto err;
+				}
+				ret = BCME_OK;
+			}
+		}
+	}
+err:
+	if (fw) {
+		dhd_os_close_img_fwreq(fw);
+	}
+	return ret;
+}
+
+#else
+
 /* Given filename and download type,  returns a buffer pointer and length
 * for download to f/w. Type can be FW or NVRAM.
 *
@@ -7923,6 +7999,7 @@ err:
 
 	return ret;
 }
+#endif /* DHD_LINUX_STD_FW_API */
 
 int
 dhd_download_2_dongle(dhd_pub_t	*dhd, char *iovar, uint16 flag, uint16 dload_type,
@@ -7963,9 +8040,9 @@ dhd_download_blob(dhd_pub_t *dhd, unsigned char *buf,
 
 {
 	int chunk_len;
-#if !defined(LINUX) && !defined(linux)
+#if (!defined(LINUX) && !defined(linux)) || defined(DHD_LINUX_STD_FW_API)
 	int cumulative_len = 0;
-#endif /* !LINUX && !linux */
+#endif /* !LINUX && !linux || DHD_LINUX_STD_FW_API */
 	int size2alloc;
 	unsigned char *new_buf;
 	int err = 0, data_offset;
@@ -7977,7 +8054,7 @@ dhd_download_blob(dhd_pub_t *dhd, unsigned char *buf,
 
 	if ((new_buf = (unsigned char *)MALLOCZ(dhd->osh, size2alloc)) != NULL) {
 		do {
-#if !defined(LINUX) && !defined(linux)
+#if (!defined(LINUX) && !defined(linux)) || defined(DHD_LINUX_STD_FW_API)
 			if (len >= MAX_CHUNK_LEN)
 				chunk_len = MAX_CHUNK_LEN;
 			else
@@ -7994,7 +8071,7 @@ dhd_download_blob(dhd_pub_t *dhd, unsigned char *buf,
 				err = BCME_ERROR;
 				goto exit;
 			}
-#endif /* !LINUX && !linux */
+#endif /* !LINUX && !linux || DHD_LINUX_STD_FW_API */
 			if (len - chunk_len == 0)
 				dl_flag |= DL_END;
 
@@ -8005,13 +8082,13 @@ dhd_download_blob(dhd_pub_t *dhd, unsigned char *buf,
 
 			len = len - chunk_len;
 		} while ((len > 0) && (err == 0));
-#if !defined(LINUX) && !defined(linux)
+#if (!defined(LINUX) && !defined(linux)) || defined(DHD_LINUX_STD_FW_API)
 		MFREE(dhd->osh, new_buf, size2alloc);
 #endif /* !LINUX && !linux */
 	} else {
 		err = BCME_NOMEM;
 	}
-#if defined(LINUX) || defined(linux)
+#if (defined(LINUX) || defined(linux)) && !defined(DHD_LINUX_STD_FW_API)
 exit:
 	if (new_buf) {
 		MFREE(dhd->osh, new_buf, size2alloc);
@@ -8258,7 +8335,7 @@ int
 dhd_apply_default_clm(dhd_pub_t *dhd, char *clm_path)
 {
 	char *clm_blob_path;
-	int len;
+	int len = 0, memblock_len = 0;
 	char *memblock = NULL;
 	int err = BCME_OK;
 	char iovbuf[WLC_IOCTL_SMLEN];
@@ -8272,7 +8349,11 @@ dhd_apply_default_clm(dhd_pub_t *dhd, char *clm_path)
 		clm_blob_path = clm_path;
 		DHD_TRACE(("clm path from module param:%s\n", clm_path));
 	} else {
+#ifdef DHD_LINUX_STD_FW_API
+		clm_blob_path = DHD_CLM_NAME;
+#else
 		clm_blob_path = VENDOR_PATH CONFIG_BCMDHD_CLM_PATH;
+#endif /* DHD_LINUX_STD_FW_API */
 	}
 
 	/* If CLM blob file is found on the filesystem, download the file.
@@ -8280,11 +8361,21 @@ dhd_apply_default_clm(dhd_pub_t *dhd, char *clm_path)
 	 * validate the country code before proceeding with the initialization.
 	 * If country code is not valid, fail the initialization.
 	 */
-#if !defined(LINUX) && !defined(linux)
+#if (!defined(LINUX) && !defined(linux)) || defined(DHD_LINUX_STD_FW_API)
 	len = MAX_CLM_BUF_SIZE;
 	dhd_get_download_buffer(dhd, clm_blob_path, CLM_BLOB, &memblock, &len);
+#ifdef DHD_LINUX_STD_FW_API
+	memblock_len = len;
+#else
+	memblock_len = MAX_CLM_BUF_SIZE;
+#endif /* DHD_LINUX_STD_FW_API */
 #else
 	memblock = dhd_os_open_image1(dhd, (char *)clm_blob_path);
+	len = dhd_os_get_image_size(memblock);
+	BCM_REFERENCE(memblock_len);
+#endif /* !LINUX && !linux || DHD_LINUX_STD_FW_API */
+
+#if defined(LINUX) || defined(linux)
 	if (memblock == NULL) {
 		printf("%s: Ignore clm file %s\n", __FUNCTION__, clm_path);
 #if defined(DHD_BLOB_EXISTENCE_CHECK)
@@ -8301,8 +8392,6 @@ dhd_apply_default_clm(dhd_pub_t *dhd, char *clm_path)
 #endif /* DHD_BLOB_EXISTENCE_CHECK */
 		goto exit;
 	}
-
-	len = dhd_os_get_image_size(memblock);
 #endif /* !LINUX && !linux */
 
 	if ((len > 0) && (len < MAX_CLM_BUF_SIZE) && memblock) {
@@ -8368,10 +8457,10 @@ dhd_apply_default_clm(dhd_pub_t *dhd, char *clm_path)
 exit:
 
 	if (memblock) {
-#if defined(LINUX) || defined(linux)
+#if (defined(LINUX) || defined(linux)) && !defined(DHD_LINUX_STD_FW_API)
 		dhd_os_close_image1(dhd, memblock);
 #else
-		dhd_free_download_buffer(dhd, memblock, MAX_CLM_BUF_SIZE);
+		dhd_free_download_buffer(dhd, memblock, memblock_len);
 #endif /* LINUX || linux */
 	}
 
@@ -8384,7 +8473,11 @@ void dhd_free_download_buffer(dhd_pub_t	*dhd, void *buffer, int length)
 #ifdef CACHE_FW_IMAGES
 	return;
 #endif
+#if defined(DHD_LINUX_STD_FW_API)
+	VMFREE(dhd->osh, buffer, length);
+#else
 	MFREE(dhd->osh, buffer, length);
+#endif /* DHD_LINUX_STD_FW_API */
 }
 
 #ifdef REPORT_FATAL_TIMEOUTS
@@ -9063,8 +9156,13 @@ dhd_parse_logstrs_file(osl_t *osh, char *raw_fmts, int logstrs_size,
 	int32 i = 0;
 	uint8 *pfw_id = NULL;
 	uint32 fwid = 0;
+#ifdef DHD_LINUX_STD_FW_API
+	int err = 0;
+	const struct firmware *fw = NULL;
+#else
 	void *file = NULL;
 	int file_len = 0;
+#endif /* DHD_LINUX_STD_FW_API */
 	char fwid_str[FWID_STR_LEN];
 	uint32 hdr_logstrs_size = 0;
 
@@ -9097,6 +9195,23 @@ dhd_parse_logstrs_file(osl_t *osh, char *raw_fmts, int logstrs_size,
 			 *  both logstrs.bin and fw bin
 			 */
 
+#ifdef DHD_LINUX_STD_FW_API
+			err = dhd_os_get_img_fwreq(&fw, st_str_file_path);
+			if (err < 0) {
+				DHD_ERROR(("dhd_os_get_img(Request Firmware API) error : %d\n",
+					err));
+				goto error;
+			}
+			memset(fwid_str, 0, sizeof(fwid_str));
+			err = memcpy_s(fwid_str, (sizeof(fwid_str) - 1),
+				&(fw->data[fw->size - (sizeof(fwid_str) - 1)]),
+				(sizeof(fwid_str) - 1));
+			if (err) {
+				DHD_ERROR(("%s: failed to copy raw_fmts, err=%d\n",
+					__FUNCTION__, err));
+				goto error;
+			}
+#else
 			/* read the FWID from fw bin */
 			file = dhd_os_open_image1(NULL, st_str_file_path);
 			if (!file) {
@@ -9119,6 +9234,7 @@ dhd_parse_logstrs_file(osl_t *osh, char *raw_fmts, int logstrs_size,
 				DHD_ERROR(("%s: read fw file failed !\n", __FUNCTION__));
 				goto error;
 			}
+#endif /* DHD_LINUX_STD_FW_API */
 			pfw_id = (uint8 *)bcmstrnstr(fwid_str, sizeof(fwid_str) - 1,
 					FWID_STR_1, strlen(FWID_STR_1));
 			if (!pfw_id) {
@@ -9156,9 +9272,15 @@ dhd_parse_logstrs_file(osl_t *osh, char *raw_fmts, int logstrs_size,
 			hdr_logstrs_size = hdr->logstrs_size;
 
 error:
+#ifdef DHD_LINUX_STD_FW_API
+			if (fw) {
+				dhd_os_close_img_fwreq(fw);
+			}
+#else
 			if (file) {
 				dhd_os_close_image1(NULL, file);
 			}
+#endif /* DHD_LINUX_STD_FW_API */
 			if (match_fail) {
 				return BCME_DECERR;
 			}
@@ -9223,6 +9345,101 @@ error:
 	return BCME_OK;
 } /* dhd_parse_logstrs_file */
 
+#ifdef DHD_LINUX_STD_FW_API
+int dhd_parse_map_file(osl_t *osh, void *ptr, uint32 *ramstart, uint32 *rodata_start,
+		uint32 *rodata_end)
+{
+	char *raw_fmts =  NULL, *raw_fmts_loc = NULL;
+	uint32 read_size = READ_NUM_BYTES, offset = 0;
+	int error = 0;
+	char * cptr = NULL;
+	char c;
+	uint8 count = 0;
+	uint32 size = 0;
+
+	*ramstart = 0;
+	*rodata_start = 0;
+	*rodata_end = 0;
+	size = (uint32)(((struct firmware *)ptr)->size);
+
+	/* Allocate 1 byte more than read_size to terminate it with NULL */
+	raw_fmts = MALLOCZ(osh, read_size + 1);
+	if (raw_fmts == NULL) {
+		DHD_ERROR(("%s: Failed to allocate raw_fmts memory \n", __FUNCTION__));
+		goto fail;
+	}
+
+	/* read ram start, rodata_start and rodata_end values from map  file */
+	while (count != ALL_MAP_VAL)
+	{
+		/* Bound check for size before doing memcpy() */
+		if ((offset + read_size) > size) {
+			read_size = size - offset;
+		}
+
+		error = memcpy_s(raw_fmts, read_size,
+			(((char *)((struct firmware *)ptr)->data) + offset), read_size);
+		if (error) {
+			DHD_ERROR(("%s: failed to copy raw_fmts, err=%d\n",
+				__FUNCTION__, error));
+			goto fail;
+		}
+		/* End raw_fmts with NULL as strstr expects NULL terminated strings */
+		raw_fmts[read_size] = '\0';
+
+		/* Get ramstart address */
+		raw_fmts_loc = raw_fmts;
+		if (!(count & RAMSTART_BIT) &&
+			(cptr = bcmstrnstr(raw_fmts_loc, read_size, ramstart_str,
+			strlen(ramstart_str)))) {
+			cptr = cptr - BYTES_AHEAD_NUM;
+			sscanf(cptr, "%x %c text_start", ramstart, &c);
+			count |= RAMSTART_BIT;
+		}
+
+		/* Get ram rodata start address */
+		raw_fmts_loc = raw_fmts;
+		if (!(count & RDSTART_BIT) &&
+			(cptr = bcmstrnstr(raw_fmts_loc, read_size, rodata_start_str,
+			strlen(rodata_start_str)))) {
+			cptr = cptr - BYTES_AHEAD_NUM;
+			sscanf(cptr, "%x %c rodata_start", rodata_start, &c);
+			count |= RDSTART_BIT;
+		}
+
+		/* Get ram rodata end address */
+		raw_fmts_loc = raw_fmts;
+		if (!(count & RDEND_BIT) &&
+			(cptr = bcmstrnstr(raw_fmts_loc, read_size, rodata_end_str,
+			strlen(rodata_end_str)))) {
+			cptr = cptr - BYTES_AHEAD_NUM;
+			sscanf(cptr, "%x %c rodata_end", rodata_end, &c);
+			count |= RDEND_BIT;
+		}
+
+		if ((offset + read_size) >= size) {
+			break;
+		}
+
+		memset(raw_fmts, 0, read_size);
+		offset += (read_size - GO_BACK_FILE_POS_NUM_BYTES);
+	}
+
+fail:
+	if (raw_fmts) {
+		MFREE(osh, raw_fmts, read_size + 1);
+		raw_fmts = NULL;
+	}
+	if (count == ALL_MAP_VAL) {
+		return BCME_OK;
+	}
+	else {
+		DHD_ERROR(("%s: readmap error 0X%x \n", __FUNCTION__,
+				count));
+		return BCME_ERROR;
+	}
+} /* dhd_parse_map_file */
+#else
 int dhd_parse_map_file(osl_t *osh, void *file, uint32 *ramstart, uint32 *rodata_start,
 		uint32 *rodata_end)
 {
@@ -9320,6 +9537,7 @@ fail:
 	}
 
 } /* dhd_parse_map_file */
+#endif /* DHD_LINUX_STD_FW_API */
 
 #ifdef PCIE_FULL_DONGLE
 int

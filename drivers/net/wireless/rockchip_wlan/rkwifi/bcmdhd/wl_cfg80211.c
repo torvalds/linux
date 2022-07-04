@@ -3719,15 +3719,19 @@ wl_cfg80211_post_ifcreate(struct net_device *ndev,
 #ifdef WLDWDS
 		/* set wds0.x to 4addr interface here */
 		if (event->role == WLC_E_IF_ROLE_WDS) {
-			WL_MSG(ndev->name, "set vwdev 4addr to %s\n", event->name);
+			struct dhd_if *ifp = dhd_get_ifp(cfg->pub, event->ifidx);
+			ifp->dwds = TRUE;
+			WL_MSG(event->name, "set to 4addr\n");
 			wdev->use_4addr = true;
 		}
 #endif /* WLDWDS */
 		SET_NETDEV_DEV(new_ndev, wiphy_dev(wdev->wiphy));
 
-		memcpy(new_ndev->dev_addr, addr, ETH_ALEN);
+		dev_addr_set(new_ndev, addr);
 #ifdef WL_EXT_IAPSTA
-		wl_ext_iapsta_ifadding(new_ndev, event->ifidx);
+		if (event->role != WLC_E_IF_ROLE_WDS) {
+			wl_ext_iapsta_ifadding(new_ndev, event->ifidx);
+		}
 #endif /* WL_EXT_IAPSTA */
 		if (wl_cfg80211_register_if(cfg, event->ifidx, new_ndev, rtnl_lock_reqd)
 			!= BCME_OK) {
@@ -3759,7 +3763,7 @@ wl_cfg80211_post_ifcreate(struct net_device *ndev,
 		wl_set_drv_status(cfg, AP_CREATING, new_ndev);
 	}
 #ifdef WL_EXT_IAPSTA
-	wl_ext_iapsta_update_iftype(new_ndev, event->ifidx, wl_iftype);
+	wl_ext_iapsta_update_iftype(new_ndev, wl_iftype);
 #endif
 
 	WL_INFORM_MEM(("Network Interface (%s) registered with host."
@@ -4190,10 +4194,11 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	s32 err = 0;
 	size_t join_params_size;
 	chanspec_t chanspec = 0;
+	char sec[64];
 
 	WL_TRACE(("In\n"));
 	RETURN_EIO_IF_NOT_UP(cfg);
-	WL_INFORM_MEM(("IBSS JOIN BSSID:" MACDBG "\n", MAC2STRDBG(params->bssid)));
+	WL_INFORM_MEM(("IBSS JOIN\n"));
 	if (!params->ssid || params->ssid_len <= 0 ||
 		params->ssid_len > DOT11_MAX_SSID_LEN) {
 		WL_ERR(("Invalid parameter\n"));
@@ -4205,7 +4210,12 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	chan = params->channel;
 #endif /* WL_CFG80211_P2P_DEV_IF */
 	if (chan) {
-		cfg->channel = wl_freq_to_chanspec(chan->center_freq);
+#ifdef WL_EXT_IAPSTA
+		chanspec = wl_freq_to_chanspec(chan->center_freq);
+		wl_ext_iapsta_update_iftype(dev, WL_IF_TYPE_IBSS);
+		chanspec = wl_ext_iapsta_update_channel(dev, chanspec);
+#endif /* WL_EXT_IAPSTA */
+		cfg->channel = chanspec;
 	}
 	if (wl_get_drv_status(cfg, CONNECTED, dev)) {
 		struct wlc_ssid *lssid = (struct wlc_ssid *)wl_read_prof(cfg, dev, WL_PROF_SSID);
@@ -4228,6 +4238,7 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	bss = cfg80211_get_ibss(wiphy, NULL, params->ssid, params->ssid_len);
 	if (!bss) {
 		if (IBSS_INITIAL_SCAN_ALLOWED == TRUE) {
+			int retry = 4;
 			memcpy(ssid.ssid, params->ssid, params->ssid_len);
 			ssid.ssid_len = params->ssid_len;
 			do {
@@ -4245,7 +4256,13 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 			 */
 
 			/* wait 4 secons till scan done.... */
-			schedule_timeout_interruptible(msecs_to_jiffies(4000));
+//			schedule_timeout_interruptible(msecs_to_jiffies(4000));
+			while (retry--) {
+				if (!wl_get_drv_status_all(cfg, SCANNING)) {
+					break;
+				}
+				wl_delay(150);
+			}
 
 			bss = cfg80211_get_ibss(wiphy, NULL,
 				params->ssid, params->ssid_len);
@@ -4314,6 +4331,10 @@ wl_cfg80211_join_ibss(struct wiphy *wiphy, struct net_device *dev,
 	wldev_iovar_setint(dev, "wpa_auth", WPA_AUTH_DISABLED);
 	wldev_iovar_setint(dev, "wsec", 0);
 
+	wl_ext_get_sec(dev, 0, sec, sizeof(sec), TRUE);
+	WL_MSG(dev->name, "Join IBSS %pM ssid \"%s\", len (%d), channel=%d, sec=%s\n",
+		&join_params.params.bssid, join_params.ssid.SSID, join_params.ssid.SSID_len,
+		wf_chspec_ctlchan(chanspec), sec);
 	err = wldev_ioctl_set(dev, WLC_SET_SSID, &join_params,
 		join_params_size);
 	if (unlikely(err)) {
@@ -4352,7 +4373,7 @@ static s32 wl_cfg80211_leave_ibss(struct wiphy *wiphy, struct net_device *dev)
 	RETURN_EIO_IF_NOT_UP(cfg);
 	wl_link_down(cfg);
 
-	WL_INFORM_MEM(("Leave IBSS\n"));
+	WL_MSG(dev->name, "Leave IBSS\n");
 	curbssid = wl_read_prof(cfg, dev, WL_PROF_BSSID);
 	wl_set_drv_status(cfg, DISCONNECTING, dev);
 	scbval.val = 0;
@@ -6171,7 +6192,7 @@ void
 wl_conn_debug_info(struct bcm_cfg80211 *cfg, struct net_device *dev, wlcfg_assoc_info_t *info)
 {
 	struct wl_security *sec = wl_read_prof(cfg, dev, WL_PROF_SEC);
-	char sec_info[32];
+	char sec_info[64];
 	u32 chanspec = info->chanspecs[0];
 	u32 chan_cnt = info->chan_cnt;
 	s32 cur_rssi = 0, target_rssi = 0;
@@ -6191,14 +6212,16 @@ wl_conn_debug_info(struct bcm_cfg80211 *cfg, struct net_device *dev, wlcfg_assoc
 		if (!err)
 			cur_rssi = dtoh32(scb_val.val);
 		WL_MSG(dev->name, "Reconnecting with " MACDBG " ssid \"%s\", len (%d), "
-			"channel=%d(chan_cnt=%d), sec=%s, rssi=%d => %d\n",
+			"channel=%s-%d(chan_cnt=%d), sec=%s, rssi=%d => %d\n",
 			MAC2STRDBG((u8*)(&info->bssid)), info->ssid, info->ssid_len,
-			wf_chspec_ctlchan(chanspec), chan_cnt, sec_info, cur_rssi, target_rssi);
+			CHSPEC2BANDSTR(chanspec), wf_chspec_ctlchan(chanspec), chan_cnt,
+			sec_info, cur_rssi, target_rssi);
 	} else {
 		WL_MSG(dev->name, "Connecting with " MACDBG " ssid \"%s\", len (%d), "
-			"channel=%d(chan_cnt=%d), sec=%s, rssi=%d\n",
+			"channel=%s-%d(chan_cnt=%d), sec=%s, rssi=%d\n",
 			MAC2STRDBG((u8*)(&info->bssid)), info->ssid, info->ssid_len,
-			wf_chspec_ctlchan(chanspec), chan_cnt, sec_info, target_rssi);
+			CHSPEC2BANDSTR(chanspec), wf_chspec_ctlchan(chanspec), chan_cnt,
+			sec_info, target_rssi);
 	}
 	if (wl_dbg_level & WL_DBG_DBG) {
 		WL_MSG(dev->name, "akm:0x%x auth:0x%x wpaver:0x%x pwise:0x%x gwise:0x%x\n",
@@ -6251,7 +6274,7 @@ wl_handle_join(struct bcm_cfg80211 *cfg,
 	}
 
 #ifdef WL_EXT_IAPSTA
-	wl_ext_iapsta_update_channel(dev, wf_chspec_ctlchan(assoc_info->chanspecs[0]));
+	wl_ext_iapsta_update_channel(dev, assoc_info->chanspecs[0]);
 #endif
 	/* print relevant info for debug purpose */
 	wl_conn_debug_info(cfg, dev, assoc_info);
@@ -6304,7 +6327,7 @@ wl_handle_reassoc(struct bcm_cfg80211 *cfg, struct net_device *dev,
 	reassoc_params->chanspec_num = htod32(chan_cnt);
 
 #ifdef WL_EXT_IAPSTA
-	wl_ext_iapsta_update_channel(dev, wf_chspec_ctlchan(chanspec));
+	wl_ext_iapsta_update_channel(dev, chanspec);
 #endif
 	/* print relevant info for debug purpose */
 	wl_conn_debug_info(cfg, dev, info);
@@ -7793,7 +7816,7 @@ wl_cfg80211_get_station(struct wiphy *wiphy, struct net_device *dev,
 					STA_INFO_BIT(INFO_TX_PACKETS) |
 					STA_INFO_BIT(INFO_TX_FAILED));
 get_station_err:
-#ifndef BCMDBUS
+#if 0
 			if (err && (err != -ENODATA)) {
 				/* Disconnect due to zero BSSID or error to get RSSI */
 				scb_val_t scbval;
@@ -10317,6 +10340,35 @@ s32 wl_mode_to_nl80211_iftype(s32 mode)
 }
 
 static bool
+wl_is_ccode_change_allowed(struct net_device *net)
+{
+	struct wireless_dev *wdev = ndev_to_wdev(net);
+	struct wiphy *wiphy = wdev->wiphy;
+	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
+	struct net_info *iter, *next;
+
+	/* Country code isn't allowed change on AP/GO, NDP established  */
+	GCC_DIAGNOSTIC_PUSH_SUPPRESS_CAST();
+	for_each_ndev(cfg, iter, next) {
+		GCC_DIAGNOSTIC_POP();
+		if (iter->ndev) {
+			if (wl_get_drv_status(cfg, AP_CREATED, iter->ndev)) {
+				WL_ERR(("AP active. skip coutry ccode change"));
+				return false;
+			}
+		}
+	}
+
+#ifdef WL_NAN
+	if (wl_cfgnan_is_enabled(cfg) && wl_cfgnan_is_dp_active(net)) {
+		WL_ERR(("NDP established. skip coutry ccode change"));
+		return false;
+	}
+#endif /* WL_NAN */
+	return true;
+}
+
+static bool
 wl_is_ccode_change_required(struct net_device *net,
 	char *country_code, int revinfo)
 {
@@ -10394,6 +10446,73 @@ wl_cfg80211_cleanup_connection(struct net_device *net, bool user_enforced)
 #endif /* WL_NAN */
 }
 
+static int wl_copy_regd(const struct ieee80211_regdomain *regd_orig,
+	struct ieee80211_regdomain *regd_copy)
+{
+	int i;
+
+	if (memcpy_s(regd_copy, sizeof(*regd_copy), regd_orig, sizeof(*regd_orig))) {
+		return BCME_ERROR;
+	}
+	for (i = 0; i < regd_orig->n_reg_rules; i++) {
+		if (memcpy_s(&regd_copy->reg_rules[i], sizeof(regd_copy->reg_rules[i]),
+			&regd_orig->reg_rules[i], sizeof(regd_orig->reg_rules[i]))) {
+			return BCME_ERROR;
+		}
+	}
+	return BCME_OK;
+}
+
+static void wl_notify_regd(struct wiphy *wiphy, char *country_code)
+{
+	struct ieee80211_regdomain *regd_copy = NULL;
+	int regd_len;
+	struct bcm_cfg80211 *cfg = wiphy_priv(wiphy);
+
+	regd_len = sizeof(brcm_regdom) + (brcm_regdom.n_reg_rules *
+			sizeof(struct ieee80211_reg_rule));
+
+	regd_copy = (struct ieee80211_regdomain *)MALLOCZ(cfg->osh, regd_len);
+	if (!regd_copy) {
+		WL_ERR(("failed to alloc regd_copy\n"));
+		return;
+	}
+
+	/* the upper layer function below requires non-const type */
+	if (wl_copy_regd(&brcm_regdom, regd_copy)) {
+		WL_ERR(("failed to copy new regd\n"));
+		goto exit;
+	}
+
+	if (country_code) {
+		if (memcpy_s(regd_copy->alpha2, sizeof(regd_copy->alpha2),
+			country_code, WL_CCODE_LEN)) {
+			WL_ERR(("failed to copy new ccode:%s\n", country_code));
+			goto exit;
+		}
+	}
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
+	if (rtnl_is_locked()) {
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
+		wiphy_lock(wiphy);
+		regulatory_set_wiphy_regd_sync(wiphy, regd_copy);
+		wiphy_unlock(wiphy);
+#else
+		regulatory_set_wiphy_regd_sync_rtnl(wiphy, regd_copy);
+#endif /* LINUX_VERSION > 5.12.0 */
+	} else {
+		regulatory_set_wiphy_regd(wiphy, regd_copy);
+	}
+#else
+	wiphy_apply_custom_regulatory(wiphy, regd_copy);
+#endif /* LINUX_VERSION > 4.0.0 */
+
+exit:
+	MFREE(cfg->osh, regd_copy, regd_len);
+	return;
+}
+
 s32
 wl_cfg80211_set_country_code(struct net_device *net, char *country_code,
 	bool notify, bool user_enforced, int revinfo)
@@ -10415,12 +10534,25 @@ wl_cfg80211_set_country_code(struct net_device *net, char *country_code,
 		goto exit;
 	}
 
+	if (wl_is_ccode_change_allowed(net) == false) {
+		WL_ERR(("country code change isn't allowed during AP role/NAN connected\n"));
+		ret = BCME_EPERM;
+		goto exit;
+	}
+
 	wl_cfg80211_cleanup_connection(net, user_enforced);
+
+	/* Store before applying - so that if event comes earlier that is handled properly */
+	if (strlcpy(cfg->country, country_code, WL_CCODE_LEN) >= WLC_CNTRY_BUF_SZ) {
+		WL_ERR(("country code copy failed :%d\n", ret));
+		goto exit;
+	}
 
 	ret = wldev_set_country(net, country_code,
 		notify, revinfo);
 	if (ret < 0) {
 		WL_ERR(("set country Failed :%d\n", ret));
+		bzero(cfg->country, sizeof(cfg->country));
 		goto exit;
 	}
 
@@ -10430,10 +10562,12 @@ wl_cfg80211_set_country_code(struct net_device *net, char *country_code,
 	 */
 	if (!IS_REGDOM_SELF_MANAGED(wiphy)) {
 		regulatory_hint(wiphy, country_code);
+	} else {
+		wl_notify_regd(wiphy, country_code);
 	}
 
 exit:
-	return ret;
+	return OSL_ERROR(ret);
 }
 
 #ifdef CONFIG_CFG80211_INTERNAL_REGDB
@@ -10521,12 +10655,10 @@ static
 void wl_config_custom_regulatory(struct wiphy *wiphy)
 {
 
-#if defined(WL_SELF_MANAGED_REGDOM) && \
-	(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
+#if defined(WL_SELF_MANAGED_REGDOM) && (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
 	/* Use self managed regulatory domain */
 	wiphy->regulatory_flags |= REGULATORY_WIPHY_SELF_MANAGED |
 			REGULATORY_IGNORE_STALE_KICKOFF;
-	wiphy->regd = &brcm_regdom;
 	WL_DBG(("Self managed regdom\n"));
 	return;
 #else /* WL_SELF_MANAGED_REGDOM && KERNEL >= 4.0 */
@@ -10540,7 +10672,7 @@ void wl_config_custom_regulatory(struct wiphy *wiphy)
 #else /* KERNEL VER >= 3.14 */
 	wiphy->flags |= WIPHY_FLAG_CUSTOM_REGULATORY;
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 14, 0) */
-	wiphy_apply_custom_regulatory(wiphy, &brcm_regdom);
+	wl_notify_regd(wiphy, NULL);
 	WL_DBG(("apply custom regulatory\n"));
 #endif /* WL_SELF_MANAGED_REGDOM && KERNEL >= 4.0 */
 }
@@ -10753,13 +10885,6 @@ static s32 wl_setup_wiphy(struct wireless_dev *wdev, struct device *sdiofunc_dev
 	wdev->wiphy->max_num_csa_counters = WL_MAX_NUM_CSA_COUNTERS;
 #endif /* LINUX_VERSION_CODE > KERNEL_VERSION(3, 12, 0) */
 
-	/* Now we can register wiphy with cfg80211 module */
-	err = wiphy_register(wdev->wiphy);
-	if (unlikely(err < 0)) {
-		WL_ERR(("Couldn not register wiphy device (%d)\n", err));
-		wiphy_free(wdev->wiphy);
-	}
-
 #if ((LINUX_VERSION_CODE >= KERNEL_VERSION(3, 0, 0)) && \
 	(LINUX_VERSION_CODE <= KERNEL_VERSION(3, 3, 0))) && defined(WL_IFACE_COMB_NUM_CHANNELS)
 	/* Workaround for a cfg80211 bug */
@@ -10791,6 +10916,23 @@ static s32 wl_setup_wiphy(struct wireless_dev *wdev, struct device *sdiofunc_dev
 	wdev->wiphy->features |= NL80211_FEATURE_LOW_PRIORITY_SCAN;
 #endif /* WL_SCAN_TYPE */
 
+	/* Now we can register wiphy with cfg80211 module */
+	err = wiphy_register(wdev->wiphy);
+	if (unlikely(err < 0)) {
+		WL_ERR(("Couldn not register wiphy device (%d)\n", err));
+		wiphy_free(wdev->wiphy);
+		return err;
+	}
+
+	/* set wiphy->regd through reg_process_self_managed_hints
+	 * need to call it after wiphy_register
+	 * since wiphy_register adds rdev to cfg80211_rdev_list
+	 */
+	if (IS_REGDOM_SELF_MANAGED(wdev->wiphy)) {
+		rtnl_lock();
+		wl_notify_regd(wdev->wiphy, NULL);
+		rtnl_unlock();
+	}
 	return err;
 }
 
@@ -10815,8 +10957,7 @@ static void wl_free_wdev(struct bcm_cfg80211 *cfg)
 		wdev->wiphy->wowlan = NULL;
 #endif /* LINUX_VERSION_CODE >= KERNEL_VERSION(3, 11, 0) */
 #endif /* CONFIG_PM && WL_CFG80211_P2P_DEV_IF */
-#if defined(WL_SELF_MANAGED_REGDOM) && \
-			(LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
+#if defined(WL_SELF_MANAGED_REGDOM) && (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 0, 0))
 		/* Making regd ptr NULL, to avoid reference/freeing by regulatory unregister */
 		wiphy->regd = NULL;
 #endif /* WL_SELF_MANAGED_REGDOM && KERNEL >= 4.0 */
@@ -11308,9 +11449,8 @@ wl_notify_connect_status_ibss(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 					MACDBG "), ignore it\n", MAC2STRDBG(cur_bssid)));
 				return err;
 			}
-			WL_INFORM_MEM(("[%s] IBSS BSSID is changed from " MACDBG " to " MACDBG "\n",
-				ndev->name, MAC2STRDBG(cur_bssid),
-				MAC2STRDBG((const u8 *)&e->addr)));
+			WL_MSG(ndev->name, "IBSS BSSID is changed from " MACDBG " to " MACDBG "\n",
+				MAC2STRDBG(cur_bssid), MAC2STRDBG((const u8 *)&e->addr));
 			wl_get_assoc_ies(cfg, ndev);
 			wl_update_prof(cfg, ndev, NULL, (const void *)&e->addr, WL_PROF_BSSID);
 			wl_update_bss_info(cfg, ndev, false);
@@ -11322,8 +11462,8 @@ wl_notify_connect_status_ibss(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 		}
 		else {
 			/* New connection */
-			WL_INFORM_MEM(("[%s] IBSS connected to " MACDBG "\n",
-				ndev->name, MAC2STRDBG((const u8 *)&e->addr)));
+			WL_MSG(ndev->name, "IBSS connected to " MACDBG "\n",
+				MAC2STRDBG((const u8 *)&e->addr));
 			wl_link_up(cfg);
 			wl_get_assoc_ies(cfg, ndev);
 			wl_update_prof(cfg, ndev, NULL, (const void *)&e->addr, WL_PROF_BSSID);
@@ -13800,6 +13940,7 @@ wl_bss_connect_done(struct bcm_cfg80211 *cfg, struct net_device *ndev,
 			WL_ERR(("ssid_len=0. Indicate assoc event failure\n"));
 			completed = false;
 			sec->auth_assoc_res_status = WLAN_STATUS_UNSPECIFIED_FAILURE;
+			wl_clr_drv_status(cfg, CONNECTED, ndev);
 		}
 	}
 
@@ -14459,19 +14600,76 @@ exit:
 	return err;
 }
 
-#ifdef CUSTOMER_HW6
+static void
+wl_map_brcm_specifc_country_code(char *country_code)
+{
+	/* If country code is default locale, change the domain to world domain
+	 * Default locale formats: AA, ZZ, XA-XZ, QM-QZ
+	 */
+	if (!strcmp("AA", country_code) || !strcmp("ZZ", country_code) ||
+			((country_code[0] == 'X') && (country_code[1] >= 'A') &&
+			(country_code[1] <= 'Z')) || ((country_code[0] == 'Q') &&
+			(country_code[1] >= 'M') && (country_code[1] <= 'Z'))) {
+		WL_DBG(("locale mapped to world domain\n"));
+		country_code[0] = '0';
+		country_code[1] = '0';
+	}
+}
+
 static s32
 wl_cfg80211_ccode_evt_handler(struct bcm_cfg80211 *cfg, bcm_struct_cfgdev *cfgdev,
 	const wl_event_msg_t *event, void *data)
 {
 	s32 err = 0;
+	struct wiphy *wiphy = bcmcfg_to_wiphy(cfg);
+	char country_str[WLC_CNTRY_BUF_SZ] = { 0 };
+	struct net_device *dev = bcmcfg_to_prmry_ndev(cfg);
+	wl_country_t cspec = {{0}, 0, {0}};
+
+	if (strlcpy(country_str, data, WL_CCODE_LEN + 1) >= WLC_CNTRY_BUF_SZ) {
+		return -EINVAL;
+	}
+
+	if (strncmp(cfg->country, country_str, WL_CCODE_LEN) == 0) {
+		/* If country code is updated from command context, skip wiphy update */
+		WL_MSG(dev->name, "No change in country (%s)\n", country_str);
+		return BCME_OK;
+	}
+
+	WL_MSG(dev->name, "Updating new country %s\n", country_str);
+
+	strlcpy(cspec.country_abbrev, country_str, WL_CCODE_LEN + 1);
+	strlcpy(cspec.ccode, country_str, WL_CCODE_LEN + 1);
+	err = dhd_conf_map_country_list(dhd_get_pub(dev), &cspec);
+	if (err)
+		dhd_get_customized_country_code(dev, (char *)&cspec.country_abbrev, &cspec);
+	err = dhd_conf_set_country(dhd_get_pub(dev), &cspec);
+	if (err < 0) {
+		WL_ERR(("set country for %s as %s rev %d failed\n",
+			country_str, cspec.ccode, cspec.rev));
+	}
+	dhd_conf_fix_country(dhd_get_pub(dev));
+
 	/* Indicate to upper layer for regdom change */
-	WL_INFORM_MEM(("Received country code change event\n"));
 	err = wl_update_wiphybands(cfg, true);
+	if (err != BCME_OK) {
+		WL_ERR(("update wiphy bands failed\n"));
+		return err;
+	}
+
+	wl_map_brcm_specifc_country_code(country_str);
+
+	if (!IS_REGDOM_SELF_MANAGED(wiphy)) {
+		err = regulatory_hint(wiphy, country_str);
+		if (err) {
+			WL_ERR(("update country change failed\n"));
+			return err;
+		}
+		WL_DBG_MEM(("regulatory hint notified for ccode change\n"));
+	}
 
 	return err;
 }
-#endif /* CUSTOMER_HW6 */
 
 static void wl_init_conf(struct wl_conf *conf)
 {
@@ -14575,9 +14773,7 @@ static void wl_init_event_handler(struct bcm_cfg80211 *cfg)
 	cfg->evt_handler[WLC_E_ADPS] = wl_adps_event_handler;
 #endif	/* WL_BAM */
 	cfg->evt_handler[WLC_E_PSK_SUP] = wl_cfg80211_sup_event_handler;
-#ifdef CUSTOMER_HW6
 	cfg->evt_handler[WLC_E_COUNTRY_CODE_CHANGED] = wl_cfg80211_ccode_evt_handler;
-#endif /* CUSTOMER_HW6 */
 #ifdef WL_BCNRECV
 	cfg->evt_handler[WLC_E_BCNRECV_ABORTED] = wl_bcnrecv_aborted_event_handler;
 #endif /* WL_BCNRECV */
@@ -15632,7 +15828,7 @@ wl_cfg80211_net_attach(struct net_device *primary_ndev)
 	}
 #ifdef WL_STATIC_IF
 	/* Register dummy n/w iface. FW init will happen only from dev_open */
-#ifdef WLEASYMESH
+#ifdef WLDWDS
 	ntype = NL80211_IFTYPE_AP;
 #else
 	ntype = NL80211_IFTYPE_STATION;
@@ -16858,13 +17054,7 @@ static s32 __wl_update_wiphybands(struct bcm_cfg80211 *cfg, bool notify)
 	if (notify) {
 		if (!IS_REGDOM_SELF_MANAGED(wiphy)) {
 			WL_UPDATE_CUSTOM_REGULATORY(wiphy);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
-			rtnl_unlock();
-#endif
-			wiphy_apply_custom_regulatory(wiphy, &brcm_regdom);
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 12, 0))
-			rtnl_lock();
-#endif
+			wl_notify_regd(wiphy, NULL);
 		}
 	}
 
@@ -22729,7 +22919,7 @@ wl_cfg80211_mgmt_auth_tx(struct net_device *dev, bcm_struct_cfgdev *cfgdev,
 		ack = false;
 	} else {
 		err = wldev_iovar_setbuf(dev, "assoc_mgr_cmd", ambuf, param_len,
-			cfg->ioctl_buf, WLC_IOCTL_SMLEN, &cfg->ioctl_buf_sync);
+			cfg->ioctl_buf, WLC_IOCTL_MEDLEN, &cfg->ioctl_buf_sync);
 		if (unlikely(err)) {
 			WL_ERR(("Failed to send auth(%d)\n", err));
 			ack = false;

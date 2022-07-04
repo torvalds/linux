@@ -90,6 +90,7 @@ extern int dhd_bus_oob_intr_register(dhd_pub_t *dhdp);
 extern void dhd_bus_oob_intr_unregister(dhd_pub_t *dhdp);
 extern void dhd_bus_oob_intr_set(dhd_pub_t *dhdp, bool enable);
 extern int dhd_bus_get_oob_irq_num(dhd_pub_t *dhdp);
+extern struct device * dhd_bus_to_dev(struct dhd_bus *bus);
 extern void dhd_bus_dev_pm_stay_awake(dhd_pub_t *dhdpub);
 extern void dhd_bus_dev_pm_relax(dhd_pub_t *dhdpub);
 extern bool dhd_bus_dev_pm_enabled(dhd_pub_t *dhdpub);

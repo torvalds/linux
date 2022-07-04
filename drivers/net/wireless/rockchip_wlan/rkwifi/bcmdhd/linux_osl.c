@@ -200,11 +200,11 @@ osl_dma_map_dump(osl_t *osh)
 	osl_get_localtime(&ts_sec, &ts_usec);
 
 	if (map_log && unmap_log) {
-		printk("%s: map_idx=%d unmap_idx=%d "
+		printf("%s: map_idx=%d unmap_idx=%d "
 			"current time=[%5lu.%06lu]\n", __FUNCTION__,
 			map_log->idx, unmap_log->idx, (unsigned long)ts_sec,
 			(unsigned long)ts_usec);
-		printk("%s: dhd_map_log(pa)=0x%llx size=%d,"
+		printf("%s: dhd_map_log(pa)=0x%llx size=%d,"
 			" dma_unmap_log(pa)=0x%llx size=%d\n", __FUNCTION__,
 			(uint64)__virt_to_phys((ulong)(map_log->map)),
 			(uint32)(sizeof(dhd_map_item_t) * map_log->items),
@@ -253,7 +253,7 @@ osl_dma_map_logging(osl_t *osh, void *handle, dmaaddr_t pa, uint32 len)
 	uint32 idx;
 
 	if (log == NULL) {
-		printk("%s: log is NULL\n", __FUNCTION__);
+		printf("%s: log is NULL\n", __FUNCTION__);
 		return;
 	}
 
@@ -277,14 +277,15 @@ osl_error(int bcmerror)
 	/* Array bounds covered by ASSERT in osl_attach */
 	return linuxbcmerrormap[-bcmerror];
 }
+
+osl_t *
+osl_attach(void *pdev, uint bustype, bool pkttag
 #ifdef SHARED_OSL_CMN
-osl_t *
-osl_attach(void *pdev, uint bustype, bool pkttag, void **osl_cmn)
+	, void **osl_cmn
+#endif /* SHARED_OSL_CMN */
+)
 {
-#else
-osl_t *
-osl_attach(void *pdev, uint bustype, bool pkttag)
-{
+#ifndef SHARED_OSL_CMN
 	void **osl_cmn = NULL;
 #endif /* SHARED_OSL_CMN */
 	osl_t *osh;
@@ -364,12 +365,12 @@ osl_attach(void *pdev, uint bustype, bool pkttag)
 #ifdef DHD_MAP_LOGGING
 	osh->dhd_map_log = osl_dma_map_log_init(DHD_MAP_LOG_SIZE);
 	if (osh->dhd_map_log == NULL) {
-		printk("%s: Failed to alloc dhd_map_log\n", __FUNCTION__);
+		printf("%s: Failed to alloc dhd_map_log\n", __FUNCTION__);
 	}
 
 	osh->dhd_unmap_log = osl_dma_map_log_init(DHD_MAP_LOG_SIZE);
 	if (osh->dhd_unmap_log == NULL) {
-		printk("%s: Failed to alloc dhd_unmap_log\n", __FUNCTION__);
+		printf("%s: Failed to alloc dhd_unmap_log\n", __FUNCTION__);
 	}
 #endif /* DHD_MAP_LOGGING */
 
@@ -490,7 +491,7 @@ osl_pci_read_config(osl_t *osh, uint offset, uint size)
 
 #ifdef BCMDBG
 	if (retry < PCI_CFG_RETRY)
-		printk("PCI CONFIG READ access to %d required %d retries\n", offset,
+		printf("PCI CONFIG READ access to %d required %d retries\n", offset,
 		       (PCI_CFG_RETRY - retry));
 #endif /* BCMDBG */
 
@@ -520,7 +521,7 @@ osl_pci_write_config(osl_t *osh, uint offset, uint size, uint val)
 
 #ifdef BCMDBG
 	if (retry < PCI_CFG_RETRY)
-		printk("PCI CONFIG WRITE access to %d required %d retries\n", offset,
+		printf("PCI CONFIG WRITE access to %d required %d retries\n", offset,
 		       (PCI_CFG_RETRY - retry));
 #endif /* BCMDBG */
 }
@@ -616,7 +617,7 @@ osl_malloc(osl_t *osh, uint size)
 			if (i == STATIC_BUF_MAX_NUM)
 			{
 				OSL_STATIC_BUF_UNLOCK(&bcm_static_buf->static_lock, irq_flags);
-				printk("all static buff in use!\n");
+				printf("all static buff in use!\n");
 				goto original;
 			}
 
@@ -809,7 +810,7 @@ osl_debug_malloc(osl_t *osh, uint size, int line, const char* file)
 	const char* basename;
 	unsigned long flags = 0;
 	if (!size) {
-		printk("%s: allocating zero sized mem at %s line %d\n", __FUNCTION__, file, line);
+		printf("%s: allocating zero sized mem at %s line %d\n", __FUNCTION__, file, line);
 		ASSERT(0);
 	}
 
@@ -876,7 +877,7 @@ osl_debug_mfree(osl_t *osh, void *addr, uint size, int line, const char* file)
 
 	p = (bcm_mem_link_t *)((int8*)addr - sizeof(bcm_mem_link_t));
 	if (p->size == 0) {
-		printk("osl_debug_mfree: double free on addr %p size %d at line %d file %s\n",
+		printf("osl_debug_mfree: double free on addr %p size %d at line %d file %s\n",
 			addr, size, line, file);
 		prhex("bcm_mem_link_t", (void *)p, sizeof(*p));
 		ASSERT(p->size);
@@ -884,19 +885,19 @@ osl_debug_mfree(osl_t *osh, void *addr, uint size, int line, const char* file)
 	}
 
 	if (p->size != size) {
-		printk("%s: dealloca size does not match alloc size\n", __FUNCTION__);
-		printk("Dealloc addr %p size %d at line %d file %s\n", addr, size, line, file);
-		printk("Alloc size %d line %d file %s\n", p->size, p->line, p->file);
+		printf("%s: dealloca size does not match alloc size\n", __FUNCTION__);
+		printf("Dealloc addr %p size %d at line %d file %s\n", addr, size, line, file);
+		printf("Alloc size %d line %d file %s\n", p->size, p->line, p->file);
 		prhex("bcm_mem_link_t", (void *)p, sizeof(*p));
 		ASSERT(p->size == size);
 		return;
 	}
 
 	if (osh && ((osl_t*)p->osh)->cmn != osh->cmn) {
-		printk("osl_debug_mfree: alloc osh %p does not match dealloc osh %p\n",
+		printf("osl_debug_mfree: alloc osh %p does not match dealloc osh %p\n",
 			((osl_t*)p->osh)->cmn, osh->cmn);
-		printk("Dealloc addr %p size %d at line %d file %s\n", addr, size, line, file);
-		printk("Alloc size %d line %d file %s\n", p->size, p->line, p->file);
+		printf("Dealloc addr %p size %d at line %d file %s\n", addr, size, line, file);
+		printf("Alloc size %d line %d file %s\n", p->size, p->line, p->file);
 		prhex("bcm_mem_link_t", (void *)p, sizeof(*p));
 		ASSERT(((osl_t*)p->osh)->cmn == osh->cmn);
 		return;
@@ -928,7 +929,7 @@ osl_debug_vmalloc(osl_t *osh, uint size, int line, const char* file)
 	const char* basename;
 	unsigned long flags = 0;
 	if (!size) {
-		printk("%s: allocating zero sized mem at %s line %d\n", __FUNCTION__, file, line);
+		printf("%s: allocating zero sized mem at %s line %d\n", __FUNCTION__, file, line);
 		ASSERT(0);
 	}
 
@@ -990,25 +991,25 @@ osl_debug_vmfree(osl_t *osh, void *addr, uint size, int line, const char* file)
 	ASSERT(osh == NULL || osh->magic == OS_HANDLE_MAGIC);
 
 	if (p->size == 0) {
-		printk("osl_debug_mfree: double free on addr %p size %d at line %d file %s\n",
+		printf("osl_debug_mfree: double free on addr %p size %d at line %d file %s\n",
 			addr, size, line, file);
 		ASSERT(p->size);
 		return;
 	}
 
 	if (p->size != size) {
-		printk("%s: dealloca size does not match alloc size\n", __FUNCTION__);
-		printk("Dealloc addr %p size %d at line %d file %s\n", addr, size, line, file);
-		printk("Alloc size %d line %d file %s\n", p->size, p->line, p->file);
+		printf("%s: dealloca size does not match alloc size\n", __FUNCTION__);
+		printf("Dealloc addr %p size %d at line %d file %s\n", addr, size, line, file);
+		printf("Alloc size %d line %d file %s\n", p->size, p->line, p->file);
 		ASSERT(p->size == size);
 		return;
 	}
 
 	if (osh && ((osl_t*)p->osh)->cmn != osh->cmn) {
-		printk("osl_debug_mfree: alloc osh %p does not match dealloc osh %p\n",
+		printf("osl_debug_mfree: alloc osh %p does not match dealloc osh %p\n",
 			((osl_t*)p->osh)->cmn, osh->cmn);
-		printk("Dealloc addr %p size %d at line %d file %s\n", addr, size, line, file);
-		printk("Alloc size %d line %d file %s\n", p->size, p->line, p->file);
+		printf("Dealloc addr %p size %d at line %d file %s\n", addr, size, line, file);
+		printf("Alloc size %d line %d file %s\n", p->size, p->line, p->file);
 		ASSERT(((osl_t*)p->osh)->cmn == osh->cmn);
 		return;
 	}
@@ -1046,7 +1047,7 @@ osl_debug_memdump(osl_t *osh, struct bcmstrbuf *b)
 		if (b != NULL)
 			bcm_bprintf(b, "   Address   Size File:line\n");
 		else
-			printk("   Address   Size File:line\n");
+			printf("   Address   Size File:line\n");
 
 		for (p = osh->cmn->dbgmem_list; p; p = p->next) {
 			if (b != NULL)
@@ -1073,7 +1074,7 @@ osl_debug_memdump(osl_t *osh, struct bcmstrbuf *b)
 		if (b != NULL)
 			bcm_bprintf(b, "Vmem\n   Address   Size File:line\n");
 		else
-			printk("Vmem\n   Address   Size File:line\n");
+			printf("Vmem\n   Address   Size File:line\n");
 
 		for (p = osh->cmn->dbgvmem_list; p; p = p->next) {
 			if (b != NULL)
@@ -1204,7 +1205,7 @@ BCMFASTPATH(osl_dma_map)(osl_t *osh, void *va, uint size, int direction, void *p
 	ret = pci_dma_mapping_error(osh->pdev, map_addr);
 
 	if (ret) {
-		printk("%s: Failed to map memory\n", __FUNCTION__);
+		printf("%s: Failed to map memory\n", __FUNCTION__);
 		PHYSADDRLOSET(ret_addr, 0);
 		PHYSADDRHISET(ret_addr, 0);
 	} else {
@@ -1296,8 +1297,8 @@ osl_assert(const char *exp, const char *file, int line)
 	/* Print assert message and give it time to be written to /var/log/messages */
 	if (!in_interrupt() && g_assert_type != 1 && g_assert_type != 3) {
 		const int delay = 3;
-		printk("%s", tempbuf);
-		printk("panic in %d seconds\n", delay);
+		printf("%s", tempbuf);
+		printf("panic in %d seconds\n", delay);
 		set_current_state(TASK_INTERRUPTIBLE);
 		schedule_timeout(delay * HZ);
 	}
@@ -1305,16 +1306,16 @@ osl_assert(const char *exp, const char *file, int line)
 
 	switch (g_assert_type) {
 	case 0:
-		printk("%s", tempbuf);
+		printf("%s", tempbuf);
 		BUG();
 		break;
 	case 1:
 		/* fall through */
 	case 3:
-		printk("%s", tempbuf);
+		printf("%s", tempbuf);
 		break;
 	case 2:
-		printk("%s", tempbuf);
+		printf("%s", tempbuf);
 		BUG();
 		break;
 	default:
@@ -1516,11 +1517,11 @@ osl_printf(const char *format, ...)
 	va_end(args);
 
 	if (len > sizeof(printbuf)) {
-		printk("osl_printf: buffer overrun\n");
+		printf("osl_printf: buffer overrun\n");
 		return (0);
 	}
 
-	return (printk("%s", printbuf));
+	return (printf("%s", printbuf));
 }
 
 int
@@ -1731,7 +1732,7 @@ osl_os_open_image(char *filename)
 	 * ???
 	 */
 	if (IS_ERR(fp)) {
-		printk("ERROR %ld: Unable to open file %s\n", PTR_ERR(fp), filename);
+		printf("ERROR %ld: Unable to open file %s\n", PTR_ERR(fp), filename);
 		fp = NULL;
 	}
 
@@ -1839,7 +1840,7 @@ osl_timer_init(osl_t *osh, const char *name, void (*fn)(void *arg), void *arg)
 	osl_timer_t *t;
 	BCM_REFERENCE(fn);
 	if ((t = MALLOCZ(NULL, sizeof(osl_timer_t))) == NULL) {
-		printk(KERN_ERR "osl_timer_init: out of memory, malloced %d bytes\n",
+		printf(KERN_ERR "osl_timer_init: out of memory, malloced %d bytes\n",
 			(int)sizeof(osl_timer_t));
 		return (NULL);
 	}

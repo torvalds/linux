@@ -7,7 +7,7 @@
 #include <linux/err.h>
 #include <linux/skbuff.h>
 
-#define	DHD_STATIC_VERSION_STR		"101.10.361.12 (wlan=r892223-20210928-1)"
+#define	DHD_STATIC_VERSION_STR		"101.10.361.18 (wlan=r892223-20220519-1)"
 #define STATIC_ERROR_LEVEL	(1 << 0)
 #define STATIC_TRACE_LEVEL	(1 << 1)
 #define STATIC_MSG_LEVEL	(1 << 0)
@@ -173,7 +173,7 @@ void *wlan_static_dhd_event_ring_buf[MAX_NUM_ADAPTERS] = {NULL};
 void *wlan_static_nan_event_ring_buf[MAX_NUM_ADAPTERS] = {NULL};
 
 #if defined(BCMDHD_SDIO) || defined(BCMDHD_PCIE)
-static struct sk_buff *wlan_static_skb[MAX_NUM_ADAPTERS][WLAN_SKB_BUF_NUM];
+static struct sk_buff *wlan_static_skb[MAX_NUM_ADAPTERS][WLAN_SKB_BUF_NUM] = {{NULL}};
 #endif /* BCMDHD_SDIO | BCMDHD_PCIE */
 
 void *
@@ -184,11 +184,15 @@ dhd_wlan_mem_prealloc(
 	int section, unsigned long size)
 {
 #ifndef BCMDHD_MDRIVER
-	uint bus_type = 0;
 	int index = 0;
 #endif
+
+#ifdef BCMDHD_MDRIVER
 	DHD_STATIC_MSG("bus_type %d, index %d, sectoin %d, size %ld\n",
 		bus_type, index, section, size);
+#else
+	DHD_STATIC_MSG("sectoin %d, size %ld\n", section, size);
+#endif
 
 	if (section == DHD_PREALLOC_PROT)
 		return wlan_static_prot[index];
@@ -338,7 +342,9 @@ dhd_wlan_mem_prealloc(
 
 	return NULL;
 }
+#ifndef DHD_STATIC_IN_DRIVER
 EXPORT_SYMBOL(dhd_wlan_mem_prealloc);
+#endif
 
 static void
 dhd_deinit_wlan_mem(int index)
@@ -584,11 +590,11 @@ dhd_init_wlan_mem(int index)
 		DHD_PREALLOC_NAN_EVENT_RING, NAN_EVENT_RING_SIZE);
 #endif /* BCMDHD_UNUSE_MEM */
 
- 	DHD_STATIC_MSG("prealloc ok for index %d: %ld(%ldK)\n", index, size, size/1024);
+	DHD_STATIC_MSG("prealloc ok for index %d: %ld(%ldK)\n", index, size, size/1024);
 	return 0;
 
 err_mem_alloc:
- 	DHD_STATIC_ERROR("Failed to allocate memory for index %d\n", index);
+	DHD_STATIC_ERROR("Failed to allocate memory for index %d\n", index);
 
 	return -ENOMEM;
 }
@@ -615,7 +621,7 @@ dhd_static_buf_init(void)
 			dhd_deinit_wlan_mem(i);
 	}
 
-	return 0;
+	return ret;
 }
 
 #ifdef DHD_STATIC_IN_DRIVER

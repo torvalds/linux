@@ -404,10 +404,14 @@ int dhd_wlan_init_plat_data(wifi_adapter_info_t *adapter)
 		adapter->index = 0;
 	}
 	err = dhd_wlan_init_gpio(adapter);
+	if (err)
+		goto exit;
 
 #ifdef DHD_STATIC_IN_DRIVER
-	dhd_static_buf_init();
+	err = dhd_static_buf_init();
 #endif
+
+exit:
 	return err;
 }
 
@@ -419,4 +423,3 @@ void dhd_wlan_deinit_plat_data(wifi_adapter_info_t *adapter)
 #endif
 	dhd_wlan_deinit_gpio(adapter);
 }
-

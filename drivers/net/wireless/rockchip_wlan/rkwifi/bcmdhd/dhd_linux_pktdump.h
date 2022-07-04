@@ -59,6 +59,9 @@ enum pkt_type {
 extern msg_eapol_t dhd_is_4way_msg(uint8 *pktdata);
 extern void dhd_dump_pkt(dhd_pub_t *dhd, int ifidx, uint8 *pktdata,
 	uint32 pktlen, bool tx, uint32 *pkthash, uint16 *pktfate);
+#ifdef BCMPCIE
+extern bool dhd_match_pkt_type(dhd_pub_t *dhd, uint8 *pktdata, uint32 pktlen);
+#endif /* BCMPCIE */
 #ifdef DHD_PKTDUMP_ROAM
 extern void dhd_dump_mod_pkt_timer(dhd_pub_t *dhdp, uint16 rsn);
 extern void dhd_dump_pkt_init(dhd_pub_t *dhdp);

@@ -56,21 +56,19 @@
 #define WLDEV_ERROR_TEXT		USER_PREFIX_WLDEV
 #define WLDEV_INFO_TEXT			USER_PREFIX_WLDEV
 #else
-#define WLDEV_ERROR_TEXT		DHD_LOG_PREFIXS "WLDEV-ERROR) "
-#define WLDEV_INFO_TEXT			DHD_LOG_PREFIXS "WLDEV-INFO) "
+#define WLDEV_ERROR_TEXT		"WLDEV-ERROR) "
+#define WLDEV_INFO_TEXT			"WLDEV-INFO) "
 #endif /* defined(CUSTOMER_DBG_PREFIX_ENABLE) */
 
 #define	WLDEV_ERROR_MSG(x, args...)						\
 	do {										\
-		WL_DBG_PRINT_SYSTEM_TIME;		\
-		pr_cont(WLDEV_ERROR_TEXT x, ## args);	\
+		printf(WLDEV_ERROR_TEXT x, ## args);	\
 	} while (0)
 #define WLDEV_ERROR(x) WLDEV_ERROR_MSG x
 
 #define	WLDEV_INFO_MSG(x, args...)						\
 	do {										\
-		WL_DBG_PRINT_SYSTEM_TIME;		\
-		pr_cont(WLDEV_INFO_TEXT x, ## args);	\
+		printf(WLDEV_INFO_TEXT x, ## args);	\
 	} while (0)
 #define WLDEV_INFO(x) WLDEV_INFO_MSG x
 

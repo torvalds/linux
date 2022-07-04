@@ -1,6 +1,12 @@
 
 #ifndef _wl_android_ext_
 #define _wl_android_ext_
+
+typedef struct wl_chan_info {
+	uint band;
+	uint16 chan;
+} wl_chan_info_t;
+
 typedef struct bcol_gtk_para {
 	int enable;
 	int ptk_len;
@@ -10,6 +16,7 @@ typedef struct bcol_gtk_para {
 #define ACS_FW_BIT		(1<<0)
 #define ACS_DRV_BIT		(1<<1)
 int wl_ext_autochannel(struct net_device *dev, uint acs, uint32 band);
+chanspec_band_t wl_ext_wlcband_to_chanspec_band(int band);
 int wl_android_ext_priv_cmd(struct net_device *net, char *command, int total_len,
 	int *bytes_written);
 void wl_ext_get_sec(struct net_device *dev, int ifmode, char *sec, int total_len, bool dump);
@@ -19,6 +26,7 @@ int wl_ext_set_scan_time(struct net_device *dev, int scan_time,
 void wl_ext_wait_event_complete(struct dhd_pub *dhd, int ifidx);
 int wl_ext_add_del_ie(struct net_device *dev, uint pktflag, char *ie_data, const char* add_del_cmd);
 #ifdef WL_ESCAN
+int wl_construct_ctl_chanspec_list(struct net_device *dev, wl_uint32_list_t *chan_list);
 int wl_ext_drv_scan(struct net_device *dev, uint band, bool fast_scan);
 #endif
 #ifdef WL_EXT_GENL
@@ -41,11 +49,11 @@ int wl_ext_iovar_setbuf_bsscfg(struct net_device *dev, s8 *iovar_name,
 	struct mutex* buf_sync);
 chanspec_t wl_ext_chspec_driver_to_host(int ioctl_ver, chanspec_t chanspec);
 chanspec_t wl_ext_chspec_host_to_driver(int ioctl_ver, chanspec_t chanspec);
-bool wl_ext_dfs_chan(uint16 chan);
+bool wl_ext_dfs_chan(struct wl_chan_info *chan_info);
 uint16 wl_ext_get_default_chan(struct net_device *dev,
 	uint16 *chan_2g, uint16 *chan_5g, bool nodfs);
-int wl_ext_set_chanspec(struct net_device *dev, int ioctl_ver,
-	uint16 channel, chanspec_t *ret_chspec);
+int wl_ext_set_chanspec(struct net_device *dev, struct wl_chan_info *chan_info,
+	chanspec_t *ret_chspec);
 int wl_ext_get_ioctl_ver(struct net_device *dev, int *ioctl_ver);
 #endif
 #if defined(WL_CFG80211) || defined(WL_ESCAN)
@@ -117,7 +125,7 @@ void wl_free_rssi_cache(wl_rssi_cache_ctrl_t *rssi_cache_ctrl);
 void wl_delete_dirty_rssi_cache(wl_rssi_cache_ctrl_t *rssi_cache_ctrl);
 void wl_delete_disconnected_rssi_cache(wl_rssi_cache_ctrl_t *rssi_cache_ctrl, u8 *bssid);
 void wl_reset_rssi_cache(wl_rssi_cache_ctrl_t *rssi_cache_ctrl);
-void wl_update_rssi_cache(wl_rssi_cache_ctrl_t *rssi_cache_ctrl, wl_scan_results_t *ss_list);
+void wl_update_rssi_cache(wl_rssi_cache_ctrl_t *rssi_cache_ctrl, wl_scan_results_v109_t *ss_list);
 int wl_update_connected_rssi_cache(struct net_device *net, wl_rssi_cache_ctrl_t *rssi_cache_ctrl, int *rssi_avg);
 int16 wl_get_avg_rssi(wl_rssi_cache_ctrl_t *rssi_cache_ctrl, void *addr);
 #endif
@@ -145,7 +153,7 @@ typedef struct wl_bss_cache {
 	struct wl_bss_cache *next;
 	int dirty;
 	struct osl_timespec tv;
-	wl_scan_results_t results;
+	wl_scan_results_v109_t results;
 } wl_bss_cache_t;
 
 typedef struct wl_bss_cache_ctrl {
@@ -161,16 +169,27 @@ void wl_update_bss_cache(wl_bss_cache_ctrl_t *bss_cache_ctrl,
 #if defined(RSSIAVG)
 	wl_rssi_cache_ctrl_t *rssi_cache_ctrl,
 #endif
-	wl_scan_results_t *ss_list);
+	wl_scan_results_v109_t *ss_list);
 void wl_release_bss_cache_ctrl(wl_bss_cache_ctrl_t *bss_cache_ctrl);
 #endif
 int wl_ext_get_best_channel(struct net_device *net,
 #if defined(BSSCACHE)
 	wl_bss_cache_ctrl_t *bss_cache_ctrl,
 #else
-	wl_scan_results_t *bss_list,
+	wl_scan_results_v109_t *bss_list,
 #endif
-	int ioctl_ver, int *best_2g_ch, int *best_5g_ch
+	int ioctl_ver, int *best_2g_ch, int *best_5g_ch, int *best_6g_ch
 );
-#endif
 
+#ifdef WL_6G_BAND
+#define CHSPEC2BANDSTR(chspec) (CHSPEC_IS2G(chspec) ? "2g" : CHSPEC_IS5G(chspec) ? \
+	"5g" : CHSPEC_IS6G(chspec) ? "6g" : "0g")
+#define WLCBAND2STR(band) ((band == WLC_BAND_2G) ? "2g" : (band == WLC_BAND_5G) ? \
+	"5g" : (band == WLC_BAND_6G) ? "6g" : "0g")
+#else
+#define CHSPEC2BANDSTR(chspec) (CHSPEC_IS2G(chspec) ? "2g" : CHSPEC_IS5G(chspec) ? \
+	"5g" : "0g")
+#define WLCBAND2STR(band) ((band == WLC_BAND_2G) ? "2g" : (band == WLC_BAND_5G) ? \
+	"5g" : "0g")
+#endif /* WL_6G_BAND */
+#endif

@@ -346,6 +346,12 @@ bcmsdh_unregister(void)
 	bcmsdh_unregister_client_driver();
 }
 
+void *bcmsdh_get_dev(bcmsdh_info_t *sdh)
+{
+	bcmsdh_os_info_t *bcmsdh_osinfo = sdh->os_cxt;
+	return bcmsdh_osinfo->dev;
+}
+
 void bcmsdh_dev_pm_stay_awake(bcmsdh_info_t *bcmsdh)
 {
 #if !defined(CONFIG_HAS_WAKELOCK) && (LINUX_VERSION_CODE > KERNEL_VERSION(2, 6, 36))

@@ -34,6 +34,7 @@
 #define _dhd_h_
 
 #if defined(LINUX)
+#include <linux/firmware.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -2724,6 +2725,8 @@ void dhd_schedule_memdump(dhd_pub_t *dhdp, uint8 *buf, uint32 size);
 #endif /* DHD_FW_COREDUMP */
 
 #if defined(linux) || defined(LINUX)
+int dhd_os_get_img_fwreq(const struct firmware **fw, char *file_path);
+void dhd_os_close_img_fwreq(const struct firmware *fw);
 #if defined(DHD_SSSR_DUMP)
 void dhd_write_sssr_dump(dhd_pub_t *dhdp, uint32 dump_mode);
 #endif /* DHD_SSSR_DUMP */

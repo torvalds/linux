@@ -24,7 +24,6 @@
 #ifndef __BCMSDH_SDMMC_H__
 #define __BCMSDH_SDMMC_H__
 
-#ifdef BCMDBG
 #define sd_err(x)	do { if (sd_msglevel & SDH_ERROR_VAL) printf x; } while (0)
 #define sd_trace(x)	do { if (sd_msglevel & SDH_TRACE_VAL) printf x; } while (0)
 #define sd_info(x)	do { if (sd_msglevel & SDH_INFO_VAL) printf x; } while (0)
@@ -32,15 +31,6 @@
 #define sd_data(x)	do { if (sd_msglevel & SDH_DATA_VAL) printf x; } while (0)
 #define sd_ctrl(x)	do { if (sd_msglevel & SDH_CTRL_VAL) printf x; } while (0)
 #define sd_cost(x)	do { if (sd_msglevel & SDH_COST_VAL) printf x; } while (0)
-#else
-#define sd_err(x)	do { if (sd_msglevel & SDH_ERROR_VAL) printf x; } while (0)
-#define sd_trace(x)
-#define sd_info(x)
-#define sd_debug(x)
-#define sd_data(x)
-#define sd_ctrl(x)
-#define sd_cost(x)	do { if (sd_msglevel & SDH_COST_VAL) printf x; } while (0)
-#endif
 
 #define sd_sync_dma(sd, read, nbytes)
 #define sd_init_dma(sd)

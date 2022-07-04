@@ -194,8 +194,6 @@ extern void *pktlast(osl_t *osh, void *p);
 extern uint pktsegcnt(osl_t *osh, void *p);
 extern uint8 *pktdataoffset(osl_t *osh, void *p,  uint offset);
 extern void *pktoffset(osl_t *osh, void *p,  uint offset);
-/* Add to adjust 802.1x priority */
-extern void pktset8021xprio(void *pkt, int prio);
 
 #ifdef WLCSO
 extern uint pkttotlen_no_sfhtoe_hdr(osl_t *osh, void *p, uint toe_hdr_len);

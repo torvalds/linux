@@ -3960,7 +3960,7 @@ wl_cfgnan_cache_svc_info(struct bcm_cfg80211 *cfg,
 		goto fail;
 	}
 	if (cmd_data->sde_control_flag & NAN_SDE_CF_RANGING_REQUIRED) {
-		WL_TRACE(("%s: updating ranging info, enabling", __FUNCTION__));
+		WL_TRACE(("%s: updating ranging info, enabling\n", __FUNCTION__));
 		svc_info->status = 1;
 		svc_info->ranging_interval = cmd_data->ranging_intvl_msec;
 		svc_info->ranging_ind = cmd_data->ranging_indication;
@@ -3968,7 +3968,7 @@ wl_cfgnan_cache_svc_info(struct bcm_cfg80211 *cfg,
 		svc_info->egress_limit = cmd_data->egress_limit;
 		svc_info->ranging_required = 1;
 	} else {
-		WL_TRACE(("%s: updating ranging info, disabling", __FUNCTION__));
+		WL_TRACE(("%s: updating ranging info, disabling\n", __FUNCTION__));
 		svc_info->status = 0;
 		svc_info->ranging_interval = 0;
 		svc_info->ranging_ind = 0;
