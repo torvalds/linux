@@ -3345,8 +3345,8 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	struct hl_user_interrupt *interrupt;
 	union hl_wait_cs_args *args = data;
 	u32 status = HL_WAIT_CS_STATUS_BUSY;
+	u64 timestamp = 0;
 	int rc, int_idx;
-	u64 timestamp;
 
 	prop = &hdev->asic_prop;
 
