@@ -9,8 +9,6 @@
 
 #define GAUDI2_PLDM_CORESIGHT_TIMEOUT_USEC	(CORESIGHT_TIMEOUT_USEC * 2000)
 #define SPMU_MAX_COUNTERS			6
-/* SPMU should also include overflow_idx and cycle_cnt_idx */
-#define SPMU_DATA_LEN				(SPMU_MAX_COUNTERS + 2)
 
 #define COMPONENT_ID_INVALID ((u32)(-1))
 #define MAX_BMONS_PER_UNIT 8
