@@ -673,7 +673,7 @@ static inline bool supports_clearbhb(int scope)
 		isar2 = read_sanitised_ftr_reg(SYS_ID_AA64ISAR2_EL1);
 
 	return cpuid_feature_extract_unsigned_field(isar2,
-						    ID_AA64ISAR2_CLEARBHB_SHIFT);
+						    ID_AA64ISAR2_BC_SHIFT);
 }
 
 const struct cpumask *system_32bit_el0_cpumask(void);
