@@ -90,11 +90,16 @@ struct dev_pm_set_opp_data {
 	struct device *dev;
 };
 
+typedef int (*config_regulators_t)(struct device *dev,
+			struct dev_pm_opp *old_opp, struct dev_pm_opp *new_opp,
+			struct regulator **regulators, unsigned int count);
+
 /**
  * struct dev_pm_opp_config - Device OPP configuration values
  * @clk_names: Clk names, NULL terminated array, max 1 clock for now.
  * @prop_name: Name to postfix to properties.
  * @set_opp: Custom set OPP helper.
+ * @config_regulators: Custom set regulator helper.
  * @supported_hw: Array of hierarchy of versions to match.
  * @supported_hw_count: Number of elements in the array.
  * @regulator_names: Array of pointers to the names of the regulator, NULL terminated.
@@ -109,6 +114,7 @@ struct dev_pm_opp_config {
 	const char * const *clk_names;
 	const char *prop_name;
 	int (*set_opp)(struct dev_pm_set_opp_data *data);
+	config_regulators_t config_regulators;
 	const unsigned int *supported_hw;
 	unsigned int supported_hw_count;
 	const char * const *regulator_names;
@@ -609,6 +615,22 @@ static inline int dev_pm_opp_register_set_opp_helper(struct device *dev,
 }
 
 static inline void dev_pm_opp_unregister_set_opp_helper(int token)
+{
+	dev_pm_opp_clear_config(token);
+}
+
+/* config-regulators helpers */
+static inline int dev_pm_opp_set_config_regulators(struct device *dev,
+						   config_regulators_t helper)
+{
+	struct dev_pm_opp_config config = {
+		.config_regulators = helper,
+	};
+
+	return dev_pm_opp_set_config(dev, &config);
+}
+
+static inline void dev_pm_opp_put_config_regulators(int token)
 {
 	dev_pm_opp_clear_config(token);
 }
