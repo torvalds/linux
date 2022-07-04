@@ -161,6 +161,18 @@
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c7_pins>;
+
+	pmic@34 {
+		#interrupt-cells = <1>;
+		compatible = "mediatek,mt6360";
+		reg = <0x34>;
+		interrupt-controller;
+		interrupts-extended = <&pio 130 IRQ_TYPE_EDGE_FALLING>;
+		interrupt-names = "IRQB";
+		pinctrl-names = "default";
+		pinctrl-0 = <&subpmic_default>;
+		wakeup-source;
+	};
 };
 
 &mmc0 {
@@ -556,6 +568,14 @@
 		pins-miso {
 			pinmux = <PINMUX_GPIO135__FUNC_SPIM0_MI>;
 			bias-pull-down;
+		};
+	};
+
+	subpmic_default: subpmic-default-pins {
+		subpmic_pin_irq: pins-subpmic-int-n {
+			pinmux = <PINMUX_GPIO130__FUNC_GPIO130>;
+			input-enable;
+			bias-pull-up;
 		};
 	};
 };
