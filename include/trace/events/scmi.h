@@ -7,6 +7,31 @@
 
 #include <linux/tracepoint.h>
 
+TRACE_EVENT(scmi_fc_call,
+	TP_PROTO(u8 protocol_id, u8 msg_id, u32 res_id, u32 val1, u32 val2),
+	TP_ARGS(protocol_id, msg_id, res_id, val1, val2),
+
+	TP_STRUCT__entry(
+		__field(u8, protocol_id)
+		__field(u8, msg_id)
+		__field(u32, res_id)
+		__field(u32, val1)
+		__field(u32, val2)
+	),
+
+	TP_fast_assign(
+		__entry->protocol_id = protocol_id;
+		__entry->msg_id = msg_id;
+		__entry->res_id = res_id;
+		__entry->val1 = val1;
+		__entry->val2 = val2;
+	),
+
+	TP_printk("[0x%02X]:[0x%02X]:[%08X]:%u:%u",
+		  __entry->protocol_id, __entry->msg_id,
+		  __entry->res_id, __entry->val1, __entry->val2)
+);
+
 TRACE_EVENT(scmi_xfer_begin,
 	TP_PROTO(int transfer_id, u8 msg_id, u8 protocol_id, u16 seq,
 		 bool poll),
