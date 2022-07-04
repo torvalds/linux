@@ -33,12 +33,19 @@
 DEFINE_PER_CPU(struct cpuinfo_arm64, cpu_data);
 static struct cpuinfo_arm64 boot_cpu_data;
 
-static const char *icache_policy_str[] = {
-	[ICACHE_POLICY_VPIPT]		= "VPIPT",
-	[ICACHE_POLICY_RESERVED]	= "RESERVED/UNKNOWN",
-	[ICACHE_POLICY_VIPT]		= "VIPT",
-	[ICACHE_POLICY_PIPT]		= "PIPT",
-};
+static inline const char *icache_policy_str(int l1ip)
+{
+	switch (l1ip) {
+	case ICACHE_POLICY_VPIPT:
+		return "VPIPT";
+	case ICACHE_POLICY_VIPT:
+		return "VIPT";
+	case ICACHE_POLICY_PIPT:
+		return "PIPT";
+	default:
+		return "RESERVED/UNKNOWN";
+	}
+}
 
 unsigned long __icache_flags;
 
@@ -347,14 +354,14 @@ static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
 	case ICACHE_POLICY_VPIPT:
 		set_bit(ICACHEF_VPIPT, &__icache_flags);
 		break;
-	case ICACHE_POLICY_RESERVED:
 	case ICACHE_POLICY_VIPT:
+	default:
 		/* Assume aliasing */
 		set_bit(ICACHEF_ALIASING, &__icache_flags);
 		break;
 	}
 
-	pr_info("Detected %s I-cache on CPU%d\n", icache_policy_str[l1ip], cpu);
+	pr_info("Detected %s I-cache on CPU%d\n", icache_policy_str(l1ip), cpu);
 }
 
 static void __cpuinfo_store_cpu_32bit(struct cpuinfo_32bit *info)
