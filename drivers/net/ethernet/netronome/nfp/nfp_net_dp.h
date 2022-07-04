@@ -106,6 +106,8 @@ int nfp_net_tx_rings_prepare(struct nfp_net *nn, struct nfp_net_dp *dp);
 void nfp_net_rx_rings_free(struct nfp_net_dp *dp);
 void nfp_net_tx_rings_free(struct nfp_net_dp *dp);
 void nfp_net_rx_ring_reset(struct nfp_net_rx_ring *rx_ring);
+bool nfp_net_vlan_strip(struct sk_buff *skb, const struct nfp_net_rx_desc *rxd,
+			const struct nfp_meta_parsed *meta);
 
 enum nfp_nfd_version {
 	NFP_NFD_VER_NFD3,

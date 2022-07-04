@@ -1695,16 +1695,18 @@ static int nfp_net_set_features(struct net_device *netdev,
 
 	if (changed & NETIF_F_HW_VLAN_CTAG_RX) {
 		if (features & NETIF_F_HW_VLAN_CTAG_RX)
-			new_ctrl |= NFP_NET_CFG_CTRL_RXVLAN;
+			new_ctrl |= nn->cap & NFP_NET_CFG_CTRL_RXVLAN_V2 ?:
+				    NFP_NET_CFG_CTRL_RXVLAN;
 		else
-			new_ctrl &= ~NFP_NET_CFG_CTRL_RXVLAN;
+			new_ctrl &= ~NFP_NET_CFG_CTRL_RXVLAN_ANY;
 	}
 
 	if (changed & NETIF_F_HW_VLAN_CTAG_TX) {
 		if (features & NETIF_F_HW_VLAN_CTAG_TX)
-			new_ctrl |= NFP_NET_CFG_CTRL_TXVLAN;
+			new_ctrl |= nn->cap & NFP_NET_CFG_CTRL_TXVLAN_V2 ?:
+				    NFP_NET_CFG_CTRL_TXVLAN;
 		else
-			new_ctrl &= ~NFP_NET_CFG_CTRL_TXVLAN;
+			new_ctrl &= ~NFP_NET_CFG_CTRL_TXVLAN_ANY;
 	}
 
 	if (changed & NETIF_F_HW_VLAN_CTAG_FILTER) {
@@ -1712,6 +1714,13 @@ static int nfp_net_set_features(struct net_device *netdev,
 			new_ctrl |= NFP_NET_CFG_CTRL_CTAG_FILTER;
 		else
 			new_ctrl &= ~NFP_NET_CFG_CTRL_CTAG_FILTER;
+	}
+
+	if (changed & NETIF_F_HW_VLAN_STAG_RX) {
+		if (features & NETIF_F_HW_VLAN_STAG_RX)
+			new_ctrl |= NFP_NET_CFG_CTRL_RXQINQ;
+		else
+			new_ctrl &= ~NFP_NET_CFG_CTRL_RXQINQ;
 	}
 
 	if (changed & NETIF_F_SG) {
@@ -1740,6 +1749,27 @@ static int nfp_net_set_features(struct net_device *netdev,
 	nn->dp.ctrl = new_ctrl;
 
 	return 0;
+}
+
+static netdev_features_t
+nfp_net_fix_features(struct net_device *netdev,
+		     netdev_features_t features)
+{
+	if ((features & NETIF_F_HW_VLAN_CTAG_RX) &&
+	    (features & NETIF_F_HW_VLAN_STAG_RX)) {
+		if (netdev->features & NETIF_F_HW_VLAN_CTAG_RX) {
+			features &= ~NETIF_F_HW_VLAN_CTAG_RX;
+			netdev->wanted_features &= ~NETIF_F_HW_VLAN_CTAG_RX;
+			netdev_warn(netdev,
+				    "S-tag and C-tag stripping can't be enabled at the same time. Enabling S-tag stripping and disabling C-tag stripping\n");
+		} else if (netdev->features & NETIF_F_HW_VLAN_STAG_RX) {
+			features &= ~NETIF_F_HW_VLAN_STAG_RX;
+			netdev->wanted_features &= ~NETIF_F_HW_VLAN_STAG_RX;
+			netdev_warn(netdev,
+				    "S-tag and C-tag stripping can't be enabled at the same time. Enabling C-tag stripping and disabling S-tag stripping\n");
+		}
+	}
+	return features;
 }
 
 static netdev_features_t
@@ -1977,6 +2007,7 @@ const struct net_device_ops nfp_nfd3_netdev_ops = {
 	.ndo_change_mtu		= nfp_net_change_mtu,
 	.ndo_set_mac_address	= nfp_net_set_mac_address,
 	.ndo_set_features	= nfp_net_set_features,
+	.ndo_fix_features	= nfp_net_fix_features,
 	.ndo_features_check	= nfp_net_features_check,
 	.ndo_get_phys_port_name	= nfp_net_get_phys_port_name,
 	.ndo_bpf		= nfp_net_xdp,
@@ -2008,6 +2039,7 @@ const struct net_device_ops nfp_nfdk_netdev_ops = {
 	.ndo_change_mtu		= nfp_net_change_mtu,
 	.ndo_set_mac_address	= nfp_net_set_mac_address,
 	.ndo_set_features	= nfp_net_set_features,
+	.ndo_fix_features	= nfp_net_fix_features,
 	.ndo_features_check	= nfp_net_features_check,
 	.ndo_get_phys_port_name	= nfp_net_get_phys_port_name,
 	.ndo_bpf		= nfp_net_xdp,
@@ -2061,7 +2093,7 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->fw_ver.extend, nn->fw_ver.class,
 		nn->fw_ver.major, nn->fw_ver.minor,
 		nn->max_mtu);
-	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
+	nn_info(nn, "CAP: %#x %s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s%s\n",
 		nn->cap,
 		nn->cap & NFP_NET_CFG_CTRL_PROMISC  ? "PROMISC "  : "",
 		nn->cap & NFP_NET_CFG_CTRL_L2BC     ? "L2BCFILT " : "",
@@ -2070,6 +2102,9 @@ void nfp_net_info(struct nfp_net *nn)
 		nn->cap & NFP_NET_CFG_CTRL_TXCSUM   ? "TXCSUM "   : "",
 		nn->cap & NFP_NET_CFG_CTRL_RXVLAN   ? "RXVLAN "   : "",
 		nn->cap & NFP_NET_CFG_CTRL_TXVLAN   ? "TXVLAN "   : "",
+		nn->cap & NFP_NET_CFG_CTRL_RXQINQ   ? "RXQINQ "   : "",
+		nn->cap & NFP_NET_CFG_CTRL_RXVLAN_V2 ? "RXVLANv2 "   : "",
+		nn->cap & NFP_NET_CFG_CTRL_TXVLAN_V2   ? "TXVLAN2 "   : "",
 		nn->cap & NFP_NET_CFG_CTRL_SCATTER  ? "SCATTER "  : "",
 		nn->cap & NFP_NET_CFG_CTRL_GATHER   ? "GATHER "   : "",
 		nn->cap & NFP_NET_CFG_CTRL_LSO      ? "TSO1 "     : "",
@@ -2357,21 +2392,27 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 
 	netdev->vlan_features = netdev->hw_features;
 
-	if (nn->cap & NFP_NET_CFG_CTRL_RXVLAN) {
+	if (nn->cap & NFP_NET_CFG_CTRL_RXVLAN_ANY) {
 		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX;
-		nn->dp.ctrl |= NFP_NET_CFG_CTRL_RXVLAN;
+		nn->dp.ctrl |= nn->cap & NFP_NET_CFG_CTRL_RXVLAN_V2 ?:
+			       NFP_NET_CFG_CTRL_RXVLAN;
 	}
-	if (nn->cap & NFP_NET_CFG_CTRL_TXVLAN) {
+	if (nn->cap & NFP_NET_CFG_CTRL_TXVLAN_ANY) {
 		if (nn->cap & NFP_NET_CFG_CTRL_LSO2) {
 			nn_warn(nn, "Device advertises both TSO2 and TXVLAN. Refusing to enable TXVLAN.\n");
 		} else {
 			netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_TX;
-			nn->dp.ctrl |= NFP_NET_CFG_CTRL_TXVLAN;
+			nn->dp.ctrl |= nn->cap & NFP_NET_CFG_CTRL_TXVLAN_V2 ?:
+				       NFP_NET_CFG_CTRL_TXVLAN;
 		}
 	}
 	if (nn->cap & NFP_NET_CFG_CTRL_CTAG_FILTER) {
 		netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER;
 		nn->dp.ctrl |= NFP_NET_CFG_CTRL_CTAG_FILTER;
+	}
+	if (nn->cap & NFP_NET_CFG_CTRL_RXQINQ) {
+		netdev->hw_features |= NETIF_F_HW_VLAN_STAG_RX;
+		nn->dp.ctrl |= NFP_NET_CFG_CTRL_RXQINQ;
 	}
 
 	netdev->features = netdev->hw_features;
@@ -2379,9 +2420,12 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	if (nfp_app_has_tc(nn->app) && nn->port)
 		netdev->hw_features |= NETIF_F_HW_TC;
 
-	/* Advertise but disable TSO by default. */
-	netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6);
-	nn->dp.ctrl &= ~NFP_NET_CFG_CTRL_LSO_ANY;
+	/* Advertise but disable TSO by default.
+	 * C-Tag strip and S-Tag strip can't be supported simultaneously,
+	 * so enable C-Tag strip and disable S-Tag strip by default.
+	 */
+	netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_HW_VLAN_STAG_RX);
+	nn->dp.ctrl &= ~(NFP_NET_CFG_CTRL_LSO_ANY | NFP_NET_CFG_CTRL_RXQINQ);
 
 	/* Finalise the netdev setup */
 	switch (nn->dp.ops->version) {
