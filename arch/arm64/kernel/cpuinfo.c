@@ -36,11 +36,11 @@ static struct cpuinfo_arm64 boot_cpu_data;
 static inline const char *icache_policy_str(int l1ip)
 {
 	switch (l1ip) {
-	case ICACHE_POLICY_VPIPT:
+	case CTR_EL0_L1Ip_VPIPT:
 		return "VPIPT";
-	case ICACHE_POLICY_VIPT:
+	case CTR_EL0_L1Ip_VIPT:
 		return "VIPT";
-	case ICACHE_POLICY_PIPT:
+	case CTR_EL0_L1Ip_PIPT:
 		return "PIPT";
 	default:
 		return "RESERVED/UNKNOWN";
@@ -349,12 +349,12 @@ static void cpuinfo_detect_icache_policy(struct cpuinfo_arm64 *info)
 	u32 l1ip = CTR_L1IP(info->reg_ctr);
 
 	switch (l1ip) {
-	case ICACHE_POLICY_PIPT:
+	case CTR_EL0_L1Ip_PIPT:
 		break;
-	case ICACHE_POLICY_VPIPT:
+	case CTR_EL0_L1Ip_VPIPT:
 		set_bit(ICACHEF_VPIPT, &__icache_flags);
 		break;
-	case ICACHE_POLICY_VIPT:
+	case CTR_EL0_L1Ip_VIPT:
 	default:
 		/* Assume aliasing */
 		set_bit(ICACHEF_ALIASING, &__icache_flags);

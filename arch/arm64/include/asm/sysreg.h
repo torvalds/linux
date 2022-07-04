@@ -1084,6 +1084,21 @@
 #define MVFR2_FPMISC_SHIFT		4
 #define MVFR2_SIMDMISC_SHIFT		0
 
+#define CTR_EL0_L1Ip_VPIPT		0
+#define CTR_EL0_L1Ip_VIPT		2
+#define CTR_EL0_L1Ip_PIPT		3
+
+#define CTR_EL0_L1Ip_SHIFT		14
+#define CTR_EL0_L1Ip_MASK		3
+#define CTR_EL0_DminLine_SHIFT		16
+#define CTR_EL0_IminLine_SHIFT		0
+#define CTR_EL0_IminLine_MASK		0xf
+#define CTR_EL0_ERG_SHIFT		20
+#define CTR_EL0_CWG_SHIFT		24
+#define CTR_EL0_CWG_MASK		15
+#define CTR_EL0_IDC_SHIFT		28
+#define CTR_EL0_DIC_SHIFT		29
+
 #define DCZID_DZP_SHIFT			4
 #define DCZID_BS_SHIFT			0
 

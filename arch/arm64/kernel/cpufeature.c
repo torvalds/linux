@@ -396,18 +396,18 @@ static const struct arm64_ftr_bits ftr_id_aa64mmfr2[] = {
 
 static const struct arm64_ftr_bits ftr_ctr[] = {
 	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_EXACT, 31, 1, 1), /* RES1 */
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, CTR_DIC_SHIFT, 1, 1),
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, CTR_IDC_SHIFT, 1, 1),
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_HIGHER_OR_ZERO_SAFE, CTR_CWG_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_HIGHER_OR_ZERO_SAFE, CTR_ERG_SHIFT, 4, 0),
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, CTR_DMINLINE_SHIFT, 4, 1),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, CTR_EL0_DIC_SHIFT, 1, 1),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, CTR_EL0_IDC_SHIFT, 1, 1),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_HIGHER_OR_ZERO_SAFE, CTR_EL0_CWG_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_HIGHER_OR_ZERO_SAFE, CTR_EL0_ERG_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, CTR_EL0_DminLine_SHIFT, 4, 1),
 	/*
 	 * Linux can handle differing I-cache policies. Userspace JITs will
 	 * make use of *minLine.
 	 * If we have differing I-cache policies, report it as the weakest - VIPT.
 	 */
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_NONSTRICT, FTR_EXACT, CTR_L1IP_SHIFT, 2, ICACHE_POLICY_VIPT),	/* L1Ip */
-	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, CTR_IMINLINE_SHIFT, 4, 0),
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_NONSTRICT, FTR_EXACT, CTR_EL0_L1Ip_SHIFT, 2, CTR_EL0_L1Ip_VIPT),	/* L1Ip */
+	ARM64_FTR_BITS(FTR_VISIBLE, FTR_STRICT, FTR_LOWER_SAFE, CTR_EL0_IminLine_SHIFT, 4, 0),
 	ARM64_FTR_END,
 };
 
@@ -1480,7 +1480,7 @@ static bool has_cache_idc(const struct arm64_cpu_capabilities *entry,
 	else
 		ctr = read_cpuid_effective_cachetype();
 
-	return ctr & BIT(CTR_IDC_SHIFT);
+	return ctr & BIT(CTR_EL0_IDC_SHIFT);
 }
 
 static void cpu_emulate_effective_ctr(const struct arm64_cpu_capabilities *__unused)
@@ -1491,7 +1491,7 @@ static void cpu_emulate_effective_ctr(const struct arm64_cpu_capabilities *__unu
 	 * to the CTR_EL0 on this CPU and emulate it with the real/safe
 	 * value.
 	 */
-	if (!(read_cpuid_cachetype() & BIT(CTR_IDC_SHIFT)))
+	if (!(read_cpuid_cachetype() & BIT(CTR_EL0_IDC_SHIFT)))
 		sysreg_clear_set(sctlr_el1, SCTLR_EL1_UCT, 0);
 }
 
@@ -1505,7 +1505,7 @@ static bool has_cache_dic(const struct arm64_cpu_capabilities *entry,
 	else
 		ctr = read_cpuid_cachetype();
 
-	return ctr & BIT(CTR_DIC_SHIFT);
+	return ctr & BIT(CTR_EL0_DIC_SHIFT);
 }
 
 static bool __maybe_unused
