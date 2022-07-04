@@ -71,16 +71,6 @@ static inline int jh7110_hash_wait_key_done(struct jh7110_sec_ctx *ctx)
 			(status & JH7110_SHA_KEY_DONE), 10, 100000);
 }
 
-static unsigned int jh7110_hash_reverse(unsigned int data)
-{
-	unsigned int ret;
-
-	ret = (((data & 0x000000ff) << 24) | ((data & 0x0000ff00) << 8) |
-		((data & 0x00ff0000) >> 8) | ((data & 0xff000000) >> 24));
-
-	return ret;
-}
-
 static int jh7110_get_hash_size(struct jh7110_sec_ctx *ctx)
 {
 	unsigned int hashsize;
@@ -148,17 +138,6 @@ static int jh7110_sha_hmac_key(struct jh7110_sec_ctx *ctx)
 		return -ETIMEDOUT;
 	}
 	return 0;
-}
-
-static void jh7110_hash_write_back(struct jh7110_sec_ctx *ctx)
-{
-	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
-	struct jh7110_sec_dev *sdev = ctx->sdev;
-	unsigned int *data = (unsigned int *)rctx->sha_digest_mid;
-	int loop;
-
-	for (loop = 0; loop < jh7110_get_hash_size(ctx) / sizeof(unsigned int); loop++)
-		jh7110_sec_write(sdev, JH7110_SHA_SHAWSR, data[loop]);
 }
 
 static void jh7110_sha_dma_callback(void *param)
