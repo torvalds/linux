@@ -9,3 +9,7 @@
 	model = "Acer Tomato (rev1) board";
 	compatible = "google,tomato-rev1", "google,tomato", "mediatek,mt8195";
 };
+
+&ts_10 {
+	status = "okay";
+};
