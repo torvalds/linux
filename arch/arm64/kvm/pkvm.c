@@ -117,7 +117,7 @@ void __init kvm_hyp_reserve(void)
  */
 static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 {
-	size_t pgd_sz, hyp_vm_sz, hyp_vcpu_sz, last_ran_sz;
+	size_t pgd_sz, hyp_vm_sz, hyp_vcpu_sz, last_ran_sz, total_sz;
 	struct kvm_vcpu *host_vcpu;
 	pkvm_handle_t handle;
 	void *pgd, *hyp_vm, *last_ran;
@@ -165,6 +165,8 @@ static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 
 	host_kvm->arch.pkvm.handle = handle;
 
+	total_sz = hyp_vm_sz + last_ran_sz + pgd_sz;
+
 	/* Donate memory for the vcpus at hyp and initialize it. */
 	hyp_vcpu_sz = PAGE_ALIGN(PKVM_HYP_VCPU_SIZE);
 	kvm_for_each_vcpu(idx, host_vcpu, host_kvm) {
@@ -182,6 +184,8 @@ static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 			goto destroy_vm;
 		}
 
+		total_sz += hyp_vcpu_sz;
+
 		ret = kvm_call_hyp_nvhe(__pkvm_init_vcpu, handle, host_vcpu,
 					hyp_vcpu);
 		if (ret) {
@@ -189,6 +193,8 @@ static int __pkvm_create_hyp_vm(struct kvm *host_kvm)
 			goto destroy_vm;
 		}
 	}
+
+	atomic64_set(&host_kvm->stat.protected_hyp_mem, total_sz);
 
 	return 0;
 
@@ -228,7 +234,7 @@ void pkvm_destroy_hyp_vm(struct kvm *host_kvm)
 	}
 
 	host_kvm->arch.pkvm.handle = 0;
-	free_hyp_memcache(&host_kvm->arch.pkvm.teardown_mc);
+	free_hyp_memcache(&host_kvm->arch.pkvm.teardown_mc, host_kvm);
 
 	node = rb_first(&host_kvm->arch.pkvm.pinned_pages);
 	while (node) {
