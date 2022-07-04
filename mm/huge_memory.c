@@ -2538,7 +2538,7 @@ static void __split_huge_page(struct page *page, struct list_head *list,
 		 * requires taking the lru_lock so we do the put_page
 		 * of the tail pages after the split is complete.
 		 */
-		put_page(subpage);
+		free_page_and_swap_cache(subpage);
 	}
 }
 
