@@ -60,6 +60,11 @@ static atomic_t transfer_last_id;
 static DEFINE_IDR(scmi_requested_devices);
 static DEFINE_MUTEX(scmi_requested_devices_mtx);
 
+/* Track globally the creation of SCMI SystemPower related devices */
+static bool scmi_syspower_registered;
+/* Protect access to scmi_syspower_registered */
+static DEFINE_MUTEX(scmi_syspower_mtx);
+
 struct scmi_requested_dev {
 	const struct scmi_device_id *id_table;
 	struct list_head node;
@@ -1870,20 +1875,38 @@ scmi_get_protocol_device(struct device_node *np, struct scmi_info *info,
 	if (sdev)
 		return sdev;
 
+	mutex_lock(&scmi_syspower_mtx);
+	if (prot_id == SCMI_PROTOCOL_SYSTEM && scmi_syspower_registered) {
+		dev_warn(info->dev,
+			 "SCMI SystemPower protocol device must be unique !\n");
+		mutex_unlock(&scmi_syspower_mtx);
+
+		return NULL;
+	}
+
 	pr_debug("Creating SCMI device (%s) for protocol %x\n", name, prot_id);
 
 	sdev = scmi_device_create(np, info->dev, prot_id, name);
 	if (!sdev) {
 		dev_err(info->dev, "failed to create %d protocol device\n",
 			prot_id);
+		mutex_unlock(&scmi_syspower_mtx);
+
 		return NULL;
 	}
 
 	if (scmi_txrx_setup(info, &sdev->dev, prot_id)) {
 		dev_err(&sdev->dev, "failed to setup transport\n");
 		scmi_device_destroy(sdev);
+		mutex_unlock(&scmi_syspower_mtx);
+
 		return NULL;
 	}
+
+	if (prot_id == SCMI_PROTOCOL_SYSTEM)
+		scmi_syspower_registered = true;
+
+	mutex_unlock(&scmi_syspower_mtx);
 
 	return sdev;
 }
