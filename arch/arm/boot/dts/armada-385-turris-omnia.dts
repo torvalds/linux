@@ -191,15 +191,13 @@
 				reg = <0x2b>;
 				#address-cells = <1>;
 				#size-cells = <0>;
+				status = "okay";
 
 				/*
 				 * LEDs are controlled by MCU (STM32F0) at
 				 * address 0x2b.
 				 *
-				 * The driver does not support HW control mode
-				 * for the LEDs yet. Disable the LEDs for now.
-				 *
-				 * Also LED functions are not stable yet:
+				 * LED functions are not stable yet:
 				 * - there are 3 LEDs connected via MCU to PCIe
 				 *   ports. One of these ports supports mSATA.
 				 *   There is no mSATA nor PCIe function.
@@ -210,7 +208,6 @@
 				 *   B. Again there is no such function defined.
 				 *   For now we use LED_FUNCTION_INDICATOR
 				 */
-				status = "disabled";
 
 				multi-led@0 {
 					reg = <0x0>;
