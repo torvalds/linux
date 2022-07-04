@@ -1627,6 +1627,8 @@ static void rtw89_pci_ctrl_dma_all(struct rtw89_dev *rtwdev, bool enable)
 		else
 			rtw89_write32_clr(rtwdev, R_AX_PCIE_INIT_CFG1,
 					  B_AX_STOP_AXI_MST);
+		rtw89_write32_clr(rtwdev, R_AX_PCIE_INIT_CFG1,
+				  txhci_en | rxhci_en);
 		if (chip_id == RTL8852C)
 			rtw89_write32_set(rtwdev, R_AX_PCIE_INIT_CFG1,
 					  B_AX_STOP_AXI_MST);
