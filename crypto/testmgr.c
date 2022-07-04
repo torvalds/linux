@@ -4389,6 +4389,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.cipher = __VECS(anubis_cbc_tv_template)
 		},
 	}, {
+		.alg = "cbc(aria)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(aria_cbc_tv_template)
+		},
+	}, {
 		.alg = "cbc(blowfish)",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -4506,6 +4512,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.cipher = __VECS(aes_cfb_tv_template)
 		},
 	}, {
+		.alg = "cfb(aria)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(aria_cfb_tv_template)
+		},
+	}, {
 		.alg = "cfb(sm4)",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -4573,6 +4585,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.fips_allowed = 1,
 		.suite = {
 			.cipher = __VECS(aes_ctr_tv_template)
+		}
+	}, {
+		.alg = "ctr(aria)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(aria_ctr_tv_template)
 		}
 	}, {
 		.alg = "ctr(blowfish)",
@@ -4835,6 +4853,12 @@ static const struct alg_test_desc alg_test_descs[] = {
 			.cipher = __VECS(arc4_tv_template)
 		}
 	}, {
+		.alg = "ecb(aria)",
+		.test = alg_test_skcipher,
+		.suite = {
+			.cipher = __VECS(aria_tv_template)
+		}
+	}, {
 		.alg = "ecb(blowfish)",
 		.test = alg_test_skcipher,
 		.suite = {
@@ -5049,6 +5073,13 @@ static const struct alg_test_desc alg_test_descs[] = {
 		.fips_allowed = 1,
 		.suite = {
 			.aead = __VECS(aes_gcm_tv_template)
+		}
+	}, {
+		.alg = "gcm(aria)",
+		.generic_driver = "gcm_base(ctr(aria-generic),ghash-generic)",
+		.test = alg_test_aead,
+		.suite = {
+			.aead = __VECS(aria_gcm_tv_template)
 		}
 	}, {
 		.alg = "gcm(sm4)",
