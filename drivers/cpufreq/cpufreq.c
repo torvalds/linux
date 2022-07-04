@@ -843,12 +843,14 @@ ssize_t cpufreq_show_cpus(const struct cpumask *mask, char *buf)
 	unsigned int cpu;
 
 	for_each_cpu(cpu, mask) {
-		if (i)
-			i += scnprintf(&buf[i], (PAGE_SIZE - i - 2), " ");
-		i += scnprintf(&buf[i], (PAGE_SIZE - i - 2), "%u", cpu);
+		i += scnprintf(&buf[i], (PAGE_SIZE - i - 2), "%u ", cpu);
 		if (i >= (PAGE_SIZE - 5))
 			break;
 	}
+
+	/* Remove the extra space at the end */
+	i--;
+
 	i += sprintf(&buf[i], "\n");
 	return i;
 }
@@ -971,21 +973,10 @@ static ssize_t store(struct kobject *kobj, struct attribute *attr,
 	if (!fattr->store)
 		return -EIO;
 
-	/*
-	 * cpus_read_trylock() is used here to work around a circular lock
-	 * dependency problem with respect to the cpufreq_register_driver().
-	 */
-	if (!cpus_read_trylock())
-		return -EBUSY;
-
-	if (cpu_online(policy->cpu)) {
-		down_write(&policy->rwsem);
-		if (likely(!policy_is_inactive(policy)))
-			ret = fattr->store(policy, buf, count);
-		up_write(&policy->rwsem);
-	}
-
-	cpus_read_unlock();
+	down_write(&policy->rwsem);
+	if (likely(!policy_is_inactive(policy)))
+		ret = fattr->store(policy, buf, count);
+	up_write(&policy->rwsem);
 
 	return ret;
 }
