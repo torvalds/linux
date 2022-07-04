@@ -1508,6 +1508,21 @@ config CRYPTO_SEED
 	  See also:
 	  <http://www.kisa.or.kr/kisa/seed/jsp/seed_eng.jsp>
 
+config CRYPTO_ARIA
+	tristate "ARIA cipher algorithm"
+	select CRYPTO_ALGAPI
+	help
+	  ARIA cipher algorithm (RFC5794).
+
+	  ARIA is a standard encryption algorithm of the Republic of Korea.
+	  The ARIA specifies three key sizes and rounds.
+	  128-bit: 12 rounds.
+	  192-bit: 14 rounds.
+	  256-bit: 16 rounds.
+
+	  See also:
+	  <https://seed.kisa.or.kr/kisa/algorithm/EgovAriaInfo.do>
+
 config CRYPTO_SERPENT
 	tristate "Serpent cipher algorithm"
 	select CRYPTO_ALGAPI
