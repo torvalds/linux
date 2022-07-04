@@ -95,6 +95,15 @@
 		regulator-always-on;
 		regulator-boot-on;
 	};
+
+	usb_vbus: regulator-5v0-usb-vbus {
+		compatible = "regulator-fixed";
+		regulator-name = "usb-vbus";
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+		enable-active-high;
+		regulator-always-on;
+	};
 };
 
 &i2c0 {
@@ -563,6 +572,52 @@
 	mediatek,pad-select = <0>;
 };
 
+&u3phy0 {
+	status = "okay";
+};
+
+&u3phy1 {
+	status = "okay";
+};
+
+&u3phy2 {
+	status = "okay";
+};
+
+&u3phy3 {
+	status = "okay";
+};
+
 &uart0 {
 	status = "okay";
+};
+
+&xhci0 {
+	status = "okay";
+
+	vusb33-supply = <&mt6359_vusb_ldo_reg>;
+	vbus-supply = <&usb_vbus>;
+};
+
+&xhci1 {
+	status = "okay";
+
+	vusb33-supply = <&mt6359_vusb_ldo_reg>;
+	vbus-supply = <&usb_vbus>;
+};
+
+&xhci2 {
+	status = "okay";
+
+	vusb33-supply = <&mt6359_vusb_ldo_reg>;
+	vbus-supply = <&usb_vbus>;
+};
+
+&xhci3 {
+	status = "okay";
+
+	/* MT7921's USB Bluetooth has issues with USB2 LPM */
+	usb2-lpm-disable;
+	vusb33-supply = <&mt6359_vusb_ldo_reg>;
+	vbus-supply = <&usb_vbus>;
 };
