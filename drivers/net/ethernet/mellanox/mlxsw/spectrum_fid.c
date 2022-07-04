@@ -404,11 +404,6 @@ enum mlxsw_sp_fid_type mlxsw_sp_fid_type(const struct mlxsw_sp_fid *fid)
 	return fid->fid_family->type;
 }
 
-void mlxsw_sp_fid_rif_set(struct mlxsw_sp_fid *fid, struct mlxsw_sp_rif *rif)
-{
-	fid->rif = rif;
-}
-
 struct mlxsw_sp_rif *mlxsw_sp_fid_rif(const struct mlxsw_sp_fid *fid)
 {
 	return fid->rif;
@@ -465,7 +460,8 @@ static int mlxsw_sp_fid_op(const struct mlxsw_sp_fid *fid, bool valid)
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfmr), sfmr_pl);
 }
 
-static int mlxsw_sp_fid_edit_op(const struct mlxsw_sp_fid *fid)
+static int mlxsw_sp_fid_edit_op(const struct mlxsw_sp_fid *fid,
+				const struct mlxsw_sp_rif *rif)
 {
 	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
 	enum mlxsw_reg_bridge_type bridge_type = 0;
@@ -484,18 +480,161 @@ static int mlxsw_sp_fid_edit_op(const struct mlxsw_sp_fid *fid)
 	mlxsw_reg_sfmr_vni_set(sfmr_pl, be32_to_cpu(fid->vni));
 	mlxsw_reg_sfmr_vtfp_set(sfmr_pl, fid->nve_flood_index_valid);
 	mlxsw_reg_sfmr_nve_tunnel_flood_ptr_set(sfmr_pl, fid->nve_flood_index);
+
+	if (mlxsw_sp->ubridge && rif) {
+		mlxsw_reg_sfmr_irif_v_set(sfmr_pl, true);
+		mlxsw_reg_sfmr_irif_set(sfmr_pl, mlxsw_sp_rif_index(rif));
+	}
+
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfmr), sfmr_pl);
 }
 
 static int mlxsw_sp_fid_vni_to_fid_map(const struct mlxsw_sp_fid *fid,
+				       const struct mlxsw_sp_rif *rif,
 				       bool valid)
 {
 	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
 	char svfa_pl[MLXSW_REG_SVFA_LEN];
+	bool irif_valid;
+	u16 irif_index;
+
+	irif_valid = !!rif;
+	irif_index = rif ? mlxsw_sp_rif_index(rif) : 0;
 
 	mlxsw_reg_svfa_vni_pack(svfa_pl, valid, fid->fid_index,
-				be32_to_cpu(fid->vni));
+				be32_to_cpu(fid->vni), irif_valid, irif_index);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(svfa), svfa_pl);
+}
+
+static int mlxsw_sp_fid_to_fid_rif_update(const struct mlxsw_sp_fid *fid,
+					  const struct mlxsw_sp_rif *rif)
+{
+	return mlxsw_sp_fid_edit_op(fid, rif);
+}
+
+static int mlxsw_sp_fid_vni_to_fid_rif_update(const struct mlxsw_sp_fid *fid,
+					      const struct mlxsw_sp_rif *rif)
+{
+	if (!fid->vni_valid)
+		return 0;
+
+	return mlxsw_sp_fid_vni_to_fid_map(fid, rif, fid->vni_valid);
+}
+
+static int
+mlxsw_sp_fid_port_vid_to_fid_rif_update_one(const struct mlxsw_sp_fid *fid,
+					    struct mlxsw_sp_fid_port_vid *pv,
+					    bool irif_valid, u16 irif_index)
+{
+	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
+	char svfa_pl[MLXSW_REG_SVFA_LEN];
+
+	mlxsw_reg_svfa_port_vid_pack(svfa_pl, pv->local_port, true,
+				     fid->fid_index, pv->vid, irif_valid,
+				     irif_index);
+
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(svfa), svfa_pl);
+}
+
+static int mlxsw_sp_fid_vid_to_fid_rif_set(const struct mlxsw_sp_fid *fid,
+					   const struct mlxsw_sp_rif *rif)
+{
+	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
+	struct mlxsw_sp_fid_port_vid *pv;
+	u16 irif_index;
+	int err;
+
+	irif_index = mlxsw_sp_rif_index(rif);
+
+	list_for_each_entry(pv, &fid->port_vid_list, list) {
+		/* If port is not in virtual mode, then it does not have any
+		 * {Port, VID}->FID mappings that need to be updated with the
+		 * ingress RIF.
+		 */
+		if (!mlxsw_sp->fid_core->port_fid_mappings[pv->local_port])
+			continue;
+
+		err = mlxsw_sp_fid_port_vid_to_fid_rif_update_one(fid, pv,
+								  true,
+								  irif_index);
+		if (err)
+			goto err_port_vid_to_fid_rif_update_one;
+	}
+
+	return 0;
+
+err_port_vid_to_fid_rif_update_one:
+	list_for_each_entry_continue_reverse(pv, &fid->port_vid_list, list) {
+		if (!mlxsw_sp->fid_core->port_fid_mappings[pv->local_port])
+			continue;
+
+		mlxsw_sp_fid_port_vid_to_fid_rif_update_one(fid, pv, false, 0);
+	}
+
+	return err;
+}
+
+static void mlxsw_sp_fid_vid_to_fid_rif_unset(const struct mlxsw_sp_fid *fid)
+{
+	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
+	struct mlxsw_sp_fid_port_vid *pv;
+
+	list_for_each_entry(pv, &fid->port_vid_list, list) {
+		/* If port is not in virtual mode, then it does not have any
+		 * {Port, VID}->FID mappings that need to be updated.
+		 */
+		if (!mlxsw_sp->fid_core->port_fid_mappings[pv->local_port])
+			continue;
+
+		mlxsw_sp_fid_port_vid_to_fid_rif_update_one(fid, pv, false, 0);
+	}
+}
+
+int mlxsw_sp_fid_rif_set(struct mlxsw_sp_fid *fid, struct mlxsw_sp_rif *rif)
+{
+	int err;
+
+	if (!fid->fid_family->mlxsw_sp->ubridge) {
+		fid->rif = rif;
+		return 0;
+	}
+
+	err = mlxsw_sp_fid_to_fid_rif_update(fid, rif);
+	if (err)
+		return err;
+
+	err = mlxsw_sp_fid_vni_to_fid_rif_update(fid, rif);
+	if (err)
+		goto err_vni_to_fid_rif_update;
+
+	err = mlxsw_sp_fid_vid_to_fid_rif_set(fid, rif);
+	if (err)
+		goto err_vid_to_fid_rif_set;
+
+	fid->rif = rif;
+	return 0;
+
+err_vid_to_fid_rif_set:
+	mlxsw_sp_fid_vni_to_fid_rif_update(fid, NULL);
+err_vni_to_fid_rif_update:
+	mlxsw_sp_fid_to_fid_rif_update(fid, NULL);
+	return err;
+}
+
+void mlxsw_sp_fid_rif_unset(struct mlxsw_sp_fid *fid)
+{
+	if (!fid->fid_family->mlxsw_sp->ubridge) {
+		fid->rif = NULL;
+		return;
+	}
+
+	if (!fid->rif)
+		return;
+
+	fid->rif = NULL;
+	mlxsw_sp_fid_vid_to_fid_rif_unset(fid);
+	mlxsw_sp_fid_vni_to_fid_rif_update(fid, NULL);
+	mlxsw_sp_fid_to_fid_rif_update(fid, NULL);
 }
 
 static int mlxsw_sp_fid_vni_op(const struct mlxsw_sp_fid *fid)
@@ -504,12 +643,13 @@ static int mlxsw_sp_fid_vni_op(const struct mlxsw_sp_fid *fid)
 	int err;
 
 	if (mlxsw_sp->ubridge) {
-		err = mlxsw_sp_fid_vni_to_fid_map(fid, fid->vni_valid);
+		err = mlxsw_sp_fid_vni_to_fid_map(fid, fid->rif,
+						  fid->vni_valid);
 		if (err)
 			return err;
 	}
 
-	err = mlxsw_sp_fid_edit_op(fid);
+	err = mlxsw_sp_fid_edit_op(fid, fid->rif);
 	if (err)
 		goto err_fid_edit_op;
 
@@ -517,7 +657,7 @@ static int mlxsw_sp_fid_vni_op(const struct mlxsw_sp_fid *fid)
 
 err_fid_edit_op:
 	if (mlxsw_sp->ubridge)
-		mlxsw_sp_fid_vni_to_fid_map(fid, !fid->vni_valid);
+		mlxsw_sp_fid_vni_to_fid_map(fid, fid->rif, !fid->vni_valid);
 	return err;
 }
 
@@ -526,9 +666,16 @@ static int __mlxsw_sp_fid_port_vid_map(const struct mlxsw_sp_fid *fid,
 {
 	struct mlxsw_sp *mlxsw_sp = fid->fid_family->mlxsw_sp;
 	char svfa_pl[MLXSW_REG_SVFA_LEN];
+	bool irif_valid = false;
+	u16 irif_index = 0;
+
+	if (mlxsw_sp->ubridge && fid->rif) {
+		irif_valid = true;
+		irif_index = mlxsw_sp_rif_index(fid->rif);
+	}
 
 	mlxsw_reg_svfa_port_vid_pack(svfa_pl, local_port, valid, fid->fid_index,
-				     vid);
+				     vid, irif_valid, irif_index);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(svfa), svfa_pl);
 }
 
@@ -768,12 +915,12 @@ static void mlxsw_sp_fid_8021d_vni_clear(struct mlxsw_sp_fid *fid)
 
 static int mlxsw_sp_fid_8021d_nve_flood_index_set(struct mlxsw_sp_fid *fid)
 {
-	return mlxsw_sp_fid_edit_op(fid);
+	return mlxsw_sp_fid_edit_op(fid, fid->rif);
 }
 
 static void mlxsw_sp_fid_8021d_nve_flood_index_clear(struct mlxsw_sp_fid *fid)
 {
-	mlxsw_sp_fid_edit_op(fid);
+	mlxsw_sp_fid_edit_op(fid, fid->rif);
 }
 
 static void

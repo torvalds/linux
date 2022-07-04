@@ -1658,40 +1658,43 @@ MLXSW_ITEM32(reg, svfa, irif, 0x14, 0, 16);
 
 static inline void __mlxsw_reg_svfa_pack(char *payload,
 					 enum mlxsw_reg_svfa_mt mt, bool valid,
-					 u16 fid)
+					 u16 fid, bool irif_v, u16 irif)
 {
 	MLXSW_REG_ZERO(svfa, payload);
 	mlxsw_reg_svfa_swid_set(payload, 0);
 	mlxsw_reg_svfa_mapping_table_set(payload, mt);
 	mlxsw_reg_svfa_v_set(payload, valid);
 	mlxsw_reg_svfa_fid_set(payload, fid);
+	mlxsw_reg_svfa_irif_v_set(payload, irif_v);
+	mlxsw_reg_svfa_irif_set(payload, irif_v ? irif : 0);
 }
 
 static inline void mlxsw_reg_svfa_port_vid_pack(char *payload, u16 local_port,
-						bool valid, u16 fid, u16 vid)
+						bool valid, u16 fid, u16 vid,
+						bool irif_v, u16 irif)
 {
 	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
 
-	__mlxsw_reg_svfa_pack(payload, mt, valid, fid);
+	__mlxsw_reg_svfa_pack(payload, mt, valid, fid, irif_v, irif);
 	mlxsw_reg_svfa_local_port_set(payload, local_port);
 	mlxsw_reg_svfa_vid_set(payload, vid);
 }
 
 static inline void mlxsw_reg_svfa_vid_pack(char *payload, bool valid, u16 fid,
-					   u16 vid)
+					   u16 vid, bool irif_v, u16 irif)
 {
 	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_VID_TO_FID;
 
-	__mlxsw_reg_svfa_pack(payload, mt, valid, fid);
+	__mlxsw_reg_svfa_pack(payload, mt, valid, fid, irif_v, irif);
 	mlxsw_reg_svfa_vid_set(payload, vid);
 }
 
 static inline void mlxsw_reg_svfa_vni_pack(char *payload, bool valid, u16 fid,
-					   u32 vni)
+					   u32 vni, bool irif_v, u16 irif)
 {
 	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_VNI_TO_FID;
 
-	__mlxsw_reg_svfa_pack(payload, mt, valid, fid);
+	__mlxsw_reg_svfa_pack(payload, mt, valid, fid, irif_v, irif);
 	mlxsw_reg_svfa_vni_set(payload, vni);
 }
 
