@@ -1798,7 +1798,6 @@ static int mlxsw_sp_mdb_entry_write(struct mlxsw_sp *mlxsw_sp,
 				    bool adding)
 {
 	char *sfd_pl;
-	u16 mid_idx;
 	u8 num_rec;
 	int err;
 
@@ -1806,11 +1805,10 @@ static int mlxsw_sp_mdb_entry_write(struct mlxsw_sp *mlxsw_sp,
 	if (!sfd_pl)
 		return -ENOMEM;
 
-	mid_idx = mlxsw_sp_pgt_index_to_mid(mlxsw_sp, mdb_entry->mid);
 	mlxsw_reg_sfd_pack(sfd_pl, mlxsw_sp_sfd_op(adding), 0);
 	mlxsw_reg_sfd_mc_pack(sfd_pl, 0, mdb_entry->key.addr,
 			      mdb_entry->key.fid, MLXSW_REG_SFD_REC_ACTION_NOP,
-			      mid_idx);
+			      mdb_entry->mid);
 	num_rec = mlxsw_reg_sfd_num_rec_get(sfd_pl);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(sfd), sfd_pl);
 	if (err)
