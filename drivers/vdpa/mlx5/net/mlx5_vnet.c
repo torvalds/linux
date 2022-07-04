@@ -1440,7 +1440,7 @@ static int mlx5_vdpa_add_mac_vlan_rules(struct mlx5_vdpa_net *ndev, u8 *mac,
 	headers_v = MLX5_ADDR_OF(fte_match_param, spec->match_value, outer_headers);
 	dmac_c = MLX5_ADDR_OF(fte_match_param, headers_c, outer_headers.dmac_47_16);
 	dmac_v = MLX5_ADDR_OF(fte_match_param, headers_v, outer_headers.dmac_47_16);
-	memset(dmac_c, 0xff, ETH_ALEN);
+	eth_broadcast_addr(dmac_c);
 	ether_addr_copy(dmac_v, mac);
 	MLX5_SET(fte_match_set_lyr_2_4, headers_c, cvlan_tag, 1);
 	if (tagged) {
