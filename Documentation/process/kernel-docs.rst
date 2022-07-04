@@ -134,6 +134,20 @@ On-line docs
         describes how to write user-mode utilities for communicating with
         Card Services.
 
+    * Title: **How NOT to write kernel drivers**
+
+      :Author: Arjan van de Ven.
+      :URL: https://landley.net/kdocs/ols/2002/ols2002-pages-545-555.pdf
+      :Date: 2002
+      :Keywords: driver.
+      :Description: Programming bugs and Do-nots in kernel driver development
+      :Abstract: *Quit a few tutorials, articles and books give an introduction
+        on how to write Linux kernel drivers. Unfortunately the things one
+        should NOT do in Linux kernel code is either only a minor appendix
+        or, more commonly, completely absent. This paper tries to briefly touch
+        the areas in which the most common and serious bugs and do-nots are
+        encountered.*
+
     * Title: **Global spinlock list and usage**
 
       :Author: Rick Lindsley.
