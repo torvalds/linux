@@ -649,6 +649,7 @@ static int ap2sta_data_frame(
 	struct sta_info **psta)
 {
 	u8 *ptr = precv_frame->rx_data;
+	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)precv_frame->rx_data;
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	int ret = _SUCCESS;
 	struct	sta_priv *pstapriv = &adapter->stapriv;
@@ -693,8 +694,8 @@ static int ap2sta_data_frame(
 			goto exit;
 		}
 
-		if (GetFrameSubType(ptr) & BIT(6)) {
-			/* No data, will not indicate to upper layer, temporily count it here */
+		if (ieee80211_is_nullfunc(hdr->frame_control)) {
+			/* We count the nullfunc frame, but we'll not pass it on to higher layers. */
 			count_rx_stats(adapter, precv_frame, *psta);
 			ret = RTW_RX_HANDLED;
 			goto exit;
