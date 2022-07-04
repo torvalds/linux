@@ -1,5 +1,15 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+config GH_SECURE_VM_LOADER
+	tristate "Gunyah Secure Virtual Machine Loader Driver"
+	depends on GUNYAH
+	select QCOM_MDT_LOADER
+	help
+	  This driver invokes mdt Loader to load images of
+	  any secure guest Virtual Machine (VM). The images are loaded
+	  in the carveout designated for the VM once the firmware name
+	  is validated.
+
 config GH_PROXY_SCHED
 	tristate "PROXY Scheduling for Secondary VMs"
 	depends on GUNYAH
