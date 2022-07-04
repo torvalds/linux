@@ -718,9 +718,9 @@ static void cs_do_release(struct kref *ref)
 		 * staged submission
 		 */
 		if (cs->staged_last) {
-			struct hl_cs *staged_cs, *tmp;
+			struct hl_cs *staged_cs, *tmp_cs;
 
-			list_for_each_entry_safe(staged_cs, tmp,
+			list_for_each_entry_safe(staged_cs, tmp_cs,
 					&cs->staged_cs_node, staged_cs_node)
 				staged_cs_put(hdev, staged_cs);
 		}
