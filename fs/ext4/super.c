@@ -3011,6 +3011,15 @@ static int _ext4_show_options(struct seq_file *seq, struct super_block *sb,
 	} else if (test_opt2(sb, DAX_INODE)) {
 		SEQ_OPTS_PUTS("dax=inode");
 	}
+
+	if (sbi->s_groups_count >= MB_DEFAULT_LINEAR_SCAN_THRESHOLD &&
+			!test_opt2(sb, MB_OPTIMIZE_SCAN)) {
+		SEQ_OPTS_PUTS("mb_optimize_scan=0");
+	} else if (sbi->s_groups_count < MB_DEFAULT_LINEAR_SCAN_THRESHOLD &&
+			test_opt2(sb, MB_OPTIMIZE_SCAN)) {
+		SEQ_OPTS_PUTS("mb_optimize_scan=1");
+	}
+
 	ext4_show_quota_options(seq, sb);
 	return 0;
 }
