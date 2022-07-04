@@ -3,7 +3,8 @@
 Index of Further Kernel Documentation
 =====================================
 
-          Juan-Mariano de Goyeneche <jmseyas@dit.upm.es>
+Initial Author: Juan-Mariano de Goyeneche (<jmseyas@dit.upm.es>;
+email address is defunct now.)
 
 The need for a document like this one became apparent in the
 linux-kernel mailing list as the same questions, asking for pointers
@@ -16,21 +17,16 @@ philosophy and design decisions behind this code.
 
 Unfortunately, not many documents are available for beginners to
 start. And, even if they exist, there was no "well-known" place which
-kept track of them. These lines try to cover this lack. All documents
-available on line known by the author are listed, while some reference
-books are also mentioned.
+kept track of them. These lines try to cover this lack.
 
 PLEASE, if you know any paper not listed here or write a new document,
-send me an e-mail, and I'll include a reference to it here. Any
-corrections, ideas or comments are also welcomed.
+include a reference to it here, following the kernel's patch submission
+process. Any corrections, ideas or comments are also welcome.
 
-The papers that follow are listed in no particular order. All are
-cataloged with the following fields: the document's "Title", the
-"Author"/s, the "URL" where they can be found, some "Keywords" helpful
-when searching for specific topics, and a brief "Description" of the
-Document.
-
-Enjoy!
+All documents are cataloged with the following fields: the document's
+"Title", the "Author"/s, the "URL" where they can be found, some
+"Keywords" helpful when searching for specific topics, and a brief
+"Description" of the Document.
 
 .. note::
 
