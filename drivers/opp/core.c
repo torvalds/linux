@@ -2105,13 +2105,20 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_put_prop_name);
  * This must be called before any OPPs are initialized for the device.
  */
 struct opp_table *dev_pm_opp_set_regulators(struct device *dev,
-					    const char * const names[],
-					    unsigned int count)
+					    const char * const names[])
 {
 	struct dev_pm_opp_supply *supplies;
+	const char * const *temp = names;
 	struct opp_table *opp_table;
 	struct regulator *reg;
-	int ret, i;
+	int count = 0, ret, i;
+
+	/* Count number of regulators */
+	while (*temp++)
+		count++;
+
+	if (!count)
+		return ERR_PTR(-EINVAL);
 
 	opp_table = _add_opp_table(dev, false);
 	if (IS_ERR(opp_table))
@@ -2236,12 +2243,11 @@ static void devm_pm_opp_regulators_release(void *data)
  * Return: 0 on success and errorno otherwise.
  */
 int devm_pm_opp_set_regulators(struct device *dev,
-			       const char * const names[],
-			       unsigned int count)
+			       const char * const names[])
 {
 	struct opp_table *opp_table;
 
-	opp_table = dev_pm_opp_set_regulators(dev, names, count);
+	opp_table = dev_pm_opp_set_regulators(dev, names);
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 

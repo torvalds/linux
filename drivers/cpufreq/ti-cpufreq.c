@@ -173,7 +173,7 @@ static struct ti_cpufreq_soc_data omap34xx_soc_data = {
  *    seems to always read as 0).
  */
 
-static const char * const omap3_reg_names[] = {"cpu0", "vbb"};
+static const char * const omap3_reg_names[] = {"cpu0", "vbb", NULL};
 
 static struct ti_cpufreq_soc_data omap36xx_soc_data = {
 	.reg_names = omap3_reg_names,
@@ -326,7 +326,7 @@ static int ti_cpufreq_probe(struct platform_device *pdev)
 	const struct of_device_id *match;
 	struct opp_table *ti_opp_table;
 	struct ti_cpufreq_data *opp_data;
-	const char * const default_reg_names[] = {"vdd", "vbb"};
+	const char * const default_reg_names[] = {"vdd", "vbb", NULL};
 	int ret;
 
 	match = dev_get_platdata(&pdev->dev);
@@ -387,8 +387,7 @@ static int ti_cpufreq_probe(struct platform_device *pdev)
 		if (opp_data->soc_data->reg_names)
 			reg_names = opp_data->soc_data->reg_names;
 		ti_opp_table = dev_pm_opp_set_regulators(opp_data->cpu_dev,
-							 reg_names,
-							 ARRAY_SIZE(default_reg_names));
+							 reg_names);
 		if (IS_ERR(ti_opp_table)) {
 			dev_pm_opp_put_supported_hw(opp_data->opp_table);
 			ret =  PTR_ERR(ti_opp_table);
