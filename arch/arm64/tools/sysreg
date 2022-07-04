@@ -534,3 +534,10 @@ Sysreg	LORN_EL1	3	0	10	4	2
 Res0	63:8
 Field	7:0	Num
 EndSysreg
+
+Sysreg	LORC_EL1	3	0	10	4	3
+Res0	63:10
+Field	9:2	DS
+Res0	1
+Field	0	EN
+EndSysreg
