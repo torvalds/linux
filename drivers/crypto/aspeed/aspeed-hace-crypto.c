@@ -1621,8 +1621,8 @@ int aspeed_register_hace_crypto_algs(struct aspeed_hace_dev *hace_dev)
 
 #ifdef CONFIG_ASPEED_OTP
 	find_vault_key(hace_dev);
-#elif
-	crypto_engine->load_vault_key = 0;
+#else
+	hace_dev->crypto_engine.load_vault_key = 0;
 #endif
 
 	for (i = 0; i < ARRAY_SIZE(aspeed_crypto_algs); i++) {
