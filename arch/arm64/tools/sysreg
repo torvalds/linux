@@ -273,6 +273,27 @@ Field	3:1	Level
 Field	0	InD
 EndSysreg
 
+Sysreg	CTR_EL0	3	3	0	0	1
+Res0	63:38
+Field	37:32	TminLine
+Res1	31
+Res0	30
+Field	29	DIC
+Field	28	IDC
+Field	27:24	CWG
+Field	23:20	ERG
+Field	19:16	DminLine
+Enum	15:14	L1Ip
+	0b00	VPIPT
+	# This is named as AIVIVT in the ARM but documented as reserved
+	0b01	RESERVED
+	0b10	VIPT
+	0b11	PIPT
+EndEnum
+Res0	13:4
+Field	3:0	IminLine
+EndSysreg
+
 Sysreg	SVCR	3	3	4	2	2
 Res0	63:2
 Field	1	ZA
