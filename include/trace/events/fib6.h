@@ -31,7 +31,7 @@ TRACE_EVENT(fib6_table_lookup,
 		__field(        u16,	dport		)
 		__field(        u8,	proto		)
 		__field(        u8,	rt_type		)
-		__dynamic_array(	char,	name,	IFNAMSIZ )
+		__array(		char,	name,	IFNAMSIZ )
 		__array(		__u8,	gw,	16	 )
 	),
 
@@ -63,9 +63,9 @@ TRACE_EVENT(fib6_table_lookup,
 		}
 
 		if (res->nh && res->nh->fib_nh_dev) {
-			__assign_str(name, res->nh->fib_nh_dev);
+			strlcpy(__entry->name, res->nh->fib_nh_dev->name, IFNAMSIZ);
 		} else {
-			__assign_str(name, "-");
+			strcpy(__entry->name, "-");
 		}
 		if (res->f6i == net->ipv6.fib6_null_entry) {
 			struct in6_addr in6_zero = {};
@@ -83,7 +83,7 @@ TRACE_EVENT(fib6_table_lookup,
 		  __entry->tb_id, __entry->oif, __entry->iif, __entry->proto,
 		  __entry->src, __entry->sport, __entry->dst, __entry->dport,
 		  __entry->tos, __entry->scope, __entry->flags,
-		  __get_str(name), __entry->gw, __entry->err)
+		  __entry->name, __entry->gw, __entry->err)
 );
 
 #endif /* _TRACE_FIB6_H */
