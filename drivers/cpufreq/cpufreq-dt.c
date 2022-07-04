@@ -29,9 +29,9 @@ struct private_data {
 
 	cpumask_var_t cpus;
 	struct device *cpu_dev;
-	struct opp_table *opp_table;
 	struct cpufreq_frequency_table *freq_table;
 	bool have_static_opps;
+	int opp_token;
 };
 
 static LIST_HEAD(priv_list);
@@ -220,9 +220,9 @@ static int dt_cpufreq_early_init(struct device *dev, int cpu)
 	 */
 	reg_name[0] = find_supply_name(cpu_dev);
 	if (reg_name[0]) {
-		priv->opp_table = dev_pm_opp_set_regulators(cpu_dev, reg_name);
-		if (IS_ERR(priv->opp_table)) {
-			ret = PTR_ERR(priv->opp_table);
+		priv->opp_token = dev_pm_opp_set_regulators(cpu_dev, reg_name);
+		if (priv->opp_token < 0) {
+			ret = priv->opp_token;
 			if (ret != -EPROBE_DEFER)
 				dev_err(cpu_dev, "failed to set regulators: %d\n",
 					ret);
@@ -294,7 +294,7 @@ static int dt_cpufreq_early_init(struct device *dev, int cpu)
 out:
 	if (priv->have_static_opps)
 		dev_pm_opp_of_cpumask_remove_table(priv->cpus);
-	dev_pm_opp_put_regulators(priv->opp_table);
+	dev_pm_opp_put_regulators(priv->opp_token);
 free_cpumask:
 	free_cpumask_var(priv->cpus);
 	return ret;
@@ -308,7 +308,7 @@ static void dt_cpufreq_release(void)
 		dev_pm_opp_free_cpufreq_table(priv->cpu_dev, &priv->freq_table);
 		if (priv->have_static_opps)
 			dev_pm_opp_of_cpumask_remove_table(priv->cpus);
-		dev_pm_opp_put_regulators(priv->opp_table);
+		dev_pm_opp_put_regulators(priv->opp_token);
 		free_cpumask_var(priv->cpus);
 		list_del(&priv->node);
 	}

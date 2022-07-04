@@ -189,9 +189,6 @@ void dev_pm_opp_put_supported_hw(struct opp_table *opp_table);
 int devm_pm_opp_set_supported_hw(struct device *dev, const u32 *versions, unsigned int count);
 struct opp_table *dev_pm_opp_set_prop_name(struct device *dev, const char *name);
 void dev_pm_opp_put_prop_name(struct opp_table *opp_table);
-struct opp_table *dev_pm_opp_set_regulators(struct device *dev, const char * const names[]);
-void dev_pm_opp_put_regulators(struct opp_table *opp_table);
-int devm_pm_opp_set_regulators(struct device *dev, const char * const names[]);
 struct opp_table *dev_pm_opp_set_clkname(struct device *dev, const char *name);
 void dev_pm_opp_put_clkname(struct opp_table *opp_table);
 int devm_pm_opp_set_clkname(struct device *dev, const char *name);
@@ -409,19 +406,6 @@ static inline struct opp_table *dev_pm_opp_set_prop_name(struct device *dev, con
 
 static inline void dev_pm_opp_put_prop_name(struct opp_table *opp_table) {}
 
-static inline struct opp_table *dev_pm_opp_set_regulators(struct device *dev, const char * const names[])
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
-
-static inline void dev_pm_opp_put_regulators(struct opp_table *opp_table) {}
-
-static inline int devm_pm_opp_set_regulators(struct device *dev,
-					     const char * const names[])
-{
-	return -EOPNOTSUPP;
-}
-
 static inline struct opp_table *dev_pm_opp_set_clkname(struct device *dev, const char *name)
 {
 	return ERR_PTR(-EOPNOTSUPP);
@@ -605,5 +589,33 @@ static inline int dev_pm_opp_of_find_icc_paths(struct device *dev, struct opp_ta
 	return -EOPNOTSUPP;
 }
 #endif
+
+/* OPP Configuration helpers */
+
+/* Regulators helpers */
+static inline int dev_pm_opp_set_regulators(struct device *dev,
+					    const char * const names[])
+{
+	struct dev_pm_opp_config config = {
+		.regulator_names = names,
+	};
+
+	return dev_pm_opp_set_config(dev, &config);
+}
+
+static inline void dev_pm_opp_put_regulators(int token)
+{
+	dev_pm_opp_clear_config(token);
+}
+
+static inline int devm_pm_opp_set_regulators(struct device *dev,
+					     const char * const names[])
+{
+	struct dev_pm_opp_config config = {
+		.regulator_names = names,
+	};
+
+	return devm_pm_opp_set_config(dev, &config);
+}
 
 #endif		/* __LINUX_OPP_H__ */
