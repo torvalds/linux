@@ -636,7 +636,7 @@ unsigned int regmap_irq_get_irq_reg_linear(struct regmap_irq_chip_data *data,
 		return base + subreg->offset[0];
 	}
 
-	return base + index * map->reg_stride * chip->irq_reg_stride;
+	return base + index * map->reg_stride * data->irq_reg_stride;
 }
 EXPORT_SYMBOL_GPL(regmap_irq_get_irq_reg_linear);
 
