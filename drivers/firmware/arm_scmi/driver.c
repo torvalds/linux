@@ -2485,6 +2485,7 @@ static int __init scmi_driver_init(void)
 	scmi_sensors_register();
 	scmi_voltage_register();
 	scmi_system_register();
+	scmi_powercap_register();
 
 	return platform_driver_register(&scmi_driver);
 }
@@ -2501,6 +2502,7 @@ static void __exit scmi_driver_exit(void)
 	scmi_sensors_unregister();
 	scmi_voltage_unregister();
 	scmi_system_unregister();
+	scmi_powercap_unregister();
 
 	scmi_bus_exit();
 
