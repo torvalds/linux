@@ -781,8 +781,10 @@ struct scmi_clock_rate_notif_report {
 struct scmi_system_power_state_notifier_report {
 	ktime_t		timestamp;
 	unsigned int	agent_id;
+#define SCMI_SYSPOWER_IS_REQUEST_GRACEFUL(flags)	((flags) & BIT(0))
 	unsigned int	flags;
 	unsigned int	system_state;
+	unsigned int	timeout;
 };
 
 struct scmi_perf_limits_report {
