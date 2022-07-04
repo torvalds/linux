@@ -49,7 +49,7 @@ static const struct jh7110_clk_data jh7110_clk_vout_data[] __initconst = {
 			GATE_FLAG_NORMAL, PARENT_NUMS_2,
 			JH7110_DC8200_PIX0,
 			JH7110_HDMITX0_PIXELCLK),
-	
+
 	JH7110_GMUX(JH7110_DOM_VOUT_TOP_LCD_CLK, "dom_vout_top_lcd_clk",
 			GATE_FLAG_NORMAL, PARENT_NUMS_2,
 			JH7110_U0_DC8200_CLK_PIX0_OUT,
@@ -120,13 +120,13 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 	}
 
 	clk_vout_src = devm_clk_get(priv->dev, "vout_src");
-	if (!IS_ERR(clk_vout_src)){
+	if (!IS_ERR(clk_vout_src)) {
 		ret = clk_prepare_enable(clk_vout_src);
-		if(ret){
+		if (ret) {
 			dev_err(priv->dev, "clk_vout_src enable failed\n");
 			goto clk_src_enable_failed;
 		}
-	}else{
+	} else {
 		dev_err(priv->dev, "clk_vout_src get failed\n");
 		return PTR_ERR(clk_vout_src);
 	}
@@ -135,24 +135,24 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 			priv->dev, "vout_src");
 	if (!IS_ERR(rst_vout_src)) {
 		ret = reset_control_deassert(rst_vout_src);
-		if(ret){
+		if (ret) {
 			dev_err(priv->dev, "rst_vout_src deassert failed.\n");
 			goto rst_src_deassert_failed;
 		}
-	}else{
+	} else {
 		dev_err(priv->dev, "rst_vout_src get failed.\n");
 		ret = PTR_ERR(rst_vout_src);
 		goto rst_src_get_failed;
 	}
 
 	clk_vout_top_ahb = devm_clk_get(priv->dev, "vout_top_ahb");
-	if (!IS_ERR(clk_vout_top_ahb)){
+	if (!IS_ERR(clk_vout_top_ahb)) {
 		ret = clk_prepare_enable(clk_vout_top_ahb);
-		if(ret){
+		if (ret) {
 			dev_err(priv->dev, "clk_vout_top_ahb enable failed\n");
 			goto clk_ahb_enable_failed;
 		}
-	}else{
+	} else {
 		dev_err(priv->dev, "clk_vout_top_ahb get failed\n");
 		ret = PTR_ERR(clk_vout_top_ahb);
 		goto clk_ahb_get_failed;
@@ -189,7 +189,7 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 			priv->dev, "hdmitx0_sck",
 			"u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_bclk",
 			0, 1, 1);
-	
+
 	priv->pll[PLL_OFV(JH7110_MIPI_DPHY_REF)] =
 			devm_clk_hw_register_fixed_factor(
 			priv->dev, "mipi_dphy_ref",
@@ -248,7 +248,7 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 	priv->pll[PLL_OFV(JH7110_HDMI_TX_CLK_REF)] =
 			devm_clk_hw_register_fixed_factor(priv->dev,
 			"u0_hdmi_tx_clk_ref", "hdmi_phy_ref", 0, 1, 1);
-	
+
 	priv->pll[PLL_OFV(JH7110_U0_DC8200_CLK_PIX0_OUT)] =
 			devm_clk_hw_register_fixed_factor(priv->dev,
 			"u0_dc8200_clk_pix0_out",
@@ -265,8 +265,8 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 			.name = jh7110_clk_vout_data[idx].name,
 			.ops = starfive_jh7110_clk_ops(max),
 			.parent_data = parents,
-			.num_parents = ((max & JH7110_CLK_MUX_MASK) \
-					>> JH7110_CLK_MUX_SHIFT) + 1,
+			.num_parents = ((max & JH7110_CLK_MUX_MASK) >>
+					JH7110_CLK_MUX_SHIFT) + 1,
 			.flags = jh7110_clk_vout_data[idx].flags,
 		};
 		struct jh7110_clk *clk = &priv->reg[idx];
@@ -278,8 +278,7 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 			if (pidx < JH7110_DISP_ROOT)
 				parents[i].hw = &priv->reg[pidx].hw;
 			else if (pidx < JH7110_CLK_VOUT_END)
-				parents[i].hw = \
-					priv->pll[PLL_OFV(pidx)];
+				parents[i].hw = priv->pll[PLL_OFV(pidx)];
 			else if (pidx == JH7110_HDMITX0_PIXELCLK)
 				parents[i].fw_name = "hdmitx0_pixelclk";
 			else if (pidx == JH7110_MIPITX_DPHY_RXESC)
@@ -310,7 +309,7 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 	reset_control_put(rst_vout_src);
 	devm_clk_put(priv->dev, clk_vout_top_ahb);
 
-	dev_info(&pdev->dev,"starfive JH7110 clk_vout init successfully.");
+	dev_info(&pdev->dev, "starfive JH7110 clk_vout init successfully.");
 	return 0;
 
 clk_ahb_enable_failed:
@@ -328,7 +327,7 @@ clk_src_enable_failed:
 
 }
 
-static const struct of_device_id clk_starfive_jh7110_vout_match[] = {	
+static const struct of_device_id clk_starfive_jh7110_vout_match[] = {
 		{.compatible = "starfive,jh7110-clk-vout" },
 		{ /* sentinel */ }
 };

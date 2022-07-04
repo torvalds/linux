@@ -25,10 +25,10 @@
 #include "clk-starfive-jh7110.h"
 
 /* external clocks */
-#define JH7110_ISP_TOP_CLK_ISPCORE_2X_CLKGEN   (JH7110_CLK_ISP_END + 0)
-#define JH7110_ISP_TOP_CLK_ISP_AXI_CLKGEN      (JH7110_CLK_ISP_END + 1)
-#define JH7110_ISP_TOP_CLK_BIST_APB_CLKGEN     (JH7110_CLK_ISP_END + 2)
-#define JH7110_ISP_TOP_CLK_DVP_CLKGEN          (JH7110_CLK_ISP_END + 3)
+#define JH7110_ISP_TOP_CLK_ISPCORE_2X_CLKGEN	(JH7110_CLK_ISP_END + 0)
+#define JH7110_ISP_TOP_CLK_ISP_AXI_CLKGEN	(JH7110_CLK_ISP_END + 1)
+#define JH7110_ISP_TOP_CLK_BIST_APB_CLKGEN	(JH7110_CLK_ISP_END + 2)
+#define JH7110_ISP_TOP_CLK_DVP_CLKGEN		(JH7110_CLK_ISP_END + 3)
 
 static const struct jh7110_clk_data jh7110_clk_isp_data[] __initconst = {
 	//syscon
@@ -116,13 +116,13 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 
 	clk_isp_noc_bus = devm_clk_get(priv->dev,
 			"u0_sft7110_noc_bus_clk_isp_axi");
-	if (!IS_ERR(clk_isp_noc_bus)){
+	if (!IS_ERR(clk_isp_noc_bus)) {
 		ret = clk_prepare_enable(clk_isp_noc_bus);
-		if(ret){
+		if (ret) {
 			dev_err(priv->dev, "clk_isp_noc_bus enable failed\n");
 			goto clk_noc_enable_failed;
 		}
-	}else{
+	} else {
 		dev_err(priv->dev, "clk_isp_noc_bus get failed\n");
 		return PTR_ERR(clk_isp_noc_bus);
 	}
@@ -131,11 +131,11 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 			priv->dev, "rst_isp_noc_bus_n");
 	if (!IS_ERR(rst_isp_noc_bus)) {
 		ret = reset_control_deassert(rst_isp_noc_bus);
-		if(ret){
+		if (ret) {
 			dev_err(priv->dev, "rst_isp_noc_bus deassert failed.\n");
 			goto rst_noc_deassert_failed;
 		}
-	}else{
+	} else {
 		dev_err(priv->dev, "rst_isp_noc_bus get failed.\n");
 		ret = PTR_ERR(rst_isp_noc_bus);
 		goto rst_noc_get_failed;
@@ -143,13 +143,13 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 
 	clk_isp_2x = devm_clk_get(priv->dev,
 			"u0_dom_isp_top_clk_dom_isp_top_clk_ispcore_2x");
-	if (!IS_ERR(clk_isp_2x)){
+	if (!IS_ERR(clk_isp_2x)) {
 		ret = clk_prepare_enable(clk_isp_2x);
-		if(ret){
+		if (ret) {
 			dev_err(priv->dev, "clk_isp_2x enable failed\n");
 			goto clk_2x_enable_failed;
 		}
-	}else{
+	} else {
 		dev_err(priv->dev, "clk_isp_2x get failed\n");
 		ret = PTR_ERR(clk_isp_2x);
 		goto clk_2x_get_failed;
@@ -157,13 +157,13 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 
 	clk_isp_axi = devm_clk_get(priv->dev,
 			"u0_dom_isp_top_clk_dom_isp_top_clk_isp_axi");
-	if (!IS_ERR(clk_isp_axi)){
+	if (!IS_ERR(clk_isp_axi)) {
 		ret = clk_prepare_enable(clk_isp_axi);
-		if(ret){
+		if (ret) {
 			dev_err(priv->dev, "clk_isp_axi enable failed\n");
 			goto clk_axi_enable_failed;
 		}
-	}else{
+	} else {
 		dev_err(priv->dev, "clk_isp_axi get failed\n");
 		ret = PTR_ERR(clk_isp_axi);
 		goto clk_axi_get_failed;
@@ -173,11 +173,11 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 			priv->dev, "rst_isp_top_n");
 	if (!IS_ERR(rst_isp_n)) {
 		ret = reset_control_deassert(rst_isp_n);
-		if(ret){
+		if (ret) {
 			dev_err(priv->dev, "rst_isp_n deassert failed.\n");
 			goto rst_n_deassert_failed;
 		}
-	}else{
+	} else {
 		dev_err(priv->dev, "rst_isp_n get failed.\n");
 		ret = PTR_ERR(rst_isp_n);
 		goto rst_n_get_failed;
@@ -187,11 +187,11 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 			priv->dev, "rst_isp_top_axi");
 	if (!IS_ERR(rst_isp_axi)) {
 		ret = reset_control_deassert(rst_isp_axi);
-		if(ret){
+		if (ret) {
 			dev_err(priv->dev, "rst_isp_axi deassert failed.\n");
 			goto rst_axi_deassert_failed;
 		}
-	}else{
+	} else {
 		dev_err(priv->dev, "rst_isp_axi get failed.\n");
 		ret = PTR_ERR(rst_isp_axi);
 		goto rst_axi_get_failed;
@@ -266,12 +266,18 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 			.name = jh7110_clk_isp_data[idx].name,
 			.ops = starfive_jh7110_clk_ops(max),
 			.parent_data = parents,
-			.num_parents = ((max & JH7110_CLK_MUX_MASK) \
-					>> JH7110_CLK_MUX_SHIFT) + 1,
+			.num_parents = ((max & JH7110_CLK_MUX_MASK) >>
+					JH7110_CLK_MUX_SHIFT) + 1,
 			.flags = jh7110_clk_isp_data[idx].flags,
 		};
 		struct jh7110_clk *clk = &priv->reg[idx];
 		unsigned int i;
+		char *fw_name[4] = {
+			"u0_dom_isp_top_clk_dom_isp_top_clk_ispcore_2x",
+			"u0_dom_isp_top_clk_dom_isp_top_clk_isp_axi",
+			"u0_dom_isp_top_clk_dom_isp_top_clk_bist_apb",
+			"u0_dom_isp_top_clk_dom_isp_top_clk_dvp"
+		};
 
 		for (i = 0; i < init.num_parents; i++) {
 			unsigned int pidx = jh7110_clk_isp_data[idx].parents[i];
@@ -281,17 +287,13 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 			else if (pidx < JH7110_CLK_ISP_END)
 				parents[i].hw = priv->pll[PLL_OFI(pidx)];
 			else if (pidx == JH7110_ISP_TOP_CLK_ISPCORE_2X_CLKGEN)
-				parents[i].fw_name = \
-				"u0_dom_isp_top_clk_dom_isp_top_clk_ispcore_2x";
+				parents[i].fw_name = fw_name[0];
 			else if (pidx == JH7110_ISP_TOP_CLK_ISP_AXI_CLKGEN)
-				parents[i].fw_name = \
-				"u0_dom_isp_top_clk_dom_isp_top_clk_isp_axi";
+				parents[i].fw_name = fw_name[1];
 			else if (pidx == JH7110_ISP_TOP_CLK_BIST_APB_CLKGEN)
-				parents[i].fw_name = \
-				"u0_dom_isp_top_clk_dom_isp_top_clk_bist_apb";
+				parents[i].fw_name = fw_name[2];
 			else if (pidx == JH7110_ISP_TOP_CLK_DVP_CLKGEN)
-				parents[i].fw_name = \
-				"u0_dom_isp_top_clk_dom_isp_top_clk_dvp";
+				parents[i].fw_name = fw_name[3];
 		}
 
 		clk->hw.init = &init;
@@ -315,7 +317,7 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 	devm_clk_put(priv->dev, clk_isp_2x);
 	devm_clk_put(priv->dev, clk_isp_noc_bus);
 
-	dev_info(&pdev->dev,"starfive JH7110 clk_isp init successfully.");
+	dev_info(&pdev->dev, "starfive JH7110 clk_isp init successfully.");
 	return 0;
 
 rst_axi_deassert_failed:

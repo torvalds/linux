@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
  * StarFive JH7110 Clock Generator Driver
  *
@@ -73,72 +73,80 @@ struct jh7110_clk_priv {
 	struct jh7110_clk reg[];
 };
 
-#define JH7110_GATE(_idx, _name, _flags, _parent) [_idx] = {			\
-	.name = _name,								\
-	.flags = CLK_SET_RATE_PARENT | (_flags),				\
-	.max = JH7110_CLK_ENABLE,						\
-	.parents = { [0] = _parent },						\
+#define JH7110_GATE(_idx, _name, _flags, _parent)\
+[_idx] = {\
+	.name = _name,\
+	.flags = CLK_SET_RATE_PARENT | (_flags),\
+	.max = JH7110_CLK_ENABLE,\
+	.parents = { [0] = _parent },\
 }
 
-#define JH7110__DIV(_idx, _name, _max, _parent) [_idx] = {			\
-	.name = _name,								\
-	.flags = 0,								\
-	.max = _max,								\
-	.parents = { [0] = _parent },						\
+#define JH7110__DIV(_idx, _name, _max, _parent)\
+[_idx] = {\
+	.name = _name,\
+	.flags = 0,\
+	.max = _max,\
+	.parents = { [0] = _parent },\
 }
 
-#define JH7110_GDIV(_idx, _name, _flags, _max, _parent) [_idx] = {		\
-	.name = _name,								\
-	.flags = _flags,							\
-	.max = JH7110_CLK_ENABLE | (_max),					\
-	.parents = { [0] = _parent },						\
+#define JH7110_GDIV(_idx, _name, _flags, _max, _parent)\
+[_idx] = {\
+	.name = _name,\
+	.flags = _flags,\
+	.max = JH7110_CLK_ENABLE | (_max),\
+	.parents = { [0] = _parent },\
 }
 
-#define JH7110__MUX(_idx, _name, _nparents, ...) [_idx] = {			\
-	.name = _name,								\
-	.flags = 0,								\
-	.max = ((_nparents) - 1) << JH7110_CLK_MUX_SHIFT,			\
-	.parents = { __VA_ARGS__ },						\
+#define JH7110__MUX(_idx, _name, _nparents, ...)\
+[_idx] = {\
+	.name = _name,\
+	.flags = 0,\
+	.max = ((_nparents) - 1) << JH7110_CLK_MUX_SHIFT,\
+	.parents = { __VA_ARGS__ },\
 }
 
-#define JH7110_GMUX(_idx, _name, _flags, _nparents, ...) [_idx] = {		\
-	.name = _name,								\
-	.flags = _flags,							\
-	.max = JH7110_CLK_ENABLE |						\
-		(((_nparents) - 1) << JH7110_CLK_MUX_SHIFT),			\
-	.parents = { __VA_ARGS__ },						\
+#define JH7110_GMUX(_idx, _name, _flags, _nparents, ...)\
+[_idx] = {\
+	.name = _name,\
+	.flags = _flags,\
+	.max = JH7110_CLK_ENABLE |	\
+		(((_nparents) - 1) << JH7110_CLK_MUX_SHIFT),\
+	.parents = { __VA_ARGS__ },\
 }
 
-#define JH7110_MDIV(_idx, _name, _max, _nparents, ...) [_idx] = {		\
-	.name = _name,								\
-	.flags = 0,								\
-	.max = (((_nparents) - 1) << JH7110_CLK_MUX_SHIFT) | (_max),		\
-	.parents = { __VA_ARGS__ },						\
+#define JH7110_MDIV(_idx, _name, _max, _nparents, ...)\
+[_idx] = {\
+	.name = _name,\
+	.flags = 0,\
+	.max = (((_nparents) - 1) << JH7110_CLK_MUX_SHIFT) | (_max),\
+	.parents = { __VA_ARGS__ },\
 }
 
-#define JH7110__GMD(_idx, _name, _flags, _max, _nparents, ...) [_idx] = {	\
-	.name = _name,								\
-	.flags = _flags,							\
-	.max = JH7110_CLK_ENABLE |						\
-		(((_nparents) - 1) << JH7110_CLK_MUX_SHIFT) | (_max),		\
-	.parents = { __VA_ARGS__ },						\
+#define JH7110__GMD(_idx, _name, _flags, _max, _nparents, ...)\
+[_idx] = {\
+	.name = _name,\
+	.flags = _flags,\
+	.max = JH7110_CLK_ENABLE |	\
+		(((_nparents) - 1) << JH7110_CLK_MUX_SHIFT) | (_max),\
+	.parents = { __VA_ARGS__ },\
 }
 
-#define JH7110__INV(_idx, _name, _parent) [_idx] = {				\
-	.name = _name,								\
-	.flags = CLK_SET_RATE_PARENT,						\
-	.max = JH7110_CLK_INVERT,						\
-	.parents = { [0] = _parent },						\
+#define JH7110__INV(_idx, _name, _parent)\
+[_idx] = {\
+	.name = _name,\
+	.flags = CLK_SET_RATE_PARENT,\
+	.max = JH7110_CLK_INVERT,\
+	.parents = { [0] = _parent },\
 }
 
 void __iomem *jh7110_clk_reg_addr_get(struct jh7110_clk *clk);
 const struct clk_ops *starfive_jh7110_clk_ops(u32 max);
 
-int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev, \
+int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev,
 					struct jh7110_clk_priv *priv);
-int __init clk_starfive_jh7110_stg_init(struct platform_device *pdev, \
+int __init clk_starfive_jh7110_stg_init(struct platform_device *pdev,
 					struct jh7110_clk_priv *priv);
-int __init clk_starfive_jh7110_aon_init(struct platform_device *pdev, \
+int __init clk_starfive_jh7110_aon_init(struct platform_device *pdev,
 					struct jh7110_clk_priv *priv);
 
 #endif

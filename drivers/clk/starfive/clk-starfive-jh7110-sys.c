@@ -478,7 +478,7 @@ int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev,
 	priv->sys_base = devm_platform_ioremap_resource_byname(pdev, "sys");
 	if (IS_ERR(priv->sys_base))
 		return PTR_ERR(priv->sys_base);
-	
+
 	priv->pll[PLL_OF(JH7110_PLL0_OUT)] =
 			clk_hw_register_fixed_rate(priv->dev,
 			"pll0_out", "osc", 0, 1250000000);
@@ -785,8 +785,8 @@ int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev,
 			.name = jh7110_clk_sys_data[idx].name,
 			.ops = starfive_jh7110_clk_ops(max),
 			.parent_data = parents,
-			.num_parents = ((max & JH7110_CLK_MUX_MASK) \
-					>> JH7110_CLK_MUX_SHIFT) + 1,
+			.num_parents = ((max & JH7110_CLK_MUX_MASK) >>
+					JH7110_CLK_MUX_SHIFT) + 1,
 			.flags = jh7110_clk_sys_data[idx].flags,
 		};
 		struct jh7110_clk *clk = &priv->reg[idx];
@@ -797,7 +797,7 @@ int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev,
 
 			if (pidx < JH7110_CLK_SYS_REG_END)
 				parents[i].hw = &priv->reg[pidx].hw;
-			else if ((pidx < JH7110_CLK_SYS_END) && \
+			else if ((pidx < JH7110_CLK_SYS_END) &&
 				(pidx > JH7110_CLK_SYS_REG_END))
 				parents[i].hw = priv->pll[PLL_OF(pidx)];
 			else if (pidx == JH7110_OSC)
@@ -834,6 +834,6 @@ int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev,
 			return ret;
 	}
 
-	dev_dbg(&pdev->dev,"starfive JH7110 clk_sys init successfully.");
+	dev_dbg(&pdev->dev, "starfive JH7110 clk_sys init successfully.");
 	return 0;
 }

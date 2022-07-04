@@ -115,7 +115,7 @@ static int jh7110_clk_determine_rate(struct clk_hw *hw,
 	struct jh7110_clk *clk = jh7110_clk_from(hw);
 	unsigned long parent = req->best_parent_rate;
 	unsigned long rate = clamp(req->rate, req->min_rate, req->max_rate);
-	unsigned long div = min_t(unsigned long, 
+	unsigned long div = min_t(unsigned long,
 				DIV_ROUND_UP(parent, rate), clk->max_div);
 	unsigned long result = parent / div;
 
@@ -363,11 +363,11 @@ static int __init clk_starfive_jh7110_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	dev_info(&pdev->dev,"starfive JH7110 clkgen init successfully.");
+	dev_info(&pdev->dev, "starfive JH7110 clkgen init successfully.");
 	return 0;
 }
 
-static const struct of_device_id clk_starfive_jh7110_match[] = {	
+static const struct of_device_id clk_starfive_jh7110_match[] = {
 	{.compatible = "starfive,jh7110-clkgen"},
 	{ /* sentinel */ }
 };
