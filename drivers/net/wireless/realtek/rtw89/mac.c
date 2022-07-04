@@ -1747,6 +1747,7 @@ static int scheduler_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 {
 	u32 ret;
 	u32 reg;
+	u32 val;
 
 	ret = rtw89_mac_check_mac_en(rtwdev, mac_idx, RTW89_CMAC_SEL);
 	if (ret)
@@ -1764,7 +1765,16 @@ static int scheduler_init(struct rtw89_dev *rtwdev, u8 mac_idx)
 	rtw89_write32_clr(rtwdev, reg, B_AX_BTCCA_EN);
 
 	reg = rtw89_mac_reg_by_idx(R_AX_PREBKF_CFG_0, mac_idx);
-	rtw89_write32_mask(rtwdev, reg, B_AX_PREBKF_TIME_MASK, SCH_PREBKF_24US);
+	if (rtwdev->chip->chip_id == RTL8852C) {
+		val = rtw89_read32_mask(rtwdev, R_AX_SEC_ENG_CTRL,
+					B_AX_TX_PARTIAL_MODE);
+		if (!val)
+			rtw89_write32_mask(rtwdev, reg, B_AX_PREBKF_TIME_MASK,
+					   SCH_PREBKF_24US);
+	} else {
+		rtw89_write32_mask(rtwdev, reg, B_AX_PREBKF_TIME_MASK,
+				   SCH_PREBKF_24US);
+	}
 
 	return 0;
 }
