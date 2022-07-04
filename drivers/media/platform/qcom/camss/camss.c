@@ -1170,7 +1170,7 @@ static int camss_init_subdevices(struct camss *camss)
 	}
 
 	/* note: SM8250 requires VFE to be initialized before CSID */
-	for (i = 0; i < camss->vfe_num; i++) {
+	for (i = 0; i < camss->vfe_num + camss->vfe_lite_num; i++) {
 		ret = msm_vfe_subdev_init(camss, &camss->vfe[i],
 					  &vfe_res[i], i);
 		if (ret < 0) {
@@ -1242,7 +1242,7 @@ static int camss_register_entities(struct camss *camss)
 		goto err_reg_ispif;
 	}
 
-	for (i = 0; i < camss->vfe_num; i++) {
+	for (i = 0; i < camss->vfe_num + camss->vfe_lite_num; i++) {
 		ret = msm_vfe_register_entities(&camss->vfe[i],
 						&camss->v4l2_dev);
 		if (ret < 0) {
@@ -1314,7 +1314,7 @@ static int camss_register_entities(struct camss *camss)
 				}
 	} else {
 		for (i = 0; i < camss->csid_num; i++)
-			for (k = 0; k < camss->vfe_num; k++)
+			for (k = 0; k < camss->vfe_num + camss->vfe_lite_num; k++)
 				for (j = 0; j < camss->vfe[k].line_num; j++) {
 					struct v4l2_subdev *csid = &camss->csid[i].subdev;
 					struct v4l2_subdev *vfe = &camss->vfe[k].line[j].subdev;
@@ -1338,7 +1338,7 @@ static int camss_register_entities(struct camss *camss)
 	return 0;
 
 err_link:
-	i = camss->vfe_num;
+	i = camss->vfe_num + camss->vfe_lite_num;
 err_reg_vfe:
 	for (i--; i >= 0; i--)
 		msm_vfe_unregister_entities(&camss->vfe[i]);
@@ -1377,7 +1377,7 @@ static void camss_unregister_entities(struct camss *camss)
 
 	msm_ispif_unregister_entities(camss->ispif);
 
-	for (i = 0; i < camss->vfe_num; i++)
+	for (i = 0; i < camss->vfe_num + camss->vfe_lite_num; i++)
 		msm_vfe_unregister_entities(&camss->vfe[i]);
 }
 
@@ -1579,13 +1579,15 @@ static int camss_probe(struct platform_device *pdev)
 		camss->version = CAMSS_845;
 		camss->csiphy_num = 4;
 		camss->csid_num = 3;
-		camss->vfe_num = 3;
+		camss->vfe_num = 2;
+		camss->vfe_lite_num = 1;
 	} else if (of_device_is_compatible(dev->of_node,
 					   "qcom,sm8250-camss")) {
 		camss->version = CAMSS_8250;
 		camss->csiphy_num = 6;
 		camss->csid_num = 4;
-		camss->vfe_num = 4;
+		camss->vfe_num = 2;
+		camss->vfe_lite_num = 2;
 	} else {
 		return -EINVAL;
 	}
@@ -1607,8 +1609,8 @@ static int camss_probe(struct platform_device *pdev)
 			return -ENOMEM;
 	}
 
-	camss->vfe = devm_kcalloc(dev, camss->vfe_num, sizeof(*camss->vfe),
-				  GFP_KERNEL);
+	camss->vfe = devm_kcalloc(dev, camss->vfe_num + camss->vfe_lite_num,
+				  sizeof(*camss->vfe), GFP_KERNEL);
 	if (!camss->vfe)
 		return -ENOMEM;
 
