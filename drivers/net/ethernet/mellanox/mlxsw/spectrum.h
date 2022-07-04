@@ -84,7 +84,7 @@ struct mlxsw_sp_upper {
 
 enum mlxsw_sp_rif_type {
 	MLXSW_SP_RIF_TYPE_SUBPORT,
-	MLXSW_SP_RIF_TYPE_VLAN_EMU,
+	MLXSW_SP_RIF_TYPE_VLAN,
 	MLXSW_SP_RIF_TYPE_FID,
 	MLXSW_SP_RIF_TYPE_IPIP_LB, /* IP-in-IP loopback. */
 	MLXSW_SP_RIF_TYPE_MAX,
@@ -208,7 +208,6 @@ struct mlxsw_sp {
 	u32 lowest_shaper_bs;
 	struct rhashtable ipv6_addr_ht;
 	struct mutex ipv6_addr_ht_lock; /* Protects ipv6_addr_ht */
-	bool ubridge;
 	struct mlxsw_sp_pgt *pgt;
 	bool pgt_smpe_index_valid;
 };
@@ -737,6 +736,7 @@ union mlxsw_sp_l3addr {
 	struct in6_addr addr6;
 };
 
+u16 mlxsw_sp_rif_index(const struct mlxsw_sp_rif *rif);
 int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 			 struct netlink_ext_ack *extack);
 void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp);
@@ -1285,7 +1285,8 @@ void mlxsw_sp_fid_port_vid_unmap(struct mlxsw_sp_fid *fid,
 				 struct mlxsw_sp_port *mlxsw_sp_port, u16 vid);
 u16 mlxsw_sp_fid_index(const struct mlxsw_sp_fid *fid);
 enum mlxsw_sp_fid_type mlxsw_sp_fid_type(const struct mlxsw_sp_fid *fid);
-void mlxsw_sp_fid_rif_set(struct mlxsw_sp_fid *fid, struct mlxsw_sp_rif *rif);
+int mlxsw_sp_fid_rif_set(struct mlxsw_sp_fid *fid, struct mlxsw_sp_rif *rif);
+void mlxsw_sp_fid_rif_unset(struct mlxsw_sp_fid *fid);
 struct mlxsw_sp_rif *mlxsw_sp_fid_rif(const struct mlxsw_sp_fid *fid);
 enum mlxsw_sp_rif_type
 mlxsw_sp_fid_type_rif_type(const struct mlxsw_sp *mlxsw_sp,
@@ -1476,7 +1477,6 @@ void mlxsw_sp_pgt_mid_free_range(struct mlxsw_sp *mlxsw_sp, u16 mid_base,
 				 u16 count);
 int mlxsw_sp_pgt_entry_port_set(struct mlxsw_sp *mlxsw_sp, u16 mid,
 				u16 smpe, u16 local_port, bool member);
-u16 mlxsw_sp_pgt_index_to_mid(const struct mlxsw_sp *mlxsw_sp, u16 pgt_index);
 int mlxsw_sp_pgt_init(struct mlxsw_sp *mlxsw_sp);
 void mlxsw_sp_pgt_fini(struct mlxsw_sp *mlxsw_sp);
 

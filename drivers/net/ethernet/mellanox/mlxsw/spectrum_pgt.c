@@ -182,16 +182,6 @@ static void mlxsw_sp_pgt_entry_put(struct mlxsw_sp_pgt *pgt, u16 mid)
 		mlxsw_sp_pgt_entry_destroy(pgt, pgt_entry);
 }
 
-#define MLXSW_SP_FID_PGT_FLOOD_ENTRIES	15354 /* Reserved for flooding. */
-
-u16 mlxsw_sp_pgt_index_to_mid(const struct mlxsw_sp *mlxsw_sp, u16 pgt_index)
-{
-	if (mlxsw_sp->ubridge)
-		return pgt_index;
-
-	return pgt_index - MLXSW_SP_FID_PGT_FLOOD_ENTRIES;
-}
-
 static void mlxsw_sp_pgt_smid2_port_set(char *smid2_pl, u16 local_port,
 					bool member)
 {
@@ -204,21 +194,16 @@ mlxsw_sp_pgt_entry_port_write(struct mlxsw_sp *mlxsw_sp,
 			      const struct mlxsw_sp_pgt_entry *pgt_entry,
 			      u16 local_port, bool member)
 {
-	bool smpe_index_valid;
 	char *smid2_pl;
-	u16 smpe, mid;
 	int err;
 
 	smid2_pl = kmalloc(MLXSW_REG_SMID2_LEN, GFP_KERNEL);
 	if (!smid2_pl)
 		return -ENOMEM;
 
-	smpe_index_valid = mlxsw_sp->ubridge ? mlxsw_sp->pgt->smpe_index_valid :
-			   false;
-	smpe = mlxsw_sp->ubridge ? pgt_entry->smpe_index : 0;
-	mid = mlxsw_sp_pgt_index_to_mid(mlxsw_sp, pgt_entry->index);
-
-	mlxsw_reg_smid2_pack(smid2_pl, mid, 0, 0, smpe_index_valid, smpe);
+	mlxsw_reg_smid2_pack(smid2_pl, pgt_entry->index, 0, 0,
+			     mlxsw_sp->pgt->smpe_index_valid,
+			     pgt_entry->smpe_index);
 
 	mlxsw_sp_pgt_smid2_port_set(smid2_pl, local_port, member);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid2), smid2_pl);

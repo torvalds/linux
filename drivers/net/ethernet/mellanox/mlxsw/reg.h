@@ -380,7 +380,7 @@ static inline void mlxsw_reg_sfd_rec_pack(char *payload, int rec_index,
 
 static inline void mlxsw_reg_sfd_uc_pack(char *payload, int rec_index,
 					 enum mlxsw_reg_sfd_rec_policy policy,
-					 const char *mac, u16 fid_vid,
+					 const char *mac, u16 fid_vid, u16 vid,
 					 enum mlxsw_reg_sfd_rec_action action,
 					 u16 local_port)
 {
@@ -389,6 +389,8 @@ static inline void mlxsw_reg_sfd_uc_pack(char *payload, int rec_index,
 	mlxsw_reg_sfd_rec_policy_set(payload, rec_index, policy);
 	mlxsw_reg_sfd_uc_sub_port_set(payload, rec_index, 0);
 	mlxsw_reg_sfd_uc_fid_vid_set(payload, rec_index, fid_vid);
+	mlxsw_reg_sfd_uc_set_vid_set(payload, rec_index, vid ? true : false);
+	mlxsw_reg_sfd_uc_vid_set(payload, rec_index, vid);
 	mlxsw_reg_sfd_uc_system_port_set(payload, rec_index, local_port);
 }
 
@@ -454,6 +456,7 @@ mlxsw_reg_sfd_uc_lag_pack(char *payload, int rec_index,
 	mlxsw_reg_sfd_rec_policy_set(payload, rec_index, policy);
 	mlxsw_reg_sfd_uc_lag_sub_port_set(payload, rec_index, 0);
 	mlxsw_reg_sfd_uc_lag_fid_vid_set(payload, rec_index, fid_vid);
+	mlxsw_reg_sfd_uc_lag_set_vid_set(payload, rec_index, true);
 	mlxsw_reg_sfd_uc_lag_lag_vid_set(payload, rec_index, lag_vid);
 	mlxsw_reg_sfd_uc_lag_lag_id_set(payload, rec_index, lag_id);
 }
@@ -1655,40 +1658,43 @@ MLXSW_ITEM32(reg, svfa, irif, 0x14, 0, 16);
 
 static inline void __mlxsw_reg_svfa_pack(char *payload,
 					 enum mlxsw_reg_svfa_mt mt, bool valid,
-					 u16 fid)
+					 u16 fid, bool irif_v, u16 irif)
 {
 	MLXSW_REG_ZERO(svfa, payload);
 	mlxsw_reg_svfa_swid_set(payload, 0);
 	mlxsw_reg_svfa_mapping_table_set(payload, mt);
 	mlxsw_reg_svfa_v_set(payload, valid);
 	mlxsw_reg_svfa_fid_set(payload, fid);
+	mlxsw_reg_svfa_irif_v_set(payload, irif_v);
+	mlxsw_reg_svfa_irif_set(payload, irif_v ? irif : 0);
 }
 
 static inline void mlxsw_reg_svfa_port_vid_pack(char *payload, u16 local_port,
-						bool valid, u16 fid, u16 vid)
+						bool valid, u16 fid, u16 vid,
+						bool irif_v, u16 irif)
 {
 	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_PORT_VID_TO_FID;
 
-	__mlxsw_reg_svfa_pack(payload, mt, valid, fid);
+	__mlxsw_reg_svfa_pack(payload, mt, valid, fid, irif_v, irif);
 	mlxsw_reg_svfa_local_port_set(payload, local_port);
 	mlxsw_reg_svfa_vid_set(payload, vid);
 }
 
 static inline void mlxsw_reg_svfa_vid_pack(char *payload, bool valid, u16 fid,
-					   u16 vid)
+					   u16 vid, bool irif_v, u16 irif)
 {
 	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_VID_TO_FID;
 
-	__mlxsw_reg_svfa_pack(payload, mt, valid, fid);
+	__mlxsw_reg_svfa_pack(payload, mt, valid, fid, irif_v, irif);
 	mlxsw_reg_svfa_vid_set(payload, vid);
 }
 
 static inline void mlxsw_reg_svfa_vni_pack(char *payload, bool valid, u16 fid,
-					   u32 vni)
+					   u32 vni, bool irif_v, u16 irif)
 {
 	enum mlxsw_reg_svfa_mt mt = MLXSW_REG_SVFA_MT_VNI_TO_FID;
 
-	__mlxsw_reg_svfa_pack(payload, mt, valid, fid);
+	__mlxsw_reg_svfa_pack(payload, mt, valid, fid, irif_v, irif);
 	mlxsw_reg_svfa_vni_set(payload, vni);
 }
 
@@ -1963,7 +1969,8 @@ MLXSW_ITEM32(reg, sfmr, smpe, 0x28, 0, 16);
 static inline void mlxsw_reg_sfmr_pack(char *payload,
 				       enum mlxsw_reg_sfmr_op op, u16 fid,
 				       u16 fid_offset, bool flood_rsp,
-				       enum mlxsw_reg_bridge_type bridge_type)
+				       enum mlxsw_reg_bridge_type bridge_type,
+				       bool smpe_valid, u16 smpe)
 {
 	MLXSW_REG_ZERO(sfmr, payload);
 	mlxsw_reg_sfmr_op_set(payload, op);
@@ -1973,6 +1980,8 @@ static inline void mlxsw_reg_sfmr_pack(char *payload,
 	mlxsw_reg_sfmr_vv_set(payload, false);
 	mlxsw_reg_sfmr_flood_rsp_set(payload, flood_rsp);
 	mlxsw_reg_sfmr_flood_bridge_type_set(payload, bridge_type);
+	mlxsw_reg_sfmr_smpe_valid_set(payload, smpe_valid);
+	mlxsw_reg_sfmr_smpe_set(payload, smpe);
 }
 
 /* SPVMLR - Switch Port VLAN MAC Learning Register
@@ -7107,10 +7116,11 @@ static inline void mlxsw_reg_ritr_rif_pack(char *payload, u16 rif)
 }
 
 static inline void mlxsw_reg_ritr_sp_if_pack(char *payload, bool lag,
-					     u16 system_port, u16 vid)
+					     u16 system_port, u16 efid, u16 vid)
 {
 	mlxsw_reg_ritr_sp_if_lag_set(payload, lag);
 	mlxsw_reg_ritr_sp_if_system_port_set(payload, system_port);
+	mlxsw_reg_ritr_sp_if_efid_set(payload, efid);
 	mlxsw_reg_ritr_sp_if_vid_set(payload, vid);
 }
 
