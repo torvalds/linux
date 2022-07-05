@@ -73,7 +73,6 @@ struct lt7911d_state {
 	struct clk *xvclk;
 	struct gpio_desc *reset_gpio;
 	struct gpio_desc *plugin_det_gpio;
-	struct gpio_desc *hpd_ctl_gpio;
 	struct gpio_desc *power_gpio;
 	struct work_struct work_i2c_poll;
 	struct timer_list timer;
@@ -472,22 +471,6 @@ static int lt7911d_get_detected_timings(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static void lt7911d_config_hpd(struct v4l2_subdev *sd)
-{
-	struct lt7911d_state *lt7911d = to_state(sd);
-	bool plugin;
-
-	plugin = tx_5v_power_present(sd);
-	v4l2_dbg(2, debug, sd, "%s: plugin: %d\n", __func__, plugin);
-
-	if (plugin) {
-		gpiod_set_value(lt7911d->hpd_ctl_gpio, 1);
-	} else {
-		lt7911d->nosignal = true;
-		gpiod_set_value(lt7911d->hpd_ctl_gpio, 0);
-	}
-}
-
 static void lt7911d_delayed_work_enable_hotplug(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
@@ -495,7 +478,7 @@ static void lt7911d_delayed_work_enable_hotplug(struct work_struct *work)
 			struct lt7911d_state, delayed_work_enable_hotplug);
 	struct v4l2_subdev *sd = &lt7911d->sd;
 
-	lt7911d_config_hpd(sd);
+	v4l2_ctrl_s_ctrl(lt7911d->detect_tx_5v_ctrl, tx_5v_power_present(sd));
 }
 
 static void lt7911d_delayed_work_res_change(struct work_struct *work)
@@ -577,21 +560,6 @@ static void lt7911d_format_change(struct v4l2_subdev *sd)
 		v4l2_subdev_notify_event(sd, &lt7911d_ev_fmt);
 }
 
-static int lt7911d_get_ctrl(struct v4l2_ctrl *ctrl)
-{
-	int ret = -1;
-	struct lt7911d_state *lt7911d = container_of(ctrl->handler,
-			struct lt7911d_state, hdl);
-	struct v4l2_subdev *sd = &(lt7911d->sd);
-
-	if (ctrl->id == V4L2_CID_DV_RX_POWER_PRESENT) {
-		ret = tx_5v_power_present(sd);
-		*ctrl->p_new.p_s32 = ret;
-	}
-
-	return ret;
-}
-
 static int lt7911d_isr(struct v4l2_subdev *sd, u32 status, bool *handled)
 {
 	struct lt7911d_state *lt7911d = to_state(sd);
@@ -615,12 +583,10 @@ static irqreturn_t lt7911d_res_change_irq_handler(int irq, void *dev_id)
 static irqreturn_t plugin_detect_irq_handler(int irq, void *dev_id)
 {
 	struct lt7911d_state *lt7911d = dev_id;
-	struct v4l2_subdev *sd = &lt7911d->sd;
 
 	/* control hpd output level after 25ms */
 	schedule_delayed_work(&lt7911d->delayed_work_enable_hotplug,
 			HZ / 40);
-	tx_5v_power_present(sd);
 
 	return IRQ_HANDLED;
 }
@@ -993,10 +959,6 @@ static long lt7911d_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
-static const struct v4l2_ctrl_ops lt7911d_ctrl_ops = {
-	.g_volatile_ctrl = lt7911d_get_ctrl,
-};
-
 static const struct v4l2_subdev_core_ops lt7911d_core_ops = {
 	.interrupt_service_routine = lt7911d_isr,
 	.subscribe_event = lt7911d_subscribe_event,
@@ -1084,10 +1046,8 @@ static int lt7911d_init_v4l2_ctrls(struct lt7911d_state *lt7911d)
 			0, LT7911D_PIXEL_RATE, 1, LT7911D_PIXEL_RATE);
 
 	lt7911d->detect_tx_5v_ctrl = v4l2_ctrl_new_std(&lt7911d->hdl,
-			&lt7911d_ctrl_ops, V4L2_CID_DV_RX_POWER_PRESENT,
+			NULL, V4L2_CID_DV_RX_POWER_PRESENT,
 			0, 1, 0, 0);
-	if (lt7911d->detect_tx_5v_ctrl)
-		lt7911d->detect_tx_5v_ctrl->flags |= V4L2_CTRL_FLAG_VOLATILE;
 
 	lt7911d->audio_sampling_rate_ctrl =
 		v4l2_ctrl_new_custom(&lt7911d->hdl,
@@ -1160,14 +1120,6 @@ static int lt7911d_probe_of(struct lt7911d_state *lt7911d)
 		return ret;
 	}
 
-	lt7911d->hpd_ctl_gpio = devm_gpiod_get_optional(dev, "hpd-ctl",
-			GPIOD_OUT_HIGH);
-	if (IS_ERR(lt7911d->hpd_ctl_gpio)) {
-		dev_err(dev, "failed to get hpd ctl gpio\n");
-		ret = PTR_ERR(lt7911d->hpd_ctl_gpio);
-		return ret;
-	}
-
 	ep = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!ep) {
 		dev_err(dev, "missing endpoint node\n");
@@ -1204,7 +1156,6 @@ static int lt7911d_probe_of(struct lt7911d_state *lt7911d)
 	lt7911d->bus = endpoint.bus.mipi_csi2;
 	lt7911d->enable_hdcp = false;
 
-	gpiod_set_value(lt7911d->hpd_ctl_gpio, 0);
 	gpiod_set_value(lt7911d->power_gpio, 1);
 	lt7911d_reset(lt7911d);
 
@@ -1358,7 +1309,6 @@ static int lt7911d_probe(struct i2c_client *client,
 		goto err_work_queues;
 	}
 
-	lt7911d_config_hpd(sd);
 	v4l2_info(sd, "%s found @ 0x%x (%s)\n", client->name,
 			client->addr << 1, client->adapter->name);
 
