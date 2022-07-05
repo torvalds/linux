@@ -106,7 +106,7 @@ int qed_bmap_test_id(struct qed_hwfn *p_hwfn,
 
 static bool qed_bmap_is_empty(struct qed_bmap *bmap)
 {
-	return bmap->max_count == find_first_bit(bmap->bitmap, bmap->max_count);
+	return bitmap_empty(bmap->bitmap, bmap->max_count);
 }
 
 static u32 qed_rdma_get_sb_id(void *p_hwfn, u32 rel_sb_id)
