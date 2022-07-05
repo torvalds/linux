@@ -253,13 +253,10 @@ DECLARE_EVENT_CLASS(ath6kl_log_event,
 	TP_PROTO(struct va_format *vaf),
 	TP_ARGS(vaf),
 	TP_STRUCT__entry(
-		__dynamic_array(char, msg, ATH6KL_MSG_MAX)
+		__vstring(msg, vaf->fmt, vaf->va)
 	),
 	TP_fast_assign(
-		WARN_ON_ONCE(vsnprintf(__get_dynamic_array(msg),
-				       ATH6KL_MSG_MAX,
-				       vaf->fmt,
-				       *vaf->va) >= ATH6KL_MSG_MAX);
+		__assign_vstr(msg, vaf->fmt, vaf->va);
 	),
 	TP_printk("%s", __get_str(msg))
 );
@@ -284,14 +281,11 @@ TRACE_EVENT(ath6kl_log_dbg,
 	TP_ARGS(level, vaf),
 	TP_STRUCT__entry(
 		__field(unsigned int, level)
-		__dynamic_array(char, msg, ATH6KL_MSG_MAX)
+		__vstring(msg, vaf->fmt, vaf->va)
 	),
 	TP_fast_assign(
 		__entry->level = level;
-		WARN_ON_ONCE(vsnprintf(__get_dynamic_array(msg),
-				       ATH6KL_MSG_MAX,
-				       vaf->fmt,
-				       *vaf->va) >= ATH6KL_MSG_MAX);
+		__assign_vstr(msg, vaf->fmt, vaf->va);
 	),
 	TP_printk("%s", __get_str(msg))
 );
