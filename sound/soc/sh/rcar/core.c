@@ -1969,19 +1969,26 @@ static int rsnd_remove(struct platform_device *pdev)
 		rsnd_cmd_remove,
 		rsnd_adg_remove,
 	};
-	int ret = 0, i;
+	int i;
 
 	pm_runtime_disable(&pdev->dev);
 
 	for_each_rsnd_dai(rdai, priv, i) {
-		ret |= rsnd_dai_call(remove, &rdai->playback, priv);
-		ret |= rsnd_dai_call(remove, &rdai->capture, priv);
+		int ret;
+
+		ret = rsnd_dai_call(remove, &rdai->playback, priv);
+		if (ret)
+			dev_warn(&pdev->dev, "Failed to remove playback dai #%d\n", i);
+
+		ret = rsnd_dai_call(remove, &rdai->capture, priv);
+		if (ret)
+			dev_warn(&pdev->dev, "Failed to remove capture dai #%d\n", i);
 	}
 
 	for (i = 0; i < ARRAY_SIZE(remove_func); i++)
 		remove_func[i](priv);
 
-	return ret;
+	return 0;
 }
 
 static int __maybe_unused rsnd_suspend(struct device *dev)
