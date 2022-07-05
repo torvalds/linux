@@ -1,5 +1,14 @@
 # SPDX-License-Identifier: GPL-2.0-only
 
+config GUNYAH
+	tristate "Gunyah Virtualization support"
+	help
+	  The Gunyah driver adds support for creating and launching
+	  virtual machines from userspace. This driver exposes various
+	  IOCTLs to allow userspace interface to manage virtual machines.
+	  The userspace requests are relayed to Gunyah hypervisor via
+	  this driver.
+
 config GH_SECURE_VM_LOADER
 	tristate "Gunyah Secure Virtual Machine Loader Driver"
 	depends on GUNYAH
