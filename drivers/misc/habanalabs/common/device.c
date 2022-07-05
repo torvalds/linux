@@ -52,7 +52,7 @@ static int hl_access_sram_dram_region(struct hl_device *hdev, u64 addr, u64 *val
 	enum debugfs_access_type acc_type, enum pci_region region_type)
 {
 	struct pci_mem_region *region = &hdev->pci_mem_region[region_type];
-	u64 old_base, rc;
+	u64 old_base = 0, rc;
 
 	if (region_type == PCI_REGION_DRAM) {
 		old_base = hl_set_dram_bar(hdev, addr);
