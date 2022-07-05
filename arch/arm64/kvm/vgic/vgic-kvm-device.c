@@ -41,6 +41,38 @@ static int vgic_check_type(struct kvm *kvm, int type_needed)
 		return 0;
 }
 
+int kvm_set_legacy_vgic_v2_addr(struct kvm *kvm, struct kvm_arm_device_addr *dev_addr)
+{
+	struct vgic_dist *vgic = &kvm->arch.vgic;
+	int r;
+
+	mutex_lock(&kvm->lock);
+	switch (FIELD_GET(KVM_ARM_DEVICE_TYPE_MASK, dev_addr->id)) {
+	case KVM_VGIC_V2_ADDR_TYPE_DIST:
+		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V2);
+		if (!r)
+			r = vgic_check_iorange(kvm, vgic->vgic_dist_base, dev_addr->addr,
+					       SZ_4K, KVM_VGIC_V2_DIST_SIZE);
+		if (!r)
+			vgic->vgic_dist_base = dev_addr->addr;
+		break;
+	case KVM_VGIC_V2_ADDR_TYPE_CPU:
+		r = vgic_check_type(kvm, KVM_DEV_TYPE_ARM_VGIC_V2);
+		if (!r)
+			r = vgic_check_iorange(kvm, vgic->vgic_cpu_base, dev_addr->addr,
+					       SZ_4K, KVM_VGIC_V2_CPU_SIZE);
+		if (!r)
+			vgic->vgic_cpu_base = dev_addr->addr;
+		break;
+	default:
+		r = -ENODEV;
+	}
+
+	mutex_unlock(&kvm->lock);
+
+	return r;
+}
+
 /**
  * kvm_vgic_addr - set or get vgic VM base addresses
  * @kvm:   pointer to the vm struct
