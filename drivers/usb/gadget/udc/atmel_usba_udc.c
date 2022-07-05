@@ -2165,6 +2165,8 @@ static struct usba_ep * atmel_udc_of_init(struct platform_device *pdev,
 
 	udc->vbus_pin = devm_gpiod_get_optional(&pdev->dev, "atmel,vbus",
 						GPIOD_IN);
+	if (IS_ERR(udc->vbus_pin))
+		return ERR_CAST(udc->vbus_pin);
 
 	if (fifo_mode == 0) {
 		udc->num_ep = udc_config->num_ep;
