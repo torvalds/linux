@@ -818,7 +818,7 @@ static bool try_to_unlazy_next(struct nameidata *nd, struct dentry *dentry, unsi
 	 */
 	if (unlikely(!lockref_get_not_dead(&dentry->d_lockref)))
 		goto out;
-	if (unlikely(read_seqcount_retry(&dentry->d_seq, seq)))
+	if (read_seqcount_retry(&dentry->d_seq, seq))
 		goto out_dput;
 	/*
 	 * Sequence counts matched. Now make sure that the root is
@@ -962,7 +962,7 @@ static int nd_jump_root(struct nameidata *nd)
 		d = nd->path.dentry;
 		nd->inode = d->d_inode;
 		nd->seq = nd->root_seq;
-		if (unlikely(read_seqcount_retry(&d->d_seq, nd->seq)))
+		if (read_seqcount_retry(&d->d_seq, nd->seq))
 			return -ECHILD;
 	} else {
 		path_put(&nd->path);
@@ -1635,7 +1635,7 @@ static struct dentry *lookup_fast(struct nameidata *nd,
 		 * the dentry name information from lookup.
 		 */
 		*inode = d_backing_inode(dentry);
-		if (unlikely(read_seqcount_retry(&dentry->d_seq, seq)))
+		if (read_seqcount_retry(&dentry->d_seq, seq))
 			return ERR_PTR(-ECHILD);
 
 		/*
@@ -1645,7 +1645,7 @@ static struct dentry *lookup_fast(struct nameidata *nd,
 		 * The memory barrier in read_seqcount_begin of child is
 		 *  enough, we can use __read_seqcount_retry here.
 		 */
-		if (unlikely(__read_seqcount_retry(&parent->d_seq, nd->seq)))
+		if (__read_seqcount_retry(&parent->d_seq, nd->seq))
 			return ERR_PTR(-ECHILD);
 
 		*seqp = seq;
@@ -1891,7 +1891,7 @@ static struct dentry *follow_dotdot_rcu(struct nameidata *nd,
 		nd->path = path;
 		nd->inode = path.dentry->d_inode;
 		nd->seq = seq;
-		if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
+		if (read_seqretry(&mount_lock, nd->m_seq))
 			return ERR_PTR(-ECHILD);
 		/* we know that mountpoint was pinned */
 	}
@@ -1899,13 +1899,13 @@ static struct dentry *follow_dotdot_rcu(struct nameidata *nd,
 	parent = old->d_parent;
 	*inodep = parent->d_inode;
 	*seqp = read_seqcount_begin(&parent->d_seq);
-	if (unlikely(read_seqcount_retry(&old->d_seq, nd->seq)))
+	if (read_seqcount_retry(&old->d_seq, nd->seq))
 		return ERR_PTR(-ECHILD);
 	if (unlikely(!path_connected(nd->path.mnt, parent)))
 		return ERR_PTR(-ECHILD);
 	return parent;
 in_root:
-	if (unlikely(read_seqretry(&mount_lock, nd->m_seq)))
+	if (read_seqretry(&mount_lock, nd->m_seq))
 		return ERR_PTR(-ECHILD);
 	if (unlikely(nd->flags & LOOKUP_BENEATH))
 		return ERR_PTR(-ECHILD);
@@ -1985,9 +1985,9 @@ static const char *handle_dots(struct nameidata *nd, int type)
 			 * some fallback).
 			 */
 			smp_rmb();
-			if (unlikely(__read_seqcount_retry(&mount_lock.seqcount, nd->m_seq)))
+			if (__read_seqcount_retry(&mount_lock.seqcount, nd->m_seq))
 				return ERR_PTR(-EAGAIN);
-			if (unlikely(__read_seqcount_retry(&rename_lock.seqcount, nd->r_seq)))
+			if (__read_seqcount_retry(&rename_lock.seqcount, nd->r_seq))
 				return ERR_PTR(-EAGAIN);
 		}
 	}
