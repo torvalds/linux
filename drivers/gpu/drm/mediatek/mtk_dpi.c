@@ -852,6 +852,16 @@ static unsigned int mt8183_calculate_factor(int clock)
 		return 2;
 }
 
+static unsigned int mt8195_dpintf_calculate_factor(int clock)
+{
+	if (clock < 70000)
+		return 4;
+	else if (clock < 200000)
+		return 2;
+	else
+		return 1;
+}
+
 static const u32 mt8173_output_fmts[] = {
 	MEDIA_BUS_FMT_RGB888_1X24,
 };
@@ -859,6 +869,11 @@ static const u32 mt8173_output_fmts[] = {
 static const u32 mt8183_output_fmts[] = {
 	MEDIA_BUS_FMT_RGB888_2X12_LE,
 	MEDIA_BUS_FMT_RGB888_2X12_BE,
+};
+
+static const u32 mt8195_output_fmts[] = {
+	MEDIA_BUS_FMT_RGB888_1X24,
+	MEDIA_BUS_FMT_YUYV8_1X16,
 };
 
 static const struct mtk_dpi_conf mt8173_conf = {
@@ -928,6 +943,20 @@ static const struct mtk_dpi_conf mt8192_conf = {
 	.channel_swap_shift = CH_SWAP,
 	.yuv422_en_bit = YUV422_EN,
 	.csc_enable_bit = CSC_ENABLE,
+};
+
+static const struct mtk_dpi_conf mt8195_dpintf_conf = {
+	.cal_factor = mt8195_dpintf_calculate_factor,
+	.max_clock_khz = 600000,
+	.output_fmts = mt8195_output_fmts,
+	.num_output_fmts = ARRAY_SIZE(mt8195_output_fmts),
+	.pixels_per_iter = 4,
+	.input_2pixel = true,
+	.dimension_mask = DPINTF_HPW_MASK,
+	.hvsize_mask = DPINTF_HSIZE_MASK,
+	.channel_swap_shift = DPINTF_CH_SWAP,
+	.yuv422_en_bit = DPINTF_YUV422_EN,
+	.csc_enable_bit = DPINTF_CSC_ENABLE,
 };
 
 static int mtk_dpi_probe(struct platform_device *pdev)
@@ -1051,6 +1080,9 @@ static const struct of_device_id mtk_dpi_of_ids[] = {
 	},
 	{ .compatible = "mediatek,mt8192-dpi",
 	  .data = &mt8192_conf,
+	},
+	{ .compatible = "mediatek,mt8195-dp-intf",
+	  .data = &mt8195_dpintf_conf,
 	},
 	{ },
 };
