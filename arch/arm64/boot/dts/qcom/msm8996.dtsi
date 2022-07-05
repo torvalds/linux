@@ -588,7 +588,7 @@
 		ranges = <0 0 0 0xffffffff>;
 		compatible = "simple-bus";
 
-		pcie_phy: phy@34000 {
+		pcie_phy: phy-wrapper@34000 {
 			compatible = "qcom,msm8996-qmp-pcie-phy";
 			reg = <0x00034000 0x488>;
 			#address-cells = <1>;
@@ -604,48 +604,55 @@
 				<&gcc GCC_PCIE_PHY_COM_BCR>,
 				<&gcc GCC_PCIE_PHY_COM_NOCSR_BCR>;
 			reset-names = "phy", "common", "cfg";
+
 			status = "disabled";
 
 			pciephy_0: phy@1000 {
 				reg = <0x1000 0x130>,
 				      <0x1200 0x200>,
 				      <0x1400 0x1dc>;
-				#phy-cells = <0>;
 
-				#clock-cells = <0>;
-				clock-output-names = "pcie_0_pipe_clk_src";
 				clocks = <&gcc GCC_PCIE_0_PIPE_CLK>;
 				clock-names = "pipe0";
 				resets = <&gcc GCC_PCIE_0_PHY_BCR>;
 				reset-names = "lane0";
+
+				#clock-cells = <0>;
+				clock-output-names = "pcie_0_pipe_clk_src";
+
+				#phy-cells = <0>;
 			};
 
 			pciephy_1: phy@2000 {
 				reg = <0x2000 0x130>,
 				      <0x2200 0x200>,
 				      <0x2400 0x1dc>;
-				#phy-cells = <0>;
 
-				#clock-cells = <0>;
-				clock-output-names = "pcie_1_pipe_clk_src";
 				clocks = <&gcc GCC_PCIE_1_PIPE_CLK>;
 				clock-names = "pipe1";
 				resets = <&gcc GCC_PCIE_1_PHY_BCR>;
 				reset-names = "lane1";
+
+				#clock-cells = <0>;
+				clock-output-names = "pcie_1_pipe_clk_src";
+
+				#phy-cells = <0>;
 			};
 
 			pciephy_2: phy@3000 {
 				reg = <0x3000 0x130>,
 				      <0x3200 0x200>,
 				      <0x3400 0x1dc>;
-				#phy-cells = <0>;
 
-				#clock-cells = <0>;
-				clock-output-names = "pcie_2_pipe_clk_src";
 				clocks = <&gcc GCC_PCIE_2_PIPE_CLK>;
 				clock-names = "pipe2";
 				resets = <&gcc GCC_PCIE_2_PHY_BCR>;
 				reset-names = "lane2";
+
+				#clock-cells = <0>;
+				clock-output-names = "pcie_2_pipe_clk_src";
+
+				#phy-cells = <0>;
 			};
 		};
 
