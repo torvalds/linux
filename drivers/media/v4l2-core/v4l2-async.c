@@ -66,8 +66,10 @@ static bool match_i2c(struct v4l2_async_notifier *notifier,
 #endif
 }
 
-static bool match_fwnode(struct v4l2_async_notifier *notifier,
-			 struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
+static bool
+match_fwnode_one(struct v4l2_async_notifier *notifier,
+		 struct v4l2_subdev *sd, struct fwnode_handle *sd_fwnode,
+		 struct v4l2_async_subdev *asd)
 {
 	struct fwnode_handle *other_fwnode;
 	struct fwnode_handle *dev_fwnode;
@@ -80,15 +82,7 @@ static bool match_fwnode(struct v4l2_async_notifier *notifier,
 	 * fwnode or a device fwnode. Start with the simple case of direct
 	 * fwnode matching.
 	 */
-	if (sd->fwnode == asd->match.fwnode)
-		return true;
-
-	/*
-	 * Check the same situation for any possible secondary assigned to the
-	 * subdev's fwnode
-	 */
-	if (!IS_ERR_OR_NULL(sd->fwnode->secondary) &&
-	    sd->fwnode->secondary == asd->match.fwnode)
+	if (sd_fwnode == asd->match.fwnode)
 		return true;
 
 	/*
@@ -99,7 +93,7 @@ static bool match_fwnode(struct v4l2_async_notifier *notifier,
 	 * ACPI. This won't make a difference, as drivers should not try to
 	 * match unconnected endpoints.
 	 */
-	sd_fwnode_is_ep = fwnode_graph_is_endpoint(sd->fwnode);
+	sd_fwnode_is_ep = fwnode_graph_is_endpoint(sd_fwnode);
 	asd_fwnode_is_ep = fwnode_graph_is_endpoint(asd->match.fwnode);
 
 	if (sd_fwnode_is_ep == asd_fwnode_is_ep)
@@ -110,11 +104,11 @@ static bool match_fwnode(struct v4l2_async_notifier *notifier,
 	 * parent of the endpoint fwnode, and compare it with the other fwnode.
 	 */
 	if (sd_fwnode_is_ep) {
-		dev_fwnode = fwnode_graph_get_port_parent(sd->fwnode);
+		dev_fwnode = fwnode_graph_get_port_parent(sd_fwnode);
 		other_fwnode = asd->match.fwnode;
 	} else {
 		dev_fwnode = fwnode_graph_get_port_parent(asd->match.fwnode);
-		other_fwnode = sd->fwnode;
+		other_fwnode = sd_fwnode;
 	}
 
 	fwnode_handle_put(dev_fwnode);
@@ -141,6 +135,19 @@ static bool match_fwnode(struct v4l2_async_notifier *notifier,
 	}
 
 	return true;
+}
+
+static bool match_fwnode(struct v4l2_async_notifier *notifier,
+			 struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
+{
+	if (match_fwnode_one(notifier, sd, sd->fwnode, asd))
+		return true;
+
+	/* Also check the secondary fwnode. */
+	if (IS_ERR_OR_NULL(sd->fwnode->secondary))
+		return false;
+
+	return match_fwnode_one(notifier, sd, sd->fwnode->secondary, asd);
 }
 
 static LIST_HEAD(subdev_list);
