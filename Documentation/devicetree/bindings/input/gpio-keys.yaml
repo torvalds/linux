@@ -93,6 +93,8 @@ patternProperties:
       - required:
           - interrupts
       - required:
+          - interrupts-extended
+      - required:
           - gpios
 
     dependencies:
