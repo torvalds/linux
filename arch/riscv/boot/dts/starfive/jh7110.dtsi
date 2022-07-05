@@ -1227,7 +1227,7 @@
 		};
 
 		ptc: pwm@120d0000 {
-			compatible = "starfive,pwm0";
+			compatible = "starfive,pwm";
 			reg = <0x0 0x120d0000 0x0 0x10000>;
 			reg-names = "control";
 			clocks = <&clkgen JH7110_PWM_CLK_APB>;
