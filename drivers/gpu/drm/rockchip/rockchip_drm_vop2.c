@@ -1594,6 +1594,21 @@ static void vop2_power_domain_off_work(struct work_struct *work)
 	spin_unlock(&pd->lock);
 }
 
+static void vop2_power_domain_esmat_off(struct drm_crtc *crtc)
+{	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct vop2_power_domain *pd;
+
+	pd = vop2_find_pd_by_id(vop2, VOP2_PD_ESMART);
+	if (vop2_power_domain_status(pd)) {
+		vop2_power_domain_off(pd);
+		vop2_cfg_done(crtc);
+		vop2_wait_power_domain_off(pd);
+		pd->vp_mask = 0;
+		pd->ref_count = 0;
+	}
+}
+
 static void vop2_win_enable(struct vop2_win *win)
 {
 	if (!VOP_WIN_GET(win->vop2, win, enable)) {
@@ -1651,7 +1666,19 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 		 */
 		if (!win->parent && (win->feature & WIN_FEATURE_MULTI_AREA))
 			vop2_win_multi_area_disable(win);
+
 		if (win->pd) {
+
+			/*
+			 * Don't dynamic turn on/off PD_ESMART.
+			 * There is a design issue for PD_EMSART when attached
+			 * on VP1/2/3, we found it will trigger POST_BUF_EMPTY irq at vp0
+			 * in splice mode.
+			 *
+			 */
+			if (win->pd->data->id == VOP2_PD_ESMART && win->splice_mode_right)
+				return;
+
 			vop2_power_domain_put(win->pd);
 			win->pd->vp_mask &= ~win->vp_mask;
 		}
@@ -3347,7 +3374,7 @@ static void vop2_initial(struct drm_crtc *crtc)
  * before we power down the global PD_VOP.
 
  * So we get this workaround:
- * We we found a VP is in standby mode when we want power down a PD is
+ * If we found a VP is in standby mode when we want power down a PD is
  * attached to it, we release the VP from standby mode, than it will
  * run a default timing and generate vsync. Than we can power down the
  * PD by this vsync. After all this is done, we standby the VP at last.
@@ -3759,6 +3786,16 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 		}
 	}
 	vop2_disable_all_planes_for_crtc(crtc);
+
+	/*
+	 * A workaround for PD_ESMART, we can't dynamic
+	 * turn on/off it at runtime, so it can only be
+	 * turn down when the whole VOP_PD off.
+	 * see vop2_power_domain_put at vop2_win_disable
+	 */
+	if (vop2->enable_count == 1 && vcstate->splice_mode == true)
+		vop2_power_domain_esmat_off(crtc);
+
 	if (vop2->dscs[vcstate->dsc_id].enabled &&
 	    vop2->dscs[vcstate->dsc_id].attach_vp_id == vp->id &&
 	    vop2->data->nr_dscs && vop2->dscs[vcstate->dsc_id].pd) {
