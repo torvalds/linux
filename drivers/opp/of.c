@@ -1120,7 +1120,7 @@ remove_static_opp:
 	return ret;
 }
 
-static int _of_add_table_indexed(struct device *dev, int index, bool getclk)
+static int _of_add_table_indexed(struct device *dev, int index)
 {
 	struct opp_table *opp_table;
 	int ret, count;
@@ -1136,7 +1136,7 @@ static int _of_add_table_indexed(struct device *dev, int index, bool getclk)
 			index = 0;
 	}
 
-	opp_table = _add_opp_table_indexed(dev, index, getclk);
+	opp_table = _add_opp_table_indexed(dev, index, true);
 	if (IS_ERR(opp_table))
 		return PTR_ERR(opp_table);
 
@@ -1160,11 +1160,11 @@ static void devm_pm_opp_of_table_release(void *data)
 	dev_pm_opp_of_remove_table(data);
 }
 
-static int _devm_of_add_table_indexed(struct device *dev, int index, bool getclk)
+static int _devm_of_add_table_indexed(struct device *dev, int index)
 {
 	int ret;
 
-	ret = _of_add_table_indexed(dev, index, getclk);
+	ret = _of_add_table_indexed(dev, index);
 	if (ret)
 		return ret;
 
@@ -1192,7 +1192,7 @@ static int _devm_of_add_table_indexed(struct device *dev, int index, bool getclk
  */
 int devm_pm_opp_of_add_table(struct device *dev)
 {
-	return _devm_of_add_table_indexed(dev, 0, true);
+	return _devm_of_add_table_indexed(dev, 0);
 }
 EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table);
 
@@ -1215,7 +1215,7 @@ EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table);
  */
 int dev_pm_opp_of_add_table(struct device *dev)
 {
-	return _of_add_table_indexed(dev, 0, true);
+	return _of_add_table_indexed(dev, 0);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
 
@@ -1231,7 +1231,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table);
  */
 int dev_pm_opp_of_add_table_indexed(struct device *dev, int index)
 {
-	return _of_add_table_indexed(dev, index, true);
+	return _of_add_table_indexed(dev, index);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_indexed);
 
@@ -1244,41 +1244,9 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_indexed);
  */
 int devm_pm_opp_of_add_table_indexed(struct device *dev, int index)
 {
-	return _devm_of_add_table_indexed(dev, index, true);
+	return _devm_of_add_table_indexed(dev, index);
 }
 EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table_indexed);
-
-/**
- * dev_pm_opp_of_add_table_noclk() - Initialize indexed opp table from device
- *		tree without getting clk for device.
- * @dev:	device pointer used to lookup OPP table.
- * @index:	Index number.
- *
- * Register the initial OPP table with the OPP library for given device only
- * using the "operating-points-v2" property. Do not try to get the clk for the
- * device.
- *
- * Return: Refer to dev_pm_opp_of_add_table() for return values.
- */
-int dev_pm_opp_of_add_table_noclk(struct device *dev, int index)
-{
-	return _of_add_table_indexed(dev, index, false);
-}
-EXPORT_SYMBOL_GPL(dev_pm_opp_of_add_table_noclk);
-
-/**
- * devm_pm_opp_of_add_table_noclk() - Initialize indexed opp table from device
- *		tree without getting clk for device.
- * @dev:	device pointer used to lookup OPP table.
- * @index:	Index number.
- *
- * This is a resource-managed variant of dev_pm_opp_of_add_table_noclk().
- */
-int devm_pm_opp_of_add_table_noclk(struct device *dev, int index)
-{
-	return _devm_of_add_table_indexed(dev, index, false);
-}
-EXPORT_SYMBOL_GPL(devm_pm_opp_of_add_table_noclk);
 
 /* CPU device specific helpers */
 
