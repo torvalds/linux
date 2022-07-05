@@ -2,8 +2,6 @@
 #ifndef _ASM_ARCHRANDOM_H
 #define _ASM_ARCHRANDOM_H
 
-#ifdef CONFIG_ARCH_RANDOM
-
 #include <linux/arm-smccc.h>
 #include <linux/bug.h>
 #include <linux/kernel.h>
@@ -167,12 +165,4 @@ arch_get_random_seed_long_early(unsigned long *v)
 }
 #define arch_get_random_seed_long_early arch_get_random_seed_long_early
 
-#else /* !CONFIG_ARCH_RANDOM */
-
-static inline bool __init smccc_probe_trng(void)
-{
-	return false;
-}
-
-#endif /* CONFIG_ARCH_RANDOM */
 #endif /* _ASM_ARCHRANDOM_H */

@@ -2,8 +2,6 @@
 #ifndef _ASM_POWERPC_ARCHRANDOM_H
 #define _ASM_POWERPC_ARCHRANDOM_H
 
-#ifdef CONFIG_ARCH_RANDOM
-
 #include <asm/machdep.h>
 
 static inline bool __must_check arch_get_random_long(unsigned long *v)
@@ -35,7 +33,6 @@ static inline bool __must_check arch_get_random_seed_int(unsigned int *v)
 
 	return rc;
 }
-#endif /* CONFIG_ARCH_RANDOM */
 
 #ifdef CONFIG_PPC_POWERNV
 int powernv_hwrng_present(void);

@@ -26,7 +26,6 @@ __setup("nordrand", x86_rdrand_setup);
  */
 #define SANITY_CHECK_LOOPS 8
 
-#ifdef CONFIG_ARCH_RANDOM
 void x86_init_rdrand(struct cpuinfo_x86 *c)
 {
 	unsigned int changed = 0;
@@ -63,4 +62,3 @@ void x86_init_rdrand(struct cpuinfo_x86 *c)
 "RDRAND gives funky smelling output, might consider not using it by booting with \"nordrand\"");
 
 }
-#endif

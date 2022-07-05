@@ -876,10 +876,8 @@ static void __init setup_randomness(void)
 		add_device_randomness(&vmms->vm, sizeof(vmms->vm[0]) * vmms->count);
 	memblock_free(vmms, PAGE_SIZE);
 
-#ifdef CONFIG_ARCH_RANDOM
 	if (cpacf_query_func(CPACF_PRNO, CPACF_PRNO_TRNG))
 		static_branch_enable(&s390_arch_random_available);
-#endif
 }
 
 /*

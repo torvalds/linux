@@ -1858,14 +1858,6 @@ config ARM64_E0PD
 
 	  This option enables E0PD for TTBR1 where available.
 
-config ARCH_RANDOM
-	bool "Enable support for random number generation"
-	default y
-	help
-	  Random number generation (part of the ARMv8.5 Extensions)
-	  provides a high bandwidth, cryptographically secure
-	  hardware random number generator.
-
 config ARM64_AS_HAS_MTE
 	# Initial support for MTE went in binutils 2.32.0, checked with
 	# ".arch armv8.5-a+memtag" below. However, this was incomplete
