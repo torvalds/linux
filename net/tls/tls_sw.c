@@ -1738,6 +1738,24 @@ out:
 	return copied ? : err;
 }
 
+static void
+tls_read_flush_backlog(struct sock *sk, struct tls_prot_info *prot,
+		       size_t len_left, size_t decrypted, ssize_t done,
+		       size_t *flushed_at)
+{
+	size_t max_rec;
+
+	if (len_left <= decrypted)
+		return;
+
+	max_rec = prot->overhead_size - prot->tail_size + TLS_MAX_PAYLOAD_SIZE;
+	if (done - *flushed_at < SZ_128K && tcp_inq(sk) > max_rec)
+		return;
+
+	*flushed_at = done;
+	sk_flush_backlog(sk);
+}
+
 int tls_sw_recvmsg(struct sock *sk,
 		   struct msghdr *msg,
 		   size_t len,
@@ -1750,6 +1768,7 @@ int tls_sw_recvmsg(struct sock *sk,
 	struct sk_psock *psock;
 	unsigned char control = 0;
 	ssize_t decrypted = 0;
+	size_t flushed_at = 0;
 	struct strp_msg *rxm;
 	struct tls_msg *tlm;
 	struct sk_buff *skb;
@@ -1838,6 +1857,10 @@ int tls_sw_recvmsg(struct sock *sk,
 		err = tls_record_content_type(msg, tlm, &control);
 		if (err <= 0)
 			goto recv_end;
+
+		/* periodically flush backlog, and feed strparser */
+		tls_read_flush_backlog(sk, prot, len, to_decrypt,
+				       decrypted + copied, &flushed_at);
 
 		ctx->recv_pkt = NULL;
 		__strp_unpause(&ctx->strp);
