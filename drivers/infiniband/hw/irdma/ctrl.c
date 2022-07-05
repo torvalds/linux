@@ -4872,10 +4872,12 @@ int irdma_cfg_fpm_val(struct irdma_sc_dev *dev, u32 qp_count)
 
 		sd_diff = sd_needed - hmc_fpm_misc->max_sds;
 		if (sd_diff > 128) {
-			if (qpwanted > 128 && sd_diff > 144)
+			if (!(loop_count % 2) && qpwanted > 128) {
 				qpwanted /= 2;
-			mrwanted /= 2;
-			pblewanted /= 2;
+			} else {
+				mrwanted /= 2;
+				pblewanted /= 2;
+			}
 			continue;
 		}
 		if (dev->cqp->hmc_profile != IRDMA_HMC_PROFILE_FAVOR_VF &&
