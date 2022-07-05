@@ -612,7 +612,7 @@
 
 	saradc: saradc@ff3c0000 {
 		compatible = "rockchip,rv1106-saradc";
-		reg = <0xff3c0000 0x100>;
+		reg = <0xff3c0000 0x200>;
 		interrupts = <GIC_SPI 62 IRQ_TYPE_LEVEL_HIGH>;
 		#io-channel-cells = <1>;
 		clocks = <&cru CLK_SARADC>, <&cru PCLK_SARADC>;
