@@ -2669,8 +2669,7 @@ static int atmel_sha_remove(struct platform_device *pdev)
 	struct atmel_sha_dev *sha_dd;
 
 	sha_dd = platform_get_drvdata(pdev);
-	if (!sha_dd)
-		return -ENODEV;
+
 	spin_lock(&atmel_sha.lock);
 	list_del(&sha_dd->list);
 	spin_unlock(&atmel_sha.lock);
