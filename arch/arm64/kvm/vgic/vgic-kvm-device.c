@@ -170,7 +170,7 @@ static int vgic_set_common_attr(struct kvm_device *dev,
 		u64 addr;
 		unsigned long type = (unsigned long)attr->attr;
 
-		if (copy_from_user(&addr, uaddr, sizeof(addr)))
+		if (get_user(addr, uaddr))
 			return -EFAULT;
 
 		r = kvm_vgic_addr(dev->kvm, type, &addr, true);
@@ -233,14 +233,14 @@ static int vgic_get_common_attr(struct kvm_device *dev,
 		u64 addr;
 		unsigned long type = (unsigned long)attr->attr;
 
-		if (copy_from_user(&addr, uaddr, sizeof(addr)))
+		if (get_user(addr, uaddr))
 			return -EFAULT;
 
 		r = kvm_vgic_addr(dev->kvm, type, &addr, false);
 		if (r)
 			return (r == -ENODEV) ? -ENXIO : r;
 
-		if (copy_to_user(uaddr, &addr, sizeof(addr)))
+		if (put_user(addr, uaddr))
 			return -EFAULT;
 		break;
 	}
