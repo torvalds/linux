@@ -886,7 +886,6 @@ isp_cproc_config(struct rkisp_isp_params_vdev *params_vdev,
 	if (quantization != V4L2_QUANTIZATION_FULL_RANGE) {
 		isp3_param_clear_bits(params_vdev, ISP3X_CPROC_CTRL,
 				      CIF_C_PROC_YOUT_FULL |
-				      CIF_C_PROC_YIN_FULL |
 				      CIF_C_PROC_COUT_FULL, id);
 	} else {
 		isp3_param_set_bits(params_vdev, ISP3X_CPROC_CTRL,
@@ -3693,7 +3692,7 @@ isp_cgc_config(struct rkisp_isp_params_vdev *params_vdev,
 	/* cproc limit replace cgc limit config */
 	cproc_ctrl = isp3_param_read(params_vdev, ISP3X_CPROC_CTRL, id);
 	if (arg->yuv_limit) {
-		cproc_ctrl = CIF_C_PROC_CTR_ENABLE;
+		cproc_ctrl = CIF_C_PROC_CTR_ENABLE | CIF_C_PROC_YIN_FULL;
 	} else {
 		cproc_ctrl |= CIF_C_PROC_YOUT_FULL | CIF_C_PROC_YIN_FULL | CIF_C_PROC_COUT_FULL;
 	}
