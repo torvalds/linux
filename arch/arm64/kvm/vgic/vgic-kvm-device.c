@@ -348,17 +348,18 @@ bool lock_all_vcpus(struct kvm *kvm)
  *
  * @dev:      kvm device handle
  * @attr:     kvm device attribute
- * @reg:      address the value is read or written
  * @is_write: true if userspace is writing a register
  */
 static int vgic_v2_attr_regs_access(struct kvm_device *dev,
 				    struct kvm_device_attr *attr,
-				    u32 *reg, bool is_write)
+				    bool is_write)
 {
+	u32 __user *uaddr = (u32 __user *)(unsigned long)attr->addr;
 	struct vgic_reg_attr reg_attr;
 	gpa_t addr;
 	struct kvm_vcpu *vcpu;
 	int ret;
+	u32 val;
 
 	ret = vgic_v2_parse_attr(dev, attr, &reg_attr);
 	if (ret)
@@ -366,6 +367,10 @@ static int vgic_v2_attr_regs_access(struct kvm_device *dev,
 
 	vcpu = reg_attr.vcpu;
 	addr = reg_attr.addr;
+
+	if (is_write)
+		if (get_user(val, uaddr))
+			return -EFAULT;
 
 	mutex_lock(&dev->kvm->lock);
 
@@ -380,10 +385,10 @@ static int vgic_v2_attr_regs_access(struct kvm_device *dev,
 
 	switch (attr->group) {
 	case KVM_DEV_ARM_VGIC_GRP_CPU_REGS:
-		ret = vgic_v2_cpuif_uaccess(vcpu, is_write, addr, reg);
+		ret = vgic_v2_cpuif_uaccess(vcpu, is_write, addr, &val);
 		break;
 	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
-		ret = vgic_v2_dist_uaccess(vcpu, is_write, addr, reg);
+		ret = vgic_v2_dist_uaccess(vcpu, is_write, addr, &val);
 		break;
 	default:
 		ret = -EINVAL;
@@ -393,6 +398,10 @@ static int vgic_v2_attr_regs_access(struct kvm_device *dev,
 	unlock_all_vcpus(dev->kvm);
 out:
 	mutex_unlock(&dev->kvm->lock);
+
+	if (!ret && !is_write)
+		ret = put_user(val, uaddr);
+
 	return ret;
 }
 
@@ -407,15 +416,8 @@ static int vgic_v2_set_attr(struct kvm_device *dev,
 
 	switch (attr->group) {
 	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
-	case KVM_DEV_ARM_VGIC_GRP_CPU_REGS: {
-		u32 __user *uaddr = (u32 __user *)(long)attr->addr;
-		u32 reg;
-
-		if (get_user(reg, uaddr))
-			return -EFAULT;
-
-		return vgic_v2_attr_regs_access(dev, attr, &reg, true);
-	}
+	case KVM_DEV_ARM_VGIC_GRP_CPU_REGS:
+		return vgic_v2_attr_regs_access(dev, attr, true);
 	}
 
 	return -ENXIO;
@@ -432,15 +434,8 @@ static int vgic_v2_get_attr(struct kvm_device *dev,
 
 	switch (attr->group) {
 	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
-	case KVM_DEV_ARM_VGIC_GRP_CPU_REGS: {
-		u32 __user *uaddr = (u32 __user *)(long)attr->addr;
-		u32 reg = 0;
-
-		ret = vgic_v2_attr_regs_access(dev, attr, &reg, false);
-		if (ret)
-			return ret;
-		return put_user(reg, uaddr);
-	}
+	case KVM_DEV_ARM_VGIC_GRP_CPU_REGS:
+		return vgic_v2_attr_regs_access(dev, attr, false);
 	}
 
 	return -ENXIO;
