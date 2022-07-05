@@ -422,7 +422,7 @@ retry:
 		return r;
 
 	/* We only support devices that have a single target */
-	if (dm_table_get_num_targets(map) != 1)
+	if (map->num_targets != 1)
 		return r;
 
 	tgt = dm_table_get_target(map, 0);
@@ -3092,7 +3092,7 @@ static int dm_call_pr(struct block_device *bdev, iterate_devices_callout_fn fn,
 		goto out;
 
 	/* We only support devices that have a single target */
-	if (dm_table_get_num_targets(table) != 1)
+	if (table->num_targets != 1)
 		goto out;
 	ti = dm_table_get_target(table, 0);
 

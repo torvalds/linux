@@ -208,7 +208,7 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	if (!target_data_buf)
 		goto error;
 
-	num_targets = dm_table_get_num_targets(table);
+	num_targets = table->num_targets;
 
 	if (dm_ima_alloc_and_copy_device_data(table->md, &device_data_buf, num_targets, noio))
 		goto error;

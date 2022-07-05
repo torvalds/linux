@@ -561,7 +561,6 @@ void dm_sync_table(struct mapped_device *md);
  * Queries
  */
 sector_t dm_table_get_size(struct dm_table *t);
-unsigned int dm_table_get_num_targets(struct dm_table *t);
 fmode_t dm_table_get_mode(struct dm_table *t);
 struct mapped_device *dm_table_get_md(struct dm_table *t);
 const char *dm_table_device_name(struct dm_table *t);

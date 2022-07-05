@@ -278,7 +278,7 @@ static bool dm_table_supports_zone_append(struct dm_table *t)
 	struct dm_target *ti;
 	unsigned int i;
 
-	for (i = 0; i < dm_table_get_num_targets(t); i++) {
+	for (i = 0; i < t->num_targets; i++) {
 		ti = dm_table_get_target(t, i);
 
 		if (ti->emulate_zone_append)
