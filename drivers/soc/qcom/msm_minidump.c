@@ -36,7 +36,6 @@
  */
 struct md_table {
 	u32			revision;
-	u32                     num_regions;
 	struct md_ss_toc	*md_ss_toc;
 	struct md_global_toc	*md_gbl_toc;
 	struct md_ss_region	*md_regions;
@@ -62,13 +61,14 @@ struct md_elfhdr {
 /* Protect elfheader and smem table from deferred calls contention */
 static DEFINE_SPINLOCK(mdt_lock);
 static DEFINE_RWLOCK(mdt_remove_lock);
-static struct md_table		minidump_table;
+static struct md_table		*minidump_table;
 static struct md_elfhdr		minidump_elfheader;
 static int first_removed_entry = INT_MAX;
 static bool md_init_done;
+static unsigned int num_regions;
 
 /* Number of pending entries to be added in ToC regions */
-static unsigned int pendings;
+static  LIST_HEAD(pending_list);
 
 static inline char *elf_lookup_string(struct elfhdr *hdr, int offset)
 {
@@ -98,10 +98,14 @@ static inline unsigned int set_section_name(const char *name)
 struct md_region *md_get_region(char *name)
 {
 	struct md_region *mdr;
-	int i, regno = minidump_table.num_regions;
+	int i, regno;
 
+	if (!minidump_table)
+		return NULL;
+
+	regno = num_regions;
 	for (i = 0; i < regno; i++) {
-		mdr = &minidump_table.entry[i];
+		mdr = &minidump_table->entry[i];
 		if (!strcmp(mdr->name, name))
 			return mdr;
 	}
@@ -110,8 +114,8 @@ struct md_region *md_get_region(char *name)
 
 static inline int md_region_num(const char *name, int *seqno)
 {
-	struct md_ss_region *mde = minidump_table.md_regions;
-	int i, regno = minidump_table.md_ss_toc->ss_region_count;
+	struct md_ss_region *mde = minidump_table->md_regions;
+	int i, regno = minidump_table->md_ss_toc->ss_region_count;
 	int ret = -EINVAL;
 
 	for (i = 0; i < regno; i++, mde++) {
@@ -127,10 +131,10 @@ static inline int md_region_num(const char *name, int *seqno)
 static inline int md_entry_num(const struct md_region *entry)
 {
 	struct md_region *mdr;
-	int i, regno = minidump_table.num_regions;
+	int i, regno = num_regions;
 
 	for (i = 0; i < regno; i++) {
-		mdr = &minidump_table.entry[i];
+		mdr = &minidump_table->entry[i];
 		if (!strcmp(mdr->name, entry->name))
 			return i;
 	}
@@ -144,9 +148,9 @@ static void md_update_ss_toc(const struct md_region *entry)
 	struct elfhdr *hdr = minidump_elfheader.ehdr;
 	struct elf_shdr *shdr = elf_section(hdr, hdr->e_shnum++);
 	struct elf_phdr *phdr = elf_program(hdr, hdr->e_phnum++);
-	int seq = 0, reg_cnt = minidump_table.md_ss_toc->ss_region_count;
+	int seq = 0, reg_cnt = minidump_table->md_ss_toc->ss_region_count;
 
-	mdr = &minidump_table.md_regions[reg_cnt];
+	mdr = &minidump_table->md_regions[reg_cnt];
 
 	strscpy(mdr->name, entry->name, sizeof(mdr->name));
 	mdr->region_base_address = entry->phys_addr;
@@ -171,7 +175,7 @@ static void md_update_ss_toc(const struct md_region *entry)
 	phdr->p_flags = PF_R | PF_W;
 	minidump_elfheader.elf_offset += shdr->sh_size;
 	mdr->md_valid = MD_REGION_VALID;
-	minidump_table.md_ss_toc->ss_region_count++;
+	minidump_table->md_ss_toc->ss_region_count++;
 }
 
 bool msm_minidump_enabled(void)
@@ -180,9 +184,8 @@ bool msm_minidump_enabled(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&mdt_lock, flags);
-	if (minidump_table.md_ss_toc &&
-		(minidump_table.md_ss_toc->md_ss_enable_status ==
-		 MD_SS_ENABLED))
+	if (minidump_table && minidump_table->md_ss_toc &&
+	    (minidump_table->md_ss_toc->md_ss_enable_status == MD_SS_ENABLED))
 		ret = true;
 	spin_unlock_irqrestore(&mdt_lock, flags);
 	return ret;
@@ -195,7 +198,7 @@ int msm_minidump_get_available_region(void)
 	unsigned long flags;
 
 	spin_lock_irqsave(&mdt_lock, flags);
-	res = MAX_NUM_ENTRIES - minidump_table.num_regions;
+	res = MAX_NUM_ENTRIES - num_regions;
 	spin_unlock_irqrestore(&mdt_lock, flags);
 
 	return res;
@@ -247,11 +250,11 @@ int msm_minidump_update_region(int regno, const struct md_region *entry)
 		goto err_unlock;
 	}
 
-	mdr = &minidump_table.entry[regno];
+	mdr = &minidump_table->entry[regno];
 	mdr->virt_addr = entry->virt_addr;
 	mdr->phys_addr = entry->phys_addr;
 
-	mdssr = &minidump_table.md_regions[regno + 1];
+	mdssr = &minidump_table->md_regions[regno + 1];
 	mdssr->region_base_address = entry->phys_addr;
 
 	shdr = elf_section(hdr, regno + 4);
@@ -273,54 +276,67 @@ int msm_minidump_add_region(const struct md_region *entry)
 	u32 entries;
 	u32 toc_init;
 	struct md_region *mdr;
+	struct md_pending_region *pending_region;
 	unsigned long flags;
+	int ret;
 
 	if (validate_region(entry))
 		return -EINVAL;
 
 	spin_lock_irqsave(&mdt_lock, flags);
 	if (md_entry_num(entry) >= 0) {
-		spin_unlock_irqrestore(&mdt_lock, flags);
 		printk_deferred("Entry name already exist.\n");
-		return -EEXIST;
+		ret = -EEXIST;
+		goto out;
 	}
 
-	entries = minidump_table.num_regions;
+	entries = num_regions;
 	if (entries >= MAX_NUM_ENTRIES) {
 		printk_deferred("Maximum entries reached.\n");
-		spin_unlock_irqrestore(&mdt_lock, flags);
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto out;
 	}
 
 	toc_init = 0;
-	if (minidump_table.md_ss_toc &&
-		(minidump_table.md_ss_toc->md_ss_enable_status ==
+	if (minidump_table && minidump_table->md_ss_toc &&
+		(minidump_table->md_ss_toc->md_ss_enable_status ==
 		MD_SS_ENABLED)) {
 		toc_init = 1;
-		if (minidump_table.md_ss_toc->ss_region_count >= MAX_NUM_ENTRIES) {
-			spin_unlock_irqrestore(&mdt_lock, flags);
+		if (minidump_table->md_ss_toc->ss_region_count >= MAX_NUM_ENTRIES) {
 			printk_deferred("Maximum regions in minidump table reached.\n");
-			return -ENOMEM;
+			ret = -ENOMEM;
+			goto out;
 		}
 	}
 
-	mdr = &minidump_table.entry[entries];
-	strscpy(mdr->name, entry->name, sizeof(mdr->name));
-	mdr->virt_addr = entry->virt_addr;
-	mdr->phys_addr = entry->phys_addr;
-	mdr->size = entry->size;
-	mdr->id = entry->id;
+	num_regions = entries + 1;
 
-	minidump_table.num_regions = entries + 1;
-
-	if (toc_init)
+	if (toc_init) {
+		mdr = &minidump_table->entry[entries];
+		strscpy(mdr->name, entry->name, sizeof(mdr->name));
+		mdr->virt_addr = entry->virt_addr;
+		mdr->phys_addr = entry->phys_addr;
+		mdr->size = entry->size;
+		mdr->id = entry->id;
 		md_update_ss_toc(entry);
-	else
-		pendings++;
+	} else {
+		/* Local table not initialized
+		 * add to pending list, need free after initialized
+		 */
+		pending_region = kzalloc(sizeof(*pending_region), GFP_ATOMIC);
+		if (!pending_region) {
+			ret = -ENOMEM;
+			goto out;
+		}
+		pending_region->entry = *entry;
+		list_add_tail(&pending_region->list, &pending_list);
+	}
+	ret = entries;
 
+out:
 	spin_unlock_irqrestore(&mdt_lock, flags);
 
-	return entries;
+	return ret;
 }
 EXPORT_SYMBOL(msm_minidump_add_region);
 
@@ -404,9 +420,8 @@ int msm_minidump_remove_region(const struct md_region *entry)
 	int rcount, ecount, seq = 0, rgno, entryno, ret;
 	unsigned long flags;
 
-	if (!entry || !minidump_table.md_ss_toc ||
-		(minidump_table.md_ss_toc->md_ss_enable_status !=
-						MD_SS_ENABLED))
+	if (!entry || !minidump_table || !minidump_table->md_ss_toc ||
+	    (minidump_table->md_ss_toc->md_ss_enable_status != MD_SS_ENABLED))
 		return -EINVAL;
 
 	spin_lock_irqsave(&mdt_lock, flags);
@@ -427,32 +442,32 @@ int msm_minidump_remove_region(const struct md_region *entry)
 			entry->name, entryno, rgno);
 		return -EINVAL;
 	}
-	ecount = minidump_table.num_regions;
-	rcount = minidump_table.md_ss_toc->ss_region_count;
+	ecount = num_regions;
+	rcount = minidump_table->md_ss_toc->ss_region_count;
 	if (first_removed_entry > entryno)
 		first_removed_entry = entryno;
-	minidump_table.md_ss_toc->md_ss_toc_init = 0;
+	minidump_table->md_ss_toc->md_ss_toc_init = 0;
 
 	/* Remove entry from: entry list, ss region list and elf header */
-	memmove(&minidump_table.entry[entryno],
-		&minidump_table.entry[entryno + 1],
+	memmove(&minidump_table->entry[entryno],
+		&minidump_table->entry[entryno + 1],
 		((ecount - entryno - 1) * sizeof(struct md_region)));
-	memset(&minidump_table.entry[ecount - 1], 0, sizeof(struct md_region));
+	memset(&minidump_table->entry[ecount - 1], 0, sizeof(struct md_region));
 
 
-	memmove(&minidump_table.md_regions[rgno],
-		&minidump_table.md_regions[rgno + 1],
+	memmove(&minidump_table->md_regions[rgno],
+		&minidump_table->md_regions[rgno + 1],
 		((rcount - rgno - 1) * sizeof(struct md_ss_region)));
-	memset(&minidump_table.md_regions[rcount - 1], 0,
+	memset(&minidump_table->md_regions[rcount - 1], 0,
 					sizeof(struct md_ss_region));
 
 	ret = msm_minidump_clear_headers(entry);
 	if (ret)
 		goto out;
 
-	minidump_table.md_ss_toc->ss_region_count--;
-	minidump_table.md_ss_toc->md_ss_toc_init = 1;
-	minidump_table.num_regions--;
+	minidump_table->md_ss_toc->ss_region_count--;
+	minidump_table->md_ss_toc->md_ss_toc_init = 1;
+	num_regions--;
 out:
 	write_unlock(&mdt_remove_lock);
 	spin_unlock_irqrestore(&mdt_lock, flags);
@@ -465,7 +480,7 @@ EXPORT_SYMBOL(msm_minidump_remove_region);
 
 static int msm_minidump_add_header(void)
 {
-	struct md_ss_region *mdreg = &minidump_table.md_regions[0];
+	struct md_ss_region *mdreg = &minidump_table->md_regions[0];
 	struct elfhdr *ehdr;
 	struct elf_shdr *shdr;
 	struct elf_phdr *phdr;
@@ -578,9 +593,9 @@ static int msm_minidump_driver_remove(struct platform_device *pdev)
 
 static int msm_minidump_driver_probe(struct platform_device *pdev)
 {
-	unsigned int i;
+	unsigned int region_number;
 	size_t size;
-	struct md_region *mdr;
+	struct md_pending_region *pending_region, *tmp;
 	struct md_global_toc *md_global_toc;
 	struct md_ss_toc *md_ss_toc;
 	unsigned long flags;
@@ -599,21 +614,26 @@ static int msm_minidump_driver_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	minidump_table.md_gbl_toc = md_global_toc;
-	minidump_table.revision = md_global_toc->md_revision;
+	minidump_table =
+		devm_kzalloc(&pdev->dev, sizeof(*minidump_table), GFP_KERNEL);
+	if (!minidump_table)
+		return -ENOMEM;
+
+	minidump_table->md_gbl_toc = md_global_toc;
+	minidump_table->revision = md_global_toc->md_revision;
 	md_ss_toc = &md_global_toc->md_ss_toc[MD_SS_HLOS_ID];
 
 	md_ss_toc->encryption_status = MD_SS_ENCR_DONE;
 	md_ss_toc->encryption_required = MD_SS_ENCR_NOTREQ;
 
-	minidump_table.md_ss_toc = md_ss_toc;
-	minidump_table.md_regions = devm_kzalloc(&pdev->dev, (MAX_NUM_ENTRIES *
+	minidump_table->md_ss_toc = md_ss_toc;
+	minidump_table->md_regions = devm_kzalloc(&pdev->dev, (MAX_NUM_ENTRIES *
 				sizeof(struct md_ss_region)), GFP_KERNEL);
-	if (!minidump_table.md_regions)
+	if (!minidump_table->md_regions)
 		return -ENOMEM;
 
 	md_ss_toc->md_ss_smem_regions_baseptr =
-				virt_to_phys(minidump_table.md_regions);
+				virt_to_phys(minidump_table->md_regions);
 
 	/* First entry would be ELF header */
 	md_ss_toc->ss_region_count = 1;
@@ -623,12 +643,14 @@ static int msm_minidump_driver_probe(struct platform_device *pdev)
 	spin_lock_irqsave(&mdt_lock, flags);
 	md_ss_toc->md_ss_toc_init = 1;
 	md_ss_toc->md_ss_enable_status = MD_SS_ENABLED;
-	for (i = 0; i < pendings; i++) {
-		mdr = &minidump_table.entry[i];
-		md_update_ss_toc(mdr);
+	region_number = 0;
+	list_for_each_entry_safe(pending_region, tmp, &pending_list, list) {
+		minidump_table->entry[region_number] = pending_region->entry;
+		md_update_ss_toc(&minidump_table->entry[region_number]);
+		list_del(&pending_region->list);
+		kfree(pending_region);
+		region_number++;
 	}
-
-	pendings = 0;
 	spin_unlock_irqrestore(&mdt_lock, flags);
 
 	/* All updates above should be visible, before init completes */

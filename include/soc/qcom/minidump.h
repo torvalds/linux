@@ -26,6 +26,11 @@ struct md_region {
 	u64	size;
 };
 
+struct md_pending_region {
+	struct list_head list;
+	struct md_region entry;
+};
+
 /*
  * Register an entry in Minidump table
  * Returns:
