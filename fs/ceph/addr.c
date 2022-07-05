@@ -1326,16 +1326,13 @@ static int ceph_write_begin(struct file *file, struct address_space *mapping,
 	int r;
 
 	r = netfs_write_begin(&ci->netfs, file, inode->i_mapping, pos, len, &folio, NULL);
-	if (r == 0)
-		folio_wait_fscache(folio);
-	if (r < 0) {
-		if (folio)
-			folio_put(folio);
-	} else {
-		WARN_ON_ONCE(!folio_test_locked(folio));
-		*pagep = &folio->page;
-	}
-	return r;
+	if (r < 0)
+		return r;
+
+	folio_wait_fscache(folio);
+	WARN_ON_ONCE(!folio_test_locked(folio));
+	*pagep = &folio->page;
+	return 0;
 }
 
 /*
