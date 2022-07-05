@@ -703,7 +703,7 @@ static int xlnx_formatter_pcm_remove(struct platform_device *pdev)
 		dev_err(&pdev->dev, "audio formatter reset failed\n");
 
 	clk_disable_unprepare(adata->axi_clk);
-	return ret;
+	return 0;
 }
 
 static const struct of_device_id xlnx_formatter_pcm_of_match[] = {
