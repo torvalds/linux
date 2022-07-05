@@ -1674,7 +1674,7 @@ static int qcom_qmp_phy_combo_com_init(struct qmp_phy *qphy)
 				cfg->regs[QPHY_PCS_POWER_DOWN_CONTROL],
 				cfg->pwrdn_ctrl);
 	else
-		qphy_setbits(pcs, QPHY_POWER_DOWN_CONTROL,
+		qphy_setbits(pcs, QPHY_V2_PCS_POWER_DOWN_CONTROL,
 				cfg->pwrdn_ctrl);
 
 	mutex_unlock(&qmp->phy_mutex);
@@ -1836,7 +1836,7 @@ static int qcom_qmp_phy_combo_power_off(struct phy *phy)
 			qphy_clrbits(qphy->pcs, cfg->regs[QPHY_PCS_POWER_DOWN_CONTROL],
 				     cfg->pwrdn_ctrl);
 		} else {
-			qphy_clrbits(qphy->pcs, QPHY_POWER_DOWN_CONTROL,
+			qphy_clrbits(qphy->pcs, QPHY_V2_PCS_POWER_DOWN_CONTROL,
 					cfg->pwrdn_ctrl);
 		}
 	}
