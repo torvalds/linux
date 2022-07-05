@@ -164,18 +164,6 @@
 /*
  * Values for PageMask register
  */
-#ifdef CONFIG_CPU_VR41XX
-
-/* Why doesn't stupidity hurt ... */
-
-#define PM_1K		0x00000000
-#define PM_4K		0x00001800
-#define PM_16K		0x00007800
-#define PM_64K		0x0001f800
-#define PM_256K		0x0007f800
-
-#else
-
 #define PM_4K		0x00000000
 #define PM_8K		0x00002000
 #define PM_16K		0x00006000
@@ -193,8 +181,6 @@
 #define PM_64M		0x07ffe000
 #define PM_256M		0x1fffe000
 #define PM_1G		0x7fffe000
-
-#endif
 
 /*
  * Default page size for a given kernel configuration

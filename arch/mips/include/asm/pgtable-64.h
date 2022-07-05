@@ -303,14 +303,9 @@ static inline void pud_clear(pud_t *pudp)
 
 #define pte_page(x)		pfn_to_page(pte_pfn(x))
 
-#ifdef CONFIG_CPU_VR41XX
-#define pte_pfn(x)		((unsigned long)((x).pte >> (PAGE_SHIFT + 2)))
-#define pfn_pte(pfn, prot)	__pte(((pfn) << (PAGE_SHIFT + 2)) | pgprot_val(prot))
-#else
 #define pte_pfn(x)		((unsigned long)((x).pte >> _PFN_SHIFT))
 #define pfn_pte(pfn, prot)	__pte(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
 #define pfn_pmd(pfn, prot)	__pmd(((pfn) << _PFN_SHIFT) | pgprot_val(prot))
-#endif
 
 #ifndef __PAGETABLE_PMD_FOLDED
 static inline pmd_t *pud_pgtable(pud_t pud)
