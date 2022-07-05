@@ -1047,6 +1047,15 @@ static void hdmi_infoframe_set_checksum(u8 *ptr, int size)
 	ptr[3] = 256 - csum;
 }
 
+static bool is_hdmi2_sink(const struct drm_connector *connector)
+{
+	if (!connector)
+		return true;
+
+	return connector->display_info.hdmi.scdc.supported ||
+		connector->display_info.color_formats & DRM_COLOR_FORMAT_YCRCB420;
+}
+
 static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 			    const struct drm_connector *connector,
 			    const struct drm_display_mode *mode)
@@ -1074,7 +1083,7 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 	else
 		frame.colorspace = HDMI_COLORSPACE_RGB;
 
-	/* Set up colorimetry */
+	/* Set up colorimetry and quant range */
 	if (!hdmi_bus_fmt_is_rgb(hdmi->hdmi_data.enc_out_bus_format)) {
 		switch (hdmi->hdmi_data.enc_out_encoding) {
 		case V4L2_YCBCR_ENC_601:
@@ -1107,6 +1116,8 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 					HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
 			break;
 		}
+
+		frame.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	} else {
 		if (hdmi->hdmi_data.enc_out_encoding == V4L2_YCBCR_ENC_BT2020) {
 			frame.colorimetry = HDMI_COLORIMETRY_EXTENDED;
@@ -1117,6 +1128,12 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 			frame.extended_colorimetry =
 				HDMI_EXTENDED_COLORIMETRY_XV_YCC_601;
 		}
+
+		if (is_hdmi2_sink(connector) &&
+		    frame.quantization_range == HDMI_QUANTIZATION_RANGE_FULL)
+			frame.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_FULL;
+		else
+			frame.ycc_quantization_range = HDMI_YCC_QUANTIZATION_RANGE_LIMITED;
 	}
 
 	frame.scan_mode = HDMI_SCAN_MODE_NONE;
