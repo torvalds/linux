@@ -849,12 +849,8 @@ static void hinic_get_stats64(struct net_device *netdev,
 	struct hinic_rxq_stats nic_rx_stats = {};
 	struct hinic_txq_stats nic_tx_stats = {};
 
-	down(&nic_dev->mgmt_lock);
-
 	if (nic_dev->flags & HINIC_INTF_UP)
 		gather_nic_stats(nic_dev, &nic_rx_stats, &nic_tx_stats);
-
-	up(&nic_dev->mgmt_lock);
 
 	stats->rx_bytes   = nic_rx_stats.bytes;
 	stats->rx_packets = nic_rx_stats.pkts;
