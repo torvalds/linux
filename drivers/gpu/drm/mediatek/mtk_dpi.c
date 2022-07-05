@@ -132,6 +132,7 @@ struct mtk_dpi_yc_limit {
  * @channel_swap_shift: Shift value of channel swap.
  * @yuv422_en_bit: Enable bit of yuv422.
  * @csc_enable_bit: Enable bit of CSC.
+ * @pixels_per_iter: Quantity of transferred pixels per iteration.
  */
 struct mtk_dpi_conf {
 	unsigned int (*cal_factor)(int clock);
@@ -149,6 +150,7 @@ struct mtk_dpi_conf {
 	u32 channel_swap_shift;
 	u32 yuv422_en_bit;
 	u32 csc_enable_bit;
+	u32 pixels_per_iter;
 };
 
 static void mtk_dpi_mask(struct mtk_dpi *dpi, u32 offset, u32 val, u32 mask)
@@ -521,7 +523,14 @@ static int mtk_dpi_set_display_mode(struct mtk_dpi *dpi,
 	clk_set_rate(dpi->tvd_clk, pll_rate);
 	pll_rate = clk_get_rate(dpi->tvd_clk);
 
+	/*
+	 * Depending on the IP version, we may output a different amount of
+	 * pixels for each iteration: divide the clock by this number and
+	 * adjust the display porches accordingly.
+	 */
 	vm.pixelclock = pll_rate / factor;
+	vm.pixelclock /= dpi->conf->pixels_per_iter;
+
 	if ((dpi->output_fmt == MEDIA_BUS_FMT_RGB888_2X12_LE) ||
 	    (dpi->output_fmt == MEDIA_BUS_FMT_RGB888_2X12_BE))
 		clk_set_rate(dpi->pixel_clk, vm.pixelclock * 2);
@@ -540,9 +549,16 @@ static int mtk_dpi_set_display_mode(struct mtk_dpi *dpi,
 			    MTK_DPI_POLARITY_FALLING : MTK_DPI_POLARITY_RISING;
 	dpi_pol.vsync_pol = vm.flags & DISPLAY_FLAGS_VSYNC_HIGH ?
 			    MTK_DPI_POLARITY_FALLING : MTK_DPI_POLARITY_RISING;
-	hsync.sync_width = vm.hsync_len;
-	hsync.back_porch = vm.hback_porch;
-	hsync.front_porch = vm.hfront_porch;
+
+	/*
+	 * Depending on the IP version, we may output a different amount of
+	 * pixels for each iteration: divide the clock by this number and
+	 * adjust the display porches accordingly.
+	 */
+	hsync.sync_width = vm.hsync_len / dpi->conf->pixels_per_iter;
+	hsync.back_porch = vm.hback_porch / dpi->conf->pixels_per_iter;
+	hsync.front_porch = vm.hfront_porch / dpi->conf->pixels_per_iter;
+
 	hsync.shift_half_line = false;
 	vsync_lodd.sync_width = vm.vsync_len;
 	vsync_lodd.back_porch = vm.vback_porch;
@@ -851,6 +867,7 @@ static const struct mtk_dpi_conf mt8173_conf = {
 	.max_clock_khz = 300000,
 	.output_fmts = mt8173_output_fmts,
 	.num_output_fmts = ARRAY_SIZE(mt8173_output_fmts),
+	.pixels_per_iter = 1,
 	.is_ck_de_pol = true,
 	.swap_input_support = true,
 	.support_direct_pin = true,
@@ -868,6 +885,7 @@ static const struct mtk_dpi_conf mt2701_conf = {
 	.max_clock_khz = 150000,
 	.output_fmts = mt8173_output_fmts,
 	.num_output_fmts = ARRAY_SIZE(mt8173_output_fmts),
+	.pixels_per_iter = 1,
 	.is_ck_de_pol = true,
 	.swap_input_support = true,
 	.support_direct_pin = true,
@@ -884,6 +902,7 @@ static const struct mtk_dpi_conf mt8183_conf = {
 	.max_clock_khz = 100000,
 	.output_fmts = mt8183_output_fmts,
 	.num_output_fmts = ARRAY_SIZE(mt8183_output_fmts),
+	.pixels_per_iter = 1,
 	.is_ck_de_pol = true,
 	.swap_input_support = true,
 	.support_direct_pin = true,
@@ -900,6 +919,7 @@ static const struct mtk_dpi_conf mt8192_conf = {
 	.max_clock_khz = 150000,
 	.output_fmts = mt8183_output_fmts,
 	.num_output_fmts = ARRAY_SIZE(mt8183_output_fmts),
+	.pixels_per_iter = 1,
 	.is_ck_de_pol = true,
 	.swap_input_support = true,
 	.support_direct_pin = true,
