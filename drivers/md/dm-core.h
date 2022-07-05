@@ -226,6 +226,13 @@ struct dm_table {
 #endif
 };
 
+static inline struct dm_target *dm_table_get_target(struct dm_table *t,
+						    unsigned int index)
+{
+	BUG_ON(index >= t->num_targets);
+	return t->targets + index;
+}
+
 /*
  * One of these is allocated per clone bio.
  */

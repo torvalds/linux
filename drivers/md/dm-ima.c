@@ -237,9 +237,6 @@ void dm_ima_measure_on_table_load(struct dm_table *table, unsigned int status_fl
 	for (i = 0; i < num_targets; i++) {
 		struct dm_target *ti = dm_table_get_target(table, i);
 
-		if (!ti)
-			goto error;
-
 		last_target_measured = 0;
 
 		/*
