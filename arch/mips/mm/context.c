@@ -67,7 +67,7 @@ static void flush_context(void)
 	int cpu;
 
 	/* Update the list of reserved MMIDs and the MMID bitmap */
-	bitmap_clear(mmid_map, 0, num_mmids);
+	bitmap_zero(mmid_map, num_mmids);
 
 	/* Reserve an MMID for kmap/wired entries */
 	__set_bit(MMID_KERNEL_WIRED, mmid_map);
@@ -277,8 +277,7 @@ static int mmid_init(void)
 	WARN_ON(num_mmids <= num_possible_cpus());
 
 	atomic64_set(&mmid_version, asid_first_version(0));
-	mmid_map = kcalloc(BITS_TO_LONGS(num_mmids), sizeof(*mmid_map),
-			   GFP_KERNEL);
+	mmid_map = bitmap_zalloc(num_mmids, GFP_KERNEL);
 	if (!mmid_map)
 		panic("Failed to allocate bitmap for %u MMIDs\n", num_mmids);
 
