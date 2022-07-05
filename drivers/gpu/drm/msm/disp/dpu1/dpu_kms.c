@@ -582,9 +582,7 @@ static int _dpu_kms_initialize_dsi(struct drm_device *dev,
 		}
 
 		info.h_tile_instance[info.num_of_h_tiles++] = i;
-		info.capabilities = msm_dsi_is_cmd_mode(priv->dsi[i]) ?
-			MSM_DISPLAY_CAP_CMD_MODE :
-			MSM_DISPLAY_CAP_VID_MODE;
+		info.is_cmd_mode = msm_dsi_is_cmd_mode(priv->dsi[i]);
 
 		info.dsc = msm_dsi_get_dsc_config(priv->dsi[i]);
 
@@ -637,7 +635,6 @@ static int _dpu_kms_initialize_displayport(struct drm_device *dev,
 
 		info.num_of_h_tiles = 1;
 		info.h_tile_instance[0] = i;
-		info.capabilities = MSM_DISPLAY_CAP_VID_MODE;
 		info.intf_type = encoder->encoder_type;
 		rc = dpu_encoder_setup(dev, encoder, &info);
 		if (rc) {
@@ -745,7 +742,7 @@ static int _dpu_kms_drm_obj_init(struct dpu_kms *dpu_kms)
 	unsigned int num_encoders;
 
 	struct msm_drm_private *priv;
-	struct dpu_mdss_cfg *catalog;
+	const struct dpu_mdss_cfg *catalog;
 
 	int primary_planes_idx = 0, cursor_planes_idx = 0, i, ret;
 	int max_crtc_count;
@@ -842,8 +839,6 @@ static void _dpu_kms_hw_destroy(struct dpu_kms *dpu_kms)
 		dpu_rm_destroy(&dpu_kms->rm);
 	dpu_kms->rm_init = false;
 
-	if (dpu_kms->catalog)
-		dpu_hw_catalog_deinit(dpu_kms->catalog);
 	dpu_kms->catalog = NULL;
 
 	if (dpu_kms->vbif[VBIF_NRT])
@@ -905,7 +900,7 @@ static void dpu_kms_mdp_snapshot(struct msm_disp_state *disp_state, struct msm_k
 {
 	int i;
 	struct dpu_kms *dpu_kms;
-	struct dpu_mdss_cfg *cat;
+	const struct dpu_mdss_cfg *cat;
 	struct dpu_hw_mdp *top;
 
 	dpu_kms = to_dpu_kms(kms);
