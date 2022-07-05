@@ -1095,6 +1095,7 @@ static ssize_t aspeed_mctp_read(struct file *file, char __user *buf,
 	struct aspeed_mctp *priv = client->priv;
 	struct mctp_pcie_packet *rx_packet;
 	u32 mctp_ctrl;
+	u32 mctp_int_sts;
 
 	if (count < PCIE_MCTP_MIN_PACKET_SIZE)
 		return -EINVAL;
@@ -1106,7 +1107,13 @@ static ssize_t aspeed_mctp_read(struct file *file, char __user *buf,
 		regmap_read(priv->map, ASPEED_MCTP_CTRL, &mctp_ctrl);
 		if (!(mctp_ctrl & RX_CMD_READY))
 			priv->rx.stopped = true;
-		tasklet_hi_schedule(&priv->rx.tasklet);
+		/* Polling the RX_CMD_RECEIVE_INT to ensure rx_tasklet can find the data */
+		regmap_read(priv->map, ASPEED_MCTP_INT_STS, &mctp_int_sts);
+		if (mctp_int_sts & RX_CMD_RECEIVE_INT) {
+			regmap_write(priv->map, ASPEED_MCTP_INT_STS,
+				     mctp_int_sts);
+			tasklet_hi_schedule(&priv->rx.tasklet);
+		}
 	}
 
 	rx_packet = ptr_ring_consume_bh(&client->rx_queue);
@@ -1611,12 +1618,19 @@ static __poll_t aspeed_mctp_poll(struct file *file,
 	struct aspeed_mctp *priv = client->priv;
 	struct mctp_channel *rx = &priv->rx;
 	u32 mctp_ctrl;
+	u32 mctp_int_sts;
 
 	if (priv->miss_mctp_int) {
 		regmap_read(priv->map, ASPEED_MCTP_CTRL, &mctp_ctrl);
 		if (!(mctp_ctrl & RX_CMD_READY))
 			rx->stopped = true;
-		tasklet_hi_schedule(&priv->rx.tasklet);
+		/* Polling the RX_CMD_RECEIVE_INT to ensure rx_tasklet can find the data */
+		regmap_read(priv->map, ASPEED_MCTP_INT_STS, &mctp_int_sts);
+		if (mctp_int_sts & RX_CMD_RECEIVE_INT) {
+			regmap_write(priv->map, ASPEED_MCTP_INT_STS,
+				     mctp_int_sts);
+			tasklet_hi_schedule(&priv->rx.tasklet);
+		}
 	}
 
 	poll_wait(file, &client->wait_queue, pt);
