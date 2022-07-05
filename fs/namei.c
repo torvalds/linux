@@ -799,13 +799,18 @@ out:
  */
 static bool try_to_unlazy_next(struct nameidata *nd, struct dentry *dentry, unsigned seq)
 {
+	int res;
 	BUG_ON(!(nd->flags & LOOKUP_RCU));
 
 	nd->flags &= ~LOOKUP_RCU;
 	if (unlikely(!legitimize_links(nd)))
 		goto out2;
-	if (unlikely(!legitimize_mnt(nd->path.mnt, nd->m_seq)))
-		goto out2;
+	res = __legitimize_mnt(nd->path.mnt, nd->m_seq);
+	if (unlikely(res)) {
+		if (res > 0)
+			goto out2;
+		goto out1;
+	}
 	if (unlikely(!lockref_get_not_dead(&nd->path.dentry->d_lockref)))
 		goto out1;
 
