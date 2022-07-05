@@ -775,10 +775,10 @@ void vgic_mmio_write_config(struct kvm_vcpu *vcpu,
 	}
 }
 
-u64 vgic_read_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid)
+u32 vgic_read_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid)
 {
 	int i;
-	u64 val = 0;
+	u32 val = 0;
 	int nr_irqs = vcpu->kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS;
 
 	for (i = 0; i < 32; i++) {
@@ -798,7 +798,7 @@ u64 vgic_read_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid)
 }
 
 void vgic_write_irq_line_level_info(struct kvm_vcpu *vcpu, u32 intid,
-				    const u64 val)
+				    const u32 val)
 {
 	int i;
 	int nr_irqs = vcpu->kvm->arch.vgic.nr_spis + VGIC_NR_PRIVATE_IRQS;
