@@ -15,24 +15,25 @@
 #include <linux/io.h>
 
 /* how many parameters can be transferred to ptc */
-#define OF_PWM_N_CELLS		3
+#define OF_PWM_N_CELLS			3
 
 /* max channel of pwm */
-#define MAX_PWM							8
+#define MAX_PWM				8
 
 /* PTC Register offsets */
-#define REG_RPTC_CNTR						0x0
-#define REG_RPTC_HRC						0x4
-#define REG_RPTC_LRC						0x8
-#define REG_RPTC_CTRL						0xC
+#define REG_RPTC_CNTR			0x0
+#define REG_RPTC_HRC			0x4
+#define REG_RPTC_LRC			0x8
+#define REG_RPTC_CTRL			0xC
 
 /* Bit for PWM clock */
-#define BIT_PWM_CLOCK_EN					31
+#define BIT_PWM_CLOCK_EN		31
 
 /* Bit for clock gen soft reset */
-#define BIT_CLK_GEN_SOFT_RESET					13
+#define BIT_CLK_GEN_SOFT_RESET		13
 
-#define NS_1							1000000000
+#define NS_PER_SECOND			1000000000
+#define DEFAULT_FREQ_HZ			2000000
 
 /*
  * Access PTC register (cntr hrc lrc and ctrl),
@@ -62,12 +63,12 @@ struct starfive_pwm_ptc_device {
 	struct reset_control	*rst;
 	void __iomem		*regs;
 	int			irq;
-	/* apb clock frequency, from dts */
-	unsigned int		approx_period;
+	/*pwm apb clock frequency*/
+	unsigned int		approx_freq;
 };
 
 static inline struct starfive_pwm_ptc_device *
-chip_to_starfive_ptc(struct pwm_chip *c)
+		chip_to_starfive_ptc(struct pwm_chip *c)
 {
 	return container_of(c, struct starfive_pwm_ptc_device, chip);
 }
@@ -84,7 +85,7 @@ static void starfive_pwm_ptc_get_state(struct pwm_chip *chip,
 	data_lrc = ioread32(REG_PTC_RPTC_LRC(pwm->regs, dev->hwpwm));
 	data_hrc = ioread32(REG_PTC_RPTC_HRC(pwm->regs, dev->hwpwm));
 
-	pwm_clk_ns = NS_1 / pwm->approx_period;
+	pwm_clk_ns = NS_PER_SECOND / pwm->approx_freq;
 
 	state->period = data_lrc * pwm_clk_ns;
 	state->duty_cycle = data_hrc * pwm_clk_ns;
@@ -97,24 +98,37 @@ static int starfive_pwm_ptc_apply(struct pwm_chip *chip,
 				  struct pwm_state *state)
 {
 	struct starfive_pwm_ptc_device *pwm = chip_to_starfive_ptc(chip);
-	u32 pwm_clk_ns = 0;
 	u32 data_hrc = 0;
 	u32 data_lrc = 0;
 	u32 period_data = 0;
 	u32 duty_data = 0;
+	s64 multi = pwm->approx_freq;
+	s64 div = NS_PER_SECOND;
 	void __iomem *reg_addr;
 
 	if (state->duty_cycle > state->period)
 		state->duty_cycle = state->period;
 
-	pwm_clk_ns = NS_1 / pwm->approx_period;
+	while (multi % 10 == 0 && div % 10 == 0 && multi > 0 && div > 0) {
+		multi /= 10;
+		div /= 10;
+	}
 
-	period_data = state->period / pwm_clk_ns;
+	period_data = (u32)(state->period * multi / div);
+	if (abs(period_data * div / multi - state->period)
+	    > abs((period_data + 1) * div / multi - state->period) ||
+	    (state->period > 0 && period_data == 0))
+		period_data += 1;
 
-	if (!state->enabled)
+	if (state->enabled) {
+		duty_data = (u32)(state->duty_cycle * multi / div);
+		if (abs(duty_data * div / multi - state->duty_cycle)
+		    > abs((duty_data + 1) * div / multi - state->duty_cycle) ||
+		    (state->duty_cycle > 0 && duty_data == 0))
+			duty_data += 1;
+	} else {
 		duty_data = 0;
-	else
-		duty_data = state->duty_cycle / pwm_clk_ns;
+	}
 
 	if (state->polarity == PWM_POLARITY_NORMAL)
 		data_hrc = period_data - duty_data;
@@ -195,19 +209,19 @@ static int starfive_pwm_ptc_probe(struct platform_device *pdev)
 	}
 	reset_control_deassert(pwm->rst);
 
-	ret = of_property_read_u32(node, "starfive,approx-period",
+	ret = of_property_read_u32(node, "starfive,approx-freq",
 				   &clk_apb_freq);
 	if (!ret)
-		pwm->approx_period = clk_apb_freq;
+		pwm->approx_freq = clk_apb_freq;
 	else
-		pwm->approx_period = 2000000;
+		pwm->approx_freq = DEFAULT_FREQ_HZ;
 
 	clk_apb_freq = (unsigned int)clk_get_rate(pwm->clk);
 	if (!clk_apb_freq)
 		dev_warn(dev,
 			 "get pwm apb clock rate failed.\n");
 	else
-		pwm->approx_period = clk_apb_freq;
+		pwm->approx_freq = clk_apb_freq;
 
 	ret = pwmchip_add(chip);
 	if (ret < 0) {
