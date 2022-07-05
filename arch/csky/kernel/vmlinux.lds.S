@@ -22,7 +22,7 @@ SECTIONS
 {
 	. = PAGE_OFFSET + PHYS_OFFSET_OFFSET;
 
-	_stext = .;
+	_start = .;
 	__init_begin = .;
 	HEAD_TEXT_SECTION
 	INIT_TEXT_SECTION(PAGE_SIZE)
@@ -33,6 +33,7 @@ SECTIONS
 
 	.text : AT(ADDR(.text) - LOAD_OFFSET) {
 		_text = .;
+		_stext = .;
 		VBR_BASE
 		IRQENTRY_TEXT
 		SOFTIRQENTRY_TEXT
