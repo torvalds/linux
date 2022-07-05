@@ -761,17 +761,17 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 			} while (!*hdr && tmp_wr_ptr != rx->wr_ptr);
 
 			if (tmp_wr_ptr != rx->wr_ptr) {
-				dev_dbg(priv->dev, "Runaway RX packet found %d -> %d\n",
-					rx->wr_ptr, tmp_wr_ptr);
+				dev_warn(priv->dev,
+					 "Runaway RX packet found %d -> %d\n",
+					 rx->wr_ptr, tmp_wr_ptr);
 				residual_cmds = abs(tmp_wr_ptr - rx->wr_ptr);
 				rx->wr_ptr = tmp_wr_ptr;
-			}
-			if (!priv->rx_runaway_wa.enable && priv->rx_warmup &&
-			    priv->rx_runaway_wa.first_loop)
-				regmap_write(priv->map, ASPEED_MCTP_RX_BUF_SIZE,
-					     rx->buffer_count - residual_cmds);
-			if (hdr)
+				if (!priv->rx_runaway_wa.enable &&
+				    priv->rx_warmup)
+					regmap_write(priv->map, ASPEED_MCTP_RX_BUF_SIZE,
+						     rx->buffer_count - residual_cmds);
 				priv->rx_warmup = false;
+			}
 		}
 
 		if (priv->rx_runaway_wa.packet_counter > priv->rx_packet_count &&
@@ -877,6 +877,7 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 		(struct aspeed_mctp_rx_cmd *)rx->cmd.vaddr;
 	u32 data_size = priv->match_data->packet_unit_size;
 	u32 hw_rx_count = priv->rx_packet_count;
+	struct mctp_pcie_packet_data *rx_buf = (struct mctp_pcie_packet_data *)rx->data.vaddr;
 	int i;
 
 	if (priv->match_data->vdm_hdr_direct_xfer) {
@@ -894,6 +895,9 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 			rx_cmd_64++;
 		}
 	}
+	/* Clear the header of rx data */
+	for (i = 0; i < priv->rx_packet_count; i++)
+		*(u32 *)&rx_buf[i] = 0;
 	rx->wr_ptr = 0;
 	rx->buffer_count = priv->rx_packet_count;
 	if (priv->match_data->fifo_auto_surround) {
