@@ -121,7 +121,7 @@ u64 riscv_pmu_event_update(struct perf_event *event)
 	return delta;
 }
 
-static void riscv_pmu_stop(struct perf_event *event, int flags)
+void riscv_pmu_stop(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct riscv_pmu *rvpmu = to_riscv_pmu(event->pmu);
@@ -175,7 +175,7 @@ int riscv_pmu_event_set_period(struct perf_event *event)
 	return overflow;
 }
 
-static void riscv_pmu_start(struct perf_event *event, int flags)
+void riscv_pmu_start(struct perf_event *event, int flags)
 {
 	struct hw_perf_event *hwc = &event->hw;
 	struct riscv_pmu *rvpmu = to_riscv_pmu(event->pmu);
