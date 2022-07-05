@@ -65,6 +65,7 @@ struct rkisp_hw_dev {
 	int dev_num;
 	int dev_link_num;
 	int cur_dev_id;
+	int pre_dev_id;
 	int mipi_dev_id;
 	struct max_input max_in;
 	/* lock for multi dev */
@@ -97,6 +98,7 @@ struct rkisp_hw_dev {
 	bool is_buf_init;
 	bool is_shutdown;
 	bool is_unite;
+	bool is_multi_overflow;
 };
 
 int rkisp_register_irq(struct rkisp_hw_dev *dev);

@@ -512,15 +512,19 @@ rkisp_stats_send_meas_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 	u32 size = sizeof(struct rkisp32_isp_stat_buffer);
 	int ret = 0;
 
-	/* config buf for next frame */
-	stats_vdev->cur_buf = NULL;
-	if (stats_vdev->nxt_buf) {
-		stats_vdev->cur_buf = stats_vdev->nxt_buf;
-		stats_vdev->nxt_buf = NULL;
-	}
-	rkisp_stats_update_buf(stats_vdev);
+	if (!stats_vdev->rdbk_drop) {
+		/* config buf for next frame */
+		stats_vdev->cur_buf = NULL;
+		if (stats_vdev->nxt_buf) {
+			stats_vdev->cur_buf = stats_vdev->nxt_buf;
+			stats_vdev->nxt_buf = NULL;
+		}
+		rkisp_stats_update_buf(stats_vdev);
 
-	cur_frame_id = meas_work->frame_id;
+		cur_frame_id = meas_work->frame_id;
+	} else {
+		cur_buf = NULL;
+	}
 
 	if (cur_buf) {
 		cur_stat_buf =

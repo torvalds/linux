@@ -859,7 +859,7 @@ static int isp_show(struct seq_file *p, void *v)
 	if (!(dev->isp_state & ISP_START))
 		return 0;
 
-	if (IS_HDR_RDBK(dev->hdr.op_mode))
+	if (IS_HDR_RDBK(dev->hdr.op_mode)) {
 		seq_printf(p, "%-10s mode:frame%d (frame:%d rate:%dms %s time:%dms frameloss:%d) cnt(total:%d X1:%d X2:%d X3:%d)\n",
 			   "Isp Read",
 			   dev->rd_mode - 3,
@@ -872,14 +872,17 @@ static int isp_show(struct seq_file *p, void *v)
 			   dev->rdbk_cnt_x1,
 			   dev->rdbk_cnt_x2,
 			   dev->rdbk_cnt_x3);
-	else
+		seq_printf(p, "\t   hw link:%d idle:%d vir(mode:%d index:%d)\n",
+			   dev->hw_dev->dev_link_num, dev->hw_dev->is_idle,
+			   dev->multi_mode, dev->multi_index);
+	} else {
 		seq_printf(p, "%-10s frame:%d %s time:%dms v-blank:%dus\n",
 			   "Isp online",
 			   sdev->dbg.id,
 			   (dev->isp_state & ISP_FRAME_END) ? "idle" : "working",
 			   sdev->dbg.interval / 1000 / 1000,
 			   sdev->dbg.delay / 1000);
-
+	}
 	if (dev->br_dev.en)
 		seq_printf(p, "%-10s rkispp%d Format:%s%s Size:%dx%d (frame:%d rate:%dms frameloss:%d)\n",
 			   "Output",
@@ -940,7 +943,7 @@ static int isp_show(struct seq_file *p, void *v)
 		break;
 	}
 
-	seq_printf(p, "%-10s %s Cnt:%d\n",
+	seq_printf(p, "%-10s %s Cnt:%d\n\n",
 		   "Monitor",
 		   dev->hw_dev->monitor.is_en ? "ON" : "OFF",
 		   dev->hw_dev->monitor.retry);

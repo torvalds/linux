@@ -402,7 +402,7 @@ static int rkisp_create_links(struct rkisp_device *dev)
 	return ret;
 }
 
-static int _set_pipeline_default_fmt(struct rkisp_device *dev)
+static int _set_pipeline_default_fmt(struct rkisp_device *dev, bool is_init)
 {
 	struct v4l2_subdev *isp;
 	struct v4l2_subdev_format fmt;
@@ -415,7 +415,8 @@ static int _set_pipeline_default_fmt(struct rkisp_device *dev)
 
 	if (dev->active_sensor) {
 		fmt = dev->active_sensor->fmt[0];
-		if (fmt.format.code == dev->isp_sdev.in_frm.code &&
+		if (!is_init &&
+		    fmt.format.code == dev->isp_sdev.in_frm.code &&
 		    fmt.format.width == dev->isp_sdev.in_frm.width &&
 		    fmt.format.height == dev->isp_sdev.in_frm.height)
 			return 0;
@@ -546,7 +547,7 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 		dev->is_hw_link = true;
 	}
 
-	ret = _set_pipeline_default_fmt(dev);
+	ret = _set_pipeline_default_fmt(dev, true);
 	if (ret < 0)
 		goto unlock;
 
@@ -953,7 +954,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 	/* power on to config default format from sensor */
 	if (isp_dev->isp_inp & (INP_CSI | INP_DVP | INP_LVDS | INP_CIF) &&
 	    rkisp_update_sensor_info(isp_dev) >= 0)
-		_set_pipeline_default_fmt(isp_dev);
+		_set_pipeline_default_fmt(isp_dev, false);
 
 	isp_dev->cap_dev.wait_line = rkisp_wait_line;
 	isp_dev->cap_dev.wrap_line = rkisp_wrap_line;

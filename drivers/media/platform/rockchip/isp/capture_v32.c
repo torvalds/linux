@@ -1050,7 +1050,7 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
 			rkisp_stream_config_rsz(stream, false);
 			stream->is_crop_upd = false;
 		}
-		/* update buf for mulit sensor at readback */
+		/* update buf for multi sensor at readback */
 		if (!mis && !stream->ispdev->hw_dev->is_single &&
 		    !stream->curr_buf &&
 		    !list_empty(&stream->buf_queue)) {

@@ -905,6 +905,8 @@ static int rkisp_hw_probe(struct platform_device *pdev)
 	hw_dev->dev_link_num = 0;
 	hw_dev->cur_dev_id = 0;
 	hw_dev->mipi_dev_id = 0;
+	hw_dev->pre_dev_id = 0;
+	hw_dev->is_multi_overflow = false;
 	hw_dev->isp_ver = match_data->isp_ver;
 	hw_dev->is_unite = match_data->unite;
 	mutex_init(&hw_dev->dev_lock);
@@ -966,8 +968,9 @@ static int __maybe_unused rkisp_runtime_suspend(struct device *dev)
 {
 	struct rkisp_hw_dev *hw_dev = dev_get_drvdata(dev);
 
-	hw_dev->is_single = true;
 	hw_dev->dev_link_num = 0;
+	hw_dev->is_single = true;
+	hw_dev->is_multi_overflow = false;
 	disable_sys_clk(hw_dev);
 	return pinctrl_pm_select_sleep_state(dev);
 }

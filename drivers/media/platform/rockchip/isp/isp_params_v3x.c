@@ -4223,6 +4223,16 @@ rkisp_params_check_bigmode_v3x(struct rkisp_isp_params_vdev *params_vdev)
 	int i = 0, j = 0;
 	bool is_bigmode = false;
 
+multi_overflow:
+	if (hw->is_multi_overflow) {
+		ispdev->multi_index = 0;
+		ispdev->multi_mode = 0;
+		bigmode_max_w = ISP3X_AUTO_BIGMODE_WIDTH;
+		bigmode_max_size = ISP3X_NOBIG_OVERFLOW_SIZE;
+		dev_warn(dev, "over virtual isp max resolution, force to 2 readback\n");
+		goto end;
+	}
+
 	switch (hw->dev_link_num) {
 	case 4:
 		bigmode_max_w = ISP3X_VIR4_AUTO_BIGMODE_WIDTH;
@@ -4241,10 +4251,11 @@ rkisp_params_check_bigmode_v3x(struct rkisp_isp_params_vdev *params_vdev)
 			if (hw->isp_size[i].w <= ISP3X_VIR4_MAX_WIDTH &&
 			    hw->isp_size[i].size <= ISP3X_VIR4_MAX_SIZE)
 				continue;
-			dev_err(dev, "four virtual isp max:%dx1536\n",
-				hw->is_unite ? (2560 - RKMOUDLE_UNITE_EXTEND_PIXEL) * 2 : 2560);
-			is_bigmode = true;
-			break;
+			dev_warn(dev, "isp%d %dx%d over four vir isp max:%dx1536\n",
+				 i, hw->isp_size[i].w, hw->isp_size[i].h,
+				 hw->is_unite ? (2560 - RKMOUDLE_UNITE_EXTEND_PIXEL) * 2 : 2560);
+			hw->is_multi_overflow = true;
+			goto multi_overflow;
 		}
 		break;
 	case 3:
@@ -4282,8 +4293,11 @@ rkisp_params_check_bigmode_v3x(struct rkisp_isp_params_vdev *params_vdev)
 			is_bigmode = true;
 			if (k != 1 ||
 			    (hw->isp_size[idx1[0]].size > ISP3X_VIR4_MAX_SIZE * 2)) {
-				dev_err(dev, "three virtual isp max:%dx1536\n",
-					hw->is_unite ? (2560 - RKMOUDLE_UNITE_EXTEND_PIXEL) * 2 : 2560);
+				dev_warn(dev, "isp%d %dx%d over three vir isp max:%dx1536\n",
+					 idx1[0], hw->isp_size[idx1[0]].w, hw->isp_size[idx1[0]].h,
+					 hw->is_unite ? (2560 - RKMOUDLE_UNITE_EXTEND_PIXEL) * 2 : 2560);
+				hw->is_multi_overflow = true;
+				goto multi_overflow;
 			} else {
 				if (idx1[0] == ispdev->dev_id) {
 					ispdev->multi_mode = 0;
@@ -4338,8 +4352,11 @@ rkisp_params_check_bigmode_v3x(struct rkisp_isp_params_vdev *params_vdev)
 			is_bigmode = true;
 			if (k == 2 || j ||
 			    hw->isp_size[idx1[k - 1]].size > ISP3X_VIR4_MAX_SIZE * 3) {
-				dev_err(dev, "two virtual isp max:%dx2160\n",
-					hw->is_unite ? (3840 - RKMOUDLE_UNITE_EXTEND_PIXEL) * 2 : 3840);
+				dev_warn(dev, "isp%d %dx%d over two vir isp max:%dx2160\n",
+					 idx1[k - 1], hw->isp_size[idx1[k - 1]].w, hw->isp_size[idx1[k - 1]].h,
+					 hw->is_unite ? (3840 - RKMOUDLE_UNITE_EXTEND_PIXEL) * 2 : 3840);
+				hw->is_multi_overflow = true;
+				goto multi_overflow;
 			} else {
 				if (idx1[0] == ispdev->dev_id) {
 					ispdev->multi_mode = 0;
@@ -4366,6 +4383,7 @@ rkisp_params_check_bigmode_v3x(struct rkisp_isp_params_vdev *params_vdev)
 		break;
 	}
 
+end:
 	if (!is_bigmode &&
 	    (width > bigmode_max_w || size > bigmode_max_size))
 		is_bigmode = true;

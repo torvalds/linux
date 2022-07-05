@@ -235,6 +235,7 @@ struct rkisp_device {
 	int rdbk_cnt_x2;
 	int rdbk_cnt_x3;
 	u32 rd_mode;
+	int sw_rd_cnt;
 
 	struct rkisp_rx_buf_pool pv_pool[RKISP_RX_BUF_POOL_MAX];
 

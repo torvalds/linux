@@ -65,6 +65,7 @@ struct rkisp_isp_stats_vdev {
 	u32 wr_buf_idx;
 	bool rd_stats_from_ddr;
 
+	bool rdbk_drop;
 	bool rdbk_mode;
 	u32 isp_rdbk;
 	u32 isp3a_rdbk;
