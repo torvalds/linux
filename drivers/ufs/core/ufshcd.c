@@ -4753,7 +4753,7 @@ link_startup:
 		 * but we can't be sure if the link is up until link startup
 		 * succeeds. So reset the local Uni-Pro and try again.
 		 */
-		if (ret && ufshcd_hba_enable(hba)) {
+		if (ret && retries && ufshcd_hba_enable(hba)) {
 			ufshcd_update_evt_hist(hba,
 					       UFS_EVT_LINK_STARTUP_FAIL,
 					       (u32)ret);
