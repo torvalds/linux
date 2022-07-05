@@ -119,6 +119,8 @@
 #include "scm.h"
 
 static atomic_long_t unix_nr_socks;
+static struct hlist_head bsd_socket_buckets[UNIX_HASH_SIZE / 2];
+static spinlock_t bsd_socket_locks[UNIX_HASH_SIZE / 2];
 
 /* SMP locking strategy:
  *    hash table is protected with spinlock.
@@ -328,6 +330,24 @@ static void unix_insert_unbound_socket(struct net *net, struct sock *sk)
 	spin_unlock(&net->unx.table.locks[sk->sk_hash]);
 }
 
+static void unix_insert_bsd_socket(struct sock *sk)
+{
+	spin_lock(&bsd_socket_locks[sk->sk_hash]);
+	sk_add_bind_node(sk, &bsd_socket_buckets[sk->sk_hash]);
+	spin_unlock(&bsd_socket_locks[sk->sk_hash]);
+}
+
+static void unix_remove_bsd_socket(struct sock *sk)
+{
+	if (!hlist_unhashed(&sk->sk_bind_node)) {
+		spin_lock(&bsd_socket_locks[sk->sk_hash]);
+		__sk_del_bind_node(sk);
+		spin_unlock(&bsd_socket_locks[sk->sk_hash]);
+
+		sk_node_init(&sk->sk_bind_node);
+	}
+}
+
 static struct sock *__unix_find_socket_byname(struct net *net,
 					      struct sockaddr_un *sunname,
 					      int len, unsigned int hash)
@@ -358,22 +378,22 @@ static inline struct sock *unix_find_socket_byname(struct net *net,
 	return s;
 }
 
-static struct sock *unix_find_socket_byinode(struct net *net, struct inode *i)
+static struct sock *unix_find_socket_byinode(struct inode *i)
 {
 	unsigned int hash = unix_bsd_hash(i);
 	struct sock *s;
 
-	spin_lock(&net->unx.table.locks[hash]);
-	sk_for_each(s, &net->unx.table.buckets[hash]) {
+	spin_lock(&bsd_socket_locks[hash]);
+	sk_for_each_bound(s, &bsd_socket_buckets[hash]) {
 		struct dentry *dentry = unix_sk(s)->path.dentry;
 
 		if (dentry && d_backing_inode(dentry) == i) {
 			sock_hold(s);
-			spin_unlock(&net->unx.table.locks[hash]);
+			spin_unlock(&bsd_socket_locks[hash]);
 			return s;
 		}
 	}
-	spin_unlock(&net->unx.table.locks[hash]);
+	spin_unlock(&bsd_socket_locks[hash]);
 	return NULL;
 }
 
@@ -577,6 +597,7 @@ static void unix_release_sock(struct sock *sk, int embrion)
 	int state;
 
 	unix_remove_socket(sock_net(sk), sk);
+	unix_remove_bsd_socket(sk);
 
 	/* Clear state */
 	unix_state_lock(sk);
@@ -988,8 +1009,8 @@ static int unix_release(struct socket *sock)
 	return 0;
 }
 
-static struct sock *unix_find_bsd(struct net *net, struct sockaddr_un *sunaddr,
-				  int addr_len, int type)
+static struct sock *unix_find_bsd(struct sockaddr_un *sunaddr, int addr_len,
+				  int type)
 {
 	struct inode *inode;
 	struct path path;
@@ -1010,7 +1031,7 @@ static struct sock *unix_find_bsd(struct net *net, struct sockaddr_un *sunaddr,
 	if (!S_ISSOCK(inode->i_mode))
 		goto path_put;
 
-	sk = unix_find_socket_byinode(net, inode);
+	sk = unix_find_socket_byinode(inode);
 	if (!sk)
 		goto path_put;
 
@@ -1058,7 +1079,7 @@ static struct sock *unix_find_other(struct net *net,
 	struct sock *sk;
 
 	if (sunaddr->sun_path[0])
-		sk = unix_find_bsd(net, sunaddr, addr_len, type);
+		sk = unix_find_bsd(sunaddr, addr_len, type);
 	else
 		sk = unix_find_abstract(net, sunaddr, addr_len, type);
 
@@ -1179,6 +1200,7 @@ static int unix_bind_bsd(struct sock *sk, struct sockaddr_un *sunaddr,
 	u->path.dentry = dget(dentry);
 	__unix_set_addr_hash(net, sk, addr, new_hash);
 	unix_table_double_unlock(net, old_hash, new_hash);
+	unix_insert_bsd_socket(sk);
 	mutex_unlock(&u->bindlock);
 	done_path_create(&parent, dentry);
 	return 0;
@@ -3682,9 +3704,14 @@ static void __init bpf_iter_register(void)
 
 static int __init af_unix_init(void)
 {
-	int rc = -1;
+	int i, rc = -1;
 
 	BUILD_BUG_ON(sizeof(struct unix_skb_parms) > sizeof_field(struct sk_buff, cb));
+
+	for (i = 0; i < UNIX_HASH_SIZE / 2; i++) {
+		spin_lock_init(&bsd_socket_locks[i]);
+		INIT_HLIST_HEAD(&bsd_socket_buckets[i]);
+	}
 
 	rc = proto_register(&unix_dgram_proto, 1);
 	if (rc != 0) {
