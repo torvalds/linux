@@ -361,6 +361,9 @@ static const struct qmp_phy_init_tbl ipq6018_pcie_pcs_tbl[] = {
 	QMP_PHY_INIT_CFG(PCS_COM_P2U3_WAKEUP_DLY_TIME_AUXCLK_L, 0x01),
 	QMP_PHY_INIT_CFG(PCS_COM_RX_DCC_CAL_CONFIG, 0x01),
 	QMP_PHY_INIT_CFG(PCS_COM_EQ_CONFIG5, 0x01),
+};
+
+static const struct qmp_phy_init_tbl ipq6018_pcie_pcs_misc_tbl[] = {
 	QMP_PHY_INIT_CFG(PCS_PCIE_POWER_STATE_CONFIG2, 0x0d),
 	QMP_PHY_INIT_CFG(PCS_PCIE_POWER_STATE_CONFIG4, 0x07),
 	QMP_PHY_INIT_CFG(PCS_PCIE_ENDPOINT_REFCLK_DRIVE, 0xc1),
@@ -1593,6 +1596,8 @@ static const struct qmp_phy_cfg ipq6018_pciephy_cfg = {
 	.rx_tbl_num		= ARRAY_SIZE(ipq6018_pcie_rx_tbl),
 	.pcs_tbl		= ipq6018_pcie_pcs_tbl,
 	.pcs_tbl_num		= ARRAY_SIZE(ipq6018_pcie_pcs_tbl),
+	.pcs_misc_tbl		= ipq6018_pcie_pcs_misc_tbl,
+	.pcs_misc_tbl_num	= ARRAY_SIZE(ipq6018_pcie_pcs_misc_tbl),
 	.clk_list		= ipq8074_pciephy_clk_l,
 	.num_clks		= ARRAY_SIZE(ipq8074_pciephy_clk_l),
 	.reset_list		= ipq8074_pciephy_reset_l,
@@ -2373,6 +2378,10 @@ int qcom_qmp_phy_pcie_create(struct device *dev, struct device_node *np, int id,
 	} else {
 		qphy->pcs_misc = of_iomap(np, 3);
 	}
+
+	if (!qphy->pcs_misc &&
+	    of_device_is_compatible(dev->of_node, "qcom,ipq6018-qmp-pcie-phy"))
+		qphy->pcs_misc = qphy->pcs + 0x400;
 
 	if (!qphy->pcs_misc)
 		dev_vdbg(dev, "PHY pcs_misc-reg not used\n");
