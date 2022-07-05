@@ -604,6 +604,18 @@ static const struct qmp_phy_init_tbl qmp_v4_dp_tx_tbl[] = {
 	QMP_PHY_INIT_CFG(QSERDES_V4_TX_TX_EMP_POST1_LVL, 0x20),
 };
 
+
+/* list of regulators */
+struct qmp_regulator_data {
+	const char *name;
+	unsigned int enable_load;
+};
+
+struct qmp_regulator_data qmp_phy_vreg_l[] = {
+	{ .name = "vdda-phy", .enable_load = 21800 },
+	{ .name = "vdda-pll", .enable_load = 36000 },
+};
+
 struct qmp_phy;
 
 /* struct qmp_phy_cfg - per-PHY initialization config */
@@ -646,7 +658,7 @@ struct qmp_phy_cfg {
 	const char * const *reset_list;
 	int num_resets;
 	/* regulators to be requested */
-	const char * const *vreg_list;
+	const struct qmp_regulator_data *vreg_list;
 	int num_vregs;
 
 	/* array of registers with different offsets */
@@ -807,11 +819,6 @@ static const char * const msm8996_usb3phy_reset_l[] = {
 
 static const char * const sc7180_usb3phy_reset_l[] = {
 	"phy",
-};
-
-/* list of regulators */
-static const char * const qmp_phy_vreg_l[] = {
-	"vdda-phy", "vdda-pll",
 };
 
 static const struct qmp_phy_cfg sc7180_usb3phy_cfg = {
@@ -1969,16 +1976,32 @@ static int qcom_qmp_phy_combo_vreg_init(struct device *dev, const struct qmp_phy
 {
 	struct qcom_qmp *qmp = dev_get_drvdata(dev);
 	int num = cfg->num_vregs;
-	int i;
+	int ret, i;
 
 	qmp->vregs = devm_kcalloc(dev, num, sizeof(*qmp->vregs), GFP_KERNEL);
 	if (!qmp->vregs)
 		return -ENOMEM;
 
 	for (i = 0; i < num; i++)
-		qmp->vregs[i].supply = cfg->vreg_list[i];
+		qmp->vregs[i].supply = cfg->vreg_list[i].name;
 
-	return devm_regulator_bulk_get(dev, num, qmp->vregs);
+	ret = devm_regulator_bulk_get(dev, num, qmp->vregs);
+	if (ret) {
+		dev_err(dev, "failed at devm_regulator_bulk_get\n");
+		return ret;
+	}
+
+	for (i = 0; i < num; i++) {
+		ret = regulator_set_load(qmp->vregs[i].consumer,
+					cfg->vreg_list[i].enable_load);
+		if (ret) {
+			dev_err(dev, "failed to set load at %s\n",
+				qmp->vregs[i].supply);
+			return ret;
+		}
+	}
+
+	return 0;
 }
 
 static int qcom_qmp_phy_combo_reset_init(struct device *dev, const struct qmp_phy_cfg *cfg)
