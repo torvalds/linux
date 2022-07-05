@@ -635,7 +635,7 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 {
 	int r = -EINVAL, argc;
 	char **argv;
-	struct dm_target *tgt;
+	struct dm_target *ti;
 
 	if (t->singleton) {
 		DMERR("%s: target type %s must appear alone in table",
@@ -645,87 +645,87 @@ int dm_table_add_target(struct dm_table *t, const char *type,
 
 	BUG_ON(t->num_targets >= t->num_allocated);
 
-	tgt = t->targets + t->num_targets;
-	memset(tgt, 0, sizeof(*tgt));
+	ti = t->targets + t->num_targets;
+	memset(ti, 0, sizeof(*ti));
 
 	if (!len) {
 		DMERR("%s: zero-length target", dm_device_name(t->md));
 		return -EINVAL;
 	}
 
-	tgt->type = dm_get_target_type(type);
-	if (!tgt->type) {
+	ti->type = dm_get_target_type(type);
+	if (!ti->type) {
 		DMERR("%s: %s: unknown target type", dm_device_name(t->md), type);
 		return -EINVAL;
 	}
 
-	if (dm_target_needs_singleton(tgt->type)) {
+	if (dm_target_needs_singleton(ti->type)) {
 		if (t->num_targets) {
-			tgt->error = "singleton target type must appear alone in table";
+			ti->error = "singleton target type must appear alone in table";
 			goto bad;
 		}
 		t->singleton = true;
 	}
 
-	if (dm_target_always_writeable(tgt->type) && !(t->mode & FMODE_WRITE)) {
-		tgt->error = "target type may not be included in a read-only table";
+	if (dm_target_always_writeable(ti->type) && !(t->mode & FMODE_WRITE)) {
+		ti->error = "target type may not be included in a read-only table";
 		goto bad;
 	}
 
 	if (t->immutable_target_type) {
-		if (t->immutable_target_type != tgt->type) {
-			tgt->error = "immutable target type cannot be mixed with other target types";
+		if (t->immutable_target_type != ti->type) {
+			ti->error = "immutable target type cannot be mixed with other target types";
 			goto bad;
 		}
-	} else if (dm_target_is_immutable(tgt->type)) {
+	} else if (dm_target_is_immutable(ti->type)) {
 		if (t->num_targets) {
-			tgt->error = "immutable target type cannot be mixed with other target types";
+			ti->error = "immutable target type cannot be mixed with other target types";
 			goto bad;
 		}
-		t->immutable_target_type = tgt->type;
+		t->immutable_target_type = ti->type;
 	}
 
-	if (dm_target_has_integrity(tgt->type))
+	if (dm_target_has_integrity(ti->type))
 		t->integrity_added = 1;
 
-	tgt->table = t;
-	tgt->begin = start;
-	tgt->len = len;
-	tgt->error = "Unknown error";
+	ti->table = t;
+	ti->begin = start;
+	ti->len = len;
+	ti->error = "Unknown error";
 
 	/*
 	 * Does this target adjoin the previous one ?
 	 */
-	if (!adjoin(t, tgt)) {
-		tgt->error = "Gap in table";
+	if (!adjoin(t, ti)) {
+		ti->error = "Gap in table";
 		goto bad;
 	}
 
 	r = dm_split_args(&argc, &argv, params);
 	if (r) {
-		tgt->error = "couldn't split parameters";
+		ti->error = "couldn't split parameters";
 		goto bad;
 	}
 
-	r = tgt->type->ctr(tgt, argc, argv);
+	r = ti->type->ctr(ti, argc, argv);
 	kfree(argv);
 	if (r)
 		goto bad;
 
-	t->highs[t->num_targets++] = tgt->begin + tgt->len - 1;
+	t->highs[t->num_targets++] = ti->begin + ti->len - 1;
 
-	if (!tgt->num_discard_bios && tgt->discards_supported)
+	if (!ti->num_discard_bios && ti->discards_supported)
 		DMWARN("%s: %s: ignoring discards_supported because num_discard_bios is zero.",
 		       dm_device_name(t->md), type);
 
-	if (tgt->limit_swap_bios && !static_key_enabled(&swap_bios_enabled.key))
+	if (ti->limit_swap_bios && !static_key_enabled(&swap_bios_enabled.key))
 		static_branch_enable(&swap_bios_enabled);
 
 	return 0;
 
  bad:
-	DMERR("%s: %s: %s (%pe)", dm_device_name(t->md), type, tgt->error, ERR_PTR(r));
-	dm_put_target_type(tgt->type);
+	DMERR("%s: %s: %s (%pe)", dm_device_name(t->md), type, ti->error, ERR_PTR(r));
+	dm_put_target_type(ti->type);
 	return r;
 }
 
