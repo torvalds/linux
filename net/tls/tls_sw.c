@@ -1423,8 +1423,7 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	u8 *aad, *iv, *mem = NULL;
 	struct scatterlist *sgin = NULL;
 	struct scatterlist *sgout = NULL;
-	const int data_len = rxm->full_len - prot->overhead_size +
-			     prot->tail_size;
+	const int data_len = rxm->full_len - prot->overhead_size;
 	int iv_offset = 0;
 
 	if (darg->zc && (out_iov || out_sg)) {
@@ -1519,7 +1518,8 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 			sg_init_table(sgout, n_sgout);
 			sg_set_buf(&sgout[0], aad, prot->aad_size);
 
-			err = tls_setup_from_iter(out_iov, data_len,
+			err = tls_setup_from_iter(out_iov,
+						  data_len + prot->tail_size,
 						  &pages, &sgout[1],
 						  (n_sgout - 1));
 			if (err < 0)
@@ -1538,7 +1538,7 @@ fallback_to_reg_recv:
 
 	/* Prepare and submit AEAD request */
 	err = tls_do_decryption(sk, skb, sgin, sgout, iv,
-				data_len, aead_req, darg);
+				data_len + prot->tail_size, aead_req, darg);
 	if (darg->async)
 		return 0;
 
