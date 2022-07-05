@@ -4,6 +4,7 @@
 
 #include "bset.h"
 #include "btree_types.h"
+#include "trace.h"
 
 static inline void __btree_path_get(struct btree_path *path, bool intent)
 {
@@ -384,8 +385,12 @@ static inline struct bkey_s_c bch2_btree_iter_peek_upto_type(struct btree_iter *
 
 static inline int btree_trans_too_many_iters(struct btree_trans *trans)
 {
-	return hweight64(trans->paths_allocated) > BTREE_ITER_MAX / 2
-		? -EINTR : 0;
+	if (hweight64(trans->paths_allocated) > BTREE_ITER_MAX / 2) {
+		trace_trans_restart_too_many_iters(trans->fn, _THIS_IP_);
+		return btree_trans_restart(trans);
+	}
+
+	return 0;
 }
 
 static inline struct bkey_s_c
