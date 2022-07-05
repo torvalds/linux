@@ -880,6 +880,7 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 		(struct aspeed_mctp_rx_cmd *)rx->cmd.vaddr;
 	u32 data_size = priv->match_data->packet_unit_size;
 	u32 hw_rx_count = priv->rx_packet_count;
+	struct mctp_pcie_packet_data *rx_buf = (struct mctp_pcie_packet_data *)rx->data.vaddr;
 	int i;
 
 	if (priv->match_data->vdm_hdr_direct_xfer) {
@@ -898,6 +899,9 @@ static void aspeed_mctp_rx_chan_init(struct mctp_channel *rx)
 			rx_cmd_64++;
 		}
 	}
+	/* Clear the header of rx data */
+	for (i = 0; i < priv->rx_packet_count; i++)
+		*(u32 *)&rx_buf[i] = 0;
 	rx->wr_ptr = 0;
 	rx->buffer_count = priv->rx_packet_count;
 	if (priv->match_data->fifo_auto_surround) {
