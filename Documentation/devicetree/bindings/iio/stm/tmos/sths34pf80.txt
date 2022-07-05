@@ -1,0 +1,47 @@
+* sths34pf80 driver for TMOS MEMS sensors
+
+Required properties for bindings:
+- compatible: must be "st,sths34pf80"
+
+Required properties for the i2c bindings:
+- reg: i2c slave address.
+
+Required properties for the spi bindings:
+- reg:               the SPI chip select index.
+- spi-max-frequency: maximal bus speed, should be set to 10000000 unless
+                     constrained by external circuitry.
+- spi-3wire:         device supports 3-wire SPI communication only.
+
+Optional properties for all bus drivers:
+- interrupt-parent:  identifies the controller node as interrupt-parent
+                     (please see kernel Documentation).
+- interrupts:        interrupt pin (please see kernel Documentation).
+- vdd-supply:        an optional regulator that needs to be on to provide VDD
+                     power to the sensor.
+- vddio-supply:      an optional regulator that needs to be on to provide the
+                     VDD IO power to the sensor.
+- interrupts:        interrupt mapping for IRQ. It should be configured
+                     with flags IRQ_TYPE_EDGE_BOTH.
+
+                     Refer to interrupt-controller/interrupts.txt for
+                     generic interrupt client node bindings.
+
+Example for an i2c device node (i2c address 0x5a):
+
+sths34pf80@5a {
+	compatible = "st,sths34pf80";
+	reg = <0x5a>;
+	interrupt-parent = <&gpio>;
+	interrupts = <26 IRQ_TYPE_EDGE_BOTH>;
+};
+
+Example for an spi device node:
+
+sths34pf80@0 {
+	spi-max-frequency = <1000000>;
+	compatible = "st,sths34pf80";
+	reg = <0>;
+	spi-3wire;
+	interrupt-parent = <&gpio>;
+	interrupts = <13 IRQ_TYPE_EDGE_BOTH>;
+};
