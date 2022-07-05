@@ -695,8 +695,11 @@ static void qcom_slim_ngd_rx(struct qcom_slim_ngd_ctrl *ctrl, u8 *buf)
 static void qcom_slim_ngd_rx_msgq_cb(void *args)
 {
 	struct qcom_slim_ngd_dma_desc *desc = args;
-	struct qcom_slim_ngd_ctrl *ctrl = desc->ctrl;
+	struct qcom_slim_ngd_ctrl *ctrl;
 
+	if (!desc)
+		return;
+	ctrl = desc->ctrl;
 	qcom_slim_ngd_rx(ctrl, (u8 *)desc->base);
 	/* Add descriptor back to the queue */
 	desc->desc = dmaengine_prep_slave_single(ctrl->dma_rx_channel,
