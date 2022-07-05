@@ -420,3 +420,33 @@ destroy_err:
 	sock_put((struct sock *)msk);
 	return err;
 }
+
+int mptcp_userspace_pm_set_flags(struct net *net, struct nlattr *token,
+				 struct mptcp_pm_addr_entry *loc,
+				 struct mptcp_pm_addr_entry *rem, u8 bkup)
+{
+	struct mptcp_sock *msk;
+	int ret = -EINVAL;
+	u32 token_val;
+
+	token_val = nla_get_u32(token);
+
+	msk = mptcp_token_get_sock(net, token_val);
+	if (!msk)
+		return ret;
+
+	if (!mptcp_pm_is_userspace(msk))
+		goto set_flags_err;
+
+	if (loc->addr.family == AF_UNSPEC ||
+	    rem->addr.family == AF_UNSPEC)
+		goto set_flags_err;
+
+	lock_sock((struct sock *)msk);
+	ret = mptcp_pm_nl_mp_prio_send_ack(msk, &loc->addr, &rem->addr, bkup);
+	release_sock((struct sock *)msk);
+
+set_flags_err:
+	sock_put((struct sock *)msk);
+	return ret;
+}
