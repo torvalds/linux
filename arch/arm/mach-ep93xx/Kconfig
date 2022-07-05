@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig ARCH_EP93XX
 	bool "EP93xx-based"
+	depends on ATAGS
 	depends on ARCH_MULTI_V4T
 	depends on CPU_LITTLE_ENDIAN
 	select ARCH_SPARSEMEM_ENABLE

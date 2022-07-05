@@ -350,6 +350,7 @@ config ARCH_MULTIPLATFORM
 config ARCH_FOOTBRIDGE
 	bool "FootBridge"
 	depends on CPU_LITTLE_ENDIAN
+	depends on ATAGS
 	select CPU_SA110
 	select FOOTBRIDGE
 	select NEED_MACH_MEMORY_H
@@ -361,6 +362,7 @@ config ARCH_RPC
 	bool "RiscPC"
 	depends on !CC_IS_CLANG && GCC_VERSION < 90100 && GCC_VERSION >= 60000
 	depends on CPU_LITTLE_ENDIAN
+	depends on ATAGS
 	select ARCH_ACORN
 	select ARCH_MAY_HAVE_PC_FDC
 	select ARCH_SPARSEMEM_ENABLE
@@ -380,6 +382,7 @@ config ARCH_RPC
 config ARCH_SA1100
 	bool "SA1100-based"
 	depends on CPU_LITTLE_ENDIAN
+	depends on ATAGS
 	select ARCH_MTD_XIP
 	select ARCH_SPARSEMEM_ENABLE
 	select CLKSRC_MMIO
@@ -1539,7 +1542,7 @@ config USE_OF
 	  Include support for flattened device tree machine descriptions.
 
 config ATAGS
-	bool "Support for the traditional ATAGS boot data passing" if USE_OF
+	bool "Support for the traditional ATAGS boot data passing"
 	default y
 	help
 	  This is the traditional way of passing data to the kernel at boot
