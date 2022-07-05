@@ -2556,10 +2556,18 @@ static void rt5640_enable_jack_detect(struct snd_soc_component *component,
 	queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
 }
 
+static const struct snd_soc_dapm_route rt5640_hda_jack_dapm_routes[] = {
+	{"IN1P", NULL, "MICBIAS1"},
+	{"IN2P", NULL, "MICBIAS1"},
+	{"IN3P", NULL, "MICBIAS1"},
+};
+
 static void rt5640_enable_hda_jack_detect(
 	struct snd_soc_component *component, struct snd_soc_jack *jack)
 {
 	struct rt5640_priv *rt5640 = snd_soc_component_get_drvdata(component);
+	struct snd_soc_dapm_context *dapm =
+		snd_soc_component_get_dapm(component);
 	int ret;
 
 	/* Select JD1 for Mic */
@@ -2592,6 +2600,9 @@ static void rt5640_enable_hda_jack_detect(
 
 	/* sync initial jack state */
 	queue_delayed_work(system_long_wq, &rt5640->jack_work, 0);
+
+	snd_soc_dapm_add_routes(dapm, rt5640_hda_jack_dapm_routes,
+		ARRAY_SIZE(rt5640_hda_jack_dapm_routes));
 }
 
 static int rt5640_set_jack(struct snd_soc_component *component,
