@@ -235,6 +235,7 @@ FIXTURE_VARIANT(tls)
 {
 	uint16_t tls_version;
 	uint16_t cipher_type;
+	bool nopad;
 };
 
 FIXTURE_VARIANT_ADD(tls, 12_aes_gcm)
@@ -297,9 +298,17 @@ FIXTURE_VARIANT_ADD(tls, 13_aes_gcm_256)
 	.cipher_type = TLS_CIPHER_AES_GCM_256,
 };
 
+FIXTURE_VARIANT_ADD(tls, 13_nopad)
+{
+	.tls_version = TLS_1_3_VERSION,
+	.cipher_type = TLS_CIPHER_AES_GCM_128,
+	.nopad = true,
+};
+
 FIXTURE_SETUP(tls)
 {
 	struct tls_crypto_info_keys tls12;
+	int one = 1;
 	int ret;
 
 	tls_crypto_info_init(variant->tls_version, variant->cipher_type,
@@ -315,6 +324,12 @@ FIXTURE_SETUP(tls)
 
 	ret = setsockopt(self->cfd, SOL_TLS, TLS_RX, &tls12, tls12.len);
 	ASSERT_EQ(ret, 0);
+
+	if (variant->nopad) {
+		ret = setsockopt(self->cfd, SOL_TLS, TLS_RX_EXPECT_NO_PAD,
+				 (void *)&one, sizeof(one));
+		ASSERT_EQ(ret, 0);
+	}
 }
 
 FIXTURE_TEARDOWN(tls)
