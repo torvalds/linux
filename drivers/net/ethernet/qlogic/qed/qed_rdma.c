@@ -42,8 +42,7 @@ int qed_rdma_bmap_alloc(struct qed_hwfn *p_hwfn,
 
 	bmap->max_count = max_count;
 
-	bmap->bitmap = kcalloc(BITS_TO_LONGS(max_count), sizeof(long),
-			       GFP_KERNEL);
+	bmap->bitmap = bitmap_zalloc(max_count, GFP_KERNEL);
 	if (!bmap->bitmap)
 		return -ENOMEM;
 
@@ -343,7 +342,7 @@ void qed_rdma_bmap_free(struct qed_hwfn *p_hwfn,
 	}
 
 end:
-	kfree(bmap->bitmap);
+	bitmap_free(bmap->bitmap);
 	bmap->bitmap = NULL;
 }
 
