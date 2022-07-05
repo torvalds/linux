@@ -512,10 +512,12 @@ static int sysmon_start(struct rproc_subdev *subdev)
 
 	mutex_lock(&sysmon_lock);
 	list_for_each_entry(target, &sysmon_list, node) {
-		if (target == sysmon)
-			continue;
-
 		mutex_lock(&target->state_lock);
+		if (target == sysmon || target->state != SSCTL_SSR_EVENT_AFTER_POWERUP) {
+			mutex_unlock(&target->state_lock);
+			continue;
+		}
+
 		event.subsys_name = target->name;
 		event.ssr_event = target->state;
 
