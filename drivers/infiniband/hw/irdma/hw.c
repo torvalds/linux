@@ -376,8 +376,8 @@ static void irdma_process_aeq(struct irdma_pci_f *rf)
 				ctx_info->iwarp_info->err_rq_idx_valid = false;
 			fallthrough;
 		default:
-			ibdev_err(&iwdev->ibdev, "abnormal ae_id = 0x%x bool qp=%d qp_id = %d\n",
-				  info->ae_id, info->qp, info->qp_cq_id);
+			ibdev_err(&iwdev->ibdev, "abnormal ae_id = 0x%x bool qp=%d qp_id = %d, ae_src=%d\n",
+				  info->ae_id, info->qp, info->qp_cq_id, info->ae_src);
 			if (rdma_protocol_roce(&iwdev->ibdev, 1)) {
 				if (!info->sq && ctx_info->roce_info->err_rq_idx_valid) {
 					ctx_info->roce_info->err_rq_idx = info->wqe_idx;
