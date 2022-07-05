@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.193"
+#define DC_VER "3.2.194"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
