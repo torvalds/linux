@@ -13775,12 +13775,11 @@ L:	netdev@vger.kernel.org
 S:	Maintained
 F:	net/sched/sch_netem.c
 
-NETERION 10GbE DRIVERS (s2io/vxge)
+NETERION 10GbE DRIVERS (s2io)
 M:	Jon Mason <jdmason@kudzu.us>
 L:	netdev@vger.kernel.org
 S:	Supported
 F:	Documentation/networking/device_drivers/ethernet/neterion/s2io.rst
-F:	Documentation/networking/device_drivers/ethernet/neterion/vxge.rst
 F:	drivers/net/ethernet/neterion/
 
 NETFILTER

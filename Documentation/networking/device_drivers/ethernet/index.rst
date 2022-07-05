@@ -42,7 +42,6 @@ Contents:
    mellanox/mlx5
    microsoft/netvsc
    neterion/s2io
-   neterion/vxge
    netronome/nfp
    pensando/ionic
    smsc/smc9
