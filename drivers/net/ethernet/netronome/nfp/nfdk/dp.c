@@ -56,17 +56,6 @@ nfp_nfdk_tx_tso(struct nfp_net_r_vector *r_vec, struct nfp_nfdk_tx_buf *txbuf,
 	segs = skb_shinfo(skb)->gso_segs;
 	mss = skb_shinfo(skb)->gso_size & NFDK_DESC_TX_MSS_MASK;
 
-	/* Note: TSO of the packet with metadata prepended to skb is not
-	 * supported yet, in which case l3/l4_offset and lso_hdrlen need
-	 * be correctly handled here.
-	 * Concern:
-	 * The driver doesn't have md_bytes easily available at this point.
-	 * The PCI.IN PD ME won't have md_bytes bytes to add to lso_hdrlen,
-	 * so it needs the full length there.  The app MEs might prefer
-	 * l3_offset and l4_offset relative to the start of packet data,
-	 * but could probably cope with it being relative to the CTM buf
-	 * data offset.
-	 */
 	txd.l3_offset = l3_offset;
 	txd.l4_offset = l4_offset;
 	txd.lso_meta_res = 0;
@@ -189,12 +178,6 @@ static int nfp_nfdk_prep_port_id(struct sk_buff *skb)
 		return 0;
 	if (unlikely(md_dst->type != METADATA_HW_PORT_MUX))
 		return 0;
-
-	/* Note: Unsupported case when TSO a skb with metedata prepended.
-	 * See the comments in `nfp_nfdk_tx_tso` for details.
-	 */
-	if (unlikely(md_dst && skb_is_gso(skb)))
-		return -EOPNOTSUPP;
 
 	if (unlikely(skb_cow_head(skb, sizeof(md_dst->u.port_info.port_id))))
 		return -ENOMEM;
