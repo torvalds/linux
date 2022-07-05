@@ -553,26 +553,47 @@ out:
 	return rc;
 }
 
-/* Guarantee atomicity of atomic operations at the machine level. */
-static DEFINE_SPINLOCK(atomic_ops_lock);
-
-static struct resp_res *rxe_prepare_atomic_res(struct rxe_qp *qp,
-					       struct rxe_pkt_info *pkt)
+static struct resp_res *rxe_prepare_res(struct rxe_qp *qp,
+					struct rxe_pkt_info *pkt,
+					int type)
 {
 	struct resp_res *res;
+	u32 pkts;
 
 	res = &qp->resp.resources[qp->resp.res_head];
 	rxe_advance_resp_resource(qp);
 	free_rd_atomic_resource(qp, res);
 
-	res->type = RXE_ATOMIC_MASK;
-	res->first_psn = pkt->psn;
-	res->last_psn = pkt->psn;
-	res->cur_psn = pkt->psn;
+	res->type = type;
 	res->replay = 0;
+
+	switch (type) {
+	case RXE_READ_MASK:
+		res->read.va = qp->resp.va + qp->resp.offset;
+		res->read.va_org = qp->resp.va + qp->resp.offset;
+		res->read.resid = qp->resp.resid;
+		res->read.length = qp->resp.resid;
+		res->read.rkey = qp->resp.rkey;
+
+		pkts = max_t(u32, (reth_len(pkt) + qp->mtu - 1)/qp->mtu, 1);
+		res->first_psn = pkt->psn;
+		res->cur_psn = pkt->psn;
+		res->last_psn = (pkt->psn + pkts - 1) & BTH_PSN_MASK;
+
+		res->state = rdatm_res_state_new;
+		break;
+	case RXE_ATOMIC_MASK:
+		res->first_psn = pkt->psn;
+		res->last_psn = pkt->psn;
+		res->cur_psn = pkt->psn;
+		break;
+	}
 
 	return res;
 }
+
+/* Guarantee atomicity of atomic operations at the machine level. */
+static DEFINE_SPINLOCK(atomic_ops_lock);
 
 static enum resp_states rxe_atomic_reply(struct rxe_qp *qp,
 					 struct rxe_pkt_info *pkt)
@@ -584,7 +605,7 @@ static enum resp_states rxe_atomic_reply(struct rxe_qp *qp,
 	u64 value;
 
 	if (!res) {
-		res = rxe_prepare_atomic_res(qp, pkt);
+		res = rxe_prepare_res(qp, pkt, RXE_ATOMIC_MASK);
 		qp->resp.res = res;
 	}
 
@@ -680,34 +701,6 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 	return skb;
 }
 
-static struct resp_res *rxe_prepare_read_res(struct rxe_qp *qp,
-					struct rxe_pkt_info *pkt)
-{
-	struct resp_res *res;
-	u32 pkts;
-
-	res = &qp->resp.resources[qp->resp.res_head];
-	rxe_advance_resp_resource(qp);
-	free_rd_atomic_resource(qp, res);
-
-	res->type = RXE_READ_MASK;
-	res->replay = 0;
-	res->read.va = qp->resp.va + qp->resp.offset;
-	res->read.va_org = qp->resp.va + qp->resp.offset;
-	res->read.resid = qp->resp.resid;
-	res->read.length = qp->resp.resid;
-	res->read.rkey = qp->resp.rkey;
-
-	pkts = max_t(u32, (reth_len(pkt) + qp->mtu - 1)/qp->mtu, 1);
-	res->first_psn = pkt->psn;
-	res->cur_psn = pkt->psn;
-	res->last_psn = (pkt->psn + pkts - 1) & BTH_PSN_MASK;
-
-	res->state = rdatm_res_state_new;
-
-	return res;
-}
-
 /**
  * rxe_recheck_mr - revalidate MR from rkey and get a reference
  * @qp: the qp
@@ -778,7 +771,7 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	struct rxe_mr *mr;
 
 	if (!res) {
-		res = rxe_prepare_read_res(qp, req_pkt);
+		res = rxe_prepare_res(qp, req_pkt, RXE_READ_MASK);
 		qp->resp.res = res;
 	}
 
