@@ -1697,6 +1697,20 @@ static int _opp_compare_rate(struct opp_table *opp_table,
 	return 0;
 }
 
+static int _opp_compare_bw(struct opp_table *opp_table, struct dev_pm_opp *opp1,
+			   struct dev_pm_opp *opp2)
+{
+	int i;
+
+	for (i = 0; i < opp_table->path_count; i++) {
+		if (opp1->bandwidth[i].peak != opp2->bandwidth[i].peak)
+			return opp1->bandwidth[i].peak < opp2->bandwidth[i].peak ? -1 : 1;
+	}
+
+	/* Same bw for both OPPs */
+	return 0;
+}
+
 /*
  * Returns
  * 0: opp1 == opp2
@@ -1712,9 +1726,9 @@ int _opp_compare_key(struct opp_table *opp_table, struct dev_pm_opp *opp1,
 	if (ret)
 		return ret;
 
-	if (opp1->bandwidth && opp2->bandwidth &&
-	    opp1->bandwidth[0].peak != opp2->bandwidth[0].peak)
-		return opp1->bandwidth[0].peak < opp2->bandwidth[0].peak ? -1 : 1;
+	ret = _opp_compare_bw(opp_table, opp1, opp2);
+	if (ret)
+		return ret;
 
 	if (opp1->level != opp2->level)
 		return opp1->level < opp2->level ? -1 : 1;
