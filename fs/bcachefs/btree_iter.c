@@ -181,12 +181,14 @@ bool __bch2_btree_node_relock(struct btree_trans *trans,
 		return true;
 	}
 fail:
-	trace_btree_node_relock_fail(trans->fn, _RET_IP_,
-				     path->btree_id,
-				     &path->pos,
-				     (unsigned long) b,
-				     path->l[level].lock_seq,
-				     is_btree_node(path, level) ? b->c.lock.state.seq : 0);
+	if (b != BTREE_ITER_NO_NODE_CACHED &&
+	    b != BTREE_ITER_NO_NODE_INIT)
+		trace_btree_node_relock_fail(trans->fn, _RET_IP_,
+					     path->btree_id,
+					     &path->pos,
+					     (unsigned long) b,
+					     path->l[level].lock_seq,
+					     is_btree_node(path, level) ? b->c.lock.state.seq : 0);
 	return false;
 }
 
