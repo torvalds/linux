@@ -23,30 +23,25 @@ static int set_gic_ctlr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	 * Disallow restoring VM state if not supported by this
 	 * hardware.
 	 */
-	host_pri_bits = ((val & ICC_CTLR_EL1_PRI_BITS_MASK) >>
-			 ICC_CTLR_EL1_PRI_BITS_SHIFT) + 1;
+	host_pri_bits = FIELD_GET(ICC_CTLR_EL1_PRI_BITS_MASK, val) + 1;
 	if (host_pri_bits > vgic_v3_cpu->num_pri_bits)
 		return -EINVAL;
 
 	vgic_v3_cpu->num_pri_bits = host_pri_bits;
 
-	host_id_bits = (val & ICC_CTLR_EL1_ID_BITS_MASK) >>
-		ICC_CTLR_EL1_ID_BITS_SHIFT;
+	host_id_bits = FIELD_GET(ICC_CTLR_EL1_ID_BITS_MASK, val);
 	if (host_id_bits > vgic_v3_cpu->num_id_bits)
 		return -EINVAL;
 
 	vgic_v3_cpu->num_id_bits = host_id_bits;
 
-	host_seis = ((kvm_vgic_global_state.ich_vtr_el2 &
-		      ICH_VTR_SEIS_MASK) >> ICH_VTR_SEIS_SHIFT);
-	seis = (val & ICC_CTLR_EL1_SEIS_MASK) >>
-		ICC_CTLR_EL1_SEIS_SHIFT;
+	host_seis = FIELD_GET(ICH_VTR_SEIS_MASK, kvm_vgic_global_state.ich_vtr_el2);
+	seis = FIELD_GET(ICC_CTLR_EL1_SEIS_MASK, val);
 	if (host_seis != seis)
 		return -EINVAL;
 
-	host_a3v = ((kvm_vgic_global_state.ich_vtr_el2 &
-		     ICH_VTR_A3V_MASK) >> ICH_VTR_A3V_SHIFT);
-	a3v = (val & ICC_CTLR_EL1_A3V_MASK) >> ICC_CTLR_EL1_A3V_SHIFT;
+	host_a3v = FIELD_GET(ICH_VTR_A3V_MASK, kvm_vgic_global_state.ich_vtr_el2);
+	a3v = FIELD_GET(ICC_CTLR_EL1_A3V_MASK, val);
 	if (host_a3v != a3v)
 		return -EINVAL;
 
@@ -54,8 +49,8 @@ static int set_gic_ctlr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	 * Here set VMCR.CTLR in ICC_CTLR_EL1 layout.
 	 * The vgic_set_vmcr() will convert to ICH_VMCR layout.
 	 */
-	vmcr.cbpr = (val & ICC_CTLR_EL1_CBPR_MASK) >> ICC_CTLR_EL1_CBPR_SHIFT;
-	vmcr.eoim = (val & ICC_CTLR_EL1_EOImode_MASK) >> ICC_CTLR_EL1_EOImode_SHIFT;
+	vmcr.cbpr = FIELD_GET(ICC_CTLR_EL1_CBPR_MASK, val);
+	vmcr.eoim = FIELD_GET(ICC_CTLR_EL1_EOImode_MASK, val);
 	vgic_set_vmcr(vcpu, &vmcr);
 
 	return 0;
@@ -70,20 +65,19 @@ static int get_gic_ctlr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 
 	vgic_get_vmcr(vcpu, &vmcr);
 	val = 0;
-	val |= (vgic_v3_cpu->num_pri_bits - 1) << ICC_CTLR_EL1_PRI_BITS_SHIFT;
-	val |= vgic_v3_cpu->num_id_bits << ICC_CTLR_EL1_ID_BITS_SHIFT;
-	val |= ((kvm_vgic_global_state.ich_vtr_el2 &
-		 ICH_VTR_SEIS_MASK) >> ICH_VTR_SEIS_SHIFT) <<
-		ICC_CTLR_EL1_SEIS_SHIFT;
-	val |= ((kvm_vgic_global_state.ich_vtr_el2 &
-		 ICH_VTR_A3V_MASK) >> ICH_VTR_A3V_SHIFT) <<
-		ICC_CTLR_EL1_A3V_SHIFT;
+	val |= FIELD_PREP(ICC_CTLR_EL1_PRI_BITS_MASK, vgic_v3_cpu->num_pri_bits - 1);
+	val |= FIELD_PREP(ICC_CTLR_EL1_ID_BITS_MASK, vgic_v3_cpu->num_id_bits);
+	val |= FIELD_PREP(ICC_CTLR_EL1_SEIS_MASK,
+			  FIELD_GET(ICH_VTR_SEIS_MASK,
+				    kvm_vgic_global_state.ich_vtr_el2));
+	val |= FIELD_PREP(ICC_CTLR_EL1_A3V_MASK,
+			  FIELD_GET(ICH_VTR_A3V_MASK, kvm_vgic_global_state.ich_vtr_el2));
 	/*
 	 * The VMCR.CTLR value is in ICC_CTLR_EL1 layout.
 	 * Extract it directly using ICC_CTLR_EL1 reg definitions.
 	 */
-	val |= (vmcr.cbpr << ICC_CTLR_EL1_CBPR_SHIFT) & ICC_CTLR_EL1_CBPR_MASK;
-	val |= (vmcr.eoim << ICC_CTLR_EL1_EOImode_SHIFT) & ICC_CTLR_EL1_EOImode_MASK;
+	val |= FIELD_PREP(ICC_CTLR_EL1_CBPR_MASK, vmcr.cbpr);
+	val |= FIELD_PREP(ICC_CTLR_EL1_EOImode_MASK, vmcr.eoim);
 
 	*valp = val;
 
@@ -96,7 +90,7 @@ static int set_gic_pmr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	struct vgic_vmcr vmcr;
 
 	vgic_get_vmcr(vcpu, &vmcr);
-	vmcr.pmr = (val & ICC_PMR_EL1_MASK) >> ICC_PMR_EL1_SHIFT;
+	vmcr.pmr = FIELD_GET(ICC_PMR_EL1_MASK, val);
 	vgic_set_vmcr(vcpu, &vmcr);
 
 	return 0;
@@ -108,7 +102,7 @@ static int get_gic_pmr(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	struct vgic_vmcr vmcr;
 
 	vgic_get_vmcr(vcpu, &vmcr);
-	*val = (vmcr.pmr << ICC_PMR_EL1_SHIFT) & ICC_PMR_EL1_MASK;
+	*val = FIELD_PREP(ICC_PMR_EL1_MASK, vmcr.pmr);
 
 	return 0;
 }
@@ -119,7 +113,7 @@ static int set_gic_bpr0(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	struct vgic_vmcr vmcr;
 
 	vgic_get_vmcr(vcpu, &vmcr);
-	vmcr.bpr = (val & ICC_BPR0_EL1_MASK) >> ICC_BPR0_EL1_SHIFT;
+	vmcr.bpr = FIELD_GET(ICC_BPR0_EL1_MASK, val);
 	vgic_set_vmcr(vcpu, &vmcr);
 
 	return 0;
@@ -131,7 +125,7 @@ static int get_gic_bpr0(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	struct vgic_vmcr vmcr;
 
 	vgic_get_vmcr(vcpu, &vmcr);
-	*val = (vmcr.bpr << ICC_BPR0_EL1_SHIFT) & ICC_BPR0_EL1_MASK;
+	*val = FIELD_PREP(ICC_BPR0_EL1_MASK, vmcr.bpr);
 
 	return 0;
 }
@@ -143,7 +137,7 @@ static int set_gic_bpr1(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 
 	vgic_get_vmcr(vcpu, &vmcr);
 	if (!vmcr.cbpr) {
-		vmcr.abpr = (val & ICC_BPR1_EL1_MASK) >> ICC_BPR1_EL1_SHIFT;
+		vmcr.abpr = FIELD_GET(ICC_BPR1_EL1_MASK, val);
 		vgic_set_vmcr(vcpu, &vmcr);
 	}
 
@@ -157,7 +151,7 @@ static int get_gic_bpr1(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 
 	vgic_get_vmcr(vcpu, &vmcr);
 	if (!vmcr.cbpr)
-		*val = (vmcr.abpr << ICC_BPR1_EL1_SHIFT) & ICC_BPR1_EL1_MASK;
+		*val = FIELD_PREP(ICC_BPR1_EL1_MASK, vmcr.abpr);
 	else
 		*val = min((vmcr.bpr + 1), 7U);
 
@@ -171,7 +165,7 @@ static int set_gic_grpen0(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	struct vgic_vmcr vmcr;
 
 	vgic_get_vmcr(vcpu, &vmcr);
-	vmcr.grpen0 = (val & ICC_IGRPEN0_EL1_MASK) >> ICC_IGRPEN0_EL1_SHIFT;
+	vmcr.grpen0 = FIELD_GET(ICC_IGRPEN0_EL1_MASK, val);
 	vgic_set_vmcr(vcpu, &vmcr);
 
 	return 0;
@@ -183,7 +177,7 @@ static int get_gic_grpen0(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	struct vgic_vmcr vmcr;
 
 	vgic_get_vmcr(vcpu, &vmcr);
-	*val = (vmcr.grpen0 << ICC_IGRPEN0_EL1_SHIFT) & ICC_IGRPEN0_EL1_MASK;
+	*val = FIELD_PREP(ICC_IGRPEN0_EL1_MASK, vmcr.grpen0);
 
 	return 0;
 }
@@ -194,7 +188,7 @@ static int set_gic_grpen1(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	struct vgic_vmcr vmcr;
 
 	vgic_get_vmcr(vcpu, &vmcr);
-	vmcr.grpen1 = (val & ICC_IGRPEN1_EL1_MASK) >> ICC_IGRPEN1_EL1_SHIFT;
+	vmcr.grpen1 = FIELD_GET(ICC_IGRPEN1_EL1_MASK, val);
 	vgic_set_vmcr(vcpu, &vmcr);
 
 	return 0;
@@ -206,7 +200,7 @@ static int get_gic_grpen1(struct kvm_vcpu *vcpu, const struct sys_reg_desc *r,
 	struct vgic_vmcr vmcr;
 
 	vgic_get_vmcr(vcpu, &vmcr);
-	*val = (vmcr.grpen1 << ICC_IGRPEN1_EL1_SHIFT) & ICC_IGRPEN1_EL1_MASK;
+	*val = FIELD_GET(ICC_IGRPEN1_EL1_MASK, vmcr.grpen1);
 
 	return 0;
 }
