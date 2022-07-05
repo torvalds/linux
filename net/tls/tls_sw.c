@@ -47,6 +47,7 @@
 struct tls_decrypt_arg {
 	bool zc;
 	bool async;
+	u8 tail;
 };
 
 noinline void tls_err_abort(struct sock *sk, int err)
@@ -133,7 +134,8 @@ static int skb_nsg(struct sk_buff *skb, int offset, int len)
         return __skb_nsg(skb, offset, len, 0);
 }
 
-static int padding_length(struct tls_prot_info *prot, struct sk_buff *skb)
+static int tls_padding_length(struct tls_prot_info *prot, struct sk_buff *skb,
+			      struct tls_decrypt_arg *darg)
 {
 	struct strp_msg *rxm = strp_msg(skb);
 	struct tls_msg *tlm = tls_msg(skb);
@@ -142,7 +144,7 @@ static int padding_length(struct tls_prot_info *prot, struct sk_buff *skb)
 	/* Determine zero-padding length */
 	if (prot->version == TLS_1_3_VERSION) {
 		int offset = rxm->full_len - TLS_TAG_SIZE - 1;
-		char content_type = 0;
+		char content_type = darg->zc ? darg->tail : 0;
 		int err;
 
 		while (content_type == 0) {
@@ -1418,17 +1420,18 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	struct strp_msg *rxm = strp_msg(skb);
 	struct tls_msg *tlm = tls_msg(skb);
 	int n_sgin, n_sgout, nsg, mem_size, aead_size, err, pages = 0;
+	u8 *aad, *iv, *tail, *mem = NULL;
 	struct aead_request *aead_req;
 	struct sk_buff *unused;
-	u8 *aad, *iv, *mem = NULL;
 	struct scatterlist *sgin = NULL;
 	struct scatterlist *sgout = NULL;
 	const int data_len = rxm->full_len - prot->overhead_size;
+	int tail_pages = !!prot->tail_size;
 	int iv_offset = 0;
 
 	if (darg->zc && (out_iov || out_sg)) {
 		if (out_iov)
-			n_sgout = 1 +
+			n_sgout = 1 + tail_pages +
 				iov_iter_npages_cap(out_iov, INT_MAX, data_len);
 		else
 			n_sgout = sg_nents(out_sg);
@@ -1452,9 +1455,10 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	mem_size = aead_size + (nsg * sizeof(struct scatterlist));
 	mem_size = mem_size + prot->aad_size;
 	mem_size = mem_size + MAX_IV_SIZE;
+	mem_size = mem_size + prot->tail_size;
 
 	/* Allocate a single block of memory which contains
-	 * aead_req || sgin[] || sgout[] || aad || iv.
+	 * aead_req || sgin[] || sgout[] || aad || iv || tail.
 	 * This order achieves correct alignment for aead_req, sgin, sgout.
 	 */
 	mem = kmalloc(mem_size, sk->sk_allocation);
@@ -1467,6 +1471,7 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	sgout = sgin + n_sgin;
 	aad = (u8 *)(sgout + n_sgout);
 	iv = aad + prot->aad_size;
+	tail = iv + MAX_IV_SIZE;
 
 	/* For CCM based ciphers, first byte of nonce+iv is a constant */
 	switch (prot->cipher_type) {
@@ -1518,12 +1523,18 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 			sg_init_table(sgout, n_sgout);
 			sg_set_buf(&sgout[0], aad, prot->aad_size);
 
-			err = tls_setup_from_iter(out_iov,
-						  data_len + prot->tail_size,
+			err = tls_setup_from_iter(out_iov, data_len,
 						  &pages, &sgout[1],
-						  (n_sgout - 1));
+						  (n_sgout - 1 - tail_pages));
 			if (err < 0)
 				goto fallback_to_reg_recv;
+
+			if (prot->tail_size) {
+				sg_unmark_end(&sgout[pages]);
+				sg_set_buf(&sgout[pages + 1], tail,
+					   prot->tail_size);
+				sg_mark_end(&sgout[pages + 1]);
+			}
 		} else if (out_sg) {
 			memcpy(sgout, out_sg, n_sgout * sizeof(*sgout));
 		} else {
@@ -1541,6 +1552,9 @@ fallback_to_reg_recv:
 				data_len + prot->tail_size, aead_req, darg);
 	if (darg->async)
 		return 0;
+
+	if (prot->tail_size)
+		darg->tail = *tail;
 
 	/* Release the pages in case iov was mapped to pages */
 	for (; pages > 0; pages--)
@@ -1583,9 +1597,15 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 		return err;
 	if (darg->async)
 		goto decrypt_next;
+	/* If opportunistic TLS 1.3 ZC failed retry without ZC */
+	if (unlikely(darg->zc && prot->version == TLS_1_3_VERSION &&
+		     darg->tail != TLS_RECORD_TYPE_DATA)) {
+		darg->zc = false;
+		return decrypt_skb_update(sk, skb, dest, darg);
+	}
 
 decrypt_done:
-	pad = padding_length(prot, skb);
+	pad = tls_padding_length(prot, skb, darg);
 	if (pad < 0)
 		return pad;
 
