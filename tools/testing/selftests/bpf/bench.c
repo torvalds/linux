@@ -79,6 +79,43 @@ void hits_drops_report_progress(int iter, struct bench_res *res, long delta_ns)
 	       hits_per_sec, hits_per_prod, drops_per_sec, hits_per_sec + drops_per_sec);
 }
 
+void
+grace_period_latency_basic_stats(struct bench_res res[], int res_cnt, struct basic_stats *gp_stat)
+{
+	int i;
+
+	memset(gp_stat, 0, sizeof(struct basic_stats));
+
+	for (i = 0; i < res_cnt; i++)
+		gp_stat->mean += res[i].gp_ns / 1000.0 / (double)res[i].gp_ct / (0.0 + res_cnt);
+
+#define IT_MEAN_DIFF (res[i].gp_ns / 1000.0 / (double)res[i].gp_ct - gp_stat->mean)
+	if (res_cnt > 1) {
+		for (i = 0; i < res_cnt; i++)
+			gp_stat->stddev += (IT_MEAN_DIFF * IT_MEAN_DIFF) / (res_cnt - 1.0);
+	}
+	gp_stat->stddev = sqrt(gp_stat->stddev);
+#undef IT_MEAN_DIFF
+}
+
+void
+grace_period_ticks_basic_stats(struct bench_res res[], int res_cnt, struct basic_stats *gp_stat)
+{
+	int i;
+
+	memset(gp_stat, 0, sizeof(struct basic_stats));
+	for (i = 0; i < res_cnt; i++)
+		gp_stat->mean += res[i].stime / (double)res[i].gp_ct / (0.0 + res_cnt);
+
+#define IT_MEAN_DIFF (res[i].stime / (double)res[i].gp_ct - gp_stat->mean)
+	if (res_cnt > 1) {
+		for (i = 0; i < res_cnt; i++)
+			gp_stat->stddev += (IT_MEAN_DIFF * IT_MEAN_DIFF) / (res_cnt - 1.0);
+	}
+	gp_stat->stddev = sqrt(gp_stat->stddev);
+#undef IT_MEAN_DIFF
+}
+
 void hits_drops_report_final(struct bench_res res[], int res_cnt)
 {
 	int i;
@@ -236,6 +273,7 @@ extern struct argp bench_ringbufs_argp;
 extern struct argp bench_bloom_map_argp;
 extern struct argp bench_bpf_loop_argp;
 extern struct argp bench_local_storage_argp;
+extern struct argp bench_local_storage_rcu_tasks_trace_argp;
 extern struct argp bench_strncmp_argp;
 
 static const struct argp_child bench_parsers[] = {
@@ -244,6 +282,8 @@ static const struct argp_child bench_parsers[] = {
 	{ &bench_bpf_loop_argp, 0, "bpf_loop helper benchmark", 0 },
 	{ &bench_local_storage_argp, 0, "local_storage benchmark", 0 },
 	{ &bench_strncmp_argp, 0, "bpf_strncmp helper benchmark", 0 },
+	{ &bench_local_storage_rcu_tasks_trace_argp, 0,
+		"local_storage RCU Tasks Trace slowdown benchmark", 0 },
 	{},
 };
 
@@ -449,6 +489,7 @@ extern const struct bench bench_bpf_hashmap_full_update;
 extern const struct bench bench_local_storage_cache_seq_get;
 extern const struct bench bench_local_storage_cache_interleaved_get;
 extern const struct bench bench_local_storage_cache_hashmap_control;
+extern const struct bench bench_local_storage_tasks_trace;
 
 static const struct bench *benchs[] = {
 	&bench_count_global,
@@ -487,6 +528,7 @@ static const struct bench *benchs[] = {
 	&bench_local_storage_cache_seq_get,
 	&bench_local_storage_cache_interleaved_get,
 	&bench_local_storage_cache_hashmap_control,
+	&bench_local_storage_tasks_trace,
 };
 
 static void setup_benchmark()
