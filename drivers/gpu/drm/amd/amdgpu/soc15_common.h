@@ -24,6 +24,9 @@
 #ifndef __SOC15_COMMON_H__
 #define __SOC15_COMMON_H__
 
+/* GET_INST returns the physical instance corresponding to a logical instance */
+#define GET_INST(ip, inst) (adev->ip_map.logical_to_dev_inst? adev->ip_map.logical_to_dev_inst(adev, ip##_HWIP, inst): inst)
+
 /* Register Access Macros */
 #define SOC15_REG_OFFSET(ip, inst, reg)	(adev->reg_offset[ip##_HWIP][inst][reg##_BASE_IDX] + reg)
 #define SOC15_REG_OFFSET1(ip, inst, reg, offset) \

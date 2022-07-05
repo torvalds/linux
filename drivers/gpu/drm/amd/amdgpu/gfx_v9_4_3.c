@@ -190,7 +190,7 @@ static void gfx_v9_4_3_init_golden_registers(struct amdgpu_device *adev)
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 2; i < num_xcc; i++)
-		WREG32_SOC15(GC, i, regGRBM_MCM_ADDR, 0x4);
+		WREG32_SOC15(GC, GET_INST(GC, i), regGRBM_MCM_ADDR, 0x4);
 }
 
 static void gfx_v9_4_3_write_data_to_reg(struct amdgpu_ring *ring, int eng_sel,
@@ -236,7 +236,7 @@ static int gfx_v9_4_3_ring_test_ring(struct amdgpu_ring *ring)
 	/* scratch_reg0_offset is 32bit even with full XCD config */
 	uint32_t scratch_reg0_offset;
 
-	scratch_reg0_offset = SOC15_REG_OFFSET(GC, ring->xcc_id, regSCRATCH_REG0);
+	scratch_reg0_offset = SOC15_REG_OFFSET(GC, GET_INST(GC, ring->xcc_id), regSCRATCH_REG0);
 	WREG32(scratch_reg0_offset, 0xCAFEDEAD);
 
 	r = amdgpu_ring_alloc(ring, 3);
@@ -324,9 +324,9 @@ static uint64_t gfx_v9_4_3_get_gpu_clock_counter(struct amdgpu_device *adev)
 
 	amdgpu_gfx_off_ctrl(adev, false);
 	mutex_lock(&adev->gfx.gpu_clock_mutex);
-	WREG32_SOC15(GC, 0, regRLC_CAPTURE_GPU_CLOCK_COUNT, 1);
-	clock = (uint64_t)RREG32_SOC15(GC, 0, regRLC_GPU_CLOCK_COUNT_LSB) |
-		((uint64_t)RREG32_SOC15(GC, 0, regRLC_GPU_CLOCK_COUNT_MSB) << 32ULL);
+	WREG32_SOC15(GC, GET_INST(GC, 0), regRLC_CAPTURE_GPU_CLOCK_COUNT, 1);
+	clock = (uint64_t)RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_GPU_CLOCK_COUNT_LSB) |
+		((uint64_t)RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_GPU_CLOCK_COUNT_MSB) << 32ULL);
 	mutex_unlock(&adev->gfx.gpu_clock_mutex);
 	amdgpu_gfx_off_ctrl(adev, true);
 
@@ -598,24 +598,24 @@ static void gfx_v9_4_3_select_se_sh(struct amdgpu_device *adev,
 	else
 		data = REG_SET_FIELD(data, GRBM_GFX_INDEX, SH_INDEX, sh_num);
 
-	WREG32_SOC15_RLC_SHADOW_EX(reg, GC, xcc_id, regGRBM_GFX_INDEX, data);
+	WREG32_SOC15_RLC_SHADOW_EX(reg, GC, GET_INST(GC, xcc_id), regGRBM_GFX_INDEX, data);
 }
 
 static uint32_t wave_read_ind(struct amdgpu_device *adev, uint32_t simd, uint32_t wave, uint32_t address)
 {
-	WREG32_SOC15_RLC(GC, 0, regSQ_IND_INDEX,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, 0), regSQ_IND_INDEX,
 		(wave << SQ_IND_INDEX__WAVE_ID__SHIFT) |
 		(simd << SQ_IND_INDEX__SIMD_ID__SHIFT) |
 		(address << SQ_IND_INDEX__INDEX__SHIFT) |
 		(SQ_IND_INDEX__FORCE_READ_MASK));
-	return RREG32_SOC15(GC, 0, regSQ_IND_DATA);
+	return RREG32_SOC15(GC, GET_INST(GC, 0), regSQ_IND_DATA);
 }
 
 static void wave_read_regs(struct amdgpu_device *adev, uint32_t simd,
 			   uint32_t wave, uint32_t thread,
 			   uint32_t regno, uint32_t num, uint32_t *out)
 {
-	WREG32_SOC15_RLC(GC, 0, regSQ_IND_INDEX,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, 0), regSQ_IND_INDEX,
 		(wave << SQ_IND_INDEX__WAVE_ID__SHIFT) |
 		(simd << SQ_IND_INDEX__SIMD_ID__SHIFT) |
 		(regno << SQ_IND_INDEX__INDEX__SHIFT) |
@@ -623,7 +623,7 @@ static void wave_read_regs(struct amdgpu_device *adev, uint32_t simd,
 		(SQ_IND_INDEX__FORCE_READ_MASK) |
 		(SQ_IND_INDEX__AUTO_INCR_MASK));
 	while (num--)
-		*(out++) = RREG32_SOC15(GC, 0, regSQ_IND_DATA);
+		*(out++) = RREG32_SOC15(GC, GET_INST(GC, 0), regSQ_IND_DATA);
 }
 
 static void gfx_v9_4_3_read_wave_data(struct amdgpu_device *adev,
@@ -669,7 +669,7 @@ static void gfx_v9_4_3_read_wave_vgprs(struct amdgpu_device *adev, uint32_t simd
 static void gfx_v9_4_3_select_me_pipe_q(struct amdgpu_device *adev,
 					u32 me, u32 pipe, u32 q, u32 vm)
 {
-	soc15_grbm_select(adev, me, pipe, q, vm, 0);
+	soc15_grbm_select(adev, me, pipe, q, vm, GET_INST(GC, 0));
 }
 
 static enum amdgpu_gfx_partition
@@ -719,7 +719,7 @@ static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 				    num_xcc_per_partition);
 		tmp = REG_SET_FIELD(tmp, CP_HYP_XCP_CTL, VIRTUAL_XCC_ID,
 				    i % num_xcc_per_partition);
-		WREG32_SOC15(GC, i, regCP_HYP_XCP_CTL, tmp);
+		WREG32_SOC15(GC, GET_INST(GC, i), regCP_HYP_XCP_CTL, tmp);
 	}
 
 	if (adev->nbio.funcs->set_compute_partition_mode)
@@ -755,7 +755,7 @@ static int gfx_v9_4_3_gpu_early_init(struct amdgpu_device *adev)
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
 		adev->gfx.config.sc_hiz_tile_fifo_size = 0x30;
 		adev->gfx.config.sc_earlyz_tile_fifo_size = 0x4C0;
-		gb_addr_config = RREG32_SOC15(GC, 0, regGB_ADDR_CONFIG);
+		gb_addr_config = RREG32_SOC15(GC, GET_INST(GC, 0), regGB_ADDR_CONFIG);
 		break;
 	default:
 		BUG();
@@ -957,8 +957,8 @@ static u32 gfx_v9_4_3_get_rb_active_bitmap(struct amdgpu_device *adev)
 {
 	u32 data, mask;
 
-	data = RREG32_SOC15(GC, 0, regCC_RB_BACKEND_DISABLE);
-	data |= RREG32_SOC15(GC, 0, regGC_USER_RB_BACKEND_DISABLE);
+	data = RREG32_SOC15(GC, GET_INST(GC, 0), regCC_RB_BACKEND_DISABLE);
+	data |= RREG32_SOC15(GC, GET_INST(GC, 0), regGC_USER_RB_BACKEND_DISABLE);
 
 	data &= CC_RB_BACKEND_DISABLE__BACKEND_DISABLE_MASK;
 	data >>= GC_USER_RB_BACKEND_DISABLE__BACKEND_DISABLE__SHIFT;
@@ -1014,21 +1014,21 @@ static void gfx_v9_4_3_init_compute_vmid(struct amdgpu_device *adev, int xcc_id)
 
 	mutex_lock(&adev->srbm_mutex);
 	for (i = adev->vm_manager.first_kfd_vmid; i < AMDGPU_NUM_VMID; i++) {
-		soc15_grbm_select(adev, 0, 0, 0, i, xcc_id);
+		soc15_grbm_select(adev, 0, 0, 0, i, GET_INST(GC, xcc_id));
 		/* CP and shaders */
-		WREG32_SOC15_RLC(GC, xcc_id, regSH_MEM_CONFIG, sh_mem_config);
-		WREG32_SOC15_RLC(GC, xcc_id, regSH_MEM_BASES, sh_mem_bases);
+		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regSH_MEM_CONFIG, sh_mem_config);
+		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regSH_MEM_BASES, sh_mem_bases);
 	}
-	soc15_grbm_select(adev, 0, 0, 0, 0, xcc_id);
+	soc15_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, xcc_id));
 	mutex_unlock(&adev->srbm_mutex);
 
 	/* Initialize all compute VMIDs to have no GDS, GWS, or OA
 	   acccess. These should be enabled by FW for target VMIDs. */
 	for (i = adev->vm_manager.first_kfd_vmid; i < AMDGPU_NUM_VMID; i++) {
-		WREG32_SOC15_OFFSET(GC, xcc_id, regGDS_VMID0_BASE, 2 * i, 0);
-		WREG32_SOC15_OFFSET(GC, xcc_id, regGDS_VMID0_SIZE, 2 * i, 0);
-		WREG32_SOC15_OFFSET(GC, xcc_id, regGDS_GWS_VMID0, i, 0);
-		WREG32_SOC15_OFFSET(GC, xcc_id, regGDS_OA_VMID0, i, 0);
+		WREG32_SOC15_OFFSET(GC, GET_INST(GC, xcc_id), regGDS_VMID0_BASE, 2 * i, 0);
+		WREG32_SOC15_OFFSET(GC, GET_INST(GC, xcc_id), regGDS_VMID0_SIZE, 2 * i, 0);
+		WREG32_SOC15_OFFSET(GC, GET_INST(GC, xcc_id), regGDS_GWS_VMID0, i, 0);
+		WREG32_SOC15_OFFSET(GC, GET_INST(GC, xcc_id), regGDS_OA_VMID0, i, 0);
 	}
 }
 
@@ -1043,10 +1043,10 @@ static void gfx_v9_4_3_init_gds_vmid(struct amdgpu_device *adev, int xcc_id)
 	 * access so that HWS firmware can save/restore entries.
 	 */
 	for (vmid = 1; vmid < AMDGPU_NUM_VMID; vmid++) {
-		WREG32_SOC15_OFFSET(GC, xcc_id, regGDS_VMID0_BASE, 2 * vmid, 0);
-		WREG32_SOC15_OFFSET(GC, xcc_id, regGDS_VMID0_SIZE, 2 * vmid, 0);
-		WREG32_SOC15_OFFSET(GC, xcc_id, regGDS_GWS_VMID0, vmid, 0);
-		WREG32_SOC15_OFFSET(GC, xcc_id, regGDS_OA_VMID0, vmid, 0);
+		WREG32_SOC15_OFFSET(GC, GET_INST(GC, xcc_id), regGDS_VMID0_BASE, 2 * vmid, 0);
+		WREG32_SOC15_OFFSET(GC, GET_INST(GC, xcc_id), regGDS_VMID0_SIZE, 2 * vmid, 0);
+		WREG32_SOC15_OFFSET(GC, GET_INST(GC, xcc_id), regGDS_GWS_VMID0, vmid, 0);
+		WREG32_SOC15_OFFSET(GC, GET_INST(GC, xcc_id), regGDS_OA_VMID0, vmid, 0);
 	}
 }
 
@@ -1057,42 +1057,42 @@ static void gfx_v9_4_3_constants_init(struct amdgpu_device *adev)
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
-		WREG32_FIELD15_PREREG(GC, i, GRBM_CNTL, READ_TIMEOUT, 0xff);
+		WREG32_FIELD15_PREREG(GC, GET_INST(GC, i), GRBM_CNTL, READ_TIMEOUT, 0xff);
 		gfx_v9_4_3_setup_rb(adev, i);
 	}
 
 	gfx_v9_4_3_get_cu_info(adev, &adev->gfx.cu_info);
-	adev->gfx.config.db_debug2 = RREG32_SOC15(GC, 0, regDB_DEBUG2);
+	adev->gfx.config.db_debug2 = RREG32_SOC15(GC, GET_INST(GC, 0), regDB_DEBUG2);
 
 	/* XXX SH_MEM regs */
 	/* where to put LDS, scratch, GPUVM in FSA64 space */
 	mutex_lock(&adev->srbm_mutex);
 	for (i = 0; i < adev->vm_manager.id_mgr[AMDGPU_GFXHUB(0)].num_ids; i++) {
 		for (j = 0; j < num_xcc; j++) {
-			soc15_grbm_select(adev, 0, 0, 0, i, j);
+			soc15_grbm_select(adev, 0, 0, 0, i, GET_INST(GC, j));
 			/* CP and shaders */
 			if (i == 0) {
 				tmp = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE,
 						    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
 				tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, RETRY_DISABLE,
 						    !!adev->gmc.noretry);
-				WREG32_SOC15_RLC(GC, j, regSH_MEM_CONFIG, tmp);
-				WREG32_SOC15_RLC(GC, j, regSH_MEM_BASES, 0);
+				WREG32_SOC15_RLC(GC, GET_INST(GC, j), regSH_MEM_CONFIG, tmp);
+				WREG32_SOC15_RLC(GC, GET_INST(GC, j), regSH_MEM_BASES, 0);
 			} else {
 				tmp = REG_SET_FIELD(0, SH_MEM_CONFIG, ALIGNMENT_MODE,
 						    SH_MEM_ALIGNMENT_MODE_UNALIGNED);
 				tmp = REG_SET_FIELD(tmp, SH_MEM_CONFIG, RETRY_DISABLE,
 						    !!adev->gmc.noretry);
-				WREG32_SOC15_RLC(GC, j, regSH_MEM_CONFIG, tmp);
+				WREG32_SOC15_RLC(GC, GET_INST(GC, j), regSH_MEM_CONFIG, tmp);
 				tmp = REG_SET_FIELD(0, SH_MEM_BASES, PRIVATE_BASE,
 					(adev->gmc.private_aperture_start >> 48));
 				tmp = REG_SET_FIELD(tmp, SH_MEM_BASES, SHARED_BASE,
 					(adev->gmc.shared_aperture_start >> 48));
-				WREG32_SOC15_RLC(GC, j, regSH_MEM_BASES, tmp);
+				WREG32_SOC15_RLC(GC, GET_INST(GC, j), regSH_MEM_BASES, tmp);
 			}
 		}
 	}
-	soc15_grbm_select(adev, 0, 0, 0, 0, 0);
+	soc15_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, 0));
 
 	mutex_unlock(&adev->srbm_mutex);
 
@@ -1105,18 +1105,18 @@ static void gfx_v9_4_3_constants_init(struct amdgpu_device *adev)
 static void gfx_v9_4_3_enable_save_restore_machine(struct amdgpu_device *adev,
 						   int xcc_id)
 {
-	WREG32_FIELD15_PREREG(GC, xcc_id, RLC_SRM_CNTL, SRM_ENABLE, 1);
+	WREG32_FIELD15_PREREG(GC, GET_INST(GC, xcc_id), RLC_SRM_CNTL, SRM_ENABLE, 1);
 }
 
 static void gfx_v9_4_3_init_csb(struct amdgpu_device *adev, int xcc_id)
 {
 	adev->gfx.rlc.funcs->get_csb_buffer(adev, adev->gfx.rlc.cs_ptr);
 	/* csib */
-	WREG32_RLC(SOC15_REG_OFFSET(GC, xcc_id, regRLC_CSIB_ADDR_HI),
+	WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_CSIB_ADDR_HI),
 			adev->gfx.rlc.clear_state_gpu_addr >> 32);
-	WREG32_RLC(SOC15_REG_OFFSET(GC, xcc_id, regRLC_CSIB_ADDR_LO),
+	WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_CSIB_ADDR_LO),
 			adev->gfx.rlc.clear_state_gpu_addr & 0xfffffffc);
-	WREG32_RLC(SOC15_REG_OFFSET(GC, xcc_id, regRLC_CSIB_LENGTH),
+	WREG32_RLC(SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regRLC_CSIB_LENGTH),
 			adev->gfx.rlc.clear_state_size);
 }
 
@@ -1137,7 +1137,7 @@ static void gfx_v9_4_3_init_pg(struct amdgpu_device *adev, int xcc_id)
 			      AMD_PG_SUPPORT_CP |
 			      AMD_PG_SUPPORT_GDS |
 			      AMD_PG_SUPPORT_RLC_SMU_HS)) {
-		WREG32_SOC15(GC, 0, regRLC_JUMP_TABLE_RESTORE,
+		WREG32_SOC15(GC, GET_INST(GC, 0), regRLC_JUMP_TABLE_RESTORE,
 		       adev->gfx.rlc.cp_table_gpu_addr >> 8);
 	}
 }
@@ -1146,9 +1146,9 @@ static void gfx_v9_4_3_disable_gpa_mode(struct amdgpu_device *adev, int xcc_id)
 {
 	uint32_t data;
 
-	data = RREG32_SOC15(GC, xcc_id, regCPC_PSP_DEBUG);
+	data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCPC_PSP_DEBUG);
 	data |= CPC_PSP_DEBUG__UTCL2IUGPAOVERRIDE_MASK;
-	WREG32_SOC15(GC, xcc_id, regCPC_PSP_DEBUG, data);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCPC_PSP_DEBUG, data);
 }
 
 static void gfx_v9_4_3_program_xcc_id(struct amdgpu_device *adev, int xcc_id)
@@ -1160,16 +1160,16 @@ static void gfx_v9_4_3_program_xcc_id(struct amdgpu_device *adev, int xcc_id)
 	switch (num_xcc) {
 	/* directly config VIRTUAL_XCC_ID to 0 for 1-XCC */
 	case 1:
-		WREG32_SOC15(GC, xcc_id, regCP_HYP_XCP_CTL, 0x8);
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_HYP_XCP_CTL, 0x8);
 		break;
 	case 2:
 		tmp = (xcc_id % adev->gfx.num_xcc_per_xcp) << REG_FIELD_SHIFT(CP_HYP_XCP_CTL, VIRTUAL_XCC_ID);
 		tmp = tmp | (adev->gfx.num_xcc_per_xcp << REG_FIELD_SHIFT(CP_HYP_XCP_CTL, NUM_XCC_IN_XCP));
-		WREG32_SOC15(GC, xcc_id, regCP_HYP_XCP_CTL, tmp);
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_HYP_XCP_CTL, tmp);
 
 		tmp = xcc_id << REG_FIELD_SHIFT(CP_PSP_XCP_CTL, PHYSICAL_XCC_ID);
 		tmp = tmp | (xcc_id << REG_FIELD_SHIFT(CP_PSP_XCP_CTL, XCC_DIE_ID));
-		WREG32_SOC15(GC, xcc_id, regCP_PSP_XCP_CTL, tmp);
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_PSP_XCP_CTL, tmp);
 		break;
 	default:
 		break;
@@ -1181,7 +1181,7 @@ static bool gfx_v9_4_3_is_rlc_enabled(struct amdgpu_device *adev)
 	uint32_t rlc_setting;
 
 	/* if RLC is not enabled, do nothing */
-	rlc_setting = RREG32_SOC15(GC, 0, regRLC_CNTL);
+	rlc_setting = RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_CNTL);
 	if (!(rlc_setting & RLC_CNTL__RLC_ENABLE_F32_MASK))
 		return false;
 
@@ -1195,11 +1195,11 @@ static void gfx_v9_4_3_set_safe_mode(struct amdgpu_device *adev, int xcc_id)
 
 	data = RLC_SAFE_MODE__CMD_MASK;
 	data |= (1 << RLC_SAFE_MODE__MESSAGE__SHIFT);
-	WREG32_SOC15(GC, xcc_id, regRLC_SAFE_MODE, data);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_SAFE_MODE, data);
 
 	/* wait for RLC_SAFE_MODE */
 	for (i = 0; i < adev->usec_timeout; i++) {
-		if (!REG_GET_FIELD(RREG32_SOC15(GC, 0, regRLC_SAFE_MODE), RLC_SAFE_MODE, CMD))
+		if (!REG_GET_FIELD(RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_SAFE_MODE), RLC_SAFE_MODE, CMD))
 			break;
 		udelay(1);
 	}
@@ -1210,7 +1210,7 @@ static void gfx_v9_4_3_unset_safe_mode(struct amdgpu_device *adev, int xcc_id)
 	uint32_t data;
 
 	data = RLC_SAFE_MODE__CMD_MASK;
-	WREG32_SOC15(GC, xcc_id, regRLC_SAFE_MODE, data);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_SAFE_MODE, data);
 }
 
 static int gfx_v9_4_3_rlc_init(struct amdgpu_device *adev)
@@ -1247,7 +1247,7 @@ static void gfx_v9_4_3_wait_for_rlc_serdes(struct amdgpu_device *adev,
 		for (j = 0; j < adev->gfx.config.max_sh_per_se; j++) {
 			gfx_v9_4_3_select_se_sh(adev, i, j, 0xffffffff, xcc_id);
 			for (k = 0; k < adev->usec_timeout; k++) {
-				if (RREG32_SOC15(GC, 0, regRLC_SERDES_CU_MASTER_BUSY) == 0)
+				if (RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_SERDES_CU_MASTER_BUSY) == 0)
 					break;
 				udelay(1);
 			}
@@ -1270,7 +1270,7 @@ static void gfx_v9_4_3_wait_for_rlc_serdes(struct amdgpu_device *adev,
 		RLC_SERDES_NONCU_MASTER_BUSY__TC0_MASTER_BUSY_MASK |
 		RLC_SERDES_NONCU_MASTER_BUSY__TC1_MASTER_BUSY_MASK;
 	for (k = 0; k < adev->usec_timeout; k++) {
-		if ((RREG32_SOC15(GC, 0, regRLC_SERDES_NONCU_MASTER_BUSY) & mask) == 0)
+		if ((RREG32_SOC15(GC, GET_INST(GC, 0), regRLC_SERDES_NONCU_MASTER_BUSY) & mask) == 0)
 			break;
 		udelay(1);
 	}
@@ -1283,13 +1283,13 @@ static void gfx_v9_4_3_enable_gui_idle_interrupt(struct amdgpu_device *adev,
 
 	/* These interrupts should be enabled to drive DS clock */
 
-	tmp = RREG32_SOC15(GC, xcc_id, regCP_INT_CNTL_RING0);
+	tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_INT_CNTL_RING0);
 
 	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL_RING0, CNTX_BUSY_INT_ENABLE, enable ? 1 : 0);
 	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL_RING0, CNTX_EMPTY_INT_ENABLE, enable ? 1 : 0);
 	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL_RING0, CMP_BUSY_INT_ENABLE, enable ? 1 : 0);
 
-	WREG32_SOC15(GC, xcc_id, regCP_INT_CNTL_RING0, tmp);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_INT_CNTL_RING0, tmp);
 }
 
 static void gfx_v9_4_3_rlc_stop(struct amdgpu_device *adev)
@@ -1298,7 +1298,7 @@ static void gfx_v9_4_3_rlc_stop(struct amdgpu_device *adev)
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
-		WREG32_FIELD15_PREREG(GC, i, RLC_CNTL, RLC_ENABLE_F32, 0);
+		WREG32_FIELD15_PREREG(GC, GET_INST(GC, i), RLC_CNTL, RLC_ENABLE_F32, 0);
 		gfx_v9_4_3_enable_gui_idle_interrupt(adev, false, i);
 		gfx_v9_4_3_wait_for_rlc_serdes(adev, i);
 	}
@@ -1310,9 +1310,9 @@ static void gfx_v9_4_3_rlc_reset(struct amdgpu_device *adev)
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
-		WREG32_FIELD15_PREREG(GC, i, GRBM_SOFT_RESET, SOFT_RESET_RLC, 1);
+		WREG32_FIELD15_PREREG(GC, GET_INST(GC, i), GRBM_SOFT_RESET, SOFT_RESET_RLC, 1);
 		udelay(50);
-		WREG32_FIELD15_PREREG(GC, i, GRBM_SOFT_RESET, SOFT_RESET_RLC, 0);
+		WREG32_FIELD15_PREREG(GC, GET_INST(GC, i), GRBM_SOFT_RESET, SOFT_RESET_RLC, 0);
 		udelay(50);
 	}
 }
@@ -1326,7 +1326,7 @@ static void gfx_v9_4_3_rlc_start(struct amdgpu_device *adev)
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
-		WREG32_FIELD15_PREREG(GC, i, RLC_CNTL, RLC_ENABLE_F32, 1);
+		WREG32_FIELD15_PREREG(GC, GET_INST(GC, i), RLC_CNTL, RLC_ENABLE_F32, 1);
 		udelay(50);
 
 		/* carrizo do enable cp interrupt after cp inited */
@@ -1337,18 +1337,18 @@ static void gfx_v9_4_3_rlc_start(struct amdgpu_device *adev)
 
 #ifdef AMDGPU_RLC_DEBUG_RETRY
 		/* RLC_GPM_GENERAL_6 : RLC Ucode version */
-		rlc_ucode_ver = RREG32_SOC15(GC, i, regRLC_GPM_GENERAL_6);
+		rlc_ucode_ver = RREG32_SOC15(GC, GET_INST(GC, i), regRLC_GPM_GENERAL_6);
 		if (rlc_ucode_ver == 0x108) {
 			dev_info(adev->dev,
 				 "Using rlc debug ucode. regRLC_GPM_GENERAL_6 ==0x08%x / fw_ver == %i \n",
 				 rlc_ucode_ver, adev->gfx.rlc_fw_version);
 			/* RLC_GPM_TIMER_INT_3 : Timer interval in RefCLK cycles,
 			 * default is 0x9C4 to create a 100us interval */
-			WREG32_SOC15(GC, i, regRLC_GPM_TIMER_INT_3, 0x9C4);
+			WREG32_SOC15(GC, GET_INST(GC, i), regRLC_GPM_TIMER_INT_3, 0x9C4);
 			/* RLC_GPM_GENERAL_12 : Minimum gap between wptr and rptr
 			 * to disable the page fault retry interrupts, default is
 			 * 0x100 (256) */
-			WREG32_SOC15(GC, i, regRLC_GPM_GENERAL_12, 0x100);
+			WREG32_SOC15(GC, GET_INST(GC, i), regRLC_GPM_GENERAL_12, 0x100);
 		}
 #endif
 	}
@@ -1370,16 +1370,16 @@ static int gfx_v9_4_3_rlc_load_microcode(struct amdgpu_device *adev, int xcc_id)
 			   le32_to_cpu(hdr->header.ucode_array_offset_bytes));
 	fw_size = le32_to_cpu(hdr->header.ucode_size_bytes) / 4;
 
-	WREG32_SOC15(GC, xcc_id, regRLC_GPM_UCODE_ADDR,
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_GPM_UCODE_ADDR,
 			RLCG_UCODE_LOADING_START_ADDRESS);
 	for (i = 0; i < fw_size; i++) {
 		if (amdgpu_emu_mode == 1 && i % 100 == 0) {
 			dev_info(adev->dev, "Write RLC ucode data %u DWs\n", i);
 			msleep(1);
 		}
-		WREG32_SOC15(GC, xcc_id, regRLC_GPM_UCODE_DATA, le32_to_cpup(fw_data++));
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_GPM_UCODE_DATA, le32_to_cpup(fw_data++));
 	}
-	WREG32_SOC15(GC, xcc_id, regRLC_GPM_UCODE_ADDR, adev->gfx.rlc_fw_version);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_GPM_UCODE_ADDR, adev->gfx.rlc_fw_version);
 
 	return 0;
 }
@@ -1393,7 +1393,7 @@ static int gfx_v9_4_3_rlc_resume(struct amdgpu_device *adev)
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
 		/* disable CG */
-		WREG32_SOC15(GC, i, regRLC_CGCG_CGLS_CTRL, 0);
+		WREG32_SOC15(GC, GET_INST(GC, i), regRLC_CGCG_CGLS_CTRL, 0);
 
 		gfx_v9_4_3_init_pg(adev, i);
 
@@ -1415,7 +1415,7 @@ static void gfx_v9_4_3_update_spm_vmid(struct amdgpu_device *adev,
 {
 	u32 reg, data;
 
-	reg = SOC15_REG_OFFSET(GC, 0, regRLC_SPM_MC_CNTL);
+	reg = SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regRLC_SPM_MC_CNTL);
 	if (amdgpu_sriov_is_pp_one_vf(adev))
 		data = RREG32_NO_KIQ(reg);
 	else
@@ -1425,9 +1425,9 @@ static void gfx_v9_4_3_update_spm_vmid(struct amdgpu_device *adev,
 	data |= (vmid & RLC_SPM_MC_CNTL__RLC_SPM_VMID_MASK) << RLC_SPM_MC_CNTL__RLC_SPM_VMID__SHIFT;
 
 	if (amdgpu_sriov_is_pp_one_vf(adev))
-		WREG32_SOC15_NO_KIQ(GC, 0, regRLC_SPM_MC_CNTL, data);
+		WREG32_SOC15_NO_KIQ(GC, GET_INST(GC, 0), regRLC_SPM_MC_CNTL, data);
 	else
-		WREG32_SOC15(GC, 0, regRLC_SPM_MC_CNTL, data);
+		WREG32_SOC15(GC, GET_INST(GC, 0), regRLC_SPM_MC_CNTL, data);
 }
 
 static const struct soc15_reg_rlcg rlcg_access_gc_9_4_3[] = {
@@ -1439,7 +1439,7 @@ static bool gfx_v9_4_3_check_rlcg_range(struct amdgpu_device *adev,
 					uint32_t offset,
 					struct soc15_reg_rlcg *entries, int arr_size)
 {
-	int i;
+	int i, inst;
 	uint32_t reg;
 
 	if (!entries)
@@ -1449,7 +1449,12 @@ static bool gfx_v9_4_3_check_rlcg_range(struct amdgpu_device *adev,
 		const struct soc15_reg_rlcg *entry;
 
 		entry = &entries[i];
-		reg = adev->reg_offset[entry->hwip][entry->instance][entry->segment] + entry->reg;
+		inst = adev->ip_map.logical_to_dev_inst ?
+			       adev->ip_map.logical_to_dev_inst(
+				       adev, entry->hwip, entry->instance) :
+			       entry->instance;
+		reg = adev->reg_offset[entry->hwip][inst][entry->segment] +
+		      entry->reg;
 		if (offset == reg)
 			return true;
 	}
@@ -1468,9 +1473,9 @@ static void gfx_v9_4_3_cp_compute_enable(struct amdgpu_device *adev,
 					 bool enable, int xcc_id)
 {
 	if (enable) {
-		WREG32_SOC15_RLC(GC, xcc_id, regCP_MEC_CNTL, 0);
+		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_MEC_CNTL, 0);
 	} else {
-		WREG32_SOC15_RLC(GC, xcc_id, regCP_MEC_CNTL,
+		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_MEC_CNTL,
 			(CP_MEC_CNTL__MEC_ME1_HALT_MASK | CP_MEC_CNTL__MEC_ME2_HALT_MASK));
 		adev->gfx.kiq[xcc_id].ring.sched.ready = false;
 	}
@@ -1501,17 +1506,17 @@ static int gfx_v9_4_3_cp_compute_load_microcode(struct amdgpu_device *adev,
 	tmp = 0;
 	tmp = REG_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, VMID, 0);
 	tmp = REG_SET_FIELD(tmp, CP_CPC_IC_BASE_CNTL, CACHE_POLICY, 0);
-	WREG32_SOC15(GC, xcc_id, regCP_CPC_IC_BASE_CNTL, tmp);
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_BASE_CNTL, tmp);
 
-	WREG32_SOC15(GC, xcc_id, regCP_CPC_IC_BASE_LO,
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_BASE_LO,
 		adev->gfx.mec.mec_fw_gpu_addr & 0xFFFFF000);
-	WREG32_SOC15(GC, xcc_id, regCP_CPC_IC_BASE_HI,
+	WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_CPC_IC_BASE_HI,
 		upper_32_bits(adev->gfx.mec.mec_fw_gpu_addr));
 
 	mec_ucode_addr_offset =
-		SOC15_REG_OFFSET(GC, xcc_id, regCP_MEC_ME1_UCODE_ADDR);
+		SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regCP_MEC_ME1_UCODE_ADDR);
 	mec_ucode_data_offset =
-		SOC15_REG_OFFSET(GC, xcc_id, regCP_MEC_ME1_UCODE_DATA);
+		SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regCP_MEC_ME1_UCODE_DATA);
 
 	/* MEC1 */
 	WREG32(mec_ucode_addr_offset, mec_hdr->jt_offset);
@@ -1532,12 +1537,12 @@ static void gfx_v9_4_3_kiq_setting(struct amdgpu_ring *ring, int xcc_id)
 	struct amdgpu_device *adev = ring->adev;
 
 	/* tell RLC which is KIQ queue */
-	tmp = RREG32_SOC15(GC, xcc_id, regRLC_CP_SCHEDULERS);
+	tmp = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CP_SCHEDULERS);
 	tmp &= 0xffffff00;
 	tmp |= (ring->me << 5) | (ring->pipe << 3) | (ring->queue);
-	WREG32_SOC15_RLC(GC, xcc_id, regRLC_CP_SCHEDULERS, tmp);
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regRLC_CP_SCHEDULERS, tmp);
 	tmp |= 0x80;
-	WREG32_SOC15_RLC(GC, xcc_id, regRLC_CP_SCHEDULERS, tmp);
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regRLC_CP_SCHEDULERS, tmp);
 }
 
 static void gfx_v9_4_3_mqd_set_priority(struct amdgpu_ring *ring, struct v9_mqd *mqd)
@@ -1580,14 +1585,14 @@ static int gfx_v9_4_3_mqd_init(struct amdgpu_ring *ring)
 	mqd->cp_hqd_eop_base_addr_hi = upper_32_bits(eop_base_addr);
 
 	/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
-	tmp = RREG32_SOC15(GC, 0, regCP_HQD_EOP_CONTROL);
+	tmp = RREG32_SOC15(GC, GET_INST(GC, 0), regCP_HQD_EOP_CONTROL);
 	tmp = REG_SET_FIELD(tmp, CP_HQD_EOP_CONTROL, EOP_SIZE,
 			(order_base_2(GFX9_MEC_HPD_SIZE / 4) - 1));
 
 	mqd->cp_hqd_eop_control = tmp;
 
 	/* enable doorbell? */
-	tmp = RREG32_SOC15(GC, 0, regCP_HQD_PQ_DOORBELL_CONTROL);
+	tmp = RREG32_SOC15(GC, GET_INST(GC, 0), regCP_HQD_PQ_DOORBELL_CONTROL);
 
 	if (ring->use_doorbell) {
 		tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_DOORBELL_CONTROL,
@@ -1617,7 +1622,7 @@ static int gfx_v9_4_3_mqd_init(struct amdgpu_ring *ring)
 	mqd->cp_mqd_base_addr_hi = upper_32_bits(ring->mqd_gpu_addr);
 
 	/* set MQD vmid to 0 */
-	tmp = RREG32_SOC15(GC, 0, regCP_MQD_CONTROL);
+	tmp = RREG32_SOC15(GC, GET_INST(GC, 0), regCP_MQD_CONTROL);
 	tmp = REG_SET_FIELD(tmp, CP_MQD_CONTROL, VMID, 0);
 	mqd->cp_mqd_control = tmp;
 
@@ -1627,7 +1632,7 @@ static int gfx_v9_4_3_mqd_init(struct amdgpu_ring *ring)
 	mqd->cp_hqd_pq_base_hi = upper_32_bits(hqd_gpu_addr);
 
 	/* set up the HQD, this is similar to CP_RB0_CNTL */
-	tmp = RREG32_SOC15(GC, 0, regCP_HQD_PQ_CONTROL);
+	tmp = RREG32_SOC15(GC, GET_INST(GC, 0), regCP_HQD_PQ_CONTROL);
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, QUEUE_SIZE,
 			    (order_base_2(ring->ring_size / 4) - 1));
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, RPTR_BLOCK_SIZE,
@@ -1654,23 +1659,23 @@ static int gfx_v9_4_3_mqd_init(struct amdgpu_ring *ring)
 
 	/* reset read and write pointers, similar to CP_RB0_WPTR/_RPTR */
 	ring->wptr = 0;
-	mqd->cp_hqd_pq_rptr = RREG32_SOC15(GC, 0, regCP_HQD_PQ_RPTR);
+	mqd->cp_hqd_pq_rptr = RREG32_SOC15(GC, GET_INST(GC, 0), regCP_HQD_PQ_RPTR);
 
 	/* set the vmid for the queue */
 	mqd->cp_hqd_vmid = 0;
 
-	tmp = RREG32_SOC15(GC, 0, regCP_HQD_PERSISTENT_STATE);
+	tmp = RREG32_SOC15(GC, GET_INST(GC, 0), regCP_HQD_PERSISTENT_STATE);
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PERSISTENT_STATE, PRELOAD_SIZE, 0x53);
 	mqd->cp_hqd_persistent_state = tmp;
 
 	/* set MIN_IB_AVAIL_SIZE */
-	tmp = RREG32_SOC15(GC, 0, regCP_HQD_IB_CONTROL);
+	tmp = RREG32_SOC15(GC, GET_INST(GC, 0), regCP_HQD_IB_CONTROL);
 	tmp = REG_SET_FIELD(tmp, CP_HQD_IB_CONTROL, MIN_IB_AVAIL_SIZE, 3);
 	mqd->cp_hqd_ib_control = tmp;
 
 	/* set static priority for a queue/ring */
 	gfx_v9_4_3_mqd_set_priority(ring, mqd);
-	mqd->cp_hqd_quantum = RREG32_SOC15(GC, 0, regCP_HQD_QUANTUM);
+	mqd->cp_hqd_quantum = RREG32_SOC15(GC, GET_INST(GC, 0), regCP_HQD_QUANTUM);
 
 	/* map_queues packet doesn't need activate the queue,
 	 * so only kiq need set this field.
@@ -1690,94 +1695,94 @@ static int gfx_v9_4_3_kiq_init_register(struct amdgpu_ring *ring, int xcc_id)
 	/* disable wptr polling */
 	WREG32_FIELD15_PREREG(GC, xcc_id, CP_PQ_WPTR_POLL_CNTL, EN, 0);
 
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_EOP_BASE_ADDR,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_EOP_BASE_ADDR,
 	       mqd->cp_hqd_eop_base_addr_lo);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_EOP_BASE_ADDR_HI,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_EOP_BASE_ADDR_HI,
 	       mqd->cp_hqd_eop_base_addr_hi);
 
 	/* set the EOP size, register value is 2^(EOP_SIZE+1) dwords */
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_EOP_CONTROL,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_EOP_CONTROL,
 	       mqd->cp_hqd_eop_control);
 
 	/* enable doorbell? */
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_DOORBELL_CONTROL,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_DOORBELL_CONTROL,
 	       mqd->cp_hqd_pq_doorbell_control);
 
 	/* disable the queue if it's active */
-	if (RREG32_SOC15(GC, xcc_id, regCP_HQD_ACTIVE) & 1) {
-		WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_DEQUEUE_REQUEST, 1);
+	if (RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_HQD_ACTIVE) & 1) {
+		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_DEQUEUE_REQUEST, 1);
 		for (j = 0; j < adev->usec_timeout; j++) {
-			if (!(RREG32_SOC15(GC, xcc_id, regCP_HQD_ACTIVE) & 1))
+			if (!(RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_HQD_ACTIVE) & 1))
 				break;
 			udelay(1);
 		}
-		WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_DEQUEUE_REQUEST,
+		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_DEQUEUE_REQUEST,
 		       mqd->cp_hqd_dequeue_request);
-		WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_RPTR,
+		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_RPTR,
 		       mqd->cp_hqd_pq_rptr);
-		WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_WPTR_LO,
+		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_WPTR_LO,
 		       mqd->cp_hqd_pq_wptr_lo);
-		WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_WPTR_HI,
+		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_WPTR_HI,
 		       mqd->cp_hqd_pq_wptr_hi);
 	}
 
 	/* set the pointer to the MQD */
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_MQD_BASE_ADDR,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_MQD_BASE_ADDR,
 	       mqd->cp_mqd_base_addr_lo);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_MQD_BASE_ADDR_HI,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_MQD_BASE_ADDR_HI,
 	       mqd->cp_mqd_base_addr_hi);
 
 	/* set MQD vmid to 0 */
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_MQD_CONTROL,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_MQD_CONTROL,
 	       mqd->cp_mqd_control);
 
 	/* set the pointer to the HQD, this is similar CP_RB0_BASE/_HI */
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_BASE,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_BASE,
 	       mqd->cp_hqd_pq_base_lo);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_BASE_HI,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_BASE_HI,
 	       mqd->cp_hqd_pq_base_hi);
 
 	/* set up the HQD, this is similar to CP_RB0_CNTL */
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_CONTROL,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_CONTROL,
 	       mqd->cp_hqd_pq_control);
 
 	/* set the wb address whether it's enabled or not */
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_RPTR_REPORT_ADDR,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_RPTR_REPORT_ADDR,
 				mqd->cp_hqd_pq_rptr_report_addr_lo);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_RPTR_REPORT_ADDR_HI,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_RPTR_REPORT_ADDR_HI,
 				mqd->cp_hqd_pq_rptr_report_addr_hi);
 
 	/* only used if CP_PQ_WPTR_POLL_CNTL.CP_PQ_WPTR_POLL_CNTL__EN_MASK=1 */
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_WPTR_POLL_ADDR,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_WPTR_POLL_ADDR,
 	       mqd->cp_hqd_pq_wptr_poll_addr_lo);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_WPTR_POLL_ADDR_HI,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_WPTR_POLL_ADDR_HI,
 	       mqd->cp_hqd_pq_wptr_poll_addr_hi);
 
 	/* enable the doorbell if requested */
 	if (ring->use_doorbell) {
-		WREG32_SOC15(GC, xcc_id, regCP_MEC_DOORBELL_RANGE_LOWER,
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DOORBELL_RANGE_LOWER,
 					(adev->doorbell_index.kiq * 2) << 2);
-		WREG32_SOC15(GC, xcc_id, regCP_MEC_DOORBELL_RANGE_UPPER,
+		WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEC_DOORBELL_RANGE_UPPER,
 				(adev->doorbell_index.userqueue_end * 2) << 2);
 	}
 
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_DOORBELL_CONTROL,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_DOORBELL_CONTROL,
 	       mqd->cp_hqd_pq_doorbell_control);
 
 	/* reset read and write pointers, similar to CP_RB0_WPTR/_RPTR */
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_WPTR_LO,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_WPTR_LO,
 	       mqd->cp_hqd_pq_wptr_lo);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_WPTR_HI,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_WPTR_HI,
 	       mqd->cp_hqd_pq_wptr_hi);
 
 	/* set the vmid for the queue */
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_VMID, mqd->cp_hqd_vmid);
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_VMID, mqd->cp_hqd_vmid);
 
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PERSISTENT_STATE,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PERSISTENT_STATE,
 	       mqd->cp_hqd_persistent_state);
 
 	/* activate the queue */
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_ACTIVE,
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_ACTIVE,
 	       mqd->cp_hqd_active);
 
 	if (ring->use_doorbell)
@@ -1792,12 +1797,12 @@ static int gfx_v9_4_3_kiq_fini_register(struct amdgpu_ring *ring, int xcc_id)
 	int j;
 
 	/* disable the queue if it's active */
-	if (RREG32_SOC15(GC, xcc_id, regCP_HQD_ACTIVE) & 1) {
+	if (RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_HQD_ACTIVE) & 1) {
 
-		WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_DEQUEUE_REQUEST, 1);
+		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_DEQUEUE_REQUEST, 1);
 
 		for (j = 0; j < adev->usec_timeout; j++) {
-			if (!(RREG32_SOC15(GC, xcc_id, regCP_HQD_ACTIVE) & 1))
+			if (!(RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_HQD_ACTIVE) & 1))
 				break;
 			udelay(1);
 		}
@@ -1806,21 +1811,21 @@ static int gfx_v9_4_3_kiq_fini_register(struct amdgpu_ring *ring, int xcc_id)
 			DRM_DEBUG("KIQ dequeue request failed.\n");
 
 			/* Manual disable if dequeue request times out */
-			WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_ACTIVE, 0);
+			WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_ACTIVE, 0);
 		}
 
-		WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_DEQUEUE_REQUEST,
+		WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_DEQUEUE_REQUEST,
 		      0);
 	}
 
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_IQ_TIMER, 0);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_IB_CONTROL, 0);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PERSISTENT_STATE, 0);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_DOORBELL_CONTROL, 0x40000000);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_DOORBELL_CONTROL, 0);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_RPTR, 0);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_WPTR_HI, 0);
-	WREG32_SOC15_RLC(GC, xcc_id, regCP_HQD_PQ_WPTR_LO, 0);
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_IQ_TIMER, 0);
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_IB_CONTROL, 0);
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PERSISTENT_STATE, 0);
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_DOORBELL_CONTROL, 0x40000000);
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_DOORBELL_CONTROL, 0);
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_RPTR, 0);
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_WPTR_HI, 0);
+	WREG32_SOC15_RLC(GC, GET_INST(GC, xcc_id), regCP_HQD_PQ_WPTR_LO, 0);
 
 	return 0;
 }
@@ -1848,19 +1853,19 @@ static int gfx_v9_4_3_kiq_init_queue(struct amdgpu_ring *ring, int xcc_id)
 		ring->wptr = 0;
 		amdgpu_ring_clear_ring(ring);
 		mutex_lock(&adev->srbm_mutex);
-		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0, xcc_id);
+		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0, GET_INST(GC, xcc_id));
 		gfx_v9_4_3_kiq_init_register(ring, xcc_id);
-		soc15_grbm_select(adev, 0, 0, 0, 0, xcc_id);
+		soc15_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, xcc_id));
 		mutex_unlock(&adev->srbm_mutex);
 	} else {
 		memset((void *)mqd, 0, sizeof(struct v9_mqd_allocation));
 		((struct v9_mqd_allocation *)mqd)->dynamic_cu_mask = 0xFFFFFFFF;
 		((struct v9_mqd_allocation *)mqd)->dynamic_rb_mask = 0xFFFFFFFF;
 		mutex_lock(&adev->srbm_mutex);
-		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0, xcc_id);
+		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0, GET_INST(GC, xcc_id));
 		gfx_v9_4_3_mqd_init(ring);
 		gfx_v9_4_3_kiq_init_register(ring, xcc_id);
-		soc15_grbm_select(adev, 0, 0, 0, 0, xcc_id);
+		soc15_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, xcc_id));
 		mutex_unlock(&adev->srbm_mutex);
 
 		if (adev->gfx.kiq[xcc_id].mqd_backup)
@@ -1888,9 +1893,9 @@ static int gfx_v9_4_3_kcq_init_queue(struct amdgpu_ring *ring, int xcc_id)
 		((struct v9_mqd_allocation *)mqd)->dynamic_cu_mask = 0xFFFFFFFF;
 		((struct v9_mqd_allocation *)mqd)->dynamic_rb_mask = 0xFFFFFFFF;
 		mutex_lock(&adev->srbm_mutex);
-		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0, xcc_id);
+		soc15_grbm_select(adev, ring->me, ring->pipe, ring->queue, 0, GET_INST(GC, xcc_id));
 		gfx_v9_4_3_mqd_init(ring);
-		soc15_grbm_select(adev, 0, 0, 0, 0, xcc_id);
+		soc15_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, xcc_id));
 		mutex_unlock(&adev->srbm_mutex);
 
 		if (adev->gfx.mec.mqd_backup[mqd_idx])
@@ -2049,9 +2054,9 @@ static int gfx_v9_4_3_hw_fini(void *handle)
 			mutex_lock(&adev->srbm_mutex);
 			soc15_grbm_select(adev, adev->gfx.kiq[i].ring.me,
 					adev->gfx.kiq[i].ring.pipe,
-					adev->gfx.kiq[i].ring.queue, 0, i);
+					adev->gfx.kiq[i].ring.queue, 0, GET_INST(GC, i));
 			gfx_v9_4_3_kiq_fini_register(&adev->gfx.kiq[i].ring, i);
-			soc15_grbm_select(adev, 0, 0, 0, 0, i);
+			soc15_grbm_select(adev, 0, 0, 0, 0, GET_INST(GC, i));
 			mutex_unlock(&adev->srbm_mutex);
 		}
 
@@ -2085,7 +2090,7 @@ static bool gfx_v9_4_3_is_idle(void *handle)
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	for (i = 0; i < num_xcc; i++) {
-		if (REG_GET_FIELD(RREG32_SOC15(GC, i, regGRBM_STATUS),
+		if (REG_GET_FIELD(RREG32_SOC15(GC, GET_INST(GC, i), regGRBM_STATUS),
 					GRBM_STATUS, GUI_ACTIVE))
 			return false;
 	}
@@ -2112,7 +2117,7 @@ static int gfx_v9_4_3_soft_reset(void *handle)
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
 	/* GRBM_STATUS */
-	tmp = RREG32_SOC15(GC, 0, regGRBM_STATUS);
+	tmp = RREG32_SOC15(GC, GET_INST(GC, 0), regGRBM_STATUS);
 	if (tmp & (GRBM_STATUS__PA_BUSY_MASK | GRBM_STATUS__SC_BUSY_MASK |
 		   GRBM_STATUS__BCI_BUSY_MASK | GRBM_STATUS__SX_BUSY_MASK |
 		   GRBM_STATUS__TA_BUSY_MASK | GRBM_STATUS__VGT_BUSY_MASK |
@@ -2131,7 +2136,7 @@ static int gfx_v9_4_3_soft_reset(void *handle)
 	}
 
 	/* GRBM_STATUS2 */
-	tmp = RREG32_SOC15(GC, 0, regGRBM_STATUS2);
+	tmp = RREG32_SOC15(GC, GET_INST(GC, 0), regGRBM_STATUS2);
 	if (REG_GET_FIELD(tmp, GRBM_STATUS2, RLC_BUSY))
 		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset,
 						GRBM_SOFT_RESET, SOFT_RESET_RLC, 1);
@@ -2145,17 +2150,17 @@ static int gfx_v9_4_3_soft_reset(void *handle)
 		gfx_v9_4_3_cp_compute_enable(adev, false, 0);
 
 		if (grbm_soft_reset) {
-			tmp = RREG32_SOC15(GC, 0, regGRBM_SOFT_RESET);
+			tmp = RREG32_SOC15(GC, GET_INST(GC, 0), regGRBM_SOFT_RESET);
 			tmp |= grbm_soft_reset;
 			dev_info(adev->dev, "GRBM_SOFT_RESET=0x%08X\n", tmp);
-			WREG32_SOC15(GC, 0, regGRBM_SOFT_RESET, tmp);
-			tmp = RREG32_SOC15(GC, 0, regGRBM_SOFT_RESET);
+			WREG32_SOC15(GC, GET_INST(GC, 0), regGRBM_SOFT_RESET, tmp);
+			tmp = RREG32_SOC15(GC, GET_INST(GC, 0), regGRBM_SOFT_RESET);
 
 			udelay(50);
 
 			tmp &= ~grbm_soft_reset;
-			WREG32_SOC15(GC, 0, regGRBM_SOFT_RESET, tmp);
-			tmp = RREG32_SOC15(GC, 0, regGRBM_SOFT_RESET);
+			WREG32_SOC15(GC, GET_INST(GC, 0), regGRBM_SOFT_RESET, tmp);
+			tmp = RREG32_SOC15(GC, GET_INST(GC, 0), regGRBM_SOFT_RESET);
 		}
 
 		/* Wait a little for things to settle down */
@@ -2174,22 +2179,22 @@ static void gfx_v9_4_3_ring_emit_gds_switch(struct amdgpu_ring *ring,
 
 	/* GDS Base */
 	gfx_v9_4_3_write_data_to_reg(ring, 0, false,
-				   SOC15_REG_OFFSET(GC, 0, regGDS_VMID0_BASE) + 2 * vmid,
+				   SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regGDS_VMID0_BASE) + 2 * vmid,
 				   gds_base);
 
 	/* GDS Size */
 	gfx_v9_4_3_write_data_to_reg(ring, 0, false,
-				   SOC15_REG_OFFSET(GC, 0, regGDS_VMID0_SIZE) + 2 * vmid,
+				   SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regGDS_VMID0_SIZE) + 2 * vmid,
 				   gds_size);
 
 	/* GWS */
 	gfx_v9_4_3_write_data_to_reg(ring, 0, false,
-				   SOC15_REG_OFFSET(GC, 0, regGDS_GWS_VMID0) + vmid,
+				   SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regGDS_GWS_VMID0) + vmid,
 				   gws_size << GDS_GWS_VMID0__SIZE__SHIFT | gws_base);
 
 	/* OA */
 	gfx_v9_4_3_write_data_to_reg(ring, 0, false,
-				   SOC15_REG_OFFSET(GC, 0, regGDS_OA_VMID0) + vmid,
+				   SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regGDS_OA_VMID0) + vmid,
 				   (1 << (oa_size + oa_base)) - (1 << oa_base));
 }
 
@@ -2260,7 +2265,7 @@ static void gfx_v9_4_3_update_medium_grain_clock_gating(struct amdgpu_device *ad
 	/* It is disabled by HW by default */
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG)) {
 		/* 1 - RLC_CGTT_MGCG_OVERRIDE */
-		def = data = RREG32_SOC15(GC, xcc_id, regRLC_CGTT_MGCG_OVERRIDE);
+		def = data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGTT_MGCG_OVERRIDE);
 
 		data &= ~(RLC_CGTT_MGCG_OVERRIDE__GRBM_CGTT_SCLK_OVERRIDE_MASK |
 			  RLC_CGTT_MGCG_OVERRIDE__GFXIP_MGCG_OVERRIDE_MASK |
@@ -2270,28 +2275,28 @@ static void gfx_v9_4_3_update_medium_grain_clock_gating(struct amdgpu_device *ad
 		data |= RLC_CGTT_MGCG_OVERRIDE__RLC_CGTT_SCLK_OVERRIDE_MASK;
 
 		if (def != data)
-			WREG32_SOC15(GC, xcc_id, regRLC_CGTT_MGCG_OVERRIDE, data);
+			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGTT_MGCG_OVERRIDE, data);
 
 		/* MGLS is a global flag to control all MGLS in GFX */
 		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGLS) {
 			/* 2 - RLC memory Light sleep */
 			if (adev->cg_flags & AMD_CG_SUPPORT_GFX_RLC_LS) {
-				def = data = RREG32_SOC15(GC, xcc_id, regRLC_MEM_SLP_CNTL);
+				def = data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_MEM_SLP_CNTL);
 				data |= RLC_MEM_SLP_CNTL__RLC_MEM_LS_EN_MASK;
 				if (def != data)
-					WREG32_SOC15(GC, xcc_id, regRLC_MEM_SLP_CNTL, data);
+					WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_MEM_SLP_CNTL, data);
 			}
 			/* 3 - CP memory Light sleep */
 			if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CP_LS) {
-				def = data = RREG32_SOC15(GC, xcc_id, regCP_MEM_SLP_CNTL);
+				def = data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEM_SLP_CNTL);
 				data |= CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK;
 				if (def != data)
-					WREG32_SOC15(GC, xcc_id, regCP_MEM_SLP_CNTL, data);
+					WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEM_SLP_CNTL, data);
 			}
 		}
 	} else {
 		/* 1 - MGCG_OVERRIDE */
-		def = data = RREG32_SOC15(GC, xcc_id, regRLC_CGTT_MGCG_OVERRIDE);
+		def = data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGTT_MGCG_OVERRIDE);
 
 		data |= (RLC_CGTT_MGCG_OVERRIDE__RLC_CGTT_SCLK_OVERRIDE_MASK |
 			 RLC_CGTT_MGCG_OVERRIDE__GRBM_CGTT_SCLK_OVERRIDE_MASK |
@@ -2299,20 +2304,20 @@ static void gfx_v9_4_3_update_medium_grain_clock_gating(struct amdgpu_device *ad
 			 RLC_CGTT_MGCG_OVERRIDE__GFXIP_MGLS_OVERRIDE_MASK);
 
 		if (def != data)
-			WREG32_SOC15(GC, xcc_id, regRLC_CGTT_MGCG_OVERRIDE, data);
+			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGTT_MGCG_OVERRIDE, data);
 
 		/* 2 - disable MGLS in RLC */
-		data = RREG32_SOC15(GC, xcc_id, regRLC_MEM_SLP_CNTL);
+		data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_MEM_SLP_CNTL);
 		if (data & RLC_MEM_SLP_CNTL__RLC_MEM_LS_EN_MASK) {
 			data &= ~RLC_MEM_SLP_CNTL__RLC_MEM_LS_EN_MASK;
-			WREG32_SOC15(GC, xcc_id, regRLC_MEM_SLP_CNTL, data);
+			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_MEM_SLP_CNTL, data);
 		}
 
 		/* 3 - disable MGLS in CP */
-		data = RREG32_SOC15(GC, xcc_id, regCP_MEM_SLP_CNTL);
+		data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEM_SLP_CNTL);
 		if (data & CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK) {
 			data &= ~CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK;
-			WREG32_SOC15(GC, xcc_id, regCP_MEM_SLP_CNTL, data);
+			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_MEM_SLP_CNTL, data);
 		}
 	}
 
@@ -2327,7 +2332,7 @@ static void gfx_v9_4_3_update_coarse_grain_clock_gating(struct amdgpu_device *ad
 	amdgpu_gfx_rlc_enter_safe_mode(adev, xcc_id);
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG)) {
-		def = data = RREG32_SOC15(GC, xcc_id, regRLC_CGTT_MGCG_OVERRIDE);
+		def = data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGTT_MGCG_OVERRIDE);
 		/* unset CGCG override */
 		data &= ~RLC_CGTT_MGCG_OVERRIDE__GFXIP_CGCG_OVERRIDE_MASK;
 		if (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGLS)
@@ -2336,10 +2341,10 @@ static void gfx_v9_4_3_update_coarse_grain_clock_gating(struct amdgpu_device *ad
 			data |= RLC_CGTT_MGCG_OVERRIDE__GFXIP_CGLS_OVERRIDE_MASK;
 		/* update CGCG and CGLS override bits */
 		if (def != data)
-			WREG32_SOC15(GC, xcc_id, regRLC_CGTT_MGCG_OVERRIDE, data);
+			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGTT_MGCG_OVERRIDE, data);
 
 		/* enable cgcg FSM(0x0000363F) */
-		def = RREG32_SOC15(GC, xcc_id, regRLC_CGCG_CGLS_CTRL);
+		def = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGCG_CGLS_CTRL);
 
 		if (adev->asic_type == CHIP_ARCTURUS)
 			data = (0x2000 << RLC_CGCG_CGLS_CTRL__CGCG_GFX_IDLE_THRESHOLD__SHIFT) |
@@ -2351,21 +2356,21 @@ static void gfx_v9_4_3_update_coarse_grain_clock_gating(struct amdgpu_device *ad
 			data |= (0x000F << RLC_CGCG_CGLS_CTRL__CGLS_REP_COMPANSAT_DELAY__SHIFT) |
 				RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK;
 		if (def != data)
-			WREG32_SOC15(GC, xcc_id, regRLC_CGCG_CGLS_CTRL, data);
+			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGCG_CGLS_CTRL, data);
 
 		/* set IDLE_POLL_COUNT(0x00900100) */
-		def = RREG32_SOC15(GC, xcc_id, regCP_RB_WPTR_POLL_CNTL);
+		def = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_RB_WPTR_POLL_CNTL);
 		data = (0x0100 << CP_RB_WPTR_POLL_CNTL__POLL_FREQUENCY__SHIFT) |
 			(0x0090 << CP_RB_WPTR_POLL_CNTL__IDLE_POLL_COUNT__SHIFT);
 		if (def != data)
-			WREG32_SOC15(GC, xcc_id, regCP_RB_WPTR_POLL_CNTL, data);
+			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regCP_RB_WPTR_POLL_CNTL, data);
 	} else {
-		def = data = RREG32_SOC15(GC, xcc_id, regRLC_CGCG_CGLS_CTRL);
+		def = data = RREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGCG_CGLS_CTRL);
 		/* reset CGCG/CGLS bits */
 		data &= ~(RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK | RLC_CGCG_CGLS_CTRL__CGLS_EN_MASK);
 		/* disable cgcg and cgls in FSM */
 		if (def != data)
-			WREG32_SOC15(GC, xcc_id, regRLC_CGCG_CGLS_CTRL, data);
+			WREG32_SOC15(GC, GET_INST(GC, xcc_id), regRLC_CGCG_CGLS_CTRL, data);
 	}
 
 	amdgpu_gfx_rlc_exit_safe_mode(adev, xcc_id);
@@ -2444,12 +2449,12 @@ static void gfx_v9_4_3_get_clockgating_state(void *handle, u64 *flags)
 		*flags = 0;
 
 	/* AMD_CG_SUPPORT_GFX_MGCG */
-	data = RREG32_KIQ(SOC15_REG_OFFSET(GC, 0, regRLC_CGTT_MGCG_OVERRIDE));
+	data = RREG32_KIQ(SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regRLC_CGTT_MGCG_OVERRIDE));
 	if (!(data & RLC_CGTT_MGCG_OVERRIDE__GFXIP_MGCG_OVERRIDE_MASK))
 		*flags |= AMD_CG_SUPPORT_GFX_MGCG;
 
 	/* AMD_CG_SUPPORT_GFX_CGCG */
-	data = RREG32_KIQ(SOC15_REG_OFFSET(GC, 0, regRLC_CGCG_CGLS_CTRL));
+	data = RREG32_KIQ(SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regRLC_CGCG_CGLS_CTRL));
 	if (data & RLC_CGCG_CGLS_CTRL__CGCG_EN_MASK)
 		*flags |= AMD_CG_SUPPORT_GFX_CGCG;
 
@@ -2458,12 +2463,12 @@ static void gfx_v9_4_3_get_clockgating_state(void *handle, u64 *flags)
 		*flags |= AMD_CG_SUPPORT_GFX_CGLS;
 
 	/* AMD_CG_SUPPORT_GFX_RLC_LS */
-	data = RREG32_KIQ(SOC15_REG_OFFSET(GC, 0, regRLC_MEM_SLP_CNTL));
+	data = RREG32_KIQ(SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regRLC_MEM_SLP_CNTL));
 	if (data & RLC_MEM_SLP_CNTL__RLC_MEM_LS_EN_MASK)
 		*flags |= AMD_CG_SUPPORT_GFX_RLC_LS | AMD_CG_SUPPORT_GFX_MGLS;
 
 	/* AMD_CG_SUPPORT_GFX_CP_LS */
-	data = RREG32_KIQ(SOC15_REG_OFFSET(GC, 0, regCP_MEM_SLP_CNTL));
+	data = RREG32_KIQ(SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regCP_MEM_SLP_CNTL));
 	if (data & CP_MEM_SLP_CNTL__CP_MEM_LS_EN_MASK)
 		*flags |= AMD_CG_SUPPORT_GFX_CP_LS | AMD_CG_SUPPORT_GFX_MGLS;
 }
@@ -2634,7 +2639,7 @@ static void gfx_v9_4_3_ring_emit_fence_kiq(struct amdgpu_ring *ring, u64 addr,
 		amdgpu_ring_write(ring, PACKET3(PACKET3_WRITE_DATA, 3));
 		amdgpu_ring_write(ring, (WRITE_DATA_ENGINE_SEL(0) |
 					 WRITE_DATA_DST_SEL(0) | WR_CONFIRM));
-		amdgpu_ring_write(ring, SOC15_REG_OFFSET(GC, 0, regCPC_INT_STATUS));
+		amdgpu_ring_write(ring, SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regCPC_INT_STATUS));
 		amdgpu_ring_write(ring, 0);
 		amdgpu_ring_write(ring, 0x20000000); /* src_id is 178 */
 	}
@@ -2710,16 +2715,16 @@ static void gfx_v9_4_3_set_compute_eop_interrupt_state(struct amdgpu_device *ade
 	if (me == 1) {
 		switch (pipe) {
 		case 0:
-			mec_int_cntl_reg = SOC15_REG_OFFSET(GC, xcc_id, regCP_ME1_PIPE0_INT_CNTL);
+			mec_int_cntl_reg = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regCP_ME1_PIPE0_INT_CNTL);
 			break;
 		case 1:
-			mec_int_cntl_reg = SOC15_REG_OFFSET(GC, xcc_id, regCP_ME1_PIPE1_INT_CNTL);
+			mec_int_cntl_reg = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regCP_ME1_PIPE1_INT_CNTL);
 			break;
 		case 2:
-			mec_int_cntl_reg = SOC15_REG_OFFSET(GC, xcc_id, regCP_ME1_PIPE2_INT_CNTL);
+			mec_int_cntl_reg = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regCP_ME1_PIPE2_INT_CNTL);
 			break;
 		case 3:
-			mec_int_cntl_reg = SOC15_REG_OFFSET(GC, xcc_id, regCP_ME1_PIPE3_INT_CNTL);
+			mec_int_cntl_reg = SOC15_REG_OFFSET(GC, GET_INST(GC, xcc_id), regCP_ME1_PIPE3_INT_CNTL);
 			break;
 		default:
 			DRM_DEBUG("invalid pipe %d\n", pipe);
@@ -2760,7 +2765,7 @@ static int gfx_v9_4_3_set_priv_reg_fault_state(struct amdgpu_device *adev,
 	case AMDGPU_IRQ_STATE_DISABLE:
 	case AMDGPU_IRQ_STATE_ENABLE:
 		for (i = 0; i < num_xcc; i++)
-			WREG32_FIELD15_PREREG(GC, i, CP_INT_CNTL_RING0,
+			WREG32_FIELD15_PREREG(GC, GET_INST(GC, i), CP_INT_CNTL_RING0,
 				PRIV_REG_INT_ENABLE,
 				state == AMDGPU_IRQ_STATE_ENABLE ? 1 : 0);
 		break;
@@ -2783,7 +2788,7 @@ static int gfx_v9_4_3_set_priv_inst_fault_state(struct amdgpu_device *adev,
 	case AMDGPU_IRQ_STATE_DISABLE:
 	case AMDGPU_IRQ_STATE_ENABLE:
 		for (i = 0; i < num_xcc; i++)
-			WREG32_FIELD15_PREREG(GC, i, CP_INT_CNTL_RING0,
+			WREG32_FIELD15_PREREG(GC, GET_INST(GC, i), CP_INT_CNTL_RING0,
 				PRIV_INSTR_INT_ENABLE,
 				state == AMDGPU_IRQ_STATE_ENABLE ? 1 : 0);
 		break;
@@ -2943,16 +2948,16 @@ static void gfx_v9_4_3_emit_wave_limit_cs(struct amdgpu_ring *ring,
 
 	switch (pipe) {
 	case 0:
-		wcl_cs_reg = SOC15_REG_OFFSET(GC, 0, regSPI_WCL_PIPE_PERCENT_CS0);
+		wcl_cs_reg = SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regSPI_WCL_PIPE_PERCENT_CS0);
 		break;
 	case 1:
-		wcl_cs_reg = SOC15_REG_OFFSET(GC, 0, regSPI_WCL_PIPE_PERCENT_CS1);
+		wcl_cs_reg = SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regSPI_WCL_PIPE_PERCENT_CS1);
 		break;
 	case 2:
-		wcl_cs_reg = SOC15_REG_OFFSET(GC, 0, regSPI_WCL_PIPE_PERCENT_CS2);
+		wcl_cs_reg = SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regSPI_WCL_PIPE_PERCENT_CS2);
 		break;
 	case 3:
-		wcl_cs_reg = SOC15_REG_OFFSET(GC, 0, regSPI_WCL_PIPE_PERCENT_CS3);
+		wcl_cs_reg = SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regSPI_WCL_PIPE_PERCENT_CS3);
 		break;
 	default:
 		DRM_DEBUG("invalid pipe %d\n", pipe);
@@ -2974,7 +2979,7 @@ static void gfx_v9_4_3_emit_wave_limit(struct amdgpu_ring *ring, bool enable)
 	 */
 	val = enable ? 0x1f : 0x07ffffff;
 	amdgpu_ring_emit_wreg(ring,
-			      SOC15_REG_OFFSET(GC, 0, regSPI_WCL_PIPE_PERCENT_GFX),
+			      SOC15_REG_OFFSET(GC, GET_INST(GC, 0), regSPI_WCL_PIPE_PERCENT_GFX),
 			      val);
 
 	/* Restrict waves for normal/low priority compute queues as well
@@ -3161,15 +3166,15 @@ static void gfx_v9_4_3_set_user_cu_inactive_bitmap(struct amdgpu_device *adev,
 	data = bitmap << GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_CUS__SHIFT;
 	data &= GC_USER_SHADER_ARRAY_CONFIG__INACTIVE_CUS_MASK;
 
-	WREG32_SOC15(GC, 0, regGC_USER_SHADER_ARRAY_CONFIG, data);
+	WREG32_SOC15(GC, GET_INST(GC, 0), regGC_USER_SHADER_ARRAY_CONFIG, data);
 }
 
 static u32 gfx_v9_4_3_get_cu_active_bitmap(struct amdgpu_device *adev)
 {
 	u32 data, mask;
 
-	data = RREG32_SOC15(GC, 0, regCC_GC_SHADER_ARRAY_CONFIG);
-	data |= RREG32_SOC15(GC, 0, regGC_USER_SHADER_ARRAY_CONFIG);
+	data = RREG32_SOC15(GC, GET_INST(GC, 0), regCC_GC_SHADER_ARRAY_CONFIG);
+	data |= RREG32_SOC15(GC, GET_INST(GC, 0), regGC_USER_SHADER_ARRAY_CONFIG);
 
 	data &= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS_MASK;
 	data >>= CC_GC_SHADER_ARRAY_CONFIG__INACTIVE_CUS__SHIFT;
