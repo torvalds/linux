@@ -139,6 +139,7 @@ struct rga_iommu_dma_cookie {
 
 struct rga_iommu_info {
 	struct device *dev;
+	struct device *default_dev;		/* for dma-buf_api */
 	struct iommu_domain *domain;
 	struct iommu_group *group;
 };
@@ -375,6 +376,8 @@ struct rga_drvdata_t {
 
 	struct rga_scheduler_t *scheduler[RGA_MAX_SCHEDULER];
 	int num_of_scheduler;
+	/* The scheduler_index used by default for memory mapping. */
+	int map_scheduler_index;
 	struct rga_mmu_base *mmu_base;
 
 	struct delayed_work power_off_work;

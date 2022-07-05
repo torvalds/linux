@@ -268,6 +268,7 @@ struct rga_iommu_info *rga_iommu_probe(struct device *dev)
 	}
 
 	info->dev = dev;
+	info->default_dev = info->dev;
 	info->group = group;
 	info->domain = domain;
 
@@ -295,7 +296,10 @@ int rga_iommu_bind(void)
 	int i;
 	int ret;
 	struct rga_scheduler_t *scheduler = NULL;
-	struct iommu_domain *main_domain = NULL;
+	struct rga_iommu_info *main_iommu = NULL;
+	int main_iommu_index = -1;
+	int main_mmu_index = -1;
+	int another_index = -1;
 
 	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
 		scheduler = rga_drvdata->scheduler[i];
@@ -305,10 +309,12 @@ int rga_iommu_bind(void)
 			if (scheduler->iommu_info == NULL)
 				continue;
 
-			if (main_domain == NULL) {
-				main_domain = scheduler->iommu_info->domain;
+			if (main_iommu == NULL) {
+				main_iommu = scheduler->iommu_info;
+				main_iommu_index = i;
 			} else {
-				scheduler->iommu_info->domain = main_domain;
+				scheduler->iommu_info->domain = main_iommu->domain;
+				scheduler->iommu_info->default_dev = main_iommu->default_dev;
 				rga_iommu_attach(scheduler->iommu_info);
 			}
 
@@ -327,11 +333,38 @@ int rga_iommu_bind(void)
 				return ret;
 			}
 
+			main_mmu_index = i;
+
 			break;
 		default:
-			continue;
+			if (another_index != RGA_NONE_CORE)
+				another_index = i;
+
+			break;
 		}
 	}
+
+	/*
+	 * priority order: iommu > mmu > another
+	 *   The scheduler core with IOMMU will be used preferentially as the
+	 * default memory-mapped core. This ensures that all cores can obtain
+	 * the required memory data when they are equipped with different
+	 * versions of cores.
+	 */
+	if (main_iommu_index >= 0) {
+		rga_drvdata->map_scheduler_index = main_iommu_index;
+	} else if (main_mmu_index >= 0) {
+		rga_drvdata->map_scheduler_index = main_mmu_index;
+	} else if (another_index >= 0) {
+		rga_drvdata->map_scheduler_index = another_index;
+	} else {
+		rga_drvdata->map_scheduler_index = -1;
+		pr_err("%s, binding map scheduler failed!\n", __func__);
+		return -EFAULT;
+	}
+
+	pr_info("IOMMU binding successfully, default mapping core[0x%x]\n",
+		rga_drvdata->scheduler[rga_drvdata->map_scheduler_index]->core);
 
 	return 0;
 }
@@ -346,4 +379,6 @@ void rga_iommu_unbind(void)
 
 	if (rga_drvdata->mmu_base)
 		rga_mmu_base_free(&rga_drvdata->mmu_base);
+
+	rga_drvdata->map_scheduler_index = -1;
 }
