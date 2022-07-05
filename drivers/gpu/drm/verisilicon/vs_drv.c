@@ -296,24 +296,14 @@ static struct platform_driver *drm_sub_drivers[] = {
 	&dc_platform_driver,
 
 	/* connector */
-
-	/* bridge */
-#ifdef CONFIG_VERISILICON_DW_MIPI_DSI
-	&dw_mipi_dsi_driver,
-#endif
 #ifdef CONFIG_STARFIVE_INNO_HDMI
-		&inno_hdmi_driver,
+	&inno_hdmi_driver,
 #endif
 #ifdef CONFIG_STARFIVE_DSI
 	&starfive_dsi_platform_driver,
-	&simple_encoder_driver,
 #endif
-	/* encoder */
-	//&simple_encoder_driver,
-	//&starfive_encoder_driver,
-#ifdef CONFIG_DRM_I2C_NXP_TDA998X
+
 	&simple_encoder_driver,
-#endif
 
 #ifdef CONFIG_VERISILICON_VIRTUAL_DISPLAY
 	&virtual_display_platform_driver,

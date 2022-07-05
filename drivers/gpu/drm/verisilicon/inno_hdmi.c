@@ -24,14 +24,10 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
 #include <linux/regulator/consumer.h>
-#include "vs_clock.h"
 
 #include "vs_drv.h"
 
 #include "inno_hdmi.h"
-
-#include "fmux_macro.h"
-#include "sys_iomux_cfg_macro.h"
 
 #define to_inno_hdmi(x)	container_of(x, struct inno_hdmi, x)
 
@@ -231,13 +227,6 @@ static inline void hdmi_modb(struct inno_hdmi *hdmi, u16 offset,
 
 	temp |= val & msk;
 	hdmi_writeb(hdmi, offset, temp);
-}
-
-void inno_hdmi_srcdata_fmt_config(int panel_sel, int dpi_dp_sel, int dpi_dp_depth)
-{
-	SET_U2_DISPLAY_PANEL_MUX_PANEL_SEL(panel_sel);
-	SET_U0_HDMI_DATA_MAPPING_DPI_DP_SEL(dpi_dp_sel);
-	SET_U0_HDMI_DATA_MAPPING_DPI_BIT_DEPTH(dpi_dp_depth);
 }
 
 static void inno_hdmi_power_up(struct inno_hdmi *hdmi)

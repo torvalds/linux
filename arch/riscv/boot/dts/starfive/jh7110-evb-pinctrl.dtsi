@@ -1201,11 +1201,11 @@
 			sf,pinmux = <PAD_GPIO60_FUNC_SEL 1>;
 			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
 		};
-		//rgb-25-pins {
-		//	sf,pins = <PAD_GPIO61>;
-		//	sf,pinmux = <PAD_GPIO61_FUNC_SEL 1>;
-		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		//};
+		rgb-25-pins {
+			sf,pins = <PAD_GPIO61>;
+			sf,pinmux = <PAD_GPIO61_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
 		rgb-26-pins {
 			sf,pins = <PAD_GPIO62>;
 			sf,pinmux = <PAD_GPIO62_FUNC_SEL 1>;

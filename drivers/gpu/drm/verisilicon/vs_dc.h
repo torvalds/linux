@@ -89,6 +89,8 @@ struct vs_dc {
 
 	struct clk *hdmitx0_pixelclk;
 	struct clk *dc8200_pix0;
+	struct clk *dc8200_clk_pix0_out;
+	struct clk *dc8200_clk_pix1_out;
 
 	struct regmap *dss_regmap;
 

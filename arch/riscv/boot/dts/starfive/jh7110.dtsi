@@ -1535,16 +1535,18 @@
 				 <&clkvout JH7110_U0_DC8200_CLK_CORE>,
 				 <&clkvout JH7110_U0_DC8200_CLK_AHB>,
 				 <&clkgen JH7110_VOUT_TOP_CLK_VOUT_AXI>,
-				 <&clkgen JH7110_DOM_VOUT_TOP_LCD_CLK>,
+				 <&clkvout JH7110_DOM_VOUT_TOP_LCD_CLK>,
 				 <&hdmitx0_pixelclk>,
-				 <&clkvout JH7110_DC8200_PIX0>;
+				 <&clkvout JH7110_DC8200_PIX0>,
+				 <&clkvout JH7110_U0_DC8200_CLK_PIX0_OUT>,
+				 <&clkvout JH7110_U0_DC8200_CLK_PIX1_OUT>;
 			clock-names = "noc_cpu","noc_cfg0","noc_gpu","noc_vdec","noc_venc",
 					"noc_disp","noc_isp","noc_stg","vout_src",
 					"top_vout_axi","ahb1","top_vout_ahb",
 					"top_vout_hdmiTX0","i2stx","pix_clk","vout_pix1",
 					"axi_clk","core_clk","vout_ahb",
-					"vout_top_axi","vout_top_lcd","hdmitx0_pixelclk","dc8200_pix0";
-
+					"vout_top_axi","vout_top_lcd","hdmitx0_pixelclk","dc8200_pix0",
+					"dc8200_pix0_out","dc8200_pix1_out";
 			resets = <&rstgen RSTN_U0_DOM_VOUT_TOP_SRC>,
 				 <&rstgen RSTN_U0_DC8200_AXI>,
 				 <&rstgen RSTN_U0_DC8200_AHB>,
