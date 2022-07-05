@@ -1294,7 +1294,7 @@ int amdgpu_mes_self_test(struct amdgpu_device *adev)
 	r = amdgpu_mes_ctx_alloc_meta_data(adev, &ctx_data);
 	if (r) {
 		DRM_ERROR("failed to alloc ctx meta data\n");
-		goto error_pasid;
+		goto error_fini;
 	}
 
 	ctx_data.meta_data_gpu_addr = AMDGPU_VA_RESERVED_SIZE;
@@ -1352,6 +1352,8 @@ error_vm:
 	BUG_ON(amdgpu_bo_reserve(ctx_data.meta_data_obj, true));
 	amdgpu_vm_bo_del(adev, ctx_data.meta_data_va);
 	amdgpu_bo_unreserve(ctx_data.meta_data_obj);
+
+error_fini:
 	amdgpu_vm_fini(adev, vm);
 
 error_pasid:
