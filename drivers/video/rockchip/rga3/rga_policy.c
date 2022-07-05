@@ -15,6 +15,7 @@
 #define GET_GCD(n1, n2) \
 	({ \
 		int i; \
+		int gcd = 0; \
 		for (i = 1; i <= (n1) && i <= (n2); i++) { \
 			if ((n1) % i == 0 && (n2) % i == 0) \
 				gcd = i; \
@@ -90,7 +91,7 @@ static bool rga_check_format(const struct rga_hw_data *data,
 
 static bool rga_check_align(uint32_t byte_stride_align, uint32_t format, uint16_t w_stride)
 {
-	uint32_t bit_stride = 0, pixel_stride = 0, align = 0, gcd = 0;
+	int bit_stride, pixel_stride, align, gcd;
 
 	pixel_stride = rga_get_pixel_stride_from_format(format);
 	if (pixel_stride <= 0)
@@ -101,11 +102,12 @@ static bool rga_check_align(uint32_t byte_stride_align, uint32_t format, uint16_
 	if (bit_stride % (byte_stride_align * 8) == 0)
 		return true;
 
-	gcd = GET_GCD(pixel_stride, byte_stride_align * 8);
-	align = GET_LCM(pixel_stride, byte_stride_align * 8, gcd) / pixel_stride;
-	if (DEBUGGER_EN(MSG))
+	if (DEBUGGER_EN(MSG)) {
+		gcd = GET_GCD(pixel_stride, byte_stride_align * 8);
+		align = GET_LCM(pixel_stride, byte_stride_align * 8, gcd) / pixel_stride;
 		pr_info("unsupported width stride %d, 0x%x should be %d aligned!",
-				w_stride, format, align);
+			w_stride, format, align);
+	}
 
 	return false;
 }
