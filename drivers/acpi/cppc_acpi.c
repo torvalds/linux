@@ -578,6 +578,19 @@ bool __weak cpc_ffh_supported(void)
 }
 
 /**
+ * cpc_supported_by_cpu() - check if CPPC is supported by CPU
+ *
+ * Check if the architectural support for CPPC is present even
+ * if the _OSC hasn't prescribed it
+ *
+ * Return: true for supported, false for not supported
+ */
+bool __weak cpc_supported_by_cpu(void)
+{
+	return false;
+}
+
+/**
  * pcc_data_alloc() - Allocate the pcc_data memory for pcc subspace
  *
  * Check and allocate the cppc_pcc_data memory.
@@ -686,7 +699,8 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 
 	if (!osc_sb_cppc2_support_acked) {
 		pr_debug("CPPC v2 _OSC not acked\n");
-		return -ENODEV;
+		if (!cpc_supported_by_cpu())
+			return -ENODEV;
 	}
 
 	/* Parse the ACPI _CPC table for this CPU. */
