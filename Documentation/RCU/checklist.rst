@@ -66,8 +66,13 @@ over a rather long period of time, but improvements are always welcome!
 	As a rough rule of thumb, any dereference of an RCU-protected
 	pointer must be covered by rcu_read_lock(), rcu_read_lock_bh(),
 	rcu_read_lock_sched(), or by the appropriate update-side lock.
-	Disabling of preemption can serve as rcu_read_lock_sched(), but
-	is less readable and prevents lockdep from detecting locking issues.
+	Explicit disabling of preemption (preempt_disable(), for example)
+	can serve as rcu_read_lock_sched(), but is less readable and
+	prevents lockdep from detecting locking issues.
+
+	Please not that you *cannot* rely on code known to be built
+	only in non-preemptible kernels.  Such code can and will break,
+	especially in kernels built with CONFIG_PREEMPT_COUNT=y.
 
 	Letting RCU-protected pointers "leak" out of an RCU read-side
 	critical section is every bit as bad as letting them leak out
