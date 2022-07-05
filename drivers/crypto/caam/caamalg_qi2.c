@@ -5083,8 +5083,9 @@ static int __cold dpaa2_dpseci_setup(struct fsl_mc_device *ls_dev)
 
 		ppriv->net_dev.dev = *dev;
 		INIT_LIST_HEAD(&ppriv->net_dev.napi_list);
-		netif_napi_add(&ppriv->net_dev, &ppriv->napi, dpaa2_dpseci_poll,
-			       DPAA2_CAAM_NAPI_WEIGHT);
+		netif_napi_add_tx_weight(&ppriv->net_dev, &ppriv->napi,
+					 dpaa2_dpseci_poll,
+					 DPAA2_CAAM_NAPI_WEIGHT);
 	}
 
 	return 0;

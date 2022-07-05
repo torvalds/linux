@@ -749,8 +749,8 @@ int caam_qi_init(struct platform_device *caam_pdev)
 		net_dev->dev = *qidev;
 		INIT_LIST_HEAD(&net_dev->napi_list);
 
-		netif_napi_add(net_dev, irqtask, caam_qi_poll,
-			       CAAM_NAPI_WEIGHT);
+		netif_napi_add_tx_weight(net_dev, irqtask, caam_qi_poll,
+					 CAAM_NAPI_WEIGHT);
 
 		napi_enable(irqtask);
 	}
