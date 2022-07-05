@@ -34,6 +34,7 @@ properties:
       - qcom,rpm-apq8084
       - qcom,rpm-ipq6018
       - qcom,rpm-msm8226
+      - qcom,rpm-msm8909
       - qcom,rpm-msm8916
       - qcom,rpm-msm8936
       - qcom,rpm-msm8953
