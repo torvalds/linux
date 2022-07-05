@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 // Copyright (c) 2021, NVIDIA CORPORATION & AFFILIATES. All rights reserved.
 
+#include <linux/math64.h>
 #include "lib/aso.h"
 #include "en/tc/post_act.h"
 #include "meter.h"
@@ -61,7 +62,7 @@ mlx5e_flow_meter_cir_calc(u64 cir, u8 *man, u8 *exp)
 		m = cir << e;
 		if ((s64)m < 0) /* overflow */
 			break;
-		m /= MLX5_CONST_CIR;
+		m = div64_u64(m, MLX5_CONST_CIR);
 		if (m > 0xFF) /* man width 8 bit */
 			continue;
 		_cir = MLX5_CALC_CIR(m, e);
