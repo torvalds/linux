@@ -20,81 +20,9 @@ struct dp_power_private {
 	struct clk *link_clk_src;
 	struct clk *pixel_provider;
 	struct clk *link_provider;
-	struct regulator_bulk_data supplies[DP_DEV_REGULATOR_MAX];
 
 	struct dp_power dp_power;
 };
-
-static void dp_power_regulator_disable(struct dp_power_private *power)
-{
-	struct regulator_bulk_data *s = power->supplies;
-	const struct dp_reg_entry *regs = power->parser->regulator_cfg->regs;
-	int num = power->parser->regulator_cfg->num;
-	int i;
-
-	DBG("");
-	for (i = num - 1; i >= 0; i--)
-		if (regs[i].disable_load >= 0)
-			regulator_set_load(s[i].consumer,
-					   regs[i].disable_load);
-
-	regulator_bulk_disable(num, s);
-}
-
-static int dp_power_regulator_enable(struct dp_power_private *power)
-{
-	struct regulator_bulk_data *s = power->supplies;
-	const struct dp_reg_entry *regs = power->parser->regulator_cfg->regs;
-	int num = power->parser->regulator_cfg->num;
-	int ret, i;
-
-	DBG("");
-	for (i = 0; i < num; i++) {
-		if (regs[i].enable_load >= 0) {
-			ret = regulator_set_load(s[i].consumer,
-						 regs[i].enable_load);
-			if (ret < 0) {
-				pr_err("regulator %d set op mode failed, %d\n",
-					i, ret);
-				goto fail;
-			}
-		}
-	}
-
-	ret = regulator_bulk_enable(num, s);
-	if (ret < 0) {
-		pr_err("regulator enable failed, %d\n", ret);
-		goto fail;
-	}
-
-	return 0;
-
-fail:
-	for (i--; i >= 0; i--)
-		regulator_set_load(s[i].consumer, regs[i].disable_load);
-	return ret;
-}
-
-static int dp_power_regulator_init(struct dp_power_private *power)
-{
-	struct regulator_bulk_data *s = power->supplies;
-	const struct dp_reg_entry *regs = power->parser->regulator_cfg->regs;
-	struct platform_device *pdev = power->pdev;
-	int num = power->parser->regulator_cfg->num;
-	int i, ret;
-
-	for (i = 0; i < num; i++)
-		s[i].supply = regs[i].name;
-
-	ret = devm_regulator_bulk_get(&pdev->dev, num, s);
-	if (ret < 0) {
-		pr_err("%s: failed to init regulator, ret=%d\n",
-						__func__, ret);
-		return ret;
-	}
-
-	return 0;
-}
 
 static int dp_power_clk_init(struct dp_power_private *power)
 {
@@ -318,21 +246,10 @@ int dp_power_client_init(struct dp_power *dp_power)
 
 	pm_runtime_enable(&power->pdev->dev);
 
-	rc = dp_power_regulator_init(power);
-	if (rc) {
-		DRM_ERROR("failed to init regulators %d\n", rc);
-		goto error;
-	}
-
 	rc = dp_power_clk_init(power);
-	if (rc) {
+	if (rc)
 		DRM_ERROR("failed to init clocks %d\n", rc);
-		goto error;
-	}
-	return 0;
 
-error:
-	pm_runtime_disable(&power->pdev->dev);
 	return rc;
 }
 
@@ -365,22 +282,15 @@ int dp_power_init(struct dp_power *dp_power, bool flip)
 	power = container_of(dp_power, struct dp_power_private, dp_power);
 
 	pm_runtime_get_sync(&power->pdev->dev);
-	rc = dp_power_regulator_enable(power);
-	if (rc) {
-		DRM_ERROR("failed to enable regulators, %d\n", rc);
-		goto exit;
-	}
 
 	rc = dp_power_clk_enable(dp_power, DP_CORE_PM, true);
 	if (rc) {
 		DRM_ERROR("failed to enable DP core clocks, %d\n", rc);
-		goto err_clk;
+		goto exit;
 	}
 
 	return 0;
 
-err_clk:
-	dp_power_regulator_disable(power);
 exit:
 	pm_runtime_put_sync(&power->pdev->dev);
 	return rc;
@@ -393,7 +303,6 @@ int dp_power_deinit(struct dp_power *dp_power)
 	power = container_of(dp_power, struct dp_power_private, dp_power);
 
 	dp_power_clk_enable(dp_power, DP_CORE_PM, false);
-	dp_power_regulator_disable(power);
 	pm_runtime_put_sync(&power->pdev->dev);
 	return 0;
 }
