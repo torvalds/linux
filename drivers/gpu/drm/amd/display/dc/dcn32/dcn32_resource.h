@@ -100,7 +100,9 @@ bool dcn32_all_pipes_have_stream_and_plane(struct dc *dc,
 bool dcn32_subvp_in_use(struct dc *dc,
 		struct dc_state *context);
 
-void dcn32_update_det_override_for_mpo(struct dc *dc, struct dc_state *context,
-	display_e2e_pipe_params_st *pipes);
+bool dcn32_predict_pipe_split(struct dc_state *context, display_pipe_params_st pipe, int index);
+
+void dcn32_determine_det_override(struct dc_state *context, display_e2e_pipe_params_st *pipes,
+		bool *is_pipe_split_expected, int pipe_cnt);
 
 #endif /* _DCN32_RESOURCE_H_ */

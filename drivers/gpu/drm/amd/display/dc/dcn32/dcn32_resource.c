@@ -2984,7 +2984,7 @@ int dcn32_populate_dml_pipes_from_context(
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *pipe;
-	bool subvp_in_use = false;
+	bool subvp_in_use = false, is_pipe_split_expected[MAX_PIPES];
 
 	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
 
@@ -3046,6 +3046,9 @@ int dcn32_populate_dml_pipes_from_context(
 			if (dc->debug.enable_single_display_2to1_odm_policy)
 				pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
 		}
+
+		is_pipe_split_expected[i] = dcn32_predict_pipe_split(context, pipes[i].pipe, i);
+
 		pipe_cnt++;
 	}
 
@@ -3053,8 +3056,7 @@ int dcn32_populate_dml_pipes_from_context(
 	 * the DET available for each pipe). Use the DET override input to maintain our driver
 	 * policy.
 	 */
-	switch (pipe_cnt) {
-	case 1:
+	if (pipe_cnt == 1 && !is_pipe_split_expected[0]) {
 		pipes[0].pipe.src.det_size_override = DCN3_2_MAX_DET_SIZE;
 		if (pipe->plane_state && !dc->debug.disable_z9_mpc) {
 			if (!is_dual_plane(pipe->plane_state->format)) {
@@ -3065,18 +3067,8 @@ int dcn32_populate_dml_pipes_from_context(
 					pipes[0].pipe.src.det_size_override = 320; // 5K or higher
 			}
 		}
-		break;
-	case 2:
-	case 3:
-	case 4:
-		// For 2 and 3 pipes, use (MAX_DET_SIZE / pipe_cnt), for 4 pipes use default size for each pipe
-		for (i = 0; i < pipe_cnt; i++) {
-			pipes[i].pipe.src.det_size_override = (pipe_cnt < 4) ? (DCN3_2_MAX_DET_SIZE / pipe_cnt) : DCN3_2_DEFAULT_DET_SIZE;
-		}
-		break;
-	}
-
-	dcn32_update_det_override_for_mpo(dc, context, pipes);
+	} else
+		dcn32_determine_det_override(context, pipes, is_pipe_split_expected, pipe_cnt);
 
 	// In general cases we want to keep the dram clock change requirement
 	// (prefer configs that support MCLK switch). Only override to false
