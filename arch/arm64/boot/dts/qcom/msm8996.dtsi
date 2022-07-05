@@ -593,7 +593,7 @@
 			reg = <0x00034000 0x488>;
 			#address-cells = <1>;
 			#size-cells = <1>;
-			ranges;
+			ranges = <0x0 0x00034000 0x4000>;
 
 			clocks = <&gcc GCC_PCIE_PHY_AUX_CLK>,
 				<&gcc GCC_PCIE_PHY_CFG_AHB_CLK>,
@@ -606,10 +606,10 @@
 			reset-names = "phy", "common", "cfg";
 			status = "disabled";
 
-			pciephy_0: phy@35000 {
-				reg = <0x00035000 0x130>,
-				      <0x00035200 0x200>,
-				      <0x00035400 0x1dc>;
+			pciephy_0: phy@1000 {
+				reg = <0x1000 0x130>,
+				      <0x1200 0x200>,
+				      <0x1400 0x1dc>;
 				#phy-cells = <0>;
 
 				#clock-cells = <0>;
@@ -620,10 +620,10 @@
 				reset-names = "lane0";
 			};
 
-			pciephy_1: phy@36000 {
-				reg = <0x00036000 0x130>,
-				      <0x00036200 0x200>,
-				      <0x00036400 0x1dc>;
+			pciephy_1: phy@2000 {
+				reg = <0x2000 0x130>,
+				      <0x2200 0x200>,
+				      <0x2400 0x1dc>;
 				#phy-cells = <0>;
 
 				#clock-cells = <0>;
@@ -634,10 +634,10 @@
 				reset-names = "lane1";
 			};
 
-			pciephy_2: phy@37000 {
-				reg = <0x00037000 0x130>,
-				      <0x00037200 0x200>,
-				      <0x00037400 0x1dc>;
+			pciephy_2: phy@3000 {
+				reg = <0x3000 0x130>,
+				      <0x3200 0x200>,
+				      <0x3400 0x1dc>;
 				#phy-cells = <0>;
 
 				#clock-cells = <0>;
