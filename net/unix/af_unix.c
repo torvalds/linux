@@ -135,7 +135,7 @@ static unsigned int unix_unbound_hash(struct sock *sk)
 	hash ^= hash >> 8;
 	hash ^= sk->sk_type;
 
-	return UNIX_HASH_MOD + 1 + (hash & UNIX_HASH_MOD);
+	return hash & UNIX_HASH_MOD;
 }
 
 static unsigned int unix_bsd_hash(struct inode *i)
@@ -153,16 +153,17 @@ static unsigned int unix_abstract_hash(struct sockaddr_un *sunaddr,
 	hash ^= hash >> 8;
 	hash ^= type;
 
-	return hash & UNIX_HASH_MOD;
+	return UNIX_HASH_MOD + 1 + (hash & UNIX_HASH_MOD);
 }
 
 static void unix_table_double_lock(struct net *net,
 				   unsigned int hash1, unsigned int hash2)
 {
-	/* hash1 and hash2 is never the same because
-	 * one is between 0 and UNIX_HASH_MOD, and
-	 * another is between UNIX_HASH_MOD + 1 and UNIX_HASH_SIZE - 1.
-	 */
+	if (hash1 == hash2) {
+		spin_lock(&net->unx.table.locks[hash1]);
+		return;
+	}
+
 	if (hash1 > hash2)
 		swap(hash1, hash2);
 
@@ -173,6 +174,11 @@ static void unix_table_double_lock(struct net *net,
 static void unix_table_double_unlock(struct net *net,
 				     unsigned int hash1, unsigned int hash2)
 {
+	if (hash1 == hash2) {
+		spin_unlock(&net->unx.table.locks[hash1]);
+		return;
+	}
+
 	spin_unlock(&net->unx.table.locks[hash1]);
 	spin_unlock(&net->unx.table.locks[hash2]);
 }
