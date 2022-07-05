@@ -32,10 +32,15 @@
 #include "phy-qcom-qmp-pcs-usb-v4.h"
 #include "phy-qcom-qmp-pcs-ufs-v4.h"
 
+#include "phy-qcom-qmp-pcs-v4_20.h"
+#include "phy-qcom-qmp-pcs-pcie-v4_20.h"
+
 #include "phy-qcom-qmp-pcs-v5.h"
 #include "phy-qcom-qmp-pcs-pcie-v5.h"
 #include "phy-qcom-qmp-pcs-usb-v5.h"
 #include "phy-qcom-qmp-pcs-ufs-v5.h"
+
+#include "phy-qcom-qmp-pcs-pcie-v5_20.h"
 
 #include "phy-qcom-qmp-pcie-qhp.h"
 
@@ -121,12 +126,6 @@
 #define QSERDES_V4_DP_PHY_AUX_INTERRUPT_STATUS		0x0d8
 #define QSERDES_V4_DP_PHY_STATUS			0x0dc
 
-/* Only for QMP V4_20 PHY - USB/PCIe PCS registers */
-#define QPHY_V4_20_PCS_RX_SIGDET_LVL			0x188
-#define QPHY_V4_20_PCS_EQ_CONFIG2			0x1d8
-#define QPHY_V4_20_PCS_EQ_CONFIG4			0x1e0
-#define QPHY_V4_20_PCS_EQ_CONFIG5			0x1e4
-
 /* Only for QMP V4 PHY - PCS_MISC registers */
 #define QPHY_V4_PCS_MISC_TYPEC_CTRL			0x00
 #define QPHY_V4_PCS_MISC_TYPEC_PWRDN_CTRL		0x04
@@ -134,21 +133,5 @@
 #define QPHY_V4_PCS_MISC_CLAMP_ENABLE			0x0c
 #define QPHY_V4_PCS_MISC_TYPEC_STATUS			0x10
 #define QPHY_V4_PCS_MISC_PLACEHOLDER_STATUS		0x14
-
-#define QPHY_V4_20_PCS_PCIE_EQ_CONFIG1			0x0a0
-#define QPHY_V4_20_PCS_PCIE_G3_RXEQEVAL_TIME		0x0f0
-#define QPHY_V4_20_PCS_PCIE_G4_RXEQEVAL_TIME		0x0f4
-#define QPHY_V4_20_PCS_PCIE_G4_EQ_CONFIG2		0x0fc
-#define QPHY_V4_20_PCS_PCIE_G4_EQ_CONFIG5		0x108
-#define QPHY_V4_20_PCS_LANE1_INSIG_SW_CTRL2		0x824
-#define QPHY_V4_20_PCS_LANE1_INSIG_MX_CTRL2		0x828
-
-/* Only for QMP V5_20 PHY - PCIe PCS registers */
-#define QPHY_V5_20_PCS_PCIE_ENDPOINT_REFCLK_DRIVE	0x01c
-#define QPHY_V5_20_PCS_PCIE_OSC_DTCT_ACTIONS		0x090
-#define QPHY_V5_20_PCS_PCIE_EQ_CONFIG1			0x0a0
-#define QPHY_V5_20_PCS_PCIE_G4_EQ_CONFIG5		0x108
-#define QPHY_V5_20_PCS_PCIE_G4_PRE_GAIN			0x15c
-#define QPHY_V5_20_PCS_PCIE_RX_MARGINING_CONFIG3	0x184
 
 #endif
