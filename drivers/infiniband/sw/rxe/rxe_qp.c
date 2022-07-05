@@ -802,13 +802,15 @@ static void rxe_qp_do_cleanup(struct work_struct *work)
 	if (qp->rq.queue)
 		rxe_queue_cleanup(qp->rq.queue);
 
-	atomic_dec(&qp->scq->num_wq);
-	if (qp->scq)
+	if (qp->scq) {
+		atomic_dec(&qp->scq->num_wq);
 		rxe_put(qp->scq);
+	}
 
-	atomic_dec(&qp->rcq->num_wq);
-	if (qp->rcq)
+	if (qp->rcq) {
+		atomic_dec(&qp->rcq->num_wq);
 		rxe_put(qp->rcq);
+	}
 
 	if (qp->pd)
 		rxe_put(qp->pd);
