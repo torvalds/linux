@@ -819,6 +819,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 
 		memset(&request, 0x0, sizeof(request));
 
+		spin_lock_init(&request.lock);
 		request.sync_mode = cmd;
 		request.acquire_fence_fd = req_rga.in_fence_fd;
 		request.use_batch_mode = false;
