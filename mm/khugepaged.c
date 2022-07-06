@@ -982,7 +982,8 @@ static int alloc_charge_hpage(struct page **hpage, struct mm_struct *mm,
 			      struct collapse_control *cc)
 {
 	/* Only allocate from the target node */
-	gfp_t gfp = alloc_hugepage_khugepaged_gfpmask() | __GFP_THISNODE;
+	gfp_t gfp = (cc->is_khugepaged ? alloc_hugepage_khugepaged_gfpmask() :
+		     GFP_TRANSHUGE) | __GFP_THISNODE;
 	int node = khugepaged_find_target_node(cc);
 
 	if (!khugepaged_alloc_page(hpage, gfp, node))
@@ -2361,4 +2362,120 @@ void khugepaged_min_free_kbytes_update(void)
 	if (hugepage_flags_enabled() && khugepaged_thread)
 		set_recommended_min_free_kbytes();
 	mutex_unlock(&khugepaged_mutex);
+}
+
+static int madvise_collapse_errno(enum scan_result r)
+{
+	/*
+	 * MADV_COLLAPSE breaks from existing madvise(2) conventions to provide
+	 * actionable feedback to caller, so they may take an appropriate
+	 * fallback measure depending on the nature of the failure.
+	 */
+	switch (r) {
+	case SCAN_ALLOC_HUGE_PAGE_FAIL:
+		return -ENOMEM;
+	case SCAN_CGROUP_CHARGE_FAIL:
+		return -EBUSY;
+	/* Resource temporary unavailable - trying again might succeed */
+	case SCAN_PAGE_LOCK:
+	case SCAN_PAGE_LRU:
+		return -EAGAIN;
+	/*
+	 * Other: Trying again likely not to succeed / error intrinsic to
+	 * specified memory range. khugepaged likely won't be able to collapse
+	 * either.
+	 */
+	default:
+		return -EINVAL;
+	}
+}
+
+int madvise_collapse(struct vm_area_struct *vma, struct vm_area_struct **prev,
+		     unsigned long start, unsigned long end)
+{
+	struct collapse_control *cc;
+	struct mm_struct *mm = vma->vm_mm;
+	unsigned long hstart, hend, addr;
+	int thps = 0, last_fail = SCAN_FAIL;
+	bool mmap_locked = true;
+
+	BUG_ON(vma->vm_start > start);
+	BUG_ON(vma->vm_end < end);
+
+	*prev = vma;
+
+	/* TODO: Support file/shmem */
+	if (!vma->anon_vma || !vma_is_anonymous(vma))
+		return -EINVAL;
+
+	if (!hugepage_vma_check(vma, vma->vm_flags, false, false, false))
+		return -EINVAL;
+
+	cc = kmalloc(sizeof(*cc), GFP_KERNEL);
+	if (!cc)
+		return -ENOMEM;
+	cc->is_khugepaged = false;
+	cc->last_target_node = NUMA_NO_NODE;
+
+	mmgrab(mm);
+	lru_add_drain_all();
+
+	hstart = (start + ~HPAGE_PMD_MASK) & HPAGE_PMD_MASK;
+	hend = end & HPAGE_PMD_MASK;
+
+	for (addr = hstart; addr < hend; addr += HPAGE_PMD_SIZE) {
+		int result = SCAN_FAIL;
+
+		if (!mmap_locked) {
+			cond_resched();
+			mmap_read_lock(mm);
+			mmap_locked = true;
+			result = hugepage_vma_revalidate(mm, addr, &vma, cc);
+			if (result  != SCAN_SUCCEED) {
+				last_fail = result;
+				goto out_nolock;
+			}
+		}
+		mmap_assert_locked(mm);
+		memset(cc->node_load, 0, sizeof(cc->node_load));
+		result = khugepaged_scan_pmd(mm, vma, addr, &mmap_locked, cc);
+		if (!mmap_locked)
+			*prev = NULL;  /* Tell caller we dropped mmap_lock */
+
+		switch (result) {
+		case SCAN_SUCCEED:
+		case SCAN_PMD_MAPPED:
+			++thps;
+			break;
+		/* Whitelisted set of results where continuing OK */
+		case SCAN_PMD_NULL:
+		case SCAN_PTE_NON_PRESENT:
+		case SCAN_PTE_UFFD_WP:
+		case SCAN_PAGE_RO:
+		case SCAN_LACK_REFERENCED_PAGE:
+		case SCAN_PAGE_NULL:
+		case SCAN_PAGE_COUNT:
+		case SCAN_PAGE_LOCK:
+		case SCAN_PAGE_COMPOUND:
+		case SCAN_PAGE_LRU:
+			last_fail = result;
+			break;
+		default:
+			last_fail = result;
+			/* Other error, exit */
+			goto out_maybelock;
+		}
+	}
+
+out_maybelock:
+	/* Caller expects us to hold mmap_lock on return */
+	if (!mmap_locked)
+		mmap_read_lock(mm);
+out_nolock:
+	mmap_assert_locked(mm);
+	mmdrop(mm);
+	kfree(cc);
+
+	return thps == ((hend - hstart) >> HPAGE_PMD_SHIFT) ? 0
+			: madvise_collapse_errno(last_fail);
 }
