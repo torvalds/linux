@@ -731,7 +731,7 @@ Details::
     *      Notes: If 'no_async_abort' is defined this callback
     *  	will be invoked from scsi_eh thread. No other commands
     *	will then be queued on current host during eh.
-    *	Otherwise it will be called whenever scsi_times_out()
+    *	Otherwise it will be called whenever scsi_timeout()
     *      is called due to a command timeout.
     *
     *      Optionally defined in: LLD
