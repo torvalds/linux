@@ -119,7 +119,7 @@ static struct mtk_video_fmt default_cap_format;
 static unsigned int num_formats;
 static unsigned int num_framesizes;
 
-static struct v4l2_frmsize_stepwise stepwise_fhd = {
+static const struct v4l2_frmsize_stepwise stepwise_fhd = {
 	.min_width = MTK_VDEC_MIN_W,
 	.max_width = MTK_VDEC_MAX_W,
 	.step_width = 16,
