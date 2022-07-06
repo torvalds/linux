@@ -194,6 +194,7 @@ int pci_device_from_OF_node(struct device_node *node, u8 *bus, u8 *devfn)
 EXPORT_SYMBOL(pci_device_from_OF_node);
 #endif
 
+#ifdef CONFIG_PPC_CHRP
 /* We create the "pci-OF-bus-map" property now so it appears in the
  * /proc device tree
  */
@@ -218,6 +219,7 @@ pci_create_OF_bus_map(void)
 		of_node_put(dn);
 	}
 }
+#endif
 
 void pcibios_setup_phb_io_space(struct pci_controller *hose)
 {
