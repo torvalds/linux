@@ -953,18 +953,16 @@ struct iova_cpu_rcache {
 
 static void iova_dump(struct iova_domain *iovad)
 {
-	struct iova_cpu_rcache *cpu_rcache;
-	struct iova_rcache *rcache;
 	struct iova *iova, *t;
-	struct iova_magazine *mag;
-	unsigned long flags, rflags;
-	unsigned int cpu;
-	int i = 0, j;
+	unsigned long flags;
+	unsigned long used_pfn = 0;
+	int i = 0;
 
 	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
 	rbtree_postorder_for_each_entry_safe(iova, t, &iovad->rbroot, node) {
 		dma_addr_t start = iova->pfn_lo << iova_shift(iovad);
 		dma_addr_t end = iova->pfn_hi << iova_shift(iovad);
+		unsigned long pfn = iova->pfn_hi + 1 - iova->pfn_lo;
 
 		if (iova->pfn_lo == IOVA_ANCHOR)
 			continue;
@@ -973,47 +971,10 @@ static void iova_dump(struct iova_domain *iovad)
 			i++, &start, &end,
 			iova->pfn_lo >> (20 - PAGE_SHIFT),
 			iova->pfn_hi >> (20 - PAGE_SHIFT));
+		used_pfn += pfn;
 	}
 	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
-
-	pr_info("global cache\n");
-	for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
-		rcache = &iovad->rcaches[i];
-		spin_lock_irqsave(&rcache->lock, rflags);
-		for (j = 0; j < rcache->depot_size; ++j) {
-			mag = rcache->depot[j];
-			spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
-			for (i = 0 ; i < mag->size; ++i) {
-				struct iova *v = private_find_iova(iovad, mag->pfns[i]);
-				dma_addr_t s = v->pfn_lo << iova_shift(iovad);
-				dma_addr_t e = v->pfn_hi << iova_shift(iovad);
-
-				pr_info("[%pad..%pad]\n", &s, &e);
-			}
-			spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
-		}
-		spin_unlock_irqrestore(&rcache->lock, rflags);
-	}
-
-	for_each_online_cpu(cpu) {
-		pr_info("cpu%d cache\n", cpu);
-		for (i = 0; i < IOVA_RANGE_CACHE_MAX_SIZE; ++i) {
-			rcache = &iovad->rcaches[i];
-			cpu_rcache = per_cpu_ptr(rcache->cpu_rcaches, cpu);
-			mag = cpu_rcache->loaded;
-			spin_lock_irqsave(&cpu_rcache->lock, rflags);
-			spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
-			for (i = 0 ; i < mag->size; ++i) {
-				struct iova *v = private_find_iova(iovad, mag->pfns[i]);
-				dma_addr_t s = v->pfn_lo << iova_shift(iovad);
-				dma_addr_t e = v->pfn_hi << iova_shift(iovad);
-
-				pr_info("[%pad..%pad]\n", &s, &e);
-			}
-			spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
-			spin_unlock_irqrestore(&cpu_rcache->lock, rflags);
-		}
-	}
+	pr_info("used: %lu MiB\n", used_pfn >> (20 - PAGE_SHIFT));
 }
 
 static struct iova_magazine *iova_magazine_alloc(gfp_t flags)
