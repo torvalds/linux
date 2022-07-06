@@ -40,11 +40,21 @@
 #define AMD_SPI_XFER_TX		1
 #define AMD_SPI_XFER_RX		2
 
+/**
+ * enum amd_spi_versions - SPI controller versions
+ * @AMD_SPI_V1:		AMDI0061 hardware version
+ * @AMD_SPI_V2:		AMDI0062 hardware version
+ */
 enum amd_spi_versions {
-	AMD_SPI_V1 = 1,	/* AMDI0061 */
-	AMD_SPI_V2,	/* AMDI0062 */
+	AMD_SPI_V1 = 1,
+	AMD_SPI_V2,
 };
 
+/**
+ * struct amd_spi - SPI driver instance
+ * @io_remap_addr:	Start address of the SPI controller registers
+ * @version:		SPI controller hardware version
+ */
 struct amd_spi {
 	void __iomem *io_remap_addr;
 	enum amd_spi_versions version;
