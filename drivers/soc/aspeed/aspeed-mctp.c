@@ -762,19 +762,18 @@ static void aspeed_mctp_rx_tasklet(unsigned long data)
 			} while (!*hdr && tmp_wr_ptr != rx->wr_ptr);
 
 			if (tmp_wr_ptr != rx->wr_ptr) {
-				dev_dbg(priv->dev, "Runaway RX packet found %d -> %d\n",
+				dev_warn(priv->dev, "Runaway RX packet found %d -> %d\n",
 					rx->wr_ptr, tmp_wr_ptr);
 				residual_cmds = abs(tmp_wr_ptr - rx->wr_ptr);
 				rx->wr_ptr = tmp_wr_ptr;
-			}
-			if (!priv->rx_runaway_wa.enable && priv->rx_warmup &&
-			    priv->rx_runaway_wa.first_loop)
-				regmap_write(priv->map,
-						ASPEED_MCTP_RX_BUF_SIZE,
-						rx->buffer_count -
-							residual_cmds);
-			if (hdr)
+				if (!priv->rx_runaway_wa.enable &&
+				    priv->rx_warmup)
+					regmap_write(priv->map,
+						     ASPEED_MCTP_RX_BUF_SIZE,
+						     rx->buffer_count -
+							     residual_cmds);
 				priv->rx_warmup = false;
+			}
 		}
 
 		if (priv->rx_runaway_wa.packet_counter > priv->rx_packet_count &&
