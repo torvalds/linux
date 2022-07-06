@@ -4279,7 +4279,7 @@ static int nl80211_del_interface(struct sk_buff *skb, struct genl_info *info)
 
 	mutex_lock(&rdev->wiphy.mtx);
 
-	return rdev_del_virtual_intf(rdev, wdev);
+	return cfg80211_remove_virtual_intf(rdev, wdev);
 }
 
 static int nl80211_set_noack_map(struct sk_buff *skb, struct genl_info *info)
@@ -15707,7 +15707,6 @@ static int nl80211_add_link(struct sk_buff *skb, struct genl_info *info)
 
 static int nl80211_remove_link(struct sk_buff *skb, struct genl_info *info)
 {
-	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	unsigned int link_id = nl80211_link_id(info->attrs);
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -15723,14 +15722,8 @@ static int nl80211_remove_link(struct sk_buff *skb, struct genl_info *info)
 		return -EINVAL;
 	}
 
-	/* FIXME: stop the link operations first */
-
 	wdev_lock(wdev);
-	wdev->valid_links &= ~BIT(link_id);
-
-	rdev_del_intf_link(rdev, wdev, link_id);
-
-	eth_zero_addr(wdev->links[link_id].addr);
+	cfg80211_remove_link(wdev, link_id);
 	wdev_unlock(wdev);
 
 	return 0;

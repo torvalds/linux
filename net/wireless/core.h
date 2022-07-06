@@ -562,4 +562,9 @@ void cfg80211_release_pmsr(struct wireless_dev *wdev, u32 portid);
 void cfg80211_pmsr_wdev_down(struct wireless_dev *wdev);
 void cfg80211_pmsr_free_wk(struct work_struct *work);
 
+void cfg80211_remove_link(struct wireless_dev *wdev, unsigned int link_id);
+void cfg80211_remove_links(struct wireless_dev *wdev);
+int cfg80211_remove_virtual_intf(struct cfg80211_registered_device *rdev,
+				 struct wireless_dev *wdev);
+
 #endif /* __NET_WIRELESS_CORE_H */
