@@ -328,6 +328,8 @@ SYM_CODE_END(ret_from_fork)
 
 SYM_CODE_START_LOCAL(xen_error_entry)
 	UNWIND_HINT_FUNC
+	PUSH_AND_CLEAR_REGS save_ret=1
+	ENCODE_FRAME_POINTER 8
 	UNTRAIN_RET
 	RET
 SYM_CODE_END(xen_error_entry)
@@ -338,9 +340,6 @@ SYM_CODE_END(xen_error_entry)
  * @has_error_code:	Hardware pushed error code on stack
  */
 .macro idtentry_body cfunc has_error_code:req
-
-	PUSH_AND_CLEAR_REGS
-	ENCODE_FRAME_POINTER
 
 	/*
 	 * Call error_entry() and switch to the task stack if from userspace.
@@ -1042,6 +1041,10 @@ SYM_CODE_END(paranoid_exit)
  */
 SYM_CODE_START_LOCAL(error_entry)
 	UNWIND_HINT_FUNC
+
+	PUSH_AND_CLEAR_REGS save_ret=1
+	ENCODE_FRAME_POINTER 8
+
 	testb	$3, CS+8(%rsp)
 	jz	.Lerror_kernelspace
 
