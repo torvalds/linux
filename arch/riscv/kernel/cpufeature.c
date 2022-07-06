@@ -12,6 +12,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <asm/alternative.h>
+#include <asm/cacheflush.h>
 #include <asm/errata_list.h>
 #include <asm/hwcap.h>
 #include <asm/patch.h>
@@ -198,6 +199,7 @@ void __init riscv_fill_hwcap(void)
 			} else {
 				SET_ISA_EXT_MAP("sscofpmf", RISCV_ISA_EXT_SSCOFPMF);
 				SET_ISA_EXT_MAP("svpbmt", RISCV_ISA_EXT_SVPBMT);
+				SET_ISA_EXT_MAP("zicbom", RISCV_ISA_EXT_ZICBOM);
 			}
 #undef SET_ISA_EXT_MAP
 		}
@@ -259,6 +261,25 @@ static bool __init_or_module cpufeature_probe_svpbmt(unsigned int stage)
 	return false;
 }
 
+static bool __init_or_module cpufeature_probe_zicbom(unsigned int stage)
+{
+#ifdef CONFIG_RISCV_ISA_ZICBOM
+	switch (stage) {
+	case RISCV_ALTERNATIVES_EARLY_BOOT:
+		return false;
+	default:
+		if (riscv_isa_extension_available(NULL, ZICBOM)) {
+			riscv_noncoherent_supported();
+			return true;
+		} else {
+			return false;
+		}
+	}
+#endif
+
+	return false;
+}
+
 /*
  * Probe presence of individual extensions.
  *
@@ -272,6 +293,9 @@ static u32 __init_or_module cpufeature_probe(unsigned int stage)
 
 	if (cpufeature_probe_svpbmt(stage))
 		cpu_req_feature |= (1U << CPUFEATURE_SVPBMT);
+
+	if (cpufeature_probe_zicbom(stage))
+		cpu_req_feature |= (1U << CPUFEATURE_ZICBOM);
 
 	return cpu_req_feature;
 }

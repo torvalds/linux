@@ -20,7 +20,8 @@
 #endif
 
 #define	CPUFEATURE_SVPBMT 0
-#define	CPUFEATURE_NUMBER 1
+#define	CPUFEATURE_ZICBOM 1
+#define	CPUFEATURE_NUMBER 2
 
 #ifdef __ASSEMBLY__
 
@@ -92,6 +93,22 @@ asm volatile(ALTERNATIVE(						\
 #else
 #define ALT_THEAD_PMA(_val)
 #endif
+
+#define ALT_CMO_OP(_op, _start, _size, _cachesize)			\
+asm volatile(ALTERNATIVE(						\
+	__nops(5),							\
+	"mv a0, %1\n\t"							\
+	"j 2f\n\t"							\
+	"3:\n\t"							\
+	"cbo." __stringify(_op) " (a0)\n\t"				\
+	"add a0, a0, %0\n\t"						\
+	"2:\n\t"							\
+	"bltu a0, %2, 3b\n\t", 0,					\
+		CPUFEATURE_ZICBOM, CONFIG_RISCV_ISA_ZICBOM)		\
+	: : "r"(_cachesize),						\
+	    "r"((unsigned long)(_start) & ~((_cachesize) - 1UL)),	\
+	    "r"((unsigned long)(_start) + (_size))			\
+	: "a0")
 
 #endif /* __ASSEMBLY__ */
 

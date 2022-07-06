@@ -22,6 +22,7 @@
 #include <linux/crash_dump.h>
 
 #include <asm/alternative.h>
+#include <asm/cacheflush.h>
 #include <asm/cpu_ops.h>
 #include <asm/early_ioremap.h>
 #include <asm/pgtable.h>
@@ -296,6 +297,7 @@ void __init setup_arch(char **cmdline_p)
 #endif
 
 	riscv_fill_hwcap();
+	riscv_init_cbom_blocksize();
 	apply_boot_alternatives();
 }
 

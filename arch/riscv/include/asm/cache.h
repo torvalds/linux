@@ -11,6 +11,10 @@
 
 #define L1_CACHE_BYTES		(1 << L1_CACHE_SHIFT)
 
+#ifdef CONFIG_RISCV_DMA_NONCOHERENT
+#define ARCH_DMA_MINALIGN L1_CACHE_BYTES
+#endif
+
 /*
  * RISC-V requires the stack pointer to be 16-byte aligned, so ensure that
  * the flat loader aligns it accordingly.
