@@ -285,18 +285,15 @@ static int amd_spi_probe(struct platform_device *pdev)
 
 	/* Allocate storage for spi_master and driver private data */
 	master = devm_spi_alloc_master(dev, sizeof(struct amd_spi));
-	if (!master) {
-		dev_err(dev, "Error allocating SPI master\n");
-		return -ENOMEM;
-	}
+	if (!master)
+		return dev_err_probe(dev, -ENOMEM, "Error allocating SPI master\n");
 
 	amd_spi = spi_master_get_devdata(master);
 	amd_spi->io_remap_addr = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(amd_spi->io_remap_addr)) {
-		err = PTR_ERR(amd_spi->io_remap_addr);
-		dev_err(dev, "error %d ioremap of SPI registers failed\n", err);
-		return err;
-	}
+	if (IS_ERR(amd_spi->io_remap_addr))
+		return dev_err_probe(dev, PTR_ERR(amd_spi->io_remap_addr),
+				     "ioremap of SPI registers failed\n");
+
 	dev_dbg(dev, "io_remap_address: %p\n", amd_spi->io_remap_addr);
 
 	amd_spi->version = (enum amd_spi_versions) device_get_match_data(dev);
@@ -314,9 +311,9 @@ static int amd_spi_probe(struct platform_device *pdev)
 	/* Register the controller with SPI framework */
 	err = devm_spi_register_master(dev, master);
 	if (err)
-		dev_err(dev, "error %d registering SPI controller\n", err);
+		return dev_err_probe(dev, err, "error registering SPI controller\n");
 
-	return err;
+	return 0;
 }
 
 #ifdef CONFIG_ACPI
