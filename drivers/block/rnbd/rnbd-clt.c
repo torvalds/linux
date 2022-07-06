@@ -68,11 +68,11 @@ static inline bool rnbd_clt_get_dev(struct rnbd_clt_dev *dev)
 	return refcount_inc_not_zero(&dev->refcount);
 }
 
-static int rnbd_clt_change_capacity(struct rnbd_clt_dev *dev,
+static void rnbd_clt_change_capacity(struct rnbd_clt_dev *dev,
 				    sector_t new_nsectors)
 {
 	if (get_capacity(dev->gd) == new_nsectors)
-		return 0;
+		return;
 
 	/*
 	 * If the size changed, we need to revalidate it
@@ -80,7 +80,6 @@ static int rnbd_clt_change_capacity(struct rnbd_clt_dev *dev,
 	rnbd_clt_info(dev, "Device size changed from %llu to %llu sectors\n",
 		      get_capacity(dev->gd), new_nsectors);
 	set_capacity_and_notify(dev->gd, new_nsectors);
-	return 0;
 }
 
 static int process_msg_open_rsp(struct rnbd_clt_dev *dev,
@@ -127,7 +126,7 @@ int rnbd_clt_resize_disk(struct rnbd_clt_dev *dev, sector_t newsize)
 		ret = -ENOENT;
 		goto out;
 	}
-	ret = rnbd_clt_change_capacity(dev, newsize);
+	rnbd_clt_change_capacity(dev, newsize);
 
 out:
 	mutex_unlock(&dev->lock);
