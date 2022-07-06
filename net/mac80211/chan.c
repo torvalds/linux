@@ -1991,10 +1991,11 @@ void ieee80211_link_release_channel(struct ieee80211_link_data *link)
 
 	WARN_ON(sdata->dev && netif_carrier_ok(sdata->dev));
 
-	lockdep_assert_held(&sdata->local->mtx);
-
 	mutex_lock(&sdata->local->chanctx_mtx);
-	__ieee80211_link_release_channel(link);
+	if (rcu_access_pointer(link->conf->chanctx_conf)) {
+		lockdep_assert_held(&sdata->local->mtx);
+		__ieee80211_link_release_channel(link);
+	}
 	mutex_unlock(&sdata->local->chanctx_mtx);
 }
 
