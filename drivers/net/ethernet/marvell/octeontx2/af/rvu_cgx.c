@@ -475,6 +475,11 @@ void rvu_cgx_disable_dmac_entries(struct rvu *rvu, u16 pcifunc)
 	if (!is_cgx_config_permitted(rvu, pcifunc))
 		return;
 
+	if (rvu_npc_exact_has_match_table(rvu)) {
+		rvu_npc_exact_reset(rvu, pcifunc);
+		return;
+	}
+
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	cgx_dev = cgx_get_pdata(cgx_id);
 	lmac_count = cgx_get_lmac_cnt(cgx_dev);
@@ -585,6 +590,9 @@ int rvu_mbox_handler_cgx_mac_addr_set(struct rvu *rvu,
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return -EPERM;
 
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_mac_addr_set(rvu, req, rsp);
+
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 
 	cgx_lmac_addr_set(cgx_id, lmac_id, req->mac_addr);
@@ -602,6 +610,9 @@ int rvu_mbox_handler_cgx_mac_addr_add(struct rvu *rvu,
 
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return -EPERM;
+
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_mac_addr_add(rvu, req, rsp);
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	rc = cgx_lmac_addr_add(cgx_id, lmac_id, req->mac_addr);
@@ -623,6 +634,9 @@ int rvu_mbox_handler_cgx_mac_addr_del(struct rvu *rvu,
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return -EPERM;
 
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_mac_addr_del(rvu, req, rsp);
+
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	return cgx_lmac_addr_del(cgx_id, lmac_id, req->index);
 }
@@ -641,6 +655,11 @@ int rvu_mbox_handler_cgx_mac_max_entries_get(struct rvu *rvu,
 	 */
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc)) {
 		rsp->max_dmac_filters = 0;
+		return 0;
+	}
+
+	if (rvu_npc_exact_has_match_table(rvu)) {
+		rsp->max_dmac_filters = rvu_npc_exact_get_max_entries(rvu);
 		return 0;
 	}
 
@@ -681,6 +700,10 @@ int rvu_mbox_handler_cgx_promisc_enable(struct rvu *rvu, struct msg_req *req,
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return -EPERM;
 
+	/* Disable drop on non hit rule */
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_promisc_enable(rvu, req->hdr.pcifunc);
+
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 
 	cgx_lmac_promisc_config(cgx_id, lmac_id, true);
@@ -695,6 +718,10 @@ int rvu_mbox_handler_cgx_promisc_disable(struct rvu *rvu, struct msg_req *req,
 
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return -EPERM;
+
+	/* Disable drop on non hit rule */
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_promisc_disable(rvu, req->hdr.pcifunc);
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 
@@ -1099,6 +1126,10 @@ int rvu_mbox_handler_cgx_mac_addr_reset(struct rvu *rvu, struct cgx_mac_addr_res
 		return LMAC_AF_ERR_PERM_DENIED;
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_mac_addr_reset(rvu, req, rsp);
+
 	return cgx_lmac_addr_reset(cgx_id, lmac_id);
 }
 
@@ -1111,6 +1142,9 @@ int rvu_mbox_handler_cgx_mac_addr_update(struct rvu *rvu,
 
 	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
 		return LMAC_AF_ERR_PERM_DENIED;
+
+	if (rvu_npc_exact_has_match_table(rvu))
+		return rvu_npc_exact_mac_addr_update(rvu, req, rsp);
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	return cgx_lmac_addr_update(cgx_id, lmac_id, req->mac_addr, req->index);
