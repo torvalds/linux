@@ -11,10 +11,9 @@
 #include <linux/module.h>
 #include <linux/regmap.h>
 #include <linux/usb/pd.h>
+#include <linux/usb/tcpci.h>
 #include <linux/usb/tcpm.h>
 #include <linux/usb/typec.h>
-
-#include "tcpci.h"
 
 #define PD_ACTIVITY_TIMEOUT_MS				10000
 
