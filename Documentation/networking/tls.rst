@@ -239,6 +239,19 @@ for the original TCP transmission and TCP retransmissions. To the receiver
 this will look like TLS records had been tampered with and will result
 in record authentication failures.
 
+TLS_RX_EXPECT_NO_PAD
+~~~~~~~~~~~~~~~~~~~~
+
+TLS 1.3 only. Expect the sender to not pad records. This allows the data
+to be decrypted directly into user space buffers with TLS 1.3.
+
+This optimization is safe to enable only if the remote end is trusted,
+otherwise it is an attack vector to doubling the TLS processing cost.
+
+If the record decrypted turns out to had been padded or is not a data
+record it will be decrypted again into a kernel buffer without zero copy.
+Such events are counted in the ``TlsDecryptRetry`` statistic.
+
 Statistics
 ==========
 
@@ -264,3 +277,8 @@ TLS implementation exposes the following per-namespace statistics
 
 - ``TlsDeviceRxResync`` -
   number of RX resyncs sent to NICs handling cryptography
+
+- ``TlsDecryptRetry`` -
+  number of RX records which had to be re-decrypted due to
+  ``TLS_RX_EXPECT_NO_PAD`` mis-prediction. Note that this counter will
+  also increment for non-data records.
