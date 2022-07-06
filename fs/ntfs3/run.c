@@ -820,26 +820,36 @@ int run_pack(const struct runs_tree *run, CLST svcn, CLST len, u8 *run_buf,
 	CLST next_vcn, vcn, lcn;
 	CLST prev_lcn = 0;
 	CLST evcn1 = svcn + len;
+	const struct ntfs_run *r, *r_end;
 	int packed_size = 0;
 	size_t i;
-	bool ok;
 	s64 dlcn;
 	int offset_size, size_size, tmp;
-
-	next_vcn = vcn = svcn;
 
 	*packed_vcns = 0;
 
 	if (!len)
 		goto out;
 
-	ok = run_lookup_entry(run, vcn, &lcn, &len, &i);
+	/* Check all required entries [svcn, encv1) available. */
+	if (!run_lookup(run, svcn, &i))
+		return -ENOENT;
 
-	if (!ok)
-		goto error;
+	r_end = run->runs + run->count;
+	r = run->runs + i;
 
-	if (next_vcn != vcn)
-		goto error;
+	for (next_vcn = r->vcn + r->len; next_vcn < evcn1;
+	     next_vcn = r->vcn + r->len) {
+		if (++r >= r_end || r->vcn != next_vcn)
+			return -ENOENT;
+	}
+
+	/* Repeat cycle above and pack runs. Assume no errors. */
+	r = run->runs + i;
+	len = svcn - r->vcn;
+	vcn = svcn;
+	lcn = r->lcn == SPARSE_LCN ? SPARSE_LCN : (r->lcn + len);
+	len = r->len - len;
 
 	for (;;) {
 		next_vcn = vcn + len;
@@ -888,12 +898,10 @@ int run_pack(const struct runs_tree *run, CLST svcn, CLST len, u8 *run_buf,
 		if (packed_size + 1 >= run_buf_size || next_vcn >= evcn1)
 			goto out;
 
-		ok = run_get_entry(run, ++i, &vcn, &lcn, &len);
-		if (!ok)
-			goto error;
-
-		if (next_vcn != vcn)
-			goto error;
+		r += 1;
+		vcn = r->vcn;
+		lcn = r->lcn;
+		len = r->len;
 	}
 
 out:
@@ -902,9 +910,6 @@ out:
 		run_buf[0] = 0;
 
 	return packed_size + 1;
-
-error:
-	return -EOPNOTSUPP;
 }
 
 /*
