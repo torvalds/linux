@@ -69,6 +69,7 @@ void init_iova_domain_procfs(struct iova_domain *iovad, const char *name)
 {
 	struct proc_dir_entry *root;
 
+	remove_proc_subtree(name, iova_dir);
 	root = proc_mkdir(name, iova_dir);
 	if (!root)
 		return;
