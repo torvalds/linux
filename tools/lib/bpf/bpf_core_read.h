@@ -185,6 +185,16 @@ enum bpf_enum_value_kind {
 	__builtin_preserve_type_info(*(typeof(type) *)0, BPF_TYPE_EXISTS)
 
 /*
+ * Convenience macro to check that provided named type
+ * (struct/union/enum/typedef) "matches" that in a target kernel.
+ * Returns:
+ *    1, if the type matches in the target kernel's BTF;
+ *    0, if the type does not match any in the target kernel
+ */
+#define bpf_core_type_matches(type)					    \
+	__builtin_preserve_type_info(*(typeof(type) *)0, BPF_TYPE_MATCHES)
+
+/*
  * Convenience macro to get the byte size of a provided named type
  * (struct/union/enum/typedef) in a target kernel.
  * Returns:
