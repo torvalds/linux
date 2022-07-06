@@ -274,7 +274,7 @@ static void hda_codec_remove(struct snd_soc_component *component)
 	struct hdac_device *hdev = &codec->core;
 	struct hdac_bus *bus = hdev->bus;
 	struct hdac_ext_link *hlink;
-	bool was_registered = codec->registered;
+	bool was_registered = codec->core.registered;
 
 	/* Don't allow any more runtime suspends */
 	pm_runtime_forbid(&hdev->dev);
@@ -376,7 +376,7 @@ static int hda_hdev_detach(struct hdac_device *hdev)
 {
 	struct hda_codec *codec = dev_to_hda_codec(&hdev->dev);
 
-	if (codec->registered)
+	if (codec->core.registered)
 		cancel_delayed_work_sync(&codec->jackpoll_work);
 
 	snd_soc_unregister_component(&hdev->dev);
