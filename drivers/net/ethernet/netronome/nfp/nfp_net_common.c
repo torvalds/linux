@@ -2420,12 +2420,11 @@ static void nfp_net_netdev_init(struct nfp_net *nn)
 	if (nfp_app_has_tc(nn->app) && nn->port)
 		netdev->hw_features |= NETIF_F_HW_TC;
 
-	/* Advertise but disable TSO by default.
-	 * C-Tag strip and S-Tag strip can't be supported simultaneously,
+	/* C-Tag strip and S-Tag strip can't be supported simultaneously,
 	 * so enable C-Tag strip and disable S-Tag strip by default.
 	 */
-	netdev->features &= ~(NETIF_F_TSO | NETIF_F_TSO6 | NETIF_F_HW_VLAN_STAG_RX);
-	nn->dp.ctrl &= ~(NFP_NET_CFG_CTRL_LSO_ANY | NFP_NET_CFG_CTRL_RXQINQ);
+	netdev->features &= ~NETIF_F_HW_VLAN_STAG_RX;
+	nn->dp.ctrl &= ~NFP_NET_CFG_CTRL_RXQINQ;
 
 	/* Finalise the netdev setup */
 	switch (nn->dp.ops->version) {
