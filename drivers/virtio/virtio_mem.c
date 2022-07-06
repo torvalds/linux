@@ -1356,7 +1356,7 @@ static int virtio_mem_send_plug_request(struct virtio_mem *vm, uint64_t addr,
 	struct gh_sgl_desc *gh_sgl;
 	uint64_t orig_addr = addr;
 	int ret;
-	u64 block_size = vm->in_sbm ? vm->sbm.sb_size : vm->bbm.bb_size;
+	u64 block_size = vm->device_block_size;
 
 	dev_dbg(&vm->vdev->dev, "plugging memory: 0x%llx - 0x%llx\n", addr,
 		addr + size - 1);
@@ -1412,7 +1412,7 @@ static int virtio_mem_send_unplug_request(struct virtio_mem *vm, uint64_t addr,
 					  uint64_t size)
 {
 	void *membuf;
-	u64 block_size = vm->in_sbm ? vm->sbm.sb_size : vm->bbm.bb_size;
+	u64 block_size = vm->device_block_size;
 	uint64_t saved_size = size;
 
 	dev_dbg(&vm->vdev->dev, "unplugging memory: 0x%llx - 0x%llx\n", addr,
