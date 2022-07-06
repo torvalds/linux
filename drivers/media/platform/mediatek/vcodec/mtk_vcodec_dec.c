@@ -263,17 +263,44 @@ static int vidioc_vdec_subscribe_evt(struct v4l2_fh *fh,
 	}
 }
 
+static const struct v4l2_frmsize_stepwise *mtk_vdec_get_frmsize(struct mtk_vcodec_ctx *ctx,
+								u32 pixfmt)
+{
+	const struct mtk_vcodec_dec_pdata *dec_pdata = ctx->dev->vdec_pdata;
+	int i;
+
+	for (i = 0; i < *dec_pdata->num_framesizes; ++i)
+		if (pixfmt == dec_pdata->vdec_framesizes[i].fourcc)
+			return &dec_pdata->vdec_framesizes[i].stepwise;
+
+	/*
+	 * This should never happen since vidioc_try_fmt_vid_out_mplane()
+	 * always passes through a valid format for the output side, and
+	 * for the capture side, a valid output format should already have
+	 * been set.
+	 */
+	WARN_ONCE(1, "Unsupported format requested.\n");
+	return &dec_pdata->vdec_framesizes[0].stepwise;
+}
+
 static int vidioc_try_fmt(struct mtk_vcodec_ctx *ctx, struct v4l2_format *f,
 			  const struct mtk_video_fmt *fmt)
 {
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
+	const struct v4l2_frmsize_stepwise *frmsize;
+	u32 fourcc;
 
 	pix_fmt_mp->field = V4L2_FIELD_NONE;
 
-	pix_fmt_mp->width =
-		clamp(pix_fmt_mp->width, MTK_VDEC_MIN_W, ctx->max_width);
-	pix_fmt_mp->height =
-		clamp(pix_fmt_mp->height, MTK_VDEC_MIN_H, ctx->max_height);
+	/* Always apply frame size constraints from the coded side */
+	if (V4L2_TYPE_IS_OUTPUT(f->type))
+		fourcc = f->fmt.pix_mp.pixelformat;
+	else
+		fourcc = ctx->q_data[MTK_Q_DATA_SRC].fmt->fourcc;
+
+	frmsize = mtk_vdec_get_frmsize(ctx, fourcc);
+	pix_fmt_mp->width = clamp(pix_fmt_mp->width, MTK_VDEC_MIN_W, frmsize->max_width);
+	pix_fmt_mp->height = clamp(pix_fmt_mp->height, MTK_VDEC_MIN_H, frmsize->max_height);
 
 	if (f->type == V4L2_BUF_TYPE_VIDEO_OUTPUT_MPLANE) {
 		pix_fmt_mp->num_planes = 1;
@@ -289,18 +316,15 @@ static int vidioc_try_fmt(struct mtk_vcodec_ctx *ctx, struct v4l2_format *f,
 		 */
 		tmp_w = pix_fmt_mp->width;
 		tmp_h = pix_fmt_mp->height;
-		v4l_bound_align_image(&pix_fmt_mp->width,
-					MTK_VDEC_MIN_W,
-					ctx->max_width, 6,
-					&pix_fmt_mp->height,
-					MTK_VDEC_MIN_H,
-					ctx->max_height, 6, 9);
+		v4l_bound_align_image(&pix_fmt_mp->width, MTK_VDEC_MIN_W, frmsize->max_width, 6,
+				      &pix_fmt_mp->height, MTK_VDEC_MIN_H, frmsize->max_height, 6,
+				      9);
 
 		if (pix_fmt_mp->width < tmp_w &&
-			(pix_fmt_mp->width + 64) <= ctx->max_width)
+		    (pix_fmt_mp->width + 64) <= frmsize->max_width)
 			pix_fmt_mp->width += 64;
 		if (pix_fmt_mp->height < tmp_h &&
-			(pix_fmt_mp->height + 64) <= ctx->max_height)
+		    (pix_fmt_mp->height + 64) <= frmsize->max_height)
 			pix_fmt_mp->height += 64;
 
 		mtk_v4l2_debug(0,
