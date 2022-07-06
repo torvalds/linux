@@ -990,6 +990,36 @@ static void collapse_max_ptes_shared(struct collapse_context *c)
 	munmap(p, hpage_pmd_size);
 }
 
+static void madvise_collapse_existing_thps(void)
+{
+	void *p;
+	int err;
+
+	p = alloc_mapping();
+	fill_memory(p, 0, hpage_pmd_size);
+
+	printf("Collapse fully populated PTE table...");
+	/*
+	 * Note that we don't set MADV_HUGEPAGE here, which
+	 * also tests that VM_HUGEPAGE isn't required for
+	 * MADV_COLLAPSE in "madvise" mode.
+	 */
+	err = madvise(p, hpage_pmd_size, MADV_COLLAPSE);
+	if (err == 0 && check_huge(p)) {
+		success("OK");
+		printf("Re-collapse PMD-mapped hugepage");
+		err = madvise(p, hpage_pmd_size, MADV_COLLAPSE);
+		if (err == 0 && check_huge(p))
+			success("OK");
+		else
+			fail("Fail");
+	} else {
+		fail("Fail");
+	}
+	validate_memory(p, 0, hpage_pmd_size);
+	munmap(p, hpage_pmd_size);
+}
+
 int main(int argc, const char **argv)
 {
 	struct collapse_context c;
@@ -1057,6 +1087,7 @@ int main(int argc, const char **argv)
 		collapse_fork(&c);
 		collapse_fork_compound(&c);
 		collapse_max_ptes_shared(&c);
+		madvise_collapse_existing_thps();
 	}
 
 	restore_settings(0);
