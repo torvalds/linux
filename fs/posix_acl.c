@@ -199,7 +199,7 @@ EXPORT_SYMBOL(posix_acl_alloc);
 /*
  * Clone an ACL.
  */
-static struct posix_acl *
+struct posix_acl *
 posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 {
 	struct posix_acl *clone = NULL;
@@ -213,6 +213,7 @@ posix_acl_clone(const struct posix_acl *acl, gfp_t flags)
 	}
 	return clone;
 }
+EXPORT_SYMBOL_GPL(posix_acl_clone);
 
 /*
  * Check if an acl is valid. Returns 0 if it is, or -E... otherwise.
