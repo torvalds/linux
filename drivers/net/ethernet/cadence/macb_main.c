@@ -4699,27 +4699,21 @@ static int init_reset_optional(struct platform_device *pdev)
 		/* Ensure PHY device used in SGMII mode is ready */
 		bp->sgmii_phy = devm_phy_optional_get(&pdev->dev, NULL);
 
-		if (IS_ERR(bp->sgmii_phy)) {
-			ret = PTR_ERR(bp->sgmii_phy);
-			dev_err_probe(&pdev->dev, ret,
-				      "failed to get SGMII PHY\n");
-			return ret;
-		}
+		if (IS_ERR(bp->sgmii_phy))
+			return dev_err_probe(&pdev->dev, PTR_ERR(bp->sgmii_phy),
+					     "failed to get SGMII PHY\n");
 
 		ret = phy_init(bp->sgmii_phy);
-		if (ret) {
-			dev_err(&pdev->dev, "failed to init SGMII PHY: %d\n",
-				ret);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(&pdev->dev, ret,
+					     "failed to init SGMII PHY\n");
 	}
 
 	/* Fully reset controller at hardware level if mapped in device tree */
 	ret = device_reset_optional(&pdev->dev);
 	if (ret) {
-		dev_err_probe(&pdev->dev, ret, "failed to reset controller");
 		phy_exit(bp->sgmii_phy);
-		return ret;
+		return dev_err_probe(&pdev->dev, ret, "failed to reset controller");
 	}
 
 	ret = macb_init(pdev);
