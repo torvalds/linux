@@ -1287,7 +1287,7 @@ static int ni_expand_mft_list(struct ntfs_inode *ni)
 	done = asize - run_size - SIZEOF_NONRESIDENT;
 	le32_sub_cpu(&ni->mi.mrec->used, done);
 
-	/* Estimate the size of second part: run_buf=NULL. */
+	/* Estimate packed size (run_buf=NULL). */
 	err = run_pack(run, svcn, evcn + 1 - svcn, NULL, sbi->record_size,
 		       &plen);
 	if (err < 0)
@@ -1317,6 +1317,7 @@ static int ni_expand_mft_list(struct ntfs_inode *ni)
 	attr->name_off = SIZEOF_NONRESIDENT_LE;
 	attr->flags = 0;
 
+	/* This function can't fail - cause already checked above. */
 	run_pack(run, svcn, evcn + 1 - svcn, Add2Ptr(attr, SIZEOF_NONRESIDENT),
 		 run_size, &plen);
 
@@ -1392,8 +1393,6 @@ int ni_expand_list(struct ntfs_inode *ni)
 
 	/* Split MFT data as much as possible. */
 	err = ni_expand_mft_list(ni);
-	if (err)
-		goto out;
 
 out:
 	return !err && !done ? -EOPNOTSUPP : err;
@@ -1419,6 +1418,7 @@ int ni_insert_nonresident(struct ntfs_inode *ni, enum ATTR_TYPE type,
 	u32 run_size, asize;
 	struct ntfs_sb_info *sbi = ni->mi.sbi;
 
+	/* Estimate packed size (run_buf=NULL). */
 	err = run_pack(run, svcn, len, NULL, sbi->max_bytes_per_attr - run_off,
 		       &plen);
 	if (err < 0)
@@ -1448,12 +1448,12 @@ int ni_insert_nonresident(struct ntfs_inode *ni, enum ATTR_TYPE type,
 	attr->name_off = cpu_to_le16(name_off);
 	attr->flags = flags;
 
+	/* This function can't fail - cause already checked above. */
 	run_pack(run, svcn, len, Add2Ptr(attr, run_off), run_size, &plen);
 
 	attr->nres.svcn = cpu_to_le64(svcn);
 	attr->nres.evcn = cpu_to_le64((u64)svcn + len - 1);
 
-	err = 0;
 	if (new_attr)
 		*new_attr = attr;
 

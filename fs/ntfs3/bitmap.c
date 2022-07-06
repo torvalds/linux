@@ -1393,9 +1393,8 @@ int wnd_extend(struct wnd_bitmap *wnd, size_t new_bits)
 
 void wnd_zone_set(struct wnd_bitmap *wnd, size_t lcn, size_t len)
 {
-	size_t zlen;
+	size_t zlen = wnd->zone_end - wnd->zone_bit;
 
-	zlen = wnd->zone_end - wnd->zone_bit;
 	if (zlen)
 		wnd_add_free_ext(wnd, wnd->zone_bit, zlen, false);
 

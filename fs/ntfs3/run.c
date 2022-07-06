@@ -31,7 +31,7 @@ struct ntfs_run {
  * Case of entry missing from list 'index' will be set to
  * point to insertion position for the entry question.
  */
-bool run_lookup(const struct runs_tree *run, CLST vcn, size_t *index)
+static bool run_lookup(const struct runs_tree *run, CLST vcn, size_t *index)
 {
 	size_t min_idx, max_idx, mid_idx;
 	struct ntfs_run *r;
