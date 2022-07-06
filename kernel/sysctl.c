@@ -583,9 +583,9 @@ static int do_proc_douintvec_conv(unsigned long *lvalp,
 	if (write) {
 		if (*lvalp > UINT_MAX)
 			return -EINVAL;
-		*valp = *lvalp;
+		WRITE_ONCE(*valp, *lvalp);
 	} else {
-		unsigned int val = *valp;
+		unsigned int val = READ_ONCE(*valp);
 		*lvalp = (unsigned long)val;
 	}
 	return 0;
