@@ -979,8 +979,10 @@
 			[KNL] Debugging option to set a timeout in seconds for
 			deferred probe to give up waiting on dependencies to
 			probe. Only specific dependencies (subsystems or
-			drivers) that have opted in will be ignored. A timeout of 0
-			will timeout at the end of initcalls. This option will also
+			drivers) that have opted in will be ignored. A timeout
+			of 0 will timeout at the end of initcalls. If the time
+			out hasn't expired, it'll be restarted by each
+			successful driver registration. This option will also
 			dump out devices still on the deferred probe list after
 			retrying.
 
@@ -1101,7 +1103,10 @@
 			driver later using sysfs.
 
 	driver_async_probe=  [KNL]
-			List of driver names to be probed asynchronously.
+			List of driver names to be probed asynchronously. *
+			matches with all driver names. If * is specified, the
+			rest of the listed driver names are those that will NOT
+			match the *.
 			Format: <driver_name1>,<driver_name2>...
 
 	drm.edid_firmware=[<connector>:]<file>[,[<connector>:]<file>]
