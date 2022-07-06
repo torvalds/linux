@@ -1739,7 +1739,7 @@ static int rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 	if (dev->hdr.hdr_mode != NO_HDR && stream->id != 0 && (!dev->rdbk_buf[RDBK_L]))
 		return -EINVAL;
 
-	if (stream->to_stop_dma)
+	if (stream->to_stop_dma && stream->dma_en & RKCIF_DMAEN_BY_ISP)
 		goto stop_dma;
 
 	spin_lock_irqsave(&stream->vbq_lock, flags);
@@ -3124,24 +3124,26 @@ void rkcif_buf_queue(struct vb2_buffer *vb)
 	int i;
 	bool is_find_tools_buf = false;
 
-	spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
-	if (tools_vdev && !list_empty(&tools_vdev->src_buf_head)) {
-		list_for_each_entry(tools_buf, &tools_vdev->src_buf_head, list) {
-			if (tools_buf->vb == vbuf) {
-				is_find_tools_buf = true;
-				break;
+	if (tools_vdev) {
+		spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
+		if (!list_empty(&tools_vdev->src_buf_head)) {
+			list_for_each_entry(tools_buf, &tools_vdev->src_buf_head, list) {
+				if (tools_buf->vb == vbuf) {
+					is_find_tools_buf = true;
+					break;
+				}
+			}
+			if (is_find_tools_buf) {
+				if (tools_buf->use_cnt)
+					tools_buf->use_cnt--;
+				if (tools_buf->use_cnt) {
+					spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
+					return;
+				}
 			}
 		}
-		if (is_find_tools_buf) {
-			if (tools_buf->use_cnt)
-				tools_buf->use_cnt--;
-			if (tools_buf->use_cnt) {
-				spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
-				return;
-			}
-		}
+		spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
 	}
-	spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
 
 	memset(cifbuf->buff_addr, 0, sizeof(cifbuf->buff_addr));
 	/* If mplanes > 1, every c-plane has its own m-plane,
@@ -6796,7 +6798,8 @@ static void rkcif_buf_done_prepare(struct rkcif_stream *stream,
 	if (cif_dev->hdr.hdr_mode == NO_HDR || cif_dev->hdr.hdr_mode == HDR_COMPR) {
 		if (stream->cif_fmt_in->field == V4L2_FIELD_INTERLACED) {
 			if (stream->frame_phase == CIF_CSI_FRAME1_READY && active_buf) {
-				if (stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
+				if (stream->tools_vdev &&
+				    stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
 					spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
 					stream->tools_vdev->tools_work.active_buf = active_buf;
 					stream->tools_vdev->tools_work.frame_idx = active_buf->vb.sequence;
@@ -6812,7 +6815,8 @@ static void rkcif_buf_done_prepare(struct rkcif_stream *stream,
 			}
 		} else {
 			if (active_buf) {
-				if (stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
+				if (stream->tools_vdev &&
+				    stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
 					spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
 					stream->tools_vdev->tools_work.active_buf = active_buf;
 					stream->tools_vdev->tools_work.frame_idx = active_buf->vb.sequence;
