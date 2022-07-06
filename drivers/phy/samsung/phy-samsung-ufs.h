@@ -109,7 +109,8 @@ struct samsung_ufs_phy_pmu_isol {
 struct samsung_ufs_phy_drvdata {
 	const struct samsung_ufs_phy_cfg **cfgs;
 	struct samsung_ufs_phy_pmu_isol isol;
-	bool has_symbol_clk;
+	const char * const *clk_list;
+	int num_clks;
 	u32 cdr_lock_status_offset;
 };
 
@@ -117,15 +118,10 @@ struct samsung_ufs_phy {
 	struct device *dev;
 	void __iomem *reg_pma;
 	struct regmap *reg_pmu;
-	struct clk *ref_clk;
-	struct clk *ref_clk_parent;
-	struct clk *tx0_symbol_clk;
-	struct clk *rx0_symbol_clk;
-	struct clk *rx1_symbol_clk;
+	struct clk_bulk_data *clks;
 	const struct samsung_ufs_phy_drvdata *drvdata;
 	const struct samsung_ufs_phy_cfg * const *cfgs;
 	struct samsung_ufs_phy_pmu_isol isol;
-	bool has_symbol_clk;
 	u8 lane_cnt;
 	int ufs_phy_state;
 	enum phy_mode mode;

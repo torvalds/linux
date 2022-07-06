@@ -46,6 +46,10 @@ static const struct samsung_ufs_phy_cfg *fsd_ufs_phy_cfgs[CFG_TAG_MAX] = {
 	[CFG_POST_PWR_HS]	= fsd_post_pwr_hs_cfg,
 };
 
+static const char * const fsd_ufs_phy_clks[] = {
+	"ref_clk",
+};
+
 const struct samsung_ufs_phy_drvdata fsd_ufs_phy = {
 	.cfgs = fsd_ufs_phy_cfgs,
 	.isol = {
@@ -53,6 +57,7 @@ const struct samsung_ufs_phy_drvdata fsd_ufs_phy = {
 		.mask = FSD_EMBEDDED_COMBO_PHY_CTRL_MASK,
 		.en = FSD_EMBEDDED_COMBO_PHY_CTRL_EN,
 	},
-	.has_symbol_clk = 0,
+	.clk_list = fsd_ufs_phy_clks,
+	.num_clks = ARRAY_SIZE(fsd_ufs_phy_clks),
 	.cdr_lock_status_offset = FSD_EMBEDDED_COMBO_PHY_CDR_LOCK_STATUS,
 };

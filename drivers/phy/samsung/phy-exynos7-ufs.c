@@ -68,6 +68,10 @@ static const struct samsung_ufs_phy_cfg *exynos7_ufs_phy_cfgs[CFG_TAG_MAX] = {
 	[CFG_POST_PWR_HS]	= exynos7_post_pwr_hs_cfg,
 };
 
+static const char * const exynos7_ufs_phy_clks[] = {
+	"tx0_symbol_clk", "rx0_symbol_clk", "rx1_symbol_clk", "ref_clk",
+};
+
 const struct samsung_ufs_phy_drvdata exynos7_ufs_phy = {
 	.cfgs = exynos7_ufs_phy_cfgs,
 	.isol = {
@@ -75,6 +79,7 @@ const struct samsung_ufs_phy_drvdata exynos7_ufs_phy = {
 		.mask = EXYNOS7_EMBEDDED_COMBO_PHY_CTRL_MASK,
 		.en = EXYNOS7_EMBEDDED_COMBO_PHY_CTRL_EN,
 	},
-	.has_symbol_clk = 1,
+	.clk_list = exynos7_ufs_phy_clks,
+	.num_clks = ARRAY_SIZE(exynos7_ufs_phy_clks),
 	.cdr_lock_status_offset = EXYNOS7_EMBEDDED_COMBO_PHY_CDR_LOCK_STATUS,
 };
