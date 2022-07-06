@@ -262,7 +262,6 @@ static bool bt_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
 	struct blk_mq_hw_ctx *hctx = iter_data->hctx;
 	struct request_queue *q = iter_data->q;
 	struct blk_mq_tag_set *set = q->tag_set;
-	bool reserved = iter_data->reserved;
 	struct blk_mq_tags *tags;
 	struct request *rq;
 	bool ret = true;
@@ -272,7 +271,7 @@ static bool bt_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
 	else
 		tags = hctx->tags;
 
-	if (!reserved)
+	if (!iter_data->reserved)
 		bitnr += tags->nr_reserved_tags;
 	/*
 	 * We can hit rq == NULL here, because the tagging functions
@@ -333,12 +332,11 @@ static bool bt_tags_iter(struct sbitmap *bitmap, unsigned int bitnr, void *data)
 {
 	struct bt_tags_iter_data *iter_data = data;
 	struct blk_mq_tags *tags = iter_data->tags;
-	bool reserved = iter_data->flags & BT_TAG_ITER_RESERVED;
 	struct request *rq;
 	bool ret = true;
 	bool iter_static_rqs = !!(iter_data->flags & BT_TAG_ITER_STATIC_RQS);
 
-	if (!reserved)
+	if (!(iter_data->flags & BT_TAG_ITER_RESERVED))
 		bitnr += tags->nr_reserved_tags;
 
 	/*
