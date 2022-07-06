@@ -305,8 +305,7 @@ static inline bool btrfs_is_free_space_inode(struct btrfs_inode *inode)
 	if (root == root->fs_info->tree_root &&
 	    btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID)
 		return true;
-	if (inode->location.objectid == BTRFS_FREE_INO_OBJECTID)
-		return true;
+
 	return false;
 }
 
