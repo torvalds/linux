@@ -69,7 +69,7 @@ static inline bool rnbd_clt_get_dev(struct rnbd_clt_dev *dev)
 }
 
 static int rnbd_clt_change_capacity(struct rnbd_clt_dev *dev,
-				    size_t new_nsectors)
+				    sector_t new_nsectors)
 {
 	if (get_capacity(dev->gd) == new_nsectors)
 		return 0;
@@ -77,7 +77,7 @@ static int rnbd_clt_change_capacity(struct rnbd_clt_dev *dev,
 	/*
 	 * If the size changed, we need to revalidate it
 	 */
-	rnbd_clt_info(dev, "Device size changed from %llu to %zu sectors\n",
+	rnbd_clt_info(dev, "Device size changed from %llu to %llu sectors\n",
 		      get_capacity(dev->gd), new_nsectors);
 	set_capacity_and_notify(dev->gd, new_nsectors);
 	return 0;
@@ -117,7 +117,7 @@ out:
 	return err;
 }
 
-int rnbd_clt_resize_disk(struct rnbd_clt_dev *dev, size_t newsize)
+int rnbd_clt_resize_disk(struct rnbd_clt_dev *dev, sector_t newsize)
 {
 	int ret = 0;
 

@@ -138,7 +138,7 @@ int rnbd_clt_unmap_device(struct rnbd_clt_dev *dev, bool force,
 			   const struct attribute *sysfs_self);
 
 int rnbd_clt_remap_device(struct rnbd_clt_dev *dev);
-int rnbd_clt_resize_disk(struct rnbd_clt_dev *dev, size_t newsize);
+int rnbd_clt_resize_disk(struct rnbd_clt_dev *dev, sector_t newsize);
 
 /* rnbd-clt-sysfs.c */
 
