@@ -111,8 +111,8 @@ int nvme_update_zone_info(struct nvme_ns *ns, unsigned lbaf)
 
 	disk_set_zoned(ns->disk, BLK_ZONED_HM);
 	blk_queue_flag_set(QUEUE_FLAG_ZONE_RESETALL, q);
-	blk_queue_max_open_zones(q, le32_to_cpu(id->mor) + 1);
-	blk_queue_max_active_zones(q, le32_to_cpu(id->mar) + 1);
+	disk_set_max_open_zones(ns->disk, le32_to_cpu(id->mor) + 1);
+	disk_set_max_active_zones(ns->disk, le32_to_cpu(id->mar) + 1);
 free_data:
 	kfree(id);
 	return status;
