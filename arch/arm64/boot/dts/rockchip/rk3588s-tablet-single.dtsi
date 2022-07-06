@@ -1183,6 +1183,10 @@
 	status = "okay";
 };
 
+&vepu {
+	status = "okay";
+};
+
 &rkvenc_ccu {
 	status = "okay";
 };

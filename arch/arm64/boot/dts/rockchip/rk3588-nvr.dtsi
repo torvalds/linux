@@ -286,6 +286,10 @@
 	status = "okay";
 };
 
+&vepu {
+	status = "okay";
+};
+
 &vop {
 	assigned-clocks = <&cru ACLK_VOP>;
 	assigned-clock-rates = <800000000>;

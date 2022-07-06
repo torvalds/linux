@@ -328,6 +328,10 @@
 	status = "okay";
 };
 
+&vepu {
+	status = "okay";
+};
+
 &vop {
 	disable-win-move;
 	assigned-clocks = <&cru DCLK_VOP0_SRC>,
