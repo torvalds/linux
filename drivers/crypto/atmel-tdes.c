@@ -1263,9 +1263,7 @@ err_tasklet_kill:
 
 static int atmel_tdes_remove(struct platform_device *pdev)
 {
-	struct atmel_tdes_dev *tdes_dd;
-
-	tdes_dd = platform_get_drvdata(pdev);
+	struct atmel_tdes_dev *tdes_dd = platform_get_drvdata(pdev);
 
 	spin_lock(&atmel_tdes.lock);
 	list_del(&tdes_dd->list);
