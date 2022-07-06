@@ -120,7 +120,7 @@ static const struct IP_BASE DCN_BASE = { { { { 0x00000012, 0x000000C0, 0x000034C
 #define DCN3_2_MIN_COMPBUF_SIZE_KB 128
 
 struct _vcs_dpi_ip_params_st dcn3_2_ip = {
-	.gpuvm_enable = 1,
+	.gpuvm_enable = 0,
 	.gpuvm_max_page_table_levels = 4,
 	.hostvm_enable = 0,
 	.rob_buffer_size_kbytes = 128,
