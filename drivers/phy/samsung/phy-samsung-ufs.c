@@ -151,10 +151,19 @@ static int samsung_ufs_phy_clks_init(struct samsung_ufs_phy *phy)
 static int samsung_ufs_phy_init(struct phy *phy)
 {
 	struct samsung_ufs_phy *ss_phy = get_samsung_ufs_phy(phy);
-	int ret;
 
 	ss_phy->lane_cnt = phy->attrs.bus_width;
 	ss_phy->ufs_phy_state = CFG_PRE_INIT;
+
+	return 0;
+}
+
+static int samsung_ufs_phy_power_on(struct phy *phy)
+{
+	struct samsung_ufs_phy *ss_phy = get_samsung_ufs_phy(phy);
+	int ret;
+
+	samsung_ufs_phy_ctrl_isol(ss_phy, false);
 
 	ret = clk_bulk_prepare_enable(ss_phy->drvdata->num_clks, ss_phy->clks);
 	if (ret) {
@@ -162,26 +171,23 @@ static int samsung_ufs_phy_init(struct phy *phy)
 		return ret;
 	}
 
-	ret = samsung_ufs_phy_calibrate(phy);
-	if (ret)
-		dev_err(ss_phy->dev, "ufs phy calibration failed\n");
+	if (ss_phy->ufs_phy_state == CFG_PRE_INIT) {
+		ret = samsung_ufs_phy_calibrate(phy);
+		if (ret)
+			dev_err(ss_phy->dev, "ufs phy calibration failed\n");
+	}
 
 	return ret;
-}
-
-static int samsung_ufs_phy_power_on(struct phy *phy)
-{
-	struct samsung_ufs_phy *ss_phy = get_samsung_ufs_phy(phy);
-
-	samsung_ufs_phy_ctrl_isol(ss_phy, false);
-	return 0;
 }
 
 static int samsung_ufs_phy_power_off(struct phy *phy)
 {
 	struct samsung_ufs_phy *ss_phy = get_samsung_ufs_phy(phy);
 
+	clk_bulk_disable_unprepare(ss_phy->drvdata->num_clks, ss_phy->clks);
+
 	samsung_ufs_phy_ctrl_isol(ss_phy, true);
+
 	return 0;
 }
 
@@ -202,7 +208,7 @@ static int samsung_ufs_phy_exit(struct phy *phy)
 {
 	struct samsung_ufs_phy *ss_phy = get_samsung_ufs_phy(phy);
 
-	clk_bulk_disable_unprepare(ss_phy->drvdata->num_clks, ss_phy->clks);
+	ss_phy->ufs_phy_state = CFG_TAG_MAX;
 
 	return 0;
 }
