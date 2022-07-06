@@ -960,6 +960,213 @@ static int rvu_npc_exact_alloc_table_entry(struct rvu *rvu,  char *mac, u16 chan
 }
 
 /**
+ *	rvu_npc_exact_save_drop_rule_chan_and_mask - Save drop rules info in data base.
+ *      @rvu: resource virtualization unit.
+ *	@drop_mcam_idx: Drop rule index in NPC mcam.
+ *	@chan_val: Channel value.
+ *	@chan_mask: Channel Mask.
+ *	@pcifunc: pcifunc of interface.
+ */
+static bool rvu_npc_exact_save_drop_rule_chan_and_mask(struct rvu *rvu, int drop_mcam_idx,
+						       u64 chan_val, u64 chan_mask, u16 pcifunc)
+{
+	struct npc_exact_table *table;
+	int i;
+
+	table = rvu->hw->table;
+
+	for (i = 0; i < NPC_MCAM_DROP_RULE_MAX; i++) {
+		if (!table->drop_rule_map[i].valid)
+			break;
+
+		if (table->drop_rule_map[i].chan_val != (u16)chan_val)
+			continue;
+
+		if (table->drop_rule_map[i].chan_mask != (u16)chan_mask)
+			continue;
+
+		return false;
+	}
+
+	if (i == NPC_MCAM_DROP_RULE_MAX)
+		return false;
+
+	table->drop_rule_map[i].drop_rule_idx = drop_mcam_idx;
+	table->drop_rule_map[i].chan_val = (u16)chan_val;
+	table->drop_rule_map[i].chan_mask = (u16)chan_mask;
+	table->drop_rule_map[i].pcifunc = pcifunc;
+	table->drop_rule_map[i].valid = true;
+	return true;
+}
+
+/**
+ *	rvu_npc_exact_calc_drop_rule_chan_and_mask - Calculate Channel number and mask.
+ *      @rvu: resource virtualization unit.
+ *	@intf_type: Interface type (SDK, LBK or CGX)
+ *	@cgx_id: CGX identifier.
+ *	@lmac_id: LAMC identifier.
+ *	@val: Channel number.
+ *	@mask: Channel mask.
+ */
+static bool rvu_npc_exact_calc_drop_rule_chan_and_mask(struct rvu *rvu, u8 intf_type,
+						       u8 cgx_id, u8 lmac_id,
+						       u64 *val, u64 *mask)
+{
+	u16 chan_val, chan_mask;
+
+	/* No support for SDP and LBK */
+	if (intf_type != NIX_INTF_TYPE_CGX)
+		return false;
+
+	chan_val = rvu_nix_chan_cgx(rvu, cgx_id, lmac_id, 0);
+	chan_mask = 0xfff;
+
+	if (val)
+		*val = chan_val;
+
+	if (mask)
+		*mask = chan_mask;
+
+	return true;
+}
+
+/**
+ *	rvu_npc_exact_drop_rule_to_pcifunc - Retrieve pcifunc
+ *      @rvu: resource virtualization unit.
+ *	@drop_rule_idx: Drop rule index in NPC mcam.
+ *
+ *	Debugfs (exact_drop_cnt) entry displays pcifunc for interface
+ *	by retrieving the pcifunc value from data base.
+ */
+u16 rvu_npc_exact_drop_rule_to_pcifunc(struct rvu *rvu, u32 drop_rule_idx)
+{
+	struct npc_exact_table *table;
+	int i;
+
+	table = rvu->hw->table;
+
+	for (i = 0; i < NPC_MCAM_DROP_RULE_MAX; i++) {
+		if (!table->drop_rule_map[i].valid)
+			break;
+
+		if (table->drop_rule_map[i].drop_rule_idx != drop_rule_idx)
+			continue;
+
+		return table->drop_rule_map[i].pcifunc;
+	}
+
+	dev_err(rvu->dev, "%s: drop mcam rule index (%d) >= NPC_MCAM_DROP_RULE_MAX\n",
+		__func__, drop_rule_idx);
+	return -1;
+}
+
+/**
+ *	rvu_npc_exact_get_drop_rule_info - Get drop rule information.
+ *      @rvu: resource virtualization unit.
+ *	@intf_type: Interface type (CGX, SDP or LBK)
+ *	@cgx_id: CGX identifier.
+ *	@lmac_id: LMAC identifier.
+ *	@drop_mcam_idx: NPC mcam drop rule index.
+ *	@val: Channel value.
+ *	@mask: Channel mask.
+ *	@pcifunc: pcifunc of interface corresponding to the drop rule.
+ */
+static bool rvu_npc_exact_get_drop_rule_info(struct rvu *rvu, u8 intf_type, u8 cgx_id,
+					     u8 lmac_id, u32 *drop_mcam_idx, u64 *val,
+					     u64 *mask, u16 *pcifunc)
+{
+	struct npc_exact_table *table;
+	u64 chan_val, chan_mask;
+	bool rc;
+	int i;
+
+	table = rvu->hw->table;
+
+	if (intf_type != NIX_INTF_TYPE_CGX) {
+		dev_err(rvu->dev, "%s: No drop rule for LBK/SDP mode\n", __func__);
+		return false;
+	}
+
+	rc = rvu_npc_exact_calc_drop_rule_chan_and_mask(rvu, intf_type, cgx_id,
+							lmac_id, &chan_val, &chan_mask);
+
+	for (i = 0; i < NPC_MCAM_DROP_RULE_MAX; i++) {
+		if (!table->drop_rule_map[i].valid)
+			break;
+
+		if (table->drop_rule_map[i].chan_val != (u16)chan_val)
+			continue;
+
+		if (val)
+			*val = table->drop_rule_map[i].chan_val;
+		if (mask)
+			*mask = table->drop_rule_map[i].chan_mask;
+		if (pcifunc)
+			*pcifunc = table->drop_rule_map[i].pcifunc;
+
+		*drop_mcam_idx = i;
+		return true;
+	}
+
+	if (i == NPC_MCAM_DROP_RULE_MAX) {
+		dev_err(rvu->dev, "%s: drop mcam rule index (%d) >= NPC_MCAM_DROP_RULE_MAX\n",
+			__func__, *drop_mcam_idx);
+		return false;
+	}
+
+	dev_err(rvu->dev, "%s: Could not retrieve for cgx=%d, lmac=%d\n",
+		__func__, cgx_id, lmac_id);
+	return false;
+}
+
+/**
+ *	__rvu_npc_exact_cmd_rules_cnt_update - Update number dmac rules against a drop rule.
+ *      @rvu: resource virtualization unit.
+ *	@drop_mcam_idx: NPC mcam drop rule index.
+ *	@val: +1 or -1.
+ *	@enable_or_disable_cam: If no exact match rules against a drop rule, disable it.
+ *
+ *	when first exact match entry against a drop rule is added, enable_or_disable_cam
+ *	is set to true. When last exact match entry against a drop rule is deleted,
+ *	enable_or_disable_cam is set to true.
+ */
+static u16 __rvu_npc_exact_cmd_rules_cnt_update(struct rvu *rvu, int drop_mcam_idx,
+						int val, bool *enable_or_disable_cam)
+{
+	struct npc_exact_table *table;
+	u16 *cnt, old_cnt;
+	bool promisc;
+
+	table = rvu->hw->table;
+	promisc = table->promisc_mode[drop_mcam_idx];
+
+	cnt = &table->cnt_cmd_rules[drop_mcam_idx];
+	old_cnt = *cnt;
+
+	*cnt += val;
+
+	if (!enable_or_disable_cam)
+		goto done;
+
+	*enable_or_disable_cam = false;
+
+	/* If all rules are deleted and not already in promisc mode; disable cam */
+	if (!*cnt && !promisc) {
+		*enable_or_disable_cam = true;
+		goto done;
+	}
+
+	/* If rule got added and not already in promisc mode; enable cam */
+	if (!old_cnt && !promisc) {
+		*enable_or_disable_cam = true;
+		goto done;
+	}
+
+done:
+	return *cnt;
+}
+
+/**
  *      rvu_npc_exact_del_table_entry_by_id - Delete and free table entry.
  *      @rvu: resource virtualization unit.
  *	@seq_id: Sequence identifier of the entry.
@@ -971,6 +1178,8 @@ int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id)
 {
 	struct npc_exact_table_entry *entry = NULL;
 	struct npc_exact_table *table;
+	u32 drop_mcam_idx;
+	bool disable_cam;
 	int *cnt;
 
 	table = rvu->hw->table;
@@ -993,6 +1202,19 @@ int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id)
 	list_del_init(&entry->glist);
 
 	(*cnt)--;
+
+	rvu_npc_exact_get_drop_rule_info(rvu, NIX_INTF_TYPE_CGX, entry->cgx_id, entry->lmac_id,
+					 &drop_mcam_idx, NULL, NULL, NULL);
+
+	if (entry->cmd)
+		__rvu_npc_exact_cmd_rules_cnt_update(rvu, drop_mcam_idx, -1, &disable_cam);
+
+	/* No dmac filter rules; disable drop on hit rule */
+	if (disable_cam) {
+		rvu_npc_enable_mcam_by_entry_index(rvu, drop_mcam_idx, NIX_INTF_RX, false);
+		dev_dbg(rvu->dev, "%s: Disabling mcam idx %d\n",
+			__func__, drop_mcam_idx);
+	}
 
 	mutex_unlock(&table->lock);
 
@@ -1030,6 +1252,8 @@ int rvu_npc_exact_add_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_id, u8 *ma
 	int blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	enum npc_exact_opc_type opc_type;
 	struct npc_exact_table *table;
+	u32 drop_mcam_idx;
+	bool enable_cam;
 	u32 index;
 	u64 mdata;
 	int err;
@@ -1060,6 +1284,18 @@ int rvu_npc_exact_add_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_id, u8 *ma
 		rvu_npc_exact_dealloc_table_entry(rvu, opc_type, ways, index);
 		dev_err(rvu->dev, "%s: could not add to exact match table\n", __func__);
 		return err;
+	}
+
+	rvu_npc_exact_get_drop_rule_info(rvu, NIX_INTF_TYPE_CGX, cgx_id, lmac_id,
+					 &drop_mcam_idx, NULL, NULL, NULL);
+	if (cmd)
+		__rvu_npc_exact_cmd_rules_cnt_update(rvu, drop_mcam_idx, 1, &enable_cam);
+
+	/* First command rule; enable drop on hit rule */
+	if (enable_cam) {
+		rvu_npc_enable_mcam_by_entry_index(rvu, drop_mcam_idx, NIX_INTF_RX, true);
+		dev_dbg(rvu->dev, "%s: Enabling mcam idx %d\n",
+			__func__, drop_mcam_idx);
 	}
 
 	dev_dbg(rvu->dev,
@@ -1202,16 +1438,25 @@ void rvu_npc_exact_reset(struct rvu *rvu, u16 pcifunc)
  *      @rvu: resource virtualization unit.
  *
  *	Initialize HW and SW resources to manage 4way-2K table and fully
+	u8 cgx_id, lmac_id;
  *	associative 32-entry mcam table.
  */
 int rvu_npc_exact_init(struct rvu *rvu)
 {
+	u64 bcast_mcast_val, bcast_mcast_mask;
 	struct npc_exact_table *table;
+	u64 exact_val, exact_mask;
+	u64 chan_val, chan_mask;
+	u8 cgx_id, lmac_id;
+	u32 *drop_mcam_idx;
+	u16 max_lmac_cnt;
 	u64 npc_const3;
 	int table_size;
 	int blkaddr;
+	u16 pcifunc;
+	int err, i;
 	u64 cfg;
-	int i;
+	bool rc;
 
 	/* Read NPC_AF_CONST3 and check for have exact
 	 * match functionality is present
@@ -1312,6 +1557,68 @@ int rvu_npc_exact_init(struct rvu *rvu)
 
 	rvu_exact_config_table_mask(rvu);
 	rvu_exact_config_result_ctrl(rvu, table->mem_table.depth);
+
+	/* - No drop rule for LBK
+	 * - Drop rules for SDP and each LMAC.
+	 */
+	exact_val = !NPC_EXACT_RESULT_HIT;
+	exact_mask = NPC_EXACT_RESULT_HIT;
+
+	/* nibble - 3	2  1   0
+	 *	   L3B L3M L2B L2M
+	 */
+	bcast_mcast_val = 0b0000;
+	bcast_mcast_mask = 0b0011;
+
+	/* Install SDP drop rule */
+	drop_mcam_idx = &table->num_drop_rules;
+
+	max_lmac_cnt = rvu->cgx_cnt_max * MAX_LMAC_PER_CGX + PF_CGXMAP_BASE;
+	for (i = PF_CGXMAP_BASE; i < max_lmac_cnt; i++) {
+		if (rvu->pf2cgxlmac_map[i] == 0xFF)
+			continue;
+
+		rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[i], &cgx_id, &lmac_id);
+
+		rc = rvu_npc_exact_calc_drop_rule_chan_and_mask(rvu, NIX_INTF_TYPE_CGX, cgx_id,
+								lmac_id, &chan_val, &chan_mask);
+		if (!rc) {
+			dev_err(rvu->dev,
+				"%s: failed, info chan_val=0x%llx chan_mask=0x%llx rule_id=%d\n",
+				__func__, chan_val, chan_mask, *drop_mcam_idx);
+			return -EINVAL;
+		}
+
+		/* Filter rules are only for PF */
+		pcifunc = RVU_PFFUNC(i, 0);
+
+		dev_dbg(rvu->dev,
+			"%s:Drop rule cgx=%d lmac=%d chan(val=0x%llx, mask=0x%llx\n",
+			__func__, cgx_id, lmac_id, chan_val, chan_mask);
+
+		rc = rvu_npc_exact_save_drop_rule_chan_and_mask(rvu, table->num_drop_rules,
+								chan_val, chan_mask, pcifunc);
+		if (!rc) {
+			dev_err(rvu->dev,
+				"%s: failed to set drop info for cgx=%d, lmac=%d, chan=%llx\n",
+				__func__, cgx_id, lmac_id, chan_val);
+			return err;
+		}
+
+		err = npc_install_mcam_drop_rule(rvu, *drop_mcam_idx,
+						 &table->counter_idx[*drop_mcam_idx],
+						 chan_val, chan_mask,
+						 exact_val, exact_mask,
+						 bcast_mcast_val, bcast_mcast_mask);
+		if (err) {
+			dev_err(rvu->dev,
+				"failed to configure drop rule (cgx=%d lmac=%d)\n",
+				cgx_id, lmac_id);
+			return err;
+		}
+
+		(*drop_mcam_idx)++;
+	}
 
 	dev_info(rvu->dev, "initialized exact match table successfully\n");
 	return 0;

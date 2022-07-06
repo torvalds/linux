@@ -129,6 +129,14 @@ static struct npc_mcam_kex_hash npc_mkex_hash_default __maybe_unused = {
 	},
 };
 
+/* If exact match table support is enabled, enable drop rules */
+#define NPC_MCAM_DROP_RULE_MAX 30
+#define NPC_MCAM_SDP_DROP_RULE_IDX 0
+
+#define RVU_PFFUNC(pf, func)	\
+	((((pf) & RVU_PFVF_PF_MASK) << RVU_PFVF_PF_SHIFT) | \
+	(((func) & RVU_PFVF_FUNC_MASK) << RVU_PFVF_FUNC_SHIFT))
+
 enum npc_exact_opc_type {
 	NPC_EXACT_OPC_MEM,
 	NPC_EXACT_OPC_CAM,
@@ -155,7 +163,11 @@ struct npc_exact_table_entry {
 struct npc_exact_table {
 	struct mutex lock;	/* entries update lock */
 	unsigned long *id_bmap;
+	int num_drop_rules;
 	u32 tot_ids;
+	u16 cnt_cmd_rules[NPC_MCAM_DROP_RULE_MAX];
+	u16 counter_idx[NPC_MCAM_DROP_RULE_MAX];
+	bool promisc_mode[NPC_MCAM_DROP_RULE_MAX];
 	struct {
 		int ways;
 		int depth;
@@ -169,6 +181,15 @@ struct npc_exact_table {
 		int depth;
 		unsigned long *bmap;
 	} cam_table;
+
+	struct {
+		bool valid;
+		u16 chan_val;
+		u16 chan_mask;
+		u16 pcifunc;
+		u8 drop_rule_idx;
+	} drop_rule_map[NPC_MCAM_DROP_RULE_MAX];
+
 #define NPC_EXACT_TBL_MAX_WAYS 4
 
 	struct list_head lhead_mem_tbl_entry[NPC_EXACT_TBL_MAX_WAYS];
@@ -188,5 +209,6 @@ int rvu_npc_exact_init(struct rvu *rvu);
 bool rvu_npc_exact_can_disable_feature(struct rvu *rvu);
 void rvu_npc_exact_disable_feature(struct rvu *rvu);
 void rvu_npc_exact_reset(struct rvu *rvu, u16 pcifunc);
+u16 rvu_npc_exact_drop_rule_to_pcifunc(struct rvu *rvu, u32 drop_rule_idx);
 
 #endif /* RVU_NPC_HASH_H */

@@ -10,8 +10,9 @@
 #include "rvu_reg.h"
 #include "rvu.h"
 #include "npc.h"
-#include "rvu_npc_hash.h"
 #include "rvu_npc_fs.h"
+#include "npc_profile.h"
+#include "rvu_npc_hash.h"
 
 #define NPC_BYTESM		GENMASK_ULL(19, 16)
 #define NPC_HDR_OFFSET		GENMASK_ULL(15, 8)
@@ -297,6 +298,7 @@ static void npc_scan_parse_result(struct npc_mcam *mcam, u8 bit_number,
 	default:
 		return;
 	}
+
 	npc_set_kw_masks(mcam, type, nr_bits, kwi, offset, intf);
 }
 
@@ -860,6 +862,7 @@ do {									      \
 } while (0)
 
 	NPC_WRITE_FLOW(NPC_DMAC, dmac, dmac_val, 0, dmac_mask, 0);
+
 	NPC_WRITE_FLOW(NPC_SMAC, smac, smac_val, 0, smac_mask, 0);
 	NPC_WRITE_FLOW(NPC_ETYPE, etype, ntohs(pkt->etype), 0,
 		       ntohs(mask->etype), 0);
@@ -891,8 +894,7 @@ do {									      \
 			      pkt, mask, opkt, omask);
 }
 
-static struct rvu_npc_mcam_rule *rvu_mcam_find_rule(struct npc_mcam *mcam,
-						    u16 entry)
+static struct rvu_npc_mcam_rule *rvu_mcam_find_rule(struct npc_mcam *mcam, u16 entry)
 {
 	struct rvu_npc_mcam_rule *iter;
 
@@ -1058,8 +1060,9 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 	u16 owner = req->hdr.pcifunc;
 	struct msg_rsp write_rsp;
 	struct mcam_entry *entry;
-	int entry_index, err;
 	bool new = false;
+	u16 entry_index;
+	int err;
 
 	installed_features = req->features;
 	features = req->features;
@@ -1459,4 +1462,99 @@ void npc_mcam_disable_flows(struct rvu *rvu, u16 target)
 					      index, false);
 	}
 	mutex_unlock(&mcam->lock);
+}
+
+/* single drop on non hit rule starting from 0th index. This an extension
+ * to RPM mac filter to support more rules.
+ */
+int npc_install_mcam_drop_rule(struct rvu *rvu, int mcam_idx, u16 *counter_idx,
+			       u64 chan_val, u64 chan_mask, u64 exact_val, u64 exact_mask,
+			       u64 bcast_mcast_val, u64 bcast_mcast_mask)
+{
+	struct npc_mcam_alloc_counter_req cntr_req = { 0 };
+	struct npc_mcam_alloc_counter_rsp cntr_rsp = { 0 };
+	struct npc_mcam_write_entry_req req = { 0 };
+	struct npc_mcam *mcam = &rvu->hw->mcam;
+	struct rvu_npc_mcam_rule *rule;
+	struct msg_rsp rsp;
+	bool enabled;
+	int blkaddr;
+	int err;
+
+	blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
+	if (blkaddr < 0) {
+		dev_err(rvu->dev, "%s: NPC block not implemented\n", __func__);
+		return -ENODEV;
+	}
+
+	/* Bail out if no exact match support */
+	if (!rvu_npc_exact_has_match_table(rvu)) {
+		dev_info(rvu->dev, "%s: No support for exact match feature\n", __func__);
+		return -EINVAL;
+	}
+
+	/* If 0th entry is already used, return err */
+	enabled = is_mcam_entry_enabled(rvu, mcam, blkaddr, mcam_idx);
+	if (enabled) {
+		dev_err(rvu->dev, "%s: failed to add single drop on non hit rule at %d th index\n",
+			__func__, mcam_idx);
+		return	-EINVAL;
+	}
+
+	/* Add this entry to mcam rules list */
+	rule = kzalloc(sizeof(*rule), GFP_KERNEL);
+	if (!rule)
+		return -ENOMEM;
+
+	/* Disable rule by default. Enable rule when first dmac filter is
+	 * installed
+	 */
+	rule->enable = false;
+	rule->chan = chan_val;
+	rule->chan_mask = chan_mask;
+	rule->entry = mcam_idx;
+	rvu_mcam_add_rule(mcam, rule);
+
+	/* Reserve slot 0 */
+	npc_mcam_rsrcs_reserve(rvu, blkaddr, mcam_idx);
+
+	/* Allocate counter for this single drop on non hit rule */
+	cntr_req.hdr.pcifunc = 0; /* AF request */
+	cntr_req.contig = true;
+	cntr_req.count = 1;
+	err = rvu_mbox_handler_npc_mcam_alloc_counter(rvu, &cntr_req, &cntr_rsp);
+	if (err) {
+		dev_err(rvu->dev, "%s: Err to allocate cntr for drop rule (err=%d)\n",
+			__func__, err);
+		return	-EFAULT;
+	}
+	*counter_idx = cntr_rsp.cntr;
+
+	/* Fill in fields for this mcam entry */
+	npc_update_entry(rvu, NPC_EXACT_RESULT, &req.entry_data, exact_val, 0,
+			 exact_mask, 0, NIX_INTF_RX);
+	npc_update_entry(rvu, NPC_CHAN, &req.entry_data, chan_val, 0,
+			 chan_mask, 0, NIX_INTF_RX);
+	npc_update_entry(rvu, NPC_LXMB, &req.entry_data, bcast_mcast_val, 0,
+			 bcast_mcast_mask, 0, NIX_INTF_RX);
+
+	req.intf = NIX_INTF_RX;
+	req.set_cntr = true;
+	req.cntr = cntr_rsp.cntr;
+	req.entry = mcam_idx;
+
+	err = rvu_mbox_handler_npc_mcam_write_entry(rvu, &req, &rsp);
+	if (err) {
+		dev_err(rvu->dev, "%s: Installation of single drop on non hit rule at %d failed\n",
+			__func__, mcam_idx);
+		return err;
+	}
+
+	dev_err(rvu->dev, "%s: Installed single drop on non hit rule at %d, cntr=%d\n",
+		__func__, mcam_idx, req.cntr);
+
+	/* disable entry at Bank 0, index 0 */
+	npc_enable_mcam_entry(rvu, mcam, blkaddr, mcam_idx, false);
+
+	return 0;
 }
