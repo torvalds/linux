@@ -117,7 +117,6 @@ struct rnbd_clt_dev {
 	char			*pathname;
 	enum rnbd_access_mode	access_mode;
 	u32			nr_poll_queues;
-	bool			read_only;
 	bool			wc;
 	bool			fua;
 	u32			max_hw_sectors;

@@ -949,7 +949,7 @@ static int rnbd_client_open(struct block_device *block_device, fmode_t mode)
 {
 	struct rnbd_clt_dev *dev = block_device->bd_disk->private_data;
 
-	if (dev->read_only && (mode & FMODE_WRITE))
+	if (get_disk_ro(dev->gd) && (mode & FMODE_WRITE))
 		return -EPERM;
 
 	if (dev->dev_state == DEV_STATE_UNMAPPED ||
@@ -1402,12 +1402,8 @@ static int rnbd_clt_setup_gen_disk(struct rnbd_clt_dev *dev, int idx)
 
 	set_capacity(dev->gd, dev->nsectors);
 
-	if (dev->access_mode == RNBD_ACCESS_RO) {
-		dev->read_only = true;
+	if (dev->access_mode == RNBD_ACCESS_RO)
 		set_disk_ro(dev->gd, true);
-	} else {
-		dev->read_only = false;
-	}
 
 	/*
 	 * Network device does not need rotational
