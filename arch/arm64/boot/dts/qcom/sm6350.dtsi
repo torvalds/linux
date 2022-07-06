@@ -477,7 +477,7 @@
 			reg = <0 0x007c4000 0 0x1000>,
 				<0 0x007c5000 0 0x1000>,
 				<0 0x007c8000 0 0x8000>;
-			reg-names = "hc_mem", "cqe_mem", "ice_mem";
+			reg-names = "hc", "cqhci", "ice";
 
 			interrupts = <GIC_SPI 641 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 644 IRQ_TYPE_LEVEL_HIGH>;

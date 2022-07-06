@@ -866,7 +866,7 @@
 
 			reg = <0 0x007c4000 0 0x1000>,
 			      <0 0x007c5000 0 0x1000>;
-			reg-names = "hc_mem", "cqe_mem";
+			reg-names = "hc", "cqhci";
 
 			iommus = <&apps_smmu 0xc0 0x0>;
 			interrupts = <GIC_SPI 652 IRQ_TYPE_LEVEL_HIGH>,
