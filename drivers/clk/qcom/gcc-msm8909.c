@@ -2670,7 +2670,7 @@ static const struct qcom_reset_map gcc_msm8909_resets[] = {
 	[GCC_SDCC2_BCR] = { 0x43000 },
 	[GCC_ULT_AUDIO_BCR] = { 0x1c0b4 },
 	[GCC_USB2A_PHY_BCR] = { 0x41028 },
-	[GCC_USB2_HS_PHY_ONLY_BCR] = { 0x41034 },
+	[GCC_USB2_HS_PHY_ONLY_BCR] = { .reg = 0x41034, .udelay = 15 },
 	[GCC_USB_HS_BCR] = { 0x41000 },
 	[GCC_VENUS0_BCR] = { 0x4c014 },
 	/* Subsystem Restart */
