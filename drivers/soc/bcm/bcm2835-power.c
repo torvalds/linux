@@ -126,8 +126,7 @@
 
 #define ASB_AXI_BRDG_ID			0x20
 
-#define ASB_READ(reg) readl(power->asb + (reg))
-#define ASB_WRITE(reg, val) writel(PM_PASSWORD | (val), power->asb + (reg))
+#define BCM2835_BRDG_ID			0x62726467
 
 struct bcm2835_power_domain {
 	struct generic_pm_domain base;
@@ -142,24 +141,41 @@ struct bcm2835_power {
 	void __iomem		*base;
 	/* AXI Async bridge registers. */
 	void __iomem		*asb;
+	/* RPiVid bridge registers. */
+	void __iomem		*rpivid_asb;
 
 	struct genpd_onecell_data pd_xlate;
 	struct bcm2835_power_domain domains[BCM2835_POWER_DOMAIN_COUNT];
 	struct reset_controller_dev reset;
 };
 
-static int bcm2835_asb_enable(struct bcm2835_power *power, u32 reg)
+static int bcm2835_asb_control(struct bcm2835_power *power, u32 reg, bool enable)
 {
+	void __iomem *base = power->asb;
 	u64 start;
+	u32 val;
 
-	if (!reg)
+	switch (reg) {
+	case 0:
 		return 0;
+	case ASB_V3D_S_CTRL:
+	case ASB_V3D_M_CTRL:
+		if (power->rpivid_asb)
+			base = power->rpivid_asb;
+		break;
+	}
 
 	start = ktime_get_ns();
 
 	/* Enable the module's async AXI bridges. */
-	ASB_WRITE(reg, ASB_READ(reg) & ~ASB_REQ_STOP);
-	while (ASB_READ(reg) & ASB_ACK) {
+	if (enable) {
+		val = readl(base + reg) & ~ASB_REQ_STOP;
+	} else {
+		val = readl(base + reg) | ASB_REQ_STOP;
+	}
+	writel(PM_PASSWORD | val, base + reg);
+
+	while (readl(base + reg) & ASB_ACK) {
 		cpu_relax();
 		if (ktime_get_ns() - start >= 1000)
 			return -ETIMEDOUT;
@@ -168,29 +184,23 @@ static int bcm2835_asb_enable(struct bcm2835_power *power, u32 reg)
 	return 0;
 }
 
+static int bcm2835_asb_enable(struct bcm2835_power *power, u32 reg)
+{
+	return bcm2835_asb_control(power, reg, true);
+}
+
 static int bcm2835_asb_disable(struct bcm2835_power *power, u32 reg)
 {
-	u64 start;
-
-	if (!reg)
-		return 0;
-
-	start = ktime_get_ns();
-
-	/* Enable the module's async AXI bridges. */
-	ASB_WRITE(reg, ASB_READ(reg) | ASB_REQ_STOP);
-	while (!(ASB_READ(reg) & ASB_ACK)) {
-		cpu_relax();
-		if (ktime_get_ns() - start >= 1000)
-			return -ETIMEDOUT;
-	}
-
-	return 0;
+	return bcm2835_asb_control(power, reg, false);
 }
 
 static int bcm2835_power_power_off(struct bcm2835_power_domain *pd, u32 pm_reg)
 {
 	struct bcm2835_power *power = pd->power;
+
+	/* We don't run this on BCM2711 */
+	if (power->rpivid_asb)
+		return 0;
 
 	/* Enable functional isolation */
 	PM_WRITE(pm_reg, PM_READ(pm_reg) & ~PM_ISFUNC);
@@ -212,6 +222,10 @@ static int bcm2835_power_power_on(struct bcm2835_power_domain *pd, u32 pm_reg)
 	int ret;
 	int inrush;
 	bool powok;
+
+	/* We don't run this on BCM2711 */
+	if (power->rpivid_asb)
+		return 0;
 
 	/* If it was already powered on by the fw, leave it that way. */
 	if (PM_READ(pm_reg) & PM_POWUP)
@@ -626,11 +640,21 @@ static int bcm2835_power_probe(struct platform_device *pdev)
 	power->dev = dev;
 	power->base = pm->base;
 	power->asb = pm->asb;
+	power->rpivid_asb = pm->rpivid_asb;
 
-	id = ASB_READ(ASB_AXI_BRDG_ID);
-	if (id != 0x62726467 /* "BRDG" */) {
+	id = readl(power->asb + ASB_AXI_BRDG_ID);
+	if (id != BCM2835_BRDG_ID /* "BRDG" */) {
 		dev_err(dev, "ASB register ID returned 0x%08x\n", id);
 		return -ENODEV;
+	}
+
+	if (power->rpivid_asb) {
+		id = readl(power->rpivid_asb + ASB_AXI_BRDG_ID);
+		if (id != BCM2835_BRDG_ID /* "BRDG" */) {
+			dev_err(dev, "RPiVid ASB register ID returned 0x%08x\n",
+				     id);
+			return -ENODEV;
+		}
 	}
 
 	power->pd_xlate.domains = devm_kcalloc(dev,
