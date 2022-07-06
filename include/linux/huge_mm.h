@@ -168,9 +168,8 @@ static inline bool file_thp_enabled(struct vm_area_struct *vma)
 	       !inode_is_open_for_write(inode) && S_ISREG(inode->i_mode);
 }
 
-bool hugepage_vma_check(struct vm_area_struct *vma,
-			unsigned long vm_flags,
-			bool smaps, bool in_pf);
+bool hugepage_vma_check(struct vm_area_struct *vma, unsigned long vm_flags,
+			bool smaps, bool in_pf, bool enforce_sysfs);
 
 #define transparent_hugepage_use_zero_page()				\
 	(transparent_hugepage_flags &					\
@@ -321,8 +320,8 @@ static inline bool transhuge_vma_suitable(struct vm_area_struct *vma,
 }
 
 static inline bool hugepage_vma_check(struct vm_area_struct *vma,
-				       unsigned long vm_flags,
-				       bool smaps, bool in_pf)
+				      unsigned long vm_flags, bool smaps,
+				      bool in_pf, bool enforce_sysfs)
 {
 	return false;
 }

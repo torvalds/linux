@@ -478,7 +478,7 @@ void khugepaged_enter_vma(struct vm_area_struct *vma,
 {
 	if (!test_bit(MMF_VM_HUGEPAGE, &vma->vm_mm->flags) &&
 	    hugepage_flags_enabled()) {
-		if (hugepage_vma_check(vma, vm_flags, false, false))
+		if (hugepage_vma_check(vma, vm_flags, false, false, true))
 			__khugepaged_enter(vma->vm_mm);
 	}
 }
@@ -848,7 +848,8 @@ static bool khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
  */
 
 static int hugepage_vma_revalidate(struct mm_struct *mm, unsigned long address,
-		struct vm_area_struct **vmap)
+				   struct vm_area_struct **vmap,
+				   struct collapse_control *cc)
 {
 	struct vm_area_struct *vma;
 
@@ -861,7 +862,8 @@ static int hugepage_vma_revalidate(struct mm_struct *mm, unsigned long address,
 
 	if (!transhuge_vma_suitable(vma, address))
 		return SCAN_ADDRESS_RANGE;
-	if (!hugepage_vma_check(vma, vma->vm_flags, false, false))
+	if (!hugepage_vma_check(vma, vma->vm_flags, false, false,
+				cc->is_khugepaged))
 		return SCAN_VMA_CHECK;
 	/*
 	 * Anon VMA expected, the address may be unmapped then
@@ -980,7 +982,7 @@ static int collapse_huge_page(struct mm_struct *mm, unsigned long address,
 		goto out_nolock;
 
 	mmap_read_lock(mm);
-	result = hugepage_vma_revalidate(mm, address, &vma);
+	result = hugepage_vma_revalidate(mm, address, &vma, cc);
 	if (result != SCAN_SUCCEED) {
 		mmap_read_unlock(mm);
 		goto out_nolock;
@@ -1012,7 +1014,7 @@ static int collapse_huge_page(struct mm_struct *mm, unsigned long address,
 	 * handled by the anon_vma lock + PG_lock.
 	 */
 	mmap_write_lock(mm);
-	result = hugepage_vma_revalidate(mm, address, &vma);
+	result = hugepage_vma_revalidate(mm, address, &vma, cc);
 	if (result != SCAN_SUCCEED)
 		goto out_up_write;
 	/* check if the pmd is still valid */
@@ -1360,12 +1362,13 @@ void collapse_pte_mapped_thp(struct mm_struct *mm, unsigned long addr)
 		return;
 
 	/*
-	 * This vm_flags may not have VM_HUGEPAGE if the page was not
-	 * collapsed by this mm. But we can still collapse if the page is
-	 * the valid THP. Add extra VM_HUGEPAGE so hugepage_vma_check()
-	 * will not fail the vma for missing VM_HUGEPAGE
+	 * If we are here, we've succeeded in replacing all the native pages
+	 * in the page cache with a single hugepage. If a mm were to fault-in
+	 * this memory (mapped by a suitably aligned VMA), we'd get the hugepage
+	 * and map it by a PMD, regardless of sysfs THP settings. As such, let's
+	 * analogously elide sysfs THP settings here.
 	 */
-	if (!hugepage_vma_check(vma, vma->vm_flags | VM_HUGEPAGE, false, false))
+	if (!hugepage_vma_check(vma, vma->vm_flags, false, false, false))
 		return;
 
 	/* Keep pmd pgtable for uffd-wp; see comment in retract_page_tables() */
@@ -2048,7 +2051,7 @@ static unsigned int khugepaged_scan_mm_slot(unsigned int pages, int *result,
 			progress++;
 			break;
 		}
-		if (!hugepage_vma_check(vma, vma->vm_flags, false, false)) {
+		if (!hugepage_vma_check(vma, vma->vm_flags, false, false, true)) {
 skip:
 			progress++;
 			continue;
