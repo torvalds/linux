@@ -31,9 +31,13 @@
 			reg = <0x01900000 (5 * 0x00100000)>;
 		};
 
-		rkisp_thunderboot: rkisp@1e00000 {
-			/*  NV12 (w*h*1.5*2) w and h 16 align, eg:1920x1088 */
+		meta: meta@1e00000 {
 			reg = <0x01e00000 0x0>;
+		};
+
+		rkisp_thunderboot: rkisp@1e60000 {
+			/*  NV12 (w*h*1.5*2) w and h 16 align, eg:1920x1088 */
+			reg = <0x1e60000 0x0>;
 		};
 	};
 
