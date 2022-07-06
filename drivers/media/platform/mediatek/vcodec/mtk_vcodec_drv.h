@@ -126,15 +126,7 @@ struct mtk_video_fmt {
 	enum mtk_fmt_type	type;
 	u32	num_planes;
 	u32	flags;
-};
-
-/*
- * struct mtk_codec_framesizes - Structure used to store information about
- *							framesizes
- */
-struct mtk_codec_framesizes {
-	u32	fourcc;
-	struct	v4l2_frmsize_stepwise	stepwise;
+	struct v4l2_frmsize_stepwise frmsize;
 };
 
 /*
@@ -371,9 +363,6 @@ enum mtk_vdec_format_types {
  * @default_out_fmt: default output buffer format
  * @default_cap_fmt: default capture buffer format
  *
- * @vdec_framesizes: supported video decoder frame sizes
- * @num_framesizes: count of video decoder frame sizes
- *
  * @hw_arch: hardware arch is used to separate pure_sin_core and lat_sin_core
  *
  * @is_subdev_supported: whether support parent-node architecture(subdev)
@@ -395,9 +384,6 @@ struct mtk_vcodec_dec_pdata {
 	const int *num_formats;
 	const struct mtk_video_fmt *default_out_fmt;
 	const struct mtk_video_fmt *default_cap_fmt;
-
-	const struct mtk_codec_framesizes *vdec_framesizes;
-	const int *num_framesizes;
 
 	enum mtk_vdec_hw_arch hw_arch;
 

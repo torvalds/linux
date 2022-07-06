@@ -261,42 +261,20 @@ static int vidioc_vdec_subscribe_evt(struct v4l2_fh *fh,
 	}
 }
 
-static const struct v4l2_frmsize_stepwise *mtk_vdec_get_frmsize(struct mtk_vcodec_ctx *ctx,
-								u32 pixfmt)
-{
-	const struct mtk_vcodec_dec_pdata *dec_pdata = ctx->dev->vdec_pdata;
-	int i;
-
-	for (i = 0; i < *dec_pdata->num_framesizes; ++i)
-		if (pixfmt == dec_pdata->vdec_framesizes[i].fourcc)
-			return &dec_pdata->vdec_framesizes[i].stepwise;
-
-	/*
-	 * This should never happen since vidioc_try_fmt_vid_out_mplane()
-	 * always passes through a valid format for the output side, and
-	 * for the capture side, a valid output format should already have
-	 * been set.
-	 */
-	WARN_ONCE(1, "Unsupported format requested.\n");
-	return &dec_pdata->vdec_framesizes[0].stepwise;
-}
-
 static int vidioc_try_fmt(struct mtk_vcodec_ctx *ctx, struct v4l2_format *f,
 			  const struct mtk_video_fmt *fmt)
 {
 	struct v4l2_pix_format_mplane *pix_fmt_mp = &f->fmt.pix_mp;
 	const struct v4l2_frmsize_stepwise *frmsize;
-	u32 fourcc;
 
 	pix_fmt_mp->field = V4L2_FIELD_NONE;
 
 	/* Always apply frame size constraints from the coded side */
 	if (V4L2_TYPE_IS_OUTPUT(f->type))
-		fourcc = f->fmt.pix_mp.pixelformat;
+		frmsize = &fmt->frmsize;
 	else
-		fourcc = ctx->q_data[MTK_Q_DATA_SRC].fmt->fourcc;
+		frmsize = &ctx->q_data[MTK_Q_DATA_SRC].fmt->frmsize;
 
-	frmsize = mtk_vdec_get_frmsize(ctx, fourcc);
 	pix_fmt_mp->width = clamp(pix_fmt_mp->width, MTK_VDEC_MIN_W, frmsize->max_width);
 	pix_fmt_mp->height = clamp(pix_fmt_mp->height, MTK_VDEC_MIN_H, frmsize->max_height);
 
@@ -596,12 +574,16 @@ static int vidioc_enum_framesizes(struct file *file, void *priv,
 	if (fsize->index != 0)
 		return -EINVAL;
 
-	for (i = 0; i < *dec_pdata->num_framesizes; ++i) {
-		if (fsize->pixel_format != dec_pdata->vdec_framesizes[i].fourcc)
+	for (i = 0; i < *dec_pdata->num_formats; i++) {
+		if (fsize->pixel_format != dec_pdata->vdec_formats[i].fourcc)
 			continue;
 
+		/* Only coded formats have frame sizes set */
+		if (!dec_pdata->vdec_formats[i].frmsize.max_width)
+			return -ENOTTY;
+
 		fsize->type = V4L2_FRMSIZE_TYPE_STEPWISE;
-		fsize->stepwise = dec_pdata->vdec_framesizes[i].stepwise;
+		fsize->stepwise = dec_pdata->vdec_formats[i].frmsize;
 
 		mtk_v4l2_debug(1, "%x, %d %d %d %d %d %d",
 				ctx->dev->dec_capability,
