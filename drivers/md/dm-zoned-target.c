@@ -793,8 +793,7 @@ static int dmz_fixup_devices(struct dm_target *ti)
 			}
 			zone_nr_sectors = blk_queue_zone_sectors(q);
 			zoned_dev->zone_nr_sectors = zone_nr_sectors;
-			zoned_dev->nr_zones =
-				blkdev_nr_zones(zoned_dev->bdev->bd_disk);
+			zoned_dev->nr_zones = bdev_nr_zones(zoned_dev->bdev);
 		}
 	} else {
 		reg_dev = NULL;
@@ -805,7 +804,7 @@ static int dmz_fixup_devices(struct dm_target *ti)
 		}
 		q = bdev_get_queue(zoned_dev->bdev);
 		zoned_dev->zone_nr_sectors = blk_queue_zone_sectors(q);
-		zoned_dev->nr_zones = blkdev_nr_zones(zoned_dev->bdev->bd_disk);
+		zoned_dev->nr_zones = bdev_nr_zones(zoned_dev->bdev);
 	}
 
 	if (reg_dev) {

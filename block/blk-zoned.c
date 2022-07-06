@@ -108,21 +108,22 @@ void __blk_req_zone_write_unlock(struct request *rq)
 EXPORT_SYMBOL_GPL(__blk_req_zone_write_unlock);
 
 /**
- * blkdev_nr_zones - Get number of zones
- * @disk:	Target gendisk
+ * bdev_nr_zones - Get number of zones
+ * @bdev:	Target device
  *
  * Return the total number of zones of a zoned block device.  For a block
  * device without zone capabilities, the number of zones is always 0.
  */
-unsigned int blkdev_nr_zones(struct gendisk *disk)
+unsigned int bdev_nr_zones(struct block_device *bdev)
 {
-	sector_t zone_sectors = blk_queue_zone_sectors(disk->queue);
+	sector_t zone_sectors = bdev_zone_sectors(bdev);
 
-	if (!blk_queue_is_zoned(disk->queue))
+	if (!bdev_is_zoned(bdev))
 		return 0;
-	return (get_capacity(disk) + zone_sectors - 1) >> ilog2(zone_sectors);
+	return (bdev_nr_sectors(bdev) + zone_sectors - 1) >>
+		ilog2(zone_sectors);
 }
-EXPORT_SYMBOL_GPL(blkdev_nr_zones);
+EXPORT_SYMBOL_GPL(bdev_nr_zones);
 
 /**
  * blkdev_report_zones - Get zones information

@@ -301,7 +301,7 @@ int dm_set_zones_restrictions(struct dm_table *t, struct request_queue *q)
 	 * correct value to be exposed in sysfs queue/nr_zones.
 	 */
 	WARN_ON_ONCE(queue_is_mq(q));
-	q->nr_zones = blkdev_nr_zones(md->disk);
+	q->nr_zones = bdev_nr_zones(md->disk->part0);
 
 	/* Check if zone append is natively supported */
 	if (dm_table_supports_zone_append(t)) {

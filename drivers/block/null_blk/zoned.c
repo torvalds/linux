@@ -170,7 +170,7 @@ int null_register_zoned_dev(struct nullb *nullb)
 			return ret;
 	} else {
 		blk_queue_chunk_sectors(q, dev->zone_size_sects);
-		q->nr_zones = blkdev_nr_zones(nullb->disk);
+		q->nr_zones = bdev_nr_zones(nullb->disk->part0);
 	}
 
 	blk_queue_max_zone_append_sectors(q, dev->zone_size_sects);

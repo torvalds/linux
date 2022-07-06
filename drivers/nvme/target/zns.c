@@ -60,7 +60,7 @@ bool nvmet_bdev_zns_enable(struct nvmet_ns *ns)
 	if (ns->bdev->bd_disk->queue->conv_zones_bitmap)
 		return false;
 
-	ret = blkdev_report_zones(ns->bdev, 0, blkdev_nr_zones(bd_disk),
+	ret = blkdev_report_zones(ns->bdev, 0, bdev_nr_zones(ns->bdev),
 				  validate_conv_zones_cb, NULL);
 	if (ret < 0)
 		return false;
@@ -241,7 +241,7 @@ static unsigned long nvmet_req_nr_zones_from_slba(struct nvmet_req *req)
 {
 	unsigned int sect = nvmet_lba_to_sect(req->ns, req->cmd->zmr.slba);
 
-	return blkdev_nr_zones(req->ns->bdev->bd_disk) -
+	return bdev_nr_zones(req->ns->bdev) -
 		(sect >> ilog2(bdev_zone_sectors(req->ns->bdev)));
 }
 
@@ -386,7 +386,7 @@ static int zmgmt_send_scan_cb(struct blk_zone *z, unsigned i, void *d)
 static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
 {
 	struct block_device *bdev = req->ns->bdev;
-	unsigned int nr_zones = blkdev_nr_zones(bdev->bd_disk);
+	unsigned int nr_zones = bdev_nr_zones(bdev);
 	struct request_queue *q = bdev_get_queue(bdev);
 	struct bio *bio = NULL;
 	sector_t sector = 0;
