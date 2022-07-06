@@ -463,6 +463,10 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 	if (old_links == new_links)
 		return 0;
 
+	/* if there were no old links, need to clear the pointers to deflink */
+	if (!old_links)
+		rem |= BIT(0);
+
 	/* allocate new link structures first */
 	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
 		link = kzalloc(sizeof(*link), GFP_KERNEL);
@@ -480,6 +484,22 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 	BUILD_BUG_ON(sizeof(old_data) != sizeof(sdata->link));
 	memcpy(old_data, sdata->link, sizeof(old_data));
 
+	/* grab old links to free later */
+	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
+		RCU_INIT_POINTER(sdata->link[link_id], NULL);
+		RCU_INIT_POINTER(sdata->vif.link_conf[link_id], NULL);
+
+		if (rcu_access_pointer(sdata->link[link_id]) == &sdata->deflink)
+			continue;
+		/*
+		 * we must have allocated the data through this path so
+		 * we know we can free both at the same time
+		 */
+		to_free[link_id] = container_of(rcu_access_pointer(sdata->link[link_id]),
+						typeof(*links[link_id]),
+						data);
+	}
+
 	/* link them into data structures */
 	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
 		WARN_ON(!use_deflink &&
@@ -490,10 +510,9 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 		ieee80211_link_setup(&link->data);
 	}
 
-	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
-		RCU_INIT_POINTER(sdata->link[link_id], NULL);
-		RCU_INIT_POINTER(sdata->vif.link_conf[link_id], NULL);
-	}
+	if (new_links == 0)
+		ieee80211_link_init(sdata, -1, &sdata->deflink,
+				    &sdata->vif.bss_conf);
 
 	sdata->vif.valid_links = new_links;
 
@@ -506,24 +525,13 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 		memcpy(sdata->link, old_data, sizeof(old_data));
 		memcpy(sdata->vif.link_conf, old, sizeof(old));
 		sdata->vif.valid_links = old_links;
-		/* and free the newly allocated links */
-		goto deinit;
+		/* and free (only) the newly allocated links */
+		memset(to_free, 0, sizeof(links));
+		goto free;
 	}
 
 	/* use deflink/bss_conf again if and only if there are no more links */
 	use_deflink = new_links == 0;
-
-	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
-		if (rcu_access_pointer(sdata->link[link_id]) == &sdata->deflink)
-			continue;
-		/*
-		 * we must have allocated the data through this path so
-		 * we know we can free both at the same time
-		 */
-		to_free[link_id] = container_of(rcu_access_pointer(sdata->link[link_id]),
-						typeof(*links[link_id]),
-						data);
-	}
 
 	goto deinit;
 free:
