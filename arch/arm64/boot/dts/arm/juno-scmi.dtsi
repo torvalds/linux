@@ -187,7 +187,6 @@
 &mailbox {
 	compatible = "arm,mhu-doorbell", "arm,primecell";
 	#mbox-cells = <2>;
-	mbox-name = "ARM-MHU";
 };
 
 &smmu_etr {
