@@ -370,6 +370,7 @@ void dc_dmub_srv_query_caps_cmd(struct dmub_srv *dmub)
 	}
 }
 
+#ifdef CONFIG_DRM_AMD_DC_DCN
 /**
  * ***********************************************************************************************
  * populate_subvp_cmd_drr_info: Helper to populate DRR pipe info for the DMCUB subvp command
@@ -698,6 +699,7 @@ void dc_dmub_setup_subvp_dmub_command(struct dc *dc,
 	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 }
+#endif
 
 bool dc_dmub_srv_get_diagnostic_data(struct dc_dmub_srv *dc_dmub_srv, struct dmub_diagnostic_data *diag_data)
 {

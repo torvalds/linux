@@ -27,7 +27,6 @@ ifdef CONFIG_CC_IS_GCC
 ifeq ($(call cc-ifversion, -lt, 0701, y), y)
 IS_OLD_GCC = 1
 endif
-dcn32_ccflags += -mhard-float
 endif
 
 ifdef CONFIG_X86
