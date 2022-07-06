@@ -270,7 +270,7 @@ static int device_not_zone_append_capable(struct dm_target *ti,
 					  struct dm_dev *dev, sector_t start,
 					  sector_t len, void *data)
 {
-	return !blk_queue_is_zoned(bdev_get_queue(dev->bdev));
+	return !bdev_is_zoned(dev->bdev);
 }
 
 static bool dm_table_supports_zone_append(struct dm_table *t)

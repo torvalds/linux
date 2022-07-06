@@ -149,8 +149,7 @@ int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 	struct gendisk *disk = bdev->bd_disk;
 	sector_t capacity = get_capacity(disk);
 
-	if (!blk_queue_is_zoned(bdev_get_queue(bdev)) ||
-	    WARN_ON_ONCE(!disk->fops->report_zones))
+	if (!bdev_is_zoned(bdev) || WARN_ON_ONCE(!disk->fops->report_zones))
 		return -EOPNOTSUPP;
 
 	if (!nr_zones || sector >= capacity)
@@ -268,7 +267,7 @@ int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
 	struct bio *bio = NULL;
 	int ret = 0;
 
-	if (!blk_queue_is_zoned(q))
+	if (!bdev_is_zoned(bdev))
 		return -EOPNOTSUPP;
 
 	if (bdev_read_only(bdev))
@@ -350,7 +349,7 @@ int blkdev_report_zones_ioctl(struct block_device *bdev, fmode_t mode,
 	if (!q)
 		return -ENXIO;
 
-	if (!blk_queue_is_zoned(q))
+	if (!bdev_is_zoned(bdev))
 		return -ENOTTY;
 
 	if (copy_from_user(&rep, argp, sizeof(struct blk_zone_report)))
@@ -408,7 +407,7 @@ int blkdev_zone_mgmt_ioctl(struct block_device *bdev, fmode_t mode,
 	if (!q)
 		return -ENXIO;
 
-	if (!blk_queue_is_zoned(q))
+	if (!bdev_is_zoned(bdev))
 		return -ENOTTY;
 
 	if (!(mode & FMODE_WRITE))
