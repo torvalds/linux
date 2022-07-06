@@ -70,61 +70,61 @@
 		compatible = "gpio-keys-polled";
 		poll-interval = <100>;
 
-		record {
+		key-record {
 			label = "Record";
 			/* linux,code = <BTN_0>; */
 			gpios = <&tca6416_2 15 GPIO_ACTIVE_LOW>;
 		};
 
-		play {
+		key-play {
 			label = "Play";
 			linux,code = <KEY_PLAY>;
 			gpios = <&tca6416_2 14 GPIO_ACTIVE_LOW>;
 		};
 
-		Stop {
+		key-stop {
 			label = "Stop";
 			linux,code = <KEY_STOP>;
 			gpios = <&tca6416_2 13 GPIO_ACTIVE_LOW>;
 		};
 
-		fwd {
+		key-fwd {
 			label = "FWD";
 			linux,code = <KEY_FASTFORWARD>;
 			gpios = <&tca6416_2 12 GPIO_ACTIVE_LOW>;
 		};
 
-		rwd {
+		key-rwd {
 			label = "RWD";
 			linux,code = <KEY_REWIND>;
 			gpios = <&tca6416_2 11 GPIO_ACTIVE_LOW>;
 		};
 
-		shift {
+		key-shift {
 			label = "Shift";
 			linux,code = <KEY_LEFTSHIFT>;
 			gpios = <&tca6416_2 10 GPIO_ACTIVE_LOW>;
 		};
 
-		Mode {
+		key-mode {
 			label = "Mode";
 			linux,code = <BTN_MODE>;
 			gpios = <&tca6416_2 9 GPIO_ACTIVE_LOW>;
 		};
 
-		Menu {
+		key-menu {
 			label = "Menu";
 			linux,code = <KEY_MENU>;
 			gpios = <&tca6416_2 8 GPIO_ACTIVE_LOW>;
 		};
 
-		Up {
+		key-up {
 			label = "Up";
 			linux,code = <KEY_UP>;
 			gpios = <&tca6416_2 7 GPIO_ACTIVE_LOW>;
 		};
 
-		Down {
+		key-down {
 			label = "Down";
 			linux,code = <KEY_DOWN>;
 			gpios = <&tca6416_2 6 GPIO_ACTIVE_LOW>;
@@ -137,14 +137,14 @@
 	tlv320aic23_1: codec@1a {
 		compatible = "ti,tlv320aic23";
 		reg = <0x1a>;
-		#sound-dai-cells= <0>;
+		#sound-dai-cells = <0>;
 		status = "okay";
 	};
 
 	tlv320aic23_2: codec@1b {
 		compatible = "ti,tlv320aic23";
 		reg = <0x1b>;
-		#sound-dai-cells= <0>;
+		#sound-dai-cells = <0>;
 		status = "okay";
 	};
 };
@@ -154,7 +154,7 @@
 	tlv320aic23_3: codec@1a {
 		compatible = "ti,tlv320aic23";
 		reg = <0x1a>;
-		#sound-dai-cells= <0>;
+		#sound-dai-cells = <0>;
 		status = "okay";
 	};
 

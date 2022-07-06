@@ -97,12 +97,10 @@
 				};
 			};
 
-			gpio_keys {
+			gpio-keys {
 				compatible = "gpio-keys";
-				#address-cells = <1>;
-				#size-cells = <0>;
 
-				init {
+				button-init {
 					label = "Init Button";
 					linux,code = <KEY_POWER>;
 					gpios = <&gpio1 28 GPIO_ACTIVE_HIGH>;

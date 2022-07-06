@@ -325,7 +325,7 @@ status = "okay";
 	tlv320aic23: codec@1a {
 		compatible = "ti,tlv320aic23";
 		reg = <0x1a>;
-		#sound-dai-cells= <0>;
+		#sound-dai-cells = <0>;
 		status = "okay";
 	};
 };
@@ -491,7 +491,7 @@ status = "okay";
 		tx-num-evt = <1>;
 		rx-num-evt = <1>;
 
-		#sound-dai-cells= <0>;
+		#sound-dai-cells = <0>;
 		status = "okay";
 };
 

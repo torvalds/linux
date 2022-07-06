@@ -106,7 +106,7 @@
 		regulator-name = "wlan-en-regulator";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
-		startup-delay-us= <70000>;
+		startup-delay-us = <70000>;
 
 		/* WL_EN */
 		gpio = <&gpio3 9 0>;

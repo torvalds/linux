@@ -155,10 +155,10 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 
-		btn {
+		button {
 			label = "Button";
 			gpios = <&pioC 4 GPIO_ACTIVE_LOW>;
 			linux,code = <0x103>;

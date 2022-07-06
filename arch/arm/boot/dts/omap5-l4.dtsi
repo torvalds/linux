@@ -482,7 +482,7 @@
 				clocks = <&usb_phy_cm_clk32k>,
 				<&sys_clkin>,
 				<&l3init_clkctrl OMAP5_USB_OTG_SS_CLKCTRL 8>;
-				clock-names =	"wkupclk",
+				clock-names = "wkupclk",
 				"sysclk",
 				"refclk";
 				#phy-cells = <0>;
