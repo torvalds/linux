@@ -200,12 +200,8 @@ static void vt6655_mac_write_bssid_addr(void __iomem *iobase, const u8 *mac_addr
 static void vt6655_mac_read_ether_addr(void __iomem *iobase, u8 *mac_addr)
 {
 	iowrite8(1, iobase + MAC_REG_PAGE1SEL);
-	mac_addr[0] = ioread8(iobase + MAC_REG_PAR0);
-	mac_addr[1] = ioread8(iobase + MAC_REG_PAR0 + 1);
-	mac_addr[2] = ioread8(iobase + MAC_REG_PAR0 + 2);
-	mac_addr[3] = ioread8(iobase + MAC_REG_PAR0 + 3);
-	mac_addr[4] = ioread8(iobase + MAC_REG_PAR0 + 4);
-	mac_addr[5] = ioread8(iobase + MAC_REG_PAR0 + 5);
+	for (int i = 0; i < 6; i++)
+		mac_addr[i] = ioread8(iobase + MAC_REG_PAR0 + i);
 	iowrite8(0, iobase + MAC_REG_PAGE1SEL);
 }
 
