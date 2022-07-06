@@ -3357,12 +3357,11 @@ static int mtip_init_cmd(struct blk_mq_tag_set *set, struct request *rq,
 	return 0;
 }
 
-static enum blk_eh_timer_return mtip_cmd_timeout(struct request *req,
-								bool reserved)
+static enum blk_eh_timer_return mtip_cmd_timeout(struct request *req)
 {
 	struct driver_data *dd = req->q->queuedata;
 
-	if (reserved) {
+	if (blk_mq_is_reserved_rq(req)) {
 		struct mtip_cmd *cmd = blk_mq_rq_to_pdu(req);
 
 		cmd->status = BLK_STS_TIMEOUT;
