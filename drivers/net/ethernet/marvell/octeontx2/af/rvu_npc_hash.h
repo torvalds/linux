@@ -185,4 +185,7 @@ int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id);
 u32 rvu_npc_exact_get_max_entries(struct rvu *rvu);
 int rvu_npc_exact_init(struct rvu *rvu);
 
+bool rvu_npc_exact_can_disable_feature(struct rvu *rvu);
+void rvu_npc_exact_disable_feature(struct rvu *rvu);
+
 #endif /* RVU_NPC_HASH_H */
