@@ -126,8 +126,7 @@
 #include <asm/mac_baboon.h>
 #include <asm/hwtest.h>
 #include <asm/irq_regs.h>
-
-extern void show_registers(struct pt_regs *);
+#include <asm/processor.h>
 
 static unsigned int mac_irq_startup(struct irq_data *);
 static void mac_irq_shutdown(struct irq_data *);
