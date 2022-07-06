@@ -1762,6 +1762,7 @@ btfgen_mark_type(struct btfgen_info *info, unsigned int type_id, bool follow_poi
 		}
 		break;
 	case BTF_KIND_CONST:
+	case BTF_KIND_RESTRICT:
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_TYPEDEF:
 		err = btfgen_mark_type(info, btf_type->type, follow_pointers);
