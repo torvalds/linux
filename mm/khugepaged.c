@@ -813,19 +813,18 @@ static int khugepaged_find_target_node(struct collapse_control *cc)
 }
 #endif
 
-static struct page *
-khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
+static bool khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
 {
 	*hpage = __alloc_pages_node(node, gfp, HPAGE_PMD_ORDER);
 	if (unlikely(!*hpage)) {
 		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
 		*hpage = ERR_PTR(-ENOMEM);
-		return NULL;
+		return false;
 	}
 
 	prep_transhuge_page(*hpage);
 	count_vm_event(THP_COLLAPSE_ALLOC);
-	return *hpage;
+	return true;
 }
 
 /*
@@ -923,10 +922,24 @@ static bool __collapse_huge_page_swapin(struct mm_struct *mm,
 	return true;
 }
 
-static void collapse_huge_page(struct mm_struct *mm,
-				   unsigned long address,
-				   struct page **hpage,
-				   int node, int referenced, int unmapped)
+static int alloc_charge_hpage(struct page **hpage, struct mm_struct *mm,
+			      struct collapse_control *cc)
+{
+	/* Only allocate from the target node */
+	gfp_t gfp = alloc_hugepage_khugepaged_gfpmask() | __GFP_THISNODE;
+	int node = khugepaged_find_target_node(cc);
+
+	if (!khugepaged_alloc_page(hpage, gfp, node))
+		return SCAN_ALLOC_HUGE_PAGE_FAIL;
+	if (unlikely(mem_cgroup_charge(page_folio(*hpage), mm, gfp)))
+		return SCAN_CGROUP_CHARGE_FAIL;
+	count_memcg_page_event(*hpage, THP_COLLAPSE_ALLOC);
+	return SCAN_SUCCEED;
+}
+
+static void collapse_huge_page(struct mm_struct *mm, unsigned long address,
+			       struct page **hpage, int referenced,
+			       int unmapped, struct collapse_control *cc)
 {
 	LIST_HEAD(compound_pagelist);
 	pmd_t *pmd, _pmd;
@@ -937,12 +950,8 @@ static void collapse_huge_page(struct mm_struct *mm,
 	int isolated = 0, result = 0;
 	struct vm_area_struct *vma;
 	struct mmu_notifier_range range;
-	gfp_t gfp;
 
 	VM_BUG_ON(address & ~HPAGE_PMD_MASK);
-
-	/* Only allocate from the target node */
-	gfp = alloc_hugepage_khugepaged_gfpmask() | __GFP_THISNODE;
 
 	/*
 	 * Before allocating the hugepage, release the mmap_lock read lock.
@@ -951,17 +960,12 @@ static void collapse_huge_page(struct mm_struct *mm,
 	 * that. We will recheck the vma after taking it again in write mode.
 	 */
 	mmap_read_unlock(mm);
-	new_page = khugepaged_alloc_page(hpage, gfp, node);
-	if (!new_page) {
-		result = SCAN_ALLOC_HUGE_PAGE_FAIL;
-		goto out_nolock;
-	}
 
-	if (unlikely(mem_cgroup_charge(page_folio(new_page), mm, gfp))) {
-		result = SCAN_CGROUP_CHARGE_FAIL;
+	result = alloc_charge_hpage(hpage, mm, cc);
+	if (result != SCAN_SUCCEED)
 		goto out_nolock;
-	}
-	count_memcg_page_event(new_page, THP_COLLAPSE_ALLOC);
+
+	new_page = *hpage;
 
 	mmap_read_lock(mm);
 	result = hugepage_vma_revalidate(mm, address, &vma);
@@ -1235,10 +1239,9 @@ static int khugepaged_scan_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 out_unmap:
 	pte_unmap_unlock(pte, ptl);
 	if (ret) {
-		node = khugepaged_find_target_node(cc);
 		/* collapse_huge_page will return with the mmap_lock released */
-		collapse_huge_page(mm, address, hpage, node,
-				referenced, unmapped);
+		collapse_huge_page(mm, address, hpage, referenced, unmapped,
+				   cc);
 	}
 out:
 	trace_mm_khugepaged_scan_pmd(mm, page, writable, referenced,
@@ -1506,7 +1509,7 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
  * @file: file that collapse on
  * @start: collapse start address
  * @hpage: new allocated huge page for collapse
- * @node: appointed node the new huge page allocate from
+ * @cc: collapse context and scratchpad
  *
  * Basic scheme is simple, details are more complex:
  *  - allocate and lock a new huge page;
@@ -1523,12 +1526,11 @@ static void retract_page_tables(struct address_space *mapping, pgoff_t pgoff)
  *    + restore gaps in the page cache;
  *    + unlock and free huge page;
  */
-static void collapse_file(struct mm_struct *mm,
-		struct file *file, pgoff_t start,
-		struct page **hpage, int node)
+static void collapse_file(struct mm_struct *mm, struct file *file,
+			  pgoff_t start, struct page **hpage,
+			  struct collapse_control *cc)
 {
 	struct address_space *mapping = file->f_mapping;
-	gfp_t gfp;
 	struct page *new_page;
 	pgoff_t index, end = start + HPAGE_PMD_NR;
 	LIST_HEAD(pagelist);
@@ -1540,20 +1542,11 @@ static void collapse_file(struct mm_struct *mm,
 	VM_BUG_ON(!IS_ENABLED(CONFIG_READ_ONLY_THP_FOR_FS) && !is_shmem);
 	VM_BUG_ON(start & (HPAGE_PMD_NR - 1));
 
-	/* Only allocate from the target node */
-	gfp = alloc_hugepage_khugepaged_gfpmask() | __GFP_THISNODE;
-
-	new_page = khugepaged_alloc_page(hpage, gfp, node);
-	if (!new_page) {
-		result = SCAN_ALLOC_HUGE_PAGE_FAIL;
+	result = alloc_charge_hpage(hpage, mm, cc);
+	if (result != SCAN_SUCCEED)
 		goto out;
-	}
 
-	if (unlikely(mem_cgroup_charge(page_folio(new_page), mm, gfp))) {
-		result = SCAN_CGROUP_CHARGE_FAIL;
-		goto out;
-	}
-	count_memcg_page_event(new_page, THP_COLLAPSE_ALLOC);
+	new_page = *hpage;
 
 	/*
 	 * Ensure we have slots for all the pages in the range.  This is
@@ -1965,8 +1958,7 @@ static void khugepaged_scan_file(struct mm_struct *mm, struct file *file,
 			result = SCAN_EXCEED_NONE_PTE;
 			count_vm_event(THP_SCAN_EXCEED_NONE_PTE);
 		} else {
-			node = khugepaged_find_target_node(cc);
-			collapse_file(mm, file, start, hpage, node);
+			collapse_file(mm, file, start, hpage, cc);
 		}
 	}
 
