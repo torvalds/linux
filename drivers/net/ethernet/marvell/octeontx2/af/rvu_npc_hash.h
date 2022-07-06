@@ -202,13 +202,32 @@ struct npc_exact_table {
 };
 
 bool rvu_npc_exact_has_match_table(struct rvu *rvu);
-int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id);
 u32 rvu_npc_exact_get_max_entries(struct rvu *rvu);
 int rvu_npc_exact_init(struct rvu *rvu);
+int rvu_npc_exact_mac_addr_reset(struct rvu *rvu, struct cgx_mac_addr_reset_req *req,
+				 struct msg_rsp *rsp);
+
+int rvu_npc_exact_mac_addr_update(struct rvu *rvu,
+				  struct cgx_mac_addr_update_req *req,
+				  struct cgx_mac_addr_update_rsp *rsp);
+
+int rvu_npc_exact_mac_addr_add(struct rvu *rvu,
+			       struct cgx_mac_addr_add_req *req,
+			       struct cgx_mac_addr_add_rsp *rsp);
+
+int rvu_npc_exact_mac_addr_del(struct rvu *rvu,
+			       struct cgx_mac_addr_del_req *req,
+			       struct msg_rsp *rsp);
+
+int rvu_npc_exact_mac_addr_set(struct rvu *rvu, struct cgx_mac_addr_set_or_get *req,
+			       struct cgx_mac_addr_set_or_get *rsp);
+
+void rvu_npc_exact_reset(struct rvu *rvu, u16 pcifunc);
 
 bool rvu_npc_exact_can_disable_feature(struct rvu *rvu);
 void rvu_npc_exact_disable_feature(struct rvu *rvu);
 void rvu_npc_exact_reset(struct rvu *rvu, u16 pcifunc);
 u16 rvu_npc_exact_drop_rule_to_pcifunc(struct rvu *rvu, u32 drop_rule_idx);
-
+int rvu_npc_exact_promisc_disable(struct rvu *rvu, u16 pcifunc);
+int rvu_npc_exact_promisc_enable(struct rvu *rvu, u16 pcifunc);
 #endif /* RVU_NPC_HASH_H */
