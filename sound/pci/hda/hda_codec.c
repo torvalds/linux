@@ -950,6 +950,7 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 		      unsigned int codec_addr, struct hda_codec **codecp)
 {
 	struct hda_codec *codec;
+	int ret;
 
 	codec = snd_hda_codec_device_init(bus, codec_addr, "hdaudioC%dD%d",
 					  card->number, codec_addr);
@@ -957,7 +958,11 @@ int snd_hda_codec_new(struct hda_bus *bus, struct snd_card *card,
 		return PTR_ERR(codec);
 	*codecp = codec;
 
-	return snd_hda_codec_device_new(bus, card, codec_addr, *codecp, true);
+	ret = snd_hda_codec_device_new(bus, card, codec_addr, *codecp, true);
+	if (ret)
+		put_device(hda_codec_dev(*codecp));
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_new);
 
@@ -1012,19 +1017,17 @@ int snd_hda_codec_device_new(struct hda_bus *bus, struct snd_card *card,
 
 	if (codec->bus->modelname) {
 		codec->modelname = kstrdup(codec->bus->modelname, GFP_KERNEL);
-		if (!codec->modelname) {
-			err = -ENOMEM;
-			goto error;
-		}
+		if (!codec->modelname)
+			return -ENOMEM;
 	}
 
 	fg = codec->core.afg ? codec->core.afg : codec->core.mfg;
 	err = read_widget_caps(codec, fg);
 	if (err < 0)
-		goto error;
+		return err;
 	err = read_pin_defaults(codec);
 	if (err < 0)
-		goto error;
+		return err;
 
 	/* power-up all before initialization */
 	hda_set_power_state(codec, AC_PWRST_D0);
@@ -1042,7 +1045,7 @@ int snd_hda_codec_device_new(struct hda_bus *bus, struct snd_card *card,
 		/* ASoC features component management instead */
 		err = snd_device_new(card, SNDRV_DEV_CODEC, codec, &dev_ops);
 		if (err < 0)
-			goto error;
+			return err;
 	}
 
 #ifdef CONFIG_PM
@@ -1055,10 +1058,6 @@ int snd_hda_codec_device_new(struct hda_bus *bus, struct snd_card *card,
 #endif
 
 	return 0;
-
- error:
-	put_device(hda_codec_dev(codec));
-	return err;
 }
 EXPORT_SYMBOL_GPL(snd_hda_codec_device_new);
 
