@@ -32,6 +32,7 @@ obj-$(CONFIG_MDM_GCC_9607) += gcc-mdm9607.o
 obj-$(CONFIG_MDM_GCC_9615) += gcc-mdm9615.o
 obj-$(CONFIG_MDM_LCC_9615) += lcc-mdm9615.o
 obj-$(CONFIG_MSM_GCC_8660) += gcc-msm8660.o
+obj-$(CONFIG_MSM_GCC_8909) += gcc-msm8909.o
 obj-$(CONFIG_MSM_GCC_8916) += gcc-msm8916.o
 obj-$(CONFIG_MSM_GCC_8939) += gcc-msm8939.o
 obj-$(CONFIG_MSM_GCC_8953) += gcc-msm8953.o
