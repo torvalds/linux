@@ -822,22 +822,16 @@ static int goodix_resource(struct acpi_resource *ares, void *data)
 	struct device *dev = &ts->client->dev;
 	struct acpi_resource_gpio *gpio;
 
-	switch (ares->type) {
-	case ACPI_RESOURCE_TYPE_GPIO:
-		gpio = &ares->data.gpio;
-		if (gpio->connection_type == ACPI_RESOURCE_GPIO_TYPE_INT) {
-			if (ts->gpio_int_idx == -1) {
-				ts->gpio_int_idx = ts->gpio_count;
-			} else {
-				dev_err(dev, "More then one GpioInt resource, ignoring ACPI GPIO resources\n");
-				ts->gpio_int_idx = -2;
-			}
+	if (acpi_gpio_get_irq_resource(ares, &gpio)) {
+		if (ts->gpio_int_idx == -1) {
+			ts->gpio_int_idx = ts->gpio_count;
+		} else {
+			dev_err(dev, "More then one GpioInt resource, ignoring ACPI GPIO resources\n");
+			ts->gpio_int_idx = -2;
 		}
 		ts->gpio_count++;
-		break;
-	default:
-		break;
-	}
+	} else if (acpi_gpio_get_io_resource(ares, &gpio))
+		ts->gpio_count++;
 
 	return 0;
 }
