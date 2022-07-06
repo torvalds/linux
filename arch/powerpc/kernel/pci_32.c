@@ -239,7 +239,9 @@ void pcibios_setup_phb_io_space(struct pci_controller *hose)
 static int __init pcibios_init(void)
 {
 	struct pci_controller *hose, *tmp;
+#ifndef CONFIG_PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
 	int next_busno = 0;
+#endif
 
 	printk(KERN_INFO "PCI: Probing PCI hardware\n");
 
@@ -248,13 +250,17 @@ static int __init pcibios_init(void)
 
 	/* Scan all of the recorded PCI controllers.  */
 	list_for_each_entry_safe(hose, tmp, &hose_list, list_node) {
+#ifndef CONFIG_PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
 		if (pci_assign_all_buses)
 			hose->first_busno = next_busno;
+#endif
 		hose->last_busno = 0xff;
 		pcibios_scan_phb(hose);
 		pci_bus_add_devices(hose->bus);
+#ifndef CONFIG_PPC_PCI_BUS_NUM_DOMAIN_DEPENDENT
 		if (pci_assign_all_buses || next_busno <= hose->last_busno)
 			next_busno = hose->last_busno + pcibios_assign_bus_offset;
+#endif
 	}
 
 #if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP)
