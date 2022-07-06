@@ -1250,7 +1250,13 @@ static int tc_main_link_disable(struct tc_data *tc)
 	if (ret)
 		return ret;
 
-	return regmap_write(tc->regmap, DP0CTL, 0);
+	ret = regmap_write(tc->regmap, DP0CTL, 0);
+	if (ret)
+		return ret;
+
+	return regmap_update_bits(tc->regmap, DP_PHY_CTRL,
+				  PHY_M0_RST | PHY_M1_RST | PHY_M0_EN,
+				  PHY_M0_RST | PHY_M1_RST);
 }
 
 static int tc_dsi_rx_enable(struct tc_data *tc)
