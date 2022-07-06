@@ -425,11 +425,10 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 	bool subvp_immediate_flip = false;
 	bool subvp_in_use = false;
 	bool drr_pipe = false;
-	struct pipe_ctx *pipe, *old_pipe;
+	struct pipe_ctx *pipe;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		pipe = &context->res_ctx.pipe_ctx[i];
-		old_pipe = &dc->current_state->res_ctx.pipe_ctx[i];
 
 		if (pipe->stream && pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
 			subvp_in_use = true;
