@@ -764,6 +764,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.typedef_int_exists = 1,
 		.typedef_enum_exists = 1,
 		.typedef_void_ptr_exists = 1,
+		.typedef_restrict_ptr_exists = 1,
 		.typedef_func_proto_exists = 1,
 		.typedef_arr_exists = 1,
 
@@ -777,6 +778,7 @@ static const struct core_reloc_test_case test_cases[] = {
 		.typedef_int_matches = 1,
 		.typedef_enum_matches = 1,
 		.typedef_void_ptr_matches = 1,
+		.typedef_restrict_ptr_matches = 1,
 		.typedef_func_proto_matches = 1,
 		.typedef_arr_matches = 1,
 

@@ -874,6 +874,7 @@ struct core_reloc_type_based_output {
 	bool typedef_int_exists;
 	bool typedef_enum_exists;
 	bool typedef_void_ptr_exists;
+	bool typedef_restrict_ptr_exists;
 	bool typedef_func_proto_exists;
 	bool typedef_arr_exists;
 
@@ -887,6 +888,7 @@ struct core_reloc_type_based_output {
 	bool typedef_int_matches;
 	bool typedef_enum_matches;
 	bool typedef_void_ptr_matches;
+	bool typedef_restrict_ptr_matches;
 	bool typedef_func_proto_matches;
 	bool typedef_arr_matches;
 
@@ -939,6 +941,7 @@ typedef int int_typedef;
 typedef enum { TYPEDEF_ENUM_VAL1, TYPEDEF_ENUM_VAL2 } enum_typedef;
 
 typedef void *void_ptr_typedef;
+typedef int *restrict restrict_ptr_typedef;
 
 typedef int (*func_proto_typedef)(long);
 
@@ -955,8 +958,9 @@ struct core_reloc_type_based {
 	int_typedef f8;
 	enum_typedef f9;
 	void_ptr_typedef f10;
-	func_proto_typedef f11;
-	arr_typedef f12;
+	restrict_ptr_typedef f11;
+	func_proto_typedef f12;
+	arr_typedef f13;
 };
 
 /* no types in target */
