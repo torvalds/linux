@@ -2405,13 +2405,13 @@
 			interrupts = <GIC_SPI 304 IRQ_TYPE_LEVEL_HIGH>,
 					<GIC_SPI 305 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hfi", "gmu";
-			clocks = <&gpucc 5>,
-					<&gpucc 8>,
-					<&gcc GCC_DDRSS_GPU_AXI_CLK>,
-					<&gcc GCC_GPU_MEMNOC_GFX_CLK>,
-					<&gpucc 2>,
-					<&gpucc 15>,
-					<&gpucc 11>;
+			clocks = <&gpucc GPU_CC_CX_GMU_CLK>,
+				 <&gpucc GPU_CC_CXO_CLK>,
+				 <&gcc GCC_DDRSS_GPU_AXI_CLK>,
+				 <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
+				 <&gpucc GPU_CC_AHB_CLK>,
+				 <&gpucc GPU_CC_HUB_CX_INT_CLK>,
+				 <&gpucc GPU_CC_HLOS1_VOTE_GPU_SMMU_CLK>;
 			clock-names = "gmu",
 				      "cxo",
 				      "axi",
@@ -2419,8 +2419,8 @@
 				      "ahb",
 				      "hub",
 				      "smmu_vote";
-			power-domains = <&gpucc 0>,
-					<&gpucc 1>;
+			power-domains = <&gpucc GPU_CC_CX_GDSC>,
+					<&gpucc GPU_CC_GX_GDSC>;
 			power-domain-names = "cx",
 					     "gx";
 			iommus = <&adreno_smmu 5 0x400>;
@@ -2469,12 +2469,12 @@
 					<GIC_SPI 687 IRQ_TYPE_LEVEL_HIGH>;
 
 			clocks = <&gcc GCC_GPU_MEMNOC_GFX_CLK>,
-					<&gcc GCC_GPU_SNOC_DVM_GFX_CLK>,
-					<&gpucc 2>,
-					<&gpucc 11>,
-					<&gpucc 5>,
-					<&gpucc 15>,
-					<&gpucc 13>;
+				 <&gcc GCC_GPU_SNOC_DVM_GFX_CLK>,
+				 <&gpucc GPU_CC_AHB_CLK>,
+				 <&gpucc GPU_CC_HLOS1_VOTE_GPU_SMMU_CLK>,
+				 <&gpucc GPU_CC_CX_GMU_CLK>,
+				 <&gpucc GPU_CC_HUB_CX_INT_CLK>,
+				 <&gpucc GPU_CC_HUB_AON_CLK>;
 			clock-names = "gcc_gpu_memnoc_gfx_clk",
 					"gcc_gpu_snoc_dvm_gfx_clk",
 					"gpu_cc_ahb_clk",
@@ -2483,7 +2483,7 @@
 					"gpu_cc_hub_cx_int_clk",
 					"gpu_cc_hub_aon_clk";
 
-			power-domains = <&gpucc 0>;
+			power-domains = <&gpucc GPU_CC_CX_GDSC>;
 		};
 
 		remoteproc_mpss: remoteproc@4080000 {
