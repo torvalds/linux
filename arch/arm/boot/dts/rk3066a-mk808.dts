@@ -160,6 +160,24 @@
 	status = "okay";
 };
 
+&nfc {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	status = "okay";
+
+	nand@0 {
+		reg = <0>;
+		label = "rk-nand";
+		nand-bus-width = <8>;
+		nand-ecc-mode = "hw";
+		nand-ecc-step-size = <1024>;
+		nand-ecc-strength = <40>;
+		nand-is-boot-medium;
+		rockchip,boot-blks = <8>;
+		rockchip,boot-ecc-strength = <24>;
+	};
+};
+
 &pinctrl {
 	usb-host {
 		host_drv: host-drv {
