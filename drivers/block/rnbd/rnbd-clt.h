@@ -117,17 +117,6 @@ struct rnbd_clt_dev {
 	char			*pathname;
 	enum rnbd_access_mode	access_mode;
 	u32			nr_poll_queues;
-	bool			wc;
-	bool			fua;
-	u32			max_hw_sectors;
-	u32			max_discard_sectors;
-	u32			discard_granularity;
-	u32			discard_alignment;
-	u16			secure_discard;
-	u16			physical_block_size;
-	u16			logical_block_size;
-	u16			max_segments;
-	size_t			nsectors;
 	u64			size;		/* device size in bytes */
 	struct list_head        list;
 	struct gendisk		*gd;
