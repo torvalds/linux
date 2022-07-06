@@ -29,3 +29,7 @@
 	extcon = <&usb2phy0>;
 	maximum-speed = "high-speed";
 };
+
+&vop {
+	compatible = "rockchip,rk3566-vop";
+};
