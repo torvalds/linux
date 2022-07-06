@@ -461,6 +461,25 @@ static void fill_memory(int *p, unsigned long start, unsigned long end)
 		p[i * page_size / sizeof(*p)] = i + 0xdead0000;
 }
 
+/*
+ * Returns pmd-mapped hugepage in VMA marked VM_HUGEPAGE, filled with
+ * validate_memory()'able contents.
+ */
+static void *alloc_hpage(void)
+{
+	void *p;
+
+	p = alloc_mapping();
+	printf("Allocate huge page...");
+	madvise(p, hpage_pmd_size, MADV_HUGEPAGE);
+	fill_memory(p, 0, hpage_pmd_size);
+	if (check_huge(p))
+		success("OK");
+	else
+		fail("Fail");
+	return p;
+}
+
 static void validate_memory(int *p, unsigned long start, unsigned long end)
 {
 	int i;
@@ -682,15 +701,7 @@ static void collapse_single_pte_entry_compound(struct collapse_context *c)
 {
 	void *p;
 
-	p = alloc_mapping();
-
-	printf("Allocate huge page...");
-	madvise(p, hpage_pmd_size, MADV_HUGEPAGE);
-	fill_memory(p, 0, hpage_pmd_size);
-	if (check_huge(p))
-		success("OK");
-	else
-		fail("Fail");
+	p = alloc_hpage();
 	madvise(p, hpage_pmd_size, MADV_NOHUGEPAGE);
 
 	printf("Split huge page leaving single PTE mapping compound page...");
@@ -710,16 +721,7 @@ static void collapse_full_of_compound(struct collapse_context *c)
 {
 	void *p;
 
-	p = alloc_mapping();
-
-	printf("Allocate huge page...");
-	madvise(p, hpage_pmd_size, MADV_HUGEPAGE);
-	fill_memory(p, 0, hpage_pmd_size);
-	if (check_huge(p))
-		success("OK");
-	else
-		fail("Fail");
-
+	p = alloc_hpage();
 	printf("Split huge page leaving single PTE page table full of compound pages...");
 	madvise(p, page_size, MADV_NOHUGEPAGE);
 	madvise(p, hpage_pmd_size, MADV_NOHUGEPAGE);
@@ -837,16 +839,7 @@ static void collapse_fork_compound(struct collapse_context *c)
 	int wstatus;
 	void *p;
 
-	p = alloc_mapping();
-
-	printf("Allocate huge page...");
-	madvise(p, hpage_pmd_size, MADV_HUGEPAGE);
-	fill_memory(p, 0, hpage_pmd_size);
-	if (check_huge(p))
-		success("OK");
-	else
-		fail("Fail");
-
+	p = alloc_hpage();
 	printf("Share huge page over fork()...");
 	if (!fork()) {
 		/* Do not touch settings on child exit */
@@ -896,16 +889,7 @@ static void collapse_max_ptes_shared(struct collapse_context *c)
 	int wstatus;
 	void *p;
 
-	p = alloc_mapping();
-
-	printf("Allocate huge page...");
-	madvise(p, hpage_pmd_size, MADV_HUGEPAGE);
-	fill_memory(p, 0, hpage_pmd_size);
-	if (check_huge(p))
-		success("OK");
-	else
-		fail("Fail");
-
+	p = alloc_hpage();
 	printf("Share huge page over fork()...");
 	if (!fork()) {
 		/* Do not touch settings on child exit */
