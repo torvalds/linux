@@ -330,6 +330,7 @@
 
 &dsi_phy {
 	status = "okay";
+	vdds-supply = <&vreg_l4a_0p8>;
 };
 
 &mdp {
