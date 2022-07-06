@@ -96,6 +96,7 @@ static struct arm_smmu_option_prop arm_smmu_options[] = {
 	{ ARM_SMMU_OPT_NO_ASID_RETENTION, "qcom,no-asid-retention" },
 	{ ARM_SMMU_OPT_DISABLE_ATOS, "qcom,disable-atos" },
 	{ ARM_SMMU_OPT_CONTEXT_FAULT_RETRY, "qcom,context-fault-retry" },
+	{ ARM_SMMU_OPT_IGNORE_NUMPAGENDXB, "qcom,ignore-numpagendxb" },
 	{ 0, NULL},
 };
 
@@ -3148,7 +3149,10 @@ static int arm_smmu_device_cfg_probe(struct arm_smmu_device *smmu)
 			"SMMU address space size (0x%x) differs from mapped region size (0x%x)!\n",
 			2 * size << smmu->pgshift, smmu->numpage);
 	/* Now properly encode NUMPAGE to subsequently derive SMMU_CB_BASE */
-	smmu->numpage = size;
+	if (!(smmu->options & ARM_SMMU_OPT_IGNORE_NUMPAGENDXB))
+		smmu->numpage = size;
+	else
+		smmu->numpage = (smmu->numpage / 2) >> smmu->pgshift;
 
 	smmu->num_s2_context_banks = FIELD_GET(ARM_SMMU_ID1_NUMS2CB, id);
 	smmu->num_context_banks = FIELD_GET(ARM_SMMU_ID1_NUMCB, id);
@@ -3365,6 +3369,8 @@ static int arm_smmu_device_dt_probe(struct arm_smmu_device *smmu,
 	if (of_dma_is_coherent(dev->of_node))
 		smmu->features |= ARM_SMMU_FEAT_COHERENT_WALK;
 
+	parse_driver_options(smmu);
+
 	return 0;
 }
 
@@ -3537,7 +3543,6 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	/* QCOM Additions */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	smmu->phys_addr = res->start;
-	parse_driver_options(smmu);
 	err = arm_smmu_handoff_cbs(smmu);
 	if (err)
 		goto out_power_off;
