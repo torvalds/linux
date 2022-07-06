@@ -8,12 +8,10 @@
 #define _TRACE_HOOK_TOPOLOGY_H
 
 #include <trace/hooks/vendor_hooks.h>
-#include <linux/cpumask.h>
 
 DECLARE_HOOK(android_vh_arch_set_freq_scale,
-	TP_PROTO(const struct cpumask *cpus, unsigned long freq,
-		 unsigned long max, unsigned long *scale),
-	TP_ARGS(cpus, freq, max, scale));
+	TP_PROTO(unsigned long freq, unsigned long max, unsigned long *scale),
+	TP_ARGS(freq, max, scale));
 
 #endif /* _TRACE_HOOK_TOPOLOGY_H */
 /* This part must be outside protection */
