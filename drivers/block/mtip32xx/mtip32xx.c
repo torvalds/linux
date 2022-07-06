@@ -2441,7 +2441,7 @@ static void mtip_softirq_done_fn(struct request *rq)
 	blk_mq_end_request(rq, cmd->status);
 }
 
-static bool mtip_abort_cmd(struct request *req, void *data, bool reserved)
+static bool mtip_abort_cmd(struct request *req, void *data)
 {
 	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(req);
 	struct driver_data *dd = data;
@@ -2454,7 +2454,7 @@ static bool mtip_abort_cmd(struct request *req, void *data, bool reserved)
 	return true;
 }
 
-static bool mtip_queue_cmd(struct request *req, void *data, bool reserved)
+static bool mtip_queue_cmd(struct request *req, void *data)
 {
 	struct driver_data *dd = data;
 

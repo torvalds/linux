@@ -375,7 +375,7 @@ struct show_busy_params {
  * e.g. due to a concurrent blk_mq_finish_request() call. Returns true to
  * keep iterating requests.
  */
-static bool hctx_show_busy_rq(struct request *rq, void *data, bool reserved)
+static bool hctx_show_busy_rq(struct request *rq, void *data)
 {
 	const struct show_busy_params *params = data;
 

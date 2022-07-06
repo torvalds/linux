@@ -879,7 +879,7 @@ static void recv_work(struct work_struct *work)
 	kfree(args);
 }
 
-static bool nbd_clear_req(struct request *req, void *data, bool reserved)
+static bool nbd_clear_req(struct request *req, void *data)
 {
 	struct nbd_cmd *cmd = blk_mq_rq_to_pdu(req);
 

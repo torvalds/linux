@@ -2456,8 +2456,7 @@ nvme_fc_nvme_ctrl_freed(struct nvme_ctrl *nctrl)
  * status. The done path will return the io request back to the block
  * layer with an error status.
  */
-static bool
-nvme_fc_terminate_exchange(struct request *req, void *data, bool reserved)
+static bool nvme_fc_terminate_exchange(struct request *req, void *data)
 {
 	struct nvme_ctrl *nctrl = data;
 	struct nvme_fc_ctrl *ctrl = to_fc_ctrl(nctrl);

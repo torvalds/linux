@@ -1350,8 +1350,7 @@ int fnic_wq_copy_cmpl_handler(struct fnic *fnic, int copy_work_to_do)
 	return wq_work_done;
 }
 
-static bool fnic_cleanup_io_iter(struct scsi_cmnd *sc, void *data,
-				 bool reserved)
+static bool fnic_cleanup_io_iter(struct scsi_cmnd *sc, void *data)
 {
 	const int tag = scsi_cmd_to_rq(sc)->tag;
 	struct fnic *fnic = data;
@@ -1548,8 +1547,7 @@ struct fnic_rport_abort_io_iter_data {
 	int term_cnt;
 };
 
-static bool fnic_rport_abort_io_iter(struct scsi_cmnd *sc, void *data,
-				     bool reserved)
+static bool fnic_rport_abort_io_iter(struct scsi_cmnd *sc, void *data)
 {
 	struct fnic_rport_abort_io_iter_data *iter_data = data;
 	struct fnic *fnic = iter_data->fnic;
@@ -2003,8 +2001,7 @@ struct fnic_pending_aborts_iter_data {
 	int ret;
 };
 
-static bool fnic_pending_aborts_iter(struct scsi_cmnd *sc,
-				     void *data, bool reserved)
+static bool fnic_pending_aborts_iter(struct scsi_cmnd *sc, void *data)
 {
 	struct fnic_pending_aborts_iter_data *iter_data = data;
 	struct fnic *fnic = iter_data->fnic;
@@ -2668,8 +2665,7 @@ call_fc_exch_mgr_reset:
 
 }
 
-static bool fnic_abts_pending_iter(struct scsi_cmnd *sc, void *data,
-				   bool reserved)
+static bool fnic_abts_pending_iter(struct scsi_cmnd *sc, void *data)
 {
 	struct fnic_pending_aborts_iter_data *iter_data = data;
 	struct fnic *fnic = iter_data->fnic;

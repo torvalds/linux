@@ -418,7 +418,7 @@ blk_status_t nvme_host_path_error(struct request *req)
 }
 EXPORT_SYMBOL_GPL(nvme_host_path_error);
 
-bool nvme_cancel_request(struct request *req, void *data, bool reserved)
+bool nvme_cancel_request(struct request *req, void *data)
 {
 	dev_dbg_ratelimited(((struct nvme_ctrl *) data)->device,
 				"Cancelling I/O %d", req->tag);

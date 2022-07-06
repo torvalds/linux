@@ -633,7 +633,7 @@ struct fib_count_data {
 	int krlcnt;
 };
 
-static bool fib_count_iter(struct scsi_cmnd *scmnd, void *data, bool reserved)
+static bool fib_count_iter(struct scsi_cmnd *scmnd, void *data)
 {
 	struct fib_count_data *fib_count = data;
 
