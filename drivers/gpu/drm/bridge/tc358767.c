@@ -889,6 +889,7 @@ static int tc_set_edp_video_mode(struct tc_data *tc,
 	u32 dp0_syncval;
 	u32 bits_per_pixel = 24;
 	u32 in_bw, out_bw;
+	u32 dpipxlfmt;
 
 	/*
 	 * Recommended maximum number of symbols transferred in a transfer unit:
@@ -938,10 +939,15 @@ static int tc_set_edp_video_mode(struct tc_data *tc,
 	if (ret)
 		return ret;
 
-	ret = regmap_write(tc->regmap, DPIPXLFMT,
-			   VS_POL_ACTIVE_LOW | HS_POL_ACTIVE_LOW |
-			   DE_POL_ACTIVE_HIGH | SUB_CFG_TYPE_CONFIG1 |
-			   DPI_BPP_RGB888);
+	dpipxlfmt = DE_POL_ACTIVE_HIGH | SUB_CFG_TYPE_CONFIG1 | DPI_BPP_RGB888;
+
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		dpipxlfmt |= VS_POL_ACTIVE_LOW;
+
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		dpipxlfmt |= HS_POL_ACTIVE_LOW;
+
+	ret = regmap_write(tc->regmap, DPIPXLFMT, dpipxlfmt);
 	if (ret)
 		return ret;
 
@@ -1496,41 +1502,16 @@ tc_edp_bridge_atomic_disable(struct drm_bridge *bridge,
 		dev_err(tc->dev, "main link disable error: %d\n", ret);
 }
 
-static bool tc_bridge_mode_fixup(struct drm_bridge *bridge,
-				 const struct drm_display_mode *mode,
-				 struct drm_display_mode *adj)
-{
-	/* Fixup sync polarities, both hsync and vsync are active low */
-	adj->flags = mode->flags;
-	adj->flags |= (DRM_MODE_FLAG_NHSYNC | DRM_MODE_FLAG_NVSYNC);
-	adj->flags &= ~(DRM_MODE_FLAG_PHSYNC | DRM_MODE_FLAG_PVSYNC);
-
-	return true;
-}
-
-static int tc_common_atomic_check(struct drm_bridge *bridge,
-				  struct drm_bridge_state *bridge_state,
-				  struct drm_crtc_state *crtc_state,
-				  struct drm_connector_state *conn_state,
-				  const unsigned int max_khz)
-{
-	tc_bridge_mode_fixup(bridge, &crtc_state->mode,
-			     &crtc_state->adjusted_mode);
-
-	if (crtc_state->adjusted_mode.clock > max_khz)
-		return -EINVAL;
-
-	return 0;
-}
-
 static int tc_dpi_atomic_check(struct drm_bridge *bridge,
 			       struct drm_bridge_state *bridge_state,
 			       struct drm_crtc_state *crtc_state,
 			       struct drm_connector_state *conn_state)
 {
 	/* DSI->DPI interface clock limitation: upto 100 MHz */
-	return tc_common_atomic_check(bridge, bridge_state, crtc_state,
-				      conn_state, 100000);
+	if (crtc_state->adjusted_mode.clock > 100000)
+		return -EINVAL;
+
+	return 0;
 }
 
 static int tc_edp_atomic_check(struct drm_bridge *bridge,
@@ -1539,8 +1520,10 @@ static int tc_edp_atomic_check(struct drm_bridge *bridge,
 			       struct drm_connector_state *conn_state)
 {
 	/* DPI->(e)DP interface clock limitation: upto 154 MHz */
-	return tc_common_atomic_check(bridge, bridge_state, crtc_state,
-				      conn_state, 154000);
+	if (crtc_state->adjusted_mode.clock > 154000)
+		return -EINVAL;
+
+	return 0;
 }
 
 static enum drm_mode_status
@@ -1783,7 +1766,6 @@ static const struct drm_bridge_funcs tc_edp_bridge_funcs = {
 	.atomic_check = tc_edp_atomic_check,
 	.atomic_enable = tc_edp_bridge_atomic_enable,
 	.atomic_disable = tc_edp_bridge_atomic_disable,
-	.mode_fixup = tc_bridge_mode_fixup,
 	.detect = tc_bridge_detect,
 	.get_edid = tc_get_edid,
 	.atomic_duplicate_state = drm_atomic_helper_bridge_duplicate_state,
