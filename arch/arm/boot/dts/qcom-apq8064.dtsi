@@ -1271,6 +1271,8 @@
 			syscon-sfpb = <&mmss_sfpb>;
 			phys = <&dsi0_phy>;
 			phy-names = "dsi";
+			status = "disabled";
+
 			ports {
 				#address-cells = <1>;
 				#size-cells = <0>;
@@ -1302,6 +1304,7 @@
 			clock-names = "iface", "ref";
 			clocks = <&mmcc DSI_M_AHB_CLK>,
 				 <&pxo_board>;
+			status = "disabled";
 		};
 
 
