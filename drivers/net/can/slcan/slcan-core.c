@@ -647,7 +647,7 @@ static int slcan_transmit_cmd(struct slcan *sl, const unsigned char *cmd)
 		return -ENODEV;
 	}
 
-	n = snprintf(sl->xbuff, sizeof(sl->xbuff), "%s", cmd);
+	n = scnprintf(sl->xbuff, sizeof(sl->xbuff), "%s", cmd);
 	set_bit(TTY_DO_WRITE_WAKEUP, &sl->tty->flags);
 	actual = sl->tty->ops->write(sl->tty, sl->xbuff, n);
 	sl->xleft = n - actual;
