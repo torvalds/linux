@@ -14,6 +14,9 @@
 #ifndef MADV_PAGEOUT
 #define MADV_PAGEOUT 21
 #endif
+#ifndef MADV_COLLAPSE
+#define MADV_COLLAPSE 25
+#endif
 
 #define BASE_ADDR ((void *)(1UL << 30))
 static unsigned long hpage_pmd_size;
@@ -93,18 +96,6 @@ struct settings {
 	enum shmem_enabled shmem_enabled;
 	bool use_zero_page;
 	struct khugepaged_settings khugepaged;
-};
-
-static struct settings default_settings = {
-	.thp_enabled = THP_MADVISE,
-	.thp_defrag = THP_DEFRAG_ALWAYS,
-	.shmem_enabled = SHMEM_NEVER,
-	.use_zero_page = 0,
-	.khugepaged = {
-		.defrag = 1,
-		.alloc_sleep_millisecs = 10,
-		.scan_sleep_millisecs = 10,
-	},
 };
 
 static struct settings saved_settings;
@@ -284,6 +275,39 @@ static void write_settings(struct settings *settings)
 	write_num("khugepaged/pages_to_scan", khugepaged->pages_to_scan);
 }
 
+#define MAX_SETTINGS_DEPTH 4
+static struct settings settings_stack[MAX_SETTINGS_DEPTH];
+static int settings_index;
+
+static struct settings *current_settings(void)
+{
+	if (!settings_index) {
+		printf("Fail: No settings set");
+		exit(EXIT_FAILURE);
+	}
+	return settings_stack + settings_index - 1;
+}
+
+static void push_settings(struct settings *settings)
+{
+	if (settings_index >= MAX_SETTINGS_DEPTH) {
+		printf("Fail: Settings stack exceeded");
+		exit(EXIT_FAILURE);
+	}
+	settings_stack[settings_index++] = *settings;
+	write_settings(current_settings());
+}
+
+static void pop_settings(void)
+{
+	if (settings_index <= 0) {
+		printf("Fail: Settings stack empty");
+		exit(EXIT_FAILURE);
+	}
+	--settings_index;
+	write_settings(current_settings());
+}
+
 static void restore_settings(int sig)
 {
 	if (skip_settings_restore)
@@ -325,14 +349,6 @@ static void save_settings(void)
 	signal(SIGINT, restore_settings);
 	signal(SIGHUP, restore_settings);
 	signal(SIGQUIT, restore_settings);
-}
-
-static void adjust_settings(void)
-{
-
-	printf("Adjust settings...");
-	write_settings(&default_settings);
-	success("OK");
 }
 
 #define MAX_LINE_LENGTH 500
@@ -493,6 +509,38 @@ static void validate_memory(int *p, unsigned long start, unsigned long end)
 	}
 }
 
+static void madvise_collapse(const char *msg, char *p, bool expect)
+{
+	int ret;
+	struct settings settings = *current_settings();
+
+	printf("%s...", msg);
+	/* Sanity check */
+	if (check_huge(p)) {
+		printf("Unexpected huge page\n");
+		exit(EXIT_FAILURE);
+	}
+
+	/*
+	 * Prevent khugepaged interference and tests that MADV_COLLAPSE
+	 * ignores /sys/kernel/mm/transparent_hugepage/enabled
+	 */
+	settings.thp_enabled = THP_NEVER;
+	push_settings(&settings);
+
+	/* Clear VM_NOHUGEPAGE */
+	madvise(p, hpage_pmd_size, MADV_HUGEPAGE);
+	ret = madvise(p, hpage_pmd_size, MADV_COLLAPSE);
+	if (((bool)ret) == expect)
+		fail("Fail: Bad return value");
+	else if (check_huge(p) != expect)
+		fail("Fail: check_huge()");
+	else
+		success("OK");
+
+	pop_settings();
+}
+
 #define TICK 500000
 static bool wait_for_scan(const char *msg, char *p)
 {
@@ -542,11 +590,11 @@ static void khugepaged_collapse(const char *msg, char *p, bool expect)
 
 static void alloc_at_fault(void)
 {
-	struct settings settings = default_settings;
+	struct settings settings = *current_settings();
 	char *p;
 
 	settings.thp_enabled = THP_ALWAYS;
-	write_settings(&settings);
+	push_settings(&settings);
 
 	p = alloc_mapping();
 	*p = 1;
@@ -556,7 +604,7 @@ static void alloc_at_fault(void)
 	else
 		fail("Fail");
 
-	write_settings(&default_settings);
+	pop_settings();
 
 	madvise(p, page_size, MADV_DONTNEED);
 	printf("Split huge PMD on MADV_DONTNEED...");
@@ -602,11 +650,11 @@ static void collapse_single_pte_entry(struct collapse_context *c)
 static void collapse_max_ptes_none(struct collapse_context *c)
 {
 	int max_ptes_none = hpage_pmd_nr / 2;
-	struct settings settings = default_settings;
+	struct settings settings = *current_settings();
 	void *p;
 
 	settings.khugepaged.max_ptes_none = max_ptes_none;
-	write_settings(&settings);
+	push_settings(&settings);
 
 	p = alloc_mapping();
 
@@ -623,7 +671,7 @@ static void collapse_max_ptes_none(struct collapse_context *c)
 	}
 
 	munmap(p, hpage_pmd_size);
-	write_settings(&default_settings);
+	pop_settings();
 }
 
 static void collapse_swapin_single_pte(struct collapse_context *c)
@@ -703,7 +751,6 @@ static void collapse_single_pte_entry_compound(struct collapse_context *c)
 
 	p = alloc_hpage();
 	madvise(p, hpage_pmd_size, MADV_NOHUGEPAGE);
-
 	printf("Split huge page leaving single PTE mapping compound page...");
 	madvise(p + page_size, hpage_pmd_size - page_size, MADV_DONTNEED);
 	if (!check_huge(p))
@@ -864,7 +911,7 @@ static void collapse_fork_compound(struct collapse_context *c)
 		c->collapse("Collapse PTE table full of compound pages in child",
 			    p, true);
 		write_num("khugepaged/max_ptes_shared",
-			  default_settings.khugepaged.max_ptes_shared);
+			  current_settings()->khugepaged.max_ptes_shared);
 
 		validate_memory(p, 0, hpage_pmd_size);
 		munmap(p, hpage_pmd_size);
@@ -943,9 +990,21 @@ static void collapse_max_ptes_shared(struct collapse_context *c)
 	munmap(p, hpage_pmd_size);
 }
 
-int main(void)
+int main(int argc, const char **argv)
 {
 	struct collapse_context c;
+	struct settings default_settings = {
+		.thp_enabled = THP_MADVISE,
+		.thp_defrag = THP_DEFRAG_ALWAYS,
+		.shmem_enabled = SHMEM_NEVER,
+		.use_zero_page = 0,
+		.khugepaged = {
+			.defrag = 1,
+			.alloc_sleep_millisecs = 10,
+			.scan_sleep_millisecs = 10,
+		},
+	};
+	const char *tests = argc == 1 ? "all" : argv[1];
 
 	setbuf(stdout, NULL);
 
@@ -959,26 +1018,46 @@ int main(void)
 	default_settings.khugepaged.pages_to_scan = hpage_pmd_nr * 8;
 
 	save_settings();
-	adjust_settings();
+	push_settings(&default_settings);
 
 	alloc_at_fault();
 
-	printf("\n*** Testing context: khugepaged ***\n");
-	c.collapse = &khugepaged_collapse;
-	c.enforce_pte_scan_limits = true;
+	if (!strcmp(tests, "khugepaged") || !strcmp(tests, "all")) {
+		printf("\n*** Testing context: khugepaged ***\n");
+		c.collapse = &khugepaged_collapse;
+		c.enforce_pte_scan_limits = true;
 
-	collapse_full(&c);
-	collapse_empty(&c);
-	collapse_single_pte_entry(&c);
-	collapse_max_ptes_none(&c);
-	collapse_swapin_single_pte(&c);
-	collapse_max_ptes_swap(&c);
-	collapse_single_pte_entry_compound(&c);
-	collapse_full_of_compound(&c);
-	collapse_compound_extreme(&c);
-	collapse_fork(&c);
-	collapse_fork_compound(&c);
-	collapse_max_ptes_shared(&c);
+		collapse_full(&c);
+		collapse_empty(&c);
+		collapse_single_pte_entry(&c);
+		collapse_max_ptes_none(&c);
+		collapse_swapin_single_pte(&c);
+		collapse_max_ptes_swap(&c);
+		collapse_single_pte_entry_compound(&c);
+		collapse_full_of_compound(&c);
+		collapse_compound_extreme(&c);
+		collapse_fork(&c);
+		collapse_fork_compound(&c);
+		collapse_max_ptes_shared(&c);
+	}
+	if (!strcmp(tests, "madvise") || !strcmp(tests, "all")) {
+		printf("\n*** Testing context: madvise ***\n");
+		c.collapse = &madvise_collapse;
+		c.enforce_pte_scan_limits = false;
+
+		collapse_full(&c);
+		collapse_empty(&c);
+		collapse_single_pte_entry(&c);
+		collapse_max_ptes_none(&c);
+		collapse_swapin_single_pte(&c);
+		collapse_max_ptes_swap(&c);
+		collapse_single_pte_entry_compound(&c);
+		collapse_full_of_compound(&c);
+		collapse_compound_extreme(&c);
+		collapse_fork(&c);
+		collapse_fork_compound(&c);
+		collapse_max_ptes_shared(&c);
+	}
 
 	restore_settings(0);
 }
