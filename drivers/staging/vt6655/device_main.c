@@ -192,12 +192,8 @@ device_set_options(struct vnt_private *priv)
 static void vt6655_mac_write_bssid_addr(void __iomem *iobase, const u8 *mac_addr)
 {
 	iowrite8(1, iobase + MAC_REG_PAGE1SEL);
-	iowrite8(mac_addr[0], iobase + MAC_REG_BSSID0);
-	iowrite8(mac_addr[1], iobase + MAC_REG_BSSID0 + 1);
-	iowrite8(mac_addr[2], iobase + MAC_REG_BSSID0 + 2);
-	iowrite8(mac_addr[3], iobase + MAC_REG_BSSID0 + 3);
-	iowrite8(mac_addr[4], iobase + MAC_REG_BSSID0 + 4);
-	iowrite8(mac_addr[5], iobase + MAC_REG_BSSID0 + 5);
+	for (int i = 0; i < 6; i++)
+		iowrite8(mac_addr[i], iobase + MAC_REG_BSSID0 + i);
 	iowrite8(0, iobase + MAC_REG_PAGE1SEL);
 }
 
