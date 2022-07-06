@@ -47,7 +47,6 @@ enum amd_spi_versions {
 
 struct amd_spi {
 	void __iomem *io_remap_addr;
-	unsigned long io_base_addr;
 	enum amd_spi_versions version;
 };
 
