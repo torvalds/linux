@@ -92,13 +92,6 @@ static void detach_device(struct device *dev);
  *
  ****************************************************************************/
 
-static inline u16 get_pci_device_id(struct device *dev)
-{
-	struct pci_dev *pdev = to_pci_dev(dev);
-
-	return pci_dev_id(pdev);
-}
-
 static inline int get_acpihid_device_id(struct device *dev,
 					struct acpihid_map_entry **entry)
 {
@@ -119,16 +112,16 @@ static inline int get_acpihid_device_id(struct device *dev,
 	return -EINVAL;
 }
 
-static inline int get_device_id(struct device *dev)
+static inline int get_device_sbdf_id(struct device *dev)
 {
-	int devid;
+	int sbdf;
 
 	if (dev_is_pci(dev))
-		devid = get_pci_device_id(dev);
+		sbdf = get_pci_sbdf_id(to_pci_dev(dev));
 	else
-		devid = get_acpihid_device_id(dev, NULL);
+		sbdf = get_acpihid_device_id(dev, NULL);
 
-	return devid;
+	return sbdf;
 }
 
 struct dev_table_entry *get_dev_table(struct amd_iommu *iommu)
@@ -182,9 +175,11 @@ static struct amd_iommu *__rlookup_amd_iommu(u16 seg, u16 devid)
 static struct amd_iommu *rlookup_amd_iommu(struct device *dev)
 {
 	u16 seg = get_device_segment(dev);
-	u16 devid = get_device_id(dev);
+	int devid = get_device_sbdf_id(dev);
 
-	return __rlookup_amd_iommu(seg, devid);
+	if (devid < 0)
+		return NULL;
+	return __rlookup_amd_iommu(seg, PCI_SBDF_TO_DEVID(devid));
 }
 
 static struct protection_domain *to_pdomain(struct iommu_domain *dom)
@@ -360,14 +355,15 @@ static bool check_device(struct device *dev)
 {
 	struct amd_iommu_pci_seg *pci_seg;
 	struct amd_iommu *iommu;
-	int devid;
+	int devid, sbdf;
 
 	if (!dev)
 		return false;
 
-	devid = get_device_id(dev);
-	if (devid < 0)
+	sbdf = get_device_sbdf_id(dev);
+	if (sbdf < 0)
 		return false;
+	devid = PCI_SBDF_TO_DEVID(sbdf);
 
 	iommu = rlookup_amd_iommu(dev);
 	if (!iommu)
@@ -375,7 +371,7 @@ static bool check_device(struct device *dev)
 
 	/* Out of our scope? */
 	pci_seg = iommu->pci_seg;
-	if ((devid & 0xffff) > pci_seg->last_bdf)
+	if (devid > pci_seg->last_bdf)
 		return false;
 
 	return true;
@@ -384,15 +380,16 @@ static bool check_device(struct device *dev)
 static int iommu_init_device(struct amd_iommu *iommu, struct device *dev)
 {
 	struct iommu_dev_data *dev_data;
-	int devid;
+	int devid, sbdf;
 
 	if (dev_iommu_priv_get(dev))
 		return 0;
 
-	devid = get_device_id(dev);
-	if (devid < 0)
-		return devid;
+	sbdf = get_device_sbdf_id(dev);
+	if (sbdf < 0)
+		return sbdf;
 
+	devid = PCI_SBDF_TO_DEVID(sbdf);
 	dev_data = find_dev_data(iommu, devid);
 	if (!dev_data)
 		return -ENOMEM;
@@ -420,12 +417,13 @@ static void iommu_ignore_device(struct amd_iommu *iommu, struct device *dev)
 {
 	struct amd_iommu_pci_seg *pci_seg = iommu->pci_seg;
 	struct dev_table_entry *dev_table = get_dev_table(iommu);
-	int devid;
+	int devid, sbdf;
 
-	devid = (get_device_id(dev)) & 0xffff;
-	if (devid < 0)
+	sbdf = get_device_sbdf_id(dev);
+	if (sbdf < 0)
 		return;
 
+	devid = PCI_SBDF_TO_DEVID(sbdf);
 	pci_seg->rlookup_table[devid] = NULL;
 	memset(&dev_table[devid], 0, sizeof(struct dev_table_entry));
 
@@ -2258,11 +2256,13 @@ static void amd_iommu_get_resv_regions(struct device *dev,
 	struct unity_map_entry *entry;
 	struct amd_iommu *iommu;
 	struct amd_iommu_pci_seg *pci_seg;
-	int devid;
+	int devid, sbdf;
 
-	devid = get_device_id(dev);
-	if (devid < 0)
+	sbdf = get_device_sbdf_id(dev);
+	if (sbdf < 0)
 		return;
+
+	devid = PCI_SBDF_TO_DEVID(sbdf);
 	iommu = rlookup_amd_iommu(dev);
 	if (!iommu)
 		return;
@@ -3156,7 +3156,7 @@ static int get_devid(struct irq_alloc_info *info)
 		return get_hpet_devid(info->devid);
 	case X86_IRQ_ALLOC_TYPE_PCI_MSI:
 	case X86_IRQ_ALLOC_TYPE_PCI_MSIX:
-		return get_device_id(msi_desc_to_dev(info->desc));
+		return get_device_sbdf_id(msi_desc_to_dev(info->desc));
 	default:
 		WARN_ON_ONCE(1);
 		return -1;
