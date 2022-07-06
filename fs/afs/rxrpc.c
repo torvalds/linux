@@ -152,7 +152,7 @@ static struct afs_call *afs_alloc_call(struct afs_net *net,
 	call->iter = &call->def_iter;
 
 	o = atomic_inc_return(&net->nr_outstanding_calls);
-	trace_afs_call(call, afs_call_trace_alloc, 1, o,
+	trace_afs_call(call->debug_id, afs_call_trace_alloc, 1, o,
 		       __builtin_return_address(0));
 	return call;
 }
@@ -163,12 +163,13 @@ static struct afs_call *afs_alloc_call(struct afs_net *net,
 void afs_put_call(struct afs_call *call)
 {
 	struct afs_net *net = call->net;
+	unsigned int debug_id = call->debug_id;
 	bool zero;
 	int r, o;
 
 	zero = __refcount_dec_and_test(&call->ref, &r);
 	o = atomic_read(&net->nr_outstanding_calls);
-	trace_afs_call(call, afs_call_trace_put, r - 1, o,
+	trace_afs_call(debug_id, afs_call_trace_put, r - 1, o,
 		       __builtin_return_address(0));
 
 	if (zero) {
@@ -186,7 +187,7 @@ void afs_put_call(struct afs_call *call)
 		afs_put_addrlist(call->alist);
 		kfree(call->request);
 
-		trace_afs_call(call, afs_call_trace_free, 0, o,
+		trace_afs_call(call->debug_id, afs_call_trace_free, 0, o,
 			       __builtin_return_address(0));
 		kfree(call);
 
@@ -203,7 +204,7 @@ static struct afs_call *afs_get_call(struct afs_call *call,
 
 	__refcount_inc(&call->ref, &r);
 
-	trace_afs_call(call, why, r + 1,
+	trace_afs_call(call->debug_id, why, r + 1,
 		       atomic_read(&call->net->nr_outstanding_calls),
 		       __builtin_return_address(0));
 	return call;
@@ -677,7 +678,7 @@ static void afs_wake_up_async_call(struct sock *sk, struct rxrpc_call *rxcall,
 	call->need_attention = true;
 
 	if (__refcount_inc_not_zero(&call->ref, &r)) {
-		trace_afs_call(call, afs_call_trace_wake, r + 1,
+		trace_afs_call(call->debug_id, afs_call_trace_wake, r + 1,
 			       atomic_read(&call->net->nr_outstanding_calls),
 			       __builtin_return_address(0));
 

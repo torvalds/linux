@@ -212,7 +212,7 @@ static void SRXAFSCB_CallBack(struct work_struct *work)
 	 * to maintain cache coherency.
 	 */
 	if (call->server) {
-		trace_afs_server(call->server,
+		trace_afs_server(call->server->debug_id,
 				 refcount_read(&call->server->ref),
 				 atomic_read(&call->server->active),
 				 afs_server_trace_callback);
