@@ -154,6 +154,7 @@ pcibios_make_OF_bus_map(void)
 }
 
 
+#ifdef CONFIG_PPC_PMAC
 /*
  * Returns the PCI device matching a given OF node
  */
@@ -193,6 +194,7 @@ int pci_device_from_OF_node(struct device_node *node, u8 *bus, u8 *devfn)
 	return -ENODEV;
 }
 EXPORT_SYMBOL(pci_device_from_OF_node);
+#endif
 
 /* We create the "pci-OF-bus-map" property now so it appears in the
  * /proc device tree

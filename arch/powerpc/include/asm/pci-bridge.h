@@ -170,8 +170,10 @@ static inline struct pci_controller *pci_bus_to_host(const struct pci_bus *bus)
 	return bus->sysdata;
 }
 
+#ifdef CONFIG_PPC_PMAC
 extern int pci_device_from_OF_node(struct device_node *node,
 				   u8 *bus, u8 *devfn);
+#endif
 #ifndef CONFIG_PPC64
 
 extern void pci_create_OF_bus_map(void);
