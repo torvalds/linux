@@ -665,6 +665,12 @@ static void drop_links(struct nameidata *nd)
 	}
 }
 
+static void leave_rcu(struct nameidata *nd)
+{
+	nd->flags &= ~LOOKUP_RCU;
+	rcu_read_unlock();
+}
+
 static void terminate_walk(struct nameidata *nd)
 {
 	drop_links(nd);
@@ -678,8 +684,7 @@ static void terminate_walk(struct nameidata *nd)
 			nd->state &= ~ND_ROOT_GRABBED;
 		}
 	} else {
-		nd->flags &= ~LOOKUP_RCU;
-		rcu_read_unlock();
+		leave_rcu(nd);
 	}
 	nd->depth = 0;
 	nd->path.mnt = NULL;
@@ -765,14 +770,13 @@ static bool try_to_unlazy(struct nameidata *nd)
 
 	BUG_ON(!(nd->flags & LOOKUP_RCU));
 
-	nd->flags &= ~LOOKUP_RCU;
 	if (unlikely(!legitimize_links(nd)))
 		goto out1;
 	if (unlikely(!legitimize_path(nd, &nd->path, nd->seq)))
 		goto out;
 	if (unlikely(!legitimize_root(nd)))
 		goto out;
-	rcu_read_unlock();
+	leave_rcu(nd);
 	BUG_ON(nd->inode != parent->d_inode);
 	return true;
 
@@ -780,7 +784,7 @@ out1:
 	nd->path.mnt = NULL;
 	nd->path.dentry = NULL;
 out:
-	rcu_read_unlock();
+	leave_rcu(nd);
 	return false;
 }
 
@@ -802,7 +806,6 @@ static bool try_to_unlazy_next(struct nameidata *nd, struct dentry *dentry, unsi
 	int res;
 	BUG_ON(!(nd->flags & LOOKUP_RCU));
 
-	nd->flags &= ~LOOKUP_RCU;
 	if (unlikely(!legitimize_links(nd)))
 		goto out2;
 	res = __legitimize_mnt(nd->path.mnt, nd->m_seq);
@@ -831,7 +834,7 @@ static bool try_to_unlazy_next(struct nameidata *nd, struct dentry *dentry, unsi
 	 */
 	if (unlikely(!legitimize_root(nd)))
 		goto out_dput;
-	rcu_read_unlock();
+	leave_rcu(nd);
 	return true;
 
 out2:
@@ -839,10 +842,10 @@ out2:
 out1:
 	nd->path.dentry = NULL;
 out:
-	rcu_read_unlock();
+	leave_rcu(nd);
 	return false;
 out_dput:
-	rcu_read_unlock();
+	leave_rcu(nd);
 	dput(dentry);
 	return false;
 }
