@@ -3631,7 +3631,7 @@ bool hl_is_dram_va(struct hl_device *hdev, u64 virt_addr);
 
 int hl_fw_load_fw_to_device(struct hl_device *hdev, const char *fw_name,
 				void __iomem *dst, u32 src_offset, u32 size);
-int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode);
+int hl_fw_send_pci_access_msg(struct hl_device *hdev, u32 opcode, u64 value);
 int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 				u16 len, u32 timeout, u64 *result);
 int hl_fw_unmask_irq(struct hl_device *hdev, u16 event_type);

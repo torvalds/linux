@@ -1259,8 +1259,7 @@ static void handle_reset_trigger(struct hl_device *hdev, u32 flags)
 		 * of heartbeat, the device CPU is marked as disable
 		 * so this message won't be sent
 		 */
-		if (hl_fw_send_pci_access_msg(hdev,
-				CPUCP_PACKET_DISABLE_PCI_ACCESS))
+		if (hl_fw_send_pci_access_msg(hdev, CPUCP_PACKET_DISABLE_PCI_ACCESS, 0x0))
 			dev_warn(hdev->dev,
 				"Failed to disable PCI access by F/W\n");
 	}
@@ -2054,7 +2053,7 @@ void hl_device_fini(struct hl_device *hdev)
 	 * message won't be send. Also, in case of heartbeat, the device CPU is
 	 * marked as disable so this message won't be sent
 	 */
-	hl_fw_send_pci_access_msg(hdev,	CPUCP_PACKET_DISABLE_PCI_ACCESS);
+	hl_fw_send_pci_access_msg(hdev,	CPUCP_PACKET_DISABLE_PCI_ACCESS, 0x0);
 
 	/* Mark device as disabled */
 	hdev->disabled = true;
