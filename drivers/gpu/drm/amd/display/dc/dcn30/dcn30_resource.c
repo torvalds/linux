@@ -1899,7 +1899,7 @@ validate_out:
 	return out;
 }
 
-int get_refresh_rate(struct dc_state *context)
+static int get_refresh_rate(struct dc_state *context)
 {
 	int refresh_rate = 0;
 	int h_v_total = 0;
