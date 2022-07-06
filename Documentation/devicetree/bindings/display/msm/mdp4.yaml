@@ -36,7 +36,7 @@ properties:
     maxItems: 1
 
   iommus:
-    maxItems: 1
+    maxItems: 4
 
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
