@@ -102,6 +102,16 @@ properties:
       - "#pwm-cells"
       - compatible
 
+  counter:
+    type: object
+
+    properties:
+      compatible:
+        const: st,stm32-timer-counter
+
+    required:
+      - compatible
+
 patternProperties:
   "^timer@[0-9]+$":
     type: object
@@ -121,16 +131,6 @@ patternProperties:
     required:
       - compatible
       - reg
-
-  counter:
-    type: object
-
-    properties:
-      compatible:
-        const: st,stm32-timer-counter
-
-    required:
-      - compatible
 
 required:
   - compatible
