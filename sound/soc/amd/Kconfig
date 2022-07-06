@@ -25,10 +25,9 @@ config SND_SOC_AMD_CZ_RT5645_MACH
 
 config SND_SOC_AMD_ST_ES8336_MACH
 	tristate "AMD ST support for ES8336"
-	select SND_SOC_ACPI
+	select SND_SOC_ACPI if ACPI
 	select SND_SOC_ES8316
-	depends on SND_SOC_AMD_ACP
-	depends on ACPI || COMPILE_TEST
+	depends on SND_SOC_AMD_ACP && ACPI
 	depends on I2C || COMPILE_TEST
 	help
 	 This option enables machine driver for Jadeite platform
