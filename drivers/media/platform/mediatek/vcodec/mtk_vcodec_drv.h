@@ -286,8 +286,6 @@ struct vdec_pic_info {
  *	  mtk_video_dec_buf.
  * @hw_id: hardware index used to identify different hardware.
  *
- * @max_width: hardware supported max width
- * @max_height: hardware supported max height
  * @msg_queue: msg queue used to store lat buffer information.
  */
 struct mtk_vcodec_ctx {
@@ -334,8 +332,6 @@ struct mtk_vcodec_ctx {
 	struct mutex lock;
 	int hw_id;
 
-	unsigned int max_width;
-	unsigned int max_height;
 	struct vdec_msg_queue msg_queue;
 };
 
