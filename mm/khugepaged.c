@@ -73,6 +73,8 @@ static DECLARE_WAIT_QUEUE_HEAD(khugepaged_wait);
  * default collapse hugepages if there is at least one pte mapped like
  * it would have happened if the vma was large enough during page
  * fault.
+ *
+ * Note that these are only respected if collapse was initiated by khugepaged.
  */
 static unsigned int khugepaged_max_ptes_none __read_mostly;
 static unsigned int khugepaged_max_ptes_swap __read_mostly;
@@ -86,6 +88,8 @@ static struct kmem_cache *mm_slot_cache __read_mostly;
 #define MAX_PTE_MAPPED_THP 8
 
 struct collapse_control {
+	bool is_khugepaged;
+
 	/* Num pages scanned per node */
 	u32 node_load[MAX_NUMNODES];
 
@@ -554,6 +558,7 @@ static bool is_refcount_suitable(struct page *page)
 static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 					unsigned long address,
 					pte_t *pte,
+					struct collapse_control *cc,
 					struct list_head *compound_pagelist)
 {
 	struct page *page = NULL;
@@ -566,8 +571,10 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 		pte_t pteval = *_pte;
 		if (pte_none(pteval) || (pte_present(pteval) &&
 				is_zero_pfn(pte_pfn(pteval)))) {
+			++none_or_zero;
 			if (!userfaultfd_armed(vma) &&
-			    ++none_or_zero <= khugepaged_max_ptes_none) {
+			    (!cc->is_khugepaged ||
+			     none_or_zero <= khugepaged_max_ptes_none)) {
 				continue;
 			} else {
 				result = SCAN_EXCEED_NONE_PTE;
@@ -587,11 +594,14 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 
 		VM_BUG_ON_PAGE(!PageAnon(page), page);
 
-		if (page_mapcount(page) > 1 &&
-				++shared > khugepaged_max_ptes_shared) {
-			result = SCAN_EXCEED_SHARED_PTE;
-			count_vm_event(THP_SCAN_EXCEED_SHARED_PTE);
-			goto out;
+		if (page_mapcount(page) > 1) {
+			++shared;
+			if (cc->is_khugepaged &&
+			    shared > khugepaged_max_ptes_shared) {
+				result = SCAN_EXCEED_SHARED_PTE;
+				count_vm_event(THP_SCAN_EXCEED_SHARED_PTE);
+				goto out;
+			}
 		}
 
 		if (PageCompound(page)) {
@@ -654,10 +664,14 @@ static int __collapse_huge_page_isolate(struct vm_area_struct *vma,
 		if (PageCompound(page))
 			list_add_tail(&page->lru, compound_pagelist);
 next:
-		/* There should be enough young pte to collapse the page */
-		if (pte_young(pteval) ||
-		    page_is_young(page) || PageReferenced(page) ||
-		    mmu_notifier_test_young(vma->vm_mm, address))
+		/*
+		 * If collapse was initiated by khugepaged, check that there is
+		 * enough young pte to justify collapsing the page
+		 */
+		if (cc->is_khugepaged &&
+		    (pte_young(pteval) || page_is_young(page) ||
+		     PageReferenced(page) || mmu_notifier_test_young(vma->vm_mm,
+								     address)))
 			referenced++;
 
 		if (pte_write(pteval))
@@ -666,7 +680,7 @@ next:
 
 	if (unlikely(!writable)) {
 		result = SCAN_PAGE_RO;
-	} else if (unlikely(!referenced)) {
+	} else if (unlikely(cc->is_khugepaged && !referenced)) {
 		result = SCAN_LACK_REFERENCED_PAGE;
 	} else {
 		result = SCAN_SUCCEED;
@@ -745,6 +759,7 @@ static void khugepaged_alloc_sleep(void)
 
 
 struct collapse_control khugepaged_collapse_control = {
+	.is_khugepaged = true,
 	.last_target_node = NUMA_NO_NODE,
 };
 
@@ -1025,7 +1040,7 @@ static int collapse_huge_page(struct mm_struct *mm, unsigned long address,
 	mmu_notifier_invalidate_range_end(&range);
 
 	spin_lock(pte_ptl);
-	result =  __collapse_huge_page_isolate(vma, address, pte,
+	result =  __collapse_huge_page_isolate(vma, address, pte, cc,
 					       &compound_pagelist);
 	spin_unlock(pte_ptl);
 
@@ -1116,7 +1131,9 @@ static int khugepaged_scan_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 	     _pte++, _address += PAGE_SIZE) {
 		pte_t pteval = *_pte;
 		if (is_swap_pte(pteval)) {
-			if (++unmapped <= khugepaged_max_ptes_swap) {
+			++unmapped;
+			if (!cc->is_khugepaged ||
+			    unmapped <= khugepaged_max_ptes_swap) {
 				/*
 				 * Always be strict with uffd-wp
 				 * enabled swap entries.  Please see
@@ -1134,8 +1151,10 @@ static int khugepaged_scan_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 			}
 		}
 		if (pte_none(pteval) || is_zero_pfn(pte_pfn(pteval))) {
+			++none_or_zero;
 			if (!userfaultfd_armed(vma) &&
-			    ++none_or_zero <= khugepaged_max_ptes_none) {
+			    (!cc->is_khugepaged ||
+			     none_or_zero <= khugepaged_max_ptes_none)) {
 				continue;
 			} else {
 				result = SCAN_EXCEED_NONE_PTE;
@@ -1165,11 +1184,14 @@ static int khugepaged_scan_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 			goto out_unmap;
 		}
 
-		if (page_mapcount(page) > 1 &&
-				++shared > khugepaged_max_ptes_shared) {
-			result = SCAN_EXCEED_SHARED_PTE;
-			count_vm_event(THP_SCAN_EXCEED_SHARED_PTE);
-			goto out_unmap;
+		if (page_mapcount(page) > 1) {
+			++shared;
+			if (cc->is_khugepaged &&
+			    shared > khugepaged_max_ptes_shared) {
+				result = SCAN_EXCEED_SHARED_PTE;
+				count_vm_event(THP_SCAN_EXCEED_SHARED_PTE);
+				goto out_unmap;
+			}
 		}
 
 		page = compound_head(page);
@@ -1220,14 +1242,22 @@ static int khugepaged_scan_pmd(struct mm_struct *mm, struct vm_area_struct *vma,
 			result = SCAN_PAGE_COUNT;
 			goto out_unmap;
 		}
-		if (pte_young(pteval) ||
-		    page_is_young(page) || PageReferenced(page) ||
-		    mmu_notifier_test_young(vma->vm_mm, address))
+
+		/*
+		 * If collapse was initiated by khugepaged, check that there is
+		 * enough young pte to justify collapsing the page
+		 */
+		if (cc->is_khugepaged &&
+		    (pte_young(pteval) || page_is_young(page) ||
+		     PageReferenced(page) || mmu_notifier_test_young(vma->vm_mm,
+								     address)))
 			referenced++;
 	}
 	if (!writable) {
 		result = SCAN_PAGE_RO;
-	} else if (!referenced || (unmapped && referenced < HPAGE_PMD_NR/2)) {
+	} else if (cc->is_khugepaged &&
+		   (!referenced ||
+		    (unmapped && referenced < HPAGE_PMD_NR / 2))) {
 		result = SCAN_LACK_REFERENCED_PAGE;
 	} else {
 		result = SCAN_SUCCEED;
@@ -1896,7 +1926,9 @@ static int khugepaged_scan_file(struct mm_struct *mm, struct file *file,
 			continue;
 
 		if (xa_is_value(page)) {
-			if (++swap > khugepaged_max_ptes_swap) {
+			++swap;
+			if (cc->is_khugepaged &&
+			    swap > khugepaged_max_ptes_swap) {
 				result = SCAN_EXCEED_SWAP_PTE;
 				count_vm_event(THP_SCAN_EXCEED_SWAP_PTE);
 				break;
@@ -1947,7 +1979,8 @@ static int khugepaged_scan_file(struct mm_struct *mm, struct file *file,
 	rcu_read_unlock();
 
 	if (result == SCAN_SUCCEED) {
-		if (present < HPAGE_PMD_NR - khugepaged_max_ptes_none) {
+		if (cc->is_khugepaged &&
+		    present < HPAGE_PMD_NR - khugepaged_max_ptes_none) {
 			result = SCAN_EXCEED_NONE_PTE;
 			count_vm_event(THP_SCAN_EXCEED_NONE_PTE);
 		} else {
