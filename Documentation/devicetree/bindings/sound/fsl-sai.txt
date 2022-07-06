@@ -21,6 +21,9 @@ Required properties:
   - clock-names		: Must include the "bus" for register access and
 			  "mclk1", "mclk2", "mclk3" for bit clock and frame
 			  clock providing.
+                          "pll8k", "pll11k" are optional, they are the clock
+                          source for root clock, one is for 8kHz series rates
+                          another one is for 11kHz series rates.
   - dmas		: Generic dma devicetree binding as described in
 			  Documentation/devicetree/bindings/dma/dma.txt.
 
