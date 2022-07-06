@@ -1975,6 +1975,7 @@ static int rkisp_isp_stop(struct rkisp_device *dev)
 			rkisp_next_write(dev, CSI2RX_CSI2_RESETN, 0, true);
 	}
 
+	hw->is_runing = false;
 	dev->hw_dev->is_idle = true;
 	dev->hw_dev->is_mi_update = false;
 end:
@@ -2724,6 +2725,7 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 		return 0;
 	}
 
+	hw_dev->is_runing = true;
 	tasklet_enable(&isp_dev->rdbk_tasklet);
 	rkisp_start_3a_run(isp_dev);
 	memset(&isp_dev->isp_sdev.dbg, 0, sizeof(isp_dev->isp_sdev.dbg));
@@ -2957,6 +2959,15 @@ static int rkisp_subdev_link_setup(struct media_entity *entity,
 	dev = sd_to_isp_dev(sd);
 	if (!dev)
 		return -ENODEV;
+
+	if (dev->hw_dev->is_runing &&
+	    (!dev->isp_inp ||
+	     !(dev->isp_inp & ~rawrd) ||
+	     !strcmp(remote->entity->name, CSI_DEV_NAME) ||
+	     strstr(remote->entity->name, "rkcif"))) {
+		v4l2_err(sd, "no support link for isp hw working\n");
+		return -EINVAL;
+	}
 
 	if (!strcmp(remote->entity->name, DMA_VDEV_NAME)) {
 		stream = &dev->dmarx_dev.stream[RKISP_STREAM_DMARX];

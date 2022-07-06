@@ -99,6 +99,7 @@ struct rkisp_hw_dev {
 	bool is_shutdown;
 	bool is_unite;
 	bool is_multi_overflow;
+	bool is_runing;
 };
 
 int rkisp_register_irq(struct rkisp_hw_dev *dev);
