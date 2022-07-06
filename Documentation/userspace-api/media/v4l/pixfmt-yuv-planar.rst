@@ -116,6 +116,13 @@ All components are stored with the same number of bits per component.
       - Cb, Cr
       - Yes
       - Linear
+    * - V4L2_PIX_FMT_P010_4L4
+      - 'T010'
+      - 10
+      - 4:2:0
+      - Cb, Cr
+      - Yes
+      - 4x4 tiles
     * - V4L2_PIX_FMT_NV16
       - 'NV16'
       - 8
@@ -528,11 +535,12 @@ number of lines as the luma plane.
       - Cr\ :sub:`33`
 
 .. _V4L2_PIX_FMT_P010:
+.. _V4L2-PIX-FMT-P010-4L4:
 
-P010
-----
+P010 and tiled P010
+-------------------
 
-Like NV12 with 10 bits per component, expanded to 16 bits.
+P010 is like NV12 with 10 bits per component, expanded to 16 bits.
 Data in the 10 high bits, zeros in the 6 low bits, arranged in little endian order.
 
 .. flat-table:: Sample 4x4 P010 Image
@@ -588,6 +596,10 @@ For non-contiguous formats, no constraints are enforced by the format on the
 relationship between the luma and chroma line padding and stride.
 
 All components are stored with the same number of bits per component.
+
+``V4L2_PIX_FMT_P010_4L4`` stores pixels in 4x4 tiles, and stores tiles linearly
+in memory. The line stride must be aligned to multiple of 8 and image height to
+a multiple of 4. The layouts of the luma and chroma planes are identical.
 
 .. raw:: latex
 
