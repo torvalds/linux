@@ -796,29 +796,16 @@ static int khugepaged_find_target_node(void)
 	last_khugepaged_target_node = target_node;
 	return target_node;
 }
-
-static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
+#else
+static int khugepaged_find_target_node(void)
 {
-	if (IS_ERR(*hpage)) {
-		if (!*wait)
-			return false;
-
-		*wait = false;
-		*hpage = NULL;
-		khugepaged_alloc_sleep();
-	} else if (*hpage) {
-		put_page(*hpage);
-		*hpage = NULL;
-	}
-
-	return true;
+	return 0;
 }
+#endif
 
 static struct page *
 khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
 {
-	VM_BUG_ON_PAGE(*hpage, *hpage);
-
 	*hpage = __alloc_pages_node(node, gfp, HPAGE_PMD_ORDER);
 	if (unlikely(!*hpage)) {
 		count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
@@ -830,74 +817,6 @@ khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
 	count_vm_event(THP_COLLAPSE_ALLOC);
 	return *hpage;
 }
-#else
-static int khugepaged_find_target_node(void)
-{
-	return 0;
-}
-
-static inline struct page *alloc_khugepaged_hugepage(void)
-{
-	struct page *page;
-
-	page = alloc_pages(alloc_hugepage_khugepaged_gfpmask(),
-			   HPAGE_PMD_ORDER);
-	if (page)
-		prep_transhuge_page(page);
-	return page;
-}
-
-static struct page *khugepaged_alloc_hugepage(bool *wait)
-{
-	struct page *hpage;
-
-	do {
-		hpage = alloc_khugepaged_hugepage();
-		if (!hpage) {
-			count_vm_event(THP_COLLAPSE_ALLOC_FAILED);
-			if (!*wait)
-				return NULL;
-
-			*wait = false;
-			khugepaged_alloc_sleep();
-		} else
-			count_vm_event(THP_COLLAPSE_ALLOC);
-	} while (unlikely(!hpage) && likely(hugepage_flags_enabled()));
-
-	return hpage;
-}
-
-static bool khugepaged_prealloc_page(struct page **hpage, bool *wait)
-{
-	/*
-	 * If the hpage allocated earlier was briefly exposed in page cache
-	 * before collapse_file() failed, it is possible that racing lookups
-	 * have not yet completed, and would then be unpleasantly surprised by
-	 * finding the hpage reused for the same mapping at a different offset.
-	 * Just release the previous allocation if there is any danger of that.
-	 */
-	if (*hpage && page_count(*hpage) > 1) {
-		put_page(*hpage);
-		*hpage = NULL;
-	}
-
-	if (!*hpage)
-		*hpage = khugepaged_alloc_hugepage(wait);
-
-	if (unlikely(!*hpage))
-		return false;
-
-	return true;
-}
-
-static struct page *
-khugepaged_alloc_page(struct page **hpage, gfp_t gfp, int node)
-{
-	VM_BUG_ON(!*hpage);
-
-	return  *hpage;
-}
-#endif
 
 /*
  * If mmap_lock temporarily dropped, revalidate vma
@@ -1150,8 +1069,10 @@ static void collapse_huge_page(struct mm_struct *mm,
 out_up_write:
 	mmap_write_unlock(mm);
 out_nolock:
-	if (!IS_ERR_OR_NULL(*hpage))
+	if (!IS_ERR_OR_NULL(*hpage)) {
 		mem_cgroup_uncharge(page_folio(*hpage));
+		put_page(*hpage);
+	}
 	trace_mm_collapse_huge_page(mm, isolated, result);
 	return;
 }
@@ -1953,8 +1874,10 @@ xa_unlocked:
 	unlock_page(new_page);
 out:
 	VM_BUG_ON(!list_empty(&pagelist));
-	if (!IS_ERR_OR_NULL(*hpage))
+	if (!IS_ERR_OR_NULL(*hpage)) {
 		mem_cgroup_uncharge(page_folio(*hpage));
+		put_page(*hpage);
+	}
 	/* TODO: tracepoints */
 }
 
@@ -2194,10 +2117,7 @@ static void khugepaged_do_scan(void)
 
 	lru_add_drain_all();
 
-	while (progress < pages) {
-		if (!khugepaged_prealloc_page(&hpage, &wait))
-			break;
-
+	while (true) {
 		cond_resched();
 
 		if (unlikely(kthread_should_stop() || try_to_freeze()))
@@ -2213,10 +2133,22 @@ static void khugepaged_do_scan(void)
 		else
 			progress = pages;
 		spin_unlock(&khugepaged_mm_lock);
-	}
 
-	if (!IS_ERR_OR_NULL(hpage))
-		put_page(hpage);
+		if (progress >= pages)
+			break;
+
+		if (IS_ERR(hpage)) {
+			/*
+			 * If fail to allocate the first time, try to sleep for
+			 * a while.  When hit again, cancel the scan.
+			 */
+			if (!wait)
+				break;
+			wait = false;
+			hpage = NULL;
+			khugepaged_alloc_sleep();
+		}
+	}
 }
 
 static bool khugepaged_should_wakeup(void)
