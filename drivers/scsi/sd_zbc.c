@@ -855,7 +855,7 @@ int sd_zbc_revalidate_zones(struct scsi_disk *sdkp)
 
 	if (sdkp->zone_info.zone_blocks == zone_blocks &&
 	    sdkp->zone_info.nr_zones == nr_zones &&
-	    disk->queue->nr_zones == nr_zones)
+	    disk->nr_zones == nr_zones)
 		goto unlock;
 
 	flags = memalloc_noio_save();

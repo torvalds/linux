@@ -57,7 +57,7 @@ bool nvmet_bdev_zns_enable(struct nvmet_ns *ns)
 	 * zones, reject the device. Otherwise, use report zones to detect if
 	 * the device has conventional zones.
 	 */
-	if (ns->bdev->bd_disk->queue->conv_zones_bitmap)
+	if (ns->bdev->bd_disk->conv_zones_bitmap)
 		return false;
 
 	ret = blkdev_report_zones(ns->bdev, 0, bdev_nr_zones(ns->bdev),
@@ -414,7 +414,7 @@ static u16 nvmet_bdev_zone_mgmt_emulate_all(struct nvmet_req *req)
 	}
 
 	while (sector < bdev_nr_sectors(bdev)) {
-		if (test_bit(blk_queue_zone_no(q, sector), d.zbitmap)) {
+		if (test_bit(disk_zone_no(bdev->bd_disk, sector), d.zbitmap)) {
 			bio = blk_next_bio(bio, bdev, 0,
 				zsa_req_op(req->cmd->zms.zsa) | REQ_SYNC,
 				GFP_KERNEL);

@@ -1129,12 +1129,12 @@ void blk_dump_rq_flags(struct request *, char *);
 #ifdef CONFIG_BLK_DEV_ZONED
 static inline unsigned int blk_rq_zone_no(struct request *rq)
 {
-	return blk_queue_zone_no(rq->q, blk_rq_pos(rq));
+	return disk_zone_no(rq->q->disk, blk_rq_pos(rq));
 }
 
 static inline unsigned int blk_rq_zone_is_seq(struct request *rq)
 {
-	return blk_queue_zone_is_seq(rq->q, blk_rq_pos(rq));
+	return disk_zone_is_seq(rq->q->disk, blk_rq_pos(rq));
 }
 
 bool blk_req_needs_zone_write_lock(struct request *rq);
@@ -1156,8 +1156,8 @@ static inline void blk_req_zone_write_unlock(struct request *rq)
 
 static inline bool blk_req_zone_is_write_locked(struct request *rq)
 {
-	return rq->q->seq_zones_wlock &&
-		test_bit(blk_rq_zone_no(rq), rq->q->seq_zones_wlock);
+	return rq->q->disk->seq_zones_wlock &&
+		test_bit(blk_rq_zone_no(rq), rq->q->disk->seq_zones_wlock);
 }
 
 static inline bool blk_req_can_dispatch_to_zone(struct request *rq)

@@ -57,10 +57,10 @@ EXPORT_SYMBOL_GPL(blk_zone_cond_str);
  */
 bool blk_req_needs_zone_write_lock(struct request *rq)
 {
-	if (!rq->q->seq_zones_wlock)
+	if (blk_rq_is_passthrough(rq))
 		return false;
 
-	if (blk_rq_is_passthrough(rq))
+	if (!rq->q->disk->seq_zones_wlock)
 		return false;
 
 	switch (req_op(rq)) {
@@ -77,7 +77,7 @@ bool blk_req_zone_write_trylock(struct request *rq)
 {
 	unsigned int zno = blk_rq_zone_no(rq);
 
-	if (test_and_set_bit(zno, rq->q->seq_zones_wlock))
+	if (test_and_set_bit(zno, rq->q->disk->seq_zones_wlock))
 		return false;
 
 	WARN_ON_ONCE(rq->rq_flags & RQF_ZONE_WRITE_LOCKED);
@@ -90,7 +90,7 @@ EXPORT_SYMBOL_GPL(blk_req_zone_write_trylock);
 void __blk_req_zone_write_lock(struct request *rq)
 {
 	if (WARN_ON_ONCE(test_and_set_bit(blk_rq_zone_no(rq),
-					  rq->q->seq_zones_wlock)))
+					  rq->q->disk->seq_zones_wlock)))
 		return;
 
 	WARN_ON_ONCE(rq->rq_flags & RQF_ZONE_WRITE_LOCKED);
@@ -101,9 +101,9 @@ EXPORT_SYMBOL_GPL(__blk_req_zone_write_lock);
 void __blk_req_zone_write_unlock(struct request *rq)
 {
 	rq->rq_flags &= ~RQF_ZONE_WRITE_LOCKED;
-	if (rq->q->seq_zones_wlock)
+	if (rq->q->disk->seq_zones_wlock)
 		WARN_ON_ONCE(!test_and_clear_bit(blk_rq_zone_no(rq),
-						 rq->q->seq_zones_wlock));
+						 rq->q->disk->seq_zones_wlock));
 }
 EXPORT_SYMBOL_GPL(__blk_req_zone_write_unlock);
 
@@ -189,7 +189,7 @@ static int blk_zone_need_reset_cb(struct blk_zone *zone, unsigned int idx,
 static int blkdev_zone_reset_all_emulated(struct block_device *bdev,
 					  gfp_t gfp_mask)
 {
-	struct request_queue *q = bdev_get_queue(bdev);
+	struct gendisk *disk = bdev->bd_disk;
 	sector_t capacity = bdev_nr_sectors(bdev);
 	sector_t zone_sectors = bdev_zone_sectors(bdev);
 	unsigned long *need_reset;
@@ -197,19 +197,18 @@ static int blkdev_zone_reset_all_emulated(struct block_device *bdev,
 	sector_t sector = 0;
 	int ret;
 
-	need_reset = blk_alloc_zone_bitmap(q->node, q->nr_zones);
+	need_reset = blk_alloc_zone_bitmap(disk->queue->node, disk->nr_zones);
 	if (!need_reset)
 		return -ENOMEM;
 
-	ret = bdev->bd_disk->fops->report_zones(bdev->bd_disk, 0,
-				q->nr_zones, blk_zone_need_reset_cb,
-				need_reset);
+	ret = disk->fops->report_zones(disk, 0, disk->nr_zones,
+				       blk_zone_need_reset_cb, need_reset);
 	if (ret < 0)
 		goto out_free_need_reset;
 
 	ret = 0;
 	while (sector < capacity) {
-		if (!test_bit(blk_queue_zone_no(q, sector), need_reset)) {
+		if (!test_bit(disk_zone_no(disk, sector), need_reset)) {
 			sector += zone_sectors;
 			continue;
 		}
@@ -452,12 +451,10 @@ fail:
 
 void disk_free_zone_bitmaps(struct gendisk *disk)
 {
-	struct request_queue *q = disk->queue;
-
-	kfree(q->conv_zones_bitmap);
-	q->conv_zones_bitmap = NULL;
-	kfree(q->seq_zones_wlock);
-	q->seq_zones_wlock = NULL;
+	kfree(disk->conv_zones_bitmap);
+	disk->conv_zones_bitmap = NULL;
+	kfree(disk->seq_zones_wlock);
+	disk->seq_zones_wlock = NULL;
 }
 
 struct blk_revalidate_zone_args {
@@ -607,9 +604,9 @@ int blk_revalidate_disk_zones(struct gendisk *disk,
 	blk_mq_freeze_queue(q);
 	if (ret > 0) {
 		blk_queue_chunk_sectors(q, args.zone_sectors);
-		q->nr_zones = args.nr_zones;
-		swap(q->seq_zones_wlock, args.seq_zones_wlock);
-		swap(q->conv_zones_bitmap, args.conv_zones_bitmap);
+		disk->nr_zones = args.nr_zones;
+		swap(disk->seq_zones_wlock, args.seq_zones_wlock);
+		swap(disk->conv_zones_bitmap, args.conv_zones_bitmap);
 		if (update_driver_data)
 			update_driver_data(disk);
 		ret = 0;
@@ -634,9 +631,9 @@ void disk_clear_zone_settings(struct gendisk *disk)
 	disk_free_zone_bitmaps(disk);
 	blk_queue_flag_clear(QUEUE_FLAG_ZONE_RESETALL, q);
 	q->required_elevator_features &= ~ELEVATOR_F_ZBD_SEQ_WRITE;
-	q->nr_zones = 0;
-	q->max_open_zones = 0;
-	q->max_active_zones = 0;
+	disk->nr_zones = 0;
+	disk->max_open_zones = 0;
+	disk->max_active_zones = 0;
 	q->limits.chunk_sectors = 0;
 	q->limits.zone_write_granularity = 0;
 	q->limits.max_zone_append_sectors = 0;
