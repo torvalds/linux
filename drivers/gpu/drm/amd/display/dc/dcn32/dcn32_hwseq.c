@@ -377,7 +377,7 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 
-	return false;
+	return true;
 }
 
 /* Send DMCUB message with SubVP pipe info
