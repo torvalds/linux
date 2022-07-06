@@ -474,11 +474,8 @@ static void azx_int_disable(struct hdac_bus *bus)
 	list_for_each_entry(azx_dev, &bus->stream_list, list)
 		snd_hdac_stream_updateb(azx_dev, SD_CTL, SD_INT_MASK, 0);
 
-	/* disable SIE for all streams */
-	snd_hdac_chip_writeb(bus, INTCTL, 0);
-
-	/* disable controller CIE and GIE */
-	snd_hdac_chip_updatel(bus, INTCTL, AZX_INT_CTRL_EN | AZX_INT_GLOBAL_EN, 0);
+	/* disable SIE for all streams & disable controller CIE and GIE */
+	snd_hdac_chip_writel(bus, INTCTL, 0);
 }
 
 /* clear interrupts */
