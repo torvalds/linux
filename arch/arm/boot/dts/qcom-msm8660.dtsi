@@ -56,7 +56,7 @@
 			clock-frequency = <19200000>;
 		};
 
-		pxo_board {
+		pxo_board: pxo_board {
 			compatible = "fixed-clock";
 			#clock-cells = <0>;
 			clock-frequency = <27000000>;
@@ -411,6 +411,8 @@
 			rpmcc: clock-controller {
 				compatible = "qcom,rpmcc-msm8660", "qcom,rpmcc";
 				#clock-cells = <1>;
+				clocks = <&pxo_board>;
+				clock-names = "pxo";
 			};
 
 			pm8901-regulators {

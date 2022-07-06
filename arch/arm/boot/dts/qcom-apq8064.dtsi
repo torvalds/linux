@@ -862,6 +862,8 @@
 			rpmcc: clock-controller {
 				compatible = "qcom,rpmcc-apq8064", "qcom,rpmcc";
 				#clock-cells = <1>;
+				clocks = <&pxo_board>, <&cxo_board>;
+				clock-names = "pxo", "cxo";
 			};
 
 			regulators {

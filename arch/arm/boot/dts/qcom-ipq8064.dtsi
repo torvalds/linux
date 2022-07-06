@@ -906,6 +906,8 @@
 			rpmcc: clock-controller {
 				compatible = "qcom,rpmcc-ipq806x", "qcom,rpmcc";
 				#clock-cells = <1>;
+				clocks = <&pxo_board>;
+				clock-names = "pxo";
 			};
 		};
 
