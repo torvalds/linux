@@ -188,7 +188,7 @@
 #define SDMA_DONE0_CONFIG_DONE_SEL	BIT(7)
 #define SDMA_DONE0_CONFIG_DONE_DIS	BIT(6)
 
-/**
+/*
  * struct sdma_script_start_addrs - SDMA script start pointers
  *
  * start addresses of the different functions in the physical
@@ -424,6 +424,11 @@ struct sdma_desc {
  * @data:		specific sdma interface structure
  * @bd_pool:		dma_pool for bd
  * @terminate_worker:	used to call back into terminate work function
+ * @terminated:		terminated list
+ * @is_ram_script:	flag for script in ram
+ * @n_fifos_src:	number of source device fifos
+ * @n_fifos_dst:	number of destination device fifos
+ * @sw_done:		software done flag
  */
 struct sdma_channel {
 	struct virt_dma_chan		vc;
