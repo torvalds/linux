@@ -2,7 +2,7 @@
 /*
  * zfcp device driver
  *
- * Definitions for handling diagnostics in the the zfcp device driver.
+ * Definitions for handling diagnostics in the zfcp device driver.
  *
  * Copyright IBM Corp. 2018, 2020
  */
