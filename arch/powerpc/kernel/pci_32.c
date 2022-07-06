@@ -37,14 +37,11 @@ EXPORT_SYMBOL(isa_io_base);
 EXPORT_SYMBOL(pci_dram_offset);
 
 static void fixup_cpc710_pci64(struct pci_dev* dev);
-static u8* pci_to_OF_bus_map;
 
 /* By default, we don't re-assign bus numbers. We do this only on
  * some pmacs
  */
 static int pci_assign_all_buses;
-
-static int pci_bus_count;
 
 /* This will remain NULL for now, until isa-bridge.c is made common
  * to both 32-bit and 64-bit.
@@ -64,6 +61,11 @@ fixup_cpc710_pci64(struct pci_dev* dev)
 	dev->resource[1].flags = 0;
 }
 DECLARE_PCI_FIXUP_HEADER(PCI_VENDOR_ID_IBM,	PCI_DEVICE_ID_IBM_CPC710_PCI64,	fixup_cpc710_pci64);
+
+#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP)
+
+static u8* pci_to_OF_bus_map;
+static int pci_bus_count;
 
 /*
  * Functions below are used on OpenFirmware machines.
@@ -221,6 +223,8 @@ pci_create_OF_bus_map(void)
 }
 #endif
 
+#endif /* defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP) */
+
 void pcibios_setup_phb_io_space(struct pci_controller *hose)
 {
 	unsigned long io_offset;
@@ -252,6 +256,8 @@ static int __init pcibios_init(void)
 		if (pci_assign_all_buses || next_busno <= hose->last_busno)
 			next_busno = hose->last_busno + pcibios_assign_bus_offset;
 	}
+
+#if defined(CONFIG_PPC_PMAC) || defined(CONFIG_PPC_CHRP)
 	pci_bus_count = next_busno;
 
 	/* OpenFirmware based machines need a map of OF bus
@@ -260,6 +266,7 @@ static int __init pcibios_init(void)
 	 */
 	if (pci_assign_all_buses)
 		pcibios_make_OF_bus_map();
+#endif
 
 	/* Call common code to handle resource allocation */
 	pcibios_resource_survey();
