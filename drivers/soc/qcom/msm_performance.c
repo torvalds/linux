@@ -392,7 +392,8 @@ static ssize_t set_cpu_max_freq(struct kobject *kobj,
 		if (cpu_possible(cpu)) {
 			i_cpu_stats = &per_cpu(msm_perf_cpu_stats, cpu);
 
-			i_cpu_stats->max = val;
+			i_cpu_stats->max = min_t(uint, val,
+							(unsigned int)FREQ_QOS_MAX_DEFAULT_VALUE);
 			cpumask_set_cpu(cpu, limit_mask_max);
 		}
 
