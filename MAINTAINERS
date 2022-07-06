@@ -12850,6 +12850,7 @@ T:	quilt https://ozlabs.org/~akpm/mmotm/
 T:	quilt https://ozlabs.org/~akpm/mmots/
 T:	git git://github.com/hnaz/linux-mm.git
 F:	include/linux/gfp.h
+F:	include/linux/gfp_types.h
 F:	include/linux/memory_hotplug.h
 F:	include/linux/mm.h
 F:	include/linux/mmzone.h
