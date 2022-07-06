@@ -180,13 +180,6 @@ void mtk_vcodec_dec_set_default_params(struct mtk_vcodec_ctx *ctx)
 	ctx->max_width = MTK_VDEC_MAX_W;
 	ctx->max_height = MTK_VDEC_MAX_H;
 
-	v4l_bound_align_image(&q_data->coded_width,
-				MTK_VDEC_MIN_W,
-				ctx->max_width, 4,
-				&q_data->coded_height,
-				MTK_VDEC_MIN_H,
-				ctx->max_height, 5, 6);
-
 	q_data->sizeimage[0] = q_data->coded_width * q_data->coded_height;
 	q_data->bytesperline[0] = q_data->coded_width;
 	q_data->sizeimage[1] = q_data->sizeimage[0] / 2;
