@@ -6196,6 +6196,13 @@ struct mlx5_ifc_match_definer_bits {
 	};
 };
 
+struct mlx5_ifc_general_obj_create_param_bits {
+	u8         alias_object[0x1];
+	u8         reserved_at_1[0x2];
+	u8         log_obj_range[0x5];
+	u8         reserved_at_8[0x18];
+};
+
 struct mlx5_ifc_general_obj_in_cmd_hdr_bits {
 	u8         opcode[0x10];
 	u8         uid[0x10];
@@ -6205,9 +6212,7 @@ struct mlx5_ifc_general_obj_in_cmd_hdr_bits {
 
 	u8         obj_id[0x20];
 
-	u8         reserved_at_60[0x3];
-	u8         log_obj_range[0x5];
-	u8         reserved_at_68[0x18];
+	struct mlx5_ifc_general_obj_create_param_bits op_param;
 };
 
 struct mlx5_ifc_general_obj_out_cmd_hdr_bits {
