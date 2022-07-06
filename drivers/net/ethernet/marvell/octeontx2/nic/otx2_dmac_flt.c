@@ -93,7 +93,7 @@ static int otx2_dmacflt_do_remove(struct otx2_nic *pfvf, const u8 *mac,
 
 static int otx2_dmacflt_remove_pfmac(struct otx2_nic *pf)
 {
-	struct msg_req *req;
+	struct cgx_mac_addr_reset_req *req;
 	int err;
 
 	mutex_lock(&pf->mbox.lock);
