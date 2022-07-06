@@ -475,6 +475,9 @@ retry:
 	if (!(data->rq_flags & RQF_ELV))
 		blk_mq_tag_busy(data->hctx);
 
+	if (data->flags & BLK_MQ_REQ_RESERVED)
+		data->rq_flags |= RQF_RESV;
+
 	/*
 	 * Try batched alloc if we want more than 1 tag.
 	 */
@@ -588,6 +591,9 @@ struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
 		blk_mq_tag_busy(data.hctx);
 	else
 		data.rq_flags |= RQF_ELV;
+
+	if (flags & BLK_MQ_REQ_RESERVED)
+		data.rq_flags |= RQF_RESV;
 
 	ret = -EWOULDBLOCK;
 	tag = blk_mq_get_tag(&data);
