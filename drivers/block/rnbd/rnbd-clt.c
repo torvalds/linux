@@ -507,6 +507,11 @@ static void msg_open_conf(struct work_struct *work)
 	struct rnbd_msg_open_rsp *rsp = iu->buf;
 	struct rnbd_clt_dev *dev = iu->dev;
 	int errno = iu->errno;
+	bool from_map = false;
+
+	/* INIT state is only triggered from rnbd_clt_map_device */
+	if (dev->dev_state == DEV_STATE_INIT)
+		from_map = true;
 
 	if (errno) {
 		rnbd_clt_err(dev,
@@ -523,7 +528,9 @@ static void msg_open_conf(struct work_struct *work)
 			send_msg_close(dev, device_id, RTRS_PERMIT_NOWAIT);
 		}
 	}
-	kfree(rsp);
+	/* We free rsp in rnbd_clt_map_device for map scenario */
+	if (!from_map)
+		kfree(rsp);
 	wake_up_iu_comp(iu, errno);
 	rnbd_put_iu(dev->sess, iu);
 	rnbd_clt_put_dev(dev);
@@ -1617,16 +1624,14 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 	if (ret) {
 		rnbd_clt_put_dev(dev);
 		rnbd_put_iu(sess, iu);
-		kfree(rsp);
 	} else {
 		ret = errno;
 	}
-	rnbd_put_iu(sess, iu);
 	if (ret) {
 		rnbd_clt_err(dev,
 			      "map_device: failed, can't open remote device, err: %d\n",
 			      ret);
-		goto del_dev;
+		goto put_iu;
 	}
 	mutex_lock(&dev->lock);
 	pr_debug("Opened remote device: session=%s, path='%s'\n",
@@ -1650,12 +1655,17 @@ struct rnbd_clt_dev *rnbd_clt_map_device(const char *sessname,
 		       dev->max_hw_sectors, dev->wc, dev->fua);
 
 	mutex_unlock(&dev->lock);
+	kfree(rsp);
+	rnbd_put_iu(sess, iu);
 	rnbd_clt_put_sess(sess);
 
 	return dev;
 
 send_close:
 	send_msg_close(dev, dev->device_id, RTRS_PERMIT_WAIT);
+put_iu:
+	kfree(rsp);
+	rnbd_put_iu(sess, iu);
 del_dev:
 	delete_dev(dev);
 put_dev:
