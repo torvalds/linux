@@ -23,6 +23,11 @@ static int hpage_pmd_nr;
 #define THP_SYSFS "/sys/kernel/mm/transparent_hugepage/"
 #define PID_SMAPS "/proc/self/smaps"
 
+struct collapse_context {
+	void (*collapse)(const char *msg, char *p, bool expect);
+	bool enforce_pte_scan_limits;
+};
+
 enum thp_enabled {
 	THP_ALWAYS,
 	THP_MADVISE,
@@ -501,6 +506,21 @@ static bool wait_for_scan(const char *msg, char *p)
 	return timeout == -1;
 }
 
+static void khugepaged_collapse(const char *msg, char *p, bool expect)
+{
+	if (wait_for_scan(msg, p)) {
+		if (expect)
+			fail("Timeout");
+		else
+			success("OK");
+		return;
+	} else if (check_huge(p) == expect) {
+		success("OK");
+	} else {
+		fail("Fail");
+	}
+}
+
 static void alloc_at_fault(void)
 {
 	struct settings settings = default_settings;
@@ -528,53 +548,39 @@ static void alloc_at_fault(void)
 	munmap(p, hpage_pmd_size);
 }
 
-static void collapse_full(void)
+static void collapse_full(struct collapse_context *c)
 {
 	void *p;
 
 	p = alloc_mapping();
 	fill_memory(p, 0, hpage_pmd_size);
-	if (wait_for_scan("Collapse fully populated PTE table", p))
-		fail("Timeout");
-	else if (check_huge(p))
-		success("OK");
-	else
-		fail("Fail");
+	c->collapse("Collapse fully populated PTE table", p, true);
 	validate_memory(p, 0, hpage_pmd_size);
 	munmap(p, hpage_pmd_size);
 }
 
-static void collapse_empty(void)
+static void collapse_empty(struct collapse_context *c)
 {
 	void *p;
 
 	p = alloc_mapping();
-	if (wait_for_scan("Do not collapse empty PTE table", p))
-		fail("Timeout");
-	else if (check_huge(p))
-		fail("Fail");
-	else
-		success("OK");
+	c->collapse("Do not collapse empty PTE table", p, false);
 	munmap(p, hpage_pmd_size);
 }
 
-static void collapse_single_pte_entry(void)
+static void collapse_single_pte_entry(struct collapse_context *c)
 {
 	void *p;
 
 	p = alloc_mapping();
 	fill_memory(p, 0, page_size);
-	if (wait_for_scan("Collapse PTE table with single PTE entry present", p))
-		fail("Timeout");
-	else if (check_huge(p))
-		success("OK");
-	else
-		fail("Fail");
+	c->collapse("Collapse PTE table with single PTE entry present", p,
+		    true);
 	validate_memory(p, 0, page_size);
 	munmap(p, hpage_pmd_size);
 }
 
-static void collapse_max_ptes_none(void)
+static void collapse_max_ptes_none(struct collapse_context *c)
 {
 	int max_ptes_none = hpage_pmd_nr / 2;
 	struct settings settings = default_settings;
@@ -586,28 +592,22 @@ static void collapse_max_ptes_none(void)
 	p = alloc_mapping();
 
 	fill_memory(p, 0, (hpage_pmd_nr - max_ptes_none - 1) * page_size);
-	if (wait_for_scan("Do not collapse with max_ptes_none exceeded", p))
-		fail("Timeout");
-	else if (check_huge(p))
-		fail("Fail");
-	else
-		success("OK");
+	c->collapse("Maybe collapse with max_ptes_none exceeded", p,
+		    !c->enforce_pte_scan_limits);
 	validate_memory(p, 0, (hpage_pmd_nr - max_ptes_none - 1) * page_size);
 
-	fill_memory(p, 0, (hpage_pmd_nr - max_ptes_none) * page_size);
-	if (wait_for_scan("Collapse with max_ptes_none PTEs empty", p))
-		fail("Timeout");
-	else if (check_huge(p))
-		success("OK");
-	else
-		fail("Fail");
-	validate_memory(p, 0, (hpage_pmd_nr - max_ptes_none) * page_size);
+	if (c->enforce_pte_scan_limits) {
+		fill_memory(p, 0, (hpage_pmd_nr - max_ptes_none) * page_size);
+		c->collapse("Collapse with max_ptes_none PTEs empty", p, true);
+		validate_memory(p, 0,
+				(hpage_pmd_nr - max_ptes_none) * page_size);
+	}
 
 	munmap(p, hpage_pmd_size);
 	write_settings(&default_settings);
 }
 
-static void collapse_swapin_single_pte(void)
+static void collapse_swapin_single_pte(struct collapse_context *c)
 {
 	void *p;
 	p = alloc_mapping();
@@ -625,18 +625,13 @@ static void collapse_swapin_single_pte(void)
 		goto out;
 	}
 
-	if (wait_for_scan("Collapse with swapping in single PTE entry", p))
-		fail("Timeout");
-	else if (check_huge(p))
-		success("OK");
-	else
-		fail("Fail");
+	c->collapse("Collapse with swapping in single PTE entry", p, true);
 	validate_memory(p, 0, hpage_pmd_size);
 out:
 	munmap(p, hpage_pmd_size);
 }
 
-static void collapse_max_ptes_swap(void)
+static void collapse_max_ptes_swap(struct collapse_context *c)
 {
 	int max_ptes_swap = read_num("khugepaged/max_ptes_swap");
 	void *p;
@@ -656,39 +651,34 @@ static void collapse_max_ptes_swap(void)
 		goto out;
 	}
 
-	if (wait_for_scan("Do not collapse with max_ptes_swap exceeded", p))
-		fail("Timeout");
-	else if (check_huge(p))
-		fail("Fail");
-	else
-		success("OK");
+	c->collapse("Maybe collapse with max_ptes_swap exceeded", p,
+		    !c->enforce_pte_scan_limits);
 	validate_memory(p, 0, hpage_pmd_size);
 
-	fill_memory(p, 0, hpage_pmd_size);
-	printf("Swapout %d of %d pages...", max_ptes_swap, hpage_pmd_nr);
-	if (madvise(p, max_ptes_swap * page_size, MADV_PAGEOUT)) {
-		perror("madvise(MADV_PAGEOUT)");
-		exit(EXIT_FAILURE);
-	}
-	if (check_swap(p, max_ptes_swap * page_size)) {
-		success("OK");
-	} else {
-		fail("Fail");
-		goto out;
-	}
+	if (c->enforce_pte_scan_limits) {
+		fill_memory(p, 0, hpage_pmd_size);
+		printf("Swapout %d of %d pages...", max_ptes_swap,
+		       hpage_pmd_nr);
+		if (madvise(p, max_ptes_swap * page_size, MADV_PAGEOUT)) {
+			perror("madvise(MADV_PAGEOUT)");
+			exit(EXIT_FAILURE);
+		}
+		if (check_swap(p, max_ptes_swap * page_size)) {
+			success("OK");
+		} else {
+			fail("Fail");
+			goto out;
+		}
 
-	if (wait_for_scan("Collapse with max_ptes_swap pages swapped out", p))
-		fail("Timeout");
-	else if (check_huge(p))
-		success("OK");
-	else
-		fail("Fail");
-	validate_memory(p, 0, hpage_pmd_size);
+		c->collapse("Collapse with max_ptes_swap pages swapped out", p,
+			    true);
+		validate_memory(p, 0, hpage_pmd_size);
+	}
 out:
 	munmap(p, hpage_pmd_size);
 }
 
-static void collapse_single_pte_entry_compound(void)
+static void collapse_single_pte_entry_compound(struct collapse_context *c)
 {
 	void *p;
 
@@ -710,17 +700,13 @@ static void collapse_single_pte_entry_compound(void)
 	else
 		fail("Fail");
 
-	if (wait_for_scan("Collapse PTE table with single PTE mapping compound page", p))
-		fail("Timeout");
-	else if (check_huge(p))
-		success("OK");
-	else
-		fail("Fail");
+	c->collapse("Collapse PTE table with single PTE mapping compound page",
+		    p, true);
 	validate_memory(p, 0, page_size);
 	munmap(p, hpage_pmd_size);
 }
 
-static void collapse_full_of_compound(void)
+static void collapse_full_of_compound(struct collapse_context *c)
 {
 	void *p;
 
@@ -742,17 +728,12 @@ static void collapse_full_of_compound(void)
 	else
 		fail("Fail");
 
-	if (wait_for_scan("Collapse PTE table full of compound pages", p))
-		fail("Timeout");
-	else if (check_huge(p))
-		success("OK");
-	else
-		fail("Fail");
+	c->collapse("Collapse PTE table full of compound pages", p, true);
 	validate_memory(p, 0, hpage_pmd_size);
 	munmap(p, hpage_pmd_size);
 }
 
-static void collapse_compound_extreme(void)
+static void collapse_compound_extreme(struct collapse_context *c)
 {
 	void *p;
 	int i;
@@ -798,18 +779,14 @@ static void collapse_compound_extreme(void)
 	else
 		fail("Fail");
 
-	if (wait_for_scan("Collapse PTE table full of different compound pages", p))
-		fail("Timeout");
-	else if (check_huge(p))
-		success("OK");
-	else
-		fail("Fail");
+	c->collapse("Collapse PTE table full of different compound pages", p,
+		    true);
 
 	validate_memory(p, 0, hpage_pmd_size);
 	munmap(p, hpage_pmd_size);
 }
 
-static void collapse_fork(void)
+static void collapse_fork(struct collapse_context *c)
 {
 	int wstatus;
 	void *p;
@@ -835,13 +812,8 @@ static void collapse_fork(void)
 			fail("Fail");
 
 		fill_memory(p, page_size, 2 * page_size);
-
-		if (wait_for_scan("Collapse PTE table with single page shared with parent process", p))
-			fail("Timeout");
-		else if (check_huge(p))
-			success("OK");
-		else
-			fail("Fail");
+		c->collapse("Collapse PTE table with single page shared with parent process",
+			    p, true);
 
 		validate_memory(p, 0, page_size);
 		munmap(p, hpage_pmd_size);
@@ -860,7 +832,7 @@ static void collapse_fork(void)
 	munmap(p, hpage_pmd_size);
 }
 
-static void collapse_fork_compound(void)
+static void collapse_fork_compound(struct collapse_context *c)
 {
 	int wstatus;
 	void *p;
@@ -896,14 +868,10 @@ static void collapse_fork_compound(void)
 		fill_memory(p, 0, page_size);
 
 		write_num("khugepaged/max_ptes_shared", hpage_pmd_nr - 1);
-		if (wait_for_scan("Collapse PTE table full of compound pages in child", p))
-			fail("Timeout");
-		else if (check_huge(p))
-			success("OK");
-		else
-			fail("Fail");
+		c->collapse("Collapse PTE table full of compound pages in child",
+			    p, true);
 		write_num("khugepaged/max_ptes_shared",
-				default_settings.khugepaged.max_ptes_shared);
+			  default_settings.khugepaged.max_ptes_shared);
 
 		validate_memory(p, 0, hpage_pmd_size);
 		munmap(p, hpage_pmd_size);
@@ -922,7 +890,7 @@ static void collapse_fork_compound(void)
 	munmap(p, hpage_pmd_size);
 }
 
-static void collapse_max_ptes_shared()
+static void collapse_max_ptes_shared(struct collapse_context *c)
 {
 	int max_ptes_shared = read_num("khugepaged/max_ptes_shared");
 	int wstatus;
@@ -957,28 +925,22 @@ static void collapse_max_ptes_shared()
 		else
 			fail("Fail");
 
-		if (wait_for_scan("Do not collapse with max_ptes_shared exceeded", p))
-			fail("Timeout");
-		else if (!check_huge(p))
-			success("OK");
-		else
-			fail("Fail");
+		c->collapse("Maybe collapse with max_ptes_shared exceeded", p,
+			    !c->enforce_pte_scan_limits);
 
-		printf("Trigger CoW on page %d of %d...",
-				hpage_pmd_nr - max_ptes_shared, hpage_pmd_nr);
-		fill_memory(p, 0, (hpage_pmd_nr - max_ptes_shared) * page_size);
-		if (!check_huge(p))
-			success("OK");
-		else
-			fail("Fail");
+		if (c->enforce_pte_scan_limits) {
+			printf("Trigger CoW on page %d of %d...",
+			       hpage_pmd_nr - max_ptes_shared, hpage_pmd_nr);
+			fill_memory(p, 0, (hpage_pmd_nr - max_ptes_shared) *
+				    page_size);
+			if (!check_huge(p))
+				success("OK");
+			else
+				fail("Fail");
 
-
-		if (wait_for_scan("Collapse with max_ptes_shared PTEs shared", p))
-			fail("Timeout");
-		else if (check_huge(p))
-			success("OK");
-		else
-			fail("Fail");
+			c->collapse("Collapse with max_ptes_shared PTEs shared",
+				    p, true);
+		}
 
 		validate_memory(p, 0, hpage_pmd_size);
 		munmap(p, hpage_pmd_size);
@@ -999,6 +961,8 @@ static void collapse_max_ptes_shared()
 
 int main(void)
 {
+	struct collapse_context c;
+
 	setbuf(stdout, NULL);
 
 	page_size = getpagesize();
@@ -1014,18 +978,23 @@ int main(void)
 	adjust_settings();
 
 	alloc_at_fault();
-	collapse_full();
-	collapse_empty();
-	collapse_single_pte_entry();
-	collapse_max_ptes_none();
-	collapse_swapin_single_pte();
-	collapse_max_ptes_swap();
-	collapse_single_pte_entry_compound();
-	collapse_full_of_compound();
-	collapse_compound_extreme();
-	collapse_fork();
-	collapse_fork_compound();
-	collapse_max_ptes_shared();
+
+	printf("\n*** Testing context: khugepaged ***\n");
+	c.collapse = &khugepaged_collapse;
+	c.enforce_pte_scan_limits = true;
+
+	collapse_full(&c);
+	collapse_empty(&c);
+	collapse_single_pte_entry(&c);
+	collapse_max_ptes_none(&c);
+	collapse_swapin_single_pte(&c);
+	collapse_max_ptes_swap(&c);
+	collapse_single_pte_entry_compound(&c);
+	collapse_full_of_compound(&c);
+	collapse_compound_extreme(&c);
+	collapse_fork(&c);
+	collapse_fork_compound(&c);
+	collapse_max_ptes_shared(&c);
 
 	restore_settings(0);
 }
