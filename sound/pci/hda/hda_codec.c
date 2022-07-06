@@ -1045,8 +1045,14 @@ int snd_hda_codec_device_new(struct hda_bus *bus, struct snd_card *card,
 			goto error;
 	}
 
+#ifdef CONFIG_PM
 	/* PM runtime needs to be enabled later after binding codec */
-	pm_runtime_forbid(&codec->core.dev);
+	if (codec->core.dev.power.runtime_auto)
+		pm_runtime_forbid(&codec->core.dev);
+	else
+		/* Keep the usage_count consistent across subsequent probing */
+		pm_runtime_get_noresume(&codec->core.dev);
+#endif
 
 	return 0;
 
