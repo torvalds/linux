@@ -1665,6 +1665,7 @@
 			reg = <0x0 0x17c20000 0x0 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			ranges = <0x0 0x0 0x0 0x20000000>;
 
 			frame@17c21000 {
 				frame-number = <0>;
