@@ -3,7 +3,6 @@
  * Copyright 2019 Google LLC
  */
 #include <linux/crc32.h>
-#include <linux/delay.h>
 #include <linux/file.h>
 #include <linux/fsverity.h>
 #include <linux/gfp.h>
@@ -1106,25 +1105,10 @@ static void notify_pending_reads(struct mount_info *mi,
 	wake_up_all(&mi->mi_blocks_written_notif_wq);
 }
 
-static int usleep_interruptible(u32 us)
-{
-	/* See:
-	 * https://www.kernel.org/doc/Documentation/timers/timers-howto.txt
-	 * for explanation
-	 */
-	if (us < 10) {
-		udelay(us);
-		return 0;
-	} else if (us < 20000) {
-		usleep_range(us, us + us / 10);
-		return 0;
-	} else
-		return msleep_interruptible(us / 1000);
-}
-
 static int wait_for_data_block(struct data_file *df, int block_index,
 			       struct data_file_block *res_block,
-			       struct incfs_read_data_file_timeouts *timeouts)
+			       struct incfs_read_data_file_timeouts *timeouts,
+			       unsigned int *delayed_min_us)
 {
 	struct data_file_block block = {};
 	struct data_file_segment *segment = NULL;
@@ -1132,7 +1116,7 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 	struct mount_info *mi = NULL;
 	int error;
 	int wait_res = 0;
-	unsigned int delayed_pending_us = 0, delayed_min_us = 0;
+	unsigned int delayed_pending_us = 0;
 	bool delayed_pending = false;
 
 	if (!df || !res_block)
@@ -1163,8 +1147,7 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 	if (is_data_block_present(&block)) {
 		*res_block = block;
 		if (timeouts && timeouts->min_time_us) {
-			delayed_min_us = timeouts->min_time_us;
-			error = usleep_interruptible(delayed_min_us);
+			*delayed_min_us = timeouts->min_time_us;
 			goto out;
 		}
 		return 0;
@@ -1211,13 +1194,9 @@ static int wait_for_data_block(struct data_file *df, int block_index,
 	delayed_pending = true;
 	delayed_pending_us = timeouts->max_pending_time_us -
 				jiffies_to_usecs(wait_res);
-	if (timeouts->min_pending_time_us > delayed_pending_us) {
-		delayed_min_us = timeouts->min_pending_time_us -
+	if (timeouts->min_pending_time_us > delayed_pending_us)
+		*delayed_min_us = timeouts->min_pending_time_us -
 					     delayed_pending_us;
-		error = usleep_interruptible(delayed_min_us);
-		if (error)
-			return error;
-	}
 
 	error = down_read_killable(&segment->rwsem);
 	if (error)
@@ -1252,9 +1231,9 @@ out:
 			delayed_pending_us;
 	}
 
-	if (delayed_min_us) {
+	if (delayed_min_us && *delayed_min_us) {
 		mi->mi_reads_delayed_min++;
-		mi->mi_reads_delayed_min_us += delayed_min_us;
+		mi->mi_reads_delayed_min_us += *delayed_min_us;
 	}
 
 	return 0;
@@ -1284,7 +1263,8 @@ static int incfs_update_sysfs_error(struct file *file, int index, int result,
 
 ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 			int index, struct mem_range tmp,
-			struct incfs_read_data_file_timeouts *timeouts)
+			struct incfs_read_data_file_timeouts *timeouts,
+			unsigned int *delayed_min_us)
 {
 	loff_t pos;
 	ssize_t result;
@@ -1303,7 +1283,8 @@ ssize_t incfs_read_data_file_block(struct mem_range dst, struct file *f,
 	mi = df->df_mount_info;
 	bfc = df->df_backing_file_context;
 
-	result = wait_for_data_block(df, index, &block, timeouts);
+	result = wait_for_data_block(df, index, &block, timeouts,
+				     delayed_min_us);
 	if (result < 0)
 		goto out;
 

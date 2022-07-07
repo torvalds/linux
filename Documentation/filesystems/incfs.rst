@@ -35,6 +35,9 @@ Features
 /sys/fs/incremental-fs/features/zstd
   Reads 'supported'. Present if zstd compression is supported for data blocks.
 
+/sys/fs/incremental-fs/features/bugfix_throttling
+  Reads 'supported'. Present if the throttling lock bug is fixed
+
 Optional per mount
 ------------------
 
