@@ -233,10 +233,30 @@ static int qcom_icc_rpm_set(int mas_rpm_id, int slv_rpm_id, u64 sum_bw)
 	return ret;
 }
 
+static int __qcom_icc_set(struct icc_node *n, struct qcom_icc_node *qn,
+			  u64 sum_bw)
+{
+	int ret;
+
+	if (!qn->qos.ap_owned) {
+		/* send bandwidth request message to the RPM processor */
+		ret = qcom_icc_rpm_set(qn->mas_rpm_id, qn->slv_rpm_id, sum_bw);
+		if (ret)
+			return ret;
+	} else if (qn->qos.qos_mode != -1) {
+		/* set bandwidth directly from the AP */
+		ret = qcom_icc_qos_set(n, sum_bw);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
 static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 {
 	struct qcom_icc_provider *qp;
-	struct qcom_icc_node *qn;
+	struct qcom_icc_node *src_qn = NULL, *dst_qn = NULL;
 	struct icc_provider *provider;
 	struct icc_node *n;
 	u64 sum_bw;
@@ -246,7 +266,9 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 	u32 agg_peak = 0;
 	int ret, i;
 
-	qn = src->data;
+	src_qn = src->data;
+	if (dst)
+		dst_qn = dst->data;
 	provider = src->provider;
 	qp = to_qcom_provider(provider);
 
@@ -257,21 +279,18 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 	sum_bw = icc_units_to_bps(agg_avg);
 	max_peak_bw = icc_units_to_bps(agg_peak);
 
-	if (!qn->qos.ap_owned) {
-		/* send bandwidth request message to the RPM processor */
-		ret = qcom_icc_rpm_set(qn->mas_rpm_id, qn->slv_rpm_id, sum_bw);
-		if (ret)
-			return ret;
-	} else if (qn->qos.qos_mode != -1) {
-		/* set bandwidth directly from the AP */
-		ret = qcom_icc_qos_set(src, sum_bw);
+	ret = __qcom_icc_set(src, src_qn, sum_bw);
+	if (ret)
+		return ret;
+	if (dst_qn) {
+		ret = __qcom_icc_set(dst, dst_qn, sum_bw);
 		if (ret)
 			return ret;
 	}
 
 	rate = max(sum_bw, max_peak_bw);
 
-	do_div(rate, qn->buswidth);
+	do_div(rate, src_qn->buswidth);
 	rate = min_t(u64, rate, LONG_MAX);
 
 	for (i = 0; i < qp->num_clks; i++) {
