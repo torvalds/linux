@@ -8,7 +8,7 @@
 #include "otx2_common.h"
 
 static int otx2_dmacflt_do_add(struct otx2_nic *pf, const u8 *mac,
-			       u32 *dmac_index)
+			       u8 *dmac_index)
 {
 	struct cgx_mac_addr_add_req *req;
 	struct cgx_mac_addr_add_rsp *rsp;
@@ -35,10 +35,9 @@ static int otx2_dmacflt_do_add(struct otx2_nic *pf, const u8 *mac,
 	return err;
 }
 
-static int otx2_dmacflt_add_pfmac(struct otx2_nic *pf, u32 *dmac_index)
+static int otx2_dmacflt_add_pfmac(struct otx2_nic *pf)
 {
 	struct cgx_mac_addr_set_or_get *req;
-	struct cgx_mac_addr_set_or_get *rsp;
 	int err;
 
 	mutex_lock(&pf->mbox.lock);
@@ -49,24 +48,16 @@ static int otx2_dmacflt_add_pfmac(struct otx2_nic *pf, u32 *dmac_index)
 		return -ENOMEM;
 	}
 
-	req->index = *dmac_index;
-
 	ether_addr_copy(req->mac_addr, pf->netdev->dev_addr);
 	err = otx2_sync_mbox_msg(&pf->mbox);
-
-	if (!err) {
-		rsp = (struct cgx_mac_addr_set_or_get *)
-			 otx2_mbox_get_rsp(&pf->mbox.mbox, 0, &req->hdr);
-		*dmac_index = rsp->index;
-	}
 
 	mutex_unlock(&pf->mbox.lock);
 	return err;
 }
 
-int otx2_dmacflt_add(struct otx2_nic *pf, const u8 *mac, u32 bit_pos)
+int otx2_dmacflt_add(struct otx2_nic *pf, const u8 *mac, u8 bit_pos)
 {
-	u32 *dmacindex;
+	u8 *dmacindex;
 
 	/* Store dmacindex returned by CGX/RPM driver which will
 	 * be used for macaddr update/remove
@@ -74,13 +65,13 @@ int otx2_dmacflt_add(struct otx2_nic *pf, const u8 *mac, u32 bit_pos)
 	dmacindex = &pf->flow_cfg->bmap_to_dmacindex[bit_pos];
 
 	if (ether_addr_equal(mac, pf->netdev->dev_addr))
-		return otx2_dmacflt_add_pfmac(pf, dmacindex);
+		return otx2_dmacflt_add_pfmac(pf);
 	else
 		return otx2_dmacflt_do_add(pf, mac, dmacindex);
 }
 
 static int otx2_dmacflt_do_remove(struct otx2_nic *pfvf, const u8 *mac,
-				  u32 dmac_index)
+				  u8 dmac_index)
 {
 	struct cgx_mac_addr_del_req *req;
 	int err;
@@ -100,9 +91,9 @@ static int otx2_dmacflt_do_remove(struct otx2_nic *pfvf, const u8 *mac,
 	return err;
 }
 
-static int otx2_dmacflt_remove_pfmac(struct otx2_nic *pf, u32 dmac_index)
+static int otx2_dmacflt_remove_pfmac(struct otx2_nic *pf)
 {
-	struct cgx_mac_addr_reset_req *req;
+	struct msg_req *req;
 	int err;
 
 	mutex_lock(&pf->mbox.lock);
@@ -111,7 +102,6 @@ static int otx2_dmacflt_remove_pfmac(struct otx2_nic *pf, u32 dmac_index)
 		mutex_unlock(&pf->mbox.lock);
 		return -ENOMEM;
 	}
-	req->index = dmac_index;
 
 	err = otx2_sync_mbox_msg(&pf->mbox);
 
@@ -120,12 +110,12 @@ static int otx2_dmacflt_remove_pfmac(struct otx2_nic *pf, u32 dmac_index)
 }
 
 int otx2_dmacflt_remove(struct otx2_nic *pf, const u8 *mac,
-			u32 bit_pos)
+			u8 bit_pos)
 {
-	u32 dmacindex = pf->flow_cfg->bmap_to_dmacindex[bit_pos];
+	u8 dmacindex = pf->flow_cfg->bmap_to_dmacindex[bit_pos];
 
 	if (ether_addr_equal(mac, pf->netdev->dev_addr))
-		return otx2_dmacflt_remove_pfmac(pf, dmacindex);
+		return otx2_dmacflt_remove_pfmac(pf);
 	else
 		return otx2_dmacflt_do_remove(pf, mac, dmacindex);
 }
@@ -161,10 +151,9 @@ out:
 	return err;
 }
 
-int otx2_dmacflt_update(struct otx2_nic *pf, u8 *mac, u32 bit_pos)
+int otx2_dmacflt_update(struct otx2_nic *pf, u8 *mac, u8 bit_pos)
 {
 	struct cgx_mac_addr_update_req *req;
-	struct cgx_mac_addr_update_rsp *rsp;
 	int rc;
 
 	mutex_lock(&pf->mbox.lock);
@@ -178,19 +167,8 @@ int otx2_dmacflt_update(struct otx2_nic *pf, u8 *mac, u32 bit_pos)
 
 	ether_addr_copy(req->mac_addr, mac);
 	req->index = pf->flow_cfg->bmap_to_dmacindex[bit_pos];
-
-	/* check the response and change index */
-
 	rc = otx2_sync_mbox_msg(&pf->mbox);
-	if (rc)
-		goto out;
 
-	rsp = (struct cgx_mac_addr_update_rsp *)
-		otx2_mbox_get_rsp(&pf->mbox.mbox, 0, &req->hdr);
-
-	pf->flow_cfg->bmap_to_dmacindex[bit_pos] = rsp->index;
-
-out:
 	mutex_unlock(&pf->mbox.lock);
 	return rc;
 }
