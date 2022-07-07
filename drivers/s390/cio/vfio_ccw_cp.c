@@ -229,51 +229,6 @@ static void convert_ccw0_to_ccw1(struct ccw1 *source, unsigned long len)
 }
 
 /*
- * Within the domain (@vdev), copy @n bytes from a guest physical
- * address (@iova) to a host physical address (@to).
- */
-static long copy_from_iova(struct vfio_device *vdev, void *to, u64 iova,
-			   unsigned long n)
-{
-	struct page_array pa = {0};
-	int i, ret;
-	unsigned long l, m;
-
-	ret = page_array_alloc(&pa, iova, n);
-	if (ret < 0)
-		return ret;
-
-	ret = page_array_pin(&pa, vdev);
-	if (ret < 0) {
-		page_array_unpin_free(&pa, vdev);
-		return ret;
-	}
-
-	l = n;
-	for (i = 0; i < pa.pa_nr; i++) {
-		void *from = kmap_local_page(pa.pa_page[i]);
-
-		m = PAGE_SIZE;
-		if (i == 0) {
-			from += iova & (PAGE_SIZE - 1);
-			m -= iova & (PAGE_SIZE - 1);
-		}
-
-		m = min(l, m);
-		memcpy(to + (n - l), from, m);
-		kunmap_local(from);
-
-		l -= m;
-		if (l == 0)
-			break;
-	}
-
-	page_array_unpin_free(&pa, vdev);
-
-	return l;
-}
-
-/*
  * Helpers to operate ccwchain.
  */
 #define ccw_is_read(_ccw) (((_ccw)->cmd_code & 0x03) == 0x02)
@@ -471,10 +426,9 @@ static int ccwchain_handle_ccw(u32 cda, struct channel_program *cp)
 	int len, ret;
 
 	/* Copy 2K (the most we support today) of possible CCWs */
-	len = copy_from_iova(vdev, cp->guest_cp, cda,
-			     CCWCHAIN_LEN_MAX * sizeof(struct ccw1));
-	if (len)
-		return len;
+	ret = vfio_dma_rw(vdev, cda, cp->guest_cp, CCWCHAIN_LEN_MAX * sizeof(struct ccw1), false);
+	if (ret)
+		return ret;
 
 	/* Convert any Format-0 CCWs to Format-1 */
 	if (!cp->orb.cmd.fmt)
@@ -572,7 +526,7 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 	if (ccw_is_idal(ccw)) {
 		/* Read first IDAW to see if it's 4K-aligned or not. */
 		/* All subsequent IDAws will be 4K-aligned. */
-		ret = copy_from_iova(vdev, &iova, ccw->cda, sizeof(iova));
+		ret = vfio_dma_rw(vdev, ccw->cda, &iova, sizeof(iova), false);
 		if (ret)
 			return ret;
 	} else {
@@ -601,7 +555,7 @@ static int ccwchain_fetch_direct(struct ccwchain *chain,
 
 	if (ccw_is_idal(ccw)) {
 		/* Copy guest IDAL into host IDAL */
-		ret = copy_from_iova(vdev, idaws, ccw->cda, idal_len);
+		ret = vfio_dma_rw(vdev, ccw->cda, idaws, idal_len, false);
 		if (ret)
 			goto out_unpin;
 
