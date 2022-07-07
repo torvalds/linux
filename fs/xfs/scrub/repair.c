@@ -209,7 +209,7 @@ xrep_calc_ag_resblks(
 	/* Now grab the block counters from the AGF. */
 	error = xfs_alloc_read_agf(pag, NULL, 0, &bp);
 	if (error) {
-		aglen = xfs_ag_block_count(mp, sm->sm_agno);
+		aglen = pag->block_count;
 		freelen = aglen;
 		usedlen = aglen;
 	} else {
@@ -226,16 +226,16 @@ xrep_calc_ag_resblks(
 	    !xfs_verify_agino(pag, icount)) {
 		icount = pag->agino_max - pag->agino_min + 1;
 	}
-	xfs_perag_put(pag);
 
 	/* If the block counts are impossible, make worst-case assumptions. */
 	if (aglen == NULLAGBLOCK ||
-	    aglen != xfs_ag_block_count(mp, sm->sm_agno) ||
+	    aglen != pag->block_count ||
 	    freelen >= aglen) {
-		aglen = xfs_ag_block_count(mp, sm->sm_agno);
+		aglen = pag->block_count;
 		freelen = aglen;
 		usedlen = aglen;
 	}
+	xfs_perag_put(pag);
 
 	trace_xrep_calc_ag_resblks(mp, sm->sm_agno, icount, aglen,
 			freelen, usedlen);
