@@ -313,9 +313,6 @@ static const struct snd_soc_ops acp_card_dmic_ops = {
 SND_SOC_DAILINK_DEF(rt1019,
 	DAILINK_COMP_ARRAY(COMP_CODEC("i2c-10EC1019:00", "rt1019-aif"),
 			  COMP_CODEC("i2c-10EC1019:01", "rt1019-aif")));
-SND_SOC_DAILINK_DEF(rt1019_1,
-		    DAILINK_COMP_ARRAY(COMP_CODEC("i2c-10EC1019:02", "rt1019-aif"),
-		    COMP_CODEC("i2c-10EC1019:01", "rt1019-aif")));
 
 static const struct snd_soc_dapm_route rt1019_map_lr[] = {
 	{ "Left Spk", NULL, "Left SPO" },
@@ -330,17 +327,6 @@ static struct snd_soc_codec_conf rt1019_conf[] = {
 	{
 		 .dlc = COMP_CODEC_CONF("i2c-10EC1019:00"),
 		 .name_prefix = "Right",
-	},
-};
-
-static struct snd_soc_codec_conf rt1019_1_conf[] = {
-	{
-		.dlc = COMP_CODEC_CONF("i2c-10EC1019:02"),
-		.name_prefix = "Left",
-	},
-	{
-		.dlc = COMP_CODEC_CONF("i2c-10EC1019:01"),
-		.name_prefix = "Right",
 	},
 };
 
@@ -716,10 +702,6 @@ int acp_sofdsp_dai_links_create(struct snd_soc_card *card)
 			links[i].init = acp_card_rt1019_init;
 			card->codec_conf = rt1019_conf;
 			card->num_configs = ARRAY_SIZE(rt1019_conf);
-			links[i].codecs = rt1019_1;
-			links[i].num_codecs = ARRAY_SIZE(rt1019_1);
-			card->codec_conf = rt1019_1_conf;
-			card->num_configs = ARRAY_SIZE(rt1019_1_conf);
 		}
 		i++;
 	}
