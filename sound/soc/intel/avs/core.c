@@ -446,6 +446,7 @@ static int avs_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 		dma_set_mask(dev, DMA_BIT_MASK(32));
 		dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
 	}
+	dma_set_max_seg_size(dev, UINT_MAX);
 
 	ret = avs_hdac_bus_init_streams(bus);
 	if (ret < 0) {
