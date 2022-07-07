@@ -27,6 +27,10 @@
 	status = "okay";
 };
 
+&wcd9385 {
+	status = "okay";
+};
+
 /* PINCTRL */
 
 &lpass_dmic01_clk {
