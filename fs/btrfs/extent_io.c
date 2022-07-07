@@ -2545,13 +2545,10 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	u64 start = bbio->file_offset + bio_offset;
 	struct io_failure_record *failrec;
-	struct extent_map *em;
 	struct extent_io_tree *failure_tree = &BTRFS_I(inode)->io_failure_tree;
 	struct extent_io_tree *tree = &BTRFS_I(inode)->io_tree;
-	struct extent_map_tree *em_tree = &BTRFS_I(inode)->extent_tree;
 	const u32 sectorsize = fs_info->sectorsize;
 	int ret;
-	u64 logical;
 
 	failrec = get_state_failrec(failure_tree, start);
 	if (!IS_ERR(failrec)) {
@@ -2576,41 +2573,13 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	failrec->len = sectorsize;
 	failrec->failed_mirror = bbio->mirror_num;
 	failrec->this_mirror = bbio->mirror_num;
-	failrec->compress_type = BTRFS_COMPRESS_NONE;
-
-	read_lock(&em_tree->lock);
-	em = lookup_extent_mapping(em_tree, start, failrec->len);
-	if (!em) {
-		read_unlock(&em_tree->lock);
-		kfree(failrec);
-		return ERR_PTR(-EIO);
-	}
-
-	if (em->start > start || em->start + em->len <= start) {
-		free_extent_map(em);
-		em = NULL;
-	}
-	read_unlock(&em_tree->lock);
-	if (!em) {
-		kfree(failrec);
-		return ERR_PTR(-EIO);
-	}
-
-	logical = start - em->start;
-	logical = em->block_start + logical;
-	if (test_bit(EXTENT_FLAG_COMPRESSED, &em->flags)) {
-		logical = em->block_start;
-		failrec->compress_type = em->compress_type;
-	}
+	failrec->logical = (bbio->iter.bi_sector << SECTOR_SHIFT) + bio_offset;
 
 	btrfs_debug(fs_info,
-		    "Get IO Failure Record: (new) logical=%llu, start=%llu, len=%llu",
-		    logical, start, failrec->len);
+		    "new io failure record logical %llu start %llu",
+		    failrec->logical, start);
 
-	failrec->logical = logical;
-	free_extent_map(em);
-
-	failrec->num_copies = btrfs_num_copies(fs_info, logical, sectorsize);
+	failrec->num_copies = btrfs_num_copies(fs_info, failrec->logical, sectorsize);
 	if (failrec->num_copies == 1) {
 		/*
 		 * We only have a single copy of the data, so don't bother with
@@ -2709,7 +2678,7 @@ int btrfs_repair_one_sector(struct inode *inode, struct btrfs_bio *failed_bbio,
 	 * will be handled by the endio on the repair_bio, so we can't return an
 	 * error here.
 	 */
-	submit_bio_hook(inode, repair_bio, failrec->this_mirror, failrec->compress_type);
+	submit_bio_hook(inode, repair_bio, failrec->this_mirror, 0);
 	return BLK_STS_OK;
 }
 
@@ -3117,6 +3086,10 @@ static void end_bio_extent_readpage(struct bio *bio)
 			 * Only try to repair bios that actually made it to a
 			 * device.  If the bio failed to be submitted mirror
 			 * is 0 and we need to fail it without retrying.
+			 *
+			 * This also includes the high level bios for compressed
+			 * extents - these never make it to a device and repair
+			 * is already handled on the lower compressed bio.
 			 */
 			if (mirror > 0)
 				repair = true;

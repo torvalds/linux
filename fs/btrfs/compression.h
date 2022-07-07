@@ -59,19 +59,12 @@ struct compressed_bio {
 
 	/* IO errors */
 	blk_status_t status;
-	int mirror_num;
 
 	union {
 		/* For reads, this is the bio we are copying the data into */
 		struct bio *orig_bio;
 		struct work_struct write_end_work;
 	};
-
-	/*
-	 * the start of a variable length array of checksums only
-	 * used by reads
-	 */
-	u8 sums[];
 };
 
 static inline unsigned int btrfs_compress_type(unsigned int type_level)

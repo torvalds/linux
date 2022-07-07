@@ -261,7 +261,6 @@ struct io_failure_record {
 	u64 start;
 	u64 len;
 	u64 logical;
-	enum btrfs_compression_type compress_type;
 	int this_mirror;
 	int failed_mirror;
 	int num_copies;
