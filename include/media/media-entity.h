@@ -1140,4 +1140,34 @@ struct media_link *
 media_create_ancillary_link(struct media_entity *primary,
 			    struct media_entity *ancillary);
 
+/**
+ * __media_entity_next_link() - Iterate through a &media_entity's links
+ *
+ * @entity:	pointer to the &media_entity
+ * @link:	pointer to a &media_link to hold the iterated values
+ * @link_type:	one of the MEDIA_LNK_FL_LINK_TYPE flags
+ *
+ * Return the next link against an entity matching a specific link type. This
+ * allows iteration through an entity's links whilst guaranteeing all of the
+ * returned links are of the given type.
+ */
+struct media_link *__media_entity_next_link(struct media_entity *entity,
+					    struct media_link *link,
+					    unsigned long link_type);
+
+/**
+ * for_each_media_entity_data_link() - Iterate through an entity's data links
+ *
+ * @entity:	pointer to the &media_entity
+ * @link:	pointer to a &media_link to hold the iterated values
+ *
+ * Iterate over a &media_entity's data links
+ */
+#define for_each_media_entity_data_link(entity, link)			\
+	for (link = __media_entity_next_link(entity, NULL,		\
+					     MEDIA_LNK_FL_DATA_LINK);	\
+	     link;							\
+	     link = __media_entity_next_link(entity, link,		\
+					     MEDIA_LNK_FL_DATA_LINK))
+
 #endif

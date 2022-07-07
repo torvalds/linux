@@ -9,6 +9,7 @@
  */
 
 #include <linux/bitmap.h>
+#include <linux/list.h>
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <media/media-entity.h>
@@ -1051,3 +1052,18 @@ struct media_link *media_create_ancillary_link(struct media_entity *primary,
 	return link;
 }
 EXPORT_SYMBOL_GPL(media_create_ancillary_link);
+
+struct media_link *__media_entity_next_link(struct media_entity *entity,
+					    struct media_link *link,
+					    unsigned long link_type)
+{
+	link = link ? list_next_entry(link, list)
+		    : list_first_entry(&entity->links, typeof(*link), list);
+
+	list_for_each_entry_from(link, &entity->links, list)
+		if ((link->flags & MEDIA_LNK_FL_LINK_TYPE) == link_type)
+			return link;
+
+	return NULL;
+}
+EXPORT_SYMBOL_GPL(__media_entity_next_link);
