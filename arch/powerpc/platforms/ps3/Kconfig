@@ -165,7 +165,7 @@ config PS3_LPM
 
 	  If you intend to use the advanced performance monitoring and
 	  profiling support of the Cell processor with programs like
-	  oprofile and perfmon2, then say Y or M, otherwise say N.
+	  perfmon2, then say Y or M, otherwise say N.
 
 config PS3GELIC_UDBG
 	bool "PS3 udbg output via UDP broadcasts on Ethernet"
