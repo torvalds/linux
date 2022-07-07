@@ -10767,6 +10767,7 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 						  &bssid);
 			if (IS_ERR(req.links[link_id].bss)) {
 				err = PTR_ERR(req.links[link_id].bss);
+				req.links[link_id].bss = NULL;
 				goto free;
 			}
 
