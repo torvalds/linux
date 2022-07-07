@@ -994,7 +994,9 @@ static const struct dc_debug_options debug_defaults_drv = {
 		}
 	},
 	.use_max_lb = true,
-	.force_disable_subvp = true
+	.force_disable_subvp = true,
+	.enable_single_display_2to1_odm_policy = true,
+	.enable_dp_dig_pixel_rate_div_policy = 1,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
