@@ -23,7 +23,6 @@
 #include <linux/module.h>
 #include <linux/acpi.h>
 
-#include "../codecs/es8316.h"
 #include "acp.h"
 
 #define DUAL_CHANNEL	2
