@@ -2392,7 +2392,7 @@ static int gaudi2_cpucp_info_get(struct hl_device *hdev)
 	/* No point of asking this information again when not doing hard reset, as the device
 	 * CPU hasn't been reset
 	 */
-	if (hdev->reset_info.is_in_soft_reset)
+	if (hdev->reset_info.in_compute_reset)
 		return 0;
 
 	rc = hl_fw_cpucp_handshake(hdev, mmCPU_BOOT_DEV_STS0, mmCPU_BOOT_DEV_STS1, mmCPU_BOOT_ERR0,
@@ -3014,7 +3014,7 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 	hdev->supports_cb_mapping = true;
 	hdev->supports_wait_for_multi_cs = false;
 
-	prop->supports_soft_reset = true;
+	prop->supports_compute_reset = true;
 
 	hdev->asic_funcs->set_pci_memory_regions(hdev);
 

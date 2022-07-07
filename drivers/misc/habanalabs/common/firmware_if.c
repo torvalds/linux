@@ -275,7 +275,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	mutex_lock(&hdev->send_cpu_message_lock);
 
 	/* CPU-CP messages can be sent during soft-reset */
-	if (hdev->disabled && !hdev->reset_info.is_in_soft_reset) {
+	if (hdev->disabled && !hdev->reset_info.in_compute_reset) {
 		rc = 0;
 		goto out;
 	}
@@ -314,7 +314,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 		/* If FW performed reset just before sending it a packet, we will get a timeout.
 		 * This is expected behavior, hence no need for error message.
 		 */
-		if (!hl_device_operational(hdev, NULL) && !hdev->reset_info.is_in_soft_reset)
+		if (!hl_device_operational(hdev, NULL) && !hdev->reset_info.in_compute_reset)
 			dev_dbg(hdev->dev, "Device CPU packet timeout (0x%x) due to FW reset\n",
 					tmp);
 		else

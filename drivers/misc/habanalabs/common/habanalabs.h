@@ -647,7 +647,7 @@ struct hl_hints_range {
  *                         false otherwise.
  * @use_get_power_for_reset_history: To support backward compatibility for Goya
  *                                   and Gaudi
- * @supports_soft_reset: is soft reset supported.
+ * @supports_compute_reset: is a reset which is not a hard-reset supported by this asic.
  * @allow_inference_soft_reset: true if the ASIC supports soft reset that is
  *                              initiated by user or TDR. This is only true
  *                              in inference ASICs, as there is no real-world
@@ -760,7 +760,7 @@ struct asic_fixed_properties {
 	u8				dynamic_fw_load;
 	u8				gic_interrupts_enable;
 	u8				use_get_power_for_reset_history;
-	u8				supports_soft_reset;
+	u8				supports_compute_reset;
 	u8				allow_inference_soft_reset;
 	u8				configurable_stop_on_err;
 	u8				set_max_power_on_device_init;
@@ -2960,12 +2960,12 @@ struct last_error_session_info {
 /**
  * struct hl_reset_info - holds current device reset information.
  * @lock: lock to protect critical reset flows.
- * @soft_reset_cnt: number of soft reset since the driver was loaded.
- * @hard_reset_cnt: number of hard reset since the driver was loaded.
- * @hard_reset_schedule_flags: hard reset is scheduled to after current soft reset,
+ * @compute_reset_cnt: number of compte resets since the driver was loaded.
+ * @hard_reset_cnt: number of hard resets since the driver was loaded.
+ * @hard_reset_schedule_flags: hard reset is scheduled to after current compute reset,
  *                             here we hold the hard reset flags.
  * @in_reset: is device in reset flow.
- * @is_in_soft_reset: Device is currently in soft reset process.
+ * @in_compute_reset: Device is currently in reset but not in hard-reset.
  * @needs_reset: true if reset_on_lockup is false and device should be reset
  *               due to lockup.
  * @hard_reset_pending: is there a hard reset work pending.
@@ -2980,11 +2980,11 @@ struct last_error_session_info {
  */
 struct hl_reset_info {
 	spinlock_t	lock;
-	u32		soft_reset_cnt;
+	u32		compute_reset_cnt;
 	u32		hard_reset_cnt;
 	u32		hard_reset_schedule_flags;
 	u8		in_reset;
-	u8		is_in_soft_reset;
+	u8		in_compute_reset;
 	u8		needs_reset;
 	u8		hard_reset_pending;
 

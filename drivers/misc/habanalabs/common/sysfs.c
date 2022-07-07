@@ -291,7 +291,7 @@ static ssize_t soft_reset_cnt_show(struct device *dev,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", hdev->reset_info.soft_reset_cnt);
+	return sprintf(buf, "%d\n", hdev->reset_info.compute_reset_cnt);
 }
 
 static ssize_t hard_reset_cnt_show(struct device *dev,

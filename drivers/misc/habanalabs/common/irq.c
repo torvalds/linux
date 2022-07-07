@@ -411,7 +411,7 @@ irqreturn_t hl_irq_handler_eq(int irq, void *arg)
 		 */
 		dma_rmb();
 
-		if (hdev->disabled && !hdev->reset_info.is_in_soft_reset) {
+		if (hdev->disabled && !hdev->reset_info.in_compute_reset) {
 			dev_warn(hdev->dev, "Device disabled but received an EQ event\n");
 			goto skip_irq;
 		}

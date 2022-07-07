@@ -272,7 +272,7 @@ enum hl_device_status hl_device_status(struct hl_device *hdev)
 	enum hl_device_status status;
 
 	if (hdev->reset_info.in_reset) {
-		if (hdev->reset_info.is_in_soft_reset)
+		if (hdev->reset_info.in_compute_reset)
 			status = HL_DEVICE_STATUS_IN_RESET_AFTER_DEVICE_RELEASE;
 		else
 			status = HL_DEVICE_STATUS_IN_RESET;
@@ -1306,7 +1306,7 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	skip_wq_flush = !!(flags & HL_DRV_RESET_DEV_RELEASE);
 	delay_reset = !!(flags & HL_DRV_RESET_DELAY);
 
-	if (!hard_reset && !hdev->asic_prop.supports_soft_reset) {
+	if (!hard_reset && !hdev->asic_prop.supports_compute_reset) {
 		hard_instead_soft = true;
 		hard_reset = true;
 	}
@@ -1329,7 +1329,7 @@ int hl_device_reset(struct hl_device *hdev, u32 flags)
 	}
 
 	if (hard_instead_soft)
-		dev_dbg(hdev->dev, "Doing hard-reset instead of soft-reset\n");
+		dev_dbg(hdev->dev, "Doing hard-reset instead of compute reset\n");
 
 do_reset:
 	/* Re-entry of reset thread */
@@ -1345,17 +1345,17 @@ do_reset:
 		/* Block future CS/VM/JOB completion operations */
 		spin_lock(&hdev->reset_info.lock);
 		if (hdev->reset_info.in_reset) {
-			/* We only allow scheduling of a hard reset during soft reset */
-			if (hard_reset && hdev->reset_info.is_in_soft_reset)
+			/* We only allow scheduling of a hard reset during compute reset */
+			if (hard_reset && hdev->reset_info.in_compute_reset)
 				hdev->reset_info.hard_reset_schedule_flags = flags;
 			spin_unlock(&hdev->reset_info.lock);
 			return 0;
 		}
 
 		/* This still allows the completion of some KDMA ops
-		 * Update this before in_reset because is_in_soft_reset implies we are in reset
+		 * Update this before in_reset because in_compute_reset implies we are in reset
 		 */
-		hdev->reset_info.is_in_soft_reset = !hard_reset;
+		hdev->reset_info.in_compute_reset = !hard_reset;
 
 		hdev->reset_info.in_reset = 1;
 
@@ -1562,7 +1562,7 @@ kill_processes:
 				dev_err(hdev->dev,
 					"Failed late init in reset after device release\n");
 			else
-				dev_err(hdev->dev, "Failed late init after soft reset\n");
+				dev_err(hdev->dev, "Failed late init after compute reset\n");
 			goto out_err;
 		}
 	}
@@ -1574,7 +1574,7 @@ kill_processes:
 	}
 
 	spin_lock(&hdev->reset_info.lock);
-	hdev->reset_info.is_in_soft_reset = 0;
+	hdev->reset_info.in_compute_reset = 0;
 
 	/* Schedule hard reset only if requested and if not already in hard reset.
 	 * We keep 'in_reset' enabled, so no other reset can go in during the hard
@@ -1604,11 +1604,11 @@ kill_processes:
 		 */
 		hdev->asic_funcs->enable_events_from_fw(hdev);
 	} else if (!reset_upon_device_release) {
-		hdev->reset_info.soft_reset_cnt++;
+		hdev->reset_info.compute_reset_cnt++;
 	}
 
 	if (schedule_hard_reset) {
-		dev_info(hdev->dev, "Performing hard reset scheduled during soft reset\n");
+		dev_info(hdev->dev, "Performing hard reset scheduled during compute reset\n");
 		flags = hdev->reset_info.hard_reset_schedule_flags;
 		hdev->reset_info.hard_reset_schedule_flags = 0;
 		hdev->disabled = true;
@@ -1623,7 +1623,7 @@ out_err:
 	hdev->disabled = true;
 
 	spin_lock(&hdev->reset_info.lock);
-	hdev->reset_info.is_in_soft_reset = 0;
+	hdev->reset_info.in_compute_reset = 0;
 
 	if (hard_reset) {
 		dev_err(hdev->dev, "Failed to reset! Device is NOT usable\n");
@@ -1637,8 +1637,8 @@ out_err:
 		goto again;
 	} else {
 		spin_unlock(&hdev->reset_info.lock);
-		dev_err(hdev->dev, "Failed to do soft-reset\n");
-		hdev->reset_info.soft_reset_cnt++;
+		dev_err(hdev->dev, "Failed to do compute reset\n");
+		hdev->reset_info.compute_reset_cnt++;
 		flags |= HL_DRV_RESET_HARD;
 		hard_reset = true;
 		goto again;
