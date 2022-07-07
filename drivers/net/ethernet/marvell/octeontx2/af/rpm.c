@@ -276,6 +276,11 @@ void rpm_lmac_pause_frm_config(void *rpmd, int lmac_id, bool enable)
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
 	cfg |= RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE;
 	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
+
+	/* Disable all PFC classes */
+	cfg = rpm_read(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL);
+	cfg = FIELD_SET(RPM_PFC_CLASS_MASK, 0, cfg);
+	rpm_write(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL, cfg);
 }
 
 int rpm_get_rx_stats(void *rpmd, int lmac_id, int idx, u64 *rx_stat)
@@ -387,15 +392,14 @@ void rpm_lmac_ptp_config(void *rpmd, int lmac_id, bool enable)
 int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause, u16 pfc_en)
 {
 	rpm_t *rpm = rpmd;
-	u64 cfg;
+	u64 cfg, class_en;
 
 	if (!is_lmac_valid(rpm, lmac_id))
 		return -ENODEV;
 
-	/* reset PFC class quanta and threshold */
-	rpm_cfg_pfc_quanta_thresh(rpm, lmac_id, 0xffff, false);
-
 	cfg = rpm_read(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG);
+	class_en = rpm_read(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL);
+	pfc_en |= FIELD_GET(RPM_PFC_CLASS_MASK, class_en);
 
 	if (rx_pause) {
 		cfg &= ~(RPMX_MTI_MAC100X_COMMAND_CONFIG_RX_P_DISABLE |
@@ -410,9 +414,11 @@ int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause, u16 p
 	if (tx_pause) {
 		rpm_cfg_pfc_quanta_thresh(rpm, lmac_id, pfc_en, true);
 		cfg &= ~RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE;
+		class_en = FIELD_SET(RPM_PFC_CLASS_MASK, pfc_en, class_en);
 	} else {
 		rpm_cfg_pfc_quanta_thresh(rpm, lmac_id, 0xfff, false);
 		cfg |= RPMX_MTI_MAC100X_COMMAND_CONFIG_TX_P_DISABLE;
+		class_en = FIELD_SET(RPM_PFC_CLASS_MASK, 0, class_en);
 	}
 
 	if (!rx_pause && !tx_pause)
@@ -422,9 +428,7 @@ int rpm_lmac_pfc_config(void *rpmd, int lmac_id, u8 tx_pause, u8 rx_pause, u16 p
 
 	rpm_write(rpm, lmac_id, RPMX_MTI_MAC100X_COMMAND_CONFIG, cfg);
 
-	cfg = rpm_read(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL);
-	cfg = FIELD_SET(RPM_PFC_CLASS_MASK, pfc_en, cfg);
-	rpm_write(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL, cfg);
+	rpm_write(rpm, lmac_id, RPMX_CMRX_PRT_CBFC_CTL, class_en);
 
 	return 0;
 }

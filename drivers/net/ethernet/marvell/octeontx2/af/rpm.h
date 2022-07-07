@@ -48,7 +48,6 @@
 #define RPMX_MTI_MAC100X_CL1011_QUANTA_THRESH		0x8130
 #define RPMX_MTI_MAC100X_CL1213_QUANTA_THRESH		0x8138
 #define RPMX_MTI_MAC100X_CL1415_QUANTA_THRESH		0x8140
-#define RPM_DEFAULT_PAUSE_TIME			0xFFFF
 #define RPMX_CMR_RX_OVR_BP		0x4120
 #define RPMX_CMR_RX_OVR_BP_EN(x)	BIT_ULL((x) + 8)
 #define RPMX_CMR_RX_OVR_BP_BP(x)	BIT_ULL((x) + 4)
@@ -70,7 +69,7 @@
 #define RPMX_MTI_MAC100X_COMMAND_CONFIG_PAUSE_FWD              BIT_ULL(7)
 #define RPMX_MTI_MAC100X_CL01_PAUSE_QUANTA              0x80A8
 #define RPMX_MTI_MAC100X_CL89_PAUSE_QUANTA		0x8108
-#define RPM_DEFAULT_PAUSE_TIME                          0xFFFF
+#define RPM_DEFAULT_PAUSE_TIME                          0x7FF
 
 /* Function Declarations */
 int rpm_get_nr_lmacs(void *rpmd);
