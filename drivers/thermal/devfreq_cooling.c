@@ -200,7 +200,11 @@ static int devfreq_cooling_get_requested_power(struct thermal_cooling_device *cd
 		res = dfc->power_ops->get_real_power(df, power, freq, voltage);
 		if (!res) {
 			state = dfc->capped_state;
+
+			/* Convert EM power into milli-Watts first */
 			dfc->res_util = dfc->em_pd->table[state].power;
+			dfc->res_util /= MICROWATT_PER_MILLIWATT;
+
 			dfc->res_util *= SCALE_ERROR_MITIGATION;
 
 			if (*power > 1)
@@ -218,8 +222,10 @@ static int devfreq_cooling_get_requested_power(struct thermal_cooling_device *cd
 
 		_normalize_load(&status);
 
-		/* Scale power for utilization */
+		/* Convert EM power into milli-Watts first */
 		*power = dfc->em_pd->table[perf_idx].power;
+		*power /= MICROWATT_PER_MILLIWATT;
+		/* Scale power for utilization */
 		*power *= status.busy_time;
 		*power >>= 10;
 	}
@@ -244,6 +250,7 @@ static int devfreq_cooling_state2power(struct thermal_cooling_device *cdev,
 
 	perf_idx = dfc->max_state - state;
 	*power = dfc->em_pd->table[perf_idx].power;
+	*power /= MICROWATT_PER_MILLIWATT;
 
 	return 0;
 }
@@ -254,7 +261,7 @@ static int devfreq_cooling_power2state(struct thermal_cooling_device *cdev,
 	struct devfreq_cooling_device *dfc = cdev->devdata;
 	struct devfreq *df = dfc->devfreq;
 	struct devfreq_dev_status status;
-	unsigned long freq;
+	unsigned long freq, em_power_mw;
 	s32 est_power;
 	int i;
 
@@ -279,9 +286,13 @@ static int devfreq_cooling_power2state(struct thermal_cooling_device *cdev,
 	 * Find the first cooling state that is within the power
 	 * budget. The EM power table is sorted ascending.
 	 */
-	for (i = dfc->max_state; i > 0; i--)
-		if (est_power >= dfc->em_pd->table[i].power)
+	for (i = dfc->max_state; i > 0; i--) {
+		/* Convert EM power to milli-Watts to make safe comparison */
+		em_power_mw = dfc->em_pd->table[i].power;
+		em_power_mw /= MICROWATT_PER_MILLIWATT;
+		if (est_power >= em_power_mw)
 			break;
+	}
 
 	*state = dfc->max_state - i;
 	dfc->capped_state = *state;

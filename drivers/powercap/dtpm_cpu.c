@@ -53,7 +53,7 @@ static u64 set_pd_power_limit(struct dtpm *dtpm, u64 power_limit)
 
 	for (i = 0; i < pd->nr_perf_states; i++) {
 
-		power = pd->table[i].power * MICROWATT_PER_MILLIWATT * nr_cpus;
+		power = pd->table[i].power * nr_cpus;
 
 		if (power > power_limit)
 			break;
@@ -63,8 +63,7 @@ static u64 set_pd_power_limit(struct dtpm *dtpm, u64 power_limit)
 
 	freq_qos_update_request(&dtpm_cpu->qos_req, freq);
 
-	power_limit = pd->table[i - 1].power *
-		MICROWATT_PER_MILLIWATT * nr_cpus;
+	power_limit = pd->table[i - 1].power * nr_cpus;
 
 	return power_limit;
 }
