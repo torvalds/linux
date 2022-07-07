@@ -1115,6 +1115,7 @@ static int test__parsing_fake(struct test_suite *test __maybe_unused,
 				break;
 			if (!pe->metric_expr)
 				continue;
+			pr_debug("Found metric '%s' for '%s'\n", pe->metric_name, map->cpuid);
 			err = metric_parse_fake(pe->metric_expr);
 			if (err)
 				return err;
