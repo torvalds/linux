@@ -100,7 +100,7 @@ static int __maybe_unused
 scmi_get_cpu_power(struct device *cpu_dev, unsigned long *power,
 		   unsigned long *KHz)
 {
-	bool power_scale_mw = perf_ops->power_scale_mw_get(ph);
+	enum scmi_power_scale power_scale = perf_ops->power_scale_get(ph);
 	unsigned long Hz;
 	int ret, domain;
 
@@ -114,8 +114,8 @@ scmi_get_cpu_power(struct device *cpu_dev, unsigned long *power,
 	if (ret)
 		return ret;
 
-	/* Provide bigger resolution power to the Energy Model */
-	if (power_scale_mw)
+	/* Convert the power to uW if it is mW (ignore bogoW) */
+	if (power_scale == SCMI_POWER_MILLIWATTS)
 		*power *= MICROWATT_PER_MILLIWATT;
 
 	/* The EM framework specifies the frequency in KHz. */
@@ -255,8 +255,9 @@ static int scmi_cpufreq_exit(struct cpufreq_policy *policy)
 static void scmi_cpufreq_register_em(struct cpufreq_policy *policy)
 {
 	struct em_data_callback em_cb = EM_DATA_CB(scmi_get_cpu_power);
-	bool power_scale_mw = perf_ops->power_scale_mw_get(ph);
+	enum scmi_power_scale power_scale = perf_ops->power_scale_get(ph);
 	struct scmi_data *priv = policy->driver_data;
+	bool em_power_scale = false;
 
 	/*
 	 * This callback will be called for each policy, but we don't need to
@@ -268,9 +269,13 @@ static void scmi_cpufreq_register_em(struct cpufreq_policy *policy)
 	if (!priv->nr_opp)
 		return;
 
+	if (power_scale == SCMI_POWER_MILLIWATTS
+	    || power_scale == SCMI_POWER_MICROWATTS)
+		em_power_scale = true;
+
 	em_dev_register_perf_domain(get_cpu_device(policy->cpu), priv->nr_opp,
 				    &em_cb, priv->opp_shared_cpus,
-				    power_scale_mw);
+				    em_power_scale);
 }
 
 static struct cpufreq_driver scmi_cpufreq_driver = {
