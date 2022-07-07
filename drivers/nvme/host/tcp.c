@@ -209,9 +209,11 @@ static inline u8 nvme_tcp_ddgst_len(struct nvme_tcp_queue *queue)
 	return queue->data_digest ? NVME_TCP_DIGEST_LENGTH : 0;
 }
 
-static inline size_t nvme_tcp_inline_data_size(struct nvme_tcp_queue *queue)
+static inline size_t nvme_tcp_inline_data_size(struct nvme_tcp_request *req)
 {
-	return queue->cmnd_capsule_len - sizeof(struct nvme_command);
+	if (nvme_is_fabrics(req->req.cmd))
+		return NVME_TCP_ADMIN_CCSZ;
+	return req->queue->cmnd_capsule_len - sizeof(struct nvme_command);
 }
 
 static inline bool nvme_tcp_async_req(struct nvme_tcp_request *req)
@@ -229,7 +231,7 @@ static inline bool nvme_tcp_has_inline_data(struct nvme_tcp_request *req)
 	rq = blk_mq_rq_from_pdu(req);
 
 	return rq_data_dir(rq) == WRITE && req->data_len &&
-		req->data_len <= nvme_tcp_inline_data_size(req->queue);
+		req->data_len <= nvme_tcp_inline_data_size(req);
 }
 
 static inline struct page *nvme_tcp_req_cur_page(struct nvme_tcp_request *req)
@@ -2372,7 +2374,7 @@ static blk_status_t nvme_tcp_map_data(struct nvme_tcp_queue *queue,
 	if (!blk_rq_nr_phys_segments(rq))
 		nvme_tcp_set_sg_null(c);
 	else if (rq_data_dir(rq) == WRITE &&
-	    req->data_len <= nvme_tcp_inline_data_size(queue))
+	    req->data_len <= nvme_tcp_inline_data_size(req))
 		nvme_tcp_set_sg_inline(queue, c, req->data_len);
 	else
 		nvme_tcp_set_sg_host_data(c, req->data_len);
@@ -2407,7 +2409,7 @@ static blk_status_t nvme_tcp_setup_cmd_pdu(struct nvme_ns *ns,
 		nvme_tcp_init_iter(req, rq_data_dir(rq));
 
 	if (rq_data_dir(rq) == WRITE &&
-	    req->data_len <= nvme_tcp_inline_data_size(queue))
+	    req->data_len <= nvme_tcp_inline_data_size(req))
 		req->pdu_len = req->data_len;
 
 	pdu->hdr.type = nvme_tcp_cmd;
