@@ -449,6 +449,7 @@ static long rk1608_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case PREISP_DISP_WRITE_EEPROM:
 	case PREISP_DISP_READ_EEPROM:
 	case PREISP_DISP_SET_LED_ON_OFF:
+	case RKMODULE_SET_QUICK_STREAM:
 		mutex_lock(&rk1608_dphy_mutex);
 		pdata->rk1608_sd->grp_id = pdata->sd.grp_id;
 		ret = v4l2_subdev_call(pdata->rk1608_sd, core, ioctl,
@@ -470,6 +471,7 @@ static long rk1608_compat_ioctl32(struct v4l2_subdev *sd,
 	struct preisp_hdrae_exp_s hdrae_exp;
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
+	u32  stream;
 	long ret = -EFAULT;
 
 	switch (cmd) {
@@ -503,6 +505,14 @@ static long rk1608_compat_ioctl32(struct v4l2_subdev *sd,
 			return -EFAULT;
 		ret = rk1608_ioctl(sd, cmd, cfg);
 		kfree(cfg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		ret = copy_from_user(&stream, up, sizeof(u32));
+		if (!ret)
+			ret = rk1608_ioctl(sd, cmd, &stream);
+		else
+			ret = -EFAULT;
+
 		break;
 	default:
 		ret = -ENOIOCTLCMD;

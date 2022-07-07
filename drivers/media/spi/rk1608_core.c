@@ -1306,6 +1306,16 @@ static int rk1608_stream_off(struct rk1608_state *pdata)
 	return 0;
 }
 
+static int rk1608_set_quick_stream(struct rk1608_state *pdata, void *args)
+{
+	u32 stream = *(u32 *)args;
+
+	if (stream)
+		return rk1608_stream_on(pdata);
+	else
+		return rk1608_stream_off(pdata);
+}
+
 static int rk1608_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	int ret;
@@ -1424,6 +1434,9 @@ static long rk1608_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		break;
 	case PREISP_DISP_SET_LED_ON_OFF:
 		rk1608_disp_set_led_on_off(pdata, arg);
+		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		rk1608_set_quick_stream(pdata, arg);
 		break;
 	default:
 		return -ENOTTY;
