@@ -12,6 +12,7 @@
 
 #include "io_uring.h"
 #include "kbuf.h"
+#include "alloc_cache.h"
 #include "net.h"
 
 #if defined(CONFIG_NET)
@@ -97,18 +98,55 @@ static bool io_net_retry(struct socket *sock, int flags)
 	return sock->type == SOCK_STREAM || sock->type == SOCK_SEQPACKET;
 }
 
+static void io_netmsg_recycle(struct io_kiocb *req, unsigned int issue_flags)
+{
+	struct io_async_msghdr *hdr = req->async_data;
+
+	if (!hdr || issue_flags & IO_URING_F_UNLOCKED)
+		return;
+
+	/* Let normal cleanup path reap it if we fail adding to the cache */
+	if (io_alloc_cache_put(&req->ctx->netmsg_cache, &hdr->cache)) {
+		req->async_data = NULL;
+		req->flags &= ~REQ_F_ASYNC_DATA;
+	}
+}
+
+static struct io_async_msghdr *io_recvmsg_alloc_async(struct io_kiocb *req,
+						      unsigned int issue_flags)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+	struct io_cache_entry *entry;
+
+	if (!(issue_flags & IO_URING_F_UNLOCKED) &&
+	    (entry = io_alloc_cache_get(&ctx->netmsg_cache)) != NULL) {
+		struct io_async_msghdr *hdr;
+
+		hdr = container_of(entry, struct io_async_msghdr, cache);
+		req->flags |= REQ_F_ASYNC_DATA;
+		req->async_data = hdr;
+		return hdr;
+	}
+
+	if (!io_alloc_async_data(req))
+		return req->async_data;
+
+	return NULL;
+}
+
 static int io_setup_async_msg(struct io_kiocb *req,
-			      struct io_async_msghdr *kmsg)
+			      struct io_async_msghdr *kmsg,
+			      unsigned int issue_flags)
 {
 	struct io_async_msghdr *async_msg = req->async_data;
 
 	if (async_msg)
 		return -EAGAIN;
-	if (io_alloc_async_data(req)) {
+	async_msg = io_recvmsg_alloc_async(req, issue_flags);
+	if (!async_msg) {
 		kfree(kmsg->free_iov);
 		return -ENOMEM;
 	}
-	async_msg = req->async_data;
 	req->flags |= REQ_F_NEED_CLEANUP;
 	memcpy(async_msg, kmsg, sizeof(*kmsg));
 	async_msg->msg.msg_name = &async_msg->addr;
@@ -195,7 +233,7 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (!(req->flags & REQ_F_POLLED) &&
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
-		return io_setup_async_msg(req, kmsg);
+		return io_setup_async_msg(req, kmsg, issue_flags);
 
 	flags = sr->msg_flags;
 	if (issue_flags & IO_URING_F_NONBLOCK)
@@ -207,13 +245,13 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && (issue_flags & IO_URING_F_NONBLOCK))
-			return io_setup_async_msg(req, kmsg);
+			return io_setup_async_msg(req, kmsg, issue_flags);
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
 		if (ret > 0 && io_net_retry(sock, flags)) {
 			sr->done_io += ret;
 			req->flags |= REQ_F_PARTIAL_IO;
-			return io_setup_async_msg(req, kmsg);
+			return io_setup_async_msg(req, kmsg, issue_flags);
 		}
 		req_set_fail(req);
 	}
@@ -221,6 +259,7 @@ int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 	if (kmsg->free_iov)
 		kfree(kmsg->free_iov);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
+	io_netmsg_recycle(req, issue_flags);
 	if (ret >= 0)
 		ret += sr->done_io;
 	else if (sr->done_io)
@@ -495,7 +534,7 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (!(req->flags & REQ_F_POLLED) &&
 	    (sr->flags & IORING_RECVSEND_POLL_FIRST))
-		return io_setup_async_msg(req, kmsg);
+		return io_setup_async_msg(req, kmsg, issue_flags);
 
 	if (io_do_buffer_select(req)) {
 		void __user *buf;
@@ -519,13 +558,13 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	ret = __sys_recvmsg_sock(sock, &kmsg->msg, sr->umsg, kmsg->uaddr, flags);
 	if (ret < min_ret) {
 		if (ret == -EAGAIN && force_nonblock)
-			return io_setup_async_msg(req, kmsg);
+			return io_setup_async_msg(req, kmsg, issue_flags);
 		if (ret == -ERESTARTSYS)
 			ret = -EINTR;
 		if (ret > 0 && io_net_retry(sock, flags)) {
 			sr->done_io += ret;
 			req->flags |= REQ_F_PARTIAL_IO;
-			return io_setup_async_msg(req, kmsg);
+			return io_setup_async_msg(req, kmsg, issue_flags);
 		}
 		req_set_fail(req);
 	} else if ((flags & MSG_WAITALL) && (kmsg->msg.msg_flags & (MSG_TRUNC | MSG_CTRUNC))) {
@@ -535,6 +574,7 @@ int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	/* fast path, check for non-NULL to avoid function call */
 	if (kmsg->free_iov)
 		kfree(kmsg->free_iov);
+	io_netmsg_recycle(req, issue_flags);
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	if (ret > 0)
 		ret += sr->done_io;
@@ -847,5 +887,10 @@ out:
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
 	return IOU_OK;
+}
+
+void io_netmsg_cache_free(struct io_cache_entry *entry)
+{
+	kfree(container_of(entry, struct io_async_msghdr, cache));
 }
 #endif
