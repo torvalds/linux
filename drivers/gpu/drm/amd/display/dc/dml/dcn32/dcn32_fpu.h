@@ -31,4 +31,9 @@
 
 void dcn32_build_wm_range_table_fpu(struct clk_mgr_internal *clk_mgr);
 
+void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
+					      struct dc_state *context,
+					      display_e2e_pipe_params_st *pipes,
+					      int pipe_cnt);
+
 #endif

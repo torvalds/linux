@@ -111,3 +111,46 @@ void dcn32_build_wm_range_table_fpu(struct clk_mgr_internal *clk_mgr)
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.max_uclk = 0xFFFF;
 }
 
+/**
+ * dcn32_helper_populate_phantom_dlg_params - Get DLG params for phantom pipes
+ * and populate pipe_ctx with those params.
+ *
+ * This function must be called AFTER the phantom pipes are added to context
+ * and run through DML (so that the DLG params for the phantom pipes can be
+ * populated), and BEFORE we program the timing for the phantom pipes.
+ *
+ * @dc: [in] current dc state
+ * @context: [in] new dc state
+ * @pipes: [in] DML pipe params array
+ * @pipe_cnt: [in] DML pipe count
+ */
+void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
+					      struct dc_state *context,
+					      display_e2e_pipe_params_st *pipes,
+					      int pipe_cnt)
+{
+	uint32_t i, pipe_idx;
+
+	dc_assert_fp_enabled();
+
+	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe->stream)
+			continue;
+
+		if (pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+			pipes[pipe_idx].pipe.dest.vstartup_start =
+				get_vstartup(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
+			pipes[pipe_idx].pipe.dest.vupdate_offset =
+				get_vupdate_offset(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
+			pipes[pipe_idx].pipe.dest.vupdate_width =
+				get_vupdate_width(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
+			pipes[pipe_idx].pipe.dest.vready_offset =
+				get_vready_offset(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
+			pipe->pipe_dlg_param = pipes[pipe_idx].pipe.dest;
+		}
+		pipe_idx++;
+	}
+}
+

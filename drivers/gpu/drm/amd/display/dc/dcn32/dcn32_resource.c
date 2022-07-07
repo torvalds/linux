@@ -88,6 +88,7 @@
 #include "dml/dcn30/display_mode_vba_30.h"
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
+#include "dml/dcn32/dcn32_fpu.h"
 
 #define DCN_BASE__INST0_SEG1                       0x000000C0
 #define DCN_BASE__INST0_SEG2                       0x000034C0
@@ -312,6 +313,7 @@ enum dcn32_clk_src_array_id {
 		.reg_name = NBIO_BASE(regBIF_BX0_ ## reg_name ## _BASE_IDX) + \
 					regBIF_BX0_ ## reg_name
 
+#undef CTX
 #define CTX ctx
 #define REG(reg_name) \
 	(DCN_BASE.instance[0].segment[reg ## reg_name ## _BASE_IDX] + reg ## reg_name)
@@ -2665,6 +2667,11 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 			memset(split, 0, MAX_PIPES * sizeof(int));
 			memset(merge, 0, MAX_PIPES * sizeof(bool));
 			*vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
+
+			// Most populate phantom DLG params before programming hardware / timing for phantom pipe
+			DC_FP_START();
+			dcn32_helper_populate_phantom_dlg_params(dc, context, pipes, *pipe_cnt);
+			DC_FP_END();
 
 			// Note: We can't apply the phantom pipes to hardware at this time. We have to wait
 			// until driver has acquired the DMCUB lock to do it safely.

@@ -30,50 +30,6 @@
 
 /**
  * ********************************************************************************************
- * dcn32_helper_populate_phantom_dlg_params: Get DLG params for phantom pipes and populate pipe_ctx
- * with those params.
- *
- * This function must be called AFTER the phantom pipes are added to context and run through DML
- * (so that the DLG params for the phantom pipes can be populated), and BEFORE we program the
- * timing for the phantom pipes.
- *
- * @param [in] dc: current dc state
- * @param [in] context: new dc state
- * @param [in] pipes: DML pipe params array
- * @param [in] pipe_cnt: DML pipe count
- *
- * @return: void
- *
- * ********************************************************************************************
- */
-void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
-		struct dc_state *context,
-		display_e2e_pipe_params_st *pipes,
-		int pipe_cnt)
-{
-	uint32_t i, pipe_idx;
-	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-		if (!pipe->stream)
-			continue;
-
-		if (pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
-			pipes[pipe_idx].pipe.dest.vstartup_start = get_vstartup(&context->bw_ctx.dml, pipes, pipe_cnt,
-					pipe_idx);
-			pipes[pipe_idx].pipe.dest.vupdate_offset = get_vupdate_offset(&context->bw_ctx.dml, pipes, pipe_cnt,
-					pipe_idx);
-			pipes[pipe_idx].pipe.dest.vupdate_width = get_vupdate_width(&context->bw_ctx.dml, pipes, pipe_cnt,
-					pipe_idx);
-			pipes[pipe_idx].pipe.dest.vready_offset = get_vready_offset(&context->bw_ctx.dml, pipes, pipe_cnt,
-					pipe_idx);
-			pipe->pipe_dlg_param = pipes[pipe_idx].pipe.dest;
-		}
-		pipe_idx++;
-	}
-}
-
-/**
- * ********************************************************************************************
  * dcn32_helper_calculate_num_ways_for_subvp: Calculate number of ways needed for SubVP
  *
  * This function first checks the bytes required per pixel on the SubVP pipe, then calculates
