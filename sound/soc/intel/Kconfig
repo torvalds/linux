@@ -216,7 +216,7 @@ config SND_SOC_INTEL_AVS
 	depends on COMMON_CLK
 	select SND_SOC_ACPI if ACPI
 	select SND_SOC_TOPOLOGY
-	select SND_HDA
+	select SND_SOC_HDA
 	select SND_HDA_EXT_CORE
 	select SND_HDA_DSP_LOADER
 	select SND_INTEL_DSP_CONFIG

@@ -23,6 +23,7 @@
 #include <sound/hdaudio_ext.h>
 #include <sound/intel-dsp-config.h>
 #include <sound/intel-nhlt.h>
+#include "../../codecs/hda.h"
 #include "avs.h"
 #include "cldma.h"
 
@@ -356,7 +357,7 @@ static int avs_bus_init(struct avs_dev *adev, struct pci_dev *pci, const struct 
 	struct device *dev = &pci->dev;
 	int ret;
 
-	ret = snd_hdac_ext_bus_init(&bus->core, dev, NULL, NULL);
+	ret = snd_hdac_ext_bus_init(&bus->core, dev, NULL, &soc_hda_ext_bus_ops);
 	if (ret < 0)
 		return ret;
 
