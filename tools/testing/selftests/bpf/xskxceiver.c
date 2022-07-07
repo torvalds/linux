@@ -98,11 +98,11 @@
 #include <unistd.h>
 #include <stdatomic.h>
 #include "xsk.h"
-#include "xdpxceiver.h"
+#include "xskxceiver.h"
 #include "../kselftest.h"
 
 /* AF_XDP APIs were moved into libxdp and marked as deprecated in libbpf.
- * Until xdpxceiver is either moved or re-writed into libxdp, suppress
+ * Until xskxceiver is either moved or re-writed into libxdp, suppress
  * deprecation warnings in this file
  */
 #pragma GCC diagnostic ignored "-Wdeprecated-declarations"

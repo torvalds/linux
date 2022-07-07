@@ -2,8 +2,8 @@
  * Copyright(c) 2020 Intel Corporation.
  */
 
-#ifndef XDPXCEIVER_H_
-#define XDPXCEIVER_H_
+#ifndef XSKXCEIVER_H_
+#define XSKXCEIVER_H_
 
 #ifndef SOL_XDP
 #define SOL_XDP 283
@@ -169,4 +169,4 @@ pthread_cond_t pacing_cond = PTHREAD_COND_INITIALIZER;
 
 int pkts_in_flight;
 
-#endif				/* XDPXCEIVER_H */
+#endif				/* XSKXCEIVER_H_ */
