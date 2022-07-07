@@ -120,6 +120,7 @@ properties:
           - enum:
               - amlogic,q200
               - amlogic,q201
+              - azw,gt1-ultimate
               - khadas,vim2
               - kingnovel,r-box-pro
               - libretech,aml-s912-pc
