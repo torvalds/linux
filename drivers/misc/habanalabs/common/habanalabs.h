@@ -345,7 +345,8 @@ enum hl_cs_type {
 	CS_TYPE_WAIT,
 	CS_TYPE_COLLECTIVE_WAIT,
 	CS_RESERVE_SIGNALS,
-	CS_UNRESERVE_SIGNALS
+	CS_UNRESERVE_SIGNALS,
+	CS_TYPE_ENGINE_CORE
 };
 
 /*
@@ -617,6 +618,7 @@ struct hl_hints_range {
  *                                      which the property supports_user_set_page_size is true
  *                                      (i.e. the DRAM supports multiple page sizes), otherwise
  *                                      it will shall  be equal to dram_page_size.
+ * @num_engine_cores: number of engine cpu cores
  * @collective_first_sob: first sync object available for collective use
  * @collective_first_mon: first monitor available for collective use
  * @sync_stream_first_sob: first sync object available for sync stream use
@@ -737,6 +739,7 @@ struct asic_fixed_properties {
 	u32				faulty_dram_cluster_map;
 	u32				xbar_edge_enabled_mask;
 	u32				device_mem_alloc_default_page_size;
+	u32				num_engine_cores;
 	u16				collective_first_sob;
 	u16				collective_first_mon;
 	u16				sync_stream_first_sob;
@@ -1511,6 +1514,7 @@ struct engines_data {
  * @check_if_razwi_happened: check if there was a razwi due to RR violation.
  * @access_dev_mem: access device memory
  * @set_dram_bar_base: set the base of the DRAM BAR
+ * @set_engine_cores: set a config command to enigne cores
  */
 struct hl_asic_funcs {
 	int (*early_init)(struct hl_device *hdev);
@@ -1645,6 +1649,8 @@ struct hl_asic_funcs {
 	int (*access_dev_mem)(struct hl_device *hdev, enum pci_region region_type,
 				u64 addr, u64 *val, enum debugfs_access_type acc_type);
 	u64 (*set_dram_bar_base)(struct hl_device *hdev, u64 addr);
+	int (*set_engine_cores)(struct hl_device *hdev, u32 *core_ids,
+					u32 num_cores, u32 core_command);
 };
 
 

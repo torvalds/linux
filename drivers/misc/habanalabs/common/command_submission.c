@@ -13,7 +13,7 @@
 
 #define HL_CS_FLAGS_TYPE_MASK	(HL_CS_FLAGS_SIGNAL | HL_CS_FLAGS_WAIT | \
 			HL_CS_FLAGS_COLLECTIVE_WAIT | HL_CS_FLAGS_RESERVE_SIGNALS_ONLY | \
-			HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY)
+			HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY | HL_CS_FLAGS_ENGINE_CORE_COMMAND)
 
 
 #define MAX_TS_ITER_NUM 10
@@ -1244,6 +1244,8 @@ static enum hl_cs_type hl_cs_get_cs_type(u32 cs_type_flags)
 		return CS_RESERVE_SIGNALS;
 	else if (cs_type_flags & HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY)
 		return CS_UNRESERVE_SIGNALS;
+	else if (cs_type_flags & HL_CS_FLAGS_ENGINE_CORE_COMMAND)
+		return CS_TYPE_ENGINE_CORE;
 	else
 		return CS_TYPE_DEFAULT;
 }
@@ -2355,6 +2357,41 @@ out:
 	return rc;
 }
 
+static int cs_ioctl_engine_cores(struct hl_fpriv *hpriv, u64 engine_cores,
+						u32 num_engine_cores, u32 core_command)
+{
+	int rc;
+	struct hl_device *hdev = hpriv->hdev;
+	void __user *engine_cores_arr;
+	u32 *cores;
+
+	if (!num_engine_cores || num_engine_cores > hdev->asic_prop.num_engine_cores) {
+		dev_err(hdev->dev, "Number of engine cores %d is invalid\n", num_engine_cores);
+		return -EINVAL;
+	}
+
+	if (core_command != HL_ENGINE_CORE_RUN && core_command != HL_ENGINE_CORE_HALT) {
+		dev_err(hdev->dev, "Engine core command is invalid\n");
+		return -EINVAL;
+	}
+
+	engine_cores_arr = (void __user *) (uintptr_t) engine_cores;
+	cores = kmalloc_array(num_engine_cores, sizeof(u32), GFP_KERNEL);
+	if (!cores)
+		return -ENOMEM;
+
+	if (copy_from_user(cores, engine_cores_arr, num_engine_cores * sizeof(u32))) {
+		dev_err(hdev->dev, "Failed to copy core-ids array from user\n");
+		kfree(cores);
+		return -EFAULT;
+	}
+
+	rc = hdev->asic_funcs->set_engine_cores(hdev, cores, num_engine_cores, core_command);
+	kfree(cores);
+
+	return rc;
+}
+
 int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	union hl_cs_args *args = data;
@@ -2406,6 +2443,10 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	case CS_UNRESERVE_SIGNALS:
 		rc = cs_ioctl_unreserve_signals(hpriv,
 					args->in.encaps_sig_handle_id);
+		break;
+	case CS_TYPE_ENGINE_CORE:
+		rc = cs_ioctl_engine_cores(hpriv, args->in.engine_cores,
+				args->in.num_engine_cores, args->in.core_command);
 		break;
 	default:
 		rc = cs_ioctl_default(hpriv, chunks, num_chunks, &cs_seq,

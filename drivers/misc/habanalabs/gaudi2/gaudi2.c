@@ -1989,6 +1989,7 @@ static int gaudi2_set_fixed_properties(struct hl_device *hdev)
 		prop->pmmu_huge.end_addr = VA_HOST_SPACE_HPAGE_END;
 	}
 
+	prop->num_engine_cores = CPU_ID_MAX;
 	prop->cfg_size = CFG_SIZE;
 	prop->max_asid = MAX_ASID;
 	prop->num_of_events = GAUDI2_EVENT_SIZE;
@@ -3751,14 +3752,16 @@ static void gaudi2_stop_dec(struct hl_device *hdev)
 	gaudi2_stop_pcie_dec(hdev);
 }
 
-static void gaudi2_halt_arc(struct hl_device *hdev, u32 cpu_id)
+static void gaudi2_set_arc_running_mode(struct hl_device *hdev, u32 cpu_id, u32 run_mode)
 {
 	u32 reg_base, reg_val;
 
 	reg_base = gaudi2_arc_blocks_bases[cpu_id];
+	if (run_mode == HL_ENGINE_CORE_RUN)
+		reg_val = FIELD_PREP(ARC_FARM_ARC0_AUX_RUN_HALT_REQ_RUN_REQ_MASK, 1);
+	else
+		reg_val = FIELD_PREP(ARC_FARM_ARC0_AUX_RUN_HALT_REQ_HALT_REQ_MASK, 1);
 
-	/* Halt ARC */
-	reg_val = FIELD_PREP(ARC_FARM_ARC0_AUX_RUN_HALT_REQ_HALT_REQ_MASK, 1);
 	WREG32(reg_base + ARC_HALT_REQ_OFFSET, reg_val);
 }
 
@@ -3768,8 +3771,35 @@ static void gaudi2_halt_arcs(struct hl_device *hdev)
 
 	for (arc_id = CPU_ID_SCHED_ARC0; arc_id < CPU_ID_MAX; arc_id++) {
 		if (gaudi2_is_arc_enabled(hdev, arc_id))
-			gaudi2_halt_arc(hdev, arc_id);
+			gaudi2_set_arc_running_mode(hdev, arc_id, HL_ENGINE_CORE_HALT);
 	}
+}
+
+static int gaudi2_verify_arc_running_mode(struct hl_device *hdev, u32 cpu_id, u32 run_mode)
+{
+	int rc;
+	u32 reg_base, val, ack_mask, timeout_usec = 100000;
+
+	if (hdev->pldm)
+		timeout_usec *= 100;
+
+	reg_base = gaudi2_arc_blocks_bases[cpu_id];
+	if (run_mode == HL_ENGINE_CORE_RUN)
+		ack_mask = ARC_FARM_ARC0_AUX_RUN_HALT_ACK_RUN_ACK_MASK;
+	else
+		ack_mask = ARC_FARM_ARC0_AUX_RUN_HALT_ACK_HALT_ACK_MASK;
+
+	rc = hl_poll_timeout(hdev, reg_base + ARC_HALT_ACK_OFFSET,
+				val, ((val & ack_mask) == ack_mask),
+				1000, timeout_usec);
+
+	if (!rc) {
+		/* Clear */
+		val = FIELD_PREP(ARC_FARM_ARC0_AUX_RUN_HALT_REQ_RUN_REQ_MASK, 0);
+		WREG32(reg_base + ARC_HALT_REQ_OFFSET, val);
+	}
+
+	return rc;
 }
 
 static void gaudi2_reset_arcs(struct hl_device *hdev)
@@ -3796,8 +3826,39 @@ static void gaudi2_nic_qmans_manual_flush(struct hl_device *hdev)
 
 	queue_id = GAUDI2_QUEUE_ID_NIC_0_0;
 
-	for (i = 0 ; i < NIC_NUMBER_OF_ENGINES ; i++, queue_id += NUM_OF_PQ_PER_QMAN)
+	for (i = 0 ; i < NIC_NUMBER_OF_ENGINES ; i++, queue_id += NUM_OF_PQ_PER_QMAN) {
+		if (!(hdev->nic_ports_mask & BIT(i)))
+			continue;
+
 		gaudi2_qman_manual_flush_common(hdev, queue_id);
+	}
+}
+
+static int gaudi2_set_engine_cores(struct hl_device *hdev, u32 *core_ids,
+					u32 num_cores, u32 core_command)
+{
+	int i, rc;
+
+
+	for (i = 0 ; i < num_cores ; i++) {
+		if (gaudi2_is_arc_enabled(hdev, core_ids[i]))
+			gaudi2_set_arc_running_mode(hdev, core_ids[i], core_command);
+	}
+
+	for (i = 0 ; i < num_cores ; i++) {
+		if (gaudi2_is_arc_enabled(hdev, core_ids[i])) {
+			rc = gaudi2_verify_arc_running_mode(hdev, core_ids[i], core_command);
+
+			if (rc) {
+				dev_err(hdev->dev, "failed to %s arc: %d\n",
+					(core_command == HL_ENGINE_CORE_HALT) ?
+					"HALT" : "RUN", core_ids[i]);
+				return -1;
+			}
+		}
+	}
+
+	return 0;
 }
 
 static void gaudi2_halt_engines(struct hl_device *hdev, bool hard_reset, bool fw_reset)
@@ -9968,6 +10029,7 @@ static const struct hl_asic_funcs gaudi2_funcs = {
 	.mmu_get_real_page_size = gaudi2_mmu_get_real_page_size,
 	.access_dev_mem = hl_access_dev_mem,
 	.set_dram_bar_base = gaudi2_set_hbm_bar_base,
+	.set_engine_cores = gaudi2_set_engine_cores,
 };
 
 void gaudi2_set_asic_funcs(struct hl_device *hdev)

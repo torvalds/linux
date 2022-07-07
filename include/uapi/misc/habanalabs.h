@@ -1361,17 +1361,47 @@ struct hl_cs_chunk {
 #define HL_CS_FLAGS_RESERVE_SIGNALS_ONLY	0x1000
 #define HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY	0x2000
 
+/*
+ * The engine cores CS is merged into the existing CS ioctls.
+ * Use it to control the engine cores mode.
+ */
+#define HL_CS_FLAGS_ENGINE_CORE_COMMAND		0x4000
+
 #define HL_CS_STATUS_SUCCESS		0
 
 #define HL_MAX_JOBS_PER_CS		512
 
+/* HL_ENGINE_CORE_ values
+ *
+ * HL_ENGINE_CORE_HALT: engine core halt
+ * HL_ENGINE_CORE_RUN:  engine core run
+ */
+#define HL_ENGINE_CORE_HALT	(1 << 0)
+#define HL_ENGINE_CORE_RUN	(1 << 1)
+
 struct hl_cs_in {
 
-	/* this holds address of array of hl_cs_chunk for restore phase */
-	__u64 chunks_restore;
+	union {
+		struct {
+			/* this holds address of array of hl_cs_chunk for restore phase */
+			__u64 chunks_restore;
 
-	/* holds address of array of hl_cs_chunk for execution phase */
-	__u64 chunks_execute;
+			/* holds address of array of hl_cs_chunk for execution phase */
+			__u64 chunks_execute;
+		};
+
+		/* Valid only when HL_CS_FLAGS_ENGINE_CORE_COMMAND is set */
+		struct {
+			/* this holds address of array of uint32 for engine_cores */
+			__u64 engine_cores;
+
+			/* number of engine cores in engine_cores array */
+			__u32 num_engine_cores;
+
+			/* the core command to be sent towards engine cores */
+			__u32 core_command;
+		};
+	};
 
 	union {
 		/*
