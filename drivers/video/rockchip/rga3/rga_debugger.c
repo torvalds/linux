@@ -235,7 +235,7 @@ static int rga_scheduler_show(struct seq_file *m, void *data)
 
 static int rga_mm_session_show(struct seq_file *m, void *data)
 {
-	int id, i;
+	int id;
 	struct rga_mm *mm_session = NULL;
 	struct rga_internal_buffer *dump_buffer;
 
@@ -255,36 +255,45 @@ static int rga_mm_session_show(struct seq_file *m, void *data)
 		switch (dump_buffer->type) {
 		case RGA_DMA_BUFFER:
 		case RGA_DMA_BUFFER_PTR:
-			seq_puts(m, "dma_buffer:\n");
-			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
-				if (rga_mm_is_invalid_dma_buffer(&dump_buffer->dma_buffer[i]))
-					continue;
+			if (rga_mm_is_invalid_dma_buffer(dump_buffer->dma_buffer))
+				break;
 
-				seq_printf(m, "\t core %d:\n",
-					   dump_buffer->dma_buffer[i].scheduler->core);
-				seq_printf(m, "\t\t dma_buf = %p, iova = 0x%lx\n",
-					   dump_buffer->dma_buffer[i].dma_buf,
-					   (unsigned long)dump_buffer->dma_buffer[i].iova);
-			}
+			seq_puts(m, "dma_buffer:\n");
+			seq_printf(m, "\t dma_buf = %p, iova = 0x%lxsgt = 0x%p, size = %ld, map_core = 0x%x\n",
+				   dump_buffer->dma_buffer->dma_buf,
+				   (unsigned long)dump_buffer->dma_buffer->iova,
+				   dump_buffer->dma_buffer->sgt,
+				   dump_buffer->dma_buffer->size,
+				   dump_buffer->dma_buffer->scheduler->core);
+
+			if (dump_buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS)
+				seq_printf(m, "\t is contiguous, pa = 0x%lx\n",
+					   (unsigned long)dump_buffer->phys_addr);
+
 			break;
 		case RGA_VIRTUAL_ADDRESS:
+			if (dump_buffer->virt_addr == NULL)
+				break;
 			seq_puts(m, "virtual address:\n");
-			seq_printf(m, "\t va = 0x%lx, pages = %p, size = %ld\n",
+			seq_printf(m, "\t va = 0x%lx, pages = 0x%p, size = %ld\n",
 				   (unsigned long)dump_buffer->virt_addr->addr,
 				   dump_buffer->virt_addr->pages,
 				   dump_buffer->virt_addr->size);
 
-			for (i = 0; i < dump_buffer->dma_buffer_size; i++) {
-				if (rga_mm_is_invalid_dma_buffer(&dump_buffer->dma_buffer[i]))
-					continue;
+			if (rga_mm_is_invalid_dma_buffer(dump_buffer->dma_buffer))
+				break;
 
-				seq_printf(m, "\t core %d:\n",
-					   dump_buffer->dma_buffer[i].scheduler->core);
-				seq_printf(m, "\t\t iova = 0x%lx, sgt = %p, size = %ld\n",
-					   (unsigned long)dump_buffer->dma_buffer[i].iova,
-					   dump_buffer->dma_buffer[i].sgt,
-					   dump_buffer->dma_buffer[i].size);
-			}
+			seq_printf(m, "\t iova = 0x%lx, offset = 0x%lx, sgt = 0x%p, size = %ld, map_core = 0x%x\n",
+				   (unsigned long)dump_buffer->dma_buffer->iova,
+				   (unsigned long)dump_buffer->dma_buffer->offset,
+				   dump_buffer->dma_buffer->sgt,
+				   dump_buffer->dma_buffer->size,
+				   dump_buffer->dma_buffer->scheduler->core);
+
+			if (dump_buffer->mm_flag & RGA_MEM_PHYSICAL_CONTIGUOUS)
+				seq_printf(m, "\t is contiguous, pa = 0x%lx\n",
+					   (unsigned long)dump_buffer->phys_addr);
+
 			break;
 		case RGA_PHYSICAL_ADDRESS:
 			seq_puts(m, "physical address:\n");

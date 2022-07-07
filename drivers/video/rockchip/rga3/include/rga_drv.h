@@ -86,7 +86,7 @@
 
 #define DRIVER_MAJOR_VERISON		1
 #define DRIVER_MINOR_VERSION		2
-#define DRIVER_REVISION_VERSION		15
+#define DRIVER_REVISION_VERSION		16
 
 #define DRIVER_VERSION (STR(DRIVER_MAJOR_VERISON) "." STR(DRIVER_MINOR_VERSION) \
 			"." STR(DRIVER_REVISION_VERSION))
@@ -185,7 +185,6 @@ struct rga_virt_addr {
 struct rga_internal_buffer {
 	/* DMA buffer */
 	struct rga_dma_buffer *dma_buffer;
-	uint32_t dma_buffer_size;
 
 	/* virtual address */
 	struct rga_virt_addr *virt_addr;
