@@ -405,7 +405,7 @@ xrep_agf(
 	 * btrees rooted in the AGF.  If the AGFL contents are obviously bad
 	 * then we'll bail out.
 	 */
-	error = xfs_alloc_read_agfl(mp, sc->tp, sc->sa.pag->pag_agno, &agfl_bp);
+	error = xfs_alloc_read_agfl(sc->sa.pag, sc->tp, &agfl_bp);
 	if (error)
 		return error;
 

@@ -424,7 +424,7 @@ xchk_ag_read_headers(
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGF))
 		return error;
 
-	error = xfs_alloc_read_agfl(mp, sc->tp, agno, &sa->agfl_bp);
+	error = xfs_alloc_read_agfl(sa->pag, sc->tp, &sa->agfl_bp);
 	if (error && want_ag_read_header_failure(sc, XFS_SCRUB_TYPE_AGFL))
 		return error;
 
