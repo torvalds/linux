@@ -265,6 +265,12 @@ int off_cpu_write(struct perf_session *session)
 
 	sample_type = evsel->core.attr.sample_type;
 
+	if (sample_type & ~OFFCPU_SAMPLE_TYPES) {
+		pr_err("not supported sample type: %llx\n",
+		       (unsigned long long)sample_type);
+		return -1;
+	}
+
 	if (sample_type & (PERF_SAMPLE_ID | PERF_SAMPLE_IDENTIFIER)) {
 		if (evsel->core.id)
 			sid = evsel->core.id[0];
@@ -319,7 +325,6 @@ int off_cpu_write(struct perf_session *session)
 		}
 		if (sample_type & PERF_SAMPLE_CGROUP)
 			data.array[n++] = key.cgroup_id;
-		/* TODO: handle more sample types */
 
 		size = n * sizeof(u64);
 		data.hdr.size = size;

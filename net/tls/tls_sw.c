@@ -269,9 +269,6 @@ static int tls_do_decryption(struct sock *sk,
 	}
 	darg->async = false;
 
-	if (ret == -EBADMSG)
-		TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSDECRYPTERROR);
-
 	return ret;
 }
 
@@ -1593,8 +1590,11 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 	}
 
 	err = decrypt_internal(sk, skb, dest, NULL, darg);
-	if (err < 0)
+	if (err < 0) {
+		if (err == -EBADMSG)
+			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSDECRYPTERROR);
 		return err;
+	}
 	if (darg->async)
 		goto decrypt_next;
 	/* If opportunistic TLS 1.3 ZC failed retry without ZC */
