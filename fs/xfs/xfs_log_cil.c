@@ -125,6 +125,9 @@ xlog_cil_push_pcp_aggregate(
 	for_each_online_cpu(cpu) {
 		cilpcp = per_cpu_ptr(cil->xc_pcp, cpu);
 
+		ctx->ticket->t_curr_res += cilpcp->space_reserved;
+		cilpcp->space_reserved = 0;
+
 		/*
 		 * We're in the middle of switching cil contexts.  Reset the
 		 * counter we use to detect when the current context is nearing
@@ -608,6 +611,7 @@ xlog_cil_insert_items(
 			ctx_res = split_res * tp->t_ticket->t_iclog_hdrs;
 		atomic_sub(tp->t_ticket->t_iclog_hdrs, &cil->xc_iclog_hdrs);
 	}
+	cilpcp->space_reserved += ctx_res;
 
 	/*
 	 * Accurately account when over the soft limit, otherwise fold the
@@ -632,14 +636,12 @@ xlog_cil_insert_items(
 	}
 	put_cpu_ptr(cilpcp);
 
-	spin_lock(&cil->xc_cil_lock);
-	ctx->ticket->t_curr_res += ctx_res;
-
 	/*
 	 * Now (re-)position everything modified at the tail of the CIL.
 	 * We do this here so we only need to take the CIL lock once during
 	 * the transaction commit.
 	 */
+	spin_lock(&cil->xc_cil_lock);
 	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		/* Skip items which aren't dirty in this transaction. */
 		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
@@ -1746,9 +1748,15 @@ xlog_cil_pcp_dead(
 {
 	struct xfs_cil		*cil = log->l_cilp;
 	struct xlog_cil_pcp	*cilpcp = per_cpu_ptr(cil->xc_pcp, cpu);
+	struct xfs_cil_ctx	*ctx;
 
 	down_write(&cil->xc_ctx_lock);
-	atomic_add(cilpcp->space_used, &cil->xc_ctx->space_used);
+	ctx = cil->xc_ctx;
+	if (ctx->ticket)
+		ctx->ticket->t_curr_res += cilpcp->space_reserved;
+	cilpcp->space_reserved = 0;
+
+	atomic_add(cilpcp->space_used, &ctx->space_used);
 	cilpcp->space_used = 0;
 	up_write(&cil->xc_ctx_lock);
 }

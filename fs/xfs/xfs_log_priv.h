@@ -236,6 +236,7 @@ struct xfs_cil_ctx {
  */
 struct xlog_cil_pcp {
 	int32_t			space_used;
+	uint32_t		space_reserved;
 	struct list_head	busy_extents;
 	struct list_head	log_items;
 };
