@@ -176,17 +176,17 @@ int hda_cldma_reset(struct hda_cldma *cl)
 		return ret;
 	}
 
-	snd_hdac_stream_updateb(cl, SD_CTL, 1, 1);
-	ret = snd_hdac_stream_readb_poll(cl, SD_CTL, reg, (reg & 1), AVS_CL_OP_INTERVAL_US,
-					 AVS_CL_OP_TIMEOUT_US);
+	snd_hdac_stream_updateb(cl, SD_CTL, SD_CTL_STREAM_RESET, SD_CTL_STREAM_RESET);
+	ret = snd_hdac_stream_readb_poll(cl, SD_CTL, reg, (reg & SD_CTL_STREAM_RESET),
+					 AVS_CL_OP_INTERVAL_US, AVS_CL_OP_TIMEOUT_US);
 	if (ret < 0) {
 		dev_err(cl->dev, "cldma set SRST failed: %d\n", ret);
 		return ret;
 	}
 
-	snd_hdac_stream_updateb(cl, SD_CTL, 1, 0);
-	ret = snd_hdac_stream_readb_poll(cl, SD_CTL, reg, !(reg & 1), AVS_CL_OP_INTERVAL_US,
-					 AVS_CL_OP_TIMEOUT_US);
+	snd_hdac_stream_updateb(cl, SD_CTL, SD_CTL_STREAM_RESET, 0);
+	ret = snd_hdac_stream_readb_poll(cl, SD_CTL, reg, !(reg & SD_CTL_STREAM_RESET),
+					 AVS_CL_OP_INTERVAL_US, AVS_CL_OP_TIMEOUT_US);
 	if (ret < 0) {
 		dev_err(cl->dev, "cldma unset SRST failed: %d\n", ret);
 		return ret;
