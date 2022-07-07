@@ -293,11 +293,6 @@ static int st_es8336_probe(struct platform_device *pdev)
 	return 0;
 }
 
-static int st_es8336_remove(struct platform_device *pdev)
-{
-	return 0;
-}
-
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id st_audio_acpi_match[] = {
 	{"AMDI8336", 0},
@@ -313,7 +308,6 @@ static struct platform_driver st_mach_driver = {
 		.pm = &snd_soc_pm_ops,
 	},
 	.probe = st_es8336_probe,
-	.remove = st_es8336_remove,
 };
 
 module_platform_driver(st_mach_driver);
