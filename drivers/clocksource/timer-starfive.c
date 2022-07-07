@@ -410,14 +410,17 @@ static int __init do_starfive_timer_of_init(struct device_node *np,
 			goto irq_err;
 		}
 
-		ret = starfive_clockevents_register(clkevt, irq, np, name);
+		snprintf(clkevt->name, sizeof(clkevt->name), "%s.ch%d",
+					np->full_name, index);
+
+		ret = starfive_clockevents_register(clkevt, irq, np, clkevt->name);
 		if (ret) {
-			pr_err("%s: init clockevents failed.\n", name);
+			pr_err("%s: init clockevents failed.\n", clkevt->name);
 			goto register_err;
 		}
 		clkevt->irq = irq;
 
-		ret = starfive_clocksource_init(clkevt, name, np);
+		ret = starfive_clocksource_init(clkevt, clkevt->name, np);
 		if (ret)
 			goto init_err;
 	}
