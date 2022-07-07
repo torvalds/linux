@@ -2207,7 +2207,7 @@ static void gsm_queue(struct gsm_mux *gsm)
 	case UIH:
 	case UIH|PF:
 		if (dlci == NULL || dlci->state != DLCI_OPEN) {
-			gsm_command(gsm, address, DM|PF);
+			gsm_response(gsm, address, DM|PF);
 			return;
 		}
 		dlci->data(dlci, gsm->buf, gsm->len);
