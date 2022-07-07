@@ -240,7 +240,7 @@ static int vfio_ccw_sch_probe(struct subchannel *sch)
 
 	private->state = VFIO_CCW_STATE_STANDBY;
 
-	ret = vfio_ccw_mdev_reg(sch);
+	ret = mdev_register_device(&sch->dev, &vfio_ccw_mdev_driver);
 	if (ret)
 		goto out_disable;
 
@@ -262,7 +262,7 @@ static void vfio_ccw_sch_remove(struct subchannel *sch)
 	struct vfio_ccw_private *private = dev_get_drvdata(&sch->dev);
 
 	vfio_ccw_sch_quiesce(sch);
-	vfio_ccw_mdev_unreg(sch);
+	mdev_unregister_device(&sch->dev);
 
 	dev_set_drvdata(&sch->dev, NULL);
 

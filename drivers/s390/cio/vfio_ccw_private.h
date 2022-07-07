@@ -117,9 +117,6 @@ struct vfio_ccw_private {
 	struct work_struct	crw_work;
 } __aligned(8);
 
-int vfio_ccw_mdev_reg(struct subchannel *sch);
-void vfio_ccw_mdev_unreg(struct subchannel *sch);
-
 int vfio_ccw_sch_quiesce(struct subchannel *sch);
 
 extern struct mdev_driver vfio_ccw_mdev_driver;
