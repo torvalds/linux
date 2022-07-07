@@ -6877,6 +6877,16 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 			vop2_crtc_enable_dsc(crtc, old_state, vcstate->dsc_id);
 		}
 	}
+	/* For RK3588, the reset value of background is 0xa0080200,
+	 * which will enable background and output a grey image. But
+	 * the reset value is just valid in first frame and disable
+	 * in follow frames. If the panel backlight is valid before
+	 * follow frames. The screen may flick a grey image. To avoid
+	 * this phenomenon appear, setting black background after
+	 * reset vop
+	 */
+	if (vop2->version == VOP_VERSION_RK3588)
+		VOP_MODULE_SET(vop2, vp, dsp_background, 0x80000000);
 	vop2_cfg_done(crtc);
 
 	/*
