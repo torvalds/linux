@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/namei.h>
 #include <linux/init_syscalls.h>
+#include <linux/task_work.h>
 #include <linux/umh.h>
 
 static __initdata bool csum_present;
@@ -727,6 +728,7 @@ done:
 	initrd_end = 0;
 
 	flush_delayed_fput();
+	task_work_run();
 }
 
 static ASYNC_DOMAIN_EXCLUSIVE(initramfs_domain);
