@@ -33,8 +33,8 @@
 
 static unsigned long acp2x_machine_id;
 static struct snd_soc_jack st_jack;
-struct device *codec_dev;
-struct gpio_desc *gpio_pa;
+static struct device *codec_dev;
+static struct gpio_desc *gpio_pa;
 
 static int sof_es8316_speaker_power_event(struct snd_soc_dapm_widget *w,
 					  struct snd_kcontrol *kcontrol, int event)
