@@ -118,6 +118,7 @@
 #define KERNEL_HWCAP_SME_F32F32		__khwcap2_feature(SME_F32F32)
 #define KERNEL_HWCAP_SME_FA64		__khwcap2_feature(SME_FA64)
 #define KERNEL_HWCAP_WFXT		__khwcap2_feature(WFXT)
+#define KERNEL_HWCAP_EBF16		__khwcap2_feature(EBF16)
 
 /*
  * This yields a mask that user programs can use to figure out what
