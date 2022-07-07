@@ -1065,25 +1065,37 @@ lpfc_nvme_io_cmd_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 			nCmd->rcv_rsplen = wcqe->parameter;
 			nCmd->status = 0;
 
+			/* Get the NVME cmd details for this unique error. */
+			cp = (struct nvme_fc_cmd_iu *)nCmd->cmdaddr;
+			ep = (struct nvme_fc_ersp_iu *)nCmd->rspaddr;
+
 			/* Check if this is really an ERSP */
 			if (nCmd->rcv_rsplen == LPFC_NVME_ERSP_LEN) {
 				lpfc_ncmd->status = IOSTAT_SUCCESS;
 				lpfc_ncmd->result = 0;
 
 				lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME,
-					 "6084 NVME Completion ERSP: "
-					 "xri %x placed x%x\n",
-					 lpfc_ncmd->cur_iocbq.sli4_xritag,
-					 wcqe->total_data_placed);
+					"6084 NVME FCP_ERR ERSP: "
+					"xri %x placed x%x opcode x%x cmd_id "
+					"x%x cqe_status x%x\n",
+					lpfc_ncmd->cur_iocbq.sli4_xritag,
+					wcqe->total_data_placed,
+					cp->sqe.common.opcode,
+					cp->sqe.common.command_id,
+					ep->cqe.status);
 				break;
 			}
 			lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
 					 "6081 NVME Completion Protocol Error: "
 					 "xri %x status x%x result x%x "
-					 "placed x%x\n",
+					 "placed x%x opcode x%x cmd_id x%x, "
+					 "cqe_status x%x\n",
 					 lpfc_ncmd->cur_iocbq.sli4_xritag,
 					 lpfc_ncmd->status, lpfc_ncmd->result,
-					 wcqe->total_data_placed);
+					 wcqe->total_data_placed,
+					 cp->sqe.common.opcode,
+					 cp->sqe.common.command_id,
+					 ep->cqe.status);
 			break;
 		case IOSTAT_LOCAL_REJECT:
 			/* Let fall through to set command final state. */
@@ -1195,7 +1207,8 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 {
 	struct lpfc_hba *phba = vport->phba;
 	struct nvmefc_fcp_req *nCmd = lpfc_ncmd->nvmeCmd;
-	struct lpfc_iocbq *pwqeq = &(lpfc_ncmd->cur_iocbq);
+	struct nvme_common_command *sqe;
+	struct lpfc_iocbq *pwqeq = &lpfc_ncmd->cur_iocbq;
 	union lpfc_wqe128 *wqe = &pwqeq->wqe;
 	uint32_t req_len;
 
@@ -1252,8 +1265,14 @@ lpfc_nvme_prep_io_cmd(struct lpfc_vport *vport,
 		cstat->control_requests++;
 	}
 
-	if (pnode->nlp_nvme_info & NLP_NVME_NSLER)
+	if (pnode->nlp_nvme_info & NLP_NVME_NSLER) {
 		bf_set(wqe_erp, &wqe->generic.wqe_com, 1);
+		sqe = &((struct nvme_fc_cmd_iu *)
+			nCmd->cmdaddr)->sqe.common;
+		if (sqe->opcode == nvme_admin_async_event)
+			bf_set(wqe_ffrq, &wqe->generic.wqe_com, 1);
+	}
+
 	/*
 	 * Finish initializing those WQE fields that are independent
 	 * of the nvme_cmnd request_buffer
@@ -1787,7 +1806,7 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
  * lpfc_nvme_abort_fcreq_cmpl - Complete an NVME FCP abort request.
  * @phba: Pointer to HBA context object
  * @cmdiocb: Pointer to command iocb object.
- * @abts_cmpl: Pointer to wcqe complete object.
+ * @rspiocb: Pointer to response iocb object.
  *
  * This is the callback function for any NVME FCP IO that was aborted.
  *
@@ -1796,8 +1815,10 @@ lpfc_nvme_fcp_io_submit(struct nvme_fc_local_port *pnvme_lport,
  **/
 void
 lpfc_nvme_abort_fcreq_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
-			   struct lpfc_wcqe_complete *abts_cmpl)
+			   struct lpfc_iocbq *rspiocb)
 {
+	struct lpfc_wcqe_complete *abts_cmpl = &rspiocb->wcqe_cmpl;
+
 	lpfc_printf_log(phba, KERN_INFO, LOG_NVME,
 			"6145 ABORT_XRI_CN completing on rpi x%x "
 			"original iotag x%x, abort cmd iotag x%x "
@@ -1840,6 +1861,7 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 	struct lpfc_nvme_fcpreq_priv *freqpriv;
 	unsigned long flags;
 	int ret_val;
+	struct nvme_fc_cmd_iu *cp;
 
 	/* Validate pointers. LLDD fault handling with transport does
 	 * have timing races.
@@ -1963,10 +1985,16 @@ lpfc_nvme_fcp_abort(struct nvme_fc_local_port *pnvme_lport,
 		return;
 	}
 
+	/*
+	 * Get Command Id from cmd to plug into response. This
+	 * code is not needed in the next NVME Transport drop.
+	 */
+	cp = (struct nvme_fc_cmd_iu *)lpfc_nbuf->nvmeCmd->cmdaddr;
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_ABTS,
 			 "6138 Transport Abort NVME Request Issued for "
-			 "ox_id x%x\n",
-			 nvmereq_wqe->sli4_xritag);
+			 "ox_id x%x nvme opcode x%x nvme cmd_id x%x\n",
+			 nvmereq_wqe->sli4_xritag, cp->sqe.common.opcode,
+			 cp->sqe.common.command_id);
 	return;
 
 out_unlock:
