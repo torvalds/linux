@@ -2571,25 +2571,24 @@ const struct xfs_buf_ops xfs_agi_buf_ops = {
  */
 int
 xfs_read_agi(
-	struct xfs_mount	*mp,	/* file system mount structure */
-	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	struct xfs_buf		**bpp)	/* allocation group hdr buf */
+	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
+	struct xfs_buf		**agibpp)
 {
+	struct xfs_mount	*mp = pag->pag_mount;
 	int			error;
 
-	trace_xfs_read_agi(mp, agno);
+	trace_xfs_read_agi(pag->pag_mount, pag->pag_agno);
 
-	ASSERT(agno != NULLAGNUMBER);
 	error = xfs_trans_read_buf(mp, tp, mp->m_ddev_targp,
-			XFS_AG_DADDR(mp, agno, XFS_AGI_DADDR(mp)),
-			XFS_FSS_TO_BB(mp, 1), 0, bpp, &xfs_agi_buf_ops);
+			XFS_AG_DADDR(mp, pag->pag_agno, XFS_AGI_DADDR(mp)),
+			XFS_FSS_TO_BB(mp, 1), 0, agibpp, &xfs_agi_buf_ops);
 	if (error)
 		return error;
 	if (tp)
-		xfs_trans_buf_set_type(tp, *bpp, XFS_BLFT_AGI_BUF);
+		xfs_trans_buf_set_type(tp, *agibpp, XFS_BLFT_AGI_BUF);
 
-	xfs_buf_set_ref(*bpp, XFS_AGI_REF);
+	xfs_buf_set_ref(*agibpp, XFS_AGI_REF);
 	return 0;
 }
 
@@ -2609,7 +2608,7 @@ xfs_ialloc_read_agi(
 
 	trace_xfs_ialloc_read_agi(pag->pag_mount, pag->pag_agno);
 
-	error = xfs_read_agi(pag->pag_mount, tp, pag->pag_agno, &agibp);
+	error = xfs_read_agi(pag, tp, &agibp);
 	if (error)
 		return error;
 

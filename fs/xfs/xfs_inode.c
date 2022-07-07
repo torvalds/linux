@@ -2143,7 +2143,7 @@ xfs_iunlink(
 	pag = xfs_perag_get(mp, XFS_INO_TO_AGNO(mp, ip->i_ino));
 
 	/* Get the agi buffer first.  It ensures lock ordering on the list. */
-	error = xfs_read_agi(mp, tp, pag->pag_agno, &agibp);
+	error = xfs_read_agi(pag, tp, &agibp);
 	if (error)
 		goto out;
 	agi = agibp->b_addr;
@@ -2328,7 +2328,7 @@ xfs_iunlink_remove(
 	trace_xfs_iunlink_remove(ip);
 
 	/* Get the agi buffer first.  It ensures lock ordering on the list. */
-	error = xfs_read_agi(mp, tp, pag->pag_agno, &agibp);
+	error = xfs_read_agi(pag, tp, &agibp);
 	if (error)
 		return error;
 	agi = agibp->b_addr;
@@ -3229,11 +3229,13 @@ retry:
 		if (inodes[i] == wip ||
 		    (inodes[i] == target_ip &&
 		     (VFS_I(target_ip)->i_nlink == 1 || src_is_directory))) {
-			struct xfs_buf	*bp;
-			xfs_agnumber_t	agno;
+			struct xfs_perag	*pag;
+			struct xfs_buf		*bp;
 
-			agno = XFS_INO_TO_AGNO(mp, inodes[i]->i_ino);
-			error = xfs_read_agi(mp, tp, agno, &bp);
+			pag = xfs_perag_get(mp,
+					XFS_INO_TO_AGNO(mp, inodes[i]->i_ino));
+			error = xfs_read_agi(pag, tp, &bp);
+			xfs_perag_put(pag);
 			if (error)
 				goto out_trans_cancel;
 		}

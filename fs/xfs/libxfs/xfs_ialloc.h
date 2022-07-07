@@ -62,11 +62,9 @@ xfs_ialloc_log_agi(
 	struct xfs_buf	*bp,		/* allocation group header buffer */
 	uint32_t	fields);	/* bitmask of fields to log */
 
-/*
- * Read in the allocation group header (inode allocation section)
- */
-int					/* error */
-xfs_ialloc_read_agi(struct xfs_perag *pag, struct xfs_trans *tp,
+int xfs_read_agi(struct xfs_perag *pag, struct xfs_trans *tp,
+		struct xfs_buf **agibpp);
+int xfs_ialloc_read_agi(struct xfs_perag *pag, struct xfs_trans *tp,
 		struct xfs_buf **agibpp);
 
 /*
@@ -89,8 +87,6 @@ int xfs_ialloc_inode_init(struct xfs_mount *mp, struct xfs_trans *tp,
 			  xfs_agnumber_t agno, xfs_agblock_t agbno,
 			  xfs_agblock_t length, unsigned int gen);
 
-int xfs_read_agi(struct xfs_mount *mp, struct xfs_trans *tp,
-		xfs_agnumber_t agno, struct xfs_buf **bpp);
 
 union xfs_btree_rec;
 void xfs_inobt_btrec_to_irec(struct xfs_mount *mp,
