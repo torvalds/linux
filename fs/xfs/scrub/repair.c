@@ -207,7 +207,7 @@ xrep_calc_ag_resblks(
 	}
 
 	/* Now grab the block counters from the AGF. */
-	error = xfs_alloc_read_agf(mp, NULL, sm->sm_agno, 0, &bp);
+	error = xfs_alloc_read_agf(pag, NULL, 0, &bp);
 	if (error) {
 		aglen = xfs_ag_block_count(mp, sm->sm_agno);
 		freelen = aglen;
@@ -543,6 +543,7 @@ xrep_reap_block(
 
 	agno = XFS_FSB_TO_AGNO(sc->mp, fsbno);
 	agbno = XFS_FSB_TO_AGBNO(sc->mp, fsbno);
+	ASSERT(agno == sc->sa.pag->pag_agno);
 
 	/*
 	 * If we are repairing per-inode metadata, we need to read in the AGF
@@ -550,7 +551,7 @@ xrep_reap_block(
 	 * the AGF buffer that the setup functions already grabbed.
 	 */
 	if (sc->ip) {
-		error = xfs_alloc_read_agf(sc->mp, sc->tp, agno, 0, &agf_bp);
+		error = xfs_alloc_read_agf(sc->sa.pag, sc->tp, 0, &agf_bp);
 		if (error)
 			return error;
 	} else {

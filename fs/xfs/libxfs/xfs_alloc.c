@@ -2609,7 +2609,7 @@ xfs_alloc_fix_freelist(
 	ASSERT(tp->t_flags & XFS_TRANS_PERM_LOG_RES);
 
 	if (!pag->pagf_init) {
-		error = xfs_alloc_read_agf(mp, tp, args->agno, flags, &agbp);
+		error = xfs_alloc_read_agf(pag, tp, flags, &agbp);
 		if (error) {
 			/* Couldn't lock the AGF so skip this AG. */
 			if (error == -EAGAIN)
@@ -2639,7 +2639,7 @@ xfs_alloc_fix_freelist(
 	 * Can fail if we're not blocking on locks, and it's held.
 	 */
 	if (!agbp) {
-		error = xfs_alloc_read_agf(mp, tp, args->agno, flags, &agbp);
+		error = xfs_alloc_read_agf(pag, tp, flags, &agbp);
 		if (error) {
 			/* Couldn't lock the AGF so skip this AG. */
 			if (error == -EAGAIN)
@@ -3080,34 +3080,30 @@ xfs_read_agf(
  * perag structure if necessary. If the caller provides @agfbpp, then return the
  * locked buffer to the caller, otherwise free it.
  */
-int					/* error */
+int
 xfs_alloc_read_agf(
-	struct xfs_mount	*mp,	/* mount point structure */
-	struct xfs_trans	*tp,	/* transaction pointer */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	int			flags,	/* XFS_ALLOC_FLAG_... */
+	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
+	int			flags,
 	struct xfs_buf		**agfbpp)
 {
 	struct xfs_buf		*agfbp;
-	struct xfs_agf		*agf;		/* ag freelist header */
-	struct xfs_perag	*pag;		/* per allocation group data */
+	struct xfs_agf		*agf;
 	int			error;
 	int			allocbt_blks;
 
-	trace_xfs_alloc_read_agf(mp, agno);
+	trace_xfs_alloc_read_agf(pag->pag_mount, pag->pag_agno);
 
 	/* We don't support trylock when freeing. */
 	ASSERT((flags & (XFS_ALLOC_FLAG_FREEING | XFS_ALLOC_FLAG_TRYLOCK)) !=
 			(XFS_ALLOC_FLAG_FREEING | XFS_ALLOC_FLAG_TRYLOCK));
-	ASSERT(agno != NULLAGNUMBER);
-	error = xfs_read_agf(mp, tp, agno,
+	error = xfs_read_agf(pag->pag_mount, tp, pag->pag_agno,
 			(flags & XFS_ALLOC_FLAG_TRYLOCK) ? XBF_TRYLOCK : 0,
 			&agfbp);
 	if (error)
 		return error;
 
 	agf = agfbp->b_addr;
-	pag = agfbp->b_pag;
 	if (!pag->pagf_init) {
 		pag->pagf_freeblks = be32_to_cpu(agf->agf_freeblks);
 		pag->pagf_btreeblks = be32_to_cpu(agf->agf_btreeblks);
@@ -3121,7 +3117,7 @@ xfs_alloc_read_agf(
 			be32_to_cpu(agf->agf_levels[XFS_BTNUM_RMAPi]);
 		pag->pagf_refcount_level = be32_to_cpu(agf->agf_refcount_level);
 		pag->pagf_init = 1;
-		pag->pagf_agflreset = xfs_agfl_needs_reset(mp, agf);
+		pag->pagf_agflreset = xfs_agfl_needs_reset(pag->pag_mount, agf);
 
 		/*
 		 * Update the in-core allocbt counter. Filter out the rmapbt
@@ -3131,13 +3127,14 @@ xfs_alloc_read_agf(
 		 * counter only tracks non-root blocks.
 		 */
 		allocbt_blks = pag->pagf_btreeblks;
-		if (xfs_has_rmapbt(mp))
+		if (xfs_has_rmapbt(pag->pag_mount))
 			allocbt_blks -= be32_to_cpu(agf->agf_rmap_blocks) - 1;
 		if (allocbt_blks > 0)
-			atomic64_add(allocbt_blks, &mp->m_allocbt_blks);
+			atomic64_add(allocbt_blks,
+					&pag->pag_mount->m_allocbt_blks);
 	}
 #ifdef DEBUG
-	else if (!xfs_is_shutdown(mp)) {
+	else if (!xfs_is_shutdown(pag->pag_mount)) {
 		ASSERT(pag->pagf_freeblks == be32_to_cpu(agf->agf_freeblks));
 		ASSERT(pag->pagf_btreeblks == be32_to_cpu(agf->agf_btreeblks));
 		ASSERT(pag->pagf_flcount == be32_to_cpu(agf->agf_flcount));

@@ -1621,7 +1621,7 @@ xfs_dialloc_good_ag(
 		return false;
 
 	if (!pag->pagf_init) {
-		error = xfs_alloc_read_agf(mp, tp, pag->pag_agno, flags, NULL);
+		error = xfs_alloc_read_agf(pag, tp, flags, NULL);
 		if (error)
 			return false;
 	}

@@ -135,17 +135,6 @@ xfs_alloc_put_freelist(
 	int		btreeblk); /* owner was a AGF btree */
 
 /*
- * Read in the allocation group header (free/alloc section).
- */
-int					/* error  */
-xfs_alloc_read_agf(
-	struct xfs_mount *mp,		/* mount point structure */
-	struct xfs_trans *tp,		/* transaction pointer */
-	xfs_agnumber_t	agno,		/* allocation group number */
-	int		flags,		/* XFS_ALLOC_FLAG_... */
-	struct xfs_buf	**bpp);		/* buffer for the ag freelist header */
-
-/*
  * Allocate an extent (variable-size).
  */
 int				/* error */
@@ -198,6 +187,8 @@ xfs_alloc_get_rec(
 
 int xfs_read_agf(struct xfs_mount *mp, struct xfs_trans *tp,
 			xfs_agnumber_t agno, int flags, struct xfs_buf **bpp);
+int xfs_alloc_read_agf(struct xfs_perag *pag, struct xfs_trans *tp, int flags,
+		struct xfs_buf **agfbpp);
 int xfs_alloc_read_agfl(struct xfs_mount *mp, struct xfs_trans *tp,
 			xfs_agnumber_t agno, struct xfs_buf **bpp);
 int xfs_free_agfl_block(struct xfs_trans *, xfs_agnumber_t, xfs_agblock_t,

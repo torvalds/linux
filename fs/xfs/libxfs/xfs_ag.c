@@ -120,16 +120,13 @@ xfs_initialize_perag_data(
 
 	for (index = 0; index < agcount; index++) {
 		/*
-		 * read the agf, then the agi. This gets us
-		 * all the information we need and populates the
-		 * per-ag structures for us.
+		 * Read the AGF and AGI buffers to populate the per-ag
+		 * structures for us.
 		 */
-		error = xfs_alloc_read_agf(mp, NULL, index, 0, NULL);
-		if (error)
-			return error;
-
 		pag = xfs_perag_get(mp, index);
-		error = xfs_ialloc_read_agi(pag, NULL, NULL);
+		error = xfs_alloc_read_agf(pag, NULL, 0, NULL);
+		if (!error)
+			error = xfs_ialloc_read_agi(pag, NULL, NULL);
 		if (error) {
 			xfs_perag_put(pag);
 			return error;
@@ -792,7 +789,7 @@ xfs_ag_shrink_space(
 
 	agi = agibp->b_addr;
 
-	error = xfs_alloc_read_agf(mp, *tpp, pag->pag_agno, 0, &agfbp);
+	error = xfs_alloc_read_agf(pag, *tpp, 0, &agfbp);
 	if (error)
 		return error;
 
@@ -910,7 +907,7 @@ xfs_ag_extend_space(
 	/*
 	 * Change agf length.
 	 */
-	error = xfs_alloc_read_agf(pag->pag_mount, tp, pag->pag_agno, 0, &bp);
+	error = xfs_alloc_read_agf(pag, tp, 0, &bp);
 	if (error)
 		return error;
 
@@ -953,8 +950,7 @@ xfs_ag_get_geometry(
 	error = xfs_ialloc_read_agi(pag, NULL, &agi_bp);
 	if (error)
 		return error;
-	error = xfs_alloc_read_agf(pag->pag_mount, NULL, pag->pag_agno, 0,
-			&agf_bp);
+	error = xfs_alloc_read_agf(pag, NULL, 0, &agf_bp);
 	if (error)
 		goto out_agi;
 

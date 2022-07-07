@@ -45,7 +45,7 @@ xfs_trim_extents(
 	 */
 	xfs_log_force(mp, XFS_LOG_SYNC);
 
-	error = xfs_alloc_read_agf(mp, NULL, agno, 0, &agbp);
+	error = xfs_alloc_read_agf(pag, NULL, 0, &agbp);
 	if (error)
 		goto out_put_perag;
 	agf = agbp->b_addr;

@@ -81,7 +81,7 @@ xchk_fscount_warmup(
 		error = xfs_ialloc_read_agi(pag, sc->tp, &agi_bp);
 		if (error)
 			break;
-		error = xfs_alloc_read_agf(mp, sc->tp, agno, 0, &agf_bp);
+		error = xfs_alloc_read_agf(pag, sc->tp, 0, &agf_bp);
 		if (error)
 			break;
 

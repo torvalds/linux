@@ -540,7 +540,7 @@ xchk_bmap_check_ag_rmaps(
 	struct xfs_buf			*agf;
 	int				error;
 
-	error = xfs_alloc_read_agf(sc->mp, sc->tp, pag->pag_agno, 0, &agf);
+	error = xfs_alloc_read_agf(pag, sc->tp, 0, &agf);
 	if (error)
 		return error;
 

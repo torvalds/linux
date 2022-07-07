@@ -3185,7 +3185,7 @@ xfs_bmap_longest_free_extent(
 
 	pag = xfs_perag_get(mp, ag);
 	if (!pag->pagf_init) {
-		error = xfs_alloc_read_agf(mp, tp, ag, XFS_ALLOC_FLAG_TRYLOCK,
+		error = xfs_alloc_read_agf(pag, tp, XFS_ALLOC_FLAG_TRYLOCK,
 				NULL);
 		if (error) {
 			/* Couldn't lock the AGF, so skip this AG. */

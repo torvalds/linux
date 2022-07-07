@@ -11,6 +11,7 @@
 #include "xfs_bit.h"
 #include "xfs_shared.h"
 #include "xfs_mount.h"
+#include "xfs_ag.h"
 #include "xfs_defer.h"
 #include "xfs_trans.h"
 #include "xfs_trans_priv.h"
@@ -551,6 +552,7 @@ xfs_agfl_free_finish_item(
 	xfs_agnumber_t			agno;
 	xfs_agblock_t			agbno;
 	uint				next_extent;
+	struct xfs_perag		*pag;
 
 	free = container_of(item, struct xfs_extent_free_item, xefi_list);
 	ASSERT(free->xefi_blockcount == 1);
@@ -560,9 +562,11 @@ xfs_agfl_free_finish_item(
 
 	trace_xfs_agfl_free_deferred(mp, agno, 0, agbno, free->xefi_blockcount);
 
-	error = xfs_alloc_read_agf(mp, tp, agno, 0, &agbp);
+	pag = xfs_perag_get(mp, agno);
+	error = xfs_alloc_read_agf(pag, tp, 0, &agbp);
 	if (!error)
 		error = xfs_free_agfl_block(tp, agno, agbno, agbp, &oinfo);
+	xfs_perag_put(pag);
 
 	/*
 	 * Mark the transaction dirty, even on error. This ensures the

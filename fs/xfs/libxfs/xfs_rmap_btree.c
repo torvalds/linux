@@ -652,7 +652,7 @@ xfs_rmapbt_calc_reserves(
 	if (!xfs_has_rmapbt(mp))
 		return 0;
 
-	error = xfs_alloc_read_agf(mp, tp, pag->pag_agno, 0, &agbp);
+	error = xfs_alloc_read_agf(pag, tp, 0, &agbp);
 	if (error)
 		return error;
 

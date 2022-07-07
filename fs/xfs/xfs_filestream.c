@@ -126,7 +126,7 @@ xfs_filestream_pick_ag(
 		pag = xfs_perag_get(mp, ag);
 
 		if (!pag->pagf_init) {
-			err = xfs_alloc_read_agf(mp, NULL, ag, trylock, NULL);
+			err = xfs_alloc_read_agf(pag, NULL, trylock, NULL);
 			if (err) {
 				if (err != -EAGAIN) {
 					xfs_perag_put(pag);
