@@ -3504,11 +3504,6 @@ unsigned int btrfs_verify_data_csum(struct btrfs_bio *bbio,
 	u32 pg_off;
 	unsigned int result = 0;
 
-	if (btrfs_page_test_checked(fs_info, page, start, end + 1 - start)) {
-		btrfs_page_clear_checked(fs_info, page, start, end + 1 - start);
-		return 0;
-	}
-
 	/*
 	 * This only happens for NODATASUM or compressed read.
 	 * Normally this should be covered by above check for compressed read

@@ -152,29 +152,9 @@ static void finish_compressed_bio_read(struct compressed_bio *cb)
 	}
 
 	/* Do io completion on the original bio */
-	if (cb->status != BLK_STS_OK) {
+	if (cb->status != BLK_STS_OK)
 		cb->orig_bio->bi_status = cb->status;
-		bio_endio(cb->orig_bio);
-	} else {
-		struct bio_vec *bvec;
-		struct bvec_iter_all iter_all;
-
-		/*
-		 * We have verified the checksum already, set page checked so
-		 * the end_io handlers know about it
-		 */
-		ASSERT(!bio_flagged(cb->orig_bio, BIO_CLONED));
-		bio_for_each_segment_all(bvec, cb->orig_bio, iter_all) {
-			u64 bvec_start = page_offset(bvec->bv_page) +
-					 bvec->bv_offset;
-
-			btrfs_page_set_checked(btrfs_sb(cb->inode->i_sb),
-					bvec->bv_page, bvec_start,
-					bvec->bv_len);
-		}
-
-		bio_endio(cb->orig_bio);
-	}
+	bio_endio(cb->orig_bio);
 
 	/* Finally free the cb struct */
 	kfree(cb->compressed_pages);
