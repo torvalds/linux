@@ -319,7 +319,27 @@ static const struct platform_suspend_ops mpc83xx_suspend_ops = {
 	.end = mpc83xx_suspend_end,
 };
 
-static const struct of_device_id pmc_match[];
+static struct pmc_type pmc_types[] = {
+	{
+		.has_deep_sleep = 1,
+	},
+	{
+		.has_deep_sleep = 0,
+	}
+};
+
+static const struct of_device_id pmc_match[] = {
+	{
+		.compatible = "fsl,mpc8313-pmc",
+		.data = &pmc_types[0],
+	},
+	{
+		.compatible = "fsl,mpc8349-pmc",
+		.data = &pmc_types[1],
+	},
+	{}
+};
+
 static int pmc_probe(struct platform_device *ofdev)
 {
 	struct device_node *np = ofdev->dev.of_node;
@@ -404,27 +424,6 @@ out:
 static int pmc_remove(struct platform_device *ofdev)
 {
 	return -EPERM;
-};
-
-static struct pmc_type pmc_types[] = {
-	{
-		.has_deep_sleep = 1,
-	},
-	{
-		.has_deep_sleep = 0,
-	}
-};
-
-static const struct of_device_id pmc_match[] = {
-	{
-		.compatible = "fsl,mpc8313-pmc",
-		.data = &pmc_types[0],
-	},
-	{
-		.compatible = "fsl,mpc8349-pmc",
-		.data = &pmc_types[1],
-	},
-	{}
 };
 
 static struct platform_driver pmc_driver = {
