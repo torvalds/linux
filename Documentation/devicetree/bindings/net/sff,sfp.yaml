@@ -89,7 +89,7 @@ examples:
   - | # Direct serdes to SFP connection
     #include <dt-bindings/gpio/gpio.h>
 
-    sfp_eth3: sfp-eth3 {
+    sfp1: sfp {
       compatible = "sff,sfp";
       i2c-bus = <&sfp_1g_i2c>;
       los-gpios = <&cpm_gpio2 22 GPIO_ACTIVE_HIGH>;
@@ -101,19 +101,19 @@ examples:
       tx-fault-gpios = <&cpm_gpio2 19 GPIO_ACTIVE_HIGH>;
     };
 
-    cps_emac3 {
+    ethernet {
       phy-names = "comphy";
       phys = <&cps_comphy5 0>;
-      sfp = <&sfp_eth3>;
+      sfp = <&sfp1>;
     };
 
   - | # Serdes to PHY to SFP connection
     #include <dt-bindings/gpio/gpio.h>
     #include <dt-bindings/interrupt-controller/arm-gic.h>
 
-    sfp_eth0: sfp-eth0 {
+    sfp2: sfp {
       compatible = "sff,sfp";
-      i2c-bus = <&sfpp0_i2c>;
+      i2c-bus = <&sfp_i2c>;
       los-gpios = <&cps_gpio1 28 GPIO_ACTIVE_HIGH>;
       mod-def0-gpios = <&cps_gpio1 27 GPIO_ACTIVE_LOW>;
       pinctrl-names = "default";
@@ -126,17 +126,17 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-      p0_phy: ethernet-phy@0 {
+      phy: ethernet-phy@0 {
         compatible = "ethernet-phy-ieee802.3-c45";
         pinctrl-names = "default";
         pinctrl-0 = <&cpm_phy0_pins &cps_phy0_pins>;
         reg = <0>;
         interrupt = <&cpm_gpio2 18 IRQ_TYPE_EDGE_FALLING>;
-        sfp = <&sfp_eth0>;
+        sfp = <&sfp2>;
       };
     };
 
-    cpm_eth0 {
-      phy = <&p0_phy>;
+    ethernet {
+      phy = <&phy>;
       phy-mode = "10gbase-kr";
     };
