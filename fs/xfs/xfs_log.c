@@ -944,6 +944,8 @@ xlog_write_unmount_record(
 		.lv_niovecs = 1,
 		.lv_iovecp = &reg,
 	};
+	LIST_HEAD(lv_chain);
+	list_add(&vec.lv_list, &lv_chain);
 
 	BUILD_BUG_ON((sizeof(struct xlog_op_header) +
 		      sizeof(struct xfs_unmount_log_format)) !=
@@ -952,7 +954,7 @@ xlog_write_unmount_record(
 	/* account for space used by record data */
 	ticket->t_curr_res -= sizeof(unmount_rec);
 
-	return xlog_write(log, NULL, &vec, ticket, reg.i_len);
+	return xlog_write(log, NULL, &lv_chain, ticket, reg.i_len);
 }
 
 /*
@@ -2471,13 +2473,13 @@ int
 xlog_write(
 	struct xlog		*log,
 	struct xfs_cil_ctx	*ctx,
-	struct xfs_log_vec	*log_vector,
+	struct list_head	*lv_chain,
 	struct xlog_ticket	*ticket,
 	uint32_t		len)
 
 {
 	struct xlog_in_core	*iclog = NULL;
-	struct xfs_log_vec	*lv = log_vector;
+	struct xfs_log_vec	*lv;
 	uint32_t		record_cnt = 0;
 	uint32_t		data_cnt = 0;
 	int			error = 0;
@@ -2505,7 +2507,7 @@ xlog_write(
 	if (ctx)
 		xlog_cil_set_ctx_write_state(ctx, iclog);
 
-	while (lv) {
+	list_for_each_entry(lv, lv_chain, lv_list) {
 		/*
 		 * If the entire log vec does not fit in the iclog, punt it to
 		 * the partial copy loop which can handle this case.
@@ -2526,7 +2528,6 @@ xlog_write(
 			xlog_write_full(lv, ticket, iclog, &log_offset,
 					 &len, &record_cnt, &data_cnt);
 		}
-		lv = lv->lv_next;
 	}
 	ASSERT(len == 0);
 

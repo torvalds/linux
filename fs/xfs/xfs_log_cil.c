@@ -105,6 +105,7 @@ xlog_cil_ctx_alloc(void)
 	INIT_LIST_HEAD(&ctx->committing);
 	INIT_LIST_HEAD(&ctx->busy_extents);
 	INIT_LIST_HEAD(&ctx->log_items);
+	INIT_LIST_HEAD(&ctx->lv_chain);
 	INIT_WORK(&ctx->push_work, xlog_cil_push_work);
 	return ctx;
 }
@@ -338,6 +339,7 @@ xlog_cil_alloc_shadow_bufs(
 
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
 
+			INIT_LIST_HEAD(&lv->lv_list);
 			lv->lv_item = lip;
 			lv->lv_size = buf_size;
 			if (ordered)
@@ -353,7 +355,6 @@ xlog_cil_alloc_shadow_bufs(
 			else
 				lv->lv_buf_len = 0;
 			lv->lv_bytes = 0;
-			lv->lv_next = NULL;
 		}
 
 		/* Ensure the lv is set up according to ->iop_size */
@@ -480,7 +481,6 @@ xlog_cil_insert_format_items(
 		if (lip->li_lv && shadow->lv_size <= lip->li_lv->lv_size) {
 			/* same or smaller, optimise common overwrite case */
 			lv = lip->li_lv;
-			lv->lv_next = NULL;
 
 			if (ordered)
 				goto insert;
@@ -685,14 +685,14 @@ xlog_cil_insert_items(
 
 static void
 xlog_cil_free_logvec(
-	struct xfs_log_vec	*log_vector)
+	struct list_head	*lv_chain)
 {
 	struct xfs_log_vec	*lv;
 
-	for (lv = log_vector; lv; ) {
-		struct xfs_log_vec *next = lv->lv_next;
+	while (!list_empty(lv_chain)) {
+		lv = list_first_entry(lv_chain, struct xfs_log_vec, lv_list);
+		list_del_init(&lv->lv_list);
 		kmem_free(lv);
-		lv = next;
 	}
 }
 
@@ -792,7 +792,7 @@ xlog_cil_committed(
 		spin_unlock(&ctx->cil->xc_push_lock);
 	}
 
-	xfs_trans_committed_bulk(ctx->cil->xc_log->l_ailp, ctx->lv_chain,
+	xfs_trans_committed_bulk(ctx->cil->xc_log->l_ailp, &ctx->lv_chain,
 					ctx->start_lsn, abort);
 
 	xfs_extent_busy_sort(&ctx->busy_extents);
@@ -803,7 +803,7 @@ xlog_cil_committed(
 	list_del(&ctx->committing);
 	spin_unlock(&ctx->cil->xc_push_lock);
 
-	xlog_cil_free_logvec(ctx->lv_chain);
+	xlog_cil_free_logvec(&ctx->lv_chain);
 
 	if (!list_empty(&ctx->busy_extents))
 		xlog_discard_busy_extents(mp, ctx);
@@ -962,7 +962,6 @@ restart:
 static int
 xlog_cil_write_chain(
 	struct xfs_cil_ctx	*ctx,
-	struct xfs_log_vec	*chain,
 	uint32_t		chain_len)
 {
 	struct xlog		*log = ctx->cil->xc_log;
@@ -971,7 +970,7 @@ xlog_cil_write_chain(
 	error = xlog_cil_order_write(ctx->cil, ctx->sequence, _START_RECORD);
 	if (error)
 		return error;
-	return xlog_write(log, ctx, chain, ctx->ticket, chain_len);
+	return xlog_write(log, ctx, &ctx->lv_chain, ctx->ticket, chain_len);
 }
 
 /*
@@ -1000,6 +999,8 @@ xlog_cil_write_commit_record(
 		.lv_iovecp = &reg,
 	};
 	int			error;
+	LIST_HEAD(lv_chain);
+	list_add(&vec.lv_list, &lv_chain);
 
 	if (xlog_is_shutdown(log))
 		return -EIO;
@@ -1010,7 +1011,7 @@ xlog_cil_write_commit_record(
 
 	/* account for space used by record data */
 	ctx->ticket->t_curr_res -= reg.i_len;
-	error = xlog_write(log, ctx, &vec, ctx->ticket, reg.i_len);
+	error = xlog_write(log, ctx, &lv_chain, ctx->ticket, reg.i_len);
 	if (error)
 		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
 	return error;
@@ -1076,7 +1077,6 @@ xlog_cil_build_trans_hdr(
 	lvhdr->lv_niovecs = 2;
 	lvhdr->lv_iovecp = &hdr->lhdr[0];
 	lvhdr->lv_bytes = hdr->lhdr[0].i_len + hdr->lhdr[1].i_len;
-	lvhdr->lv_next = ctx->lv_chain;
 
 	tic->t_curr_res -= lvhdr->lv_bytes;
 }
@@ -1117,12 +1117,11 @@ xlog_cil_build_lv_chain(
 	uint32_t		*num_iovecs,
 	uint32_t		*num_bytes)
 {
-	struct xfs_log_vec	*lv = NULL;
-
 	list_sort(NULL, &ctx->log_items, xlog_cil_order_cmp);
 
 	while (!list_empty(&ctx->log_items)) {
 		struct xfs_log_item	*item;
+		struct xfs_log_vec	*lv;
 
 		item = list_first_entry(&ctx->log_items,
 					struct xfs_log_item, li_cil);
@@ -1133,19 +1132,17 @@ xlog_cil_build_lv_chain(
 			continue;
 		}
 
-		list_del_init(&item->li_cil);
-		item->li_order_id = 0;
-		if (!ctx->lv_chain)
-			ctx->lv_chain = item->li_lv;
-		else
-			lv->lv_next = item->li_lv;
 		lv = item->li_lv;
-		item->li_lv = NULL;
-		*num_iovecs += lv->lv_niovecs;
 
 		/* we don't write ordered log vectors */
 		if (lv->lv_buf_len != XFS_LOG_VEC_ORDERED)
 			*num_bytes += lv->lv_bytes;
+		*num_iovecs += lv->lv_niovecs;
+		list_add_tail(&lv->lv_list, &ctx->lv_chain);
+
+		list_del_init(&item->li_cil);
+		item->li_order_id = 0;
+		item->li_lv = NULL;
 	}
 }
 
@@ -1189,7 +1186,7 @@ xlog_cil_push_work(
 	int			num_bytes = 0;
 	int			error = 0;
 	struct xlog_cil_trans_hdr thdr;
-	struct xfs_log_vec	lvhdr = { NULL };
+	struct xfs_log_vec	lvhdr = {};
 	xfs_csn_t		push_seq;
 	bool			push_commit_stable;
 	LIST_HEAD		(whiteouts);
@@ -1299,11 +1296,20 @@ xlog_cil_push_work(
 	 * Build a checkpoint transaction header and write it to the log to
 	 * begin the transaction. We need to account for the space used by the
 	 * transaction header here as it is not accounted for in xlog_write().
+	 * Add the lvhdr to the head of the lv chain we pass to xlog_write() so
+	 * it gets written into the iclog first.
 	 */
 	xlog_cil_build_trans_hdr(ctx, &thdr, &lvhdr, num_iovecs);
 	num_bytes += lvhdr.lv_bytes;
+	list_add(&lvhdr.lv_list, &ctx->lv_chain);
 
-	error = xlog_cil_write_chain(ctx, &lvhdr, num_bytes);
+	/*
+	 * Take the lvhdr back off the lv_chain immediately after calling
+	 * xlog_cil_write_chain() as it should not be passed to log IO
+	 * completion.
+	 */
+	error = xlog_cil_write_chain(ctx, num_bytes);
+	list_del(&lvhdr.lv_list);
 	if (error)
 		goto out_abort_free_ticket;
 
