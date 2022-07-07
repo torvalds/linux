@@ -722,7 +722,7 @@ xfs_inobt_cur(
 	ASSERT(*agi_bpp == NULL);
 	ASSERT(*curpp == NULL);
 
-	error = xfs_ialloc_read_agi(mp, tp, pag->pag_agno, agi_bpp);
+	error = xfs_ialloc_read_agi(pag, tp, agi_bpp);
 	if (error)
 		return error;
 
@@ -757,16 +757,15 @@ xfs_inobt_count_blocks(
 /* Read finobt block count from AGI header. */
 static int
 xfs_finobt_read_blocks(
-	struct xfs_mount	*mp,
-	struct xfs_trans	*tp,
 	struct xfs_perag	*pag,
+	struct xfs_trans	*tp,
 	xfs_extlen_t		*tree_blocks)
 {
 	struct xfs_buf		*agbp;
 	struct xfs_agi		*agi;
 	int			error;
 
-	error = xfs_ialloc_read_agi(mp, tp, pag->pag_agno, &agbp);
+	error = xfs_ialloc_read_agi(pag, tp, &agbp);
 	if (error)
 		return error;
 
@@ -794,7 +793,7 @@ xfs_finobt_calc_reserves(
 		return 0;
 
 	if (xfs_has_inobtcounts(mp))
-		error = xfs_finobt_read_blocks(mp, tp, pag, &tree_len);
+		error = xfs_finobt_read_blocks(pag, tp, &tree_len);
 	else
 		error = xfs_inobt_count_blocks(mp, tp, pag, XFS_BTNUM_FINO,
 				&tree_len);

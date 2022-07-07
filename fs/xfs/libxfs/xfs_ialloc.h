@@ -66,11 +66,8 @@ xfs_ialloc_log_agi(
  * Read in the allocation group header (inode allocation section)
  */
 int					/* error */
-xfs_ialloc_read_agi(
-	struct xfs_mount *mp,		/* file system mount structure */
-	struct xfs_trans *tp,		/* transaction pointer */
-	xfs_agnumber_t	agno,		/* allocation group number */
-	struct xfs_buf	**bpp);		/* allocation group hdr buf */
+xfs_ialloc_read_agi(struct xfs_perag *pag, struct xfs_trans *tp,
+		struct xfs_buf **agibpp);
 
 /*
  * Lookup a record by ino in the btree given by cur.

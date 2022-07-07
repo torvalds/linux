@@ -128,11 +128,13 @@ xfs_initialize_perag_data(
 		if (error)
 			return error;
 
-		error = xfs_ialloc_read_agi(mp, NULL, index, NULL);
-		if (error)
-			return error;
-
 		pag = xfs_perag_get(mp, index);
+		error = xfs_ialloc_read_agi(pag, NULL, NULL);
+		if (error) {
+			xfs_perag_put(pag);
+			return error;
+		}
+
 		ifree += pag->pagi_freecount;
 		ialloc += pag->pagi_count;
 		bfree += pag->pagf_freeblks;
@@ -784,7 +786,7 @@ xfs_ag_shrink_space(
 	int			error, err2;
 
 	ASSERT(pag->pag_agno == mp->m_sb.sb_agcount - 1);
-	error = xfs_ialloc_read_agi(mp, *tpp, pag->pag_agno, &agibp);
+	error = xfs_ialloc_read_agi(pag, *tpp, &agibp);
 	if (error)
 		return error;
 
@@ -817,7 +819,7 @@ xfs_ag_shrink_space(
 	 * Disable perag reservations so it doesn't cause the allocation request
 	 * to fail. We'll reestablish reservation before we return.
 	 */
-	error = xfs_ag_resv_free(agibp->b_pag);
+	error = xfs_ag_resv_free(pag);
 	if (error)
 		return error;
 
@@ -846,7 +848,7 @@ xfs_ag_shrink_space(
 	be32_add_cpu(&agi->agi_length, -delta);
 	be32_add_cpu(&agf->agf_length, -delta);
 
-	err2 = xfs_ag_resv_init(agibp->b_pag, *tpp);
+	err2 = xfs_ag_resv_init(pag, *tpp);
 	if (err2) {
 		be32_add_cpu(&agi->agi_length, delta);
 		be32_add_cpu(&agf->agf_length, delta);
@@ -870,8 +872,9 @@ xfs_ag_shrink_space(
 	xfs_ialloc_log_agi(*tpp, agibp, XFS_AGI_LENGTH);
 	xfs_alloc_log_agf(*tpp, agfbp, XFS_AGF_LENGTH);
 	return 0;
+
 resv_init_out:
-	err2 = xfs_ag_resv_init(agibp->b_pag, *tpp);
+	err2 = xfs_ag_resv_init(pag, *tpp);
 	if (!err2)
 		return error;
 resv_err:
@@ -896,7 +899,7 @@ xfs_ag_extend_space(
 
 	ASSERT(pag->pag_agno == pag->pag_mount->m_sb.sb_agcount - 1);
 
-	error = xfs_ialloc_read_agi(pag->pag_mount, tp, pag->pag_agno, &bp);
+	error = xfs_ialloc_read_agi(pag, tp, &bp);
 	if (error)
 		return error;
 
@@ -947,8 +950,7 @@ xfs_ag_get_geometry(
 	int			error;
 
 	/* Lock the AG headers. */
-	error = xfs_ialloc_read_agi(pag->pag_mount, NULL, pag->pag_agno,
-			&agi_bp);
+	error = xfs_ialloc_read_agi(pag, NULL, &agi_bp);
 	if (error)
 		return error;
 	error = xfs_alloc_read_agf(pag->pag_mount, NULL, pag->pag_agno, 0,
