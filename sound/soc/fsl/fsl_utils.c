@@ -122,7 +122,7 @@ void fsl_asoc_reparent_pll_clocks(struct device *dev, struct clk *clk,
 				  struct clk *pll8k_clk,
 				  struct clk *pll11k_clk, u64 ratio)
 {
-	struct clk *p, *pll = 0, *npll = 0;
+	struct clk *p, *pll = NULL, *npll = NULL;
 	bool reparent = false;
 	int ret = 0;
 
