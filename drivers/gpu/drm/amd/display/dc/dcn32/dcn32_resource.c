@@ -3053,7 +3053,9 @@ int dcn32_populate_dml_pipes_from_context(
 				pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
 		}
 
+		DC_FP_START();
 		is_pipe_split_expected[i] = dcn32_predict_pipe_split(context, pipes[i].pipe, i);
+		DC_FP_END();
 
 		pipe_cnt++;
 	}

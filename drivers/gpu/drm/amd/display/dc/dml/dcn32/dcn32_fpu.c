@@ -24,7 +24,7 @@
  *
  */
 #include "dcn32_fpu.h"
-
+#include "display_mode_vba_util_32.h"
 // We need this includes for WATERMARKS_* defines
 #include "clk_mgr/dcn32/dcn32_smu13_driver_if.h"
 
@@ -152,5 +152,42 @@ void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
 		}
 		pipe_idx++;
 	}
+}
+
+bool dcn32_predict_pipe_split(struct dc_state *context, display_pipe_params_st pipe, int index)
+{
+	double pscl_throughput;
+	double pscl_throughput_chroma;
+	double dpp_clk_single_dpp, clock;
+	double clk_frequency = 0.0;
+	double vco_speed = context->bw_ctx.dml.soc.dispclk_dppclk_vco_speed_mhz;
+
+	dc_assert_fp_enabled();
+
+	dml32_CalculateSinglePipeDPPCLKAndSCLThroughput(pipe.scale_ratio_depth.hscl_ratio,
+							pipe.scale_ratio_depth.hscl_ratio_c,
+							pipe.scale_ratio_depth.vscl_ratio,
+							pipe.scale_ratio_depth.vscl_ratio_c,
+							context->bw_ctx.dml.ip.max_dchub_pscl_bw_pix_per_clk,
+							context->bw_ctx.dml.ip.max_pscl_lb_bw_pix_per_clk,
+							pipe.dest.pixel_rate_mhz,
+							pipe.src.source_format,
+							pipe.scale_taps.htaps,
+							pipe.scale_taps.htaps_c,
+							pipe.scale_taps.vtaps,
+							pipe.scale_taps.vtaps_c,
+							/* Output */
+							&pscl_throughput, &pscl_throughput_chroma,
+							&dpp_clk_single_dpp);
+
+	clock = dpp_clk_single_dpp * (1 + context->bw_ctx.dml.soc.dcn_downspread_percent / 100);
+
+	if (clock > 0)
+		clk_frequency = vco_speed * 4.0 / ((int)(vco_speed * 4.0));
+
+	if (clk_frequency > context->bw_ctx.dml.soc.clock_limits[index].dppclk_mhz)
+		return true;
+	else
+		return false;
 }
 

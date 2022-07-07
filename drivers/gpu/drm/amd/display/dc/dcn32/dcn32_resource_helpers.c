@@ -153,39 +153,6 @@ bool dcn32_subvp_in_use(struct dc *dc,
 	return false;
 }
 
-bool dcn32_predict_pipe_split(struct dc_state *context, display_pipe_params_st pipe, int index)
-{
-	double pscl_throughput, pscl_throughput_chroma, dpp_clk_single_dpp, clock,
-		clk_frequency = 0.0, vco_speed = context->bw_ctx.dml.soc.dispclk_dppclk_vco_speed_mhz;
-
-	dml32_CalculateSinglePipeDPPCLKAndSCLThroughput(pipe.scale_ratio_depth.hscl_ratio,
-			pipe.scale_ratio_depth.hscl_ratio_c,
-			pipe.scale_ratio_depth.vscl_ratio,
-			pipe.scale_ratio_depth.vscl_ratio_c,
-			context->bw_ctx.dml.ip.max_dchub_pscl_bw_pix_per_clk,
-			context->bw_ctx.dml.ip.max_pscl_lb_bw_pix_per_clk,
-			pipe.dest.pixel_rate_mhz,
-			pipe.src.source_format,
-			pipe.scale_taps.htaps,
-			pipe.scale_taps.htaps_c,
-			pipe.scale_taps.vtaps,
-			pipe.scale_taps.vtaps_c,
-
-			/* Output */
-			&pscl_throughput, &pscl_throughput_chroma,
-			&dpp_clk_single_dpp);
-
-	clock = dpp_clk_single_dpp * (1 + context->bw_ctx.dml.soc.dcn_downspread_percent / 100);
-
-	if (clock > 0)
-		clk_frequency = vco_speed * 4.0 / ((int) (vco_speed * 4.0));
-
-	if (clk_frequency > context->bw_ctx.dml.soc.clock_limits[index].dppclk_mhz)
-		return true;
-	else
-		return false;
-}
-
 void dcn32_determine_det_override(struct dc_state *context, display_e2e_pipe_params_st *pipes,
 		bool *is_pipe_split_expected, int pipe_cnt)
 {
