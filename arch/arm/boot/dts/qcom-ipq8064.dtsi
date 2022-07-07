@@ -1357,5 +1357,12 @@
 				dma-names = "tx", "rx";
 			};
 		};
+
+		sfpb_mutex: hwlock@1200600 {
+			compatible = "qcom,sfpb-mutex";
+			reg = <0x01200600 0x100>;
+
+			#hwlock-cells = <1>;
+		};
 	};
 };
