@@ -160,6 +160,7 @@ struct io_ev_fd {
 
 struct io_alloc_cache {
 	struct hlist_head	list;
+	unsigned int		nr_cached;
 };
 
 struct io_ring_ctx {
