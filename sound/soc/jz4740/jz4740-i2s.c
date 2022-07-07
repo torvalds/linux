@@ -5,10 +5,9 @@
 
 #include <linux/init.h>
 #include <linux/io.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
@@ -96,7 +95,6 @@ struct i2s_soc_info {
 struct jz4740_i2s {
 	struct resource *mem;
 	void __iomem *base;
-	dma_addr_t phys_base;
 
 	struct clk *clk_aic;
 	struct clk *clk_i2s;
@@ -371,21 +369,6 @@ static int jz4740_i2s_resume(struct snd_soc_component *component)
 	return 0;
 }
 
-static void jz4740_i2s_init_pcm_config(struct jz4740_i2s *i2s)
-{
-	struct snd_dmaengine_dai_dma_data *dma_data;
-
-	/* Playback */
-	dma_data = &i2s->playback_dma_data;
-	dma_data->maxburst = 16;
-	dma_data->addr = i2s->phys_base + JZ_REG_AIC_FIFO;
-
-	/* Capture */
-	dma_data = &i2s->capture_dma_data;
-	dma_data->maxburst = 16;
-	dma_data->addr = i2s->phys_base + JZ_REG_AIC_FIFO;
-}
-
 static int jz4740_i2s_dai_probe(struct snd_soc_dai *dai)
 {
 	struct jz4740_i2s *i2s = snd_soc_dai_get_drvdata(dai);
@@ -396,7 +379,6 @@ static int jz4740_i2s_dai_probe(struct snd_soc_dai *dai)
 	if (ret)
 		return ret;
 
-	jz4740_i2s_init_pcm_config(i2s);
 	snd_soc_dai_init_dma_data(dai, &i2s->playback_dma_data,
 		&i2s->capture_dma_data);
 
@@ -530,7 +512,11 @@ static int jz4740_i2s_dev_probe(struct platform_device *pdev)
 	if (IS_ERR(i2s->base))
 		return PTR_ERR(i2s->base);
 
-	i2s->phys_base = mem->start;
+	i2s->playback_dma_data.maxburst = 16;
+	i2s->playback_dma_data.addr = mem->start + JZ_REG_AIC_FIFO;
+
+	i2s->capture_dma_data.maxburst = 16;
+	i2s->capture_dma_data.addr = mem->start + JZ_REG_AIC_FIFO;
 
 	i2s->clk_aic = devm_clk_get(dev, "aic");
 	if (IS_ERR(i2s->clk_aic))
