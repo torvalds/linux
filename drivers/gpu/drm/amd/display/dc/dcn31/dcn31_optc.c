@@ -141,7 +141,7 @@ static bool optc31_disable_crtc(struct timing_generator *optc)
 	return true;
 }
 
-static bool optc31_immediate_disable_crtc(struct timing_generator *optc)
+bool optc31_immediate_disable_crtc(struct timing_generator *optc)
 {
 	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 

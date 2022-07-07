@@ -258,6 +258,8 @@
 
 void dcn31_timing_generator_init(struct optc *optc1);
 
+bool optc31_immediate_disable_crtc(struct timing_generator *optc);
+
 void optc31_set_drr(struct timing_generator *optc, const struct drr_params *params);
 
 void optc3_init_odm(struct timing_generator *optc);
