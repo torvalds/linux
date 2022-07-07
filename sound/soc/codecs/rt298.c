@@ -335,6 +335,8 @@ static int rt298_mic_detect(struct snd_soc_component *component,
 	bool mic = false;
 	int status = 0;
 
+	rt298->jack = jack;
+
 	/* If jack in NULL, disable HS jack */
 	if (!jack) {
 		regmap_update_bits(rt298->regmap, RT298_IRQ_CTRL, 0x2, 0x0);
@@ -344,7 +346,6 @@ static int rt298_mic_detect(struct snd_soc_component *component,
 		return 0;
 	}
 
-	rt298->jack = jack;
 	regmap_update_bits(rt298->regmap, RT298_IRQ_CTRL, 0x2, 0x2);
 
 	rt298_jack_detect(rt298, &hp, &mic);
