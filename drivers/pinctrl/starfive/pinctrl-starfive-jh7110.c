@@ -19,6 +19,7 @@
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -895,6 +896,9 @@ static int starfive_jh7110_sys_gpio_register(struct platform_device *pdev,
 	pctl->gc.irq.handler = handle_bad_irq;
 	pctl->gc.irq.init_hw = starfive_jh7110_sys_init_hw;
 
+	if (IS_ENABLED(CONFIG_PM))
+		pm_runtime_enable(dev);
+
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
 		return ret;
@@ -1594,6 +1598,9 @@ static int starfive_jh7110_aon_gpio_register(struct platform_device *pdev,
 	pctl->gc.irq.default_type = IRQ_TYPE_NONE;
 	pctl->gc.irq.handler = handle_bad_irq;
 	pctl->gc.irq.init_hw = starfive_jh7110_aon_init_hw;
+
+	if (IS_ENABLED(CONFIG_PM))
+		pm_runtime_enable(dev);
 
 	ret = platform_get_irq(pdev, 0);
 	if (ret < 0)
