@@ -331,7 +331,6 @@ struct cdns_torrent_phy {
 	struct cdns_torrent_inst phys[MAX_NUM_LANES];
 	int nsubnodes;
 	const struct cdns_torrent_data *init_data;
-	struct regmap *regmap;
 	struct regmap *regmap_common_cdb;
 	struct regmap *regmap_phy_pcs_common_cdb;
 	struct regmap *regmap_phy_pma_common_cdb;
