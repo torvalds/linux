@@ -783,7 +783,7 @@ out:
  */
 int ntfs_refresh_zone(struct ntfs_sb_info *sbi)
 {
-	CLST zone_limit, zone_max, lcn, vcn, len;
+	CLST lcn, vcn, len;
 	size_t lcn_s, zlen;
 	struct wnd_bitmap *wnd = &sbi->used.bitmap;
 	struct ntfs_inode *ni = sbi->mft.ni;
@@ -791,16 +791,6 @@ int ntfs_refresh_zone(struct ntfs_sb_info *sbi)
 	/* Do not change anything unless we have non empty MFT zone. */
 	if (wnd_zone_len(wnd))
 		return 0;
-
-	/*
-	 * Compute the MFT zone at two steps.
-	 * It would be nice if we are able to allocate 1/8 of
-	 * total clusters for MFT but not more then 512 MB.
-	 */
-	zone_limit = (512 * 1024 * 1024) >> sbi->cluster_bits;
-	zone_max = wnd->nbits >> 3;
-	if (zone_max > zone_limit)
-		zone_max = zone_limit;
 
 	vcn = bytes_to_cluster(sbi,
 			       (u64)sbi->mft.bitmap.nbits << sbi->record_bits);
@@ -815,7 +805,7 @@ int ntfs_refresh_zone(struct ntfs_sb_info *sbi)
 	lcn_s = lcn + 1;
 
 	/* Try to allocate clusters after last MFT run. */
-	zlen = wnd_find(wnd, zone_max, lcn_s, 0, &lcn_s);
+	zlen = wnd_find(wnd, sbi->zone_max, lcn_s, 0, &lcn_s);
 	if (!zlen) {
 		ntfs_notice(sbi->sb, "MftZone: unavailable");
 		return 0;
@@ -1397,7 +1387,7 @@ int ntfs_write_bh(struct ntfs_sb_info *sbi, struct NTFS_RECORD_HEADER *rhdr,
 		if (buffer_locked(bh))
 			__wait_on_buffer(bh);
 
-		lock_buffer(nb->bh[idx]);
+		lock_buffer(bh);
 
 		bh_data = bh->b_data + off;
 		end_data = Add2Ptr(bh_data, op);
@@ -2426,7 +2416,7 @@ static inline void ntfs_unmap_and_discard(struct ntfs_sb_info *sbi, CLST lcn,
 
 void mark_as_free_ex(struct ntfs_sb_info *sbi, CLST lcn, CLST len, bool trim)
 {
-	CLST end, i;
+	CLST end, i, zone_len, zlen;
 	struct wnd_bitmap *wnd = &sbi->used.bitmap;
 
 	down_write_nested(&wnd->rw_lock, BITMAP_MUTEX_CLUSTERS);
@@ -2460,6 +2450,27 @@ void mark_as_free_ex(struct ntfs_sb_info *sbi, CLST lcn, CLST len, bool trim)
 	if (trim)
 		ntfs_unmap_and_discard(sbi, lcn, len);
 	wnd_set_free(wnd, lcn, len);
+
+	/* append to MFT zone, if possible. */
+	zone_len = wnd_zone_len(wnd);
+	zlen = min(zone_len + len, sbi->zone_max);
+
+	if (zlen == zone_len) {
+		/* MFT zone already has maximum size. */
+	} else if (!zone_len) {
+		/* Create MFT zone. */
+		wnd_zone_set(wnd, lcn, zlen);
+	} else {
+		CLST zone_lcn = wnd_zone_bit(wnd);
+
+		if (lcn + len == zone_lcn) {
+			/* Append into head MFT zone. */
+			wnd_zone_set(wnd, lcn, zlen);
+		} else if (zone_lcn + zone_len == lcn) {
+			/* Append into tail MFT zone. */
+			wnd_zone_set(wnd, zone_lcn, zlen);
+		}
+	}
 
 out:
 	up_write(&wnd->rw_lock);

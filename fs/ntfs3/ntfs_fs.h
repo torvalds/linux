@@ -220,6 +220,7 @@ struct ntfs_sb_info {
 
 	u32 flags; // See NTFS_FLAGS_XXX.
 
+	CLST zone_max; // Maximum MFT zone length in clusters
 	CLST bad_clusters; // The count of marked bad clusters.
 
 	u16 max_bytes_per_attr; // Maximum attribute size in record.
