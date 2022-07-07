@@ -1346,16 +1346,20 @@ do_reset:
 			spin_unlock(&hdev->reset_info.lock);
 			return 0;
 		}
+
+		/* This still allows the completion of some KDMA ops
+		 * Update this before in_reset because is_in_soft_reset implies we are in reset
+		 */
+		hdev->reset_info.is_in_soft_reset = !hard_reset;
+
 		hdev->reset_info.in_reset = 1;
+
 		spin_unlock(&hdev->reset_info.lock);
 
 		if (delay_reset)
 			usleep_range(HL_RESET_DELAY_USEC, HL_RESET_DELAY_USEC << 1);
 
 		handle_reset_trigger(hdev, flags);
-
-		/* This still allows the completion of some KDMA ops */
-		hdev->reset_info.is_in_soft_reset = !hard_reset;
 
 		/* This also blocks future CS/VM/JOB completion operations */
 		hdev->disabled = true;
@@ -1565,7 +1569,7 @@ kill_processes:
 	}
 
 	spin_lock(&hdev->reset_info.lock);
-	hdev->reset_info.is_in_soft_reset = false;
+	hdev->reset_info.is_in_soft_reset = 0;
 
 	/* Schedule hard reset only if requested and if not already in hard reset.
 	 * We keep 'in_reset' enabled, so no other reset can go in during the hard
@@ -1612,18 +1616,22 @@ kill_processes:
 
 out_err:
 	hdev->disabled = true;
-	hdev->reset_info.is_in_soft_reset = false;
+
+	spin_lock(&hdev->reset_info.lock);
+	hdev->reset_info.is_in_soft_reset = 0;
 
 	if (hard_reset) {
 		dev_err(hdev->dev, "Failed to reset! Device is NOT usable\n");
 		hdev->reset_info.hard_reset_cnt++;
 	} else if (reset_upon_device_release) {
+		spin_unlock(&hdev->reset_info.lock);
 		dev_err(hdev->dev, "Failed to reset device after user release\n");
 		flags |= HL_DRV_RESET_HARD;
 		flags &= ~HL_DRV_RESET_DEV_RELEASE;
 		hard_reset = true;
 		goto again;
 	} else {
+		spin_unlock(&hdev->reset_info.lock);
 		dev_err(hdev->dev, "Failed to do soft-reset\n");
 		hdev->reset_info.soft_reset_cnt++;
 		flags |= HL_DRV_RESET_HARD;
@@ -1632,6 +1640,8 @@ out_err:
 	}
 
 	hdev->reset_info.in_reset = 0;
+
+	spin_unlock(&hdev->reset_info.lock);
 
 	return rc;
 }
