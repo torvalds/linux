@@ -1796,10 +1796,10 @@ static int gaudi2_set_dram_properties(struct hl_device *hdev)
 	prop->hints_dram_reserved_va_range.start_addr = RESERVED_VA_RANGE_FOR_ARC_ON_HBM_START;
 	prop->hints_dram_reserved_va_range.end_addr = RESERVED_VA_RANGE_FOR_ARC_ON_HBM_END;
 
-	/* since DRAM page size differs from dmmu page size we need to allocate
+	/* since DRAM page size differs from DMMU page size we need to allocate
 	 * DRAM memory in units of dram_page size and mapping this memory in
 	 * units of DMMU page size. we overcome this size mismatch using a
-	 * scarmbling routine which takes a DRAM page and converts it to a DMMU
+	 * scrambling routine which takes a DRAM page and converts it to a DMMU
 	 * page.
 	 * We therefore:
 	 * 1. partition the virtual address space to DRAM-page (whole) pages.
@@ -1814,7 +1814,8 @@ static int gaudi2_set_dram_properties(struct hl_device *hdev)
 	 *    the DRAM address MSBs (63:48) are not part of the roundup calculation
 	 */
 	prop->dmmu.start_addr = prop->dram_base_address +
-			roundup(prop->dram_size, prop->dram_page_size);
+			(prop->dram_page_size *
+				DIV_ROUND_UP_SECTOR_T(prop->dram_size, prop->dram_page_size));
 
 	prop->dmmu.end_addr = prop->dmmu.start_addr + prop->dram_page_size *
 			div_u64((VA_HBM_SPACE_END - prop->dmmu.start_addr), prop->dmmu.page_size);
@@ -2404,7 +2405,7 @@ static int gaudi2_cpucp_info_get(struct hl_device *hdev)
 		/* we can have wither 5 or 6 HBMs. other values are invalid */
 
 		if ((dram_size != ((GAUDI2_HBM_NUM - 1) * SZ_16G)) &&
-					(dram_size != (GAUDI2_HBM_NUM  * SZ_16G))) {
+					(dram_size != (GAUDI2_HBM_NUM * SZ_16G))) {
 			dev_err(hdev->dev,
 				"F/W reported invalid DRAM size %llu. Trying to use default size %llu\n",
 				dram_size, prop->dram_size);
