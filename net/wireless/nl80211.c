@@ -10410,6 +10410,8 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 	req.key_idx = key.idx;
 	req.link_id = nl80211_link_id_or_invalid(info->attrs);
 	if (req.link_id >= 0) {
+		if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_MLO))
+			return -EINVAL;
 		if (!info->attrs[NL80211_ATTR_MLD_ADDR])
 			return -EINVAL;
 		req.ap_mld_addr = nla_data(info->attrs[NL80211_ATTR_MLD_ADDR]);
