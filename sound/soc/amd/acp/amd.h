@@ -32,13 +32,12 @@
 #define ACP3x_I2STDM_REG_END		0x1242410
 #define ACP3x_BT_TDM_REG_START		0x1242800
 #define ACP3x_BT_TDM_REG_END		0x1242810
-#define I2S_MODE			0x04
-#define I2S_RX_THRESHOLD		27
-#define I2S_TX_THRESHOLD		28
-#define BT_TX_THRESHOLD			26
-#define BT_RX_THRESHOLD			25
 
-#define ACP_SRAM_PTE_OFFSET		0x02052800
+#define THRESHOLD(bit, base)	((bit) + (base))
+#define I2S_RX_THRESHOLD(base)	THRESHOLD(7, base)
+#define I2S_TX_THRESHOLD(base)	THRESHOLD(8, base)
+#define BT_TX_THRESHOLD(base)	THRESHOLD(6, base)
+#define BT_RX_THRESHOLD(base)	THRESHOLD(5, base)
 
 #define ACP_SRAM_SP_PB_PTE_OFFSET	0x0
 #define ACP_SRAM_SP_CP_PTE_OFFSET	0x100
@@ -92,6 +91,17 @@ struct acp_stream {
 	u32 fifo_offset;
 };
 
+struct acp_resource {
+	int offset;
+	int no_of_ctrls;
+	int irqp_used;
+	u32 irq_reg_offset;
+	u32 i2s_pin_cfg_offset;
+	int i2s_mode;
+	u64 scratch_reg_offset;
+	u64 sram_pte_offset;
+};
+
 struct acp_dev_data {
 	char *name;
 	struct device *dev;
@@ -106,6 +116,8 @@ struct acp_dev_data {
 
 	struct snd_soc_acpi_mach *machines;
 	struct platform_device *mach_dev;
+
+	struct acp_resource *rsrc;
 };
 
 extern const struct snd_soc_dai_ops asoc_acp_cpu_dai_ops;

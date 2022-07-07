@@ -91,6 +91,7 @@ EXPORT_SYMBOL_NS_GPL(acp_machine_select, SND_SOC_ACP_COMMON);
 static irqreturn_t i2s_irq_handler(int irq, void *data)
 {
 	struct acp_dev_data *adata = data;
+	struct acp_resource *rsrc = adata->rsrc;
 	struct acp_stream *stream;
 	u16 i2s_flag = 0;
 	u32 val, i;
@@ -98,12 +99,13 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 	if (!adata)
 		return IRQ_NONE;
 
-	val = readl(adata->acp_base + ACP_EXTERNAL_INTR_STAT);
+	val = readl(ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
 
 	for (i = 0; i < ACP_MAX_STREAM; i++) {
 		stream = adata->stream[i];
 		if (stream && (val & stream->irq_bit)) {
-			writel(stream->irq_bit, adata->acp_base + ACP_EXTERNAL_INTR_STAT);
+			writel(stream->irq_bit,
+			       ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
 			snd_pcm_period_elapsed(stream->substream);
 			i2s_flag = 1;
 			break;
@@ -118,6 +120,7 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 
 static void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream *stream)
 {
+	struct acp_resource *rsrc = adata->rsrc;
 	u32 pte_reg, pte_size, reg_val;
 
 	/* Use ATU base Group5 */
@@ -126,7 +129,7 @@ static void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream 
 	stream->reg_offset = 0x02000000;
 
 	/* Group Enable */
-	reg_val = ACP_SRAM_PTE_OFFSET;
+	reg_val = rsrc->sram_pte_offset;
 	writel(reg_val | BIT(31), adata->acp_base + pte_reg);
 	writel(PAGE_SIZE_4K_ENABLE,  adata->acp_base + pte_size);
 }
@@ -135,6 +138,7 @@ static void config_acp_dma(struct acp_dev_data *adata, int cpu_id, int size)
 {
 	struct acp_stream *stream = adata->stream[cpu_id];
 	struct snd_pcm_substream *substream = stream->substream;
+	struct acp_resource *rsrc = adata->rsrc;
 	dma_addr_t addr = substream->dma_buffer.addr;
 	int num_pages = (PAGE_ALIGN(size) >> PAGE_SHIFT);
 	u32 low, high, val;
@@ -146,9 +150,9 @@ static void config_acp_dma(struct acp_dev_data *adata, int cpu_id, int size)
 		/* Load the low address of page int ACP SRAM through SRBM */
 		low = lower_32_bits(addr);
 		high = upper_32_bits(addr);
-		writel(low, adata->acp_base + ACP_SCRATCH_REG_0 + val);
+		writel(low, adata->acp_base + rsrc->scratch_reg_offset + val);
 		high |= BIT(31);
-		writel(high, adata->acp_base + ACP_SCRATCH_REG_0 + val + 4);
+		writel(high, adata->acp_base + rsrc->scratch_reg_offset + val + 4);
 
 		/* Move to next physically contiguous page */
 		val += 8;
@@ -187,7 +191,7 @@ static int acp_dma_open(struct snd_soc_component *component, struct snd_pcm_subs
 	}
 	runtime->private_data = stream;
 
-	writel(1, adata->acp_base + ACP_EXTERNAL_INTR_ENB);
+	writel(1, ACP_EXTERNAL_INTR_ENB(adata));
 
 	return ret;
 }
