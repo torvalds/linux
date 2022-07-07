@@ -969,6 +969,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	unsigned update_level = level;
 	int journal_flags = flags & JOURNAL_WATERMARK_MASK;
 	int ret = 0;
+	u32 restart_count = trans->restart_count;
 
 	BUG_ON(!path->should_be_locked);
 
@@ -1094,6 +1095,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	if (ret)
 		goto err;
 
+	bch2_trans_verify_not_restarted(trans, restart_count);
 	return as;
 err:
 	bch2_btree_update_free(as);
