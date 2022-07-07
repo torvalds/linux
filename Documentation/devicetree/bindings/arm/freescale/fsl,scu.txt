@@ -151,16 +151,6 @@ Optional Child nodes:
 - Data cells of ocotp:
   Detailed bindings are described in bindings/nvmem/nvmem.txt
 
-Watchdog bindings based on SCU Message Protocol
-------------------------------------------------------------
-
-Required properties:
-- compatible: should be:
-              "fsl,imx8qxp-sc-wdt"
-              followed by "fsl,imx-sc-wdt";
-Optional properties:
-- timeout-sec: contains the watchdog timeout in seconds.
-
 SCU key bindings based on SCU Message Protocol
 ------------------------------------------------------------
 
@@ -247,11 +237,6 @@ firmware {
 		scu_key: scu-key {
 			compatible = "fsl,imx8qxp-sc-key", "fsl,imx-sc-key";
 			linux,keycodes = <KEY_POWER>;
-		};
-
-		watchdog {
-			compatible = "fsl,imx8qxp-sc-wdt", "fsl,imx-sc-wdt";
-			timeout-sec = <60>;
 		};
 
 		tsens: thermal-sensor {
