@@ -1413,20 +1413,27 @@ static int virtio_mem_send_unplug_request(struct virtio_mem *vm, uint64_t addr,
 {
 	void *membuf;
 	u64 block_size = vm->in_sbm ? vm->sbm.sb_size : vm->bbm.bb_size;
+	uint64_t saved_size = size;
 
 	dev_dbg(&vm->vdev->dev, "unplugging memory: 0x%llx - 0x%llx\n", addr,
 		addr + size - 1);
 
 	while (size) {
 		membuf = xa_load(&xa_membuf, addr);
-		if (!WARN(membuf, "No membuf for %llx\n", addr)) {
-			mem_buf_free(membuf);
-			vm->plugged_size -= block_size;
+		if (WARN(!membuf, "No membuf for %llx\n", addr))
+			return -EINVAL;
 
-			size -= block_size;
-			addr += block_size;
-		}
+		mem_buf_free(membuf);
+
+		size -= block_size;
+		addr += block_size;
 	}
+
+	/*
+	 * Only update if all successful to be in-line with how errors
+	 * are handled by this function's callers
+	 */
+	vm->plugged_size -= saved_size;
 	return 0;
 }
 
