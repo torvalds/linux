@@ -160,8 +160,12 @@ static void fsm_notoper(struct vfio_ccw_private *private,
 {
 	struct subchannel *sch = private->sch;
 
-	VFIO_CCW_TRACE_EVENT(2, "notoper");
-	VFIO_CCW_TRACE_EVENT(2, dev_name(&sch->dev));
+	VFIO_CCW_MSG_EVENT(2, "sch %x.%x.%04x: notoper event %x state %x\n",
+			   sch->schid.cssid,
+			   sch->schid.ssid,
+			   sch->schid.sch_no,
+			   event,
+			   private->state);
 
 	/*
 	 * TODO:
