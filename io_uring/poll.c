@@ -523,8 +523,12 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 	 * io_poll_can_finish_inline() tries to deal with that.
 	 */
 	ipt->owning = issue_flags & IO_URING_F_UNLOCKED;
-
 	atomic_set(&req->poll_refs, (int)ipt->owning);
+
+	/* io-wq doesn't hold uring_lock */
+	if (issue_flags & IO_URING_F_UNLOCKED)
+		req->flags &= ~REQ_F_HASH_LOCKED;
+
 	mask = vfs_poll(req->file, &ipt->pt) & poll->events;
 
 	if (unlikely(ipt->error || !ipt->nr_entries)) {
@@ -618,8 +622,7 @@ int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 	 * apoll requests already grab the mutex to complete in the tw handler,
 	 * so removal from the mutex-backed hash is free, use it by default.
 	 */
-	if (!(issue_flags & IO_URING_F_UNLOCKED))
-		req->flags |= REQ_F_HASH_LOCKED;
+	req->flags |= REQ_F_HASH_LOCKED;
 
 	if (!def->pollin && !def->pollout)
 		return IO_APOLL_ABORTED;
@@ -876,8 +879,7 @@ int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 	 * If sqpoll or single issuer, there is no contention for ->uring_lock
 	 * and we'll end up holding it in tw handlers anyway.
 	 */
-	if (!(issue_flags & IO_URING_F_UNLOCKED) &&
-	    (req->ctx->flags & (IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER)))
+	if (req->ctx->flags & (IORING_SETUP_SQPOLL|IORING_SETUP_SINGLE_ISSUER))
 		req->flags |= REQ_F_HASH_LOCKED;
 
 	ret = __io_arm_poll_handler(req, poll, &ipt, poll->events, issue_flags);
