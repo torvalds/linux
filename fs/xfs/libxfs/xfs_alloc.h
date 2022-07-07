@@ -95,6 +95,8 @@ xfs_extlen_t xfs_alloc_longest_free_extent(struct xfs_perag *pag,
 		xfs_extlen_t need, xfs_extlen_t reserved);
 unsigned int xfs_alloc_min_freelist(struct xfs_mount *mp,
 		struct xfs_perag *pag);
+int xfs_alloc_get_freelist(struct xfs_perag *pag, struct xfs_trans *tp,
+		struct xfs_buf *agfbp, xfs_agblock_t *bnop, int	 btreeblk);
 
 /*
  * Compute and fill in value of m_alloc_maxlevels.
@@ -102,17 +104,6 @@ unsigned int xfs_alloc_min_freelist(struct xfs_mount *mp,
 void
 xfs_alloc_compute_maxlevels(
 	struct xfs_mount	*mp);	/* file system mount structure */
-
-/*
- * Get a block from the freelist.
- * Returns with the buffer for the block gotten.
- */
-int				/* error */
-xfs_alloc_get_freelist(
-	struct xfs_trans *tp,	/* transaction pointer */
-	struct xfs_buf	*agbp,	/* buffer containing the agf structure */
-	xfs_agblock_t	*bnop,	/* block address retrieved from freelist */
-	int		btreeblk); /* destination is a AGF btree */
 
 /*
  * Log the given fields from the agf structure.

@@ -300,13 +300,13 @@ xrep_alloc_ag_block(
 	switch (resv) {
 	case XFS_AG_RESV_AGFL:
 	case XFS_AG_RESV_RMAPBT:
-		error = xfs_alloc_get_freelist(sc->tp, sc->sa.agf_bp, &bno, 1);
+		error = xfs_alloc_get_freelist(sc->sa.pag, sc->tp,
+				sc->sa.agf_bp, &bno, 1);
 		if (error)
 			return error;
 		if (bno == NULLAGBLOCK)
 			return -ENOSPC;
-		xfs_extent_busy_reuse(sc->mp, sc->sa.pag, bno,
-				1, false);
+		xfs_extent_busy_reuse(sc->mp, sc->sa.pag, bno, 1, false);
 		*fsbno = XFS_AGB_TO_FSB(sc->mp, sc->sa.pag->pag_agno, bno);
 		if (resv == XFS_AG_RESV_RMAPBT)
 			xfs_ag_resv_rmapbt_alloc(sc->mp, sc->sa.pag->pag_agno);

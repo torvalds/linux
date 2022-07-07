@@ -1075,7 +1075,8 @@ xfs_alloc_ag_vextent_small(
 	    be32_to_cpu(agf->agf_flcount) <= args->minleft)
 		goto out;
 
-	error = xfs_alloc_get_freelist(args->tp, args->agbp, &fbno, 0);
+	error = xfs_alloc_get_freelist(args->pag, args->tp, args->agbp,
+			&fbno, 0);
 	if (error)
 		goto error;
 	if (fbno == NULLAGBLOCK)
@@ -2697,7 +2698,7 @@ xfs_alloc_fix_freelist(
 	else
 		targs.oinfo = XFS_RMAP_OINFO_AG;
 	while (!(flags & XFS_ALLOC_FLAG_NOSHRINK) && pag->pagf_flcount > need) {
-		error = xfs_alloc_get_freelist(tp, agbp, &bno, 0);
+		error = xfs_alloc_get_freelist(pag, tp, agbp, &bno, 0);
 		if (error)
 			goto out_agbp_relse;
 
@@ -2767,6 +2768,7 @@ out_no_agbp:
  */
 int
 xfs_alloc_get_freelist(
+	struct xfs_perag	*pag,
 	struct xfs_trans	*tp,
 	struct xfs_buf		*agbp,
 	xfs_agblock_t		*bnop,
@@ -2779,7 +2781,6 @@ xfs_alloc_get_freelist(
 	int			error;
 	uint32_t		logflags;
 	struct xfs_mount	*mp = tp->t_mountp;
-	struct xfs_perag	*pag;
 
 	/*
 	 * Freelist is empty, give up.
@@ -2807,7 +2808,6 @@ xfs_alloc_get_freelist(
 	if (be32_to_cpu(agf->agf_flfirst) == xfs_agfl_size(mp))
 		agf->agf_flfirst = 0;
 
-	pag = agbp->b_pag;
 	ASSERT(!pag->pagf_agflreset);
 	be32_add_cpu(&agf->agf_flcount, -1);
 	pag->pagf_flcount--;
