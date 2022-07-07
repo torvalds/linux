@@ -222,7 +222,7 @@ struct xfs_cil_ctx {
 	xfs_lsn_t		commit_lsn;	/* chkpt commit record lsn */
 	struct xlog_in_core	*commit_iclog;
 	struct xlog_ticket	*ticket;	/* chkpt ticket */
-	int			space_used;	/* aggregate size of regions */
+	atomic_t		space_used;	/* aggregate size of regions */
 	struct list_head	busy_extents;	/* busy extents in chkpt */
 	struct xfs_log_vec	*lv_chain;	/* logvecs being pushed */
 	struct list_head	iclog_entry;
@@ -235,6 +235,7 @@ struct xfs_cil_ctx {
  * Per-cpu CIL tracking items
  */
 struct xlog_cil_pcp {
+	int32_t			space_used;
 	struct list_head	busy_extents;
 	struct list_head	log_items;
 };
@@ -283,6 +284,7 @@ struct xfs_cil {
 
 /* xc_flags bit values */
 #define	XLOG_CIL_EMPTY		1
+#define XLOG_CIL_PCP_SPACE	2
 
 /*
  * The amount of log space we allow the CIL to aggregate is difficult to size.
