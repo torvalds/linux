@@ -562,6 +562,7 @@ int avs_ipc_get_fw_config(struct avs_dev *adev, struct avs_fw_cfg *cfg)
 		case AVS_FW_CFG_DMA_BUFFER_CONFIG:
 		case AVS_FW_CFG_SCHEDULER_CONFIG:
 		case AVS_FW_CFG_CLOCKS_CONFIG:
+		case AVS_FW_CFG_RESERVED:
 			break;
 
 		default:
