@@ -5,6 +5,28 @@
  * Copyright (c) 2022, The Linux Foundation. All rights reserved.
  */
 
+/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
+
+&lpass_rx_macro {
+	status = "okay";
+};
+
+&lpass_tx_macro {
+	status = "okay";
+};
+
+&lpass_va_macro {
+	status = "okay";
+};
+
+&swr0 {
+	status = "okay";
+};
+
+&swr1 {
+	status = "okay";
+};
+
 /* PINCTRL */
 
 &lpass_dmic01_clk {

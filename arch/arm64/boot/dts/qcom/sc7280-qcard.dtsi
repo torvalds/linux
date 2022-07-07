@@ -310,6 +310,10 @@
 	modem-init;
 };
 
+&lpass_va_macro {
+	vdd-micb-supply = <&vreg_bob>;
+};
+
 /* NOTE: Not all Qcards have eDP connector stuffed */
 &mdss_edp {
 	aux-bus {
@@ -377,6 +381,24 @@
 	non-removable;
 	no-sd;
 	no-sdio;
+};
+
+&swr0 {
+	wcd_rx: codec@0,4 {
+		compatible = "sdw20217010d00";
+		reg = <0 4>;
+		#sound-dai-cells = <1>;
+		qcom,rx-port-mapping = <1 2 3 4 5>;
+	};
+};
+
+&swr1 {
+	wcd_tx: codec@0,3 {
+		compatible = "sdw20217010d00";
+		reg = <0 3>;
+		#sound-dai-cells = <1>;
+		qcom,tx-port-mapping = <1 2 3 4>;
+	};
 };
 
 uart_dbg: &uart5 {
