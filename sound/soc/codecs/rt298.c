@@ -329,34 +329,31 @@ static void rt298_jack_detect_work(struct work_struct *work)
 static int rt298_mic_detect(struct snd_soc_component *component,
 			    struct snd_soc_jack *jack, void *data)
 {
+	struct snd_soc_dapm_context *dapm = snd_soc_component_get_dapm(component);
 	struct rt298_priv *rt298 = snd_soc_component_get_drvdata(component);
-	struct snd_soc_dapm_context *dapm;
-	bool hp = false;
-	bool mic = false;
-	int status = 0;
 
 	rt298->jack = jack;
 
-	/* If jack in NULL, disable HS jack */
-	if (!jack) {
+	if (jack) {
+		/* Enable IRQ */
+		if (rt298->jack->status & SND_JACK_HEADPHONE)
+			snd_soc_dapm_force_enable_pin(dapm, "LDO1");
+		if (rt298->jack->status & SND_JACK_MICROPHONE) {
+			snd_soc_dapm_force_enable_pin(dapm, "HV");
+			snd_soc_dapm_force_enable_pin(dapm, "VREF");
+		}
+		regmap_update_bits(rt298->regmap, RT298_IRQ_CTRL, 0x2, 0x2);
+		/* Send an initial empty report */
+		snd_soc_jack_report(rt298->jack, rt298->jack->status,
+				    SND_JACK_MICROPHONE | SND_JACK_HEADPHONE);
+	} else {
+		/* Disable IRQ */
 		regmap_update_bits(rt298->regmap, RT298_IRQ_CTRL, 0x2, 0x0);
-		dapm = snd_soc_component_get_dapm(component);
+		snd_soc_dapm_disable_pin(dapm, "HV");
+		snd_soc_dapm_disable_pin(dapm, "VREF");
 		snd_soc_dapm_disable_pin(dapm, "LDO1");
-		snd_soc_dapm_sync(dapm);
-		return 0;
 	}
-
-	regmap_update_bits(rt298->regmap, RT298_IRQ_CTRL, 0x2, 0x2);
-
-	rt298_jack_detect(rt298, &hp, &mic);
-	if (hp)
-		status |= SND_JACK_HEADPHONE;
-
-	if (mic)
-		status |= SND_JACK_MICROPHONE;
-
-	snd_soc_jack_report(rt298->jack, status,
-		SND_JACK_MICROPHONE | SND_JACK_HEADPHONE);
+	snd_soc_dapm_sync(dapm);
 
 	return 0;
 }
