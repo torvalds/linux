@@ -30,8 +30,8 @@ static_assert((BTRFS_MAX_COMPRESSED % PAGE_SIZE) == 0);
 #define	BTRFS_ZLIB_DEFAULT_LEVEL		3
 
 struct compressed_bio {
-	/* Number of sectors with unfinished IO (unsubmitted or unfinished) */
-	refcount_t pending_sectors;
+	/* Number of outstanding bios */
+	refcount_t pending_ios;
 
 	/* Number of compressed pages in the array */
 	unsigned int nr_pages;
