@@ -22,8 +22,9 @@
 		ranges = <0x0 0x0 0x0 0x40000000>;
 
 		gpcdma: dma-controller@2600000 {
-			compatible = "nvidia,tegra194-gpcdma",
-				      "nvidia,tegra186-gpcdma";
+			compatible = "nvidia,tegra234-gpcdma",
+				     "nvidia,tegra194-gpcdma",
+				     "nvidia,tegra186-gpcdma";
 			reg = <0x2600000 0x210000>;
 			resets = <&bpmp TEGRA234_RESET_GPCDMA>;
 			reset-names = "gpcdma";
