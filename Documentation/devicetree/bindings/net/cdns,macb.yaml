@@ -191,7 +191,6 @@ examples:
                     clock-names = "pclk", "hclk", "tx_clk", "rx_clk", "tsu_clk";
                     #address-cells = <1>;
                     #size-cells = <0>;
-                    #stream-id-cells = <1>;
                     iommus = <&smmu 0x875>;
                     power-domains = <&zynqmp_firmware PD_ETH_1>;
                     resets = <&zynqmp_reset ZYNQMP_RESET_GEM1>;
