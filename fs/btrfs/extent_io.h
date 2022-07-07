@@ -263,6 +263,7 @@ struct io_failure_record {
 	enum btrfs_compression_type compress_type;
 	int this_mirror;
 	int failed_mirror;
+	int num_copies;
 };
 
 int btrfs_repair_one_sector(struct inode *inode,

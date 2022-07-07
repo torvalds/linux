@@ -2434,6 +2434,20 @@ int btrfs_repair_eb_io_failure(const struct extent_buffer *eb, int mirror_num)
 	return ret;
 }
 
+static int next_mirror(const struct io_failure_record *failrec, int cur_mirror)
+{
+	if (cur_mirror == failrec->num_copies)
+		return cur_mirror + 1 - failrec->num_copies;
+	return cur_mirror + 1;
+}
+
+static int prev_mirror(const struct io_failure_record *failrec, int cur_mirror)
+{
+	if (cur_mirror == 1)
+		return failrec->num_copies;
+	return cur_mirror - 1;
+}
+
 /*
  * each time an IO finishes, we do a fast check in the IO failure tree
  * to see if we need to process or clean up an io_failure_record
@@ -2446,7 +2460,7 @@ int clean_io_failure(struct btrfs_fs_info *fs_info,
 	u64 private;
 	struct io_failure_record *failrec;
 	struct extent_state *state;
-	int num_copies;
+	int mirror;
 	int ret;
 
 	private = 0;
@@ -2470,20 +2484,19 @@ int clean_io_failure(struct btrfs_fs_info *fs_info,
 					    EXTENT_LOCKED);
 	spin_unlock(&io_tree->lock);
 
-	if (state && state->start <= failrec->start &&
-	    state->end >= failrec->start + failrec->len - 1) {
-		num_copies = btrfs_num_copies(fs_info, failrec->logical,
-					      failrec->len);
-		if (num_copies > 1)  {
-			repair_io_failure(fs_info, ino, start, failrec->len,
-					  failrec->logical, page, pg_offset,
-					  failrec->failed_mirror);
-		}
-	}
+	if (!state || state->start > failrec->start ||
+	    state->end < failrec->start + failrec->len - 1)
+		goto out;
+
+	mirror = failrec->this_mirror;
+	do {
+		mirror = prev_mirror(failrec, mirror);
+		repair_io_failure(fs_info, ino, start, failrec->len,
+				  failrec->logical, page, pg_offset, mirror);
+	} while (mirror != failrec->failed_mirror);
 
 out:
 	free_io_failure(failure_tree, io_tree, failrec);
-
 	return 0;
 }
 
@@ -2522,7 +2535,8 @@ void btrfs_free_io_failure_record(struct btrfs_inode *inode, u64 start, u64 end)
 }
 
 static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode,
-							     u64 start)
+							     u64 start,
+							     int failed_mirror)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct io_failure_record *failrec;
@@ -2544,7 +2558,8 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 		 * (e.g. with a list for failed_mirror) to make
 		 * clean_io_failure() clean all those errors at once.
 		 */
-
+		ASSERT(failrec->this_mirror == failed_mirror);
+		ASSERT(failrec->len == fs_info->sectorsize);
 		return failrec;
 	}
 
@@ -2554,7 +2569,8 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 
 	failrec->start = start;
 	failrec->len = sectorsize;
-	failrec->this_mirror = 0;
+	failrec->failed_mirror = failed_mirror;
+	failrec->this_mirror = failed_mirror;
 	failrec->compress_type = BTRFS_COMPRESS_NONE;
 
 	read_lock(&em_tree->lock);
@@ -2589,6 +2605,20 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	failrec->logical = logical;
 	free_extent_map(em);
 
+	failrec->num_copies = btrfs_num_copies(fs_info, logical, sectorsize);
+	if (failrec->num_copies == 1) {
+		/*
+		 * We only have a single copy of the data, so don't bother with
+		 * all the retry and error correction code that follows. No
+		 * matter what the error is, it is very likely to persist.
+		 */
+		btrfs_debug(fs_info,
+			"cannot repair logical %llu num_copies %d",
+			failrec->logical, failrec->num_copies);
+		kfree(failrec);
+		return ERR_PTR(-EIO);
+	}
+
 	/* Set the bits in the private failure tree */
 	ret = set_extent_bits(failure_tree, start, start + sectorsize - 1,
 			      EXTENT_LOCKED | EXTENT_DIRTY);
@@ -2603,54 +2633,6 @@ static struct io_failure_record *btrfs_get_io_failure_record(struct inode *inode
 	}
 
 	return failrec;
-}
-
-static bool btrfs_check_repairable(struct inode *inode,
-				   struct io_failure_record *failrec,
-				   int failed_mirror)
-{
-	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
-	int num_copies;
-
-	num_copies = btrfs_num_copies(fs_info, failrec->logical, failrec->len);
-	if (num_copies == 1) {
-		/*
-		 * we only have a single copy of the data, so don't bother with
-		 * all the retry and error correction code that follows. no
-		 * matter what the error is, it is very likely to persist.
-		 */
-		btrfs_debug(fs_info,
-			"Check Repairable: cannot repair, num_copies=%d, next_mirror %d, failed_mirror %d",
-			num_copies, failrec->this_mirror, failed_mirror);
-		return false;
-	}
-
-	/* The failure record should only contain one sector */
-	ASSERT(failrec->len == fs_info->sectorsize);
-
-	/*
-	 * There are two premises:
-	 * a) deliver good data to the caller
-	 * b) correct the bad sectors on disk
-	 *
-	 * Since we're only doing repair for one sector, we only need to get
-	 * a good copy of the failed sector and if we succeed, we have setup
-	 * everything for repair_io_failure to do the rest for us.
-	 */
-	ASSERT(failed_mirror);
-	failrec->failed_mirror = failed_mirror;
-	failrec->this_mirror++;
-	if (failrec->this_mirror == failed_mirror)
-		failrec->this_mirror++;
-
-	if (failrec->this_mirror > num_copies) {
-		btrfs_debug(fs_info,
-			"Check Repairable: (fail) num_copies=%d, next_mirror %d, failed_mirror %d",
-			num_copies, failrec->this_mirror, failed_mirror);
-		return false;
-	}
-
-	return true;
 }
 
 int btrfs_repair_one_sector(struct inode *inode,
@@ -2673,12 +2655,24 @@ int btrfs_repair_one_sector(struct inode *inode,
 
 	BUG_ON(bio_op(failed_bio) == REQ_OP_WRITE);
 
-	failrec = btrfs_get_io_failure_record(inode, start);
+	failrec = btrfs_get_io_failure_record(inode, start, failed_mirror);
 	if (IS_ERR(failrec))
 		return PTR_ERR(failrec);
 
-
-	if (!btrfs_check_repairable(inode, failrec, failed_mirror)) {
+	/*
+	 * There are two premises:
+	 * a) deliver good data to the caller
+	 * b) correct the bad sectors on disk
+	 *
+	 * Since we're only doing repair for one sector, we only need to get
+	 * a good copy of the failed sector and if we succeed, we have setup
+	 * everything for repair_io_failure to do the rest for us.
+	 */
+	failrec->this_mirror = next_mirror(failrec, failrec->this_mirror);
+	if (failrec->this_mirror == failrec->failed_mirror) {
+		btrfs_debug(fs_info,
+			"failed to repair num_copies %d this_mirror %d failed_mirror %d",
+			failrec->num_copies, failrec->this_mirror, failrec->failed_mirror);
 		free_io_failure(failure_tree, tree, failrec);
 		return -EIO;
 	}
