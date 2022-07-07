@@ -87,6 +87,13 @@ ap_ts_pen_1v8: &i2c13 {
 	pins = "gpio51";
 };
 
+&wcd9385 {
+	pinctrl-names = "default", "sleep";
+	pinctrl-0 = <&wcd_reset_n>, <&us_euro_hs_sel>;
+	pinctrl-1 = <&wcd_reset_n_sleep>, <&us_euro_hs_sel>;
+	us-euro-gpios = <&tlmm 81 GPIO_ACTIVE_HIGH>;
+};
+
 &tlmm {
 	tp_int_odl: tp-int-odl {
 		pins = "gpio7";
@@ -104,5 +111,12 @@ ap_ts_pen_1v8: &i2c13 {
 		pins = "gpio54";
 		function = "gpio";
 		bias-disable;
+	};
+
+	us_euro_hs_sel: us-euro-hs-sel {
+		pins = "gpio81";
+		function = "gpio";
+		bias-pull-down;
+		drive-strength = <2>;
 	};
 };
