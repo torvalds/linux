@@ -430,13 +430,13 @@ int gnttab_try_end_foreign_access(grant_ref_t ref)
 }
 EXPORT_SYMBOL_GPL(gnttab_try_end_foreign_access);
 
-void gnttab_end_foreign_access(grant_ref_t ref, unsigned long page)
+void gnttab_end_foreign_access(grant_ref_t ref, struct page *page)
 {
 	if (gnttab_try_end_foreign_access(ref)) {
-		if (page != 0)
-			put_page(virt_to_page(page));
+		if (page)
+			put_page(page);
 	} else
-		gnttab_add_deferred(ref, page ? virt_to_page(page) : NULL);
+		gnttab_add_deferred(ref, page);
 }
 EXPORT_SYMBOL_GPL(gnttab_end_foreign_access);
 
@@ -632,7 +632,7 @@ int gnttab_setup_auto_xlat_frames(phys_addr_t addr)
 	if (xen_auto_xlat_grant_frames.count)
 		return -EINVAL;
 
-	vaddr = xen_remap(addr, XEN_PAGE_SIZE * max_nr_gframes);
+	vaddr = memremap(addr, XEN_PAGE_SIZE * max_nr_gframes, MEMREMAP_WB);
 	if (vaddr == NULL) {
 		pr_warn("Failed to ioremap gnttab share frames (addr=%pa)!\n",
 			&addr);
@@ -640,7 +640,7 @@ int gnttab_setup_auto_xlat_frames(phys_addr_t addr)
 	}
 	pfn = kcalloc(max_nr_gframes, sizeof(pfn[0]), GFP_KERNEL);
 	if (!pfn) {
-		xen_unmap(vaddr);
+		memunmap(vaddr);
 		return -ENOMEM;
 	}
 	for (i = 0; i < max_nr_gframes; i++)
@@ -659,7 +659,7 @@ void gnttab_free_auto_xlat_frames(void)
 	if (!xen_auto_xlat_grant_frames.count)
 		return;
 	kfree(xen_auto_xlat_grant_frames.pfn);
-	xen_unmap(xen_auto_xlat_grant_frames.vaddr);
+	memunmap(xen_auto_xlat_grant_frames.vaddr);
 
 	xen_auto_xlat_grant_frames.pfn = NULL;
 	xen_auto_xlat_grant_frames.count = 0;

@@ -752,8 +752,8 @@ static void xenbus_probe(void)
 	xenstored_ready = 1;
 
 	if (!xen_store_interface) {
-		xen_store_interface = xen_remap(xen_store_gfn << XEN_PAGE_SHIFT,
-						XEN_PAGE_SIZE);
+		xen_store_interface = memremap(xen_store_gfn << XEN_PAGE_SHIFT,
+					       XEN_PAGE_SIZE, MEMREMAP_WB);
 		/*
 		 * Now it is safe to free the IRQ used for xenstore late
 		 * initialization. No need to unbind: it is about to be
@@ -1009,8 +1009,8 @@ static int __init xenbus_init(void)
 #endif
 			xen_store_gfn = (unsigned long)v;
 			xen_store_interface =
-				xen_remap(xen_store_gfn << XEN_PAGE_SHIFT,
-					  XEN_PAGE_SIZE);
+				memremap(xen_store_gfn << XEN_PAGE_SHIFT,
+					 XEN_PAGE_SIZE, MEMREMAP_WB);
 			if (xen_store_interface->connection != XENSTORE_CONNECTED)
 				wait = true;
 		}
