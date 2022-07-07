@@ -1935,7 +1935,7 @@ static int bcm_enet_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver bcm63xx_enet_driver = {
+static struct platform_driver bcm63xx_enet_driver = {
 	.probe	= bcm_enet_probe,
 	.remove	= bcm_enet_remove,
 	.driver	= {
@@ -2756,7 +2756,7 @@ static int bcm_enetsw_remove(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver bcm63xx_enetsw_driver = {
+static struct platform_driver bcm63xx_enetsw_driver = {
 	.probe	= bcm_enetsw_probe,
 	.remove	= bcm_enetsw_remove,
 	.driver	= {
