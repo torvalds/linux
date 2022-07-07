@@ -1728,7 +1728,7 @@ int vfio_config_init(struct vfio_pci_core_device *vdev)
 	/*
 	 * Config space, caps and ecaps are all dword aligned, so we could
 	 * use one byte per dword to record the type.  However, there are
-	 * no requiremenst on the length of a capability, so the gap between
+	 * no requirements on the length of a capability, so the gap between
 	 * capabilities needs byte granularity.
 	 */
 	map = kmalloc(pdev->cfg_size, GFP_KERNEL);
