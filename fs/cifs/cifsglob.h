@@ -16,6 +16,7 @@
 #include <linux/mempool.h>
 #include <linux/workqueue.h>
 #include <linux/utsname.h>
+#include <linux/sched/mm.h>
 #include <linux/netfs.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"
@@ -628,7 +629,8 @@ struct TCP_Server_Info {
 	unsigned int in_flight;  /* number of requests on the wire to server */
 	unsigned int max_in_flight; /* max number of requests that were on wire */
 	spinlock_t req_lock;  /* protect the two values above */
-	struct mutex srv_mutex;
+	struct mutex _srv_mutex;
+	unsigned int nofs_flag;
 	struct task_struct *tsk;
 	char server_GUID[16];
 	__u16 sec_mode;
@@ -742,6 +744,22 @@ struct TCP_Server_Info {
 	char *origin_fullpath, *leaf_fullpath, *current_fullpath;
 #endif
 };
+
+static inline void cifs_server_lock(struct TCP_Server_Info *server)
+{
+	unsigned int nofs_flag = memalloc_nofs_save();
+
+	mutex_lock(&server->_srv_mutex);
+	server->nofs_flag = nofs_flag;
+}
+
+static inline void cifs_server_unlock(struct TCP_Server_Info *server)
+{
+	unsigned int nofs_flag = server->nofs_flag;
+
+	mutex_unlock(&server->_srv_mutex);
+	memalloc_nofs_restore(nofs_flag);
+}
 
 struct cifs_credits {
 	unsigned int value;
@@ -1945,11 +1963,13 @@ extern mempool_t *cifs_mid_poolp;
 
 /* Operations for different SMB versions */
 #define SMB1_VERSION_STRING	"1.0"
+#define SMB20_VERSION_STRING    "2.0"
+#ifdef CONFIG_CIFS_ALLOW_INSECURE_LEGACY
 extern struct smb_version_operations smb1_operations;
 extern struct smb_version_values smb1_values;
-#define SMB20_VERSION_STRING	"2.0"
 extern struct smb_version_operations smb20_operations;
 extern struct smb_version_values smb20_values;
+#endif /* CIFS_ALLOW_INSECURE_LEGACY */
 #define SMB21_VERSION_STRING	"2.1"
 extern struct smb_version_operations smb21_operations;
 extern struct smb_version_values smb21_values;
