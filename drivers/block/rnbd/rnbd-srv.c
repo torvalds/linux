@@ -323,10 +323,11 @@ void rnbd_srv_sess_dev_force_close(struct rnbd_srv_sess_dev *sess_dev,
 {
 	struct rnbd_srv_session	*sess = sess_dev->sess;
 
-	sess_dev->keep_id = true;
 	/* It is already started to close by client's close message. */
 	if (!mutex_trylock(&sess->lock))
 		return;
+
+	sess_dev->keep_id = true;
 	/* first remove sysfs itself to avoid deadlock */
 	sysfs_remove_file_self(&sess_dev->kobj, &attr->attr);
 	rnbd_srv_destroy_dev_session_sysfs(sess_dev);
