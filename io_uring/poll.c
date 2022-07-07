@@ -401,16 +401,18 @@ static void io_poll_double_prepare(struct io_kiocb *req)
 	/* head is RCU protected, see io_poll_remove_entries() comments */
 	rcu_read_lock();
 	head = smp_load_acquire(&poll->head);
-	if (head) {
-		/*
-		 * poll arm may not hold ownership and so race with
-		 * io_poll_wake() by modifying req->flags. There is only one
-		 * poll entry queued, serialise with it by taking its head lock.
-		 */
+	/*
+	 * poll arm may not hold ownership and so race with
+	 * io_poll_wake() by modifying req->flags. There is only one
+	 * poll entry queued, serialise with it by taking its head lock.
+	 */
+	if (head)
 		spin_lock_irq(&head->lock);
-		req->flags |= REQ_F_DOUBLE_POLL;
+
+	req->flags |= REQ_F_DOUBLE_POLL;
+
+	if (head)
 		spin_unlock_irq(&head->lock);
-	}
 	rcu_read_unlock();
 }
 
