@@ -13,6 +13,8 @@
 #include "scrub/scrub.h"
 #include "scrub/common.h"
 #include "scrub/btree.h"
+#include "xfs_trans_resv.h"
+#include "xfs_mount.h"
 #include "xfs_ag.h"
 
 /*

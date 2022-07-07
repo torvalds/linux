@@ -2897,8 +2897,7 @@ xfs_ialloc_calc_rootino(
 	 * allocation group, or very odd geometries created by old mkfs
 	 * versions on very small filesystems.
 	 */
-	if (mp->m_sb.sb_logstart &&
-	    XFS_FSB_TO_AGNO(mp, mp->m_sb.sb_logstart) == 0)
+	if (xfs_ag_contains_log(mp, 0))
 		 first_bno += mp->m_sb.sb_logblocks;
 
 	/*

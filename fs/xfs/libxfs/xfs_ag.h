@@ -165,6 +165,13 @@ xfs_verify_agino_or_null(struct xfs_perag *pag, xfs_agino_t agino)
 	return xfs_verify_agino(pag, agino);
 }
 
+static inline bool
+xfs_ag_contains_log(struct xfs_mount *mp, xfs_agnumber_t agno)
+{
+	return mp->m_sb.sb_logstart > 0 &&
+	       agno == XFS_FSB_TO_AGNO(mp, mp->m_sb.sb_logstart);
+}
+
 /*
  * Perag iteration APIs
  */

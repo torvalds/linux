@@ -390,12 +390,6 @@ xfs_get_aghdr_buf(
 	return 0;
 }
 
-static inline bool is_log_ag(struct xfs_mount *mp, struct aghdr_init_data *id)
-{
-	return mp->m_sb.sb_logstart > 0 &&
-	       id->agno == XFS_FSB_TO_AGNO(mp, mp->m_sb.sb_logstart);
-}
-
 /*
  * Generic btree root block init function
  */
@@ -421,7 +415,7 @@ xfs_freesp_init_recs(
 	arec = XFS_ALLOC_REC_ADDR(mp, XFS_BUF_TO_BLOCK(bp), 1);
 	arec->ar_startblock = cpu_to_be32(mp->m_ag_prealloc_blocks);
 
-	if (is_log_ag(mp, id)) {
+	if (xfs_ag_contains_log(mp, id->agno)) {
 		struct xfs_alloc_rec	*nrec;
 		xfs_agblock_t		start = XFS_FSB_TO_AGBNO(mp,
 							mp->m_sb.sb_logstart);
@@ -548,7 +542,7 @@ xfs_rmaproot_init(
 	}
 
 	/* account for the log space */
-	if (is_log_ag(mp, id)) {
+	if (xfs_ag_contains_log(mp, id->agno)) {
 		rrec = XFS_RMAP_REC_ADDR(block,
 				be16_to_cpu(block->bb_numrecs) + 1);
 		rrec->rm_startblock = cpu_to_be32(
@@ -619,7 +613,7 @@ xfs_agfblock_init(
 		agf->agf_refcount_blocks = cpu_to_be32(1);
 	}
 
-	if (is_log_ag(mp, id)) {
+	if (xfs_ag_contains_log(mp, id->agno)) {
 		int64_t	logblocks = mp->m_sb.sb_logblocks;
 
 		be32_add_cpu(&agf->agf_freeblks, -logblocks);
