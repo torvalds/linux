@@ -94,10 +94,13 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 	struct acp_resource *rsrc = adata->rsrc;
 	struct acp_stream *stream;
 	u16 i2s_flag = 0;
-	u32 val, i;
+	u32 val, val1, i;
 
 	if (!adata)
 		return IRQ_NONE;
+
+	if (adata->rsrc->no_of_ctrls == 2)
+		val1 = readl(ACP_EXTERNAL_INTR_STAT(adata, (rsrc->irqp_used - 1)));
 
 	val = readl(ACP_EXTERNAL_INTR_STAT(adata, rsrc->irqp_used));
 
@@ -110,8 +113,16 @@ static irqreturn_t i2s_irq_handler(int irq, void *data)
 			i2s_flag = 1;
 			break;
 		}
+		if (adata->rsrc->no_of_ctrls == 2) {
+			if (stream && (val1 & stream->irq_bit)) {
+				writel(stream->irq_bit, ACP_EXTERNAL_INTR_STAT(adata,
+				       (rsrc->irqp_used - 1)));
+				snd_pcm_period_elapsed(stream->substream);
+				i2s_flag = 1;
+				break;
+			}
+		}
 	}
-
 	if (i2s_flag)
 		return IRQ_HANDLED;
 
@@ -132,6 +143,7 @@ static void config_pte_for_stream(struct acp_dev_data *adata, struct acp_stream 
 	reg_val = rsrc->sram_pte_offset;
 	writel(reg_val | BIT(31), adata->acp_base + pte_reg);
 	writel(PAGE_SIZE_4K_ENABLE,  adata->acp_base + pte_size);
+	writel(0x01, adata->acp_base + ACPAXI2AXI_ATU_CTRL);
 }
 
 static void config_acp_dma(struct acp_dev_data *adata, int cpu_id, int size)

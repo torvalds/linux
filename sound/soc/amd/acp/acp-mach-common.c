@@ -545,6 +545,12 @@ static struct snd_soc_dai_link_component platform_component[] = {
 	}
 };
 
+static struct snd_soc_dai_link_component platform_rmb_component[] = {
+	{
+		.name = "acp_asoc_rembrandt.0",
+	}
+};
+
 static struct snd_soc_dai_link_component sof_component[] = {
 	{
 		 .name = "0000:04:00.5",
@@ -553,6 +559,8 @@ static struct snd_soc_dai_link_component sof_component[] = {
 
 SND_SOC_DAILINK_DEF(i2s_sp,
 	DAILINK_COMP_ARRAY(COMP_CPU("acp-i2s-sp")));
+SND_SOC_DAILINK_DEF(i2s_hs,
+		    DAILINK_COMP_ARRAY(COMP_CPU("acp-i2s-hs")));
 SND_SOC_DAILINK_DEF(sof_sp,
 	DAILINK_COMP_ARRAY(COMP_CPU("acp-sof-sp")));
 SND_SOC_DAILINK_DEF(sof_hs,
@@ -774,6 +782,40 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 		i++;
 	}
 
+	if (drv_data->hs_cpu_id == I2S_HS) {
+		links[i].name = "acp-headset-codec";
+		links[i].id = HEADSET_BE_ID;
+		links[i].cpus = i2s_hs;
+		links[i].num_cpus = ARRAY_SIZE(i2s_hs);
+		if (drv_data->platform == REMBRANDT) {
+			links[i].platforms = platform_rmb_component;
+			links[i].num_platforms = ARRAY_SIZE(platform_rmb_component);
+		} else {
+			links[i].platforms = platform_component;
+			links[i].num_platforms = ARRAY_SIZE(platform_component);
+		}
+		links[i].dpcm_playback = 1;
+		links[i].dpcm_capture = 1;
+		if (!drv_data->hs_codec_id) {
+			/* Use dummy codec if codec id not specified */
+			links[i].codecs = dummy_codec;
+			links[i].num_codecs = ARRAY_SIZE(dummy_codec);
+		}
+		if (drv_data->hs_codec_id == NAU8825) {
+			links[i].codecs = nau8825;
+			links[i].num_codecs = ARRAY_SIZE(nau8825);
+			links[i].init = acp_card_nau8825_init;
+			links[i].ops = &acp_card_nau8825_ops;
+		}
+		if (drv_data->hs_codec_id == RT5682S) {
+			links[i].codecs = rt5682s;
+			links[i].num_codecs = ARRAY_SIZE(rt5682s);
+			links[i].init = acp_card_rt5682s_init;
+			links[i].ops = &acp_card_rt5682s_ops;
+		}
+		i++;
+	}
+
 	if (drv_data->amp_cpu_id == I2S_SP) {
 		links[i].name = "acp-amp-codec";
 		links[i].id = AMP_BE_ID;
@@ -804,6 +846,41 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 		i++;
 	}
 
+	if (drv_data->amp_cpu_id == I2S_HS) {
+		links[i].name = "acp-amp-codec";
+		links[i].id = AMP_BE_ID;
+		links[i].cpus = i2s_hs;
+		links[i].num_cpus = ARRAY_SIZE(i2s_hs);
+		if (drv_data->platform == REMBRANDT) {
+			links[i].platforms = platform_rmb_component;
+			links[i].num_platforms = ARRAY_SIZE(platform_rmb_component);
+		} else {
+			links[i].platforms = platform_component;
+			links[i].num_platforms = ARRAY_SIZE(platform_component);
+		}
+		links[i].dpcm_playback = 1;
+		if (!drv_data->amp_codec_id) {
+			/* Use dummy codec if codec id not specified */
+			links[i].codecs = dummy_codec;
+			links[i].num_codecs = ARRAY_SIZE(dummy_codec);
+		}
+		if (drv_data->amp_codec_id == MAX98360A) {
+			links[i].codecs = max98360a;
+			links[i].num_codecs = ARRAY_SIZE(max98360a);
+			links[i].ops = &acp_card_maxim_ops;
+			links[i].init = acp_card_maxim_init;
+		}
+		if (drv_data->amp_codec_id == RT1019) {
+			links[i].codecs = rt1019;
+			links[i].num_codecs = ARRAY_SIZE(rt1019);
+			links[i].ops = &acp_card_rt1019_ops;
+			links[i].init = acp_card_rt1019_init;
+			card->codec_conf = rt1019_conf;
+			card->num_configs = ARRAY_SIZE(rt1019_conf);
+		}
+		i++;
+	}
+
 	if (drv_data->dmic_cpu_id == DMIC) {
 		links[i].name = "acp-dmic-codec";
 		links[i].id = DMIC_BE_ID;
@@ -817,8 +894,13 @@ int acp_legacy_dai_links_create(struct snd_soc_card *card)
 		}
 		links[i].cpus = pdm_dmic;
 		links[i].num_cpus = ARRAY_SIZE(pdm_dmic);
-		links[i].platforms = platform_component;
-		links[i].num_platforms = ARRAY_SIZE(platform_component);
+		if (drv_data->platform == REMBRANDT) {
+			links[i].platforms = platform_rmb_component;
+			links[i].num_platforms = ARRAY_SIZE(platform_rmb_component);
+		} else {
+			links[i].platforms = platform_component;
+			links[i].num_platforms = ARRAY_SIZE(platform_component);
+		}
 		links[i].ops = &acp_card_dmic_ops;
 		links[i].dpcm_capture = 1;
 	}
