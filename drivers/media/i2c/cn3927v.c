@@ -3,6 +3,8 @@
  * cn3927v vcm driver
  *
  * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
+ *
+ * V0.0X01.0X01 reduce vcm collision noise.
  */
 
 //#define DEBUG
@@ -20,7 +22,7 @@
 
 #define OF_CAMERA_VCMDRV_EDLC_ENABLE	"rockchip,vcm-edlc-enable"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x1)
 #define CN3927V_NAME			"cn3927v"
 
 #define CN3927V_MAX_CURRENT		120U
@@ -716,6 +718,22 @@ static long cn3927v_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	} else if (cmd == RK_VIDIOC_SET_VCM_CFG) {
 		vcm_cfg = (struct rk_cam_vcm_cfg *)arg;
 
+		if (vcm_cfg->start_ma == 0 && vcm_cfg->rated_ma == 0) {
+			dev_err(&client->dev,
+				"vcm_cfg err, start_ma %d, rated_ma %d\n",
+				vcm_cfg->start_ma, vcm_cfg->rated_ma);
+			return -EINVAL;
+		}
+
+		if (vcm_cfg->rated_ma > CN3927V_MAX_CURRENT) {
+			dev_warn(&client->dev,
+				 "vcm_cfg use dac value, do convert!\n");
+			vcm_cfg->rated_ma = vcm_cfg->rated_ma *
+					    dev_vcm->max_current / CN3927V_MAX_REG;
+			vcm_cfg->start_ma = vcm_cfg->start_ma *
+					    dev_vcm->max_current / CN3927V_MAX_REG;
+		}
+
 		dev_vcm->vcm_cfg.start_ma = vcm_cfg->start_ma;
 		dev_vcm->vcm_cfg.rated_ma = vcm_cfg->rated_ma;
 		dev_vcm->vcm_cfg.step_mode = vcm_cfg->step_mode;
@@ -1101,8 +1119,8 @@ static int cn3927v_parse_dt_property(struct i2c_client *client,
 
 	dev_dbg(&client->dev, "current: %d, %d, %d, dlc_en: %d, t_src: %d, mclk: %d",
 		dev_vcm->max_current,
-		dev_vcm->start_current,
-		dev_vcm->rated_current,
+		dev_vcm->vcm_cfg.start_ma,
+		dev_vcm->vcm_cfg.rated_ma,
 		dev_vcm->dlc_enable,
 		dev_vcm->t_src,
 		dev_vcm->mclk);
@@ -1224,14 +1242,8 @@ static int cn3927v_init(struct i2c_client *client)
 			goto err;
 		// delay 1ms
 		usleep_range(1000, 1200);
-		// SAC mode & nrc_time & nrc_infl
-		data = CN3927V_ADVMODE_RING_EN << 7 |
-		       (cn3927v_dev->nrc_infl & 0x3) << 5 |
-		       (cn3927v_dev->nrc_time & 0x1) << 4 |
-		       (cn3927v_dev->sac_mode & 0xF);
-		ret = cn3927v_write_msg(client, CN3927V_ADVMODE_SAC_CFG, data);
-		if (ret)
-			goto err;
+
+
 		// Set Tvib (PRESC[1:0] )
 		ret = cn3927v_write_msg(client, CN3927V_ADVMODE_PRESC, cn3927v_dev->sac_prescl);
 		if (ret)
@@ -1250,6 +1262,16 @@ static int cn3927v_init(struct i2c_client *client)
 		ret = cn3927v_write_msg(client, CN3927V_ADVMODE_NRC, data);
 		if (ret)
 			goto err;
+
+		// SAC mode & nrc_time & nrc_infl
+		data = CN3927V_ADVMODE_RING_EN << 7 |
+			   (cn3927v_dev->nrc_infl & 0x3) << 5 |
+			   (cn3927v_dev->nrc_time & 0x1) << 4 |
+			   (cn3927v_dev->sac_mode & 0xF);
+		ret = cn3927v_write_msg(client, CN3927V_ADVMODE_SAC_CFG, data);
+		if (ret)
+			goto err;
+
 	} else {
 		// need to wait 1ms after poweron
 		usleep_range(1000, 1200);
@@ -1297,7 +1319,7 @@ static int __maybe_unused cn3927v_vcm_suspend(struct device *dev)
 	dev_dbg(&client->dev, "%s: current_lens_pos %d, current_related_pos %d\n",
 		__func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
 	move_time = 1000 * cn3927v_move_time(dev_vcm, CN3927V_GRADUAL_MOVELENS_STEPS);
-	while (dac >= dev_vcm->start_current) {
+	while (dac >= CN3927V_GRADUAL_MOVELENS_STEPS) {
 		cn3927v_set_dac(dev_vcm, dac);
 		usleep_range(move_time, move_time + 1000);
 		dac -= CN3927V_GRADUAL_MOVELENS_STEPS;
@@ -1305,8 +1327,8 @@ static int __maybe_unused cn3927v_vcm_suspend(struct device *dev)
 			break;
 	}
 
-	if (dac < dev_vcm->start_current) {
-		dac = dev_vcm->start_current;
+	if (dac < CN3927V_GRADUAL_MOVELENS_STEPS) {
+		dac = CN3927V_GRADUAL_MOVELENS_STEPS;
 		cn3927v_set_dac(dev_vcm, dac);
 	}
 	/* set to power down mode */
@@ -1327,12 +1349,13 @@ static int __maybe_unused cn3927v_vcm_resume(struct device *dev)
 	struct v4l2_subdev *sd = i2c_get_clientdata(client);
 	struct cn3927v_device *dev_vcm = sd_to_cn3927v_vcm(sd);
 	unsigned int move_time;
-	int dac = 0;
+	int dac = dev_vcm->start_current;
 
 
 	__cn3927v_set_power(dev_vcm, true);
 	cn3927v_init(client);
 
+	usleep_range(1000, 1200);
 	dev_dbg(&client->dev, "%s: current_lens_pos %d, current_related_pos %d\n",
 		__func__, dev_vcm->current_lens_pos, dev_vcm->current_related_pos);
 	move_time = 1000 * cn3927v_move_time(dev_vcm, CN3927V_GRADUAL_MOVELENS_STEPS);
