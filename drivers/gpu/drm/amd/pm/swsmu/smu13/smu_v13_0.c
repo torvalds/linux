@@ -1084,9 +1084,35 @@ int smu_v13_0_set_power_limit(struct smu_context *smu,
 	return 0;
 }
 
+static int smu_v13_0_allow_ih_interrupt(struct smu_context *smu)
+{
+	return smu_cmn_send_smc_msg(smu,
+				    SMU_MSG_AllowIHHostInterrupt,
+				    NULL);
+}
+
+static int smu_v13_0_process_pending_interrupt(struct smu_context *smu)
+{
+	int ret = 0;
+
+	if (smu->dc_controlled_by_gpio &&
+	    smu_cmn_feature_is_enabled(smu, SMU_FEATURE_ACDC_BIT))
+		ret = smu_v13_0_allow_ih_interrupt(smu);
+
+	return ret;
+}
+
 int smu_v13_0_enable_thermal_alert(struct smu_context *smu)
 {
-	return amdgpu_irq_get(smu->adev, &smu->irq_source, 0);
+	int ret = 0;
+
+	if (smu->smu_table.thermal_controller_type) {
+		ret = amdgpu_irq_get(smu->adev, &smu->irq_source, 0);
+		if (ret)
+			return ret;
+	}
+
+	return smu_v13_0_process_pending_interrupt(smu);
 }
 
 int smu_v13_0_disable_thermal_alert(struct smu_context *smu)
