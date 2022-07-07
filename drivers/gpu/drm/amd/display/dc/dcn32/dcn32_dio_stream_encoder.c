@@ -391,6 +391,16 @@ static void enc32_stream_encoder_reset_fifo(struct stream_encoder *enc)
 	}
 }
 
+static void enc32_set_dig_input_mode(struct stream_encoder *enc, unsigned int pix_per_container)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	/* The naming of this field is confusing, what it means is the output mode of otg, which
+	 * is the input mode of the dig
+	 */
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_OUTPUT_PIXEL_MODE, pix_per_container == 2 ? 0x1 : 0x0);
+}
+
 static const struct stream_encoder_funcs dcn32_str_enc_funcs = {
 	.dp_set_odm_combine =
 		enc32_dp_set_odm_combine,
@@ -436,6 +446,8 @@ static const struct stream_encoder_funcs dcn32_str_enc_funcs = {
 	.dp_set_dsc_pps_info_packet = enc3_dp_set_dsc_pps_info_packet,
 	.set_dynamic_metadata = enc2_set_dynamic_metadata,
 	.hdmi_reset_stream_attribute = enc1_reset_hdmi_stream_attribute,
+
+	.set_input_mode = enc32_set_dig_input_mode,
 };
 
 void dcn32_dio_stream_encoder_construct(
