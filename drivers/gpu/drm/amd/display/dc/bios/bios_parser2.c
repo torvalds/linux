@@ -402,7 +402,7 @@ static struct atom_display_object_path_v3 *get_bios_object_from_path_v3(
 		return NULL;
 	}
 
-    return NULL;
+	return NULL;
 }
 
 static enum bp_result bios_parser_get_i2c_info(struct dc_bios *dcb,
@@ -605,8 +605,8 @@ static enum bp_result bios_parser_get_hpd_info(
 	    default:
 	        object = get_bios_object(bp, id);
 
-			if (!object)
-				return BP_RESULT_BADINPUT;
+		if (!object)
+			return BP_RESULT_BADINPUT;
 
 	        record = get_hpd_record(bp, object);
 
@@ -810,10 +810,10 @@ static enum bp_result bios_parser_get_device_tag(
 	        /* getBiosObject will return MXM object */
 	        object = get_bios_object(bp, connector_object_id);
 
-			if (!object) {
-				BREAK_TO_DEBUGGER(); /* Invalid object id */
-				return BP_RESULT_BADINPUT;
-			}
+		if (!object) {
+			BREAK_TO_DEBUGGER(); /* Invalid object id */
+			return BP_RESULT_BADINPUT;
+		}
 
 	        info->acpi_device = 0; /* BIOS no longer provides this */
 	        info->dev_id = device_type_from_device_id(object->device_tag);
@@ -1596,7 +1596,7 @@ static bool bios_parser_is_device_id_supported(
 			break;
 	}
 
-    return false;
+	return false;
 }
 
 static uint32_t bios_parser_get_ss_entry_number(
