@@ -450,7 +450,7 @@ __must_check int __media_pipeline_start(struct media_entity *entity,
 		bitmap_zero(active, entity->num_pads);
 		bitmap_fill(has_no_links, entity->num_pads);
 
-		list_for_each_entry(link, &entity->links, list) {
+		for_each_media_entity_data_link(entity, link) {
 			struct media_pad *pad = link->sink->entity == entity
 						? link->sink : link->source;
 
@@ -889,7 +889,7 @@ media_entity_find_link(struct media_pad *source, struct media_pad *sink)
 {
 	struct media_link *link;
 
-	list_for_each_entry(link, &source->entity->links, list) {
+	for_each_media_entity_data_link(source->entity, link) {
 		if (link->source->entity == source->entity &&
 		    link->source->index == source->index &&
 		    link->sink->entity == sink->entity &&
@@ -905,7 +905,7 @@ struct media_pad *media_entity_remote_pad(const struct media_pad *pad)
 {
 	struct media_link *link;
 
-	list_for_each_entry(link, &pad->entity->links, list) {
+	for_each_media_entity_data_link(pad->entity, link) {
 		if (!(link->flags & MEDIA_LNK_FL_ENABLED))
 			continue;
 
