@@ -128,6 +128,11 @@ xlog_cil_push_pcp_aggregate(
 		ctx->ticket->t_curr_res += cilpcp->space_reserved;
 		cilpcp->space_reserved = 0;
 
+		if (!list_empty(&cilpcp->busy_extents)) {
+			list_splice_init(&cilpcp->busy_extents,
+					&ctx->busy_extents);
+		}
+
 		/*
 		 * We're in the middle of switching cil contexts.  Reset the
 		 * counter we use to detect when the current context is nearing
@@ -634,6 +639,9 @@ xlog_cil_insert_items(
 	} else {
 		cilpcp->space_used += len;
 	}
+	/* attach the transaction to the CIL if it has any busy extents */
+	if (!list_empty(&tp->t_busy))
+		list_splice_init(&tp->t_busy, &cilpcp->busy_extents);
 	put_cpu_ptr(cilpcp);
 
 	/*
@@ -656,9 +664,6 @@ xlog_cil_insert_items(
 			list_move_tail(&lip->li_cil, &cil->xc_cil);
 	}
 
-	/* attach the transaction to the CIL if it has any busy extents */
-	if (!list_empty(&tp->t_busy))
-		list_splice_init(&tp->t_busy, &ctx->busy_extents);
 	spin_unlock(&cil->xc_cil_lock);
 
 	/*
@@ -1756,6 +1761,8 @@ xlog_cil_pcp_dead(
 		ctx->ticket->t_curr_res += cilpcp->space_reserved;
 	cilpcp->space_reserved = 0;
 
+	if (!list_empty(&cilpcp->busy_extents))
+		list_splice_init(&cilpcp->busy_extents, &ctx->busy_extents);
 	atomic_add(cilpcp->space_used, &ctx->space_used);
 	cilpcp->space_used = 0;
 	up_write(&cil->xc_ctx_lock);
@@ -1766,10 +1773,12 @@ xlog_cil_pcp_dead(
  */
 int
 xlog_cil_init(
-	struct xlog	*log)
+	struct xlog		*log)
 {
-	struct xfs_cil	*cil;
-	struct xfs_cil_ctx *ctx;
+	struct xfs_cil		*cil;
+	struct xfs_cil_ctx	*ctx;
+	struct xlog_cil_pcp	*cilpcp;
+	int			cpu;
 
 	cil = kmem_zalloc(sizeof(*cil), KM_MAYFAIL);
 	if (!cil)
@@ -1788,6 +1797,11 @@ xlog_cil_init(
 	cil->xc_pcp = alloc_percpu(struct xlog_cil_pcp);
 	if (!cil->xc_pcp)
 		goto out_destroy_wq;
+
+	for_each_possible_cpu(cpu) {
+		cilpcp = per_cpu_ptr(cil->xc_pcp, cpu);
+		INIT_LIST_HEAD(&cilpcp->busy_extents);
+	}
 
 	INIT_LIST_HEAD(&cil->xc_cil);
 	INIT_LIST_HEAD(&cil->xc_committing);
