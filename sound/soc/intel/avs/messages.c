@@ -378,7 +378,6 @@ int avs_ipc_get_large_config(struct avs_dev *adev, u16 module_id, u8 instance_id
 	union avs_module_msg msg = AVS_MODULE_REQUEST(LARGE_CONFIG_GET);
 	struct avs_ipc_msg request;
 	struct avs_ipc_msg reply = {{0}};
-	size_t size;
 	void *buf;
 	int ret;
 
@@ -406,15 +405,14 @@ int avs_ipc_get_large_config(struct avs_dev *adev, u16 module_id, u8 instance_id
 		return ret;
 	}
 
-	size = reply.rsp.ext.large_config.data_off_size;
-	buf = krealloc(reply.data, size, GFP_KERNEL);
+	buf = krealloc(reply.data, reply.size, GFP_KERNEL);
 	if (!buf) {
 		kfree(reply.data);
 		return -ENOMEM;
 	}
 
 	*reply_data = buf;
-	*reply_size = size;
+	*reply_size = reply.size;
 
 	return 0;
 }
