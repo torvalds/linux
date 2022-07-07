@@ -70,6 +70,8 @@ struct xfs_perag {
 	/* Precalculated geometry info */
 	xfs_agblock_t		block_count;
 	xfs_agblock_t		min_block;
+	xfs_agino_t		agino_min;
+	xfs_agino_t		agino_max;
 
 #ifdef __KERNEL__
 	/* -- kernel only structures below this line -- */
@@ -124,6 +126,8 @@ void xfs_perag_put(struct xfs_perag *pag);
  * Per-ag geometry infomation and validation
  */
 xfs_agblock_t xfs_ag_block_count(struct xfs_mount *mp, xfs_agnumber_t agno);
+void xfs_agino_range(struct xfs_mount *mp, xfs_agnumber_t agno,
+		xfs_agino_t *first, xfs_agino_t *last);
 
 static inline bool
 xfs_verify_agbno(struct xfs_perag *pag, xfs_agblock_t agbno)
@@ -133,6 +137,32 @@ xfs_verify_agbno(struct xfs_perag *pag, xfs_agblock_t agbno)
 	if (agbno <= pag->min_block)
 		return false;
 	return true;
+}
+
+/*
+ * Verify that an AG inode number pointer neither points outside the AG
+ * nor points at static metadata.
+ */
+static inline bool
+xfs_verify_agino(struct xfs_perag *pag, xfs_agino_t agino)
+{
+	if (agino < pag->agino_min)
+		return false;
+	if (agino > pag->agino_max)
+		return false;
+	return true;
+}
+
+/*
+ * Verify that an AG inode number pointer neither points outside the AG
+ * nor points at static metadata, or is NULLAGINO.
+ */
+static inline bool
+xfs_verify_agino_or_null(struct xfs_perag *pag, xfs_agino_t agino)
+{
+	if (agino == NULLAGINO)
+		return true;
+	return xfs_verify_agino(pag, agino);
 }
 
 /*

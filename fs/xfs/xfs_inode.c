@@ -2008,7 +2008,7 @@ xfs_iunlink_update_bucket(
 	xfs_agino_t		old_value;
 	int			offset;
 
-	ASSERT(xfs_verify_agino_or_null(tp->t_mountp, pag->pag_agno, new_agino));
+	ASSERT(xfs_verify_agino_or_null(pag, new_agino));
 
 	old_value = be32_to_cpu(agi->agi_unlinked[bucket_index]);
 	trace_xfs_iunlink_update_bucket(tp->t_mountp, pag->pag_agno, bucket_index,
@@ -2045,7 +2045,7 @@ xfs_iunlink_update_dinode(
 	struct xfs_mount	*mp = tp->t_mountp;
 	int			offset;
 
-	ASSERT(xfs_verify_agino_or_null(mp, pag->pag_agno, next_agino));
+	ASSERT(xfs_verify_agino_or_null(pag, next_agino));
 
 	trace_xfs_iunlink_update_dinode(mp, pag->pag_agno, agino,
 			be32_to_cpu(dip->di_next_unlinked), next_agino);
@@ -2075,7 +2075,7 @@ xfs_iunlink_update_inode(
 	xfs_agino_t		old_value;
 	int			error;
 
-	ASSERT(xfs_verify_agino_or_null(mp, pag->pag_agno, next_agino));
+	ASSERT(xfs_verify_agino_or_null(pag, next_agino));
 
 	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &ibp);
 	if (error)
@@ -2084,7 +2084,7 @@ xfs_iunlink_update_inode(
 
 	/* Make sure the old pointer isn't garbage. */
 	old_value = be32_to_cpu(dip->di_next_unlinked);
-	if (!xfs_verify_agino_or_null(mp, pag->pag_agno, old_value)) {
+	if (!xfs_verify_agino_or_null(pag, old_value)) {
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__, dip,
 				sizeof(*dip), __this_address);
 		error = -EFSCORRUPTED;
@@ -2155,7 +2155,7 @@ xfs_iunlink(
 	 */
 	next_agino = be32_to_cpu(agi->agi_unlinked[bucket_index]);
 	if (next_agino == agino ||
-	    !xfs_verify_agino_or_null(mp, pag->pag_agno, next_agino)) {
+	    !xfs_verify_agino_or_null(pag, next_agino)) {
 		xfs_buf_mark_corrupt(agibp);
 		error = -EFSCORRUPTED;
 		goto out;
@@ -2291,7 +2291,7 @@ xfs_iunlink_map_prev(
 		 * Make sure this pointer is valid and isn't an obvious
 		 * infinite loop.
 		 */
-		if (!xfs_verify_agino(mp, pag->pag_agno, unlinked_agino) ||
+		if (!xfs_verify_agino(pag, unlinked_agino) ||
 		    next_agino == unlinked_agino) {
 			XFS_CORRUPTION_ERROR(__func__,
 					XFS_ERRLEVEL_LOW, mp,
@@ -2338,7 +2338,7 @@ xfs_iunlink_remove(
 	 * go on.  Make sure the head pointer isn't garbage.
 	 */
 	head_agino = be32_to_cpu(agi->agi_unlinked[bucket_index]);
-	if (!xfs_verify_agino(mp, pag->pag_agno, head_agino)) {
+	if (!xfs_verify_agino(pag, head_agino)) {
 		XFS_CORRUPTION_ERROR(__func__, XFS_ERRLEVEL_LOW, mp,
 				agi, sizeof(*agi));
 		return -EFSCORRUPTED;

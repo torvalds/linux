@@ -220,16 +220,13 @@ xrep_calc_ag_resblks(
 		usedlen = aglen - freelen;
 		xfs_buf_relse(bp);
 	}
-	xfs_perag_put(pag);
 
 	/* If the icount is impossible, make some worst-case assumptions. */
 	if (icount == NULLAGINO ||
-	    !xfs_verify_agino(mp, sm->sm_agno, icount)) {
-		xfs_agino_t	first, last;
-
-		xfs_agino_range(mp, sm->sm_agno, &first, &last);
-		icount = last - first + 1;
+	    !xfs_verify_agino(pag, icount)) {
+		icount = pag->agino_max - pag->agino_min + 1;
 	}
+	xfs_perag_put(pag);
 
 	/* If the block counts are impossible, make worst-case assumptions. */
 	if (aglen == NULLAGBLOCK ||

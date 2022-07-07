@@ -225,6 +225,41 @@ xfs_ag_block_count(
 			mp->m_sb.sb_dblocks);
 }
 
+/* Calculate the first and last possible inode number in an AG. */
+static void
+__xfs_agino_range(
+	struct xfs_mount	*mp,
+	xfs_agblock_t		eoag,
+	xfs_agino_t		*first,
+	xfs_agino_t		*last)
+{
+	xfs_agblock_t		bno;
+
+	/*
+	 * Calculate the first inode, which will be in the first
+	 * cluster-aligned block after the AGFL.
+	 */
+	bno = round_up(XFS_AGFL_BLOCK(mp) + 1, M_IGEO(mp)->cluster_align);
+	*first = XFS_AGB_TO_AGINO(mp, bno);
+
+	/*
+	 * Calculate the last inode, which will be at the end of the
+	 * last (aligned) cluster that can be allocated in the AG.
+	 */
+	bno = round_down(eoag, M_IGEO(mp)->cluster_align);
+	*last = XFS_AGB_TO_AGINO(mp, bno) - 1;
+}
+
+void
+xfs_agino_range(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno,
+	xfs_agino_t		*first,
+	xfs_agino_t		*last)
+{
+	return __xfs_agino_range(mp, xfs_ag_block_count(mp, agno), first, last);
+}
+
 int
 xfs_initialize_perag(
 	struct xfs_mount	*mp,
@@ -302,6 +337,8 @@ xfs_initialize_perag(
 		pag->block_count = __xfs_ag_block_count(mp, index, agcount,
 				dblocks);
 		pag->min_block = XFS_AGFL_BLOCK(mp);
+		__xfs_agino_range(mp, pag->block_count, &pag->agino_min,
+				&pag->agino_max);
 	}
 
 	index = xfs_set_inode_alloc(mp, agcount);
@@ -968,6 +1005,8 @@ xfs_ag_extend_space(
 
 	/* Update perag geometry */
 	pag->block_count = be32_to_cpu(agf->agf_length);
+	__xfs_agino_range(pag->pag_mount, pag->block_count, &pag->agino_min,
+				&pag->agino_max);
 	return 0;
 }
 
