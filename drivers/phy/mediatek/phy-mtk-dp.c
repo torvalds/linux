@@ -189,7 +189,7 @@ static int mtk_dp_phy_probe(struct platform_device *pdev)
 	return 0;
 }
 
-struct platform_driver mtk_dp_phy_driver = {
+static struct platform_driver mtk_dp_phy_driver = {
 	.probe = mtk_dp_phy_probe,
 	.driver = {
 		.name = "mediatek-dp-phy",
