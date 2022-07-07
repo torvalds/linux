@@ -124,16 +124,6 @@ xfs_alloc_log_agf(
 	uint32_t	fields);/* mask of fields to be logged (XFS_AGF_...) */
 
 /*
- * Interface for inode allocation to force the pag data to be initialized.
- */
-int				/* error */
-xfs_alloc_pagf_init(
-	struct xfs_mount *mp,	/* file system mount structure */
-	struct xfs_trans *tp,	/* transaction pointer */
-	xfs_agnumber_t	agno,	/* allocation group number */
-	int		flags);	/* XFS_ALLOC_FLAGS_... */
-
-/*
  * Put the block on the freelist for the allocation group.
  */
 int				/* error */

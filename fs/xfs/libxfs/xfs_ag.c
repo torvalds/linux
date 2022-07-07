@@ -124,7 +124,7 @@ xfs_initialize_perag_data(
 		 * all the information we need and populates the
 		 * per-ag structures for us.
 		 */
-		error = xfs_alloc_pagf_init(mp, NULL, index, 0);
+		error = xfs_alloc_read_agf(mp, NULL, index, 0, NULL);
 		if (error)
 			return error;
 

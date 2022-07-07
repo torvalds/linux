@@ -2868,25 +2868,6 @@ xfs_alloc_log_agf(
 }
 
 /*
- * Interface for inode allocation to force the pag data to be initialized.
- */
-int					/* error */
-xfs_alloc_pagf_init(
-	xfs_mount_t		*mp,	/* file system mount structure */
-	xfs_trans_t		*tp,	/* transaction pointer */
-	xfs_agnumber_t		agno,	/* allocation group number */
-	int			flags)	/* XFS_ALLOC_FLAGS_... */
-{
-	struct xfs_buf		*bp;
-	int			error;
-
-	error = xfs_alloc_read_agf(mp, tp, agno, flags, &bp);
-	if (!error)
-		xfs_trans_brelse(tp, bp);
-	return error;
-}
-
-/*
  * Put the block on the freelist for the allocation group.
  */
 int
@@ -3095,7 +3076,9 @@ xfs_read_agf(
 }
 
 /*
- * Read in the allocation group header (free/alloc section).
+ * Read in the allocation group header (free/alloc section) and initialise the
+ * perag structure if necessary. If the caller provides @agfbpp, then return the
+ * locked buffer to the caller, otherwise free it.
  */
 int					/* error */
 xfs_alloc_read_agf(
@@ -3103,8 +3086,9 @@ xfs_alloc_read_agf(
 	struct xfs_trans	*tp,	/* transaction pointer */
 	xfs_agnumber_t		agno,	/* allocation group number */
 	int			flags,	/* XFS_ALLOC_FLAG_... */
-	struct xfs_buf		**bpp)	/* buffer for the ag freelist header */
+	struct xfs_buf		**agfbpp)
 {
+	struct xfs_buf		*agfbp;
 	struct xfs_agf		*agf;		/* ag freelist header */
 	struct xfs_perag	*pag;		/* per allocation group data */
 	int			error;
@@ -3118,13 +3102,12 @@ xfs_alloc_read_agf(
 	ASSERT(agno != NULLAGNUMBER);
 	error = xfs_read_agf(mp, tp, agno,
 			(flags & XFS_ALLOC_FLAG_TRYLOCK) ? XBF_TRYLOCK : 0,
-			bpp);
+			&agfbp);
 	if (error)
 		return error;
-	ASSERT(!(*bpp)->b_error);
 
-	agf = (*bpp)->b_addr;
-	pag = (*bpp)->b_pag;
+	agf = agfbp->b_addr;
+	pag = agfbp->b_pag;
 	if (!pag->pagf_init) {
 		pag->pagf_freeblks = be32_to_cpu(agf->agf_freeblks);
 		pag->pagf_btreeblks = be32_to_cpu(agf->agf_btreeblks);
@@ -3165,6 +3148,10 @@ xfs_alloc_read_agf(
 		       be32_to_cpu(agf->agf_levels[XFS_BTNUM_CNTi]));
 	}
 #endif
+	if (agfbpp)
+		*agfbpp = agfbp;
+	else
+		xfs_trans_brelse(tp, agfbp);
 	return 0;
 }
 
