@@ -219,6 +219,7 @@ config SND_SOC_ALL_CODECS
 	imply SND_SOC_TAS2562
 	imply SND_SOC_TAS2764
 	imply SND_SOC_TAS2770
+	imply SND_SOC_TAS2780
 	imply SND_SOC_TAS5086
 	imply SND_SOC_TAS571X
 	imply SND_SOC_TAS5720
@@ -1534,6 +1535,13 @@ config SND_SOC_TAS2764
 config SND_SOC_TAS2770
 	tristate "Texas Instruments TAS2770 speaker amplifier"
 	depends on I2C
+
+config SND_SOC_TAS2780
+	tristate "Texas Instruments TAS2780 Mono Audio amplifier"
+	depends on I2C
+	help
+	  Enable support for Texas Instruments TAS2780 high-efficiency
+	  digital input mono Class-D audio power amplifiers.
 
 config SND_SOC_TAS5086
 	tristate "Texas Instruments TAS5086 speaker amplifier"
