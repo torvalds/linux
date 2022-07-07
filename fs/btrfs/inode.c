@@ -3440,20 +3440,18 @@ int btrfs_check_sector_csum(struct btrfs_fs_info *fs_info, struct page *page,
 /*
  * check_data_csum - verify checksum of one sector of uncompressed data
  * @inode:	inode
- * @io_bio:	btrfs_io_bio which contains the csum
+ * @bbio:	btrfs_bio which contains the csum
  * @bio_offset:	offset to the beginning of the bio (in bytes)
  * @page:	page where is the data to be verified
  * @pgoff:	offset inside the page
- * @start:	logical offset in the file
  *
  * The length of such check is always one sector size.
  *
  * When csum mismatch is detected, we will also report the error and fill the
  * corrupted range with zero. (Thus it needs the extra parameters)
  */
-static int check_data_csum(struct inode *inode, struct btrfs_bio *bbio,
-			   u32 bio_offset, struct page *page, u32 pgoff,
-			   u64 start)
+int btrfs_check_data_csum(struct inode *inode, struct btrfs_bio *bbio,
+			  u32 bio_offset, struct page *page, u32 pgoff)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	u32 len = fs_info->sectorsize;
@@ -3469,8 +3467,9 @@ static int check_data_csum(struct inode *inode, struct btrfs_bio *bbio,
 	return 0;
 
 zeroit:
-	btrfs_print_data_csum_error(BTRFS_I(inode), start, csum, csum_expected,
-				    bbio->mirror_num);
+	btrfs_print_data_csum_error(BTRFS_I(inode),
+				    bbio->file_offset + bio_offset,
+				    csum, csum_expected, bbio->mirror_num);
 	if (bbio->device)
 		btrfs_dev_stat_inc_and_print(bbio->device,
 					     BTRFS_DEV_STAT_CORRUPTION_ERRS);
@@ -3539,8 +3538,7 @@ unsigned int btrfs_verify_data_csum(struct btrfs_bio *bbio,
 					  EXTENT_NODATASUM);
 			continue;
 		}
-		ret = check_data_csum(inode, bbio, bio_offset, page, pg_off,
-				      page_offset(page) + pg_off);
+		ret = btrfs_check_data_csum(inode, bbio, bio_offset, page, pg_off);
 		if (ret < 0) {
 			const int nr_bit = (pg_off - offset_in_page(start)) >>
 				     root->fs_info->sectorsize_bits;
@@ -8004,8 +8002,8 @@ static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,
 		u64 start = bbio->file_offset + offset;
 
 		if (uptodate &&
-		    (!csum || !check_data_csum(inode, bbio, offset, bv.bv_page,
-					       bv.bv_offset, start))) {
+		    (!csum || !btrfs_check_data_csum(inode, bbio, offset, bv.bv_page,
+					       bv.bv_offset))) {
 			clean_io_failure(fs_info, failure_tree, io_tree, start,
 					 bv.bv_page, btrfs_ino(BTRFS_I(inode)),
 					 bv.bv_offset);
@@ -10387,7 +10385,6 @@ static blk_status_t btrfs_encoded_read_verify_csum(struct btrfs_bio *bbio)
 	u32 sectorsize = fs_info->sectorsize;
 	struct bio_vec *bvec;
 	struct bvec_iter_all iter_all;
-	u64 start = priv->file_offset;
 	u32 bio_offset = 0;
 
 	if (priv->skip_csum || !uptodate)
@@ -10400,10 +10397,9 @@ static blk_status_t btrfs_encoded_read_verify_csum(struct btrfs_bio *bbio)
 		pgoff = bvec->bv_offset;
 		for (i = 0; i < nr_sectors; i++) {
 			ASSERT(pgoff < PAGE_SIZE);
-			if (check_data_csum(&inode->vfs_inode, bbio, bio_offset,
-					    bvec->bv_page, pgoff, start))
+			if (btrfs_check_data_csum(&inode->vfs_inode, bbio, bio_offset,
+					    bvec->bv_page, pgoff))
 				return BLK_STS_IOERR;
-			start += sectorsize;
 			bio_offset += sectorsize;
 			pgoff += sectorsize;
 		}
