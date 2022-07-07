@@ -128,9 +128,10 @@ xfs_initialize_perag_data(
 		if (error)
 			return error;
 
-		error = xfs_ialloc_pagi_init(mp, NULL, index);
+		error = xfs_ialloc_read_agi(mp, NULL, index, NULL);
 		if (error)
 			return error;
+
 		pag = xfs_perag_get(mp, index);
 		ifree += pag->pagi_freecount;
 		ialloc += pag->pagi_count;

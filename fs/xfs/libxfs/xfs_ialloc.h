@@ -73,16 +73,6 @@ xfs_ialloc_read_agi(
 	struct xfs_buf	**bpp);		/* allocation group hdr buf */
 
 /*
- * Read in the allocation group header to initialise the per-ag data
- * in the mount structure
- */
-int
-xfs_ialloc_pagi_init(
-	struct xfs_mount *mp,		/* file system mount structure */
-	struct xfs_trans *tp,		/* transaction pointer */
-        xfs_agnumber_t  agno);		/* allocation group number */
-
-/*
  * Lookup a record by ino in the btree given by cur.
  */
 int xfs_inobt_lookup(struct xfs_btree_cur *cur, xfs_agino_t ino,
