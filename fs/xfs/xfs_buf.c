@@ -616,23 +616,6 @@ found:
 	return 0;
 }
 
-struct xfs_buf *
-xfs_buf_incore(
-	struct xfs_buftarg	*target,
-	xfs_daddr_t		blkno,
-	size_t			numblks,
-	xfs_buf_flags_t		flags)
-{
-	struct xfs_buf		*bp;
-	int			error;
-	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
-
-	error = xfs_buf_find(target, &map, 1, flags, NULL, &bp);
-	if (error)
-		return NULL;
-	return bp;
-}
-
 /*
  * Assembles a buffer covering the specified range. The code is optimised for
  * cache hits, as metadata intensive workloads will see 3 orders of magnitude
@@ -656,6 +639,8 @@ xfs_buf_get_map(
 		goto found;
 	if (error != -ENOENT)
 		return error;
+	if (flags & XBF_INCORE)
+		return -ENOENT;
 
 	error = _xfs_buf_alloc(target, map, nmaps, flags, &new_bp);
 	if (error)

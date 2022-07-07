@@ -42,8 +42,10 @@ struct xfs_buf;
 #define _XBF_DELWRI_Q	 (1u << 22)/* buffer on a delwri queue */
 
 /* flags used only as arguments to access routines */
+#define XBF_INCORE	 (1u << 29)/* lookup only, return if found in cache */
 #define XBF_TRYLOCK	 (1u << 30)/* lock requested, but do not wait */
 #define XBF_UNMAPPED	 (1u << 31)/* do not map the buffer */
+
 
 typedef unsigned int xfs_buf_flags_t;
 
@@ -63,6 +65,7 @@ typedef unsigned int xfs_buf_flags_t;
 	{ _XBF_KMEM,		"KMEM" }, \
 	{ _XBF_DELWRI_Q,	"DELWRI_Q" }, \
 	/* The following interface flags should never be set */ \
+	{ XBF_INCORE,		"INCORE" }, \
 	{ XBF_TRYLOCK,		"TRYLOCK" }, \
 	{ XBF_UNMAPPED,		"UNMAPPED" }
 
@@ -196,10 +199,6 @@ struct xfs_buf {
 };
 
 /* Finding and Reading Buffers */
-struct xfs_buf *xfs_buf_incore(struct xfs_buftarg *target,
-			   xfs_daddr_t blkno, size_t numblks,
-			   xfs_buf_flags_t flags);
-
 int xfs_buf_get_map(struct xfs_buftarg *target, struct xfs_buf_map *map,
 		int nmaps, xfs_buf_flags_t flags, struct xfs_buf **bpp);
 int xfs_buf_read_map(struct xfs_buftarg *target, struct xfs_buf_map *map,
@@ -208,6 +207,19 @@ int xfs_buf_read_map(struct xfs_buftarg *target, struct xfs_buf_map *map,
 void xfs_buf_readahead_map(struct xfs_buftarg *target,
 			       struct xfs_buf_map *map, int nmaps,
 			       const struct xfs_buf_ops *ops);
+
+static inline int
+xfs_buf_incore(
+	struct xfs_buftarg	*target,
+	xfs_daddr_t		blkno,
+	size_t			numblks,
+	xfs_buf_flags_t		flags,
+	struct xfs_buf		**bpp)
+{
+	DEFINE_SINGLE_BUF_MAP(map, blkno, numblks);
+
+	return xfs_buf_get_map(target, &map, 1, XBF_INCORE | flags, bpp);
+}
 
 static inline int
 xfs_buf_get(
