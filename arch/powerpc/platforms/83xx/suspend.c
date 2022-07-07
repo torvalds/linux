@@ -421,18 +421,13 @@ out:
 	return ret;
 }
 
-static int pmc_remove(struct platform_device *ofdev)
-{
-	return -EPERM;
-};
-
 static struct platform_driver pmc_driver = {
 	.driver = {
 		.name = "mpc83xx-pmc",
 		.of_match_table = pmc_match,
+		.suppress_bind_attrs = true,
 	},
 	.probe = pmc_probe,
-	.remove = pmc_remove
 };
 
 builtin_platform_driver(pmc_driver);
