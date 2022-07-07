@@ -92,6 +92,7 @@
 
 #include "timeout.h"
 #include "poll.h"
+#include "alloc_cache.h"
 
 #define IORING_MAX_ENTRIES	32768
 #define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
@@ -295,7 +296,7 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	INIT_LIST_HEAD(&ctx->sqd_list);
 	INIT_LIST_HEAD(&ctx->cq_overflow_list);
 	INIT_LIST_HEAD(&ctx->io_buffers_cache);
-	INIT_LIST_HEAD(&ctx->apoll_cache);
+	io_alloc_cache_init(&ctx->apoll_cache);
 	init_completion(&ctx->ref_comp);
 	xa_init_flags(&ctx->personalities, XA_FLAGS_ALLOC1);
 	mutex_init(&ctx->uring_lock);
@@ -1180,8 +1181,7 @@ void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node)
 
 				if (apoll->double_poll)
 					kfree(apoll->double_poll);
-				list_add(&apoll->poll.wait.entry,
-						&ctx->apoll_cache);
+				io_alloc_cache_put(&ctx->apoll_cache, &apoll->cache);
 				req->flags &= ~REQ_F_POLLED;
 			}
 			if (req->flags & IO_REQ_LINK_FLAGS)
@@ -2467,7 +2467,7 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	if (ctx->rings)
 		__io_cqring_overflow_flush(ctx, true);
 	io_eventfd_unregister(ctx);
-	io_flush_apoll_cache(ctx);
+	io_alloc_cache_free(&ctx->apoll_cache, io_apoll_cache_free);
 	mutex_unlock(&ctx->uring_lock);
 	io_destroy_buffers(ctx);
 	if (ctx->sq_creds)

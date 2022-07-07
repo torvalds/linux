@@ -158,6 +158,10 @@ struct io_ev_fd {
 	struct rcu_head		rcu;
 };
 
+struct io_alloc_cache {
+	struct hlist_head	list;
+};
+
 struct io_ring_ctx {
 	/* const or read-mostly hot data */
 	struct {
@@ -216,7 +220,7 @@ struct io_ring_ctx {
 
 		struct io_hash_table	cancel_table_locked;
 		struct list_head	cq_overflow_list;
-		struct list_head	apoll_cache;
+		struct io_alloc_cache	apoll_cache;
 		struct xarray		personalities;
 		u32			pers_next;
 	} ____cacheline_aligned_in_smp;

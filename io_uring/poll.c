@@ -590,16 +590,15 @@ static struct async_poll *io_req_alloc_apoll(struct io_kiocb *req,
 					     unsigned issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
+	struct io_cache_entry *entry;
 	struct async_poll *apoll;
 
 	if (req->flags & REQ_F_POLLED) {
 		apoll = req->apoll;
 		kfree(apoll->double_poll);
 	} else if (!(issue_flags & IO_URING_F_UNLOCKED) &&
-		   !list_empty(&ctx->apoll_cache)) {
-		apoll = list_first_entry(&ctx->apoll_cache, struct async_poll,
-						poll.wait.entry);
-		list_del_init(&apoll->poll.wait.entry);
+		   (entry = io_alloc_cache_get(&ctx->apoll_cache)) != NULL) {
+		apoll = container_of(entry, struct async_poll, cache);
 	} else {
 		apoll = kmalloc(sizeof(*apoll), GFP_ATOMIC);
 		if (unlikely(!apoll))
@@ -960,14 +959,7 @@ out:
 	return IOU_OK;
 }
 
-void io_flush_apoll_cache(struct io_ring_ctx *ctx)
+void io_apoll_cache_free(struct io_cache_entry *entry)
 {
-	struct async_poll *apoll;
-
-	while (!list_empty(&ctx->apoll_cache)) {
-		apoll = list_first_entry(&ctx->apoll_cache, struct async_poll,
-						poll.wait.entry);
-		list_del(&apoll->poll.wait.entry);
-		kfree(apoll);
-	}
+	kfree(container_of(entry, struct async_poll, cache));
 }
