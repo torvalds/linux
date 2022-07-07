@@ -128,7 +128,6 @@ static int vfio_ccw_mdev_probe(struct mdev_device *mdev)
 	vfio_init_group_dev(&private->vdev, &mdev->dev,
 			    &vfio_ccw_dev_ops);
 
-	private->mdev = mdev;
 	private->state = VFIO_CCW_STATE_IDLE;
 
 	VFIO_CCW_MSG_EVENT(2, "sch %x.%x.%04x: create\n",
@@ -145,7 +144,6 @@ static int vfio_ccw_mdev_probe(struct mdev_device *mdev)
 err_atomic:
 	vfio_uninit_group_dev(&private->vdev);
 	atomic_inc(&private->avail);
-	private->mdev = NULL;
 	private->state = VFIO_CCW_STATE_STANDBY;
 	return ret;
 }
@@ -170,7 +168,6 @@ static void vfio_ccw_mdev_remove(struct mdev_device *mdev)
 
 	vfio_uninit_group_dev(&private->vdev);
 	cp_free(&private->cp);
-	private->mdev = NULL;
 	atomic_inc(&private->avail);
 }
 
