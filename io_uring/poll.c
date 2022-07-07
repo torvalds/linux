@@ -410,6 +410,8 @@ static void io_poll_double_prepare(struct io_kiocb *req)
 		spin_lock_irq(&head->lock);
 
 	req->flags |= REQ_F_DOUBLE_POLL;
+	if (req->opcode == IORING_OP_POLL_ADD)
+		req->flags |= REQ_F_ASYNC_DATA;
 
 	if (head)
 		spin_unlock_irq(&head->lock);
@@ -448,13 +450,11 @@ static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 			return;
 		}
 
-		io_poll_double_prepare(req);
 		/* mark as double wq entry */
 		wqe_private |= IO_WQE_F_DOUBLE;
 		io_init_poll_iocb(poll, first->events, first->wait.func);
+		io_poll_double_prepare(req);
 		*poll_ptr = poll;
-		if (req->opcode == IORING_OP_POLL_ADD)
-			req->flags |= REQ_F_ASYNC_DATA;
 	} else {
 		/* fine to modify, there is no poll queued to race with us */
 		req->flags |= REQ_F_SINGLE_POLL;
