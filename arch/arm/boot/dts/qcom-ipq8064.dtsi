@@ -854,6 +854,9 @@
 			reg = <0x00700000 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			speedbin_efuse: speedbin@c0 {
+				reg = <0xc0 0x4>;
+			};
 			tsens_calib: calib@400 {
 				reg = <0x400 0xb>;
 			};
