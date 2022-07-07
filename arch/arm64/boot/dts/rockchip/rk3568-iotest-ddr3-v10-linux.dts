@@ -35,6 +35,10 @@
 	};
 };
 
+&rkvdec {
+	/delete-property/ vdec-supply;
+};
+
 &sdhci {
 	bus-width = <8>;
 	no-sdio;
