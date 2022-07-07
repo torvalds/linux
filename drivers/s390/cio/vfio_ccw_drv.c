@@ -106,9 +106,10 @@ static void vfio_ccw_sch_io_todo(struct work_struct *work)
 	/*
 	 * Reset to IDLE only if processing of a channel program
 	 * has finished. Do not overwrite a possible processing
-	 * state if the final interrupt was for HSCH or CSCH.
+	 * state if the interrupt was unsolicited, or if the final
+	 * interrupt was for HSCH or CSCH.
 	 */
-	if (private->mdev && cp_is_finished)
+	if (cp_is_finished)
 		private->state = VFIO_CCW_STATE_IDLE;
 
 	if (private->io_trigger)
