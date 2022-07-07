@@ -559,7 +559,6 @@ static void count_rx_stats(struct adapter *padapter, struct recv_frame *prframe,
 static int sta2sta_data_frame(struct adapter *adapter,
 			      struct recv_frame *precv_frame, struct sta_info **psta)
 {
-	u8 *ptr = precv_frame->rx_data;
 	int ret = _SUCCESS;
 	struct rx_pkt_attrib *pattrib = &precv_frame->attrib;
 	struct	sta_priv *pstapriv = &adapter->stapriv;
@@ -614,12 +613,6 @@ static int sta2sta_data_frame(struct adapter *adapter,
 			sta_addr = pattrib->src;
 		}
 	} else if (check_fwstate(pmlmepriv, WIFI_MP_STATE)) {
-		memcpy(pattrib->dst, GetAddr1Ptr(ptr), ETH_ALEN);
-		memcpy(pattrib->src, GetAddr2Ptr(ptr), ETH_ALEN);
-		memcpy(pattrib->bssid, GetAddr3Ptr(ptr), ETH_ALEN);
-		memcpy(pattrib->ra, pattrib->dst, ETH_ALEN);
-		memcpy(pattrib->ta, pattrib->src, ETH_ALEN);
-
 		sta_addr = mybssid;
 	} else {
 		ret  = _FAIL;
