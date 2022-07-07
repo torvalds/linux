@@ -684,6 +684,8 @@ enum hl_goya_dma_direction {
  * @HL_DEVICE_STATUS_NEEDS_RESET: Device needs reset because auto reset was disabled.
  * @HL_DEVICE_STATUS_IN_DEVICE_CREATION: Device is operational but its creation is still in
  *                                       progress.
+ * @HL_DEVICE_STATUS_IN_RESET_AFTER_DEVICE_RELEASE: Device is currently during reset that was
+ *                                                  triggered because the user released the device
  * @HL_DEVICE_STATUS_LAST: Last status.
  */
 enum hl_device_status {
@@ -692,7 +694,8 @@ enum hl_device_status {
 	HL_DEVICE_STATUS_MALFUNCTION,
 	HL_DEVICE_STATUS_NEEDS_RESET,
 	HL_DEVICE_STATUS_IN_DEVICE_CREATION,
-	HL_DEVICE_STATUS_LAST = HL_DEVICE_STATUS_IN_DEVICE_CREATION
+	HL_DEVICE_STATUS_IN_RESET_AFTER_DEVICE_RELEASE,
+	HL_DEVICE_STATUS_LAST = HL_DEVICE_STATUS_IN_RESET_AFTER_DEVICE_RELEASE
 };
 
 enum hl_server_type {

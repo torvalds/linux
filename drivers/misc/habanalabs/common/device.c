@@ -271,16 +271,20 @@ enum hl_device_status hl_device_status(struct hl_device *hdev)
 {
 	enum hl_device_status status;
 
-	if (hdev->reset_info.in_reset)
-		status = HL_DEVICE_STATUS_IN_RESET;
-	else if (hdev->reset_info.needs_reset)
+	if (hdev->reset_info.in_reset) {
+		if (hdev->reset_info.is_in_soft_reset)
+			status = HL_DEVICE_STATUS_IN_RESET_AFTER_DEVICE_RELEASE;
+		else
+			status = HL_DEVICE_STATUS_IN_RESET;
+	} else if (hdev->reset_info.needs_reset) {
 		status = HL_DEVICE_STATUS_NEEDS_RESET;
-	else if (hdev->disabled)
+	} else if (hdev->disabled) {
 		status = HL_DEVICE_STATUS_MALFUNCTION;
-	else if (!hdev->init_done)
+	} else if (!hdev->init_done) {
 		status = HL_DEVICE_STATUS_IN_DEVICE_CREATION;
-	else
+	} else {
 		status = HL_DEVICE_STATUS_OPERATIONAL;
+	}
 
 	return status;
 }
@@ -296,6 +300,7 @@ bool hl_device_operational(struct hl_device *hdev,
 
 	switch (current_status) {
 	case HL_DEVICE_STATUS_IN_RESET:
+	case HL_DEVICE_STATUS_IN_RESET_AFTER_DEVICE_RELEASE:
 	case HL_DEVICE_STATUS_MALFUNCTION:
 	case HL_DEVICE_STATUS_NEEDS_RESET:
 		return false;
