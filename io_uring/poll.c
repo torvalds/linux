@@ -132,6 +132,7 @@ static void io_poll_tw_hash_eject(struct io_kiocb *req, bool *locked)
 		 */
 		io_tw_lock(ctx, locked);
 		hash_del(&req->hash_node);
+		req->flags &= ~REQ_F_HASH_LOCKED;
 	} else {
 		io_poll_req_delete(req, ctx);
 	}
@@ -617,9 +618,7 @@ int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 	 * apoll requests already grab the mutex to complete in the tw handler,
 	 * so removal from the mutex-backed hash is free, use it by default.
 	 */
-	if (issue_flags & IO_URING_F_UNLOCKED)
-		req->flags &= ~REQ_F_HASH_LOCKED;
-	else
+	if (!(issue_flags & IO_URING_F_UNLOCKED))
 		req->flags |= REQ_F_HASH_LOCKED;
 
 	if (!def->pollin && !def->pollout)
@@ -880,8 +879,6 @@ int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 	if (!(issue_flags & IO_URING_F_UNLOCKED) &&
 	    (req->ctx->flags & (IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER)))
 		req->flags |= REQ_F_HASH_LOCKED;
-	else
-		req->flags &= ~REQ_F_HASH_LOCKED;
 
 	ret = __io_arm_poll_handler(req, poll, &ipt, poll->events, issue_flags);
 	if (ret > 0) {
