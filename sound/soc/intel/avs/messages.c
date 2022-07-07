@@ -474,6 +474,9 @@ int avs_ipc_get_fw_config(struct avs_dev *adev, struct avs_fw_cfg *cfg)
 				       &payload, &payload_size);
 	if (ret)
 		return ret;
+	/* Non-zero payload expected for FIRMWARE_CONFIG. */
+	if (!payload_size)
+		return -EREMOTEIO;
 
 	while (offset < payload_size) {
 		tlv = (struct avs_tlv *)(payload + offset);
@@ -587,6 +590,9 @@ int avs_ipc_get_hw_config(struct avs_dev *adev, struct avs_hw_cfg *cfg)
 				       &payload, &payload_size);
 	if (ret)
 		return ret;
+	/* Non-zero payload expected for HARDWARE_CONFIG. */
+	if (!payload_size)
+		return -EREMOTEIO;
 
 	while (offset < payload_size) {
 		tlv = (struct avs_tlv *)(payload + offset);
@@ -670,6 +676,9 @@ int avs_ipc_get_modules_info(struct avs_dev *adev, struct avs_mods_info **info)
 				       &payload, &payload_size);
 	if (ret)
 		return ret;
+	/* Non-zero payload expected for MODULES_INFO. */
+	if (!payload_size)
+		return -EREMOTEIO;
 
 	*info = (struct avs_mods_info *)payload;
 	return 0;
