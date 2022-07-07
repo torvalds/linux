@@ -5,6 +5,7 @@
 
 #include <linux/blkdev.h>
 #include <linux/compat.h>
+#include <linux/delay.h>
 #include <linux/file.h>
 #include <linux/fs.h>
 #include <linux/fs_stack.h>
@@ -477,7 +478,8 @@ static struct dentry *open_or_create_special_dir(struct dentry *backing_dir,
 
 static int read_single_page_timeouts(struct data_file *df, struct file *f,
 				     int block_index, struct mem_range range,
-				     struct mem_range tmp)
+				     struct mem_range tmp,
+				     unsigned int *delayed_min_us)
 {
 	struct mount_info *mi = df->df_mount_info;
 	struct incfs_read_data_file_timeouts timeouts = {
@@ -509,7 +511,23 @@ static int read_single_page_timeouts(struct data_file *df, struct file *f,
 	}
 
 	return incfs_read_data_file_block(range, f, block_index, tmp,
-					  &timeouts);
+					  &timeouts, delayed_min_us);
+}
+
+static int usleep_interruptible(u32 us)
+{
+	/* See:
+	 * https://www.kernel.org/doc/Documentation/timers/timers-howto.txt
+	 * for explanation
+	 */
+	if (us < 10) {
+		udelay(us);
+		return 0;
+	} else if (us < 20000) {
+		usleep_range(us, us + us / 10);
+		return 0;
+	} else
+		return msleep_interruptible(us / 1000);
 }
 
 static int read_single_page(struct file *f, struct page *page)
@@ -522,6 +540,7 @@ static int read_single_page(struct file *f, struct page *page)
 	int result = 0;
 	void *page_start;
 	int block_index;
+	unsigned int delayed_min_us = 0;
 
 	if (!df) {
 		SetPageError(page);
@@ -547,7 +566,8 @@ static int read_single_page(struct file *f, struct page *page)
 		bytes_to_read = min_t(loff_t, size - offset, PAGE_SIZE);
 
 		read_result = read_single_page_timeouts(df, f, block_index,
-					range(page_start, bytes_to_read), tmp);
+					range(page_start, bytes_to_read), tmp,
+					&delayed_min_us);
 
 		free_pages((unsigned long)tmp.data, get_order(tmp.len));
 	} else {
@@ -569,6 +589,8 @@ err:
 	flush_dcache_page(page);
 	kunmap(page);
 	unlock_page(page);
+	if (delayed_min_us)
+		usleep_interruptible(delayed_min_us);
 	return result;
 }
 
