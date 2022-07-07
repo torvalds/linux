@@ -440,12 +440,8 @@ static int avs_pci_probe(struct pci_dev *pci, const struct pci_device_id *id)
 	if (bus->mlcap)
 		snd_hdac_ext_bus_get_ml_capabilities(bus);
 
-	if (!dma_set_mask(dev, DMA_BIT_MASK(64))) {
-		dma_set_coherent_mask(dev, DMA_BIT_MASK(64));
-	} else {
-		dma_set_mask(dev, DMA_BIT_MASK(32));
-		dma_set_coherent_mask(dev, DMA_BIT_MASK(32));
-	}
+	if (!dma_set_mask_and_coherent(dev, DMA_BIT_MASK(64)))
+		dma_set_mask_and_coherent(dev, DMA_BIT_MASK(32));
 	dma_set_max_seg_size(dev, UINT_MAX);
 
 	ret = avs_hdac_bus_init_streams(bus);
