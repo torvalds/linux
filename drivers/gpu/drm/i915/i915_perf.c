@@ -3731,6 +3731,13 @@ static int read_properties_unlocked(struct i915_perf *perf,
 		case DRM_I915_PERF_PROP_GLOBAL_SSEU: {
 			struct drm_i915_gem_context_param_sseu user_sseu;
 
+			if (GRAPHICS_VER_FULL(perf->i915) >= IP_VER(12, 50)) {
+				drm_dbg(&perf->i915->drm,
+					"SSEU config not supported on gfx %x\n",
+					GRAPHICS_VER_FULL(perf->i915));
+				return -ENODEV;
+			}
+
 			if (copy_from_user(&user_sseu,
 					   u64_to_user_ptr(value),
 					   sizeof(user_sseu))) {
