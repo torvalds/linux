@@ -1500,6 +1500,8 @@ static int bpf_core_composites_match(const struct btf *local_btf, const struct b
 
 			err = __bpf_core_types_match(local_btf, local_m->type, targ_btf,
 						     targ_m->type, behind_ptr, level - 1);
+			if (err < 0)
+				return err;
 			if (err > 0) {
 				matched = true;
 				break;
@@ -1512,7 +1514,8 @@ static int bpf_core_composites_match(const struct btf *local_btf, const struct b
 	return 1;
 }
 
-/* Check that two types "match".
+/* Check that two types "match". This function assumes that root types were
+ * already checked for name match.
  *
  * The matching relation is defined as follows:
  * - modifiers and typedefs are stripped (and, hence, effectively ignored)
@@ -1561,6 +1564,10 @@ recur:
 	if (!local_t || !targ_t)
 		return -EINVAL;
 
+	/* While the name check happens after typedefs are skipped, root-level
+	 * typedefs would still be name-matched as that's the contract with
+	 * callers.
+	 */
 	if (!bpf_core_names_match(local_btf, local_t->name_off, targ_btf, targ_t->name_off))
 		return 0;
 
