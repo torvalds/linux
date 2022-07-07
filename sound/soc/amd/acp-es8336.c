@@ -206,6 +206,8 @@ static int st_es8336_late_probe(struct snd_soc_card *card)
 		dev_err(card->dev, "can not find codec dev\n");
 
 	ret = devm_acpi_dev_add_driver_gpios(codec_dev, acpi_es8336_gpios);
+	if (ret)
+		dev_warn(card->dev, "Failed to add driver gpios\n");
 
 	gpio_pa = gpiod_get_optional(codec_dev, "pa-enable", GPIOD_OUT_LOW);
 	if (IS_ERR(gpio_pa)) {
@@ -213,6 +215,7 @@ static int st_es8336_late_probe(struct snd_soc_card *card)
 				    "could not get pa-enable GPIO\n");
 		gpiod_put(gpio_pa);
 		put_device(codec_dev);
+		return ret;
 	}
 	return 0;
 }
