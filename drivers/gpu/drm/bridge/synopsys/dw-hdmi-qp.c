@@ -2781,6 +2781,8 @@ __dw_hdmi_probe(struct platform_device *pdev,
 		hdmi->disabled = false;
 	}
 
+	hdmi->sink_is_hdmi = true;
+
 	irq = platform_get_irq(pdev, 0);
 	if (irq < 0) {
 		ret = irq;
