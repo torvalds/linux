@@ -2445,18 +2445,6 @@ static void io_req_caches_free(struct io_ring_ctx *ctx)
 	mutex_unlock(&ctx->uring_lock);
 }
 
-static void io_flush_apoll_cache(struct io_ring_ctx *ctx)
-{
-	struct async_poll *apoll;
-
-	while (!list_empty(&ctx->apoll_cache)) {
-		apoll = list_first_entry(&ctx->apoll_cache, struct async_poll,
-						poll.wait.entry);
-		list_del(&apoll->poll.wait.entry);
-		kfree(apoll);
-	}
-}
-
 static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 {
 	io_sq_thread_finish(ctx);
