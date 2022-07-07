@@ -556,6 +556,7 @@ static int __maybe_unused avs_suspend_common(struct avs_dev *adev)
 		return AVS_IPC_RET(ret);
 	}
 
+	avs_ipc_block(adev->ipc);
 	avs_dsp_op(adev, int_control, false);
 	snd_hdac_ext_bus_ppcap_int_enable(bus, false);
 
