@@ -556,13 +556,8 @@ static void count_rx_stats(struct adapter *padapter, struct recv_frame *prframe,
 	}
 }
 
-int sta2sta_data_frame(
-	struct adapter *adapter,
-	struct recv_frame *precv_frame,
-	struct sta_info **psta
-);
-
-int sta2sta_data_frame(struct adapter *adapter, struct recv_frame *precv_frame, struct sta_info **psta)
+static int sta2sta_data_frame(struct adapter *adapter,
+			      struct recv_frame *precv_frame, struct sta_info **psta)
 {
 	u8 *ptr = precv_frame->rx_data;
 	int ret = _SUCCESS;
