@@ -104,6 +104,7 @@ xlog_cil_ctx_alloc(void)
 	ctx = kmem_zalloc(sizeof(*ctx), KM_NOFS);
 	INIT_LIST_HEAD(&ctx->committing);
 	INIT_LIST_HEAD(&ctx->busy_extents);
+	INIT_LIST_HEAD(&ctx->log_items);
 	INIT_WORK(&ctx->push_work, xlog_cil_push_work);
 	return ctx;
 }
@@ -132,6 +133,8 @@ xlog_cil_push_pcp_aggregate(
 			list_splice_init(&cilpcp->busy_extents,
 					&ctx->busy_extents);
 		}
+		if (!list_empty(&cilpcp->log_items))
+			list_splice_init(&cilpcp->log_items, &ctx->log_items);
 
 		/*
 		 * We're in the middle of switching cil contexts.  Reset the
@@ -579,10 +582,9 @@ xlog_cil_insert_items(
 	/*
 	 * We need to take the CIL checkpoint unit reservation on the first
 	 * commit into the CIL. Test the XLOG_CIL_EMPTY bit first so we don't
-	 * unnecessarily do an atomic op in the fast path here. We don't need to
-	 * hold the xc_cil_lock here to clear the XLOG_CIL_EMPTY bit as we are
-	 * under the xc_ctx_lock here and that needs to be held exclusively to
-	 * reset the XLOG_CIL_EMPTY bit.
+	 * unnecessarily do an atomic op in the fast path here. We can clear the
+	 * XLOG_CIL_EMPTY bit as we are under the xc_ctx_lock here and that
+	 * needs to be held exclusively to reset the XLOG_CIL_EMPTY bit.
 	 */
 	if (test_bit(XLOG_CIL_EMPTY, &cil->xc_flags) &&
 	    test_and_clear_bit(XLOG_CIL_EMPTY, &cil->xc_flags))
@@ -643,7 +645,6 @@ xlog_cil_insert_items(
 	/* attach the transaction to the CIL if it has any busy extents */
 	if (!list_empty(&tp->t_busy))
 		list_splice_init(&tp->t_busy, &cilpcp->busy_extents);
-	put_cpu_ptr(cilpcp);
 
 	/*
 	 * Now update the order of everything modified in the transaction
@@ -652,7 +653,6 @@ xlog_cil_insert_items(
 	 * the transaction commit.
 	 */
 	order = atomic_inc_return(&ctx->order_id);
-	spin_lock(&cil->xc_cil_lock);
 	list_for_each_entry(lip, &tp->t_items, li_trans) {
 		/* Skip items which aren't dirty in this transaction. */
 		if (!test_bit(XFS_LI_DIRTY, &lip->li_flags))
@@ -661,10 +661,9 @@ xlog_cil_insert_items(
 		lip->li_order_id = order;
 		if (!list_empty(&lip->li_cil))
 			continue;
-		list_add_tail(&lip->li_cil, &cil->xc_cil);
+		list_add_tail(&lip->li_cil, &cilpcp->log_items);
 	}
-
-	spin_unlock(&cil->xc_cil_lock);
+	put_cpu_ptr(cilpcp);
 
 	/*
 	 * If we've overrun the reservation, dump the tx details before we move
@@ -1113,7 +1112,6 @@ xlog_cil_order_cmp(
  */
 static void
 xlog_cil_build_lv_chain(
-	struct xfs_cil		*cil,
 	struct xfs_cil_ctx	*ctx,
 	struct list_head	*whiteouts,
 	uint32_t		*num_iovecs,
@@ -1121,12 +1119,12 @@ xlog_cil_build_lv_chain(
 {
 	struct xfs_log_vec	*lv = NULL;
 
-	list_sort(NULL, &cil->xc_cil, xlog_cil_order_cmp);
+	list_sort(NULL, &ctx->log_items, xlog_cil_order_cmp);
 
-	while (!list_empty(&cil->xc_cil)) {
+	while (!list_empty(&ctx->log_items)) {
 		struct xfs_log_item	*item;
 
-		item = list_first_entry(&cil->xc_cil,
+		item = list_first_entry(&ctx->log_items,
 					struct xfs_log_item, li_cil);
 
 		if (test_bit(XFS_LI_WHITEOUT, &item->li_flags)) {
@@ -1265,7 +1263,7 @@ xlog_cil_push_work(
 	list_add(&ctx->committing, &cil->xc_committing);
 	spin_unlock(&cil->xc_push_lock);
 
-	xlog_cil_build_lv_chain(cil, ctx, &whiteouts, &num_iovecs, &num_bytes);
+	xlog_cil_build_lv_chain(ctx, &whiteouts, &num_iovecs, &num_bytes);
 
 	/*
 	 * Switch the contexts so we can drop the context lock and move out
@@ -1409,7 +1407,6 @@ xlog_cil_push_background(
 	 * The cil won't be empty because we are called while holding the
 	 * context lock so whatever we added to the CIL will still be there.
 	 */
-	ASSERT(!list_empty(&cil->xc_cil));
 	ASSERT(!test_bit(XLOG_CIL_EMPTY, &cil->xc_flags));
 
 	/*
@@ -1656,7 +1653,7 @@ xlog_cil_flush(
 	 * If the CIL is empty, make sure that any previous checkpoint that may
 	 * still be in an active iclog is pushed to stable storage.
 	 */
-	if (list_empty(&log->l_cilp->xc_cil))
+	if (test_bit(XLOG_CIL_EMPTY, &log->l_cilp->xc_flags))
 		xfs_log_force(log->l_mp, 0);
 }
 
@@ -1784,6 +1781,8 @@ xlog_cil_pcp_dead(
 		ctx->ticket->t_curr_res += cilpcp->space_reserved;
 	cilpcp->space_reserved = 0;
 
+	if (!list_empty(&cilpcp->log_items))
+		list_splice_init(&cilpcp->log_items, &ctx->log_items);
 	if (!list_empty(&cilpcp->busy_extents))
 		list_splice_init(&cilpcp->busy_extents, &ctx->busy_extents);
 	atomic_add(cilpcp->space_used, &ctx->space_used);
@@ -1824,11 +1823,10 @@ xlog_cil_init(
 	for_each_possible_cpu(cpu) {
 		cilpcp = per_cpu_ptr(cil->xc_pcp, cpu);
 		INIT_LIST_HEAD(&cilpcp->busy_extents);
+		INIT_LIST_HEAD(&cilpcp->log_items);
 	}
 
-	INIT_LIST_HEAD(&cil->xc_cil);
 	INIT_LIST_HEAD(&cil->xc_committing);
-	spin_lock_init(&cil->xc_cil_lock);
 	spin_lock_init(&cil->xc_push_lock);
 	init_waitqueue_head(&cil->xc_push_wait);
 	init_rwsem(&cil->xc_ctx_lock);
@@ -1859,7 +1857,6 @@ xlog_cil_destroy(
 		kmem_free(cil->xc_ctx);
 	}
 
-	ASSERT(list_empty(&cil->xc_cil));
 	ASSERT(test_bit(XLOG_CIL_EMPTY, &cil->xc_flags));
 	free_percpu(cil->xc_pcp);
 	destroy_workqueue(cil->xc_push_wq);
