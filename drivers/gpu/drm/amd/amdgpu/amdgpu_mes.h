@@ -83,6 +83,7 @@ struct amdgpu_mes {
 	uint64_t                        default_gang_quantum;
 
 	struct amdgpu_ring              ring;
+	spinlock_t                      ring_lock;
 
 	const struct firmware           *fw[AMDGPU_MAX_MES_PIPES];
 

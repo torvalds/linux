@@ -150,6 +150,7 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 	idr_init(&adev->mes.queue_id_idr);
 	ida_init(&adev->mes.doorbell_ida);
 	spin_lock_init(&adev->mes.queue_id_lock);
+	spin_lock_init(&adev->mes.ring_lock);
 	mutex_init(&adev->mes.mutex_hidden);
 
 	adev->mes.total_max_queue = AMDGPU_FENCE_MES_QUEUE_ID_MASK;
@@ -794,8 +795,6 @@ int amdgpu_mes_unmap_legacy_queue(struct amdgpu_device *adev,
 	struct mes_unmap_legacy_queue_input queue_input;
 	int r;
 
-	amdgpu_mes_lock(&adev->mes);
-
 	queue_input.action = action;
 	queue_input.queue_type = ring->funcs->type;
 	queue_input.doorbell_offset = ring->doorbell_index;
@@ -808,7 +807,6 @@ int amdgpu_mes_unmap_legacy_queue(struct amdgpu_device *adev,
 	if (r)
 		DRM_ERROR("failed to unmap legacy queue\n");
 
-	amdgpu_mes_unlock(&adev->mes);
 	return r;
 }
 
@@ -816,8 +814,6 @@ uint32_t amdgpu_mes_rreg(struct amdgpu_device *adev, uint32_t reg)
 {
 	struct mes_misc_op_input op_input;
 	int r, val = 0;
-
-	amdgpu_mes_lock(&adev->mes);
 
 	op_input.op = MES_MISC_OP_READ_REG;
 	op_input.read_reg.reg_offset = reg;
@@ -835,7 +831,6 @@ uint32_t amdgpu_mes_rreg(struct amdgpu_device *adev, uint32_t reg)
 		val = *(adev->mes.read_val_ptr);
 
 error:
-	amdgpu_mes_unlock(&adev->mes);
 	return val;
 }
 
@@ -844,8 +839,6 @@ int amdgpu_mes_wreg(struct amdgpu_device *adev,
 {
 	struct mes_misc_op_input op_input;
 	int r;
-
-	amdgpu_mes_lock(&adev->mes);
 
 	op_input.op = MES_MISC_OP_WRITE_REG;
 	op_input.write_reg.reg_offset = reg;
@@ -862,7 +855,6 @@ int amdgpu_mes_wreg(struct amdgpu_device *adev,
 		DRM_ERROR("failed to write reg (0x%x)\n", reg);
 
 error:
-	amdgpu_mes_unlock(&adev->mes);
 	return r;
 }
 
@@ -872,8 +864,6 @@ int amdgpu_mes_reg_write_reg_wait(struct amdgpu_device *adev,
 {
 	struct mes_misc_op_input op_input;
 	int r;
-
-	amdgpu_mes_lock(&adev->mes);
 
 	op_input.op = MES_MISC_OP_WRM_REG_WR_WAIT;
 	op_input.wrm_reg.reg0 = reg0;
@@ -892,7 +882,6 @@ int amdgpu_mes_reg_write_reg_wait(struct amdgpu_device *adev,
 		DRM_ERROR("failed to reg_write_reg_wait\n");
 
 error:
-	amdgpu_mes_unlock(&adev->mes);
 	return r;
 }
 
@@ -901,8 +890,6 @@ int amdgpu_mes_reg_wait(struct amdgpu_device *adev, uint32_t reg,
 {
 	struct mes_misc_op_input op_input;
 	int r;
-
-	amdgpu_mes_lock(&adev->mes);
 
 	op_input.op = MES_MISC_OP_WRM_REG_WAIT;
 	op_input.wrm_reg.reg0 = reg;
@@ -920,7 +907,6 @@ int amdgpu_mes_reg_wait(struct amdgpu_device *adev, uint32_t reg,
 		DRM_ERROR("failed to reg_write_reg_wait\n");
 
 error:
-	amdgpu_mes_unlock(&adev->mes);
 	return r;
 }
 

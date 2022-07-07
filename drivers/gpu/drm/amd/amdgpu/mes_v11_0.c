@@ -86,21 +86,32 @@ static const struct amdgpu_ring_funcs mes_v11_0_ring_funcs = {
 };
 
 static int mes_v11_0_submit_pkt_and_poll_completion(struct amdgpu_mes *mes,
-						    void *pkt, int size)
+						    void *pkt, int size,
+						    int api_status_off)
 {
 	int ndw = size / 4;
 	signed long r;
 	union MESAPI__ADD_QUEUE *x_pkt = pkt;
+	struct MES_API_STATUS *api_status;
 	struct amdgpu_device *adev = mes->adev;
 	struct amdgpu_ring *ring = &mes->ring;
+	unsigned long flags;
 
 	BUG_ON(size % 4 != 0);
 
-	if (amdgpu_ring_alloc(ring, ndw))
+	spin_lock_irqsave(&mes->ring_lock, flags);
+	if (amdgpu_ring_alloc(ring, ndw)) {
+		spin_unlock_irqrestore(&mes->ring_lock, flags);
 		return -ENOMEM;
+	}
+
+	api_status = (struct MES_API_STATUS *)((char *)pkt + api_status_off);
+	api_status->api_completion_fence_addr = mes->ring.fence_drv.gpu_addr;
+	api_status->api_completion_fence_value = ++mes->ring.fence_drv.sync_seq;
 
 	amdgpu_ring_write_multiple(ring, pkt, ndw);
 	amdgpu_ring_commit(ring);
+	spin_unlock_irqrestore(&mes->ring_lock, flags);
 
 	DRM_DEBUG("MES msg=%d was emitted\n", x_pkt->header.opcode);
 
@@ -173,13 +184,9 @@ static int mes_v11_0_add_hw_queue(struct amdgpu_mes *mes,
 	mes_add_queue_pkt.tma_addr = input->tma_addr;
 	mes_add_queue_pkt.is_kfd_process = input->is_kfd_process;
 
-	mes_add_queue_pkt.api_status.api_completion_fence_addr =
-		mes->ring.fence_drv.gpu_addr;
-	mes_add_queue_pkt.api_status.api_completion_fence_value =
-		++mes->ring.fence_drv.sync_seq;
-
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
-			&mes_add_queue_pkt, sizeof(mes_add_queue_pkt));
+			&mes_add_queue_pkt, sizeof(mes_add_queue_pkt),
+			offsetof(union MESAPI__ADD_QUEUE, api_status));
 }
 
 static int mes_v11_0_remove_hw_queue(struct amdgpu_mes *mes,
@@ -196,13 +203,9 @@ static int mes_v11_0_remove_hw_queue(struct amdgpu_mes *mes,
 	mes_remove_queue_pkt.doorbell_offset = input->doorbell_offset;
 	mes_remove_queue_pkt.gang_context_addr = input->gang_context_addr;
 
-	mes_remove_queue_pkt.api_status.api_completion_fence_addr =
-		mes->ring.fence_drv.gpu_addr;
-	mes_remove_queue_pkt.api_status.api_completion_fence_value =
-		++mes->ring.fence_drv.sync_seq;
-
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
-			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt));
+			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt),
+			offsetof(union MESAPI__REMOVE_QUEUE, api_status));
 }
 
 static int mes_v11_0_unmap_legacy_queue(struct amdgpu_mes *mes,
@@ -233,13 +236,9 @@ static int mes_v11_0_unmap_legacy_queue(struct amdgpu_mes *mes,
 			convert_to_mes_queue_type(input->queue_type);
 	}
 
-	mes_remove_queue_pkt.api_status.api_completion_fence_addr =
-		mes->ring.fence_drv.gpu_addr;
-	mes_remove_queue_pkt.api_status.api_completion_fence_value =
-		++mes->ring.fence_drv.sync_seq;
-
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
-			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt));
+			&mes_remove_queue_pkt, sizeof(mes_remove_queue_pkt),
+			offsetof(union MESAPI__REMOVE_QUEUE, api_status));
 }
 
 static int mes_v11_0_suspend_gang(struct amdgpu_mes *mes,
@@ -264,13 +263,9 @@ static int mes_v11_0_query_sched_status(struct amdgpu_mes *mes)
 	mes_status_pkt.header.opcode = MES_SCH_API_QUERY_SCHEDULER_STATUS;
 	mes_status_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
 
-	mes_status_pkt.api_status.api_completion_fence_addr =
-		mes->ring.fence_drv.gpu_addr;
-	mes_status_pkt.api_status.api_completion_fence_value =
-		++mes->ring.fence_drv.sync_seq;
-
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
-			&mes_status_pkt, sizeof(mes_status_pkt));
+			&mes_status_pkt, sizeof(mes_status_pkt),
+			offsetof(union MESAPI__QUERY_MES_STATUS, api_status));
 }
 
 static int mes_v11_0_misc_op(struct amdgpu_mes *mes,
@@ -316,13 +311,9 @@ static int mes_v11_0_misc_op(struct amdgpu_mes *mes,
 		return -EINVAL;
 	}
 
-	misc_pkt.api_status.api_completion_fence_addr =
-		mes->ring.fence_drv.gpu_addr;
-	misc_pkt.api_status.api_completion_fence_value =
-		++mes->ring.fence_drv.sync_seq;
-
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
-			&misc_pkt, sizeof(misc_pkt));
+			&misc_pkt, sizeof(misc_pkt),
+			offsetof(union MESAPI__MISC, api_status));
 }
 
 static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
@@ -372,13 +363,9 @@ static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.use_different_vmid_compute = 1;
 	mes_set_hw_res_pkt.oversubscription_timer = 50;
 
-	mes_set_hw_res_pkt.api_status.api_completion_fence_addr =
-		mes->ring.fence_drv.gpu_addr;
-	mes_set_hw_res_pkt.api_status.api_completion_fence_value =
-		++mes->ring.fence_drv.sync_seq;
-
 	return mes_v11_0_submit_pkt_and_poll_completion(mes,
-			&mes_set_hw_res_pkt, sizeof(mes_set_hw_res_pkt));
+			&mes_set_hw_res_pkt, sizeof(mes_set_hw_res_pkt),
+			offsetof(union MESAPI_SET_HW_RESOURCES, api_status));
 }
 
 static const struct amdgpu_mes_funcs mes_v11_0_funcs = {
