@@ -59,7 +59,7 @@ int avs_ipc_unload_modules(struct avs_dev *adev, u16 *mod_ids, u32 num_mod_ids)
 	request.data = mod_ids;
 	request.size = sizeof(*mod_ids) * num_mod_ids;
 
-	ret = avs_dsp_send_msg_timeout(adev, &request, NULL, AVS_CL_TIMEOUT_MS);
+	ret = avs_dsp_send_msg(adev, &request, NULL);
 	if (ret)
 		avs_ipc_err(adev, &request, "unload multiple modules", ret);
 
