@@ -1095,10 +1095,10 @@ xlog_cil_order_cmp(
 	const struct list_head	*a,
 	const struct list_head	*b)
 {
-	struct xfs_log_item	*l1 = container_of(a, struct xfs_log_item, li_cil);
-	struct xfs_log_item	*l2 = container_of(b, struct xfs_log_item, li_cil);
+	struct xfs_log_vec	*l1 = container_of(a, struct xfs_log_vec, lv_list);
+	struct xfs_log_vec	*l2 = container_of(b, struct xfs_log_vec, lv_list);
 
-	return l1->li_order_id > l2->li_order_id;
+	return l1->lv_order_id > l2->lv_order_id;
 }
 
 /*
@@ -1117,8 +1117,6 @@ xlog_cil_build_lv_chain(
 	uint32_t		*num_iovecs,
 	uint32_t		*num_bytes)
 {
-	list_sort(NULL, &ctx->log_items, xlog_cil_order_cmp);
-
 	while (!list_empty(&ctx->log_items)) {
 		struct xfs_log_item	*item;
 		struct xfs_log_vec	*lv;
@@ -1133,6 +1131,7 @@ xlog_cil_build_lv_chain(
 		}
 
 		lv = item->li_lv;
+		lv->lv_order_id = item->li_order_id;
 
 		/* we don't write ordered log vectors */
 		if (lv->lv_buf_len != XFS_LOG_VEC_ORDERED)
@@ -1291,6 +1290,13 @@ xlog_cil_push_work(
 	xlog_cil_ctx_switch(cil, new_ctx);
 	spin_unlock(&cil->xc_push_lock);
 	up_write(&cil->xc_ctx_lock);
+
+	/*
+	 * Sort the log vector chain before we add the transaction headers.
+	 * This ensures we always have the transaction headers at the start
+	 * of the chain.
+	 */
+	list_sort(NULL, &ctx->lv_chain, xlog_cil_order_cmp);
 
 	/*
 	 * Build a checkpoint transaction header and write it to the log to
