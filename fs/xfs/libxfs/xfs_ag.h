@@ -67,6 +67,10 @@ struct xfs_perag {
 	/* for rcu-safe freeing */
 	struct rcu_head	rcu_head;
 
+	/* Precalculated geometry info */
+	xfs_agblock_t		block_count;
+	xfs_agblock_t		min_block;
+
 #ifdef __KERNEL__
 	/* -- kernel only structures below this line -- */
 
@@ -107,7 +111,7 @@ struct xfs_perag {
 };
 
 int xfs_initialize_perag(struct xfs_mount *mp, xfs_agnumber_t agcount,
-			xfs_agnumber_t *maxagi);
+			xfs_rfsblock_t dcount, xfs_agnumber_t *maxagi);
 int xfs_initialize_perag_data(struct xfs_mount *mp, xfs_agnumber_t agno);
 void xfs_free_perag(struct xfs_mount *mp);
 
@@ -115,6 +119,21 @@ struct xfs_perag *xfs_perag_get(struct xfs_mount *mp, xfs_agnumber_t agno);
 struct xfs_perag *xfs_perag_get_tag(struct xfs_mount *mp, xfs_agnumber_t agno,
 		unsigned int tag);
 void xfs_perag_put(struct xfs_perag *pag);
+
+/*
+ * Per-ag geometry infomation and validation
+ */
+xfs_agblock_t xfs_ag_block_count(struct xfs_mount *mp, xfs_agnumber_t agno);
+
+static inline bool
+xfs_verify_agbno(struct xfs_perag *pag, xfs_agblock_t agbno)
+{
+	if (agbno >= pag->block_count)
+		return false;
+	if (agbno <= pag->min_block)
+		return false;
+	return true;
+}
 
 /*
  * Perag iteration APIs

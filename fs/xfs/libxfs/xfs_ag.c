@@ -201,10 +201,35 @@ xfs_free_perag(
 	}
 }
 
+/* Find the size of the AG, in blocks. */
+static xfs_agblock_t
+__xfs_ag_block_count(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno,
+	xfs_agnumber_t		agcount,
+	xfs_rfsblock_t		dblocks)
+{
+	ASSERT(agno < agcount);
+
+	if (agno < agcount - 1)
+		return mp->m_sb.sb_agblocks;
+	return dblocks - (agno * mp->m_sb.sb_agblocks);
+}
+
+xfs_agblock_t
+xfs_ag_block_count(
+	struct xfs_mount	*mp,
+	xfs_agnumber_t		agno)
+{
+	return __xfs_ag_block_count(mp, agno, mp->m_sb.sb_agcount,
+			mp->m_sb.sb_dblocks);
+}
+
 int
 xfs_initialize_perag(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agcount,
+	xfs_rfsblock_t		dblocks,
 	xfs_agnumber_t		*maxagi)
 {
 	struct xfs_perag	*pag;
@@ -270,6 +295,13 @@ xfs_initialize_perag(
 		/* first new pag is fully initialized */
 		if (first_initialised == NULLAGNUMBER)
 			first_initialised = index;
+
+		/*
+		 * Pre-calculated geometry
+		 */
+		pag->block_count = __xfs_ag_block_count(mp, index, agcount,
+				dblocks);
+		pag->min_block = XFS_AGFL_BLOCK(mp);
 	}
 
 	index = xfs_set_inode_alloc(mp, agcount);
@@ -927,10 +959,16 @@ xfs_ag_extend_space(
 	if (error)
 		return error;
 
-	return  xfs_free_extent(tp, XFS_AGB_TO_FSB(pag->pag_mount, pag->pag_agno,
+	error = xfs_free_extent(tp, XFS_AGB_TO_FSB(pag->pag_mount, pag->pag_agno,
 					be32_to_cpu(agf->agf_length) - len),
 				len, &XFS_RMAP_OINFO_SKIP_UPDATE,
 				XFS_AG_RESV_NONE);
+	if (error)
+		return error;
+
+	/* Update perag geometry */
+	pag->block_count = be32_to_cpu(agf->agf_length);
+	return 0;
 }
 
 /* Retrieve AG geometry. */

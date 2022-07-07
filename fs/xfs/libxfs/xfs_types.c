@@ -13,25 +13,13 @@
 #include "xfs_mount.h"
 #include "xfs_ag.h"
 
-/* Find the size of the AG, in blocks. */
-inline xfs_agblock_t
-xfs_ag_block_count(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno)
-{
-	ASSERT(agno < mp->m_sb.sb_agcount);
-
-	if (agno < mp->m_sb.sb_agcount - 1)
-		return mp->m_sb.sb_agblocks;
-	return mp->m_sb.sb_dblocks - (agno * mp->m_sb.sb_agblocks);
-}
 
 /*
  * Verify that an AG block number pointer neither points outside the AG
  * nor points at static metadata.
  */
-inline bool
-xfs_verify_agbno(
+static inline bool
+xfs_verify_agno_agbno(
 	struct xfs_mount	*mp,
 	xfs_agnumber_t		agno,
 	xfs_agblock_t		agbno)
@@ -59,7 +47,7 @@ xfs_verify_fsbno(
 
 	if (agno >= mp->m_sb.sb_agcount)
 		return false;
-	return xfs_verify_agbno(mp, agno, XFS_FSB_TO_AGBNO(mp, fsbno));
+	return xfs_verify_agno_agbno(mp, agno, XFS_FSB_TO_AGBNO(mp, fsbno));
 }
 
 /*

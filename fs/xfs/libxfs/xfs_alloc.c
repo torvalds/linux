@@ -248,7 +248,7 @@ xfs_alloc_get_rec(
 	int			*stat)	/* output: success/failure */
 {
 	struct xfs_mount	*mp = cur->bc_mp;
-	xfs_agnumber_t		agno = cur->bc_ag.pag->pag_agno;
+	struct xfs_perag	*pag = cur->bc_ag.pag;
 	union xfs_btree_rec	*rec;
 	int			error;
 
@@ -263,11 +263,11 @@ xfs_alloc_get_rec(
 		goto out_bad_rec;
 
 	/* check for valid extent range, including overflow */
-	if (!xfs_verify_agbno(mp, agno, *bno))
+	if (!xfs_verify_agbno(pag, *bno))
 		goto out_bad_rec;
 	if (*bno > *bno + *len)
 		goto out_bad_rec;
-	if (!xfs_verify_agbno(mp, agno, *bno + *len - 1))
+	if (!xfs_verify_agbno(pag, *bno + *len - 1))
 		goto out_bad_rec;
 
 	return 0;
@@ -275,7 +275,8 @@ xfs_alloc_get_rec(
 out_bad_rec:
 	xfs_warn(mp,
 		"%s Freespace BTree record corruption in AG %d detected!",
-		cur->bc_btnum == XFS_BTNUM_BNO ? "Block" : "Size", agno);
+		cur->bc_btnum == XFS_BTNUM_BNO ? "Block" : "Size",
+		pag->pag_agno);
 	xfs_warn(mp,
 		"start block 0x%x block count 0x%x", *bno, *len);
 	return -EFSCORRUPTED;

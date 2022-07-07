@@ -106,7 +106,7 @@ xrep_agf_check_agfl_block(
 {
 	struct xfs_scrub	*sc = priv;
 
-	if (!xfs_verify_agbno(mp, sc->sa.pag->pag_agno, agbno))
+	if (!xfs_verify_agbno(sc->sa.pag, agbno))
 		return -EFSCORRUPTED;
 	return 0;
 }
@@ -130,10 +130,7 @@ xrep_check_btree_root(
 	struct xfs_scrub		*sc,
 	struct xrep_find_ag_btree	*fab)
 {
-	struct xfs_mount		*mp = sc->mp;
-	xfs_agnumber_t			agno = sc->sm->sm_agno;
-
-	return xfs_verify_agbno(mp, agno, fab->root) &&
+	return xfs_verify_agbno(sc->sa.pag, fab->root) &&
 	       fab->height <= fab->maxlevels;
 }
 
