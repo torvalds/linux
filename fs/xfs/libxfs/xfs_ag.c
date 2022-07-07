@@ -761,11 +761,11 @@ xfs_ag_init_headers(
 
 int
 xfs_ag_shrink_space(
-	struct xfs_mount	*mp,
+	struct xfs_perag	*pag,
 	struct xfs_trans	**tpp,
-	xfs_agnumber_t		agno,
 	xfs_extlen_t		delta)
 {
+	struct xfs_mount	*mp = pag->pag_mount;
 	struct xfs_alloc_arg	args = {
 		.tp	= *tpp,
 		.mp	= mp,
@@ -782,14 +782,14 @@ xfs_ag_shrink_space(
 	xfs_agblock_t		aglen;
 	int			error, err2;
 
-	ASSERT(agno == mp->m_sb.sb_agcount - 1);
-	error = xfs_ialloc_read_agi(mp, *tpp, agno, &agibp);
+	ASSERT(pag->pag_agno == mp->m_sb.sb_agcount - 1);
+	error = xfs_ialloc_read_agi(mp, *tpp, pag->pag_agno, &agibp);
 	if (error)
 		return error;
 
 	agi = agibp->b_addr;
 
-	error = xfs_alloc_read_agf(mp, *tpp, agno, 0, &agfbp);
+	error = xfs_alloc_read_agf(mp, *tpp, pag->pag_agno, 0, &agfbp);
 	if (error)
 		return error;
 
@@ -801,13 +801,14 @@ xfs_ag_shrink_space(
 	if (delta >= aglen)
 		return -EINVAL;
 
-	args.fsbno = XFS_AGB_TO_FSB(mp, agno, aglen - delta);
+	args.fsbno = XFS_AGB_TO_FSB(mp, pag->pag_agno, aglen - delta);
 
 	/*
 	 * Make sure that the last inode cluster cannot overlap with the new
 	 * end of the AG, even if it's sparse.
 	 */
-	error = xfs_ialloc_check_shrink(*tpp, agno, agibp, aglen - delta);
+	error = xfs_ialloc_check_shrink(*tpp, pag->pag_agno, agibp,
+			aglen - delta);
 	if (error)
 		return error;
 
@@ -883,9 +884,8 @@ resv_err:
  */
 int
 xfs_ag_extend_space(
-	struct xfs_mount	*mp,
+	struct xfs_perag	*pag,
 	struct xfs_trans	*tp,
-	struct aghdr_init_data	*id,
 	xfs_extlen_t		len)
 {
 	struct xfs_buf		*bp;
@@ -893,23 +893,20 @@ xfs_ag_extend_space(
 	struct xfs_agf		*agf;
 	int			error;
 
-	/*
-	 * Change the agi length.
-	 */
-	error = xfs_ialloc_read_agi(mp, tp, id->agno, &bp);
+	ASSERT(pag->pag_agno == pag->pag_mount->m_sb.sb_agcount - 1);
+
+	error = xfs_ialloc_read_agi(pag->pag_mount, tp, pag->pag_agno, &bp);
 	if (error)
 		return error;
 
 	agi = bp->b_addr;
 	be32_add_cpu(&agi->agi_length, len);
-	ASSERT(id->agno == mp->m_sb.sb_agcount - 1 ||
-	       be32_to_cpu(agi->agi_length) == mp->m_sb.sb_agblocks);
 	xfs_ialloc_log_agi(tp, bp, XFS_AGI_LENGTH);
 
 	/*
 	 * Change agf length.
 	 */
-	error = xfs_alloc_read_agf(mp, tp, id->agno, 0, &bp);
+	error = xfs_alloc_read_agf(pag->pag_mount, tp, pag->pag_agno, 0, &bp);
 	if (error)
 		return error;
 
@@ -924,13 +921,12 @@ xfs_ag_extend_space(
 	 * XFS_RMAP_OINFO_SKIP_UPDATE is used here to tell the rmap btree that
 	 * this doesn't actually exist in the rmap btree.
 	 */
-	error = xfs_rmap_free(tp, bp, bp->b_pag,
-				be32_to_cpu(agf->agf_length) - len,
+	error = xfs_rmap_free(tp, bp, pag, be32_to_cpu(agf->agf_length) - len,
 				len, &XFS_RMAP_OINFO_SKIP_UPDATE);
 	if (error)
 		return error;
 
-	return  xfs_free_extent(tp, XFS_AGB_TO_FSB(mp, id->agno,
+	return  xfs_free_extent(tp, XFS_AGB_TO_FSB(pag->pag_mount, pag->pag_agno,
 					be32_to_cpu(agf->agf_length) - len),
 				len, &XFS_RMAP_OINFO_SKIP_UPDATE,
 				XFS_AG_RESV_NONE);
@@ -939,34 +935,29 @@ xfs_ag_extend_space(
 /* Retrieve AG geometry. */
 int
 xfs_ag_get_geometry(
-	struct xfs_mount	*mp,
-	xfs_agnumber_t		agno,
+	struct xfs_perag	*pag,
 	struct xfs_ag_geometry	*ageo)
 {
 	struct xfs_buf		*agi_bp;
 	struct xfs_buf		*agf_bp;
 	struct xfs_agi		*agi;
 	struct xfs_agf		*agf;
-	struct xfs_perag	*pag;
 	unsigned int		freeblks;
 	int			error;
 
-	if (agno >= mp->m_sb.sb_agcount)
-		return -EINVAL;
-
 	/* Lock the AG headers. */
-	error = xfs_ialloc_read_agi(mp, NULL, agno, &agi_bp);
+	error = xfs_ialloc_read_agi(pag->pag_mount, NULL, pag->pag_agno,
+			&agi_bp);
 	if (error)
 		return error;
-	error = xfs_alloc_read_agf(mp, NULL, agno, 0, &agf_bp);
+	error = xfs_alloc_read_agf(pag->pag_mount, NULL, pag->pag_agno, 0,
+			&agf_bp);
 	if (error)
 		goto out_agi;
 
-	pag = agi_bp->b_pag;
-
 	/* Fill out form. */
 	memset(ageo, 0, sizeof(*ageo));
-	ageo->ag_number = agno;
+	ageo->ag_number = pag->pag_agno;
 
 	agi = agi_bp->b_addr;
 	ageo->ag_icount = be32_to_cpu(agi->agi_count);
