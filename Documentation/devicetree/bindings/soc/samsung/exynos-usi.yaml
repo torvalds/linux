@@ -22,8 +22,12 @@ properties:
     pattern: "^usi@[0-9a-f]+$"
 
   compatible:
-    enum:
-      - samsung,exynos850-usi   # for USIv2 (Exynos850, ExynosAutoV9)
+    oneOf:
+      - items:
+          - const: samsung,exynosautov9-usi
+          - const: samsung,exynos850-usi
+      - enum:
+          - samsung,exynos850-usi
 
   reg: true
 
