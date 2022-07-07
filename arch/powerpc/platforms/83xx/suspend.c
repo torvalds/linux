@@ -100,7 +100,6 @@ struct pmc_type {
 	int has_deep_sleep;
 };
 
-static struct platform_device *pmc_dev;
 static int has_deep_sleep, deep_sleeping;
 static int pmc_irq;
 static struct mpc83xx_pmc __iomem *pmc_regs;
@@ -356,7 +355,6 @@ static int pmc_probe(struct platform_device *ofdev)
 
 	has_deep_sleep = type->has_deep_sleep;
 	immrbase = get_immrbase();
-	pmc_dev = ofdev;
 
 	is_pci_agent = mpc83xx_is_pci_agent();
 	if (is_pci_agent < 0)
