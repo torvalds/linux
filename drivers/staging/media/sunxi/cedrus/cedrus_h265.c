@@ -143,8 +143,8 @@ static void cedrus_h265_frame_info_write_dpb(struct cedrus_ctx *ctx,
 	for (i = 0; i < num_active_dpb_entries; i++) {
 		int buffer_index = vb2_find_timestamp(vq, dpb[i].timestamp, 0);
 		u32 pic_order_cnt[2] = {
-			dpb[i].pic_order_cnt[0],
-			dpb[i].pic_order_cnt[1]
+			dpb[i].pic_order_cnt_val,
+			dpb[i].pic_order_cnt_val
 		};
 
 		cedrus_h265_frame_info_write_single(ctx, i, dpb[i].field_pic,

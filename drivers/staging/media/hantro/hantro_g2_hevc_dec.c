@@ -390,11 +390,10 @@ static int set_ref(struct hantro_ctx *ctx)
 			 !!(pps->flags & V4L2_HEVC_PPS_FLAG_LOOP_FILTER_ACROSS_TILES_ENABLED));
 
 	/*
-	 * Write POC count diff from current pic. For frame decoding only compute
-	 * pic_order_cnt[0] and ignore pic_order_cnt[1] used in field-coding.
+	 * Write POC count diff from current pic.
 	 */
 	for (i = 0; i < decode_params->num_active_dpb_entries && i < ARRAY_SIZE(cur_poc); i++) {
-		char poc_diff = decode_params->pic_order_cnt_val - dpb[i].pic_order_cnt[0];
+		char poc_diff = decode_params->pic_order_cnt_val - dpb[i].pic_order_cnt_val;
 
 		hantro_reg_write(vpu, &cur_poc[i], poc_diff);
 	}
@@ -421,7 +420,7 @@ static int set_ref(struct hantro_ctx *ctx)
 	dpb_longterm_e = 0;
 	for (i = 0; i < decode_params->num_active_dpb_entries &&
 	     i < (V4L2_HEVC_DPB_ENTRIES_NUM_MAX - 1); i++) {
-		luma_addr = hantro_hevc_get_ref_buf(ctx, dpb[i].pic_order_cnt[0]);
+		luma_addr = hantro_hevc_get_ref_buf(ctx, dpb[i].pic_order_cnt_val);
 		if (!luma_addr)
 			return -ENOMEM;
 

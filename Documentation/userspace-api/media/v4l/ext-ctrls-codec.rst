@@ -3010,7 +3010,7 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
     * - __u8
       - ``colour_plane_id``
       -
-    * - __u16
+    * - __s32
       - ``slice_pic_order_cnt``
       -
     * - __u8

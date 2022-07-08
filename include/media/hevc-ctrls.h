@@ -138,7 +138,7 @@ struct v4l2_hevc_dpb_entry {
 	__u64	timestamp;
 	__u8	flags;
 	__u8	field_pic;
-	__u16	pic_order_cnt[2];
+	__s32	pic_order_cnt_val;
 	__u8	padding[2];
 };
 
@@ -181,7 +181,7 @@ struct v4l2_ctrl_hevc_slice_params {
 	/* ISO/IEC 23008-2, ITU-T Rec. H.265: General slice segment header */
 	__u8	slice_type;
 	__u8	colour_plane_id;
-	__u16	slice_pic_order_cnt;
+	__s32	slice_pic_order_cnt;
 	__u8	num_ref_idx_l0_active_minus1;
 	__u8	num_ref_idx_l1_active_minus1;
 	__u8	collocated_ref_idx;
