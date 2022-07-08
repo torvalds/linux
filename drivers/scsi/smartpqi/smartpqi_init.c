@@ -7412,8 +7412,7 @@ static int pqi_wait_for_pqi_reset_completion(struct pqi_ctrl_info *ctrl_info)
 		reset_reg.all_bits = readl(&pqi_registers->device_reset);
 		if (reset_reg.bits.reset_action == PQI_RESET_ACTION_COMPLETED)
 			break;
-		pqi_check_ctrl_health(ctrl_info);
-		if (pqi_ctrl_offline(ctrl_info)) {
+		if (!sis_is_firmware_running(ctrl_info)) {
 			rc = -ENXIO;
 			break;
 		}
