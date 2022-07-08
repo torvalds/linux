@@ -86,6 +86,7 @@ properties:
           - const: mediatek,generic-tphy-v2
       - items:
           - enum:
+              - mediatek,mt8188-tphy
               - mediatek,mt8195-tphy
           - const: mediatek,generic-tphy-v3
       - const: mediatek,mt2701-u3phy
