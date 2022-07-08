@@ -52,6 +52,15 @@ properties:
       - const: ref_266m
       - const: ref_24m
 
+  interconnects:
+    maxItems: 3
+
+  interconnect-names:
+    items:
+      - const: hrv
+      - const: lcdif-hdmi
+      - const: hdcp
+
 required:
   - compatible
   - reg
