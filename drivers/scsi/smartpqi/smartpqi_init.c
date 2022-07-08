@@ -181,6 +181,12 @@ module_param_named(disable_managed_interrupts,
 MODULE_PARM_DESC(disable_managed_interrupts,
 	"Disable the kernel automatically assigning SMP affinity to IRQs.");
 
+static unsigned int pqi_ctrl_ready_timeout_secs;
+module_param_named(ctrl_ready_timeout,
+	pqi_ctrl_ready_timeout_secs, uint, 0644);
+MODULE_PARM_DESC(ctrl_ready_timeout,
+	"Timeout in seconds for driver to wait for controller ready.");
+
 static char *raid_levels[] = {
 	"RAID-0",
 	"RAID-4",
@@ -9089,9 +9095,31 @@ static void pqi_process_lockup_action_param(void)
 		DRIVER_NAME_SHORT, pqi_lockup_action_param);
 }
 
+#define PQI_CTRL_READY_TIMEOUT_PARAM_MIN_SECS		30
+#define PQI_CTRL_READY_TIMEOUT_PARAM_MAX_SECS		(30 * 60)
+
+static void pqi_process_ctrl_ready_timeout_param(void)
+{
+	if (pqi_ctrl_ready_timeout_secs == 0)
+		return;
+
+	if (pqi_ctrl_ready_timeout_secs < PQI_CTRL_READY_TIMEOUT_PARAM_MIN_SECS) {
+		pr_warn("%s: ctrl_ready_timeout parm of %u second(s) is less than minimum timeout of %d seconds - setting timeout to %d seconds\n",
+			DRIVER_NAME_SHORT, pqi_ctrl_ready_timeout_secs, PQI_CTRL_READY_TIMEOUT_PARAM_MIN_SECS, PQI_CTRL_READY_TIMEOUT_PARAM_MIN_SECS);
+		pqi_ctrl_ready_timeout_secs = PQI_CTRL_READY_TIMEOUT_PARAM_MIN_SECS;
+	} else if (pqi_ctrl_ready_timeout_secs > PQI_CTRL_READY_TIMEOUT_PARAM_MAX_SECS) {
+		pr_warn("%s: ctrl_ready_timeout parm of %u seconds is greater than maximum timeout of %d seconds - setting timeout to %d seconds\n",
+			DRIVER_NAME_SHORT, pqi_ctrl_ready_timeout_secs, PQI_CTRL_READY_TIMEOUT_PARAM_MAX_SECS, PQI_CTRL_READY_TIMEOUT_PARAM_MAX_SECS);
+		pqi_ctrl_ready_timeout_secs = PQI_CTRL_READY_TIMEOUT_PARAM_MAX_SECS;
+	}
+
+	sis_ctrl_ready_timeout_secs = pqi_ctrl_ready_timeout_secs;
+}
+
 static void pqi_process_module_params(void)
 {
 	pqi_process_lockup_action_param();
+	pqi_process_ctrl_ready_timeout_param();
 }
 
 #if defined(CONFIG_PM)
