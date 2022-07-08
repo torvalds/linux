@@ -1955,29 +1955,6 @@ void dcn32_calculate_wm_and_dlg(struct dc *dc, struct dc_state *context,
     DC_FP_END();
 }
 
-static void get_optimal_ntuple(struct _vcs_dpi_voltage_scaling_st *entry)
-{
-	if (entry->dcfclk_mhz > 0) {
-		float bw_on_sdp = entry->dcfclk_mhz * dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_sdp_bw_after_urgent / 100);
-
-		entry->fabricclk_mhz = bw_on_sdp / (dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_fabric_bw_after_urgent / 100));
-		entry->dram_speed_mts = bw_on_sdp / (dcn3_2_soc.num_chans *
-				dcn3_2_soc.dram_channel_width_bytes * ((float)dcn3_2_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only / 100));
-	} else if (entry->fabricclk_mhz > 0) {
-		float bw_on_fabric = entry->fabricclk_mhz * dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_fabric_bw_after_urgent / 100);
-
-		entry->dcfclk_mhz = bw_on_fabric / (dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_sdp_bw_after_urgent / 100));
-		entry->dram_speed_mts = bw_on_fabric / (dcn3_2_soc.num_chans *
-				dcn3_2_soc.dram_channel_width_bytes * ((float)dcn3_2_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only / 100));
-	} else if (entry->dram_speed_mts > 0) {
-		float bw_on_dram = entry->dram_speed_mts * dcn3_2_soc.num_chans *
-				dcn3_2_soc.dram_channel_width_bytes * ((float)dcn3_2_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only / 100);
-
-		entry->fabricclk_mhz = bw_on_dram / (dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_fabric_bw_after_urgent / 100));
-		entry->dcfclk_mhz = bw_on_dram / (dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_sdp_bw_after_urgent / 100));
-	}
-}
-
 static void remove_entry_from_table_at_index(struct _vcs_dpi_voltage_scaling_st *table, unsigned int *num_entries,
 		unsigned int index)
 {
@@ -2061,7 +2038,6 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 		entry.fabricclk_mhz = 0;
 		entry.dram_speed_mts = 0;
 
-		get_optimal_ntuple(&entry);
 		DC_FP_START();
 		insert_entry_into_table_sorted(table, num_entries, &entry);
 		DC_FP_END();
@@ -2072,7 +2048,6 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 	entry.fabricclk_mhz = 0;
 	entry.dram_speed_mts = 0;
 
-	get_optimal_ntuple(&entry);
 	DC_FP_START();
 	insert_entry_into_table_sorted(table, num_entries, &entry);
 	DC_FP_END();
@@ -2083,7 +2058,6 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 		entry.fabricclk_mhz = 0;
 		entry.dram_speed_mts = bw_params->clk_table.entries[i].memclk_mhz * 16;
 
-		get_optimal_ntuple(&entry);
 		DC_FP_START();
 		insert_entry_into_table_sorted(table, num_entries, &entry);
 		DC_FP_END();
@@ -2096,7 +2070,6 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 			entry.fabricclk_mhz = bw_params->clk_table.entries[i].fclk_mhz;
 			entry.dram_speed_mts = 0;
 
-			get_optimal_ntuple(&entry);
 			DC_FP_START();
 			insert_entry_into_table_sorted(table, num_entries, &entry);
 			DC_FP_END();
@@ -2108,7 +2081,6 @@ static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
 		entry.fabricclk_mhz = max_fclk_mhz;
 		entry.dram_speed_mts = 0;
 
-		get_optimal_ntuple(&entry);
 		DC_FP_START();
 		insert_entry_into_table_sorted(table, num_entries, &entry);
 		DC_FP_END();

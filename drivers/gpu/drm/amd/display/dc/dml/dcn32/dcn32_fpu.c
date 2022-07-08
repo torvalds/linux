@@ -353,6 +353,29 @@ static float calculate_net_bw_in_kbytes_sec(struct _vcs_dpi_voltage_scaling_st *
 	return limiting_bw_kbytes_sec;
 }
 
+static void get_optimal_ntuple(struct _vcs_dpi_voltage_scaling_st *entry)
+{
+	if (entry->dcfclk_mhz > 0) {
+		float bw_on_sdp = entry->dcfclk_mhz * dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_sdp_bw_after_urgent / 100);
+
+		entry->fabricclk_mhz = bw_on_sdp / (dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_fabric_bw_after_urgent / 100));
+		entry->dram_speed_mts = bw_on_sdp / (dcn3_2_soc.num_chans *
+				dcn3_2_soc.dram_channel_width_bytes * ((float)dcn3_2_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only / 100));
+	} else if (entry->fabricclk_mhz > 0) {
+		float bw_on_fabric = entry->fabricclk_mhz * dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_fabric_bw_after_urgent / 100);
+
+		entry->dcfclk_mhz = bw_on_fabric / (dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_sdp_bw_after_urgent / 100));
+		entry->dram_speed_mts = bw_on_fabric / (dcn3_2_soc.num_chans *
+				dcn3_2_soc.dram_channel_width_bytes * ((float)dcn3_2_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only / 100));
+	} else if (entry->dram_speed_mts > 0) {
+		float bw_on_dram = entry->dram_speed_mts * dcn3_2_soc.num_chans *
+				dcn3_2_soc.dram_channel_width_bytes * ((float)dcn3_2_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only / 100);
+
+		entry->fabricclk_mhz = bw_on_dram / (dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_fabric_bw_after_urgent / 100));
+		entry->dcfclk_mhz = bw_on_dram / (dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_sdp_bw_after_urgent / 100));
+	}
+}
+
 void insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
 				    unsigned int *num_entries,
 				    struct _vcs_dpi_voltage_scaling_st *entry)
@@ -362,6 +385,8 @@ void insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
 	float net_bw_of_new_state = 0;
 
 	dc_assert_fp_enabled();
+
+	get_optimal_ntuple(entry);
 
 	if (*num_entries == 0) {
 		table[0] = *entry;
