@@ -1643,8 +1643,13 @@ static noinline int run_delalloc_zoned(struct btrfs_inode *inode,
 		if (ret == 0)
 			done_offset = end;
 
-		if (done_offset == start)
-			return -ENOSPC;
+		if (done_offset == start) {
+			struct btrfs_fs_info *info = inode->root->fs_info;
+
+			wait_var_event(&info->zone_finish_wait,
+				       !test_bit(BTRFS_FS_NEED_ZONE_FINISH, &info->flags));
+			continue;
+		}
 
 		if (!locked_page_done) {
 			__set_page_dirty_nobuffers(locked_page);

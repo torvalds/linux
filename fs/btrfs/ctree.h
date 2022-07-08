@@ -638,6 +638,9 @@ enum {
 	/* Indicate we have half completed snapshot deletions pending. */
 	BTRFS_FS_UNFINISHED_DROPS,
 
+	/* Indicate we have to finish a zone to do next allocation. */
+	BTRFS_FS_NEED_ZONE_FINISH,
+
 #if BITS_PER_LONG == 32
 	/* Indicate if we have error/warn message printed on 32bit systems */
 	BTRFS_FS_32BIT_ERROR,
@@ -1086,6 +1089,8 @@ struct btrfs_fs_info {
 
 	spinlock_t zone_active_bgs_lock;
 	struct list_head zone_active_bgs;
+	/* Waiters when BTRFS_FS_NEED_ZONE_FINISH is set */
+	wait_queue_head_t zone_finish_wait;
 
 	/* Updates are not protected by any lock */
 	struct btrfs_commit_stats commit_stats;
