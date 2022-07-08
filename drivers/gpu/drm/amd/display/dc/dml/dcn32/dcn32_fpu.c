@@ -377,3 +377,87 @@ void insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
 	}
 }
 
+/**
+ * dcn32_set_phantom_stream_timing: Set timing params for the phantom stream
+ *
+ * Set timing params of the phantom stream based on calculated output from DML.
+ * This function first gets the DML pipe index using the DC pipe index, then
+ * calls into DML (get_subviewport_lines_needed_in_mall) to get the number of
+ * lines required for SubVP MCLK switching and assigns to the phantom stream
+ * accordingly.
+ *
+ * - The number of SubVP lines calculated in DML does not take into account
+ * FW processing delays and required pstate allow width, so we must include
+ * that separately.
+ *
+ * - Set phantom backporch = vstartup of main pipe
+ *
+ * @dc: current dc state
+ * @context: new dc state
+ * @ref_pipe: Main pipe for the phantom stream
+ * @pipes: DML pipe params
+ * @pipe_cnt: number of DML pipes
+ * @dc_pipe_idx: DC pipe index for the main pipe (i.e. ref_pipe)
+ */
+void dcn32_set_phantom_stream_timing(struct dc *dc,
+				     struct dc_state *context,
+				     struct pipe_ctx *ref_pipe,
+				     struct dc_stream_state *phantom_stream,
+				     display_e2e_pipe_params_st *pipes,
+				     unsigned int pipe_cnt,
+				     unsigned int dc_pipe_idx)
+{
+	unsigned int i, pipe_idx;
+	struct pipe_ctx *pipe;
+	uint32_t phantom_vactive, phantom_bp, pstate_width_fw_delay_lines;
+	unsigned int vlevel = context->bw_ctx.dml.vba.VoltageLevel;
+	unsigned int dcfclk = context->bw_ctx.dml.vba.DCFCLKState[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
+	unsigned int socclk = context->bw_ctx.dml.vba.SOCCLKPerState[vlevel];
+
+	dc_assert_fp_enabled();
+
+	// Find DML pipe index (pipe_idx) using dc_pipe_idx
+	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (!pipe->stream)
+			continue;
+
+		if (i == dc_pipe_idx)
+			break;
+
+		pipe_idx++;
+	}
+
+	// Calculate lines required for pstate allow width and FW processing delays
+	pstate_width_fw_delay_lines = ((double)(dc->caps.subvp_fw_processing_delay_us +
+			dc->caps.subvp_pstate_allow_width_us) / 1000000) *
+			(ref_pipe->stream->timing.pix_clk_100hz * 100) /
+			(double)ref_pipe->stream->timing.h_total;
+
+	// Update clks_cfg for calling into recalculate
+	pipes[0].clks_cfg.voltage = vlevel;
+	pipes[0].clks_cfg.dcfclk_mhz = dcfclk;
+	pipes[0].clks_cfg.socclk_mhz = socclk;
+
+	// DML calculation for MALL region doesn't take into account FW delay
+	// and required pstate allow width for multi-display cases
+	phantom_vactive = get_subviewport_lines_needed_in_mall(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx) +
+				pstate_width_fw_delay_lines;
+
+	// For backporch of phantom pipe, use vstartup of the main pipe
+	phantom_bp = get_vstartup(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);
+
+	phantom_stream->dst.y = 0;
+	phantom_stream->dst.height = phantom_vactive;
+	phantom_stream->src.y = 0;
+	phantom_stream->src.height = phantom_vactive;
+
+	phantom_stream->timing.v_addressable = phantom_vactive;
+	phantom_stream->timing.v_front_porch = 1;
+	phantom_stream->timing.v_total = phantom_stream->timing.v_addressable +
+						phantom_stream->timing.v_front_porch +
+						phantom_stream->timing.v_sync_width +
+						phantom_bp;
+}
+

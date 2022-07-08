@@ -49,4 +49,12 @@ void insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
 				    unsigned int *num_entries,
 				    struct _vcs_dpi_voltage_scaling_st *entry);
 
+void dcn32_set_phantom_stream_timing(struct dc *dc,
+				     struct dc_state *context,
+				     struct pipe_ctx *ref_pipe,
+				     struct dc_stream_state *phantom_stream,
+				     display_e2e_pipe_params_st *pipes,
+				     unsigned int pipe_cnt,
+				     unsigned int dc_pipe_idx);
+
 #endif
