@@ -259,7 +259,7 @@ static const unsigned int tacc_tab[] = {
 /**
  * get_tacc - turn tACC value into cycle time
  * @hclk_tns: The cycle time for HCLK, in 10ths of nanoseconds.
- * @val: The bank timing register value, shifed down.
+ * @val: The bank timing register value, shifted down.
  */
 static unsigned int get_tacc(unsigned long hclk_tns,
 			     unsigned long val)

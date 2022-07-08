@@ -1649,6 +1649,7 @@ static const struct stm32_desc_pin stm32mp135_pins[] = {
 static struct stm32_pinctrl_match_data stm32mp135_match_data = {
 	.pins = stm32mp135_pins,
 	.npins = ARRAY_SIZE(stm32mp135_pins),
+	.secure_control = true,
 };
 
 static const struct of_device_id stm32mp135_pctrl_match[] = {
@@ -1660,7 +1661,7 @@ static const struct of_device_id stm32mp135_pctrl_match[] = {
 };
 
 static const struct dev_pm_ops stm32_pinctrl_dev_pm_ops = {
-	 SET_LATE_SYSTEM_SLEEP_PM_OPS(NULL, stm32_pinctrl_resume)
+	 SET_LATE_SYSTEM_SLEEP_PM_OPS(stm32_pinctrl_suspend, stm32_pinctrl_resume)
 };
 
 static struct platform_driver stm32mp135_pinctrl_driver = {

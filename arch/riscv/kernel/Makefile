@@ -14,10 +14,25 @@ ifdef CONFIG_KEXEC
 AFLAGS_kexec_relocate.o := -mcmodel=medany $(call cc-option,-mno-relax)
 endif
 
+# cmodel=medany and notrace when patching early
+ifdef CONFIG_RISCV_ALTERNATIVE_EARLY
+CFLAGS_alternative.o := -mcmodel=medany
+CFLAGS_cpufeature.o := -mcmodel=medany
+ifdef CONFIG_FTRACE
+CFLAGS_REMOVE_alternative.o = $(CC_FLAGS_FTRACE)
+CFLAGS_REMOVE_cpufeature.o = $(CC_FLAGS_FTRACE)
+endif
+ifdef CONFIG_KASAN
+KASAN_SANITIZE_alternative.o := n
+KASAN_SANITIZE_cpufeature.o := n
+endif
+endif
+
 extra-y += head.o
 extra-y += vmlinux.lds
 
 obj-y	+= soc.o
+obj-$(CONFIG_RISCV_ALTERNATIVE) += alternative.o
 obj-y	+= cpu.o
 obj-y	+= cpufeature.o
 obj-y	+= entry.o
@@ -64,8 +79,12 @@ endif
 obj-$(CONFIG_HOTPLUG_CPU)	+= cpu-hotplug.o
 obj-$(CONFIG_KGDB)		+= kgdb.o
 obj-$(CONFIG_KEXEC)		+= kexec_relocate.o crash_save_regs.o machine_kexec.o
+obj-$(CONFIG_KEXEC_FILE)	+= elf_kexec.o machine_kexec_file.o
 obj-$(CONFIG_CRASH_DUMP)	+= crash_dump.o
 
 obj-$(CONFIG_JUMP_LABEL)	+= jump_label.o
 
 obj-$(CONFIG_EFI)		+= efi.o
+obj-$(CONFIG_COMPAT)		+= compat_syscall_table.o
+obj-$(CONFIG_COMPAT)		+= compat_signal.o
+obj-$(CONFIG_COMPAT)		+= compat_vdso/

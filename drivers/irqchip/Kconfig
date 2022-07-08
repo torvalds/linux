@@ -257,6 +257,18 @@ config ST_IRQCHIP
 	help
 	  Enables SysCfg Controlled IRQs on STi based platforms.
 
+config SUN4I_INTC
+	bool
+
+config SUN6I_R_INTC
+	bool
+	select IRQ_DOMAIN_HIERARCHY
+	select IRQ_FASTEOI_HIERARCHY_HANDLERS
+
+config SUNXI_NMI_INTC
+	bool
+	select GENERIC_IRQ_CHIP
+
 config TB10X_IRQC
 	bool
 	select IRQ_DOMAIN
@@ -286,7 +298,7 @@ config XTENSA_MX
 
 config XILINX_INTC
 	bool "Xilinx Interrupt Controller IP"
-	depends on MICROBLAZE || ARCH_ZYNQ || ARCH_ZYNQMP
+	depends on OF
 	select IRQ_DOMAIN
 	help
 	  Support for the Xilinx Interrupt Controller IP core.
@@ -329,17 +341,6 @@ config INGENIC_TCU_IRQ
 	  JZ47xx SoCs.
 
 	  If unsure, say N.
-
-config RENESAS_H8300H_INTC
-        bool
-	select IRQ_DOMAIN
-
-config RENESAS_H8S_INTC
-	bool "Renesas H8S Interrupt Controller Support" if COMPILE_TEST
-	select IRQ_DOMAIN
-	help
-	  Enable support for the Renesas H8/300 Interrupt Controller, as found
-	  on Renesas H8S SoCs.
 
 config IMX_GPCV2
 	bool
@@ -556,7 +557,7 @@ config LOONGSON_LIOINTC
 
 config LOONGSON_HTPIC
 	bool "Loongson3 HyperTransport PIC Controller"
-	depends on MACH_LOONGSON64
+	depends on MACH_LOONGSON64 && MIPS
 	default y
 	select IRQ_DOMAIN
 	select GENERIC_IRQ_CHIP
@@ -564,12 +565,12 @@ config LOONGSON_HTPIC
 	  Support for the Loongson-3 HyperTransport PIC Controller.
 
 config LOONGSON_HTVEC
-	bool "Loongson3 HyperTransport Interrupt Vector Controller"
+	bool "Loongson HyperTransport Interrupt Vector Controller"
 	depends on MACH_LOONGSON64
 	default MACH_LOONGSON64
 	select IRQ_DOMAIN_HIERARCHY
 	help
-	  Support for the Loongson3 HyperTransport Interrupt Vector Controller.
+	  Support for the Loongson HyperTransport Interrupt Vector Controller.
 
 config LOONGSON_PCH_PIC
 	bool "Loongson PCH PIC Controller"

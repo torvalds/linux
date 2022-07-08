@@ -81,6 +81,8 @@
 #include "dce/dce_aux.h"
 #include "dce/dce_i2c.h"
 
+#include "dml/dcn30/dcn30_fpu.h"
+
 #include "dml/dcn30/display_mode_vba_30.h"
 #include "dml/dcn301/dcn301_fpu.h"
 #include "vm_helper.h"

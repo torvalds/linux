@@ -85,15 +85,15 @@ accepted by this input device. Our example device can only generate EV_KEY
 type events, and from those only BTN_0 event code. Thus we only set these
 two bits. We could have used::
 
-	set_bit(EV_KEY, button_dev.evbit);
-	set_bit(BTN_0, button_dev.keybit);
+	set_bit(EV_KEY, button_dev->evbit);
+	set_bit(BTN_0, button_dev->keybit);
 
 as well, but with more than single bits the first approach tends to be
 shorter.
 
 Then the example driver registers the input device structure by calling::
 
-	input_register_device(&button_dev);
+	input_register_device(button_dev);
 
 This adds the button_dev structure to linked lists of the input driver and
 calls device handler modules _connect functions to tell them a new input

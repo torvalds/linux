@@ -102,7 +102,7 @@ struct prestera_sdma {
 	struct net_device napi_dev;
 	u32 map_addr;
 	u64 dma_mask;
-	/* protect SDMA with concurrrent access from multiple CPUs */
+	/* protect SDMA with concurrent access from multiple CPUs */
 	spinlock_t tx_lock;
 };
 

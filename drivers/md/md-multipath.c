@@ -87,10 +87,9 @@ static void multipath_end_request(struct bio *bio)
 		/*
 		 * oops, IO error:
 		 */
-		char b[BDEVNAME_SIZE];
 		md_error (mp_bh->mddev, rdev);
-		pr_info("multipath: %s: rescheduling sector %llu\n",
-			bdevname(rdev->bdev,b),
+		pr_info("multipath: %pg: rescheduling sector %llu\n",
+			rdev->bdev,
 			(unsigned long long)bio->bi_iter.bi_sector);
 		multipath_reschedule_retry(mp_bh);
 	} else
@@ -154,7 +153,6 @@ static void multipath_status(struct seq_file *seq, struct mddev *mddev)
 static void multipath_error (struct mddev *mddev, struct md_rdev *rdev)
 {
 	struct mpconf *conf = mddev->private;
-	char b[BDEVNAME_SIZE];
 
 	if (conf->raid_disks - mddev->degraded <= 1) {
 		/*
@@ -177,9 +175,9 @@ static void multipath_error (struct mddev *mddev, struct md_rdev *rdev)
 	}
 	set_bit(Faulty, &rdev->flags);
 	set_bit(MD_SB_CHANGE_DEVS, &mddev->sb_flags);
-	pr_err("multipath: IO failure on %s, disabling IO path.\n"
+	pr_err("multipath: IO failure on %pg, disabling IO path.\n"
 	       "multipath: Operation continuing on %d IO paths.\n",
-	       bdevname(rdev->bdev, b),
+	       rdev->bdev,
 	       conf->raid_disks - mddev->degraded);
 }
 
@@ -197,12 +195,11 @@ static void print_multipath_conf (struct mpconf *conf)
 		 conf->raid_disks);
 
 	for (i = 0; i < conf->raid_disks; i++) {
-		char b[BDEVNAME_SIZE];
 		tmp = conf->multipaths + i;
 		if (tmp->rdev)
-			pr_debug(" disk%d, o:%d, dev:%s\n",
+			pr_debug(" disk%d, o:%d, dev:%pg\n",
 				 i,!test_bit(Faulty, &tmp->rdev->flags),
-				 bdevname(tmp->rdev->bdev,b));
+				 tmp->rdev->bdev);
 	}
 }
 

@@ -217,7 +217,7 @@ static const struct arm64_cpu_capabilities arm64_repeat_tlbi_list[] = {
 #endif
 
 #ifdef CONFIG_CAVIUM_ERRATUM_23154
-const struct midr_range cavium_erratum_23154_cpus[] = {
+static const struct midr_range cavium_erratum_23154_cpus[] = {
 	MIDR_ALL_VERSIONS(MIDR_THUNDERX),
 	MIDR_ALL_VERSIONS(MIDR_THUNDERX_81XX),
 	MIDR_ALL_VERSIONS(MIDR_THUNDERX_83XX),

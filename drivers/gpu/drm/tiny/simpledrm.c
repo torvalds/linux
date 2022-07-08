@@ -801,7 +801,6 @@ static int simpledrm_device_init_modeset(struct simpledrm_device *sdev)
 	dev->mode_config.max_width = max_width;
 	dev->mode_config.min_height = mode->vdisplay;
 	dev->mode_config.max_height = max_height;
-	dev->mode_config.prefer_shadow_fbdev = true;
 	dev->mode_config.preferred_depth = sdev->format->cpp[0] * 8;
 	dev->mode_config.funcs = &simpledrm_mode_config_funcs;
 

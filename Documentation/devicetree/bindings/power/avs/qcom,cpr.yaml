@@ -51,6 +51,7 @@ properties:
       supported by the CPR power domain.
 
   acc-syscon:
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: A phandle to the syscon used for writing ACC settings.
 
   nvmem-cells:

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: BSD-3-Clause-Clear */
 /*
  * Copyright (c) 2018-2019 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef ATH11K_HAL_H
@@ -31,12 +32,12 @@ struct ath11k_base;
 #define HAL_DSCP_TID_TBL_SIZE			24
 
 /* calculate the register address from bar0 of shadow register x */
-#define HAL_SHADOW_BASE_ADDR			0x000008fc
+#define HAL_SHADOW_BASE_ADDR(ab)		ab->hw_params.regs->hal_shadow_base_addr
 #define HAL_SHADOW_NUM_REGS			36
 #define HAL_HP_OFFSET_IN_REG_START		1
 #define HAL_OFFSET_FROM_HP_TO_TP		4
 
-#define HAL_SHADOW_REG(x) (HAL_SHADOW_BASE_ADDR + (4 * (x)))
+#define HAL_SHADOW_REG(ab, x) (HAL_SHADOW_BASE_ADDR(ab) + (4 * (x)))
 
 /* WCSS Relative address */
 #define HAL_SEQ_WCSS_UMAC_OFFSET		0x00a00000
@@ -120,7 +121,7 @@ struct ath11k_base;
 #define HAL_REO1_DEST_RING_CTRL_IX_1		0x00000008
 #define HAL_REO1_DEST_RING_CTRL_IX_2		0x0000000c
 #define HAL_REO1_DEST_RING_CTRL_IX_3		0x00000010
-#define HAL_REO1_MISC_CTL			0x00000630
+#define HAL_REO1_MISC_CTL(ab)			ab->hw_params.regs->hal_reo1_misc_ctl
 #define HAL_REO1_RING_BASE_LSB(ab)		ab->hw_params.regs->hal_reo1_ring_base_lsb
 #define HAL_REO1_RING_BASE_MSB(ab)		ab->hw_params.regs->hal_reo1_ring_base_msb
 #define HAL_REO1_RING_ID(ab)			ab->hw_params.regs->hal_reo1_ring_id
@@ -180,16 +181,18 @@ struct ath11k_base;
 #define HAL_REO_TCL_RING_HP(ab)			ab->hw_params.regs->hal_reo_tcl_ring_hp
 
 /* REO CMD R0 address */
-#define HAL_REO_CMD_RING_BASE_LSB		0x00000194
+#define HAL_REO_CMD_RING_BASE_LSB(ab) \
+	ab->hw_params.regs->hal_reo_cmd_ring_base_lsb
 
 /* REO CMD R2 address */
-#define HAL_REO_CMD_HP				0x00003020
+#define HAL_REO_CMD_HP(ab)			ab->hw_params.regs->hal_reo_cmd_ring_hp
 
 /* SW2REO R0 address */
-#define HAL_SW2REO_RING_BASE_LSB		0x000001ec
+#define HAL_SW2REO_RING_BASE_LSB(ab) \
+	ab->hw_params.regs->hal_sw2reo_ring_base_lsb
 
 /* SW2REO R2 address */
-#define HAL_SW2REO_RING_HP			0x00003028
+#define HAL_SW2REO_RING_HP(ab)			ab->hw_params.regs->hal_sw2reo_ring_hp
 
 /* CE ring R0 address */
 #define HAL_CE_DST_RING_BASE_LSB		0x00000000

@@ -132,6 +132,7 @@ Some additional variants exist for more specialized cases:
 .. c:function:: u64 ktime_get_mono_fast_ns( void )
 		u64 ktime_get_raw_fast_ns( void )
 		u64 ktime_get_boot_fast_ns( void )
+		u64 ktime_get_tai_fast_ns( void )
 		u64 ktime_get_real_fast_ns( void )
 
 	These variants are safe to call from any context, including from

@@ -90,10 +90,6 @@ bool f2fs_available_free_memory(struct f2fs_sb_info *sbi, int type)
 				atomic_read(&sbi->total_ext_node) *
 				sizeof(struct extent_node)) >> PAGE_SHIFT;
 		res = mem_size < ((avail_ram * nm_i->ram_thresh / 100) >> 1);
-	} else if (type == INMEM_PAGES) {
-		/* it allows 20% / total_ram for inmemory pages */
-		mem_size = get_pages(sbi, F2FS_INMEM_PAGES);
-		res = mem_size < (val.totalram / 5);
 	} else if (type == DISCARD_CACHE) {
 		mem_size = (atomic_read(&dcc->discard_cmd_cnt) *
 				sizeof(struct discard_cmd)) >> PAGE_SHIFT;
@@ -1416,8 +1412,7 @@ repeat:
 
 	err = read_node_page(page, 0);
 	if (err < 0) {
-		f2fs_put_page(page, 1);
-		return ERR_PTR(err);
+		goto out_put_err;
 	} else if (err == LOCKED_PAGE) {
 		err = 0;
 		goto page_hit;
@@ -1443,19 +1438,23 @@ repeat:
 		goto out_err;
 	}
 page_hit:
-	if (unlikely(nid != nid_of_node(page))) {
-		f2fs_warn(sbi, "inconsistent node block, nid:%lu, node_footer[nid:%u,ino:%u,ofs:%u,cpver:%llu,blkaddr:%u]",
+	if (likely(nid == nid_of_node(page)))
+		return page;
+
+	f2fs_warn(sbi, "inconsistent node block, nid:%lu, node_footer[nid:%u,ino:%u,ofs:%u,cpver:%llu,blkaddr:%u]",
 			  nid, nid_of_node(page), ino_of_node(page),
 			  ofs_of_node(page), cpver_of_node(page),
 			  next_blkaddr_of_node(page));
-		set_sbi_flag(sbi, SBI_NEED_FSCK);
-		err = -EINVAL;
+	set_sbi_flag(sbi, SBI_NEED_FSCK);
+	err = -EINVAL;
 out_err:
-		ClearPageUptodate(page);
-		f2fs_put_page(page, 1);
-		return ERR_PTR(err);
-	}
-	return page;
+	ClearPageUptodate(page);
+out_put_err:
+	/* ENOENT comes from read_node_page which is not an error. */
+	if (err != -ENOENT)
+		f2fs_handle_page_eio(sbi, page->index, NODE);
+	f2fs_put_page(page, 1);
+	return ERR_PTR(err);
 }
 
 struct page *f2fs_get_node_page(struct f2fs_sb_info *sbi, pgoff_t nid)
@@ -1631,7 +1630,7 @@ static int __write_node_page(struct page *page, bool atomic, bool *submitted,
 		goto redirty_out;
 	}
 
-	if (atomic && !test_opt(sbi, NOBARRIER))
+	if (atomic && !test_opt(sbi, NOBARRIER) && !f2fs_sb_has_blkzoned(sbi))
 		fio.op_flags |= REQ_PREFLUSH | REQ_FUA;
 
 	/* should add to global list before clearing PAGECACHE status */
@@ -2165,7 +2164,7 @@ const struct address_space_operations f2fs_node_aops = {
 	.writepages	= f2fs_write_node_pages,
 	.dirty_folio	= f2fs_dirty_node_folio,
 	.invalidate_folio = f2fs_invalidate_folio,
-	.releasepage	= f2fs_release_page,
+	.release_folio	= f2fs_release_folio,
 #ifdef CONFIG_MIGRATION
 	.migratepage	= f2fs_migrate_page,
 #endif

@@ -60,7 +60,7 @@ void
 xfs_ialloc_log_agi(
 	struct xfs_trans *tp,		/* transaction pointer */
 	struct xfs_buf	*bp,		/* allocation group header buffer */
-	int		fields);	/* bitmask of fields to log */
+	uint32_t	fields);	/* bitmask of fields to log */
 
 /*
  * Read in the allocation group header (inode allocation section)

@@ -105,6 +105,7 @@ struct journal {
 	spinlock_t		lock;
 	spinlock_t		flush_write_lock;
 	bool			btree_flushing;
+	bool			do_reserve;
 	/* used when waiting because the journal was full */
 	struct closure_waitlist	wait;
 	struct closure		io;
@@ -182,5 +183,6 @@ int bch_journal_replay(struct cache_set *c, struct list_head *list);
 
 void bch_journal_free(struct cache_set *c);
 int bch_journal_alloc(struct cache_set *c);
+void bch_journal_space_reserve(struct journal *j);
 
 #endif /* _BCACHE_JOURNAL_H */

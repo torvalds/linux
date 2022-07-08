@@ -9,6 +9,8 @@
 #include <linux/netdevice.h>
 #include <linux/skbuff.h>
 #include <linux/if_rmnet.h>
+#include <linux/etherdevice.h>
+#include <net/pkt_sched.h>
 #include <linux/pm_runtime.h>
 #include <linux/remoteproc/qcom_rproc.h>
 
@@ -127,7 +129,7 @@ ipa_start_xmit(struct sk_buff *skb, struct net_device *netdev)
 		goto err_drop_skb;
 
 	endpoint = ipa->name_map[IPA_ENDPOINT_AP_MODEM_TX];
-	if (endpoint->data->qmap && skb->protocol != htons(ETH_P_MAP))
+	if (endpoint->config.qmap && skb->protocol != htons(ETH_P_MAP))
 		goto err_drop_skb;
 
 	/* The hardware must be powered for us to transmit */
@@ -203,15 +205,20 @@ static const struct net_device_ops ipa_modem_ops = {
 static void ipa_modem_netdev_setup(struct net_device *netdev)
 {
 	netdev->netdev_ops = &ipa_modem_ops;
-	ether_setup(netdev);
-	/* No header ops (override value set by ether_setup()) */
+
 	netdev->header_ops = NULL;
 	netdev->type = ARPHRD_RAWIP;
 	netdev->hard_header_len = 0;
+	netdev->min_header_len = ETH_HLEN;
+	netdev->min_mtu = ETH_MIN_MTU;
 	netdev->max_mtu = IPA_MTU;
 	netdev->mtu = netdev->max_mtu;
 	netdev->addr_len = 0;
+	netdev->tx_queue_len = DEFAULT_TX_QUEUE_LEN;
 	netdev->flags &= ~(IFF_BROADCAST | IFF_MULTICAST);
+	netdev->priv_flags |= IFF_TX_SKB_SHARING;
+	eth_broadcast_addr(netdev->broadcast);
+
 	/* The endpoint is configured for QMAP */
 	netdev->needed_headroom = sizeof(struct rmnet_map_header);
 	netdev->needed_tailroom = IPA_NETDEV_TAILROOM;

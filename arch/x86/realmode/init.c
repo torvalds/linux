@@ -67,7 +67,7 @@ void __init reserve_real_mode(void)
 	memblock_reserve(0, SZ_1M);
 }
 
-static void sme_sev_setup_real_mode(struct trampoline_header *th)
+static void __init sme_sev_setup_real_mode(struct trampoline_header *th)
 {
 #ifdef CONFIG_AMD_MEM_ENCRYPT
 	if (cc_platform_has(CC_ATTR_HOST_MEM_ENCRYPT))

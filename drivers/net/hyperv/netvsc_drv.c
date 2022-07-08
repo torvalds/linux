@@ -242,56 +242,6 @@ static inline void *init_ppi_data(struct rndis_message *msg,
 	return ppi + 1;
 }
 
-/* Azure hosts don't support non-TCP port numbers in hashing for fragmented
- * packets. We can use ethtool to change UDP hash level when necessary.
- */
-static inline u32 netvsc_get_hash(
-	struct sk_buff *skb,
-	const struct net_device_context *ndc)
-{
-	struct flow_keys flow;
-	u32 hash, pkt_proto = 0;
-	static u32 hashrnd __read_mostly;
-
-	net_get_random_once(&hashrnd, sizeof(hashrnd));
-
-	if (!skb_flow_dissect_flow_keys(skb, &flow, 0))
-		return 0;
-
-	switch (flow.basic.ip_proto) {
-	case IPPROTO_TCP:
-		if (flow.basic.n_proto == htons(ETH_P_IP))
-			pkt_proto = HV_TCP4_L4HASH;
-		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
-			pkt_proto = HV_TCP6_L4HASH;
-
-		break;
-
-	case IPPROTO_UDP:
-		if (flow.basic.n_proto == htons(ETH_P_IP))
-			pkt_proto = HV_UDP4_L4HASH;
-		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
-			pkt_proto = HV_UDP6_L4HASH;
-
-		break;
-	}
-
-	if (pkt_proto & ndc->l4_hash) {
-		return skb_get_hash(skb);
-	} else {
-		if (flow.basic.n_proto == htons(ETH_P_IP))
-			hash = jhash2((u32 *)&flow.addrs.v4addrs, 2, hashrnd);
-		else if (flow.basic.n_proto == htons(ETH_P_IPV6))
-			hash = jhash2((u32 *)&flow.addrs.v6addrs, 8, hashrnd);
-		else
-			return 0;
-
-		__skb_set_sw_hash(skb, hash, false);
-	}
-
-	return hash;
-}
-
 static inline int netvsc_get_tx_queue(struct net_device *ndev,
 				      struct sk_buff *skb, int old_idx)
 {
@@ -804,7 +754,7 @@ void netvsc_linkstatus_callback(struct net_device *net,
 }
 
 /* This function should only be called after skb_record_rx_queue() */
-static void netvsc_xdp_xmit(struct sk_buff *skb, struct net_device *ndev)
+void netvsc_xdp_xmit(struct sk_buff *skb, struct net_device *ndev)
 {
 	int rc;
 
@@ -925,7 +875,7 @@ int netvsc_recv_callback(struct net_device *net,
 	struct vmbus_channel *channel = nvchan->channel;
 	u16 q_idx = channel->offermsg.offer.sub_channel_index;
 	struct sk_buff *skb;
-	struct netvsc_stats *rx_stats = &nvchan->rx_stats;
+	struct netvsc_stats_rx *rx_stats = &nvchan->rx_stats;
 	struct xdp_buff xdp;
 	u32 act;
 
@@ -933,6 +883,9 @@ int netvsc_recv_callback(struct net_device *net,
 		return NVSP_STAT_FAIL;
 
 	act = netvsc_run_xdp(net, nvchan, &xdp);
+
+	if (act == XDP_REDIRECT)
+		return NVSP_STAT_SUCCESS;
 
 	if (act != XDP_PASS && act != XDP_TX) {
 		u64_stats_update_begin(&rx_stats->syncp);
@@ -958,6 +911,9 @@ int netvsc_recv_callback(struct net_device *net,
 	 * statistics will not work correctly.
 	 */
 	u64_stats_update_begin(&rx_stats->syncp);
+	if (act == XDP_TX)
+		rx_stats->xdp_tx++;
+
 	rx_stats->packets++;
 	rx_stats->bytes += nvchan->rsc.pktlen;
 
@@ -1353,28 +1309,29 @@ static void netvsc_get_pcpu_stats(struct net_device *net,
 	/* fetch percpu stats of netvsc */
 	for (i = 0; i < nvdev->num_chn; i++) {
 		const struct netvsc_channel *nvchan = &nvdev->chan_table[i];
-		const struct netvsc_stats *stats;
+		const struct netvsc_stats_tx *tx_stats;
+		const struct netvsc_stats_rx *rx_stats;
 		struct netvsc_ethtool_pcpu_stats *this_tot =
 			&pcpu_tot[nvchan->channel->target_cpu];
 		u64 packets, bytes;
 		unsigned int start;
 
-		stats = &nvchan->tx_stats;
+		tx_stats = &nvchan->tx_stats;
 		do {
-			start = u64_stats_fetch_begin_irq(&stats->syncp);
-			packets = stats->packets;
-			bytes = stats->bytes;
-		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+			start = u64_stats_fetch_begin_irq(&tx_stats->syncp);
+			packets = tx_stats->packets;
+			bytes = tx_stats->bytes;
+		} while (u64_stats_fetch_retry_irq(&tx_stats->syncp, start));
 
 		this_tot->tx_bytes	+= bytes;
 		this_tot->tx_packets	+= packets;
 
-		stats = &nvchan->rx_stats;
+		rx_stats = &nvchan->rx_stats;
 		do {
-			start = u64_stats_fetch_begin_irq(&stats->syncp);
-			packets = stats->packets;
-			bytes = stats->bytes;
-		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+			start = u64_stats_fetch_begin_irq(&rx_stats->syncp);
+			packets = rx_stats->packets;
+			bytes = rx_stats->bytes;
+		} while (u64_stats_fetch_retry_irq(&rx_stats->syncp, start));
 
 		this_tot->rx_bytes	+= bytes;
 		this_tot->rx_packets	+= packets;
@@ -1406,27 +1363,28 @@ static void netvsc_get_stats64(struct net_device *net,
 
 	for (i = 0; i < nvdev->num_chn; i++) {
 		const struct netvsc_channel *nvchan = &nvdev->chan_table[i];
-		const struct netvsc_stats *stats;
+		const struct netvsc_stats_tx *tx_stats;
+		const struct netvsc_stats_rx *rx_stats;
 		u64 packets, bytes, multicast;
 		unsigned int start;
 
-		stats = &nvchan->tx_stats;
+		tx_stats = &nvchan->tx_stats;
 		do {
-			start = u64_stats_fetch_begin_irq(&stats->syncp);
-			packets = stats->packets;
-			bytes = stats->bytes;
-		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+			start = u64_stats_fetch_begin_irq(&tx_stats->syncp);
+			packets = tx_stats->packets;
+			bytes = tx_stats->bytes;
+		} while (u64_stats_fetch_retry_irq(&tx_stats->syncp, start));
 
 		t->tx_bytes	+= bytes;
 		t->tx_packets	+= packets;
 
-		stats = &nvchan->rx_stats;
+		rx_stats = &nvchan->rx_stats;
 		do {
-			start = u64_stats_fetch_begin_irq(&stats->syncp);
-			packets = stats->packets;
-			bytes = stats->bytes;
-			multicast = stats->multicast + stats->broadcast;
-		} while (u64_stats_fetch_retry_irq(&stats->syncp, start));
+			start = u64_stats_fetch_begin_irq(&rx_stats->syncp);
+			packets = rx_stats->packets;
+			bytes = rx_stats->bytes;
+			multicast = rx_stats->multicast + rx_stats->broadcast;
+		} while (u64_stats_fetch_retry_irq(&rx_stats->syncp, start));
 
 		t->rx_bytes	+= bytes;
 		t->rx_packets	+= packets;
@@ -1515,8 +1473,8 @@ static const struct {
 /* statistics per queue (rx/tx packets/bytes) */
 #define NETVSC_PCPU_STATS_LEN (num_present_cpus() * ARRAY_SIZE(pcpu_stats))
 
-/* 5 statistics per queue (rx/tx packets/bytes, rx xdp_drop) */
-#define NETVSC_QUEUE_STATS_LEN(dev) ((dev)->num_chn * 5)
+/* 8 statistics per queue (rx/tx packets/bytes, XDP actions) */
+#define NETVSC_QUEUE_STATS_LEN(dev) ((dev)->num_chn * 8)
 
 static int netvsc_get_sset_count(struct net_device *dev, int string_set)
 {
@@ -1543,12 +1501,16 @@ static void netvsc_get_ethtool_stats(struct net_device *dev,
 	struct net_device_context *ndc = netdev_priv(dev);
 	struct netvsc_device *nvdev = rtnl_dereference(ndc->nvdev);
 	const void *nds = &ndc->eth_stats;
-	const struct netvsc_stats *qstats;
+	const struct netvsc_stats_tx *tx_stats;
+	const struct netvsc_stats_rx *rx_stats;
 	struct netvsc_vf_pcpu_stats sum;
 	struct netvsc_ethtool_pcpu_stats *pcpu_sum;
 	unsigned int start;
 	u64 packets, bytes;
 	u64 xdp_drop;
+	u64 xdp_redirect;
+	u64 xdp_tx;
+	u64 xdp_xmit;
 	int i, j, cpu;
 
 	if (!nvdev)
@@ -1562,26 +1524,32 @@ static void netvsc_get_ethtool_stats(struct net_device *dev,
 		data[i++] = *(u64 *)((void *)&sum + vf_stats[j].offset);
 
 	for (j = 0; j < nvdev->num_chn; j++) {
-		qstats = &nvdev->chan_table[j].tx_stats;
+		tx_stats = &nvdev->chan_table[j].tx_stats;
 
 		do {
-			start = u64_stats_fetch_begin_irq(&qstats->syncp);
-			packets = qstats->packets;
-			bytes = qstats->bytes;
-		} while (u64_stats_fetch_retry_irq(&qstats->syncp, start));
+			start = u64_stats_fetch_begin_irq(&tx_stats->syncp);
+			packets = tx_stats->packets;
+			bytes = tx_stats->bytes;
+			xdp_xmit = tx_stats->xdp_xmit;
+		} while (u64_stats_fetch_retry_irq(&tx_stats->syncp, start));
 		data[i++] = packets;
 		data[i++] = bytes;
+		data[i++] = xdp_xmit;
 
-		qstats = &nvdev->chan_table[j].rx_stats;
+		rx_stats = &nvdev->chan_table[j].rx_stats;
 		do {
-			start = u64_stats_fetch_begin_irq(&qstats->syncp);
-			packets = qstats->packets;
-			bytes = qstats->bytes;
-			xdp_drop = qstats->xdp_drop;
-		} while (u64_stats_fetch_retry_irq(&qstats->syncp, start));
+			start = u64_stats_fetch_begin_irq(&rx_stats->syncp);
+			packets = rx_stats->packets;
+			bytes = rx_stats->bytes;
+			xdp_drop = rx_stats->xdp_drop;
+			xdp_redirect = rx_stats->xdp_redirect;
+			xdp_tx = rx_stats->xdp_tx;
+		} while (u64_stats_fetch_retry_irq(&rx_stats->syncp, start));
 		data[i++] = packets;
 		data[i++] = bytes;
 		data[i++] = xdp_drop;
+		data[i++] = xdp_redirect;
+		data[i++] = xdp_tx;
 	}
 
 	pcpu_sum = kvmalloc_array(num_possible_cpus(),
@@ -1622,9 +1590,12 @@ static void netvsc_get_strings(struct net_device *dev, u32 stringset, u8 *data)
 		for (i = 0; i < nvdev->num_chn; i++) {
 			ethtool_sprintf(&p, "tx_queue_%u_packets", i);
 			ethtool_sprintf(&p, "tx_queue_%u_bytes", i);
+			ethtool_sprintf(&p, "tx_queue_%u_xdp_xmit", i);
 			ethtool_sprintf(&p, "rx_queue_%u_packets", i);
 			ethtool_sprintf(&p, "rx_queue_%u_bytes", i);
 			ethtool_sprintf(&p, "rx_queue_%u_xdp_drop", i);
+			ethtool_sprintf(&p, "rx_queue_%u_xdp_redirect", i);
+			ethtool_sprintf(&p, "rx_queue_%u_xdp_tx", i);
 		}
 
 		for_each_present_cpu(cpu) {
@@ -2057,6 +2028,7 @@ static const struct net_device_ops device_ops = {
 	.ndo_select_queue =		netvsc_select_queue,
 	.ndo_get_stats64 =		netvsc_get_stats64,
 	.ndo_bpf =			netvsc_bpf,
+	.ndo_xdp_xmit =			netvsc_ndoxdp_xmit,
 };
 
 /*
@@ -2671,7 +2643,10 @@ static int netvsc_suspend(struct hv_device *dev)
 
 	/* Save the current config info */
 	ndev_ctx->saved_netvsc_dev_info = netvsc_devinfo_get(nvdev);
-
+	if (!ndev_ctx->saved_netvsc_dev_info) {
+		ret = -ENOMEM;
+		goto out;
+	}
 	ret = netvsc_detach(net, nvdev);
 out:
 	rtnl_unlock();

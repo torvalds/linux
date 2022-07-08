@@ -121,8 +121,8 @@ struct pmc_usb_port {
 	int num;
 	u32 iom_status;
 	struct pmc_usb *pmc;
-	struct typec_mux *typec_mux;
-	struct typec_switch *typec_sw;
+	struct typec_mux_dev *typec_mux;
+	struct typec_switch_dev *typec_sw;
 	struct usb_role_switch *usb_sw;
 
 	enum typec_orientation orientation;
@@ -173,7 +173,7 @@ static int hsl_orientation(struct pmc_usb_port *port)
 	return port->orientation - 1;
 }
 
-static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
+static int pmc_usb_send_command(struct intel_scu_ipc_dev *ipc, u8 *msg, u32 len)
 {
 	u8 response[4];
 	u8 status_res;
@@ -184,7 +184,7 @@ static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 	 * Status can be checked from the response message if the
 	 * function intel_scu_ipc_dev_command succeeds.
 	 */
-	ret = intel_scu_ipc_dev_command(port->pmc->ipc, PMC_USBC_CMD, 0, msg,
+	ret = intel_scu_ipc_dev_command(ipc, PMC_USBC_CMD, 0, msg,
 					len, response, sizeof(response));
 
 	if (ret)
@@ -201,6 +201,23 @@ static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
 	}
 
 	return 0;
+}
+
+static int pmc_usb_command(struct pmc_usb_port *port, u8 *msg, u32 len)
+{
+	int retry_count = 3;
+	int ret;
+
+	/*
+	 * If PMC is busy then retry the command once again
+	 */
+	while (retry_count--) {
+		ret = pmc_usb_send_command(port->pmc->ipc, msg, len);
+		if (ret != -EBUSY)
+			break;
+	}
+
+	return ret;
 }
 
 static int
@@ -416,7 +433,7 @@ static int pmc_usb_connect(struct pmc_usb_port *port, enum usb_role role)
 }
 
 static int
-pmc_usb_mux_set(struct typec_mux *mux, struct typec_mux_state *state)
+pmc_usb_mux_set(struct typec_mux_dev *mux, struct typec_mux_state *state)
 {
 	struct pmc_usb_port *port = typec_mux_get_drvdata(mux);
 
@@ -452,7 +469,7 @@ pmc_usb_mux_set(struct typec_mux *mux, struct typec_mux_state *state)
 	return -EOPNOTSUPP;
 }
 
-static int pmc_usb_set_orientation(struct typec_switch *sw,
+static int pmc_usb_set_orientation(struct typec_switch_dev *sw,
 				   enum typec_orientation orientation)
 {
 	struct pmc_usb_port *port = typec_switch_get_drvdata(sw);

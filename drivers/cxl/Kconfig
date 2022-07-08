@@ -98,4 +98,8 @@ config CXL_PORT
 	default CXL_BUS
 	tristate
 
+config CXL_SUSPEND
+	def_bool y
+	depends on SUSPEND && CXL_MEM
+
 endif

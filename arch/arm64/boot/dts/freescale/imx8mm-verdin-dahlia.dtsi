@@ -114,7 +114,7 @@
 	status = "okay";
 };
 
-/* VERDIN I2S_1 */
+/* Verdin I2S_1 */
 &sai2 {
 	status = "okay";
 };

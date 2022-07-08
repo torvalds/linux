@@ -719,3 +719,7 @@
 &pruss_tm {
 	status = "okay";
 };
+
+&wkup_m3_ipc {
+	firmware-name = "am335x-evm-scale-data.bin";
+};

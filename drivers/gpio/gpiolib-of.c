@@ -712,9 +712,8 @@ static void of_gpiochip_remove_hog(struct gpio_chip *chip,
 				   struct device_node *hog)
 {
 	struct gpio_desc *desc;
-	unsigned int i;
 
-	for_each_gpio_desc_with_flag(i, chip, desc, FLAG_IS_HOGGED)
+	for_each_gpio_desc_with_flag(chip, desc, FLAG_IS_HOGGED)
 		if (desc->hog == hog)
 			gpiochip_free_own_desc(desc);
 }
@@ -930,6 +929,11 @@ static int of_gpiochip_add_pin_range(struct gpio_chip *chip)
 
 	if (!np)
 		return 0;
+
+	if (!of_property_read_bool(np, "gpio-ranges") &&
+	    chip->of_gpio_ranges_fallback) {
+		return chip->of_gpio_ranges_fallback(chip, np);
+	}
 
 	group_names = of_find_property(np, group_names_propname, NULL);
 

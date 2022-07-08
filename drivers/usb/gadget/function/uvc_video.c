@@ -112,7 +112,8 @@ uvc_video_encode_bulk(struct usb_request *req, struct uvc_video *video,
 	if (buf->bytesused == video->queue.buf_used) {
 		video->queue.buf_used = 0;
 		buf->state = UVC_BUF_STATE_DONE;
-		uvcg_queue_next_buffer(&video->queue, buf);
+		list_del(&buf->queue);
+		uvcg_complete_buffer(&video->queue, buf);
 		video->fid ^= UVC_STREAM_FID;
 
 		video->payload_size = 0;
@@ -154,7 +155,7 @@ uvc_video_encode_isoc_sg(struct usb_request *req, struct uvc_video *video,
 	sg = sg_next(sg);
 
 	for_each_sg(sg, iter, ureq->sgt.nents - 1, i) {
-		if (!len || !buf->sg)
+		if (!len || !buf->sg || !sg_dma_len(buf->sg))
 			break;
 
 		sg_left = sg_dma_len(buf->sg) - buf->offset;
@@ -183,8 +184,9 @@ uvc_video_encode_isoc_sg(struct usb_request *req, struct uvc_video *video,
 		video->queue.buf_used = 0;
 		buf->state = UVC_BUF_STATE_DONE;
 		buf->offset = 0;
-		uvcg_queue_next_buffer(&video->queue, buf);
+		list_del(&buf->queue);
 		video->fid ^= UVC_STREAM_FID;
+		ureq->last_buf = buf;
 	}
 }
 
@@ -210,7 +212,8 @@ uvc_video_encode_isoc(struct usb_request *req, struct uvc_video *video,
 	if (buf->bytesused == video->queue.buf_used) {
 		video->queue.buf_used = 0;
 		buf->state = UVC_BUF_STATE_DONE;
-		uvcg_queue_next_buffer(&video->queue, buf);
+		list_del(&buf->queue);
+		uvcg_complete_buffer(&video->queue, buf);
 		video->fid ^= UVC_STREAM_FID;
 	}
 }
@@ -262,6 +265,11 @@ uvc_video_complete(struct usb_ep *ep, struct usb_request *req)
 			  "VS request completed with status %d.\n",
 			  req->status);
 		uvcg_queue_cancel(queue, 0);
+	}
+
+	if (ureq->last_buf) {
+		uvcg_complete_buffer(&video->queue, ureq->last_buf);
+		ureq->last_buf = NULL;
 	}
 
 	spin_lock_irqsave(&video->req_lock, flags);
@@ -332,6 +340,7 @@ uvc_video_alloc_requests(struct uvc_video *video)
 		video->ureq[i].req->complete = uvc_video_complete;
 		video->ureq[i].req->context = &video->ureq[i];
 		video->ureq[i].video = video;
+		video->ureq[i].last_buf = NULL;
 
 		list_add_tail(&video->ureq[i].req->list, &video->req_free);
 		/* req_size/PAGE_SIZE + 1 for overruns and + 1 for header */
@@ -415,6 +424,9 @@ static void uvcg_video_pump(struct work_struct *work)
 			uvcg_queue_cancel(queue, 0);
 			break;
 		}
+
+		/* Endpoint now owns the request */
+		req = NULL;
 		video->req_int_count++;
 	}
 

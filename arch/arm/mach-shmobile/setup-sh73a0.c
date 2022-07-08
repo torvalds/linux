@@ -32,7 +32,7 @@ static void __init sh73a0_generic_init(void)
 
 static const char *const sh73a0_boards_compat_dt[] __initconst = {
 	"renesas,sh73a0",
-	NULL,
+	NULL
 };
 
 DT_MACHINE_START(SH73A0_DT, "Generic SH73A0 (Flattened Device Tree)")

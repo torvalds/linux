@@ -17,8 +17,8 @@
 #include <asm/tlb.h>
 #include <asm/mach/map.h>
 
-#include <mach/common.h>
-#include <mach/cputype.h>
+#include "common.h"
+#include "cputype.h"
 
 struct davinci_soc_info davinci_soc_info;
 EXPORT_SYMBOL(davinci_soc_info);

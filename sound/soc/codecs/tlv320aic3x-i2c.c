@@ -17,10 +17,21 @@
 
 #include "tlv320aic3x.h"
 
-static int aic3x_i2c_probe(struct i2c_client *i2c, const struct i2c_device_id *id)
+static const struct i2c_device_id aic3x_i2c_id[] = {
+	{ "tlv320aic3x", AIC3X_MODEL_3X },
+	{ "tlv320aic33", AIC3X_MODEL_33 },
+	{ "tlv320aic3007", AIC3X_MODEL_3007 },
+	{ "tlv320aic3104", AIC3X_MODEL_3104 },
+	{ "tlv320aic3106", AIC3X_MODEL_3106 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, aic3x_i2c_id);
+
+static int aic3x_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *regmap;
 	struct regmap_config config;
+	const struct i2c_device_id *id = i2c_match_id(aic3x_i2c_id, i2c);
 
 	config = aic3x_regmap;
 	config.reg_bits = 8;
@@ -37,16 +48,6 @@ static int aic3x_i2c_remove(struct i2c_client *i2c)
 	return 0;
 }
 
-static const struct i2c_device_id aic3x_i2c_id[] = {
-	{ "tlv320aic3x", AIC3X_MODEL_3X },
-	{ "tlv320aic33", AIC3X_MODEL_33 },
-	{ "tlv320aic3007", AIC3X_MODEL_3007 },
-	{ "tlv320aic3104", AIC3X_MODEL_3104 },
-	{ "tlv320aic3106", AIC3X_MODEL_3106 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, aic3x_i2c_id);
-
 static const struct of_device_id aic3x_of_id[] = {
 	{ .compatible = "ti,tlv320aic3x", },
 	{ .compatible = "ti,tlv320aic33" },
@@ -62,7 +63,7 @@ static struct i2c_driver aic3x_i2c_driver = {
 		.name = "tlv320aic3x",
 		.of_match_table = aic3x_of_id,
 	},
-	.probe = aic3x_i2c_probe,
+	.probe_new = aic3x_i2c_probe,
 	.remove = aic3x_i2c_remove,
 	.id_table = aic3x_i2c_id,
 };

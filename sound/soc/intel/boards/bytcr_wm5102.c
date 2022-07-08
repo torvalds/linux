@@ -226,9 +226,9 @@ static int byt_wm5102_init(struct snd_soc_pcm_runtime *runtime)
 
 	jack_type = ARIZONA_JACK_MASK | SND_JACK_BTN_0 | SND_JACK_BTN_1 |
 		    SND_JACK_BTN_2 | SND_JACK_BTN_3;
-	ret = snd_soc_card_jack_new(card, "Headset", jack_type,
-				    &priv->jack, byt_wm5102_pins,
-				    ARRAY_SIZE(byt_wm5102_pins));
+	ret = snd_soc_card_jack_new_pins(card, "Headset", jack_type,
+					 &priv->jack, byt_wm5102_pins,
+					 ARRAY_SIZE(byt_wm5102_pins));
 	if (ret) {
 		dev_err(card->dev, "Error creating jack: %d\n", ret);
 		return ret;

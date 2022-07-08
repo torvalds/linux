@@ -70,8 +70,10 @@ static int i915_ttm_buddy_man_alloc(struct ttm_resource_manager *man,
 		min_page_size = bo->page_alignment << PAGE_SHIFT;
 
 	GEM_BUG_ON(min_page_size < mm->chunk_size);
+	GEM_BUG_ON(!IS_ALIGNED(size, min_page_size));
 
-	if (place->flags & TTM_PL_FLAG_CONTIGUOUS) {
+	if (place->fpfn + bman_res->base.num_pages != place->lpfn &&
+	    place->flags & TTM_PL_FLAG_CONTIGUOUS) {
 		unsigned long pages;
 
 		size = roundup_pow_of_two(size);

@@ -94,10 +94,6 @@ struct perf_ibs {
 	unsigned int			fetch_ignore_if_zero_rip : 1;
 	struct cpu_perf_ibs __percpu	*pcpu;
 
-	struct attribute		**format_attrs;
-	struct attribute_group		format_group;
-	const struct attribute_group	*attr_groups[2];
-
 	u64				(*get_count)(u64 config);
 };
 
@@ -303,6 +299,16 @@ static int perf_ibs_init(struct perf_event *event)
 
 	hwc->config_base = perf_ibs->msr;
 	hwc->config = config;
+
+	/*
+	 * rip recorded by IbsOpRip will not be consistent with rsp and rbp
+	 * recorded as part of interrupt regs. Thus we need to use rip from
+	 * interrupt regs while unwinding call stack. Setting _EARLY flag
+	 * makes sure we unwind call-stack before perf sample rip is set to
+	 * IbsOpRip.
+	 */
+	if (event->attr.sample_type & PERF_SAMPLE_CALLCHAIN)
+		event->attr.sample_type |= __PERF_SAMPLE_CALLCHAIN_EARLY;
 
 	return 0;
 }
@@ -518,16 +524,118 @@ static void perf_ibs_del(struct perf_event *event, int flags)
 
 static void perf_ibs_read(struct perf_event *event) { }
 
+/*
+ * We need to initialize with empty group if all attributes in the
+ * group are dynamic.
+ */
+static struct attribute *attrs_empty[] = {
+	NULL,
+};
+
+static struct attribute_group empty_format_group = {
+	.name = "format",
+	.attrs = attrs_empty,
+};
+
+static struct attribute_group empty_caps_group = {
+	.name = "caps",
+	.attrs = attrs_empty,
+};
+
+static const struct attribute_group *empty_attr_groups[] = {
+	&empty_format_group,
+	&empty_caps_group,
+	NULL,
+};
+
 PMU_FORMAT_ATTR(rand_en,	"config:57");
 PMU_FORMAT_ATTR(cnt_ctl,	"config:19");
+PMU_EVENT_ATTR_STRING(l3missonly, fetch_l3missonly, "config:59");
+PMU_EVENT_ATTR_STRING(l3missonly, op_l3missonly, "config:16");
+PMU_EVENT_ATTR_STRING(zen4_ibs_extensions, zen4_ibs_extensions, "1");
 
-static struct attribute *ibs_fetch_format_attrs[] = {
+static umode_t
+zen4_ibs_extensions_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	return ibs_caps & IBS_CAPS_ZEN4 ? attr->mode : 0;
+}
+
+static struct attribute *rand_en_attrs[] = {
 	&format_attr_rand_en.attr,
 	NULL,
 };
 
-static struct attribute *ibs_op_format_attrs[] = {
-	NULL,	/* &format_attr_cnt_ctl.attr if IBS_CAPS_OPCNT */
+static struct attribute *fetch_l3missonly_attrs[] = {
+	&fetch_l3missonly.attr.attr,
+	NULL,
+};
+
+static struct attribute *zen4_ibs_extensions_attrs[] = {
+	&zen4_ibs_extensions.attr.attr,
+	NULL,
+};
+
+static struct attribute_group group_rand_en = {
+	.name = "format",
+	.attrs = rand_en_attrs,
+};
+
+static struct attribute_group group_fetch_l3missonly = {
+	.name = "format",
+	.attrs = fetch_l3missonly_attrs,
+	.is_visible = zen4_ibs_extensions_is_visible,
+};
+
+static struct attribute_group group_zen4_ibs_extensions = {
+	.name = "caps",
+	.attrs = zen4_ibs_extensions_attrs,
+	.is_visible = zen4_ibs_extensions_is_visible,
+};
+
+static const struct attribute_group *fetch_attr_groups[] = {
+	&group_rand_en,
+	&empty_caps_group,
+	NULL,
+};
+
+static const struct attribute_group *fetch_attr_update[] = {
+	&group_fetch_l3missonly,
+	&group_zen4_ibs_extensions,
+	NULL,
+};
+
+static umode_t
+cnt_ctl_is_visible(struct kobject *kobj, struct attribute *attr, int i)
+{
+	return ibs_caps & IBS_CAPS_OPCNT ? attr->mode : 0;
+}
+
+static struct attribute *cnt_ctl_attrs[] = {
+	&format_attr_cnt_ctl.attr,
+	NULL,
+};
+
+static struct attribute *op_l3missonly_attrs[] = {
+	&op_l3missonly.attr.attr,
+	NULL,
+};
+
+static struct attribute_group group_cnt_ctl = {
+	.name = "format",
+	.attrs = cnt_ctl_attrs,
+	.is_visible = cnt_ctl_is_visible,
+};
+
+static struct attribute_group group_op_l3missonly = {
+	.name = "format",
+	.attrs = op_l3missonly_attrs,
+	.is_visible = zen4_ibs_extensions_is_visible,
+};
+
+static const struct attribute_group *op_attr_update[] = {
+	&group_cnt_ctl,
+	&group_op_l3missonly,
+	&group_zen4_ibs_extensions,
 	NULL,
 };
 
@@ -551,7 +659,6 @@ static struct perf_ibs perf_ibs_fetch = {
 	.max_period		= IBS_FETCH_MAX_CNT << 4,
 	.offset_mask		= { MSR_AMD64_IBSFETCH_REG_MASK },
 	.offset_max		= MSR_AMD64_IBSFETCH_REG_COUNT,
-	.format_attrs		= ibs_fetch_format_attrs,
 
 	.get_count		= get_ibs_fetch_count,
 };
@@ -577,7 +684,6 @@ static struct perf_ibs perf_ibs_op = {
 	.max_period		= IBS_OP_MAX_CNT << 4,
 	.offset_mask		= { MSR_AMD64_IBSOP_REG_MASK },
 	.offset_max		= MSR_AMD64_IBSOP_REG_COUNT,
-	.format_attrs		= ibs_op_format_attrs,
 
 	.get_count		= get_ibs_op_count,
 };
@@ -687,6 +793,14 @@ fail:
 		data.raw = &raw;
 	}
 
+	/*
+	 * rip recorded by IbsOpRip will not be consistent with rsp and rbp
+	 * recorded as part of interrupt regs. Thus we need to use rip from
+	 * interrupt regs while unwinding call stack.
+	 */
+	if (event->attr.sample_type & PERF_SAMPLE_CALLCHAIN)
+		data.callchain = perf_callchain(event, iregs);
+
 	throttle = perf_event_overflow(event, &data, &regs);
 out:
 	if (throttle) {
@@ -739,17 +853,6 @@ static __init int perf_ibs_pmu_init(struct perf_ibs *perf_ibs, char *name)
 
 	perf_ibs->pcpu = pcpu;
 
-	/* register attributes */
-	if (perf_ibs->format_attrs[0]) {
-		memset(&perf_ibs->format_group, 0, sizeof(perf_ibs->format_group));
-		perf_ibs->format_group.name	= "format";
-		perf_ibs->format_group.attrs	= perf_ibs->format_attrs;
-
-		memset(&perf_ibs->attr_groups, 0, sizeof(perf_ibs->attr_groups));
-		perf_ibs->attr_groups[0]	= &perf_ibs->format_group;
-		perf_ibs->pmu.attr_groups	= perf_ibs->attr_groups;
-	}
-
 	ret = perf_pmu_register(&perf_ibs->pmu, name, -1);
 	if (ret) {
 		perf_ibs->pcpu = NULL;
@@ -759,10 +862,8 @@ static __init int perf_ibs_pmu_init(struct perf_ibs *perf_ibs, char *name)
 	return ret;
 }
 
-static __init void perf_event_ibs_init(void)
+static __init int perf_ibs_fetch_init(void)
 {
-	struct attribute **attr = ibs_op_format_attrs;
-
 	/*
 	 * Some chips fail to reset the fetch count when it is written; instead
 	 * they need a 0-1 transition of IbsFetchEn.
@@ -773,12 +874,19 @@ static __init void perf_event_ibs_init(void)
 	if (boot_cpu_data.x86 == 0x19 && boot_cpu_data.x86_model < 0x10)
 		perf_ibs_fetch.fetch_ignore_if_zero_rip = 1;
 
-	perf_ibs_pmu_init(&perf_ibs_fetch, "ibs_fetch");
+	if (ibs_caps & IBS_CAPS_ZEN4)
+		perf_ibs_fetch.config_mask |= IBS_FETCH_L3MISSONLY;
 
-	if (ibs_caps & IBS_CAPS_OPCNT) {
+	perf_ibs_fetch.pmu.attr_groups = fetch_attr_groups;
+	perf_ibs_fetch.pmu.attr_update = fetch_attr_update;
+
+	return perf_ibs_pmu_init(&perf_ibs_fetch, "ibs_fetch");
+}
+
+static __init int perf_ibs_op_init(void)
+{
+	if (ibs_caps & IBS_CAPS_OPCNT)
 		perf_ibs_op.config_mask |= IBS_OP_CNT_CTL;
-		*attr++ = &format_attr_cnt_ctl.attr;
-	}
 
 	if (ibs_caps & IBS_CAPS_OPCNTEXT) {
 		perf_ibs_op.max_period  |= IBS_OP_MAX_CNT_EXT_MASK;
@@ -786,15 +894,52 @@ static __init void perf_event_ibs_init(void)
 		perf_ibs_op.cnt_mask    |= IBS_OP_MAX_CNT_EXT_MASK;
 	}
 
-	perf_ibs_pmu_init(&perf_ibs_op, "ibs_op");
+	if (ibs_caps & IBS_CAPS_ZEN4)
+		perf_ibs_op.config_mask |= IBS_OP_L3MISSONLY;
 
-	register_nmi_handler(NMI_LOCAL, perf_ibs_nmi_handler, 0, "perf_ibs");
+	perf_ibs_op.pmu.attr_groups = empty_attr_groups;
+	perf_ibs_op.pmu.attr_update = op_attr_update;
+
+	return perf_ibs_pmu_init(&perf_ibs_op, "ibs_op");
+}
+
+static __init int perf_event_ibs_init(void)
+{
+	int ret;
+
+	ret = perf_ibs_fetch_init();
+	if (ret)
+		return ret;
+
+	ret = perf_ibs_op_init();
+	if (ret)
+		goto err_op;
+
+	ret = register_nmi_handler(NMI_LOCAL, perf_ibs_nmi_handler, 0, "perf_ibs");
+	if (ret)
+		goto err_nmi;
+
 	pr_info("perf: AMD IBS detected (0x%08x)\n", ibs_caps);
+	return 0;
+
+err_nmi:
+	perf_pmu_unregister(&perf_ibs_op.pmu);
+	free_percpu(perf_ibs_op.pcpu);
+	perf_ibs_op.pcpu = NULL;
+err_op:
+	perf_pmu_unregister(&perf_ibs_fetch.pmu);
+	free_percpu(perf_ibs_fetch.pcpu);
+	perf_ibs_fetch.pcpu = NULL;
+
+	return ret;
 }
 
 #else /* defined(CONFIG_PERF_EVENTS) && defined(CONFIG_CPU_SUP_AMD) */
 
-static __init void perf_event_ibs_init(void) { }
+static __init int perf_event_ibs_init(void)
+{
+	return 0;
+}
 
 #endif
 
@@ -1064,9 +1209,7 @@ static __init int amd_ibs_init(void)
 			  x86_pmu_amd_ibs_starting_cpu,
 			  x86_pmu_amd_ibs_dying_cpu);
 
-	perf_event_ibs_init();
-
-	return 0;
+	return perf_event_ibs_init();
 }
 
 /* Since we need the pci subsystem to init ibs we can't do this earlier: */

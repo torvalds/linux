@@ -71,23 +71,6 @@ config CAN_CALC_BITTIMING
 	  arguments "tq", "prop_seg", "phase_seg1", "phase_seg2" and "sjw".
 	  If unsure, say Y.
 
-config CAN_LEDS
-	bool "Enable LED triggers for Netlink based drivers"
-	depends on LEDS_CLASS
-	# The netdev trigger (LEDS_TRIGGER_NETDEV) should be able to do
-	# everything that this driver is doing. This is marked as broken
-	# because it uses stuff that is intended to be changed or removed.
-	# Please consider switching to the netdev trigger and confirm it
-	# fulfills your needs instead of fixing this driver.
-	depends on BROKEN
-	select LEDS_TRIGGERS
-	help
-	  This option adds two LED triggers for packet receive and transmit
-	  events on each supported CAN device.
-
-	  Say Y here if you are working on a system with led-class supported
-	  LEDs and you want to use them as canbus activity indicators.
-
 config CAN_AT91
 	tristate "Atmel AT91 onchip CAN controller"
 	depends on (ARCH_AT91 || COMPILE_TEST) && HAS_IOMEM
@@ -170,6 +153,7 @@ config PCH_CAN
 
 source "drivers/net/can/c_can/Kconfig"
 source "drivers/net/can/cc770/Kconfig"
+source "drivers/net/can/ctucanfd/Kconfig"
 source "drivers/net/can/ifi_canfd/Kconfig"
 source "drivers/net/can/m_can/Kconfig"
 source "drivers/net/can/mscan/Kconfig"

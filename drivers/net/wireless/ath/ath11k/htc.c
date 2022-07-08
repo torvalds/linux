@@ -272,6 +272,11 @@ void ath11k_htc_tx_completion_handler(struct ath11k_base *ab,
 	ep_tx_complete(htc->ab, skb);
 }
 
+static void ath11k_htc_wakeup_from_suspend(struct ath11k_base *ab)
+{
+	ath11k_dbg(ab, ATH11K_DBG_BOOT, "boot wakeup from suspend is received\n");
+}
+
 void ath11k_htc_rx_completion_handler(struct ath11k_base *ab,
 				      struct sk_buff *skb)
 {
@@ -376,6 +381,7 @@ void ath11k_htc_rx_completion_handler(struct ath11k_base *ab,
 			ath11k_htc_suspend_complete(ab, false);
 			break;
 		case ATH11K_HTC_MSG_WAKEUP_FROM_SUSPEND_ID:
+			ath11k_htc_wakeup_from_suspend(ab);
 			break;
 		default:
 			ath11k_warn(ab, "ignoring unsolicited htc ep0 event %ld\n",

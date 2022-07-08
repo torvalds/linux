@@ -65,7 +65,7 @@ static void hlwd_gpio_irqhandler(struct irq_desc *desc)
 	int hwirq;
 	u32 emulated_pending;
 
-	spin_lock_irqsave(&hlwd->gpioc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&hlwd->gpioc.bgpio_lock, flags);
 	pending = ioread32be(hlwd->regs + HW_GPIOB_INTFLAG);
 	pending &= ioread32be(hlwd->regs + HW_GPIOB_INTMASK);
 
@@ -93,7 +93,7 @@ static void hlwd_gpio_irqhandler(struct irq_desc *desc)
 		/* Mark emulated interrupts as pending */
 		pending |= rising | falling;
 	}
-	spin_unlock_irqrestore(&hlwd->gpioc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&hlwd->gpioc.bgpio_lock, flags);
 
 	chained_irq_enter(chip, desc);
 
@@ -118,11 +118,11 @@ static void hlwd_gpio_irq_mask(struct irq_data *data)
 	unsigned long flags;
 	u32 mask;
 
-	spin_lock_irqsave(&hlwd->gpioc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&hlwd->gpioc.bgpio_lock, flags);
 	mask = ioread32be(hlwd->regs + HW_GPIOB_INTMASK);
 	mask &= ~BIT(data->hwirq);
 	iowrite32be(mask, hlwd->regs + HW_GPIOB_INTMASK);
-	spin_unlock_irqrestore(&hlwd->gpioc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&hlwd->gpioc.bgpio_lock, flags);
 }
 
 static void hlwd_gpio_irq_unmask(struct irq_data *data)
@@ -132,11 +132,11 @@ static void hlwd_gpio_irq_unmask(struct irq_data *data)
 	unsigned long flags;
 	u32 mask;
 
-	spin_lock_irqsave(&hlwd->gpioc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&hlwd->gpioc.bgpio_lock, flags);
 	mask = ioread32be(hlwd->regs + HW_GPIOB_INTMASK);
 	mask |= BIT(data->hwirq);
 	iowrite32be(mask, hlwd->regs + HW_GPIOB_INTMASK);
-	spin_unlock_irqrestore(&hlwd->gpioc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&hlwd->gpioc.bgpio_lock, flags);
 }
 
 static void hlwd_gpio_irq_enable(struct irq_data *data)
@@ -173,7 +173,7 @@ static int hlwd_gpio_irq_set_type(struct irq_data *data, unsigned int flow_type)
 	unsigned long flags;
 	u32 level;
 
-	spin_lock_irqsave(&hlwd->gpioc.bgpio_lock, flags);
+	raw_spin_lock_irqsave(&hlwd->gpioc.bgpio_lock, flags);
 
 	hlwd->edge_emulation &= ~BIT(data->hwirq);
 
@@ -194,11 +194,11 @@ static int hlwd_gpio_irq_set_type(struct irq_data *data, unsigned int flow_type)
 		hlwd_gpio_irq_setup_emulation(hlwd, data->hwirq, flow_type);
 		break;
 	default:
-		spin_unlock_irqrestore(&hlwd->gpioc.bgpio_lock, flags);
+		raw_spin_unlock_irqrestore(&hlwd->gpioc.bgpio_lock, flags);
 		return -EINVAL;
 	}
 
-	spin_unlock_irqrestore(&hlwd->gpioc.bgpio_lock, flags);
+	raw_spin_unlock_irqrestore(&hlwd->gpioc.bgpio_lock, flags);
 	return 0;
 }
 

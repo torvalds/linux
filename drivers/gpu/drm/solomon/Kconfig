@@ -1,13 +1,13 @@
 config DRM_SSD130X
 	tristate "DRM support for Solomon SSD130x OLED displays"
-	depends on DRM
+	depends on DRM && MMU
 	select BACKLIGHT_CLASS_DEVICE
 	select DRM_GEM_SHMEM_HELPER
 	select DRM_KMS_HELPER
 	help
-	  DRM driver for the SSD1305, SSD1306, SSD1307 and SSD1309 Solomon
-	  OLED controllers. This is only for the core driver, a driver for
-	  the appropriate bus transport in your chip also must be selected.
+	  DRM driver for the SSD130x Solomon and SINO WEALTH SH110x OLED
+	  controllers. This is only for the core driver, a driver for the
+	  appropriate bus transport in your chip also must be selected.
 
 	  If M is selected the module will be called ssd130x.
 
@@ -16,6 +16,16 @@ config DRM_SSD130X_I2C
 	depends on DRM_SSD130X && I2C
 	select REGMAP_I2C
 	help
-	  Say Y here if the SSD130x OLED display is connected via I2C bus.
+	  Say Y here if the SSD130x or SH110x OLED display is connected via
+	  I2C bus.
 
 	  If M is selected the module will be called ssd130x-i2c.
+
+config DRM_SSD130X_SPI
+	tristate "DRM support for Solomon SSD130X OLED displays (SPI bus)"
+	depends on DRM_SSD130X && SPI
+	select REGMAP
+	help
+	  Say Y here if the SSD130x OLED display is connected via SPI bus.
+
+	  If M is selected the module will be called ssd130x-spi.

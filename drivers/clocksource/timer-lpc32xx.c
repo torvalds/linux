@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0
 /*
  * Clocksource driver for NXP LPC32xx/18xx/43xx timer
  *
@@ -6,11 +7,6 @@
  * Based on:
  * time-efm32 Copyright (C) 2013 Pengutronix
  * mach-lpc32xx/timer.c Copyright (C) 2009 - 2010 NXP Semiconductors
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
- *
  */
 
 #define pr_fmt(fmt) "%s: " fmt, __func__

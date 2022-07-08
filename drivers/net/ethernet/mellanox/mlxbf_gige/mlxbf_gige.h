@@ -90,9 +90,6 @@ struct mlxbf_gige {
 	dma_addr_t rx_cqe_base_dma;
 	u16 tx_pi;
 	u16 prev_tx_ci;
-	u64 error_intr_count;
-	u64 rx_intr_count;
-	u64 llu_plu_intr_count;
 	struct sk_buff *rx_skb[MLXBF_GIGE_MAX_RXQ_SZ];
 	struct sk_buff *tx_skb[MLXBF_GIGE_MAX_TXQ_SZ];
 	int error_irq;

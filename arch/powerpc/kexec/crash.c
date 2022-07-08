@@ -20,7 +20,6 @@
 #include <asm/processor.h>
 #include <asm/machdep.h>
 #include <asm/kexec.h>
-#include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/setjmp.h>
 #include <asm/debug.h>
@@ -225,7 +224,7 @@ void crash_kexec_secondary(struct pt_regs *regs)
 
 /* wait for all the CPUs to hit real mode but timeout if they don't come in */
 #if defined(CONFIG_SMP) && defined(CONFIG_PPC64)
-static void __maybe_unused crash_kexec_wait_realmode(int cpu)
+noinstr static void __maybe_unused crash_kexec_wait_realmode(int cpu)
 {
 	unsigned int msecs;
 	int i;

@@ -1,0 +1,188 @@
+[
+    {
+        "ArchStdEvent": "L1I_CACHE_REFILL"
+    },
+    {
+        "ArchStdEvent": "L1I_TLB_REFILL"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE"
+    },
+    {
+        "ArchStdEvent": "L1D_TLB_REFILL"
+    },
+    {
+        "ArchStdEvent": "L1I_CACHE"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_WB"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_REFILL"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_WB"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_ALLOCATE"
+    },
+    {
+        "ArchStdEvent": "L1D_TLB"
+    },
+    {
+        "ArchStdEvent": "L1I_TLB"
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_ALLOCATE"
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_REFILL"
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE"
+    },
+    {
+        "ArchStdEvent": "L2D_TLB_REFILL"
+    },
+    {
+        "ArchStdEvent": "L2D_TLB"
+    },
+    {
+        "ArchStdEvent": "DTLB_WALK"
+    },
+    {
+        "ArchStdEvent": "ITLB_WALK"
+    },
+    {
+        "ArchStdEvent": "LL_CACHE_RD"
+    },
+    {
+        "ArchStdEvent": "LL_CACHE_MISS_RD"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_RD"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_WR"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL_RD"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL_WR"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL_INNER"
+    },
+    {
+        "ArchStdEvent": "L1D_CACHE_REFILL_OUTER"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_RD"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_WR"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_REFILL_RD"
+    },
+    {
+        "ArchStdEvent": "L2D_CACHE_REFILL_WR"
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_RD"
+    },
+    {
+        "ArchStdEvent": "L3D_CACHE_REFILL_RD"
+    },
+    {
+        "PublicDescription": "Level 3 cache refill due to prefetch. This event counts any linefills from the hardware prefetcher which cause an allocation into the L3 cache. Note It might not be possible to both distinguish hardware vs software prefetches and also which prefetches cause an allocation. If so, only hardware prefetches should be counted, regardless of whether they allocate. If either the core is configured without a per-core L2 or the cluster is configured without an L3 cache, this event is not implemented",
+        "EventCode": "0xC0",
+        "EventName": "L3D_CACHE_REFILL_PREFETCH",
+        "BriefDescription": "Level 3 cache refill due to prefetch. This event counts any linefills from the hardware prefetcher which cause an allocation into the L3 cache. Note It might not be possible to both distinguish hardware vs software prefetches and also which prefetches cause an allocation. If so, only hardware prefetches should be counted, regardless of whether they allocate. If either the core is configured without a per-core L2 or the cluster is configured without an L3 cache, this event is not implemented"
+    },
+    {
+        "PublicDescription": "Level 2 cache refill due to prefetch. +//0 If the core is configured with a per-core L2 cache: This event does not count. +//0 If the core is configured without a per-core L2 cache: This event counts the cluster cache event, as defined by L3D_CACHE_REFILL_PREFETCH. +//0 If there is neither a per-core cache nor a cluster cache configured, this event is not implemented",
+        "EventCode": "0xC1",
+        "EventName": "L2D_CACHE_REFILL_PREFETCH",
+        "BriefDescription": "Level 2 cache refill due to prefetch. +//0 If the core is configured with a per-core L2 cache: This event does not count. +//0 If the core is configured without a per-core L2 cache: This event counts the cluster cache event, as defined by L3D_CACHE_REFILL_PREFETCH. +//0 If there is neither a per-core cache nor a cluster cache configured, this event is not implemented"
+    },
+    {
+        "PublicDescription": "Level 1 data cache refill due to prefetch. This event counts any linefills from the prefetcher which cause an allocation into the L1 D-cache",
+        "EventCode": "0xC2",
+        "EventName": "L1D_CACHE_REFILL_PREFETCH",
+        "BriefDescription": "Level 1 data cache refill due to prefetch. This event counts any linefills from the prefetcher which cause an allocation into the L1 D-cache"
+    },
+    {
+        "PublicDescription": "Level 2 cache write streaming mode. This event counts for each cycle where the core is in write-streaming mode and not allocating writes into the L2 cache",
+        "EventCode": "0xC3",
+        "EventName": "L2D_WS_MODE",
+        "BriefDescription": "Level 2 cache write streaming mode. This event counts for each cycle where the core is in write-streaming mode and not allocating writes into the L2 cache"
+    },
+    {
+        "PublicDescription": "Level 1 data cache entering write streaming mode.This event counts for each entry into write-streaming mode",
+        "EventCode": "0xC4",
+        "EventName": "L1D_WS_MODE_ENTRY",
+        "BriefDescription": "Level 1 data cache entering write streaming mode.This event counts for each entry into write-streaming mode"
+    },
+    {
+        "PublicDescription": "Level 1 data cache write streaming mode.This event counts for each cycle where the core is in write-streaming mode and not allocating writes into the L1 D-cache",
+        "EventCode": "0xC5",
+        "EventName": "L1D_WS_MODE",
+        "BriefDescription": "Level 1 data cache write streaming mode.This event counts for each cycle where the core is in write-streaming mode and not allocating writes into the L1 D-cache"
+    },
+    {
+        "PublicDescription": "Level 3 cache write streaming mode.This event counts for each cycle where the core is in write-streaming mode and not allocating writes into the L3 cache",
+        "EventCode": "0xC7",
+        "EventName": "L3D_WS_MODE",
+        "BriefDescription": "Level 3 cache write streaming mode.This event counts for each cycle where the core is in write-streaming mode and not allocating writes into the L3 cache"
+    },
+    {
+        "PublicDescription": "Level 2 TLB last-level walk cache access.This event does not count if the MMU is disabled",
+        "EventCode": "0xD0",
+        "EventName": "L2D_LLWALK_TLB",
+        "BriefDescription": "Level 2 TLB last-level walk cache access.This event does not count if the MMU is disabled"
+    },
+    {
+        "PublicDescription": "Level 2 TLB last-level walk cache refill.This event does not count if the MMU is disabled",
+        "EventCode": "0xD1",
+        "EventName": "L2D_LLWALK_TLB_REFILL",
+        "BriefDescription": "Level 2 TLB last-level walk cache refill.This event does not count if the MMU is disabled"
+    },
+    {
+        "PublicDescription": "Level 2 TLB level-2 walk cache access.This event counts accesses to the level-2 walk cache where the last-level walk cache has missed. The event only counts when the translation regime of the pagewalk uses level 2 descriptors. This event does not count if the MMU is disabled",
+        "EventCode": "0xD2",
+        "EventName": "L2D_L2WALK_TLB",
+        "BriefDescription": "Level 2 TLB level-2 walk cache access.This event counts accesses to the level-2 walk cache where the last-level walk cache has missed. The event only counts when the translation regime of the pagewalk uses level 2 descriptors. This event does not count if the MMU is disabled"
+    },
+    {
+        "PublicDescription": "Level 2 TLB level-2 walk cache refill.This event does not count if the MMU is disabled",
+        "EventCode": "0xD3",
+        "EventName": "L2D_L2WALK_TLB_REFILL",
+        "BriefDescription": "Level 2 TLB level-2 walk cache refill.This event does not count if the MMU is disabled"
+    },
+    {
+        "PublicDescription": "Level 2 TLB IPA cache access. This event counts on each access to the IPA cache. +//0 If a single pagewalk needs to make multiple accesses to the IPA cache, each access is counted. +//0 If stage 2 translation is disabled, this event does not count",
+        "EventCode": "0xD4",
+        "EventName": "L2D_S2_TLB",
+        "BriefDescription": "Level 2 TLB IPA cache access. This event counts on each access to the IPA cache. +//0 If a single pagewalk needs to make multiple accesses to the IPA cache, each access is counted. +//0 If stage 2 translation is disabled, this event does not count"
+    },
+    {
+        "PublicDescription": "Level 2 TLB IPA cache refill. This event counts on each refill of the IPA cache. +//0 If a single pagewalk needs to make multiple accesses to the IPA cache, each access which causes a refill is counted. +//0 If stage 2 translation is disabled, this event does not count",
+        "EventCode": "0xD5",
+        "EventName": "L2D_S2_TLB_REFILL",
+        "BriefDescription": "Level 2 TLB IPA cache refill. This event counts on each refill of the IPA cache. +//0 If a single pagewalk needs to make multiple accesses to the IPA cache, each access which causes a refill is counted. +//0 If stage 2 translation is disabled, this event does not count"
+    },
+    {
+        "PublicDescription": "Level 2 cache stash dropped.This event counts on each stash request received from the interconnect or ACP, that is targeting L2 and gets dropped due to lack of buffer space to hold the request",
+        "EventCode": "0xD6",
+        "EventName": "L2D_CACHE_STASH_DROPPED",
+        "BriefDescription": "Level 2 cache stash dropped.This event counts on each stash request received from the interconnect or ACP, that is targeting L2 and gets dropped due to lack of buffer space to hold the request"
+    }
+]

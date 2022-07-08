@@ -7,7 +7,7 @@
 #ifndef _CDN_DP_CORE_H
 #define _CDN_DP_CORE_H
 
-#include <drm/dp/drm_dp_helper.h>
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_panel.h>
 #include <drm/drm_probe_helper.h>
 #include <sound/hdmi-codec.h>
@@ -66,7 +66,7 @@ struct cdn_dp_device {
 	struct device *dev;
 	struct drm_device *drm_dev;
 	struct drm_connector connector;
-	struct drm_encoder encoder;
+	struct rockchip_encoder encoder;
 	struct drm_display_mode mode;
 	struct platform_device *audio_pdev;
 	struct work_struct event_work;

@@ -28,16 +28,14 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/consumer.h>
+#include <clocksource/timer-davinci.h>
 
 #include <asm/mach/map.h>
 
-#include <mach/common.h>
-#include <mach/cputype.h>
-#include <mach/da8xx.h>
-#include <mach/pm.h>
-
-#include <clocksource/timer-davinci.h>
-
+#include "common.h"
+#include "cputype.h"
+#include "da8xx.h"
+#include "pm.h"
 #include "irqs.h"
 #include "mux.h"
 

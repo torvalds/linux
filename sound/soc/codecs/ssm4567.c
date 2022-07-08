@@ -444,8 +444,7 @@ static const struct regmap_config ssm4567_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(ssm4567_reg_defaults),
 };
 
-static int ssm4567_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int ssm4567_i2c_probe(struct i2c_client *i2c)
 {
 	struct ssm4567 *ssm4567;
 	int ret;
@@ -502,7 +501,7 @@ static struct i2c_driver ssm4567_driver = {
 		.of_match_table = of_match_ptr(ssm4567_of_match),
 		.acpi_match_table = ACPI_PTR(ssm4567_acpi_match),
 	},
-	.probe = ssm4567_i2c_probe,
+	.probe_new = ssm4567_i2c_probe,
 	.id_table = ssm4567_i2c_ids,
 };
 module_i2c_driver(ssm4567_driver);

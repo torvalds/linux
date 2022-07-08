@@ -23,6 +23,8 @@
  *
  */
 
+#include <drm/display/drm_dsc_helper.h>
+
 #include "reg_helper.h"
 #include "dcn20_dsc.h"
 #include "dsc/dscc_types.h"
@@ -45,6 +47,7 @@ static void dsc2_set_config(struct display_stream_compressor *dsc, const struct 
 static bool dsc2_get_packed_pps(struct display_stream_compressor *dsc, const struct dsc_config *dsc_cfg, uint8_t *dsc_packed_pps);
 static void dsc2_enable(struct display_stream_compressor *dsc, int opp_pipe);
 static void dsc2_disable(struct display_stream_compressor *dsc);
+static void dsc2_disconnect(struct display_stream_compressor *dsc);
 
 const struct dsc_funcs dcn20_dsc_funcs = {
 	.dsc_get_enc_caps = dsc2_get_enc_caps,
@@ -54,6 +57,7 @@ const struct dsc_funcs dcn20_dsc_funcs = {
 	.dsc_get_packed_pps = dsc2_get_packed_pps,
 	.dsc_enable = dsc2_enable,
 	.dsc_disable = dsc2_disable,
+	.dsc_disconnect = dsc2_disconnect,
 };
 
 /* Macro definitios for REG_SET macros*/
@@ -276,6 +280,15 @@ static void dsc2_disable(struct display_stream_compressor *dsc)
 		DSC_CLOCK_EN, 0);
 }
 
+static void dsc2_disconnect(struct display_stream_compressor *dsc)
+{
+	struct dcn20_dsc *dsc20 = TO_DCN20_DSC(dsc);
+
+	DC_LOG_DSC("disconnect DSC %d", dsc->inst);
+
+	REG_UPDATE(DSCRM_DSC_FORWARD_CONFIG,
+		DSCRM_DSC_FORWARD_EN, 0);
+}
 
 /* This module's internal functions */
 static void dsc_log_pps(struct display_stream_compressor *dsc, struct drm_dsc_config *pps)

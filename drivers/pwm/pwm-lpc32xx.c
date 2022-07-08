@@ -88,10 +88,33 @@ static void lpc32xx_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	clk_disable_unprepare(lpc32xx->clk);
 }
 
+static int lpc32xx_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			     const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			lpc32xx_pwm_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = lpc32xx_pwm_config(pwm->chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		err = lpc32xx_pwm_enable(chip, pwm);
+
+	return err;
+}
+
 static const struct pwm_ops lpc32xx_pwm_ops = {
-	.config = lpc32xx_pwm_config,
-	.enable = lpc32xx_pwm_enable,
-	.disable = lpc32xx_pwm_disable,
+	.apply = lpc32xx_pwm_apply,
 	.owner = THIS_MODULE,
 };
 

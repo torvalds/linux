@@ -449,8 +449,6 @@ static void vt1708_set_pinconfig_connect(struct hda_codec *codec, hda_nid_t nid)
 		def_conf = def_conf & (~(AC_JACK_PORT_BOTH << 30));
 		snd_hda_codec_set_pincfg(codec, nid, def_conf);
 	}
-
-	return;
 }
 
 static int vt1708_jack_detect_get(struct snd_kcontrol *kcontrol,
@@ -520,11 +518,11 @@ static int via_parse_auto_config(struct hda_codec *codec)
 	if (err < 0)
 		return err;
 
-	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
+	err = auto_parse_beep(codec);
 	if (err < 0)
 		return err;
 
-	err = auto_parse_beep(codec);
+	err = snd_hda_gen_parse_auto_config(codec, &spec->gen.autocfg);
 	if (err < 0)
 		return err;
 

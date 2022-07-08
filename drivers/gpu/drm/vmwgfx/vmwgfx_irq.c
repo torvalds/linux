@@ -300,6 +300,7 @@ void vmw_irq_uninstall(struct drm_device *dev)
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	uint32_t status;
+	u32 i;
 
 	if (!(dev_priv->capabilities & SVGA_CAP_IRQMASK))
 		return;
@@ -309,20 +310,62 @@ void vmw_irq_uninstall(struct drm_device *dev)
 	status = vmw_irq_status_read(dev_priv);
 	vmw_irq_status_write(dev_priv, status);
 
-	free_irq(pdev->irq, dev);
+	for (i = 0; i < dev_priv->num_irq_vectors; ++i)
+		free_irq(dev_priv->irqs[i], dev);
+
+	pci_free_irq_vectors(pdev);
+	dev_priv->num_irq_vectors = 0;
 }
 
 /**
  * vmw_irq_install - Install the irq handlers
  *
- * @dev:  Pointer to the drm device.
- * @irq:  The irq number.
+ * @dev_priv:  Pointer to the vmw_private device.
  * Return:  Zero if successful. Negative number otherwise.
  */
-int vmw_irq_install(struct drm_device *dev, int irq)
+int vmw_irq_install(struct vmw_private *dev_priv)
 {
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
+	struct drm_device *dev = &dev_priv->drm;
+	int ret;
+	int nvec;
+	int i = 0;
+
+	BUILD_BUG_ON((SVGA_IRQFLAG_MAX >> VMWGFX_MAX_NUM_IRQS) != 1);
+	BUG_ON(VMWGFX_MAX_NUM_IRQS != get_count_order(SVGA_IRQFLAG_MAX));
+
+	nvec = pci_alloc_irq_vectors(pdev, 1, VMWGFX_MAX_NUM_IRQS,
+				     PCI_IRQ_ALL_TYPES);
+
+	if (nvec <= 0) {
+		drm_err(&dev_priv->drm,
+			"IRQ's are unavailable, nvec: %d\n", nvec);
+		ret = nvec;
+		goto done;
+	}
+
 	vmw_irq_preinstall(dev);
 
-	return request_threaded_irq(irq, vmw_irq_handler, vmw_thread_fn,
-				    IRQF_SHARED, VMWGFX_DRIVER_NAME, dev);
+	for (i = 0; i < nvec; ++i) {
+		ret = pci_irq_vector(pdev, i);
+		if (ret < 0) {
+			drm_err(&dev_priv->drm,
+				"failed getting irq vector: %d\n", ret);
+			goto done;
+		}
+		dev_priv->irqs[i] = ret;
+
+		ret = request_threaded_irq(dev_priv->irqs[i], vmw_irq_handler, vmw_thread_fn,
+					   IRQF_SHARED, VMWGFX_DRIVER_NAME, dev);
+		if (ret != 0) {
+			drm_err(&dev_priv->drm,
+				"Failed installing irq(%d): %d\n",
+				dev_priv->irqs[i], ret);
+			goto done;
+		}
+	}
+
+done:
+	dev_priv->num_irq_vectors = i;
+	return ret;
 }

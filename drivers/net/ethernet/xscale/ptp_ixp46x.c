@@ -271,7 +271,7 @@ static int ptp_ixp_probe(struct platform_device *pdev)
 	ixp_clock.master_irq = platform_get_irq(pdev, 0);
 	ixp_clock.slave_irq = platform_get_irq(pdev, 1);
 	if (IS_ERR(ixp_clock.regs) ||
-	    !ixp_clock.master_irq || !ixp_clock.slave_irq)
+	    ixp_clock.master_irq < 0 || ixp_clock.slave_irq < 0)
 		return -ENXIO;
 
 	ixp_clock.caps = ptp_ixp_caps;

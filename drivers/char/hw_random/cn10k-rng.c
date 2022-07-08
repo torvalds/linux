@@ -31,26 +31,23 @@ struct cn10k_rng {
 
 #define PLAT_OCTEONTX_RESET_RNG_EBG_HEALTH_STATE     0xc2000b0f
 
-static int reset_rng_health_state(struct cn10k_rng *rng)
+static unsigned long reset_rng_health_state(struct cn10k_rng *rng)
 {
 	struct arm_smccc_res res;
 
 	/* Send SMC service call to reset EBG health state */
 	arm_smccc_smc(PLAT_OCTEONTX_RESET_RNG_EBG_HEALTH_STATE, 0, 0, 0, 0, 0, 0, 0, &res);
-	if (res.a0 != 0UL)
-		return -EIO;
-
-	return 0;
+	return res.a0;
 }
 
 static int check_rng_health(struct cn10k_rng *rng)
 {
 	u64 status;
-	int err;
+	unsigned long err;
 
 	/* Skip checking health */
 	if (!rng->reg_base)
-		return 0;
+		return -ENODEV;
 
 	status = readq(rng->reg_base + RNM_PF_EBG_HEALTH);
 	if (status & BIT_ULL(20)) {
@@ -58,7 +55,9 @@ static int check_rng_health(struct cn10k_rng *rng)
 		if (err) {
 			dev_err(&rng->pdev->dev, "HWRNG: Health test failed (status=%llx)\n",
 					status);
-			dev_err(&rng->pdev->dev, "HWRNG: error during reset\n");
+			dev_err(&rng->pdev->dev, "HWRNG: error during reset (error=%lx)\n",
+					err);
+			return -EIO;
 		}
 	}
 	return 0;
@@ -90,6 +89,7 @@ static int cn10k_rng_read(struct hwrng *hwrng, void *data,
 {
 	struct cn10k_rng *rng = (struct cn10k_rng *)hwrng->priv;
 	unsigned int size;
+	u8 *pos = data;
 	int err = 0;
 	u64 value;
 
@@ -102,17 +102,20 @@ static int cn10k_rng_read(struct hwrng *hwrng, void *data,
 	while (size >= 8) {
 		cn10k_read_trng(rng, &value);
 
-		*((u64 *)data) = (u64)value;
+		*((u64 *)pos) = value;
 		size -= 8;
-		data += 8;
+		pos += 8;
 	}
 
-	while (size > 0) {
+	if (size > 0) {
 		cn10k_read_trng(rng, &value);
 
-		*((u8 *)data) = (u8)value;
-		size--;
-		data++;
+		while (size > 0) {
+			*pos = (u8)value;
+			value >>= 8;
+			size--;
+			pos++;
+		}
 	}
 
 	return max - size;

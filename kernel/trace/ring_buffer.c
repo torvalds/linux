@@ -29,6 +29,14 @@
 
 #include <asm/local.h>
 
+/*
+ * The "absolute" timestamp in the buffer is only 59 bits.
+ * If a clock has the 5 MSBs set, it needs to be saved and
+ * reinserted.
+ */
+#define TS_MSB		(0xf8ULL << 56)
+#define ABS_TS_MASK	(~TS_MSB)
+
 static void update_pages_handler(struct work_struct *work);
 
 /*
@@ -468,6 +476,7 @@ struct rb_time_struct {
 	local_t		cnt;
 	local_t		top;
 	local_t		bottom;
+	local_t		msb;
 };
 #else
 #include <asm/local64.h>
@@ -569,7 +578,6 @@ struct ring_buffer_iter {
  * For the ring buffer, 64 bit required operations for the time is
  * the following:
  *
- *  - Only need 59 bits (uses 60 to make it even).
  *  - Reads may fail if it interrupted a modification of the time stamp.
  *      It will succeed if it did not interrupt another write even if
  *      the read itself is interrupted by a write.
@@ -594,6 +602,7 @@ struct ring_buffer_iter {
  */
 #define RB_TIME_SHIFT	30
 #define RB_TIME_VAL_MASK ((1 << RB_TIME_SHIFT) - 1)
+#define RB_TIME_MSB_SHIFT	 60
 
 static inline int rb_time_cnt(unsigned long val)
 {
@@ -613,7 +622,7 @@ static inline u64 rb_time_val(unsigned long top, unsigned long bottom)
 
 static inline bool __rb_time_read(rb_time_t *t, u64 *ret, unsigned long *cnt)
 {
-	unsigned long top, bottom;
+	unsigned long top, bottom, msb;
 	unsigned long c;
 
 	/*
@@ -625,6 +634,7 @@ static inline bool __rb_time_read(rb_time_t *t, u64 *ret, unsigned long *cnt)
 		c = local_read(&t->cnt);
 		top = local_read(&t->top);
 		bottom = local_read(&t->bottom);
+		msb = local_read(&t->msb);
 	} while (c != local_read(&t->cnt));
 
 	*cnt = rb_time_cnt(top);
@@ -633,7 +643,8 @@ static inline bool __rb_time_read(rb_time_t *t, u64 *ret, unsigned long *cnt)
 	if (*cnt != rb_time_cnt(bottom))
 		return false;
 
-	*ret = rb_time_val(top, bottom);
+	/* The shift to msb will lose its cnt bits */
+	*ret = rb_time_val(top, bottom) | ((u64)msb << RB_TIME_MSB_SHIFT);
 	return true;
 }
 
@@ -649,10 +660,12 @@ static inline unsigned long rb_time_val_cnt(unsigned long val, unsigned long cnt
 	return (val & RB_TIME_VAL_MASK) | ((cnt & 3) << RB_TIME_SHIFT);
 }
 
-static inline void rb_time_split(u64 val, unsigned long *top, unsigned long *bottom)
+static inline void rb_time_split(u64 val, unsigned long *top, unsigned long *bottom,
+				 unsigned long *msb)
 {
 	*top = (unsigned long)((val >> RB_TIME_SHIFT) & RB_TIME_VAL_MASK);
 	*bottom = (unsigned long)(val & RB_TIME_VAL_MASK);
+	*msb = (unsigned long)(val >> RB_TIME_MSB_SHIFT);
 }
 
 static inline void rb_time_val_set(local_t *t, unsigned long val, unsigned long cnt)
@@ -663,15 +676,16 @@ static inline void rb_time_val_set(local_t *t, unsigned long val, unsigned long 
 
 static void rb_time_set(rb_time_t *t, u64 val)
 {
-	unsigned long cnt, top, bottom;
+	unsigned long cnt, top, bottom, msb;
 
-	rb_time_split(val, &top, &bottom);
+	rb_time_split(val, &top, &bottom, &msb);
 
 	/* Writes always succeed with a valid number even if it gets interrupted. */
 	do {
 		cnt = local_inc_return(&t->cnt);
 		rb_time_val_set(&t->top, top, cnt);
 		rb_time_val_set(&t->bottom, bottom, cnt);
+		rb_time_val_set(&t->msb, val >> RB_TIME_MSB_SHIFT, cnt);
 	} while (cnt != local_read(&t->cnt));
 }
 
@@ -686,8 +700,8 @@ rb_time_read_cmpxchg(local_t *l, unsigned long expect, unsigned long set)
 
 static int rb_time_cmpxchg(rb_time_t *t, u64 expect, u64 set)
 {
-	unsigned long cnt, top, bottom;
-	unsigned long cnt2, top2, bottom2;
+	unsigned long cnt, top, bottom, msb;
+	unsigned long cnt2, top2, bottom2, msb2;
 	u64 val;
 
 	/* The cmpxchg always fails if it interrupted an update */
@@ -703,15 +717,17 @@ static int rb_time_cmpxchg(rb_time_t *t, u64 expect, u64 set)
 
 	 cnt2 = cnt + 1;
 
-	 rb_time_split(val, &top, &bottom);
+	 rb_time_split(val, &top, &bottom, &msb);
 	 top = rb_time_val_cnt(top, cnt);
 	 bottom = rb_time_val_cnt(bottom, cnt);
 
-	 rb_time_split(set, &top2, &bottom2);
+	 rb_time_split(set, &top2, &bottom2, &msb2);
 	 top2 = rb_time_val_cnt(top2, cnt2);
 	 bottom2 = rb_time_val_cnt(bottom2, cnt2);
 
 	if (!rb_time_read_cmpxchg(&t->cnt, cnt, cnt2))
+		return false;
+	if (!rb_time_read_cmpxchg(&t->msb, msb, msb2))
 		return false;
 	if (!rb_time_read_cmpxchg(&t->top, top, top2))
 		return false;
@@ -783,6 +799,24 @@ static inline void verify_event(struct ring_buffer_per_cpu *cpu_buffer,
 }
 #endif
 
+/*
+ * The absolute time stamp drops the 5 MSBs and some clocks may
+ * require them. The rb_fix_abs_ts() will take a previous full
+ * time stamp, and add the 5 MSB of that time stamp on to the
+ * saved absolute time stamp. Then they are compared in case of
+ * the unlikely event that the latest time stamp incremented
+ * the 5 MSB.
+ */
+static inline u64 rb_fix_abs_ts(u64 abs, u64 save_ts)
+{
+	if (save_ts & TS_MSB) {
+		abs |= save_ts & TS_MSB;
+		/* Check for overflow */
+		if (unlikely(abs < save_ts))
+			abs += 1ULL << 59;
+	}
+	return abs;
+}
 
 static inline u64 rb_time_stamp(struct trace_buffer *buffer);
 
@@ -811,8 +845,10 @@ u64 ring_buffer_event_time_stamp(struct trace_buffer *buffer,
 	u64 ts;
 
 	/* If the event includes an absolute time, then just use that */
-	if (event->type_len == RINGBUF_TYPE_TIME_STAMP)
-		return rb_event_time_stamp(event);
+	if (event->type_len == RINGBUF_TYPE_TIME_STAMP) {
+		ts = rb_event_time_stamp(event);
+		return rb_fix_abs_ts(ts, cpu_buffer->tail_page->page->time_stamp);
+	}
 
 	nest = local_read(&cpu_buffer->committing);
 	verify_event(cpu_buffer, event);
@@ -2754,8 +2790,15 @@ static void rb_add_timestamp(struct ring_buffer_per_cpu *cpu_buffer,
 		(RB_ADD_STAMP_FORCE | RB_ADD_STAMP_ABSOLUTE);
 
 	if (unlikely(info->delta > (1ULL << 59))) {
+		/*
+		 * Some timers can use more than 59 bits, and when a timestamp
+		 * is added to the buffer, it will lose those bits.
+		 */
+		if (abs && (info->ts & TS_MSB)) {
+			info->delta &= ABS_TS_MASK;
+
 		/* did the clock go backwards */
-		if (info->before == info->after && info->before > info->ts) {
+		} else if (info->before == info->after && info->before > info->ts) {
 			/* not interrupted */
 			static int once;
 
@@ -3304,7 +3347,7 @@ static void dump_buffer_page(struct buffer_data_page *bpage,
 
 		case RINGBUF_TYPE_TIME_STAMP:
 			delta = rb_event_time_stamp(event);
-			ts = delta;
+			ts = rb_fix_abs_ts(delta, ts);
 			pr_warn("  [%lld] absolute:%lld TIME STAMP\n", ts, delta);
 			break;
 
@@ -3380,7 +3423,7 @@ static void check_buffer(struct ring_buffer_per_cpu *cpu_buffer,
 
 		case RINGBUF_TYPE_TIME_STAMP:
 			delta = rb_event_time_stamp(event);
-			ts = delta;
+			ts = rb_fix_abs_ts(delta, ts);
 			break;
 
 		case RINGBUF_TYPE_PADDING:
@@ -4367,6 +4410,7 @@ rb_update_read_stamp(struct ring_buffer_per_cpu *cpu_buffer,
 
 	case RINGBUF_TYPE_TIME_STAMP:
 		delta = rb_event_time_stamp(event);
+		delta = rb_fix_abs_ts(delta, cpu_buffer->read_stamp);
 		cpu_buffer->read_stamp = delta;
 		return;
 
@@ -4397,6 +4441,7 @@ rb_update_iter_read_stamp(struct ring_buffer_iter *iter,
 
 	case RINGBUF_TYPE_TIME_STAMP:
 		delta = rb_event_time_stamp(event);
+		delta = rb_fix_abs_ts(delta, iter->read_stamp);
 		iter->read_stamp = delta;
 		return;
 
@@ -4650,6 +4695,7 @@ rb_buffer_peek(struct ring_buffer_per_cpu *cpu_buffer, u64 *ts,
 	case RINGBUF_TYPE_TIME_STAMP:
 		if (ts) {
 			*ts = rb_event_time_stamp(event);
+			*ts = rb_fix_abs_ts(*ts, reader->page->time_stamp);
 			ring_buffer_normalize_time_stamp(cpu_buffer->buffer,
 							 cpu_buffer->cpu, ts);
 		}
@@ -4741,6 +4787,7 @@ rb_iter_peek(struct ring_buffer_iter *iter, u64 *ts)
 	case RINGBUF_TYPE_TIME_STAMP:
 		if (ts) {
 			*ts = rb_event_time_stamp(event);
+			*ts = rb_fix_abs_ts(*ts, iter->head_page->page->time_stamp);
 			ring_buffer_normalize_time_stamp(cpu_buffer->buffer,
 							 cpu_buffer->cpu, ts);
 		}
@@ -6011,10 +6058,10 @@ static __init int test_ringbuffer(void)
 		pr_info("        total events:   %ld\n", total_lost + total_read);
 		pr_info("  recorded len bytes:   %ld\n", total_len);
 		pr_info(" recorded size bytes:   %ld\n", total_size);
-		if (total_lost)
+		if (total_lost) {
 			pr_info(" With dropped events, record len and size may not match\n"
 				" alloced and written from above\n");
-		if (!total_lost) {
+		} else {
 			if (RB_WARN_ON(buffer, total_len != total_alloc ||
 				       total_size != total_written))
 				break;

@@ -260,28 +260,6 @@ struct get_retrieval_pointers_refcount_rsp {
 	struct smb3_extents extents[];
 } __packed;
 
-struct fsctl_set_integrity_information_req {
-	__le16	ChecksumAlgorithm;
-	__le16	Reserved;
-	__le32	Flags;
-} __packed;
-
-struct fsctl_get_integrity_information_rsp {
-	__le16	ChecksumAlgorithm;
-	__le16	Reserved;
-	__le32	Flags;
-	__le32	ChecksumChunkSizeInBytes;
-	__le32	ClusterSizeInBytes;
-} __packed;
-
-/* Integrity ChecksumAlgorithm choices for above */
-#define	CHECKSUM_TYPE_NONE	0x0000
-#define	CHECKSUM_TYPE_CRC64	0x0002
-#define CHECKSUM_TYPE_UNCHANGED	0xFFFF	/* set only */
-
-/* Integrity flags for above */
-#define FSCTL_INTEGRITY_FLAG_CHECKSUM_ENFORCEMENT_OFF	0x00000001
-
 /* See MS-DFSC 2.2.2 */
 struct fsctl_get_dfs_referral_req {
 	__le16 MaxReferralLevel;

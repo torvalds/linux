@@ -818,24 +818,8 @@ static ssize_t pscsi_show_configfs_dev_params(struct se_device *dev, char *b)
 
 static void pscsi_bi_endio(struct bio *bio)
 {
-	bio_put(bio);
-}
-
-static inline struct bio *pscsi_get_bio(int nr_vecs)
-{
-	struct bio *bio;
-	/*
-	 * Use bio_malloc() following the comment in for bio -> struct request
-	 * in block/blk-core.c:blk_make_request()
-	 */
-	bio = bio_kmalloc(GFP_KERNEL, nr_vecs);
-	if (!bio) {
-		pr_err("PSCSI: bio_kmalloc() failed\n");
-		return NULL;
-	}
-	bio->bi_end_io = pscsi_bi_endio;
-
-	return bio;
+	bio_uninit(bio);
+	kfree(bio);
 }
 
 static sense_reason_t
@@ -878,15 +862,12 @@ pscsi_map_sg(struct se_cmd *cmd, struct scatterlist *sgl, u32 sgl_nents,
 			if (!bio) {
 new_bio:
 				nr_vecs = bio_max_segs(nr_pages);
-				/*
-				 * Calls bio_kmalloc() and sets bio->bi_end_io()
-				 */
-				bio = pscsi_get_bio(nr_vecs);
+				bio = bio_kmalloc(nr_vecs, GFP_KERNEL);
 				if (!bio)
 					goto fail;
-
-				if (rw)
-					bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
+				bio_init(bio, NULL, bio->bi_inline_vecs, nr_vecs,
+					 rw ? REQ_OP_WRITE : REQ_OP_READ);
+				bio->bi_end_io = pscsi_bi_endio;
 
 				pr_debug("PSCSI: Allocated bio: %p,"
 					" dir: %s nr_vecs: %d\n", bio,
@@ -912,11 +893,6 @@ new_bio:
 					goto fail;
 				}
 
-				/*
-				 * Clear the pointer so that another bio will
-				 * be allocated with pscsi_get_bio() above.
-				 */
-				bio = NULL;
 				goto new_bio;
 			}
 
@@ -996,8 +972,7 @@ pscsi_execute_cmd(struct se_cmd *cmd)
 
 	cmd->priv = scmd->cmnd;
 
-	blk_execute_rq_nowait(req, cmd->sam_task_attr == TCM_HEAD_TAG,
-			pscsi_req_done);
+	blk_execute_rq_nowait(req, cmd->sam_task_attr == TCM_HEAD_TAG);
 
 	return 0;
 

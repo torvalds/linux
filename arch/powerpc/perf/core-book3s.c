@@ -1142,7 +1142,7 @@ static u64 check_and_compute_delta(u64 prev, u64 val)
 	/*
 	 * POWER7 can roll back counter values, if the new value is smaller
 	 * than the previous value it will cause the delta and the counter to
-	 * have bogus values unless we rolled a counter over.  If a coutner is
+	 * have bogus values unless we rolled a counter over.  If a counter is
 	 * rolled back, it will be smaller, but within 256, which is the maximum
 	 * number of events to rollback at once.  If we detect a rollback
 	 * return 0.  This can lead to a small lack of precision in the
@@ -2057,7 +2057,7 @@ static int power_pmu_event_init(struct perf_event *event)
 	/*
 	 * PMU config registers have fields that are
 	 * reserved and some specific values for bit fields are reserved.
-	 * For ex., MMCRA[61:62] is Randome Sampling Mode (SM)
+	 * For ex., MMCRA[61:62] is Random Sampling Mode (SM)
 	 * and value of 0b11 to this field is reserved.
 	 * Check for invalid values in attr.config.
 	 */
@@ -2447,7 +2447,7 @@ static void __perf_event_interrupt(struct pt_regs *regs)
 	}
 
 	/*
-	 * During system wide profling or while specific CPU is monitored for an
+	 * During system wide profiling or while specific CPU is monitored for an
 	 * event, some corner cases could cause PMC to overflow in idle path. This
 	 * will trigger a PMI after waking up from idle. Since counter values are _not_
 	 * saved/restored in idle path, can lead to below "Can't find PMC" message.

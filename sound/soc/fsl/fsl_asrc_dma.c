@@ -8,7 +8,7 @@
 
 #include <linux/dma-mapping.h>
 #include <linux/module.h>
-#include <linux/platform_data/dma-imx.h>
+#include <linux/dma/imx-dma.h>
 #include <sound/dmaengine_pcm.h>
 #include <sound/pcm_params.h>
 

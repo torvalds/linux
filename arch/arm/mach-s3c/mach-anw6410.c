@@ -40,7 +40,7 @@
 
 #include "devs.h"
 #include "cpu.h"
-#include <mach/irqs.h>
+#include "irqs.h"
 #include "regs-gpio.h"
 #include "gpio-samsung.h"
 

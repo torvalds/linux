@@ -4168,6 +4168,7 @@ static const struct snd_soc_component_driver soc_codec_dev_wcd938x = {
 	.dapm_routes = wcd938x_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(wcd938x_audio_map),
 	.set_jack = wcd938x_codec_set_jack,
+	.endianness = 1,
 };
 
 static void wcd938x_dt_parse_micbias_info(struct device *dev, struct wcd938x_priv *wcd)

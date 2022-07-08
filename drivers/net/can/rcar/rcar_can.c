@@ -12,7 +12,6 @@
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
-#include <linux/can/led.h>
 #include <linux/can/dev.h>
 #include <linux/clk.h>
 #include <linux/of.h>
@@ -389,7 +388,6 @@ static void rcar_can_tx_done(struct net_device *ndev)
 	/* Clear interrupt */
 	isr = readb(&priv->regs->isr);
 	writeb(isr & ~RCAR_CAN_ISR_TXFF, &priv->regs->isr);
-	can_led_event(ndev, CAN_LED_EVENT_TX);
 }
 
 static irqreturn_t rcar_can_interrupt(int irq, void *dev_id)
@@ -531,7 +529,6 @@ static int rcar_can_open(struct net_device *ndev)
 			   ndev->irq, err);
 		goto out_close;
 	}
-	can_led_event(ndev, CAN_LED_EVENT_OPEN);
 	rcar_can_start(ndev);
 	netif_start_queue(ndev);
 	return 0;
@@ -581,7 +578,6 @@ static int rcar_can_close(struct net_device *ndev)
 	clk_disable_unprepare(priv->can_clk);
 	clk_disable_unprepare(priv->clk);
 	close_candev(ndev);
-	can_led_event(ndev, CAN_LED_EVENT_STOP);
 	return 0;
 }
 
@@ -665,8 +661,6 @@ static void rcar_can_rx_pkt(struct rcar_can_priv *priv)
 		stats->rx_bytes += cf->len;
 	}
 	stats->rx_packets++;
-
-	can_led_event(priv->ndev, CAN_LED_EVENT_RX);
 
 	netif_receive_skb(skb);
 }
@@ -803,16 +797,14 @@ static int rcar_can_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
-	netif_napi_add(ndev, &priv->napi, rcar_can_rx_poll,
-		       RCAR_CAN_NAPI_WEIGHT);
+	netif_napi_add_weight(ndev, &priv->napi, rcar_can_rx_poll,
+			      RCAR_CAN_NAPI_WEIGHT);
 	err = register_candev(ndev);
 	if (err) {
 		dev_err(&pdev->dev, "register_candev() failed, error %d\n",
 			err);
 		goto fail_candev;
 	}
-
-	devm_can_led_init(ndev);
 
 	dev_info(&pdev->dev, "device registered (IRQ%d)\n", ndev->irq);
 

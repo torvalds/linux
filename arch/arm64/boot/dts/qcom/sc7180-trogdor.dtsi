@@ -11,7 +11,8 @@
 #include <dt-bindings/regulator/qcom,rpmh-regulator.h>
 #include <dt-bindings/sound/sc7180-lpass.h>
 
-/* PMICs depend on spmi_bus label and so must come after SoC */
+#include "sc7180.dtsi"
+/* PMICs depend on spmi_bus label and so must come after sc7180.dtsi */
 #include "pm6150.dtsi"
 #include "pm6150l.dtsi"
 
@@ -626,7 +627,7 @@
 	};
 };
 
-&ap_ec_spi {
+ap_ec_spi: &spi6 {
 	status = "okay";
 	cros_ec: ec@0 {
 		compatible = "google,cros-ec-spi";
@@ -675,7 +676,7 @@
 	};
 };
 
-&ap_h1_spi {
+ap_h1_spi: &spi0 {
 	status = "okay";
 	cr50: tpm@0 {
 		compatible = "google,cr50";
@@ -722,13 +723,11 @@ ap_sar_sensor_i2c: &i2c5 {
 		vdd-supply = <&pp3300_a>;
 		svdd-supply = <&pp1800_prox>;
 
-		status = "disabled";
 		label = "proximity-wifi";
 	};
 };
 
 ap_tp_i2c: &i2c7 {
-	status = "okay";
 	clock-frequency = <400000>;
 
 	trackpad: trackpad@15 {

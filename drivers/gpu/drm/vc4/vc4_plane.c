@@ -489,10 +489,10 @@ static u32 vc4_lbm_size(struct drm_plane_state *state)
 	}
 
 	/* Align it to 64 or 128 (hvs5) bytes */
-	lbm = roundup(lbm, vc4->hvs->hvs5 ? 128 : 64);
+	lbm = roundup(lbm, vc4->is_vc5 ? 128 : 64);
 
 	/* Each "word" of the LBM memory contains 2 or 4 (hvs5) pixels */
-	lbm /= vc4->hvs->hvs5 ? 4 : 2;
+	lbm /= vc4->is_vc5 ? 4 : 2;
 
 	return lbm;
 }
@@ -608,7 +608,7 @@ static int vc4_plane_allocate_lbm(struct drm_plane_state *state)
 		ret = drm_mm_insert_node_generic(&vc4->hvs->lbm_mm,
 						 &vc4_state->lbm,
 						 lbm_size,
-						 vc4->hvs->hvs5 ? 64 : 32,
+						 vc4->is_vc5 ? 64 : 32,
 						 0, 0);
 		spin_unlock_irqrestore(&vc4->hvs->mm_lock, irqflags);
 
@@ -917,7 +917,7 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 	mix_plane_alpha = state->alpha != DRM_BLEND_ALPHA_OPAQUE &&
 			  fb->format->has_alpha;
 
-	if (!vc4->hvs->hvs5) {
+	if (!vc4->is_vc5) {
 	/* Control word */
 		vc4_dlist_write(vc4_state,
 				SCALER_CTL0_VALID |
@@ -1321,6 +1321,10 @@ static int vc4_plane_atomic_async_check(struct drm_plane *plane,
 
 	old_vc4_state = to_vc4_plane_state(plane->state);
 	new_vc4_state = to_vc4_plane_state(new_plane_state);
+
+	if (!new_vc4_state->hw_dlist)
+		return -EINVAL;
+
 	if (old_vc4_state->dlist_count != new_vc4_state->dlist_count ||
 	    old_vc4_state->pos0_offset != new_vc4_state->pos0_offset ||
 	    old_vc4_state->pos2_offset != new_vc4_state->pos2_offset ||
@@ -1350,7 +1354,6 @@ static int vc4_prepare_fb(struct drm_plane *plane,
 			  struct drm_plane_state *state)
 {
 	struct vc4_bo *bo;
-	int ret;
 
 	if (!state->fb)
 		return 0;
@@ -1362,11 +1365,7 @@ static int vc4_prepare_fb(struct drm_plane *plane,
 	if (plane->state->fb == state->fb)
 		return 0;
 
-	ret = vc4_bo_inc_usecnt(bo);
-	if (ret)
-		return ret;
-
-	return 0;
+	return vc4_bo_inc_usecnt(bo);
 }
 
 static void vc4_cleanup_fb(struct drm_plane *plane,
@@ -1386,6 +1385,13 @@ static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
 	.atomic_update = vc4_plane_atomic_update,
 	.prepare_fb = vc4_prepare_fb,
 	.cleanup_fb = vc4_cleanup_fb,
+	.atomic_async_check = vc4_plane_atomic_async_check,
+	.atomic_async_update = vc4_plane_atomic_async_update,
+};
+
+static const struct drm_plane_helper_funcs vc5_plane_helper_funcs = {
+	.atomic_check = vc4_plane_atomic_check,
+	.atomic_update = vc4_plane_atomic_update,
 	.atomic_async_check = vc4_plane_atomic_async_check,
 	.atomic_async_update = vc4_plane_atomic_async_update,
 };
@@ -1458,14 +1464,13 @@ static const struct drm_plane_funcs vc4_plane_funcs = {
 struct drm_plane *vc4_plane_init(struct drm_device *dev,
 				 enum drm_plane_type type)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct drm_plane *plane = NULL;
 	struct vc4_plane *vc4_plane;
 	u32 formats[ARRAY_SIZE(hvs_formats)];
 	int num_formats = 0;
 	int ret = 0;
 	unsigned i;
-	bool hvs5 = of_device_is_compatible(dev->dev->of_node,
-					    "brcm,bcm2711-vc5");
 	static const uint64_t modifiers[] = {
 		DRM_FORMAT_MOD_BROADCOM_VC4_T_TILED,
 		DRM_FORMAT_MOD_BROADCOM_SAND128,
@@ -1481,7 +1486,7 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 		return ERR_PTR(-ENOMEM);
 
 	for (i = 0; i < ARRAY_SIZE(hvs_formats); i++) {
-		if (!hvs_formats[i].hvs5_only || hvs5) {
+		if (!hvs_formats[i].hvs5_only || vc4->is_vc5) {
 			formats[num_formats] = hvs_formats[i].drm;
 			num_formats++;
 		}
@@ -1495,7 +1500,10 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
+	if (vc4->is_vc5)
+		drm_plane_helper_add(plane, &vc5_plane_helper_funcs);
+	else
+		drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 
 	drm_plane_create_alpha_property(plane);
 	drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,

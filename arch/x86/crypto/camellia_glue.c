@@ -1377,7 +1377,7 @@ static int force;
 module_param(force, int, 0);
 MODULE_PARM_DESC(force, "Force module load, ignore CPU blacklist");
 
-static int __init init(void)
+static int __init camellia_init(void)
 {
 	int err;
 
@@ -1401,15 +1401,15 @@ static int __init init(void)
 	return err;
 }
 
-static void __exit fini(void)
+static void __exit camellia_fini(void)
 {
 	crypto_unregister_alg(&camellia_cipher_alg);
 	crypto_unregister_skciphers(camellia_skcipher_algs,
 				    ARRAY_SIZE(camellia_skcipher_algs));
 }
 
-module_init(init);
-module_exit(fini);
+module_init(camellia_init);
+module_exit(camellia_fini);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("Camellia Cipher Algorithm, asm optimized");

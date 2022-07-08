@@ -85,8 +85,6 @@ struct sp7021_spi_ctlr {
 	int s_irq;
 	struct clk *spi_clk;
 	struct reset_control *rstc;
-	// irq spin lock
-	spinlock_t lock;
 	// data xfer lock
 	struct mutex buf_lock;
 	struct completion isr_done;
@@ -199,8 +197,6 @@ static irqreturn_t sp7021_spi_master_irq(int irq, void *dev)
 	if (tx_len == 0 && total_len == 0)
 		return IRQ_NONE;
 
-	spin_lock_irq(&pspim->lock);
-
 	rx_cnt = FIELD_GET(SP7021_RX_CNT_MASK, fd_status);
 	if (fd_status & SP7021_RX_FULL_FLAG)
 		rx_cnt = pspim->data_unit;
@@ -239,7 +235,6 @@ static irqreturn_t sp7021_spi_master_irq(int irq, void *dev)
 
 	if (isrdone)
 		complete(&pspim->isr_done);
-	spin_unlock_irq(&pspim->lock);
 	return IRQ_HANDLED;
 }
 
@@ -446,7 +441,6 @@ static int sp7021_spi_controller_probe(struct platform_device *pdev)
 	pspim->mode = mode;
 	pspim->ctlr = ctlr;
 	pspim->dev = dev;
-	spin_lock_init(&pspim->lock);
 	mutex_init(&pspim->buf_lock);
 	init_completion(&pspim->isr_done);
 	init_completion(&pspim->slave_isr);

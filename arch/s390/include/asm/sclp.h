@@ -87,6 +87,7 @@ struct sclp_info {
 	unsigned char has_diag318 : 1;
 	unsigned char has_sipl : 1;
 	unsigned char has_dirq : 1;
+	unsigned char has_iplcc : 1;
 	unsigned int ibc;
 	unsigned int mtid;
 	unsigned int mtid_cp;

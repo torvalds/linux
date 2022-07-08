@@ -22,7 +22,7 @@ unsigned long __xchg_small(volatile void *ptr, unsigned long val, unsigned int s
 
 	/*
 	 * Calculate a shift & mask that correspond to the value we wish to
-	 * exchange within the naturally aligned 4 byte integerthat includes
+	 * exchange within the naturally aligned 4 byte integer that includes
 	 * it.
 	 */
 	shift = (unsigned long)ptr & 0x3;

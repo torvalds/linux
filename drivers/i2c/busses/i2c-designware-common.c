@@ -266,9 +266,9 @@ int i2c_dw_acpi_configure(struct device *device)
 	 * selected speed modes.
 	 */
 	i2c_dw_acpi_params(device, "SSCN", &dev->ss_hcnt, &dev->ss_lcnt, &ss_ht);
+	i2c_dw_acpi_params(device, "FMCN", &dev->fs_hcnt, &dev->fs_lcnt, &fs_ht);
 	i2c_dw_acpi_params(device, "FPCN", &dev->fp_hcnt, &dev->fp_lcnt, &fp_ht);
 	i2c_dw_acpi_params(device, "HSCN", &dev->hs_hcnt, &dev->hs_lcnt, &hs_ht);
-	i2c_dw_acpi_params(device, "FMCN", &dev->fs_hcnt, &dev->fs_lcnt, &fs_ht);
 
 	switch (t->bus_freq_hz) {
 	case I2C_MAX_STANDARD_MODE_FREQ:
@@ -476,9 +476,6 @@ unsigned long i2c_dw_clk_rate(struct dw_i2c_dev *dev)
 int i2c_dw_prepare_clk(struct dw_i2c_dev *dev, bool prepare)
 {
 	int ret;
-
-	if (IS_ERR(dev->clk))
-		return PTR_ERR(dev->clk);
 
 	if (prepare) {
 		/* Optional interface clock */

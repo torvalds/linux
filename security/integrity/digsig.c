@@ -75,7 +75,8 @@ int integrity_digsig_verify(const unsigned int id, const char *sig, int siglen,
 		/* v1 API expect signature without xattr type */
 		return digsig_verify(keyring, sig + 1, siglen - 1, digest,
 				     digestlen);
-	case 2:
+	case 2: /* regular file data hash based signature */
+	case 3: /* struct ima_file_id data based signature */
 		return asymmetric_verify(keyring, sig, siglen, digest,
 					 digestlen);
 	}

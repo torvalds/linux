@@ -119,21 +119,18 @@ static int i915_component_master_match(struct device *dev, int subcomponent,
 /* check whether Intel graphics is present and reachable */
 static int i915_gfx_present(struct pci_dev *hdac_pci)
 {
-	unsigned int class = PCI_BASE_CLASS_DISPLAY << 16;
 	struct pci_dev *display_dev = NULL;
-	bool match = false;
 
-	do {
-		display_dev = pci_get_class(class, display_dev);
-
-		if (display_dev && display_dev->vendor == PCI_VENDOR_ID_INTEL &&
+	for_each_pci_dev(display_dev) {
+		if (display_dev->vendor == PCI_VENDOR_ID_INTEL &&
+		    (display_dev->class >> 16) == PCI_BASE_CLASS_DISPLAY &&
 		    connectivity_check(display_dev, hdac_pci)) {
 			pci_dev_put(display_dev);
-			match = true;
+			return true;
 		}
-	} while (!match && display_dev);
+	}
 
-	return match;
+	return false;
 }
 
 /**

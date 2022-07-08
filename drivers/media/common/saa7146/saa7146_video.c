@@ -443,7 +443,6 @@ static int vidioc_querycap(struct file *file, void *fh, struct v4l2_capability *
 
 	strscpy((char *)cap->driver, "saa7146 v4l2", sizeof(cap->driver));
 	strscpy((char *)cap->card, dev->ext->name, sizeof(cap->card));
-	sprintf((char *)cap->bus_info, "PCI:%s", pci_name(dev->pci));
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_VIDEO_OVERLAY |
 			    V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
 			    V4L2_CAP_DEVICE_CAPS;

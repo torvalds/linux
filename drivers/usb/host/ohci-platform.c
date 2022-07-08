@@ -334,6 +334,7 @@ static struct platform_driver ohci_platform_driver = {
 		.name	= "ohci-platform",
 		.pm	= &ohci_platform_pm_ops,
 		.of_match_table = ohci_platform_ids,
+		.probe_type = PROBE_PREFER_ASYNCHRONOUS,
 	}
 };
 

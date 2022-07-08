@@ -521,7 +521,7 @@ static int hisi_zip_start_qp(struct hisi_qp *qp, struct hisi_zip_qp_ctx *ctx,
 static void hisi_zip_release_qp(struct hisi_zip_qp_ctx *ctx)
 {
 	hisi_qm_stop_qp(ctx->qp);
-	hisi_qm_release_qp(ctx->qp);
+	hisi_qm_free_qps(&ctx->qp, 1);
 }
 
 static const struct hisi_zip_sqe_ops hisi_zip_ops_v1 = {

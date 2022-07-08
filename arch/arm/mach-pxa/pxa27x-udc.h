@@ -2,6 +2,8 @@
 #ifndef _ASM_ARCH_PXA27X_UDC_H
 #define _ASM_ARCH_PXA27X_UDC_H
 
+#include "pxa-regs.h"
+
 #ifdef _ASM_ARCH_PXA25X_UDC_H
 #error You cannot include both PXA25x and PXA27x UDC support
 #endif

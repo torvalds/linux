@@ -67,6 +67,7 @@
 
 #include "dcn10/dcn10_hw_sequencer.h"
 
+#include "link/link_dp_trace.h"
 #include "dce110_hw_sequencer.h"
 
 #define GAMMA_HW_POINTS_NUM 256
@@ -819,19 +820,19 @@ void dce110_edp_power_control(
 				div64_u64(dm_get_elapse_time_in_ns(
 						ctx,
 						current_ts,
-						link->link_trace.time_stamp.edp_poweroff), 1000000);
+						dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
 		unsigned long long time_since_edp_poweron_ms =
 				div64_u64(dm_get_elapse_time_in_ns(
 						ctx,
 						current_ts,
-						link->link_trace.time_stamp.edp_poweron), 1000000);
+						dp_trace_get_edp_poweron_timestamp(link)), 1000000);
 		DC_LOG_HW_RESUME_S3(
 				"%s: transition: power_up=%d current_ts=%llu edp_poweroff=%llu edp_poweron=%llu time_since_edp_poweroff_ms=%llu time_since_edp_poweron_ms=%llu",
 				__func__,
 				power_up,
 				current_ts,
-				link->link_trace.time_stamp.edp_poweroff,
-				link->link_trace.time_stamp.edp_poweron,
+				dp_trace_get_edp_poweroff_timestamp(link),
+				dp_trace_get_edp_poweron_timestamp(link),
 				time_since_edp_poweroff_ms,
 				time_since_edp_poweron_ms);
 
@@ -846,7 +847,7 @@ void dce110_edp_power_control(
 					link->local_sink->edid_caps.panel_patch.extra_t12_ms;
 
 			/* Adjust remaining_min_edp_poweroff_time_ms if this is not the first time. */
-			if (link->link_trace.time_stamp.edp_poweroff != 0) {
+			if (dp_trace_get_edp_poweroff_timestamp(link) != 0) {
 				if (time_since_edp_poweroff_ms < remaining_min_edp_poweroff_time_ms)
 					remaining_min_edp_poweroff_time_ms =
 						remaining_min_edp_poweroff_time_ms - time_since_edp_poweroff_ms;
@@ -904,17 +905,13 @@ void dce110_edp_power_control(
 				__func__, (power_up ? "On":"Off"),
 				bp_result);
 
-		if (!power_up)
-			/*save driver power off time stamp*/
-			link->link_trace.time_stamp.edp_poweroff = dm_get_timestamp(ctx);
-		else
-			link->link_trace.time_stamp.edp_poweron = dm_get_timestamp(ctx);
+		dp_trace_set_edp_power_timestamp(link, power_up);
 
 		DC_LOG_HW_RESUME_S3(
 				"%s: updated values: edp_poweroff=%llu edp_poweron=%llu\n",
 				__func__,
-				link->link_trace.time_stamp.edp_poweroff,
-				link->link_trace.time_stamp.edp_poweron);
+				dp_trace_get_edp_poweroff_timestamp(link),
+				dp_trace_get_edp_poweron_timestamp(link));
 
 		if (bp_result != BP_RESULT_OK)
 			DC_LOG_ERROR(
@@ -942,14 +939,14 @@ void dce110_edp_wait_for_T12(
 		return;
 
 	if (!link->panel_cntl->funcs->is_panel_powered_on(link->panel_cntl) &&
-			link->link_trace.time_stamp.edp_poweroff != 0) {
+			dp_trace_get_edp_poweroff_timestamp(link) != 0) {
 		unsigned int t12_duration = 500; // Default T12 as per spec
 		unsigned long long current_ts = dm_get_timestamp(ctx);
 		unsigned long long time_since_edp_poweroff_ms =
 				div64_u64(dm_get_elapse_time_in_ns(
 						ctx,
 						current_ts,
-						link->link_trace.time_stamp.edp_poweroff), 1000000);
+						dp_trace_get_edp_poweroff_timestamp(link)), 1000000);
 
 		t12_duration += link->local_sink->edid_caps.panel_patch.extra_t12_ms; // Add extra T12
 
@@ -1368,11 +1365,9 @@ static void program_scaler(const struct dc *dc,
 {
 	struct tg_color color = {0};
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* TOFPGA */
 	if (pipe_ctx->plane_res.xfm->funcs->transform_set_pixel_storage_depth == NULL)
 		return;
-#endif
 
 	if (dc->debug.visual_confirm == VISUAL_CONFIRM_SURFACE)
 		get_surface_visual_confirm_color(pipe_ctx, &color);
@@ -1771,29 +1766,9 @@ void dce110_enable_accelerated_mode(struct dc *dc, struct dc_state *context)
 				break;
 			}
 		}
-
-		/*
-		 * TO-DO: So far the code logic below only addresses single eDP case.
-		 * For dual eDP case, there are a few things that need to be
-		 * implemented first:
-		 *
-		 * 1. Change the fastboot logic above, so eDP link[0 or 1]'s
-		 * stream[0 or 1] will all be checked.
-		 *
-		 * 2. Change keep_edp_vdd_on to an array, and maintain keep_edp_vdd_on
-		 * for each eDP.
-		 *
-		 * Once above 2 things are completed, we can then change the logic below
-		 * correspondingly, so dual eDP case will be fully covered.
-		 */
-
-		// We are trying to enable eDP, don't power down VDD if eDP stream is existing
-		if ((edp_stream_num == 1 && edp_streams[0] != NULL) || can_apply_edp_fast_boot) {
+		// We are trying to enable eDP, don't power down VDD
+		if (can_apply_edp_fast_boot)
 			keep_edp_vdd_on = true;
-			DC_LOG_EVENT_LINK_TRAINING("Keep eDP Vdd on\n");
-		} else {
-			DC_LOG_EVENT_LINK_TRAINING("No eDP stream enabled, turn eDP Vdd off\n");
-		}
 	}
 
 	// Check seamless boot support

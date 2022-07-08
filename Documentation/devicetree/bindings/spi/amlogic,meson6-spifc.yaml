@@ -52,4 +52,3 @@ examples:
               spi-max-frequency = <40000000>;
           };
     };
-

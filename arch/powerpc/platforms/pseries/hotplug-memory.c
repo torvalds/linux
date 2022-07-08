@@ -16,7 +16,6 @@
 
 #include <asm/firmware.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/sparsemem.h>
 #include <asm/fadump.h>
 #include <asm/drmem.h>

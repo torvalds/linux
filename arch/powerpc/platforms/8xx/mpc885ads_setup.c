@@ -42,6 +42,7 @@
 
 #include "mpc885ads.h"
 #include "mpc8xx.h"
+#include "pic.h"
 
 static u32 __iomem *bcsr, *bcsr5;
 
@@ -216,7 +217,7 @@ define_machine(mpc885_ads) {
 	.name			= "Freescale MPC885 ADS",
 	.probe			= mpc885ads_probe,
 	.setup_arch		= mpc885ads_setup_arch,
-	.init_IRQ		= mpc8xx_pics_init,
+	.init_IRQ		= mpc8xx_pic_init,
 	.get_irq		= mpc8xx_get_irq,
 	.restart		= mpc8xx_restart,
 	.calibrate_decr		= mpc8xx_calibrate_decr,

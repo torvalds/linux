@@ -5,6 +5,11 @@
 
 obj-$(CONFIG_FB_OMAP) += omapfb.o
 
+ifdef CONFIG_FB_OMAP
+# must be built-in
+obj-y += lcd_dma.o
+endif
+
 objs-yy := omapfb_main.o lcdc.o
 
 objs-y$(CONFIG_FB_OMAP_LCDC_EXTERNAL) += sossi.o

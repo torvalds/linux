@@ -13,6 +13,7 @@
 #include <linux/kernel.h>
 #include <linux/mm.h> /* mem_init */
 #include <linux/initrd.h>
+#include <linux/of_fdt.h>
 #include <linux/pagemap.h>
 #include <linux/pfn.h>
 #include <linux/slab.h>
@@ -261,8 +262,12 @@ asmlinkage void __init mmu_init(void)
 
 	parse_early_param();
 
+	early_init_fdt_scan_reserved_mem();
+
 	/* CMA initialization */
 	dma_contiguous_reserve(memory_start + lowmem_size - 1);
+
+	memblock_dump_all();
 }
 
 void * __ref zalloc_maybe_bootmem(size_t size, gfp_t mask)

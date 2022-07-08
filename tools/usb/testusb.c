@@ -482,7 +482,7 @@ usage:
 	}
 	if (not)
 		return 0;
-	if (testdevs && testdevs->next == 0 && !device)
+	if (testdevs && !testdevs->next && !device)
 		device = testdevs->name;
 	for (entry = testdevs; entry; entry = entry->next) {
 		int	status;

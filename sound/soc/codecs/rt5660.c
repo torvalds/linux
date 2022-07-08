@@ -1266,8 +1266,7 @@ static int rt5660_parse_dt(struct rt5660_priv *rt5660, struct device *dev)
 	return 0;
 }
 
-static int rt5660_i2c_probe(struct i2c_client *i2c,
-		    const struct i2c_device_id *id)
+static int rt5660_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt5660_platform_data *pdata = dev_get_platdata(&i2c->dev);
 	struct rt5660_priv *rt5660;
@@ -1343,7 +1342,7 @@ static struct i2c_driver rt5660_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(rt5660_acpi_match),
 		.of_match_table = of_match_ptr(rt5660_of_match),
 	},
-	.probe = rt5660_i2c_probe,
+	.probe_new = rt5660_i2c_probe,
 	.id_table = rt5660_i2c_id,
 };
 module_i2c_driver(rt5660_i2c_driver);

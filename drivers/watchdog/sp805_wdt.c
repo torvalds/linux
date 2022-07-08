@@ -272,6 +272,7 @@ sp805_wdt_probe(struct amba_device *adev, const struct amba_id *id)
 	watchdog_set_nowayout(&wdt->wdd, nowayout);
 	watchdog_set_drvdata(&wdt->wdd, wdt);
 	watchdog_set_restart_priority(&wdt->wdd, 128);
+	watchdog_stop_on_unregister(&wdt->wdd);
 
 	/*
 	 * If 'timeout-sec' devicetree property is specified, use that.

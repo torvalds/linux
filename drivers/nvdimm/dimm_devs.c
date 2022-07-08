@@ -341,9 +341,9 @@ static ssize_t available_slots_show(struct device *dev,
 {
 	ssize_t rc;
 
-	nd_device_lock(dev);
+	device_lock(dev);
 	rc = __available_slots_show(dev_get_drvdata(dev), buf);
-	nd_device_unlock(dev);
+	device_unlock(dev);
 
 	return rc;
 }
@@ -386,12 +386,12 @@ static ssize_t security_store(struct device *dev,
 	 * done while probing is idle and the DIMM is not in active use
 	 * in any region.
 	 */
-	nd_device_lock(dev);
+	device_lock(dev);
 	nvdimm_bus_lock(dev);
 	wait_nvdimm_bus_probe_idle(dev);
 	rc = nvdimm_security_store(dev, buf, len);
 	nvdimm_bus_unlock(dev);
-	nd_device_unlock(dev);
+	device_unlock(dev);
 
 	return rc;
 }
@@ -570,6 +570,8 @@ bool is_nvdimm(struct device *dev)
 	return dev->type == &nvdimm_device_type;
 }
 
+static struct lock_class_key nvdimm_key;
+
 struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 		void *provider_data, const struct attribute_group **groups,
 		unsigned long flags, unsigned long cmd_mask, int num_flush,
@@ -613,6 +615,8 @@ struct nvdimm *__nvdimm_create(struct nvdimm_bus *nvdimm_bus,
 	/* get security state and extended (master) state */
 	nvdimm->sec.flags = nvdimm_security_flags(nvdimm, NVDIMM_USER);
 	nvdimm->sec.ext_flags = nvdimm_security_flags(nvdimm, NVDIMM_MASTER);
+	device_initialize(dev);
+	lockdep_set_class(&dev->mutex, &nvdimm_key);
 	nd_device_register(dev);
 
 	return nvdimm;

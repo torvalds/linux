@@ -70,10 +70,10 @@ static int mt8173_max98090_init(struct snd_soc_pcm_runtime *runtime)
 	struct snd_soc_component *component = asoc_rtd_to_codec(runtime, 0)->component;
 
 	/* enable jack detection */
-	ret = snd_soc_card_jack_new(card, "Headphone", SND_JACK_HEADPHONE,
-				    &mt8173_max98090_jack,
-				    mt8173_max98090_jack_pins,
-				    ARRAY_SIZE(mt8173_max98090_jack_pins));
+	ret = snd_soc_card_jack_new_pins(card, "Headphone", SND_JACK_HEADPHONE,
+					 &mt8173_max98090_jack,
+					 mt8173_max98090_jack_pins,
+					 ARRAY_SIZE(mt8173_max98090_jack_pins));
 	if (ret) {
 		dev_err(card->dev, "Can't create a new Jack %d\n", ret);
 		return ret;
@@ -167,7 +167,8 @@ static int mt8173_max98090_dev_probe(struct platform_device *pdev)
 	if (!codec_node) {
 		dev_err(&pdev->dev,
 			"Property 'audio-codec' missing or invalid\n");
-		return -EINVAL;
+		ret = -EINVAL;
+		goto put_platform_node;
 	}
 	for_each_card_prelinks(card, i, dai_link) {
 		if (dai_link->codecs->name)
@@ -179,6 +180,8 @@ static int mt8173_max98090_dev_probe(struct platform_device *pdev)
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 
 	of_node_put(codec_node);
+
+put_platform_node:
 	of_node_put(platform_node);
 	return ret;
 }

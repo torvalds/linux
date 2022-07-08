@@ -276,7 +276,7 @@ skip_codegen_passes:
 		 */
 		bpf_jit_dump(flen, proglen, pass, code_base);
 
-#ifdef PPC64_ELF_ABI_v1
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 	/* Function descriptor nastiness: Address + TOC */
 	((u64 *)image)[0] = (u64)code_base;
 	((u64 *)image)[1] = local_paca->kernel_toc;

@@ -545,7 +545,6 @@ const struct psb_ops oaktrail_chip_ops = {
 	.chip_setup = oaktrail_chip_setup,
 	.chip_teardown = oaktrail_teardown,
 	.crtc_helper = &oaktrail_helper_funcs,
-	.crtc_funcs = &gma_intel_crtc_funcs,
 
 	.output_init = oaktrail_output_init,
 

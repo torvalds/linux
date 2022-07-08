@@ -17,7 +17,8 @@ struct intel_atomic_state;
 struct intel_crtc_state;
 
 struct intel_dbuf_bw {
-	int used_bw[I915_MAX_DBUF_SLICES];
+	unsigned int max_bw[I915_MAX_DBUF_SLICES];
+	u8 active_planes[I915_MAX_DBUF_SLICES];
 };
 
 struct intel_bw_state {
@@ -40,10 +41,9 @@ struct intel_bw_state {
 	 */
 	u16 qgv_points_mask;
 
+	int min_cdclk[I915_MAX_PIPES];
 	unsigned int data_rate[I915_MAX_PIPES];
 	u8 num_active_planes[I915_MAX_PIPES];
-
-	int min_cdclk;
 };
 
 #define to_intel_bw_state(x) container_of((x), struct intel_bw_state, base)
@@ -64,7 +64,9 @@ void intel_bw_crtc_update(struct intel_bw_state *bw_state,
 			  const struct intel_crtc_state *crtc_state);
 int icl_pcode_restrict_qgv_points(struct drm_i915_private *dev_priv,
 				  u32 points_mask);
-int intel_bw_calc_min_cdclk(struct intel_atomic_state *state);
-int skl_bw_calc_min_cdclk(struct intel_atomic_state *state);
+int intel_bw_calc_min_cdclk(struct intel_atomic_state *state,
+			    bool *need_cdclk_calc);
+int intel_bw_min_cdclk(struct drm_i915_private *i915,
+		       const struct intel_bw_state *bw_state);
 
 #endif /* __INTEL_BW_H__ */

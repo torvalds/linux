@@ -139,7 +139,7 @@ struct snd_seq_client_port *snd_seq_create_port(struct snd_seq_client *client,
 	port_subs_info_init(&new_port->c_dest);
 	snd_use_lock_use(&new_port->use_lock);
 
-	num = port >= 0 ? port : 0;
+	num = max(port, 0);
 	mutex_lock(&client->ports_mutex);
 	write_lock_irq(&client->ports_lock);
 	list_for_each_entry(p, &client->ports_list_head, list) {
