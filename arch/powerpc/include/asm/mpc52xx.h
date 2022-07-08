@@ -15,7 +15,6 @@
 
 #ifndef __ASSEMBLY__
 #include <asm/types.h>
-#include <asm/prom.h>
 #include <asm/mpc5xxx.h>
 #endif /* __ASSEMBLY__ */
 
@@ -267,6 +266,8 @@ struct mpc52xx_intr {
 /* ========================================================================= */
 
 #ifndef __ASSEMBLY__
+
+struct device_node;
 
 /* mpc52xx_common.c */
 extern void mpc5200_setup_xlb_arbiter(void);

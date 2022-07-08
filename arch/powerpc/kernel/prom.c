@@ -54,6 +54,7 @@
 #include <asm/dt_cpu_ftrs.h>
 #include <asm/drmem.h>
 #include <asm/ultravisor.h>
+#include <asm/prom.h>
 
 #include <mm/mmu_decl.h>
 
