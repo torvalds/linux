@@ -270,7 +270,7 @@ void dc_dmub_srv_drr_update_cmd(struct dc *dc, uint32_t tg_inst, uint32_t vtotal
 	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 }
 
-uint8_t dc_dmub_srv_get_pipes_for_stream(struct dc *dc, struct dc_stream_state *stream)
+static uint8_t dc_dmub_srv_get_pipes_for_stream(struct dc *dc, struct dc_stream_state *stream)
 {
 	uint8_t pipes = 0;
 	int i = 0;
@@ -284,7 +284,7 @@ uint8_t dc_dmub_srv_get_pipes_for_stream(struct dc *dc, struct dc_stream_state *
 	return pipes;
 }
 
-int dc_dmub_srv_get_timing_generator_offset(struct dc *dc, struct dc_stream_state *stream)
+static int dc_dmub_srv_get_timing_generator_offset(struct dc *dc, struct dc_stream_state *stream)
 {
 	int  tg_inst = 0;
 	int i = 0;
