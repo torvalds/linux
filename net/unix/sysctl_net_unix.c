@@ -43,7 +43,7 @@ int __net_init unix_sysctl_register(struct net *net)
 	return 0;
 
 err_reg:
-	if (net_eq(net, &init_net))
+	if (!net_eq(net, &init_net))
 		kfree(table);
 err_alloc:
 	return -ENOMEM;
