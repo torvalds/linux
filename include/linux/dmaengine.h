@@ -449,6 +449,10 @@ struct dma_slave_config {
 	unsigned int slave_id;
 	void *peripheral_config;
 	size_t peripheral_size;
+#ifdef CONFIG_NO_GKI
+	unsigned int src_interlace_size;
+	unsigned int dst_interlace_size;
+#endif
 };
 
 /**
