@@ -613,7 +613,7 @@ struct qmp_regulator_data {
 	unsigned int enable_load;
 };
 
-struct qmp_regulator_data qmp_phy_vreg_l[] = {
+static struct qmp_regulator_data qmp_phy_vreg_l[] = {
 	{ .name = "vdda-phy", .enable_load = 21800 },
 	{ .name = "vdda-pll", .enable_load = 36000 },
 };
