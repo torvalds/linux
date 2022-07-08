@@ -98,6 +98,7 @@ enum usb_device_speed {
 	USB_SPEED_LOW, USB_SPEED_FULL,		/* usb 1.1 */
 	USB_SPEED_HIGH,				/* usb 2.0 */
 	USB_SPEED_WIRELESS,			/* wireless (usb 2.5) */
+	USB_SPEED_SUPER,			/* usb 3.0 */
 };
 
 /*-------------------------------------------------------------------------*/
@@ -110,6 +111,7 @@ static char *speed (enum usb_device_speed s)
 	case USB_SPEED_FULL:		return "full";
 	case USB_SPEED_HIGH:		return "high";
 	case USB_SPEED_WIRELESS:	return "wireless";
+	case USB_SPEED_SUPER:		return "super";
 	default:			return "??";
 	}
 }
