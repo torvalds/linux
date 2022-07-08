@@ -13,6 +13,7 @@
 #include <linux/fsnotify_backend.h>
 #include <linux/fsnotify.h>
 #include <linux/seq_file.h>
+#include <linux/rhashtable.h>
 
 #include "vfs.h"
 #include "nfsd.h"
@@ -63,6 +64,136 @@ static unsigned long			nfsd_file_flags;
 static struct fsnotify_group		*nfsd_file_fsnotify_group;
 static atomic_long_t			nfsd_filecache_count;
 static struct delayed_work		nfsd_filecache_laundrette;
+static struct rhashtable		nfsd_file_rhash_tbl
+						____cacheline_aligned_in_smp;
+
+enum nfsd_file_lookup_type {
+	NFSD_FILE_KEY_INODE,
+	NFSD_FILE_KEY_FULL,
+};
+
+struct nfsd_file_lookup_key {
+	struct inode			*inode;
+	struct net			*net;
+	const struct cred		*cred;
+	unsigned char			need;
+	enum nfsd_file_lookup_type	type;
+};
+
+/*
+ * The returned hash value is based solely on the address of an in-code
+ * inode, a pointer to a slab-allocated object. The entropy in such a
+ * pointer is concentrated in its middle bits.
+ */
+static u32 nfsd_file_inode_hash(const struct inode *inode, u32 seed)
+{
+	unsigned long ptr = (unsigned long)inode;
+	u32 k;
+
+	k = ptr >> L1_CACHE_SHIFT;
+	k &= 0x00ffffff;
+	return jhash2(&k, 1, seed);
+}
+
+/**
+ * nfsd_file_key_hashfn - Compute the hash value of a lookup key
+ * @data: key on which to compute the hash value
+ * @len: rhash table's key_len parameter (unused)
+ * @seed: rhash table's random seed of the day
+ *
+ * Return value:
+ *   Computed 32-bit hash value
+ */
+static u32 nfsd_file_key_hashfn(const void *data, u32 len, u32 seed)
+{
+	const struct nfsd_file_lookup_key *key = data;
+
+	return nfsd_file_inode_hash(key->inode, seed);
+}
+
+/**
+ * nfsd_file_obj_hashfn - Compute the hash value of an nfsd_file
+ * @data: object on which to compute the hash value
+ * @len: rhash table's key_len parameter (unused)
+ * @seed: rhash table's random seed of the day
+ *
+ * Return value:
+ *   Computed 32-bit hash value
+ */
+static u32 nfsd_file_obj_hashfn(const void *data, u32 len, u32 seed)
+{
+	const struct nfsd_file *nf = data;
+
+	return nfsd_file_inode_hash(nf->nf_inode, seed);
+}
+
+static bool
+nfsd_match_cred(const struct cred *c1, const struct cred *c2)
+{
+	int i;
+
+	if (!uid_eq(c1->fsuid, c2->fsuid))
+		return false;
+	if (!gid_eq(c1->fsgid, c2->fsgid))
+		return false;
+	if (c1->group_info == NULL || c2->group_info == NULL)
+		return c1->group_info == c2->group_info;
+	if (c1->group_info->ngroups != c2->group_info->ngroups)
+		return false;
+	for (i = 0; i < c1->group_info->ngroups; i++) {
+		if (!gid_eq(c1->group_info->gid[i], c2->group_info->gid[i]))
+			return false;
+	}
+	return true;
+}
+
+/**
+ * nfsd_file_obj_cmpfn - Match a cache item against search criteria
+ * @arg: search criteria
+ * @ptr: cache item to check
+ *
+ * Return values:
+ *   %0 - Item matches search criteria
+ *   %1 - Item does not match search criteria
+ */
+static int nfsd_file_obj_cmpfn(struct rhashtable_compare_arg *arg,
+			       const void *ptr)
+{
+	const struct nfsd_file_lookup_key *key = arg->key;
+	const struct nfsd_file *nf = ptr;
+
+	switch (key->type) {
+	case NFSD_FILE_KEY_INODE:
+		if (nf->nf_inode != key->inode)
+			return 1;
+		break;
+	case NFSD_FILE_KEY_FULL:
+		if (nf->nf_inode != key->inode)
+			return 1;
+		if (nf->nf_may != key->need)
+			return 1;
+		if (nf->nf_net != key->net)
+			return 1;
+		if (!nfsd_match_cred(nf->nf_cred, key->cred))
+			return 1;
+		if (test_bit(NFSD_FILE_HASHED, &nf->nf_flags) == 0)
+			return 1;
+		break;
+	}
+	return 0;
+}
+
+static const struct rhashtable_params nfsd_file_rhash_params = {
+	.key_len		= sizeof_field(struct nfsd_file, nf_inode),
+	.key_offset		= offsetof(struct nfsd_file, nf_inode),
+	.head_offset		= offsetof(struct nfsd_file, nf_rhash),
+	.hashfn			= nfsd_file_key_hashfn,
+	.obj_hashfn		= nfsd_file_obj_hashfn,
+	.obj_cmpfn		= nfsd_file_obj_cmpfn,
+	/* Reduce resizing churn on light workloads */
+	.min_size		= 512,		/* buckets */
+	.automatic_shrinking	= true,
+};
 
 static void
 nfsd_file_schedule_laundrette(void)
@@ -694,13 +825,18 @@ static const struct fsnotify_ops nfsd_file_fsnotify_ops = {
 int
 nfsd_file_cache_init(void)
 {
-	int		ret = -ENOMEM;
+	int		ret;
 	unsigned int	i;
 
 	lockdep_assert_held(&nfsd_mutex);
 	if (test_and_set_bit(NFSD_FILE_CACHE_UP, &nfsd_file_flags) == 1)
 		return 0;
 
+	ret = rhashtable_init(&nfsd_file_rhash_tbl, &nfsd_file_rhash_params);
+	if (ret)
+		return ret;
+
+	ret = -ENOMEM;
 	nfsd_filecache_wq = alloc_workqueue("nfsd_filecache", 0, 0);
 	if (!nfsd_filecache_wq)
 		goto out;
@@ -778,6 +914,7 @@ out_err:
 	nfsd_file_hashtbl = NULL;
 	destroy_workqueue(nfsd_filecache_wq);
 	nfsd_filecache_wq = NULL;
+	rhashtable_destroy(&nfsd_file_rhash_tbl);
 	goto out;
 }
 
@@ -903,6 +1040,7 @@ nfsd_file_cache_shutdown(void)
 	nfsd_file_hashtbl = NULL;
 	destroy_workqueue(nfsd_filecache_wq);
 	nfsd_filecache_wq = NULL;
+	rhashtable_destroy(&nfsd_file_rhash_tbl);
 
 	for_each_possible_cpu(i) {
 		per_cpu(nfsd_file_cache_hits, i) = 0;
@@ -912,26 +1050,6 @@ nfsd_file_cache_shutdown(void)
 		per_cpu(nfsd_file_pages_flushed, i) = 0;
 		per_cpu(nfsd_file_evictions, i) = 0;
 	}
-}
-
-static bool
-nfsd_match_cred(const struct cred *c1, const struct cred *c2)
-{
-	int i;
-
-	if (!uid_eq(c1->fsuid, c2->fsuid))
-		return false;
-	if (!gid_eq(c1->fsgid, c2->fsgid))
-		return false;
-	if (c1->group_info == NULL || c2->group_info == NULL)
-		return c1->group_info == c2->group_info;
-	if (c1->group_info->ngroups != c2->group_info->ngroups)
-		return false;
-	for (i = 0; i < c1->group_info->ngroups; i++) {
-		if (!gid_eq(c1->group_info->gid[i], c2->group_info->gid[i]))
-			return false;
-	}
-	return true;
 }
 
 static struct nfsd_file *
