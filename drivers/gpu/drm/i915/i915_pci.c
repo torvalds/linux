@@ -1111,6 +1111,31 @@ static const struct intel_device_info pvc_info = {
 	.require_force_probe = 1,
 };
 
+#define XE_LPDP_FEATURES	\
+	XE_LPD_FEATURES,	\
+	.display.ver = 14,	\
+	.display.has_cdclk_crawl = 1
+
+__maybe_unused
+static const struct intel_device_info mtl_info = {
+	XE_HP_FEATURES,
+	XE_LPDP_FEATURES,
+	/*
+	 * Real graphics IP version will be obtained from hardware GMD_ID
+	 * register.  Value provided here is just for sanity checking.
+	 */
+	.graphics.ver = 12,
+	.graphics.rel = 70,
+	.media.ver = 13,
+	PLATFORM(INTEL_METEORLAKE),
+	.display.has_modular_fia = 1,
+	.has_flat_ccs = 0,
+	.has_snoop = 1,
+	.memory_regions = REGION_SMEM | REGION_STOLEN_LMEM,
+	.platform_engine_mask = BIT(RCS0) | BIT(BCS0) | BIT(CCS0),
+	.require_force_probe = 1,
+};
+
 #undef PLATFORM
 
 /*
