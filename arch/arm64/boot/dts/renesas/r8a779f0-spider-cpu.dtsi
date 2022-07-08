@@ -55,14 +55,14 @@
 		function = "i2c4";
 	};
 
-	scif3_pins: scif3 {
-		groups = "scif3_data", "scif3_ctrl";
-		function = "scif3";
-	};
-
 	scif0_pins: scif0 {
 		groups = "scif0_data", "scif0_ctrl";
 		function = "scif0";
+	};
+
+	scif3_pins: scif3 {
+		groups = "scif3_data", "scif3_ctrl";
+		function = "scif3";
 	};
 
 	scif_clk_pins: scif_clk {
@@ -76,16 +76,16 @@
 	status = "okay";
 };
 
-&scif3 {
-	pinctrl-0 = <&scif3_pins>;
+&scif0 {
+	pinctrl-0 = <&scif0_pins>;
 	pinctrl-names = "default";
 
 	uart-has-rtscts;
 	status = "okay";
 };
 
-&scif0 {
-	pinctrl-0 = <&scif0_pins>;
+&scif3 {
+	pinctrl-0 = <&scif3_pins>;
 	pinctrl-names = "default";
 
 	uart-has-rtscts;
