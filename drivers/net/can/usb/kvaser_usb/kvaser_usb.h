@@ -188,4 +188,6 @@ int kvaser_usb_send_cmd_async(struct kvaser_usb_net_priv *priv, void *cmd,
 
 int kvaser_usb_can_rx_over_error(struct net_device *netdev);
 
+extern const struct can_bittiming_const kvaser_usb_flexc_bittiming_const;
+
 #endif /* KVASER_USB_H */
