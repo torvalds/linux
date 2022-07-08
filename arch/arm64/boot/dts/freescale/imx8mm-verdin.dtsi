@@ -203,7 +203,7 @@
 	can1: can@0 {
 		compatible = "microchip,mcp251xfd";
 		clocks = <&clk40m>;
-		interrupts-extended = <&gpio1 6 IRQ_TYPE_EDGE_FALLING>;
+		interrupts-extended = <&gpio1 6 IRQ_TYPE_LEVEL_LOW>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_can1_int>;
 		reg = <0>;
