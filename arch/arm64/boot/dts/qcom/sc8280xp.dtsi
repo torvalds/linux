@@ -984,7 +984,7 @@
 			compatible = "qcom,sc8280xp-usb-hs-phy",
 				     "qcom,usb-snps-hs-5nm-phy";
 			reg = <0 0x088e5000 0 0x400>;
-			clocks = <&gcc GCC_USB2_HS0_CLKREF_CLK>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>;
 			clock-names = "ref";
 			resets = <&gcc GCC_QUSB2PHY_PRIM_BCR>;
 
