@@ -1464,21 +1464,22 @@ static int ingenic_drm_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused ingenic_drm_suspend(struct device *dev)
+static int ingenic_drm_suspend(struct device *dev)
 {
 	struct ingenic_drm *priv = dev_get_drvdata(dev);
 
 	return drm_mode_config_helper_suspend(&priv->drm);
 }
 
-static int __maybe_unused ingenic_drm_resume(struct device *dev)
+static int ingenic_drm_resume(struct device *dev)
 {
 	struct ingenic_drm *priv = dev_get_drvdata(dev);
 
 	return drm_mode_config_helper_resume(&priv->drm);
 }
 
-static SIMPLE_DEV_PM_OPS(ingenic_drm_pm_ops, ingenic_drm_suspend, ingenic_drm_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(ingenic_drm_pm_ops,
+				ingenic_drm_suspend, ingenic_drm_resume);
 
 static const u32 jz4740_formats[] = {
 	DRM_FORMAT_XRGB1555,
@@ -1609,7 +1610,7 @@ MODULE_DEVICE_TABLE(of, ingenic_drm_of_match);
 static struct platform_driver ingenic_drm_driver = {
 	.driver = {
 		.name = "ingenic-drm",
-		.pm = pm_ptr(&ingenic_drm_pm_ops),
+		.pm = pm_sleep_ptr(&ingenic_drm_pm_ops),
 		.of_match_table = of_match_ptr(ingenic_drm_of_match),
 	},
 	.probe = ingenic_drm_probe,
