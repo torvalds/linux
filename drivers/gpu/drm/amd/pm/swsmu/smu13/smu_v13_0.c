@@ -1106,11 +1106,9 @@ int smu_v13_0_enable_thermal_alert(struct smu_context *smu)
 {
 	int ret = 0;
 
-	if (smu->smu_table.thermal_controller_type) {
-		ret = amdgpu_irq_get(smu->adev, &smu->irq_source, 0);
-		if (ret)
-			return ret;
-	}
+	ret = amdgpu_irq_get(smu->adev, &smu->irq_source, 0);
+	if (ret)
+		return ret;
 
 	return smu_v13_0_process_pending_interrupt(smu);
 }
