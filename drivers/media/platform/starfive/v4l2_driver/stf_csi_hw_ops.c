@@ -108,51 +108,10 @@ static int stf_csi_clk_disable(struct stf_csi_dev *csi_dev)
 	return 0;
 }
 
-static int stf_csi_config_set(struct stf_csi_dev *csi_dev)
-{
-	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
-	u32 mipi_channel_sel, mipi_vc = 0;
-
-	st_info(ST_CSI, "%s, csi_id = %d\n", __func__, csi_dev->id);
-
-	switch (csi_dev->s_type) {
-	case SENSOR_VIN:
-		st_err(ST_CSI, "%s, %d: need todo\n", __func__, __LINE__);
-		break;
-	case SENSOR_ISP:
-		reg_set_bit(vin->clkgen_base,
-				CLK_ISP_MIPI_CTRL,
-				BIT(24), csi_dev->id << 24);
-
-		reg_set_bit(vin->clkgen_base,
-				CLK_C_ISP_CTRL,
-				BIT(25) | BIT(24),
-				csi_dev->id << 24);
-
-		mipi_channel_sel = csi_dev->id * 4 + mipi_vc;
-		reg_set_bit(vin->sysctrl_base,
-				SYSCTRL_VIN_SRC_CHAN_SEL,
-				0xF, mipi_channel_sel);
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 static int stf_csi_set_format(struct stf_csi_dev *csi_dev,
 			u32 vsize, u8 bpp, int is_raw10)
 {
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
-	void *reg_base = NULL;
-
-	if (csi_dev->id == 0)
-		reg_base = vin->mipi0_base;
-	else if (csi_dev->id == 1)
-		reg_base = vin->mipi1_base;
-	else
-		return 0;
 
 	switch (csi_dev->s_type) {
 	case SENSOR_VIN:
@@ -185,13 +144,13 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 {
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 	struct csi2phy_cfg *csiphy =
-		stfcamss->csiphy_dev[csi_dev->csiphy_id].csiphy;
+		stfcamss->csiphy_dev->csiphy;
 	unsigned int i;
 	unsigned long lanes_used = 0;
 	u32 reg;
 
 	if (!csiphy) {
-		st_err(ST_CSI, "csiphy%d config not exist\n", csi_dev->csiphy_id);
+		st_err(ST_CSI, "csiphy0 config not exist\n");
 		return -EINVAL;
 	}
 
@@ -275,14 +234,7 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 {
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
-	void *reg_base = NULL;
-
-	if (csi_dev->id == 0)
-		reg_base = vin->mipi0_base;
-	else if (csi_dev->id == 1)
-		reg_base = vin->mipi1_base;
-	else
-		return 0;
+	void __iomem *reg_base = vin->csi2rx_base;
 
 	switch (csi_dev->s_type) {
 	case SENSOR_VIN:
@@ -331,9 +283,9 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 	return 0;
 }
 
-void dump_csi_reg(void *__iomem csibase, int id)
+void dump_csi_reg(void *__iomem csibase)
 {
-	st_info(ST_CSI, "DUMP CSI%d register:\n", id);
+	st_info(ST_CSI, "DUMP CSI register:\n");
 	print_reg(ST_CSI, csibase, 0x00);
 	print_reg(ST_CSI, csibase, 0x04);
 	print_reg(ST_CSI, csibase, 0x08);
@@ -349,7 +301,6 @@ struct csi_hw_ops csi_ops = {
 	.csi_power_on          = stf_csi_power_on,
 	.csi_clk_enable        = stf_csi_clk_enable,
 	.csi_clk_disable       = stf_csi_clk_disable,
-	.csi_config_set        = stf_csi_config_set,
 	.csi_set_format        = stf_csi_set_format,
 	.csi_stream_set        = stf_csi_stream_set,
 };

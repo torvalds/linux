@@ -135,31 +135,12 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 {
 	struct csi2phy_cfg2 cfg2 = {0};
 	struct csi2phy_cfg2 *cfg = &cfg2;
-	struct stf_csiphy_dev *csiphy0_dev =
-		&csiphy_dev->stfcamss->csiphy_dev[0];
-	struct stf_csiphy_dev *csiphy1_dev =
-		&csiphy_dev->stfcamss->csiphy_dev[1];
-	struct csi2phy_cfg *phy0cfg = csiphy0_dev->csiphy;
-	struct csi2phy_cfg *phy1cfg = csiphy1_dev->csiphy;
-	int id = csiphy_dev->id;
+	struct csi2phy_cfg *phycfg = csiphy_dev->csiphy;
 
-	st_debug(ST_CSIPHY, "%s, csiphy id = %d\n",
-			__func__, id);
-
-	if (!phy0cfg && !phy1cfg)
+	if (!phycfg)
 		return -EINVAL;
 
-#ifdef USE_CSIDPHY_ONE_CLK_MODE
-	if (id == 0) {
-		phy0cfg = csiphy0_dev->csiphy;
-		phy1cfg = NULL;
-	} else {
-		phy0cfg = NULL;
-		phy1cfg = csiphy1_dev->csiphy;
-	}
-#endif
-
-	if (try_cfg(cfg, phy0cfg, phy1cfg))
+	if (try_cfg(cfg, phycfg, NULL))
 		return -EINVAL;
 
 	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_4, 0x0);
@@ -335,9 +316,6 @@ static int stf_csiphy_config_set(struct stf_csiphy_dev *csiphy_dev)
 {
 	struct stf_vin_dev *vin = csiphy_dev->stfcamss->vin;
 
-	st_debug(ST_CSIPHY, "%s, csiphy id = %d\n",
-			__func__, csiphy_dev->id);
-
 	csi2rx_dphy_config(vin, csiphy_dev);
 	return 0;
 }
@@ -347,131 +325,9 @@ static int stf_csiphy_stream_set(struct stf_csiphy_dev *csiphy_dev, int on)
 	return 0;
 }
 
-#ifdef CONFIG_VIDEO_CADENCE_CSI2RX
-static int stf_csi_clk_enable(struct stf_csiphy_dev *csiphy_dev)
-{
-	struct stf_vin_dev *vin = csiphy_dev->stfcamss->vin;
-
-	reg_set_highest_bit(vin->clkgen_base, CLK_CSI2RX0_APB_CTRL);
-
-	if (csiphy_dev->id == 0) {
-		reg_set_bit(vin->clkgen_base,
-				CLK_MIPI_RX0_PXL_CTRL,
-				0x1F, 0x3);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_0_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_1_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_2_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_3_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_SYS0_CTRL);
-	} else {
-		reg_set_bit(vin->clkgen_base,
-				CLK_MIPI_RX1_PXL_CTRL,
-				0x1F, 0x3);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_0_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_1_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_2_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_3_CTRL);
-		reg_set_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_SYS1_CTRL);
-	}
-
-	return 0;
-}
-
-static int stf_csi_clk_disable(struct stf_csiphy_dev *csiphy_dev)
-{
-	struct stf_vin_dev *vin = csiphy_dev->stfcamss->vin;
-
-	reg_clr_highest_bit(vin->clkgen_base, CLK_CSI2RX0_APB_CTRL);
-
-	if (csiphy_dev->id == 0) {
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_0_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_1_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_2_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_PXL_3_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX0_SYS0_CTRL);
-	} else {
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_0_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_1_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_2_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_PXL_3_CTRL);
-		reg_clr_highest_bit(vin->clkgen_base, CLK_MIPI_RX1_SYS1_CTRL);
-	}
-
-	return 0;
-}
-
-static int stf_csi_config_set(struct stf_csiphy_dev *csiphy_dev, int is_raw10)
-{
-	struct stf_vin_dev *vin = csiphy_dev->stfcamss->vin;
-	u32 mipi_channel_sel, mipi_vc = 0;
-	enum sensor_type s_type = SENSOR_ISP;
-
-	switch (s_type) {
-	case SENSOR_VIN:
-		break;
-	case SENSOR_ISP:
-		reg_set_bit(vin->clkgen_base,
-				CLK_ISP_MIPI_CTRL,
-				BIT(24), csiphy_dev->id << 24);
-
-		reg_set_bit(vin->clkgen_base,
-				CLK_C_ISP_CTRL,
-				BIT(25) | BIT(24),
-				csiphy_dev->id << 24);
-
-		mipi_channel_sel = csiphy_dev->id * 4 + mipi_vc;
-		reg_set_bit(vin->sysctrl_base,
-				SYSCTRL_VIN_SRC_CHAN_SEL,
-				0xF, mipi_channel_sel);
-
-		if (is_raw10)
-			reg_set_bit(vin->sysctrl_base,
-					SYSCTRL_VIN_SRC_DW_SEL,
-					BIT(4), 1 << 4);
-		break;
-	case SENSOR_ISP1:
-		reg_set_bit(vin->clkgen_base,
-				CLK_ISP1_MIPI_CTRL,
-				BIT(24), csiphy_dev->id << 24);
-		reg_set_bit(vin->clkgen_base,
-				CLK_C_ISP1_CTRL,
-				BIT(25) | BIT(24),
-				csiphy_dev->id << 24);
-
-		mipi_channel_sel = csiphy_dev->id * 4 + mipi_vc;
-		reg_set_bit(vin->sysctrl_base,
-				SYSCTRL_VIN_SRC_CHAN_SEL,
-				0xF << 4, mipi_channel_sel << 4);
-
-		if (is_raw10)
-			reg_set_bit(vin->sysctrl_base,
-					SYSCTRL_VIN_SRC_DW_SEL,
-					BIT(5), 1 << 5);
-	default:
-		break;
-	}
-
-	return 0;
-}
-
-static int stf_cdns_csi_power(struct stf_csiphy_dev *csiphy_dev, int on)
-{
-	if (on) {
-		stf_csi_config_set(csiphy_dev, 1);
-		stf_csi_clk_enable(csiphy_dev);
-	} else
-		stf_csi_clk_disable(csiphy_dev);
-
-	return 0;
-}
-#endif
-
 struct csiphy_hw_ops csiphy_ops = {
 	.csiphy_clk_enable        = stf_csiphy_clk_enable,
 	.csiphy_clk_disable       = stf_csiphy_clk_disable,
 	.csiphy_config_set        = stf_csiphy_config_set,
 	.csiphy_stream_set        = stf_csiphy_stream_set,
-#ifdef CONFIG_VIDEO_CADENCE_CSI2RX
-	.cdns_csi_power           = stf_cdns_csi_power,
-#endif
 };

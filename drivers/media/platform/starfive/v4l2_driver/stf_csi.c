@@ -31,12 +31,10 @@ static int csi_find_format(u32 code,
 	return -EINVAL;
 }
 
-int stf_csi_subdev_init(struct stfcamss *stfcamss, int id)
+int stf_csi_subdev_init(struct stfcamss *stfcamss)
 {
-	struct stf_csi_dev *csi_dev = &stfcamss->csi_dev[id];
+	struct stf_csi_dev *csi_dev = stfcamss->csi_dev;
 
-	csi_dev->id = id;
-	csi_dev->csiphy_id = id;
 	csi_dev->s_type = SENSOR_VIN;
 	csi_dev->hw_ops = &csi_ops;
 	csi_dev->stfcamss = stfcamss;
@@ -69,13 +67,9 @@ __csi_get_format(struct stf_csi_dev *csi_dev,
 static int csi_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct stf_csi_dev *csi_dev = v4l2_get_subdevdata(sd);
-	struct stf_csi_dev *csi0_dev = &csi_dev->stfcamss->csi_dev[0];
 	struct v4l2_mbus_framefmt *format;
 	int ret = 0, is_raw10 = 0;
 	u32 code;
-
-	if (csi_dev->id == 1)
-		csi_set_stream(&csi0_dev->subdev, enable);
 
 	format = __csi_get_format(csi_dev, NULL, STF_CSI_PAD_SRC,
 				V4L2_SUBDEV_FORMAT_ACTIVE);
@@ -97,7 +91,6 @@ static int csi_set_stream(struct v4l2_subdev *sd, int enable)
 	mutex_lock(&csi_dev->stream_lock);
 	if (enable) {
 		if (csi_dev->stream_count == 0) {
-			//csi_dev->hw_ops->csi_config_set(csi_dev);
 			csi_dev->hw_ops->csi_clk_enable(csi_dev);
 			csi_dev->hw_ops->csi_set_format(csi_dev,
 					format->height,
@@ -307,8 +300,7 @@ static int csi_link_setup(struct media_entity *entity,
 			csi_dev->s_type = SENSOR_VIN;
 		if (line->sdev_type == ISP_DEV_TYPE)
 			csi_dev->s_type = SENSOR_ISP;
-		st_info(ST_CSI, "CSI%d device sensor type: %d\n",
-				csi_dev->id, csi_dev->s_type);
+		st_info(ST_CSI, "CSI device sensor type: %d\n", csi_dev->s_type);
 	}
 
 	if ((local->flags & MEDIA_PAD_FL_SINK) &&
@@ -326,9 +318,7 @@ static int csi_link_setup(struct media_entity *entity,
 		sd = media_entity_to_v4l2_subdev(remote->entity);
 		csiphy_dev = v4l2_get_subdevdata(sd);
 
-		csi_dev->csiphy_id = csiphy_dev->id;
-		st_info(ST_CSI, "CSI%d link to csiphy%d\n",
-				csi_dev->id, csi_dev->csiphy_id);
+		st_info(ST_CSI, "CSI0 link to csiphy0\n");
 	}
 
 	return 0;
@@ -383,7 +373,7 @@ int stf_csi_register(struct stf_csi_dev *csi_dev, struct v4l2_device *v4l2_dev)
 	sd->internal_ops = &csi_v4l2_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	snprintf(sd->name, ARRAY_SIZE(sd->name), "%s%d",
-		STF_CSI_NAME, csi_dev->id);
+		STF_CSI_NAME, 0);
 	v4l2_set_subdevdata(sd, csi_dev);
 
 	ret = csi_init_formats(sd, NULL);

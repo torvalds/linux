@@ -44,12 +44,9 @@ EXPORT_SYMBOL_GPL(stdbg_level);
 EXPORT_SYMBOL_GPL(stdbg_mask);
 
 static const struct reg_name mem_reg_name[] = {
-#ifndef CONFIG_VIDEO_CADENCE_CSI2RX
-	{"mipi0"},
-#endif
+	{"csi2rx"},
 	{"vclk"},
 	{"vrst"},
-	{"mipi1"},
 	{"sctrl"},
 	{"isp"},
 	{"trst"},
@@ -108,10 +105,10 @@ int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
 		if (!res)
 			return -EINVAL;
 
-		if (!strcmp(name, "mipi0")) {
-			vin->mipi0_base = devm_ioremap_resource(dev, res);
-			if (IS_ERR(vin->mipi0_base))
-				return PTR_ERR(vin->mipi0_base);
+		if (!strcmp(name, "csi2rx")) {
+			vin->csi2rx_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->csi2rx_base))
+				return PTR_ERR(vin->csi2rx_base);
 		} else if (!strcmp(name, "vclk")) {
 			vin->clkgen_base = ioremap(res->start, resource_size(res));
 			if (!vin->clkgen_base)
@@ -120,10 +117,6 @@ int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
 			vin->rstgen_base = devm_ioremap_resource(dev, res);
 			if (IS_ERR(vin->rstgen_base))
 				return PTR_ERR(vin->rstgen_base);
-		} else if (!strcmp(name, "mipi1")) {
-			vin->mipi1_base = devm_ioremap_resource(dev, res);
-			if (IS_ERR(vin->mipi1_base))
-				return PTR_ERR(vin->mipi1_base);
 		} else if (!strcmp(name, "sctrl")) {
 			vin->sysctrl_base = devm_ioremap_resource(dev, res);
 			if (IS_ERR(vin->sysctrl_base))
@@ -145,7 +138,6 @@ int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
 			if (!vin->sys_crg)
 				return -ENOMEM;
 		} else {
-
 			st_err(ST_CAMSS, "Could not match resource name\n");
 		}
 	}
@@ -203,9 +195,6 @@ static int stfcamss_of_parse_endpoint_node(struct device *dev,
 
 	csd->port = vep.base.port;
 	switch (csd->port) {
-	case CSI2RX0_PORT_NUMBER:
-	case CSI2RX1_PORT_NUMBER:
-		break;
 	case DVP_SENSOR_PORT_NUMBER:
 		st_debug(ST_CAMSS, "%s, flags = 0x%x\n", __func__,
 				parallel_bus->flags);
@@ -213,8 +202,7 @@ static int stfcamss_of_parse_endpoint_node(struct device *dev,
 		dvp->bus_width = parallel_bus->bus_width;
 		dvp->data_shift = parallel_bus->data_shift;
 		break;
-	case CSI2RX0_SENSOR_PORT_NUMBER:
-	case CSI2RX1_SENSOR_PORT_NUMBER:
+	case CSI2RX_SENSOR_PORT_NUMBER:
 		st_debug(ST_CAMSS, "%s, CSI2 flags = 0x%x\n",
 				__func__, parallel_bus->flags);
 		csiphy->flags = csi2_bus->flags;
@@ -278,7 +266,7 @@ err_cleanup:
 
 static int stfcamss_init_subdevices(struct stfcamss *stfcamss)
 {
-	int ret, i;
+	int ret;
 
 	ret = stf_dvp_subdev_init(stfcamss);
 	if (ret < 0) {
@@ -288,27 +276,21 @@ static int stfcamss_init_subdevices(struct stfcamss *stfcamss)
 		return ret;
 	}
 
-	for (i = 0; i < stfcamss->csiphy_num; i++) {
-		ret = stf_csiphy_subdev_init(stfcamss, i);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to init stf_csiphy sub-device: %d\n",
-				ret);
-			return ret;
-		}
+	ret = stf_csiphy_subdev_init(stfcamss);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to init stf_csiphy sub-device: %d\n",
+			ret);
+		return ret;
 	}
 
-#ifndef CONFIG_VIDEO_CADENCE_CSI2RX
-	for (i = 0; i < stfcamss->csi_num; i++) {
-		ret = stf_csi_subdev_init(stfcamss, i);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to init stf_csi sub-device: %d\n",
-				ret);
-			return ret;
-		}
+	ret = stf_csi_subdev_init(stfcamss);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to init stf_csi sub-device: %d\n",
+			ret);
+		return ret;
 	}
-#endif
 
 	ret = stf_isp_subdev_init(stfcamss);
 	if (ret < 0) {
@@ -330,7 +312,7 @@ static int stfcamss_init_subdevices(struct stfcamss *stfcamss)
 
 static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 {
-	int ret, i, j;
+	int ret;
 	struct stf_vin2_dev *vin_dev = stfcamss->vin_dev;
 	struct stf_dvp_dev *dvp_dev = stfcamss->dvp_dev;
 	struct stf_csiphy_dev *csiphy_dev = stfcamss->csiphy_dev;
@@ -340,41 +322,32 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 	ret = stf_dvp_register(dvp_dev, &stfcamss->v4l2_dev);
 	if (ret < 0) {
 		st_err(ST_CAMSS,
-			"Failed to register stf dvp entity: %d\n",
-			ret);
+			"Failed to register stf dvp%d entity: %d\n",
+			0, ret);
 		goto err_reg_dvp;
 	}
 
-	for (i = 0; i < stfcamss->csiphy_num; i++) {
-		ret = stf_csiphy_register(&csiphy_dev[i],
-				&stfcamss->v4l2_dev);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to register stf csiphy%d entity: %d\n",
-				i, ret);
-			goto err_reg_csiphy;
-		}
+	ret = stf_csiphy_register(csiphy_dev, &stfcamss->v4l2_dev);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to register stf csiphy%d entity: %d\n",
+			0, ret);
+		goto err_reg_csiphy;
 	}
 
-#ifndef CONFIG_VIDEO_CADENCE_CSI2RX
-	for (i = 0; i < stfcamss->csi_num; i++) {
-		ret = stf_csi_register(&csi_dev[i],
-				&stfcamss->v4l2_dev);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to register stf csi%d entity: %d\n",
-				i, ret);
-			goto err_reg_csi;
-		}
+	ret = stf_csi_register(csi_dev, &stfcamss->v4l2_dev);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to register stf csi%d entity: %d\n",
+			0, ret);
+		goto err_reg_csi;
 	}
-#endif
 
-	ret = stf_isp_register(isp_dev,
-			&stfcamss->v4l2_dev);
+	ret = stf_isp_register(isp_dev, &stfcamss->v4l2_dev);
 	if (ret < 0) {
 		st_err(ST_CAMSS,
 			"Failed to register stf isp%d entity: %d\n",
-			i, ret);
+			0, ret);
 		goto err_reg_isp;
 	}
 
@@ -400,40 +373,34 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 		goto err_link;
 	}
 
-#ifndef CONFIG_VIDEO_CADENCE_CSI2RX
-	for (i = 0; i < stfcamss->csi_num; i++) {
-		ret = media_create_pad_link(
-			&csi_dev[i].subdev.entity,
-			STF_CSI_PAD_SRC,
-			&vin_dev->line[VIN_LINE_WR].subdev.entity,
-			STF_VIN_PAD_SINK,
-			0);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to link %s->vin entities: %d\n",
-				csi_dev[i].subdev.entity.name,
-				ret);
-			goto err_link;
-		}
+	ret = media_create_pad_link(
+		&csi_dev->subdev.entity,
+		STF_CSI_PAD_SRC,
+		&vin_dev->line[VIN_LINE_WR].subdev.entity,
+		STF_VIN_PAD_SINK,
+		0);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to link %s->vin entities: %d\n",
+			csi_dev->subdev.entity.name,
+			ret);
+		goto err_link;
 	}
 
-	for (j = 0; j < stfcamss->csi_num; j++) {
-		ret = media_create_pad_link(
-			&csiphy_dev[j].subdev.entity,
-			STF_CSIPHY_PAD_SRC,
-			&csi_dev[j].subdev.entity,
-			STF_CSI_PAD_SINK,
-			MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to link %s->%s entities: %d\n",
-				csiphy_dev[j].subdev.entity.name,
-				csi_dev[j].subdev.entity.name,
-				ret);
-			goto err_link;
-		}
+	ret = media_create_pad_link(
+		&csiphy_dev->subdev.entity,
+		STF_CSIPHY_PAD_SRC,
+		&csi_dev->subdev.entity,
+		STF_CSI_PAD_SINK,
+		MEDIA_LNK_FL_IMMUTABLE | MEDIA_LNK_FL_ENABLED);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to link %s->%s entities: %d\n",
+			csiphy_dev->subdev.entity.name,
+			csi_dev->subdev.entity.name,
+			ret);
+		goto err_link;
 	}
-#endif
 
 	ret = media_create_pad_link(
 		&isp_dev->subdev.entity,
@@ -461,7 +428,7 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 		st_err(ST_CAMSS,
 			"Failed to link %s->%s entities: %d\n",
 			isp_dev->subdev.entity.name,
-			vin_dev->line[i + VIN_LINE_ISP_SS0]
+			vin_dev->line[VIN_LINE_ISP_SS0]
 			.subdev.entity.name,
 			ret);
 		goto err_link;
@@ -562,24 +529,20 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 		goto err_link;
 	}
 
-#ifndef CONFIG_VIDEO_CADENCE_CSI2RX
-	for (j = 0; j < stfcamss->csi_num; j++) {
-		ret = media_create_pad_link(
-			&csi_dev[j].subdev.entity,
-			STF_CSI_PAD_SRC,
-			&isp_dev->subdev.entity,
-			STF_ISP_PAD_SINK,
-			0);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to link %s->%s entities: %d\n",
-				csi_dev[j].subdev.entity.name,
-				isp_dev->subdev.entity.name,
-				ret);
-			goto err_link;
-		}
+	ret = media_create_pad_link(
+		&csi_dev->subdev.entity,
+		STF_CSI_PAD_SRC,
+		&isp_dev->subdev.entity,
+		STF_ISP_PAD_SINK,
+		0);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to link %s->%s entities: %d\n",
+			csi_dev->subdev.entity.name,
+			isp_dev->subdev.entity.name,
+			ret);
+		goto err_link;
 	}
-#endif
 
 	return ret;
 
@@ -588,18 +551,10 @@ err_link:
 err_reg_vin:
 	stf_isp_unregister(stfcamss->isp_dev);
 err_reg_isp:
-#ifndef CONFIG_VIDEO_CADENCE_CSI2RX
-	i = stfcamss->csi_num;
+	stf_csi_unregister(stfcamss->csi_dev);
 err_reg_csi:
-	for (i--; i >= 0; i--)
-		stf_csi_unregister(&stfcamss->csi_dev[i]);
-#endif
-
-	i = stfcamss->csiphy_num;
+	stf_csiphy_unregister(stfcamss->csiphy_dev);
 err_reg_csiphy:
-	for (i--; i >= 0; i--)
-		stf_csiphy_unregister(&stfcamss->csiphy_dev[i]);
-
 	stf_dvp_unregister(stfcamss->dvp_dev);
 err_reg_dvp:
 	return ret;
@@ -607,22 +562,10 @@ err_reg_dvp:
 
 static void stfcamss_unregister_subdevices(struct stfcamss *stfcamss)
 {
-	int i;
-
 	stf_dvp_unregister(stfcamss->dvp_dev);
-
-	i = stfcamss->csiphy_num;
-	for (i--; i >= 0; i--)
-		stf_csiphy_unregister(&stfcamss->csiphy_dev[i]);
-
-#ifndef CONFIG_VIDEO_CADENCE_CSI2RX
-	i = stfcamss->csi_num;
-	for (i--; i >= 0; i--)
-		stf_csi_unregister(&stfcamss->csi_dev[i]);
-#endif
-
+	stf_csiphy_unregister(stfcamss->csiphy_dev);
+	stf_csi_unregister(stfcamss->csi_dev);
 	stf_isp_unregister(stfcamss->isp_dev);
-
 	stf_vin_unregister(stfcamss->vin_dev);
 }
 
@@ -682,23 +625,13 @@ static int stfcamss_subdev_notifier_bound(struct v4l2_async_notifier *async,
 	enum port_num port = csd->port;
 	struct stf_dvp_dev *dvp_dev = stfcamss->dvp_dev;
 	struct stf_csiphy_dev *csiphy_dev = stfcamss->csiphy_dev;
-	struct stf_isp_dev *isp_dev = stfcamss->isp_dev;
-	u32 id;
 
 	switch (port) {
-	case CSI2RX0_PORT_NUMBER:
-	case CSI2RX1_PORT_NUMBER:
-		id = port - CSI2RX0_PORT_NUMBER;
-		subdev->host_priv = &isp_dev->subdev.entity;
-		break;
 	case DVP_SENSOR_PORT_NUMBER:
 		dvp_dev->dvp = &csd->interface.dvp;
 		subdev->host_priv = &dvp_dev->subdev.entity;
 		break;
-	case CSI2RX0_SENSOR_PORT_NUMBER:
-	case CSI2RX1_SENSOR_PORT_NUMBER:
-		id = port - CSI2RX0_SENSOR_PORT_NUMBER;
-		csiphy_dev = &csiphy_dev[id];
+	case CSI2RX_SENSOR_PORT_NUMBER:
 		csiphy_dev->csiphy = &csd->interface.csiphy;
 		subdev->host_priv = &csiphy_dev->subdev.entity;
 		break;
@@ -770,8 +703,7 @@ static const struct media_device_ops stfcamss_media_ops = {
 enum module_id {
 	VIN_MODULE = 0,
 	ISP_MODULE,
-	CSI0_MODULE,
-	CSI1_MODULE,
+	CSI_MODULE,
 	CSIPHY_MODULE,
 	DVP_MODULE,
 	CLK_MODULE,
@@ -797,8 +729,7 @@ static ssize_t vin_debug_read(struct file *file, char __user *user_buf,
 	struct stf_vin_dev *vin = stfcamss->vin;
 	struct stf_vin2_dev *vin_dev = stfcamss->vin_dev;
 	struct stf_isp_dev *isp_dev = stfcamss->isp_dev;
-	struct stf_csi_dev *csi0_dev = &stfcamss->csi_dev[0];
-	struct stf_csi_dev *csi1_dev = &stfcamss->csi_dev[1];
+	struct stf_csi_dev *csi0_dev = stfcamss->csi_dev;
 
 	switch (id_num) {
 	case VIN_MODULE:
@@ -819,21 +750,13 @@ static ssize_t vin_debug_read(struct file *file, char __user *user_buf,
 		}
 		mutex_unlock(&isp_dev->stream_lock);
 		break;
-	case CSI0_MODULE:
+	case CSI_MODULE:
 		mutex_lock(&csi0_dev->stream_lock);
 		if (csi0_dev->stream_count > 0) {
-			reg_base = vin->mipi0_base;
-			dump_csi_reg(reg_base, 0);
+			reg_base = vin->csi2rx_base;
+			dump_csi_reg(reg_base);
 		}
 		mutex_unlock(&csi0_dev->stream_lock);
-		break;
-	case CSI1_MODULE:
-		mutex_lock(&csi1_dev->stream_lock);
-		if (csi1_dev->stream_count > 0) {
-			reg_base = vin->mipi1_base;
-			dump_csi_reg(reg_base, 1);
-		}
-		mutex_unlock(&csi1_dev->stream_lock);
 		break;
 	case CLK_MODULE:
 		mutex_lock(&vin_dev->power_lock);
@@ -855,8 +778,7 @@ static void set_reg_val(struct stfcamss *stfcamss, int id, u32 offset, u32 val)
 	struct stf_vin_dev *vin = stfcamss->vin;
 	struct stf_vin2_dev *vin_dev = stfcamss->vin_dev;
 	struct stf_isp_dev *isp_dev = stfcamss->isp_dev;
-	struct stf_csi_dev *csi0_dev = &stfcamss->csi_dev[0];
-	struct stf_csi_dev *csi1_dev = &stfcamss->csi_dev[1];
+	struct stf_csi_dev *csi_dev = stfcamss->csi_dev;
 	void __iomem *reg_base;
 
 	switch (id) {
@@ -882,25 +804,15 @@ static void set_reg_val(struct stfcamss *stfcamss, int id, u32 offset, u32 val)
 		}
 		mutex_unlock(&isp_dev->stream_lock);
 		break;
-	case CSI0_MODULE:
-		mutex_lock(&csi0_dev->stream_lock);
-		if (csi0_dev->stream_count > 0) {
-			reg_base = vin->mipi0_base;
+	case CSI_MODULE:
+		mutex_lock(&csi_dev->stream_lock);
+		if (csi_dev->stream_count > 0) {
+			reg_base = vin->csi2rx_base;
 			print_reg(ST_CSI, reg_base, offset);
 			reg_write(reg_base, offset, val);
 			print_reg(ST_CSI, reg_base, offset);
 		}
-		mutex_unlock(&csi0_dev->stream_lock);
-		break;
-	case CSI1_MODULE:
-		mutex_lock(&csi1_dev->stream_lock);
-		if (csi1_dev->stream_count > 0) {
-			reg_base = vin->mipi1_base;
-			print_reg(ST_CSI, reg_base, offset);
-			reg_write(reg_base, offset, val);
-			print_reg(ST_CSI, reg_base, offset);
-		}
-		mutex_unlock(&csi1_dev->stream_lock);
+		mutex_unlock(&csi_dev->stream_lock);
 		break;
 	case CLK_MODULE:
 		mutex_lock(&vin_dev->power_lock);
@@ -1018,13 +930,6 @@ static int stfcamss_probe(struct platform_device *pdev)
 	if (!stfcamss)
 		return -ENOMEM;
 
-	stfcamss->csi_num = 2;
-#ifndef CONFIG_VIDEO_CADENCE_CSI2RX
-	stfcamss->csiphy_num = 2;
-#else
-	stfcamss->csiphy_num = 1;
-#endif
-
 	stfcamss->dvp_dev = devm_kzalloc(dev,
 		sizeof(*stfcamss->dvp_dev), GFP_KERNEL);
 	if (!stfcamss->dvp_dev) {
@@ -1033,7 +938,7 @@ static int stfcamss_probe(struct platform_device *pdev)
 	}
 
 	stfcamss->csiphy_dev = devm_kzalloc(dev,
-		stfcamss->csiphy_num * sizeof(*stfcamss->csiphy_dev),
+		sizeof(*stfcamss->csiphy_dev),
 		GFP_KERNEL);
 	if (!stfcamss->csiphy_dev) {
 		ret = -ENOMEM;
@@ -1041,7 +946,7 @@ static int stfcamss_probe(struct platform_device *pdev)
 	}
 
 	stfcamss->csi_dev = devm_kzalloc(dev,
-		stfcamss->csi_num * sizeof(*stfcamss->csi_dev),
+		sizeof(*stfcamss->csi_dev),
 		GFP_KERNEL);
 	if (!stfcamss->csi_dev) {
 		ret = -ENOMEM;
