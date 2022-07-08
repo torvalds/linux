@@ -101,13 +101,13 @@ static int mtu3_ep_used_show(struct seq_file *sf, void *unused)
 	for (i = 0; i < mtu->num_eps; i++) {
 		mep = mtu->in_eps + i;
 		if (mep->flags & MTU3_EP_ENABLED) {
-			seq_printf(sf, "%s - type: %d\n", mep->name, mep->type);
+			seq_printf(sf, "%s - type: %s\n", mep->name, usb_ep_type_string(mep->type));
 			used++;
 		}
 
 		mep = mtu->out_eps + i;
 		if (mep->flags & MTU3_EP_ENABLED) {
-			seq_printf(sf, "%s - type: %d\n", mep->name, mep->type);
+			seq_printf(sf, "%s - type: %s\n", mep->name, usb_ep_type_string(mep->type));
 			used++;
 		}
 	}
@@ -177,8 +177,8 @@ static int mtu3_ep_info_show(struct seq_file *sf, void *unused)
 	unsigned long flags;
 
 	spin_lock_irqsave(&mtu->lock, flags);
-	seq_printf(sf, "ep - type:%d, maxp:%d, slot:%d, flags:%x\n",
-		   mep->type, mep->maxp, mep->slot, mep->flags);
+	seq_printf(sf, "ep - type:%s, maxp:%d, slot:%d, flags:%x\n",
+		   usb_ep_type_string(mep->type), mep->maxp, mep->slot, mep->flags);
 	spin_unlock_irqrestore(&mtu->lock, flags);
 
 	return 0;
