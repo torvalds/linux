@@ -138,7 +138,7 @@ bool sis_is_firmware_running(struct pqi_ctrl_info *ctrl_info)
 
 	status = readl(&ctrl_info->registers->sis_firmware_status);
 
-	if (status & SIS_CTRL_KERNEL_PANIC)
+	if (status != ~0 && (status & SIS_CTRL_KERNEL_PANIC))
 		running = false;
 	else
 		running = true;

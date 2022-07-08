@@ -1269,6 +1269,12 @@ struct pqi_event {
 #define PQI_CTRL_PRODUCT_REVISION_A	0
 #define PQI_CTRL_PRODUCT_REVISION_B	1
 
+enum pqi_ctrl_removal_state {
+	PQI_CTRL_PRESENT = 0,
+	PQI_CTRL_GRACEFUL_REMOVAL,
+	PQI_CTRL_SURPRISE_REMOVAL
+};
+
 struct pqi_ctrl_info {
 	unsigned int	ctrl_id;
 	struct pci_dev	*pci_dev;
@@ -1389,6 +1395,7 @@ struct pqi_ctrl_info {
 	struct work_struct ofa_quiesce_work;
 	u32		ofa_bytes_requested;
 	u16		ofa_cancel_reason;
+	enum pqi_ctrl_removal_state ctrl_removal_state;
 };
 
 enum pqi_ctrl_mode {
