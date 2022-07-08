@@ -1097,6 +1097,12 @@ static int intel_fbc_check_plane(struct intel_atomic_state *state,
 		return 0;
 	}
 
+	/* Wa_14016291713 */
+	if (IS_DISPLAY_VER(i915, 12, 13) && crtc_state->has_psr) {
+		plane_state->no_fbc_reason = "PSR1 enabled (Wa_14016291713)";
+		return 0;
+	}
+
 	if (!pixel_format_is_valid(plane_state)) {
 		plane_state->no_fbc_reason = "pixel format not supported";
 		return 0;
