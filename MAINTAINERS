@@ -17909,12 +17909,13 @@ S:	Supported
 F:	Documentation/admin-guide/security-bugs.rst
 
 SECURITY SUBSYSTEM
+M:	Paul Moore <paul@paul-moore.com>
 M:	James Morris <jmorris@namei.org>
 M:	"Serge E. Hallyn" <serge@hallyn.com>
 L:	linux-security-module@vger.kernel.org (suggested Cc:)
 S:	Supported
 W:	http://kernsec.org/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/jmorris/linux-security.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/pcmoore/lsm.git
 F:	security/
 X:	security/selinux/
 
