@@ -4893,8 +4893,8 @@ static int kvm_vcpu_ioctl_x86_setup_mce(struct kvm_vcpu *vcpu,
 		if (mcg_cap & MCG_CMCI_P)
 			vcpu->arch.mci_ctl2_banks[bank] = 0;
 	}
-	vcpu->arch.apic->nr_lvt_entries =
-		KVM_APIC_MAX_NR_LVT_ENTRIES - !(mcg_cap & MCG_CMCI_P);
+
+	kvm_apic_after_set_mcg_cap(vcpu);
 
 	static_call(kvm_x86_setup_mce)(vcpu);
 out:

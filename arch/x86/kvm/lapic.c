@@ -433,6 +433,25 @@ void kvm_apic_set_version(struct kvm_vcpu *vcpu)
 	kvm_lapic_set_reg(apic, APIC_LVR, v);
 }
 
+void kvm_apic_after_set_mcg_cap(struct kvm_vcpu *vcpu)
+{
+	int nr_lvt_entries = kvm_apic_calc_nr_lvt_entries(vcpu);
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	int i;
+
+	if (!lapic_in_kernel(vcpu) || nr_lvt_entries == apic->nr_lvt_entries)
+		return;
+
+	/* Initialize/mask any "new" LVT entries. */
+	for (i = apic->nr_lvt_entries; i < nr_lvt_entries; i++)
+		kvm_lapic_set_reg(apic, APIC_LVTx(i), APIC_LVT_MASKED);
+
+	apic->nr_lvt_entries = nr_lvt_entries;
+
+	/* The number of LVT entries is reflected in the version register. */
+	kvm_apic_set_version(vcpu);
+}
+
 static const unsigned int apic_lvt_mask[KVM_APIC_MAX_NR_LVT_ENTRIES] = {
 	[LVT_TIMER] = LVT_MASK,      /* timer mode mask added at runtime */
 	[LVT_THERMAL_MONITOR] = LVT_MASK | APIC_MODE_MASK,
