@@ -3322,6 +3322,9 @@ static int pqi_interpret_task_management_response(struct pqi_ctrl_info *ctrl_inf
 	case SOP_TMF_REJECTED:
 		rc = -EAGAIN;
 		break;
+	case SOP_RC_INCORRECT_LOGICAL_UNIT:
+		rc = -ENODEV;
+		break;
 	default:
 		rc = -EIO;
 		break;
@@ -3697,8 +3700,11 @@ static void pqi_event_worker(struct work_struct *work)
 		event++;
 	}
 
+#define PQI_RESCAN_WORK_FOR_EVENT_DELAY		(5 * HZ)
+
 	if (rescan_needed)
-		pqi_schedule_rescan_worker_delayed(ctrl_info);
+		pqi_schedule_rescan_worker_with_delay(ctrl_info,
+			PQI_RESCAN_WORK_FOR_EVENT_DELAY);
 
 out:
 	pqi_ctrl_unbusy(ctrl_info);
@@ -6256,7 +6262,7 @@ static int pqi_lun_reset_with_retries(struct pqi_ctrl_info *ctrl_info, struct pq
 
 	for (retries = 0;;) {
 		reset_rc = pqi_lun_reset(ctrl_info, device);
-		if (reset_rc == 0 || ++retries > PQI_LUN_RESET_RETRIES)
+		if (reset_rc == 0 || reset_rc == -ENODEV || ++retries > PQI_LUN_RESET_RETRIES)
 			break;
 		msleep(PQI_LUN_RESET_RETRY_INTERVAL_MSECS);
 	}
