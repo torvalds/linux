@@ -156,25 +156,25 @@ int BPF_PROG(socket_clone, struct sock *newsk, const struct request_sock *req)
 {
 	int prio = 234;
 
-	called_socket_clone++;
-
 	if (!newsk)
 		return 1;
 
 	/* Accepted request sockets get a different priority. */
 	if (bpf_setsockopt(newsk, SOL_SOCKET, SO_PRIORITY, &prio, sizeof(prio)))
-		return 0; /* EPERM */
+		return 1;
 
 	/* Make sure bpf_getsockopt is allowed and works. */
 	prio = 0;
 	if (bpf_getsockopt(newsk, SOL_SOCKET, SO_PRIORITY, &prio, sizeof(prio)))
-		return 0; /* EPERM */
+		return 1;
 	if (prio != 234)
-		return 0; /* EPERM */
+		return 1;
 
 	/* Can access cgroup local storage. */
 	if (!test_local_storage())
-		return 0; /* EPERM */
+		return 1;
+
+	called_socket_clone++;
 
 	return 1;
 }

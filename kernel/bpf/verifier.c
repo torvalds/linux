@@ -10444,11 +10444,21 @@ static int check_return_code(struct bpf_verifier_env *env)
 	const bool is_subprog = frame->subprogno;
 
 	/* LSM and struct_ops func-ptr's return type could be "void" */
-	if (!is_subprog &&
-	    (prog_type == BPF_PROG_TYPE_STRUCT_OPS ||
-	     prog_type == BPF_PROG_TYPE_LSM) &&
-	    !prog->aux->attach_func_proto->type)
-		return 0;
+	if (!is_subprog) {
+		switch (prog_type) {
+		case BPF_PROG_TYPE_LSM:
+			if (prog->expected_attach_type == BPF_LSM_CGROUP)
+				/* See below, can be 0 or 0-1 depending on hook. */
+				break;
+			fallthrough;
+		case BPF_PROG_TYPE_STRUCT_OPS:
+			if (!prog->aux->attach_func_proto->type)
+				return 0;
+			break;
+		default:
+			break;
+		}
+	}
 
 	/* eBPF calling convention is such that R0 is used
 	 * to return the value from eBPF program.
@@ -10572,6 +10582,7 @@ static int check_return_code(struct bpf_verifier_env *env)
 	if (!tnum_in(range, reg->var_off)) {
 		verbose_invalid_scalar(env, reg, &range, "program exit", "R0");
 		if (prog->expected_attach_type == BPF_LSM_CGROUP &&
+		    prog_type == BPF_PROG_TYPE_LSM &&
 		    !prog->aux->attach_func_proto->type)
 			verbose(env, "Note, BPF_LSM_CGROUP that attach to void LSM hooks can't modify return value!\n");
 		return -EINVAL;

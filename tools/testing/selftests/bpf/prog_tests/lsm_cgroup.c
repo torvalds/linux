@@ -6,6 +6,7 @@
 #include <bpf/btf.h>
 
 #include "lsm_cgroup.skel.h"
+#include "lsm_cgroup_nonvoid.skel.h"
 #include "cgroup_helpers.h"
 #include "network_helpers.h"
 
@@ -293,9 +294,20 @@ close_cgroup:
 	lsm_cgroup__destroy(skel);
 }
 
+static void test_lsm_cgroup_nonvoid(void)
+{
+	struct lsm_cgroup_nonvoid *skel = NULL;
+
+	skel = lsm_cgroup_nonvoid__open_and_load();
+	ASSERT_NULL(skel, "open succeeds");
+	lsm_cgroup_nonvoid__destroy(skel);
+}
+
 void test_lsm_cgroup(void)
 {
 	if (test__start_subtest("functional"))
 		test_lsm_cgroup_functional();
+	if (test__start_subtest("nonvoid"))
+		test_lsm_cgroup_nonvoid();
 	btf__free(btf);
 }
