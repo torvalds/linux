@@ -44,6 +44,8 @@
 #include <net/strparser.h>
 #include <net/tls.h>
 
+#include "tls.h"
+
 struct tls_decrypt_arg {
 	bool zc;
 	bool async;
@@ -524,7 +526,8 @@ static int tls_do_encryption(struct sock *sk,
 	memcpy(&rec->iv_data[iv_offset], tls_ctx->tx.iv,
 	       prot->iv_size + prot->salt_size);
 
-	xor_iv_with_seq(prot, rec->iv_data + iv_offset, tls_ctx->tx.rec_seq);
+	tls_xor_iv_with_seq(prot, rec->iv_data + iv_offset,
+			    tls_ctx->tx.rec_seq);
 
 	sge->offset += prot->prepend_size;
 	sge->length -= prot->prepend_size;
@@ -961,7 +964,7 @@ int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	lock_sock(sk);
 
 	if (unlikely(msg->msg_controllen)) {
-		ret = tls_proccess_cmsg(sk, msg, &record_type);
+		ret = tls_process_cmsg(sk, msg, &record_type);
 		if (ret) {
 			if (ret == -EINPROGRESS)
 				num_async++;
@@ -1495,7 +1498,7 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 			goto exit_free;
 		memcpy(&dctx->iv[iv_offset], tls_ctx->rx.iv, prot->salt_size);
 	}
-	xor_iv_with_seq(prot, &dctx->iv[iv_offset], tls_ctx->rx.rec_seq);
+	tls_xor_iv_with_seq(prot, &dctx->iv[iv_offset], tls_ctx->rx.rec_seq);
 
 	/* Prepare AAD */
 	tls_make_aad(dctx->aad, rxm->full_len - prot->overhead_size +
@@ -2267,12 +2270,23 @@ static void tx_work_handler(struct work_struct *work)
 	mutex_unlock(&tls_ctx->tx_lock);
 }
 
+static bool tls_is_tx_ready(struct tls_sw_context_tx *ctx)
+{
+	struct tls_rec *rec;
+
+	rec = list_first_entry(&ctx->tx_list, struct tls_rec, list);
+	if (!rec)
+		return false;
+
+	return READ_ONCE(rec->tx_ready);
+}
+
 void tls_sw_write_space(struct sock *sk, struct tls_context *ctx)
 {
 	struct tls_sw_context_tx *tx_ctx = tls_sw_ctx_tx(ctx);
 
 	/* Schedule the transmission if tx list is ready */
-	if (is_tx_ready(tx_ctx) &&
+	if (tls_is_tx_ready(tx_ctx) &&
 	    !test_and_set_bit(BIT_TX_SCHEDULED, &tx_ctx->tx_bitmask))
 		schedule_delayed_work(&tx_ctx->tx_work.work, 0);
 }
