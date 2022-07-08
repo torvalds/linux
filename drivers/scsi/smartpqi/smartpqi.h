@@ -1351,7 +1351,7 @@ struct pqi_ctrl_info {
 	u8		enable_r6_writes : 1;
 	u8		lv_drive_type_mix_valid : 1;
 	u8		enable_stream_detection : 1;
-
+	u8		disable_managed_interrupts : 1;
 	u8		ciss_report_log_flags;
 	u32		max_transfer_encrypted_sas_sata;
 	u32		max_transfer_encrypted_nvme;

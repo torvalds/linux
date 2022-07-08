@@ -175,6 +175,12 @@ module_param_named(hide_vsep,
 	pqi_hide_vsep, int, 0644);
 MODULE_PARM_DESC(hide_vsep, "Hide the virtual SEP for direct attached drives.");
 
+static int pqi_disable_managed_interrupts;
+module_param_named(disable_managed_interrupts,
+	pqi_disable_managed_interrupts, int, 0644);
+MODULE_PARM_DESC(disable_managed_interrupts,
+	"Disable the kernel automatically assigning SMP affinity to IRQs.");
+
 static char *raid_levels[] = {
 	"RAID-0",
 	"RAID-4",
@@ -4039,10 +4045,14 @@ static void pqi_free_irqs(struct pqi_ctrl_info *ctrl_info)
 static int pqi_enable_msix_interrupts(struct pqi_ctrl_info *ctrl_info)
 {
 	int num_vectors_enabled;
+	unsigned int flags = PCI_IRQ_MSIX;
+
+	if (!pqi_disable_managed_interrupts)
+		flags |= PCI_IRQ_AFFINITY;
 
 	num_vectors_enabled = pci_alloc_irq_vectors(ctrl_info->pci_dev,
 			PQI_MIN_MSIX_VECTORS, ctrl_info->num_queue_groups,
-			PCI_IRQ_MSIX | PCI_IRQ_AFFINITY);
+			flags);
 	if (num_vectors_enabled < 0) {
 		dev_err(&ctrl_info->pci_dev->dev,
 			"MSI-X init failed with error %d\n",
@@ -8588,6 +8598,7 @@ static struct pqi_ctrl_info *pqi_alloc_ctrl_info(int numa_node)
 	ctrl_info->max_write_raid_5_6 = PQI_DEFAULT_MAX_WRITE_RAID_5_6;
 	ctrl_info->max_write_raid_1_10_2drive = ~0;
 	ctrl_info->max_write_raid_1_10_3drive = ~0;
+	ctrl_info->disable_managed_interrupts = pqi_disable_managed_interrupts;
 
 	return ctrl_info;
 }
