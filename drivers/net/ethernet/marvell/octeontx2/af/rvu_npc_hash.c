@@ -1168,14 +1168,17 @@ static u16 __rvu_npc_exact_cmd_rules_cnt_update(struct rvu *rvu, int drop_mcam_i
 
 	*enable_or_disable_cam = false;
 
+	if (promisc)
+		goto done;
+
 	/* If all rules are deleted and not already in promisc mode; disable cam */
-	if (!*cnt && !promisc) {
+	if (!*cnt && val < 0) {
 		*enable_or_disable_cam = true;
 		goto done;
 	}
 
 	/* If rule got added and not already in promisc mode; enable cam */
-	if (!old_cnt && !promisc) {
+	if (!old_cnt && val > 0) {
 		*enable_or_disable_cam = true;
 		goto done;
 	}
@@ -1193,7 +1196,7 @@ done:
  *	table.
  *	Return: 0 upon success.
  */
-int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id)
+static int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id)
 {
 	struct npc_exact_table_entry *entry = NULL;
 	struct npc_exact_table *table;
@@ -1265,9 +1268,9 @@ int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id)
  *	MEM table.
  *	Return: 0 upon success.
  */
-static int __maybe_unused rvu_npc_exact_add_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_id,
-							u8 *mac, u16 chan, u8 ctype, u32 *seq_id,
-							bool cmd, u32 mcam_idx, u16 pcifunc)
+static int rvu_npc_exact_add_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_id, u8 *mac,
+					 u16 chan, u8 ctype, u32 *seq_id, bool cmd,
+					 u32 mcam_idx, u16 pcifunc)
 {
 	int blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	enum npc_exact_opc_type opc_type;
@@ -1335,9 +1338,8 @@ static int __maybe_unused rvu_npc_exact_add_table_entry(struct rvu *rvu, u8 cgx_
  *	hash value may not match with old one.
  *	Return: 0 upon success.
  */
-static int __maybe_unused rvu_npc_exact_update_table_entry(struct rvu *rvu, u8 cgx_id,
-							   u8 lmac_id, u8 *old_mac,
-							   u8 *new_mac, u32 *seq_id)
+static int rvu_npc_exact_update_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_id,
+					    u8 *old_mac, u8 *new_mac, u32 *seq_id)
 {
 	int blkaddr = rvu_get_blkaddr(rvu, BLKTYPE_NPC, 0);
 	struct npc_exact_table_entry *entry;
@@ -1367,7 +1369,7 @@ static int __maybe_unused rvu_npc_exact_update_table_entry(struct rvu *rvu, u8 c
 						       new_mac, table->mem_table.mask,
 						       table->mem_table.depth);
 		if (hash_index != entry->index) {
-			dev_err(rvu->dev,
+			dev_dbg(rvu->dev,
 				"%s: Update failed due to index mismatch(new=0x%x, old=%x)\n",
 				__func__, hash_index, entry->index);
 			mutex_unlock(&table->lock);
@@ -1394,6 +1396,343 @@ static int __maybe_unused rvu_npc_exact_update_table_entry(struct rvu *rvu, u8 c
 		__func__, old_mac, new_mac);
 
 	mutex_unlock(&table->lock);
+	return 0;
+}
+
+/**
+ *	rvu_npc_exact_promisc_disable - Disable promiscuous mode.
+ *      @rvu: resource virtualization unit.
+ *	@pcifunc: pcifunc
+ *
+ *	Drop rule is against each PF. We dont support DMAC filter for
+ *	VF.
+ *	Return: 0 upon success
+ */
+
+int rvu_npc_exact_promisc_disable(struct rvu *rvu, u16 pcifunc)
+{
+	struct npc_exact_table *table;
+	int pf = rvu_get_pf(pcifunc);
+	u8 cgx_id, lmac_id;
+	u32 drop_mcam_idx;
+	bool *promisc;
+	u32 cnt;
+
+	table = rvu->hw->table;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	rvu_npc_exact_get_drop_rule_info(rvu, NIX_INTF_TYPE_CGX, cgx_id, lmac_id,
+					 &drop_mcam_idx, NULL, NULL, NULL);
+
+	mutex_lock(&table->lock);
+	promisc = &table->promisc_mode[drop_mcam_idx];
+
+	if (!*promisc) {
+		mutex_unlock(&table->lock);
+		dev_dbg(rvu->dev, "%s: Err Already promisc mode disabled (cgx=%d lmac=%d)\n",
+			__func__, cgx_id, lmac_id);
+		return LMAC_AF_ERR_INVALID_PARAM;
+	}
+	*promisc = false;
+	cnt = __rvu_npc_exact_cmd_rules_cnt_update(rvu, drop_mcam_idx, 0, NULL);
+	mutex_unlock(&table->lock);
+
+	/* If no dmac filter entries configured, disable drop rule */
+	if (!cnt)
+		rvu_npc_enable_mcam_by_entry_index(rvu, drop_mcam_idx, NIX_INTF_RX, false);
+	else
+		rvu_npc_enable_mcam_by_entry_index(rvu, drop_mcam_idx, NIX_INTF_RX, !*promisc);
+
+	dev_dbg(rvu->dev, "%s: disabled  promisc mode (cgx=%d lmac=%d, cnt=%d)\n",
+		__func__, cgx_id, lmac_id, cnt);
+	return 0;
+}
+
+/**
+ *	rvu_npc_exact_promisc_enable - Enable promiscuous mode.
+ *      @rvu: resource virtualization unit.
+ *	@pcifunc: pcifunc.
+ *	Return: 0 upon success
+ */
+int rvu_npc_exact_promisc_enable(struct rvu *rvu, u16 pcifunc)
+{
+	struct npc_exact_table *table;
+	int pf = rvu_get_pf(pcifunc);
+	u8 cgx_id, lmac_id;
+	u32 drop_mcam_idx;
+	bool *promisc;
+	u32 cnt;
+
+	table = rvu->hw->table;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	rvu_npc_exact_get_drop_rule_info(rvu, NIX_INTF_TYPE_CGX, cgx_id, lmac_id,
+					 &drop_mcam_idx, NULL, NULL, NULL);
+
+	mutex_lock(&table->lock);
+	promisc = &table->promisc_mode[drop_mcam_idx];
+
+	if (*promisc) {
+		mutex_unlock(&table->lock);
+		dev_dbg(rvu->dev, "%s: Already in promisc mode (cgx=%d lmac=%d)\n",
+			__func__, cgx_id, lmac_id);
+		return LMAC_AF_ERR_INVALID_PARAM;
+	}
+	*promisc = true;
+	cnt = __rvu_npc_exact_cmd_rules_cnt_update(rvu, drop_mcam_idx, 0, NULL);
+	mutex_unlock(&table->lock);
+
+	/* If no dmac filter entries configured, disable drop rule */
+	if (!cnt)
+		rvu_npc_enable_mcam_by_entry_index(rvu, drop_mcam_idx, NIX_INTF_RX, false);
+	else
+		rvu_npc_enable_mcam_by_entry_index(rvu, drop_mcam_idx, NIX_INTF_RX, !*promisc);
+
+	dev_dbg(rvu->dev, "%s: Enabled promisc mode (cgx=%d lmac=%d cnt=%d)\n",
+		__func__, cgx_id, lmac_id, cnt);
+	return 0;
+}
+
+/**
+ *	rvu_npc_exact_mac_addr_reset - Delete PF mac address.
+ *      @rvu: resource virtualization unit.
+ *	@req: Reset request
+ *	@rsp: Reset response.
+ *	Return: 0 upon success
+ */
+int rvu_npc_exact_mac_addr_reset(struct rvu *rvu, struct cgx_mac_addr_reset_req *req,
+				 struct msg_rsp *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	u32 seq_id = req->index;
+	struct rvu_pfvf *pfvf;
+	u8 cgx_id, lmac_id;
+	int rc;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+
+	pfvf = rvu_get_pfvf(rvu, req->hdr.pcifunc);
+
+	rc = rvu_npc_exact_del_table_entry_by_id(rvu, seq_id);
+	if (rc) {
+		/* TODO: how to handle this error case ? */
+		dev_err(rvu->dev, "%s MAC (%pM) del PF=%d failed\n", __func__, pfvf->mac_addr, pf);
+		return 0;
+	}
+
+	dev_dbg(rvu->dev, "%s MAC (%pM) del PF=%d success (seq_id=%u)\n",
+		__func__, pfvf->mac_addr, pf, seq_id);
+	return 0;
+}
+
+/**
+ *	rvu_npc_exact_mac_addr_update - Update mac address field with new value.
+ *      @rvu: resource virtualization unit.
+ *	@req: Update request.
+ *	@rsp: Update response.
+ *	Return: 0 upon success
+ */
+int rvu_npc_exact_mac_addr_update(struct rvu *rvu,
+				  struct cgx_mac_addr_update_req *req,
+				  struct cgx_mac_addr_update_rsp *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	struct npc_exact_table_entry *entry;
+	struct npc_exact_table *table;
+	struct rvu_pfvf *pfvf;
+	u32 seq_id, mcam_idx;
+	u8 old_mac[ETH_ALEN];
+	u8 cgx_id, lmac_id;
+	int rc;
+
+	if (!is_cgx_config_permitted(rvu, req->hdr.pcifunc))
+		return LMAC_AF_ERR_PERM_DENIED;
+
+	dev_dbg(rvu->dev, "%s: Update request for seq_id=%d, mac=%pM\n",
+		__func__, req->index, req->mac_addr);
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+
+	pfvf = rvu_get_pfvf(rvu, req->hdr.pcifunc);
+
+	table = rvu->hw->table;
+
+	mutex_lock(&table->lock);
+
+	/* Lookup for entry which needs to be updated */
+	entry = __rvu_npc_exact_find_entry_by_seq_id(rvu, req->index);
+	if (!entry) {
+		dev_err(rvu->dev, "%s: failed to find entry for id=0x%x\n", __func__, req->index);
+		mutex_unlock(&table->lock);
+		return LMAC_AF_ERR_EXACT_MATCH_TBL_LOOK_UP_FAILED;
+	}
+	ether_addr_copy(old_mac, entry->mac);
+	seq_id = entry->seq_id;
+	mcam_idx = entry->mcam_idx;
+	mutex_unlock(&table->lock);
+
+	rc = rvu_npc_exact_update_table_entry(rvu, cgx_id, lmac_id,  old_mac,
+					      req->mac_addr, &seq_id);
+	if (!rc) {
+		rsp->index = seq_id;
+		dev_dbg(rvu->dev, "%s  mac:%pM (pfvf:%pM default:%pM) update to PF=%d success\n",
+			__func__, req->mac_addr, pfvf->mac_addr, pfvf->default_mac, pf);
+		ether_addr_copy(pfvf->mac_addr, req->mac_addr);
+		return 0;
+	}
+
+	/* Try deleting and adding it again */
+	rc = rvu_npc_exact_del_table_entry_by_id(rvu, req->index);
+	if (rc) {
+		/* This could be a new entry */
+		dev_dbg(rvu->dev, "%s MAC (%pM) del PF=%d failed\n", __func__,
+			pfvf->mac_addr, pf);
+	}
+
+	rc = rvu_npc_exact_add_table_entry(rvu, cgx_id, lmac_id, req->mac_addr,
+					   pfvf->rx_chan_base, 0, &seq_id, true,
+					   mcam_idx, req->hdr.pcifunc);
+	if (rc) {
+		dev_err(rvu->dev, "%s MAC (%pM) add PF=%d failed\n", __func__,
+			req->mac_addr, pf);
+		return LMAC_AF_ERR_EXACT_MATCH_TBL_ADD_FAILED;
+	}
+
+	rsp->index = seq_id;
+	dev_dbg(rvu->dev,
+		"%s MAC (new:%pM, old=%pM default:%pM) del and add to PF=%d success (seq_id=%u)\n",
+		__func__, req->mac_addr, pfvf->mac_addr, pfvf->default_mac, pf, seq_id);
+
+	ether_addr_copy(pfvf->mac_addr, req->mac_addr);
+	return 0;
+}
+
+/**
+ *	rvu_npc_exact_mac_addr_add - Adds MAC address to exact match table.
+ *      @rvu: resource virtualization unit.
+ *	@req: Add request.
+ *	@rsp: Add response.
+ *	Return: 0 upon success
+ */
+int rvu_npc_exact_mac_addr_add(struct rvu *rvu,
+			       struct cgx_mac_addr_add_req *req,
+			       struct cgx_mac_addr_add_rsp *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	struct rvu_pfvf *pfvf;
+	u8 cgx_id, lmac_id;
+	int rc = 0;
+	u32 seq_id;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	pfvf = rvu_get_pfvf(rvu, req->hdr.pcifunc);
+
+	rc = rvu_npc_exact_add_table_entry(rvu, cgx_id, lmac_id, req->mac_addr,
+					   pfvf->rx_chan_base, 0, &seq_id,
+					   true, -1, req->hdr.pcifunc);
+
+	if (!rc) {
+		rsp->index = seq_id;
+		dev_dbg(rvu->dev, "%s MAC (%pM) add to PF=%d success (seq_id=%u)\n",
+			__func__, req->mac_addr, pf, seq_id);
+		return 0;
+	}
+
+	dev_err(rvu->dev, "%s MAC (%pM) add to PF=%d failed\n", __func__,
+		req->mac_addr, pf);
+	return LMAC_AF_ERR_EXACT_MATCH_TBL_ADD_FAILED;
+}
+
+/**
+ *	rvu_npc_exact_mac_addr_del - Delete DMAC filter
+ *      @rvu: resource virtualization unit.
+ *	@req: Delete request.
+ *	@rsp: Delete response.
+ *	Return: 0 upon success
+ */
+int rvu_npc_exact_mac_addr_del(struct rvu *rvu,
+			       struct cgx_mac_addr_del_req *req,
+			       struct msg_rsp *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	int rc;
+
+	rc = rvu_npc_exact_del_table_entry_by_id(rvu, req->index);
+	if (!rc) {
+		dev_dbg(rvu->dev, "%s del to PF=%d success (seq_id=%u)\n",
+			__func__, pf, req->index);
+		return 0;
+	}
+
+	dev_err(rvu->dev, "%s del to PF=%d failed (seq_id=%u)\n",
+		__func__,  pf, req->index);
+	return LMAC_AF_ERR_EXACT_MATCH_TBL_DEL_FAILED;
+}
+
+/**
+ *	rvu_npc_exact_mac_addr_set - Add PF mac address to dmac filter.
+ *      @rvu: resource virtualization unit.
+ *	@req: Set request.
+ *	@rsp: Set response.
+ *	Return: 0 upon success
+ */
+int rvu_npc_exact_mac_addr_set(struct rvu *rvu, struct cgx_mac_addr_set_or_get *req,
+			       struct cgx_mac_addr_set_or_get *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	u32 seq_id = req->index;
+	struct rvu_pfvf *pfvf;
+	u8 cgx_id, lmac_id;
+	u32 mcam_idx = -1;
+	int rc, nixlf;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+
+	pfvf = &rvu->pf[pf];
+
+	/* If table does not have an entry; both update entry and del table entry API
+	 * below fails. Those are not failure conditions.
+	 */
+	rc = rvu_npc_exact_update_table_entry(rvu, cgx_id, lmac_id, pfvf->mac_addr,
+					      req->mac_addr, &seq_id);
+	if (!rc) {
+		rsp->index = seq_id;
+		ether_addr_copy(pfvf->mac_addr, req->mac_addr);
+		ether_addr_copy(rsp->mac_addr, req->mac_addr);
+		dev_dbg(rvu->dev, "%s MAC (%pM) update to PF=%d success\n",
+			__func__, req->mac_addr, pf);
+		return 0;
+	}
+
+	/* Try deleting and adding it again */
+	rc = rvu_npc_exact_del_table_entry_by_id(rvu, req->index);
+	if (rc) {
+		dev_dbg(rvu->dev, "%s MAC (%pM) del PF=%d failed\n",
+			__func__, pfvf->mac_addr, pf);
+	}
+
+	/* find mcam entry if exist */
+	rc = nix_get_nixlf(rvu, req->hdr.pcifunc, &nixlf, NULL);
+	if (!rc) {
+		mcam_idx = npc_get_nixlf_mcam_index(&rvu->hw->mcam, req->hdr.pcifunc,
+						    nixlf, NIXLF_UCAST_ENTRY);
+	}
+
+	rc = rvu_npc_exact_add_table_entry(rvu, cgx_id, lmac_id, req->mac_addr,
+					   pfvf->rx_chan_base, 0, &seq_id,
+					   true, mcam_idx, req->hdr.pcifunc);
+	if (rc) {
+		dev_err(rvu->dev, "%s MAC (%pM) add PF=%d failed\n",
+			__func__, req->mac_addr, pf);
+		return LMAC_AF_ERR_EXACT_MATCH_TBL_ADD_FAILED;
+	}
+
+	rsp->index = seq_id;
+	ether_addr_copy(rsp->mac_addr, req->mac_addr);
+	ether_addr_copy(pfvf->mac_addr, req->mac_addr);
+	dev_dbg(rvu->dev,
+		"%s MAC (%pM) del and add to PF=%d success (seq_id=%u)\n",
+		__func__, req->mac_addr, pf, seq_id);
 	return 0;
 }
 
