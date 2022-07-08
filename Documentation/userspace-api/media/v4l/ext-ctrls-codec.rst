@@ -2695,70 +2695,76 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
         of H.265 specifications.
     * - __u16
       - ``pic_width_in_luma_samples``
-      -
+      - Specifies the width of each decoded picture in units of luma samples.
     * - __u16
       - ``pic_height_in_luma_samples``
-      -
+      - Specifies the height of each decoded picture in units of luma samples.
     * - __u8
       - ``bit_depth_luma_minus8``
-      -
+      - This value plus 8 specifies the bit depth of the samples of the luma array.
     * - __u8
       - ``bit_depth_chroma_minus8``
-      -
+      - This value plus 8 specifies the bit depth of the samples of the chroma arrays.
     * - __u8
       - ``log2_max_pic_order_cnt_lsb_minus4``
-      -
+      - This value plus 4 specifies the value of the variable MaxPicOrderCntLsb.
     * - __u8
       - ``sps_max_dec_pic_buffering_minus1``
-      -
+      - This value plus 1 specifies the maximum required size of the decoded picture buffer for
+        the codec video sequence.
     * - __u8
       - ``sps_max_num_reorder_pics``
-      -
+      - Indicates the maximum allowed number of pictures.
     * - __u8
       - ``sps_max_latency_increase_plus1``
-      -
+      - Not equal to 0 is used to compute the value of SpsMaxLatencyPictures array.
     * - __u8
       - ``log2_min_luma_coding_block_size_minus3``
-      -
+      - This value plus 3 specifies the minimum luma coding block size.
     * - __u8
       - ``log2_diff_max_min_luma_coding_block_size``
-      -
+      - Specifies the difference between the maximum and minimum luma coding block size.
     * - __u8
       - ``log2_min_luma_transform_block_size_minus2``
-      -
+      - This value plus 2 specifies the minimum luma transform block size.
     * - __u8
       - ``log2_diff_max_min_luma_transform_block_size``
-      -
+      - Specifies the difference between the maximum and minimum luma transform block size.
     * - __u8
       - ``max_transform_hierarchy_depth_inter``
-      -
+      - Specifies the maximum hierarchy depth for transform units of coding units coded
+        in inter prediction mode.
     * - __u8
       - ``max_transform_hierarchy_depth_intra``
-      -
+      - Specifies the maximum hierarchy depth for transform units of coding units coded in
+        intra prediction mode.
     * - __u8
       - ``pcm_sample_bit_depth_luma_minus1``
-      -
+      - This value plus 1 specifies the number of bits used to represent each of PCM sample
+        values of the luma component.
     * - __u8
       - ``pcm_sample_bit_depth_chroma_minus1``
-      -
+      - This value plus 1 specifies the number of bits used to represent each of PCM sample
+        values of the chroma components.
     * - __u8
       - ``log2_min_pcm_luma_coding_block_size_minus3``
-      -
+      - This value plus 3 specifies the minimum size of coding blocks.
     * - __u8
       - ``log2_diff_max_min_pcm_luma_coding_block_size``
-      -
+      - Specifies the difference between the maximum and minimum size of coding blocks.
     * - __u8
       - ``num_short_term_ref_pic_sets``
-      -
+      - Specifies the number of st_ref_pic_set() syntax structures included in the SPS.
     * - __u8
       - ``num_long_term_ref_pics_sps``
-      -
+      - Specifies the number of candidate long-term reference pictures that are
+        specified in the SPS.
     * - __u8
       - ``chroma_format_idc``
-      -
+      - Specifies the chroma sampling.
     * - __u8
       - ``sps_max_sub_layers_minus1``
-      -
+      - This value plus 1 specifies the maximum number of temporal sub-layers.
     * - __u64
       - ``flags``
       - See :ref:`Sequence Parameter Set Flags <hevc_sps_flags>`
@@ -2837,46 +2843,52 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
       - Identifies the PPS for reference by other syntax elements.
     * - __u8
       - ``num_extra_slice_header_bits``
-      -
+      - Specifies the number of extra slice header bits that are present
+        in the slice header RBSP for coded pictures referring to the PPS.
     * - __u8
       - ``num_ref_idx_l0_default_active_minus1``
-      - Specifies the inferred value of num_ref_idx_l0_active_minus1
+      - This value plus 1 specifies the inferred value of num_ref_idx_l0_active_minus1.
     * - __u8
       - ``num_ref_idx_l1_default_active_minus1``
-      - Specifies the inferred value of num_ref_idx_l1_active_minus1
+      - This value plus 1 specifies the inferred value of num_ref_idx_l1_active_minus1.
     * - __s8
       - ``init_qp_minus26``
-      -
+      - This value plus 26 specifies the initial value of SliceQp Y for each slice
+        referring to the PPS.
     * - __u8
       - ``diff_cu_qp_delta_depth``
-      -
+      - Specifies the difference between the luma coding tree block size
+        and the minimum luma coding block size of coding units that
+        convey cu_qp_delta_abs and cu_qp_delta_sign_flag.
     * - __s8
       - ``pps_cb_qp_offset``
-      -
+      - Specifies the offsets to the luma quantization parameter Cb.
     * - __s8
       - ``pps_cr_qp_offset``
-      -
+      - Specifies the offsets to the luma quantization parameter Cr.
     * - __u8
       - ``num_tile_columns_minus1``
-      -
+      - This value plus 1 specifies the number of tile columns partitioning the picture.
     * - __u8
       - ``num_tile_rows_minus1``
-      -
+      - This value plus 1 specifies the number of tile rows partitioning the picture.
     * - __u8
       - ``column_width_minus1[20]``
-      -
+      - Plus 1 specifies the width of each tile column in units of
+        coding tree blocks.
     * - __u8
       - ``row_height_minus1[22]``
-      -
+      - This value plus 1 specifies the height of each tile row in units of coding
+        tree blocks.
     * - __s8
       - ``pps_beta_offset_div2``
-      -
+      - Specifies the default deblocking parameter offsets for beta divided by 2.
     * - __s8
       - ``pps_tc_offset_div2``
-      -
+      - Specifies the default deblocking parameter offsets for tC divided by 2.
     * - __u8
       - ``log2_parallel_merge_level_minus2``
-      -
+      - Plus 2 specifies the value of the variable Log2ParMrgLevel.
     * - __u8
       - ``padding[4]``
       - Applications and drivers must set this to zero.
@@ -2998,10 +3010,10 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
       - Offset (in bits) to the video data in the current slice data.
     * - __u8
       - ``nal_unit_type``
-      -
+      - Specifies the coding type of the slice (B, P or I).
     * - __u8
       - ``nuh_temporal_id_plus1``
-      -
+      - This value minus 1 specifies a temporal identifier for the NAL unit.
     * - __u8
       - ``slice_type``
       -
@@ -3009,52 +3021,56 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
 	V4L2_HEVC_SLICE_TYPE_B).
     * - __u8
       - ``colour_plane_id``
-      -
+      - Specifies the colour plane associated with the current slice.
     * - __s32
       - ``slice_pic_order_cnt``
-      -
+      - Specifies the picture order count.
     * - __u8
       - ``num_ref_idx_l0_active_minus1``
-      -
+      - This value plus 1 specifies the maximum reference index for
+        reference picture list 0 that may be used to decode the slice.
     * - __u8
       - ``num_ref_idx_l1_active_minus1``
-      -
+      - This value plus 1 specifies the maximum reference index for
+        reference picture list 1 that may be used to decode the slice.
     * - __u8
       - ``collocated_ref_idx``
-      -
+      - Specifies the reference index of the collocated picture used for
+        temporal motion vector prediction.
     * - __u8
       - ``five_minus_max_num_merge_cand``
-      -
+      - Specifies the maximum number of merging motion vector prediction
+        candidates supported in the slice subtracted from 5.
     * - __s8
       - ``slice_qp_delta``
-      -
+      - Specifies the initial value of QpY to be used for the coding blocks in the slice.
     * - __s8
       - ``slice_cb_qp_offset``
-      -
+      - Specifies a difference to be added to the value of pps_cb_qp_offset.
     * - __s8
       - ``slice_cr_qp_offset``
-      -
+      - Specifies a difference to be added to the value of pps_cr_qp_offset.
     * - __s8
       - ``slice_act_y_qp_offset``
-      -
+      - Screen content extension parameters.
     * - __s8
       - ``slice_act_cb_qp_offset``
-      -
+      - Screen content extension parameters.
     * - __s8
       - ``slice_act_cr_qp_offset``
-      -
+      - Screen content extension parameters.
     * - __s8
       - ``slice_beta_offset_div2``
-      -
+      - Specifies the deblocking parameter offsets for beta divided by 2.
     * - __s8
       - ``slice_tc_offset_div2``
-      -
+      - Specifies the deblocking parameter offsets for tC divided by 2.
     * - __u8
       - ``pic_struct``
-      -
+      - Indicates whether a picture should be displayed as a frame or as one or more fields.
     * - __u32
       - ``slice_segment_addr``
-      -
+      - Specifies the address of the first coding tree block in the slice segment.
     * - __u8
       - ``ref_idx_l0[V4L2_HEVC_DPB_ENTRIES_NUM_MAX]``
       - The list of L0 reference elements as indices in the DPB.
@@ -3219,11 +3235,9 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
       - ``field_pic``
       - Whether the reference is a field picture or a frame.
         See :ref:`HEVC dpb field pic Flags <hevc_dpb_field_pic_flags>`
-    * - __u16
-      - ``pic_order_cnt[2]``
-      - The picture order count of the reference. Only the first element of the
-        array is used for frame pictures, while the first element identifies the
-        top field and the second the bottom field in field-coded pictures.
+    * - __s32
+      - ``pic_order_cnt_val``
+      - The picture order count of the current picture.
     * - __u8
       - ``padding[2]``
       - Applications and drivers must set this to zero.
@@ -3298,36 +3312,44 @@ enum v4l2_mpeg_video_hevc_size_of_length_field -
     :stub-columns: 0
     :widths:       1 1 2
 
-    * - __u8
-      - ``luma_log2_weight_denom``
-      -
-    * - __s8
-      - ``delta_chroma_log2_weight_denom``
-      -
     * - __s8
       - ``delta_luma_weight_l0[V4L2_HEVC_DPB_ENTRIES_NUM_MAX]``
-      -
+      - The difference of the weighting factor applied to the luma
+        prediction value for list 0.
     * - __s8
       - ``luma_offset_l0[V4L2_HEVC_DPB_ENTRIES_NUM_MAX]``
-      -
+      - The additive offset applied to the luma prediction value for list 0.
     * - __s8
       - ``delta_chroma_weight_l0[V4L2_HEVC_DPB_ENTRIES_NUM_MAX][2]``
-      -
+      - The difference of the weighting factor applied to the chroma
+        prediction value for list 0.
     * - __s8
       - ``chroma_offset_l0[V4L2_HEVC_DPB_ENTRIES_NUM_MAX][2]``
-      -
+      - The difference of the additive offset applied to the chroma
+        prediction values for list 0.
     * - __s8
       - ``delta_luma_weight_l1[V4L2_HEVC_DPB_ENTRIES_NUM_MAX]``
-      -
+      - The difference of the weighting factor applied to the luma
+        prediction value for list 1.
     * - __s8
       - ``luma_offset_l1[V4L2_HEVC_DPB_ENTRIES_NUM_MAX]``
-      -
+      - The additive offset applied to the luma prediction value for list 1.
     * - __s8
       - ``delta_chroma_weight_l1[V4L2_HEVC_DPB_ENTRIES_NUM_MAX][2]``
-      -
+      - The difference of the weighting factor applied to the chroma
+        prediction value for list 1.
     * - __s8
       - ``chroma_offset_l1[V4L2_HEVC_DPB_ENTRIES_NUM_MAX][2]``
-      -
+      - The difference of the additive offset applied to the chroma
+        prediction values for list 1.
+    * - __u8
+      - ``luma_log2_weight_denom``
+      - The base 2 logarithm of the denominator for all luma weighting
+        factors.
+    * - __s8
+      - ``delta_chroma_log2_weight_denom``
+      - The difference of the base 2 logarithm of the denominator for
+        all chroma weighting factors.
     * - __u8
       - ``padding[6]``
       - Applications and drivers must set this to zero.
