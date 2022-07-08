@@ -562,7 +562,7 @@ static struct resp_res *rxe_prepare_res(struct rxe_qp *qp,
 
 	res = &qp->resp.resources[qp->resp.res_head];
 	rxe_advance_resp_resource(qp);
-	free_rd_atomic_resource(qp, res);
+	free_rd_atomic_resource(res);
 
 	res->type = type;
 	res->replay = 0;

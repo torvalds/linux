@@ -145,7 +145,7 @@ static inline int rcv_wqe_size(int max_sge)
 		max_sge * sizeof(struct ib_sge);
 }
 
-void free_rd_atomic_resource(struct rxe_qp *qp, struct resp_res *res);
+void free_rd_atomic_resource(struct resp_res *res);
 
 static inline void rxe_advance_resp_resource(struct rxe_qp *qp)
 {

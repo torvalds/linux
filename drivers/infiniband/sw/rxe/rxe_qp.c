@@ -120,14 +120,14 @@ static void free_rd_atomic_resources(struct rxe_qp *qp)
 		for (i = 0; i < qp->attr.max_dest_rd_atomic; i++) {
 			struct resp_res *res = &qp->resp.resources[i];
 
-			free_rd_atomic_resource(qp, res);
+			free_rd_atomic_resource(res);
 		}
 		kfree(qp->resp.resources);
 		qp->resp.resources = NULL;
 	}
 }
 
-void free_rd_atomic_resource(struct rxe_qp *qp, struct resp_res *res)
+void free_rd_atomic_resource(struct resp_res *res)
 {
 	res->type = 0;
 }
@@ -140,7 +140,7 @@ static void cleanup_rd_atomic_resources(struct rxe_qp *qp)
 	if (qp->resp.resources) {
 		for (i = 0; i < qp->attr.max_dest_rd_atomic; i++) {
 			res = &qp->resp.resources[i];
-			free_rd_atomic_resource(qp, res);
+			free_rd_atomic_resource(res);
 		}
 	}
 }
