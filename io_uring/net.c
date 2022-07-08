@@ -506,6 +506,8 @@ static inline bool io_recv_finish(struct io_kiocb *req, int *ret, unsigned int c
 
 	if (req->flags & REQ_F_POLLED)
 		*ret = IOU_STOP_MULTISHOT;
+	else
+		*ret = IOU_OK;
 	return true;
 }
 
