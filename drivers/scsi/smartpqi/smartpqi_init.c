@@ -2536,23 +2536,6 @@ out:
 	return rc;
 }
 
-static void pqi_remove_all_scsi_devices(struct pqi_ctrl_info *ctrl_info)
-{
-	unsigned long flags;
-	struct pqi_scsi_dev *device;
-	struct pqi_scsi_dev *next;
-
-	list_for_each_entry_safe(device, next, &ctrl_info->scsi_device_list,
-		scsi_device_list_entry) {
-		if (pqi_is_device_added(device))
-			pqi_remove_device(ctrl_info, device);
-		spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
-		list_del(&device->scsi_device_list_entry);
-		pqi_free_device(device);
-		spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
-	}
-}
-
 static int pqi_scan_scsi_devices(struct pqi_ctrl_info *ctrl_info)
 {
 	int rc;
@@ -6476,6 +6459,35 @@ static int pqi_slave_configure(struct scsi_device *sdev)
 	return rc;
 }
 
+static void pqi_slave_destroy(struct scsi_device *sdev)
+{
+	struct pqi_ctrl_info *ctrl_info;
+	struct pqi_scsi_dev *device;
+	int mutex_acquired;
+	unsigned long flags;
+
+	ctrl_info = shost_to_hba(sdev->host);
+
+	mutex_acquired = mutex_trylock(&ctrl_info->scan_mutex);
+	if (!mutex_acquired)
+		return;
+
+	device = sdev->hostdata;
+	if (!device) {
+		mutex_unlock(&ctrl_info->scan_mutex);
+		return;
+	}
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+	list_del(&device->scsi_device_list_entry);
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+
+	mutex_unlock(&ctrl_info->scan_mutex);
+
+	pqi_dev_info(ctrl_info, "removed", device);
+	pqi_free_device(device);
+}
+
 static int pqi_getpciinfo_ioctl(struct pqi_ctrl_info *ctrl_info, void __user *arg)
 {
 	struct pci_dev *pci_dev;
@@ -7363,6 +7375,7 @@ static struct scsi_host_template pqi_driver_template = {
 	.ioctl = pqi_ioctl,
 	.slave_alloc = pqi_slave_alloc,
 	.slave_configure = pqi_slave_configure,
+	.slave_destroy = pqi_slave_destroy,
 	.map_queues = pqi_map_queues,
 	.sdev_groups = pqi_sdev_groups,
 	.shost_groups = pqi_shost_groups,
@@ -8649,7 +8662,6 @@ static void pqi_remove_ctrl(struct pqi_ctrl_info *ctrl_info)
 		pqi_fail_all_outstanding_requests(ctrl_info);
 		ctrl_info->pqi_mode_enabled = false;
 	}
-	pqi_remove_all_scsi_devices(ctrl_info);
 	pqi_unregister_scsi(ctrl_info);
 	if (ctrl_info->pqi_mode_enabled)
 		pqi_revert_to_sis_mode(ctrl_info);
