@@ -101,6 +101,7 @@ SECTIONS
 
 	STABS_DEBUG
 	DWARF_DEBUG
+	ELF_DETAILS
 
 	.gptab.sdata : {
 		*(.gptab.data)

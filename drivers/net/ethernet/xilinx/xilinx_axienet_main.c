@@ -133,30 +133,6 @@ static inline u32 axienet_dma_in32(struct axienet_local *lp, off_t reg)
 	return ioread32(lp->dma_regs + reg);
 }
 
-/**
- * axienet_dma_out32 - Memory mapped Axi DMA register write.
- * @lp:		Pointer to axienet local structure
- * @reg:	Address offset from the base address of the Axi DMA core
- * @value:	Value to be written into the Axi DMA register
- *
- * This function writes the desired value into the corresponding Axi DMA
- * register.
- */
-static inline void axienet_dma_out32(struct axienet_local *lp,
-				     off_t reg, u32 value)
-{
-	iowrite32(value, lp->dma_regs + reg);
-}
-
-static void axienet_dma_out_addr(struct axienet_local *lp, off_t reg,
-				 dma_addr_t addr)
-{
-	axienet_dma_out32(lp, reg, lower_32_bits(addr));
-
-	if (lp->features & XAE_FEATURE_DMA_64BIT)
-		axienet_dma_out32(lp, reg + 4, upper_32_bits(addr));
-}
-
 static void desc_set_phys_addr(struct axienet_local *lp, dma_addr_t addr,
 			       struct axidma_bd *desc)
 {
@@ -2060,6 +2036,11 @@ static int axienet_probe(struct platform_device *pdev)
 			}
 			iowrite32(0x0, desc);
 		}
+	}
+	if (!IS_ENABLED(CONFIG_64BIT) && lp->features & XAE_FEATURE_DMA_64BIT) {
+		dev_err(&pdev->dev, "64-bit addressable DMA is not compatible with 32-bit archecture\n");
+		ret = -EINVAL;
+		goto cleanup_clk;
 	}
 
 	ret = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(addr_width));

@@ -109,11 +109,11 @@ void ttm_bo_set_bulk_move(struct ttm_buffer_object *bo,
 		return;
 
 	spin_lock(&bo->bdev->lru_lock);
-	if (bo->bulk_move && bo->resource)
-		ttm_lru_bulk_move_del(bo->bulk_move, bo->resource);
+	if (bo->resource)
+		ttm_resource_del_bulk_move(bo->resource, bo);
 	bo->bulk_move = bulk;
-	if (bo->bulk_move && bo->resource)
-		ttm_lru_bulk_move_add(bo->bulk_move, bo->resource);
+	if (bo->resource)
+		ttm_resource_add_bulk_move(bo->resource, bo);
 	spin_unlock(&bo->bdev->lru_lock);
 }
 EXPORT_SYMBOL(ttm_bo_set_bulk_move);
@@ -689,8 +689,11 @@ void ttm_bo_pin(struct ttm_buffer_object *bo)
 {
 	dma_resv_assert_held(bo->base.resv);
 	WARN_ON_ONCE(!kref_read(&bo->kref));
-	if (!(bo->pin_count++) && bo->bulk_move && bo->resource)
-		ttm_lru_bulk_move_del(bo->bulk_move, bo->resource);
+	spin_lock(&bo->bdev->lru_lock);
+	if (bo->resource)
+		ttm_resource_del_bulk_move(bo->resource, bo);
+	++bo->pin_count;
+	spin_unlock(&bo->bdev->lru_lock);
 }
 EXPORT_SYMBOL(ttm_bo_pin);
 
@@ -707,8 +710,11 @@ void ttm_bo_unpin(struct ttm_buffer_object *bo)
 	if (WARN_ON_ONCE(!bo->pin_count))
 		return;
 
-	if (!(--bo->pin_count) && bo->bulk_move && bo->resource)
-		ttm_lru_bulk_move_add(bo->bulk_move, bo->resource);
+	spin_lock(&bo->bdev->lru_lock);
+	--bo->pin_count;
+	if (bo->resource)
+		ttm_resource_add_bulk_move(bo->resource, bo);
+	spin_unlock(&bo->bdev->lru_lock);
 }
 EXPORT_SYMBOL(ttm_bo_unpin);
 

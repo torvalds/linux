@@ -555,6 +555,10 @@ static void dm_start_io_acct(struct dm_io *io, struct bio *clone)
 		unsigned long flags;
 		/* Can afford locking given DM_TIO_IS_DUPLICATE_BIO */
 		spin_lock_irqsave(&io->lock, flags);
+		if (dm_io_flagged(io, DM_IO_ACCOUNTED)) {
+			spin_unlock_irqrestore(&io->lock, flags);
+			return;
+		}
 		dm_io_set_flag(io, DM_IO_ACCOUNTED);
 		spin_unlock_irqrestore(&io->lock, flags);
 	}
@@ -711,18 +715,18 @@ static void dm_put_live_table_fast(struct mapped_device *md) __releases(RCU)
 }
 
 static inline struct dm_table *dm_get_live_table_bio(struct mapped_device *md,
-						     int *srcu_idx, struct bio *bio)
+						     int *srcu_idx, unsigned bio_opf)
 {
-	if (bio->bi_opf & REQ_NOWAIT)
+	if (bio_opf & REQ_NOWAIT)
 		return dm_get_live_table_fast(md);
 	else
 		return dm_get_live_table(md, srcu_idx);
 }
 
 static inline void dm_put_live_table_bio(struct mapped_device *md, int srcu_idx,
-					 struct bio *bio)
+					 unsigned bio_opf)
 {
-	if (bio->bi_opf & REQ_NOWAIT)
+	if (bio_opf & REQ_NOWAIT)
 		dm_put_live_table_fast(md);
 	else
 		dm_put_live_table(md, srcu_idx);
@@ -1609,7 +1613,12 @@ static blk_status_t __split_and_process_bio(struct clone_info *ci)
 	ti = dm_table_find_target(ci->map, ci->sector);
 	if (unlikely(!ti))
 		return BLK_STS_IOERR;
-	else if (unlikely(ci->is_abnormal_io))
+
+	if (unlikely((ci->bio->bi_opf & REQ_NOWAIT) != 0) &&
+	    unlikely(!dm_target_supports_nowait(ti->type)))
+		return BLK_STS_NOTSUPP;
+
+	if (unlikely(ci->is_abnormal_io))
 		return __process_abnormal_io(ci, ti);
 
 	/*
@@ -1711,8 +1720,9 @@ static void dm_submit_bio(struct bio *bio)
 	struct mapped_device *md = bio->bi_bdev->bd_disk->private_data;
 	int srcu_idx;
 	struct dm_table *map;
+	unsigned bio_opf = bio->bi_opf;
 
-	map = dm_get_live_table_bio(md, &srcu_idx, bio);
+	map = dm_get_live_table_bio(md, &srcu_idx, bio_opf);
 
 	/* If suspended, or map not yet available, queue this IO for later */
 	if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) ||
@@ -1728,7 +1738,7 @@ static void dm_submit_bio(struct bio *bio)
 
 	dm_split_and_process_bio(md, map, bio);
 out:
-	dm_put_live_table_bio(md, srcu_idx, bio);
+	dm_put_live_table_bio(md, srcu_idx, bio_opf);
 }
 
 static bool dm_poll_dm_io(struct dm_io *io, struct io_comp_batch *iob,

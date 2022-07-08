@@ -1228,10 +1228,15 @@ EXPORT_SYMBOL_GPL(occ_setup);
 
 void occ_shutdown(struct occ *occ)
 {
+	mutex_lock(&occ->lock);
+
 	occ_shutdown_sysfs(occ);
 
 	if (occ->hwmon)
 		hwmon_device_unregister(occ->hwmon);
+	occ->hwmon = NULL;
+
+	mutex_unlock(&occ->lock);
 }
 EXPORT_SYMBOL_GPL(occ_shutdown);
 

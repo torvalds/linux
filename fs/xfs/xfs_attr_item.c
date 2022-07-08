@@ -413,11 +413,9 @@ xfs_attr_create_intent(
 	struct xfs_mount		*mp = tp->t_mountp;
 	struct xfs_attri_log_item	*attrip;
 	struct xfs_attr_intent		*attr;
+	struct xfs_da_args		*args;
 
 	ASSERT(count == 1);
-
-	if (!xfs_sb_version_haslogxattrs(&mp->m_sb))
-		return NULL;
 
 	/*
 	 * Each attr item only performs one attribute operation at a time, so
@@ -425,6 +423,10 @@ xfs_attr_create_intent(
 	 */
 	attr = list_first_entry_or_null(items, struct xfs_attr_intent,
 			xattri_list);
+	args = attr->xattri_da_args;
+
+	if (!(args->op_flags & XFS_DA_OP_LOGGED))
+		return NULL;
 
 	/*
 	 * Create a buffer to store the attribute name and value.  This buffer
@@ -432,8 +434,6 @@ xfs_attr_create_intent(
 	 * and the lower level xattr log items.
 	 */
 	if (!attr->xattri_nameval) {
-		struct xfs_da_args	*args = attr->xattri_da_args;
-
 		/*
 		 * Transfer our reference to the name/value buffer to the
 		 * deferred work state structure.
@@ -617,7 +617,10 @@ xfs_attri_item_recover(
 	args->namelen = nv->name.i_len;
 	args->hashval = xfs_da_hashname(args->name, args->namelen);
 	args->attr_filter = attrp->alfi_attr_filter & XFS_ATTRI_FILTER_MASK;
-	args->op_flags = XFS_DA_OP_RECOVERY | XFS_DA_OP_OKNOENT;
+	args->op_flags = XFS_DA_OP_RECOVERY | XFS_DA_OP_OKNOENT |
+			 XFS_DA_OP_LOGGED;
+
+	ASSERT(xfs_sb_version_haslogxattrs(&mp->m_sb));
 
 	switch (attr->xattri_op_flags) {
 	case XFS_ATTRI_OP_FLAGS_SET:

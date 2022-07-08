@@ -564,6 +564,7 @@ int blk_mq_init_sched(struct request_queue *q, struct elevator_type *e)
 	int ret;
 
 	if (!e) {
+		blk_queue_flag_clear(QUEUE_FLAG_SQ_SCHED, q);
 		q->elevator = NULL;
 		q->nr_requests = q->tag_set->queue_depth;
 		return 0;
