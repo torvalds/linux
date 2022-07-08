@@ -356,17 +356,46 @@ class LinuxSourceTreeTest(unittest.TestCase):
 
 	def test_invalid_kunitconfig(self):
 		with self.assertRaisesRegex(kunit_kernel.ConfigError, 'nonexistent.* does not exist'):
-			kunit_kernel.LinuxSourceTree('', kunitconfig_path='/nonexistent_file')
+			kunit_kernel.LinuxSourceTree('', kunitconfig_paths=['/nonexistent_file'])
 
 	def test_valid_kunitconfig(self):
 		with tempfile.NamedTemporaryFile('wt') as kunitconfig:
-			kunit_kernel.LinuxSourceTree('', kunitconfig_path=kunitconfig.name)
+			kunit_kernel.LinuxSourceTree('', kunitconfig_paths=[kunitconfig.name])
 
 	def test_dir_kunitconfig(self):
 		with tempfile.TemporaryDirectory('') as dir:
 			with open(os.path.join(dir, '.kunitconfig'), 'w'):
 				pass
-			kunit_kernel.LinuxSourceTree('', kunitconfig_path=dir)
+			kunit_kernel.LinuxSourceTree('', kunitconfig_paths=[dir])
+
+	def test_multiple_kunitconfig(self):
+		want_kconfig = kunit_config.Kconfig()
+		want_kconfig.add_entry('KUNIT', 'y')
+		want_kconfig.add_entry('KUNIT_TEST', 'm')
+
+		with tempfile.TemporaryDirectory('') as dir:
+			other = os.path.join(dir, 'otherkunitconfig')
+			with open(os.path.join(dir, '.kunitconfig'), 'w') as f:
+				f.write('CONFIG_KUNIT=y')
+			with open(other, 'w') as f:
+				f.write('CONFIG_KUNIT_TEST=m')
+				pass
+
+			tree = kunit_kernel.LinuxSourceTree('', kunitconfig_paths=[dir, other])
+			self.assertTrue(want_kconfig.is_subset_of(tree._kconfig), msg=tree._kconfig)
+
+
+	def test_multiple_kunitconfig_invalid(self):
+		with tempfile.TemporaryDirectory('') as dir:
+			other = os.path.join(dir, 'otherkunitconfig')
+			with open(os.path.join(dir, '.kunitconfig'), 'w') as f:
+				f.write('CONFIG_KUNIT=y')
+			with open(other, 'w') as f:
+				f.write('CONFIG_KUNIT=m')
+
+			with self.assertRaisesRegex(kunit_kernel.ConfigError, '(?s)Multiple values.*CONFIG_KUNIT'):
+				kunit_kernel.LinuxSourceTree('', kunitconfig_paths=[dir, other])
+
 
 	def test_kconfig_add(self):
 		want_kconfig = kunit_config.Kconfig()
@@ -636,7 +665,7 @@ class KUnitMainTest(unittest.TestCase):
 		kunit.main(['run', '--kunitconfig=mykunitconfig'])
 		# Just verify that we parsed and initialized it correctly here.
 		self.mock_linux_init.assert_called_once_with('.kunit',
-						kunitconfig_path='mykunitconfig',
+						kunitconfig_paths=['mykunitconfig'],
 						kconfig_add=None,
 						arch='um',
 						cross_compile=None,
@@ -647,18 +676,31 @@ class KUnitMainTest(unittest.TestCase):
 		kunit.main(['config', '--kunitconfig=mykunitconfig'])
 		# Just verify that we parsed and initialized it correctly here.
 		self.mock_linux_init.assert_called_once_with('.kunit',
-						kunitconfig_path='mykunitconfig',
+						kunitconfig_paths=['mykunitconfig'],
 						kconfig_add=None,
 						arch='um',
 						cross_compile=None,
 						qemu_config_path=None,
 						extra_qemu_args=[])
 
+	@mock.patch.object(kunit_kernel, 'LinuxSourceTree')
+	def test_run_multiple_kunitconfig(self, mock_linux_init):
+		mock_linux_init.return_value = self.linux_source_mock
+		kunit.main(['run', '--kunitconfig=mykunitconfig', '--kunitconfig=other'])
+		# Just verify that we parsed and initialized it correctly here.
+		mock_linux_init.assert_called_once_with('.kunit',
+							kunitconfig_paths=['mykunitconfig', 'other'],
+							kconfig_add=None,
+							arch='um',
+							cross_compile=None,
+							qemu_config_path=None,
+							extra_qemu_args=[])
+
 	def test_run_kconfig_add(self):
 		kunit.main(['run', '--kconfig_add=CONFIG_KASAN=y', '--kconfig_add=CONFIG_KCSAN=y'])
 		# Just verify that we parsed and initialized it correctly here.
 		self.mock_linux_init.assert_called_once_with('.kunit',
-						kunitconfig_path=None,
+						kunitconfig_paths=None,
 						kconfig_add=['CONFIG_KASAN=y', 'CONFIG_KCSAN=y'],
 						arch='um',
 						cross_compile=None,
@@ -669,7 +711,7 @@ class KUnitMainTest(unittest.TestCase):
 		kunit.main(['run', '--arch=x86_64', '--qemu_args', '-m 2048'])
 		# Just verify that we parsed and initialized it correctly here.
 		self.mock_linux_init.assert_called_once_with('.kunit',
-						kunitconfig_path=None,
+						kunitconfig_paths=None,
 						kconfig_add=None,
 						arch='x86_64',
 						cross_compile=None,
