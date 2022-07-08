@@ -430,6 +430,10 @@ class LinuxSourceTreeTest(unittest.TestCase):
 				f.write('CONFIG_KUNIT=y')
 
 			tree = kunit_kernel.LinuxSourceTree(build_dir)
+			# Stub out the source tree operations, so we don't have
+			# the defaults for any given architecture get in the
+			# way.
+			tree._ops = kunit_kernel.LinuxSourceTreeOperations('none', None)
 			mock_build_config = mock.patch.object(tree, 'build_config').start()
 
 			# Should generate the .config
@@ -447,6 +451,10 @@ class LinuxSourceTreeTest(unittest.TestCase):
 				f.write('CONFIG_KUNIT=y\nCONFIG_KUNIT_TEST=y')
 
 			tree = kunit_kernel.LinuxSourceTree(build_dir)
+			# Stub out the source tree operations, so we don't have
+			# the defaults for any given architecture get in the
+			# way.
+			tree._ops = kunit_kernel.LinuxSourceTreeOperations('none', None)
 			mock_build_config = mock.patch.object(tree, 'build_config').start()
 
 			self.assertTrue(tree.build_reconfig(build_dir, make_options=[]))
@@ -463,6 +471,10 @@ class LinuxSourceTreeTest(unittest.TestCase):
 				f.write('CONFIG_KUNIT=y\nCONFIG_KUNIT_TEST=y')
 
 			tree = kunit_kernel.LinuxSourceTree(build_dir)
+			# Stub out the source tree operations, so we don't have
+			# the defaults for any given architecture get in the
+			# way.
+			tree._ops = kunit_kernel.LinuxSourceTreeOperations('none', None)
 			mock_build_config = mock.patch.object(tree, 'build_config').start()
 
 			# ... so we should trigger a call to build_config()
