@@ -670,7 +670,7 @@ struct afs_vnode {
 static inline struct fscache_cookie *afs_vnode_cache(struct afs_vnode *vnode)
 {
 #ifdef CONFIG_AFS_FSCACHE
-	return netfs_i_cookie(&vnode->netfs.inode);
+	return netfs_i_cookie(&vnode->netfs);
 #else
 	return NULL;
 #endif

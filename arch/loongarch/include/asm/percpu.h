@@ -6,6 +6,7 @@
 #define __ASM_PERCPU_H
 
 #include <asm/cmpxchg.h>
+#include <asm/loongarch.h>
 
 /* Use r21 for fast access */
 register unsigned long __my_cpu_offset __asm__("$r21");

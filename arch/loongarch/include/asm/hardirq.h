@@ -19,7 +19,7 @@ typedef struct {
 	unsigned int __softirq_pending;
 } ____cacheline_aligned irq_cpustat_t;
 
-DECLARE_PER_CPU_ALIGNED(irq_cpustat_t, irq_stat);
+DECLARE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
 
 #define __ARCH_IRQ_STAT
 

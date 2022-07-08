@@ -148,7 +148,6 @@ allOf:
           items:
             - description: Xenon IP registers
             - description: Armada 3700 SoC PHY PAD Voltage Control register
-          minItems: 2
 
         marvell,pad-type:
           $ref: /schemas/types.yaml#/definitions/string
