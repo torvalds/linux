@@ -201,6 +201,22 @@ static bool g_use_per_node_hctx;
 module_param_named(use_per_node_hctx, g_use_per_node_hctx, bool, 0444);
 MODULE_PARM_DESC(use_per_node_hctx, "Use per-node allocation for hardware context queues. Default: false");
 
+static bool g_memory_backed;
+module_param_named(memory_backed, g_memory_backed, bool, 0444);
+MODULE_PARM_DESC(memory_backed, "Create a memory-backed block device. Default: false");
+
+static bool g_discard;
+module_param_named(discard, g_discard, bool, 0444);
+MODULE_PARM_DESC(discard, "Support discard operations (requires memory-backed null_blk device). Default: false");
+
+static unsigned long g_cache_size;
+module_param_named(cache_size, g_cache_size, ulong, 0444);
+MODULE_PARM_DESC(mbps, "Cache size in MiB for memory-backed device. Default: 0 (none)");
+
+static unsigned int g_mbps;
+module_param_named(mbps, g_mbps, uint, 0444);
+MODULE_PARM_DESC(mbps, "Limit maximum bandwidth (in MiB/s). Default: 0 (no limit)");
+
 static bool g_zoned;
 module_param_named(zoned, g_zoned, bool, S_IRUGO);
 MODULE_PARM_DESC(zoned, "Make device as a host-managed zoned block device. Default: false");
@@ -650,6 +666,10 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->irqmode = g_irqmode;
 	dev->hw_queue_depth = g_hw_queue_depth;
 	dev->blocking = g_blocking;
+	dev->memory_backed = g_memory_backed;
+	dev->discard = g_discard;
+	dev->cache_size = g_cache_size;
+	dev->mbps = g_mbps;
 	dev->use_per_node_hctx = g_use_per_node_hctx;
 	dev->zoned = g_zoned;
 	dev->zone_size = g_zone_size;
