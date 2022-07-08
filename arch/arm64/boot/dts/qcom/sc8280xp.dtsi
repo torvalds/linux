@@ -1251,7 +1251,7 @@
 				clock-output-names = "usb1_phy_pipe_clk_src";
 			};
 
-			usb_1_dpphy: dp-phy@88ed200 {
+			usb_1_dpphy: dp-phy@8904200 {
 				reg = <0 0x08904200 0 0x200>,
 				      <0 0x08904400 0 0x200>,
 				      <0 0x08904a00 0 0x200>,
