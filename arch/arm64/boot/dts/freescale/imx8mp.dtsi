@@ -1108,6 +1108,11 @@
 						<&pgc_hsiomix>, <&pgc_pcie_phy>;
 				power-domain-names = "bus", "usb", "usb-phy1",
 						     "usb-phy2", "pcie", "pcie-phy";
+				interconnects = <&noc IMX8MP_ICM_NOC_PCIE &noc IMX8MP_ICN_HSIO>,
+						<&noc IMX8MP_ICM_USB1 &noc IMX8MP_ICN_HSIO>,
+						<&noc IMX8MP_ICM_USB2 &noc IMX8MP_ICN_HSIO>,
+						<&noc IMX8MP_ICM_PCIE &noc IMX8MP_ICN_HSIO>;
+				interconnect-names = "noc-pcie", "usb1", "usb2", "pcie";
 				#power-domain-cells = <1>;
 			};
 		};
