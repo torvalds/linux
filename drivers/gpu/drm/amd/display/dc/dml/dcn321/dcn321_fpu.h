@@ -33,4 +33,6 @@ void dcn321_insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *t
 					   unsigned int *num_entries,
 					   struct _vcs_dpi_voltage_scaling_st *entry);
 
+void dcn321_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_params);
+
 #endif
