@@ -7469,6 +7469,9 @@ static int pqi_get_ctrl_product_details(struct pqi_ctrl_info *ctrl_info)
 		sizeof(identify->vendor_id));
 	ctrl_info->vendor[sizeof(identify->vendor_id)] = '\0';
 
+	dev_info(&ctrl_info->pci_dev->dev,
+		"Firmware version: %s\n", ctrl_info->firmware_version);
+
 out:
 	kfree(identify);
 
