@@ -1793,6 +1793,11 @@ struct v4l2_ext_control {
 		struct v4l2_ctrl_mpeg2_quantisation __user *p_mpeg2_quantisation;
 		struct v4l2_ctrl_vp9_compressed_hdr __user *p_vp9_compressed_hdr_probs;
 		struct v4l2_ctrl_vp9_frame __user *p_vp9_frame;
+		struct v4l2_ctrl_hevc_sps __user *p_hevc_sps;
+		struct v4l2_ctrl_hevc_pps __user *p_hevc_pps;
+		struct v4l2_ctrl_hevc_slice_params __user *p_hevc_slice_params;
+		struct v4l2_ctrl_hevc_scaling_matrix __user *p_hevc_scaling_matrix;
+		struct v4l2_ctrl_hevc_decode_params __user *p_hevc_decode_params;
 		void __user *ptr;
 	};
 } __attribute__ ((packed));
