@@ -190,6 +190,17 @@ done:
 	return err;
 }
 
+int brcmf_c_set_cur_etheraddr(struct brcmf_if *ifp, const u8 *addr)
+{
+	s32 err;
+
+	err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", addr, ETH_ALEN);
+	if (err < 0)
+		bphy_err(ifp->drvr, "Setting cur_etheraddr failed, %d\n", err);
+
+	return err;
+}
+
 int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
@@ -204,12 +215,9 @@ int brcmf_c_preinit_dcmds(struct brcmf_if *ifp)
 
 	if (is_valid_ether_addr(ifp->mac_addr)) {
 		/* set mac address */
-		err = brcmf_fil_iovar_data_set(ifp, "cur_etheraddr", ifp->mac_addr,
-					       ETH_ALEN);
-		if (err < 0) {
-			bphy_err(ifp->drvr, "Setting cur_etheraddr failed, %d\n", err);
+		err = brcmf_c_set_cur_etheraddr(ifp, ifp->mac_addr);
+		if (err < 0)
 			goto done;
-		}
 	} else {
 		/* retrieve mac address */
 		err = brcmf_fil_iovar_data_get(ifp, "cur_etheraddr", ifp->mac_addr,
