@@ -29,6 +29,11 @@
 
 #include "clk_mgr_internal.h"
 
+#define DCN3_2_DEFAULT_DET_SIZE 256
+#define DCN3_2_MAX_DET_SIZE 1152
+#define DCN3_2_MIN_DET_SIZE 128
+#define DCN3_2_MIN_COMPBUF_SIZE_KB 128
+
 void dcn32_build_wm_range_table_fpu(struct clk_mgr_internal *clk_mgr);
 
 void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
@@ -39,5 +44,9 @@ void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
 bool dcn32_predict_pipe_split(struct dc_state *context,
 			      display_pipe_params_st pipe,
 			      int index);
+
+void insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
+				    unsigned int *num_entries,
+				    struct _vcs_dpi_voltage_scaling_st *entry);
 
 #endif
