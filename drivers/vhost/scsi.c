@@ -159,7 +159,7 @@ enum {
 };
 
 #define VHOST_SCSI_MAX_TARGET	256
-#define VHOST_SCSI_MAX_VQ	128
+#define VHOST_SCSI_MAX_VQ	128 + VHOST_SCSI_VQ_IO
 #define VHOST_SCSI_MAX_EVENT	128
 
 struct vhost_scsi_virtqueue {
