@@ -125,17 +125,18 @@ nfp_nfdk_tx_csum(struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 
 static int
 nfp_nfdk_tx_maybe_close_block(struct nfp_net_tx_ring *tx_ring,
-			      unsigned int nr_frags, struct sk_buff *skb)
+			      struct sk_buff *skb)
 {
 	unsigned int n_descs, wr_p, nop_slots;
 	const skb_frag_t *frag, *fend;
 	struct nfp_nfdk_tx_desc *txd;
+	unsigned int nr_frags;
 	unsigned int wr_idx;
 	int err;
 
 recount_descs:
 	n_descs = nfp_nfdk_headlen_to_segs(skb_headlen(skb));
-
+	nr_frags = skb_shinfo(skb)->nr_frags;
 	frag = skb_shinfo(skb)->frags;
 	fend = frag + nr_frags;
 	for (; frag < fend; frag++)
@@ -281,10 +282,13 @@ netdev_tx_t nfp_nfdk_tx(struct sk_buff *skb, struct net_device *netdev)
 	if (unlikely((int)metadata < 0))
 		goto err_flush;
 
-	nr_frags = skb_shinfo(skb)->nr_frags;
-	if (nfp_nfdk_tx_maybe_close_block(tx_ring, nr_frags, skb))
+	if (nfp_nfdk_tx_maybe_close_block(tx_ring, skb))
 		goto err_flush;
 
+	/* nr_frags will change after skb_linearize so we get nr_frags after
+	 * nfp_nfdk_tx_maybe_close_block function
+	 */
+	nr_frags = skb_shinfo(skb)->nr_frags;
 	/* DMA map all */
 	wr_idx = D_IDX(tx_ring, tx_ring->wr_p);
 	txd = &tx_ring->ktxds[wr_idx];
@@ -310,7 +314,16 @@ netdev_tx_t nfp_nfdk_tx(struct sk_buff *skb, struct net_device *netdev)
 
 	/* FIELD_PREP() implicitly truncates to chunk */
 	dma_len -= 1;
-	dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN_HEAD, dma_len) |
+
+	/* We will do our best to pass as much data as we can in descriptor
+	 * and we need to make sure the first descriptor includes whole head
+	 * since there is limitation in firmware side. Sometimes the value of
+	 * dma_len bitwise and NFDK_DESC_TX_DMA_LEN_HEAD will less than
+	 * headlen.
+	 */
+	dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN_HEAD,
+			       dma_len > NFDK_DESC_TX_DMA_LEN_HEAD ?
+			       NFDK_DESC_TX_DMA_LEN_HEAD : dma_len) |
 		    FIELD_PREP(NFDK_DESC_TX_TYPE_HEAD, type);
 
 	txd->dma_len_type = cpu_to_le16(dlen_type);
@@ -925,7 +938,9 @@ nfp_nfdk_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 
 	/* FIELD_PREP() implicitly truncates to chunk */
 	dma_len -= 1;
-	dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN_HEAD, dma_len) |
+	dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN_HEAD,
+			       dma_len > NFDK_DESC_TX_DMA_LEN_HEAD ?
+			       NFDK_DESC_TX_DMA_LEN_HEAD : dma_len) |
 		    FIELD_PREP(NFDK_DESC_TX_TYPE_HEAD, type);
 
 	txd->dma_len_type = cpu_to_le16(dlen_type);
@@ -1303,7 +1318,7 @@ nfp_nfdk_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 				   skb_push(skb, 4));
 	}
 
-	if (nfp_nfdk_tx_maybe_close_block(tx_ring, 0, skb))
+	if (nfp_nfdk_tx_maybe_close_block(tx_ring, skb))
 		goto err_free;
 
 	/* DMA map all */
@@ -1328,7 +1343,9 @@ nfp_nfdk_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 	txbuf++;
 
 	dma_len -= 1;
-	dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN_HEAD, dma_len) |
+	dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN_HEAD,
+			       dma_len > NFDK_DESC_TX_DMA_LEN_HEAD ?
+			       NFDK_DESC_TX_DMA_LEN_HEAD : dma_len) |
 		    FIELD_PREP(NFDK_DESC_TX_TYPE_HEAD, type);
 
 	txd->dma_len_type = cpu_to_le16(dlen_type);
