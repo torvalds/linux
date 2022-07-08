@@ -9991,7 +9991,8 @@ static int nl80211_send_bss(struct sk_buff *msg, struct netlink_callback *cb,
 			    (nla_put_u32(msg, NL80211_BSS_STATUS,
 					 NL80211_BSS_STATUS_ASSOCIATED) ||
 			     (wdev->valid_links &&
-			      nla_put_u8(msg, NL80211_ATTR_MLO_LINK_ID, link_id))))
+			      nla_put_u8(msg, NL80211_BSS_MLO_LINK_ID,
+					 link_id))))
 				goto nla_put_failure;
 		}
 		break;
