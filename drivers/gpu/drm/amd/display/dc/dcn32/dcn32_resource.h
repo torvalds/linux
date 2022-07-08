@@ -44,12 +44,6 @@ struct resource_pool *dcn32_create_resource_pool(
 		const struct dc_init_data *init_data,
 		struct dc *dc);
 
-void dcn32_calculate_dlg_params(
-		struct dc *dc, struct dc_state *context,
-		display_e2e_pipe_params_st *pipes,
-		int pipe_cnt,
-		int vlevel);
-
 struct panel_cntl *dcn32_panel_cntl_create(
 		const struct panel_cntl_init_data *init_data);
 

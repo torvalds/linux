@@ -57,13 +57,12 @@ void dcn32_set_phantom_stream_timing(struct dc *dc,
 				     unsigned int pipe_cnt,
 				     unsigned int dc_pipe_idx);
 
-void dcn32_full_validate_bw_helper(struct dc *dc,
-				   struct dc_state *context,
-				   display_e2e_pipe_params_st *pipes,
-				   int *vlevel,
-				   int *split,
-				   bool *merge,
-				   int *pipe_cnt);
+bool dcn32_internal_validate_bw(struct dc *dc,
+				struct dc_state *context,
+				display_e2e_pipe_params_st *pipes,
+				int *pipe_cnt_out,
+				int *vlevel_out,
+				bool fast_validate);
 
 void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 				display_e2e_pipe_params_st *pipes,
