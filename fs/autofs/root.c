@@ -10,6 +10,7 @@
 
 #include "autofs_i.h"
 
+static int autofs_dir_permission(struct user_namespace *, struct inode *, int);
 static int autofs_dir_symlink(struct user_namespace *, struct inode *,
 			      struct dentry *, const char *);
 static int autofs_dir_unlink(struct inode *, struct dentry *);
@@ -50,6 +51,7 @@ const struct file_operations autofs_dir_operations = {
 
 const struct inode_operations autofs_dir_inode_operations = {
 	.lookup		= autofs_lookup,
+	.permission	= autofs_dir_permission,
 	.unlink		= autofs_dir_unlink,
 	.symlink	= autofs_dir_symlink,
 	.mkdir		= autofs_dir_mkdir,
@@ -526,11 +528,30 @@ static struct dentry *autofs_lookup(struct inode *dir,
 	return NULL;
 }
 
+static int autofs_dir_permission(struct user_namespace *mnt_userns,
+				 struct inode *inode, int mask)
+{
+	if (mask & MAY_WRITE) {
+		struct autofs_sb_info *sbi = autofs_sbi(inode->i_sb);
+
+		if (!autofs_oz_mode(sbi))
+			return -EACCES;
+
+		/* autofs_oz_mode() needs to allow path walks when the
+		 * autofs mount is catatonic but the state of an autofs
+		 * file system needs to be preserved over restarts.
+		 */
+		if (sbi->flags & AUTOFS_SBI_CATATONIC)
+			return -EACCES;
+	}
+
+	return generic_permission(mnt_userns, inode, mask);
+}
+
 static int autofs_dir_symlink(struct user_namespace *mnt_userns,
 			      struct inode *dir, struct dentry *dentry,
 			      const char *symname)
 {
-	struct autofs_sb_info *sbi = autofs_sbi(dir->i_sb);
 	struct autofs_info *ino = autofs_dentry_ino(dentry);
 	struct autofs_info *p_ino;
 	struct inode *inode;
@@ -538,16 +559,6 @@ static int autofs_dir_symlink(struct user_namespace *mnt_userns,
 	char *cp;
 
 	pr_debug("%s <- %pd\n", symname, dentry);
-
-	if (!autofs_oz_mode(sbi))
-		return -EACCES;
-
-	/* autofs_oz_mode() needs to allow path walks when the
-	 * autofs mount is catatonic but the state of an autofs
-	 * file system needs to be preserved over restarts.
-	 */
-	if (sbi->flags & AUTOFS_SBI_CATATONIC)
-		return -EACCES;
 
 	BUG_ON(!ino);
 
@@ -600,16 +611,6 @@ static int autofs_dir_unlink(struct inode *dir, struct dentry *dentry)
 	struct autofs_sb_info *sbi = autofs_sbi(dir->i_sb);
 	struct autofs_info *ino = autofs_dentry_ino(dentry);
 	struct autofs_info *p_ino;
-
-	if (!autofs_oz_mode(sbi))
-		return -EACCES;
-
-	/* autofs_oz_mode() needs to allow path walks when the
-	 * autofs mount is catatonic but the state of an autofs
-	 * file system needs to be preserved over restarts.
-	 */
-	if (sbi->flags & AUTOFS_SBI_CATATONIC)
-		return -EACCES;
 
 	ino->count--;
 	p_ino = autofs_dentry_ino(dentry->d_parent);
@@ -683,16 +684,6 @@ static int autofs_dir_rmdir(struct inode *dir, struct dentry *dentry)
 
 	pr_debug("dentry %p, removing %pd\n", dentry, dentry);
 
-	if (!autofs_oz_mode(sbi))
-		return -EACCES;
-
-	/* autofs_oz_mode() needs to allow path walks when the
-	 * autofs mount is catatonic but the state of an autofs
-	 * file system needs to be preserved over restarts.
-	 */
-	if (sbi->flags & AUTOFS_SBI_CATATONIC)
-		return -EACCES;
-
 	if (ino->count != 1)
 		return -ENOTEMPTY;
 
@@ -725,16 +716,6 @@ static int autofs_dir_mkdir(struct user_namespace *mnt_userns,
 	struct autofs_info *ino = autofs_dentry_ino(dentry);
 	struct autofs_info *p_ino;
 	struct inode *inode;
-
-	if (!autofs_oz_mode(sbi))
-		return -EACCES;
-
-	/* autofs_oz_mode() needs to allow path walks when the
-	 * autofs mount is catatonic but the state of an autofs
-	 * file system needs to be preserved over restarts.
-	 */
-	if (sbi->flags & AUTOFS_SBI_CATATONIC)
-		return -EACCES;
 
 	pr_debug("dentry %p, creating %pd\n", dentry, dentry);
 
