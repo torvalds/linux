@@ -64,9 +64,6 @@
 /* maximum number of link-startup retries */
 #define DME_LINKSTARTUP_RETRIES 3
 
-/* Maximum retries for Hibern8 enter */
-#define UIC_HIBERN8_ENTER_RETRIES 3
-
 /* maximum number of reset retries before giving up */
 #define MAX_HOST_RESET_RETRIES 5
 
