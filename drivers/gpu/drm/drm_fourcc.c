@@ -371,6 +371,25 @@ unsigned int drm_format_info_block_height(const struct drm_format_info *info,
 EXPORT_SYMBOL(drm_format_info_block_height);
 
 /**
+ * drm_format_info_bpp - number of bits per pixel
+ * @info: pixel format info
+ * @plane: plane index
+ *
+ * Returns:
+ * The actual number of bits per pixel, depending on the plane index.
+ */
+unsigned int drm_format_info_bpp(const struct drm_format_info *info, int plane)
+{
+	if (!info || plane < 0 || plane >= info->num_planes)
+		return 0;
+
+	return info->char_per_block[plane] * 8 /
+	       (drm_format_info_block_width(info, plane) *
+		drm_format_info_block_height(info, plane));
+}
+EXPORT_SYMBOL(drm_format_info_bpp);
+
+/**
  * drm_format_info_min_pitch - computes the minimum required pitch in bytes
  * @info: pixel format info
  * @plane: plane index
