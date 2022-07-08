@@ -602,7 +602,7 @@ void set_pfnblock_flags_mask(struct page *page, unsigned long flags,
 {
 	unsigned long *bitmap;
 	unsigned long bitidx, word_bitidx;
-	unsigned long old_word, word;
+	unsigned long word;
 
 	BUILD_BUG_ON(NR_PAGEBLOCK_BITS != 4);
 	BUILD_BUG_ON(MIGRATE_TYPES > (1 << PB_migratetype_bits));
@@ -618,12 +618,8 @@ void set_pfnblock_flags_mask(struct page *page, unsigned long flags,
 	flags <<= bitidx;
 
 	word = READ_ONCE(bitmap[word_bitidx]);
-	for (;;) {
-		old_word = cmpxchg(&bitmap[word_bitidx], word, (word & ~mask) | flags);
-		if (word == old_word)
-			break;
-		word = old_word;
-	}
+	do {
+	} while (!try_cmpxchg(&bitmap[word_bitidx], &word, (word & ~mask) | flags));
 }
 
 void set_pageblock_migratetype(struct page *page, int migratetype)
