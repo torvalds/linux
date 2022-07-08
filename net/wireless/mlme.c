@@ -755,7 +755,7 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			return -EINVAL;
 	}
 
-	/* Transmit the Action frame as requested by user space */
+	/* Transmit the management frame as requested by user space */
 	return rdev_mgmt_tx(rdev, wdev, params, cookie);
 }
 
