@@ -405,6 +405,11 @@ static inline bool kvm_lapic_lvt_supported(struct kvm_lapic *apic, int lvt_index
 	return apic->nr_lvt_entries > lvt_index;
 }
 
+static inline int kvm_apic_calc_nr_lvt_entries(struct kvm_vcpu *vcpu)
+{
+	return KVM_APIC_MAX_NR_LVT_ENTRIES - !(vcpu->arch.mcg_cap & MCG_CMCI_P);
+}
+
 void kvm_apic_set_version(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
@@ -2560,6 +2565,8 @@ int kvm_create_lapic(struct kvm_vcpu *vcpu, int timer_advance_ns)
 		goto nomem_free_apic;
 	}
 	apic->vcpu = vcpu;
+
+	apic->nr_lvt_entries = kvm_apic_calc_nr_lvt_entries(vcpu);
 
 	hrtimer_init(&apic->lapic_timer.timer, CLOCK_MONOTONIC,
 		     HRTIMER_MODE_ABS_HARD);
