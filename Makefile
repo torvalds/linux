@@ -1347,10 +1347,10 @@ tools/%: FORCE
 # Kernel selftest
 
 PHONY += kselftest
-kselftest:
+kselftest: headers_install
 	$(Q)$(MAKE) -C $(srctree)/tools/testing/selftests run_tests
 
-kselftest-%: FORCE
+kselftest-%: headers_install FORCE
 	$(Q)$(MAKE) -C $(srctree)/tools/testing/selftests $*
 
 PHONY += kselftest-merge
