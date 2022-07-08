@@ -319,6 +319,7 @@ static int channel_submit(struct host1x_job *job)
 	}
 
 	channel_program_cdma(job);
+	syncval = host1x_syncpt_read_max(sp);
 
 	/* end CDMA submit & stash pinned hMems into sync queue */
 	host1x_cdma_end(&ch->cdma, job);
