@@ -66,6 +66,7 @@
 #define MAX_IV_SIZE			16
 #define TLS_TAG_SIZE			16
 #define TLS_MAX_REC_SEQ_SIZE		8
+#define TLS_MAX_AAD_SIZE		TLS_AAD_SPACE_SIZE
 
 /* For CCM mode, the full 16-bytes of IV is made of '4' fields of given sizes.
  *
