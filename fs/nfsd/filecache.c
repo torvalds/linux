@@ -1048,7 +1048,7 @@ nfsd_file_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 static int nfsd_file_cache_stats_show(struct seq_file *m, void *v)
 {
 	unsigned int i, count = 0, longest = 0;
-	unsigned long hits = 0;
+	unsigned long lru = 0, hits = 0;
 
 	/*
 	 * No need for spinlocks here since we're not terribly interested in
@@ -1061,6 +1061,7 @@ static int nfsd_file_cache_stats_show(struct seq_file *m, void *v)
 			count += nfsd_file_hashtbl[i].nfb_count;
 			longest = max(longest, nfsd_file_hashtbl[i].nfb_count);
 		}
+		lru = list_lru_count(&nfsd_file_lru);
 	}
 	mutex_unlock(&nfsd_mutex);
 
@@ -1069,6 +1070,7 @@ static int nfsd_file_cache_stats_show(struct seq_file *m, void *v)
 
 	seq_printf(m, "total entries: %u\n", count);
 	seq_printf(m, "longest chain: %u\n", longest);
+	seq_printf(m, "lru entries:   %lu\n", lru);
 	seq_printf(m, "cache hits:    %lu\n", hits);
 	return 0;
 }
