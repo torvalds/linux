@@ -1275,12 +1275,12 @@
 		};
 
 		ptc: pwm@120d0000 {
-			compatible = "starfive,pwm0";
+			compatible = "starfive,pwm";
 			reg = <0x0 0x120d0000 0x0 0x10000>;
 			reg-names = "control";
 			clocks = <&clkgen JH7110_PWM_CLK_APB>;
 			resets = <&rstgen RSTN_U0_PWM_8CH_APB>;
-			starfive,approx-period = <2000000>;
+			starfive,approx-freq = <2000000>;
 			#pwm-cells=<3>;
 			starfive,npwm = <8>;
 			status = "disabled";
