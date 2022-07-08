@@ -1942,8 +1942,16 @@ static void amdgpu_ras_do_recovery(struct work_struct *work)
 		amdgpu_put_xgmi_hive(hive);
 	}
 
-	if (amdgpu_device_should_recover_gpu(ras->adev))
-		amdgpu_device_gpu_recover(ras->adev, NULL);
+	if (amdgpu_device_should_recover_gpu(ras->adev)) {
+		struct amdgpu_reset_context reset_context;
+		memset(&reset_context, 0, sizeof(reset_context));
+
+		reset_context.method = AMD_RESET_METHOD_NONE;
+		reset_context.reset_req_dev = adev;
+		clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
+
+		amdgpu_device_gpu_recover(ras->adev, NULL, &reset_context);
+	}
 	atomic_set(&ras->in_recovery, 0);
 }
 
