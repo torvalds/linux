@@ -94,6 +94,44 @@ void hubp32_phantom_hubp_post_enable(struct hubp *hubp)
 	}
 }
 
+void hubp32_cursor_set_attributes(
+		struct hubp *hubp,
+		const struct dc_cursor_attributes *attr)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+	enum cursor_pitch hw_pitch = hubp1_get_cursor_pitch(attr->pitch);
+	enum cursor_lines_per_chunk lpc = hubp2_get_lines_per_chunk(
+			attr->width, attr->color_format);
+
+	hubp->curs_attr = *attr;
+
+	REG_UPDATE(CURSOR_SURFACE_ADDRESS_HIGH,
+			CURSOR_SURFACE_ADDRESS_HIGH, attr->address.high_part);
+	REG_UPDATE(CURSOR_SURFACE_ADDRESS,
+			CURSOR_SURFACE_ADDRESS, attr->address.low_part);
+
+	REG_UPDATE_2(CURSOR_SIZE,
+			CURSOR_WIDTH, attr->width,
+			CURSOR_HEIGHT, attr->height);
+
+	REG_UPDATE_4(CURSOR_CONTROL,
+			CURSOR_MODE, attr->color_format,
+			CURSOR_2X_MAGNIFY, attr->attribute_flags.bits.ENABLE_MAGNIFICATION,
+			CURSOR_PITCH, hw_pitch,
+			CURSOR_LINES_PER_CHUNK, lpc);
+
+	REG_SET_2(CURSOR_SETTINGS, 0,
+			/* no shift of the cursor HDL schedule */
+			CURSOR0_DST_Y_OFFSET, 0,
+			 /* used to shift the cursor chunk request deadline */
+			CURSOR0_CHUNK_HDL_ADJUST, 3);
+
+	if (attr->width * attr->height * 4 > 16384)
+		REG_UPDATE(DCHUBP_MALL_CONFIG, USE_MALL_FOR_CURSOR, true);
+	else
+		REG_UPDATE(DCHUBP_MALL_CONFIG, USE_MALL_FOR_CURSOR, false);
+}
+
 static struct hubp_funcs dcn32_hubp_funcs = {
 	.hubp_enable_tripleBuffer = hubp2_enable_triplebuffer,
 	.hubp_is_triplebuffer_enabled = hubp2_is_triplebuffer_enabled,
@@ -106,7 +144,7 @@ static struct hubp_funcs dcn32_hubp_funcs = {
 	.set_blank = hubp2_set_blank,
 	.dcc_control = hubp3_dcc_control,
 	.mem_program_viewport = min_set_viewport,
-	.set_cursor_attributes	= hubp2_cursor_set_attributes,
+	.set_cursor_attributes	= hubp32_cursor_set_attributes,
 	.set_cursor_position	= hubp2_cursor_set_position,
 	.hubp_clk_cntl = hubp2_clk_cntl,
 	.hubp_vtg_sel = hubp2_vtg_sel,
