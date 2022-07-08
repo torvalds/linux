@@ -848,30 +848,52 @@ TRACE_EVENT(nfsd_file_open,
 
 DECLARE_EVENT_CLASS(nfsd_file_search_class,
 	TP_PROTO(
-		struct inode *inode,
+		const struct inode *inode,
+		unsigned int count
+	),
+	TP_ARGS(inode, count),
+	TP_STRUCT__entry(
+		__field(const struct inode *, inode)
+		__field(unsigned int, count)
+	),
+	TP_fast_assign(
+		__entry->inode = inode;
+		__entry->count = count;
+	),
+	TP_printk("inode=%p count=%u",
+		__entry->inode, __entry->count)
+);
+
+#define DEFINE_NFSD_FILE_SEARCH_EVENT(name)				\
+DEFINE_EVENT(nfsd_file_search_class, name,				\
+	TP_PROTO(							\
+		const struct inode *inode,				\
+		unsigned int count					\
+	),								\
+	TP_ARGS(inode, count))
+
+DEFINE_NFSD_FILE_SEARCH_EVENT(nfsd_file_close_inode_sync);
+DEFINE_NFSD_FILE_SEARCH_EVENT(nfsd_file_close_inode);
+
+TRACE_EVENT(nfsd_file_is_cached,
+	TP_PROTO(
+		const struct inode *inode,
 		int found
 	),
 	TP_ARGS(inode, found),
 	TP_STRUCT__entry(
-		__field(struct inode *, inode)
+		__field(const struct inode *, inode)
 		__field(int, found)
 	),
 	TP_fast_assign(
 		__entry->inode = inode;
 		__entry->found = found;
 	),
-	TP_printk("inode=%p found=%d",
-		__entry->inode, __entry->found)
+	TP_printk("inode=%p is %scached",
+		__entry->inode,
+		__entry->found ? "" : "not "
+	)
 );
-
-#define DEFINE_NFSD_FILE_SEARCH_EVENT(name)				\
-DEFINE_EVENT(nfsd_file_search_class, name,				\
-	TP_PROTO(struct inode *inode, int found),			\
-	TP_ARGS(inode, found))
-
-DEFINE_NFSD_FILE_SEARCH_EVENT(nfsd_file_close_inode_sync);
-DEFINE_NFSD_FILE_SEARCH_EVENT(nfsd_file_close_inode);
-DEFINE_NFSD_FILE_SEARCH_EVENT(nfsd_file_is_cached);
 
 TRACE_EVENT(nfsd_file_fsnotify_handle_event,
 	TP_PROTO(struct inode *inode, u32 mask),
