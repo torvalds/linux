@@ -433,6 +433,13 @@ static int mtu3_gadget_get_frame(struct usb_gadget *gadget)
 	return (int)mtu3_readl(mtu->mac_base, U3D_USB20_FRAME_NUM);
 }
 
+static void function_wake_notif(struct mtu3 *mtu, u8 intf)
+{
+	mtu3_writel(mtu->mac_base, U3D_DEV_NOTIF_0,
+		    TYPE_FUNCTION_WAKE | DEV_NOTIF_VAL_FW(intf));
+	mtu3_setbits(mtu->mac_base, U3D_DEV_NOTIF_0, SEND_DEV_NOTIF);
+}
+
 static int mtu3_gadget_wakeup(struct usb_gadget *gadget)
 {
 	struct mtu3 *mtu = gadget_to_mtu3(gadget);
@@ -446,7 +453,18 @@ static int mtu3_gadget_wakeup(struct usb_gadget *gadget)
 
 	spin_lock_irqsave(&mtu->lock, flags);
 	if (mtu->g.speed >= USB_SPEED_SUPER) {
+		/*
+		 * class driver may do function wakeup even UFP is in U0,
+		 * and UX_EXIT only takes effect in U1/U2/U3;
+		 */
 		mtu3_setbits(mtu->mac_base, U3D_LINK_POWER_CONTROL, UX_EXIT);
+		/*
+		 * Assume there's only one function on the composite device
+		 * and enable remote wake for the first interface.
+		 * FIXME if the IAD (interface association descriptor) shows
+		 * there is more than one function.
+		 */
+		function_wake_notif(mtu, 0);
 	} else {
 		mtu3_setbits(mtu->mac_base, U3D_POWER_MANAGEMENT, RESUME);
 		spin_unlock_irqrestore(&mtu->lock, flags);
