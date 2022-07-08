@@ -51,8 +51,6 @@ extern struct file_system_type autofs_fs_type;
  */
 struct autofs_info {
 	struct dentry	*dentry;
-	struct inode	*inode;
-
 	int		flags;
 
 	struct completion expire_complete;
