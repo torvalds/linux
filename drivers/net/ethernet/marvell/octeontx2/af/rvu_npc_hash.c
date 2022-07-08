@@ -1155,6 +1155,35 @@ static int __maybe_unused rvu_npc_exact_update_table_entry(struct rvu *rvu, u8 c
 }
 
 /**
+ *	rvu_npc_exact_can_disable_feature - Check if feature can be disabled.
+ *      @rvu: resource virtualization unit.
+ *	Return: True if exact match feature is supported.
+ */
+bool rvu_npc_exact_can_disable_feature(struct rvu *rvu)
+{
+	struct npc_exact_table *table = rvu->hw->table;
+	bool empty;
+
+	if (!rvu->hw->cap.npc_exact_match_enabled)
+		return false;
+
+	mutex_lock(&table->lock);
+	empty = list_empty(&table->lhead_gbl);
+	mutex_unlock(&table->lock);
+
+	return empty;
+}
+
+/**
+ *	rvu_npc_exact_disable_feature - Disable feature.
+ *      @rvu: resource virtualization unit.
+ */
+void rvu_npc_exact_disable_feature(struct rvu *rvu)
+{
+	rvu->hw->cap.npc_exact_match_enabled = false;
+}
+
+/**
  *      rvu_npc_exact_init - initialize exact match table
  *      @rvu: resource virtualization unit.
  *
