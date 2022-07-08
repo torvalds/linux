@@ -12,6 +12,7 @@
 
 	model = "Qualcomm Technologies, Inc. IPQ8074";
 	compatible = "qcom,ipq8074";
+	interrupt-parent = <&intc>;
 
 	clocks {
 		sleep_clk: sleep_clk {

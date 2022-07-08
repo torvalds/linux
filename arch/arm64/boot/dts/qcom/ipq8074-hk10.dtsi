@@ -7,8 +7,6 @@
 #include "ipq8074.dtsi"
 
 / {
-	interrupt-parent = <&intc>;
-
 	aliases {
 		serial0 = &blsp1_uart5;
 	};

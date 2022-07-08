@@ -7,7 +7,6 @@
 / {
 	model = "Qualcomm Technologies, Inc. IPQ8074-HK01";
 	compatible = "qcom,ipq8074-hk01", "qcom,ipq8074";
-	interrupt-parent = <&intc>;
 
 	aliases {
 		serial0 = &blsp1_uart5;
