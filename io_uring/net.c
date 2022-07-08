@@ -382,16 +382,21 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		compat_ssize_t clen;
 
-		if (len > 1)
+		if (len == 0) {
+			sr->len = 0;
+			iomsg->free_iov = NULL;
+		} else if (len > 1) {
 			return -EINVAL;
-		if (!access_ok(uiov, sizeof(*uiov)))
-			return -EFAULT;
-		if (__get_user(clen, &uiov->iov_len))
-			return -EFAULT;
-		if (clen < 0)
-			return -EINVAL;
-		sr->len = clen;
-		iomsg->free_iov = NULL;
+		} else {
+			if (!access_ok(uiov, sizeof(*uiov)))
+				return -EFAULT;
+			if (__get_user(clen, &uiov->iov_len))
+				return -EFAULT;
+			if (clen < 0)
+				return -EINVAL;
+			sr->len = clen;
+			iomsg->free_iov = NULL;
+		}
 	} else {
 		iomsg->free_iov = iomsg->fast_iov;
 		ret = __import_iovec(READ, (struct iovec __user *)uiov, len,
