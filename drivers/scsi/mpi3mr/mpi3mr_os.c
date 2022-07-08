@@ -373,6 +373,9 @@ void mpi3mr_invalidate_devhandles(struct mpi3mr_ioc *mrioc)
 		if (tgtdev->starget && tgtdev->starget->hostdata) {
 			tgt_priv = tgtdev->starget->hostdata;
 			tgt_priv->dev_handle = MPI3MR_INVALID_DEV_HANDLE;
+			tgt_priv->io_throttle_enabled = 0;
+			tgt_priv->io_divert = 0;
+			tgt_priv->throttle_group = NULL;
 		}
 	}
 }
@@ -718,6 +721,35 @@ static struct mpi3mr_tgt_dev  *__mpi3mr_get_tgtdev_from_tgtpriv(
 }
 
 /**
+ * mpi3mr_set_io_divert_for_all_vd_in_tg -set divert for TG VDs
+ * @mrioc: Adapter instance reference
+ * @tg: Throttle group information pointer
+ * @divert_value: 1 or 0
+ *
+ * Accessor to set io_divert flag for each device associated
+ * with the given throttle group with the given value.
+ *
+ * Return: None.
+ */
+static void mpi3mr_set_io_divert_for_all_vd_in_tg(struct mpi3mr_ioc *mrioc,
+	struct mpi3mr_throttle_group_info *tg, u8 divert_value)
+{
+	unsigned long flags;
+	struct mpi3mr_tgt_dev *tgtdev;
+	struct mpi3mr_stgt_priv_data *tgt_priv;
+
+	spin_lock_irqsave(&mrioc->tgtdev_lock, flags);
+	list_for_each_entry(tgtdev, &mrioc->tgtdev_list, list) {
+		if (tgtdev->starget && tgtdev->starget->hostdata) {
+			tgt_priv = tgtdev->starget->hostdata;
+			if (tgt_priv->throttle_group == tg)
+				tgt_priv->io_divert = divert_value;
+		}
+	}
+	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
+}
+
+/**
  * mpi3mr_print_device_event_notice - print notice related to post processing of
  *					device event after controller reset.
  *
@@ -934,6 +966,7 @@ void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc)
  * @mrioc: Adapter instance reference
  * @tgtdev: Target device internal structure
  * @dev_pg0: New device page0
+ * @is_added: Flag to indicate the device is just added
  *
  * Update the information from the device page0 into the driver
  * cached target device structure.
@@ -941,10 +974,11 @@ void mpi3mr_rfresh_tgtdevs(struct mpi3mr_ioc *mrioc)
  * Return: Nothing.
  */
 static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
-	struct mpi3mr_tgt_dev *tgtdev, struct mpi3_device_page0 *dev_pg0)
+	struct mpi3mr_tgt_dev *tgtdev, struct mpi3_device_page0 *dev_pg0,
+	bool is_added)
 {
 	u16 flags = 0;
-	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data;
+	struct mpi3mr_stgt_priv_data *scsi_tgt_priv_data = NULL;
 	u8 prot_mask = 0;
 
 	tgtdev->perst_id = le16_to_cpu(dev_pg0->persistent_id);
@@ -959,12 +993,19 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 	flags = le16_to_cpu(dev_pg0->flags);
 	tgtdev->is_hidden = (flags & MPI3_DEVICE0_FLAGS_HIDDEN);
 
+	if (is_added == true)
+		tgtdev->io_throttle_enabled =
+		    (flags & MPI3_DEVICE0_FLAGS_IO_THROTTLING_REQUIRED) ? 1 : 0;
+
+
 	if (tgtdev->starget && tgtdev->starget->hostdata) {
 		scsi_tgt_priv_data = (struct mpi3mr_stgt_priv_data *)
 		    tgtdev->starget->hostdata;
 		scsi_tgt_priv_data->perst_id = tgtdev->perst_id;
 		scsi_tgt_priv_data->dev_handle = tgtdev->dev_handle;
 		scsi_tgt_priv_data->dev_type = tgtdev->dev_type;
+		scsi_tgt_priv_data->io_throttle_enabled =
+		    tgtdev->io_throttle_enabled;
 	}
 
 	switch (dev_pg0->access_status) {
@@ -1042,10 +1083,27 @@ static void mpi3mr_update_tgtdev(struct mpi3mr_ioc *mrioc,
 	{
 		struct mpi3_device0_vd_format *vdinf =
 		    &dev_pg0->device_specific.vd_format;
+		struct mpi3mr_throttle_group_info *tg = NULL;
+		u16 vdinf_io_throttle_group =
+		    le16_to_cpu(vdinf->io_throttle_group);
 
-		tgtdev->dev_spec.vol_inf.state = vdinf->vd_state;
+		tgtdev->dev_spec.vd_inf.state = vdinf->vd_state;
 		if (vdinf->vd_state == MPI3_DEVICE0_VD_STATE_OFFLINE)
 			tgtdev->is_hidden = 1;
+		tgtdev->dev_spec.vd_inf.tg_id = vdinf_io_throttle_group;
+		tgtdev->dev_spec.vd_inf.tg_high =
+		    le16_to_cpu(vdinf->io_throttle_group_high) * 2048;
+		tgtdev->dev_spec.vd_inf.tg_low =
+		    le16_to_cpu(vdinf->io_throttle_group_low) * 2048;
+		if (vdinf_io_throttle_group < mrioc->num_io_throttle_group) {
+			tg = mrioc->throttle_groups + vdinf_io_throttle_group;
+			tg->id = vdinf_io_throttle_group;
+			tg->high = tgtdev->dev_spec.vd_inf.tg_high;
+			tg->low = tgtdev->dev_spec.vd_inf.tg_low;
+		}
+		tgtdev->dev_spec.vd_inf.tg = tg;
+		if (scsi_tgt_priv_data)
+			scsi_tgt_priv_data->throttle_group = tg;
 		break;
 	}
 	default:
@@ -1142,7 +1200,7 @@ static void mpi3mr_devinfochg_evt_bh(struct mpi3mr_ioc *mrioc,
 	tgtdev = mpi3mr_get_tgtdev_by_handle(mrioc, dev_handle);
 	if (!tgtdev)
 		goto out;
-	mpi3mr_update_tgtdev(mrioc, tgtdev, dev_pg0);
+	mpi3mr_update_tgtdev(mrioc, tgtdev, dev_pg0, false);
 	if (!tgtdev->is_hidden && !tgtdev->host_exposed)
 		mpi3mr_report_tgtdev_to_host(mrioc, perst_id);
 	if (tgtdev->is_hidden && tgtdev->host_exposed)
@@ -1548,13 +1606,13 @@ static int mpi3mr_create_tgtdev(struct mpi3mr_ioc *mrioc,
 	perst_id = le16_to_cpu(dev_pg0->persistent_id);
 	tgtdev = mpi3mr_get_tgtdev_by_perst_id(mrioc, perst_id);
 	if (tgtdev) {
-		mpi3mr_update_tgtdev(mrioc, tgtdev, dev_pg0);
+		mpi3mr_update_tgtdev(mrioc, tgtdev, dev_pg0, true);
 		mpi3mr_tgtdev_put(tgtdev);
 	} else {
 		tgtdev = mpi3mr_alloc_tgtdev();
 		if (!tgtdev)
 			return -ENOMEM;
-		mpi3mr_update_tgtdev(mrioc, tgtdev, dev_pg0);
+		mpi3mr_update_tgtdev(mrioc, tgtdev, dev_pg0, true);
 		mpi3mr_tgtdev_add_to_list(mrioc, tgtdev);
 	}
 
@@ -2566,6 +2624,11 @@ void mpi3mr_process_op_reply_desc(struct mpi3mr_ioc *mrioc,
 	u32 xfer_count = 0, sense_count = 0, resp_data = 0;
 	u16 dev_handle = 0xFFFF;
 	struct scsi_sense_hdr sshdr;
+	struct mpi3mr_stgt_priv_data *stgt_priv_data = NULL;
+	struct mpi3mr_sdev_priv_data *sdev_priv_data = NULL;
+	u32 ioc_pend_data_len = 0, tg_pend_data_len = 0, data_len_blks = 0;
+	struct mpi3mr_throttle_group_info *tg = NULL;
+	u8 throttle_enabled_dev = 0;
 
 	*reply_dma = 0;
 	reply_desc_type = le16_to_cpu(reply_desc->reply_flags) &
@@ -2622,6 +2685,51 @@ void mpi3mr_process_op_reply_desc(struct mpi3mr_ioc *mrioc,
 		goto out;
 	}
 	priv = scsi_cmd_priv(scmd);
+
+	data_len_blks = scsi_bufflen(scmd) >> 9;
+	sdev_priv_data = scmd->device->hostdata;
+	if (sdev_priv_data) {
+		stgt_priv_data = sdev_priv_data->tgt_priv_data;
+		if (stgt_priv_data) {
+			tg = stgt_priv_data->throttle_group;
+			throttle_enabled_dev =
+			    stgt_priv_data->io_throttle_enabled;
+		}
+	}
+	if (unlikely((data_len_blks >= mrioc->io_throttle_data_length) &&
+	    throttle_enabled_dev)) {
+		ioc_pend_data_len = atomic_sub_return(data_len_blks,
+		    &mrioc->pend_large_data_sz);
+		if (tg) {
+			tg_pend_data_len = atomic_sub_return(data_len_blks,
+			    &tg->pend_large_data_sz);
+			if (tg->io_divert  && ((ioc_pend_data_len <=
+			    mrioc->io_throttle_low) &&
+			    (tg_pend_data_len <= tg->low))) {
+				tg->io_divert = 0;
+				mpi3mr_set_io_divert_for_all_vd_in_tg(
+				    mrioc, tg, 0);
+			}
+		} else {
+			if (ioc_pend_data_len <= mrioc->io_throttle_low)
+				stgt_priv_data->io_divert = 0;
+		}
+	} else if (unlikely((stgt_priv_data && stgt_priv_data->io_divert))) {
+		ioc_pend_data_len = atomic_read(&mrioc->pend_large_data_sz);
+		if (!tg) {
+			if (ioc_pend_data_len <= mrioc->io_throttle_low)
+				stgt_priv_data->io_divert = 0;
+
+		} else if (ioc_pend_data_len <= mrioc->io_throttle_low) {
+			tg_pend_data_len = atomic_read(&tg->pend_large_data_sz);
+			if (tg->io_divert  && (tg_pend_data_len <= tg->low)) {
+				tg->io_divert = 0;
+				mpi3mr_set_io_divert_for_all_vd_in_tg(
+				    mrioc, tg, 0);
+			}
+		}
+	}
+
 	if (success_desc) {
 		scmd->result = DID_OK << 16;
 		goto out_success;
@@ -3842,6 +3950,11 @@ static int mpi3mr_target_alloc(struct scsi_target *starget)
 		tgt_dev->starget = starget;
 		atomic_set(&scsi_tgt_priv_data->block_io, 0);
 		retval = 0;
+		scsi_tgt_priv_data->io_throttle_enabled =
+		    tgt_dev->io_throttle_enabled;
+		if (tgt_dev->dev_type == MPI3_DEVICE_DEVFORM_VD)
+			scsi_tgt_priv_data->throttle_group =
+			    tgt_dev->dev_spec.vd_inf.tg;
 	} else
 		retval = -ENXIO;
 	spin_unlock_irqrestore(&mrioc->tgtdev_lock, flags);
@@ -3997,10 +4110,13 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 	int retval = 0;
 	u16 dev_handle;
 	u16 host_tag;
-	u32 scsiio_flags = 0;
+	u32 scsiio_flags = 0, data_len_blks = 0;
 	struct request *rq = scsi_cmd_to_rq(scmd);
 	int iprio_class;
 	u8 is_pcie_dev = 0;
+	u32 tracked_io_sz = 0;
+	u32 ioc_pend_data_len = 0, tg_pend_data_len = 0;
+	struct mpi3mr_throttle_group_info *tg = NULL;
 
 	if (mrioc->unrecoverable) {
 		scmd->result = DID_ERROR << 16;
@@ -4104,11 +4220,48 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 		goto out;
 	}
 	op_req_q = &mrioc->req_qinfo[scmd_priv_data->req_q_idx];
+		data_len_blks = scsi_bufflen(scmd) >> 9;
+	if ((data_len_blks >= mrioc->io_throttle_data_length) &&
+	    stgt_priv_data->io_throttle_enabled) {
+		tracked_io_sz = data_len_blks;
+		tg = stgt_priv_data->throttle_group;
+		if (tg) {
+			ioc_pend_data_len = atomic_add_return(data_len_blks,
+			    &mrioc->pend_large_data_sz);
+			tg_pend_data_len = atomic_add_return(data_len_blks,
+			    &tg->pend_large_data_sz);
+			if (!tg->io_divert  && ((ioc_pend_data_len >=
+			    mrioc->io_throttle_high) ||
+			    (tg_pend_data_len >= tg->high))) {
+				tg->io_divert = 1;
+				mpi3mr_set_io_divert_for_all_vd_in_tg(mrioc,
+				    tg, 1);
+			}
+		} else {
+			ioc_pend_data_len = atomic_add_return(data_len_blks,
+			    &mrioc->pend_large_data_sz);
+			if (ioc_pend_data_len >= mrioc->io_throttle_high)
+				stgt_priv_data->io_divert = 1;
+		}
+	}
+
+	if (stgt_priv_data->io_divert) {
+		scsiio_req->msg_flags |=
+		    MPI3_SCSIIO_MSGFLAGS_DIVERT_TO_FIRMWARE;
+		scsiio_flags |= MPI3_SCSIIO_FLAGS_DIVERT_REASON_IO_THROTTLING;
+	}
+	scsiio_req->flags = cpu_to_le32(scsiio_flags);
 
 	if (mpi3mr_op_request_post(mrioc, op_req_q,
 	    scmd_priv_data->mpi3mr_scsiio_req)) {
 		mpi3mr_clear_scmd_priv(mrioc, scmd);
 		retval = SCSI_MLQUEUE_HOST_BUSY;
+		if (tracked_io_sz) {
+			atomic_sub(tracked_io_sz, &mrioc->pend_large_data_sz);
+			if (tg)
+				atomic_sub(tracked_io_sz,
+				    &tg->pend_large_data_sz);
+		}
 		goto out;
 	}
 
