@@ -394,6 +394,7 @@ err:
 	kfree(available_fmt->dma_buffer_size);
 free_copier:
 	kfree(ipc4_copier);
+	swidget->private = NULL;
 	return ret;
 }
 
@@ -541,6 +542,8 @@ err:
 	kfree(available_fmt->dma_buffer_size);
 free_copier:
 	kfree(ipc4_copier);
+	dai->private = NULL;
+	dai->scomp = NULL;
 	return ret;
 }
 
@@ -552,6 +555,12 @@ static void sof_ipc4_widget_free_comp_dai(struct snd_sof_widget *swidget)
 
 	if (!dai)
 		return;
+
+	if (!dai->private) {
+		kfree(dai);
+		swidget->private = NULL;
+		return;
+	}
 
 	ipc4_copier = dai->private;
 	available_fmt = &ipc4_copier->available_fmt;
@@ -669,6 +678,7 @@ static int sof_ipc4_widget_setup_comp_pga(struct snd_sof_widget *swidget)
 	return 0;
 err:
 	kfree(gain);
+	swidget->private = NULL;
 	return ret;
 }
 
@@ -698,6 +708,7 @@ static int sof_ipc4_widget_setup_comp_mixer(struct snd_sof_widget *swidget)
 	return 0;
 err:
 	kfree(mixer);
+	swidget->private = NULL;
 	return ret;
 }
 
