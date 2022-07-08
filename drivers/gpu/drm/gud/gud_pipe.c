@@ -105,7 +105,8 @@ static size_t gud_xrgb8888_to_color(u8 *dst, const struct drm_format_info *forma
 	unsigned int bits_per_pixel = 8 / block_width;
 	u8 r, g, b, pix, *block = dst; /* Assign to silence compiler warning */
 	unsigned int x, y, width;
-	u32 *pix32;
+	__le32 *sbuf32;
+	u32 pix32;
 	size_t len;
 
 	/* Start on a byte boundary */
@@ -114,8 +115,8 @@ static size_t gud_xrgb8888_to_color(u8 *dst, const struct drm_format_info *forma
 	len = drm_format_info_min_pitch(format, 0, width) * drm_rect_height(rect);
 
 	for (y = rect->y1; y < rect->y2; y++) {
-		pix32 = src + (y * fb->pitches[0]);
-		pix32 += rect->x1;
+		sbuf32 = src + (y * fb->pitches[0]);
+		sbuf32 += rect->x1;
 
 		for (x = 0; x < width; x++) {
 			unsigned int pixpos = x % block_width; /* within byte from the left */
@@ -126,9 +127,10 @@ static size_t gud_xrgb8888_to_color(u8 *dst, const struct drm_format_info *forma
 				*block = 0;
 			}
 
-			r = *pix32 >> 16;
-			g = *pix32 >> 8;
-			b = *pix32++;
+			pix32 = le32_to_cpu(*sbuf32++);
+			r = pix32 >> 16;
+			g = pix32 >> 8;
+			b = pix32;
 
 			switch (format->format) {
 			case GUD_DRM_FORMAT_XRGB1111:
