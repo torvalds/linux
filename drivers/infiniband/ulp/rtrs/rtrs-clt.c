@@ -1433,12 +1433,10 @@ out_err:
 
 static void free_permits(struct rtrs_clt_sess *clt)
 {
-	if (clt->permits_map) {
-		size_t sz = clt->queue_depth;
-
+	if (clt->permits_map)
 		wait_event(clt->permits_wait,
-			   find_first_bit(clt->permits_map, sz) >= sz);
-	}
+			   bitmap_empty(clt->permits_map, clt->queue_depth));
+
 	bitmap_free(clt->permits_map);
 	clt->permits_map = NULL;
 	kfree(clt->permits);
