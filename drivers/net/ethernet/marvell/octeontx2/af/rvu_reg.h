@@ -605,6 +605,15 @@
 #define NPC_AF_DBG_DATAX(a)		(0x3001400 | (a) << 4)
 #define NPC_AF_DBG_RESULTX(a)		(0x3001800 | (a) << 4)
 
+#define NPC_AF_EXACT_MEM_ENTRY(a, b)	(0x300000 | (a) << 15 | (b) << 3)
+#define NPC_AF_EXACT_CAM_ENTRY(a)	(0xC00 | (a) << 3)
+#define NPC_AF_INTFX_EXACT_MASK(a)	(0x660 | (a) << 3)
+#define NPC_AF_INTFX_EXACT_RESULT_CTL(a)(0x680 | (a) << 3)
+#define NPC_AF_INTFX_EXACT_CFG(a)	(0xA00 | (a) << 3)
+#define NPC_AF_INTFX_EXACT_SECRET0(a)	(0xE00 | (a) << 3)
+#define NPC_AF_INTFX_EXACT_SECRET1(a)	(0xE20 | (a) << 3)
+#define NPC_AF_INTFX_EXACT_SECRET2(a)	(0xE40 | (a) << 3)
+
 #define NPC_AF_MCAMEX_BANKX_CAMX_INTF(a, b, c) ({			   \
 	u64 offset;							   \
 									   \

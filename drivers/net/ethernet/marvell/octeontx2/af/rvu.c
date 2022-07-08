@@ -18,6 +18,7 @@
 #include "ptp.h"
 
 #include "rvu_trace.h"
+#include "rvu_npc_hash.h"
 
 #define DRV_NAME	"rvu_af"
 #define DRV_STRING      "Marvell OcteonTX2 RVU Admin Function Driver"
@@ -69,6 +70,7 @@ static void rvu_setup_hw_capabilities(struct rvu *rvu)
 	hw->cap.nix_rx_multicast = true;
 	hw->cap.nix_shaper_toggle_wait = false;
 	hw->cap.npc_hash_extract = false;
+	hw->cap.npc_exact_match_enabled = false;
 	hw->rvu = rvu;
 
 	if (is_rvu_pre_96xx_C0(rvu)) {

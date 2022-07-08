@@ -129,4 +129,60 @@ static struct npc_mcam_kex_hash npc_mkex_hash_default __maybe_unused = {
 	},
 };
 
+enum npc_exact_opc_type {
+	NPC_EXACT_OPC_MEM,
+	NPC_EXACT_OPC_CAM,
+};
+
+struct npc_exact_table_entry {
+	struct list_head list;
+	struct list_head glist;
+	u32 seq_id;	/* Sequence number of entry */
+	u32 index;	/* Mem table or cam table index */
+	u32 mcam_idx;
+		/* Mcam index. This is valid only if "cmd" field is false */
+	enum npc_exact_opc_type opc_type;
+	u16 chan;
+	u16 pcifunc;
+	u8 ways;
+	u8 mac[ETH_ALEN];
+	u8 ctype;
+	u8 cgx_id;
+	u8 lmac_id;
+	bool cmd;	/* Is added by ethtool command ? */
+};
+
+struct npc_exact_table {
+	struct mutex lock;	/* entries update lock */
+	unsigned long *id_bmap;
+	u32 tot_ids;
+	struct {
+		int ways;
+		int depth;
+		unsigned long *bmap;
+		u64 mask;	// Masks before hash calculation.
+		u16 hash_mask;	// 11 bits for hash mask
+		u16 hash_offset; // 11 bits offset
+	} mem_table;
+
+	struct {
+		int depth;
+		unsigned long *bmap;
+	} cam_table;
+#define NPC_EXACT_TBL_MAX_WAYS 4
+
+	struct list_head lhead_mem_tbl_entry[NPC_EXACT_TBL_MAX_WAYS];
+	int mem_tbl_entry_cnt;
+
+	struct list_head lhead_cam_tbl_entry;
+	int cam_tbl_entry_cnt;
+
+	struct list_head lhead_gbl;
+};
+
+bool rvu_npc_exact_has_match_table(struct rvu *rvu);
+int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id);
+u32 rvu_npc_exact_get_max_entries(struct rvu *rvu);
+int rvu_npc_exact_init(struct rvu *rvu);
+
 #endif /* RVU_NPC_HASH_H */

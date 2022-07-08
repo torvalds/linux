@@ -389,6 +389,22 @@ struct nix_rx_action {
 };
 
 /* NPC_AF_INTFX_KEX_CFG field masks */
+#define NPC_EXACT_NIBBLE_START		40
+#define NPC_EXACT_NIBBLE_END		43
+#define NPC_EXACT_NIBBLE		GENMASK_ULL(43, 40)
+
+/* NPC_EXACT_KEX_S nibble definitions for each field */
+#define NPC_EXACT_NIBBLE_HIT		BIT_ULL(40)
+#define NPC_EXACT_NIBBLE_OPC		BIT_ULL(40)
+#define NPC_EXACT_NIBBLE_WAY		BIT_ULL(40)
+#define NPC_EXACT_NIBBLE_INDEX		GENMASK_ULL(43, 41)
+
+#define NPC_EXACT_RESULT_HIT		BIT_ULL(0)
+#define NPC_EXACT_RESULT_OPC		GENMASK_ULL(2, 1)
+#define NPC_EXACT_RESULT_WAY		GENMASK_ULL(4, 3)
+#define NPC_EXACT_RESULT_IDX		GENMASK_ULL(15, 5)
+
+/* NPC_AF_INTFX_KEX_CFG field masks */
 #define NPC_PARSE_NIBBLE		GENMASK_ULL(30, 0)
 
 /* NPC_PARSE_KEX_S nibble definitions for each field */
