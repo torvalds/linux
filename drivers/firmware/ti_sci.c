@@ -3096,7 +3096,7 @@ u16 ti_sci_get_free_resource(struct ti_sci_resource *res)
 
 		free_bit = find_first_zero_bit(desc->res_map, res_count);
 		if (free_bit != res_count) {
-			set_bit(free_bit, desc->res_map);
+			__set_bit(free_bit, desc->res_map);
 			raw_spin_unlock_irqrestore(&res->lock, flags);
 
 			if (desc->num && free_bit < desc->num)
@@ -3127,10 +3127,10 @@ void ti_sci_release_resource(struct ti_sci_resource *res, u16 id)
 
 		if (desc->num && desc->start <= id &&
 		    (desc->start + desc->num) > id)
-			clear_bit(id - desc->start, desc->res_map);
+			__clear_bit(id - desc->start, desc->res_map);
 		else if (desc->num_sec && desc->start_sec <= id &&
 			 (desc->start_sec + desc->num_sec) > id)
-			clear_bit(id - desc->start_sec, desc->res_map);
+			__clear_bit(id - desc->start_sec, desc->res_map);
 	}
 	raw_spin_unlock_irqrestore(&res->lock, flags);
 }
