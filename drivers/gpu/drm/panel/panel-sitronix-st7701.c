@@ -387,14 +387,12 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 	return mipi_dsi_attach(dsi);
 }
 
-static int st7701_dsi_remove(struct mipi_dsi_device *dsi)
+static void st7701_dsi_remove(struct mipi_dsi_device *dsi)
 {
 	struct st7701 *st7701 = mipi_dsi_get_drvdata(dsi);
 
 	mipi_dsi_detach(dsi);
 	drm_panel_remove(&st7701->panel);
-
-	return 0;
 }
 
 static const struct of_device_id st7701_of_match[] = {

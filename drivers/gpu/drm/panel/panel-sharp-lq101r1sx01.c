@@ -391,7 +391,7 @@ static int sharp_panel_probe(struct mipi_dsi_device *dsi)
 	return 0;
 }
 
-static int sharp_panel_remove(struct mipi_dsi_device *dsi)
+static void sharp_panel_remove(struct mipi_dsi_device *dsi)
 {
 	struct sharp_panel *sharp = mipi_dsi_get_drvdata(dsi);
 	int err;
@@ -399,7 +399,7 @@ static int sharp_panel_remove(struct mipi_dsi_device *dsi)
 	/* only detach from host for the DSI-LINK2 interface */
 	if (!sharp) {
 		mipi_dsi_detach(dsi);
-		return 0;
+		return;
 	}
 
 	err = drm_panel_disable(&sharp->base);
@@ -411,8 +411,6 @@ static int sharp_panel_remove(struct mipi_dsi_device *dsi)
 		dev_err(&dsi->dev, "failed to detach from DSI host: %d\n", err);
 
 	sharp_panel_del(sharp);
-
-	return 0;
 }
 
 static void sharp_panel_shutdown(struct mipi_dsi_device *dsi)
