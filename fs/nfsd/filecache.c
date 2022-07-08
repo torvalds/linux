@@ -303,7 +303,6 @@ nfsd_file_alloc(struct nfsd_file_lookup_key *key, unsigned int may)
 		refcount_set(&nf->nf_ref, 2);
 		nf->nf_may = key->need;
 		nf->nf_mark = NULL;
-		trace_nfsd_file_alloc(nf);
 	}
 	return nf;
 }
@@ -1126,6 +1125,7 @@ out_status:
 	return status;
 
 open_file:
+	trace_nfsd_file_alloc(nf);
 	nf->nf_mark = nfsd_file_mark_find_or_create(nf);
 	if (nf->nf_mark) {
 		if (open) {
