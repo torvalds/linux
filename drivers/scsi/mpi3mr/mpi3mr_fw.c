@@ -4077,9 +4077,13 @@ void mpi3mr_memset_buffers(struct mpi3mr_ioc *mrioc)
 		tg = mrioc->throttle_groups;
 		for (i = 0; i < mrioc->num_io_throttle_group; i++, tg++) {
 			tg->id = 0;
+			tg->fw_qd = 0;
+			tg->modified_qd = 0;
 			tg->io_divert = 0;
+			tg->need_qd_reduction = 0;
 			tg->high = 0;
 			tg->low = 0;
+			tg->qd_reduction = 0;
 			atomic_set(&tg->pend_large_data_sz, 0);
 		}
 	}

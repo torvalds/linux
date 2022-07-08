@@ -436,6 +436,10 @@ struct mpi3mr_intr_info {
  * struct mpi3mr_throttle_group_info - Throttle group info
  *
  * @io_divert: Flag indicates io divert is on or off for the TG
+ * @need_qd_reduction: Flag to indicate QD reduction is needed
+ * @qd_reduction: Queue Depth reduction in units of 10%
+ * @fw_qd: QueueDepth value reported by the firmware
+ * @modified_qd: Modified QueueDepth value due to throttling
  * @id: Throttle Group ID.
  * @high: High limit to turn on throttling in 512 byte blocks
  * @low: Low limit to turn off throttling in 512 byte blocks
@@ -443,6 +447,10 @@ struct mpi3mr_intr_info {
  */
 struct mpi3mr_throttle_group_info {
 	u8 io_divert;
+	u8 need_qd_reduction;
+	u8 qd_reduction;
+	u16 fw_qd;
+	u16 modified_qd;
 	u16 id;
 	u32 high;
 	u32 low;
@@ -486,6 +494,7 @@ struct tgt_dev_pcie {
  * cached from firmware given data
  *
  * @state: State of the VD
+ * @tg_qd_reduction: Queue Depth reduction in units of 10%
  * @tg_id: VDs throttle group ID
  * @high: High limit to turn on throttling in 512 byte blocks
  * @low: Low limit to turn off throttling in 512 byte blocks
@@ -493,6 +502,7 @@ struct tgt_dev_pcie {
  */
 struct tgt_dev_vd {
 	u8 state;
+	u8 tg_qd_reduction;
 	u16 tg_id;
 	u32 tg_high;
 	u32 tg_low;
