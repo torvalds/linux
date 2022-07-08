@@ -416,27 +416,28 @@ static void populate_subvp_cmd_drr_info(struct dc *dc,
 	pipe_data->pipe_config.vblank_data.drr_info.use_ramping = false; // for now don't use ramping
 	pipe_data->pipe_config.vblank_data.drr_info.drr_window_size_ms = 4; // hardcode 4ms DRR window for now
 
-	drr_frame_us = drr_timing->v_total * drr_timing->h_total /
-			(double)(drr_timing->pix_clk_100hz * 100) * 1000000;
+	drr_frame_us = div64_s64(drr_timing->v_total * drr_timing->h_total,
+				 (int64_t)(drr_timing->pix_clk_100hz * 100) * 1000000);
 	// P-State allow width and FW delays already included phantom_timing->v_addressable
-	mall_region_us = phantom_timing->v_addressable * phantom_timing->h_total /
-			(double)(phantom_timing->pix_clk_100hz * 100) * 1000000;
+	mall_region_us = div64_s64(phantom_timing->v_addressable * phantom_timing->h_total,
+				   (int64_t)(phantom_timing->pix_clk_100hz * 100) * 1000000);
 	min_drr_supported_us = drr_frame_us + mall_region_us + SUBVP_DRR_MARGIN_US;
-	min_vtotal_supported = drr_timing->pix_clk_100hz * 100 * ((double)min_drr_supported_us / 1000000) /
-			(double)drr_timing->h_total;
+	min_vtotal_supported = div64_s64(drr_timing->pix_clk_100hz * 100 *
+					 (div64_s64((int64_t)min_drr_supported_us, 1000000)),
+					 (int64_t)drr_timing->h_total);
 
-	prefetch_us = (phantom_timing->v_total - phantom_timing->v_front_porch) * phantom_timing->h_total /
-			(double)(phantom_timing->pix_clk_100hz * 100) * 1000000 +
-			dc->caps.subvp_prefetch_end_to_mall_start_us;
-	subvp_active_us = main_timing->v_addressable * main_timing->h_total /
-			(double)(main_timing->pix_clk_100hz * 100) * 1000000;
-	drr_active_us = drr_timing->v_addressable * drr_timing->h_total /
-			(double)(drr_timing->pix_clk_100hz * 100) * 1000000;
-	max_drr_vblank_us = (double)(subvp_active_us - prefetch_us - drr_active_us) / 2 + drr_active_us;
+	prefetch_us = div64_s64((phantom_timing->v_total - phantom_timing->v_front_porch) * phantom_timing->h_total,
+				(int64_t)(phantom_timing->pix_clk_100hz * 100) * 1000000 +
+				dc->caps.subvp_prefetch_end_to_mall_start_us);
+	subvp_active_us = div64_s64(main_timing->v_addressable * main_timing->h_total,
+				    (int64_t)(main_timing->pix_clk_100hz * 100) * 1000000);
+	drr_active_us = div64_s64(drr_timing->v_addressable * drr_timing->h_total,
+				  (int64_t)(drr_timing->pix_clk_100hz * 100) * 1000000);
+	max_drr_vblank_us = div64_s64((int64_t)(subvp_active_us - prefetch_us - drr_active_us), 2) + drr_active_us;
 	max_drr_mallregion_us = subvp_active_us - prefetch_us - mall_region_us;
 	max_drr_supported_us = max_drr_vblank_us > max_drr_mallregion_us ? max_drr_vblank_us : max_drr_mallregion_us;
-	max_vtotal_supported = drr_timing->pix_clk_100hz * 100 * ((double)max_drr_supported_us / 1000000) /
-			(double)drr_timing->h_total;
+	max_vtotal_supported = div64_s64(drr_timing->pix_clk_100hz * 100 * (div64_s64((int64_t)max_drr_supported_us, 1000000)),
+					 (int64_t)drr_timing->h_total);
 
 	pipe_data->pipe_config.vblank_data.drr_info.min_vtotal_supported = min_vtotal_supported;
 	pipe_data->pipe_config.vblank_data.drr_info.max_vtotal_supported = max_vtotal_supported;
@@ -530,10 +531,10 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 	struct dc_crtc_timing *phantom_timing1 = &subvp_pipes[1]->stream->mall_stream_config.paired_stream->timing;
 	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 *pipe_data = NULL;
 
-	subvp0_prefetch_us = (phantom_timing0->v_total - phantom_timing0->v_front_porch) * phantom_timing0->h_total /
-				(double)(phantom_timing0->pix_clk_100hz * 100) * 1000000 + dc->caps.subvp_prefetch_end_to_mall_start_us;
-	subvp1_prefetch_us = (phantom_timing1->v_total - phantom_timing1->v_front_porch) * phantom_timing1->h_total /
-					(double)(phantom_timing1->pix_clk_100hz * 100) * 1000000 + dc->caps.subvp_prefetch_end_to_mall_start_us;
+	subvp0_prefetch_us = div64_s64((phantom_timing0->v_total - phantom_timing0->v_front_porch) * phantom_timing0->h_total,
+				       (int64_t)(phantom_timing0->pix_clk_100hz * 100) * 1000000 + dc->caps.subvp_prefetch_end_to_mall_start_us);
+	subvp1_prefetch_us = div64_s64((phantom_timing1->v_total - phantom_timing1->v_front_porch) * phantom_timing1->h_total,
+				       (int64_t)(phantom_timing1->pix_clk_100hz * 100) * 1000000 + dc->caps.subvp_prefetch_end_to_mall_start_us);
 
 	// Whichever SubVP PIPE has the smaller prefetch (including the prefetch end to mall start time)
 	// should increase it's prefetch time to match the other
@@ -541,16 +542,16 @@ static void update_subvp_prefetch_end_to_mall_start(struct dc *dc,
 		pipe_data = &cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[1];
 		prefetch_delta_us = subvp0_prefetch_us - subvp1_prefetch_us;
 		pipe_data->pipe_config.subvp_data.prefetch_to_mall_start_lines =
-					(((double)(dc->caps.subvp_prefetch_end_to_mall_start_us + prefetch_delta_us) / 1000000) *
-					(phantom_timing1->pix_clk_100hz * 100) + phantom_timing1->h_total - 1) /
-					(double)phantom_timing1->h_total;
+			div64_s64(((div64_s64((int64_t)(dc->caps.subvp_prefetch_end_to_mall_start_us + prefetch_delta_us), 1000000)) *
+				   (phantom_timing1->pix_clk_100hz * 100) + phantom_timing1->h_total - 1),
+				  (int64_t)phantom_timing1->h_total);
 	} else if (subvp1_prefetch_us >  subvp0_prefetch_us) {
 		pipe_data = &cmd->fw_assisted_mclk_switch_v2.config_data.pipe_data[0];
 		prefetch_delta_us = subvp1_prefetch_us - subvp0_prefetch_us;
 		pipe_data->pipe_config.subvp_data.prefetch_to_mall_start_lines =
-					(((double)(dc->caps.subvp_prefetch_end_to_mall_start_us + prefetch_delta_us) / 1000000) *
-					(phantom_timing0->pix_clk_100hz * 100) + phantom_timing0->h_total - 1) /
-					(double)phantom_timing0->h_total;
+			div64_s64(((div64_s64((int64_t)(dc->caps.subvp_prefetch_end_to_mall_start_us + prefetch_delta_us), 1000000)) *
+				   (phantom_timing0->pix_clk_100hz * 100) + phantom_timing0->h_total - 1),
+				  (int64_t)phantom_timing0->h_total);
 	}
 }
 
@@ -601,13 +602,13 @@ static void populate_subvp_cmd_pipe_info(struct dc *dc,
 
 	// Round up
 	pipe_data->pipe_config.subvp_data.prefetch_to_mall_start_lines =
-			(((double)dc->caps.subvp_prefetch_end_to_mall_start_us / 1000000) *
-			(phantom_timing->pix_clk_100hz * 100) + phantom_timing->h_total - 1) /
-			(double)phantom_timing->h_total;
+		div64_s64(((div64_s64((int64_t)dc->caps.subvp_prefetch_end_to_mall_start_us, 1000000)) *
+			   (phantom_timing->pix_clk_100hz * 100) + phantom_timing->h_total - 1),
+			  (int64_t)phantom_timing->h_total);
 	pipe_data->pipe_config.subvp_data.processing_delay_lines =
-			(((double)dc->caps.subvp_fw_processing_delay_us / 1000000) *
-			(phantom_timing->pix_clk_100hz * 100) + phantom_timing->h_total - 1) /
-			(double)phantom_timing->h_total;
+		div64_s64(((div64_s64((int64_t)dc->caps.subvp_fw_processing_delay_us, 1000000)) *
+			   (phantom_timing->pix_clk_100hz * 100) + phantom_timing->h_total - 1),
+			  (int64_t)phantom_timing->h_total);
 	// Find phantom pipe index based on phantom stream
 	for (j = 0; j < dc->res_pool->pipe_count; j++) {
 		struct pipe_ctx *phantom_pipe = &context->res_ctx.pipe_ctx[j];
