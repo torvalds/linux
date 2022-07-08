@@ -3068,7 +3068,7 @@ int dcn32_populate_dml_pipes_from_context(
 			}
 		}
 	} else
-		dcn32_determine_det_override(context, pipes, is_pipe_split_expected, pipe_cnt);
+		dcn32_determine_det_override(context, pipes, is_pipe_split_expected, dc->res_pool->pipe_count);
 
 	// In general cases we want to keep the dram clock change requirement
 	// (prefer configs that support MCLK switch). Only override to false
