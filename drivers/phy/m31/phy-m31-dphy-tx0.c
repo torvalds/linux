@@ -728,6 +728,7 @@ static int sf_dphy_probe(struct platform_device *pdev)
 	}
 	phy_set_drvdata(dphy->phy, dphy);
 
+	dphy->dev = &pdev->dev;
 	// this power switch control bit was added in ECO, check ECO item "aon psw_en" for detail
 	dev_info(dphy->dev, "control ECO\n");
 	dphy->aonsys = ioremap(0x17010000, 0x10000);
