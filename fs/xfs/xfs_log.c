@@ -2092,8 +2092,6 @@ xlog_dealloc_log(
 	xlog_in_core_t	*iclog, *next_iclog;
 	int		i;
 
-	xlog_cil_destroy(log);
-
 	/*
 	 * Cycle all the iclogbuf locks to make sure all log IO completion
 	 * is done before we tear down these buffers.
@@ -2104,6 +2102,13 @@ xlog_dealloc_log(
 		up(&iclog->ic_sema);
 		iclog = iclog->ic_next;
 	}
+
+	/*
+	 * Destroy the CIL after waiting for iclog IO completion because an
+	 * iclog EIO error will try to shut down the log, which accesses the
+	 * CIL to wake up the waiters.
+	 */
+	xlog_cil_destroy(log);
 
 	iclog = log->l_iclog;
 	for (i = 0; i < log->l_iclog_bufs; i++) {
