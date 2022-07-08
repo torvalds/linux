@@ -589,7 +589,7 @@ nfsd_file_close_inode_sync(struct inode *inode)
 	LIST_HEAD(dispose);
 
 	__nfsd_file_close_inode(inode, hashval, &dispose);
-	trace_nfsd_file_close_inode_sync(inode, hashval, !list_empty(&dispose));
+	trace_nfsd_file_close_inode_sync(inode, !list_empty(&dispose));
 	nfsd_file_dispose_list_sync(&dispose);
 }
 
@@ -609,7 +609,7 @@ nfsd_file_close_inode(struct inode *inode)
 	LIST_HEAD(dispose);
 
 	__nfsd_file_close_inode(inode, hashval, &dispose);
-	trace_nfsd_file_close_inode(inode, hashval, !list_empty(&dispose));
+	trace_nfsd_file_close_inode(inode, !list_empty(&dispose));
 	nfsd_file_dispose_list_delayed(&dispose);
 }
 
@@ -963,7 +963,7 @@ nfsd_file_is_cached(struct inode *inode)
 		}
 	}
 	rcu_read_unlock();
-	trace_nfsd_file_is_cached(inode, hashval, (int)ret);
+	trace_nfsd_file_is_cached(inode, (int)ret);
 	return ret;
 }
 
@@ -995,9 +995,8 @@ retry:
 
 	new = nfsd_file_alloc(inode, may_flags, hashval, net);
 	if (!new) {
-		trace_nfsd_file_acquire(rqstp, hashval, inode, may_flags,
-					NULL, nfserr_jukebox);
-		return nfserr_jukebox;
+		status = nfserr_jukebox;
+		goto out_status;
 	}
 
 	spin_lock(&nfsd_file_hashtbl[hashval].nfb_lock);
@@ -1035,8 +1034,10 @@ out:
 		nf = NULL;
 	}
 
-	trace_nfsd_file_acquire(rqstp, hashval, inode, may_flags, nf, status);
+out_status:
+	trace_nfsd_file_acquire(rqstp, inode, may_flags, nf, status);
 	return status;
+
 open_file:
 	nf = new;
 	/* Take reference for the hashtable */
