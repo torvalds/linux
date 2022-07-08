@@ -105,6 +105,7 @@ enum v4l2_stateless_hevc_start_code {
  * @chroma_format_idc: specifies the chroma sampling
  * @sps_max_sub_layers_minus1: this value plus 1 specifies the maximum number
  *                             of temporal sub-layers
+ * @reserved: padding field. Should be zeroed by applications.
  * @flags: see V4L2_HEVC_SPS_FLAG_{}
  */
 struct v4l2_ctrl_hevc_sps {
@@ -133,6 +134,7 @@ struct v4l2_ctrl_hevc_sps {
 	__u8	chroma_format_idc;
 	__u8	sps_max_sub_layers_minus1;
 
+	__u8	reserved[6];
 	__u64	flags;
 };
 
@@ -192,6 +194,7 @@ struct v4l2_ctrl_hevc_sps {
  *			divided by 2
  * @log2_parallel_merge_level_minus2: this value plus 2 specifies the value of
  *                                    the variable Log2ParMrgLevel
+ * @reserved: padding field. Should be zeroed by applications.
  * @flags: see V4L2_HEVC_PPS_FLAG_{}
  */
 struct v4l2_ctrl_hevc_pps {
@@ -210,8 +213,7 @@ struct v4l2_ctrl_hevc_pps {
 	__s8	pps_beta_offset_div2;
 	__s8	pps_tc_offset_div2;
 	__u8	log2_parallel_merge_level_minus2;
-
-	__u8	padding[4];
+	__u8	reserved;
 	__u64	flags;
 };
 
@@ -239,14 +241,15 @@ struct v4l2_ctrl_hevc_pps {
  * @timestamp: timestamp of the V4L2 capture buffer to use as reference.
  * @flags: long term flag for the reference frame
  * @field_pic: whether the reference is a field picture or a frame.
+ * @reserved: padding field. Should be zeroed by applications.
  * @pic_order_cnt_val: the picture order count of the reference.
  */
 struct v4l2_hevc_dpb_entry {
 	__u64	timestamp;
 	__u8	flags;
 	__u8	field_pic;
+	__u16	reserved;
 	__s32	pic_order_cnt_val;
-	__u8	padding[2];
 };
 
 /**
@@ -284,8 +287,6 @@ struct v4l2_hevc_pred_weight_table {
 	__s8	luma_offset_l1[V4L2_HEVC_DPB_ENTRIES_NUM_MAX];
 	__s8	delta_chroma_weight_l1[V4L2_HEVC_DPB_ENTRIES_NUM_MAX][2];
 	__s8	chroma_offset_l1[V4L2_HEVC_DPB_ENTRIES_NUM_MAX][2];
-
-	__u8	padding[6];
 
 	__u8	luma_log2_weight_denom;
 	__s8	delta_chroma_log2_weight_denom;
@@ -339,6 +340,7 @@ struct v4l2_hevc_pred_weight_table {
  * @slice_tc_offset_div2: specify the deblocking parameter offsets for tC divided by 2
  * @pic_struct: indicates whether a picture should be displayed as a frame or as one or
  *		more fields
+ * @reserved0: padding field. Should be zeroed by applications.
  * @slice_segment_addr: specifies the address of the first coding tree block in
  *			the slice segment
  * @ref_idx_l0: the list of L0 reference elements as indices in the DPB
@@ -349,6 +351,7 @@ struct v4l2_hevc_pred_weight_table {
  *				picture include in the SPS
  * @pred_weight_table: the prediction weight coefficients for inter-picture
  *		       prediction
+ * @reserved1: padding field. Should be zeroed by applications.
  * @flags: see V4L2_HEVC_SLICE_PARAMS_FLAG_{}
  */
 struct v4l2_ctrl_hevc_slice_params {
@@ -379,17 +382,18 @@ struct v4l2_ctrl_hevc_slice_params {
 	/* ISO/IEC 23008-2, ITU-T Rec. H.265: Picture timing SEI message */
 	__u8	pic_struct;
 
+	__u8	reserved0[3];
 	/* ISO/IEC 23008-2, ITU-T Rec. H.265: General slice segment header */
 	__u32	slice_segment_addr;
 	__u8	ref_idx_l0[V4L2_HEVC_DPB_ENTRIES_NUM_MAX];
 	__u8	ref_idx_l1[V4L2_HEVC_DPB_ENTRIES_NUM_MAX];
 	__u16	short_term_ref_pic_set_size;
 	__u16	long_term_ref_pic_set_size;
-	__u8	padding;
 
 	/* ISO/IEC 23008-2, ITU-T Rec. H.265: Weighted prediction parameter */
 	struct v4l2_hevc_pred_weight_table pred_weight_table;
 
+	__u8	reserved1[2];
 	__u64	flags;
 };
 
@@ -406,7 +410,6 @@ struct v4l2_ctrl_hevc_slice_params {
  * @long_term_ref_pic_set_size: specifies the size of long-term reference
  *				pictures set include in the SPS of the first slice
  * @num_active_dpb_entries: the number of entries in dpb
- * @dpb: the decoded picture buffer, for meta-data about reference frames
  * @num_poc_st_curr_before: the number of reference pictures in the short-term
  *			    set that come before the current frame
  * @num_poc_st_curr_after: the number of reference pictures in the short-term
@@ -417,6 +420,8 @@ struct v4l2_ctrl_hevc_slice_params {
  * @poc_st_curr_after: provides the index of the short term after references
  *		       in DPB array
  * @poc_lt_curr: provides the index of the long term references in DPB array
+ * @reserved: padding field. Should be zeroed by applications.
+ * @dpb: the decoded picture buffer, for meta-data about reference frames
  * @flags: see V4L2_HEVC_DECODE_PARAM_FLAG_{}
  */
 struct v4l2_ctrl_hevc_decode_params {
@@ -424,13 +429,14 @@ struct v4l2_ctrl_hevc_decode_params {
 	__u16	short_term_ref_pic_set_size;
 	__u16	long_term_ref_pic_set_size;
 	__u8	num_active_dpb_entries;
-	struct	v4l2_hevc_dpb_entry dpb[V4L2_HEVC_DPB_ENTRIES_NUM_MAX];
 	__u8	num_poc_st_curr_before;
 	__u8	num_poc_st_curr_after;
 	__u8	num_poc_lt_curr;
 	__u8	poc_st_curr_before[V4L2_HEVC_DPB_ENTRIES_NUM_MAX];
 	__u8	poc_st_curr_after[V4L2_HEVC_DPB_ENTRIES_NUM_MAX];
 	__u8	poc_lt_curr[V4L2_HEVC_DPB_ENTRIES_NUM_MAX];
+	__u8	reserved[4];
+	struct	v4l2_hevc_dpb_entry dpb[V4L2_HEVC_DPB_ENTRIES_NUM_MAX];
 	__u64	flags;
 };
 
