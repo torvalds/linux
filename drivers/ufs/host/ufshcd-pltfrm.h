@@ -5,7 +5,7 @@
 #ifndef UFSHCD_PLTFRM_H_
 #define UFSHCD_PLTFRM_H_
 
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 
 #define UFS_PWM_MODE 1
 #define UFS_HS_MODE  2

@@ -7,7 +7,7 @@
  * Authors: Joao Pinto <jpinto@synopsys.com>
  */
 
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 #include "ufshcd-dwc.h"
 #include "tc-dwc-g210.h"
 

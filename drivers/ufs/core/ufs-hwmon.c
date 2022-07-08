@@ -7,7 +7,7 @@
 #include <linux/hwmon.h>
 #include <linux/units.h>
 
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 #include "ufshcd-priv.h"
 
 struct ufs_hwmon_data {

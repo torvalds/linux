@@ -13,9 +13,9 @@
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
 
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 #include "ufshcd-pltfrm.h"
-#include "unipro.h"
+#include <ufs/unipro.h>
 
 #define UFSHCD_DEFAULT_LANES_PER_DIRECTION		2
 

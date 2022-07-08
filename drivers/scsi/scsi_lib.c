@@ -779,7 +779,7 @@ static void scsi_io_completion_action(struct scsi_cmnd *cmd, int result)
 					action = ACTION_DELAYED_RETRY;
 					break;
 				case 0x0a: /* ALUA state transition */
-					blk_stat = BLK_STS_AGAIN;
+					blk_stat = BLK_STS_TRANSPORT;
 					fallthrough;
 				default:
 					action = ACTION_FAIL;

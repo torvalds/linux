@@ -9,7 +9,7 @@
 #include <scsi/scsi.h>
 #include <scsi/scsi_host.h>
 #include "ufs_bsg.h"
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 #include "ufshcd-priv.h"
 
 static int ufs_bsg_get_query_desc_size(struct ufs_hba *hba, int *desc_len,

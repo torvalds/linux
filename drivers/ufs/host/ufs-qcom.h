@@ -7,7 +7,7 @@
 
 #include <linux/reset-controller.h>
 #include <linux/reset.h>
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 
 #define MAX_UFS_QCOM_HOSTS	1
 #define MAX_U32                 (~(u32)0)

@@ -21,10 +21,10 @@
 #include <linux/sched/clock.h>
 #include <linux/soc/mediatek/mtk_sip_svc.h>
 
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 #include "ufshcd-pltfrm.h"
-#include "ufs_quirks.h"
-#include "unipro.h"
+#include <ufs/ufs_quirks.h>
+#include <ufs/unipro.h>
 #include "ufs-mediatek.h"
 
 #define CREATE_TRACE_POINTS

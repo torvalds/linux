@@ -18,10 +18,10 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 #include "ufshcd-pltfrm.h"
-#include "ufshci.h"
-#include "unipro.h"
+#include <ufs/ufshci.h>
+#include <ufs/unipro.h>
 
 #include "ufs-exynos.h"
 

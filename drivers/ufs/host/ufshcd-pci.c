@@ -9,7 +9,7 @@
  *	Vinayak Holikatti <h.vinayak@samsung.com>
  */
 
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 #include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/pci.h>
