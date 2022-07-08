@@ -615,8 +615,8 @@ void host1x_cdma_push_wide(struct host1x_cdma *cdma, u32 op1, u32 op2,
 	struct host1x_channel *channel = cdma_to_channel(cdma);
 	struct host1x *host1x = cdma_to_host1x(cdma);
 	struct push_buffer *pb = &cdma->push_buffer;
-	unsigned int needed = 2, extra = 0, i;
 	unsigned int space = cdma->slots_free;
+	unsigned int needed = 2, extra = 0;
 
 	if (host1x_debug_trace_cmdbuf)
 		trace_host1x_cdma_push_wide(dev_name(channel->dev), op1, op2,
@@ -634,20 +634,14 @@ void host1x_cdma_push_wide(struct host1x_cdma *cdma, u32 op1, u32 op2,
 	cdma->slots_free = space - needed;
 	cdma->slots_used += needed;
 
-	/*
-	 * Note that we rely on the fact that this is only used to submit wide
-	 * gather opcodes, which consist of 3 words, and they are padded with
-	 * a NOP to avoid having to deal with fractional slots (a slot always
-	 * represents 2 words). The fourth opcode passed to this function will
-	 * therefore always be a NOP.
-	 *
-	 * This works around a slight ambiguity when it comes to opcodes. For
-	 * all current host1x incarnations the NOP opcode uses the exact same
-	 * encoding (0x20000000), so we could hard-code the value here, but a
-	 * new incarnation may change it and break that assumption.
-	 */
-	for (i = 0; i < extra; i++)
-		host1x_pushbuffer_push(pb, op4, op4);
+	if (extra > 0) {
+		/*
+		 * If there isn't enough space at the tail of the pushbuffer,
+		 * insert a RESTART(0) here to go back to the beginning.
+		 * The code above adjusted the indexes appropriately.
+		 */
+		host1x_pushbuffer_push(pb, (0x5 << 28), 0xdead0000);
+	}
 
 	host1x_pushbuffer_push(pb, op1, op2);
 	host1x_pushbuffer_push(pb, op3, op4);
