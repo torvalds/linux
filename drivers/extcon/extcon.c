@@ -167,6 +167,16 @@ static const struct __extcon_info {
 		.id = EXTCON_DISP_HMD,
 		.name = "HMD",
 	},
+	[EXTCON_DISP_CVBS] = {
+		.type = EXTCON_TYPE_DISP,
+		.id = EXTCON_DISP_CVBS,
+		.name = "CVBS",
+	},
+	[EXTCON_DISP_EDP] = {
+		.type = EXTCON_TYPE_DISP,
+		.id = EXTCON_DISP_EDP,
+		.name = "EDP",
+	},
 
 	/* Miscellaneous external connector */
 	[EXTCON_DOCK] = {
