@@ -125,6 +125,7 @@
 
 &rkcif {
 	status = "okay";
+	rockchip,android-usb-camerahal-enable;
 	// memory-region = <&cif_reserved>;
 };
 
