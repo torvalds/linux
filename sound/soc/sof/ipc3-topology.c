@@ -2348,15 +2348,10 @@ static int sof_ipc3_parse_manifest(struct snd_soc_component *scomp, int index,
 		return -EINVAL;
 	}
 
-	if (SOF_ABI_VERSION_MINOR(abi_version) > SOF_ABI_MINOR) {
-		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS)) {
-			dev_warn(scomp->dev, "%s: Topology ABI is more recent than kernel\n",
-				 __func__);
-		} else {
-			dev_err(scomp->dev, "%s: Topology ABI is more recent than kernel\n",
-				__func__);
-			return -EINVAL;
-		}
+	if (IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS) &&
+	    SOF_ABI_VERSION_MINOR(abi_version) > SOF_ABI_MINOR) {
+		dev_err(scomp->dev, "%s: Topology ABI is more recent than kernel\n", __func__);
+		return -EINVAL;
 	}
 
 	return 0;

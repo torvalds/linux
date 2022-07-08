@@ -758,13 +758,10 @@ int sof_ipc3_validate_fw_version(struct snd_sof_dev *sdev)
 		return -EINVAL;
 	}
 
-	if (SOF_ABI_VERSION_MINOR(v->abi_version) > SOF_ABI_MINOR) {
-		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS)) {
-			dev_warn(sdev->dev, "FW ABI is more recent than kernel\n");
-		} else {
-			dev_err(sdev->dev, "FW ABI is more recent than kernel\n");
-			return -EINVAL;
-		}
+	if (IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS) &&
+	    SOF_ABI_VERSION_MINOR(v->abi_version) > SOF_ABI_MINOR) {
+		dev_err(sdev->dev, "FW ABI is more recent than kernel\n");
+		return -EINVAL;
 	}
 
 	if (ready->flags & SOF_IPC_INFO_BUILD) {
