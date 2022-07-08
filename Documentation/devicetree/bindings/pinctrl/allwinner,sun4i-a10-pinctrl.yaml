@@ -124,7 +124,7 @@ patternProperties:
 
     additionalProperties: false
 
-  "^vcc-p[a-hlm]-supply$":
+  "^vcc-p[a-ilm]-supply$":
     description:
       Power supplies for pin banks.
 
