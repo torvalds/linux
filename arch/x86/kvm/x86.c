@@ -3258,9 +3258,9 @@ static int set_msr_mce(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		 * kernels clear bit 10 in bank 4 to workaround a BIOS/GART TLB
 		 * issue on AMD K8s, allow bit 10 to be clear when setting all
 		 * other bits in order to avoid an uncaught #GP in the guest.
-			 *
-			 * UNIXWARE clears bit 0 of MC1_CTL to ignore
-			 * correctable, single-bit ECC data errors.
+		 *
+		 * UNIXWARE clears bit 0 of MC1_CTL to ignore correctable,
+		 * single-bit ECC data errors.
 		 */
 		if (is_mci_control_msr(msr) &&
 		    data != 0 && (data | (1 << 10) | 1) != ~(u64)0)
