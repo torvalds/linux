@@ -10,6 +10,8 @@
 #include "rvu_reg.h"
 #include "rvu.h"
 #include "npc.h"
+#include "rvu_npc_hash.h"
+#include "rvu_npc_fs.h"
 
 #define NPC_BYTESM		GENMASK_ULL(19, 16)
 #define NPC_HDR_OFFSET		GENMASK_ULL(15, 8)
@@ -624,9 +626,9 @@ static int npc_check_unsupported_flows(struct rvu *rvu, u64 features, u8 intf)
  * If any bits in mask are 0 then corresponding bits in value are
  * dont care.
  */
-static void npc_update_entry(struct rvu *rvu, enum key_fields type,
-			     struct mcam_entry *entry, u64 val_lo,
-			     u64 val_hi, u64 mask_lo, u64 mask_hi, u8 intf)
+void npc_update_entry(struct rvu *rvu, enum key_fields type,
+		      struct mcam_entry *entry, u64 val_lo,
+		      u64 val_hi, u64 mask_lo, u64 mask_hi, u8 intf)
 {
 	struct npc_mcam *mcam = &rvu->hw->mcam;
 	struct mcam_entry dummy = { {0} };
@@ -705,8 +707,6 @@ static void npc_update_entry(struct rvu *rvu, enum key_fields type,
 	}
 }
 
-#define IPV6_WORDS     4
-
 static void npc_update_ipv6_flow(struct rvu *rvu, struct mcam_entry *entry,
 				 u64 features, struct flow_msg *pkt,
 				 struct flow_msg *mask,
@@ -779,7 +779,8 @@ static void npc_update_vlan_features(struct rvu *rvu, struct mcam_entry *entry,
 static void npc_update_flow(struct rvu *rvu, struct mcam_entry *entry,
 			    u64 features, struct flow_msg *pkt,
 			    struct flow_msg *mask,
-			    struct rvu_npc_mcam_rule *output, u8 intf)
+			    struct rvu_npc_mcam_rule *output, u8 intf,
+			    int blkaddr)
 {
 	u64 dmac_mask = ether_addr_to_u64(mask->dmac);
 	u64 smac_mask = ether_addr_to_u64(mask->smac);
@@ -854,6 +855,9 @@ do {									      \
 
 	npc_update_ipv6_flow(rvu, entry, features, pkt, mask, output, intf);
 	npc_update_vlan_features(rvu, entry, features, intf);
+
+	npc_update_field_hash(rvu, intf, entry, blkaddr, features,
+			      pkt, mask, opkt, omask);
 }
 
 static struct rvu_npc_mcam_rule *rvu_mcam_find_rule(struct npc_mcam *mcam,
@@ -1032,7 +1036,7 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 	entry_index = req->entry;
 
 	npc_update_flow(rvu, entry, features, &req->packet, &req->mask, &dummy,
-			req->intf);
+			req->intf, blkaddr);
 
 	if (is_npc_intf_rx(req->intf))
 		npc_update_rx_entry(rvu, pfvf, entry, req, target, pf_set_vfs_mac);
@@ -1057,7 +1061,8 @@ static int npc_install_flow(struct rvu *rvu, int blkaddr, u16 target,
 			npc_update_flow(rvu, entry, missing_features,
 					&def_ucast_rule->packet,
 					&def_ucast_rule->mask,
-					&dummy, req->intf);
+					&dummy, req->intf,
+					blkaddr);
 		installed_features = req->features | missing_features;
 	}
 

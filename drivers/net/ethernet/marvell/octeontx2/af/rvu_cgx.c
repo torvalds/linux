@@ -14,6 +14,7 @@
 #include "lmac_common.h"
 #include "rvu_reg.h"
 #include "rvu_trace.h"
+#include "rvu_npc_hash.h"
 
 struct cgx_evq_entry {
 	struct list_head evq_node;
