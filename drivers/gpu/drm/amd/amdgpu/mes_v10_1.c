@@ -1124,6 +1124,7 @@ static int mes_v10_1_hw_init(void *handle)
 	 * with MES enabled.
 	 */
 	adev->gfx.kiq.ring.sched.ready = false;
+	adev->mes.ring.sched.ready = true;
 
 	return 0;
 
@@ -1135,6 +1136,8 @@ failure:
 static int mes_v10_1_hw_fini(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+
+	adev->mes.ring.sched.ready = false;
 
 	mes_v10_1_enable(adev, false);
 
