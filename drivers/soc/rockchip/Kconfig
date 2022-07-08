@@ -50,6 +50,14 @@ config ROCKCHIP_HW_DECOMPRESS
 	  This driver support Decompress IP built-in Rockchip SoC, support
 	  LZ4, GZIP, ZLIB.
 
+config ROCKCHIP_HW_DECOMPRESS_USER
+	tristate "Rockchip HardWare Decompress User Interface Support"
+	default n
+	select ROCKCHIP_HW_DECOMPRESS
+	help
+	  This driver support user invokes the Decompress IP built-in Rockchip SoC, support
+	  LZ4, GZIP, ZLIB.
+
 config ROCKCHIP_IODOMAIN
 	tristate "Rockchip IO domain support"
 	depends on OF
