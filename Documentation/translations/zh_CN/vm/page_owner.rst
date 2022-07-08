@@ -156,22 +156,22 @@ page owner在默认情况下是禁用的。所以，如果你想使用它，你�
 
   --sort的选项:
 
-	键		键长		描述
+	短键		长键		描述
 	p		pid		进程ID
 	tg		tgid		线程组ID
 	n		name		任务命令名称
 	st		stacktrace	页面分配的堆栈跟踪
 	T		txt		块的全文
-	ft		free_ts		页面发布时的时间戳
+	ft		free_ts		页面释放时的时间戳
 	at		alloc_ts	页面被分配时的时间戳
 	ator		allocator	页面的内存分配器
 
   --curl的选项:
 
-	键		键长		描述
+	短键		长键		描述
 	p		pid		进程ID
 	tg		tgid		线程组ID
 	n		name		任务命令名称
-	f		free		该页是否已经发布
+	f		free		该页是否已经释放
 	st		stacktrace	页面分配的堆栈跟踪
 	ator		allocator	页面的内存分配器
