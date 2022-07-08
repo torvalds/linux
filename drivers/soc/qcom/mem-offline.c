@@ -1084,6 +1084,15 @@ static void isolate_free_pages(struct movable_zone_fill_control *fc)
 			start_pfn += pageblock_nr_pages - 1;
 			continue;
 		}
+		/*
+		 * Make sure that the zone->lock is not held for long by
+		 * returning once we have SWAP_CLUSTER_MAX pages in the
+		 * free list for migration.
+		 */
+		if (!(start_pfn % pageblock_nr_pages) &&
+			(fc->nr_free_pages >= SWAP_CLUSTER_MAX ||
+			 has_pend_offline_req))
+			break;
 
 		if (!PageBuddy(page))
 			continue;
@@ -1093,18 +1102,8 @@ static void isolate_free_pages(struct movable_zone_fill_control *fc)
 		list_splice(&tmp, &fc->freepages);
 		fc->nr_free_pages += isolated;
 		start_pfn += isolated - 1;
-
-		/*
-		 * Make sure that the zone->lock is not held for long by
-		 * returning once we have SWAP_CLUSTER_MAX pages in the
-		 * free list for migration.
-		 */
-		if (!((start_pfn + 1) % pageblock_nr_pages) &&
-			(fc->nr_free_pages >= SWAP_CLUSTER_MAX ||
-			 has_pend_offline_req))
-			break;
 	}
-	fc->start_pfn = start_pfn + 1;
+	fc->start_pfn = start_pfn;
 	spin_unlock_irqrestore(&fc->zone->lock, flags);
 }
 
