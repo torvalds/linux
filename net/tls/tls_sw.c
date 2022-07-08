@@ -1491,10 +1491,8 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 		err = skb_copy_bits(skb, rxm->offset + TLS_HEADER_SIZE,
 				    &dctx->iv[iv_offset] + prot->salt_size,
 				    prot->iv_size);
-		if (err < 0) {
-			kfree(mem);
-			return err;
-		}
+		if (err < 0)
+			goto exit_free;
 		memcpy(&dctx->iv[iv_offset], tls_ctx->rx.iv, prot->salt_size);
 	}
 	xor_iv_with_seq(prot, &dctx->iv[iv_offset], tls_ctx->rx.rec_seq);
@@ -1510,10 +1508,8 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	err = skb_to_sgvec(skb, &sgin[1],
 			   rxm->offset + prot->prepend_size,
 			   rxm->full_len - prot->prepend_size);
-	if (err < 0) {
-		kfree(mem);
-		return err;
-	}
+	if (err < 0)
+		goto exit_free;
 
 	if (n_sgout) {
 		if (out_iov) {
@@ -1556,7 +1552,7 @@ fallback_to_reg_recv:
 	/* Release the pages in case iov was mapped to pages */
 	for (; pages > 0; pages--)
 		put_page(sg_page(&sgout[pages]));
-
+exit_free:
 	kfree(mem);
 	return err;
 }
