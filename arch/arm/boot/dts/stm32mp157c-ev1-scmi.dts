@@ -7,6 +7,7 @@
 /dts-v1/;
 
 #include "stm32mp157c-ev1.dts"
+#include "stm32mp15-scmi.dtsi"
 
 / {
 	model = "STMicroelectronics STM32MP157C-EV1 SCMI eval daughter on eval mother";
@@ -68,10 +69,6 @@
 	resets = <&scmi_reset RST_SCMI_MCU>;
 };
 
-&optee {
-	status = "okay";
-};
-
 &rcc {
 	compatible = "st,stm32mp1-rcc-secure", "syscon";
 	clock-names = "hse", "hsi", "csi", "lse", "lsi";
@@ -89,12 +86,4 @@
 
 &rtc {
 	clocks = <&scmi_clk CK_SCMI_RTCAPB>, <&scmi_clk CK_SCMI_RTC>;
-};
-
-&scmi {
-	status = "okay";
-};
-
-&scmi_shm {
-	status = "okay";
 };

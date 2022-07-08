@@ -726,23 +726,46 @@ static struct track *get_track(struct kmem_cache *s, void *object,
 	return kasan_reset_tag(p + alloc);
 }
 
-static void noinline set_track(struct kmem_cache *s, void *object,
-			enum track_item alloc, unsigned long addr)
-{
-	struct track *p = get_track(s, object, alloc);
-
 #ifdef CONFIG_STACKDEPOT
+static noinline depot_stack_handle_t set_track_prepare(void)
+{
+	depot_stack_handle_t handle;
 	unsigned long entries[TRACK_ADDRS_COUNT];
 	unsigned int nr_entries;
 
 	nr_entries = stack_trace_save(entries, ARRAY_SIZE(entries), 3);
-	p->handle = stack_depot_save(entries, nr_entries, GFP_NOWAIT);
+	handle = stack_depot_save(entries, nr_entries, GFP_NOWAIT);
+
+	return handle;
+}
+#else
+static inline depot_stack_handle_t set_track_prepare(void)
+{
+	return 0;
+}
 #endif
 
+static void set_track_update(struct kmem_cache *s, void *object,
+			     enum track_item alloc, unsigned long addr,
+			     depot_stack_handle_t handle)
+{
+	struct track *p = get_track(s, object, alloc);
+
+#ifdef CONFIG_STACKDEPOT
+	p->handle = handle;
+#endif
 	p->addr = addr;
 	p->cpu = smp_processor_id();
 	p->pid = current->pid;
 	p->when = jiffies;
+}
+
+static __always_inline void set_track(struct kmem_cache *s, void *object,
+				      enum track_item alloc, unsigned long addr)
+{
+	depot_stack_handle_t handle = set_track_prepare();
+
+	set_track_update(s, object, alloc, addr, handle);
 }
 
 static void init_tracking(struct kmem_cache *s, void *object)
@@ -1373,6 +1396,10 @@ static noinline int free_debug_processing(
 	int cnt = 0;
 	unsigned long flags, flags2;
 	int ret = 0;
+	depot_stack_handle_t handle = 0;
+
+	if (s->flags & SLAB_STORE_USER)
+		handle = set_track_prepare();
 
 	spin_lock_irqsave(&n->list_lock, flags);
 	slab_lock(slab, &flags2);
@@ -1391,7 +1418,7 @@ next_object:
 	}
 
 	if (s->flags & SLAB_STORE_USER)
-		set_track(s, object, TRACK_FREE, addr);
+		set_track_update(s, object, TRACK_FREE, addr, handle);
 	trace(s, slab, object, 0);
 	/* Freepointer not overwritten by init_object(), SLAB_POISON moved it */
 	init_object(s, object, SLUB_RED_INACTIVE);
@@ -2936,6 +2963,7 @@ redo:
 
 	if (!freelist) {
 		c->slab = NULL;
+		c->tid = next_tid(c->tid);
 		local_unlock_irqrestore(&s->cpu_slab->lock, flags);
 		stat(s, DEACTIVATE_BYPASS);
 		goto new_slab;
@@ -2968,6 +2996,7 @@ deactivate_slab:
 	freelist = c->freelist;
 	c->slab = NULL;
 	c->freelist = NULL;
+	c->tid = next_tid(c->tid);
 	local_unlock_irqrestore(&s->cpu_slab->lock, flags);
 	deactivate_slab(s, slab, freelist);
 

@@ -722,7 +722,10 @@ void flush_anon_page(struct vm_area_struct *vma, struct page *page, unsigned lon
 		return;
 
 	if (parisc_requires_coherency()) {
-		flush_user_cache_page(vma, vmaddr);
+		if (vma->vm_flags & VM_SHARED)
+			flush_data_cache();
+		else
+			flush_user_cache_page(vma, vmaddr);
 		return;
 	}
 
