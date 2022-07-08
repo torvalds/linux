@@ -65,4 +65,9 @@ void dcn32_full_validate_bw_helper(struct dc *dc,
 				   bool *merge,
 				   int *pipe_cnt);
 
+void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
+				display_e2e_pipe_params_st *pipes,
+				int pipe_cnt,
+				int vlevel);
+
 #endif
