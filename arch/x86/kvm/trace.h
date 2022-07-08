@@ -1459,6 +1459,26 @@ TRACE_EVENT(kvm_avic_ga_log,
 		  __entry->vmid, __entry->vcpuid)
 );
 
+TRACE_EVENT(kvm_avic_kick_vcpu_slowpath,
+	    TP_PROTO(u32 icrh, u32 icrl, u32 index),
+	    TP_ARGS(icrh, icrl, index),
+
+	TP_STRUCT__entry(
+		__field(u32, icrh)
+		__field(u32, icrl)
+		__field(u32, index)
+	),
+
+	TP_fast_assign(
+		__entry->icrh = icrh;
+		__entry->icrl = icrl;
+		__entry->index = index;
+	),
+
+	TP_printk("icrh:icrl=%#08x:%08x, index=%u",
+		  __entry->icrh, __entry->icrl, __entry->index)
+);
+
 TRACE_EVENT(kvm_hv_timer_state,
 		TP_PROTO(unsigned int vcpu_id, unsigned int hv_timer_in_use),
 		TP_ARGS(vcpu_id, hv_timer_in_use),

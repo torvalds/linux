@@ -307,7 +307,7 @@ static int streamzap_probe(struct usb_interface *intf,
 	}
 
 	pipe = usb_rcvintpipe(usbdev, endpoint->bEndpointAddress);
-	maxp = usb_maxpacket(usbdev, pipe, usb_pipeout(pipe));
+	maxp = usb_maxpacket(usbdev, pipe);
 
 	if (maxp == 0) {
 		dev_err(&intf->dev, "%s: endpoint Max Packet Size is 0!?!\n",

@@ -162,7 +162,7 @@ struct dc_stream_state {
 	struct dc_info_packet vrr_infopacket;
 	struct dc_info_packet vsc_infopacket;
 	struct dc_info_packet vsp_infopacket;
-
+	uint8_t dsc_packed_pps[128];
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
 
@@ -246,6 +246,7 @@ struct dc_stream_state {
 
 	bool apply_edp_fast_boot_optimization;
 	bool apply_seamless_boot_optimization;
+	uint32_t apply_boot_odm_mode;
 
 	uint32_t stream_id;
 

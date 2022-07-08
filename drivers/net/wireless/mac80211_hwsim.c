@@ -2189,7 +2189,7 @@ mac80211_hwsim_sta_rc_update(struct ieee80211_hw *hw,
 	u32 bw = U32_MAX;
 	enum nl80211_chan_width confbw = NL80211_CHAN_WIDTH_20_NOHT;
 
-	switch (sta->bandwidth) {
+	switch (sta->deflink.bandwidth) {
 #define C(_bw) case IEEE80211_STA_RX_BW_##_bw: bw = _bw; break
 	C(20);
 	C(40);
@@ -2202,16 +2202,19 @@ mac80211_hwsim_sta_rc_update(struct ieee80211_hw *hw,
 	if (!data->use_chanctx) {
 		confbw = data->bw;
 	} else {
-		struct ieee80211_chanctx_conf *chanctx_conf =
-			rcu_dereference(vif->chanctx_conf);
+		struct ieee80211_chanctx_conf *chanctx_conf;
+
+		rcu_read_lock();
+		chanctx_conf = rcu_dereference(vif->chanctx_conf);
 
 		if (!WARN_ON(!chanctx_conf))
 			confbw = chanctx_conf->def.width;
+		rcu_read_unlock();
 	}
 
 	WARN(bw > hwsim_get_chanwidth(confbw),
 	     "intf %pM: bad STA %pM bandwidth %d MHz (%d) > channel config %d MHz (%d)\n",
-	     vif->addr, sta->addr, bw, sta->bandwidth,
+	     vif->addr, sta->addr, bw, sta->deflink.bandwidth,
 	     hwsim_get_chanwidth(data->bw), data->bw);
 }
 
@@ -2475,11 +2478,13 @@ static void hw_scan_work(struct work_struct *work)
 			if (req->ie_len)
 				skb_put_data(probe, req->ie, req->ie_len);
 
+			rcu_read_lock();
 			if (!ieee80211_tx_prepare_skb(hwsim->hw,
 						      hwsim->hw_scan_vif,
 						      probe,
 						      hwsim->tmp_chan->band,
 						      NULL)) {
+				rcu_read_unlock();
 				kfree_skb(probe);
 				continue;
 			}
@@ -2487,6 +2492,7 @@ static void hw_scan_work(struct work_struct *work)
 			local_bh_disable();
 			mac80211_hwsim_tx_frame(hwsim->hw, probe,
 						hwsim->tmp_chan);
+			rcu_read_unlock();
 			local_bh_enable();
 		}
 	}

@@ -21,12 +21,6 @@
  * Cmdstream submission:
  */
 
-/* make sure these don't conflict w/ MSM_SUBMIT_BO_x */
-#define BO_VALID    0x8000   /* is current addr in cmdstream correct/valid? */
-#define BO_LOCKED   0x4000   /* obj lock is held */
-#define BO_ACTIVE   0x2000   /* active refcnt is held */
-#define BO_PINNED   0x1000   /* obj is pinned and on active list */
-
 static struct msm_gem_submit *submit_create(struct drm_device *dev,
 		struct msm_gpu *gpu,
 		struct msm_gpu_submitqueue *queue, uint32_t nr_bos,
@@ -231,21 +225,31 @@ static void submit_cleanup_bo(struct msm_gem_submit *submit, int i,
 	struct drm_gem_object *obj = &submit->bos[i].obj->base;
 	unsigned flags = submit->bos[i].flags & cleanup_flags;
 
-	if (flags & BO_PINNED)
-		msm_gem_unpin_iova_locked(obj, submit->aspace);
+	/*
+	 * Clear flags bit before dropping lock, so that the msm_job_run()
+	 * path isn't racing with submit_cleanup() (ie. the read/modify/
+	 * write is protected by the obj lock in all paths)
+	 */
+	submit->bos[i].flags &= ~cleanup_flags;
+
+	if (flags & BO_VMA_PINNED)
+		msm_gem_unpin_vma(submit->bos[i].vma);
+
+	if (flags & BO_OBJ_PINNED)
+		msm_gem_unpin_locked(obj);
 
 	if (flags & BO_ACTIVE)
 		msm_gem_active_put(obj);
 
 	if (flags & BO_LOCKED)
 		dma_resv_unlock(obj->resv);
-
-	submit->bos[i].flags &= ~cleanup_flags;
 }
 
 static void submit_unlock_unpin_bo(struct msm_gem_submit *submit, int i)
 {
-	submit_cleanup_bo(submit, i, BO_PINNED | BO_ACTIVE | BO_LOCKED);
+	unsigned cleanup_flags = BO_VMA_PINNED | BO_OBJ_PINNED |
+				 BO_ACTIVE | BO_LOCKED;
+	submit_cleanup_bo(submit, i, cleanup_flags);
 
 	if (!(submit->bos[i].flags & BO_VALID))
 		submit->bos[i].iova = 0;
@@ -320,16 +324,14 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 		struct drm_gem_object *obj = &submit->bos[i].obj->base;
 		bool write = submit->bos[i].flags & MSM_SUBMIT_BO_WRITE;
 
-		if (!write) {
-			/* NOTE: _reserve_shared() must happen before
-			 * _add_shared_fence(), which makes this a slightly
-			 * strange place to call it.  OTOH this is a
-			 * convenient can-fail point to hook it in.
-			 */
-			ret = dma_resv_reserve_shared(obj->resv, 1);
-			if (ret)
-				return ret;
-		}
+		/* NOTE: _reserve_shared() must happen before
+		 * _add_shared_fence(), which makes this a slightly
+		 * strange place to call it.  OTOH this is a
+		 * convenient can-fail point to hook it in.
+		 */
+		ret = dma_resv_reserve_fences(obj->resv, 1);
+		if (ret)
+			return ret;
 
 		/* exclusive fences must be ordered */
 		if (no_implicit && !write)
@@ -365,21 +367,26 @@ static int submit_pin_objects(struct msm_gem_submit *submit)
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct drm_gem_object *obj = &submit->bos[i].obj->base;
-		uint64_t iova;
+		struct msm_gem_vma *vma;
 
 		/* if locking succeeded, pin bo: */
-		ret = msm_gem_get_and_pin_iova_locked(obj,
-				submit->aspace, &iova);
+		vma = msm_gem_get_vma_locked(obj, submit->aspace);
+		if (IS_ERR(vma)) {
+			ret = PTR_ERR(vma);
+			break;
+		}
 
+		ret = msm_gem_pin_vma_locked(obj, vma);
 		if (ret)
 			break;
 
-		submit->bos[i].flags |= BO_PINNED;
+		submit->bos[i].flags |= BO_OBJ_PINNED | BO_VMA_PINNED;
+		submit->bos[i].vma = vma;
 
-		if (iova == submit->bos[i].iova) {
+		if (vma->iova == submit->bos[i].iova) {
 			submit->bos[i].flags |= BO_VALID;
 		} else {
-			submit->bos[i].iova = iova;
+			submit->bos[i].iova = vma->iova;
 			/* iova changed, so address in cmdstream is not valid: */
 			submit->bos[i].flags &= ~BO_VALID;
 			submit->valid = false;
@@ -397,9 +404,11 @@ static void submit_attach_object_fences(struct msm_gem_submit *submit)
 		struct drm_gem_object *obj = &submit->bos[i].obj->base;
 
 		if (submit->bos[i].flags & MSM_SUBMIT_BO_WRITE)
-			dma_resv_add_excl_fence(obj->resv, submit->user_fence);
+			dma_resv_add_fence(obj->resv, submit->user_fence,
+					   DMA_RESV_USAGE_WRITE);
 		else if (submit->bos[i].flags & MSM_SUBMIT_BO_READ)
-			dma_resv_add_shared_fence(obj->resv, submit->user_fence);
+			dma_resv_add_fence(obj->resv, submit->user_fence,
+					   DMA_RESV_USAGE_READ);
 	}
 }
 
@@ -507,7 +516,7 @@ static void submit_cleanup(struct msm_gem_submit *submit, bool error)
 	unsigned i;
 
 	if (error)
-		cleanup_flags |= BO_PINNED | BO_ACTIVE;
+		cleanup_flags |= BO_VMA_PINNED | BO_OBJ_PINNED | BO_ACTIVE;
 
 	for (i = 0; i < submit->nr_bos; i++) {
 		struct msm_gem_object *msm_obj = submit->bos[i].obj;
@@ -525,7 +534,8 @@ void msm_submit_retire(struct msm_gem_submit *submit)
 		struct drm_gem_object *obj = &submit->bos[i].obj->base;
 
 		msm_gem_lock(obj);
-		submit_cleanup_bo(submit, i, BO_PINNED | BO_ACTIVE);
+		/* Note, VMA already fence-unpinned before submit: */
+		submit_cleanup_bo(submit, i, BO_OBJ_PINNED | BO_ACTIVE);
 		msm_gem_unlock(obj);
 		drm_gem_object_put(obj);
 	}
@@ -730,6 +740,11 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	if (args->pad)
 		return -EINVAL;
 
+	if (unlikely(!ctx->aspace) && !capable(CAP_SYS_RAWIO)) {
+		DRM_ERROR_RATELIMITED("IOMMU support or CAP_SYS_RAWIO required!\n");
+		return -EPERM;
+	}
+
 	/* for now, we just have 3d pipe.. eventually this would need to
 	 * be more clever to dispatch to appropriate gpu module:
 	 */
@@ -913,7 +928,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 						    INT_MAX, GFP_KERNEL);
 	}
 	if (submit->fence_id < 0) {
-		ret = submit->fence_id = 0;
+		ret = submit->fence_id;
 		submit->fence_id = 0;
 	}
 

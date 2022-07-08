@@ -29,7 +29,7 @@
  */
 
 #include <linux/dma-buf.h>
-#include <linux/vfio.h>
+#include <linux/mdev.h>
 
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane.h>
@@ -41,24 +41,6 @@
 #include "gvt.h"
 
 #define GEN8_DECODE_PTE(pte) (pte & GENMASK_ULL(63, 12))
-
-static int vgpu_pin_dma_address(struct intel_vgpu *vgpu,
-				unsigned long size,
-				dma_addr_t dma_addr)
-{
-	int ret = 0;
-
-	if (intel_gvt_hypervisor_dma_pin_guest_page(vgpu, dma_addr))
-		ret = -EINVAL;
-
-	return ret;
-}
-
-static void vgpu_unpin_dma_address(struct intel_vgpu *vgpu,
-				   dma_addr_t dma_addr)
-{
-	intel_gvt_hypervisor_dma_unmap_guest_page(vgpu, dma_addr);
-}
 
 static int vgpu_gem_get_pages(
 		struct drm_i915_gem_object *obj)
@@ -95,7 +77,7 @@ static int vgpu_gem_get_pages(
 	for_each_sg(st->sgl, sg, page_num, i) {
 		dma_addr_t dma_addr =
 			GEN8_DECODE_PTE(readq(&gtt_entries[i]));
-		if (vgpu_pin_dma_address(vgpu, PAGE_SIZE, dma_addr)) {
+		if (intel_gvt_dma_pin_guest_page(vgpu, dma_addr)) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -114,7 +96,7 @@ out:
 		for_each_sg(st->sgl, sg, i, j) {
 			dma_addr = sg_dma_address(sg);
 			if (dma_addr)
-				vgpu_unpin_dma_address(vgpu, dma_addr);
+				intel_gvt_dma_unmap_guest_page(vgpu, dma_addr);
 		}
 		sg_free_table(st);
 		kfree(st);
@@ -136,7 +118,7 @@ static void vgpu_gem_put_pages(struct drm_i915_gem_object *obj,
 		int i;
 
 		for_each_sg(pages->sgl, sg, fb_info->size, i)
-			vgpu_unpin_dma_address(vgpu,
+			intel_gvt_dma_unmap_guest_page(vgpu,
 					       sg_dma_address(sg));
 	}
 
@@ -157,7 +139,6 @@ static void dmabuf_gem_object_free(struct kref *kref)
 			dmabuf_obj = list_entry(pos, struct intel_vgpu_dmabuf_obj, list);
 			if (dmabuf_obj == obj) {
 				list_del(pos);
-				intel_gvt_hypervisor_put_vfio_device(vgpu);
 				idr_remove(&vgpu->object_idr,
 					   dmabuf_obj->dmabuf_id);
 				kfree(dmabuf_obj->info);
@@ -491,14 +472,6 @@ int intel_vgpu_query_plane(struct intel_vgpu *vgpu, void *args)
 
 	kref_init(&dmabuf_obj->kref);
 
-	mutex_lock(&vgpu->dmabuf_lock);
-	if (intel_gvt_hypervisor_get_vfio_device(vgpu)) {
-		gvt_vgpu_err("get vfio device failed\n");
-		mutex_unlock(&vgpu->dmabuf_lock);
-		goto out_free_info;
-	}
-	mutex_unlock(&vgpu->dmabuf_lock);
-
 	update_fb_info(gfx_plane_info, &fb_info);
 
 	INIT_LIST_HEAD(&dmabuf_obj->list);
@@ -603,7 +576,6 @@ void intel_vgpu_dmabuf_cleanup(struct intel_vgpu *vgpu)
 		dmabuf_obj->vgpu = NULL;
 
 		idr_remove(&vgpu->object_idr, dmabuf_obj->dmabuf_id);
-		intel_gvt_hypervisor_put_vfio_device(vgpu);
 		list_del(pos);
 
 		/* dmabuf_obj might be freed in dmabuf_obj_put */

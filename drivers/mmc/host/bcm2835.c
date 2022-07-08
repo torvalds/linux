@@ -1259,7 +1259,7 @@ static void bcm2835_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 static const struct mmc_host_ops bcm2835_ops = {
 	.request = bcm2835_request,
 	.set_ios = bcm2835_set_ios,
-	.hw_reset = bcm2835_reset,
+	.card_hw_reset = bcm2835_reset,
 };
 
 static int bcm2835_add_host(struct bcm2835_host *host)

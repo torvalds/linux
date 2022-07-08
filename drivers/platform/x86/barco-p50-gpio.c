@@ -405,11 +405,14 @@ MODULE_DEVICE_TABLE(dmi, dmi_ids);
 static int __init p50_module_init(void)
 {
 	struct resource res = DEFINE_RES_IO(P50_GPIO_IO_PORT_BASE, P50_PORT_CMD + 1);
+	int ret;
 
 	if (!dmi_first_match(dmi_ids))
 		return -ENODEV;
 
-	platform_driver_register(&p50_gpio_driver);
+	ret = platform_driver_register(&p50_gpio_driver);
+	if (ret)
+		return ret;
 
 	gpio_pdev = platform_device_register_simple(DRIVER_NAME, PLATFORM_DEVID_NONE, &res, 1);
 	if (IS_ERR(gpio_pdev)) {

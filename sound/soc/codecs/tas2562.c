@@ -754,17 +754,27 @@ static int tas2562_parse_dt(struct tas2562_data *tas2562)
 	return ret;
 }
 
-static int tas2562_probe(struct i2c_client *client,
-			 const struct i2c_device_id *id)
+static const struct i2c_device_id tas2562_id[] = {
+	{ "tas2562", TAS2562 },
+	{ "tas2563", TAS2563 },
+	{ "tas2564", TAS2564 },
+	{ "tas2110", TAS2110 },
+	{ }
+};
+MODULE_DEVICE_TABLE(i2c, tas2562_id);
+
+static int tas2562_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct tas2562_data *data;
 	int ret;
+	const struct i2c_device_id *id;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
+	id = i2c_match_id(tas2562_id, client);
 	data->client = client;
 	data->dev = &client->dev;
 	data->model_id = id->driver_data;
@@ -792,15 +802,6 @@ static int tas2562_probe(struct i2c_client *client,
 
 }
 
-static const struct i2c_device_id tas2562_id[] = {
-	{ "tas2562", TAS2562 },
-	{ "tas2563", TAS2563 },
-	{ "tas2564", TAS2564 },
-	{ "tas2110", TAS2110 },
-	{ }
-};
-MODULE_DEVICE_TABLE(i2c, tas2562_id);
-
 #ifdef CONFIG_OF
 static const struct of_device_id tas2562_of_match[] = {
 	{ .compatible = "ti,tas2562", },
@@ -817,7 +818,7 @@ static struct i2c_driver tas2562_i2c_driver = {
 		.name = "tas2562",
 		.of_match_table = of_match_ptr(tas2562_of_match),
 	},
-	.probe = tas2562_probe,
+	.probe_new = tas2562_probe,
 	.id_table = tas2562_id,
 };
 

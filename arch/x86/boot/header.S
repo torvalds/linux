@@ -163,7 +163,11 @@ extra_header_fields:
 	.long	0x200				# SizeOfHeaders
 	.long	0				# CheckSum
 	.word	IMAGE_SUBSYSTEM_EFI_APPLICATION	# Subsystem (EFI application)
+#ifdef CONFIG_EFI_DXE_MEM_ATTRIBUTES
+	.word	IMAGE_DLL_CHARACTERISTICS_NX_COMPAT	# DllCharacteristics
+#else
 	.word	0				# DllCharacteristics
+#endif
 #ifdef CONFIG_X86_32
 	.long	0				# SizeOfStackReserve
 	.long	0				# SizeOfStackCommit

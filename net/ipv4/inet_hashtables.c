@@ -193,42 +193,6 @@ inet_lhash2_bucket_sk(struct inet_hashinfo *h, struct sock *sk)
 	return inet_lhash2_bucket(h, hash);
 }
 
-static void inet_hash2(struct inet_hashinfo *h, struct sock *sk)
-{
-	struct inet_listen_hashbucket *ilb2;
-
-	if (!h->lhash2)
-		return;
-
-	ilb2 = inet_lhash2_bucket_sk(h, sk);
-
-	spin_lock(&ilb2->lock);
-	if (sk->sk_reuseport && sk->sk_family == AF_INET6)
-		hlist_add_tail_rcu(&inet_csk(sk)->icsk_listen_portaddr_node,
-				   &ilb2->head);
-	else
-		hlist_add_head_rcu(&inet_csk(sk)->icsk_listen_portaddr_node,
-				   &ilb2->head);
-	ilb2->count++;
-	spin_unlock(&ilb2->lock);
-}
-
-static void inet_unhash2(struct inet_hashinfo *h, struct sock *sk)
-{
-	struct inet_listen_hashbucket *ilb2;
-
-	if (!h->lhash2 ||
-	    WARN_ON_ONCE(hlist_unhashed(&inet_csk(sk)->icsk_listen_portaddr_node)))
-		return;
-
-	ilb2 = inet_lhash2_bucket_sk(h, sk);
-
-	spin_lock(&ilb2->lock);
-	hlist_del_init_rcu(&inet_csk(sk)->icsk_listen_portaddr_node);
-	ilb2->count--;
-	spin_unlock(&ilb2->lock);
-}
-
 static inline int compute_score(struct sock *sk, struct net *net,
 				const unsigned short hnum, const __be32 daddr,
 				const int dif, const int sdif)
@@ -282,12 +246,11 @@ static struct sock *inet_lhash2_lookup(struct net *net,
 				const __be32 daddr, const unsigned short hnum,
 				const int dif, const int sdif)
 {
-	struct inet_connection_sock *icsk;
 	struct sock *sk, *result = NULL;
+	struct hlist_nulls_node *node;
 	int score, hiscore = 0;
 
-	inet_lhash2_for_each_icsk_rcu(icsk, &ilb2->head) {
-		sk = (struct sock *)icsk;
+	sk_nulls_for_each_rcu(sk, node, &ilb2->nulls_head) {
 		score = compute_score(sk, net, hnum, daddr, dif, sdif);
 		if (score > hiscore) {
 			result = lookup_reuseport(net, sk, skb, doff,
@@ -410,13 +373,11 @@ begin:
 	sk_nulls_for_each_rcu(sk, node, &head->chain) {
 		if (sk->sk_hash != hash)
 			continue;
-		if (likely(INET_MATCH(sk, net, acookie,
-				      saddr, daddr, ports, dif, sdif))) {
+		if (likely(inet_match(net, sk, acookie, ports, dif, sdif))) {
 			if (unlikely(!refcount_inc_not_zero(&sk->sk_refcnt)))
 				goto out;
-			if (unlikely(!INET_MATCH(sk, net, acookie,
-						 saddr, daddr, ports,
-						 dif, sdif))) {
+			if (unlikely(!inet_match(net, sk, acookie,
+						 ports, dif, sdif))) {
 				sock_gen_put(sk);
 				goto begin;
 			}
@@ -465,8 +426,7 @@ static int __inet_check_established(struct inet_timewait_death_row *death_row,
 		if (sk2->sk_hash != hash)
 			continue;
 
-		if (likely(INET_MATCH(sk2, net, acookie,
-					 saddr, daddr, ports, dif, sdif))) {
+		if (likely(inet_match(net, sk2, acookie, ports, dif, sdif))) {
 			if (sk2->sk_state == TCP_TIME_WAIT) {
 				tw = inet_twsk(sk2);
 				if (twsk_unique(sk, sk2, twp))
@@ -504,7 +464,7 @@ not_unique:
 	return -EADDRNOTAVAIL;
 }
 
-static u32 inet_sk_port_offset(const struct sock *sk)
+static u64 inet_sk_port_offset(const struct sock *sk)
 {
 	const struct inet_sock *inet = inet_sk(sk);
 
@@ -532,16 +492,14 @@ static bool inet_ehash_lookup_by_sk(struct sock *sk,
 		if (esk->sk_hash != sk->sk_hash)
 			continue;
 		if (sk->sk_family == AF_INET) {
-			if (unlikely(INET_MATCH(esk, net, acookie,
-						sk->sk_daddr,
-						sk->sk_rcv_saddr,
+			if (unlikely(inet_match(net, esk, acookie,
 						ports, dif, sdif))) {
 				return true;
 			}
 		}
 #if IS_ENABLED(CONFIG_IPV6)
 		else if (sk->sk_family == AF_INET6) {
-			if (unlikely(INET6_MATCH(esk, net,
+			if (unlikely(inet6_match(net, esk,
 						 &sk->sk_v6_daddr,
 						 &sk->sk_v6_rcv_saddr,
 						 ports, dif, sdif))) {
@@ -633,7 +591,7 @@ static int inet_reuseport_add_sock(struct sock *sk,
 int __inet_hash(struct sock *sk, struct sock *osk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-	struct inet_listen_hashbucket *ilb;
+	struct inet_listen_hashbucket *ilb2;
 	int err = 0;
 
 	if (sk->sk_state != TCP_LISTEN) {
@@ -643,25 +601,23 @@ int __inet_hash(struct sock *sk, struct sock *osk)
 		return 0;
 	}
 	WARN_ON(!sk_unhashed(sk));
-	ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
+	ilb2 = inet_lhash2_bucket_sk(hashinfo, sk);
 
-	spin_lock(&ilb->lock);
+	spin_lock(&ilb2->lock);
 	if (sk->sk_reuseport) {
-		err = inet_reuseport_add_sock(sk, ilb);
+		err = inet_reuseport_add_sock(sk, ilb2);
 		if (err)
 			goto unlock;
 	}
 	if (IS_ENABLED(CONFIG_IPV6) && sk->sk_reuseport &&
 		sk->sk_family == AF_INET6)
-		__sk_nulls_add_node_tail_rcu(sk, &ilb->nulls_head);
+		__sk_nulls_add_node_tail_rcu(sk, &ilb2->nulls_head);
 	else
-		__sk_nulls_add_node_rcu(sk, &ilb->nulls_head);
-	inet_hash2(hashinfo, sk);
-	ilb->count++;
+		__sk_nulls_add_node_rcu(sk, &ilb2->nulls_head);
 	sock_set_flag(sk, SOCK_RCU_FREE);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 unlock:
-	spin_unlock(&ilb->lock);
+	spin_unlock(&ilb2->lock);
 
 	return err;
 }
@@ -678,23 +634,6 @@ int inet_hash(struct sock *sk)
 }
 EXPORT_SYMBOL_GPL(inet_hash);
 
-static void __inet_unhash(struct sock *sk, struct inet_listen_hashbucket *ilb)
-{
-	if (sk_unhashed(sk))
-		return;
-
-	if (rcu_access_pointer(sk->sk_reuseport_cb))
-		reuseport_stop_listen_sock(sk);
-	if (ilb) {
-		struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
-
-		inet_unhash2(hashinfo, sk);
-		ilb->count--;
-	}
-	__sk_nulls_del_node_init_rcu(sk);
-	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
-}
-
 void inet_unhash(struct sock *sk)
 {
 	struct inet_hashinfo *hashinfo = sk->sk_prot->h.hashinfo;
@@ -703,20 +642,34 @@ void inet_unhash(struct sock *sk)
 		return;
 
 	if (sk->sk_state == TCP_LISTEN) {
-		struct inet_listen_hashbucket *ilb;
+		struct inet_listen_hashbucket *ilb2;
 
-		ilb = &hashinfo->listening_hash[inet_sk_listen_hashfn(sk)];
+		ilb2 = inet_lhash2_bucket_sk(hashinfo, sk);
 		/* Don't disable bottom halves while acquiring the lock to
 		 * avoid circular locking dependency on PREEMPT_RT.
 		 */
-		spin_lock(&ilb->lock);
-		__inet_unhash(sk, ilb);
-		spin_unlock(&ilb->lock);
+		spin_lock(&ilb2->lock);
+		if (sk_unhashed(sk)) {
+			spin_unlock(&ilb2->lock);
+			return;
+		}
+
+		if (rcu_access_pointer(sk->sk_reuseport_cb))
+			reuseport_stop_listen_sock(sk);
+
+		__sk_nulls_del_node_init_rcu(sk);
+		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
+		spin_unlock(&ilb2->lock);
 	} else {
 		spinlock_t *lock = inet_ehash_lockp(hashinfo, sk->sk_hash);
 
 		spin_lock_bh(lock);
-		__inet_unhash(sk, NULL);
+		if (sk_unhashed(sk)) {
+			spin_unlock_bh(lock);
+			return;
+		}
+		__sk_nulls_del_node_init_rcu(sk);
+		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 		spin_unlock_bh(lock);
 	}
 }
@@ -726,15 +679,17 @@ EXPORT_SYMBOL_GPL(inet_unhash);
  * Note that we use 32bit integers (vs RFC 'short integers')
  * because 2^16 is not a multiple of num_ephemeral and this
  * property might be used by clever attacker.
- * RFC claims using TABLE_LENGTH=10 buckets gives an improvement,
- * we use 256 instead to really give more isolation and
- * privacy, this only consumes 1 KB of kernel memory.
+ * RFC claims using TABLE_LENGTH=10 buckets gives an improvement, though
+ * attacks were since demonstrated, thus we use 65536 instead to really
+ * give more isolation and privacy, at the expense of 256kB of kernel
+ * memory.
  */
-#define INET_TABLE_PERTURB_SHIFT 8
-static u32 table_perturb[1 << INET_TABLE_PERTURB_SHIFT];
+#define INET_TABLE_PERTURB_SHIFT 16
+#define INET_TABLE_PERTURB_SIZE (1 << INET_TABLE_PERTURB_SHIFT)
+static u32 *table_perturb;
 
 int __inet_hash_connect(struct inet_timewait_death_row *death_row,
-		struct sock *sk, u32 port_offset,
+		struct sock *sk, u64 port_offset,
 		int (*check_established)(struct inet_timewait_death_row *,
 			struct sock *, __u16, struct inet_timewait_sock **))
 {
@@ -774,10 +729,13 @@ int __inet_hash_connect(struct inet_timewait_death_row *death_row,
 	if (likely(remaining > 1))
 		remaining &= ~1U;
 
-	net_get_random_once(table_perturb, sizeof(table_perturb));
-	index = hash_32(port_offset, INET_TABLE_PERTURB_SHIFT);
+	net_get_random_once(table_perturb,
+			    INET_TABLE_PERTURB_SIZE * sizeof(*table_perturb));
+	index = port_offset & (INET_TABLE_PERTURB_SIZE - 1);
 
-	offset = (READ_ONCE(table_perturb[index]) + port_offset) % remaining;
+	offset = READ_ONCE(table_perturb[index]) + (port_offset >> 32);
+	offset %= remaining;
+
 	/* In first pass we try ports of @low parity.
 	 * inet_csk_get_port() does the opposite choice.
 	 */
@@ -831,11 +789,12 @@ next_port:
 	return -EADDRNOTAVAIL;
 
 ok:
-	/* If our first attempt found a candidate, skip next candidate
-	 * in 1/16 of cases to add some noise.
+	/* Here we want to add a little bit of randomness to the next source
+	 * port that will be chosen. We use a max() with a random here so that
+	 * on low contention the randomness is maximal and on high contention
+	 * it may be inexistent.
 	 */
-	if (!i && !(prandom_u32() % 16))
-		i = 2;
+	i = max_t(int, i, (prandom_u32() & 7) * 2);
 	WRITE_ONCE(table_perturb[index], READ_ONCE(table_perturb[index]) + i + 2);
 
 	/* Head lock still held and bh's disabled */
@@ -859,7 +818,7 @@ ok:
 int inet_hash_connect(struct inet_timewait_death_row *death_row,
 		      struct sock *sk)
 {
-	u32 port_offset = 0;
+	u64 port_offset = 0;
 
 	if (!inet_sk(sk)->inet_num)
 		port_offset = inet_sk_port_offset(sk);
@@ -868,29 +827,14 @@ int inet_hash_connect(struct inet_timewait_death_row *death_row,
 }
 EXPORT_SYMBOL_GPL(inet_hash_connect);
 
-void inet_hashinfo_init(struct inet_hashinfo *h)
-{
-	int i;
-
-	for (i = 0; i < INET_LHTABLE_SIZE; i++) {
-		spin_lock_init(&h->listening_hash[i].lock);
-		INIT_HLIST_NULLS_HEAD(&h->listening_hash[i].nulls_head,
-				      i + LISTENING_NULLS_BASE);
-		h->listening_hash[i].count = 0;
-	}
-
-	h->lhash2 = NULL;
-}
-EXPORT_SYMBOL_GPL(inet_hashinfo_init);
-
 static void init_hashinfo_lhash2(struct inet_hashinfo *h)
 {
 	int i;
 
 	for (i = 0; i <= h->lhash2_mask; i++) {
 		spin_lock_init(&h->lhash2[i].lock);
-		INIT_HLIST_HEAD(&h->lhash2[i].head);
-		h->lhash2[i].count = 0;
+		INIT_HLIST_NULLS_HEAD(&h->lhash2[i].nulls_head,
+				      i + LISTENING_NULLS_BASE);
 	}
 }
 
@@ -909,6 +853,14 @@ void __init inet_hashinfo2_init(struct inet_hashinfo *h, const char *name,
 					    low_limit,
 					    high_limit);
 	init_hashinfo_lhash2(h);
+
+	/* this one is used for source ports of outgoing connections */
+	table_perturb = alloc_large_system_hash("Table-perturb",
+						sizeof(*table_perturb),
+						INET_TABLE_PERTURB_SIZE,
+						0, 0, NULL, NULL,
+						INET_TABLE_PERTURB_SIZE,
+						INET_TABLE_PERTURB_SIZE);
 }
 
 int inet_hashinfo2_init_mod(struct inet_hashinfo *h)

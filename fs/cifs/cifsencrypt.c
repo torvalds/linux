@@ -236,9 +236,9 @@ int cifs_verify_signature(struct smb_rqst *rqst,
 					cpu_to_le32(expected_sequence_number);
 	cifs_pdu->Signature.Sequence.Reserved = 0;
 
-	mutex_lock(&server->srv_mutex);
+	cifs_server_lock(server);
 	rc = cifs_calc_signature(rqst, server, what_we_think_sig_should_be);
-	mutex_unlock(&server->srv_mutex);
+	cifs_server_unlock(server);
 
 	if (rc)
 		return rc;
@@ -626,7 +626,7 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 
 	memcpy(ses->auth_key.response + baselen, tiblob, tilen);
 
-	mutex_lock(&ses->server->srv_mutex);
+	cifs_server_lock(ses->server);
 
 	rc = cifs_alloc_hash("hmac(md5)",
 			     &ses->server->secmech.hmacmd5,
@@ -678,7 +678,7 @@ setup_ntlmv2_rsp(struct cifs_ses *ses, const struct nls_table *nls_cp)
 		cifs_dbg(VFS, "%s: Could not generate md5 hash\n", __func__);
 
 unlock:
-	mutex_unlock(&ses->server->srv_mutex);
+	cifs_server_unlock(ses->server);
 setup_ntlmv2_rsp_ret:
 	kfree(tiblob);
 

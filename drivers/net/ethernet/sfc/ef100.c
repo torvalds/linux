@@ -2,7 +2,7 @@
 /****************************************************************************
  * Driver for Solarflare network controllers and boards
  * Copyright 2005-2018 Solarflare Communications Inc.
- * Copyright 2019-2020 Xilinx Inc.
+ * Copyright 2019-2022 Xilinx Inc.
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License version 2 as published
@@ -17,6 +17,7 @@
 #include "io.h"
 #include "ef100_nic.h"
 #include "ef100_netdev.h"
+#include "ef100_sriov.h"
 #include "ef100_regs.h"
 #include "ef100.h"
 
@@ -436,6 +437,10 @@ static void ef100_pci_remove(struct pci_dev *pci_dev)
 	 * blocks, so we have to do it before PCI removal.
 	 */
 	unregister_netdevice_notifier(&efx->netdev_notifier);
+#if defined(CONFIG_SFC_SRIOV)
+	if (!efx->type->is_vf)
+		efx_ef100_pci_sriov_disable(efx);
+#endif
 	ef100_remove(efx);
 	efx_fini_io(efx);
 	netif_dbg(efx, drv, efx->net_dev, "shutdown successful\n");
@@ -524,6 +529,23 @@ fail:
 	return rc;
 }
 
+#ifdef CONFIG_SFC_SRIOV
+static int ef100_pci_sriov_configure(struct pci_dev *dev, int num_vfs)
+{
+	struct efx_nic *efx = pci_get_drvdata(dev);
+	int rc;
+
+	if (efx->type->sriov_configure) {
+		rc = efx->type->sriov_configure(efx, num_vfs);
+		if (rc)
+			return rc;
+		else
+			return num_vfs;
+	}
+	return -ENOENT;
+}
+#endif
+
 /* PCI device ID table */
 static const struct pci_device_id ef100_pci_table[] = {
 	{PCI_DEVICE(PCI_VENDOR_ID_XILINX, 0x0100),  /* Riverhead PF */
@@ -538,6 +560,9 @@ struct pci_driver ef100_pci_driver = {
 	.id_table       = ef100_pci_table,
 	.probe          = ef100_pci_probe,
 	.remove         = ef100_pci_remove,
+#ifdef CONFIG_SFC_SRIOV
+	.sriov_configure = ef100_pci_sriov_configure,
+#endif
 	.err_handler    = &efx_err_handlers,
 };
 

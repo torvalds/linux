@@ -41,11 +41,11 @@ config FORCE_DYNAMIC_FTRACE
 	depends on FUNCTION_TRACER
 	select DYNAMIC_FTRACE
 	help
-	 We keep the static function tracing (!DYNAMIC_FTRACE) around
-	 in order to test the non static function tracing in the
-	 generic code, as other architectures still use it. But we
-	 only need to keep it around for x86_64. No need to keep it
-	 for x86_32. For x86_32, force DYNAMIC_FTRACE. 
+	  We keep the static function tracing (!DYNAMIC_FTRACE) around
+	  in order to test the non static function tracing in the
+	  generic code, as other architectures still use it. But we
+	  only need to keep it around for x86_64. No need to keep it
+	  for x86_32. For x86_32, force DYNAMIC_FTRACE.
 #
 # Arch settings
 #
@@ -76,7 +76,6 @@ config X86
 	select ARCH_HAS_EARLY_DEBUG		if KGDB
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_FAST_MULTIPLIER
-	select ARCH_HAS_FILTER_PGPROT
 	select ARCH_HAS_FORTIFY_SOURCE
 	select ARCH_HAS_GCOV_PROFILE_ALL
 	select ARCH_HAS_KCOV			if X86_64
@@ -95,6 +94,7 @@ config X86
 	select ARCH_HAS_SYNC_CORE_BEFORE_USERMODE
 	select ARCH_HAS_SYSCALL_WRAPPER
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
+	select ARCH_HAS_VM_GET_PAGE_PROT
 	select ARCH_HAS_DEBUG_WX
 	select ARCH_HAS_ZONE_DMA_SET if EXPERT
 	select ARCH_HAVE_NMI_SAFE_CMPXCHG
@@ -121,6 +121,7 @@ config X86
 	select ARCH_WANTS_NO_INSTR
 	select ARCH_WANT_GENERAL_HUGETLB
 	select ARCH_WANT_HUGE_PMD_SHARE
+	select ARCH_WANT_HUGETLB_PAGE_OPTIMIZE_VMEMMAP	if X86_64
 	select ARCH_WANT_LD_ORPHAN_WARN
 	select ARCH_WANTS_THP_SWAP		if X86_64
 	select ARCH_HAS_PARANOID_L1D_FLUSH
@@ -188,7 +189,7 @@ config X86
 	select HAVE_CONTEXT_TRACKING		if X86_64
 	select HAVE_CONTEXT_TRACKING_OFFSTACK	if HAVE_CONTEXT_TRACKING
 	select HAVE_C_RECORDMCOUNT
-	select HAVE_OBJTOOL_MCOUNT		if STACK_VALIDATION
+	select HAVE_OBJTOOL_MCOUNT		if HAVE_OBJTOOL
 	select HAVE_BUILDTIME_MCOUNT_SORT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
@@ -212,6 +213,7 @@ config X86
 	select HAVE_IOREMAP_PROT
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK	if X86_64
 	select HAVE_IRQ_TIME_ACCOUNTING
+	select HAVE_JUMP_LABEL_HACK		if HAVE_OBJTOOL
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZ4
@@ -230,7 +232,10 @@ config X86
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_MOVE_PMD
 	select HAVE_MOVE_PUD
+	select HAVE_NOINSTR_HACK		if HAVE_OBJTOOL
 	select HAVE_NMI
+	select HAVE_NOINSTR_VALIDATION		if HAVE_OBJTOOL
+	select HAVE_OBJTOOL			if X86_64
 	select HAVE_OPTPROBES
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PERF_EVENTS
@@ -239,20 +244,21 @@ config X86
 	select HAVE_PCI
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
-	select MMU_GATHER_RCU_TABLE_FREE		if PARAVIRT
+	select MMU_GATHER_RCU_TABLE_FREE	if PARAVIRT
 	select HAVE_POSIX_CPU_TIMERS_TASK_WORK
 	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_RELIABLE_STACKTRACE		if X86_64 && (UNWINDER_FRAME_POINTER || UNWINDER_ORC) && STACK_VALIDATION
+	select HAVE_RELIABLE_STACKTRACE		if UNWINDER_ORC || STACK_VALIDATION
 	select HAVE_FUNCTION_ARG_ACCESS_API
 	select HAVE_SETUP_PER_CPU_AREA
 	select HAVE_SOFTIRQ_ON_OWN_STACK
 	select HAVE_STACKPROTECTOR		if CC_HAS_SANE_STACKPROTECTOR
-	select HAVE_STACK_VALIDATION		if X86_64
+	select HAVE_STACK_VALIDATION		if HAVE_OBJTOOL
 	select HAVE_STATIC_CALL
-	select HAVE_STATIC_CALL_INLINE		if HAVE_STACK_VALIDATION
+	select HAVE_STATIC_CALL_INLINE		if HAVE_OBJTOOL
 	select HAVE_PREEMPT_DYNAMIC_CALL
 	select HAVE_RSEQ
 	select HAVE_SYSCALL_TRACEPOINTS
+	select HAVE_UACCESS_VALIDATION		if HAVE_OBJTOOL
 	select HAVE_UNSTABLE_SCHED_CLOCK
 	select HAVE_USER_RETURN_NOTIFIER
 	select HAVE_GENERIC_VDSO
@@ -268,7 +274,6 @@ config X86
 	select RTC_MC146818_LIB
 	select SPARSE_IRQ
 	select SRCU
-	select STACK_VALIDATION			if HAVE_STACK_VALIDATION && (HAVE_STATIC_CALL_INLINE || RETPOLINE)
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	select TRACE_IRQFLAGS_SUPPORT
@@ -389,9 +394,9 @@ config CC_HAS_SANE_STACKPROTECTOR
 	default $(success,$(srctree)/scripts/gcc-x86_64-has-stack-protector.sh $(CC)) if 64BIT
 	default $(success,$(srctree)/scripts/gcc-x86_32-has-stack-protector.sh $(CC))
 	help
-	   We have to make sure stack protector is unconditionally disabled if
-	   the compiler produces broken code or if it does not let us control
-	   the segment on 32-bit kernels.
+	  We have to make sure stack protector is unconditionally disabled if
+	  the compiler produces broken code or if it does not let us control
+	  the segment on 32-bit kernels.
 
 menu "Processor type and features"
 
@@ -459,6 +464,7 @@ config GOLDFISH
 
 config RETPOLINE
 	bool "Avoid speculative indirect branches in kernel"
+	select OBJTOOL if HAVE_OBJTOOL
 	default y
 	help
 	  Compile kernel with the retpoline compiler options to guard against
@@ -472,6 +478,7 @@ config CC_HAS_SLS
 config SLS
 	bool "Mitigate Straight-Line-Speculation"
 	depends on CC_HAS_SLS && X86_64
+	select OBJTOOL if HAVE_OBJTOOL
 	default n
 	help
 	  Compile the kernel with straight-line-speculation options to guard
@@ -525,7 +532,7 @@ config X86_EXTENDED_PLATFORM
 
 	  If you have one of these systems, or if you want to build a
 	  generic distribution kernel, say Y here - otherwise say N.
-endif
+endif # X86_32
 
 if X86_64
 config X86_EXTENDED_PLATFORM
@@ -544,7 +551,7 @@ config X86_EXTENDED_PLATFORM
 
 	  If you have one of these systems, or if you want to build a
 	  generic distribution kernel, say Y here - otherwise say N.
-endif
+endif # X86_64
 # This is an alphabetically sorted list of 64 bit extended platforms
 # Please maintain the alphabetic order if and when there are additions
 config X86_NUMACHIP
@@ -592,9 +599,9 @@ config X86_GOLDFISH
 	bool "Goldfish (Virtual Platform)"
 	depends on X86_EXTENDED_PLATFORM
 	help
-	 Enable support for the Goldfish virtual platform used primarily
-	 for Android development. Unless you are building for the Android
-	 Goldfish emulator say N here.
+	  Enable support for the Goldfish virtual platform used primarily
+	  for Android development. Unless you are building for the Android
+	  Goldfish emulator say N here.
 
 config X86_INTEL_CE
 	bool "CE4100 TV platform"
@@ -878,7 +885,22 @@ config ACRN_GUEST
 	  IOT with small footprint and real-time features. More details can be
 	  found in https://projectacrn.org/.
 
-endif #HYPERVISOR_GUEST
+config INTEL_TDX_GUEST
+	bool "Intel TDX (Trust Domain Extensions) - Guest Support"
+	depends on X86_64 && CPU_SUP_INTEL
+	depends on X86_X2APIC
+	select ARCH_HAS_CC_PLATFORM
+	select X86_MEM_ENCRYPT
+	select X86_MCE
+	help
+	  Support running as a guest under Intel TDX.  Without this support,
+	  the guest kernel can not boot or run under TDX.
+	  TDX includes memory encryption and integrity capabilities
+	  which protect the confidentiality and integrity of guest
+	  memory contents and CPU state. TDX guests are protected from
+	  some attacks from the VMM.
+
+endif # HYPERVISOR_GUEST
 
 source "arch/x86/Kconfig.cpu"
 
@@ -939,6 +961,12 @@ config GART_IOMMU
 	  32-bit limited device.
 
 	  If unsure, say Y.
+
+config BOOT_VESA_SUPPORT
+	bool
+	help
+	  If true, at least one selected framebuffer driver can take advantage
+	  of VESA video modes set at an early boot stage via the vga= parameter.
 
 config MAXSMP
 	bool "Enable Maximum number of SMP Processors and NUMA Nodes"
@@ -1139,16 +1167,16 @@ config X86_MCE_INTEL
 	prompt "Intel MCE features"
 	depends on X86_MCE && X86_LOCAL_APIC
 	help
-	   Additional support for intel specific MCE features such as
-	   the thermal monitor.
+	  Additional support for intel specific MCE features such as
+	  the thermal monitor.
 
 config X86_MCE_AMD
 	def_bool y
 	prompt "AMD MCE features"
 	depends on X86_MCE && X86_LOCAL_APIC && AMD_NB
 	help
-	   Additional support for AMD specific MCE features such as
-	   the DRAM Error Threshold.
+	  Additional support for AMD specific MCE features such as
+	  the DRAM Error Threshold.
 
 config X86_ANCIENT_MCE
 	bool "Support for old Pentium 5 / WinChip machine checks"
@@ -1226,18 +1254,18 @@ config X86_VSYSCALL_EMULATION
 	default y
 	depends on X86_64
 	help
-	 This enables emulation of the legacy vsyscall page.  Disabling
-	 it is roughly equivalent to booting with vsyscall=none, except
-	 that it will also disable the helpful warning if a program
-	 tries to use a vsyscall.  With this option set to N, offending
-	 programs will just segfault, citing addresses of the form
-	 0xffffffffff600?00.
+	  This enables emulation of the legacy vsyscall page.  Disabling
+	  it is roughly equivalent to booting with vsyscall=none, except
+	  that it will also disable the helpful warning if a program
+	  tries to use a vsyscall.  With this option set to N, offending
+	  programs will just segfault, citing addresses of the form
+	  0xffffffffff600?00.
 
-	 This option is required by many programs built before 2013, and
-	 care should be used even with newer programs if set to N.
+	  This option is required by many programs built before 2013, and
+	  care should be used even with newer programs if set to N.
 
-	 Disabling this option saves about 7K of kernel size and
-	 possibly 4K of additional runtime pagetable memory.
+	  Disabling this option saves about 7K of kernel size and
+	  possibly 4K of additional runtime pagetable memory.
 
 config X86_IOPL_IOPERM
 	bool "IOPERM and IOPL Emulation"
@@ -1313,7 +1341,7 @@ config MICROCODE
 
 config MICROCODE_INTEL
 	bool "Intel microcode loading support"
-	depends on MICROCODE
+	depends on CPU_SUP_INTEL && MICROCODE
 	default MICROCODE
 	help
 	  This options enables microcode patch loading support for Intel
@@ -1325,22 +1353,21 @@ config MICROCODE_INTEL
 
 config MICROCODE_AMD
 	bool "AMD microcode loading support"
-	depends on MICROCODE
+	depends on CPU_SUP_AMD && MICROCODE
 	help
 	  If you select this option, microcode patch loading support for AMD
 	  processors will be enabled.
 
-config MICROCODE_OLD_INTERFACE
-	bool "Ancient loading interface (DEPRECATED)"
+config MICROCODE_LATE_LOADING
+	bool "Late microcode loading (DANGEROUS)"
 	default n
 	depends on MICROCODE
 	help
-	  DO NOT USE THIS! This is the ancient /dev/cpu/microcode interface
-	  which was used by userspace tools like iucode_tool and microcode.ctl.
-	  It is inadequate because it runs too late to be able to properly
-	  load microcode on a machine and it needs special tools. Instead, you
-	  should've switched to the early loading method with the initrd or
-	  builtin microcode by now: Documentation/x86/microcode.rst
+	  Loading microcode late, when the system is up and executing instructions
+	  is a tricky business and should be avoided if possible. Just the sequence
+	  of synchronizing all cores and SMT threads is one fragile dance which does
+	  not guarantee that cores might not softlock after the loading. Therefore,
+	  use this at your own risk. Late loading taints the kernel too.
 
 config X86_MSR
 	tristate "/dev/cpu/*/msr - Model-specific register support"
@@ -1515,7 +1542,6 @@ config X86_CPA_STATISTICS
 config X86_MEM_ENCRYPT
 	select ARCH_HAS_FORCE_DMA_UNENCRYPTED
 	select DYNAMIC_PHYSICAL_MASK
-	select ARCH_HAS_RESTRICTED_VIRTIO_MEMORY_ACCESS
 	def_bool n
 
 config AMD_MEM_ENCRYPT
@@ -1816,17 +1842,6 @@ config ARCH_RANDOM
 	  If supported, this is a high bandwidth, cryptographically
 	  secure hardware random number generator.
 
-config X86_SMAP
-	def_bool y
-	prompt "Supervisor Mode Access Prevention" if EXPERT
-	help
-	  Supervisor Mode Access Prevention (SMAP) is a security
-	  feature in newer Intel processors.  There is a small
-	  performance cost if this enabled and turned on; there is
-	  also a small increase in the kernel size if this is enabled.
-
-	  If unsure, say Y.
-
 config X86_UMIP
 	def_bool y
 	prompt "User Mode Instruction Prevention" if EXPERT
@@ -1855,9 +1870,10 @@ config CC_HAS_IBT
 config X86_KERNEL_IBT
 	prompt "Indirect Branch Tracking"
 	bool
-	depends on X86_64 && CC_HAS_IBT && STACK_VALIDATION
+	depends on X86_64 && CC_HAS_IBT && HAVE_OBJTOOL
 	# https://github.com/llvm/llvm-project/commit/9d7001eba9c4cb311e03cd8cdc231f9e579f2d0f
 	depends on !LD_IS_LLD || LLD_VERSION >= 140000
+	select OBJTOOL
 	help
 	  Build the kernel with support for Indirect Branch Tracking, a
 	  hardware support course-grain forward-edge Control Flow Integrity
@@ -1984,15 +2000,15 @@ config EFI_MIXED
 	bool "EFI mixed-mode support"
 	depends on EFI_STUB && X86_64
 	help
-	   Enabling this feature allows a 64-bit kernel to be booted
-	   on a 32-bit firmware, provided that your CPU supports 64-bit
-	   mode.
+	  Enabling this feature allows a 64-bit kernel to be booted
+	  on a 32-bit firmware, provided that your CPU supports 64-bit
+	  mode.
 
-	   Note that it is not possible to boot a mixed-mode enabled
-	   kernel via the EFI boot stub - a bootloader that supports
-	   the EFI handover protocol must be used.
+	  Note that it is not possible to boot a mixed-mode enabled
+	  kernel via the EFI boot stub - a bootloader that supports
+	  the EFI handover protocol must be used.
 
-	   If unsure, say N.
+	  If unsure, say N.
 
 source "kernel/Kconfig.hz"
 
@@ -2217,16 +2233,16 @@ config RANDOMIZE_MEMORY
 	select DYNAMIC_MEMORY_LAYOUT
 	default RANDOMIZE_BASE
 	help
-	   Randomizes the base virtual address of kernel memory sections
-	   (physical memory mapping, vmalloc & vmemmap). This security feature
-	   makes exploits relying on predictable memory locations less reliable.
+	  Randomizes the base virtual address of kernel memory sections
+	  (physical memory mapping, vmalloc & vmemmap). This security feature
+	  makes exploits relying on predictable memory locations less reliable.
 
-	   The order of allocations remains unchanged. Entropy is generated in
-	   the same way as RANDOMIZE_BASE. Current implementation in the optimal
-	   configuration have in average 30,000 different possible virtual
-	   addresses for each memory section.
+	  The order of allocations remains unchanged. Entropy is generated in
+	  the same way as RANDOMIZE_BASE. Current implementation in the optimal
+	  configuration have in average 30,000 different possible virtual
+	  addresses for each memory section.
 
-	   If unsure, say Y.
+	  If unsure, say Y.
 
 config RANDOMIZE_MEMORY_PHYSICAL_PADDING
 	hex "Physical memory mapping padding" if EXPERT
@@ -2236,12 +2252,12 @@ config RANDOMIZE_MEMORY_PHYSICAL_PADDING
 	range 0x1 0x40 if MEMORY_HOTPLUG
 	range 0x0 0x40
 	help
-	   Define the padding in terabytes added to the existing physical
-	   memory size during kernel memory randomization. It is useful
-	   for memory hotplug support but reduces the entropy available for
-	   address randomization.
+	  Define the padding in terabytes added to the existing physical
+	  memory size during kernel memory randomization. It is useful
+	  for memory hotplug support but reduces the entropy available for
+	  address randomization.
 
-	   If unsure, leave at the default value.
+	  If unsure, leave at the default value.
 
 config HOTPLUG_CPU
 	def_bool y
@@ -2326,27 +2342,15 @@ choice
 	  it can be used to assist security vulnerability exploitation.
 
 	  This setting can be changed at boot time via the kernel command
-	  line parameter vsyscall=[emulate|xonly|none].
+	  line parameter vsyscall=[emulate|xonly|none].  Emulate mode
+	  is deprecated and can only be enabled using the kernel command
+	  line.
 
 	  On a system with recent enough glibc (2.14 or newer) and no
 	  static binaries, you can say None without a performance penalty
 	  to improve security.
 
 	  If unsure, select "Emulate execution only".
-
-	config LEGACY_VSYSCALL_EMULATE
-		bool "Full emulation"
-		help
-		  The kernel traps and emulates calls into the fixed vsyscall
-		  address mapping. This makes the mapping non-executable, but
-		  it still contains readable known contents, which could be
-		  used in certain rare security vulnerability exploits. This
-		  configuration is recommended when using legacy userspace
-		  that still uses vsyscalls along with legacy binary
-		  instrumentation tools that require code to be readable.
-
-		  An example of this type of legacy userspace is running
-		  Pin on an old binary that still uses vsyscalls.
 
 	config LEGACY_VSYSCALL_XONLY
 		bool "Emulate execution only"
@@ -2600,7 +2604,6 @@ source "drivers/idle/Kconfig"
 
 endmenu
 
-
 menu "Bus options (PCI etc.)"
 
 choice
@@ -2824,7 +2827,6 @@ config AMD_NB
 
 endmenu
 
-
 menu "Binary Emulations"
 
 config IA32_EMULATION
@@ -2837,13 +2839,6 @@ config IA32_EMULATION
 	  Include code to run legacy 32-bit programs under a
 	  64-bit kernel. You should likely turn this on, unless you're
 	  100% sure that you don't have any 32-bit programs left.
-
-config IA32_AOUT
-	tristate "IA32 a.out support"
-	depends on IA32_EMULATION
-	depends on BROKEN
-	help
-	  Support old a.out binaries in the 32bit emulation.
 
 config X86_X32_ABI
 	bool "x32 ABI for 64-bit mode"
@@ -2869,17 +2864,11 @@ config COMPAT
 	def_bool y
 	depends on IA32_EMULATION || X86_X32_ABI
 
-if COMPAT
 config COMPAT_FOR_U64_ALIGNMENT
 	def_bool y
-
-config SYSVIPC_COMPAT
-	def_bool y
-	depends on SYSVIPC
-endif
+	depends on COMPAT
 
 endmenu
-
 
 config HAVE_ATOMIC_IOMAP
 	def_bool y

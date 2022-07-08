@@ -26,7 +26,7 @@
 #ifndef __DAL_DPCD_DEFS_H__
 #define __DAL_DPCD_DEFS_H__
 
-#include <drm/dp/drm_dp_helper.h>
+#include <drm/display/drm_dp_helper.h>
 #ifndef DP_SINK_HW_REVISION_START // can remove this once the define gets into linux drm_dp_helper.h
 #define DP_SINK_HW_REVISION_START 0x409
 #endif

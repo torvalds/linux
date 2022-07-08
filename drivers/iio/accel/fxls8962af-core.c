@@ -1217,7 +1217,6 @@ int fxls8962af_core_probe(struct device *dev, struct regmap *regmap, int irq)
 			return ret;
 
 		ret = devm_iio_kfifo_buffer_setup(dev, indio_dev,
-						  INDIO_BUFFER_SOFTWARE,
 						  &fxls8962af_buffer_ops);
 		if (ret)
 			return ret;

@@ -134,11 +134,9 @@ static int davinci_mdio_reset(struct mii_bus *bus)
 	u32 phy_mask, ver;
 	int ret;
 
-	ret = pm_runtime_get_sync(data->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(data->dev);
+	ret = pm_runtime_resume_and_get(data->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	/* wait for scan logic to settle */
 	msleep(PHY_MAX_ADDR * data->access_time);
@@ -232,11 +230,9 @@ static int davinci_mdio_read(struct mii_bus *bus, int phy_id, int phy_reg)
 	if (phy_reg & ~PHY_REG_MASK || phy_id & ~PHY_ID_MASK)
 		return -EINVAL;
 
-	ret = pm_runtime_get_sync(data->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(data->dev);
+	ret = pm_runtime_resume_and_get(data->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	reg = (USERACCESS_GO | USERACCESS_READ | (phy_reg << 21) |
 	       (phy_id << 16));
@@ -276,11 +272,9 @@ static int davinci_mdio_write(struct mii_bus *bus, int phy_id,
 	if (phy_reg & ~PHY_REG_MASK || phy_id & ~PHY_ID_MASK)
 		return -EINVAL;
 
-	ret = pm_runtime_get_sync(data->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(data->dev);
+	ret = pm_runtime_resume_and_get(data->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	reg = (USERACCESS_GO | USERACCESS_WRITE | (phy_reg << 21) |
 		   (phy_id << 16) | (phy_data & USERACCESS_DATA));

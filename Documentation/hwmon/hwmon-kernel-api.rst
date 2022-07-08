@@ -50,6 +50,10 @@ register/unregister functions::
 
   void devm_hwmon_device_unregister(struct device *dev);
 
+  char *hwmon_sanitize_name(const char *name);
+
+  char *devm_hwmon_sanitize_name(struct device *dev, const char *name);
+
 hwmon_device_register_with_groups registers a hardware monitoring device.
 The first parameter of this function is a pointer to the parent device.
 The name parameter is a pointer to the hwmon device name. The registration
@@ -72,7 +76,7 @@ hwmon_device_register_with_info is the most comprehensive and preferred means
 to register a hardware monitoring device. It creates the standard sysfs
 attributes in the hardware monitoring core, letting the driver focus on reading
 from and writing to the chip instead of having to bother with sysfs attributes.
-The parent device parameter cannot be NULL with non-NULL chip info. Its
+The parent device parameter as well as the chip parameter must not be NULL. Its
 parameters are described in more detail below.
 
 devm_hwmon_device_register_with_info is similar to
@@ -94,6 +98,18 @@ removal would be too late.
 All supported hwmon device registration functions only accept valid device
 names. Device names including invalid characters (whitespace, '*', or '-')
 will be rejected. The 'name' parameter is mandatory.
+
+If the driver doesn't use a static device name (for example it uses
+dev_name()), and therefore cannot make sure the name only contains valid
+characters, hwmon_sanitize_name can be used. This convenience function
+will duplicate the string and replace any invalid characters with an
+underscore. It will allocate memory for the new string and it is the
+responsibility of the caller to release the memory when the device is
+removed.
+
+devm_hwmon_sanitize_name is the resource managed version of
+hwmon_sanitize_name; the memory will be freed automatically on device
+removal.
 
 Using devm_hwmon_device_register_with_info()
 --------------------------------------------

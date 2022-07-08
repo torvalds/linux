@@ -543,15 +543,9 @@ bool dal_ddc_service_query_ddc_data(
 
 	uint32_t payloads_num = write_payloads + read_payloads;
 
-
-	if (write_size > EDID_SEGMENT_SIZE || read_size > EDID_SEGMENT_SIZE)
-		return false;
-
 	if (!payloads_num)
 		return false;
 
-	/*TODO: len of payload data for i2c and aux is uint8!!!!,
-	 *  but we want to read 256 over i2c!!!!*/
 	if (dal_ddc_service_is_in_aux_transaction_mode(ddc)) {
 		struct aux_payload payload;
 

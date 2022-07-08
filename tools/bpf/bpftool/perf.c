@@ -11,7 +11,7 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
-#include <ftw.h>
+#include <dirent.h>
 
 #include <bpf/bpf.h>
 
@@ -147,81 +147,83 @@ static void print_perf_plain(int pid, int fd, __u32 prog_id, __u32 fd_type,
 	}
 }
 
-static int show_proc(const char *fpath, const struct stat *sb,
-		     int tflag, struct FTW *ftwbuf)
+static int show_proc(void)
 {
+	struct dirent *proc_de, *pid_fd_de;
 	__u64 probe_offset, probe_addr;
 	__u32 len, prog_id, fd_type;
-	int err, pid = 0, fd = 0;
+	DIR *proc, *pid_fd;
+	int err, pid, fd;
 	const char *pch;
 	char buf[4096];
 
-	/* prefix always /proc */
-	pch = fpath + 5;
-	if (*pch == '\0')
-		return 0;
+	proc = opendir("/proc");
+	if (!proc)
+		return -1;
 
-	/* pid should be all numbers */
-	pch++;
-	while (isdigit(*pch)) {
-		pid = pid * 10 + *pch - '0';
-		pch++;
+	while ((proc_de = readdir(proc))) {
+		pid = 0;
+		pch = proc_de->d_name;
+
+		/* pid should be all numbers */
+		while (isdigit(*pch)) {
+			pid = pid * 10 + *pch - '0';
+			pch++;
+		}
+		if (*pch != '\0')
+			continue;
+
+		err = snprintf(buf, sizeof(buf), "/proc/%s/fd", proc_de->d_name);
+		if (err < 0 || err >= (int)sizeof(buf))
+			continue;
+
+		pid_fd = opendir(buf);
+		if (!pid_fd)
+			continue;
+
+		while ((pid_fd_de = readdir(pid_fd))) {
+			fd = 0;
+			pch = pid_fd_de->d_name;
+
+			/* fd should be all numbers */
+			while (isdigit(*pch)) {
+				fd = fd * 10 + *pch - '0';
+				pch++;
+			}
+			if (*pch != '\0')
+				continue;
+
+			/* query (pid, fd) for potential perf events */
+			len = sizeof(buf);
+			err = bpf_task_fd_query(pid, fd, 0, buf, &len,
+						&prog_id, &fd_type,
+						&probe_offset, &probe_addr);
+			if (err < 0)
+				continue;
+
+			if (json_output)
+				print_perf_json(pid, fd, prog_id, fd_type, buf,
+						probe_offset, probe_addr);
+			else
+				print_perf_plain(pid, fd, prog_id, fd_type, buf,
+						 probe_offset, probe_addr);
+		}
+		closedir(pid_fd);
 	}
-	if (*pch == '\0')
-		return 0;
-	if (*pch != '/')
-		return FTW_SKIP_SUBTREE;
-
-	/* check /proc/<pid>/fd directory */
-	pch++;
-	if (strncmp(pch, "fd", 2))
-		return FTW_SKIP_SUBTREE;
-	pch += 2;
-	if (*pch == '\0')
-		return 0;
-	if (*pch != '/')
-		return FTW_SKIP_SUBTREE;
-
-	/* check /proc/<pid>/fd/<fd_num> */
-	pch++;
-	while (isdigit(*pch)) {
-		fd = fd * 10 + *pch - '0';
-		pch++;
-	}
-	if (*pch != '\0')
-		return FTW_SKIP_SUBTREE;
-
-	/* query (pid, fd) for potential perf events */
-	len = sizeof(buf);
-	err = bpf_task_fd_query(pid, fd, 0, buf, &len, &prog_id, &fd_type,
-				&probe_offset, &probe_addr);
-	if (err < 0)
-		return 0;
-
-	if (json_output)
-		print_perf_json(pid, fd, prog_id, fd_type, buf, probe_offset,
-				probe_addr);
-	else
-		print_perf_plain(pid, fd, prog_id, fd_type, buf, probe_offset,
-				 probe_addr);
-
+	closedir(proc);
 	return 0;
 }
 
 static int do_show(int argc, char **argv)
 {
-	int flags = FTW_ACTIONRETVAL | FTW_PHYS;
-	int err = 0, nopenfd = 16;
+	int err;
 
 	if (!has_perf_query_support())
 		return -1;
 
 	if (json_output)
 		jsonw_start_array(json_wtr);
-	if (nftw("/proc", show_proc, nopenfd, flags) == -1) {
-		p_err("%s", strerror(errno));
-		err = -1;
-	}
+	err = show_proc();
 	if (json_output)
 		jsonw_end_array(json_wtr);
 

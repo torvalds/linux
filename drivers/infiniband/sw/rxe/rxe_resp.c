@@ -277,7 +277,6 @@ static enum resp_states check_op_valid(struct rxe_qp *qp,
 		break;
 
 	case IB_QPT_UD:
-	case IB_QPT_SMI:
 	case IB_QPT_GSI:
 		break;
 
@@ -577,8 +576,7 @@ static enum resp_states process_atomic(struct rxe_qp *qp,
 
 	qp->resp.atomic_orig = *vaddr;
 
-	if (pkt->opcode == IB_OPCODE_RC_COMPARE_SWAP ||
-	    pkt->opcode == IB_OPCODE_RD_COMPARE_SWAP) {
+	if (pkt->opcode == IB_OPCODE_RC_COMPARE_SWAP) {
 		if (*vaddr == atmeth_comp(pkt))
 			*vaddr = atmeth_swap_add(pkt);
 	} else {
@@ -680,6 +678,11 @@ static struct resp_res *rxe_prepare_read_res(struct rxe_qp *qp,
  * It is assumed that the access permissions if originally good
  * are OK and the mappings to be unchanged.
  *
+ * TODO: If someone reregisters an MR to change its size or
+ * access permissions during the processing of an RDMA read
+ * we should kill the responder resource and complete the
+ * operation with an error.
+ *
  * Return: mr on success else NULL
  */
 static struct rxe_mr *rxe_recheck_mr(struct rxe_qp *qp, u32 rkey)
@@ -690,23 +693,27 @@ static struct rxe_mr *rxe_recheck_mr(struct rxe_qp *qp, u32 rkey)
 
 	if (rkey_is_mw(rkey)) {
 		mw = rxe_pool_get_index(&rxe->mw_pool, rkey >> 8);
-		if (!mw || mw->rkey != rkey)
+		if (!mw)
 			return NULL;
 
-		if (mw->state != RXE_MW_STATE_VALID) {
+		mr = mw->mr;
+		if (mw->rkey != rkey || mw->state != RXE_MW_STATE_VALID ||
+		    !mr || mr->state != RXE_MR_STATE_VALID) {
 			rxe_put(mw);
 			return NULL;
 		}
 
-		mr = mw->mr;
+		rxe_get(mr);
 		rxe_put(mw);
-	} else {
-		mr = rxe_pool_get_index(&rxe->mr_pool, rkey >> 8);
-		if (!mr || mr->rkey != rkey)
-			return NULL;
+
+		return mr;
 	}
 
-	if (mr->state != RXE_MR_STATE_VALID) {
+	mr = rxe_pool_get_index(&rxe->mr_pool, rkey >> 8);
+	if (!mr)
+		return NULL;
+
+	if (mr->rkey != rkey || mr->state != RXE_MR_STATE_VALID) {
 		rxe_put(mr);
 		return NULL;
 	}
@@ -736,8 +743,14 @@ static enum resp_states read_reply(struct rxe_qp *qp,
 	}
 
 	if (res->state == rdatm_res_state_new) {
-		mr = qp->resp.mr;
-		qp->resp.mr = NULL;
+		if (!res->replay) {
+			mr = qp->resp.mr;
+			qp->resp.mr = NULL;
+		} else {
+			mr = rxe_recheck_mr(qp, res->read.rkey);
+			if (!mr)
+				return RESPST_ERR_RKEY_VIOLATION;
+		}
 
 		if (res->read.resid <= mtu)
 			opcode = IB_OPCODE_RC_RDMA_READ_RESPONSE_ONLY;
@@ -819,7 +832,6 @@ static enum resp_states execute(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 
 	if (pkt->mask & RXE_SEND_MASK) {
 		if (qp_type(qp) == IB_QPT_UD ||
-		    qp_type(qp) == IB_QPT_SMI ||
 		    qp_type(qp) == IB_QPT_GSI) {
 			if (skb->protocol == htons(ETH_P_IP)) {
 				memset(&hdr.reserved, 0,
@@ -1250,7 +1262,8 @@ int rxe_responder(void *arg)
 	struct rxe_pkt_info *pkt = NULL;
 	int ret = 0;
 
-	rxe_get(qp);
+	if (!rxe_get(qp))
+		return -EAGAIN;
 
 	qp->resp.aeth_syndrome = AETH_ACK_UNLIMITED;
 

@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.177"
+#define DC_VER "3.2.187"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -222,7 +222,6 @@ struct dc_dcc_setting {
 	unsigned int max_compressed_blk_size;
 	unsigned int max_uncompressed_blk_size;
 	bool independent_64b_blks;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	//These bitfields to be used starting with DCN
 	struct {
 		uint32_t dcc_256_64_64 : 1;//available in ASICs before DCN (the worst compression case)
@@ -230,7 +229,6 @@ struct dc_dcc_setting {
 		uint32_t dcc_256_128_128 : 1;		//available starting with DCN
 		uint32_t dcc_256_256_unconstrained : 1;  //available in ASICs before DCN (the best compression case)
 	} dcc_controls;
-#endif
 };
 
 struct dc_surface_dcc_cap {
@@ -331,10 +329,8 @@ struct dc_config {
 	bool disable_dmcu;
 	bool enable_4to1MPC;
 	bool enable_windowed_mpo_odm;
-	bool allow_edp_hotplug_detection;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+	uint32_t allow_edp_hotplug_detection;
 	bool clamp_min_dcfclk;
-#endif
 	uint64_t vblank_alignment_dto_params;
 	uint8_t  vblank_alignment_max_frame_time_diff;
 	bool is_asymmetric_memory;
@@ -357,6 +353,12 @@ enum dc_psr_power_opts {
 	psr_power_opt_smu_opt_static_screen = 0x1,
 	psr_power_opt_z10_static_screen = 0x10,
 	psr_power_opt_ds_disable_allow = 0x100,
+};
+
+enum dml_hostvm_override_opts {
+	DML_HOSTVM_NO_OVERRIDE = 0x0,
+	DML_HOSTVM_OVERRIDE_FALSE = 0x1,
+	DML_HOSTVM_OVERRIDE_TRUE = 0x2,
 };
 
 enum dcc_option {
@@ -389,14 +391,12 @@ enum dcn_pwr_state {
 	DCN_PWR_STATE_LOW_POWER = 3,
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 enum dcn_zstate_support_state {
 	DCN_ZSTATE_SUPPORT_UNKNOWN,
 	DCN_ZSTATE_SUPPORT_ALLOW,
 	DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY,
 	DCN_ZSTATE_SUPPORT_DISALLOW,
 };
-#endif
 /*
  * For any clocks that may differ per pipe
  * only the max is stored in this structure
@@ -414,10 +414,9 @@ struct dc_clocks {
 	int phyclk_khz;
 	int dramclk_khz;
 	bool p_state_change_support;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	enum dcn_zstate_support_state zstate_support;
 	bool dtbclk_en;
-#endif
+	int ref_dtbclk_khz;
 	enum dcn_pwr_state pwr_state;
 	/*
 	 * Elements below are not compared for the purposes of
@@ -647,9 +646,7 @@ struct dc_debug_options {
 	bool disable_pplib_clock_request;
 	bool disable_clock_gate;
 	bool disable_mem_low_power;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool pstate_enabled;
-#endif
 	bool disable_dmcu;
 	bool disable_psr;
 	bool force_abm_enable;
@@ -666,20 +663,17 @@ struct dc_debug_options {
 	uint32_t edid_read_retry_times;
 	bool remove_disconnect_edp;
 	unsigned int force_odm_combine; //bit vector based on otg inst
-#if defined(CONFIG_DRM_AMD_DC_DCN)
+	unsigned int seamless_boot_odm_combine;
 	unsigned int force_odm_combine_4to1; //bit vector based on otg inst
 	bool disable_z9_mpc;
-#endif
 	unsigned int force_fclk_khz;
 	bool enable_tri_buf;
 	bool dmub_offload_enabled;
 	bool dmcub_emulation;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool disable_idle_power_optimizations;
 	unsigned int mall_size_override;
 	unsigned int mall_additional_timer_percent;
 	bool mall_error_as_fatal;
-#endif
 	bool dmub_command_table; /* for testing only */
 	struct dc_bw_validation_profile bw_val_profile;
 	bool disable_fec;
@@ -688,9 +682,7 @@ struct dc_debug_options {
 	 * watermarks are not affected.
 	 */
 	unsigned int force_min_dcfclk_mhz;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	int dwb_fi_phase;
-#endif
 	bool disable_timing_sync;
 	bool cm_in_bypass;
 	int force_clock_mode;/*every mode change.*/
@@ -722,15 +714,16 @@ struct dc_debug_options {
 	enum det_size crb_alloc_policy;
 	int crb_alloc_policy_min_disp_count;
 	bool disable_z10;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool enable_z9_disable_interface;
 	bool enable_sw_cntl_psr;
 	union dpia_debug_options dpia_debug;
-#endif
 	bool apply_vendor_specific_lttpr_wa;
 	bool extended_blank_optimization;
 	union aux_wake_wa_options aux_wake_wa;
+	/* uses value at boot and disables switch */
+	bool disable_dtb_ref_clk_switch;
 	uint8_t psr_power_use_phy_fsm;
+	enum dml_hostvm_override_opts dml_hostvm_override;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -759,11 +752,9 @@ struct dc {
 	/* Inputs into BW and WM calculations. */
 	struct bw_calcs_dceip *bw_dceip;
 	struct bw_calcs_vbios *bw_vbios;
-#ifdef CONFIG_DRM_AMD_DC_DCN
 	struct dcn_soc_bounding_box *dcn_soc;
 	struct dcn_ip_params *dcn_ip;
 	struct display_mode_lib dml;
-#endif
 
 	/* HW functions */
 	struct hw_sequencer_funcs hwss;
@@ -772,12 +763,8 @@ struct dc {
 	/* Require to optimize clocks and bandwidth for added/removed planes */
 	bool optimized_required;
 	bool wm_optimized_required;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool idle_optimizations_allowed;
-#endif
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool enable_c20_dtm_b0;
-#endif
 
 	/* Require to maintain clocks and bandwidth for UEFI enabled HW */
 
@@ -827,9 +814,7 @@ struct dc_init_data {
 	uint64_t log_mask;
 
 	struct dpcd_vendor_signature vendor_signature;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	bool force_smu_not_present;
-#endif
 };
 
 struct dc_callback_init {
@@ -1022,15 +1007,14 @@ struct dc_plane_state {
 	struct dc_transfer_func *in_shaper_func;
 	struct dc_transfer_func *blend_tf;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	struct dc_transfer_func *gamcor_tf;
-#endif
 	enum surface_pixel_format format;
 	enum dc_rotation_angle rotation;
 	enum plane_stereo_format stereo_format;
 
 	bool is_tiling_rotated;
 	bool per_pixel_alpha;
+	bool pre_multiplied_alpha;
 	bool global_alpha;
 	int  global_alpha_value;
 	bool visible;
@@ -1065,6 +1049,7 @@ struct dc_plane_info {
 	bool horizontal_mirror;
 	bool visible;
 	bool per_pixel_alpha;
+	bool pre_multiplied_alpha;
 	bool global_alpha;
 	int  global_alpha_value;
 	bool input_csc_enabled;
@@ -1121,18 +1106,6 @@ struct dc_transfer_func *dc_create_transfer_func(void);
 struct dc_3dlut *dc_create_3dlut_func(void);
 void dc_3dlut_func_release(struct dc_3dlut *lut);
 void dc_3dlut_func_retain(struct dc_3dlut *lut);
-/*
- * This structure holds a surface address.  There could be multiple addresses
- * in cases such as Stereo 3D, Planar YUV, etc.  Other per-flip attributes such
- * as frame durations and DCC format can also be set.
- */
-struct dc_flip_addrs {
-	struct dc_plane_address address;
-	unsigned int flip_timestamp_in_us;
-	bool flip_immediate;
-	/* TODO: add flip duration for FreeSync */
-	bool triplebuffer_flips;
-};
 
 void dc_post_update_surfaces_to_stream(
 		struct dc *dc);
@@ -1173,13 +1146,11 @@ void dc_resource_state_construct(
 		const struct dc *dc,
 		struct dc_state *dst_ctx);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 bool dc_acquire_release_mpc_3dlut(
 		struct dc *dc, bool acquire,
 		struct dc_stream_state *stream,
 		struct dc_3dlut **lut,
 		struct dc_transfer_func **shaper);
-#endif
 
 void dc_resource_state_copy_construct(
 		const struct dc_state *src_ctx,
@@ -1310,10 +1281,8 @@ struct hdcp_caps {
 
 #include "dc_link.h"
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 uint32_t dc_get_opp_for_plane(struct dc *dc, struct dc_plane_state *plane);
 
-#endif
 /*******************************************************************************
  * Sink Interfaces - A sink corresponds to a display output device
  ******************************************************************************/
@@ -1437,7 +1406,6 @@ bool dc_is_dmcu_initialized(struct dc *dc);
 
 enum dc_status dc_set_clock(struct dc *dc, enum dc_clock_type clock_type, uint32_t clk_khz, uint32_t stepping);
 void dc_get_clock(struct dc *dc, enum dc_clock_type clock_type, struct dc_clock_config *clock_cfg);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 
 bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc, struct dc_plane_state *plane,
 				struct dc_cursor_attributes *cursor_attr);
@@ -1462,13 +1430,9 @@ void dc_enable_dcmode_clk_limit(struct dc *dc, bool enable);
 /* cleanup on driver unload */
 void dc_hardware_release(struct dc *dc);
 
-#endif
-
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 void dc_z10_restore(const struct dc *dc);
 void dc_z10_save_init(struct dc *dc);
-#endif
 
 bool dc_is_dmub_outbox_supported(struct dc *dc);
 bool dc_enable_dmub_notifications(struct dc *dc);

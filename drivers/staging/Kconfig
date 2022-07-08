@@ -64,8 +64,6 @@ source "drivers/staging/gdm724x/Kconfig"
 
 source "drivers/staging/fwserial/Kconfig"
 
-source "drivers/staging/unisys/Kconfig"
-
 source "drivers/staging/clocking-wizard/Kconfig"
 
 source "drivers/staging/fbtft/Kconfig"
@@ -86,6 +84,6 @@ source "drivers/staging/fieldbus/Kconfig"
 
 source "drivers/staging/qlge/Kconfig"
 
-source "drivers/staging/wfx/Kconfig"
+source "drivers/staging/vme_user/Kconfig"
 
 endif # STAGING

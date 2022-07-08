@@ -27,6 +27,9 @@ Required properties:
 - clocks : link phandles of component clocks
 - #clock-cells : from common clock binding; shall be set to 0.
 
+Optional properties:
+- clock-output-names : from common clock binding.
+
 Examples:
 
 usb_l4_gate_ick: usb_l4_gate_ick {

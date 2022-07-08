@@ -262,7 +262,7 @@ err_hw_block_mem_fini:
 	return rc;
 }
 
-void hl_ctx_get(struct hl_device *hdev, struct hl_ctx *ctx)
+void hl_ctx_get(struct hl_ctx *ctx)
 {
 	kref_get(&ctx->refcount);
 }
@@ -284,7 +284,7 @@ struct hl_ctx *hl_get_compute_ctx(struct hl_device *hdev)
 		 * immediately once we find him
 		 */
 		ctx = hpriv->ctx;
-		hl_ctx_get(hdev, ctx);
+		hl_ctx_get(ctx);
 		break;
 	}
 

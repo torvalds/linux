@@ -7099,8 +7099,7 @@ int qeth_open(struct net_device *dev)
 
 	local_bh_disable();
 	qeth_for_each_output_queue(card, queue, i) {
-		netif_tx_napi_add(dev, &queue->napi, qeth_tx_poll,
-				  QETH_NAPI_WEIGHT);
+		netif_napi_add_tx(dev, &queue->napi, qeth_tx_poll);
 		napi_enable(&queue->napi);
 		napi_schedule(&queue->napi);
 	}

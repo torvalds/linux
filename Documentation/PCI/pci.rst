@@ -273,12 +273,12 @@ Set the DMA mask size
 While all drivers should explicitly indicate the DMA capability
 (e.g. 32 or 64 bit) of the PCI bus master, devices with more than
 32-bit bus master capability for streaming data need the driver
-to "register" this capability by calling pci_set_dma_mask() with
+to "register" this capability by calling dma_set_mask() with
 appropriate parameters.  In general this allows more efficient DMA
 on systems where System RAM exists above 4G _physical_ address.
 
 Drivers for all PCI-X and PCIe compliant devices must call
-set_dma_mask() as they are 64-bit DMA devices.
+dma_set_mask() as they are 64-bit DMA devices.
 
 Similarly, drivers must also "register" this capability if the device
 can directly address "coherent memory" in System RAM above 4G physical

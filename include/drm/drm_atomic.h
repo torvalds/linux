@@ -227,6 +227,18 @@ struct drm_private_state_funcs {
 	 */
 	void (*atomic_destroy_state)(struct drm_private_obj *obj,
 				     struct drm_private_state *state);
+
+	/**
+	 * @atomic_print_state:
+	 *
+	 * If driver subclasses &struct drm_private_state, it should implement
+	 * this optional hook for printing additional driver specific state.
+	 *
+	 * Do not call this directly, use drm_atomic_private_obj_print_state()
+	 * instead.
+	 */
+	void (*atomic_print_state)(struct drm_printer *p,
+				   const struct drm_private_state *state);
 };
 
 /**
@@ -311,14 +323,21 @@ struct drm_private_obj {
 
 /**
  * struct drm_private_state - base struct for driver private object state
- * @state: backpointer to global drm_atomic_state
  *
- * Currently only contains a backpointer to the overall atomic update, but in
- * the future also might hold synchronization information similar to e.g.
- * &drm_crtc.commit.
+ * Currently only contains a backpointer to the overall atomic update,
+ * and the relevant private object but in the future also might hold
+ * synchronization information similar to e.g. &drm_crtc.commit.
  */
 struct drm_private_state {
+	/**
+	 * @state: backpointer to global drm_atomic_state
+	 */
 	struct drm_atomic_state *state;
+
+	/**
+	 * @obj: backpointer to the private object
+	 */
+	struct drm_private_obj *obj;
 };
 
 struct __drm_private_objs_state {
@@ -1003,6 +1022,7 @@ void drm_state_dump(struct drm_device *dev, struct drm_printer *p);
 	for ((__i) = 0; \
 	     (__i) < (__state)->num_private_objs && \
 		     ((obj) = (__state)->private_objs[__i].ptr, \
+		      (void)(obj) /* Only to avoid unused-but-set-variable warning */, \
 		      (new_obj_state) = (__state)->private_objs[__i].new_state, 1); \
 	     (__i)++)
 

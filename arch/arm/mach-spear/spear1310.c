@@ -18,7 +18,7 @@
 #include <asm/mach/arch.h>
 #include <asm/mach/map.h>
 #include "generic.h"
-#include <mach/spear.h>
+#include "spear.h"
 
 /* Base addresses */
 #define SPEAR1310_RAS_GRP1_BASE			UL(0xD8000000)

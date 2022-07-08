@@ -104,6 +104,7 @@ struct dsc_funcs {
 			uint8_t *dsc_packed_pps);
 	void (*dsc_enable)(struct display_stream_compressor *dsc, int opp_pipe);
 	void (*dsc_disable)(struct display_stream_compressor *dsc);
+	void (*dsc_disconnect)(struct display_stream_compressor *dsc);
 };
 
 #endif

@@ -13,10 +13,10 @@
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/debugfs.h>
+#include <linux/of_irq.h>
 
 #include <asm/dcr.h>
 #include <asm/machdep.h>
-#include <asm/prom.h>
 
 #include "cell.h"
 

@@ -80,7 +80,6 @@ allOf:
     then:
       properties:
         clocks:
-          minItems: 6
           items:
             - description: AUXCLK clock for McASP used by CPB audio
             - description: Parent for CPB_McASP auxclk (for 48KHz)
@@ -107,7 +106,6 @@ allOf:
     then:
       properties:
         clocks:
-          maxItems: 4
           items:
             - description: AUXCLK clock for McASP used by CPB audio
             - description: Parent for CPB_McASP auxclk (for 48KHz)

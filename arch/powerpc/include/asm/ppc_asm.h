@@ -149,7 +149,7 @@
 #define __STK_REG(i)   (112 + ((i)-14)*8)
 #define STK_REG(i)     __STK_REG(__REG_##i)
 
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 #define STK_GOT		24
 #define __STK_PARAM(i)	(32 + ((i)-3)*8)
 #else
@@ -158,7 +158,7 @@
 #endif
 #define STK_PARAM(i)	__STK_PARAM(__REG_##i)
 
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 
 #define _GLOBAL(name) \
 	.align 2 ; \

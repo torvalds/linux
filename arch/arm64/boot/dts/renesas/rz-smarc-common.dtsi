@@ -26,7 +26,6 @@
 		serial0 = &scif0;
 		i2c0 = &i2c0;
 		i2c1 = &i2c1;
-		i2c3 = &i2c3;
 	};
 
 	chosen {
@@ -53,7 +52,6 @@
 			    "Mic Bias", "Microphone Jack";
 
 		cpu_dai: simple-audio-card,cpu {
-			sound-dai = <&ssi0>;
 		};
 
 		codec_dai: simple-audio-card,codec {
@@ -75,7 +73,6 @@
 		regulator-name = "SDHI1 VccQ";
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <3300000>;
-		gpios = <&pinctrl RZG2L_GPIO(39, 1) GPIO_ACTIVE_HIGH>;
 		gpios-states = <1>;
 		states = <3300000 1>, <1800000 0>;
 	};
@@ -131,20 +128,6 @@
 	status = "okay";
 };
 
-&i2c3 {
-	pinctrl-0 = <&i2c3_pins>;
-	pinctrl-names = "default";
-	clock-frequency = <400000>;
-
-	status = "okay";
-
-	wm8978: codec@1a {
-		compatible = "wlf,wm8978";
-		#sound-dai-cells = <0>;
-		reg = <0x1a>;
-	};
-};
-
 &ohci0 {
 	dr_mode = "otg";
 	status = "okay";
@@ -179,13 +162,6 @@
 
 &spi1 {
 	pinctrl-0 = <&spi1_pins>;
-	pinctrl-names = "default";
-
-	status = "okay";
-};
-
-&ssi0 {
-	pinctrl-0 = <&ssi0_pins>;
 	pinctrl-names = "default";
 
 	status = "okay";

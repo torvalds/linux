@@ -2,7 +2,7 @@
 /*
  * Texas Instruments System Control Interface Protocol Driver
  *
- * Copyright (C) 2015-2016 Texas Instruments Incorporated - https://www.ti.com/
+ * Copyright (C) 2015-2022 Texas Instruments Incorporated - https://www.ti.com/
  *	Nishanth Menon
  */
 
@@ -12,6 +12,7 @@
 #include <linux/debugfs.h>
 #include <linux/export.h>
 #include <linux/io.h>
+#include <linux/iopoll.h>
 #include <linux/kernel.h>
 #include <linux/mailbox_client.h>
 #include <linux/module.h>
@@ -96,6 +97,7 @@ struct ti_sci_desc {
  * @node:	list head
  * @host_id:	Host ID
  * @users:	Number of users of this instance
+ * @is_suspending: Flag set to indicate in suspend path.
  */
 struct ti_sci_info {
 	struct device *dev;
@@ -114,7 +116,7 @@ struct ti_sci_info {
 	u8 host_id;
 	/* protected by ti_sci_list_mutex */
 	int users;
-
+	bool is_suspending;
 };
 
 #define cl_to_ti_sci_info(c)	container_of(c, struct ti_sci_info, cl)
@@ -349,6 +351,8 @@ static struct ti_sci_xfer *ti_sci_get_one_xfer(struct ti_sci_info *info,
 
 	hdr = (struct ti_sci_msg_hdr *)xfer->tx_message.buf;
 	xfer->tx_message.len = tx_message_size;
+	xfer->tx_message.chan_rx = info->chan_rx;
+	xfer->tx_message.timeout_rx_ms = info->desc->max_rx_timeout_ms;
 	xfer->rx_len = (u8)rx_message_size;
 
 	reinit_completion(&xfer->done);
@@ -406,6 +410,7 @@ static inline int ti_sci_do_xfer(struct ti_sci_info *info,
 	int ret;
 	int timeout;
 	struct device *dev = info->dev;
+	bool done_state = true;
 
 	ret = mbox_send_message(info->chan_tx, &xfer->tx_message);
 	if (ret < 0)
@@ -413,13 +418,27 @@ static inline int ti_sci_do_xfer(struct ti_sci_info *info,
 
 	ret = 0;
 
-	/* And we wait for the response. */
-	timeout = msecs_to_jiffies(info->desc->max_rx_timeout_ms);
-	if (!wait_for_completion_timeout(&xfer->done, timeout)) {
+	if (!info->is_suspending) {
+		/* And we wait for the response. */
+		timeout = msecs_to_jiffies(info->desc->max_rx_timeout_ms);
+		if (!wait_for_completion_timeout(&xfer->done, timeout))
+			ret = -ETIMEDOUT;
+	} else {
+		/*
+		 * If we are suspending, we cannot use wait_for_completion_timeout
+		 * during noirq phase, so we must manually poll the completion.
+		 */
+		ret = read_poll_timeout_atomic(try_wait_for_completion, done_state,
+					       true, 1,
+					       info->desc->max_rx_timeout_ms * 1000,
+					       false, &xfer->done);
+	}
+
+	if (ret == -ETIMEDOUT || !done_state) {
 		dev_err(dev, "Mbox timedout in resp(caller: %pS)\n",
 			(void *)_RET_IP_);
-		ret = -ETIMEDOUT;
 	}
+
 	/*
 	 * NOTE: we might prefer not to need the mailbox ticker to manage the
 	 * transfer queueing since the protocol layer queues things by itself.
@@ -3264,6 +3283,35 @@ static int tisci_reboot_handler(struct notifier_block *nb, unsigned long mode,
 	return NOTIFY_BAD;
 }
 
+static void ti_sci_set_is_suspending(struct ti_sci_info *info, bool is_suspending)
+{
+	info->is_suspending = is_suspending;
+}
+
+static int ti_sci_suspend(struct device *dev)
+{
+	struct ti_sci_info *info = dev_get_drvdata(dev);
+	/*
+	 * We must switch operation to polled mode now as drivers and the genpd
+	 * layer may make late TI SCI calls to change clock and device states
+	 * from the noirq phase of suspend.
+	 */
+	ti_sci_set_is_suspending(info, true);
+
+	return 0;
+}
+
+static int ti_sci_resume(struct device *dev)
+{
+	struct ti_sci_info *info = dev_get_drvdata(dev);
+
+	ti_sci_set_is_suspending(info, false);
+
+	return 0;
+}
+
+static DEFINE_SIMPLE_DEV_PM_OPS(ti_sci_pm_ops, ti_sci_suspend, ti_sci_resume);
+
 /* Description for K2G */
 static const struct ti_sci_desc ti_sci_pmmc_k2g_desc = {
 	.default_host_id = 2,
@@ -3472,6 +3520,7 @@ static struct platform_driver ti_sci_driver = {
 	.driver = {
 		   .name = "ti-sci",
 		   .of_match_table = of_match_ptr(ti_sci_of_match),
+		   .pm = &ti_sci_pm_ops,
 	},
 };
 module_platform_driver(ti_sci_driver);

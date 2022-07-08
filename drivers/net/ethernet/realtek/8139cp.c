@@ -1986,7 +1986,7 @@ static int cp_init_one (struct pci_dev *pdev, const struct pci_device_id *ent)
 	eth_hw_addr_set(dev, (u8 *)addr);
 
 	dev->netdev_ops = &cp_netdev_ops;
-	netif_napi_add(dev, &cp->napi, cp_rx_poll, 16);
+	netif_napi_add_weight(dev, &cp->napi, cp_rx_poll, 16);
 	dev->ethtool_ops = &cp_ethtool_ops;
 	dev->watchdog_timeo = TX_TIMEOUT;
 

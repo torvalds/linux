@@ -859,21 +859,20 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 	struct ttm_device *bdev = bo->bdev;
 	struct vmw_private *dev_priv;
 
-
 	dev_priv = container_of(bdev, struct vmw_private, bdev);
 
 	mutex_lock(&dev_priv->binding_mutex);
-
-	dx_query_mob = container_of(bo, struct vmw_buffer_object, base);
-	if (!dx_query_mob || !dx_query_mob->dx_query_ctx) {
-		mutex_unlock(&dev_priv->binding_mutex);
-		return;
-	}
 
 	/* If BO is being moved from MOB to system memory */
 	if (new_mem->mem_type == TTM_PL_SYSTEM &&
 	    old_mem->mem_type == VMW_PL_MOB) {
 		struct vmw_fence_obj *fence;
+
+		dx_query_mob = container_of(bo, struct vmw_buffer_object, base);
+		if (!dx_query_mob || !dx_query_mob->dx_query_ctx) {
+			mutex_unlock(&dev_priv->binding_mutex);
+			return;
+		}
 
 		(void) vmw_query_readback_all(dx_query_mob);
 		mutex_unlock(&dev_priv->binding_mutex);
@@ -888,7 +887,6 @@ void vmw_query_move_notify(struct ttm_buffer_object *bo,
 		(void) ttm_bo_wait(bo, false, false);
 	} else
 		mutex_unlock(&dev_priv->binding_mutex);
-
 }
 
 /**
@@ -1163,10 +1161,6 @@ int vmw_resources_clean(struct vmw_buffer_object *vbo, pgoff_t start,
 		*num_prefault = __KERNEL_DIV_ROUND_UP(last_cleaned - res_start,
 						      PAGE_SIZE);
 		vmw_bo_fence_single(bo, NULL);
-		if (bo->moving)
-			dma_fence_put(bo->moving);
-		bo->moving = dma_fence_get
-			(dma_resv_excl_fence(bo->base.resv));
 	}
 
 	return 0;

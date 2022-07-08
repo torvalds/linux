@@ -160,7 +160,7 @@ extern void __update_cache(pte_t pte);
 #define SPACEID_SHIFT	(MAX_ADDRBITS - 32)
 #else
 #define MAX_ADDRBITS	(BITS_PER_LONG)
-#define MAX_ADDRESS	(1UL << MAX_ADDRBITS)
+#define MAX_ADDRESS	(1ULL << MAX_ADDRBITS)
 #define SPACEID_SHIFT	0
 #endif
 

@@ -60,6 +60,9 @@ static void da7219_aad_btn_det_work(struct work_struct *work)
 	bool micbias_up = false;
 	int retries = 0;
 
+	/* Disable ground switch */
+	snd_soc_component_update_bits(component, 0xFB, 0x01, 0x00);
+
 	/* Drive headphones/lineout */
 	snd_soc_component_update_bits(component, DA7219_HP_L_CTRL,
 			    DA7219_HP_L_AMP_OE_MASK,
@@ -152,6 +155,9 @@ static void da7219_aad_hptest_work(struct work_struct *work)
 	} else {
 		tonegen_freq_hptest = cpu_to_le16(DA7219_AAD_HPTEST_RAMP_FREQ_INT_OSC);
 	}
+
+	/* Disable ground switch */
+	snd_soc_component_update_bits(component, 0xFB, 0x01, 0x00);
 
 	/* Ensure gain ramping at fastest rate */
 	gain_ramp_ctrl = snd_soc_component_read(component, DA7219_GAIN_RAMP_CTRL);
@@ -428,6 +434,10 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 			mask |= DA7219_AAD_REPORT_ALL_MASK;
 			da7219_aad->jack_inserted = false;
 
+			/* Cancel any pending work */
+			cancel_work_sync(&da7219_aad->btn_det_work);
+			cancel_work_sync(&da7219_aad->hptest_work);
+
 			/* Un-drive headphones/lineout */
 			snd_soc_component_update_bits(component, DA7219_HP_R_CTRL,
 					    DA7219_HP_R_AMP_OE_MASK, 0);
@@ -444,9 +454,8 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 			snd_soc_dapm_disable_pin(dapm, "Mic Bias");
 			snd_soc_dapm_sync(dapm);
 
-			/* Cancel any pending work */
-			cancel_work_sync(&da7219_aad->btn_det_work);
-			cancel_work_sync(&da7219_aad->hptest_work);
+			/* Enable ground switch */
+			snd_soc_component_update_bits(component, 0xFB, 0x01, 0x01);
 		}
 	}
 
@@ -898,6 +907,9 @@ int da7219_aad_init(struct snd_soc_component *component)
 	/* Disable button detection */
 	snd_soc_component_update_bits(component, DA7219_ACCDET_CONFIG_1,
 			    DA7219_BUTTON_CONFIG_MASK, 0);
+
+	/* Enable ground switch */
+	snd_soc_component_update_bits(component, 0xFB, 0x01, 0x01);
 
 	INIT_WORK(&da7219_aad->btn_det_work, da7219_aad_btn_det_work);
 	INIT_WORK(&da7219_aad->hptest_work, da7219_aad_hptest_work);

@@ -245,7 +245,8 @@
 		};
 
 		timer@101c0000 {
-			compatible = "samsung,exynos4210-mct";
+			compatible = "samsung,exynos5250-mct",
+				     "samsung,exynos4210-mct";
 			reg = <0x101C0000 0x800>;
 			clocks = <&clock CLK_FIN_PLL>, <&clock CLK_MCT>;
 			clock-names = "fin_pll", "mct";
@@ -699,8 +700,6 @@
 			clocks = <&clock CLK_PDMA0>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 		};
 
 		pdma1: dma-controller@121b0000 {
@@ -710,8 +709,6 @@
 			clocks = <&clock CLK_PDMA1>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 		};
 
 		mdma0: dma-controller@10800000 {
@@ -721,8 +718,6 @@
 			clocks = <&clock CLK_MDMA0>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <1>;
 		};
 
 		mdma1: dma-controller@11c10000 {
@@ -732,8 +727,6 @@
 			clocks = <&clock CLK_MDMA1>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <1>;
 		};
 
 		gsc_0: gsc@13e00000 {
@@ -817,15 +810,14 @@
 			status = "disabled";
 		};
 
-		dp_phy: video-phy {
+		dp_phy: video-phy-0 {
 			compatible = "samsung,exynos5250-dp-video-phy";
 			samsung,pmu-syscon = <&pmu_system_controller>;
 			#phy-cells = <0>;
 		};
 
-		mipi_phy: video-phy@10040710 {
+		mipi_phy: video-phy-1 {
 			compatible = "samsung,s5pv210-mipi-video-phy";
-			reg = <0x10040710 0x100>;
 			#phy-cells = <1>;
 			syscon = <&pmu_system_controller>;
 		};

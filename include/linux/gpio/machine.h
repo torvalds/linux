@@ -64,6 +64,18 @@ struct gpiod_hog {
 };
 
 /*
+ * Helper for lookup tables with just one single lookup for a device.
+ */
+#define GPIO_LOOKUP_SINGLE(_name, _dev_id, _key, _chip_hwnum, _con_id, _flags) \
+static struct gpiod_lookup_table _name = {				\
+	.dev_id = _dev_id,						\
+	.table = {							\
+		GPIO_LOOKUP(_key, _chip_hwnum, _con_id, _flags),	\
+		{},							\
+	},								\
+}
+
+/*
  * Simple definition of a single GPIO under a con_id
  */
 #define GPIO_LOOKUP(_key, _chip_hwnum, _con_id, _flags) \

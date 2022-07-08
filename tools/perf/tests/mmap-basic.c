@@ -31,7 +31,7 @@
  */
 static int test__basic_mmap(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
-	int err = -1;
+	int err = TEST_FAIL;
 	union perf_event *event;
 	struct perf_thread_map *threads;
 	struct perf_cpu_map *cpus;
@@ -83,6 +83,10 @@ static int test__basic_mmap(struct test_suite *test __maybe_unused, int subtest 
 		evsels[i] = evsel__newtp("syscalls", name);
 		if (IS_ERR(evsels[i])) {
 			pr_debug("evsel__new(%s)\n", name);
+			if (PTR_ERR(evsels[i]) == -EACCES) {
+				/* Permissions failure, flag the failure as a skip. */
+				err = TEST_SKIP;
+			}
 			goto out_delete_evlist;
 		}
 
@@ -166,4 +170,14 @@ out_free_threads:
 	return err;
 }
 
-DEFINE_SUITE("Read samples using the mmap interface", basic_mmap);
+static struct test_case tests__basic_mmap[] = {
+	TEST_CASE_REASON("Read samples using the mmap interface",
+			 basic_mmap,
+			 "permissions"),
+	{	.name = NULL, }
+};
+
+struct test_suite suite__basic_mmap = {
+	.desc = "Read samples using the mmap interface",
+	.test_cases = tests__basic_mmap,
+};

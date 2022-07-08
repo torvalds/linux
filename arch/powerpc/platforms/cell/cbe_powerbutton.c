@@ -9,9 +9,9 @@
 
 #include <linux/input.h>
 #include <linux/module.h>
+#include <linux/of.h>
 #include <linux/platform_device.h>
 #include <asm/pmi.h>
-#include <asm/prom.h>
 
 static struct input_dev *button_dev;
 static struct platform_device *button_pdev;

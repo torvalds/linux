@@ -1183,6 +1183,9 @@ struct cfg80211_mbssid_elems {
  *	Token (measurement type 11)
  * @lci_len: LCI data length
  * @civicloc_len: Civic location data length
+ * @he_bss_color: BSS Color settings
+ * @he_bss_color_valid: indicates whether bss color
+ *	attribute is present in beacon data or not.
  */
 struct cfg80211_beacon_data {
 	const u8 *head, *tail;
@@ -1202,6 +1205,8 @@ struct cfg80211_beacon_data {
 	size_t probe_resp_len;
 	size_t lci_len;
 	size_t civicloc_len;
+	struct cfg80211_he_bss_color he_bss_color;
+	bool he_bss_color_valid;
 };
 
 struct mac_address {
@@ -1292,7 +1297,6 @@ struct cfg80211_unsol_bcast_probe_resp {
  * @sae_h2e_required: stations must support direct H2E technique in SAE
  * @flags: flags, as defined in enum cfg80211_ap_settings_flags
  * @he_obss_pd: OBSS Packet Detection settings
- * @he_bss_color: BSS Color settings
  * @he_oper: HE operation IE (or %NULL if HE isn't enabled)
  * @fils_discovery: FILS discovery transmission parameters
  * @unsol_bcast_probe_resp: Unsolicited broadcast probe response parameters
@@ -1326,7 +1330,6 @@ struct cfg80211_ap_settings {
 	bool twt_responder;
 	u32 flags;
 	struct ieee80211_he_obss_pd he_obss_pd;
-	struct cfg80211_he_bss_color he_bss_color;
 	struct cfg80211_fils_discovery fils_discovery;
 	struct cfg80211_unsol_bcast_probe_resp unsol_bcast_probe_resp;
 	struct cfg80211_mbssid_config mbssid_config;
@@ -2735,6 +2738,7 @@ struct cfg80211_auth_request {
  *	userspace if this flag is set. Only applicable for cfg80211_connect()
  *	request (connect callback).
  * @ASSOC_REQ_DISABLE_HE:  Disable HE
+ * @ASSOC_REQ_DISABLE_EHT:  Disable EHT
  */
 enum cfg80211_assoc_req_flags {
 	ASSOC_REQ_DISABLE_HT			= BIT(0),
@@ -2742,6 +2746,7 @@ enum cfg80211_assoc_req_flags {
 	ASSOC_REQ_USE_RRM			= BIT(2),
 	CONNECT_REQ_EXTERNAL_AUTH_SUPPORT	= BIT(3),
 	ASSOC_REQ_DISABLE_HE			= BIT(4),
+	ASSOC_REQ_DISABLE_EHT			= BIT(5),
 };
 
 /**
@@ -5549,8 +5554,6 @@ static inline void wiphy_unlock(struct wiphy *wiphy)
  * @conn_owner_nlportid: (private) connection owner socket port ID
  * @disconnect_wk: (private) auto-disconnect work
  * @disconnect_bssid: (private) the BSSID to use for auto-disconnect
- * @ibss_fixed: (private) IBSS is using fixed BSSID
- * @ibss_dfs_possible: (private) IBSS may change to a DFS channel
  * @event_list: (private) list for internal event processing
  * @event_lock: (private) lock for event list
  * @owner_nlportid: (private) owner socket port ID
@@ -5598,9 +5601,6 @@ struct wireless_dev {
 	struct cfg80211_internal_bss *current_bss; /* associated / joined */
 	struct cfg80211_chan_def preset_chandef;
 	struct cfg80211_chan_def chandef;
-
-	bool ibss_fixed;
-	bool ibss_dfs_possible;
 
 	bool ps;
 	int ps_timeout;
@@ -8006,7 +8006,9 @@ int cfg80211_register_netdevice(struct net_device *dev);
  */
 static inline void cfg80211_unregister_netdevice(struct net_device *dev)
 {
+#if IS_ENABLED(CONFIG_CFG80211)
 	cfg80211_unregister_wdev(dev->ieee80211_ptr);
+#endif
 }
 
 /**

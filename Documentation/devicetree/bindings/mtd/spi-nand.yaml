@@ -11,6 +11,7 @@ maintainers:
 
 allOf:
   - $ref: "nand-chip.yaml#"
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
 
 properties:
   compatible:

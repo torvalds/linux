@@ -68,13 +68,13 @@ static struct irq_chip ioasic_dma_irq_type = {
  * I/O ASIC implements two kinds of DMA interrupts, informational and
  * error interrupts.
  *
- * The formers do not stop DMA and should be cleared as soon as possible
+ * The former do not stop DMA and should be cleared as soon as possible
  * so that if they retrigger before the handler has completed, usually as
  * a side effect of actions taken by the handler, then they are reissued.
  * These use the `handle_edge_irq' handler that clears the request right
  * away.
  *
- * The latters stop DMA and do not resume it until the interrupt has been
+ * The latter stop DMA and do not resume it until the interrupt has been
  * cleared.  This cannot be done until after a corrective action has been
  * taken and this also means they will not retrigger.  Therefore they use
  * the `handle_fasteoi_irq' handler that only clears the request on the

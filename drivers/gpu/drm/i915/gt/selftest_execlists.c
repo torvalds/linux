@@ -1736,21 +1736,21 @@ static int live_preempt(void *arg)
 	enum intel_engine_id id;
 	int err = -ENOMEM;
 
-	if (igt_spinner_init(&spin_hi, gt))
-		return -ENOMEM;
-
-	if (igt_spinner_init(&spin_lo, gt))
-		goto err_spin_hi;
-
 	ctx_hi = kernel_context(gt->i915, NULL);
 	if (!ctx_hi)
-		goto err_spin_lo;
+		return -ENOMEM;
 	ctx_hi->sched.priority = I915_CONTEXT_MAX_USER_PRIORITY;
 
 	ctx_lo = kernel_context(gt->i915, NULL);
 	if (!ctx_lo)
 		goto err_ctx_hi;
 	ctx_lo->sched.priority = I915_CONTEXT_MIN_USER_PRIORITY;
+
+	if (igt_spinner_init(&spin_hi, gt))
+		goto err_ctx_lo;
+
+	if (igt_spinner_init(&spin_lo, gt))
+		goto err_spin_hi;
 
 	for_each_engine(engine, gt, id) {
 		struct igt_live_test t;
@@ -1761,14 +1761,14 @@ static int live_preempt(void *arg)
 
 		if (igt_live_test_begin(&t, gt->i915, __func__, engine->name)) {
 			err = -EIO;
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 
 		rq = spinner_create_request(&spin_lo, ctx_lo, engine,
 					    MI_ARB_CHECK);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 
 		i915_request_add(rq);
@@ -1777,7 +1777,7 @@ static int live_preempt(void *arg)
 			GEM_TRACE_DUMP();
 			intel_gt_set_wedged(gt);
 			err = -EIO;
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 
 		rq = spinner_create_request(&spin_hi, ctx_hi, engine,
@@ -1785,7 +1785,7 @@ static int live_preempt(void *arg)
 		if (IS_ERR(rq)) {
 			igt_spinner_end(&spin_lo);
 			err = PTR_ERR(rq);
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 
 		i915_request_add(rq);
@@ -1794,7 +1794,7 @@ static int live_preempt(void *arg)
 			GEM_TRACE_DUMP();
 			intel_gt_set_wedged(gt);
 			err = -EIO;
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 
 		igt_spinner_end(&spin_hi);
@@ -1802,19 +1802,19 @@ static int live_preempt(void *arg)
 
 		if (igt_live_test_end(&t)) {
 			err = -EIO;
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 	}
 
 	err = 0;
-err_ctx_lo:
-	kernel_context_close(ctx_lo);
-err_ctx_hi:
-	kernel_context_close(ctx_hi);
 err_spin_lo:
 	igt_spinner_fini(&spin_lo);
 err_spin_hi:
 	igt_spinner_fini(&spin_hi);
+err_ctx_lo:
+	kernel_context_close(ctx_lo);
+err_ctx_hi:
+	kernel_context_close(ctx_hi);
 	return err;
 }
 
@@ -1828,19 +1828,19 @@ static int live_late_preempt(void *arg)
 	enum intel_engine_id id;
 	int err = -ENOMEM;
 
-	if (igt_spinner_init(&spin_hi, gt))
-		return -ENOMEM;
-
-	if (igt_spinner_init(&spin_lo, gt))
-		goto err_spin_hi;
-
 	ctx_hi = kernel_context(gt->i915, NULL);
 	if (!ctx_hi)
-		goto err_spin_lo;
+		return -ENOMEM;
 
 	ctx_lo = kernel_context(gt->i915, NULL);
 	if (!ctx_lo)
 		goto err_ctx_hi;
+
+	if (igt_spinner_init(&spin_hi, gt))
+		goto err_ctx_lo;
+
+	if (igt_spinner_init(&spin_lo, gt))
+		goto err_spin_hi;
 
 	/* Make sure ctx_lo stays before ctx_hi until we trigger preemption. */
 	ctx_lo->sched.priority = 1;
@@ -1854,14 +1854,14 @@ static int live_late_preempt(void *arg)
 
 		if (igt_live_test_begin(&t, gt->i915, __func__, engine->name)) {
 			err = -EIO;
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 
 		rq = spinner_create_request(&spin_lo, ctx_lo, engine,
 					    MI_ARB_CHECK);
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 
 		i915_request_add(rq);
@@ -1875,7 +1875,7 @@ static int live_late_preempt(void *arg)
 		if (IS_ERR(rq)) {
 			igt_spinner_end(&spin_lo);
 			err = PTR_ERR(rq);
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 
 		i915_request_add(rq);
@@ -1898,19 +1898,19 @@ static int live_late_preempt(void *arg)
 
 		if (igt_live_test_end(&t)) {
 			err = -EIO;
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 	}
 
 	err = 0;
-err_ctx_lo:
-	kernel_context_close(ctx_lo);
-err_ctx_hi:
-	kernel_context_close(ctx_hi);
 err_spin_lo:
 	igt_spinner_fini(&spin_lo);
 err_spin_hi:
 	igt_spinner_fini(&spin_hi);
+err_ctx_lo:
+	kernel_context_close(ctx_lo);
+err_ctx_hi:
+	kernel_context_close(ctx_hi);
 	return err;
 
 err_wedged:
@@ -1918,7 +1918,7 @@ err_wedged:
 	igt_spinner_end(&spin_lo);
 	intel_gt_set_wedged(gt);
 	err = -EIO;
-	goto err_ctx_lo;
+	goto err_spin_lo;
 }
 
 struct preempt_client {
@@ -3382,18 +3382,18 @@ static int live_preempt_timeout(void *arg)
 	if (!intel_has_reset_engine(gt))
 		return 0;
 
-	if (igt_spinner_init(&spin_lo, gt))
-		return -ENOMEM;
-
 	ctx_hi = kernel_context(gt->i915, NULL);
 	if (!ctx_hi)
-		goto err_spin_lo;
+		return -ENOMEM;
 	ctx_hi->sched.priority = I915_CONTEXT_MAX_USER_PRIORITY;
 
 	ctx_lo = kernel_context(gt->i915, NULL);
 	if (!ctx_lo)
 		goto err_ctx_hi;
 	ctx_lo->sched.priority = I915_CONTEXT_MIN_USER_PRIORITY;
+
+	if (igt_spinner_init(&spin_lo, gt))
+		goto err_ctx_lo;
 
 	for_each_engine(engine, gt, id) {
 		unsigned long saved_timeout;
@@ -3406,21 +3406,21 @@ static int live_preempt_timeout(void *arg)
 					    MI_NOOP); /* preemption disabled */
 		if (IS_ERR(rq)) {
 			err = PTR_ERR(rq);
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 
 		i915_request_add(rq);
 		if (!igt_wait_for_spinner(&spin_lo, rq)) {
 			intel_gt_set_wedged(gt);
 			err = -EIO;
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 
 		rq = igt_request_alloc(ctx_hi, engine);
 		if (IS_ERR(rq)) {
 			igt_spinner_end(&spin_lo);
 			err = PTR_ERR(rq);
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 
 		/* Flush the previous CS ack before changing timeouts */
@@ -3440,7 +3440,7 @@ static int live_preempt_timeout(void *arg)
 			intel_gt_set_wedged(gt);
 			i915_request_put(rq);
 			err = -ETIME;
-			goto err_ctx_lo;
+			goto err_spin_lo;
 		}
 
 		igt_spinner_end(&spin_lo);
@@ -3448,12 +3448,12 @@ static int live_preempt_timeout(void *arg)
 	}
 
 	err = 0;
+err_spin_lo:
+	igt_spinner_fini(&spin_lo);
 err_ctx_lo:
 	kernel_context_close(ctx_lo);
 err_ctx_hi:
 	kernel_context_close(ctx_hi);
-err_spin_lo:
-	igt_spinner_fini(&spin_lo);
 	return err;
 }
 

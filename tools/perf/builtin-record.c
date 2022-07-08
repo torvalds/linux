@@ -49,6 +49,7 @@
 #include "util/clockid.h"
 #include "util/pmu-hybrid.h"
 #include "util/evlist-hybrid.h"
+#include "util/off_cpu.h"
 #include "asm/bug.h"
 #include "perf.h"
 #include "cputopo.h"
@@ -162,6 +163,7 @@ struct record {
 	bool			buildid_mmap;
 	bool			timestamp_filename;
 	bool			timestamp_boundary;
+	bool			off_cpu;
 	struct switch_output	switch_output;
 	unsigned long long	samples;
 	unsigned long		output_max_size;	/* = 0: unlimited */
@@ -869,7 +871,6 @@ static int record__auxtrace_init(struct record *rec __maybe_unused)
 static int record__config_text_poke(struct evlist *evlist)
 {
 	struct evsel *evsel;
-	int err;
 
 	/* Nothing to do if text poke is already configured */
 	evlist__for_each_entry(evlist, evsel) {
@@ -877,30 +878,21 @@ static int record__config_text_poke(struct evlist *evlist)
 			return 0;
 	}
 
-	err = parse_events(evlist, "dummy:u", NULL);
-	if (err)
-		return err;
+	evsel = evlist__add_dummy_on_all_cpus(evlist);
+	if (!evsel)
+		return -ENOMEM;
 
-	evsel = evlist__last(evlist);
-
-	evsel->core.attr.freq = 0;
-	evsel->core.attr.sample_period = 1;
 	evsel->core.attr.text_poke = 1;
 	evsel->core.attr.ksymbol = 1;
-
-	evsel->core.system_wide = true;
-	evsel->no_aux_samples = true;
 	evsel->immediate = true;
-
-	/* Text poke must be collected on all CPUs */
-	perf_cpu_map__put(evsel->core.own_cpus);
-	evsel->core.own_cpus = perf_cpu_map__new(NULL);
-	perf_cpu_map__put(evsel->core.cpus);
-	evsel->core.cpus = perf_cpu_map__get(evsel->core.own_cpus);
-
 	evsel__set_sample_bit(evsel, TIME);
 
 	return 0;
+}
+
+static int record__config_off_cpu(struct record *rec)
+{
+	return off_cpu_prepare(rec->evlist, &rec->opts.target, &rec->opts);
 }
 
 static bool record__kcore_readable(struct machine *machine)
@@ -982,14 +974,20 @@ static void record__thread_data_close_pipes(struct record_thread *thread_data)
 	}
 }
 
+static bool evlist__per_thread(struct evlist *evlist)
+{
+	return cpu_map__is_dummy(evlist->core.user_requested_cpus);
+}
+
 static int record__thread_data_init_maps(struct record_thread *thread_data, struct evlist *evlist)
 {
 	int m, tm, nr_mmaps = evlist->core.nr_mmaps;
 	struct mmap *mmap = evlist->mmap;
 	struct mmap *overwrite_mmap = evlist->overwrite_mmap;
-	struct perf_cpu_map *cpus = evlist->core.user_requested_cpus;
+	struct perf_cpu_map *cpus = evlist->core.all_cpus;
+	bool per_thread = evlist__per_thread(evlist);
 
-	if (cpu_map__is_dummy(cpus))
+	if (per_thread)
 		thread_data->nr_mmaps = nr_mmaps;
 	else
 		thread_data->nr_mmaps = bitmap_weight(thread_data->mask->maps.bits,
@@ -1010,8 +1008,8 @@ static int record__thread_data_init_maps(struct record_thread *thread_data, stru
 		 thread_data->nr_mmaps, thread_data->maps, thread_data->overwrite_maps);
 
 	for (m = 0, tm = 0; m < nr_mmaps && tm < thread_data->nr_mmaps; m++) {
-		if (cpu_map__is_dummy(cpus) ||
-		    test_bit(cpus->map[m].cpu, thread_data->mask->maps.bits)) {
+		if (per_thread ||
+		    test_bit(perf_cpu_map__cpu(cpus, m).cpu, thread_data->mask->maps.bits)) {
 			if (thread_data->maps) {
 				thread_data->maps[tm] = &mmap[m];
 				pr_debug2("thread_data[%p]: cpu%d: maps[%d] -> mmap[%d]\n",
@@ -1885,7 +1883,7 @@ static int record__synthesize(struct record *rec, bool tail)
 		return err;
 	}
 
-	err = perf_event__synthesize_cpu_map(&rec->tool, rec->evlist->core.user_requested_cpus,
+	err = perf_event__synthesize_cpu_map(&rec->tool, rec->evlist->core.all_cpus,
 					     process_synthesized_event, NULL);
 	if (err < 0) {
 		pr_err("Couldn't synthesize cpu map.\n");
@@ -2599,6 +2597,9 @@ out_free_threads:
 			signr = WTERMSIG(exit_status);
 	} else
 		status = err;
+
+	if (rec->off_cpu)
+		rec->bytes_written += off_cpu_write(rec->session);
 
 	record__synthesize(rec, true);
 	/* this will be recalculated during process_buildids() */
@@ -3324,6 +3325,7 @@ static struct option __record_options[] = {
 	OPT_CALLBACK_OPTARG(0, "threads", &record.opts, NULL, "spec",
 			    "write collected trace data into several data files using parallel threads",
 			    record__parse_threads),
+	OPT_BOOLEAN(0, "off-cpu", &record.off_cpu, "Enable off-cpu analysis"),
 	OPT_END()
 };
 
@@ -3331,13 +3333,14 @@ struct option *record_options = __record_options;
 
 static void record__mmap_cpu_mask_init(struct mmap_cpu_mask *mask, struct perf_cpu_map *cpus)
 {
-	int c;
+	struct perf_cpu cpu;
+	int idx;
 
 	if (cpu_map__is_dummy(cpus))
 		return;
 
-	for (c = 0; c < cpus->nr; c++)
-		set_bit(cpus->map[c].cpu, mask->bits);
+	perf_cpu_map__for_each_cpu(cpu, idx, cpus)
+		set_bit(cpu.cpu, mask->bits);
 }
 
 static int record__mmap_cpu_mask_init_spec(struct mmap_cpu_mask *mask, const char *mask_spec)
@@ -3404,8 +3407,8 @@ static int record__init_thread_cpu_masks(struct record *rec, struct perf_cpu_map
 	pr_debug("nr_threads: %d\n", rec->nr_threads);
 
 	for (t = 0; t < rec->nr_threads; t++) {
-		set_bit(cpus->map[t].cpu, rec->thread_masks[t].maps.bits);
-		set_bit(cpus->map[t].cpu, rec->thread_masks[t].affinity.bits);
+		set_bit(perf_cpu_map__cpu(cpus, t).cpu, rec->thread_masks[t].maps.bits);
+		set_bit(perf_cpu_map__cpu(cpus, t).cpu, rec->thread_masks[t].affinity.bits);
 		if (verbose) {
 			pr_debug("thread_masks[%d]: ", t);
 			mmap_cpu_mask__scnprintf(&rec->thread_masks[t].maps, "maps");
@@ -3682,12 +3685,12 @@ static int record__init_thread_default_masks(struct record *rec, struct perf_cpu
 static int record__init_thread_masks(struct record *rec)
 {
 	int ret = 0;
-	struct perf_cpu_map *cpus = rec->evlist->core.user_requested_cpus;
+	struct perf_cpu_map *cpus = rec->evlist->core.all_cpus;
 
 	if (!record__threads_enabled(rec))
 		return record__init_thread_default_masks(rec, cpus);
 
-	if (cpu_map__is_dummy(cpus)) {
+	if (evlist__per_thread(rec->evlist)) {
 		pr_err("--per-thread option is mutually exclusive to parallel streaming mode.\n");
 		return -EINVAL;
 	}
@@ -3742,6 +3745,12 @@ int cmd_record(int argc, const char **argv)
 	set_nobuild('\0', "vmlinux", true);
 # undef set_nobuild
 # undef REASON
+#endif
+
+#ifndef HAVE_BPF_SKEL
+# define set_nobuild(s, l, m, c) set_option_nobuild(record_options, s, l, m, c)
+	set_nobuild('\0', "off-cpu", "no BUILD_BPF_SKEL=1", true);
+# undef set_nobuild
 #endif
 
 	rec->opts.affinity = PERF_AFFINITY_SYS;
@@ -3976,6 +3985,14 @@ int cmd_record(int argc, const char **argv)
 		err = record__config_text_poke(rec->evlist);
 		if (err) {
 			pr_err("record__config_text_poke failed, error %d\n", err);
+			goto out;
+		}
+	}
+
+	if (rec->off_cpu) {
+		err = record__config_off_cpu(rec);
+		if (err) {
+			pr_err("record__config_off_cpu failed, error %d\n", err);
 			goto out;
 		}
 	}

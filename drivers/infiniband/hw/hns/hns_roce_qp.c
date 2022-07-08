@@ -243,26 +243,6 @@ static int alloc_qpn(struct hns_roce_dev *hr_dev, struct hns_roce_qp *hr_qp)
 	return 0;
 }
 
-enum hns_roce_qp_state to_hns_roce_state(enum ib_qp_state state)
-{
-	switch (state) {
-	case IB_QPS_RESET:
-		return HNS_ROCE_QP_STATE_RST;
-	case IB_QPS_INIT:
-		return HNS_ROCE_QP_STATE_INIT;
-	case IB_QPS_RTR:
-		return HNS_ROCE_QP_STATE_RTR;
-	case IB_QPS_RTS:
-		return HNS_ROCE_QP_STATE_RTS;
-	case IB_QPS_SQD:
-		return HNS_ROCE_QP_STATE_SQD;
-	case IB_QPS_ERR:
-		return HNS_ROCE_QP_STATE_ERR;
-	default:
-		return HNS_ROCE_QP_NUM_STATE;
-	}
-}
-
 static void add_qp_to_list(struct hns_roce_dev *hr_dev,
 			   struct hns_roce_qp *hr_qp,
 			   struct ib_cq *send_cq, struct ib_cq *recv_cq)

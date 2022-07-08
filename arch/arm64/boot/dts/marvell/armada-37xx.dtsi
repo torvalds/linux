@@ -444,7 +444,7 @@
 				#mbox-cells = <1>;
 			};
 
-			sdhci1: sdhci@d0000 {
+			sdhci1: mmc@d0000 {
 				compatible = "marvell,armada-3700-sdhci",
 					     "marvell,sdhci-xenon";
 				reg = <0xd0000 0x300>,
@@ -455,7 +455,7 @@
 				status = "disabled";
 			};
 
-			sdhci0: sdhci@d8000 {
+			sdhci0: mmc@d8000 {
 				compatible = "marvell,armada-3700-sdhci",
 					     "marvell,sdhci-xenon";
 				reg = <0xd8000 0x300>,

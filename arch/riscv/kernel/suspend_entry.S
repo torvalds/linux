@@ -8,6 +8,7 @@
 #include <asm/asm.h>
 #include <asm/asm-offsets.h>
 #include <asm/csr.h>
+#include <asm/xip_fixup.h>
 
 	.text
 	.altmacro

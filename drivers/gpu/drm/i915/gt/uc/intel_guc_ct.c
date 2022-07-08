@@ -6,6 +6,7 @@
 #include <linux/circ_buf.h>
 #include <linux/ktime.h>
 #include <linux/time64.h>
+#include <linux/string_helpers.h>
 #include <linux/timekeeping.h>
 
 #include "i915_drv.h"
@@ -170,7 +171,7 @@ static int ct_control_enable(struct intel_guc_ct *ct, bool enable)
 				     GUC_CTB_CONTROL_ENABLE : GUC_CTB_CONTROL_DISABLE);
 	if (unlikely(err))
 		CT_PROBE_ERROR(ct, "Failed to control/%s CTB (%pe)\n",
-			       enabledisable(enable), ERR_PTR(err));
+			       str_enable_disable(enable), ERR_PTR(err));
 
 	return err;
 }
@@ -1202,7 +1203,7 @@ void intel_guc_ct_event_handler(struct intel_guc_ct *ct)
 void intel_guc_ct_print_info(struct intel_guc_ct *ct,
 			     struct drm_printer *p)
 {
-	drm_printf(p, "CT %s\n", enableddisabled(ct->enabled));
+	drm_printf(p, "CT %s\n", str_enabled_disabled(ct->enabled));
 
 	if (!ct->enabled)
 		return;

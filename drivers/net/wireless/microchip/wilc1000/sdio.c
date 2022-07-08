@@ -598,7 +598,7 @@ static int wilc_sdio_init(struct wilc *wilc, bool resume)
 	cmd.read_write = 1;
 	cmd.function = 0;
 	cmd.raw = 1;
-	cmd.address = SDIO_FBR_BASE(func->num);
+	cmd.address = SDIO_FBR_BASE(1);
 	cmd.data = SDIO_FBR_ENABLE_CSA;
 	ret = wilc_sdio_cmd52(wilc, &cmd);
 	if (ret) {

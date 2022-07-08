@@ -393,6 +393,13 @@
 				gw,voltage-divider-ohms = <10000 10000>;
 			};
 
+			channel@9c {
+				gw,mode = <2>;
+				reg = <0x9c>;
+				label = "vdd_5p0";
+				gw,voltage-divider-ohms = <10000 10000>;
+			};
+
 			channel@a2 {
 				gw,mode = <2>;
 				reg = <0xa2>;
@@ -625,6 +632,7 @@
 	pinctrl-0 = <&pinctrl_uart3>, <&pinctrl_uart3_gpio>;
 	rts-gpios = <&gpio2 1 GPIO_ACTIVE_LOW>;
 	cts-gpios = <&gpio2 0 GPIO_ACTIVE_LOW>;
+	uart-has-rtscts;
 	status = "okay";
 
 	bluetooth {

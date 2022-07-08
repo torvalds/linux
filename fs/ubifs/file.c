@@ -31,9 +31,9 @@
  * in the "sys_write -> alloc_pages -> direct reclaim path". So, in
  * 'ubifs_writepage()' we are only guaranteed that the page is locked.
  *
- * Similarly, @i_mutex is not always locked in 'ubifs_readpage()', e.g., the
+ * Similarly, @i_mutex is not always locked in 'ubifs_read_folio()', e.g., the
  * read-ahead path does not lock it ("sys_read -> generic_file_aio_read ->
- * ondemand_readahead -> readpage"). In case of readahead, @I_SYNC flag is not
+ * ondemand_readahead -> read_folio"). In case of readahead, @I_SYNC flag is not
  * set as well. However, UBIFS disables readahead.
  */
 
@@ -215,8 +215,7 @@ static void release_existing_page_budget(struct ubifs_info *c)
 }
 
 static int write_begin_slow(struct address_space *mapping,
-			    loff_t pos, unsigned len, struct page **pagep,
-			    unsigned flags)
+			    loff_t pos, unsigned len, struct page **pagep)
 {
 	struct inode *inode = mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
@@ -244,7 +243,7 @@ static int write_begin_slow(struct address_space *mapping,
 	if (unlikely(err))
 		return err;
 
-	page = grab_cache_page_write_begin(mapping, index, flags);
+	page = grab_cache_page_write_begin(mapping, index);
 	if (unlikely(!page)) {
 		ubifs_release_budget(c, &req);
 		return -ENOMEM;
@@ -419,7 +418,7 @@ static int allocate_budget(struct ubifs_info *c, struct page *page,
  * without forcing write-back. The slow path does not make this assumption.
  */
 static int ubifs_write_begin(struct file *file, struct address_space *mapping,
-			     loff_t pos, unsigned len, unsigned flags,
+			     loff_t pos, unsigned len,
 			     struct page **pagep, void **fsdata)
 {
 	struct inode *inode = mapping->host;
@@ -437,7 +436,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 		return -EROFS;
 
 	/* Try out the fast-path part first */
-	page = grab_cache_page_write_begin(mapping, index, flags);
+	page = grab_cache_page_write_begin(mapping, index);
 	if (unlikely(!page))
 		return -ENOMEM;
 
@@ -493,7 +492,7 @@ static int ubifs_write_begin(struct file *file, struct address_space *mapping,
 		unlock_page(page);
 		put_page(page);
 
-		return write_begin_slow(mapping, pos, len, pagep, flags);
+		return write_begin_slow(mapping, pos, len, pagep);
 	}
 
 	/*
@@ -890,12 +889,14 @@ out_unlock:
 	return err;
 }
 
-static int ubifs_readpage(struct file *file, struct page *page)
+static int ubifs_read_folio(struct file *file, struct folio *folio)
 {
+	struct page *page = &folio->page;
+
 	if (ubifs_bulk_read(page))
 		return 0;
 	do_readpage(page);
-	unlock_page(page);
+	folio_unlock(folio);
 	return 0;
 }
 
@@ -1483,22 +1484,22 @@ static int ubifs_migrate_page(struct address_space *mapping,
 }
 #endif
 
-static int ubifs_releasepage(struct page *page, gfp_t unused_gfp_flags)
+static bool ubifs_release_folio(struct folio *folio, gfp_t unused_gfp_flags)
 {
-	struct inode *inode = page->mapping->host;
+	struct inode *inode = folio->mapping->host;
 	struct ubifs_info *c = inode->i_sb->s_fs_info;
 
 	/*
 	 * An attempt to release a dirty page without budgeting for it - should
 	 * not happen.
 	 */
-	if (PageWriteback(page))
-		return 0;
-	ubifs_assert(c, PagePrivate(page));
+	if (folio_test_writeback(folio))
+		return false;
+	ubifs_assert(c, folio_test_private(folio));
 	ubifs_assert(c, 0);
-	detach_page_private(page);
-	ClearPageChecked(page);
-	return 1;
+	folio_detach_private(folio);
+	folio_clear_checked(folio);
+	return true;
 }
 
 /*
@@ -1642,7 +1643,7 @@ static int ubifs_symlink_getattr(struct user_namespace *mnt_userns,
 }
 
 const struct address_space_operations ubifs_file_address_operations = {
-	.readpage       = ubifs_readpage,
+	.read_folio     = ubifs_read_folio,
 	.writepage      = ubifs_writepage,
 	.write_begin    = ubifs_write_begin,
 	.write_end      = ubifs_write_end,
@@ -1651,7 +1652,7 @@ const struct address_space_operations ubifs_file_address_operations = {
 #ifdef CONFIG_MIGRATION
 	.migratepage	= ubifs_migrate_page,
 #endif
-	.releasepage    = ubifs_releasepage,
+	.release_folio    = ubifs_release_folio,
 };
 
 const struct inode_operations ubifs_file_inode_operations = {

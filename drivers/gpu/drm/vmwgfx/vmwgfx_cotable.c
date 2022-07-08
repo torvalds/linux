@@ -478,6 +478,10 @@ static int vmw_cotable_resize(struct vmw_resource *res, size_t new_size)
 	vmw_bo_unreference(&old_buf);
 	res->id = vcotbl->type;
 
+	ret = dma_resv_reserve_fences(bo->base.resv, 1);
+	if (unlikely(ret))
+		goto out_wait;
+
 	/* Release the pin acquired in vmw_bo_init */
 	ttm_bo_unpin(bo);
 

@@ -21,7 +21,8 @@
 #define VSC9953_VCAP_POLICER_BASE2		120
 #define VSC9953_VCAP_POLICER_MAX2		161
 
-#define VSC9953_PORT_MODE_SERDES		(OCELOT_PORT_MODE_SGMII | \
+#define VSC9953_PORT_MODE_SERDES		(OCELOT_PORT_MODE_1000BASEX | \
+						 OCELOT_PORT_MODE_SGMII | \
 						 OCELOT_PORT_MODE_QSGMII)
 
 static const u32 vsc9953_port_modes[VSC9953_NUM_PORTS] = {
@@ -636,6 +637,7 @@ static const struct ocelot_stat_layout vsc9953_stats_layout[] = {
 	{ .offset = 0x8F,	.name = "drop_green_prio_5", },
 	{ .offset = 0x90,	.name = "drop_green_prio_6", },
 	{ .offset = 0x91,	.name = "drop_green_prio_7", },
+	OCELOT_STAT_END
 };
 
 static const struct vcap_field vsc9953_vcap_es0_keys[] = {
@@ -946,6 +948,7 @@ static void vsc9953_phylink_validate(struct ocelot *ocelot, int port,
 	phylink_set(mask, 100baseT_Full);
 	phylink_set(mask, 100baseT_Half);
 	phylink_set(mask, 1000baseT_Full);
+	phylink_set(mask, 1000baseX_Full);
 
 	if (state->interface == PHY_INTERFACE_MODE_INTERNAL) {
 		phylink_set(mask, 2500baseT_Full);
@@ -1086,7 +1089,6 @@ static const struct felix_info seville_info_vsc9953 = {
 	.map			= vsc9953_regmap,
 	.ops			= &vsc9953_ops,
 	.stats_layout		= vsc9953_stats_layout,
-	.num_stats		= ARRAY_SIZE(vsc9953_stats_layout),
 	.vcap			= vsc9953_vcap_props,
 	.vcap_pol_base		= VSC9953_VCAP_POLICER_BASE,
 	.vcap_pol_max		= VSC9953_VCAP_POLICER_MAX,

@@ -346,8 +346,7 @@ static int cs35l32_handle_of_data(struct i2c_client *i2c_client,
 	return 0;
 }
 
-static int cs35l32_i2c_probe(struct i2c_client *i2c_client,
-				       const struct i2c_device_id *id)
+static int cs35l32_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs35l32_private *cs35l32;
 	struct cs35l32_platform_data *pdata =
@@ -576,7 +575,7 @@ static struct i2c_driver cs35l32_i2c_driver = {
 		   .of_match_table = cs35l32_of_match,
 		   },
 	.id_table = cs35l32_id,
-	.probe = cs35l32_i2c_probe,
+	.probe_new = cs35l32_i2c_probe,
 	.remove = cs35l32_i2c_remove,
 };
 

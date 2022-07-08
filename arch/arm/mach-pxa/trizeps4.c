@@ -40,13 +40,13 @@
 #include <asm/mach/flash.h>
 
 #include "pxa27x.h"
-#include <mach/trizeps4.h>
-#include <mach/audio.h>
+#include "trizeps4.h"
+#include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
-#include <mach/smemc.h>
+#include "smemc.h"
 
 #include "generic.h"
 #include "devices.h"

@@ -82,7 +82,6 @@ static u8 al2230_channel_table1[CB_MAX_CHANNEL_24G][3] = {
 	{0x06, 0x66, 0x61}
 };
 
-
 static u8 vt3226_init_table[CB_VT3226_INIT_SEQ][3] = {
 	{0x03, 0xff, 0x80},
 	{0x02, 0x82, 0xa1},

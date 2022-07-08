@@ -4,13 +4,16 @@ config DRM_I915
 	depends on DRM
 	depends on X86 && PCI
 	depends on !PREEMPT_RT
-	select INTEL_GTT
+	select INTEL_GTT if X86
 	select INTERVAL_TREE
 	# we need shmfs for the swappable backing store, and in particular
 	# the shmem_readpage() which depends upon tmpfs
 	select SHMEM
 	select TMPFS
-	select DRM_DP_HELPER
+	select DRM_DISPLAY_DP_HELPER
+	select DRM_DISPLAY_HDCP_HELPER
+	select DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select DRM_PANEL
 	select DRM_MIPI_DSI
@@ -30,6 +33,7 @@ config DRM_I915
 	select VMAP_PFN
 	select DRM_TTM
 	select DRM_BUDDY
+	select AUXILIARY_BUS
 	help
 	  Choose this option if you have a system that has "Intel Graphics
 	  Media Accelerator" or "HD Graphics" integrated graphics,
@@ -102,39 +106,29 @@ config DRM_I915_USERPTR
 	  If in doubt, say "Y".
 
 config DRM_I915_GVT
-	bool "Enable Intel GVT-g graphics virtualization host support"
+	bool
+
+config DRM_I915_GVT_KVMGT
+	tristate "Enable KVM host support Intel GVT-g graphics virtualization"
 	depends on DRM_I915
 	depends on X86
 	depends on 64BIT
-	default n
+	depends on KVM
+	depends on VFIO_MDEV
+	select DRM_I915_GVT
+	select KVM_EXTERNAL_WRITE_TRACKING
+
 	help
 	  Choose this option if you want to enable Intel GVT-g graphics
 	  virtualization technology host support with integrated graphics.
 	  With GVT-g, it's possible to have one integrated graphics
-	  device shared by multiple VMs under different hypervisors.
+	  device shared by multiple VMs under KVM.
 
-	  Note that at least one hypervisor like Xen or KVM is required for
-	  this driver to work, and it only supports newer device from
-	  Broadwell+. For further information and setup guide, you can
-	  visit: http://01.org/igvt-g.
-
-	  Now it's just a stub to support the modifications of i915 for
-	  GVT device model. It requires at least one MPT modules for Xen/KVM
-	  and other components of GVT device model to work. Use it under
-	  you own risk.
+	  Note that this driver only supports newer device from Broadwell on.
+	  For further information and setup guide, you can visit:
+	  http://01.org/igvt-g.
 
 	  If in doubt, say "N".
-
-config DRM_I915_GVT_KVMGT
-	tristate "Enable KVM/VFIO support for Intel GVT-g"
-	depends on DRM_I915_GVT
-	depends on KVM
-	depends on VFIO_MDEV
-	select KVM_EXTERNAL_WRITE_TRACKING
-	default n
-	help
-	  Choose this option if you want to enable KVMGT support for
-	  Intel GVT-g.
 
 config DRM_I915_PXP
 	bool "Enable Intel PXP support"

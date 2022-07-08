@@ -42,7 +42,7 @@ struct gpiomm_gpio {
 	unsigned char out_state[6];
 	unsigned char control[2];
 	spinlock_t lock;
-	unsigned int base;
+	void __iomem *base;
 };
 
 static int gpiomm_gpio_get_direction(struct gpio_chip *chip,
@@ -64,7 +64,6 @@ static int gpiomm_gpio_direction_input(struct gpio_chip *chip,
 	struct gpiomm_gpio *const gpiommgpio = gpiochip_get_data(chip);
 	const unsigned int io_port = offset / 8;
 	const unsigned int control_port = io_port / 3;
-	const unsigned int control_addr = gpiommgpio->base + 3 + control_port*4;
 	unsigned long flags;
 	unsigned int control;
 
@@ -89,7 +88,7 @@ static int gpiomm_gpio_direction_input(struct gpio_chip *chip,
 	}
 
 	control = BIT(7) | gpiommgpio->control[control_port];
-	outb(control, control_addr);
+	iowrite8(control, gpiommgpio->base + 3 + control_port*4);
 
 	spin_unlock_irqrestore(&gpiommgpio->lock, flags);
 
@@ -103,7 +102,6 @@ static int gpiomm_gpio_direction_output(struct gpio_chip *chip,
 	const unsigned int io_port = offset / 8;
 	const unsigned int control_port = io_port / 3;
 	const unsigned int mask = BIT(offset % 8);
-	const unsigned int control_addr = gpiommgpio->base + 3 + control_port*4;
 	const unsigned int out_port = (io_port > 2) ? io_port + 1 : io_port;
 	unsigned long flags;
 	unsigned int control;
@@ -134,9 +132,9 @@ static int gpiomm_gpio_direction_output(struct gpio_chip *chip,
 		gpiommgpio->out_state[io_port] &= ~mask;
 
 	control = BIT(7) | gpiommgpio->control[control_port];
-	outb(control, control_addr);
+	iowrite8(control, gpiommgpio->base + 3 + control_port*4);
 
-	outb(gpiommgpio->out_state[io_port], gpiommgpio->base + out_port);
+	iowrite8(gpiommgpio->out_state[io_port], gpiommgpio->base + out_port);
 
 	spin_unlock_irqrestore(&gpiommgpio->lock, flags);
 
@@ -160,7 +158,7 @@ static int gpiomm_gpio_get(struct gpio_chip *chip, unsigned int offset)
 		return -EINVAL;
 	}
 
-	port_state = inb(gpiommgpio->base + in_port);
+	port_state = ioread8(gpiommgpio->base + in_port);
 
 	spin_unlock_irqrestore(&gpiommgpio->lock, flags);
 
@@ -175,7 +173,7 @@ static int gpiomm_gpio_get_multiple(struct gpio_chip *chip, unsigned long *mask,
 	struct gpiomm_gpio *const gpiommgpio = gpiochip_get_data(chip);
 	unsigned long offset;
 	unsigned long gpio_mask;
-	unsigned int port_addr;
+	void __iomem *port_addr;
 	unsigned long port_state;
 
 	/* clear bits array to a clean slate */
@@ -183,7 +181,7 @@ static int gpiomm_gpio_get_multiple(struct gpio_chip *chip, unsigned long *mask,
 
 	for_each_set_clump8(offset, gpio_mask, mask, ARRAY_SIZE(ports) * 8) {
 		port_addr = gpiommgpio->base + ports[offset / 8];
-		port_state = inb(port_addr) & gpio_mask;
+		port_state = ioread8(port_addr) & gpio_mask;
 
 		bitmap_set_value8(bits, port_state, offset);
 	}
@@ -207,7 +205,7 @@ static void gpiomm_gpio_set(struct gpio_chip *chip, unsigned int offset,
 	else
 		gpiommgpio->out_state[port] &= ~mask;
 
-	outb(gpiommgpio->out_state[port], gpiommgpio->base + out_port);
+	iowrite8(gpiommgpio->out_state[port], gpiommgpio->base + out_port);
 
 	spin_unlock_irqrestore(&gpiommgpio->lock, flags);
 }
@@ -219,7 +217,7 @@ static void gpiomm_gpio_set_multiple(struct gpio_chip *chip,
 	unsigned long offset;
 	unsigned long gpio_mask;
 	size_t index;
-	unsigned int port_addr;
+	void __iomem *port_addr;
 	unsigned long bitmask;
 	unsigned long flags;
 
@@ -234,7 +232,7 @@ static void gpiomm_gpio_set_multiple(struct gpio_chip *chip,
 		/* update output state data and set device gpio register */
 		gpiommgpio->out_state[index] &= ~gpio_mask;
 		gpiommgpio->out_state[index] |= bitmask;
-		outb(gpiommgpio->out_state[index], port_addr);
+		iowrite8(gpiommgpio->out_state[index], port_addr);
 
 		spin_unlock_irqrestore(&gpiommgpio->lock, flags);
 	}
@@ -268,6 +266,10 @@ static int gpiomm_probe(struct device *dev, unsigned int id)
 		return -EBUSY;
 	}
 
+	gpiommgpio->base = devm_ioport_map(dev, base[id], GPIOMM_EXTENT);
+	if (!gpiommgpio->base)
+		return -ENOMEM;
+
 	gpiommgpio->chip.label = name;
 	gpiommgpio->chip.parent = dev;
 	gpiommgpio->chip.owner = THIS_MODULE;
@@ -281,7 +283,6 @@ static int gpiomm_probe(struct device *dev, unsigned int id)
 	gpiommgpio->chip.get_multiple = gpiomm_gpio_get_multiple;
 	gpiommgpio->chip.set = gpiomm_gpio_set;
 	gpiommgpio->chip.set_multiple = gpiomm_gpio_set_multiple;
-	gpiommgpio->base = base[id];
 
 	spin_lock_init(&gpiommgpio->lock);
 
@@ -292,14 +293,14 @@ static int gpiomm_probe(struct device *dev, unsigned int id)
 	}
 
 	/* initialize all GPIO as output */
-	outb(0x80, base[id] + 3);
-	outb(0x00, base[id]);
-	outb(0x00, base[id] + 1);
-	outb(0x00, base[id] + 2);
-	outb(0x80, base[id] + 7);
-	outb(0x00, base[id] + 4);
-	outb(0x00, base[id] + 5);
-	outb(0x00, base[id] + 6);
+	iowrite8(0x80, gpiommgpio->base + 3);
+	iowrite8(0x00, gpiommgpio->base);
+	iowrite8(0x00, gpiommgpio->base + 1);
+	iowrite8(0x00, gpiommgpio->base + 2);
+	iowrite8(0x80, gpiommgpio->base + 7);
+	iowrite8(0x00, gpiommgpio->base + 4);
+	iowrite8(0x00, gpiommgpio->base + 5);
+	iowrite8(0x00, gpiommgpio->base + 6);
 
 	return 0;
 }

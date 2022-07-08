@@ -14,4 +14,34 @@
 #define rtw89_for_each_rtwvif(rtwdev, rtwvif)				       \
 	list_for_each_entry(rtwvif, &(rtwdev)->rtwvifs_list, list)
 
+/* The result of negative dividend and positive divisor is undefined, but it
+ * should be one case of round-down or round-up. So, make it round-down if the
+ * result is round-up.
+ * Note: the maximum value of divisor is 0x7FFF_FFFF, because we cast it to
+ *       signed value to make compiler to use signed divide instruction.
+ */
+static inline s32 s32_div_u32_round_down(s32 dividend, u32 divisor, s32 *remainder)
+{
+	s32 i_divisor = (s32)divisor;
+	s32 i_remainder;
+	s32 quotient;
+
+	quotient = dividend / i_divisor;
+	i_remainder = dividend % i_divisor;
+
+	if (i_remainder < 0) {
+		quotient--;
+		i_remainder += i_divisor;
+	}
+
+	if (remainder)
+		*remainder = i_remainder;
+	return quotient;
+}
+
+static inline s32 s32_div_u32_round_closest(s32 dividend, u32 divisor)
+{
+	return s32_div_u32_round_down(dividend + divisor / 2, divisor, NULL);
+}
+
 #endif

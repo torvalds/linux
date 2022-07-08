@@ -13,6 +13,8 @@
 #include "xfs_inode.h"
 #include "xfs_acl.h"
 #include "xfs_quota.h"
+#include "xfs_da_format.h"
+#include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_trans.h"
 #include "xfs_trace.h"
@@ -22,6 +24,7 @@
 #include "xfs_iomap.h"
 #include "xfs_error.h"
 #include "xfs_ioctl.h"
+#include "xfs_xattr.h"
 
 #include <linux/posix_acl.h>
 #include <linux/security.h>
@@ -59,7 +62,7 @@ xfs_initxattrs(
 			.value		= xattr->value,
 			.valuelen	= xattr->value_len,
 		};
-		error = xfs_attr_set(&args);
+		error = xfs_attr_change(&args);
 		if (error < 0)
 			break;
 	}
@@ -209,7 +212,6 @@ xfs_generic_create(
 	if (unlikely(error))
 		goto out_cleanup_inode;
 
-#ifdef CONFIG_XFS_POSIX_ACL
 	if (default_acl) {
 		error = __xfs_set_acl(inode, default_acl, ACL_TYPE_DEFAULT);
 		if (error)
@@ -220,7 +222,6 @@ xfs_generic_create(
 		if (error)
 			goto out_cleanup_inode;
 	}
-#endif
 
 	xfs_setup_iops(ip);
 

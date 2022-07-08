@@ -296,7 +296,7 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 			 struct migrate_vma *migrate, struct dma_fence **mfence,
 			 dma_addr_t *scratch)
 {
-	uint64_t npages = migrate->cpages;
+	uint64_t npages = migrate->npages;
 	struct device *dev = adev->dev;
 	struct amdgpu_res_cursor cursor;
 	dma_addr_t *src;
@@ -344,7 +344,7 @@ svm_migrate_copy_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 						mfence);
 				if (r)
 					goto out_free_vram_pages;
-				amdgpu_res_next(&cursor, j << PAGE_SHIFT);
+				amdgpu_res_next(&cursor, (j + 1) << PAGE_SHIFT);
 				j = 0;
 			} else {
 				amdgpu_res_next(&cursor, PAGE_SIZE);
@@ -410,7 +410,6 @@ svm_migrate_vma_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 	struct migrate_vma migrate;
 	unsigned long cpages = 0;
 	dma_addr_t *scratch;
-	size_t size;
 	void *buf;
 	int r = -ENOMEM;
 
@@ -421,9 +420,9 @@ svm_migrate_vma_to_vram(struct amdgpu_device *adev, struct svm_range *prange,
 	migrate.flags = MIGRATE_VMA_SELECT_SYSTEM;
 	migrate.pgmap_owner = SVM_ADEV_PGMAP_OWNER(adev);
 
-	size = 2 * sizeof(*migrate.src) + sizeof(uint64_t) + sizeof(dma_addr_t);
-	size *= npages;
-	buf = kvmalloc(size, GFP_KERNEL | __GFP_ZERO);
+	buf = kvcalloc(npages,
+		       2 * sizeof(*migrate.src) + sizeof(uint64_t) + sizeof(dma_addr_t),
+		       GFP_KERNEL);
 	if (!buf)
 		goto out;
 
@@ -591,7 +590,7 @@ svm_migrate_copy_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 			continue;
 		}
 		src[i] = svm_migrate_addr(adev, spage);
-		if (i > 0 && src[i] != src[i - 1] + PAGE_SIZE) {
+		if (j > 0 && src[i] != src[i - 1] + PAGE_SIZE) {
 			r = svm_migrate_copy_memory_gart(adev, dst + i - j,
 							 src + i - j, j,
 							 FROM_VRAM_TO_RAM,
@@ -665,7 +664,6 @@ svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 	struct dma_fence *mfence = NULL;
 	struct migrate_vma migrate;
 	dma_addr_t *scratch;
-	size_t size;
 	void *buf;
 	int r = -ENOMEM;
 
@@ -676,9 +674,10 @@ svm_migrate_vma_to_ram(struct amdgpu_device *adev, struct svm_range *prange,
 	migrate.flags = MIGRATE_VMA_SELECT_DEVICE_PRIVATE;
 	migrate.pgmap_owner = SVM_ADEV_PGMAP_OWNER(adev);
 
-	size = 2 * sizeof(*migrate.src) + sizeof(uint64_t) + sizeof(dma_addr_t);
-	size *= npages;
-	buf = kvmalloc(size, GFP_KERNEL | __GFP_ZERO);
+	buf = kvcalloc(npages,
+		       2 * sizeof(*migrate.src) + sizeof(uint64_t) + sizeof(dma_addr_t),
+		       GFP_KERNEL);
+
 	if (!buf)
 		goto out;
 

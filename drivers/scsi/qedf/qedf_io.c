@@ -804,7 +804,6 @@ static void qedf_trace_io(struct qedf_rport *fcport, struct qedf_ioreq *io_req,
 	struct qedf_io_log *io_log;
 	struct scsi_cmnd *sc_cmd = io_req->sc_cmd;
 	unsigned long flags;
-	uint8_t op;
 
 	spin_lock_irqsave(&qedf->io_trace_lock, flags);
 
@@ -813,7 +812,7 @@ static void qedf_trace_io(struct qedf_rport *fcport, struct qedf_ioreq *io_req,
 	io_log->task_id = io_req->xid;
 	io_log->port_id = fcport->rdata->ids.port_id;
 	io_log->lun = sc_cmd->device->lun;
-	io_log->op = op = sc_cmd->cmnd[0];
+	io_log->op = sc_cmd->cmnd[0];
 	io_log->lba[0] = sc_cmd->cmnd[2];
 	io_log->lba[1] = sc_cmd->cmnd[3];
 	io_log->lba[2] = sc_cmd->cmnd[4];
@@ -894,7 +893,7 @@ int qedf_post_io_req(struct qedf_rport *fcport, struct qedf_ioreq *io_req)
 		return -EINVAL;
 	}
 
-	/* Record LUN number for later use if we neeed them */
+	/* Record LUN number for later use if we need them */
 	io_req->lun = (int)sc_cmd->device->lun;
 
 	/* Obtain free SQE */
