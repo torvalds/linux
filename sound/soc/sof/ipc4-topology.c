@@ -263,6 +263,16 @@ err_in:
 	return ret;
 }
 
+/* release the memory allocated in sof_ipc4_get_audio_fmt */
+static void sof_ipc4_free_audio_fmt(struct sof_ipc4_available_audio_format *available_fmt)
+
+{
+	kfree(available_fmt->base_config);
+	available_fmt->base_config = NULL;
+	kfree(available_fmt->out_audio_fmt);
+	available_fmt->out_audio_fmt = NULL;
+}
+
 static void sof_ipc4_widget_free_comp(struct snd_sof_widget *swidget)
 {
 	kfree(swidget->private);
@@ -341,7 +351,7 @@ static int sof_ipc4_widget_setup_pcm(struct snd_sof_widget *swidget)
 						 GFP_KERNEL);
 	if (!available_fmt->dma_buffer_size) {
 		ret = -ENOMEM;
-		goto free_copier;
+		goto free_available_fmt;
 	}
 
 	ret = sof_update_ipc_object(scomp, available_fmt->dma_buffer_size,
@@ -392,6 +402,8 @@ free_gtw_attr:
 	kfree(ipc4_copier->gtw_attr);
 err:
 	kfree(available_fmt->dma_buffer_size);
+free_available_fmt:
+	sof_ipc4_free_audio_fmt(available_fmt);
 free_copier:
 	kfree(ipc4_copier);
 	swidget->private = NULL;
@@ -440,7 +452,7 @@ static int sof_ipc4_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 						 GFP_KERNEL);
 	if (!available_fmt->dma_buffer_size) {
 		ret = -ENOMEM;
-		goto free_copier;
+		goto free_available_fmt;
 	}
 
 	ret = sof_update_ipc_object(scomp, available_fmt->dma_buffer_size,
@@ -540,6 +552,8 @@ free_copier_config:
 	kfree(ipc4_copier->copier_config);
 err:
 	kfree(available_fmt->dma_buffer_size);
+free_available_fmt:
+	sof_ipc4_free_audio_fmt(available_fmt);
 free_copier:
 	kfree(ipc4_copier);
 	dai->private = NULL;
@@ -677,9 +691,22 @@ static int sof_ipc4_widget_setup_comp_pga(struct snd_sof_widget *swidget)
 
 	return 0;
 err:
+	sof_ipc4_free_audio_fmt(&gain->available_fmt);
 	kfree(gain);
 	swidget->private = NULL;
 	return ret;
+}
+
+static void sof_ipc4_widget_free_comp_pga(struct snd_sof_widget *swidget)
+{
+	struct sof_ipc4_gain *gain = swidget->private;
+
+	if (!gain)
+		return;
+
+	sof_ipc4_free_audio_fmt(&gain->available_fmt);
+	kfree(swidget->private);
+	swidget->private = NULL;
 }
 
 static int sof_ipc4_widget_setup_comp_mixer(struct snd_sof_widget *swidget)
@@ -707,9 +734,22 @@ static int sof_ipc4_widget_setup_comp_mixer(struct snd_sof_widget *swidget)
 
 	return 0;
 err:
+	sof_ipc4_free_audio_fmt(&mixer->available_fmt);
 	kfree(mixer);
 	swidget->private = NULL;
 	return ret;
+}
+
+static void sof_ipc4_widget_free_comp_mixer(struct snd_sof_widget *swidget)
+{
+	struct sof_ipc4_mixer *mixer = swidget->private;
+
+	if (!mixer)
+		return;
+
+	sof_ipc4_free_audio_fmt(&mixer->available_fmt);
+	kfree(swidget->private);
+	swidget->private = NULL;
 }
 
 static void
@@ -1746,11 +1786,11 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TY
 	[snd_soc_dapm_scheduler] = {sof_ipc4_widget_setup_comp_pipeline, sof_ipc4_widget_free_comp,
 				    pipeline_token_list, ARRAY_SIZE(pipeline_token_list), NULL,
 				    NULL, NULL},
-	[snd_soc_dapm_pga] = {sof_ipc4_widget_setup_comp_pga, sof_ipc4_widget_free_comp,
+	[snd_soc_dapm_pga] = {sof_ipc4_widget_setup_comp_pga, sof_ipc4_widget_free_comp_pga,
 			      pga_token_list, ARRAY_SIZE(pga_token_list), NULL,
 			      sof_ipc4_prepare_gain_module,
 			      sof_ipc4_unprepare_generic_module},
-	[snd_soc_dapm_mixer] = {sof_ipc4_widget_setup_comp_mixer, sof_ipc4_widget_free_comp,
+	[snd_soc_dapm_mixer] = {sof_ipc4_widget_setup_comp_mixer, sof_ipc4_widget_free_comp_mixer,
 				mixer_token_list, ARRAY_SIZE(mixer_token_list),
 				NULL, sof_ipc4_prepare_mixer_module,
 				sof_ipc4_unprepare_generic_module},
