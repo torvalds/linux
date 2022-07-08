@@ -79,7 +79,6 @@ struct sgx_va_page {
 };
 
 struct sgx_backing {
-	pgoff_t page_index;
 	struct page *contents;
 	struct page *pcmd;
 	unsigned long pcmd_offset;
