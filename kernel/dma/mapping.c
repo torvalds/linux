@@ -197,7 +197,7 @@ static int __dma_map_sg_attrs(struct device *dev, struct scatterlist *sg,
 	if (ents > 0)
 		debug_dma_map_sg(dev, sg, nents, ents, dir, attrs);
 	else if (WARN_ON_ONCE(ents != -EINVAL && ents != -ENOMEM &&
-			      ents != -EIO))
+			      ents != -EIO && ents != -EREMOTEIO))
 		return -EIO;
 
 	return ents;
@@ -255,6 +255,9 @@ EXPORT_SYMBOL(dma_map_sg_attrs);
  *		complete the mapping. Should succeed if retried later.
  *   -EIO	Legacy error code with an unknown meaning. eg. this is
  *		returned if a lower level call returned DMA_MAPPING_ERROR.
+ *   -EREMOTEIO	The DMA device cannot access P2PDMA memory specified in
+ *		the sg_table. This will not succeed if retried.
+ *
  */
 int dma_map_sgtable(struct device *dev, struct sg_table *sgt,
 		    enum dma_data_direction dir, unsigned long attrs)
