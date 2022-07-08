@@ -7,6 +7,7 @@
 #include <dt-bindings/power/imx8mp-power.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/input.h>
+#include <dt-bindings/interconnect/fsl,imx8mp.h>
 #include <dt-bindings/interrupt-controller/arm-gic.h>
 #include <dt-bindings/thermal/thermal.h>
 
@@ -1064,6 +1065,18 @@
 						     "lcdif1", "isi", "mipi-csi2",
 						     "lcdif2", "isp", "dwe",
 						     "mipi-dsi2";
+				interconnects =
+					<&noc IMX8MP_ICM_LCDIF_RD &noc IMX8MP_ICN_MEDIA>,
+					<&noc IMX8MP_ICM_LCDIF_WR &noc IMX8MP_ICN_MEDIA>,
+					<&noc IMX8MP_ICM_ISI0 &noc IMX8MP_ICN_MEDIA>,
+					<&noc IMX8MP_ICM_ISI1 &noc IMX8MP_ICN_MEDIA>,
+					<&noc IMX8MP_ICM_ISI2 &noc IMX8MP_ICN_MEDIA>,
+					<&noc IMX8MP_ICM_ISP0 &noc IMX8MP_ICN_MEDIA>,
+					<&noc IMX8MP_ICM_ISP1 &noc IMX8MP_ICN_MEDIA>,
+					<&noc IMX8MP_ICM_DWE &noc IMX8MP_ICN_MEDIA>;
+				interconnect-names = "lcdif-rd", "lcdif-wr", "isi0",
+						     "isi1", "isi2", "isp0", "isp1",
+						     "dwe";
 				clocks = <&clk IMX8MP_CLK_MEDIA_APB_ROOT>,
 					 <&clk IMX8MP_CLK_MEDIA_AXI_ROOT>,
 					 <&clk IMX8MP_CLK_MEDIA_CAM1_PIX_ROOT>,
