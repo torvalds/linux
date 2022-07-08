@@ -1487,7 +1487,10 @@ static int ixp4xx_eth_probe(struct platform_device *pdev)
 
 	port->plat = plat;
 	npe_port_tab[NPE_ID(port->id)] = port;
-	eth_hw_addr_set(ndev, plat->hwaddr);
+	if (is_valid_ether_addr(plat->hwaddr))
+		eth_hw_addr_set(ndev, plat->hwaddr);
+	else
+		eth_hw_addr_random(ndev);
 
 	platform_set_drvdata(pdev, ndev);
 
