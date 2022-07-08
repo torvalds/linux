@@ -153,6 +153,17 @@ bool dcn32_subvp_in_use(struct dc *dc,
 	return false;
 }
 
+bool dcn32_mpo_in_use(struct dc_state *context)
+{
+	uint32_t i;
+
+	for (i = 0; i < context->stream_count; i++) {
+		if (context->stream_status[i].plane_count > 1)
+			return true;
+	}
+	return false;
+}
+
 void dcn32_determine_det_override(struct dc_state *context, display_e2e_pipe_params_st *pipes,
 		bool *is_pipe_split_expected, int pipe_cnt)
 {
