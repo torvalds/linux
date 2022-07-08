@@ -263,6 +263,7 @@ nfsd_file_flush(struct nfsd_file *nf)
 
 static void nfsd_file_lru_add(struct nfsd_file *nf)
 {
+	set_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
 	if (list_lru_add(&nfsd_file_lru, &nf->nf_lru))
 		trace_nfsd_file_lru_add(nf);
 }
@@ -292,7 +293,6 @@ nfsd_file_unhash(struct nfsd_file *nf)
 {
 	if (test_and_clear_bit(NFSD_FILE_HASHED, &nf->nf_flags)) {
 		nfsd_file_do_unhash(nf);
-		nfsd_file_lru_remove(nf);
 		return true;
 	}
 	return false;
@@ -313,6 +313,7 @@ nfsd_file_unhash_and_release_locked(struct nfsd_file *nf, struct list_head *disp
 	if (refcount_dec_not_one(&nf->nf_ref))
 		return true;
 
+	nfsd_file_lru_remove(nf);
 	list_add(&nf->nf_lru, dispose);
 	return true;
 }
@@ -324,6 +325,7 @@ nfsd_file_put_noref(struct nfsd_file *nf)
 
 	if (refcount_dec_and_test(&nf->nf_ref)) {
 		WARN_ON(test_bit(NFSD_FILE_HASHED, &nf->nf_flags));
+		nfsd_file_lru_remove(nf);
 		nfsd_file_free(nf);
 	}
 }
@@ -333,7 +335,7 @@ nfsd_file_put(struct nfsd_file *nf)
 {
 	might_sleep();
 
-	set_bit(NFSD_FILE_REFERENCED, &nf->nf_flags);
+	nfsd_file_lru_add(nf);
 	if (test_bit(NFSD_FILE_HASHED, &nf->nf_flags) == 0) {
 		nfsd_file_flush(nf);
 		nfsd_file_put_noref(nf);
@@ -433,8 +435,18 @@ nfsd_file_dispose_list_delayed(struct list_head *dispose)
 	}
 }
 
-/*
+/**
+ * nfsd_file_lru_cb - Examine an entry on the LRU list
+ * @item: LRU entry to examine
+ * @lru: controlling LRU
+ * @lock: LRU list lock (unused)
+ * @arg: dispose list
+ *
  * Note this can deadlock with nfsd_file_cache_purge.
+ *
+ * Return values:
+ *   %LRU_REMOVED: @item was removed from the LRU
+ *   %LRU_SKIP: @item cannot be evicted
  */
 static enum lru_status
 nfsd_file_lru_cb(struct list_head *item, struct list_lru_one *lru,
@@ -456,8 +468,9 @@ nfsd_file_lru_cb(struct list_head *item, struct list_lru_one *lru,
 	 * That order is deliberate to ensure that we can do this locklessly.
 	 */
 	if (refcount_read(&nf->nf_ref) > 1) {
+		list_lru_isolate(lru, &nf->nf_lru);
 		trace_nfsd_file_gc_in_use(nf);
-		return LRU_SKIP;
+		return LRU_REMOVED;
 	}
 
 	/*
@@ -1014,6 +1027,7 @@ wait_for_construction:
 		goto retry;
 	}
 
+	nfsd_file_lru_remove(nf);
 	this_cpu_inc(nfsd_file_cache_hits);
 
 	status = nfserrno(nfsd_open_break_lease(file_inode(nf->nf_file), may_flags));
@@ -1035,7 +1049,6 @@ open_file:
 	refcount_inc(&nf->nf_ref);
 	__set_bit(NFSD_FILE_HASHED, &nf->nf_flags);
 	__set_bit(NFSD_FILE_PENDING, &nf->nf_flags);
-	nfsd_file_lru_add(nf);
 	hlist_add_head_rcu(&nf->nf_node, &nfsd_file_hashtbl[hashval].nfb_head);
 	++nfsd_file_hashtbl[hashval].nfb_count;
 	nfsd_file_hashtbl[hashval].nfb_maxcount = max(nfsd_file_hashtbl[hashval].nfb_maxcount,
@@ -1060,6 +1073,7 @@ open_file:
 	 */
 	if (status != nfs_ok || inode->i_nlink == 0) {
 		bool do_free;
+		nfsd_file_lru_remove(nf);
 		spin_lock(&nfsd_file_hashtbl[hashval].nfb_lock);
 		do_free = nfsd_file_unhash(nf);
 		spin_unlock(&nfsd_file_hashtbl[hashval].nfb_lock);
