@@ -1620,20 +1620,19 @@ static int unittest_gpio_probe(struct platform_device *pdev)
 
 static int unittest_gpio_remove(struct platform_device *pdev)
 {
-	struct unittest_gpio_dev *gdev = platform_get_drvdata(pdev);
+	struct unittest_gpio_dev *devptr = platform_get_drvdata(pdev);
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
 
-	dev_dbg(dev, "%s for node @%pOF\n", __func__, np);
+	dev_dbg(dev, "%s for node @%pfw\n", __func__, devptr->chip.fwnode);
 
-	if (!gdev)
+	if (!devptr)
 		return -EINVAL;
 
-	if (gdev->chip.base != -1)
-		gpiochip_remove(&gdev->chip);
+	if (devptr->chip.base != -1)
+		gpiochip_remove(&devptr->chip);
 
 	platform_set_drvdata(pdev, NULL);
-	kfree(gdev);
+	kfree(devptr);
 
 	return 0;
 }
