@@ -3997,6 +3997,16 @@ static int can_allocate_chunk_zoned(struct btrfs_fs_info *fs_info,
 		return -ENOSPC;
 
 	/*
+	 * Even min_alloc_size is not left in any block groups. Since we cannot
+	 * activate a new block group, allocating it may not help. Let's tell a
+	 * caller to try again and hope it progress something by writing some
+	 * parts of the region. That is only possible for data block groups,
+	 * where a part of the region can be written.
+	 */
+	if (ffe_ctl->flags & BTRFS_BLOCK_GROUP_DATA)
+		return -EAGAIN;
+
+	/*
 	 * We cannot activate a new block group and no enough space left in any
 	 * block groups. So, allocating a new block group may not help. But,
 	 * there is nothing to do anyway, so let's go with it.
