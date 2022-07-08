@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: MIT */
 /*
- * Copyright 2020 Advanced Micro Devices, Inc.
+ * Copyright 2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -23,23 +24,13 @@
  *
  */
 
-#ifndef _DCN321_RESOURCE_H_
-#define _DCN321_RESOURCE_H_
+#ifndef __DCN32_FPU_H__
+#define __DCN32_FPU_H__
 
-#include "core_types.h"
+#include "dml/display_mode_vba.h"
 
-#define TO_DCN321_RES_POOL(pool)\
-	container_of(pool, struct dcn321_resource_pool, base)
+void dcn321_insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table,
+					   unsigned int *num_entries,
+					   struct _vcs_dpi_voltage_scaling_st *entry);
 
-extern struct _vcs_dpi_ip_params_st dcn3_21_ip;
-extern struct _vcs_dpi_soc_bounding_box_st dcn3_21_soc;
-
-struct dcn321_resource_pool {
-	struct resource_pool base;
-};
-
-struct resource_pool *dcn321_create_resource_pool(
-		const struct dc_init_data *init_data,
-		struct dc *dc);
-
-#endif /* _DCN321_RESOURCE_H_ */
+#endif
