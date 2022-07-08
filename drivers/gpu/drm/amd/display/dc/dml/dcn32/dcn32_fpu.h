@@ -69,4 +69,6 @@ void dcn32_calculate_wm_and_dlg_fpu(struct dc *dc, struct dc_state *context,
 				int pipe_cnt,
 				int vlevel);
 
+void dcn32_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_params);
+
 #endif
