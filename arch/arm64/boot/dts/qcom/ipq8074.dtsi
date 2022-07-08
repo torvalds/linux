@@ -7,6 +7,9 @@
 #include <dt-bindings/clock/qcom,gcc-ipq8074.h>
 
 / {
+	#address-cells = <2>;
+	#size-cells = <2>;
+
 	model = "Qualcomm Technologies, Inc. IPQ8074";
 	compatible = "qcom,ipq8074";
 
