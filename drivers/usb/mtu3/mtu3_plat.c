@@ -190,6 +190,31 @@ static void ssusb_ip_sw_reset(struct ssusb_mtk *ssusb)
 	mtu3_setbits(ssusb->ippc_base, U3D_SSUSB_IP_PW_CTRL2, SSUSB_IP_DEV_PDN);
 }
 
+static void ssusb_u3_drd_check(struct ssusb_mtk *ssusb)
+{
+	struct otg_switch_mtk *otg_sx = &ssusb->otg_switch;
+	u32 dev_u3p_num;
+	u32 host_u3p_num;
+	u32 value;
+
+	/* u3 port0 is disabled */
+	if (ssusb->u3p_dis_msk & BIT(0)) {
+		otg_sx->is_u3_drd = false;
+		goto out;
+	}
+
+	value = mtu3_readl(ssusb->ippc_base, U3D_SSUSB_IP_DEV_CAP);
+	dev_u3p_num = SSUSB_IP_DEV_U3_PORT_NUM(value);
+
+	value = mtu3_readl(ssusb->ippc_base, U3D_SSUSB_IP_XHCI_CAP);
+	host_u3p_num = SSUSB_IP_XHCI_U3_PORT_NUM(value);
+
+	otg_sx->is_u3_drd = !!(dev_u3p_num && host_u3p_num);
+
+out:
+	dev_info(ssusb->dev, "usb3-drd: %d\n", otg_sx->is_u3_drd);
+}
+
 static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 {
 	struct device_node *node = pdev->dev.of_node;
@@ -270,7 +295,6 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 		goto out;
 
 	/* if dual-role mode is supported */
-	otg_sx->is_u3_drd = of_property_read_bool(node, "mediatek,usb3-drd");
 	otg_sx->manual_drd_enabled =
 		of_property_read_bool(node, "enable-manual-drd");
 	otg_sx->role_sw_used = of_property_read_bool(node, "usb-role-switch");
@@ -290,9 +314,8 @@ static int get_ssusb_rscs(struct platform_device *pdev, struct ssusb_mtk *ssusb)
 	}
 
 out:
-	dev_info(dev, "dr_mode: %d, is_u3_dr: %d, drd: %s\n",
-		 ssusb->dr_mode, otg_sx->is_u3_drd,
-		otg_sx->manual_drd_enabled ? "manual" : "auto");
+	dev_info(dev, "dr_mode: %d, drd: %s\n", ssusb->dr_mode,
+		 otg_sx->manual_drd_enabled ? "manual" : "auto");
 	dev_info(dev, "u2p_dis_msk: %x, u3p_dis_msk: %x\n",
 		 ssusb->u2p_dis_msk, ssusb->u3p_dis_msk);
 
@@ -353,6 +376,7 @@ static int mtu3_probe(struct platform_device *pdev)
 	}
 
 	ssusb_ip_sw_reset(ssusb);
+	ssusb_u3_drd_check(ssusb);
 
 	if (IS_ENABLED(CONFIG_USB_MTU3_HOST))
 		ssusb->dr_mode = USB_DR_MODE_HOST;
