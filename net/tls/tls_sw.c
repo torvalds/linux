@@ -1302,54 +1302,50 @@ int tls_sw_sendpage(struct sock *sk, struct page *page,
 	return ret;
 }
 
-static struct sk_buff *tls_wait_data(struct sock *sk, struct sk_psock *psock,
-				     bool nonblock, long timeo, int *err)
+static int
+tls_rx_rec_wait(struct sock *sk, struct sk_psock *psock, bool nonblock,
+		long timeo)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
-	struct sk_buff *skb;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
-	while (!(skb = ctx->recv_pkt) && sk_psock_queue_empty(psock)) {
-		if (sk->sk_err) {
-			*err = sock_error(sk);
-			return NULL;
-		}
+	while (!ctx->recv_pkt) {
+		if (!sk_psock_queue_empty(psock))
+			return 0;
+
+		if (sk->sk_err)
+			return sock_error(sk);
 
 		if (!skb_queue_empty(&sk->sk_receive_queue)) {
 			__strp_unpause(&ctx->strp);
 			if (ctx->recv_pkt)
-				return ctx->recv_pkt;
+				break;
 		}
 
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
-			return NULL;
+			return 0;
 
 		if (sock_flag(sk, SOCK_DONE))
-			return NULL;
+			return 0;
 
-		if (nonblock || !timeo) {
-			*err = -EAGAIN;
-			return NULL;
-		}
+		if (nonblock || !timeo)
+			return -EAGAIN;
 
 		add_wait_queue(sk_sleep(sk), &wait);
 		sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 		sk_wait_event(sk, &timeo,
-			      ctx->recv_pkt != skb ||
-			      !sk_psock_queue_empty(psock),
+			      ctx->recv_pkt || !sk_psock_queue_empty(psock),
 			      &wait);
 		sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 		remove_wait_queue(sk_sleep(sk), &wait);
 
 		/* Handle signals */
-		if (signal_pending(current)) {
-			*err = sock_intr_errno(timeo);
-			return NULL;
-		}
+		if (signal_pending(current))
+			return sock_intr_errno(timeo);
 	}
 
-	return skb;
+	return 1;
 }
 
 static int tls_setup_from_iter(struct iov_iter *from,
@@ -1812,8 +1808,8 @@ int tls_sw_recvmsg(struct sock *sk,
 		struct tls_decrypt_arg darg = {};
 		int to_decrypt, chunk;
 
-		skb = tls_wait_data(sk, psock, flags & MSG_DONTWAIT, timeo, &err);
-		if (!skb) {
+		err = tls_rx_rec_wait(sk, psock, flags & MSG_DONTWAIT, timeo);
+		if (err <= 0) {
 			if (psock) {
 				chunk = sk_msg_recvmsg(sk, psock, msg, len,
 						       flags);
@@ -1823,6 +1819,7 @@ int tls_sw_recvmsg(struct sock *sk,
 			goto recv_end;
 		}
 
+		skb = ctx->recv_pkt;
 		rxm = strp_msg(skb);
 		tlm = tls_msg(skb);
 
@@ -1989,10 +1986,12 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	} else {
 		struct tls_decrypt_arg darg = {};
 
-		skb = tls_wait_data(sk, NULL, flags & SPLICE_F_NONBLOCK, timeo,
-				    &err);
-		if (!skb)
+		err = tls_rx_rec_wait(sk, NULL, flags & SPLICE_F_NONBLOCK,
+				      timeo);
+		if (err <= 0)
 			goto splice_read_end;
+
+		skb = ctx->recv_pkt;
 
 		err = decrypt_skb_update(sk, skb, NULL, &darg);
 		if (err < 0) {
