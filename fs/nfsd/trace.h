@@ -778,7 +778,7 @@ DEFINE_NFSD_FILE_EVENT(nfsd_file_alloc);
 DEFINE_NFSD_FILE_EVENT(nfsd_file_put_final);
 DEFINE_NFSD_FILE_EVENT(nfsd_file_unhash);
 DEFINE_NFSD_FILE_EVENT(nfsd_file_put);
-DEFINE_NFSD_FILE_EVENT(nfsd_file_unhash_and_release_locked);
+DEFINE_NFSD_FILE_EVENT(nfsd_file_unhash_and_dispose);
 
 TRACE_EVENT(nfsd_file_acquire,
 	TP_PROTO(
@@ -819,6 +819,67 @@ TRACE_EVENT(nfsd_file_acquire,
 			__entry->nf_ref, show_nf_flags(__entry->nf_flags),
 			show_nfsd_may_flags(__entry->nf_may),
 			__entry->nf_file, __entry->status)
+);
+
+TRACE_EVENT(nfsd_file_insert_err,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		const struct inode *inode,
+		unsigned int may_flags,
+		long error
+	),
+	TP_ARGS(rqstp, inode, may_flags, error),
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(const void *, inode)
+		__field(unsigned long, may_flags)
+		__field(long, error)
+	),
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->inode = inode;
+		__entry->may_flags = may_flags;
+		__entry->error = error;
+	),
+	TP_printk("xid=0x%x inode=%p may_flags=%s error=%ld",
+		__entry->xid, __entry->inode,
+		show_nfsd_may_flags(__entry->may_flags),
+		__entry->error
+	)
+);
+
+TRACE_EVENT(nfsd_file_cons_err,
+	TP_PROTO(
+		const struct svc_rqst *rqstp,
+		const struct inode *inode,
+		unsigned int may_flags,
+		const struct nfsd_file *nf
+	),
+	TP_ARGS(rqstp, inode, may_flags, nf),
+	TP_STRUCT__entry(
+		__field(u32, xid)
+		__field(const void *, inode)
+		__field(unsigned long, may_flags)
+		__field(unsigned int, nf_ref)
+		__field(unsigned long, nf_flags)
+		__field(unsigned long, nf_may)
+		__field(const void *, nf_file)
+	),
+	TP_fast_assign(
+		__entry->xid = be32_to_cpu(rqstp->rq_xid);
+		__entry->inode = inode;
+		__entry->may_flags = may_flags;
+		__entry->nf_ref = refcount_read(&nf->nf_ref);
+		__entry->nf_flags = nf->nf_flags;
+		__entry->nf_may = nf->nf_may;
+		__entry->nf_file = nf->nf_file;
+	),
+	TP_printk("xid=0x%x inode=%p may_flags=%s ref=%u nf_flags=%s nf_may=%s nf_file=%p",
+		__entry->xid, __entry->inode,
+		show_nfsd_may_flags(__entry->may_flags), __entry->nf_ref,
+		show_nf_flags(__entry->nf_flags),
+		show_nfsd_may_flags(__entry->nf_may), __entry->nf_file
+	)
 );
 
 TRACE_EVENT(nfsd_file_open,
