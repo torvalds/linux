@@ -425,6 +425,8 @@ NULLB_DEVICE_ATTR(zone_nr_conv, uint, NULL);
 NULLB_DEVICE_ATTR(zone_max_open, uint, NULL);
 NULLB_DEVICE_ATTR(zone_max_active, uint, NULL);
 NULLB_DEVICE_ATTR(virt_boundary, bool, NULL);
+NULLB_DEVICE_ATTR(no_sched, bool, NULL);
+NULLB_DEVICE_ATTR(shared_tag_bitmap, bool, NULL);
 
 static ssize_t nullb_device_power_show(struct config_item *item, char *page)
 {
@@ -548,6 +550,8 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_zone_max_open,
 	&nullb_device_attr_zone_max_active,
 	&nullb_device_attr_virt_boundary,
+	&nullb_device_attr_no_sched,
+	&nullb_device_attr_shared_tag_bitmap,
 	NULL,
 };
 
@@ -604,7 +608,13 @@ nullb_group_drop_item(struct config_group *group, struct config_item *item)
 static ssize_t memb_group_features_show(struct config_item *item, char *page)
 {
 	return snprintf(page, PAGE_SIZE,
-			"memory_backed,discard,bandwidth,cache,badblocks,zoned,zone_size,zone_capacity,zone_nr_conv,zone_max_open,zone_max_active,blocksize,max_sectors,virt_boundary\n");
+			"badblocks,blocking,blocksize,cache_size,"
+			"completion_nsec,discard,home_node,hw_queue_depth,"
+			"irqmode,max_sectors,mbps,memory_backed,no_sched,"
+			"poll_queues,power,queue_mode,shared_tag_bitmap,size,"
+			"submit_queues,use_per_node_hctx,virt_boundary,zoned,"
+			"zone_capacity,zone_max_active,zone_max_open,"
+			"zone_nr_conv,zone_size\n");
 }
 
 CONFIGFS_ATTR_RO(memb_group_, features);
@@ -678,6 +688,8 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->zone_max_open = g_zone_max_open;
 	dev->zone_max_active = g_zone_max_active;
 	dev->virt_boundary = g_virt_boundary;
+	dev->no_sched = g_no_sched;
+	dev->shared_tag_bitmap = g_shared_tag_bitmap;
 	return dev;
 }
 
@@ -1885,31 +1897,48 @@ static int null_gendisk_register(struct nullb *nullb)
 
 static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 {
+	unsigned int flags = BLK_MQ_F_SHOULD_MERGE;
+	int hw_queues, numa_node;
+	unsigned int queue_depth;
 	int poll_queues;
 
-	set->ops = &null_mq_ops;
-	set->nr_hw_queues = nullb ? nullb->dev->submit_queues :
-						g_submit_queues;
-	poll_queues = nullb ? nullb->dev->poll_queues : g_poll_queues;
-	if (poll_queues)
-		set->nr_hw_queues += poll_queues;
-	set->queue_depth = nullb ? nullb->dev->hw_queue_depth :
-						g_hw_queue_depth;
-	set->numa_node = nullb ? nullb->dev->home_node : g_home_node;
-	set->cmd_size	= sizeof(struct nullb_cmd);
-	set->flags = BLK_MQ_F_SHOULD_MERGE;
-	if (g_no_sched)
-		set->flags |= BLK_MQ_F_NO_SCHED;
-	if (g_shared_tag_bitmap)
-		set->flags |= BLK_MQ_F_TAG_HCTX_SHARED;
-	set->driver_data = nullb;
-	if (poll_queues)
-		set->nr_maps = 3;
-	else
-		set->nr_maps = 1;
+	if (nullb) {
+		hw_queues = nullb->dev->submit_queues;
+		poll_queues = nullb->dev->poll_queues;
+		queue_depth = nullb->dev->hw_queue_depth;
+		numa_node = nullb->dev->home_node;
+		if (nullb->dev->no_sched)
+			flags |= BLK_MQ_F_NO_SCHED;
+		if (nullb->dev->shared_tag_bitmap)
+			flags |= BLK_MQ_F_TAG_HCTX_SHARED;
+		if (nullb->dev->blocking)
+			flags |= BLK_MQ_F_BLOCKING;
+	} else {
+		hw_queues = g_submit_queues;
+		poll_queues = g_poll_queues;
+		queue_depth = g_hw_queue_depth;
+		numa_node = g_home_node;
+		if (g_no_sched)
+			flags |= BLK_MQ_F_NO_SCHED;
+		if (g_shared_tag_bitmap)
+			flags |= BLK_MQ_F_TAG_HCTX_SHARED;
+		if (g_blocking)
+			flags |= BLK_MQ_F_BLOCKING;
+	}
 
-	if ((nullb && nullb->dev->blocking) || g_blocking)
-		set->flags |= BLK_MQ_F_BLOCKING;
+	set->ops = &null_mq_ops;
+	set->cmd_size	= sizeof(struct nullb_cmd);
+	set->flags = flags;
+	set->driver_data = nullb;
+	set->nr_hw_queues = hw_queues;
+	set->queue_depth = queue_depth;
+	set->numa_node = numa_node;
+	if (poll_queues) {
+		set->nr_hw_queues += poll_queues;
+		set->nr_maps = 3;
+	} else {
+		set->nr_maps = 1;
+	}
 
 	return blk_mq_alloc_tag_set(set);
 }
