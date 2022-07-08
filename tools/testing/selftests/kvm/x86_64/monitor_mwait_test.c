@@ -63,8 +63,6 @@ static void guest_code(void)
 int main(int argc, char *argv[])
 {
 	uint64_t disabled_quirks;
-	struct kvm_cpuid2 *cpuid;
-	struct kvm_cpuid_entry2 *entry;
 	struct kvm_vcpu *vcpu;
 	struct kvm_run *run;
 	struct kvm_vm *vm;
@@ -73,14 +71,8 @@ int main(int argc, char *argv[])
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_DISABLE_QUIRKS2));
 
-	cpuid = kvm_get_supported_cpuid();
-
-	entry = kvm_get_supported_cpuid_index(1, 0);
-	entry->ecx &= ~CPUID_MWAIT;
-	set_cpuid(cpuid, entry);
-
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
-	vcpu_set_cpuid(vcpu);
+	vcpu_clear_cpuid_feature(vcpu, X86_FEATURE_MWAIT);
 
 	run = vcpu->run;
 
