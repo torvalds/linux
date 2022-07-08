@@ -21,7 +21,7 @@ void sof_hifixdsp_boot_sequence(struct snd_sof_dev *sdev, u32 boot_addr)
 
 	/* pull high StatVectorSel to use AltResetVec (set bit4 to 1) */
 	snd_sof_dsp_update_bits(sdev, DSP_REG_BAR, DSP_RESET_SW,
-				DSP_RESET_SW, DSP_RESET_SW);
+				STATVECTOR_SEL, STATVECTOR_SEL);
 
 	/* toggle  DReset & BReset */
 	/* pull high DReset & BReset */
