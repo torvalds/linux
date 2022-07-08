@@ -19,7 +19,6 @@
 #include "mtk_vcodec_util.h"
 #include "vdec_msg_queue.h"
 
-#define MTK_VCODEC_DRV_NAME	"mtk_vcodec_drv"
 #define MTK_VCODEC_DEC_NAME	"mtk-vcodec-dec"
 #define MTK_VCODEC_ENC_NAME	"mtk-vcodec-enc"
 
