@@ -2026,6 +2026,23 @@ static void pqi_dev_info(struct pqi_ctrl_info *ctrl_info,
 	dev_info(&ctrl_info->pci_dev->dev, "%s %s\n", action, buffer);
 }
 
+static bool pqi_raid_maps_equal(struct raid_map *raid_map1, struct raid_map *raid_map2)
+{
+	u32 raid_map1_size;
+	u32 raid_map2_size;
+
+	if (raid_map1 == NULL || raid_map2 == NULL)
+		return raid_map1 == raid_map2;
+
+	raid_map1_size = get_unaligned_le32(&raid_map1->structure_size);
+	raid_map2_size = get_unaligned_le32(&raid_map2->structure_size);
+
+	if (raid_map1_size != raid_map2_size)
+		return false;
+
+	return memcmp(raid_map1, raid_map2, raid_map1_size) == 0;
+}
+
 /* Assumes the SCSI device list lock is held. */
 
 static void pqi_scsi_update_device(struct pqi_ctrl_info *ctrl_info,
@@ -2039,52 +2056,51 @@ static void pqi_scsi_update_device(struct pqi_ctrl_info *ctrl_info,
 		existing_device->target_lun_valid = true;
 	}
 
-	if (pqi_is_logical_device(existing_device) &&
-		ctrl_info->logical_volume_rescan_needed)
-		existing_device->rescan = true;
-
 	/* By definition, the scsi3addr and wwid fields are already the same. */
 
 	existing_device->is_physical_device = new_device->is_physical_device;
-	existing_device->is_external_raid_device =
-		new_device->is_external_raid_device;
-	existing_device->is_expander_smp_device =
-		new_device->is_expander_smp_device;
-	existing_device->aio_enabled = new_device->aio_enabled;
-	memcpy(existing_device->vendor, new_device->vendor,
-		sizeof(existing_device->vendor));
-	memcpy(existing_device->model, new_device->model,
-		sizeof(existing_device->model));
+	memcpy(existing_device->vendor, new_device->vendor, sizeof(existing_device->vendor));
+	memcpy(existing_device->model, new_device->model, sizeof(existing_device->model));
 	existing_device->sas_address = new_device->sas_address;
-	existing_device->raid_level = new_device->raid_level;
 	existing_device->queue_depth = new_device->queue_depth;
-	existing_device->aio_handle = new_device->aio_handle;
-	existing_device->volume_status = new_device->volume_status;
-	existing_device->active_path_index = new_device->active_path_index;
-	existing_device->phy_id = new_device->phy_id;
-	existing_device->path_map = new_device->path_map;
-	existing_device->bay = new_device->bay;
-	existing_device->box_index = new_device->box_index;
-	existing_device->phys_box_on_bus = new_device->phys_box_on_bus;
-	existing_device->phy_connected_dev_type = new_device->phy_connected_dev_type;
-	existing_device->multi_lun_device_lun_count = new_device->multi_lun_device_lun_count;
-	if (!existing_device->multi_lun_device_lun_count)
-		existing_device->multi_lun_device_lun_count = 1;
-	memcpy(existing_device->box, new_device->box,
-		sizeof(existing_device->box));
-	memcpy(existing_device->phys_connector, new_device->phys_connector,
-		sizeof(existing_device->phys_connector));
-	memset(existing_device->next_bypass_group, 0, sizeof(existing_device->next_bypass_group));
-	kfree(existing_device->raid_map);
-	existing_device->raid_map = new_device->raid_map;
-	existing_device->raid_bypass_configured =
-		new_device->raid_bypass_configured;
-	existing_device->raid_bypass_enabled =
-		new_device->raid_bypass_enabled;
 	existing_device->device_offline = false;
 
-	/* To prevent this from being freed later. */
-	new_device->raid_map = NULL;
+	if (pqi_is_logical_device(existing_device)) {
+		existing_device->is_external_raid_device = new_device->is_external_raid_device;
+
+		if (existing_device->devtype == TYPE_DISK) {
+			existing_device->raid_level = new_device->raid_level;
+			existing_device->volume_status = new_device->volume_status;
+			if (ctrl_info->logical_volume_rescan_needed)
+				existing_device->rescan = true;
+			memset(existing_device->next_bypass_group, 0, sizeof(existing_device->next_bypass_group));
+			if (!pqi_raid_maps_equal(existing_device->raid_map, new_device->raid_map)) {
+				kfree(existing_device->raid_map);
+				existing_device->raid_map = new_device->raid_map;
+				/* To prevent this from being freed later. */
+				new_device->raid_map = NULL;
+			}
+			existing_device->raid_bypass_configured = new_device->raid_bypass_configured;
+			existing_device->raid_bypass_enabled = new_device->raid_bypass_enabled;
+		}
+	} else {
+		existing_device->aio_enabled = new_device->aio_enabled;
+		existing_device->aio_handle = new_device->aio_handle;
+		existing_device->is_expander_smp_device = new_device->is_expander_smp_device;
+		existing_device->active_path_index = new_device->active_path_index;
+		existing_device->phy_id = new_device->phy_id;
+		existing_device->path_map = new_device->path_map;
+		existing_device->bay = new_device->bay;
+		existing_device->box_index = new_device->box_index;
+		existing_device->phys_box_on_bus = new_device->phys_box_on_bus;
+		existing_device->phy_connected_dev_type = new_device->phy_connected_dev_type;
+		memcpy(existing_device->box, new_device->box, sizeof(existing_device->box));
+		memcpy(existing_device->phys_connector, new_device->phys_connector, sizeof(existing_device->phys_connector));
+
+		existing_device->multi_lun_device_lun_count = new_device->multi_lun_device_lun_count;
+		if (existing_device->multi_lun_device_lun_count == 0)
+			existing_device->multi_lun_device_lun_count = 1;
+	}
 }
 
 static inline void pqi_free_device(struct pqi_scsi_dev *device)
@@ -3675,6 +3691,20 @@ static bool pqi_ofa_process_event(struct pqi_ctrl_info *ctrl_info,
 	return ack_event;
 }
 
+static void pqi_disable_raid_bypass(struct pqi_ctrl_info *ctrl_info)
+{
+	unsigned long flags;
+	struct pqi_scsi_dev *device;
+
+	spin_lock_irqsave(&ctrl_info->scsi_device_list_lock, flags);
+
+	list_for_each_entry(device, &ctrl_info->scsi_device_list, scsi_device_list_entry)
+		if (device->raid_bypass_enabled)
+			device->raid_bypass_enabled = false;
+
+	spin_unlock_irqrestore(&ctrl_info->scsi_device_list_lock, flags);
+}
+
 static void pqi_event_worker(struct work_struct *work)
 {
 	unsigned int i;
@@ -3702,6 +3732,8 @@ static void pqi_event_worker(struct work_struct *work)
 				rescan_needed = true;
 				if (event->event_type == PQI_EVENT_TYPE_LOGICAL_DEVICE)
 					ctrl_info->logical_volume_rescan_needed = true;
+				else if (event->event_type == PQI_EVENT_TYPE_AIO_STATE_CHANGE)
+					pqi_disable_raid_bypass(ctrl_info);
 			}
 			if (ack_event)
 				pqi_acknowledge_event(ctrl_info, event);
