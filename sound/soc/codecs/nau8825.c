@@ -1440,7 +1440,7 @@ static struct snd_soc_dai_driver nau8825_dai = {
 	.capture = {
 		.stream_name	 = "Capture",
 		.channels_min	 = 1,
-		.channels_max	 = 1,
+		.channels_max	 = 2,   /* Only 1 channel of data */
 		.rates		 = NAU8825_RATES,
 		.formats	 = NAU8825_FORMATS,
 	},
