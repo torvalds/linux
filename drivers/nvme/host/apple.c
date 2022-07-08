@@ -845,11 +845,8 @@ static void apple_nvme_disable(struct apple_nvme *anv, bool shutdown)
 	apple_nvme_handle_cq(&anv->adminq, true);
 	spin_unlock_irqrestore(&anv->lock, flags);
 
-	blk_mq_tagset_busy_iter(&anv->tagset, nvme_cancel_request, &anv->ctrl);
-	blk_mq_tagset_busy_iter(&anv->admin_tagset, nvme_cancel_request,
-				&anv->ctrl);
-	blk_mq_tagset_wait_completed_request(&anv->tagset);
-	blk_mq_tagset_wait_completed_request(&anv->admin_tagset);
+	nvme_cancel_tagset(&anv->ctrl);
+	nvme_cancel_admin_tagset(&anv->ctrl);
 
 	/*
 	 * The driver will not be starting up queues again if shutting down so
