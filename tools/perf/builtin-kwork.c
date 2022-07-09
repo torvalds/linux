@@ -35,10 +35,12 @@
 #define PRINT_TIMESTAMP_WIDTH 17
 #define PRINT_KWORK_NAME_WIDTH 30
 #define RPINT_DECIMAL_WIDTH 3
+#define PRINT_BRACKETPAIR_WIDTH 2
 #define PRINT_TIME_UNIT_SEC_WIDTH 2
 #define PRINT_TIME_UNIT_MESC_WIDTH 3
 #define PRINT_RUNTIME_HEADER_WIDTH (PRINT_RUNTIME_WIDTH + PRINT_TIME_UNIT_MESC_WIDTH)
 #define PRINT_LATENCY_HEADER_WIDTH (PRINT_LATENCY_WIDTH + PRINT_TIME_UNIT_MESC_WIDTH)
+#define PRINT_TIMEHIST_CPU_WIDTH (PRINT_CPU_WIDTH + PRINT_BRACKETPAIR_WIDTH)
 #define PRINT_TIMESTAMP_HEADER_WIDTH (PRINT_TIMESTAMP_WIDTH + PRINT_TIME_UNIT_SEC_WIDTH)
 
 struct sort_dimension {
@@ -574,6 +576,185 @@ static int latency_entry_event(struct perf_kwork *kwork,
 	return 0;
 }
 
+static void timehist_save_callchain(struct perf_kwork *kwork,
+				    struct perf_sample *sample,
+				    struct evsel *evsel,
+				    struct machine *machine)
+{
+	struct symbol *sym;
+	struct thread *thread;
+	struct callchain_cursor_node *node;
+	struct callchain_cursor *cursor = &callchain_cursor;
+
+	if (!kwork->show_callchain || sample->callchain == NULL)
+		return;
+
+	/* want main thread for process - has maps */
+	thread = machine__findnew_thread(machine, sample->pid, sample->pid);
+	if (thread == NULL) {
+		pr_debug("Failed to get thread for pid %d\n", sample->pid);
+		return;
+	}
+
+	if (thread__resolve_callchain(thread, cursor, evsel, sample,
+				      NULL, NULL, kwork->max_stack + 2) != 0) {
+		pr_debug("Failed to resolve callchain, skipping\n");
+		goto out_put;
+	}
+
+	callchain_cursor_commit(cursor);
+
+	while (true) {
+		node = callchain_cursor_current(cursor);
+		if (node == NULL)
+			break;
+
+		sym = node->ms.sym;
+		if (sym) {
+			if (!strcmp(sym->name, "__softirqentry_text_start") ||
+			    !strcmp(sym->name, "__do_softirq"))
+				sym->ignore = 1;
+		}
+
+		callchain_cursor_advance(cursor);
+	}
+
+out_put:
+	thread__put(thread);
+}
+
+static void timehist_print_event(struct perf_kwork *kwork,
+				 struct kwork_work *work,
+				 struct kwork_atom *atom,
+				 struct perf_sample *sample,
+				 struct addr_location *al)
+{
+	char entrytime[32], exittime[32];
+	char kwork_name[PRINT_KWORK_NAME_WIDTH];
+
+	/*
+	 * runtime start
+	 */
+	timestamp__scnprintf_usec(atom->time,
+				  entrytime, sizeof(entrytime));
+	printf(" %*s ", PRINT_TIMESTAMP_WIDTH, entrytime);
+
+	/*
+	 * runtime end
+	 */
+	timestamp__scnprintf_usec(sample->time,
+				  exittime, sizeof(exittime));
+	printf(" %*s ", PRINT_TIMESTAMP_WIDTH, exittime);
+
+	/*
+	 * cpu
+	 */
+	printf(" [%0*d] ", PRINT_CPU_WIDTH, work->cpu);
+
+	/*
+	 * kwork name
+	 */
+	if (work->class && work->class->work_name) {
+		work->class->work_name(work, kwork_name,
+				       PRINT_KWORK_NAME_WIDTH);
+		printf(" %-*s ", PRINT_KWORK_NAME_WIDTH, kwork_name);
+	} else
+		printf(" %-*s ", PRINT_KWORK_NAME_WIDTH, "");
+
+	/*
+	 *runtime
+	 */
+	printf(" %*.*f ",
+	       PRINT_RUNTIME_WIDTH, RPINT_DECIMAL_WIDTH,
+	       (double)(sample->time - atom->time) / NSEC_PER_MSEC);
+
+	/*
+	 * delaytime
+	 */
+	if (atom->prev != NULL)
+		printf(" %*.*f ", PRINT_LATENCY_WIDTH, RPINT_DECIMAL_WIDTH,
+		       (double)(atom->time - atom->prev->time) / NSEC_PER_MSEC);
+	else
+		printf(" %*s ", PRINT_LATENCY_WIDTH, " ");
+
+	/*
+	 * callchain
+	 */
+	if (kwork->show_callchain) {
+		printf(" ");
+		sample__fprintf_sym(sample, al, 0,
+				    EVSEL__PRINT_SYM | EVSEL__PRINT_ONELINE |
+				    EVSEL__PRINT_CALLCHAIN_ARROW |
+				    EVSEL__PRINT_SKIP_IGNORED,
+				    &callchain_cursor, symbol_conf.bt_stop_list,
+				    stdout);
+	}
+
+	printf("\n");
+}
+
+static int timehist_raise_event(struct perf_kwork *kwork,
+				struct kwork_class *class,
+				struct evsel *evsel,
+				struct perf_sample *sample,
+				struct machine *machine)
+{
+	return work_push_atom(kwork, class, KWORK_TRACE_RAISE,
+			      KWORK_TRACE_MAX, evsel, sample,
+			      machine, NULL);
+}
+
+static int timehist_entry_event(struct perf_kwork *kwork,
+				struct kwork_class *class,
+				struct evsel *evsel,
+				struct perf_sample *sample,
+				struct machine *machine)
+{
+	int ret;
+	struct kwork_work *work = NULL;
+
+	ret = work_push_atom(kwork, class, KWORK_TRACE_ENTRY,
+			     KWORK_TRACE_RAISE, evsel, sample,
+			     machine, &work);
+	if (ret)
+		return ret;
+
+	if (work != NULL)
+		timehist_save_callchain(kwork, sample, evsel, machine);
+
+	return 0;
+}
+
+static int timehist_exit_event(struct perf_kwork *kwork,
+			       struct kwork_class *class,
+			       struct evsel *evsel,
+			       struct perf_sample *sample,
+			       struct machine *machine)
+{
+	struct kwork_atom *atom = NULL;
+	struct kwork_work *work = NULL;
+	struct addr_location al;
+
+	if (machine__resolve(machine, &al, sample) < 0) {
+		pr_debug("Problem processing event, skipping it\n");
+		return -1;
+	}
+
+	atom = work_pop_atom(kwork, class, KWORK_TRACE_EXIT,
+			     KWORK_TRACE_ENTRY, evsel, sample,
+			     machine, &work);
+	if (work == NULL)
+		return -1;
+
+	if (atom != NULL) {
+		work->nr_atoms++;
+		timehist_print_event(kwork, work, atom, sample, &al);
+		atom_del(atom);
+	}
+
+	return 0;
+}
+
 static struct kwork_class kwork_irq;
 static int process_irq_handler_entry_event(struct perf_tool *tool,
 					   struct evsel *evsel,
@@ -991,6 +1172,42 @@ static int report_print_header(struct perf_kwork *kwork)
 	return ret;
 }
 
+static void timehist_print_header(void)
+{
+	/*
+	 * header row
+	 */
+	printf(" %-*s  %-*s  %-*s  %-*s  %-*s  %-*s\n",
+	       PRINT_TIMESTAMP_WIDTH, "Runtime start",
+	       PRINT_TIMESTAMP_WIDTH, "Runtime end",
+	       PRINT_TIMEHIST_CPU_WIDTH, "Cpu",
+	       PRINT_KWORK_NAME_WIDTH, "Kwork name",
+	       PRINT_RUNTIME_WIDTH, "Runtime",
+	       PRINT_RUNTIME_WIDTH, "Delaytime");
+
+	/*
+	 * units row
+	 */
+	printf(" %-*s  %-*s  %-*s  %-*s  %-*s  %-*s\n",
+	       PRINT_TIMESTAMP_WIDTH, "",
+	       PRINT_TIMESTAMP_WIDTH, "",
+	       PRINT_TIMEHIST_CPU_WIDTH, "",
+	       PRINT_KWORK_NAME_WIDTH, "(TYPE)NAME:NUM",
+	       PRINT_RUNTIME_WIDTH, "(msec)",
+	       PRINT_RUNTIME_WIDTH, "(msec)");
+
+	/*
+	 * separator
+	 */
+	printf(" %.*s  %.*s  %.*s  %.*s  %.*s  %.*s\n",
+	       PRINT_TIMESTAMP_WIDTH, graph_dotted_line,
+	       PRINT_TIMESTAMP_WIDTH, graph_dotted_line,
+	       PRINT_TIMEHIST_CPU_WIDTH, graph_dotted_line,
+	       PRINT_KWORK_NAME_WIDTH, graph_dotted_line,
+	       PRINT_RUNTIME_WIDTH, graph_dotted_line,
+	       PRINT_RUNTIME_WIDTH, graph_dotted_line);
+}
+
 static void print_summary(struct perf_kwork *kwork)
 {
 	u64 time = kwork->timeend - kwork->timestart;
@@ -1085,6 +1302,7 @@ static int perf_kwork__check_config(struct perf_kwork *kwork,
 				    struct perf_session *session)
 {
 	int ret;
+	struct evsel *evsel;
 	struct kwork_class *class;
 
 	static struct trace_kwork_handler report_ops = {
@@ -1095,6 +1313,11 @@ static int perf_kwork__check_config(struct perf_kwork *kwork,
 		.raise_event = latency_raise_event,
 		.entry_event = latency_entry_event,
 	};
+	static struct trace_kwork_handler timehist_ops = {
+		.raise_event = timehist_raise_event,
+		.entry_event = timehist_entry_event,
+		.exit_event  = timehist_exit_event,
+	};
 
 	switch (kwork->report) {
 	case KWORK_REPORT_RUNTIME:
@@ -1102,6 +1325,9 @@ static int perf_kwork__check_config(struct perf_kwork *kwork,
 		break;
 	case KWORK_REPORT_LATENCY:
 		kwork->tp_handler = &latency_ops;
+		break;
+	case KWORK_REPORT_TIMEHIST:
+		kwork->tp_handler = &timehist_ops;
 		break;
 	default:
 		pr_debug("Invalid report type %d\n", kwork->report);
@@ -1128,6 +1354,14 @@ static int perf_kwork__check_config(struct perf_kwork *kwork,
 		if (ret != 0) {
 			pr_err("Invalid time span\n");
 			return -1;
+		}
+	}
+
+	list_for_each_entry(evsel, &session->evlist->core.entries, core.node) {
+		if (kwork->show_callchain && !evsel__has_callchain(evsel)) {
+			pr_debug("Samples do not have callchains\n");
+			kwork->show_callchain = 0;
+			symbol_conf.use_callchain = 0;
 		}
 	}
 
@@ -1163,6 +1397,9 @@ static int perf_kwork__read_events(struct perf_kwork *kwork)
 		pr_err("Failed to set libtraceevent function resolver\n");
 		goto out_delete;
 	}
+
+	if (kwork->report == KWORK_REPORT_TIMEHIST)
+		timehist_print_header();
 
 	ret = perf_session__process_events(session);
 	if (ret) {
@@ -1255,6 +1492,31 @@ static int perf_kwork__process_tracepoint_sample(struct perf_tool *tool,
 	}
 
 	return err;
+}
+
+static int perf_kwork__timehist(struct perf_kwork *kwork)
+{
+	/*
+	 * event handlers for timehist option
+	 */
+	kwork->tool.comm	 = perf_event__process_comm;
+	kwork->tool.exit	 = perf_event__process_exit;
+	kwork->tool.fork	 = perf_event__process_fork;
+	kwork->tool.attr	 = perf_event__process_attr;
+	kwork->tool.tracing_data = perf_event__process_tracing_data;
+	kwork->tool.build_id	 = perf_event__process_build_id;
+	kwork->tool.ordered_events = true;
+	kwork->tool.ordering_requires_timestamps = true;
+	symbol_conf.use_callchain = kwork->show_callchain;
+
+	if (symbol__validate_sym_arguments()) {
+		pr_err("Failed to validate sym arguments\n");
+		return -1;
+	}
+
+	setup_pager();
+
+	return perf_kwork__read_events(kwork);
 }
 
 static void setup_event_list(struct perf_kwork *kwork,
@@ -1370,6 +1632,8 @@ int cmd_kwork(int argc, const char **argv)
 		.event_list_str      = NULL,
 		.summary             = false,
 		.sort_order          = NULL,
+		.show_callchain      = false,
+		.max_stack           = 5,
 		.timestart           = 0,
 		.timeend             = 0,
 		.nr_events           = 0,
@@ -1419,6 +1683,27 @@ int cmd_kwork(int argc, const char **argv)
 		   "input file name"),
 	OPT_PARENT(kwork_options)
 	};
+	const struct option timehist_options[] = {
+	OPT_STRING('k', "vmlinux", &symbol_conf.vmlinux_name,
+		   "file", "vmlinux pathname"),
+	OPT_STRING(0, "kallsyms", &symbol_conf.kallsyms_name,
+		   "file", "kallsyms pathname"),
+	OPT_BOOLEAN('g', "call-graph", &kwork.show_callchain,
+		    "Display call chains if present"),
+	OPT_UINTEGER(0, "max-stack", &kwork.max_stack,
+		   "Maximum number of functions to display backtrace."),
+	OPT_STRING(0, "symfs", &symbol_conf.symfs, "directory",
+		    "Look for files with symbols relative to this directory"),
+	OPT_STRING(0, "time", &kwork.time_str, "str",
+		   "Time span for analysis (start,stop)"),
+	OPT_STRING('C', "cpu", &kwork.cpu_list, "cpu",
+		   "list of cpus to profile"),
+	OPT_STRING('n', "name", &kwork.profile_name, "name",
+		   "event name to profile"),
+	OPT_STRING('i', "input", &input_name, "file",
+		   "input file name"),
+	OPT_PARENT(kwork_options)
+	};
 	const char *kwork_usage[] = {
 		NULL,
 		NULL
@@ -1431,8 +1716,12 @@ int cmd_kwork(int argc, const char **argv)
 		"perf kwork latency [<options>]",
 		NULL
 	};
+	const char * const timehist_usage[] = {
+		"perf kwork timehist [<options>]",
+		NULL
+	};
 	const char *const kwork_subcommands[] = {
-		"record", "report", "latency", NULL
+		"record", "report", "latency", "timehist", NULL
 	};
 
 	argc = parse_options_subcommand(argc, argv, kwork_options,
@@ -1466,6 +1755,14 @@ int cmd_kwork(int argc, const char **argv)
 		kwork.report = KWORK_REPORT_LATENCY;
 		setup_sorting(&kwork, latency_options, latency_usage);
 		return perf_kwork__report(&kwork);
+	} else if (strlen(argv[0]) > 2 && strstarts("timehist", argv[0])) {
+		if (argc > 1) {
+			argc = parse_options(argc, argv, timehist_options, timehist_usage, 0);
+			if (argc)
+				usage_with_options(timehist_usage, timehist_options);
+		}
+		kwork.report = KWORK_REPORT_TIMEHIST;
+		return perf_kwork__timehist(&kwork);
 	} else
 		usage_with_options(kwork_usage, kwork_options);
 

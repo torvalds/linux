@@ -22,6 +22,7 @@ enum kwork_class_type {
 enum kwork_report_type {
 	KWORK_REPORT_RUNTIME,
 	KWORK_REPORT_LATENCY,
+	KWORK_REPORT_TIMEHIST,
 };
 
 enum kwork_trace_type {
@@ -200,6 +201,8 @@ struct perf_kwork {
 	 */
 	bool summary;
 	const char *sort_order;
+	bool show_callchain;
+	unsigned int max_stack;
 
 	/*
 	 * statistics
