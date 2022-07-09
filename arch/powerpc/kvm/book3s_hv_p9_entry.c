@@ -437,17 +437,8 @@ void restore_p9_host_os_sprs(struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(restore_p9_host_os_sprs);
 
-#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
-static void __start_timing(struct kvm_vcpu *vcpu, struct kvmhv_tb_accumulator *next)
-{
-	struct kvmppc_vcore *vc = vcpu->arch.vcore;
-	u64 tb = mftb() - vc->tb_offset_applied;
-
-	vcpu->arch.cur_activity = next;
-	vcpu->arch.cur_tb_start = tb;
-}
-
-static void __accumulate_time(struct kvm_vcpu *vcpu, struct kvmhv_tb_accumulator *next)
+#ifdef CONFIG_KVM_BOOK3S_HV_P9_TIMING
+void accumulate_time(struct kvm_vcpu *vcpu, struct kvmhv_tb_accumulator *next)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 	struct kvmhv_tb_accumulator *curr;
@@ -477,14 +468,7 @@ static void __accumulate_time(struct kvm_vcpu *vcpu, struct kvmhv_tb_accumulator
 	smp_wmb();
 	curr->seqcount = seq + 2;
 }
-
-#define start_timing(vcpu, next) __start_timing(vcpu, next)
-#define end_timing(vcpu) __start_timing(vcpu, NULL)
-#define accumulate_time(vcpu, next) __accumulate_time(vcpu, next)
-#else
-#define start_timing(vcpu, next) do {} while (0)
-#define end_timing(vcpu) do {} while (0)
-#define accumulate_time(vcpu, next) do {} while (0)
+EXPORT_SYMBOL_GPL(accumulate_time);
 #endif
 
 static inline u64 mfslbv(unsigned int idx)
@@ -795,8 +779,6 @@ int kvmhv_vcpu_entry_p9(struct kvm_vcpu *vcpu, u64 time_limit, unsigned long lpc
 	WARN_ON_ONCE(vcpu->arch.shregs.msr & MSR_HV);
 	WARN_ON_ONCE(!(vcpu->arch.shregs.msr & MSR_ME));
 
-	start_timing(vcpu, &vcpu->arch.rm_entry);
-
 	vcpu->arch.ceded = 0;
 
 	/* Save MSR for restore, with EE clear. */
@@ -957,13 +939,13 @@ tm_return_to_guest:
 	mtspr(SPRN_SRR0, vcpu->arch.shregs.srr0);
 	mtspr(SPRN_SRR1, vcpu->arch.shregs.srr1);
 
-	accumulate_time(vcpu, &vcpu->arch.guest_time);
-
 	switch_pmu_to_guest(vcpu, &host_os_sprs);
-	kvmppc_p9_enter_guest(vcpu);
-	switch_pmu_to_host(vcpu, &host_os_sprs);
+	accumulate_time(vcpu, &vcpu->arch.in_guest);
 
-	accumulate_time(vcpu, &vcpu->arch.rm_intr);
+	kvmppc_p9_enter_guest(vcpu);
+
+	accumulate_time(vcpu, &vcpu->arch.guest_exit);
+	switch_pmu_to_host(vcpu, &host_os_sprs);
 
 	/* XXX: Could get these from r11/12 and paca exsave instead */
 	vcpu->arch.shregs.srr0 = mfspr(SPRN_SRR0);
@@ -1057,8 +1039,6 @@ tm_return_to_guest:
 		}
 #endif
 	}
-
-	accumulate_time(vcpu, &vcpu->arch.rm_exit);
 
 	/* Advance host PURR/SPURR by the amount used by guest */
 	purr = mfspr(SPRN_PURR);
@@ -1166,8 +1146,6 @@ tm_return_to_guest:
 		asm volatile(PPC_CP_ABORT);
 
 out:
-	end_timing(vcpu);
-
 	return trap;
 }
 EXPORT_SYMBOL_GPL(kvmhv_vcpu_entry_p9);
