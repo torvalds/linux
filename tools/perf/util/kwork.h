@@ -14,6 +14,7 @@
 
 enum kwork_class_type {
 	KWORK_CLASS_IRQ,
+	KWORK_CLASS_SOFTIRQ,
 	KWORK_CLASS_MAX,
 };
 
