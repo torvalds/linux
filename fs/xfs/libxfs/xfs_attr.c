@@ -1558,7 +1558,7 @@ xfs_attr_node_get(
 	 * If not in a transaction, we have to release all the buffers.
 	 */
 out_release:
-	for (i = 0; state != NULL && i < state->path.active; i++) {
+	for (i = 0; i < state->path.active; i++) {
 		xfs_trans_brelse(args->trans, state->path.blk[i].bp);
 		state->path.blk[i].bp = NULL;
 	}
