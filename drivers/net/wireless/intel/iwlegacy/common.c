@@ -4817,7 +4817,7 @@ il_check_stuck_queue(struct il_priv *il, int cnt)
 #define IL_WD_TICK(timeout) ((timeout) / 4)
 
 /*
- * Watchdog timer callback, we check each tx queue for stuck, if if hung
+ * Watchdog timer callback, we check each tx queue for stuck, if hung
  * we reset the firmware. If everything is fine just rearm the timer.
  */
 void
