@@ -221,4 +221,79 @@ int report_irq_handler_exit(struct trace_event_raw_irq_handler_exit *ctx)
 	return update_timeend(&perf_kwork_report, &perf_kwork_time, &key);
 }
 
+static char softirq_name_list[NR_SOFTIRQS][MAX_KWORKNAME] = {
+	{ "HI"       },
+	{ "TIMER"    },
+	{ "NET_TX"   },
+	{ "NET_RX"   },
+	{ "BLOCK"    },
+	{ "IRQ_POLL" },
+	{ "TASKLET"  },
+	{ "SCHED"    },
+	{ "HRTIMER"  },
+	{ "RCU"      },
+};
+
+SEC("tracepoint/irq/softirq_entry")
+int report_softirq_entry(struct trace_event_raw_softirq *ctx)
+{
+	unsigned int vec = ctx->vec;
+	struct work_key key = {
+		.type = KWORK_CLASS_SOFTIRQ,
+		.cpu  = bpf_get_smp_processor_id(),
+		.id   = (__u64)vec,
+	};
+
+	if (vec < NR_SOFTIRQS) {
+		return update_timestart_and_name(&perf_kwork_time,
+						 &perf_kwork_names, &key,
+						 softirq_name_list[vec]);
+	}
+
+	return 0;
+}
+
+SEC("tracepoint/irq/softirq_exit")
+int report_softirq_exit(struct trace_event_raw_softirq *ctx)
+{
+	struct work_key key = {
+		.type = KWORK_CLASS_SOFTIRQ,
+		.cpu  = bpf_get_smp_processor_id(),
+		.id   = (__u64)ctx->vec,
+	};
+
+	return update_timeend(&perf_kwork_report, &perf_kwork_time, &key);
+}
+
+SEC("tracepoint/irq/softirq_raise")
+int latency_softirq_raise(struct trace_event_raw_softirq *ctx)
+{
+	unsigned int vec = ctx->vec;
+	struct work_key key = {
+		.type = KWORK_CLASS_SOFTIRQ,
+		.cpu  = bpf_get_smp_processor_id(),
+		.id   = (__u64)vec,
+	};
+
+	if (vec < NR_SOFTIRQS) {
+		return update_timestart_and_name(&perf_kwork_time,
+						 &perf_kwork_names, &key,
+						 softirq_name_list[vec]);
+	}
+
+	return 0;
+}
+
+SEC("tracepoint/irq/softirq_entry")
+int latency_softirq_entry(struct trace_event_raw_softirq *ctx)
+{
+	struct work_key key = {
+		.type = KWORK_CLASS_SOFTIRQ,
+		.cpu  = bpf_get_smp_processor_id(),
+		.id   = (__u64)ctx->vec,
+	};
+
+	return update_timeend(&perf_kwork_report, &perf_kwork_time, &key);
+}
+
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
