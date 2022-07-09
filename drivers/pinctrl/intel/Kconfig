@@ -151,6 +151,14 @@ config PINCTRL_LEWISBURG
 	  This pinctrl driver provides an interface that allows configuring
 	  of Intel Lewisburg pins and using them as GPIOs.
 
+config PINCTRL_METEORLAKE
+	tristate "Intel Meteor Lake pinctrl and GPIO driver"
+	depends on ACPI
+	select PINCTRL_INTEL
+	help
+	  This pinctrl driver provides an interface that allows configuring
+	  of Intel Meteor Lake pins and using them as GPIOs.
+
 config PINCTRL_SUNRISEPOINT
 	tristate "Intel Sunrisepoint pinctrl and GPIO driver"
 	depends on ACPI
