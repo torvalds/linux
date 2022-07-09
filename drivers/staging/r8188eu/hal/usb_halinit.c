@@ -937,10 +937,9 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 	if (res)
 		return;
 
-	eeprom->EepromOrEfuse		= (eeValue & BOOT_FROM_EEPROM);
 	eeprom->bautoload_fail_flag	= !(eeValue & EEPROM_EN);
 
-	if (!is_boot_from_eeprom(Adapter))
+	if (!(eeValue & BOOT_FROM_EEPROM))
 		EFUSE_ShadowMapUpdate(Adapter);
 
 	/* parse the eeprom/efuse content */
