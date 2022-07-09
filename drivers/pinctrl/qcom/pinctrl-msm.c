@@ -1317,6 +1317,8 @@ static int msm_gpio_wakeirq(struct gpio_chip *gc,
 {
 	struct msm_pinctrl *pctrl = gpiochip_get_data(gc);
 	const struct msm_gpio_wakeirq_map *map;
+	const struct msm_pingroup *g;
+	u32 intr_cfg;
 	int i;
 
 	*parent = GPIO_NO_WAKE_IRQ;
@@ -1327,6 +1329,23 @@ static int msm_gpio_wakeirq(struct gpio_chip *gc,
 		if (map->gpio == child) {
 			*parent = map->wakeirq;
 			break;
+		}
+	}
+
+	/*
+	 * Additionally set intr_wakeup_enable_bit for the GPIOs Routed
+	 * to parent irqchip depending on intr_wakeup_present_bit.
+	 */
+	if (*parent != GPIO_NO_WAKE_IRQ) {
+		g = &pctrl->soc->groups[child];
+
+		if (!g->intr_wakeup_present_bit)
+			return 0;
+
+		intr_cfg = msm_readl_intr_cfg(pctrl, g);
+		if (intr_cfg & BIT(g->intr_wakeup_present_bit)) {
+			intr_cfg |= BIT(g->intr_wakeup_enable_bit);
+			msm_writel_intr_cfg(intr_cfg, pctrl, g);
 		}
 	}
 
