@@ -929,6 +929,7 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 {
 	struct eeprom_priv *eeprom = &Adapter->eeprompriv;
 	struct led_priv *ledpriv = &Adapter->ledpriv;
+	u8 efuse_buf[EFUSE_MAP_LEN_88E] __aligned(4);
 	u8 eeValue;
 	int res;
 
@@ -941,24 +942,24 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 
 	if (!(eeValue & BOOT_FROM_EEPROM)) {
 		if (eeprom->bautoload_fail_flag) {
-			memset(eeprom->efuse_eeprom_data, 0xFF, EFUSE_MAP_LEN_88E);
+			memset(efuse_buf, 0xFF, sizeof(efuse_buf));
 		} else {
 			rtl8188e_EfusePowerSwitch(Adapter, true);
-			rtl8188e_ReadEFuse(Adapter, 0, EFUSE_MAP_LEN_88E, eeprom->efuse_eeprom_data);
+			rtl8188e_ReadEFuse(Adapter, 0, EFUSE_MAP_LEN_88E, efuse_buf);
 			rtl8188e_EfusePowerSwitch(Adapter, false);
 		}
 	}
 
 	/* parse the eeprom/efuse content */
-	Hal_EfuseParseIDCode88E(Adapter, eeprom->efuse_eeprom_data);
-	Hal_EfuseParseMACAddr_8188EU(Adapter, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
+	Hal_EfuseParseIDCode88E(Adapter, efuse_buf);
+	Hal_EfuseParseMACAddr_8188EU(Adapter, efuse_buf, eeprom->bautoload_fail_flag);
 
-	Hal_ReadPowerSavingMode88E(Adapter, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
-	Hal_ReadTxPowerInfo88E(Adapter, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
-	rtl8188e_EfuseParseChnlPlan(Adapter, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
-	Hal_EfuseParseXtal_8188E(Adapter, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
-	Hal_ReadAntennaDiversity88E(Adapter, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
-	Hal_ReadThermalMeter_88E(Adapter, eeprom->efuse_eeprom_data, eeprom->bautoload_fail_flag);
+	Hal_ReadPowerSavingMode88E(Adapter, efuse_buf, eeprom->bautoload_fail_flag);
+	Hal_ReadTxPowerInfo88E(Adapter, efuse_buf, eeprom->bautoload_fail_flag);
+	rtl8188e_EfuseParseChnlPlan(Adapter, efuse_buf, eeprom->bautoload_fail_flag);
+	Hal_EfuseParseXtal_8188E(Adapter, efuse_buf, eeprom->bautoload_fail_flag);
+	Hal_ReadAntennaDiversity88E(Adapter, efuse_buf, eeprom->bautoload_fail_flag);
+	Hal_ReadThermalMeter_88E(Adapter, efuse_buf, eeprom->bautoload_fail_flag);
 
 	ledpriv->bRegUseLed = true;
 }

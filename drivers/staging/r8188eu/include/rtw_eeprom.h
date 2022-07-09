@@ -7,12 +7,9 @@
 #include "osdep_service.h"
 #include "drv_types.h"
 
-#define	HWSET_MAX_SIZE_512		512
-
 struct eeprom_priv {
 	u8		bautoload_fail_flag;
 	u8		mac_addr[ETH_ALEN] __aligned(2); /* PermanentAddress */
-	u8		efuse_eeprom_data[HWSET_MAX_SIZE_512] __aligned(4);
 };
 
 #endif  /* __RTL871X_EEPROM_H__ */
