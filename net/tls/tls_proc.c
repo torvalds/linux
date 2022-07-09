@@ -6,6 +6,8 @@
 #include <net/snmp.h>
 #include <net/tls.h>
 
+#include "tls.h"
+
 #ifdef CONFIG_PROC_FS
 static const struct snmp_mib tls_mib_list[] = {
 	SNMP_MIB_ITEM("TlsCurrTxSw", LINUX_MIB_TLSCURRTXSW),

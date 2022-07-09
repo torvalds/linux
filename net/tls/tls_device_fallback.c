@@ -34,6 +34,8 @@
 #include <crypto/scatterwalk.h>
 #include <net/ip6_checksum.h>
 
+#include "tls.h"
+
 static void chain_to_walk(struct scatterlist *sg, struct scatter_walk *walk)
 {
 	struct scatterlist *src = walk->sg;

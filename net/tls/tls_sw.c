@@ -44,10 +44,19 @@
 #include <net/strparser.h>
 #include <net/tls.h>
 
+#include "tls.h"
+
 struct tls_decrypt_arg {
 	bool zc;
 	bool async;
 	u8 tail;
+};
+
+struct tls_decrypt_ctx {
+	u8 iv[MAX_IV_SIZE];
+	u8 aad[TLS_MAX_AAD_SIZE];
+	u8 tail;
+	struct scatterlist sg[];
 };
 
 noinline void tls_err_abort(struct sock *sk, int err)
@@ -517,7 +526,8 @@ static int tls_do_encryption(struct sock *sk,
 	memcpy(&rec->iv_data[iv_offset], tls_ctx->tx.iv,
 	       prot->iv_size + prot->salt_size);
 
-	xor_iv_with_seq(prot, rec->iv_data + iv_offset, tls_ctx->tx.rec_seq);
+	tls_xor_iv_with_seq(prot, rec->iv_data + iv_offset,
+			    tls_ctx->tx.rec_seq);
 
 	sge->offset += prot->prepend_size;
 	sge->length -= prot->prepend_size;
@@ -954,7 +964,7 @@ int tls_sw_sendmsg(struct sock *sk, struct msghdr *msg, size_t size)
 	lock_sock(sk);
 
 	if (unlikely(msg->msg_controllen)) {
-		ret = tls_proccess_cmsg(sk, msg, &record_type);
+		ret = tls_process_cmsg(sk, msg, &record_type);
 		if (ret) {
 			if (ret == -EINPROGRESS)
 				num_async++;
@@ -1292,54 +1302,50 @@ int tls_sw_sendpage(struct sock *sk, struct page *page,
 	return ret;
 }
 
-static struct sk_buff *tls_wait_data(struct sock *sk, struct sk_psock *psock,
-				     bool nonblock, long timeo, int *err)
+static int
+tls_rx_rec_wait(struct sock *sk, struct sk_psock *psock, bool nonblock,
+		long timeo)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
-	struct sk_buff *skb;
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
 
-	while (!(skb = ctx->recv_pkt) && sk_psock_queue_empty(psock)) {
-		if (sk->sk_err) {
-			*err = sock_error(sk);
-			return NULL;
-		}
+	while (!ctx->recv_pkt) {
+		if (!sk_psock_queue_empty(psock))
+			return 0;
+
+		if (sk->sk_err)
+			return sock_error(sk);
 
 		if (!skb_queue_empty(&sk->sk_receive_queue)) {
 			__strp_unpause(&ctx->strp);
 			if (ctx->recv_pkt)
-				return ctx->recv_pkt;
+				break;
 		}
 
 		if (sk->sk_shutdown & RCV_SHUTDOWN)
-			return NULL;
+			return 0;
 
 		if (sock_flag(sk, SOCK_DONE))
-			return NULL;
+			return 0;
 
-		if (nonblock || !timeo) {
-			*err = -EAGAIN;
-			return NULL;
-		}
+		if (nonblock || !timeo)
+			return -EAGAIN;
 
 		add_wait_queue(sk_sleep(sk), &wait);
 		sk_set_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 		sk_wait_event(sk, &timeo,
-			      ctx->recv_pkt != skb ||
-			      !sk_psock_queue_empty(psock),
+			      ctx->recv_pkt || !sk_psock_queue_empty(psock),
 			      &wait);
 		sk_clear_bit(SOCKWQ_ASYNC_WAITDATA, sk);
 		remove_wait_queue(sk_sleep(sk), &wait);
 
 		/* Handle signals */
-		if (signal_pending(current)) {
-			*err = sock_intr_errno(timeo);
-			return NULL;
-		}
+		if (signal_pending(current))
+			return sock_intr_errno(timeo);
 	}
 
-	return skb;
+	return 1;
 }
 
 static int tls_setup_from_iter(struct iov_iter *from,
@@ -1414,17 +1420,18 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
+	int n_sgin, n_sgout, aead_size, err, pages = 0;
 	struct strp_msg *rxm = strp_msg(skb);
 	struct tls_msg *tlm = tls_msg(skb);
-	int n_sgin, n_sgout, nsg, mem_size, aead_size, err, pages = 0;
-	u8 *aad, *iv, *tail, *mem = NULL;
 	struct aead_request *aead_req;
 	struct sk_buff *unused;
 	struct scatterlist *sgin = NULL;
 	struct scatterlist *sgout = NULL;
 	const int data_len = rxm->full_len - prot->overhead_size;
 	int tail_pages = !!prot->tail_size;
+	struct tls_decrypt_ctx *dctx;
 	int iv_offset = 0;
+	u8 *mem;
 
 	if (darg->zc && (out_iov || out_sg)) {
 		if (out_iov)
@@ -1446,38 +1453,30 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	/* Increment to accommodate AAD */
 	n_sgin = n_sgin + 1;
 
-	nsg = n_sgin + n_sgout;
-
-	aead_size = sizeof(*aead_req) + crypto_aead_reqsize(ctx->aead_recv);
-	mem_size = aead_size + (nsg * sizeof(struct scatterlist));
-	mem_size = mem_size + prot->aad_size;
-	mem_size = mem_size + MAX_IV_SIZE;
-	mem_size = mem_size + prot->tail_size;
-
 	/* Allocate a single block of memory which contains
-	 * aead_req || sgin[] || sgout[] || aad || iv || tail.
-	 * This order achieves correct alignment for aead_req, sgin, sgout.
+	 *   aead_req || tls_decrypt_ctx.
+	 * Both structs are variable length.
 	 */
-	mem = kmalloc(mem_size, sk->sk_allocation);
+	aead_size = sizeof(*aead_req) + crypto_aead_reqsize(ctx->aead_recv);
+	mem = kmalloc(aead_size + struct_size(dctx, sg, n_sgin + n_sgout),
+		      sk->sk_allocation);
 	if (!mem)
 		return -ENOMEM;
 
 	/* Segment the allocated memory */
 	aead_req = (struct aead_request *)mem;
-	sgin = (struct scatterlist *)(mem + aead_size);
-	sgout = sgin + n_sgin;
-	aad = (u8 *)(sgout + n_sgout);
-	iv = aad + prot->aad_size;
-	tail = iv + MAX_IV_SIZE;
+	dctx = (struct tls_decrypt_ctx *)(mem + aead_size);
+	sgin = &dctx->sg[0];
+	sgout = &dctx->sg[n_sgin];
 
 	/* For CCM based ciphers, first byte of nonce+iv is a constant */
 	switch (prot->cipher_type) {
 	case TLS_CIPHER_AES_CCM_128:
-		iv[0] = TLS_AES_CCM_IV_B0_BYTE;
+		dctx->iv[0] = TLS_AES_CCM_IV_B0_BYTE;
 		iv_offset = 1;
 		break;
 	case TLS_CIPHER_SM4_CCM:
-		iv[0] = TLS_SM4_CCM_IV_B0_BYTE;
+		dctx->iv[0] = TLS_SM4_CCM_IV_B0_BYTE;
 		iv_offset = 1;
 		break;
 	}
@@ -1485,40 +1484,36 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 	/* Prepare IV */
 	if (prot->version == TLS_1_3_VERSION ||
 	    prot->cipher_type == TLS_CIPHER_CHACHA20_POLY1305) {
-		memcpy(iv + iv_offset, tls_ctx->rx.iv,
+		memcpy(&dctx->iv[iv_offset], tls_ctx->rx.iv,
 		       prot->iv_size + prot->salt_size);
 	} else {
 		err = skb_copy_bits(skb, rxm->offset + TLS_HEADER_SIZE,
-				    iv + iv_offset + prot->salt_size,
+				    &dctx->iv[iv_offset] + prot->salt_size,
 				    prot->iv_size);
-		if (err < 0) {
-			kfree(mem);
-			return err;
-		}
-		memcpy(iv + iv_offset, tls_ctx->rx.iv, prot->salt_size);
+		if (err < 0)
+			goto exit_free;
+		memcpy(&dctx->iv[iv_offset], tls_ctx->rx.iv, prot->salt_size);
 	}
-	xor_iv_with_seq(prot, iv + iv_offset, tls_ctx->rx.rec_seq);
+	tls_xor_iv_with_seq(prot, &dctx->iv[iv_offset], tls_ctx->rx.rec_seq);
 
 	/* Prepare AAD */
-	tls_make_aad(aad, rxm->full_len - prot->overhead_size +
+	tls_make_aad(dctx->aad, rxm->full_len - prot->overhead_size +
 		     prot->tail_size,
 		     tls_ctx->rx.rec_seq, tlm->control, prot);
 
 	/* Prepare sgin */
 	sg_init_table(sgin, n_sgin);
-	sg_set_buf(&sgin[0], aad, prot->aad_size);
+	sg_set_buf(&sgin[0], dctx->aad, prot->aad_size);
 	err = skb_to_sgvec(skb, &sgin[1],
 			   rxm->offset + prot->prepend_size,
 			   rxm->full_len - prot->prepend_size);
-	if (err < 0) {
-		kfree(mem);
-		return err;
-	}
+	if (err < 0)
+		goto exit_free;
 
 	if (n_sgout) {
 		if (out_iov) {
 			sg_init_table(sgout, n_sgout);
-			sg_set_buf(&sgout[0], aad, prot->aad_size);
+			sg_set_buf(&sgout[0], dctx->aad, prot->aad_size);
 
 			err = tls_setup_from_iter(out_iov, data_len,
 						  &pages, &sgout[1],
@@ -1528,7 +1523,7 @@ static int decrypt_internal(struct sock *sk, struct sk_buff *skb,
 
 			if (prot->tail_size) {
 				sg_unmark_end(&sgout[pages]);
-				sg_set_buf(&sgout[pages + 1], tail,
+				sg_set_buf(&sgout[pages + 1], &dctx->tail,
 					   prot->tail_size);
 				sg_mark_end(&sgout[pages + 1]);
 			}
@@ -1545,18 +1540,18 @@ fallback_to_reg_recv:
 	}
 
 	/* Prepare and submit AEAD request */
-	err = tls_do_decryption(sk, skb, sgin, sgout, iv,
+	err = tls_do_decryption(sk, skb, sgin, sgout, dctx->iv,
 				data_len + prot->tail_size, aead_req, darg);
 	if (darg->async)
 		return 0;
 
 	if (prot->tail_size)
-		darg->tail = *tail;
+		darg->tail = dctx->tail;
 
 	/* Release the pages in case iov was mapped to pages */
 	for (; pages > 0; pages--)
 		put_page(sg_page(&sgout[pages]));
-
+exit_free:
 	kfree(mem);
 	return err;
 }
@@ -1813,8 +1808,8 @@ int tls_sw_recvmsg(struct sock *sk,
 		struct tls_decrypt_arg darg = {};
 		int to_decrypt, chunk;
 
-		skb = tls_wait_data(sk, psock, flags & MSG_DONTWAIT, timeo, &err);
-		if (!skb) {
+		err = tls_rx_rec_wait(sk, psock, flags & MSG_DONTWAIT, timeo);
+		if (err <= 0) {
 			if (psock) {
 				chunk = sk_msg_recvmsg(sk, psock, msg, len,
 						       flags);
@@ -1824,6 +1819,7 @@ int tls_sw_recvmsg(struct sock *sk,
 			goto recv_end;
 		}
 
+		skb = ctx->recv_pkt;
 		rxm = strp_msg(skb);
 		tlm = tls_msg(skb);
 
@@ -1990,10 +1986,12 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	} else {
 		struct tls_decrypt_arg darg = {};
 
-		skb = tls_wait_data(sk, NULL, flags & SPLICE_F_NONBLOCK, timeo,
-				    &err);
-		if (!skb)
+		err = tls_rx_rec_wait(sk, NULL, flags & SPLICE_F_NONBLOCK,
+				      timeo);
+		if (err <= 0)
 			goto splice_read_end;
+
+		skb = ctx->recv_pkt;
 
 		err = decrypt_skb_update(sk, skb, NULL, &darg);
 		if (err < 0) {
@@ -2271,12 +2269,23 @@ static void tx_work_handler(struct work_struct *work)
 	mutex_unlock(&tls_ctx->tx_lock);
 }
 
+static bool tls_is_tx_ready(struct tls_sw_context_tx *ctx)
+{
+	struct tls_rec *rec;
+
+	rec = list_first_entry(&ctx->tx_list, struct tls_rec, list);
+	if (!rec)
+		return false;
+
+	return READ_ONCE(rec->tx_ready);
+}
+
 void tls_sw_write_space(struct sock *sk, struct tls_context *ctx)
 {
 	struct tls_sw_context_tx *tx_ctx = tls_sw_ctx_tx(ctx);
 
 	/* Schedule the transmission if tx list is ready */
-	if (is_tx_ready(tx_ctx) &&
+	if (tls_is_tx_ready(tx_ctx) &&
 	    !test_and_set_bit(BIT_TX_SCHEDULED, &tx_ctx->tx_bitmask))
 		schedule_delayed_work(&tx_ctx->tx_work.work, 0);
 }
@@ -2474,13 +2483,6 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		goto free_priv;
 	}
 
-	/* Sanity-check the sizes for stack allocations. */
-	if (iv_size > MAX_IV_SIZE || nonce_size > MAX_IV_SIZE ||
-	    rec_seq_size > TLS_MAX_REC_SEQ_SIZE || tag_size != TLS_TAG_SIZE) {
-		rc = -EINVAL;
-		goto free_priv;
-	}
-
 	if (crypto_info->version == TLS_1_3_VERSION) {
 		nonce_size = 0;
 		prot->aad_size = TLS_HEADER_SIZE;
@@ -2488,6 +2490,14 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 	} else {
 		prot->aad_size = TLS_AAD_SPACE_SIZE;
 		prot->tail_size = 0;
+	}
+
+	/* Sanity-check the sizes for stack allocations. */
+	if (iv_size > MAX_IV_SIZE || nonce_size > MAX_IV_SIZE ||
+	    rec_seq_size > TLS_MAX_REC_SEQ_SIZE || tag_size != TLS_TAG_SIZE ||
+	    prot->aad_size > TLS_MAX_AAD_SIZE) {
+		rc = -EINVAL;
+		goto free_priv;
 	}
 
 	prot->version = crypto_info->version;

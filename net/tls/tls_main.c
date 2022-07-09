@@ -45,6 +45,8 @@
 #include <net/tls.h>
 #include <net/tls_toe.h>
 
+#include "tls.h"
+
 MODULE_AUTHOR("Mellanox Technologies");
 MODULE_DESCRIPTION("Transport Layer Security Support");
 MODULE_LICENSE("Dual BSD/GPL");
@@ -164,8 +166,8 @@ static int tls_handle_open_record(struct sock *sk, int flags)
 	return 0;
 }
 
-int tls_proccess_cmsg(struct sock *sk, struct msghdr *msg,
-		      unsigned char *record_type)
+int tls_process_cmsg(struct sock *sk, struct msghdr *msg,
+		     unsigned char *record_type)
 {
 	struct cmsghdr *cmsg;
 	int rc = -EINVAL;
@@ -1001,6 +1003,23 @@ static void tls_update(struct sock *sk, struct proto *p,
 		WRITE_ONCE(sk->sk_prot, p);
 		sk->sk_write_space = write_space;
 	}
+}
+
+static u16 tls_user_config(struct tls_context *ctx, bool tx)
+{
+	u16 config = tx ? ctx->tx_conf : ctx->rx_conf;
+
+	switch (config) {
+	case TLS_BASE:
+		return TLS_CONF_BASE;
+	case TLS_SW:
+		return TLS_CONF_SW;
+	case TLS_HW:
+		return TLS_CONF_HW;
+	case TLS_HW_RECORD:
+		return TLS_CONF_HW_RECORD;
+	}
+	return 0;
 }
 
 static int tls_get_info(const struct sock *sk, struct sk_buff *skb)
