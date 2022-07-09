@@ -345,6 +345,7 @@ enum
 	LINUX_MIB_TLSDECRYPTERROR,		/* TlsDecryptError */
 	LINUX_MIB_TLSRXDEVICERESYNC,		/* TlsRxDeviceResync */
 	LINUX_MIB_TLSDECRYPTRETRY,		/* TlsDecryptRetry */
+	LINUX_MIB_TLSRXNOPADVIOL,		/* TlsRxNoPadViolation */
 	__LINUX_MIB_TLSMAX
 };
 
