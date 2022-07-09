@@ -507,7 +507,7 @@ struct module {
 #endif
 #if IS_ENABLED(CONFIG_KUNIT)
 	int num_kunit_suites;
-	struct kunit_suite ***kunit_suites;
+	struct kunit_suite **kunit_suites;
 #endif
 
 
