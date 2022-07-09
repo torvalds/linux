@@ -98,7 +98,7 @@ static int smi_spi_probe(struct platform_device *pdev, struct smi *smi,
 	ret = acpi_spi_count_resources(adev);
 	if (ret < 0)
 		return ret;
-	else if (!ret)
+	if (!ret)
 		return -ENOENT;
 
 	count = ret;
@@ -180,7 +180,7 @@ static int smi_i2c_probe(struct platform_device *pdev, struct smi *smi,
 	ret = i2c_acpi_client_count(adev);
 	if (ret < 0)
 		return ret;
-	else if (!ret)
+	if (!ret)
 		return -ENOENT;
 
 	count = ret;
