@@ -722,7 +722,7 @@ xfs_btree_ifork_ptr(
 
 	if (cur->bc_flags & XFS_BTREE_STAGING)
 		return cur->bc_ino.ifake->if_fork;
-	return XFS_IFORK_PTR(cur->bc_ino.ip, cur->bc_ino.whichfork);
+	return xfs_ifork_ptr(cur->bc_ino.ip, cur->bc_ino.whichfork);
 }
 
 /*
@@ -3556,7 +3556,7 @@ xfs_btree_kill_iroot(
 {
 	int			whichfork = cur->bc_ino.whichfork;
 	struct xfs_inode	*ip = cur->bc_ino.ip;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
 	struct xfs_btree_block	*block;
 	struct xfs_btree_block	*cblock;
 	union xfs_btree_key	*kp;

@@ -81,12 +81,6 @@ struct xfs_ifork {
 #define XFS_IFORK_Q(ip)			((ip)->i_forkoff != 0)
 #define XFS_IFORK_BOFF(ip)		((int)((ip)->i_forkoff << 3))
 
-#define XFS_IFORK_PTR(ip,w)		\
-	((w) == XFS_DATA_FORK ? \
-		&(ip)->i_df : \
-		((w) == XFS_ATTR_FORK ? \
-			(ip)->i_afp : \
-			(ip)->i_cowfp))
 #define XFS_IFORK_DSIZE(ip) \
 	(XFS_IFORK_Q(ip) ? XFS_IFORK_BOFF(ip) : XFS_LITINO((ip)->i_mount))
 #define XFS_IFORK_ASIZE(ip) \

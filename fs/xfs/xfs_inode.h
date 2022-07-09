@@ -77,6 +77,24 @@ typedef struct xfs_inode {
 	struct list_head	i_ioend_list;
 } xfs_inode_t;
 
+static inline struct xfs_ifork *
+xfs_ifork_ptr(
+	struct xfs_inode	*ip,
+	int			whichfork)
+{
+	switch (whichfork) {
+	case XFS_DATA_FORK:
+		return &ip->i_df;
+	case XFS_ATTR_FORK:
+		return ip->i_afp;
+	case XFS_COW_FORK:
+		return ip->i_cowfp;
+	default:
+		ASSERT(0);
+		return NULL;
+	}
+}
+
 /* Convert from vfs inode to xfs inode */
 static inline struct xfs_inode *XFS_I(struct inode *inode)
 {

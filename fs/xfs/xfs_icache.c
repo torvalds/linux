@@ -1774,7 +1774,7 @@ xfs_check_delalloc(
 	struct xfs_inode	*ip,
 	int			whichfork)
 {
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
 	struct xfs_bmbt_irec	got;
 	struct xfs_iext_cursor	icur;
 

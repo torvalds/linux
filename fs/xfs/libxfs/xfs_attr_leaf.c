@@ -1056,7 +1056,7 @@ xfs_attr_shortform_verify(
 	int64_t				size;
 
 	ASSERT(ip->i_afp->if_format == XFS_DINODE_FMT_LOCAL);
-	ifp = XFS_IFORK_PTR(ip, XFS_ATTR_FORK);
+	ifp = xfs_ifork_ptr(ip, XFS_ATTR_FORK);
 	sfp = (struct xfs_attr_shortform *)ifp->if_u1.if_data;
 	size = ifp->if_bytes;
 

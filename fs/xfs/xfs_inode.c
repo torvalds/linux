@@ -1293,8 +1293,8 @@ xfs_itruncate_clear_reflink_flags(
 
 	if (!xfs_is_reflink_inode(ip))
 		return;
-	dfork = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
-	cfork = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	dfork = xfs_ifork_ptr(ip, XFS_DATA_FORK);
+	cfork = xfs_ifork_ptr(ip, XFS_COW_FORK);
 	if (dfork->if_bytes == 0 && cfork->if_bytes == 0)
 		ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
 	if (cfork->if_bytes == 0)
@@ -1643,7 +1643,7 @@ xfs_inode_needs_inactive(
 	struct xfs_inode	*ip)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_ifork	*cow_ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	struct xfs_ifork	*cow_ifp = xfs_ifork_ptr(ip, XFS_COW_FORK);
 
 	/*
 	 * If the inode is already free, then there can be nothing

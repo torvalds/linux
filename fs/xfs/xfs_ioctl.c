@@ -991,7 +991,7 @@ xfs_fill_fsxattr(
 	struct fileattr		*fa)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(ip, whichfork);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(ip, whichfork);
 
 	fileattr_fill_xflags(fa, xfs_ip2xflags(ip));
 
