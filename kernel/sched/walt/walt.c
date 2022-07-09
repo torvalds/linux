@@ -3798,6 +3798,50 @@ static inline void irq_work_restrict_to_mig_clusters(cpumask_t *lock_cpus)
 	}
 }
 
+static void update_cpu_capacity_helper(int cpu)
+{
+	unsigned long fmax_capacity = arch_scale_cpu_capacity(cpu);
+	unsigned long thermal_pressure = arch_scale_thermal_pressure(cpu);
+	unsigned long thermal_cap, old;
+	struct walt_sched_cluster *cluster;
+	struct rq *rq = cpu_rq(cpu);
+
+	if (unlikely(walt_disabled))
+		return;
+
+	/*
+	 * thermal_pressure = cpu_scale - curr_cap_as_per_thermal.
+	 * so,
+	 * curr_cap_as_per_thermal = cpu_scale - thermal_pressure.
+	 */
+
+	thermal_cap = fmax_capacity - thermal_pressure;
+
+	cluster = cpu_cluster(cpu);
+	/* reduce the fmax_capacity under cpufreq constraints */
+	if (cluster->max_freq != cluster->max_possible_freq)
+		fmax_capacity = mult_frac(fmax_capacity, cluster->max_freq,
+					 cluster->max_possible_freq);
+
+	old = rq->cpu_capacity_orig;
+	rq->cpu_capacity_orig = min(fmax_capacity, thermal_cap);
+
+	if (old != rq->cpu_capacity_orig)
+		trace_update_cpu_capacity(cpu, 0, 0);
+}
+
+/*
+ * The intention of this hook is to update cpu_capacity_orig as well as
+ * (*capacity), otherwise we will end up capacity_of() > capacity_orig_of().
+ */
+static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long *capacity)
+{
+	unsigned long rt_pressure = arch_scale_cpu_capacity(cpu) - *capacity;
+
+	update_cpu_capacity_helper(cpu);
+	*capacity = max((int)(cpu_rq(cpu)->cpu_capacity_orig - rt_pressure), 0);
+}
+
 /**
  * walt_irq_work() - perform walt irq work for rollover and migration
  *
@@ -3837,6 +3881,11 @@ static void walt_irq_work(struct irq_work *irq_work)
 		else
 			raw_spin_lock_nested(&cpu_rq(cpu)->__lock, level);
 		level++;
+	}
+
+	if (!is_migration) {
+		for_each_cpu(cpu, &lock_cpus)
+			update_cpu_capacity_helper(cpu);
 	}
 
 	__walt_irq_work_locked(is_migration, &lock_cpus);
@@ -4072,45 +4121,6 @@ static void walt_cpu_frequency_limits(void *unused, struct cpufreq_policy *polic
 		return;
 
 	cpu_cluster(policy->cpu)->max_freq = policy->max;
-}
-
-/*
- * The intention of this hook is to update cpu_capacity_orig as well as
- * (*capacity), otherwise we will end up capacity_of() > capacity_orig_of().
- */
-static void android_rvh_update_cpu_capacity(void *unused, int cpu, unsigned long *capacity)
-{
-	unsigned long fmax_capacity = arch_scale_cpu_capacity(cpu);
-	unsigned long thermal_pressure = arch_scale_thermal_pressure(cpu);
-	unsigned long thermal_cap, old;
-	unsigned long rt_pressure = fmax_capacity - *capacity;
-	struct walt_sched_cluster *cluster;
-	struct rq *rq = cpu_rq(cpu);
-
-	if (unlikely(walt_disabled))
-		return;
-
-	/*
-	 * thermal_pressure = cpu_scale - curr_cap_as_per_thermal.
-	 * so,
-	 * curr_cap_as_per_thermal = cpu_scale - thermal_pressure.
-	 */
-
-	thermal_cap = fmax_capacity - thermal_pressure;
-
-	cluster = cpu_cluster(cpu);
-	/* reduce the fmax_capacity under cpufreq constraints */
-	if (cluster->max_freq != cluster->max_possible_freq)
-		fmax_capacity = mult_frac(fmax_capacity, cluster->max_freq,
-					 cluster->max_possible_freq);
-
-	old = rq->cpu_capacity_orig;
-	rq->cpu_capacity_orig = min(fmax_capacity, thermal_cap);
-
-	if (old != rq->cpu_capacity_orig)
-		trace_update_cpu_capacity(cpu, rt_pressure, *capacity);
-
-	*capacity = max((int)(rq->cpu_capacity_orig - rt_pressure), 0);
 }
 
 static void android_rvh_sched_cpu_starting(void *unused, int cpu)
