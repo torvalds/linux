@@ -63,7 +63,7 @@ static bool expect_str(char *buf, size_t size, const char *str, const char *name
 static void test_synproxy(bool xdp)
 {
 	int server_fd = -1, client_fd = -1, accept_fd = -1;
-	char *prog_id, *prog_id_end;
+	char *prog_id = NULL, *prog_id_end;
 	struct nstoken *ns = NULL;
 	FILE *ctrl_file = NULL;
 	char buf[CMD_OUT_BUF_SIZE];

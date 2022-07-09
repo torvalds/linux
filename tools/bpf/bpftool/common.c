@@ -13,13 +13,16 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
-#include <linux/limits.h>
-#include <linux/magic.h>
 #include <net/if.h>
 #include <sys/mount.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
 #include <sys/vfs.h>
+
+#include <linux/filter.h>
+#include <linux/limits.h>
+#include <linux/magic.h>
+#include <linux/unistd.h>
 
 #include <bpf/bpf.h>
 #include <bpf/hashmap.h>
@@ -73,11 +76,73 @@ static bool is_bpffs(char *path)
 	return (unsigned long)st_fs.f_type == BPF_FS_MAGIC;
 }
 
+/* Probe whether kernel switched from memlock-based (RLIMIT_MEMLOCK) to
+ * memcg-based memory accounting for BPF maps and programs. This was done in
+ * commit 97306be45fbe ("Merge branch 'switch to memcg-based memory
+ * accounting'"), in Linux 5.11.
+ *
+ * Libbpf also offers to probe for memcg-based accounting vs rlimit, but does
+ * so by checking for the availability of a given BPF helper and this has
+ * failed on some kernels with backports in the past, see commit 6b4384ff1088
+ * ("Revert "bpftool: Use libbpf 1.0 API mode instead of RLIMIT_MEMLOCK"").
+ * Instead, we can probe by lowering the process-based rlimit to 0, trying to
+ * load a BPF object, and resetting the rlimit. If the load succeeds then
+ * memcg-based accounting is supported.
+ *
+ * This would be too dangerous to do in the library, because multithreaded
+ * applications might attempt to load items while the rlimit is at 0. Given
+ * that bpftool is single-threaded, this is fine to do here.
+ */
+static bool known_to_need_rlimit(void)
+{
+	struct rlimit rlim_init, rlim_cur_zero = {};
+	struct bpf_insn insns[] = {
+		BPF_MOV64_IMM(BPF_REG_0, 0),
+		BPF_EXIT_INSN(),
+	};
+	size_t insn_cnt = ARRAY_SIZE(insns);
+	union bpf_attr attr;
+	int prog_fd, err;
+
+	memset(&attr, 0, sizeof(attr));
+	attr.prog_type = BPF_PROG_TYPE_SOCKET_FILTER;
+	attr.insns = ptr_to_u64(insns);
+	attr.insn_cnt = insn_cnt;
+	attr.license = ptr_to_u64("GPL");
+
+	if (getrlimit(RLIMIT_MEMLOCK, &rlim_init))
+		return false;
+
+	/* Drop the soft limit to zero. We maintain the hard limit to its
+	 * current value, because lowering it would be a permanent operation
+	 * for unprivileged users.
+	 */
+	rlim_cur_zero.rlim_max = rlim_init.rlim_max;
+	if (setrlimit(RLIMIT_MEMLOCK, &rlim_cur_zero))
+		return false;
+
+	/* Do not use bpf_prog_load() from libbpf here, because it calls
+	 * bump_rlimit_memlock(), interfering with the current probe.
+	 */
+	prog_fd = syscall(__NR_bpf, BPF_PROG_LOAD, &attr, sizeof(attr));
+	err = errno;
+
+	/* reset soft rlimit to its initial value */
+	setrlimit(RLIMIT_MEMLOCK, &rlim_init);
+
+	if (prog_fd < 0)
+		return err == EPERM;
+
+	close(prog_fd);
+	return false;
+}
+
 void set_max_rlimit(void)
 {
 	struct rlimit rinf = { RLIM_INFINITY, RLIM_INFINITY };
 
-	setrlimit(RLIMIT_MEMLOCK, &rinf);
+	if (known_to_need_rlimit())
+		setrlimit(RLIMIT_MEMLOCK, &rinf);
 }
 
 static int
@@ -251,6 +316,7 @@ const char *get_fd_type_name(enum bpf_obj_type type)
 		[BPF_OBJ_UNKNOWN]	= "unknown",
 		[BPF_OBJ_PROG]		= "prog",
 		[BPF_OBJ_MAP]		= "map",
+		[BPF_OBJ_LINK]		= "link",
 	};
 
 	if (type < 0 || type >= ARRAY_SIZE(names) || !names[type])

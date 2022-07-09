@@ -351,7 +351,7 @@ These instructions have seven implicit operands:
  * Register R0 is an implicit output which contains the data fetched from
    the packet.
  * Registers R1-R5 are scratch registers that are clobbered after a call to
-   ``BPF_ABS | BPF_LD`` or ``BPF_IND`` | BPF_LD instructions.
+   ``BPF_ABS | BPF_LD`` or ``BPF_IND | BPF_LD`` instructions.
 
 These instructions have an implicit program exit condition as well. When an
 eBPF program is trying to access the data beyond the packet boundary, the

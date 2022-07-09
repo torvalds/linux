@@ -543,7 +543,6 @@ static int __trigger_module_test_read(const struct core_reloc_test_case *test)
 	return 0;
 }
 
-
 static const struct core_reloc_test_case test_cases[] = {
 	/* validate we can find kernel image and use its BTF for relocs */
 	{
@@ -556,6 +555,7 @@ static const struct core_reloc_test_case test_cases[] = {
 			.valid = { 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, },
 			.comm = "test_progs",
 			.comm_len = sizeof("test_progs"),
+			.local_task_struct_matches = true,
 		},
 		.output_len = sizeof(struct core_reloc_kernel_output),
 		.raw_tp_name = "sys_enter",
@@ -752,9 +752,10 @@ static const struct core_reloc_test_case test_cases[] = {
 	SIZE_CASE(size___diff_offs),
 	SIZE_ERR_CASE(size___err_ambiguous),
 
-	/* validate type existence and size relocations */
+	/* validate type existence, match, and size relocations */
 	TYPE_BASED_CASE(type_based, {
 		.struct_exists = 1,
+		.complex_struct_exists = 1,
 		.union_exists = 1,
 		.enum_exists = 1,
 		.typedef_named_struct_exists = 1,
@@ -763,8 +764,24 @@ static const struct core_reloc_test_case test_cases[] = {
 		.typedef_int_exists = 1,
 		.typedef_enum_exists = 1,
 		.typedef_void_ptr_exists = 1,
+		.typedef_restrict_ptr_exists = 1,
 		.typedef_func_proto_exists = 1,
 		.typedef_arr_exists = 1,
+
+		.struct_matches = 1,
+		.complex_struct_matches = 1,
+		.union_matches = 1,
+		.enum_matches = 1,
+		.typedef_named_struct_matches = 1,
+		.typedef_anon_struct_matches = 1,
+		.typedef_struct_ptr_matches = 1,
+		.typedef_int_matches = 1,
+		.typedef_enum_matches = 1,
+		.typedef_void_ptr_matches = 1,
+		.typedef_restrict_ptr_matches = 1,
+		.typedef_func_proto_matches = 1,
+		.typedef_arr_matches = 1,
+
 		.struct_sz = sizeof(struct a_struct),
 		.union_sz = sizeof(union a_union),
 		.enum_sz = sizeof(enum an_enum),
@@ -780,6 +797,45 @@ static const struct core_reloc_test_case test_cases[] = {
 	TYPE_BASED_CASE(type_based___all_missing, {
 		/* all zeros */
 	}),
+	TYPE_BASED_CASE(type_based___diff, {
+		.struct_exists = 1,
+		.complex_struct_exists = 1,
+		.union_exists = 1,
+		.enum_exists = 1,
+		.typedef_named_struct_exists = 1,
+		.typedef_anon_struct_exists = 1,
+		.typedef_struct_ptr_exists = 1,
+		.typedef_int_exists = 1,
+		.typedef_enum_exists = 1,
+		.typedef_void_ptr_exists = 1,
+		.typedef_func_proto_exists = 1,
+		.typedef_arr_exists = 1,
+
+		.struct_matches = 1,
+		.complex_struct_matches = 1,
+		.union_matches = 1,
+		.enum_matches = 1,
+		.typedef_named_struct_matches = 1,
+		.typedef_anon_struct_matches = 1,
+		.typedef_struct_ptr_matches = 1,
+		.typedef_int_matches = 0,
+		.typedef_enum_matches = 1,
+		.typedef_void_ptr_matches = 1,
+		.typedef_func_proto_matches = 0,
+		.typedef_arr_matches = 0,
+
+		.struct_sz = sizeof(struct a_struct___diff),
+		.union_sz = sizeof(union a_union___diff),
+		.enum_sz = sizeof(enum an_enum___diff),
+		.typedef_named_struct_sz = sizeof(named_struct_typedef___diff),
+		.typedef_anon_struct_sz = sizeof(anon_struct_typedef___diff),
+		.typedef_struct_ptr_sz = sizeof(struct_ptr_typedef___diff),
+		.typedef_int_sz = sizeof(int_typedef___diff),
+		.typedef_enum_sz = sizeof(enum_typedef___diff),
+		.typedef_void_ptr_sz = sizeof(void_ptr_typedef___diff),
+		.typedef_func_proto_sz = sizeof(func_proto_typedef___diff),
+		.typedef_arr_sz = sizeof(arr_typedef___diff),
+	}),
 	TYPE_BASED_CASE(type_based___diff_sz, {
 		.struct_exists = 1,
 		.union_exists = 1,
@@ -792,6 +848,19 @@ static const struct core_reloc_test_case test_cases[] = {
 		.typedef_void_ptr_exists = 1,
 		.typedef_func_proto_exists = 1,
 		.typedef_arr_exists = 1,
+
+		.struct_matches = 0,
+		.union_matches = 0,
+		.enum_matches = 0,
+		.typedef_named_struct_matches = 0,
+		.typedef_anon_struct_matches = 0,
+		.typedef_struct_ptr_matches = 1,
+		.typedef_int_matches = 0,
+		.typedef_enum_matches = 0,
+		.typedef_void_ptr_matches = 1,
+		.typedef_func_proto_matches = 0,
+		.typedef_arr_matches = 0,
+
 		.struct_sz = sizeof(struct a_struct___diff_sz),
 		.union_sz = sizeof(union a_union___diff_sz),
 		.enum_sz = sizeof(enum an_enum___diff_sz),
@@ -806,10 +875,12 @@ static const struct core_reloc_test_case test_cases[] = {
 	}),
 	TYPE_BASED_CASE(type_based___incompat, {
 		.enum_exists = 1,
+		.enum_matches = 1,
 		.enum_sz = sizeof(enum an_enum),
 	}),
 	TYPE_BASED_CASE(type_based___fn_wrong_args, {
 		.struct_exists = 1,
+		.struct_matches = 1,
 		.struct_sz = sizeof(struct a_struct),
 	}),
 

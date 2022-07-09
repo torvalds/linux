@@ -703,15 +703,8 @@ _bpftool()
                             return 0
                             ;;
                         type)
-                            local BPFTOOL_MAP_CREATE_TYPES='hash array \
-                                prog_array perf_event_array percpu_hash \
-                                percpu_array stack_trace cgroup_array lru_hash \
-                                lru_percpu_hash lpm_trie array_of_maps \
-                                hash_of_maps devmap devmap_hash sockmap cpumap \
-                                xskmap sockhash cgroup_storage reuseport_sockarray \
-                                percpu_cgroup_storage queue stack sk_storage \
-                                struct_ops ringbuf inode_storage task_storage \
-                                bloom_filter'
+                            local BPFTOOL_MAP_CREATE_TYPES="$(bpftool feature list_builtins map_types 2>/dev/null | \
+                                grep -v '^unspec$')"
                             COMPREPLY=( $( compgen -W "$BPFTOOL_MAP_CREATE_TYPES" -- "$cur" ) )
                             return 0
                             ;;
@@ -1039,14 +1032,8 @@ _bpftool()
                     return 0
                     ;;
                 attach|detach)
-                    local BPFTOOL_CGROUP_ATTACH_TYPES='cgroup_inet_ingress cgroup_inet_egress \
-                        cgroup_inet_sock_create cgroup_sock_ops cgroup_device cgroup_inet4_bind \
-                        cgroup_inet6_bind cgroup_inet4_post_bind cgroup_inet6_post_bind \
-                        cgroup_inet4_connect cgroup_inet6_connect cgroup_inet4_getpeername \
-                        cgroup_inet6_getpeername cgroup_inet4_getsockname cgroup_inet6_getsockname \
-                        cgroup_udp4_sendmsg cgroup_udp6_sendmsg cgroup_udp4_recvmsg \
-                        cgroup_udp6_recvmsg cgroup_sysctl cgroup_getsockopt cgroup_setsockopt \
-                        cgroup_inet_sock_release'
+                    local BPFTOOL_CGROUP_ATTACH_TYPES="$(bpftool feature list_builtins attach_types 2>/dev/null | \
+                        grep '^cgroup_')"
                     local ATTACH_FLAGS='multi override'
                     local PROG_TYPE='id pinned tag name'
                     # Check for $prev = $command first
@@ -1175,9 +1162,14 @@ _bpftool()
                     _bpftool_once_attr 'full unprivileged'
                     return 0
                     ;;
+                list_builtins)
+                    [[ $prev != "$command" ]] && return 0
+                    COMPREPLY=( $( compgen -W 'prog_types map_types \
+                        attach_types link_types helpers' -- "$cur" ) )
+                    ;;
                 *)
                     [[ $prev == $object ]] && \
-                        COMPREPLY=( $( compgen -W 'help probe' -- "$cur" ) )
+                        COMPREPLY=( $( compgen -W 'help list_builtins probe' -- "$cur" ) )
                     ;;
             esac
             ;;

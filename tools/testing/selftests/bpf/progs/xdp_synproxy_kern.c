@@ -77,16 +77,30 @@ struct {
 	__uint(max_entries, MAX_ALLOWED_PORTS);
 } allowed_ports SEC(".maps");
 
+/* Some symbols defined in net/netfilter/nf_conntrack_bpf.c are unavailable in
+ * vmlinux.h if CONFIG_NF_CONNTRACK=m, so they are redefined locally.
+ */
+
+struct bpf_ct_opts___local {
+	s32 netns_id;
+	s32 error;
+	u8 l4proto;
+	u8 dir;
+	u8 reserved[2];
+} __attribute__((preserve_access_index));
+
+#define BPF_F_CURRENT_NETNS (-1)
+
 extern struct nf_conn *bpf_xdp_ct_lookup(struct xdp_md *xdp_ctx,
 					 struct bpf_sock_tuple *bpf_tuple,
 					 __u32 len_tuple,
-					 struct bpf_ct_opts *opts,
+					 struct bpf_ct_opts___local *opts,
 					 __u32 len_opts) __ksym;
 
 extern struct nf_conn *bpf_skb_ct_lookup(struct __sk_buff *skb_ctx,
 					 struct bpf_sock_tuple *bpf_tuple,
 					 u32 len_tuple,
-					 struct bpf_ct_opts *opts,
+					 struct bpf_ct_opts___local *opts,
 					 u32 len_opts) __ksym;
 
 extern void bpf_ct_release(struct nf_conn *ct) __ksym;
@@ -393,7 +407,7 @@ static __always_inline int tcp_dissect(void *data, void *data_end,
 
 static __always_inline int tcp_lookup(void *ctx, struct header_pointers *hdr, bool xdp)
 {
-	struct bpf_ct_opts ct_lookup_opts = {
+	struct bpf_ct_opts___local ct_lookup_opts = {
 		.netns_id = BPF_F_CURRENT_NETNS,
 		.l4proto = IPPROTO_TCP,
 	};
@@ -714,10 +728,6 @@ static __always_inline int syncookie_handle_ack(struct header_pointers *hdr)
 static __always_inline int syncookie_part1(void *ctx, void *data, void *data_end,
 					   struct header_pointers *hdr, bool xdp)
 {
-	struct bpf_ct_opts ct_lookup_opts = {
-		.netns_id = BPF_F_CURRENT_NETNS,
-		.l4proto = IPPROTO_TCP,
-	};
 	int ret;
 
 	ret = tcp_dissect(data, data_end, hdr);

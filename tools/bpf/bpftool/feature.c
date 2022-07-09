@@ -1258,6 +1258,58 @@ exit_close_json:
 	return 0;
 }
 
+static const char *get_helper_name(unsigned int id)
+{
+	if (id >= ARRAY_SIZE(helper_name))
+		return NULL;
+
+	return helper_name[id];
+}
+
+static int do_list_builtins(int argc, char **argv)
+{
+	const char *(*get_name)(unsigned int id);
+	unsigned int id = 0;
+
+	if (argc < 1)
+		usage();
+
+	if (is_prefix(*argv, "prog_types")) {
+		get_name = (const char *(*)(unsigned int))libbpf_bpf_prog_type_str;
+	} else if (is_prefix(*argv, "map_types")) {
+		get_name = (const char *(*)(unsigned int))libbpf_bpf_map_type_str;
+	} else if (is_prefix(*argv, "attach_types")) {
+		get_name = (const char *(*)(unsigned int))libbpf_bpf_attach_type_str;
+	} else if (is_prefix(*argv, "link_types")) {
+		get_name = (const char *(*)(unsigned int))libbpf_bpf_link_type_str;
+	} else if (is_prefix(*argv, "helpers")) {
+		get_name = get_helper_name;
+	} else {
+		p_err("expected 'prog_types', 'map_types', 'attach_types', 'link_types' or 'helpers', got: %s", *argv);
+		return -1;
+	}
+
+	if (json_output)
+		jsonw_start_array(json_wtr);	/* root array */
+
+	while (true) {
+		const char *name;
+
+		name = get_name(id++);
+		if (!name)
+			break;
+		if (json_output)
+			jsonw_string(json_wtr, name);
+		else
+			printf("%s\n", name);
+	}
+
+	if (json_output)
+		jsonw_end_array(json_wtr);	/* root array */
+
+	return 0;
+}
+
 static int do_help(int argc, char **argv)
 {
 	if (json_output) {
@@ -1267,9 +1319,11 @@ static int do_help(int argc, char **argv)
 
 	fprintf(stderr,
 		"Usage: %1$s %2$s probe [COMPONENT] [full] [unprivileged] [macros [prefix PREFIX]]\n"
+		"       %1$s %2$s list_builtins GROUP\n"
 		"       %1$s %2$s help\n"
 		"\n"
 		"       COMPONENT := { kernel | dev NAME }\n"
+		"       GROUP := { prog_types | map_types | attach_types | link_types | helpers }\n"
 		"       " HELP_SPEC_OPTIONS " }\n"
 		"",
 		bin_name, argv[-2]);
@@ -1278,8 +1332,9 @@ static int do_help(int argc, char **argv)
 }
 
 static const struct cmd cmds[] = {
-	{ "probe",	do_probe },
-	{ "help",	do_help },
+	{ "probe",		do_probe },
+	{ "list_builtins",	do_list_builtins },
+	{ "help",		do_help },
 	{ 0 }
 };
 

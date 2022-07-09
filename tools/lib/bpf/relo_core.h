@@ -68,8 +68,14 @@ struct bpf_core_relo_res {
 	__u32 new_type_id;
 };
 
+int __bpf_core_types_are_compat(const struct btf *local_btf, __u32 local_id,
+				const struct btf *targ_btf, __u32 targ_id, int level);
 int bpf_core_types_are_compat(const struct btf *local_btf, __u32 local_id,
 			      const struct btf *targ_btf, __u32 targ_id);
+int __bpf_core_types_match(const struct btf *local_btf, __u32 local_id, const struct btf *targ_btf,
+			   __u32 targ_id, bool behind_ptr, int level);
+int bpf_core_types_match(const struct btf *local_btf, __u32 local_id, const struct btf *targ_btf,
+			 __u32 targ_id);
 
 size_t bpf_core_essential_name_len(const char *name);
 

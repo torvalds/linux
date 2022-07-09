@@ -8,6 +8,7 @@
 #define SOL_SOCKET		1
 #define SO_SNDBUF		7
 #define __SO_ACCEPTCON		(1 << 16)
+#define SO_PRIORITY		12
 
 #define SOL_TCP			6
 #define TCP_CONGESTION		13

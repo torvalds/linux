@@ -21917,8 +21917,7 @@ F:	include/uapi/linux/if_xdp.h
 F:	include/uapi/linux/xdp_diag.h
 F:	include/net/netns/xdp.h
 F:	net/xdp/
-F:	samples/bpf/xdpsock*
-F:	tools/lib/bpf/xsk*
+F:	tools/testing/selftests/bpf/*xsk*
 
 XEN BLOCK SUBSYSTEM
 M:	Roger Pau Monné <roger.pau@citrix.com>
