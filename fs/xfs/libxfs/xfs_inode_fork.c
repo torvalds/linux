@@ -717,7 +717,7 @@ xfs_ifork_verify_local_attr(
 	struct xfs_ifork	*ifp = &ip->i_af;
 	xfs_failaddr_t		fa;
 
-	if (!XFS_IFORK_Q(ip))
+	if (!xfs_inode_has_attr_fork(ip))
 		fa = __this_address;
 	else
 		fa = xfs_attr_shortform_verify(ip);

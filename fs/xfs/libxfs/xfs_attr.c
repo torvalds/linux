@@ -67,7 +67,7 @@ int
 xfs_inode_hasattr(
 	struct xfs_inode	*ip)
 {
-	if (!XFS_IFORK_Q(ip))
+	if (!xfs_inode_has_attr_fork(ip))
 		return 0;
 	if (ip->i_af.if_format == XFS_DINODE_FMT_EXTENTS &&
 	    ip->i_af.if_nextents == 0)
@@ -999,7 +999,7 @@ xfs_attr_set(
 		 * If the inode doesn't have an attribute fork, add one.
 		 * (inode must not be locked when we call this routine)
 		 */
-		if (XFS_IFORK_Q(dp) == 0) {
+		if (xfs_inode_has_attr_fork(dp) == 0) {
 			int sf_size = sizeof(struct xfs_attr_sf_hdr) +
 				xfs_attr_sf_entsize_byname(args->namelen,
 						args->valuelen);

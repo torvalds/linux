@@ -338,7 +338,7 @@ xfs_attr_inactive(
 	ASSERT(! XFS_NOT_DQATTACHED(mp, dp));
 
 	xfs_ilock(dp, lock_mode);
-	if (!XFS_IFORK_Q(dp))
+	if (!xfs_inode_has_attr_fork(dp))
 		goto out_destroy_fork;
 	xfs_iunlock(dp, lock_mode);
 
@@ -351,7 +351,7 @@ xfs_attr_inactive(
 	lock_mode = XFS_ILOCK_EXCL;
 	xfs_ilock(dp, lock_mode);
 
-	if (!XFS_IFORK_Q(dp))
+	if (!xfs_inode_has_attr_fork(dp))
 		goto out_cancel;
 
 	/*

@@ -1023,7 +1023,7 @@ xfs_bmap_add_attrfork(
 	int			logflags;	/* logging flags */
 	int			error;		/* error return value */
 
-	ASSERT(XFS_IFORK_Q(ip) == 0);
+	ASSERT(xfs_inode_has_attr_fork(ip) == 0);
 
 	mp = ip->i_mount;
 	ASSERT(!XFS_NOT_DQATTACHED(mp, ip));
@@ -1034,7 +1034,7 @@ xfs_bmap_add_attrfork(
 			rsvd, &tp);
 	if (error)
 		return error;
-	if (XFS_IFORK_Q(ip))
+	if (xfs_inode_has_attr_fork(ip))
 		goto trans_cancel;
 
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
