@@ -2475,7 +2475,7 @@ static int acpi_spi_add_resource(struct acpi_resource *ares, void *data)
 
 				ctlr = acpi_spi_find_controller_by_adev(adev);
 				if (!ctlr)
-					return -ENODEV;
+					return -EPROBE_DEFER;
 
 				lookup->ctlr = ctlr;
 			}
