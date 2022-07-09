@@ -22,7 +22,7 @@ void rtl8188eu_init_default_value(struct adapter *adapt);
 void rtl8188e_SetHalODMVar(struct adapter *Adapter, void *pValue1, bool bSet);
 u32 rtl8188eu_InitPowerOn(struct adapter *adapt);
 void rtl8188e_EfusePowerSwitch(struct adapter *pAdapter, u8 PwrState);
-void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf);
+void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _size_byte, u8 *pbuf);
 
 void hal_notch_filter_8188e(struct adapter *adapter, bool enable);
 

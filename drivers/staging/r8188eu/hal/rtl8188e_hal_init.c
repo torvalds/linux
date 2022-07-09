@@ -531,21 +531,21 @@ exit:
 	kfree(eFuseWord);
 }
 
-void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf)
+void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _size_byte, u8 *pbuf)
 {
 	int ret = _FAIL;
 	if (rtw_IOL_applied(Adapter)) {
 		rtl8188eu_InitPowerOn(Adapter);
 
 		iol_mode_enable(Adapter, 1);
-		ret = iol_read_efuse(Adapter, _offset, _size_byte, pbuf);
+		ret = iol_read_efuse(Adapter, 0, _size_byte, pbuf);
 		iol_mode_enable(Adapter, 0);
 
 		if (_SUCCESS == ret)
 			return;
 	}
 
-	Hal_EfuseReadEFuse88E(Adapter, _offset, _size_byte, pbuf);
+	Hal_EfuseReadEFuse88E(Adapter, 0, _size_byte, pbuf);
 }
 
 void rtl8188e_read_chip_version(struct adapter *padapter)

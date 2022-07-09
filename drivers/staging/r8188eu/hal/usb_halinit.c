@@ -942,7 +942,7 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 
 	if (!(eeValue & BOOT_FROM_EEPROM) && !eeprom->bautoload_fail_flag) {
 		rtl8188e_EfusePowerSwitch(Adapter, true);
-		rtl8188e_ReadEFuse(Adapter, 0, EFUSE_MAP_LEN_88E, efuse_buf);
+		rtl8188e_ReadEFuse(Adapter, EFUSE_MAP_LEN_88E, efuse_buf);
 		rtl8188e_EfusePowerSwitch(Adapter, false);
 	}
 
