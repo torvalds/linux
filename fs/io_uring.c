@@ -5066,7 +5066,7 @@ static int io_uring_cmd_prep(struct io_kiocb *req,
 {
 	struct io_uring_cmd *ioucmd = &req->uring_cmd;
 
-	if (sqe->rw_flags)
+	if (sqe->rw_flags || sqe->__pad1)
 		return -EINVAL;
 	ioucmd->cmd = sqe->cmd;
 	ioucmd->cmd_op = READ_ONCE(sqe->cmd_op);
