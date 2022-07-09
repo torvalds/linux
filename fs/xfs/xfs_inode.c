@@ -3032,16 +3032,27 @@ out_trans_abort:
 static int
 xfs_rename_alloc_whiteout(
 	struct user_namespace	*mnt_userns,
+	struct xfs_name		*src_name,
 	struct xfs_inode	*dp,
 	struct xfs_inode	**wip)
 {
 	struct xfs_inode	*tmpfile;
+	struct qstr		name;
 	int			error;
 
 	error = xfs_create_tmpfile(mnt_userns, dp, S_IFCHR | WHITEOUT_MODE,
 				   &tmpfile);
 	if (error)
 		return error;
+
+	name.name = src_name->name;
+	name.len = src_name->len;
+	error = xfs_inode_init_security(VFS_I(tmpfile), VFS_I(dp), &name);
+	if (error) {
+		xfs_finish_inode_setup(tmpfile);
+		xfs_irele(tmpfile);
+		return error;
+	}
 
 	/*
 	 * Prepare the tmpfile inode as if it were created through the VFS.
@@ -3093,7 +3104,8 @@ xfs_rename(
 	 * appropriately.
 	 */
 	if (flags & RENAME_WHITEOUT) {
-		error = xfs_rename_alloc_whiteout(mnt_userns, target_dp, &wip);
+		error = xfs_rename_alloc_whiteout(mnt_userns, src_name,
+						  target_dp, &wip);
 		if (error)
 			return error;
 
