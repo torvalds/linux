@@ -61,10 +61,9 @@ static int smi_get_irq(struct platform_device *pdev, struct acpi_device *adev,
 	default:
 		return 0;
 	}
-
 	if (ret < 0)
-		dev_err_probe(&pdev->dev, ret, "Error requesting irq at index %d: %d\n",
-			      inst->irq_idx, ret);
+		return dev_err_probe(&pdev->dev, ret, "Error requesting irq at index %d\n",
+				     inst->irq_idx);
 
 	return ret;
 }
@@ -112,9 +111,8 @@ static int smi_spi_probe(struct platform_device *pdev, struct smi *smi,
 
 		spi_dev = acpi_spi_device_alloc(NULL, adev, i);
 		if (IS_ERR(spi_dev)) {
-			ret = PTR_ERR(spi_dev);
-			dev_err_probe(dev, ret, "failed to allocate SPI device %s from ACPI: %d\n",
-				      dev_name(&adev->dev), ret);
+			ret = dev_err_probe(dev, PTR_ERR(spi_dev), "failed to allocate SPI device %s from ACPI\n",
+					    dev_name(&adev->dev));
 			goto error;
 		}
 
@@ -135,9 +133,8 @@ static int smi_spi_probe(struct platform_device *pdev, struct smi *smi,
 
 		ret = spi_add_device(spi_dev);
 		if (ret) {
-			dev_err_probe(&ctlr->dev, ret,
-				      "failed to add SPI device %s from ACPI: %d\n",
-				      dev_name(&adev->dev), ret);
+			dev_err_probe(&ctlr->dev, ret, "failed to add SPI device %s from ACPI\n",
+				      dev_name(&adev->dev));
 			spi_dev_put(spi_dev);
 			goto error;
 		}
