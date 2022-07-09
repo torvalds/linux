@@ -531,7 +531,7 @@ exit:
 	kfree(eFuseWord);
 }
 
-static void ReadEFuseByIC(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf)
+void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf)
 {
 	int ret = _FAIL;
 	if (rtw_IOL_applied(Adapter)) {
@@ -546,11 +546,6 @@ static void ReadEFuseByIC(struct adapter *Adapter, u16 _offset, u16 _size_byte, 
 	}
 
 	Hal_EfuseReadEFuse88E(Adapter, _offset, _size_byte, pbuf);
-}
-
-void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _offset, u16 _size_byte, u8 *pbuf)
-{
-	ReadEFuseByIC(Adapter, _offset, _size_byte, pbuf);
 }
 
 void rtl8188e_read_chip_version(struct adapter *padapter)
