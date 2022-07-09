@@ -1,0 +1,43 @@
+perf-kowrk(1)
+=============
+
+NAME
+----
+perf-kwork - Tool to trace/measure kernel work properties (latencies)
+
+SYNOPSIS
+--------
+[verse]
+'perf kwork' {record}
+
+DESCRIPTION
+-----------
+There are several variants of 'perf kwork':
+
+  'perf kwork record <command>' to record the kernel work
+  of an arbitrary workload.
+
+    Example usage:
+        perf kwork record -- sleep 1
+
+OPTIONS
+-------
+-D::
+--dump-raw-trace=::
+	Display verbose dump of the sched data.
+
+-f::
+--force::
+	Don't complain, do it.
+
+-k::
+--kwork::
+	List of kwork to profile
+
+-v::
+--verbose::
+	Be more verbose. (show symbol address, etc)
+
+SEE ALSO
+--------
+linkperf:perf-record[1]
