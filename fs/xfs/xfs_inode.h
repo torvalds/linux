@@ -102,6 +102,41 @@ xfs_ifork_ptr(
 	}
 }
 
+static inline unsigned int xfs_inode_fork_boff(struct xfs_inode *ip)
+{
+	return ip->i_forkoff << 3;
+}
+
+static inline unsigned int xfs_inode_data_fork_size(struct xfs_inode *ip)
+{
+	if (xfs_inode_has_attr_fork(ip))
+		return xfs_inode_fork_boff(ip);
+
+	return XFS_LITINO(ip->i_mount);
+}
+
+static inline unsigned int xfs_inode_attr_fork_size(struct xfs_inode *ip)
+{
+	if (xfs_inode_has_attr_fork(ip))
+		return XFS_LITINO(ip->i_mount) - xfs_inode_fork_boff(ip);
+	return 0;
+}
+
+static inline unsigned int
+xfs_inode_fork_size(
+	struct xfs_inode	*ip,
+	int			whichfork)
+{
+	switch (whichfork) {
+	case XFS_DATA_FORK:
+		return xfs_inode_data_fork_size(ip);
+	case XFS_ATTR_FORK:
+		return xfs_inode_attr_fork_size(ip);
+	default:
+		return 0;
+	}
+}
+
 /* Convert from vfs inode to xfs inode */
 static inline struct xfs_inode *XFS_I(struct inode *inode)
 {

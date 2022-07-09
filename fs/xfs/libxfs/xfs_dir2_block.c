@@ -842,7 +842,7 @@ xfs_dir2_block_removename(
 	 * See if the size as a shortform is good enough.
 	 */
 	size = xfs_dir2_block_sfsize(dp, hdr, &sfh);
-	if (size > XFS_IFORK_DSIZE(dp))
+	if (size > xfs_inode_data_fork_size(dp))
 		return 0;
 
 	/*
@@ -1055,7 +1055,7 @@ xfs_dir2_leaf_to_block(
 	 * Now see if the resulting block can be shrunken to shortform.
 	 */
 	size = xfs_dir2_block_sfsize(dp, hdr, &sfh);
-	if (size > XFS_IFORK_DSIZE(dp))
+	if (size > xfs_inode_data_fork_size(dp))
 		return 0;
 
 	return xfs_dir2_block_to_sf(args, dbp, size, &sfh);

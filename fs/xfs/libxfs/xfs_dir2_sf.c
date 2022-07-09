@@ -237,7 +237,7 @@ xfs_dir2_block_sfsize(
 		       (i8count ?			/* inumber */
 				count * XFS_INO64_SIZE :
 				count * XFS_INO32_SIZE);
-		if (size > XFS_IFORK_DSIZE(dp))
+		if (size > xfs_inode_data_fork_size(dp))
 			return size;		/* size value is a failure */
 	}
 	/*
@@ -406,7 +406,7 @@ xfs_dir2_sf_addname(
 	 * Won't fit as shortform any more (due to size),
 	 * or the pick routine says it won't (due to offset values).
 	 */
-	if (new_isize > XFS_IFORK_DSIZE(dp) ||
+	if (new_isize > xfs_inode_data_fork_size(dp) ||
 	    (pick =
 	     xfs_dir2_sf_addname_pick(args, objchange, &sfep, &offset)) == 0) {
 		/*
@@ -1031,7 +1031,7 @@ xfs_dir2_sf_replace_needblock(
 	newsize = dp->i_df.if_bytes + (sfp->count + 1) * XFS_INO64_DIFF;
 
 	return inum > XFS_DIR2_MAX_SHORT_INUM &&
-	       sfp->i8count == 0 && newsize > XFS_IFORK_DSIZE(dp);
+	       sfp->i8count == 0 && newsize > xfs_inode_data_fork_size(dp);
 }
 
 /*

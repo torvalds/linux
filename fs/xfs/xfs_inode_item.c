@@ -57,7 +57,7 @@ xfs_inode_item_data_fork_size(
 		    ip->i_df.if_nextents > 0 &&
 		    ip->i_df.if_bytes > 0) {
 			/* worst case, doesn't subtract delalloc extents */
-			*nbytes += XFS_IFORK_DSIZE(ip);
+			*nbytes += xfs_inode_data_fork_size(ip);
 			*nvecs += 1;
 		}
 		break;
@@ -98,7 +98,7 @@ xfs_inode_item_attr_fork_size(
 		    ip->i_af.if_nextents > 0 &&
 		    ip->i_af.if_bytes > 0) {
 			/* worst case, doesn't subtract unused space */
-			*nbytes += XFS_IFORK_ASIZE(ip);
+			*nbytes += xfs_inode_attr_fork_size(ip);
 			*nvecs += 1;
 		}
 		break;

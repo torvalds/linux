@@ -590,7 +590,7 @@ xfs_attr_shortform_bytesfit(
 	 * to real extents, or the delalloc conversion will take care of the
 	 * literal area rebalancing.
 	 */
-	if (bytes <= XFS_IFORK_ASIZE(dp))
+	if (bytes <= xfs_inode_attr_fork_size(dp))
 		return dp->i_forkoff;
 
 	/*

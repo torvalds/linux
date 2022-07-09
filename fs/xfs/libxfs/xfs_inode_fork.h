@@ -77,21 +77,8 @@ struct xfs_ifork {
 /*
  * Fork handling.
  */
-
-#define XFS_IFORK_BOFF(ip)		((int)((ip)->i_forkoff << 3))
-
-#define XFS_IFORK_DSIZE(ip) \
-	(xfs_inode_has_attr_fork(ip) ? XFS_IFORK_BOFF(ip) : XFS_LITINO((ip)->i_mount))
-#define XFS_IFORK_ASIZE(ip) \
-	(xfs_inode_has_attr_fork(ip) ? XFS_LITINO((ip)->i_mount) - XFS_IFORK_BOFF(ip) : 0)
-#define XFS_IFORK_SIZE(ip,w) \
-	((w) == XFS_DATA_FORK ? \
-		XFS_IFORK_DSIZE(ip) : \
-		((w) == XFS_ATTR_FORK ? \
-			XFS_IFORK_ASIZE(ip) : \
-			0))
 #define XFS_IFORK_MAXEXT(ip, w) \
-	(XFS_IFORK_SIZE(ip, w) / sizeof(xfs_bmbt_rec_t))
+	(xfs_inode_fork_size(ip, w) / sizeof(xfs_bmbt_rec_t))
 
 static inline bool xfs_ifork_has_extents(struct xfs_ifork *ifp)
 {
