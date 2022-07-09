@@ -381,6 +381,7 @@ struct arm_smmu_device {
 #define ARM_SMMU_OPT_NO_ASID_RETENTION	(1 << 3)
 #define ARM_SMMU_OPT_DISABLE_ATOS	(1 << 4)
 #define ARM_SMMU_OPT_CONTEXT_FAULT_RETRY	(1 << 5)
+#define ARM_SMMU_OPT_IGNORE_NUMPAGENDXB	(1 << 6)
 	u32				options;
 	enum arm_smmu_arch_version	version;
 	enum arm_smmu_implementation	model;
