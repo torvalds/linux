@@ -6646,6 +6646,15 @@ void update_sta_info(struct adapter *padapter, struct sta_info *psta)
 	psta->state = _FW_LINKED;
 }
 
+static void rtw_reset_dm_func_flag(struct adapter *adapter)
+{
+	struct hal_data_8188e *haldata = &adapter->haldata;
+	struct dm_priv *dmpriv = &haldata->dmpriv;
+	struct odm_dm_struct *odmpriv = &haldata->odmpriv;
+
+	odmpriv->SupportAbility = dmpriv->InitODMFlag;
+}
+
 void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 {
 	struct sta_info		*psta, *psta_bmc;
@@ -6676,7 +6685,7 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 	}
 
 	/* turn on dynamic functions */
-	SetHwReg8188EU(padapter, HW_VAR_DM_FUNC_RESET, NULL);
+	rtw_reset_dm_func_flag(padapter);
 
 	/*  update IOT-releated issue */
 	update_IOT_info(padapter);

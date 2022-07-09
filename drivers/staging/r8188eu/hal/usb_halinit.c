@@ -1062,7 +1062,6 @@ static void hw_var_set_opmode(struct adapter *Adapter, u8 *val)
 void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 {
 	struct hal_data_8188e *haldata = &Adapter->haldata;
-	struct dm_priv	*pdmpriv = &haldata->dmpriv;
 	struct odm_dm_struct *podmpriv = &haldata->odmpriv;
 	u8 reg;
 	int res;
@@ -1156,9 +1155,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 
 			rtw_write32(Adapter, REG_RCR, reg32 | RCR_CBSSID_BCN);
 		}
-		break;
-	case HW_VAR_DM_FUNC_RESET:
-		podmpriv->SupportAbility = pdmpriv->InitODMFlag;
 		break;
 	case HW_VAR_DM_FUNC_CLR:
 		podmpriv->SupportAbility = 0;
