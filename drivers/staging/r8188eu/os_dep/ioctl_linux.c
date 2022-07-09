@@ -3221,6 +3221,14 @@ static void rtw_set_dynamic_functions(struct adapter *adapter, u8 dm_func)
 	}
 }
 
+static void rtw_set_dm_func_flag(struct adapter *adapter, u32 odm_flag)
+{
+	struct hal_data_8188e *haldata = &adapter->haldata;
+	struct odm_dm_struct *odmpriv = &haldata->odmpriv;
+
+	odmpriv->SupportAbility = odm_flag;
+}
+
 static int rtw_dbg_port(struct net_device *dev,
 			       struct iw_request_info *info,
 			       union iwreq_data *wrqu, char *extra)
@@ -3459,7 +3467,7 @@ static int rtw_dbg_port(struct net_device *dev,
 		case 0x06:
 			{
 				u32 ODMFlag = (u32)(0x0f & arg);
-				SetHwReg8188EU(padapter, HW_VAR_DM_FLAG, (u8 *)(&ODMFlag));
+				rtw_set_dm_func_flag(padapter, ODMFlag);
 			}
 			break;
 		case 0x07:
