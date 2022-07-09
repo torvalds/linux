@@ -6655,6 +6655,14 @@ static void rtw_reset_dm_func_flag(struct adapter *adapter)
 	odmpriv->SupportAbility = dmpriv->InitODMFlag;
 }
 
+static void rtw_clear_dm_func_flag(struct adapter *adapter)
+{
+	struct hal_data_8188e *haldata = &adapter->haldata;
+	struct odm_dm_struct *odmpriv = &haldata->odmpriv;
+
+	odmpriv->SupportAbility = 0;
+}
+
 void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 {
 	struct sta_info		*psta, *psta_bmc;
@@ -7110,7 +7118,7 @@ u8 createbss_hdl(struct adapter *padapter, u8 *pbuf)
 
 		/* disable dynamic functions, such as high power, DIG */
 		Save_DM_Func_Flag(padapter);
-		SetHwReg8188EU(padapter, HW_VAR_DM_FUNC_CLR, NULL);
+		rtw_clear_dm_func_flag(padapter);
 
 		/* cancel link timer */
 		_cancel_timer_ex(&pmlmeext->link_timer);
@@ -7380,7 +7388,7 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 	if ((pmlmeext->sitesurvey_res.state == SCAN_START) || (pmlmeext->sitesurvey_res.state == SCAN_TXNULL)) {
 		/* disable dynamic functions, such as high power, DIG */
 		Save_DM_Func_Flag(padapter);
-		SetHwReg8188EU(padapter, HW_VAR_DM_FUNC_CLR, NULL);
+		rtw_clear_dm_func_flag(padapter);
 
 		/* config the initial gain under scanning, need to write the BB registers */
 		if (rtw_p2p_chk_state(pwdinfo, P2P_STATE_NONE))
