@@ -2559,7 +2559,7 @@ struct spi_device *acpi_spi_device_alloc(struct spi_controller *ctlr,
 
 	if (ret < 0)
 		/* Found SPI in _CRS but it points to another controller */
-		return ERR_PTR(-ENODEV);
+		return ERR_PTR(ret);
 
 	if (!lookup.max_speed_hz &&
 	    ACPI_SUCCESS(acpi_get_parent(adev->handle, &parent_handle)) &&
