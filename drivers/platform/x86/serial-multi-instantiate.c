@@ -70,11 +70,11 @@ static int smi_get_irq(struct platform_device *pdev, struct acpi_device *adev,
 
 static void smi_devs_unregister(struct smi *smi)
 {
-	while (smi->i2c_num > 0)
-		i2c_unregister_device(smi->i2c_devs[--smi->i2c_num]);
+	while (smi->i2c_num--)
+		i2c_unregister_device(smi->i2c_devs[smi->i2c_num]);
 
-	while (smi->spi_num > 0)
-		spi_unregister_device(smi->spi_devs[--smi->spi_num]);
+	while (smi->spi_num--)
+		spi_unregister_device(smi->spi_devs[smi->spi_num]);
 }
 
 /**
