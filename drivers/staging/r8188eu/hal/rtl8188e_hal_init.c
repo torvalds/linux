@@ -193,13 +193,11 @@ exit:
 /* FIXME: add error handling in callers */
 static int efuse_read_phymap_from_txpktbuf(
 	struct adapter  *adapter,
-	int bcnhead,	/* beacon head, where FW store len(2-byte) and efuse physical map. */
 	u8 *content,	/* buffer to store efuse physical map */
 	u16 *size	/* for efuse content: the max byte to read. will update to byte read */
 	)
 {
 	unsigned long timeout;
-	u16 dbg_addr = 0;
 	__le32 lo32 = 0, hi32 = 0;
 	u16 len = 0, count = 0;
 	int i = 0, res;
@@ -208,20 +206,10 @@ static int efuse_read_phymap_from_txpktbuf(
 	u8 *pos = content;
 	u32 reg32;
 
-	if (bcnhead < 0) { /* if not valid */
-		res = rtw_read8(adapter, REG_TDECTRL + 1, &reg);
-		if (res)
-			return res;
-
-		bcnhead = reg;
-	}
-
 	rtw_write8(adapter, REG_PKT_BUFF_ACCESS_CTRL, TXPKT_BUF_SELECT);
 
-	dbg_addr = bcnhead * 128 / 8; /* 8-bytes addressing */
-
 	while (1) {
-		rtw_write16(adapter, REG_PKTBUF_DBG_ADDR, dbg_addr + i);
+		rtw_write16(adapter, REG_PKTBUF_DBG_ADDR, i);
 
 		rtw_write8(adapter, REG_TXPKTBUF_DBG, 0);
 		timeout = jiffies + msecs_to_jiffies(1000);
@@ -300,7 +288,7 @@ static s32 iol_read_efuse(struct adapter *padapter, u16 size_byte, u8 *logical_m
 	rtw_write8(padapter, REG_PKT_BUFF_ACCESS_CTRL, TXPKT_BUF_SELECT);
 	status = iol_execute(padapter, CMD_READ_EFUSE_MAP);
 	if (status == _SUCCESS)
-		efuse_read_phymap_from_txpktbuf(padapter, 0, physical_map, &size);
+		efuse_read_phymap_from_txpktbuf(padapter, physical_map, &size);
 	efuse_phymap_to_logical(physical_map, size_byte, logical_map);
 	return status;
 }
