@@ -939,8 +939,15 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 
 	eeprom->bautoload_fail_flag	= !(eeValue & EEPROM_EN);
 
-	if (!(eeValue & BOOT_FROM_EEPROM))
-		EFUSE_ShadowMapUpdate(Adapter);
+	if (!(eeValue & BOOT_FROM_EEPROM)) {
+		if (eeprom->bautoload_fail_flag) {
+			memset(eeprom->efuse_eeprom_data, 0xFF, EFUSE_MAP_LEN_88E);
+		} else {
+			rtl8188e_EfusePowerSwitch(Adapter, true);
+			rtl8188e_ReadEFuse(Adapter, 0, EFUSE_MAP_LEN_88E, eeprom->efuse_eeprom_data);
+			rtl8188e_EfusePowerSwitch(Adapter, false);
+		}
+	}
 
 	/* parse the eeprom/efuse content */
 	Hal_EfuseParseIDCode88E(Adapter, eeprom->efuse_eeprom_data);
