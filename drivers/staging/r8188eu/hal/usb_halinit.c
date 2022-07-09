@@ -1071,43 +1071,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 	case HW_VAR_SET_OPMODE:
 		hw_var_set_opmode(Adapter, val);
 		break;
-	case HW_VAR_BASIC_RATE:
-		{
-			u16 BrateCfg = 0;
-			u8 RateIndex = 0;
-
-			/*  2007.01.16, by Emily */
-			/*  Select RRSR (in Legacy-OFDM and CCK) */
-			/*  For 8190, we select only 24M, 12M, 6M, 11M, 5.5M, 2M, and 1M from the Basic rate. */
-			/*  We do not use other rates. */
-			HalSetBrateCfg(Adapter, val, &BrateCfg);
-
-			/* 2011.03.30 add by Luke Lee */
-			/* CCK 2M ACK should be disabled for some BCM and Atheros AP IOT */
-			/* because CCK 2M has poor TXEVM */
-			/* CCK 5.5M & 11M ACK should be enabled for better performance */
-
-			BrateCfg = (BrateCfg | 0xd) & 0x15d;
-
-			BrateCfg |= 0x01; /*  default enable 1M ACK rate */
-			/*  Set RRSR rate table. */
-			rtw_write8(Adapter, REG_RRSR, BrateCfg & 0xff);
-			rtw_write8(Adapter, REG_RRSR + 1, (BrateCfg >> 8) & 0xff);
-			res = rtw_read8(Adapter, REG_RRSR + 2, &reg);
-			if (res)
-				return;
-
-			rtw_write8(Adapter, REG_RRSR + 2, reg & 0xf0);
-
-			/*  Set RTS initial rate */
-			while (BrateCfg > 0x1) {
-				BrateCfg = (BrateCfg >> 1);
-				RateIndex++;
-			}
-			/*  Ziv - Check */
-			rtw_write8(Adapter, REG_INIRTS_RATE_SEL, RateIndex);
-		}
-		break;
 	case HW_VAR_CORRECT_TSF:
 		{
 			u64	tsf;

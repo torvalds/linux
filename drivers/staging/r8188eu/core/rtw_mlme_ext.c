@@ -6681,7 +6681,7 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 	/*  update IOT-releated issue */
 	update_IOT_info(padapter);
 
-	SetHwReg8188EU(padapter, HW_VAR_BASIC_RATE, cur_network->SupportedRates);
+	rtw_set_basic_rate(padapter, cur_network->SupportedRates);
 
 	/* BCN interval */
 	rtw_write16(padapter, REG_BCN_INTERVAL, pmlmeinfo->bcn_interval);

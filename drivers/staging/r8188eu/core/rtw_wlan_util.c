@@ -1265,6 +1265,45 @@ void set_sta_rate(struct adapter *padapter, struct sta_info *psta)
 	enable_rate_adaptive(padapter, psta->mac_id);
 }
 
+void rtw_set_basic_rate(struct adapter *adapter, u8 *rates)
+{
+	u16 BrateCfg = 0;
+	u8 RateIndex = 0;
+	int res;
+	u8 reg;
+
+	/*  2007.01.16, by Emily */
+	/*  Select RRSR (in Legacy-OFDM and CCK) */
+	/*  For 8190, we select only 24M, 12M, 6M, 11M, 5.5M, 2M, and 1M from the Basic rate. */
+	/*  We do not use other rates. */
+	HalSetBrateCfg(adapter, rates, &BrateCfg);
+
+	/* 2011.03.30 add by Luke Lee */
+	/* CCK 2M ACK should be disabled for some BCM and Atheros AP IOT */
+	/* because CCK 2M has poor TXEVM */
+	/* CCK 5.5M & 11M ACK should be enabled for better performance */
+
+	BrateCfg = (BrateCfg | 0xd) & 0x15d;
+
+	BrateCfg |= 0x01; /*  default enable 1M ACK rate */
+	/*  Set RRSR rate table. */
+	rtw_write8(adapter, REG_RRSR, BrateCfg & 0xff);
+	rtw_write8(adapter, REG_RRSR + 1, (BrateCfg >> 8) & 0xff);
+	res = rtw_read8(adapter, REG_RRSR + 2, &reg);
+	if (res)
+		return;
+
+	rtw_write8(adapter, REG_RRSR + 2, reg & 0xf0);
+
+	/*  Set RTS initial rate */
+	while (BrateCfg > 0x1) {
+		BrateCfg = (BrateCfg >> 1);
+		RateIndex++;
+	}
+	/*  Ziv - Check */
+	rtw_write8(adapter, REG_INIRTS_RATE_SEL, RateIndex);
+}
+
 /*  Update RRSR and Rate for USERATE */
 void update_tx_basic_rate(struct adapter *padapter, u8 wirelessmode)
 {
@@ -1290,7 +1329,7 @@ void update_tx_basic_rate(struct adapter *padapter, u8 wirelessmode)
 	else
 		update_mgnt_tx_rate(padapter, IEEE80211_OFDM_RATE_6MB);
 
-	SetHwReg8188EU(padapter, HW_VAR_BASIC_RATE, supported_rates);
+	rtw_set_basic_rate(padapter, supported_rates);
 }
 
 unsigned char check_assoc_AP(u8 *pframe, uint len)

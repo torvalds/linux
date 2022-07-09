@@ -455,6 +455,7 @@ int rtw_check_bcn_info(struct adapter  *Adapter, u8 *pframe, u32 packet_len);
 void update_IOT_info(struct adapter *padapter);
 void update_capinfo(struct adapter *adapter, u16 updatecap);
 void update_wireless_mode(struct adapter *padapter);
+void rtw_set_basic_rate(struct adapter *adapter, u8 *rates);
 void update_tx_basic_rate(struct adapter *padapter, u8 modulation);
 void update_bmc_sta_support_rate(struct adapter *padapter, u32 mac_id);
 int update_sta_support_rate(struct adapter *padapter, u8 *pvar_ie,
