@@ -19,9 +19,12 @@ There are several variants of 'perf kwork':
 
   'perf kwork report' to report the per kwork runtime.
 
+  'perf kwork latency' to report the per kwork latencies.
+
     Example usage:
         perf kwork record -- sleep 1
         perf kwork report
+        perf kwork latency
 
 OPTIONS
 -------
@@ -63,6 +66,32 @@ OPTIONS for 'perf kwork report'
 -S::
 --with-summary::
 	Show summary with statistics
+
+--time::
+	Only analyze samples within given time window: <start>,<stop>. Times
+	have the format seconds.microseconds. If start is not given (i.e., time
+	string is ',x.y') then analysis starts at the beginning of the file. If
+	stop time is not given (i.e, time string is 'x.y,') then analysis goes
+	to end of file.
+
+OPTIONS for 'perf kwork latency'
+----------------------------
+
+-C::
+--cpu::
+	Only show events for the given CPU(s) (comma separated list).
+
+-i::
+--input::
+	Input file name. (default: perf.data unless stdin is a fifo)
+
+-n::
+--name::
+	Only show events for the given name.
+
+-s::
+--sort::
+	Sort by key(s): avg, max, count
 
 --time::
 	Only analyze samples within given time window: <start>,<stop>. Times

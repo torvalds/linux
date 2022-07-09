@@ -21,9 +21,11 @@ enum kwork_class_type {
 
 enum kwork_report_type {
 	KWORK_REPORT_RUNTIME,
+	KWORK_REPORT_LATENCY,
 };
 
 enum kwork_trace_type {
+	KWORK_TRACE_RAISE,
 	KWORK_TRACE_ENTRY,
 	KWORK_TRACE_EXIT,
 	KWORK_TRACE_MAX,
@@ -116,6 +118,14 @@ struct kwork_work {
 	u64 max_runtime_start;
 	u64 max_runtime_end;
 	u64 total_runtime;
+
+	/*
+	 * latency report
+	 */
+	u64 max_latency;
+	u64 max_latency_start;
+	u64 max_latency_end;
+	u64 total_latency;
 };
 
 struct kwork_class {
@@ -143,6 +153,10 @@ struct kwork_class {
 
 struct perf_kwork;
 struct trace_kwork_handler {
+	int (*raise_event)(struct perf_kwork *kwork,
+			   struct kwork_class *class, struct evsel *evsel,
+			   struct perf_sample *sample, struct machine *machine);
+
 	int (*entry_event)(struct perf_kwork *kwork,
 			   struct kwork_class *class, struct evsel *evsel,
 			   struct perf_sample *sample, struct machine *machine);

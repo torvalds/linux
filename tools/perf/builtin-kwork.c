@@ -31,12 +31,14 @@
 #define PRINT_CPU_WIDTH 4
 #define PRINT_COUNT_WIDTH 9
 #define PRINT_RUNTIME_WIDTH 10
+#define PRINT_LATENCY_WIDTH 10
 #define PRINT_TIMESTAMP_WIDTH 17
 #define PRINT_KWORK_NAME_WIDTH 30
 #define RPINT_DECIMAL_WIDTH 3
 #define PRINT_TIME_UNIT_SEC_WIDTH 2
 #define PRINT_TIME_UNIT_MESC_WIDTH 3
 #define PRINT_RUNTIME_HEADER_WIDTH (PRINT_RUNTIME_WIDTH + PRINT_TIME_UNIT_MESC_WIDTH)
+#define PRINT_LATENCY_HEADER_WIDTH (PRINT_LATENCY_WIDTH + PRINT_TIME_UNIT_MESC_WIDTH)
 #define PRINT_TIMESTAMP_HEADER_WIDTH (PRINT_TIMESTAMP_WIDTH + PRINT_TIME_UNIT_SEC_WIDTH)
 
 struct sort_dimension {
@@ -90,6 +92,36 @@ static int max_runtime_cmp(struct kwork_work *l, struct kwork_work *r)
 	return 0;
 }
 
+static int avg_latency_cmp(struct kwork_work *l, struct kwork_work *r)
+{
+	u64 avgl, avgr;
+
+	if (!r->nr_atoms)
+		return 1;
+	if (!l->nr_atoms)
+		return -1;
+
+	avgl = l->total_latency / l->nr_atoms;
+	avgr = r->total_latency / r->nr_atoms;
+
+	if (avgl > avgr)
+		return 1;
+	if (avgl < avgr)
+		return -1;
+
+	return 0;
+}
+
+static int max_latency_cmp(struct kwork_work *l, struct kwork_work *r)
+{
+	if (l->max_latency > r->max_latency)
+		return 1;
+	if (l->max_latency < r->max_latency)
+		return -1;
+
+	return 0;
+}
+
 static int sort_dimension__add(struct perf_kwork *kwork __maybe_unused,
 			       const char *tok, struct list_head *list)
 {
@@ -110,12 +142,20 @@ static int sort_dimension__add(struct perf_kwork *kwork __maybe_unused,
 		.name = "count",
 		.cmp  = count_cmp,
 	};
+	static struct sort_dimension avg_sort_dimension = {
+		.name = "avg",
+		.cmp  = avg_latency_cmp,
+	};
 	struct sort_dimension *available_sorts[] = {
 		&id_sort_dimension,
 		&max_sort_dimension,
 		&count_sort_dimension,
 		&runtime_sort_dimension,
+		&avg_sort_dimension,
 	};
+
+	if (kwork->report == KWORK_REPORT_LATENCY)
+		max_sort_dimension.cmp = max_latency_cmp;
 
 	for (i = 0; i < ARRAY_SIZE(available_sorts); i++) {
 		if (!strcmp(available_sorts[i]->name, tok)) {
@@ -479,6 +519,61 @@ static int report_exit_event(struct perf_kwork *kwork,
 	return 0;
 }
 
+static void latency_update_entry_event(struct kwork_work *work,
+				       struct kwork_atom *atom,
+				       struct perf_sample *sample)
+{
+	u64 delta;
+	u64 entry_time = sample->time;
+	u64 raise_time = atom->time;
+
+	if ((raise_time != 0) && (entry_time >= raise_time)) {
+		delta = entry_time - raise_time;
+		if ((delta > work->max_latency) ||
+		    (work->max_latency == 0)) {
+			work->max_latency = delta;
+			work->max_latency_start = raise_time;
+			work->max_latency_end = entry_time;
+		}
+		work->total_latency += delta;
+		work->nr_atoms++;
+	}
+}
+
+static int latency_raise_event(struct perf_kwork *kwork,
+			       struct kwork_class *class,
+			       struct evsel *evsel,
+			       struct perf_sample *sample,
+			       struct machine *machine)
+{
+	return work_push_atom(kwork, class, KWORK_TRACE_RAISE,
+			      KWORK_TRACE_MAX, evsel, sample,
+			      machine, NULL);
+}
+
+static int latency_entry_event(struct perf_kwork *kwork,
+			       struct kwork_class *class,
+			       struct evsel *evsel,
+			       struct perf_sample *sample,
+			       struct machine *machine)
+{
+	struct kwork_atom *atom = NULL;
+	struct kwork_work *work = NULL;
+
+	atom = work_pop_atom(kwork, class, KWORK_TRACE_ENTRY,
+			     KWORK_TRACE_RAISE, evsel, sample,
+			     machine, &work);
+	if (work == NULL)
+		return -1;
+
+	if (atom != NULL) {
+		latency_update_entry_event(work, atom, sample);
+		atom_del(atom);
+	}
+
+	return 0;
+}
+
 static struct kwork_class kwork_irq;
 static int process_irq_handler_entry_event(struct perf_tool *tool,
 					   struct evsel *evsel,
@@ -756,6 +851,7 @@ static int report_print_work(struct perf_kwork *kwork, struct kwork_work *work)
 	int ret = 0;
 	char kwork_name[PRINT_KWORK_NAME_WIDTH];
 	char max_runtime_start[32], max_runtime_end[32];
+	char max_latency_start[32], max_latency_end[32];
 
 	printf(" ");
 
@@ -782,6 +878,11 @@ static int report_print_work(struct perf_kwork *kwork, struct kwork_work *work)
 		ret += printf(" %*.*f ms |",
 			      PRINT_RUNTIME_WIDTH, RPINT_DECIMAL_WIDTH,
 			      (double)work->total_runtime / NSEC_PER_MSEC);
+	} else if (kwork->report == KWORK_REPORT_LATENCY) { // avg delay
+		ret += printf(" %*.*f ms |",
+			      PRINT_LATENCY_WIDTH, RPINT_DECIMAL_WIDTH,
+			      (double)work->total_latency /
+			      work->nr_atoms / NSEC_PER_MSEC);
 	}
 
 	/*
@@ -805,6 +906,22 @@ static int report_print_work(struct perf_kwork *kwork, struct kwork_work *work)
 			      PRINT_TIMESTAMP_WIDTH, max_runtime_start,
 			      PRINT_TIMESTAMP_WIDTH, max_runtime_end);
 	}
+	/*
+	 * max delay, max delay start, max delay end
+	 */
+	else if (kwork->report == KWORK_REPORT_LATENCY) {
+		timestamp__scnprintf_usec(work->max_latency_start,
+					  max_latency_start,
+					  sizeof(max_latency_start));
+		timestamp__scnprintf_usec(work->max_latency_end,
+					  max_latency_end,
+					  sizeof(max_latency_end));
+		ret += printf(" %*.*f ms | %*s s | %*s s |",
+			      PRINT_LATENCY_WIDTH, RPINT_DECIMAL_WIDTH,
+			      (double)work->max_latency / NSEC_PER_MSEC,
+			      PRINT_TIMESTAMP_WIDTH, max_latency_start,
+			      PRINT_TIMESTAMP_WIDTH, max_latency_end);
+	}
 
 	printf("\n");
 	return ret;
@@ -822,6 +939,9 @@ static int report_print_header(struct perf_kwork *kwork)
 	if (kwork->report == KWORK_REPORT_RUNTIME) {
 		ret += printf(" %-*s |",
 			      PRINT_RUNTIME_HEADER_WIDTH, "Total Runtime");
+	} else if (kwork->report == KWORK_REPORT_LATENCY) {
+		ret += printf(" %-*s |",
+			      PRINT_LATENCY_HEADER_WIDTH, "Avg delay");
 	}
 
 	ret += printf(" %-*s |", PRINT_COUNT_WIDTH, "Count");
@@ -831,6 +951,11 @@ static int report_print_header(struct perf_kwork *kwork)
 			      PRINT_RUNTIME_HEADER_WIDTH, "Max runtime",
 			      PRINT_TIMESTAMP_HEADER_WIDTH, "Max runtime start",
 			      PRINT_TIMESTAMP_HEADER_WIDTH, "Max runtime end");
+	} else if (kwork->report == KWORK_REPORT_LATENCY) {
+		ret += printf(" %-*s | %-*s | %-*s |",
+			      PRINT_LATENCY_HEADER_WIDTH, "Max delay",
+			      PRINT_TIMESTAMP_HEADER_WIDTH, "Max delay start",
+			      PRINT_TIMESTAMP_HEADER_WIDTH, "Max delay end");
 	}
 
 	printf("\n");
@@ -865,6 +990,7 @@ static void print_skipped_events(struct perf_kwork *kwork)
 {
 	int i;
 	const char *const kwork_event_str[] = {
+		[KWORK_TRACE_RAISE] = "raise",
 		[KWORK_TRACE_ENTRY] = "entry",
 		[KWORK_TRACE_EXIT]  = "exit",
 	};
@@ -937,10 +1063,17 @@ static int perf_kwork__check_config(struct perf_kwork *kwork,
 		.entry_event = report_entry_event,
 		.exit_event  = report_exit_event,
 	};
+	static struct trace_kwork_handler latency_ops = {
+		.raise_event = latency_raise_event,
+		.entry_event = latency_entry_event,
+	};
 
 	switch (kwork->report) {
 	case KWORK_REPORT_RUNTIME:
 		kwork->tp_handler = &report_ops;
+		break;
+	case KWORK_REPORT_LATENCY:
+		kwork->tp_handler = &latency_ops;
 		break;
 	default:
 		pr_debug("Invalid report type %d\n", kwork->report);
@@ -1219,6 +1352,7 @@ int cmd_kwork(int argc, const char **argv)
 		.nr_skipped_events   = { 0 },
 	};
 	static const char default_report_sort_order[] = "runtime, max, count";
+	static const char default_latency_sort_order[] = "avg, max, count";
 	const struct option kwork_options[] = {
 	OPT_INCR('v', "verbose", &verbose,
 		 "be more verbose (show symbol address, etc)"),
@@ -1244,6 +1378,19 @@ int cmd_kwork(int argc, const char **argv)
 		    "Show summary with statistics"),
 	OPT_PARENT(kwork_options)
 	};
+	const struct option latency_options[] = {
+	OPT_STRING('s', "sort", &kwork.sort_order, "key[,key2...]",
+		   "sort by key(s): avg, max, count"),
+	OPT_STRING('C', "cpu", &kwork.cpu_list, "cpu",
+		   "list of cpus to profile"),
+	OPT_STRING('n', "name", &kwork.profile_name, "name",
+		   "event name to profile"),
+	OPT_STRING(0, "time", &kwork.time_str, "str",
+		   "Time span for analysis (start,stop)"),
+	OPT_STRING('i', "input", &input_name, "file",
+		   "input file name"),
+	OPT_PARENT(kwork_options)
+	};
 	const char *kwork_usage[] = {
 		NULL,
 		NULL
@@ -1252,8 +1399,12 @@ int cmd_kwork(int argc, const char **argv)
 		"perf kwork report [<options>]",
 		NULL
 	};
+	const char * const latency_usage[] = {
+		"perf kwork latency [<options>]",
+		NULL
+	};
 	const char *const kwork_subcommands[] = {
-		"record", "report", NULL
+		"record", "report", "latency", NULL
 	};
 
 	argc = parse_options_subcommand(argc, argv, kwork_options,
@@ -1276,6 +1427,16 @@ int cmd_kwork(int argc, const char **argv)
 		}
 		kwork.report = KWORK_REPORT_RUNTIME;
 		setup_sorting(&kwork, report_options, report_usage);
+		return perf_kwork__report(&kwork);
+	} else if (strlen(argv[0]) > 2 && strstarts("latency", argv[0])) {
+		kwork.sort_order = default_latency_sort_order;
+		if (argc > 1) {
+			argc = parse_options(argc, argv, latency_options, latency_usage, 0);
+			if (argc)
+				usage_with_options(latency_usage, latency_options);
+		}
+		kwork.report = KWORK_REPORT_LATENCY;
+		setup_sorting(&kwork, latency_options, latency_usage);
 		return perf_kwork__report(&kwork);
 	} else
 		usage_with_options(kwork_usage, kwork_options);
