@@ -264,16 +264,18 @@ void UpdateBrateTblForSoftAP(u8 *bssrateset, u32 bssratelen)
 
 void Save_DM_Func_Flag(struct adapter *padapter)
 {
-	u8	saveflag = true;
+	struct hal_data_8188e *haldata = &padapter->haldata;
+	struct odm_dm_struct *odmpriv = &haldata->odmpriv;
 
-	SetHwReg8188EU(padapter, HW_VAR_DM_FUNC_OP, (u8 *)(&saveflag));
+	odmpriv->BK_SupportAbility = odmpriv->SupportAbility;
 }
 
 void Restore_DM_Func_Flag(struct adapter *padapter)
 {
-	u8	saveflag = false;
+	struct hal_data_8188e *haldata = &padapter->haldata;
+	struct odm_dm_struct *odmpriv = &haldata->odmpriv;
 
-	SetHwReg8188EU(padapter, HW_VAR_DM_FUNC_OP, (u8 *)(&saveflag));
+	odmpriv->SupportAbility = odmpriv->BK_SupportAbility;
 }
 
 void Set_MSR(struct adapter *padapter, u8 type)

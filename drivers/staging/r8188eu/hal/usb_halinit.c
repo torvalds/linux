@@ -1160,12 +1160,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 	case HW_VAR_DM_FLAG:
 		podmpriv->SupportAbility = *((u8 *)val);
 		break;
-	case HW_VAR_DM_FUNC_OP:
-		if (val[0])
-			podmpriv->BK_SupportAbility = podmpriv->SupportAbility;
-		else
-			podmpriv->SupportAbility = podmpriv->BK_SupportAbility;
-		break;
 	case HW_VAR_DM_FUNC_RESET:
 		podmpriv->SupportAbility = pdmpriv->InitODMFlag;
 		break;
