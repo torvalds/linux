@@ -24,6 +24,7 @@ struct xfs_ifork {
 	xfs_extnum_t		if_nextents;	/* # of extents in this fork */
 	short			if_broot_bytes;	/* bytes allocated for root */
 	int8_t			if_format;	/* format of this fork */
+	int8_t			if_present;	/* 1 if present */
 };
 
 /*
@@ -173,8 +174,9 @@ xfs_dfork_nextents(
 	return 0;
 }
 
-struct xfs_ifork *xfs_ifork_alloc(enum xfs_dinode_fmt format,
-				xfs_extnum_t nextents);
+void xfs_ifork_zap_attr(struct xfs_inode *ip);
+void xfs_ifork_init_attr(struct xfs_inode *ip, enum xfs_dinode_fmt format,
+		xfs_extnum_t nextents);
 struct xfs_ifork *xfs_iext_state_to_fork(struct xfs_inode *ip, int state);
 
 int		xfs_iformat_data_fork(struct xfs_inode *, struct xfs_dinode *);

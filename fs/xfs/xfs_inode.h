@@ -33,9 +33,9 @@ typedef struct xfs_inode {
 	struct xfs_imap		i_imap;		/* location for xfs_imap() */
 
 	/* Extent information. */
-	struct xfs_ifork	*i_afp;		/* attribute fork pointer */
 	struct xfs_ifork	*i_cowfp;	/* copy on write extents */
 	struct xfs_ifork	i_df;		/* data fork */
+	struct xfs_ifork	i_af;		/* attribute fork */
 
 	/* Transaction and locking information. */
 	struct xfs_inode_log_item *i_itemp;	/* logging information */
@@ -86,7 +86,9 @@ xfs_ifork_ptr(
 	case XFS_DATA_FORK:
 		return &ip->i_df;
 	case XFS_ATTR_FORK:
-		return ip->i_afp;
+		if (!ip->i_af.if_present)
+			return NULL;
+		return &ip->i_af;
 	case XFS_COW_FORK:
 		return ip->i_cowfp;
 	default:

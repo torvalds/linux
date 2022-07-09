@@ -111,7 +111,7 @@ xfs_bulkstat_one_int(
 		buf->bs_extents64 = nextents;
 
 	xfs_bulkstat_health(ip, buf);
-	buf->bs_aextents = xfs_ifork_nextents(ip->i_afp);
+	buf->bs_aextents = xfs_ifork_nextents(&ip->i_af);
 	buf->bs_forkoff = XFS_IFORK_BOFF(ip);
 	buf->bs_version = XFS_BULKSTAT_VERSION_V5;
 

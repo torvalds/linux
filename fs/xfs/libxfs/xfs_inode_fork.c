@@ -276,17 +276,30 @@ xfs_dfork_attr_shortform_size(
 	return be16_to_cpu(atp->hdr.totsize);
 }
 
-struct xfs_ifork *
-xfs_ifork_alloc(
+void
+xfs_ifork_init_attr(
+	struct xfs_inode	*ip,
 	enum xfs_dinode_fmt	format,
 	xfs_extnum_t		nextents)
 {
-	struct xfs_ifork	*ifp;
+	ASSERT(!ip->i_af.if_present);
 
-	ifp = kmem_cache_zalloc(xfs_ifork_cache, GFP_NOFS | __GFP_NOFAIL);
-	ifp->if_format = format;
-	ifp->if_nextents = nextents;
-	return ifp;
+	ip->i_af.if_present = 1;
+	ip->i_af.if_format = format;
+	ip->i_af.if_nextents = nextents;
+}
+
+void
+xfs_ifork_zap_attr(
+	struct xfs_inode	*ip)
+{
+	ASSERT(ip->i_af.if_present);
+	ASSERT(ip->i_af.if_broot == NULL);
+	ASSERT(ip->i_af.if_u1.if_data == NULL);
+	ASSERT(ip->i_af.if_height == 0);
+
+	memset(&ip->i_af, 0, sizeof(struct xfs_ifork));
+	ip->i_af.if_format = XFS_DINODE_FMT_EXTENTS;
 }
 
 int
@@ -301,9 +314,9 @@ xfs_iformat_attr_fork(
 	 * Initialize the extent count early, as the per-format routines may
 	 * depend on it.
 	 */
-	ip->i_afp = xfs_ifork_alloc(dip->di_aformat, naextents);
+	xfs_ifork_init_attr(ip, dip->di_aformat, naextents);
 
-	switch (ip->i_afp->if_format) {
+	switch (ip->i_af.if_format) {
 	case XFS_DINODE_FMT_LOCAL:
 		error = xfs_iformat_local(ip, dip, XFS_ATTR_FORK,
 				xfs_dfork_attr_shortform_size(dip));
@@ -323,10 +336,8 @@ xfs_iformat_attr_fork(
 		break;
 	}
 
-	if (error) {
-		kmem_cache_free(xfs_ifork_cache, ip->i_afp);
-		ip->i_afp = NULL;
-	}
+	if (error)
+		xfs_ifork_zap_attr(ip);
 	return error;
 }
 
@@ -656,7 +667,7 @@ xfs_iext_state_to_fork(
 	if (state & BMAP_COWFORK)
 		return ip->i_cowfp;
 	else if (state & BMAP_ATTRFORK)
-		return ip->i_afp;
+		return &ip->i_af;
 	return &ip->i_df;
 }
 
@@ -672,6 +683,7 @@ xfs_ifork_init_cow(
 
 	ip->i_cowfp = kmem_cache_zalloc(xfs_ifork_cache,
 				       GFP_NOFS | __GFP_NOFAIL);
+	ip->i_cowfp->if_present = 1;
 	ip->i_cowfp->if_format = XFS_DINODE_FMT_EXTENTS;
 }
 
@@ -707,10 +719,10 @@ int
 xfs_ifork_verify_local_attr(
 	struct xfs_inode	*ip)
 {
-	struct xfs_ifork	*ifp = ip->i_afp;
+	struct xfs_ifork	*ifp = &ip->i_af;
 	xfs_failaddr_t		fa;
 
-	if (!ifp)
+	if (!ifp->if_present)
 		fa = __this_address;
 	else
 		fa = xfs_attr_shortform_verify(ip);

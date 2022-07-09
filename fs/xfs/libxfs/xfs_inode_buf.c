@@ -177,7 +177,7 @@ xfs_inode_from_disk(
 	xfs_failaddr_t		fa;
 
 	ASSERT(ip->i_cowfp == NULL);
-	ASSERT(ip->i_afp == NULL);
+	ASSERT(!ip->i_af.if_present);
 
 	fa = xfs_dinode_verify(ip->i_mount, ip->i_ino, from);
 	if (fa) {
@@ -285,7 +285,7 @@ xfs_inode_to_disk_iext_counters(
 {
 	if (xfs_inode_has_large_extent_counts(ip)) {
 		to->di_big_nextents = cpu_to_be64(xfs_ifork_nextents(&ip->i_df));
-		to->di_big_anextents = cpu_to_be32(xfs_ifork_nextents(ip->i_afp));
+		to->di_big_anextents = cpu_to_be32(xfs_ifork_nextents(&ip->i_af));
 		/*
 		 * We might be upgrading the inode to use larger extent counters
 		 * than was previously used. Hence zero the unused field.
@@ -293,7 +293,7 @@ xfs_inode_to_disk_iext_counters(
 		to->di_nrext64_pad = cpu_to_be16(0);
 	} else {
 		to->di_nextents = cpu_to_be32(xfs_ifork_nextents(&ip->i_df));
-		to->di_anextents = cpu_to_be16(xfs_ifork_nextents(ip->i_afp));
+		to->di_anextents = cpu_to_be16(xfs_ifork_nextents(&ip->i_af));
 	}
 }
 
@@ -325,7 +325,7 @@ xfs_inode_to_disk(
 	to->di_nblocks = cpu_to_be64(ip->i_nblocks);
 	to->di_extsize = cpu_to_be32(ip->i_extsize);
 	to->di_forkoff = ip->i_forkoff;
-	to->di_aformat = xfs_ifork_format(ip->i_afp);
+	to->di_aformat = xfs_ifork_format(&ip->i_af);
 	to->di_flags = cpu_to_be16(ip->i_diflags);
 
 	if (xfs_has_v3inodes(ip->i_mount)) {

@@ -69,10 +69,10 @@ xfs_inode_hasattr(
 {
 	if (!XFS_IFORK_Q(ip))
 		return 0;
-	if (!ip->i_afp)
+	if (!ip->i_af.if_present)
 		return 0;
-	if (ip->i_afp->if_format == XFS_DINODE_FMT_EXTENTS &&
-	    ip->i_afp->if_nextents == 0)
+	if (ip->i_af.if_format == XFS_DINODE_FMT_EXTENTS &&
+	    ip->i_af.if_nextents == 0)
 		return 0;
 	return 1;
 }
@@ -85,7 +85,7 @@ bool
 xfs_attr_is_leaf(
 	struct xfs_inode	*ip)
 {
-	struct xfs_ifork	*ifp = ip->i_afp;
+	struct xfs_ifork	*ifp = &ip->i_af;
 	struct xfs_iext_cursor	icur;
 	struct xfs_bmbt_irec	imap;
 
@@ -231,7 +231,7 @@ xfs_attr_get_ilocked(
 	if (!xfs_inode_hasattr(args->dp))
 		return -ENOATTR;
 
-	if (args->dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL)
+	if (args->dp->i_af.if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_attr_shortform_getvalue(args);
 	if (xfs_attr_is_leaf(args->dp))
 		return xfs_attr_leaf_get(args);
@@ -354,7 +354,7 @@ xfs_attr_try_sf_addname(
 	/*
 	 * Build initial attribute list (if required).
 	 */
-	if (dp->i_afp->if_format == XFS_DINODE_FMT_EXTENTS)
+	if (dp->i_af.if_format == XFS_DINODE_FMT_EXTENTS)
 		xfs_attr_shortform_create(args);
 
 	error = xfs_attr_shortform_addname(args);
@@ -864,7 +864,7 @@ xfs_attr_lookup(
 	if (!xfs_inode_hasattr(dp))
 		return -ENOATTR;
 
-	if (dp->i_afp->if_format == XFS_DINODE_FMT_LOCAL)
+	if (dp->i_af.if_format == XFS_DINODE_FMT_LOCAL)
 		return xfs_attr_sf_findname(args, NULL, NULL);
 
 	if (xfs_attr_is_leaf(dp)) {
@@ -1101,7 +1101,7 @@ static inline int xfs_attr_sf_totsize(struct xfs_inode *dp)
 {
 	struct xfs_attr_shortform *sf;
 
-	sf = (struct xfs_attr_shortform *)dp->i_afp->if_u1.if_data;
+	sf = (struct xfs_attr_shortform *)dp->i_af.if_u1.if_data;
 	return be16_to_cpu(sf->hdr.totsize);
 }
 
