@@ -479,16 +479,75 @@ static int report_exit_event(struct perf_kwork *kwork,
 	return 0;
 }
 
+static struct kwork_class kwork_irq;
+static int process_irq_handler_entry_event(struct perf_tool *tool,
+					   struct evsel *evsel,
+					   struct perf_sample *sample,
+					   struct machine *machine)
+{
+	struct perf_kwork *kwork = container_of(tool, struct perf_kwork, tool);
+
+	if (kwork->tp_handler->entry_event)
+		return kwork->tp_handler->entry_event(kwork, &kwork_irq,
+						      evsel, sample, machine);
+	return 0;
+}
+
+static int process_irq_handler_exit_event(struct perf_tool *tool,
+					  struct evsel *evsel,
+					  struct perf_sample *sample,
+					  struct machine *machine)
+{
+	struct perf_kwork *kwork = container_of(tool, struct perf_kwork, tool);
+
+	if (kwork->tp_handler->exit_event)
+		return kwork->tp_handler->exit_event(kwork, &kwork_irq,
+						     evsel, sample, machine);
+	return 0;
+}
+
 const struct evsel_str_handler irq_tp_handlers[] = {
-	{ "irq:irq_handler_entry", NULL, },
-	{ "irq:irq_handler_exit",  NULL, },
+	{ "irq:irq_handler_entry", process_irq_handler_entry_event, },
+	{ "irq:irq_handler_exit",  process_irq_handler_exit_event,  },
 };
+
+static int irq_class_init(struct kwork_class *class,
+			  struct perf_session *session)
+{
+	if (perf_session__set_tracepoints_handlers(session, irq_tp_handlers)) {
+		pr_err("Failed to set irq tracepoints handlers\n");
+		return -1;
+	}
+
+	class->work_root = RB_ROOT_CACHED;
+	return 0;
+}
+
+static void irq_work_init(struct kwork_class *class,
+			  struct kwork_work *work,
+			  struct evsel *evsel,
+			  struct perf_sample *sample,
+			  struct machine *machine __maybe_unused)
+{
+	work->class = class;
+	work->cpu = sample->cpu;
+	work->id = evsel__intval(evsel, sample, "irq");
+	work->name = evsel__strval(evsel, sample, "name");
+}
+
+static void irq_work_name(struct kwork_work *work, char *buf, int len)
+{
+	snprintf(buf, len, "%s:%" PRIu64 "", work->name, work->id);
+}
 
 static struct kwork_class kwork_irq = {
 	.name           = "irq",
 	.type           = KWORK_CLASS_IRQ,
 	.nr_tracepoints = 2,
 	.tp_handlers    = irq_tp_handlers,
+	.class_init     = irq_class_init,
+	.work_init      = irq_work_init,
+	.work_name      = irq_work_name,
 };
 
 const struct evsel_str_handler softirq_tp_handlers[] = {
