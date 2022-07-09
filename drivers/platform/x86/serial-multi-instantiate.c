@@ -100,7 +100,7 @@ static int smi_spi_probe(struct platform_device *pdev, struct acpi_device *adev,
 	if (ret < 0)
 		return ret;
 	else if (!ret)
-		return -ENODEV;
+		return -ENOENT;
 
 	count = ret;
 
@@ -184,7 +184,7 @@ static int smi_i2c_probe(struct platform_device *pdev, struct acpi_device *adev,
 	if (ret < 0)
 		return ret;
 	else if (!ret)
-		return -ENODEV;
+		return -ENOENT;
 
 	count = ret;
 
@@ -232,6 +232,7 @@ static int smi_probe(struct platform_device *pdev)
 	const struct smi_node *node;
 	struct acpi_device *adev;
 	struct smi *smi;
+	int ret;
 
 	adev = ACPI_COMPANION(dev);
 	if (!adev)
@@ -255,15 +256,21 @@ static int smi_probe(struct platform_device *pdev)
 	case SMI_SPI:
 		return smi_spi_probe(pdev, adev, smi, node->instances);
 	case SMI_AUTO_DETECT:
-		if (i2c_acpi_client_count(adev) > 0)
-			return smi_i2c_probe(pdev, adev, smi, node->instances);
-		else
-			return smi_spi_probe(pdev, adev, smi, node->instances);
+		/*
+		 * For backwards-compatibility with the existing nodes I2C
+		 * is checked first and if such entries are found ONLY I2C
+		 * devices are created. Since some existing nodes that were
+		 * already handled by this driver could also contain unrelated
+		 * SpiSerialBus nodes that were previously ignored, and this
+		 * preserves that behavior.
+		 */
+		ret = smi_i2c_probe(pdev, adev, smi, node->instances);
+		if (ret != -ENOENT)
+			return ret;
+		return smi_spi_probe(pdev, adev, smi, node->instances);
 	default:
 		return -EINVAL;
 	}
-
-	return 0; /* never reached */
 }
 
 static int smi_remove(struct platform_device *pdev)
