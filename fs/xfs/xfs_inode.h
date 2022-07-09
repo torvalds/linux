@@ -86,7 +86,7 @@ xfs_ifork_ptr(
 	case XFS_DATA_FORK:
 		return &ip->i_df;
 	case XFS_ATTR_FORK:
-		if (!ip->i_af.if_present)
+		if (!XFS_IFORK_Q(ip))
 			return NULL;
 		return &ip->i_af;
 	case XFS_COW_FORK:

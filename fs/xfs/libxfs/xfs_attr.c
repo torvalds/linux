@@ -69,8 +69,6 @@ xfs_inode_hasattr(
 {
 	if (!XFS_IFORK_Q(ip))
 		return 0;
-	if (!ip->i_af.if_present)
-		return 0;
 	if (ip->i_af.if_format == XFS_DINODE_FMT_EXTENTS &&
 	    ip->i_af.if_nextents == 0)
 		return 0;

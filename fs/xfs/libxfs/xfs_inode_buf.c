@@ -177,7 +177,6 @@ xfs_inode_from_disk(
 	xfs_failaddr_t		fa;
 
 	ASSERT(ip->i_cowfp == NULL);
-	ASSERT(!ip->i_af.if_present);
 
 	fa = xfs_dinode_verify(ip->i_mount, ip->i_ino, from);
 	if (fa) {

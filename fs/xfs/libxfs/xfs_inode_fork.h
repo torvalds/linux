@@ -24,7 +24,6 @@ struct xfs_ifork {
 	xfs_extnum_t		if_nextents;	/* # of extents in this fork */
 	short			if_broot_bytes;	/* bytes allocated for root */
 	int8_t			if_format;	/* format of this fork */
-	int8_t			if_present;	/* 1 if present */
 };
 
 /*
