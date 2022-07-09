@@ -299,7 +299,7 @@ static int efuse_read_phymap_from_txpktbuf(
 	return 0;
 }
 
-static s32 iol_read_efuse(struct adapter *padapter, u16 offset, u16 size_byte, u8 *logical_map)
+static s32 iol_read_efuse(struct adapter *padapter, u16 size_byte, u8 *logical_map)
 {
 	s32 status = _FAIL;
 	u8 physical_map[512];
@@ -311,7 +311,7 @@ static s32 iol_read_efuse(struct adapter *padapter, u16 offset, u16 size_byte, u
 	status = iol_execute(padapter, CMD_READ_EFUSE_MAP);
 	if (status == _SUCCESS)
 		efuse_read_phymap_from_txpktbuf(padapter, 0, physical_map, &size);
-	efuse_phymap_to_logical(physical_map, offset, size_byte, logical_map);
+	efuse_phymap_to_logical(physical_map, 0, size_byte, logical_map);
 	return status;
 }
 
@@ -538,7 +538,7 @@ void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _size_byte, u8 *pbuf)
 		rtl8188eu_InitPowerOn(Adapter);
 
 		iol_mode_enable(Adapter, 1);
-		ret = iol_read_efuse(Adapter, 0, _size_byte, pbuf);
+		ret = iol_read_efuse(Adapter, _size_byte, pbuf);
 		iol_mode_enable(Adapter, 0);
 
 		if (_SUCCESS == ret)
