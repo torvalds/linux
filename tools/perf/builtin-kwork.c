@@ -25,7 +25,20 @@
 #include <linux/time64.h>
 #include <linux/zalloc.h>
 
+const struct evsel_str_handler irq_tp_handlers[] = {
+	{ "irq:irq_handler_entry", NULL, },
+	{ "irq:irq_handler_exit",  NULL, },
+};
+
+static struct kwork_class kwork_irq = {
+	.name           = "irq",
+	.type           = KWORK_CLASS_IRQ,
+	.nr_tracepoints = 2,
+	.tp_handlers    = irq_tp_handlers,
+};
+
 static struct kwork_class *kwork_class_supported_list[KWORK_CLASS_MAX] = {
+	[KWORK_CLASS_IRQ]       = &kwork_irq,
 };
 
 static void setup_event_list(struct perf_kwork *kwork,
@@ -133,7 +146,7 @@ int cmd_kwork(int argc, const char **argv)
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_STRING('k', "kwork", &kwork.event_list_str, "kwork",
-		   "list of kwork to profile"),
+		   "list of kwork to profile (irq, etc)"),
 	OPT_BOOLEAN('f', "force", &kwork.force, "don't complain, do it"),
 	OPT_END()
 	};
