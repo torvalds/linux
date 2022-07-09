@@ -717,6 +717,15 @@ config SM_GPUCC_8250
 	  Say Y if you want to support graphics controller devices and
 	  functionality such as 3D graphics.
 
+config SM_GPUCC_PINEAPPLE
+	tristate "PINEAPPLE Graphics Clock Controller"
+	select SM_GCC_PINEAPPLE
+	help
+	  Support for the graphics clock controller on Qualcomm Technologies, Inc
+          Pineapple devices.
+	  Say Y if you want to support graphics controller devices and
+	  functionality such as 3D graphics.
+
 config SM_VIDEOCC_8150
 	tristate "SM8150 Video Clock Controller"
 	select SM_GCC_8150
