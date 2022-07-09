@@ -91,7 +91,6 @@ efuse_phymap_to_logical(u8 *phymap, u16 _size_byte, u8  *pbuf)
 	u8 offset, wren;
 	u16	i, j;
 	u16	**eFuseWord = NULL;
-	u16	efuse_utilized = 0;
 	u8 u1temp = 0;
 
 	efuseTbl = kzalloc(EFUSE_MAP_LEN_88E, GFP_KERNEL);
@@ -113,7 +112,6 @@ efuse_phymap_to_logical(u8 *phymap, u16 _size_byte, u8  *pbuf)
 	/*  */
 	rtemp8 = *(phymap + eFuse_Addr);
 	if (rtemp8 != 0xFF) {
-		efuse_utilized++;
 		eFuse_Addr++;
 	} else {
 		goto exit;
@@ -151,13 +149,11 @@ efuse_phymap_to_logical(u8 *phymap, u16 _size_byte, u8  *pbuf)
 				if (!(wren & 0x01)) {
 					rtemp8 = *(phymap + eFuse_Addr);
 					eFuse_Addr++;
-					efuse_utilized++;
 					eFuseWord[offset][i] = (rtemp8 & 0xff);
 					if (eFuse_Addr >= EFUSE_REAL_CONTENT_LEN_88E)
 						break;
 					rtemp8 = *(phymap + eFuse_Addr);
 					eFuse_Addr++;
-					efuse_utilized++;
 					eFuseWord[offset][i] |= (((u16)rtemp8 << 8) & 0xff00);
 
 					if (eFuse_Addr >= EFUSE_REAL_CONTENT_LEN_88E)
@@ -170,7 +166,6 @@ efuse_phymap_to_logical(u8 *phymap, u16 _size_byte, u8  *pbuf)
 		rtemp8 = *(phymap + eFuse_Addr);
 
 		if (rtemp8 != 0xFF && (eFuse_Addr < EFUSE_REAL_CONTENT_LEN_88E)) {
-			efuse_utilized++;
 			eFuse_Addr++;
 		}
 	}
@@ -189,10 +184,6 @@ efuse_phymap_to_logical(u8 *phymap, u16 _size_byte, u8  *pbuf)
 	/*  4. Copy from Efuse map to output pointer memory!!! */
 	/*  */
 	memcpy(pbuf, efuseTbl, _size_byte);
-
-	/*  */
-	/*  5. Calculate Efuse utilization. */
-	/*  */
 
 exit:
 	kfree(efuseTbl);
