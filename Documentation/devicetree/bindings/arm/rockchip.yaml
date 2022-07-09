@@ -470,6 +470,11 @@ properties:
           - const: netxeon,r89
           - const: rockchip,rk3288
 
+      - description: OPEN AI LAB EAIDK-610
+        items:
+          - const: openailab,eaidk-610
+          - const: rockchip,rk3399
+
       - description: Orange Pi RK3399 board
         items:
           - const: rockchip,rk3399-orangepi
