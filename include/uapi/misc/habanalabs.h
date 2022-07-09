@@ -787,9 +787,13 @@ enum hl_server_type {
 #define HL_INFO_UNREGISTER_EVENTFD		29
 #define HL_INFO_GET_EVENTS			30
 #define HL_INFO_UNDEFINED_OPCODE_EVENT		31
+#define HL_INFO_ENGINE_STATUS			32
 
 #define HL_INFO_VERSION_MAX_LEN			128
 #define HL_INFO_CARD_NAME_MAX_LEN		16
+
+/* Maximum buffer size for retrieving engines status */
+#define HL_ENGINES_DATA_MAX_SIZE	SZ_1M
 
 /**
  * struct hl_info_hw_ip_info - hardware information on various IPs in the ASIC
@@ -1130,6 +1134,10 @@ enum gaudi_dcores {
  *             resolution. Currently not in use.
  * @pll_index: Index as defined in hl_<asic type>_pll_index enumeration.
  * @eventfd: event file descriptor for event notifications.
+ * @user_buffer_actual_size: Actual data size which was copied to user allocated buffer by the
+ *                           driver. It is possible for the user to allocate buffer larger than
+ *                           needed, hence updating this variable so user will know the exact amount
+ *                           of bytes copied by the kernel to the buffer.
  * @pad: Padding to 64 bit.
  */
 struct hl_info_args {
@@ -1143,6 +1151,7 @@ struct hl_info_args {
 		__u32 period_ms;
 		__u32 pll_index;
 		__u32 eventfd;
+		__u32 user_buffer_actual_size;
 	};
 
 	__u32 pad;

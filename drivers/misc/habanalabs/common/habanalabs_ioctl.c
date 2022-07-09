@@ -14,6 +14,7 @@
 #include <linux/fs.h>
 #include <linux/uaccess.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 
 static u32 hl_debug_struct_size[HL_DEBUG_OP_TIMESTAMP + 1] = {
 	[HL_DEBUG_OP_ETR] = sizeof(struct hl_debug_params_etr),
@@ -697,6 +698,42 @@ static int eventfd_unregister(struct hl_fpriv *hpriv, struct hl_info_args *args)
 	return 0;
 }
 
+static int engine_status_info(struct hl_fpriv *hpriv, struct hl_info_args *args)
+{
+	void __user *out = (void __user *) (uintptr_t) args->return_pointer;
+	u32 status_buf_size = args->return_size;
+	struct hl_device *hdev = hpriv->hdev;
+	struct engines_data eng_data;
+	int rc;
+
+	if ((status_buf_size < SZ_1K) || (status_buf_size > HL_ENGINES_DATA_MAX_SIZE) || (!out))
+		return -EINVAL;
+
+	eng_data.actual_size = 0;
+	eng_data.allocated_buf_size = status_buf_size;
+	eng_data.buf = vmalloc(status_buf_size);
+	if (!eng_data.buf)
+		return -ENOMEM;
+
+	hdev->asic_funcs->is_device_idle(hdev, NULL, 0, &eng_data);
+
+	if (eng_data.actual_size > eng_data.allocated_buf_size) {
+		dev_err(hdev->dev,
+			"Engines data size (%d Bytes) is bigger than allocated size (%u Bytes)\n",
+			eng_data.actual_size, status_buf_size);
+		vfree(eng_data.buf);
+		return -ENOMEM;
+	}
+
+	args->user_buffer_actual_size = eng_data.actual_size;
+	rc = copy_to_user(out, eng_data.buf, min_t(size_t, status_buf_size, eng_data.actual_size)) ?
+				-EFAULT : 0;
+
+	vfree(eng_data.buf);
+
+	return rc;
+}
+
 static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 				struct device *dev)
 {
@@ -811,6 +848,9 @@ static int _hl_info_ioctl(struct hl_fpriv *hpriv, void *data,
 
 	case HL_INFO_UNREGISTER_EVENTFD:
 		return eventfd_unregister(hpriv, args);
+
+	case HL_INFO_ENGINE_STATUS:
+		return engine_status_info(hpriv, args);
 
 	default:
 		dev_err(dev, "Invalid request %d\n", args->op);

@@ -17,7 +17,6 @@
 #define MMU_ASID_BUF_SIZE	10
 #define MMU_KBUF_SIZE		(MMU_ADDR_BUF_SIZE + MMU_ASID_BUF_SIZE)
 #define I2C_MAX_TRANSACTION_LEN	8
-#define ENGINES_DATA_MAX_SIZE	SZ_16K
 
 static struct dentry *hl_debug_root;
 
@@ -626,7 +625,7 @@ static int engines_show(struct seq_file *s, void *data)
 	}
 
 	eng_data.actual_size = 0;
-	eng_data.allocated_buf_size = ENGINES_DATA_MAX_SIZE;
+	eng_data.allocated_buf_size = HL_ENGINES_DATA_MAX_SIZE;
 	eng_data.buf = vmalloc(eng_data.allocated_buf_size);
 	if (!eng_data.buf)
 		return -ENOMEM;
