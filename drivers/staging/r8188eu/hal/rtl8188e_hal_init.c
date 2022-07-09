@@ -83,7 +83,7 @@ static s32 iol_InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy)
 }
 
 static void
-efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
+efuse_phymap_to_logical(u8 *phymap, u16 _size_byte, u8  *pbuf)
 {
 	u8 *efuseTbl = NULL;
 	u8 rtemp8;
@@ -188,8 +188,7 @@ efuse_phymap_to_logical(u8 *phymap, u16 _offset, u16 _size_byte, u8  *pbuf)
 	/*  */
 	/*  4. Copy from Efuse map to output pointer memory!!! */
 	/*  */
-	for (i = 0; i < _size_byte; i++)
-		pbuf[i] = efuseTbl[_offset + i];
+	memcpy(pbuf, efuseTbl, _size_byte);
 
 	/*  */
 	/*  5. Calculate Efuse utilization. */
@@ -311,7 +310,7 @@ static s32 iol_read_efuse(struct adapter *padapter, u16 size_byte, u8 *logical_m
 	status = iol_execute(padapter, CMD_READ_EFUSE_MAP);
 	if (status == _SUCCESS)
 		efuse_read_phymap_from_txpktbuf(padapter, 0, physical_map, &size);
-	efuse_phymap_to_logical(physical_map, 0, size_byte, logical_map);
+	efuse_phymap_to_logical(physical_map, size_byte, logical_map);
 	return status;
 }
 
