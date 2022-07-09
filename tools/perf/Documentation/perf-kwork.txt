@@ -32,7 +32,7 @@ OPTIONS
 
 -k::
 --kwork::
-	List of kwork to profile (irq, softirq, etc)
+	List of kwork to profile (irq, softirq, workqueue, etc)
 
 -v::
 --verbose::

@@ -50,9 +50,23 @@ static struct kwork_class kwork_softirq = {
 	.tp_handlers    = softirq_tp_handlers,
 };
 
+const struct evsel_str_handler workqueue_tp_handlers[] = {
+	{ "workqueue:workqueue_activate_work", NULL, },
+	{ "workqueue:workqueue_execute_start", NULL, },
+	{ "workqueue:workqueue_execute_end",   NULL, },
+};
+
+static struct kwork_class kwork_workqueue = {
+	.name           = "workqueue",
+	.type           = KWORK_CLASS_WORKQUEUE,
+	.nr_tracepoints = 3,
+	.tp_handlers    = workqueue_tp_handlers,
+};
+
 static struct kwork_class *kwork_class_supported_list[KWORK_CLASS_MAX] = {
 	[KWORK_CLASS_IRQ]       = &kwork_irq,
 	[KWORK_CLASS_SOFTIRQ]   = &kwork_softirq,
+	[KWORK_CLASS_WORKQUEUE] = &kwork_workqueue,
 };
 
 static void setup_event_list(struct perf_kwork *kwork,
@@ -160,7 +174,7 @@ int cmd_kwork(int argc, const char **argv)
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
 	OPT_STRING('k', "kwork", &kwork.event_list_str, "kwork",
-		   "list of kwork to profile (irq, softirq, etc)"),
+		   "list of kwork to profile (irq, softirq, workqueue, etc)"),
 	OPT_BOOLEAN('f', "force", &kwork.force, "don't complain, do it"),
 	OPT_END()
 	};
