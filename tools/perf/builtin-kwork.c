@@ -646,6 +646,20 @@ static struct kwork_class kwork_irq = {
 };
 
 static struct kwork_class kwork_softirq;
+static int process_softirq_raise_event(struct perf_tool *tool,
+				       struct evsel *evsel,
+				       struct perf_sample *sample,
+				       struct machine *machine)
+{
+	struct perf_kwork *kwork = container_of(tool, struct perf_kwork, tool);
+
+	if (kwork->tp_handler->raise_event)
+		return kwork->tp_handler->raise_event(kwork, &kwork_softirq,
+						      evsel, sample, machine);
+
+	return 0;
+}
+
 static int process_softirq_entry_event(struct perf_tool *tool,
 				       struct evsel *evsel,
 				       struct perf_sample *sample,
@@ -675,7 +689,7 @@ static int process_softirq_exit_event(struct perf_tool *tool,
 }
 
 const struct evsel_str_handler softirq_tp_handlers[] = {
-	{ "irq:softirq_raise", NULL, },
+	{ "irq:softirq_raise", process_softirq_raise_event, },
 	{ "irq:softirq_entry", process_softirq_entry_event, },
 	{ "irq:softirq_exit",  process_softirq_exit_event,  },
 };
