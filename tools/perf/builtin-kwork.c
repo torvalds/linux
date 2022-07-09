@@ -550,17 +550,111 @@ static struct kwork_class kwork_irq = {
 	.work_name      = irq_work_name,
 };
 
+static struct kwork_class kwork_softirq;
+static int process_softirq_entry_event(struct perf_tool *tool,
+				       struct evsel *evsel,
+				       struct perf_sample *sample,
+				       struct machine *machine)
+{
+	struct perf_kwork *kwork = container_of(tool, struct perf_kwork, tool);
+
+	if (kwork->tp_handler->entry_event)
+		return kwork->tp_handler->entry_event(kwork, &kwork_softirq,
+						      evsel, sample, machine);
+
+	return 0;
+}
+
+static int process_softirq_exit_event(struct perf_tool *tool,
+				      struct evsel *evsel,
+				      struct perf_sample *sample,
+				      struct machine *machine)
+{
+	struct perf_kwork *kwork = container_of(tool, struct perf_kwork, tool);
+
+	if (kwork->tp_handler->exit_event)
+		return kwork->tp_handler->exit_event(kwork, &kwork_softirq,
+						     evsel, sample, machine);
+
+	return 0;
+}
+
 const struct evsel_str_handler softirq_tp_handlers[] = {
 	{ "irq:softirq_raise", NULL, },
-	{ "irq:softirq_entry", NULL, },
-	{ "irq:softirq_exit",  NULL, },
+	{ "irq:softirq_entry", process_softirq_entry_event, },
+	{ "irq:softirq_exit",  process_softirq_exit_event,  },
 };
+
+static int softirq_class_init(struct kwork_class *class,
+			      struct perf_session *session)
+{
+	if (perf_session__set_tracepoints_handlers(session,
+						   softirq_tp_handlers)) {
+		pr_err("Failed to set softirq tracepoints handlers\n");
+		return -1;
+	}
+
+	class->work_root = RB_ROOT_CACHED;
+	return 0;
+}
+
+static char *evsel__softirq_name(struct evsel *evsel, u64 num)
+{
+	char *name = NULL;
+	bool found = false;
+	struct tep_print_flag_sym *sym = NULL;
+	struct tep_print_arg *args = evsel->tp_format->print_fmt.args;
+
+	if ((args == NULL) || (args->next == NULL))
+		return NULL;
+
+	/* skip softirq field: "REC->vec" */
+	for (sym = args->next->symbol.symbols; sym != NULL; sym = sym->next) {
+		if ((eval_flag(sym->value) == (unsigned long long)num) &&
+		    (strlen(sym->str) != 0)) {
+			found = true;
+			break;
+		}
+	}
+
+	if (!found)
+		return NULL;
+
+	name = strdup(sym->str);
+	if (name == NULL) {
+		pr_err("Failed to copy symbol name\n");
+		return NULL;
+	}
+	return name;
+}
+
+static void softirq_work_init(struct kwork_class *class,
+			      struct kwork_work *work,
+			      struct evsel *evsel,
+			      struct perf_sample *sample,
+			      struct machine *machine __maybe_unused)
+{
+	u64 num = evsel__intval(evsel, sample, "vec");
+
+	work->id = num;
+	work->class = class;
+	work->cpu = sample->cpu;
+	work->name = evsel__softirq_name(evsel, num);
+}
+
+static void softirq_work_name(struct kwork_work *work, char *buf, int len)
+{
+	snprintf(buf, len, "(s)%s:%" PRIu64 "", work->name, work->id);
+}
 
 static struct kwork_class kwork_softirq = {
 	.name           = "softirq",
 	.type           = KWORK_CLASS_SOFTIRQ,
 	.nr_tracepoints = 3,
 	.tp_handlers    = softirq_tp_handlers,
+	.class_init     = softirq_class_init,
+	.work_init      = softirq_work_init,
+	.work_name      = softirq_work_name,
 };
 
 const struct evsel_str_handler workqueue_tp_handlers[] = {
