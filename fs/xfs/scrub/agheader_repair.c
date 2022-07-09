@@ -106,7 +106,7 @@ xrep_agf_check_agfl_block(
 {
 	struct xfs_scrub	*sc = priv;
 
-	if (!xfs_verify_agbno(mp, sc->sa.pag->pag_agno, agbno))
+	if (!xfs_verify_agbno(sc->sa.pag, agbno))
 		return -EFSCORRUPTED;
 	return 0;
 }
@@ -130,10 +130,7 @@ xrep_check_btree_root(
 	struct xfs_scrub		*sc,
 	struct xrep_find_ag_btree	*fab)
 {
-	struct xfs_mount		*mp = sc->mp;
-	xfs_agnumber_t			agno = sc->sm->sm_agno;
-
-	return xfs_verify_agbno(mp, agno, fab->root) &&
+	return xfs_verify_agbno(sc->sa.pag, fab->root) &&
 	       fab->height <= fab->maxlevels;
 }
 
@@ -201,8 +198,7 @@ xrep_agf_init_header(
 	agf->agf_magicnum = cpu_to_be32(XFS_AGF_MAGIC);
 	agf->agf_versionnum = cpu_to_be32(XFS_AGF_VERSION);
 	agf->agf_seqno = cpu_to_be32(sc->sa.pag->pag_agno);
-	agf->agf_length = cpu_to_be32(xfs_ag_block_count(mp,
-							sc->sa.pag->pag_agno));
+	agf->agf_length = cpu_to_be32(sc->sa.pag->block_count);
 	agf->agf_flfirst = old_agf->agf_flfirst;
 	agf->agf_fllast = old_agf->agf_fllast;
 	agf->agf_flcount = old_agf->agf_flcount;
@@ -405,7 +401,7 @@ xrep_agf(
 	 * btrees rooted in the AGF.  If the AGFL contents are obviously bad
 	 * then we'll bail out.
 	 */
-	error = xfs_alloc_read_agfl(mp, sc->tp, sc->sa.pag->pag_agno, &agfl_bp);
+	error = xfs_alloc_read_agfl(sc->sa.pag, sc->tp, &agfl_bp);
 	if (error)
 		return error;
 
@@ -666,8 +662,7 @@ xrep_agfl(
 	 * nothing wrong with the AGF, but all the AG header repair functions
 	 * have this chicken-and-egg problem.
 	 */
-	error = xfs_alloc_read_agf(mp, sc->tp, sc->sa.pag->pag_agno, 0,
-			&agf_bp);
+	error = xfs_alloc_read_agf(sc->sa.pag, sc->tp, 0, &agf_bp);
 	if (error)
 		return error;
 
@@ -742,8 +737,7 @@ xrep_agi_find_btrees(
 	int				error;
 
 	/* Read the AGF. */
-	error = xfs_alloc_read_agf(mp, sc->tp, sc->sa.pag->pag_agno, 0,
-			&agf_bp);
+	error = xfs_alloc_read_agf(sc->sa.pag, sc->tp, 0, &agf_bp);
 	if (error)
 		return error;
 
@@ -782,8 +776,7 @@ xrep_agi_init_header(
 	agi->agi_magicnum = cpu_to_be32(XFS_AGI_MAGIC);
 	agi->agi_versionnum = cpu_to_be32(XFS_AGI_VERSION);
 	agi->agi_seqno = cpu_to_be32(sc->sa.pag->pag_agno);
-	agi->agi_length = cpu_to_be32(xfs_ag_block_count(mp,
-							sc->sa.pag->pag_agno));
+	agi->agi_length = cpu_to_be32(sc->sa.pag->block_count);
 	agi->agi_newino = cpu_to_be32(NULLAGINO);
 	agi->agi_dirino = cpu_to_be32(NULLAGINO);
 	if (xfs_has_crc(mp))

@@ -104,13 +104,13 @@ xchk_iallocbt_chunk(
 	xfs_extlen_t			len)
 {
 	struct xfs_mount		*mp = bs->cur->bc_mp;
-	xfs_agnumber_t			agno = bs->cur->bc_ag.pag->pag_agno;
+	struct xfs_perag		*pag = bs->cur->bc_ag.pag;
 	xfs_agblock_t			bno;
 
 	bno = XFS_AGINO_TO_AGBNO(mp, agino);
 	if (bno + len <= bno ||
-	    !xfs_verify_agbno(mp, agno, bno) ||
-	    !xfs_verify_agbno(mp, agno, bno + len - 1))
+	    !xfs_verify_agbno(pag, bno) ||
+	    !xfs_verify_agbno(pag, bno + len - 1))
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 
 	xchk_iallocbt_chunk_xref(bs->sc, irec, agino, bno, len);
@@ -421,10 +421,10 @@ xchk_iallocbt_rec(
 	const union xfs_btree_rec	*rec)
 {
 	struct xfs_mount		*mp = bs->cur->bc_mp;
+	struct xfs_perag		*pag = bs->cur->bc_ag.pag;
 	struct xchk_iallocbt		*iabt = bs->private;
 	struct xfs_inobt_rec_incore	irec;
 	uint64_t			holes;
-	xfs_agnumber_t			agno = bs->cur->bc_ag.pag->pag_agno;
 	xfs_agino_t			agino;
 	xfs_extlen_t			len;
 	int				holecount;
@@ -446,8 +446,8 @@ xchk_iallocbt_rec(
 
 	agino = irec.ir_startino;
 	/* Record has to be properly aligned within the AG. */
-	if (!xfs_verify_agino(mp, agno, agino) ||
-	    !xfs_verify_agino(mp, agno, agino + XFS_INODES_PER_CHUNK - 1)) {
+	if (!xfs_verify_agino(pag, agino) ||
+	    !xfs_verify_agino(pag, agino + XFS_INODES_PER_CHUNK - 1)) {
 		xchk_btree_set_corrupt(bs->sc, bs->cur, 0);
 		goto out;
 	}

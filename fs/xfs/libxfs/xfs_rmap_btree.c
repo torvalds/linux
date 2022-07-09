@@ -90,7 +90,7 @@ xfs_rmapbt_alloc_block(
 	xfs_agblock_t		bno;
 
 	/* Allocate the new block from the freelist. If we can't, give up.  */
-	error = xfs_alloc_get_freelist(cur->bc_tp, cur->bc_ag.agbp,
+	error = xfs_alloc_get_freelist(pag, cur->bc_tp, cur->bc_ag.agbp,
 				       &bno, 1);
 	if (error)
 		return error;
@@ -129,7 +129,7 @@ xfs_rmapbt_free_block(
 			bno, 1);
 	be32_add_cpu(&agf->agf_rmap_blocks, -1);
 	xfs_alloc_log_agf(cur->bc_tp, agbp, XFS_AGF_RMAP_BLOCKS);
-	error = xfs_alloc_put_freelist(cur->bc_tp, agbp, NULL, bno, 1);
+	error = xfs_alloc_put_freelist(pag, cur->bc_tp, agbp, NULL, bno, 1);
 	if (error)
 		return error;
 
@@ -652,7 +652,7 @@ xfs_rmapbt_calc_reserves(
 	if (!xfs_has_rmapbt(mp))
 		return 0;
 
-	error = xfs_alloc_read_agf(mp, tp, pag->pag_agno, 0, &agbp);
+	error = xfs_alloc_read_agf(pag, tp, 0, &agbp);
 	if (error)
 		return error;
 
@@ -666,8 +666,7 @@ xfs_rmapbt_calc_reserves(
 	 * never be available for the kinds of things that would require btree
 	 * expansion.  We therefore can pretend the space isn't there.
 	 */
-	if (mp->m_sb.sb_logstart &&
-	    XFS_FSB_TO_AGNO(mp, mp->m_sb.sb_logstart) == pag->pag_agno)
+	if (xfs_ag_contains_log(mp, pag->pag_agno))
 		agblocks -= mp->m_sb.sb_logblocks;
 
 	/* Reserve 1% of the AG or enough for 1 block per record. */
