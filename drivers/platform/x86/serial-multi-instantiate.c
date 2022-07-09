@@ -324,8 +324,8 @@ static const struct smi_node cs35l41_hda = {
 static const struct acpi_device_id smi_acpi_ids[] = {
 	{ "BSG1160", (unsigned long)&bsg1160_data },
 	{ "BSG2150", (unsigned long)&bsg2150_data },
-	{ "INT3515", (unsigned long)&int3515_data },
 	{ "CSC3551", (unsigned long)&cs35l41_hda },
+	{ "INT3515", (unsigned long)&int3515_data },
 	/* Non-conforming _HID for Cirrus Logic already released */
 	{ "CLSA0100", (unsigned long)&cs35l41_hda },
 	{ }
