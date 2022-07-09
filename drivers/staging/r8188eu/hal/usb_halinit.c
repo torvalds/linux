@@ -940,14 +940,12 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 
 	eeprom->bautoload_fail_flag	= !(eeValue & EEPROM_EN);
 
-	if (!(eeValue & BOOT_FROM_EEPROM)) {
-		if (eeprom->bautoload_fail_flag) {
-			memset(efuse_buf, 0xFF, sizeof(efuse_buf));
-		} else {
-			rtl8188e_EfusePowerSwitch(Adapter, true);
-			rtl8188e_ReadEFuse(Adapter, 0, EFUSE_MAP_LEN_88E, efuse_buf);
-			rtl8188e_EfusePowerSwitch(Adapter, false);
-		}
+	memset(efuse_buf, 0xFF, sizeof(efuse_buf));
+
+	if (!(eeValue & BOOT_FROM_EEPROM) && !eeprom->bautoload_fail_flag) {
+		rtl8188e_EfusePowerSwitch(Adapter, true);
+		rtl8188e_ReadEFuse(Adapter, 0, EFUSE_MAP_LEN_88E, efuse_buf);
+		rtl8188e_EfusePowerSwitch(Adapter, false);
 	}
 
 	/* parse the eeprom/efuse content */
