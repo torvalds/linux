@@ -62,9 +62,45 @@ void perf_kwork__trace_finish(void)
 	skel->bss->enabled = 0;
 }
 
+static int get_work_name_from_map(struct work_key *key, char **ret_name)
+{
+	char name[MAX_KWORKNAME] = { 0 };
+	int fd = bpf_map__fd(skel->maps.perf_kwork_names);
+
+	*ret_name = NULL;
+
+	if (fd < 0) {
+		pr_debug("Invalid names map fd\n");
+		return 0;
+	}
+
+	if ((bpf_map_lookup_elem(fd, key, name) == 0) && (strlen(name) != 0)) {
+		*ret_name = strdup(name);
+		if (*ret_name == NULL) {
+			pr_err("Failed to copy work name\n");
+			return -1;
+		}
+	}
+
+	return 0;
+}
+
+static void irq_load_prepare(struct perf_kwork *kwork)
+{
+	if (kwork->report == KWORK_REPORT_RUNTIME) {
+		bpf_program__set_autoload(skel->progs.report_irq_handler_entry, true);
+		bpf_program__set_autoload(skel->progs.report_irq_handler_exit, true);
+	}
+}
+
+static struct kwork_class_bpf kwork_irq_bpf = {
+	.load_prepare  = irq_load_prepare,
+	.get_work_name = get_work_name_from_map,
+};
+
 static struct kwork_class_bpf *
 kwork_class_bpf_supported_list[KWORK_CLASS_MAX] = {
-	[KWORK_CLASS_IRQ]       = NULL,
+	[KWORK_CLASS_IRQ]       = &kwork_irq_bpf,
 	[KWORK_CLASS_SOFTIRQ]   = NULL,
 	[KWORK_CLASS_WORKQUEUE] = NULL,
 };
