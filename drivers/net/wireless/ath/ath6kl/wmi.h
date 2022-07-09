@@ -698,7 +698,7 @@ enum auth_mode {
 
 /*
  * NB: these values are ordered carefully; there are lots of
- * of implications in any reordering.  In particular beware
+ * implications in any reordering.  In particular beware
  * that 4 is not used to avoid conflicting with IEEE80211_F_PRIVACY.
  */
 #define ATH6KL_CIPHER_WEP            0
