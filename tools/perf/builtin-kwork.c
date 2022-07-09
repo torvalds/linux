@@ -657,17 +657,87 @@ static struct kwork_class kwork_softirq = {
 	.work_name      = softirq_work_name,
 };
 
+static struct kwork_class kwork_workqueue;
+static int process_workqueue_execute_start_event(struct perf_tool *tool,
+						 struct evsel *evsel,
+						 struct perf_sample *sample,
+						 struct machine *machine)
+{
+	struct perf_kwork *kwork = container_of(tool, struct perf_kwork, tool);
+
+	if (kwork->tp_handler->entry_event)
+		return kwork->tp_handler->entry_event(kwork, &kwork_workqueue,
+						    evsel, sample, machine);
+
+	return 0;
+}
+
+static int process_workqueue_execute_end_event(struct perf_tool *tool,
+					       struct evsel *evsel,
+					       struct perf_sample *sample,
+					       struct machine *machine)
+{
+	struct perf_kwork *kwork = container_of(tool, struct perf_kwork, tool);
+
+	if (kwork->tp_handler->exit_event)
+		return kwork->tp_handler->exit_event(kwork, &kwork_workqueue,
+						   evsel, sample, machine);
+
+	return 0;
+}
+
 const struct evsel_str_handler workqueue_tp_handlers[] = {
 	{ "workqueue:workqueue_activate_work", NULL, },
-	{ "workqueue:workqueue_execute_start", NULL, },
-	{ "workqueue:workqueue_execute_end",   NULL, },
+	{ "workqueue:workqueue_execute_start", process_workqueue_execute_start_event, },
+	{ "workqueue:workqueue_execute_end",   process_workqueue_execute_end_event,   },
 };
+
+static int workqueue_class_init(struct kwork_class *class,
+				struct perf_session *session)
+{
+	if (perf_session__set_tracepoints_handlers(session,
+						   workqueue_tp_handlers)) {
+		pr_err("Failed to set workqueue tracepoints handlers\n");
+		return -1;
+	}
+
+	class->work_root = RB_ROOT_CACHED;
+	return 0;
+}
+
+static void workqueue_work_init(struct kwork_class *class,
+				struct kwork_work *work,
+				struct evsel *evsel,
+				struct perf_sample *sample,
+				struct machine *machine)
+{
+	char *modp = NULL;
+	unsigned long long function_addr = evsel__intval(evsel,
+							 sample, "function");
+
+	work->class = class;
+	work->cpu = sample->cpu;
+	work->id = evsel__intval(evsel, sample, "work");
+	work->name = function_addr == 0 ? NULL :
+		machine__resolve_kernel_addr(machine, &function_addr, &modp);
+}
+
+static void workqueue_work_name(struct kwork_work *work, char *buf, int len)
+{
+	if (work->name != NULL)
+		snprintf(buf, len, "(w)%s", work->name);
+	else
+		snprintf(buf, len, "(w)0x%" PRIx64, work->id);
+}
 
 static struct kwork_class kwork_workqueue = {
 	.name           = "workqueue",
 	.type           = KWORK_CLASS_WORKQUEUE,
 	.nr_tracepoints = 3,
 	.tp_handlers    = workqueue_tp_handlers,
+	.class_init     = workqueue_class_init,
+	.work_init      = workqueue_work_init,
+	.work_name      = workqueue_work_name,
 };
 
 static struct kwork_class *kwork_class_supported_list[KWORK_CLASS_MAX] = {
