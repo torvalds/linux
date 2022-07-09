@@ -426,12 +426,6 @@
 #define	MAX_MSS_DENSITY_2T		0x13
 #define	MAX_MSS_DENSITY_1T		0x0A
 
-/*  EEPROM enable when set 1 */
-#define	CmdEEPROM_En			BIT(5)
-/*  System EEPROM select, 0: boot from E-FUSE, 1: The EEPROM used is 9346 */
-#define	CmdEERPOMSEL			BIT(4)
-#define	Cmd9346CR_9356SEL		BIT(4)
-
 /*        8192C GPIO MUX Configuration Register (offset 0x40, 4 byte) */
 #define	GPIOSEL_GPIO			0
 #define	GPIOSEL_ENBT			BIT(5)
