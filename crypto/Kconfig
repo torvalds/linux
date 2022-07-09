@@ -901,6 +901,7 @@ config CRYPTO_RMD160
 config CRYPTO_SHA1
 	tristate "SHA1 digest algorithm"
 	select CRYPTO_HASH
+	select CRYPTO_LIB_SHA1
 	help
 	  SHA-1 secure hash standard (FIPS 180-1/DFIPS 180-2).
 
