@@ -81,16 +81,16 @@ static void smi_devs_unregister(struct smi *smi)
 /**
  * smi_spi_probe - Instantiate multiple SPI devices from inst array
  * @pdev:	Platform device
- * @adev:	ACPI device
  * @smi:	Internal struct for Serial multi instantiate driver
  * @inst_array:	Array of instances to probe
  *
  * Returns the number of SPI devices instantiate, Zero if none is found or a negative error code.
  */
-static int smi_spi_probe(struct platform_device *pdev, struct acpi_device *adev, struct smi *smi,
+static int smi_spi_probe(struct platform_device *pdev, struct smi *smi,
 			 const struct smi_instance *inst_array)
 {
 	struct device *dev = &pdev->dev;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct spi_controller *ctlr;
 	struct spi_device *spi_dev;
 	char name[50];
@@ -166,17 +166,17 @@ error:
 /**
  * smi_i2c_probe - Instantiate multiple I2C devices from inst array
  * @pdev:	Platform device
- * @adev:	ACPI device
  * @smi:	Internal struct for Serial multi instantiate driver
  * @inst_array:	Array of instances to probe
  *
  * Returns the number of I2C devices instantiate, Zero if none is found or a negative error code.
  */
-static int smi_i2c_probe(struct platform_device *pdev, struct acpi_device *adev, struct smi *smi,
+static int smi_i2c_probe(struct platform_device *pdev, struct smi *smi,
 			 const struct smi_instance *inst_array)
 {
 	struct i2c_board_info board_info = {};
 	struct device *dev = &pdev->dev;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 	char name[32];
 	int i, ret, count;
 
@@ -230,13 +230,8 @@ static int smi_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	const struct smi_node *node;
-	struct acpi_device *adev;
 	struct smi *smi;
 	int ret;
-
-	adev = ACPI_COMPANION(dev);
-	if (!adev)
-		return -ENODEV;
 
 	node = device_get_match_data(dev);
 	if (!node) {
@@ -252,9 +247,9 @@ static int smi_probe(struct platform_device *pdev)
 
 	switch (node->bus_type) {
 	case SMI_I2C:
-		return smi_i2c_probe(pdev, adev, smi, node->instances);
+		return smi_i2c_probe(pdev, smi, node->instances);
 	case SMI_SPI:
-		return smi_spi_probe(pdev, adev, smi, node->instances);
+		return smi_spi_probe(pdev, smi, node->instances);
 	case SMI_AUTO_DETECT:
 		/*
 		 * For backwards-compatibility with the existing nodes I2C
@@ -264,10 +259,10 @@ static int smi_probe(struct platform_device *pdev)
 		 * SpiSerialBus nodes that were previously ignored, and this
 		 * preserves that behavior.
 		 */
-		ret = smi_i2c_probe(pdev, adev, smi, node->instances);
+		ret = smi_i2c_probe(pdev, smi, node->instances);
 		if (ret != -ENOENT)
 			return ret;
-		return smi_spi_probe(pdev, adev, smi, node->instances);
+		return smi_spi_probe(pdev, smi, node->instances);
 	default:
 		return -EINVAL;
 	}
