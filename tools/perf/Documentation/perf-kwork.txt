@@ -26,7 +26,9 @@ There are several variants of 'perf kwork':
     Example usage:
         perf kwork record -- sleep 1
         perf kwork report
+        perf kwork report -b
         perf kwork latency
+        perf kwork latency -b
         perf kwork timehist
 
    By default it shows the individual work events such as irq, workqeueu,
@@ -73,6 +75,10 @@ OPTIONS
 OPTIONS for 'perf kwork report'
 ----------------------------
 
+-b::
+--use-bpf::
+	Use BPF to measure kwork runtime
+
 -C::
 --cpu::
 	Only show events for the given CPU(s) (comma separated list).
@@ -102,6 +108,10 @@ OPTIONS for 'perf kwork report'
 
 OPTIONS for 'perf kwork latency'
 ----------------------------
+
+-b::
+--use-bpf::
+	Use BPF to measure kwork latency
 
 -C::
 --cpu::

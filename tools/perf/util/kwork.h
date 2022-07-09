@@ -203,6 +203,7 @@ struct perf_kwork {
 	const char *sort_order;
 	bool show_callchain;
 	unsigned int max_stack;
+	bool use_bpf;
 
 	/*
 	 * statistics
@@ -218,5 +219,39 @@ struct perf_kwork {
 	u64 all_count;
 	u64 nr_skipped_events[KWORK_TRACE_MAX + 1];
 };
+
+struct kwork_work *perf_kwork_add_work(struct perf_kwork *kwork,
+				       struct kwork_class *class,
+				       struct kwork_work *key);
+
+#ifdef HAVE_BPF_SKEL
+
+int perf_kwork__trace_prepare_bpf(struct perf_kwork *kwork);
+int perf_kwork__report_read_bpf(struct perf_kwork *kwork);
+void perf_kwork__report_cleanup_bpf(void);
+
+void perf_kwork__trace_start(void);
+void perf_kwork__trace_finish(void);
+
+#else  /* !HAVE_BPF_SKEL */
+
+static inline int
+perf_kwork__trace_prepare_bpf(struct perf_kwork *kwork __maybe_unused)
+{
+	return -1;
+}
+
+static inline int
+perf_kwork__report_read_bpf(struct perf_kwork *kwork __maybe_unused)
+{
+	return -1;
+}
+
+static inline void perf_kwork__report_cleanup_bpf(void) {}
+
+static inline void perf_kwork__trace_start(void) {}
+static inline void perf_kwork__trace_finish(void) {}
+
+#endif  /* HAVE_BPF_SKEL */
 
 #endif  /* PERF_UTIL_KWORK_H */

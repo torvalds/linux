@@ -329,17 +329,15 @@ static struct kwork_work *work_findnew(struct rb_root_cached *root,
 				       struct kwork_work *key,
 				       struct list_head *sort_list)
 {
-	struct kwork_work *work = NULL;
+	struct kwork_work *work = work_search(root, key, sort_list);
 
-	work = work_search(root, key, sort_list);
 	if (work != NULL)
 		return work;
 
 	work = work_new(key);
-	if (work == NULL)
-		return NULL;
+	if (work)
+		work_insert(root, work, sort_list);
 
-	work_insert(root, work, sort_list);
 	return work;
 }
 
@@ -1429,13 +1427,69 @@ static void process_skipped_events(struct perf_kwork *kwork,
 	}
 }
 
+struct kwork_work *perf_kwork_add_work(struct perf_kwork *kwork,
+				       struct kwork_class *class,
+				       struct kwork_work *key)
+{
+	struct kwork_work *work = NULL;
+
+	work = work_new(key);
+	if (work == NULL)
+		return NULL;
+
+	work_insert(&class->work_root, work, &kwork->cmp_id);
+	return work;
+}
+
+static void sig_handler(int sig)
+{
+	/*
+	 * Simply capture termination signal so that
+	 * the program can continue after pause returns
+	 */
+	pr_debug("Captuer signal %d\n", sig);
+}
+
+static int perf_kwork__report_bpf(struct perf_kwork *kwork)
+{
+	int ret;
+
+	signal(SIGINT, sig_handler);
+	signal(SIGTERM, sig_handler);
+
+	ret = perf_kwork__trace_prepare_bpf(kwork);
+	if (ret)
+		return -1;
+
+	printf("Starting trace, Hit <Ctrl+C> to stop and report\n");
+
+	perf_kwork__trace_start();
+
+	/*
+	 * a simple pause, wait here for stop signal
+	 */
+	pause();
+
+	perf_kwork__trace_finish();
+
+	perf_kwork__report_read_bpf(kwork);
+
+	perf_kwork__report_cleanup_bpf();
+
+	return 0;
+}
+
 static int perf_kwork__report(struct perf_kwork *kwork)
 {
 	int ret;
 	struct rb_node *next;
 	struct kwork_work *work;
 
-	ret = perf_kwork__read_events(kwork);
+	if (kwork->use_bpf)
+		ret = perf_kwork__report_bpf(kwork);
+	else
+		ret = perf_kwork__read_events(kwork);
+
 	if (ret != 0)
 		return -1;
 
@@ -1668,6 +1722,10 @@ int cmd_kwork(int argc, const char **argv)
 		   "input file name"),
 	OPT_BOOLEAN('S', "with-summary", &kwork.summary,
 		    "Show summary with statistics"),
+#ifdef HAVE_BPF_SKEL
+	OPT_BOOLEAN('b', "use-bpf", &kwork.use_bpf,
+		    "Use BPF to measure kwork runtime"),
+#endif
 	OPT_PARENT(kwork_options)
 	};
 	const struct option latency_options[] = {
@@ -1681,6 +1739,10 @@ int cmd_kwork(int argc, const char **argv)
 		   "Time span for analysis (start,stop)"),
 	OPT_STRING('i', "input", &input_name, "file",
 		   "input file name"),
+#ifdef HAVE_BPF_SKEL
+	OPT_BOOLEAN('b', "use-bpf", &kwork.use_bpf,
+		    "Use BPF to measure kwork latency"),
+#endif
 	OPT_PARENT(kwork_options)
 	};
 	const struct option timehist_options[] = {
