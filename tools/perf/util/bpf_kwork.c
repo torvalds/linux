@@ -114,11 +114,27 @@ static struct kwork_class_bpf kwork_softirq_bpf = {
 	.get_work_name = get_work_name_from_map,
 };
 
+static void workqueue_load_prepare(struct perf_kwork *kwork)
+{
+	if (kwork->report == KWORK_REPORT_RUNTIME) {
+		bpf_program__set_autoload(skel->progs.report_workqueue_execute_start, true);
+		bpf_program__set_autoload(skel->progs.report_workqueue_execute_end, true);
+	} else if (kwork->report == KWORK_REPORT_LATENCY) {
+		bpf_program__set_autoload(skel->progs.latency_workqueue_activate_work, true);
+		bpf_program__set_autoload(skel->progs.latency_workqueue_execute_start, true);
+	}
+}
+
+static struct kwork_class_bpf kwork_workqueue_bpf = {
+	.load_prepare  = workqueue_load_prepare,
+	.get_work_name = get_work_name_from_map,
+};
+
 static struct kwork_class_bpf *
 kwork_class_bpf_supported_list[KWORK_CLASS_MAX] = {
 	[KWORK_CLASS_IRQ]       = &kwork_irq_bpf,
 	[KWORK_CLASS_SOFTIRQ]   = &kwork_softirq_bpf,
-	[KWORK_CLASS_WORKQUEUE] = NULL,
+	[KWORK_CLASS_WORKQUEUE] = &kwork_workqueue_bpf,
 };
 
 static bool valid_kwork_class_type(enum kwork_class_type type)

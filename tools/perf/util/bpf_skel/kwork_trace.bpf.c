@@ -167,6 +167,15 @@ static __always_inline void do_update_name(void *map,
 		bpf_map_update_elem(map, key, name, BPF_ANY);
 }
 
+static __always_inline int update_timestart(void *map, struct work_key *key)
+{
+	if (!trace_event_match(key, NULL))
+		return 0;
+
+	do_update_timestart(map, key);
+	return 0;
+}
+
 static __always_inline int update_timestart_and_name(void *time_map,
 						     void *names_map,
 						     struct work_key *key,
@@ -188,6 +197,21 @@ static __always_inline int update_timeend(void *report_map,
 		return 0;
 
 	do_update_timeend(report_map, time_map, key);
+
+	return 0;
+}
+
+static __always_inline int update_timeend_and_name(void *report_map,
+						   void *time_map,
+						   void *names_map,
+						   struct work_key *key,
+						   char *name)
+{
+	if (!trace_event_match(key, name))
+		return 0;
+
+	do_update_timeend(report_map, time_map, key);
+	do_update_name(names_map, key, name);
 
 	return 0;
 }
@@ -294,6 +318,66 @@ int latency_softirq_entry(struct trace_event_raw_softirq *ctx)
 	};
 
 	return update_timeend(&perf_kwork_report, &perf_kwork_time, &key);
+}
+
+SEC("tracepoint/workqueue/workqueue_execute_start")
+int report_workqueue_execute_start(struct trace_event_raw_workqueue_execute_start *ctx)
+{
+	struct work_key key = {
+		.type = KWORK_CLASS_WORKQUEUE,
+		.cpu  = bpf_get_smp_processor_id(),
+		.id   = (__u64)ctx->work,
+	};
+
+	return update_timestart(&perf_kwork_time, &key);
+}
+
+SEC("tracepoint/workqueue/workqueue_execute_end")
+int report_workqueue_execute_end(struct trace_event_raw_workqueue_execute_end *ctx)
+{
+	char name[MAX_KWORKNAME];
+	struct work_key key = {
+		.type = KWORK_CLASS_WORKQUEUE,
+		.cpu  = bpf_get_smp_processor_id(),
+		.id   = (__u64)ctx->work,
+	};
+	unsigned long long func_addr = (unsigned long long)ctx->function;
+
+	__builtin_memset(name, 0, sizeof(name));
+	bpf_snprintf(name, sizeof(name), "%ps", &func_addr, sizeof(func_addr));
+
+	return update_timeend_and_name(&perf_kwork_report, &perf_kwork_time,
+				       &perf_kwork_names, &key, name);
+}
+
+SEC("tracepoint/workqueue/workqueue_activate_work")
+int latency_workqueue_activate_work(struct trace_event_raw_workqueue_activate_work *ctx)
+{
+	struct work_key key = {
+		.type = KWORK_CLASS_WORKQUEUE,
+		.cpu  = bpf_get_smp_processor_id(),
+		.id   = (__u64)ctx->work,
+	};
+
+	return update_timestart(&perf_kwork_time, &key);
+}
+
+SEC("tracepoint/workqueue/workqueue_execute_start")
+int latency_workqueue_execute_start(struct trace_event_raw_workqueue_execute_start *ctx)
+{
+	char name[MAX_KWORKNAME];
+	struct work_key key = {
+		.type = KWORK_CLASS_WORKQUEUE,
+		.cpu  = bpf_get_smp_processor_id(),
+		.id   = (__u64)ctx->work,
+	};
+	unsigned long long func_addr = (unsigned long long)ctx->function;
+
+	__builtin_memset(name, 0, sizeof(name));
+	bpf_snprintf(name, sizeof(name), "%ps", &func_addr, sizeof(func_addr));
+
+	return update_timeend_and_name(&perf_kwork_report, &perf_kwork_time,
+				       &perf_kwork_names, &key, name);
 }
 
 char LICENSE[] SEC("license") = "Dual BSD/GPL";
