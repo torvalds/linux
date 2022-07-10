@@ -72,13 +72,13 @@
 #define DSI_CMD2_BK0_LNESET_LINE_MASK	GENMASK(6, 0)
 #define DSI_CMD2_BK0_LNESET_LDE_EN	BIT(7)
 #define DSI_CMD2_BK0_LNESET_LINEDELTA	GENMASK(1, 0)
+#define DSI_CMD2_BK0_PORCTRL_VBP_MASK	GENMASK(7, 0)
+#define DSI_CMD2_BK0_PORCTRL_VFP_MASK	GENMASK(7, 0)
 #define DSI_INVSEL_DEFAULT		GENMASK(5, 4)
 #define DSI_INVSEL_NLINV		GENMASK(2, 0)
 #define DSI_INVSEL_RTNI			GENMASK(2, 1)
 #define DSI_CMD2_BK0_INVSEL_B1		DSI_INVSEL_RTNI
 #define DSI_CMD2_BK0_INVSEL_B0		(DSI_INVSEL_DEFAULT | DSI_INVSEL_NLINV)
-#define DSI_CMD2_BK0_PORCTRL_B0(m)	((m)->vtotal - (m)->vsync_end)
-#define DSI_CMD2_BK0_PORCTRL_B1(m)	((m)->vsync_start - (m)->vdisplay)
 
 /* Command2, BK1 bytes */
 #define DSI_CMD2_BK1_VRHA_SET		0x45
@@ -182,8 +182,10 @@ static void st7701_init_sequence(struct st7701 *st7701)
 		   (linecountrem2 ? DSI_CMD2_BK0_LNESET_LDE_EN : 0),
 		   FIELD_PREP(DSI_CMD2_BK0_LNESET_LINEDELTA, linecountrem2));
 	ST7701_DSI(st7701, DSI_CMD2_BK0_PORCTRL,
-		   DSI_CMD2_BK0_PORCTRL_B0(mode),
-		   DSI_CMD2_BK0_PORCTRL_B1(mode));
+		   FIELD_PREP(DSI_CMD2_BK0_PORCTRL_VBP_MASK,
+			      mode->vtotal - mode->vsync_end),
+		   FIELD_PREP(DSI_CMD2_BK0_PORCTRL_VFP_MASK,
+			      mode->vsync_start - mode->vdisplay));
 	ST7701_DSI(st7701, DSI_CMD2_BK0_INVSEL,
 		   DSI_CMD2_BK0_INVSEL_B0, DSI_CMD2_BK0_INVSEL_B1);
 
