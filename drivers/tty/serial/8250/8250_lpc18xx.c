@@ -44,12 +44,8 @@ static int lpc18xx_rs485_config(struct uart_port *port, struct ktermios *termios
 		rs485_ctrl_reg |= LPC18XX_UART_RS485CTRL_NMMEN |
 				  LPC18XX_UART_RS485CTRL_DCTRL;
 
-		if (rs485->flags & SER_RS485_RTS_ON_SEND) {
+		if (rs485->flags & SER_RS485_RTS_ON_SEND)
 			rs485_ctrl_reg |= LPC18XX_UART_RS485CTRL_OINV;
-			rs485->flags &= ~SER_RS485_RTS_AFTER_SEND;
-		} else {
-			rs485->flags |= SER_RS485_RTS_AFTER_SEND;
-		}
 	}
 
 	if (rs485->delay_rts_after_send) {
