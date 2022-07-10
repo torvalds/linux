@@ -11,14 +11,23 @@ maintainers:
 
 properties:
   compatible:
-    enum:
-      - nxp,sja1000
-      - technologic,sja1000
+    oneOf:
+      - enum:
+          - nxp,sja1000
+          - technologic,sja1000
+      - items:
+          - enum:
+              - renesas,r9a06g032-sja1000 # RZ/N1D
+              - renesas,r9a06g033-sja1000 # RZ/N1S
+          - const: renesas,rzn1-sja1000 # RZ/N1
 
   reg:
     maxItems: 1
 
   interrupts:
+    maxItems: 1
+
+  clocks:
     maxItems: 1
 
   reg-io-width:
@@ -82,10 +91,20 @@ allOf:
       properties:
         compatible:
           contains:
-            const: technologic,sja1000
+            enum:
+              - technologic,sja1000
+              - renesas,rzn1-sja1000
     then:
       required:
         - reg-io-width
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,rzn1-sja1000
+    then:
+      required:
+        - clocks
 
 unevaluatedProperties: false
 
@@ -98,4 +117,16 @@ examples:
         reg-io-width = <2>;
         nxp,tx-output-config = <0x06>;
         nxp,external-clock-frequency = <24000000>;
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/clock/r9a06g032-sysctrl.h>
+
+    can@52104000 {
+        compatible = "renesas,r9a06g032-sja1000", "renesas,rzn1-sja1000";
+        reg = <0x52104000 0x800>;
+        reg-io-width = <4>;
+        interrupts = <GIC_SPI 95 IRQ_TYPE_LEVEL_HIGH>;
+        clocks = <&sysctrl R9A06G032_HCLK_CAN0>;
     };
