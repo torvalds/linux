@@ -566,14 +566,13 @@ patternProperties:
     patternProperties:
       "^event-(press|tap|(swipe|flick)-(pos|neg))$":
         type: object
+        $ref: input.yaml#
         description:
           Represents a press or gesture (IQS7222A only) event reported by
           the slider.
 
         properties:
-          linux,code:
-            $ref: /schemas/types.yaml#/definitions/uint32
-            description: Numeric key code associated with the event.
+          linux,code: true
 
           azoteq,gesture-max-ms:
             multipleOf: 4
