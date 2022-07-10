@@ -7,6 +7,7 @@ Description:
 		all descendant memdevs for unbind. Writing '1' to this attribute
 		flushes that work.
 
+
 What:		/sys/bus/cxl/devices/memX/firmware_version
 Date:		December, 2020
 KernelVersion:	v5.12
@@ -15,6 +16,7 @@ Description:
 		(RO) "FW Revision" string as reported by the Identify
 		Memory Device Output Payload in the CXL-2.0
 		specification.
+
 
 What:		/sys/bus/cxl/devices/memX/ram/size
 Date:		December, 2020
@@ -25,6 +27,7 @@ Description:
 		identically named field in the Identify Memory Device Output
 		Payload in the CXL-2.0 specification.
 
+
 What:		/sys/bus/cxl/devices/memX/pmem/size
 Date:		December, 2020
 KernelVersion:	v5.12
@@ -33,6 +36,7 @@ Description:
 		(RO) "Persistent Only Capacity" as bytes. Represents the
 		identically named field in the Identify Memory Device Output
 		Payload in the CXL-2.0 specification.
+
 
 What:		/sys/bus/cxl/devices/memX/serial
 Date:		January, 2022
@@ -43,6 +47,7 @@ Description:
 		capability. Mandatory for CXL devices, see CXL 2.0 8.1.12.2
 		Memory Device PCIe Capabilities and Extended Capabilities.
 
+
 What:		/sys/bus/cxl/devices/memX/numa_node
 Date:		January, 2022
 KernelVersion:	v5.18
@@ -51,6 +56,7 @@ Description:
 		(RO) If NUMA is enabled and the platform has affinitized the
 		host PCI device for this memory device, emit the CPU node
 		affinity for this device.
+
 
 What:		/sys/bus/cxl/devices/*/devtype
 Date:		June, 2021
@@ -61,6 +67,7 @@ Description:
 		mirrors the same value communicated in the DEVTYPE environment
 		variable for uevents for devices on the "cxl" bus.
 
+
 What:		/sys/bus/cxl/devices/*/modalias
 Date:		December, 2021
 KernelVersion:	v5.18
@@ -69,6 +76,7 @@ Description:
 		(RO) CXL device objects export the modalias attribute which
 		mirrors the same value communicated in the MODALIAS environment
 		variable for uevents for devices on the "cxl" bus.
+
 
 What:		/sys/bus/cxl/devices/portX/uport
 Date:		June, 2021
@@ -80,6 +88,7 @@ Description:
 		port with CXL component registers. The 'uport' symlink connects
 		the CXL portX object to the device that published the CXL port
 		capability.
+
 
 What:		/sys/bus/cxl/devices/portX/dportY
 Date:		June, 2021
@@ -94,6 +103,7 @@ Description:
 		integer reflects the hardware port unique-id used in the
 		hardware decoder target list.
 
+
 What:		/sys/bus/cxl/devices/decoderX.Y
 Date:		June, 2021
 KernelVersion:	v5.14
@@ -105,6 +115,7 @@ Description:
 		Capability Structure). The 'X' in decoderX.Y represents the
 		cxl_port container of this decoder, and 'Y' represents the
 		instance id of a given decoder resource.
+
 
 What:		/sys/bus/cxl/devices/decoderX.Y/{start,size}
 Date:		June, 2021
@@ -120,6 +131,7 @@ Description:
 		and dynamically updates based on the active memory regions in
 		that address space.
 
+
 What:		/sys/bus/cxl/devices/decoderX.Y/locked
 Date:		June, 2021
 KernelVersion:	v5.14
@@ -132,6 +144,7 @@ Description:
 		secondary bus reset, of the PCIe bridge that provides the bus
 		for this decoders uport, unlocks / resets the decoder.
 
+
 What:		/sys/bus/cxl/devices/decoderX.Y/target_list
 Date:		June, 2021
 KernelVersion:	v5.14
@@ -141,6 +154,7 @@ Description:
 		target configuration. The list is ordered by the current
 		configured interleave order of the decoder's dport instances.
 		Each entry in the list is a dport id.
+
 
 What:		/sys/bus/cxl/devices/decoderX.Y/cap_{pmem,ram,type2,type3}
 Date:		June, 2021
@@ -154,6 +168,7 @@ Description:
 		memory, volatile memory, accelerator memory, and / or expander
 		memory may be mapped behind this decoder's memory window.
 
+
 What:		/sys/bus/cxl/devices/decoderX.Y/target_type
 Date:		June, 2021
 KernelVersion:	v5.14
@@ -164,6 +179,7 @@ Description:
 		expander memory (type-3). The 'target_type' attribute indicates
 		the current setting which may dynamically change based on what
 		memory regions are activated in this decode hierarchy.
+
 
 What:		/sys/bus/cxl/devices/endpointX/CDAT
 Date:		July, 2022
