@@ -169,7 +169,7 @@ void migrate_irqs(void)
 
 	for_each_active_irq(i) {
 		struct irq_data *data = irq_get_irq_data(i);
-		struct cpumask *mask;
+		const struct cpumask *mask;
 		unsigned int newcpu;
 
 		if (irqd_is_per_cpu(data))
@@ -185,9 +185,10 @@ void migrate_irqs(void)
 			pr_info_ratelimited("IRQ%u no longer affine to CPU%u\n",
 					    i, cpu);
 
-			cpumask_setall(mask);
+			irq_set_affinity(i, cpu_all_mask);
+		} else {
+			irq_set_affinity(i, mask);
 		}
-		irq_set_affinity(i, mask);
 	}
 }
 #endif /* CONFIG_HOTPLUG_CPU */
