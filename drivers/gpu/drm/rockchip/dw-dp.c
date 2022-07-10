@@ -390,9 +390,12 @@ struct dw_dp {
 	struct drm_property *color_depth_capacity;
 	struct drm_property *color_format_capacity;
 	struct drm_property *hdcp_state_property;
+	struct drm_property *hdr_panel_metadata_property;
+	struct drm_property_blob *hdr_panel_blob_ptr;
 
 	struct rockchip_drm_sub_dev sub_dev;
 	struct dw_dp_hdcp hdcp;
+	int eotf_type;
 };
 
 struct dw_dp_state {
@@ -1181,6 +1184,21 @@ static const struct drm_connector_funcs dw_dp_connector_funcs = {
 	.atomic_set_property	= dw_dp_atomic_connector_set_property,
 };
 
+static int dw_dp_update_hdr_property(struct drm_connector *connector)
+{
+	struct dw_dp *dp = connector_to_dp(connector);
+	struct drm_device *dev = connector->dev;
+	const struct hdr_static_metadata *metadata =
+		&connector->hdr_sink_metadata.hdmi_type1;
+	size_t size = sizeof(*metadata);
+	int ret;
+
+	ret = drm_property_replace_global_blob(dev, &dp->hdr_panel_blob_ptr, size, metadata,
+					       &connector->base, dp->hdr_panel_metadata_property);
+
+	return ret;
+}
+
 static int dw_dp_connector_get_modes(struct drm_connector *connector)
 {
 	struct dw_dp *dp = connector_to_dp(connector);
@@ -1208,6 +1226,7 @@ static int dw_dp_connector_get_modes(struct drm_connector *connector)
 		if (edid) {
 			drm_connector_update_edid_property(connector, edid);
 			num_modes = drm_add_edid_modes(connector, edid);
+			dw_dp_update_hdr_property(connector);
 			kfree(edid);
 		}
 	}
@@ -1266,6 +1285,26 @@ mode_changed:
 	return 0;
 }
 
+static bool dw_dp_hdr_metadata_equal(const struct drm_connector_state *old_state,
+				     const struct drm_connector_state *new_state)
+{
+	struct drm_property_blob *old_blob = old_state->hdr_output_metadata;
+	struct drm_property_blob *new_blob = new_state->hdr_output_metadata;
+
+	if (!old_blob || !new_blob)
+		return old_blob == new_blob;
+
+	if (old_blob->length != new_blob->length)
+		return false;
+
+	return !memcmp(old_blob->data, new_blob->data, old_blob->length);
+}
+
+static inline bool dw_dp_is_hdr_eotf(int eotf)
+{
+	return eotf > HDMI_EOTF_TRADITIONAL_GAMMA_SDR && eotf <= HDMI_EOTF_BT_2100_HLG;
+}
+
 static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 					struct drm_atomic_state *state)
 {
@@ -1285,6 +1324,9 @@ static int dw_dp_connector_atomic_check(struct drm_connector *conn,
 		return 0;
 
 	crtc_state = drm_atomic_get_new_crtc_state(state, new_state->crtc);
+
+	if (!dw_dp_hdr_metadata_equal(old_state, new_state))
+		crtc_state->mode_changed = true;
 
 	if ((dp_new_state->bpc != 0) && (dp_new_state->bpc != 6) && (dp_new_state->bpc != 8) &&
 	    (dp_new_state->bpc != 10)) {
@@ -2056,10 +2098,16 @@ static int dw_dp_send_vsc_sdp(struct dw_dp *dp)
 	}
 
 	if (video->color_format == DRM_COLOR_FORMAT_RGB444) {
-		vsc.colorimetry = DP_COLORIMETRY_DEFAULT;
+		if (dw_dp_is_hdr_eotf(dp->eotf_type))
+			vsc.colorimetry = DP_COLORIMETRY_BT2020_RGB;
+		else
+			vsc.colorimetry = DP_COLORIMETRY_DEFAULT;
 		vsc.dynamic_range = DP_DYNAMIC_RANGE_VESA;
 	} else {
-		vsc.colorimetry = DP_COLORIMETRY_BT709_YCC;
+		if (dw_dp_is_hdr_eotf(dp->eotf_type))
+			vsc.colorimetry = DP_COLORIMETRY_BT2020_YCC;
+		else
+			vsc.colorimetry = DP_COLORIMETRY_BT709_YCC;
 		vsc.dynamic_range = DP_DYNAMIC_RANGE_CTA;
 	}
 
@@ -2067,6 +2115,62 @@ static int dw_dp_send_vsc_sdp(struct dw_dp *dp)
 	vsc.content_type = DP_CONTENT_TYPE_NOT_DEFINED;
 
 	dw_dp_vsc_sdp_pack(&vsc, &sdp);
+
+	return dw_dp_send_sdp(dp, &sdp);
+}
+
+static ssize_t dw_dp_hdr_metadata_infoframe_sdp_pack(struct dw_dp *dp,
+						     const struct hdmi_drm_infoframe *drm_infoframe,
+						     struct dw_dp_sdp *sdp)
+{
+	const int infoframe_size = HDMI_INFOFRAME_HEADER_SIZE + HDMI_DRM_INFOFRAME_SIZE;
+	unsigned char buf[HDMI_INFOFRAME_HEADER_SIZE + HDMI_DRM_INFOFRAME_SIZE];
+	ssize_t len;
+
+	memset(sdp, 0, sizeof(*sdp));
+
+	len = hdmi_drm_infoframe_pack_only(drm_infoframe, buf, sizeof(buf));
+	if (len < 0) {
+		dev_err(dp->dev, "buffer size is smaller than hdr metadata infoframe\n");
+		return -ENOSPC;
+	}
+
+	if (len != infoframe_size) {
+		dev_err(dp->dev, "wrong static hdr metadata size\n");
+		return -ENOSPC;
+	}
+
+	sdp->header.HB0 = 0;
+	sdp->header.HB1 = drm_infoframe->type;
+	sdp->header.HB2 = 0x1D;
+	sdp->header.HB3 = (0x13 << 2);
+	sdp->db[0] = drm_infoframe->version;
+	sdp->db[1] = drm_infoframe->length;
+
+	memcpy(&sdp->db[2], &buf[HDMI_INFOFRAME_HEADER_SIZE],
+	       HDMI_DRM_INFOFRAME_SIZE);
+
+	sdp->flags |= DPTX_SDP_VERTICAL_INTERVAL;
+
+	return sizeof(struct dp_sdp_header) + 2 + HDMI_DRM_INFOFRAME_SIZE;
+}
+
+static int dw_dp_send_hdr_metadata_infoframe_sdp(struct dw_dp *dp)
+{
+	struct hdmi_drm_infoframe drm_infoframe = {};
+	struct dw_dp_sdp sdp = {};
+	struct drm_connector_state *conn_state;
+	int ret;
+
+	conn_state = dp->connector.state;
+
+	ret = drm_hdmi_infoframe_set_hdr_metadata(&drm_infoframe, conn_state);
+	if (ret) {
+		dev_err(dp->dev, "couldn't set HDR metadata in infoframe\n");
+		return ret;
+	}
+
+	dw_dp_hdr_metadata_infoframe_sdp_pack(dp, &drm_infoframe, &sdp);
 
 	return dw_dp_send_sdp(dp, &sdp);
 }
@@ -2314,6 +2418,9 @@ static int dw_dp_video_enable(struct dw_dp *dp)
 	if (link->vsc_sdp_extension_for_colorimetry_supported)
 		dw_dp_send_vsc_sdp(dp);
 
+	if (dw_dp_is_hdr_eotf(dp->eotf_type))
+		dw_dp_send_hdr_metadata_infoframe_sdp(dp);
+
 	return 0;
 }
 
@@ -2421,6 +2528,18 @@ static void dw_dp_mode_fixup(struct dw_dp *dp, struct drm_display_mode *adjusted
 	}
 }
 
+static int dw_dp_get_eotf(struct drm_connector_state *conn_state)
+{
+	if (conn_state->hdr_output_metadata) {
+		struct hdr_output_metadata *hdr_metadata =
+			(struct hdr_output_metadata *)conn_state->hdr_output_metadata->data;
+
+		return hdr_metadata->hdmi_metadata_type1.eotf;
+	}
+
+	return HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
+}
+
 static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 				      struct drm_crtc_state *crtc_state,
 				      struct drm_connector_state *conn_state)
@@ -2430,6 +2549,7 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct drm_display_info *di = &conn_state->connector->display_info;
 
+	dp->eotf_type = dw_dp_get_eotf(conn_state);
 	switch (video->color_format) {
 	case DRM_COLOR_FORMAT_YCRCB420:
 		s->output_mode = ROCKCHIP_OUT_MODE_YUV420;
@@ -2456,8 +2576,11 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	s->bus_format = video->bus_format;
 	s->bus_flags = di->bus_flags;
 	s->tv_state = &conn_state->tv;
-	s->eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
-	s->color_space = V4L2_COLORSPACE_DEFAULT;
+	s->eotf = dp->eotf_type;
+	if (dw_dp_is_hdr_eotf(s->eotf))
+		s->color_space = V4L2_COLORSPACE_BT2020;
+	else
+		s->color_space = V4L2_COLORSPACE_DEFAULT;
 
 	dw_dp_mode_fixup(dp, &crtc_state->adjusted_mode);
 
@@ -2689,6 +2812,7 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 	struct drm_connector *connector = &dp->connector;
 	struct drm_bridge *bridge = &dp->bridge;
 	struct drm_property *prop;
+	struct drm_device *dev = bridge->dev;
 	int ret;
 
 	connector->polled = DRM_CONNECTOR_POLL_HPD;
@@ -2762,6 +2886,18 @@ static int dw_dp_connector_init(struct dw_dp *dp)
 	}
 	dp->hdcp_state_property = prop;
 	drm_object_attach_property(&connector->base, prop, RK_IF_HDCP_ENCRYPTED_NONE);
+
+	prop = drm_property_create(connector->dev, DRM_MODE_PROP_BLOB | DRM_MODE_PROP_IMMUTABLE,
+				   "HDR_PANEL_METADATA", 0);
+	if (!prop) {
+		DRM_DEV_ERROR(dp->dev, "create hdr metedata prop for dp%d failed\n", dp->id);
+		return -ENOMEM;
+	}
+	dp->hdr_panel_metadata_property = prop;
+	drm_object_attach_property(&connector->base, prop, 0);
+	drm_object_attach_property(&connector->base,
+				   dev->mode_config.hdr_output_metadata_property,
+				   0);
 
 	return 0;
 }
@@ -3128,6 +3264,10 @@ static u32 *dw_dp_bridge_atomic_get_output_bus_fmts(struct drm_bridge *bridge,
 			    (fmt->color_format != BIT(dp_state->color_format)))
 				continue;
 		}
+
+		if (dw_dp_is_hdr_eotf(dp->eotf_type) && fmt->bpc < 10)
+			continue;
+
 		output_fmts[j++] = fmt->bus_format;
 	}
 
