@@ -1302,27 +1302,9 @@ static int uart_check_rs485_flags(struct uart_port *port, struct serial_rs485 *r
 	return 0;
 }
 
-static void uart_sanitize_serial_rs485(struct uart_port *port, struct serial_rs485 *rs485)
+static void uart_sanitize_serial_rs485_delays(struct uart_port *port,
+					      struct serial_rs485 *rs485)
 {
-	u32 supported_flags = port->rs485_supported.flags;
-
-	if (!(rs485->flags & SER_RS485_ENABLED)) {
-		memset(rs485, 0, sizeof(*rs485));
-		return;
-	}
-
-	/* pick sane settings if the user hasn't */
-	if ((supported_flags & (SER_RS485_RTS_ON_SEND|SER_RS485_RTS_AFTER_SEND)) &&
-	    !(rs485->flags & SER_RS485_RTS_ON_SEND) ==
-	    !(rs485->flags & SER_RS485_RTS_AFTER_SEND)) {
-		dev_warn_ratelimited(port->dev,
-			"%s (%d): invalid RTS setting, using RTS_ON_SEND instead\n",
-			port->name, port->line);
-		rs485->flags |= SER_RS485_RTS_ON_SEND;
-		rs485->flags &= ~SER_RS485_RTS_AFTER_SEND;
-		supported_flags |= SER_RS485_RTS_ON_SEND|SER_RS485_RTS_AFTER_SEND;
-	}
-
 	if (!port->rs485_supported.delay_rts_before_send) {
 		if (rs485->delay_rts_before_send) {
 			dev_warn_ratelimited(port->dev,
@@ -1350,8 +1332,32 @@ static void uart_sanitize_serial_rs485(struct uart_port *port, struct serial_rs4
 			"%s (%d): RTS delay after sending clamped to %u ms\n",
 			port->name, port->line, rs485->delay_rts_after_send);
 	}
+}
+
+static void uart_sanitize_serial_rs485(struct uart_port *port, struct serial_rs485 *rs485)
+{
+	u32 supported_flags = port->rs485_supported.flags;
+
+	if (!(rs485->flags & SER_RS485_ENABLED)) {
+		memset(rs485, 0, sizeof(*rs485));
+		return;
+	}
+
+	/* Pick sane settings if the user hasn't */
+	if ((supported_flags & (SER_RS485_RTS_ON_SEND|SER_RS485_RTS_AFTER_SEND)) &&
+	    !(rs485->flags & SER_RS485_RTS_ON_SEND) ==
+	    !(rs485->flags & SER_RS485_RTS_AFTER_SEND)) {
+		dev_warn_ratelimited(port->dev,
+			"%s (%d): invalid RTS setting, using RTS_ON_SEND instead\n",
+			port->name, port->line);
+		rs485->flags |= SER_RS485_RTS_ON_SEND;
+		rs485->flags &= ~SER_RS485_RTS_AFTER_SEND;
+		supported_flags |= SER_RS485_RTS_ON_SEND|SER_RS485_RTS_AFTER_SEND;
+	}
 
 	rs485->flags &= supported_flags;
+
+	uart_sanitize_serial_rs485_delays(port, rs485);
 
 	/* Return clean padding area to userspace */
 	memset(rs485->padding0, 0, sizeof(rs485->padding0));
