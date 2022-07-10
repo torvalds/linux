@@ -708,3 +708,7 @@ static struct kunit_suite iio_rescale_test_suite = {
 	.test_cases = iio_rescale_test_cases,
 };
 kunit_test_suite(iio_rescale_test_suite);
+
+MODULE_AUTHOR("Liam Beguin <liambeguin@gmail.com>");
+MODULE_DESCRIPTION("Test IIO rescale conversion functions");
+MODULE_LICENSE("GPL v2");
