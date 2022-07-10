@@ -90,8 +90,6 @@ struct st7701_panel_desc {
 	const struct drm_display_mode *mode;
 	unsigned int lanes;
 	enum mipi_dsi_pixel_format format;
-	const char *const *supply_names;
-	unsigned int num_supplies;
 	unsigned int panel_sleep_delay;
 };
 
@@ -100,7 +98,7 @@ struct st7701 {
 	struct mipi_dsi_device *dsi;
 	const struct st7701_panel_desc *desc;
 
-	struct regulator_bulk_data *supplies;
+	struct regulator_bulk_data supplies[2];
 	struct gpio_desc *reset;
 	unsigned int sleep_delay;
 };
@@ -200,7 +198,7 @@ static int st7701_prepare(struct drm_panel *panel)
 
 	gpiod_set_value(st7701->reset, 0);
 
-	ret = regulator_bulk_enable(st7701->desc->num_supplies,
+	ret = regulator_bulk_enable(ARRAY_SIZE(st7701->supplies),
 				    st7701->supplies);
 	if (ret < 0)
 		return ret;
@@ -253,7 +251,7 @@ static int st7701_unprepare(struct drm_panel *panel)
 	 */
 	msleep(st7701->sleep_delay);
 
-	regulator_bulk_disable(st7701->desc->num_supplies, st7701->supplies);
+	regulator_bulk_disable(ARRAY_SIZE(st7701->supplies), st7701->supplies);
 
 	return 0;
 }
@@ -309,17 +307,10 @@ static const struct drm_display_mode ts8550b_mode = {
 	.type = DRM_MODE_TYPE_DRIVER | DRM_MODE_TYPE_PREFERRED,
 };
 
-static const char * const ts8550b_supply_names[] = {
-	"VCC",
-	"IOVCC",
-};
-
 static const struct st7701_panel_desc ts8550b_desc = {
 	.mode = &ts8550b_mode,
 	.lanes = 2,
 	.format = MIPI_DSI_FMT_RGB888,
-	.supply_names = ts8550b_supply_names,
-	.num_supplies = ARRAY_SIZE(ts8550b_supply_names),
 	.panel_sleep_delay = 80, /* panel need extra 80ms for sleep out cmd */
 };
 
@@ -327,7 +318,7 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 {
 	const struct st7701_panel_desc *desc;
 	struct st7701 *st7701;
-	int ret, i;
+	int ret;
 
 	st7701 = devm_kzalloc(&dsi->dev, sizeof(*st7701), GFP_KERNEL);
 	if (!st7701)
@@ -339,16 +330,10 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
 
-	st7701->supplies = devm_kcalloc(&dsi->dev, desc->num_supplies,
-					sizeof(*st7701->supplies),
-					GFP_KERNEL);
-	if (!st7701->supplies)
-		return -ENOMEM;
+	st7701->supplies[0].supply = "VCC";
+	st7701->supplies[1].supply = "IOVCC";
 
-	for (i = 0; i < desc->num_supplies; i++)
-		st7701->supplies[i].supply = desc->supply_names[i];
-
-	ret = devm_regulator_bulk_get(&dsi->dev, desc->num_supplies,
+	ret = devm_regulator_bulk_get(&dsi->dev, ARRAY_SIZE(st7701->supplies),
 				      st7701->supplies);
 	if (ret < 0)
 		return ret;
