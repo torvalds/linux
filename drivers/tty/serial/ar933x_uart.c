@@ -798,11 +798,12 @@ static int ar933x_uart_probe(struct platform_device *pdev)
 
 	up->rts_gpiod = mctrl_gpio_to_gpiod(up->gpios, UART_GPIO_RTS);
 
-	if ((port->rs485.flags & SER_RS485_ENABLED) &&
-	    !up->rts_gpiod) {
-		dev_err(&pdev->dev, "lacking rts-gpio, disabling RS485\n");
-		port->rs485.flags &= ~SER_RS485_ENABLED;
+	if (!up->rts_gpiod) {
 		port->rs485_supported = ar933x_no_rs485;
+		if (port->rs485.flags & SER_RS485_ENABLED) {
+			dev_err(&pdev->dev, "lacking rts-gpio, disabling RS485\n");
+			port->rs485.flags &= ~SER_RS485_ENABLED;
+		}
 	}
 
 #ifdef CONFIG_SERIAL_AR933X_CONSOLE
