@@ -3395,6 +3395,8 @@ int uart_get_rs485_mode(struct uart_port *port)
 		rs485conf->delay_rts_after_send = 0;
 	}
 
+	uart_sanitize_serial_rs485_delays(port, rs485conf);
+
 	/*
 	 * Clear full-duplex and enabled flags, set RTS polarity to active high
 	 * to get to a defined state with the following properties:
