@@ -89,7 +89,6 @@
 struct st7701_panel_desc {
 	const struct drm_display_mode *mode;
 	unsigned int lanes;
-	unsigned long flags;
 	enum mipi_dsi_pixel_format format;
 	const char *const *supply_names;
 	unsigned int num_supplies;
@@ -318,7 +317,6 @@ static const char * const ts8550b_supply_names[] = {
 static const struct st7701_panel_desc ts8550b_desc = {
 	.mode = &ts8550b_mode,
 	.lanes = 2,
-	.flags = MIPI_DSI_MODE_VIDEO,
 	.format = MIPI_DSI_FMT_RGB888,
 	.supply_names = ts8550b_supply_names,
 	.num_supplies = ARRAY_SIZE(ts8550b_supply_names),
@@ -336,7 +334,7 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 		return -ENOMEM;
 
 	desc = of_device_get_match_data(&dsi->dev);
-	dsi->mode_flags = desc->flags;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO;
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
 
