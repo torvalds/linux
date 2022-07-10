@@ -583,15 +583,6 @@ static const struct uart_ops ar933x_uart_ops = {
 static int ar933x_config_rs485(struct uart_port *port, struct ktermios *termios,
 				struct serial_rs485 *rs485conf)
 {
-	struct ar933x_uart_port *up =
-		container_of(port, struct ar933x_uart_port, port);
-
-	if ((rs485conf->flags & SER_RS485_ENABLED) &&
-	    !up->rts_gpiod) {
-		dev_err(port->dev, "RS485 needs rts-gpio\n");
-		return 1;
-	}
-	port->rs485 = *rs485conf;
 	return 0;
 }
 
