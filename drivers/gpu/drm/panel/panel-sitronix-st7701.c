@@ -74,11 +74,9 @@
 #define DSI_CMD2_BK0_LNESET_LINEDELTA	GENMASK(1, 0)
 #define DSI_CMD2_BK0_PORCTRL_VBP_MASK	GENMASK(7, 0)
 #define DSI_CMD2_BK0_PORCTRL_VFP_MASK	GENMASK(7, 0)
-#define DSI_INVSEL_DEFAULT		GENMASK(5, 4)
-#define DSI_INVSEL_NLINV		GENMASK(2, 0)
-#define DSI_INVSEL_RTNI			GENMASK(2, 1)
-#define DSI_CMD2_BK0_INVSEL_B1		DSI_INVSEL_RTNI
-#define DSI_CMD2_BK0_INVSEL_B0		(DSI_INVSEL_DEFAULT | DSI_INVSEL_NLINV)
+#define DSI_CMD2_BK0_INVSEL_ONES_MASK	GENMASK(5, 4)
+#define DSI_CMD2_BK0_INVSEL_NLINV_MASK	GENMASK(2, 0)
+#define DSI_CMD2_BK0_INVSEL_RTNI_MASK	GENMASK(4, 0)
 
 /* Command2, BK1 bytes */
 #define DSI_CMD2_BK1_VRHA_SET		0x45
@@ -114,6 +112,7 @@ struct st7701_panel_desc {
 	/* TFT matrix driver configuration, panel specific. */
 	const u8	pv_gamma[16];	/* Positive voltage gamma control */
 	const u8	nv_gamma[16];	/* Negative voltage gamma control */
+	const u8	nlinv;		/* Inversion selection */
 };
 
 struct st7701 {
@@ -186,8 +185,17 @@ static void st7701_init_sequence(struct st7701 *st7701)
 			      mode->vtotal - mode->vsync_end),
 		   FIELD_PREP(DSI_CMD2_BK0_PORCTRL_VFP_MASK,
 			      mode->vsync_start - mode->vdisplay));
+	/*
+	 * Horizontal pixel count configuration:
+	 * PCLK = 512 + (RTNI[4:0] * 16)
+	 * The PCLK is number of pixel clock per line, which matches
+	 * mode htotal. The minimum is 512 PCLK.
+	 */
 	ST7701_DSI(st7701, DSI_CMD2_BK0_INVSEL,
-		   DSI_CMD2_BK0_INVSEL_B0, DSI_CMD2_BK0_INVSEL_B1);
+		   DSI_CMD2_BK0_INVSEL_ONES_MASK |
+		   FIELD_PREP(DSI_CMD2_BK0_INVSEL_NLINV_MASK, desc->nlinv),
+		   FIELD_PREP(DSI_CMD2_BK0_INVSEL_RTNI_MASK,
+			      DIV_ROUND_UP(mode->htotal, 16)));
 
 	/* Command2, BK1 */
 	ST7701_DSI(st7701, DSI_CMD2BKX_SEL,
@@ -410,6 +418,7 @@ static const struct st7701_panel_desc ts8550b_desc = {
 		CFIELD_PREP(DSI_CMD2_BK0_GAMCTRL_AJ_MASK, 0) |
 		CFIELD_PREP(DSI_CMD2_BK0_GAMCTRL_VC255_MASK, 0x1f)
 	},
+	.nlinv = 7,
 };
 
 static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
