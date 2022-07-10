@@ -2,6 +2,7 @@
 /* Copyright(c) 2020 Intel Corporation. All rights reserved. */
 #include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/workqueue.h>
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -1499,9 +1500,18 @@ struct bus_type cxl_bus_type = {
 };
 EXPORT_SYMBOL_NS_GPL(cxl_bus_type, CXL);
 
+static struct dentry *cxl_debugfs;
+
+struct dentry *cxl_debugfs_create_dir(const char *dir)
+{
+	return debugfs_create_dir(dir, cxl_debugfs);
+}
+
 static __init int cxl_core_init(void)
 {
 	int rc;
+
+	cxl_debugfs = debugfs_create_dir("cxl", NULL);
 
 	cxl_mbox_init();
 
@@ -1525,7 +1535,6 @@ err_bus:
 	destroy_workqueue(cxl_bus_wq);
 err_wq:
 	cxl_memdev_exit();
-	cxl_mbox_exit();
 	return rc;
 }
 
@@ -1534,7 +1543,7 @@ static void cxl_core_exit(void)
 	bus_unregister(&cxl_bus_type);
 	destroy_workqueue(cxl_bus_wq);
 	cxl_memdev_exit();
-	cxl_mbox_exit();
+	debugfs_remove_recursive(cxl_debugfs);
 }
 
 module_init(cxl_core_init);

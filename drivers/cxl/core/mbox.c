@@ -857,19 +857,11 @@ struct cxl_dev_state *cxl_dev_state_create(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(cxl_dev_state_create, CXL);
 
-static struct dentry *cxl_debugfs;
-
 void __init cxl_mbox_init(void)
 {
 	struct dentry *mbox_debugfs;
 
-	cxl_debugfs = debugfs_create_dir("cxl", NULL);
-	mbox_debugfs = debugfs_create_dir("mbox", cxl_debugfs);
+	mbox_debugfs = cxl_debugfs_create_dir("mbox");
 	debugfs_create_bool("raw_allow_all", 0600, mbox_debugfs,
 			    &cxl_raw_allow_all);
-}
-
-void cxl_mbox_exit(void)
-{
-	debugfs_remove_recursive(cxl_debugfs);
 }

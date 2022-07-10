@@ -17,9 +17,9 @@ int cxl_send_cmd(struct cxl_memdev *cxlmd, struct cxl_send_command __user *s);
 void __iomem *devm_cxl_iomap_block(struct device *dev, resource_size_t addr,
 				   resource_size_t length);
 
+struct dentry *cxl_debugfs_create_dir(const char *dir);
 int cxl_memdev_init(void);
 void cxl_memdev_exit(void);
 void cxl_mbox_init(void);
-void cxl_mbox_exit(void);
 
 #endif /* __CXL_CORE_H__ */
