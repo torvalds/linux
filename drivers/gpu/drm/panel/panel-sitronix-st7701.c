@@ -8,6 +8,7 @@
 #include <drm/drm_modes.h>
 #include <drm/drm_panel.h>
 
+#include <linux/bitfield.h>
 #include <linux/gpio/consumer.h>
 #include <linux/delay.h>
 #include <linux/module.h>
@@ -68,11 +69,9 @@
 #define DSI_CMD2_BK0_GAMCTRL_VC247_MASK	GENMASK(5, 0)
 #define DSI_CMD2_BK0_GAMCTRL_VC251_MASK	GENMASK(5, 0)
 #define DSI_CMD2_BK0_GAMCTRL_VC255_MASK	GENMASK(4, 0)
-#define DSI_LINESET_LINE		0x69
-#define DSI_LINESET_LDE_EN		BIT(7)
-#define DSI_LINESET_LINEDELTA		GENMASK(1, 0)
-#define DSI_CMD2_BK0_LNESET_B1		DSI_LINESET_LINEDELTA
-#define DSI_CMD2_BK0_LNESET_B0		(DSI_LINESET_LDE_EN | DSI_LINESET_LINE)
+#define DSI_CMD2_BK0_LNESET_LINE_MASK	GENMASK(6, 0)
+#define DSI_CMD2_BK0_LNESET_LDE_EN	BIT(7)
+#define DSI_CMD2_BK0_LNESET_LINEDELTA	GENMASK(1, 0)
 #define DSI_INVSEL_DEFAULT		GENMASK(5, 4)
 #define DSI_INVSEL_NLINV		GENMASK(2, 0)
 #define DSI_INVSEL_RTNI			GENMASK(2, 1)
@@ -148,6 +147,8 @@ static void st7701_init_sequence(struct st7701 *st7701)
 {
 	const struct st7701_panel_desc *desc = st7701->desc;
 	const struct drm_display_mode *mode = desc->mode;
+	const u8 linecount8 = mode->vdisplay / 8;
+	const u8 linecountrem2 = (mode->vdisplay % 8) / 2;
 
 	ST7701_DSI(st7701, MIPI_DCS_SOFT_RESET, 0x00);
 
@@ -165,8 +166,21 @@ static void st7701_init_sequence(struct st7701 *st7701)
 			   desc->pv_gamma, ARRAY_SIZE(desc->pv_gamma));
 	mipi_dsi_dcs_write(st7701->dsi, DSI_CMD2_BK0_NVGAMCTRL,
 			   desc->nv_gamma, ARRAY_SIZE(desc->nv_gamma));
+	/*
+	 * Vertical line count configuration:
+	 * Line[6:0]: select number of vertical lines of the TFT matrix in
+	 *            multiples of 8 lines
+	 * LDE_EN: enable sub-8-line granularity line count
+	 * Line_delta[1:0]: add 0/2/4/6 extra lines to line count selected
+	 *                  using Line[6:0]
+	 *
+	 * Total number of vertical lines:
+	 * LN = ((Line[6:0] + 1) * 8) + (LDE_EN ? Line_delta[1:0] * 2 : 0)
+	 */
 	ST7701_DSI(st7701, DSI_CMD2_BK0_LNESET,
-		   DSI_CMD2_BK0_LNESET_B0, DSI_CMD2_BK0_LNESET_B1);
+		   FIELD_PREP(DSI_CMD2_BK0_LNESET_LINE_MASK, linecount8 - 1) |
+		   (linecountrem2 ? DSI_CMD2_BK0_LNESET_LDE_EN : 0),
+		   FIELD_PREP(DSI_CMD2_BK0_LNESET_LINEDELTA, linecountrem2));
 	ST7701_DSI(st7701, DSI_CMD2_BK0_PORCTRL,
 		   DSI_CMD2_BK0_PORCTRL_B0(mode),
 		   DSI_CMD2_BK0_PORCTRL_B1(mode));
