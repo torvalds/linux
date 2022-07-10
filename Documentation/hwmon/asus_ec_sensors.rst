@@ -22,6 +22,7 @@ Supported boards:
  * ROG STRIX X570-F GAMING
  * ROG STRIX X570-I GAMING
  * ROG STRIX Z690-A GAMING WIFI D4
+ * ROG ZENITH II EXTREME
 
 Authors:
     - Eugene Shalygin <eugene.shalygin@gmail.com>
