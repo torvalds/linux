@@ -676,9 +676,6 @@ int serial8250_em485_config(struct uart_port *port, struct ktermios *termios,
 		rs485->flags &= ~SER_RS485_RTS_AFTER_SEND;
 	}
 
-	gpiod_set_value(port->rs485_term_gpio,
-			rs485->flags & SER_RS485_TERMINATE_BUS);
-
 	/*
 	 * Both serial8250_em485_init() and serial8250_em485_destroy()
 	 * are idempotent.
