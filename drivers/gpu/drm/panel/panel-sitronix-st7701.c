@@ -334,7 +334,8 @@ static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
 		return -ENOMEM;
 
 	desc = of_device_get_match_data(&dsi->dev);
-	dsi->mode_flags = MIPI_DSI_MODE_VIDEO;
+	dsi->mode_flags = MIPI_DSI_MODE_VIDEO | MIPI_DSI_MODE_VIDEO_BURST |
+			  MIPI_DSI_MODE_LPM | MIPI_DSI_CLOCK_NON_CONTINUOUS;
 	dsi->format = desc->format;
 	dsi->lanes = desc->lanes;
 
