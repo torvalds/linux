@@ -107,6 +107,8 @@ enum op_bias {
 	OP_BIAS_MAX
 };
 
+struct st7701;
+
 struct st7701_panel_desc {
 	const struct drm_display_mode *mode;
 	unsigned int lanes;
@@ -129,6 +131,9 @@ struct st7701_panel_desc {
 	const u16	t2d_ns;		/* T2D in ns */
 	const u16	t3d_ns;		/* T3D in ns */
 	const bool	eot_en;
+
+	/* GIP sequence, fully custom and undocumented. */
+	void		(*gip_sequence)(struct st7701 *st7701);
 };
 
 struct st7701 {
@@ -297,7 +302,10 @@ static void st7701_init_sequence(struct st7701 *st7701)
 	ST7701_DSI(st7701, DSI_CMD2_BK1_MIPISET1,
 		   DSI_CMD2_BK1_MIPISET1_ONES |
 		   (desc->eot_en ? DSI_CMD2_BK1_MIPISET1_EOT_EN : 0));
+}
 
+static void ts8550b_gip_sequence(struct st7701 *st7701)
+{
 	/**
 	 * ST7701_SPEC_V1.2 is unable to provide enough information above this
 	 * specific command sequence, so grab the same from vendor BSP driver.
@@ -319,10 +327,6 @@ static void st7701_init_sequence(struct st7701 *st7701)
 	ST7701_DSI(st7701, 0xEC, 0x00, 0x00);
 	ST7701_DSI(st7701, 0xED, 0xFF, 0xF1, 0x04, 0x56, 0x72, 0x3F, 0xFF,
 		   0xFF, 0xFF, 0xFF, 0xF3, 0x27, 0x65, 0x40, 0x1F, 0xFF);
-
-	/* disable Command2 */
-	ST7701_DSI(st7701, DSI_CMD2BKX_SEL,
-		   0x77, 0x01, 0x00, 0x00, DSI_CMD2BKX_SEL_NONE);
 }
 
 static int st7701_prepare(struct drm_panel *panel)
@@ -342,6 +346,13 @@ static int st7701_prepare(struct drm_panel *panel)
 	msleep(150);
 
 	st7701_init_sequence(st7701);
+
+	if (st7701->desc->gip_sequence)
+		st7701->desc->gip_sequence(st7701);
+
+	/* Disable Command2 */
+	ST7701_DSI(st7701, DSI_CMD2BKX_SEL,
+		   0x77, 0x01, 0x00, 0x00, DSI_CMD2BKX_SEL_NONE);
 
 	return 0;
 }
@@ -518,6 +529,7 @@ static const struct st7701_panel_desc ts8550b_desc = {
 	.t2d_ns = 1600,
 	.t3d_ns = 10400,
 	.eot_en = true,
+	.gip_sequence = ts8550b_gip_sequence,
 };
 
 static int st7701_dsi_probe(struct mipi_dsi_device *dsi)
