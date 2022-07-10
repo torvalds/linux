@@ -366,9 +366,10 @@ static const struct ec_board_info board_info[] = {
 	},
 	{
 		.board_names = {"ROG STRIX X570-I GAMING"},
-		.sensors = SENSOR_TEMP_T_SENSOR | SENSOR_FAN_VRM_HS |
-			SENSOR_FAN_CHIPSET | SENSOR_CURR_CPU |
-			SENSOR_IN_CPU_CORE,
+		.sensors = SENSOR_TEMP_CHIPSET | SENSOR_TEMP_VRM |
+			SENSOR_TEMP_T_SENSOR |
+			SENSOR_FAN_VRM_HS | SENSOR_FAN_CHIPSET |
+			SENSOR_CURR_CPU | SENSOR_IN_CPU_CORE,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 		.family = family_amd_500_series,
 	},
