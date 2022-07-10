@@ -187,16 +187,10 @@ static int dw8250_rs485_config(struct uart_port *p, struct ktermios *termios,
 	if (rs485->flags & SER_RS485_ENABLED) {
 		tcr |= DW_UART_TCR_RS485_EN;
 
-		if (rs485->flags & SER_RS485_RX_DURING_TX) {
+		if (rs485->flags & SER_RS485_RX_DURING_TX)
 			tcr |= DW_UART_TCR_XFER_MODE_DE_DURING_RE;
-		} else {
-			/* HW does not support same DE level for tx and rx */
-			if (!(rs485->flags & SER_RS485_RTS_ON_SEND) ==
-			    !(rs485->flags & SER_RS485_RTS_AFTER_SEND))
-				return -EINVAL;
-
+		else
 			tcr |= DW_UART_TCR_XFER_MODE_DE_OR_RE;
-		}
 		dw8250_writel_ext(p, DW_UART_DE_EN, 1);
 		dw8250_writel_ext(p, DW_UART_RE_EN, 1);
 	} else {
