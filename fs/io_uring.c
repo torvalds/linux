@@ -7973,6 +7973,9 @@ static int io_files_update_with_index_alloc(struct io_kiocb *req,
 	struct file *file;
 	int ret, fd;
 
+	if (!req->ctx->file_data)
+		return -ENXIO;
+
 	for (done = 0; done < req->rsrc_update.nr_args; done++) {
 		if (copy_from_user(&fd, &fds[done], sizeof(fd))) {
 			ret = -EFAULT;
