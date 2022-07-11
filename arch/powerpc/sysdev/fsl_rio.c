@@ -69,10 +69,10 @@
 
 static DEFINE_SPINLOCK(fsl_rio_config_lock);
 
-#define __fsl_read_rio_config(x, addr, err, op)		\
+#define ___fsl_read_rio_config(x, addr, err, op, barrier)	\
 	__asm__ __volatile__(				\
 		"1:	"op" %1,0(%2)\n"		\
-		"	eieio\n"			\
+		"	"barrier"\n"			\
 		"2:\n"					\
 		".section .fixup,\"ax\"\n"		\
 		"3:	li %1,-1\n"			\
@@ -82,6 +82,14 @@ static DEFINE_SPINLOCK(fsl_rio_config_lock);
 		EX_TABLE(1b, 3b)			\
 		: "=r" (err), "=r" (x)			\
 		: "b" (addr), "i" (-EFAULT), "0" (err))
+
+#ifdef CONFIG_BOOKE
+#define __fsl_read_rio_config(x, addr, err, op)	\
+	___fsl_read_rio_config(x, addr, err, op, "mbar")
+#else
+#define __fsl_read_rio_config(x, addr, err, op)	\
+	___fsl_read_rio_config(x, addr, err, op, "eieio")
+#endif
 
 void __iomem *rio_regs_win;
 void __iomem *rmu_regs_win;
