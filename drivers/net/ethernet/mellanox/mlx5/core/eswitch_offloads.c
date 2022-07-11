@@ -3342,27 +3342,6 @@ static int esw_inline_mode_to_devlink(u8 mlx5_mode, u8 *mode)
 	return 0;
 }
 
-/* FIXME: devl_unlock() followed by devl_lock() inside driver callback
- * is never correct and prone to races. It's a transitional workaround,
- * never repeat this pattern.
- *
- * This code MUST be fixed before removing devlink_mutex as it is safe
- * to do only because of that mutex.
- */
-static void mlx5_eswtich_mode_callback_enter(struct devlink *devlink,
-					     struct mlx5_eswitch *esw)
-{
-	devl_unlock(devlink);
-	down_write(&esw->mode_lock);
-}
-
-static void mlx5_eswtich_mode_callback_exit(struct devlink *devlink,
-					    struct mlx5_eswitch *esw)
-{
-	up_write(&esw->mode_lock);
-	devl_lock(devlink);
-}
-
 int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 				  struct netlink_ext_ack *extack)
 {
@@ -3431,9 +3410,9 @@ int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 	if (IS_ERR(esw))
 		return PTR_ERR(esw);
 
-	mlx5_eswtich_mode_callback_enter(devlink, esw);
+	down_write(&esw->mode_lock);
 	err = esw_mode_to_devlink(esw->mode, mode);
-	mlx5_eswtich_mode_callback_exit(devlink, esw);
+	up_write(&esw->mode_lock);
 	return err;
 }
 
@@ -3480,7 +3459,7 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode,
 	if (IS_ERR(esw))
 		return PTR_ERR(esw);
 
-	mlx5_eswtich_mode_callback_enter(devlink, esw);
+	down_write(&esw->mode_lock);
 
 	switch (MLX5_CAP_ETH(dev, wqe_inline_mode)) {
 	case MLX5_CAP_INLINE_MODE_NOT_REQUIRED:
@@ -3514,11 +3493,11 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode,
 		goto out;
 
 	esw->offloads.inline_mode = mlx5_mode;
-	mlx5_eswtich_mode_callback_exit(devlink, esw);
+	up_write(&esw->mode_lock);
 	return 0;
 
 out:
-	mlx5_eswtich_mode_callback_exit(devlink, esw);
+	up_write(&esw->mode_lock);
 	return err;
 }
 
@@ -3531,9 +3510,9 @@ int mlx5_devlink_eswitch_inline_mode_get(struct devlink *devlink, u8 *mode)
 	if (IS_ERR(esw))
 		return PTR_ERR(esw);
 
-	mlx5_eswtich_mode_callback_enter(devlink, esw);
+	down_write(&esw->mode_lock);
 	err = esw_inline_mode_to_devlink(esw->offloads.inline_mode, mode);
-	mlx5_eswtich_mode_callback_exit(devlink, esw);
+	up_write(&esw->mode_lock);
 	return err;
 }
 
@@ -3549,7 +3528,7 @@ int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink,
 	if (IS_ERR(esw))
 		return PTR_ERR(esw);
 
-	mlx5_eswtich_mode_callback_enter(devlink, esw);
+	down_write(&esw->mode_lock);
 
 	if (encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE &&
 	    (!MLX5_CAP_ESW_FLOWTABLE_FDB(dev, reformat) ||
@@ -3592,7 +3571,7 @@ int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink,
 	}
 
 unlock:
-	mlx5_eswtich_mode_callback_exit(devlink, esw);
+	up_write(&esw->mode_lock);
 	return err;
 }
 
@@ -3605,9 +3584,9 @@ int mlx5_devlink_eswitch_encap_mode_get(struct devlink *devlink,
 	if (IS_ERR(esw))
 		return PTR_ERR(esw);
 
-	mlx5_eswtich_mode_callback_enter(devlink, esw);
+	down_write(&esw->mode_lock);
 	*encap = esw->offloads.encap;
-	mlx5_eswtich_mode_callback_exit(devlink, esw);
+	up_write(&esw->mode_lock);
 	return 0;
 }
 
