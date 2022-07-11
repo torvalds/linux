@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co.Ltd
  * Author: Felix Zeng <felix.zeng@rock-chips.com>
  */
 
@@ -19,6 +19,7 @@
 
 #define RKNPU_JOB_DONE (1 << 0)
 #define RKNPU_JOB_ASYNC (1 << 1)
+#define RKNPU_JOB_DETACHED (1 << 2)
 
 #define RKNPU_CORE_AUTO_MASK 0x00
 #define RKNPU_CORE0_MASK 0x01
@@ -29,6 +30,8 @@ struct rknpu_job {
 	struct rknpu_device *rknpu_dev;
 	struct list_head head[RKNPU_MAX_CORES];
 	struct work_struct cleanup_work;
+	bool in_queue[RKNPU_MAX_CORES];
+	bool irq_entry[RKNPU_MAX_CORES];
 	unsigned int flags;
 	int ret;
 	struct rknpu_submit *args;

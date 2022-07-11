@@ -29,6 +29,12 @@ config ROCKCHIP_RKNPU_FENCE
 	help
 	  Enable fence support for RKNPU.
 
+config ROCKCHIP_RKNPU_SRAM
+	bool "RKNPU SRAM"
+	depends on NO_GKI
+	help
+	  Enable RKNPU SRAM support
+
 choice
 	prompt "RKNPU memory manager"
 	default ROCKCHIP_RKNPU_DRM_GEM

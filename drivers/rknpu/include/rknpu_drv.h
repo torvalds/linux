@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co.Ltd
  * Author: Felix Zeng <felix.zeng@rock-chips.com>
  */
 
@@ -26,13 +26,14 @@
 #include "rknpu_job.h"
 #include "rknpu_fence.h"
 #include "rknpu_debugger.h"
+#include "rknpu_mm.h"
 
 #define DRIVER_NAME "rknpu"
 #define DRIVER_DESC "RKNPU driver"
-#define DRIVER_DATE "20220428"
+#define DRIVER_DATE "20220803"
 #define DRIVER_MAJOR 0
-#define DRIVER_MINOR 7
-#define DRIVER_PATCHLEVEL 2
+#define DRIVER_MINOR 8
+#define DRIVER_PATCHLEVEL 0
 
 #define LOG_TAG "RKNPU"
 
@@ -81,7 +82,7 @@ struct rknpu_subcore_data {
 	struct list_head todo_list;
 	wait_queue_head_t job_done_wq;
 	struct rknpu_job *job;
-	uint64_t task_num;
+	int64_t task_num;
 	struct rknpu_timer timer;
 };
 
@@ -106,6 +107,7 @@ struct rknpu_device {
 	spinlock_t lock;
 	spinlock_t irq_lock;
 	struct mutex power_lock;
+	struct mutex reset_lock;
 	struct rknpu_subcore_data subcore_datas[RKNPU_MAX_CORES];
 	const struct rknpu_config *config;
 	void __iomem *bw_priority_base;
@@ -130,6 +132,7 @@ struct rknpu_device {
 	unsigned long current_volt;
 	int bypass_irq_handler;
 	int bypass_soft_reset;
+	bool soft_reseting;
 	struct device *genpd_dev_npu0;
 	struct device *genpd_dev_npu1;
 	struct device *genpd_dev_npu2;
@@ -142,6 +145,11 @@ struct rknpu_device {
 	struct rknpu_debugger debugger;
 	struct hrtimer timer;
 	ktime_t kt;
+	phys_addr_t sram_start;
+	phys_addr_t sram_end;
+	uint32_t sram_size;
+	void __iomem *sram_base_io;
+	struct rknpu_mm *sram_mm;
 };
 
 int rknpu_action(struct rknpu_device *rknpu_dev, struct rknpu_action *args);

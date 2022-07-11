@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co.Ltd
  * Author: Felix Zeng <felix.zeng@rock-chips.com>
  */
 
@@ -33,6 +33,8 @@
 #include <linux/pm_runtime.h>
 #include <linux/devfreq_cooling.h>
 #include <linux/regmap.h>
+#include <linux/dma-iommu.h>
+#include <linux/of_address.h>
 
 #ifndef FPGA_PLATFORM
 #include <soc/rockchip/rockchip_iommu.h>
@@ -45,6 +47,7 @@
 #include "rknpu_reset.h"
 #include "rknpu_fence.h"
 #include "rknpu_drv.h"
+#include "rknpu_gem.h"
 
 #ifdef CONFIG_ROCKCHIP_RKNPU_DRM_GEM
 #include <drm/drm_device.h>
@@ -289,6 +292,22 @@ int rknpu_action(struct rknpu_device *rknpu_dev, struct rknpu_action *args)
 		set_user_nice(current, *(int32_t *)&args->value);
 		ret = 0;
 		break;
+	case RKNPU_GET_TOTAL_SRAM_SIZE:
+		if (rknpu_dev->sram_mm)
+			args->value = rknpu_dev->sram_mm->total_chunks *
+				      rknpu_dev->sram_mm->chunk_size;
+		else
+			args->value = 0;
+		ret = 0;
+		break;
+	case RKNPU_GET_FREE_SRAM_SIZE:
+		if (rknpu_dev->sram_mm)
+			args->value = rknpu_dev->sram_mm->free_chunks *
+				      rknpu_dev->sram_mm->chunk_size;
+		else
+			args->value = 0;
+		ret = 0;
+		break;
 	default:
 		ret = -EINVAL;
 		break;
@@ -502,10 +521,6 @@ static void rknpu_cancel_timer(struct rknpu_device *rknpu_dev)
 	hrtimer_cancel(&rknpu_dev->timer);
 }
 
-#ifdef CONFIG_ROCKCHIP_RKNPU_DMA_HEAP
-
-#endif
-
 static bool rknpu_is_iommu_enable(struct device *dev)
 {
 	struct device_node *iommu = NULL;
@@ -587,7 +602,7 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 		if (ret) {
 			LOG_DEV_ERROR(
 				dev,
-				"failed to enable vdd reg for rknpu, ret = %d\n",
+				"failed to enable vdd reg for rknpu, ret: %d\n",
 				ret);
 			return ret;
 		}
@@ -598,7 +613,7 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 		if (ret) {
 			LOG_DEV_ERROR(
 				dev,
-				"failed to enable mem reg for rknpu, ret = %d\n",
+				"failed to enable mem reg for rknpu, ret: %d\n",
 				ret);
 			return ret;
 		}
@@ -607,7 +622,7 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 
 	ret = clk_bulk_prepare_enable(rknpu_dev->num_clks, rknpu_dev->clks);
 	if (ret) {
-		LOG_DEV_ERROR(dev, "failed to enable clk for rknpu, ret = %d\n",
+		LOG_DEV_ERROR(dev, "failed to enable clk for rknpu, ret: %d\n",
 			      ret);
 		return ret;
 	}
@@ -629,7 +644,7 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 			if (ret < 0) {
 				LOG_DEV_ERROR(
 					dev,
-					"failed to get pm runtime for npu0, ret = %d\n",
+					"failed to get pm runtime for npu0, ret: %d\n",
 					ret);
 				goto out;
 			}
@@ -644,7 +659,7 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 			if (ret < 0) {
 				LOG_DEV_ERROR(
 					dev,
-					"failed to get pm runtime for npu1, ret = %d\n",
+					"failed to get pm runtime for npu1, ret: %d\n",
 					ret);
 				goto out;
 			}
@@ -659,7 +674,7 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 			if (ret < 0) {
 				LOG_DEV_ERROR(
 					dev,
-					"failed to get pm runtime for npu2, ret = %d\n",
+					"failed to get pm runtime for npu2, ret: %d\n",
 					ret);
 				goto out;
 			}
@@ -668,7 +683,7 @@ static int rknpu_power_on(struct rknpu_device *rknpu_dev)
 	ret = pm_runtime_get_sync(dev);
 	if (ret < 0) {
 		LOG_DEV_ERROR(dev,
-			      "failed to get pm runtime for rknpu, ret = %d\n",
+			      "failed to get pm runtime for rknpu, ret: %d\n",
 			      ret);
 	}
 
@@ -821,7 +836,7 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 		rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
 		if (is_set_clk && clk_set_rate(clk, new_freq)) {
 			ret = -EINVAL;
-			LOG_DEV_ERROR(dev, "failed to set clk rate\n");
+			LOG_DEV_ERROR(dev, "failed to set clk rate: %d\n", ret);
 			goto restore_rm;
 		}
 		/* Scaling down? Scale voltage after frequency */
@@ -831,7 +846,7 @@ static int npu_opp_helper(struct dev_pm_set_opp_data *data)
 		rockchip_set_read_margin(dev, opp_info, target_rm, is_set_rm);
 		if (is_set_clk && clk_set_rate(clk, new_freq)) {
 			ret = -EINVAL;
-			LOG_DEV_ERROR(dev, "failed to set clk rate\n");
+			LOG_DEV_ERROR(dev, "failed to set clk rate: %d\n", ret);
 			goto restore_rm;
 		}
 		ret = regulator_set_voltage(vdd_reg, new_supply_vdd->u_volt,
@@ -1334,6 +1349,56 @@ static int rknpu_register_irq(struct platform_device *pdev,
 	return 0;
 }
 
+static int rknpu_find_sram_resource(struct rknpu_device *rknpu_dev)
+{
+	struct device *dev = rknpu_dev->dev;
+	struct device_node *sram_node = NULL;
+	struct resource sram_res;
+	uint32_t sram_size = 0;
+	int ret = -EINVAL;
+
+	/* get sram device node */
+	sram_node = of_parse_phandle(dev->of_node, "rockchip,sram", 0);
+	rknpu_dev->sram_size = 0;
+	if (!sram_node)
+		return -EINVAL;
+
+	/* get sram start and size */
+	ret = of_address_to_resource(sram_node, 0, &sram_res);
+	of_node_put(sram_node);
+	if (ret)
+		return ret;
+
+	/* check sram start and size is PAGE_SIZE align */
+	rknpu_dev->sram_start = round_up(sram_res.start, PAGE_SIZE);
+	rknpu_dev->sram_end = round_down(
+		sram_res.start + resource_size(&sram_res), PAGE_SIZE);
+	if (rknpu_dev->sram_end <= rknpu_dev->sram_start) {
+		LOG_DEV_WARN(
+			dev,
+			"invalid sram resource, sram start %pa, sram end %pa\n",
+			&rknpu_dev->sram_start, &rknpu_dev->sram_end);
+		return -EINVAL;
+	}
+
+	sram_size = rknpu_dev->sram_end - rknpu_dev->sram_start;
+
+	rknpu_dev->sram_base_io =
+		devm_ioremap(dev, rknpu_dev->sram_start, sram_size);
+	if (IS_ERR(rknpu_dev->sram_base_io)) {
+		LOG_DEV_ERROR(dev, "failed to remap sram base io!\n");
+		rknpu_dev->sram_base_io = NULL;
+	}
+
+	rknpu_dev->sram_size = sram_size;
+
+	LOG_DEV_INFO(dev, "sram region: [%pa, %pa), sram size: %#x\n",
+		     &rknpu_dev->sram_start, &rknpu_dev->sram_end,
+		     rknpu_dev->sram_size);
+
+	return 0;
+}
+
 static int rknpu_probe(struct platform_device *pdev)
 {
 	struct resource *res = NULL;
@@ -1428,6 +1493,7 @@ static int rknpu_probe(struct platform_device *pdev)
 	spin_lock_init(&rknpu_dev->lock);
 	spin_lock_init(&rknpu_dev->irq_lock);
 	mutex_init(&rknpu_dev->power_lock);
+	mutex_init(&rknpu_dev->reset_lock);
 	for (i = 0; i < config->num_irqs; i++) {
 		INIT_LIST_HEAD(&rknpu_dev->subcore_datas[i].todo_list);
 		init_waitqueue_head(&rknpu_dev->subcore_datas[i].job_done_wq);
@@ -1557,6 +1623,18 @@ static int rknpu_probe(struct platform_device *pdev)
 	}
 	INIT_DEFERRABLE_WORK(&rknpu_dev->power_off_work,
 			     rknpu_power_off_delay_work);
+
+	if (IS_ENABLED(CONFIG_ROCKCHIP_RKNPU_SRAM) && rknpu_dev->iommu_en) {
+		if (!rknpu_find_sram_resource(rknpu_dev)) {
+			ret = rknpu_mm_create(rknpu_dev->sram_size, PAGE_SIZE,
+					      &rknpu_dev->sram_mm);
+			if (ret != 0)
+				goto err_remove_wq;
+		} else {
+			LOG_DEV_WARN(dev, "could not find sram resource!\n");
+		}
+	}
+
 	rknpu_power_off(rknpu_dev);
 	rknpu_dev->is_powered = false;
 	atomic_set(&rknpu_dev->power_refcount, 0);
@@ -1587,6 +1665,9 @@ static int rknpu_remove(struct platform_device *pdev)
 
 	cancel_delayed_work_sync(&rknpu_dev->power_off_work);
 	destroy_workqueue(rknpu_dev->power_off_wq);
+
+	if (IS_ENABLED(CONFIG_ROCKCHIP_RKNPU_SRAM) && rknpu_dev->sram_mm)
+		rknpu_mm_destroy(rknpu_dev->sram_mm);
 
 	rknpu_debugger_remove(rknpu_dev);
 	rknpu_cancel_timer(rknpu_dev);

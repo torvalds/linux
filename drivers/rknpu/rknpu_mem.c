@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co.Ltd
  * Author: Felix Zeng <felix.zeng@rock-chips.com>
  */
 
@@ -96,7 +96,7 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 		phys = sg_dma_address(sgl);
 		page = sg_page(sgl);
 		length = sg_dma_len(sgl);
-		LOG_DEBUG("%s, %d, phys = %pad, length = 0x%x\n", __func__,
+		LOG_DEBUG("%s, %d, phys: %pad, length: %u\n", __func__,
 			  __LINE__, &phys, length);
 	}
 
@@ -126,7 +126,7 @@ int rknpu_mem_create_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	args.handle = fd;
 
 	LOG_DEBUG(
-		"args.handle = %d, args.size = %lld, rknpu_obj = %#llx, rknpu_obj->dma_addr = %#llx\n",
+		"args.handle: %d, args.size: %lld, rknpu_obj: %#llx, rknpu_obj->dma_addr: %#llx\n",
 		args.handle, args.size, (__u64)(uintptr_t)rknpu_obj,
 		(__u64)rknpu_obj->dma_addr);
 
@@ -190,7 +190,7 @@ int rknpu_mem_destroy_ioctl(struct rknpu_device *rknpu_dev, unsigned long data)
 	rknpu_obj = (struct rknpu_mem_object *)(uintptr_t)args.obj_addr;
 	dmabuf = rknpu_obj->dmabuf;
 	LOG_DEBUG(
-		"free args.handle = %d, rknpu_obj = %#llx, rknpu_obj->dma_addr = %#llx\n",
+		"free args.handle: %d, rknpu_obj: %#llx, rknpu_obj->dma_addr: %#llx\n",
 		args.handle, (__u64)(uintptr_t)rknpu_obj,
 		(__u64)rknpu_obj->dma_addr);
 

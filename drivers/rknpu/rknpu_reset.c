@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co.Ltd
  * Author: Felix Zeng <felix.zeng@rock-chips.com>
  */
 
@@ -92,11 +92,24 @@ int rknpu_soft_reset(struct rknpu_device *rknpu_dev)
 {
 #ifndef FPGA_PLATFORM
 	struct iommu_domain *domain = NULL;
+	struct rknpu_subcore_data *subcore_data = NULL;
 	int ret = -EINVAL, i = 0;
 
 	if (rknpu_dev->bypass_soft_reset) {
 		LOG_WARN("bypass soft reset\n");
 		return 0;
+	}
+
+	if (!mutex_trylock(&rknpu_dev->reset_lock))
+		return 0;
+
+	rknpu_dev->soft_reseting = true;
+
+	msleep(100);
+
+	for (i = 0; i < rknpu_dev->config->num_irqs; ++i) {
+		subcore_data = &rknpu_dev->subcore_datas[i];
+		wake_up(&subcore_data->job_done_wq);
 	}
 
 	LOG_INFO("soft reset\n");
@@ -114,6 +127,7 @@ int rknpu_soft_reset(struct rknpu_device *rknpu_dev)
 	if (ret) {
 		LOG_DEV_ERROR(rknpu_dev->dev,
 			      "failed to soft reset for rknpu: %d\n", ret);
+		mutex_unlock(&rknpu_dev->reset_lock);
 		return ret;
 	}
 
@@ -124,6 +138,10 @@ int rknpu_soft_reset(struct rknpu_device *rknpu_dev)
 		iommu_detach_device(domain, rknpu_dev->dev);
 		iommu_attach_device(domain, rknpu_dev->dev);
 	}
+
+	rknpu_dev->soft_reseting = false;
+
+	mutex_unlock(&rknpu_dev->reset_lock);
 #endif
 
 	return 0;

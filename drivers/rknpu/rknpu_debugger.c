@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co.Ltd
  * Author: Felix Zeng <felix.zeng@rock-chips.com>
  */
 
@@ -9,10 +9,10 @@
 #include <linux/syscalls.h>
 #include <linux/debugfs.h>
 #include <linux/proc_fs.h>
-#include <linux/seq_file.h>
 #include <asm/div64.h>
 
-#include "rknpu_drv.h"
+#include "rknpu_mm.h"
+#include "rknpu_reset.h"
 #include "rknpu_debugger.h"
 
 #define RKNPU_DEBUGGER_ROOT_NAME "rknpu"
@@ -88,7 +88,7 @@ static ssize_t rknpu_power_set(struct file *file, const char __user *ubuf,
 	struct rknpu_device *rknpu_dev =
 		container_of(debugger, struct rknpu_device, debugger);
 	struct rknpu_action args;
-	char buf[10];
+	char buf[8];
 
 	if (len > sizeof(buf) - 1)
 		return -EINVAL;
@@ -121,10 +121,55 @@ static ssize_t rknpu_power_set(struct file *file, const char __user *ubuf,
 	return len;
 }
 
-struct rknpu_debugger_list rknpu_debugger_root_list[] = {
-	{ "driver_version", rknpu_version_show, NULL, NULL },
+static int rknpu_reset_show(struct seq_file *m, void *data)
+{
+	struct rknpu_debugger_node *node = m->private;
+	struct rknpu_debugger *debugger = node->debugger;
+	struct rknpu_device *rknpu_dev =
+		container_of(debugger, struct rknpu_device, debugger);
+
+	if (!rknpu_dev->bypass_soft_reset)
+		seq_puts(m, "on\n");
+	else
+		seq_puts(m, "off\n");
+
+	return 0;
+}
+
+static ssize_t rknpu_reset_set(struct file *file, const char __user *ubuf,
+			       size_t len, loff_t *offp)
+{
+	struct seq_file *priv = file->private_data;
+	struct rknpu_debugger_node *node = priv->private;
+	struct rknpu_debugger *debugger = node->debugger;
+	struct rknpu_device *rknpu_dev =
+		container_of(debugger, struct rknpu_device, debugger);
+	char buf[8];
+
+	if (len > sizeof(buf) - 1)
+		return -EINVAL;
+	if (copy_from_user(buf, ubuf, len))
+		return -EFAULT;
+	buf[len - 1] = '\0';
+
+	if (strcmp(buf, "1") == 0 && rknpu_dev->is_powered)
+		rknpu_soft_reset(rknpu_dev);
+	else if (strcmp(buf, "on") == 0)
+		rknpu_dev->bypass_soft_reset = 0;
+	else if (strcmp(buf, "off") == 0)
+		rknpu_dev->bypass_soft_reset = 1;
+
+	return len;
+}
+
+static struct rknpu_debugger_list rknpu_debugger_root_list[] = {
+	{ "version", rknpu_version_show, NULL, NULL },
 	{ "load", rknpu_load_show, NULL, NULL },
-	{ "power", rknpu_power_show, rknpu_power_set, NULL }
+	{ "power", rknpu_power_show, rknpu_power_set, NULL },
+	{ "reset", rknpu_reset_show, rknpu_reset_set, NULL },
+#ifdef CONFIG_ROCKCHIP_RKNPU_SRAM
+	{ "mm", rknpu_mm_dump, NULL, NULL },
+#endif
 };
 
 static ssize_t rknpu_debugger_write(struct file *file, const char __user *ubuf,
@@ -350,14 +395,14 @@ MALLOC_FAIL:
 	return -1;
 }
 
-int rknpu_procfs_remove(struct rknpu_debugger *debugger)
+static int rknpu_procfs_remove(struct rknpu_debugger *debugger)
 {
 	rknpu_procfs_remove_files(debugger);
 
 	return 0;
 }
 
-int rknpu_procfs_init(struct rknpu_debugger *debugger)
+static int rknpu_procfs_init(struct rknpu_debugger *debugger)
 {
 	int ret;
 

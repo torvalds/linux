@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co.Ltd
  * Author: Felix Zeng <felix.zeng@rock-chips.com>
  */
 
@@ -19,6 +19,7 @@
 #endif
 
 #define RKNPU_OFFSET_VERSION 0x0
+#define RKNPU_OFFSET_VERSION_NUM 0x4
 #define RKNPU_OFFSET_PC_OP_EN 0x8
 #define RKNPU_OFFSET_PC_DATA_ADDR 0x10
 #define RKNPU_OFFSET_PC_DATA_AMOUNT 0x14
@@ -75,10 +76,13 @@ enum e_rknpu_mem_type {
 	RKNPU_MEM_SECURE = 1 << 6,
 	/* allocate from non-dma32 zone */
 	RKNPU_MEM_NON_DMA32 = 1 << 7,
+	/* request SRAM */
+	RKNPU_MEM_TRY_ALLOC_SRAM = 1 << 8,
 	RKNPU_MEM_MASK = RKNPU_MEM_NON_CONTIGUOUS | RKNPU_MEM_CACHEABLE |
 			 RKNPU_MEM_WRITE_COMBINE | RKNPU_MEM_KERNEL_MAPPING |
 			 RKNPU_MEM_IOMMU | RKNPU_MEM_ZEROING |
-			 RKNPU_MEM_SECURE | RKNPU_MEM_NON_DMA32
+			 RKNPU_MEM_SECURE | RKNPU_MEM_NON_DMA32 |
+			 RKNPU_MEM_TRY_ALLOC_SRAM
 };
 
 /* sync mode definitions. */
@@ -127,6 +131,8 @@ enum e_rknpu_action {
 	RKNPU_SET_PROC_NICE = 19,
 	RKNPU_POWER_ON = 20,
 	RKNPU_POWER_OFF = 21,
+	RKNPU_GET_TOTAL_SRAM_SIZE = 22,
+	RKNPU_GET_FREE_SRAM_SIZE = 23,
 };
 
 /**
@@ -138,6 +144,8 @@ enum e_rknpu_action {
  *	- this size value would be page-aligned internally.
  * @obj_addr: address of RKNPU memory object.
  * @dma_addr: dma address that access by rknpu.
+ * @sram_size: user-desired sram memory allocation size.
+ *  - this size value would be page-aligned internally.
  */
 struct rknpu_mem_create {
 	__u32 handle;
@@ -145,6 +153,7 @@ struct rknpu_mem_create {
 	__u64 size;
 	__u64 obj_addr;
 	__u64 dma_addr;
+	__u64 sram_size;
 };
 
 /**

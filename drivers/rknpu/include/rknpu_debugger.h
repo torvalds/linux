@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * Copyright (C) Fuzhou Rockchip Electronics Co.Ltd
+ * Copyright (C) Rockchip Electronics Co.Ltd
  * Author: Felix Zeng <felix.zeng@rock-chips.com>
  */
 
 #ifndef __LINUX_RKNPU_DEBUGGER_H_
 #define __LINUX_RKNPU_DEBUGGER_H_
+
+#include <linux/seq_file.h>
 
 /*
  * struct rknpu_debugger - rknpu debugger information
@@ -77,6 +79,8 @@ struct rknpu_debugger_node {
 
 	struct list_head list;
 };
+
+struct rknpu_device;
 
 int rknpu_debugger_init(struct rknpu_device *rknpu_dev);
 int rknpu_debugger_remove(struct rknpu_device *rknpu_dev);
