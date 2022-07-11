@@ -74,6 +74,7 @@ struct intel_pt {
 	bool data_queued;
 	bool est_tsc;
 	bool sync_switch;
+	bool sync_switch_not_supported;
 	bool mispred_all;
 	bool use_thread_stack;
 	bool callstack;
@@ -2638,6 +2639,9 @@ static void intel_pt_enable_sync_switch(struct intel_pt *pt)
 {
 	unsigned int i;
 
+	if (pt->sync_switch_not_supported)
+		return;
+
 	pt->sync_switch = true;
 
 	for (i = 0; i < pt->queues.nr_queues; i++) {
@@ -2646,6 +2650,23 @@ static void intel_pt_enable_sync_switch(struct intel_pt *pt)
 
 		if (ptq)
 			ptq->sync_switch = true;
+	}
+}
+
+static void intel_pt_disable_sync_switch(struct intel_pt *pt)
+{
+	unsigned int i;
+
+	pt->sync_switch = false;
+
+	for (i = 0; i < pt->queues.nr_queues; i++) {
+		struct auxtrace_queue *queue = &pt->queues.queue_array[i];
+		struct intel_pt_queue *ptq = queue->priv;
+
+		if (ptq) {
+			ptq->sync_switch = false;
+			intel_pt_next_tid(pt, ptq);
+		}
 	}
 }
 
@@ -3089,6 +3110,14 @@ static int intel_pt_guest_context_switch(struct intel_pt *pt,
 	struct machine *machine = machines__find(machines, sample->machine_pid);
 
 	pt->have_guest_sideband = true;
+
+	/*
+	 * sync_switch cannot handle guest machines at present, so just disable
+	 * it.
+	 */
+	pt->sync_switch_not_supported = true;
+	if (pt->sync_switch)
+		intel_pt_disable_sync_switch(pt);
 
 	if (out)
 		return 0;
