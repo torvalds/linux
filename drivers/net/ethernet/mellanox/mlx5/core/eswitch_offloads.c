@@ -2177,8 +2177,10 @@ out_free:
 static int esw_offloads_start(struct mlx5_eswitch *esw,
 			      struct netlink_ext_ack *extack)
 {
+	struct devlink *devlink = priv_to_devlink(esw->dev);
 	int err, err1;
 
+	devl_lock(devlink);
 	esw->mode = MLX5_ESWITCH_OFFLOADS;
 	err = mlx5_eswitch_enable_locked(esw, esw->dev->priv.sriov.num_vfs);
 	if (err) {
@@ -2200,6 +2202,7 @@ static int esw_offloads_start(struct mlx5_eswitch *esw,
 					   "Inline mode is different between vports");
 		}
 	}
+	devl_unlock(devlink);
 	return err;
 }
 
@@ -3064,6 +3067,7 @@ static void esw_offloads_steering_cleanup(struct mlx5_eswitch *esw)
 static void
 esw_vfs_changed_event_handler(struct mlx5_eswitch *esw, const u32 *out)
 {
+	struct devlink *devlink;
 	bool host_pf_disabled;
 	u16 new_num_vfs;
 
@@ -3075,6 +3079,8 @@ esw_vfs_changed_event_handler(struct mlx5_eswitch *esw, const u32 *out)
 	if (new_num_vfs == esw->esw_funcs.num_vfs || host_pf_disabled)
 		return;
 
+	devlink = priv_to_devlink(esw->dev);
+	devl_lock(devlink);
 	/* Number of VFs can only change from "0 to x" or "x to 0". */
 	if (esw->esw_funcs.num_vfs > 0) {
 		mlx5_eswitch_unload_vf_vports(esw, esw->esw_funcs.num_vfs);
@@ -3087,6 +3093,7 @@ esw_vfs_changed_event_handler(struct mlx5_eswitch *esw, const u32 *out)
 			return;
 	}
 	esw->esw_funcs.num_vfs = new_num_vfs;
+	devl_unlock(devlink);
 }
 
 static void esw_functions_changed_event_handler(struct work_struct *work)
@@ -3236,8 +3243,10 @@ err_metadata:
 static int esw_offloads_stop(struct mlx5_eswitch *esw,
 			     struct netlink_ext_ack *extack)
 {
+	struct devlink *devlink = priv_to_devlink(esw->dev);
 	int err, err1;
 
+	devl_lock(devlink);
 	esw->mode = MLX5_ESWITCH_LEGACY;
 	err = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_IGNORE_NUM_VFS);
 	if (err) {
@@ -3249,6 +3258,7 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 					   "Failed setting eswitch back to offloads");
 		}
 	}
+	devl_unlock(devlink);
 
 	return err;
 }
