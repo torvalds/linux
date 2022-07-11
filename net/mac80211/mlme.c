@@ -2361,7 +2361,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	memcpy(link->u.mgd.bssid, cbss->bssid, ETH_ALEN);
 	memcpy(sdata->vif.cfg.ap_addr, cbss->bssid, ETH_ALEN);
 
-	ieee80211_check_rate_mask(sdata);
+	ieee80211_check_rate_mask(link);
 
 	if (sdata->vif.p2p ||
 	    sdata->vif.driver_flags & IEEE80211_VIF_GET_NOA_UPDATE) {

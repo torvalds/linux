@@ -2524,7 +2524,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 					 params->basic_rates_len,
 					 &sdata->vif.bss_conf.basic_rates);
 		changed |= BSS_CHANGED_BASIC_RATES;
-		ieee80211_check_rate_mask(sdata);
+		ieee80211_check_rate_mask(&sdata->deflink);
 	}
 
 	if (params->ap_isolate >= 0) {
