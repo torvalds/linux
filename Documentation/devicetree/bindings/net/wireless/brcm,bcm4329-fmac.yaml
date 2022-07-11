@@ -75,6 +75,16 @@ properties:
     items:
       pattern: '^[A-Z][A-Z]-[A-Z][0-9A-Z]-[0-9]+$'
 
+  brcm,ccode-map-trivial:
+    description: |
+      Use a trivial mapping of ISO3166 country codes to brcmfmac firmware
+      country code and revision: cc -> { cc, 0 }. In other words, assume that
+      the CLM blob firmware uses ISO3166 country codes as well, and that all
+      revisions are zero. This property is mutually exclusive with
+      brcm,ccode-map. If both properties are specified, then brcm,ccode-map
+      takes precedence.
+    type: boolean
+
 required:
   - compatible
   - reg
