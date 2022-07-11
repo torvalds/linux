@@ -460,10 +460,8 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 	dev_set_drvdata(dev, cs35l41);
 
 	ret = cs35l41_hda_read_acpi(cs35l41, device_name, id);
-	if (ret) {
-		dev_err_probe(cs35l41->dev, ret, "Platform not supported %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(cs35l41->dev, ret, "Platform not supported\n");
 
 	if (IS_ERR(cs35l41->reset_gpio)) {
 		ret = PTR_ERR(cs35l41->reset_gpio);
@@ -471,7 +469,7 @@ int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int i
 		if (ret == -EBUSY) {
 			dev_info(cs35l41->dev, "Reset line busy, assuming shared reset\n");
 		} else {
-			dev_err_probe(cs35l41->dev, ret, "Failed to get reset GPIO: %d\n", ret);
+			dev_err_probe(cs35l41->dev, ret, "Failed to get reset GPIO\n");
 			goto err;
 		}
 	}
