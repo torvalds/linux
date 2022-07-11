@@ -2772,6 +2772,8 @@ static int perf_session__register_guest(struct perf_session *session, pid_t mach
 		return -ENOMEM;
 	thread__put(thread);
 
+	machine->kallsyms_filename = perf_data__guest_kallsyms_name(session->data, machine_pid);
+
 	return 0;
 }
 

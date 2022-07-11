@@ -48,6 +48,7 @@ struct machine {
 	bool		  single_address_space;
 	char		  *root_dir;
 	char		  *mmap_name;
+	char		  *kallsyms_filename;
 	struct threads    threads[THREADS__TABLE_SIZE];
 	struct vdso_info  *vdso_info;
 	struct perf_env   *env;

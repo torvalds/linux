@@ -518,6 +518,25 @@ char *perf_data__kallsyms_name(struct perf_data *data)
 	return kallsyms_name;
 }
 
+char *perf_data__guest_kallsyms_name(struct perf_data *data, pid_t machine_pid)
+{
+	char *kallsyms_name;
+	struct stat st;
+
+	if (!data->is_dir)
+		return NULL;
+
+	if (asprintf(&kallsyms_name, "%s/kcore_dir__%d/kallsyms", data->path, machine_pid) < 0)
+		return NULL;
+
+	if (stat(kallsyms_name, &st)) {
+		free(kallsyms_name);
+		return NULL;
+	}
+
+	return kallsyms_name;
+}
+
 bool is_perf_data(const char *path)
 {
 	bool ret = false;
