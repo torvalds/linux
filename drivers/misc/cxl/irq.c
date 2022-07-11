@@ -319,8 +319,7 @@ int afu_allocate_irqs(struct cxl_context *ctx, u32 count)
 	}
 
 	ctx->irq_count = count;
-	ctx->irq_bitmap = kcalloc(BITS_TO_LONGS(count),
-				  sizeof(*ctx->irq_bitmap), GFP_KERNEL);
+	ctx->irq_bitmap = bitmap_zalloc(count, GFP_KERNEL);
 	if (!ctx->irq_bitmap)
 		goto out;
 
