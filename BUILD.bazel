@@ -126,6 +126,7 @@ define_db845c(
         "drivers/pinctrl/qcom/pinctrl-msm.ko",
         "drivers/pinctrl/qcom/pinctrl-sdm845.ko",
         "drivers/pinctrl/qcom/pinctrl-sm8250.ko",
+        "drivers/pinctrl/qcom/pinctrl-sm8250-lpass-lpi.ko",
         "drivers/pinctrl/qcom/pinctrl-sm8450.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-gpio.ko",
         "drivers/pinctrl/qcom/pinctrl-spmi-mpp.ko",
