@@ -484,7 +484,7 @@ static struct fb_videomode atafb_modedb[] __initdata = {
 		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 1280x960, 72 kHz, 72 Hz (TT high) */
-		"tt-high", 57, 1280, 960, 7760, 260, 60, 36, 4, 192, 4,
+		"tt-high", 72, 1280, 960, 7760, 260, 60, 36, 4, 192, 4,
 		0, FB_VMODE_NONINTERLACED
 	},
 
