@@ -14,6 +14,7 @@
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 #include <dt-bindings/clock/starfive-jh7110-vout.h>
 #include <dt-bindings/clock/starfive-jh7110-isp.h>
+#include "clk-starfive-jh7110-pll.h"
 
 /* register flags */
 #define JH7110_CLK_SYS_FLAG	1
@@ -70,6 +71,9 @@ struct jh7110_clk_priv {
 	void __iomem *vout_base;
 	void __iomem *isp_base;
 	struct clk_hw *pll[PLL_OF(JH7110_CLK_END)];
+#ifdef CONFIG_CLK_STARFIVE_JH7110_PLL
+	struct jh7110_clk_pll_data pll_priv[PLL_INDEX_MAX];
+#endif
 	struct jh7110_clk reg[];
 };
 

@@ -479,11 +479,13 @@ int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev,
 	if (IS_ERR(priv->sys_base))
 		return PTR_ERR(priv->sys_base);
 
+#ifndef CONFIG_CLK_STARFIVE_JH7110_PLL
 	priv->pll[PLL_OF(JH7110_PLL0_OUT)] =
 			clk_hw_register_fixed_rate(priv->dev,
 			"pll0_out", "osc", 0, 1250000000);
 	if (IS_ERR(priv->pll[PLL_OF(JH7110_PLL0_OUT)]))
 		return PTR_ERR(priv->pll[PLL_OF(JH7110_PLL0_OUT)]);
+#endif
 
 	priv->pll[PLL_OF(JH7110_PLL1_OUT)] =
 			clk_hw_register_fixed_rate(priv->dev,
@@ -797,6 +799,10 @@ int __init clk_starfive_jh7110_sys_init(struct platform_device *pdev,
 
 			if (pidx < JH7110_CLK_SYS_REG_END)
 				parents[i].hw = &priv->reg[pidx].hw;
+#ifdef CONFIG_CLK_STARFIVE_JH7110_PLL
+			else if (pidx == JH7110_PLL0_OUT)
+				parents[i].hw = &priv->pll_priv[PLL_OF(pidx)].hw;
+#endif
 			else if ((pidx < JH7110_CLK_SYS_END) &&
 				(pidx > JH7110_CLK_SYS_REG_END))
 				parents[i].hw = priv->pll[PLL_OF(pidx)];
