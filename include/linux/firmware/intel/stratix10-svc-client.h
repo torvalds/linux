@@ -114,6 +114,9 @@ struct stratix10_svc_chan;
  * @COMMAND_FIRMWARE_VERSION: query running firmware version, return status
  * is SVC_STATUS_OK or SVC_STATUS_ERROR
  *
+ * @COMMAND_SMC_SVC_VERSION: Non-mailbox SMC SVC API Version,
+ * return status is SVC_STATUS_OK
+ *
  * @COMMAND_RSU_DCMF_STATUS: query firmware for the DCMF status
  * return status is SVC_STATUS_OK or SVC_STATUS_ERROR
  *
@@ -160,6 +163,8 @@ enum stratix10_svc_command_code {
 	COMMAND_FCS_RANDOM_NUMBER_GEN,
 	/* for general status poll */
 	COMMAND_POLL_SERVICE_STATUS = 40,
+	/* Non-mailbox SMC Call */
+	COMMAND_SMC_SVC_VERSION = 200,
 };
 
 /**
