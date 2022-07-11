@@ -82,6 +82,12 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 		chip->name = "acp_asoc_renoir";
 		chip->acp_rev = ACP3X_DEV;
 		break;
+	case 0x6f:
+		res_acp = acp3x_res;
+		num_res = ARRAY_SIZE(acp3x_res);
+		chip->name = "acp_asoc_rembrandt";
+		chip->acp_rev = ACP6X_DEV;
+		break;
 	default:
 		dev_err(dev, "Unsupported device revision:0x%x\n", pci->revision);
 		return -EINVAL;

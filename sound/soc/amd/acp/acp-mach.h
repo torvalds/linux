@@ -41,6 +41,11 @@ enum codec_endpoints {
 	NAU8825,
 };
 
+enum platform_end_point {
+	RENOIR = 0,
+	REMBRANDT,
+};
+
 struct acp_card_drvdata {
 	unsigned int hs_cpu_id;
 	unsigned int amp_cpu_id;
@@ -49,6 +54,7 @@ struct acp_card_drvdata {
 	unsigned int amp_codec_id;
 	unsigned int dmic_codec_id;
 	unsigned int dai_fmt;
+	unsigned int platform;
 	struct clk *wclk;
 	struct clk *bclk;
 	bool soc_mclk;

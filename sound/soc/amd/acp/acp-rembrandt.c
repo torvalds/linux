@@ -3,11 +3,10 @@
 // This file is provided under a dual BSD/GPLv2 license. When using or
 // redistributing this file, you may do so under either license.
 //
-// Copyright(c) 2021 Advanced Micro Devices, Inc.
+// Copyright(c) 2022 Advanced Micro Devices, Inc.
 //
 // Authors: Ajit Kumar Pandey <AjitKumar.Pandey@amd.com>
-//
-
+//          V sujith kumar Reddy <Vsujithkumar.Reddy@amd.com>
 /*
  * Hardware interface for Renoir ACP block
  */
@@ -23,31 +22,38 @@
 
 #include "amd.h"
 
-#define DRV_NAME "acp_asoc_renoir"
+#define DRV_NAME "acp_asoc_rembrandt"
 
-#define ACP_SOFT_RST_DONE_MASK	0x00010001
+#define ACP6X_PGFSM_CONTROL			0x1024
+#define ACP6X_PGFSM_STATUS			0x1028
 
-#define ACP_PWR_ON_MASK		0x01
-#define ACP_PWR_OFF_MASK	0x00
-#define ACP_PGFSM_STAT_MASK	0x03
-#define ACP_POWERED_ON		0x00
-#define ACP_PWR_ON_IN_PROGRESS	0x01
-#define ACP_POWERED_OFF		0x02
-#define DELAY_US		5
-#define ACP_TIMEOUT		500
+#define ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK	0x00010001
 
-#define ACP_ERROR_MASK 0x20000000
-#define ACP_EXT_INTR_STAT_CLEAR_MASK 0xFFFFFFFF
+#define ACP_PGFSM_CNTL_POWER_ON_MASK		0x01
+#define ACP_PGFSM_CNTL_POWER_OFF_MASK		0x00
+#define ACP_PGFSM_STATUS_MASK			0x03
+#define ACP_POWERED_ON				0x00
+#define ACP_POWER_ON_IN_PROGRESS		0x01
+#define ACP_POWERED_OFF				0x02
+#define ACP_POWER_OFF_IN_PROGRESS		0x03
+
+#define ACP_ERROR_MASK				0x20000000
+#define ACP_EXT_INTR_STAT_CLEAR_MASK		0xFFFFFFFF
+
+
+static int rmb_acp_init(void __iomem *base);
+static int rmb_acp_deinit(void __iomem *base);
 
 static struct acp_resource rsrc = {
-	.offset = 20,
-	.no_of_ctrls = 1,
-	.irqp_used = 0,
-	.irq_reg_offset = 0x1800,
-	.i2s_pin_cfg_offset = 0x1400,
-	.i2s_mode = 0x04,
+	.offset = 0,
+	.no_of_ctrls = 2,
+	.irqp_used = 1,
+	.soc_mclk = true,
+	.irq_reg_offset = 0x1a00,
+	.i2s_pin_cfg_offset = 0x1440,
+	.i2s_mode = 0x0a,
 	.scratch_reg_offset = 0x12800,
-	.sram_pte_offset = 0x02052800,
+	.sram_pte_offset = 0x03802800,
 };
 
 static struct snd_soc_acpi_codecs amp_rt1019 = {
@@ -60,33 +66,27 @@ static struct snd_soc_acpi_codecs amp_max = {
 	.codecs = {"MX98360A"}
 };
 
-static struct snd_soc_acpi_mach snd_soc_acpi_amd_acp_machines[] = {
+static struct snd_soc_acpi_mach snd_soc_acpi_amd_rmb_acp_machines[] = {
 	{
-		.id = "10EC5682",
-		.drv_name = "acp3xalc56821019",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &amp_rt1019,
-	},
-	{
-		.id = "RTL5682",
-		.drv_name = "acp3xalc5682sm98360",
+		.id = "10508825",
+		.drv_name = "rmb-nau8825-max",
 		.machine_quirk = snd_soc_acpi_codec_list,
 		.quirk_data = &amp_max,
 	},
 	{
-		.id = "RTL5682",
-		.drv_name = "acp3xalc5682s1019",
-		.machine_quirk = snd_soc_acpi_codec_list,
-		.quirk_data = &amp_rt1019,
+		.id = "AMDI0007",
+		.drv_name = "rembrandt-acp",
 	},
 	{
-		.id = "AMDI1019",
-		.drv_name = "renoir-acp",
+		.id = "RTL5682",
+		.drv_name = "rmb-rt5682s-rt1019",
+		.machine_quirk = snd_soc_acpi_codec_list,
+		.quirk_data = &amp_rt1019,
 	},
 	{},
 };
 
-static struct snd_soc_dai_driver acp_renoir_dai[] = {
+static struct snd_soc_dai_driver acp_rmb_dai[] = {
 {
 	.name = "acp-i2s-sp",
 	.id = I2S_SP_INSTANCE,
@@ -140,6 +140,32 @@ static struct snd_soc_dai_driver acp_renoir_dai[] = {
 	.probe = &asoc_acp_i2s_probe,
 },
 {
+	.name = "acp-i2s-hs",
+	.id = I2S_HS_INSTANCE,
+	.playback = {
+		.stream_name = "I2S HS Playback",
+		.rates = SNDRV_PCM_RATE_8000_96000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8 |
+			   SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S32_LE,
+		.channels_min = 2,
+		.channels_max = 8,
+		.rate_min = 8000,
+		.rate_max = 96000,
+	},
+	.capture = {
+		.stream_name = "I2S HS Capture",
+		.rates = SNDRV_PCM_RATE_8000_48000,
+		.formats = SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S8 |
+			   SNDRV_PCM_FMTBIT_U8 | SNDRV_PCM_FMTBIT_S32_LE,
+		.channels_min = 2,
+		.channels_max = 8,
+		.rate_min = 8000,
+		.rate_max = 48000,
+	},
+	.ops = &asoc_acp_cpu_dai_ops,
+	.probe = &asoc_acp_i2s_probe,
+},
+{
 	.name = "acp-pdm-dmic",
 	.id = DMIC_INSTANCE,
 	.capture = {
@@ -154,50 +180,72 @@ static struct snd_soc_dai_driver acp_renoir_dai[] = {
 },
 };
 
-static int acp3x_power_on(void __iomem *base)
+static int acp6x_power_on(void __iomem *base)
 {
 	u32 val;
+	int timeout;
 
-	val = readl(base + ACP_PGFSM_STATUS);
+	val = readl(base + ACP6X_PGFSM_STATUS);
 
 	if (val == ACP_POWERED_ON)
 		return 0;
 
-	if ((val & ACP_PGFSM_STAT_MASK) != ACP_PWR_ON_IN_PROGRESS)
-		writel(ACP_PWR_ON_MASK, base + ACP_PGFSM_CONTROL);
-
-	return readl_poll_timeout(base + ACP_PGFSM_STATUS, val, !val, DELAY_US, ACP_TIMEOUT);
+	if ((val & ACP_PGFSM_STATUS_MASK) !=
+				ACP_POWER_ON_IN_PROGRESS)
+		writel(ACP_PGFSM_CNTL_POWER_ON_MASK,
+		       base + ACP6X_PGFSM_CONTROL);
+	timeout = 0;
+	while (++timeout < 500) {
+		val = readl(base + ACP6X_PGFSM_STATUS);
+		if (!val)
+			return 0;
+		udelay(1);
+	}
+	return -ETIMEDOUT;
 }
 
-static int acp3x_power_off(void __iomem *base)
+static int acp6x_power_off(void __iomem *base)
 {
 	u32 val;
+	int timeout;
 
-	writel(ACP_PWR_OFF_MASK, base + ACP_PGFSM_CONTROL);
-
-	return readl_poll_timeout(base + ACP_PGFSM_STATUS, val,
-				  (val & ACP_PGFSM_STAT_MASK) == ACP_POWERED_OFF,
-				  DELAY_US, ACP_TIMEOUT);
+	writel(ACP_PGFSM_CNTL_POWER_OFF_MASK,
+	       base + ACP6X_PGFSM_CONTROL);
+	timeout = 0;
+	while (++timeout < 500) {
+		val = readl(base + ACP6X_PGFSM_STATUS);
+		if ((val & ACP_PGFSM_STATUS_MASK) == ACP_POWERED_OFF)
+			return 0;
+		udelay(1);
+	}
+	return -ETIMEDOUT;
 }
 
-static int acp3x_reset(void __iomem *base)
+static int acp6x_reset(void __iomem *base)
 {
 	u32 val;
-	int ret;
+	int timeout;
 
 	writel(1, base + ACP_SOFT_RESET);
-
-	ret = readl_poll_timeout(base + ACP_SOFT_RESET, val, val & ACP_SOFT_RST_DONE_MASK,
-				 DELAY_US, ACP_TIMEOUT);
-	if (ret)
-		return ret;
-
+	timeout = 0;
+	while (++timeout < 500) {
+		val = readl(base + ACP_SOFT_RESET);
+		if (val & ACP_SOFT_RESET_SOFTRESET_AUDDONE_MASK)
+			break;
+		cpu_relax();
+	}
 	writel(0, base + ACP_SOFT_RESET);
-
-	return readl_poll_timeout(base + ACP_SOFT_RESET, val, !val, DELAY_US, ACP_TIMEOUT);
+	timeout = 0;
+	while (++timeout < 500) {
+		val = readl(base + ACP_SOFT_RESET);
+		if (!val)
+			return 0;
+		cpu_relax();
+	}
+	return -ETIMEDOUT;
 }
 
-static void acp3x_enable_interrupts(struct acp_dev_data *adata)
+static void acp6x_enable_interrupts(struct acp_dev_data *adata)
 {
 	struct acp_resource *rsrc = adata->rsrc;
 	u32 ext_intr_ctrl;
@@ -208,7 +256,7 @@ static void acp3x_enable_interrupts(struct acp_dev_data *adata)
 	writel(ext_intr_ctrl, ACP_EXTERNAL_INTR_CNTL(adata, rsrc->irqp_used));
 }
 
-static void acp3x_disable_interrupts(struct acp_dev_data *adata)
+static void acp6x_disable_interrupts(struct acp_dev_data *adata)
 {
 	struct acp_resource *rsrc = adata->rsrc;
 
@@ -217,50 +265,57 @@ static void acp3x_disable_interrupts(struct acp_dev_data *adata)
 	writel(0x00, ACP_EXTERNAL_INTR_ENB(adata));
 }
 
-static int rn_acp_init(void __iomem *base)
+static int rmb_acp_init(void __iomem *base)
 {
 	int ret;
 
 	/* power on */
-	ret = acp3x_power_on(base);
-	if (ret)
+	ret = acp6x_power_on(base);
+	if (ret) {
+		pr_err("ACP power on failed\n");
 		return ret;
-
+	}
 	writel(0x01, base + ACP_CONTROL);
 
 	/* Reset */
-	ret = acp3x_reset(base);
-	if (ret)
+	ret = acp6x_reset(base);
+	if (ret) {
+		pr_err("ACP reset failed\n");
 		return ret;
+	}
 
 	return 0;
 }
 
-static int rn_acp_deinit(void __iomem *base)
+static int rmb_acp_deinit(void __iomem *base)
 {
 	int ret = 0;
 
 	/* Reset */
-	ret = acp3x_reset(base);
-	if (ret)
+	ret = acp6x_reset(base);
+	if (ret) {
+		pr_err("ACP reset failed\n");
 		return ret;
+	}
 
 	writel(0x00, base + ACP_CONTROL);
 
 	/* power off */
-	ret = acp3x_power_off(base);
-	if (ret)
+	ret = acp6x_power_off(base);
+	if (ret) {
+		pr_err("ACP power off failed\n");
 		return ret;
+	}
 
 	return 0;
 }
-static int renoir_audio_probe(struct platform_device *pdev)
+
+static int rembrandt_audio_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_chip_info *chip;
 	struct acp_dev_data *adata;
 	struct resource *res;
-	int ret;
 
 	chip = dev_get_platdata(&pdev->dev);
 	if (!chip || !chip->base) {
@@ -268,16 +323,12 @@ static int renoir_audio_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	if (chip->acp_rev != ACP3X_DEV) {
+	if (chip->acp_rev != ACP6X_DEV) {
 		dev_err(&pdev->dev, "Un-supported ACP Revision %d\n", chip->acp_rev);
 		return -ENODEV;
 	}
 
-	ret = rn_acp_init(chip->base);
-	if (ret) {
-		dev_err(&pdev->dev, "ACP Init failed\n");
-		return -EINVAL;
-	}
+	rmb_acp_init(chip->base);
 
 	adata = devm_kzalloc(dev, sizeof(struct acp_dev_data), GFP_KERNEL);
 	if (!adata)
@@ -293,56 +344,58 @@ static int renoir_audio_probe(struct platform_device *pdev)
 	if (!adata->acp_base)
 		return -ENOMEM;
 
-	ret = platform_get_irq_byname(pdev, "acp_dai_irq");
-	if (ret < 0)
-		return ret;
-	adata->i2s_irq = ret;
+	res = platform_get_resource_byname(pdev, IORESOURCE_IRQ, "acp_dai_irq");
+	if (!res) {
+		dev_err(&pdev->dev, "IORESOURCE_IRQ FAILED\n");
+		return -ENODEV;
+	}
 
+	adata->i2s_irq = res->start;
 	adata->dev = dev;
-	adata->dai_driver = acp_renoir_dai;
-	adata->num_dai = ARRAY_SIZE(acp_renoir_dai);
+	adata->dai_driver = acp_rmb_dai;
+	adata->num_dai = ARRAY_SIZE(acp_rmb_dai);
 	adata->rsrc = &rsrc;
 
-	adata->machines = snd_soc_acpi_amd_acp_machines;
+	adata->machines = snd_soc_acpi_amd_rmb_acp_machines;
 	acp_machine_select(adata);
 
 	dev_set_drvdata(dev, adata);
-	acp3x_enable_interrupts(adata);
+	acp6x_enable_interrupts(adata);
 	acp_platform_register(dev);
 
 	return 0;
 }
 
-static int renoir_audio_remove(struct platform_device *pdev)
+static int rembrandt_audio_remove(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct acp_dev_data *adata = dev_get_drvdata(dev);
 	struct acp_chip_info *chip;
-	int ret;
 
 	chip = dev_get_platdata(&pdev->dev);
+	if (!chip || !chip->base) {
+		dev_err(&pdev->dev, "ACP chip data is NULL\n");
+		return -ENODEV;
+	}
 
-	acp3x_disable_interrupts(adata);
+	rmb_acp_deinit(chip->base);
 
-	ret = rn_acp_deinit(chip->base);
-	if (ret)
-		dev_err(&pdev->dev, "ACP de-init Failed (%pe)\n", ERR_PTR(ret));
-
+	acp6x_disable_interrupts(adata);
 	acp_platform_unregister(dev);
 	return 0;
 }
 
-static struct platform_driver renoir_driver = {
-	.probe = renoir_audio_probe,
-	.remove = renoir_audio_remove,
+static struct platform_driver rembrandt_driver = {
+	.probe = rembrandt_audio_probe,
+	.remove = rembrandt_audio_remove,
 	.driver = {
-		.name = "acp_asoc_renoir",
+		.name = "acp_asoc_rembrandt",
 	},
 };
 
-module_platform_driver(renoir_driver);
+module_platform_driver(rembrandt_driver);
 
-MODULE_DESCRIPTION("AMD ACP Renoir Driver");
+MODULE_DESCRIPTION("AMD ACP Rembrandt Driver");
 MODULE_IMPORT_NS(SND_SOC_ACP_COMMON);
 MODULE_LICENSE("Dual BSD/GPL");
 MODULE_ALIAS("platform:" DRV_NAME);
