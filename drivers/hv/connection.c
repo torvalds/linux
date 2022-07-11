@@ -171,6 +171,14 @@ int vmbus_connect(void)
 		goto cleanup;
 	}
 
+	vmbus_connection.rescind_work_queue =
+		create_workqueue("hv_vmbus_rescind");
+	if (!vmbus_connection.rescind_work_queue) {
+		ret = -ENOMEM;
+		goto cleanup;
+	}
+	vmbus_connection.ignore_any_offer_msg = false;
+
 	vmbus_connection.handle_primary_chan_wq =
 		create_workqueue("hv_pri_chan");
 	if (!vmbus_connection.handle_primary_chan_wq) {
@@ -356,6 +364,9 @@ void vmbus_disconnect(void)
 
 	if (vmbus_connection.handle_primary_chan_wq)
 		destroy_workqueue(vmbus_connection.handle_primary_chan_wq);
+
+	if (vmbus_connection.rescind_work_queue)
+		destroy_workqueue(vmbus_connection.rescind_work_queue);
 
 	if (vmbus_connection.work_queue)
 		destroy_workqueue(vmbus_connection.work_queue);
