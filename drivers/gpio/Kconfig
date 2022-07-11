@@ -544,6 +544,7 @@ config GPIO_SAMA5D2_PIOBU
 	tristate "SAMA5D2 PIOBU GPIO support"
 	depends on MFD_SYSCON
 	depends on OF_GPIO
+	depends on ARCH_AT91 || COMPILE_TEST
 	select GPIO_SYSCON
 	help
 	  Say yes here to use the PIOBU pins as GPIOs.
