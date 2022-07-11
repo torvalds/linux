@@ -1020,7 +1020,8 @@ int __v4l2_ctrl_modify_dimensions(struct v4l2_ctrl *ctrl,
 	for (i = 0; i < elems; i++)
 		ctrl->type_ops->init(ctrl, i, ctrl->p_cur);
 	cur_to_new(ctrl);
-	send_event(NULL, ctrl, V4L2_EVENT_CTRL_CH_VALUE);
+	send_event(NULL, ctrl, V4L2_EVENT_CTRL_CH_VALUE |
+			       V4L2_EVENT_CTRL_CH_DIMENSIONS);
 	return 0;
 }
 EXPORT_SYMBOL(__v4l2_ctrl_modify_dimensions);
