@@ -425,9 +425,6 @@ extern unsigned int kobjsize(const void *objp);
  * mapping from the currently active vm_flags protection bits (the
  * low four bits) to a page protection mask..
  */
-#ifndef CONFIG_ARCH_HAS_VM_GET_PAGE_PROT
-extern pgprot_t protection_map[16];
-#endif
 
 /*
  * The default fault flags that should be used by most of the
