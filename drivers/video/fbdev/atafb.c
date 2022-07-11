@@ -2206,6 +2206,10 @@ static int ext_setcolreg(unsigned int regno, unsigned int red,
 	if (regno > 255)
 		return 1;
 
+	red >>= 8;
+	green >>= 8;
+	blue >>= 8;
+
 	switch (external_card_type) {
 	case IS_VGA:
 		OUTB(0x3c8, regno);
