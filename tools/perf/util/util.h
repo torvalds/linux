@@ -79,4 +79,19 @@ struct perf_debuginfod {
 void perf_debuginfod_setup(struct perf_debuginfod *di);
 
 char *filename_with_chroot(int pid, const char *filename);
+
+int do_realloc_array_as_needed(void **arr, size_t *arr_sz, size_t x,
+			       size_t msz, const void *init_val);
+
+#define realloc_array_as_needed(a, n, x, v) ({			\
+	typeof(x) __x = (x);					\
+	__x >= (n) ?						\
+		do_realloc_array_as_needed((void **)&(a),	\
+					   &(n),		\
+					   __x,			\
+					   sizeof(*(a)),	\
+					   (const void *)(v)) :	\
+		0;						\
+	})
+
 #endif /* GIT_COMPAT_UTIL_H */
