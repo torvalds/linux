@@ -1839,6 +1839,26 @@ static const struct drm_encoder_helper_funcs vc4_hdmi_encoder_helper_funcs = {
 	.mode_valid = vc4_hdmi_encoder_mode_valid,
 };
 
+static int vc4_hdmi_late_register(struct drm_encoder *encoder)
+{
+	struct drm_device *drm = encoder->dev;
+	struct vc4_hdmi *vc4_hdmi = encoder_to_vc4_hdmi(encoder);
+	const struct vc4_hdmi_variant *variant = vc4_hdmi->variant;
+	int ret;
+
+	ret = vc4_debugfs_add_file(drm->primary, variant->debugfs_name,
+				   vc4_hdmi_debugfs_regs,
+				   vc4_hdmi);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static const struct drm_encoder_funcs vc4_hdmi_encoder_funcs = {
+	.late_register = vc4_hdmi_late_register,
+};
+
 static u32 vc4_hdmi_channel_map(struct vc4_hdmi *vc4_hdmi, u32 channel_mask)
 {
 	int i;
@@ -3335,7 +3355,7 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	}
 
 	ret = drmm_encoder_init(drm, encoder,
-				NULL,
+				&vc4_hdmi_encoder_funcs,
 				DRM_MODE_ENCODER_TMDS,
 				NULL);
 	if (ret)
@@ -3358,10 +3378,6 @@ static int vc4_hdmi_bind(struct device *dev, struct device *master, void *data)
 	ret = vc4_hdmi_audio_init(vc4_hdmi);
 	if (ret)
 		goto err_put_runtime_pm;
-
-	vc4_debugfs_add_file(drm, variant->debugfs_name,
-			     vc4_hdmi_debugfs_regs,
-			     vc4_hdmi);
 
 	pm_runtime_put_sync(dev);
 

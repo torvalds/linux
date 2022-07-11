@@ -244,6 +244,23 @@ static const struct drm_encoder_helper_funcs vc4_dpi_encoder_helper_funcs = {
 	.mode_valid = vc4_dpi_encoder_mode_valid,
 };
 
+static int vc4_dpi_late_register(struct drm_encoder *encoder)
+{
+	struct drm_device *drm = encoder->dev;
+	struct vc4_dpi *dpi = to_vc4_dpi(encoder);
+	int ret;
+
+	ret = vc4_debugfs_add_regset32(drm->primary, "dpi_regs", &dpi->regset);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static const struct drm_encoder_funcs vc4_dpi_encoder_funcs = {
+	.late_register = vc4_dpi_late_register,
+};
+
 static const struct of_device_id vc4_dpi_dt_match[] = {
 	{ .compatible = "brcm,bcm2835-dpi", .data = NULL },
 	{}
@@ -332,7 +349,7 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	ret = drmm_encoder_init(drm, &dpi->encoder.base,
-				NULL,
+				&vc4_dpi_encoder_funcs,
 				DRM_MODE_ENCODER_DPI,
 				NULL);
 	if (ret)
@@ -345,8 +362,6 @@ static int vc4_dpi_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	dev_set_drvdata(dev, dpi);
-
-	vc4_debugfs_add_regset32(drm, "dpi_regs", &dpi->regset);
 
 	return 0;
 }

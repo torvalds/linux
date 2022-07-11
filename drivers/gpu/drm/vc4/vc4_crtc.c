@@ -1052,6 +1052,21 @@ void vc4_crtc_reset(struct drm_crtc *crtc)
 	__drm_atomic_helper_crtc_reset(crtc, &vc4_crtc_state->base);
 }
 
+int vc4_crtc_late_register(struct drm_crtc *crtc)
+{
+	struct drm_device *drm = crtc->dev;
+	struct vc4_crtc *vc4_crtc = to_vc4_crtc(crtc);
+	const struct vc4_crtc_data *crtc_data = vc4_crtc_to_vc4_crtc_data(vc4_crtc);
+	int ret;
+
+	ret = vc4_debugfs_add_regset32(drm->primary, crtc_data->debugfs_name,
+				       &vc4_crtc->regset);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.set_config = drm_atomic_helper_set_config,
 	.page_flip = vc4_page_flip,
@@ -1064,6 +1079,7 @@ static const struct drm_crtc_funcs vc4_crtc_funcs = {
 	.enable_vblank = vc4_enable_vblank,
 	.disable_vblank = vc4_disable_vblank,
 	.get_vblank_timestamp = drm_crtc_vblank_helper_get_vblank_timestamp,
+	.late_register = vc4_crtc_late_register,
 };
 
 static const struct drm_crtc_helper_funcs vc4_crtc_helper_funcs = {
@@ -1317,9 +1333,6 @@ static int vc4_crtc_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	platform_set_drvdata(pdev, vc4_crtc);
-
-	vc4_debugfs_add_regset32(drm, pv_data->base.debugfs_name,
-				 &vc4_crtc->regset);
 
 	return 0;
 }

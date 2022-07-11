@@ -398,6 +398,7 @@ static const struct drm_crtc_funcs vc4_txp_crtc_funcs = {
 	.atomic_destroy_state	= vc4_crtc_destroy_state,
 	.enable_vblank		= vc4_txp_enable_vblank,
 	.disable_vblank		= vc4_txp_disable_vblank,
+	.late_register		= vc4_crtc_late_register,
 };
 
 static int vc4_txp_atomic_check(struct drm_crtc *crtc,
@@ -540,8 +541,6 @@ static int vc4_txp_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	dev_set_drvdata(dev, txp);
-
-	vc4_debugfs_add_regset32(drm, "txp_regs", &vc4_crtc->regset);
 
 	return 0;
 }

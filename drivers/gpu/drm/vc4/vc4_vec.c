@@ -523,6 +523,24 @@ static const struct drm_encoder_helper_funcs vc4_vec_encoder_helper_funcs = {
 	.atomic_mode_set = vc4_vec_encoder_atomic_mode_set,
 };
 
+static int vc4_vec_late_register(struct drm_encoder *encoder)
+{
+	struct drm_device *drm = encoder->dev;
+	struct vc4_vec *vec = encoder_to_vc4_vec(encoder);
+	int ret;
+
+	ret = vc4_debugfs_add_regset32(drm->primary, "vec_regs",
+				       &vec->regset);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+static const struct drm_encoder_funcs vc4_vec_encoder_funcs = {
+	.late_register = vc4_vec_late_register,
+};
+
 static const struct vc4_vec_variant bcm2835_vec_variant = {
 	.dac_config = VEC_DAC_CONFIG_DAC_CTRL(0xc) |
 		      VEC_DAC_CONFIG_DRIVER_CTRL(0xc) |
@@ -588,7 +606,7 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	ret = drmm_encoder_init(drm, &vec->encoder.base,
-				NULL,
+				&vc4_vec_encoder_funcs,
 				DRM_MODE_ENCODER_TVDAC,
 				NULL);
 	if (ret)
@@ -601,8 +619,6 @@ static int vc4_vec_bind(struct device *dev, struct device *master, void *data)
 		return ret;
 
 	dev_set_drvdata(dev, vec);
-
-	vc4_debugfs_add_regset32(drm, "vec_regs", &vec->regset);
 
 	return 0;
 }
