@@ -324,7 +324,9 @@ static int vc4_drm_bind(struct device *dev)
 	INIT_LIST_HEAD(&vc4->debugfs_list);
 
 	if (!is_vc5) {
-		mutex_init(&vc4->bin_bo_lock);
+		ret = drmm_mutex_init(drm, &vc4->bin_bo_lock);
+		if (ret)
+			return ret;
 
 		ret = vc4_bo_cache_init(drm);
 		if (ret)
