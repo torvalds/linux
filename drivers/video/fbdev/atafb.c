@@ -1070,8 +1070,6 @@ static int falcon_decode_var(struct fb_var_screeninfo *var,
 			xstretch = 2;	/* Double pixel width only for hicolor */
 		/* Default values are used for vert./hor. timing if no pixelclock given. */
 		if (var->pixclock == 0) {
-			int linesize;
-
 			/* Choose master pixelclock depending on hor. timing */
 			plen = 1 * xstretch;
 			if ((plen * xres + f25.right + f25.hsync + f25.left) *
@@ -1090,7 +1088,6 @@ static int falcon_decode_var(struct fb_var_screeninfo *var,
 			left_margin = pclock->left / plen;
 			right_margin = pclock->right / plen;
 			hsync_len = pclock->hsync / plen;
-			linesize = left_margin + xres + right_margin + hsync_len;
 			upper_margin = 31;
 			lower_margin = 11;
 			vsync_len = 3;
@@ -2419,17 +2416,6 @@ atafb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
  * generic drawing routines; imageblit needs updating for image depth > 1
  */
 
-#if BITS_PER_LONG == 32
-#define BYTES_PER_LONG	4
-#define SHIFT_PER_LONG	5
-#elif BITS_PER_LONG == 64
-#define BYTES_PER_LONG	8
-#define SHIFT_PER_LONG	6
-#else
-#define Please update me
-#endif
-
-
 static void atafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	struct atafb_par *par = info->par;
@@ -2531,8 +2517,6 @@ static void atafb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
 	struct atafb_par *par = info->par;
 	int x2, y2;
-	unsigned long *dst;
-	int dst_idx;
 	const char *src;
 	u32 dx, dy, width, height, pitch;
 
@@ -2559,10 +2543,6 @@ static void atafb_imageblit(struct fb_info *info, const struct fb_image *image)
 
 	if (image->depth == 1) {
 		// used for font data
-		dst = (unsigned long *)
-			((unsigned long)info->screen_base & ~(BYTES_PER_LONG - 1));
-		dst_idx = ((unsigned long)info->screen_base & (BYTES_PER_LONG - 1)) * 8;
-		dst_idx += dy * par->next_line * 8 + dx;
 		src = image->data;
 		pitch = (image->width + 7) / 8;
 		while (height--) {
