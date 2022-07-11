@@ -279,6 +279,8 @@ struct perf_record_auxtrace_error {
 	__u64			 ip;
 	__u64			 time;
 	char			 msg[MAX_AUXTRACE_ERROR_MSG];
+	__u32			 machine_pid;
+	__u32			 vcpu;
 };
 
 struct perf_record_aux {

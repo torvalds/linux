@@ -1559,7 +1559,7 @@ static void python_process_auxtrace_error(struct perf_session *session __maybe_u
 		msg = (const char *)&e->time;
 	}
 
-	t = tuple_new(9);
+	t = tuple_new(11);
 
 	tuple_set_u32(t, 0, e->type);
 	tuple_set_u32(t, 1, e->code);
@@ -1570,6 +1570,8 @@ static void python_process_auxtrace_error(struct perf_session *session __maybe_u
 	tuple_set_u64(t, 6, tm);
 	tuple_set_string(t, 7, msg);
 	tuple_set_u32(t, 8, cpumode);
+	tuple_set_s32(t, 9, e->machine_pid);
+	tuple_set_s32(t, 10, e->vcpu);
 
 	call_object(handler, t, handler_name);
 
