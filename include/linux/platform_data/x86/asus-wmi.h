@@ -49,6 +49,7 @@
 #define ASUS_WMI_DEVID_LED4		0x00020014
 #define ASUS_WMI_DEVID_LED5		0x00020015
 #define ASUS_WMI_DEVID_LED6		0x00020016
+#define ASUS_WMI_DEVID_MICMUTE_LED		0x00040017
 
 /* Backlight and Brightness */
 #define ASUS_WMI_DEVID_ALS_ENABLE	0x00050001 /* Ambient Light Sensor */
