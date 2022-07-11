@@ -419,35 +419,53 @@ void bpf_map_free_id(struct bpf_map *map, bool do_idr_lock)
 #ifdef CONFIG_MEMCG_KMEM
 static void bpf_map_save_memcg(struct bpf_map *map)
 {
-	map->memcg = get_mem_cgroup_from_mm(current->mm);
+	/* Currently if a map is created by a process belonging to the root
+	 * memory cgroup, get_obj_cgroup_from_current() will return NULL.
+	 * So we have to check map->objcg for being NULL each time it's
+	 * being used.
+	 */
+	map->objcg = get_obj_cgroup_from_current();
 }
 
 static void bpf_map_release_memcg(struct bpf_map *map)
 {
-	mem_cgroup_put(map->memcg);
+	if (map->objcg)
+		obj_cgroup_put(map->objcg);
+}
+
+static struct mem_cgroup *bpf_map_get_memcg(const struct bpf_map *map)
+{
+	if (map->objcg)
+		return get_mem_cgroup_from_objcg(map->objcg);
+
+	return root_mem_cgroup;
 }
 
 void *bpf_map_kmalloc_node(const struct bpf_map *map, size_t size, gfp_t flags,
 			   int node)
 {
-	struct mem_cgroup *old_memcg;
+	struct mem_cgroup *memcg, *old_memcg;
 	void *ptr;
 
-	old_memcg = set_active_memcg(map->memcg);
+	memcg = bpf_map_get_memcg(map);
+	old_memcg = set_active_memcg(memcg);
 	ptr = kmalloc_node(size, flags | __GFP_ACCOUNT, node);
 	set_active_memcg(old_memcg);
+	mem_cgroup_put(memcg);
 
 	return ptr;
 }
 
 void *bpf_map_kzalloc(const struct bpf_map *map, size_t size, gfp_t flags)
 {
-	struct mem_cgroup *old_memcg;
+	struct mem_cgroup *memcg, *old_memcg;
 	void *ptr;
 
-	old_memcg = set_active_memcg(map->memcg);
+	memcg = bpf_map_get_memcg(map);
+	old_memcg = set_active_memcg(memcg);
 	ptr = kzalloc(size, flags | __GFP_ACCOUNT);
 	set_active_memcg(old_memcg);
+	mem_cgroup_put(memcg);
 
 	return ptr;
 }
@@ -455,12 +473,14 @@ void *bpf_map_kzalloc(const struct bpf_map *map, size_t size, gfp_t flags)
 void __percpu *bpf_map_alloc_percpu(const struct bpf_map *map, size_t size,
 				    size_t align, gfp_t flags)
 {
-	struct mem_cgroup *old_memcg;
+	struct mem_cgroup *memcg, *old_memcg;
 	void __percpu *ptr;
 
-	old_memcg = set_active_memcg(map->memcg);
+	memcg = bpf_map_get_memcg(map);
+	old_memcg = set_active_memcg(memcg);
 	ptr = __alloc_percpu_gfp(size, align, flags | __GFP_ACCOUNT);
 	set_active_memcg(old_memcg);
+	mem_cgroup_put(memcg);
 
 	return ptr;
 }
