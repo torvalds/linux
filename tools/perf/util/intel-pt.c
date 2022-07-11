@@ -78,6 +78,7 @@ struct intel_pt {
 	bool use_thread_stack;
 	bool callstack;
 	bool cap_event_trace;
+	bool have_guest_sideband;
 	unsigned int br_stack_sz;
 	unsigned int br_stack_sz_plus;
 	int have_sched_switch;
@@ -3079,12 +3080,34 @@ static int intel_pt_context_switch_in(struct intel_pt *pt,
 	return machine__set_current_tid(pt->machine, cpu, pid, tid);
 }
 
+static int intel_pt_guest_context_switch(struct intel_pt *pt,
+					 union perf_event *event,
+					 struct perf_sample *sample)
+{
+	bool out = event->header.misc & PERF_RECORD_MISC_SWITCH_OUT;
+	struct machines *machines = &pt->session->machines;
+	struct machine *machine = machines__find(machines, sample->machine_pid);
+
+	pt->have_guest_sideband = true;
+
+	if (out)
+		return 0;
+
+	if (!machine)
+		return -EINVAL;
+
+	return machine__set_current_tid(machine, sample->vcpu, sample->pid, sample->tid);
+}
+
 static int intel_pt_context_switch(struct intel_pt *pt, union perf_event *event,
 				   struct perf_sample *sample)
 {
 	bool out = event->header.misc & PERF_RECORD_MISC_SWITCH_OUT;
 	pid_t pid, tid;
 	int cpu, ret;
+
+	if (perf_event__is_guest(event))
+		return intel_pt_guest_context_switch(pt, event, sample);
 
 	cpu = sample->cpu;
 
