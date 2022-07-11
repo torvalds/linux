@@ -32,9 +32,6 @@ endif
 __modinst: $(modules)
 	@:
 
-quiet_cmd_none =
-      cmd_none = :
-
 #
 # Installation
 #
