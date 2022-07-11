@@ -79,7 +79,7 @@ static int vcn_v4_0_3_early_init(void *handle)
 static int vcn_v4_0_3_sw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	volatile struct amdgpu_fw_shared *fw_shared;
+	volatile struct amdgpu_vcn4_fw_shared *fw_shared;
 	struct amdgpu_ring *ring;
 	int r;
 
@@ -111,10 +111,8 @@ static int vcn_v4_0_3_sw_init(void *handle)
 		return r;
 
 	fw_shared = adev->vcn.inst->fw_shared.cpu_addr;
-	fw_shared->present_flag_0 |= cpu_to_le32(AMDGPU_VCN_SW_RING_FLAG) |
-				     cpu_to_le32(AMDGPU_VCN_MULTI_QUEUE_FLAG) |
-				     cpu_to_le32(AMDGPU_VCN_FW_SHARED_FLAG_0_RB);
-	fw_shared->sw_ring.is_enabled = cpu_to_le32(true);
+	fw_shared->present_flag_0 = 0;
+	fw_shared->sq.is_enabled = cpu_to_le32(true);
 
 	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG)
 		adev->vcn.pause_dpg_mode = vcn_v4_0_3_pause_dpg_mode;
@@ -135,11 +133,11 @@ static int vcn_v4_0_3_sw_fini(void *handle)
 	int r, idx;
 
 	if (drm_dev_enter(&adev->ddev, &idx)) {
-		volatile struct amdgpu_fw_shared *fw_shared;
+		volatile struct amdgpu_vcn4_fw_shared *fw_shared;
 
 		fw_shared = adev->vcn.inst->fw_shared.cpu_addr;
 		fw_shared->present_flag_0 = 0;
-		fw_shared->sw_ring.is_enabled = cpu_to_le32(false);
+		fw_shared->sq.is_enabled = cpu_to_le32(false);
 
 		drm_dev_exit(idx);
 	}
@@ -304,7 +302,7 @@ static void vcn_v4_0_3_mc_resume(struct amdgpu_device *adev)
 		upper_32_bits(adev->vcn.inst->fw_shared.gpu_addr));
 	WREG32_SOC15(VCN, 0, regUVD_VCPU_NONCACHE_OFFSET0, 0);
 	WREG32_SOC15(VCN, 0, regUVD_VCPU_NONCACHE_SIZE0,
-		AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared)));
+		AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_vcn4_fw_shared)));
 }
 
 /**
@@ -407,7 +405,7 @@ static void vcn_v4_0_3_mc_resume_dpg_mode(struct amdgpu_device *adev, bool indir
 			VCN, 0, regUVD_VCPU_NONCACHE_OFFSET0), 0, 0, indirect);
 	WREG32_SOC15_DPG_MODE(0, SOC15_DPG_MODE_OFFSET(
 			VCN, 0, regUVD_VCPU_NONCACHE_SIZE0),
-			AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_fw_shared)), 0, indirect);
+			AMDGPU_GPU_PAGE_ALIGN(sizeof(struct amdgpu_vcn4_fw_shared)), 0, indirect);
 
 	/* VCN global tiling registers */
 	WREG32_SOC15_DPG_MODE(0, SOC15_DPG_MODE_OFFSET(
@@ -612,7 +610,7 @@ static void vcn_v4_0_3_enable_clock_gating(struct amdgpu_device *adev)
  */
 static int vcn_v4_0_3_start_dpg_mode(struct amdgpu_device *adev, bool indirect)
 {
-	volatile struct amdgpu_fw_shared *fw_shared = adev->vcn.inst->fw_shared.cpu_addr;
+	volatile struct amdgpu_vcn4_fw_shared *fw_shared = adev->vcn.inst->fw_shared.cpu_addr;
 	struct amdgpu_ring *ring;
 	uint32_t tmp;
 
@@ -702,7 +700,6 @@ static int vcn_v4_0_3_start_dpg_mode(struct amdgpu_device *adev, bool indirect)
 				(uintptr_t)adev->vcn.inst->dpg_sram_cpu_addr));
 
 	ring = &adev->vcn.inst->ring_dec;
-	fw_shared->multi_queue.decode_queue_mode |= cpu_to_le32(FW_QUEUE_RING_RESET);
 
 	/* program the RB_BASE for ring buffer */
 	WREG32_SOC15(VCN, 0, regUVD_RB_BASE_LO4,
@@ -728,12 +725,8 @@ static int vcn_v4_0_3_start_dpg_mode(struct amdgpu_device *adev, bool indirect)
 
 	WREG32_SOC15(VCN, 0, regUVD_SCRATCH2, 0);
 
-	/* Reset FW shared memory RBC WPTR/RPTR */
-	fw_shared->rb.rptr = 0;
-	fw_shared->rb.wptr = lower_32_bits(ring->wptr);
-
 	/*resetting done, fw can check RB ring */
-	fw_shared->multi_queue.decode_queue_mode &= cpu_to_le32(~FW_QUEUE_RING_RESET);
+	fw_shared->sq.queue_mode &= cpu_to_le32(~FW_QUEUE_RING_RESET);
 
 	return 0;
 }
@@ -747,7 +740,7 @@ static int vcn_v4_0_3_start_dpg_mode(struct amdgpu_device *adev, bool indirect)
  */
 static int vcn_v4_0_3_start(struct amdgpu_device *adev)
 {
-	volatile struct amdgpu_fw_shared *fw_shared;
+	volatile struct amdgpu_vcn4_fw_shared *fw_shared;
 	struct amdgpu_ring *ring;
 	uint32_t tmp;
 	int j, k, r;
@@ -878,7 +871,6 @@ static int vcn_v4_0_3_start(struct amdgpu_device *adev)
 	ring = &adev->vcn.inst->ring_dec;
 
 	fw_shared = adev->vcn.inst->fw_shared.cpu_addr;
-	fw_shared->multi_queue.decode_queue_mode |= cpu_to_le32(FW_QUEUE_RING_RESET);
 
 	/* program the RB_BASE for ring buffer */
 	WREG32_SOC15(VCN, 0, regUVD_RB_BASE_LO4,
@@ -902,8 +894,7 @@ static int vcn_v4_0_3_start(struct amdgpu_device *adev)
 	WREG32_SOC15(VCN, 0, regVCN_RB_ENABLE, tmp);
 
 	ring->wptr = RREG32_SOC15(VCN, 0, regUVD_RB_WPTR4);
-	fw_shared->rb.wptr = cpu_to_le32(lower_32_bits(ring->wptr));
-	fw_shared->multi_queue.decode_queue_mode &= cpu_to_le32(~FW_QUEUE_RING_RESET);
+	fw_shared->sq.queue_mode &= cpu_to_le32(~(FW_QUEUE_RING_RESET | FW_QUEUE_DPG_HOLD_OFF));
 
 	return 0;
 }
@@ -1075,15 +1066,6 @@ static uint64_t vcn_v4_0_3_dec_ring_get_wptr(struct amdgpu_ring *ring)
 static void vcn_v4_0_3_dec_ring_set_wptr(struct amdgpu_ring *ring)
 {
 	struct amdgpu_device *adev = ring->adev;
-	volatile struct amdgpu_fw_shared *fw_shared;
-
-	if (adev->pg_flags & AMD_PG_SUPPORT_VCN_DPG) {
-		/*whenever update RBC_RB_WPTR, we save the wptr in shared rb.wptr and scratch2 */
-		fw_shared = adev->vcn.inst->fw_shared.cpu_addr;
-		fw_shared->rb.wptr = lower_32_bits(ring->wptr);
-		WREG32_SOC15(VCN, ring->me, regUVD_SCRATCH2,
-			lower_32_bits(ring->wptr));
-	}
 
 	if (ring->use_doorbell) {
 		adev->wb.wb[ring->wptr_offs] = lower_32_bits(ring->wptr);
