@@ -985,7 +985,7 @@ static int mchp_pdmc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	dd->dev = &pdev->dev;
-	ret =  mchp_pdmc_dt_init(dd);
+	ret = mchp_pdmc_dt_init(dd);
 	if (ret < 0)
 		return ret;
 
