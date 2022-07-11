@@ -16,7 +16,7 @@ static inline int memregion_alloc(gfp_t gfp)
 {
 	return -ENOMEM;
 }
-void memregion_free(int id)
+static inline void memregion_free(int id)
 {
 }
 #endif
