@@ -1564,7 +1564,7 @@ void bitmap_to_arr64(u64 *buf, const unsigned long *bitmap, unsigned int nbits)
 
 	/* Clear tail bits in the last element of array beyond nbits. */
 	if (nbits % 64)
-		buf[-1] &= GENMASK_ULL(nbits % 64, 0);
+		buf[-1] &= GENMASK_ULL((nbits - 1) % 64, 0);
 }
 EXPORT_SYMBOL(bitmap_to_arr64);
 #endif
