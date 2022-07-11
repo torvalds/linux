@@ -236,6 +236,16 @@ config QCOM_SMSM
 	  Say yes here to support the Qualcomm Shared Memory State Machine.
 	  The state machine is represented by bits in shared memory.
 
+config QCOM_SMP2P_SLEEPSTATE
+	tristate "SMP2P Sleepstate notifier"
+	depends on QCOM_SMP2P
+	help
+	  When this option is enabled, notifications are sent to remote procs
+	  for the power state changes on the local processor. The notifications
+	  are sent through the smp2p framework. This driver can also receive
+	  notifications from the remote to prevent suspend on the local
+	  processor.
+
 config QTI_PMIC_GLINK
 	tristate "Enable support for PMIC GLINK"
 	depends on RPMSG
