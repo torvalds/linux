@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 WITH Linux-syscall-note
 /*
  *
- * (C) COPYRIGHT 2019-2021 ARM Limited. All rights reserved.
+ * (C) COPYRIGHT 2019-2022 ARM Limited. All rights reserved.
  *
  * This program is free software and is provided to you under the terms of the
  * GNU General Public License version 2 as published by the Free Software
@@ -85,6 +85,9 @@ const char *kbase_gpu_exception_name(u32 const exception_code)
 	/* FW exceptions */
 	case CS_FATAL_EXCEPTION_TYPE_FIRMWARE_INTERNAL_ERROR:
 		e = "FIRMWARE_INTERNAL_ERROR";
+		break;
+	case CS_FATAL_EXCEPTION_TYPE_CS_UNRECOVERABLE:
+		e = "CS_UNRECOVERABLE";
 		break;
 	case CS_FAULT_EXCEPTION_TYPE_RESOURCE_EVICTION_TIMEOUT:
 		e = "RESOURCE_EVICTION_TIMEOUT";

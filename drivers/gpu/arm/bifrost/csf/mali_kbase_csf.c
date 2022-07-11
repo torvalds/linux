@@ -1359,6 +1359,7 @@ static int create_queue_group(struct kbase_context *const kctx,
 				kbase_csf_priority_check(kctx->kbdev, create->in.priority));
 			group->doorbell_nr = KBASEP_USER_DB_NR_INVALID;
 			group->faulted = false;
+			group->cs_unrecoverable = false;
 			group->reevaluate_idle_status = false;
 
 
@@ -2429,6 +2430,11 @@ handle_fatal_event(struct kbase_queue *const queue,
 			CS_FATAL_EXCEPTION_TYPE_FIRMWARE_INTERNAL_ERROR) {
 		queue_work(system_wq, &kbdev->csf.fw_error_work);
 	} else {
+		if (cs_fatal_exception_type == CS_FATAL_EXCEPTION_TYPE_CS_UNRECOVERABLE) {
+			queue->group->cs_unrecoverable = true;
+			if (kbase_prepare_to_reset_gpu(queue->kctx->kbdev, RESET_FLAGS_NONE))
+				kbase_reset_gpu(queue->kctx->kbdev);
+		}
 		get_queue(queue);
 		queue->cs_fatal = cs_fatal;
 		queue->cs_fatal_info = cs_fatal_info;
