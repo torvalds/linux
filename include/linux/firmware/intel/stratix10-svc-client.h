@@ -14,6 +14,7 @@
  */
 #define SVC_CLIENT_FPGA			"fpga"
 #define SVC_CLIENT_RSU			"rsu"
+#define SVC_CLIENT_FCS			"fcs"
 
 /*
  * Status of the sent command, in bit number
