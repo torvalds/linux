@@ -323,7 +323,7 @@ static u32 aarch64_insn_encode_ldst_size(enum aarch64_insn_size_type type,
 	return insn;
 }
 
-static inline long branch_imm_common(unsigned long pc, unsigned long addr,
+static inline long label_imm_common(unsigned long pc, unsigned long addr,
 				     long range)
 {
 	long offset;
@@ -354,7 +354,7 @@ u32 __kprobes aarch64_insn_gen_branch_imm(unsigned long pc, unsigned long addr,
 	 * ARM64 virtual address arrangement guarantees all kernel and module
 	 * texts are within +/-128M.
 	 */
-	offset = branch_imm_common(pc, addr, SZ_128M);
+	offset = label_imm_common(pc, addr, SZ_128M);
 	if (offset >= SZ_128M)
 		return AARCH64_BREAK_FAULT;
 
@@ -382,7 +382,7 @@ u32 aarch64_insn_gen_comp_branch_imm(unsigned long pc, unsigned long addr,
 	u32 insn;
 	long offset;
 
-	offset = branch_imm_common(pc, addr, SZ_1M);
+	offset = label_imm_common(pc, addr, SZ_1M);
 	if (offset >= SZ_1M)
 		return AARCH64_BREAK_FAULT;
 
@@ -421,7 +421,7 @@ u32 aarch64_insn_gen_cond_branch_imm(unsigned long pc, unsigned long addr,
 	u32 insn;
 	long offset;
 
-	offset = branch_imm_common(pc, addr, SZ_1M);
+	offset = label_imm_common(pc, addr, SZ_1M);
 
 	insn = aarch64_insn_get_bcond_value();
 
@@ -541,6 +541,28 @@ u32 aarch64_insn_gen_load_store_imm(enum aarch64_insn_register reg,
 					    base);
 
 	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_12, insn, imm);
+}
+
+u32 aarch64_insn_gen_load_literal(unsigned long pc, unsigned long addr,
+				  enum aarch64_insn_register reg,
+				  bool is64bit)
+{
+	u32 insn;
+	long offset;
+
+	offset = label_imm_common(pc, addr, SZ_1M);
+	if (offset >= SZ_1M)
+		return AARCH64_BREAK_FAULT;
+
+	insn = aarch64_insn_get_ldr_lit_value();
+
+	if (is64bit)
+		insn |= BIT(30);
+
+	insn = aarch64_insn_encode_register(AARCH64_INSN_REGTYPE_RT, insn, reg);
+
+	return aarch64_insn_encode_immediate(AARCH64_INSN_IMM_19, insn,
+					     offset >> 2);
 }
 
 u32 aarch64_insn_gen_load_store_pair(enum aarch64_insn_register reg1,
