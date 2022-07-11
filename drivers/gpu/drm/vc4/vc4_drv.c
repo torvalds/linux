@@ -399,8 +399,7 @@ static void vc4_drm_unbind(struct device *dev)
 {
 	struct drm_device *drm = dev_get_drvdata(dev);
 
-	drm_dev_unregister(drm);
-
+	drm_dev_unplug(drm);
 	drm_atomic_helper_shutdown(drm);
 }
 
