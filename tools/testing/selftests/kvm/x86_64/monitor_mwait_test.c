@@ -34,7 +34,7 @@ static void guest_monitor_wait(int testcase)
 	else
 		GUEST_ASSERT_2(!vector, testcase, vector);
 
-	vector = kvm_asm_safe("monitor");
+	vector = kvm_asm_safe("mwait");
 	if (fault_wanted)
 		GUEST_ASSERT_2(vector == UD_VECTOR, testcase, vector);
 	else
