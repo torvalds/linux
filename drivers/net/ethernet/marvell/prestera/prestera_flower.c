@@ -202,6 +202,7 @@ static int prestera_flower_parse(struct prestera_flow_block *block,
 	      BIT(FLOW_DISSECTOR_KEY_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_ICMP) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
+	      BIT(FLOW_DISSECTOR_KEY_PORTS_RANGE) |
 	      BIT(FLOW_DISSECTOR_KEY_VLAN))) {
 		NL_SET_ERR_MSG_MOD(f->common.extack, "Unsupported key");
 		return -EOPNOTSUPP;
@@ -299,6 +300,29 @@ static int prestera_flower_parse(struct prestera_flow_block *block,
 
 		rule_match_set(r_match->key, L4_PORT_DST, match.key->dst);
 		rule_match_set(r_match->mask, L4_PORT_DST, match.mask->dst);
+	}
+
+	if (flow_rule_match_key(f_rule, FLOW_DISSECTOR_KEY_PORTS_RANGE)) {
+		struct flow_match_ports_range match;
+		__be32 tp_key, tp_mask;
+
+		flow_rule_match_ports_range(f_rule, &match);
+
+		/* src port range (min, max) */
+		tp_key = htonl(ntohs(match.key->tp_min.src) |
+			       (ntohs(match.key->tp_max.src) << 16));
+		tp_mask = htonl(ntohs(match.mask->tp_min.src) |
+				(ntohs(match.mask->tp_max.src) << 16));
+		rule_match_set(r_match->key, L4_PORT_RANGE_SRC, tp_key);
+		rule_match_set(r_match->mask, L4_PORT_RANGE_SRC, tp_mask);
+
+		/* dst port range (min, max) */
+		tp_key = htonl(ntohs(match.key->tp_min.dst) |
+			       (ntohs(match.key->tp_max.dst) << 16));
+		tp_mask = htonl(ntohs(match.mask->tp_min.dst) |
+				(ntohs(match.mask->tp_max.dst) << 16));
+		rule_match_set(r_match->key, L4_PORT_RANGE_DST, tp_key);
+		rule_match_set(r_match->mask, L4_PORT_RANGE_DST, tp_mask);
 	}
 
 	if (flow_rule_match_key(f_rule, FLOW_DISSECTOR_KEY_VLAN)) {
