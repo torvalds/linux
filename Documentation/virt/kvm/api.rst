@@ -7523,7 +7523,7 @@ The valid bits in cap.args[0] are:
                                     incorrect hypercall instruction will
                                     generate a #UD within the guest.
 
-KVM_X86_QUIRK_MWAIT_NEVER_FAULTS    By default, KVM emulates MONITOR/MWAIT (if
+KVM_X86_QUIRK_MWAIT_NEVER_UD_FAULTS By default, KVM emulates MONITOR/MWAIT (if
                                     they are intercepted) as NOPs regardless of
                                     whether or not MONITOR/MWAIT are supported
                                     according to guest CPUID.  When this quirk

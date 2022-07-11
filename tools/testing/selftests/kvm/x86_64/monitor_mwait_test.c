@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
 
 		disabled_quirks = 0;
 		if (testcase & MWAIT_QUIRK_DISABLED)
-			disabled_quirks |= KVM_X86_QUIRK_MWAIT_NEVER_FAULTS;
+			disabled_quirks |= KVM_X86_QUIRK_MWAIT_NEVER_UD_FAULTS;
 		if (testcase & MISC_ENABLES_QUIRK_DISABLED)
 			disabled_quirks |= KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT;
 		vm_enable_cap(vm, KVM_CAP_DISABLE_QUIRKS2, disabled_quirks);
