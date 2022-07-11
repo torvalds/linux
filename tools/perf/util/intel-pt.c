@@ -1657,6 +1657,17 @@ static void intel_pt_prep_a_sample(struct intel_pt_queue *ptq,
 
 	sample->pid = ptq->pid;
 	sample->tid = ptq->tid;
+
+	if (ptq->pt->have_guest_sideband) {
+		if ((ptq->state->from_ip && ptq->state->from_nr) ||
+		    (ptq->state->to_ip && ptq->state->to_nr)) {
+			sample->pid = ptq->guest_pid;
+			sample->tid = ptq->guest_tid;
+			sample->machine_pid = ptq->guest_machine_pid;
+			sample->vcpu = ptq->vcpu;
+		}
+	}
+
 	sample->cpu = ptq->cpu;
 	sample->insn_len = ptq->insn_len;
 	memcpy(sample->insn, ptq->insn, INTEL_PT_INSN_BUF_SZ);
