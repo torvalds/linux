@@ -296,6 +296,8 @@ struct aspeed_mctp {
 	u32 rx_packet_count;
 	/* Rx pointer ring size */
 	u32 rx_ring_count;
+	/* Tx pointer ring size */
+	u32 tx_ring_count;
 };
 
 struct mctp_client {
@@ -529,7 +531,7 @@ static struct mctp_client *aspeed_mctp_client_alloc(struct aspeed_mctp *priv)
 
 	kref_init(&client->ref);
 	client->priv = priv;
-	ptr_ring_init(&client->tx_queue, TX_RING_COUNT, GFP_KERNEL);
+	ptr_ring_init(&client->tx_queue, priv->tx_ring_count, GFP_KERNEL);
 	ptr_ring_init(&client->rx_queue, priv->rx_ring_count, GFP_ATOMIC);
 
 out:
@@ -2058,6 +2060,11 @@ static int aspeed_mctp_probe(struct platform_device *pdev)
 				       &priv->rx_ring_count);
 	if (ret)
 		priv->rx_ring_count = RX_RING_COUNT;
+
+	ret = device_property_read_u32(priv->dev, "aspeed,tx-ring-count",
+				       &priv->tx_ring_count);
+	if (ret)
+		priv->tx_ring_count = TX_RING_COUNT;
 
 	aspeed_mctp_drv_init(priv);
 
