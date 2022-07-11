@@ -344,6 +344,13 @@ struct rga_request {
 	struct kref refcount;
 
 	pid_t pid;
+
+	/*
+	 * The mapping of virtual addresses to obtain physical addresses requires
+	 * the memory mapping information of the current process.
+	 */
+	struct mm_struct *current_mm;
+
 	/* TODO: add some common work */
 };
 

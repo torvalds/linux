@@ -487,7 +487,7 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 		return -EINVAL;
 	}
 
-	internal_buffer->current_mm = current->mm;
+	internal_buffer->current_mm = job ? job->mm : current->mm;
 	if (internal_buffer->current_mm == NULL) {
 		pr_err("%s, cannot get current mm!\n", __func__);
 		return -EFAULT;

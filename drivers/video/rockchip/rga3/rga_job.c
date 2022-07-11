@@ -50,71 +50,8 @@ struct rga_scheduler_t *rga_job_get_scheduler(struct rga_job *job)
 	return job->scheduler;
 }
 
-static int rga_job_get_current_mm(struct rga_job *job)
-{
-	int mmu_flag;
-
-	struct rga_img_info_t *src0 = NULL;
-	struct rga_img_info_t *src1 = NULL;
-	struct rga_img_info_t *dst = NULL;
-	struct rga_img_info_t *els = NULL;
-
-	src0 = &job->rga_command_base.src;
-	dst = &job->rga_command_base.dst;
-	if (job->rga_command_base.render_mode != UPDATE_PALETTE_TABLE_MODE)
-		src1 = &job->rga_command_base.pat;
-	else
-		els = &job->rga_command_base.pat;
-
-	if (likely(src0 != NULL)) {
-		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 8) & 1);
-		if (mmu_flag && src0->uv_addr)
-			goto get_current_mm;
-	}
-
-	if (likely(dst != NULL)) {
-		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 10) & 1);
-		if (mmu_flag && dst->uv_addr)
-			goto get_current_mm;
-	}
-
-	if (src1 != NULL) {
-		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 9) & 1);
-		if (mmu_flag && src1->yrgb_addr)
-			goto get_current_mm;
-	}
-
-	if (els != NULL) {
-		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 11) & 1);
-		if (mmu_flag && els->yrgb_addr)
-			goto get_current_mm;
-	}
-
-	return 0;
-
-get_current_mm:
-	mmgrab(current->mm);
-	mmget(current->mm);
-	job->mm = current->mm;
-
-	return 1;
-}
-
-static void rga_job_put_current_mm(struct rga_job *job)
-{
-	if (job->mm == NULL)
-		return;
-
-	mmput(job->mm);
-	mmdrop(job->mm);
-	job->mm = NULL;
-}
-
 static void rga_job_free(struct rga_job *job)
 {
-	if (~job->flags & RGA_JOB_USE_HANDLE)
-		rga_job_put_current_mm(job);
-
 	free_page((unsigned long)job);
 }
 
@@ -246,8 +183,6 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 		job->flags |= RGA_JOB_USE_HANDLE;
 
 		rga_job_judgment_support_core(job);
-	} else {
-		rga_job_get_current_mm(job);
 	}
 
 	return job;
@@ -645,6 +580,7 @@ struct rga_job *rga_job_commit(struct rga_req *rga_command_base, struct rga_requ
 	job->request_id = request->id;
 	job->session = request->session;
 	job->out_fence = request->release_fence;
+	job->mm = request->current_mm;
 
 	if (!(job->flags & RGA_JOB_USE_HANDLE)) {
 		ret = rga_mm_get_external_buffer(job);
@@ -682,6 +618,75 @@ invalid_job:
 running_job_abort:
 	rga_running_job_abort(job, scheduler);
 	return ERR_PTR(ret);
+}
+
+static bool rga_is_need_current_mm(struct rga_req *req)
+{
+	int mmu_flag;
+	struct rga_img_info_t *src0 = NULL;
+	struct rga_img_info_t *src1 = NULL;
+	struct rga_img_info_t *dst = NULL;
+	struct rga_img_info_t *els = NULL;
+
+	src0 = &req->src;
+	dst = &req->dst;
+	if (req->render_mode != UPDATE_PALETTE_TABLE_MODE)
+		src1 = &req->pat;
+	else
+		els = &req->pat;
+
+	if (likely(src0 != NULL)) {
+		mmu_flag = ((req->mmu_info.mmu_flag >> 8) & 1);
+		if (mmu_flag && src0->uv_addr)
+			return true;
+	}
+
+	if (likely(dst != NULL)) {
+		mmu_flag = ((req->mmu_info.mmu_flag >> 10) & 1);
+		if (mmu_flag && dst->uv_addr)
+			return true;
+	}
+
+	if (src1 != NULL) {
+		mmu_flag = ((req->mmu_info.mmu_flag >> 9) & 1);
+		if (mmu_flag && src1->uv_addr)
+			return true;
+	}
+
+	if (els != NULL) {
+		mmu_flag = ((req->mmu_info.mmu_flag >> 11) & 1);
+		if (mmu_flag && els->uv_addr)
+			return true;
+	}
+
+	return false;
+}
+
+static int rga_request_get_current_mm(struct rga_request *request)
+{
+	int i;
+
+	for (i = 0; i < request->task_count; i++) {
+		if (rga_is_need_current_mm(&(request->task_list[i]))) {
+			mmgrab(current->mm);
+			mmget(current->mm);
+			request->current_mm = current->mm;
+
+			break;
+		}
+	}
+
+	return 0;
+}
+
+static void rga_request_put_current_mm(struct rga_request *request)
+{
+	if (request->current_mm == NULL)
+		return;
+
+	mmput(request->current_mm);
+	mmdrop(request->current_mm);
+	request->current_mm = NULL;
 }
 
 int rga_request_check(struct rga_user_request *req)
@@ -822,6 +827,8 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 
 		request->is_running = false;
 
+		rga_request_put_current_mm(request);
+
 		spin_unlock_irqrestore(&request->lock, flags);
 
 		/* current submit request put */
@@ -923,6 +930,7 @@ int rga_request_submit(struct rga_request *request)
 	}
 
 	request->is_running = true;
+	rga_request_get_current_mm(request);
 
 	spin_unlock_irqrestore(&request->lock, flags);
 
