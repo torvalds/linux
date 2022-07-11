@@ -742,10 +742,7 @@ mlx5e_ethtool_flow_replace(struct mlx5e_priv *priv,
 
 	eth_rule->flow_spec = *fs;
 	eth_rule->eth_ft = eth_ft;
-	if (!eth_ft->ft) {
-		err = -EINVAL;
-		goto del_ethtool_rule;
-	}
+
 	rule = add_ethtool_flow_rule(priv, eth_rule, eth_ft->ft, fs, rss_context);
 	if (IS_ERR(rule)) {
 		err = PTR_ERR(rule);
