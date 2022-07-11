@@ -2161,6 +2161,25 @@ static struct mlxreg_core_platform_data mlxplat_default_led_wc_data = {
 		.counter = ARRAY_SIZE(mlxplat_mlxcpld_default_led_wc_data),
 };
 
+/* Platform led default data for water cooling Ethernet switch blade */
+static struct mlxreg_core_data mlxplat_mlxcpld_default_led_eth_wc_blade_data[] = {
+	{
+		.label = "status:green",
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFFSET,
+		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK,
+	},
+	{
+		.label = "status:red",
+		.reg = MLXPLAT_CPLD_LPC_REG_LED1_OFFSET,
+		.mask = MLXPLAT_CPLD_LED_LO_NIBBLE_MASK
+	},
+};
+
+static struct mlxreg_core_platform_data mlxplat_default_led_eth_wc_blade_data = {
+	.data = mlxplat_mlxcpld_default_led_eth_wc_blade_data,
+	.counter = ARRAY_SIZE(mlxplat_mlxcpld_default_led_eth_wc_blade_data),
+};
+
 /* Platform led MSN21xx system family data */
 static struct mlxreg_core_data mlxplat_mlxcpld_msn21xx_led_data[] = {
 	{
@@ -4708,6 +4727,31 @@ static int __init mlxplat_dmi_default_wc_matched(const struct dmi_system_id *dmi
 	return 1;
 }
 
+static int __init mlxplat_dmi_default_eth_wc_blade_matched(const struct dmi_system_id *dmi)
+{
+	int i;
+
+	mlxplat_max_adap_num = MLXPLAT_CPLD_MAX_PHYS_ADAPTER_NUM;
+	mlxplat_mux_num = ARRAY_SIZE(mlxplat_default_mux_data);
+	mlxplat_mux_data = mlxplat_default_mux_data;
+	for (i = 0; i < mlxplat_mux_num; i++) {
+		mlxplat_mux_data[i].values = mlxplat_msn21xx_channels;
+		mlxplat_mux_data[i].n_values =
+				ARRAY_SIZE(mlxplat_msn21xx_channels);
+	}
+	mlxplat_hotplug = &mlxplat_mlxcpld_default_wc_data;
+	mlxplat_hotplug->deferred_nr =
+		mlxplat_msn21xx_channels[MLXPLAT_CPLD_GRP_CHNL_NUM - 1];
+	mlxplat_led = &mlxplat_default_led_eth_wc_blade_data;
+	mlxplat_regs_io = &mlxplat_default_ng_regs_io_data;
+	for (i = 0; i < ARRAY_SIZE(mlxplat_mlxcpld_wd_set_type2); i++)
+		mlxplat_wd_data[i] = &mlxplat_mlxcpld_wd_set_type2[i];
+	mlxplat_i2c = &mlxplat_mlxcpld_i2c_ng_data;
+	mlxplat_regmap_config = &mlxplat_mlxcpld_regmap_config_ng;
+
+	return 1;
+}
+
 static int __init mlxplat_dmi_msn21xx_matched(const struct dmi_system_id *dmi)
 {
 	int i;
@@ -4922,6 +4966,13 @@ static const struct dmi_system_id mlxplat_dmi_table[] __initconst = {
 		.callback = mlxplat_dmi_msn201x_matched,
 		.matches = {
 			DMI_MATCH(DMI_BOARD_NAME, "VMOD0004"),
+		},
+	},
+	{
+		.callback = mlxplat_dmi_default_eth_wc_blade_matched,
+		.matches = {
+			DMI_MATCH(DMI_BOARD_NAME, "VMOD0005"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "HI139"),
 		},
 	},
 	{
