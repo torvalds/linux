@@ -4,6 +4,7 @@
  * Author: Addy Ke <addy.ke@rock-chips.com>
  */
 
+#include <linux/acpi.h>
 #include <linux/clk.h>
 #include <linux/dmaengine.h>
 #include <linux/interrupt.h>
@@ -797,14 +798,16 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		goto err_put_ctlr;
 	}
 
-	rs->apb_pclk = devm_clk_get(&pdev->dev, "apb_pclk");
+	if (!has_acpi_companion(&pdev->dev))
+		rs->apb_pclk = devm_clk_get(&pdev->dev, "apb_pclk");
 	if (IS_ERR(rs->apb_pclk)) {
 		dev_err(&pdev->dev, "Failed to get apb_pclk\n");
 		ret = PTR_ERR(rs->apb_pclk);
 		goto err_put_ctlr;
 	}
 
-	rs->spiclk = devm_clk_get(&pdev->dev, "spiclk");
+	if (!has_acpi_companion(&pdev->dev))
+		rs->spiclk = devm_clk_get(&pdev->dev, "spiclk");
 	if (IS_ERR(rs->spiclk)) {
 		dev_err(&pdev->dev, "Failed to get spi_pclk\n");
 		ret = PTR_ERR(rs->spiclk);
@@ -848,10 +851,17 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		goto err_disable_sclk_in;
 
 	rs->dev = &pdev->dev;
-	rs->freq = clk_get_rate(rs->spiclk);
 
-	if (!of_property_read_u32(pdev->dev.of_node, "rx-sample-delay-ns",
-				  &rsd_nsecs)) {
+	rs->freq = clk_get_rate(rs->spiclk);
+	if (!rs->freq) {
+		ret = device_property_read_u32(&pdev->dev, "clock-frequency", &rs->freq);
+		if (ret) {
+			dev_warn(rs->dev, "Failed to get clock or clock-frequency property\n");
+			goto err_disable_sclk_in;
+		}
+	}
+
+	if (!device_property_read_u32(&pdev->dev, "rx-sample-delay-ns", &rsd_nsecs)) {
 		/* rx sample delay is expressed in parent clock cycles (max 3) */
 		u32 rsd = DIV_ROUND_CLOSEST(rsd_nsecs * (rs->freq >> 8),
 				1000000000 >> 8);
@@ -890,7 +900,7 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		 * rk spi0 has two native cs, spi1..5 one cs only
 		 * if num-cs is missing in the dts, default to 1
 		 */
-		if (of_property_read_u32(np, "num-cs", &num_cs))
+		if (device_property_read_u32(&pdev->dev, "num-cs", &num_cs))
 			num_cs = 1;
 		ctlr->num_chipselect = num_cs;
 		ctlr->use_gpio_descriptors = true;
