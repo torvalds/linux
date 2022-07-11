@@ -404,6 +404,27 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
 	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_MAX_RETRY)
 
 /**
+ * Request INTEL_SIP_SMC_RSU_DCMF_STATUS
+ *
+ * Sync call used by service driver at EL1 to query DCMF status from FW
+ *
+ * Call register usage:
+ * a0 INTEL_SIP_SMC_RSU_DCMF_STATUS
+ * a1-7 not used
+ *
+ * Return status
+ * a0 INTEL_SIP_SMC_STATUS_OK
+ * a1 dcmf3 | dcmf2 | dcmf1 | dcmf0
+ *
+ * Or
+ *
+ * a0 INTEL_SIP_SMC_RSU_ERROR
+ */
+#define INTEL_SIP_SMC_FUNCID_RSU_DCMF_STATUS 20
+#define INTEL_SIP_SMC_RSU_DCMF_STATUS \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_DCMF_STATUS)
+
+/**
  * Request INTEL_SIP_SMC_SERVICE_COMPLETED
  * Sync call to check if the secure world have completed service request
  * or not.
