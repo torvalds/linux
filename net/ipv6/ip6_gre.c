@@ -916,6 +916,7 @@ static netdev_tx_t ip6gre_tunnel_xmit(struct sk_buff *skb,
 {
 	struct ip6_tnl *t = netdev_priv(dev);
 	struct net_device_stats *stats = &t->dev->stats;
+	__be16 payload_protocol;
 	int ret;
 
 	if (!pskb_inet_may_pull(skb))
@@ -924,7 +925,8 @@ static netdev_tx_t ip6gre_tunnel_xmit(struct sk_buff *skb,
 	if (!ip6_tnl_xmit_ctl(t, &t->parms.laddr, &t->parms.raddr))
 		goto tx_err;
 
-	switch (skb->protocol) {
+	payload_protocol = skb_protocol(skb, true);
+	switch (payload_protocol) {
 	case htons(ETH_P_IP):
 		ret = ip6gre_xmit_ipv4(skb, dev);
 		break;
