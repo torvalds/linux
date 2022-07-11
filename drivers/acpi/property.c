@@ -1033,6 +1033,10 @@ static int acpi_data_prop_read_single(const struct acpi_device_data *data,
 		int ret = 0;						\
 									\
 		for (i = 0; i < __nval; i++) {				\
+			if (__items->type == ACPI_TYPE_BUFFER) {	\
+				__val[i] = __items->buffer.pointer[i];	\
+				continue;				\
+			}						\
 			if (__items[i].type != ACPI_TYPE_INTEGER) {	\
 				ret = -EPROTO;				\
 				break;					\
@@ -1092,18 +1096,41 @@ static int acpi_data_prop_read(const struct acpi_device_data *data,
 	}
 
 	ret = acpi_data_get_property_array(data, propname, ACPI_TYPE_ANY, &obj);
+	if (ret && proptype >= DEV_PROP_U8 && proptype <= DEV_PROP_U64)
+		ret = acpi_data_get_property(data, propname, ACPI_TYPE_BUFFER,
+					     &obj);
 	if (ret)
 		return ret;
 
-	if (!val)
-		return obj->package.count;
+	if (!val) {
+		if (obj->type == ACPI_TYPE_BUFFER)
+			return obj->buffer.length;
 
-	if (proptype != DEV_PROP_STRING && nval > obj->package.count)
-		return -EOVERFLOW;
+		return obj->package.count;
+	}
+
+	switch (proptype) {
+	case DEV_PROP_STRING:
+		break;
+	case DEV_PROP_U8 ... DEV_PROP_U64:
+		if (obj->type == ACPI_TYPE_BUFFER) {
+			if (nval > obj->buffer.length)
+				return -EOVERFLOW;
+			break;
+		}
+		fallthrough;
+	default:
+		if (nval > obj->package.count)
+			return -EOVERFLOW;
+		break;
+	}
 	if (nval == 0)
 		return -EINVAL;
 
-	items = obj->package.elements;
+	if (obj->type != ACPI_TYPE_BUFFER)
+		items = obj->package.elements;
+	else
+		items = obj;
 
 	switch (proptype) {
 	case DEV_PROP_U8:
