@@ -279,6 +279,12 @@ static inline void btrfs_insert_inode_hash(struct inode *inode)
 	__insert_inode_hash(inode, h);
 }
 
+#if BITS_PER_LONG == 32
+
+/*
+ * On 32 bit systems the i_ino of struct inode is 32 bits (unsigned long), so
+ * we use the inode's location objectid which is a u64 to avoid truncation.
+ */
 static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 {
 	u64 ino = inode->location.objectid;
@@ -288,6 +294,15 @@ static inline u64 btrfs_ino(const struct btrfs_inode *inode)
 		ino = inode->vfs_inode.i_ino;
 	return ino;
 }
+
+#else
+
+static inline u64 btrfs_ino(const struct btrfs_inode *inode)
+{
+	return inode->vfs_inode.i_ino;
+}
+
+#endif
 
 static inline void btrfs_i_size_write(struct btrfs_inode *inode, u64 size)
 {
