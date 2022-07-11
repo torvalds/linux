@@ -36,9 +36,10 @@
  * - 1.8 - CRIU - Support for SDMA transfers with GTT BOs
  * - 1.9 - Add available memory ioctl
  * - 1.10 - Add SMI profiler event log
+ * - 1.11 - Add unified memory for ctx save/restore area
  */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 10
+#define KFD_IOCTL_MINOR_VERSION 11
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
