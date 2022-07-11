@@ -503,3 +503,42 @@ Description:	This file shows QSFP ports power status. The value is set to 0
 		0 - Power good, 1 - Not power good.
 
 		The files are read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/asic2_health
+Date:		July 2022
+KernelVersion:	5.20
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file shows 2-nd ASIC health status. The possible values are:
+		0 - health failed, 2 - health OK, 3 - ASIC in booting state.
+
+		The file is read only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/asic_reset
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/asic2_reset
+Date:		July 2022
+KernelVersion:	5.20
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	These files allow to each of ASICs by writing 1.
+
+		The files are write only.
+
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/comm_chnl_ready
+Date:		July 2022
+KernelVersion:	5.20
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	This file is used to indicate remote end (for example BMC) that system
+	        host CPU is ready for sending telemetry data to remote end.
+		For indication the file should be written 1.
+
+		The file is write only.
+
+What:		/sys/devices/platform/mlxplat/mlxreg-io/hwmon/hwmon*/config3
+Date:		January 2020
+KernelVersion:	5.6
+Contact:	Vadim Pasternak <vadimp@nvidia.com>
+Description:	The file indicates COME module hardware configuration.
+		The value is pushed by hardware through GPIO pins.
+		The purpose is to expose some minor BOM changes for the same system SKU.
+
+		The file is read only.
