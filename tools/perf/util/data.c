@@ -3,6 +3,7 @@
 #include <linux/kernel.h>
 #include <linux/string.h>
 #include <linux/zalloc.h>
+#include <linux/err.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <errno.h>
@@ -481,16 +482,21 @@ int perf_data__make_kcore_dir(struct perf_data *data, char *buf, size_t buf_sz)
 
 bool has_kcore_dir(const char *path)
 {
-	char *kcore_dir;
-	int ret;
+	struct dirent *d = ERR_PTR(-EINVAL);
+	const char *name = "kcore_dir";
+	DIR *dir = opendir(path);
+	size_t n = strlen(name);
+	bool result = false;
 
-	if (asprintf(&kcore_dir, "%s/kcore_dir", path) < 0)
-		return false;
+	if (dir) {
+		while (d && !result) {
+			d = readdir(dir);
+			result = d ? strncmp(d->d_name, name, n) : false;
+		}
+		closedir(dir);
+	}
 
-	ret = access(kcore_dir, F_OK);
-
-	free(kcore_dir);
-	return !ret;
+	return result;
 }
 
 char *perf_data__kallsyms_name(struct perf_data *data)
