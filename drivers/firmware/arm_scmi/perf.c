@@ -252,7 +252,7 @@ scmi_perf_domain_attributes_get(const struct scmi_protocol_handle *ph,
 			dom_info->mult_factor =
 					(dom_info->sustained_freq_khz * 1000) /
 					dom_info->sustained_perf_level;
-		strlcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
+		strscpy(dom_info->name, attr->name, SCMI_SHORT_NAME_MAX_SIZE);
 	}
 
 	ph->xops->xfer_put(ph, t);
@@ -332,7 +332,6 @@ scmi_perf_describe_levels_get(const struct scmi_protocol_handle *ph, u32 domain,
 {
 	int ret;
 	void *iter;
-	struct scmi_msg_perf_describe_levels *msg;
 	struct scmi_iterator_ops ops = {
 		.prepare_message = iter_perf_levels_prepare_message,
 		.update_state = iter_perf_levels_update_state,
@@ -345,7 +344,8 @@ scmi_perf_describe_levels_get(const struct scmi_protocol_handle *ph, u32 domain,
 
 	iter = ph->hops->iter_response_init(ph, &ops, MAX_OPPS,
 					    PERF_DESCRIBE_LEVELS,
-					    sizeof(*msg), &ppriv);
+					    sizeof(struct scmi_msg_perf_describe_levels),
+					    &ppriv);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 

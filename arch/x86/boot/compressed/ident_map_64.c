@@ -110,6 +110,7 @@ void kernel_add_identity_map(unsigned long start, unsigned long end)
 void initialize_identity_maps(void *rmode)
 {
 	unsigned long cmdline;
+	struct setup_data *sd;
 
 	/* Exclude the encryption mask from __PHYSICAL_MASK */
 	physical_mask &= ~sme_me_mask;
@@ -162,6 +163,18 @@ void initialize_identity_maps(void *rmode)
 	kernel_add_identity_map((unsigned long)boot_params, (unsigned long)(boot_params + 1));
 	cmdline = get_cmd_line_ptr();
 	kernel_add_identity_map(cmdline, cmdline + COMMAND_LINE_SIZE);
+
+	/*
+	 * Also map the setup_data entries passed via boot_params in case they
+	 * need to be accessed by uncompressed kernel via the identity mapping.
+	 */
+	sd = (struct setup_data *)boot_params->hdr.setup_data;
+	while (sd) {
+		unsigned long sd_addr = (unsigned long)sd;
+
+		kernel_add_identity_map(sd_addr, sd_addr + sizeof(*sd) + sd->len);
+		sd = (struct setup_data *)sd->next;
+	}
 
 	sev_prep_identity_maps(top_level_pgt);
 
