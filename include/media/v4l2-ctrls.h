@@ -958,6 +958,59 @@ static inline int v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 }
 
 /**
+ *__v4l2_ctrl_modify_dimensions() - Unlocked variant of v4l2_ctrl_modify_dimensions()
+ *
+ * @ctrl:	The control to update.
+ * @dims:	The control's new dimensions.
+ *
+ * Update the dimensions of an array control on the fly. The elements of the
+ * array are reset to their default value, even if the dimensions are
+ * unchanged.
+ *
+ * An error is returned if @dims is invalid for this control.
+ *
+ * The caller is responsible for acquiring the control handler mutex on behalf
+ * of __v4l2_ctrl_modify_dimensions().
+ *
+ * Note: calling this function when the same control is used in pending requests
+ * is untested. It should work (a request with the wrong size of the control
+ * will drop that control silently), but it will be very confusing.
+ */
+int __v4l2_ctrl_modify_dimensions(struct v4l2_ctrl *ctrl,
+				  u32 dims[V4L2_CTRL_MAX_DIMS]);
+
+/**
+ * v4l2_ctrl_modify_dimensions() - Update the dimensions of an array control.
+ *
+ * @ctrl:	The control to update.
+ * @dims:	The control's new dimensions.
+ *
+ * Update the dimensions of an array control on the fly. The elements of the
+ * array are reset to their default value, even if the dimensions are
+ * unchanged.
+ *
+ * An error is returned if @dims is invalid for this control type.
+ *
+ * This function assumes that the control handler is not locked and will
+ * take the lock itself.
+ *
+ * Note: calling this function when the same control is used in pending requests
+ * is untested. It should work (a request with the wrong size of the control
+ * will drop that control silently), but it will be very confusing.
+ */
+static inline int v4l2_ctrl_modify_dimensions(struct v4l2_ctrl *ctrl,
+					      u32 dims[V4L2_CTRL_MAX_DIMS])
+{
+	int rval;
+
+	v4l2_ctrl_lock(ctrl);
+	rval = __v4l2_ctrl_modify_dimensions(ctrl, dims);
+	v4l2_ctrl_unlock(ctrl);
+
+	return rval;
+}
+
+/**
  * v4l2_ctrl_notify() - Function to set a notify callback for a control.
  *
  * @ctrl:	The control.

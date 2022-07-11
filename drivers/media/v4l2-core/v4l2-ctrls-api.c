@@ -989,6 +989,42 @@ int __v4l2_ctrl_modify_range(struct v4l2_ctrl *ctrl,
 }
 EXPORT_SYMBOL(__v4l2_ctrl_modify_range);
 
+int __v4l2_ctrl_modify_dimensions(struct v4l2_ctrl *ctrl,
+				  u32 dims[V4L2_CTRL_MAX_DIMS])
+{
+	unsigned int elems = 1;
+	unsigned int i;
+	void *p_array;
+
+	lockdep_assert_held(ctrl->handler->lock);
+
+	if (!ctrl->is_array || ctrl->is_dyn_array)
+		return -EINVAL;
+
+	for (i = 0; i < ctrl->nr_of_dims; i++)
+		elems *= dims[i];
+	if (elems == 0)
+		return -EINVAL;
+	p_array = kvzalloc(2 * elems * ctrl->elem_size, GFP_KERNEL);
+	if (!p_array)
+		return -ENOMEM;
+	kvfree(ctrl->p_array);
+	ctrl->p_array_alloc_elems = elems;
+	ctrl->elems = elems;
+	ctrl->new_elems = elems;
+	ctrl->p_array = p_array;
+	ctrl->p_new.p = p_array;
+	ctrl->p_cur.p = p_array + elems * ctrl->elem_size;
+	for (i = 0; i < ctrl->nr_of_dims; i++)
+		ctrl->dims[i] = dims[i];
+	for (i = 0; i < elems; i++)
+		ctrl->type_ops->init(ctrl, i, ctrl->p_cur);
+	cur_to_new(ctrl);
+	send_event(NULL, ctrl, V4L2_EVENT_CTRL_CH_VALUE);
+	return 0;
+}
+EXPORT_SYMBOL(__v4l2_ctrl_modify_dimensions);
+
 /* Implement VIDIOC_QUERY_EXT_CTRL */
 int v4l2_query_ext_ctrl(struct v4l2_ctrl_handler *hdl, struct v4l2_query_ext_ctrl *qc)
 {
