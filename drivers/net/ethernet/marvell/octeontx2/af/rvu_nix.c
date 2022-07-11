@@ -14,6 +14,7 @@
 #include "npc.h"
 #include "cgx.h"
 #include "lmac_common.h"
+#include "rvu_npc_hash.h"
 
 static void nix_free_tx_vtag_entries(struct rvu *rvu, u16 pcifunc);
 static int rvu_nix_get_bpid(struct rvu *rvu, struct nix_bp_cfg_req *req,
@@ -3792,9 +3793,15 @@ int rvu_mbox_handler_nix_set_rx_mode(struct rvu *rvu, struct nix_rx_mode *req,
 		rvu_npc_install_promisc_entry(rvu, pcifunc, nixlf,
 					      pfvf->rx_chan_base,
 					      pfvf->rx_chan_cnt);
+
+		if (rvu_npc_exact_has_match_table(rvu))
+			rvu_npc_exact_promisc_enable(rvu, pcifunc);
 	} else {
 		if (!nix_rx_multicast)
 			rvu_npc_enable_promisc_entry(rvu, pcifunc, nixlf, false);
+
+		if (rvu_npc_exact_has_match_table(rvu))
+			rvu_npc_exact_promisc_disable(rvu, pcifunc);
 	}
 
 	return 0;
