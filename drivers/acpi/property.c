@@ -673,6 +673,58 @@ acpi_fwnode_get_named_child_node(const struct fwnode_handle *fwnode,
 	return NULL;
 }
 
+static int acpi_get_ref_args(struct fwnode_reference_args *args,
+			     struct fwnode_handle *ref_fwnode,
+			     const union acpi_object **element,
+			     const union acpi_object *end, size_t num_args)
+{
+	u32 nargs = 0, i;
+
+	/*
+	 * Find the referred data extension node under the
+	 * referred device node.
+	 */
+	for (; *element < end && (*element)->type == ACPI_TYPE_STRING;
+	     (*element)++) {
+		const char *child_name = (*element)->string.pointer;
+
+		ref_fwnode = acpi_fwnode_get_named_child_node(ref_fwnode, child_name);
+		if (!ref_fwnode)
+			return -EINVAL;
+	}
+
+	/*
+	 * Assume the following integer elements are all args. Stop counting on
+	 * the first reference or end of the package arguments. In case of
+	 * neither reference, nor integer, return an error, we can't parse it.
+	 */
+	for (i = 0; (*element) + i < end && i < num_args; i++) {
+		acpi_object_type type = (*element)[i].type;
+
+		if (type == ACPI_TYPE_LOCAL_REFERENCE)
+			break;
+
+		if (type == ACPI_TYPE_INTEGER)
+			nargs++;
+		else
+			return -EINVAL;
+	}
+
+	if (nargs > NR_FWNODE_REFERENCE_ARGS)
+		return -EINVAL;
+
+	if (args) {
+		args->fwnode = ref_fwnode;
+		args->nargs = nargs;
+		for (i = 0; i < nargs; i++)
+			args->args[i] = (*element)[i].integer.value;
+	}
+
+	(*element) += nargs;
+
+	return 0;
+}
+
 /**
  * __acpi_node_get_property_reference - returns handle to the referenced object
  * @fwnode: Firmware node to get the property from
@@ -761,61 +813,22 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 	end = element + obj->package.count;
 
 	while (element < end) {
-		u32 nargs, i;
-
 		if (element->type == ACPI_TYPE_LOCAL_REFERENCE) {
-			struct fwnode_handle *ref_fwnode;
-
 			device = acpi_fetch_acpi_dev(element->reference.handle);
 			if (!device)
 				return -EINVAL;
 
-			nargs = 0;
 			element++;
 
-			/*
-			 * Find the referred data extension node under the
-			 * referred device node.
-			 */
-			for (ref_fwnode = acpi_fwnode_handle(device);
-			     element < end && element->type == ACPI_TYPE_STRING;
-			     element++) {
-				ref_fwnode = acpi_fwnode_get_named_child_node(
-					ref_fwnode, element->string.pointer);
-				if (!ref_fwnode)
-					return -EINVAL;
-			}
+			ret = acpi_get_ref_args(idx == index ? args : NULL,
+						acpi_fwnode_handle(device),
+						&element, end, num_args);
+			if (ret < 0)
+				return ret;
 
-			/*
-			 * Assume the following integer elements are all args.
-			 * Stop counting on the first reference or end of the
-			 * package arguments. In case of neither reference,
-			 * nor integer, return an error, we can't parse it.
-			 */
-			for (i = 0; element + i < end && i < num_args; i++) {
-				acpi_object_type type = element[i].type;
-
-				if (type == ACPI_TYPE_LOCAL_REFERENCE)
-					break;
-				if (type == ACPI_TYPE_INTEGER)
-					nargs++;
-				else
-					return -EINVAL;
-			}
-
-			if (nargs > NR_FWNODE_REFERENCE_ARGS)
-				return -EINVAL;
-
-			if (idx == index) {
-				args->fwnode = ref_fwnode;
-				args->nargs = nargs;
-				for (i = 0; i < nargs; i++)
-					args->args[i] = element[i].integer.value;
-
+			if (idx == index)
 				return 0;
-			}
 
-			element += nargs;
 		} else if (element->type == ACPI_TYPE_INTEGER) {
 			if (idx == index)
 				return -ENOENT;
