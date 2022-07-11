@@ -246,6 +246,15 @@ config QCOM_SMP2P_SLEEPSTATE
 	  notifications from the remote to prevent suspend on the local
 	  processor.
 
+config QSEE_IPC_IRQ_BRIDGE
+	tristate "QSEE IPC Interrupt Bridge"
+	help
+	  This module enables bridging an Inter-Processor Communication(IPC)
+	  interrupt from a remote subsystem directed towards
+	  Qualcomm Technologies, Inc. Secure Execution Environment(QSEE) to
+	  userspace. The interrupt will be propagated through a character device
+	  that userspace clients can poll on.
+
 config QTI_PMIC_GLINK
 	tristate "Enable support for PMIC GLINK"
 	depends on RPMSG

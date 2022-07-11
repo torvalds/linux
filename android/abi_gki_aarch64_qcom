@@ -841,6 +841,8 @@
   __kfifo_out
   kfree
   kfree_const
+  kfree_skb_reason
+  kfree_skb_reason
   kick_all_cpus_sync
   kill_anon_super
   kimage_vaddr
@@ -980,6 +982,7 @@
   mutex_trylock
   mutex_unlock
   netdev_alert
+  __netdev_alloc_skb
   netdev_rss_key_fill
   no_llseek
   nonseekable_open
@@ -1289,8 +1292,10 @@
   qcom_smem_state_update_bits
   queue_delayed_work_on
   queue_work_on
+  radix_tree_delete
   radix_tree_insert
   radix_tree_iter_delete
+  radix_tree_iter_resume
   radix_tree_lookup
   radix_tree_next_chunk
   ___ratelimit
@@ -1358,6 +1363,7 @@
   rdev_get_drvdata
   reboot_mode
   refcount_dec_and_lock
+  refcount_dec_and_mutex_lock
   refcount_dec_not_one
   refcount_warn_saturate
   __register_blkdev
