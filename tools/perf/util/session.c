@@ -2756,18 +2756,35 @@ int perf_event__process_id_index(struct perf_session *session,
 {
 	struct evlist *evlist = session->evlist;
 	struct perf_record_id_index *ie = &event->id_index;
+	size_t sz = ie->header.size - sizeof(*ie);
 	size_t i, nr, max_nr;
+	size_t e1_sz = sizeof(struct id_index_entry);
+	size_t e2_sz = sizeof(struct id_index_entry_2);
+	size_t etot_sz = e1_sz + e2_sz;
+	struct id_index_entry_2 *e2;
 
-	max_nr = (ie->header.size - sizeof(struct perf_record_id_index)) /
-		 sizeof(struct id_index_entry);
+	max_nr = sz / e1_sz;
 	nr = ie->nr;
-	if (nr > max_nr)
+	if (nr > max_nr) {
+		printf("Too big: nr %zu max_nr %zu\n", nr, max_nr);
 		return -EINVAL;
+	}
+
+	if (sz >= nr * etot_sz) {
+		max_nr = sz / etot_sz;
+		if (nr > max_nr) {
+			printf("Too big2: nr %zu max_nr %zu\n", nr, max_nr);
+			return -EINVAL;
+		}
+		e2 = (void *)ie + sizeof(*ie) + nr * e1_sz;
+	} else {
+		e2 = NULL;
+	}
 
 	if (dump_trace)
 		fprintf(stdout, " nr: %zu\n", nr);
 
-	for (i = 0; i < nr; i++) {
+	for (i = 0; i < nr; i++, (e2 ? e2++ : 0)) {
 		struct id_index_entry *e = &ie->entries[i];
 		struct perf_sample_id *sid;
 
@@ -2775,15 +2792,28 @@ int perf_event__process_id_index(struct perf_session *session,
 			fprintf(stdout,	" ... id: %"PRI_lu64, e->id);
 			fprintf(stdout,	"  idx: %"PRI_lu64, e->idx);
 			fprintf(stdout,	"  cpu: %"PRI_ld64, e->cpu);
-			fprintf(stdout,	"  tid: %"PRI_ld64"\n", e->tid);
+			fprintf(stdout, "  tid: %"PRI_ld64, e->tid);
+			if (e2) {
+				fprintf(stdout, "  machine_pid: %"PRI_ld64, e2->machine_pid);
+				fprintf(stdout, "  vcpu: %"PRI_lu64"\n", e2->vcpu);
+			} else {
+				fprintf(stdout, "\n");
+			}
 		}
 
 		sid = evlist__id2sid(evlist, e->id);
 		if (!sid)
 			return -ENOENT;
+
 		sid->idx = e->idx;
 		sid->cpu.cpu = e->cpu;
 		sid->tid = e->tid;
+
+		if (!e2)
+			continue;
+
+		sid->machine_pid = e2->machine_pid;
+		sid->vcpu.cpu = e2->vcpu;
 	}
 	return 0;
 }

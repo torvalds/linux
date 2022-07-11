@@ -237,6 +237,11 @@ struct id_index_entry {
 	__u64			 tid;
 };
 
+struct id_index_entry_2 {
+	__u64			 machine_pid;
+	__u64			 vcpu;
+};
+
 struct perf_record_id_index {
 	struct perf_event_header header;
 	__u64			 nr;
