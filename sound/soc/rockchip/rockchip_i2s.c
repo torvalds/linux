@@ -808,8 +808,11 @@ static int rockchip_i2s_probe(struct platform_device *pdev)
 
 	i2s->bclk_ratio = 64;
 	i2s->pinctrl = devm_pinctrl_get(&pdev->dev);
-	if (IS_ERR(i2s->pinctrl))
+	if (IS_ERR(i2s->pinctrl)) {
 		dev_err(&pdev->dev, "failed to find i2s pinctrl\n");
+		ret = PTR_ERR(i2s->pinctrl);
+		goto err_clk;
+	}
 
 	i2s->bclk_on = pinctrl_lookup_state(i2s->pinctrl,
 				   "bclk_on");
