@@ -567,7 +567,7 @@ config QCOM_HUNG_TASK_ENH
 
 config QCOM_MINIDUMP
 	tristate "QCOM Minidump Support"
-	depends on QCOM_SMEM
+	depends on QCOM_SMEM || ARCH_QTI_VM
 	help
 	  This enables minidump feature. It allows various clients to
 	  register to dump their state at system bad state (panic/WDT,etc.,).

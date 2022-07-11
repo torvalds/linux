@@ -284,19 +284,19 @@ bool md_register_memory_dump(int size, char *name)
 bool md_unregister_memory_dump(char *name)
 {
 	struct page *page;
-	struct md_region *mdr;
+	struct md_region mdr;
 	struct md_region md_entry;
 
 	mdr = md_get_region(name);
-	if (!mdr) {
+	if (!mdr.virt_addr) {
 		pr_err("minidump entry for %s not found\n", name);
 		return false;
 	}
-	strscpy(md_entry.name, mdr->name, sizeof(md_entry.name));
-	md_entry.virt_addr = mdr->virt_addr;
-	md_entry.phys_addr = mdr->phys_addr;
-	md_entry.size = mdr->size;
-	page = virt_to_page(mdr->virt_addr);
+	strscpy(md_entry.name, mdr.name, sizeof(md_entry.name));
+	md_entry.virt_addr = mdr.virt_addr;
+	md_entry.phys_addr = mdr.phys_addr;
+	md_entry.size = mdr.size;
+	page = virt_to_page(mdr.virt_addr);
 
 	if (msm_minidump_remove_region(&md_entry) < 0)
 		return false;
