@@ -3174,9 +3174,7 @@ int machines__for_each_thread(struct machines *machines,
 
 pid_t machine__get_current_tid(struct machine *machine, int cpu)
 {
-	int nr_cpus = min(machine->env->nr_cpus_avail, MAX_NR_CPUS);
-
-	if (cpu < 0 || cpu >= nr_cpus || !machine->current_tid)
+	if (cpu < 0 || (size_t)cpu >= machine->current_tid_sz)
 		return -1;
 
 	return machine->current_tid[cpu];
@@ -3186,26 +3184,16 @@ int machine__set_current_tid(struct machine *machine, int cpu, pid_t pid,
 			     pid_t tid)
 {
 	struct thread *thread;
-	int nr_cpus = min(machine->env->nr_cpus_avail, MAX_NR_CPUS);
+	const pid_t init_val = -1;
 
 	if (cpu < 0)
 		return -EINVAL;
 
-	if (!machine->current_tid) {
-		int i;
-
-		machine->current_tid = calloc(nr_cpus, sizeof(pid_t));
-		if (!machine->current_tid)
-			return -ENOMEM;
-		for (i = 0; i < nr_cpus; i++)
-			machine->current_tid[i] = -1;
-	}
-
-	if (cpu >= nr_cpus) {
-		pr_err("Requested CPU %d too large. ", cpu);
-		pr_err("Consider raising MAX_NR_CPUS\n");
-		return -EINVAL;
-	}
+	if (realloc_array_as_needed(machine->current_tid,
+				    machine->current_tid_sz,
+				    (unsigned int)cpu,
+				    &init_val))
+		return -ENOMEM;
 
 	machine->current_tid[cpu] = tid;
 

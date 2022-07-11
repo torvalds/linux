@@ -57,6 +57,7 @@ struct machine {
 	struct map	  *vmlinux_map;
 	u64		  kernel_start;
 	pid_t		  *current_tid;
+	size_t		  current_tid_sz;
 	union { /* Tool specific area */
 		void	  *priv;
 		u64	  db_id;
