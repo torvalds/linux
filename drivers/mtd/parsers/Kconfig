@@ -20,6 +20,16 @@ config MTD_BCM63XX_PARTS
 	  This provides partition parsing for BCM63xx devices with CFE
 	  bootloaders.
 
+config MTD_BRCM_U_BOOT
+	tristate "Broadcom's U-Boot partition parser"
+	depends on ARCH_BCM4908 || COMPILE_TEST
+	help
+	  Broadcom uses a custom way of storing U-Boot environment variables.
+	  They are placed inside U-Boot partition itself at unspecified offset.
+	  It's possible to locate them by looking for a custom header with a
+	  magic value. This driver does that and creates subpartitions for
+	  each found environment variables block.
+
 config MTD_CMDLINE_PARTS
 	tristate "Command line partition table parsing"
 	depends on MTD
