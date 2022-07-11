@@ -27,6 +27,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_managed.h>
+#include <drm/drm_print.h>
 
 #include "drm_crtc_internal.h"
 
@@ -148,9 +149,9 @@ out_put:
  * the encoder structure. The encoder structure should not be allocated with
  * devm_kzalloc().
  *
- * Note: consider using drmm_encoder_alloc() instead of drm_encoder_init() to
- * let the DRM managed resource infrastructure take care of cleanup and
- * deallocation.
+ * Note: consider using drmm_encoder_alloc() or drmm_encoder_init()
+ * instead of drm_encoder_init() to let the DRM managed resource
+ * infrastructure take care of cleanup and deallocation.
  *
  * Returns:
  * Zero on success, error code on failure.
@@ -212,6 +213,30 @@ static void drmm_encoder_alloc_release(struct drm_device *dev, void *ptr)
 	drm_encoder_cleanup(encoder);
 }
 
+__printf(5, 0)
+static int __drmm_encoder_init(struct drm_device *dev,
+			       struct drm_encoder *encoder,
+			       const struct drm_encoder_funcs *funcs,
+			       int encoder_type,
+			       const char *name,
+			       va_list args)
+{
+	int ret;
+
+	if (drm_WARN_ON(dev, funcs && funcs->destroy))
+		return -EINVAL;
+
+	ret = __drm_encoder_init(dev, encoder, funcs, encoder_type, name, args);
+	if (ret)
+		return ret;
+
+	ret = drmm_add_action_or_reset(dev, drmm_encoder_alloc_release, encoder);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 void *__drmm_encoder_alloc(struct drm_device *dev, size_t size, size_t offset,
 			   const struct drm_encoder_funcs *funcs,
 			   int encoder_type, const char *name, ...)
@@ -221,9 +246,6 @@ void *__drmm_encoder_alloc(struct drm_device *dev, size_t size, size_t offset,
 	va_list ap;
 	int ret;
 
-	if (WARN_ON(funcs && funcs->destroy))
-		return ERR_PTR(-EINVAL);
-
 	container = drmm_kzalloc(dev, size, GFP_KERNEL);
 	if (!container)
 		return ERR_PTR(-ENOMEM);
@@ -231,18 +253,49 @@ void *__drmm_encoder_alloc(struct drm_device *dev, size_t size, size_t offset,
 	encoder = container + offset;
 
 	va_start(ap, name);
-	ret = __drm_encoder_init(dev, encoder, funcs, encoder_type, name, ap);
+	ret = __drmm_encoder_init(dev, encoder, funcs, encoder_type, name, ap);
 	va_end(ap);
-	if (ret)
-		return ERR_PTR(ret);
-
-	ret = drmm_add_action_or_reset(dev, drmm_encoder_alloc_release, encoder);
 	if (ret)
 		return ERR_PTR(ret);
 
 	return container;
 }
 EXPORT_SYMBOL(__drmm_encoder_alloc);
+
+/**
+ * drmm_encoder_init - Initialize a preallocated encoder
+ * @dev: drm device
+ * @encoder: the encoder to init
+ * @funcs: callbacks for this encoder (optional)
+ * @encoder_type: user visible type of the encoder
+ * @name: printf style format string for the encoder name, or NULL for default name
+ *
+ * Initializes a preallocated encoder. Encoder should be subclassed as
+ * part of driver encoder objects. Cleanup is automatically handled
+ * through registering drm_encoder_cleanup() with drmm_add_action(). The
+ * encoder structure should be allocated with drmm_kzalloc().
+ *
+ * The @drm_encoder_funcs.destroy hook must be NULL.
+ *
+ * Returns:
+ * Zero on success, error code on failure.
+ */
+int drmm_encoder_init(struct drm_device *dev, struct drm_encoder *encoder,
+		      const struct drm_encoder_funcs *funcs,
+		      int encoder_type, const char *name, ...)
+{
+	va_list ap;
+	int ret;
+
+	va_start(ap, name);
+	ret = __drmm_encoder_init(dev, encoder, funcs, encoder_type, name, ap);
+	va_end(ap);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+EXPORT_SYMBOL(drmm_encoder_init);
 
 static struct drm_crtc *drm_encoder_get_crtc(struct drm_encoder *encoder)
 {
