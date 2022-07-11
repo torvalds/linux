@@ -561,14 +561,11 @@ char *build_id_cache__cachedir(const char *sbuild_id, const char *name,
 	char *realname = (char *)name, *filename;
 	bool slash = is_kallsyms || is_vdso;
 
-	if (!slash) {
+	if (!slash)
 		realname = nsinfo__realpath(name, nsi);
-		if (!realname)
-			return NULL;
-	}
 
 	if (asprintf(&filename, "%s%s%s%s%s", buildid_dir, slash ? "/" : "",
-		     is_vdso ? DSO__NAME_VDSO : realname,
+		     is_vdso ? DSO__NAME_VDSO : (realname ? realname : name),
 		     sbuild_id ? "/" : "", sbuild_id ?: "") < 0)
 		filename = NULL;
 
