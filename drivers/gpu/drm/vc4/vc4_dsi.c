@@ -552,6 +552,8 @@ struct vc4_dsi {
 	struct vc4_encoder encoder;
 	struct mipi_dsi_host dsi_host;
 
+	struct kref kref;
+
 	struct platform_device *pdev;
 
 	struct drm_bridge *bridge;
@@ -1556,6 +1558,31 @@ static void vc4_dsi_dma_chan_release(void *ptr)
 	dsi->reg_dma_chan = NULL;
 }
 
+static void vc4_dsi_release(struct kref *kref)
+{
+	struct vc4_dsi *dsi =
+		container_of(kref, struct vc4_dsi, kref);
+
+	kfree(dsi);
+}
+
+static void vc4_dsi_get(struct vc4_dsi *dsi)
+{
+	kref_get(&dsi->kref);
+}
+
+static void vc4_dsi_put(struct vc4_dsi *dsi)
+{
+	kref_put(&dsi->kref, &vc4_dsi_release);
+}
+
+static void vc4_dsi_release_action(struct drm_device *drm, void *ptr)
+{
+	struct vc4_dsi *dsi = ptr;
+
+	vc4_dsi_put(dsi);
+}
+
 static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
@@ -1563,6 +1590,12 @@ static int vc4_dsi_bind(struct device *dev, struct device *master, void *data)
 	struct vc4_dsi *dsi = dev_get_drvdata(dev);
 	struct drm_encoder *encoder = &dsi->encoder.base;
 	int ret;
+
+	vc4_dsi_get(dsi);
+
+	ret = drmm_add_action_or_reset(drm, vc4_dsi_release_action, dsi);
+	if (ret)
+		return ret;
 
 	dsi->variant = of_device_get_match_data(dev);
 
@@ -1738,11 +1771,12 @@ static int vc4_dsi_dev_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct vc4_dsi *dsi;
 
-	dsi = devm_kzalloc(dev, sizeof(*dsi), GFP_KERNEL);
+	dsi = kzalloc(sizeof(*dsi), GFP_KERNEL);
 	if (!dsi)
 		return -ENOMEM;
 	dev_set_drvdata(dev, dsi);
 
+	kref_init(&dsi->kref);
 	dsi->pdev = pdev;
 	dsi->dsi_host.ops = &vc4_dsi_host_ops;
 	dsi->dsi_host.dev = dev;
@@ -1757,6 +1791,8 @@ static int vc4_dsi_dev_remove(struct platform_device *pdev)
 	struct vc4_dsi *dsi = dev_get_drvdata(dev);
 
 	mipi_dsi_host_unregister(&dsi->dsi_host);
+	vc4_dsi_put(dsi);
+
 	return 0;
 }
 
