@@ -625,9 +625,12 @@ static int build_id_cache__add_sdt_cache(const char *sbuild_id,
 #endif
 
 static char *build_id_cache__find_debug(const char *sbuild_id,
-					struct nsinfo *nsi)
+					struct nsinfo *nsi,
+					const char *root_dir)
 {
+	const char *dirname = "/usr/lib/debug/.build-id/";
 	char *realname = NULL;
+	char dirbuf[PATH_MAX];
 	char *debugfile;
 	struct nscookie nsc;
 	size_t len = 0;
@@ -636,8 +639,12 @@ static char *build_id_cache__find_debug(const char *sbuild_id,
 	if (!debugfile)
 		goto out;
 
-	len = __symbol__join_symfs(debugfile, PATH_MAX,
-				   "/usr/lib/debug/.build-id/");
+	if (root_dir) {
+		path__join(dirbuf, PATH_MAX, root_dir, dirname);
+		dirname = dirbuf;
+	}
+
+	len = __symbol__join_symfs(debugfile, PATH_MAX, dirname);
 	snprintf(debugfile + len, PATH_MAX - len, "%.2s/%s.debug", sbuild_id,
 		 sbuild_id + 2);
 
@@ -668,14 +675,18 @@ out:
 
 int
 build_id_cache__add(const char *sbuild_id, const char *name, const char *realname,
-		    struct nsinfo *nsi, bool is_kallsyms, bool is_vdso)
+		    struct nsinfo *nsi, bool is_kallsyms, bool is_vdso,
+		    const char *proper_name, const char *root_dir)
 {
 	const size_t size = PATH_MAX;
 	char *filename = NULL, *dir_name = NULL, *linkname = zalloc(size), *tmp;
 	char *debugfile = NULL;
 	int err = -1;
 
-	dir_name = build_id_cache__cachedir(sbuild_id, name, nsi, is_kallsyms,
+	if (!proper_name)
+		proper_name = name;
+
+	dir_name = build_id_cache__cachedir(sbuild_id, proper_name, nsi, is_kallsyms,
 					    is_vdso);
 	if (!dir_name)
 		goto out_free;
@@ -715,7 +726,7 @@ build_id_cache__add(const char *sbuild_id, const char *name, const char *realnam
 	 */
 	if (!is_kallsyms && !is_vdso &&
 	    strncmp(".ko", name + strlen(name) - 3, 3)) {
-		debugfile = build_id_cache__find_debug(sbuild_id, nsi);
+		debugfile = build_id_cache__find_debug(sbuild_id, nsi, root_dir);
 		if (debugfile) {
 			zfree(&filename);
 			if (asprintf(&filename, "%s/%s", dir_name,
@@ -781,8 +792,9 @@ out_free:
 	return err;
 }
 
-int build_id_cache__add_s(const char *sbuild_id, const char *name,
-			  struct nsinfo *nsi, bool is_kallsyms, bool is_vdso)
+int __build_id_cache__add_s(const char *sbuild_id, const char *name,
+			    struct nsinfo *nsi, bool is_kallsyms, bool is_vdso,
+			    const char *proper_name, const char *root_dir)
 {
 	char *realname = NULL;
 	int err = -1;
@@ -796,8 +808,8 @@ int build_id_cache__add_s(const char *sbuild_id, const char *name,
 			goto out_free;
 	}
 
-	err = build_id_cache__add(sbuild_id, name, realname, nsi, is_kallsyms, is_vdso);
-
+	err = build_id_cache__add(sbuild_id, name, realname, nsi,
+				  is_kallsyms, is_vdso, proper_name, root_dir);
 out_free:
 	if (!is_kallsyms)
 		free(realname);
@@ -806,14 +818,16 @@ out_free:
 
 static int build_id_cache__add_b(const struct build_id *bid,
 				 const char *name, struct nsinfo *nsi,
-				 bool is_kallsyms, bool is_vdso)
+				 bool is_kallsyms, bool is_vdso,
+				 const char *proper_name,
+				 const char *root_dir)
 {
 	char sbuild_id[SBUILD_ID_SIZE];
 
 	build_id__sprintf(bid, sbuild_id);
 
-	return build_id_cache__add_s(sbuild_id, name, nsi, is_kallsyms,
-				     is_vdso);
+	return __build_id_cache__add_s(sbuild_id, name, nsi, is_kallsyms,
+				       is_vdso, proper_name, root_dir);
 }
 
 bool build_id_cache__cached(const char *sbuild_id)
@@ -896,6 +910,10 @@ static int dso__cache_build_id(struct dso *dso, struct machine *machine,
 	bool is_kallsyms = dso__is_kallsyms(dso);
 	bool is_vdso = dso__is_vdso(dso);
 	const char *name = dso->long_name;
+	const char *proper_name = NULL;
+	const char *root_dir = NULL;
+	char *allocated_name = NULL;
+	int ret = 0;
 
 	if (!dso->has_build_id)
 		return 0;
@@ -905,11 +923,28 @@ static int dso__cache_build_id(struct dso *dso, struct machine *machine,
 		name = machine->mmap_name;
 	}
 
-	if (!is_kallsyms && dso__build_id_mismatch(dso, name))
-		return 0;
+	if (!machine__is_host(machine)) {
+		if (*machine->root_dir) {
+			root_dir = machine->root_dir;
+			ret = asprintf(&allocated_name, "%s/%s", root_dir, name);
+			if (ret < 0)
+				return ret;
+			proper_name = name;
+			name = allocated_name;
+		} else if (is_kallsyms) {
+			/* Cannot get guest kallsyms */
+			return 0;
+		}
+	}
 
-	return build_id_cache__add_b(&dso->bid, name, dso->nsinfo,
-				     is_kallsyms, is_vdso);
+	if (!is_kallsyms && dso__build_id_mismatch(dso, name))
+		goto out_free;
+
+	ret = build_id_cache__add_b(&dso->bid, name, dso->nsinfo,
+				    is_kallsyms, is_vdso, proper_name, root_dir);
+out_free:
+	free(allocated_name);
+	return ret;
 }
 
 static int
