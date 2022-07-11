@@ -44,12 +44,6 @@ void switch_pmu_to_guest(struct kvm_vcpu *vcpu,
 
 	/* Save host */
 	if (ppc_get_pmu_inuse()) {
-		/*
-		 * It might be better to put PMU handling (at least for the
-		 * host) in the perf subsystem because it knows more about what
-		 * is being used.
-		 */
-
 		/* POWER9, POWER10 do not implement HPMC or SPMC */
 
 		host_os_sprs->mmcr0 = mfspr(SPRN_MMCR0);
