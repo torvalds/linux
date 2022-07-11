@@ -18,7 +18,6 @@
 #include <linux/regulator/driver.h>
 #include <linux/regulator/machine.h>
 #include <linux/regulator/of_regulator.h>
-#include <linux/version.h>
 #include <linux/platform_device.h>
 
 #include <linux/mfd/max597x.h>
