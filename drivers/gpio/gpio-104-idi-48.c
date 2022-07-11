@@ -51,23 +51,23 @@ struct idi_48_gpio {
 	unsigned char cos_enb;
 };
 
-static int idi_48_gpio_get_direction(struct gpio_chip *chip, unsigned offset)
+static int idi_48_gpio_get_direction(struct gpio_chip *chip, unsigned int offset)
 {
 	return GPIO_LINE_DIRECTION_IN;
 }
 
-static int idi_48_gpio_direction_input(struct gpio_chip *chip, unsigned offset)
+static int idi_48_gpio_direction_input(struct gpio_chip *chip, unsigned int offset)
 {
 	return 0;
 }
 
-static int idi_48_gpio_get(struct gpio_chip *chip, unsigned offset)
+static int idi_48_gpio_get(struct gpio_chip *chip, unsigned int offset)
 {
 	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
-	unsigned i;
+	unsigned int i;
 	static const unsigned int register_offset[6] = { 0, 1, 2, 4, 5, 6 };
 	void __iomem *port_addr;
-	unsigned mask;
+	unsigned int mask;
 
 	for (i = 0; i < 48; i += 8)
 		if (offset < i + 8) {
@@ -112,10 +112,10 @@ static void idi_48_irq_mask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
-	const unsigned offset = irqd_to_hwirq(data);
-	unsigned i;
-	unsigned mask;
-	unsigned boundary;
+	const unsigned int offset = irqd_to_hwirq(data);
+	unsigned int i;
+	unsigned int mask;
+	unsigned int boundary;
 	unsigned long flags;
 
 	for (i = 0; i < 48; i += 8)
@@ -143,11 +143,11 @@ static void idi_48_irq_unmask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct idi_48_gpio *const idi48gpio = gpiochip_get_data(chip);
-	const unsigned offset = irqd_to_hwirq(data);
-	unsigned i;
-	unsigned mask;
-	unsigned boundary;
-	unsigned prev_irq_mask;
+	const unsigned int offset = irqd_to_hwirq(data);
+	unsigned int i;
+	unsigned int mask;
+	unsigned int boundary;
+	unsigned int prev_irq_mask;
 	unsigned long flags;
 
 	for (i = 0; i < 48; i += 8)
@@ -172,7 +172,7 @@ static void idi_48_irq_unmask(struct irq_data *data)
 		}
 }
 
-static int idi_48_irq_set_type(struct irq_data *data, unsigned flow_type)
+static int idi_48_irq_set_type(struct irq_data *data, unsigned int flow_type)
 {
 	/* The only valid irq types are none and both-edges */
 	if (flow_type != IRQ_TYPE_NONE &&
