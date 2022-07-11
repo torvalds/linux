@@ -369,4 +369,23 @@ struct prestera_lag *prestera_lag_by_id(struct prestera_switch *sw, u16 id);
 
 u16 prestera_port_lag_id(const struct prestera_port *port);
 
+struct prestera_mdb_entry *
+prestera_mdb_entry_create(struct prestera_switch *sw,
+			  const unsigned char *addr, u16 vid);
+void prestera_mdb_entry_destroy(struct prestera_mdb_entry *mdb_entry);
+
+struct prestera_flood_domain *
+prestera_flood_domain_create(struct prestera_switch *sw);
+void prestera_flood_domain_destroy(struct prestera_flood_domain *flood_domain);
+
+int
+prestera_flood_domain_port_create(struct prestera_flood_domain *flood_domain,
+				  struct net_device *dev,
+				  u16 vid);
+void
+prestera_flood_domain_port_destroy(struct prestera_flood_domain_port *port);
+struct prestera_flood_domain_port *
+prestera_flood_domain_port_find(struct prestera_flood_domain *flood_domain,
+				struct net_device *dev, u16 vid);
+
 #endif /* _PRESTERA_H_ */
