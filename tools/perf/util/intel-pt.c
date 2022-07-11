@@ -194,7 +194,6 @@ struct intel_pt_queue {
 	struct machine *guest_machine;
 	struct thread *guest_thread;
 	struct thread *unknown_guest_thread;
-	pid_t guest_machine_pid;
 	bool exclude_kernel;
 	bool have_sample;
 	u64 time;
@@ -685,7 +684,7 @@ static int intel_pt_get_guest(struct intel_pt_queue *ptq)
 	struct machine *machine;
 	pid_t pid = ptq->pid <= 0 ? DEFAULT_GUEST_KERNEL_ID : ptq->pid;
 
-	if (ptq->guest_machine && pid == ptq->guest_machine_pid)
+	if (ptq->guest_machine && pid == ptq->guest_machine->pid)
 		return 0;
 
 	ptq->guest_machine = NULL;
@@ -705,7 +704,6 @@ static int intel_pt_get_guest(struct intel_pt_queue *ptq)
 		return -1;
 
 	ptq->guest_machine = machine;
-	ptq->guest_machine_pid = pid;
 
 	return 0;
 }
