@@ -130,6 +130,17 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 		return -EINVAL;
 	}
 
+	if (request->task_count > 1) {
+		/* TODO */
+		pr_err("Currently request does not support multiple tasks!");
+		mutex_unlock(&request_manager->lock);
+		return -EINVAL;
+	}
+
+	/*
+	 * The mpi commit will use the request repeatedly, so an additional
+	 * get() is added here.
+	 */
 	rga_request_get(request);
 	mutex_unlock(&request_manager->lock);
 
@@ -137,7 +148,6 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 
 	/* TODO: batch mode need mpi async mode */
 	request->sync_mode = RGA_BLIT_SYNC;
-	request->use_batch_mode = false;
 
 	cached_cmd = request->task_list;
 	memcpy(&mpi_cmd, cached_cmd, sizeof(mpi_cmd));
@@ -173,7 +183,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 						 request->session);
 		if (ret < 0) {
 			pr_err("src channel set buffer handle failed!\n");
-			return ret;
+			goto err_put_request;
 		}
 	}
 
@@ -183,7 +193,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 						 request->session);
 		if (ret < 0) {
 			pr_err("src1 channel set buffer handle failed!\n");
-			return ret;
+			goto err_put_request;
 		}
 	}
 
@@ -193,7 +203,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 						 request->session);
 		if (ret < 0) {
 			pr_err("dst channel set buffer handle failed!\n");
-			return ret;
+			goto err_put_request;
 		}
 	}
 
@@ -201,17 +211,10 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 	mpi_cmd.mmu_info.mmu_en = 0;
 	mpi_cmd.mmu_info.mmu_flag = 0;
 
-	/* commit job */
-	if (request->task_count > 1) {
-		pr_err("Currently request does not support multiple tasks!");
-		/* TODO */
-		return -EINVAL;
-	}
-
 	if (DEBUGGER_EN(MSG))
 		rga_cmd_print_debug_info(&mpi_cmd);
 
-	ret = rga_job_mpi_commit(&mpi_cmd, request);
+	ret = rga_request_mpi_submit(&mpi_cmd, request);
 	if (ret < 0) {
 		if (ret == -ERESTARTSYS) {
 			if (DEBUGGER_EN(MSG))
@@ -221,7 +224,7 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 			pr_err("%s, commit mpi job failed\n", __func__);
 		}
 
-		return ret;
+		goto err_put_request;
 	}
 
 	if ((mpi_job->dma_buf_src0 != NULL) && (mpi_cmd.src.yrgb_addr > 0))
@@ -243,6 +246,9 @@ int rga_mpi_commit(struct rga_mpi_job_t *mpi_job)
 		mpi_job->output->format = mpi_cmd.dst.format;
 	}
 
+	return 0;
+
+err_put_request:
 	mutex_lock(&request_manager->lock);
 	rga_request_put(request);
 	mutex_unlock(&request_manager->lock);

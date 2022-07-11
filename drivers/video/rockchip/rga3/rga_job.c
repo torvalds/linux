@@ -684,57 +684,6 @@ running_job_abort:
 	return ERR_PTR(ret);
 }
 
-int rga_job_mpi_commit(struct rga_req *rga_command_base, struct rga_request *request)
-{
-	struct rga_job *job = NULL;
-	struct rga_scheduler_t *scheduler = NULL;
-	int ret = 0;
-
-	job = rga_job_alloc(rga_command_base);
-	if (!job) {
-		pr_err("failed to alloc rga job!\n");
-		return -ENOMEM;
-	}
-
-	job->request_id = request->id;
-
-	if (request->sync_mode == RGA_BLIT_ASYNC) {
-		//TODO: mpi async mode
-		pr_err("rk-debug TODO\n");
-	} else if (request->sync_mode == RGA_BLIT_SYNC) {
-		scheduler = rga_job_schedule(job);
-		if (scheduler == NULL) {
-			pr_err("failed to get scheduler, %s(%d)\n", __func__,
-				 __LINE__);
-			ret = -EINVAL;
-			goto invalid_job;
-		}
-
-		ret = job->ret;
-		if (ret < 0) {
-			pr_err("some error on job, %s(%d)\n", __func__,
-				 __LINE__);
-			goto running_job_abort;
-		}
-
-		ret = rga_job_wait(job);
-		if (ret < 0) {
-			goto running_job_abort;
-		}
-		rga_job_cleanup(job);
-	}
-	return ret;
-
-invalid_job:
-	rga_invalid_job_abort(job);
-	return ret;
-
-/* only used by SYNC mode */
-running_job_abort:
-	rga_running_job_abort(job, scheduler);
-	return ret;
-}
-
 int rga_request_check(struct rga_user_request *req)
 {
 	if (req->id <= 0) {
@@ -1015,6 +964,51 @@ request_commit:
 error_release_fence_put:
 	rga_dma_fence_put(request->release_fence);
 	return ret;
+}
+
+int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request)
+{
+	int ret = 0;
+	struct rga_job *job = NULL;
+	unsigned long flags;
+
+	if (request->sync_mode == RGA_BLIT_ASYNC) {
+		pr_err("mpi unsupported async mode!\n");
+		return -EINVAL;
+	}
+
+	spin_lock_irqsave(&request->lock, flags);
+
+	if (request->is_running) {
+		pr_err("can not re-config when request is running");
+		spin_unlock_irqrestore(&request->lock, flags);
+		return -EFAULT;
+	}
+
+	/* Reset */
+	request->finished_task_count = 0;
+
+	if (request->task_list == NULL) {
+		pr_err("can not find task list from id[%d]", request->id);
+		spin_unlock_irqrestore(&request->lock, flags);
+		return -EINVAL;
+	}
+
+	request->is_running = true;
+
+	spin_unlock_irqrestore(&request->lock, flags);
+
+	job = rga_job_commit(req, request);
+	if (IS_ERR_OR_NULL(job)) {
+		pr_err("failed to commit job!\n");
+		return job ? PTR_ERR(job) : -EFAULT;
+	}
+
+	ret = rga_request_wait(request);
+	if (ret < 0)
+		return ret;
+
+	return 0;
 }
 
 int rga_request_free(struct rga_request *request)
