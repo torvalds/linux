@@ -136,7 +136,7 @@ union sbi_pmu_ctr_info {
 	};
 };
 
-#define RISCV_PMU_RAW_EVENT_MASK GENMASK_ULL(55, 0)
+#define RISCV_PMU_RAW_EVENT_MASK GENMASK_ULL(47, 0)
 #define RISCV_PMU_RAW_EVENT_IDX 0x20000
 
 /** General pmu event codes specified in SBI PMU extension */
@@ -203,12 +203,26 @@ enum sbi_pmu_ctr_type {
 	SBI_PMU_CTR_TYPE_FW,
 };
 
+/* Helper macros to decode event idx */
+#define SBI_PMU_EVENT_IDX_OFFSET 20
+#define SBI_PMU_EVENT_IDX_MASK 0xFFFFF
+#define SBI_PMU_EVENT_IDX_CODE_MASK 0xFFFF
+#define SBI_PMU_EVENT_IDX_TYPE_MASK 0xF0000
+#define SBI_PMU_EVENT_RAW_IDX 0x20000
+#define SBI_PMU_FIXED_CTR_MASK 0x07
+
+#define SBI_PMU_EVENT_CACHE_ID_CODE_MASK 0xFFF8
+#define SBI_PMU_EVENT_CACHE_OP_ID_CODE_MASK 0x06
+#define SBI_PMU_EVENT_CACHE_RESULT_ID_CODE_MASK 0x01
+
+#define SBI_PMU_EVENT_IDX_INVALID 0xFFFFFFFF
+
 /* Flags defined for config matching function */
 #define SBI_PMU_CFG_FLAG_SKIP_MATCH	(1 << 0)
 #define SBI_PMU_CFG_FLAG_CLEAR_VALUE	(1 << 1)
 #define SBI_PMU_CFG_FLAG_AUTO_START	(1 << 2)
 #define SBI_PMU_CFG_FLAG_SET_VUINH	(1 << 3)
-#define SBI_PMU_CFG_FLAG_SET_VSNH	(1 << 4)
+#define SBI_PMU_CFG_FLAG_SET_VSINH	(1 << 4)
 #define SBI_PMU_CFG_FLAG_SET_UINH	(1 << 5)
 #define SBI_PMU_CFG_FLAG_SET_SINH	(1 << 6)
 #define SBI_PMU_CFG_FLAG_SET_MINH	(1 << 7)
