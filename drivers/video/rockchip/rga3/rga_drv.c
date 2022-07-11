@@ -782,18 +782,98 @@ static long rga_ioctl_request_cancel(unsigned long arg)
 	return 0;
 }
 
+static long rga_ioctl_blit(unsigned long arg, uint32_t cmd, struct rga_session *session)
+{
+	int ret = 0;
+	int request_id;
+	struct rga_user_request user_request;
+	struct rga_req *rga_req;
+	struct rga_request *request = NULL;
+	struct rga_pending_request_manager *request_manager = rga_drvdata->pend_request_manager;
+
+	request_id = rga_request_alloc(0, session);
+	if (request_id < 0) {
+		pr_err("request alloc error!\n");
+		ret = request_id;
+		return ret;
+	}
+
+	memset(&user_request, 0, sizeof(user_request));
+	user_request.id = request_id;
+	user_request.task_ptr = arg;
+	user_request.task_num = 1;
+	user_request.sync_mode = cmd;
+
+	ret = rga_request_check(&user_request);
+	if (ret < 0) {
+		pr_err("user request check error!\n");
+		goto err_free_request_by_id;
+	}
+
+	request = rga_request_config(&user_request);
+	if (IS_ERR(request)) {
+		pr_err("request[%d] config failed!\n", user_request.id);
+		ret = -EFAULT;
+		goto err_free_request_by_id;
+	}
+
+	rga_req = request->task_list;
+	/* In the BLIT_SYNC/BLIT_ASYNC command, in_fence_fd needs to be set. */
+	request->acquire_fence_fd = rga_req->in_fence_fd;
+
+	if (DEBUGGER_EN(MSG)) {
+		pr_info("Blit mode: request id = %d", user_request.id);
+		rga_cmd_print_debug_info(rga_req);
+	}
+
+	ret = rga_request_submit(request);
+	if (ret < 0) {
+		pr_err("request[%d] submit failed!\n", user_request.id);
+		goto err_put_request;
+	}
+
+	if (request->sync_mode == RGA_BLIT_ASYNC) {
+		rga_req->out_fence_fd = request->release_fence_fd;
+		if (copy_to_user((struct rga_req *)arg, rga_req, sizeof(struct rga_req))) {
+			pr_err("copy_to_user failed\n");
+			ret = -EFAULT;
+			goto err_put_request;
+		}
+	}
+
+err_put_request:
+	mutex_lock(&request_manager->lock);
+	rga_request_put(request);
+	mutex_unlock(&request_manager->lock);
+
+	return ret;
+
+err_free_request_by_id:
+	mutex_lock(&request_manager->lock);
+
+	request = rga_request_lookup(request_manager, request_id);
+	if (IS_ERR_OR_NULL(request)) {
+		pr_err("can not find request from id[%d]", request_id);
+		mutex_unlock(&request_manager->lock);
+		return -EINVAL;
+	}
+
+	rga_request_free(request);
+
+	mutex_unlock(&request_manager->lock);
+
+	return ret;
+}
+
 static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 {
-	struct rga_drvdata_t *rga = rga_drvdata;
-	struct rga_req req_rga;
 	int ret = 0;
 	int i = 0;
 	int major_version = 0, minor_version = 0;
 	char version[16] = { 0 };
 	struct rga_version_t driver_version;
 	struct rga_hw_versions_t hw_versions;
-	struct rga_request request;
-
+	struct rga_drvdata_t *rga = rga_drvdata;
 	struct rga_session *session = file->private_data;
 
 	if (!rga) {
@@ -807,46 +887,7 @@ static long rga_ioctl(struct file *file, uint32_t cmd, unsigned long arg)
 	switch (cmd) {
 	case RGA_BLIT_SYNC:
 	case RGA_BLIT_ASYNC:
-		if (unlikely(copy_from_user(&req_rga,
-			(struct rga_req *)arg, sizeof(struct rga_req)))) {
-			pr_err("copy_from_user failed\n");
-			ret = -EFAULT;
-			break;
-		}
-
-		if (DEBUGGER_EN(MSG))
-			rga_cmd_print_debug_info(&req_rga);
-
-		memset(&request, 0x0, sizeof(request));
-
-		spin_lock_init(&request.lock);
-		request.sync_mode = cmd;
-		request.acquire_fence_fd = req_rga.in_fence_fd;
-		request.use_batch_mode = false;
-		request.is_running = false;
-		request.session = session;
-		request.task_list = &req_rga;
-		request.task_count = 1;
-
-		ret = rga_request_submit(&request);
-		if (ret < 0) {
-			if (ret == -ERESTARTSYS) {
-				if (DEBUGGER_EN(MSG))
-					pr_err("rga_request_commit failed, by a software interrupt.\n");
-			} else {
-				pr_err("rga_request_commit failed\n");
-			}
-
-			break;
-		}
-
-		req_rga.out_fence_fd = request.release_fence_fd;
-		if (copy_to_user((struct rga_req *)arg,
-				&req_rga, sizeof(struct rga_req))) {
-			pr_err("copy_to_user failed\n");
-			ret = -EFAULT;
-			break;
-		}
+		ret = rga_ioctl_blit(arg, cmd, session);
 
 		break;
 	case RGA_CACHE_FLUSH:

@@ -777,10 +777,9 @@ static int rga_request_wait(struct rga_request *request)
 	int left_time;
 	int ret;
 
-	left_time = wait_event_interruptible_timeout(request->finished_wq,
-						     request->finished_task_count ==
-						     request->task_count,
-						     RGA_SYNC_TIMEOUT_DELAY * request->task_count);
+	left_time = wait_event_timeout(request->finished_wq,
+				       request->finished_task_count == request->task_count,
+				       RGA_SYNC_TIMEOUT_DELAY * request->task_count);
 
 	switch (left_time) {
 	case 0:
@@ -804,37 +803,18 @@ int rga_request_commit(struct rga_request *request)
 	int i = 0;
 	struct rga_job *job = NULL;
 
-	if (request->use_batch_mode) {
-		for (i = 0; i < request->task_count; i++) {
-			job = rga_job_commit(&(request->task_list[i]), request);
-			if (IS_ERR_OR_NULL(job)) {
-				pr_err("failed to commit job!\n");
-				return job ? PTR_ERR(job) : -EFAULT;
-			}
-		}
-
-		if (request->sync_mode == RGA_BLIT_SYNC) {
-			ret = rga_request_wait(request);
-			if (ret < 0) {
-				return ret;
-			}
-		}
-	} else {
-		job = rga_job_commit(request->task_list, request);
+	for (i = 0; i < request->task_count; i++) {
+		job = rga_job_commit(&(request->task_list[i]), request);
 		if (IS_ERR_OR_NULL(job)) {
 			pr_err("failed to commit job!\n");
 			return job ? PTR_ERR(job) : -EFAULT;
 		}
+	}
 
-		if (request->sync_mode == RGA_BLIT_SYNC) {
-			ret = rga_job_wait(job);
-			if (ret < 0) {
-				rga_running_job_abort(job, job->scheduler);
-				return ret;
-			}
-
-			rga_job_cleanup(job);
-		}
+	if (request->sync_mode == RGA_BLIT_SYNC) {
+		ret = rga_request_wait(request);
+		if (ret < 0)
+			return ret;
 	}
 
 	return 0;
@@ -1037,7 +1017,7 @@ error_release_fence_put:
 	return ret;
 }
 
-static int rga_request_free(struct rga_request *request)
+int rga_request_free(struct rga_request *request)
 {
 	struct rga_pending_request_manager *request_manager;
 	struct rga_req *task_list;
@@ -1142,7 +1122,7 @@ static int rga_request_free_cb(int id, void *ptr, void *data)
 	return rga_request_free((struct rga_request *)ptr);
 }
 
-uint32_t rga_request_alloc(uint32_t flags, struct rga_session *session)
+int rga_request_alloc(uint32_t flags, struct rga_session *session)
 {
 	struct rga_pending_request_manager *request_manager;
 	struct rga_request *request;
@@ -1189,7 +1169,7 @@ uint32_t rga_request_alloc(uint32_t flags, struct rga_session *session)
 
 	mutex_unlock(&request_manager->lock);
 
-	return (uint32_t)request->id;
+	return request->id;
 }
 
 int rga_request_put(struct rga_request *request)
