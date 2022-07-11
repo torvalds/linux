@@ -494,11 +494,11 @@ static struct fb_videomode atafb_modedb[] __initdata = {
 
 	{
 		/* 640x480, 31 kHz, 60 Hz (VGA) */
-		"vga", 63.5, 640, 480, 32000, 18, 42, 31, 11, 96, 3,
+		"vga", 60, 640, 480, 39721, 42, 18, 31, 11, 100, 3,
 		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 640x400, 31 kHz, 70 Hz (VGA) */
-		"vga70", 70, 640, 400, 32000, 18, 42, 31, 11, 96, 3,
+		"vga70", 70, 640, 400, 39721, 42, 18, 31, 11, 100, 3,
 		FB_SYNC_VERT_HIGH_ACT | FB_SYNC_COMP_HIGH_ACT, FB_VMODE_NONINTERLACED
 	},
 
