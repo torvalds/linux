@@ -10849,8 +10849,10 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 		r = cui(vcpu);
 		if (r <= 0)
 			goto out;
-	} else
-		WARN_ON(vcpu->arch.pio.count || vcpu->mmio_needed);
+	} else {
+		WARN_ON_ONCE(vcpu->arch.pio.count);
+		WARN_ON_ONCE(vcpu->mmio_needed);
+	}
 
 	if (kvm_run->immediate_exit) {
 		r = -EINTR;
