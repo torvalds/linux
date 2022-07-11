@@ -2946,6 +2946,9 @@ static int nl80211_send_wiphy(struct cfg80211_registered_device *rdev,
 				rdev->wiphy.max_num_akm_suites))
 			goto nla_put_failure;
 
+		if (rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_MLO)
+			nla_put_flag(msg, NL80211_ATTR_MLO_SUPPORT);
+
 		/* done */
 		state->split_start = 0;
 		break;
