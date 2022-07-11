@@ -148,6 +148,8 @@ struct perf_sample {
 	u64 code_page_size;
 	u64 cgroup;
 	u32 flags;
+	u32 machine_pid;
+	u32 vcpu;
 	u16 insn_len;
 	u8  cpumode;
 	u16 misc;
