@@ -620,9 +620,14 @@ i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
 			 struct ttm_resource *res)
 {
 	struct ttm_buffer_object *bo = i915_gem_to_ttm(obj);
+	u64 page_alignment;
 
 	if (!i915_ttm_gtt_binds_lmem(res))
 		return i915_ttm_tt_get_st(bo->ttm);
+
+	page_alignment = bo->page_alignment << PAGE_SHIFT;
+	if (!page_alignment)
+		page_alignment = obj->mm.region->min_page_size;
 
 	/*
 	 * If CPU mapping differs, we need to add the ttm_tt pages to
@@ -634,7 +639,8 @@ i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
 			struct i915_refct_sgt *rsgt;
 
 			rsgt = intel_region_ttm_resource_to_rsgt(obj->mm.region,
-								 res);
+								 res,
+								 page_alignment);
 			if (IS_ERR(rsgt))
 				return rsgt;
 
@@ -643,7 +649,8 @@ i915_ttm_resource_get_st(struct drm_i915_gem_object *obj,
 		return i915_refct_sgt_get(obj->ttm.cached_io_rsgt);
 	}
 
-	return intel_region_ttm_resource_to_rsgt(obj->mm.region, res);
+	return intel_region_ttm_resource_to_rsgt(obj->mm.region, res,
+						 page_alignment);
 }
 
 static int i915_ttm_truncate(struct drm_i915_gem_object *obj)

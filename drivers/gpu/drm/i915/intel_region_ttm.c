@@ -152,6 +152,7 @@ int intel_region_ttm_fini(struct intel_memory_region *mem)
  * Convert an opaque TTM resource manager resource to a refcounted sg_table.
  * @mem: The memory region.
  * @res: The resource manager resource obtained from the TTM resource manager.
+ * @page_alignment: Required page alignment for each sg entry. Power of two.
  *
  * The gem backends typically use sg-tables for operations on the underlying
  * io_memory. So provide a way for the backends to translate the
@@ -161,16 +162,19 @@ int intel_region_ttm_fini(struct intel_memory_region *mem)
  */
 struct i915_refct_sgt *
 intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
-				  struct ttm_resource *res)
+				  struct ttm_resource *res,
+				  u64 page_alignment)
 {
 	if (mem->is_range_manager) {
 		struct ttm_range_mgr_node *range_node =
 			to_ttm_range_mgr_node(res);
 
 		return i915_rsgt_from_mm_node(&range_node->mm_nodes[0],
-					      mem->region.start);
+					      mem->region.start,
+					      page_alignment);
 	} else {
-		return i915_rsgt_from_buddy_resource(res, mem->region.start);
+		return i915_rsgt_from_buddy_resource(res, mem->region.start,
+						     page_alignment);
 	}
 }
 
