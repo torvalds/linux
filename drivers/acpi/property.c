@@ -793,7 +793,7 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 			 * nor integer, return an error, we can't parse it.
 			 */
 			for (i = 0; element + i < end && i < num_args; i++) {
-				int type = element[i].type;
+				acpi_object_type type = element[i].type;
 
 				if (type == ACPI_TYPE_LOCAL_REFERENCE)
 					break;
