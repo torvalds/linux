@@ -28,13 +28,17 @@ static void guest_monitor_wait(int testcase)
 
 	GUEST_SYNC(testcase);
 
-	vector = kvm_asm_safe("monitor");
+	/*
+	 * Arbitrarily MONITOR this function, SVM performs fault checks before
+	 * intercept checks, so the inputs for MONITOR and MWAIT must be valid.
+	 */
+	vector = kvm_asm_safe("monitor", "a"(guest_monitor_wait), "c"(0), "d"(0));
 	if (fault_wanted)
 		GUEST_ASSERT_2(vector == UD_VECTOR, testcase, vector);
 	else
 		GUEST_ASSERT_2(!vector, testcase, vector);
 
-	vector = kvm_asm_safe("mwait");
+	vector = kvm_asm_safe("mwait", "a"(guest_monitor_wait), "c"(0), "d"(0));
 	if (fault_wanted)
 		GUEST_ASSERT_2(vector == UD_VECTOR, testcase, vector);
 	else
