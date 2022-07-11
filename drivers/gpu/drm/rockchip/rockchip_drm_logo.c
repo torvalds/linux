@@ -559,7 +559,7 @@ static int rockchip_drm_fill_connector_modes(struct drm_connector *connector,
 		count = (*connector_funcs->get_modes)(connector);
 
 	if (count == 0 && connector->status == connector_status_connected)
-		count = drm_add_modes_noedid(connector, 1024, 768);
+		count = drm_add_modes_noedid(connector, 4096, 4096);
 	if (force_output)
 		count += rockchip_drm_add_modes_noedid(connector);
 	if (count == 0)
