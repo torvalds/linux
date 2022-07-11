@@ -264,6 +264,9 @@ an involved disclosed party. The current ambassadors list:
 
   Amazon
   Google	Kees Cook <keescook@chromium.org>
+
+  GCC
+  LLVM		Nick Desaulniers <ndesaulniers@google.com>
   ============= ========================================================
 
 If you want your organization to be added to the ambassadors list, please
