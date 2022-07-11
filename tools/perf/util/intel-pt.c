@@ -758,27 +758,38 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 
 	if (nr) {
 		if ((!symbol_conf.guest_code && cpumode != PERF_RECORD_MISC_GUEST_KERNEL) ||
-		    intel_pt_get_guest(ptq))
+		    intel_pt_get_guest(ptq)) {
+			intel_pt_log("ERROR: no guest machine\n");
 			return -EINVAL;
+		}
 		machine = ptq->guest_machine;
 		thread = ptq->guest_thread;
 		if (!thread) {
-			if (cpumode != PERF_RECORD_MISC_GUEST_KERNEL)
+			if (cpumode != PERF_RECORD_MISC_GUEST_KERNEL) {
+				intel_pt_log("ERROR: no guest thread\n");
 				return -EINVAL;
+			}
 			thread = ptq->unknown_guest_thread;
 		}
 	} else {
 		thread = ptq->thread;
 		if (!thread) {
-			if (cpumode != PERF_RECORD_MISC_KERNEL)
+			if (cpumode != PERF_RECORD_MISC_KERNEL) {
+				intel_pt_log("ERROR: no thread\n");
 				return -EINVAL;
+			}
 			thread = ptq->pt->unknown_thread;
 		}
 	}
 
 	while (1) {
-		if (!thread__find_map(thread, cpumode, *ip, &al) || !al.map->dso)
+		if (!thread__find_map(thread, cpumode, *ip, &al) || !al.map->dso) {
+			if (al.map)
+				intel_pt_log("ERROR: thread has no dso for %#" PRIx64 "\n", *ip);
+			else
+				intel_pt_log("ERROR: thread has no map for %#" PRIx64 "\n", *ip);
 			return -EINVAL;
+		}
 
 		if (al.map->dso->data.status == DSO_DATA_STATUS_ERROR &&
 		    dso__data_status_seen(al.map->dso,
@@ -819,8 +830,12 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 			len = dso__data_read_offset(al.map->dso, machine,
 						    offset, buf,
 						    INTEL_PT_INSN_BUF_SZ);
-			if (len <= 0)
+			if (len <= 0) {
+				intel_pt_log("ERROR: failed to read at %" PRIu64 " ", offset);
+				if (intel_pt_enable_logging)
+					dso__fprintf(al.map->dso, intel_pt_log_fp());
 				return -EINVAL;
+			}
 
 			if (intel_pt_get_insn(buf, len, x86_64, intel_pt_insn))
 				return -EINVAL;
