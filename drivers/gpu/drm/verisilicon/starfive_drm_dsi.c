@@ -944,6 +944,7 @@ static void cdns_dsi_bridge_disable(struct drm_bridge *bridge)
 	struct cdns_dsi_input *input = bridge_to_cdns_dsi_input(bridge);
 	struct cdns_dsi *dsi = input_to_dsi(input);
 	u32 val;
+	int ret;
 
 	dsi->link_initialized = false;
 	val = readl(dsi->regs + MCTL_MAIN_DATA_CTL);
@@ -957,6 +958,11 @@ static void cdns_dsi_bridge_disable(struct drm_bridge *bridge)
 	sys_mipi_dsi_set_ppi_txbyte_hs(0, dsi);
 	phy_power_off(dsi->dphy);
 	phy_exit(dsi->dphy);
+
+	ret = cdns_dsi_resets_assert(dsi, dsi->base.dev);
+	if (ret < 0)
+		dev_err(dsi->base.dev, "failed to assert reset\n");
+	cdns_dsi_clock_disable(dsi);
 }
 
 #if 0
@@ -1066,6 +1072,18 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 	int nlanes;
 	int vrefresh;
 	u32 div;
+	int ret;
+
+	ret = cdns_dsi_clock_enable(dsi, dsi->base.dev);
+	if (ret) {
+		dev_err(dsi->base.dev, "failed to enable clock\n");
+		return;
+	}
+	ret = cdns_dsi_resets_deassert(dsi, dsi->base.dev);
+	if (ret < 0) {
+		dev_err(dsi->base.dev, "failed to deassert reset\n");
+		return;
+	}
 
 	if (WARN_ON(pm_runtime_get_sync(dsi->base.dev) < 0))
 		return;
