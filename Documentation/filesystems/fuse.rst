@@ -279,7 +279,7 @@ How are requirements fulfilled?
 	the filesystem or not.
 
 	Note that the *ptrace* check is not strictly necessary to
-	prevent B/2/i, it is enough to check if mount owner has enough
+	prevent C/2/i, it is enough to check if mount owner has enough
 	privilege to send signal to the process accessing the
 	filesystem, since *SIGSTOP* can be used to get a similar effect.
 
@@ -288,10 +288,29 @@ I think these limitations are unacceptable?
 
 If a sysadmin trusts the users enough, or can ensure through other
 measures, that system processes will never enter non-privileged
-mounts, it can relax the last limitation with a 'user_allow_other'
-config option.  If this config option is set, the mounting user can
-add the 'allow_other' mount option which disables the check for other
-users' processes.
+mounts, it can relax the last limitation in several ways:
+
+  - With the 'user_allow_other' config option. If this config option is
+    set, the mounting user can add the 'allow_other' mount option which
+    disables the check for other users' processes.
+
+    User namespaces have an unintuitive interaction with 'allow_other':
+    an unprivileged user - normally restricted from mounting with
+    'allow_other' - could do so in a user namespace where they're
+    privileged. If any process could access such an 'allow_other' mount
+    this would give the mounting user the ability to manipulate
+    processes in user namespaces where they're unprivileged. For this
+    reason 'allow_other' restricts access to users in the same userns
+    or a descendant.
+
+  - With the 'allow_sys_admin_access' module option. If this option is
+    set, super user's processes have unrestricted access to mounts
+    irrespective of allow_other setting or user namespace of the
+    mounting user.
+
+Note that both of these relaxations expose the system to potential
+information leak or *DoS* as described in points B and C/2/i-ii in the
+preceding section.
 
 Kernel - userspace interface
 ============================
