@@ -318,15 +318,15 @@ struct v4l2_ctrl {
  *		from a cluster with multiple controls twice (when the first
  *		control of a cluster is applied, they all are).
  * @p_req_valid: If set, then p_req contains the control value for the request.
- * @p_req_dyn_enomem: If set, then p_req is invalid since allocating space for
- *		a dynamic array failed. Attempting to read this value shall
- *		result in ENOMEM. Only valid if ctrl->is_dyn_array is true.
- * @p_req_dyn_alloc_elems: The number of elements allocated for the dynamic
- *		array. Only valid if @p_req_valid and ctrl->is_dyn_array are
+ * @p_req_array_enomem: If set, then p_req is invalid since allocating space for
+ *		an array failed. Attempting to read this value shall
+ *		result in ENOMEM. Only valid if ctrl->is_array is true.
+ * @p_req_array_alloc_elems: The number of elements allocated for the
+ *		array. Only valid if @p_req_valid and ctrl->is_array are
  *		true.
  * @p_req_elems: The number of elements in @p_req. This is the same as
  *		ctrl->elems, except for dynamic arrays. In that case it is in
- *		the range of 1 to @p_req_dyn_alloc_elems. Only valid if
+ *		the range of 1 to @p_req_array_alloc_elems. Only valid if
  *		@p_req_valid is true.
  * @p_req:	If the control handler containing this control reference
  *		is bound to a media request, then this points to the
@@ -348,8 +348,8 @@ struct v4l2_ctrl_ref {
 	bool from_other_dev;
 	bool req_done;
 	bool p_req_valid;
-	bool p_req_dyn_enomem;
-	u32 p_req_dyn_alloc_elems;
+	bool p_req_array_enomem;
+	u32 p_req_array_alloc_elems;
 	u32 p_req_elems;
 	union v4l2_ctrl_ptr p_req;
 };

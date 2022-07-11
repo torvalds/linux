@@ -1048,23 +1048,26 @@ void cur_to_new(struct v4l2_ctrl *ctrl)
 	ptr_to_ptr(ctrl, ctrl->p_cur, ctrl->p_new, ctrl->new_elems);
 }
 
-static bool req_alloc_dyn_array(struct v4l2_ctrl_ref *ref, u32 elems)
+static bool req_alloc_array(struct v4l2_ctrl_ref *ref, u32 elems)
 {
 	void *tmp;
 
-	if (elems < ref->p_req_dyn_alloc_elems)
+	if (elems == ref->p_req_array_alloc_elems)
+		return true;
+	if (ref->ctrl->is_dyn_array &&
+	    elems < ref->p_req_array_alloc_elems)
 		return true;
 
 	tmp = kvmalloc(elems * ref->ctrl->elem_size, GFP_KERNEL);
 
 	if (!tmp) {
-		ref->p_req_dyn_enomem = true;
+		ref->p_req_array_enomem = true;
 		return false;
 	}
-	ref->p_req_dyn_enomem = false;
+	ref->p_req_array_enomem = false;
 	kvfree(ref->p_req.p);
 	ref->p_req.p = tmp;
-	ref->p_req_dyn_alloc_elems = elems;
+	ref->p_req_array_alloc_elems = elems;
 	return true;
 }
 
@@ -1077,7 +1080,7 @@ void new_to_req(struct v4l2_ctrl_ref *ref)
 		return;
 
 	ctrl = ref->ctrl;
-	if (ctrl->is_dyn_array && !req_alloc_dyn_array(ref, ctrl->new_elems))
+	if (ctrl->is_array && !req_alloc_array(ref, ctrl->new_elems))
 		return;
 
 	ref->p_req_elems = ctrl->new_elems;
@@ -1094,7 +1097,7 @@ void cur_to_req(struct v4l2_ctrl_ref *ref)
 		return;
 
 	ctrl = ref->ctrl;
-	if (ctrl->is_dyn_array && !req_alloc_dyn_array(ref, ctrl->elems))
+	if (ctrl->is_array && !req_alloc_array(ref, ctrl->elems))
 		return;
 
 	ref->p_req_elems = ctrl->elems;
@@ -1123,14 +1126,18 @@ int req_to_new(struct v4l2_ctrl_ref *ref)
 		return 0;
 	}
 
-	/* Not a dynamic array, so just copy the request value */
-	if (!ctrl->is_dyn_array) {
+	/* Not an array, so just copy the request value */
+	if (!ctrl->is_array) {
 		ptr_to_ptr(ctrl, ref->p_req, ctrl->p_new, ctrl->new_elems);
 		return 0;
 	}
 
 	/* Sanity check, should never happen */
-	if (WARN_ON(!ref->p_req_dyn_alloc_elems))
+	if (WARN_ON(!ref->p_req_array_alloc_elems))
+		return -ENOMEM;
+
+	if (!ctrl->is_dyn_array &&
+	    ref->p_req_elems != ctrl->p_array_alloc_elems)
 		return -ENOMEM;
 
 	/*
@@ -1243,7 +1250,7 @@ void v4l2_ctrl_handler_free(struct v4l2_ctrl_handler *hdl)
 	/* Free all nodes */
 	list_for_each_entry_safe(ref, next_ref, &hdl->ctrl_refs, node) {
 		list_del(&ref->node);
-		if (ref->p_req_dyn_alloc_elems)
+		if (ref->p_req_array_alloc_elems)
 			kvfree(ref->p_req.p);
 		kfree(ref);
 	}
@@ -1368,7 +1375,7 @@ int handler_new_ref(struct v4l2_ctrl_handler *hdl,
 	if (hdl->error)
 		return hdl->error;
 
-	if (allocate_req && !ctrl->is_dyn_array)
+	if (allocate_req && !ctrl->is_array)
 		size_extra_req = ctrl->elems * ctrl->elem_size;
 	new_ref = kzalloc(sizeof(*new_ref) + size_extra_req, GFP_KERNEL);
 	if (!new_ref)
