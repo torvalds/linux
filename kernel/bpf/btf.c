@@ -6643,7 +6643,7 @@ static void btf_snprintf_show(struct btf_show *show, const char *fmt,
 	if (len < 0) {
 		ssnprintf->len_left = 0;
 		ssnprintf->len = len;
-	} else if (len > ssnprintf->len_left) {
+	} else if (len >= ssnprintf->len_left) {
 		/* no space, drive on to get length we would have written */
 		ssnprintf->len_left = 0;
 		ssnprintf->len += len;
