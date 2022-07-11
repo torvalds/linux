@@ -169,49 +169,52 @@ close_block:
 	return 0;
 }
 
-static int nfp_nfdk_prep_port_id(struct sk_buff *skb)
+static int
+nfp_nfdk_prep_tx_meta(struct nfp_net_dp *dp, struct nfp_app *app,
+		      struct sk_buff *skb)
 {
 	struct metadata_dst *md_dst = skb_metadata_dst(skb);
 	unsigned char *data;
-
-	if (likely(!md_dst))
-		return 0;
-	if (unlikely(md_dst->type != METADATA_HW_PORT_MUX))
-		return 0;
-
-	if (unlikely(skb_cow_head(skb, sizeof(md_dst->u.port_info.port_id))))
-		return -ENOMEM;
-
-	data = skb_push(skb, sizeof(md_dst->u.port_info.port_id));
-	put_unaligned_be32(md_dst->u.port_info.port_id, data);
-
-	return sizeof(md_dst->u.port_info.port_id);
-}
-
-static int
-nfp_nfdk_prep_tx_meta(struct nfp_app *app, struct sk_buff *skb,
-		      struct nfp_net_r_vector *r_vec)
-{
-	unsigned char *data;
-	int res, md_bytes;
+	bool vlan_insert;
 	u32 meta_id = 0;
+	int md_bytes;
 
-	res = nfp_nfdk_prep_port_id(skb);
-	if (unlikely(res <= 0))
-		return res;
+	if (unlikely(md_dst && md_dst->type != METADATA_HW_PORT_MUX))
+		md_dst = NULL;
 
-	md_bytes = res;
-	meta_id = NFP_NET_META_PORTID;
+	vlan_insert = skb_vlan_tag_present(skb) && (dp->ctrl & NFP_NET_CFG_CTRL_TXVLAN_V2);
 
-	if (unlikely(skb_cow_head(skb, sizeof(meta_id))))
+	if (!(md_dst || vlan_insert))
+		return 0;
+
+	md_bytes = sizeof(meta_id) +
+		   !!md_dst * NFP_NET_META_PORTID_SIZE +
+		   vlan_insert * NFP_NET_META_VLAN_SIZE;
+
+	if (unlikely(skb_cow_head(skb, md_bytes)))
 		return -ENOMEM;
 
-	md_bytes += sizeof(meta_id);
+	data = skb_push(skb, md_bytes) + md_bytes;
+	if (md_dst) {
+		data -= NFP_NET_META_PORTID_SIZE;
+		put_unaligned_be32(md_dst->u.port_info.port_id, data);
+		meta_id = NFP_NET_META_PORTID;
+	}
+	if (vlan_insert) {
+		data -= NFP_NET_META_VLAN_SIZE;
+		/* data type of skb->vlan_proto is __be16
+		 * so it fills metadata without calling put_unaligned_be16
+		 */
+		memcpy(data, &skb->vlan_proto, sizeof(skb->vlan_proto));
+		put_unaligned_be16(skb_vlan_tag_get(skb), data + sizeof(skb->vlan_proto));
+		meta_id <<= NFP_NET_META_FIELD_SIZE;
+		meta_id |= NFP_NET_META_VLAN;
+	}
 
 	meta_id = FIELD_PREP(NFDK_META_LEN, md_bytes) |
 		  FIELD_PREP(NFDK_META_FIELDS, meta_id);
 
-	data = skb_push(skb, sizeof(meta_id));
+	data -= sizeof(meta_id);
 	put_unaligned_be32(meta_id, data);
 
 	return NFDK_DESC_TX_CHAIN_META;
@@ -259,7 +262,7 @@ netdev_tx_t nfp_nfdk_tx(struct sk_buff *skb, struct net_device *netdev)
 		return NETDEV_TX_BUSY;
 	}
 
-	metadata = nfp_nfdk_prep_tx_meta(nn->app, skb, r_vec);
+	metadata = nfp_nfdk_prep_tx_meta(dp, nn->app, skb);
 	if (unlikely((int)metadata < 0))
 		goto err_flush;
 
