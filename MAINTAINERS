@@ -14234,7 +14234,8 @@ S:	Maintained
 F:	drivers/net/phy/nxp-c45-tja11xx.c
 
 NXP FSPI DRIVER
-M:	Ashish Kumar <ashish.kumar@nxp.com>
+M:	Han Xu <han.xu@nxp.com>
+M:	Haibo Chen <haibo.chen@nxp.com>
 R:	Yogesh Gaur <yogeshgaur.83@gmail.com>
 L:	linux-spi@vger.kernel.org
 S:	Maintained
