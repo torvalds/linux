@@ -435,8 +435,6 @@ ap_i2c_tpm: &i2c14 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&dp_hot_plug_det>;
 	data-lanes = <0 1>;
-	vdda-1p2-supply = <&vdd_a_usbssdp_0_1p2>;
-	vdda-0p9-supply = <&vdd_a_usbssdp_0_core>;
 };
 
 &mdss_mdp {
