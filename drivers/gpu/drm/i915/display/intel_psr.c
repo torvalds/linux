@@ -1863,36 +1863,45 @@ void intel_psr_pre_plane_update(struct intel_atomic_state *state,
 				struct intel_crtc *crtc)
 {
 	struct drm_i915_private *i915 = to_i915(state->base.dev);
-	const struct intel_crtc_state *crtc_state =
-		intel_atomic_get_new_crtc_state(state, crtc);
-	struct intel_encoder *encoder;
+	struct intel_crtc_state *new_crtc_state, *old_crtc_state;
+	int i;
 
 	if (!HAS_PSR(i915))
 		return;
 
-	for_each_intel_encoder_mask_with_psr(state->base.dev, encoder,
-					     crtc_state->uapi.encoder_mask) {
-		struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
-		struct intel_psr *psr = &intel_dp->psr;
-		bool needs_to_disable = false;
+	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
+					    new_crtc_state, i) {
+		struct intel_encoder *encoder;
+		u32 old_new_encoder_mask = old_crtc_state->uapi.encoder_mask |
+			new_crtc_state->uapi.encoder_mask;
 
-		mutex_lock(&psr->lock);
+		for_each_intel_encoder_mask_with_psr(state->base.dev, encoder,
+						     old_new_encoder_mask) {
+			struct intel_dp *intel_dp = enc_to_intel_dp(encoder);
+			struct intel_psr *psr = &intel_dp->psr;
+			bool needs_to_disable = false;
 
-		/*
-		 * Reasons to disable:
-		 * - PSR disabled in new state
-		 * - All planes will go inactive
-		 * - Changing between PSR versions
-		 */
-		needs_to_disable |= intel_crtc_needs_modeset(crtc_state);
-		needs_to_disable |= !crtc_state->has_psr;
-		needs_to_disable |= !crtc_state->active_planes;
-		needs_to_disable |= crtc_state->has_psr2 != psr->psr2_enabled;
+			mutex_lock(&psr->lock);
 
-		if (psr->enabled && needs_to_disable)
-			intel_psr_disable_locked(intel_dp);
+			/*
+			 * Reasons to disable:
+			 * - PSR disabled in new state
+			 * - All planes will go inactive
+			 * - Changing between PSR versions
+			 * - Encoder isn't present in new mask
+			 */
+			needs_to_disable |= intel_crtc_needs_modeset(new_crtc_state);
+			needs_to_disable |= !new_crtc_state->has_psr;
+			needs_to_disable |= !new_crtc_state->active_planes;
+			needs_to_disable |= new_crtc_state->has_psr2 != psr->psr2_enabled;
+			needs_to_disable |= !(new_crtc_state->uapi.encoder_mask &
+					      drm_encoder_mask(&(encoder)->base));
 
-		mutex_unlock(&psr->lock);
+			if (psr->enabled && needs_to_disable)
+				intel_psr_disable_locked(intel_dp);
+
+			mutex_unlock(&psr->lock);
+		}
 	}
 }
 
