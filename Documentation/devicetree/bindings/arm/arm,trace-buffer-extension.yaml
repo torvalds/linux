@@ -2,7 +2,7 @@
 # Copyright 2021, Arm Ltd
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/arm/trbe.yaml#"
+$id: "http://devicetree.org/schemas/arm/arm,trace-buffer-extension.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
 title: ARM Trace Buffer Extensions

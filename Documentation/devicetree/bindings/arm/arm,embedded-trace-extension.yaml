@@ -2,7 +2,7 @@
 # Copyright 2021, Arm Ltd
 %YAML 1.2
 ---
-$id: "http://devicetree.org/schemas/arm/ete.yaml#"
+$id: "http://devicetree.org/schemas/arm/arm,embedded-trace-extension.yaml#"
 $schema: "http://devicetree.org/meta-schemas/core.yaml#"
 
 title: ARM Embedded Trace Extensions
@@ -20,7 +20,6 @@ description: |
   Arm Trace Buffer Extension (TRBE)). Since the ETE can be connected to
   legacy CoreSight components, a node must be listed per instance, along
   with any optional connection graph as per the coresight bindings.
-  See bindings/arm/coresight.txt.
 
 properties:
   $nodename:
