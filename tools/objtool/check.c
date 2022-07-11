@@ -129,16 +129,13 @@ static bool is_jump_table_jump(struct instruction *insn)
 static bool is_sibling_call(struct instruction *insn)
 {
 	/*
-	 * Assume only ELF functions can make sibling calls.  This ensures
-	 * sibling call detection consistency between vmlinux.o and individual
-	 * objects.
+	 * Assume only STT_FUNC calls have jump-tables.
 	 */
-	if (!insn_func(insn))
-		return false;
-
-	/* An indirect jump is either a sibling call or a jump to a table. */
-	if (insn->type == INSN_JUMP_DYNAMIC)
-		return !is_jump_table_jump(insn);
+	if (insn_func(insn)) {
+		/* An indirect jump is either a sibling call or a jump to a table. */
+		if (insn->type == INSN_JUMP_DYNAMIC)
+			return !is_jump_table_jump(insn);
+	}
 
 	/* add_jump_destinations() sets insn->call_dest for sibling calls. */
 	return (is_static_jump(insn) && insn->call_dest);
@@ -1400,25 +1397,48 @@ static void add_return_call(struct objtool_file *file, struct instruction *insn,
 		list_add_tail(&insn->call_node, &file->return_thunk_list);
 }
 
-static bool same_function(struct instruction *insn1, struct instruction *insn2)
+static bool is_first_func_insn(struct objtool_file *file,
+			       struct instruction *insn, struct symbol *sym)
 {
-	return insn_func(insn1)->pfunc == insn_func(insn2)->pfunc;
-}
-
-static bool is_first_func_insn(struct objtool_file *file, struct instruction *insn)
-{
-	if (insn->offset == insn_func(insn)->offset)
+	if (insn->offset == sym->offset)
 		return true;
 
+	/* Allow direct CALL/JMP past ENDBR */
 	if (opts.ibt) {
 		struct instruction *prev = prev_insn_same_sym(file, insn);
 
 		if (prev && prev->type == INSN_ENDBR &&
-		    insn->offset == insn_func(insn)->offset + prev->len)
+		    insn->offset == sym->offset + prev->len)
 			return true;
 	}
 
 	return false;
+}
+
+/*
+ * A sibling call is a tail-call to another symbol -- to differentiate from a
+ * recursive tail-call which is to the same symbol.
+ */
+static bool jump_is_sibling_call(struct objtool_file *file,
+				 struct instruction *from, struct instruction *to)
+{
+	struct symbol *fs = from->sym;
+	struct symbol *ts = to->sym;
+
+	/* Not a sibling call if from/to a symbol hole */
+	if (!fs || !ts)
+		return false;
+
+	/* Not a sibling call if not targeting the start of a symbol. */
+	if (!is_first_func_insn(file, to, ts))
+		return false;
+
+	/* Disallow sibling calls into STT_NOTYPE */
+	if (ts->type == STT_NOTYPE)
+		return false;
+
+	/* Must not be self to be a sibling */
+	return fs->pfunc != ts->pfunc;
 }
 
 /*
@@ -1519,16 +1539,16 @@ static int add_jump_destinations(struct objtool_file *file)
 			    strstr(insn_func(jump_dest)->name, ".cold")) {
 				insn_func(insn)->cfunc = insn_func(jump_dest);
 				insn_func(jump_dest)->pfunc = insn_func(insn);
-
-			} else if (!same_function(insn, jump_dest) &&
-				   is_first_func_insn(file, jump_dest)) {
-				/*
-				 * Internal sibling call without reloc or with
-				 * STT_SECTION reloc.
-				 */
-				add_call_dest(file, insn, insn_func(jump_dest), true);
-				continue;
 			}
+		}
+
+		if (jump_is_sibling_call(file, insn, jump_dest)) {
+			/*
+			 * Internal sibling call without reloc or with
+			 * STT_SECTION reloc.
+			 */
+			add_call_dest(file, insn, insn_func(jump_dest), true);
+			continue;
 		}
 
 		insn->jump_dest = jump_dest;
@@ -3309,7 +3329,7 @@ static int validate_sibling_call(struct objtool_file *file,
 				 struct instruction *insn,
 				 struct insn_state *state)
 {
-	if (has_modified_stack_frame(insn, state)) {
+	if (insn_func(insn) && has_modified_stack_frame(insn, state)) {
 		WARN_FUNC("sibling call from callable instruction with modified stack frame",
 				insn->sec, insn->offset);
 		return 1;
