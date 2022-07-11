@@ -137,7 +137,7 @@ config GENERIC_CPU
 
 config POWERPC_CPU
 	bool "Generic 32 bits powerpc"
-	depends on PPC32 && !PPC_8xx && !PPC_85xx
+	depends on PPC32 && !PPC_8xx && !PPC_85xx && !40x
 
 config CELL_CPU
 	bool "Cell Broadband Engine"
@@ -178,6 +178,10 @@ config E5500_CPU
 config E6500_CPU
 	bool "Freescale e6500"
 	depends on PPC64 && E500
+
+config 405_CPU
+	bool "40x family"
+	depends on 40x
 
 config 860_CPU
 	bool "8xx family"
@@ -223,6 +227,7 @@ config TARGET_CPU
 	default "power7" if POWER7_CPU
 	default "power8" if POWER8_CPU
 	default "power9" if POWER9_CPU
+	default "405" if 405_CPU
 	default "860" if 860_CPU
 	default "e300c2" if E300C2_CPU
 	default "e300c3" if E300C3_CPU
