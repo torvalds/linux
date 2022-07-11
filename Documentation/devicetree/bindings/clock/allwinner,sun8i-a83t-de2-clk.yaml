@@ -28,6 +28,9 @@ properties:
       - items:
           - const: allwinner,sun8i-r40-de2-clk
           - const: allwinner,sun8i-h3-de2-clk
+      - items:
+          - const: allwinner,sun20i-d1-de2-clk
+          - const: allwinner,sun50i-h5-de2-clk
 
   reg:
     maxItems: 1

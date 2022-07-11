@@ -5,6 +5,11 @@
 //  Copyright (C) 2017 Icenowy Zheng <icenowy@aosc.io>
 
 #include "sun8i-r40.dtsi"
+#include "sun8i-r40-cpu-opp.dtsi"
+
+&cpu0 {
+	cpu-supply = <&reg_dcdc2>;
+};
 
 &i2c0 {
 	status = "okay";

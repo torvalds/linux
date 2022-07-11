@@ -63,7 +63,7 @@
 		compatible = "gpio-keys-polled";
 		poll-interval = <20>;
 
-		left-joystick-left {
+		event-left-joystick-left {
 			label = "Left Joystick Left";
 			linux,code = <ABS_X>;
 			linux,input-type = <EV_ABS>;
@@ -71,7 +71,7 @@
 			gpios = <&pio 0 6 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA6 */
 		};
 
-		left-joystick-right {
+		event-left-joystick-right {
 			label = "Left Joystick Right";
 			linux,code = <ABS_X>;
 			linux,input-type = <EV_ABS>;
@@ -79,7 +79,7 @@
 			gpios = <&pio 0 5 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA5 */
 		};
 
-		left-joystick-up {
+		event-left-joystick-up {
 			label = "Left Joystick Up";
 			linux,code = <ABS_Y>;
 			linux,input-type = <EV_ABS>;
@@ -87,7 +87,7 @@
 			gpios = <&pio 0 8 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA8 */
 		};
 
-		left-joystick-down {
+		event-left-joystick-down {
 			label = "Left Joystick Down";
 			linux,code = <ABS_Y>;
 			linux,input-type = <EV_ABS>;
@@ -95,7 +95,7 @@
 			gpios = <&pio 0 9 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA9 */
 		};
 
-		right-joystick-left {
+		event-right-joystick-left {
 			label = "Right Joystick Left";
 			linux,code = <ABS_Z>;
 			linux,input-type = <EV_ABS>;
@@ -103,7 +103,7 @@
 			gpios = <&pio 0 1 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA1 */
 		};
 
-		right-joystick-right {
+		event-right-joystick-right {
 			label = "Right Joystick Right";
 			linux,code = <ABS_Z>;
 			linux,input-type = <EV_ABS>;
@@ -111,7 +111,7 @@
 			gpios = <&pio 0 0 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA0 */
 		};
 
-		right-joystick-up {
+		event-right-joystick-up {
 			label = "Right Joystick Up";
 			linux,code = <ABS_RZ>;
 			linux,input-type = <EV_ABS>;
@@ -119,7 +119,7 @@
 			gpios = <&pio 0 3 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA3 */
 		};
 
-		right-joystick-down {
+		event-right-joystick-down {
 			label = "Right Joystick Down";
 			linux,code = <ABS_RZ>;
 			linux,input-type = <EV_ABS>;
@@ -127,7 +127,7 @@
 			gpios = <&pio 0 4 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA4 */
 		};
 
-		dpad-left {
+		event-dpad-left {
 			label = "DPad Left";
 			linux,code = <ABS_HAT0X>;
 			linux,input-type = <EV_ABS>;
@@ -135,7 +135,7 @@
 			gpios = <&pio 7 23 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PH23 */
 		};
 
-		dpad-right {
+		event-dpad-right {
 			label = "DPad Right";
 			linux,code = <ABS_HAT0X>;
 			linux,input-type = <EV_ABS>;
@@ -143,7 +143,7 @@
 			gpios = <&pio 7 24 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PH24 */
 		};
 
-		dpad-up {
+		event-dpad-up {
 			label = "DPad Up";
 			linux,code = <ABS_HAT0Y>;
 			linux,input-type = <EV_ABS>;
@@ -151,7 +151,7 @@
 			gpios = <&pio 7 25 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PH25 */
 		};
 
-		dpad-down {
+		event-dpad-down {
 			label = "DPad Down";
 			linux,code = <ABS_HAT0Y>;
 			linux,input-type = <EV_ABS>;
@@ -159,49 +159,49 @@
 			gpios = <&pio 7 26 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PH26 */
 		};
 
-		x {
+		event-x {
 			label = "Button X";
 			linux,code = <BTN_X>;
 			gpios = <&pio 0 16 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA16 */
 		};
 
-		y {
+		event-y {
 			label = "Button Y";
 			linux,code = <BTN_Y>;
 			gpios = <&pio 0 14 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA14 */
 		};
 
-		a {
+		event-a {
 			label = "Button A";
 			linux,code = <BTN_A>;
 			gpios = <&pio 0 17 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA17 */
 		};
 
-		b {
+		event-b {
 			label = "Button B";
 			linux,code = <BTN_B>;
 			gpios = <&pio 0 15 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA15 */
 		};
 
-		select {
+		event-select {
 			label = "Select Button";
 			linux,code = <BTN_SELECT>;
 			gpios = <&pio 0 11 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA11 */
 		};
 
-		start {
+		event-start {
 			label = "Start Button";
 			linux,code = <BTN_START>;
 			gpios = <&pio 0 12 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA12 */
 		};
 
-		top-left {
+		event-top-left {
 			label = "Top Left Button";
 			linux,code = <BTN_TL>;
 			gpios = <&pio 7 22 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PH22 */
 		};
 
-		top-right {
+		event-top-right {
 			label = "Top Right Button";
 			linux,code = <BTN_TR>;
 			gpios = <&pio 0 13 (GPIO_ACTIVE_LOW | GPIO_PULL_UP)>; /* PA13 */
