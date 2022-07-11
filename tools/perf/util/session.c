@@ -2751,6 +2751,24 @@ void perf_session__fprintf_info(struct perf_session *session, FILE *fp,
 	fprintf(fp, "# ========\n#\n");
 }
 
+static int perf_session__register_guest(struct perf_session *session, pid_t machine_pid)
+{
+	struct machine *machine = machines__findnew(&session->machines, machine_pid);
+	struct thread *thread;
+
+	if (!machine)
+		return -ENOMEM;
+
+	machine->single_address_space = session->machines.host.single_address_space;
+
+	thread = machine__idle_thread(machine);
+	if (!thread)
+		return -ENOMEM;
+	thread__put(thread);
+
+	return 0;
+}
+
 int perf_event__process_id_index(struct perf_session *session,
 				 union perf_event *event)
 {
@@ -2762,6 +2780,7 @@ int perf_event__process_id_index(struct perf_session *session,
 	size_t e2_sz = sizeof(struct id_index_entry_2);
 	size_t etot_sz = e1_sz + e2_sz;
 	struct id_index_entry_2 *e2;
+	pid_t last_pid = 0;
 
 	max_nr = sz / e1_sz;
 	nr = ie->nr;
@@ -2787,6 +2806,7 @@ int perf_event__process_id_index(struct perf_session *session,
 	for (i = 0; i < nr; i++, (e2 ? e2++ : 0)) {
 		struct id_index_entry *e = &ie->entries[i];
 		struct perf_sample_id *sid;
+		int ret;
 
 		if (dump_trace) {
 			fprintf(stdout,	" ... id: %"PRI_lu64, e->id);
@@ -2814,6 +2834,17 @@ int perf_event__process_id_index(struct perf_session *session,
 
 		sid->machine_pid = e2->machine_pid;
 		sid->vcpu.cpu = e2->vcpu;
+
+		if (!sid->machine_pid)
+			continue;
+
+		if (sid->machine_pid != last_pid) {
+			ret = perf_session__register_guest(session, sid->machine_pid);
+			if (ret)
+				return ret;
+			last_pid = sid->machine_pid;
+			perf_guest = true;
+		}
 	}
 	return 0;
 }
