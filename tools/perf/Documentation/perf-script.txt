@@ -79,6 +79,9 @@ OPTIONS
 --dump-raw-trace=::
         Display verbose dump of the trace data.
 
+--dump-unsorted-raw-trace=::
+        Same as --dump-raw-trace but not sorted in time order.
+
 -L::
 --Latency=::
         Show latency attributes (irqs/preemption disabled, etc).

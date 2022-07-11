@@ -3746,6 +3746,7 @@ int cmd_script(int argc, const char **argv)
 	bool header = false;
 	bool header_only = false;
 	bool script_started = false;
+	bool unsorted_dump = false;
 	char *rec_script_path = NULL;
 	char *rep_script_path = NULL;
 	struct perf_session *session;
@@ -3794,6 +3795,8 @@ int cmd_script(int argc, const char **argv)
 	const struct option options[] = {
 	OPT_BOOLEAN('D', "dump-raw-trace", &dump_trace,
 		    "dump raw trace in ASCII"),
+	OPT_BOOLEAN(0, "dump-unsorted-raw-trace", &unsorted_dump,
+		    "dump unsorted raw trace in ASCII"),
 	OPT_INCR('v', "verbose", &verbose,
 		 "be more verbose (show symbol address, etc)"),
 	OPT_BOOLEAN('L', "Latency", &latency_format,
@@ -3955,6 +3958,11 @@ int cmd_script(int argc, const char **argv)
 
 	data.path  = input_name;
 	data.force = symbol_conf.force;
+
+	if (unsorted_dump) {
+		dump_trace = true;
+		script.tool.ordered_events = false;
+	}
 
 	if (symbol__validate_sym_arguments())
 		return -1;
