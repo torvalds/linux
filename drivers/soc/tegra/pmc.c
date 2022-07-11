@@ -2274,7 +2274,7 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 
 			/* GPIO hierarchies stop at the PMC level */
 			if (!err && domain->parent)
- 				err = irq_domain_disconnect_hierarchy(domain->parent,
+				err = irq_domain_disconnect_hierarchy(domain->parent,
 								      virq);
 			break;
 		}
