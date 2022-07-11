@@ -200,7 +200,7 @@ static int rm_rf_depth_pat(const char *path, int depth, const char **pat)
 	return rmdir(path);
 }
 
-static int rm_rf_kcore_dir(const char *path)
+static int rm_rf_a_kcore_dir(const char *path, const char *name)
 {
 	char kcore_dir_path[PATH_MAX];
 	const char *pat[] = {
@@ -210,9 +210,42 @@ static int rm_rf_kcore_dir(const char *path)
 		NULL,
 	};
 
-	snprintf(kcore_dir_path, sizeof(kcore_dir_path), "%s/kcore_dir", path);
+	snprintf(kcore_dir_path, sizeof(kcore_dir_path), "%s/%s", path, name);
 
 	return rm_rf_depth_pat(kcore_dir_path, 0, pat);
+}
+
+static bool kcore_dir_filter(const char *name __maybe_unused, struct dirent *d)
+{
+	const char *pat[] = {
+		"kcore_dir",
+		"kcore_dir__[1-9]*",
+		NULL,
+	};
+
+	return match_pat(d->d_name, pat);
+}
+
+static int rm_rf_kcore_dir(const char *path)
+{
+	struct strlist *kcore_dirs;
+	struct str_node *nd;
+	int ret;
+
+	kcore_dirs = lsdir(path, kcore_dir_filter);
+
+	if (!kcore_dirs)
+		return 0;
+
+	strlist__for_each_entry(nd, kcore_dirs) {
+		ret = rm_rf_a_kcore_dir(path, nd->s);
+		if (ret)
+			return ret;
+	}
+
+	strlist__delete(kcore_dirs);
+
+	return 0;
 }
 
 int rm_rf_perf_data(const char *path)
