@@ -984,7 +984,7 @@ static noinline __be32 *xdr_get_next_encode_buffer(struct xdr_stream *xdr,
 	p = page_address(*xdr->page_ptr);
 	xdr->p = p + frag2bytes;
 	space_left = xdr->buf->buflen - xdr->buf->len;
-	if (space_left - nbytes >= PAGE_SIZE)
+	if (space_left - frag1bytes >= PAGE_SIZE)
 		xdr->end = p + PAGE_SIZE;
 	else
 		xdr->end = p + space_left - frag1bytes;

@@ -117,6 +117,7 @@ struct scmi_optee_channel {
 	u32 channel_id;
 	u32 tee_session;
 	u32 caps;
+	u32 rx_len;
 	struct mutex mu;
 	struct scmi_chan_info *cinfo;
 	union {
@@ -302,6 +303,9 @@ static int invoke_process_msg_channel(struct scmi_optee_channel *channel, size_t
 		return -EIO;
 	}
 
+	/* Save response size */
+	channel->rx_len = param[2].u.memref.size;
+
 	return 0;
 }
 
@@ -353,6 +357,7 @@ static int setup_dynamic_shmem(struct device *dev, struct scmi_optee_channel *ch
 	shbuf = tee_shm_get_va(channel->tee_shm, 0);
 	memset(shbuf, 0, msg_size);
 	channel->req.msg = shbuf;
+	channel->rx_len = msg_size;
 
 	return 0;
 }
@@ -508,7 +513,7 @@ static void scmi_optee_fetch_response(struct scmi_chan_info *cinfo,
 	struct scmi_optee_channel *channel = cinfo->transport_info;
 
 	if (channel->tee_shm)
-		msg_fetch_response(channel->req.msg, SCMI_OPTEE_MAX_MSG_SIZE, xfer);
+		msg_fetch_response(channel->req.msg, channel->rx_len, xfer);
 	else
 		shmem_fetch_response(channel->req.shmem, xfer);
 }
