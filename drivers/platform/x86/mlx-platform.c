@@ -4853,16 +4853,18 @@ static int __init mlxplat_init(void)
 	}
 
 	/* Add hotplug driver */
-	mlxplat_hotplug->regmap = priv->regmap;
-	priv->pdev_hotplug = platform_device_register_resndata(
-				&mlxplat_dev->dev, "mlxreg-hotplug",
-				PLATFORM_DEVID_NONE,
-				mlxplat_mlxcpld_resources,
-				ARRAY_SIZE(mlxplat_mlxcpld_resources),
-				mlxplat_hotplug, sizeof(*mlxplat_hotplug));
-	if (IS_ERR(priv->pdev_hotplug)) {
-		err = PTR_ERR(priv->pdev_hotplug);
-		goto fail_platform_mux_register;
+	if (mlxplat_hotplug) {
+		mlxplat_hotplug->regmap = priv->regmap;
+		priv->pdev_hotplug =
+		platform_device_register_resndata(&mlxplat_dev->dev,
+						  "mlxreg-hotplug", PLATFORM_DEVID_NONE,
+						  mlxplat_mlxcpld_resources,
+						  ARRAY_SIZE(mlxplat_mlxcpld_resources),
+						  mlxplat_hotplug, sizeof(*mlxplat_hotplug));
+		if (IS_ERR(priv->pdev_hotplug)) {
+			err = PTR_ERR(priv->pdev_hotplug);
+			goto fail_platform_mux_register;
+		}
 	}
 
 	/* Set default registers. */
@@ -4875,24 +4877,26 @@ static int __init mlxplat_init(void)
 	}
 
 	/* Add LED driver. */
-	mlxplat_led->regmap = priv->regmap;
-	priv->pdev_led = platform_device_register_resndata(
-				&mlxplat_dev->dev, "leds-mlxreg",
-				PLATFORM_DEVID_NONE, NULL, 0,
-				mlxplat_led, sizeof(*mlxplat_led));
-	if (IS_ERR(priv->pdev_led)) {
-		err = PTR_ERR(priv->pdev_led);
-		goto fail_platform_hotplug_register;
+	if (mlxplat_led) {
+		mlxplat_led->regmap = priv->regmap;
+		priv->pdev_led =
+		platform_device_register_resndata(&mlxplat_dev->dev, "leds-mlxreg",
+						  PLATFORM_DEVID_NONE, NULL, 0, mlxplat_led,
+						  sizeof(*mlxplat_led));
+		if (IS_ERR(priv->pdev_led)) {
+			err = PTR_ERR(priv->pdev_led);
+			goto fail_platform_hotplug_register;
+		}
 	}
 
 	/* Add registers io access driver. */
 	if (mlxplat_regs_io) {
 		mlxplat_regs_io->regmap = priv->regmap;
-		priv->pdev_io_regs = platform_device_register_resndata(
-					&mlxplat_dev->dev, "mlxreg-io",
-					PLATFORM_DEVID_NONE, NULL, 0,
-					mlxplat_regs_io,
-					sizeof(*mlxplat_regs_io));
+		priv->pdev_io_regs = platform_device_register_resndata(&mlxplat_dev->dev,
+								       "mlxreg-io",
+								       PLATFORM_DEVID_NONE, NULL,
+								       0, mlxplat_regs_io,
+								       sizeof(*mlxplat_regs_io));
 		if (IS_ERR(priv->pdev_io_regs)) {
 			err = PTR_ERR(priv->pdev_io_regs);
 			goto fail_platform_led_register;
@@ -4949,9 +4953,11 @@ fail_platform_io_regs_register:
 	if (mlxplat_regs_io)
 		platform_device_unregister(priv->pdev_io_regs);
 fail_platform_led_register:
-	platform_device_unregister(priv->pdev_led);
+	if (mlxplat_led)
+		platform_device_unregister(priv->pdev_led);
 fail_platform_hotplug_register:
-	platform_device_unregister(priv->pdev_hotplug);
+	if (mlxplat_hotplug)
+		platform_device_unregister(priv->pdev_hotplug);
 fail_platform_mux_register:
 	while (--i >= 0)
 		platform_device_unregister(priv->pdev_mux[i]);
@@ -4974,8 +4980,10 @@ static void __exit mlxplat_exit(void)
 		platform_device_unregister(priv->pdev_fan);
 	if (priv->pdev_io_regs)
 		platform_device_unregister(priv->pdev_io_regs);
-	platform_device_unregister(priv->pdev_led);
-	platform_device_unregister(priv->pdev_hotplug);
+	if (priv->pdev_led)
+		platform_device_unregister(priv->pdev_led);
+	if (priv->pdev_hotplug)
+		platform_device_unregister(priv->pdev_hotplug);
 
 	for (i = mlxplat_mux_num - 1; i >= 0 ; i--)
 		platform_device_unregister(priv->pdev_mux[i]);
