@@ -381,6 +381,8 @@ int evsel__parse_sample(struct evsel *evsel, union perf_event *event,
 int evsel__parse_sample_timestamp(struct evsel *evsel, union perf_event *event,
 				  u64 *timestamp);
 
+u16 evsel__id_hdr_size(struct evsel *evsel);
+
 static inline struct evsel *evsel__next(struct evsel *evsel)
 {
 	return list_entry(evsel->core.node.next, struct evsel, core.node);
