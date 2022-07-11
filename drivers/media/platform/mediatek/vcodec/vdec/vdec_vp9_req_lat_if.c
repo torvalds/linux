@@ -1672,7 +1672,6 @@ static int vdec_vp9_slice_setup_core_buffer(struct vdec_vp9_slice_instance *inst
 	struct vdec_vp9_slice_reference *ref;
 	int plane;
 	int size;
-	int idx;
 	int w;
 	int h;
 	int i;
@@ -1715,15 +1714,16 @@ static int vdec_vp9_slice_setup_core_buffer(struct vdec_vp9_slice_instance *inst
 	 */
 	for (i = 0; i < 3; i++) {
 		ref = &vsi->frame.ref[i];
-		idx = vb2_find_timestamp(vq, pfc->ref_idx[i], 0);
-		if (idx < 0) {
+		vb = vb2_find_buffer(vq, pfc->ref_idx[i]);
+		if (!vb) {
 			ref->frame_width = w;
 			ref->frame_height = h;
 			memset(&vsi->ref[i], 0, sizeof(vsi->ref[i]));
 		} else {
+			int idx = vb->index;
+
 			ref->frame_width = instance->dpb[idx].width;
 			ref->frame_height = instance->dpb[idx].height;
-			vb = vq->bufs[idx];
 			vsi->ref[i].y.dma_addr =
 				vb2_dma_contig_plane_dma_addr(vb, 0);
 			if (plane == 1)
