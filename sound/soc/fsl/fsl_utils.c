@@ -147,7 +147,7 @@ void fsl_asoc_reparent_pll_clocks(struct device *dev, struct clk *clk,
 	if (reparent) {
 		ret = clk_set_parent(p, npll);
 		if (ret < 0)
-			dev_warn(dev, "failed to set parent %s: %d\n", __clk_get_name(npll), ret);
+			dev_warn(dev, "failed to set parent:%d\n", ret);
 	}
 }
 EXPORT_SYMBOL(fsl_asoc_reparent_pll_clocks);
