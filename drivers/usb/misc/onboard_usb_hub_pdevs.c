@@ -15,6 +15,7 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/of.h>
+#include <linux/usb/onboard_hub.h>
 
 #include "onboard_usb_hub.h"
 
