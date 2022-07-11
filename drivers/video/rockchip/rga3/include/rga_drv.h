@@ -265,9 +265,6 @@ struct rga_job {
 	/* for rga2 virtual_address */
 	struct mm_struct *mm;
 
-	struct dma_fence *out_fence;
-	struct dma_fence *in_fence;
-	spinlock_t fence_lock;
 	/* job time stamp */
 	ktime_t timestamp;
 	/* The time when the job is actually executed on the hardware */

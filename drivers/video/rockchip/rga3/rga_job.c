@@ -164,7 +164,6 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 	if (!job)
 		return NULL;
 
-	spin_lock_init(&job->fence_lock);
 	INIT_LIST_HEAD(&job->head);
 
 	job->timestamp = ktime_get();
@@ -287,18 +286,7 @@ next_job:
 			rga_mm_put_external_buffer(job);
 		}
 
-		if (job->use_batch_mode) {
-			rga_request_release_signal(scheduler, job);
-		} else {
-			rga_dma_fence_signal(job->out_fence);
-
-			job->flags |= RGA_JOB_DONE;
-
-			if (job->flags & RGA_JOB_ASYNC)
-				rga_job_cleanup(job);
-
-			wake_up(&scheduler->job_done_wq);
-		}
+		rga_request_release_signal(scheduler, job);
 
 		goto next_job;
 	}
@@ -325,18 +313,7 @@ static void rga_job_finish_and_next(struct rga_scheduler_t *scheduler,
 		rga_mm_put_external_buffer(job);
 	}
 
-	if (job->use_batch_mode)
-		rga_request_release_signal(scheduler, job);
-	else {
-		rga_dma_fence_signal(job->out_fence);
-
-		job->flags |= RGA_JOB_DONE;
-
-		if (job->flags & RGA_JOB_ASYNC)
-			rga_job_cleanup(job);
-
-		wake_up(&scheduler->job_done_wq);
-	}
+	rga_request_release_signal(scheduler, job);
 
 	rga_job_next(scheduler);
 
@@ -388,13 +365,7 @@ static void rga_job_timeout_clean(struct rga_scheduler_t *scheduler)
 			rga_mm_put_external_buffer(job);
 		}
 
-		if (job->use_batch_mode)
-			rga_request_release_signal(scheduler, job);
-		else {
-			rga_dma_fence_signal(job->out_fence);
-
-			rga_job_cleanup(job);
-		}
+		rga_request_release_signal(scheduler, job);
 
 		rga_power_disable(scheduler);
 	} else {
@@ -485,85 +456,6 @@ static void rga_invalid_job_abort(struct rga_job *job)
 	rga_job_cleanup(job);
 }
 
-static inline int rga_job_wait(struct rga_job *job)
-{
-	int left_time;
-	int ret;
-
-	left_time = wait_event_timeout(job->scheduler->job_done_wq,
-				       job->flags & RGA_JOB_DONE, RGA_SYNC_TIMEOUT_DELAY);
-
-	switch (left_time) {
-	case 0:
-		pr_err("%s timeout", __func__);
-		job->scheduler->ops->soft_reset(job->scheduler);
-		ret = -EBUSY;
-		break;
-	case -ERESTARTSYS:
-		ret = -ERESTARTSYS;
-		break;
-	default:
-		ret = 0;
-		break;
-	}
-
-	if (DEBUGGER_EN(TIME))
-		pr_info("%s use time = %lld\n", __func__,
-			ktime_us_delta(ktime_get(), job->hw_running_time));
-
-	return ret;
-}
-
-static int rga_job_alloc_release_fence(struct dma_fence **release_fence)
-{
-	struct dma_fence *fence;
-
-	fence = rga_dma_fence_alloc();
-	if (IS_ERR(fence)) {
-		pr_err("Can not alloc release fence!\n");
-		return IS_ERR(fence);
-	}
-
-	*release_fence = fence;
-
-	return rga_dma_fence_get_fd(fence);
-}
-
-static int rga_job_add_acquire_fence_callback(int acquire_fence_fd, void *private,
-					      dma_fence_func_t cb_func)
-{
-	int ret;
-	struct dma_fence *acquire_fence = NULL;
-
-	if (DEBUGGER_EN(MSG))
-		pr_info("acquire_fence_fd = %d", acquire_fence_fd);
-
-	acquire_fence = rga_get_dma_fence_from_fd(acquire_fence_fd);
-	if (IS_ERR_OR_NULL(acquire_fence)) {
-		pr_err("%s: failed to get acquire dma_fence from[%d]\n",
-		       __func__, acquire_fence_fd);
-		return -EINVAL;
-	}
-	/* close acquire fence fd */
-	ksys_close(acquire_fence_fd);
-
-	ret = rga_dma_fence_get_status(acquire_fence);
-	if (ret == 0) {
-		ret = rga_dma_fence_add_callback(acquire_fence, cb_func, private);
-		if (ret < 0) {
-			if (ret == -ENOENT)
-				return 1;
-
-			pr_err("%s: failed to add fence callback\n", __func__);
-			return ret;
-		}
-	} else {
-		return ret;
-	}
-
-	return 0;
-}
-
 struct rga_job *rga_job_commit(struct rga_req *rga_command_base, struct rga_request *request)
 {
 	int ret;
@@ -579,7 +471,6 @@ struct rga_job *rga_job_commit(struct rga_req *rga_command_base, struct rga_requ
 	job->use_batch_mode = request->use_batch_mode;
 	job->request_id = request->id;
 	job->session = request->session;
-	job->out_fence = request->release_fence;
 	job->mm = request->current_mm;
 
 	if (!(job->flags & RGA_JOB_USE_HANDLE)) {
@@ -687,6 +578,56 @@ static void rga_request_put_current_mm(struct rga_request *request)
 	mmput(request->current_mm);
 	mmdrop(request->current_mm);
 	request->current_mm = NULL;
+}
+
+static int rga_request_alloc_release_fence(struct dma_fence **release_fence)
+{
+	struct dma_fence *fence;
+
+	fence = rga_dma_fence_alloc();
+	if (IS_ERR(fence)) {
+		pr_err("Can not alloc release fence!\n");
+		return IS_ERR(fence);
+	}
+
+	*release_fence = fence;
+
+	return rga_dma_fence_get_fd(fence);
+}
+
+static int rga_request_add_acquire_fence_callback(int acquire_fence_fd, void *private,
+						  dma_fence_func_t cb_func)
+{
+	int ret;
+	struct dma_fence *acquire_fence = NULL;
+
+	if (DEBUGGER_EN(MSG))
+		pr_info("acquire_fence_fd = %d", acquire_fence_fd);
+
+	acquire_fence = rga_get_dma_fence_from_fd(acquire_fence_fd);
+	if (IS_ERR_OR_NULL(acquire_fence)) {
+		pr_err("%s: failed to get acquire dma_fence from[%d]\n",
+		       __func__, acquire_fence_fd);
+		return -EINVAL;
+	}
+	/* close acquire fence fd */
+	ksys_close(acquire_fence_fd);
+
+	ret = rga_dma_fence_get_status(acquire_fence);
+	if (ret == 0) {
+		ret = rga_dma_fence_add_callback(acquire_fence, cb_func, private);
+		if (ret < 0) {
+			if (ret == -ENOENT)
+				return 1;
+
+			pr_err("%s: failed to add fence callback\n", __func__);
+			return ret;
+		}
+	} else {
+		return ret;
+	}
+
+	return 0;
 }
 
 int rga_request_check(struct rga_user_request *req)
@@ -935,7 +876,7 @@ int rga_request_submit(struct rga_request *request)
 	spin_unlock_irqrestore(&request->lock, flags);
 
 	if (request->sync_mode == RGA_BLIT_ASYNC) {
-		ret = rga_job_alloc_release_fence(&request->release_fence);
+		ret = rga_request_alloc_release_fence(&request->release_fence);
 		if (ret < 0) {
 			pr_err("Failed to alloc release fence fd!\n");
 			return ret;
@@ -943,7 +884,7 @@ int rga_request_submit(struct rga_request *request)
 		request->release_fence_fd = ret;
 
 		if (request->acquire_fence_fd > 0) {
-			ret = rga_job_add_acquire_fence_callback(
+			ret = rga_request_add_acquire_fence_callback(
 				request->acquire_fence_fd,
 				(void *)request,
 				rga_request_acquire_fence_signaled_cb);
