@@ -21,7 +21,7 @@
 #include <linux/fs.h>
 #include <linux/fs_context.h>
 #include <linux/poll.h>
-#include <linux/zlib.h>
+#include <linux/zstd.h>
 #include <uapi/linux/major.h>
 #include <uapi/linux/magic.h>
 
@@ -1297,42 +1297,30 @@ SEQ_RAWDATA_FOPS(revision);
 SEQ_RAWDATA_FOPS(hash);
 SEQ_RAWDATA_FOPS(compressed_size);
 
-static int deflate_decompress(char *src, size_t slen, char *dst, size_t dlen)
+static int decompress_zstd(char *src, size_t slen, char *dst, size_t dlen)
 {
 #ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
-	if (aa_g_rawdata_compression_level != 0) {
-		int error = 0;
-		struct z_stream_s strm;
+	if (aa_g_rawdata_compression_level == 0) {
+		const size_t wksp_len = zstd_dctx_workspace_bound();
+		zstd_dctx *ctx;
+		void *wksp;
+		size_t out_len;
+		int ret = 0;
 
-		memset(&strm, 0, sizeof(strm));
-
-		strm.workspace = kvzalloc(zlib_inflate_workspacesize(), GFP_KERNEL);
-		if (!strm.workspace)
-			return -ENOMEM;
-
-		strm.next_in = src;
-		strm.avail_in = slen;
-
-		error = zlib_inflateInit(&strm);
-		if (error != Z_OK) {
-			error = -ENOMEM;
-			goto fail_inflate_init;
+		wksp = kvzalloc(wksp_len, GFP_KERNEL);
+		if (!wksp) {
+			ret = -ENOMEM;
+			goto cleanup;
 		}
 
-		strm.next_out = dst;
-		strm.avail_out = dlen;
-
-		error = zlib_inflate(&strm, Z_FINISH);
-		if (error != Z_STREAM_END)
-			error = -EINVAL;
-		else
-			error = 0;
-
-		zlib_inflateEnd(&strm);
-fail_inflate_init:
-		kvfree(strm.workspace);
-
-		return error;
+		out_len = zstd_decompress_dctx(ctx, dst, dlen, src, slen);
+		if (zstd_is_error(out_len)) {
+			ret = -EINVAL;
+			goto cleanup;
+		}
+cleanup:
+		kvfree(wksp);
+		return ret;
 	}
 #endif
 
@@ -1381,9 +1369,9 @@ static int rawdata_open(struct inode *inode, struct file *file)
 
 	private->loaddata = loaddata;
 
-	error = deflate_decompress(loaddata->data, loaddata->compressed_size,
-				   RAWDATA_F_DATA_BUF(private),
-				   loaddata->size);
+	error = decompress_zstd(loaddata->data, loaddata->compressed_size,
+				RAWDATA_F_DATA_BUF(private),
+				loaddata->size);
 	if (error)
 		goto fail_decompress;
 

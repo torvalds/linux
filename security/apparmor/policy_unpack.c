@@ -16,7 +16,7 @@
 #include <asm/unaligned.h>
 #include <linux/ctype.h>
 #include <linux/errno.h>
-#include <linux/zlib.h>
+#include <linux/zstd.h>
 
 #include "include/apparmor.h"
 #include "include/audit.h"
@@ -1059,81 +1059,73 @@ struct aa_load_ent *aa_load_ent_alloc(void)
 	return ent;
 }
 
-static int deflate_compress(const char *src, size_t slen, char **dst,
-			    size_t *dlen)
+static int compress_zstd(const char *src, size_t slen, char **dst, size_t *dlen)
 {
 #ifdef CONFIG_SECURITY_APPARMOR_EXPORT_BINARY
-	int error;
-	struct z_stream_s strm;
-	void *stgbuf, *dstbuf;
-	size_t stglen = deflateBound(slen);
+	const zstd_parameters params =
+		zstd_get_params(aa_g_rawdata_compression_level, slen);
+	const size_t wksp_len = zstd_cctx_workspace_bound(&params.cParams);
+	void *wksp = NULL;
+	zstd_cctx *ctx = NULL;
+	size_t out_len = zstd_compress_bound(slen);
+	void *out = NULL;
+	int ret = 0;
 
-	memset(&strm, 0, sizeof(strm));
-
-	if (stglen < slen)
-		return -EFBIG;
-
-	strm.workspace = kvzalloc(zlib_deflate_workspacesize(MAX_WBITS,
-							     MAX_MEM_LEVEL),
-				  GFP_KERNEL);
-	if (!strm.workspace)
-		return -ENOMEM;
-
-	error = zlib_deflateInit(&strm, aa_g_rawdata_compression_level);
-	if (error != Z_OK) {
-		error = -ENOMEM;
-		goto fail_deflate_init;
+	out = kvzalloc(out_len, GFP_KERNEL);
+	if (!out) {
+		ret = -ENOMEM;
+		goto cleanup;
 	}
 
-	stgbuf = kvzalloc(stglen, GFP_KERNEL);
-	if (!stgbuf) {
-		error = -ENOMEM;
-		goto fail_stg_alloc;
+	wksp = kvzalloc(wksp_len, GFP_KERNEL);
+	if (!wksp) {
+		ret = -ENOMEM;
+		goto cleanup;
 	}
 
-	strm.next_in = src;
-	strm.avail_in = slen;
-	strm.next_out = stgbuf;
-	strm.avail_out = stglen;
-
-	error = zlib_deflate(&strm, Z_FINISH);
-	if (error != Z_STREAM_END) {
-		error = -EINVAL;
-		goto fail_deflate;
+	ctx = zstd_init_cctx(wksp, wksp_len);
+	if (!ctx) {
+		ret = -EINVAL;
+		goto cleanup;
 	}
-	error = 0;
 
-	if (is_vmalloc_addr(stgbuf)) {
-		dstbuf = kvzalloc(strm.total_out, GFP_KERNEL);
-		if (dstbuf) {
-			memcpy(dstbuf, stgbuf, strm.total_out);
-			kvfree(stgbuf);
+	out_len = zstd_compress_cctx(ctx, out, out_len, src, slen, &params);
+	if (zstd_is_error(out_len)) {
+		ret = -EINVAL;
+		goto cleanup;
+	}
+
+	if (is_vmalloc_addr(out)) {
+		*dst = kvzalloc(out_len, GFP_KERNEL);
+		if (*dst) {
+			memcpy(*dst, out, out_len);
+			kvfree(out);
+			out = NULL;
 		}
-	} else
+	} else {
 		/*
 		 * If the staging buffer was kmalloc'd, then using krealloc is
 		 * probably going to be faster. The destination buffer will
 		 * always be smaller, so it's just shrunk, avoiding a memcpy
 		 */
-		dstbuf = krealloc(stgbuf, strm.total_out, GFP_KERNEL);
-
-	if (!dstbuf) {
-		error = -ENOMEM;
-		goto fail_deflate;
+		*dst = krealloc(out, out_len, GFP_KERNEL);
 	}
 
-	*dst = dstbuf;
-	*dlen = strm.total_out;
+	if (!*dst) {
+		ret = -ENOMEM;
+		goto cleanup;
+	}
 
-fail_stg_alloc:
-	zlib_deflateEnd(&strm);
-fail_deflate_init:
-	kvfree(strm.workspace);
-	return error;
+	*dlen = out_len;
 
-fail_deflate:
-	kvfree(stgbuf);
-	goto fail_stg_alloc;
+cleanup:
+	if (ret) {
+		kvfree(out);
+		*dst = NULL;
+	}
+
+	kvfree(wksp);
+	return ret;
 #else
 	*dlen = slen;
 	return 0;
@@ -1142,7 +1134,6 @@ fail_deflate:
 
 static int compress_loaddata(struct aa_loaddata *data)
 {
-
 	AA_BUG(data->compressed_size > 0);
 
 	/*
@@ -1151,8 +1142,8 @@ static int compress_loaddata(struct aa_loaddata *data)
 	 */
 	if (aa_g_rawdata_compression_level != 0) {
 		void *udata = data->data;
-		int error = deflate_compress(udata, data->size, &data->data,
-					     &data->compressed_size);
+		int error = compress_zstd(udata, data->size, &data->data,
+					  &data->compressed_size);
 		if (error)
 			return error;
 

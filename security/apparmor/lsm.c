@@ -21,7 +21,7 @@
 #include <linux/user_namespace.h>
 #include <linux/netfilter_ipv4.h>
 #include <linux/netfilter_ipv6.h>
-#include <linux/zlib.h>
+#include <linux/zstd.h>
 #include <net/sock.h>
 #include <uapi/linux/mount.h>
 
@@ -1361,7 +1361,7 @@ module_param_named(export_binary, aa_g_export_binary, aabool, 0600);
 #endif
 
 /* policy loaddata compression level */
-int aa_g_rawdata_compression_level = Z_DEFAULT_COMPRESSION;
+int aa_g_rawdata_compression_level = ZSTD_CLEVEL_DEFAULT;
 module_param_named(rawdata_compression_level, aa_g_rawdata_compression_level,
 		   aacompressionlevel, 0400);
 
@@ -1543,9 +1543,9 @@ static int param_set_aacompressionlevel(const char *val,
 	error = param_set_int(val, kp);
 
 	aa_g_rawdata_compression_level = clamp(aa_g_rawdata_compression_level,
-					       Z_NO_COMPRESSION,
-					       Z_BEST_COMPRESSION);
-	pr_info("AppArmor: policy rawdata compression level set to %u\n",
+					       zstd_min_clevel(),
+					       zstd_max_clevel());
+	pr_info("AppArmor: policy rawdata compression level set to %d\n",
 		aa_g_rawdata_compression_level);
 
 	return error;
