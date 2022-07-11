@@ -15,8 +15,6 @@
 #include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/spinlock.h>
-#include <asm-generic/msi.h>
-
 
 #define GPIO_RX_DAT	0x0
 #define GPIO_TX_SET	0x8
