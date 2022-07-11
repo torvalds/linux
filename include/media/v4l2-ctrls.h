@@ -203,7 +203,7 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  * @elem_size:	The size in bytes of the control.
  * @new_elems:	The number of elements in p_new. This is the same as @elems,
  *		except for dynamic arrays. In that case it is in the range of
- *		1 to @p_dyn_alloc_elems.
+ *		1 to @p_array_alloc_elems.
  * @dims:	The size of each dimension.
  * @nr_of_dims:The number of dimensions in @dims.
  * @menu_skip_mask: The control's skip mask for menu controls. This makes it
@@ -227,12 +227,11 @@ typedef void (*v4l2_ctrl_notify_fnc)(struct v4l2_ctrl *ctrl, void *priv);
  *		not freed when the control is deleted. Should this be needed
  *		then a new internal bitfield can be added to tell the framework
  *		to free this pointer.
- * @p_dyn:	Pointer to the dynamically allocated array. Only valid if
- *		@is_dyn_array is true.
- * @p_dyn_alloc_elems: The number of elements in the dynamically allocated
- *		array for both the cur and new values. So @p_dyn is actually
- *		sized for 2 * @p_dyn_alloc_elems * @elem_size. Only valid if
- *		@is_dyn_array is true.
+ * @p_array:	Pointer to the allocated array. Only valid if @is_array is true.
+ * @p_array_alloc_elems: The number of elements in the allocated
+ *		array for both the cur and new values. So @p_array is actually
+ *		sized for 2 * @p_array_alloc_elems * @elem_size. Only valid if
+ *		@is_array is true.
  * @cur:	Structure to store the current value.
  * @cur.val:	The control's current value, if the @type is represented via
  *		a u32 integer (see &enum v4l2_ctrl_type).
@@ -291,8 +290,8 @@ struct v4l2_ctrl {
 	};
 	unsigned long flags;
 	void *priv;
-	void *p_dyn;
-	u32 p_dyn_alloc_elems;
+	void *p_array;
+	u32 p_array_alloc_elems;
 	s32 val;
 	struct {
 		s32 val;

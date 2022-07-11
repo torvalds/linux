@@ -105,8 +105,8 @@ static int user_to_new(struct v4l2_ext_control *c, struct v4l2_ctrl *ctrl)
 
 	ctrl->is_new = 0;
 	if (ctrl->is_dyn_array &&
-	    c->size > ctrl->p_dyn_alloc_elems * ctrl->elem_size) {
-		void *old = ctrl->p_dyn;
+	    c->size > ctrl->p_array_alloc_elems * ctrl->elem_size) {
+		void *old = ctrl->p_array;
 		void *tmp = kvzalloc(2 * c->size, GFP_KERNEL);
 
 		if (!tmp)
@@ -115,8 +115,8 @@ static int user_to_new(struct v4l2_ext_control *c, struct v4l2_ctrl *ctrl)
 		memcpy(tmp + c->size, ctrl->p_cur.p, ctrl->elems * ctrl->elem_size);
 		ctrl->p_new.p = tmp;
 		ctrl->p_cur.p = tmp + c->size;
-		ctrl->p_dyn = tmp;
-		ctrl->p_dyn_alloc_elems = c->size / ctrl->elem_size;
+		ctrl->p_array = tmp;
+		ctrl->p_array_alloc_elems = c->size / ctrl->elem_size;
 		kvfree(old);
 	}
 
