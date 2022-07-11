@@ -960,6 +960,7 @@ static void rt286_remove(struct snd_soc_component *component)
 	struct rt286_priv *rt286 = snd_soc_component_get_drvdata(component);
 
 	cancel_delayed_work_sync(&rt286->jack_detect_work);
+	rt286->component = NULL;
 }
 
 #ifdef CONFIG_PM
