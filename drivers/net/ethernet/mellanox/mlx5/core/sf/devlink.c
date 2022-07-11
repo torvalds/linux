@@ -355,9 +355,7 @@ int mlx5_devlink_sf_port_new(struct devlink *devlink,
 				   "Port add is only supported in eswitch switchdev mode or SF ports are disabled.");
 		return -EOPNOTSUPP;
 	}
-	devl_lock(devlink);
 	err = mlx5_sf_add(dev, table, new_attr, extack, new_port_index);
-	devl_unlock(devlink);
 	mlx5_sf_table_put(table);
 	return err;
 }
@@ -402,9 +400,7 @@ int mlx5_devlink_sf_port_del(struct devlink *devlink, unsigned int port_index,
 		goto sf_err;
 	}
 
-	devl_lock(devlink);
 	mlx5_esw_offloads_sf_vport_disable(esw, sf->hw_fn_id);
-	devl_unlock(devlink);
 	mlx5_sf_id_erase(table, sf);
 
 	mutex_lock(&table->sf_state_lock);
