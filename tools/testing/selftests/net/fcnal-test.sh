@@ -70,6 +70,10 @@ NSB_LO_IP6=2001:db8:2::2
 NL_IP=172.17.1.1
 NL_IP6=2001:db8:4::1
 
+# multicast and broadcast addresses
+MCAST_IP=224.0.0.1
+BCAST_IP=255.255.255.255
+
 MD5_PW=abc123
 MD5_WRONG_PW=abc1234
 
@@ -307,6 +311,9 @@ addr2str()
 	case "$1" in
 	127.0.0.1) echo "loopback";;
 	::1) echo "IPv6 loopback";;
+
+	${BCAST_IP}) echo "broadcast";;
+	${MCAST_IP}) echo "multicast";;
 
 	${NSA_IP})	echo "ns-A IP";;
 	${NSA_IP6})	echo "ns-A IPv6";;
@@ -1801,6 +1808,19 @@ ipv4_addr_bind_novrf()
 	log_test_addr ${a} $? 0 "Raw socket bind to nonlocal address after device bind"
 
 	#
+	# check that ICMP sockets cannot bind to broadcast and multicast addresses
+	#
+	a=${BCAST_IP}
+	log_start
+	run_cmd nettest -s -R -P icmp -l ${a} -b
+	log_test_addr ${a} $? 1 "ICMP socket bind to broadcast address"
+
+	a=${MCAST_IP}
+	log_start
+	run_cmd nettest -s -R -P icmp -f -l ${a} -b
+	log_test_addr ${a} $? 1 "ICMP socket bind to multicast address"
+
+	#
 	# tcp sockets
 	#
 	a=${NSA_IP}
@@ -1856,6 +1876,19 @@ ipv4_addr_bind_vrf()
 	log_start
 	run_cmd nettest -s -R -P icmp -f -l ${a} -I ${VRF} -b
 	log_test_addr ${a} $? 0 "Raw socket bind to nonlocal address after VRF bind"
+
+	#
+	# check that ICMP sockets cannot bind to broadcast and multicast addresses
+	#
+	a=${BCAST_IP}
+	log_start
+	run_cmd nettest -s -R -P icmp -l ${a} -I ${VRF} -b
+	log_test_addr ${a} $? 1 "ICMP socket bind to broadcast address after VRF bind"
+
+	a=${MCAST_IP}
+	log_start
+	run_cmd nettest -s -R -P icmp -f -l ${a} -I ${VRF} -b
+	log_test_addr ${a} $? 1 "ICMP socket bind to multicast address after VRF bind"
 
 	#
 	# tcp sockets

@@ -27,6 +27,8 @@
 #include <linux/uaccess.h>
 
 #include "internal.h"
+#include "swap.h"
+
 #ifndef __GENSYMS__
 #include <trace/hooks/syscall_check.h>
 #endif
