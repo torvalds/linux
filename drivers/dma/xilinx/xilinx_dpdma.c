@@ -376,7 +376,7 @@ static ssize_t xilinx_dpdma_debugfs_read(struct file *f, char __user *buf,
 		if (ret < 0)
 			goto done;
 	} else {
-		strlcpy(kern_buff, "No testcase executed",
+		strscpy(kern_buff, "No testcase executed",
 			XILINX_DPDMA_DEBUGFS_READ_MAX_SIZE);
 	}
 
