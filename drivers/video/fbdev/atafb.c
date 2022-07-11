@@ -1639,7 +1639,7 @@ static irqreturn_t falcon_vbl_switcher(int irq, void *dummy)
 static int falcon_pan_display(struct fb_var_screeninfo *var,
 			      struct fb_info *info)
 {
-	struct atafb_par *par = (struct atafb_par *)info->par;
+	struct atafb_par *par = info->par;
 
 	int xoffset;
 	int bpp = info->var.bits_per_pixel;
@@ -2263,7 +2263,7 @@ static void set_screen_base(void *s_base)
 
 static int pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	struct atafb_par *par = (struct atafb_par *)info->par;
+	struct atafb_par *par = info->par;
 
 	if (!fbhw->set_screen_base ||
 	    (!ATARIHW_PRESENT(EXTD_SHIFTER) && var->xoffset))
@@ -2432,7 +2432,7 @@ atafb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 
 static void atafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
-	struct atafb_par *par = (struct atafb_par *)info->par;
+	struct atafb_par *par = info->par;
 	int x2, y2;
 	u32 width, height;
 
@@ -2475,7 +2475,7 @@ static void atafb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 
 static void atafb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
-	struct atafb_par *par = (struct atafb_par *)info->par;
+	struct atafb_par *par = info->par;
 	int x2, y2;
 	u32 dx, dy, sx, sy, width, height;
 	int rev_copy = 0;
@@ -2529,7 +2529,7 @@ static void atafb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 
 static void atafb_imageblit(struct fb_info *info, const struct fb_image *image)
 {
-	struct atafb_par *par = (struct atafb_par *)info->par;
+	struct atafb_par *par = info->par;
 	int x2, y2;
 	unsigned long *dst;
 	int dst_idx;
@@ -2672,7 +2672,7 @@ static int atafb_check_var(struct fb_var_screeninfo *var, struct fb_info *info)
 	 * hw par just decoded */
 static int atafb_set_par(struct fb_info *info)
 {
-	struct atafb_par *par = (struct atafb_par *)info->par;
+	struct atafb_par *par = info->par;
 
 	/* Decode wanted screen parameters */
 	fbhw->decode_var(&info->var, par);
