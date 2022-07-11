@@ -908,67 +908,33 @@ static int acpi_data_prop_read_single(const struct acpi_device_data *data,
 	return ret;
 }
 
-static int acpi_copy_property_array_u8(const union acpi_object *items, u8 *val,
-				       size_t nval)
-{
-	int i;
-
-	for (i = 0; i < nval; i++) {
-		if (items[i].type != ACPI_TYPE_INTEGER)
-			return -EPROTO;
-		if (items[i].integer.value > U8_MAX)
-			return -EOVERFLOW;
-
-		val[i] = items[i].integer.value;
-	}
-	return 0;
-}
-
-static int acpi_copy_property_array_u16(const union acpi_object *items,
-					u16 *val, size_t nval)
-{
-	int i;
-
-	for (i = 0; i < nval; i++) {
-		if (items[i].type != ACPI_TYPE_INTEGER)
-			return -EPROTO;
-		if (items[i].integer.value > U16_MAX)
-			return -EOVERFLOW;
-
-		val[i] = items[i].integer.value;
-	}
-	return 0;
-}
-
-static int acpi_copy_property_array_u32(const union acpi_object *items,
-					u32 *val, size_t nval)
-{
-	int i;
-
-	for (i = 0; i < nval; i++) {
-		if (items[i].type != ACPI_TYPE_INTEGER)
-			return -EPROTO;
-		if (items[i].integer.value > U32_MAX)
-			return -EOVERFLOW;
-
-		val[i] = items[i].integer.value;
-	}
-	return 0;
-}
-
-static int acpi_copy_property_array_u64(const union acpi_object *items,
-					u64 *val, size_t nval)
-{
-	int i;
-
-	for (i = 0; i < nval; i++) {
-		if (items[i].type != ACPI_TYPE_INTEGER)
-			return -EPROTO;
-
-		val[i] = items[i].integer.value;
-	}
-	return 0;
-}
+#define acpi_copy_property_array_uint(items, val, nval)			\
+	({								\
+		typeof(items) __items = items;				\
+		typeof(val) __val = val;				\
+		typeof(nval) __nval = nval;				\
+		size_t i;						\
+		int ret = 0;						\
+									\
+		for (i = 0; i < __nval; i++) {				\
+			if (__items[i].type != ACPI_TYPE_INTEGER) {	\
+				ret = -EPROTO;				\
+				break;					\
+			}						\
+			if (__items[i].integer.value > _Generic(__val,	\
+								u8: U8_MAX, \
+								u16: U16_MAX, \
+								u32: U32_MAX, \
+								u64: U64_MAX, \
+								default: 0U)) { \
+				ret = -EOVERFLOW;			\
+				break;					\
+			}						\
+									\
+			__val[i] = __items[i].integer.value;		\
+		}							\
+		ret;							\
+	})
 
 static int acpi_copy_property_array_string(const union acpi_object *items,
 					   char **val, size_t nval)
@@ -1025,16 +991,16 @@ static int acpi_data_prop_read(const struct acpi_device_data *data,
 
 	switch (proptype) {
 	case DEV_PROP_U8:
-		ret = acpi_copy_property_array_u8(items, (u8 *)val, nval);
+		ret = acpi_copy_property_array_uint(items, (u8 *)val, nval);
 		break;
 	case DEV_PROP_U16:
-		ret = acpi_copy_property_array_u16(items, (u16 *)val, nval);
+		ret = acpi_copy_property_array_uint(items, (u16 *)val, nval);
 		break;
 	case DEV_PROP_U32:
-		ret = acpi_copy_property_array_u32(items, (u32 *)val, nval);
+		ret = acpi_copy_property_array_uint(items, (u32 *)val, nval);
 		break;
 	case DEV_PROP_U64:
-		ret = acpi_copy_property_array_u64(items, (u64 *)val, nval);
+		ret = acpi_copy_property_array_uint(items, (u64 *)val, nval);
 		break;
 	case DEV_PROP_STRING:
 		ret = acpi_copy_property_array_string(
