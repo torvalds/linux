@@ -9,6 +9,13 @@ config MTD_NAND_BRCMNAND
 
 if MTD_NAND_BRCMNAND
 
+config MTD_NAND_BRCMNAND_BCM63XX
+	tristate "Broadcom BCM63xx NAND controller glue"
+	default BCM63XX
+	help
+	  Enables the BRCMNAND glue driver to register the NAND controller
+	  on Broadcom BCM63xx MIPS-based DSL platforms.
+
 config MTD_NAND_BRCMNAND_BCMA
 	tristate "Broadcom BCMA NAND controller"
 	depends on BCMA_NFLASH
@@ -17,5 +24,26 @@ config MTD_NAND_BRCMNAND_BCMA
 	  Enables the BRCMNAND controller over BCMA on BCM47186/BCM5358 SoCs.
 	  The glue driver will take care of performing the low-level I/O
 	  operations to interface the BRCMNAND controller over the BCMA bus.
+
+config MTD_NAND_BRCMNAND_BCMBCA
+	tristate "Broadcom BCMBCA NAND controller glue"
+	default ARCH_BCMBCA
+	help
+	  Enables the BRCMNAND glue driver to register the NAND controller
+	  on Broadcom BCA platforms.
+
+config MTD_NAND_BRCMNAND_BRCMSTB
+	tristate "Broadcom STB Nand controller glue"
+	default ARCH_BRCMSTB
+	help
+	  Enables the BRCMNAND glue driver to register the NAND controller
+	  on Broadcom STB platforms.
+
+config MTD_NAND_BRCMNAND_IPROC
+	tristate "Broadcom iProc NAND controller glue"
+	default ARCH_BCM_IPROC
+	help
+	  Enables the BRCMNAND controller glue driver to register the NAND
+	  controller on Broadcom iProc platforms.
 
 endif # MTD_NAND_BRCMNAND
