@@ -2981,7 +2981,7 @@ static void __init atafb_setup_user(char *spec)
 	}
 }
 
-int __init atafb_setup(char *options)
+static int __init atafb_setup(char *options)
 {
 	char *this_opt;
 	int temp;
