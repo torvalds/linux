@@ -1171,7 +1171,7 @@ static int stfcamss_probe(struct platform_device *pdev)
 	strscpy(stfcamss->media_dev.serial, "0123456789ABCDEF",
 		sizeof(stfcamss->media_dev.serial));
 	snprintf(stfcamss->media_dev.bus_info, sizeof(stfcamss->media_dev.bus_info),
-			"%s-%s", dev->bus->name, pdev->name);
+			"%s:%s", dev_bus_name(dev), pdev->name);
 	stfcamss->media_dev.hw_revision = 0x01;
 	stfcamss->media_dev.ops = &stfcamss_media_ops;
 	media_device_init(&stfcamss->media_dev);
