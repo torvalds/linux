@@ -11,7 +11,6 @@
 enum hw_variables {
 	HW_VAR_SET_OPMODE,
 	HW_VAR_CORRECT_TSF,
-	HW_VAR_MLME_SITESURVEY,
 };
 
 typedef s32 (*c2h_id_filter)(u8 id);

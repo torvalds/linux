@@ -1104,59 +1104,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 				ResumeTxBeacon(Adapter);
 		}
 		break;
-	case HW_VAR_MLME_SITESURVEY:
-		if (*((u8 *)val)) { /* under sitesurvey */
-			/* config RCR to receive different BSSID & not to receive data frame */
-			u32 v;
-
-			res = rtw_read32(Adapter, REG_RCR, &v);
-			if (res)
-				return;
-
-			v &= ~(RCR_CBSSID_BCN);
-			rtw_write32(Adapter, REG_RCR, v);
-			/* reject all data frame */
-			rtw_write16(Adapter, REG_RXFLTMAP2, 0x00);
-
-			/* disable update TSF */
-			res = rtw_read8(Adapter, REG_BCN_CTRL, &reg);
-			if (res)
-				return;
-
-			rtw_write8(Adapter, REG_BCN_CTRL, reg | BIT(4));
-		} else { /* sitesurvey done */
-			struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
-			struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
-			u32 reg32;
-
-			if ((is_client_associated_to_ap(Adapter)) ||
-			    ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE)) {
-				/* enable to rx data frame */
-				rtw_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
-
-				/* enable update TSF */
-				res = rtw_read8(Adapter, REG_BCN_CTRL, &reg);
-				if (res)
-					return;
-
-				rtw_write8(Adapter, REG_BCN_CTRL, reg & (~BIT(4)));
-			} else if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
-				rtw_write16(Adapter, REG_RXFLTMAP2, 0xFFFF);
-				/* enable update TSF */
-				res = rtw_read8(Adapter, REG_BCN_CTRL, &reg);
-				if (res)
-					return;
-
-				rtw_write8(Adapter, REG_BCN_CTRL, reg & (~BIT(4)));
-			}
-
-			res = rtw_read32(Adapter, REG_RCR, &reg32);
-			if (res)
-				return;
-
-			rtw_write32(Adapter, REG_RCR, reg32 | RCR_CBSSID_BCN);
-		}
-		break;
 	default:
 		break;
 	}

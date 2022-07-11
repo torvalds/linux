@@ -5695,9 +5695,70 @@ static void rtw_set_initial_gain(struct adapter *adapter, u8 gain)
 	}
 }
 
+void rtw_mlme_under_site_survey(struct adapter *adapter)
+{
+	/* config RCR to receive different BSSID & not to receive data frame */
+
+	int res;
+	u8 reg;
+	u32 v;
+
+	res = rtw_read32(adapter, REG_RCR, &v);
+	if (res)
+		return;
+
+	v &= ~(RCR_CBSSID_BCN);
+	rtw_write32(adapter, REG_RCR, v);
+	/* reject all data frame */
+	rtw_write16(adapter, REG_RXFLTMAP2, 0x00);
+
+	/* disable update TSF */
+	res = rtw_read8(adapter, REG_BCN_CTRL, &reg);
+	if (res)
+		return;
+
+	rtw_write8(adapter, REG_BCN_CTRL, reg | BIT(4));
+}
+
+void rtw_mlme_site_survey_done(struct adapter *adapter)
+{
+	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+	u32 reg32;
+	int res;
+	u8 reg;
+
+	if ((is_client_associated_to_ap(adapter)) ||
+	    ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE)) {
+		/* enable to rx data frame */
+		rtw_write16(adapter, REG_RXFLTMAP2, 0xFFFF);
+
+		/* enable update TSF */
+		res = rtw_read8(adapter, REG_BCN_CTRL, &reg);
+		if (res)
+			return;
+
+		rtw_write8(adapter, REG_BCN_CTRL, reg & (~BIT(4)));
+	} else if ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE) {
+		rtw_write16(adapter, REG_RXFLTMAP2, 0xFFFF);
+		/* enable update TSF */
+		res = rtw_read8(adapter, REG_BCN_CTRL, &reg);
+		if (res)
+			return;
+
+		rtw_write8(adapter, REG_BCN_CTRL, reg & (~BIT(4)));
+	}
+
+	res = rtw_read32(adapter, REG_RCR, &reg32);
+	if (res)
+		return;
+
+	rtw_write32(adapter, REG_RCR, reg32 | RCR_CBSSID_BCN);
+}
+
 void site_survey(struct adapter *padapter)
 {
-	unsigned char		survey_channel = 0, val8;
+	unsigned char survey_channel = 0;
 	enum rt_scan_type ScanType = SCAN_PASSIVE;
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
@@ -5821,8 +5882,7 @@ void site_survey(struct adapter *padapter)
 			if (is_client_associated_to_ap(padapter))
 				issue_nulldata(padapter, NULL, 0, 3, 500);
 
-			val8 = 0; /* survey done */
-			SetHwReg8188EU(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
+			rtw_mlme_site_survey_done(padapter);
 
 			report_surveydone_event(padapter);
 
@@ -7343,7 +7403,6 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 	struct mlme_ext_priv	*pmlmeext = &padapter->mlmeextpriv;
 	struct sitesurvey_parm	*pparm = (struct sitesurvey_parm *)pbuf;
 	u8 bdelayscan = false;
-	u8 val8;
 	u32	i;
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 
@@ -7400,8 +7459,7 @@ u8 sitesurvey_cmd_hdl(struct adapter *padapter, u8 *pbuf)
 		/* set MSR to no link state */
 		Set_MSR(padapter, _HW_STATE_NOLINK_);
 
-		val8 = 1; /* under site survey */
-		SetHwReg8188EU(padapter, HW_VAR_MLME_SITESURVEY, (u8 *)(&val8));
+		rtw_mlme_under_site_survey(padapter);
 
 		pmlmeext->sitesurvey_res.state = SCAN_PROCESS;
 	}

@@ -424,6 +424,9 @@ void invalidate_cam_all(struct adapter *padapter);
 int allocate_fw_sta_entry(struct adapter *padapter);
 void flush_all_cam_entry(struct adapter *padapter);
 
+void rtw_mlme_under_site_survey(struct adapter *adapter);
+void rtw_mlme_site_survey_done(struct adapter *adapter);
+
 void site_survey(struct adapter *padapter);
 u8 collect_bss_info(struct adapter *padapter, struct recv_frame *precv_frame,
 		    struct wlan_bssid_ex *bssid);
