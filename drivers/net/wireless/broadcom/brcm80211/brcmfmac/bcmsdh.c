@@ -804,6 +804,7 @@ static void brcmf_sdiod_freezer_detach(struct brcmf_sdio_dev *sdiodev)
 	if (sdiodev->freezer) {
 		WARN_ON(atomic_read(&sdiodev->freezer->freezing));
 		kfree(sdiodev->freezer);
+		sdiodev->freezer = NULL;
 	}
 }
 
@@ -870,13 +871,9 @@ int brcmf_sdiod_remove(struct brcmf_sdio_dev *sdiodev)
 
 	brcmf_sdiod_freezer_detach(sdiodev);
 
-	/* Disable Function 2 */
-	sdio_claim_host(sdiodev->func2);
-	sdio_disable_func(sdiodev->func2);
-	sdio_release_host(sdiodev->func2);
-
-	/* Disable Function 1 */
+	/* Disable functions 2 then 1. */
 	sdio_claim_host(sdiodev->func1);
+	sdio_disable_func(sdiodev->func2);
 	sdio_disable_func(sdiodev->func1);
 	sdio_release_host(sdiodev->func1);
 
@@ -906,7 +903,7 @@ int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
 	if (ret) {
 		brcmf_err("Failed to set F1 blocksize\n");
 		sdio_release_host(sdiodev->func1);
-		goto out;
+		return ret;
 	}
 	switch (sdiodev->func2->device) {
 	case SDIO_DEVICE_ID_BROADCOM_CYPRESS_4373:
@@ -928,7 +925,7 @@ int brcmf_sdiod_probe(struct brcmf_sdio_dev *sdiodev)
 	if (ret) {
 		brcmf_err("Failed to set F2 blocksize\n");
 		sdio_release_host(sdiodev->func1);
-		goto out;
+		return ret;
 	} else {
 		brcmf_dbg(SDIO, "set F2 blocksize to %d\n", f2_blksz);
 	}

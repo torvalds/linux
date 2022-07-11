@@ -4151,7 +4151,6 @@ int brcmf_sdio_get_fwname(struct device *dev, const char *ext, u8 *fw_name)
 
 static int brcmf_sdio_bus_reset(struct device *dev)
 {
-	int ret = 0;
 	struct brcmf_bus *bus_if = dev_get_drvdata(dev);
 	struct brcmf_sdio_dev *sdiodev = bus_if->bus_priv.sdio;
 
@@ -4168,14 +4167,7 @@ static int brcmf_sdio_bus_reset(struct device *dev)
 	sdio_release_host(sdiodev->func1);
 
 	brcmf_bus_change_state(sdiodev->bus_if, BRCMF_BUS_DOWN);
-
-	ret = brcmf_sdiod_probe(sdiodev);
-	if (ret) {
-		brcmf_err("Failed to probe after sdio device reset: ret %d\n",
-			  ret);
-	}
-
-	return ret;
+	return 0;
 }
 
 static const struct brcmf_bus_ops brcmf_sdio_bus_ops = {
