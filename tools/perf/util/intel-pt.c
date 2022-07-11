@@ -196,6 +196,10 @@ struct intel_pt_queue {
 	struct machine *guest_machine;
 	struct thread *guest_thread;
 	struct thread *unknown_guest_thread;
+	pid_t guest_machine_pid;
+	pid_t guest_pid;
+	pid_t guest_tid;
+	int vcpu;
 	bool exclude_kernel;
 	bool have_sample;
 	u64 time;
@@ -759,8 +763,13 @@ static int intel_pt_walk_next_insn(struct intel_pt_insn *intel_pt_insn,
 	cpumode = intel_pt_nr_cpumode(ptq, *ip, nr);
 
 	if (nr) {
-		if ((!symbol_conf.guest_code && cpumode != PERF_RECORD_MISC_GUEST_KERNEL) ||
-		    intel_pt_get_guest(ptq)) {
+		if (ptq->pt->have_guest_sideband) {
+			if (!ptq->guest_machine || ptq->guest_machine_pid != ptq->pid) {
+				intel_pt_log("ERROR: guest sideband but no guest machine\n");
+				return -EINVAL;
+			}
+		} else if ((!symbol_conf.guest_code && cpumode != PERF_RECORD_MISC_GUEST_KERNEL) ||
+			   intel_pt_get_guest(ptq)) {
 			intel_pt_log("ERROR: no guest machine\n");
 			return -EINVAL;
 		}
@@ -1385,6 +1394,55 @@ static void intel_pt_first_timestamp(struct intel_pt *pt, u64 timestamp)
 	}
 }
 
+static int intel_pt_get_guest_from_sideband(struct intel_pt_queue *ptq)
+{
+	struct machines *machines = &ptq->pt->session->machines;
+	struct machine *machine;
+	pid_t machine_pid = ptq->pid;
+	pid_t tid;
+	int vcpu;
+
+	if (machine_pid <= 0)
+		return 0; /* Not a guest machine */
+
+	machine = machines__find(machines, machine_pid);
+	if (!machine)
+		return 0; /* Not a guest machine */
+
+	if (ptq->guest_machine != machine) {
+		ptq->guest_machine = NULL;
+		thread__zput(ptq->guest_thread);
+		thread__zput(ptq->unknown_guest_thread);
+
+		ptq->unknown_guest_thread = machine__find_thread(machine, 0, 0);
+		if (!ptq->unknown_guest_thread)
+			return -1;
+		ptq->guest_machine = machine;
+	}
+
+	vcpu = ptq->thread ? ptq->thread->guest_cpu : -1;
+	if (vcpu < 0)
+		return -1;
+
+	tid = machine__get_current_tid(machine, vcpu);
+
+	if (ptq->guest_thread && ptq->guest_thread->tid != tid)
+		thread__zput(ptq->guest_thread);
+
+	if (!ptq->guest_thread) {
+		ptq->guest_thread = machine__find_thread(machine, -1, tid);
+		if (!ptq->guest_thread)
+			return -1;
+	}
+
+	ptq->guest_machine_pid = machine_pid;
+	ptq->guest_pid = ptq->guest_thread->pid_;
+	ptq->guest_tid = tid;
+	ptq->vcpu = vcpu;
+
+	return 0;
+}
+
 static void intel_pt_set_pid_tid_cpu(struct intel_pt *pt,
 				     struct auxtrace_queue *queue)
 {
@@ -1404,6 +1462,13 @@ static void intel_pt_set_pid_tid_cpu(struct intel_pt *pt,
 		ptq->pid = ptq->thread->pid_;
 		if (queue->cpu == -1)
 			ptq->cpu = ptq->thread->cpu;
+	}
+
+	if (pt->have_guest_sideband && intel_pt_get_guest_from_sideband(ptq)) {
+		ptq->guest_machine_pid = 0;
+		ptq->guest_pid = -1;
+		ptq->guest_tid = -1;
+		ptq->vcpu = -1;
 	}
 }
 
