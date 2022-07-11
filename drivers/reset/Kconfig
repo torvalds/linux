@@ -17,7 +17,7 @@ if RESET_CONTROLLER
 
 config RESET_A10SR
 	tristate "Altera Arria10 System Resource Reset"
-	depends on MFD_ALTERA_A10SR
+	depends on MFD_ALTERA_A10SR || COMPILE_TEST
 	help
 	  This option enables support for the external reset functions for
 	  peripheral PHYs on the Altera Arria10 System Resource Chip.
