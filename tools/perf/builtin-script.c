@@ -125,6 +125,8 @@ enum perf_output_field {
 	PERF_OUTPUT_CODE_PAGE_SIZE  = 1ULL << 34,
 	PERF_OUTPUT_INS_LAT         = 1ULL << 35,
 	PERF_OUTPUT_BRSTACKINSNLEN  = 1ULL << 36,
+	PERF_OUTPUT_MACHINE_PID     = 1ULL << 37,
+	PERF_OUTPUT_VCPU            = 1ULL << 38,
 };
 
 struct perf_script {
@@ -193,6 +195,8 @@ struct output_option {
 	{.str = "code_page_size", .field = PERF_OUTPUT_CODE_PAGE_SIZE},
 	{.str = "ins_lat", .field = PERF_OUTPUT_INS_LAT},
 	{.str = "brstackinsnlen", .field = PERF_OUTPUT_BRSTACKINSNLEN},
+	{.str = "machine_pid", .field = PERF_OUTPUT_MACHINE_PID},
+	{.str = "vcpu", .field = PERF_OUTPUT_VCPU},
 };
 
 enum {
@@ -745,6 +749,13 @@ static int perf_sample__fprintf_start(struct perf_script *script,
 	unsigned long long nsecs;
 	int printed = 0;
 	char tstr[128];
+
+	if (PRINT_FIELD(MACHINE_PID) && sample->machine_pid)
+		printed += fprintf(fp, "VM:%5d ", sample->machine_pid);
+
+	/* Print VCPU only for guest events i.e. with machine_pid */
+	if (PRINT_FIELD(VCPU) && sample->machine_pid)
+		printed += fprintf(fp, "VCPU:%03d ", sample->vcpu);
 
 	if (PRINT_FIELD(COMM)) {
 		const char *comm = thread ? thread__comm_str(thread) : ":-1";
