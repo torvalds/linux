@@ -415,8 +415,8 @@ err:
 no_acpi_dsd:
 	/*
 	 * Device CLSA0100 doesn't have _DSD so a gpiod_get by the label reset won't work.
-	 * And devices created by i2c-multi-instantiate don't have their device struct pointing to
-	 * the correct fwnode, so acpi_dev must be used here.
+	 * And devices created by serial-multi-instantiate don't have their device struct
+	 * pointing to the correct fwnode, so acpi_dev must be used here.
 	 * And devm functions expect that the device requesting the resource has the correct
 	 * fwnode.
 	 */
