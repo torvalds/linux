@@ -8,3 +8,4 @@ Hyper-V Enlightenments
    :maxdepth: 1
 
    overview
+   vmbus
