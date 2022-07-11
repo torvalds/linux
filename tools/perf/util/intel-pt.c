@@ -2404,7 +2404,8 @@ static int intel_pt_synth_iflag_chg_sample(struct intel_pt_queue *ptq)
 }
 
 static int intel_pt_synth_error(struct intel_pt *pt, int code, int cpu,
-				pid_t pid, pid_t tid, u64 ip, u64 timestamp)
+				pid_t pid, pid_t tid, u64 ip, u64 timestamp,
+				pid_t machine_pid, int vcpu)
 {
 	union perf_event event;
 	char msg[MAX_AUXTRACE_ERROR_MSG];
@@ -2421,8 +2422,9 @@ static int intel_pt_synth_error(struct intel_pt *pt, int code, int cpu,
 
 	intel_pt__strerror(code, msg, MAX_AUXTRACE_ERROR_MSG);
 
-	auxtrace_synth_error(&event.auxtrace_error, PERF_AUXTRACE_ERROR_ITRACE,
-			     code, cpu, pid, tid, ip, msg, timestamp);
+	auxtrace_synth_guest_error(&event.auxtrace_error, PERF_AUXTRACE_ERROR_ITRACE,
+				   code, cpu, pid, tid, ip, msg, timestamp,
+				   machine_pid, vcpu);
 
 	err = perf_session__deliver_synth_event(pt->session, &event, NULL);
 	if (err)
@@ -2437,11 +2439,22 @@ static int intel_ptq_synth_error(struct intel_pt_queue *ptq,
 {
 	struct intel_pt *pt = ptq->pt;
 	u64 tm = ptq->timestamp;
+	pid_t machine_pid = 0;
+	pid_t pid = ptq->pid;
+	pid_t tid = ptq->tid;
+	int vcpu = -1;
 
 	tm = pt->timeless_decoding ? 0 : tsc_to_perf_time(tm, &pt->tc);
 
-	return intel_pt_synth_error(pt, state->err, ptq->cpu, ptq->pid,
-				    ptq->tid, state->from_ip, tm);
+	if (pt->have_guest_sideband && state->from_nr) {
+		machine_pid = ptq->guest_machine_pid;
+		vcpu = ptq->vcpu;
+		pid = ptq->guest_pid;
+		tid = ptq->guest_tid;
+	}
+
+	return intel_pt_synth_error(pt, state->err, ptq->cpu, pid, tid,
+				    state->from_ip, tm, machine_pid, vcpu);
 }
 
 static int intel_pt_next_tid(struct intel_pt *pt, struct intel_pt_queue *ptq)
@@ -3028,7 +3041,8 @@ static int intel_pt_process_timeless_sample(struct intel_pt *pt,
 static int intel_pt_lost(struct intel_pt *pt, struct perf_sample *sample)
 {
 	return intel_pt_synth_error(pt, INTEL_PT_ERR_LOST, sample->cpu,
-				    sample->pid, sample->tid, 0, sample->time);
+				    sample->pid, sample->tid, 0, sample->time,
+				    sample->machine_pid, sample->vcpu);
 }
 
 static struct intel_pt_queue *intel_pt_cpu_to_ptq(struct intel_pt *pt, int cpu)
