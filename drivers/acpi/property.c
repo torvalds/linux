@@ -340,6 +340,43 @@ acpi_data_add_props(struct acpi_device_data *data, const guid_t *guid,
 	return props;
 }
 
+static void acpi_nondev_subnode_tag(acpi_handle handle, void *context)
+{
+}
+
+static void acpi_untie_nondev_subnodes(struct acpi_device_data *data)
+{
+	struct acpi_data_node *dn;
+
+	list_for_each_entry(dn, &data->subnodes, sibling) {
+		acpi_detach_data(dn->handle, acpi_nondev_subnode_tag);
+
+		acpi_untie_nondev_subnodes(&dn->data);
+	}
+}
+
+static bool acpi_tie_nondev_subnodes(struct acpi_device_data *data)
+{
+	struct acpi_data_node *dn;
+
+	list_for_each_entry(dn, &data->subnodes, sibling) {
+		acpi_status status;
+		bool ret;
+
+		status = acpi_attach_data(dn->handle, acpi_nondev_subnode_tag, dn);
+		if (ACPI_FAILURE(status)) {
+			acpi_handle_err(dn->handle, "Can't tag data node\n");
+			return false;
+		}
+
+		ret = acpi_tie_nondev_subnodes(&dn->data);
+		if (!ret)
+			return ret;
+	}
+
+	return true;
+}
+
 static bool acpi_extract_properties(const union acpi_object *desc,
 				    struct acpi_device_data *data)
 {
@@ -419,7 +456,9 @@ void acpi_init_properties(struct acpi_device *adev)
 					&adev->data, acpi_fwnode_handle(adev)))
 		adev->data.pointer = buf.pointer;
 
-	if (!adev->data.pointer) {
+	if (!adev->data.pointer ||
+	    !acpi_tie_nondev_subnodes(&adev->data)) {
+		acpi_untie_nondev_subnodes(&adev->data);
 		acpi_handle_debug(adev->handle, "Invalid _DSD data, skipping\n");
 		ACPI_FREE(buf.pointer);
 	}
@@ -462,6 +501,7 @@ static void acpi_destroy_nondev_subnodes(struct list_head *list)
 
 void acpi_free_properties(struct acpi_device *adev)
 {
+	acpi_untie_nondev_subnodes(&adev->data);
 	acpi_destroy_nondev_subnodes(&adev->data.subnodes);
 	ACPI_FREE((void *)adev->data.pointer);
 	adev->data.of_compatible = NULL;
