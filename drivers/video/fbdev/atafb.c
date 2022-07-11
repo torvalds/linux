@@ -2407,35 +2407,10 @@ static void atafb_set_disp(struct fb_info *info)
 static int
 atafb_pan_display(struct fb_var_screeninfo *var, struct fb_info *info)
 {
-	int xoffset = var->xoffset;
-	int yoffset = var->yoffset;
-	int err;
-
-	if (var->vmode & FB_VMODE_YWRAP) {
-		if (yoffset < 0 || yoffset >= info->var.yres_virtual || xoffset)
-			return -EINVAL;
-	} else {
-		if (xoffset + info->var.xres > info->var.xres_virtual ||
-		    yoffset + info->var.yres > info->var.yres_virtual)
-			return -EINVAL;
-	}
-
-	if (fbhw->pan_display) {
-		err = fbhw->pan_display(var, info);
-		if (err)
-			return err;
-	} else
+	if (!fbhw->pan_display)
 		return -EINVAL;
 
-	info->var.xoffset = xoffset;
-	info->var.yoffset = yoffset;
-
-	if (var->vmode & FB_VMODE_YWRAP)
-		info->var.vmode |= FB_VMODE_YWRAP;
-	else
-		info->var.vmode &= ~FB_VMODE_YWRAP;
-
-	return 0;
+	return fbhw->pan_display(var, info);
 }
 
 /*
