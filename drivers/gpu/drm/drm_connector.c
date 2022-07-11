@@ -224,6 +224,10 @@ void drm_connector_free_work_fn(struct work_struct *work)
  * Initialises a preallocated connector. Connectors should be
  * subclassed as part of driver connector objects.
  *
+ * At driver unload time the driver's &drm_connector_funcs.destroy hook
+ * should call drm_connector_cleanup() and free the connector structure.
+ * The connector structure should not be allocated with devm_kzalloc().
+ *
  * Returns:
  * Zero on success, error code on failure.
  */
@@ -346,6 +350,10 @@ EXPORT_SYMBOL(drm_connector_init);
  *
  * Initialises a preallocated connector. Connectors should be
  * subclassed as part of driver connector objects.
+ *
+ * At driver unload time the driver's &drm_connector_funcs.destroy hook
+ * should call drm_connector_cleanup() and free the connector structure.
+ * The connector structure should not be allocated with devm_kzalloc().
  *
  * Ensures that the ddc field of the connector is correctly set.
  *
