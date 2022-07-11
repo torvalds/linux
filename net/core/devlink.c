@@ -10096,24 +10096,6 @@ void devl_rate_nodes_destroy(struct devlink *devlink)
 EXPORT_SYMBOL_GPL(devl_rate_nodes_destroy);
 
 /**
- * devlink_rate_nodes_destroy - destroy all devlink rate nodes on device
- *
- * @devlink: devlink instance
- *
- * Unset parent for all rate objects and destroy all rate nodes
- * on specified device.
- *
- * Context: Takes and release devlink->lock <mutex>.
- */
-void devlink_rate_nodes_destroy(struct devlink *devlink)
-{
-	mutex_lock(&devlink->lock);
-	devl_rate_nodes_destroy(devlink);
-	mutex_unlock(&devlink->lock);
-}
-EXPORT_SYMBOL_GPL(devlink_rate_nodes_destroy);
-
-/**
  *	devlink_port_linecard_set - Link port with a linecard
  *
  *	@devlink_port: devlink port
