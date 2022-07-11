@@ -76,6 +76,7 @@ extern const struct device_type typec_port_dev_type;
 #define is_typec_port(dev) ((dev)->type == &typec_port_dev_type)
 
 extern struct class typec_mux_class;
+extern struct class retimer_class;
 extern struct class typec_class;
 
 #if defined(CONFIG_ACPI)
