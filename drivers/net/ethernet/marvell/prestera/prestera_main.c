@@ -106,6 +106,14 @@ struct prestera_port *prestera_find_port(struct prestera_switch *sw, u32 id)
 	return port;
 }
 
+struct prestera_switch *prestera_switch_get(struct net_device *dev)
+{
+	struct prestera_port *port;
+
+	port = prestera_port_dev_lower_find(dev);
+	return port ? port->sw : NULL;
+}
+
 int prestera_port_cfg_mac_read(struct prestera_port *port,
 			       struct prestera_port_mac_config *cfg)
 {
