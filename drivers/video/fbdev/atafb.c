@@ -1008,10 +1008,6 @@ static int falcon_decode_var(struct fb_var_screeninfo *var,
 	else if (yres_virtual < yres)
 		yres_virtual = yres;
 
-	/* backward bug-compatibility */
-	if (var->pixclock > 1)
-		var->pixclock -= 1;
-
 	par->hw.falcon.line_width = bpp * xres / 16;
 	par->hw.falcon.line_offset = bpp * (xres_virtual - xres) / 16;
 
