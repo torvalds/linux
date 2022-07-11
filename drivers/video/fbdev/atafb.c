@@ -467,27 +467,27 @@ static struct fb_videomode atafb_modedb[] __initdata = {
 	{
 		/* 320x200, 15 kHz, 60 Hz (ST low) */
 		"st-low", 60, 320, 200, 32000, 32, 16, 31, 14, 96, 4,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 640x200, 15 kHz, 60 Hz (ST medium) */
 		"st-mid", 60, 640, 200, 32000, 32, 16, 31, 14, 96, 4,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 640x400, 30.25 kHz, 63.5 Hz (ST high) */
 		"st-high", 63, 640, 400, 32000, 128, 0, 40, 14, 128, 4,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 320x480, 15 kHz, 60 Hz (TT low) */
 		"tt-low", 60, 320, 480, 31041, 120, 100, 8, 16, 140, 30,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 640x480, 29 kHz, 57 Hz (TT medium) */
 		"tt-mid", 60, 640, 480, 31041, 120, 100, 8, 16, 140, 30,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 1280x960, 72 kHz, 72 Hz (TT high) */
 		"tt-high", 57, 1280, 960, 7760, 260, 60, 36, 4, 192, 4,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	},
 
 	/*
@@ -497,11 +497,11 @@ static struct fb_videomode atafb_modedb[] __initdata = {
 	{
 		/* 640x480, 31 kHz, 60 Hz (VGA) */
 		"vga", 63.5, 640, 480, 32000, 18, 42, 31, 11, 96, 3,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	}, {
 		/* 640x400, 31 kHz, 70 Hz (VGA) */
 		"vga70", 70, 640, 400, 32000, 18, 42, 31, 11, 96, 3,
-		FB_SYNC_VERT_HIGH_ACT | FB_SYNC_COMP_HIGH_ACT, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		FB_SYNC_VERT_HIGH_ACT | FB_SYNC_COMP_HIGH_ACT, FB_VMODE_NONINTERLACED
 	},
 
 	/*
@@ -511,7 +511,7 @@ static struct fb_videomode atafb_modedb[] __initdata = {
 	{
 		/* 896x608, 31 kHz, 60 Hz (Falcon High) */
 		"falh", 60, 896, 608, 32000, 18, 42, 31, 1, 96,3,
-		0, FB_VMODE_NONINTERLACED | FB_VMODE_YWRAP
+		0, FB_VMODE_NONINTERLACED
 	},
 };
 
