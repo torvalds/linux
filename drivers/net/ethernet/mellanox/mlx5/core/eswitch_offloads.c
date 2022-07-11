@@ -3400,7 +3400,9 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		err = esw_offloads_start(esw, extack);
 	} else if (mode == DEVLINK_ESWITCH_MODE_LEGACY) {
 		err = esw_offloads_stop(esw, extack);
+		devl_lock(devlink);
 		mlx5_rescan_drivers(esw->dev);
+		devl_unlock(devlink);
 	} else {
 		err = -EINVAL;
 	}
