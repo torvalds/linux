@@ -424,13 +424,14 @@ static void vcn_v4_0_3_mc_resume_dpg_mode(struct amdgpu_device *adev, bool indir
 static void vcn_v4_0_3_disable_clock_gating(struct amdgpu_device *adev)
 {
 	uint32_t data;
+	int inst_idx = 0;
+
+	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
+		return;
 
 	/* VCN disable CGC */
-	data = RREG32_SOC15(VCN, 0, regUVD_CGC_CTRL);
-	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
-		data |= 1 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
-	else
-		data &= ~UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
+	data = RREG32_SOC15(VCN, inst_idx, regUVD_CGC_CTRL);
+	data &= ~UVD_CGC_CTRL__DYN_CLOCK_MODE_MASK;
 	data |= 1 << UVD_CGC_CTRL__CLK_GATE_DLY_TIMER__SHIFT;
 	data |= 4 << UVD_CGC_CTRL__CLK_OFF_DELAY__SHIFT;
 	WREG32_SOC15(VCN, 0, regUVD_CGC_CTRL, data);
@@ -517,11 +518,11 @@ static void vcn_v4_0_3_disable_clock_gating_dpg_mode(struct amdgpu_device *adev,
 {
 	uint32_t reg_data = 0;
 
-	/* enable sw clock gating control */
 	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
-		reg_data = 1 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
-	else
-		reg_data = 0 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
+		return;
+
+	/* enable sw clock gating control */
+	reg_data = 0 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 	reg_data |= 1 << UVD_CGC_CTRL__CLK_GATE_DLY_TIMER__SHIFT;
 	reg_data |= 4 << UVD_CGC_CTRL__CLK_OFF_DELAY__SHIFT;
 	reg_data &= ~(UVD_CGC_CTRL__SYS_MODE_MASK |
@@ -563,13 +564,14 @@ static void vcn_v4_0_3_disable_clock_gating_dpg_mode(struct amdgpu_device *adev,
 static void vcn_v4_0_3_enable_clock_gating(struct amdgpu_device *adev)
 {
 	uint32_t data;
+	int inst_idx = 0;
+
+	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
+		return;
 
 	/* enable VCN CGC */
-	data = RREG32_SOC15(VCN, 0, regUVD_CGC_CTRL);
-	if (adev->cg_flags & AMD_CG_SUPPORT_VCN_MGCG)
-		data |= 1 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
-	else
-		data |= 0 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
+	data = RREG32_SOC15(VCN, inst_idx, regUVD_CGC_CTRL);
+	data |= 0 << UVD_CGC_CTRL__DYN_CLOCK_MODE__SHIFT;
 	data |= 1 << UVD_CGC_CTRL__CLK_GATE_DLY_TIMER__SHIFT;
 	data |= 4 << UVD_CGC_CTRL__CLK_OFF_DELAY__SHIFT;
 	WREG32_SOC15(VCN, 0, regUVD_CGC_CTRL, data);
