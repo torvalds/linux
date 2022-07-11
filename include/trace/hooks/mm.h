@@ -215,6 +215,9 @@ DECLARE_HOOK(android_vh_alloc_si,
 DECLARE_HOOK(android_vh_free_pages,
 	TP_PROTO(struct page *page, unsigned int order),
 	TP_ARGS(page, order));
+DECLARE_HOOK(android_vh_set_shmem_page_flag,
+	TP_PROTO(struct page *page),
+	TP_ARGS(page));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */
