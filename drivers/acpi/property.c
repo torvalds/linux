@@ -778,11 +778,9 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 	if (ret)
 		return ret == -EINVAL ? -ENOENT : -EINVAL;
 
-	/*
-	 * The simplest case is when the value is a single reference.  Just
-	 * return that reference then.
-	 */
-	if (obj->type == ACPI_TYPE_LOCAL_REFERENCE) {
+	switch (obj->type) {
+	case ACPI_TYPE_LOCAL_REFERENCE:
+		/* Plain single reference without arguments. */
 		if (index)
 			return -ENOENT;
 
@@ -793,19 +791,21 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 		args->fwnode = acpi_fwnode_handle(device);
 		args->nargs = 0;
 		return 0;
+	case ACPI_TYPE_PACKAGE:
+		/*
+		 * If it is not a single reference, then it is a package of
+		 * references followed by number of ints as follows:
+		 *
+		 *  Package () { REF, INT, REF, INT, INT }
+		 *
+		 * The index argument is then used to determine which reference
+		 * the caller wants (along with the arguments).
+		 */
+		break;
+	default:
+		return -EINVAL;
 	}
 
-	/*
-	 * If it is not a single reference, then it is a package of
-	 * references followed by number of ints as follows:
-	 *
-	 *  Package () { REF, INT, REF, INT, INT }
-	 *
-	 * The index argument is then used to determine which reference
-	 * the caller wants (along with the arguments).
-	 */
-	if (obj->type != ACPI_TYPE_PACKAGE)
-		return -EINVAL;
 	if (index >= obj->package.count)
 		return -ENOENT;
 
@@ -813,7 +813,8 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 	end = element + obj->package.count;
 
 	while (element < end) {
-		if (element->type == ACPI_TYPE_LOCAL_REFERENCE) {
+		switch (element->type) {
+		case ACPI_TYPE_LOCAL_REFERENCE:
 			device = acpi_fetch_acpi_dev(element->reference.handle);
 			if (!device)
 				return -EINVAL;
@@ -829,11 +830,13 @@ int __acpi_node_get_property_reference(const struct fwnode_handle *fwnode,
 			if (idx == index)
 				return 0;
 
-		} else if (element->type == ACPI_TYPE_INTEGER) {
+			break;
+		case ACPI_TYPE_INTEGER:
 			if (idx == index)
 				return -ENOENT;
 			element++;
-		} else {
+			break;
+		default:
 			return -EINVAL;
 		}
 
