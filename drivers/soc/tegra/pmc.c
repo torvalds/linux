@@ -296,6 +296,17 @@ struct tegra_wake_event {
 	} gpio;
 };
 
+#define TEGRA_WAKE_SIMPLE(_name, _id)			\
+	{						\
+		.name = _name,				\
+		.id = _id,				\
+		.irq = 0,				\
+		.gpio = {				\
+			.instance = UINT_MAX,		\
+			.pin = UINT_MAX,		\
+		},					\
+	}
+
 #define TEGRA_WAKE_IRQ(_name, _id, _irq)		\
 	{						\
 		.name = _name,				\
@@ -2239,6 +2250,7 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 	for (i = 0; i < soc->num_wake_events; i++) {
 		const struct tegra_wake_event *event = &soc->wake_events[i];
 
+		/* IRQ and simple wake events */
 		if (fwspec->param_count == 2) {
 			struct irq_fwspec spec;
 
@@ -2250,6 +2262,12 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 							    &pmc->irq, pmc);
 			if (err < 0)
 				break;
+
+			/* simple hierarchies stop at the PMC level */
+			if (event->irq == 0) {
+				err = irq_domain_disconnect_hierarchy(domain->parent, virq);
+				break;
+			}
 
 			spec.fwnode = &pmc->dev->of_node->fwnode;
 			spec.param_count = 3;
@@ -2263,6 +2281,7 @@ static int tegra_pmc_irq_alloc(struct irq_domain *domain, unsigned int virq,
 			break;
 		}
 
+		/* GPIO wake events */
 		if (fwspec->param_count == 3) {
 			if (event->gpio.instance != fwspec->param[0] ||
 			    event->gpio.pin != fwspec->param[1])
