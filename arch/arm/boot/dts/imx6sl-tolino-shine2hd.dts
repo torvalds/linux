@@ -27,7 +27,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_gpio_keys>;
 
-		cover {
+		key-cover {
 			label = "Cover";
 			gpios = <&gpio5 12 GPIO_ACTIVE_LOW>;
 			linux,code = <SW_LID>;
@@ -35,19 +35,19 @@
 			wakeup-source;
 		};
 
-		fl {
+		key-fl {
 			label = "Frontlight";
 			gpios = <&gpio3 26 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_BRIGHTNESS_CYCLE>;
 		};
 
-		home {
+		key-home {
 			label = "Home";
 			gpios = <&gpio3 25 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_HOME>;
 		};
 
-		power {
+		key-power {
 			label = "Power";
 			gpios = <&gpio5 8 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_POWER>;
@@ -60,7 +60,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pinctrl_led>;
 
-		on {
+		led-0 {
 			label = "tolinoshine2hd:white:on";
 			gpios = <&gpio5 13 GPIO_ACTIVE_LOW>;
 			linux,default-trigger = "timer";

@@ -72,7 +72,6 @@
 &adc1 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_adc1>;
-	num-channels = <3>;
 	vref-supply = <&reg_vref_adc>;
 	status = "okay";
 };

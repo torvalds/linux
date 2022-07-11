@@ -1,16 +1,15 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright 2017-2022 Toradex
- *
+ * Copyright 2022 Toradex
  */
 
 /dts-v1/;
 #include "imx7d-colibri-emmc.dtsi"
-#include "imx7-colibri-aster.dtsi"
+#include "imx7-colibri-iris.dtsi"
 
 / {
-	model = "Toradex Colibri iMX7D 1GB (eMMC) on Aster Carrier Board";
-	compatible = "toradex,colibri-imx7d-emmc-aster",
+	model = "Toradex Colibri iMX7D 1GB on Iris Carrier Board";
+	compatible = "toradex,colibri-imx7d-emmc-iris",
 		     "toradex,colibri-imx7d-emmc",
 		     "toradex,colibri-imx7d",
 		     "fsl,imx7d";

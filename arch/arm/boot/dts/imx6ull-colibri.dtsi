@@ -94,7 +94,6 @@
 };
 
 &adc1 {
-	num-channels = <10>;
 	vref-supply = <&reg_module_3v3_avdd>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_adc1>;

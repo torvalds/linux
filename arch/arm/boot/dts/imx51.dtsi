@@ -114,7 +114,7 @@
 		ports = <&ipu_di0>, <&ipu_di1>;
 	};
 
-	soc {
+	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
@@ -171,7 +171,7 @@
 			};
 		};
 
-		bus@70000000 { /* AIPS1 */
+		aips1: bus@70000000 { /* AIPS1 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -460,7 +460,7 @@
 			};
 		};
 
-		bus@80000000 {	/* AIPS2 */
+		aips2: bus@80000000 {	/* AIPS2 */
 			compatible = "fsl,aips-bus", "simple-bus";
 			#address-cells = <1>;
 			#size-cells = <1>;

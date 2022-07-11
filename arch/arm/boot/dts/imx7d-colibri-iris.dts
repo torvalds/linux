@@ -1,17 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright 2016-2022 Toradex
+ * Copyright 2022 Toradex
  */
 
 /dts-v1/;
-#include "imx7s-colibri.dtsi"
-#include "imx7-colibri-eval-v3.dtsi"
+#include "imx7d-colibri.dtsi"
+#include "imx7-colibri-iris.dtsi"
 
 / {
-	model = "Toradex Colibri iMX7S on Colibri Evaluation Board V3";
-	compatible = "toradex,colibri-imx7s-eval-v3",
-		     "toradex,colibri-imx7s",
-		     "fsl,imx7s";
+	model = "Toradex Colibri iMX7D on Iris Carrier Board";
+	compatible = "toradex,colibri-imx7d-iris",
+		     "toradex,colibri-imx7d",
+		     "fsl,imx7d";
 };
 
 &ad7879_ts {
@@ -47,5 +47,10 @@
 /* Colibri PWM<C> */
 &pwm3 {
 	/* The pwm3 should be disabled to enable atmel_mxt_ts touchscreen for adapter. */
+	status = "okay";
+};
+
+/* Colibri USBH */
+&usbotg2 {
 	status = "okay";
 };

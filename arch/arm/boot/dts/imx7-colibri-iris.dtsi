@@ -1,16 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later OR MIT
 /*
- * Copyright 2016-2022 Toradex
+ * Copyright 2022 Toradex
  */
-
-/ {
-	/* Fixed crystal dedicated to MCP2515. */
-	clk16m: clk16m {
-		compatible = "fixed-clock";
-		#clock-cells = <0>;
-		clock-frequency = <16000000>;
-	};
-};
 
 /* Colibri AD0 to AD3 */
 &adc1 {
@@ -26,30 +17,37 @@
 	interrupts = <9 IRQ_TYPE_EDGE_FALLING>;		/* SODIMM 28 / INT */
 	pinctrl-0 = <&pinctrl_atmel_adapter>;
 	reset-gpios = <&gpio1 10 GPIO_ACTIVE_LOW>;	/* SODIMM 30 / RST */
-	status = "disabled";
 };
 
 /* Colibri SSP */
 &ecspi3 {
 	status = "okay";
-
-	mcp2515: can@0 {
-		clocks = <&clk16m>;
-		compatible = "microchip,mcp2515";
-		interrupt-parent = <&gpio5>;
-		interrupts = <2 IRQ_TYPE_EDGE_FALLING>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&pinctrl_can_int>;
-		reg = <0>;
-		spi-max-frequency = <10000000>;
-		vdd-supply = <&reg_3v3>;
-		xceiver-supply = <&reg_5v0>;
-	};
 };
 
 /* Colibri Fast Ethernet */
 &fec1 {
 	status = "okay";
+};
+
+&gpio2 {
+	/*
+	 * uart25 turns the UART transceiver for UART2 and 5 on. If one wants to turn the
+	 * transceiver off, that property has to be deleted and the gpio handled in userspace.
+	 * The same applies to uart1_tx_on where the UART1 transceiver is turned on.
+	 */
+	uart25-tx-on-hog {
+		gpio-hog;
+		gpios = <27 GPIO_ACTIVE_HIGH>; /* SODIMM 104 */
+		output-high;
+	};
+};
+
+&gpio5 {
+	uart1-tx-on-hog {
+		gpio-hog;
+		gpios = <17 GPIO_ACTIVE_HIGH>; /* SODIMM 102 */
+		output-high;
+	};
 };
 
 /* Colibri I2C: I2C3_SDA/SCL on SODIMM 194/196 */
