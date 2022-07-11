@@ -236,8 +236,6 @@ static int *MV300_reg = MV300_reg_8bit;
 #endif /* ATAFB_EXT */
 
 
-static int inverse;
-
 /*
  * struct fb_ops {
  *	* open/release and usage marking
@@ -2971,7 +2969,7 @@ static int __init atafb_setup(char *options)
 			default_par = temp;
 			mode_option = this_opt;
 		} else if (!strcmp(this_opt, "inverse"))
-			inverse = 1;
+			fb_invert_cmaps();
 		else if (!strncmp(this_opt, "hwscroll_", 9)) {
 			hwscroll = simple_strtoul(this_opt + 9, NULL, 10);
 			if (hwscroll < 0)
