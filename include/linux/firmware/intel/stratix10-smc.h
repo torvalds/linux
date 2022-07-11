@@ -404,6 +404,31 @@ INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_FPGA_CONFIG_COMPLETED_WRITE)
 	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_RSU_MAX_RETRY)
 
 /**
+ * Request INTEL_SIP_SMC_SERVICE_COMPLETED
+ * Sync call to check if the secure world have completed service request
+ * or not.
+ *
+ * Call register usage:
+ * a0: INTEL_SIP_SMC_SERVICE_COMPLETED
+ * a1: this register is optional. If used, it is the physical address for
+ *     secure firmware to put output data
+ * a2: this register is optional. If used, it is the size of output data
+ * a3-a7: not used
+ *
+ * Return status:
+ * a0: INTEL_SIP_SMC_STATUS_OK, INTEL_SIP_SMC_STATUS_ERROR,
+ *     INTEL_SIP_SMC_REJECTED or INTEL_SIP_SMC_STATUS_BUSY
+ * a1: mailbox error if a0 is INTEL_SIP_SMC_STATUS_ERROR
+ * a2: physical address containing the process info
+ *     for FCS certificate -- the data contains the certificate status
+ *     for FCS cryption -- the data contains the actual data size FW processes
+ * a3: output data size
+ */
+#define INTEL_SIP_SMC_FUNCID_SERVICE_COMPLETED 30
+#define INTEL_SIP_SMC_SERVICE_COMPLETED \
+	INTEL_SIP_SMC_FAST_CALL_VAL(INTEL_SIP_SMC_FUNCID_SERVICE_COMPLETED)
+
+/**
  * Request INTEL_SIP_SMC_FIRMWARE_VERSION
  *
  * Sync call used to query the version of running firmware
