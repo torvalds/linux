@@ -4830,22 +4830,20 @@ static int __init mlxplat_init(void)
 	nr = (nr == mlxplat_max_adap_num) ? -1 : nr;
 	if (mlxplat_i2c)
 		mlxplat_i2c->regmap = priv->regmap;
-	priv->pdev_i2c = platform_device_register_resndata(
-					&mlxplat_dev->dev, "i2c_mlxcpld",
-					nr, mlxplat_mlxcpld_resources,
-					ARRAY_SIZE(mlxplat_mlxcpld_resources),
-					mlxplat_i2c, sizeof(*mlxplat_i2c));
+	priv->pdev_i2c = platform_device_register_resndata(&mlxplat_dev->dev, "i2c_mlxcpld",
+							   nr, mlxplat_mlxcpld_resources,
+							   ARRAY_SIZE(mlxplat_mlxcpld_resources),
+							   mlxplat_i2c, sizeof(*mlxplat_i2c));
 	if (IS_ERR(priv->pdev_i2c)) {
 		err = PTR_ERR(priv->pdev_i2c);
 		goto fail_alloc;
 	}
 
 	for (i = 0; i < mlxplat_mux_num; i++) {
-		priv->pdev_mux[i] = platform_device_register_resndata(
-						&priv->pdev_i2c->dev,
-						"i2c-mux-reg", i, NULL,
-						0, &mlxplat_mux_data[i],
-						sizeof(mlxplat_mux_data[i]));
+		priv->pdev_mux[i] = platform_device_register_resndata(&priv->pdev_i2c->dev,
+								      "i2c-mux-reg", i, NULL, 0,
+								      &mlxplat_mux_data[i],
+								      sizeof(mlxplat_mux_data[i]));
 		if (IS_ERR(priv->pdev_mux[i])) {
 			err = PTR_ERR(priv->pdev_mux[i]);
 			goto fail_platform_mux_register;
@@ -4906,11 +4904,10 @@ static int __init mlxplat_init(void)
 	/* Add FAN driver. */
 	if (mlxplat_fan) {
 		mlxplat_fan->regmap = priv->regmap;
-		priv->pdev_fan = platform_device_register_resndata(
-					&mlxplat_dev->dev, "mlxreg-fan",
-					PLATFORM_DEVID_NONE, NULL, 0,
-					mlxplat_fan,
-					sizeof(*mlxplat_fan));
+		priv->pdev_fan = platform_device_register_resndata(&mlxplat_dev->dev, "mlxreg-fan",
+								   PLATFORM_DEVID_NONE, NULL, 0,
+								   mlxplat_fan,
+								   sizeof(*mlxplat_fan));
 		if (IS_ERR(priv->pdev_fan)) {
 			err = PTR_ERR(priv->pdev_fan);
 			goto fail_platform_io_regs_register;
@@ -4924,11 +4921,10 @@ static int __init mlxplat_init(void)
 	for (j = 0; j < MLXPLAT_CPLD_WD_MAX_DEVS; j++) {
 		if (mlxplat_wd_data[j]) {
 			mlxplat_wd_data[j]->regmap = priv->regmap;
-			priv->pdev_wd[j] = platform_device_register_resndata(
-						&mlxplat_dev->dev, "mlx-wdt",
-						j, NULL, 0,
-						mlxplat_wd_data[j],
-						sizeof(*mlxplat_wd_data[j]));
+			priv->pdev_wd[j] =
+				platform_device_register_resndata(&mlxplat_dev->dev, "mlx-wdt", j,
+								  NULL, 0, mlxplat_wd_data[j],
+								  sizeof(*mlxplat_wd_data[j]));
 			if (IS_ERR(priv->pdev_wd[j])) {
 				err = PTR_ERR(priv->pdev_wd[j]);
 				goto fail_platform_wd_register;
