@@ -670,6 +670,19 @@
 				 <&ipmmu_ds0 30>, <&ipmmu_ds0 31>;
 		};
 
+		mmc0: mmc@ee140000 {
+			compatible = "renesas,sdhi-r8a779f0",
+				     "renesas,rcar-gen4-sdhi";
+			reg = <0 0xee140000 0 0x2000>;
+			interrupts = <GIC_SPI 236 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&cpg CPG_MOD 706>, <&cpg CPG_CORE R8A779F0_CLK_SD0H>;
+			clock-names = "core", "clkh";
+			power-domains = <&sysc R8A779F0_PD_ALWAYS_ON>;
+			resets = <&cpg 706>;
+			max-frequency = <200000000>;
+			status = "disabled";
+		};
+
 		ipmmu_rt0: iommu@ee480000 {
 			compatible = "renesas,ipmmu-r8a779f0",
 				     "renesas,rcar-gen4-ipmmu-vmsa";
