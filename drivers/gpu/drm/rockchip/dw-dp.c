@@ -2023,6 +2023,9 @@ static int dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 	if (dp->split_mode)
 		drm_mode_convert_to_origin_mode(&m);
 
+	if (m.hsync_end - m.hsync_start <= 8)
+		return MODE_HSYNC_NARROW;
+
 	if (info->color_formats & DRM_COLOR_FORMAT_YCRCB420 &&
 	    link->vsc_sdp_extension_for_colorimetry_supported &&
 	    (drm_mode_is_420_only(info, &m) || drm_mode_is_420_also(info, &m)))
@@ -2037,9 +2040,6 @@ static int dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 	if (!link->vsc_sdp_extension_for_colorimetry_supported &&
 	    drm_mode_is_420_only(info, &m))
 		return MODE_NO_420;
-
-	if (m.hsync_end - m.hsync_start < 32)
-		return MODE_HSYNC_NARROW;
 
 	if (!dw_dp_bandwidth_ok(dp, &m, min_bpp, link->lanes, link->rate))
 		return MODE_CLOCK_HIGH;
