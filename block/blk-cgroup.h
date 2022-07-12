@@ -430,12 +430,8 @@ static inline int blkcg_unuse_delay(struct blkcg_gq *blkg)
 	 * then check to see if we were the last delay so we can drop the
 	 * congestion count on the cgroup.
 	 */
-	while (old) {
-		int cur = atomic_cmpxchg(&blkg->use_delay, old, old - 1);
-		if (cur == old)
-			break;
-		old = cur;
-	}
+	while (old && !atomic_try_cmpxchg(&blkg->use_delay, &old, old - 1))
+		;
 
 	if (old == 0)
 		return 0;
@@ -458,7 +454,7 @@ static inline void blkcg_set_delay(struct blkcg_gq *blkg, u64 delay)
 	int old = atomic_read(&blkg->use_delay);
 
 	/* We only want 1 person setting the congestion count for this blkg. */
-	if (!old && atomic_cmpxchg(&blkg->use_delay, old, -1) == old)
+	if (!old && atomic_try_cmpxchg(&blkg->use_delay, &old, -1))
 		atomic_inc(&blkg->blkcg->css.cgroup->congestion_count);
 
 	atomic64_set(&blkg->delay_nsec, delay);
@@ -475,7 +471,7 @@ static inline void blkcg_clear_delay(struct blkcg_gq *blkg)
 	int old = atomic_read(&blkg->use_delay);
 
 	/* We only want 1 person clearing the congestion count for this blkg. */
-	if (old && atomic_cmpxchg(&blkg->use_delay, old, 0) == old)
+	if (old && atomic_try_cmpxchg(&blkg->use_delay, &old, 0))
 		atomic_dec(&blkg->blkcg->css.cgroup->congestion_count);
 }
 
