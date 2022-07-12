@@ -410,7 +410,7 @@
 		};
 
 		timer: timer@13050000 {
-			compatible = "starfive,si5-timers";
+			compatible = "starfive,timers";
 			reg = <0x0 0x13050000 0x0 0x10000>;
 			interrupts = <69>, <70>, <71> ,<72>;
 			interrupt-names = "timer0", "timer1",
@@ -422,6 +422,13 @@
 				 <&clkgen JH7110_TIMER_CLK_APB>;
 			clock-names = "timer0", "timer1",
 				      "timer2", "timer3", "apb_clk";
+			resets = <&rstgen RSTN_U0_TIMER_TIMER0>,
+				 <&rstgen RSTN_U0_TIMER_TIMER1>,
+				 <&rstgen RSTN_U0_TIMER_TIMER2>,
+				 <&rstgen RSTN_U0_TIMER_TIMER3>,
+				 <&rstgen RSTN_U0_TIMER_APB>;
+			reset-names = "timer0", "timer1",
+				      "timer2", "timer3", "apb_rst";
 			clock-frequency = <24000000>;
 			status = "okay";
 		};

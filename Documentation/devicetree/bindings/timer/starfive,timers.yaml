@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/timer/starfive,timers.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: StarFive timers bindings
+
+maintainers:
+  - samin.guo <samin.guo@starfivetech.com>
+  - xingyu.wu <xingyu.wu@starfivetech.com>
+
+properties:
+  compatible:
+    const: starfive,timers
+
+  reg:
+    maxItems: 1
+
+  interrupts:
+    items:
+      - description: timer channel 0 interrupt
+      - description: timer channel 1 interrupt
+      - description: timer channel 2 interrupt
+      - description: timer channel 3 interrupt
+      
+  interrupt-names:
+    items:
+      - const: timer0
+      - const: timer1
+      - const: timer2
+      - const: timer3
+
+  clocks:
+    items:
+      - description: timer0 clock
+      - description: timer1 clock
+      - description: timer2 clock
+      - description: timer3 clock
+      - description: APB clock
+
+  clock-names:
+    items:
+      - const: timer0
+      - const: timer1
+      - const: timer2
+      - const: timer3
+      - const: apb_clk
+
+required:
+  - compatible
+  - reg
+  - interrupts
+  - interrupt-names
+  - clocks
+  - clock-names
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
+
+    timer0: timer@15200000 {
+            compatible = "starfive,timers";
+            reg = <0x15200000 0x10000>;
+            interrupts = <85>, <86>, <87> ,<88>;
+            interrupt-names = "timer0", "timer1", "timer2", "timer3";
+            clocks = <&clkgen JH7110_TIMER_CLK_TIMER0>,
+                     <&clkgen JH7110_TIMER_CLK_TIMER1>,
+                     <&clkgen JH7110_TIMER_CLK_TIMER2>,
+                     <&clkgen JH7110_TIMER_CLK_TIMER3>,
+                     <&clkgen JH7110_TIMER_CLK_APB>;
+            clock-names = "timer0", "timer1",
+                          "timer2", "timer3", "apb_clk";
+    };
+

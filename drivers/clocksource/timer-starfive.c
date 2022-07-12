@@ -20,6 +20,7 @@
 #include <linux/of_irq.h>
 #include <linux/sched_clock.h>
 #include <linux/module.h>
+#include <linux/reset.h>
 #include "timer-starfive.h"
 
 #define CLOCK_SOURCE_RATE	200
@@ -339,6 +340,8 @@ static int __init do_starfive_timer_of_init(struct device_node *np,
 	const char *name = NULL;
 	struct clk *clk;
 	struct clk *pclk;
+	struct reset_control *prst;
+	struct reset_control *rst;
 	struct starfive_clkevt *clkevt;
 	void __iomem *base;
 
@@ -356,6 +359,12 @@ static int __init do_starfive_timer_of_init(struct device_node *np,
 		if (clk_prepare_enable(pclk))
 			pr_warn("pclk for %pOFn is present,"
 				"but could not be activated\n", np);
+
+	prst = of_reset_control_get(np, "apb_rst");
+	if (!IS_ERR(prst)) {
+		reset_control_assert(prst);
+		reset_control_deassert(prst);
+	}
 
 	count = of_irq_count(np);
 	if (count > NR_TIMERS || count <= 0) {
@@ -388,20 +397,30 @@ static int __init do_starfive_timer_of_init(struct device_node *np,
 					"but could not be activated\n", np);
 		}
 
+		rst = of_reset_control_get(np, name);
+		if (!IS_ERR(rst)) {
+			clkevt->rst = rst;
+			reset_control_assert(rst);
+			reset_control_deassert(rst);
+		}
+
 		irq = irq_of_parse_and_map(np, index);
 		if (irq < 0) {
 			ret = -EINVAL;
 			goto irq_err;
 		}
 
-		ret = starfive_clockevents_register(clkevt, irq, np, name);
+		snprintf(clkevt->name, sizeof(clkevt->name), "%s.ch%d",
+					np->full_name, index);
+
+		ret = starfive_clockevents_register(clkevt, irq, np, clkevt->name);
 		if (ret) {
-			pr_err("%s: init clockevents failed.\n", name);
+			pr_err("%s: init clockevents failed.\n", clkevt->name);
 			goto register_err;
 		}
 		clkevt->irq = irq;
 
-		ret = starfive_clocksource_init(clkevt, name, np);
+		ret = starfive_clocksource_init(clkevt, clkevt->name, np);
 		if (ret)
 			goto init_err;
 	}
@@ -414,6 +433,10 @@ init_err:
 register_err:
 	free_irq(clkevt->irq, &clkevt->evt);
 irq_err:
+	if (!clkevt->rst) {
+		reset_control_assert(clkevt->rst);
+		reset_control_put(clkevt->rst);
+	}
 	if (!clkevt->clk) {
 		clk_disable_unprepare(clkevt->clk);
 		clk_put(clkevt->clk);
@@ -435,8 +458,7 @@ static int __init starfive_timer_of_init(struct device_node *np)
 {
 	return do_starfive_timer_of_init(np, &jh7110_starfive_timer);
 }
-TIMER_OF_DECLARE(starfive_timer, "starfive,si5-timers",
-			starfive_timer_of_init);
+TIMER_OF_DECLARE(starfive_timer, "starfive,timers", starfive_timer_of_init);
 
 MODULE_AUTHOR("xingyu.wu <xingyu.wu@starfivetech.com>");
 MODULE_AUTHOR("samin.guo <samin.guo@starfivetech.com>");
