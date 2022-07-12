@@ -117,6 +117,12 @@
 #define MMU_RANGE_INV_ASID_EN_SHIFT		1
 #define MMU_RANGE_INV_ASID_SHIFT		2
 
+/* The last SPI_SEI cause bit, "burst_fifo_full", is expected to be triggered in PMMU because it has
+ * a 2 entries FIFO, and hence it is not enabled for it.
+ */
+#define GAUDI2_PMMU_SPI_SEI_ENABLE_MASK		GENMASK(GAUDI2_NUM_OF_MMU_SPI_SEI_CAUSE - 2, 0)
+#define GAUDI2_HMMU_SPI_SEI_ENABLE_MASK		GENMASK(GAUDI2_NUM_OF_MMU_SPI_SEI_CAUSE - 1, 0)
+
 #define GAUDI2_MAX_STRING_LEN			64
 
 #define GAUDI2_VDEC_MSIX_ENTRIES		(GAUDI2_IRQ_NUM_SHARED_DEC1_ABNRM - \
@@ -4956,8 +4962,7 @@ static int gaudi2_mmu_update_hop0_addr(struct hl_device *hdev, u32 stlb_base)
 	return 0;
 }
 
-static int gaudi2_mmu_init_common(struct hl_device *hdev, u32 mmu_base,
-					u32 stlb_base)
+static int gaudi2_mmu_init_common(struct hl_device *hdev, u32 mmu_base, u32 stlb_base)
 {
 	u32 status, timeout_usec;
 	int rc;
@@ -4985,7 +4990,6 @@ static int gaudi2_mmu_init_common(struct hl_device *hdev, u32 mmu_base,
 		return rc;
 
 	WREG32(mmu_base + MMU_BYPASS_OFFSET, 0);
-	WREG32(mmu_base + MMU_SPI_SEI_MASK_OFFSET, 0xF);
 
 	rc = hl_poll_timeout(
 		hdev,
@@ -5042,6 +5046,8 @@ static int gaudi2_pci_mmu_init(struct hl_device *hdev)
 			DCORE0_HMMU0_MMU_STATIC_MULTI_PAGE_SIZE_CFG_8_BITS_HOP_MODE_EN_MASK);
 	}
 
+	WREG32(mmu_base + MMU_SPI_SEI_MASK_OFFSET, GAUDI2_PMMU_SPI_SEI_ENABLE_MASK);
+
 	rc = gaudi2_mmu_init_common(hdev, mmu_base, stlb_base);
 	if (rc)
 		return rc;
@@ -5091,6 +5097,8 @@ static int gaudi2_dcore_hmmu_init(struct hl_device *hdev, int dcore_id,
 
 	RMWREG32(stlb_base + STLB_HOP_CONFIGURATION_OFFSET, 1,
 			STLB_HOP_CONFIGURATION_ONLY_LARGE_PAGE_MASK);
+
+	WREG32(mmu_base + MMU_SPI_SEI_MASK_OFFSET, GAUDI2_HMMU_SPI_SEI_ENABLE_MASK);
 
 	rc = gaudi2_mmu_init_common(hdev, mmu_base, stlb_base);
 	if (rc)
