@@ -13,7 +13,8 @@
 #define _TRACE_INTEL_IOMMU_H
 
 #include <linux/tracepoint.h>
-#include <linux/intel-iommu.h>
+
+#include "iommu.h"
 
 #define MSG_MAX		256
 

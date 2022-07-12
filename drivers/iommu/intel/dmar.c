@@ -19,7 +19,6 @@
 #include <linux/pci.h>
 #include <linux/dmar.h>
 #include <linux/iova.h>
-#include <linux/intel-iommu.h>
 #include <linux/timer.h>
 #include <linux/irq.h>
 #include <linux/interrupt.h>
@@ -31,6 +30,7 @@
 #include <linux/limits.h>
 #include <asm/irq_remapping.h>
 
+#include "iommu.h"
 #include "../irq_remapping.h"
 #include "perf.h"
 #include "trace.h"
