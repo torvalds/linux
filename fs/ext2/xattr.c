@@ -522,17 +522,18 @@ bad_block:
 		lock_buffer(bh);
 		if (header->h_refcount == cpu_to_le32(1)) {
 			__u32 hash = le32_to_cpu(header->h_hash);
+			struct mb_cache_entry *oe;
 
-			ea_bdebug(bh, "modifying in-place");
+			oe = mb_cache_entry_delete_or_get(EA_BLOCK_CACHE(inode),
+					hash, bh->b_blocknr);
+			if (!oe) {
+				ea_bdebug(bh, "modifying in-place");
+				goto update_block;
+			}
 			/*
-			 * This must happen under buffer lock for
-			 * ext2_xattr_set2() to reliably detect modified block
+			 * Someone is trying to reuse the block, leave it alone
 			 */
-			mb_cache_entry_delete(EA_BLOCK_CACHE(inode), hash,
-					      bh->b_blocknr);
-
-			/* keep the buffer locked while modifying it. */
-			goto update_block;
+			mb_cache_entry_put(EA_BLOCK_CACHE(inode), oe);
 		}
 		unlock_buffer(bh);
 		ea_bdebug(bh, "cloning");
@@ -656,16 +657,29 @@ static void ext2_xattr_release_block(struct inode *inode,
 {
 	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(inode);
 
+retry_ref:
 	lock_buffer(bh);
 	if (HDR(bh)->h_refcount == cpu_to_le32(1)) {
 		__u32 hash = le32_to_cpu(HDR(bh)->h_hash);
+		struct mb_cache_entry *oe;
 
 		/*
-		 * This must happen under buffer lock for
-		 * ext2_xattr_set2() to reliably detect freed block
+		 * This must happen under buffer lock to properly
+		 * serialize with ext2_xattr_set() reusing the block.
 		 */
-		mb_cache_entry_delete(ea_block_cache, hash,
-				      bh->b_blocknr);
+		oe = mb_cache_entry_delete_or_get(ea_block_cache, hash,
+						  bh->b_blocknr);
+		if (oe) {
+			/*
+			 * Someone is trying to reuse the block. Wait
+			 * and retry.
+			 */
+			unlock_buffer(bh);
+			mb_cache_entry_wait_unused(oe);
+			mb_cache_entry_put(ea_block_cache, oe);
+			goto retry_ref;
+		}
+
 		/* Free the old block. */
 		ea_bdebug(bh, "freeing");
 		ext2_free_blocks(inode, bh->b_blocknr, 1);
@@ -929,7 +943,7 @@ ext2_xattr_cache_find(struct inode *inode, struct ext2_xattr_header *header)
 	if (!header->h_hash)
 		return NULL;  /* never share */
 	ea_idebug(inode, "looking for cached blocks [%x]", (int)hash);
-again:
+
 	ce = mb_cache_entry_find_first(ea_block_cache, hash);
 	while (ce) {
 		struct buffer_head *bh;
@@ -941,22 +955,8 @@ again:
 				inode->i_ino, (unsigned long) ce->e_value);
 		} else {
 			lock_buffer(bh);
-			/*
-			 * We have to be careful about races with freeing or
-			 * rehashing of xattr block. Once we hold buffer lock
-			 * xattr block's state is stable so we can check
-			 * whether the block got freed / rehashed or not.
-			 * Since we unhash mbcache entry under buffer lock when
-			 * freeing / rehashing xattr block, checking whether
-			 * entry is still hashed is reliable.
-			 */
-			if (hlist_bl_unhashed(&ce->e_hash_list)) {
-				mb_cache_entry_put(ea_block_cache, ce);
-				unlock_buffer(bh);
-				brelse(bh);
-				goto again;
-			} else if (le32_to_cpu(HDR(bh)->h_refcount) >
-				   EXT2_XATTR_REFCOUNT_MAX) {
+			if (le32_to_cpu(HDR(bh)->h_refcount) >
+			    EXT2_XATTR_REFCOUNT_MAX) {
 				ea_idebug(inode, "block %ld refcount %d>%d",
 					  (unsigned long) ce->e_value,
 					  le32_to_cpu(HDR(bh)->h_refcount),
