@@ -136,7 +136,7 @@ static int amd_sfh_dis_sts_v2(struct amd_mp2_dev *privdata)
 		      SENSOR_DISCOVERY_STATUS_MASK) >> SENSOR_DISCOVERY_STATUS_SHIFT;
 }
 
-void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info)
+static void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info info)
 {
 	union sfh_cmd_param cmd_param;
 	union sfh_cmd_base cmd_base;
@@ -157,7 +157,7 @@ void amd_start_sensor(struct amd_mp2_dev *privdata, struct amd_mp2_sensor_info i
 	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG0);
 }
 
-void amd_stop_sensor(struct amd_mp2_dev *privdata, u16 sensor_idx)
+static void amd_stop_sensor(struct amd_mp2_dev *privdata, u16 sensor_idx)
 {
 	union sfh_cmd_base cmd_base;
 
@@ -171,7 +171,7 @@ void amd_stop_sensor(struct amd_mp2_dev *privdata, u16 sensor_idx)
 	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG0);
 }
 
-void amd_stop_all_sensors(struct amd_mp2_dev *privdata)
+static void amd_stop_all_sensors(struct amd_mp2_dev *privdata)
 {
 	union sfh_cmd_base cmd_base;
 

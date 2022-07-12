@@ -129,7 +129,7 @@ static void amd_sfh_work_buffer(struct work_struct *work)
 	schedule_delayed_work(&cli_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));
 }
 
-u32 amd_sfh_wait_for_response(struct amd_mp2_dev *mp2, u8 sid, u32 sensor_sts)
+static u32 amd_sfh_wait_for_response(struct amd_mp2_dev *mp2, u8 sid, u32 sensor_sts)
 {
 	if (mp2->mp2_ops->response)
 		sensor_sts = mp2->mp2_ops->response(mp2, sid, sensor_sts);
@@ -137,7 +137,7 @@ u32 amd_sfh_wait_for_response(struct amd_mp2_dev *mp2, u8 sid, u32 sensor_sts)
 	return sensor_sts;
 }
 
-const char *get_sensor_name(int idx)
+static const char *get_sensor_name(int idx)
 {
 	switch (idx) {
 	case accel_idx:
