@@ -617,6 +617,13 @@ static int hda_suspend(struct snd_sof_dev *sdev, bool runtime_suspend)
 #endif
 	int ret, j;
 
+	/*
+	 * The memory used for IMR boot loses its content in deeper than S3 state
+	 * We must not try IMR boot on next power up (as it will fail).
+	 */
+	if (sdev->system_suspend_target > SOF_SUSPEND_S3)
+		hda->skip_imr_boot = true;
+
 	hda_sdw_int_enable(sdev, false);
 
 	/* disable IPC interrupts */

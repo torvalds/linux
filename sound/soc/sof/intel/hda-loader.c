@@ -395,8 +395,7 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	struct snd_dma_buffer dmab;
 	int ret, ret1, i;
 
-	if (sdev->system_suspend_target < SOF_SUSPEND_S4 &&
-	    hda->imrboot_supported && !sdev->first_boot) {
+	if (hda->imrboot_supported && !sdev->first_boot && !hda->skip_imr_boot) {
 		dev_dbg(sdev->dev, "IMR restore supported, booting from IMR directly\n");
 		hda->boot_iteration = 0;
 		ret = hda_dsp_boot_imr(sdev);
@@ -480,11 +479,14 @@ int hda_dsp_cl_boot_firmware(struct snd_sof_dev *sdev)
 	 */
 	hda->boot_iteration = HDA_FW_BOOT_ATTEMPTS;
 	ret = hda_cl_copy_fw(sdev, hext_stream);
-	if (!ret)
+	if (!ret) {
 		dev_dbg(sdev->dev, "Firmware download successful, booting...\n");
-	else
+		hda->skip_imr_boot = false;
+	} else {
 		snd_sof_dsp_dbg_dump(sdev, "Firmware download failed",
 				     SOF_DBG_DUMP_PCI | SOF_DBG_DUMP_MBOX);
+		hda->skip_imr_boot = true;
+	}
 
 cleanup:
 	/*
