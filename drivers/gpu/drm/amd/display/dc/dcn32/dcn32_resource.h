@@ -99,6 +99,12 @@ bool dcn32_subvp_in_use(struct dc *dc,
 
 bool dcn32_mpo_in_use(struct dc_state *context);
 
+struct pipe_ctx *dcn32_acquire_idle_pipe_for_head_pipe_in_layer(
+		struct dc_state *state,
+		const struct resource_pool *pool,
+		struct dc_stream_state *stream,
+		struct pipe_ctx *head_pipe);
+
 void dcn32_determine_det_override(struct dc_state *context, display_e2e_pipe_params_st *pipes,
 		bool *is_pipe_split_expected, int pipe_cnt);
 

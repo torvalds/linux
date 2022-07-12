@@ -1820,11 +1820,12 @@ int dcn32_populate_dml_pipes_from_context(
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *pipe;
 	bool subvp_in_use = false, is_pipe_split_expected[MAX_PIPES];
+	int plane_count = 0;
+	struct dc_crtc_timing *timing;
 
 	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
 
 	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
-		struct dc_crtc_timing *timing;
 
 		if (!res_ctx->pipe_ctx[i].stream)
 			continue;
@@ -1876,16 +1877,39 @@ int dcn32_populate_dml_pipes_from_context(
 			}
 		}
 
-		pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
-		if (context->stream_count == 1) {
-			if (dc->debug.enable_single_display_2to1_odm_policy)
-				pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
-		}
+		/* Calculate the number of planes we have so we can determine
+		 *  whether to apply ODM 2to1 policy or not
+		 */
+		if (pipe->stream && !pipe->prev_odm_pipe &&
+				(!pipe->top_pipe || pipe->top_pipe->plane_state != pipe->plane_state))
+			++plane_count;
 
 		DC_FP_START();
 		is_pipe_split_expected[i] = dcn32_predict_pipe_split(context, pipes[i].pipe, i);
 		DC_FP_END();
 
+		pipe_cnt++;
+	}
+
+	/* Determine whether we will apply ODM 2to1 policy
+	 * Applies to single display and where the number of planes is less than 3
+	 * For 3 plane case ( 2 MPO planes ), we will not set the policy for the MPO pipes
+	 */
+	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
+		if (!res_ctx->pipe_ctx[i].stream)
+			continue;
+		pipe = &res_ctx->pipe_ctx[i];
+		timing = &pipe->stream->timing;
+
+		pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
+		res_ctx->pipe_ctx[i].stream->odm_2to1_policy_applied  = false;
+		if (context->stream_count == 1 && timing->dsc_cfg.num_slices_h != 1) {
+			if (dc->debug.enable_single_display_2to1_odm_policy) {
+				if (!((plane_count > 2) && pipe->top_pipe))
+					pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
+			}
+			res_ctx->pipe_ctx[i].stream->odm_2to1_policy_applied = true;
+		}
 		pipe_cnt++;
 	}
 
@@ -1947,7 +1971,7 @@ static struct resource_funcs dcn32_res_pool_funcs = {
 	.validate_bandwidth = dcn32_validate_bandwidth,
 	.calculate_wm_and_dlg = dcn32_calculate_wm_and_dlg,
 	.populate_dml_pipes = dcn32_populate_dml_pipes_from_context,
-	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
+	.acquire_idle_pipe_for_head_pipe_in_layer = dcn32_acquire_idle_pipe_for_head_pipe_in_layer,
 	.add_stream_to_ctx = dcn30_add_stream_to_ctx,
 	.add_dsc_to_stream_resource = dcn20_add_dsc_to_stream_resource,
 	.remove_stream_from_ctx = dcn20_remove_stream_from_ctx,
@@ -1976,7 +2000,7 @@ static bool dcn32_resource_construct(
 	uint32_t pipe_fuses = 0;
 	uint32_t num_pipes  = 4;
 
-    DC_FP_START();
+	DC_FP_START();
 
 	ctx->dc_bios->regs = &bios_regs;
 
@@ -2316,13 +2340,13 @@ static bool dcn32_resource_construct(
 		pool->base.oem_device = NULL;
 	}
 
-    DC_FP_END();
+	DC_FP_END();
 
 	return true;
 
 create_fail:
 
-    DC_FP_END();
+	DC_FP_END();
 
 	dcn32_resource_destruct(pool);
 
@@ -2345,4 +2369,109 @@ struct resource_pool *dcn32_create_resource_pool(
 	BREAK_TO_DEBUGGER();
 	kfree(pool);
 	return NULL;
+}
+
+static struct pipe_ctx *find_idle_secondary_pipe_check_mpo(
+		struct resource_context *res_ctx,
+		const struct resource_pool *pool,
+		const struct pipe_ctx *primary_pipe)
+{
+	int i;
+	struct pipe_ctx *secondary_pipe = NULL;
+	struct pipe_ctx *next_odm_mpo_pipe = NULL;
+	int primary_index, preferred_pipe_idx;
+	struct pipe_ctx *old_primary_pipe = NULL;
+
+	/*
+	 * Modified from find_idle_secondary_pipe
+	 * With windowed MPO and ODM, we want to avoid the case where we want a
+	 *  free pipe for the left side but the free pipe is being used on the
+	 *  right side.
+	 * Add check on current_state if the primary_pipe is the left side,
+	 *  to check the right side ( primary_pipe->next_odm_pipe ) to see if
+	 *  it is using a pipe for MPO ( primary_pipe->next_odm_pipe->bottom_pipe )
+	 * - If so, then don't use this pipe
+	 * EXCEPTION - 3 plane ( 2 MPO plane ) case
+	 * - in this case, the primary pipe has already gotten a free pipe for the
+	 *  MPO window in the left
+	 * - when it tries to get a free pipe for the MPO window on the right,
+	 *  it will see that it is already assigned to the right side
+	 *  ( primary_pipe->next_odm_pipe ).  But in this case, we want this
+	 *  free pipe, since it will be for the right side.  So add an
+	 *  additional condition, that skipping the free pipe on the right only
+	 *  applies if the primary pipe has no bottom pipe currently assigned
+	 */
+	if (primary_pipe) {
+		primary_index = primary_pipe->pipe_idx;
+		old_primary_pipe = &primary_pipe->stream->ctx->dc->current_state->res_ctx.pipe_ctx[primary_index];
+		if ((old_primary_pipe->next_odm_pipe) && (old_primary_pipe->next_odm_pipe->bottom_pipe)
+			&& (!primary_pipe->bottom_pipe))
+			next_odm_mpo_pipe = old_primary_pipe->next_odm_pipe->bottom_pipe;
+
+		preferred_pipe_idx = (pool->pipe_count - 1) - primary_pipe->pipe_idx;
+		if ((res_ctx->pipe_ctx[preferred_pipe_idx].stream == NULL) &&
+			!(next_odm_mpo_pipe && next_odm_mpo_pipe->pipe_idx == preferred_pipe_idx)) {
+			secondary_pipe = &res_ctx->pipe_ctx[preferred_pipe_idx];
+			secondary_pipe->pipe_idx = preferred_pipe_idx;
+		}
+	}
+
+	/*
+	 * search backwards for the second pipe to keep pipe
+	 * assignment more consistent
+	 */
+	if (!secondary_pipe)
+		for (i = pool->pipe_count - 1; i >= 0; i--) {
+			if ((res_ctx->pipe_ctx[i].stream == NULL) &&
+				!(next_odm_mpo_pipe && next_odm_mpo_pipe->pipe_idx == i)) {
+				secondary_pipe = &res_ctx->pipe_ctx[i];
+				secondary_pipe->pipe_idx = i;
+				break;
+			}
+		}
+
+	return secondary_pipe;
+}
+
+struct pipe_ctx *dcn32_acquire_idle_pipe_for_head_pipe_in_layer(
+		struct dc_state *state,
+		const struct resource_pool *pool,
+		struct dc_stream_state *stream,
+		struct pipe_ctx *head_pipe)
+{
+	struct resource_context *res_ctx = &state->res_ctx;
+	struct pipe_ctx *idle_pipe, *pipe;
+	struct resource_context *old_ctx = &stream->ctx->dc->current_state->res_ctx;
+	int head_index;
+
+	if (!head_pipe)
+		ASSERT(0);
+
+	/*
+	 * Modified from dcn20_acquire_idle_pipe_for_layer
+	 * Check if head_pipe in old_context already has bottom_pipe allocated.
+	 * - If so, check if that pipe is available in the current context.
+	 * --  If so, reuse pipe from old_context
+	 */
+	head_index = head_pipe->pipe_idx;
+	pipe = &old_ctx->pipe_ctx[head_index];
+	if (pipe->bottom_pipe && res_ctx->pipe_ctx[pipe->bottom_pipe->pipe_idx].stream == NULL) {
+		idle_pipe = &res_ctx->pipe_ctx[pipe->bottom_pipe->pipe_idx];
+		idle_pipe->pipe_idx = pipe->bottom_pipe->pipe_idx;
+	} else {
+		idle_pipe = find_idle_secondary_pipe_check_mpo(res_ctx, pool, head_pipe);
+		if (!idle_pipe)
+			return NULL;
+	}
+
+	idle_pipe->stream = head_pipe->stream;
+	idle_pipe->stream_res.tg = head_pipe->stream_res.tg;
+	idle_pipe->stream_res.opp = head_pipe->stream_res.opp;
+
+	idle_pipe->plane_res.hubp = pool->hubps[idle_pipe->pipe_idx];
+	idle_pipe->plane_res.ipp = pool->ipps[idle_pipe->pipe_idx];
+	idle_pipe->plane_res.dpp = pool->dpps[idle_pipe->pipe_idx];
+	idle_pipe->plane_res.mpcc_inst = pool->dpps[idle_pipe->pipe_idx]->inst;
+
+	return idle_pipe;
 }
