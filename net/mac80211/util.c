@@ -1714,11 +1714,28 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
+	bool multi_link = sdata->vif.valid_links;
+	struct {
+		u8 id;
+		u8 len;
+		u8 ext_id;
+		struct ieee80211_multi_link_elem ml;
+		struct ieee80211_mle_basic_common_info basic;
+	} __packed mle = {
+		.id = WLAN_EID_EXTENSION,
+		.len = sizeof(mle) - 2,
+		.ext_id = WLAN_EID_EXT_EHT_MULTI_LINK,
+		.ml.control = cpu_to_le16(IEEE80211_ML_CONTROL_TYPE_BASIC),
+		.basic.len = sizeof(mle.basic),
+	};
 	int err;
+
+	memcpy(mle.basic.mld_mac_addr, sdata->vif.addr, ETH_ALEN);
 
 	/* 24 + 6 = header + auth_algo + auth_transaction + status_code */
 	skb = dev_alloc_skb(local->hw.extra_tx_headroom + IEEE80211_WEP_IV_LEN +
-			    24 + 6 + extra_len + IEEE80211_WEP_ICV_LEN);
+			    24 + 6 + extra_len + IEEE80211_WEP_ICV_LEN +
+			    multi_link * sizeof(mle));
 	if (!skb)
 		return;
 
@@ -1735,6 +1752,8 @@ void ieee80211_send_auth(struct ieee80211_sub_if_data *sdata,
 	mgmt->u.auth.status_code = cpu_to_le16(status);
 	if (extra)
 		skb_put_data(skb, extra, extra_len);
+	if (multi_link)
+		skb_put_data(skb, &mle, sizeof(mle));
 
 	if (auth_alg == WLAN_AUTH_SHARED_KEY && transaction == 3) {
 		mgmt->frame_control |= cpu_to_le16(IEEE80211_FCTL_PROTECTED);
