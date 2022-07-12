@@ -62,6 +62,12 @@
 
 #define INVALID_PHYS_ADDR (~(phys_addr_t)0)
 
+struct io_tlb_slot {
+	phys_addr_t orig_addr;
+	size_t alloc_size;
+	unsigned int list;
+};
+
 static bool swiotlb_force_bounce;
 static bool swiotlb_force_disable;
 

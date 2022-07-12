@@ -101,11 +101,7 @@ struct io_tlb_mem {
 	unsigned int nareas;
 	unsigned int area_nslabs;
 	struct io_tlb_area *areas;
-	struct io_tlb_slot {
-		phys_addr_t orig_addr;
-		size_t alloc_size;
-		unsigned int list;
-	} *slots;
+	struct io_tlb_slot *slots;
 };
 extern struct io_tlb_mem io_tlb_default_mem;
 
