@@ -95,6 +95,8 @@ static int ip6mr_cache_report(const struct mr_table *mrt, struct sk_buff *pkt,
 static void mr6_netlink_event(struct mr_table *mrt, struct mfc6_cache *mfc,
 			      int cmd);
 static void mrt6msg_netlink_event(const struct mr_table *mrt, struct sk_buff *pkt);
+static int ip6mr_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
+			      struct netlink_ext_ack *extack);
 static int ip6mr_rtm_dumproute(struct sk_buff *skb,
 			       struct netlink_callback *cb);
 static void mroute_clean_tables(struct mr_table *mrt, int flags);
@@ -1390,7 +1392,7 @@ int __init ip6_mr_init(void)
 	}
 #endif
 	err = rtnl_register_module(THIS_MODULE, RTNL_FAMILY_IP6MR, RTM_GETROUTE,
-				   NULL, ip6mr_rtm_dumproute, 0);
+				   ip6mr_rtm_getroute, ip6mr_rtm_dumproute, 0);
 	if (err == 0)
 		return 0;
 
@@ -2508,6 +2510,95 @@ nla_put_failure:
 errout:
 	kfree_skb(skb);
 	rtnl_set_sk_err(net, RTNLGRP_IPV6_MROUTE_R, -ENOBUFS);
+}
+
+static const struct nla_policy ip6mr_getroute_policy[RTA_MAX + 1] = {
+	[RTA_SRC]		= NLA_POLICY_EXACT_LEN(sizeof(struct in6_addr)),
+	[RTA_DST]		= NLA_POLICY_EXACT_LEN(sizeof(struct in6_addr)),
+	[RTA_TABLE]		= { .type = NLA_U32 },
+};
+
+static int ip6mr_rtm_valid_getroute_req(struct sk_buff *skb,
+					const struct nlmsghdr *nlh,
+					struct nlattr **tb,
+					struct netlink_ext_ack *extack)
+{
+	struct rtmsg *rtm;
+	int err;
+
+	err = nlmsg_parse(nlh, sizeof(*rtm), tb, RTA_MAX, ip6mr_getroute_policy,
+			  extack);
+	if (err)
+		return err;
+
+	rtm = nlmsg_data(nlh);
+	if ((rtm->rtm_src_len && rtm->rtm_src_len != 128) ||
+	    (rtm->rtm_dst_len && rtm->rtm_dst_len != 128) ||
+	    rtm->rtm_tos || rtm->rtm_table || rtm->rtm_protocol ||
+	    rtm->rtm_scope || rtm->rtm_type || rtm->rtm_flags) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Invalid values in header for multicast route get request");
+		return -EINVAL;
+	}
+
+	if ((tb[RTA_SRC] && !rtm->rtm_src_len) ||
+	    (tb[RTA_DST] && !rtm->rtm_dst_len)) {
+		NL_SET_ERR_MSG_MOD(extack, "rtm_src_len and rtm_dst_len must be 128 for IPv6");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static int ip6mr_rtm_getroute(struct sk_buff *in_skb, struct nlmsghdr *nlh,
+			      struct netlink_ext_ack *extack)
+{
+	struct net *net = sock_net(in_skb->sk);
+	struct in6_addr src = {}, grp = {};
+	struct nlattr *tb[RTA_MAX + 1];
+	struct mfc6_cache *cache;
+	struct mr_table *mrt;
+	struct sk_buff *skb;
+	u32 tableid;
+	int err;
+
+	err = ip6mr_rtm_valid_getroute_req(in_skb, nlh, tb, extack);
+	if (err < 0)
+		return err;
+
+	if (tb[RTA_SRC])
+		src = nla_get_in6_addr(tb[RTA_SRC]);
+	if (tb[RTA_DST])
+		grp = nla_get_in6_addr(tb[RTA_DST]);
+	tableid = tb[RTA_TABLE] ? nla_get_u32(tb[RTA_TABLE]) : 0;
+
+	mrt = ip6mr_get_table(net, tableid ?: RT_TABLE_DEFAULT);
+	if (!mrt) {
+		NL_SET_ERR_MSG_MOD(extack, "MR table does not exist");
+		return -ENOENT;
+	}
+
+	/* entries are added/deleted only under RTNL */
+	rcu_read_lock();
+	cache = ip6mr_cache_find(mrt, &src, &grp);
+	rcu_read_unlock();
+	if (!cache) {
+		NL_SET_ERR_MSG_MOD(extack, "MR cache entry not found");
+		return -ENOENT;
+	}
+
+	skb = nlmsg_new(mr6_msgsize(false, mrt->maxvif), GFP_KERNEL);
+	if (!skb)
+		return -ENOBUFS;
+
+	err = ip6mr_fill_mroute(mrt, skb, NETLINK_CB(in_skb).portid,
+				nlh->nlmsg_seq, cache, RTM_NEWROUTE, 0);
+	if (err < 0) {
+		kfree_skb(skb);
+		return err;
+	}
+
+	return rtnl_unicast(skb, net, NETLINK_CB(in_skb).portid);
 }
 
 static int ip6mr_rtm_dumproute(struct sk_buff *skb, struct netlink_callback *cb)
