@@ -56,7 +56,7 @@
 				 PHY_IMASK_ANC)
 
 #define PHY_FWV_REL_MASK	BIT(15)
-#define PHY_FWV_TYPE_MASK	GENMASK(11, 8)
+#define PHY_FWV_MAJOR_MASK	GENMASK(11, 8)
 #define PHY_FWV_MINOR_MASK	GENMASK(7, 0)
 
 /* SGMII */
@@ -78,12 +78,12 @@
 #define WOL_EN			BIT(0)
 
 struct gpy_priv {
-	u8 fw_type;
+	u8 fw_major;
 	u8 fw_minor;
 };
 
 static const struct {
-	int type;
+	int major;
 	int minor;
 } ver_need_sgmii_reaneg[] = {
 	{7, 0x6D},
@@ -222,7 +222,7 @@ static int gpy_probe(struct phy_device *phydev)
 	fw_version = phy_read(phydev, PHY_FWV);
 	if (fw_version < 0)
 		return fw_version;
-	priv->fw_type = FIELD_GET(PHY_FWV_TYPE_MASK, fw_version);
+	priv->fw_major = FIELD_GET(PHY_FWV_MAJOR_MASK, fw_version);
 	priv->fw_minor = FIELD_GET(PHY_FWV_MINOR_MASK, fw_version);
 
 	ret = gpy_hwmon_register(phydev);
@@ -242,7 +242,7 @@ static bool gpy_sgmii_need_reaneg(struct phy_device *phydev)
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(ver_need_sgmii_reaneg); i++) {
-		if (priv->fw_type != ver_need_sgmii_reaneg[i].type)
+		if (priv->fw_major != ver_need_sgmii_reaneg[i].major)
 			continue;
 		if (priv->fw_minor < ver_need_sgmii_reaneg[i].minor)
 			return true;
