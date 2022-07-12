@@ -167,11 +167,22 @@ static int sof_compr_set_params(struct snd_soc_component *component,
 	struct snd_soc_pcm_runtime *rtd = cstream->private_data;
 	struct snd_compr_runtime *crtd = cstream->runtime;
 	struct sof_ipc_pcm_params_reply ipc_params_reply;
+	struct sof_ipc_fw_ready *ready = &sdev->fw_ready;
+	struct sof_ipc_fw_version *v = &ready->version;
 	struct snd_compr_tstamp *tstamp;
 	struct sof_ipc_pcm_params *pcm;
 	struct snd_sof_pcm *spcm;
 	size_t ext_data_size;
 	int ret;
+
+	if (v->abi_version < SOF_ABI_VER(3, 22, 0)) {
+		dev_err(component->dev,
+			"Compress params not supported with FW ABI version %d:%d:%d\n",
+			SOF_ABI_VERSION_MAJOR(v->abi_version),
+			SOF_ABI_VERSION_MINOR(v->abi_version),
+			SOF_ABI_VERSION_PATCH(v->abi_version));
+		return -EINVAL;
+	}
 
 	tstamp = crtd->private_data;
 
