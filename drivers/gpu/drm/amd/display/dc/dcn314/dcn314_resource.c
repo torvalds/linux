@@ -1916,8 +1916,11 @@ static void dcn314_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 
 		dcn3_14_ip.max_num_otg = dc->res_pool->res_cap->num_timing_generator;
 		dcn3_14_ip.max_num_dpp = dc->res_pool->pipe_count;
-		dcn3_14_soc.num_chans = bw_params->num_channels;
 
+		if (bw_params->num_channels > 0)
+			dcn3_14_soc.num_chans = bw_params->num_channels;
+
+		ASSERT(dcn3_14_soc.num_chans);
 		ASSERT(clk_table->num_entries);
 
 		/* Prepass to find max clocks independent of voltage level. */
