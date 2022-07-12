@@ -108,5 +108,6 @@ u32 amd_sfh_wait_for_response(struct amd_mp2_dev *mp2, u8 sid, u32 sensor_sts);
 void amd_mp2_suspend(struct amd_mp2_dev *mp2);
 void amd_mp2_resume(struct amd_mp2_dev *mp2);
 const char *get_sensor_name(int idx);
+void amd_sfh_set_desc_ops(struct amd_mp2_ops *mp2_ops);
 
 #endif

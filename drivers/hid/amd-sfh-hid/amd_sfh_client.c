@@ -70,6 +70,8 @@ static void amd_sfh_work(struct work_struct *work)
 	struct amd_input_data *in_data = cli_data->in_data;
 	struct request_list *req_node;
 	u8 current_index, sensor_index;
+	struct amd_mp2_ops *mp2_ops;
+	struct amd_mp2_dev *mp2;
 	u8 report_id, node_type;
 	u8 report_size = 0;
 
@@ -81,9 +83,11 @@ static void amd_sfh_work(struct work_struct *work)
 	node_type = req_node->report_type;
 	kfree(req_node);
 
+	mp2 = container_of(in_data, struct amd_mp2_dev, in_data);
+	mp2_ops = mp2->mp2_ops;
 	if (node_type == HID_FEATURE_REPORT) {
-		report_size = get_feature_report(sensor_index, report_id,
-						 cli_data->feature_report[current_index]);
+		report_size = mp2_ops->get_feat_rep(sensor_index, report_id,
+						    cli_data->feature_report[current_index]);
 		if (report_size)
 			hid_input_report(cli_data->hid_sensor_hubs[current_index],
 					 cli_data->report_type[current_index],
@@ -92,7 +96,7 @@ static void amd_sfh_work(struct work_struct *work)
 			pr_err("AMDSFH: Invalid report size\n");
 
 	} else if (node_type == HID_INPUT_REPORT) {
-		report_size = get_input_report(current_index, sensor_index, report_id, in_data);
+		report_size = mp2_ops->get_in_rep(current_index, sensor_index, report_id, in_data);
 		if (report_size)
 			hid_input_report(cli_data->hid_sensor_hubs[current_index],
 					 cli_data->report_type[current_index],
@@ -109,13 +113,15 @@ static void amd_sfh_work_buffer(struct work_struct *work)
 {
 	struct amdtp_cl_data *cli_data = container_of(work, struct amdtp_cl_data, work_buffer.work);
 	struct amd_input_data *in_data = cli_data->in_data;
+	struct amd_mp2_dev *mp2;
 	u8 report_size;
 	int i;
 
 	for (i = 0; i < cli_data->num_hid_devices; i++) {
 		if (cli_data->sensor_sts[i] == SENSOR_ENABLED) {
-			report_size = get_input_report
-				(i, cli_data->sensor_idx[i], cli_data->report_id[i], in_data);
+			mp2 = container_of(in_data, struct amd_mp2_dev, in_data);
+			report_size = mp2->mp2_ops->get_in_rep(i, cli_data->sensor_idx[i],
+							       cli_data->report_id[i], in_data);
 			hid_input_report(cli_data->hid_sensor_hubs[i], HID_INPUT_REPORT,
 					 in_data->input_report[i], report_size, 0);
 		}
@@ -153,6 +159,7 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 {
 	struct amd_input_data *in_data = &privdata->in_data;
 	struct amdtp_cl_data *cl_data = privdata->cl_data;
+	struct amd_mp2_ops *mp2_ops = privdata->mp2_ops;
 	struct amd_mp2_sensor_info info;
 	struct request_list *req_list;
 	struct device *dev;
@@ -163,6 +170,7 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 
 	req_list = &cl_data->req_list;
 	dev = &privdata->pdev->dev;
+	amd_sfh_set_desc_ops(mp2_ops);
 
 	cl_data->num_hid_devices = amd_mp2_get_sensor_num(privdata, &cl_data->sensor_idx[0]);
 
@@ -179,17 +187,17 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 		cl_data->sensor_requested_cnt[i] = 0;
 		cl_data->cur_hid_dev = i;
 		cl_idx = cl_data->sensor_idx[i];
-		cl_data->report_descr_sz[i] = get_descr_sz(cl_idx, descr_size);
+		cl_data->report_descr_sz[i] = mp2_ops->get_desc_sz(cl_idx, descr_size);
 		if (!cl_data->report_descr_sz[i]) {
 			rc = -EINVAL;
 			goto cleanup;
 		}
-		feature_report_size = get_descr_sz(cl_idx, feature_size);
+		feature_report_size = mp2_ops->get_desc_sz(cl_idx, feature_size);
 		if (!feature_report_size) {
 			rc = -EINVAL;
 			goto cleanup;
 		}
-		input_report_size =  get_descr_sz(cl_idx, input_size);
+		input_report_size =  mp2_ops->get_desc_sz(cl_idx, input_size);
 		if (!input_report_size) {
 			rc = -EINVAL;
 			goto cleanup;
@@ -214,17 +222,17 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 			rc = -ENOMEM;
 			goto cleanup;
 		}
-		rc = get_report_descriptor(cl_idx, cl_data->report_descr[i]);
+		rc = mp2_ops->get_rep_desc(cl_idx, cl_data->report_descr[i]);
 		if (rc)
 			return rc;
-		privdata->mp2_ops->start(privdata, info);
+		mp2_ops->start(privdata, info);
 		status = amd_sfh_wait_for_response
 				(privdata, cl_data->sensor_idx[i], SENSOR_ENABLED);
 		if (status == SENSOR_ENABLED) {
 			cl_data->sensor_sts[i] = SENSOR_ENABLED;
 			rc = amdtp_hid_probe(cl_data->cur_hid_dev, cl_data);
 			if (rc) {
-				privdata->mp2_ops->stop(privdata, cl_data->sensor_idx[i]);
+				mp2_ops->stop(privdata, cl_data->sensor_idx[i]);
 				status = amd_sfh_wait_for_response
 					(privdata, cl_data->sensor_idx[i], SENSOR_DISABLED);
 				if (status != SENSOR_ENABLED)
@@ -240,8 +248,7 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 			cl_data->sensor_idx[i], get_sensor_name(cl_data->sensor_idx[i]),
 			cl_data->sensor_sts[i]);
 	}
-	if (privdata->mp2_ops->discovery_status &&
-	    privdata->mp2_ops->discovery_status(privdata) == 0) {
+	if (mp2_ops->discovery_status && mp2_ops->discovery_status(privdata) == 0) {
 		amd_sfh_hid_client_deinit(privdata);
 		for (i = 0; i < cl_data->num_hid_devices; i++) {
 			devm_kfree(dev, cl_data->feature_report[i]);

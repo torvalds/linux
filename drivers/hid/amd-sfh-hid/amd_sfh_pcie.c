@@ -244,7 +244,7 @@ static void amd_mp2_pci_remove(void *privdata)
 	amd_sfh_clear_intr(mp2);
 }
 
-static const struct amd_mp2_ops amd_sfh_ops_v2 = {
+static struct amd_mp2_ops amd_sfh_ops_v2 = {
 	.start = amd_start_sensor_v2,
 	.stop = amd_stop_sensor_v2,
 	.stop_all = amd_stop_all_sensor_v2,
@@ -254,7 +254,7 @@ static const struct amd_mp2_ops amd_sfh_ops_v2 = {
 	.discovery_status = amd_sfh_dis_sts_v2,
 };
 
-static const struct amd_mp2_ops amd_sfh_ops = {
+static struct amd_mp2_ops amd_sfh_ops = {
 	.start = amd_start_sensor,
 	.stop = amd_stop_sensor,
 	.stop_all = amd_stop_all_sensors,

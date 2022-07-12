@@ -40,7 +40,7 @@ struct amd_mp2_dev {
 	struct pci_dev *pdev;
 	struct amdtp_cl_data *cl_data;
 	void __iomem *mmio;
-	const struct amd_mp2_ops *mp2_ops;
+	struct amd_mp2_ops *mp2_ops;
 	struct amd_input_data in_data;
 	/* mp2 active control status */
 	u32 mp2_acs;
@@ -54,6 +54,11 @@ struct amd_mp2_ops {
 	void (*clear_intr)(struct amd_mp2_dev *privdata);
 	int (*init_intr)(struct amd_mp2_dev *privdata);
 	int (*discovery_status)(struct amd_mp2_dev *privdata);
+	int (*get_rep_desc)(int sensor_idx, u8 rep_desc[]);
+	u32 (*get_desc_sz)(int sensor_idx, int descriptor_name);
+	u8 (*get_feat_rep)(int sensor_idx, int report_id, u8 *feature_report);
+	u8 (*get_in_rep)(u8 current_index, int sensor_idx, int report_id,
+			 struct amd_input_data *in_data);
 };
 
 #endif

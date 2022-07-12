@@ -79,6 +79,4 @@ void amdtp_hid_remove(struct amdtp_cl_data *cli_data);
 int amd_sfh_get_report(struct hid_device *hid, int report_id, int report_type);
 void amd_sfh_set_report(struct hid_device *hid, int report_id, int report_type);
 void amdtp_hid_wakeup(struct hid_device *hid);
-u8 get_input_report(u8 current_index, int sensor_idx, int report_id,
-		    struct amd_input_data *in_data);
 #endif
