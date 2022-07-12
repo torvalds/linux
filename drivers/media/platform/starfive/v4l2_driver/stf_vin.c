@@ -1369,7 +1369,7 @@ int stf_vin_register(struct stf_vin2_dev *vin_dev, struct v4l2_device *v4l2_dev)
 		sd->internal_ops = &vin_v4l2_internal_ops;
 		sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 		snprintf(sd->name, ARRAY_SIZE(sd->name), "%s%d_%s",
-			STF_VIN_NAME, vin_dev->id, sub_name);
+			STF_VIN_NAME, 0, sub_name);
 		v4l2_set_subdevdata(sd, &vin_dev->line[i]);
 
 		ret = vin_init_formats(sd, NULL);

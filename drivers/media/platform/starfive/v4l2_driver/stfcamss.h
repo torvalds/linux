@@ -33,11 +33,8 @@ enum subdev_type {
 #define STF_PADS_NUM   2
 
 enum port_num {
-	CSI2RX0_PORT_NUMBER = 0,
-	CSI2RX1_PORT_NUMBER,
-	DVP_SENSOR_PORT_NUMBER,
-	CSI2RX0_SENSOR_PORT_NUMBER,
-	CSI2RX1_SENSOR_PORT_NUMBER
+	DVP_SENSOR_PORT_NUMBER = 0,
+	CSI2RX_SENSOR_PORT_NUMBER
 };
 
 enum stf_clk_num {
@@ -87,9 +84,7 @@ struct stfcamss {
 	struct device *dev;
 	struct stf_vin2_dev *vin_dev;  // subdev
 	struct stf_dvp_dev *dvp_dev;   // subdev
-	int csi_num;
 	struct stf_csi_dev *csi_dev;   // subdev
-	int csiphy_num;
 	struct stf_csiphy_dev *csiphy_dev;   // subdev
 	struct stf_isp_dev *isp_dev;   // subdev
 	struct v4l2_async_notifier notifier;

@@ -19,12 +19,10 @@ static const struct csiphy_format csiphy_formats_st7110[] = {
 	{ MEDIA_BUS_FMT_SBGGR10_1X10, 10},
 };
 
-int stf_csiphy_subdev_init(struct stfcamss *stfcamss, int id)
+int stf_csiphy_subdev_init(struct stfcamss *stfcamss)
 {
-	struct stf_csiphy_dev *csiphy_dev = &stfcamss->csiphy_dev[id];
+	struct stf_csiphy_dev *csiphy_dev = stfcamss->csiphy_dev;
 
-	csiphy_dev->id = id;
-	csiphy_dev->csi_id = id;
 	csiphy_dev->hw_ops = &csiphy_ops;
 	csiphy_dev->stfcamss = stfcamss;
 	csiphy_dev->formats = csiphy_formats_st7110;
@@ -35,12 +33,6 @@ int stf_csiphy_subdev_init(struct stfcamss *stfcamss, int id)
 
 static int csiphy_set_power(struct v4l2_subdev *sd, int on)
 {
-#ifdef CONFIG_VIDEO_CADENCE_CSI2RX
-	struct stf_csiphy_dev *csiphy_dev = v4l2_get_subdevdata(sd);
-
-	if (on)
-		csiphy_dev->hw_ops->cdns_csi_power(csiphy_dev, on);
-#endif
 	return 0;
 }
 
@@ -68,10 +60,6 @@ static int csiphy_set_stream(struct v4l2_subdev *sd, int enable)
 exit:
 	mutex_unlock(&csiphy_dev->stream_lock);
 
-#ifdef CONFIG_VIDEO_CADENCE_CSI2RX
-	if (!enable)
-		csiphy_dev->hw_ops->cdns_csi_power(csiphy_dev, enable);
-#endif
 	return 0;
 }
 
@@ -278,9 +266,7 @@ static int csiphy_link_setup(struct media_entity *entity,
 
 		sd = media_entity_to_v4l2_subdev(remote->entity);
 		csi_dev = v4l2_get_subdevdata(sd);
-		csiphy_dev->csi_id = csi_dev->id;
-		st_info(ST_CSIPHY, "CSIPHY%d link to CSI%d\n",
-				csiphy_dev->id, csiphy_dev->csi_id);
+		st_info(ST_CSIPHY, "CSIPHY0 link to CSI0\n");
 	}
 
 	return 0;
@@ -328,7 +314,7 @@ int stf_csiphy_register(struct stf_csiphy_dev *csiphy_dev,
 	sd->internal_ops = &csiphy_v4l2_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	snprintf(sd->name, ARRAY_SIZE(sd->name), "%s%d",
-		STF_CSIPHY_NAME, csiphy_dev->id);
+		STF_CSIPHY_NAME, 0);
 	v4l2_set_subdevdata(sd, csiphy_dev);
 
 	ret = csiphy_init_formats(sd, NULL);
@@ -348,20 +334,11 @@ int stf_csiphy_register(struct stf_csiphy_dev *csiphy_dev,
 		return ret;
 	}
 
-#ifndef CONFIG_VIDEO_CADENCE_CSI2RX
 	ret = v4l2_device_register_subdev(v4l2_dev, sd);
 	if (ret < 0) {
 		dev_err(dev, "Failed to register subdev: %d\n", ret);
 		goto err_sreg;
 	}
-#else
-	sd->dev = dev;
-	ret = v4l2_async_register_subdev(sd);
-	if (ret < 0) {
-		dev_err(dev, "Failed to async register subdev: %d\n", ret);
-		goto err_sreg;
-	}
-#endif
 
 	return 0;
 

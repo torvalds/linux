@@ -339,7 +339,7 @@ int stf_dvp_register(struct stf_dvp_dev *dvp_dev,
 	sd->internal_ops = &dvp_v4l2_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 	snprintf(sd->name, ARRAY_SIZE(sd->name), "%s%d",
-		STF_DVP_NAME, dvp_dev->id);
+		STF_DVP_NAME, 0);
 	v4l2_set_subdevdata(sd, dvp_dev);
 
 	ret = dvp_init_formats(sd, NULL);

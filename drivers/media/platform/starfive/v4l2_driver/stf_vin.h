@@ -156,7 +156,6 @@ struct dummy_buffer {
 
 struct stf_vin2_dev {
 	struct stfcamss *stfcamss;
-	u8 id;
 	struct vin_line line[VIN_LINE_MAX];
 	struct dummy_buffer dummy_buffer[STF_DUMMY_MODULE_NUMS];
 	struct vin_hw_ops *hw_ops;

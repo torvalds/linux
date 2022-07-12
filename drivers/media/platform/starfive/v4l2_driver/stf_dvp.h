@@ -43,7 +43,6 @@ struct dvp_hw_ops {
 struct stf_dvp_dev {
 	struct stfcamss *stfcamss;
 	struct dvp_cfg *dvp;
-	u8 id;
 	enum sensor_type s_type;
 	struct v4l2_subdev subdev;
 	struct media_pad pads[STF_DVP_PADS_NUM];

@@ -161,16 +161,11 @@ struct csiphy_hw_ops {
 	int (*csiphy_clk_disable)(struct stf_csiphy_dev *csiphy_dev);
 	int (*csiphy_config_set)(struct stf_csiphy_dev *csiphy_dev);
 	int (*csiphy_stream_set)(struct stf_csiphy_dev *csiphy_dev, int on);
-#ifdef CONFIG_VIDEO_CADENCE_CSI2RX
-	int (*cdns_csi_power)(struct stf_csiphy_dev *csiphy_dev, int on);
-#endif
 };
 
 struct stf_csiphy_dev {
 	struct stfcamss *stfcamss;
 	struct csi2phy_cfg *csiphy;
-	u8 id;
-	u8 csi_id;
 	struct v4l2_subdev subdev;
 	struct media_pad pads[STF_CSIPHY_PADS_NUM];
 	struct v4l2_mbus_framefmt fmt[STF_CSIPHY_PADS_NUM];
@@ -181,7 +176,7 @@ struct stf_csiphy_dev {
 	int stream_count;
 };
 
-extern int stf_csiphy_subdev_init(struct stfcamss *stfcamss, int id);
+extern int stf_csiphy_subdev_init(struct stfcamss *stfcamss);
 extern int stf_csiphy_register(struct stf_csiphy_dev *csiphy_dev,
 			struct v4l2_device *v4l2_dev);
 extern int stf_csiphy_unregister(struct stf_csiphy_dev *csiphy_dev);
