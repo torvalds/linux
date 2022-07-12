@@ -1296,6 +1296,7 @@ abort:
  */
 int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs)
 {
+	struct devlink *devlink;
 	bool toggle_lag;
 	int ret;
 
@@ -1307,6 +1308,8 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs)
 	if (toggle_lag)
 		mlx5_lag_disable_change(esw->dev);
 
+	devlink = priv_to_devlink(esw->dev);
+	devl_lock(devlink);
 	down_write(&esw->mode_lock);
 	if (!mlx5_esw_is_fdb_created(esw)) {
 		ret = mlx5_eswitch_enable_locked(esw, num_vfs);
@@ -1320,6 +1323,7 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs)
 			esw->esw_funcs.num_vfs = num_vfs;
 	}
 	up_write(&esw->mode_lock);
+	devl_unlock(devlink);
 
 	if (toggle_lag)
 		mlx5_lag_enable_change(esw->dev);
@@ -1330,9 +1334,13 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs)
 /* When disabling sriov, free driver level resources. */
 void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf)
 {
+	struct devlink *devlink;
+
 	if (!mlx5_esw_allowed(esw))
 		return;
 
+	devlink = priv_to_devlink(esw->dev);
+	devl_lock(devlink);
 	down_write(&esw->mode_lock);
 	/* If driver is unloaded, this function is called twice by remove_one()
 	 * and mlx5_unload(). Prevent the second call.
@@ -1354,13 +1362,14 @@ void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf)
 		struct devlink *devlink = priv_to_devlink(esw->dev);
 
 		esw_offloads_del_send_to_vport_meta_rules(esw);
-		devlink_rate_nodes_destroy(devlink);
+		devl_rate_nodes_destroy(devlink);
 	}
 
 	esw->esw_funcs.num_vfs = 0;
 
 unlock:
 	up_write(&esw->mode_lock);
+	devl_unlock(devlink);
 }
 
 /* Free resources for corresponding eswitch mode. It is called by devlink
@@ -1389,18 +1398,23 @@ void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw)
 	mlx5_esw_acls_ns_cleanup(esw);
 
 	if (esw->mode == MLX5_ESWITCH_OFFLOADS)
-		devlink_rate_nodes_destroy(devlink);
+		devl_rate_nodes_destroy(devlink);
 }
 
 void mlx5_eswitch_disable(struct mlx5_eswitch *esw)
 {
+	struct devlink *devlink;
+
 	if (!mlx5_esw_allowed(esw))
 		return;
 
 	mlx5_lag_disable_change(esw->dev);
+	devlink = priv_to_devlink(esw->dev);
+	devl_lock(devlink);
 	down_write(&esw->mode_lock);
 	mlx5_eswitch_disable_locked(esw);
 	up_write(&esw->mode_lock);
+	devl_unlock(devlink);
 	mlx5_lag_enable_change(esw->dev);
 }
 

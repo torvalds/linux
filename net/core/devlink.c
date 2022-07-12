@@ -1712,7 +1712,7 @@ static int devlink_port_new_notifiy(struct devlink *devlink,
 	if (!msg)
 		return -ENOMEM;
 
-	mutex_lock(&devlink->lock);
+	lockdep_assert_held(&devlink->lock);
 	devlink_port = devlink_port_get_by_index(devlink, port_index);
 	if (!devlink_port) {
 		err = -ENODEV;
@@ -1725,11 +1725,9 @@ static int devlink_port_new_notifiy(struct devlink *devlink,
 		goto out;
 
 	err = genlmsg_reply(msg, info);
-	mutex_unlock(&devlink->lock);
 	return err;
 
 out:
-	mutex_unlock(&devlink->lock);
 	nlmsg_free(msg);
 	return err;
 }
@@ -9067,13 +9065,11 @@ static const struct genl_small_ops devlink_nl_ops[] = {
 		.cmd = DEVLINK_CMD_PORT_NEW,
 		.doit = devlink_nl_cmd_port_new_doit,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = DEVLINK_NL_FLAG_NO_LOCK,
 	},
 	{
 		.cmd = DEVLINK_CMD_PORT_DEL,
 		.doit = devlink_nl_cmd_port_del_doit,
 		.flags = GENL_ADMIN_PERM,
-		.internal_flags = DEVLINK_NL_FLAG_NO_LOCK,
 	},
 	{
 		.cmd = DEVLINK_CMD_LINECARD_GET,
@@ -10006,20 +10002,13 @@ int devl_rate_leaf_create(struct devlink_port *devlink_port, void *priv)
 }
 EXPORT_SYMBOL_GPL(devl_rate_leaf_create);
 
-int
-devlink_rate_leaf_create(struct devlink_port *devlink_port, void *priv)
-{
-	struct devlink *devlink = devlink_port->devlink;
-	int ret;
-
-	mutex_lock(&devlink->lock);
-	ret = devl_rate_leaf_create(devlink_port, priv);
-	mutex_unlock(&devlink->lock);
-
-	return ret;
-}
-EXPORT_SYMBOL_GPL(devlink_rate_leaf_create);
-
+/**
+ * devl_rate_leaf_destroy - destroy devlink rate leaf
+ *
+ * @devlink_port: devlink port linked to the rate object
+ *
+ * Destroy the devlink rate object of type leaf on provided @devlink_port.
+ */
 void devl_rate_leaf_destroy(struct devlink_port *devlink_port)
 {
 	struct devlink_rate *devlink_rate = devlink_port->devlink_rate;
@@ -10036,27 +10025,6 @@ void devl_rate_leaf_destroy(struct devlink_port *devlink_port)
 	kfree(devlink_rate);
 }
 EXPORT_SYMBOL_GPL(devl_rate_leaf_destroy);
-
-/**
- * devlink_rate_leaf_destroy - destroy devlink rate leaf
- *
- * @devlink_port: devlink port linked to the rate object
- *
- * Context: Takes and release devlink->lock <mutex>.
- */
-void devlink_rate_leaf_destroy(struct devlink_port *devlink_port)
-{
-	struct devlink_rate *devlink_rate = devlink_port->devlink_rate;
-	struct devlink *devlink = devlink_port->devlink;
-
-	if (!devlink_rate)
-		return;
-
-	mutex_lock(&devlink->lock);
-	devl_rate_leaf_destroy(devlink_port);
-	mutex_unlock(&devlink->lock);
-}
-EXPORT_SYMBOL_GPL(devlink_rate_leaf_destroy);
 
 /**
  * devl_rate_nodes_destroy - destroy all devlink rate nodes on device
@@ -10094,24 +10062,6 @@ void devl_rate_nodes_destroy(struct devlink *devlink)
 	}
 }
 EXPORT_SYMBOL_GPL(devl_rate_nodes_destroy);
-
-/**
- * devlink_rate_nodes_destroy - destroy all devlink rate nodes on device
- *
- * @devlink: devlink instance
- *
- * Unset parent for all rate objects and destroy all rate nodes
- * on specified device.
- *
- * Context: Takes and release devlink->lock <mutex>.
- */
-void devlink_rate_nodes_destroy(struct devlink *devlink)
-{
-	mutex_lock(&devlink->lock);
-	devl_rate_nodes_destroy(devlink);
-	mutex_unlock(&devlink->lock);
-}
-EXPORT_SYMBOL_GPL(devlink_rate_nodes_destroy);
 
 /**
  *	devlink_port_linecard_set - Link port with a linecard
