@@ -1155,6 +1155,9 @@ static struct clk_rcg2 csi1phytimer_clk_src = {
 
 static const struct freq_tbl ftbl_gcc_camss_cpp_clk[] = {
 	F(160000000, P_GPLL0, 5, 0, 0),
+	F(200000000, P_GPLL0, 4, 0, 0),
+	F(228570000, P_GPLL0, 3.5, 0, 0),
+	F(266670000, P_GPLL0, 3, 0, 0),
 	F(320000000, P_GPLL0, 2.5, 0, 0),
 	F(465000000, P_GPLL2, 2, 0, 0),
 	{ }
