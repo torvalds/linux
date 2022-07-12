@@ -470,6 +470,21 @@ const struct io_op_def io_op_defs[] = {
 		.issue			= io_uring_cmd,
 		.prep_async		= io_uring_cmd_prep_async,
 	},
+	[IORING_OP_SENDZC_NOTIF] = {
+		.name			= "SENDZC_NOTIF",
+		.needs_file		= 1,
+		.unbound_nonreg_file	= 1,
+		.pollout		= 1,
+		.audit_skip		= 1,
+		.ioprio			= 1,
+#if defined(CONFIG_NET)
+		.prep			= io_sendzc_prep,
+		.issue			= io_sendzc,
+#else
+		.prep			= io_eopnotsupp_prep,
+#endif
+
+	},
 };
 
 const char *io_uring_get_opcode(u8 opcode)
