@@ -815,7 +815,7 @@ static void plda_pcie_hw_init(struct plda_pcie *pcie)
 	plda_pcie_setup_windows(pcie);
 
 	/* Ensure that PERST has been asserted for at least 100 ms */
-	msleep(100);
+	msleep(300);
 	if (pcie->perst_state_def) {
 		ret = pinctrl_select_state(pcie->pinctrl, pcie->perst_state_def);
 		if (ret)
