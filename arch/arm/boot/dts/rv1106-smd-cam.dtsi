@@ -288,10 +288,6 @@
 	};
 };
 
-&rkcif_mipi_lvds1_sditf {
-	status = "okay";
-};
-
 &rkisp {
 	status = "okay";
 
