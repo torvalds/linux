@@ -21,6 +21,31 @@
 
 /* register numbers */
 #define IS31FL319X_SHUTDOWN		0x00
+
+/* registers for 3190, 3191 and 3193 */
+#define IS31FL3190_BREATHING		0x01
+#define IS31FL3190_LEDMODE		0x02
+#define IS31FL3190_CURRENT		0x03
+#define IS31FL3190_PWM(channel)		(0x04 + channel)
+#define IS31FL3190_DATA_UPDATE		0x07
+#define IS31FL3190_T0(channel)		(0x0a + channel)
+#define IS31FL3190_T1T2(channel)	(0x10 + channel)
+#define IS31FL3190_T3T4(channel)	(0x16 + channel)
+#define IS31FL3190_TIME_UPDATE		0x1c
+#define IS31FL3190_LEDCONTROL		0x1d
+#define IS31FL3190_RESET		0x2f
+
+#define IS31FL3190_CURRENT_uA_MIN	5000
+#define IS31FL3190_CURRENT_uA_DEFAULT	42000
+#define IS31FL3190_CURRENT_uA_MAX	42000
+#define IS31FL3190_CURRENT_MASK		GENMASK(4, 2)
+#define IS31FL3190_CURRENT_5_mA		0x02
+#define IS31FL3190_CURRENT_10_mA	0x01
+#define IS31FL3190_CURRENT_17dot5_mA	0x04
+#define IS31FL3190_CURRENT_30_mA	0x03
+#define IS31FL3190_CURRENT_42_mA	0x00
+
+/* registers for 3196 and 3199 */
 #define IS31FL3196_CTRL1		0x01
 #define IS31FL3196_CTRL2		0x02
 #define IS31FL3196_CONFIG1		0x03
@@ -93,6 +118,38 @@ static bool is31fl319x_readable_reg(struct device *dev, unsigned int reg)
 	return false;
 }
 
+static bool is31fl3190_volatile_reg(struct device *dev, unsigned int reg)
+{
+	/* volatile registers are not cached */
+	switch (reg) {
+	case IS31FL3190_DATA_UPDATE:
+	case IS31FL3190_TIME_UPDATE:
+	case IS31FL3190_RESET:
+		return true; /* always write-through */
+	default:
+		return false;
+	}
+}
+
+static const struct reg_default is31fl3190_reg_defaults[] = {
+	{ IS31FL3190_LEDMODE, 0x00 },
+	{ IS31FL3190_CURRENT, 0x00 },
+	{ IS31FL3190_PWM(0), 0x00 },
+	{ IS31FL3190_PWM(1), 0x00 },
+	{ IS31FL3190_PWM(2), 0x00 },
+};
+
+static struct regmap_config is31fl3190_regmap_config = {
+	.reg_bits = 8,
+	.val_bits = 8,
+	.max_register = IS31FL3190_RESET,
+	.cache_type = REGCACHE_FLAT,
+	.readable_reg = is31fl319x_readable_reg,
+	.volatile_reg = is31fl3190_volatile_reg,
+	.reg_defaults = is31fl3190_reg_defaults,
+	.num_reg_defaults = ARRAY_SIZE(is31fl3190_reg_defaults),
+};
+
 static bool is31fl3196_volatile_reg(struct device *dev, unsigned int reg)
 {
 	/* volatile registers are not cached */
@@ -130,6 +187,60 @@ static struct regmap_config is31fl3196_regmap_config = {
 	.reg_defaults = is31fl3196_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(is31fl3196_reg_defaults),
 };
+
+static int is31fl3190_brightness_set(struct led_classdev *cdev,
+				     enum led_brightness brightness)
+{
+	struct is31fl319x_led *led = container_of(cdev, struct is31fl319x_led, cdev);
+	struct is31fl319x_chip *is31 = led->chip;
+	int chan = led - is31->leds;
+	int ret;
+	int i;
+	u8 ctrl = 0;
+
+	dev_dbg(&is31->client->dev, "%s %d: %d\n", __func__, chan, brightness);
+
+	mutex_lock(&is31->lock);
+
+	/* update PWM register */
+	ret = regmap_write(is31->regmap, IS31FL3190_PWM(chan), brightness);
+	if (ret < 0)
+		goto out;
+
+	/* read current brightness of all PWM channels */
+	for (i = 0; i < is31->cdef->num_leds; i++) {
+		unsigned int pwm_value;
+		bool on;
+
+		/*
+		 * since neither cdev nor the chip can provide
+		 * the current setting, we read from the regmap cache
+		 */
+
+		ret = regmap_read(is31->regmap, IS31FL3190_PWM(i), &pwm_value);
+		on = ret >= 0 && pwm_value > LED_OFF;
+
+		ctrl |= on << i;
+	}
+
+	if (ctrl > 0) {
+		dev_dbg(&is31->client->dev, "power up %02x\n", ctrl);
+		regmap_write(is31->regmap, IS31FL3190_LEDCONTROL, ctrl);
+		/* update PWMs */
+		regmap_write(is31->regmap, IS31FL3190_DATA_UPDATE, 0x00);
+		/* enable chip from shut down and enable all channels */
+		ret = regmap_write(is31->regmap, IS31FL319X_SHUTDOWN, 0x20);
+	} else {
+		dev_dbg(&is31->client->dev, "power down\n");
+		/* shut down (no need to clear LEDCONTROL) */
+		ret = regmap_write(is31->regmap, IS31FL319X_SHUTDOWN, 0x01);
+	}
+
+out:
+	mutex_unlock(&is31->lock);
+
+	return ret;
+}
 
 static int is31fl3196_brightness_set(struct led_classdev *cdev,
 				     enum led_brightness brightness)
@@ -197,24 +308,24 @@ out:
 
 static const struct is31fl319x_chipdef is31fl3190_cdef = {
 	.num_leds = 1,
-	.reset_reg = IS31FL3196_RESET,
-	.is31fl319x_regmap_config = &is31fl3196_regmap_config,
-	.brightness_set = is31fl3196_brightness_set,
-	.current_default = IS31FL3196_CURRENT_uA_DEFAULT,
-	.current_min = IS31FL3196_CURRENT_uA_MIN,
-	.current_max = IS31FL3196_CURRENT_uA_MAX,
-	.is_3196or3199 = true,
+	.reset_reg = IS31FL3190_RESET,
+	.is31fl319x_regmap_config = &is31fl3190_regmap_config,
+	.brightness_set = is31fl3190_brightness_set,
+	.current_default = IS31FL3190_CURRENT_uA_DEFAULT,
+	.current_min = IS31FL3190_CURRENT_uA_MIN,
+	.current_max = IS31FL3190_CURRENT_uA_MAX,
+	.is_3196or3199 = false,
 };
 
 static const struct is31fl319x_chipdef is31fl3193_cdef = {
 	.num_leds = 3,
-	.reset_reg = IS31FL3196_RESET,
-	.is31fl319x_regmap_config = &is31fl3196_regmap_config,
-	.brightness_set = is31fl3196_brightness_set,
-	.current_default = IS31FL3196_CURRENT_uA_DEFAULT,
-	.current_min = IS31FL3196_CURRENT_uA_MIN,
-	.current_max = IS31FL3196_CURRENT_uA_MAX,
-	.is_3196or3199 = true,
+	.reset_reg = IS31FL3190_RESET,
+	.is31fl319x_regmap_config = &is31fl3190_regmap_config,
+	.brightness_set = is31fl3190_brightness_set,
+	.current_default = IS31FL3190_CURRENT_uA_DEFAULT,
+	.current_min = IS31FL3190_CURRENT_uA_MIN,
+	.current_max = IS31FL3190_CURRENT_uA_MAX,
+	.is_3196or3199 = false,
 };
 
 static const struct is31fl319x_chipdef is31fl3196_cdef = {
@@ -362,6 +473,25 @@ put_child_node:
 	return ret;
 }
 
+static inline int is31fl3190_microamp_to_cs(struct device *dev, u32 microamp)
+{
+	switch (microamp) {
+	case 5000:
+		return IS31FL3190_CURRENT_5_mA;
+	case 10000:
+		return IS31FL3190_CURRENT_10_mA;
+	case 17500:
+		return IS31FL3190_CURRENT_17dot5_mA;
+	case 30000:
+		return IS31FL3190_CURRENT_30_mA;
+	case 42000:
+		return IS31FL3190_CURRENT_42_mA;
+	default:
+		dev_warn(dev, "Unsupported current value: %d, using 5000 µA!\n", microamp);
+		return IS31FL3190_CURRENT_5_mA;
+	}
+}
+
 static inline int is31fl3196_microamp_to_cs(struct device *dev, u32 microamp)
 { /* round down to nearest supported value (range check done by caller) */
 	u32 step = microamp / IS31FL3196_CURRENT_uA_STEP;
@@ -438,6 +568,9 @@ static int is31fl319x_probe(struct i2c_client *client,
 		regmap_write(is31->regmap, IS31FL3196_CONFIG2,
 			     is31fl3196_microamp_to_cs(dev, aggregated_led_microamp) |
 			     is31fl3196_db_to_gain(is31->audio_gain_db));
+	else
+		regmap_update_bits(is31->regmap, IS31FL3190_CURRENT, IS31FL3190_CURRENT_MASK,
+				   is31fl3190_microamp_to_cs(dev, aggregated_led_microamp));
 
 	for (i = 0; i < is31->cdef->num_leds; i++) {
 		struct is31fl319x_led *led = &is31->leds[i];
