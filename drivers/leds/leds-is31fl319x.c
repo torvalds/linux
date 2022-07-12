@@ -396,11 +396,9 @@ static int is31fl319x_parse_fw(struct device *dev, struct is31fl319x_chip *is31)
 	int ret;
 
 	is31->shutdown_gpio = devm_gpiod_get_optional(dev, "shutdown", GPIOD_OUT_HIGH);
-	if (IS_ERR(is31->shutdown_gpio)) {
-		ret = PTR_ERR(is31->shutdown_gpio);
-		dev_err(dev, "Failed to get shutdown gpio: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(is31->shutdown_gpio))
+		return dev_err_probe(dev, PTR_ERR(is31->shutdown_gpio),
+				     "Failed to get shutdown gpio\n");
 
 	is31->cdef = device_get_match_data(dev);
 
@@ -410,11 +408,10 @@ static int is31fl319x_parse_fw(struct device *dev, struct is31fl319x_chip *is31)
 
 	dev_dbg(dev, "probing with %d leds defined in DT\n", count);
 
-	if (!count || count > is31->cdef->num_leds) {
-		dev_err(dev, "Number of leds defined must be between 1 and %u\n",
-			is31->cdef->num_leds);
-		return -ENODEV;
-	}
+	if (!count || count > is31->cdef->num_leds)
+		return dev_err_probe(dev, -ENODEV,
+				     "Number of leds defined must be between 1 and %u\n",
+				     is31->cdef->num_leds);
 
 	fwnode_for_each_available_child_node(fwnode, child) {
 		struct is31fl319x_led *led;
@@ -422,27 +419,25 @@ static int is31fl319x_parse_fw(struct device *dev, struct is31fl319x_chip *is31)
 
 		ret = fwnode_property_read_u32(child, "reg", &reg);
 		if (ret) {
-			dev_err(dev, "Failed to read led 'reg' property\n");
+			ret = dev_err_probe(dev, ret, "Failed to read led 'reg' property\n");
 			goto put_child_node;
 		}
 
 		if (reg < 1 || reg > is31->cdef->num_leds) {
-			dev_err(dev, "invalid led reg %u\n", reg);
-			ret = -EINVAL;
+			ret = dev_err_probe(dev, -EINVAL, "invalid led reg %u\n", reg);
 			goto put_child_node;
 		}
 
 		led = &is31->leds[reg - 1];
 
 		if (led->configured) {
-			dev_err(dev, "led %u is already configured\n", reg);
-			ret = -EINVAL;
+			ret = dev_err_probe(dev, -EINVAL, "led %u is already configured\n", reg);
 			goto put_child_node;
 		}
 
 		ret = is31fl319x_parse_child_fw(dev, child, led, is31);
 		if (ret) {
-			dev_err(dev, "led %u DT parsing failed\n", reg);
+			ret = dev_err_probe(dev, ret, "led %u DT parsing failed\n", reg);
 			goto put_child_node;
 		}
 
@@ -530,8 +525,7 @@ static int is31fl319x_probe(struct i2c_client *client,
 	is31->client = client;
 	is31->regmap = devm_regmap_init_i2c(client, is31->cdef->is31fl319x_regmap_config);
 	if (IS_ERR(is31->regmap)) {
-		dev_err(&client->dev, "failed to allocate register map\n");
-		err = PTR_ERR(is31->regmap);
+		err = dev_err_probe(dev, PTR_ERR(is31->regmap), "failed to allocate register map\n");
 		goto free_mutex;
 	}
 
@@ -540,8 +534,7 @@ static int is31fl319x_probe(struct i2c_client *client,
 	/* check for write-reply from chip (we can't read any registers) */
 	err = regmap_write(is31->regmap, is31->cdef->reset_reg, 0x00);
 	if (err < 0) {
-		dev_err(&client->dev, "no response from chip write: err = %d\n", err);
-		err = -EIO; /* does not answer */
+		err = dev_err_probe(dev, err, "no response from chip write\n");
 		goto free_mutex;
 	}
 
