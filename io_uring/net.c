@@ -15,6 +15,7 @@
 #include "alloc_cache.h"
 #include "net.h"
 #include "notif.h"
+#include "rsrc.h"
 
 #if defined(CONFIG_NET)
 struct io_shutdown {
@@ -849,13 +850,23 @@ out_free:
 int io_sendzc_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
 	struct io_sendzc *zc = io_kiocb_to_cmd(req);
+	struct io_ring_ctx *ctx = req->ctx;
 
 	if (READ_ONCE(sqe->__pad2[0]) || READ_ONCE(sqe->addr3))
 		return -EINVAL;
 
 	zc->flags = READ_ONCE(sqe->ioprio);
-	if (zc->flags & ~IORING_RECVSEND_POLL_FIRST)
+	if (zc->flags & ~(IORING_RECVSEND_POLL_FIRST | IORING_RECVSEND_FIXED_BUF))
 		return -EINVAL;
+	if (zc->flags & IORING_RECVSEND_FIXED_BUF) {
+		unsigned idx = READ_ONCE(sqe->buf_index);
+
+		if (unlikely(idx >= ctx->nr_user_bufs))
+			return -EFAULT;
+		idx = array_index_nospec(idx, ctx->nr_user_bufs);
+		req->imu = READ_ONCE(ctx->user_bufs[idx]);
+		io_req_set_rsrc_node(req, ctx, 0);
+	}
 
 	zc->buf = u64_to_user_ptr(READ_ONCE(sqe->addr));
 	zc->len = READ_ONCE(sqe->len);
@@ -909,10 +920,18 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 	msg.msg_controllen = 0;
 	msg.msg_namelen = 0;
 
-	ret = import_single_range(WRITE, zc->buf, zc->len, &iov, &msg.msg_iter);
-	if (unlikely(ret))
-		return ret;
-	mm_account_pinned_pages(&notif->uarg.mmp, zc->len);
+	if (zc->flags & IORING_RECVSEND_FIXED_BUF) {
+		ret = io_import_fixed(WRITE, &msg.msg_iter, req->imu,
+					(u64)(uintptr_t)zc->buf, zc->len);
+		if (unlikely(ret))
+				return ret;
+	} else {
+		ret = import_single_range(WRITE, zc->buf, zc->len, &iov,
+					  &msg.msg_iter);
+		if (unlikely(ret))
+			return ret;
+		mm_account_pinned_pages(&notif->uarg.mmp, zc->len);
+	}
 
 	if (zc->addr) {
 		ret = move_addr_to_kernel(zc->addr, zc->addr_len, &address);
