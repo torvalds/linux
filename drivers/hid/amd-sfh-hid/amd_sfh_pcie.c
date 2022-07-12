@@ -252,12 +252,14 @@ static struct amd_mp2_ops amd_sfh_ops_v2 = {
 	.clear_intr = amd_sfh_clear_intr_v2,
 	.init_intr = amd_sfh_irq_init_v2,
 	.discovery_status = amd_sfh_dis_sts_v2,
+	.remove = amd_mp2_pci_remove,
 };
 
 static struct amd_mp2_ops amd_sfh_ops = {
 	.start = amd_start_sensor,
 	.stop = amd_stop_sensor,
 	.stop_all = amd_stop_all_sensors,
+	.remove = amd_mp2_pci_remove,
 };
 
 static void mp2_select_ops(struct amd_mp2_dev *privdata)
@@ -333,7 +335,7 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 
 	amd_sfh_clear_intr(privdata);
 
-	return devm_add_action_or_reset(&pdev->dev, amd_mp2_pci_remove, privdata);
+	return devm_add_action_or_reset(&pdev->dev, privdata->mp2_ops->remove, privdata);
 }
 
 static int __maybe_unused amd_mp2_pci_resume(struct device *dev)

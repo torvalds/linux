@@ -56,6 +56,7 @@ struct amd_mp2_ops {
 	int (*discovery_status)(struct amd_mp2_dev *privdata);
 	void (*suspend)(struct amd_mp2_dev *mp2);
 	void (*resume)(struct amd_mp2_dev *mp2);
+	void (*remove)(void *privdata);
 	int (*get_rep_desc)(int sensor_idx, u8 rep_desc[]);
 	u32 (*get_desc_sz)(int sensor_idx, int descriptor_name);
 	u8 (*get_feat_rep)(int sensor_idx, int report_id, u8 *feature_report);
