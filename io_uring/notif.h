@@ -11,6 +11,9 @@ struct io_notif {
 	struct ubuf_info	uarg;
 	struct io_ring_ctx	*ctx;
 
+	/* complete via tw if ->task is non-NULL, fallback to wq otherwise */
+	struct task_struct	*task;
+
 	/* cqe->user_data, io_notif_slot::tag if not overridden */
 	u64			tag;
 	/* see struct io_notif_slot::seq */
