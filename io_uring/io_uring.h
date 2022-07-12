@@ -74,6 +74,7 @@ void io_wq_submit_work(struct io_wq_work *work);
 void io_free_req(struct io_kiocb *req);
 void io_queue_next(struct io_kiocb *req);
 void __io_put_task(struct task_struct *task, int nr);
+void io_task_refs_refill(struct io_uring_task *tctx);
 
 bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 			bool cancel_all);
@@ -268,6 +269,15 @@ static inline void io_put_task(struct task_struct *task, int nr)
 		task->io_uring->cached_refs += nr;
 	else
 		__io_put_task(task, nr);
+}
+
+static inline void io_get_task_refs(int nr)
+{
+	struct io_uring_task *tctx = current->io_uring;
+
+	tctx->cached_refs -= nr;
+	if (unlikely(tctx->cached_refs < 0))
+		io_task_refs_refill(tctx);
 }
 
 #endif

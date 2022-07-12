@@ -54,6 +54,7 @@ int io_notif_register(struct io_ring_ctx *ctx,
 int io_notif_unregister(struct io_ring_ctx *ctx);
 void io_notif_cache_purge(struct io_ring_ctx *ctx);
 
+void io_notif_slot_flush(struct io_notif_slot *slot);
 struct io_notif *io_alloc_notif(struct io_ring_ctx *ctx,
 				struct io_notif_slot *slot);
 
@@ -73,4 +74,14 @@ static inline struct io_notif_slot *io_get_notif_slot(struct io_ring_ctx *ctx,
 		return NULL;
 	idx = array_index_nospec(idx, ctx->nr_notif_slots);
 	return &ctx->notif_slots[idx];
+}
+
+static inline void io_notif_slot_flush_submit(struct io_notif_slot *slot,
+					      unsigned int issue_flags)
+{
+	if (!(issue_flags & IO_URING_F_UNLOCKED)) {
+		slot->notif->task = current;
+		io_get_task_refs(1);
+	}
+	io_notif_slot_flush(slot);
 }

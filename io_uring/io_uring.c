@@ -621,22 +621,13 @@ void __io_put_task(struct task_struct *task, int nr)
 	put_task_struct_many(task, nr);
 }
 
-static void io_task_refs_refill(struct io_uring_task *tctx)
+void io_task_refs_refill(struct io_uring_task *tctx)
 {
 	unsigned int refill = -tctx->cached_refs + IO_TCTX_REFS_CACHE_NR;
 
 	percpu_counter_add(&tctx->inflight, refill);
 	refcount_add(refill, &current->usage);
 	tctx->cached_refs += refill;
-}
-
-static inline void io_get_task_refs(int nr)
-{
-	struct io_uring_task *tctx = current->io_uring;
-
-	tctx->cached_refs -= nr;
-	if (unlikely(tctx->cached_refs < 0))
-		io_task_refs_refill(tctx);
 }
 
 static __cold void io_uring_drop_tctx_refs(struct task_struct *task)

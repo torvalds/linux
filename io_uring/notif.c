@@ -133,7 +133,7 @@ struct io_notif *io_alloc_notif(struct io_ring_ctx *ctx,
 	return notif;
 }
 
-static void io_notif_slot_flush(struct io_notif_slot *slot)
+void io_notif_slot_flush(struct io_notif_slot *slot)
 	__must_hold(&ctx->uring_lock)
 {
 	struct io_notif *notif = slot->notif;
