@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 //
-// cs35l41.c -- CS35l41 HDA SPI driver
+// CS35l41 HDA SPI driver
 //
 // Copyright 2021 Cirrus Logic, Inc.
 //
@@ -16,8 +16,9 @@ static int cs35l41_hda_spi_probe(struct spi_device *spi)
 {
 	const char *device_name;
 
-	/* Compare against the device name so it works for SPI, normal ACPI
-	 * and for ACPI by spi-multi-instantiate matching cases
+	/*
+	 * Compare against the device name so it works for SPI, normal ACPI
+	 * and for ACPI by serial-multi-instantiate matching cases.
 	 */
 	if (strstr(dev_name(&spi->dev), "CSC3551"))
 		device_name = "CSC3551";
