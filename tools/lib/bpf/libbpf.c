@@ -10545,7 +10545,10 @@ bpf_program__attach_uprobe_opts(const struct bpf_program *prog, pid_t pid,
 	ref_ctr_off = OPTS_GET(opts, ref_ctr_offset, 0);
 	pe_opts.bpf_cookie = OPTS_GET(opts, bpf_cookie, 0);
 
-	if (binary_path && !strchr(binary_path, '/')) {
+	if (!binary_path)
+		return libbpf_err_ptr(-EINVAL);
+
+	if (!strchr(binary_path, '/')) {
 		err = resolve_full_path(binary_path, full_binary_path,
 					sizeof(full_binary_path));
 		if (err) {
@@ -10559,11 +10562,6 @@ bpf_program__attach_uprobe_opts(const struct bpf_program *prog, pid_t pid,
 	if (func_name) {
 		long sym_off;
 
-		if (!binary_path) {
-			pr_warn("prog '%s': name-based attach requires binary_path\n",
-				prog->name);
-			return libbpf_err_ptr(-EINVAL);
-		}
 		sym_off = elf_find_func_offset(binary_path, func_name);
 		if (sym_off < 0)
 			return libbpf_err_ptr(sym_off);
@@ -10710,6 +10708,9 @@ struct bpf_link *bpf_program__attach_usdt(const struct bpf_program *prog,
 			prog->name);
 		return libbpf_err_ptr(-EINVAL);
 	}
+
+	if (!binary_path)
+		return libbpf_err_ptr(-EINVAL);
 
 	if (!strchr(binary_path, '/')) {
 		err = resolve_full_path(binary_path, resolved_path, sizeof(resolved_path));
