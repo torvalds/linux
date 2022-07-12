@@ -212,7 +212,6 @@ static int st_es8336_late_probe(struct snd_soc_card *card)
 	if (IS_ERR(gpio_pa)) {
 		ret = dev_err_probe(card->dev, PTR_ERR(gpio_pa),
 				    "could not get pa-enable GPIO\n");
-		gpiod_put(gpio_pa);
 		put_device(codec_dev);
 		return ret;
 	}
