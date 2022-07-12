@@ -3888,7 +3888,8 @@ ieee80211_verify_sta_he_mcs_support(struct ieee80211_sub_if_data *sdata,
 
 static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				  struct ieee80211_link_data *link,
-				  struct cfg80211_bss *cbss)
+				  struct cfg80211_bss *cbss,
+				  ieee80211_conn_flags_t *conn_flags)
 {
 	struct ieee80211_local *local = sdata->local;
 	const struct ieee80211_ht_cap *ht_cap = NULL;
@@ -3919,73 +3920,73 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 	sband = local->hw.wiphy->bands[cbss->channel->band];
 
-	link->u.mgd.conn_flags &= ~(IEEE80211_CONN_DISABLE_40MHZ |
-					     IEEE80211_CONN_DISABLE_80P80MHZ |
-					     IEEE80211_CONN_DISABLE_160MHZ);
+	*conn_flags &= ~(IEEE80211_CONN_DISABLE_40MHZ |
+			 IEEE80211_CONN_DISABLE_80P80MHZ |
+			 IEEE80211_CONN_DISABLE_160MHZ);
 
 	/* disable HT/VHT/HE if we don't support them */
 	if (!sband->ht_cap.ht_supported && !is_6ghz) {
 		mlme_dbg(sdata, "HT not supported, disabling HT/VHT/HE/EHT\n");
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HT;
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE;
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
+		*conn_flags |= IEEE80211_CONN_DISABLE_HT;
+		*conn_flags |= IEEE80211_CONN_DISABLE_VHT;
+		*conn_flags |= IEEE80211_CONN_DISABLE_HE;
+		*conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}
 
 	if (!sband->vht_cap.vht_supported && is_5ghz) {
 		mlme_dbg(sdata, "VHT not supported, disabling VHT/HE/EHT\n");
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE;
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
+		*conn_flags |= IEEE80211_CONN_DISABLE_VHT;
+		*conn_flags |= IEEE80211_CONN_DISABLE_HE;
+		*conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}
 
 	if (!ieee80211_get_he_iftype_cap(sband,
 					 ieee80211_vif_type_p2p(&sdata->vif))) {
 		mlme_dbg(sdata, "HE not supported, disabling HE and EHT\n");
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE;
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
+		*conn_flags |= IEEE80211_CONN_DISABLE_HE;
+		*conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}
 
 	if (!ieee80211_get_eht_iftype_cap(sband,
 					  ieee80211_vif_type_p2p(&sdata->vif))) {
 		mlme_dbg(sdata, "EHT not supported, disabling EHT\n");
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
+		*conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 	}
 
-	if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT) && !is_6ghz) {
+	if (!(*conn_flags & IEEE80211_CONN_DISABLE_HT) && !is_6ghz) {
 		ht_oper = elems->ht_operation;
 		ht_cap = elems->ht_cap_elem;
 
 		if (!ht_cap) {
-			link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HT;
+			*conn_flags |= IEEE80211_CONN_DISABLE_HT;
 			ht_oper = NULL;
 		}
 	}
 
-	if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT) && !is_6ghz) {
+	if (!(*conn_flags & IEEE80211_CONN_DISABLE_VHT) && !is_6ghz) {
 		vht_oper = elems->vht_operation;
 		if (vht_oper && !ht_oper) {
 			vht_oper = NULL;
 			sdata_info(sdata,
 				   "AP advertised VHT without HT, disabling HT/VHT/HE\n");
-			link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HT;
-			link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
-			link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE;
-			link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_EHT;
+			*conn_flags |= IEEE80211_CONN_DISABLE_HT;
+			*conn_flags |= IEEE80211_CONN_DISABLE_VHT;
+			*conn_flags |= IEEE80211_CONN_DISABLE_HE;
+			*conn_flags |= IEEE80211_CONN_DISABLE_EHT;
 		}
 
 		if (!elems->vht_cap_elem) {
 			sdata_info(sdata,
 				   "bad VHT capabilities, disabling VHT\n");
-			link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
+			*conn_flags |= IEEE80211_CONN_DISABLE_VHT;
 			vht_oper = NULL;
 		}
 	}
 
-	if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE)) {
+	if (!(*conn_flags & IEEE80211_CONN_DISABLE_HE)) {
 		he_oper = elems->he_operation;
 
-		if (is_6ghz) {
+		if (link && is_6ghz) {
 			struct ieee80211_bss_conf *bss_conf;
 			u8 j = 0;
 
@@ -4011,8 +4012,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 		if (!ieee80211_verify_peer_he_mcs_support(sdata, ies, he_oper) ||
 		    !ieee80211_verify_sta_he_mcs_support(sdata, sband, he_oper))
-			link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE |
-						  IEEE80211_CONN_DISABLE_EHT;
+			*conn_flags |= IEEE80211_CONN_DISABLE_HE |
+				       IEEE80211_CONN_DISABLE_EHT;
 	}
 
 	/*
@@ -4021,7 +4022,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	 * both the 6 GHz operation information (from the HE operation IE) and
 	 * EHT operation.
 	 */
-	if (!(link->u.mgd.conn_flags &
+	if (!(*conn_flags &
 			(IEEE80211_CONN_DISABLE_HE |
 			 IEEE80211_CONN_DISABLE_EHT)) &&
 	    he_oper) {
@@ -4051,7 +4052,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 	if (!have_80mhz) {
 		sdata_info(sdata, "80 MHz not supported, disabling VHT\n");
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
+		*conn_flags |= IEEE80211_CONN_DISABLE_VHT;
 	}
 
 	if (sband->band == NL80211_BAND_S1GHZ) {
@@ -4061,28 +4062,33 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 				   "AP missing S1G operation element?\n");
 	}
 
-	link->u.mgd.conn_flags |=
-		ieee80211_determine_chantype(sdata, link,
-					     link->u.mgd.conn_flags,
-					     sband, cbss->channel,
+	*conn_flags |=
+		ieee80211_determine_chantype(sdata, link, *conn_flags,
+					     sband,
+					     cbss->channel,
 					     bss->vht_cap_info,
 					     ht_oper, vht_oper,
 					     he_oper, eht_oper,
 					     s1g_oper,
 					     &chandef, false);
 
-	link->needed_rx_chains =
-		min(ieee80211_max_rx_chains(link, cbss), local->rx_chains);
+	if (link)
+		link->needed_rx_chains =
+			min(ieee80211_max_rx_chains(link, cbss),
+			    local->rx_chains);
 
 	rcu_read_unlock();
 	/* the element data was RCU protected so no longer valid anyway */
 	kfree(elems);
 	elems = NULL;
 
-	if (link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE && is_6ghz) {
+	if (*conn_flags & IEEE80211_CONN_DISABLE_HE && is_6ghz) {
 		sdata_info(sdata, "Rejecting non-HE 6/7 GHz connection");
 		return -EINVAL;
 	}
+
+	if (!link)
+		return 0;
 
 	/* will change later if needed */
 	link->smps_mode = IEEE80211_SMPS_OFF;
@@ -4102,7 +4108,7 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 		goto out;
 
 	while (ret && chandef.width != NL80211_CHAN_WIDTH_20_NOHT) {
-		link->u.mgd.conn_flags |=
+		*conn_flags |=
 			ieee80211_chandef_downgrade(&chandef);
 		ret = ieee80211_link_use_channel(link, &chandef,
 						 IEEE80211_CHANCTX_SHARED);
@@ -5930,7 +5936,8 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (new_sta || override) {
-		err = ieee80211_prep_channel(sdata, link, cbss);
+		err = ieee80211_prep_channel(sdata, link, cbss,
+					     &link->u.mgd.conn_flags);
 		if (err) {
 			if (new_sta)
 				sta_info_free(local, new_sta);
