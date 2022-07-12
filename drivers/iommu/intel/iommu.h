@@ -21,6 +21,7 @@
 #include <linux/dmar.h>
 #include <linux/ioasid.h>
 #include <linux/bitfield.h>
+#include <linux/xarray.h>
 
 #include <asm/cacheflush.h>
 #include <asm/iommu.h>
@@ -524,17 +525,17 @@ struct context_entry {
  */
 #define DOMAIN_FLAG_USE_FIRST_LEVEL		BIT(1)
 
-struct dmar_domain {
-	int	nid;			/* node id */
-
-	unsigned int iommu_refcnt[DMAR_UNITS_SUPPORTED];
-					/* Refcount of devices per iommu */
-
-
-	u16		iommu_did[DMAR_UNITS_SUPPORTED];
-					/* Domain ids per IOMMU. Use u16 since
+struct iommu_domain_info {
+	struct intel_iommu *iommu;
+	unsigned int refcnt;		/* Refcount of devices per iommu */
+	u16 did;			/* Domain ids per IOMMU. Use u16 since
 					 * domain ids are 16 bit wide according
 					 * to VT-d spec, section 9.3 */
+};
+
+struct dmar_domain {
+	int	nid;			/* node id */
+	struct xarray iommu_array;	/* Attached IOMMU array */
 
 	u8 has_iotlb_device: 1;
 	u8 iommu_coherency: 1;		/* indicate coherency of iommu access */
@@ -638,6 +639,16 @@ static inline void __iommu_flush_cache(
 static inline struct dmar_domain *to_dmar_domain(struct iommu_domain *dom)
 {
 	return container_of(dom, struct dmar_domain, domain);
+}
+
+/* Retrieve the domain ID which has allocated to the domain */
+static inline u16
+domain_id_iommu(struct dmar_domain *domain, struct intel_iommu *iommu)
+{
+	struct iommu_domain_info *info =
+			xa_load(&domain->iommu_array, iommu->seq_id);
+
+	return info->did;
 }
 
 /*
