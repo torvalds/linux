@@ -155,6 +155,57 @@ const char *get_sensor_name(int idx)
 	}
 }
 
+static void amd_sfh_resume(struct amd_mp2_dev *mp2)
+{
+	struct amdtp_cl_data *cl_data = mp2->cl_data;
+	struct amd_mp2_sensor_info info;
+	int i, status;
+
+	for (i = 0; i < cl_data->num_hid_devices; i++) {
+		if (cl_data->sensor_sts[i] == SENSOR_DISABLED) {
+			info.period = AMD_SFH_IDLE_LOOP;
+			info.sensor_idx = cl_data->sensor_idx[i];
+			info.dma_address = cl_data->sensor_dma_addr[i];
+			mp2->mp2_ops->start(mp2, info);
+			status = amd_sfh_wait_for_response
+					(mp2, cl_data->sensor_idx[i], SENSOR_ENABLED);
+			if (status == SENSOR_ENABLED)
+				cl_data->sensor_sts[i] = SENSOR_ENABLED;
+			dev_dbg(&mp2->pdev->dev, "resume sid 0x%x (%s) status 0x%x\n",
+				cl_data->sensor_idx[i], get_sensor_name(cl_data->sensor_idx[i]),
+				cl_data->sensor_sts[i]);
+		}
+	}
+
+	schedule_delayed_work(&cl_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));
+	if (mp2->mp2_ops->clear_intr)
+		mp2->mp2_ops->clear_intr(mp2);
+}
+
+static void amd_sfh_suspend(struct amd_mp2_dev *mp2)
+{
+	struct amdtp_cl_data *cl_data = mp2->cl_data;
+	int i, status;
+
+	for (i = 0; i < cl_data->num_hid_devices; i++) {
+		if (cl_data->sensor_idx[i] != HPD_IDX &&
+		    cl_data->sensor_sts[i] == SENSOR_ENABLED) {
+			mp2->mp2_ops->stop(mp2, cl_data->sensor_idx[i]);
+			status = amd_sfh_wait_for_response
+					(mp2, cl_data->sensor_idx[i], SENSOR_DISABLED);
+			if (status != SENSOR_ENABLED)
+				cl_data->sensor_sts[i] = SENSOR_DISABLED;
+			dev_dbg(&mp2->pdev->dev, "suspend sid 0x%x (%s) status 0x%x\n",
+				cl_data->sensor_idx[i], get_sensor_name(cl_data->sensor_idx[i]),
+				cl_data->sensor_sts[i]);
+		}
+	}
+
+	cancel_delayed_work_sync(&cl_data->work_buffer);
+	if (mp2->mp2_ops->clear_intr)
+		mp2->mp2_ops->clear_intr(mp2);
+}
+
 int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 {
 	struct amd_input_data *in_data = &privdata->in_data;
@@ -171,6 +222,9 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 	req_list = &cl_data->req_list;
 	dev = &privdata->pdev->dev;
 	amd_sfh_set_desc_ops(mp2_ops);
+
+	mp2_ops->suspend = amd_sfh_suspend;
+	mp2_ops->resume = amd_sfh_resume;
 
 	cl_data->num_hid_devices = amd_mp2_get_sensor_num(privdata, &cl_data->sensor_idx[0]);
 

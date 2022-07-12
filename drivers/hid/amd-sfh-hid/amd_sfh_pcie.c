@@ -339,28 +339,8 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 static int __maybe_unused amd_mp2_pci_resume(struct device *dev)
 {
 	struct amd_mp2_dev *mp2 = dev_get_drvdata(dev);
-	struct amdtp_cl_data *cl_data = mp2->cl_data;
-	struct amd_mp2_sensor_info info;
-	int i, status;
 
-	for (i = 0; i < cl_data->num_hid_devices; i++) {
-		if (cl_data->sensor_sts[i] == SENSOR_DISABLED) {
-			info.period = AMD_SFH_IDLE_LOOP;
-			info.sensor_idx = cl_data->sensor_idx[i];
-			info.dma_address = cl_data->sensor_dma_addr[i];
-			mp2->mp2_ops->start(mp2, info);
-			status = amd_sfh_wait_for_response
-					(mp2, cl_data->sensor_idx[i], SENSOR_ENABLED);
-			if (status == SENSOR_ENABLED)
-				cl_data->sensor_sts[i] = SENSOR_ENABLED;
-			dev_dbg(dev, "suspend sid 0x%x (%s) status 0x%x\n",
-				cl_data->sensor_idx[i], get_sensor_name(cl_data->sensor_idx[i]),
-				cl_data->sensor_sts[i]);
-		}
-	}
-
-	schedule_delayed_work(&cl_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));
-	amd_sfh_clear_intr(mp2);
+	mp2->mp2_ops->resume(mp2);
 
 	return 0;
 }
@@ -368,25 +348,8 @@ static int __maybe_unused amd_mp2_pci_resume(struct device *dev)
 static int __maybe_unused amd_mp2_pci_suspend(struct device *dev)
 {
 	struct amd_mp2_dev *mp2 = dev_get_drvdata(dev);
-	struct amdtp_cl_data *cl_data = mp2->cl_data;
-	int i, status;
 
-	for (i = 0; i < cl_data->num_hid_devices; i++) {
-		if (cl_data->sensor_idx[i] != HPD_IDX &&
-		    cl_data->sensor_sts[i] == SENSOR_ENABLED) {
-			mp2->mp2_ops->stop(mp2, cl_data->sensor_idx[i]);
-			status = amd_sfh_wait_for_response
-					(mp2, cl_data->sensor_idx[i], SENSOR_DISABLED);
-			if (status != SENSOR_ENABLED)
-				cl_data->sensor_sts[i] = SENSOR_DISABLED;
-			dev_dbg(dev, "suspend sid 0x%x (%s) status 0x%x\n",
-				cl_data->sensor_idx[i], get_sensor_name(cl_data->sensor_idx[i]),
-				cl_data->sensor_sts[i]);
-		}
-	}
-
-	cancel_delayed_work_sync(&cl_data->work_buffer);
-	amd_sfh_clear_intr(mp2);
+	mp2->mp2_ops->suspend(mp2);
 
 	return 0;
 }
