@@ -246,12 +246,13 @@ const struct io_op_def io_op_defs[] = {
 		.prep			= io_close_prep,
 		.issue			= io_close,
 	},
-	[IORING_OP_FILES_UPDATE] = {
+	[IORING_OP_RSRC_UPDATE] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
-		.name			= "FILES_UPDATE",
-		.prep			= io_files_update_prep,
-		.issue			= io_files_update,
+		.name			= "RSRC_UPDATE",
+		.prep			= io_rsrc_update_prep,
+		.issue			= io_rsrc_update,
+		.ioprio			= 1,
 	},
 	[IORING_OP_STATX] = {
 		.audit_skip		= 1,
