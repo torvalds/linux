@@ -2388,29 +2388,27 @@ static u32 ieee80211_handle_bss_capability(struct ieee80211_link_data *link,
 	return changed;
 }
 
-static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
-				     struct cfg80211_bss *cbss,
-				     u32 bss_info_changed)
+static u32 ieee80211_link_set_associated(struct ieee80211_link_data *link,
+					 struct cfg80211_bss *cbss)
 {
-	struct ieee80211_bss *bss = (void *)cbss->priv;
-	struct ieee80211_local *local = sdata->local;
-	struct ieee80211_link_data *link = &sdata->deflink;
+	struct ieee80211_sub_if_data *sdata = link->sdata;
 	struct ieee80211_bss_conf *bss_conf = link->conf;
-	struct ieee80211_vif_cfg *vif_cfg = &sdata->vif.cfg;
+	struct ieee80211_bss *bss = (void *)cbss->priv;
+	u32 changed = 0;
 
-	bss_info_changed |= BSS_CHANGED_ASSOC;
-	bss_info_changed |= ieee80211_handle_bss_capability(link,
-		bss_conf->assoc_capability, bss->has_erp_value, bss->erp_value);
+	sdata->u.mgd.beacon_timeout =
+		usecs_to_jiffies(ieee80211_tu_to_usec(beacon_loss_count *
+						      bss_conf->beacon_int));
 
-	sdata->u.mgd.beacon_timeout = usecs_to_jiffies(ieee80211_tu_to_usec(
-		beacon_loss_count * bss_conf->beacon_int));
-
-	sdata->u.mgd.associated = true;
-	link->u.mgd.bss = cbss;
-	memcpy(link->u.mgd.bssid, cbss->bssid, ETH_ALEN);
-	memcpy(sdata->vif.cfg.ap_addr, cbss->bssid, ETH_ALEN);
+	changed |= ieee80211_handle_bss_capability(link,
+						   bss_conf->assoc_capability,
+						   bss->has_erp_value,
+						   bss->erp_value);
 
 	ieee80211_check_rate_mask(link);
+
+	link->u.mgd.bss = cbss;
+	memcpy(link->u.mgd.bssid, cbss->bssid, ETH_ALEN);
 
 	if (sdata->vif.p2p ||
 	    sdata->vif.driver_flags & IEEE80211_VIF_GET_NOA_UPDATE) {
@@ -2429,16 +2427,11 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 			if (ret >= 2) {
 				link->u.mgd.p2p_noa_index =
 					bss_conf->p2p_noa_attr.index;
-				bss_info_changed |= BSS_CHANGED_P2P_PS;
+				changed |= BSS_CHANGED_P2P_PS;
 			}
 		}
 		rcu_read_unlock();
 	}
-
-	/* just to be sure */
-	ieee80211_stop_poll(sdata);
-
-	ieee80211_led_assoc(local, 1);
 
 	if (link->u.mgd.have_beacon) {
 		/*
@@ -2449,18 +2442,40 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 		 */
 		bss_conf->dtim_period = link->u.mgd.dtim_period ?: 1;
 		bss_conf->beacon_rate = bss->beacon_rate;
-		bss_info_changed |= BSS_CHANGED_BEACON_INFO;
+		changed |= BSS_CHANGED_BEACON_INFO;
 	} else {
 		bss_conf->beacon_rate = NULL;
 		bss_conf->dtim_period = 0;
 	}
 
-	vif_cfg->assoc = 1;
-
 	/* Tell the driver to monitor connection quality (if supported) */
 	if (sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI &&
 	    bss_conf->cqm_rssi_thold)
-		bss_info_changed |= BSS_CHANGED_CQM;
+		changed |= BSS_CHANGED_CQM;
+
+	return changed;
+}
+
+static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
+				     struct cfg80211_bss *cbss,
+				     u32 bss_info_changed)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_link_data *link = &sdata->deflink;
+	struct ieee80211_vif_cfg *vif_cfg = &sdata->vif.cfg;
+
+	bss_info_changed |= BSS_CHANGED_ASSOC;
+	bss_info_changed |= ieee80211_link_set_associated(link, cbss);
+
+	sdata->u.mgd.associated = true;
+	memcpy(sdata->vif.cfg.ap_addr, cbss->bssid, ETH_ALEN);
+
+	/* just to be sure */
+	ieee80211_stop_poll(sdata);
+
+	ieee80211_led_assoc(local, 1);
+
+	vif_cfg->assoc = 1;
 
 	/* Enable ARP filtering */
 	if (vif_cfg->arp_addr_cnt)
