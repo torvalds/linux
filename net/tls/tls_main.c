@@ -539,8 +539,7 @@ static int do_tls_getsockopt_no_pad(struct sock *sk, char __user *optval,
 				    int __user *optlen)
 {
 	struct tls_context *ctx = tls_get_ctx(sk);
-	unsigned int value;
-	int err, len;
+	int value, len;
 
 	if (ctx->prot_info.version != TLS_1_3_VERSION)
 		return -EINVAL;
@@ -551,12 +550,12 @@ static int do_tls_getsockopt_no_pad(struct sock *sk, char __user *optval,
 		return -EINVAL;
 
 	lock_sock(sk);
-	err = -EINVAL;
+	value = -EINVAL;
 	if (ctx->rx_conf == TLS_SW || ctx->rx_conf == TLS_HW)
 		value = ctx->rx_no_pad;
 	release_sock(sk);
-	if (err)
-		return err;
+	if (value < 0)
+		return value;
 
 	if (put_user(sizeof(value), optlen))
 		return -EFAULT;

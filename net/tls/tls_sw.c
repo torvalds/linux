@@ -1596,7 +1596,9 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 	if (unlikely(darg->zc && prot->version == TLS_1_3_VERSION &&
 		     darg->tail != TLS_RECORD_TYPE_DATA)) {
 		darg->zc = false;
-		TLS_INC_STATS(sock_net(sk), LINUX_MIN_TLSDECRYPTRETRY);
+		if (!darg->tail)
+			TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSRXNOPADVIOL);
+		TLS_INC_STATS(sock_net(sk), LINUX_MIB_TLSDECRYPTRETRY);
 		return decrypt_skb_update(sk, skb, dest, darg);
 	}
 

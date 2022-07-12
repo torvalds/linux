@@ -282,3 +282,7 @@ TLS implementation exposes the following per-namespace statistics
   number of RX records which had to be re-decrypted due to
   ``TLS_RX_EXPECT_NO_PAD`` mis-prediction. Note that this counter will
   also increment for non-data records.
+
+- ``TlsRxNoPadViolation`` -
+  number of data RX records which had to be re-decrypted due to
+  ``TLS_RX_EXPECT_NO_PAD`` mis-prediction.

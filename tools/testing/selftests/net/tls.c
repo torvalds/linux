@@ -1674,6 +1674,57 @@ TEST(keysizes) {
 	close(cfd);
 }
 
+TEST(no_pad) {
+	struct tls12_crypto_info_aes_gcm_256 tls12;
+	int ret, fd, cfd, val;
+	socklen_t len;
+	bool notls;
+
+	memset(&tls12, 0, sizeof(tls12));
+	tls12.info.version = TLS_1_3_VERSION;
+	tls12.info.cipher_type = TLS_CIPHER_AES_GCM_256;
+
+	ulp_sock_pair(_metadata, &fd, &cfd, &notls);
+
+	if (notls)
+		exit(KSFT_SKIP);
+
+	ret = setsockopt(fd, SOL_TLS, TLS_TX, &tls12, sizeof(tls12));
+	EXPECT_EQ(ret, 0);
+
+	ret = setsockopt(cfd, SOL_TLS, TLS_RX, &tls12, sizeof(tls12));
+	EXPECT_EQ(ret, 0);
+
+	val = 1;
+	ret = setsockopt(cfd, SOL_TLS, TLS_RX_EXPECT_NO_PAD,
+			 (void *)&val, sizeof(val));
+	EXPECT_EQ(ret, 0);
+
+	len = sizeof(val);
+	val = 2;
+	ret = getsockopt(cfd, SOL_TLS, TLS_RX_EXPECT_NO_PAD,
+			 (void *)&val, &len);
+	EXPECT_EQ(ret, 0);
+	EXPECT_EQ(val, 1);
+	EXPECT_EQ(len, 4);
+
+	val = 0;
+	ret = setsockopt(cfd, SOL_TLS, TLS_RX_EXPECT_NO_PAD,
+			 (void *)&val, sizeof(val));
+	EXPECT_EQ(ret, 0);
+
+	len = sizeof(val);
+	val = 2;
+	ret = getsockopt(cfd, SOL_TLS, TLS_RX_EXPECT_NO_PAD,
+			 (void *)&val, &len);
+	EXPECT_EQ(ret, 0);
+	EXPECT_EQ(val, 0);
+	EXPECT_EQ(len, 4);
+
+	close(fd);
+	close(cfd);
+}
+
 TEST(tls_v6ops) {
 	struct tls_crypto_info_keys tls12;
 	struct sockaddr_in6 addr, addr2;
