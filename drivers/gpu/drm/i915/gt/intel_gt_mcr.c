@@ -515,7 +515,7 @@ void intel_gt_mcr_get_ss_steering(struct intel_gt *gt, unsigned int dss,
 		*group = dss / GEN_DSS_PER_GSLICE;
 		*instance = dss % GEN_DSS_PER_GSLICE;
 	} else {
-		*group = dss / GEN_MAX_HSW_SLICES;
+		*group = dss / GEN_MAX_SS_PER_HSW_SLICE;
 		*instance = dss % GEN_MAX_SS_PER_HSW_SLICE;
 		return;
 	}
