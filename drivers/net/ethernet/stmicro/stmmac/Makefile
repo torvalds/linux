@@ -2,7 +2,8 @@
 obj-$(CONFIG_STMMAC_ETH) += stmmac.o
 
 stmmac-objs:= stmmac_main.o stmmac_mdio.o dwmac_lib.o	\
-	      mmc_core.o dwmac4_descs.o dwmac4_dma.o	\
+	      mmc_core.o stmmac_hwtstamp.o stmmac_ptp.o	\
+	      dwmac4_descs.o dwmac4_dma.o	\
 	      dwmac4_lib.o dwmac4_core.o hwif.o	\
 	      $(stmmac-y)
 
@@ -13,8 +14,6 @@ stmmac-$(CONFIG_STMMAC_FULL) += ring_mode.o chain_mode.o dwmac1000_core.o	\
 
 stmmac-$(CONFIG_STMMAC_SELFTESTS) += stmmac_selftests.o
 stmmac-$(CONFIG_STMMAC_ETHTOOL) += stmmac_ethtool.o
-
-stmmac-$(CONFIG_STMMAC_PTP) += stmmac_hwtstamp.o stmmac_ptp.o
 
 # Ordering matters. Generic driver must be last.
 obj-$(CONFIG_STMMAC_PLATFORM)	+= stmmac-platform.o

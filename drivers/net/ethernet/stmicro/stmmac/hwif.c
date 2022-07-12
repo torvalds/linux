@@ -99,9 +99,7 @@ static const struct stmmac_hwif_entry {
 	const void *desc;
 	const void *dma;
 	const void *mac;
-#ifdef CONFIG_STMMAC_PTP
 	const void *hwtimestamp;
-#endif
 	const void *mode;
 	const void *tc;
 	const void *mmc;
@@ -122,9 +120,7 @@ static const struct stmmac_hwif_entry {
 		.desc = NULL,
 		.dma = &dwmac100_dma_ops,
 		.mac = &dwmac100_ops,
-#ifdef CONFIG_STMMAC_PTP
 		.hwtimestamp = &stmmac_ptp,
-#endif
 		.mode = NULL,
 		.tc = NULL,
 		.mmc = &dwmac_mmc_ops,
@@ -142,9 +138,7 @@ static const struct stmmac_hwif_entry {
 		.desc = NULL,
 		.dma = &dwmac1000_dma_ops,
 		.mac = &dwmac1000_ops,
-#ifdef CONFIG_STMMAC_PTP
 		.hwtimestamp = &stmmac_ptp,
-#endif
 		.mode = NULL,
 		.tc = NULL,
 		.mmc = &dwmac_mmc_ops,
@@ -162,9 +156,7 @@ static const struct stmmac_hwif_entry {
 		.desc = &dwmac4_desc_ops,
 		.dma = &dwmac4_dma_ops,
 		.mac = &dwmac4_ops,
-#ifdef CONFIG_STMMAC_PTP
 		.hwtimestamp = &stmmac_ptp,
-#endif
 		.mode = NULL,
 		.tc = &dwmac510_tc_ops,
 		.mmc = &dwmac_mmc_ops,
@@ -182,9 +174,7 @@ static const struct stmmac_hwif_entry {
 		.desc = &dwmac4_desc_ops,
 		.dma = &dwmac4_dma_ops,
 		.mac = &dwmac410_ops,
-#ifdef CONFIG_STMMAC_PTP
 		.hwtimestamp = &stmmac_ptp,
-#endif
 		.mode = &dwmac4_ring_mode_ops,
 		.tc = &dwmac510_tc_ops,
 		.mmc = &dwmac_mmc_ops,
@@ -204,9 +194,7 @@ static const struct stmmac_hwif_entry {
 		.desc = &dwmac4_desc_ops,
 		.dma = &dwmac410_dma_ops,
 		.mac = &dwmac410_ops,
-#ifdef CONFIG_STMMAC_PTP
 		.hwtimestamp = &stmmac_ptp,
-#endif
 		.mode = &dwmac4_ring_mode_ops,
 #ifdef CONFIG_STMMAC_FULL
 		.tc = &dwmac510_tc_ops,
@@ -228,9 +216,7 @@ static const struct stmmac_hwif_entry {
 		.desc = &dwmac4_desc_ops,
 		.dma = &dwmac410_dma_ops,
 		.mac = &dwmac510_ops,
-#ifdef CONFIG_STMMAC_PTP
 		.hwtimestamp = &stmmac_ptp,
-#endif
 		.mode = &dwmac4_ring_mode_ops,
 		.tc = &dwmac510_tc_ops,
 		.mmc = &dwmac_mmc_ops,
@@ -249,9 +235,7 @@ static const struct stmmac_hwif_entry {
 		.desc = &dwxgmac210_desc_ops,
 		.dma = &dwxgmac210_dma_ops,
 		.mac = &dwxgmac210_ops,
-#ifdef CONFIG_STMMAC_PTP
 		.hwtimestamp = &stmmac_ptp,
-#endif
 		.mode = NULL,
 		.tc = &dwmac510_tc_ops,
 		.mmc = &dwxgmac_mmc_ops,
@@ -270,9 +254,7 @@ static const struct stmmac_hwif_entry {
 		.desc = &dwxgmac210_desc_ops,
 		.dma = &dwxgmac210_dma_ops,
 		.mac = &dwxlgmac2_ops,
-#ifdef CONFIG_STMMAC_PTP
 		.hwtimestamp = &stmmac_ptp,
-#endif
 		.mode = NULL,
 		.tc = &dwmac510_tc_ops,
 		.mmc = &dwxgmac_mmc_ops,
@@ -343,9 +325,7 @@ int stmmac_hwif_init(struct stmmac_priv *priv)
 		mac->desc = mac->desc ? : entry->desc;
 		mac->dma = mac->dma ? : entry->dma;
 		mac->mac = mac->mac ? : entry->mac;
-#ifdef CONFIG_STMMAC_PTP
 		mac->ptp = mac->ptp ? : entry->hwtimestamp;
-#endif
 		mac->mode = mac->mode ? : entry->mode;
 		mac->tc = mac->tc ? : entry->tc;
 		mac->mmc = mac->mmc ? : entry->mmc;

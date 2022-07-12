@@ -38,12 +38,6 @@ config STMMAC_FULL
 	  This selects the full function, default is Y, full-featured version
 	  includes 4.10 and other versions, if it is N, only 4.10 core working.
 
-config STMMAC_PTP
-	bool "PTP feature for STMMAC"
-	default STMMAC_ETH if !ROCKCHIP_MINI_KERNEL
-	help
-	  This selects the ptp timestamp function, default is Y.
-
 config STMMAC_PLATFORM
 	tristate "STMMAC Platform bus support"
 	depends on STMMAC_ETH
