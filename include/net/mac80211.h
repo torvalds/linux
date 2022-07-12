@@ -1856,6 +1856,13 @@ struct ieee80211_vif {
 	u8 drv_priv[] __aligned(sizeof(void *));
 };
 
+/* FIXME: for now loop over all the available links; later will be changed
+ * to loop only over the active links.
+ */
+#define for_each_vif_active_link(vif, link, link_id)			     \
+	for (link_id = 0; link_id < ARRAY_SIZE((vif)->link_conf); link_id++) \
+		if ((link = rcu_dereference((vif)->link_conf[link_id])))
+
 static inline bool ieee80211_vif_is_mesh(struct ieee80211_vif *vif)
 {
 #ifdef CONFIG_MAC80211_MESH
@@ -2247,6 +2254,14 @@ struct ieee80211_sta {
 	/* must be last */
 	u8 drv_priv[] __aligned(sizeof(void *));
 };
+
+/* FIXME: need to loop only over links which are active and check the actual
+ * lock
+ */
+#define for_each_sta_active_link(sta, link_sta, link_id)		         \
+	for (link_id = 0; link_id < ARRAY_SIZE((sta)->link); link_id++)	         \
+		if (((link_sta) = rcu_dereference_protected((sta)->link[link_id],\
+							    1)))	         \
 
 /**
  * enum sta_notify_cmd - sta notify command
