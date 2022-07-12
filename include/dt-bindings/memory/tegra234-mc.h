@@ -11,11 +11,16 @@
 /* NISO0 stream IDs */
 #define TEGRA234_SID_APE	0x02
 #define TEGRA234_SID_HDA	0x03
+#define TEGRA234_SID_GPCDMA	0x04
+#define TEGRA234_SID_MGBE	0x06
 #define TEGRA234_SID_PCIE0	0x12
 #define TEGRA234_SID_PCIE4	0x13
 #define TEGRA234_SID_PCIE5	0x14
 #define TEGRA234_SID_PCIE6	0x15
 #define TEGRA234_SID_PCIE9	0x1f
+#define TEGRA234_SID_MGBE_VF1	0x49
+#define TEGRA234_SID_MGBE_VF2	0x4a
+#define TEGRA234_SID_MGBE_VF3	0x4b
 
 /* NISO1 stream IDs */
 #define TEGRA234_SID_SDMMC4	0x02
@@ -61,8 +66,24 @@
 #define TEGRA234_MEMORY_CLIENT_PCIE10AR1 0x48
 /* PCIE7r1 read clients */
 #define TEGRA234_MEMORY_CLIENT_PCIE7AR1 0x49
+/* MGBE0 read client */
+#define TEGRA234_MEMORY_CLIENT_MGBEARD 0x58
+/* MGBEB read client */
+#define TEGRA234_MEMORY_CLIENT_MGBEBRD 0x59
+/* MGBEC read client */
+#define TEGRA234_MEMORY_CLIENT_MGBECRD 0x5a
+/* MGBED read client */
+#define TEGRA234_MEMORY_CLIENT_MGBEDRD 0x5b
+/* MGBE0 write client */
+#define TEGRA234_MEMORY_CLIENT_MGBEAWR 0x5c
+/* MGBEB write client */
+#define TEGRA234_MEMORY_CLIENT_MGBEBWR 0x5f
+/* MGBEC write client */
+#define TEGRA234_MEMORY_CLIENT_MGBECWR 0x61
 /* sdmmcd memory read client */
 #define TEGRA234_MEMORY_CLIENT_SDMMCRAB 0x63
+/* MGBED write client */
+#define TEGRA234_MEMORY_CLIENT_MGBEDWR 0x65
 /* sdmmcd memory write client */
 #define TEGRA234_MEMORY_CLIENT_SDMMCWAB 0x67
 /* BPMP read client */
