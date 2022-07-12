@@ -12,6 +12,7 @@
 #include <linux/component.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
+#include <linux/media-bus-format.h>
 #include <linux/module.h>
 #include <linux/of_address.h>
 #include <linux/of_graph.h>

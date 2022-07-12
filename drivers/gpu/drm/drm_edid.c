@@ -1581,6 +1581,15 @@ static bool version_greater(const struct drm_edid *drm_edid,
 		(edid->version == version && edid->revision > revision);
 }
 
+static int edid_hfeeodb_extension_block_count(const struct edid *edid);
+
+static int edid_hfeeodb_block_count(const struct edid *edid)
+{
+	int eeodb = edid_hfeeodb_extension_block_count(edid);
+
+	return eeodb ? eeodb + 1 : 0;
+}
+
 static int edid_extension_block_count(const struct edid *edid)
 {
 	return edid->extensions;
@@ -1619,6 +1628,19 @@ static int drm_edid_block_count(const struct drm_edid *drm_edid)
 
 	/* Starting point */
 	num_blocks = edid_block_count(drm_edid->edid);
+
+	/* HF-EEODB override */
+	if (drm_edid->size >= edid_size_by_blocks(2)) {
+		int eeodb;
+
+		/*
+		 * Note: HF-EEODB may specify a smaller extension count than the
+		 * regular one. Unlike in buffer allocation, here we can use it.
+		 */
+		eeodb = edid_hfeeodb_block_count(drm_edid->edid);
+		if (eeodb)
+			num_blocks = eeodb;
+	}
 
 	/* Limit by allocated size */
 	num_blocks = min(num_blocks, (int)drm_edid->size / EDID_LENGTH);
@@ -2020,33 +2042,42 @@ bool drm_edid_is_valid(struct edid *edid)
 }
 EXPORT_SYMBOL(drm_edid_is_valid);
 
-static struct edid *edid_filter_invalid_blocks(const struct edid *edid,
-					       int invalid_blocks,
+static struct edid *edid_filter_invalid_blocks(struct edid *edid,
 					       size_t *alloc_size)
 {
-	struct edid *new, *dest_block;
-	int valid_extensions = edid->extensions - invalid_blocks;
-	int i;
+	struct edid *new;
+	int i, valid_blocks = 0;
 
-	*alloc_size = edid_size_by_blocks(valid_extensions + 1);
-
-	new = kmalloc(*alloc_size, GFP_KERNEL);
-	if (!new)
-		goto out;
-
-	dest_block = new;
+	/*
+	 * Note: If the EDID uses HF-EEODB, but has invalid blocks, we'll revert
+	 * back to regular extension count here. We don't want to start
+	 * modifying the HF-EEODB extension too.
+	 */
 	for (i = 0; i < edid_block_count(edid); i++) {
-		const void *block = edid_block_data(edid, i);
+		const void *src_block = edid_block_data(edid, i);
 
-		if (edid_block_valid(block, i == 0))
-			memcpy(dest_block++, block, EDID_LENGTH);
+		if (edid_block_valid(src_block, i == 0)) {
+			void *dst_block = (void *)edid_block_data(edid, valid_blocks);
+
+			memmove(dst_block, src_block, EDID_LENGTH);
+			valid_blocks++;
+		}
 	}
 
-	new->extensions = valid_extensions;
-	new->checksum = edid_block_compute_checksum(new);
+	/* We already trusted the base block to be valid here... */
+	if (WARN_ON(!valid_blocks)) {
+		kfree(edid);
+		return NULL;
+	}
 
-out:
-	kfree(edid);
+	edid->extensions = valid_blocks - 1;
+	edid->checksum = edid_block_compute_checksum(edid);
+
+	*alloc_size = edid_size_by_blocks(valid_blocks);
+
+	new = krealloc(edid, *alloc_size, GFP_KERNEL);
+	if (!new)
+		kfree(edid);
 
 	return new;
 }
@@ -2161,6 +2192,32 @@ static struct edid *drm_get_override_edid(struct drm_connector *connector,
 	return IS_ERR(override) ? NULL : override;
 }
 
+/* For debugfs edid_override implementation */
+int drm_edid_override_set(struct drm_connector *connector, const void *edid,
+			  size_t size)
+{
+	int ret;
+
+	if (size < EDID_LENGTH || edid_size(edid) > size)
+		return -EINVAL;
+
+	connector->override_edid = false;
+
+	ret = drm_connector_update_edid_property(connector, edid);
+	if (!ret)
+		connector->override_edid = true;
+
+	return ret;
+}
+
+/* For debugfs edid_override implementation */
+int drm_edid_override_reset(struct drm_connector *connector)
+{
+	connector->override_edid = false;
+
+	return drm_connector_update_edid_property(connector, NULL);
+}
+
 /**
  * drm_add_override_edid_modes - add modes from override/firmware EDID
  * @connector: connector we're probing
@@ -2231,7 +2288,7 @@ static struct edid *_drm_do_get_edid(struct drm_connector *connector,
 				     size_t *size)
 {
 	enum edid_block_status status;
-	int i, invalid_blocks = 0;
+	int i, num_blocks, invalid_blocks = 0;
 	struct edid *edid, *new;
 	size_t alloc_size = EDID_LENGTH;
 
@@ -2273,7 +2330,8 @@ static struct edid *_drm_do_get_edid(struct drm_connector *connector,
 		goto fail;
 	edid = new;
 
-	for (i = 1; i < edid_block_count(edid); i++) {
+	num_blocks = edid_block_count(edid);
+	for (i = 1; i < num_blocks; i++) {
 		void *block = (void *)edid_block_data(edid, i);
 
 		status = edid_block_read(block, i, read_block, context);
@@ -2284,14 +2342,33 @@ static struct edid *_drm_do_get_edid(struct drm_connector *connector,
 			if (status == EDID_BLOCK_READ_FAIL)
 				goto fail;
 			invalid_blocks++;
+		} else if (i == 1) {
+			/*
+			 * If the first EDID extension is a CTA extension, and
+			 * the first Data Block is HF-EEODB, override the
+			 * extension block count.
+			 *
+			 * Note: HF-EEODB could specify a smaller extension
+			 * count too, but we can't risk allocating a smaller
+			 * amount.
+			 */
+			int eeodb = edid_hfeeodb_block_count(edid);
+
+			if (eeodb > num_blocks) {
+				num_blocks = eeodb;
+				alloc_size = edid_size_by_blocks(num_blocks);
+				new = krealloc(edid, alloc_size, GFP_KERNEL);
+				if (!new)
+					goto fail;
+				edid = new;
+			}
 		}
 	}
 
 	if (invalid_blocks) {
-		connector_bad_edid(connector, edid, edid_block_count(edid));
+		connector_bad_edid(connector, edid, num_blocks);
 
-		edid = edid_filter_invalid_blocks(edid, invalid_blocks,
-						  &alloc_size);
+		edid = edid_filter_invalid_blocks(edid, &alloc_size);
 	}
 
 ok:
@@ -2332,6 +2409,32 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	return _drm_do_get_edid(connector, read_block, context, NULL);
 }
 EXPORT_SYMBOL_GPL(drm_do_get_edid);
+
+/**
+ * drm_edid_raw - Get a pointer to the raw EDID data.
+ * @drm_edid: drm_edid container
+ *
+ * Get a pointer to the raw EDID data.
+ *
+ * This is for transition only. Avoid using this like the plague.
+ *
+ * Return: Pointer to raw EDID data.
+ */
+const struct edid *drm_edid_raw(const struct drm_edid *drm_edid)
+{
+	if (!drm_edid || !drm_edid->size)
+		return NULL;
+
+	/*
+	 * Do not return pointers where relying on EDID extension count would
+	 * lead to buffer overflow.
+	 */
+	if (WARN_ON(edid_size(drm_edid->edid) > drm_edid->size))
+		return NULL;
+
+	return drm_edid->edid;
+}
+EXPORT_SYMBOL(drm_edid_raw);
 
 /* Allocate struct drm_edid container *without* duplicating the edid data */
 static const struct drm_edid *_drm_edid_alloc(const void *edid, size_t size)
@@ -3796,6 +3899,7 @@ static int add_detailed_modes(struct drm_connector *connector,
 #define CTA_EXT_DB_HDR_STATIC_METADATA	6
 #define CTA_EXT_DB_420_VIDEO_DATA	14
 #define CTA_EXT_DB_420_VIDEO_CAP_MAP	15
+#define CTA_EXT_DB_HF_EEODB		0x78
 #define CTA_EXT_DB_HF_SCDB		0x79
 
 #define EDID_BASIC_AUDIO	(1 << 6)
@@ -4855,6 +4959,12 @@ static bool cea_db_is_hdmi_forum_vsdb(const struct cea_db *db)
 		cea_db_payload_len(db) >= 7;
 }
 
+static bool cea_db_is_hdmi_forum_eeodb(const void *db)
+{
+	return cea_db_is_extended_tag(db, CTA_EXT_DB_HF_EEODB) &&
+		cea_db_payload_len(db) >= 2;
+}
+
 static bool cea_db_is_microsoft_vsdb(const struct cea_db *db)
 {
 	return cea_db_is_vendor(db, MICROSOFT_IEEE_OUI) &&
@@ -4887,6 +4997,47 @@ static bool cea_db_is_hdmi_hdr_metadata_block(const struct cea_db *db)
 {
 	return cea_db_is_extended_tag(db, CTA_EXT_DB_HDR_STATIC_METADATA) &&
 		cea_db_payload_len(db) >= 3;
+}
+
+/*
+ * Get the HF-EEODB override extension block count from EDID.
+ *
+ * The passed in EDID may be partially read, as long as it has at least two
+ * blocks (base block and one extension block) if EDID extension count is > 0.
+ *
+ * Note that this is *not* how you should parse CTA Data Blocks in general; this
+ * is only to handle partially read EDIDs. Normally, use the CTA Data Block
+ * iterators instead.
+ *
+ * References:
+ * - HDMI 2.1 section 10.3.6 HDMI Forum EDID Extension Override Data Block
+ */
+static int edid_hfeeodb_extension_block_count(const struct edid *edid)
+{
+	const u8 *cta;
+
+	/* No extensions according to base block, no HF-EEODB. */
+	if (!edid_extension_block_count(edid))
+		return 0;
+
+	/* HF-EEODB is always in the first EDID extension block only */
+	cta = edid_extension_block_data(edid, 0);
+	if (edid_block_tag(cta) != CEA_EXT || cea_revision(cta) < 3)
+		return 0;
+
+	/* Need to have the data block collection, and at least 3 bytes. */
+	if (cea_db_collection_size(cta) < 3)
+		return 0;
+
+	/*
+	 * Sinks that include the HF-EEODB in their E-EDID shall include one and
+	 * only one instance of the HF-EEODB in the E-EDID, occupying bytes 4
+	 * through 6 of Block 1 of the E-EDID.
+	 */
+	if (!cea_db_is_hdmi_forum_eeodb(&cta[4]))
+		return 0;
+
+	return cta[4 + 2];
 }
 
 static void drm_parse_y420cmdb_bitmap(struct drm_connector *connector,
@@ -5928,8 +6079,7 @@ static void drm_update_mso(struct drm_connector *connector,
 /* A connector has no EDID information, so we've got no EDID to compute quirks from. Reset
  * all of the values which would have been set from EDID
  */
-void
-drm_reset_display_info(struct drm_connector *connector)
+static void drm_reset_display_info(struct drm_connector *connector)
 {
 	struct drm_display_info *info = &connector->display_info;
 
@@ -6043,14 +6193,6 @@ out:
 	return quirks;
 }
 
-u32 drm_add_display_info(struct drm_connector *connector, const struct edid *edid)
-{
-	struct drm_edid drm_edid;
-
-	return update_display_info(connector,
-				   drm_edid_legacy_init(&drm_edid, edid));
-}
-
 static struct drm_display_mode *drm_mode_displayid_detailed(struct drm_device *dev,
 							    struct displayid_detailed_timings_1 *timings,
 							    bool type_7)
@@ -6143,8 +6285,8 @@ static int add_displayid_detailed_modes(struct drm_connector *connector,
 	return num_modes;
 }
 
-static int drm_edid_connector_update(struct drm_connector *connector,
-				     const struct drm_edid *drm_edid)
+static int _drm_edid_connector_update(struct drm_connector *connector,
+				      const struct drm_edid *drm_edid)
 {
 	int num_modes = 0;
 	u32 quirks;
@@ -6207,6 +6349,156 @@ static int drm_edid_connector_update(struct drm_connector *connector,
 	return num_modes;
 }
 
+static void _drm_update_tile_info(struct drm_connector *connector,
+				  const struct drm_edid *drm_edid);
+
+static int _drm_edid_connector_property_update(struct drm_connector *connector,
+					       const struct drm_edid *drm_edid)
+{
+	struct drm_device *dev = connector->dev;
+	int ret;
+
+	if (connector->edid_blob_ptr) {
+		const struct edid *old_edid = connector->edid_blob_ptr->data;
+
+		if (old_edid) {
+			if (!drm_edid_are_equal(drm_edid ? drm_edid->edid : NULL, old_edid)) {
+				connector->epoch_counter++;
+				drm_dbg_kms(dev, "[CONNECTOR:%d:%s] EDID changed, epoch counter %llu\n",
+					    connector->base.id, connector->name,
+					    connector->epoch_counter);
+			}
+		}
+	}
+
+	ret = drm_property_replace_global_blob(dev,
+					       &connector->edid_blob_ptr,
+					       drm_edid ? drm_edid->size : 0,
+					       drm_edid ? drm_edid->edid : NULL,
+					       &connector->base,
+					       dev->mode_config.edid_property);
+	if (ret) {
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] EDID property update failed (%d)\n",
+			    connector->base.id, connector->name, ret);
+		goto out;
+	}
+
+	ret = drm_object_property_set_value(&connector->base,
+					    dev->mode_config.non_desktop_property,
+					    connector->display_info.non_desktop);
+	if (ret) {
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Non-desktop property update failed (%d)\n",
+			    connector->base.id, connector->name, ret);
+		goto out;
+	}
+
+	ret = drm_connector_set_tile_property(connector);
+	if (ret) {
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] Tile property update failed (%d)\n",
+			    connector->base.id, connector->name, ret);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+
+/**
+ * drm_edid_connector_update - Update connector information from EDID
+ * @connector: Connector
+ * @drm_edid: EDID
+ *
+ * Update the connector mode list, display info, ELD, HDR metadata, relevant
+ * properties, etc. from the passed in EDID.
+ *
+ * If EDID is NULL, reset the information.
+ *
+ * Return: The number of modes added or 0 if we couldn't find any.
+ */
+int drm_edid_connector_update(struct drm_connector *connector,
+			      const struct drm_edid *drm_edid)
+{
+	int count;
+
+	/*
+	 * FIXME: Reconcile the differences in override_edid handling between
+	 * this and drm_connector_update_edid_property().
+	 *
+	 * If override_edid is set, and the EDID passed in here originates from
+	 * drm_edid_read() and friends, it will be the override EDID, and there
+	 * are no issues. drm_connector_update_edid_property() ignoring requests
+	 * to set the EDID dates back to a time when override EDID was not
+	 * handled at the low level EDID read.
+	 *
+	 * The only way the EDID passed in here can be different from the
+	 * override EDID is when a driver passes in an EDID that does *not*
+	 * originate from drm_edid_read() and friends, or passes in a stale
+	 * cached version. This, in turn, is a question of when an override EDID
+	 * set via debugfs should take effect.
+	 */
+
+	count = _drm_edid_connector_update(connector, drm_edid);
+
+	_drm_update_tile_info(connector, drm_edid);
+
+	/* Note: Ignore errors for now. */
+	_drm_edid_connector_property_update(connector, drm_edid);
+
+	return count;
+}
+EXPORT_SYMBOL(drm_edid_connector_update);
+
+static int _drm_connector_update_edid_property(struct drm_connector *connector,
+					       const struct drm_edid *drm_edid)
+{
+	/* ignore requests to set edid when overridden */
+	if (connector->override_edid)
+		return 0;
+
+	/*
+	 * Set the display info, using edid if available, otherwise resetting
+	 * the values to defaults. This duplicates the work done in
+	 * drm_add_edid_modes, but that function is not consistently called
+	 * before this one in all drivers and the computation is cheap enough
+	 * that it seems better to duplicate it rather than attempt to ensure
+	 * some arbitrary ordering of calls.
+	 */
+	if (drm_edid)
+		update_display_info(connector, drm_edid);
+	else
+		drm_reset_display_info(connector);
+
+	_drm_update_tile_info(connector, drm_edid);
+
+	return _drm_edid_connector_property_update(connector, drm_edid);
+}
+
+/**
+ * drm_connector_update_edid_property - update the edid property of a connector
+ * @connector: drm connector
+ * @edid: new value of the edid property
+ *
+ * This function creates a new blob modeset object and assigns its id to the
+ * connector's edid property.
+ * Since we also parse tile information from EDID's displayID block, we also
+ * set the connector's tile property here. See drm_connector_set_tile_property()
+ * for more details.
+ *
+ * This function is deprecated. Use drm_edid_connector_update() instead.
+ *
+ * Returns:
+ * Zero on success, negative errno on failure.
+ */
+int drm_connector_update_edid_property(struct drm_connector *connector,
+				       const struct edid *edid)
+{
+	struct drm_edid drm_edid;
+
+	return _drm_connector_update_edid_property(connector,
+						   drm_edid_legacy_init(&drm_edid, edid));
+}
+EXPORT_SYMBOL(drm_connector_update_edid_property);
+
 /**
  * drm_add_edid_modes - add modes from EDID data, if available
  * @connector: connector we're probing
@@ -6215,6 +6507,8 @@ static int drm_edid_connector_update(struct drm_connector *connector,
  * Add the specified modes to the connector's mode list. Also fills out the
  * &drm_display_info structure and ELD in @connector with any information which
  * can be derived from the edid.
+ *
+ * This function is deprecated. Use drm_edid_connector_update() instead.
  *
  * Return: The number of modes added or 0 if we couldn't find any.
  */
@@ -6228,8 +6522,8 @@ int drm_add_edid_modes(struct drm_connector *connector, struct edid *edid)
 		edid = NULL;
 	}
 
-	return drm_edid_connector_update(connector,
-					 drm_edid_legacy_init(&drm_edid, edid));
+	return _drm_edid_connector_update(connector,
+					  drm_edid_legacy_init(&drm_edid, edid));
 }
 EXPORT_SYMBOL(drm_add_edid_modes);
 
@@ -6643,12 +6937,4 @@ static void _drm_update_tile_info(struct drm_connector *connector,
 		drm_mode_put_tile_group(connector->dev, connector->tile_group);
 		connector->tile_group = NULL;
 	}
-}
-
-void drm_update_tile_info(struct drm_connector *connector,
-			  const struct edid *edid)
-{
-	struct drm_edid drm_edid;
-
-	_drm_update_tile_info(connector, drm_edid_legacy_init(&drm_edid, edid));
 }

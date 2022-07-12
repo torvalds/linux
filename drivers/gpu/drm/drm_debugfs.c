@@ -350,31 +350,20 @@ static ssize_t edid_write(struct file *file, const char __user *ubuf,
 	struct seq_file *m = file->private_data;
 	struct drm_connector *connector = m->private;
 	char *buf;
-	struct edid *edid;
 	int ret;
 
 	buf = memdup_user(ubuf, len);
 	if (IS_ERR(buf))
 		return PTR_ERR(buf);
 
-	edid = (struct edid *) buf;
-
-	if (len == 5 && !strncmp(buf, "reset", 5)) {
-		connector->override_edid = false;
-		ret = drm_connector_update_edid_property(connector, NULL);
-	} else if (len < EDID_LENGTH ||
-		   EDID_LENGTH * (1 + edid->extensions) > len)
-		ret = -EINVAL;
-	else {
-		connector->override_edid = false;
-		ret = drm_connector_update_edid_property(connector, edid);
-		if (!ret)
-			connector->override_edid = true;
-	}
+	if (len == 5 && !strncmp(buf, "reset", 5))
+		ret = drm_edid_override_reset(connector);
+	else
+		ret = drm_edid_override_set(connector, buf, len);
 
 	kfree(buf);
 
-	return (ret) ? ret : len;
+	return ret ? ret : len;
 }
 
 /*

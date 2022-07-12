@@ -34,6 +34,7 @@
 #include <linux/list.h>
 #include <linux/list_sort.h>
 #include <linux/export.h>
+#include <linux/fb.h>
 
 #include <video/of_display_timing.h>
 #include <video/of_videomode.h>
