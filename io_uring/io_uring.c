@@ -90,6 +90,7 @@
 #include "rsrc.h"
 #include "cancel.h"
 #include "net.h"
+#include "notif.h"
 
 #include "timeout.h"
 #include "poll.h"
@@ -732,9 +733,8 @@ struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx)
 	return &rings->cqes[off];
 }
 
-static bool io_fill_cqe_aux(struct io_ring_ctx *ctx,
-			    u64 user_data, s32 res, u32 cflags,
-			    bool allow_overflow)
+bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res, u32 cflags,
+		     bool allow_overflow)
 {
 	struct io_uring_cqe *cqe;
 
@@ -2491,6 +2491,7 @@ static __cold void io_ring_ctx_free(struct io_ring_ctx *ctx)
 	}
 #endif
 	WARN_ON_ONCE(!list_empty(&ctx->ltimeout_list));
+	WARN_ON_ONCE(ctx->notif_slots || ctx->nr_notif_slots);
 
 	io_mem_free(ctx->rings);
 	io_mem_free(ctx->sq_sqes);
@@ -2667,6 +2668,7 @@ static __cold void io_ring_ctx_wait_and_kill(struct io_ring_ctx *ctx)
 		io_unregister_personality(ctx, index);
 	if (ctx->rings)
 		io_poll_remove_all(ctx, NULL, true);
+	io_notif_unregister(ctx);
 	mutex_unlock(&ctx->uring_lock);
 
 	/* failed during ring init, it couldn't have issued any requests */
