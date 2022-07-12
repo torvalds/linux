@@ -2795,6 +2795,26 @@ struct recorded_ref {
 	int name_len;
 };
 
+static struct recorded_ref *recorded_ref_alloc(void)
+{
+	struct recorded_ref *ref;
+
+	ref = kzalloc(sizeof(*ref), GFP_KERNEL);
+	if (!ref)
+		return NULL;
+	INIT_LIST_HEAD(&ref->list);
+	return ref;
+}
+
+static void recorded_ref_free(struct recorded_ref *ref)
+{
+	if (!ref)
+		return;
+	list_del(&ref->list);
+	fs_path_free(ref->full_path);
+	kfree(ref);
+}
+
 static void set_ref_path(struct recorded_ref *ref, struct fs_path *path)
 {
 	ref->full_path = path;
@@ -2812,7 +2832,7 @@ static int __record_ref(struct list_head *head, u64 dir,
 {
 	struct recorded_ref *ref;
 
-	ref = kmalloc(sizeof(*ref), GFP_KERNEL);
+	ref = recorded_ref_alloc();
 	if (!ref)
 		return -ENOMEM;
 
@@ -2827,14 +2847,12 @@ static int dup_ref(struct recorded_ref *ref, struct list_head *list)
 {
 	struct recorded_ref *new;
 
-	new = kmalloc(sizeof(*ref), GFP_KERNEL);
+	new = recorded_ref_alloc();
 	if (!new)
 		return -ENOMEM;
 
 	new->dir = ref->dir;
 	new->dir_gen = ref->dir_gen;
-	new->full_path = NULL;
-	INIT_LIST_HEAD(&new->list);
 	list_add_tail(&new->list, list);
 	return 0;
 }
@@ -2845,9 +2863,7 @@ static void __free_recorded_refs(struct list_head *head)
 
 	while (!list_empty(head)) {
 		cur = list_entry(head->next, struct recorded_ref, list);
-		fs_path_free(cur->full_path);
-		list_del(&cur->list);
-		kfree(cur);
+		recorded_ref_free(cur);
 	}
 }
 
@@ -6484,9 +6500,7 @@ static int btrfs_unlink_all_paths(struct send_ctx *sctx)
 		ret = send_unlink(sctx, ref->full_path);
 		if (ret < 0)
 			goto out;
-		fs_path_free(ref->full_path);
-		list_del(&ref->list);
-		kfree(ref);
+		recorded_ref_free(ref);
 	}
 	ret = 0;
 out:
