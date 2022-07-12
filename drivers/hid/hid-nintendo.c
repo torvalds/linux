@@ -1585,6 +1585,7 @@ static const unsigned int joycon_button_inputs_r[] = {
 /* We report joy-con d-pad inputs as buttons and pro controller as a hat. */
 static const unsigned int joycon_dpad_inputs_jc[] = {
 	BTN_DPAD_UP, BTN_DPAD_DOWN, BTN_DPAD_LEFT, BTN_DPAD_RIGHT,
+	0 /* 0 signals end of array */
 };
 
 static int joycon_input_create(struct joycon_ctlr *ctlr)
