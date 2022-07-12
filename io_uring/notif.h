@@ -10,6 +10,7 @@
 struct io_notif {
 	struct ubuf_info	uarg;
 	struct io_ring_ctx	*ctx;
+	struct io_rsrc_node	*rsrc_node;
 
 	/* complete via tw if ->task is non-NULL, fallback to wq otherwise */
 	struct task_struct	*task;
