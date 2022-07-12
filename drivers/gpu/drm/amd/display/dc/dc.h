@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.187"
+#define DC_VER "3.2.191"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -162,6 +162,10 @@ struct dc_color_caps {
 	struct mpc_color_caps mpc;
 };
 
+struct dc_dmub_caps {
+    bool psr;
+};
+
 struct dc_caps {
 	uint32_t max_streams;
 	uint32_t max_links;
@@ -196,12 +200,23 @@ struct dc_caps {
 	unsigned int cursor_cache_size;
 	struct dc_plane_cap planes[MAX_PLANES];
 	struct dc_color_caps color;
+	struct dc_dmub_caps dmub_caps;
 	bool dp_hpo;
 	bool hdmi_frl_pcon_support;
 	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
 	uint32_t max_otg_num;
+#ifdef CONFIG_DRM_AMD_DC_DCN
+	uint32_t max_cab_allocation_bytes;
+	uint32_t cache_line_size;
+	uint32_t cache_num_ways;
+	uint16_t subvp_fw_processing_delay_us;
+	uint16_t subvp_prefetch_end_to_mall_start_us;
+	uint16_t subvp_pstate_allow_width_us;
+	uint16_t subvp_vertical_int_margin_us;
+#endif
+	bool seamless_odm;
 };
 
 struct dc_bug_wa {
@@ -337,6 +352,7 @@ struct dc_config {
 	bool is_single_rank_dimm;
 	bool use_pipe_ctx_sync_logic;
 	bool ignore_dpref_ss;
+	bool enable_mipi_converter_optimization;
 };
 
 enum visual_confirm {
@@ -417,12 +433,16 @@ struct dc_clocks {
 	enum dcn_zstate_support_state zstate_support;
 	bool dtbclk_en;
 	int ref_dtbclk_khz;
+	bool fclk_p_state_change_support;
 	enum dcn_pwr_state pwr_state;
 	/*
 	 * Elements below are not compared for the purposes of
 	 * optimization required
 	 */
 	bool prev_p_state_change_support;
+	bool fclk_prev_p_state_change_support;
+	int num_ways;
+	int prev_num_ways;
 	enum dtm_pstate dtm_level;
 	int max_supported_dppclk_khz;
 	int max_supported_dispclk_khz;
@@ -717,13 +737,19 @@ struct dc_debug_options {
 	bool enable_z9_disable_interface;
 	bool enable_sw_cntl_psr;
 	union dpia_debug_options dpia_debug;
-	bool apply_vendor_specific_lttpr_wa;
-	bool extended_blank_optimization;
-	union aux_wake_wa_options aux_wake_wa;
+	bool disable_fixed_vs_aux_timeout_wa;
+	uint32_t fixed_vs_aux_delay_config_wa;
+	bool force_disable_subvp;
+	bool force_subvp_mclk_switch;
+	bool force_usr_allow;
 	/* uses value at boot and disables switch */
 	bool disable_dtb_ref_clk_switch;
+	bool extended_blank_optimization;
+	union aux_wake_wa_options aux_wake_wa;
 	uint8_t psr_power_use_phy_fsm;
 	enum dml_hostvm_override_opts dml_hostvm_override;
+	bool use_legacy_soc_bb_mechanism;
+	bool exit_idle_opt_for_cursor_updates;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -1220,6 +1246,7 @@ struct dpcd_caps {
 	bool panel_mode_edp;
 	bool dpcd_display_control_capable;
 	bool ext_receiver_cap_field_present;
+	bool set_power_state_capable_edp;
 	bool dynamic_backlight_capable_edp;
 	union dpcd_fec_capability fec_cap;
 	struct dpcd_dsc_capabilities dsc_caps;
@@ -1412,16 +1439,10 @@ bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc, struct dc_plane_
 
 void dc_allow_idle_optimizations(struct dc *dc, bool allow);
 
-/*
- * blank all streams, and set min and max memory clock to
- * lowest and highest DPM level, respectively
- */
+/* set min and max memory clock to lowest and highest DPM level, respectively */
 void dc_unlock_memory_clock_frequency(struct dc *dc);
 
-/*
- * set min memory clock to the min required for current mode,
- * max to maxDPM, and unblank streams
- */
+/* set min memory clock to the min required for current mode, max to maxDPM */
 void dc_lock_memory_clock_frequency(struct dc *dc);
 
 /* set soft max for memclk, to be used for AC/DC switching clock limitations */

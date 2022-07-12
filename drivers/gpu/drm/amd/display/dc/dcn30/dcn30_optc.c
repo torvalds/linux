@@ -27,6 +27,7 @@
 #include "dcn30_optc.h"
 #include "dc.h"
 #include "dcn_calc_math.h"
+#include "dc_dmub_srv.h"
 
 #include "dml/dcn30/dcn30_fpu.h"
 

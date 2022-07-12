@@ -110,7 +110,7 @@ static int amdgpu_ctx_priority_permit(struct drm_file *filp,
 	return -EACCES;
 }
 
-static enum amdgpu_gfx_pipe_priority amdgpu_ctx_prio_to_compute_prio(int32_t prio)
+static enum amdgpu_gfx_pipe_priority amdgpu_ctx_prio_to_gfx_pipe_prio(int32_t prio)
 {
 	switch (prio) {
 	case AMDGPU_CTX_PRIORITY_HIGH:
@@ -143,8 +143,9 @@ static unsigned int amdgpu_ctx_get_hw_prio(struct amdgpu_ctx *ctx, u32 hw_ip)
 			ctx->init_priority : ctx->override_priority;
 
 	switch (hw_ip) {
+	case AMDGPU_HW_IP_GFX:
 	case AMDGPU_HW_IP_COMPUTE:
-		hw_prio = amdgpu_ctx_prio_to_compute_prio(ctx_prio);
+		hw_prio = amdgpu_ctx_prio_to_gfx_pipe_prio(ctx_prio);
 		break;
 	case AMDGPU_HW_IP_VCE:
 	case AMDGPU_HW_IP_VCN_ENC:
@@ -779,7 +780,7 @@ static void amdgpu_ctx_set_entity_priority(struct amdgpu_ctx *ctx,
 				      amdgpu_ctx_to_drm_sched_prio(priority));
 
 	/* set hw priority */
-	if (hw_ip == AMDGPU_HW_IP_COMPUTE) {
+	if (hw_ip == AMDGPU_HW_IP_COMPUTE || hw_ip == AMDGPU_HW_IP_GFX) {
 		hw_prio = amdgpu_ctx_get_hw_prio(ctx, hw_ip);
 		hw_prio = array_index_nospec(hw_prio, AMDGPU_RING_PRIO_MAX);
 		scheds = adev->gpu_sched[hw_ip][hw_prio].sched;

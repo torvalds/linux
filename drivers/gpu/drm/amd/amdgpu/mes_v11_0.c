@@ -156,7 +156,13 @@ static int mes_v11_0_add_hw_queue(struct amdgpu_mes *mes,
 		input->gang_global_priority_level;
 	mes_add_queue_pkt.doorbell_offset = input->doorbell_offset;
 	mes_add_queue_pkt.mqd_addr = input->mqd_addr;
-	mes_add_queue_pkt.wptr_addr = input->wptr_addr;
+
+	if (((adev->mes.sched_version & AMDGPU_MES_API_VERSION_MASK) >>
+			AMDGPU_MES_API_VERSION_SHIFT) >= 2)
+		mes_add_queue_pkt.wptr_addr = input->wptr_mc_addr;
+	else
+		mes_add_queue_pkt.wptr_addr = input->wptr_addr;
+
 	mes_add_queue_pkt.queue_type =
 		convert_to_mes_queue_type(input->queue_type);
 	mes_add_queue_pkt.paging = input->paging;
@@ -165,6 +171,7 @@ static int mes_v11_0_add_hw_queue(struct amdgpu_mes *mes,
 	mes_add_queue_pkt.gws_size = input->gws_size;
 	mes_add_queue_pkt.trap_handler_addr = input->tba_addr;
 	mes_add_queue_pkt.tma_addr = input->tma_addr;
+	mes_add_queue_pkt.is_kfd_process = input->is_kfd_process;
 
 	mes_add_queue_pkt.api_status.api_completion_fence_addr =
 		mes->ring.fence_drv.gpu_addr;
@@ -267,6 +274,58 @@ static int mes_v11_0_query_sched_status(struct amdgpu_mes *mes)
 			&mes_status_pkt, sizeof(mes_status_pkt));
 }
 
+static int mes_v11_0_misc_op(struct amdgpu_mes *mes,
+			     struct mes_misc_op_input *input)
+{
+	union MESAPI__MISC misc_pkt;
+
+	memset(&misc_pkt, 0, sizeof(misc_pkt));
+
+	misc_pkt.header.type = MES_API_TYPE_SCHEDULER;
+	misc_pkt.header.opcode = MES_SCH_API_MISC;
+	misc_pkt.header.dwsize = API_FRAME_SIZE_IN_DWORDS;
+
+	switch (input->op) {
+	case MES_MISC_OP_READ_REG:
+		misc_pkt.opcode = MESAPI_MISC__READ_REG;
+		misc_pkt.read_reg.reg_offset = input->read_reg.reg_offset;
+		misc_pkt.read_reg.buffer_addr = input->read_reg.buffer_addr;
+		break;
+	case MES_MISC_OP_WRITE_REG:
+		misc_pkt.opcode = MESAPI_MISC__WRITE_REG;
+		misc_pkt.write_reg.reg_offset = input->write_reg.reg_offset;
+		misc_pkt.write_reg.reg_value = input->write_reg.reg_value;
+		break;
+	case MES_MISC_OP_WRM_REG_WAIT:
+		misc_pkt.opcode = MESAPI_MISC__WAIT_REG_MEM;
+		misc_pkt.wait_reg_mem.op = WRM_OPERATION__WAIT_REG_MEM;
+		misc_pkt.wait_reg_mem.reference = input->wrm_reg.ref;
+		misc_pkt.wait_reg_mem.mask = input->wrm_reg.mask;
+		misc_pkt.wait_reg_mem.reg_offset1 = input->wrm_reg.reg0;
+		misc_pkt.wait_reg_mem.reg_offset2 = 0;
+		break;
+	case MES_MISC_OP_WRM_REG_WR_WAIT:
+		misc_pkt.opcode = MESAPI_MISC__WAIT_REG_MEM;
+		misc_pkt.wait_reg_mem.op = WRM_OPERATION__WR_WAIT_WR_REG;
+		misc_pkt.wait_reg_mem.reference = input->wrm_reg.ref;
+		misc_pkt.wait_reg_mem.mask = input->wrm_reg.mask;
+		misc_pkt.wait_reg_mem.reg_offset1 = input->wrm_reg.reg0;
+		misc_pkt.wait_reg_mem.reg_offset2 = input->wrm_reg.reg1;
+		break;
+	default:
+		DRM_ERROR("unsupported misc op (%d) \n", input->op);
+		return -EINVAL;
+	}
+
+	misc_pkt.api_status.api_completion_fence_addr =
+		mes->ring.fence_drv.gpu_addr;
+	misc_pkt.api_status.api_completion_fence_value =
+		++mes->ring.fence_drv.sync_seq;
+
+	return mes_v11_0_submit_pkt_and_poll_completion(mes,
+			&misc_pkt, sizeof(misc_pkt));
+}
+
 static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
 {
 	int i;
@@ -312,6 +371,7 @@ static int mes_v11_0_set_hw_resources(struct amdgpu_mes *mes)
 	mes_set_hw_res_pkt.disable_reset = 1;
 	mes_set_hw_res_pkt.disable_mes_log = 1;
 	mes_set_hw_res_pkt.use_different_vmid_compute = 1;
+	mes_set_hw_res_pkt.oversubscription_timer = 50;
 
 	mes_set_hw_res_pkt.api_status.api_completion_fence_addr =
 		mes->ring.fence_drv.gpu_addr;
@@ -328,6 +388,7 @@ static const struct amdgpu_mes_funcs mes_v11_0_funcs = {
 	.unmap_legacy_queue = mes_v11_0_unmap_legacy_queue,
 	.suspend_gang = mes_v11_0_suspend_gang,
 	.resume_gang = mes_v11_0_resume_gang,
+	.misc_op = mes_v11_0_misc_op,
 };
 
 static int mes_v11_0_init_microcode(struct amdgpu_device *adev,
@@ -858,6 +919,18 @@ static int mes_v11_0_queue_init(struct amdgpu_device *adev,
 		mes_v11_0_queue_init_register(ring);
 	}
 
+	/* get MES scheduler/KIQ versions */
+	mutex_lock(&adev->srbm_mutex);
+	soc21_grbm_select(adev, 3, pipe, 0, 0);
+
+	if (pipe == AMDGPU_MES_SCHED_PIPE)
+		adev->mes.sched_version = RREG32_SOC15(GC, 0, regCP_MES_GP3_LO);
+	else if (pipe == AMDGPU_MES_KIQ_PIPE && adev->enable_mes_kiq)
+		adev->mes.kiq_version = RREG32_SOC15(GC, 0, regCP_MES_GP3_LO);
+
+	soc21_grbm_select(adev, 0, 0, 0, 0);
+	mutex_unlock(&adev->srbm_mutex);
+
 	return 0;
 }
 
@@ -1120,6 +1193,7 @@ static int mes_v11_0_hw_init(void *handle)
 	 * with MES enabled.
 	 */
 	adev->gfx.kiq.ring.sched.ready = false;
+	adev->mes.ring.sched.ready = true;
 
 	return 0;
 

@@ -135,7 +135,6 @@ IRQ_DCN31 = irq_service_dcn31.o
 AMD_DAL_IRQ_DCN31= $(addprefix $(AMDDALPATH)/dc/irq/dcn31/,$(IRQ_DCN31))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_IRQ_DCN31)
-
 ###############################################################################
 # DCN 315
 ###############################################################################
@@ -144,3 +143,12 @@ IRQ_DCN315 = irq_service_dcn315.o
 AMD_DAL_IRQ_DCN315= $(addprefix $(AMDDALPATH)/dc/irq/dcn315/,$(IRQ_DCN315))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_IRQ_DCN315)
+
+###############################################################################
+# DCN 32
+###############################################################################
+IRQ_DCN32 = irq_service_dcn32.o
+
+AMD_DAL_IRQ_DCN32= $(addprefix $(AMDDALPATH)/dc/irq/dcn32/,$(IRQ_DCN32))
+
+AMD_DISPLAY_FILES += $(AMD_DAL_IRQ_DCN32)

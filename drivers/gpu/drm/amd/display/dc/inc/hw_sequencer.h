@@ -244,6 +244,8 @@ struct hw_sequencer_funcs {
 			struct pipe_ctx *pipe_ctx,
 			struct tg_color *color,
 			int mpcc_id);
+
+	void (*commit_subvp_config)(struct dc *dc, struct dc_state *context);
 };
 
 void color_space_to_black_color(

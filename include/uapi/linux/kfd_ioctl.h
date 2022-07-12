@@ -34,9 +34,11 @@
  * - 1.6 - Query clear flags in SVM get_attr API
  * - 1.7 - Checkpoint Restore (CRIU) API
  * - 1.8 - CRIU - Support for SDMA transfers with GTT BOs
+ * - 1.9 - Add available memory ioctl
+ * - 1.10 - Add SMI profiler event log
  */
 #define KFD_IOCTL_MAJOR_VERSION 1
-#define KFD_IOCTL_MINOR_VERSION 8
+#define KFD_IOCTL_MINOR_VERSION 10
 
 struct kfd_ioctl_get_version_args {
 	__u32 major_version;	/* from KFD */
@@ -97,6 +99,12 @@ struct kfd_ioctl_get_queue_wave_state_args {
 	__u32 ctl_stack_used_size;	/* from KFD */
 	__u32 save_area_used_size;	/* from KFD */
 	__u32 queue_id;			/* to KFD */
+	__u32 pad;
+};
+
+struct kfd_ioctl_get_available_memory_args {
+	__u64 available;	/* from KFD */
+	__u32 gpu_id;		/* to KFD */
 	__u32 pad;
 };
 
@@ -463,6 +471,43 @@ enum kfd_smi_event {
 	KFD_SMI_EVENT_THERMAL_THROTTLE = 2,
 	KFD_SMI_EVENT_GPU_PRE_RESET = 3,
 	KFD_SMI_EVENT_GPU_POST_RESET = 4,
+	KFD_SMI_EVENT_MIGRATE_START = 5,
+	KFD_SMI_EVENT_MIGRATE_END = 6,
+	KFD_SMI_EVENT_PAGE_FAULT_START = 7,
+	KFD_SMI_EVENT_PAGE_FAULT_END = 8,
+	KFD_SMI_EVENT_QUEUE_EVICTION = 9,
+	KFD_SMI_EVENT_QUEUE_RESTORE = 10,
+	KFD_SMI_EVENT_UNMAP_FROM_GPU = 11,
+
+	/*
+	 * max event number, as a flag bit to get events from all processes,
+	 * this requires super user permission, otherwise will not be able to
+	 * receive event from any process. Without this flag to receive events
+	 * from same process.
+	 */
+	KFD_SMI_EVENT_ALL_PROCESS = 64
+};
+
+enum KFD_MIGRATE_TRIGGERS {
+	KFD_MIGRATE_TRIGGER_PREFETCH,
+	KFD_MIGRATE_TRIGGER_PAGEFAULT_GPU,
+	KFD_MIGRATE_TRIGGER_PAGEFAULT_CPU,
+	KFD_MIGRATE_TRIGGER_TTM_EVICTION
+};
+
+enum KFD_QUEUE_EVICTION_TRIGGERS {
+	KFD_QUEUE_EVICTION_TRIGGER_SVM,
+	KFD_QUEUE_EVICTION_TRIGGER_USERPTR,
+	KFD_QUEUE_EVICTION_TRIGGER_TTM,
+	KFD_QUEUE_EVICTION_TRIGGER_SUSPEND,
+	KFD_QUEUE_EVICTION_CRIU_CHECKPOINT,
+	KFD_QUEUE_EVICTION_CRIU_RESTORE
+};
+
+enum KFD_SVM_UNMAP_TRIGGERS {
+	KFD_SVM_UNMAP_TRIGGER_MMU_NOTIFY,
+	KFD_SVM_UNMAP_TRIGGER_MMU_NOTIFY_MIGRATE,
+	KFD_SVM_UNMAP_TRIGGER_UNMAP_FROM_CPU
 };
 
 #define KFD_SMI_EVENT_MASK_FROM_INDEX(i) (1ULL << ((i) - 1))
@@ -826,7 +871,10 @@ struct kfd_ioctl_set_xnack_mode_args {
 #define AMDKFD_IOC_CRIU_OP			\
 		AMDKFD_IOWR(0x22, struct kfd_ioctl_criu_args)
 
+#define AMDKFD_IOC_AVAILABLE_MEMORY		\
+		AMDKFD_IOWR(0x23, struct kfd_ioctl_get_available_memory_args)
+
 #define AMDKFD_COMMAND_START		0x01
-#define AMDKFD_COMMAND_END		0x23
+#define AMDKFD_COMMAND_END		0x24
 
 #endif

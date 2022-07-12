@@ -389,7 +389,7 @@ bool dc_stream_set_cursor_position(
 	struct dc_stream_state *stream,
 	const struct dc_cursor_position *position)
 {
-	struct dc  *dc;
+	struct dc  *dc = stream->ctx->dc;
 	bool reset_idle_optimizations = false;
 
 	if (NULL == stream) {
@@ -406,7 +406,8 @@ bool dc_stream_set_cursor_position(
 	dc_z10_restore(dc);
 
 	/* disable idle optimizations if enabling cursor */
-	if (dc->idle_optimizations_allowed && !stream->cursor_position.enable && position->enable) {
+	if (dc->idle_optimizations_allowed && (!stream->cursor_position.enable || dc->debug.exit_idle_opt_for_cursor_updates)
+			&& position->enable) {
 		dc_allow_idle_optimizations(dc, false);
 		reset_idle_optimizations = true;
 	}
