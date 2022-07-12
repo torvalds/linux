@@ -5006,6 +5006,14 @@ struct wiphy_iftype_ext_capab {
 };
 
 /**
+ * cfg80211_get_iftype_ext_capa - lookup interface type extended capability
+ * @wiphy: the wiphy to look up from
+ * @type: the interface type to look up
+ */
+const struct wiphy_iftype_ext_capab *
+cfg80211_get_iftype_ext_capa(struct wiphy *wiphy, enum nl80211_iftype type);
+
+/**
  * struct cfg80211_pmsr_capabilities - cfg80211 peer measurement capabilities
  * @max_peers: maximum number of peers in a single measurement
  * @report_ap_tsf: can report assoc AP's TSF for radio resource measurement

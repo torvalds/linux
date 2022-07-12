@@ -2490,3 +2490,17 @@ int cfg80211_remove_virtual_intf(struct cfg80211_registered_device *rdev,
 
 	return rdev_del_virtual_intf(rdev, wdev);
 }
+
+const struct wiphy_iftype_ext_capab *
+cfg80211_get_iftype_ext_capa(struct wiphy *wiphy, enum nl80211_iftype type)
+{
+	int i;
+
+	for (i = 0; i < wiphy->num_iftype_ext_capab; i++) {
+		if (wiphy->iftype_ext_capab[i].iftype == type)
+			return &wiphy->iftype_ext_capab[i];
+	}
+
+	return NULL;
+}
+EXPORT_SYMBOL(cfg80211_get_iftype_ext_capa);
