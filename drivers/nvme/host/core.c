@@ -1954,6 +1954,31 @@ static void nvme_set_chunk_sectors(struct nvme_ns *ns, struct nvme_id_ns *id)
 	blk_queue_chunk_sectors(ns->queue, iob);
 }
 
+static int nvme_update_ns_info_generic(struct nvme_ns *ns,
+		struct nvme_ns_info *info)
+{
+	blk_mq_freeze_queue(ns->disk->queue);
+	nvme_set_queue_limits(ns->ctrl, ns->queue);
+	set_disk_ro(ns->disk, nvme_ns_is_readonly(ns, info));
+	blk_mq_unfreeze_queue(ns->disk->queue);
+
+	if (nvme_ns_head_multipath(ns->head)) {
+		blk_mq_freeze_queue(ns->head->disk->queue);
+		set_disk_ro(ns->head->disk, nvme_ns_is_readonly(ns, info));
+		nvme_mpath_revalidate_paths(ns);
+		blk_stack_limits(&ns->head->disk->queue->limits,
+				 &ns->queue->limits, 0);
+		ns->head->disk->flags |= GENHD_FL_HIDDEN;
+		blk_mq_unfreeze_queue(ns->head->disk->queue);
+	}
+
+	/* Hide the block-interface for these devices */
+	ns->disk->flags |= GENHD_FL_HIDDEN;
+	set_bit(NVME_NS_READY, &ns->flags);
+
+	return 0;
+}
+
 static int nvme_update_ns_info_block(struct nvme_ns *ns,
 		struct nvme_ns_info *info)
 {
@@ -2023,18 +2048,19 @@ static int nvme_update_ns_info(struct nvme_ns *ns, struct nvme_ns_info *info)
 	switch (info->ids.csi) {
 	case NVME_CSI_ZNS:
 		if (!IS_ENABLED(CONFIG_BLK_DEV_ZONED)) {
-			dev_warn(ns->ctrl->device,
-	"nsid %u not supported without CONFIG_BLK_DEV_ZONED\n",
+			dev_info(ns->ctrl->device,
+	"block device for nsid %u not supported without CONFIG_BLK_DEV_ZONED\n",
 				info->nsid);
-			return -ENODEV;
+			return nvme_update_ns_info_generic(ns, info);
 		}
 		return nvme_update_ns_info_block(ns, info);
 	case NVME_CSI_NVM:
 		return nvme_update_ns_info_block(ns, info);
 	default:
-		dev_warn(ns->ctrl->device, "unknown csi %u for nsid %u\n",
-			info->ids.csi, info->nsid);
-		return -ENODEV;
+		dev_info(ns->ctrl->device,
+			"block device for nsid %u not supported (csi %u)\n",
+			info->nsid, info->ids.csi);
+		return nvme_update_ns_info_generic(ns, info);
 	}
 }
 
@@ -4341,7 +4367,8 @@ static void nvme_scan_ns(struct nvme_ctrl *ctrl, unsigned nsid)
 	 * data structure to find all the generic information that is needed to
 	 * set up a namespace.  If not fall back to the legacy version.
 	 */
-	if (ctrl->cap & NVME_CAP_CRMS_CRIMS) {
+	if ((ctrl->cap & NVME_CAP_CRMS_CRIMS) ||
+	    (info.ids.csi != NVME_CSI_NVM && info.ids.csi != NVME_CSI_ZNS)) {
 		if (nvme_ns_info_from_id_cs_indep(ctrl, &info))
 			return;
 	} else {
