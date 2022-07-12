@@ -543,6 +543,50 @@
 		reg = <0x50>;
 		pagesize = <16>;
 	};
+
+	pmic: axp15060_reg@36 {
+		compatible = "stf,axp15060-regulator";
+		reg = <0x36>;
+
+		regulators {
+			mipi_0p9: ALDO1 {
+				regulator-boot-on;
+				regulator-compatible = "mipi_0p9";
+				regulator-name = "mipi_0p9";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+			};
+			hdmi_0p9: ALDO5 {
+				regulator-boot-on;
+				regulator-compatible = "hdmi_0p9";
+				regulator-name = "hdmi_0p9";
+				regulator-min-microvolt = <900000>;
+				regulator-max-microvolt = <900000>;
+			};
+			hdmi_1p8: ALDO3 {
+				regulator-boot-on;
+				regulator-compatible = "hdmi_1p8";
+				regulator-name = "hdmi_1p8";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <1800000>;
+			};
+			sdio_vdd: ALDO4 {
+				regulator-boot-on;
+				regulator-compatible = "sdio_vdd";
+				regulator-name = "sdio_vdd";
+				regulator-min-microvolt = <1800000>;
+				regulator-max-microvolt = <3300000>;
+			};
+			cpu_vdd_0p9: DCDC2 {
+				regulator-boot-on;
+				regulator-always-on;
+				regulator-compatible = "cpu_vdd_0p9";
+				regulator-name = "cpu_vdd_0p9";
+				regulator-min-microvolt = <500000>;
+				regulator-max-microvolt = <1540000>;
+			};
+		};
+	};
 };
 
 &i2c6 {
