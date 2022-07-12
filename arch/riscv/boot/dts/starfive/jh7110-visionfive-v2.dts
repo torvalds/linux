@@ -8,7 +8,12 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/pinctrl/starfive,jh7110-pinfunc.h>
 #include "jh7110.dtsi"
+#include "codecs/sf_pwmdac.dtsi"
+#undef WM8960_ENABLED
 
+#ifdef WM8960_ENABLED
+#include "codecs/sf_wm8960.dtsi"
+#endif
 
 / {
 	model = "StarFive VisionFive V2";
@@ -22,6 +27,14 @@
 		mmc0 = &sdio0;
 		mmc1 = &sdio1;
 		serial0 = &uart0;
+		serial3 = &uart3;
+		i2c0 = &i2c0;
+		i2c1 = &i2c1;
+		i2c2 = &i2c2;
+		i2c3 = &i2c3;
+		i2c4 = &i2c4;
+		i2c5 = &i2c5;
+		i2c6 = &i2c6;
 	};
 
 	chosen {
@@ -401,6 +414,46 @@
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
+
+#ifdef WM8960_ENABLED
+	i2srx_pins: i2srx-pins {
+		i2srx-pins0 {
+			sf,pins = <PAD_GPIO61>;
+			sf,pinmux = <PAD_GPIO61_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_I2SRX0_EXT_SDIN0>;
+		};
+	};
+
+	i2s_clk_pins: i2s-clk0 {
+		i2s-clk0_bclk {
+			sf,pins = <PAD_GPIO38>;
+			sf,pinmux = <PAD_GPIO38_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-din = <GPI_I2STX0_BCLK_SLV GPI_I2SRX0_BCLK_SLV>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+		};
+
+		i2s-clk0_lrclk {
+			sf,pins = <PAD_GPIO63>;
+			sf,pinmux = <PAD_GPIO63_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-din = <GPI_I2STX0_LRCK_SLV GPI_I2SRX0_LRCK_SLV>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+		};
+	};
+
+	i2stx_pins: i2stx-pins {
+		i2stx-pins0 {
+			sf,pins = <PAD_GPIO44>;
+			sf,pinmux = <PAD_GPIO44_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_I2STX_4CH1_SDO0>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+#endif
 };
 
 &uart0 {
@@ -441,7 +494,7 @@
 		#sound-dai-cells = <0>;
 		data-protocol = <0>;
 	};
-
+#ifdef WM8960_ENABLED
 	wm8960: codec@1a {
 		compatible = "wlf,wm8960";
 		reg = <0x1a>;
@@ -449,6 +502,7 @@
 
 		wlf,shared-lrclk;
 	};
+#endif
 };
 
 &i2c2 {
@@ -508,8 +562,8 @@
 	card-detect-delay = <300>;
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	mmc-hs400-1_8v;
-	mmc-hs400-enhanced-strobe;
+	//mmc-hs400-1_8v;
+	//mmc-hs400-enhanced-strobe;
 	non-removable;
 	cap-mmc-hw-reset;
 	post-power-on-delay-ms = <200>;
@@ -519,21 +573,16 @@
 };
 
 &sdio1 {
-	clock-frequency = <4000000>;
-	max-frequency = <1000000>;
+	clock-frequency = <102400000>;
+	max-frequency = <100000000>;
 	card-detect-delay = <300>;
 	bus-width = <4>;
+	broken-cd;
 	cap-sd-highspeed;
-	cap-sdio-irq;
-	cap-mmc-hw-reset;
-	non-removable;
-	enable-sdio-wakeup;
-	keep-power-in-suspend;
-	cap-mmc-highspeed;
 	post-power-on-delay-ms = <200>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdcard1_pins>;
-	cd-gpios = <&gpio 6 0>;
+	//cd-gpios = <&gpio 6 0>;
 	status = "okay";
 };
 
@@ -577,6 +626,20 @@
 	pinctrl-0 = <&pwmdac0_pins>;
 	status = "okay";
 };
+
+#ifdef WM8960_ENABLED
+&i2srx_3ch {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2srx_pins>;
+	status = "okay";
+};
+
+&i2stx_4ch1 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2s_clk_pins &i2stx_pins>;
+	status = "okay";
+};
+#endif
 
 &pwmdac_codec {
 	status = "okay";
@@ -708,10 +771,6 @@
 
 &mipi_dphy {
 	status = "okay";
-};
-
-&mipi_dphy {
-       status = "disabled";
 };
 
 &co_process {
