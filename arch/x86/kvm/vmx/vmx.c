@@ -4004,7 +4004,9 @@ static void vmx_msr_filter_changed(struct kvm_vcpu *vcpu)
 			vmx_disable_intercept_for_msr(vcpu, msr, MSR_TYPE_W);
 	}
 
-	pt_update_intercept_for_msr(vcpu);
+	/* PT MSRs can be passed through iff PT is exposed to the guest. */
+	if (vmx_pt_mode_is_host_guest())
+		pt_update_intercept_for_msr(vcpu);
 }
 
 static inline void kvm_vcpu_trigger_posted_interrupt(struct kvm_vcpu *vcpu,
