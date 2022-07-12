@@ -49,6 +49,8 @@
 #define PCIE_USB3_RX_STANDBY_MASK	0x80
 #define PCIE_USB3_PHY_ENABLE_SHIFT	0x4
 #define PCIE_USB3_PHY_ENABLE_MASK	0x10
+#define PCIE_USB3_PHY_PLL_CTL_OFF	(0x1f * 4)
+
 
 #define USB_125M_CLK_RATE		125000000
 
@@ -192,6 +194,7 @@ static int cdns_starfive_probe(struct platform_device *pdev)
 	struct device_node *node = pdev->dev.of_node;
 	struct cdns_starfive *data;
 	struct of_phandle_args args;
+	void __iomem *phybase;
 	int ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -239,6 +242,15 @@ static int cdns_starfive_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "Failed to init usb clk reset: %d\n", ret);
 		goto exit;
 	}
+
+	/* Configuare spread-spectrum mode: down-spread-Spectrum */
+	phybase = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(phybase)) {
+		dev_err(dev, "Can't map IOMEM resource\n");
+		ret = PTR_ERR(phybase);
+		goto exit;
+	}
+	writel(BIT(4), (phybase + PCIE_USB3_PHY_PLL_CTL_OFF));
 
 	ret = of_platform_populate(node, NULL, NULL, dev);
 	if (ret) {

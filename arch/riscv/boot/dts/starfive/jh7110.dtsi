@@ -373,19 +373,22 @@
 
 		usbdrd30: usbdrd{
 			compatible = "starfive,jh7110-cdns3";
+			reg = <0x0 0x10210000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_USB_125M>,
 				 <&clkgen JH7110_USB0_CLK_APP_125>,
 				 <&clkgen JH7110_USB0_CLK_LPM>,
 				 <&clkgen JH7110_USB0_CLK_STB>,
 				 <&clkgen JH7110_USB0_CLK_USB_APB>,
 				 <&clkgen JH7110_USB0_CLK_AXI>,
-				 <&clkgen JH7110_USB0_CLK_UTMI_APB>;
-			clock-names = "125m","app","lpm","stb","apb","axi","utmi";
+				 <&clkgen JH7110_USB0_CLK_UTMI_APB>,
+				 <&clkgen JH7110_PCIE0_CLK_APB>;
+			clock-names = "125m","app","lpm","stb","apb","axi","utmi", "phy";
 			resets = <&rstgen RSTN_U0_CDN_USB_PWRUP>,
 				 <&rstgen RSTN_U0_CDN_USB_APB>,
 				 <&rstgen RSTN_U0_CDN_USB_AXI>,
-				 <&rstgen RSTN_U0_CDN_USB_UTMI_APB>;
-			reset-names = "pwrup","apb","axi","utmi";
+				 <&rstgen RSTN_U0_CDN_USB_UTMI_APB>,
+				 <&rstgen RSTN_U0_PLDA_PCIE_APB>;
+			reset-names = "pwrup","apb","axi","utmi", "phy";
 			starfive,stg-syscon = <&stg_syscon 0x4 0xc4 0x148 0x1f4>;
 			starfive,sys-syscon = <&sys_syscon 0x18>;
 			status = "disabled";
