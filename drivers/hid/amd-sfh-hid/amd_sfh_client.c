@@ -63,7 +63,7 @@ int amd_sfh_get_report(struct hid_device *hid, int report_id, int report_type)
 	return 0;
 }
 
-static void amd_sfh_work(struct work_struct *work)
+void amd_sfh_work(struct work_struct *work)
 {
 	struct amdtp_cl_data *cli_data = container_of(work, struct amdtp_cl_data, work.work);
 	struct request_list *req_list = &cli_data->req_list;
@@ -109,7 +109,7 @@ static void amd_sfh_work(struct work_struct *work)
 	amdtp_hid_wakeup(cli_data->hid_sensor_hubs[current_index]);
 }
 
-static void amd_sfh_work_buffer(struct work_struct *work)
+void amd_sfh_work_buffer(struct work_struct *work)
 {
 	struct amdtp_cl_data *cli_data = container_of(work, struct amdtp_cl_data, work_buffer.work);
 	struct amd_input_data *in_data = cli_data->in_data;

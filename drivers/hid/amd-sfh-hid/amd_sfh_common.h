@@ -64,4 +64,6 @@ struct amd_mp2_ops {
 			 struct amd_input_data *in_data);
 };
 
+void amd_sfh_work(struct work_struct *work);
+void amd_sfh_work_buffer(struct work_struct *work);
 #endif
