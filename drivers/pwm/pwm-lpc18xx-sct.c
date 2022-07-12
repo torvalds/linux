@@ -359,21 +359,19 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 		return PTR_ERR(lpc18xx_pwm->base);
 
 	lpc18xx_pwm->pwm_clk = devm_clk_get(&pdev->dev, "pwm");
-	if (IS_ERR(lpc18xx_pwm->pwm_clk)) {
-		dev_err(&pdev->dev, "failed to get pwm clock\n");
-		return PTR_ERR(lpc18xx_pwm->pwm_clk);
-	}
+	if (IS_ERR(lpc18xx_pwm->pwm_clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(lpc18xx_pwm->pwm_clk),
+				     "failed to get pwm clock\n");
 
 	ret = clk_prepare_enable(lpc18xx_pwm->pwm_clk);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "could not prepare or enable pwm clock\n");
-		return ret;
-	}
+	if (ret < 0)
+		return dev_err_probe(&pdev->dev, ret,
+				     "could not prepare or enable pwm clock\n");
 
 	lpc18xx_pwm->clk_rate = clk_get_rate(lpc18xx_pwm->pwm_clk);
 	if (!lpc18xx_pwm->clk_rate) {
-		dev_err(&pdev->dev, "pwm clock has no frequency\n");
-		ret = -EINVAL;
+		ret = dev_err_probe(&pdev->dev,
+				    -EINVAL, "pwm clock has no frequency\n");
 		goto disable_pwmclk;
 	}
 
@@ -423,7 +421,7 @@ static int lpc18xx_pwm_probe(struct platform_device *pdev)
 
 	ret = pwmchip_add(&lpc18xx_pwm->chip);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "pwmchip_add failed: %d\n", ret);
+		dev_err_probe(&pdev->dev, ret, "pwmchip_add failed\n");
 		goto disable_pwmclk;
 	}
 
