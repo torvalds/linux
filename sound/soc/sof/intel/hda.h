@@ -419,6 +419,7 @@ enum sof_hda_D0_substate {
 /* represents DSP HDA controller frontend - i.e. host facing control */
 struct sof_intel_hda_dev {
 	bool imrboot_supported;
+	bool skip_imr_boot;
 
 	int boot_iteration;
 
