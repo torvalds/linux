@@ -1034,7 +1034,7 @@ bool icmp_build_probe(struct sk_buff *skb, struct icmphdr *icmphdr)
 	u16 ident_len;
 	u8 status;
 
-	if (!net->ipv4.sysctl_icmp_echo_enable_probe)
+	if (!READ_ONCE(net->ipv4.sysctl_icmp_echo_enable_probe))
 		return false;
 
 	/* We currently only support probing interfaces on the proxy node
