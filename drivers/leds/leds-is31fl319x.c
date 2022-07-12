@@ -198,7 +198,7 @@ static int is31fl3190_brightness_set(struct led_classdev *cdev,
 	int i;
 	u8 ctrl = 0;
 
-	dev_dbg(&is31->client->dev, "%s %d: %d\n", __func__, chan, brightness);
+	dev_dbg(&is31->client->dev, "channel %d: %d\n", chan, brightness);
 
 	mutex_lock(&is31->lock);
 
@@ -245,15 +245,14 @@ out:
 static int is31fl3196_brightness_set(struct led_classdev *cdev,
 				     enum led_brightness brightness)
 {
-	struct is31fl319x_led *led = container_of(cdev, struct is31fl319x_led,
-						  cdev);
+	struct is31fl319x_led *led = container_of(cdev, struct is31fl319x_led, cdev);
 	struct is31fl319x_chip *is31 = led->chip;
 	int chan = led - is31->leds;
 	int ret;
 	int i;
 	u8 ctrl1 = 0, ctrl2 = 0;
 
-	dev_dbg(&is31->client->dev, "%s %d: %d\n", __func__, chan, brightness);
+	dev_dbg(&is31->client->dev, "channel %d: %d\n", chan, brightness);
 
 	mutex_lock(&is31->lock);
 
@@ -273,8 +272,6 @@ static int is31fl3196_brightness_set(struct led_classdev *cdev,
 		 */
 
 		ret = regmap_read(is31->regmap, IS31FL3196_PWM(i), &pwm_value);
-		dev_dbg(&is31->client->dev, "%s read %d: ret=%d: %d\n",
-			__func__, i, ret, pwm_value);
 		on = ret >= 0 && pwm_value > LED_OFF;
 
 		if (i < 3)
@@ -404,9 +401,7 @@ static int is31fl319x_parse_dt(struct device *dev,
 	if (!np)
 		return -ENODEV;
 
-	is31->shutdown_gpio = devm_gpiod_get_optional(dev,
-						"shutdown",
-						GPIOD_OUT_HIGH);
+	is31->shutdown_gpio = devm_gpiod_get_optional(dev, "shutdown", GPIOD_OUT_HIGH);
 	if (IS_ERR(is31->shutdown_gpio)) {
 		ret = PTR_ERR(is31->shutdown_gpio);
 		dev_err(dev, "Failed to get shutdown gpio: %d\n", ret);
@@ -493,7 +488,8 @@ static inline int is31fl3190_microamp_to_cs(struct device *dev, u32 microamp)
 }
 
 static inline int is31fl3196_microamp_to_cs(struct device *dev, u32 microamp)
-{ /* round down to nearest supported value (range check done by caller) */
+{
+	/* round down to nearest supported value (range check done by caller) */
 	u32 step = microamp / IS31FL3196_CURRENT_uA_STEP;
 
 	return ((IS31FL3196_CONFIG2_CS_STEP_REF - step) &
@@ -502,7 +498,8 @@ static inline int is31fl3196_microamp_to_cs(struct device *dev, u32 microamp)
 }
 
 static inline int is31fl3196_db_to_gain(u32 dezibel)
-{ /* round down to nearest supported value (range check done by caller) */
+{
+	/* round down to nearest supported value (range check done by caller) */
 	return dezibel / IS31FL3196_AUDIO_GAIN_DB_STEP;
 }
 
@@ -547,8 +544,7 @@ static int is31fl319x_probe(struct i2c_client *client,
 	/* check for write-reply from chip (we can't read any registers) */
 	err = regmap_write(is31->regmap, is31->cdef->reset_reg, 0x00);
 	if (err < 0) {
-		dev_err(&client->dev, "no response from chip write: err = %d\n",
-			err);
+		dev_err(&client->dev, "no response from chip write: err = %d\n", err);
 		err = -EIO; /* does not answer */
 		goto free_mutex;
 	}
