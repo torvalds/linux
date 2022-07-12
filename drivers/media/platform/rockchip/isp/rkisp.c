@@ -698,6 +698,19 @@ run_next:
 		rkisp_unite_write(dev, ISP_CTRL, val, true, hw->is_unite);
 		/* bayer pat after ISP_CFG_UPD for multi sensor to read lsc r/g/b table */
 		rkisp_update_regs(dev, ISP_ACQ_PROP, ISP_ACQ_PROP);
+		/* fix ldch multi sensor case:
+		 * ldch will pre-read data when en and isp force upd or frame end,
+		 * udelay for ldch pre-read data.
+		 * ldch en=0 before start for frame end to stop ldch read data.
+		 */
+		val = rkisp_read(dev, ISP_LDCH_BASE, true);
+		if (!hw->is_single && val & BIT(0)) {
+			udelay(50);
+			val &= ~(BIT(0) | BIT(31));
+			writel(val, hw->base_addr + ISP_LDCH_BASE);
+			if (hw->is_unite)
+				writel(val, hw->base_next_addr + ISP_LDCH_BASE);
+		}
 	}
 	if (is_3dlut_upd)
 		rkisp_unite_write(dev, ISP_3DLUT_UPDATE, 1, true, hw->is_unite);
