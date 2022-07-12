@@ -511,10 +511,13 @@ static int is31fl319x_probe(struct i2c_client *client,
 		return -ENOMEM;
 
 	mutex_init(&is31->lock);
+	err = devm_add_action(dev, (void (*)(void *))mutex_destroy, &is31->lock);
+	if (err)
+		return err;
 
 	err = is31fl319x_parse_fw(&client->dev, is31);
 	if (err)
-		goto free_mutex;
+		return err;
 
 	if (is31->shutdown_gpio) {
 		gpiod_direction_output(is31->shutdown_gpio, 0);
@@ -524,19 +527,15 @@ static int is31fl319x_probe(struct i2c_client *client,
 
 	is31->client = client;
 	is31->regmap = devm_regmap_init_i2c(client, is31->cdef->is31fl319x_regmap_config);
-	if (IS_ERR(is31->regmap)) {
-		err = dev_err_probe(dev, PTR_ERR(is31->regmap), "failed to allocate register map\n");
-		goto free_mutex;
-	}
+	if (IS_ERR(is31->regmap))
+		return dev_err_probe(dev, PTR_ERR(is31->regmap), "failed to allocate register map\n");
 
 	i2c_set_clientdata(client, is31);
 
 	/* check for write-reply from chip (we can't read any registers) */
 	err = regmap_write(is31->regmap, is31->cdef->reset_reg, 0x00);
-	if (err < 0) {
-		err = dev_err_probe(dev, err, "no response from chip write\n");
-		goto free_mutex;
-	}
+	if (err < 0)
+		return dev_err_probe(dev, err, "no response from chip write\n");
 
 	/*
 	 * Kernel conventions require per-LED led-max-microamp property.
@@ -568,21 +567,9 @@ static int is31fl319x_probe(struct i2c_client *client,
 
 		err = devm_led_classdev_register(&client->dev, &led->cdev);
 		if (err < 0)
-			goto free_mutex;
+			return err;
 	}
 
-	return 0;
-
-free_mutex:
-	mutex_destroy(&is31->lock);
-	return err;
-}
-
-static int is31fl319x_remove(struct i2c_client *client)
-{
-	struct is31fl319x_chip *is31 = i2c_get_clientdata(client);
-
-	mutex_destroy(&is31->lock);
 	return 0;
 }
 
@@ -611,7 +598,6 @@ static struct i2c_driver is31fl319x_driver = {
 		.of_match_table = of_is31fl319x_match,
 	},
 	.probe    = is31fl319x_probe,
-	.remove   = is31fl319x_remove,
 	.id_table = is31fl319x_id,
 };
 
