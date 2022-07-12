@@ -79,10 +79,10 @@ void i915_refct_sgt_init(struct i915_refct_sgt *rsgt, size_t size)
  */
 struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
 					      u64 region_start,
-					      u64 page_alignment)
+					      u32 page_alignment)
 {
-	const u64 max_segment = round_down(UINT_MAX, page_alignment);
-	u64 segment_pages = max_segment >> PAGE_SHIFT;
+	const u32 max_segment = round_down(UINT_MAX, page_alignment);
+	const u32 segment_pages = max_segment >> PAGE_SHIFT;
 	u64 block_size, offset, prev_end;
 	struct i915_refct_sgt *rsgt;
 	struct sg_table *st;
@@ -96,7 +96,7 @@ struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
 
 	i915_refct_sgt_init(rsgt, node->size << PAGE_SHIFT);
 	st = &rsgt->table;
-	if (sg_alloc_table(st, DIV_ROUND_UP(node->size, segment_pages),
+	if (sg_alloc_table(st, DIV_ROUND_UP_ULL(node->size, segment_pages),
 			   GFP_KERNEL)) {
 		i915_refct_sgt_put(rsgt);
 		return ERR_PTR(-ENOMEM);
@@ -123,7 +123,7 @@ struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
 			st->nents++;
 		}
 
-		len = min(block_size, max_segment - sg->length);
+		len = min_t(u64, block_size, max_segment - sg->length);
 		sg->length += len;
 		sg_dma_len(sg) += len;
 
@@ -155,11 +155,11 @@ struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
  */
 struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
 						     u64 region_start,
-						     u64 page_alignment)
+						     u32 page_alignment)
 {
 	struct i915_ttm_buddy_resource *bman_res = to_ttm_buddy_resource(res);
 	const u64 size = res->num_pages << PAGE_SHIFT;
-	const u64 max_segment = round_down(UINT_MAX, page_alignment);
+	const u32 max_segment = round_down(UINT_MAX, page_alignment);
 	struct drm_buddy *mm = bman_res->mm;
 	struct list_head *blocks = &bman_res->blocks;
 	struct drm_buddy_block *block;
@@ -207,7 +207,7 @@ struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
 				st->nents++;
 			}
 
-			len = min(block_size, max_segment - sg->length);
+			len = min_t(u64, block_size, max_segment - sg->length);
 			sg->length += len;
 			sg_dma_len(sg) += len;
 
