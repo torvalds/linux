@@ -60,7 +60,6 @@
 #include "dcn31/dcn31_hpo_dp_stream_encoder.h"
 #include "dcn31/dcn31_hpo_dp_link_encoder.h"
 #include "dcn31/dcn31_apg.h"
-#include "dcn31/dcn31_dio_link_encoder.h"
 #include "dcn31/dcn31_vpg.h"
 #include "dcn31/dcn31_afmt.h"
 #include "dce/dce_clock_source.h"
