@@ -1973,6 +1973,14 @@ static void setup_display(struct dc_hw *hw, struct dc_hw_display *display)
 			dc_set_clear(hw, DC_DISPLAY_PANEL_START, 0, BIT(0) | BIT(2));
 		else
 			dc_set_clear(hw, DC_DISPLAY_PANEL_START, 0, BIT(1) | BIT(2));
+
+		dc_set_clear(hw, DC_OVERLAY_CONFIG + 0x0, 0x0, BIT(24));
+		dc_set_clear(hw, DC_OVERLAY_CONFIG + 0x4, 0x0, BIT(24));
+		dc_set_clear(hw, DC_OVERLAY_CONFIG + 0x8, 0x0, BIT(24));
+		dc_set_clear(hw, DC_OVERLAY_CONFIG + 0xc, 0x0, BIT(24));
+
+		dc_set_clear(hw, DC_CURSOR_CONFIG + 0x0, BIT(3), 0x03);
+		dc_set_clear(hw, DC_CURSOR_CONFIG + DC_CURSOR_OFFSET, BIT(3), 0x03);
 	}
 }
 
