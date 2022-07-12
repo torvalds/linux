@@ -268,9 +268,10 @@ static void vs_crtc_atomic_enable(struct drm_crtc *crtc,
 
 	vs_crtc_state->bpp = cal_pixel_bits(vs_crtc_state->output_fmt);
 
-	vs_crtc->funcs->enable(vs_crtc->dev, crtc);
-
-	drm_crtc_vblank_on(crtc);
+	if (vs_crtc_state->encoder_type != DRM_MODE_ENCODER_DSI){
+		vs_crtc->funcs->enable(vs_crtc->dev, crtc);
+		drm_crtc_vblank_on(crtc);
+	}
 }
 
 static void vs_crtc_atomic_disable(struct drm_crtc *crtc,
@@ -297,10 +298,17 @@ static void vs_crtc_atomic_begin(struct drm_crtc *crtc,
 	struct drm_crtc_state *crtc_state = drm_atomic_get_new_crtc_state(state,
 									  crtc);
 	//struct drm_crtc_state *old_crtc_state = drm_atomic_get_old_crtc_state(state,crtc);
+
 	struct vs_crtc *vs_crtc = to_vs_crtc(crtc);
 	struct device *dev = vs_crtc->dev;
 	struct drm_property_blob *blob = crtc->state->gamma_lut;
 	struct drm_color_lut *lut;
+	struct vs_crtc_state *vs_crtc_state = to_vs_crtc_state(crtc->state);
+
+	if (vs_crtc_state->encoder_type == DRM_MODE_ENCODER_DSI){
+		vs_crtc->funcs->enable(vs_crtc->dev, crtc);
+		drm_crtc_vblank_on(crtc);
+	}
 
 	if (crtc_state->color_mgmt_changed) {
 		if ((blob) && (blob->length)) {
