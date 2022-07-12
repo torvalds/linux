@@ -1941,9 +1941,17 @@ dw_hdmi_connector_set_property(struct drm_connector *connector,
 
 static void dw_hdmi_attach_properties(struct dw_hdmi_qp *hdmi)
 {
-	unsigned int color = MEDIA_BUS_FMT_RGB888_1X24;
+	u64 color = MEDIA_BUS_FMT_YUV8_1X24;
 	const struct dw_hdmi_property_ops *ops =
 				hdmi->plat_data->property_ops;
+	void *data = hdmi->plat_data->phy_data;
+	enum drm_connector_status connect_status =
+		hdmi->phy.ops->read_hpd(hdmi, hdmi->phy.data);
+
+	if (hdmi->plat_data->get_grf_color_fmt &&
+	    (connect_status == connector_status_connected) &&
+	    hdmi->initialized)
+		color = hdmi->plat_data->get_grf_color_fmt(data);
 
 	if (ops && ops->attach_properties)
 		return ops->attach_properties(&hdmi->connector, color, 0,

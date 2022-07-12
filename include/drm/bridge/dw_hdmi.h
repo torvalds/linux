@@ -235,6 +235,7 @@ struct dw_hdmi_plat_data {
 				 struct drm_connector *connector);
 	struct dw_hdmi_link_config *(*get_link_cfg)(void *data);
 	void (*set_grf_cfg)(void *data);
+	u64 (*get_grf_color_fmt)(void *data);
 	void (*convert_to_split_mode)(struct drm_display_mode *mode);
 	void (*convert_to_origin_mode)(struct drm_display_mode *mode);
 	int (*dclk_set)(void *data, bool enable);
