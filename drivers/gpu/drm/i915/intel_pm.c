@@ -4101,8 +4101,8 @@ static u16 skl_ddb_entry_init(struct skl_ddb_entry *entry,
 
 static int intel_dbuf_slice_size(struct drm_i915_private *dev_priv)
 {
-	return INTEL_INFO(dev_priv)->dbuf.size /
-		hweight8(INTEL_INFO(dev_priv)->dbuf.slice_mask);
+	return INTEL_INFO(dev_priv)->display.dbuf.size /
+		hweight8(INTEL_INFO(dev_priv)->display.dbuf.slice_mask);
 }
 
 static void
@@ -4121,7 +4121,7 @@ skl_ddb_entry_for_slices(struct drm_i915_private *dev_priv, u8 slice_mask,
 	ddb->end = fls(slice_mask) * slice_size;
 
 	WARN_ON(ddb->start >= ddb->end);
-	WARN_ON(ddb->end > INTEL_INFO(dev_priv)->dbuf.size);
+	WARN_ON(ddb->end > INTEL_INFO(dev_priv)->display.dbuf.size);
 }
 
 static unsigned int mbus_ddb_offset(struct drm_i915_private *i915, u8 slice_mask)
@@ -6096,7 +6096,7 @@ skl_compute_ddb(struct intel_atomic_state *state)
 			    "Enabled dbuf slices 0x%x -> 0x%x (total dbuf slices 0x%x), mbus joined? %s->%s\n",
 			    old_dbuf_state->enabled_slices,
 			    new_dbuf_state->enabled_slices,
-			    INTEL_INFO(dev_priv)->dbuf.slice_mask,
+			    INTEL_INFO(dev_priv)->display.dbuf.slice_mask,
 			    str_yes_no(old_dbuf_state->joined_mbus),
 			    str_yes_no(new_dbuf_state->joined_mbus));
 	}

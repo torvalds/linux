@@ -38,43 +38,43 @@
 	.display.ver = (x)
 
 #define I845_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 	}
 
 #define I9XX_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 	}
 
 #define IVB_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = PIPE_C_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
 	}
 
 #define HSW_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET,	\
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = PIPE_C_OFFSET, \
 		[TRANSCODER_EDP] = PIPE_EDP_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
@@ -82,44 +82,44 @@
 	}
 
 #define CHV_PIPE_OFFSETS \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = CHV_PIPE_C_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = CHV_TRANSCODER_C_OFFSET, \
 	}
 
 #define I845_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 	}
 
 #define I9XX_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = CURSOR_B_OFFSET, \
 	}
 
 #define CHV_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = CURSOR_B_OFFSET, \
 		[PIPE_C] = CHV_CURSOR_C_OFFSET, \
 	}
 
 #define IVB_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
 		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
 	}
 
 #define TGL_CURSOR_OFFSETS \
-	.cursor_offsets = { \
+	.display.cursor_offsets = { \
 		[PIPE_A] = CURSOR_A_OFFSET, \
 		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
 		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
@@ -127,30 +127,33 @@
 	}
 
 #define I9XX_COLORS \
-	.color = { .gamma_lut_size = 256 }
+	.display.color = { .gamma_lut_size = 256 }
 #define I965_COLORS \
-	.color = { .gamma_lut_size = 129, \
+	.display.color = { .gamma_lut_size = 129, \
 		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
 #define ILK_COLORS \
-	.color = { .gamma_lut_size = 1024 }
+	.display.color = { .gamma_lut_size = 1024 }
 #define IVB_COLORS \
-	.color = { .degamma_lut_size = 1024, .gamma_lut_size = 1024 }
+	.display.color = { .degamma_lut_size = 1024, .gamma_lut_size = 1024 }
 #define CHV_COLORS \
-	.color = { .degamma_lut_size = 65, .gamma_lut_size = 257, \
-		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
-		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+	.display.color = { \
+		.degamma_lut_size = 65, .gamma_lut_size = 257, \
+		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+		.gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
 #define GLK_COLORS \
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 1024, \
-		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
-					DRM_COLOR_LUT_EQUAL_CHANNELS, \
+	.display.color = { \
+		.degamma_lut_size = 33, .gamma_lut_size = 1024, \
+		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
+				     DRM_COLOR_LUT_EQUAL_CHANNELS, \
 	}
 #define ICL_COLORS \
-	.color = { .degamma_lut_size = 33, .gamma_lut_size = 262145, \
-		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
-					DRM_COLOR_LUT_EQUAL_CHANNELS, \
-		   .gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
+	.display.color = { \
+		.degamma_lut_size = 33, .gamma_lut_size = 262145, \
+		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING | \
+				     DRM_COLOR_LUT_EQUAL_CHANNELS, \
+		.gamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING, \
 	}
 
 /* Keep in gen based order, and chronological order within a gen */
@@ -536,7 +539,7 @@ static const struct intel_device_info vlv_info = {
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
 	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0),
-	.display_mmio_offset = VLV_DISPLAY_BASE,
+	.display.mmio_offset = VLV_DISPLAY_BASE,
 	I9XX_PIPE_OFFSETS,
 	I9XX_CURSOR_OFFSETS,
 	I965_COLORS,
@@ -634,7 +637,7 @@ static const struct intel_device_info chv_info = {
 	.has_reset_engine = 1,
 	.has_snoop = true,
 	.has_coherent_ggtt = false,
-	.display_mmio_offset = VLV_DISPLAY_BASE,
+	.display.mmio_offset = VLV_DISPLAY_BASE,
 	CHV_PIPE_OFFSETS,
 	CHV_CURSOR_OFFSETS,
 	CHV_COLORS,
@@ -656,8 +659,8 @@ static const struct intel_device_info chv_info = {
 	.display.has_ipc = 1, \
 	.display.has_psr = 1, \
 	.display.has_psr_hw_tracking = 1, \
-	.dbuf.size = 896 - 4, /* 4 blocks for bypass path allocation */ \
-	.dbuf.slice_mask = BIT(DBUF_S1)
+	.display.dbuf.size = 896 - 4, /* 4 blocks for bypass path allocation */ \
+	.display.dbuf.slice_mask = BIT(DBUF_S1)
 
 #define SKL_PLATFORM \
 	GEN9_FEATURES, \
@@ -692,7 +695,7 @@ static const struct intel_device_info skl_gt4_info = {
 #define GEN9_LP_FEATURES \
 	GEN(9), \
 	.is_lp = 1, \
-	.dbuf.slice_mask = BIT(DBUF_S1), \
+	.display.dbuf.slice_mask = BIT(DBUF_S1), \
 	.display.has_hotplug = 1, \
 	.platform_engine_mask = BIT(RCS0) | BIT(VCS0) | BIT(BCS0) | BIT(VECS0), \
 	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C), \
@@ -730,14 +733,14 @@ static const struct intel_device_info skl_gt4_info = {
 static const struct intel_device_info bxt_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_BROXTON),
-	.dbuf.size = 512 - 4, /* 4 blocks for bypass path allocation */
+	.display.dbuf.size = 512 - 4, /* 4 blocks for bypass path allocation */
 };
 
 static const struct intel_device_info glk_info = {
 	GEN9_LP_FEATURES,
 	PLATFORM(INTEL_GEMINILAKE),
 	.display.ver = 10,
-	.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
+	.display.dbuf.size = 1024 - 4, /* 4 blocks for bypass path allocation */
 	GLK_COLORS,
 };
 
@@ -809,7 +812,7 @@ static const struct intel_device_info cml_gt2_info = {
 	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_EDP) | \
 		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = PIPE_C_OFFSET, \
@@ -817,7 +820,7 @@ static const struct intel_device_info cml_gt2_info = {
 		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET, \
 		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
@@ -827,8 +830,8 @@ static const struct intel_device_info cml_gt2_info = {
 	}, \
 	GEN(11), \
 	ICL_COLORS, \
-	.dbuf.size = 2048, \
-	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2), \
+	.display.dbuf.size = 2048, \
+	.display.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2), \
 	.display.has_dsc = 1, \
 	.has_coherent_ggtt = false, \
 	.has_logical_ring_elsq = 1
@@ -862,7 +865,7 @@ static const struct intel_device_info jsl_info = {
 	.display.cpu_transcoder_mask = BIT(TRANSCODER_A) | BIT(TRANSCODER_B) | \
 		BIT(TRANSCODER_C) | BIT(TRANSCODER_D) | \
 		BIT(TRANSCODER_DSI_0) | BIT(TRANSCODER_DSI_1), \
-	.pipe_offsets = { \
+	.display.pipe_offsets = { \
 		[TRANSCODER_A] = PIPE_A_OFFSET, \
 		[TRANSCODER_B] = PIPE_B_OFFSET, \
 		[TRANSCODER_C] = PIPE_C_OFFSET, \
@@ -870,7 +873,7 @@ static const struct intel_device_info jsl_info = {
 		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET, \
 		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET, \
 	}, \
-	.trans_offsets = { \
+	.display.trans_offsets = { \
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET, \
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET, \
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET, \
@@ -937,22 +940,15 @@ static const struct intel_device_info adl_s_info = {
 	.dma_mask_size = 39,
 };
 
-#define XE_LPD_CURSOR_OFFSETS \
-	.cursor_offsets = { \
-		[PIPE_A] = CURSOR_A_OFFSET, \
-		[PIPE_B] = IVB_CURSOR_B_OFFSET, \
-		[PIPE_C] = IVB_CURSOR_C_OFFSET, \
-		[PIPE_D] = TGL_CURSOR_D_OFFSET, \
-	}
-
 #define XE_LPD_FEATURES \
 	.display.abox_mask = GENMASK(1, 0),					\
-	.color = { .degamma_lut_size = 128, .gamma_lut_size = 1024,		\
-		   .degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING |		\
-					DRM_COLOR_LUT_EQUAL_CHANNELS,		\
+	.display.color = {							\
+		.degamma_lut_size = 128, .gamma_lut_size = 1024,		\
+		.degamma_lut_tests = DRM_COLOR_LUT_NON_DECREASING |		\
+				     DRM_COLOR_LUT_EQUAL_CHANNELS,		\
 	},									\
-	.dbuf.size = 4096,							\
-	.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2) | BIT(DBUF_S3) |		\
+	.display.dbuf.size = 4096,						\
+	.display.dbuf.slice_mask = BIT(DBUF_S1) | BIT(DBUF_S2) | BIT(DBUF_S3) |	\
 		BIT(DBUF_S4),							\
 	.display.has_ddi = 1,							\
 	.display.has_dmc = 1,							\
@@ -967,7 +963,7 @@ static const struct intel_device_info adl_s_info = {
 	.display.has_psr = 1,							\
 	.display.ver = 13,							\
 	.display.pipe_mask = BIT(PIPE_A) | BIT(PIPE_B) | BIT(PIPE_C) | BIT(PIPE_D),	\
-	.pipe_offsets = {							\
+	.display.pipe_offsets = {						\
 		[TRANSCODER_A] = PIPE_A_OFFSET,					\
 		[TRANSCODER_B] = PIPE_B_OFFSET,					\
 		[TRANSCODER_C] = PIPE_C_OFFSET,					\
@@ -975,7 +971,7 @@ static const struct intel_device_info adl_s_info = {
 		[TRANSCODER_DSI_0] = PIPE_DSI0_OFFSET,				\
 		[TRANSCODER_DSI_1] = PIPE_DSI1_OFFSET,				\
 	},									\
-	.trans_offsets = {							\
+	.display.trans_offsets = {						\
 		[TRANSCODER_A] = TRANSCODER_A_OFFSET,				\
 		[TRANSCODER_B] = TRANSCODER_B_OFFSET,				\
 		[TRANSCODER_C] = TRANSCODER_C_OFFSET,				\
@@ -983,7 +979,7 @@ static const struct intel_device_info adl_s_info = {
 		[TRANSCODER_DSI_0] = TRANSCODER_DSI0_OFFSET,			\
 		[TRANSCODER_DSI_1] = TRANSCODER_DSI1_OFFSET,			\
 	},									\
-	XE_LPD_CURSOR_OFFSETS
+	TGL_CURSOR_OFFSETS
 
 static const struct intel_device_info adl_p_info = {
 	GEN12_FEATURES,

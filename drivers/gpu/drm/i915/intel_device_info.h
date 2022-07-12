@@ -214,8 +214,6 @@ struct intel_device_info {
 
 	u32 memory_regions; /* regions supported by the HW */
 
-	u32 display_mmio_offset;
-
 	u8 gt; /* GT number, 0 if undefined */
 
 #define DEFINE_FLAG(name) u8 name:1
@@ -231,27 +229,30 @@ struct intel_device_info {
 		u8 fbc_mask;
 		u8 abox_mask;
 
+		struct {
+			u16 size; /* in blocks */
+			u8 slice_mask;
+		} dbuf;
+
 #define DEFINE_FLAG(name) u8 name:1
 		DEV_INFO_DISPLAY_FOR_EACH_FLAG(DEFINE_FLAG);
 #undef DEFINE_FLAG
+
+		/* Global register offset for the display engine */
+		u32 mmio_offset;
+
+		/* Register offsets for the various display pipes and transcoders */
+		u32 pipe_offsets[I915_MAX_TRANSCODERS];
+		u32 trans_offsets[I915_MAX_TRANSCODERS];
+		u32 cursor_offsets[I915_MAX_PIPES];
+
+		struct {
+			u32 degamma_lut_size;
+			u32 gamma_lut_size;
+			u32 degamma_lut_tests;
+			u32 gamma_lut_tests;
+		} color;
 	} display;
-
-	struct {
-		u16 size; /* in blocks */
-		u8 slice_mask;
-	} dbuf;
-
-	/* Register offsets for the various display pipes and transcoders */
-	int pipe_offsets[I915_MAX_TRANSCODERS];
-	int trans_offsets[I915_MAX_TRANSCODERS];
-	int cursor_offsets[I915_MAX_PIPES];
-
-	struct color_luts {
-		u32 degamma_lut_size;
-		u32 gamma_lut_size;
-		u32 degamma_lut_tests;
-		u32 gamma_lut_tests;
-	} color;
 };
 
 struct intel_runtime_info {
