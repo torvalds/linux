@@ -314,9 +314,6 @@ static int iommu_skip_te_disable;
 #define IDENTMAP_GFX		2
 #define IDENTMAP_AZALIA		4
 
-int intel_iommu_gfx_mapped;
-EXPORT_SYMBOL_GPL(intel_iommu_gfx_mapped);
-
 DEFINE_SPINLOCK(device_domain_lock);
 static LIST_HEAD(device_domain_list);
 
@@ -4092,9 +4089,6 @@ int __init intel_iommu_init(void)
 
 	if (list_empty(&dmar_satc_units))
 		pr_info("No SATC found\n");
-
-	if (dmar_map_gfx)
-		intel_iommu_gfx_mapped = 1;
 
 	init_no_remapping_devices();
 
