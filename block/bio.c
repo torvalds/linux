@@ -1151,14 +1151,6 @@ void bio_iov_bvec_set(struct bio *bio, struct iov_iter *iter)
 	bio_set_flag(bio, BIO_CLONED);
 }
 
-static void bio_put_pages(struct page **pages, size_t size, size_t off)
-{
-	size_t i, nr = DIV_ROUND_UP(size + (off & ~PAGE_MASK), PAGE_SIZE);
-
-	for (i = 0; i < nr; i++)
-		put_page(pages[i]);
-}
-
 static int bio_iov_add_page(struct bio *bio, struct page *page,
 		unsigned int len, unsigned int offset)
 {
@@ -1207,7 +1199,7 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	struct bio_vec *bv = bio->bi_io_vec + bio->bi_vcnt;
 	struct page **pages = (struct page **)bv;
 	ssize_t size, left;
-	unsigned len, i;
+	unsigned len, i = 0;
 	size_t offset;
 	int ret = 0;
 
@@ -1228,10 +1220,16 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	 */
 	size = iov_iter_get_pages(iter, pages, UINT_MAX - bio->bi_iter.bi_size,
 				  nr_pages, &offset);
-	if (size > 0)
+	if (size > 0) {
+		nr_pages = DIV_ROUND_UP(offset + size, PAGE_SIZE);
 		size = ALIGN_DOWN(size, bdev_logical_block_size(bio->bi_bdev));
-	if (unlikely(size <= 0))
-		return size ? size : -EFAULT;
+	} else
+		nr_pages = 0;
+
+	if (unlikely(size <= 0)) {
+		ret = size ? size : -EFAULT;
+		goto out;
+	}
 
 	for (left = size, i = 0; left > 0; left -= len, i++) {
 		struct page *page = pages[i];
@@ -1240,10 +1238,8 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 		if (bio_op(bio) == REQ_OP_ZONE_APPEND) {
 			ret = bio_iov_add_zone_append_page(bio, page, len,
 					offset);
-			if (ret) {
-				bio_put_pages(pages + i, left, offset);
+			if (ret)
 				break;
-			}
 		} else
 			bio_iov_add_page(bio, page, len, offset);
 
@@ -1251,6 +1247,10 @@ static int __bio_iov_iter_get_pages(struct bio *bio, struct iov_iter *iter)
 	}
 
 	iov_iter_advance(iter, size - left);
+out:
+	while (i < nr_pages)
+		put_page(pages[i++]);
+
 	return ret;
 }
 
