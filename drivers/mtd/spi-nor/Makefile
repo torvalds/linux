@@ -2,6 +2,7 @@
 
 spi-nor-objs			:= core.o sfdp.o
 spi-nor-objs			+= atmel.o
+spi-nor-objs			+= boya.o
 spi-nor-objs			+= catalyst.o
 spi-nor-objs			+= dosilicon.o
 spi-nor-objs			+= eon.o
