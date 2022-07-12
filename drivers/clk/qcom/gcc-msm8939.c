@@ -1015,6 +1015,7 @@ static struct clk_rcg2 blsp1_uart2_apps_clk_src = {
 
 static const struct freq_tbl ftbl_gcc_camss_cci_clk[] = {
 	F(19200000, P_XO, 1, 0, 0),
+	F(37500000, P_GPLL0, 1, 3, 64),
 	{ }
 };
 
