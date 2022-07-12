@@ -1763,6 +1763,23 @@ static void smu_v13_0_0_i2c_control_fini(struct smu_context *smu)
 	adev->pm.fru_eeprom_i2c_bus = NULL;
 }
 
+static int smu_v13_0_0_set_mp1_state(struct smu_context *smu,
+				     enum pp_mp1_state mp1_state)
+{
+	int ret;
+
+	switch (mp1_state) {
+	case PP_MP1_STATE_UNLOAD:
+		ret = smu_cmn_set_mp1_state(smu, mp1_state);
+		break;
+	default:
+		/* Ignore others */
+		ret = 0;
+	}
+
+	return ret;
+}
+
 static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.get_allowed_feature_mask = smu_v13_0_0_get_allowed_feature_mask,
 	.set_default_dpm_table = smu_v13_0_0_set_default_dpm_table,
@@ -1829,7 +1846,7 @@ static const struct pptable_funcs smu_v13_0_0_ppt_funcs = {
 	.baco_exit = smu_v13_0_baco_exit,
 	.mode1_reset_is_support = smu_v13_0_0_is_mode1_reset_supported,
 	.mode1_reset = smu_v13_0_mode1_reset,
-	.set_mp1_state = smu_cmn_set_mp1_state,
+	.set_mp1_state = smu_v13_0_0_set_mp1_state,
 };
 
 void smu_v13_0_0_set_ppt_funcs(struct smu_context *smu)
