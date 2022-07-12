@@ -3167,10 +3167,10 @@ static void ieee80211_auth_challenge(struct ieee80211_sub_if_data *sdata,
 			    auth_data->key_idx, tx_flags);
 }
 
-static bool ieee80211_mark_sta_auth(struct ieee80211_sub_if_data *sdata,
-				    const u8 *ap_addr)
+static bool ieee80211_mark_sta_auth(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	const u8 *ap_addr = ifmgd->auth_data->bss->bssid;
 	struct sta_info *sta;
 	bool result = true;
 
@@ -3297,7 +3297,7 @@ static void ieee80211_rx_mgmt_auth(struct ieee80211_sub_if_data *sdata,
 	if (ifmgd->auth_data->algorithm != WLAN_AUTH_SAE ||
 	    (auth_transaction == 2 &&
 	     ifmgd->auth_data->expected_transaction == 2)) {
-		if (!ieee80211_mark_sta_auth(sdata, bssid))
+		if (!ieee80211_mark_sta_auth(sdata))
 			return; /* ignore frame -- wait for timeout */
 	} else if (ifmgd->auth_data->algorithm == WLAN_AUTH_SAE &&
 		   auth_transaction == 2) {
@@ -6099,7 +6099,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	 */
 	if (cont_auth && req->auth_type == NL80211_AUTHTYPE_SAE &&
 	    auth_data->peer_confirmed && auth_data->sae_trans == 2)
-		ieee80211_mark_sta_auth(sdata, req->bss->bssid);
+		ieee80211_mark_sta_auth(sdata);
 
 	if (ifmgd->associated) {
 		u8 frame_buf[IEEE80211_DEAUTH_FRAME_LEN];
