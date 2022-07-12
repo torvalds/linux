@@ -297,6 +297,7 @@ enum io_uring_op {
  */
 enum {
 	IORING_RSRC_UPDATE_FILES,
+	IORING_RSRC_UPDATE_NOTIF,
 };
 
 /*
