@@ -37,5 +37,6 @@ source "drivers/net/wireless/rockchip_wlan/rkwifi/Kconfig"
 endif
 
 source "drivers/net/wireless/rockchip_wlan/cywdhd/Kconfig"
+source "drivers/net/wireless/rockchip_wlan/infineon/Kconfig"
 
 endif # WL_ROCKCHIP

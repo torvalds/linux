@@ -1,0 +1,180 @@
+#
+# $ Copyright Open Broadcom $
+#
+#
+# <<Broadcom-WL-IPTag/Open:>>
+#
+
+config BCMDHD
+	tristate "Broadcom FullMAC wireless cards support"
+	---help---
+	  This module adds support for wireless adapters based on
+	  Broadcom FullMAC chipset.
+
+	  If you choose to build a module, it'll be called dhd. Say M if
+	  unsure.
+
+config BCMDHD_SDIO
+	bool "SDIO bus interface support"
+	depends on BCMDHD && MMC
+
+config BCMDHD_PCIE
+	bool "PCIe bus interface support"
+	depends on BCMDHD && PCI && !BCMDHD_SDIO
+
+config BCM4354
+	tristate "BCM4354 support"
+	depends on BCMDHD
+
+config BCM4356
+	tristate "BCM4356 support"
+	depends on BCMDHD
+	default n
+
+config BCM4358
+	tristate "BCM4358 support"
+	depends on BCMDHD
+	default n
+
+config BCM4359
+	tristate "BCM4359 support"
+	depends on BCMDHD
+	default y
+
+config BCM4361
+	tristate "BCM4361 support"
+	depends on BCMDHD
+	default n
+
+config CYW89570
+	tristate "CYW89570 support"
+	depends on BCMDHD
+	default y
+
+config DHD_OF_SUPPORT
+	bool "Use in-drive platform device"
+	depends on BCMDHD
+	default n
+
+config BCMDHD_FW_PATH
+	depends on BCMDHD
+	string "Firmware path"
+	default "/system/vendor/firmware/fw_bcmdhd.bin"
+	---help---
+	  Path to the firmware file.
+
+config BCMDHD_NVRAM_PATH
+	depends on BCMDHD
+	string "NVRAM path"
+	default "/system/etc/wifi/bcmdhd.cal"
+	---help---
+	  Path to the calibration file.
+
+config BROADCOM_WIFI_RESERVED_MEM
+	bool "BROADCOM Reserved memory for wifi device"
+	depends on BCMDHD
+	---help---
+	  This is a configuration for Broadcom WLAN driver.
+
+config BCMDHD_WEXT
+	bool "Enable WEXT support"
+	depends on BCMDHD && CFG80211 = n
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	help
+	  Enables WEXT support
+
+config DHD_USE_STATIC_BUF
+	bool "Enable memory preallocation"
+	depends on BCMDHD
+	default n
+	---help---
+	  Use memory preallocated in platform
+
+config DHD_USE_SCHED_SCAN
+	bool "Use CFG80211 sched scan"
+	depends on BCMDHD && CFG80211
+	default n
+	---help---
+	  Use CFG80211 sched scan
+
+config DHD_SET_RANDOM_MAC_VAL
+	hex "Vendor OUI"
+	depends on BCMDHD
+	default 0x001A11
+	---help---
+	  Set vendor OUI for SoftAP
+
+config WLAN_REGION_CODE
+	int "---Region codes for Broadcom WiFi Driver"
+	depends on BCMDHD
+	default 100
+	---help---
+		This is a region code for Broadcom Wi-Fi featured functions.
+		- 100 : EUR OPEN
+		- 101 : EUR ORG
+		- 200 : KOR OPEN
+		- 201 : KOR SKT
+		- 202 : KOR KTT
+		- 203 : KOR LGT
+		- 300 : CHN OPEN
+
+config WLAIBSS
+	bool "Advanced IBSS mode"
+	depends on (BCM4335 || BCM4339 || BCM4354 || BCM4358 || BCM4359 || BCM4361)
+	default y
+	---help---
+	  This is a configuration for Oxygen Network.
+
+config WL_RELMCAST
+	bool "Reliable Multicast Support"
+	depends on (BCM4335 || BCM4339 || BCM4354 || BCM4358 || BCM4359 || BCM4361)
+	default y
+	---help---
+	  This is a configuration for RMC.
+
+config WL_NAN
+	bool "NAN Feature"
+	depends on BCMDHD
+	default n
+	---help---
+	  This is a configuration for NAN Feature.
+
+config WL_AP_IF
+	bool "Create additional AP interface during intialization"
+	default n
+	---help---
+	  Create additional AP interface during initialization.
+
+config BCMDHD_PREALLOC_PKTIDMAP
+	bool "BROADCOM PCIE specific memory reserved for PKTIDMAP"
+	depends on BROADCOM_WIFI_RESERVED_MEM && BCMDHD_PCIE
+	---help---
+	  Preallocated memory support for PCIE interface in Broadcom
+	  WLAN driver.
+
+config BCMDHD_PREALLOC_MEMDUMP
+	bool "BROADCOM PCIE specific memory reserved for MEMDUMP"
+	depends on BROADCOM_WIFI_RESERVED_MEM
+	---help---
+	  Preallocated memory support for dongle memory dump
+
+config BCMDHD_OOB_HOST_WAKE
+        bool "Use the external WLAN_HOST_WAKE pin"
+        depends on BCMDHD
+        ---help---
+          Use the external GPIO pin to wake up host
+
+config BCMDHD_GET_OOB_STATE
+        bool "Support WLAN_HOST_WAKE pin level information"
+        depends on BCMDHD_OOB_HOST_WAKE
+        default y
+        ---help---
+          Support WLAN_HOST_WAKE pin level information
+
+config BCMDHD_WPA3
+	bool "Support WPA3 feature"
+	depends on BCMDHD
+	default n
+	---help---
+	  This will enable WPA3 support

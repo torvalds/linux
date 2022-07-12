@@ -1,0 +1,13 @@
+# SPDX-License-Identifier: GPL-2.0
+config INFINEON_DHD
+	tristate "Infineon wireless sdio cards support"
+	depends on (!AP6XXX)
+	select WIRELESS_EXT
+	select WEXT_PRIV
+	#select CFG80211
+	#select MAC80211
+	select CFG80211_WEXT
+	help
+	  This module adds support for wireless adapters based on
+	  Infineon chipset.
+
