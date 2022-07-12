@@ -11735,7 +11735,7 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 	 * i.e. it's impossible for kvm_find_cpuid_entry() to find a valid entry
 	 * on RESET.  But, go through the motions in case that's ever remedied.
 	 */
-	cpuid_0x1 = kvm_find_cpuid_entry(vcpu, 1, 0);
+	cpuid_0x1 = kvm_find_cpuid_entry(vcpu, 1);
 	kvm_rdx_write(vcpu, cpuid_0x1 ? cpuid_0x1->eax : 0x600);
 
 	static_call(kvm_x86_vcpu_reset)(vcpu, init_event);
