@@ -936,17 +936,158 @@ static size_t ieee80211_add_before_he_elems(struct sk_buff *skb,
 	return noffset;
 }
 
+static size_t ieee80211_assoc_link_elems(struct ieee80211_sub_if_data *sdata,
+					 struct sk_buff *skb, u16 *capab,
+					 const struct element *ext_capa,
+					 const u8 *extra_elems,
+					 size_t extra_elems_len,
+					 struct ieee80211_link_data *link)
+{
+	enum nl80211_iftype iftype = ieee80211_vif_type_p2p(&sdata->vif);
+	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
+	struct ieee80211_mgd_assoc_data *assoc_data = ifmgd->assoc_data;
+	struct cfg80211_bss *cbss = assoc_data->bss;
+	struct ieee80211_channel *chan = cbss->channel;
+	const struct ieee80211_sband_iftype_data *iftd;
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_supported_band *sband;
+	enum nl80211_chan_width width = NL80211_CHAN_WIDTH_20;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	size_t offset = 0;
+	u8 *pos;
+	int i;
+
+	/*
+	 * 5/10 MHz scenarios are only viable without MLO, in which
+	 * case this pointer should be used ... All of this is a bit
+	 * unclear though, not sure this even works at all.
+	 */
+	rcu_read_lock();
+	chanctx_conf = rcu_dereference(link->conf->chanctx_conf);
+	if (chanctx_conf)
+		width = chanctx_conf->def.width;
+	rcu_read_unlock();
+
+	sband = local->hw.wiphy->bands[chan->band];
+	iftd = ieee80211_get_sband_iftype_data(sband, iftype);
+
+	if (sband->band == NL80211_BAND_2GHZ) {
+		*capab |= WLAN_CAPABILITY_SHORT_SLOT_TIME;
+		*capab |= WLAN_CAPABILITY_SHORT_PREAMBLE;
+	}
+
+	if ((cbss->capability & WLAN_CAPABILITY_SPECTRUM_MGMT) &&
+	    ieee80211_hw_check(&local->hw, SPECTRUM_MGMT))
+		*capab |= WLAN_CAPABILITY_SPECTRUM_MGMT;
+
+	if (sband->band != NL80211_BAND_S1GHZ)
+		ieee80211_assoc_add_rates(skb, width, sband, assoc_data);
+
+	if (*capab & WLAN_CAPABILITY_SPECTRUM_MGMT ||
+	    *capab & WLAN_CAPABILITY_RADIO_MEASURE) {
+		struct cfg80211_chan_def chandef = {
+			.width = width,
+			.chan = chan,
+		};
+
+		pos = skb_put(skb, 4);
+		*pos++ = WLAN_EID_PWR_CAPABILITY;
+		*pos++ = 2;
+		*pos++ = 0; /* min tx power */
+		 /* max tx power */
+		*pos++ = ieee80211_chandef_max_power(&chandef);
+	}
+
+	/*
+	 * Per spec, we shouldn't include the list of channels if we advertise
+	 * support for extended channel switching, but we've always done that;
+	 * (for now?) apply this restriction only on the (new) 6 GHz band.
+	 */
+	if (*capab & WLAN_CAPABILITY_SPECTRUM_MGMT &&
+	    (sband->band != NL80211_BAND_6GHZ ||
+	     !ext_capa || ext_capa->datalen < 1 ||
+	     !(ext_capa->data[0] & WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING))) {
+		/* TODO: get this in reg domain format */
+		pos = skb_put(skb, 2 * sband->n_channels + 2);
+		*pos++ = WLAN_EID_SUPPORTED_CHANNELS;
+		*pos++ = 2 * sband->n_channels;
+		for (i = 0; i < sband->n_channels; i++) {
+			int cf = sband->channels[i].center_freq;
+
+			*pos++ = ieee80211_frequency_to_channel(cf);
+			*pos++ = 1; /* one channel in the subband*/
+		}
+	}
+
+	/* if present, add any custom IEs that go before HT */
+	offset = ieee80211_add_before_ht_elems(skb, extra_elems,
+					       extra_elems_len,
+					       offset);
+
+	if (sband->band != NL80211_BAND_6GHZ &&
+	    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT))
+		ieee80211_add_ht_ie(sdata, skb,
+				    assoc_data->ap_ht_param,
+				    sband, chan, link->smps_mode,
+				    link->u.mgd.conn_flags);
+
+	/* if present, add any custom IEs that go before VHT */
+	offset = ieee80211_add_before_vht_elems(skb, extra_elems,
+						extra_elems_len,
+						offset);
+
+	if (sband->band != NL80211_BAND_6GHZ &&
+	    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
+		link->conf->mu_mimo_owner =
+			ieee80211_add_vht_ie(sdata, skb, sband,
+					     &assoc_data->ap_vht_cap,
+					     link->u.mgd.conn_flags);
+
+	/*
+	 * If AP doesn't support HT, mark HE and EHT as disabled.
+	 * If on the 5GHz band, make sure it supports VHT.
+	 */
+	if (link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT ||
+	    (sband->band == NL80211_BAND_5GHZ &&
+	     link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
+		link->u.mgd.conn_flags |=
+			IEEE80211_CONN_DISABLE_HE |
+			IEEE80211_CONN_DISABLE_EHT;
+
+	/* if present, add any custom IEs that go before HE */
+	offset = ieee80211_add_before_he_elems(skb, extra_elems,
+					       extra_elems_len,
+					       offset);
+
+	if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE))
+		ieee80211_add_he_ie(sdata, skb, sband,
+				    link->u.mgd.conn_flags);
+
+	if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT))
+		ieee80211_add_eht_ie(sdata, skb, sband);
+
+	if (sband->band == NL80211_BAND_S1GHZ) {
+		ieee80211_add_aid_request_ie(sdata, skb);
+		ieee80211_add_s1g_capab_ie(sdata, &sband->s1g_cap, skb);
+	}
+
+	if (iftd && iftd->vendor_elems.data && iftd->vendor_elems.len)
+		skb_put_data(skb, iftd->vendor_elems.data, iftd->vendor_elems.len);
+
+	return offset;
+}
+
 static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_mgd_assoc_data *assoc_data = ifmgd->assoc_data;
+	struct ieee80211_link_data *link = &sdata->deflink;
 	struct sk_buff *skb;
 	struct ieee80211_mgmt *mgmt;
 	u8 *pos, qos_info, *ie_start;
-	size_t offset = 0, noffset;
-	int i;
-	u16 capab;
+	size_t offset, noffset;
+	u16 capab = WLAN_CAPABILITY_ESS;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	struct ieee80211_channel *chan;
@@ -955,7 +1096,7 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	enum nl80211_iftype iftype = ieee80211_vif_type_p2p(&sdata->vif);
 	const struct ieee80211_sband_iftype_data *iftd;
 	struct ieee80211_prep_tx_info info = {};
-	struct ieee80211_link_data *link = &sdata->deflink;
+	void *capab_pos;
 	int ret;
 
 	/* we know it's writable, cast away the const */
@@ -1003,22 +1144,17 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 	skb_reserve(skb, local->hw.extra_tx_headroom);
 
-	capab = WLAN_CAPABILITY_ESS;
-
-	if (sband->band == NL80211_BAND_2GHZ) {
-		capab |= WLAN_CAPABILITY_SHORT_SLOT_TIME;
-		capab |= WLAN_CAPABILITY_SHORT_PREAMBLE;
-	}
-
 	if (assoc_data->capability & WLAN_CAPABILITY_PRIVACY)
 		capab |= WLAN_CAPABILITY_PRIVACY;
 
-	if ((assoc_data->capability & WLAN_CAPABILITY_SPECTRUM_MGMT) &&
-	    ieee80211_hw_check(&local->hw, SPECTRUM_MGMT))
-		capab |= WLAN_CAPABILITY_SPECTRUM_MGMT;
-
 	if (ifmgd->flags & IEEE80211_STA_ENABLE_RRM)
 		capab |= WLAN_CAPABILITY_RADIO_MEASURE;
+
+	/* Set MBSSID support for HE AP if needed */
+	if (ieee80211_hw_check(&local->hw, SUPPORTS_ONLY_HE_MULTI_BSSID) &&
+	    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
+	    ext_capa && ext_capa->datalen >= 3)
+		ext_capa->data[2] |= WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT;
 
 	mgmt = skb_put_zero(skb, 24);
 	memcpy(mgmt->da, assoc_data->bss->bssid, ETH_ALEN);
@@ -1032,7 +1168,7 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		skb_put(skb, 10);
 		mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						  IEEE80211_STYPE_REASSOC_REQ);
-		mgmt->u.reassoc_req.capab_info = cpu_to_le16(capab);
+		capab_pos = &mgmt->u.reassoc_req.capab_info;
 		mgmt->u.reassoc_req.listen_interval = listen_int;
 		memcpy(mgmt->u.reassoc_req.current_ap, assoc_data->prev_bssid,
 		       ETH_ALEN);
@@ -1041,7 +1177,7 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		skb_put(skb, 4);
 		mgmt->frame_control = cpu_to_le16(IEEE80211_FTYPE_MGMT |
 						  IEEE80211_STYPE_ASSOC_REQ);
-		mgmt->u.assoc_req.capab_info = cpu_to_le16(capab);
+		capab_pos = &mgmt->u.assoc_req.capab_info;
 		mgmt->u.assoc_req.listen_interval = listen_int;
 		info.subtype = IEEE80211_STYPE_ASSOC_REQ;
 	}
@@ -1053,97 +1189,15 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	*pos++ = assoc_data->ssid_len;
 	memcpy(pos, assoc_data->ssid, assoc_data->ssid_len);
 
-	if (sband->band != NL80211_BAND_S1GHZ)
-		ieee80211_assoc_add_rates(skb, chanctx_conf->def.width,
-					  sband, assoc_data);
+	/* add the elements for the assoc (main) link */
+	offset = ieee80211_assoc_link_elems(sdata, skb, &capab,
+					    ext_capa,
+					    assoc_data->ie,
+					    assoc_data->ie_len,
+					    link);
+	put_unaligned_le16(capab, capab_pos);
 
-	if (capab & WLAN_CAPABILITY_SPECTRUM_MGMT ||
-	    capab & WLAN_CAPABILITY_RADIO_MEASURE) {
-		pos = skb_put(skb, 4);
-		*pos++ = WLAN_EID_PWR_CAPABILITY;
-		*pos++ = 2;
-		*pos++ = 0; /* min tx power */
-		 /* max tx power */
-		*pos++ = ieee80211_chandef_max_power(&chanctx_conf->def);
-	}
-
-	/*
-	 * Per spec, we shouldn't include the list of channels if we advertise
-	 * support for extended channel switching, but we've always done that;
-	 * (for now?) apply this restriction only on the (new) 6 GHz band.
-	 */
-	if (capab & WLAN_CAPABILITY_SPECTRUM_MGMT &&
-	    (sband->band != NL80211_BAND_6GHZ ||
-	     !ext_capa || ext_capa->datalen < 1 ||
-	     !(ext_capa->data[0] & WLAN_EXT_CAPA1_EXT_CHANNEL_SWITCHING))) {
-		/* TODO: get this in reg domain format */
-		pos = skb_put(skb, 2 * sband->n_channels + 2);
-		*pos++ = WLAN_EID_SUPPORTED_CHANNELS;
-		*pos++ = 2 * sband->n_channels;
-		for (i = 0; i < sband->n_channels; i++) {
-			int cf = sband->channels[i].center_freq;
-
-			*pos++ = ieee80211_frequency_to_channel(cf);
-			*pos++ = 1; /* one channel in the subband*/
-		}
-	}
-
-	/* Set MBSSID support for HE AP if needed */
-	if (ieee80211_hw_check(&local->hw, SUPPORTS_ONLY_HE_MULTI_BSSID) &&
-	    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE) &&
-	    ext_capa && ext_capa->datalen >= 3)
-		ext_capa->data[2] |= WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT;
-
-	/* if present, add any custom IEs that go before HT */
-	offset = ieee80211_add_before_ht_elems(skb, assoc_data->ie,
-					       assoc_data->ie_len,
-					       offset);
-
-	if (WARN_ON_ONCE((link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT) &&
-			 !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT)))
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_VHT;
-
-	if (sband->band != NL80211_BAND_6GHZ &&
-	    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT))
-		ieee80211_add_ht_ie(sdata, skb, assoc_data->ap_ht_param,
-				    sband, chan, link->smps_mode,
-				    link->u.mgd.conn_flags);
-
-	/* if present, add any custom IEs that go before VHT */
-	offset = ieee80211_add_before_vht_elems(skb, assoc_data->ie,
-						assoc_data->ie_len,
-						offset);
-
-	if (sband->band != NL80211_BAND_6GHZ &&
-	    !(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
-		link->conf->mu_mimo_owner =
-			ieee80211_add_vht_ie(sdata, skb, sband,
-					     &assoc_data->ap_vht_cap,
-					     link->u.mgd.conn_flags);
-
-	/*
-	 * If AP doesn't support HT, mark HE and EHT as disabled.
-	 * If on the 5GHz band, make sure it supports VHT.
-	 */
-	if (link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HT ||
-	    (sband->band == NL80211_BAND_5GHZ &&
-	     link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_VHT))
-		link->u.mgd.conn_flags |= IEEE80211_CONN_DISABLE_HE |
-						   IEEE80211_CONN_DISABLE_EHT;
-
-	/* if present, add any custom IEs that go before HE */
-	offset = ieee80211_add_before_he_elems(skb, assoc_data->ie,
-					       assoc_data->ie_len,
-					       offset);
-
-	if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_HE)) {
-		ieee80211_add_he_ie(sdata, skb, sband, link->u.mgd.conn_flags);
-
-		if (!(link->u.mgd.conn_flags & IEEE80211_CONN_DISABLE_EHT))
-			ieee80211_add_eht_ie(sdata, skb, sband);
-	}
-
-	/* if present, add any custom non-vendor IEs that go after HE */
+	/* if present, add any custom non-vendor IEs */
 	if (assoc_data->ie_len) {
 		noffset = ieee80211_ie_split_vendor(assoc_data->ie,
 						    assoc_data->ie_len,
@@ -1163,14 +1217,6 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 
 		pos = ieee80211_add_wmm_info_ie(skb_put(skb, 9), qos_info);
 	}
-
-	if (sband->band == NL80211_BAND_S1GHZ) {
-		ieee80211_add_aid_request_ie(sdata, skb);
-		ieee80211_add_s1g_capab_ie(sdata, &sband->s1g_cap, skb);
-	}
-
-	if (iftd && iftd->vendor_elems.data && iftd->vendor_elems.len)
-		skb_put_data(skb, iftd->vendor_elems.data, iftd->vendor_elems.len);
 
 	/* add any remaining custom (i.e. vendor specific here) IEs */
 	if (assoc_data->ie_len) {
