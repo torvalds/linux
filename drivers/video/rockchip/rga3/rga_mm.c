@@ -300,8 +300,11 @@ static inline bool rga_mm_check_memory_limit(struct rga_scheduler_t *scheduler, 
 		return false;
 
 	if (scheduler->data->mmu == RGA_MMU &&
-	    !(mm_flag & RGA_MEM_UNDER_4G))
+	    !(mm_flag & RGA_MEM_UNDER_4G)) {
+		pr_err("%s unsupported Memory larger than 4G!\n",
+		       rga_get_mmu_type_str(scheduler->data->mmu));
 		return false;
+	}
 
 	return true;
 }
@@ -355,6 +358,8 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 				 struct rga_job *job)
 {
 	int ret;
+	uint32_t mm_flag = 0;
+	phys_addr_t phys_addr = 0;
 	struct rga_dma_buffer *buffer;
 	struct device *map_dev;
 	struct rga_scheduler_t *scheduler;
@@ -402,23 +407,32 @@ static int rga_mm_map_dma_buffer(struct rga_external_buffer *external_buffer,
 	buffer->scheduler = scheduler;
 
 	if (rga_mm_check_range_sgt(buffer->sgt))
-		internal_buffer->mm_flag |= RGA_MEM_UNDER_4G;
+		mm_flag |= RGA_MEM_UNDER_4G;
 
 	/*
 	 * If it's physically contiguous, then the RGA_MMU can
 	 * directly use the physical address.
 	 */
 	if (rga_mm_check_contiguous_sgt(buffer->sgt)) {
-		internal_buffer->phys_addr = sg_phys(buffer->sgt->sgl);
-		if (internal_buffer->phys_addr == 0) {
+		phys_addr = sg_phys(buffer->sgt->sgl);
+		if (phys_addr == 0) {
 			pr_err("%s get physical address error!", __func__);
 			goto unmap_buffer;
 		}
 
-		internal_buffer->mm_flag |= RGA_MEM_PHYSICAL_CONTIGUOUS;
+		mm_flag |= RGA_MEM_PHYSICAL_CONTIGUOUS;
+	}
+
+	if (!rga_mm_check_memory_limit(scheduler, mm_flag)) {
+		pr_err("scheduler core[%d] unsupported mm_flag[0x%x]!\n",
+		       scheduler->core, mm_flag);
+		ret = -EINVAL;
+		goto unmap_buffer;
 	}
 
 	internal_buffer->dma_buffer = buffer;
+	internal_buffer->mm_flag = mm_flag;
+	internal_buffer->phys_addr = phys_addr ? phys_addr : 0;
 
 	return 0;
 

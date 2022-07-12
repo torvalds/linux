@@ -514,6 +514,18 @@ const char *rga_get_memory_type_str(uint8_t type)
 	}
 }
 
+const char *rga_get_mmu_type_str(enum rga_mmu mmu_type)
+{
+	switch (mmu_type) {
+	case RGA_MMU:
+		return "RGA_MMU";
+	case RGA_IOMMU:
+		return "RK_IOMMU";
+	default:
+		return "NONE_MMU";
+	}
+}
+
 void rga_convert_addr(struct rga_img_info_t *img, bool before_vir_get_channel)
 {
 	/*
