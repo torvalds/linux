@@ -178,8 +178,7 @@ static void amd_sfh_resume(struct amd_mp2_dev *mp2)
 	}
 
 	schedule_delayed_work(&cl_data->work_buffer, msecs_to_jiffies(AMD_SFH_IDLE_LOOP));
-	if (mp2->mp2_ops->clear_intr)
-		mp2->mp2_ops->clear_intr(mp2);
+	amd_sfh_clear_intr(mp2);
 }
 
 static void amd_sfh_suspend(struct amd_mp2_dev *mp2)
@@ -202,8 +201,7 @@ static void amd_sfh_suspend(struct amd_mp2_dev *mp2)
 	}
 
 	cancel_delayed_work_sync(&cl_data->work_buffer);
-	if (mp2->mp2_ops->clear_intr)
-		mp2->mp2_ops->clear_intr(mp2);
+	amd_sfh_clear_intr(mp2);
 }
 
 int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)

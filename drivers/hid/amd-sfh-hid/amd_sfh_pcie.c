@@ -92,7 +92,7 @@ static void amd_stop_all_sensor_v2(struct amd_mp2_dev *privdata)
 	writel(cmd_base.ul, privdata->mmio + AMD_C2P_MSG0);
 }
 
-static void amd_sfh_clear_intr_v2(struct amd_mp2_dev *privdata)
+void amd_sfh_clear_intr_v2(struct amd_mp2_dev *privdata)
 {
 	if (readl(privdata->mmio + AMD_P2C_MSG(4))) {
 		writel(0, privdata->mmio + AMD_P2C_MSG(4));
@@ -100,7 +100,7 @@ static void amd_sfh_clear_intr_v2(struct amd_mp2_dev *privdata)
 	}
 }
 
-static void amd_sfh_clear_intr(struct amd_mp2_dev *privdata)
+void amd_sfh_clear_intr(struct amd_mp2_dev *privdata)
 {
 	if (privdata->mp2_ops->clear_intr)
 		privdata->mp2_ops->clear_intr(privdata);
@@ -113,7 +113,7 @@ static irqreturn_t amd_sfh_irq_handler(int irq, void *data)
 	return IRQ_HANDLED;
 }
 
-static int amd_sfh_irq_init_v2(struct amd_mp2_dev *privdata)
+int amd_sfh_irq_init_v2(struct amd_mp2_dev *privdata)
 {
 	int rc;
 
@@ -279,7 +279,7 @@ static void mp2_select_ops(struct amd_mp2_dev *privdata)
 	}
 }
 
-static int amd_sfh_irq_init(struct amd_mp2_dev *privdata)
+int amd_sfh_irq_init(struct amd_mp2_dev *privdata)
 {
 	if (privdata->mp2_ops->init_intr)
 		return privdata->mp2_ops->init_intr(privdata);

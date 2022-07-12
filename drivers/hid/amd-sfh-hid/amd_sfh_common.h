@@ -66,4 +66,8 @@ struct amd_mp2_ops {
 
 void amd_sfh_work(struct work_struct *work);
 void amd_sfh_work_buffer(struct work_struct *work);
+void amd_sfh_clear_intr_v2(struct amd_mp2_dev *privdata);
+int amd_sfh_irq_init_v2(struct amd_mp2_dev *privdata);
+void amd_sfh_clear_intr(struct amd_mp2_dev *privdata);
+int amd_sfh_irq_init(struct amd_mp2_dev *privdata);
 #endif
