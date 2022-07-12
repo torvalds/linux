@@ -12,7 +12,6 @@
 #include <drm/drm_bridge.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_mipi_dsi.h>
-#include <drm/drm_panel.h>
 
 #include "msm_drv.h"
 #include "disp/msm_disp_snapshot.h"
@@ -36,8 +35,6 @@ struct msm_dsi {
 	struct drm_device *dev;
 	struct platform_device *pdev;
 
-	/* connector managed by us when we're connected to a drm_panel */
-	struct drm_connector *connector;
 	/* internal dsi bridge attached to MDP interface */
 	struct drm_bridge *bridge;
 
@@ -45,10 +42,8 @@ struct msm_dsi {
 	struct msm_dsi_phy *phy;
 
 	/*
-	 * panel/external_bridge connected to dsi bridge output, only one of the
-	 * two can be valid at a time
+	 * external_bridge connected to dsi bridge output
 	 */
-	struct drm_panel *panel;
 	struct drm_bridge *external_bridge;
 
 	struct device *phy_dev;
@@ -63,8 +58,7 @@ struct msm_dsi {
 /* dsi manager */
 struct drm_bridge *msm_dsi_manager_bridge_init(u8 id);
 void msm_dsi_manager_bridge_destroy(struct drm_bridge *bridge);
-struct drm_connector *msm_dsi_manager_connector_init(u8 id);
-struct drm_connector *msm_dsi_manager_ext_bridge_init(u8 id);
+int msm_dsi_manager_ext_bridge_init(u8 id);
 int msm_dsi_manager_cmd_xfer(int id, const struct mipi_dsi_msg *msg);
 bool msm_dsi_manager_cmd_xfer_trigger(int id, u32 dma_base, u32 len);
 int msm_dsi_manager_register(struct msm_dsi *msm_dsi);
@@ -74,10 +68,8 @@ void msm_dsi_manager_tpg_enable(void);
 /* msm dsi */
 static inline bool msm_dsi_device_connected(struct msm_dsi *msm_dsi)
 {
-	return msm_dsi->panel || msm_dsi->external_bridge;
+	return msm_dsi->external_bridge;
 }
-
-struct drm_encoder *msm_dsi_get_encoder(struct msm_dsi *msm_dsi);
 
 /* dsi host */
 struct msm_dsi_host;
@@ -103,9 +95,7 @@ int msm_dsi_host_set_display_mode(struct mipi_dsi_host *host,
 				  const struct drm_display_mode *mode);
 enum drm_mode_status msm_dsi_host_check_dsc(struct mipi_dsi_host *host,
 					    const struct drm_display_mode *mode);
-struct drm_panel *msm_dsi_host_get_panel(struct mipi_dsi_host *host);
 unsigned long msm_dsi_host_get_mode_flags(struct mipi_dsi_host *host);
-struct drm_bridge *msm_dsi_host_get_bridge(struct mipi_dsi_host *host);
 int msm_dsi_host_register(struct mipi_dsi_host *host);
 void msm_dsi_host_unregister(struct mipi_dsi_host *host);
 void msm_dsi_host_set_phy_mode(struct mipi_dsi_host *host,
