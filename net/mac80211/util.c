@@ -191,7 +191,7 @@ __le16 ieee80211_generic_frame_duration(struct ieee80211_hw *hw,
 	if (vif) {
 		sdata = vif_to_sdata(vif);
 		short_preamble = sdata->vif.bss_conf.use_short_preamble;
-		if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+		if (sdata->deflink.operating_11g_mode)
 			erp = rate->flags & IEEE80211_RATE_ERP_G;
 		shift = ieee80211_vif_get_shift(vif);
 	}
@@ -225,7 +225,7 @@ __le16 ieee80211_rts_duration(struct ieee80211_hw *hw,
 	if (vif) {
 		sdata = vif_to_sdata(vif);
 		short_preamble = sdata->vif.bss_conf.use_short_preamble;
-		if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+		if (sdata->deflink.operating_11g_mode)
 			erp = rate->flags & IEEE80211_RATE_ERP_G;
 		shift = ieee80211_vif_get_shift(vif);
 	}
@@ -268,7 +268,7 @@ __le16 ieee80211_ctstoself_duration(struct ieee80211_hw *hw,
 	if (vif) {
 		sdata = vif_to_sdata(vif);
 		short_preamble = sdata->vif.bss_conf.use_short_preamble;
-		if (sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+		if (sdata->deflink.operating_11g_mode)
 			erp = rate->flags & IEEE80211_RATE_ERP_G;
 		shift = ieee80211_vif_get_shift(vif);
 	}
@@ -1617,7 +1617,7 @@ void ieee80211_set_wmm_default(struct ieee80211_link_data *link,
 	chanctx_conf = rcu_dereference(link->conf->chanctx_conf);
 	use_11b = (chanctx_conf &&
 		   chanctx_conf->def.chan->band == NL80211_BAND_2GHZ) &&
-		 !(sdata->flags & IEEE80211_SDATA_OPERATING_GMODE);
+		 !link->operating_11g_mode;
 	rcu_read_unlock();
 
 	is_ocb = (sdata->vif.type == NL80211_IFTYPE_OCB);

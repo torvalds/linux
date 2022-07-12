@@ -726,7 +726,6 @@ struct ieee80211_if_mesh {
  * enum ieee80211_sub_if_data_flags - virtual interface flags
  *
  * @IEEE80211_SDATA_ALLMULTI: interface wants all multicast packets
- * @IEEE80211_SDATA_OPERATING_GMODE: operating in G-only mode
  * @IEEE80211_SDATA_DONT_BRIDGE_PACKETS: bridge packets between
  *	associated stations and deliver multicast frames both
  *	back to wireless media and to the local net stack.
@@ -737,7 +736,6 @@ struct ieee80211_if_mesh {
  */
 enum ieee80211_sub_if_data_flags {
 	IEEE80211_SDATA_ALLMULTI		= BIT(0),
-	IEEE80211_SDATA_OPERATING_GMODE		= BIT(2),
 	IEEE80211_SDATA_DONT_BRIDGE_PACKETS	= BIT(3),
 	IEEE80211_SDATA_DISCONNECT_RESUME	= BIT(4),
 	IEEE80211_SDATA_IN_DRIVER		= BIT(5),
@@ -884,6 +882,7 @@ struct ieee80211_link_data_managed {
 	bool have_beacon;
 	bool tracking_signal_avg;
 	bool disable_wmm_tracking;
+	bool operating_11g_mode;
 
 	bool csa_waiting_bcn;
 	bool csa_ignored_same_chan;
@@ -946,6 +945,9 @@ struct ieee80211_link_data {
 
 	struct work_struct csa_finalize_work;
 	bool csa_block_tx; /* write-protected by sdata_lock and local->mtx */
+
+	bool operating_11g_mode;
+
 	struct cfg80211_chan_def csa_chandef;
 
 	struct work_struct color_change_finalize_work;

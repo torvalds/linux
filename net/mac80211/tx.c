@@ -148,7 +148,7 @@ static __le16 ieee80211_duration(struct ieee80211_tx_data *tx,
 		case NL80211_BAND_2GHZ:
 		case NL80211_BAND_LC: {
 			u32 flag;
-			if (tx->sdata->flags & IEEE80211_SDATA_OPERATING_GMODE)
+			if (tx->sdata->deflink.operating_11g_mode)
 				flag = IEEE80211_RATE_MANDATORY_G;
 			else
 				flag = IEEE80211_RATE_MANDATORY_B;

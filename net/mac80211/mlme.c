@@ -5811,11 +5811,8 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 		link->conf->basic_rates = basic_rates;
 
 		/* cf. IEEE 802.11 9.2.12 */
-		if (cbss->channel->band == NL80211_BAND_2GHZ &&
-		    have_higher_than_11mbit)
-			sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
-		else
-			sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
+		link->operating_11g_mode = sband->band == NL80211_BAND_2GHZ &&
+					   have_higher_than_11mbit;
 
 skip_rates:
 		memcpy(link->u.mgd.bssid, cbss->bssid, ETH_ALEN);

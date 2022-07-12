@@ -351,10 +351,8 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	bss_change |= BSS_CHANGED_ERP_SLOT;
 
 	/* cf. IEEE 802.11 9.2.12 */
-	if (chan->band == NL80211_BAND_2GHZ && have_higher_than_11mbit)
-		sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
-	else
-		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
+	sdata->deflink.operating_11g_mode =
+		chan->band == NL80211_BAND_2GHZ && have_higher_than_11mbit;
 
 	ieee80211_set_wmm_default(&sdata->deflink, true, false);
 

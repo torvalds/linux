@@ -181,7 +181,7 @@ int ieee80211_ocb_join(struct ieee80211_sub_if_data *sdata,
 	if (ifocb->joined == true)
 		return -EINVAL;
 
-	sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
+	sdata->deflink.operating_11g_mode = true;
 	sdata->deflink.smps_mode = IEEE80211_SMPS_OFF;
 	sdata->deflink.needed_rx_chains = sdata->local->rx_chains;
 
