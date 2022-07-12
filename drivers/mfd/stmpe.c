@@ -1362,17 +1362,16 @@ static void stmpe_of_probe(struct stmpe_platform_data *pdata,
 	pdata->autosleep = (pdata->autosleep_timeout) ? true : false;
 
 	for_each_available_child_of_node(np, child) {
-		if (of_node_name_eq(child, "stmpe_gpio")) {
+		if (of_device_is_compatible(child, stmpe_gpio_cell.of_compatible))
 			pdata->blocks |= STMPE_BLOCK_GPIO;
-		} else if (of_node_name_eq(child, "stmpe_keypad")) {
+		else if (of_device_is_compatible(child, stmpe_keypad_cell.of_compatible))
 			pdata->blocks |= STMPE_BLOCK_KEYPAD;
-		} else if (of_node_name_eq(child, "stmpe_touchscreen")) {
+		else if (of_device_is_compatible(child, stmpe_ts_cell.of_compatible))
 			pdata->blocks |= STMPE_BLOCK_TOUCHSCREEN;
-		} else if (of_node_name_eq(child, "stmpe_adc")) {
+		else if (of_device_is_compatible(child, stmpe_adc_cell.of_compatible))
 			pdata->blocks |= STMPE_BLOCK_ADC;
-		} else if (of_node_name_eq(child, "stmpe_pwm")) {
+		else if (of_device_is_compatible(child, stmpe_pwm_cell.of_compatible))
 			pdata->blocks |= STMPE_BLOCK_PWM;
-		}
 	}
 }
 
