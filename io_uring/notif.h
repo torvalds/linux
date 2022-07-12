@@ -5,6 +5,8 @@
 #include <net/sock.h>
 #include <linux/nospec.h>
 
+#define IO_NOTIF_SPLICE_BATCH	32
+
 struct io_notif {
 	struct ubuf_info	uarg;
 	struct io_ring_ctx	*ctx;
@@ -13,6 +15,8 @@ struct io_notif {
 	u64			tag;
 	/* see struct io_notif_slot::seq */
 	u32			seq;
+	/* hook into ctx->notif_list and ctx->notif_list_locked */
+	struct list_head	cache_node;
 
 	union {
 		struct callback_head	task_work;
@@ -41,6 +45,7 @@ struct io_notif_slot {
 };
 
 int io_notif_unregister(struct io_ring_ctx *ctx);
+void io_notif_cache_purge(struct io_ring_ctx *ctx);
 
 struct io_notif *io_alloc_notif(struct io_ring_ctx *ctx,
 				struct io_notif_slot *slot);
