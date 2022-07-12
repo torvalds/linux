@@ -1249,7 +1249,7 @@ int icmp_rcv(struct sk_buff *skb)
 		 */
 		if ((icmph->type == ICMP_ECHO ||
 		     icmph->type == ICMP_TIMESTAMP) &&
-		    net->ipv4.sysctl_icmp_echo_ignore_broadcasts) {
+		    READ_ONCE(net->ipv4.sysctl_icmp_echo_ignore_broadcasts)) {
 			reason = SKB_DROP_REASON_INVALID_PROTO;
 			goto error;
 		}
