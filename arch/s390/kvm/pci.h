@@ -10,11 +10,10 @@
 #ifndef __KVM_S390_PCI_H
 #define __KVM_S390_PCI_H
 
-#include <linux/kvm_host.h>
-#include <linux/pci.h>
-#include <linux/mutex.h>
 #include <linux/kvm.h>
 #include <linux/kvm_host.h>
+#include <linux/mutex.h>
+#include <linux/pci.h>
 #include <asm/airq.h>
 #include <asm/cpu.h>
 
