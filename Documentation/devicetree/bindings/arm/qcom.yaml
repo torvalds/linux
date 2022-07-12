@@ -667,6 +667,7 @@ properties:
               - sony,apollo-row
               - thundercomm,db845c
               - xiaomi,beryllium
+              - xiaomi,polaris
           - const: qcom,sdm845
 
       - items:
