@@ -420,6 +420,8 @@ static void ieee80211_link_stop(struct ieee80211_link_data *link)
 {
 	if (link->sdata->vif.type == NL80211_IFTYPE_STATION)
 		ieee80211_mgd_stop_link(link);
+
+	ieee80211_link_release_channel(link);
 }
 
 struct link_container {
