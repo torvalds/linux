@@ -52,6 +52,7 @@ struct amdtp_cl_data {
 	struct amd_input_data *in_data;
 	struct delayed_work work;
 	struct delayed_work work_buffer;
+	struct request_list req_list;
 };
 
 /**

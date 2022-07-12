@@ -18,8 +18,6 @@
 #include "amd_sfh_pcie.h"
 #include "amd_sfh_hid.h"
 
-static struct request_list req_list;
-
 void amd_sfh_set_report(struct hid_device *hid, int report_id,
 			int report_type)
 {
@@ -40,6 +38,7 @@ int amd_sfh_get_report(struct hid_device *hid, int report_id, int report_type)
 {
 	struct amdtp_hid_data *hid_data = hid->driver_data;
 	struct amdtp_cl_data *cli_data = hid_data->cli_data;
+	struct request_list *req_list = &cli_data->req_list;
 	int i;
 
 	for (i = 0; i < cli_data->num_hid_devices; i++) {
@@ -56,7 +55,7 @@ int amd_sfh_get_report(struct hid_device *hid, int report_id, int report_type)
 			new->report_id = report_id;
 			cli_data->report_id[i] = report_id;
 			cli_data->request_done[i] = false;
-			list_add(&new->list, &req_list.list);
+			list_add(&new->list, &req_list->list);
 			break;
 		}
 	}
@@ -67,13 +66,14 @@ int amd_sfh_get_report(struct hid_device *hid, int report_id, int report_type)
 static void amd_sfh_work(struct work_struct *work)
 {
 	struct amdtp_cl_data *cli_data = container_of(work, struct amdtp_cl_data, work.work);
+	struct request_list *req_list = &cli_data->req_list;
 	struct amd_input_data *in_data = cli_data->in_data;
 	struct request_list *req_node;
 	u8 current_index, sensor_index;
 	u8 report_id, node_type;
 	u8 report_size = 0;
 
-	req_node = list_last_entry(&req_list.list, struct request_list, list);
+	req_node = list_last_entry(&req_list->list, struct request_list, list);
 	list_del(&req_node->list);
 	current_index = req_node->current_index;
 	sensor_index = req_node->sensor_idx;
@@ -154,19 +154,21 @@ int amd_sfh_hid_client_init(struct amd_mp2_dev *privdata)
 	struct amd_input_data *in_data = &privdata->in_data;
 	struct amdtp_cl_data *cl_data = privdata->cl_data;
 	struct amd_mp2_sensor_info info;
+	struct request_list *req_list;
 	struct device *dev;
 	u32 feature_report_size;
 	u32 input_report_size;
 	int rc, i, status;
 	u8 cl_idx;
 
+	req_list = &cl_data->req_list;
 	dev = &privdata->pdev->dev;
 
 	cl_data->num_hid_devices = amd_mp2_get_sensor_num(privdata, &cl_data->sensor_idx[0]);
 
 	INIT_DELAYED_WORK(&cl_data->work, amd_sfh_work);
 	INIT_DELAYED_WORK(&cl_data->work_buffer, amd_sfh_work_buffer);
-	INIT_LIST_HEAD(&req_list.list);
+	INIT_LIST_HEAD(&req_list->list);
 	cl_data->in_data = in_data;
 
 	for (i = 0; i < cl_data->num_hid_devices; i++) {
