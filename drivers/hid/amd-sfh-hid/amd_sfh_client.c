@@ -18,16 +18,6 @@
 #include "amd_sfh_pcie.h"
 #include "amd_sfh_hid.h"
 
-
-struct request_list {
-	struct hid_device *hid;
-	struct list_head list;
-	u8 report_id;
-	u8 sensor_idx;
-	u8 report_type;
-	u8 current_index;
-};
-
 static struct request_list req_list;
 
 void amd_sfh_set_report(struct hid_device *hid, int report_id,

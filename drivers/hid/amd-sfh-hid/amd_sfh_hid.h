@@ -15,6 +15,15 @@
 #define AMD_SFH_HID_VENDOR	0x1022
 #define AMD_SFH_HID_PRODUCT	0x0001
 
+struct request_list {
+	struct hid_device *hid;
+	struct list_head list;
+	u8 report_id;
+	u8 sensor_idx;
+	u8 report_type;
+	u8 current_index;
+};
+
 struct amd_input_data {
 	u32 *sensor_virt_addr[MAX_HID_DEVICES];
 	u8 *input_report[MAX_HID_DEVICES];
