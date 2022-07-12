@@ -168,7 +168,7 @@ static int sof_compr_set_params(struct snd_soc_component *component,
 	struct snd_compr_runtime *crtd = cstream->runtime;
 	struct sof_ipc_pcm_params_reply ipc_params_reply;
 	struct snd_compr_tstamp *tstamp;
-	struct sof_ipc_pcm_params pcm;
+	struct sof_ipc_pcm_params *pcm;
 	struct snd_sof_pcm *spcm;
 	int ret;
 
@@ -179,40 +179,42 @@ static int sof_compr_set_params(struct snd_soc_component *component,
 	if (!spcm)
 		return -EINVAL;
 
+	pcm = kzalloc(sizeof(*pcm), GFP_KERNEL);
+	if (!pcm)
+		return -ENOMEM;
+
 	cstream->dma_buffer.dev.type = SNDRV_DMA_TYPE_DEV_SG;
 	cstream->dma_buffer.dev.dev = sdev->dev;
 	ret = snd_compr_malloc_pages(cstream, crtd->buffer_size);
 	if (ret < 0)
-		return ret;
+		goto out;
 
 	ret = create_page_table(component, cstream, crtd->dma_area, crtd->dma_bytes);
 	if (ret < 0)
-		return ret;
+		goto out;
 
-	memset(&pcm, 0, sizeof(pcm));
+	pcm->params.buffer.pages = PFN_UP(crtd->dma_bytes);
+	pcm->hdr.size = sizeof(*pcm);
+	pcm->hdr.cmd = SOF_IPC_GLB_STREAM_MSG | SOF_IPC_STREAM_PCM_PARAMS;
 
-	pcm.params.buffer.pages = PFN_UP(crtd->dma_bytes);
-	pcm.hdr.size = sizeof(pcm);
-	pcm.hdr.cmd = SOF_IPC_GLB_STREAM_MSG | SOF_IPC_STREAM_PCM_PARAMS;
-
-	pcm.comp_id = spcm->stream[cstream->direction].comp_id;
-	pcm.params.hdr.size = sizeof(pcm.params);
-	pcm.params.buffer.phy_addr = spcm->stream[cstream->direction].page_table.addr;
-	pcm.params.buffer.size = crtd->dma_bytes;
-	pcm.params.direction = cstream->direction;
-	pcm.params.channels = params->codec.ch_out;
-	pcm.params.rate = params->codec.sample_rate;
-	pcm.params.buffer_fmt = SOF_IPC_BUFFER_INTERLEAVED;
-	pcm.params.frame_fmt = SOF_IPC_FRAME_S32_LE;
-	pcm.params.sample_container_bytes =
+	pcm->comp_id = spcm->stream[cstream->direction].comp_id;
+	pcm->params.hdr.size = sizeof(pcm->params);
+	pcm->params.buffer.phy_addr = spcm->stream[cstream->direction].page_table.addr;
+	pcm->params.buffer.size = crtd->dma_bytes;
+	pcm->params.direction = cstream->direction;
+	pcm->params.channels = params->codec.ch_out;
+	pcm->params.rate = params->codec.sample_rate;
+	pcm->params.buffer_fmt = SOF_IPC_BUFFER_INTERLEAVED;
+	pcm->params.frame_fmt = SOF_IPC_FRAME_S32_LE;
+	pcm->params.sample_container_bytes =
 		snd_pcm_format_physical_width(SNDRV_PCM_FORMAT_S32) >> 3;
-	pcm.params.host_period_bytes = params->buffer.fragment_size;
+	pcm->params.host_period_bytes = params->buffer.fragment_size;
 
-	ret = sof_ipc_tx_message(sdev->ipc, &pcm, sizeof(pcm),
+	ret = sof_ipc_tx_message(sdev->ipc, pcm, sizeof(*pcm),
 				 &ipc_params_reply, sizeof(ipc_params_reply));
 	if (ret < 0) {
 		dev_err(component->dev, "error ipc failed\n");
-		return ret;
+		goto out;
 	}
 
 	tstamp->byte_offset = sdev->stream_box.offset + ipc_params_reply.posn_offset;
@@ -220,7 +222,10 @@ static int sof_compr_set_params(struct snd_soc_component *component,
 
 	spcm->prepared[cstream->direction] = true;
 
-	return 0;
+out:
+	kfree(pcm);
+
+	return ret;
 }
 
 static int sof_compr_get_params(struct snd_soc_component *component,
