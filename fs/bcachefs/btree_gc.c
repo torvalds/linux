@@ -748,13 +748,15 @@ found:
 		if (level)
 			bch2_btree_node_update_key_early(c, btree_id, level - 1, *k, new);
 
-		printbuf_reset(&buf);
-		bch2_bkey_val_to_text(&buf, c, *k);
-		bch_info(c, "updated %s", buf.buf);
+		if (c->opts.verbose) {
+			printbuf_reset(&buf);
+			bch2_bkey_val_to_text(&buf, c, *k);
+			bch_info(c, "updated %s", buf.buf);
 
-		printbuf_reset(&buf);
-		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(new));
-		bch_info(c, "new key %s", buf.buf);
+			printbuf_reset(&buf);
+			bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(new));
+			bch_info(c, "new key %s", buf.buf);
+		}
 
 		*k = bkey_i_to_s_c(new);
 	}
