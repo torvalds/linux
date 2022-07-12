@@ -517,7 +517,8 @@ bad_block:
 	/* Here we know that we can set the new attribute. */
 
 	if (header) {
-		/* assert(header == HDR(bh)); */
+		int offset;
+
 		lock_buffer(bh);
 		if (header->h_refcount == cpu_to_le32(1)) {
 			__u32 hash = le32_to_cpu(header->h_hash);
@@ -531,22 +532,20 @@ bad_block:
 					      bh->b_blocknr);
 
 			/* keep the buffer locked while modifying it. */
-		} else {
-			int offset;
-
-			unlock_buffer(bh);
-			ea_bdebug(bh, "cloning");
-			header = kmemdup(HDR(bh), bh->b_size, GFP_KERNEL);
-			error = -ENOMEM;
-			if (header == NULL)
-				goto cleanup;
-			header->h_refcount = cpu_to_le32(1);
-
-			offset = (char *)here - bh->b_data;
-			here = ENTRY((char *)header + offset);
-			offset = (char *)last - bh->b_data;
-			last = ENTRY((char *)header + offset);
+			goto update_block;
 		}
+		unlock_buffer(bh);
+		ea_bdebug(bh, "cloning");
+		header = kmemdup(HDR(bh), bh->b_size, GFP_KERNEL);
+		error = -ENOMEM;
+		if (header == NULL)
+			goto cleanup;
+		header->h_refcount = cpu_to_le32(1);
+
+		offset = (char *)here - bh->b_data;
+		here = ENTRY((char *)header + offset);
+		offset = (char *)last - bh->b_data;
+		last = ENTRY((char *)header + offset);
 	} else {
 		/* Allocate a buffer where we construct the new block. */
 		header = kzalloc(sb->s_blocksize, GFP_KERNEL);
@@ -559,6 +558,7 @@ bad_block:
 		last = here = ENTRY(header+1);
 	}
 
+update_block:
 	/* Iff we are modifying the block in-place, bh is locked here. */
 
 	if (not_found) {
