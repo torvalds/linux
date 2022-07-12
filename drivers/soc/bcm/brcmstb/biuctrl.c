@@ -340,12 +340,12 @@ static int __init brcmstb_biuctrl_init(void)
 
 	ret = setup_hifcpubiuctrl_regs(np);
 	if (ret)
-		return ret;
+		goto out_put;
 
 	ret = mcp_write_pairing_set();
 	if (ret) {
 		pr_err("MCP: Unable to disable write pairing!\n");
-		return ret;
+		goto out_put;
 	}
 
 	a72_b53_rac_enable_all(np);
@@ -353,6 +353,9 @@ static int __init brcmstb_biuctrl_init(void)
 #ifdef CONFIG_PM_SLEEP
 	register_syscore_ops(&brcmstb_cpu_credit_syscore_ops);
 #endif
-	return 0;
+	ret = 0;
+out_put:
+	of_node_put(np);
+	return ret;
 }
 early_initcall(brcmstb_biuctrl_init);
