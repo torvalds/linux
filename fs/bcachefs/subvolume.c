@@ -17,7 +17,7 @@ void bch2_snapshot_to_text(struct printbuf *out, struct bch_fs *c,
 {
 	struct bkey_s_c_snapshot s = bkey_s_c_to_snapshot(k);
 
-	prt_printf(out, "is_subvol %llu deleted %llu parent %u children %u %u subvol %u",
+	prt_printf(out, "is_subvol %llu deleted %llu parent %10u children %10u %10u subvol %u",
 	       BCH_SNAPSHOT_SUBVOL(s.v),
 	       BCH_SNAPSHOT_DELETED(s.v),
 	       le32_to_cpu(s.v->parent),
@@ -196,18 +196,20 @@ static int bch2_snapshot_check(struct btree_trans *trans,
 	u32 i, id;
 	int ret;
 
-	id = le32_to_cpu(s.v->subvol);
-	ret = lockrestart_do(trans, bch2_subvolume_get(trans, id, 0, false, &subvol));
-	if (ret == -ENOENT)
-		bch_err(trans->c, "snapshot node %llu has nonexistent subvolume %u",
-			s.k->p.offset, id);
-	if (ret)
-		return ret;
+	if (!BCH_SNAPSHOT_DELETED(s.v)) {
+		id = le32_to_cpu(s.v->subvol);
+		ret = lockrestart_do(trans, bch2_subvolume_get(trans, id, 0, false, &subvol));
+		if (ret == -ENOENT)
+			bch_err(trans->c, "snapshot node %llu has nonexistent subvolume %u",
+				s.k->p.offset, id);
+		if (ret)
+			return ret;
 
-	if (BCH_SNAPSHOT_SUBVOL(s.v) != (le32_to_cpu(subvol.snapshot) == s.k->p.offset)) {
-		bch_err(trans->c, "snapshot node %llu has wrong BCH_SNAPSHOT_SUBVOL",
-			s.k->p.offset);
-		return -EINVAL;
+		if (BCH_SNAPSHOT_SUBVOL(s.v) != (le32_to_cpu(subvol.snapshot) == s.k->p.offset)) {
+			bch_err(trans->c, "snapshot node %llu has wrong BCH_SNAPSHOT_SUBVOL",
+				s.k->p.offset);
+			return -EINVAL;
+		}
 	}
 
 	id = le32_to_cpu(s.v->parent);
@@ -386,8 +388,10 @@ static int bch2_snapshot_node_set_deleted(struct btree_trans *trans, u32 id)
 		goto err;
 
 	bkey_reassemble(&s->k_i, k);
-
 	SET_BCH_SNAPSHOT_DELETED(&s->v, true);
+	SET_BCH_SNAPSHOT_SUBVOL(&s->v, false);
+	s->v.subvol = 0;
+
 	ret = bch2_trans_update(trans, &iter, &s->k_i, 0);
 	if (ret)
 		goto err;
@@ -830,7 +834,6 @@ int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 	struct bkey_s_c k;
 	struct bkey_s_c_subvolume subvol;
 	struct btree_trans_commit_hook *h;
-	struct bkey_i *delete;
 	u32 snapid;
 	int ret = 0;
 
@@ -852,14 +855,7 @@ int bch2_subvolume_delete(struct btree_trans *trans, u32 subvolid)
 	subvol = bkey_s_c_to_subvolume(k);
 	snapid = le32_to_cpu(subvol.v->snapshot);
 
-	delete = bch2_trans_kmalloc(trans, sizeof(*delete));
-	ret = PTR_ERR_OR_ZERO(delete);
-	if (ret)
-		goto err;
-
-	bkey_init(&delete->k);
-	delete->k.p = iter.pos;
-	ret = bch2_trans_update(trans, &iter, delete, 0);
+	ret = bch2_btree_delete_at(trans, &iter, 0);
 	if (ret)
 		goto err;
 
