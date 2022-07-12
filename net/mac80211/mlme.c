@@ -6270,7 +6270,6 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_bss *bss = (void *)req->bss->priv;
 	struct ieee80211_mgd_assoc_data *assoc_data;
-	const struct cfg80211_bss_ies *beacon_ies;
 	struct ieee80211_vif_cfg *vif_cfg = &sdata->vif.cfg;
 	const struct element *ssid_elem;
 	struct ieee80211_link_data *link = &sdata->deflink;
@@ -6488,22 +6487,25 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		link->smps_mode = link->u.mgd.req_smps;
 	}
 
-	rcu_read_lock();
-	beacon_ies = rcu_dereference(req->bss->beacon_ies);
+	if (ieee80211_hw_check(&sdata->local->hw, NEED_DTIM_BEFORE_ASSOC)) {
+		const struct cfg80211_bss_ies *beacon_ies;
 
-	if (ieee80211_hw_check(&sdata->local->hw, NEED_DTIM_BEFORE_ASSOC) &&
-	    !beacon_ies) {
-		/*
-		 * Wait up to one beacon interval ...
-		 * should this be more if we miss one?
-		 */
-		sdata_info(sdata, "waiting for beacon from %pM\n",
-			   link->u.mgd.bssid);
-		assoc_data->timeout = TU_TO_EXP_TIME(req->bss->beacon_interval);
-		assoc_data->timeout_started = true;
-		assoc_data->need_beacon = true;
+		rcu_read_lock();
+		beacon_ies = rcu_dereference(req->bss->beacon_ies);
+
+		if (beacon_ies) {
+			/*
+			 * Wait up to one beacon interval ...
+			 * should this be more if we miss one?
+			 */
+			sdata_info(sdata, "waiting for beacon from %pM\n",
+				   link->u.mgd.bssid);
+			assoc_data->timeout = TU_TO_EXP_TIME(req->bss->beacon_interval);
+			assoc_data->timeout_started = true;
+			assoc_data->need_beacon = true;
+		}
+		rcu_read_unlock();
 	}
-	rcu_read_unlock();
 
 	run_again(sdata, assoc_data->timeout);
 
