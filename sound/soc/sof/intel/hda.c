@@ -353,7 +353,7 @@ static inline bool hda_sdw_check_wakeen_irq(struct snd_sof_dev *sdev)
 
 struct hda_dsp_msg_code {
 	u32 code;
-	const char *msg;
+	const char *text;
 };
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG)
@@ -382,10 +382,7 @@ module_param_named(use_common_hdmi, hda_codec_use_common_hdmi, bool, 0444);
 MODULE_PARM_DESC(use_common_hdmi, "SOF HDA use common HDMI codec driver");
 #endif
 
-static const struct hda_dsp_msg_code hda_dsp_rom_msg[] = {
-	{HDA_DSP_ROM_FW_MANIFEST_LOADED, "status: manifest loaded"},
-	{HDA_DSP_ROM_FW_FW_LOADED, "status: fw loaded"},
-	{HDA_DSP_ROM_FW_ENTERED, "status: fw entered"},
+static const struct hda_dsp_msg_code hda_dsp_rom_fw_error_texts[] = {
 	{HDA_DSP_ROM_CSE_ERROR, "error: cse error"},
 	{HDA_DSP_ROM_CSE_WRONG_RESPONSE, "error: cse wrong response"},
 	{HDA_DSP_ROM_IMR_TO_SMALL, "error: IMR too small"},
@@ -404,26 +401,136 @@ static const struct hda_dsp_msg_code hda_dsp_rom_msg[] = {
 	{HDA_DSP_ROM_NULL_FW_ENTRY,	"error: null FW entry point"},
 };
 
-static void hda_dsp_get_status(struct snd_sof_dev *sdev, const char *level)
+#define FSR_ROM_STATE_ENTRY(state)	{FSR_STATE_ROM_##state, #state}
+static const struct hda_dsp_msg_code fsr_rom_state_names[] = {
+	FSR_ROM_STATE_ENTRY(INIT),
+	FSR_ROM_STATE_ENTRY(INIT_DONE),
+	FSR_ROM_STATE_ENTRY(CSE_MANIFEST_LOADED),
+	FSR_ROM_STATE_ENTRY(FW_MANIFEST_LOADED),
+	FSR_ROM_STATE_ENTRY(FW_FW_LOADED),
+	FSR_ROM_STATE_ENTRY(FW_ENTERED),
+	FSR_ROM_STATE_ENTRY(VERIFY_FEATURE_MASK),
+	FSR_ROM_STATE_ENTRY(GET_LOAD_OFFSET),
+	FSR_ROM_STATE_ENTRY(FETCH_ROM_EXT),
+	FSR_ROM_STATE_ENTRY(FETCH_ROM_EXT_DONE),
+	/* CSE states */
+	FSR_ROM_STATE_ENTRY(CSE_IMR_REQUEST),
+	FSR_ROM_STATE_ENTRY(CSE_IMR_GRANTED),
+	FSR_ROM_STATE_ENTRY(CSE_VALIDATE_IMAGE_REQUEST),
+	FSR_ROM_STATE_ENTRY(CSE_IMAGE_VALIDATED),
+	FSR_ROM_STATE_ENTRY(CSE_IPC_IFACE_INIT),
+	FSR_ROM_STATE_ENTRY(CSE_IPC_RESET_PHASE_1),
+	FSR_ROM_STATE_ENTRY(CSE_IPC_OPERATIONAL_ENTRY),
+	FSR_ROM_STATE_ENTRY(CSE_IPC_OPERATIONAL),
+	FSR_ROM_STATE_ENTRY(CSE_IPC_DOWN),
+};
+
+#define FSR_BRINGUP_STATE_ENTRY(state)	{FSR_STATE_BRINGUP_##state, #state}
+static const struct hda_dsp_msg_code fsr_bringup_state_names[] = {
+	FSR_BRINGUP_STATE_ENTRY(INIT),
+	FSR_BRINGUP_STATE_ENTRY(INIT_DONE),
+	FSR_BRINGUP_STATE_ENTRY(HPSRAM_LOAD),
+	FSR_BRINGUP_STATE_ENTRY(UNPACK_START),
+	FSR_BRINGUP_STATE_ENTRY(IMR_RESTORE),
+	FSR_BRINGUP_STATE_ENTRY(FW_ENTERED),
+};
+
+#define FSR_WAIT_STATE_ENTRY(state)	{FSR_WAIT_FOR_##state, #state}
+static const struct hda_dsp_msg_code fsr_wait_state_names[] = {
+	FSR_WAIT_STATE_ENTRY(IPC_BUSY),
+	FSR_WAIT_STATE_ENTRY(IPC_DONE),
+	FSR_WAIT_STATE_ENTRY(CACHE_INVALIDATION),
+	FSR_WAIT_STATE_ENTRY(LP_SRAM_OFF),
+	FSR_WAIT_STATE_ENTRY(DMA_BUFFER_FULL),
+	FSR_WAIT_STATE_ENTRY(CSE_CSR),
+};
+
+#define FSR_MODULE_NAME_ENTRY(mod)	[FSR_MOD_##mod] = #mod
+static const char * const fsr_module_names[] = {
+	FSR_MODULE_NAME_ENTRY(ROM),
+	FSR_MODULE_NAME_ENTRY(ROM_BYP),
+	FSR_MODULE_NAME_ENTRY(BASE_FW),
+	FSR_MODULE_NAME_ENTRY(LP_BOOT),
+	FSR_MODULE_NAME_ENTRY(BRNGUP),
+	FSR_MODULE_NAME_ENTRY(ROM_EXT),
+};
+
+static const char *
+hda_dsp_get_state_text(u32 code, const struct hda_dsp_msg_code *msg_code,
+		       size_t array_size)
 {
-	const struct sof_intel_dsp_desc *chip;
-	u32 status;
 	int i;
 
-	chip = get_chip_info(sdev->pdata);
-	status = snd_sof_dsp_read(sdev, HDA_DSP_BAR,
-				  chip->rom_status_reg);
-
-	for (i = 0; i < ARRAY_SIZE(hda_dsp_rom_msg); i++) {
-		if (status == hda_dsp_rom_msg[i].code) {
-			dev_printk(level, sdev->dev, "%s - code %8.8x\n",
-				   hda_dsp_rom_msg[i].msg, status);
-			return;
-		}
+	for (i = 0; i < array_size; i++) {
+		if (code == msg_code[i].code)
+			return msg_code[i].text;
 	}
 
+	return NULL;
+}
+
+static void hda_dsp_get_state(struct snd_sof_dev *sdev, const char *level)
+{
+	const struct sof_intel_dsp_desc *chip = get_chip_info(sdev->pdata);
+	const char *state_text, *error_text, *module_text;
+	u32 fsr, state, wait_state, module, error_code;
+
+	fsr = snd_sof_dsp_read(sdev, HDA_DSP_BAR, chip->rom_status_reg);
+	state = FSR_TO_STATE_CODE(fsr);
+	wait_state = FSR_TO_WAIT_STATE_CODE(fsr);
+	module = FSR_TO_MODULE_CODE(fsr);
+
+	if (module > FSR_MOD_ROM_EXT)
+		module_text = "unknown";
+	else
+		module_text = fsr_module_names[module];
+
+	if (module == FSR_MOD_BRNGUP)
+		state_text = hda_dsp_get_state_text(state, fsr_bringup_state_names,
+						    ARRAY_SIZE(fsr_bringup_state_names));
+	else
+		state_text = hda_dsp_get_state_text(state, fsr_rom_state_names,
+						    ARRAY_SIZE(fsr_rom_state_names));
+
 	/* not for us, must be generic sof message */
-	dev_dbg(sdev->dev, "unknown ROM status value %8.8x\n", status);
+	if (!state_text) {
+		dev_printk(level, sdev->dev, "%#010x: unknown ROM status value\n", fsr);
+		return;
+	}
+
+	if (wait_state) {
+		const char *wait_state_text;
+
+		wait_state_text = hda_dsp_get_state_text(wait_state, fsr_wait_state_names,
+							 ARRAY_SIZE(fsr_wait_state_names));
+		if (!wait_state_text)
+			wait_state_text = "unknown";
+
+		dev_printk(level, sdev->dev,
+			   "%#010x: module: %s, state: %s, waiting for: %s, %s\n",
+			   fsr, module_text, state_text, wait_state_text,
+			   fsr & FSR_HALTED ? "not running" : "running");
+	} else {
+		dev_printk(level, sdev->dev, "%#010x: module: %s, state: %s, %s\n",
+			   fsr, module_text, state_text,
+			   fsr & FSR_HALTED ? "not running" : "running");
+	}
+
+	error_code = snd_sof_dsp_read(sdev, HDA_DSP_BAR, chip->rom_status_reg + 4);
+	if (!error_code)
+		return;
+
+	error_text = hda_dsp_get_state_text(error_code, hda_dsp_rom_fw_error_texts,
+					    ARRAY_SIZE(hda_dsp_rom_fw_error_texts));
+	if (!error_text)
+		error_text = "unknown";
+
+	if (state == FSR_STATE_FW_ENTERED)
+		dev_printk(level, sdev->dev, "status code: %#x (%s)\n", error_code,
+			   error_text);
+	else
+		dev_printk(level, sdev->dev, "error code: %#x (%s)\n", error_code,
+			   error_text);
 }
 
 static void hda_dsp_get_registers(struct snd_sof_dev *sdev,
@@ -482,7 +589,7 @@ void hda_dsp_dump(struct snd_sof_dev *sdev, u32 flags)
 	u32 stack[HDA_DSP_STACK_DUMP_SIZE];
 
 	/* print ROM/FW status */
-	hda_dsp_get_status(sdev, level);
+	hda_dsp_get_state(sdev, level);
 
 	if (flags & SOF_DBG_DUMP_REGS) {
 		u32 status = snd_sof_dsp_read(sdev, HDA_DSP_BAR, HDA_DSP_SRAM_REG_FW_STATUS);
