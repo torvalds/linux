@@ -5956,7 +5956,7 @@ KVM_PV_DUMP_CPU
   The length of the returned data is provided by uv_info.guest_cpu_stor_len.
 
 4.137 KVM_S390_ZPCI_OP
---------------------
+----------------------
 
 :Capability: KVM_CAP_S390_ZPCI_OP
 :Architectures: s390
