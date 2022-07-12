@@ -230,8 +230,9 @@ static int gpy_probe(struct phy_device *phydev)
 		return ret;
 
 	/* Show GPY PHY FW version in dmesg */
-	phydev_info(phydev, "Firmware Version: 0x%04X (%s)\n", fw_version,
-		    (fw_version & PHY_FWV_REL_MASK) ? "release" : "test");
+	phydev_info(phydev, "Firmware Version: %d.%d (0x%04X%s)\n",
+		    priv->fw_major, priv->fw_minor, fw_version,
+		    fw_version & PHY_FWV_REL_MASK ? "" : " test version");
 
 	return 0;
 }
