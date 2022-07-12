@@ -652,12 +652,13 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (fsck_err_on(k.k->type != discard_key_type, c,
-			"incorrect key in need_discard btree (got %s should be %s)\n"
-			"  %s",
-			bch2_bkey_types[k.k->type],
-			bch2_bkey_types[discard_key_type],
-			(bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
+	if (k.k->type != discard_key_type &&
+	    (c->opts.reconstruct_alloc ||
+	     fsck_err(c, "incorrect key in need_discard btree (got %s should be %s)\n"
+		      "  %s",
+		      bch2_bkey_types[k.k->type],
+		      bch2_bkey_types[discard_key_type],
+		      (bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf)))) {
 		struct bkey_i *update =
 			bch2_trans_kmalloc(trans, sizeof(*update));
 
@@ -679,13 +680,14 @@ static int bch2_check_alloc_key(struct btree_trans *trans,
 	if (ret)
 		goto err;
 
-	if (fsck_err_on(k.k->type != freespace_key_type, c,
-			"incorrect key in freespace btree (got %s should be %s)\n"
-			"  %s",
-			bch2_bkey_types[k.k->type],
-			bch2_bkey_types[freespace_key_type],
-			(printbuf_reset(&buf),
-			 bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf))) {
+	if (k.k->type != freespace_key_type &&
+	    (c->opts.reconstruct_alloc ||
+	     fsck_err(c, "incorrect key in freespace btree (got %s should be %s)\n"
+		      "  %s",
+		      bch2_bkey_types[k.k->type],
+		      bch2_bkey_types[freespace_key_type],
+		      (printbuf_reset(&buf),
+		       bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf)))) {
 		struct bkey_i *update =
 			bch2_trans_kmalloc(trans, sizeof(*update));
 

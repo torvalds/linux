@@ -564,7 +564,8 @@ static int bch2_check_fix_ptrs(struct bch_fs *c, enum btree_id btree_id,
 		struct bucket *g = PTR_GC_BUCKET(ca, &p.ptr);
 		enum bch_data_type data_type = bch2_bkey_ptr_data_type(*k, &entry->ptr);
 
-		if (fsck_err_on(!g->gen_valid, c,
+		if (c->opts.reconstruct_alloc ||
+		    fsck_err_on(!g->gen_valid, c,
 				"bucket %u:%zu data type %s ptr gen %u missing in alloc btree\n"
 				"while marking %s",
 				p.ptr.dev, PTR_BUCKET_NR(ca, &p.ptr),
@@ -1176,29 +1177,28 @@ static int bch2_gc_done(struct bch_fs *c,
 {
 	struct bch_dev *ca = NULL;
 	struct printbuf buf = PRINTBUF;
-	bool verify = !metadata_only && (!initial ||
-		       (c->sb.compat & (1ULL << BCH_COMPAT_alloc_info)));
+	bool verify = !metadata_only &&
+		!c->opts.reconstruct_alloc &&
+		(!initial || (c->sb.compat & (1ULL << BCH_COMPAT_alloc_info)));
 	unsigned i, dev;
 	int ret = 0;
 
 	percpu_down_write(&c->mark_lock);
 
 #define copy_field(_f, _msg, ...)					\
-	if (dst->_f != src->_f) {					\
-		if (verify)						\
-			fsck_err(c, _msg ": got %llu, should be %llu"	\
-				, ##__VA_ARGS__, dst->_f, src->_f);	\
-		dst->_f = src->_f;					\
-	}
+	if (dst->_f != src->_f &&					\
+	    (!verify ||							\
+	     fsck_err(c, _msg ": got %llu, should be %llu"		\
+		      , ##__VA_ARGS__, dst->_f, src->_f)))		\
+		dst->_f = src->_f
 #define copy_stripe_field(_f, _msg, ...)				\
-	if (dst->_f != src->_f) {					\
-		if (verify)						\
-			fsck_err(c, "stripe %zu has wrong "_msg		\
-				": got %u, should be %u",		\
-				iter.pos, ##__VA_ARGS__,		\
-				dst->_f, src->_f);			\
-		dst->_f = src->_f;					\
-	}
+	if (dst->_f != src->_f &&					\
+	    (!verify ||							\
+	     fsck_err(c, "stripe %zu has wrong "_msg			\
+		      ": got %u, should be %u",				\
+		      iter.pos, ##__VA_ARGS__,				\
+		      dst->_f, src->_f)))				\
+		dst->_f = src->_f
 #define copy_dev_field(_f, _msg, ...)					\
 	copy_field(_f, "dev %u has wrong " _msg, dev, ##__VA_ARGS__)
 #define copy_fs_field(_f, _msg, ...)					\
@@ -1376,7 +1376,8 @@ static int bch2_alloc_write_key(struct btree_trans *trans,
 		return 0;
 
 #define copy_bucket_field(_f)						\
-	if (fsck_err_on(new._f != gc._f, c,				\
+	if (c->opts.reconstruct_alloc ||				\
+	    fsck_err_on(new._f != gc._f, c,				\
 			"bucket %llu:%llu gen %u data type %s has wrong " #_f	\
 			": got %u, should be %u",			\
 			iter->pos.inode, iter->pos.offset,		\
