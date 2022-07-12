@@ -424,7 +424,6 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 	unsigned int i = 0;
 	bool subvp_immediate_flip = false;
 	bool subvp_in_use = false;
-	bool drr_pipe = false;
 	struct pipe_ctx *pipe;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -440,12 +439,10 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 		if (top_pipe_to_program->stream->mall_stream_config.type == SUBVP_MAIN &&
 				top_pipe_to_program->plane_state->flip_immediate)
 			subvp_immediate_flip = true;
-		else if (top_pipe_to_program->stream->mall_stream_config.type == SUBVP_NONE &&
-				top_pipe_to_program->stream->ignore_msa_timing_param)
-			drr_pipe = true;
 	}
 
-	if ((subvp_in_use && (should_lock_all_pipes || subvp_immediate_flip || drr_pipe)) || (!subvp_in_use && subvp_prev_use)) {
+	// Don't need to lock for DRR VSYNC flips -- FW will wait for DRR pending update cleared.
+	if ((subvp_in_use && (should_lock_all_pipes || subvp_immediate_flip)) || (!subvp_in_use && subvp_prev_use)) {
 		union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
 
 		if (!lock) {

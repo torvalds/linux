@@ -74,6 +74,7 @@ void dc_dmub_trace_event_control(struct dc *dc, bool enable);
 
 void dc_dmub_srv_drr_update_cmd(struct dc *dc, uint32_t tg_inst, uint32_t vtotal_min, uint32_t vtotal_max);
 
+void dc_dmub_srv_set_drr_manual_trigger_cmd(struct dc *dc, uint32_t tg_inst);
 bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool enable_pstate, struct dc_state *context);
 
 void dc_dmub_srv_query_caps_cmd(struct dmub_srv *dmub);
