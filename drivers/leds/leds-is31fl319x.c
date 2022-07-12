@@ -494,8 +494,7 @@ static inline int is31fl3196_db_to_gain(u32 dezibel)
 	return dezibel / IS31FL3196_AUDIO_GAIN_DB_STEP;
 }
 
-static int is31fl319x_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int is31fl319x_probe(struct i2c_client *client)
 {
 	struct is31fl319x_chip *is31;
 	struct device *dev = &client->dev;
@@ -597,7 +596,7 @@ static struct i2c_driver is31fl319x_driver = {
 		.name           = "leds-is31fl319x",
 		.of_match_table = of_is31fl319x_match,
 	},
-	.probe    = is31fl319x_probe,
+	.probe_new = is31fl319x_probe,
 	.id_table = is31fl319x_id,
 };
 
