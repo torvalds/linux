@@ -3485,6 +3485,67 @@ static bool ieee80211_twt_bcast_support(struct ieee80211_sub_if_data *sdata,
 			IEEE80211_HE_MAC_CAP2_BCAST_TWT);
 }
 
+static int ieee80211_mgd_setup_link_sta(struct ieee80211_link_data *link,
+					struct sta_info *sta,
+					struct ieee80211_link_sta *link_sta,
+					struct cfg80211_bss *cbss)
+{
+	struct ieee80211_sub_if_data *sdata = link->sdata;
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_bss *bss = (void *)cbss->priv;
+	u32 rates = 0, basic_rates = 0;
+	bool have_higher_than_11mbit = false;
+	int min_rate = INT_MAX, min_rate_index = -1;
+	/* this is clearly wrong for MLO but we'll just remove it later */
+	int shift = ieee80211_vif_get_shift(&sdata->vif);
+	struct ieee80211_supported_band *sband;
+
+	memcpy(link_sta->addr, cbss->bssid, ETH_ALEN);
+
+	/* TODO: S1G Basic Rate Set is expressed elsewhere */
+	if (cbss->channel->band == NL80211_BAND_S1GHZ) {
+		ieee80211_s1g_sta_rate_init(sta);
+		return 0;
+	}
+
+	sband = local->hw.wiphy->bands[cbss->channel->band];
+
+	ieee80211_get_rates(sband, bss->supp_rates, bss->supp_rates_len,
+			    &rates, &basic_rates, &have_higher_than_11mbit,
+			    &min_rate, &min_rate_index, shift);
+
+	/*
+	 * This used to be a workaround for basic rates missing
+	 * in the association response frame. Now that we no
+	 * longer use the basic rates from there, it probably
+	 * doesn't happen any more, but keep the workaround so
+	 * in case some *other* APs are buggy in different ways
+	 * we can connect -- with a warning.
+	 * Allow this workaround only in case the AP provided at least
+	 * one rate.
+	 */
+	if (min_rate_index < 0) {
+		link_info(link, "No legacy rates in association response\n");
+		return -EINVAL;
+	} else if (!basic_rates) {
+		link_info(link, "No basic rates, using min rate instead\n");
+		basic_rates = BIT(min_rate_index);
+	}
+
+	if (rates)
+		link_sta->supp_rates[cbss->channel->band] = rates;
+	else
+		link_info(link, "No rates found, keeping mandatory only\n");
+
+	link->conf->basic_rates = basic_rates;
+
+	/* cf. IEEE 802.11 9.2.12 */
+	link->operating_11g_mode = sband->band == NL80211_BAND_2GHZ &&
+				   have_higher_than_11mbit;
+
+	return 0;
+}
+
 static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 				    struct cfg80211_bss *cbss,
 				    struct ieee80211_mgmt *mgmt, size_t len,
@@ -5718,12 +5779,9 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_managed *ifmgd = &sdata->u.mgd;
 	struct ieee80211_bss *bss = (void *)cbss->priv;
 	struct sta_info *new_sta = NULL;
-	struct ieee80211_supported_band *sband;
 	struct ieee80211_link_data *link = &sdata->deflink;
 	bool have_sta = false;
 	int err;
-
-	sband = local->hw.wiphy->bands[cbss->channel->band];
 
 	if (WARN_ON(!ifmgd->auth_data && !ifmgd->assoc_data))
 		return -EINVAL;
@@ -5758,63 +5816,16 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	 * it might need the new channel for that.
 	 */
 	if (new_sta) {
-		u32 rates = 0, basic_rates = 0;
-		bool have_higher_than_11mbit = false;
-		int min_rate = INT_MAX, min_rate_index = -1;
 		const struct cfg80211_bss_ies *ies;
-		int shift = ieee80211_vif_get_shift(&sdata->vif);
 		struct ieee80211_link_sta *link_sta = &new_sta->sta.deflink;
 
-		memcpy(link_sta->addr, cbss->bssid, ETH_ALEN);
-
-		/* TODO: S1G Basic Rate Set is expressed elsewhere */
-		if (cbss->channel->band == NL80211_BAND_S1GHZ) {
-			ieee80211_s1g_sta_rate_init(new_sta);
-			goto skip_rates;
-		}
-
-		ieee80211_get_rates(sband, bss->supp_rates,
-				    bss->supp_rates_len,
-				    &rates, &basic_rates,
-				    &have_higher_than_11mbit,
-				    &min_rate, &min_rate_index,
-				    shift);
-
-		/*
-		 * This used to be a workaround for basic rates missing
-		 * in the association response frame. Now that we no
-		 * longer use the basic rates from there, it probably
-		 * doesn't happen any more, but keep the workaround so
-		 * in case some *other* APs are buggy in different ways
-		 * we can connect -- with a warning.
-		 * Allow this workaround only in case the AP provided at least
-		 * one rate.
-		 */
-		if (min_rate_index < 0) {
-			sdata_info(sdata,
-				   "No legacy rates in association response\n");
-
+		err = ieee80211_mgd_setup_link_sta(link, new_sta,
+						   link_sta, cbss);
+		if (err) {
 			sta_info_free(local, new_sta);
-			return -EINVAL;
-		} else if (!basic_rates) {
-			sdata_info(sdata,
-				   "No basic rates, using min rate instead\n");
-			basic_rates = BIT(min_rate_index);
+			return err;
 		}
 
-		if (rates)
-			link_sta->supp_rates[cbss->channel->band] = rates;
-		else
-			sdata_info(sdata,
-				   "No rates found, keeping mandatory only\n");
-
-		link->conf->basic_rates = basic_rates;
-
-		/* cf. IEEE 802.11 9.2.12 */
-		link->operating_11g_mode = sband->band == NL80211_BAND_2GHZ &&
-					   have_higher_than_11mbit;
-
-skip_rates:
 		memcpy(link->u.mgd.bssid, cbss->bssid, ETH_ALEN);
 
 		/* set timing information */
