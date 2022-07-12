@@ -11,9 +11,9 @@
 #include <linux/err.h>
 #include <linux/i2c.h>
 #include <linux/leds.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <linux/delay.h>
@@ -362,25 +362,23 @@ static const struct of_device_id of_is31fl319x_match[] = {
 };
 MODULE_DEVICE_TABLE(of, of_is31fl319x_match);
 
-static int is31fl319x_parse_child_dt(const struct device *dev,
-				     const struct device_node *child,
+static int is31fl319x_parse_child_fw(const struct device *dev,
+				     const struct fwnode_handle *child,
 				     struct is31fl319x_led *led,
 				     struct is31fl319x_chip *is31)
 {
 	struct led_classdev *cdev = &led->cdev;
 	int ret;
 
-	if (of_property_read_string(child, "label", &cdev->name))
-		cdev->name = child->name;
+	if (fwnode_property_read_string(child, "label", &cdev->name))
+		cdev->name = fwnode_get_name(child);
 
-	ret = of_property_read_string(child, "linux,default-trigger",
-				      &cdev->default_trigger);
+	ret = fwnode_property_read_string(child, "linux,default-trigger", &cdev->default_trigger);
 	if (ret < 0 && ret != -EINVAL) /* is optional */
 		return ret;
 
 	led->max_microamp = is31->cdef->current_default;
-	ret = of_property_read_u32(child, "led-max-microamp",
-				   &led->max_microamp);
+	ret = fwnode_property_read_u32(child, "led-max-microamp", &led->max_microamp);
 	if (!ret) {
 		if (led->max_microamp < is31->cdef->current_min)
 			return -EINVAL;	/* not supported */
@@ -391,15 +389,11 @@ static int is31fl319x_parse_child_dt(const struct device *dev,
 	return 0;
 }
 
-static int is31fl319x_parse_dt(struct device *dev,
-			       struct is31fl319x_chip *is31)
+static int is31fl319x_parse_fw(struct device *dev, struct is31fl319x_chip *is31)
 {
-	struct device_node *np = dev_of_node(dev), *child;
+	struct fwnode_handle *fwnode = dev_fwnode(dev), *child;
 	int count;
 	int ret;
-
-	if (!np)
-		return -ENODEV;
 
 	is31->shutdown_gpio = devm_gpiod_get_optional(dev, "shutdown", GPIOD_OUT_HIGH);
 	if (IS_ERR(is31->shutdown_gpio)) {
@@ -410,7 +404,9 @@ static int is31fl319x_parse_dt(struct device *dev,
 
 	is31->cdef = device_get_match_data(dev);
 
-	count = of_get_available_child_count(np);
+	count = 0;
+	fwnode_for_each_available_child_node(fwnode, child)
+		count++;
 
 	dev_dbg(dev, "probing with %d leds defined in DT\n", count);
 
@@ -420,11 +416,11 @@ static int is31fl319x_parse_dt(struct device *dev,
 		return -ENODEV;
 	}
 
-	for_each_available_child_of_node(np, child) {
+	fwnode_for_each_available_child_node(fwnode, child) {
 		struct is31fl319x_led *led;
 		u32 reg;
 
-		ret = of_property_read_u32(child, "reg", &reg);
+		ret = fwnode_property_read_u32(child, "reg", &reg);
 		if (ret) {
 			dev_err(dev, "Failed to read led 'reg' property\n");
 			goto put_child_node;
@@ -444,7 +440,7 @@ static int is31fl319x_parse_dt(struct device *dev,
 			goto put_child_node;
 		}
 
-		ret = is31fl319x_parse_child_dt(dev, child, led, is31);
+		ret = is31fl319x_parse_child_fw(dev, child, led, is31);
 		if (ret) {
 			dev_err(dev, "led %u DT parsing failed\n", reg);
 			goto put_child_node;
@@ -455,7 +451,7 @@ static int is31fl319x_parse_dt(struct device *dev,
 
 	is31->audio_gain_db = 0;
 	if (is31->cdef->is_3196or3199) {
-		ret = of_property_read_u32(np, "audio-gain-db", &is31->audio_gain_db);
+		ret = fwnode_property_read_u32(fwnode, "audio-gain-db", &is31->audio_gain_db);
 		if (!ret)
 			is31->audio_gain_db = min(is31->audio_gain_db,
 						  IS31FL3196_AUDIO_GAIN_DB_MAX);
@@ -464,7 +460,7 @@ static int is31fl319x_parse_dt(struct device *dev,
 	return 0;
 
 put_child_node:
-	of_node_put(child);
+	fwnode_handle_put(child);
 	return ret;
 }
 
@@ -521,7 +517,7 @@ static int is31fl319x_probe(struct i2c_client *client,
 
 	mutex_init(&is31->lock);
 
-	err = is31fl319x_parse_dt(&client->dev, is31);
+	err = is31fl319x_parse_fw(&client->dev, is31);
 	if (err)
 		goto free_mutex;
 
@@ -619,7 +615,7 @@ MODULE_DEVICE_TABLE(i2c, is31fl319x_id);
 static struct i2c_driver is31fl319x_driver = {
 	.driver   = {
 		.name           = "leds-is31fl319x",
-		.of_match_table = of_match_ptr(of_is31fl319x_match),
+		.of_match_table = of_is31fl319x_match,
 	},
 	.probe    = is31fl319x_probe,
 	.remove   = is31fl319x_remove,
