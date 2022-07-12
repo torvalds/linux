@@ -993,7 +993,7 @@ static enum skb_drop_reason icmp_echo(struct sk_buff *skb)
 
 	net = dev_net(skb_dst(skb)->dev);
 	/* should there be an ICMP stat for ignored echos? */
-	if (net->ipv4.sysctl_icmp_echo_ignore_all)
+	if (READ_ONCE(net->ipv4.sysctl_icmp_echo_ignore_all))
 		return SKB_NOT_DROPPED_YET;
 
 	icmp_param.data.icmph	   = *icmp_hdr(skb);
