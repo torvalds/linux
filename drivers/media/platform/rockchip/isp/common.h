@@ -36,17 +36,18 @@
 #define _RKISP_COMMON_H
 
 #include <linux/clk.h>
-#include <linux/mutex.h>
 #include <linux/media.h>
+#include <linux/mutex.h>
 #include <linux/rk-video-format.h>
+#include <linux/slab.h>
+#include <linux/soc/rockchip/rk_sdmmc.h>
 #include <media/media-device.h>
 #include <media/media-entity.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
+#include <media/v4l2-mc.h>
 #include <media/videobuf2-dma-contig.h>
 #include <media/videobuf2-v4l2.h>
-#include <media/v4l2-mc.h>
-#include <linux/soc/rockchip/rk_sdmmc.h>
 
 #define RKISP_DEFAULT_WIDTH		800
 #define RKISP_DEFAULT_HEIGHT		600
