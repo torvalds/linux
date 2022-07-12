@@ -1480,7 +1480,9 @@ static struct clk_rcg2 bimc_gpu_clk_src = {
 };
 
 static const struct freq_tbl ftbl_gcc_usb_hs_system_clk[] = {
+	F(57140000, P_GPLL0, 14, 0, 0),
 	F(80000000, P_GPLL0, 10, 0, 0),
+	F(100000000, P_GPLL0, 8, 0, 0),
 	{ }
 };
 
