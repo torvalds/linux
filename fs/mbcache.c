@@ -230,43 +230,6 @@ out:
 }
 EXPORT_SYMBOL(mb_cache_entry_get);
 
-/* mb_cache_entry_delete - try to remove a cache entry
- * @cache - cache we work with
- * @key - key
- * @value - value
- *
- * Remove entry from cache @cache with key @key and value @value.
- */
-void mb_cache_entry_delete(struct mb_cache *cache, u32 key, u64 value)
-{
-	struct hlist_bl_node *node;
-	struct hlist_bl_head *head;
-	struct mb_cache_entry *entry;
-
-	head = mb_cache_entry_head(cache, key);
-	hlist_bl_lock(head);
-	hlist_bl_for_each_entry(entry, node, head, e_hash_list) {
-		if (entry->e_key == key && entry->e_value == value) {
-			/* We keep hash list reference to keep entry alive */
-			hlist_bl_del_init(&entry->e_hash_list);
-			hlist_bl_unlock(head);
-			spin_lock(&cache->c_list_lock);
-			if (!list_empty(&entry->e_list)) {
-				list_del_init(&entry->e_list);
-				if (!WARN_ONCE(cache->c_entry_count == 0,
-		"mbcache: attempt to decrement c_entry_count past zero"))
-					cache->c_entry_count--;
-				atomic_dec(&entry->e_refcnt);
-			}
-			spin_unlock(&cache->c_list_lock);
-			mb_cache_entry_put(cache, entry);
-			return;
-		}
-	}
-	hlist_bl_unlock(head);
-}
-EXPORT_SYMBOL(mb_cache_entry_delete);
-
 /* mb_cache_entry_delete_or_get - remove a cache entry if it has no users
  * @cache - cache we work with
  * @key - key
