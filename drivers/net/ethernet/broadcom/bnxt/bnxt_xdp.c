@@ -28,7 +28,7 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 				   struct xdp_buff *xdp)
 {
 	struct skb_shared_info *sinfo;
-	struct bnxt_sw_tx_bd *tx_buf, *first_buf;
+	struct bnxt_sw_tx_bd *tx_buf;
 	struct tx_bd *txbd;
 	int num_frags = 0;
 	u32 flags;
@@ -43,13 +43,14 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 	/* fill up the first buffer */
 	prod = txr->tx_prod;
 	tx_buf = &txr->tx_buf_ring[prod];
-	first_buf = tx_buf;
 	tx_buf->nr_frags = num_frags;
 	if (xdp)
 		tx_buf->page = virt_to_head_page(xdp->data);
 
 	txbd = &txr->tx_desc_ring[TX_RING(prod)][TX_IDX(prod)];
-	flags = ((len) << TX_BD_LEN_SHIFT) | ((num_frags + 1) << TX_BD_FLAGS_BD_CNT_SHIFT);
+	flags = (len << TX_BD_LEN_SHIFT) |
+		((num_frags + 1) << TX_BD_FLAGS_BD_CNT_SHIFT) |
+		bnxt_lhint_arr[len >> 9];
 	txbd->tx_bd_len_flags_type = cpu_to_le32(flags);
 	txbd->tx_bd_opaque = prod;
 	txbd->tx_bd_haddr = cpu_to_le64(mapping);
@@ -82,7 +83,6 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 
 		flags = frag_len << TX_BD_LEN_SHIFT;
 		txbd->tx_bd_len_flags_type = cpu_to_le32(flags);
-		txbd->tx_bd_opaque = prod;
 		txbd->tx_bd_haddr = cpu_to_le64(frag_mapping);
 
 		len = frag_len;
@@ -96,7 +96,7 @@ struct bnxt_sw_tx_bd *bnxt_xmit_bd(struct bnxt *bp,
 	prod = NEXT_TX(prod);
 	txr->tx_prod = prod;
 
-	return first_buf;
+	return tx_buf;
 }
 
 static void __bnxt_xmit_xdp(struct bnxt *bp, struct bnxt_tx_ring_info *txr,
