@@ -14,6 +14,7 @@
 #include "amd_sfh_hid.h"
 
 #define PCI_DEVICE_ID_AMD_MP2		0x15E4
+#define PCI_DEVICE_ID_AMD_MP2_1_1	0x164A
 
 #define AMD_C2P_MSG(regno) (0x10500 + ((regno) * 4))
 #define AMD_P2C_MSG(regno) (0x10680 + ((regno) * 4))
@@ -40,6 +41,8 @@ struct amd_mp2_dev {
 	struct pci_dev *pdev;
 	struct amdtp_cl_data *cl_data;
 	void __iomem *mmio;
+	void __iomem *vsbase;
+	const struct amd_sfh1_1_ops *sfh1_1_ops;
 	struct amd_mp2_ops *mp2_ops;
 	struct amd_input_data in_data;
 	/* mp2 active control status */

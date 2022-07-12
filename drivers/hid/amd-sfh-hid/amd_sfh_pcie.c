@@ -19,6 +19,7 @@
 #include <linux/slab.h>
 
 #include "amd_sfh_pcie.h"
+#include "sfh1_1/amd_sfh_init.h"
 
 #define DRIVER_NAME	"pcie_mp2_amd"
 #define DRIVER_DESC	"AMD(R) PCIe MP2 Communication Driver"
@@ -318,6 +319,14 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	if (!privdata->cl_data)
 		return -ENOMEM;
 
+	privdata->sfh1_1_ops = (const struct amd_sfh1_1_ops *)id->driver_data;
+	if (privdata->sfh1_1_ops) {
+		rc = privdata->sfh1_1_ops->init(privdata);
+		if (rc)
+			return rc;
+		goto init_done;
+	}
+
 	mp2_select_ops(privdata);
 
 	rc = amd_sfh_irq_init(privdata);
@@ -333,6 +342,7 @@ static int amd_mp2_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 		return rc;
 	}
 
+init_done:
 	amd_sfh_clear_intr(privdata);
 
 	return devm_add_action_or_reset(&pdev->dev, privdata->mp2_ops->remove, privdata);
@@ -361,6 +371,8 @@ static SIMPLE_DEV_PM_OPS(amd_mp2_pm_ops, amd_mp2_pci_suspend,
 
 static const struct pci_device_id amd_mp2_pci_tbl[] = {
 	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_MP2) },
+	{ PCI_VDEVICE(AMD, PCI_DEVICE_ID_AMD_MP2_1_1),
+	  .driver_data = (kernel_ulong_t)&sfh1_1_ops },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, amd_mp2_pci_tbl);
