@@ -73,6 +73,7 @@ struct qcom_cpufreq_data {
 	bool cancel_throttle;
 	struct delayed_work throttle_work;
 	struct cpufreq_policy *policy;
+	unsigned long last_non_boost_freq;
 
 	bool per_core_dcvs;
 };
@@ -368,6 +369,14 @@ static int qcom_cpufreq_hw_read_lut(struct device *cpu_dev,
 
 	table[i].frequency = CPUFREQ_TABLE_END;
 	policy->freq_table = table;
+
+	for (i = 0; i < LUT_MAX_ENTRIES && table[i].frequency != CPUFREQ_TABLE_END; i++) {
+		if (table[i].flags == CPUFREQ_BOOST_FREQ)
+			break;
+
+		drv_data->last_non_boost_freq = table[i].frequency;
+	}
+
 	dev_pm_opp_set_sharing_cpus(cpu_dev, policy->cpus);
 
 	return 0;
@@ -443,6 +452,15 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 		enable_irq(data->throttle_irq);
 		trace_dcvsh_throttle(cpu, 0);
 	} else {
+		/*
+		 * If the frequency is at least the highest, non-boost
+		 * frequency, then the delta vs. what's requested is likely due
+		 * to core-count boost limitations and shouldn't be
+		 * communicated as thermal pressure.
+		 */
+		if (throttled_freq >= data->last_non_boost_freq)
+			throttled_freq = policy->cpuinfo.max_freq;
+
 		mod_delayed_work(system_highpri_wq, &data->throttle_work,
 				 msecs_to_jiffies(10));
 	}
