@@ -1513,6 +1513,7 @@ static void free_path(struct rtrs_srv_path *srv_path)
 		kobject_del(&srv_path->kobj);
 		kobject_put(&srv_path->kobj);
 	} else {
+		free_percpu(srv_path->stats->rdma_stats);
 		kfree(srv_path->stats);
 		kfree(srv_path);
 	}
@@ -1755,13 +1756,17 @@ static struct rtrs_srv_path *__alloc_path(struct rtrs_srv_sess *srv,
 	if (!srv_path->stats)
 		goto err_free_sess;
 
+	srv_path->stats->rdma_stats = alloc_percpu(struct rtrs_srv_stats_rdma_stats);
+	if (!srv_path->stats->rdma_stats)
+		goto err_free_stats;
+
 	srv_path->stats->srv_path = srv_path;
 
 	srv_path->dma_addr = kcalloc(srv->queue_depth,
 				     sizeof(*srv_path->dma_addr),
 				     GFP_KERNEL);
 	if (!srv_path->dma_addr)
-		goto err_free_stats;
+		goto err_free_percpu;
 
 	srv_path->s.con = kcalloc(con_num, sizeof(*srv_path->s.con),
 				  GFP_KERNEL);
@@ -1813,6 +1818,8 @@ err_free_con:
 	kfree(srv_path->s.con);
 err_free_dma_addr:
 	kfree(srv_path->dma_addr);
+err_free_percpu:
+	free_percpu(srv_path->stats->rdma_stats);
 err_free_stats:
 	kfree(srv_path->stats);
 err_free_sess:
