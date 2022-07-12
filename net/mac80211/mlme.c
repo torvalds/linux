@@ -1078,8 +1078,9 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		*pos++ = WLAN_EID_SUPPORTED_CHANNELS;
 		*pos++ = 2 * sband->n_channels;
 		for (i = 0; i < sband->n_channels; i++) {
-			*pos++ = ieee80211_frequency_to_channel(
-					sband->channels[i].center_freq);
+			int cf = sband->channels[i].center_freq;
+
+			*pos++ = ieee80211_frequency_to_channel(cf);
 			*pos++ = 1; /* one channel in the subband*/
 		}
 	}
