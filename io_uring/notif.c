@@ -162,5 +162,48 @@ __cold int io_notif_unregister(struct io_ring_ctx *ctx)
 	kvfree(ctx->notif_slots);
 	ctx->notif_slots = NULL;
 	ctx->nr_notif_slots = 0;
+	io_notif_cache_purge(ctx);
+	return 0;
+}
+
+__cold int io_notif_register(struct io_ring_ctx *ctx,
+			     void __user *arg, unsigned int size)
+	__must_hold(&ctx->uring_lock)
+{
+	struct io_uring_notification_slot __user *slots;
+	struct io_uring_notification_slot slot;
+	struct io_uring_notification_register reg;
+	unsigned i;
+
+	if (ctx->nr_notif_slots)
+		return -EBUSY;
+	if (size != sizeof(reg))
+		return -EINVAL;
+	if (copy_from_user(&reg, arg, sizeof(reg)))
+		return -EFAULT;
+	if (!reg.nr_slots || reg.nr_slots > IORING_MAX_NOTIF_SLOTS)
+		return -EINVAL;
+	if (reg.resv || reg.resv2 || reg.resv3)
+		return -EINVAL;
+
+	slots = u64_to_user_ptr(reg.data);
+	ctx->notif_slots = kvcalloc(reg.nr_slots, sizeof(ctx->notif_slots[0]),
+				GFP_KERNEL_ACCOUNT);
+	if (!ctx->notif_slots)
+		return -ENOMEM;
+
+	for (i = 0; i < reg.nr_slots; i++, ctx->nr_notif_slots++) {
+		struct io_notif_slot *notif_slot = &ctx->notif_slots[i];
+
+		if (copy_from_user(&slot, &slots[i], sizeof(slot))) {
+			io_notif_unregister(ctx);
+			return -EFAULT;
+		}
+		if (slot.resv[0] | slot.resv[1] | slot.resv[2]) {
+			io_notif_unregister(ctx);
+			return -EINVAL;
+		}
+		notif_slot->tag = slot.tag;
+	}
 	return 0;
 }

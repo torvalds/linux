@@ -6,6 +6,7 @@
 #include <linux/nospec.h>
 
 #define IO_NOTIF_SPLICE_BATCH	32
+#define IORING_MAX_NOTIF_SLOTS (1U << 10)
 
 struct io_notif {
 	struct ubuf_info	uarg;
@@ -48,6 +49,8 @@ struct io_notif_slot {
 	u32			seq;
 };
 
+int io_notif_register(struct io_ring_ctx *ctx,
+		      void __user *arg, unsigned int size);
 int io_notif_unregister(struct io_ring_ctx *ctx);
 void io_notif_cache_purge(struct io_ring_ctx *ctx);
 
