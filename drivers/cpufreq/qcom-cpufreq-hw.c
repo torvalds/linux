@@ -377,18 +377,13 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 	if (IS_ERR(opp) && PTR_ERR(opp) == -ERANGE)
 		opp = dev_pm_opp_find_freq_ceil(dev, &freq_hz);
 
-	if (IS_ERR(opp)) {
+	if (IS_ERR(opp))
 		dev_warn(dev, "Can't find the OPP for throttling: %pe!\n", opp);
-	} else {
-		throttled_freq = freq_hz / HZ_PER_KHZ;
-
-		trace_dcvsh_freq(cpu, qcom_cpufreq_hw_get(cpu), throttled_freq);
-
-		/* Update thermal pressure (the boost frequencies are accepted) */
-		arch_update_thermal_pressure(policy->related_cpus, throttled_freq);
-
+	else
 		dev_pm_opp_put(opp);
-	}
+
+	throttled_freq = freq_hz / HZ_PER_KHZ;
+	trace_dcvsh_freq(cpu, qcom_cpufreq_hw_get(cpu), throttled_freq);
 
 	/*
 	 * In the unlikely case policy is unregistered do not enable
@@ -403,12 +398,17 @@ static void qcom_lmh_dcvs_notify(struct qcom_cpufreq_data *data)
 	 * for, then stop polling and switch back to interrupt mechanism.
 	 */
 	if (throttled_freq >= qcom_cpufreq_hw_get(cpu)) {
+		throttled_freq = policy->cpuinfo.max_freq;
+
 		enable_irq(data->throttle_irq);
 		trace_dcvsh_throttle(cpu, 0);
 	} else {
 		mod_delayed_work(system_highpri_wq, &data->throttle_work,
 				 msecs_to_jiffies(10));
 	}
+
+	/* Update thermal pressure (the boost frequencies are accepted) */
+	arch_update_thermal_pressure(policy->related_cpus, throttled_freq);
 
 out:
 	mutex_unlock(&data->throttle_lock);
