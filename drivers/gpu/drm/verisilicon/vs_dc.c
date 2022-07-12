@@ -1548,17 +1548,21 @@ static irqreturn_t dc_isr(int irq, void *data)
 		vs_crtc_handle_vblank(&dc->crtc[i]->base, dc_hw_check_underflow(&dc->hw));
 
 	starfive_flush_dcache(dc->hw.plane[0].fb.y_address,
-			dc->hw.plane[0].fb.width  * dc->hw.plane[0].fb.height*2);
+			dc->hw.plane[0].fb.width * dc->hw.plane[0].fb.height*4);
 	starfive_flush_dcache(dc->hw.plane[1].fb.y_address,
-			dc->hw.plane[1].fb.width * dc->hw.plane[1].fb.height*2);
+			dc->hw.plane[1].fb.width * dc->hw.plane[1].fb.height*4);
 	starfive_flush_dcache(dc->hw.plane[2].fb.y_address,
-			dc->hw.plane[2].fb.width * dc->hw.plane[2].fb.height*2);
+			dc->hw.plane[2].fb.width * dc->hw.plane[2].fb.height*4);
 	starfive_flush_dcache(dc->hw.plane[3].fb.y_address,
-			dc->hw.plane[3].fb.width * dc->hw.plane[3].fb.height*2);
+			dc->hw.plane[3].fb.width * dc->hw.plane[3].fb.height*4);
 	starfive_flush_dcache(dc->hw.plane[4].fb.y_address,
-			dc->hw.plane[4].fb.width * dc->hw.plane[4].fb.height*2);
+			dc->hw.plane[4].fb.width * dc->hw.plane[4].fb.height*4);
 	starfive_flush_dcache(dc->hw.plane[5].fb.y_address,
-			dc->hw.plane[5].fb.width * dc->hw.plane[5].fb.height*2);
+			dc->hw.plane[5].fb.width * dc->hw.plane[5].fb.height*4);
+	starfive_flush_dcache(dc->hw.plane[6].fb.y_address,
+			dc->hw.plane[6].fb.width * dc->hw.plane[6].fb.height*4);
+	starfive_flush_dcache(dc->hw.plane[7].fb.y_address,
+			dc->hw.plane[7].fb.width * dc->hw.plane[7].fb.height*4);
 
 	return IRQ_HANDLED;
 }
