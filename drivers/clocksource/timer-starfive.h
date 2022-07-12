@@ -84,6 +84,7 @@ struct starfive_timer {
 struct starfive_clkevt {
 	struct clock_event_device evt;
 	struct clk *clk;
+	struct reset_control *rst;
 	int irq;
 	u64 periodic;
 	u64 rate;
