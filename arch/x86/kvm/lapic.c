@@ -826,17 +826,17 @@ static bool kvm_apic_match_physical_addr(struct kvm_lapic *apic, u32 mda)
 	if (kvm_apic_broadcast(apic, mda))
 		return true;
 
-	if (apic_x2apic_mode(apic))
-		return mda == kvm_x2apic_id(apic);
-
 	/*
-	 * Hotplug hack: Make LAPIC in xAPIC mode also accept interrupts as if
-	 * it were in x2APIC mode.  Hotplugged VCPUs start in xAPIC mode and
-	 * this allows unique addressing of VCPUs with APIC ID over 0xff.
-	 * The 0xff condition is needed because writeable xAPIC ID.
+	 * Hotplug hack: Accept interrupts for vCPUs in xAPIC mode as if they
+	 * were in x2APIC mode if the target APIC ID can't be encoded as an
+	 * xAPIC ID.  This allows unique addressing of hotplugged vCPUs (which
+	 * start in xAPIC mode) with an APIC ID that is unaddressable in xAPIC
+	 * mode.  Match the x2APIC ID if and only if the target APIC ID can't
+	 * be encoded in xAPIC to avoid spurious matches against a vCPU that
+	 * changed its (addressable) xAPIC ID (which is writable).
 	 */
-	if (kvm_x2apic_id(apic) > 0xff && mda == kvm_x2apic_id(apic))
-		return true;
+	if (apic_x2apic_mode(apic) || mda > 0xff)
+		return mda == kvm_x2apic_id(apic);
 
 	return mda == kvm_xapic_id(apic);
 }
