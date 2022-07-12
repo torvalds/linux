@@ -651,6 +651,42 @@ cleanup:
 	return error;
 }
 
+static void ext2_xattr_release_block(struct inode *inode,
+				     struct buffer_head *bh)
+{
+	struct mb_cache *ea_block_cache = EA_BLOCK_CACHE(inode);
+
+	lock_buffer(bh);
+	if (HDR(bh)->h_refcount == cpu_to_le32(1)) {
+		__u32 hash = le32_to_cpu(HDR(bh)->h_hash);
+
+		/*
+		 * This must happen under buffer lock for
+		 * ext2_xattr_set2() to reliably detect freed block
+		 */
+		mb_cache_entry_delete(ea_block_cache, hash,
+				      bh->b_blocknr);
+		/* Free the old block. */
+		ea_bdebug(bh, "freeing");
+		ext2_free_blocks(inode, bh->b_blocknr, 1);
+		/* We let our caller release bh, so we
+		 * need to duplicate the buffer before. */
+		get_bh(bh);
+		bforget(bh);
+		unlock_buffer(bh);
+	} else {
+		/* Decrement the refcount only. */
+		le32_add_cpu(&HDR(bh)->h_refcount, -1);
+		dquot_free_block(inode, 1);
+		mark_buffer_dirty(bh);
+		unlock_buffer(bh);
+		ea_bdebug(bh, "refcount now=%d",
+			le32_to_cpu(HDR(bh)->h_refcount));
+		if (IS_SYNC(inode))
+			sync_dirty_buffer(bh);
+	}
+}
+
 /*
  * Second half of ext2_xattr_set(): Update the file system.
  */
@@ -747,34 +783,7 @@ ext2_xattr_set2(struct inode *inode, struct buffer_head *old_bh,
 		 * If there was an old block and we are no longer using it,
 		 * release the old block.
 		 */
-		lock_buffer(old_bh);
-		if (HDR(old_bh)->h_refcount == cpu_to_le32(1)) {
-			__u32 hash = le32_to_cpu(HDR(old_bh)->h_hash);
-
-			/*
-			 * This must happen under buffer lock for
-			 * ext2_xattr_set2() to reliably detect freed block
-			 */
-			mb_cache_entry_delete(ea_block_cache, hash,
-					      old_bh->b_blocknr);
-			/* Free the old block. */
-			ea_bdebug(old_bh, "freeing");
-			ext2_free_blocks(inode, old_bh->b_blocknr, 1);
-			mark_inode_dirty(inode);
-			/* We let our caller release old_bh, so we
-			 * need to duplicate the buffer before. */
-			get_bh(old_bh);
-			bforget(old_bh);
-		} else {
-			/* Decrement the refcount only. */
-			le32_add_cpu(&HDR(old_bh)->h_refcount, -1);
-			dquot_free_block_nodirty(inode, 1);
-			mark_inode_dirty(inode);
-			mark_buffer_dirty(old_bh);
-			ea_bdebug(old_bh, "refcount now=%d",
-				le32_to_cpu(HDR(old_bh)->h_refcount));
-		}
-		unlock_buffer(old_bh);
+		ext2_xattr_release_block(inode, old_bh);
 	}
 
 cleanup:
@@ -828,30 +837,7 @@ ext2_xattr_delete_inode(struct inode *inode)
 			EXT2_I(inode)->i_file_acl);
 		goto cleanup;
 	}
-	lock_buffer(bh);
-	if (HDR(bh)->h_refcount == cpu_to_le32(1)) {
-		__u32 hash = le32_to_cpu(HDR(bh)->h_hash);
-
-		/*
-		 * This must happen under buffer lock for ext2_xattr_set2() to
-		 * reliably detect freed block
-		 */
-		mb_cache_entry_delete(EA_BLOCK_CACHE(inode), hash,
-				      bh->b_blocknr);
-		ext2_free_blocks(inode, EXT2_I(inode)->i_file_acl, 1);
-		get_bh(bh);
-		bforget(bh);
-		unlock_buffer(bh);
-	} else {
-		le32_add_cpu(&HDR(bh)->h_refcount, -1);
-		ea_bdebug(bh, "refcount now=%d",
-			le32_to_cpu(HDR(bh)->h_refcount));
-		unlock_buffer(bh);
-		mark_buffer_dirty(bh);
-		if (IS_SYNC(inode))
-			sync_dirty_buffer(bh);
-		dquot_free_block_nodirty(inode, 1);
-	}
+	ext2_xattr_release_block(inode, bh);
 	EXT2_I(inode)->i_file_acl = 0;
 
 cleanup:
