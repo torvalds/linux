@@ -66,6 +66,13 @@
 
 #define ROCKCHIP_DSC_PPS_SIZE_BYTE	88
 
+enum vop_vp_id {
+	ROCKCHIP_VOP_VP0 = 0,
+	ROCKCHIP_VOP_VP1,
+	ROCKCHIP_VOP_VP2,
+	ROCKCHIP_VOP_VP3,
+};
+
 enum vop_win_phy_id {
 	ROCKCHIP_VOP_WIN0 = 0,
 	ROCKCHIP_VOP_WIN1,
