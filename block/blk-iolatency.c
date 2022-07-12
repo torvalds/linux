@@ -401,7 +401,6 @@ static void check_scale_change(struct iolatency_grp *iolat)
 	unsigned int cur_cookie;
 	unsigned int our_cookie = atomic_read(&iolat->scale_cookie);
 	u64 scale_lat;
-	unsigned int old;
 	int direction = 0;
 
 	if (lat_to_blkg(iolat)->parent == NULL)
@@ -422,11 +421,10 @@ static void check_scale_change(struct iolatency_grp *iolat)
 	else
 		return;
 
-	old = atomic_cmpxchg(&iolat->scale_cookie, our_cookie, cur_cookie);
-
-	/* Somebody beat us to the punch, just bail. */
-	if (old != our_cookie)
+	if (!atomic_try_cmpxchg(&iolat->scale_cookie, &our_cookie, cur_cookie)) {
+		/* Somebody beat us to the punch, just bail. */
 		return;
+	}
 
 	if (direction < 0 && iolat->min_lat_nsec) {
 		u64 samples_thresh;
@@ -633,8 +631,8 @@ static void blkcg_iolatency_done_bio(struct rq_qos *rqos, struct bio *bio)
 			window_start = atomic64_read(&iolat->window_start);
 			if (now > window_start &&
 			    (now - window_start) >= iolat->cur_win_nsec) {
-				if (atomic64_cmpxchg(&iolat->window_start,
-					     window_start, now) == window_start)
+				if (atomic64_try_cmpxchg(&iolat->window_start,
+							 &window_start, now))
 					iolatency_check_latencies(iolat, now);
 			}
 		}
