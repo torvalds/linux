@@ -73,6 +73,7 @@ static DEVICE_ATTR_RO(clk_cur_freq_mhz);
 static struct attribute *hl_dev_clk_attrs[] = {
 	&dev_attr_clk_max_freq_mhz.attr,
 	&dev_attr_clk_cur_freq_mhz.attr,
+	NULL,
 };
 
 static ssize_t vrm_ver_show(struct device *dev, struct device_attribute *attr, char *buf)
@@ -93,6 +94,7 @@ static DEVICE_ATTR_RO(vrm_ver);
 
 static struct attribute *hl_dev_vrm_attrs[] = {
 	&dev_attr_vrm_ver.attr,
+	NULL,
 };
 
 static ssize_t uboot_ver_show(struct device *dev, struct device_attribute *attr,
@@ -243,6 +245,12 @@ static ssize_t device_type_show(struct device *dev,
 	case ASIC_GAUDI_SEC:
 		str = "GAUDI SEC";
 		break;
+	case ASIC_GAUDI2:
+		str = "GAUDI2";
+		break;
+	case ASIC_GAUDI2_SEC:
+		str = "GAUDI2 SEC";
+		break;
 	default:
 		dev_err(hdev->dev, "Unrecognized ASIC type %d\n",
 				hdev->asic_type);
@@ -283,7 +291,7 @@ static ssize_t soft_reset_cnt_show(struct device *dev,
 {
 	struct hl_device *hdev = dev_get_drvdata(dev);
 
-	return sprintf(buf, "%d\n", hdev->reset_info.soft_reset_cnt);
+	return sprintf(buf, "%d\n", hdev->reset_info.compute_reset_cnt);
 }
 
 static ssize_t hard_reset_cnt_show(struct device *dev,

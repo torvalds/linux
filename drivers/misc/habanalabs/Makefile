@@ -14,4 +14,7 @@ habanalabs-y += $(HL_GOYA_FILES)
 include $(src)/gaudi/Makefile
 habanalabs-y += $(HL_GAUDI_FILES)
 
+include $(src)/gaudi2/Makefile
+habanalabs-y += $(HL_GAUDI2_FILES)
+
 habanalabs-$(CONFIG_DEBUG_FS) += common/debugfs.o
