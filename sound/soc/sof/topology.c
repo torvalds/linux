@@ -1419,7 +1419,6 @@ static int sof_widget_unload(struct snd_soc_component *scomp,
 	struct soc_bytes_ext *sbe;
 	struct snd_sof_dai *dai;
 	struct soc_enum *se;
-	int ret = 0;
 	int i;
 
 	swidget = dobj->private;
@@ -1480,7 +1479,7 @@ out:
 	list_del(&swidget->list);
 	kfree(swidget);
 
-	return ret;
+	return 0;
 }
 
 /*
