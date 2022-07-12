@@ -5446,7 +5446,7 @@ fill_blending_from_plane_state(const struct drm_plane_state *plane_state,
 			}
 		}
 
-		if (per_pixel_alpha && plane_state->pixel_blend_mode == DRM_MODE_BLEND_COVERAGE)
+		if (*per_pixel_alpha && plane_state->pixel_blend_mode == DRM_MODE_BLEND_COVERAGE)
 			*pre_multiplied_alpha = false;
 	}
 
