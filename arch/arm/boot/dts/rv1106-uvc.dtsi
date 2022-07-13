@@ -7,6 +7,33 @@
 
 };
 
+&cru {
+	assigned-clocks =
+		<&cru PLL_GPLL>, <&cru PLL_CPLL>,
+		<&cru ARMCLK>,
+		<&cru CLK_50M_SRC>, <&cru CLK_100M_SRC>,
+		<&cru CLK_150M_SRC>, <&cru CLK_200M_SRC>,
+		<&cru CLK_250M_SRC>, <&cru CLK_300M_SRC>,
+		<&cru CLK_339M_SRC>, <&cru CLK_400M_SRC>,
+		<&cru CLK_450M_SRC>, <&cru CLK_500M_SRC>,
+		<&cru ACLK_PERI_ROOT>, <&cru HCLK_PERI_ROOT>,
+		<&cru PCLK_PERI_ROOT>, <&cru ACLK_BUS_ROOT>,
+		<&cru PCLK_TOP_ROOT>, <&cru PCLK_PMU_ROOT>,
+		<&cru HCLK_PMU_ROOT>;
+	assigned-clock-rates =
+		<983040000>, <1188000000>,
+		<1104000000>,
+		<50000000>, <100000000>,
+		<150000000>, <200000000>,
+		<250000000>, <300000000>,
+		<340000000>, <400000000>,
+		<450000000>, <500000000>,
+		<400000000>, <200000000>,
+		<100000000>, <300000000>,
+		<100000000>, <100000000>,
+		<200000000>;
+};
+
 &fiq_debugger {
 	rockchip,irq-mode-enable = <1>;
 	status = "okay";
