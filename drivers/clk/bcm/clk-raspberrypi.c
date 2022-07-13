@@ -365,7 +365,8 @@ static int raspberrypi_discover_clocks(struct raspberrypi_clk *rpi,
 		struct raspberrypi_clk_variant *variant;
 
 		if (clks->id > RPI_FIRMWARE_NUM_CLK_ID) {
-			dev_err(rpi->dev, "Unknown clock id: %u\n", clks->id);
+			dev_err(rpi->dev, "Unknown clock id: %u (max: %u)\n",
+					   clks->id, RPI_FIRMWARE_NUM_CLK_ID);
 			return -EINVAL;
 		}
 
