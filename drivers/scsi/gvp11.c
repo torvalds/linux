@@ -30,7 +30,7 @@ struct gvp11_hostdata {
 };
 
 #define DMA_DIR(d)   ((d == DATA_OUT_DIR) ? DMA_TO_DEVICE : DMA_FROM_DEVICE)
-#define TO_DMA_MASK(m)	((~(m & 0xfffffff0))-1)
+#define TO_DMA_MASK(m)	(~((unsigned long long)m & 0xffffffff))
 
 static irqreturn_t gvp11_intr(int irq, void *data)
 {
@@ -334,7 +334,7 @@ static int gvp11_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 
 	if (dma_set_mask_and_coherent(&z->dev,
 		TO_DMA_MASK(default_dma_xfer_mask))) {
-		dev_warn(&z->dev, "cannot use DMA mask %x\n",
+		dev_warn(&z->dev, "cannot use DMA mask %llx\n",
 			 TO_DMA_MASK(default_dma_xfer_mask));
 		return -ENODEV;
 	}
@@ -383,7 +383,7 @@ static int gvp11_probe(struct zorro_dev *z, const struct zorro_device_id *ent)
 		hdata->wh.dma_xfer_mask = gvp11_xfer_mask;
 		if (dma_set_mask_and_coherent(&z->dev,
 			TO_DMA_MASK(gvp11_xfer_mask))) {
-			dev_warn(&z->dev, "cannot use DMA mask %x\n",
+			dev_warn(&z->dev, "cannot use DMA mask %llx\n",
 				 TO_DMA_MASK(gvp11_xfer_mask));
 			error = -ENODEV;
 			goto fail_check_or_alloc;
