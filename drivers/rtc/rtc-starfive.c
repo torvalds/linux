@@ -16,6 +16,7 @@
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_irq.h>
+#include <linux/iopoll.h>
 #include <linux/platform_device.h>
 #include <linux/rtc.h>
 
@@ -79,6 +80,8 @@
 #define DATE_DAY_MASK		GENMASK(5, 0)
 #define DATE_MON_MASK		GENMASK(10, 6)
 #define DATE_YEAR_MASK		GENMASK(18, 11)
+
+#define INT_TIMEOUT_US		180
 
 enum RTC_HOUR_MODE {
 	RTC_HOUR_MODE_12H = 0,
@@ -275,6 +278,7 @@ static irqreturn_t sft_rtc_irq_handler(int irq, void *data)
 	u32 irq_flags = 0;
 	u32 irq_mask = 0;
 	u32 val;
+	int ret = 0;
 
 	val = readl(srtc->regs + SFT_RTC_IRQ_EVEVT);
 	if (val & RTC_IRQ_CAL_START)
@@ -297,15 +301,18 @@ static irqreturn_t sft_rtc_irq_handler(int irq, void *data)
 	if (val & RTC_IRQ_ALAEM) {
 		irq_flags |= RTC_AF;
 		irq_mask |= RTC_IRQ_ALAEM;
+		/* Make sure aie_timer will pop out from timerqueue */
+		srtc->rtc_dev->aie_timer.node.expires -= 1 * NSEC_PER_SEC;
+		dev_info(&srtc->rtc_dev->dev, "alarm expires");
 	}
 
-	/*
-	 * Hardware workaround:
-	 * need to keep clearing interrupts until the clearing succeeds
-	 */
-	do {
-		writel(irq_mask, srtc->regs + SFT_RTC_IRQ_EVEVT);
-	} while (readl(srtc->regs + SFT_RTC_IRQ_EVEVT) & irq_mask);
+	writel(irq_mask, srtc->regs + SFT_RTC_IRQ_EVEVT);
+
+	/* Wait interrupt flag clear */
+	ret = readl_poll_timeout_atomic(srtc->regs + SFT_RTC_IRQ_EVEVT, val,
+					(val & irq_mask) == 0, 0, INT_TIMEOUT_US);
+	if (ret)
+		dev_warn(&srtc->rtc_dev->dev, "fail to clear rtc interrupt flag\n");
 
 	if (irq_flags)
 		rtc_update_irq(srtc->rtc_dev, 1, irq_flags | RTC_IRQF);
@@ -553,6 +560,7 @@ static int sft_rtc_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct sft_rtc *srtc;
+	struct rtc_time tm;
 	int ret;
 
 	srtc = devm_kzalloc(dev, sizeof(*srtc), GFP_KERNEL);
@@ -637,6 +645,19 @@ static int sft_rtc_probe(struct platform_device *pdev)
 
 	if (device_property_read_bool(dev, "rtc,hw-adjustment"))
 		sft_rtc_hw_adjustment(dev, true);
+
+	/*
+	 * If rtc time is out of supported range, reset it to the minimum time.
+	 * notice that, actual year = 1900 + tm.tm_year
+	 *              actual month = 1 + tm.tm_mon
+	 */
+	sft_rtc_read_time(dev, &tm);
+	if (tm.tm_year < 101 || tm.tm_year > 199 || tm.tm_mon < 0 || tm.tm_mon > 11 ||
+	    tm.tm_mday < 1 || tm.tm_mday > 31 || tm.tm_hour < 0 || tm.tm_hour > 23 ||
+	    tm.tm_min < 0 || tm.tm_min > 59 || tm.tm_sec < 0 || tm.tm_sec > 59) {
+		rtc_time64_to_tm(srtc->rtc_dev->range_min, &tm);
+		sft_rtc_set_time(dev, &tm);
+	}
 
 	ret = devm_rtc_register_device(srtc->rtc_dev);
 	if (ret)
