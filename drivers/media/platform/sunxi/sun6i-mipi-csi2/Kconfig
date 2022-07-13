@@ -8,6 +8,7 @@ config VIDEO_SUN6I_MIPI_CSI2
 	select VIDEO_V4L2_SUBDEV_API
 	select V4L2_FWNODE
 	select PHY_SUN6I_MIPI_DPHY
+	select GENERIC_PHY_MIPI_DPHY
 	select REGMAP_MMIO
 	help
 	   Support for the Allwinner A31 MIPI CSI-2 controller, also found on
