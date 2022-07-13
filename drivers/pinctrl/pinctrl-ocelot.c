@@ -1334,7 +1334,9 @@ static int ocelot_hw_get_value(struct ocelot_pinctrl *info,
 		const struct ocelot_pincfg_data *opd = info->pincfg_data;
 		u32 regcfg;
 
-		ret = regmap_read(info->pincfg, pin, &regcfg);
+		ret = regmap_read(info->pincfg,
+				  pin * regmap_get_reg_stride(info->pincfg),
+				  &regcfg);
 		if (ret)
 			return ret;
 
@@ -1366,14 +1368,18 @@ static int ocelot_pincfg_clrsetbits(struct ocelot_pinctrl *info, u32 regaddr,
 	u32 val;
 	int ret;
 
-	ret = regmap_read(info->pincfg, regaddr, &val);
+	ret = regmap_read(info->pincfg,
+			  regaddr * regmap_get_reg_stride(info->pincfg),
+			  &val);
 	if (ret)
 		return ret;
 
 	val &= ~clrbits;
 	val |= setbits;
 
-	ret = regmap_write(info->pincfg, regaddr, val);
+	ret = regmap_write(info->pincfg,
+			   regaddr * regmap_get_reg_stride(info->pincfg),
+			   val);
 
 	return ret;
 }
@@ -1933,7 +1939,8 @@ static const struct of_device_id ocelot_pinctrl_of_match[] = {
 	{},
 };
 
-static struct regmap *ocelot_pinctrl_create_pincfg(struct platform_device *pdev)
+static struct regmap *ocelot_pinctrl_create_pincfg(struct platform_device *pdev,
+						   const struct ocelot_pinctrl *info)
 {
 	void __iomem *base;
 
@@ -1941,7 +1948,7 @@ static struct regmap *ocelot_pinctrl_create_pincfg(struct platform_device *pdev)
 		.reg_bits = 32,
 		.val_bits = 32,
 		.reg_stride = 4,
-		.max_register = 32,
+		.max_register = info->desc->npins * 4,
 		.name = "pincfg",
 	};
 
@@ -2009,7 +2016,7 @@ static int ocelot_pinctrl_probe(struct platform_device *pdev)
 
 	/* Pinconf registers */
 	if (info->desc->confops) {
-		pincfg = ocelot_pinctrl_create_pincfg(pdev);
+		pincfg = ocelot_pinctrl_create_pincfg(pdev, info);
 		if (IS_ERR(pincfg))
 			dev_dbg(dev, "Failed to create pincfg regmap\n");
 		else
