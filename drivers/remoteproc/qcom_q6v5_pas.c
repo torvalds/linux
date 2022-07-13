@@ -206,13 +206,17 @@ static int adsp_start(struct rproc *rproc)
 	if (ret)
 		goto disable_xo_clk;
 
-	ret = regulator_enable(adsp->cx_supply);
-	if (ret)
-		goto disable_aggre2_clk;
+	if (adsp->cx_supply) {
+		ret = regulator_enable(adsp->cx_supply);
+		if (ret)
+			goto disable_aggre2_clk;
+	}
 
-	ret = regulator_enable(adsp->px_supply);
-	if (ret)
-		goto disable_cx_supply;
+	if (adsp->px_supply) {
+		ret = regulator_enable(adsp->px_supply);
+		if (ret)
+			goto disable_cx_supply;
+	}
 
 	ret = qcom_scm_pas_auth_and_reset(adsp->pas_id);
 	if (ret) {
@@ -233,9 +237,11 @@ static int adsp_start(struct rproc *rproc)
 	return 0;
 
 disable_px_supply:
-	regulator_disable(adsp->px_supply);
+	if (adsp->px_supply)
+		regulator_disable(adsp->px_supply);
 disable_cx_supply:
-	regulator_disable(adsp->cx_supply);
+	if (adsp->cx_supply)
+		regulator_disable(adsp->cx_supply);
 disable_aggre2_clk:
 	clk_disable_unprepare(adsp->aggre2_clk);
 disable_xo_clk:
@@ -252,8 +258,10 @@ static void qcom_pas_handover(struct qcom_q6v5 *q6v5)
 {
 	struct qcom_adsp *adsp = container_of(q6v5, struct qcom_adsp, q6v5);
 
-	regulator_disable(adsp->px_supply);
-	regulator_disable(adsp->cx_supply);
+	if (adsp->px_supply)
+		regulator_disable(adsp->px_supply);
+	if (adsp->cx_supply)
+		regulator_disable(adsp->cx_supply);
 	clk_disable_unprepare(adsp->aggre2_clk);
 	clk_disable_unprepare(adsp->xo);
 	adsp_pds_disable(adsp, adsp->proxy_pds, adsp->proxy_pd_count);
@@ -353,13 +361,13 @@ static int adsp_init_clock(struct qcom_adsp *adsp)
 
 static int adsp_init_regulator(struct qcom_adsp *adsp)
 {
-	adsp->cx_supply = devm_regulator_get(adsp->dev, "cx");
+	adsp->cx_supply = devm_regulator_get_optional(adsp->dev, "cx");
 	if (IS_ERR(adsp->cx_supply))
 		return PTR_ERR(adsp->cx_supply);
 
 	regulator_set_load(adsp->cx_supply, 100000);
 
-	adsp->px_supply = devm_regulator_get(adsp->dev, "px");
+	adsp->px_supply = devm_regulator_get_optional(adsp->dev, "px");
 	return PTR_ERR_OR_ZERO(adsp->px_supply);
 }
 
