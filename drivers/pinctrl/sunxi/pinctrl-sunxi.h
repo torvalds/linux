@@ -98,6 +98,7 @@
 #define PINCTRL_SUN8I_V3S	BIT(10)
 
 #define PIO_POW_MOD_SEL_REG	0x340
+#define PIO_POW_MOD_CTL_REG	0x344
 
 enum sunxi_desc_bias_voltage {
 	BIAS_VOLTAGE_NONE,
@@ -111,6 +112,12 @@ enum sunxi_desc_bias_voltage {
 	 * register, as seen on H6 SoC, for example.
 	 */
 	BIAS_VOLTAGE_PIO_POW_MODE_SEL,
+	/*
+	 * Bias voltage is set through PIO_POW_MOD_SEL_REG
+	 * and PIO_POW_MOD_CTL_REG register, as seen on
+	 * A100 and D1 SoC, for example.
+	 */
+	BIAS_VOLTAGE_PIO_POW_MODE_CTL,
 };
 
 struct sunxi_desc_function {
