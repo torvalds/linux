@@ -348,5 +348,6 @@ bool mmc_card_is_blockaddr(struct mmc_card *card);
 #define mmc_card_mmc(c)		((c)->type == MMC_TYPE_MMC)
 #define mmc_card_sd(c)		((c)->type == MMC_TYPE_SD)
 #define mmc_card_sdio(c)	((c)->type == MMC_TYPE_SDIO)
+#define mmc_card_sd_combo(c)	((c)->type == MMC_TYPE_SD_COMBO)
 
 #endif /* LINUX_MMC_CARD_H */

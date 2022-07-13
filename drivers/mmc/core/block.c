@@ -2988,7 +2988,7 @@ static int mmc_blk_probe(struct mmc_card *card)
 	 * Don't enable runtime PM for SD-combo cards here. Leave that
 	 * decision to be taken during the SDIO init sequence instead.
 	 */
-	if (card->type != MMC_TYPE_SD_COMBO) {
+	if (!mmc_card_sd_combo(card)) {
 		pm_runtime_set_active(&card->dev);
 		pm_runtime_enable(&card->dev);
 	}
@@ -3015,7 +3015,7 @@ static void mmc_blk_remove(struct mmc_card *card)
 		mmc_blk_part_switch(card, md->part_type);
 		mmc_release_host(card->host);
 	}
-	if (card->type != MMC_TYPE_SD_COMBO)
+	if (!mmc_card_sd_combo(card))
 		pm_runtime_disable(&card->dev);
 	pm_runtime_put_noidle(&card->dev);
 	mmc_blk_remove_req(md);

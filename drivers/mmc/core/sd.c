@@ -793,7 +793,7 @@ static umode_t sd_std_is_visible(struct kobject *kobj, struct attribute *attr,
 	     attr == &dev_attr_info2.attr ||
 	     attr == &dev_attr_info3.attr ||
 	     attr == &dev_attr_info4.attr
-	    ) && card->type != MMC_TYPE_SD_COMBO)
+	    ) &&!mmc_card_sd_combo(card))
 		return 0;
 
 	return attr->mode;
