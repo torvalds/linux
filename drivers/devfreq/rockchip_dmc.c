@@ -71,7 +71,7 @@
 
 struct dmc_freq_table {
 	unsigned long freq;
-	unsigned long volt;
+	struct dev_pm_opp_supply supplies[2];
 };
 
 struct share_params {
@@ -1258,7 +1258,7 @@ static __maybe_unused int rockchip_get_freq_info(struct rockchip_dmcfreq *dmcfre
 		return ret;
 	}
 
-	freq_table = kmalloc(sizeof(struct dmc_freq_table) * count, GFP_KERNEL);
+	freq_table = kzalloc(sizeof(*freq_table) * count, GFP_KERNEL);
 	for (i = 0, rate = 0; i < count; i++, rate++) {
 		/* find next rate */
 		opp = dev_pm_opp_find_freq_ceil(dmcfreq->dev, &rate);
@@ -1268,7 +1268,7 @@ static __maybe_unused int rockchip_get_freq_info(struct rockchip_dmcfreq *dmcfre
 			goto out;
 		}
 		freq_table[i].freq = rate;
-		freq_table[i].volt = dev_pm_opp_get_voltage(opp);
+		freq_table[i].supplies[0].u_volt = dev_pm_opp_get_voltage(opp);
 		dev_pm_opp_put(opp);
 
 		for (j = 0; j < dmcfreq->freq_count; j++) {
@@ -1285,7 +1285,7 @@ static __maybe_unused int rockchip_get_freq_info(struct rockchip_dmcfreq *dmcfre
 				break;
 			} else if (dmcfreq->freq_info_rate[i] < freq_table[j].freq) {
 				dev_pm_opp_add(dmcfreq->dev, dmcfreq->freq_info_rate[i],
-					       freq_table[j].volt);
+					       freq_table[j].supplies[0].u_volt);
 				break;
 			}
 		}
@@ -1312,8 +1312,8 @@ rockchip_dmcfreq_adjust_opp_table(struct rockchip_dmcfreq *dmcfreq)
 	struct arm_smccc_res res;
 	struct dev_pm_opp *opp;
 	struct opp_table *opp_table;
-	unsigned long target_rate = 0, last_rate = 0;
-	int i, count = 0;
+	struct dmc_freq_table *freq_table;
+	int i, j, count = 0, ret = 0;
 
 	res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0,
 			   ROCKCHIP_SIP_CONFIG_DRAM_GET_FREQ_INFO);
@@ -1332,42 +1332,74 @@ rockchip_dmcfreq_adjust_opp_table(struct rockchip_dmcfreq *dmcfreq)
 		dmcfreq->freq_info_rate[i] = ddr_psci_param->freq_info_mhz[i] * 1000000;
 	dmcfreq->freq_count = ddr_psci_param->freq_count;
 
+	count = dev_pm_opp_get_opp_count(dev);
+	if (count <= 0) {
+		dev_err(dev, "there is no available opp\n");
+		ret = count ? count : -ENODATA;
+		return ret;
+	}
+
+	freq_table = kzalloc(sizeof(*freq_table) * count, GFP_KERNEL);
 	opp_table = dev_pm_opp_get_opp_table(dev);
-	if (!opp_table)
-		return -ENOMEM;
+	if (!opp_table) {
+		ret = -ENOMEM;
+		goto out;
+	}
 
 	mutex_lock(&opp_table->lock);
+	i = 0;
 	list_for_each_entry(opp, &opp_table->opp_list, node) {
 		if (!opp->available)
 			continue;
-		/* Search for a rounded floor frequency */
-		target_rate = 0;
-		for (i = 0; i < dmcfreq->freq_count; i++) {
-			if (dmcfreq->freq_info_rate[i] <= opp->rate)
-				target_rate = dmcfreq->freq_info_rate[i];
-		}
-		/* If not find, disable the opp */
-		if (!target_rate) {
-			opp->available = false;
-		} else {
-			/* If the opp rate is equal to last opp rate, disable it */
-			if (target_rate == last_rate) {
-				opp->available = false;
-			} else {
-				opp->rate = target_rate;
-				last_rate = opp->rate;
-				count++;
-			}
-		}
-	}
-	mutex_unlock(&opp_table->lock);
-	dev_pm_opp_put_opp_table(opp_table);
-	if (!count) {
-		dev_err(dev, "there is no available opp\n");
-		return -EINVAL;
+
+		freq_table[i].freq = opp->rate;
+		freq_table[i].supplies[0] = opp->supplies[0];
+		if (dmcfreq->regulator_count > 1)
+			freq_table[i].supplies[1] = opp->supplies[1];
+
+		i++;
 	}
 
-	return 0;
+	i = 0;
+	list_for_each_entry(opp, &opp_table->opp_list, node) {
+		if (!opp->available)
+			continue;
+
+		if (i >= dmcfreq->freq_count) {
+			opp->available = false;
+			continue;
+		}
+
+		for (j = 0; j < count; j++) {
+			if (dmcfreq->freq_info_rate[i] <= freq_table[j].freq) {
+				opp->rate = dmcfreq->freq_info_rate[i];
+				opp->supplies[0] = freq_table[j].supplies[0];
+				if (dmcfreq->regulator_count > 1)
+					opp->supplies[1] = freq_table[j].supplies[1];
+
+				break;
+			}
+		}
+		if (j == count) {
+			dev_err(dmcfreq->dev, "failed to match dmc_opp_table for %ld\n",
+				dmcfreq->freq_info_rate[i]);
+			if (i == 0) {
+				ret = -EPERM;
+				goto out;
+			} else {
+				opp->available = false;
+				dmcfreq->freq_count = i;
+			}
+		}
+		i++;
+	}
+
+	mutex_unlock(&opp_table->lock);
+	dev_pm_opp_put_opp_table(opp_table);
+
+out:
+	kfree(freq_table);
+	return ret;
 }
 
 static __maybe_unused int px30_dmc_init(struct platform_device *pdev,
