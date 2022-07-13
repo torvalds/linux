@@ -21,6 +21,7 @@ struct nouveau_abi16_ntfy {
 struct nouveau_abi16_chan {
 	struct list_head head;
 	struct nouveau_channel *chan;
+	struct nvif_object ce;
 	struct list_head notifiers;
 	struct nouveau_bo *ntfy;
 	struct nouveau_vma *ntfy_vma;

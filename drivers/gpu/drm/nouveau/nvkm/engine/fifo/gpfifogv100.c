@@ -70,8 +70,17 @@ gv100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
 	struct nvkm_gpuobj *inst = chan->base.inst;
 	int ret;
 
-	if (engine->subdev.type == NVKM_ENGINE_CE)
-		return gk104_fifo_gpfifo_kick(chan);
+	if (engine->subdev.type == NVKM_ENGINE_CE) {
+		ret = gv100_fifo_gpfifo_engine_valid(chan, true, false);
+		if (ret && suspend)
+			return ret;
+
+		nvkm_kmap(inst);
+		nvkm_wo32(chan->base.inst, 0x220, 0x00000000);
+		nvkm_wo32(chan->base.inst, 0x224, 0x00000000);
+		nvkm_done(inst);
+		return ret;
+	}
 
 	ret = gv100_fifo_gpfifo_engine_valid(chan, false, false);
 	if (ret && suspend)
@@ -92,8 +101,16 @@ gv100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
 	struct gk104_fifo_engn *engn = gk104_fifo_gpfifo_engine(chan, engine);
 	struct nvkm_gpuobj *inst = chan->base.inst;
 
-	if (engine->subdev.type == NVKM_ENGINE_CE)
-		return 0;
+	if (engine->subdev.type == NVKM_ENGINE_CE) {
+		const u64 bar2 = nvkm_memory_bar2(engn->inst->memory);
+
+		nvkm_kmap(inst);
+		nvkm_wo32(chan->base.inst, 0x220, lower_32_bits(bar2));
+		nvkm_wo32(chan->base.inst, 0x224, upper_32_bits(bar2));
+		nvkm_done(inst);
+
+		return gv100_fifo_gpfifo_engine_valid(chan, true, true);
+	}
 
 	nvkm_kmap(inst);
 	nvkm_wo32(inst, 0x210, lower_32_bits(engn->vma->addr) | 0x00000004);
@@ -123,11 +140,9 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 		       u32 *token, const struct nvkm_oclass *oclass,
 		       struct nvkm_object **pobject)
 {
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct gk104_fifo_chan *chan;
 	int runlist = ffs(*runlists) -1, ret, i;
-	u64 usermem, mthd;
-	u32 size;
+	u64 usermem;
 
 	if (!vmm || runlist < 0 || runlist >= fifo->runlist_nr)
 		return -EINVAL;
@@ -173,20 +188,6 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 	nvkm_done(fifo->user.mem);
 	usermem = nvkm_memory_addr(fifo->user.mem) + usermem;
 
-	/* Allocate fault method buffer (magics come from nvgpu). */
-	size = nvkm_rd32(device, 0x104028); /* NV_PCE_PCE_MAP */
-	size = 27 * 5 * (((9 + 1 + 3) * hweight32(size)) + 2);
-	size = roundup(size, PAGE_SIZE);
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, size, 0x1000, true,
-			      &chan->mthd);
-	if (ret)
-		return ret;
-
-	mthd = nvkm_memory_bar2(chan->mthd);
-	if (mthd == ~0ULL)
-		return -EFAULT;
-
 	/* RAMFC */
 	nvkm_kmap(chan->base.inst);
 	nvkm_wo32(chan->base.inst, 0x008, lower_32_bits(usermem));
@@ -203,10 +204,8 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 	nvkm_wo32(chan->base.inst, 0x0f4, 0x00001000);
 	nvkm_wo32(chan->base.inst, 0x0f8, 0x10003080);
 	nvkm_mo32(chan->base.inst, 0x218, 0x00000000, 0x00000000);
-	nvkm_wo32(chan->base.inst, 0x220, lower_32_bits(mthd));
-	nvkm_wo32(chan->base.inst, 0x224, upper_32_bits(mthd));
 	nvkm_done(chan->base.inst);
-	return gv100_fifo_gpfifo_engine_valid(chan, true, true);
+	return 0;
 }
 
 int
