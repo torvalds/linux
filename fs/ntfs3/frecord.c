@@ -469,7 +469,7 @@ ni_ins_new_attr(struct ntfs_inode *ni, struct mft_inode *mi,
 				&ref, &le);
 		if (err) {
 			/* No memory or no space. */
-			return NULL;
+			return ERR_PTR(err);
 		}
 		le_added = true;
 
@@ -1011,6 +1011,8 @@ static int ni_ins_attr_ext(struct ntfs_inode *ni, struct ATTR_LIST_ENTRY *le,
 				       name_off, svcn, ins_le);
 		if (!attr)
 			continue;
+		if (IS_ERR(attr))
+			return PTR_ERR(attr);
 
 		if (ins_attr)
 			*ins_attr = attr;
@@ -1032,8 +1034,15 @@ insert_ext:
 
 	attr = ni_ins_new_attr(ni, mi, le, type, name, name_len, asize,
 			       name_off, svcn, ins_le);
-	if (!attr)
+	if (!attr) {
+		err = -EINVAL;
 		goto out2;
+	}
+
+	if (IS_ERR(attr)) {
+		err = PTR_ERR(attr);
+		goto out2;
+	}
 
 	if (ins_attr)
 		*ins_attr = attr;
@@ -1045,7 +1054,6 @@ insert_ext:
 out2:
 	ni_remove_mi(ni, mi);
 	mi_put(mi);
-	err = -EINVAL;
 
 out1:
 	ntfs_mark_rec_free(sbi, rno, is_mft);
@@ -1101,6 +1109,11 @@ static int ni_insert_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
 	if (asize <= free) {
 		attr = ni_ins_new_attr(ni, &ni->mi, NULL, type, name, name_len,
 				       asize, name_off, svcn, ins_le);
+		if (IS_ERR(attr)) {
+			err = PTR_ERR(attr);
+			goto out;
+		}
+
 		if (attr) {
 			if (ins_attr)
 				*ins_attr = attr;
@@ -1195,6 +1208,11 @@ static int ni_insert_attr(struct ntfs_inode *ni, enum ATTR_TYPE type,
 			       name_off, svcn, ins_le);
 	if (!attr) {
 		err = -EINVAL;
+		goto out;
+	}
+
+	if (IS_ERR(attr)) {
+		err = PTR_ERR(attr);
 		goto out;
 	}
 
@@ -1310,6 +1328,11 @@ static int ni_expand_mft_list(struct ntfs_inode *ni)
 			       SIZEOF_NONRESIDENT, svcn, NULL);
 	if (!attr) {
 		err = -EINVAL;
+		goto out;
+	}
+
+	if (IS_ERR(attr)) {
+		err = PTR_ERR(attr);
 		goto out;
 	}
 
