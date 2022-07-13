@@ -223,7 +223,7 @@ static void iwl_mvm_p2p_standalone_iterator(void *_data, u8 *mac,
 		*is_p2p_standalone = false;
 		break;
 	case NL80211_IFTYPE_STATION:
-		if (vif->bss_conf.assoc)
+		if (vif->cfg.assoc)
 			*is_p2p_standalone = false;
 		break;
 
@@ -283,7 +283,7 @@ static bool iwl_mvm_power_is_radar(struct ieee80211_vif *vif)
 	bool radar_detect = false;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(vif->chanctx_conf);
+	chanctx_conf = rcu_dereference(vif->bss_conf.chanctx_conf);
 	WARN_ON(!chanctx_conf);
 	if (chanctx_conf) {
 		chan = chanctx_conf->def.chan;

@@ -228,7 +228,8 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 
 	if (fs) {
 		if (new) {
-			rtw89_err(rtwdev, "skb should not be ready before first segment start\n");
+			rtw89_debug(rtwdev, RTW89_DBG_UNEXP,
+				    "skb should not be ready before first segment start\n");
 			goto err_sync_device;
 		}
 		if (desc_info->ready) {
@@ -251,7 +252,7 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 	} else {
 		offset = sizeof(struct rtw89_pci_rxbd_info);
 		if (!new) {
-			rtw89_warn(rtwdev, "no last skb\n");
+			rtw89_debug(rtwdev, RTW89_DBG_UNEXP, "no last skb\n");
 			goto err_sync_device;
 		}
 	}
@@ -605,7 +606,7 @@ static void rtw89_pci_isr_rxd_unavail(struct rtw89_dev *rtwdev,
 		hw_idx_next = (hw_idx + 1) % bd_ring->len;
 
 		if (hw_idx_next == host_idx)
-			rtw89_warn(rtwdev, "%d RXD unavailable\n", i);
+			rtw89_debug(rtwdev, RTW89_DBG_UNEXP, "%d RXD unavailable\n", i);
 
 		rtw89_debug(rtwdev, RTW89_DBG_TXRX,
 			    "%d RXD unavailable, idx=0x%08x, len=%d\n",
@@ -951,9 +952,10 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 
 	if (wd_cnt == 0 || bd_cnt == 0) {
 		cnt = rtw89_pci_rxbd_recalc(rtwdev, rx_ring);
-		if (!cnt)
+		if (cnt)
+			rtw89_pci_release_tx(rtwdev, rx_ring, cnt);
+		else if (wd_cnt == 0)
 			goto out_unlock;
-		rtw89_pci_release_tx(rtwdev, rx_ring, cnt);
 
 		bd_cnt = rtw89_pci_get_avail_txbd_num(tx_ring);
 		if (bd_cnt == 0)
@@ -964,7 +966,9 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 	wd_cnt = wd_ring->curr_num;
 	min_cnt = min(bd_cnt, wd_cnt);
 	if (min_cnt == 0)
-		rtw89_warn(rtwdev, "still no tx resource after reclaim\n");
+		rtw89_debug(rtwdev, rtwpci->low_power ? RTW89_DBG_TXRX : RTW89_DBG_UNEXP,
+			    "still no tx resource after reclaim: wd_cnt=%d bd_cnt=%d\n",
+			    wd_cnt, bd_cnt);
 
 out_unlock:
 	spin_unlock_bh(&rtwpci->trx_lock);

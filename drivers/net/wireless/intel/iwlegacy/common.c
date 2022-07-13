@@ -5276,7 +5276,7 @@ il_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 	struct il_priv *il = hw->priv;
 	unsigned long flags;
 	__le64 timestamp;
-	struct sk_buff *skb = ieee80211_beacon_get(hw, vif);
+	struct sk_buff *skb = ieee80211_beacon_get(hw, vif, 0);
 
 	if (!skb)
 		return;
@@ -5311,13 +5311,13 @@ il_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 void
 il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			struct ieee80211_bss_conf *bss_conf, u32 changes)
+			struct ieee80211_bss_conf *bss_conf, u64 changes)
 {
 	struct il_priv *il = hw->priv;
 	int ret;
 
 	mutex_lock(&il->mutex);
-	D_MAC80211("enter: changes 0x%x\n", changes);
+	D_MAC80211("enter: changes 0x%llx\n", changes);
 
 	if (!il_is_alive(il)) {
 		D_MAC80211("leave - not alive\n");
@@ -5427,8 +5427,8 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	if (changes & BSS_CHANGED_ASSOC) {
-		D_MAC80211("ASSOC %d\n", bss_conf->assoc);
-		if (bss_conf->assoc) {
+		D_MAC80211("ASSOC %d\n", vif->cfg.assoc);
+		if (vif->cfg.assoc) {
 			il->timestamp = bss_conf->sync_tsf;
 
 			if (!il_is_rfkill(il))
@@ -5437,8 +5437,8 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			il_set_no_assoc(il, vif);
 	}
 
-	if (changes && il_is_associated(il) && bss_conf->aid) {
-		D_MAC80211("Changes (%#x) while associated\n", changes);
+	if (changes && il_is_associated(il) && vif->cfg.aid) {
+		D_MAC80211("Changes (%#llx) while associated\n", changes);
 		ret = il_send_rxon_assoc(il);
 		if (!ret) {
 			/* Sync active_rxon with latest change. */
@@ -5459,10 +5459,10 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 
 	if (changes & BSS_CHANGED_IBSS) {
 		ret = il->ops->manage_ibss_station(il, vif,
-						   bss_conf->ibss_joined);
+						   vif->cfg.ibss_joined);
 		if (ret)
 			IL_ERR("failed to %s IBSS station %pM\n",
-			       bss_conf->ibss_joined ? "add" : "remove",
+			       vif->cfg.ibss_joined ? "add" : "remove",
 			       bss_conf->bssid);
 	}
 

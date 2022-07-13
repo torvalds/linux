@@ -2098,8 +2098,8 @@ static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 			     bcon->tail_len))
 		privacy = 1;
 
-	memcpy(vif->ssid, wdev->ssid, wdev->ssid_len);
-	vif->ssid_len = wdev->ssid_len;
+	memcpy(vif->ssid, wdev->u.ap.ssid, wdev->u.ap.ssid_len);
+	vif->ssid_len = wdev->u.ap.ssid_len;
 
 	/* in case privacy has changed, need to restart the AP */
 	if (vif->privacy != privacy) {
@@ -2108,7 +2108,7 @@ static int wil_cfg80211_change_beacon(struct wiphy *wiphy,
 
 		rc = _wil_cfg80211_start_ap(wiphy, ndev, vif->ssid,
 					    vif->ssid_len, privacy,
-					    wdev->beacon_interval,
+					    wdev->links[0].ap.beacon_interval,
 					    vif->channel,
 					    vif->wmi_edmg_channel, bcon,
 					    vif->hidden_ssid,
@@ -2186,7 +2186,8 @@ static int wil_cfg80211_start_ap(struct wiphy *wiphy,
 }
 
 static int wil_cfg80211_stop_ap(struct wiphy *wiphy,
-				struct net_device *ndev)
+				struct net_device *ndev,
+				unsigned int link_id)
 {
 	struct wil6210_priv *wil = wiphy_to_wil(wiphy);
 	struct wil6210_vif *vif = ndev_to_vif(ndev);

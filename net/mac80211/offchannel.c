@@ -8,7 +8,7 @@
  * Copyright 2006-2007	Jiri Benc <jbenc@suse.cz>
  * Copyright 2007, Michael Wu <flamingice@sourmilk.net>
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
- * Copyright (C) 2019 Intel Corporation
+ * Copyright (C) 2019, 2022 Intel Corporation
  */
 #include <linux/export.h>
 #include <net/mac80211.h>
@@ -118,8 +118,8 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 			set_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED,
 				&sdata->state);
 			sdata->vif.bss_conf.enable_beacon = false;
-			ieee80211_bss_info_change_notify(
-				sdata, BSS_CHANGED_BEACON_ENABLED);
+			ieee80211_link_info_change_notify(
+				sdata, 0, BSS_CHANGED_BEACON_ENABLED);
 		}
 
 		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
@@ -155,8 +155,8 @@ void ieee80211_offchannel_return(struct ieee80211_local *local)
 		if (test_and_clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED,
 				       &sdata->state)) {
 			sdata->vif.bss_conf.enable_beacon = true;
-			ieee80211_bss_info_change_notify(
-				sdata, BSS_CHANGED_BEACON_ENABLED);
+			ieee80211_link_info_change_notify(
+				sdata, 0, BSS_CHANGED_BEACON_ENABLED);
 		}
 	}
 	mutex_unlock(&local->iflist_mtx);
@@ -785,7 +785,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_ADHOC:
-		if (!sdata->vif.bss_conf.ibss_joined)
+		if (!sdata->vif.cfg.ibss_joined)
 			need_offchan = true;
 #ifdef CONFIG_MAC80211_MESH
 		fallthrough;
@@ -800,7 +800,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	case NL80211_IFTYPE_P2P_GO:
 		if (sdata->vif.type != NL80211_IFTYPE_ADHOC &&
 		    !ieee80211_vif_is_mesh(&sdata->vif) &&
-		    !rcu_access_pointer(sdata->bss->beacon))
+		    !sdata->bss->active)
 			need_offchan = true;
 		if (!ieee80211_is_action(mgmt->frame_control) ||
 		    mgmt->u.action.category == WLAN_CATEGORY_PUBLIC ||
@@ -819,7 +819,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		if (!sdata->u.mgd.associated ||
 		    (params->offchan && params->wait &&
 		     local->ops->remain_on_channel &&
-		     memcmp(sdata->u.mgd.bssid,
+		     memcmp(sdata->deflink.u.mgd.bssid,
 			    mgmt->bssid, ETH_ALEN)))
 			need_offchan = true;
 		sdata_unlock(sdata);
@@ -845,7 +845,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		struct ieee80211_chanctx_conf *chanctx_conf;
 
 		rcu_read_lock();
-		chanctx_conf = rcu_dereference(sdata->vif.chanctx_conf);
+		chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 
 		if (chanctx_conf) {
 			need_offchan = params->chan &&
@@ -876,7 +876,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	data = skb_put_data(skb, params->buf, params->len);
 
 	/* Update CSA counters */
-	if (sdata->vif.csa_active &&
+	if (sdata->vif.bss_conf.csa_active &&
 	    (sdata->vif.type == NL80211_IFTYPE_AP ||
 	     sdata->vif.type == NL80211_IFTYPE_MESH_POINT ||
 	     sdata->vif.type == NL80211_IFTYPE_ADHOC) &&
@@ -887,7 +887,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		rcu_read_lock();
 
 		if (sdata->vif.type == NL80211_IFTYPE_AP)
-			beacon = rcu_dereference(sdata->u.ap.beacon);
+			beacon = rcu_dereference(sdata->deflink.u.ap.beacon);
 		else if (sdata->vif.type == NL80211_IFTYPE_ADHOC)
 			beacon = rcu_dereference(sdata->u.ibss.presp);
 		else if (ieee80211_vif_is_mesh(&sdata->vif))

@@ -139,7 +139,7 @@ mt76x02_update_beacon_iter(void *priv, u8 *mac, struct ieee80211_vif *vif)
 	if (!(dev->mt76.beacon_mask & BIT(mvif->idx)))
 		return;
 
-	skb = ieee80211_beacon_get(mt76_hw(dev), vif);
+	skb = ieee80211_beacon_get(mt76_hw(dev), vif, 0);
 	if (!skb)
 		return;
 

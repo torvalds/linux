@@ -1863,7 +1863,7 @@ static int ath9k_set_key(struct ieee80211_hw *hw,
 static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_bss_conf *bss_conf,
-				   u32 changed)
+				   u64 changed)
 {
 #define CHECK_ANI				\
 	(BSS_CHANGED_ASSOC |			\
@@ -1881,11 +1881,11 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_ASSOC) {
 		ath_dbg(common, CONFIG, "BSSID %pM Changed ASSOC %d\n",
-			bss_conf->bssid, bss_conf->assoc);
+			bss_conf->bssid, vif->cfg.assoc);
 
 		memcpy(avp->bssid, bss_conf->bssid, ETH_ALEN);
-		avp->aid = bss_conf->aid;
-		avp->assoc = bss_conf->assoc;
+		avp->aid = vif->cfg.aid;
+		avp->assoc = vif->cfg.assoc;
 
 		ath9k_calculate_summary_state(sc, avp->chanctx);
 	}
@@ -1893,7 +1893,7 @@ static void ath9k_bss_info_changed(struct ieee80211_hw *hw,
 	if ((changed & BSS_CHANGED_IBSS) ||
 	      (changed & BSS_CHANGED_OCB)) {
 		memcpy(common->curbssid, bss_conf->bssid, ETH_ALEN);
-		common->curaid = bss_conf->aid;
+		common->curaid = vif->cfg.aid;
 		ath9k_hw_write_associd(sc->sc_ah);
 	}
 
@@ -2596,6 +2596,7 @@ static void ath9k_change_chanctx(struct ieee80211_hw *hw,
 
 static int ath9k_assign_vif_chanctx(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
+				    unsigned int link_id,
 				    struct ieee80211_chanctx_conf *conf)
 {
 	struct ath_softc *sc = hw->priv;
@@ -2627,6 +2628,7 @@ static int ath9k_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 static void ath9k_unassign_vif_chanctx(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
+				       unsigned int link_id,
 				       struct ieee80211_chanctx_conf *conf)
 {
 	struct ath_softc *sc = hw->priv;

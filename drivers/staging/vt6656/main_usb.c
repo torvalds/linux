@@ -745,11 +745,11 @@ static int vnt_config(struct ieee80211_hw *hw, u32 changed)
 
 static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
-				 struct ieee80211_bss_conf *conf, u32 changed)
+				 struct ieee80211_bss_conf *conf, u64 changed)
 {
 	struct vnt_private *priv = hw->priv;
 
-	priv->current_aid = conf->aid;
+	priv->current_aid = vif->cfg.aid;
 
 	if (changed & BSS_CHANGED_BSSID && conf->bssid)
 		vnt_mac_set_bssid_addr(priv, (u8 *)conf->bssid);
@@ -811,7 +811,7 @@ static void vnt_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_BEACON_INFO) &&
 	    priv->op_mode != NL80211_IFTYPE_AP) {
-		if (conf->assoc && conf->beacon_rate) {
+		if (vif->cfg.assoc && conf->beacon_rate) {
 			u16 ps_beacon_int = conf->beacon_int;
 
 			if (conf->dtim_period)

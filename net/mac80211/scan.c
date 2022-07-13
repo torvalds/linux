@@ -177,7 +177,7 @@ ieee80211_bss_info_update(struct ieee80211_local *local,
 	rcu_read_lock();
 	scan_sdata = rcu_dereference(local->scan_sdata);
 	if (scan_sdata && scan_sdata->vif.type == NL80211_IFTYPE_STATION &&
-	    scan_sdata->vif.bss_conf.assoc &&
+	    scan_sdata->vif.cfg.assoc &&
 	    ieee80211_have_rx_timestamp(rx_status)) {
 		bss_meta.parent_tsf =
 			ieee80211_calculate_rx_timestamp(local, rx_status,

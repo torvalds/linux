@@ -374,6 +374,7 @@ struct ieee80211_sta_he_cap {
  * and NSS Set field"
  *
  * @only_20mhz: MCS/NSS support for 20 MHz-only STA.
+ * @bw: MCS/NSS support for 80, 160 and 320 MHz
  * @bw._80: MCS/NSS support for BW <= 80 MHz
  * @bw._160: MCS/NSS support for BW = 160 MHz
  * @bw._320: MCS/NSS support for BW = 320 MHz
@@ -420,6 +421,7 @@ struct ieee80211_sta_eht_cap {
  * @he_cap: holds the HE capabilities
  * @he_6ghz_capa: HE 6 GHz capabilities, must be filled in for a
  *	6 GHz band channel (and 0 may be valid value).
+ * @eht_cap: STA's EHT capabilities
  * @vendor_elems: vendor element(s) to advertise
  * @vendor_elems.data: vendor element(s) data
  * @vendor_elems.len: vendor element(s) length
@@ -495,7 +497,7 @@ struct ieee80211_edmg {
  * This structure describes most essential parameters needed
  * to describe 802.11ah S1G capabilities for a STA.
  *
- * @s1g_supported: is STA an S1G STA
+ * @s1g: is STA an S1G STA
  * @cap: S1G capabilities information
  * @nss_mcs: Supported NSS MCS set
  */
@@ -1061,6 +1063,7 @@ struct survey_info {
 };
 
 #define CFG80211_MAX_WEP_KEYS	4
+#define CFG80211_MAX_NUM_AKM_SUITES	10
 
 /**
  * struct cfg80211_crypto_settings - Crypto settings
@@ -1112,7 +1115,7 @@ struct cfg80211_crypto_settings {
 	int n_ciphers_pairwise;
 	u32 ciphers_pairwise[NL80211_MAX_NR_CIPHER_SUITES];
 	int n_akm_suites;
-	u32 akm_suites[NL80211_MAX_NR_AKM_SUITES];
+	u32 akm_suites[CFG80211_MAX_NUM_AKM_SUITES];
 	bool control_port;
 	__be16 control_port_ethertype;
 	bool control_port_no_encrypt;
@@ -1158,6 +1161,7 @@ struct cfg80211_mbssid_elems {
 
 /**
  * struct cfg80211_beacon_data - beacon data
+ * @link_id: the link ID for the AP MLD link sending this beacon
  * @head: head portion of beacon (before TIM IE)
  *	or %NULL if not changed
  * @tail: tail portion of beacon (after TIM IE)
@@ -1188,6 +1192,8 @@ struct cfg80211_mbssid_elems {
  *	attribute is present in beacon data or not.
  */
 struct cfg80211_beacon_data {
+	unsigned int link_id;
+
 	const u8 *head, *tail;
 	const u8 *beacon_ies;
 	const u8 *proberesp_ies;
@@ -1290,6 +1296,8 @@ struct cfg80211_unsol_bcast_probe_resp {
  * @ht_cap: HT capabilities (or %NULL if HT isn't enabled)
  * @vht_cap: VHT capabilities (or %NULL if VHT isn't enabled)
  * @he_cap: HE capabilities (or %NULL if HE isn't enabled)
+ * @eht_cap: EHT capabilities (or %NULL if EHT isn't enabled)
+ * @eht_oper: EHT operation IE (or %NULL if EHT isn't enabled)
  * @ht_required: stations must support HT
  * @vht_required: stations must support VHT
  * @twt_responder: Enable Target Wait Time
@@ -1326,6 +1334,8 @@ struct cfg80211_ap_settings {
 	const struct ieee80211_vht_cap *vht_cap;
 	const struct ieee80211_he_cap_elem *he_cap;
 	const struct ieee80211_he_operation *he_oper;
+	const struct ieee80211_eht_cap_elem *eht_cap;
+	const struct ieee80211_eht_operation *eht_oper;
 	bool ht_required, vht_required, he_required, sae_h2e_required;
 	bool twt_responder;
 	u32 flags;
@@ -1370,8 +1380,8 @@ struct cfg80211_csa_settings {
  * Used for bss color change
  *
  * @beacon_color_change: beacon data while performing the color countdown
- * @counter_offsets_beacon: offsets of the counters within the beacon (tail)
- * @counter_offsets_presp: offsets of the counters within the probe response
+ * @counter_offset_beacon: offsets of the counters within the beacon (tail)
+ * @counter_offset_presp: offsets of the counters within the probe response
  * @beacon_next: beacon data to be used after the color change
  * @count: number of beacons until the color change
  * @color: the color used after the change
@@ -1414,6 +1424,7 @@ struct iface_combination_params {
  * @STATION_PARAM_APPLY_UAPSD: apply new uAPSD parameters (uapsd_queues, max_sp)
  * @STATION_PARAM_APPLY_CAPABILITY: apply new capability
  * @STATION_PARAM_APPLY_PLINK_STATE: apply new plink state
+ * @STATION_PARAM_APPLY_STA_TXPOWER: apply tx power for STA
  *
  * Not all station parameters have in-band "no change" signalling,
  * for those that don't these flags will are used.
@@ -2146,6 +2157,9 @@ struct bss_parameters {
  * @plink_timeout: If no tx activity is seen from a STA we've established
  *	peering with for longer than this time (in seconds), then remove it
  *	from the STA's list of peers.  Default is 30 minutes.
+ * @dot11MeshConnectedToAuthServer: if set to true then this mesh STA
+ *	will advertise that it is connected to a authentication server
+ *	in the mesh formation field.
  * @dot11MeshConnectedToMeshGate: if set to true, advertise that this STA is
  *      connected to a mesh gate in mesh formation info.  If false, the
  *      value in mesh formation is determined by the presence of root paths
@@ -2318,12 +2332,12 @@ struct cfg80211_scan_info {
 /**
  * struct cfg80211_scan_6ghz_params - relevant for 6 GHz only
  *
- * @short_bssid: short ssid to scan for
+ * @short_ssid: short ssid to scan for
  * @bssid: bssid to scan for
  * @channel_idx: idx of the channel in the channel array in the scan request
  *	 which the above info relvant to
  * @unsolicited_probe: the AP transmits unsolicited probe response every 20 TU
- * @short_ssid_valid: short_ssid is valid and can be used
+ * @short_ssid_valid: @short_ssid is valid and can be used
  * @psc_no_listen: when set, and the channel is a PSC channel, no need to wait
  *       20 TUs before starting to send probe requests.
  */
@@ -2715,6 +2729,12 @@ static inline const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 id)
  *	Authentication algorithm number, i.e., starting at the Authentication
  *	transaction sequence number field.
  * @auth_data_len: Length of auth_data buffer in octets
+ * @link_id: if >= 0, indicates authentication should be done as an MLD,
+ *	the interface address is included as the MLD address and the
+ *	necessary link (with the given link_id) will be created (and
+ *	given an MLD address) by the driver
+ * @ap_mld_addr: AP MLD address in case of authentication request with
+ *	an AP MLD, valid iff @link_id >= 0
  */
 struct cfg80211_auth_request {
 	struct cfg80211_bss *bss;
@@ -2725,6 +2745,21 @@ struct cfg80211_auth_request {
 	u8 key_len, key_idx;
 	const u8 *auth_data;
 	size_t auth_data_len;
+	s8 link_id;
+	const u8 *ap_mld_addr;
+};
+
+/**
+ * struct cfg80211_assoc_link - per-link information for MLO association
+ * @bss: the BSS pointer, see also &struct cfg80211_assoc_request::bss;
+ *	if this is %NULL for a link, that link is not requested
+ * @elems: extra elements for the per-STA profile for this link
+ * @elems_len: length of the elements
+ */
+struct cfg80211_assoc_link {
+	struct cfg80211_bss *bss;
+	const u8 *elems;
+	size_t elems_len;
 };
 
 /**
@@ -2739,6 +2774,9 @@ struct cfg80211_auth_request {
  *	request (connect callback).
  * @ASSOC_REQ_DISABLE_HE:  Disable HE
  * @ASSOC_REQ_DISABLE_EHT:  Disable EHT
+ * @CONNECT_REQ_MLO_SUPPORT: Userspace indicates support for handling MLD links.
+ *	Drivers shall disable MLO features for the current association if this
+ *	flag is not set.
  */
 enum cfg80211_assoc_req_flags {
 	ASSOC_REQ_DISABLE_HT			= BIT(0),
@@ -2747,6 +2785,7 @@ enum cfg80211_assoc_req_flags {
 	CONNECT_REQ_EXTERNAL_AUTH_SUPPORT	= BIT(3),
 	ASSOC_REQ_DISABLE_HE			= BIT(4),
 	ASSOC_REQ_DISABLE_EHT			= BIT(5),
+	CONNECT_REQ_MLO_SUPPORT			= BIT(6),
 };
 
 /**
@@ -2758,6 +2797,8 @@ enum cfg80211_assoc_req_flags {
  *	given a reference that it must give back to cfg80211_send_rx_assoc()
  *	or to cfg80211_assoc_timeout(). To ensure proper refcounting, new
  *	association requests while already associating must be rejected.
+ *	This also applies to the @links.bss parameter, which is used instead
+ *	of this one (it is %NULL) for MLO associations.
  * @ie: Extra IEs to add to (Re)Association Request frame or %NULL
  * @ie_len: Length of ie buffer in octets
  * @use_mfp: Use management frame protection (IEEE 802.11w) in this association
@@ -2782,6 +2823,11 @@ enum cfg80211_assoc_req_flags {
  *	with 16 octets of STA Nonce followed by 16 octets of AP Nonce.
  * @s1g_capa: S1G capability override
  * @s1g_capa_mask: S1G capability override mask
+ * @links: per-link information for MLO connections
+ * @link_id: >= 0 for MLO connections, where links are given, and indicates
+ *	the link on which the association request should be sent
+ * @ap_mld_addr: AP MLD address in case of MLO association request,
+ *	valid iff @link_id >= 0
  */
 struct cfg80211_assoc_request {
 	struct cfg80211_bss *bss;
@@ -2797,6 +2843,9 @@ struct cfg80211_assoc_request {
 	size_t fils_kek_len;
 	const u8 *fils_nonces;
 	struct ieee80211_s1g_cap s1g_capa, s1g_capa_mask;
+	struct cfg80211_assoc_link links[IEEE80211_MLD_MAX_NUM_LINKS];
+	const u8 *ap_mld_addr;
+	s8 link_id;
 };
 
 /**
@@ -3279,7 +3328,7 @@ struct cfg80211_wowlan_wakeup {
  * @kck: key confirmation key (@kck_len bytes)
  * @replay_ctr: replay counter (NL80211_REPLAY_CTR_LEN bytes)
  * @kek_len: length of kek
- * @kck_len length of kck
+ * @kck_len: length of kck
  * @akm: akm (oui, id)
  */
 struct cfg80211_gtk_rekey_data {
@@ -3641,6 +3690,7 @@ struct cfg80211_pmsr_ftm_result {
  * @type: type of the measurement reported, note that we only support reporting
  *	one type at a time, but you can report multiple results separately and
  *	they're all aggregated for userspace.
+ * @ftm: FTM result
  */
 struct cfg80211_pmsr_result {
 	u64 host_time, ap_tsf;
@@ -3779,7 +3829,7 @@ struct cfg80211_update_owe_info {
  *	for the entire device
  * @interface_stypes: bitmap of management frame subtypes registered
  *	for the given interface
- * @global_mcast_rx: mcast RX is needed globally for these subtypes
+ * @global_mcast_stypes: mcast RX is needed globally for these subtypes
  * @interface_mcast_stypes: mcast RX is needed on this interface
  *	for these subtypes
  */
@@ -3823,6 +3873,11 @@ struct mgmt_frame_regs {
  * @change_virtual_intf: change type/configuration of virtual interface,
  *	keep the struct wireless_dev's iftype updated.
  *	This additionally holds the RTNL to be able to do netdev changes.
+ *
+ * @add_intf_link: Add a new MLO link to the given interface. Note that
+ *	the wdev->link[] data structure has been updated, so the new link
+ *	address is available.
+ * @del_intf_link: Remove an MLO link from the given interface.
  *
  * @add_key: add a key with the given parameters. @mac_addr will be %NULL
  *	when adding a group key.
@@ -4178,6 +4233,13 @@ struct cfg80211_ops {
 				       enum nl80211_iftype type,
 				       struct vif_params *params);
 
+	int	(*add_intf_link)(struct wiphy *wiphy,
+				 struct wireless_dev *wdev,
+				 unsigned int link_id);
+	void	(*del_intf_link)(struct wiphy *wiphy,
+				 struct wireless_dev *wdev,
+				 unsigned int link_id);
+
 	int	(*add_key)(struct wiphy *wiphy, struct net_device *netdev,
 			   u8 key_index, bool pairwise, const u8 *mac_addr,
 			   struct key_params *params);
@@ -4201,7 +4263,8 @@ struct cfg80211_ops {
 			    struct cfg80211_ap_settings *settings);
 	int	(*change_beacon)(struct wiphy *wiphy, struct net_device *dev,
 				 struct cfg80211_beacon_data *info);
-	int	(*stop_ap)(struct wiphy *wiphy, struct net_device *dev);
+	int	(*stop_ap)(struct wiphy *wiphy, struct net_device *dev,
+			   unsigned int link_id);
 
 
 	int	(*add_station)(struct wiphy *wiphy, struct net_device *dev,
@@ -4309,6 +4372,7 @@ struct cfg80211_ops {
 
 	int	(*set_bitrate_mask)(struct wiphy *wiphy,
 				    struct net_device *dev,
+				    unsigned int link_id,
 				    const u8 *peer,
 				    const struct cfg80211_bitrate_mask *mask);
 
@@ -4384,6 +4448,7 @@ struct cfg80211_ops {
 
 	int	(*get_channel)(struct wiphy *wiphy,
 			       struct wireless_dev *wdev,
+			       unsigned int link_id,
 			       struct cfg80211_chan_def *chandef);
 
 	int	(*start_p2p_device)(struct wiphy *wiphy,
@@ -4420,6 +4485,7 @@ struct cfg80211_ops {
 			       struct cfg80211_qos_map *qos_map);
 
 	int	(*set_ap_chanwidth)(struct wiphy *wiphy, struct net_device *dev,
+				    unsigned int link_id,
 				    struct cfg80211_chan_def *chandef);
 
 	int	(*add_tx_ts)(struct wiphy *wiphy, struct net_device *dev,
@@ -4545,10 +4611,14 @@ struct cfg80211_ops {
  * @WIPHY_FLAG_HAS_STATIC_WEP: The device supports static WEP key installation
  *	before connection.
  * @WIPHY_FLAG_SUPPORTS_EXT_KEK_KCK: The device supports bigger kek and kck keys
+ * @WIPHY_FLAG_SUPPORTS_MLO: This is a temporary flag gating the MLO APIs,
+ *	in order to not have them reachable in normal drivers, until we have
+ *	complete feature/interface combinations/etc. advertisement. No driver
+ *	should set this flag for now.
  */
 enum wiphy_flags {
 	WIPHY_FLAG_SUPPORTS_EXT_KEK_KCK		= BIT(0),
-	/* use hole at 1 */
+	WIPHY_FLAG_SUPPORTS_MLO			= BIT(1),
 	WIPHY_FLAG_SPLIT_SCAN_6GHZ		= BIT(2),
 	WIPHY_FLAG_NETNS_OK			= BIT(3),
 	WIPHY_FLAG_PS_ON_BY_DEFAULT		= BIT(4),
@@ -4882,6 +4952,7 @@ struct wiphy_iftype_ext_capab {
  * @max_peers: maximum number of peers in a single measurement
  * @report_ap_tsf: can report assoc AP's TSF for radio resource measurement
  * @randomize_mac_addr: can randomize MAC address for measurement
+ * @ftm: FTM measurement data
  * @ftm.supported: FTM measurement is supported
  * @ftm.asap: ASAP-mode is supported
  * @ftm.non_asap: non-ASAP-mode is supported
@@ -5134,6 +5205,13 @@ struct wiphy_iftype_akm_suites {
  * @ema_max_profile_periodicity: maximum profile periodicity supported by
  *	the driver. Setting this field to a non-zero value indicates that the
  *	driver supports enhanced multi-BSSID advertisements (EMA AP).
+ * @max_num_akm_suites: maximum number of AKM suites allowed for
+ *	configuration through %NL80211_CMD_CONNECT, %NL80211_CMD_ASSOCIATE and
+ *	%NL80211_CMD_START_AP. Set to NL80211_MAX_NR_AKM_SUITES if not set by
+ *	driver. If set by driver minimum allowed value is
+ *	NL80211_MAX_NR_AKM_SUITES in order to avoid compatibility issues with
+ *	legacy userspace and maximum allowed value is
+ *	CFG80211_MAX_NUM_AKM_SUITES.
  */
 struct wiphy {
 	struct mutex mtx;
@@ -5280,6 +5358,7 @@ struct wiphy {
 
 	u8 mbssid_max_interfaces;
 	u8 ema_max_profile_periodicity;
+	u16 max_num_akm_suites;
 
 	char priv[] __aligned(NETDEV_ALIGN);
 };
@@ -5505,16 +5584,9 @@ static inline void wiphy_unlock(struct wiphy *wiphy)
  * @netdev: (private) Used to reference back to the netdev, may be %NULL
  * @identifier: (private) Identifier used in nl80211 to identify this
  *	wireless device if it has no netdev
- * @current_bss: (private) Used by the internal configuration code
- * @chandef: (private) Used by the internal configuration code to track
- *	the user-set channel definition.
- * @preset_chandef: (private) Used by the internal configuration code to
- *	track the channel to be used for AP later
+ * @u: union containing data specific to @iftype
+ * @connected: indicates if connected or not (STA mode)
  * @bssid: (private) Used by the internal configuration code
- * @ssid: (private) Used by the internal configuration code
- * @ssid_len: (private) Used by the internal configuration code
- * @mesh_id_len: (private) Used by the internal configuration code
- * @mesh_id_up_len: (private) Used by the internal configuration code
  * @wext: (private) Used by the internal wireless extensions compat code
  * @wext.ibss: (private) IBSS data part of wext handling
  * @wext.connect: (private) connection handling data
@@ -5564,6 +5636,9 @@ static inline void wiphy_unlock(struct wiphy *wiphy)
  * @pmsr_free_wk: (private) peer measurements cleanup work
  * @unprot_beacon_reported: (private) timestamp of last
  *	unprotected beacon report
+ * @links: array of %IEEE80211_MLD_MAX_NUM_LINKS elements containing @addr
+ *	@ap and @client for each link
+ * @valid_links: bitmap describing what elements of @links are valid
  */
 struct wireless_dev {
 	struct wiphy *wiphy;
@@ -5585,8 +5660,6 @@ struct wireless_dev {
 	u8 address[ETH_ALEN] __aligned(sizeof(u16));
 
 	/* currently used for IBSS and SME - might be rearranged later */
-	u8 ssid[IEEE80211_MAX_SSID_LEN];
-	u8 ssid_len, mesh_id_len, mesh_id_up_len;
 	struct cfg80211_conn *conn;
 	struct cfg80211_cached_keys *connect_keys;
 	enum ieee80211_bss_type conn_bss_type;
@@ -5598,20 +5671,17 @@ struct wireless_dev {
 	struct list_head event_list;
 	spinlock_t event_lock;
 
-	struct cfg80211_internal_bss *current_bss; /* associated / joined */
-	struct cfg80211_chan_def preset_chandef;
-	struct cfg80211_chan_def chandef;
+	u8 connected:1;
 
 	bool ps;
 	int ps_timeout;
-
-	int beacon_interval;
 
 	u32 ap_unexpected_nlportid;
 
 	u32 owner_nlportid;
 	bool nl_owner_dead;
 
+	/* FIXME: need to rework radar detection for MLO */
 	bool cac_started;
 	unsigned long cac_start_time;
 	unsigned int cac_time_ms;
@@ -5639,6 +5709,50 @@ struct wireless_dev {
 	struct work_struct pmsr_free_wk;
 
 	unsigned long unprot_beacon_reported;
+
+	union {
+		struct {
+			u8 connected_addr[ETH_ALEN] __aligned(2);
+			u8 ssid[IEEE80211_MAX_SSID_LEN];
+			u8 ssid_len;
+		} client;
+		struct {
+			int beacon_interval;
+			struct cfg80211_chan_def preset_chandef;
+			struct cfg80211_chan_def chandef;
+			u8 id[IEEE80211_MAX_SSID_LEN];
+			u8 id_len, id_up_len;
+		} mesh;
+		struct {
+			struct cfg80211_chan_def preset_chandef;
+			u8 ssid[IEEE80211_MAX_SSID_LEN];
+			u8 ssid_len;
+		} ap;
+		struct {
+			struct cfg80211_internal_bss *current_bss;
+			struct cfg80211_chan_def chandef;
+			int beacon_interval;
+			u8 ssid[IEEE80211_MAX_SSID_LEN];
+			u8 ssid_len;
+		} ibss;
+		struct {
+			struct cfg80211_chan_def chandef;
+		} ocb;
+	} u;
+
+	struct {
+		u8 addr[ETH_ALEN] __aligned(2);
+		union {
+			struct {
+				unsigned int beacon_interval;
+				struct cfg80211_chan_def chandef;
+			} ap;
+			struct {
+				struct cfg80211_internal_bss *current_bss;
+			} client;
+		};
+	} links[IEEE80211_MLD_MAX_NUM_LINKS];
+	u16 valid_links;
 };
 
 static inline const u8 *wdev_address(struct wireless_dev *wdev)
@@ -5666,6 +5780,32 @@ static inline void *wdev_priv(struct wireless_dev *wdev)
 	BUG_ON(!wdev);
 	return wiphy_priv(wdev->wiphy);
 }
+
+/**
+ * wdev_chandef - return chandef pointer from wireless_dev
+ * @wdev: the wdev
+ * @link_id: the link ID for MLO
+ *
+ * Return: The chandef depending on the mode, or %NULL.
+ */
+struct cfg80211_chan_def *wdev_chandef(struct wireless_dev *wdev,
+				       unsigned int link_id);
+
+static inline void WARN_INVALID_LINK_ID(struct wireless_dev *wdev,
+					unsigned int link_id)
+{
+	WARN_ON(link_id && !wdev->valid_links);
+	WARN_ON(wdev->valid_links &&
+		!(wdev->valid_links & BIT(link_id)));
+}
+
+#define for_each_valid_link(link_info, link_id)			\
+	for (link_id = 0;					\
+	     link_id < ((link_info)->valid_links ?		\
+			ARRAY_SIZE((link_info)->links) : 1);	\
+	     link_id++)						\
+		if (!(link_info)->valid_links ||		\
+		    ((link_info)->valid_links & BIT(link_id)))
 
 /**
  * DOC: Utility functions
@@ -5943,6 +6083,7 @@ unsigned int ieee80211_get_mesh_hdrlen(struct ieee80211s_hdr *meshhdr);
  * @addr: the device MAC address
  * @iftype: the virtual interface type
  * @data_offset: offset of payload after the 802.11 header
+ * @is_amsdu: true if the 802.11 header is A-MSDU
  * Return: 0 on success. Non-zero on error.
  */
 int ieee80211_data_to_8023_exthdr(struct sk_buff *skb, struct ethhdr *ehdr,
@@ -6812,6 +6953,7 @@ void cfg80211_ibss_joined(struct net_device *dev, const u8 *bssid,
  * @macaddr: the MAC address of the new candidate
  * @ie: information elements advertised by the peer candidate
  * @ie_len: length of the information elements buffer
+ * @sig_dbm: signal level in dBm
  * @gfp: allocation flags
  *
  * This function notifies cfg80211 that the mesh peer candidate has been
@@ -7176,13 +7318,6 @@ struct cfg80211_fils_resp_params {
  *	indicate that this is a failure, but without a status code.
  *	@timeout_reason is used to report the reason for the timeout in that
  *	case.
- * @bssid: The BSSID of the AP (may be %NULL)
- * @bss: Entry of bss to which STA got connected to, can be obtained through
- *	cfg80211_get_bss() (may be %NULL). But it is recommended to store the
- *	bss from the connect_request and hold a reference to it and return
- *	through this param to avoid a warning if the bss is expired during the
- *	connection, esp. for those drivers implementing connect op.
- *	Only one parameter among @bssid and @bss needs to be specified.
  * @req_ie: Association request IEs (may be %NULL)
  * @req_ie_len: Association request IEs length
  * @resp_ie: Association response IEs (may be %NULL)
@@ -7194,17 +7329,41 @@ struct cfg80211_fils_resp_params {
  *	not known. This value is used only if @status < 0 to indicate that the
  *	failure is due to a timeout and not due to explicit rejection by the AP.
  *	This value is ignored in other cases (@status >= 0).
+ * @valid_links: For MLO connection, BIT mask of the valid link ids. Otherwise
+ *	zero.
+ * @ap_mld_addr: For MLO connection, MLD address of the AP. Otherwise %NULL.
+ * @links : For MLO connection, contains link info for the valid links indicated
+ *	using @valid_links. For non-MLO connection, links[0] contains the
+ *	connected AP info.
+ * @links.addr: For MLO connection, MAC address of the STA link. Otherwise
+ *	%NULL.
+ * @links.bssid: For MLO connection, MAC address of the AP link. For non-MLO
+ *	connection, links[0].bssid points to the BSSID of the AP (may be %NULL).
+ * @links.bss: For MLO connection, entry of bss to which STA link is connected.
+ *	For non-MLO connection, links[0].bss points to entry of bss to which STA
+ *	is connected. It can be obtained through cfg80211_get_bss() (may be
+ *	%NULL). It is recommended to store the bss from the connect_request and
+ *	hold a reference to it and return through this param to avoid a warning
+ *	if the bss is expired during the connection, esp. for those drivers
+ *	implementing connect op. Only one parameter among @bssid and @bss needs
+ *	to be specified.
  */
 struct cfg80211_connect_resp_params {
 	int status;
-	const u8 *bssid;
-	struct cfg80211_bss *bss;
 	const u8 *req_ie;
 	size_t req_ie_len;
 	const u8 *resp_ie;
 	size_t resp_ie_len;
 	struct cfg80211_fils_resp_params fils;
 	enum nl80211_timeout_reason timeout_reason;
+
+	const u8 *ap_mld_addr;
+	u16 valid_links;
+	struct {
+		const u8 *addr;
+		const u8 *bssid;
+		struct cfg80211_bss *bss;
+	} links[IEEE80211_MLD_MAX_NUM_LINKS];
 };
 
 /**
@@ -7274,8 +7433,8 @@ cfg80211_connect_bss(struct net_device *dev, const u8 *bssid,
 
 	memset(&params, 0, sizeof(params));
 	params.status = status;
-	params.bssid = bssid;
-	params.bss = bss;
+	params.links[0].bssid = bssid;
+	params.links[0].bss = bss;
 	params.req_ie = req_ie;
 	params.req_ie_len = req_ie_len;
 	params.resp_ie = resp_ie;
@@ -7346,24 +7505,40 @@ cfg80211_connect_timeout(struct net_device *dev, const u8 *bssid,
 /**
  * struct cfg80211_roam_info - driver initiated roaming information
  *
- * @channel: the channel of the new AP
- * @bss: entry of bss to which STA got roamed (may be %NULL if %bssid is set)
- * @bssid: the BSSID of the new AP (may be %NULL if %bss is set)
  * @req_ie: association request IEs (maybe be %NULL)
  * @req_ie_len: association request IEs length
  * @resp_ie: association response IEs (may be %NULL)
  * @resp_ie_len: assoc response IEs length
  * @fils: FILS related roaming information.
+ * @valid_links: For MLO roaming, BIT mask of the new valid links is set.
+ *	Otherwise zero.
+ * @ap_mld_addr: For MLO roaming, MLD address of the new AP. Otherwise %NULL.
+ * @links : For MLO roaming, contains new link info for the valid links set in
+ *	@valid_links. For non-MLO roaming, links[0] contains the new AP info.
+ * @links.addr: For MLO roaming, MAC address of the STA link. Otherwise %NULL.
+ * @links.bssid: For MLO roaming, MAC address of the new AP link. For non-MLO
+ *	roaming, links[0].bssid points to the BSSID of the new AP. May be
+ *	%NULL if %links.bss is set.
+ * @links.channel: the channel of the new AP.
+ * @links.bss: For MLO roaming, entry of new bss to which STA link got
+ *	roamed. For non-MLO roaming, links[0].bss points to entry of bss to
+ *	which STA got roamed (may be %NULL if %links.bssid is set)
  */
 struct cfg80211_roam_info {
-	struct ieee80211_channel *channel;
-	struct cfg80211_bss *bss;
-	const u8 *bssid;
 	const u8 *req_ie;
 	size_t req_ie_len;
 	const u8 *resp_ie;
 	size_t resp_ie_len;
 	struct cfg80211_fils_resp_params fils;
+
+	const u8 *ap_mld_addr;
+	u16 valid_links;
+	struct {
+		const u8 *addr;
+		const u8 *bssid;
+		struct ieee80211_channel *channel;
+		struct cfg80211_bss *bss;
+	} links[IEEE80211_MLD_MAX_NUM_LINKS];
 };
 
 /**
@@ -7882,12 +8057,14 @@ bool cfg80211_reg_can_beacon_relax(struct wiphy *wiphy,
  * cfg80211_ch_switch_notify - update wdev channel and notify userspace
  * @dev: the device which switched channels
  * @chandef: the new channel definition
+ * @link_id: the link ID for MLO, must be 0 for non-MLO
  *
  * Caller must acquire wdev_lock, therefore must only be called from sleepable
  * driver context!
  */
 void cfg80211_ch_switch_notify(struct net_device *dev,
-			       struct cfg80211_chan_def *chandef);
+			       struct cfg80211_chan_def *chandef,
+			       unsigned int link_id);
 
 /*
  * cfg80211_ch_switch_started_notify - notify channel switch start

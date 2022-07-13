@@ -2,7 +2,7 @@
 /*
  * Copyright (C) 2014 Intel Mobile Communications GmbH
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2020, 2022 Intel Corporation
  */
 #include <linux/etherdevice.h>
 #include "mvm.h"
@@ -380,7 +380,7 @@ iwl_mvm_tdls_config_channel_switch(struct iwl_mvm *mvm,
 			   type == TDLS_MOVE_CH) {
 			/* we need to return to base channel */
 			struct ieee80211_chanctx_conf *chanctx =
-					rcu_dereference(vif->chanctx_conf);
+					rcu_dereference(vif->bss_conf.chanctx_conf);
 
 			if (WARN_ON_ONCE(!chanctx)) {
 				rcu_read_unlock();

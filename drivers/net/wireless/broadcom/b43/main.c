@@ -366,7 +366,7 @@ static int b43_wireless_core_start(struct b43_wldev *dev);
 static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *conf,
-				    u32 changed);
+				    u64 changed);
 
 static int b43_ratelimit(struct b43_wl *wl)
 {
@@ -1832,7 +1832,7 @@ static void b43_update_templates(struct b43_wl *wl)
 	 * the TIM field, but that would probably require resizing and
 	 * moving of data within the beacon template.
 	 * Simply request a new beacon and let mac80211 do the hard work. */
-	beacon = ieee80211_beacon_get(wl->hw, wl->vif);
+	beacon = ieee80211_beacon_get(wl->hw, wl->vif, 0);
 	if (unlikely(!beacon))
 		return;
 
@@ -4097,7 +4097,7 @@ static void b43_update_basic_rates(struct b43_wldev *dev, u32 brates)
 static void b43_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *conf,
-				    u32 changed)
+				    u64 changed)
 {
 	struct b43_wl *wl = hw_to_b43_wl(hw);
 	struct b43_wldev *dev;

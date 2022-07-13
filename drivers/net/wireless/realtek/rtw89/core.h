@@ -29,6 +29,7 @@ extern const struct ieee80211_ops rtw89_ops;
 #define INV_RF_DATA 0xffffffff
 
 #define RTW89_TRACK_WORK_PERIOD	round_jiffies_relative(HZ * 2)
+#define RTW89_FORBID_BA_TIMER round_jiffies_relative(HZ * 4)
 #define CFO_TRACK_MAX_USER 64
 #define MAX_RSSI 110
 #define RSSI_FACTOR 1
@@ -144,6 +145,7 @@ enum rtw89_core_rx_type {
 enum rtw89_txq_flags {
 	RTW89_TXQ_F_AMPDU		= 0,
 	RTW89_TXQ_F_BLOCK_BA		= 1,
+	RTW89_TXQ_F_FORBID_BA		= 2,
 };
 
 enum rtw89_net_type {
@@ -1975,7 +1977,8 @@ struct rtw89_sta {
 	struct ieee80211_rx_status rx_status;
 	u16 rx_hw_rate;
 	__le32 htc_template;
-	struct rtw89_addr_cam_entry addr_cam; /* AP mode only */
+	struct rtw89_addr_cam_entry addr_cam; /* AP mode or TDLS peer only */
+	struct rtw89_bssid_cam_entry bssid_cam; /* TDLS peer only */
 
 	bool use_cfg_mask;
 	struct cfg80211_bitrate_mask mask;
@@ -3136,10 +3139,12 @@ struct rtw89_dev {
 	struct workqueue_struct *txq_wq;
 	struct work_struct txq_work;
 	struct delayed_work txq_reinvoke_work;
-	/* used to protect ba_list */
+	/* used to protect ba_list and forbid_ba_list */
 	spinlock_t ba_lock;
 	/* txqs to setup ba session */
 	struct list_head ba_list;
+	/* txqs to forbid ba session */
+	struct list_head forbid_ba_list;
 	struct work_struct ba_work;
 	/* used to protect rpwm */
 	spinlock_t rpwm_lock;
@@ -3186,6 +3191,7 @@ struct rtw89_dev {
 	struct delayed_work coex_bt_devinfo_work;
 	struct delayed_work coex_rfk_chk_work;
 	struct delayed_work cfo_track_work;
+	struct delayed_work forbid_ba_work;
 	struct rtw89_ppdu_sts_info ppdu_sts;
 	u8 total_sta_assoc;
 	bool scanning;
@@ -3558,9 +3564,26 @@ static inline
 struct rtw89_addr_cam_entry *rtw89_get_addr_cam_of(struct rtw89_vif *rtwvif,
 						   struct rtw89_sta *rtwsta)
 {
-	if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE && rtwsta)
-		return &rtwsta->addr_cam;
+	if (rtwsta) {
+		struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta);
+
+		if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE || sta->tdls)
+			return &rtwsta->addr_cam;
+	}
 	return &rtwvif->addr_cam;
+}
+
+static inline
+struct rtw89_bssid_cam_entry *rtw89_get_bssid_cam_of(struct rtw89_vif *rtwvif,
+						     struct rtw89_sta *rtwsta)
+{
+	if (rtwsta) {
+		struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta);
+
+		if (sta->tdls)
+			return &rtwsta->bssid_cam;
+	}
+	return &rtwvif->bssid_cam;
 }
 
 static inline
@@ -3715,7 +3738,7 @@ void rtw89_chip_cfg_txpwr_ul_tb_offset(struct rtw89_dev *rtwdev,
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 
-	if (!vif->bss_conf.he_support || !vif->bss_conf.assoc)
+	if (!vif->bss_conf.he_support || !vif->cfg.assoc)
 		return;
 
 	if (chip->ops->set_txpwr_ul_tb_offset)
@@ -3891,7 +3914,7 @@ int rtw89_core_acquire_sta_ba_entry(struct rtw89_sta *rtwsta, u8 tid, u8 *cam_id
 int rtw89_core_release_sta_ba_entry(struct rtw89_sta *rtwsta, u8 tid, u8 *cam_idx);
 void rtw89_vif_type_mapping(struct ieee80211_vif *vif, bool assoc);
 int rtw89_chip_info_setup(struct rtw89_dev *rtwdev);
-u16 rtw89_ra_report_to_bitrate(struct rtw89_dev *rtwdev, u8 rpt_rate);
+bool rtw89_ra_report_to_bitrate(struct rtw89_dev *rtwdev, u8 rpt_rate, u16 *bitrate);
 int rtw89_regd_init(struct rtw89_dev *rtwdev,
 		    void (*reg_notifier)(struct wiphy *wiphy, struct regulatory_request *request));
 void rtw89_regd_notifier(struct wiphy *wiphy, struct regulatory_request *request);

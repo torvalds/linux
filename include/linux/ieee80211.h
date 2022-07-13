@@ -4094,6 +4094,7 @@ static inline bool _ieee80211_is_robust_mgmt_frame(struct ieee80211_hdr *hdr)
 			*category != WLAN_CATEGORY_SELF_PROTECTED &&
 			*category != WLAN_CATEGORY_UNPROT_DMG &&
 			*category != WLAN_CATEGORY_VHT &&
+			*category != WLAN_CATEGORY_S1G &&
 			*category != WLAN_CATEGORY_VENDOR_SPECIFIC;
 	}
 
@@ -4375,5 +4376,230 @@ enum ieee80211_range_params_max_total_ltf {
 	IEEE80211_RANGE_PARAMS_MAX_TOTAL_LTF_16,
 	IEEE80211_RANGE_PARAMS_MAX_TOTAL_LTF_UNSPECIFIED,
 };
+
+/* multi-link device */
+#define IEEE80211_MLD_MAX_NUM_LINKS	15
+
+#define IEEE80211_ML_CONTROL_TYPE			0x0007
+#define IEEE80211_ML_CONTROL_TYPE_BASIC			0
+#define IEEE80211_ML_CONTROL_TYPE_PREQ			1
+#define IEEE80211_ML_CONTROL_TYPE_RECONF		2
+#define IEEE80211_ML_CONTROL_TYPE_TDLS			3
+#define IEEE80211_ML_CONTROL_TYPE_PRIO_ACCESS		4
+#define IEEE80211_ML_CONTROL_PRESENCE_MASK		0xfff0
+
+struct ieee80211_multi_link_elem {
+	__le16 control;
+	u8 variable[];
+} __packed;
+
+#define IEEE80211_MLC_BASIC_PRES_LINK_ID		0x0010
+#define IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT	0x0020
+#define IEEE80211_MLC_BASIC_PRES_MED_SYNC_DELAY		0x0040
+#define IEEE80211_MLC_BASIC_PRES_EML_CAPA		0x0080
+#define IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP		0x0100
+#define IEEE80211_MLC_BASIC_PRES_MLD_ID			0x0200
+
+#define IEEE80211_MED_SYNC_DELAY_DURATION		0x00ff
+#define IEEE80211_MED_SYNC_DELAY_SYNC_OFDM_ED_THRESH	0x0f00
+#define IEEE80211_MED_SYNC_DELAY_SYNC_MAX_NUM_TXOPS	0xf000
+
+#define IEEE80211_EML_CAP_EMLSR_SUPP			0x0001
+#define IEEE80211_EML_CAP_EMLSR_PADDING_DELAY		0x000e
+#define  IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_0US		0
+#define  IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_32US		1
+#define  IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_64US		2
+#define  IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_128US		3
+#define  IEEE80211_EML_CAP_EMLSR_PADDING_DELAY_256US		4
+#define IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY	0x0070
+#define  IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_0US		0
+#define  IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_16US		1
+#define  IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_32US		2
+#define  IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_64US		3
+#define  IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_128US		4
+#define  IEEE80211_EML_CAP_EMLSR_TRANSITION_DELAY_256US		5
+#define IEEE80211_EML_CAP_EMLMR_SUPPORT			0x0080
+#define IEEE80211_EML_CAP_EMLMR_DELAY			0x0700
+#define  IEEE80211_EML_CAP_EMLMR_DELAY_0US			0
+#define  IEEE80211_EML_CAP_EMLMR_DELAY_32US			1
+#define  IEEE80211_EML_CAP_EMLMR_DELAY_64US			2
+#define  IEEE80211_EML_CAP_EMLMR_DELAY_128US			3
+#define  IEEE80211_EML_CAP_EMLMR_DELAY_256US			4
+#define IEEE80211_EML_CAP_TRANSITION_TIMEOUT		0x7800
+#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_0			0
+#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_128US		1
+#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_256US		2
+#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_512US		3
+#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_1TU		4
+#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_2TU		5
+#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_4TU		6
+#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_8TU		7
+#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_16TU		8
+#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_32TU		9
+#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_64TU		10
+#define  IEEE80211_EML_CAP_TRANSITION_TIMEOUT_128TU		11
+
+#define IEEE80211_MLD_CAP_OP_MAX_SIMUL_LINKS		0x000f
+#define IEEE80211_MLD_CAP_OP_SRS_SUPPORT		0x0010
+#define IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP	0x0060
+#define IEEE80211_MLD_CAP_OP_FREQ_SEP_TYPE_IND		0x0f80
+#define IEEE80211_MLD_CAP_OP_AAR_SUPPORT		0x1000
+
+struct ieee80211_mle_basic_common_info {
+	u8 len;
+	u8 mld_mac_addr[ETH_ALEN];
+	u8 variable[];
+} __packed;
+
+#define IEEE80211_MLC_PREQ_PRES_MLD_ID			0x0010
+
+struct ieee80211_mle_preq_common_info {
+	u8 len;
+	u8 variable[];
+} __packed;
+
+#define IEEE80211_MLC_RECONF_PRES_MLD_MAC_ADDR		0x0010
+
+/* no fixed fields in RECONF */
+
+struct ieee80211_mle_tdls_common_info {
+	u8 len;
+	u8 ap_mld_mac_addr[ETH_ALEN];
+} __packed;
+
+#define IEEE80211_MLC_PRIO_ACCESS_PRES_AP_MLD_MAC_ADDR	0x0010
+
+/* no fixed fields in PRIO_ACCESS */
+
+/**
+ * ieee80211_mle_common_size - check multi-link element common size
+ * @data: multi-link element, must already be checked for size using
+ *	ieee80211_mle_size_ok()
+ */
+static inline u8 ieee80211_mle_common_size(const u8 *data)
+{
+	const struct ieee80211_multi_link_elem *mle = (const void *)data;
+	u16 control = le16_to_cpu(mle->control);
+	u8 common = 0;
+
+	switch (u16_get_bits(control, IEEE80211_ML_CONTROL_TYPE)) {
+	case IEEE80211_ML_CONTROL_TYPE_BASIC:
+		common += sizeof(struct ieee80211_mle_basic_common_info);
+		break;
+	case IEEE80211_ML_CONTROL_TYPE_PREQ:
+		common += sizeof(struct ieee80211_mle_preq_common_info);
+		break;
+	case IEEE80211_ML_CONTROL_TYPE_RECONF:
+		if (control & IEEE80211_MLC_RECONF_PRES_MLD_MAC_ADDR)
+			common += ETH_ALEN;
+		return common;
+	case IEEE80211_ML_CONTROL_TYPE_TDLS:
+		common += sizeof(struct ieee80211_mle_tdls_common_info);
+		break;
+	case IEEE80211_ML_CONTROL_TYPE_PRIO_ACCESS:
+		if (control & IEEE80211_MLC_PRIO_ACCESS_PRES_AP_MLD_MAC_ADDR)
+			common += ETH_ALEN;
+		return common;
+	default:
+		WARN_ON(1);
+		return 0;
+	}
+
+	return common + mle->variable[0];
+}
+
+/**
+ * ieee80211_mle_size_ok - validate multi-link element size
+ * @data: pointer to the element data
+ * @len: length of the containing element
+ */
+static inline bool ieee80211_mle_size_ok(const u8 *data, u8 len)
+{
+	const struct ieee80211_multi_link_elem *mle = (const void *)data;
+	u8 fixed = sizeof(*mle);
+	u8 common = 0;
+	bool check_common_len = false;
+	u16 control;
+
+	if (len < fixed)
+		return false;
+
+	control = le16_to_cpu(mle->control);
+
+	switch (u16_get_bits(control, IEEE80211_ML_CONTROL_TYPE)) {
+	case IEEE80211_ML_CONTROL_TYPE_BASIC:
+		common += sizeof(struct ieee80211_mle_basic_common_info);
+		check_common_len = true;
+		if (control & IEEE80211_MLC_BASIC_PRES_LINK_ID)
+			common += 1;
+		if (control & IEEE80211_MLC_BASIC_PRES_BSS_PARAM_CH_CNT)
+			common += 1;
+		if (control & IEEE80211_MLC_BASIC_PRES_MED_SYNC_DELAY)
+			common += 2;
+		if (control & IEEE80211_MLC_BASIC_PRES_EML_CAPA)
+			common += 2;
+		if (control & IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP)
+			common += 2;
+		if (control & IEEE80211_MLC_BASIC_PRES_MLD_ID)
+			common += 1;
+		break;
+	case IEEE80211_ML_CONTROL_TYPE_PREQ:
+		common += sizeof(struct ieee80211_mle_preq_common_info);
+		if (control & IEEE80211_MLC_PREQ_PRES_MLD_ID)
+			common += 1;
+		check_common_len = true;
+		break;
+	case IEEE80211_ML_CONTROL_TYPE_RECONF:
+		if (control & IEEE80211_MLC_RECONF_PRES_MLD_MAC_ADDR)
+			common += ETH_ALEN;
+		break;
+	case IEEE80211_ML_CONTROL_TYPE_TDLS:
+		common += sizeof(struct ieee80211_mle_tdls_common_info);
+		check_common_len = true;
+		break;
+	case IEEE80211_ML_CONTROL_TYPE_PRIO_ACCESS:
+		if (control & IEEE80211_MLC_PRIO_ACCESS_PRES_AP_MLD_MAC_ADDR)
+			common += ETH_ALEN;
+		break;
+	default:
+		/* we don't know this type */
+		return true;
+	}
+
+	if (len < fixed + common)
+		return false;
+
+	if (!check_common_len)
+		return true;
+
+	/* if present, common length is the first octet there */
+	return mle->variable[0] >= common;
+}
+
+enum ieee80211_mle_subelems {
+	IEEE80211_MLE_SUBELEM_PER_STA_PROFILE		= 0,
+};
+
+#define IEEE80211_MLE_STA_CONTROL_LINK_ID			0x000f
+#define IEEE80211_MLE_STA_CONTROL_COMPLETE_PROFILE		0x0010
+#define IEEE80211_MLE_STA_CONTROL_STA_MAC_ADDR_PRESENT		0x0020
+#define IEEE80211_MLE_STA_CONTROL_BEACON_INT_PRESENT		0x0040
+#define IEEE80211_MLE_STA_CONTROL_TSF_OFFS_PRESENT		0x0080
+#define IEEE80211_MLE_STA_CONTROL_DTIM_INFO_PRESENT		0x0100
+#define IEEE80211_MLE_STA_CONTROL_NSTR_LINK_PAIR_PRESENT	0x0200
+#define IEEE80211_MLE_STA_CONTROL_NSTR_BITMAP_SIZE		0x0400
+#define IEEE80211_MLE_STA_CONTROL_BSS_PARAM_CHANGE_CNT_PRESENT	0x0800
+
+struct ieee80211_mle_per_sta_profile {
+	__le16 control;
+	u8 sta_info_len;
+	u8 variable[];
+} __packed;
+
+#define for_each_mle_subelement(_elem, _data, _len)			\
+	if (ieee80211_mle_size_ok(_data, _len))				\
+		for_each_element(_elem,					\
+				 _data + ieee80211_mle_common_size(_data),\
+				 _len - ieee80211_mle_common_size(_data))
 
 #endif /* LINUX_IEEE80211_H */

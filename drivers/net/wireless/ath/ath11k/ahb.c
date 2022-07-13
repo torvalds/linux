@@ -976,11 +976,11 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	ab->hw_rev = hw_rev;
 	platform_set_drvdata(pdev, ab);
 
-	ret = ath11k_ahb_setup_resources(ab);
+	ret = ath11k_core_pre_init(ab);
 	if (ret)
 		goto err_core_free;
 
-	ret = ath11k_core_pre_init(ab);
+	ret = ath11k_ahb_setup_resources(ab);
 	if (ret)
 		goto err_core_free;
 

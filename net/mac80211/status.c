@@ -223,7 +223,7 @@ static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 			 * only be the AP. And the only other place updating
 			 * this variable in managed mode is before association.
 			 */
-			sdata->smps_mode = smps_mode;
+			sdata->deflink.smps_mode = smps_mode;
 			ieee80211_queue_work(&local->hw, &sdata->recalc_smps);
 		} else if (sdata->vif.type == NL80211_IFTYPE_AP ||
 			   sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
@@ -293,7 +293,6 @@ static int ieee80211_tx_radiotap_len(struct ieee80211_tx_info *info,
 
 static void
 ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
-				 struct ieee80211_supported_band *sband,
 				 struct sk_buff *skb, int retry_count,
 				 int rtap_len, int shift,
 				 struct ieee80211_tx_status *status)
@@ -336,9 +335,13 @@ ieee80211_add_tx_radiotap_header(struct ieee80211_local *local,
 			legacy_rate = status_rate->rate_idx.legacy;
 	} else if (info->status.rates[0].idx >= 0 &&
 		 !(info->status.rates[0].flags & (IEEE80211_TX_RC_MCS |
-						  IEEE80211_TX_RC_VHT_MCS)))
+						  IEEE80211_TX_RC_VHT_MCS))) {
+		struct ieee80211_supported_band *sband;
+
+		sband = local->hw.wiphy->bands[info->band];
 		legacy_rate =
 			sband->bitrates[info->status.rates[0].idx].bitrate;
+	}
 
 	if (legacy_rate) {
 		rthdr->it_present |= cpu_to_le32(BIT(IEEE80211_RADIOTAP_RATE));
@@ -845,7 +848,6 @@ static int ieee80211_tx_get_rates(struct ieee80211_hw *hw,
 }
 
 void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
-			  struct ieee80211_supported_band *sband,
 			  int retry_count, int shift, bool send_to_cooked,
 			  struct ieee80211_tx_status *status)
 {
@@ -862,7 +864,7 @@ void ieee80211_tx_monitor(struct ieee80211_local *local, struct sk_buff *skb,
 		dev_kfree_skb(skb);
 		return;
 	}
-	ieee80211_add_tx_radiotap_header(local, sband, skb, retry_count,
+	ieee80211_add_tx_radiotap_header(local, skb, retry_count,
 					 rtap_len, shift, status);
 
 	/* XXX: is this sufficient for BPF? */
@@ -912,7 +914,6 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = status->info;
 	struct sta_info *sta;
 	__le16 fc;
-	struct ieee80211_supported_band *sband;
 	bool send_to_cooked;
 	bool acked;
 	bool noack_success;
@@ -920,7 +921,6 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	int shift = 0;
 	int tid = IEEE80211_NUM_TIDS;
 
-	sband = local->hw.wiphy->bands[info->band];
 	fc = hdr->frame_control;
 
 	if (status->sta) {
@@ -998,25 +998,6 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 		if (!(info->flags & IEEE80211_TX_CTL_INJECTED) && acked)
 			ieee80211_frame_acked(sta, skb);
 
-	} else if (wiphy_ext_feature_isset(local->hw.wiphy,
-					   NL80211_EXT_FEATURE_AIRTIME_FAIRNESS)) {
-		struct ieee80211_sub_if_data *sdata;
-		struct ieee80211_txq *txq;
-		u32 airtime;
-
-		/* Account airtime to multicast queue */
-		sdata = ieee80211_sdata_from_skb(local, skb);
-
-		if (sdata && (txq = sdata->vif.txq)) {
-			airtime = info->status.tx_time ?:
-				ieee80211_calc_expected_tx_airtime(hw,
-								   &sdata->vif,
-								   NULL,
-								   skb->len,
-								   false);
-
-			ieee80211_register_airtime(txq, airtime, 0);
-		}
 	}
 
 	/* SNMP counters
@@ -1082,7 +1063,7 @@ static void __ieee80211_tx_status(struct ieee80211_hw *hw,
 	}
 
 	/* send to monitor interfaces */
-	ieee80211_tx_monitor(local, skb, sband, retry_count, shift,
+	ieee80211_tx_monitor(local, skb, retry_count, shift,
 			     send_to_cooked, status);
 }
 
@@ -1114,7 +1095,6 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 	struct ieee80211_tx_info *info = status->info;
 	struct ieee80211_sta *pubsta = status->sta;
 	struct sk_buff *skb = status->skb;
-	struct ieee80211_supported_band *sband;
 	struct sta_info *sta = NULL;
 	int rates_idx, retry_count;
 	bool acked, noack_success, ack_signal_valid;
@@ -1144,8 +1124,6 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 		goto free;
 
 	rates_idx = ieee80211_tx_get_rates(hw, info, &retry_count);
-
-	sband = hw->wiphy->bands[info->band];
 
 	acked = !!(info->flags & IEEE80211_TX_STAT_ACK);
 	noack_success = !!(info->flags & IEEE80211_TX_STAT_NOACK_TRANSMITTED);
@@ -1201,7 +1179,7 @@ void ieee80211_tx_status_ext(struct ieee80211_hw *hw,
 			}
 		}
 
-		rate_control_tx_status(local, sband, status);
+		rate_control_tx_status(local, status);
 		if (ieee80211_vif_is_mesh(&sta->sdata->vif))
 			ieee80211s_update_metric(local, sta, status);
 	}
@@ -1239,14 +1217,13 @@ void ieee80211_tx_rate_update(struct ieee80211_hw *hw,
 			      struct ieee80211_tx_info *info)
 {
 	struct ieee80211_local *local = hw_to_local(hw);
-	struct ieee80211_supported_band *sband = hw->wiphy->bands[info->band];
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 	struct ieee80211_tx_status status = {
 		.info = info,
 		.sta = pubsta,
 	};
 
-	rate_control_tx_status(local, sband, &status);
+	rate_control_tx_status(local, &status);
 
 	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL))
 		sta->deflink.tx_stats.last_rate = info->status.rates[0];

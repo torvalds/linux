@@ -1278,7 +1278,7 @@ struct wmi_snr_threshold_params_cmd {
 	/* "alpha" */
 	u8 weight;
 
-	/* lowest of uppper */
+	/* lowest of upper */
 	u8 thresh_above1_val;
 
 	u8 thresh_above2_val;

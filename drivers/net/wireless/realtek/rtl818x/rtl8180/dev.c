@@ -1300,7 +1300,7 @@ static void rtl8180_beacon_work(struct work_struct *work)
 		goto resched;
 
 	/* grab a fresh beacon */
-	skb = ieee80211_beacon_get(dev, vif);
+	skb = ieee80211_beacon_get(dev, vif, 0);
 	if (!skb)
 		goto resched;
 
@@ -1500,7 +1500,7 @@ static void rtl8180_conf_erp(struct ieee80211_hw *dev,
 static void rtl8180_bss_info_changed(struct ieee80211_hw *dev,
 				     struct ieee80211_vif *vif,
 				     struct ieee80211_bss_conf *info,
-				     u32 changed)
+				     u64 changed)
 {
 	struct rtl8180_priv *priv = dev->priv;
 	struct rtl8180_vif *vif_priv;

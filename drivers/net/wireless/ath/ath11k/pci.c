@@ -920,7 +920,9 @@ qmi_fail:
 static void ath11k_pci_shutdown(struct pci_dev *pdev)
 {
 	struct ath11k_base *ab = pci_get_drvdata(pdev);
+	struct ath11k_pci *ab_pci = ath11k_pci_priv(ab);
 
+	ath11k_pci_set_irq_affinity_hint(ab_pci, NULL);
 	ath11k_pci_power_down(ab);
 }
 

@@ -147,10 +147,27 @@ static inline int drv_config(struct ieee80211_local *local, u32 changed)
 	return ret;
 }
 
-static inline void drv_bss_info_changed(struct ieee80211_local *local,
-					struct ieee80211_sub_if_data *sdata,
-					struct ieee80211_bss_conf *info,
-					u32 changed)
+static inline void drv_vif_cfg_changed(struct ieee80211_local *local,
+				       struct ieee80211_sub_if_data *sdata,
+				       u64 changed)
+{
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return;
+
+	trace_drv_vif_cfg_changed(local, sdata, changed);
+	if (local->ops->vif_cfg_changed)
+		local->ops->vif_cfg_changed(&local->hw, &sdata->vif, changed);
+	else if (local->ops->bss_info_changed)
+		local->ops->bss_info_changed(&local->hw, &sdata->vif,
+					     &sdata->vif.bss_conf, changed);
+	trace_drv_return_void(local);
+}
+
+static inline void drv_link_info_changed(struct ieee80211_local *local,
+					 struct ieee80211_sub_if_data *sdata,
+					 int link_id, u64 changed)
 {
 	might_sleep();
 
@@ -165,16 +182,20 @@ static inline void drv_bss_info_changed(struct ieee80211_local *local,
 	if (WARN_ON_ONCE(sdata->vif.type == NL80211_IFTYPE_P2P_DEVICE ||
 			 sdata->vif.type == NL80211_IFTYPE_NAN ||
 			 (sdata->vif.type == NL80211_IFTYPE_MONITOR &&
-			  !sdata->vif.mu_mimo_owner &&
+			  !sdata->vif.bss_conf.mu_mimo_owner &&
 			  !(changed & BSS_CHANGED_TXPOWER))))
 		return;
 
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	trace_drv_bss_info_changed(local, sdata, info, changed);
-	if (local->ops->bss_info_changed)
-		local->ops->bss_info_changed(&local->hw, &sdata->vif, info, changed);
+	trace_drv_link_info_changed(local, sdata, link_id, changed);
+	if (local->ops->link_info_changed)
+		local->ops->link_info_changed(&local->hw, &sdata->vif,
+					      link_id, changed);
+	else if (local->ops->bss_info_changed)
+		local->ops->bss_info_changed(&local->hw, &sdata->vif,
+					     &sdata->vif.bss_conf, changed);
 	trace_drv_return_void(local);
 }
 
@@ -917,6 +938,7 @@ static inline void drv_change_chanctx(struct ieee80211_local *local,
 
 static inline int drv_assign_vif_chanctx(struct ieee80211_local *local,
 					 struct ieee80211_sub_if_data *sdata,
+					 unsigned int link_id,
 					 struct ieee80211_chanctx *ctx)
 {
 	int ret = 0;
@@ -924,11 +946,12 @@ static inline int drv_assign_vif_chanctx(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
 
-	trace_drv_assign_vif_chanctx(local, sdata, ctx);
+	trace_drv_assign_vif_chanctx(local, sdata, link_id, ctx);
 	if (local->ops->assign_vif_chanctx) {
 		WARN_ON_ONCE(!ctx->driver_present);
 		ret = local->ops->assign_vif_chanctx(&local->hw,
 						     &sdata->vif,
+						     link_id,
 						     &ctx->conf);
 	}
 	trace_drv_return_int(local, ret);
@@ -938,6 +961,7 @@ static inline int drv_assign_vif_chanctx(struct ieee80211_local *local,
 
 static inline void drv_unassign_vif_chanctx(struct ieee80211_local *local,
 					    struct ieee80211_sub_if_data *sdata,
+					    unsigned int link_id,
 					    struct ieee80211_chanctx *ctx)
 {
 	might_sleep();
@@ -945,11 +969,12 @@ static inline void drv_unassign_vif_chanctx(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	trace_drv_unassign_vif_chanctx(local, sdata, ctx);
+	trace_drv_unassign_vif_chanctx(local, sdata, link_id, ctx);
 	if (local->ops->unassign_vif_chanctx) {
 		WARN_ON_ONCE(!ctx->driver_present);
 		local->ops->unassign_vif_chanctx(&local->hw,
 						 &sdata->vif,
+						 link_id,
 						 &ctx->conf);
 	}
 	trace_drv_return_void(local);
@@ -960,7 +985,8 @@ int drv_switch_vif_chanctx(struct ieee80211_local *local,
 			   int n_vifs, enum ieee80211_chanctx_switch_mode mode);
 
 static inline int drv_start_ap(struct ieee80211_local *local,
-			       struct ieee80211_sub_if_data *sdata)
+			       struct ieee80211_sub_if_data *sdata,
+			       unsigned int link_id)
 {
 	int ret = 0;
 
@@ -969,22 +995,24 @@ static inline int drv_start_ap(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
 
-	trace_drv_start_ap(local, sdata, &sdata->vif.bss_conf);
+	trace_drv_start_ap(local, sdata, sdata->vif.link_conf[link_id],
+			   link_id);
 	if (local->ops->start_ap)
-		ret = local->ops->start_ap(&local->hw, &sdata->vif);
+		ret = local->ops->start_ap(&local->hw, &sdata->vif, link_id);
 	trace_drv_return_int(local, ret);
 	return ret;
 }
 
 static inline void drv_stop_ap(struct ieee80211_local *local,
-			       struct ieee80211_sub_if_data *sdata)
+			       struct ieee80211_sub_if_data *sdata,
+			       unsigned int link_id)
 {
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	trace_drv_stop_ap(local, sdata);
+	trace_drv_stop_ap(local, sdata, link_id);
 	if (local->ops->stop_ap)
-		local->ops->stop_ap(&local->hw, &sdata->vif);
+		local->ops->stop_ap(&local->hw, &sdata->vif, link_id);
 	trace_drv_return_void(local);
 }
 
@@ -1503,6 +1531,48 @@ static inline int drv_net_fill_forward_path(struct ieee80211_local *local,
 		ret = local->ops->net_fill_forward_path(&local->hw,
 							&sdata->vif, sta,
 							ctx, path);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline int drv_change_vif_links(struct ieee80211_local *local,
+				       struct ieee80211_sub_if_data *sdata,
+				       u16 old_links, u16 new_links,
+				       struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS])
+{
+	int ret = -EOPNOTSUPP;
+
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return -EIO;
+
+	trace_drv_change_vif_links(local, sdata, old_links, new_links);
+	if (local->ops->change_vif_links)
+		ret = local->ops->change_vif_links(&local->hw, &sdata->vif,
+						   old_links, new_links, old);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
+static inline int drv_change_sta_links(struct ieee80211_local *local,
+				       struct ieee80211_sub_if_data *sdata,
+				       struct ieee80211_sta *sta,
+				       u16 old_links, u16 new_links)
+{
+	int ret = -EOPNOTSUPP;
+
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return -EIO;
+
+	trace_drv_change_sta_links(local, sdata, sta, old_links, new_links);
+	if (local->ops->change_sta_links)
+		ret = local->ops->change_sta_links(&local->hw, &sdata->vif, sta,
+						   old_links, new_links);
 	trace_drv_return_int(local, ret);
 
 	return ret;

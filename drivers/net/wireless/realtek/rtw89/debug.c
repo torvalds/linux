@@ -2438,7 +2438,8 @@ static void rtw89_sta_ids_get_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
 	struct seq_file *m = (struct seq_file *)data;
 
-	seq_printf(m, "STA [%d] %pM\n", rtwsta->mac_id, sta->addr);
+	seq_printf(m, "STA [%d] %pM %s\n", rtwsta->mac_id, sta->addr,
+		   sta->tdls ? "(TDLS)" : "");
 	rtw89_dump_addr_cam(m, &rtwsta->addr_cam);
 }
 

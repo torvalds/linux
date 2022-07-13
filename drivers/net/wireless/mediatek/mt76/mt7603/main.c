@@ -297,7 +297,7 @@ mt7603_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 
 static void
 mt7603_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			struct ieee80211_bss_conf *info, u32 changed)
+			struct ieee80211_bss_conf *info, u64 changed)
 {
 	struct mt7603_dev *dev = hw->priv;
 	struct mt7603_vif *mvif = (struct mt7603_vif *)vif->drv_priv;
@@ -305,7 +305,7 @@ mt7603_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	mutex_lock(&dev->mt76.mutex);
 
 	if (changed & (BSS_CHANGED_ASSOC | BSS_CHANGED_BSSID)) {
-		if (info->assoc || info->ibss_joined) {
+		if (vif->cfg.assoc || vif->cfg.ibss_joined) {
 			mt76_wr(dev, MT_BSSID0(mvif->idx),
 				get_unaligned_le32(info->bssid));
 			mt76_wr(dev, MT_BSSID1(mvif->idx),

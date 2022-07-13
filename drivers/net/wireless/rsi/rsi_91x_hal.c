@@ -295,7 +295,6 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	struct rsi_hw *adapter = common->priv;
 	struct ieee80211_vif *vif;
 	struct ieee80211_tx_info *info;
-	struct ieee80211_bss_conf *bss;
 	int status = -EINVAL;
 
 	if (!skb)
@@ -307,11 +306,10 @@ int rsi_send_data_pkt(struct rsi_common *common, struct sk_buff *skb)
 	if (!info->control.vif)
 		goto err;
 	vif = info->control.vif;
-	bss = &vif->bss_conf;
 
 	if (((vif->type == NL80211_IFTYPE_STATION) ||
 	     (vif->type == NL80211_IFTYPE_P2P_CLIENT)) &&
-	    (!bss->assoc))
+	    (!vif->cfg.assoc))
 		goto err;
 
 	status = rsi_send_pkt_to_bus(common, skb);
@@ -367,7 +365,8 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 	xtend_desc = (struct rsi_xtended_desc *)&skb->data[FRAME_DESC_SZ];
 
 	/* Indicate to firmware to give cfm for probe */
-	if (ieee80211_is_probe_req(wh->frame_control) && !bss->assoc) {
+	if (ieee80211_is_probe_req(wh->frame_control) &&
+	    !info->control.vif->cfg.assoc) {
 		rsi_dbg(INFO_ZONE,
 			"%s: blocking mgmt queue\n", __func__);
 		mgmt_desc->misc_flags = RSI_DESC_REQUIRE_CFM_TO_HOST;
@@ -444,7 +443,7 @@ int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb)
 		return -EINVAL;
 	mac_bcn = ieee80211_beacon_get_tim(adapter->hw,
 					   vif,
-					   &tim_offset, NULL);
+					   &tim_offset, NULL, 0);
 	if (!mac_bcn) {
 		rsi_dbg(ERR_ZONE, "Failed to get beacon from mac80211\n");
 		return -EINVAL;

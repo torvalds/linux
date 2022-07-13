@@ -450,8 +450,8 @@ check_bss:
 
 		notify_channel = ieee80211_get_channel(wiphy, freq);
 
-		roam_info.channel = notify_channel;
-		roam_info.bssid = cur_network->network.mac_address;
+		roam_info.links[0].channel = notify_channel;
+		roam_info.links[0].bssid = cur_network->network.mac_address;
 		roam_info.req_ie =
 			pmlmepriv->assoc_req+sizeof(struct ieee80211_hdr_3addr)+2;
 		roam_info.req_ie_len =
@@ -2086,6 +2086,7 @@ static u8 rtw_get_chan_type(struct adapter *adapter)
 }
 
 static int cfg80211_rtw_get_channel(struct wiphy *wiphy, struct wireless_dev *wdev,
+				    unsigned int link_id,
 				    struct cfg80211_chan_def *chandef)
 {
 	struct adapter *adapter = wiphy_to_adapter(wiphy);
@@ -2446,7 +2447,8 @@ static int cfg80211_rtw_change_beacon(struct wiphy *wiphy, struct net_device *nd
 	return rtw_add_beacon(adapter, info->head, info->head_len, info->tail, info->tail_len);
 }
 
-static int cfg80211_rtw_stop_ap(struct wiphy *wiphy, struct net_device *ndev)
+static int cfg80211_rtw_stop_ap(struct wiphy *wiphy, struct net_device *ndev,
+				unsigned int link_id)
 {
 	return 0;
 }

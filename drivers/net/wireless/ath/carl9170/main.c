@@ -1032,7 +1032,7 @@ static void carl9170_op_configure_filter(struct ieee80211_hw *hw,
 static void carl9170_op_bss_info_changed(struct ieee80211_hw *hw,
 					 struct ieee80211_vif *vif,
 					 struct ieee80211_bss_conf *bss_conf,
-					 u32 changed)
+					 u64 changed)
 {
 	struct ar9170 *ar = hw->priv;
 	struct ath_common *common = &ar->common;
@@ -1115,7 +1115,7 @@ static void carl9170_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_ASSOC) {
-		ar->common.curaid = bss_conf->aid;
+		ar->common.curaid = vif->cfg.aid;
 		err = carl9170_set_beacon_timers(ar);
 		if (err)
 			goto out;

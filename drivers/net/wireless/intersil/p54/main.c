@@ -139,7 +139,7 @@ static int p54_beacon_update(struct p54_common *priv,
 	struct sk_buff *beacon;
 	int ret;
 
-	beacon = ieee80211_beacon_get(priv->hw, vif);
+	beacon = ieee80211_beacon_get(priv->hw, vif, 0);
 	if (!beacon)
 		return -ENOMEM;
 	ret = p54_beacon_format_ie_tim(beacon);
@@ -449,7 +449,7 @@ static int p54_get_stats(struct ieee80211_hw *dev,
 static void p54_bss_info_changed(struct ieee80211_hw *dev,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
-				 u32 changed)
+				 u64 changed)
 {
 	struct p54_common *priv = dev->priv;
 
@@ -480,8 +480,8 @@ static void p54_bss_info_changed(struct ieee80211_hw *dev,
 			p54_scan(priv, P54_SCAN_EXIT, 0);
 	}
 	if (changed & BSS_CHANGED_ASSOC) {
-		if (info->assoc) {
-			priv->aid = info->aid;
+		if (vif->cfg.assoc) {
+			priv->aid = vif->cfg.aid;
 			priv->wakeup_timer = info->beacon_int *
 					     info->dtim_period * 5;
 			p54_setup_mac(priv);

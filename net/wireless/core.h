@@ -307,6 +307,7 @@ void cfg80211_bss_expire(struct cfg80211_registered_device *rdev);
 void cfg80211_bss_age(struct cfg80211_registered_device *rdev,
                       unsigned long age_secs);
 void cfg80211_update_assoc_bss_entry(struct wireless_dev *wdev,
+				     unsigned int link,
 				     struct ieee80211_channel *channel);
 
 /* IBSS */
@@ -353,25 +354,18 @@ int cfg80211_leave_ocb(struct cfg80211_registered_device *rdev,
 
 /* AP */
 int __cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
-		       struct net_device *dev, bool notify);
+		       struct net_device *dev, int link,
+		       bool notify);
 int cfg80211_stop_ap(struct cfg80211_registered_device *rdev,
-		     struct net_device *dev, bool notify);
+		     struct net_device *dev, int link,
+		     bool notify);
 
 /* MLME */
 int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev,
-		       struct ieee80211_channel *chan,
-		       enum nl80211_auth_type auth_type,
-		       const u8 *bssid,
-		       const u8 *ssid, int ssid_len,
-		       const u8 *ie, int ie_len,
-		       const u8 *key, int key_len, int key_idx,
-		       const u8 *auth_data, int auth_data_len);
+		       struct cfg80211_auth_request *req);
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct net_device *dev,
-			struct ieee80211_channel *chan,
-			const u8 *bssid,
-			const u8 *ssid, int ssid_len,
 			struct cfg80211_assoc_request *req);
 int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev, const u8 *bssid,
@@ -507,7 +501,11 @@ bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
 bool cfg80211_beaconing_iface_active(struct wireless_dev *wdev);
 
 bool cfg80211_is_sub_chan(struct cfg80211_chan_def *chandef,
-			  struct ieee80211_channel *chan);
+			  struct ieee80211_channel *chan,
+			  bool primary_only);
+bool cfg80211_wdev_on_sub_chan(struct wireless_dev *wdev,
+			       struct ieee80211_channel *chan,
+			       bool primary_only);
 
 static inline unsigned int elapsed_jiffies_msecs(unsigned long start)
 {
