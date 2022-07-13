@@ -1164,7 +1164,7 @@ static void raid10_read_request(struct mddev *mddev, struct bio *bio,
 		disk = r10_bio->devs[slot].devnum;
 		err_rdev = rcu_dereference(conf->mirrors[disk].rdev);
 		if (err_rdev)
-			bdevname(err_rdev->bdev, b);
+			snprintf(b, sizeof(b), "%pg", err_rdev->bdev);
 		else {
 			strcpy(b, "???");
 			/* This never gets dereferenced */
