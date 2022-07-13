@@ -624,7 +624,7 @@ static int sunxi_pinctrl_set_io_bias_cfg(struct sunxi_pinctrl *pctl,
 					 unsigned pin,
 					 struct regulator *supply)
 {
-	unsigned short bank = pin / PINS_PER_BANK;
+	unsigned short bank;
 	unsigned long flags;
 	u32 val, reg;
 	int uV;
@@ -639,6 +639,9 @@ static int sunxi_pinctrl_set_io_bias_cfg(struct sunxi_pinctrl *pctl,
 	/* Might be dummy regulator with no voltage set */
 	if (uV == 0)
 		return 0;
+
+	pin -= pctl->desc->pin_base;
+	bank = pin / PINS_PER_BANK;
 
 	switch (pctl->desc->io_bias_cfg_variant) {
 	case BIAS_VOLTAGE_GRP_CONFIG:
@@ -656,8 +659,6 @@ static int sunxi_pinctrl_set_io_bias_cfg(struct sunxi_pinctrl *pctl,
 			val = 0xA; /* 3.0V */
 		else
 			val = 0xD; /* 3.3V */
-
-		pin -= pctl->desc->pin_base;
 
 		reg = readl(pctl->membase + sunxi_grp_config_reg(pin));
 		reg &= ~IO_BIAS_MASK;
