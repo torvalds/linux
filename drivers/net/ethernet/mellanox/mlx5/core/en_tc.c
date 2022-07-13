@@ -1505,8 +1505,11 @@ bool mlx5e_tc_is_vf_tunnel(struct net_device *out_dev, struct net_device *route_
 	route_priv = netdev_priv(route_dev);
 	route_mdev = route_priv->mdev;
 
-	if (out_mdev->coredev_type != MLX5_COREDEV_PF ||
-	    route_mdev->coredev_type != MLX5_COREDEV_VF)
+	if (out_mdev->coredev_type != MLX5_COREDEV_PF)
+		return false;
+
+	if (route_mdev->coredev_type != MLX5_COREDEV_VF &&
+	    route_mdev->coredev_type != MLX5_COREDEV_SF)
 		return false;
 
 	return mlx5e_same_hw_devs(out_priv, route_priv);
