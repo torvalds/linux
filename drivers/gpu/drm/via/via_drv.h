@@ -183,21 +183,12 @@ do {								\
 	remove_wait_queue(&(queue), &entry);			\
 } while (0)
 
-extern int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_dma_blit_sync(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_dma_blit(struct drm_device *dev, void *data, struct drm_file *file_priv);
 
 extern int via_init_context(struct drm_device *dev, int context);
 
 extern int via_do_cleanup_map(struct drm_device *dev);
-extern u32 via_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
-extern int via_enable_vblank(struct drm_device *dev, unsigned int pipe);
-extern void via_disable_vblank(struct drm_device *dev, unsigned int pipe);
-
-extern irqreturn_t via_driver_irq_handler(int irq, void *arg);
-extern void via_driver_irq_preinstall(struct drm_device *dev);
-extern int via_driver_irq_postinstall(struct drm_device *dev);
-extern void via_driver_irq_uninstall(struct drm_device *dev);
 
 extern int via_dma_cleanup(struct drm_device *dev);
 extern void via_init_command_verifier(void);
