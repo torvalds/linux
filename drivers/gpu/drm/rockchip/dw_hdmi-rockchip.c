@@ -117,6 +117,7 @@
 #define COLOR_DEPTH_10BIT		BIT(31)
 #define HDMI_FRL_MODE			BIT(30)
 #define HDMI_EARC_MODE			BIT(29)
+#define DATA_RATE_MASK			0xFFFFFFF
 
 #define HDMI20_MAX_RATE			600000
 #define HDMI_8K60_RATE			2376000
@@ -162,6 +163,7 @@ struct rockchip_hdmi {
 	struct clk *pclk;
 	struct clk *earc_clk;
 	struct clk *hdmitx_ref;
+	struct clk *link_clk;
 	struct dw_hdmi *hdmi;
 	struct dw_hdmi_qp *hdmi_qp;
 
@@ -1353,6 +1355,13 @@ static int rockchip_hdmi_parse_dt(struct rockchip_hdmi *hdmi)
 		return PTR_ERR(hdmi->pclk);
 	}
 
+	hdmi->link_clk = devm_clk_get_optional(hdmi->dev, "link_clk");
+	if (IS_ERR(hdmi->link_clk)) {
+		dev_err_probe(hdmi->dev, PTR_ERR(hdmi->link_clk),
+			      "failed to get link_clk clock\n");
+		return PTR_ERR(hdmi->link_clk);
+	}
+
 	hdmi->enable_gpio = devm_gpiod_get_optional(hdmi->dev, "enable",
 						    GPIOD_OUT_HIGH);
 	if (IS_ERR(hdmi->enable_gpio)) {
@@ -1514,6 +1523,13 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	clk_set_rate(hdmi->phyref_clk,
 		     crtc->state->adjusted_mode.crtc_clock * 1000);
 
+	if (hdmi->is_hdmi_qp) {
+		if (hdmi->link_cfg.frl_mode)
+			gpiod_set_value(hdmi->enable_gpio, 0);
+		else
+			gpiod_set_value(hdmi->enable_gpio, 1);
+	}
+
 	if (hdmi->chip_data->lcdsel_grf_reg < 0)
 		return;
 
@@ -1550,6 +1566,28 @@ static void dw_hdmi_rockchip_encoder_enable(struct drm_encoder *encoder)
 	clk_disable_unprepare(hdmi->grf_clk);
 	DRM_DEV_DEBUG(hdmi->dev, "vop %s output to hdmi\n",
 		      ret ? "LIT" : "BIG");
+}
+
+static void dw_hdmi_rockchip_encoder_loader_protect(struct drm_encoder *encoder,
+						    bool on)
+{
+	struct rockchip_hdmi *hdmi = to_rockchip_hdmi(encoder);
+	int ret;
+
+	if (on) {
+		if (hdmi->is_hdmi_qp) {
+			ret = clk_prepare_enable(hdmi->link_clk);
+			if (ret < 0) {
+				DRM_DEV_ERROR(hdmi->dev, "failed to enable link_clk %d\n", ret);
+				return;
+			}
+		}
+
+		hdmi->phy->power_count++;
+	} else {
+		clk_disable_unprepare(hdmi->link_clk);
+		hdmi->phy->power_count--;
+	}
 }
 
 static void rk3588_set_link_mode(struct rockchip_hdmi *hdmi)
@@ -1977,7 +2015,6 @@ secondary:
 		hdmi_select_link_config(hdmi, crtc_state, tmdsclk);
 
 		if (hdmi->link_cfg.frl_mode) {
-			gpiod_set_value(hdmi->enable_gpio, 0);
 			/* in the current version, support max 40G frl */
 			if (hdmi->link_cfg.rate_per_lane >= 10) {
 				hdmi->link_cfg.frl_lanes = 4;
@@ -1992,7 +2029,6 @@ secondary:
 			else
 				bus_width |= HDMI_FRL_MODE;
 		} else {
-			gpiod_set_value(hdmi->enable_gpio, 1);
 			bus_width = hdmi_get_tmdsclock(hdmi, mode.clock * 10);
 			if (hdmi_bus_fmt_is_yuv420(hdmi->output_bus_format))
 				bus_width /= 2;
@@ -2190,6 +2226,40 @@ static int dw_hdmi_dclk_set(void *data, bool enable)
 		clk_disable_unprepare(dclk);
 	}
 
+	return 0;
+}
+
+static int dw_hdmi_link_clk_set(void *data, bool enable)
+{
+	struct rockchip_hdmi *hdmi = (struct rockchip_hdmi *)data;
+	u32 phy_clk;
+	int ret;
+
+	if (enable) {
+		ret = clk_prepare_enable(hdmi->link_clk);
+		if (ret < 0) {
+			DRM_DEV_ERROR(hdmi->dev, "failed to enable link_clk %d\n", ret);
+			return ret;
+		}
+
+		if (((hdmi->phy_bus_width & DATA_RATE_MASK) <= 6000000) &&
+		    (hdmi->phy_bus_width & COLOR_DEPTH_10BIT))
+			phy_clk = (hdmi->phy_bus_width & DATA_RATE_MASK) * 100 * 8 / 10;
+		else
+			phy_clk = (hdmi->phy_bus_width & DATA_RATE_MASK) * 100;
+
+		/*
+		 * To be compatible with vop dclk usage scenarios, hdmi phy pll clk
+		 * is set according to dclk rate.
+		 * But phy pll actual frequency will varies according to the color depth.
+		 * So we should get the actual frequency or clk_set_rate may not change
+		 * pll frequency when 8/10 bit switch.
+		 */
+		clk_get_rate(hdmi->link_clk);
+		clk_set_rate(hdmi->link_clk, phy_clk);
+	} else {
+		clk_disable_unprepare(hdmi->link_clk);
+	}
 	return 0;
 }
 
@@ -3006,6 +3076,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 	plat_data->convert_to_split_mode = drm_mode_convert_to_split_mode;
 	plat_data->convert_to_origin_mode = drm_mode_convert_to_origin_mode;
 	plat_data->dclk_set = dw_hdmi_dclk_set;
+	plat_data->link_clk_set = dw_hdmi_link_clk_set;
 
 	plat_data->property_ops = &dw_hdmi_rockchip_property_ops;
 
@@ -3207,6 +3278,7 @@ static int dw_hdmi_rockchip_bind(struct device *dev, struct device *master,
 		if (plat_data->connector) {
 			hdmi->sub_dev.connector = plat_data->connector;
 			hdmi->sub_dev.of_node = dev->of_node;
+			hdmi->sub_dev.loader_protect = dw_hdmi_rockchip_encoder_loader_protect;
 			rockchip_drm_register_sub_dev(&hdmi->sub_dev);
 		}
 
