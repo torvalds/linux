@@ -3068,7 +3068,8 @@ qla2x00_get_resource_cnts(scsi_qla_host_t *vha)
  *	Kernel context.
  */
 int
-qla2x00_get_fcal_position_map(scsi_qla_host_t *vha, char *pos_map)
+qla2x00_get_fcal_position_map(scsi_qla_host_t *vha, char *pos_map,
+		u8 *num_entries)
 {
 	int rval;
 	mbx_cmd_t mc;
@@ -3108,6 +3109,8 @@ qla2x00_get_fcal_position_map(scsi_qla_host_t *vha, char *pos_map)
 
 		if (pos_map)
 			memcpy(pos_map, pmap, FCAL_MAP_SIZE);
+		if (num_entries)
+			*num_entries = pmap[0];
 	}
 	dma_pool_free(ha->s_dma_pool, pmap, pmap_dma);
 
