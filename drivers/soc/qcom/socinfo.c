@@ -1565,7 +1565,7 @@ EXPORT_SYMBOL(socinfo_get_pcode);
 
 char *socinfo_get_partinfo_details(unsigned int part_id)
 {
-	if (socinfo_format < SOCINFO_VERSION(0, 16) || part_id > SOCINFO_PART_MAX_PARTTYPE)
+	if (socinfo_format < SOCINFO_VERSION(0, 16) || part_id >= SOCINFO_PART_MAX_PARTTYPE)
 		return NULL;
 
 	return partinfo[part_id].part_name;
