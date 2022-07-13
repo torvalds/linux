@@ -164,6 +164,10 @@ static bool amd_iommu_disabled __initdata;
 static bool amd_iommu_force_enable __initdata;
 static int amd_iommu_target_ivhd_type;
 
+/* Global EFR and EFR2 registers */
+u64 amd_iommu_efr;
+u64 amd_iommu_efr2;
+
 LIST_HEAD(amd_iommu_pci_seg_list);	/* list of all PCI segments */
 LIST_HEAD(amd_iommu_list);		/* list of all AMD IOMMUs in the
 					   system */
@@ -259,21 +263,46 @@ int amd_iommu_get_num_iommus(void)
 	return amd_iommus_present;
 }
 
-#ifdef CONFIG_IRQ_REMAP
-static bool check_feature_on_all_iommus(u64 mask)
+/*
+ * Iterate through all the IOMMUs to get common EFR
+ * masks among all IOMMUs and warn if found inconsistency.
+ */
+static void get_global_efr(void)
 {
-	bool ret = false;
 	struct amd_iommu *iommu;
 
 	for_each_iommu(iommu) {
-		ret = iommu_feature(iommu, mask);
-		if (!ret)
-			return false;
+		u64 tmp = iommu->features;
+		u64 tmp2 = iommu->features2;
+
+		if (list_is_first(&iommu->list, &amd_iommu_list)) {
+			amd_iommu_efr = tmp;
+			amd_iommu_efr2 = tmp2;
+			continue;
+		}
+
+		if (amd_iommu_efr == tmp &&
+		    amd_iommu_efr2 == tmp2)
+			continue;
+
+		pr_err(FW_BUG
+		       "Found inconsistent EFR/EFR2 %#llx,%#llx (global %#llx,%#llx) on iommu%d (%04x:%02x:%02x.%01x).\n",
+		       tmp, tmp2, amd_iommu_efr, amd_iommu_efr2,
+		       iommu->index, iommu->pci_seg->id,
+		       PCI_BUS_NUM(iommu->devid), PCI_SLOT(iommu->devid),
+		       PCI_FUNC(iommu->devid));
+
+		amd_iommu_efr &= tmp;
+		amd_iommu_efr2 &= tmp2;
 	}
 
-	return true;
+	pr_info("Using global IVHD EFR:%#llx, EFR2:%#llx\n", amd_iommu_efr, amd_iommu_efr2);
 }
-#endif
+
+static bool check_feature_on_all_iommus(u64 mask)
+{
+	return !!(amd_iommu_efr & mask);
+}
 
 /*
  * For IVHD type 0x11/0x40, EFR is also available via IVHD.

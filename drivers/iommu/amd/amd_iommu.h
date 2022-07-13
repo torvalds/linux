@@ -137,4 +137,7 @@ static inline void amd_iommu_apply_ivrs_quirks(void) { }
 extern void amd_iommu_domain_set_pgtable(struct protection_domain *domain,
 					 u64 *root, int mode);
 extern struct dev_table_entry *get_dev_table(struct amd_iommu *iommu);
+
+extern u64 amd_iommu_efr;
+extern u64 amd_iommu_efr2;
 #endif
