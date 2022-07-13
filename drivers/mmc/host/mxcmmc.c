@@ -923,7 +923,7 @@ static void mxcmci_init_card(struct mmc_host *host, struct mmc_card *card)
 	 * One way to prevent this is to only allow 1-bit transfers.
 	 */
 
-	if (is_imx31_mmc(mxcmci) && card->type == MMC_TYPE_SDIO)
+	if (is_imx31_mmc(mxcmci) && mmc_card_sdio(card))
 		host->caps &= ~MMC_CAP_4_BIT_DATA;
 	else
 		host->caps |= MMC_CAP_4_BIT_DATA;
