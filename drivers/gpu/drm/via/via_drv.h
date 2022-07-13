@@ -183,7 +183,6 @@ do {								\
 	remove_wait_queue(&(queue), &entry);			\
 } while (0)
 
-extern int via_decoder_futex(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_dma_blit_sync(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_dma_blit(struct drm_device *dev, void *data, struct drm_file *file_priv);
@@ -203,9 +202,6 @@ extern void via_driver_irq_uninstall(struct drm_device *dev);
 extern int via_dma_cleanup(struct drm_device *dev);
 extern void via_init_command_verifier(void);
 extern int via_driver_dma_quiescent(struct drm_device *dev);
-extern void via_init_futex(drm_via_private_t *dev_priv);
-extern void via_cleanup_futex(drm_via_private_t *dev_priv);
-extern void via_release_futex(drm_via_private_t *dev_priv, int context);
 
 extern void via_dmablit_handler(struct drm_device *dev, int engine, int from_irq);
 extern void via_init_dmablit(struct drm_device *dev);

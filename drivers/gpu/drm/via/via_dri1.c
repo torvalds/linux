@@ -5,7 +5,8 @@
  * Copyright 2006 Tungsten Graphics Inc., Bismarck, ND., USA.
  * Copyright 2004 Digeo, Inc., Palo Alto, CA, U.S.A. All Rights Reserved.
  * Copyright 2004 The Unichrome project. All Rights Reserved.
-  *
+ * Copyright 2005 Thomas Hellstrom. All Rights Reserved.
+ *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
  * to deal in the Software without restriction, including without limitation
@@ -75,6 +76,69 @@ struct via_memblock {
 	struct drm_mm_node mm_node;
 	struct list_head owner_list;
 };
+
+static void via_init_futex(drm_via_private_t *dev_priv)
+{
+	unsigned int i;
+
+	DRM_DEBUG("\n");
+
+	for (i = 0; i < VIA_NR_XVMC_LOCKS; ++i) {
+		init_waitqueue_head(&(dev_priv->decoder_queue[i]));
+		XVMCLOCKPTR(dev_priv->sarea_priv, i)->lock = 0;
+	}
+}
+
+static void via_cleanup_futex(drm_via_private_t *dev_priv)
+{
+}
+
+static void via_release_futex(drm_via_private_t *dev_priv, int context)
+{
+	unsigned int i;
+	volatile int *lock;
+
+	if (!dev_priv->sarea_priv)
+		return;
+
+	for (i = 0; i < VIA_NR_XVMC_LOCKS; ++i) {
+		lock = (volatile int *)XVMCLOCKPTR(dev_priv->sarea_priv, i);
+		if ((_DRM_LOCKING_CONTEXT(*lock) == context)) {
+			if (_DRM_LOCK_IS_HELD(*lock)
+			    && (*lock & _DRM_LOCK_CONT)) {
+				wake_up(&(dev_priv->decoder_queue[i]));
+			}
+			*lock = 0;
+		}
+	}
+}
+
+static int via_decoder_futex(struct drm_device *dev, void *data, struct drm_file *file_priv)
+{
+	drm_via_futex_t *fx = data;
+	volatile int *lock;
+	drm_via_private_t *dev_priv = (drm_via_private_t *) dev->dev_private;
+	drm_via_sarea_t *sAPriv = dev_priv->sarea_priv;
+	int ret = 0;
+
+	DRM_DEBUG("\n");
+
+	if (fx->lock >= VIA_NR_XVMC_LOCKS)
+		return -EFAULT;
+
+	lock = (volatile int *)XVMCLOCKPTR(sAPriv, fx->lock);
+
+	switch (fx->func) {
+	case VIA_FUTEX_WAIT:
+		VIA_WAIT_ON(ret, dev_priv->decoder_queue[fx->lock],
+			    (fx->ms / 10) * (HZ / 100), *lock != fx->val);
+		return ret;
+	case VIA_FUTEX_WAKE:
+		wake_up(&(dev_priv->decoder_queue[fx->lock]));
+		return 0;
+	}
+	return 0;
+}
 
 static int via_agp_init(struct drm_device *dev, void *data, struct drm_file *file_priv)
 {
