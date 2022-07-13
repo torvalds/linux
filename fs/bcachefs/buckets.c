@@ -1853,7 +1853,7 @@ int bch2_trans_mark_metadata_bucket(struct btree_trans *trans,
 				    enum bch_data_type type,
 				    unsigned sectors)
 {
-	return __bch2_trans_do(trans, NULL, NULL, 0,
+	return commit_do(trans, NULL, NULL, 0,
 			__bch2_trans_mark_metadata_bucket(trans, ca, b, type, sectors));
 }
 

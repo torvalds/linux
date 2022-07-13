@@ -42,7 +42,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 	bch2_trans_iter_init(&trans, &iter, BTREE_ID_xattrs, k.k.p,
 			     BTREE_ITER_INTENT);
 
-	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+	ret = commit_do(&trans, NULL, NULL, 0,
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_trans_update(&trans, &iter, &k.k_i, 0));
 	if (ret) {
@@ -51,7 +51,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 	}
 
 	pr_info("deleting once");
-	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+	ret = commit_do(&trans, NULL, NULL, 0,
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_btree_delete_at(&trans, &iter, 0));
 	if (ret) {
@@ -60,7 +60,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 	}
 
 	pr_info("deleting twice");
-	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+	ret = commit_do(&trans, NULL, NULL, 0,
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_btree_delete_at(&trans, &iter, 0));
 	if (ret) {
@@ -88,7 +88,7 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 	bch2_trans_iter_init(&trans, &iter, BTREE_ID_xattrs, k.k.p,
 			     BTREE_ITER_INTENT);
 
-	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+	ret = commit_do(&trans, NULL, NULL, 0,
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_trans_update(&trans, &iter, &k.k_i, 0));
 	if (ret) {
@@ -99,7 +99,7 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 	bch2_trans_unlock(&trans);
 	bch2_journal_flush_all_pins(&c->journal);
 
-	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+	ret = commit_do(&trans, NULL, NULL, 0,
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_btree_delete_at(&trans, &iter, 0));
 	if (ret) {
@@ -552,7 +552,7 @@ static int rand_insert(struct bch_fs *c, u64 nr)
 		k.k.p.offset = test_rand();
 		k.k.p.snapshot = U32_MAX;
 
-		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+		ret = commit_do(&trans, NULL, NULL, 0,
 			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k.k_i));
 		if (ret) {
 			bch_err(c, "error in rand_insert: %i", ret);
@@ -581,7 +581,7 @@ static int rand_insert_multi(struct bch_fs *c, u64 nr)
 			k[j].k.p.snapshot = U32_MAX;
 		}
 
-		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+		ret = commit_do(&trans, NULL, NULL, 0,
 			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[0].k_i) ?:
 			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[1].k_i) ?:
 			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[2].k_i) ?:
@@ -668,7 +668,7 @@ static int rand_mixed(struct bch_fs *c, u64 nr)
 
 	for (i = 0; i < nr; i++) {
 		rand = test_rand();
-		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+		ret = commit_do(&trans, NULL, NULL, 0,
 			rand_mixed_trans(&trans, &iter, &cookie, i, rand));
 		if (ret) {
 			bch_err(c, "update error in rand_mixed: %i", ret);
@@ -714,7 +714,7 @@ static int rand_delete(struct bch_fs *c, u64 nr)
 	for (i = 0; i < nr; i++) {
 		struct bpos pos = SPOS(0, test_rand(), U32_MAX);
 
-		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+		ret = commit_do(&trans, NULL, NULL, 0,
 			__do_delete(&trans, pos));
 		if (ret) {
 			bch_err(c, "error in rand_delete: %i", ret);
@@ -743,7 +743,7 @@ static int seq_insert(struct bch_fs *c, u64 nr)
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		insert.k.p = iter.pos;
 
-		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+		ret = commit_do(&trans, NULL, NULL, 0,
 			bch2_btree_iter_traverse(&iter) ?:
 			bch2_trans_update(&trans, &iter, &insert.k_i, 0));
 		if (ret) {
@@ -794,7 +794,7 @@ static int seq_overwrite(struct bch_fs *c, u64 nr)
 
 		bkey_reassemble(&u.k_i, k);
 
-		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+		ret = commit_do(&trans, NULL, NULL, 0,
 			bch2_btree_iter_traverse(&iter) ?:
 			bch2_trans_update(&trans, &iter, &u.k_i, 0));
 		if (ret) {

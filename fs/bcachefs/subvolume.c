@@ -605,7 +605,7 @@ static int bch2_snapshot_delete_keys_btree(struct btree_trans *trans,
 			    bch2_btree_key_cache_flush(trans, btree_id, iter.pos))
 				continue;
 
-			ret = __bch2_trans_do(trans, NULL, NULL,
+			ret = commit_do(trans, NULL, NULL,
 					      BTREE_INSERT_NOFAIL,
 				bch2_btree_iter_traverse(&iter) ?:
 				bch2_btree_delete_at(trans, &iter,
@@ -664,7 +664,7 @@ static void bch2_delete_dead_snapshots_work(struct work_struct *work)
 		if (ret)
 			continue;
 
-		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+		ret = commit_do(&trans, NULL, NULL, 0,
 			bch2_snapshot_node_set_deleted(&trans, iter.pos.offset));
 		if (ret) {
 			bch_err(c, "error deleting snapshot %llu: %i", iter.pos.offset, ret);
@@ -713,7 +713,7 @@ static void bch2_delete_dead_snapshots_work(struct work_struct *work)
 	}
 
 	for (i = 0; i < deleted.nr; i++) {
-		ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+		ret = commit_do(&trans, NULL, NULL, 0,
 			bch2_snapshot_node_delete(&trans, deleted.data[i]));
 		if (ret) {
 			bch_err(c, "error deleting snapshot %u: %i",

@@ -443,7 +443,7 @@ static int __bch2_link(struct bch_fs *c,
 	mutex_lock(&inode->ei_update_lock);
 	bch2_trans_init(&trans, c, 4, 1024);
 
-	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+	ret = commit_do(&trans, NULL, NULL, 0,
 			bch2_link_trans(&trans,
 					inode_inum(dir),   &dir_u,
 					inode_inum(inode), &inode_u,
@@ -492,7 +492,7 @@ int __bch2_unlink(struct inode *vdir, struct dentry *dentry,
 	bch2_lock_inodes(INODE_UPDATE_LOCK, dir, inode);
 	bch2_trans_init(&trans, c, 4, 1024);
 
-	ret = __bch2_trans_do(&trans, NULL, NULL,
+	ret = commit_do(&trans, NULL, NULL,
 			      BTREE_INSERT_NOFAIL,
 			bch2_unlink_trans(&trans,
 					  inode_inum(dir), &dir_u,
@@ -614,7 +614,7 @@ static int bch2_rename2(struct mnt_idmap *idmap,
 			goto err;
 	}
 
-	ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+	ret = commit_do(&trans, NULL, NULL, 0,
 			bch2_rename_trans(&trans,
 					  inode_inum(src_dir), &src_dir_u,
 					  inode_inum(dst_dir), &dst_dir_u,

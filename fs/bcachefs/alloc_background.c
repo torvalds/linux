@@ -787,7 +787,7 @@ int bch2_check_alloc_info(struct bch_fs *c)
 	bch2_trans_iter_init(&trans, &freespace_iter, BTREE_ID_freespace, POS_MIN,
 			     BTREE_ITER_PREFETCH);
 	while (1) {
-		ret = __bch2_trans_do(&trans, NULL, NULL,
+		ret = commit_do(&trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
 			bch2_check_alloc_key(&trans, &iter,
@@ -808,7 +808,7 @@ int bch2_check_alloc_info(struct bch_fs *c)
 	bch2_trans_iter_init(&trans, &iter, BTREE_ID_need_discard, POS_MIN,
 			     BTREE_ITER_PREFETCH);
 	while (1) {
-		ret = __bch2_trans_do(&trans, NULL, NULL,
+		ret = commit_do(&trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
 			bch2_check_discard_freespace_key(&trans, &iter));
@@ -825,7 +825,7 @@ int bch2_check_alloc_info(struct bch_fs *c)
 	bch2_trans_iter_init(&trans, &iter, BTREE_ID_freespace, POS_MIN,
 			     BTREE_ITER_PREFETCH);
 	while (1) {
-		ret = __bch2_trans_do(&trans, NULL, NULL,
+		ret = commit_do(&trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
 			bch2_check_discard_freespace_key(&trans, &iter));
@@ -930,7 +930,7 @@ int bch2_check_alloc_to_lru_refs(struct bch_fs *c)
 
 	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
 			   BTREE_ITER_PREFETCH, k, ret) {
-		ret = __bch2_trans_do(&trans, NULL, NULL,
+		ret = commit_do(&trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
 			bch2_check_alloc_to_lru_ref(&trans, &iter));
@@ -1060,7 +1060,7 @@ static void bch2_do_discards_work(struct work_struct *work)
 			continue;
 		}
 
-		ret = __bch2_trans_do(&trans, NULL, NULL,
+		ret = commit_do(&trans, NULL, NULL,
 				      BTREE_INSERT_USE_RESERVE|
 				      BTREE_INSERT_NOFAIL,
 				bch2_clear_need_discard(&trans, k.k->p, ca, &discard_done));
@@ -1198,7 +1198,7 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 			should_invalidate_buckets(ca, bch2_dev_usage_read(ca));
 
 		while (nr_to_invalidate-- >= 0) {
-			ret = __bch2_trans_do(&trans, NULL, NULL,
+			ret = commit_do(&trans, NULL, NULL,
 					      BTREE_INSERT_USE_RESERVE|
 					      BTREE_INSERT_NOFAIL,
 					invalidate_one_bucket(&trans, ca, &bucket,
@@ -1254,7 +1254,7 @@ static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca)
 		if (iter.pos.offset >= ca->mi.nbuckets)
 			break;
 
-		ret = __bch2_trans_do(&trans, NULL, NULL,
+		ret = commit_do(&trans, NULL, NULL,
 				      BTREE_INSERT_LAZY_RW,
 				 bucket_freespace_init(&trans, &iter));
 		if (ret)

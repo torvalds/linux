@@ -799,7 +799,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 			atomic64_set(&c->key_version, k->k->version.lo);
 	}
 
-	ret = __bch2_trans_do(trans, NULL, NULL, 0,
+	ret = commit_do(trans, NULL, NULL, 0,
 			bch2_mark_key(trans, old, *k, flags));
 fsck_err:
 err:
@@ -1435,7 +1435,7 @@ static int bch2_gc_alloc_done(struct bch_fs *c, bool metadata_only)
 			if (bkey_cmp(iter.pos, POS(ca->dev_idx, ca->mi.nbuckets)) >= 0)
 				break;
 
-			ret = __bch2_trans_do(&trans, NULL, NULL,
+			ret = commit_do(&trans, NULL, NULL,
 					      BTREE_INSERT_LAZY_RW,
 					bch2_alloc_write_key(&trans, &iter,
 							     metadata_only));
@@ -1589,7 +1589,7 @@ static int bch2_gc_reflink_done(struct bch_fs *c, bool metadata_only)
 			else
 				*bkey_refcount(new) = cpu_to_le64(r->refcount);
 
-			ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+			ret = commit_do(&trans, NULL, NULL, 0,
 				__bch2_btree_insert(&trans, BTREE_ID_reflink, new));
 			kfree(new);
 
@@ -1702,7 +1702,7 @@ inconsistent:
 			for (i = 0; i < new->v.nr_blocks; i++)
 				stripe_blockcount_set(&new->v, i, m ? m->block_sectors[i] : 0);
 
-			ret = __bch2_trans_do(&trans, NULL, NULL, 0,
+			ret = commit_do(&trans, NULL, NULL, 0,
 				__bch2_btree_insert(&trans, BTREE_ID_reflink, &new->k_i));
 			kfree(new);
 		}
@@ -2009,7 +2009,7 @@ int bch2_gc_gens(struct bch_fs *c)
 
 	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
 			   BTREE_ITER_PREFETCH, k, ret) {
-		ret = __bch2_trans_do(&trans, NULL, NULL,
+		ret = commit_do(&trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL,
 				bch2_alloc_write_oldest_gen(&trans, &iter));
 		if (ret) {

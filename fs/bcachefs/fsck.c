@@ -220,7 +220,7 @@ static int write_inode(struct btree_trans *trans,
 		       struct bch_inode_unpacked *inode,
 		       u32 snapshot)
 {
-	int ret = __bch2_trans_do(trans, NULL, NULL,
+	int ret = commit_do(trans, NULL, NULL,
 				  BTREE_INSERT_NOFAIL|
 				  BTREE_INSERT_LAZY_RW,
 				  __write_inode(trans, inode, snapshot));
@@ -434,7 +434,7 @@ static int reattach_inode(struct btree_trans *trans,
 			  struct bch_inode_unpacked *inode,
 			  u32 inode_snapshot)
 {
-	int ret = __bch2_trans_do(trans, NULL, NULL,
+	int ret = commit_do(trans, NULL, NULL,
 				  BTREE_INSERT_LAZY_RW|
 				  BTREE_INSERT_NOFAIL,
 			__reattach_inode(trans, inode, inode_snapshot));
@@ -940,7 +940,7 @@ static int check_inodes(struct bch_fs *c, bool full)
 			     BTREE_ITER_ALL_SNAPSHOTS);
 
 	do {
-		ret = __bch2_trans_do(&trans, NULL, NULL,
+		ret = commit_do(&trans, NULL, NULL,
 				      BTREE_INSERT_LAZY_RW|
 				      BTREE_INSERT_NOFAIL,
 			check_inode(&trans, &iter, &prev, full));
@@ -1002,7 +1002,7 @@ static int check_subvols(struct bch_fs *c)
 			     BTREE_ITER_PREFETCH);
 
 	do {
-		ret = __bch2_trans_do(&trans, NULL, NULL,
+		ret = commit_do(&trans, NULL, NULL,
 				      BTREE_INSERT_LAZY_RW|
 				      BTREE_INSERT_NOFAIL,
 				      check_subvol(&trans, &iter));
@@ -1306,7 +1306,7 @@ static int check_extents(struct bch_fs *c)
 			     BTREE_ITER_ALL_SNAPSHOTS);
 
 	do {
-		ret = __bch2_trans_do(&trans, NULL, NULL,
+		ret = commit_do(&trans, NULL, NULL,
 				      BTREE_INSERT_LAZY_RW|
 				      BTREE_INSERT_NOFAIL,
 			check_extent(&trans, &iter, &w, &s));
@@ -1687,7 +1687,7 @@ static int check_dirents(struct bch_fs *c)
 			     BTREE_ITER_ALL_SNAPSHOTS);
 
 	do {
-		ret = __bch2_trans_do(&trans, NULL, NULL,
+		ret = commit_do(&trans, NULL, NULL,
 				      BTREE_INSERT_LAZY_RW|
 				      BTREE_INSERT_NOFAIL,
 			check_dirent(&trans, &iter, &hash_info,
@@ -1774,7 +1774,7 @@ static int check_xattrs(struct bch_fs *c)
 			     BTREE_ITER_ALL_SNAPSHOTS);
 
 	do {
-		ret = __bch2_trans_do(&trans, NULL, NULL,
+		ret = commit_do(&trans, NULL, NULL,
 				      BTREE_INSERT_LAZY_RW|
 				      BTREE_INSERT_NOFAIL,
 				      check_xattr(&trans, &iter, &hash_info,
@@ -1814,7 +1814,7 @@ static int check_root_trans(struct btree_trans *trans)
 		root_subvol.v.flags	= 0;
 		root_subvol.v.snapshot	= cpu_to_le32(snapshot);
 		root_subvol.v.inode	= cpu_to_le64(inum);
-		ret = __bch2_trans_do(trans, NULL, NULL,
+		ret = commit_do(trans, NULL, NULL,
 				      BTREE_INSERT_NOFAIL|
 				      BTREE_INSERT_LAZY_RW,
 			__bch2_btree_insert(trans, BTREE_ID_subvolumes, &root_subvol.k_i));
@@ -1977,7 +1977,7 @@ static int check_path(struct btree_trans *trans,
 			if (!fsck_err(c, "directory structure loop"))
 				return 0;
 
-			ret = __bch2_trans_do(trans, NULL, NULL,
+			ret = commit_do(trans, NULL, NULL,
 					      BTREE_INSERT_NOFAIL|
 					      BTREE_INSERT_LAZY_RW,
 					remove_backpointer(trans, inode));
@@ -2366,7 +2366,7 @@ static int fix_reflink_p(struct bch_fs *c)
 			   BTREE_ITER_PREFETCH|
 			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
 		if (k.k->type == KEY_TYPE_reflink_p) {
-			ret = __bch2_trans_do(&trans, NULL, NULL,
+			ret = commit_do(&trans, NULL, NULL,
 					      BTREE_INSERT_NOFAIL|
 					      BTREE_INSERT_LAZY_RW,
 					      fix_reflink_p_key(&trans, &iter));

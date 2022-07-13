@@ -599,7 +599,7 @@ static void btree_update_nodes_written(struct btree_update *as)
 	 * which may require allocations as well.
 	 */
 	bch2_trans_init(&trans, c, 0, 512);
-	ret = __bch2_trans_do(&trans, &as->disk_res, &journal_seq,
+	ret = commit_do(&trans, &as->disk_res, &journal_seq,
 			      BTREE_INSERT_NOFAIL|
 			      BTREE_INSERT_NOCHECK_RW|
 			      BTREE_INSERT_JOURNAL_RECLAIM|
