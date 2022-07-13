@@ -755,9 +755,9 @@ static int rv1106_codec_hpf_get(struct snd_kcontrol *kcontrol,
 
 	regmap_read(rv1106->regmap, ACODEC_ADC_HPF_PGA_CTL, &value);
 	if (value & ACODEC_ADC_HPF_MSK)
-		rv1106->hpf_cutoff = 0;
-	else
 		rv1106->hpf_cutoff = 1;
+	else
+		rv1106->hpf_cutoff = 0;
 
 	ucontrol->value.integer.value[0] = rv1106->hpf_cutoff;
 
@@ -775,7 +775,7 @@ static int rv1106_codec_hpf_put(struct snd_kcontrol *kcontrol,
 		/* Enable high pass filter for ADCs */
 		regmap_update_bits(rv1106->regmap, ACODEC_ADC_HPF_PGA_CTL,
 				   ACODEC_ADC_HPF_MSK,
-				   ACODEC_ADC_HPF_50_48K);
+				   ACODEC_ADC_HPF_EN);
 	} else {
 		/* Disable high pass filter for ADCs. */
 		regmap_update_bits(rv1106->regmap, ACODEC_ADC_HPF_PGA_CTL,
