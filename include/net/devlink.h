@@ -1590,7 +1590,7 @@ int devlink_dpipe_table_register(struct devlink *devlink,
 				 void *priv, bool counter_control_extern);
 void devlink_dpipe_table_unregister(struct devlink *devlink,
 				    const char *table_name);
-int devlink_dpipe_headers_register(struct devlink *devlink,
+void devlink_dpipe_headers_register(struct devlink *devlink,
 				   struct devlink_dpipe_headers *dpipe_headers);
 void devlink_dpipe_headers_unregister(struct devlink *devlink);
 bool devlink_dpipe_table_counter_enabled(struct devlink *devlink,

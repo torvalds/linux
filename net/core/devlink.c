@@ -10425,13 +10425,12 @@ EXPORT_SYMBOL_GPL(devlink_sb_unregister);
  *
  *	Register the headers supported by hardware.
  */
-int devlink_dpipe_headers_register(struct devlink *devlink,
-				   struct devlink_dpipe_headers *dpipe_headers)
+void devlink_dpipe_headers_register(struct devlink *devlink,
+				    struct devlink_dpipe_headers *dpipe_headers)
 {
 	devl_lock(devlink);
 	devlink->dpipe_headers = dpipe_headers;
 	devl_unlock(devlink);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(devlink_dpipe_headers_register);
 
