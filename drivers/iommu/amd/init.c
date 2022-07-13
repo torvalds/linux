@@ -168,6 +168,10 @@ static int amd_iommu_target_ivhd_type;
 u64 amd_iommu_efr;
 u64 amd_iommu_efr2;
 
+/* SNP is enabled on the system? */
+bool amd_iommu_snp_en;
+EXPORT_SYMBOL(amd_iommu_snp_en);
+
 LIST_HEAD(amd_iommu_pci_seg_list);	/* list of all PCI segments */
 LIST_HEAD(amd_iommu_list);		/* list of all AMD IOMMUs in the
 					   system */
@@ -3556,3 +3560,41 @@ int amd_iommu_pc_set_reg(struct amd_iommu *iommu, u8 bank, u8 cntr, u8 fxn, u64 
 
 	return iommu_pc_get_set_reg(iommu, bank, cntr, fxn, value, true);
 }
+
+#ifdef CONFIG_AMD_MEM_ENCRYPT
+int amd_iommu_snp_enable(void)
+{
+	/*
+	 * The SNP support requires that IOMMU must be enabled, and is
+	 * not configured in the passthrough mode.
+	 */
+	if (no_iommu || iommu_default_passthrough()) {
+		pr_err("SNP: IOMMU is disabled or configured in passthrough mode, SNP cannot be supported");
+		return -EINVAL;
+	}
+
+	/*
+	 * Prevent enabling SNP after IOMMU_ENABLED state because this process
+	 * affect how IOMMU driver sets up data structures and configures
+	 * IOMMU hardware.
+	 */
+	if (init_state > IOMMU_ENABLED) {
+		pr_err("SNP: Too late to enable SNP for IOMMU.\n");
+		return -EINVAL;
+	}
+
+	amd_iommu_snp_en = check_feature_on_all_iommus(FEATURE_SNP);
+	if (!amd_iommu_snp_en)
+		return -EINVAL;
+
+	pr_info("SNP enabled\n");
+
+	/* Enforce IOMMU v1 pagetable when SNP is enabled. */
+	if (amd_iommu_pgtable != AMD_IOMMU_V1) {
+		pr_warn("Force to using AMD IOMMU v1 page table due to SNP\n");
+		amd_iommu_pgtable = AMD_IOMMU_V1;
+	}
+
+	return 0;
+}
+#endif

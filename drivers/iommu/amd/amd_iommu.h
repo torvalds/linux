@@ -140,4 +140,6 @@ extern struct dev_table_entry *get_dev_table(struct amd_iommu *iommu);
 
 extern u64 amd_iommu_efr;
 extern u64 amd_iommu_efr2;
+
+extern bool amd_iommu_snp_en;
 #endif
