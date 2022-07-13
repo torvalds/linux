@@ -51,15 +51,39 @@ static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t 
 	struct pci_bus *root = pdev->bus;
 	struct resource *root_res;
 	resource_size_t rebar_size;
+	resource_size_t current_size;
 	u32 pci_cmd;
 	int i;
 
-	rebar_size = roundup_pow_of_two(pci_resource_len(pdev, LMEM_BAR_NUM));
+	current_size = roundup_pow_of_two(pci_resource_len(pdev, LMEM_BAR_NUM));
 
-	if (rebar_size != roundup_pow_of_two(lmem_size))
-		rebar_size = lmem_size;
-	else
-		return;
+	if (i915->params.lmem_bar_size) {
+		u32 bar_sizes;
+
+		rebar_size = i915->params.lmem_bar_size *
+			(resource_size_t)SZ_1M;
+		bar_sizes = pci_rebar_get_possible_sizes(pdev,
+							 LMEM_BAR_NUM);
+
+		if (rebar_size == current_size)
+			return;
+
+		if (!(bar_sizes & BIT(pci_rebar_bytes_to_size(rebar_size))) ||
+		    rebar_size >= roundup_pow_of_two(lmem_size)) {
+			rebar_size = lmem_size;
+
+			drm_info(&i915->drm,
+				 "Given bar size is not within supported size, setting it to default: %llu\n",
+				 (u64)lmem_size >> 20);
+		}
+	} else {
+		rebar_size = current_size;
+
+		if (rebar_size != roundup_pow_of_two(lmem_size))
+			rebar_size = lmem_size;
+		else
+			return;
+	}
 
 	/* Find out if root bus contains 64bit memory addressing */
 	while (root->parent)
