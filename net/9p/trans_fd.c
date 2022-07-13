@@ -345,6 +345,7 @@ static void p9_read_work(struct work_struct *work)
 			p9_debug(P9_DEBUG_ERROR,
 				 "No recv fcall for tag %d (req %p), disconnecting!\n",
 				 m->rc.tag, m->rreq);
+			p9_req_put(m->client, m->rreq);
 			m->rreq = NULL;
 			err = -EIO;
 			goto error;
