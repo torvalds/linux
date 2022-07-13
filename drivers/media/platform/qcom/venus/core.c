@@ -845,6 +845,10 @@ static const struct reg_val sm7280_reg_preset[] = {
 	{ 0xb0088, 0 },
 };
 
+static const struct hfi_ubwc_config sc7280_ubwc_config = {
+	0, 0, {1, 1, 1, 0, 0, 0}, 8, 32, 14, 0, 0, {0, 0}
+};
+
 static const struct venus_resources sc7280_res = {
 	.freq_tbl = sc7280_freq_table,
 	.freq_tbl_size = ARRAY_SIZE(sc7280_freq_table),
@@ -854,6 +858,7 @@ static const struct venus_resources sc7280_res = {
 	.bw_tbl_enc_size = ARRAY_SIZE(sc7280_bw_table_enc),
 	.bw_tbl_dec = sc7280_bw_table_dec,
 	.bw_tbl_dec_size = ARRAY_SIZE(sc7280_bw_table_dec),
+	.ubwc_conf = &sc7280_ubwc_config,
 	.clks = {"core", "bus", "iface"},
 	.clks_num = 3,
 	.vcodec0_clks = {"vcodec_core", "vcodec_bus"},
