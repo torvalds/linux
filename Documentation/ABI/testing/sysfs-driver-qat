@@ -2,18 +2,14 @@ What:		/sys/bus/pci/devices/<BDF>/qat/state
 Date:		June 2022
 KernelVersion:	5.20
 Contact:	qat-linux@intel.com
-Description:	Reports the current state of the QAT device and allows to
-		change it.
+Description:	(RW) Reports the current state of the QAT device. Write to
+		the file to start or stop the device.
 
-		This attribute is RW.
+		The values are:
 
-		Returned values:
-			up: the device is up and running
-			down: the device is down
+		* up: the device is up and running
+		* down: the device is down
 
-		Allowed values:
-			up: initialize and start the device
-			down: stop the device and bring it down
 
 		It is possible to transition the device from up to down only
 		if the device is up and vice versa.
@@ -24,22 +20,14 @@ What:		/sys/bus/pci/devices/<BDF>/qat/cfg_services
 Date:		June 2022
 KernelVersion:	5.20
 Contact:	qat-linux@intel.com
-Description:	Reports the current configuration of the QAT device and allows
-		to change it.
+Description:	(RW) Reports the current configuration of the QAT device.
+		Write to the file to change the configured services.
 
-		This attribute is RW.
+		The values are:
 
-		Returned values:
-			sym;asym:	the device is configured for running
-					crypto services
-			dc:		the device is configured for running
-					compression services
-
-		Allowed values:
-			sym;asym:	configure the device for running
-					crypto services
-			dc:		configure the device for running
-					compression services
+		* sym;asym: the device is configured for running crypto
+		  services
+		* dc: the device is configured for running compression services
 
 		It is possible to set the configuration only if the device
 		is in the `down` state (see /sys/bus/pci/devices/<BDF>/qat/state)
