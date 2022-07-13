@@ -8,6 +8,7 @@
 
 #include <sysdep/ptrace_user.h>
 #include <generated/asm-offsets.h>
+#include <linux/stddef.h>
 
 #define STUB_MMAP_NR __NR_mmap
 #define MMAP_OFFSET(o) (o)
