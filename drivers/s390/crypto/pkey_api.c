@@ -2115,5 +2115,5 @@ static void __exit pkey_exit(void)
 	pkey_debug_exit();
 }
 
-module_cpu_feature_match(MSA, pkey_init);
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, pkey_init);
 module_exit(pkey_exit);

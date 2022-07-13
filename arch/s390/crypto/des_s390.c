@@ -492,7 +492,7 @@ out_err:
 	return ret;
 }
 
-module_cpu_feature_match(MSA, des_s390_init);
+module_cpu_feature_match(S390_CPU_FEATURE_MSA, des_s390_init);
 module_exit(des_s390_exit);
 
 MODULE_ALIAS_CRYPTO("des");
