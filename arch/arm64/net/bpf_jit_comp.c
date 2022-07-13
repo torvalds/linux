@@ -604,6 +604,7 @@ void dummy_tramp(void);
 
 asm (
 "	.pushsection .text, \"ax\", @progbits\n"
+"	.global dummy_tramp\n"
 "	.type dummy_tramp, %function\n"
 "dummy_tramp:"
 #if IS_ENABLED(CONFIG_ARM64_BTI_KERNEL)
