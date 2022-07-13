@@ -183,9 +183,6 @@ do {								\
 	remove_wait_queue(&(queue), &entry);			\
 } while (0)
 
-extern const struct drm_ioctl_desc via_ioctls[];
-extern int via_max_ioctl;
-
 extern int via_fb_init(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_mem_alloc(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv);
