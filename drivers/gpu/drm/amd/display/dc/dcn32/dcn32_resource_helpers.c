@@ -184,7 +184,8 @@ void dcn32_determine_det_override(struct dc_state *context, display_e2e_pipe_par
 
 	if (context->stream_count > 0) {
 		stream_segments = 18 / context->stream_count;
-		for (i = 0, count = 0; i < context->stream_count; i++) {
+		for (i = 0; i < context->stream_count; i++) {
+			count = 0;
 			for (j = 0; j < pipe_cnt; j++) {
 				if (context->res_ctx.pipe_ctx[j].stream == context->streams[i]) {
 					count++;
