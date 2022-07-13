@@ -18,7 +18,6 @@ ifdef CONFIG_CC_IS_GCC
 ifeq ($(call cc-ifversion, -lt, 0701, y), y)
 IS_OLD_GCC = 1
 endif
-CFLAGS_$(AMDDALPATH)/dc/dcn201/dcn201_resource.o += -mhard-float
 endif
 
 ifdef CONFIG_X86

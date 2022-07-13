@@ -1399,8 +1399,6 @@ void intel_overlay_setup(struct drm_i915_private *dev_priv)
 
 	overlay->i915 = dev_priv;
 	overlay->context = engine->kernel_context;
-	GEM_BUG_ON(!overlay->context);
-
 	overlay->color_key = 0x0101fe;
 	overlay->color_key_enabled = true;
 	overlay->brightness = -19;

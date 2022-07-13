@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 //
-// MXC GPIO support. (c) 2008 Daniel Mack <daniel@caiaq.de>
+// MXS GPIO support. (c) 2008 Daniel Mack <daniel@caiaq.de>
 // Copyright 2008 Juergen Beisert, kernel@pengutronix.de
 //
 // Based on code from Freescale,

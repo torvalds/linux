@@ -58,6 +58,12 @@ static const struct IP_BASE MP0_BASE = { { { { 0x00016000, 0x00DC0000, 0x00E0000
 #define FN(reg_name, field) \
 	FD(reg_name##__##field)
 
+#include "logger_types.h"
+#undef DC_LOGGER
+#define DC_LOGGER \
+	CTX->logger
+#define smu_print(str, ...) {DC_LOG_SMU(str, ##__VA_ARGS__); }
+
 #define VBIOSSMC_MSG_TestMessage                  0x01 ///< To check if PMFW is alive and responding. Requirement specified by PMFW team
 #define VBIOSSMC_MSG_GetPmfwVersion               0x02 ///< Get PMFW version
 #define VBIOSSMC_MSG_Spare0                       0x03 ///< Spare0
@@ -119,6 +125,8 @@ static int dcn316_smu_send_msg_with_param(
 
 	result = dcn316_smu_wait_for_response(clk_mgr, 10, 200000);
 	ASSERT(result == VBIOSSMC_Result_OK);
+
+	smu_print("SMU response after wait: %d\n", result);
 
 	if (result == VBIOSSMC_Status_BUSY) {
 		return -1;

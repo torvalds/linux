@@ -189,14 +189,28 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 
 	r = amdgpu_device_wb_get(adev, &adev->mes.query_status_fence_offs);
 	if (r) {
+		amdgpu_device_wb_free(adev, adev->mes.sch_ctx_offs);
 		dev_err(adev->dev,
 			"(%d) query_status_fence_offs wb alloc failed\n", r);
-		return r;
+		goto error_ids;
 	}
 	adev->mes.query_status_fence_gpu_addr =
 		adev->wb.gpu_addr + (adev->mes.query_status_fence_offs * 4);
 	adev->mes.query_status_fence_ptr =
 		(uint64_t *)&adev->wb.wb[adev->mes.query_status_fence_offs];
+
+	r = amdgpu_device_wb_get(adev, &adev->mes.read_val_offs);
+	if (r) {
+		amdgpu_device_wb_free(adev, adev->mes.sch_ctx_offs);
+		amdgpu_device_wb_free(adev, adev->mes.query_status_fence_offs);
+		dev_err(adev->dev,
+			"(%d) read_val_offs alloc failed\n", r);
+		goto error_ids;
+	}
+	adev->mes.read_val_gpu_addr =
+		adev->wb.gpu_addr + (adev->mes.read_val_offs * 4);
+	adev->mes.read_val_ptr =
+		(uint32_t *)&adev->wb.wb[adev->mes.read_val_offs];
 
 	r = amdgpu_mes_doorbell_init(adev);
 	if (r)
@@ -206,6 +220,8 @@ int amdgpu_mes_init(struct amdgpu_device *adev)
 
 error:
 	amdgpu_device_wb_free(adev, adev->mes.sch_ctx_offs);
+	amdgpu_device_wb_free(adev, adev->mes.query_status_fence_offs);
+	amdgpu_device_wb_free(adev, adev->mes.read_val_offs);
 error_ids:
 	idr_destroy(&adev->mes.pasid_idr);
 	idr_destroy(&adev->mes.gang_id_idr);
@@ -218,6 +234,8 @@ error_ids:
 void amdgpu_mes_fini(struct amdgpu_device *adev)
 {
 	amdgpu_device_wb_free(adev, adev->mes.sch_ctx_offs);
+	amdgpu_device_wb_free(adev, adev->mes.query_status_fence_offs);
+	amdgpu_device_wb_free(adev, adev->mes.read_val_offs);
 
 	idr_destroy(&adev->mes.pasid_idr);
 	idr_destroy(&adev->mes.gang_id_idr);
@@ -675,8 +693,10 @@ int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
 	queue_input.doorbell_offset = qprops->doorbell_off;
 	queue_input.mqd_addr = queue->mqd_gpu_addr;
 	queue_input.wptr_addr = qprops->wptr_gpu_addr;
+	queue_input.wptr_mc_addr = qprops->wptr_mc_addr;
 	queue_input.queue_type = qprops->queue_type;
 	queue_input.paging = qprops->paging;
+	queue_input.is_kfd_process = 0;
 
 	r = adev->mes.funcs->add_hw_queue(&adev->mes, &queue_input);
 	if (r) {
@@ -792,6 +812,118 @@ int amdgpu_mes_unmap_legacy_queue(struct amdgpu_device *adev,
 	return r;
 }
 
+uint32_t amdgpu_mes_rreg(struct amdgpu_device *adev, uint32_t reg)
+{
+	struct mes_misc_op_input op_input;
+	int r, val = 0;
+
+	amdgpu_mes_lock(&adev->mes);
+
+	op_input.op = MES_MISC_OP_READ_REG;
+	op_input.read_reg.reg_offset = reg;
+	op_input.read_reg.buffer_addr = adev->mes.read_val_gpu_addr;
+
+	if (!adev->mes.funcs->misc_op) {
+		DRM_ERROR("mes rreg is not supported!\n");
+		goto error;
+	}
+
+	r = adev->mes.funcs->misc_op(&adev->mes, &op_input);
+	if (r)
+		DRM_ERROR("failed to read reg (0x%x)\n", reg);
+	else
+		val = *(adev->mes.read_val_ptr);
+
+error:
+	amdgpu_mes_unlock(&adev->mes);
+	return val;
+}
+
+int amdgpu_mes_wreg(struct amdgpu_device *adev,
+		    uint32_t reg, uint32_t val)
+{
+	struct mes_misc_op_input op_input;
+	int r;
+
+	amdgpu_mes_lock(&adev->mes);
+
+	op_input.op = MES_MISC_OP_WRITE_REG;
+	op_input.write_reg.reg_offset = reg;
+	op_input.write_reg.reg_value = val;
+
+	if (!adev->mes.funcs->misc_op) {
+		DRM_ERROR("mes wreg is not supported!\n");
+		r = -EINVAL;
+		goto error;
+	}
+
+	r = adev->mes.funcs->misc_op(&adev->mes, &op_input);
+	if (r)
+		DRM_ERROR("failed to write reg (0x%x)\n", reg);
+
+error:
+	amdgpu_mes_unlock(&adev->mes);
+	return r;
+}
+
+int amdgpu_mes_reg_write_reg_wait(struct amdgpu_device *adev,
+				  uint32_t reg0, uint32_t reg1,
+				  uint32_t ref, uint32_t mask)
+{
+	struct mes_misc_op_input op_input;
+	int r;
+
+	amdgpu_mes_lock(&adev->mes);
+
+	op_input.op = MES_MISC_OP_WRM_REG_WR_WAIT;
+	op_input.wrm_reg.reg0 = reg0;
+	op_input.wrm_reg.reg1 = reg1;
+	op_input.wrm_reg.ref = ref;
+	op_input.wrm_reg.mask = mask;
+
+	if (!adev->mes.funcs->misc_op) {
+		DRM_ERROR("mes reg_write_reg_wait is not supported!\n");
+		r = -EINVAL;
+		goto error;
+	}
+
+	r = adev->mes.funcs->misc_op(&adev->mes, &op_input);
+	if (r)
+		DRM_ERROR("failed to reg_write_reg_wait\n");
+
+error:
+	amdgpu_mes_unlock(&adev->mes);
+	return r;
+}
+
+int amdgpu_mes_reg_wait(struct amdgpu_device *adev, uint32_t reg,
+			uint32_t val, uint32_t mask)
+{
+	struct mes_misc_op_input op_input;
+	int r;
+
+	amdgpu_mes_lock(&adev->mes);
+
+	op_input.op = MES_MISC_OP_WRM_REG_WAIT;
+	op_input.wrm_reg.reg0 = reg;
+	op_input.wrm_reg.ref = val;
+	op_input.wrm_reg.mask = mask;
+
+	if (!adev->mes.funcs->misc_op) {
+		DRM_ERROR("mes reg wait is not supported!\n");
+		r = -EINVAL;
+		goto error;
+	}
+
+	r = adev->mes.funcs->misc_op(&adev->mes, &op_input);
+	if (r)
+		DRM_ERROR("failed to reg_write_reg_wait\n");
+
+error:
+	amdgpu_mes_unlock(&adev->mes);
+	return r;
+}
+
 static void
 amdgpu_mes_ring_to_queue_props(struct amdgpu_device *adev,
 			       struct amdgpu_ring *ring,
@@ -801,6 +933,8 @@ amdgpu_mes_ring_to_queue_props(struct amdgpu_device *adev,
 	props->hqd_base_gpu_addr = ring->gpu_addr;
 	props->rptr_gpu_addr = ring->rptr_gpu_addr;
 	props->wptr_gpu_addr = ring->wptr_gpu_addr;
+	props->wptr_mc_addr =
+		ring->mes_ctx->meta_data_mc_addr + ring->wptr_offs;
 	props->queue_size = ring->ring_size;
 	props->eop_gpu_addr = ring->eop_gpu_addr;
 	props->hqd_pipe_priority = AMDGPU_GFX_PIPE_PRIO_NORMAL;
@@ -961,7 +1095,8 @@ int amdgpu_mes_ctx_alloc_meta_data(struct amdgpu_device *adev,
 	r = amdgpu_bo_create_kernel(adev,
 			    sizeof(struct amdgpu_mes_ctx_meta_data),
 			    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
-			    &ctx_data->meta_data_obj, NULL,
+			    &ctx_data->meta_data_obj,
+			    &ctx_data->meta_data_mc_addr,
 			    &ctx_data->meta_data_ptr);
 	if (!ctx_data->meta_data_obj)
 		return -ENOMEM;
@@ -975,7 +1110,9 @@ int amdgpu_mes_ctx_alloc_meta_data(struct amdgpu_device *adev,
 void amdgpu_mes_ctx_free_meta_data(struct amdgpu_mes_ctx_data *ctx_data)
 {
 	if (ctx_data->meta_data_obj)
-		amdgpu_bo_free_kernel(&ctx_data->meta_data_obj, NULL, NULL);
+		amdgpu_bo_free_kernel(&ctx_data->meta_data_obj,
+				      &ctx_data->meta_data_mc_addr,
+				      &ctx_data->meta_data_ptr);
 }
 
 int amdgpu_mes_ctx_map_meta_data(struct amdgpu_device *adev,

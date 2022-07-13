@@ -272,6 +272,7 @@ struct dm_io {
 	atomic_t io_count;
 	struct mapped_device *md;
 
+	struct bio *split_bio;
 	/* The three fields represent mapped part of original bio */
 	struct bio *orig_bio;
 	unsigned int sector_offset; /* offset to end of orig_bio */

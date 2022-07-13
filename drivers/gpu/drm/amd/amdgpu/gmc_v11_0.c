@@ -37,6 +37,7 @@
 #include "nbio_v4_3.h"
 #include "gfxhub_v3_0.h"
 #include "mmhub_v3_0.h"
+#include "mmhub_v3_0_1.h"
 #include "mmhub_v3_0_2.h"
 #include "athub_v3_0.h"
 
@@ -267,7 +268,7 @@ static void gmc_v11_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	/* For SRIOV run time, driver shouldn't access the register through MMIO
 	 * Directly use kiq to do the vm invalidation instead
 	 */
-	if (adev->gfx.kiq.ring.sched.ready && !adev->enable_mes &&
+	if ((adev->gfx.kiq.ring.sched.ready || adev->mes.ring.sched.ready) &&
 	    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev))) {
 		struct amdgpu_vmhub *hub = &adev->vmhub[vmhub];
 		const unsigned eng = 17;
@@ -343,7 +344,6 @@ static int gmc_v11_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 				gmc_v11_0_flush_gpu_tlb(adev, vmid,
 						AMDGPU_GFXHUB_0, flush_type);
 			}
-			break;
 		}
 	}
 
@@ -548,6 +548,9 @@ static void gmc_v11_0_set_umc_funcs(struct amdgpu_device *adev)
 static void gmc_v11_0_set_mmhub_funcs(struct amdgpu_device *adev)
 {
 	switch (adev->ip_versions[MMHUB_HWIP][0]) {
+	case IP_VERSION(3, 0, 1):
+		adev->mmhub.funcs = &mmhub_v3_0_1_funcs;
+		break;
 	case IP_VERSION(3, 0, 2):
 		adev->mmhub.funcs = &mmhub_v3_0_2_funcs;
 		break;

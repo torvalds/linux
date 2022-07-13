@@ -24,8 +24,6 @@
 
 #include <asm/unaligned.h>
 
-#define SCMI_SHORT_NAME_MAX_SIZE	16
-
 #define PROTOCOL_REV_MINOR_MASK	GENMASK(15, 0)
 #define PROTOCOL_REV_MAJOR_MASK	GENMASK(31, 16)
 #define PROTOCOL_REV_MAJOR(x)	((u16)(FIELD_GET(PROTOCOL_REV_MAJOR_MASK, (x))))
@@ -181,6 +179,8 @@ struct scmi_protocol_handle {
  * @max_resources: Maximum acceptable number of items, configured by the caller
  *		   depending on the underlying resources that it is querying.
  * @loop_idx: The iterator loop index in the current multi-part reply.
+ * @rx_len: Size in bytes of the currenly processed message; it can be used by
+ *	    the user of the iterator to verify a reply size.
  * @priv: Optional pointer to some additional state-related private data setup
  *	  by the caller during the iterations.
  */
@@ -190,6 +190,7 @@ struct scmi_iterator_state {
 	unsigned int num_remaining;
 	unsigned int max_resources;
 	unsigned int loop_idx;
+	size_t rx_len;
 	void *priv;
 };
 

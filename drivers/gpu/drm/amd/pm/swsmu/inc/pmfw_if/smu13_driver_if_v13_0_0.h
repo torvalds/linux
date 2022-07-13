@@ -1359,8 +1359,14 @@ typedef struct {
   uint16_t AverageDclk0Frequency  ;
   uint16_t AverageVclk1Frequency  ;
   uint16_t AverageDclk1Frequency  ;
+  uint16_t PCIeBusy;
+  uint16_t dGPU_W_MAX;
+  uint16_t padding;
+
+  uint32_t MetricsCounter;
 
   uint16_t AvgVoltage[SVI_PLANE_COUNT];
+  uint16_t AvgCurrent[SVI_PLANE_COUNT];
 
   uint16_t AverageGfxActivity    ;
   uint16_t AverageUclkActivity   ;

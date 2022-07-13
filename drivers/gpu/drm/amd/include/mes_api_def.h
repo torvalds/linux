@@ -33,7 +33,7 @@
  */
 enum { API_FRAME_SIZE_IN_DWORDS = 64 };
 
-/* To avoid command in scheduler context to be overwritten whenenver mutilple
+/* To avoid command in scheduler context to be overwritten whenever multiple
  * interrupts come in, this creates another queue.
  */
 enum { API_NUMBER_OF_COMMAND_MAX = 32 };

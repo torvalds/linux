@@ -72,6 +72,9 @@
 #include "dmub/dmub_srv.h"
 
 #include "i2caux_interface.h"
+
+#include "dce/dmub_psr.h"
+
 #include "dce/dmub_hw_lock_mgr.h"
 
 #include "dc_trace.h"
@@ -394,7 +397,6 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 		struct dc_crtc_timing_adjust *adjust)
 {
 	int i;
-	bool ret = false;
 
 	stream->adjust.v_total_max = adjust->v_total_max;
 	stream->adjust.v_total_mid = adjust->v_total_mid;
@@ -409,10 +411,10 @@ bool dc_stream_adjust_vmin_vmax(struct dc *dc,
 					1,
 					*adjust);
 
-			ret = true;
+			return true;
 		}
 	}
-	return ret;
+	return false;
 }
 
 /**
@@ -2647,11 +2649,23 @@ static void copy_stream_update_to_stream(struct dc *dc,
 	if (update->vrr_infopacket)
 		stream->vrr_infopacket = *update->vrr_infopacket;
 
+	if (update->allow_freesync)
+		stream->allow_freesync = *update->allow_freesync;
+
+	if (update->vrr_active_variable)
+		stream->vrr_active_variable = *update->vrr_active_variable;
+
 	if (update->crtc_timing_adjust)
 		stream->adjust = *update->crtc_timing_adjust;
 
 	if (update->dpms_off)
 		stream->dpms_off = *update->dpms_off;
+
+	if (update->hfvsif_infopacket)
+		stream->hfvsif_infopacket = *update->hfvsif_infopacket;
+
+	if (update->vtem_infopacket)
+		stream->vtem_infopacket = *update->vtem_infopacket;
 
 	if (update->vsc_infopacket)
 		stream->vsc_infopacket = *update->vsc_infopacket;
@@ -2727,7 +2741,9 @@ static void commit_planes_do_stream_update(struct dc *dc,
 			if ((stream_update->hdr_static_metadata && !stream->use_dynamic_meta) ||
 					stream_update->vrr_infopacket ||
 					stream_update->vsc_infopacket ||
-					stream_update->vsp_infopacket) {
+					stream_update->vsp_infopacket ||
+					stream_update->hfvsif_infopacket ||
+					stream_update->vtem_infopacket) {
 				resource_build_info_frame(pipe_ctx);
 				dc->hwss.update_info_frame(pipe_ctx);
 
@@ -2824,6 +2840,72 @@ static void commit_planes_do_stream_update(struct dc *dc,
 	}
 }
 
+static bool dc_dmub_should_send_dirty_rect_cmd(struct dc *dc, struct dc_stream_state *stream)
+{
+	if (stream->link->psr_settings.psr_version == DC_PSR_VERSION_SU_1)
+		return true;
+
+	if (stream->link->psr_settings.psr_version == DC_PSR_VERSION_1 &&
+	    dc->debug.enable_sw_cntl_psr)
+		return true;
+
+	return false;
+}
+
+void dc_dmub_update_dirty_rect(struct dc *dc,
+			       int surface_count,
+			       struct dc_stream_state *stream,
+			       struct dc_surface_update *srf_updates,
+			       struct dc_state *context)
+{
+	union dmub_rb_cmd cmd;
+	struct dc_context *dc_ctx = dc->ctx;
+	struct dmub_cmd_update_dirty_rect_data *update_dirty_rect;
+	unsigned int i, j;
+	unsigned int panel_inst = 0;
+
+	if (!dc_dmub_should_send_dirty_rect_cmd(dc, stream))
+		return;
+
+	if (!dc_get_edp_link_panel_inst(dc, stream->link, &panel_inst))
+		return;
+
+	memset(&cmd, 0x0, sizeof(cmd));
+	cmd.update_dirty_rect.header.type = DMUB_CMD__UPDATE_DIRTY_RECT;
+	cmd.update_dirty_rect.header.sub_type = 0;
+	cmd.update_dirty_rect.header.payload_bytes =
+		sizeof(cmd.update_dirty_rect) -
+		sizeof(cmd.update_dirty_rect.header);
+	update_dirty_rect = &cmd.update_dirty_rect.update_dirty_rect_data;
+	for (i = 0; i < surface_count; i++) {
+		struct dc_plane_state *plane_state = srf_updates[i].surface;
+		const struct dc_flip_addrs *flip_addr = srf_updates[i].flip_addr;
+
+		if (!srf_updates[i].surface || !flip_addr)
+			continue;
+		/* Do not send in immediate flip mode */
+		if (srf_updates[i].surface->flip_immediate)
+			continue;
+
+		update_dirty_rect->dirty_rect_count = flip_addr->dirty_rect_count;
+		memcpy(update_dirty_rect->src_dirty_rects, flip_addr->dirty_rects,
+				sizeof(flip_addr->dirty_rects));
+		for (j = 0; j < dc->res_pool->pipe_count; j++) {
+			struct pipe_ctx *pipe_ctx = &context->res_ctx.pipe_ctx[j];
+
+			if (pipe_ctx->stream != stream)
+				continue;
+			if (pipe_ctx->plane_state != plane_state)
+				continue;
+
+			update_dirty_rect->panel_inst = panel_inst;
+			update_dirty_rect->pipe_idx = j;
+			dc_dmub_srv_cmd_queue(dc_ctx->dmub_srv, &cmd);
+			dc_dmub_srv_cmd_execute(dc_ctx->dmub_srv);
+		}
+	}
+}
+
 static void commit_planes_for_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates,
 		int surface_count,
@@ -2910,6 +2992,8 @@ static void commit_planes_for_stream(struct dc *dc,
 		 */
 		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, true);
 	}
+
+	dc_dmub_update_dirty_rect(dc, surface_count, stream, srf_updates, context);
 
 	// Stream updates
 	if (stream_update)
@@ -3054,11 +3138,15 @@ static void commit_planes_for_stream(struct dc *dc,
 
 	}
 
-	if (should_lock_all_pipes && dc->hwss.interdependent_update_lock) {
-		dc->hwss.interdependent_update_lock(dc, context, false);
-	} else {
-		dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
-	}
+#ifdef CONFIG_DRM_AMD_DC_DCN
+		if (update_type != UPDATE_TYPE_FAST)
+			if (dc->hwss.commit_subvp_config)
+				dc->hwss.commit_subvp_config(dc, context);
+#endif
+		if (should_lock_all_pipes && dc->hwss.interdependent_update_lock)
+			dc->hwss.interdependent_update_lock(dc, context, false);
+		else
+			dc->hwss.pipe_control_lock(dc, top_pipe_to_program, false);
 
 	if ((update_type != UPDATE_TYPE_FAST) && stream->update_flags.bits.dsc_changed)
 		if (top_pipe_to_program->stream_res.tg->funcs->lock_doublebuffer_enable) {
@@ -3237,19 +3325,6 @@ struct dc_stream_state *dc_get_stream_at_index(struct dc *dc, uint8_t i)
 	return NULL;
 }
 
-struct dc_stream_state *dc_stream_find_from_link(const struct dc_link *link)
-{
-	uint8_t i;
-	struct dc_context *ctx = link->ctx;
-
-	for (i = 0; i < ctx->dc->current_state->stream_count; i++) {
-		if (ctx->dc->current_state->streams[i]->link == link)
-			return ctx->dc->current_state->streams[i];
-	}
-
-	return NULL;
-}
-
 enum dc_irq_source dc_interrupt_to_irq_source(
 		struct dc *dc,
 		uint32_t src_id,
@@ -3389,10 +3464,13 @@ bool dc_submit_i2c_oem(
 		struct i2c_command *cmd)
 {
 	struct ddc_service *ddc = dc->res_pool->oem_device;
-	return dce_i2c_submit_command(
-		dc->res_pool,
-		ddc->ddc_pin,
-		cmd);
+	if (ddc)
+		return dce_i2c_submit_command(
+			dc->res_pool,
+			ddc->ddc_pin,
+			cmd);
+
+	return false;
 }
 
 static bool link_add_remote_sink_helper(struct dc_link *dc_link, struct dc_sink *sink)
@@ -3575,37 +3653,27 @@ void dc_allow_idle_optimizations(struct dc *dc, bool allow)
 		dc->idle_optimizations_allowed = allow;
 }
 
-/*
- * blank all streams, and set min and max memory clock to
- * lowest and highest DPM level, respectively
- */
+/* set min and max memory clock to lowest and highest DPM level, respectively */
 void dc_unlock_memory_clock_frequency(struct dc *dc)
 {
-	unsigned int i;
+	if (dc->clk_mgr->funcs->set_hard_min_memclk)
+		dc->clk_mgr->funcs->set_hard_min_memclk(dc->clk_mgr, false);
 
-	for (i = 0; i < MAX_PIPES; i++)
-		if (dc->current_state->res_ctx.pipe_ctx[i].plane_state)
-			core_link_disable_stream(&dc->current_state->res_ctx.pipe_ctx[i]);
-
-	dc->clk_mgr->funcs->set_hard_min_memclk(dc->clk_mgr, false);
-	dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
+	if (dc->clk_mgr->funcs->set_hard_max_memclk)
+		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
 }
 
-/*
- * set min memory clock to the min required for current mode,
- * max to maxDPM, and unblank streams
- */
+/* set min memory clock to the min required for current mode, max to maxDPM */
 void dc_lock_memory_clock_frequency(struct dc *dc)
 {
-	unsigned int i;
+	if (dc->clk_mgr->funcs->get_memclk_states_from_smu)
+		dc->clk_mgr->funcs->get_memclk_states_from_smu(dc->clk_mgr);
 
-	dc->clk_mgr->funcs->get_memclk_states_from_smu(dc->clk_mgr);
-	dc->clk_mgr->funcs->set_hard_min_memclk(dc->clk_mgr, true);
-	dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
+	if (dc->clk_mgr->funcs->set_hard_min_memclk)
+		dc->clk_mgr->funcs->set_hard_min_memclk(dc->clk_mgr, true);
 
-	for (i = 0; i < MAX_PIPES; i++)
-		if (dc->current_state->res_ctx.pipe_ctx[i].plane_state)
-			core_link_enable_stream(dc->current_state, &dc->current_state->res_ctx.pipe_ctx[i]);
+	if (dc->clk_mgr->funcs->set_hard_max_memclk)
+		dc->clk_mgr->funcs->set_hard_max_memclk(dc->clk_mgr);
 }
 
 static void blank_and_force_memclk(struct dc *dc, bool apply, unsigned int memclk_mhz)

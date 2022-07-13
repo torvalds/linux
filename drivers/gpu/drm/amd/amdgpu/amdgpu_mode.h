@@ -350,14 +350,10 @@ struct amdgpu_mode_info {
 
 #define AMDGPU_MAX_BL_LEVEL 0xFF
 
-#if defined(CONFIG_BACKLIGHT_CLASS_DEVICE) || defined(CONFIG_BACKLIGHT_CLASS_DEVICE_MODULE)
-
 struct amdgpu_backlight_privdata {
 	struct amdgpu_encoder *encoder;
 	uint8_t negative;
 };
-
-#endif
 
 struct amdgpu_atom_ss {
 	uint16_t percentage;

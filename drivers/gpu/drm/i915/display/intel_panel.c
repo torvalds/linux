@@ -71,20 +71,41 @@ intel_panel_fixed_mode(struct intel_connector *connector,
 	return best_mode;
 }
 
+static bool is_alt_drrs_mode(const struct drm_display_mode *mode,
+			     const struct drm_display_mode *preferred_mode)
+{
+	return drm_mode_match(mode, preferred_mode,
+			      DRM_MODE_MATCH_TIMINGS |
+			      DRM_MODE_MATCH_FLAGS |
+			      DRM_MODE_MATCH_3D_FLAGS) &&
+		mode->clock != preferred_mode->clock;
+}
+
+static bool is_alt_vrr_mode(const struct drm_display_mode *mode,
+			    const struct drm_display_mode *preferred_mode)
+{
+	return drm_mode_match(mode, preferred_mode,
+			      DRM_MODE_MATCH_FLAGS |
+			      DRM_MODE_MATCH_3D_FLAGS) &&
+		mode->hdisplay == preferred_mode->hdisplay &&
+		mode->vdisplay == preferred_mode->vdisplay &&
+		mode->clock != preferred_mode->clock;
+}
+
 const struct drm_display_mode *
 intel_panel_downclock_mode(struct intel_connector *connector,
 			   const struct drm_display_mode *adjusted_mode)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *fixed_mode, *best_mode = NULL;
-	int min_vrefresh = i915->vbt.seamless_drrs_min_refresh_rate;
+	int min_vrefresh = connector->panel.vbt.seamless_drrs_min_refresh_rate;
 	int max_vrefresh = drm_mode_vrefresh(adjusted_mode);
 
 	/* pick the fixed_mode with the lowest refresh rate */
 	list_for_each_entry(fixed_mode, &connector->panel.fixed_modes, head) {
 		int vrefresh = drm_mode_vrefresh(fixed_mode);
 
-		if (vrefresh >= min_vrefresh && vrefresh < max_vrefresh) {
+		if (is_alt_drrs_mode(fixed_mode, adjusted_mode) &&
+		    vrefresh >= min_vrefresh && vrefresh < max_vrefresh) {
 			max_vrefresh = vrefresh;
 			best_mode = fixed_mode;
 		}
@@ -113,13 +134,11 @@ int intel_panel_get_modes(struct intel_connector *connector)
 
 enum drrs_type intel_panel_drrs_type(struct intel_connector *connector)
 {
-	struct drm_i915_private *i915 = to_i915(connector->base.dev);
-
 	if (list_empty(&connector->panel.fixed_modes) ||
 	    list_is_singular(&connector->panel.fixed_modes))
 		return DRRS_TYPE_NONE;
 
-	return i915->vbt.drrs_type;
+	return connector->panel.vbt.drrs_type;
 }
 
 int intel_panel_compute_config(struct intel_connector *connector,
@@ -154,16 +173,18 @@ int intel_panel_compute_config(struct intel_connector *connector,
 }
 
 static bool is_alt_fixed_mode(const struct drm_display_mode *mode,
-			      const struct drm_display_mode *preferred_mode)
+			      const struct drm_display_mode *preferred_mode,
+			      bool has_vrr)
 {
-	return drm_mode_match(mode, preferred_mode,
-			      DRM_MODE_MATCH_TIMINGS |
-			      DRM_MODE_MATCH_FLAGS |
-			      DRM_MODE_MATCH_3D_FLAGS) &&
-		mode->clock != preferred_mode->clock;
+	/* is_alt_drrs_mode() is a subset of is_alt_vrr_mode() */
+	if (has_vrr)
+		return is_alt_vrr_mode(mode, preferred_mode);
+	else
+		return is_alt_drrs_mode(mode, preferred_mode);
 }
 
-static void intel_panel_add_edid_alt_fixed_modes(struct intel_connector *connector)
+static void intel_panel_add_edid_alt_fixed_modes(struct intel_connector *connector,
+						 bool has_vrr)
 {
 	struct drm_i915_private *dev_priv = to_i915(connector->base.dev);
 	const struct drm_display_mode *preferred_mode =
@@ -171,7 +192,7 @@ static void intel_panel_add_edid_alt_fixed_modes(struct intel_connector *connect
 	struct drm_display_mode *mode, *next;
 
 	list_for_each_entry_safe(mode, next, &connector->base.probed_modes, head) {
-		if (!is_alt_fixed_mode(mode, preferred_mode))
+		if (!is_alt_fixed_mode(mode, preferred_mode, has_vrr))
 			continue;
 
 		drm_dbg_kms(&dev_priv->drm,
@@ -220,16 +241,21 @@ static void intel_panel_destroy_probed_modes(struct intel_connector *connector)
 	struct drm_display_mode *mode, *next;
 
 	list_for_each_entry_safe(mode, next, &connector->base.probed_modes, head) {
+		drm_dbg_kms(&i915->drm,
+			    "[CONNECTOR:%d:%s] not using EDID mode: " DRM_MODE_FMT "\n",
+			    connector->base.base.id, connector->base.name,
+			    DRM_MODE_ARG(mode));
 		list_del(&mode->head);
 		drm_mode_destroy(&i915->drm, mode);
 	}
 }
 
-void intel_panel_add_edid_fixed_modes(struct intel_connector *connector, bool has_drrs)
+void intel_panel_add_edid_fixed_modes(struct intel_connector *connector,
+				      bool has_drrs, bool has_vrr)
 {
 	intel_panel_add_edid_preferred_mode(connector);
-	if (intel_panel_preferred_fixed_mode(connector) && has_drrs)
-		intel_panel_add_edid_alt_fixed_modes(connector);
+	if (intel_panel_preferred_fixed_mode(connector) && (has_drrs || has_vrr))
+		intel_panel_add_edid_alt_fixed_modes(connector, has_vrr);
 	intel_panel_destroy_probed_modes(connector);
 }
 
@@ -260,7 +286,7 @@ void intel_panel_add_vbt_lfp_fixed_mode(struct intel_connector *connector)
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *mode;
 
-	mode = i915->vbt.lfp_lvds_vbt_mode;
+	mode = connector->panel.vbt.lfp_lvds_vbt_mode;
 	if (!mode)
 		return;
 
@@ -274,7 +300,7 @@ void intel_panel_add_vbt_sdvo_fixed_mode(struct intel_connector *connector)
 	struct drm_i915_private *i915 = to_i915(connector->base.dev);
 	const struct drm_display_mode *mode;
 
-	mode = i915->vbt.sdvo_lvds_vbt_mode;
+	mode = connector->panel.vbt.sdvo_lvds_vbt_mode;
 	if (!mode)
 		return;
 
@@ -638,6 +664,8 @@ void intel_panel_fini(struct intel_connector *connector)
 	struct drm_display_mode *fixed_mode, *next;
 
 	intel_backlight_destroy(panel);
+
+	intel_bios_fini_panel(panel);
 
 	list_for_each_entry_safe(fixed_mode, next, &panel->fixed_modes, head) {
 		list_del(&fixed_mode->head);

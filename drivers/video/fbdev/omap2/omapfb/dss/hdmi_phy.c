@@ -143,7 +143,7 @@ int hdmi_phy_configure(struct hdmi_phy_data *phy, unsigned long hfbitclk,
 	/*
 	 * In OMAP5+, the HFBITCLK must be divided by 2 before issuing the
 	 * HDMI_PHYPWRCMD_LDOON command.
-	*/
+	 */
 	if (phy_feat->bist_ctrl)
 		REG_FLD_MOD(phy->base, HDMI_TXPHY_BIST_CONTROL, 1, 11, 11);
 

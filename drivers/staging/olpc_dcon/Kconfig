@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config FB_OLPC_DCON
 	tristate "One Laptop Per Child Display CONtroller support"
-	depends on OLPC && FB
+	depends on OLPC && FB && BROKEN
 	depends on I2C
 	depends on GPIO_CS5535 && ACPI
 	select BACKLIGHT_CLASS_DEVICE

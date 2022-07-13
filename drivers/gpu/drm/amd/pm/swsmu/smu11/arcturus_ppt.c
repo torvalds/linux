@@ -573,12 +573,13 @@ static int arcturus_get_clk_table(struct smu_context *smu,
 			struct pp_clock_levels_with_latency *clocks,
 			struct smu_11_0_dpm_table *dpm_table)
 {
-	int i, count;
+	uint32_t i;
 
-	count = (dpm_table->count > MAX_NUM_CLOCKS) ? MAX_NUM_CLOCKS : dpm_table->count;
-	clocks->num_levels = count;
+	clocks->num_levels = min_t(uint32_t,
+				   dpm_table->count,
+				   (uint32_t)PP_MAX_CLOCK_LEVELS);
 
-	for (i = 0; i < count; i++) {
+	for (i = 0; i < clocks->num_levels; i++) {
 		clocks->data[i].clocks_in_khz =
 			dpm_table->dpm_levels[i].value * 1000;
 		clocks->data[i].latency_in_us = 0;
@@ -2509,4 +2510,5 @@ void arcturus_set_ppt_funcs(struct smu_context *smu)
 	smu->table_map = arcturus_table_map;
 	smu->pwr_src_map = arcturus_pwr_src_map;
 	smu->workload_map = arcturus_workload_map;
+	smu_v11_0_set_smu_mailbox_registers(smu);
 }

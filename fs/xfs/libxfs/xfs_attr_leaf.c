@@ -289,6 +289,23 @@ xfs_attr3_leaf_verify_entry(
 	return NULL;
 }
 
+/*
+ * Validate an attribute leaf block.
+ *
+ * Empty leaf blocks can occur under the following circumstances:
+ *
+ * 1. setxattr adds a new extended attribute to a file;
+ * 2. The file has zero existing attributes;
+ * 3. The attribute is too large to fit in the attribute fork;
+ * 4. The attribute is small enough to fit in a leaf block;
+ * 5. A log flush occurs after committing the transaction that creates
+ *    the (empty) leaf block; and
+ * 6. The filesystem goes down after the log flush but before the new
+ *    attribute can be committed to the leaf block.
+ *
+ * Hence we need to ensure that we don't fail the validation purely
+ * because the leaf is empty.
+ */
 static xfs_failaddr_t
 xfs_attr3_leaf_verify(
 	struct xfs_buf			*bp)
@@ -309,15 +326,6 @@ xfs_attr3_leaf_verify(
 	fa = xfs_da3_blkinfo_verify(bp, bp->b_addr);
 	if (fa)
 		return fa;
-
-	/*
-	 * Empty leaf blocks should never occur;  they imply the existence of a
-	 * software bug that needs fixing. xfs_repair also flags them as a
-	 * corruption that needs fixing, so we should never let these go to
-	 * disk.
-	 */
-	if (ichdr.count == 0)
-		return __this_address;
 
 	/*
 	 * firstused is the block offset of the first name info structure.
@@ -922,14 +930,10 @@ xfs_attr_shortform_getvalue(
 	return -ENOATTR;
 }
 
-/*
- * Convert from using the shortform to the leaf.  On success, return the
- * buffer so that we can keep it locked until we're totally done with it.
- */
+/* Convert from using the shortform to the leaf format. */
 int
 xfs_attr_shortform_to_leaf(
-	struct xfs_da_args		*args,
-	struct xfs_buf			**leaf_bp)
+	struct xfs_da_args		*args)
 {
 	struct xfs_inode		*dp;
 	struct xfs_attr_shortform	*sf;
@@ -991,7 +995,6 @@ xfs_attr_shortform_to_leaf(
 		sfe = xfs_attr_sf_nextentry(sfe);
 	}
 	error = 0;
-	*leaf_bp = bp;
 out:
 	kmem_free(tmpbuffer);
 	return error;
@@ -1530,7 +1533,7 @@ xfs_attr3_leaf_add_work(
 	if (tmp)
 		entry->flags |= XFS_ATTR_LOCAL;
 	if (args->op_flags & XFS_DA_OP_REPLACE) {
-		if (!xfs_has_larp(mp))
+		if (!(args->op_flags & XFS_DA_OP_LOGGED))
 			entry->flags |= XFS_ATTR_INCOMPLETE;
 		if ((args->blkno2 == args->blkno) &&
 		    (args->index2 <= args->index)) {

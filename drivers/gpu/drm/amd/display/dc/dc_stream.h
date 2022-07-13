@@ -145,6 +145,24 @@ struct test_pattern {
 	unsigned int cust_pattern_size;
 };
 
+#ifdef CONFIG_DRM_AMD_DC_DCN
+#define SUBVP_DRR_MARGIN_US 500 // 500us for DRR margin (SubVP + DRR)
+
+enum mall_stream_type {
+	SUBVP_NONE, // subvp not in use
+	SUBVP_MAIN, // subvp in use, this stream is main stream
+	SUBVP_PHANTOM, // subvp in use, this stream is a phantom stream
+};
+
+struct mall_stream_config {
+	/* MALL stream config to indicate if the stream is phantom or not.
+	 * We will use a phantom stream to indicate that the pipe is phantom.
+	 */
+	enum mall_stream_type type;
+	struct dc_stream_state *paired_stream;	// master / slave stream
+};
+#endif
+
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
 	// this pointer
@@ -162,6 +180,8 @@ struct dc_stream_state {
 	struct dc_info_packet vrr_infopacket;
 	struct dc_info_packet vsc_infopacket;
 	struct dc_info_packet vsp_infopacket;
+	struct dc_info_packet hfvsif_infopacket;
+	struct dc_info_packet vtem_infopacket;
 	uint8_t dsc_packed_pps[128];
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
@@ -187,6 +207,8 @@ struct dc_stream_state {
 	bool use_vsc_sdp_for_colorimetry;
 	bool ignore_msa_timing_param;
 
+	bool allow_freesync;
+	bool vrr_active_variable;
 	bool freesync_on_desktop;
 
 	bool converter_disable_audio;
@@ -255,6 +277,9 @@ struct dc_stream_state {
 
 	bool has_non_synchronizable_pclk;
 	bool vblank_synchronized;
+#ifdef CONFIG_DRM_AMD_DC_DCN
+	struct mall_stream_config mall_stream_config;
+#endif
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255
@@ -274,9 +299,12 @@ struct dc_stream_update {
 	struct dc_info_packet *vrr_infopacket;
 	struct dc_info_packet *vsc_infopacket;
 	struct dc_info_packet *vsp_infopacket;
-
+	struct dc_info_packet *hfvsif_infopacket;
+	struct dc_info_packet *vtem_infopacket;
 	bool *dpms_off;
 	bool integer_scaling_update;
+	bool *allow_freesync;
+	bool *vrr_active_variable;
 
 	struct colorspace_transform *gamut_remap;
 	enum dc_color_space *output_color_space;
@@ -323,7 +351,6 @@ void dc_stream_log(const struct dc *dc, const struct dc_stream_state *stream);
 
 uint8_t dc_get_current_stream_count(struct dc *dc);
 struct dc_stream_state *dc_get_stream_at_index(struct dc *dc, uint8_t i);
-struct dc_stream_state *dc_stream_find_from_link(const struct dc_link *link);
 
 /*
  * Return the current frame counter.
@@ -529,4 +556,9 @@ bool dc_stream_get_crtc_position(struct dc *dc,
 
 struct pipe_ctx *dc_stream_get_pipe_ctx(struct dc_stream_state *stream);
 
+void dc_dmub_update_dirty_rect(struct dc *dc,
+			       int surface_count,
+			       struct dc_stream_state *stream,
+			       struct dc_surface_update *srf_updates,
+			       struct dc_state *context);
 #endif /* DC_STREAM_H_ */

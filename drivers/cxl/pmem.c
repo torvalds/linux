@@ -108,8 +108,8 @@ static int cxl_pmem_get_config_data(struct cxl_dev_state *cxlds,
 		return -EINVAL;
 
 	get_lsa = (struct cxl_mbox_get_lsa) {
-		.offset = cmd->in_offset,
-		.length = cmd->in_length,
+		.offset = cpu_to_le32(cmd->in_offset),
+		.length = cpu_to_le32(cmd->in_length),
 	};
 
 	rc = cxl_mbox_send_cmd(cxlds, CXL_MBOX_OP_GET_LSA, &get_lsa,
@@ -139,7 +139,7 @@ static int cxl_pmem_set_config_data(struct cxl_dev_state *cxlds,
 		return -ENOMEM;
 
 	*set_lsa = (struct cxl_mbox_set_lsa) {
-		.offset = cmd->in_offset,
+		.offset = cpu_to_le32(cmd->in_offset),
 	};
 	memcpy(set_lsa->data, cmd->in_buf, cmd->in_length);
 

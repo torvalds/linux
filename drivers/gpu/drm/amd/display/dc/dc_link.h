@@ -100,6 +100,7 @@ struct psr_settings {
 	bool psr_feature_enabled;		// PSR is supported by sink
 	bool psr_allow_active;			// PSR is currently active
 	enum dc_psr_version psr_version;		// Internal PSR version, determined based on DPCD
+	bool psr_vtotal_control_support;	// Vtotal control is supported by sink
 
 	/* These parameters are calculated in Driver,
 	 * based on display timing and Sink capabilities.
@@ -108,6 +109,7 @@ struct psr_settings {
 	 */
 	bool psr_frame_capture_indication_req;
 	unsigned int psr_sdp_transmit_line_num_deadline;
+	uint8_t force_ffu_mode;
 	unsigned int psr_power_opt;
 };
 
@@ -321,8 +323,11 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
 void dc_link_get_psr_residency(const struct dc_link *link, uint32_t *residency);
 
 void dc_link_blank_all_dp_displays(struct dc *dc);
+void dc_link_blank_all_edp_displays(struct dc *dc);
 
 void dc_link_blank_dp_stream(struct dc_link *link, bool hw_init);
+bool dc_link_set_sink_vtotal_in_psr_active(const struct dc_link *link,
+		uint16_t psr_vtotal_idle, uint16_t psr_vtotal_su);
 
 /* Request DC to detect if there is a Panel connected.
  * boot - If this call is during initial boot.

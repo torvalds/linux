@@ -98,6 +98,30 @@ static u32 slpc_get_state(struct intel_guc_slpc *slpc)
 	return data->header.global_state;
 }
 
+static int guc_action_slpc_set_param_nb(struct intel_guc *guc, u8 id, u32 value)
+{
+	u32 request[] = {
+		GUC_ACTION_HOST2GUC_PC_SLPC_REQUEST,
+		SLPC_EVENT(SLPC_EVENT_PARAMETER_SET, 2),
+		id,
+		value,
+	};
+	int ret;
+
+	ret = intel_guc_send_nb(guc, request, ARRAY_SIZE(request), 0);
+
+	return ret > 0 ? -EPROTO : ret;
+}
+
+static int slpc_set_param_nb(struct intel_guc_slpc *slpc, u8 id, u32 value)
+{
+	struct intel_guc *guc = slpc_to_guc(slpc);
+
+	GEM_BUG_ON(id >= SLPC_MAX_PARAM);
+
+	return guc_action_slpc_set_param_nb(guc, id, value);
+}
+
 static int guc_action_slpc_set_param(struct intel_guc *guc, u8 id, u32 value)
 {
 	u32 request[] = {
@@ -208,12 +232,14 @@ static int slpc_force_min_freq(struct intel_guc_slpc *slpc, u32 freq)
 	 */
 
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref) {
-		ret = slpc_set_param(slpc,
-				     SLPC_PARAM_GLOBAL_MIN_GT_UNSLICE_FREQ_MHZ,
-				     freq);
+		/* Non-blocking request will avoid stalls */
+		ret = slpc_set_param_nb(slpc,
+					SLPC_PARAM_GLOBAL_MIN_GT_UNSLICE_FREQ_MHZ,
+					freq);
 		if (ret)
-			i915_probe_error(i915, "Unable to force min freq to %u: %d",
-					 freq, ret);
+			drm_notice(&i915->drm,
+				   "Failed to send set_param for min freq(%d): (%d)\n",
+				   freq, ret);
 	}
 
 	return ret;
@@ -222,6 +248,7 @@ static int slpc_force_min_freq(struct intel_guc_slpc *slpc, u32 freq)
 static void slpc_boost_work(struct work_struct *work)
 {
 	struct intel_guc_slpc *slpc = container_of(work, typeof(*slpc), boost_work);
+	int err;
 
 	/*
 	 * Raise min freq to boost. It's possible that
@@ -231,8 +258,9 @@ static void slpc_boost_work(struct work_struct *work)
 	 */
 	mutex_lock(&slpc->lock);
 	if (atomic_read(&slpc->num_waiters)) {
-		slpc_force_min_freq(slpc, slpc->boost_freq);
-		slpc->num_boosts++;
+		err = slpc_force_min_freq(slpc, slpc->boost_freq);
+		if (!err)
+			slpc->num_boosts++;
 	}
 	mutex_unlock(&slpc->lock);
 }
@@ -260,6 +288,7 @@ int intel_guc_slpc_init(struct intel_guc_slpc *slpc)
 	slpc->boost_freq = 0;
 	atomic_set(&slpc->num_waiters, 0);
 	slpc->num_boosts = 0;
+	slpc->media_ratio_mode = SLPC_MEDIA_RATIO_MODE_DYNAMIC_CONTROL;
 
 	mutex_init(&slpc->lock);
 	INIT_WORK(&slpc->boost_work, slpc_boost_work);
@@ -506,6 +535,22 @@ int intel_guc_slpc_get_min_freq(struct intel_guc_slpc *slpc, u32 *val)
 	return ret;
 }
 
+int intel_guc_slpc_set_media_ratio_mode(struct intel_guc_slpc *slpc, u32 val)
+{
+	struct drm_i915_private *i915 = slpc_to_i915(slpc);
+	intel_wakeref_t wakeref;
+	int ret = 0;
+
+	if (!HAS_MEDIA_RATIO_MODE(i915))
+		return -ENODEV;
+
+	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
+		ret = slpc_set_param(slpc,
+				     SLPC_PARAM_MEDIA_FF_RATIO_MODE,
+				     val);
+	return ret;
+}
+
 void intel_guc_pm_intrmsk_enable(struct intel_gt *gt)
 {
 	u32 pm_intrmsk_mbz = 0;
@@ -653,6 +698,9 @@ int intel_guc_slpc_enable(struct intel_guc_slpc *slpc)
 				 ERR_PTR(ret));
 		return ret;
 	}
+
+	/* Set cached media freq ratio mode */
+	intel_guc_slpc_set_media_ratio_mode(slpc, slpc->media_ratio_mode);
 
 	return 0;
 }

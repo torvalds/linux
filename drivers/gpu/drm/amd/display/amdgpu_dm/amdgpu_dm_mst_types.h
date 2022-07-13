@@ -59,8 +59,12 @@ bool compute_mst_dsc_configs_for_state(struct drm_atomic_state *state,
 
 bool needs_dsc_aux_workaround(struct dc_link *link);
 
-void pre_validate_dsc(struct drm_atomic_state *state,
+bool pre_validate_dsc(struct drm_atomic_state *state,
 		      struct dm_atomic_state **dm_state_ptr,
 		      struct dsc_mst_fairness_vars *vars);
+
+enum dc_status dm_dp_mst_is_port_support_mode(
+	struct amdgpu_dm_connector *aconnector,
+	struct dc_stream_state *stream);
 
 #endif
