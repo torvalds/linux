@@ -537,11 +537,11 @@
 
 /*---------------------  Export Macros ------------------------------*/
 
-#define MACvRegBitsOn(iobase, reg_offset, byBits)			\
+#define MACvRegBitsOn(iobase, reg_offset, bit_mask)			\
 do {									\
 	unsigned char byData;						\
 	byData = ioread8(iobase + reg_offset);				\
-	iowrite8(byData | (byBits), iobase + reg_offset);		\
+	iowrite8(byData | (bit_mask), iobase + reg_offset);		\
 } while (0)
 
 #define MACvWordRegBitsOn(iobase, reg_offset, wBits)			\
@@ -551,11 +551,11 @@ do {									\
 	iowrite16(wData | (wBits), iobase + reg_offset);		\
 } while (0)
 
-#define MACvRegBitsOff(iobase, reg_offset, byBits)			\
+#define MACvRegBitsOff(iobase, reg_offset, bit_mask)			\
 do {									\
 	unsigned char byData;						\
 	byData = ioread8(iobase + reg_offset);				\
-	iowrite8(byData & ~(byBits), iobase + reg_offset);		\
+	iowrite8(byData & ~(bit_mask), iobase + reg_offset);		\
 } while (0)
 
 #define MACvWordRegBitsOff(iobase, reg_offset, wBits)			\
