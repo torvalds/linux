@@ -15,6 +15,79 @@
 #include "gt/intel_gt_mcr.h"
 #include "gt/intel_gt_regs.h"
 
+static void _release_bars(struct pci_dev *pdev)
+{
+	int resno;
+
+	for (resno = PCI_STD_RESOURCES; resno < PCI_STD_RESOURCE_END; resno++) {
+		if (pci_resource_len(pdev, resno))
+			pci_release_resource(pdev, resno);
+	}
+}
+
+static void
+_resize_bar(struct drm_i915_private *i915, int resno, resource_size_t size)
+{
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	int bar_size = pci_rebar_bytes_to_size(size);
+	int ret;
+
+	_release_bars(pdev);
+
+	ret = pci_resize_resource(pdev, resno, bar_size);
+	if (ret) {
+		drm_info(&i915->drm, "Failed to resize BAR%d to %dM (%pe)\n",
+			 resno, 1 << bar_size, ERR_PTR(ret));
+		return;
+	}
+
+	drm_info(&i915->drm, "BAR%d resized to %dM\n", resno, 1 << bar_size);
+}
+
+#define LMEM_BAR_NUM 2
+static void i915_resize_lmem_bar(struct drm_i915_private *i915, resource_size_t lmem_size)
+{
+	struct pci_dev *pdev = to_pci_dev(i915->drm.dev);
+	struct pci_bus *root = pdev->bus;
+	struct resource *root_res;
+	resource_size_t rebar_size;
+	u32 pci_cmd;
+	int i;
+
+	rebar_size = roundup_pow_of_two(pci_resource_len(pdev, LMEM_BAR_NUM));
+
+	if (rebar_size != roundup_pow_of_two(lmem_size))
+		rebar_size = lmem_size;
+	else
+		return;
+
+	/* Find out if root bus contains 64bit memory addressing */
+	while (root->parent)
+		root = root->parent;
+
+	pci_bus_for_each_resource(root, root_res, i) {
+		if (root_res && root_res->flags & (IORESOURCE_MEM | IORESOURCE_MEM_64) &&
+		    root_res->start > 0x100000000ull)
+			break;
+	}
+
+	/* pci_resize_resource will fail anyways */
+	if (!root_res) {
+		drm_info(&i915->drm, "Can't resize LMEM BAR - platform support is missing\n");
+		return;
+	}
+
+	/* First disable PCI memory decoding references */
+	pci_read_config_dword(pdev, PCI_COMMAND, &pci_cmd);
+	pci_write_config_dword(pdev, PCI_COMMAND,
+			       pci_cmd & ~PCI_COMMAND_MEMORY);
+
+	_resize_bar(i915, LMEM_BAR_NUM, rebar_size);
+
+	pci_assign_unassigned_bus_resources(pdev->bus);
+	pci_write_config_dword(pdev, PCI_COMMAND, pci_cmd);
+}
+
 static int
 region_lmem_release(struct intel_memory_region *mem)
 {
@@ -127,6 +200,8 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 		/* Stolen starts from GSMBASE without CCS */
 		lmem_size = intel_uncore_read64(&i915->uncore, GEN12_GSMBASE);
 	}
+
+	i915_resize_lmem_bar(i915, lmem_size);
 
 	if (i915->params.lmem_size > 0) {
 		lmem_size = min_t(resource_size_t, lmem_size,
