@@ -156,7 +156,7 @@
 #define HC_HSPXOS_SHIFT         12
 #define HC_HSPYOS_MASK          0x00000fff
 
-/* Command
+/*
  * Command A
  */
 #define HC_HCmdHeader_MASK      0xfe000000  /*0xffe00000 */
@@ -1342,8 +1342,8 @@
 #define HC_HFthRTXA_MASK        0x000000ff
 
 /****************************************************************************
-** Define the Halcyon Internal register access constants. For simulator only.
-****************************************************************************/
+ * Define the Halcyon Internal register access constants. For simulator only.
+ ***************************************************************************/
 #define HC_SIMA_HAGPBstL        0x0000
 #define HC_SIMA_HAGPBendL       0x0001
 #define HC_SIMA_HAGPCMNT        0x0002
@@ -1592,8 +1592,8 @@
 #define HC_SIMA_FIFOstatus      0x0446
 
 /****************************************************************************
-** Define the AGP command header.
-****************************************************************************/
+ * Define the AGP command header.
+ ***************************************************************************/
 #define HC_ACMD_MASK            0xfe000000
 #define HC_ACMD_SUB_MASK        0x0c000000
 #define HC_ACMD_HCmdA           0xee000000
@@ -1617,17 +1617,17 @@
 #define HC_ACMD_H4COUNT_SHIFT   9
 
 /*****************************************************************************
-** Define Header
-*****************************************************************************/
+ * Define Header
+ ****************************************************************************/
 #define HC_HEADER2        0xF210F110
 
 /*****************************************************************************
-** Define Dummy Value
-*****************************************************************************/
+ * Define Dummy Value
+ ****************************************************************************/
 #define HC_DUMMY        0xCCCCCCCC
 /*****************************************************************************
-** Define for DMA use
-*****************************************************************************/
+ * Define for DMA use
+ ****************************************************************************/
 #define HALCYON_HEADER2     0XF210F110
 #define HALCYON_FIRECMD     0XEE100000
 #define HALCYON_FIREMASK    0XFFF00000
@@ -1661,8 +1661,8 @@
 #define VIA_VIDEOMASK           0xFFFF0000
 
 /*****************************************************************************
-** Define for H5 DMA use
-*****************************************************************************/
+ * Define for H5 DMA use
+ ****************************************************************************/
 #define H5_HC_DUMMY                    0xCC000000
 
 /* Command Header Type */
