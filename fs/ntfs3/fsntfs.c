@@ -806,12 +806,6 @@ int ntfs_refresh_zone(struct ntfs_sb_info *sbi)
 
 	/* Try to allocate clusters after last MFT run. */
 	zlen = wnd_find(wnd, sbi->zone_max, lcn_s, 0, &lcn_s);
-	if (!zlen) {
-		ntfs_notice(sbi->sb, "MftZone: unavailable");
-		return 0;
-	}
-
-	/* Truncate too large zone. */
 	wnd_zone_set(wnd, lcn_s, zlen);
 
 	return 0;
@@ -2472,8 +2466,9 @@ void mark_as_free_ex(struct ntfs_sb_info *sbi, CLST lcn, CLST len, bool trim)
 	if (zlen == zone_len) {
 		/* MFT zone already has maximum size. */
 	} else if (!zone_len) {
-		/* Create MFT zone. */
-		wnd_zone_set(wnd, lcn, zlen);
+		/* Create MFT zone only if 'zlen' is large enough. */
+		if (zlen == sbi->zone_max)
+			wnd_zone_set(wnd, lcn, zlen);
 	} else {
 		CLST zone_lcn = wnd_zone_bit(wnd);
 
