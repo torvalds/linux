@@ -167,21 +167,24 @@ struct gpio_irq_chip {
 	 */
 	irq_flow_handler_t parent_handler;
 
-	/**
-	 * @parent_handler_data:
-	 *
-	 * If @per_parent_data is false, @parent_handler_data is a single
-	 * pointer used as the data associated with every parent interrupt.
-	 *
-	 * @parent_handler_data_array:
-	 *
-	 * If @per_parent_data is true, @parent_handler_data_array is
-	 * an array of @num_parents pointers, and is used to associate
-	 * different data for each parent. This cannot be NULL if
-	 * @per_parent_data is true.
-	 */
 	union {
+		/**
+		 * @parent_handler_data:
+		 *
+		 * If @per_parent_data is false, @parent_handler_data is a
+		 * single pointer used as the data associated with every
+		 * parent interrupt.
+		 */
 		void *parent_handler_data;
+
+		/**
+		 * @parent_handler_data_array:
+		 *
+		 * If @per_parent_data is true, @parent_handler_data_array is
+		 * an array of @num_parents pointers, and is used to associate
+		 * different data for each parent. This cannot be NULL if
+		 * @per_parent_data is true.
+		 */
 		void **parent_handler_data_array;
 	};
 

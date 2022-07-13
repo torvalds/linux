@@ -37,6 +37,7 @@ SECTIONS
 	HEAD_TEXT_SECTION
 
 	. = ALIGN(PECOFF_SEGMENT_ALIGN);
+	_stext = .;
 	.text : {
 		TEXT_TEXT
 		SCHED_TEXT
@@ -101,6 +102,7 @@ SECTIONS
 
 	STABS_DEBUG
 	DWARF_DEBUG
+	ELF_DETAILS
 
 	.gptab.sdata : {
 		*(.gptab.data)

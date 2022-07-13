@@ -593,10 +593,14 @@ vc4_rcl_render_config_surface_setup(struct vc4_exec_info *exec,
 
 int vc4_get_rcl(struct drm_device *dev, struct vc4_exec_info *exec)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_rcl_setup setup = {0};
 	struct drm_vc4_submit_cl *args = exec->args;
 	bool has_bin = args->bin_cl_size != 0;
 	int ret;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	if (args->min_x_tile > args->max_x_tile ||
 	    args->min_y_tile > args->max_y_tile) {

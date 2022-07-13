@@ -22,7 +22,10 @@ struct io_uring_sqe {
 	union {
 		__u64	off;	/* offset into file */
 		__u64	addr2;
-		__u32	cmd_op;
+		struct {
+			__u32	cmd_op;
+			__u32	__pad1;
+		};
 	};
 	union {
 		__u64	addr;	/* pointer to buffer or iovecs */
@@ -47,7 +50,6 @@ struct io_uring_sqe {
 		__u32		unlink_flags;
 		__u32		hardlink_flags;
 		__u32		xattr_flags;
-		__u32		close_flags;
 	};
 	__u64	user_data;	/* data to be passed back at completion time */
 	/* pack this to avoid bogus arm OABI complaints */
@@ -245,7 +247,7 @@ enum io_uring_op {
 #define IORING_ASYNC_CANCEL_ANY	(1U << 2)
 
 /*
- * send/sendmsg and recv/recvmsg flags (sqe->addr2)
+ * send/sendmsg and recv/recvmsg flags (sqe->ioprio)
  *
  * IORING_RECVSEND_POLL_FIRST	If set, instead of first attempting to send
  *				or receive and arm poll if that yields an
@@ -258,11 +260,6 @@ enum io_uring_op {
  * accept flags stored in sqe->ioprio
  */
 #define IORING_ACCEPT_MULTISHOT	(1U << 0)
-
-/*
- * close flags, store in sqe->close_flags
- */
-#define IORING_CLOSE_FD_AND_FILE_SLOT	(1U << 0)
 
 /*
  * IO completion data structure (Completion Queue Entry)

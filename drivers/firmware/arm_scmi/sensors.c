@@ -338,7 +338,6 @@ static int scmi_sensor_update_intervals(const struct scmi_protocol_handle *ph,
 					struct scmi_sensor_info *s)
 {
 	void *iter;
-	struct scmi_msg_sensor_list_update_intervals *msg;
 	struct scmi_iterator_ops ops = {
 		.prepare_message = iter_intervals_prepare_message,
 		.update_state = iter_intervals_update_state,
@@ -351,22 +350,28 @@ static int scmi_sensor_update_intervals(const struct scmi_protocol_handle *ph,
 
 	iter = ph->hops->iter_response_init(ph, &ops, s->intervals.count,
 					    SENSOR_LIST_UPDATE_INTERVALS,
-					    sizeof(*msg), &upriv);
+					    sizeof(struct scmi_msg_sensor_list_update_intervals),
+					    &upriv);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
 	return ph->hops->iter_response_run(iter);
 }
 
+struct scmi_apriv {
+	bool any_axes_support_extended_names;
+	struct scmi_sensor_info *s;
+};
+
 static void iter_axes_desc_prepare_message(void *message,
 					   const unsigned int desc_index,
 					   const void *priv)
 {
 	struct scmi_msg_sensor_axis_description_get *msg = message;
-	const struct scmi_sensor_info *s = priv;
+	const struct scmi_apriv *apriv = priv;
 
 	/* Set the number of sensors to be skipped/already read */
-	msg->id = cpu_to_le32(s->id);
+	msg->id = cpu_to_le32(apriv->s->id);
 	msg->axis_desc_index = cpu_to_le32(desc_index);
 }
 
@@ -393,19 +398,21 @@ iter_axes_desc_process_response(const struct scmi_protocol_handle *ph,
 	u32 attrh, attrl;
 	struct scmi_sensor_axis_info *a;
 	size_t dsize = SCMI_MSG_RESP_AXIS_DESCR_BASE_SZ;
-	struct scmi_sensor_info *s = priv;
+	struct scmi_apriv *apriv = priv;
 	const struct scmi_axis_descriptor *adesc = st->priv;
 
 	attrl = le32_to_cpu(adesc->attributes_low);
+	if (SUPPORTS_EXTENDED_AXIS_NAMES(attrl))
+		apriv->any_axes_support_extended_names = true;
 
-	a = &s->axis[st->desc_index + st->loop_idx];
+	a = &apriv->s->axis[st->desc_index + st->loop_idx];
 	a->id = le32_to_cpu(adesc->id);
 	a->extended_attrs = SUPPORTS_EXTEND_ATTRS(attrl);
 
 	attrh = le32_to_cpu(adesc->attributes_high);
 	a->scale = S32_EXT(SENSOR_SCALE(attrh));
 	a->type = SENSOR_TYPE(attrh);
-	strscpy(a->name, adesc->name, SCMI_MAX_STR_SIZE);
+	strscpy(a->name, adesc->name, SCMI_SHORT_NAME_MAX_SIZE);
 
 	if (a->extended_attrs) {
 		unsigned int ares = le32_to_cpu(adesc->resolution);
@@ -444,10 +451,19 @@ iter_axes_extended_name_process_response(const struct scmi_protocol_handle *ph,
 					 void *priv)
 {
 	struct scmi_sensor_axis_info *a;
-	const struct scmi_sensor_info *s = priv;
+	const struct scmi_apriv *apriv = priv;
 	struct scmi_sensor_axis_name_descriptor *adesc = st->priv;
+	u32 axis_id = le32_to_cpu(adesc->axis_id);
 
-	a = &s->axis[st->desc_index + st->loop_idx];
+	if (axis_id >= st->max_resources)
+		return -EPROTO;
+
+	/*
+	 * Pick the corresponding descriptor based on the axis_id embedded
+	 * in the reply since the list of axes supporting extended names
+	 * can be a subset of all the axes.
+	 */
+	a = &apriv->s->axis[axis_id];
 	strscpy(a->name, adesc->name, SCMI_MAX_STR_SIZE);
 	st->priv = ++adesc;
 
@@ -458,21 +474,36 @@ static int
 scmi_sensor_axis_extended_names_get(const struct scmi_protocol_handle *ph,
 				    struct scmi_sensor_info *s)
 {
+	int ret;
 	void *iter;
-	struct scmi_msg_sensor_axis_description_get *msg;
 	struct scmi_iterator_ops ops = {
 		.prepare_message = iter_axes_desc_prepare_message,
 		.update_state = iter_axes_extended_name_update_state,
 		.process_response = iter_axes_extended_name_process_response,
 	};
+	struct scmi_apriv apriv = {
+		.any_axes_support_extended_names = false,
+		.s = s,
+	};
 
 	iter = ph->hops->iter_response_init(ph, &ops, s->num_axis,
 					    SENSOR_AXIS_NAME_GET,
-					    sizeof(*msg), s);
+					    sizeof(struct scmi_msg_sensor_axis_description_get),
+					    &apriv);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
-	return ph->hops->iter_response_run(iter);
+	/*
+	 * Do not cause whole protocol initialization failure when failing to
+	 * get extended names for axes.
+	 */
+	ret = ph->hops->iter_response_run(iter);
+	if (ret)
+		dev_warn(ph->dev,
+			 "Failed to get axes extended names for %s (ret:%d).\n",
+			 s->name, ret);
+
+	return 0;
 }
 
 static int scmi_sensor_axis_description(const struct scmi_protocol_handle *ph,
@@ -481,11 +512,14 @@ static int scmi_sensor_axis_description(const struct scmi_protocol_handle *ph,
 {
 	int ret;
 	void *iter;
-	struct scmi_msg_sensor_axis_description_get *msg;
 	struct scmi_iterator_ops ops = {
 		.prepare_message = iter_axes_desc_prepare_message,
 		.update_state = iter_axes_desc_update_state,
 		.process_response = iter_axes_desc_process_response,
+	};
+	struct scmi_apriv apriv = {
+		.any_axes_support_extended_names = false,
+		.s = s,
 	};
 
 	s->axis = devm_kcalloc(ph->dev, s->num_axis,
@@ -495,7 +529,8 @@ static int scmi_sensor_axis_description(const struct scmi_protocol_handle *ph,
 
 	iter = ph->hops->iter_response_init(ph, &ops, s->num_axis,
 					    SENSOR_AXIS_DESCRIPTION_GET,
-					    sizeof(*msg), s);
+					    sizeof(struct scmi_msg_sensor_axis_description_get),
+					    &apriv);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
@@ -503,7 +538,8 @@ static int scmi_sensor_axis_description(const struct scmi_protocol_handle *ph,
 	if (ret)
 		return ret;
 
-	if (PROTOCOL_REV_MAJOR(version) >= 0x3)
+	if (PROTOCOL_REV_MAJOR(version) >= 0x3 &&
+	    apriv.any_axes_support_extended_names)
 		ret = scmi_sensor_axis_extended_names_get(ph, s);
 
 	return ret;
@@ -598,7 +634,7 @@ iter_sens_descr_process_response(const struct scmi_protocol_handle *ph,
 			    SUPPORTS_AXIS(attrh) ?
 			    SENSOR_AXIS_NUMBER(attrh) : 0,
 			    SCMI_MAX_NUM_SENSOR_AXIS);
-	strscpy(s->name, sdesc->name, SCMI_MAX_STR_SIZE);
+	strscpy(s->name, sdesc->name, SCMI_SHORT_NAME_MAX_SIZE);
 
 	/*
 	 * If supported overwrite short name with the extended

@@ -117,32 +117,6 @@ bool inet_rcv_saddr_any(const struct sock *sk)
 	return !sk->sk_rcv_saddr;
 }
 
-static bool use_bhash2_on_bind(const struct sock *sk)
-{
-#if IS_ENABLED(CONFIG_IPV6)
-	int addr_type;
-
-	if (sk->sk_family == AF_INET6) {
-		addr_type = ipv6_addr_type(&sk->sk_v6_rcv_saddr);
-		return addr_type != IPV6_ADDR_ANY &&
-			addr_type != IPV6_ADDR_MAPPED;
-	}
-#endif
-	return sk->sk_rcv_saddr != htonl(INADDR_ANY);
-}
-
-static u32 get_bhash2_nulladdr_hash(const struct sock *sk, struct net *net,
-				    int port)
-{
-#if IS_ENABLED(CONFIG_IPV6)
-	struct in6_addr nulladdr = {};
-
-	if (sk->sk_family == AF_INET6)
-		return ipv6_portaddr_hash(net, &nulladdr, port);
-#endif
-	return ipv4_portaddr_hash(net, 0, port);
-}
-
 void inet_get_local_port_range(struct net *net, int *low, int *high)
 {
 	unsigned int seq;
@@ -156,71 +130,16 @@ void inet_get_local_port_range(struct net *net, int *low, int *high)
 }
 EXPORT_SYMBOL(inet_get_local_port_range);
 
-static bool bind_conflict_exist(const struct sock *sk, struct sock *sk2,
-				kuid_t sk_uid, bool relax,
-				bool reuseport_cb_ok, bool reuseport_ok)
-{
-	int bound_dev_if2;
-
-	if (sk == sk2)
-		return false;
-
-	bound_dev_if2 = READ_ONCE(sk2->sk_bound_dev_if);
-
-	if (!sk->sk_bound_dev_if || !bound_dev_if2 ||
-	    sk->sk_bound_dev_if == bound_dev_if2) {
-		if (sk->sk_reuse && sk2->sk_reuse &&
-		    sk2->sk_state != TCP_LISTEN) {
-			if (!relax || (!reuseport_ok && sk->sk_reuseport &&
-				       sk2->sk_reuseport && reuseport_cb_ok &&
-				       (sk2->sk_state == TCP_TIME_WAIT ||
-					uid_eq(sk_uid, sock_i_uid(sk2)))))
-				return true;
-		} else if (!reuseport_ok || !sk->sk_reuseport ||
-			   !sk2->sk_reuseport || !reuseport_cb_ok ||
-			   (sk2->sk_state != TCP_TIME_WAIT &&
-			    !uid_eq(sk_uid, sock_i_uid(sk2)))) {
-			return true;
-		}
-	}
-	return false;
-}
-
-static bool check_bhash2_conflict(const struct sock *sk,
-				  struct inet_bind2_bucket *tb2, kuid_t sk_uid,
-				  bool relax, bool reuseport_cb_ok,
-				  bool reuseport_ok)
-{
-	struct sock *sk2;
-
-	sk_for_each_bound_bhash2(sk2, &tb2->owners) {
-		if (sk->sk_family == AF_INET && ipv6_only_sock(sk2))
-			continue;
-
-		if (bind_conflict_exist(sk, sk2, sk_uid, relax,
-					reuseport_cb_ok, reuseport_ok))
-			return true;
-	}
-	return false;
-}
-
-/* This should be called only when the corresponding inet_bind_bucket spinlock
- * is held
- */
-static int inet_csk_bind_conflict(const struct sock *sk, int port,
-				  struct inet_bind_bucket *tb,
-				  struct inet_bind2_bucket *tb2, /* may be null */
+static int inet_csk_bind_conflict(const struct sock *sk,
+				  const struct inet_bind_bucket *tb,
 				  bool relax, bool reuseport_ok)
 {
-	struct inet_hashinfo *hinfo = sk->sk_prot->h.hashinfo;
-	kuid_t uid = sock_i_uid((struct sock *)sk);
-	struct sock_reuseport *reuseport_cb;
-	struct inet_bind2_hashbucket *head2;
-	bool reuseport_cb_ok;
 	struct sock *sk2;
-	struct net *net;
-	int l3mdev;
-	u32 hash;
+	bool reuseport_cb_ok;
+	bool reuse = sk->sk_reuse;
+	bool reuseport = !!sk->sk_reuseport;
+	struct sock_reuseport *reuseport_cb;
+	kuid_t uid = sock_i_uid((struct sock *)sk);
 
 	rcu_read_lock();
 	reuseport_cb = rcu_dereference(sk->sk_reuseport_cb);
@@ -231,42 +150,40 @@ static int inet_csk_bind_conflict(const struct sock *sk, int port,
 	/*
 	 * Unlike other sk lookup places we do not check
 	 * for sk_net here, since _all_ the socks listed
-	 * in tb->owners and tb2->owners list belong
-	 * to the same net
+	 * in tb->owners list belong to the same net - the
+	 * one this bucket belongs to.
 	 */
 
-	if (!use_bhash2_on_bind(sk)) {
-		sk_for_each_bound(sk2, &tb->owners)
-			if (bind_conflict_exist(sk, sk2, uid, relax,
-						reuseport_cb_ok, reuseport_ok) &&
-			    inet_rcv_saddr_equal(sk, sk2, true))
-				return true;
+	sk_for_each_bound(sk2, &tb->owners) {
+		int bound_dev_if2;
 
-		return false;
+		if (sk == sk2)
+			continue;
+		bound_dev_if2 = READ_ONCE(sk2->sk_bound_dev_if);
+		if ((!sk->sk_bound_dev_if ||
+		     !bound_dev_if2 ||
+		     sk->sk_bound_dev_if == bound_dev_if2)) {
+			if (reuse && sk2->sk_reuse &&
+			    sk2->sk_state != TCP_LISTEN) {
+				if ((!relax ||
+				     (!reuseport_ok &&
+				      reuseport && sk2->sk_reuseport &&
+				      reuseport_cb_ok &&
+				      (sk2->sk_state == TCP_TIME_WAIT ||
+				       uid_eq(uid, sock_i_uid(sk2))))) &&
+				    inet_rcv_saddr_equal(sk, sk2, true))
+					break;
+			} else if (!reuseport_ok ||
+				   !reuseport || !sk2->sk_reuseport ||
+				   !reuseport_cb_ok ||
+				   (sk2->sk_state != TCP_TIME_WAIT &&
+				    !uid_eq(uid, sock_i_uid(sk2)))) {
+				if (inet_rcv_saddr_equal(sk, sk2, true))
+					break;
+			}
+		}
 	}
-
-	if (tb2 && check_bhash2_conflict(sk, tb2, uid, relax, reuseport_cb_ok,
-					 reuseport_ok))
-		return true;
-
-	net = sock_net(sk);
-
-	/* check there's no conflict with an existing IPV6_ADDR_ANY (if ipv6) or
-	 * INADDR_ANY (if ipv4) socket.
-	 */
-	hash = get_bhash2_nulladdr_hash(sk, net, port);
-	head2 = &hinfo->bhash2[hash & (hinfo->bhash_size - 1)];
-
-	l3mdev = inet_sk_bound_l3mdev(sk);
-	inet_bind_bucket_for_each(tb2, &head2->chain)
-		if (check_bind2_bucket_match_nulladdr(tb2, net, port, l3mdev, sk))
-			break;
-
-	if (tb2 && check_bhash2_conflict(sk, tb2, uid, relax, reuseport_cb_ok,
-					 reuseport_ok))
-		return true;
-
-	return false;
+	return sk2 != NULL;
 }
 
 /*
@@ -274,20 +191,16 @@ static int inet_csk_bind_conflict(const struct sock *sk, int port,
  * inet_bind_hashbucket lock held.
  */
 static struct inet_bind_hashbucket *
-inet_csk_find_open_port(struct sock *sk, struct inet_bind_bucket **tb_ret,
-			struct inet_bind2_bucket **tb2_ret,
-			struct inet_bind2_hashbucket **head2_ret, int *port_ret)
+inet_csk_find_open_port(struct sock *sk, struct inet_bind_bucket **tb_ret, int *port_ret)
 {
 	struct inet_hashinfo *hinfo = sk->sk_prot->h.hashinfo;
-	struct inet_bind2_hashbucket *head2;
+	int port = 0;
 	struct inet_bind_hashbucket *head;
 	struct net *net = sock_net(sk);
+	bool relax = false;
 	int i, low, high, attempt_half;
-	struct inet_bind2_bucket *tb2;
 	struct inet_bind_bucket *tb;
 	u32 remaining, offset;
-	bool relax = false;
-	int port = 0;
 	int l3mdev;
 
 	l3mdev = inet_sk_bound_l3mdev(sk);
@@ -326,12 +239,10 @@ other_parity_scan:
 		head = &hinfo->bhash[inet_bhashfn(net, port,
 						  hinfo->bhash_size)];
 		spin_lock_bh(&head->lock);
-		tb2 = inet_bind2_bucket_find(hinfo, net, port, l3mdev, sk,
-					     &head2);
 		inet_bind_bucket_for_each(tb, &head->chain)
-			if (check_bind_bucket_match(tb, net, port, l3mdev)) {
-				if (!inet_csk_bind_conflict(sk, port, tb, tb2,
-							    relax, false))
+			if (net_eq(ib_net(tb), net) && tb->l3mdev == l3mdev &&
+			    tb->port == port) {
+				if (!inet_csk_bind_conflict(sk, tb, relax, false))
 					goto success;
 				goto next_port;
 			}
@@ -361,8 +272,6 @@ next_port:
 success:
 	*port_ret = port;
 	*tb_ret = tb;
-	*tb2_ret = tb2;
-	*head2_ret = head2;
 	return head;
 }
 
@@ -458,81 +367,54 @@ int inet_csk_get_port(struct sock *sk, unsigned short snum)
 {
 	bool reuse = sk->sk_reuse && sk->sk_state != TCP_LISTEN;
 	struct inet_hashinfo *hinfo = sk->sk_prot->h.hashinfo;
-	bool bhash_created = false, bhash2_created = false;
-	struct inet_bind2_bucket *tb2 = NULL;
-	struct inet_bind2_hashbucket *head2;
-	struct inet_bind_bucket *tb = NULL;
+	int ret = 1, port = snum;
 	struct inet_bind_hashbucket *head;
 	struct net *net = sock_net(sk);
-	int ret = 1, port = snum;
-	bool found_port = false;
+	struct inet_bind_bucket *tb = NULL;
 	int l3mdev;
 
 	l3mdev = inet_sk_bound_l3mdev(sk);
 
 	if (!port) {
-		head = inet_csk_find_open_port(sk, &tb, &tb2, &head2, &port);
+		head = inet_csk_find_open_port(sk, &tb, &port);
 		if (!head)
 			return ret;
-		if (tb && tb2)
-			goto success;
-		found_port = true;
-	} else {
-		head = &hinfo->bhash[inet_bhashfn(net, port,
-						  hinfo->bhash_size)];
-		spin_lock_bh(&head->lock);
-		inet_bind_bucket_for_each(tb, &head->chain)
-			if (check_bind_bucket_match(tb, net, port, l3mdev))
-				break;
-
-		tb2 = inet_bind2_bucket_find(hinfo, net, port, l3mdev, sk,
-					     &head2);
-	}
-
-	if (!tb) {
-		tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep, net,
-					     head, port, l3mdev);
 		if (!tb)
-			goto fail_unlock;
-		bhash_created = true;
+			goto tb_not_found;
+		goto success;
 	}
-
-	if (!tb2) {
-		tb2 = inet_bind2_bucket_create(hinfo->bind2_bucket_cachep,
-					       net, head2, port, l3mdev, sk);
-		if (!tb2)
-			goto fail_unlock;
-		bhash2_created = true;
-	}
-
-	/* If we had to find an open port, we already checked for conflicts */
-	if (!found_port && !hlist_empty(&tb->owners)) {
+	head = &hinfo->bhash[inet_bhashfn(net, port,
+					  hinfo->bhash_size)];
+	spin_lock_bh(&head->lock);
+	inet_bind_bucket_for_each(tb, &head->chain)
+		if (net_eq(ib_net(tb), net) && tb->l3mdev == l3mdev &&
+		    tb->port == port)
+			goto tb_found;
+tb_not_found:
+	tb = inet_bind_bucket_create(hinfo->bind_bucket_cachep,
+				     net, head, port, l3mdev);
+	if (!tb)
+		goto fail_unlock;
+tb_found:
+	if (!hlist_empty(&tb->owners)) {
 		if (sk->sk_reuse == SK_FORCE_REUSE)
 			goto success;
 
 		if ((tb->fastreuse > 0 && reuse) ||
 		    sk_reuseport_match(tb, sk))
 			goto success;
-		if (inet_csk_bind_conflict(sk, port, tb, tb2, true, true))
+		if (inet_csk_bind_conflict(sk, tb, true, true))
 			goto fail_unlock;
 	}
 success:
 	inet_csk_update_fastreuse(tb, sk);
 
 	if (!inet_csk(sk)->icsk_bind_hash)
-		inet_bind_hash(sk, tb, tb2, port);
+		inet_bind_hash(sk, tb, port);
 	WARN_ON(inet_csk(sk)->icsk_bind_hash != tb);
-	WARN_ON(inet_csk(sk)->icsk_bind2_hash != tb2);
 	ret = 0;
 
 fail_unlock:
-	if (ret) {
-		if (bhash_created)
-			inet_bind_bucket_destroy(hinfo->bind_bucket_cachep, tb);
-		if (bhash2_created)
-			inet_bind2_bucket_destroy(hinfo->bind2_bucket_cachep,
-						  tb2);
-	}
 	spin_unlock_bh(&head->lock);
 	return ret;
 }
@@ -1079,7 +961,6 @@ struct sock *inet_csk_clone_lock(const struct sock *sk,
 
 		inet_sk_set_state(newsk, TCP_SYN_RECV);
 		newicsk->icsk_bind_hash = NULL;
-		newicsk->icsk_bind2_hash = NULL;
 
 		inet_sk(newsk)->inet_dport = inet_rsk(req)->ir_rmt_port;
 		inet_sk(newsk)->inet_num = inet_rsk(req)->ir_num;

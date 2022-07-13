@@ -323,7 +323,7 @@ static inline u32 efi64_convert_status(efi_status_t status)
 #define __efi64_argmap_get_memory_space_descriptor(phys, desc) \
 	(__efi64_split(phys), (desc))
 
-#define __efi64_argmap_set_memory_space_descriptor(phys, size, flags) \
+#define __efi64_argmap_set_memory_space_attributes(phys, size, flags) \
 	(__efi64_split(phys), __efi64_split(size), __efi64_split(flags))
 
 /*
