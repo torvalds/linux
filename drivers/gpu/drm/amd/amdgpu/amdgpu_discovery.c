@@ -90,6 +90,8 @@
 #include "smuio_v13_0_3.h"
 #include "smuio_v13_0_6.h"
 
+#include "amdgpu_vpe.h"
+
 #define FIRMWARE_IP_DISCOVERY "amdgpu/ip_discovery.bin"
 MODULE_FIRMWARE(FIRMWARE_IP_DISCOVERY);
 
@@ -2139,6 +2141,19 @@ static void amdgpu_discovery_init_soc_config(struct amdgpu_device *adev)
 	}
 }
 
+static int amdgpu_discovery_set_vpe_ip_blocks(struct amdgpu_device *adev)
+{
+	switch (adev->ip_versions[VPE_HWIP][0]) {
+	case IP_VERSION(6, 1, 0):
+		amdgpu_device_ip_block_add(adev, &vpe_v6_1_ip_block);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 {
 	int r;
@@ -2623,6 +2638,10 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 		return r;
 
 	r = amdgpu_discovery_set_mes_ip_blocks(adev);
+	if (r)
+		return r;
+
+	r = amdgpu_discovery_set_vpe_ip_blocks(adev);
 	if (r)
 		return r;
 
