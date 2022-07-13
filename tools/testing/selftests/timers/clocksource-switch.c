@@ -183,7 +183,9 @@ int main(int argc, char **argv)
 out:
 	change_clocksource(orig_clk);
 
-	if (status)
-		return ksft_exit_fail();
-	return ksft_exit_pass();
+	/* Print at the end to not mix output with child process */
+	ksft_print_header();
+	ksft_set_plan(1);
+	ksft_test_result(!status, "clocksource-switch\n");
+	ksft_exit(!status);
 }
