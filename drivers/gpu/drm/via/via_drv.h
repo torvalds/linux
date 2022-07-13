@@ -187,14 +187,10 @@ extern int via_fb_init(struct drm_device *dev, void *data, struct drm_file *file
 extern int via_mem_alloc(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_agp_init(struct drm_device *dev, void *data, struct drm_file *file_priv);
-extern int via_map_init(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_decoder_futex(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_dma_blit_sync(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_dma_blit(struct drm_device *dev, void *data, struct drm_file *file_priv);
-
-extern int via_driver_load(struct drm_device *dev, unsigned long chipset);
-extern void via_driver_unload(struct drm_device *dev);
 
 extern int via_init_context(struct drm_device *dev, int context);
 extern int via_final_context(struct drm_device *dev, int context);
