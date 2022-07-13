@@ -547,7 +547,7 @@ int vfs_dedupe_file_range(struct file *file, struct file_dedupe_range *same)
 		else if (deduped < 0)
 			info->status = deduped;
 		else
-			info->bytes_deduped = len;
+			info->bytes_deduped = deduped;
 
 next_fdput:
 		fdput(dst_fd);
