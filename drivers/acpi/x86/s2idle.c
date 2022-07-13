@@ -369,9 +369,6 @@ static int lps0_device_attach(struct acpi_device *adev,
 	if (lps0_device_handle)
 		return 0;
 
-	if (!(acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0))
-		return 0;
-
 	if (acpi_s2idle_vendor_amd()) {
 		/* AMD0004, AMD0005, AMDI0005:
 		 * - Should use rev_id 0x0
@@ -421,10 +418,12 @@ static int lps0_device_attach(struct acpi_device *adev,
 		lpi_device_get_constraints();
 
 	/*
-	 * Use suspend-to-idle by default if the default suspend mode was not
-	 * set from the command line.
+	 * Use suspend-to-idle by default if ACPI_FADT_LOW_POWER_S0 is set in
+	 * the FADT and the default suspend mode was not set from the command
+	 * line.
 	 */
-	if (mem_sleep_default > PM_SUSPEND_MEM && !acpi_sleep_default_s3)
+	if ((acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0) &&
+	    mem_sleep_default > PM_SUSPEND_MEM && !acpi_sleep_default_s3)
 		mem_sleep_current = PM_SUSPEND_TO_IDLE;
 
 	/*
