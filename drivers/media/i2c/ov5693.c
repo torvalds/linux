@@ -127,10 +127,14 @@
 #define OV5693_LINK_FREQ_419_2MHZ		419200000
 #define OV5693_PIXEL_RATE			167680000
 
-/* Miscellaneous */
-#define OV5693_NUM_SUPPLIES			2
-
 #define to_ov5693_sensor(x) container_of(x, struct ov5693_device, sd)
+
+static const char * const ov5693_supply_names[] = {
+	"avdd",		/* Analog power */
+	"dovdd",	/* Digital I/O power */
+};
+
+#define OV5693_NUM_SUPPLIES	ARRAY_SIZE(ov5693_supply_names)
 
 struct ov5693_reg {
 	u32 reg;
@@ -350,11 +354,6 @@ static const struct v4l2_mbus_framefmt ov5693_default_fmt = {
 
 static const s64 link_freq_menu_items[] = {
 	OV5693_LINK_FREQ_419_2MHZ
-};
-
-static const char * const ov5693_supply_names[] = {
-	"avdd",
-	"dovdd",
 };
 
 static const char * const ov5693_test_pattern_menu[] = {
