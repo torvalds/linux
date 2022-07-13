@@ -46,7 +46,8 @@ Description:	Reports the current configuration of the QAT device and allows
 
 		The following example shows how to change the configuration of
 		a device configured for running crypto services in order to
-		run data compression:
+		run data compression::
+
 			# cat /sys/bus/pci/devices/<BDF>/qat/state
 			up
 			# cat /sys/bus/pci/devices/<BDF>/qat/cfg_services
