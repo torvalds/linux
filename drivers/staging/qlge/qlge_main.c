@@ -3009,9 +3009,10 @@ static int qlge_start_rx_ring(struct qlge_adapter *qdev, struct rx_ring *rx_ring
 
 		for (page_entries = 0;
 		     page_entries < MAX_DB_PAGES_PER_BQ(QLGE_BQ_LEN);
-		     page_entries++)
-			base_indirect_ptr[page_entries] =
-				cpu_to_le64(tmp + (page_entries * DB_PAGE_SIZE));
+		     page_entries++) {
+			base_indirect_ptr[page_entries] = cpu_to_le64(tmp);
+			tmp += DB_PAGE_SIZE;
+		}
 		cqicb->lbq_addr = cpu_to_le64(rx_ring->lbq.base_indirect_dma);
 		cqicb->lbq_buf_size =
 			cpu_to_le16(QLGE_FIT16(qdev->lbq_buf_size));
@@ -3025,9 +3026,10 @@ static int qlge_start_rx_ring(struct qlge_adapter *qdev, struct rx_ring *rx_ring
 
 		for (page_entries = 0;
 		     page_entries < MAX_DB_PAGES_PER_BQ(QLGE_BQ_LEN);
-		     page_entries++)
-			base_indirect_ptr[page_entries] =
-				cpu_to_le64(tmp + (page_entries * DB_PAGE_SIZE));
+		     page_entries++) {
+			base_indirect_ptr[page_entries] = cpu_to_le64(tmp);
+			tmp += DB_PAGE_SIZE;
+		}
 		cqicb->sbq_addr =
 			cpu_to_le64(rx_ring->sbq.base_indirect_dma);
 		cqicb->sbq_buf_size = cpu_to_le16(SMALL_BUFFER_SIZE);
