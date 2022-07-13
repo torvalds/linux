@@ -23,7 +23,7 @@
 	((_dws)->ip == DW_ ## _ip ## _ID)
 
 #define __dw_spi_ver_cmp(_dws, _ip, _ver, _op) \
-	(dw_spi_ip_is(_dws, _ip) && (_dws)->ver _op DW_ ## _ip ## _ver)
+	(dw_spi_ip_is(_dws, _ip) && (_dws)->ver _op DW_ ## _ip ## _ ## _ver)
 
 #define dw_spi_ver_is(_dws, _ip, _ver) __dw_spi_ver_cmp(_dws, _ip, _ver, ==)
 
