@@ -419,9 +419,6 @@ static int atl_resume_common(struct device *dev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 
-	/* Reinitialize Nic/Vecs objects */
-	aq_nic_deinit(nic, !nic->aq_hw->aq_nic_cfg->wol);
-
 	if (netif_running(nic->ndev)) {
 		ret = aq_nic_init(nic);
 		if (ret)
