@@ -560,6 +560,18 @@ void folio_migrate_flags(struct folio *newfolio, struct folio *folio)
 	 * future migrations of this same page.
 	 */
 	cpupid = page_cpupid_xchg_last(&folio->page, -1);
+	/*
+	 * For memory tiering mode, when migrate between slow and fast
+	 * memory node, reset cpupid, because that is used to record
+	 * page access time in slow memory node.
+	 */
+	if (sysctl_numa_balancing_mode & NUMA_BALANCING_MEMORY_TIERING) {
+		bool f_toptier = node_is_toptier(page_to_nid(&folio->page));
+		bool t_toptier = node_is_toptier(page_to_nid(&newfolio->page));
+
+		if (f_toptier != t_toptier)
+			cpupid = -1;
+	}
 	page_cpupid_xchg_last(&newfolio->page, cpupid);
 
 	folio_migrate_ksm(newfolio, folio);
