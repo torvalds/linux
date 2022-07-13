@@ -183,17 +183,12 @@ do {								\
 	remove_wait_queue(&(queue), &entry);			\
 } while (0)
 
-extern int via_fb_init(struct drm_device *dev, void *data, struct drm_file *file_priv);
-extern int via_mem_alloc(struct drm_device *dev, void *data, struct drm_file *file_priv);
-extern int via_mem_free(struct drm_device *dev, void *data, struct drm_file *file_priv);
-extern int via_agp_init(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_decoder_futex(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_wait_irq(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_dma_blit_sync(struct drm_device *dev, void *data, struct drm_file *file_priv);
 extern int via_dma_blit(struct drm_device *dev, void *data, struct drm_file *file_priv);
 
 extern int via_init_context(struct drm_device *dev, int context);
-extern int via_final_context(struct drm_device *dev, int context);
 
 extern int via_do_cleanup_map(struct drm_device *dev);
 extern u32 via_get_vblank_counter(struct drm_device *dev, unsigned int pipe);
@@ -211,10 +206,6 @@ extern int via_driver_dma_quiescent(struct drm_device *dev);
 extern void via_init_futex(drm_via_private_t *dev_priv);
 extern void via_cleanup_futex(drm_via_private_t *dev_priv);
 extern void via_release_futex(drm_via_private_t *dev_priv, int context);
-
-extern void via_reclaim_buffers_locked(struct drm_device *dev,
-				       struct drm_file *file_priv);
-extern void via_lastclose(struct drm_device *dev);
 
 extern void via_dmablit_handler(struct drm_device *dev, int engine, int from_irq);
 extern void via_init_dmablit(struct drm_device *dev);
