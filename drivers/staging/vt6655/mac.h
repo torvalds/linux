@@ -537,13 +537,6 @@
 
 /*---------------------  Export Macros ------------------------------*/
 
-#define vt6655_mac_word_reg_bits_on(iobase, reg_offset, bit_mask)	\
-do {									\
-	unsigned short reg_value;					\
-	reg_value = ioread16(iobase + reg_offset);			\
-	iowrite16(reg_value | (bit_mask), iobase + reg_offset);		\
-} while (0)
-
 #define vt6655_mac_reg_bits_off(iobase, reg_offset, bit_mask)			\
 do {									\
 	unsigned char reg_value;					\
@@ -660,6 +653,7 @@ do {									\
 	((unsigned short)(((unsigned char)(lb)) | (((unsigned short)((unsigned char)(hb))) << 8)))
 
 void vt6655_mac_reg_bits_on(void __iomem *iobase, const u8 reg_offset, const u8 bit_mask);
+void vt6655_mac_word_reg_bits_on(void __iomem *iobase, const u8 reg_offset, const u16 bit_mask);
 bool MACbIsRegBitsOff(struct vnt_private *priv, unsigned char byRegOfs,
 		      unsigned char byTestBits);
 
