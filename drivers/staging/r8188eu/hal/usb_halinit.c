@@ -927,7 +927,7 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 {
 	struct eeprom_priv *eeprom = &Adapter->eeprompriv;
 	struct led_priv *ledpriv = &Adapter->ledpriv;
-	u8 efuse_buf[EFUSE_MAP_LEN_88E] __aligned(4);
+	u8 *efuse_buf;
 	u8 eeValue;
 	int res;
 
@@ -938,7 +938,10 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 
 	eeprom->bautoload_fail_flag	= !(eeValue & EEPROM_EN);
 
-	memset(efuse_buf, 0xFF, sizeof(efuse_buf));
+	efuse_buf = kmalloc(EFUSE_MAP_LEN_88E, GFP_KERNEL);
+	if (!efuse_buf)
+		return;
+	memset(efuse_buf, 0xFF, EFUSE_MAP_LEN_88E);
 
 	if (!(eeValue & BOOT_FROM_EEPROM) && !eeprom->bautoload_fail_flag) {
 		rtl8188e_EfusePowerSwitch(Adapter, true);
@@ -958,6 +961,7 @@ void ReadAdapterInfo8188EU(struct adapter *Adapter)
 	Hal_ReadThermalMeter_88E(Adapter, efuse_buf, eeprom->bautoload_fail_flag);
 
 	ledpriv->bRegUseLed = true;
+	kfree(efuse_buf);
 }
 
 static void ResumeTxBeacon(struct adapter *adapt)
