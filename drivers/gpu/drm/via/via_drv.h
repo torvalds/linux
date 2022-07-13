@@ -46,7 +46,33 @@
 #define DRIVER_MINOR		11
 #define DRIVER_PATCHLEVEL	1
 
-#include "via_verifier.h"
+typedef enum {
+	no_sequence = 0,
+	z_address,
+	dest_address,
+	tex_address
+} drm_via_sequence_t;
+
+typedef struct {
+	unsigned texture;
+	uint32_t z_addr;
+	uint32_t d_addr;
+	uint32_t t_addr[2][10];
+	uint32_t pitch[2][10];
+	uint32_t height[2][10];
+	uint32_t tex_level_lo[2];
+	uint32_t tex_level_hi[2];
+	uint32_t tex_palette_size[2];
+	uint32_t tex_npot[2];
+	drm_via_sequence_t unfinished;
+	int agp_texture;
+	int multitex;
+	struct drm_device *dev;
+	drm_local_map_t *map_cache;
+	uint32_t vertex_count;
+	int agp;
+	const uint32_t *buf_start;
+} drm_via_state_t;
 
 #define VIA_PCI_BUF_SIZE 60000
 #define VIA_FIRE_BUF_SIZE  1024
@@ -234,7 +260,6 @@ extern int via_init_context(struct drm_device *dev, int context);
 extern int via_do_cleanup_map(struct drm_device *dev);
 
 extern int via_dma_cleanup(struct drm_device *dev);
-extern void via_init_command_verifier(void);
 extern int via_driver_dma_quiescent(struct drm_device *dev);
 
 #endif
