@@ -59,45 +59,49 @@ static struct irq_chip sunxi_pinctrl_level_irq_chip;
  * The following functions calculate the register and the bit offset to access.
  * They take a pin number which is relative to the start of the current device.
  */
-static void sunxi_mux_reg(u32 pin, u32 *reg, u32 *shift, u32 *mask)
+static void sunxi_mux_reg(const struct sunxi_pinctrl *pctl,
+			  u32 pin, u32 *reg, u32 *shift, u32 *mask)
 {
 	u32 bank   = pin / PINS_PER_BANK;
 	u32 offset = pin % PINS_PER_BANK * MUX_FIELD_WIDTH;
 
-	*reg   = bank * BANK_MEM_SIZE + MUX_REGS_OFFSET +
+	*reg   = bank * pctl->bank_mem_size + MUX_REGS_OFFSET +
 		 offset / BITS_PER_TYPE(u32) * sizeof(u32);
 	*shift = offset % BITS_PER_TYPE(u32);
 	*mask  = (BIT(MUX_FIELD_WIDTH) - 1) << *shift;
 }
 
-static void sunxi_data_reg(u32 pin, u32 *reg, u32 *shift, u32 *mask)
+static void sunxi_data_reg(const struct sunxi_pinctrl *pctl,
+			   u32 pin, u32 *reg, u32 *shift, u32 *mask)
 {
 	u32 bank   = pin / PINS_PER_BANK;
 	u32 offset = pin % PINS_PER_BANK * DATA_FIELD_WIDTH;
 
-	*reg   = bank * BANK_MEM_SIZE + DATA_REGS_OFFSET +
+	*reg   = bank * pctl->bank_mem_size + DATA_REGS_OFFSET +
 		 offset / BITS_PER_TYPE(u32) * sizeof(u32);
 	*shift = offset % BITS_PER_TYPE(u32);
 	*mask  = (BIT(DATA_FIELD_WIDTH) - 1) << *shift;
 }
 
-static void sunxi_dlevel_reg(u32 pin, u32 *reg, u32 *shift, u32 *mask)
+static void sunxi_dlevel_reg(const struct sunxi_pinctrl *pctl,
+			     u32 pin, u32 *reg, u32 *shift, u32 *mask)
 {
 	u32 bank   = pin / PINS_PER_BANK;
-	u32 offset = pin % PINS_PER_BANK * DLEVEL_FIELD_WIDTH;
+	u32 offset = pin % PINS_PER_BANK * pctl->dlevel_field_width;
 
-	*reg   = bank * BANK_MEM_SIZE + DLEVEL_REGS_OFFSET +
+	*reg   = bank * pctl->bank_mem_size + DLEVEL_REGS_OFFSET +
 		 offset / BITS_PER_TYPE(u32) * sizeof(u32);
 	*shift = offset % BITS_PER_TYPE(u32);
-	*mask  = (BIT(DLEVEL_FIELD_WIDTH) - 1) << *shift;
+	*mask  = (BIT(pctl->dlevel_field_width) - 1) << *shift;
 }
 
-static void sunxi_pull_reg(u32 pin, u32 *reg, u32 *shift, u32 *mask)
+static void sunxi_pull_reg(const struct sunxi_pinctrl *pctl,
+			   u32 pin, u32 *reg, u32 *shift, u32 *mask)
 {
 	u32 bank   = pin / PINS_PER_BANK;
 	u32 offset = pin % PINS_PER_BANK * PULL_FIELD_WIDTH;
 
-	*reg   = bank * BANK_MEM_SIZE + PULL_REGS_OFFSET +
+	*reg   = bank * pctl->bank_mem_size + pctl->pull_regs_offset +
 		 offset / BITS_PER_TYPE(u32) * sizeof(u32);
 	*shift = offset % BITS_PER_TYPE(u32);
 	*mask  = (BIT(PULL_FIELD_WIDTH) - 1) << *shift;
@@ -508,18 +512,19 @@ static const struct pinctrl_ops sunxi_pctrl_ops = {
 	.get_group_pins		= sunxi_pctrl_get_group_pins,
 };
 
-static int sunxi_pconf_reg(unsigned pin, enum pin_config_param param,
+static int sunxi_pconf_reg(const struct sunxi_pinctrl *pctl,
+			   u32 pin, enum pin_config_param param,
 			   u32 *reg, u32 *shift, u32 *mask)
 {
 	switch (param) {
 	case PIN_CONFIG_DRIVE_STRENGTH:
-		sunxi_dlevel_reg(pin, reg, shift, mask);
+		sunxi_dlevel_reg(pctl, pin, reg, shift, mask);
 		break;
 
 	case PIN_CONFIG_BIAS_PULL_UP:
 	case PIN_CONFIG_BIAS_PULL_DOWN:
 	case PIN_CONFIG_BIAS_DISABLE:
-		sunxi_pull_reg(pin, reg, shift, mask);
+		sunxi_pull_reg(pctl, pin, reg, shift, mask);
 		break;
 
 	default:
@@ -540,7 +545,7 @@ static int sunxi_pconf_get(struct pinctrl_dev *pctldev, unsigned pin,
 
 	pin -= pctl->desc->pin_base;
 
-	ret = sunxi_pconf_reg(pin, param, &reg, &shift, &mask);
+	ret = sunxi_pconf_reg(pctl, pin, param, &reg, &shift, &mask);
 	if (ret < 0)
 		return ret;
 
@@ -606,7 +611,7 @@ static int sunxi_pconf_set(struct pinctrl_dev *pctldev, unsigned pin,
 		param = pinconf_to_config_param(configs[i]);
 		arg = pinconf_to_config_argument(configs[i]);
 
-		ret = sunxi_pconf_reg(pin, param, &reg, &shift, &mask);
+		ret = sunxi_pconf_reg(pctl, pin, param, &reg, &shift, &mask);
 		if (ret < 0)
 			return ret;
 
@@ -774,7 +779,7 @@ static void sunxi_pmx_set(struct pinctrl_dev *pctldev,
 	unsigned long flags;
 
 	pin -= pctl->desc->pin_base;
-	sunxi_mux_reg(pin, &reg, &shift, &mask);
+	sunxi_mux_reg(pctl, pin, &reg, &shift, &mask);
 
 	raw_spin_lock_irqsave(&pctl->lock, flags);
 
@@ -917,7 +922,7 @@ static int sunxi_pinctrl_gpio_get(struct gpio_chip *chip, unsigned offset)
 	u32 pin = offset + chip->base;
 	u32 reg, shift, mask, val;
 
-	sunxi_data_reg(offset, &reg, &shift, &mask);
+	sunxi_data_reg(pctl, offset, &reg, &shift, &mask);
 
 	if (set_mux)
 		sunxi_pmx_set(pctl->pctl_dev, pin, SUN4I_FUNC_INPUT);
@@ -937,7 +942,7 @@ static void sunxi_pinctrl_gpio_set(struct gpio_chip *chip,
 	u32 reg, shift, mask, val;
 	unsigned long flags;
 
-	sunxi_data_reg(offset, &reg, &shift, &mask);
+	sunxi_data_reg(pctl, offset, &reg, &shift, &mask);
 
 	raw_spin_lock_irqsave(&pctl->lock, flags);
 
@@ -1489,6 +1494,9 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 	pctl->dev = &pdev->dev;
 	pctl->desc = desc;
 	pctl->variant = variant;
+	pctl->bank_mem_size = BANK_MEM_SIZE;
+	pctl->pull_regs_offset = PULL_REGS_OFFSET;
+	pctl->dlevel_field_width = DLEVEL_FIELD_WIDTH;
 
 	pctl->irq_array = devm_kcalloc(&pdev->dev,
 				       IRQ_PER_BANK * pctl->desc->irq_banks,

@@ -169,6 +169,9 @@ struct sunxi_pinctrl {
 	raw_spinlock_t			lock;
 	struct pinctrl_dev		*pctl_dev;
 	unsigned long			variant;
+	u32				bank_mem_size;
+	u32				pull_regs_offset;
+	u32				dlevel_field_width;
 };
 
 #define SUNXI_PIN(_pin, ...)					\
