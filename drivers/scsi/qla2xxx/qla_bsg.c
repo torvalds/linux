@@ -2482,8 +2482,8 @@ qla2x00_do_dport_diagnostics_v2(struct bsg_job *bsg_job)
 			dd->mbx2 = mcp->mb[1];
 			vha->dport_status |=  DPORT_DIAG_IN_PROGRESS;
 		} else if (options == QLA_GET_DPORT_RESULT_V2) {
-			dd->mbx1 = vha->dport_data[1];
-			dd->mbx2 = vha->dport_data[2];
+			dd->mbx1 = le16_to_cpu(vha->dport_data[1]);
+			dd->mbx2 = le16_to_cpu(vha->dport_data[2]);
 		}
 	} else {
 		dd->mbx1 = mcp->mb[0];
