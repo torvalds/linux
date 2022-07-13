@@ -1043,16 +1043,6 @@ static int xennet_get_responses(struct netfront_queue *queue,
 	}
 
 	for (;;) {
-		if (unlikely(rx->status < 0 ||
-			     rx->offset + rx->status > XEN_PAGE_SIZE)) {
-			if (net_ratelimit())
-				dev_warn(dev, "rx->offset: %u, size: %d\n",
-					 rx->offset, rx->status);
-			xennet_move_rx_slot(queue, skb, ref);
-			err = -EINVAL;
-			goto next;
-		}
-
 		/*
 		 * This definitely indicates a bug, either in this driver or in
 		 * the backend driver. In future this should flag the bad
@@ -1062,6 +1052,16 @@ static int xennet_get_responses(struct netfront_queue *queue,
 			if (net_ratelimit())
 				dev_warn(dev, "Bad rx response id %d.\n",
 					 rx->id);
+			err = -EINVAL;
+			goto next;
+		}
+
+		if (unlikely(rx->status < 0 ||
+			     rx->offset + rx->status > XEN_PAGE_SIZE)) {
+			if (net_ratelimit())
+				dev_warn(dev, "rx->offset: %u, size: %d\n",
+					 rx->offset, rx->status);
+			xennet_move_rx_slot(queue, skb, ref);
 			err = -EINVAL;
 			goto next;
 		}
