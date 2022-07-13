@@ -262,10 +262,15 @@ static __init void __parse_cmdline(const char *cmdline, bool parse_aliases)
 	} while (1);
 }
 
-static __init const u8 *get_bootargs_cmdline(const void *fdt)
+static __init const u8 *get_bootargs_cmdline(void)
 {
 	const u8 *prop;
+	void *fdt;
 	int node;
+
+	fdt = get_early_fdt_ptr();
+	if (!fdt)
+		return NULL;
 
 	node = fdt_path_offset(fdt, "/chosen");
 	if (node < 0)
@@ -278,9 +283,9 @@ static __init const u8 *get_bootargs_cmdline(const void *fdt)
 	return strlen(prop) ? prop : NULL;
 }
 
-static __init void parse_cmdline(const void *fdt)
+static __init void parse_cmdline(void)
 {
-	const u8 *prop = get_bootargs_cmdline(fdt);
+	const u8 *prop = get_bootargs_cmdline();
 
 	if (IS_ENABLED(CONFIG_CMDLINE_FORCE) || !prop)
 		__parse_cmdline(CONFIG_CMDLINE, true);
@@ -290,9 +295,9 @@ static __init void parse_cmdline(const void *fdt)
 }
 
 /* Keep checkers quiet */
-void init_feature_override(const void *fdt, u64 boot_status);
+void init_feature_override(u64 boot_status);
 
-asmlinkage void __init init_feature_override(const void *fdt, u64 boot_status)
+asmlinkage void __init init_feature_override(u64 boot_status)
 {
 	int i;
 
@@ -305,7 +310,7 @@ asmlinkage void __init init_feature_override(const void *fdt, u64 boot_status)
 
 	__boot_status = boot_status;
 
-	parse_cmdline(fdt);
+	parse_cmdline();
 
 	for (i = 0; i < ARRAY_SIZE(regs); i++) {
 		if (regs[i]->override)
