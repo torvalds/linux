@@ -513,7 +513,7 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	u32 num_cs;
 	int ret = 0;
 
-	master = spi_alloc_master(&pdev->dev, sizeof(*spi));
+	master = devm_spi_alloc_master(&pdev->dev, sizeof(*spi));
 	if (!master)
 		return dev_err_probe(&pdev->dev, -ENOMEM,
 				     "unable to allocate master for SPI controller\n");
@@ -535,36 +535,32 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	spi = spi_master_get_devdata(master);
 
 	spi->regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
-	if (IS_ERR(spi->regs)) {
-		ret = PTR_ERR(spi->regs);
-		goto error_release_master;
-	}
+	if (IS_ERR(spi->regs))
+		return PTR_ERR(spi->regs);
 
 	spi->irq = platform_get_irq(pdev, 0);
 	if (spi->irq <= 0) {
 		dev_err(&pdev->dev, "invalid IRQ %d for SPI controller\n", spi->irq);
-		ret = -ENXIO;
-		goto error_release_master;
+		return -ENXIO;
 	}
 
 	ret = devm_request_irq(&pdev->dev, spi->irq, mchp_corespi_interrupt,
 			       IRQF_SHARED, dev_name(&pdev->dev), master);
 	if (ret) {
 		dev_err(&pdev->dev, "could not request irq: %d\n", ret);
-		goto error_release_master;
+		return ret;
 	}
 
 	spi->clk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(spi->clk)) {
-		ret = PTR_ERR(spi->clk);
 		dev_err(&pdev->dev, "could not get clk: %d\n", ret);
-		goto error_release_master;
+		return PTR_ERR(spi->clk);
 	}
 
 	ret = clk_prepare_enable(spi->clk);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to enable clock\n");
-		goto error_release_master;
+		return ret;
 	}
 
 	mchp_corespi_init(master, spi);
@@ -583,8 +579,6 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 error_release_hardware:
 	mchp_corespi_disable(spi);
 	clk_disable_unprepare(spi->clk);
-error_release_master:
-	spi_master_put(master);
 
 	return ret;
 }
