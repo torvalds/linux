@@ -573,11 +573,10 @@ static irqreturn_t qcom_swrm_irq_handler(int irq, void *dev_id)
 				break;
 			case SWRM_INTERRUPT_STATUS_NEW_SLAVE_ATTACHED:
 			case SWRM_INTERRUPT_STATUS_CHANGE_ENUM_SLAVE_STATUS:
-				dev_err_ratelimited(swrm->dev, "%s: SWR new slave attached\n",
-					__func__);
+				dev_dbg_ratelimited(swrm->dev, "SWR new slave attached\n");
 				swrm->reg_read(swrm, SWRM_MCP_SLV_STATUS, &slave_status);
 				if (swrm->slave_status == slave_status) {
-					dev_err(swrm->dev, "Slave status not changed %x\n",
+					dev_dbg(swrm->dev, "Slave status not changed %x\n",
 						slave_status);
 				} else {
 					qcom_swrm_get_device_status(swrm);
