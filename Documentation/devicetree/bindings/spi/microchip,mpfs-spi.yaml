@@ -47,6 +47,5 @@ examples:
         clocks = <&clkcfg CLK_SPI0>;
         interrupt-parent = <&plic>;
         interrupts = <54>;
-        spi-max-frequency = <25000000>;
     };
 ...

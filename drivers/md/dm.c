@@ -594,6 +594,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	atomic_set(&io->io_count, 2);
 	this_cpu_inc(*md->pending_io);
 	io->orig_bio = bio;
+	io->split_bio = NULL;
 	io->md = md;
 	spin_lock_init(&io->lock);
 	io->start_time = jiffies;
@@ -887,7 +888,7 @@ static void dm_io_complete(struct dm_io *io)
 {
 	blk_status_t io_error;
 	struct mapped_device *md = io->md;
-	struct bio *bio = io->orig_bio;
+	struct bio *bio = io->split_bio ? io->split_bio : io->orig_bio;
 
 	if (io->status == BLK_STS_DM_REQUEUE) {
 		unsigned long flags;
@@ -939,9 +940,11 @@ static void dm_io_complete(struct dm_io *io)
 			if (io_error == BLK_STS_AGAIN) {
 				/* io_uring doesn't handle BLK_STS_AGAIN (yet) */
 				queue_io(md, bio);
+				return;
 			}
 		}
-		return;
+		if (io_error == BLK_STS_DM_REQUEUE)
+			return;
 	}
 
 	if (bio_is_flush_with_data(bio)) {
@@ -1691,9 +1694,11 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	 * Remainder must be passed to submit_bio_noacct() so it gets handled
 	 * *after* bios already submitted have been completely processed.
 	 */
-	bio_trim(bio, io->sectors, ci.sector_count);
-	trace_block_split(bio, bio->bi_iter.bi_sector);
-	bio_inc_remaining(bio);
+	WARN_ON_ONCE(!dm_io_flagged(io, DM_IO_WAS_SPLIT));
+	io->split_bio = bio_split(bio, io->sectors, GFP_NOIO,
+				  &md->queue->bio_split);
+	bio_chain(io->split_bio, bio);
+	trace_block_split(io->split_bio, bio->bi_iter.bi_sector);
 	submit_bio_noacct(bio);
 out:
 	/*

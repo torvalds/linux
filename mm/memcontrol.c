@@ -4859,7 +4859,7 @@ static int mem_cgroup_slab_show(struct seq_file *m, void *p)
 {
 	/*
 	 * Deprecated.
-	 * Please, take a look at tools/cgroup/slabinfo.py .
+	 * Please, take a look at tools/cgroup/memcg_slabinfo.py .
 	 */
 	return 0;
 }

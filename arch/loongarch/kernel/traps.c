@@ -475,8 +475,7 @@ asmlinkage void noinstr do_ri(struct pt_regs *regs)
 
 	die_if_kernel("Reserved instruction in kernel code", regs);
 
-	if (unlikely(compute_return_era(regs) < 0))
-		goto out;
+	compute_return_era(regs);
 
 	if (unlikely(get_user(opcode, era) < 0)) {
 		status = SIGSEGV;

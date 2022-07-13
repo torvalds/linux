@@ -174,7 +174,7 @@ static int elf_section_address_and_offset(int fd, const char *name, u64 *address
 	Elf *elf;
 	GElf_Ehdr ehdr;
 	GElf_Shdr shdr;
-	int ret;
+	int ret = -1;
 
 	elf = elf_begin(fd, PERF_ELF_C_READ_MMAP, NULL);
 	if (elf == NULL)
@@ -197,7 +197,7 @@ out_err:
 #ifndef NO_LIBUNWIND_DEBUG_FRAME
 static u64 elf_section_offset(int fd, const char *name)
 {
-	u64 address, offset;
+	u64 address, offset = 0;
 
 	if (elf_section_address_and_offset(fd, name, &address, &offset))
 		return 0;

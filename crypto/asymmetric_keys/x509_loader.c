@@ -2,11 +2,11 @@
 
 #include <linux/kernel.h>
 #include <linux/key.h>
-#include "common.h"
+#include <keys/asymmetric-type.h>
 
-int load_certificate_list(const u8 cert_list[],
-			  const unsigned long list_size,
-			  const struct key *keyring)
+int x509_load_certificate_list(const u8 cert_list[],
+			       const unsigned long list_size,
+			       const struct key *keyring)
 {
 	key_ref_t key;
 	const u8 *p, *end;

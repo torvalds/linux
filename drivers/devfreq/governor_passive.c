@@ -1,4 +1,4 @@
-	// SPDX-License-Identifier: GPL-2.0-only
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * linux/drivers/devfreq/governor_passive.c
  *
@@ -14,9 +14,8 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/devfreq.h>
+#include <linux/units.h>
 #include "governor.h"
-
-#define HZ_PER_KHZ	1000
 
 static struct devfreq_cpu_data *
 get_parent_cpu_data(struct devfreq_passive_data *p_data,
@@ -32,6 +31,20 @@ get_parent_cpu_data(struct devfreq_passive_data *p_data,
 			return parent_cpu_data;
 
 	return NULL;
+}
+
+static void delete_parent_cpu_data(struct devfreq_passive_data *p_data)
+{
+	struct devfreq_cpu_data *parent_cpu_data, *tmp;
+
+	list_for_each_entry_safe(parent_cpu_data, tmp, &p_data->cpu_data_list, node) {
+		list_del(&parent_cpu_data->node);
+
+		if (parent_cpu_data->opp_table)
+			dev_pm_opp_put_opp_table(parent_cpu_data->opp_table);
+
+		kfree(parent_cpu_data);
+	}
 }
 
 static unsigned long get_target_freq_by_required_opp(struct device *p_dev,
@@ -131,18 +144,18 @@ static int get_target_freq_with_devfreq(struct devfreq *devfreq,
 		goto out;
 
 	/* Use interpolation if required opps is not available */
-	for (i = 0; i < parent_devfreq->profile->max_state; i++)
-		if (parent_devfreq->profile->freq_table[i] == *freq)
+	for (i = 0; i < parent_devfreq->max_state; i++)
+		if (parent_devfreq->freq_table[i] == *freq)
 			break;
 
-	if (i == parent_devfreq->profile->max_state)
+	if (i == parent_devfreq->max_state)
 		return -EINVAL;
 
-	if (i < devfreq->profile->max_state) {
-		child_freq = devfreq->profile->freq_table[i];
+	if (i < devfreq->max_state) {
+		child_freq = devfreq->freq_table[i];
 	} else {
-		count = devfreq->profile->max_state;
-		child_freq = devfreq->profile->freq_table[count - 1];
+		count = devfreq->max_state;
+		child_freq = devfreq->freq_table[count - 1];
 	}
 
 out:
@@ -222,8 +235,7 @@ static int cpufreq_passive_unregister_notifier(struct devfreq *devfreq)
 {
 	struct devfreq_passive_data *p_data
 			= (struct devfreq_passive_data *)devfreq->data;
-	struct devfreq_cpu_data *parent_cpu_data;
-	int cpu, ret = 0;
+	int ret;
 
 	if (p_data->nb.notifier_call) {
 		ret = cpufreq_unregister_notifier(&p_data->nb,
@@ -232,27 +244,9 @@ static int cpufreq_passive_unregister_notifier(struct devfreq *devfreq)
 			return ret;
 	}
 
-	for_each_possible_cpu(cpu) {
-		struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
-		if (!policy) {
-			ret = -EINVAL;
-			continue;
-		}
+	delete_parent_cpu_data(p_data);
 
-		parent_cpu_data = get_parent_cpu_data(p_data, policy);
-		if (!parent_cpu_data) {
-			cpufreq_cpu_put(policy);
-			continue;
-		}
-
-		list_del(&parent_cpu_data->node);
-		if (parent_cpu_data->opp_table)
-			dev_pm_opp_put_opp_table(parent_cpu_data->opp_table);
-		kfree(parent_cpu_data);
-		cpufreq_cpu_put(policy);
-	}
-
-	return ret;
+	return 0;
 }
 
 static int cpufreq_passive_register_notifier(struct devfreq *devfreq)
@@ -336,7 +330,6 @@ err_free_cpu_data:
 err_put_policy:
 	cpufreq_cpu_put(policy);
 err:
-	WARN_ON(cpufreq_passive_unregister_notifier(devfreq));
 
 	return ret;
 }
@@ -407,8 +400,7 @@ static int devfreq_passive_event_handler(struct devfreq *devfreq,
 	if (!p_data)
 		return -EINVAL;
 
-	if (!p_data->this)
-		p_data->this = devfreq;
+	p_data->this = devfreq;
 
 	switch (event) {
 	case DEVFREQ_GOV_START:
