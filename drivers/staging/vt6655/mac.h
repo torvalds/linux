@@ -537,7 +537,7 @@
 
 /*---------------------  Export Macros ------------------------------*/
 
-#define MACvRegBitsOn(iobase, reg_offset, bit_mask)			\
+#define vt6655_mac_reg_bits_on(iobase, reg_offset, bit_mask)		\
 do {									\
 	unsigned char reg_value;					\
 	reg_value = ioread8(iobase + reg_offset);			\

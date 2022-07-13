@@ -1424,7 +1424,7 @@ static int vnt_beacon_xmit(struct vnt_private *priv,
 
 	iowrite16(priv->wBCNBufLen, priv->port_offset + MAC_REG_BCNDMACTL + 2);
 	/* Set auto Transmit on */
-	MACvRegBitsOn(priv->port_offset, MAC_REG_TCR, TCR_AUTOBCNTX);
+	vt6655_mac_reg_bits_on(priv->port_offset, MAC_REG_TCR, TCR_AUTOBCNTX);
 	/* Poll Transmit the adapter */
 	iowrite8(BEACON_READY, priv->port_offset + MAC_REG_BCNDMACTL);
 
