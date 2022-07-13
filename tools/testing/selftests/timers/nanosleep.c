@@ -133,33 +133,37 @@ int main(int argc, char **argv)
 	long long length;
 	int clockid, ret;
 
+	ksft_print_header();
+	ksft_set_plan(NR_CLOCKIDS);
+
 	for (clockid = CLOCK_REALTIME; clockid < NR_CLOCKIDS; clockid++) {
 
 		/* Skip cputime clockids since nanosleep won't increment cputime */
 		if (clockid == CLOCK_PROCESS_CPUTIME_ID ||
 				clockid == CLOCK_THREAD_CPUTIME_ID ||
-				clockid == CLOCK_HWSPECIFIC)
+				clockid == CLOCK_HWSPECIFIC) {
+			ksft_test_result_skip("%-31s\n", clockstring(clockid));
 			continue;
+		}
 
-		printf("Nanosleep %-31s ", clockstring(clockid));
 		fflush(stdout);
 
 		length = 10;
 		while (length <= (NSEC_PER_SEC * 10)) {
 			ret = nanosleep_test(clockid, length);
 			if (ret == UNSUPPORTED) {
-				printf("[UNSUPPORTED]\n");
+				ksft_test_result_skip("%-31s\n", clockstring(clockid));
 				goto next;
 			}
 			if (ret < 0) {
-				printf("[FAILED]\n");
-				return ksft_exit_fail();
+				ksft_test_result_fail("%-31s\n", clockstring(clockid));
+				ksft_exit_fail();
 			}
 			length *= 100;
 		}
-		printf("[OK]\n");
+		ksft_test_result_pass("%-31s\n", clockstring(clockid));
 next:
 		ret = 0;
 	}
-	return ksft_exit_pass();
+	ksft_exit_pass();
 }
