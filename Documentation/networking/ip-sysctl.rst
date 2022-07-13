@@ -1633,12 +1633,15 @@ arp_notify - BOOLEAN
 	     or hardware address changes.
 	 ==  ==========================================================
 
-arp_accept - BOOLEAN
-	Define behavior for gratuitous ARP frames who's IP is not
-	already present in the ARP table:
+arp_accept - INTEGER
+	Define behavior for accepting gratuitous ARP (garp) frames from devices
+	that are not already present in the ARP table:
 
 	- 0 - don't create new entries in the ARP table
 	- 1 - create new entries in the ARP table
+	- 2 - create new entries only if the source IP address is in the same
+	  subnet as an address configured on the interface that received the
+	  garp message.
 
 	Both replies and requests type gratuitous arp will trigger the
 	ARP table to be updated, if this setting is on.
