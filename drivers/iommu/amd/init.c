@@ -114,7 +114,7 @@ struct ivhd_header {
 
 	/* Following only valid on IVHD type 11h and 40h */
 	u64 efr_reg; /* Exact copy of MMIO_EXT_FEATURES */
-	u64 res;
+	u64 efr_reg2;
 } __attribute__((packed));
 
 /*
@@ -283,8 +283,10 @@ static bool check_feature_on_all_iommus(u64 mask)
 static void __init early_iommu_features_init(struct amd_iommu *iommu,
 					     struct ivhd_header *h)
 {
-	if (amd_iommu_ivinfo & IOMMU_IVINFO_EFRSUP)
+	if (amd_iommu_ivinfo & IOMMU_IVINFO_EFRSUP) {
 		iommu->features = h->efr_reg;
+		iommu->features2 = h->efr_reg2;
+	}
 	if (amd_iommu_ivinfo & IOMMU_IVINFO_DMA_REMAP)
 		amdr_ivrs_remap_support = true;
 }
@@ -1912,7 +1914,7 @@ static ssize_t amd_iommu_show_features(struct device *dev,
 				       char *buf)
 {
 	struct amd_iommu *iommu = dev_to_amd_iommu(dev);
-	return sprintf(buf, "%llx\n", iommu->features);
+	return sprintf(buf, "%llx:%llx\n", iommu->features2, iommu->features);
 }
 static DEVICE_ATTR(features, S_IRUGO, amd_iommu_show_features, NULL);
 
@@ -1939,16 +1941,18 @@ static const struct attribute_group *amd_iommu_groups[] = {
  */
 static void __init late_iommu_features_init(struct amd_iommu *iommu)
 {
-	u64 features;
+	u64 features, features2;
 
 	if (!(iommu->cap & (1 << IOMMU_CAP_EFR)))
 		return;
 
 	/* read extended feature bits */
 	features = readq(iommu->mmio_base + MMIO_EXT_FEATURES);
+	features2 = readq(iommu->mmio_base + MMIO_EXT_FEATURES2);
 
 	if (!iommu->features) {
 		iommu->features = features;
+		iommu->features2 = features2;
 		return;
 	}
 
@@ -1956,9 +1960,13 @@ static void __init late_iommu_features_init(struct amd_iommu *iommu)
 	 * Sanity check and warn if EFR values from
 	 * IVHD and MMIO conflict.
 	 */
-	if (features != iommu->features)
-		pr_warn(FW_WARN "EFR mismatch. Use IVHD EFR (%#llx : %#llx).\n",
-			features, iommu->features);
+	if (features != iommu->features ||
+	    features2 != iommu->features2) {
+		pr_warn(FW_WARN
+			"EFR mismatch. Use IVHD EFR (%#llx : %#llx), EFR2 (%#llx : %#llx).\n",
+			features, iommu->features,
+			features2, iommu->features2);
+	}
 }
 
 static int __init iommu_init_pci(struct amd_iommu *iommu)
@@ -2083,7 +2091,7 @@ static void print_iommu_info(void)
 		pci_info(pdev, "Found IOMMU cap 0x%x\n", iommu->cap_ptr);
 
 		if (iommu->cap & (1 << IOMMU_CAP_EFR)) {
-			pr_info("Extended features (%#llx):", iommu->features);
+			pr_info("Extended features (%#llx, %#llx):", iommu->features, iommu->features2);
 
 			for (i = 0; i < ARRAY_SIZE(feat_str); ++i) {
 				if (iommu_feature(iommu, (1ULL << i)))
