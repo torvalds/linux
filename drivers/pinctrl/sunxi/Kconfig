@@ -81,6 +81,11 @@ config PINCTRL_SUN9I_A80_R
 	default MACH_SUN9I
 	select PINCTRL_SUNXI
 
+config PINCTRL_SUN20I_D1
+	bool "Support for the Allwinner D1 PIO"
+	default MACH_SUN8I || (RISCV && ARCH_SUNXI)
+	select PINCTRL_SUNXI
+
 config PINCTRL_SUN50I_A64
 	bool "Support for the Allwinner A64 PIO"
 	default ARM64 && ARCH_SUNXI

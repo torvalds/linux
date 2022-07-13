@@ -44,6 +44,10 @@
 #define PULL_REGS_OFFSET	0x1c
 #define PULL_FIELD_WIDTH	2
 
+#define D1_BANK_MEM_SIZE	0x30
+#define D1_DLEVEL_FIELD_WIDTH	4
+#define D1_PULL_REGS_OFFSET	0x24
+
 #define PINS_PER_BANK		32
 
 #define IRQ_PER_BANK		32
@@ -88,6 +92,8 @@
 #define PINCTRL_SUN8I_R40	BIT(8)
 #define PINCTRL_SUN8I_V3	BIT(9)
 #define PINCTRL_SUN8I_V3S	BIT(10)
+/* Variants below here have an updated register layout. */
+#define PINCTRL_SUN20I_D1	BIT(11)
 
 #define PIO_POW_MOD_SEL_REG	0x340
 #define PIO_POW_MOD_CTL_REG	0x344

@@ -1297,11 +1297,11 @@ static int sunxi_pinctrl_build_state(struct platform_device *pdev)
 
 	/*
 	 * Find an upper bound for the maximum number of functions: in
-	 * the worst case we have gpio_in, gpio_out, irq and up to four
+	 * the worst case we have gpio_in, gpio_out, irq and up to seven
 	 * special functions per pin, plus one entry for the sentinel.
 	 * We'll reallocate that later anyway.
 	 */
-	pctl->functions = kcalloc(4 * pctl->ngroups + 4,
+	pctl->functions = kcalloc(7 * pctl->ngroups + 4,
 				  sizeof(*pctl->functions),
 				  GFP_KERNEL);
 	if (!pctl->functions)
@@ -1494,9 +1494,15 @@ int sunxi_pinctrl_init_with_variant(struct platform_device *pdev,
 	pctl->dev = &pdev->dev;
 	pctl->desc = desc;
 	pctl->variant = variant;
-	pctl->bank_mem_size = BANK_MEM_SIZE;
-	pctl->pull_regs_offset = PULL_REGS_OFFSET;
-	pctl->dlevel_field_width = DLEVEL_FIELD_WIDTH;
+	if (pctl->variant >= PINCTRL_SUN20I_D1) {
+		pctl->bank_mem_size = D1_BANK_MEM_SIZE;
+		pctl->pull_regs_offset = D1_PULL_REGS_OFFSET;
+		pctl->dlevel_field_width = D1_DLEVEL_FIELD_WIDTH;
+	} else {
+		pctl->bank_mem_size = BANK_MEM_SIZE;
+		pctl->pull_regs_offset = PULL_REGS_OFFSET;
+		pctl->dlevel_field_width = DLEVEL_FIELD_WIDTH;
+	}
 
 	pctl->irq_array = devm_kcalloc(&pdev->dev,
 				       IRQ_PER_BANK * pctl->desc->irq_banks,
