@@ -261,6 +261,16 @@ struct cxl_switch_decoder {
 
 
 /**
+ * struct cxl_root_decoder - Static platform CXL address decoder
+ * @res: host / parent resource for region allocations
+ * @cxlsd: base cxl switch decoder
+ */
+struct cxl_root_decoder {
+	struct resource *res;
+	struct cxl_switch_decoder cxlsd;
+};
+
+/**
  * enum cxl_nvdimm_brige_state - state machine for managing bus rescans
  * @CXL_NVB_NEW: Set at bridge create and after cxl_pmem_wq is destroyed
  * @CXL_NVB_DEAD: Set at brige unregistration to preclude async probing
@@ -383,10 +393,11 @@ struct cxl_dport *cxl_find_dport_by_dev(struct cxl_port *port,
 					const struct device *dev);
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev);
+struct cxl_root_decoder *to_cxl_root_decoder(struct device *dev);
 bool is_root_decoder(struct device *dev);
 bool is_endpoint_decoder(struct device *dev);
-struct cxl_switch_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
-						  unsigned int nr_targets);
+struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
+						unsigned int nr_targets);
 struct cxl_switch_decoder *cxl_switch_decoder_alloc(struct cxl_port *port,
 						    unsigned int nr_targets);
 int cxl_decoder_add(struct cxl_decoder *cxld, int *target_map);

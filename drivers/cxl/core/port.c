@@ -260,6 +260,23 @@ static void cxl_switch_decoder_release(struct device *dev)
 	kfree(cxlsd);
 }
 
+struct cxl_root_decoder *to_cxl_root_decoder(struct device *dev)
+{
+	if (dev_WARN_ONCE(dev, !is_root_decoder(dev),
+			  "not a cxl_root_decoder device\n"))
+		return NULL;
+	return container_of(dev, struct cxl_root_decoder, cxlsd.cxld.dev);
+}
+EXPORT_SYMBOL_NS_GPL(to_cxl_root_decoder, CXL);
+
+static void cxl_root_decoder_release(struct device *dev)
+{
+	struct cxl_root_decoder *cxlrd = to_cxl_root_decoder(dev);
+
+	__cxl_decoder_release(&cxlrd->cxlsd.cxld);
+	kfree(cxlrd);
+}
+
 static const struct device_type cxl_decoder_endpoint_type = {
 	.name = "cxl_decoder_endpoint",
 	.release = cxl_decoder_release,
@@ -274,7 +291,7 @@ static const struct device_type cxl_decoder_switch_type = {
 
 static const struct device_type cxl_decoder_root_type = {
 	.name = "cxl_decoder_root",
-	.release = cxl_switch_decoder_release,
+	.release = cxl_root_decoder_release,
 	.groups = cxl_decoder_root_attribute_groups,
 };
 
@@ -1271,9 +1288,10 @@ static int cxl_switch_decoder_init(struct cxl_port *port,
  * firmware description of CXL resources into a CXL standard decode
  * topology.
  */
-struct cxl_switch_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
-						  unsigned int nr_targets)
+struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
+						unsigned int nr_targets)
 {
+	struct cxl_root_decoder *cxlrd;
 	struct cxl_switch_decoder *cxlsd;
 	struct cxl_decoder *cxld;
 	int rc;
@@ -1281,19 +1299,21 @@ struct cxl_switch_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
 	if (!is_cxl_root(port))
 		return ERR_PTR(-EINVAL);
 
-	cxlsd = kzalloc(struct_size(cxlsd, target, nr_targets), GFP_KERNEL);
-	if (!cxlsd)
+	cxlrd = kzalloc(struct_size(cxlrd, cxlsd.target, nr_targets),
+			GFP_KERNEL);
+	if (!cxlrd)
 		return ERR_PTR(-ENOMEM);
 
+	cxlsd = &cxlrd->cxlsd;
 	rc = cxl_switch_decoder_init(port, cxlsd, nr_targets);
 	if (rc) {
-		kfree(cxlsd);
+		kfree(cxlrd);
 		return ERR_PTR(rc);
 	}
 
 	cxld = &cxlsd->cxld;
 	cxld->dev.type = &cxl_decoder_root_type;
-	return cxlsd;
+	return cxlrd;
 }
 EXPORT_SYMBOL_NS_GPL(cxl_root_decoder_alloc, CXL);
 
