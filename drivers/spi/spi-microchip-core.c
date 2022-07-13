@@ -539,48 +539,40 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 		return PTR_ERR(spi->regs);
 
 	spi->irq = platform_get_irq(pdev, 0);
-	if (spi->irq <= 0) {
-		dev_err(&pdev->dev, "invalid IRQ %d for SPI controller\n", spi->irq);
-		return -ENXIO;
-	}
+	if (spi->irq <= 0)
+		return dev_err_probe(&pdev->dev, -ENXIO,
+				     "invalid IRQ %d for SPI controller\n",
+				     spi->irq);
 
 	ret = devm_request_irq(&pdev->dev, spi->irq, mchp_corespi_interrupt,
 			       IRQF_SHARED, dev_name(&pdev->dev), master);
-	if (ret) {
-		dev_err(&pdev->dev, "could not request irq: %d\n", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "could not request irq: %d\n", ret);
 
 	spi->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(spi->clk)) {
-		dev_err(&pdev->dev, "could not get clk: %d\n", ret);
-		return PTR_ERR(spi->clk);
-	}
+	if (IS_ERR(spi->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(spi->clk),
+				     "could not get clk: %d\n", ret);
 
 	ret = clk_prepare_enable(spi->clk);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable clock\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "failed to enable clock\n");
 
 	mchp_corespi_init(master, spi);
 
 	ret = devm_spi_register_master(&pdev->dev, master);
 	if (ret) {
-		dev_err(&pdev->dev,
-			"unable to register master for SPI controller\n");
-		goto error_release_hardware;
+		mchp_corespi_disable(spi);
+		clk_disable_unprepare(spi->clk);
+		return dev_err_probe(&pdev->dev, ret,
+				     "unable to register master for SPI controller\n");
 	}
 
 	dev_info(&pdev->dev, "Registered SPI controller %d\n", master->bus_num);
 
 	return 0;
-
-error_release_hardware:
-	mchp_corespi_disable(spi);
-	clk_disable_unprepare(spi->clk);
-
-	return ret;
 }
 
 static int mchp_corespi_remove(struct platform_device *pdev)
