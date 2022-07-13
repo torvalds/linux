@@ -537,32 +537,32 @@
 
 /*---------------------  Export Macros ------------------------------*/
 
-#define MACvRegBitsOn(iobase, byRegOfs, byBits)			\
+#define MACvRegBitsOn(iobase, reg_offset, byBits)			\
 do {									\
 	unsigned char byData;						\
-	byData = ioread8(iobase + byRegOfs);				\
-	iowrite8(byData | (byBits), iobase + byRegOfs);			\
+	byData = ioread8(iobase + reg_offset);				\
+	iowrite8(byData | (byBits), iobase + reg_offset);		\
 } while (0)
 
-#define MACvWordRegBitsOn(iobase, byRegOfs, wBits)			\
+#define MACvWordRegBitsOn(iobase, reg_offset, wBits)			\
 do {									\
 	unsigned short wData;						\
-	wData = ioread16(iobase + byRegOfs);				\
-	iowrite16(wData | (wBits), iobase + byRegOfs);			\
+	wData = ioread16(iobase + reg_offset);				\
+	iowrite16(wData | (wBits), iobase + reg_offset);		\
 } while (0)
 
-#define MACvRegBitsOff(iobase, byRegOfs, byBits)			\
+#define MACvRegBitsOff(iobase, reg_offset, byBits)			\
 do {									\
 	unsigned char byData;						\
-	byData = ioread8(iobase + byRegOfs);				\
-	iowrite8(byData & ~(byBits), iobase + byRegOfs);		\
+	byData = ioread8(iobase + reg_offset);				\
+	iowrite8(byData & ~(byBits), iobase + reg_offset);		\
 } while (0)
 
-#define MACvWordRegBitsOff(iobase, byRegOfs, wBits)			\
+#define MACvWordRegBitsOff(iobase, reg_offset, wBits)			\
 do {									\
 	unsigned short wData;						\
-	wData = ioread16(iobase + byRegOfs);				\
-	iowrite16(wData & ~(wBits), iobase + byRegOfs);			\
+	wData = ioread16(iobase + reg_offset);				\
+	iowrite16(wData & ~(wBits), iobase + reg_offset);		\
 } while (0)
 
 #define MACvReceive0(iobase)						\
