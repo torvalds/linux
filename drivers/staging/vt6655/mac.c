@@ -38,6 +38,14 @@
 
 #include "mac.h"
 
+void vt6655_mac_reg_bits_on(void __iomem *iobase, const u8 reg_offset, const u8 bit_mask)
+{
+	unsigned char reg_value;
+
+	reg_value = ioread8(iobase + reg_offset);
+	iowrite8(reg_value | bit_mask, iobase + reg_offset);
+}
+
 /*
  * Description:
  *      Test if all test bits off
