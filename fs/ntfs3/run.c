@@ -1156,3 +1156,28 @@ int run_get_highest_vcn(CLST vcn, const u8 *run_buf, u64 *highest_vcn)
 	*highest_vcn = vcn64 - 1;
 	return 0;
 }
+
+/*
+ * run_clone
+ *
+ * Make a copy of run
+ */
+int run_clone(const struct runs_tree *run, struct runs_tree *new_run)
+{
+	size_t bytes = run->count * sizeof(struct ntfs_run);
+
+	if (bytes > new_run->allocated) {
+		struct ntfs_run *new_ptr = kvmalloc(bytes, GFP_KERNEL);
+
+		if (!new_ptr)
+			return -ENOMEM;
+
+		kvfree(new_run->runs);
+		new_run->runs = new_ptr;
+		new_run->allocated = bytes;
+	}
+
+	memcpy(new_run->runs, run->runs, bytes);
+	new_run->count = run->count;
+	return 0;
+}
