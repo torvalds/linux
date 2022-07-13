@@ -891,6 +891,13 @@ void insert_resource_expand_to_fit(struct resource *root, struct resource *new)
 	}
 	write_unlock(&resource_lock);
 }
+/*
+ * Not for general consumption, only early boot memory map parsing, PCI
+ * resource discovery, and late discovery of CXL resources are expected
+ * to use this interface. The former are built-in and only the latter,
+ * CXL, is a module.
+ */
+EXPORT_SYMBOL_NS_GPL(insert_resource_expand_to_fit, CXL);
 
 /**
  * remove_resource - Remove a resource in the resource tree
