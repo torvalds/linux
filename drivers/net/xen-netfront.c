@@ -2464,10 +2464,6 @@ static int xennet_connect(struct net_device *dev)
 		if (queue->tx_irq != queue->rx_irq)
 			notify_remote_via_irq(queue->rx_irq);
 
-		spin_lock_irq(&queue->tx_lock);
-		xennet_tx_buf_gc(queue);
-		spin_unlock_irq(&queue->tx_lock);
-
 		spin_lock_bh(&queue->rx_lock);
 		xennet_alloc_rx_buffers(queue);
 		spin_unlock_bh(&queue->rx_lock);
