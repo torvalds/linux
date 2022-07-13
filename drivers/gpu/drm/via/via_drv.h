@@ -24,6 +24,7 @@
 #ifndef _VIA_DRV_H_
 #define _VIA_DRV_H_
 
+#include <linux/dma-mapping.h>
 #include <linux/irqreturn.h>
 #include <linux/jiffies.h>
 #include <linux/sched.h>
@@ -47,11 +48,56 @@
 
 #include "via_verifier.h"
 
-#include "via_dmablit.h"
-
 #define VIA_PCI_BUF_SIZE 60000
 #define VIA_FIRE_BUF_SIZE  1024
 #define VIA_NUM_IRQS 4
+
+
+#define VIA_NUM_BLIT_ENGINES 2
+#define VIA_NUM_BLIT_SLOTS 8
+
+struct _drm_via_descriptor;
+
+typedef struct _drm_via_sg_info {
+	struct page **pages;
+	unsigned long num_pages;
+	struct _drm_via_descriptor **desc_pages;
+	int num_desc_pages;
+	int num_desc;
+	enum dma_data_direction direction;
+	unsigned char *bounce_buffer;
+	dma_addr_t chain_start;
+	uint32_t free_on_sequence;
+	unsigned int descriptors_per_page;
+	int aborted;
+	enum {
+		dr_via_device_mapped,
+		dr_via_desc_pages_alloc,
+		dr_via_pages_locked,
+		dr_via_pages_alloc,
+		dr_via_sg_init
+	} state;
+} drm_via_sg_info_t;
+
+typedef struct _drm_via_blitq {
+	struct drm_device *dev;
+	uint32_t cur_blit_handle;
+	uint32_t done_blit_handle;
+	unsigned serviced;
+	unsigned head;
+	unsigned cur;
+	unsigned num_free;
+	unsigned num_outstanding;
+	unsigned long end;
+	int aborting;
+	int is_active;
+	drm_via_sg_info_t *blits[VIA_NUM_BLIT_SLOTS];
+	spinlock_t blit_lock;
+	wait_queue_head_t blit_queue[VIA_NUM_BLIT_SLOTS];
+	wait_queue_head_t busy_queue;
+	struct work_struct wq;
+	struct timer_list poll_timer;
+} drm_via_blitq_t;
 
 typedef struct drm_via_ring_buffer {
 	drm_local_map_t map;
@@ -183,9 +229,6 @@ do {								\
 	remove_wait_queue(&(queue), &entry);			\
 } while (0)
 
-extern int via_dma_blit_sync(struct drm_device *dev, void *data, struct drm_file *file_priv);
-extern int via_dma_blit(struct drm_device *dev, void *data, struct drm_file *file_priv);
-
 extern int via_init_context(struct drm_device *dev, int context);
 
 extern int via_do_cleanup_map(struct drm_device *dev);
@@ -193,8 +236,5 @@ extern int via_do_cleanup_map(struct drm_device *dev);
 extern int via_dma_cleanup(struct drm_device *dev);
 extern void via_init_command_verifier(void);
 extern int via_driver_dma_quiescent(struct drm_device *dev);
-
-extern void via_dmablit_handler(struct drm_device *dev, int engine, int from_irq);
-extern void via_init_dmablit(struct drm_device *dev);
 
 #endif
