@@ -41,9 +41,14 @@
 #include <linux/delay.h>
 #include <linux/mm.h>
 #include <asm/page.h>
+#include <linux/task_work.h>
 #include <uapi/linux/ublk_cmd.h>
 
 #define UBLK_MINORS		(1U << MINORBITS)
+
+struct ublk_rq_data {
+	struct callback_head work;
+};
 
 struct ublk_uring_cmd_pdu {
 	struct request *req;
@@ -91,6 +96,7 @@ struct ublk_queue {
 	int q_id;
 	int q_depth;
 
+	unsigned long flags;
 	struct task_struct	*ubq_daemon;
 	char *io_cmd_buf;
 
@@ -148,6 +154,14 @@ static wait_queue_head_t ublk_idr_wq;	/* wait until one idr is freed */
 static DEFINE_MUTEX(ublk_ctl_mutex);
 
 static struct miscdevice ublk_misc;
+
+static inline bool ublk_can_use_task_work(const struct ublk_queue *ubq)
+{
+	if (IS_BUILTIN(CONFIG_BLK_DEV_UBLK) &&
+			!(ubq->flags & UBLK_F_URING_CMD_COMP_IN_TASK))
+		return true;
+	return false;
+}
 
 static struct ublk_device *ublk_get_device(struct ublk_device *ub)
 {
@@ -500,12 +514,10 @@ static void __ublk_fail_req(struct ublk_io *io, struct request *req)
 
 #define UBLK_REQUEUE_DELAY_MS	3
 
-static void ublk_rq_task_work_cb(struct io_uring_cmd *cmd)
+static inline void __ublk_rq_task_work(struct request *req)
 {
-	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
-	struct ublk_device *ub = cmd->file->private_data;
-	struct request *req = pdu->req;
 	struct ublk_queue *ubq = req->mq_hctx->driver_data;
+	struct ublk_device *ub = ubq->dev;
 	int tag = req->tag;
 	struct ublk_io *io = &ubq->ios[tag];
 	bool task_exiting = current != ubq->ubq_daemon ||
@@ -557,13 +569,27 @@ static void ublk_rq_task_work_cb(struct io_uring_cmd *cmd)
 	io_uring_cmd_done(io->cmd, UBLK_IO_RES_OK, 0);
 }
 
+static void ublk_rq_task_work_cb(struct io_uring_cmd *cmd)
+{
+	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
+
+	__ublk_rq_task_work(pdu->req);
+}
+
+static void ublk_rq_task_work_fn(struct callback_head *work)
+{
+	struct ublk_rq_data *data = container_of(work,
+			struct ublk_rq_data, work);
+	struct request *req = blk_mq_rq_from_pdu(data);
+
+	__ublk_rq_task_work(req);
+}
+
 static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
 		const struct blk_mq_queue_data *bd)
 {
 	struct ublk_queue *ubq = hctx->driver_data;
 	struct request *rq = bd->rq;
-	struct io_uring_cmd *cmd = ubq->ios[rq->tag].cmd;
-	struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
 	blk_status_t res;
 
 	/* fill iod to slot in io cmd buffer */
@@ -574,16 +600,36 @@ static blk_status_t ublk_queue_rq(struct blk_mq_hw_ctx *hctx,
 	blk_mq_start_request(bd->rq);
 
 	if (unlikely(ubq_daemon_is_dying(ubq))) {
+ fail:
 		mod_delayed_work(system_wq, &ubq->dev->monitor_work, 0);
 		return BLK_STS_IOERR;
 	}
 
-	pdu->req = rq;
-	io_uring_cmd_complete_in_task(cmd, ublk_rq_task_work_cb);
+	if (ublk_can_use_task_work(ubq)) {
+		struct ublk_rq_data *data = blk_mq_rq_to_pdu(rq);
+		enum task_work_notify_mode notify_mode = bd->last ?
+			TWA_SIGNAL_NO_IPI : TWA_NONE;
+
+		if (task_work_add(ubq->ubq_daemon, &data->work, notify_mode))
+			goto fail;
+	} else {
+		struct io_uring_cmd *cmd = ubq->ios[rq->tag].cmd;
+		struct ublk_uring_cmd_pdu *pdu = ublk_get_uring_cmd_pdu(cmd);
+
+		pdu->req = rq;
+		io_uring_cmd_complete_in_task(cmd, ublk_rq_task_work_cb);
+	}
 
 	return BLK_STS_OK;
 }
 
+static void ublk_commit_rqs(struct blk_mq_hw_ctx *hctx)
+{
+	struct ublk_queue *ubq = hctx->driver_data;
+
+	if (ublk_can_use_task_work(ubq))
+		__set_notify_signal(ubq->ubq_daemon);
+}
 
 static int ublk_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
 		unsigned int hctx_idx)
@@ -595,9 +641,20 @@ static int ublk_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
 	return 0;
 }
 
+static int ublk_init_rq(struct blk_mq_tag_set *set, struct request *req,
+		unsigned int hctx_idx, unsigned int numa_node)
+{
+	struct ublk_rq_data *data = blk_mq_rq_to_pdu(req);
+
+	init_task_work(&data->work, ublk_rq_task_work_fn);
+	return 0;
+}
+
 static const struct blk_mq_ops ublk_mq_ops = {
 	.queue_rq       = ublk_queue_rq,
+	.commit_rqs     = ublk_commit_rqs,
 	.init_hctx	= ublk_init_hctx,
+	.init_request   = ublk_init_rq,
 };
 
 static int ublk_ch_open(struct inode *inode, struct file *filp)
@@ -912,6 +969,7 @@ static int ublk_init_queue(struct ublk_device *ub, int q_id)
 	void *ptr;
 	int size;
 
+	ubq->flags = ub->dev_info.flags[0];
 	ubq->q_id = q_id;
 	ubq->q_depth = ub->dev_info.queue_depth;
 	size = ublk_queue_cmd_buf_size(ub, q_id);
@@ -1099,6 +1157,7 @@ static int ublk_add_dev(struct ublk_device *ub)
 	ub->tag_set.nr_hw_queues = ub->dev_info.nr_hw_queues;
 	ub->tag_set.queue_depth = ub->dev_info.queue_depth;
 	ub->tag_set.numa_node = NUMA_NO_NODE;
+	ub->tag_set.cmd_size = sizeof(struct ublk_rq_data);
 	ub->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	ub->tag_set.driver_data = ub;
 
