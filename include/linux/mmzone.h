@@ -1004,6 +1004,15 @@ typedef struct pglist_data {
 	unsigned int nbp_rl_start;
 	/* number of promote candidate pages at start time of current rate limit period */
 	unsigned long nbp_rl_nr_cand;
+	/* promote threshold in ms */
+	unsigned int nbp_threshold;
+	/* start time in ms of current promote threshold adjustment period */
+	unsigned int nbp_th_start;
+	/*
+	 * number of promote candidate pages at stat time of current promote
+	 * threshold adjustment period
+	 */
+	unsigned long nbp_th_nr_cand;
 #endif
 	/* Fields commonly accessed by the page reclaim scanner */
 
