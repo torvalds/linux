@@ -85,6 +85,11 @@ properties:
 
       - items:
           - enum:
+              - renesas,r8a779f0-cmt0     # 32-bit CMT0 on R-Car S4-8
+          - const: renesas,rcar-gen4-cmt0 # 32-bit CMT0 on R-Car Gen4
+
+      - items:
+          - enum:
               - renesas,r8a774a1-cmt1     # 48-bit CMT on RZ/G2M
               - renesas,r8a774b1-cmt1     # 48-bit CMT on RZ/G2N
               - renesas,r8a774c0-cmt1     # 48-bit CMT on RZ/G2E
@@ -99,6 +104,11 @@ properties:
               - renesas,r8a77995-cmt1     # 48-bit CMT on R-Car D3
               - renesas,r8a779a0-cmt1     # 48-bit CMT on R-Car V3U
           - const: renesas,rcar-gen3-cmt1 # 48-bit CMT on R-Car Gen3 and RZ/G2
+
+      - items:
+          - enum:
+              - renesas,r8a779f0-cmt1     # 48-bit CMT on R-Car S4-8
+          - const: renesas,rcar-gen4-cmt1 # 48-bit CMT on R-Car Gen4
 
   reg:
     maxItems: 1
