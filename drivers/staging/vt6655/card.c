@@ -367,7 +367,7 @@ void CARDbRadioPowerOff(struct vnt_private *priv)
 		break;
 	}
 
-	MACvRegBitsOff(priv->port_offset, MAC_REG_HOSTCR, HOSTCR_RXON);
+	vt6655_mac_reg_bits_off(priv->port_offset, MAC_REG_HOSTCR, HOSTCR_RXON);
 
 	bb_set_deep_sleep(priv, priv->local_id);
 

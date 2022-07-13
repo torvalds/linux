@@ -66,7 +66,7 @@ void PSvEnablePowerSaving(struct vnt_private *priv,
 
 	if (wListenInterval >= 2) {
 		/* clear always listen beacon */
-		MACvRegBitsOff(priv->port_offset, MAC_REG_PSCTL, PSCTL_ALBCN);
+		vt6655_mac_reg_bits_off(priv->port_offset, MAC_REG_PSCTL, PSCTL_ALBCN);
 		/* first time set listen next beacon */
 		vt6655_mac_reg_bits_on(priv->port_offset, MAC_REG_PSCTL, PSCTL_LNBCN);
 	} else {
@@ -98,10 +98,10 @@ void PSvDisablePowerSaving(struct vnt_private *priv)
 	MACbPSWakeup(priv);
 
 	/* clear AutoSleep */
-	MACvRegBitsOff(priv->port_offset, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
+	vt6655_mac_reg_bits_off(priv->port_offset, MAC_REG_PSCFG, PSCFG_AUTOSLEEP);
 
 	/* clear HWUTSF */
-	MACvRegBitsOff(priv->port_offset, MAC_REG_TFTCTL, TFTCTL_HWUTSF);
+	vt6655_mac_reg_bits_off(priv->port_offset, MAC_REG_TFTCTL, TFTCTL_HWUTSF);
 
 	/* set always listen beacon */
 	vt6655_mac_reg_bits_on(priv->port_offset, MAC_REG_PSCTL, PSCTL_ALBCN);
