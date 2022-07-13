@@ -229,7 +229,8 @@ enum graph_type {
 
 static enum graph_type __graph_get_type(struct device_node *lnk)
 {
-	struct device_node *np;
+	struct device_node *np, *parent_np;
+	enum graph_type ret;
 
 	/*
 	 * target {
@@ -240,19 +241,33 @@ static enum graph_type __graph_get_type(struct device_node *lnk)
 	 * };
 	 */
 	np = of_get_parent(lnk);
-	if (of_node_name_eq(np, "ports"))
-		np = of_get_parent(np);
+	if (of_node_name_eq(np, "ports")) {
+		parent_np = of_get_parent(np);
+		of_node_put(np);
+		np = parent_np;
+	}
 
-	if (of_node_name_eq(np, GRAPH_NODENAME_MULTI))
-		return GRAPH_MULTI;
+	if (of_node_name_eq(np, GRAPH_NODENAME_MULTI)) {
+		ret = GRAPH_MULTI;
+		goto out_put;
+	}
 
-	if (of_node_name_eq(np, GRAPH_NODENAME_DPCM))
-		return GRAPH_DPCM;
+	if (of_node_name_eq(np, GRAPH_NODENAME_DPCM)) {
+		ret = GRAPH_DPCM;
+		goto out_put;
+	}
 
-	if (of_node_name_eq(np, GRAPH_NODENAME_C2C))
-		return GRAPH_C2C;
+	if (of_node_name_eq(np, GRAPH_NODENAME_C2C)) {
+		ret = GRAPH_C2C;
+		goto out_put;
+	}
 
-	return GRAPH_NORMAL;
+	ret = GRAPH_NORMAL;
+
+out_put:
+	of_node_put(np);
+	return ret;
+
 }
 
 static enum graph_type graph_get_type(struct asoc_simple_priv *priv,
