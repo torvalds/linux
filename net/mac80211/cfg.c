@@ -1818,6 +1818,10 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 			return ret;
 	}
 
+	/* Mark the STA as MLO if MLD MAC address is available */
+	if (params->link_sta_params.mld_mac)
+		sta->sta.mlo = true;
+
 	return 0;
 }
 

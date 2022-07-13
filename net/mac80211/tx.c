@@ -2570,6 +2570,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_chanctx_conf *chanctx_conf = NULL;
 	enum nl80211_band band;
 	int ret;
+	u8 link_id = IEEE80211_LINK_UNSPECIFIED;
 
 	if (IS_ERR(sta))
 		sta = NULL;
@@ -2618,7 +2619,21 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
 		/* DA BSSID SA */
 		memcpy(hdr.addr1, skb->data, ETH_ALEN);
-		memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
+
+		if (sdata->vif.valid_links && sta && !sta->sta.mlo) {
+			struct ieee80211_link_data *link;
+
+			link_id = sta->deflink.link_id;
+			link = rcu_dereference(sdata->link[link_id]);
+			if (WARN_ON(!link)) {
+				ret = -ENOLINK;
+				goto free;
+			}
+			memcpy(hdr.addr2, link->conf->addr, ETH_ALEN);
+		} else {
+			memcpy(hdr.addr2, sdata->vif.addr, ETH_ALEN);
+		}
+
 		memcpy(hdr.addr3, skb->data + ETH_ALEN, ETH_ALEN);
 		hdrlen = 24;
 		break;
@@ -2882,7 +2897,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	info->ack_frame_id = info_id;
 	info->band = band;
 	info->control.flags = ctrl_flags |
-			      u32_encode_bits(IEEE80211_LINK_UNSPECIFIED,
+			      u32_encode_bits(link_id,
 					      IEEE80211_TX_CTRL_MLO_LINK);
 
 	return skb;
