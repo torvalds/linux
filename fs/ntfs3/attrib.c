@@ -2275,30 +2275,29 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 
 	if (!attr_b->non_res) {
 		err = attr_set_size(ni, ATTR_DATA, NULL, 0, run,
-				    data_size + bytes, NULL, false, &attr);
-		if (err)
-			goto out;
-		if (!attr->non_res) {
-			/* Still resident. */
-			char *data = Add2Ptr(attr, attr->res.data_off);
+				    data_size + bytes, NULL, false, NULL);
 
-			memmove(data + bytes, data, bytes);
-			memset(data, 0, bytes);
-			err = 0;
-			goto out;
-		}
-		/* Resident files becomes nonresident. */
 		le_b = NULL;
 		attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL,
 				      &mi_b);
 		if (!attr_b) {
-			err = -ENOENT;
-			goto out;
-		}
-		if (!attr_b->non_res) {
 			err = -EINVAL;
-			goto out;
+			goto bad_inode;
 		}
+
+		if (err)
+			goto out;
+
+		if (!attr_b->non_res) {
+			/* Still resident. */
+			char *data = Add2Ptr(attr_b, attr_b->res.data_off);
+
+			memmove(data + bytes, data, bytes);
+			memset(data, 0, bytes);
+			goto done;
+		}
+
+		/* Resident files becomes nonresident. */
 		data_size = le64_to_cpu(attr_b->nres.data_size);
 		alloc_size = le64_to_cpu(attr_b->nres.alloc_size);
 	}
@@ -2316,14 +2315,14 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 		mi = mi_b;
 	} else if (!le_b) {
 		err = -EINVAL;
-		goto out;
+		goto bad_inode;
 	} else {
 		le = le_b;
 		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0, &vcn,
 				    &mi);
 		if (!attr) {
 			err = -EINVAL;
-			goto out;
+			goto bad_inode;
 		}
 
 		svcn = le64_to_cpu(attr->nres.svcn);
@@ -2346,7 +2345,6 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 		goto out;
 
 	next_svcn = le64_to_cpu(attr->nres.evcn) + 1;
-	run_truncate_head(run, next_svcn);
 
 	while ((attr = ni_enum_attr_ex(ni, attr, &le, &mi)) &&
 	       attr->type == ATTR_DATA && !attr->name_len) {
@@ -2359,9 +2357,27 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 		mi->dirty = true;
 	}
 
+	if (next_svcn < evcn1 + len) {
+		err = ni_insert_nonresident(ni, ATTR_DATA, NULL, 0, run,
+					    next_svcn, evcn1 + len - next_svcn,
+					    a_flags, NULL, NULL, NULL);
+
+		le_b = NULL;
+		attr_b = ni_find_attr(ni, NULL, &le_b, ATTR_DATA, NULL, 0, NULL,
+				      &mi_b);
+		if (!attr_b) {
+			err = -EINVAL;
+			goto bad_inode;
+		}
+
+		if (err) {
+			/* ni_insert_nonresident failed. Try to undo. */
+			goto undo_insert_range;
+		}
+	}
+
 	/*
-	 * Update primary attribute segment in advance.
-	 * pointer attr_b may become invalid (layout of mft is changed)
+	 * Update primary attribute segment.
 	 */
 	if (vbo <= ni->i_valid)
 		ni->i_valid += bytes;
@@ -2376,14 +2392,7 @@ int attr_insert_range(struct ntfs_inode *ni, u64 vbo, u64 bytes)
 		attr_b->nres.valid_size = cpu_to_le64(ni->i_valid);
 	mi_b->dirty = true;
 
-	if (next_svcn < evcn1 + len) {
-		err = ni_insert_nonresident(ni, ATTR_DATA, NULL, 0, run,
-					    next_svcn, evcn1 + len - next_svcn,
-					    a_flags, NULL, NULL, NULL);
-		if (err)
-			goto out;
-	}
-
+done:
 	ni->vfs_inode.i_size += bytes;
 	ni->ni_flags |= NI_FLAG_UPDATE_PARENT;
 	mark_inode_dirty(&ni->vfs_inode);
@@ -2392,8 +2401,54 @@ out:
 	run_truncate(run, 0); /* clear cached values. */
 
 	up_write(&ni->file.run_lock);
-	if (err)
-		_ntfs_bad_inode(&ni->vfs_inode);
 
 	return err;
+
+bad_inode:
+	_ntfs_bad_inode(&ni->vfs_inode);
+	goto out;
+
+undo_insert_range:
+	svcn = le64_to_cpu(attr_b->nres.svcn);
+	evcn1 = le64_to_cpu(attr_b->nres.evcn) + 1;
+
+	if (svcn <= vcn && vcn < evcn1) {
+		attr = attr_b;
+		le = le_b;
+		mi = mi_b;
+	} else if (!le_b) {
+		goto bad_inode;
+	} else {
+		le = le_b;
+		attr = ni_find_attr(ni, attr_b, &le, ATTR_DATA, NULL, 0, &vcn,
+				    &mi);
+		if (!attr) {
+			goto bad_inode;
+		}
+
+		svcn = le64_to_cpu(attr->nres.svcn);
+		evcn1 = le64_to_cpu(attr->nres.evcn) + 1;
+	}
+
+	if (attr_load_runs(attr, ni, run, NULL))
+		goto bad_inode;
+
+	if (!run_collapse_range(run, vcn, len))
+		goto bad_inode;
+
+	if (mi_pack_runs(mi, attr, run, evcn1 + len - svcn))
+		goto bad_inode;
+
+	while ((attr = ni_enum_attr_ex(ni, attr, &le, &mi)) &&
+	       attr->type == ATTR_DATA && !attr->name_len) {
+		le64_sub_cpu(&attr->nres.svcn, len);
+		le64_sub_cpu(&attr->nres.evcn, len);
+		if (le) {
+			le->vcn = attr->nres.svcn;
+			ni->attr_list.dirty = true;
+		}
+		mi->dirty = true;
+	}
+
+	goto out;
 }
