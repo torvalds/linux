@@ -544,7 +544,7 @@ do {									\
 	iowrite8(reg_value | (bit_mask), iobase + reg_offset);		\
 } while (0)
 
-#define MACvWordRegBitsOn(iobase, reg_offset, bit_mask)		\
+#define vt6655_mac_word_reg_bits_on(iobase, reg_offset, bit_mask)	\
 do {									\
 	unsigned short reg_value;					\
 	reg_value = ioread16(iobase + reg_offset);			\
@@ -661,7 +661,7 @@ do {									\
 } while (0)
 
 #define MACvSetRFLE_LatchBase(iobase)                                 \
-	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_RFLEOPT)
+	vt6655_mac_word_reg_bits_on(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_RFLEOPT)
 
 #define MAKEWORD(lb, hb) \
 	((unsigned short)(((unsigned char)(lb)) | (((unsigned short)((unsigned char)(hb))) << 8)))

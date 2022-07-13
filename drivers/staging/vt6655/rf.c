@@ -209,8 +209,8 @@ static bool RFbAL2230Init(struct vnt_private *priv)
 	/* 3-wire control for normal mode */
 	iowrite8(0, iobase + MAC_REG_SOFTPWRCTL);
 
-	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPECTI  |
-							 SOFTPWRCTL_TXPEINV));
+	vt6655_mac_word_reg_bits_on(iobase, MAC_REG_SOFTPWRCTL,
+				    (SOFTPWRCTL_SWPECTI | SOFTPWRCTL_TXPEINV));
 	/* PLL  Off */
 	MACvWordRegBitsOff(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
@@ -222,7 +222,7 @@ static bool RFbAL2230Init(struct vnt_private *priv)
 	MACvTimer0MicroSDelay(priv, 30); /* delay 30 us */
 
 	/* PLL On */
-	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
+	vt6655_mac_word_reg_bits_on(iobase, MAC_REG_SOFTPWRCTL, SOFTPWRCTL_SWPE3);
 
 	MACvTimer0MicroSDelay(priv, 150);/* 150us */
 	ret &= IFRFbWriteEmbedded(priv, (0x00d80f00 + (BY_AL2230_REG_LEN << 3) + IFREGCTL_REGW));
@@ -232,10 +232,10 @@ static bool RFbAL2230Init(struct vnt_private *priv)
 	ret &= IFRFbWriteEmbedded(priv,
 				  al2230_init_table[CB_AL2230_INIT_SEQ - 1]);
 
-	MACvWordRegBitsOn(iobase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE3    |
-							 SOFTPWRCTL_SWPE2    |
-							 SOFTPWRCTL_SWPECTI  |
-							 SOFTPWRCTL_TXPEINV));
+	vt6655_mac_word_reg_bits_on(iobase, MAC_REG_SOFTPWRCTL, (SOFTPWRCTL_SWPE3    |
+								 SOFTPWRCTL_SWPE2    |
+								 SOFTPWRCTL_SWPECTI  |
+								 SOFTPWRCTL_TXPEINV));
 
 	/* 3-wire control for power saving mode */
 	iowrite8(PSSIG_WPE3 | PSSIG_WPE2, iobase + MAC_REG_PSPWRSIG);

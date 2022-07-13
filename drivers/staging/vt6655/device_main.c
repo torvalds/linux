@@ -359,8 +359,8 @@ static void device_init_registers(struct vnt_private *priv)
 	}
 
 	/* use relative tx timeout and 802.11i D4 */
-	MACvWordRegBitsOn(priv->port_offset,
-			  MAC_REG_CFG, (CFG_TKIPOPT | CFG_NOTXTIMEOUT));
+	vt6655_mac_word_reg_bits_on(priv->port_offset, MAC_REG_CFG,
+				    (CFG_TKIPOPT | CFG_NOTXTIMEOUT));
 
 	/* set performance parameter by registry */
 	MACvSetShortRetryLimit(priv, priv->byShortRetryLimit);
