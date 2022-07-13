@@ -374,11 +374,7 @@ int stf_csi_register(struct stf_csi_dev *csi_dev, struct v4l2_device *v4l2_dev)
 	struct media_pad *pads = csi_dev->pads;
 	int ret;
 
-	csi_dev->mipirx_1p8 = devm_regulator_get(dev, "mipirx_1p8");
-	if (IS_ERR(csi_dev->mipirx_1p8))
-		return PTR_ERR(csi_dev->mipirx_1p8);
-
-	csi_dev->mipirx_0p9 = devm_regulator_get(dev, "mipirx_0p9");
+	csi_dev->mipirx_0p9 = devm_regulator_get(dev, "mipi_0p9");
 	if (IS_ERR(csi_dev->mipirx_0p9))
 		return PTR_ERR(csi_dev->mipirx_0p9);
 

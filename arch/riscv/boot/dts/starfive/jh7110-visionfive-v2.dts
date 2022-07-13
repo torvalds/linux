@@ -181,6 +181,16 @@
 		};
 	};
 
+	csi_pins: csi-pins {
+		csi-pins-pwdn {
+			sf,pins = <PAD_GPIO18>;
+			sf,pinmux = <PAD_GPIO18_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_HIGH>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+	};
+
 	mmc0_pins: mmc0-pins {
 		 mmc0-pins-rest {
 			sf,pins = <PAD_GPIO22>;
@@ -598,6 +608,31 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c6_pins>;
 	status = "okay";
+
+	imx219@10 {
+		compatible = "imx219";
+		reg = <0x10>;
+		clocks = <&clk_ext_camera>;
+		clock-names = "xclk";
+		//reset-gpio = <&gpio 18 0>;
+		//DOVDD-supply = <&v2v8>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&csi_pins>;
+		rotation = <0>;
+		orientation = <1>; //CAMERA_ORIENTATION_BACK
+
+		port {
+			/* CSI2 bus endpoint */
+			imx219_to_csi2rx0: endpoint {
+				remote-endpoint = <&csi2rx0_from_imx219>;
+				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
+				clock-lanes = <4>;
+				data-lanes = <0 1>;
+				lane-polarities = <0 0 0>;
+				link-frequencies = /bits/ 64 <456000000>;
+			};
+		};
+	};
 };
 
 &sdio0 {
@@ -628,6 +663,33 @@
 	pinctrl-0 = <&sdcard1_pins>;
 	//cd-gpios = <&gpio 6 0>;
 	status = "okay";
+};
+
+&vin_sysctl {
+	/* when use dvp open this pinctrl*/
+	status = "okay";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@3 {
+			reg = <3>;
+			#address-cells = <1>;
+			#size-cells = <0>;
+
+			/* CSI2 bus endpoint */
+			csi2rx0_from_imx219: endpoint@0 {
+				reg = <0>;
+				remote-endpoint = <&imx219_to_csi2rx0>;
+				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
+				clock-lanes = <4>;
+				data-lanes = <0 1>;
+				lane-polarities = <0 0 0>;
+				status = "okay";
+			};
+		};
+	};
 };
 
 &sfctemp {

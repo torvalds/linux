@@ -43,32 +43,18 @@ static int stf_csi_power_on(struct stf_csi_dev *csi_dev, u8 on)
 	int ret;
 
 	if (on) {
-		ret = regulator_enable(csi_dev->mipirx_1p8);
-		if (ret) {
-			st_err(ST_CSI, "Cannot enable mipirx_1p8 regulator\n");
-			goto err_1p8;
-		}
-
 		ret = regulator_enable(csi_dev->mipirx_0p9);
 		if (ret) {
 			st_err(ST_CSI, "Cannot enable mipirx_0p9 regulator\n");
-			goto err_0p9;
+			return ret;
 		}
-	} else {
-		regulator_disable(csi_dev->mipirx_1p8);
+	} else
 		regulator_disable(csi_dev->mipirx_0p9);
-	}
 
 	regmap_update_bits(stfcamss->stf_aon_syscon, stfcamss->aon_gp_reg,
 				BIT(31), BIT(31));
 
 	return 0;
-
-err_0p9:
-	regulator_disable(csi_dev->mipirx_1p8);
-err_1p8:
-	return ret;
-
 }
 
 static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)

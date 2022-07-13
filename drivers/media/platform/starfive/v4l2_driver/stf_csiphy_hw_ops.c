@@ -65,12 +65,12 @@ int try_cfg(struct csi2phy_cfg2 *cfg, struct csi2phy_cfg *cfg0,
 {
 	int i = 0;
 
-	cfg->clock_lane = 0;
+	cfg->clock_lane = 4;
 	cfg->clock1_lane = 5;
-	cfg->data_lanes[0] = 1;
-	cfg->data_lanes[1] = 2;
-	cfg->data_lanes[2] = 3;
-	cfg->data_lanes[3] = 4;
+	cfg->data_lanes[0] = 0;
+	cfg->data_lanes[1] = 1;
+	cfg->data_lanes[2] = 2;
+	cfg->data_lanes[3] = 3;
 
 	if (cfg0 && cfg1) {
 		st_debug(ST_CSIPHY, "CSIPHY use 2 clk mode\n");
@@ -99,7 +99,6 @@ int try_cfg(struct csi2phy_cfg2 *cfg, struct csi2phy_cfg *cfg0,
 		st_debug(ST_CSIPHY, "CSIPHY cfg0 use 1 clk mode\n");
 		cfg->num_clks = 1;
 		cfg->num_data_lanes = cfg0->num_data_lanes;
-		cfg->clock_lane = cfg->clock1_lane  = cfg0->clock_lane;
 		cfg->lane_polarities[0] = cfg->lane_polarities[1] =
 						cfg0->lane_polarities[0];
 		for (i = 0; i < cfg0->num_data_lanes; i++) {
@@ -110,7 +109,6 @@ int try_cfg(struct csi2phy_cfg2 *cfg, struct csi2phy_cfg *cfg0,
 		st_debug(ST_CSIPHY, "CSIPHY cfg1 use 1 clk mode\n");
 		cfg->num_clks = 1;
 		cfg->num_data_lanes = cfg1->num_data_lanes;
-		cfg->clock_lane = cfg->clock1_lane  = cfg1->clock_lane;
 		cfg->lane_polarities[0] = cfg->lane_polarities[1] =
 						cfg1->lane_polarities[0];
 		for (i = 0; i < cfg1->num_data_lanes; i++) {

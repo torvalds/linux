@@ -44,7 +44,6 @@ struct stf_csi_dev {
 	struct csi_hw_ops *hw_ops;
 	struct mutex stream_lock;
 	int stream_count;
-	struct regulator *mipirx_1p8;
 	struct regulator *mipirx_0p9;
 };
 

@@ -4,8 +4,7 @@
 
 ensure linux/arch/riscv/configs/starfive_jh7110_defconfig:
 CONFIG_VIDEO_STF_VIN=y
-CONFIG_VIN_SENSOR_SC2235=y
-CONFIG_VIN_SENSOR_OV4689=y
+CONFIG_VIN_SENSOR_IMX219=y
 
-Only support the lane0/lane5 of dphy as clock lane, lane1/lane2/lane3/lane4
+Only support the lane4/lane5 of dphy as clock lane, lane0/lane1/lane2/lane3
 as data lane.
