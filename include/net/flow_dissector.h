@@ -179,6 +179,22 @@ struct flow_dissector_key_ports {
 };
 
 /**
+ * struct flow_dissector_key_ports_range
+ * @tp: port number from packet
+ * @tp_min: min port number in range
+ * @tp_max: max port number in range
+ */
+struct flow_dissector_key_ports_range {
+	union {
+		struct flow_dissector_key_ports tp;
+		struct {
+			struct flow_dissector_key_ports tp_min;
+			struct flow_dissector_key_ports tp_max;
+		};
+	};
+};
+
+/**
  * flow_dissector_key_icmp:
  *		type: ICMP type
  *		code: ICMP code
