@@ -395,6 +395,9 @@ DECLARE_HOOK(android_vh_pidfd_open,
 	TP_PROTO(struct pid *p),
 	TP_ARGS(p));
 
+DECLARE_HOOK(android_vh_mmput,
+	TP_PROTO(void *unused),
+	TP_ARGS(unused));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_SCHED_H */
