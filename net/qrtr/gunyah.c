@@ -359,7 +359,11 @@ static void qrtr_gunyah_read_new(struct qrtr_gunyah_dev *qdev)
 	gunyah_rx_peak(&qdev->rx_pipe, &hdr, 0, hdr_len);
 	pkt_len = qrtr_peek_pkt_size((void *)&hdr);
 	if ((int)pkt_len < 0 || pkt_len > MAX_PKT_SZ) {
-		dev_err(qdev->dev, "invalid pkt_len %zu\n", pkt_len);
+		/* Corrupted packet, reset the pipe and discard existing data */
+		rx_avail = gunyah_rx_avail(&qdev->rx_pipe);
+		dev_err(qdev->dev, "invalid pkt_len:%zu dropping:%zu bytes\n",
+			pkt_len, rx_avail);
+		gunyah_rx_advance(&qdev->rx_pipe, rx_avail);
 		return;
 	}
 
