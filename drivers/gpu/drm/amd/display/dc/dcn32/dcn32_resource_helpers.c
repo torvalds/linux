@@ -51,6 +51,9 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 	uint32_t cache_lines_used = 0;
 	uint32_t lines_per_way = 0;
 	uint32_t total_cache_lines = 0;
+	uint32_t bytes_in_mall = 0;
+	uint32_t num_mblks = 0;
+	uint32_t cache_lines_per_plane = 0;
 	uint32_t i = 0;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -61,9 +64,19 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
 			bytes_per_pixel = pipe->plane_state->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4;
 			mall_region_pixels = pipe->stream->timing.h_addressable * pipe->stream->timing.v_addressable;
+
+			// For bytes required in MALL, calculate based on number of MBlks required
+			num_mblks = (mall_region_pixels * bytes_per_pixel +
+					DCN3_2_MALL_MBLK_SIZE_BYTES - 1) / DCN3_2_MALL_MBLK_SIZE_BYTES;
+			bytes_in_mall = num_mblks * DCN3_2_MALL_MBLK_SIZE_BYTES;
 			// cache lines used is total bytes / cache_line size. Add +2 for worst case alignment
 			// (MALL is 64-byte aligned)
-			cache_lines_used += (bytes_per_pixel * mall_region_pixels) / dc->caps.cache_line_size + 2;
+			cache_lines_per_plane = bytes_in_mall / dc->caps.cache_line_size + 2;
+
+			// For DCC we must cache the meat surface, so double cache lines required
+			if (pipe->plane_state->dcc.enable)
+				cache_lines_per_plane *= 2;
+			cache_lines_used += cache_lines_per_plane;
 		}
 	}
 

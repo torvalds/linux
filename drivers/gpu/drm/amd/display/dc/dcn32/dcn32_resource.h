@@ -29,6 +29,7 @@
 #include "core_types.h"
 
 #define DCN3_2_DET_SEG_SIZE 64
+#define DCN3_2_MALL_MBLK_SIZE_BYTES 65536 // 64 * 1024
 
 #define TO_DCN32_RES_POOL(pool)\
 	container_of(pool, struct dcn32_resource_pool, base)
