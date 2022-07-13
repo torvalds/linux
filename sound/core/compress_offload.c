@@ -810,7 +810,7 @@ static void error_delayed_work(struct work_struct *work)
 	mutex_unlock(&stream->device->lock);
 }
 
-/*
+/**
  * snd_compr_stop_error: Report a fatal error on a stream
  * @stream: pointer to stream
  * @state: state to transition the stream to
@@ -1157,11 +1157,12 @@ static int snd_compress_dev_free(struct snd_device *device)
 	return 0;
 }
 
-/*
+/**
  * snd_compress_new: create new compress device
  * @card: sound card pointer
  * @device: device number
  * @dirn: device direction, should be of type enum snd_compr_direction
+ * @id: ID string
  * @compr: compress device pointer
  */
 int snd_compress_new(struct snd_card *card, int device,
