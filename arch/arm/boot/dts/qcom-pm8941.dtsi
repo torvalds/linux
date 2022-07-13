@@ -68,7 +68,7 @@
 			interrupt-controller;
 			#interrupt-cells = <2>;
 
-			boost_bypass_n_pin: boost-bypass {
+			boost_bypass_n_pin: boost-bypass-state {
 				pins = "gpio21";
 				function = "normal";
 			};
