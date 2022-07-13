@@ -415,7 +415,8 @@
 			 <&cru DCLK_VOP1>,
 			 <&cru DCLK_VOP2>,
 			 <&cru DCLK_VOP3>,
-			 <&hclk_vo1>;
+			 <&hclk_vo1>,
+			 <&hdptxphy_hdmi_clk1>;
 		clock-names = "pclk",
 			      "hpd",
 			      "earc",
@@ -425,7 +426,8 @@
 			      "dclk_vp1",
 			      "dclk_vp2",
 			      "dclk_vp3",
-			      "hclk_vo1";
+			      "hclk_vo1",
+			      "link_clk";
 		resets = <&cru SRST_HDMITX1_REF>, <&cru SRST_HDMIHDP1>;
 		reset-names = "ref", "hdp";
 		power-domains = <&power RK3588_PD_VO1>;
@@ -807,7 +809,7 @@
 
 		hdptxphy_hdmi_clk1: clk-port {
 			#clock-cells = <0>;
-			status = "disabled";
+			status = "okay";
 		};
 	};
 
