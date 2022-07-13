@@ -9,6 +9,7 @@
 
 enum {
 	TYPE_HWCAP,
+	TYPE_FACILITY,
 };
 
 struct s390_cpu_feature {
@@ -34,6 +35,8 @@ int cpu_have_feature(unsigned int num)
 	switch (feature->type) {
 	case TYPE_HWCAP:
 		return !!(elf_hwcap & BIT(feature->num));
+	case TYPE_FACILITY:
+		return test_facility(feature->num);
 	default:
 		WARN_ON_ONCE(1);
 		return 0;
