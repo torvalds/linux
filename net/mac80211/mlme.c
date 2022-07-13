@@ -4488,6 +4488,9 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 		sta->sta.mfp = false;
 	}
 
+	ieee80211_sta_set_max_amsdu_subframes(sta, elems->ext_capab,
+					      elems->ext_capab_len);
+
 	sta->sta.wme = (elems->wmm_param || elems->s1g_capab) &&
 		       local->hw.queues >= IEEE80211_NUM_ACS;
 

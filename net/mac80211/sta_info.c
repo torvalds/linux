@@ -2761,3 +2761,26 @@ void ieee80211_sta_remove_link(struct sta_info *sta, unsigned int link_id)
 
 	sta_remove_link(sta, link_id, true);
 }
+
+void ieee80211_sta_set_max_amsdu_subframes(struct sta_info *sta,
+					   const u8 *ext_capab,
+					   unsigned int ext_capab_len)
+{
+	u8 val;
+
+	sta->sta.max_amsdu_subframes = 0;
+
+	if (ext_capab_len < 8)
+		return;
+
+	/* The sender might not have sent the last bit, consider it to be 0 */
+	val = u8_get_bits(ext_capab[7], WLAN_EXT_CAPA8_MAX_MSDU_IN_AMSDU_LSB);
+
+	/* we did get all the bits, take the MSB as well */
+	if (ext_capab_len >= 9)
+		val |= u8_get_bits(ext_capab[8],
+				   WLAN_EXT_CAPA9_MAX_MSDU_IN_AMSDU_MSB) << 1;
+
+	if (val)
+		sta->sta.max_amsdu_subframes = 4 << val;
+}

@@ -1776,33 +1776,8 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 		sta->sta.max_sp = params->max_sp;
 	}
 
-	/* The sender might not have sent the last bit, consider it to be 0 */
-	if (params->ext_capab_len >= 8) {
-		u8 val = (params->ext_capab[7] &
-			  WLAN_EXT_CAPA8_MAX_MSDU_IN_AMSDU_LSB) >> 7;
-
-		/* we did get all the bits, take the MSB as well */
-		if (params->ext_capab_len >= 9) {
-			u8 val_msb = params->ext_capab[8] &
-				WLAN_EXT_CAPA9_MAX_MSDU_IN_AMSDU_MSB;
-			val_msb <<= 1;
-			val |= val_msb;
-		}
-
-		switch (val) {
-		case 1:
-			sta->sta.max_amsdu_subframes = 32;
-			break;
-		case 2:
-			sta->sta.max_amsdu_subframes = 16;
-			break;
-		case 3:
-			sta->sta.max_amsdu_subframes = 8;
-			break;
-		default:
-			sta->sta.max_amsdu_subframes = 0;
-		}
-	}
+	ieee80211_sta_set_max_amsdu_subframes(sta, params->ext_capab,
+					      params->ext_capab_len);
 
 	/*
 	 * cfg80211 validates this (1-2007) and allows setting the AID
