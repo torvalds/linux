@@ -1724,8 +1724,7 @@ static int devlink_port_new_notify(struct devlink *devlink,
 	if (err)
 		goto out;
 
-	err = genlmsg_reply(msg, info);
-	return err;
+	return genlmsg_reply(msg, info);
 
 out:
 	nlmsg_free(msg);
