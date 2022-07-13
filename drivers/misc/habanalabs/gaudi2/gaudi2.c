@@ -1712,6 +1712,9 @@ void gaudi2_iterate_tpcs(struct hl_device *hdev, struct iterate_module_ctx *ctx)
 	int dcore, inst, tpc_seq;
 	u32 offset;
 
+	/* init the return code */
+	ctx->rc = 0;
+
 	for (dcore = 0; dcore < NUM_OF_DCORES; dcore++) {
 		for (inst = 0; inst < NUM_OF_TPC_PER_DCORE; inst++) {
 			tpc_seq = dcore * NUM_OF_TPC_PER_DCORE + inst;
@@ -1721,7 +1724,12 @@ void gaudi2_iterate_tpcs(struct hl_device *hdev, struct iterate_module_ctx *ctx)
 
 			offset = (DCORE_OFFSET * dcore) + (DCORE_TPC_OFFSET * inst);
 
-			ctx->fn(hdev, dcore, inst, offset, ctx->data);
+			ctx->fn(hdev, dcore, inst, offset, ctx);
+			if (ctx->rc) {
+				dev_err(hdev->dev, "TPC iterator failed for DCORE%d TPC%d\n",
+							dcore, inst);
+				return;
+			}
 		}
 	}
 
@@ -1730,7 +1738,9 @@ void gaudi2_iterate_tpcs(struct hl_device *hdev, struct iterate_module_ctx *ctx)
 
 	/* special check for PCI TPC (DCORE0_TPC6) */
 	offset = DCORE_TPC_OFFSET * (NUM_DCORE0_TPC - 1);
-	ctx->fn(hdev, 0, NUM_DCORE0_TPC - 1, offset, ctx->data);
+	ctx->fn(hdev, 0, NUM_DCORE0_TPC - 1, offset, ctx);
+	if (ctx->rc)
+		dev_err(hdev->dev, "TPC iterator failed for DCORE0 TPC6\n");
 }
 
 static bool gaudi2_host_phys_addr_valid(u64 addr)
@@ -4507,10 +4517,10 @@ struct gaudi2_tpc_init_cfg_data {
 };
 
 static void gaudi2_init_tpc_config(struct hl_device *hdev, int dcore, int inst,
-							u32 offset, void *data)
+					u32 offset, struct iterate_module_ctx *ctx)
 {
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
-	struct gaudi2_tpc_init_cfg_data *cfg_data = data;
+	struct gaudi2_tpc_init_cfg_data *cfg_data = ctx->data;
 	u32 queue_id_base;
 	u8 seq;
 
@@ -6155,9 +6165,9 @@ static int gaudi2_compute_reset_late_init(struct hl_device *hdev)
 }
 
 static void gaudi2_is_tpc_engine_idle(struct hl_device *hdev, int dcore, int inst, u32 offset,
-					void *data)
+					struct iterate_module_ctx *ctx)
 {
-	struct gaudi2_tpc_idle_data *idle_data = (struct gaudi2_tpc_idle_data *)data;
+	struct gaudi2_tpc_idle_data *idle_data = ctx->data;
 	u32 tpc_cfg_sts, qm_glbl_sts0, qm_glbl_sts1, qm_cgm_sts;
 	bool is_eng_idle;
 	int engine_idx;
@@ -6736,9 +6746,9 @@ static int gaudi2_mmu_shared_prepare(struct hl_device *hdev, u32 asid)
 }
 
 static void gaudi2_tpc_mmu_prepare(struct hl_device *hdev, int dcore, int inst,	u32 offset,
-					void *data)
+					struct iterate_module_ctx *ctx)
 {
-	struct gaudi2_tpc_mmu_data *mmu_data = (struct gaudi2_tpc_mmu_data *)data;
+	struct gaudi2_tpc_mmu_data *mmu_data = ctx->data;
 
 	WREG32(mmDCORE0_TPC0_CFG_AXUSER_HB_MMU_BP + offset, 0);
 	WREG32(mmDCORE0_TPC0_CFG_AXUSER_HB_ASID + offset, mmu_data->rw_asid);

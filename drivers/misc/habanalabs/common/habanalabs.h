@@ -208,6 +208,7 @@ enum hl_protection_levels {
  * struct iterate_module_ctx - HW module iterator
  * @fn: function to apply to each HW module instance
  * @data: optional internal data to the function iterator
+ * @rc: return code for optional use of iterator/iterator-caller
  */
 struct iterate_module_ctx {
 	/*
@@ -217,10 +218,12 @@ struct iterate_module_ctx {
 	 * @inst: HW module instance within the block
 	 * @offset: current HW module instance offset from the 1-st HW module instance
 	 *          in the 1-st block
-	 * @data: function specific data
+	 * @ctx: the iterator context.
 	 */
-	void (*fn)(struct hl_device *hdev, int block, int inst, u32 offset, void *data);
+	void (*fn)(struct hl_device *hdev, int block, int inst, u32 offset,
+			struct iterate_module_ctx *ctx);
 	void *data;
+	int rc;
 };
 
 struct hl_block_glbl_sec {
