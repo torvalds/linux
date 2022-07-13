@@ -3224,12 +3224,19 @@ void bch2_trans_begin(struct btree_trans *trans)
 			path->preserve = false;
 	}
 
-	bch2_trans_cond_resched(trans);
+	if (!trans->restarted &&
+	    (need_resched() ||
+	     ktime_get_ns() - trans->last_begin_time > BTREE_TRANS_MAX_LOCK_HOLD_TIME_NS)) {
+		bch2_trans_unlock(trans);
+		cond_resched();
+		bch2_trans_relock(trans);
+	}
 
 	if (trans->restarted)
 		bch2_btree_path_traverse_all(trans);
 
 	trans->restarted = false;
+	trans->last_begin_time = ktime_get_ns();
 }
 
 static void bch2_trans_alloc_paths(struct btree_trans *trans, struct bch_fs *c)
@@ -3259,6 +3266,7 @@ void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 	memset(trans, 0, sizeof(*trans));
 	trans->c		= c;
 	trans->fn		= fn;
+	trans->last_begin_time	= ktime_get_ns();
 	trans->task		= current;
 	trans->journal_replay_not_finished =
 		!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags);

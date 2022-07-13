@@ -382,10 +382,13 @@ struct btree_trans_commit_hook {
 
 #define BTREE_TRANS_MEM_MAX	(1U << 16)
 
+#define BTREE_TRANS_MAX_LOCK_HOLD_TIME_NS	10000
+
 struct btree_trans {
 	struct bch_fs		*c;
 	const char		*fn;
 	struct list_head	list;
+	u64			last_begin_time;
 	struct btree		*locking;
 	unsigned		locking_path_idx;
 	struct bpos		locking_pos;
