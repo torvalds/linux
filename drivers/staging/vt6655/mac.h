@@ -539,9 +539,9 @@
 
 #define MACvRegBitsOn(iobase, reg_offset, bit_mask)			\
 do {									\
-	unsigned char byData;						\
-	byData = ioread8(iobase + reg_offset);				\
-	iowrite8(byData | (bit_mask), iobase + reg_offset);		\
+	unsigned char reg_value;					\
+	reg_value = ioread8(iobase + reg_offset);			\
+	iowrite8(reg_value | (bit_mask), iobase + reg_offset);		\
 } while (0)
 
 #define MACvWordRegBitsOn(iobase, reg_offset, bit_mask)		\
@@ -553,9 +553,9 @@ do {									\
 
 #define MACvRegBitsOff(iobase, reg_offset, bit_mask)			\
 do {									\
-	unsigned char byData;						\
-	byData = ioread8(iobase + reg_offset);				\
-	iowrite8(byData & ~(bit_mask), iobase + reg_offset);		\
+	unsigned char reg_value;					\
+	reg_value = ioread8(iobase + reg_offset);			\
+	iowrite8(reg_value & ~(bit_mask), iobase + reg_offset);		\
 } while (0)
 
 #define MACvWordRegBitsOff(iobase, reg_offset, bit_mask)		\
