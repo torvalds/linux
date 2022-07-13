@@ -818,6 +818,8 @@ static void error_delayed_work(struct work_struct *work)
  * Stop the stream and set its state.
  *
  * Should be called with compressed device lock held.
+ *
+ * Return: zero if successful, or a negative error code
  */
 int snd_compr_stop_error(struct snd_compr_stream *stream,
 			 snd_pcm_state_t state)
@@ -1164,6 +1166,8 @@ static int snd_compress_dev_free(struct snd_device *device)
  * @dirn: device direction, should be of type enum snd_compr_direction
  * @id: ID string
  * @compr: compress device pointer
+ *
+ * Return: zero if successful, or a negative error code
  */
 int snd_compress_new(struct snd_card *card, int device,
 			int dirn, const char *id, struct snd_compr *compr)
