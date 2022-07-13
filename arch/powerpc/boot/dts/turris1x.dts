@@ -332,7 +332,7 @@
 			 * Turris CPLD firmware is open source and available at:
 			 * https://gitlab.nic.cz/turris/hw/turris_cpld/-/blob/master/CZ_NIC_Router_CPLD.v
 			 */
-			compatible = "cznic,turris1x-cpld", "fsl,p1021rdb-pc-cpld", "simple-bus";
+			compatible = "cznic,turris1x-cpld", "fsl,p1021rdb-pc-cpld", "simple-bus", "syscon";
 			reg = <0x3 0x0 0x30>;
 			#address-cells = <1>;
 			#size-cells = <1>;
@@ -350,6 +350,14 @@
 				compatible = "maxim,max6370";
 				reg = <0x02 0x01>;
 				gpios = <&gpio 11 GPIO_ACTIVE_LOW>;
+			};
+
+			reboot@d {
+				compatible = "syscon-reboot";
+				reg = <0x0d 0x01>;
+				offset = <0x0d>;
+				mask = <0x01>;
+				value = <0x01>;
 			};
 
 			led-controller@13 {
