@@ -20,6 +20,7 @@ struct s390_cpu_feature {
 static struct s390_cpu_feature s390_cpu_features[MAX_CPU_FEATURES] = {
 	[S390_CPU_FEATURE_MSA]	= {.type = TYPE_HWCAP, .num = HWCAP_NR_MSA},
 	[S390_CPU_FEATURE_VXRS]	= {.type = TYPE_HWCAP, .num = HWCAP_NR_VXRS},
+	[S390_CPU_FEATURE_UV]	= {.type = TYPE_FACILITY, .num = 158},
 };
 
 /*
