@@ -558,7 +558,7 @@ do {									\
 	iowrite8(reg_value & ~(bit_mask), iobase + reg_offset);		\
 } while (0)
 
-#define MACvWordRegBitsOff(iobase, reg_offset, bit_mask)		\
+#define vt6655_mac_word_reg_bits_off(iobase, reg_offset, bit_mask)	\
 do {									\
 	unsigned short reg_value;					\
 	reg_value = ioread16(iobase + reg_offset);			\

@@ -352,18 +352,18 @@ void CARDbRadioPowerOff(struct vnt_private *priv)
 
 	switch (priv->byRFType) {
 	case RF_RFMD2959:
-		MACvWordRegBitsOff(priv->port_offset, MAC_REG_SOFTPWRCTL,
-				   SOFTPWRCTL_TXPEINV);
+		vt6655_mac_word_reg_bits_off(priv->port_offset, MAC_REG_SOFTPWRCTL,
+					     SOFTPWRCTL_TXPEINV);
 		vt6655_mac_word_reg_bits_on(priv->port_offset, MAC_REG_SOFTPWRCTL,
 					    SOFTPWRCTL_SWPE1);
 		break;
 
 	case RF_AIROHA:
 	case RF_AL2230S:
-		MACvWordRegBitsOff(priv->port_offset, MAC_REG_SOFTPWRCTL,
-				   SOFTPWRCTL_SWPE2);
-		MACvWordRegBitsOff(priv->port_offset, MAC_REG_SOFTPWRCTL,
-				   SOFTPWRCTL_SWPE3);
+		vt6655_mac_word_reg_bits_off(priv->port_offset, MAC_REG_SOFTPWRCTL,
+					     SOFTPWRCTL_SWPE2);
+		vt6655_mac_word_reg_bits_off(priv->port_offset, MAC_REG_SOFTPWRCTL,
+					     SOFTPWRCTL_SWPE3);
 		break;
 	}
 
