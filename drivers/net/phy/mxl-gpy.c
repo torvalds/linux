@@ -56,7 +56,7 @@
 				 PHY_IMASK_ANC)
 
 #define PHY_FWV_REL_MASK	BIT(15)
-#define PHY_FWV_TYPE_MASK	GENMASK(11, 8)
+#define PHY_FWV_MAJOR_MASK	GENMASK(11, 8)
 #define PHY_FWV_MINOR_MASK	GENMASK(7, 0)
 
 /* SGMII */
@@ -77,8 +77,13 @@
 #define VPSPEC2_WOL_AD45	0x0E0A
 #define WOL_EN			BIT(0)
 
+struct gpy_priv {
+	u8 fw_major;
+	u8 fw_minor;
+};
+
 static const struct {
-	int type;
+	int major;
 	int minor;
 } ver_need_sgmii_reaneg[] = {
 	{7, 0x6D},
@@ -198,6 +203,9 @@ static int gpy_config_init(struct phy_device *phydev)
 
 static int gpy_probe(struct phy_device *phydev)
 {
+	struct device *dev = &phydev->mdio.dev;
+	struct gpy_priv *priv;
+	int fw_version;
 	int ret;
 
 	if (!phydev->is_c45) {
@@ -206,37 +214,38 @@ static int gpy_probe(struct phy_device *phydev)
 			return ret;
 	}
 
-	/* Show GPY PHY FW version in dmesg */
-	ret = phy_read(phydev, PHY_FWV);
-	if (ret < 0)
-		return ret;
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+	phydev->priv = priv;
+
+	fw_version = phy_read(phydev, PHY_FWV);
+	if (fw_version < 0)
+		return fw_version;
+	priv->fw_major = FIELD_GET(PHY_FWV_MAJOR_MASK, fw_version);
+	priv->fw_minor = FIELD_GET(PHY_FWV_MINOR_MASK, fw_version);
 
 	ret = gpy_hwmon_register(phydev);
 	if (ret)
 		return ret;
 
-	phydev_info(phydev, "Firmware Version: 0x%04X (%s)\n", ret,
-		    (ret & PHY_FWV_REL_MASK) ? "release" : "test");
+	/* Show GPY PHY FW version in dmesg */
+	phydev_info(phydev, "Firmware Version: %d.%d (0x%04X%s)\n",
+		    priv->fw_major, priv->fw_minor, fw_version,
+		    fw_version & PHY_FWV_REL_MASK ? "" : " test version");
 
 	return 0;
 }
 
 static bool gpy_sgmii_need_reaneg(struct phy_device *phydev)
 {
-	int fw_ver, fw_type, fw_minor;
+	struct gpy_priv *priv = phydev->priv;
 	size_t i;
 
-	fw_ver = phy_read(phydev, PHY_FWV);
-	if (fw_ver < 0)
-		return true;
-
-	fw_type = FIELD_GET(PHY_FWV_TYPE_MASK, fw_ver);
-	fw_minor = FIELD_GET(PHY_FWV_MINOR_MASK, fw_ver);
-
 	for (i = 0; i < ARRAY_SIZE(ver_need_sgmii_reaneg); i++) {
-		if (fw_type != ver_need_sgmii_reaneg[i].type)
+		if (priv->fw_major != ver_need_sgmii_reaneg[i].major)
 			continue;
-		if (fw_minor < ver_need_sgmii_reaneg[i].minor)
+		if (priv->fw_minor < ver_need_sgmii_reaneg[i].minor)
 			return true;
 		break;
 	}
@@ -604,18 +613,12 @@ static int gpy_loopback(struct phy_device *phydev, bool enable)
 
 static int gpy115_loopback(struct phy_device *phydev, bool enable)
 {
-	int ret;
-	int fw_minor;
+	struct gpy_priv *priv = phydev->priv;
 
 	if (enable)
 		return gpy_loopback(phydev, enable);
 
-	ret = phy_read(phydev, PHY_FWV);
-	if (ret < 0)
-		return ret;
-
-	fw_minor = FIELD_GET(PHY_FWV_MINOR_MASK, ret);
-	if (fw_minor > 0x0076)
+	if (priv->fw_minor > 0x76)
 		return gpy_loopback(phydev, 0);
 
 	return genphy_soft_reset(phydev);
