@@ -16,12 +16,20 @@
  *    port 3, and so on.
  */
 
+#include <linux/bits.h>
 #include <linux/delay.h>
+#include <linux/device.h>
 #include <linux/dmaengine.h>
 #include <linux/dma-mapping.h>
 #include <linux/init.h>
+#include <linux/interrupt.h>
+#include <linux/list.h>
 #include <linux/module.h>
+#include <linux/percpu-defs.h>
+#include <linux/scatterlist.h>
 #include <linux/slab.h>
+#include <linux/string.h>
+#include <linux/spinlock.h>
 
 #include "hsu.h"
 

@@ -11,7 +11,10 @@
 #define __DMA_HSU_H__
 
 #include <linux/bits.h>
-#include <linux/spinlock.h>
+#include <linux/container_of.h>
+#include <linux/io.h>
+#include <linux/types.h>
+
 #include <linux/dma/hsu.h>
 
 #include "../virt-dma.h"
