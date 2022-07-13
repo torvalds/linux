@@ -501,7 +501,7 @@ struct inode *ntfs_iget5(struct super_block *sb, const struct MFT_REF *ref,
 		inode = ntfs_read_mft(inode, name, ref);
 	else if (ref->seq != ntfs_i(inode)->mi.mrec->seq) {
 		/* Inode overlaps? */
-		make_bad_inode(inode);
+		_ntfs_bad_inode(inode);
 	}
 
 	return inode;
@@ -1725,9 +1725,7 @@ int ntfs_unlink_inode(struct inode *dir, const struct dentry *dentry)
 		if (inode->i_nlink)
 			mark_inode_dirty(inode);
 	} else if (!ni_remove_name_undo(dir_ni, ni, de, de2, undo_remove)) {
-		make_bad_inode(inode);
-		ntfs_inode_err(inode, "failed to undo unlink");
-		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
+		_ntfs_bad_inode(inode);
 	} else {
 		if (ni_is_dirty(dir))
 			mark_inode_dirty(dir);

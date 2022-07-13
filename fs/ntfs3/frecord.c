@@ -2328,10 +2328,8 @@ remove_wof:
 
 out:
 	kfree(pages);
-	if (err) {
-		make_bad_inode(inode);
-		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
-	}
+	if (err)
+		_ntfs_bad_inode(inode);
 
 	return err;
 }

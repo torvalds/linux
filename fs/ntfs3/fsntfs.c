@@ -878,6 +878,20 @@ void ntfs_update_mftmirr(struct ntfs_sb_info *sbi, int wait)
 }
 
 /*
+ * ntfs_bad_inode
+ *
+ * Marks inode as bad and marks fs as 'dirty'
+ */
+void ntfs_bad_inode(struct inode *inode, const char *hint)
+{
+	struct ntfs_sb_info *sbi = inode->i_sb->s_fs_info;
+
+	ntfs_inode_err(inode, "%s", hint);
+	make_bad_inode(inode);
+	ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
+}
+
+/*
  * ntfs_set_state
  *
  * Mount: ntfs_set_state(NTFS_DIRTY_DIRTY)

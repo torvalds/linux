@@ -593,6 +593,8 @@ void ntfs_mark_rec_free(struct ntfs_sb_info *sbi, CLST rno, bool is_mft);
 int ntfs_clear_mft_tail(struct ntfs_sb_info *sbi, size_t from, size_t to);
 int ntfs_refresh_zone(struct ntfs_sb_info *sbi);
 void ntfs_update_mftmirr(struct ntfs_sb_info *sbi, int wait);
+void ntfs_bad_inode(struct inode *inode, const char *hint);
+#define _ntfs_bad_inode(i) ntfs_bad_inode(i, __func__)
 enum NTFS_DIRTY_FLAGS {
 	NTFS_DIRTY_CLEAR = 0,
 	NTFS_DIRTY_DIRTY = 1,

@@ -1912,7 +1912,7 @@ next_attr:
 out:
 	up_write(&ni->file.run_lock);
 	if (err)
-		make_bad_inode(&ni->vfs_inode);
+		_ntfs_bad_inode(&ni->vfs_inode);
 
 	return err;
 }
@@ -2092,10 +2092,8 @@ int attr_punch_hole(struct ntfs_inode *ni, u64 vbo, u64 bytes, u32 *frame_size)
 
 out:
 	up_write(&ni->file.run_lock);
-	if (err) {
-		ntfs_set_state(sbi, NTFS_DIRTY_ERROR);
-		make_bad_inode(&ni->vfs_inode);
-	}
+	if (err)
+		_ntfs_bad_inode(&ni->vfs_inode);
 
 	return err;
 }
@@ -2282,7 +2280,7 @@ out:
 
 	up_write(&ni->file.run_lock);
 	if (err)
-		make_bad_inode(&ni->vfs_inode);
+		_ntfs_bad_inode(&ni->vfs_inode);
 
 	return err;
 }
