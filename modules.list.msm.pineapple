@@ -14,6 +14,7 @@ pinctrl-msm.ko
 pinctrl-pineapple.ko
 clk-qcom.ko
 clk-dummy.ko
+clk-rpmh.ko
 dispcc-pineapple.ko
 tcsrcc-pineapple.ko
 gpucc-pineapple.ko
