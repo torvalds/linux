@@ -1446,7 +1446,7 @@ struct engines_data {
  * @send_heartbeat: send is-alive packet to CPU-CP and verify response.
  * @debug_coresight: perform certain actions on Coresight for debugging.
  * @is_device_idle: return true if device is idle, false otherwise.
- * @non_hard_reset_late_init: perform certain actions needed after a reset which is not hard-reset
+ * @compute_reset_late_init: perform certain actions needed after a compute reset
  * @hw_queues_lock: acquire H/W queues lock.
  * @hw_queues_unlock: release H/W queues lock.
  * @kdma_lock: acquire H/W queues lock. Relevant from GRECO ASIC
@@ -1584,7 +1584,7 @@ struct hl_asic_funcs {
 	int (*debug_coresight)(struct hl_device *hdev, struct hl_ctx *ctx, void *data);
 	bool (*is_device_idle)(struct hl_device *hdev, u64 *mask_arr, u8 mask_len,
 				struct engines_data *e);
-	int (*non_hard_reset_late_init)(struct hl_device *hdev);
+	int (*compute_reset_late_init)(struct hl_device *hdev);
 	void (*hw_queues_lock)(struct hl_device *hdev);
 	void (*hw_queues_unlock)(struct hl_device *hdev);
 	void (*kdma_lock)(struct hl_device *hdev, int dcore_id);

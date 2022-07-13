@@ -7427,7 +7427,7 @@ static void gaudi_print_nic_axi_irq_info(struct hl_device *hdev, u16 event_type,
 		event_type, desc);
 }
 
-static int gaudi_non_hard_reset_late_init(struct hl_device *hdev)
+static int gaudi_compute_reset_late_init(struct hl_device *hdev)
 {
 	/* GAUDI doesn't support any reset except hard-reset */
 	return -EPERM;
@@ -9193,7 +9193,7 @@ static const struct hl_asic_funcs gaudi_funcs = {
 	.send_heartbeat = gaudi_send_heartbeat,
 	.debug_coresight = gaudi_debug_coresight,
 	.is_device_idle = gaudi_is_device_idle,
-	.non_hard_reset_late_init = gaudi_non_hard_reset_late_init,
+	.compute_reset_late_init = gaudi_compute_reset_late_init,
 	.hw_queues_lock = gaudi_hw_queues_lock,
 	.hw_queues_unlock = gaudi_hw_queues_unlock,
 	.kdma_lock = NULL,

@@ -6129,7 +6129,7 @@ done:
 	return ret_val;
 }
 
-static int gaudi2_non_hard_reset_late_init(struct hl_device *hdev)
+static int gaudi2_compute_reset_late_init(struct hl_device *hdev)
 {
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
 	size_t irq_arr_size;
@@ -9930,7 +9930,7 @@ static const struct hl_asic_funcs gaudi2_funcs = {
 	.send_heartbeat = gaudi2_send_heartbeat,
 	.debug_coresight = gaudi2_debug_coresight,
 	.is_device_idle = gaudi2_is_device_idle,
-	.non_hard_reset_late_init = gaudi2_non_hard_reset_late_init,
+	.compute_reset_late_init = gaudi2_compute_reset_late_init,
 	.hw_queues_lock = gaudi2_hw_queues_lock,
 	.hw_queues_unlock = gaudi2_hw_queues_unlock,
 	.kdma_lock = gaudi2_kdma_lock,

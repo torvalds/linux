@@ -1556,7 +1556,7 @@ kill_processes:
 		if (!hdev->asic_prop.fw_security_enabled)
 			hl_fw_set_max_power(hdev);
 	} else {
-		rc = hdev->asic_funcs->non_hard_reset_late_init(hdev);
+		rc = hdev->asic_funcs->compute_reset_late_init(hdev);
 		if (rc) {
 			if (reset_upon_device_release)
 				dev_err(hdev->dev,

@@ -4559,7 +4559,7 @@ static int goya_unmask_irq_arr(struct hl_device *hdev, u32 *irq_arr,
 	return rc;
 }
 
-static int goya_non_hard_reset_late_init(struct hl_device *hdev)
+static int goya_compute_reset_late_init(struct hl_device *hdev)
 {
 	/*
 	 * Unmask all IRQs since some could have been received
@@ -5478,7 +5478,7 @@ static const struct hl_asic_funcs goya_funcs = {
 	.send_heartbeat = goya_send_heartbeat,
 	.debug_coresight = goya_debug_coresight,
 	.is_device_idle = goya_is_device_idle,
-	.non_hard_reset_late_init = goya_non_hard_reset_late_init,
+	.compute_reset_late_init = goya_compute_reset_late_init,
 	.hw_queues_lock = goya_hw_queues_lock,
 	.hw_queues_unlock = goya_hw_queues_unlock,
 	.kdma_lock = NULL,
