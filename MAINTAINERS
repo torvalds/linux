@@ -20244,7 +20244,7 @@ F:	tools/tracing/rtla/
 
 TRADITIONAL CHINESE DOCUMENTATION
 M:	Hu Haowen <src.res@email.cn>
-L:	linux-doc-tw-discuss@lists.sourceforge.net
+L:	linux-doc-tw-discuss@lists.sourceforge.net (moderated for non-subscribers)
 S:	Maintained
 W:	https://github.com/srcres258/linux-doc
 T:	git git://github.com/srcres258/linux-doc.git doc-zh-tw
