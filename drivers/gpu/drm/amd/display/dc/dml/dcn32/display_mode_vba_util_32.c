@@ -1686,17 +1686,22 @@ double dml32_RequiredDTBCLK(
 		unsigned int              AudioRate,
 		unsigned int              AudioLayout)
 {
-	double PixelWordRate = PixelClock /  (OutputFormat == dm_444 ? 1 : 2);
-	double HCActive = dml_ceil(DSCSlices * dml_ceil(OutputBpp *
-			dml_ceil(HActive / DSCSlices, 1) / 8.0, 1) / 3.0, 1);
-	double HCBlank = 64 + 32 *
-			dml_ceil(AudioRate *  (AudioLayout == 1 ? 1 : 0.25) * HTotal / (PixelClock * 1000), 1);
-	double AverageTribyteRate = PixelWordRate * (HCActive + HCBlank) / HTotal;
-	double HActiveTribyteRate = PixelWordRate * HCActive / HActive;
+	double PixelWordRate;
+	double HCActive;
+	double HCBlank;
+	double AverageTribyteRate;
+	double HActiveTribyteRate;
 
 	if (DSCEnable != true)
 		return dml_max(PixelClock / 4.0 * OutputBpp / 24.0, 25.0);
 
+	PixelWordRate = PixelClock /  (OutputFormat == dm_444 ? 1 : 2);
+	HCActive = dml_ceil(DSCSlices * dml_ceil(OutputBpp *
+			dml_ceil(HActive / DSCSlices, 1) / 8.0, 1) / 3.0, 1);
+	HCBlank = 64 + 32 *
+			dml_ceil(AudioRate *  (AudioLayout == 1 ? 1 : 0.25) * HTotal / (PixelClock * 1000), 1);
+	AverageTribyteRate = PixelWordRate * (HCActive + HCBlank) / HTotal;
+	HActiveTribyteRate = PixelWordRate * HCActive / HActive;
 	return dml_max4(PixelWordRate / 4.0, AverageTribyteRate / 4.0, HActiveTribyteRate / 4.0, 25.0) * 1.002;
 }
 
