@@ -2054,6 +2054,8 @@ static int _snd_ctl_register_ioctl(snd_kctl_ioctl_func_t fcn, struct list_head *
  * @fcn: ioctl callback function
  *
  * called from each device manager like pcm.c, hwdep.c, etc.
+ *
+ * Return: zero if successful, or a negative error code
  */
 int snd_ctl_register_ioctl(snd_kctl_ioctl_func_t fcn)
 {
@@ -2066,6 +2068,8 @@ EXPORT_SYMBOL(snd_ctl_register_ioctl);
  * snd_ctl_register_ioctl_compat - register the device-specific 32bit compat
  * control-ioctls
  * @fcn: ioctl callback function
+ *
+ * Return: zero if successful, or a negative error code
  */
 int snd_ctl_register_ioctl_compat(snd_kctl_ioctl_func_t fcn)
 {
@@ -2101,6 +2105,8 @@ static int _snd_ctl_unregister_ioctl(snd_kctl_ioctl_func_t fcn,
 /**
  * snd_ctl_unregister_ioctl - de-register the device-specific control-ioctls
  * @fcn: ioctl callback function to unregister
+ *
+ * Return: zero if successful, or a negative error code
  */
 int snd_ctl_unregister_ioctl(snd_kctl_ioctl_func_t fcn)
 {
@@ -2113,6 +2119,8 @@ EXPORT_SYMBOL(snd_ctl_unregister_ioctl);
  * snd_ctl_unregister_ioctl_compat - de-register the device-specific compat
  * 32bit control-ioctls
  * @fcn: ioctl callback function to unregister
+ *
+ * Return: zero if successful, or a negative error code
  */
 int snd_ctl_unregister_ioctl_compat(snd_kctl_ioctl_func_t fcn)
 {
@@ -2168,7 +2176,7 @@ EXPORT_SYMBOL_GPL(snd_ctl_get_preferred_subdevice);
  * snd_ctl_request_layer - request to use the layer
  * @module_name: Name of the kernel module (NULL == build-in)
  *
- * Return an error code when the module cannot be loaded.
+ * Return: zero if successful, or an error code when the module cannot be loaded
  */
 int snd_ctl_request_layer(const char *module_name)
 {
@@ -2370,6 +2378,8 @@ int snd_ctl_create(struct snd_card *card)
  *
  * This is a function that can be used as info callback for a standard
  * boolean control with a single mono channel.
+ *
+ * Return: Zero (always successful)
  */
 int snd_ctl_boolean_mono_info(struct snd_kcontrol *kcontrol,
 			      struct snd_ctl_elem_info *uinfo)
@@ -2390,6 +2400,8 @@ EXPORT_SYMBOL(snd_ctl_boolean_mono_info);
  *
  * This is a function that can be used as info callback for a standard
  * boolean control with stereo two channels.
+ *
+ * Return: Zero (always successful)
  */
 int snd_ctl_boolean_stereo_info(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_info *uinfo)
@@ -2413,7 +2425,7 @@ EXPORT_SYMBOL(snd_ctl_boolean_stereo_info);
  * If the control's accessibility is not the default (readable and writable),
  * the caller has to fill @info->access.
  *
- * Return: Zero.
+ * Return: Zero (always successful)
  */
 int snd_ctl_enum_info(struct snd_ctl_elem_info *info, unsigned int channels,
 		      unsigned int items, const char *const names[])
