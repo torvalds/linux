@@ -14,6 +14,7 @@
 
 #include <linux/cpu.h>
 #include <linux/errno.h>
+#include <linux/platform_device.h>
 #include <linux/sched.h>
 #include <linux/kernel.h>
 #include <linux/mm.h>
@@ -169,6 +170,18 @@ static void __init fwnmi_init(void)
 	}
 #endif
 }
+
+/*
+ * Affix a device for the first timer to the platform bus if
+ * we have firmware support for the H_WATCHDOG hypercall.
+ */
+static __init int pseries_wdt_init(void)
+{
+	if (firmware_has_feature(FW_FEATURE_WATCHDOG))
+		platform_device_register_simple("pseries-wdt", 0, NULL, 0);
+	return 0;
+}
+machine_subsys_initcall(pseries, pseries_wdt_init);
 
 static void pseries_8259_cascade(struct irq_desc *desc)
 {
