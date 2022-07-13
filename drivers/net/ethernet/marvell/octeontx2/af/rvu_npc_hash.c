@@ -1959,7 +1959,7 @@ int rvu_npc_exact_init(struct rvu *rvu)
 			dev_err(rvu->dev,
 				"%s: failed to set drop info for cgx=%d, lmac=%d, chan=%llx\n",
 				__func__, cgx_id, lmac_id, chan_val);
-			return err;
+			return -EINVAL;
 		}
 
 		err = npc_install_mcam_drop_rule(rvu, *drop_mcam_idx,
