@@ -119,11 +119,25 @@ int run_tests(int secs)
 
 char clocksource_list[10][30];
 
-int main(int argv, char **argc)
+int main(int argc, char **argv)
 {
 	char orig_clk[512];
-	int count, i, status;
+	int count, i, status, opt;
+	int do_sanity_check = 1;
 	pid_t pid;
+
+	/* Process arguments */
+	while ((opt = getopt(argc, argv, "s")) != -1) {
+		switch (opt) {
+		case 's':
+			do_sanity_check = 0;
+			break;
+		default:
+			printf("Usage: %s [-s]\n", argv[0]);
+			printf("	-s: skip sanity checks\n");
+			exit(-1);
+		}
+	}
 
 	get_cur_clocksource(orig_clk, 512);
 
@@ -135,18 +149,20 @@ int main(int argv, char **argc)
 	}
 
 	/* Check everything is sane before we start switching asynchronously */
-	for (i = 0; i < count; i++) {
-		printf("Validating clocksource %s\n", clocksource_list[i]);
-		if (change_clocksource(clocksource_list[i])) {
-			status = -1;
-			goto out;
-		}
-		if (run_tests(5)) {
-			status = -1;
-			goto out;
+	if (do_sanity_check) {
+		for (i = 0; i < count; i++) {
+			printf("Validating clocksource %s\n",
+				clocksource_list[i]);
+			if (change_clocksource(clocksource_list[i])) {
+				status = -1;
+				goto out;
+			}
+			if (run_tests(5)) {
+				status = -1;
+				goto out;
+			}
 		}
 	}
-
 
 	printf("Running Asynchronous Switching Tests...\n");
 	pid = fork();
