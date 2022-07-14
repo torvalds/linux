@@ -27,6 +27,16 @@ static inline u32 bch2_snapshot_parent(struct bch_fs *c, u32 id)
 	return snapshot_t(c, id)->parent;
 }
 
+static inline u32 bch2_snapshot_equiv(struct bch_fs *c, u32 id)
+{
+	return snapshot_t(c, id)->equiv;
+}
+
+static inline bool bch2_snapshot_is_equiv(struct bch_fs *c, u32 id)
+{
+	return id == snapshot_t(c, id)->equiv;
+}
+
 static inline u32 bch2_snapshot_internal_node(struct bch_fs *c, u32 id)
 {
 	struct snapshot_t *s = snapshot_t(c, id);
@@ -56,31 +66,6 @@ static inline bool bch2_snapshot_is_ancestor(struct bch_fs *c, u32 id, u32 ances
 		id = bch2_snapshot_parent(c, id);
 
 	return id == ancestor;
-}
-
-struct snapshots_seen {
-	struct bpos			pos;
-	DARRAY(u32)			ids;
-};
-
-static inline void snapshots_seen_exit(struct snapshots_seen *s)
-{
-	kfree(s->ids.data);
-	s->ids.data = NULL;
-}
-
-static inline void snapshots_seen_init(struct snapshots_seen *s)
-{
-	memset(s, 0, sizeof(*s));
-}
-
-static inline int snapshots_seen_add(struct bch_fs *c, struct snapshots_seen *s, u32 id)
-{
-	int ret = darray_push(&s->ids, id);
-	if (ret)
-		bch_err(c, "error reallocating snapshots_seen table (size %zu)",
-			s->ids.size);
-	return ret;
 }
 
 static inline bool snapshot_list_has_id(snapshot_id_list *s, u32 id)
