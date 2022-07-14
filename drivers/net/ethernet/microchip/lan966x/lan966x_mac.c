@@ -325,9 +325,12 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 {
 	struct lan966x_mac_entry *mac_entry, *tmp;
 	unsigned char mac[ETH_ALEN] __aligned(2);
+	struct list_head mac_deleted_entries;
 	u32 dest_idx;
 	u32 column;
 	u16 vid;
+
+	INIT_LIST_HEAD(&mac_deleted_entries);
 
 	spin_lock(&lan966x->mac_lock);
 	list_for_each_entry_safe(mac_entry, tmp, &lan966x->mac_entries, list) {
@@ -362,19 +365,25 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 		}
 
 		if (!found) {
-			/* Notify the bridge that the entry doesn't exist
-			 * anymore in the HW and remove the entry from the SW
-			 * list
-			 */
-			lan966x_mac_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
-					      mac_entry->mac, mac_entry->vid,
-					      lan966x->ports[mac_entry->port_index]->dev);
-
 			list_del(&mac_entry->list);
-			kfree(mac_entry);
+			/* Move the entry from SW list to a tmp list such that
+			 * it would be deleted later
+			 */
+			list_add_tail(&mac_entry->list, &mac_deleted_entries);
 		}
 	}
 	spin_unlock(&lan966x->mac_lock);
+
+	list_for_each_entry_safe(mac_entry, tmp, &mac_deleted_entries, list) {
+		/* Notify the bridge that the entry doesn't exist
+		 * anymore in the HW
+		 */
+		lan966x_mac_notifiers(SWITCHDEV_FDB_DEL_TO_BRIDGE,
+				      mac_entry->mac, mac_entry->vid,
+				      lan966x->ports[mac_entry->port_index]->dev);
+		list_del(&mac_entry->list);
+		kfree(mac_entry);
+	}
 
 	/* Now go to the list of columns and see if any entry was not in the SW
 	 * list, then that means that the entry is new so it needs to notify the
