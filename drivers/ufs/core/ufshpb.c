@@ -434,7 +434,7 @@ int ufshpb_prep(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 }
 
 static struct ufshpb_req *ufshpb_get_req(struct ufshpb_lu *hpb, int rgn_idx,
-					 enum req_op dir, bool atomic)
+					 enum req_op op, bool atomic)
 {
 	struct ufshpb_req *rq;
 	struct request *req;
@@ -445,7 +445,7 @@ static struct ufshpb_req *ufshpb_get_req(struct ufshpb_lu *hpb, int rgn_idx,
 		return NULL;
 
 retry:
-	req = blk_mq_alloc_request(hpb->sdev_ufs_lu->request_queue, dir,
+	req = blk_mq_alloc_request(hpb->sdev_ufs_lu->request_queue, op,
 			      BLK_MQ_REQ_NOWAIT);
 
 	if (!atomic && (PTR_ERR(req) == -EWOULDBLOCK) && (--retries > 0)) {
