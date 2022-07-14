@@ -8,7 +8,7 @@ title: Bindings for the Generic PWM Regulator
 
 maintainers:
   - Brian Norris <briannorris@chromium.org>
-  - Lee Jones <lee.jones@linaro.org>
+  - Lee Jones <lee@kernel.org>
   - Alexandre Courbot <acourbot@nvidia.com>
 
 description: |
