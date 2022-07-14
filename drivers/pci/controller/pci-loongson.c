@@ -20,8 +20,15 @@
 #define DEV_PCIE_PORT_2	0x7a29
 
 #define DEV_LS2K_APB	0x7a02
-#define DEV_LS7A_CONF	0x7a10
+#define DEV_LS7A_GMAC	0x7a03
+#define DEV_LS7A_DC1	0x7a06
 #define DEV_LS7A_LPC	0x7a0c
+#define DEV_LS7A_AHCI	0x7a08
+#define DEV_LS7A_CONF	0x7a10
+#define DEV_LS7A_GNET	0x7a13
+#define DEV_LS7A_EHCI	0x7a14
+#define DEV_LS7A_DC2	0x7a36
+#define DEV_LS7A_HDMI	0x7a37
 
 #define FLAG_CFG0	BIT(0)
 #define FLAG_CFG1	BIT(1)
@@ -99,6 +106,25 @@ static void loongson_mrrs_quirk(struct pci_dev *dev)
 	}
 }
 DECLARE_PCI_FIXUP_ENABLE(PCI_ANY_ID, PCI_ANY_ID, loongson_mrrs_quirk);
+
+static void loongson_pci_pin_quirk(struct pci_dev *pdev)
+{
+	pdev->pin = 1 + (PCI_FUNC(pdev->devfn) & 3);
+}
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			DEV_LS7A_DC1, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			DEV_LS7A_DC2, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			DEV_LS7A_GMAC, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			DEV_LS7A_AHCI, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			DEV_LS7A_EHCI, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			DEV_LS7A_GNET, loongson_pci_pin_quirk);
+DECLARE_PCI_FIXUP_FINAL(PCI_VENDOR_ID_LOONGSON,
+			DEV_LS7A_HDMI, loongson_pci_pin_quirk);
 
 static struct loongson_pci *pci_bus_to_loongson_pci(struct pci_bus *bus)
 {
