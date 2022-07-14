@@ -2403,5 +2403,8 @@ int bch2_fsck_full(struct bch_fs *c)
 
 int bch2_fsck_walk_inodes_only(struct bch_fs *c)
 {
-	return check_inodes(c, false);
+	return  bch2_fs_check_snapshots(c) ?:
+		bch2_fs_check_subvols(c) ?:
+		bch2_delete_dead_snapshots(c) ?:
+		check_inodes(c, false);
 }
