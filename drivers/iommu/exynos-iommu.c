@@ -148,26 +148,12 @@ static u32 lv2ent_offset(sysmmu_iova_t iova)
 #define MAKE_MMU_VER(maj, min)	((((maj) & 0xF) << 7) | ((min) & 0x7F))
 
 /* v1.x - v3.x registers */
-#define REG_MMU_FLUSH		0x00C
-#define REG_MMU_FLUSH_ENTRY	0x010
-#define REG_PT_BASE_ADDR	0x014
-#define REG_INT_STATUS		0x018
-#define REG_INT_CLEAR		0x01C
-
 #define REG_PAGE_FAULT_ADDR	0x024
 #define REG_AW_FAULT_ADDR	0x028
 #define REG_AR_FAULT_ADDR	0x02C
 #define REG_DEFAULT_SLAVE_ADDR	0x030
 
 /* v5.x registers */
-#define REG_V5_PT_BASE_PFN	0x00C
-#define REG_V5_MMU_FLUSH_ALL	0x010
-#define REG_V5_MMU_FLUSH_ENTRY	0x014
-#define REG_V5_MMU_FLUSH_RANGE	0x018
-#define REG_V5_MMU_FLUSH_START	0x020
-#define REG_V5_MMU_FLUSH_END	0x024
-#define REG_V5_INT_STATUS	0x060
-#define REG_V5_INT_CLEAR	0x064
 #define REG_V5_FAULT_AR_VA	0x070
 #define REG_V5_FAULT_AW_VA	0x080
 
@@ -251,6 +237,21 @@ struct exynos_iommu_domain {
 };
 
 /*
+ * SysMMU version specific data. Contains offsets for the registers which can
+ * be found in different SysMMU variants, but have different offset values.
+ */
+struct sysmmu_variant {
+	u32 pt_base;		/* page table base address (physical) */
+	u32 flush_all;		/* invalidate all TLB entries */
+	u32 flush_entry;	/* invalidate specific TLB entry */
+	u32 flush_range;	/* invalidate TLB entries in specified range */
+	u32 flush_start;	/* start address of range invalidation */
+	u32 flush_end;		/* end address of range invalidation */
+	u32 int_status;		/* interrupt status information */
+	u32 int_clear;		/* clear the interrupt */
+};
+
+/*
  * This structure hold all data of a single SYSMMU controller, this includes
  * hw resources like registers and clocks, pointers and list nodes to connect
  * it to all other structures, internal state and parameters read from device
@@ -274,6 +275,30 @@ struct sysmmu_drvdata {
 	unsigned int version;		/* our version */
 
 	struct iommu_device iommu;	/* IOMMU core handle */
+	const struct sysmmu_variant *variant; /* version specific data */
+};
+
+#define SYSMMU_REG(data, reg) ((data)->sfrbase + (data)->variant->reg)
+
+/* SysMMU v1..v3 */
+static const struct sysmmu_variant sysmmu_v1_variant = {
+	.flush_all	= 0x0c,
+	.flush_entry	= 0x10,
+	.pt_base	= 0x14,
+	.int_status	= 0x18,
+	.int_clear	= 0x1c,
+};
+
+/* SysMMU v5 */
+static const struct sysmmu_variant sysmmu_v5_variant = {
+	.pt_base	= 0x0c,
+	.flush_all	= 0x10,
+	.flush_entry	= 0x14,
+	.flush_range	= 0x18,
+	.flush_start	= 0x20,
+	.flush_end	= 0x24,
+	.int_status	= 0x60,
+	.int_clear	= 0x64,
 };
 
 static struct exynos_iommu_domain *to_exynos_domain(struct iommu_domain *dom)
@@ -304,10 +329,7 @@ static bool sysmmu_block(struct sysmmu_drvdata *data)
 
 static void __sysmmu_tlb_invalidate(struct sysmmu_drvdata *data)
 {
-	if (MMU_MAJ_VER(data->version) < 5)
-		writel(0x1, data->sfrbase + REG_MMU_FLUSH);
-	else
-		writel(0x1, data->sfrbase + REG_V5_MMU_FLUSH_ALL);
+	writel(0x1, SYSMMU_REG(data, flush_all));
 }
 
 static void __sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
@@ -315,33 +337,30 @@ static void __sysmmu_tlb_invalidate_entry(struct sysmmu_drvdata *data,
 {
 	unsigned int i;
 
-	if (MMU_MAJ_VER(data->version) < 5) {
+	if (MMU_MAJ_VER(data->version) < 5 || num_inv == 1) {
 		for (i = 0; i < num_inv; i++) {
 			writel((iova & SPAGE_MASK) | 1,
-				     data->sfrbase + REG_MMU_FLUSH_ENTRY);
+			       SYSMMU_REG(data, flush_entry));
 			iova += SPAGE_SIZE;
 		}
 	} else {
-		if (num_inv == 1) {
-			writel((iova & SPAGE_MASK) | 1,
-				     data->sfrbase + REG_V5_MMU_FLUSH_ENTRY);
-		} else {
-			writel((iova & SPAGE_MASK),
-				     data->sfrbase + REG_V5_MMU_FLUSH_START);
-			writel((iova & SPAGE_MASK) + (num_inv - 1) * SPAGE_SIZE,
-				     data->sfrbase + REG_V5_MMU_FLUSH_END);
-			writel(1, data->sfrbase + REG_V5_MMU_FLUSH_RANGE);
-		}
+		writel(iova & SPAGE_MASK, SYSMMU_REG(data, flush_start));
+		writel((iova & SPAGE_MASK) + (num_inv - 1) * SPAGE_SIZE,
+		       SYSMMU_REG(data, flush_end));
+		writel(0x1, SYSMMU_REG(data, flush_range));
 	}
 }
 
 static void __sysmmu_set_ptbase(struct sysmmu_drvdata *data, phys_addr_t pgd)
 {
-	if (MMU_MAJ_VER(data->version) < 5)
-		writel(pgd, data->sfrbase + REG_PT_BASE_ADDR);
-	else
-		writel(pgd >> SPAGE_ORDER, data->sfrbase + REG_V5_PT_BASE_PFN);
+	u32 pt_base;
 
+	if (MMU_MAJ_VER(data->version) < 5)
+		pt_base = pgd;
+	else
+		pt_base = pgd >> SPAGE_ORDER;
+
+	writel(pt_base, SYSMMU_REG(data, pt_base));
 	__sysmmu_tlb_invalidate(data);
 }
 
@@ -378,6 +397,11 @@ static void __sysmmu_get_version(struct sysmmu_drvdata *data)
 	dev_dbg(data->sysmmu, "hardware version: %d.%d\n",
 		MMU_MAJ_VER(data->version), MMU_MIN_VER(data->version));
 
+	if (MMU_MAJ_VER(data->version) < 5)
+		data->variant = &sysmmu_v1_variant;
+	else
+		data->variant = &sysmmu_v5_variant;
+
 	__sysmmu_disable_clocks(data);
 }
 
@@ -405,19 +429,14 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 	const struct sysmmu_fault_info *finfo;
 	unsigned int i, n, itype;
 	sysmmu_iova_t fault_addr;
-	unsigned short reg_status, reg_clear;
 	int ret = -ENOSYS;
 
 	WARN_ON(!data->active);
 
 	if (MMU_MAJ_VER(data->version) < 5) {
-		reg_status = REG_INT_STATUS;
-		reg_clear = REG_INT_CLEAR;
 		finfo = sysmmu_faults;
 		n = ARRAY_SIZE(sysmmu_faults);
 	} else {
-		reg_status = REG_V5_INT_STATUS;
-		reg_clear = REG_V5_INT_CLEAR;
 		finfo = sysmmu_v5_faults;
 		n = ARRAY_SIZE(sysmmu_v5_faults);
 	}
@@ -426,7 +445,7 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 
 	clk_enable(data->clk_master);
 
-	itype = __ffs(readl(data->sfrbase + reg_status));
+	itype = __ffs(readl(SYSMMU_REG(data, int_status)));
 	for (i = 0; i < n; i++, finfo++)
 		if (finfo->bit == itype)
 			break;
@@ -443,7 +462,7 @@ static irqreturn_t exynos_sysmmu_irq(int irq, void *dev_id)
 	/* fault is not recovered by fault handler */
 	BUG_ON(ret != 0);
 
-	writel(1 << itype, data->sfrbase + reg_clear);
+	writel(1 << itype, SYSMMU_REG(data, int_clear));
 
 	sysmmu_unblock(data);
 
@@ -622,6 +641,8 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 	data->sysmmu = dev;
 	spin_lock_init(&data->lock);
 
+	__sysmmu_get_version(data);
+
 	ret = iommu_device_sysfs_add(&data->iommu, &pdev->dev, NULL,
 				     dev_name(data->sysmmu));
 	if (ret)
@@ -633,7 +654,6 @@ static int exynos_sysmmu_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, data);
 
-	__sysmmu_get_version(data);
 	if (PG_ENT_SHIFT < 0) {
 		if (MMU_MAJ_VER(data->version) < 5) {
 			PG_ENT_SHIFT = SYSMMU_PG_ENT_SHIFT;
