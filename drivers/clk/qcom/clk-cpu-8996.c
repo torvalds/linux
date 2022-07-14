@@ -247,8 +247,6 @@ struct clk_cpu_8996_pmux {
 	u8	shift;
 	u8	width;
 	struct notifier_block nb;
-	struct clk_hw	*pll;
-	struct clk_hw	*pll_div_2;
 	struct clk_regmap clkr;
 };
 
@@ -292,15 +290,17 @@ static int clk_cpu_8996_pmux_set_parent(struct clk_hw *hw, u8 index)
 static int clk_cpu_8996_pmux_determine_rate(struct clk_hw *hw,
 					   struct clk_rate_request *req)
 {
-	struct clk_cpu_8996_pmux *cpuclk = to_clk_cpu_8996_pmux_hw(hw);
-	struct clk_hw *parent = cpuclk->pll;
+	struct clk_hw *parent;
 
-	if (cpuclk->pll_div_2 && req->rate < DIV_2_THRESHOLD) {
-		if (req->rate < (DIV_2_THRESHOLD / 2))
-			return -EINVAL;
+	if (req->rate < (DIV_2_THRESHOLD / 2))
+		return -EINVAL;
 
-		parent = cpuclk->pll_div_2;
-	}
+	if (req->rate < DIV_2_THRESHOLD)
+		parent = clk_hw_get_parent_by_index(hw, SMUX_INDEX);
+	else
+		parent = clk_hw_get_parent_by_index(hw, ACD_INDEX);
+	if (!parent)
+		return -EINVAL;
 
 	req->best_parent_rate = clk_hw_round_rate(parent, req->rate);
 	req->best_parent_hw = parent;
@@ -368,8 +368,6 @@ static struct clk_cpu_8996_pmux pwrcl_pmux = {
 	.reg = PWRCL_REG_OFFSET + MUX_OFFSET,
 	.shift = 0,
 	.width = 2,
-	.pll = &pwrcl_pll_acd.clkr.hw,
-	.pll_div_2 = &pwrcl_smux.clkr.hw,
 	.nb.notifier_call = cpu_clk_notifier_cb,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "pwrcl_pmux",
@@ -385,8 +383,6 @@ static struct clk_cpu_8996_pmux perfcl_pmux = {
 	.reg = PERFCL_REG_OFFSET + MUX_OFFSET,
 	.shift = 0,
 	.width = 2,
-	.pll = &perfcl_pll_acd.clkr.hw,
-	.pll_div_2 = &perfcl_smux.clkr.hw,
 	.nb.notifier_call = cpu_clk_notifier_cb,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "perfcl_pmux",
