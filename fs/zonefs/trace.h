@@ -25,7 +25,7 @@ TRACE_EVENT(zonefs_zone_mgmt,
 	    TP_STRUCT__entry(
 			     __field(dev_t, dev)
 			     __field(ino_t, ino)
-			     __field(int, op)
+			     __field(enum req_op, op)
 			     __field(sector_t, sector)
 			     __field(sector_t, nr_sectors)
 	    ),
