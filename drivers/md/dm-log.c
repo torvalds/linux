@@ -291,7 +291,7 @@ static void header_from_disk(struct log_header_core *core, struct log_header_dis
 	core->nr_regions = le64_to_cpu(disk->nr_regions);
 }
 
-static int rw_header(struct log_c *lc, int op)
+static int rw_header(struct log_c *lc, enum req_op op)
 {
 	lc->io_req.bi_opf = op;
 
