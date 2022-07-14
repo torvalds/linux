@@ -124,17 +124,22 @@ int main(int argc, char **argv)
 	char orig_clk[512];
 	int count, i, status, opt;
 	int do_sanity_check = 1;
+	int runtime = 60;
 	pid_t pid;
 
 	/* Process arguments */
-	while ((opt = getopt(argc, argv, "s")) != -1) {
+	while ((opt = getopt(argc, argv, "st:")) != -1) {
 		switch (opt) {
 		case 's':
 			do_sanity_check = 0;
 			break;
+		case 't':
+			runtime = atoi(optarg);
+			break;
 		default:
-			printf("Usage: %s [-s]\n", argv[0]);
+			printf("Usage: %s [-s] [-t <secs>]\n", argv[0]);
 			printf("	-s: skip sanity checks\n");
+			printf("	-t: Number of seconds to run\n");
 			exit(-1);
 		}
 	}
@@ -167,7 +172,7 @@ int main(int argc, char **argv)
 	printf("Running Asynchronous Switching Tests...\n");
 	pid = fork();
 	if (!pid)
-		return run_tests(60);
+		return run_tests(runtime);
 
 	while (pid != waitpid(pid, &status, WNOHANG))
 		for (i = 0; i < count; i++)
