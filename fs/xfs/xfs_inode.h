@@ -68,6 +68,9 @@ typedef struct xfs_inode {
 	uint64_t		i_diflags2;	/* XFS_DIFLAG2_... */
 	struct timespec64	i_crtime;	/* time created */
 
+	/* unlinked list pointers */
+	xfs_agino_t		i_next_unlinked;
+
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
 

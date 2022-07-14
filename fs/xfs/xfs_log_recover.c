@@ -2673,8 +2673,6 @@ xlog_recover_process_one_iunlink(
 	xfs_agino_t			agino,
 	int				bucket)
 {
-	struct xfs_buf			*ibp;
-	struct xfs_dinode		*dip;
 	struct xfs_inode		*ip;
 	xfs_ino_t			ino;
 	int				error;
@@ -2684,27 +2682,14 @@ xlog_recover_process_one_iunlink(
 	if (error)
 		goto fail;
 
-	/*
-	 * Get the on disk inode to find the next inode in the bucket.
-	 */
-	error = xfs_imap_to_bp(pag->pag_mount, NULL, &ip->i_imap, &ibp);
-	if (error)
-		goto fail_iput;
-	dip = xfs_buf_offset(ibp, ip->i_imap.im_boffset);
-
 	xfs_iflags_clear(ip, XFS_IRECOVERY);
 	ASSERT(VFS_I(ip)->i_nlink == 0);
 	ASSERT(VFS_I(ip)->i_mode != 0);
 
-	/* setup for the next pass */
-	agino = be32_to_cpu(dip->di_next_unlinked);
-	xfs_buf_relse(ibp);
-
+	agino = ip->i_next_unlinked;
 	xfs_irele(ip);
 	return agino;
 
- fail_iput:
-	xfs_irele(ip);
  fail:
 	/*
 	 * We can't read in the inode this bucket points to, or this inode
