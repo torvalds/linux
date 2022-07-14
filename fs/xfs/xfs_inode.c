@@ -20,6 +20,7 @@
 #include "xfs_trans.h"
 #include "xfs_buf_item.h"
 #include "xfs_inode_item.h"
+#include "xfs_iunlink_item.h"
 #include "xfs_ialloc.h"
 #include "xfs_bmap.h"
 #include "xfs_bmap_util.h"
@@ -1903,69 +1904,6 @@ xfs_iunlink_update_bucket(
 			(sizeof(xfs_agino_t) * bucket_index);
 	xfs_trans_log_buf(tp, agibp, offset, offset + sizeof(xfs_agino_t) - 1);
 	return 0;
-}
-
-/* Set an in-core inode's unlinked pointer and return the old value. */
-static int
-xfs_iunlink_log_inode(
-	struct xfs_trans	*tp,
-	struct xfs_inode	*ip,
-	struct xfs_perag	*pag,
-	xfs_agino_t		next_agino)
-{
-	struct xfs_mount	*mp = tp->t_mountp;
-	struct xfs_dinode	*dip;
-	struct xfs_buf		*ibp;
-	xfs_agino_t		old_value;
-	int			offset;
-	int			error;
-
-	ASSERT(xfs_verify_agino_or_null(pag, next_agino));
-
-	error = xfs_imap_to_bp(mp, tp, &ip->i_imap, &ibp);
-	if (error)
-		return error;
-	dip = xfs_buf_offset(ibp, ip->i_imap.im_boffset);
-
-	/* Make sure the old pointer isn't garbage. */
-	old_value = be32_to_cpu(dip->di_next_unlinked);
-	if (old_value != ip->i_next_unlinked ||
-	    !xfs_verify_agino_or_null(pag, old_value)) {
-		xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__, dip,
-				sizeof(*dip), __this_address);
-		error = -EFSCORRUPTED;
-		goto out;
-	}
-
-	/*
-	 * Since we're updating a linked list, we should never find that the
-	 * current pointer is the same as the new value, unless we're
-	 * terminating the list.
-	 */
-	if (old_value == next_agino) {
-		if (next_agino != NULLAGINO) {
-			xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__,
-					dip, sizeof(*dip), __this_address);
-			error = -EFSCORRUPTED;
-		}
-		goto out;
-	}
-
-	trace_xfs_iunlink_update_dinode(mp, pag->pag_agno,
-			XFS_INO_TO_AGINO(mp, ip->i_ino),
-			be32_to_cpu(dip->di_next_unlinked), next_agino);
-
-	dip->di_next_unlinked = cpu_to_be32(next_agino);
-	offset = ip->i_imap.im_boffset +
-			offsetof(struct xfs_dinode, di_next_unlinked);
-
-	xfs_dinode_calc_crc(mp, dip);
-	xfs_trans_inode_buf(tp, ibp);
-	xfs_trans_log_buf(tp, ibp, offset, offset + sizeof(xfs_agino_t) - 1);
-	return 0;
-out:
-	xfs_trans_brelse(tp, ibp);
-	return error;
 }
 
 static int
