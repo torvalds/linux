@@ -454,16 +454,19 @@ xrep_invalidate_blocks(
 	 * assume it's owned by someone else.
 	 */
 	for_each_xbitmap_block(fsbno, bmr, n, bitmap) {
+		int		error;
+
 		/* Skip AG headers and post-EOFS blocks */
 		if (!xfs_verify_fsbno(sc->mp, fsbno))
 			continue;
-		bp = xfs_buf_incore(sc->mp->m_ddev_targp,
+		error = xfs_buf_incore(sc->mp->m_ddev_targp,
 				XFS_FSB_TO_DADDR(sc->mp, fsbno),
-				XFS_FSB_TO_BB(sc->mp, 1), XBF_TRYLOCK);
-		if (bp) {
-			xfs_trans_bjoin(sc->tp, bp);
-			xfs_trans_binval(sc->tp, bp);
-		}
+				XFS_FSB_TO_BB(sc->mp, 1), XBF_TRYLOCK, &bp);
+		if (error)
+			continue;
+
+		xfs_trans_bjoin(sc->tp, bp);
+		xfs_trans_binval(sc->tp, bp);
 	}
 
 	return 0;
