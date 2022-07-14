@@ -612,7 +612,7 @@ static inline uint8_t rdmsr_safe(uint32_t msr, uint64_t *val)
 
 static inline uint8_t wrmsr_safe(uint32_t msr, uint64_t val)
 {
-	return kvm_asm_safe("wrmsr", "A"(val), "c"(msr));
+	return kvm_asm_safe("wrmsr", "a"(val & -1u), "d"(val >> 32), "c"(msr));
 }
 
 uint64_t vm_get_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
