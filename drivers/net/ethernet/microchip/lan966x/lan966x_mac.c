@@ -183,7 +183,7 @@ static struct lan966x_mac_entry *lan966x_mac_alloc_entry(const unsigned char *ma
 {
 	struct lan966x_mac_entry *mac_entry;
 
-	mac_entry = kzalloc(sizeof(*mac_entry), GFP_KERNEL);
+	mac_entry = kzalloc(sizeof(*mac_entry), GFP_ATOMIC);
 	if (!mac_entry)
 		return NULL;
 
@@ -310,8 +310,8 @@ void lan966x_mac_purge_entries(struct lan966x *lan966x)
 	spin_lock(&lan966x->mac_lock);
 	list_for_each_entry_safe(mac_entry, tmp, &lan966x->mac_entries,
 				 list) {
-		lan966x_mac_forget(lan966x, mac_entry->mac, mac_entry->vid,
-				   ENTRYTYPE_LOCKED);
+		lan966x_mac_forget_locked(lan966x, mac_entry->mac,
+					  mac_entry->vid, ENTRYTYPE_LOCKED);
 
 		list_del(&mac_entry->list);
 		kfree(mac_entry);
@@ -427,13 +427,14 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 		if (WARN_ON(dest_idx >= lan966x->num_phys_ports))
 			continue;
 
+		spin_lock(&lan966x->mac_lock);
 		mac_entry = lan966x_mac_alloc_entry(mac, vid, dest_idx);
-		if (!mac_entry)
+		if (!mac_entry) {
+			spin_unlock(&lan966x->mac_lock);
 			return;
+		}
 
 		mac_entry->row = row;
-
-		spin_lock(&lan966x->mac_lock);
 		list_add_tail(&mac_entry->list, &lan966x->mac_entries);
 		spin_unlock(&lan966x->mac_lock);
 
@@ -455,6 +456,7 @@ irqreturn_t lan966x_mac_irq_handler(struct lan966x *lan966x)
 	       lan966x, ANA_MACTINDX);
 
 	while (1) {
+		spin_lock(&lan966x->mac_lock);
 		lan_rmw(ANA_MACACCESS_MAC_TABLE_CMD_SET(MACACCESS_CMD_SYNC_GET_NEXT),
 			ANA_MACACCESS_MAC_TABLE_CMD,
 			lan966x, ANA_MACACCESS);
@@ -478,12 +480,15 @@ irqreturn_t lan966x_mac_irq_handler(struct lan966x *lan966x)
 			stop = false;
 
 		if (column == LAN966X_MAC_COLUMNS - 1 &&
-		    index == 0 && stop)
+		    index == 0 && stop) {
+			spin_unlock(&lan966x->mac_lock);
 			break;
+		}
 
 		entry[column].mach = lan_rd(lan966x, ANA_MACHDATA);
 		entry[column].macl = lan_rd(lan966x, ANA_MACLDATA);
 		entry[column].maca = lan_rd(lan966x, ANA_MACACCESS);
+		spin_unlock(&lan966x->mac_lock);
 
 		/* Once all the columns are read process them */
 		if (column == LAN966X_MAC_COLUMNS - 1) {
