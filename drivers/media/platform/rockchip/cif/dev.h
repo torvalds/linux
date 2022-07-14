@@ -513,8 +513,10 @@ struct rkcif_stream {
 	int				buf_num_toisp;
 	u64				line_int_cnt;
 	int				lack_buf_cnt;
-	unsigned int                    buf_wake_up_cnt;
+	unsigned int			buf_wake_up_cnt;
 	struct rkcif_skip_info		skip_info;
+	struct tasklet_struct		vb_done_tasklet;
+	struct list_head		vb_done_list;
 	int				last_rx_buf_idx;
 	int				last_frame_idx;
 	bool				stopping;
@@ -776,7 +778,7 @@ struct rkcif_device {
 	atomic_t			power_cnt;
 	struct mutex			stream_lock; /* lock between streams */
 	struct mutex			scale_lock; /* lock between scale dev */
-	struct mutex                    tools_lock; /* lock between tools dev */
+	struct mutex			tools_lock; /* lock between tools dev */
 	enum rkcif_workmode		workmode;
 	bool				can_be_reset;
 	struct rkmodule_hdr_cfg		hdr;
