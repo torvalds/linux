@@ -96,6 +96,14 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 			       sta_rht_params);
 }
 
+static int link_sta_info_hash_add(struct ieee80211_local *local,
+				  struct link_sta_info *link_sta)
+{
+	return rhltable_insert(&local->link_sta_hash,
+			       &link_sta->link_hash_node,
+			       link_sta_rht_params);
+}
+
 static int link_sta_info_hash_del(struct ieee80211_local *local,
 				  struct link_sta_info *link_sta)
 {
@@ -466,8 +474,10 @@ static void sta_info_add_link(struct sta_info *sta,
 	rcu_assign_pointer(sta->sta.link[link_id], link_sta);
 }
 
-struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
-				const u8 *addr, int link_id, gfp_t gfp)
+static struct sta_info *
+__sta_info_alloc(struct ieee80211_sub_if_data *sdata,
+		 const u8 *addr, int link_id, const u8 *link_addr,
+		 gfp_t gfp)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_hw *hw = &local->hw;
@@ -513,8 +523,8 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	memcpy(sta->addr, addr, ETH_ALEN);
 	memcpy(sta->sta.addr, addr, ETH_ALEN);
-	memcpy(sta->deflink.addr, addr, ETH_ALEN);
-	memcpy(sta->sta.deflink.addr, addr, ETH_ALEN);
+	memcpy(sta->deflink.addr, link_addr, ETH_ALEN);
+	memcpy(sta->sta.deflink.addr, link_addr, ETH_ALEN);
 	sta->sta.max_rx_aggregation_subframes =
 		local->hw.max_rx_aggregation_subframes;
 
@@ -639,6 +649,21 @@ free:
 #endif
 	kfree(sta);
 	return NULL;
+}
+
+struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
+				const u8 *addr, gfp_t gfp)
+{
+	return __sta_info_alloc(sdata, addr, -1, addr, gfp);
+}
+
+struct sta_info *sta_info_alloc_with_link(struct ieee80211_sub_if_data *sdata,
+					  const u8 *mld_addr,
+					  unsigned int link_id,
+					  const u8 *link_addr,
+					  gfp_t gfp)
+{
+	return __sta_info_alloc(sdata, mld_addr, link_id, link_addr, gfp);
 }
 
 static int sta_info_insert_check(struct sta_info *sta)
@@ -773,6 +798,14 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 	err = sta_info_hash_add(local, sta);
 	if (err)
 		goto out_drop_sta;
+
+	if (sta->sta.valid_links) {
+		err = link_sta_info_hash_add(local, &sta->deflink);
+		if (err) {
+			sta_info_hash_del(local, sta);
+			goto out_drop_sta;
+		}
+	}
 
 	list_add_tail_rcu(&sta->list, &local->sta_list);
 
@@ -2695,14 +2728,6 @@ int ieee80211_sta_allocate_link(struct sta_info *sta, unsigned int link_id)
 	sta_info_add_link(sta, link_id, &alloc->info, &alloc->sta);
 
 	return 0;
-}
-
-static int link_sta_info_hash_add(struct ieee80211_local *local,
-				  struct link_sta_info *link_sta)
-{
-	return rhltable_insert(&local->link_sta_hash,
-			       &link_sta->link_hash_node,
-			       link_sta_rht_params);
 }
 
 void ieee80211_sta_free_link(struct sta_info *sta, unsigned int link_id)

@@ -625,7 +625,7 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata, const u8 *bssid,
 	scan_width = cfg80211_chandef_to_scan_width(&chanctx_conf->def);
 	rcu_read_unlock();
 
-	sta = sta_info_alloc(sdata, addr, -1, GFP_KERNEL);
+	sta = sta_info_alloc(sdata, addr, GFP_KERNEL);
 	if (!sta) {
 		rcu_read_lock();
 		return NULL;
@@ -1226,7 +1226,7 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 	scan_width = cfg80211_chandef_to_scan_width(&chanctx_conf->def);
 	rcu_read_unlock();
 
-	sta = sta_info_alloc(sdata, addr, -1, GFP_ATOMIC);
+	sta = sta_info_alloc(sdata, addr, GFP_ATOMIC);
 	if (!sta)
 		return;
 
