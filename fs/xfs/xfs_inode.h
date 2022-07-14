@@ -70,6 +70,7 @@ typedef struct xfs_inode {
 
 	/* unlinked list pointers */
 	xfs_agino_t		i_next_unlinked;
+	xfs_agino_t		i_prev_unlinked;
 
 	/* VFS inode */
 	struct inode		i_vnode;	/* embedded VFS inode */
@@ -507,9 +508,6 @@ extern struct kmem_cache	*xfs_inode_cache;
 #define XFS_DEFAULT_COWEXTSZ_HINT 32
 
 bool xfs_inode_needs_inactive(struct xfs_inode *ip);
-
-int xfs_iunlink_init(struct xfs_perag *pag);
-void xfs_iunlink_destroy(struct xfs_perag *pag);
 
 void xfs_end_io(struct work_struct *work);
 

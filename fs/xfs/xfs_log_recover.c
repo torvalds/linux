@@ -2674,28 +2674,50 @@ xlog_recover_iunlink_bucket(
 	int			bucket)
 {
 	struct xfs_mount	*mp = pag->pag_mount;
+	struct xfs_inode	*prev_ip = NULL;
 	struct xfs_inode	*ip;
-	xfs_agino_t		agino;
+	xfs_agino_t		prev_agino, agino;
+	int			error = 0;
 
 	agino = be32_to_cpu(agi->agi_unlinked[bucket]);
 	while (agino != NULLAGINO) {
-		int	error;
-
 		error = xfs_iget(mp, NULL,
 				XFS_AGINO_TO_INO(mp, pag->pag_agno, agino),
 				0, 0, &ip);
 		if (error)
-			return error;;
+			break;
 
 		ASSERT(VFS_I(ip)->i_nlink == 0);
 		ASSERT(VFS_I(ip)->i_mode != 0);
 		xfs_iflags_clear(ip, XFS_IRECOVERY);
 		agino = ip->i_next_unlinked;
 
-		xfs_irele(ip);
-		cond_resched();
+		if (prev_ip) {
+			ip->i_prev_unlinked = prev_agino;
+			xfs_irele(prev_ip);
+
+			/*
+			 * Ensure the inode is removed from the unlinked list
+			 * before we continue so that it won't race with
+			 * building the in-memory list here. This could be
+			 * serialised with the agibp lock, but that just
+			 * serialises via lockstepping and it's much simpler
+			 * just to flush the inodegc queue and wait for it to
+			 * complete.
+			 */
+			xfs_inodegc_flush(mp);
+		}
+
+		prev_agino = agino;
+		prev_ip = ip;
 	}
-	return 0;
+
+	if (prev_ip) {
+		ip->i_prev_unlinked = prev_agino;
+		xfs_irele(prev_ip);
+	}
+	xfs_inodegc_flush(mp);
+	return error;
 }
 
 /*
