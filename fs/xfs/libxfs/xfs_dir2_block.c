@@ -842,7 +842,7 @@ xfs_dir2_block_removename(
 	 * See if the size as a shortform is good enough.
 	 */
 	size = xfs_dir2_block_sfsize(dp, hdr, &sfh);
-	if (size > XFS_IFORK_DSIZE(dp))
+	if (size > xfs_inode_data_fork_size(dp))
 		return 0;
 
 	/*
@@ -1055,7 +1055,7 @@ xfs_dir2_leaf_to_block(
 	 * Now see if the resulting block can be shrunken to shortform.
 	 */
 	size = xfs_dir2_block_sfsize(dp, hdr, &sfh);
-	if (size > XFS_IFORK_DSIZE(dp))
+	if (size > xfs_inode_data_fork_size(dp))
 		return 0;
 
 	return xfs_dir2_block_to_sf(args, dbp, size, &sfh);
@@ -1071,7 +1071,7 @@ xfs_dir2_sf_to_block(
 	struct xfs_trans	*tp = args->trans;
 	struct xfs_inode	*dp = args->dp;
 	struct xfs_mount	*mp = dp->i_mount;
-	struct xfs_ifork	*ifp = XFS_IFORK_PTR(dp, XFS_DATA_FORK);
+	struct xfs_ifork	*ifp = xfs_ifork_ptr(dp, XFS_DATA_FORK);
 	struct xfs_da_geometry	*geo = args->geo;
 	xfs_dir2_db_t		blkno;		/* dir-relative block # (0) */
 	xfs_dir2_data_hdr_t	*hdr;		/* block header */

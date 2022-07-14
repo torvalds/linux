@@ -560,9 +560,9 @@ static inline bool
 xfs_attr_is_shortform(
 	struct xfs_inode    *ip)
 {
-	return ip->i_afp->if_format == XFS_DINODE_FMT_LOCAL ||
-	       (ip->i_afp->if_format == XFS_DINODE_FMT_EXTENTS &&
-		ip->i_afp->if_nextents == 0);
+	return ip->i_af.if_format == XFS_DINODE_FMT_LOCAL ||
+	       (ip->i_af.if_format == XFS_DINODE_FMT_EXTENTS &&
+		ip->i_af.if_nextents == 0);
 }
 
 static inline enum xfs_delattr_state
@@ -573,10 +573,10 @@ xfs_attr_init_add_state(struct xfs_da_args *args)
 	 * next state, the attribute fork may be null. This can occur only occur
 	 * on a pure remove, but we grab the next state before we check if a
 	 * replace operation is being performed. If we are called from any other
-	 * context, i_afp is guaranteed to exist. Hence if the attr fork is
+	 * context, i_af is guaranteed to exist. Hence if the attr fork is
 	 * null, we were called from a pure remove operation and so we are done.
 	 */
-	if (!args->dp->i_afp)
+	if (!xfs_inode_has_attr_fork(args->dp))
 		return XFS_DAS_DONE;
 
 	args->op_flags |= XFS_DA_OP_ADDNAME;

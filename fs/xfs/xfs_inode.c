@@ -126,7 +126,7 @@ xfs_ilock_attr_map_shared(
 {
 	uint			lock_mode = XFS_ILOCK_SHARED;
 
-	if (ip->i_afp && xfs_need_iread_extents(ip->i_afp))
+	if (xfs_inode_has_attr_fork(ip) && xfs_need_iread_extents(&ip->i_af))
 		lock_mode = XFS_ILOCK_EXCL;
 	xfs_ilock(ip, lock_mode);
 	return lock_mode;
@@ -636,7 +636,7 @@ xfs_ip2xflags(
 			flags |= FS_XFLAG_COWEXTSIZE;
 	}
 
-	if (XFS_IFORK_Q(ip))
+	if (xfs_inode_has_attr_fork(ip))
 		flags |= FS_XFLAG_HASATTR;
 	return flags;
 }
@@ -894,7 +894,7 @@ xfs_init_new_inode(
 	 */
 	if (init_xattrs && xfs_has_attr(mp)) {
 		ip->i_forkoff = xfs_default_attroffset(ip) >> 3;
-		ip->i_afp = xfs_ifork_alloc(XFS_DINODE_FMT_EXTENTS, 0);
+		xfs_ifork_init_attr(ip, XFS_DINODE_FMT_EXTENTS, 0);
 	}
 
 	/*
@@ -1294,8 +1294,8 @@ xfs_itruncate_clear_reflink_flags(
 
 	if (!xfs_is_reflink_inode(ip))
 		return;
-	dfork = XFS_IFORK_PTR(ip, XFS_DATA_FORK);
-	cfork = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	dfork = xfs_ifork_ptr(ip, XFS_DATA_FORK);
+	cfork = xfs_ifork_ptr(ip, XFS_COW_FORK);
 	if (dfork->if_bytes == 0 && cfork->if_bytes == 0)
 		ip->i_diflags2 &= ~XFS_DIFLAG2_REFLINK;
 	if (cfork->if_bytes == 0)
@@ -1644,7 +1644,7 @@ xfs_inode_needs_inactive(
 	struct xfs_inode	*ip)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	struct xfs_ifork	*cow_ifp = XFS_IFORK_PTR(ip, XFS_COW_FORK);
+	struct xfs_ifork	*cow_ifp = xfs_ifork_ptr(ip, XFS_COW_FORK);
 
 	/*
 	 * If the inode is already free, then there can be nothing
@@ -1763,13 +1763,12 @@ xfs_inactive(
 	 * now.  The code calls a routine that recursively deconstructs the
 	 * attribute fork. If also blows away the in-core attribute fork.
 	 */
-	if (XFS_IFORK_Q(ip)) {
+	if (xfs_inode_has_attr_fork(ip)) {
 		error = xfs_attr_inactive(ip);
 		if (error)
 			goto out;
 	}
 
-	ASSERT(!ip->i_afp);
 	ASSERT(ip->i_forkoff == 0);
 
 	/*
@@ -3146,13 +3145,13 @@ xfs_iflush(
 			goto flush_out;
 		}
 	}
-	if (XFS_TEST_ERROR(ip->i_df.if_nextents + xfs_ifork_nextents(ip->i_afp) >
+	if (XFS_TEST_ERROR(ip->i_df.if_nextents + xfs_ifork_nextents(&ip->i_af) >
 				ip->i_nblocks, mp, XFS_ERRTAG_IFLUSH_5)) {
 		xfs_alert_tag(mp, XFS_PTAG_IFLUSH,
 			"%s: detected corrupt incore inode %llu, "
 			"total extents = %llu nblocks = %lld, ptr "PTR_FMT,
 			__func__, ip->i_ino,
-			ip->i_df.if_nextents + xfs_ifork_nextents(ip->i_afp),
+			ip->i_df.if_nextents + xfs_ifork_nextents(&ip->i_af),
 			ip->i_nblocks, ip);
 		goto flush_out;
 	}
@@ -3182,7 +3181,8 @@ xfs_iflush(
 	if (ip->i_df.if_format == XFS_DINODE_FMT_LOCAL &&
 	    xfs_ifork_verify_local_data(ip))
 		goto flush_out;
-	if (ip->i_afp && ip->i_afp->if_format == XFS_DINODE_FMT_LOCAL &&
+	if (xfs_inode_has_attr_fork(ip) &&
+	    ip->i_af.if_format == XFS_DINODE_FMT_LOCAL &&
 	    xfs_ifork_verify_local_attr(ip))
 		goto flush_out;
 
@@ -3200,7 +3200,7 @@ xfs_iflush(
 	}
 
 	xfs_iflush_fork(ip, dip, iip, XFS_DATA_FORK);
-	if (XFS_IFORK_Q(ip))
+	if (xfs_inode_has_attr_fork(ip))
 		xfs_iflush_fork(ip, dip, iip, XFS_ATTR_FORK);
 
 	/*

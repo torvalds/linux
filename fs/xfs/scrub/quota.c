@@ -185,7 +185,7 @@ xchk_quota_data_fork(
 
 	/* Check for data fork problems that apply only to quota files. */
 	max_dqid_off = ((xfs_dqid_t)-1) / qi->qi_dqperchunk;
-	ifp = XFS_IFORK_PTR(sc->ip, XFS_DATA_FORK);
+	ifp = xfs_ifork_ptr(sc->ip, XFS_DATA_FORK);
 	for_each_xfs_iext(ifp, &icur, &irec) {
 		if (xchk_should_terminate(sc, &error))
 			break;
