@@ -119,11 +119,13 @@ int lan966x_mac_learn(struct lan966x *lan966x, int port,
 	return __lan966x_mac_learn(lan966x, port, false, mac, vid, type);
 }
 
-int lan966x_mac_forget(struct lan966x *lan966x,
-		       const unsigned char mac[ETH_ALEN],
-		       unsigned int vid,
-		       enum macaccess_entry_type type)
+static int lan966x_mac_forget_locked(struct lan966x *lan966x,
+				     const unsigned char mac[ETH_ALEN],
+				     unsigned int vid,
+				     enum macaccess_entry_type type)
 {
+	lockdep_assert_held(&lan966x->mac_lock);
+
 	lan966x_mac_select(lan966x, mac, vid);
 
 	/* Issue a forget command */
@@ -132,6 +134,20 @@ int lan966x_mac_forget(struct lan966x *lan966x,
 	       lan966x, ANA_MACACCESS);
 
 	return lan966x_mac_wait_for_completion(lan966x);
+}
+
+int lan966x_mac_forget(struct lan966x *lan966x,
+		       const unsigned char mac[ETH_ALEN],
+		       unsigned int vid,
+		       enum macaccess_entry_type type)
+{
+	int ret;
+
+	spin_lock(&lan966x->mac_lock);
+	ret = lan966x_mac_forget_locked(lan966x, mac, vid, type);
+	spin_unlock(&lan966x->mac_lock);
+
+	return ret;
 }
 
 int lan966x_mac_cpu_learn(struct lan966x *lan966x, const char *addr, u16 vid)
