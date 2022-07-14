@@ -246,6 +246,24 @@ static int vgic_set_common_attr(struct kvm_device *dev,
 			r = vgic_init(dev->kvm);
 			mutex_unlock(&dev->kvm->lock);
 			return r;
+		case KVM_DEV_ARM_VGIC_SAVE_PENDING_TABLES:
+			/*
+			 * OK, this one isn't common at all, but we
+			 * want to handle all control group attributes
+			 * in a single place.
+			 */
+			if (vgic_check_type(dev->kvm, KVM_DEV_TYPE_ARM_VGIC_V3))
+				return -ENXIO;
+			mutex_lock(&dev->kvm->lock);
+
+			if (!lock_all_vcpus(dev->kvm)) {
+				mutex_unlock(&dev->kvm->lock);
+				return -EBUSY;
+			}
+			r = vgic_v3_save_pending_tables(dev->kvm);
+			unlock_all_vcpus(dev->kvm);
+			mutex_unlock(&dev->kvm->lock);
+			return r;
 		}
 		break;
 	}
@@ -427,37 +445,25 @@ out:
 static int vgic_v2_set_attr(struct kvm_device *dev,
 			    struct kvm_device_attr *attr)
 {
-	int ret;
-
-	ret = vgic_set_common_attr(dev, attr);
-	if (ret != -ENXIO)
-		return ret;
-
 	switch (attr->group) {
 	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
 	case KVM_DEV_ARM_VGIC_GRP_CPU_REGS:
 		return vgic_v2_attr_regs_access(dev, attr, true);
+	default:
+		return vgic_set_common_attr(dev, attr);
 	}
-
-	return -ENXIO;
 }
 
 static int vgic_v2_get_attr(struct kvm_device *dev,
 			    struct kvm_device_attr *attr)
 {
-	int ret;
-
-	ret = vgic_get_common_attr(dev, attr);
-	if (ret != -ENXIO)
-		return ret;
-
 	switch (attr->group) {
 	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
 	case KVM_DEV_ARM_VGIC_GRP_CPU_REGS:
 		return vgic_v2_attr_regs_access(dev, attr, false);
+	default:
+		return vgic_get_common_attr(dev, attr);
 	}
-
-	return -ENXIO;
 }
 
 static int vgic_v2_has_attr(struct kvm_device *dev,
@@ -618,61 +624,29 @@ out:
 static int vgic_v3_set_attr(struct kvm_device *dev,
 			    struct kvm_device_attr *attr)
 {
-	int ret;
-
-	ret = vgic_set_common_attr(dev, attr);
-	if (ret != -ENXIO)
-		return ret;
-
 	switch (attr->group) {
 	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
 	case KVM_DEV_ARM_VGIC_GRP_REDIST_REGS:
-		return vgic_v3_attr_regs_access(dev, attr, true);
 	case KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS:
-		return vgic_v3_attr_regs_access(dev, attr, true);
 	case KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO:
 		return vgic_v3_attr_regs_access(dev, attr, true);
-	case KVM_DEV_ARM_VGIC_GRP_CTRL: {
-		int ret;
-
-		switch (attr->attr) {
-		case KVM_DEV_ARM_VGIC_SAVE_PENDING_TABLES:
-			mutex_lock(&dev->kvm->lock);
-
-			if (!lock_all_vcpus(dev->kvm)) {
-				mutex_unlock(&dev->kvm->lock);
-				return -EBUSY;
-			}
-			ret = vgic_v3_save_pending_tables(dev->kvm);
-			unlock_all_vcpus(dev->kvm);
-			mutex_unlock(&dev->kvm->lock);
-			return ret;
-		}
-		break;
+	default:
+		return vgic_set_common_attr(dev, attr);
 	}
-	}
-	return -ENXIO;
 }
 
 static int vgic_v3_get_attr(struct kvm_device *dev,
 			    struct kvm_device_attr *attr)
 {
-	int ret;
-
-	ret = vgic_get_common_attr(dev, attr);
-	if (ret != -ENXIO)
-		return ret;
-
 	switch (attr->group) {
 	case KVM_DEV_ARM_VGIC_GRP_DIST_REGS:
 	case KVM_DEV_ARM_VGIC_GRP_REDIST_REGS:
-		return vgic_v3_attr_regs_access(dev, attr, false);
 	case KVM_DEV_ARM_VGIC_GRP_CPU_SYSREGS:
-		return vgic_v3_attr_regs_access(dev, attr, false);
 	case KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO:
 		return vgic_v3_attr_regs_access(dev, attr, false);
+	default:
+		return vgic_get_common_attr(dev, attr);
 	}
-	return -ENXIO;
 }
 
 static int vgic_v3_has_attr(struct kvm_device *dev,
