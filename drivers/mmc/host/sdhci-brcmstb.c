@@ -406,7 +406,14 @@ static int sdhci_brcmstb_resume(struct device *dev)
 	ret = sdhci_pltfm_resume(dev);
 	if (!ret && priv->base_freq_hz) {
 		ret = clk_prepare_enable(priv->base_clk);
-		if (!ret)
+		/*
+		 * Note: using clk_get_rate() below as clk_get_rate()
+		 * honors CLK_GET_RATE_NOCACHE attribute, but clk_set_rate()
+		 * may do implicit get_rate() calls that do not honor
+		 * CLK_GET_RATE_NOCACHE.
+		 */
+		if (!ret &&
+		    (clk_get_rate(priv->base_clk) != priv->base_freq_hz))
 			ret = clk_set_rate(priv->base_clk, priv->base_freq_hz);
 	}
 
