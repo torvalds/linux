@@ -82,6 +82,7 @@ struct bridge_list_entry {
 	struct list_head list;
 	phys_addr_t paddr;
 	uint64_t handle;
+	int32_t ref_count;
 };
 
 struct cma_heap_bridge_info {
@@ -133,7 +134,7 @@ bool qtee_shmbridge_is_enabled(void)
 }
 EXPORT_SYMBOL(qtee_shmbridge_is_enabled);
 
-static int32_t qtee_shmbridge_list_add_nolock(phys_addr_t paddr,
+static int32_t qtee_shmbridge_list_add_locked(phys_addr_t paddr,
 						uint64_t handle)
 {
 	struct bridge_list_entry *entry;
@@ -143,11 +144,13 @@ static int32_t qtee_shmbridge_list_add_nolock(phys_addr_t paddr,
 		return -ENOMEM;
 	entry->handle = handle;
 	entry->paddr = paddr;
+	entry->ref_count = 0;
+
 	list_add_tail(&entry->list, &bridge_list_head.head);
 	return 0;
 }
 
-static void qtee_shmbridge_list_del_nolock(uint64_t handle)
+static void qtee_shmbridge_list_del_locked(uint64_t handle)
 {
 	struct bridge_list_entry *entry;
 
@@ -160,7 +163,85 @@ static void qtee_shmbridge_list_del_nolock(uint64_t handle)
 	}
 }
 
-static int32_t qtee_shmbridge_query_nolock(phys_addr_t paddr)
+/********************************************************************
+ *Function: Decrement the reference count of registered shmbridge
+ *and if refcount reached to zero delete the shmbridge (i.e send a
+ *scm call to tz and remove that from out local list too.
+ *Conditions: API suppose to be called in a locked enviorment
+ *Return: return 0 in case of success
+ *        return error code in case of failure
+ ********************************************************************/
+static int32_t qtee_shmbridge_list_dec_refcount_locked(uint64_t handle)
+{
+	struct bridge_list_entry *entry;
+	int32_t ret = -EINVAL;
+
+	list_for_each_entry(entry, &bridge_list_head.head, list)
+		if (entry->handle == handle) {
+
+			if (entry->ref_count > 0) {
+				//decrement reference count
+				entry->ref_count--;
+				pr_debug("%s: bridge on %lld exists decrease refcount :%d\n",
+					__func__, handle, entry->ref_count);
+
+				if (entry->ref_count == 0) {
+				// All valid reference are freed, it's time to delete the bridge
+					ret = qcom_scm_delete_shm_bridge(handle);
+					if (ret) {
+						pr_err(" %s: Failed to del bridge %lld, ret = %d\n"
+							, __func__, handle, ret);
+						//restore reference count in case of failure
+						entry->ref_count++;
+						goto exit;
+					}
+					qtee_shmbridge_list_del_locked(handle);
+				}
+				ret = 0;
+			} else
+				pr_err("%s: weird, ref_count should not be negative handle %lld , refcount: %d\n",
+					 __func__, handle, entry->ref_count);
+			break;
+		}
+exit:
+	if (ret == -EINVAL)
+		pr_err("Not able to find bridge handle %lld in map\n", handle);
+
+	return ret;
+}
+
+/********************************************************************
+ *Function: Increment the ref count in case if we try to register a
+ *pre-registered phyaddr with shmbridge and provide a valid handle
+ *to the caller API which was passed by caller as a pointer.
+ *Conditions: API suppose to be called in a locked enviorment.
+ *Return: return 0 in case of success.
+ *        return error code in case of failure.
+ ********************************************************************/
+static int32_t qtee_shmbridge_list_inc_refcount_locked(phys_addr_t paddr, uint64_t *handle)
+{
+	struct bridge_list_entry *entry;
+	int32_t ret = -EINVAL;
+
+	list_for_each_entry(entry, &bridge_list_head.head, list)
+		if (entry->paddr == paddr) {
+
+			entry->ref_count++;
+			pr_debug("%s: bridge on %llx exists increase refcount :%d\n",
+				__func__, (uint64_t)paddr, entry->ref_count);
+
+			//update handle in case we found paddr already exist
+			*handle = entry->handle;
+			ret = 0;
+			break;
+		}
+	if (ret)
+		pr_err("%s: Not able to find bridge paddr %llx in map\n",
+			__func__, (uint64_t)paddr);
+	return ret;
+}
+
+static int32_t qtee_shmbridge_query_locked(phys_addr_t paddr)
 {
 	struct bridge_list_entry *entry;
 
@@ -178,7 +259,7 @@ int32_t qtee_shmbridge_query(phys_addr_t paddr)
 	int32_t ret = 0;
 
 	mutex_lock(&bridge_list_head.lock);
-	ret = qtee_shmbridge_query_nolock(paddr);
+	ret = qtee_shmbridge_query_locked(paddr);
 	mutex_unlock(&bridge_list_head.lock);
 	return ret;
 }
@@ -213,9 +294,12 @@ int32_t qtee_shmbridge_register(
 	}
 
 	mutex_lock(&bridge_list_head.lock);
-	ret = qtee_shmbridge_query_nolock(paddr);
-	if (ret)
-		goto exit;
+	ret = qtee_shmbridge_query_locked(paddr);
+	if (ret) {
+		pr_debug("%s: found 0%x already exist with shmbridge\n",
+			__func__, paddr);
+		goto bridge_exist;
+	}
 
 	for (i = 0; i < ns_vmid_num; i++) {
 		ns_perms = UPDATE_NS_PERMS(ns_perms, ns_vm_perm_list[i]);
@@ -240,15 +324,25 @@ int32_t qtee_shmbridge_register(
 			handle);
 
 	if (ret) {
-		pr_err("create shmbridge failed, ret = %d\n", ret);
+		pr_err("%s: create shmbridge failed, ret = %d\n", __func__, ret);
+
+		/* if bridge is already existing and we are not real owner also paddr not
+		 * exist in our map we will add an entry in our map and go for deregister
+		 * for this since QTEE also maintain ref_count. So for this we should
+		 * deregister to decrease ref_count in QTEE.
+		 */
 		if (ret == AC_ERR_SHARED_MEMORY_SINGLE_SOURCE)
-			ret = -EEXIST;
-		else
+			pr_err("%s: bridge %llx exist but not registered in our map\n",
+				__func__, (uint64_t)paddr);
+		else {
 			ret = -EINVAL;
-		goto exit;
+			goto exit;
+		}
 	}
 
-	ret = qtee_shmbridge_list_add_nolock(paddr, *handle);
+	ret = qtee_shmbridge_list_add_locked(paddr, *handle);
+bridge_exist:
+	ret = qtee_shmbridge_list_inc_refcount_locked(paddr, handle);
 exit:
 	mutex_unlock(&bridge_list_head.lock);
 	return ret;
@@ -264,17 +358,9 @@ int32_t qtee_shmbridge_deregister(uint64_t handle)
 		return 0;
 
 	mutex_lock(&bridge_list_head.lock);
-
-	ret = qcom_scm_delete_shm_bridge(handle);
-
-	if (ret) {
-		pr_err("Failed to del bridge %lld, ret = %d\n", handle, ret);
-		goto exit;
-	}
-	qtee_shmbridge_list_del_nolock(handle);
-
-exit:
+	ret = qtee_shmbridge_list_dec_refcount_locked(handle);
 	mutex_unlock(&bridge_list_head.lock);
+
 	return ret;
 }
 EXPORT_SYMBOL(qtee_shmbridge_deregister);
