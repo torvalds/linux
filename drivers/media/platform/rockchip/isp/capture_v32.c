@@ -809,6 +809,7 @@ static void update_mi(struct rkisp_stream *stream)
 
 		if (dev->tb_addr_idx < dev->tb_stream_info.buf_max - 1)
 			dev->tb_addr_idx++;
+		stream->is_tb_s_info = true;
 	} else if (!stream->is_pause) {
 		stream->is_pause = true;
 		stream->ops->disable_mi(stream);
@@ -1755,7 +1756,7 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 		stream->dbg.timestamp = ns;
 		stream->dbg.id = seq;
 
-		if (stream->is_using_resmem) {
+		if (stream->is_tb_s_info) {
 			struct rkisp_tb_stream_info *tb_info = &dev->tb_stream_info;
 			u32 idx;
 
@@ -1764,6 +1765,7 @@ void rkisp_mi_v32_isr(u32 mis_val, struct rkisp_device *dev)
 			idx = tb_info->buf_cnt - 1;
 			dev->tb_stream_info.buf[idx].sequence = seq;
 			dev->tb_stream_info.buf[idx].timestamp = ns;
+			stream->is_tb_s_info = false;
 		}
 
 		if (stream->stopping) {
