@@ -194,7 +194,6 @@ xfs_free_perag(
 		XFS_IS_CORRUPT(pag->pag_mount, atomic_read(&pag->pag_ref) != 0);
 
 		cancel_delayed_work_sync(&pag->pag_blockgc_work);
-		xfs_iunlink_destroy(pag);
 		xfs_buf_hash_destroy(pag);
 
 		call_rcu(&pag->rcu_head, __xfs_free_perag);
@@ -323,10 +322,6 @@ xfs_initialize_perag(
 		if (error)
 			goto out_remove_pag;
 
-		error = xfs_iunlink_init(pag);
-		if (error)
-			goto out_hash_destroy;
-
 		/* first new pag is fully initialized */
 		if (first_initialised == NULLAGNUMBER)
 			first_initialised = index;
@@ -349,8 +344,6 @@ xfs_initialize_perag(
 	mp->m_ag_prealloc_blocks = xfs_prealloc_blocks(mp);
 	return 0;
 
-out_hash_destroy:
-	xfs_buf_hash_destroy(pag);
 out_remove_pag:
 	radix_tree_delete(&mp->m_perag_tree, index);
 out_free_pag:
@@ -362,7 +355,6 @@ out_unwind_new_pags:
 		if (!pag)
 			break;
 		xfs_buf_hash_destroy(pag);
-		xfs_iunlink_destroy(pag);
 		kmem_free(pag);
 	}
 	return error;

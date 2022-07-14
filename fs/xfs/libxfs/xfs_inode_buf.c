@@ -229,7 +229,8 @@ xfs_inode_from_disk(
 	ip->i_nblocks = be64_to_cpu(from->di_nblocks);
 	ip->i_extsize = be32_to_cpu(from->di_extsize);
 	ip->i_forkoff = from->di_forkoff;
-	ip->i_diflags	= be16_to_cpu(from->di_flags);
+	ip->i_diflags = be16_to_cpu(from->di_flags);
+	ip->i_next_unlinked = be32_to_cpu(from->di_next_unlinked);
 
 	if (from->di_dmevmask || from->di_dmstate)
 		xfs_iflags_set(ip, XFS_IPRESERVE_DM_FIELDS);
