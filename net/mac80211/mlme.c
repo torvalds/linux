@@ -1207,6 +1207,7 @@ void ieee80211_send_4addr_nullfunc(struct ieee80211_local *local,
 	memcpy(nullfunc->addr4, sdata->vif.addr, ETH_ALEN);
 
 	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_INTFL_DONT_ENCRYPT;
+	IEEE80211_SKB_CB(skb)->flags |= IEEE80211_TX_CTL_USE_MINRATE;
 	ieee80211_tx_skb(sdata, skb);
 }
 
