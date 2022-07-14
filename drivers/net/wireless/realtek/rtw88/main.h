@@ -1233,9 +1233,6 @@ struct rtw_chip_info {
 	const struct wiphy_wowlan_support *wowlan_stub;
 	const u8 max_sched_scan_ssids;
 
-	/* for 8821c set channel */
-	u32 ch_param[3];
-
 	/* coex paras */
 	u32 coex_para_ver;
 	u8 bt_desired_ver;
@@ -1937,6 +1934,9 @@ struct rtw_hal {
 
 	enum rtw_sar_bands sar_band;
 	struct rtw_sar sar;
+
+	/* for 8821c set channel */
+	u32 ch_param[3];
 };
 
 struct rtw_path_div {

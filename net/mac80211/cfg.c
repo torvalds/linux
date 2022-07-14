@@ -4463,14 +4463,14 @@ EXPORT_SYMBOL_GPL(ieee80211_color_change_finish);
 
 void
 ieeee80211_obss_color_collision_notify(struct ieee80211_vif *vif,
-				       u64 color_bitmap)
+				       u64 color_bitmap, gfp_t gfp)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
 
 	if (sdata->vif.bss_conf.color_change_active || sdata->vif.bss_conf.csa_active)
 		return;
 
-	cfg80211_obss_color_collision_notify(sdata->dev, color_bitmap);
+	cfg80211_obss_color_collision_notify(sdata->dev, color_bitmap, gfp);
 }
 EXPORT_SYMBOL_GPL(ieeee80211_obss_color_collision_notify);
 

@@ -224,7 +224,7 @@ kernel/kmod.c
 模块接口支持
 ------------
 
-更多信息请参考文件kernel/module.c。
+更多信息请参阅kernel/module/目录下的文件。
 
 硬件接口
 ========

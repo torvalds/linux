@@ -223,7 +223,7 @@ Module Loading
 Inter Module support
 --------------------
 
-Refer to the file kernel/module.c for more information.
+Refer to the files in kernel/module/ for more information.
 
 Hardware Interfaces
 ===================

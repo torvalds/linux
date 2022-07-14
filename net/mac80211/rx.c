@@ -3199,7 +3199,8 @@ ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
 				      IEEE80211_HE_OPERATION_BSS_COLOR_MASK);
 		if (color == bss_conf->he_bss_color.color)
 			ieeee80211_obss_color_collision_notify(&rx->sdata->vif,
-							       BIT_ULL(color));
+							       BIT_ULL(color),
+							       GFP_ATOMIC);
 	}
 }
 

@@ -8639,11 +8639,12 @@ int cfg80211_bss_color_notify(struct net_device *dev, gfp_t gfp,
  * cfg80211_obss_color_collision_notify - notify about bss color collision
  * @dev: network device
  * @color_bitmap: representations of the colors that the local BSS is aware of
+ * @gfp: allocation flags
  */
 static inline int cfg80211_obss_color_collision_notify(struct net_device *dev,
-						       u64 color_bitmap)
+						       u64 color_bitmap, gfp_t gfp)
 {
-	return cfg80211_bss_color_notify(dev, GFP_KERNEL,
+	return cfg80211_bss_color_notify(dev, gfp,
 					 NL80211_CMD_OBSS_COLOR_COLLISION,
 					 0, color_bitmap);
 }

@@ -7785,7 +7785,7 @@ hwrm_dbg_qcaps_exit:
 
 static int bnxt_hwrm_queue_qportcfg(struct bnxt *bp);
 
-static int bnxt_hwrm_func_qcaps(struct bnxt *bp)
+int bnxt_hwrm_func_qcaps(struct bnxt *bp)
 {
 	int rc;
 
@@ -10060,7 +10060,8 @@ static int bnxt_hwrm_if_change(struct bnxt *bp, bool up)
 
 	if (flags & FUNC_DRV_IF_CHANGE_RESP_FLAGS_RESC_CHANGE)
 		resc_reinit = true;
-	if (flags & FUNC_DRV_IF_CHANGE_RESP_FLAGS_HOT_FW_RESET_DONE)
+	if (flags & FUNC_DRV_IF_CHANGE_RESP_FLAGS_HOT_FW_RESET_DONE ||
+	    test_bit(BNXT_STATE_FW_RESET_DET, &bp->state))
 		fw_reset = true;
 	else
 		bnxt_remap_fw_health_regs(bp);

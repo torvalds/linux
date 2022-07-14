@@ -1497,11 +1497,12 @@ static const struct bpf_func_proto bpf_dynptr_from_mem_proto = {
 	.arg4_type	= ARG_PTR_TO_DYNPTR | DYNPTR_TYPE_LOCAL | MEM_UNINIT,
 };
 
-BPF_CALL_4(bpf_dynptr_read, void *, dst, u32, len, struct bpf_dynptr_kern *, src, u32, offset)
+BPF_CALL_5(bpf_dynptr_read, void *, dst, u32, len, struct bpf_dynptr_kern *, src,
+	   u32, offset, u64, flags)
 {
 	int err;
 
-	if (!src->data)
+	if (!src->data || flags)
 		return -EINVAL;
 
 	err = bpf_dynptr_check_off_len(src, offset, len);
@@ -1521,13 +1522,15 @@ static const struct bpf_func_proto bpf_dynptr_read_proto = {
 	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
 	.arg3_type	= ARG_PTR_TO_DYNPTR,
 	.arg4_type	= ARG_ANYTHING,
+	.arg5_type	= ARG_ANYTHING,
 };
 
-BPF_CALL_4(bpf_dynptr_write, struct bpf_dynptr_kern *, dst, u32, offset, void *, src, u32, len)
+BPF_CALL_5(bpf_dynptr_write, struct bpf_dynptr_kern *, dst, u32, offset, void *, src,
+	   u32, len, u64, flags)
 {
 	int err;
 
-	if (!dst->data || bpf_dynptr_is_rdonly(dst))
+	if (!dst->data || flags || bpf_dynptr_is_rdonly(dst))
 		return -EINVAL;
 
 	err = bpf_dynptr_check_off_len(dst, offset, len);
@@ -1547,6 +1550,7 @@ static const struct bpf_func_proto bpf_dynptr_write_proto = {
 	.arg2_type	= ARG_ANYTHING,
 	.arg3_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
 	.arg4_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg5_type	= ARG_ANYTHING,
 };
 
 BPF_CALL_3(bpf_dynptr_data, struct bpf_dynptr_kern *, ptr, u32, offset, u32, len)

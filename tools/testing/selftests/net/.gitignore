@@ -36,5 +36,6 @@ test_unix_oob
 gro
 ioam6_parser
 toeplitz
+tun
 cmsg_sender
 unix_connect

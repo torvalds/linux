@@ -5066,7 +5066,7 @@ static int io_uring_cmd_prep(struct io_kiocb *req,
 {
 	struct io_uring_cmd *ioucmd = &req->uring_cmd;
 
-	if (sqe->rw_flags)
+	if (sqe->rw_flags || sqe->__pad1)
 		return -EINVAL;
 	ioucmd->cmd = sqe->cmd;
 	ioucmd->cmd_op = READ_ONCE(sqe->cmd_op);
@@ -7972,6 +7972,9 @@ static int io_files_update_with_index_alloc(struct io_kiocb *req,
 	unsigned int done;
 	struct file *file;
 	int ret, fd;
+
+	if (!req->ctx->file_data)
+		return -ENXIO;
 
 	for (done = 0; done < req->rsrc_update.nr_args; done++) {
 		if (copy_from_user(&fd, &fds[done], sizeof(fd))) {

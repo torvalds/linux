@@ -466,6 +466,10 @@ overlay filesystem and the value of st_ino for filesystem objects may not be
 persistent and could change even while the overlay filesystem is mounted, as
 summarized in the `Inode properties`_ table above.
 
+4) "idmapped mounts"
+When the upper or lower layers are idmapped mounts overlayfs will be mounted
+without support for POSIX Access Control Lists (ACLs). This limitation will
+eventually be lifted.
 
 Changes to underlying filesystems
 ---------------------------------

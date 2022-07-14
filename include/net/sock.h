@@ -1544,7 +1544,7 @@ void __sk_mem_reclaim(struct sock *sk, int amount);
 /* sysctl_mem values are in pages */
 static inline long sk_prot_mem_limits(const struct sock *sk, int index)
 {
-	return sk->sk_prot->sysctl_mem[index];
+	return READ_ONCE(sk->sk_prot->sysctl_mem[index]);
 }
 
 static inline int sk_mem_pages(int amt)

@@ -166,7 +166,6 @@ void output_thread_fpu_defines(void)
 
 	OFFSET(THREAD_FCSR, loongarch_fpu, fcsr);
 	OFFSET(THREAD_FCC,  loongarch_fpu, fcc);
-	OFFSET(THREAD_VCSR, loongarch_fpu, vcsr);
 	BLANK();
 }
 

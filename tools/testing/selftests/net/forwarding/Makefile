@@ -38,6 +38,7 @@ TEST_PROGS = bridge_igmp.sh \
 	ipip_hier_gre_key.sh \
 	ipip_hier_gre_keys.sh \
 	ipip_hier_gre.sh \
+	local_termination.sh \
 	loopback.sh \
 	mirror_gre_bound.sh \
 	mirror_gre_bridge_1d.sh \
@@ -53,6 +54,7 @@ TEST_PROGS = bridge_igmp.sh \
 	mirror_gre_vlan_bridge_1q.sh \
 	mirror_gre_vlan.sh \
 	mirror_vlan.sh \
+	no_forwarding.sh \
 	pedit_dsfield.sh \
 	pedit_ip.sh \
 	pedit_l4port.sh \
