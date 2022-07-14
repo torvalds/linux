@@ -7534,6 +7534,8 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 				}
 			} else if (strcmp(ext->name, "LINUX_HAS_BPF_COOKIE") == 0) {
 				value = kernel_supports(obj, FEAT_BPF_COOKIE);
+			} else if (strcmp(ext->name, "LINUX_HAS_SYSCALL_WRAPPER") == 0) {
+				value = kernel_supports(obj, FEAT_SYSCALL_WRAPPER);
 			} else if (!str_has_pfx(ext->name, "LINUX_") || !ext->is_weak) {
 				/* Currently libbpf supports only CONFIG_ and LINUX_ prefixed
 				 * __kconfig externs, where LINUX_ ones are virtual and filled out
