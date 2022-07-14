@@ -7,6 +7,9 @@
  * V0.0X01.0X00 first version.
  * V0.0X01.0X01 add full size 30fps.
  * V0.0X01.0X02 fix gain and exposure setting.
+ * V0.0X01.0X03
+ *  1.support 10bit HDR DOL2.
+ *  2.4032*3040 @ 25fps
  *
  */
 
@@ -32,8 +35,9 @@
 #include <media/v4l2-mediabus.h>
 #include <linux/of_graph.h>
 #include <linux/pinctrl/consumer.h>
+#include <linux/rk-preisp.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x03)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -67,6 +71,25 @@
 #define IMX577_GAIN_STEP		0x1
 #define IMX577_GAIN_DEFAULT		0x20
 
+#define IMX577_LF_GAIN_REG_H		0x00f0
+#define IMX577_LF_GAIN_REG_L		0x00f1
+#define IMX577_SEF1_GAIN_REG_H		0x00f2
+#define IMX577_SEF1_GAIN_REG_L		0x00f3
+#define IMX577_SEF2_GAIN_REG_H		0x00f4
+#define IMX577_SEF2_GAIN_REG_L		0x00f5
+
+#define IMX577_LF_EXPO_REG_H		0x00ea
+#define IMX577_LF_EXPO_REG_L		0x00eb
+#define IMX577_SEF1_EXPO_REG_H		0x00ec
+#define IMX577_SEF1_EXPO_REG_L		0x00ed
+#define IMX577_SEF2_EXPO_REG_H		0x00ee
+#define IMX577_SEF2_EXPO_REG_L		0x00ef
+
+#define IMX577_RHS1_REG_H		0x00e6
+#define IMX577_RHS1_REG_L		0x00e7
+#define IMX577_RHS2_REG_H		0x00e8
+#define IMX577_RHS2_REG_L		0x00e9
+
 #define IMX577_REG_TEST_PATTERN		0x0600
 #define	IMX577_TEST_PATTERN_ENABLE	0x02
 #define	IMX577_TEST_PATTERN_DISABLE	0x0
@@ -79,14 +102,29 @@
 #define IMX577_FETCH_AGAIN_H(VAL)	(((VAL) >> 8) & 0x03)
 #define IMX577_FETCH_AGAIN_L(VAL)	((VAL) & 0xFF)
 
+#define IMX577_FETCH_GAIN_H(VAL)	(((VAL) >> 8) & 0xFF)
+#define IMX577_FETCH_GAIN_L(VAL)	((VAL) & 0xFF)
+
+#define IMX577_FETCH_RHS1_H(VAL)	(((VAL) >> 8) & 0xFF)
+#define IMX577_FETCH_RHS1_L(VAL)	((VAL) & 0xFF)
+
 #define REG_NULL			0xFFFF
 
 #define IMX577_REG_VALUE_08BIT		1
 #define IMX577_REG_VALUE_16BIT		2
 #define IMX577_REG_VALUE_24BIT		3
 
+#define IMX577_GROUP_HOLD_REG		0x0104
+#define IMX577_GROUP_HOLD_START		0x01
+#define IMX577_GROUP_HOLD_END		0x00
+
+/* Basic Readout Lines. Number of necessary readout lines in sensor */
+#define BRL_FULL			3077
+#define CIT_MARGIN			22
+
 #define OF_CAMERA_PINCTRL_STATE_DEFAULT	"rockchip,camera_default"
 #define OF_CAMERA_PINCTRL_STATE_SLEEP	"rockchip,camera_sleep"
+#define OF_CAMERA_HDR_MODE		"rockchip,camera-hdr-mode"
 
 #define IMX577_NAME			"imx577"
 
@@ -145,9 +183,12 @@ struct imx577 {
 	bool			streaming;
 	bool			power_on;
 	const struct imx577_mode *cur_mode;
+	bool			has_init_exp;
+	struct preisp_hdrae_exp_s init_hdrae_exp;
 	u32			cur_pixel_rate;
 	u32			cur_link_freq;
 	u32			module_index;
+	u32			cur_vts;
 	const char		*module_facing;
 	const char		*module_name;
 	const char		*len_name;
@@ -158,7 +199,7 @@ struct imx577 {
 
 #define to_imx577(sd) container_of(sd, struct imx577, subdev)
 
-static const struct regval imx577_global_regs[] = {
+static __maybe_unused const struct regval imx577_global_regs[] = {
 	{0x0136, 0x18},
 	{0x0137, 0x00},
 	{0x3C7E, 0x01},
@@ -273,7 +314,7 @@ static const struct regval imx577_global_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval imx577_linear_10bit_4056x3040_60fps_regs[] = {
+static __maybe_unused const struct regval imx577_linear_10bit_4056x3040_60fps_regs[] = {
 	{0x0112, 0x0A},
 	{0x0113, 0x0A},
 	{0x0114, 0x03},
@@ -395,7 +436,7 @@ static const struct regval imx577_linear_10bit_4056x3040_60fps_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval imx577_linear_10bit_4056x3040_30fps_regs[] = {
+static __maybe_unused const struct regval imx577_linear_10bit_4056x3040_30fps_regs[] = {
 	{0x0112, 0x0A},
 	{0x0113, 0x0A},
 	{0x0114, 0x03},
@@ -516,7 +557,251 @@ static const struct regval imx577_linear_10bit_4056x3040_30fps_regs[] = {
 	{REG_NULL, 0x00},
 };
 
-static const struct regval imx577_linear_12bit_4056x3040_40fps_regs[] = {
+static __maybe_unused const struct regval imx577_hdr2_10bit_4056x3040_15fps_regs[] = {
+	{0x0112, 0x0A},
+	{0x0113, 0x0A},
+	{0x0114, 0x03},
+	{0x0342, 0x11},
+	{0x0343, 0xA0},
+	{0x0340, 0x18},
+	{0x0341, 0x3D},
+	{0x3210, 0x00},
+	{0x0344, 0x00},
+	{0x0345, 0x00},
+	{0x0346, 0x00},
+	{0x0347, 0x00},
+	{0x0348, 0x0F},
+	{0x0349, 0xD7},
+	{0x034A, 0x0B},
+	{0x034B, 0xDF},
+	{0x00E3, 0x01},
+	{0x00E4, 0x01},
+	{0x00E5, 0x00},//vc:0 LI:1
+	{0x00FC, 0x0A},
+	{0x00FD, 0x0A},
+	{0x00FE, 0x0A},
+	{0x00FF, 0x0A},
+	{0xE013, 0x01},//VC:1 LI:0
+	{0x0220, 0x00},
+	{0x0221, 0x11},
+	{0x0381, 0x01},
+	{0x0383, 0x01},
+	{0x0385, 0x01},
+	{0x0387, 0x01},
+	{0x0900, 0x00},
+	{0x0901, 0x11},
+	{0x0902, 0x00},
+	{0x3140, 0x02},
+	{0x3241, 0x11},
+	{0x3250, 0x03},
+	{0x3E10, 0x01},//VC:1 LI:0
+	{0x3E11, 0x02},//VC:2 LI:0
+	{0x3F0D, 0x00},
+	{0x3F42, 0x00},
+	{0x3F43, 0x00},
+	{0x0401, 0x00},
+	{0x0404, 0x00},
+	{0x0405, 0x10},
+	{0x0408, 0x00},
+	{0x0409, 0x00},
+	{0x040A, 0x00},
+	{0x040B, 0x00},
+	{0x040C, 0x0F},
+	{0x040D, 0xD8},
+	{0x040E, 0x0B},
+	{0x040F, 0xE0},
+	{0x034C, 0x0F},
+	{0x034D, 0xDC},
+	{0x034E, 0x0B},
+	{0x034F, 0xE0},
+	{0x0301, 0x05},
+	{0x0303, 0x02},
+	{0x0305, 0x04},
+	{0x0306, 0x01},
+	{0x0307, 0x5E},
+	{0x0309, 0x0A},
+	{0x030B, 0x01},
+	{0x030D, 0x02},
+	{0x030E, 0x01},
+	{0x030F, 0x5E},
+	{0x0310, 0x00},
+	{0x0820, 0x20},
+	{0x0821, 0xD0},
+	{0x0822, 0x00},
+	{0x0823, 0x00},
+	{0x3E20, 0x01},
+	{0x3E37, 0x00},
+	{0x3F50, 0x00},
+	{0x3F56, 0x00},
+	{0x3F57, 0x82},
+	{0x3C0A, 0x5A},
+	{0x3C0B, 0x55},
+	{0x3C0C, 0x28},
+	{0x3C0D, 0x07},
+	{0x3C0E, 0xFF},
+	{0x3C0F, 0x00},
+	{0x3C10, 0x00},
+	{0x3C11, 0x02},
+	{0x3C12, 0x00},
+	{0x3C13, 0x03},
+	{0x3C14, 0x00},
+	{0x3C15, 0x00},
+	{0x3C16, 0x0C},
+	{0x3C17, 0x0C},
+	{0x3C18, 0x0C},
+	{0x3C19, 0x0A},
+	{0x3C1A, 0x0A},
+	{0x3C1B, 0x0A},
+	{0x3C1C, 0x00},
+	{0x3C1D, 0x00},
+	{0x3C1E, 0x00},
+	{0x3C1F, 0x00},
+	{0x3C20, 0x00},
+	{0x3C21, 0x00},
+	{0x3C22, 0x3F},
+	{0x3C23, 0x0A},
+	{0x3E35, 0x01},
+	{0x3F4A, 0x03},
+	{0x3F4B, 0xBF},
+	{0x3F26, 0x00},
+	{0x0202, 0x18},
+	{0x0203, 0x27},
+	{0x0204, 0x00},
+	{0x0205, 0x00},
+	{0x020E, 0x01},
+	{0x020F, 0x00},
+	{0x0210, 0x01},
+	{0x0211, 0x00},
+	{0x0212, 0x01},
+	{0x0213, 0x00},
+	{0x0214, 0x01},
+	{0x0215, 0x00},
+	{REG_NULL, 0x00},
+};
+
+static __maybe_unused const struct regval imx577_hdr2_10bit_4056x3040_30fps_regs[] = {
+	{0x0112, 0x0A},
+	{0x0113, 0x0A},
+	{0x0114, 0x03},
+	{0x0342, 0x11},
+	{0x0343, 0xA0},
+	{0x0340, 0x0E},
+	{0x0341, 0x8A},
+	{0x3210, 0x00},
+	{0x0344, 0x00},
+	{0x0345, 0x00},
+	{0x0346, 0x00},
+	{0x0347, 0x00},
+	{0x0348, 0x0F},
+	{0x0349, 0xD7},
+	{0x034A, 0x0B},
+	{0x034B, 0xDF},
+	{0x00E3, 0x01},
+	{0x00E4, 0x01},
+	{0x00E5, 0x00},//vc:0
+	{0x00FC, 0x0A},
+	{0x00FD, 0x0A},
+	{0x00FE, 0x0A},
+	{0x00FF, 0x0A},
+	{0xE013, 0x01},//vc:1
+	{0x0220, 0x00},
+	{0x0221, 0x11},
+	{0x0381, 0x01},
+	{0x0383, 0x01},
+	{0x0385, 0x01},
+	{0x0387, 0x01},
+	{0x0900, 0x00},
+	{0x0901, 0x11},
+	{0x0902, 0x00},
+	{0x3140, 0x02},
+	{0x3241, 0x11},
+	{0x3250, 0x03},
+	{0x3E10, 0x01},//vc:1  li:0
+	{0x3E11, 0x02},//vc:2  li:0
+	{0x3F0D, 0x00},
+	{0x3F42, 0x00},
+	{0x3F43, 0x00},
+	{0x0401, 0x00},
+	{0x0404, 0x00},
+	{0x0405, 0x10},
+	{0x0408, 0x00},
+	{0x0409, 0x00},
+	{0x040A, 0x00},
+	{0x040B, 0x00},
+	{0x040C, 0x0F},
+	{0x040D, 0xD8},
+	{0x040E, 0x0B},
+	{0x040F, 0xE0},
+	{0x034C, 0x0F},
+	{0x034D, 0xDC},
+	{0x034E, 0x0B},
+	{0x034F, 0xE0},
+	{0x0301, 0x05},
+	{0x0303, 0x02},
+	{0x0305, 0x04},
+	{0x0306, 0x01},
+	{0x0307, 0x5E},
+	{0x0309, 0x0A},
+	{0x030B, 0x01},
+	{0x030D, 0x02},
+	{0x030E, 0x01},
+	{0x030F, 0x5E},
+	{0x0310, 0x00},
+	{0x0820, 0x20},
+	{0x0821, 0xD0},
+	{0x0822, 0x00},
+	{0x0823, 0x00},
+	{0x3E20, 0x01},
+	{0x3E37, 0x00},
+	{0x3F50, 0x00},
+	{0x3F56, 0x00},
+	{0x3F57, 0x82},
+	{0x3C0A, 0x5A},
+	{0x3C0B, 0x55},
+	{0x3C0C, 0x28},
+	{0x3C0D, 0x07},
+	{0x3C0E, 0xFF},
+	{0x3C0F, 0x00},
+	{0x3C10, 0x00},
+	{0x3C11, 0x02},
+	{0x3C12, 0x00},
+	{0x3C13, 0x03},
+	{0x3C14, 0x00},
+	{0x3C15, 0x00},
+	{0x3C16, 0x0C},
+	{0x3C17, 0x0C},
+	{0x3C18, 0x0C},
+	{0x3C19, 0x0A},
+	{0x3C1A, 0x0A},
+	{0x3C1B, 0x0A},
+	{0x3C1C, 0x00},
+	{0x3C1D, 0x00},
+	{0x3C1E, 0x00},
+	{0x3C1F, 0x00},
+	{0x3C20, 0x00},
+	{0x3C21, 0x00},
+	{0x3C22, 0x3F},
+	{0x3C23, 0x0A},
+	{0x3E35, 0x01},
+	{0x3F4A, 0x03},
+	{0x3F4B, 0xBF},
+	{0x3F26, 0x00},
+	{0x0202, 0x0C},
+	{0x0203, 0x08},
+	{0x0204, 0x00},
+	{0x0205, 0x00},
+	{0x020E, 0x01},
+	{0x020F, 0x00},
+	{0x0210, 0x01},
+	{0x0211, 0x00},
+	{0x0212, 0x01},
+	{0x0213, 0x00},
+	{0x0214, 0x01},
+	{0x0215, 0x00},
+	{REG_NULL, 0x00},
+};
+
+static __maybe_unused const struct regval imx577_linear_12bit_4056x3040_40fps_regs[] = {
 	{0x0112, 0x0C},
 	{0x0113, 0x0C},
 	{0x0114, 0x03},
@@ -655,6 +940,26 @@ static const struct imx577_mode supported_modes[] = {
 		.hdr_mode = NO_HDR,
 		.link_freq_idx = 1,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+	},
+	{
+		.width = 4056,
+		.height = 3040,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 250000,
+		},
+		.exp_def = 0x0c10,
+		.hts_def = 0x11a0,
+		.vts_def = 0x0e8a,
+		.bpp = 10,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.reg_list = imx577_hdr2_10bit_4056x3040_30fps_regs,
+		.link_freq_idx = 0,
+		.hdr_mode = HDR_X2,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_0,//L->csi wr0
+		.vc[PAD2] = V4L2_MBUS_CSI2_CHANNEL_1,
+		.vc[PAD3] = V4L2_MBUS_CSI2_CHANNEL_1,//M->csi wr2
 	},
 	{
 		.width = 4056,
@@ -837,6 +1142,7 @@ static int imx577_set_fmt(struct v4l2_subdev *sd,
 #endif
 	} else {
 		imx577->cur_mode = mode;
+		imx577->cur_vts = imx577->cur_mode->vts_def;
 		h_blank = mode->hts_def - mode->width;
 		__v4l2_ctrl_modify_range(imx577->hblank, h_blank,
 					 h_blank, 1, h_blank);
@@ -972,15 +1278,190 @@ static void imx577_set_lsc_cfg(struct imx577 *imx577,
 	mutex_unlock(&imx577->mutex);
 }
 
+static int imx577_set_hdrae(struct imx577 *imx577,
+			    struct preisp_hdrae_exp_s *ae)
+{
+	struct i2c_client *client = imx577->client;
+	u32 l_exp_time, m_exp_time, s_exp_time;
+	u32 l_a_gain, m_a_gain, s_a_gain;
+	int ret = 0;
+	u32 fll, dol_cit1, dol_cit2, dol_off2;
+
+	if (!imx577->has_init_exp && !imx577->streaming) {
+		imx577->init_hdrae_exp = *ae;
+		imx577->has_init_exp = true;
+		dev_dbg(&imx577->client->dev, "imx577 is not streaming, save hdr ae!\n");
+		return ret;
+	}
+	l_exp_time = ae->long_exp_reg;
+	m_exp_time = ae->middle_exp_reg;
+	s_exp_time = ae->short_exp_reg;
+	l_a_gain = ae->long_gain_reg;
+	m_a_gain = ae->middle_gain_reg;
+	s_a_gain = ae->short_gain_reg;
+	dev_dbg(&client->dev,
+		"rev exp req: L_exp: 0x%x, 0x%x, M_exp: 0x%x, 0x%x S_exp: 0x%x, 0x%x\n",
+		l_exp_time, m_exp_time, s_exp_time,
+		l_a_gain, m_a_gain, s_a_gain);
+
+	if (imx577->cur_mode->hdr_mode == HDR_X2) {
+		l_a_gain = m_a_gain;
+		l_exp_time = m_exp_time;
+	}
+
+	ret = imx577_write_reg(client, IMX577_GROUP_HOLD_REG,
+		IMX577_REG_VALUE_08BIT, IMX577_GROUP_HOLD_START);
+	/* gain effect n+1 */
+	if (l_a_gain > 0x160)
+		l_a_gain = 0x160;
+	if (l_a_gain < 0x10)
+		l_a_gain = 0x10;
+	if (s_a_gain > 0x160)
+		s_a_gain = 0x160;
+	if (s_a_gain < 0x10)
+		s_a_gain = 0x10;
+	l_a_gain = 1024 - 1024 * 16 / l_a_gain;
+	s_a_gain = 1024 - 1024 * 16 / s_a_gain;
+
+	ret |= imx577_write_reg(client, IMX577_LF_GAIN_REG_H,
+		IMX577_REG_VALUE_08BIT, IMX577_FETCH_GAIN_H(l_a_gain));
+	ret |= imx577_write_reg(client, IMX577_LF_GAIN_REG_L,
+		IMX577_REG_VALUE_08BIT, IMX577_FETCH_GAIN_L(l_a_gain));
+	ret |= imx577_write_reg(client, IMX577_SEF1_GAIN_REG_H,
+		IMX577_REG_VALUE_08BIT, IMX577_FETCH_GAIN_H(s_a_gain));
+	ret |= imx577_write_reg(client, IMX577_SEF1_GAIN_REG_L,
+		IMX577_REG_VALUE_08BIT, IMX577_FETCH_GAIN_L(s_a_gain));
+
+	fll = imx577->cur_vts;
+	dol_cit1 = l_exp_time >> 1;
+	dol_cit2 = s_exp_time >> 1;
+
+	/*dol_cit1 dol_cit2 dol_off2 should be even*/
+	if (dol_cit1 < 2)
+		dol_cit1 = 2;
+	else if (dol_cit1 > fll - 2 * CIT_MARGIN - 2)
+		dol_cit1 = fll - 2 * CIT_MARGIN - 2;
+	dol_cit1 &= (~0x1);
+
+	if (dol_cit2 < 2)
+		dol_cit2 = 2;
+	else if (dol_cit2 > fll - BRL_FULL - CIT_MARGIN)
+		dol_cit2 = fll - BRL_FULL - CIT_MARGIN;
+	dol_cit2 &= (~0x1);
+
+	dol_off2 = (dol_cit2 + CIT_MARGIN) & (~0x1);
+	if (dol_off2 < dol_cit2 + CIT_MARGIN)
+		dol_off2 = (dol_cit2 + CIT_MARGIN) & (~0x1);
+	else if (dol_off2 > fll - BRL_FULL)
+		dol_off2 = (fll - BRL_FULL) & (~0x1);
+
+	dev_dbg(&client->dev,
+		"l_exp_time=%d,s_exp_time=%d,fll=%d,rhs1=%d,l_a_gain=%d,s_a_gain=%d\n",
+		l_exp_time, s_exp_time, fll, dol_off2, l_a_gain, s_a_gain);
+
+	ret |= imx577_write_reg(client,
+		IMX577_RHS1_REG_L,
+		IMX577_REG_VALUE_08BIT,
+		IMX577_FETCH_RHS1_L(dol_off2));
+	ret |= imx577_write_reg(client,
+		IMX577_RHS1_REG_H,
+		IMX577_REG_VALUE_08BIT,
+		IMX577_FETCH_RHS1_H(dol_off2));
+
+	ret |= imx577_write_reg(client,
+		IMX577_SEF1_EXPO_REG_L,
+		IMX577_REG_VALUE_08BIT,
+		IMX577_FETCH_EXP_L(dol_cit2));
+	ret |= imx577_write_reg(client,
+		IMX577_SEF1_EXPO_REG_H,
+		IMX577_REG_VALUE_08BIT,
+		IMX577_FETCH_EXP_H(dol_cit2));
+	ret |= imx577_write_reg(client,
+		IMX577_LF_EXPO_REG_L,
+		IMX577_REG_VALUE_08BIT,
+		IMX577_FETCH_EXP_L(dol_cit1));
+	ret |= imx577_write_reg(client,
+		IMX577_LF_EXPO_REG_H,
+		IMX577_REG_VALUE_08BIT,
+		IMX577_FETCH_EXP_H(dol_cit1));
+
+	ret |= imx577_write_reg(client, IMX577_GROUP_HOLD_REG,
+		IMX577_REG_VALUE_08BIT, IMX577_GROUP_HOLD_END);
+
+	return ret;
+}
+
+static int imx577_get_channel_info(struct imx577 *imx577, struct rkmodule_channel_info *ch_info)
+{
+	if (ch_info->index < PAD0 || ch_info->index >= PAD_MAX)
+		return -EINVAL;
+	ch_info->vc = imx577->cur_mode->vc[ch_info->index];
+	ch_info->width = imx577->cur_mode->width;
+	ch_info->height = imx577->cur_mode->height;
+	ch_info->bus_fmt = imx577->cur_mode->bus_fmt;
+
+	return 0;
+}
+
 static long imx577_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct imx577 *imx577 = to_imx577(sd);
+	struct rkmodule_hdr_cfg *hdr;
+	struct rkmodule_channel_info *ch_info;
 	long ret = 0;
+	u32 i, h, w;
+	s64 dst_pixel_rate = 0;
 	u32 stream = 0;
+	const struct imx577_mode *mode;
+	u32 lane_num = imx577->bus_cfg.bus.mipi_csi2.num_data_lanes;
 
 	switch (cmd) {
+	case PREISP_CMD_SET_HDRAE_EXP:
+		if (imx577->cur_mode->hdr_mode == HDR_X2)
+			ret = imx577_set_hdrae(imx577, arg);
+		break;
 	case RKMODULE_GET_MODULE_INFO:
 		imx577_get_module_inf(imx577, (struct rkmodule_inf *)arg);
+		break;
+	case RKMODULE_GET_HDR_CFG:
+		hdr = (struct rkmodule_hdr_cfg *)arg;
+		hdr->esp.mode = HDR_NORMAL_VC;
+		hdr->hdr_mode = imx577->cur_mode->hdr_mode;
+		break;
+	case RKMODULE_SET_HDR_CFG:
+		hdr = (struct rkmodule_hdr_cfg *)arg;
+		w = imx577->cur_mode->width;
+		h = imx577->cur_mode->height;
+		for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+			if (w == supported_modes[i].width &&
+			    h == supported_modes[i].height &&
+			    supported_modes[i].hdr_mode == hdr->hdr_mode) {
+				imx577->cur_mode = &supported_modes[i];
+				break;
+			}
+		}
+		if (i == ARRAY_SIZE(supported_modes)) {
+			dev_err(&imx577->client->dev,
+				"not find hdr mode:%d %dx%d config\n",
+				hdr->hdr_mode, w, h);
+			ret = -EINVAL;
+		} else {
+			mode = imx577->cur_mode;
+			imx577->cur_vts = mode->vts_def;
+			w = mode->hts_def - mode->width;
+			h = mode->vts_def - mode->height;
+			mutex_lock(&imx577->mutex);
+			__v4l2_ctrl_modify_range(imx577->hblank, w, w, 1, w);
+			__v4l2_ctrl_modify_range(imx577->vblank, h,
+				IMX577_VTS_MAX - mode->height,
+				1, h);
+			__v4l2_ctrl_s_ctrl(imx577->link_freq, mode->link_freq_idx);
+			dst_pixel_rate = (u32)link_freq_items[mode->link_freq_idx] /
+					mode->bpp * 2 * lane_num;
+			__v4l2_ctrl_s_ctrl_int64(imx577->pixel_rate,
+						 dst_pixel_rate);
+			mutex_unlock(&imx577->mutex);
+		}
 		break;
 	case RKMODULE_AWB_CFG:
 		imx577_set_awb_cfg(imx577, (struct rkmodule_awb_cfg *)arg);
@@ -1003,6 +1484,10 @@ static long imx577_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				 IMX577_REG_VALUE_08BIT,
 				 IMX577_MODE_SW_STANDBY);
 		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = (struct rkmodule_channel_info *)arg;
+		ret = imx577_get_channel_info(imx577, ch_info);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1018,7 +1503,10 @@ static long imx577_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
+	struct rkmodule_hdr_cfg *hdr;
+	struct preisp_hdrae_exp_s *hdrae;
 	struct rkmodule_lsc_cfg *lsc_cfg;
+	struct rkmodule_channel_info *ch_info;
 	long ret = 0;
 	u32 stream = 0;
 
@@ -1052,6 +1540,50 @@ static long imx577_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = -EFAULT;
 		kfree(cfg);
 		break;
+	case RKMODULE_GET_HDR_CFG:
+		hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
+		if (!hdr) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = imx577_ioctl(sd, cmd, hdr);
+		if (!ret) {
+			if (copy_to_user(up, hdr, sizeof(*hdr))) {
+				kfree(hdr);
+				return -EFAULT;
+			}
+		}
+		kfree(hdr);
+		break;
+	case RKMODULE_SET_HDR_CFG:
+		hdr = kzalloc(sizeof(*hdr), GFP_KERNEL);
+		if (!hdr) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		if (copy_from_user(hdr, up, sizeof(*hdr))) {
+			kfree(hdr);
+			return -EFAULT;
+		}
+		ret = imx577_ioctl(sd, cmd, hdr);
+		kfree(hdr);
+		break;
+	case PREISP_CMD_SET_HDRAE_EXP:
+		hdrae = kzalloc(sizeof(*hdrae), GFP_KERNEL);
+		if (!hdrae) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		if (copy_from_user(hdrae, up, sizeof(*hdrae))) {
+			kfree(hdrae);
+			return -EFAULT;
+		}
+		ret = imx577_ioctl(sd, cmd, hdrae);
+		kfree(hdrae);
+		break;
 	case RKMODULE_LSC_CFG:
 		lsc_cfg = kzalloc(sizeof(*lsc_cfg), GFP_KERNEL);
 		if (!lsc_cfg) {
@@ -1073,6 +1605,21 @@ static long imx577_compat_ioctl32(struct v4l2_subdev *sd,
 		else
 			ret = -EFAULT;
 		break;
+	case RKMODULE_GET_CHANNEL_INFO:
+		ch_info = kzalloc(sizeof(*ch_info), GFP_KERNEL);
+		if (!ch_info) {
+			ret = -ENOMEM;
+			return ret;
+		}
+
+		ret = imx577_ioctl(sd, cmd, ch_info);
+		if (!ret) {
+			ret = copy_to_user(up, ch_info, sizeof(*ch_info));
+			if (ret)
+				ret = -EFAULT;
+		}
+		kfree(ch_info);
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -1091,12 +1638,19 @@ static int __imx577_start_stream(struct imx577 *imx577)
 		return ret;
 
 	/* In case these controls are set before streaming */
-	mutex_unlock(&imx577->mutex);
-	ret = v4l2_ctrl_handler_setup(&imx577->ctrl_handler);
-	mutex_lock(&imx577->mutex);
+	ret = __v4l2_ctrl_handler_setup(&imx577->ctrl_handler);
 	if (ret)
 		return ret;
 
+	if (imx577->has_init_exp && imx577->cur_mode->hdr_mode != NO_HDR) {
+		ret = imx577_ioctl(&imx577->subdev, PREISP_CMD_SET_HDRAE_EXP,
+			&imx577->init_hdrae_exp);
+		if (ret) {
+			dev_err(&imx577->client->dev,
+				"init exp fail in hdr mode\n");
+			return ret;
+		}
+	}
 	return imx577_write_reg(imx577->client,
 				 IMX577_REG_CTRL_MODE,
 				 IMX577_REG_VALUE_08BIT,
@@ -1105,6 +1659,7 @@ static int __imx577_start_stream(struct imx577 *imx577)
 
 static int __imx577_stop_stream(struct imx577 *imx577)
 {
+	imx577->has_init_exp = false;
 	return imx577_write_reg(imx577->client,
 				 IMX577_REG_CTRL_MODE,
 				 IMX577_REG_VALUE_08BIT,
@@ -1117,11 +1672,12 @@ static int imx577_s_stream(struct v4l2_subdev *sd, int on)
 	struct i2c_client *client = imx577->client;
 	int ret = 0;
 
-	dev_info(&client->dev, "%s: on: %d, %dx%d@%d\n", __func__, on,
-				imx577->cur_mode->width,
+	dev_info(&client->dev, "%s: on: %d, %dx%d@%d, hdr: %d, bpp: %d\n",
+				__func__, on, imx577->cur_mode->width,
 				imx577->cur_mode->height,
 		DIV_ROUND_CLOSEST(imx577->cur_mode->max_fps.denominator,
-				  imx577->cur_mode->max_fps.numerator));
+				  imx577->cur_mode->max_fps.numerator),
+				  imx577->cur_mode->hdr_mode, imx577->cur_mode->bpp);
 
 	mutex_lock(&imx577->mutex);
 	on = !!on;
@@ -1329,6 +1885,7 @@ static int imx577_enum_frame_interval(struct v4l2_subdev *sd,
 	fie->width = supported_modes[fie->index].width;
 	fie->height = supported_modes[fie->index].height;
 	fie->interval = supported_modes[fie->index].max_fps;
+	fie->reserved[0] = supported_modes[fie->index].hdr_mode;
 
 	return 0;
 }
@@ -1337,12 +1894,15 @@ static int imx577_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad,
 				struct v4l2_mbus_config *config)
 {
 	struct imx577 *imx577 = to_imx577(sd);
+	const struct imx577_mode *mode = imx577->cur_mode;
 	u32 lane_num = imx577->bus_cfg.bus.mipi_csi2.num_data_lanes;
 	u32 val = 0;
 
 	val = 1 << (lane_num - 1) |
 		V4L2_MBUS_CSI2_CHANNEL_0 |
 		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
+	if (mode->hdr_mode != NO_HDR)
+		val |= V4L2_MBUS_CSI2_CHANNEL_1;
 
 	config->type = V4L2_MBUS_CSI2_DPHY;
 	config->flags = val;
@@ -1431,12 +1991,14 @@ static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
 	case V4L2_CID_VBLANK:
-		/* Update max exposure while meeting expected vblanking */
-		max = imx577->cur_mode->height + ctrl->val - 4;
-		__v4l2_ctrl_modify_range(imx577->exposure,
+		if (imx577->cur_mode->hdr_mode == NO_HDR) {
+			/* Update max exposure while meeting expected vblanking */
+			max = imx577->cur_mode->height + ctrl->val - 4;
+			__v4l2_ctrl_modify_range(imx577->exposure,
 					 imx577->exposure->minimum, max,
 					 imx577->exposure->step,
 					 imx577->exposure->default_value);
+		}
 		break;
 	}
 
@@ -1446,6 +2008,8 @@ static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		/* 4 least significant bits of expsoure are fractional part */
+		if (imx577->cur_mode->hdr_mode != NO_HDR)
+			return ret;
 		ret = imx577_write_reg(imx577->client,
 				       IMX577_REG_EXPOSURE_H,
 				       IMX577_REG_VALUE_08BIT,
@@ -1463,6 +2027,8 @@ static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 		 * then formula change to:
 		 * gain_reg = 1024 - 1024 * 16 / (gain_ana * 16)
 		 */
+		if (imx577->cur_mode->hdr_mode != NO_HDR)
+			return ret;
 		if (ctrl->val > 0x160)
 			ctrl->val = 0x160;
 		if (ctrl->val < 0x10)
@@ -1519,8 +2085,9 @@ static int imx577_initialize_controls(struct imx577 *imx577)
 	handler->lock = &imx577->mutex;
 
 	imx577->link_freq = v4l2_ctrl_new_int_menu(handler, NULL,
-			V4L2_CID_LINK_FREQ,
-			1, 0, link_freq_items);
+				V4L2_CID_LINK_FREQ,
+				ARRAY_SIZE(link_freq_items) - 1, 0,
+				link_freq_items);
 
 	if (imx577->cur_mode->bus_fmt == MEDIA_BUS_FMT_SRGGB10_1X10) {
 		imx577->cur_link_freq = 0;
@@ -1549,7 +2116,7 @@ static int imx577_initialize_controls(struct imx577 *imx577)
 				V4L2_CID_VBLANK, vblank_def,
 				IMX577_VTS_MAX - mode->height,
 				1, vblank_def);
-
+	imx577->cur_vts = mode->vts_def;
 	exposure_max = mode->vts_def - 4;
 	imx577->exposure = v4l2_ctrl_new_std(handler, &imx577_ctrl_ops,
 				V4L2_CID_EXPOSURE, IMX577_EXPOSURE_MIN,
@@ -1574,6 +2141,7 @@ static int imx577_initialize_controls(struct imx577 *imx577)
 	}
 
 	imx577->subdev.ctrl_handler = handler;
+	imx577->has_init_exp = false;
 
 	return 0;
 
@@ -1624,6 +2192,7 @@ static int imx577_probe(struct i2c_client *client,
 	struct device_node *endpoint;
 	char facing[2];
 	int ret;
+	u32 i, hdr_mode = 0;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		DRIVER_VERSION >> 16,
@@ -1647,7 +2216,20 @@ static int imx577_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	ret = of_property_read_u32(node, OF_CAMERA_HDR_MODE, &hdr_mode);
+	if (ret) {
+		hdr_mode = NO_HDR;
+		dev_warn(dev, " Get hdr mode failed! no hdr default\n");
+	}
+
 	imx577->client = client;
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		if (hdr_mode == supported_modes[i].hdr_mode) {
+			imx577->cur_mode = &supported_modes[i];
+			break;
+		}
+	}
+
 	endpoint = of_graph_get_next_endpoint(dev->of_node, NULL);
 	if (!endpoint) {
 		dev_err(dev, "Failed to get endpoint\n");
@@ -1659,7 +2241,6 @@ static int imx577_probe(struct i2c_client *client,
 		dev_err(dev, "Failed to get bus cfg\n");
 		return ret;
 	}
-	imx577->cur_mode = &supported_modes[0];
 
 	imx577->xvclk = devm_clk_get(dev, "xvclk");
 	if (IS_ERR(imx577->xvclk)) {
@@ -1718,7 +2299,8 @@ static int imx577_probe(struct i2c_client *client,
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &imx577_internal_ops;
-	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
+	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE |
+		     V4L2_SUBDEV_FL_HAS_EVENTS;
 #endif
 #if defined(CONFIG_MEDIA_CONTROLLER)
 	imx577->pad.flags = MEDIA_PAD_FL_SOURCE;
