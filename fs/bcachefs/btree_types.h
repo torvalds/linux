@@ -251,6 +251,9 @@ struct btree_path {
 		struct btree	*b;
 		struct btree_node_iter iter;
 		u32		lock_seq;
+#ifdef CONFIG_BCACHEFS_LOCK_TIME_STATS
+		u64             lock_taken_time;
+#endif
 	}			l[BTREE_MAX_DEPTH];
 #ifdef CONFIG_BCACHEFS_DEBUG
 	unsigned long		ip_allocated;
@@ -436,6 +439,7 @@ struct btree_trans {
 	unsigned		journal_u64s;
 	unsigned		journal_preres_u64s;
 	struct replicas_delta_list *fs_usage_deltas;
+	int                      lock_name_idx;
 };
 
 #define BTREE_FLAGS()							\

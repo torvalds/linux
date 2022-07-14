@@ -382,7 +382,7 @@ retry:
 		if (!ck)
 			goto retry;
 
-		mark_btree_node_locked(path, 0, SIX_LOCK_intent);
+		mark_btree_node_locked(trans, path, 0, SIX_LOCK_intent);
 		path->locks_want = 1;
 	} else {
 		enum six_lock_type lock_want = __btree_lock_want(path, 0);
@@ -403,7 +403,7 @@ retry:
 			goto retry;
 		}
 
-		mark_btree_node_locked(path, 0, lock_want);
+		mark_btree_node_locked(trans, path, 0, lock_want);
 	}
 
 	path->l[0].lock_seq	= ck->c.lock.state.seq;

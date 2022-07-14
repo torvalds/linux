@@ -177,7 +177,7 @@ bool __bch2_btree_node_relock(struct btree_trans *trans,
 	if (six_relock_type(&b->c.lock, want, path->l[level].lock_seq) ||
 	    (btree_node_lock_seq_matches(path, b, level) &&
 	     btree_node_lock_increment(trans, b, level, want))) {
-		mark_btree_node_locked(path, level, want);
+		mark_btree_node_locked(trans, path, level, want);
 		return true;
 	}
 fail:
@@ -230,7 +230,7 @@ bool bch2_btree_node_upgrade(struct btree_trans *trans,
 
 	return false;
 success:
-	mark_btree_node_intent_locked(path, level);
+	mark_btree_node_intent_locked(trans, path, level);
 	return true;
 }
 
@@ -1161,7 +1161,7 @@ void bch2_trans_node_add(struct btree_trans *trans, struct btree *b)
 			    t != BTREE_NODE_UNLOCKED) {
 				btree_node_unlock(trans, path, b->c.level);
 				six_lock_increment(&b->c.lock, (enum six_lock_type) t);
-				mark_btree_node_locked(path, b->c.level, (enum six_lock_type) t);
+				mark_btree_node_locked(trans, path, b->c.level, (enum six_lock_type) t);
 			}
 
 			btree_path_level_init(trans, path, b);
@@ -1238,7 +1238,7 @@ static inline int btree_path_lock_root(struct btree_trans *trans,
 			for (i = path->level + 1; i < BTREE_MAX_DEPTH; i++)
 				path->l[i].b = NULL;
 
-			mark_btree_node_locked(path, path->level, lock_type);
+			mark_btree_node_locked(trans, path, path->level, lock_type);
 			btree_path_level_init(trans, path, b);
 			return 0;
 		}
@@ -1402,7 +1402,7 @@ static __always_inline int btree_path_down(struct btree_trans *trans,
 	if (unlikely(ret))
 		goto err;
 
-	mark_btree_node_locked(path, level, lock_type);
+	mark_btree_node_locked(trans, path, level, lock_type);
 	btree_path_level_init(trans, path, b);
 
 	if (likely(!trans->journal_replay_not_finished &&
@@ -3272,6 +3272,15 @@ void __bch2_trans_init(struct btree_trans *trans, struct bch_fs *c,
 	trans->task		= current;
 	trans->journal_replay_not_finished =
 		!test_bit(JOURNAL_REPLAY_DONE, &c->journal.flags);
+
+	while (c->lock_held_stats.names[trans->lock_name_idx] != fn
+	       && c->lock_held_stats.names[trans->lock_name_idx] != 0)
+		trans->lock_name_idx++;
+
+	if (trans->lock_name_idx >= BCH_LOCK_TIME_NR)
+		pr_warn_once("lock_times array not big enough!");
+	else
+		c->lock_held_stats.names[trans->lock_name_idx] = fn;
 
 	bch2_trans_alloc_paths(trans, c);
 

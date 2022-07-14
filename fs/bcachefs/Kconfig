@@ -59,6 +59,12 @@ config BCACHEFS_TESTS
 	help
 	Include some unit and performance tests for the core btree code
 
+config BCACHEFS_LOCK_TIME_STATS
+       bool "bcachefs lock time statistics"
+       depends on BCACHEFS_FS
+       help
+       Expose statistics for how long we held a lock in debugfs
+
 config BCACHEFS_NO_LATENCY_ACCT
 	bool "disable latency accounting and time stats"
 	depends on BCACHEFS_FS

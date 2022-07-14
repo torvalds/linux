@@ -319,6 +319,8 @@ BCH_DEBUG_PARAMS_DEBUG()
 #undef BCH_DEBUG_PARAM
 #endif
 
+#define BCH_LOCK_TIME_NR 128
+
 #define BCH_TIME_STATS()			\
 	x(btree_node_mem_alloc)			\
 	x(btree_node_split)			\
@@ -525,6 +527,11 @@ enum {
 
 struct btree_debug {
 	unsigned		id;
+};
+
+struct lock_held_stats {
+	struct bch2_time_stats	times[BCH_LOCK_TIME_NR];
+	const char		*names[BCH_LOCK_TIME_NR];
 };
 
 struct bch_fs_pcpu {
@@ -920,6 +927,8 @@ mempool_t		bio_bounce_pages;
 	bool			promote_whole_extents;
 
 	struct bch2_time_stats	times[BCH_TIME_STAT_NR];
+
+	struct lock_held_stats	lock_held_stats;
 };
 
 static inline void bch2_set_ra_pages(struct bch_fs *c, unsigned ra_pages)
