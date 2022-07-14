@@ -198,8 +198,10 @@ struct request {
 	void *end_io_data;
 };
 
-#define req_op(req) \
-	((req)->cmd_flags & REQ_OP_MASK)
+static inline enum req_op req_op(const struct request *req)
+{
+	return req->cmd_flags & REQ_OP_MASK;
+}
 
 static inline bool blk_rq_is_passthrough(struct request *rq)
 {

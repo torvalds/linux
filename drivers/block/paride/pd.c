@@ -501,6 +501,8 @@ static enum action do_pd_io_start(void)
 			return do_pd_read_start();
 		else
 			return do_pd_write_start();
+	default:
+		break;
 	}
 	return Fail;
 }

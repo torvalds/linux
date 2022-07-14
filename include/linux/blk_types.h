@@ -463,8 +463,10 @@ enum stat_group {
 	NR_STAT_GROUPS
 };
 
-#define bio_op(bio) \
-	((bio)->bi_opf & REQ_OP_MASK)
+static inline enum req_op bio_op(const struct bio *bio)
+{
+	return bio->bi_opf & REQ_OP_MASK;
+}
 
 /* obsolete, don't use in new code */
 static inline void bio_set_op_attrs(struct bio *bio, unsigned op,

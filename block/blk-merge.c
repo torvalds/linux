@@ -405,6 +405,8 @@ unsigned int blk_recalc_rq_segments(struct request *rq)
 		return 1;
 	case REQ_OP_WRITE_ZEROES:
 		return 0;
+	default:
+		break;
 	}
 
 	rq_for_each_bvec(bv, rq, iter)
