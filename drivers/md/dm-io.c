@@ -489,7 +489,7 @@ static int dp_init(struct dm_io_request *io_req, struct dpages *dp,
 
 	case DM_IO_VMA:
 		flush_kernel_vmap_range(io_req->mem.ptr.vma, size);
-		if (io_req->bi_op == REQ_OP_READ) {
+		if ((io_req->bi_opf & REQ_OP_MASK) == REQ_OP_READ) {
 			dp->vma_invalidate_address = io_req->mem.ptr.vma;
 			dp->vma_invalidate_size = size;
 		}
@@ -519,11 +519,13 @@ int dm_io(struct dm_io_request *io_req, unsigned num_regions,
 
 	if (!io_req->notify.fn)
 		return sync_io(io_req->client, num_regions, where,
-			       io_req->bi_op, io_req->bi_op_flags, &dp,
+			       io_req->bi_opf & REQ_OP_MASK,
+			       io_req->bi_opf & ~REQ_OP_MASK, &dp,
 			       sync_error_bits);
 
-	return async_io(io_req->client, num_regions, where, io_req->bi_op,
-			io_req->bi_op_flags, &dp, io_req->notify.fn,
+	return async_io(io_req->client, num_regions, where,
+			io_req->bi_opf & REQ_OP_MASK,
+			io_req->bi_opf & ~REQ_OP_MASK, &dp, io_req->notify.fn,
 			io_req->notify.context);
 }
 EXPORT_SYMBOL(dm_io);

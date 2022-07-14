@@ -235,8 +235,7 @@ static int chunk_io(struct pstore *ps, void *area, chunk_t chunk, int op,
 		.count = ps->store->chunk_size,
 	};
 	struct dm_io_request io_req = {
-		.bi_op = op,
-		.bi_op_flags = op_flags,
+		.bi_opf = op | op_flags,
 		.mem.type = DM_IO_VMA,
 		.mem.ptr.vma = area,
 		.client = ps->io_client,

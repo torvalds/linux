@@ -582,8 +582,7 @@ static void use_dmio(struct dm_buffer *b, int rw, sector_t sector,
 {
 	int r;
 	struct dm_io_request io_req = {
-		.bi_op = rw,
-		.bi_op_flags = 0,
+		.bi_opf = rw,
 		.notify.fn = dmio_complete,
 		.notify.context = b,
 		.client = b->c->dm_io,
@@ -1341,8 +1340,7 @@ EXPORT_SYMBOL_GPL(dm_bufio_write_dirty_buffers);
 int dm_bufio_issue_flush(struct dm_bufio_client *c)
 {
 	struct dm_io_request io_req = {
-		.bi_op = REQ_OP_WRITE,
-		.bi_op_flags = REQ_PREFLUSH | REQ_SYNC,
+		.bi_opf = REQ_OP_WRITE | REQ_PREFLUSH | REQ_SYNC,
 		.mem.type = DM_IO_KMEM,
 		.mem.ptr.addr = NULL,
 		.client = c->dm_io,
@@ -1365,8 +1363,7 @@ EXPORT_SYMBOL_GPL(dm_bufio_issue_flush);
 int dm_bufio_issue_discard(struct dm_bufio_client *c, sector_t block, sector_t count)
 {
 	struct dm_io_request io_req = {
-		.bi_op = REQ_OP_DISCARD,
-		.bi_op_flags = REQ_SYNC,
+		.bi_opf = REQ_OP_DISCARD | REQ_SYNC,
 		.mem.type = DM_IO_KMEM,
 		.mem.ptr.addr = NULL,
 		.client = c->dm_io,
