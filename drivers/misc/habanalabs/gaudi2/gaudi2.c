@@ -9727,7 +9727,7 @@ static int gaudi2_get_mmu_base(struct hl_device *hdev, u64 mmu_id, u32 *mmu_base
 
 static void gaudi2_ack_mmu_error(struct hl_device *hdev, u64 mmu_id)
 {
-	bool is_pmmu = (mmu_id == HW_CAP_PMMU ? true : false);
+	bool is_pmmu = (mmu_id == HW_CAP_PMMU);
 	struct gaudi2_device *gaudi2 = hdev->asic_specific;
 	u32 mmu_base;
 
