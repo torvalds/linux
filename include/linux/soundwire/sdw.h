@@ -922,6 +922,8 @@ int sdw_bus_master_add(struct sdw_bus *bus, struct device *parent,
 		       struct fwnode_handle *fwnode);
 void sdw_bus_master_delete(struct sdw_bus *bus);
 
+void sdw_show_ping_status(struct sdw_bus *bus, bool sync_delay);
+
 /**
  * sdw_port_config: Master or Slave Port configuration
  *
