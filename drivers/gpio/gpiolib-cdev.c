@@ -569,6 +569,12 @@ static u64 line_event_timestamp(struct line *line)
 	return ktime_get_ns();
 }
 
+static u32 line_event_id(int level)
+{
+	return level ? GPIO_V2_LINE_EVENT_RISING_EDGE :
+		       GPIO_V2_LINE_EVENT_FALLING_EDGE;
+}
+
 static enum hte_return process_hw_ts_thread(void *p)
 {
 	struct line *line;
@@ -590,26 +596,19 @@ static enum hte_return process_hw_ts_thread(void *p)
 
 	switch (eflags) {
 	case GPIO_V2_LINE_FLAG_EDGE_BOTH:
-		if (line->raw_level >= 0) {
-			if (test_bit(FLAG_ACTIVE_LOW, &line->desc->flags))
-				level = !line->raw_level;
-			else
-				level = line->raw_level;
-		} else {
-			level = gpiod_get_value_cansleep(line->desc);
-		}
+		level = (line->raw_level >= 0) ?
+				line->raw_level :
+				gpiod_get_raw_value_cansleep(line->desc);
 
-		if (level)
-			le.id = GPIO_V2_LINE_EVENT_RISING_EDGE;
-		else
-			le.id = GPIO_V2_LINE_EVENT_FALLING_EDGE;
+		if (test_bit(FLAG_ACTIVE_LOW, &line->desc->flags))
+			level = !level;
+
+		le.id = line_event_id(level);
 		break;
 	case GPIO_V2_LINE_FLAG_EDGE_RISING:
-		/* Emit low-to-high event */
 		le.id = GPIO_V2_LINE_EVENT_RISING_EDGE;
 		break;
 	case GPIO_V2_LINE_FLAG_EDGE_FALLING:
-		/* Emit high-to-low event */
 		le.id = GPIO_V2_LINE_EVENT_FALLING_EDGE;
 		break;
 	default:
@@ -684,20 +683,12 @@ static irqreturn_t edge_irq_thread(int irq, void *p)
 
 	switch (READ_ONCE(line->eflags)) {
 	case GPIO_V2_LINE_FLAG_EDGE_BOTH:
-		if (gpiod_get_value_cansleep(line->desc))
-			/* Emit low-to-high event */
-			le.id = GPIO_V2_LINE_EVENT_RISING_EDGE;
-		else
-			/* Emit high-to-low event */
-			le.id = GPIO_V2_LINE_EVENT_FALLING_EDGE;
-
+		le.id = line_event_id(gpiod_get_value_cansleep(line->desc));
 		break;
 	case GPIO_V2_LINE_FLAG_EDGE_RISING:
-		/* Emit low-to-high event */
 		le.id = GPIO_V2_LINE_EVENT_RISING_EDGE;
 		break;
 	case GPIO_V2_LINE_FLAG_EDGE_FALLING:
-		/* Emit high-to-low event */
 		le.id = GPIO_V2_LINE_EVENT_FALLING_EDGE;
 		break;
 	default:
@@ -821,12 +812,7 @@ static void debounce_work_func(struct work_struct *work)
 			le.line_seqno : atomic_inc_return(&lr->seqno);
 	}
 
-	if (level)
-		/* Emit low-to-high event */
-		le.id = GPIO_V2_LINE_EVENT_RISING_EDGE;
-	else
-		/* Emit high-to-low event */
-		le.id = GPIO_V2_LINE_EVENT_FALLING_EDGE;
+	le.id = line_event_id(level);
 
 	linereq_put_event(lr, &le);
 }
