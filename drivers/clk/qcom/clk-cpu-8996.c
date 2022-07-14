@@ -49,6 +49,7 @@
  * detect voltage droops.
  */
 
+#include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/io.h>
@@ -75,6 +76,8 @@ enum _pmux_input {
 #define MUX_OFFSET	0x40
 #define ALT_PLL_OFFSET	0x100
 #define SSSCTL_OFFSET 0x160
+
+#define PMUX_MASK	0x3
 
 static const u8 prim_pll_regs[PLL_OFF_MAX_REGS] = {
 	[PLL_OFF_L_VAL] = 0x04,
@@ -244,8 +247,6 @@ static struct clk_alpha_pll perfcl_alt_pll = {
 
 struct clk_cpu_8996_pmux {
 	u32	reg;
-	u8	shift;
-	u8	width;
 	struct notifier_block nb;
 	struct clk_regmap clkr;
 };
@@ -265,26 +266,22 @@ static u8 clk_cpu_8996_pmux_get_parent(struct clk_hw *hw)
 {
 	struct clk_regmap *clkr = to_clk_regmap(hw);
 	struct clk_cpu_8996_pmux *cpuclk = to_clk_cpu_8996_pmux_hw(hw);
-	u32 mask = GENMASK(cpuclk->width - 1, 0);
 	u32 val;
 
 	regmap_read(clkr->regmap, cpuclk->reg, &val);
-	val >>= cpuclk->shift;
 
-	return val & mask;
+	return FIELD_GET(PMUX_MASK, val);
 }
 
 static int clk_cpu_8996_pmux_set_parent(struct clk_hw *hw, u8 index)
 {
 	struct clk_regmap *clkr = to_clk_regmap(hw);
 	struct clk_cpu_8996_pmux *cpuclk = to_clk_cpu_8996_pmux_hw(hw);
-	u32 mask = GENMASK(cpuclk->width + cpuclk->shift - 1, cpuclk->shift);
 	u32 val;
 
-	val = index;
-	val <<= cpuclk->shift;
+	val = FIELD_PREP(PMUX_MASK, index);
 
-	return regmap_update_bits(clkr->regmap, cpuclk->reg, mask, val);
+	return regmap_update_bits(clkr->regmap, cpuclk->reg, PMUX_MASK, val);
 }
 
 static int clk_cpu_8996_pmux_determine_rate(struct clk_hw *hw,
@@ -366,8 +363,6 @@ static const struct clk_hw *perfcl_pmux_parents[] = {
 
 static struct clk_cpu_8996_pmux pwrcl_pmux = {
 	.reg = PWRCL_REG_OFFSET + MUX_OFFSET,
-	.shift = 0,
-	.width = 2,
 	.nb.notifier_call = cpu_clk_notifier_cb,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "pwrcl_pmux",
@@ -381,8 +376,6 @@ static struct clk_cpu_8996_pmux pwrcl_pmux = {
 
 static struct clk_cpu_8996_pmux perfcl_pmux = {
 	.reg = PERFCL_REG_OFFSET + MUX_OFFSET,
-	.shift = 0,
-	.width = 2,
 	.nb.notifier_call = cpu_clk_notifier_cb,
 	.clkr.hw.init = &(struct clk_init_data) {
 		.name = "perfcl_pmux",
