@@ -1265,7 +1265,10 @@ static int tce_iommu_attach_group(void *iommu_data,
 		goto unlock_exit;
 	}
 
-	/* Check if new group has the same iommu_ops (i.e. compatible) */
+	/*
+	 * Check if new group has the same iommu_table_group_ops
+	 * (i.e. compatible)
+	 */
 	list_for_each_entry(tcegrp, &container->group_list, next) {
 		struct iommu_table_group *table_group_tmp;
 
