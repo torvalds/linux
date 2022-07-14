@@ -64,7 +64,7 @@
 		compatible = "gpio-keys";
 		autorepeat;
 
-		volupkey {
+		volup-key {
 			label = "Volume Up";
 			gpios = <&pm8994_gpios 3 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -73,7 +73,7 @@
 			debounce-interval = <15>;
 		};
 
-		camsnapkey {
+		camsnap-key {
 			label = "Camera Snapshot";
 			gpios = <&pm8994_gpios 4 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -82,7 +82,7 @@
 			debounce-interval = <15>;
 		};
 
-		camfocuskey {
+		camfocus-key {
 			label = "Camera Focus";
 			gpios = <&pm8994_gpios 5 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -100,7 +100,7 @@
 
 		label = "GPIO Hall Effect Sensor";
 
-		hall-front-sensor {
+		event-hall-front-sensor {
 			label = "Hall Effect Front Sensor";
 			gpios = <&tlmm 42 GPIO_ACTIVE_HIGH>;
 			linux,input-type = <EV_SW>;
@@ -108,7 +108,7 @@
 			linux,can-disable;
 		};
 
-		hall-back-sensor {
+		event-hall-back-sensor {
 			label = "Hall Effect Back Sensor";
 			gpios = <&tlmm 75 GPIO_ACTIVE_HIGH>;
 			linux,input-type = <EV_SW>;
@@ -470,7 +470,7 @@
 };
 
 &pm8994_gpios {
-	bt_en_gpios: bt_en_gpios {
+	bt_en_gpios: bt-en-gpios-state {
 		pinconf {
 			pins = "gpio19";
 			function = PMIC_GPIO_FUNC_NORMAL;
@@ -481,7 +481,7 @@
 		};
 	};
 
-	divclk4_pin_a: divclk4 {
+	divclk4_pin_a: divclk4-state {
 		pinconf {
 			pins = "gpio18";
 			function = PMIC_GPIO_FUNC_FUNC2;
@@ -519,21 +519,24 @@
 	 * TODO: remove once a driver is available
 	 * TODO: add VBUS GPIO 5
 	 */
-	hd3ss460_pol: pol_low {
+	hd3ss460_pol: pol-low-state {
 		pins = "gpio8";
-		drive-strength = <3>;
+		function = PMIC_GPIO_FUNC_NORMAL;
+		qcom,drive-strength = <3>;
 		bias-pull-down;
 	};
 
-	hd3ss460_amsel: amsel_high {
+	hd3ss460_amsel: amsel-high-state {
 		pins = "gpio9";
-		drive-strength = <1>;
+		function = PMIC_GPIO_FUNC_NORMAL;
+		qcom,drive-strength = <1>;
 		bias-pull-up;
 	};
 
-	hd3ss460_en: en_high {
+	hd3ss460_en: en-high-state {
 		pins = "gpio10";
-		drive-strength = <1>;
+		function = PMIC_GPIO_FUNC_NORMAL;
+		qcom,drive-strength = <1>;
 		bias-pull-up;
 	};
 };

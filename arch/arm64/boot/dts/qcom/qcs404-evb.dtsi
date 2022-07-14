@@ -304,7 +304,7 @@
 };
 
 &pms405_gpios {
-	usb_vbus_boost_pin: usb-vbus-boost-pin {
+	usb_vbus_boost_pin: usb-vbus-boost-state {
 		pinconf {
 			pins = "gpio3";
 			function = PMIC_GPIO_FUNC_NORMAL;
@@ -312,7 +312,7 @@
 			power-source = <1>;
 		};
 	};
-	usb3_vbus_pin: usb3-vbus-pin {
+	usb3_vbus_pin: usb3-vbus-state {
 		pinconf {
 			pins = "gpio12";
 			function = PMIC_GPIO_FUNC_NORMAL;

@@ -215,7 +215,7 @@
 
 	firmware {
 		scm: scm {
-			compatible = "qcom,scm-msm8953";
+			compatible = "qcom,scm-msm8953", "qcom,scm";
 			clocks = <&gcc GCC_CRYPTO_CLK>,
 				 <&gcc GCC_CRYPTO_AXI_CLK>,
 				 <&gcc GCC_CRYPTO_AHB_CLK>;
@@ -795,7 +795,7 @@
 			};
 		};
 
-		sdhc_1: sdhci@7824900 {
+		sdhc_1: mmc@7824900 {
 			compatible = "qcom,msm8953-sdhci", "qcom,sdhci-msm-v4";
 
 			reg = <0x7824900 0x500>, <0x7824000 0x800>;
@@ -855,7 +855,7 @@
 			};
 		};
 
-		sdhc_2: sdhci@7864900 {
+		sdhc_2: mmc@7864900 {
 			compatible = "qcom,msm8953-sdhci", "qcom,sdhci-msm-v4";
 
 			reg = <0x7864900 0x500>, <0x7864000 0x800>;

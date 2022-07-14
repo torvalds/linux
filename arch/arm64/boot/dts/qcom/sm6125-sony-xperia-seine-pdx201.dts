@@ -42,11 +42,9 @@
 	gpio-keys {
 		status = "okay";
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
 
-		vol-dn {
+		key-vol-dn {
 			label = "Volume Down";
 			gpios = <&tlmm 47 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -88,11 +86,19 @@
 	status = "okay";
 };
 
-&sdc2_state_off {
+&sdc2_off_state {
 	sd-cd {
 		pins = "gpio98";
-		bias-disable;
 		drive-strength = <2>;
+		bias-disable;
+	};
+};
+
+&sdc2_on_state {
+	sd-cd {
+		pins = "gpio98";
+		drive-strength = <2>;
+		bias-pull-up;
 	};
 };
 
@@ -102,32 +108,6 @@
 
 &tlmm {
 	gpio-reserved-ranges = <22 2>, <28 6>;
-
-	sdc2_state_on: sdc2-on {
-		clk {
-			pins = "sdc2_clk";
-			bias-disable;
-			drive-strength = <16>;
-		};
-
-		cmd {
-			pins = "sdc2_cmd";
-			bias-pull-up;
-			drive-strength = <10>;
-		};
-
-		data {
-			pins = "sdc2_data";
-			bias-pull-up;
-			drive-strength = <10>;
-		};
-
-		sd-cd {
-			pins = "gpio98";
-			bias-pull-up;
-			drive-strength = <2>;
-		};
-	};
 };
 
 &usb3 {

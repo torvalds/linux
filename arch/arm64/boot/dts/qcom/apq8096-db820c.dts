@@ -10,6 +10,7 @@
 #include "pmi8994.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/leds/common.h>
 #include <dt-bindings/pinctrl/qcom,pmic-gpio.h>
 #include <dt-bindings/sound/qcom,q6afe.h>
 #include <dt-bindings/sound/qcom,q6asm.h>
@@ -49,11 +50,11 @@
 		serial0 = &blsp2_uart2;
 		serial1 = &blsp2_uart3;
 		serial2 = &blsp1_uart2;
-		i2c0	= &blsp1_i2c3;
-		i2c1	= &blsp2_i2c1;
-		i2c2	= &blsp2_i2c1;
-		spi0	= &blsp1_spi1;
-		spi1	= &blsp2_spi6;
+		i2c0 = &blsp1_i2c3;
+		i2c1 = &blsp2_i2c1;
+		i2c2 = &blsp2_i2c1;
+		spi0 = &blsp1_spi1;
+		spi1 = &blsp2_spi6;
 	};
 
 	chosen {
@@ -82,16 +83,14 @@
 		};
 	};
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
-		#address-cells = <1>;
-		#size-cells = <0>;
 		autorepeat;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&volume_up_gpio>;
 
-		button@0 {
+		button {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&pm8994_gpios 2 GPIO_ACTIVE_LOW>;
@@ -555,15 +554,16 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&ls_exp_gpio_f &bt_en_gpios>;
 
-	ls_exp_gpio_f: pm8994_gpio5 {
+	ls_exp_gpio_f: pm8994-gpio5-state {
 		pinconf {
 			pins = "gpio5";
+			function = PMIC_GPIO_FUNC_NORMAL;
 			output-low;
 			power-source = <2>; // PM8994_GPIO_S4, 1.8V
 		};
 	};
 
-	bt_en_gpios: bt_en_gpios {
+	bt_en_gpios: bt-en-pios-state {
 		pinconf {
 			pins = "gpio19";
 			function = PMIC_GPIO_FUNC_NORMAL;
@@ -574,7 +574,7 @@
 		};
 	};
 
-	wlan_en_gpios: wlan_en_gpios {
+	wlan_en_gpios: wlan-en-gpios-state {
 		pinconf {
 			pins = "gpio8";
 			function = PMIC_GPIO_FUNC_NORMAL;
@@ -585,7 +585,7 @@
 		};
 	};
 
-	audio_mclk: clk_div1 {
+	audio_mclk: clk-div1-state {
 		pinconf {
 			pins = "gpio15";
 			function = "func1";
@@ -593,7 +593,7 @@
 		};
 	};
 
-	volume_up_gpio: pm8996_gpio2 {
+	volume_up_gpio: pm8996-gpio2-state {
 		pinconf {
 			pins = "gpio2";
 			function = "normal";
@@ -605,7 +605,7 @@
 		};
 	};
 
-	divclk4_pin_a: divclk4 {
+	divclk4_pin_a: divclk4-state {
 		pinconf {
 			pins = "gpio18";
 			function = PMIC_GPIO_FUNC_FUNC2;
@@ -615,7 +615,7 @@
 		};
 	};
 
-	usb3_vbus_det_gpio: pm8996_gpio22 {
+	usb3_vbus_det_gpio: pm8996-gpio22-state {
 		pinconf {
 			pins = "gpio22";
 			function = PMIC_GPIO_FUNC_NORMAL;
@@ -671,7 +671,7 @@
 		"NC",
 		"NC";
 
-	usb2_vbus_det_gpio: pmi8996_gpio6 {
+	usb2_vbus_det_gpio: pmi8996-gpio6-state {
 		pinconf {
 			pins = "gpio6";
 			function = PMIC_GPIO_FUNC_NORMAL;
@@ -680,6 +680,61 @@
 			qcom,drive-strength = <PMIC_GPIO_STRENGTH_NO>;
 			power-source = <PM8994_GPIO_S4>; // 1.8V
 		};
+	};
+};
+
+&pmi8994_lpg {
+	qcom,power-source = <1>;
+
+	pinctrl-names = "default";
+	pinctrl-0 = <&pmi8994_mpp2_userled4>;
+
+	qcom,dtest = <0 0>,
+		     <0 0>,
+		     <0 0>,
+		     <4 1>;
+
+	status = "okay";
+
+	led@1 {
+		reg = <1>;
+		color = <LED_COLOR_ID_GREEN>;
+		function = LED_FUNCTION_HEARTBEAT;
+		function-enumerator = <1>;
+
+		linux,default-trigger = "heartbeat";
+		default-state = "on";
+	};
+
+	led@2 {
+		reg = <2>;
+		color = <LED_COLOR_ID_GREEN>;
+		function = LED_FUNCTION_HEARTBEAT;
+		function-enumerator = <0>;
+	};
+
+	led@3 {
+		reg = <3>;
+		color = <LED_COLOR_ID_GREEN>;
+		function = LED_FUNCTION_HEARTBEAT;
+		function-enumerator = <2>;
+	};
+
+	led@4 {
+		reg = <4>;
+		color = <LED_COLOR_ID_GREEN>;
+		function = LED_FUNCTION_HEARTBEAT;
+		function-enumerator = <3>;
+	};
+};
+
+&pmi8994_mpps {
+	pmi8994_mpp2_userled4: mpp2-userled4-state {
+		pins = "mpp2";
+		function = "sink";
+
+		output-low;
+		qcom,dtest = <4>;
 	};
 };
 
@@ -957,7 +1012,7 @@
 &sound {
 	compatible = "qcom,apq8096-sndcard";
 	model = "DB820c";
-	audio-routing =	"RX_BIAS", "MCLK",
+	audio-routing = "RX_BIAS", "MCLK",
 		"MM_DL1",  "MultiMedia1 Playback",
 		"MM_DL2",  "MultiMedia2 Playback",
 		"MultiMedia3 Capture", "MM_UL3";
