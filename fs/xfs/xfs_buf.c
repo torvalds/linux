@@ -1416,7 +1416,7 @@ xfs_buf_ioapply_map(
 	int		map,
 	int		*buf_offset,
 	int		*count,
-	int		op)
+	blk_opf_t	op)
 {
 	int		page_index;
 	unsigned int	total_nr_pages = bp->b_page_count;
@@ -1493,7 +1493,7 @@ _xfs_buf_ioapply(
 	struct xfs_buf	*bp)
 {
 	struct blk_plug	plug;
-	int		op;
+	blk_opf_t	op;
 	int		offset;
 	int		size;
 	int		i;
