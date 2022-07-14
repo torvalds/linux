@@ -1199,8 +1199,9 @@ static int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id)
 	struct npc_exact_table_entry *entry = NULL;
 	struct npc_exact_table *table;
 	bool disable_cam = false;
-	u32 drop_mcam_idx;
+	u32 drop_mcam_idx = -1;
 	int *cnt;
+	bool rc;
 
 	table = rvu->hw->table;
 
@@ -1209,7 +1210,7 @@ static int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id)
 	/* Lookup for entry which needs to be updated */
 	entry = __rvu_npc_exact_find_entry_by_seq_id(rvu, seq_id);
 	if (!entry) {
-		dev_dbg(rvu->dev, "%s: failed to find entry for id=0x%x\n", __func__, seq_id);
+		dev_dbg(rvu->dev, "%s: failed to find entry for id=%d\n", __func__, seq_id);
 		mutex_unlock(&table->lock);
 		return -ENODATA;
 	}
@@ -1223,8 +1224,14 @@ static int rvu_npc_exact_del_table_entry_by_id(struct rvu *rvu, u32 seq_id)
 
 	(*cnt)--;
 
-	rvu_npc_exact_get_drop_rule_info(rvu, NIX_INTF_TYPE_CGX, entry->cgx_id, entry->lmac_id,
-					 &drop_mcam_idx, NULL, NULL, NULL);
+	rc = rvu_npc_exact_get_drop_rule_info(rvu, NIX_INTF_TYPE_CGX, entry->cgx_id,
+					      entry->lmac_id, &drop_mcam_idx, NULL, NULL, NULL);
+	if (!rc) {
+		dev_dbg(rvu->dev, "%s: failed to retrieve drop info for id=0x%x\n",
+			__func__, seq_id);
+		mutex_unlock(&table->lock);
+		return -ENODATA;
+	}
 
 	if (entry->cmd)
 		__rvu_npc_exact_cmd_rules_cnt_update(rvu, drop_mcam_idx, -1, &disable_cam);
@@ -1276,6 +1283,7 @@ static int rvu_npc_exact_add_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_id,
 	u32 drop_mcam_idx;
 	u32 index;
 	u64 mdata;
+	bool rc;
 	int err;
 	u8 ways;
 
@@ -1304,8 +1312,15 @@ static int rvu_npc_exact_add_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_id,
 		return err;
 	}
 
-	rvu_npc_exact_get_drop_rule_info(rvu, NIX_INTF_TYPE_CGX, cgx_id, lmac_id,
-					 &drop_mcam_idx, NULL, NULL, NULL);
+	rc = rvu_npc_exact_get_drop_rule_info(rvu, NIX_INTF_TYPE_CGX, cgx_id, lmac_id,
+					      &drop_mcam_idx, NULL, NULL, NULL);
+	if (!rc) {
+		rvu_npc_exact_dealloc_table_entry(rvu, opc_type, ways, index);
+		dev_dbg(rvu->dev, "%s: failed to get drop rule info cgx=%d lmac=%d\n",
+			__func__, cgx_id, lmac_id);
+		return -EINVAL;
+	}
+
 	if (cmd)
 		__rvu_npc_exact_cmd_rules_cnt_update(rvu, drop_mcam_idx, 1, &enable_cam);
 
@@ -1388,7 +1403,7 @@ static int rvu_npc_exact_update_table_entry(struct rvu *rvu, u8 cgx_id, u8 lmac_
 
 	dev_dbg(rvu->dev,
 		"%s: Successfully updated entry (index=%d, dmac=%pM, ways=%d opc_type=%d\n",
-		__func__, hash_index, entry->mac, entry->ways, entry->opc_type);
+		__func__, entry->index, entry->mac, entry->ways, entry->opc_type);
 
 	dev_dbg(rvu->dev, "%s: Successfully updated entry (old mac=%pM new_mac=%pM\n",
 		__func__, old_mac, new_mac);
@@ -1414,13 +1429,19 @@ int rvu_npc_exact_promisc_disable(struct rvu *rvu, u16 pcifunc)
 	u8 cgx_id, lmac_id;
 	u32 drop_mcam_idx;
 	bool *promisc;
+	bool rc;
 	u32 cnt;
 
 	table = rvu->hw->table;
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
-	rvu_npc_exact_get_drop_rule_info(rvu, NIX_INTF_TYPE_CGX, cgx_id, lmac_id,
-					 &drop_mcam_idx, NULL, NULL, NULL);
+	rc = rvu_npc_exact_get_drop_rule_info(rvu, NIX_INTF_TYPE_CGX, cgx_id, lmac_id,
+					      &drop_mcam_idx, NULL, NULL, NULL);
+	if (!rc) {
+		dev_dbg(rvu->dev, "%s: failed to get drop rule info cgx=%d lmac=%d\n",
+			__func__, cgx_id, lmac_id);
+		return -EINVAL;
+	}
 
 	mutex_lock(&table->lock);
 	promisc = &table->promisc_mode[drop_mcam_idx];
@@ -1459,13 +1480,19 @@ int rvu_npc_exact_promisc_enable(struct rvu *rvu, u16 pcifunc)
 	u8 cgx_id, lmac_id;
 	u32 drop_mcam_idx;
 	bool *promisc;
+	bool rc;
 	u32 cnt;
 
 	table = rvu->hw->table;
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
-	rvu_npc_exact_get_drop_rule_info(rvu, NIX_INTF_TYPE_CGX, cgx_id, lmac_id,
-					 &drop_mcam_idx, NULL, NULL, NULL);
+	rc = rvu_npc_exact_get_drop_rule_info(rvu, NIX_INTF_TYPE_CGX, cgx_id, lmac_id,
+					      &drop_mcam_idx, NULL, NULL, NULL);
+	if (!rc) {
+		dev_dbg(rvu->dev, "%s: failed to get drop rule info cgx=%d lmac=%d\n",
+			__func__, cgx_id, lmac_id);
+		return -EINVAL;
+	}
 
 	mutex_lock(&table->lock);
 	promisc = &table->promisc_mode[drop_mcam_idx];

@@ -54,12 +54,19 @@ static int otx2_dmacflt_add_pfmac(struct otx2_nic *pf, u32 *dmac_index)
 	ether_addr_copy(req->mac_addr, pf->netdev->dev_addr);
 	err = otx2_sync_mbox_msg(&pf->mbox);
 
-	if (!err) {
-		rsp = (struct cgx_mac_addr_set_or_get *)
-			 otx2_mbox_get_rsp(&pf->mbox.mbox, 0, &req->hdr);
-		*dmac_index = rsp->index;
+	if (err)
+		goto out;
+
+	rsp = (struct cgx_mac_addr_set_or_get *)
+		otx2_mbox_get_rsp(&pf->mbox.mbox, 0, &req->hdr);
+
+	if (IS_ERR_OR_NULL(rsp)) {
+		err = -EINVAL;
+		goto out;
 	}
 
+	*dmac_index = rsp->index;
+out:
 	mutex_unlock(&pf->mbox.lock);
 	return err;
 }
@@ -154,6 +161,12 @@ int otx2_dmacflt_get_max_cnt(struct otx2_nic *pf)
 
 	rsp = (struct cgx_max_dmac_entries_get_rsp *)
 		     otx2_mbox_get_rsp(&pf->mbox.mbox, 0, &msg->hdr);
+
+	if (IS_ERR_OR_NULL(rsp)) {
+		err = -EINVAL;
+		goto out;
+	}
+
 	pf->flow_cfg->dmacflt_max_flows = rsp->max_dmac_filters;
 
 out:
