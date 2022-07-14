@@ -1422,7 +1422,7 @@ static int btt_write_pg(struct btt *btt, struct bio_integrity_payload *bip,
 
 static int btt_do_bvec(struct btt *btt, struct bio_integrity_payload *bip,
 			struct page *page, unsigned int len, unsigned int off,
-			unsigned int op, sector_t sector)
+			enum req_op op, sector_t sector)
 {
 	int ret;
 
