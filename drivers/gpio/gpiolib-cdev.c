@@ -588,7 +588,8 @@ static enum hte_return process_hw_ts_thread(void *p)
 	le.timestamp_ns = line->timestamp_ns;
 	eflags = READ_ONCE(line->eflags);
 
-	if (eflags == GPIO_V2_LINE_FLAG_EDGE_BOTH) {
+	switch (eflags) {
+	case GPIO_V2_LINE_FLAG_EDGE_BOTH:
 		if (line->raw_level >= 0) {
 			if (test_bit(FLAG_ACTIVE_LOW, &line->desc->flags))
 				level = !line->raw_level;
@@ -602,13 +603,16 @@ static enum hte_return process_hw_ts_thread(void *p)
 			le.id = GPIO_V2_LINE_EVENT_RISING_EDGE;
 		else
 			le.id = GPIO_V2_LINE_EVENT_FALLING_EDGE;
-	} else if (eflags == GPIO_V2_LINE_FLAG_EDGE_RISING) {
+		break;
+	case GPIO_V2_LINE_FLAG_EDGE_RISING:
 		/* Emit low-to-high event */
 		le.id = GPIO_V2_LINE_EVENT_RISING_EDGE;
-	} else if (eflags == GPIO_V2_LINE_FLAG_EDGE_FALLING) {
+		break;
+	case GPIO_V2_LINE_FLAG_EDGE_FALLING:
 		/* Emit high-to-low event */
 		le.id = GPIO_V2_LINE_EVENT_FALLING_EDGE;
-	} else {
+		break;
+	default:
 		return HTE_CB_HANDLED;
 	}
 	le.line_seqno = line->line_seqno;
@@ -660,7 +664,6 @@ static irqreturn_t edge_irq_thread(int irq, void *p)
 	struct line *line = p;
 	struct linereq *lr = line->req;
 	struct gpio_v2_line_event le;
-	u64 eflags;
 
 	/* Do not leak kernel stack to userspace */
 	memset(&le, 0, sizeof(le));
@@ -679,23 +682,25 @@ static irqreturn_t edge_irq_thread(int irq, void *p)
 	}
 	line->timestamp_ns = 0;
 
-	eflags = READ_ONCE(line->eflags);
-	if (eflags == GPIO_V2_LINE_FLAG_EDGE_BOTH) {
-		int level = gpiod_get_value_cansleep(line->desc);
-
-		if (level)
+	switch (READ_ONCE(line->eflags)) {
+	case GPIO_V2_LINE_FLAG_EDGE_BOTH:
+		if (gpiod_get_value_cansleep(line->desc))
 			/* Emit low-to-high event */
 			le.id = GPIO_V2_LINE_EVENT_RISING_EDGE;
 		else
 			/* Emit high-to-low event */
 			le.id = GPIO_V2_LINE_EVENT_FALLING_EDGE;
-	} else if (eflags == GPIO_V2_LINE_FLAG_EDGE_RISING) {
+
+		break;
+	case GPIO_V2_LINE_FLAG_EDGE_RISING:
 		/* Emit low-to-high event */
 		le.id = GPIO_V2_LINE_EVENT_RISING_EDGE;
-	} else if (eflags == GPIO_V2_LINE_FLAG_EDGE_FALLING) {
+		break;
+	case GPIO_V2_LINE_FLAG_EDGE_FALLING:
 		/* Emit high-to-low event */
 		le.id = GPIO_V2_LINE_EVENT_FALLING_EDGE;
-	} else {
+		break;
+	default:
 		return IRQ_NONE;
 	}
 	line->line_seqno++;
