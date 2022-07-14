@@ -80,7 +80,7 @@ struct request {
 	struct blk_mq_ctx *mq_ctx;
 	struct blk_mq_hw_ctx *mq_hctx;
 
-	unsigned int cmd_flags;		/* op and common flags */
+	blk_opf_t cmd_flags;		/* op and common flags */
 	req_flags_t rq_flags;
 
 	int tag;
@@ -715,10 +715,10 @@ enum {
 	BLK_MQ_REQ_PM		= (__force blk_mq_req_flags_t)(1 << 2),
 };
 
-struct request *blk_mq_alloc_request(struct request_queue *q, unsigned int op,
+struct request *blk_mq_alloc_request(struct request_queue *q, blk_opf_t opf,
 		blk_mq_req_flags_t flags);
 struct request *blk_mq_alloc_request_hctx(struct request_queue *q,
-		unsigned int op, blk_mq_req_flags_t flags,
+		blk_opf_t opf, blk_mq_req_flags_t flags,
 		unsigned int hctx_idx);
 
 /*
