@@ -347,6 +347,8 @@ static int smc_nl_fill_lgr(struct smc_link_group *lgr,
 		goto errattr;
 	if (nla_put_u8(skb, SMC_NLA_LGR_R_TYPE, lgr->type))
 		goto errattr;
+	if (nla_put_u8(skb, SMC_NLA_LGR_R_BUF_TYPE, lgr->buf_type))
+		goto errattr;
 	if (nla_put_u8(skb, SMC_NLA_LGR_R_VLAN_ID, lgr->vlan_id))
 		goto errattr;
 	if (nla_put_u64_64bit(skb, SMC_NLA_LGR_R_NET_COOKIE,
