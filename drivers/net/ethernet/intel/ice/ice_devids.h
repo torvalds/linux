@@ -5,6 +5,7 @@
 #define _ICE_DEVIDS_H_
 
 /* Device IDs */
+#define ICE_DEV_ID_E822_SI_DFLT         0x1888
 /* Intel(R) Ethernet Connection E823-L for backplane */
 #define ICE_DEV_ID_E823L_BACKPLANE	0x124C
 /* Intel(R) Ethernet Connection E823-L for SFP */
