@@ -623,8 +623,15 @@ xfs_buf_find_insert(
 	}
 
 	spin_lock(&pag->pag_buf_lock);
-	bp = rhashtable_lookup(&pag->pag_buf_hash, cmap, xfs_buf_hash_params);
+	bp = rhashtable_lookup_get_insert_fast(&pag->pag_buf_hash,
+			&new_bp->b_rhash_head, xfs_buf_hash_params);
+	if (IS_ERR(bp)) {
+		error = PTR_ERR(bp);
+		spin_unlock(&pag->pag_buf_lock);
+		goto out_free_buf;
+	}
 	if (bp) {
+		/* found an existing buffer */
 		atomic_inc(&bp->b_hold);
 		spin_unlock(&pag->pag_buf_lock);
 		error = xfs_buf_find_lock(bp, flags);
@@ -635,10 +642,8 @@ xfs_buf_find_insert(
 		goto out_free_buf;
 	}
 
-	/* The buffer keeps the perag reference until it is freed. */
+	/* The new buffer keeps the perag reference until it is freed. */
 	new_bp->b_pag = pag;
-	rhashtable_insert_fast(&pag->pag_buf_hash, &new_bp->b_rhash_head,
-			       xfs_buf_hash_params);
 	spin_unlock(&pag->pag_buf_lock);
 	*bpp = new_bp;
 	return 0;
