@@ -231,6 +231,7 @@ static int write_inode(struct btree_trans *trans,
 
 static int fsck_inode_rm(struct btree_trans *trans, u64 inum, u32 snapshot)
 {
+	struct bch_fs *c = trans->c;
 	struct btree_iter iter = { NULL };
 	struct bkey_i_inode_generation delete;
 	struct bch_inode_unpacked inode_u;
@@ -263,7 +264,7 @@ retry:
 		goto err;
 
 	if (!bkey_is_inode(k.k)) {
-		bch2_fs_inconsistent(trans->c,
+		bch2_fs_inconsistent(c,
 				     "inode %llu:%u not found when deleting",
 				     inum, snapshot);
 		ret = -EIO;
@@ -273,11 +274,8 @@ retry:
 	bch2_inode_unpack(k, &inode_u);
 
 	/* Subvolume root? */
-	if (inode_u.bi_subvol) {
-		ret = bch2_subvolume_delete(trans, inode_u.bi_subvol);
-		if (ret)
-			goto err;
-	}
+	if (inode_u.bi_subvol)
+		bch_warn(c, "deleting inode %llu marked as unlinked, but also a subvolume root!?", inode_u.bi_inum);
 
 	bkey_inode_generation_init(&delete.k_i);
 	delete.k.p = iter.pos;
