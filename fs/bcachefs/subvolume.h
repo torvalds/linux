@@ -93,6 +93,27 @@ static inline bool snapshot_list_has_id(snapshot_id_list *s, u32 id)
 	return false;
 }
 
+static inline bool snapshot_list_has_ancestor(struct bch_fs *c, snapshot_id_list *s, u32 id)
+{
+	u32 *i;
+
+	darray_for_each(*s, i)
+		if (bch2_snapshot_is_ancestor(c, id, *i))
+			return true;
+	return false;
+}
+
+static inline int snapshot_list_add(struct bch_fs *c, snapshot_id_list *s, u32 id)
+{
+	int ret;
+
+	BUG_ON(snapshot_list_has_id(s, id));
+	ret = darray_push(s, id);
+	if (ret)
+		bch_err(c, "error reallocating snapshot_id_list (size %zu)", s->size);
+	return ret;
+}
+
 int bch2_fs_snapshots_check(struct bch_fs *);
 void bch2_fs_snapshots_exit(struct bch_fs *);
 int bch2_fs_snapshots_start(struct bch_fs *);

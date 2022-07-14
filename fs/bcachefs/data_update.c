@@ -22,13 +22,13 @@ static int insert_snapshot_whiteouts(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter, update_iter;
 	struct bkey_s_c k;
-	struct snapshots_seen s;
+	snapshot_id_list s;
 	int ret;
 
 	if (!btree_type_has_snapshots(id))
 		return 0;
 
-	snapshots_seen_init(&s);
+	darray_init(&s);
 
 	if (!bkey_cmp(old_pos, new_pos))
 		return 0;
@@ -40,7 +40,6 @@ static int insert_snapshot_whiteouts(struct btree_trans *trans,
 			     BTREE_ITER_NOT_EXTENTS|
 			     BTREE_ITER_ALL_SNAPSHOTS);
 	while (1) {
-next:
 		k = bch2_btree_iter_prev(&iter);
 		ret = bkey_err(k);
 		if (ret)
@@ -51,11 +50,9 @@ next:
 
 		if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, old_pos.snapshot)) {
 			struct bkey_i *update;
-			u32 *i;
 
-			darray_for_each(s.ids, i)
-				if (bch2_snapshot_is_ancestor(c, k.k->p.snapshot, *i))
-					goto next;
+			if (snapshot_list_has_ancestor(c, &s, k.k->p.snapshot))
+				continue;
 
 			update = bch2_trans_kmalloc(trans, sizeof(struct bkey_i));
 
@@ -78,13 +75,13 @@ next:
 			if (ret)
 				break;
 
-			ret = snapshots_seen_add(c, &s, k.k->p.snapshot);
+			ret = snapshot_list_add(c, &s, k.k->p.snapshot);
 			if (ret)
 				break;
 		}
 	}
 	bch2_trans_iter_exit(trans, &iter);
-	darray_exit(&s.ids);
+	darray_exit(&s);
 
 	return ret;
 }

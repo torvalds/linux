@@ -565,13 +565,6 @@ err:
 	return ret;
 }
 
-static int snapshot_id_add(snapshot_id_list *s, u32 id)
-{
-	BUG_ON(snapshot_list_has_id(s, id));
-
-	return darray_push(s, id);
-}
-
 static int bch2_snapshot_delete_keys_btree(struct btree_trans *trans,
 					   snapshot_id_list *deleted,
 					   enum btree_id btree_id)
@@ -617,7 +610,7 @@ static int bch2_snapshot_delete_keys_btree(struct btree_trans *trans,
 			if (ret)
 				break;
 		} else {
-			ret = snapshot_id_add(&equiv_seen, equiv);
+			ret = snapshot_list_add(c, &equiv_seen, equiv);
 			if (ret)
 				break;
 		}
@@ -693,7 +686,7 @@ static void bch2_delete_dead_snapshots_work(struct work_struct *work)
 
 		snap = bkey_s_c_to_snapshot(k);
 		if (BCH_SNAPSHOT_DELETED(snap.v)) {
-			ret = snapshot_id_add(&deleted, k.k->p.offset);
+			ret = snapshot_list_add(c, &deleted, k.k->p.offset);
 			if (ret)
 				break;
 		}
@@ -921,7 +914,7 @@ int bch2_subvolume_wait_for_pagecache_and_delete_hook(struct btree_trans *trans,
 
 	mutex_lock(&c->snapshots_unlinked_lock);
 	if (!snapshot_list_has_id(&c->snapshots_unlinked, h->subvol))
-		ret = snapshot_id_add(&c->snapshots_unlinked, h->subvol);
+		ret = snapshot_list_add(c, &c->snapshots_unlinked, h->subvol);
 	mutex_unlock(&c->snapshots_unlinked_lock);
 
 	if (ret)
