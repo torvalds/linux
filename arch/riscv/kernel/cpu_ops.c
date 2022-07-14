@@ -9,6 +9,7 @@
 #include <linux/string.h>
 #include <linux/sched.h>
 #include <asm/cpu_ops.h>
+#include <asm/cpu_ops_sbi.h>
 #include <asm/sbi.h>
 #include <asm/smp.h>
 
