@@ -1605,66 +1605,35 @@ static const struct qcom_pcie_ops ops_2_9_0 = {
 	.ltssm_enable = qcom_pcie_2_3_2_ltssm_enable,
 };
 
-static const struct qcom_pcie_cfg apq8084_cfg = {
+static const struct qcom_pcie_cfg cfg_1_0_0 = {
 	.ops = &ops_1_0_0,
 };
 
-static const struct qcom_pcie_cfg ipq8064_cfg = {
+static const struct qcom_pcie_cfg cfg_1_9_0 = {
+	.ops = &ops_1_9_0,
+};
+
+static const struct qcom_pcie_cfg cfg_2_1_0 = {
 	.ops = &ops_2_1_0,
 };
 
-static const struct qcom_pcie_cfg msm8996_cfg = {
+static const struct qcom_pcie_cfg cfg_2_3_2 = {
 	.ops = &ops_2_3_2,
 };
 
-static const struct qcom_pcie_cfg ipq8074_cfg = {
+static const struct qcom_pcie_cfg cfg_2_3_3 = {
 	.ops = &ops_2_3_3,
 };
 
-static const struct qcom_pcie_cfg ipq4019_cfg = {
+static const struct qcom_pcie_cfg cfg_2_4_0 = {
 	.ops = &ops_2_4_0,
 };
 
-static const struct qcom_pcie_cfg sa8540p_cfg = {
-	.ops = &ops_1_9_0,
-};
-
-static const struct qcom_pcie_cfg sc8280xp_cfg = {
-	.ops = &ops_1_9_0,
-};
-
-static const struct qcom_pcie_cfg sdm845_cfg = {
+static const struct qcom_pcie_cfg cfg_2_7_0 = {
 	.ops = &ops_2_7_0,
 };
 
-static const struct qcom_pcie_cfg sm8150_cfg = {
-	/* sm8150 has qcom IP rev 1.5.0. However 1.5.0 ops are same as
-	 * 1.9.0, so reuse the same.
-	 */
-	.ops = &ops_1_9_0,
-};
-
-static const struct qcom_pcie_cfg sm8250_cfg = {
-	.ops = &ops_1_9_0,
-};
-
-static const struct qcom_pcie_cfg sm8450_pcie0_cfg = {
-	.ops = &ops_1_9_0,
-};
-
-static const struct qcom_pcie_cfg sm8450_pcie1_cfg = {
-	.ops = &ops_1_9_0,
-};
-
-static const struct qcom_pcie_cfg sc7280_cfg = {
-	.ops = &ops_1_9_0,
-};
-
-static const struct qcom_pcie_cfg sc8180x_cfg = {
-	.ops = &ops_1_9_0,
-};
-
-static const struct qcom_pcie_cfg ipq6018_cfg = {
+static const struct qcom_pcie_cfg cfg_2_9_0 = {
 	.ops = &ops_2_9_0,
 };
 
@@ -1763,24 +1732,24 @@ err_pm_runtime_put:
 }
 
 static const struct of_device_id qcom_pcie_match[] = {
-	{ .compatible = "qcom,pcie-apq8084", .data = &apq8084_cfg },
-	{ .compatible = "qcom,pcie-ipq8064", .data = &ipq8064_cfg },
-	{ .compatible = "qcom,pcie-ipq8064-v2", .data = &ipq8064_cfg },
-	{ .compatible = "qcom,pcie-apq8064", .data = &ipq8064_cfg },
-	{ .compatible = "qcom,pcie-msm8996", .data = &msm8996_cfg },
-	{ .compatible = "qcom,pcie-ipq8074", .data = &ipq8074_cfg },
-	{ .compatible = "qcom,pcie-ipq4019", .data = &ipq4019_cfg },
-	{ .compatible = "qcom,pcie-qcs404", .data = &ipq4019_cfg },
-	{ .compatible = "qcom,pcie-sa8540p", .data = &sa8540p_cfg },
-	{ .compatible = "qcom,pcie-sdm845", .data = &sdm845_cfg },
-	{ .compatible = "qcom,pcie-sm8150", .data = &sm8150_cfg },
-	{ .compatible = "qcom,pcie-sm8250", .data = &sm8250_cfg },
-	{ .compatible = "qcom,pcie-sc8180x", .data = &sc8180x_cfg },
-	{ .compatible = "qcom,pcie-sc8280xp", .data = &sc8280xp_cfg },
-	{ .compatible = "qcom,pcie-sm8450-pcie0", .data = &sm8450_pcie0_cfg },
-	{ .compatible = "qcom,pcie-sm8450-pcie1", .data = &sm8450_pcie1_cfg },
-	{ .compatible = "qcom,pcie-sc7280", .data = &sc7280_cfg },
-	{ .compatible = "qcom,pcie-ipq6018", .data = &ipq6018_cfg },
+	{ .compatible = "qcom,pcie-apq8084", .data = &cfg_1_0_0 },
+	{ .compatible = "qcom,pcie-ipq8064", .data = &cfg_2_1_0 },
+	{ .compatible = "qcom,pcie-ipq8064-v2", .data = &cfg_2_1_0 },
+	{ .compatible = "qcom,pcie-apq8064", .data = &cfg_2_1_0 },
+	{ .compatible = "qcom,pcie-msm8996", .data = &cfg_2_3_2 },
+	{ .compatible = "qcom,pcie-ipq8074", .data = &cfg_2_3_3 },
+	{ .compatible = "qcom,pcie-ipq4019", .data = &cfg_2_4_0 },
+	{ .compatible = "qcom,pcie-qcs404", .data = &cfg_2_4_0 },
+	{ .compatible = "qcom,pcie-sa8540p", .data = &cfg_1_9_0 },
+	{ .compatible = "qcom,pcie-sdm845", .data = &cfg_2_7_0 },
+	{ .compatible = "qcom,pcie-sm8150", .data = &cfg_1_9_0 },
+	{ .compatible = "qcom,pcie-sm8250", .data = &cfg_1_9_0 },
+	{ .compatible = "qcom,pcie-sc8180x", .data = &cfg_1_9_0 },
+	{ .compatible = "qcom,pcie-sc8280xp", .data = &cfg_1_9_0 },
+	{ .compatible = "qcom,pcie-sm8450-pcie0", .data = &cfg_1_9_0 },
+	{ .compatible = "qcom,pcie-sm8450-pcie1", .data = &cfg_1_9_0 },
+	{ .compatible = "qcom,pcie-sc7280", .data = &cfg_1_9_0 },
+	{ .compatible = "qcom,pcie-ipq6018", .data = &cfg_2_9_0 },
 	{ }
 };
 
