@@ -1382,7 +1382,6 @@ struct hns_roce_dip {
 #define HNS_ROCE_V2_ASYNC_EQE_NUM		0x1000
 
 #define HNS_ROCE_V2_VF_INT_ST_AEQ_OVERFLOW_S	0
-#define HNS_ROCE_V2_VF_INT_ST_RAS_INT_S		1
 
 #define HNS_ROCE_EQ_DB_CMD_AEQ			0x0
 #define HNS_ROCE_EQ_DB_CMD_AEQ_ARMED		0x1

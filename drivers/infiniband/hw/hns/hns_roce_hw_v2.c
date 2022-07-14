@@ -6014,16 +6014,6 @@ static irqreturn_t hns_roce_v2_msix_interrupt_abn(int irq, void *dev_id)
 		roce_write(hr_dev, ROCEE_VF_ABN_INT_EN_REG, int_en);
 
 		int_work = 1;
-	} else if (int_st & BIT(HNS_ROCE_V2_VF_INT_ST_RAS_INT_S)) {
-		dev_err(dev, "RAS interrupt!\n");
-
-		int_st |= 1 << HNS_ROCE_V2_VF_INT_ST_RAS_INT_S;
-		roce_write(hr_dev, ROCEE_VF_ABN_INT_ST_REG, int_st);
-
-		int_en |= 1 << HNS_ROCE_V2_VF_ABN_INT_EN_S;
-		roce_write(hr_dev, ROCEE_VF_ABN_INT_EN_REG, int_en);
-
-		int_work = 1;
 	} else {
 		dev_err(dev, "There is no abnormal irq found!\n");
 	}
