@@ -378,31 +378,37 @@ void bch2_time_stats_to_text(struct printbuf *out, struct bch2_time_stats *stats
 	u64 q, last_q = 0;
 	int i;
 
-	prt_printf(out, "count:\t\t%llu\n",
+	prt_printf(out, "count:\t\t%llu",
 			 stats->count);
-	prt_printf(out, "rate:\t\t%llu/sec\n",
+	prt_newline(out);
+	prt_printf(out, "rate:\t\t%llu/sec",
 	       freq ?  div64_u64(NSEC_PER_SEC, freq) : 0);
+	prt_newline(out);
 
 	prt_printf(out, "frequency:\t");
 	bch2_pr_time_units(out, freq);
 
-	prt_printf(out, "\navg duration:\t");
+	prt_newline(out);
+	prt_printf(out, "avg duration:\t");
 	bch2_pr_time_units(out, stats->average_duration);
 
-	prt_printf(out, "\nmax duration:\t");
+	prt_newline(out);
+	prt_printf(out, "max duration:\t");
 	bch2_pr_time_units(out, stats->max_duration);
 
 	i = eytzinger0_first(NR_QUANTILES);
 	u = pick_time_units(stats->quantiles.entries[i].m);
 
-	prt_printf(out, "\nquantiles (%s):\t", u->name);
+	prt_newline(out);
+	prt_printf(out, "quantiles (%s):\t", u->name);
 	eytzinger0_for_each(i, NR_QUANTILES) {
 		bool is_last = eytzinger0_next(i, NR_QUANTILES) == -1;
 
 		q = max(stats->quantiles.entries[i].m, last_q);
-		prt_printf(out, "%llu%s",
-		       div_u64(q, u->nsecs),
-		       is_last ? "\n" : " ");
+		prt_printf(out, "%llu ",
+		       div_u64(q, u->nsecs));
+		if (is_last)
+			prt_newline(out);
 		last_q = q;
 	}
 }
