@@ -19312,7 +19312,7 @@ S:	Maintained
 F:	drivers/mmc/host/sdhci-pci-dwc-mshc.c
 
 SYSTEM CONFIGURATION (SYSCON)
-M:	Lee Jones <lee.jones@linaro.org>
+M:	Lee Jones <lee@kernel.org>
 M:	Arnd Bergmann <arnd@arndb.de>
 S:	Supported
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/lee/mfd.git
