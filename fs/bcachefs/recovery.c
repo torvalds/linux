@@ -1396,6 +1396,12 @@ out:
 		bch2_journal_entries_free(c);
 	}
 	kfree(clean);
+
+	if (!ret && test_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags)) {
+		bch2_fs_read_write_early(c);
+		bch2_delete_dead_snapshots_async(c);
+	}
+
 	if (ret)
 		bch_err(c, "Error in recovery: %s (%i)", err, ret);
 	else

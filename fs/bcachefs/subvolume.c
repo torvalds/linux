@@ -9,9 +9,6 @@
 
 /* Snapshot tree: */
 
-static void bch2_delete_dead_snapshots_work(struct work_struct *);
-static void bch2_delete_dead_snapshots(struct bch_fs *);
-
 void bch2_snapshot_to_text(struct printbuf *out, struct bch_fs *c,
 			   struct bkey_s_c k)
 {
@@ -249,7 +246,7 @@ static int bch2_snapshot_check(struct btree_trans *trans,
 	return 0;
 }
 
-int bch2_fs_snapshots_check(struct bch_fs *c)
+int bch2_fs_check_snapshots(struct bch_fs *c)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
@@ -299,6 +296,66 @@ err:
 	return ret;
 }
 
+static int check_subvol(struct btree_trans *trans,
+			struct btree_iter *iter)
+{
+	struct bkey_s_c k;
+	struct bkey_s_c_subvolume subvol;
+	int ret;
+
+	k = bch2_btree_iter_peek(iter);
+	if (!k.k)
+		return 0;
+
+	ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	if (k.k->type != KEY_TYPE_subvolume)
+		return 0;
+
+	subvol = bkey_s_c_to_subvolume(k);
+
+	if (BCH_SUBVOLUME_UNLINKED(subvol.v)) {
+		ret = bch2_subvolume_delete(trans, iter->pos.offset);
+		if (ret && ret != -EINTR)
+			bch_err(trans->c, "error deleting subvolume %llu: %i",
+				iter->pos.offset, ret);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
+}
+
+int bch2_fs_check_subvols(struct bch_fs *c)
+{
+	struct btree_trans trans;
+	struct btree_iter iter;
+	int ret;
+
+	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
+
+	bch2_trans_iter_init(&trans, &iter, BTREE_ID_subvolumes,
+			     POS_MIN,
+			     BTREE_ITER_INTENT|
+			     BTREE_ITER_PREFETCH);
+
+	do {
+		ret = commit_do(&trans, NULL, NULL,
+				      BTREE_INSERT_LAZY_RW|
+				      BTREE_INSERT_NOFAIL,
+				      check_subvol(&trans, &iter));
+		if (ret)
+			break;
+	} while (bch2_btree_iter_advance(&iter));
+	bch2_trans_iter_exit(&trans, &iter);
+
+	bch2_trans_exit(&trans);
+
+	return ret;
+}
+
 void bch2_fs_snapshots_exit(struct bch_fs *c)
 {
 	genradix_free(&c->snapshots);
@@ -309,7 +366,6 @@ int bch2_fs_snapshots_start(struct bch_fs *c)
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	bool have_deleted = false;
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
@@ -326,7 +382,7 @@ int bch2_fs_snapshots_start(struct bch_fs *c)
 		}
 
 		if (BCH_SNAPSHOT_DELETED(bkey_s_c_to_snapshot(k).v))
-			have_deleted = true;
+			set_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
 
 		ret = bch2_mark_snapshot(&trans, bkey_s_c_null, k, 0);
 		if (ret)
@@ -342,16 +398,6 @@ int bch2_fs_snapshots_start(struct bch_fs *c)
 		goto err;
 err:
 	bch2_trans_exit(&trans);
-
-	if (!ret && have_deleted) {
-		bch_info(c, "restarting deletion of dead snapshots");
-		if (c->opts.fsck) {
-			bch2_delete_dead_snapshots_work(&c->snapshot_delete_work);
-		} else {
-			bch2_delete_dead_snapshots(c);
-		}
-	}
-
 	return ret;
 }
 
@@ -598,10 +644,6 @@ static int bch2_snapshot_delete_keys_btree(struct btree_trans *trans,
 
 		if (snapshot_list_has_id(deleted, k.k->p.snapshot) ||
 		    snapshot_list_has_id(&equiv_seen, equiv)) {
-			if (btree_id == BTREE_ID_inodes &&
-			    bch2_btree_key_cache_flush(trans, btree_id, iter.pos))
-				continue;
-
 			ret = commit_do(trans, NULL, NULL,
 					      BTREE_INSERT_NOFAIL,
 				bch2_btree_iter_traverse(&iter) ?:
@@ -624,9 +666,8 @@ static int bch2_snapshot_delete_keys_btree(struct btree_trans *trans,
 	return ret;
 }
 
-static void bch2_delete_dead_snapshots_work(struct work_struct *work)
+int bch2_delete_dead_snapshots(struct bch_fs *c)
 {
-	struct bch_fs *c = container_of(work, struct bch_fs, snapshot_delete_work);
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -634,6 +675,17 @@ static void bch2_delete_dead_snapshots_work(struct work_struct *work)
 	snapshot_id_list deleted = { 0 };
 	u32 i, id, children[2];
 	int ret = 0;
+
+	if (!test_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags))
+		return 0;
+
+	if (!test_bit(BCH_FS_STARTED, &c->flags)) {
+		ret = bch2_fs_read_write_early(c);
+		if (ret) {
+			bch_err(c, "error deleleting dead snapshots: error going rw: %i", ret);
+			return ret;
+		}
+	}
 
 	bch2_trans_init(&trans, c, 0, 0);
 
@@ -718,15 +770,25 @@ static void bch2_delete_dead_snapshots_work(struct work_struct *work)
 			goto err;
 		}
 	}
+
+	clear_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
 err:
 	darray_exit(&deleted);
 	bch2_trans_exit(&trans);
+	return ret;
+}
+
+static void bch2_delete_dead_snapshots_work(struct work_struct *work)
+{
+	struct bch_fs *c = container_of(work, struct bch_fs, snapshot_delete_work);
+
+	bch2_delete_dead_snapshots(c);
 	percpu_ref_put(&c->writes);
 }
 
-static void bch2_delete_dead_snapshots(struct bch_fs *c)
+void bch2_delete_dead_snapshots_async(struct bch_fs *c)
 {
-	if (unlikely(!percpu_ref_tryget_live(&c->writes)))
+	if (!percpu_ref_tryget_live(&c->writes))
 		return;
 
 	if (!queue_work(system_long_wq, &c->snapshot_delete_work))
@@ -736,7 +798,14 @@ static void bch2_delete_dead_snapshots(struct bch_fs *c)
 static int bch2_delete_dead_snapshots_hook(struct btree_trans *trans,
 					   struct btree_trans_commit_hook *h)
 {
-	bch2_delete_dead_snapshots(trans->c);
+	struct bch_fs *c = trans->c;
+
+	set_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
+
+	if (!test_bit(BCH_FS_FSCK_DONE, &c->flags))
+		return 0;
+
+	bch2_delete_dead_snapshots_async(c);
 	return 0;
 }
 

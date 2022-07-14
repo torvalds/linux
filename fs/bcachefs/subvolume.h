@@ -114,7 +114,9 @@ static inline int snapshot_list_add(struct bch_fs *c, snapshot_id_list *s, u32 i
 	return ret;
 }
 
-int bch2_fs_snapshots_check(struct bch_fs *);
+int bch2_fs_check_snapshots(struct bch_fs *);
+int bch2_fs_check_subvols(struct bch_fs *);
+
 void bch2_fs_snapshots_exit(struct bch_fs *);
 int bch2_fs_snapshots_start(struct bch_fs *);
 
@@ -136,6 +138,9 @@ int bch2_subvolume_get_snapshot(struct btree_trans *, u32, u32 *);
 /* only exported for tests: */
 int bch2_snapshot_node_create(struct btree_trans *, u32,
 			      u32 *, u32 *, unsigned);
+
+int bch2_delete_dead_snapshots(struct bch_fs *);
+void bch2_delete_dead_snapshots_async(struct bch_fs *);
 
 int bch2_subvolume_delete(struct btree_trans *, u32);
 int bch2_subvolume_unlink(struct btree_trans *, u32);

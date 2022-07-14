@@ -953,66 +953,6 @@ static int check_inodes(struct bch_fs *c, bool full)
 	return ret;
 }
 
-static int check_subvol(struct btree_trans *trans,
-			struct btree_iter *iter)
-{
-	struct bkey_s_c k;
-	struct bkey_s_c_subvolume subvol;
-	int ret;
-
-	k = bch2_btree_iter_peek(iter);
-	if (!k.k)
-		return 0;
-
-	ret = bkey_err(k);
-	if (ret)
-		return ret;
-
-	if (k.k->type != KEY_TYPE_subvolume)
-		return 0;
-
-	subvol = bkey_s_c_to_subvolume(k);
-
-	if (BCH_SUBVOLUME_UNLINKED(subvol.v)) {
-		ret = bch2_subvolume_delete(trans, iter->pos.offset);
-		if (ret && ret != -EINTR)
-			bch_err(trans->c, "error deleting subvolume %llu: %i",
-				iter->pos.offset, ret);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
-}
-
-noinline_for_stack
-static int check_subvols(struct bch_fs *c)
-{
-	struct btree_trans trans;
-	struct btree_iter iter;
-	int ret;
-
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
-
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_subvolumes,
-			     POS_MIN,
-			     BTREE_ITER_INTENT|
-			     BTREE_ITER_PREFETCH);
-
-	do {
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_LAZY_RW|
-				      BTREE_INSERT_NOFAIL,
-				      check_subvol(&trans, &iter));
-		if (ret)
-			break;
-	} while (bch2_btree_iter_advance(&iter));
-	bch2_trans_iter_exit(&trans, &iter);
-
-	bch2_trans_exit(&trans);
-	return ret;
-}
-
 /*
  * Checking for overlapping extents needs to be reimplemented
  */
@@ -2384,9 +2324,10 @@ static int fix_reflink_p(struct bch_fs *c)
  */
 int bch2_fsck_full(struct bch_fs *c)
 {
-	return  bch2_fs_snapshots_check(c) ?:
+	return  bch2_fs_check_snapshots(c) ?:
+		bch2_fs_check_subvols(c) ?:
+		bch2_delete_dead_snapshots(c) ?:
 		check_inodes(c, true) ?:
-		check_subvols(c) ?:
 		check_extents(c) ?:
 		check_dirents(c) ?:
 		check_xattrs(c) ?:
