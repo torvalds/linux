@@ -62,7 +62,6 @@ efct_io_pool_create(struct efct *efct, u32 num_sgl)
 			return NULL;
 		}
 
-		memset(io->sgl, 0, sizeof(*io->sgl) * num_sgl);
 		io->sgl_allocated = num_sgl;
 		io->sgl_count = 0;
 

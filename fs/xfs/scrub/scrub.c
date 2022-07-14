@@ -340,20 +340,6 @@ static const struct xchk_meta_ops meta_scrub_ops[] = {
 	},
 };
 
-/* This isn't a stable feature, warn once per day. */
-static inline void
-xchk_experimental_warning(
-	struct xfs_mount	*mp)
-{
-	static struct ratelimit_state scrub_warning = RATELIMIT_STATE_INIT(
-			"xchk_warning", 86400 * HZ, 1);
-	ratelimit_set_flags(&scrub_warning, RATELIMIT_MSG_ON_RELEASE);
-
-	if (__ratelimit(&scrub_warning))
-		xfs_alert(mp,
-"EXPERIMENTAL online scrub feature in use. Use at your own risk!");
-}
-
 static int
 xchk_validate_inputs(
 	struct xfs_mount		*mp,
@@ -478,7 +464,8 @@ xfs_scrub_metadata(
 	if (error)
 		goto out;
 
-	xchk_experimental_warning(mp);
+	xfs_warn_mount(mp, XFS_OPSTATE_WARNED_SCRUB,
+ "EXPERIMENTAL online scrub feature in use. Use at your own risk!");
 
 	sc = kmem_zalloc(sizeof(struct xfs_scrub), KM_NOFS | KM_MAYFAIL);
 	if (!sc) {

@@ -568,14 +568,14 @@ struct mlxsw_sp_port_stats {
 static u64
 mlxsw_sp_port_get_transceiver_overheat_stats(struct mlxsw_sp_port *mlxsw_sp_port)
 {
-	struct mlxsw_sp_port_mapping port_mapping = mlxsw_sp_port->mapping;
 	struct mlxsw_core *mlxsw_core = mlxsw_sp_port->mlxsw_sp->core;
+	u8 slot_index = mlxsw_sp_port->mapping.slot_index;
+	u8 module = mlxsw_sp_port->mapping.module;
 	u64 stats;
 	int err;
 
-	err = mlxsw_env_module_overheat_counter_get(mlxsw_core,
-						    port_mapping.module,
-						    &stats);
+	err = mlxsw_env_module_overheat_counter_get(mlxsw_core, slot_index,
+						    module, &stats);
 	if (err)
 		return mlxsw_sp_port->module_overheat_initial_val;
 
@@ -1036,6 +1036,7 @@ static int mlxsw_sp_get_module_info(struct net_device *netdev,
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
 
 	return mlxsw_env_get_module_info(netdev, mlxsw_sp->core,
+					 mlxsw_sp_port->mapping.slot_index,
 					 mlxsw_sp_port->mapping.module,
 					 modinfo);
 }
@@ -1045,10 +1046,11 @@ static int mlxsw_sp_get_module_eeprom(struct net_device *netdev,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(netdev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 slot_index = mlxsw_sp_port->mapping.slot_index;
+	u8 module = mlxsw_sp_port->mapping.module;
 
-	return mlxsw_env_get_module_eeprom(netdev, mlxsw_sp->core,
-					   mlxsw_sp_port->mapping.module, ee,
-					   data);
+	return mlxsw_env_get_module_eeprom(netdev, mlxsw_sp->core, slot_index,
+					   module, ee, data);
 }
 
 static int
@@ -1058,10 +1060,11 @@ mlxsw_sp_get_module_eeprom_by_page(struct net_device *dev,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 slot_index = mlxsw_sp_port->mapping.slot_index;
 	u8 module = mlxsw_sp_port->mapping.module;
 
-	return mlxsw_env_get_module_eeprom_by_page(mlxsw_sp->core, module, page,
-						   extack);
+	return mlxsw_env_get_module_eeprom_by_page(mlxsw_sp->core, slot_index,
+						   module, page, extack);
 }
 
 static int
@@ -1202,9 +1205,11 @@ static int mlxsw_sp_reset(struct net_device *dev, u32 *flags)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 slot_index = mlxsw_sp_port->mapping.slot_index;
 	u8 module = mlxsw_sp_port->mapping.module;
 
-	return mlxsw_env_reset_module(dev, mlxsw_sp->core, module, flags);
+	return mlxsw_env_reset_module(dev, mlxsw_sp->core, slot_index,
+				      module, flags);
 }
 
 static int
@@ -1214,10 +1219,11 @@ mlxsw_sp_get_module_power_mode(struct net_device *dev,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 slot_index = mlxsw_sp_port->mapping.slot_index;
 	u8 module = mlxsw_sp_port->mapping.module;
 
-	return mlxsw_env_get_module_power_mode(mlxsw_sp->core, module, params,
-					       extack);
+	return mlxsw_env_get_module_power_mode(mlxsw_sp->core, slot_index,
+					       module, params, extack);
 }
 
 static int
@@ -1227,10 +1233,11 @@ mlxsw_sp_set_module_power_mode(struct net_device *dev,
 {
 	struct mlxsw_sp_port *mlxsw_sp_port = netdev_priv(dev);
 	struct mlxsw_sp *mlxsw_sp = mlxsw_sp_port->mlxsw_sp;
+	u8 slot_index = mlxsw_sp_port->mapping.slot_index;
 	u8 module = mlxsw_sp_port->mapping.module;
 
-	return mlxsw_env_set_module_power_mode(mlxsw_sp->core, module,
-					       params->policy, extack);
+	return mlxsw_env_set_module_power_mode(mlxsw_sp->core, slot_index,
+					       module, params->policy, extack);
 }
 
 const struct ethtool_ops mlxsw_sp_port_ethtool_ops = {

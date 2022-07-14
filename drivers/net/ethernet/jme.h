@@ -379,8 +379,6 @@ struct jme_ring {
 #define DECLARE_NET_DEVICE_STATS
 
 #define DECLARE_NAPI_STRUCT struct napi_struct napi;
-#define NETIF_NAPI_SET(dev, napis, pollfn, q) \
-	netif_napi_add(dev, napis, pollfn, q);
 #define JME_NAPI_HOLDER(holder) struct napi_struct *holder
 #define JME_NAPI_WEIGHT(w) int w
 #define JME_NAPI_WEIGHT_VAL(w) w

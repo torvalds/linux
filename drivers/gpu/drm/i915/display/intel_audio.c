@@ -30,6 +30,7 @@
 #include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_audio.h"
+#include "intel_audio_regs.h"
 #include "intel_cdclk.h"
 #include "intel_crtc.h"
 #include "intel_de.h"
@@ -827,7 +828,7 @@ void intel_audio_codec_enable(struct intel_encoder *encoder,
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s][ENCODER:%d:%s] Enable audio codec on pipe %c, %u bytes ELD\n",
 		    connector->base.id, connector->name,
 		    encoder->base.base.id, encoder->base.name,
-		    pipe, drm_eld_size(connector->eld));
+		    pipe_name(pipe), drm_eld_size(connector->eld));
 
 	/* FIXME precompute the ELD in .compute_config() */
 	if (!connector->eld[0])
@@ -888,7 +889,7 @@ void intel_audio_codec_disable(struct intel_encoder *encoder,
 
 	drm_dbg_kms(&dev_priv->drm, "[CONNECTOR:%d:%s][ENCODER:%d:%s] Disable audio codec on pipe %c\n",
 		    connector->base.id, connector->name,
-		    encoder->base.base.id, encoder->base.name, pipe);
+		    encoder->base.base.id, encoder->base.name, pipe_name(pipe));
 
 	if (dev_priv->audio.funcs)
 		dev_priv->audio.funcs->audio_codec_disable(encoder,

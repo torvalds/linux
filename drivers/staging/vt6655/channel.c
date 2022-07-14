@@ -118,11 +118,9 @@ bool set_channel(struct vnt_private *priv, struct ieee80211_channel *ch)
 		/* set HW default power register */
 		MACvSelectPage1(priv->port_offset);
 		RFbSetPower(priv, RATE_1M, priv->byCurrentCh);
-		VNSvOutPortB(priv->port_offset + MAC_REG_PWRCCK,
-			     priv->byCurPwr);
+		iowrite8(priv->byCurPwr, priv->port_offset + MAC_REG_PWRCCK);
 		RFbSetPower(priv, RATE_6M, priv->byCurrentCh);
-		VNSvOutPortB(priv->port_offset + MAC_REG_PWROFDM,
-			     priv->byCurPwr);
+		iowrite8(priv->byCurPwr, priv->port_offset + MAC_REG_PWROFDM);
 		MACvSelectPage0(priv->port_offset);
 
 		spin_unlock_irqrestore(&priv->lock, flags);

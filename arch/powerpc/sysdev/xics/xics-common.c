@@ -6,6 +6,7 @@
 #include <linux/threads.h>
 #include <linux/kernel.h>
 #include <linux/irq.h>
+#include <linux/irqdomain.h>
 #include <linux/debugfs.h>
 #include <linux/smp.h>
 #include <linux/interrupt.h>
@@ -17,7 +18,6 @@
 #include <linux/spinlock.h>
 #include <linux/delay.h>
 
-#include <asm/prom.h>
 #include <asm/io.h>
 #include <asm/smp.h>
 #include <asm/machdep.h>
@@ -146,7 +146,7 @@ void __init xics_smp_probe(void)
 
 #endif /* CONFIG_SMP */
 
-void xics_teardown_cpu(void)
+noinstr void xics_teardown_cpu(void)
 {
 	struct xics_cppr *os_cppr = this_cpu_ptr(&xics_cppr);
 
@@ -159,7 +159,7 @@ void xics_teardown_cpu(void)
 	icp_ops->teardown_cpu();
 }
 
-void xics_kexec_teardown_cpu(int secondary)
+noinstr void xics_kexec_teardown_cpu(int secondary)
 {
 	xics_teardown_cpu();
 

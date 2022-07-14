@@ -3249,13 +3249,8 @@ static int allegro_release(struct file *file)
 static int allegro_querycap(struct file *file, void *fh,
 			    struct v4l2_capability *cap)
 {
-	struct video_device *vdev = video_devdata(file);
-	struct allegro_dev *dev = video_get_drvdata(vdev);
-
 	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
 	strscpy(cap->card, "Allegro DVT Video Encoder", sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(&dev->plat_dev->dev));
 
 	return 0;
 }

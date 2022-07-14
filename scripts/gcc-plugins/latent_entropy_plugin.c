@@ -82,7 +82,7 @@ __visible int plugin_is_GPL_compatible;
 static GTY(()) tree latent_entropy_decl;
 
 static struct plugin_info latent_entropy_plugin_info = {
-	.version	= "201606141920vanilla",
+	.version	= PLUGIN_VERSION,
 	.help		= "disable\tturn off latent entropy instrumentation\n",
 };
 

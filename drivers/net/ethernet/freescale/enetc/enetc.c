@@ -172,7 +172,8 @@ static int enetc_map_tx_buffs(struct enetc_bdr *tx_ring, struct sk_buff *skb)
 	}
 
 	tx_swbd->do_twostep_tstamp = do_twostep_tstamp;
-	tx_swbd->check_wb = tx_swbd->do_twostep_tstamp;
+	tx_swbd->qbv_en = !!(priv->active_offloads & ENETC_F_QBV);
+	tx_swbd->check_wb = tx_swbd->do_twostep_tstamp || tx_swbd->qbv_en;
 
 	if (do_vlan || do_onestep_tstamp || do_twostep_tstamp)
 		flags |= ENETC_TXBD_FLAGS_EX;
@@ -792,9 +793,9 @@ static void enetc_recycle_xdp_tx_buff(struct enetc_bdr *tx_ring,
 
 static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 {
+	int tx_frm_cnt = 0, tx_byte_cnt = 0, tx_win_drop = 0;
 	struct net_device *ndev = tx_ring->ndev;
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
-	int tx_frm_cnt = 0, tx_byte_cnt = 0;
 	struct enetc_tx_swbd *tx_swbd;
 	int i, bds_to_clean;
 	bool do_twostep_tstamp;
@@ -821,6 +822,10 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 						    &tstamp);
 				do_twostep_tstamp = true;
 			}
+
+			if (tx_swbd->qbv_en &&
+			    txbd->wb.status & ENETC_TXBD_STATS_WIN)
+				tx_win_drop++;
 		}
 
 		if (tx_swbd->is_xdp_tx)
@@ -873,6 +878,7 @@ static bool enetc_clean_tx_ring(struct enetc_bdr *tx_ring, int napi_budget)
 	tx_ring->next_to_clean = i;
 	tx_ring->stats.packets += tx_frm_cnt;
 	tx_ring->stats.bytes += tx_byte_cnt;
+	tx_ring->stats.win_drop += tx_win_drop;
 
 	if (unlikely(tx_frm_cnt && netif_carrier_ok(ndev) &&
 		     __netif_subqueue_stopped(ndev, tx_ring->index) &&
@@ -2552,6 +2558,7 @@ struct net_device_stats *enetc_get_stats(struct net_device *ndev)
 	struct enetc_ndev_priv *priv = netdev_priv(ndev);
 	struct net_device_stats *stats = &ndev->stats;
 	unsigned long packets = 0, bytes = 0;
+	unsigned long tx_dropped = 0;
 	int i;
 
 	for (i = 0; i < priv->num_rx_rings; i++) {
@@ -2567,10 +2574,12 @@ struct net_device_stats *enetc_get_stats(struct net_device *ndev)
 	for (i = 0; i < priv->num_tx_rings; i++) {
 		packets += priv->tx_ring[i]->stats.packets;
 		bytes	+= priv->tx_ring[i]->stats.bytes;
+		tx_dropped += priv->tx_ring[i]->stats.win_drop;
 	}
 
 	stats->tx_packets = packets;
 	stats->tx_bytes = bytes;
+	stats->tx_dropped = tx_dropped;
 
 	return stats;
 }

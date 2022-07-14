@@ -135,6 +135,8 @@
 
 #define SO_TXREHASH		74
 
+#define SO_RCVMARK		75
+
 #if !defined(__KERNEL__)
 
 #if __BITS_PER_LONG == 64

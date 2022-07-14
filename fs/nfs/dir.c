@@ -55,7 +55,7 @@ static int nfs_closedir(struct inode *, struct file *);
 static int nfs_readdir(struct file *, struct dir_context *);
 static int nfs_fsync_dir(struct file *, loff_t, loff_t, int);
 static loff_t nfs_llseek_dir(struct file *, loff_t, int);
-static void nfs_readdir_clear_array(struct page*);
+static void nfs_readdir_free_folio(struct folio *);
 
 const struct file_operations nfs_dir_operations = {
 	.llseek		= nfs_llseek_dir,
@@ -67,7 +67,7 @@ const struct file_operations nfs_dir_operations = {
 };
 
 const struct address_space_operations nfs_dir_aops = {
-	.freepage = nfs_readdir_clear_array,
+	.free_folio = nfs_readdir_free_folio,
 };
 
 #define NFS_INIT_DTSIZE PAGE_SIZE
@@ -226,6 +226,11 @@ static void nfs_readdir_clear_array(struct page *page)
 		kfree(array->array[i].name);
 	array->size = 0;
 	kunmap_atomic(array);
+}
+
+static void nfs_readdir_free_folio(struct folio *folio)
+{
+	nfs_readdir_clear_array(&folio->page);
 }
 
 static void nfs_readdir_page_reinit_array(struct page *page, u64 last_cookie,
@@ -2119,6 +2124,7 @@ int nfs_atomic_open(struct inode *dir, struct dentry *dentry,
 		}
 		goto out;
 	}
+	file->f_mode |= FMODE_CAN_ODIRECT;
 
 	err = nfs_finish_open(ctx, ctx->dentry, file, open_flags);
 	trace_nfs_atomic_open_exit(dir, ctx, open_flags, err);

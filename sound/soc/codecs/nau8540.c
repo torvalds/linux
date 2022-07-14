@@ -823,8 +823,7 @@ static const struct regmap_config nau8540_regmap_config = {
 	.num_reg_defaults = ARRAY_SIZE(nau8540_reg_defaults),
 };
 
-static int nau8540_i2c_probe(struct i2c_client *i2c,
-	const struct i2c_device_id *id)
+static int nau8540_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct nau8540 *nau8540 = dev_get_platdata(dev);
@@ -874,7 +873,7 @@ static struct i2c_driver nau8540_i2c_driver = {
 		.name = "nau8540",
 		.of_match_table = of_match_ptr(nau8540_of_ids),
 	},
-	.probe = nau8540_i2c_probe,
+	.probe_new = nau8540_i2c_probe,
 	.id_table = nau8540_i2c_ids,
 };
 module_i2c_driver(nau8540_i2c_driver);

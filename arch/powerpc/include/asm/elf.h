@@ -160,7 +160,7 @@ extern int arch_setup_additional_pages(struct linux_binprm *bprm,
  *   even if DLINFO_ARCH_ITEMS goes to zero or is undefined.
  * update AT_VECTOR_SIZE_ARCH if the number of NEW_AUX_ENT entries changes
  */
-#define ARCH_DLINFO							\
+#define COMMON_ARCH_DLINFO						\
 do {									\
 	/* Handle glibc compatibility. */				\
 	NEW_AUX_ENT(AT_IGNOREPPC, AT_IGNOREPPC);			\
@@ -171,6 +171,18 @@ do {									\
 	NEW_AUX_ENT(AT_UCACHEBSIZE, 0);					\
 	VDSO_AUX_ENT(AT_SYSINFO_EHDR, (unsigned long)current->mm->context.vdso);\
 	ARCH_DLINFO_CACHE_GEOMETRY;					\
+} while (0)
+
+#define ARCH_DLINFO							\
+do {									\
+	COMMON_ARCH_DLINFO;						\
+	NEW_AUX_ENT(AT_MINSIGSTKSZ, get_min_sigframe_size());		\
+} while (0)
+
+#define COMPAT_ARCH_DLINFO						\
+do {									\
+	COMMON_ARCH_DLINFO;						\
+	NEW_AUX_ENT(AT_MINSIGSTKSZ, get_min_sigframe_size_compat());	\
 } while (0)
 
 /* Relocate the kernel image to @final_address */

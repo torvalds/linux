@@ -1598,7 +1598,6 @@ static int kmb_ocs_aes_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct ocs_aes_dev *aes_dev;
-	struct resource *aes_mem;
 	int rc;
 
 	aes_dev = devm_kzalloc(dev, sizeof(*aes_dev), GFP_KERNEL);
@@ -1616,13 +1615,7 @@ static int kmb_ocs_aes_probe(struct platform_device *pdev)
 	}
 
 	/* Get base register address. */
-	aes_mem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!aes_mem) {
-		dev_err(dev, "Could not retrieve io mem resource\n");
-		return -ENODEV;
-	}
-
-	aes_dev->base_reg = devm_ioremap_resource(&pdev->dev, aes_mem);
+	aes_dev->base_reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(aes_dev->base_reg))
 		return PTR_ERR(aes_dev->base_reg);
 

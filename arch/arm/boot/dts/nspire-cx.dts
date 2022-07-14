@@ -92,10 +92,10 @@
 		#address-cells = <1>;
 		#size-cells = <1>;
 
-		intc: interrupt-controller@DC000000 {
+		intc: interrupt-controller@dc000000 {
 			compatible = "arm,pl190-vic";
 			interrupt-controller;
-			reg = <0xDC000000 0x1000>;
+			reg = <0xdc000000 0x1000>;
 			#interrupt-cells = <1>;
 		};
 

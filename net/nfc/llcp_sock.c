@@ -821,7 +821,6 @@ static int llcp_sock_sendmsg(struct socket *sock, struct msghdr *msg,
 static int llcp_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 			     size_t len, int flags)
 {
-	int noblock = flags & MSG_DONTWAIT;
 	struct sock *sk = sock->sk;
 	unsigned int copied, rlen;
 	struct sk_buff *skb, *cskb;
@@ -842,7 +841,7 @@ static int llcp_sock_recvmsg(struct socket *sock, struct msghdr *msg,
 	if (flags & (MSG_OOB))
 		return -EOPNOTSUPP;
 
-	skb = skb_recv_datagram(sk, flags, noblock, &err);
+	skb = skb_recv_datagram(sk, flags, &err);
 	if (!skb) {
 		pr_err("Recv datagram failed state %d %d %d",
 		       sk->sk_state, err, sock_error(sk));

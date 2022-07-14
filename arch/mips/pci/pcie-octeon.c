@@ -895,7 +895,7 @@ retry:
 	mem_access_subid.s.nsw = 0;	/* Enable Snoop for Writes. */
 	mem_access_subid.s.ror = 0;	/* Disable Relaxed Ordering for Reads. */
 	mem_access_subid.s.row = 0;	/* Disable Relaxed Ordering for Writes. */
-	mem_access_subid.s.ba = 0;	/* PCIe Adddress Bits <63:34>. */
+	mem_access_subid.s.ba = 0;	/* PCIe Address Bits <63:34>. */
 
 	/*
 	 * Setup mem access 12-15 for port 0, 16-19 for port 1,
@@ -1345,7 +1345,7 @@ static int __cvmx_pcie_rc_initialize_gen2(int pcie_port)
 	mem_access_subid.s.esw = 1;	/* Endian-swap for Writes. */
 	mem_access_subid.s.wtype = 0;	/* "No snoop" and "Relaxed ordering" are not set */
 	mem_access_subid.s.rtype = 0;	/* "No snoop" and "Relaxed ordering" are not set */
-	/* PCIe Adddress Bits <63:34>. */
+	/* PCIe Address Bits <63:34>. */
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
 		mem_access_subid.cn68xx.ba = 0;
 	else

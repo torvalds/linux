@@ -242,6 +242,13 @@ struct hpd_rx_irq_offload_work {
  * @force_timing_sync: set via debugfs. When set, indicates that all connected
  *		       displays will be forced to synchronize.
  * @dmcub_trace_event_en: enable dmcub trace events
+ * @dmub_outbox_params: DMUB Outbox parameters
+ * @num_of_edps: number of backlight eDPs
+ * @disable_hpd_irq: disables all HPD and HPD RX interrupt handling in the
+ *		     driver when true
+ * @dmub_aux_transfer_done: struct completion used to indicate when DMUB
+ * 			    transfers are done
+ * @delayed_hpd_wq: work queue used to delay DMUB HPD work
  */
 struct amdgpu_display_manager {
 
@@ -358,14 +365,12 @@ struct amdgpu_display_manager {
 	 */
 	struct mutex audio_lock;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/**
 	 * @vblank_lock:
 	 *
 	 * Guards access to deferred vblank work state.
 	 */
 	spinlock_t vblank_lock;
-#endif
 
 	/**
 	 * @audio_component:
@@ -469,14 +474,12 @@ struct amdgpu_display_manager {
 	struct hdcp_workqueue *hdcp_workqueue;
 #endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/**
 	 * @vblank_control_workqueue:
 	 *
 	 * Deferred work for vblank control events.
 	 */
 	struct workqueue_struct *vblank_control_workqueue;
-#endif
 
 	struct drm_atomic_state *cached_state;
 	struct dc_state *cached_dc_state;
@@ -493,14 +496,12 @@ struct amdgpu_display_manager {
 	 */
 	const struct gpu_info_soc_bounding_box_v1_0 *soc_bounding_box;
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/**
 	 * @active_vblank_irq_count:
 	 *
 	 * number of currently active vblank irqs
 	 */
 	uint32_t active_vblank_irq_count;
-#endif
 
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 	/**
@@ -589,7 +590,6 @@ struct amdgpu_dm_connector {
 	struct drm_dp_mst_port *port;
 	struct amdgpu_dm_connector *mst_port;
 	struct drm_dp_aux *dsc_aux;
-
 	/* TODO see if we can merge with ddc_bus or make a dm_connector */
 	struct amdgpu_i2c_adapter *i2c;
 
@@ -645,8 +645,6 @@ struct dm_crtc_state {
 
 	bool dsc_force_changed;
 	bool vrr_supported;
-
-	bool force_dpms_off;
 	struct mod_freesync_config freesync_config;
 	struct dc_info_packet vrr_infopacket;
 
@@ -755,4 +753,6 @@ int dm_atomic_get_state(struct drm_atomic_state *state,
 struct amdgpu_dm_connector *
 amdgpu_dm_find_first_crtc_matching_connector(struct drm_atomic_state *state,
 					     struct drm_crtc *crtc);
+
+int convert_dc_color_depth_into_bpc(enum dc_color_depth display_color_depth);
 #endif /* __AMDGPU_DM_H__ */

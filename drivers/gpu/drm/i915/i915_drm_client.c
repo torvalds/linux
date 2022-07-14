@@ -81,6 +81,7 @@ static const char * const uabi_class_names[] = {
 	[I915_ENGINE_CLASS_COPY] = "copy",
 	[I915_ENGINE_CLASS_VIDEO] = "video",
 	[I915_ENGINE_CLASS_VIDEO_ENHANCE] = "video-enhance",
+	[I915_ENGINE_CLASS_COMPUTE] = "compute",
 };
 
 static u64 busy_add(struct i915_gem_context *ctx, unsigned int class)
@@ -115,8 +116,9 @@ show_client_class(struct seq_file *m,
 		total += busy_add(ctx, class);
 	rcu_read_unlock();
 
-	seq_printf(m, "drm-engine-%s:\t%llu ns\n",
-		   uabi_class_names[class], total);
+	if (capacity)
+		seq_printf(m, "drm-engine-%s:\t%llu ns\n",
+			   uabi_class_names[class], total);
 
 	if (capacity > 1)
 		seq_printf(m, "drm-engine-capacity-%s:\t%u\n",

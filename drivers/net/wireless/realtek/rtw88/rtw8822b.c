@@ -2548,6 +2548,7 @@ struct rtw_chip_info rtw8822b_hw_spec = {
 	.edcca_th = rtw8822b_edcca_th,
 	.l2h_th_ini_cs = 10 + EDCCA_IGI_BASE,
 	.l2h_th_ini_ad = -14 + EDCCA_IGI_BASE,
+	.ampdu_density = IEEE80211_HT_MPDU_DENSITY_2,
 
 	.coex_para_ver = 0x20070206,
 	.bt_desired_ver = 0x6,

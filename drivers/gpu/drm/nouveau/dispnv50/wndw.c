@@ -32,6 +32,7 @@
 
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_fourcc.h>
 
@@ -691,18 +692,6 @@ static int
 nv50_wndw_notify(struct nvif_notify *notify)
 {
 	return NVIF_NOTIFY_KEEP;
-}
-
-void
-nv50_wndw_fini(struct nv50_wndw *wndw)
-{
-	nvif_notify_put(&wndw->notify);
-}
-
-void
-nv50_wndw_init(struct nv50_wndw *wndw)
-{
-	nvif_notify_get(&wndw->notify);
 }
 
 static const u64 nv50_cursor_format_modifiers[] = {

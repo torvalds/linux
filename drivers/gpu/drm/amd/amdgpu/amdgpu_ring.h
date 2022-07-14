@@ -143,6 +143,7 @@ signed long amdgpu_fence_wait_polling(struct amdgpu_ring *ring,
 				      uint32_t wait_seq,
 				      signed long timeout);
 unsigned amdgpu_fence_count_emitted(struct amdgpu_ring *ring);
+void amdgpu_fence_driver_isr_toggle(struct amdgpu_device *adev, bool stop);
 
 /*
  * Rings.
@@ -230,6 +231,8 @@ struct amdgpu_ring {
 	struct amdgpu_bo	*ring_obj;
 	volatile uint32_t	*ring;
 	unsigned		rptr_offs;
+	u64			rptr_gpu_addr;
+	volatile u32		*rptr_cpu_addr;
 	u64			wptr;
 	u64			wptr_old;
 	unsigned		ring_size;
@@ -250,7 +253,11 @@ struct amdgpu_ring {
 	bool			use_doorbell;
 	bool			use_pollmem;
 	unsigned		wptr_offs;
+	u64			wptr_gpu_addr;
+	volatile u32		*wptr_cpu_addr;
 	unsigned		fence_offs;
+	u64			fence_gpu_addr;
+	volatile u32		*fence_cpu_addr;
 	uint64_t		current_ctx;
 	char			name[16];
 	u32                     trail_seq;
@@ -267,6 +274,11 @@ struct amdgpu_ring {
 	int			hw_prio;
 	unsigned 		num_hw_submission;
 	atomic_t		*sched_score;
+
+	/* used for mes */
+	bool			is_mes_queue;
+	uint32_t		hw_queue_id;
+	struct amdgpu_mes_ctx_data *mes_ctx;
 };
 
 #define amdgpu_ring_parse_cs(r, p, job, ib) ((r)->funcs->parse_cs((p), (job), (ib)))
@@ -364,10 +376,21 @@ static inline void amdgpu_ring_write_multiple(struct amdgpu_ring *ring,
 	ring->count_dw -= count_dw;
 }
 
+#define amdgpu_mes_ctx_get_offs_gpu_addr(ring, offset)			\
+	(ring->is_mes_queue && ring->mes_ctx ?				\
+	 (ring->mes_ctx->meta_data_gpu_addr + offset) : 0)
+
+#define amdgpu_mes_ctx_get_offs_cpu_addr(ring, offset)			\
+	(ring->is_mes_queue && ring->mes_ctx ?				\
+	 (void *)((uint8_t *)(ring->mes_ctx->meta_data_ptr) + offset) : \
+	 NULL)
+
 int amdgpu_ring_test_helper(struct amdgpu_ring *ring);
 
 void amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
 			      struct amdgpu_ring *ring);
+
+int amdgpu_ring_init_mqd(struct amdgpu_ring *ring);
 
 static inline u32 amdgpu_ib_get_value(struct amdgpu_ib *ib, int idx)
 {

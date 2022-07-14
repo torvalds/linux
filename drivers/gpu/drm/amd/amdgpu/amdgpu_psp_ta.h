@@ -25,6 +25,5 @@
 #define __AMDGPU_PSP_TA_H__
 
 void amdgpu_ta_if_debugfs_init(struct amdgpu_device *adev);
-void amdgpu_ta_if_debugfs_remove(void);
 
 #endif

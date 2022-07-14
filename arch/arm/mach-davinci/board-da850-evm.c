@@ -43,10 +43,9 @@
 #include <linux/spi/spi.h>
 #include <linux/spi/flash.h>
 
-#include <mach/common.h>
-#include <mach/da8xx.h>
-#include <mach/mux.h>
-
+#include "common.h"
+#include "da8xx.h"
+#include "mux.h"
 #include "irqs.h"
 #include "sram.h"
 

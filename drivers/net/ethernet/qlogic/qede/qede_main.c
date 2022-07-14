@@ -1916,7 +1916,6 @@ static void qede_sync_free_irqs(struct qede_dev *edev)
 
 	for (i = 0; i < edev->int_info.used_cnt; i++) {
 		if (edev->int_info.msix_cnt) {
-			synchronize_irq(edev->int_info.msix[i].vector);
 			free_irq(edev->int_info.msix[i].vector,
 				 &edev->fp_array[i]);
 		} else {

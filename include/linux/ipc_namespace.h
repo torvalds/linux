@@ -10,6 +10,7 @@
 #include <linux/ns_common.h>
 #include <linux/refcount.h>
 #include <linux/rhashtable-types.h>
+#include <linux/sysctl.h>
 
 struct user_namespace;
 
@@ -62,6 +63,12 @@ struct ipc_namespace {
 	unsigned int    mq_msgsize_max;  /* initialized to DFLT_MSGSIZEMAX */
 	unsigned int    mq_msg_default;
 	unsigned int    mq_msgsize_default;
+
+	struct ctl_table_set	mq_set;
+	struct ctl_table_header	*mq_sysctls;
+
+	struct ctl_table_set	ipc_set;
+	struct ctl_table_header	*ipc_sysctls;
 
 	/* user_ns which owns the ipc ns */
 	struct user_namespace *user_ns;
@@ -169,15 +176,37 @@ static inline void put_ipc_ns(struct ipc_namespace *ns)
 
 #ifdef CONFIG_POSIX_MQUEUE_SYSCTL
 
-struct ctl_table_header;
-extern struct ctl_table_header *mq_register_sysctl_table(void);
+void retire_mq_sysctls(struct ipc_namespace *ns);
+bool setup_mq_sysctls(struct ipc_namespace *ns);
 
 #else /* CONFIG_POSIX_MQUEUE_SYSCTL */
 
-static inline struct ctl_table_header *mq_register_sysctl_table(void)
+static inline void retire_mq_sysctls(struct ipc_namespace *ns)
 {
-	return NULL;
+}
+
+static inline bool setup_mq_sysctls(struct ipc_namespace *ns)
+{
+	return true;
 }
 
 #endif /* CONFIG_POSIX_MQUEUE_SYSCTL */
+
+#ifdef CONFIG_SYSVIPC_SYSCTL
+
+bool setup_ipc_sysctls(struct ipc_namespace *ns);
+void retire_ipc_sysctls(struct ipc_namespace *ns);
+
+#else /* CONFIG_SYSVIPC_SYSCTL */
+
+static inline void retire_ipc_sysctls(struct ipc_namespace *ns)
+{
+}
+
+static inline bool setup_ipc_sysctls(struct ipc_namespace *ns)
+{
+	return true;
+}
+
+#endif /* CONFIG_SYSVIPC_SYSCTL */
 #endif

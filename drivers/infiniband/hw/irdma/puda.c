@@ -191,7 +191,6 @@ static void irdma_puda_dele_buf(struct irdma_sc_dev *dev,
 static __le64 *irdma_puda_get_next_send_wqe(struct irdma_qp_uk *qp,
 					    u32 *wqe_idx)
 {
-	__le64 *wqe = NULL;
 	int ret_code = 0;
 
 	*wqe_idx = IRDMA_RING_CURRENT_HEAD(qp->sq_ring);
@@ -199,11 +198,9 @@ static __le64 *irdma_puda_get_next_send_wqe(struct irdma_qp_uk *qp,
 		qp->swqe_polarity = !qp->swqe_polarity;
 	IRDMA_RING_MOVE_HEAD(qp->sq_ring, ret_code);
 	if (ret_code)
-		return wqe;
+		return NULL;
 
-	wqe = qp->sq_base[*wqe_idx].elem;
-
-	return wqe;
+	return qp->sq_base[*wqe_idx].elem;
 }
 
 /**

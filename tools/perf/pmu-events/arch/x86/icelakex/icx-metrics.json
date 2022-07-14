@@ -475,10 +475,10 @@
         "MetricName": "IpFarBranch"
     },
     {
-        "BriefDescription": "C3 residency percent per core",
-        "MetricExpr": "(cstate_core@c3\\-residency@ / msr@tsc@) * 100",
+        "BriefDescription": "C1 residency percent per core",
+        "MetricExpr": "(cstate_core@c1\\-residency@ / msr@tsc@) * 100",
         "MetricGroup": "Power",
-        "MetricName": "C3_Core_Residency"
+        "MetricName": "C1_Core_Residency"
     },
     {
         "BriefDescription": "C6 residency percent per core",
@@ -487,33 +487,15 @@
         "MetricName": "C6_Core_Residency"
     },
     {
-        "BriefDescription": "C7 residency percent per core",
-        "MetricExpr": "(cstate_core@c7\\-residency@ / msr@tsc@) * 100",
-        "MetricGroup": "Power",
-        "MetricName": "C7_Core_Residency"
-    },
-    {
         "BriefDescription": "C2 residency percent per package",
         "MetricExpr": "(cstate_pkg@c2\\-residency@ / msr@tsc@) * 100",
         "MetricGroup": "Power",
         "MetricName": "C2_Pkg_Residency"
     },
     {
-        "BriefDescription": "C3 residency percent per package",
-        "MetricExpr": "(cstate_pkg@c3\\-residency@ / msr@tsc@) * 100",
-        "MetricGroup": "Power",
-        "MetricName": "C3_Pkg_Residency"
-    },
-    {
         "BriefDescription": "C6 residency percent per package",
         "MetricExpr": "(cstate_pkg@c6\\-residency@ / msr@tsc@) * 100",
         "MetricGroup": "Power",
         "MetricName": "C6_Pkg_Residency"
-    },
-    {
-        "BriefDescription": "C7 residency percent per package",
-        "MetricExpr": "(cstate_pkg@c7\\-residency@ / msr@tsc@) * 100",
-        "MetricGroup": "Power",
-        "MetricName": "C7_Pkg_Residency"
     }
 ]

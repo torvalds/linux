@@ -145,8 +145,7 @@ mlx5e_tc_act_post_parse(struct mlx5e_tc_act_parse_state *parse_state,
 
 	flow_action_for_each(i, act, flow_action) {
 		tc_act = mlx5e_tc_act_get(act->id, ns_type);
-		if (!tc_act || !tc_act->post_parse ||
-		    !tc_act->can_offload(parse_state, act, i, attr))
+		if (!tc_act || !tc_act->post_parse)
 			continue;
 
 		err = tc_act->post_parse(parse_state, priv, attr);

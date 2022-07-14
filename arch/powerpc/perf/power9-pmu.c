@@ -98,7 +98,7 @@ extern u64 PERF_REG_EXTENDED_MASK;
 /* PowerISA v2.07 format attribute structure*/
 extern const struct attribute_group isa207_pmu_format_group;
 
-int p9_dd21_bl_ev[] = {
+static int p9_dd21_bl_ev[] = {
 	PM_MRK_ST_DONE_L2,
 	PM_RADIX_PWC_L1_HIT,
 	PM_FLOP_CMPL,
@@ -112,7 +112,7 @@ int p9_dd21_bl_ev[] = {
 	PM_DISP_HELD_SYNC_HOLD,
 };
 
-int p9_dd22_bl_ev[] = {
+static int p9_dd22_bl_ev[] = {
 	PM_DTLB_MISS_16G,
 	PM_DERAT_MISS_2M,
 	PM_DTLB_MISS_2M,

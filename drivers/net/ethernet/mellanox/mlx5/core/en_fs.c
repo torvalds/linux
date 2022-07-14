@@ -155,7 +155,7 @@ static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
 		list_size = max_list_size;
 	}
 
-	vlans = kcalloc(list_size, sizeof(*vlans), GFP_KERNEL);
+	vlans = kvcalloc(list_size, sizeof(*vlans), GFP_KERNEL);
 	if (!vlans)
 		return -ENOMEM;
 
@@ -171,7 +171,7 @@ static int mlx5e_vport_context_update_vlans(struct mlx5e_priv *priv)
 		netdev_err(ndev, "Failed to modify vport vlans list err(%d)\n",
 			   err);
 
-	kfree(vlans);
+	kvfree(vlans);
 	return err;
 }
 

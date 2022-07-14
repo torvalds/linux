@@ -31,6 +31,11 @@ u64 host1x_get_dma_mask(struct host1x *host1x);
  * struct host1x_bo_cache - host1x buffer object cache
  * @mappings: list of mappings
  * @lock: synchronizes accesses to the list of mappings
+ *
+ * Note that entries are not periodically evicted from this cache and instead need to be
+ * explicitly released. This is used primarily for DRM/KMS where the cache's reference is
+ * released when the last reference to a buffer object represented by a mapping in this
+ * cache is dropped.
  */
 struct host1x_bo_cache {
 	struct list_head mappings;
@@ -81,6 +86,7 @@ struct host1x_client_ops {
  * @parent: pointer to parent structure
  * @usecount: reference count for this structure
  * @lock: mutex for mutually exclusive concurrency
+ * @cache: host1x buffer object cache
  */
 struct host1x_client {
 	struct list_head list;
@@ -321,6 +327,14 @@ struct host1x_job {
 
 	/* Whether host1x-side firewall should be ran for this job or not */
 	bool enable_firewall;
+
+	/* Options for configuring engine data stream ID */
+	/* Context device to use for job */
+	struct host1x_memory_context *memory_context;
+	/* Stream ID to use if context isolation is disabled (!memory_context) */
+	u32 engine_fallback_streamid;
+	/* Engine offset to program stream ID to */
+	u32 engine_streamid_offset;
 };
 
 struct host1x_job *host1x_job_alloc(struct host1x_channel *ch,
@@ -439,5 +453,39 @@ int tegra_mipi_enable(struct tegra_mipi_device *device);
 int tegra_mipi_disable(struct tegra_mipi_device *device);
 int tegra_mipi_start_calibration(struct tegra_mipi_device *device);
 int tegra_mipi_finish_calibration(struct tegra_mipi_device *device);
+
+/* host1x memory contexts */
+
+struct host1x_memory_context {
+	struct host1x *host;
+
+	refcount_t ref;
+	struct pid *owner;
+
+	struct device dev;
+	u64 dma_mask;
+	u32 stream_id;
+};
+
+#ifdef CONFIG_IOMMU_API
+struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
+							  struct pid *pid);
+void host1x_memory_context_get(struct host1x_memory_context *cd);
+void host1x_memory_context_put(struct host1x_memory_context *cd);
+#else
+static inline struct host1x_memory_context *host1x_memory_context_alloc(struct host1x *host1x,
+									struct pid *pid)
+{
+	return NULL;
+}
+
+static inline void host1x_memory_context_get(struct host1x_memory_context *cd)
+{
+}
+
+static inline void host1x_memory_context_put(struct host1x_memory_context *cd)
+{
+}
+#endif
 
 #endif

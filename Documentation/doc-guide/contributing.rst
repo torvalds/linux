@@ -79,8 +79,9 @@ simplistic idea of what C comment blocks look like.  This problem had been
 present since that comment was added in 2016 — a full four years.  Fixing
 it was a matter of adding the missing asterisks.  A quick look at the
 history for that file showed what the normal format for subject lines is,
-and ``scripts/get_maintainer.pl`` told me who should receive it.  The
-resulting patch looked like this::
+and ``scripts/get_maintainer.pl`` told me who should receive it (pass paths to
+your patches as arguments to scripts/get_maintainer.pl).  The resulting patch
+looked like this::
 
   [PATCH] PM / devfreq: Fix two malformed kerneldoc comments
 

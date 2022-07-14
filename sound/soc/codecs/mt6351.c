@@ -282,12 +282,9 @@ static const struct snd_soc_dai_ops mt6351_codec_dai_ops = {
 	.hw_params = mt6351_codec_dai_hw_params,
 };
 
-#define MT6351_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S16_BE |\
-			SNDRV_PCM_FMTBIT_U16_LE | SNDRV_PCM_FMTBIT_U16_BE |\
-			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S24_BE |\
-			SNDRV_PCM_FMTBIT_U24_LE | SNDRV_PCM_FMTBIT_U24_BE |\
-			SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_S32_BE |\
-			SNDRV_PCM_FMTBIT_U32_LE | SNDRV_PCM_FMTBIT_U32_BE)
+#define MT6351_FORMATS (SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_U16_LE |\
+			SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_U24_LE |\
+			SNDRV_PCM_FMTBIT_S32_LE | SNDRV_PCM_FMTBIT_U32_LE)
 
 static struct snd_soc_dai_driver mt6351_dai_driver[] = {
 	{
@@ -1448,6 +1445,7 @@ static const struct snd_soc_component_driver mt6351_soc_component_driver = {
 	.num_dapm_widgets = ARRAY_SIZE(mt6351_dapm_widgets),
 	.dapm_routes = mt6351_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(mt6351_dapm_routes),
+	.endianness = 1,
 };
 
 static int mt6351_codec_driver_probe(struct platform_device *pdev)

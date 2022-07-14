@@ -129,7 +129,7 @@ static noinline void dcn3_build_wm_range_table(struct clk_mgr_internal *clk_mgr)
 
 	/* Set C - Dummy P-State - P-State latency set to "dummy p-state" value */
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].valid = true;
-	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].dml_input.pstate_latency_us = clk_mgr->base.ctx->dc->dml.soc.dummy_pstate_latency_us;
+	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].dml_input.pstate_latency_us = 0;
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].dml_input.sr_exit_time_us = sr_exit_time_us;
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].dml_input.sr_enter_plus_exit_time_us = sr_enter_plus_exit_time_us;
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.wm_type = WATERMARKS_DUMMY_PSTATE;
@@ -137,6 +137,14 @@ static noinline void dcn3_build_wm_range_table(struct clk_mgr_internal *clk_mgr)
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.max_dcfclk = 0xFFFF;
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.min_uclk = min_uclk_mhz;
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.max_uclk = 0xFFFF;
+	clk_mgr->base.bw_params->dummy_pstate_table[0].dram_speed_mts = 1600;
+	clk_mgr->base.bw_params->dummy_pstate_table[0].dummy_pstate_latency_us = 38;
+	clk_mgr->base.bw_params->dummy_pstate_table[1].dram_speed_mts = 8000;
+	clk_mgr->base.bw_params->dummy_pstate_table[1].dummy_pstate_latency_us = 9;
+	clk_mgr->base.bw_params->dummy_pstate_table[2].dram_speed_mts = 10000;
+	clk_mgr->base.bw_params->dummy_pstate_table[2].dummy_pstate_latency_us = 8;
+	clk_mgr->base.bw_params->dummy_pstate_table[3].dram_speed_mts = 16000;
+	clk_mgr->base.bw_params->dummy_pstate_table[3].dummy_pstate_latency_us = 5;
 
 	/* Set D - MALL - SR enter and exit times adjusted for MALL */
 	clk_mgr->base.bw_params->wm_table.nv_entries[WM_D].valid = true;
@@ -517,6 +525,8 @@ static void dcn30_notify_link_rate_change(struct clk_mgr *clk_mgr_base, struct d
 	if (!clk_mgr->smu_present)
 		return;
 
+	/* TODO - DP2.0 HW: calculate link 128b/132 link rate in clock manager with new formula */
+
 	clk_mgr->cur_phyclk_req_table[link->link_index] = link->cur_link_settings.link_rate * LINK_RATE_REF_FREQ_IN_KHZ;
 
 	for (i = 0; i < MAX_PIPES * 2; i++) {
@@ -620,7 +630,8 @@ void dcn3_clk_mgr_construct(
 
 void dcn3_clk_mgr_destroy(struct clk_mgr_internal *clk_mgr)
 {
-	kfree(clk_mgr->base.bw_params);
+	if (clk_mgr->base.bw_params)
+		kfree(clk_mgr->base.bw_params);
 
 	if (clk_mgr->wm_range_table)
 		dm_helpers_free_gpu_mem(clk_mgr->base.ctx, DC_MEM_ALLOC_TYPE_GART,

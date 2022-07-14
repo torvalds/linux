@@ -46,6 +46,7 @@ properties:
 
   reg: true
   port: true
+  backlight: true
 
 required:
   - compatible
@@ -73,6 +74,7 @@ examples:
             vddpos-supply = <&lab>;
             vddneg-supply = <&ibb>;
 
+            backlight = <&pmi8998_wled>;
             reset-gpios = <&tlmm 6 GPIO_ACTIVE_HIGH>;
 
             port {

@@ -41,8 +41,8 @@
 #include "udc.h"
 #include "pxa27x-udc.h"
 #include <linux/platform_data/media/camera-pxa.h>
-#include <mach/audio.h>
-#include <mach/smemc.h>
+#include <linux/platform_data/asoc-pxa.h>
+#include "smemc.h"
 
 #include "mioa701.h"
 

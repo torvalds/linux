@@ -41,9 +41,9 @@
 	dpp->tf_shift->field_name, dpp->tf_mask->field_name
 
 
-static void dpp30_read_state(struct dpp *dpp_base, struct dcn_dpp_state *s)
+void dpp30_read_state(struct dpp *dpp_base, struct dcn_dpp_state *s)
 {
-	struct dcn20_dpp *dpp = TO_DCN20_DPP(dpp_base);
+	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
 	REG_GET(DPP_CONTROL,
 			DPP_CLOCK_ENABLE, &s->is_enabled);
@@ -167,7 +167,7 @@ void dpp3_set_pre_degam(struct dpp *dpp_base, enum dc_transfer_func_predefined t
 			PRE_DEGAM_SELECT, degamma_lut_selection);
 }
 
-static void dpp3_cnv_setup (
+void dpp3_cnv_setup (
 		struct dpp *dpp_base,
 		enum surface_pixel_format format,
 		enum expansion_mode mode,
@@ -294,6 +294,9 @@ static void dpp3_cnv_setup (
 		break;
 	}
 
+	/* Set default color space based on format if none is given. */
+	color_space = input_color_space ? input_color_space : color_space;
+
 	if (is_2bit == 1 && alpha_2bit_lut != NULL) {
 		REG_UPDATE(ALPHA_2BIT_LUT, ALPHA_2BIT_LUT0, alpha_2bit_lut->lut0);
 		REG_UPDATE(ALPHA_2BIT_LUT, ALPHA_2BIT_LUT1, alpha_2bit_lut->lut1);
@@ -372,7 +375,7 @@ void dpp3_set_cursor_attributes(
 }
 
 
-static bool dpp3_get_optimal_number_of_taps(
+bool dpp3_get_optimal_number_of_taps(
 		struct dpp *dpp,
 		struct scaler_data *scl_data,
 		const struct scaling_taps *in_taps)

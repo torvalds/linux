@@ -18,27 +18,26 @@
  * Read a file data page for Merkle tree construction.  Do aggressive readahead,
  * since we're sequentially reading the entire file.
  */
-static struct page *read_file_data_page(struct file *filp, pgoff_t index,
+static struct page *read_file_data_page(struct file *file, pgoff_t index,
 					struct file_ra_state *ra,
 					unsigned long remaining_pages)
 {
-	struct page *page;
+	DEFINE_READAHEAD(ractl, file, ra, file->f_mapping, index);
+	struct folio *folio;
 
-	page = find_get_page_flags(filp->f_mapping, index, FGP_ACCESSED);
-	if (!page || !PageUptodate(page)) {
-		if (page)
-			put_page(page);
+	folio = __filemap_get_folio(ractl.mapping, index, FGP_ACCESSED, 0);
+	if (!folio || !folio_test_uptodate(folio)) {
+		if (folio)
+			folio_put(folio);
 		else
-			page_cache_sync_readahead(filp->f_mapping, ra, filp,
-						  index, remaining_pages);
-		page = read_mapping_page(filp->f_mapping, index, NULL);
-		if (IS_ERR(page))
-			return page;
+			page_cache_sync_ra(&ractl, remaining_pages);
+		folio = read_cache_folio(ractl.mapping, index, NULL, file);
+		if (IS_ERR(folio))
+			return &folio->page;
 	}
-	if (PageReadahead(page))
-		page_cache_async_readahead(filp->f_mapping, ra, filp, page,
-					   index, remaining_pages);
-	return page;
+	if (folio_test_readahead(folio))
+		page_cache_async_ra(&ractl, folio, remaining_pages);
+	return folio_file_page(folio, index);
 }
 
 static int build_merkle_tree_level(struct file *filp, unsigned int level,
@@ -202,7 +201,7 @@ static int enable_verity(struct file *filp,
 	const struct fsverity_operations *vops = inode->i_sb->s_vop;
 	struct merkle_tree_params params = { };
 	struct fsverity_descriptor *desc;
-	size_t desc_size = sizeof(*desc) + arg->sig_size;
+	size_t desc_size = struct_size(desc, signature, arg->sig_size);
 	struct fsverity_info *vi;
 	int err;
 
@@ -281,7 +280,7 @@ static int enable_verity(struct file *filp,
 	 * from disk.  This is simpler, and it serves as an extra check that the
 	 * metadata we're writing is valid before actually enabling verity.
 	 */
-	vi = fsverity_create_info(inode, desc, desc_size);
+	vi = fsverity_create_info(inode, desc);
 	if (IS_ERR(vi)) {
 		err = PTR_ERR(vi);
 		goto rollback;

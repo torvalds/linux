@@ -30,10 +30,11 @@
 #include <asm/pdc.h>
 #include <asm/cacheflush.h>
 #include <asm/grfioctl.h>
+#include <asm/fb.h>
 
 #include "../fbdev/sticore.h"
 
-#define STI_DRIVERVERSION "Version 0.9b"
+#define STI_DRIVERVERSION "Version 0.9c"
 
 static struct sti_struct *default_sti __read_mostly;
 
@@ -502,7 +503,7 @@ sti_select_fbfont(struct sti_cooked_rom *cooked_rom, const char *fbfont_name)
 	if (!fbfont)
 		return NULL;
 
-	pr_info("STI selected %ux%u framebuffer font %s for sticon\n",
+	pr_info("    using %ux%u framebuffer font %s\n",
 			fbfont->width, fbfont->height, fbfont->name);
 			
 	bpc = ((fbfont->width+7)/8) * fbfont->height; 
@@ -548,6 +549,26 @@ sti_select_fbfont(struct sti_cooked_rom *cooked_rom, const char *fbfont_name)
 	return NULL;
 }
 #endif
+
+static void sti_dump_font(struct sti_cooked_font *font)
+{
+#ifdef STI_DUMP_FONT
+	unsigned char *p = (unsigned char *)font->raw;
+	int n;
+
+	p += sizeof(struct sti_rom_font);
+	pr_debug("  w %d h %d bpc %d\n", font->width, font->height,
+					font->raw->bytes_per_char);
+
+	for (n = 0; n < 256 * font->raw->bytes_per_char; n += 16, p += 16) {
+		pr_debug("        0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x,"
+			" 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x, 0x%02x,"
+			" 0x%02x, 0x%02x, 0x%02x, 0x%02x,\n",
+			p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8],
+			p[9], p[10], p[11], p[12], p[13], p[14], p[15]);
+	}
+#endif
+}
 
 static int sti_search_font(struct sti_cooked_rom *rom, int height, int width)
 {
@@ -796,6 +817,7 @@ static int sti_read_rom(int wordmode, struct sti_struct *sti,
 	sti->font->width = sti->font->raw->width;
 	sti->font->height = sti->font->raw->height;
 	sti_font_convert_bytemode(sti, sti->font);
+	sti_dump_font(sti->font);
 
 	sti->sti_mem_request = raw->sti_mem_req;
 	sti->graphics_id[0] = raw->graphics_id[0];
@@ -946,6 +968,7 @@ out_err:
 
 static void sticore_check_for_default_sti(struct sti_struct *sti, char *path)
 {
+	pr_info("    located at [%s]\n", sti->pa_path);
 	if (strcmp (path, default_sti_path) == 0)
 		default_sti = sti;
 }
@@ -957,7 +980,6 @@ static void sticore_check_for_default_sti(struct sti_struct *sti, char *path)
  */
 static int __init sticore_pa_init(struct parisc_device *dev)
 {
-	char pa_path[21];
 	struct sti_struct *sti = NULL;
 	int hpa = dev->hpa.start;
 
@@ -970,8 +992,8 @@ static int __init sticore_pa_init(struct parisc_device *dev)
 	if (!sti)
 		return 1;
 
-	print_pa_hwpath(dev, pa_path);
-	sticore_check_for_default_sti(sti, pa_path);
+	print_pa_hwpath(dev, sti->pa_path);
+	sticore_check_for_default_sti(sti, sti->pa_path);
 	return 0;
 }
 
@@ -1007,9 +1029,8 @@ static int sticore_pci_init(struct pci_dev *pd, const struct pci_device_id *ent)
 
 	sti = sti_try_rom_generic(rom_base, fb_base, pd);
 	if (sti) {
-		char pa_path[30];
-		print_pci_hwpath(pd, pa_path);
-		sticore_check_for_default_sti(sti, pa_path);
+		print_pci_hwpath(pd, sti->pa_path);
+		sticore_check_for_default_sti(sti, sti->pa_path);
 	}
 	
 	if (!sti) {
@@ -1126,6 +1147,24 @@ int sti_call(const struct sti_struct *sti, unsigned long func,
 
 	return ret;
 }
+
+#if defined(CONFIG_FB_STI)
+/* check if given fb_info is the primary device */
+int fb_is_primary_device(struct fb_info *info)
+{
+	struct sti_struct *sti;
+
+	sti = sti_get_rom(0);
+
+	/* if no built-in graphics card found, allow any fb driver as default */
+	if (!sti)
+		return true;
+
+	/* return true if it's the default built-in framebuffer driver */
+	return (sti->info == info);
+}
+EXPORT_SYMBOL(fb_is_primary_device);
+#endif
 
 MODULE_AUTHOR("Philipp Rumpf, Helge Deller, Thomas Bogendoerfer");
 MODULE_DESCRIPTION("Core STI driver for HP's NGLE series graphics cards in HP PARISC machines");

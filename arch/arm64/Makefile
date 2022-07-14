@@ -162,11 +162,9 @@ Image: vmlinux
 Image.%: Image
 	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 
-install: install-image := Image
-zinstall: install-image := Image.gz
+install: KBUILD_IMAGE := $(boot)/Image
 install zinstall:
-	$(CONFIG_SHELL) $(srctree)/$(boot)/install.sh $(KERNELRELEASE) \
-	$(boot)/$(install-image) System.map "$(INSTALL_PATH)"
+	$(call cmd,install)
 
 PHONY += vdso_install
 vdso_install:

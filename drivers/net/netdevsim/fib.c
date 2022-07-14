@@ -22,6 +22,7 @@
 #include <linux/spinlock_types.h>
 #include <linux/types.h>
 #include <net/fib_notifier.h>
+#include <net/inet_dscp.h>
 #include <net/ip_fib.h>
 #include <net/ip6_fib.h>
 #include <net/fib_rules.h>
@@ -78,7 +79,7 @@ struct nsim_fib_rt {
 struct nsim_fib4_rt {
 	struct nsim_fib_rt common;
 	struct fib_info *fi;
-	u8 tos;
+	dscp_t dscp;
 	u8 type;
 };
 
@@ -283,7 +284,7 @@ nsim_fib4_rt_create(struct nsim_fib_data *data,
 
 	fib4_rt->fi = fen_info->fi;
 	fib_info_hold(fib4_rt->fi);
-	fib4_rt->tos = fen_info->tos;
+	fib4_rt->dscp = fen_info->dscp;
 	fib4_rt->type = fen_info->type;
 
 	return fib4_rt;
@@ -322,7 +323,7 @@ nsim_fib4_rt_offload_failed_flag_set(struct net *net,
 	fri.tb_id = fen_info->tb_id;
 	fri.dst = cpu_to_be32(*p_dst);
 	fri.dst_len = fen_info->dst_len;
-	fri.tos = fen_info->tos;
+	fri.dscp = fen_info->dscp;
 	fri.type = fen_info->type;
 	fri.offload = false;
 	fri.trap = false;
@@ -342,7 +343,7 @@ static void nsim_fib4_rt_hw_flags_set(struct net *net,
 	fri.tb_id = fib4_rt->common.key.tb_id;
 	fri.dst = cpu_to_be32(*p_dst);
 	fri.dst_len = dst_len;
-	fri.tos = fib4_rt->tos;
+	fri.dscp = fib4_rt->dscp;
 	fri.type = fib4_rt->type;
 	fri.offload = false;
 	fri.trap = trap;

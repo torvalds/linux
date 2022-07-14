@@ -1179,15 +1179,15 @@ static void gsi_isr_gp_int1(struct gsi *gsi)
 	 * Similarly, we could get an error back when updating flow control
 	 * on a channel because it's not in the proper state.
 	 *
-	 * In either case, we silently ignore a CHANNEL_NOT_RUNNING error
-	 * if we receive it.
+	 * In either case, we silently ignore a INCORRECT_CHANNEL_STATE
+	 * error if we receive it.
 	 */
 	val = ioread32(gsi->virt + GSI_CNTXT_SCRATCH_0_OFFSET);
 	result = u32_get_bits(val, GENERIC_EE_RESULT_FMASK);
 
 	switch (result) {
 	case GENERIC_EE_SUCCESS:
-	case GENERIC_EE_CHANNEL_NOT_RUNNING:
+	case GENERIC_EE_INCORRECT_CHANNEL_STATE:
 		gsi->result = 0;
 		break;
 
@@ -1367,9 +1367,10 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	struct gsi_event *event_done;
 	struct gsi_event *event;
 	struct gsi_trans *trans;
+	u32 trans_count = 0;
 	u32 byte_count = 0;
-	u32 old_index;
 	u32 event_avail;
+	u32 old_index;
 
 	trans_info = &channel->trans_info;
 
@@ -1390,6 +1391,7 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	do {
 		trans->len = __le16_to_cpu(event->len);
 		byte_count += trans->len;
+		trans_count++;
 
 		/* Move on to the next event and transaction */
 		if (--event_avail)
@@ -1401,7 +1403,7 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 
 	/* We record RX bytes when they are received */
 	channel->byte_count += byte_count;
-	channel->trans_count++;
+	channel->trans_count += trans_count;
 }
 
 /* Initialize a ring, including allocating DMA memory for its entries */
@@ -1490,12 +1492,8 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 	if (index == ring->index % ring->count)
 		return NULL;
 
-	/* Get the transaction for the latest completed event.  Take a
-	 * reference to keep it from completing before we give the events
-	 * for this and previous transactions back to the hardware.
-	 */
+	/* Get the transaction for the latest completed event. */
 	trans = gsi_event_trans(channel, gsi_ring_virt(ring, index - 1));
-	refcount_inc(&trans->refcount);
 
 	/* For RX channels, update each completed transaction with the number
 	 * of bytes that were actually received.  For TX channels, report
@@ -1510,9 +1508,7 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 	gsi_trans_move_complete(trans);
 
 	/* Tell the hardware we've handled these events */
-	gsi_evt_ring_doorbell(channel->gsi, channel->evt_ring_id, index);
-
-	gsi_trans_free(trans);
+	gsi_evt_ring_doorbell(gsi, evt_ring_id, index);
 
 	return gsi_channel_trans_complete(channel);
 }
@@ -1614,8 +1610,8 @@ static int gsi_channel_setup_one(struct gsi *gsi, u32 channel_id)
 	gsi_channel_program(channel, true);
 
 	if (channel->toward_ipa)
-		netif_tx_napi_add(&gsi->dummy_dev, &channel->napi,
-				  gsi_channel_poll, NAPI_POLL_WEIGHT);
+		netif_napi_add_tx(&gsi->dummy_dev, &channel->napi,
+				  gsi_channel_poll);
 	else
 		netif_napi_add(&gsi->dummy_dev, &channel->napi,
 			       gsi_channel_poll, NAPI_POLL_WEIGHT);

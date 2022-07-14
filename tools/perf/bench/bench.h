@@ -49,6 +49,8 @@ int bench_synthesize(int argc, const char **argv);
 int bench_kallsyms_parse(int argc, const char **argv);
 int bench_inject_build_id(int argc, const char **argv);
 int bench_evlist_open_close(int argc, const char **argv);
+int bench_breakpoint_thread(int argc, const char **argv);
+int bench_breakpoint_enable(int argc, const char **argv);
 
 #define BENCH_FORMAT_DEFAULT_STR	"default"
 #define BENCH_FORMAT_DEFAULT		0

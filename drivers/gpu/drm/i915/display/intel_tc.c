@@ -6,6 +6,7 @@
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "intel_display.h"
+#include "intel_display_power_map.h"
 #include "intel_display_types.h"
 #include "intel_dp_mst.h"
 #include "intel_tc.h"
@@ -61,10 +62,12 @@ bool intel_tc_cold_requires_aux_pw(struct intel_digital_port *dig_port)
 static enum intel_display_power_domain
 tc_cold_get_power_domain(struct intel_digital_port *dig_port, enum tc_port_mode mode)
 {
+	struct drm_i915_private *i915 = to_i915(dig_port->base.base.dev);
+
 	if (mode == TC_PORT_TBT_ALT || !intel_tc_cold_requires_aux_pw(dig_port))
 		return POWER_DOMAIN_TC_COLD_OFF;
 
-	return intel_legacy_aux_to_power_domain(dig_port->aux_ch);
+	return intel_display_power_legacy_aux_domain(i915, dig_port->aux_ch);
 }
 
 static intel_wakeref_t
@@ -491,7 +494,8 @@ static void icl_tc_phy_connect(struct intel_digital_port *dig_port,
 	}
 
 	live_status_mask = tc_port_live_status_mask(dig_port);
-	if (!(live_status_mask & (BIT(TC_PORT_DP_ALT) | BIT(TC_PORT_LEGACY)))) {
+	if (!(live_status_mask & (BIT(TC_PORT_DP_ALT) | BIT(TC_PORT_LEGACY))) &&
+	    !dig_port->tc_legacy_port) {
 		drm_dbg_kms(&i915->drm, "Port %s: PHY ownership not required (live status %02x)\n",
 			    dig_port->tc_port_name, live_status_mask);
 		goto out_set_tbt_alt_mode;

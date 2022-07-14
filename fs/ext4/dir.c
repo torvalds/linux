@@ -412,7 +412,7 @@ struct fname {
 };
 
 /*
- * This functoin implements a non-recursive way of freeing all of the
+ * This function implements a non-recursive way of freeing all of the
  * nodes in the red-black tree.
  */
 static void free_rb_tree_fname(struct rb_root *root)
@@ -515,7 +515,7 @@ int ext4_htree_store_dirent(struct file *dir_file, __u32 hash,
 
 /*
  * This is a helper function for ext4_dx_readdir.  It calls filldir
- * for all entres on the fname linked list.  (Normally there is only
+ * for all entries on the fname linked list.  (Normally there is only
  * one entry on the linked list, unless there are 62 bit hash collisions.)
  */
 static int call_filldir(struct file *file, struct dir_context *ctx,
@@ -648,7 +648,7 @@ int ext4_check_all_de(struct inode *dir, struct buffer_head *bh, void *buf,
 	unsigned int offset = 0;
 	char *top;
 
-	de = (struct ext4_dir_entry_2 *)buf;
+	de = buf;
 	top = buf + buf_size;
 	while ((char *) de < top) {
 		if (ext4_check_dir_entry(dir, NULL, de, bh,

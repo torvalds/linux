@@ -16,6 +16,7 @@ struct dp_power_private {
 	struct dp_parser *parser;
 	struct platform_device *pdev;
 	struct device *dev;
+	struct drm_device *drm_dev;
 	struct clk *link_clk_src;
 	struct clk *pixel_provider;
 	struct clk *link_provider;
@@ -105,102 +106,25 @@ static int dp_power_clk_init(struct dp_power_private *power)
 	ctrl = &power->parser->mp[DP_CTRL_PM];
 	stream = &power->parser->mp[DP_STREAM_PM];
 
-	rc = msm_dss_get_clk(dev, core->clk_config, core->num_clk);
+	rc = devm_clk_bulk_get(dev, core->num_clk, core->clocks);
 	if (rc) {
 		DRM_ERROR("failed to get %s clk. err=%d\n",
 			dp_parser_pm_name(DP_CORE_PM), rc);
 		return rc;
 	}
 
-	rc = msm_dss_get_clk(dev, ctrl->clk_config, ctrl->num_clk);
+	rc = devm_clk_bulk_get(dev, ctrl->num_clk, ctrl->clocks);
 	if (rc) {
 		DRM_ERROR("failed to get %s clk. err=%d\n",
 			dp_parser_pm_name(DP_CTRL_PM), rc);
-		msm_dss_put_clk(core->clk_config, core->num_clk);
 		return -ENODEV;
 	}
 
-	rc = msm_dss_get_clk(dev, stream->clk_config, stream->num_clk);
+	rc = devm_clk_bulk_get(dev, stream->num_clk, stream->clocks);
 	if (rc) {
 		DRM_ERROR("failed to get %s clk. err=%d\n",
 			dp_parser_pm_name(DP_CTRL_PM), rc);
-		msm_dss_put_clk(core->clk_config, core->num_clk);
 		return -ENODEV;
-	}
-
-	return 0;
-}
-
-static int dp_power_clk_deinit(struct dp_power_private *power)
-{
-	struct dss_module_power *core, *ctrl, *stream;
-
-	core = &power->parser->mp[DP_CORE_PM];
-	ctrl = &power->parser->mp[DP_CTRL_PM];
-	stream = &power->parser->mp[DP_STREAM_PM];
-
-	if (!core || !ctrl || !stream) {
-		DRM_ERROR("invalid power_data\n");
-		return -EINVAL;
-	}
-
-	msm_dss_put_clk(ctrl->clk_config, ctrl->num_clk);
-	msm_dss_put_clk(core->clk_config, core->num_clk);
-	msm_dss_put_clk(stream->clk_config, stream->num_clk);
-	return 0;
-}
-
-static int dp_power_clk_set_link_rate(struct dp_power_private *power,
-			struct dss_clk *clk_arry, int num_clk, int enable)
-{
-	u32 rate;
-	int i, rc = 0;
-
-	for (i = 0; i < num_clk; i++) {
-		if (clk_arry[i].clk) {
-			if (clk_arry[i].type == DSS_CLK_PCLK) {
-				if (enable)
-					rate = clk_arry[i].rate;
-				else
-					rate = 0;
-
-				rc = dev_pm_opp_set_rate(power->dev, rate);
-				if (rc)
-					break;
-			}
-
-		}
-	}
-	return rc;
-}
-
-static int dp_power_clk_set_rate(struct dp_power_private *power,
-		enum dp_pm_type module, bool enable)
-{
-	int rc = 0;
-	struct dss_module_power *mp = &power->parser->mp[module];
-
-	if (module == DP_CTRL_PM) {
-		rc = dp_power_clk_set_link_rate(power, mp->clk_config, mp->num_clk, enable);
-		if (rc) {
-			DRM_ERROR("failed to set link clks rate\n");
-			return rc;
-		}
-	} else {
-
-		if (enable) {
-			rc = msm_dss_clk_set_rate(mp->clk_config, mp->num_clk);
-			if (rc) {
-				DRM_ERROR("failed to set clks rate\n");
-				return rc;
-			}
-		}
-	}
-
-	rc = msm_dss_enable_clk(mp->clk_config, mp->num_clk, enable);
-	if (rc) {
-		DRM_ERROR("failed to %d clks, err: %d\n", enable, rc);
-		return rc;
 	}
 
 	return 0;
@@ -208,7 +132,12 @@ static int dp_power_clk_set_rate(struct dp_power_private *power,
 
 int dp_power_clk_status(struct dp_power *dp_power, enum dp_pm_type pm_type)
 {
-	DRM_DEBUG_DP("core_clk_on=%d link_clk_on=%d stream_clk_on=%d\n",
+	struct dp_power_private *power;
+
+	power = container_of(dp_power, struct dp_power_private, dp_power);
+
+	drm_dbg_dp(power->drm_dev,
+		"core_clk_on=%d link_clk_on=%d stream_clk_on=%d\n",
 		dp_power->core_clks_on, dp_power->link_clks_on, dp_power->stream_clks_on);
 
 	if (pm_type == DP_CORE_PM)
@@ -228,6 +157,7 @@ int dp_power_clk_enable(struct dp_power *dp_power,
 {
 	int rc = 0;
 	struct dp_power_private *power;
+	struct dss_module_power *mp;
 
 	power = container_of(dp_power, struct dp_power_private, dp_power);
 
@@ -240,24 +170,29 @@ int dp_power_clk_enable(struct dp_power *dp_power,
 
 	if (enable) {
 		if (pm_type == DP_CORE_PM && dp_power->core_clks_on) {
-			DRM_DEBUG_DP("core clks already enabled\n");
+			drm_dbg_dp(power->drm_dev,
+					"core clks already enabled\n");
 			return 0;
 		}
 
 		if (pm_type == DP_CTRL_PM && dp_power->link_clks_on) {
-			DRM_DEBUG_DP("links clks already enabled\n");
+			drm_dbg_dp(power->drm_dev,
+					"links clks already enabled\n");
 			return 0;
 		}
 
 		if (pm_type == DP_STREAM_PM && dp_power->stream_clks_on) {
-			DRM_DEBUG_DP("pixel clks already enabled\n");
+			drm_dbg_dp(power->drm_dev,
+					"pixel clks already enabled\n");
 			return 0;
 		}
 
 		if ((pm_type == DP_CTRL_PM) && (!dp_power->core_clks_on)) {
-			DRM_DEBUG_DP("Enable core clks before link clks\n");
+			drm_dbg_dp(power->drm_dev,
+					"Enable core clks before link clks\n");
+			mp = &power->parser->mp[DP_CORE_PM];
 
-			rc = dp_power_clk_set_rate(power, DP_CORE_PM, enable);
+			rc = clk_bulk_prepare_enable(mp->num_clk, mp->clocks);
 			if (rc) {
 				DRM_ERROR("fail to enable clks: %s. err=%d\n",
 					dp_parser_pm_name(DP_CORE_PM), rc);
@@ -267,12 +202,15 @@ int dp_power_clk_enable(struct dp_power *dp_power,
 		}
 	}
 
-	rc = dp_power_clk_set_rate(power, pm_type, enable);
-	if (rc) {
-		DRM_ERROR("failed to '%s' clks for: %s. err=%d\n",
-			enable ? "enable" : "disable",
-			dp_parser_pm_name(pm_type), rc);
-		return rc;
+	mp = &power->parser->mp[pm_type];
+	if (enable) {
+		rc = clk_bulk_prepare_enable(mp->num_clk, mp->clocks);
+		if (rc) {
+			DRM_ERROR("failed to enable clks, err: %d\n", rc);
+			return rc;
+		}
+	} else {
+		clk_bulk_disable_unprepare(mp->num_clk, mp->clocks);
 	}
 
 	if (pm_type == DP_CORE_PM)
@@ -282,10 +220,11 @@ int dp_power_clk_enable(struct dp_power *dp_power,
 	else
 		dp_power->link_clks_on = enable;
 
-	DRM_DEBUG_DP("%s clocks for %s\n",
+	drm_dbg_dp(power->drm_dev, "%s clocks for %s\n",
 			enable ? "enable" : "disable",
 			dp_parser_pm_name(pm_type));
-	DRM_DEBUG_DP("strem_clks:%s link_clks:%s core_clks:%s\n",
+	drm_dbg_dp(power->drm_dev,
+		"strem_clks:%s link_clks:%s core_clks:%s\n",
 		dp_power->stream_clks_on ? "on" : "off",
 		dp_power->link_clks_on ? "on" : "off",
 		dp_power->core_clks_on ? "on" : "off");
@@ -336,9 +275,7 @@ void dp_power_client_deinit(struct dp_power *dp_power)
 
 	power = container_of(dp_power, struct dp_power_private, dp_power);
 
-	dp_power_clk_deinit(power);
 	pm_runtime_disable(&power->pdev->dev);
-
 }
 
 int dp_power_init(struct dp_power *dp_power, bool flip)

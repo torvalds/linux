@@ -213,7 +213,7 @@ xfs_symlink_shortform_verify(
 
 	/*
 	 * Zero length symlinks should never occur in memory as they are
-	 * never alllowed to exist on disk.
+	 * never allowed to exist on disk.
 	 */
 	if (!size)
 		return __this_address;

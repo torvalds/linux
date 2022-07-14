@@ -70,6 +70,7 @@ struct amdgpu_nbio_funcs {
 			bool use_doorbell, int doorbell_index, int doorbell_size);
 	void (*vcn_doorbell_range)(struct amdgpu_device *adev, bool use_doorbell,
 				   int doorbell_index, int instance);
+	void (*gc_doorbell_init)(struct amdgpu_device *adev);
 	void (*enable_doorbell_aperture)(struct amdgpu_device *adev,
 					 bool enable);
 	void (*enable_doorbell_selfring_aperture)(struct amdgpu_device *adev,
@@ -93,6 +94,7 @@ struct amdgpu_nbio_funcs {
 	void (*apply_lc_spc_mode_wa)(struct amdgpu_device *adev);
 	void (*apply_l1_link_width_reconfig_wa)(struct amdgpu_device *adev);
 	void (*clear_doorbell_interrupt)(struct amdgpu_device *adev);
+	u32 (*get_rom_offset)(struct amdgpu_device *adev);
 };
 
 struct amdgpu_nbio {

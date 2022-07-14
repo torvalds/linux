@@ -451,6 +451,7 @@ static struct sk_buff *ip_rcv_core(struct sk_buff *skb, struct net *net)
 	 * that it receives, do not try to analyse it.
 	 */
 	if (skb->pkt_type == PACKET_OTHERHOST) {
+		dev_core_stats_rx_otherhost_dropped_inc(skb->dev);
 		drop_reason = SKB_DROP_REASON_OTHERHOST;
 		goto drop;
 	}

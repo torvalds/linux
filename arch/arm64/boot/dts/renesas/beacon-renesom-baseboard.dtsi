@@ -272,8 +272,14 @@
 	status = "okay";
 };
 
-&du_out_rgb {
-	remote-endpoint = <&rgb_panel>;
+&du {
+	ports {
+		port@0 {
+			du_out_rgb: endpoint {
+				remote-endpoint = <&rgb_panel>;
+			};
+		};
+	};
 };
 
 &ehci0 {

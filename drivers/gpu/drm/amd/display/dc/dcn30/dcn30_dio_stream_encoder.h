@@ -95,6 +95,8 @@
 	SRI(DP_VID_STREAM_CNTL, DP, id), \
 	SRI(DP_VID_TIMING, DP, id), \
 	SRI(DP_SEC_AUD_N, DP, id), \
+	SRI(DP_SEC_AUD_N_READBACK, DP, id), \
+	SRI(DP_SEC_AUD_M_READBACK, DP, id), \
 	SRI(DP_SEC_TIMESTAMP, DP, id), \
 	SRI(DP_DSC_CNTL, DP, id), \
 	SRI(DP_DSC_BYTES_PER_PIXEL, DP, id), \
@@ -157,6 +159,8 @@
 	SE_SF(DIG0_HDMI_ACR_48_0, HDMI_ACR_CTS_48, mask_sh),\
 	SE_SF(DIG0_HDMI_ACR_48_1, HDMI_ACR_N_48, mask_sh),\
 	SE_SF(DP0_DP_SEC_AUD_N, DP_SEC_AUD_N, mask_sh),\
+	SE_SF(DP0_DP_SEC_AUD_N_READBACK, DP_SEC_AUD_N_READBACK, mask_sh),\
+	SE_SF(DP0_DP_SEC_AUD_M_READBACK, DP_SEC_AUD_M_READBACK, mask_sh),\
 	SE_SF(DP0_DP_SEC_TIMESTAMP, DP_SEC_TIMESTAMP_MODE, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_ASP_ENABLE, mask_sh),\
 	SE_SF(DP0_DP_SEC_CNTL, DP_SEC_ATP_ENABLE, mask_sh),\
@@ -282,5 +286,40 @@ void dcn30_dio_stream_encoder_construct(
 	const struct dcn10_stream_enc_registers *regs,
 	const struct dcn10_stream_encoder_shift *se_shift,
 	const struct dcn10_stream_encoder_mask *se_mask);
+
+void enc3_stream_encoder_update_hdmi_info_packets(
+	struct stream_encoder *enc,
+	const struct encoder_info_frame *info_frame);
+
+void enc3_stream_encoder_stop_hdmi_info_packets(
+	struct stream_encoder *enc);
+
+void enc3_stream_encoder_update_dp_info_packets(
+	struct stream_encoder *enc,
+	const struct encoder_info_frame *info_frame);
+
+void enc3_audio_mute_control(
+	struct stream_encoder *enc,
+	bool mute);
+
+void enc3_se_dp_audio_setup(
+	struct stream_encoder *enc,
+	unsigned int az_inst,
+	struct audio_info *info);
+
+void enc3_se_dp_audio_enable(
+	struct stream_encoder *enc);
+
+void enc3_se_hdmi_audio_setup(
+	struct stream_encoder *enc,
+	unsigned int az_inst,
+	struct audio_info *info,
+	struct audio_crtc_info *audio_crtc_info);
+
+void enc3_dp_set_dsc_pps_info_packet(
+	struct stream_encoder *enc,
+	bool enable,
+	uint8_t *dsc_packed_pps,
+    bool immediate_update);
 
 #endif /* __DC_DIO_STREAM_ENCODER_DCN30_H__ */

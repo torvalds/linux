@@ -236,8 +236,6 @@ static int __init vr41xx_cmu_init(void)
 	if (current_cpu_type() == CPU_VR4133)
 		cmuclkmsk2 = cmu_read(CMUCLKMSK2);
 
-	spin_lock_init(&cmu_lock);
-
 	return 0;
 }
 

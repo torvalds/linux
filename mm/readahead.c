@@ -15,7 +15,7 @@
  * explicitly requested by the application.  Readahead only ever
  * attempts to read folios that are not yet in the page cache.  If a
  * folio is present but not up-to-date, readahead will not try to read
- * it. In that case a simple ->readpage() will be requested.
+ * it. In that case a simple ->read_folio() will be requested.
  *
  * Readahead is triggered when an application read request (whether a
  * system call or a page fault) finds that the requested folio is not in
@@ -78,7 +78,7 @@
  * address space operation, for which mpage_readahead() is a canonical
  * implementation.  ->readahead() should normally initiate reads on all
  * folios, but may fail to read any or all folios without causing an I/O
- * error.  The page cache reading code will issue a ->readpage() request
+ * error.  The page cache reading code will issue a ->read_folio() request
  * for any folio which ->readahead() did not read, and only an error
  * from this will be final.
  *
@@ -110,9 +110,10 @@
  * were not fetched with readahead_folio().  This will allow a
  * subsequent synchronous readahead request to try them again.  If they
  * are left in the page cache, then they will be read individually using
- * ->readpage() which may be less efficient.
+ * ->read_folio() which may be less efficient.
  */
 
+#include <linux/blkdev.h>
 #include <linux/kernel.h>
 #include <linux/dax.h>
 #include <linux/gfp.h>
@@ -145,7 +146,7 @@ EXPORT_SYMBOL_GPL(file_ra_state_init);
 static void read_pages(struct readahead_control *rac)
 {
 	const struct address_space_operations *aops = rac->mapping->a_ops;
-	struct page *page;
+	struct folio *folio;
 	struct blk_plug plug;
 
 	if (!readahead_count(rac))
@@ -156,24 +157,25 @@ static void read_pages(struct readahead_control *rac)
 	if (aops->readahead) {
 		aops->readahead(rac);
 		/*
-		 * Clean up the remaining pages.  The sizes in ->ra
+		 * Clean up the remaining folios.  The sizes in ->ra
 		 * may be used to size the next readahead, so make sure
 		 * they accurately reflect what happened.
 		 */
-		while ((page = readahead_page(rac))) {
-			rac->ra->size -= 1;
-			if (rac->ra->async_size > 0) {
-				rac->ra->async_size -= 1;
-				delete_from_page_cache(page);
+		while ((folio = readahead_folio(rac)) != NULL) {
+			unsigned long nr = folio_nr_pages(folio);
+
+			folio_get(folio);
+			rac->ra->size -= nr;
+			if (rac->ra->async_size >= nr) {
+				rac->ra->async_size -= nr;
+				filemap_remove_folio(folio);
 			}
-			unlock_page(page);
-			put_page(page);
+			folio_unlock(folio);
+			folio_put(folio);
 		}
 	} else {
-		while ((page = readahead_page(rac))) {
-			aops->readpage(rac->file, page);
-			put_page(page);
-		}
+		while ((folio = readahead_folio(rac)) != NULL)
+			aops->read_folio(rac->file, folio);
 	}
 
 	blk_finish_plug(&plug);
@@ -254,8 +256,8 @@ void page_cache_ra_unbounded(struct readahead_control *ractl,
 	}
 
 	/*
-	 * Now start the IO.  We ignore I/O errors - if the page is not
-	 * uptodate then the caller will launch readpage again, and
+	 * Now start the IO.  We ignore I/O errors - if the folio is not
+	 * uptodate then the caller will launch read_folio again, and
 	 * will then handle the error.
 	 */
 	read_pages(ractl);
@@ -303,7 +305,7 @@ void force_page_cache_ra(struct readahead_control *ractl,
 	struct backing_dev_info *bdi = inode_to_bdi(mapping->host);
 	unsigned long max_pages, index;
 
-	if (unlikely(!mapping->a_ops->readpage && !mapping->a_ops->readahead))
+	if (unlikely(!mapping->a_ops->read_folio && !mapping->a_ops->readahead))
 		return;
 
 	/*
@@ -474,7 +476,8 @@ static inline int ra_alloc_folio(struct readahead_control *ractl, pgoff_t index,
 
 	if (!folio)
 		return -ENOMEM;
-	if (mark - index < (1UL << order))
+	mark = round_up(mark, 1UL << order);
+	if (index == mark)
 		folio_set_readahead(folio);
 	err = filemap_add_folio(ractl->mapping, folio, index, gfp);
 	if (err)
@@ -507,6 +510,7 @@ void page_cache_ra_order(struct readahead_control *ractl,
 			new_order--;
 	}
 
+	filemap_invalidate_lock_shared(mapping);
 	while (index <= limit) {
 		unsigned int order = new_order;
 
@@ -533,6 +537,7 @@ void page_cache_ra_order(struct readahead_control *ractl,
 	}
 
 	read_pages(ractl);
+	filemap_invalidate_unlock_shared(mapping);
 
 	/*
 	 * If there were already pages in the page cache, then we may have
@@ -555,8 +560,9 @@ static void ondemand_readahead(struct readahead_control *ractl,
 	struct file_ra_state *ra = ractl->ra;
 	unsigned long max_pages = ra->ra_pages;
 	unsigned long add_pages;
-	unsigned long index = readahead_index(ractl);
-	pgoff_t prev_index;
+	pgoff_t index = readahead_index(ractl);
+	pgoff_t expected, prev_index;
+	unsigned int order = folio ? folio_order(folio) : 0;
 
 	/*
 	 * If the request exceeds the readahead window, allow the read to
@@ -575,8 +581,9 @@ static void ondemand_readahead(struct readahead_control *ractl,
 	 * It's the expected callback index, assume sequential access.
 	 * Ramp up sizes, and push forward the readahead window.
 	 */
-	if ((index == (ra->start + ra->size - ra->async_size) ||
-	     index == (ra->start + ra->size))) {
+	expected = round_up(ra->start + ra->size - ra->async_size,
+			1UL << order);
+	if (index == expected || index == (ra->start + ra->size)) {
 		ra->start += ra->size;
 		ra->size = get_next_ra_size(ra, max_pages);
 		ra->async_size = ra->size;
@@ -662,7 +669,7 @@ readit:
 	}
 
 	ractl->_index = ra->start;
-	page_cache_ra_order(ractl, ra, folio ? folio_order(folio) : 0);
+	page_cache_ra_order(ractl, ra, order);
 }
 
 void page_cache_sync_ra(struct readahead_control *ractl,
@@ -745,6 +752,13 @@ SYSCALL_DEFINE3(readahead, int, fd, loff_t, offset, size_t, count)
 {
 	return ksys_readahead(fd, offset, count);
 }
+
+#if defined(CONFIG_COMPAT) && defined(__ARCH_WANT_COMPAT_READAHEAD)
+COMPAT_SYSCALL_DEFINE4(readahead, int, fd, compat_arg_u64_dual(offset), size_t, count)
+{
+	return ksys_readahead(fd, compat_arg_u64_glue(offset), count);
+}
+#endif
 
 /**
  * readahead_expand - Expand a readahead request

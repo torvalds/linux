@@ -168,10 +168,8 @@ static void altera_jtaguart_tx_chars(struct altera_jtaguart *pp)
 		}
 	}
 
-	if (pending == 0) {
-		pp->imr &= ~ALTERA_JTAGUART_CONTROL_WE_MSK;
-		writel(pp->imr, port->membase + ALTERA_JTAGUART_CONTROL_REG);
-	}
+	if (pending == 0)
+		altera_jtaguart_stop_tx(port);
 }
 
 static irqreturn_t altera_jtaguart_interrupt(int irq, void *data)

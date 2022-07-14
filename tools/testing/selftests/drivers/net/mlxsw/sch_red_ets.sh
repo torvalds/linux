@@ -166,12 +166,11 @@ ecn_mirror_test()
 	uninstall_qdisc
 }
 
-trap cleanup EXIT
+bail_on_lldpad
 
+trap cleanup EXIT
 setup_prepare
 setup_wait
-
-bail_on_lldpad
 tests_run
 
 exit $EXIT_STATUS

@@ -38,16 +38,6 @@ struct mpi3_ioc_init_request {
 #define MPI3_WHOINIT_ROM_BIOS                            (0x02)
 #define MPI3_WHOINIT_HOST_DRIVER                         (0x03)
 #define MPI3_WHOINIT_MANUFACTURER                        (0x04)
-struct mpi3_driver_info_layout {
-	__le32             information_length;
-	u8                 driver_signature[12];
-	u8                 os_name[16];
-	u8                 os_version[12];
-	u8                 driver_name[20];
-	u8                 driver_version[32];
-	u8                 driver_release_date[20];
-	__le32             driver_capabilities;
-};
 
 struct mpi3_ioc_facts_request {
 	__le16                 host_tag;
@@ -647,23 +637,6 @@ struct mpi3_event_data_diag_buffer_status_change {
 #define MPI3_EVENT_DIAG_BUFFER_STATUS_CHANGE_RC_RELEASED             (0x01)
 #define MPI3_EVENT_DIAG_BUFFER_STATUS_CHANGE_RC_PAUSED               (0x02)
 #define MPI3_EVENT_DIAG_BUFFER_STATUS_CHANGE_RC_RESUMED              (0x03)
-#define MPI3_PEL_LOCALE_FLAGS_NON_BLOCKING_BOOT_EVENT   (0x0200)
-#define MPI3_PEL_LOCALE_FLAGS_BLOCKING_BOOT_EVENT       (0x0100)
-#define MPI3_PEL_LOCALE_FLAGS_PCIE                      (0x0080)
-#define MPI3_PEL_LOCALE_FLAGS_CONFIGURATION             (0x0040)
-#define MPI3_PEL_LOCALE_FLAGS_CONTROLER                 (0x0020)
-#define MPI3_PEL_LOCALE_FLAGS_SAS                       (0x0010)
-#define MPI3_PEL_LOCALE_FLAGS_EPACK                     (0x0008)
-#define MPI3_PEL_LOCALE_FLAGS_ENCLOSURE                 (0x0004)
-#define MPI3_PEL_LOCALE_FLAGS_PD                        (0x0002)
-#define MPI3_PEL_LOCALE_FLAGS_VD                        (0x0001)
-#define MPI3_PEL_CLASS_DEBUG                            (0x00)
-#define MPI3_PEL_CLASS_PROGRESS                         (0x01)
-#define MPI3_PEL_CLASS_INFORMATIONAL                    (0x02)
-#define MPI3_PEL_CLASS_WARNING                          (0x03)
-#define MPI3_PEL_CLASS_CRITICAL                         (0x04)
-#define MPI3_PEL_CLASS_FATAL                            (0x05)
-#define MPI3_PEL_CLASS_FAULT                            (0x06)
 #define MPI3_PEL_CLEARTYPE_CLEAR                        (0x00)
 #define MPI3_PEL_WAITTIME_INFINITE_WAIT                 (0x00)
 #define MPI3_PEL_ACTION_GET_SEQNUM                      (0x01)

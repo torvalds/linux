@@ -5,6 +5,7 @@
 
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_atomic_uapi.h>
+#include <drm/drm_framebuffer.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
@@ -169,8 +170,10 @@ int drm_gem_plane_helper_prepare_fb(struct drm_plane *plane,
 		struct drm_gem_object *obj = drm_gem_fb_get_obj(state->fb, i);
 		struct dma_fence *new;
 
-		if (WARN_ON_ONCE(!obj))
-			continue;
+		if (!obj) {
+			ret = -EINVAL;
+			goto error;
+		}
 
 		ret = dma_resv_get_singleton(obj->resv, usage, &new);
 		if (ret)

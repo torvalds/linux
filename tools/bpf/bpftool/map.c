@@ -1342,8 +1342,6 @@ static int do_create(int argc, char **argv)
 		goto exit;
 	}
 
-	set_max_rlimit();
-
 	fd = bpf_map_create(map_type, map_name, key_size, value_size, max_entries, &attr);
 	if (fd < 0) {
 		p_err("map create failed: %s", strerror(errno));

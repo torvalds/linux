@@ -230,6 +230,14 @@ struct intel_guc {
 		 * @shift: Right shift value for the gpm timestamp
 		 */
 		u32 shift;
+
+		/**
+		 * @last_stat_jiffies: jiffies at last actual stats collection time
+		 * We use this timestamp to ensure we don't oversample the
+		 * stats because runtime power management events can trigger
+		 * stats collection at much higher rates than required.
+		 */
+		unsigned long last_stat_jiffies;
 	} timestamp;
 
 #ifdef CONFIG_DRM_I915_SELFTEST
@@ -443,7 +451,7 @@ int intel_guc_global_policies_update(struct intel_guc *guc);
 void intel_guc_context_ban(struct intel_context *ce, struct i915_request *rq);
 
 void intel_guc_submission_reset_prepare(struct intel_guc *guc);
-void intel_guc_submission_reset(struct intel_guc *guc, bool stalled);
+void intel_guc_submission_reset(struct intel_guc *guc, intel_engine_mask_t stalled);
 void intel_guc_submission_reset_finish(struct intel_guc *guc);
 void intel_guc_submission_cancel_requests(struct intel_guc *guc);
 

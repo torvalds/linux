@@ -48,6 +48,22 @@ struct drm_rect {
 };
 
 /**
+ * DRM_RECT_INIT - initialize a rectangle from x/y/w/h
+ * @x: x coordinate
+ * @y: y coordinate
+ * @w: width
+ * @h: height
+ *
+ * RETURNS:
+ * A new rectangle of the specified size.
+ */
+#define DRM_RECT_INIT(x, y, w, h) ((struct drm_rect){ \
+		.x1 = (x), \
+		.y1 = (y), \
+		.x2 = (x) + (w), \
+		.y2 = (y) + (h) })
+
+/**
  * DRM_RECT_FMT - printf string for &struct drm_rect
  */
 #define DRM_RECT_FMT    "%dx%d%+d%+d"

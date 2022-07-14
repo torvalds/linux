@@ -39,6 +39,12 @@
 #define DP_BRANCH_HW_REV_20 0x20
 
 #define DP_DEVICE_ID_38EC11 0x38EC11
+#define DP_FORCE_PSRSU_CAPABILITY 0x40F
+
+#define DP_SINK_PSR_ACTIVE_VTOTAL		0x373
+#define DP_SINK_PSR_ACTIVE_VTOTAL_CONTROL_MODE	0x375
+#define DP_SOURCE_PSR_ACTIVE_VTOTAL		0x376
+
 enum ddc_result {
 	DDC_RESULT_UNKNOWN = 0,
 	DDC_RESULT_SUCESSFULL,
@@ -124,6 +130,8 @@ struct av_sync_data {
 
 static const uint8_t DP_SINK_DEVICE_STR_ID_1[] = {7, 1, 8, 7, 3, 0};
 static const uint8_t DP_SINK_DEVICE_STR_ID_2[] = {7, 1, 8, 7, 5, 0};
+
+static const u8 DP_SINK_BRANCH_DEV_NAME_7580[] = "7580\x80u";
 
 /*MST Dock*/
 static const uint8_t SYNAPTICS_DEVICE_ID[] = "SYNA";

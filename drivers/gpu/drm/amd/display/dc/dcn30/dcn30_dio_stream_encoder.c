@@ -195,7 +195,7 @@ static void enc3_update_hdmi_info_packet(
 	}
 }
 
-static void enc3_stream_encoder_update_hdmi_info_packets(
+void enc3_stream_encoder_update_hdmi_info_packets(
 	struct stream_encoder *enc,
 	const struct encoder_info_frame *info_frame)
 {
@@ -212,9 +212,10 @@ static void enc3_stream_encoder_update_hdmi_info_packets(
 	enc3_update_hdmi_info_packet(enc1, 1, &info_frame->vendor);
 	enc3_update_hdmi_info_packet(enc1, 3, &info_frame->spd);
 	enc3_update_hdmi_info_packet(enc1, 4, &info_frame->hdrsmd);
+	enc3_update_hdmi_info_packet(enc1, 6, &info_frame->vtem);
 }
 
-static void enc3_stream_encoder_stop_hdmi_info_packets(
+void enc3_stream_encoder_stop_hdmi_info_packets(
 	struct stream_encoder *enc)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
@@ -318,7 +319,7 @@ static void enc3_dp_set_dsc_config(struct stream_encoder *enc,
 }
 
 
-static void enc3_dp_set_dsc_pps_info_packet(struct stream_encoder *enc,
+void enc3_dp_set_dsc_pps_info_packet(struct stream_encoder *enc,
 					bool enable,
 					uint8_t *dsc_packed_pps,
 					bool immediate_update)
@@ -404,7 +405,7 @@ static void enc3_read_state(struct stream_encoder *enc, struct enc_state *s)
 	}
 }
 
-static void enc3_stream_encoder_update_dp_info_packets(
+void enc3_stream_encoder_update_dp_info_packets(
 	struct stream_encoder *enc,
 	const struct encoder_info_frame *info_frame)
 {
@@ -416,6 +417,21 @@ static void enc3_stream_encoder_update_dp_info_packets(
 		enc->vpg->funcs->update_generic_info_packet(
 				enc->vpg,
 				0,  /* packetIndex */
+				&info_frame->vsc,
+				true);
+	}
+	/* TODO: VSC SDP at packetIndex 1 should be restricted only if PSR-SU on.
+	 * There should have another Infopacket type (e.g. vsc_psrsu) for PSR_SU.
+	 * In addition, currently the driver check the valid bit then update and
+	 * send the corresponding Infopacket. For PSR-SU, the SDP only be sent
+	 * while entering PSR-SU mode. So we need another parameter(e.g. send)
+	 * in dc_info_packet to indicate which infopacket should be enabled by
+	 * default here.
+	 */
+	if (info_frame->vsc.valid) {
+		enc->vpg->funcs->update_generic_info_packet(
+				enc->vpg,
+				1,  /* packetIndex */
 				&info_frame->vsc,
 				true);
 	}
@@ -652,7 +668,7 @@ static void enc3_stream_encoder_hdmi_set_stream_attribute(
 	REG_UPDATE(HDMI_GC, HDMI_GC_AVMUTE, 0);
 }
 
-static void enc3_audio_mute_control(
+void enc3_audio_mute_control(
 	struct stream_encoder *enc,
 	bool mute)
 {
@@ -660,7 +676,7 @@ static void enc3_audio_mute_control(
 	enc->afmt->funcs->audio_mute_control(enc->afmt, mute);
 }
 
-static void enc3_se_dp_audio_setup(
+void enc3_se_dp_audio_setup(
 	struct stream_encoder *enc,
 	unsigned int az_inst,
 	struct audio_info *info)
@@ -691,7 +707,7 @@ static void enc3_se_setup_dp_audio(
 	enc->afmt->funcs->setup_dp_audio(enc->afmt);
 }
 
-static void enc3_se_dp_audio_enable(
+void enc3_se_dp_audio_enable(
 	struct stream_encoder *enc)
 {
 	enc1_se_enable_audio_clock(enc, true);
@@ -757,7 +773,7 @@ static void enc3_se_setup_hdmi_audio(
 	 */
 }
 
-static void enc3_se_hdmi_audio_setup(
+void enc3_se_hdmi_audio_setup(
 	struct stream_encoder *enc,
 	unsigned int az_inst,
 	struct audio_info *info,

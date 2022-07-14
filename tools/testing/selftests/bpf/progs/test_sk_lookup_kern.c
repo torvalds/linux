@@ -52,7 +52,7 @@ static struct bpf_sock_tuple *get_tuple(void *data, __u64 nh_off,
 	return result;
 }
 
-SEC("tc")
+SEC("?tc")
 int sk_lookup_success(struct __sk_buff *skb)
 {
 	void *data_end = (void *)(long)skb->data_end;
@@ -78,7 +78,7 @@ int sk_lookup_success(struct __sk_buff *skb)
 	return sk ? TC_ACT_OK : TC_ACT_UNSPEC;
 }
 
-SEC("tc")
+SEC("?tc")
 int sk_lookup_success_simple(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -90,7 +90,7 @@ int sk_lookup_success_simple(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("tc")
+SEC("?tc")
 int err_use_after_free(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -105,7 +105,7 @@ int err_use_after_free(struct __sk_buff *skb)
 	return family;
 }
 
-SEC("tc")
+SEC("?tc")
 int err_modify_sk_pointer(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -120,7 +120,7 @@ int err_modify_sk_pointer(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("tc")
+SEC("?tc")
 int err_modify_sk_or_null_pointer(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -134,7 +134,7 @@ int err_modify_sk_or_null_pointer(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("tc")
+SEC("?tc")
 int err_no_release(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -143,7 +143,7 @@ int err_no_release(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("tc")
+SEC("?tc")
 int err_release_twice(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -155,7 +155,7 @@ int err_release_twice(struct __sk_buff *skb)
 	return 0;
 }
 
-SEC("tc")
+SEC("?tc")
 int err_release_unchecked(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple tuple = {};
@@ -172,7 +172,7 @@ void lookup_no_release(struct __sk_buff *skb)
 	bpf_sk_lookup_tcp(skb, &tuple, sizeof(tuple), BPF_F_CURRENT_NETNS, 0);
 }
 
-SEC("tc")
+SEC("?tc")
 int err_no_release_subcall(struct __sk_buff *skb)
 {
 	lookup_no_release(skb);

@@ -18,7 +18,6 @@
 boot := arch/parisc/boot
 KBUILD_IMAGE := $(boot)/bzImage
 
-NM		= sh $(srctree)/arch/parisc/nm
 CHECKFLAGS	+= -D__hppa__=1
 
 ifdef CONFIG_64BIT
@@ -184,12 +183,11 @@ vdso_install:
 	$(Q)$(MAKE) $(build)=arch/parisc/kernel/vdso $@
 	$(if $(CONFIG_COMPAT_VDSO), \
 		$(Q)$(MAKE) $(build)=arch/parisc/kernel/vdso32 $@)
-install:
-	$(CONFIG_SHELL) $(srctree)/arch/parisc/install.sh \
-			$(KERNELRELEASE) vmlinux System.map "$(INSTALL_PATH)"
-zinstall:
-	$(CONFIG_SHELL) $(srctree)/arch/parisc/install.sh \
-			$(KERNELRELEASE) vmlinuz System.map "$(INSTALL_PATH)"
+
+install: KBUILD_IMAGE := vmlinux
+zinstall: KBUILD_IMAGE := vmlinuz
+install zinstall:
+	$(call cmd,install)
 
 CLEAN_FILES	+= lifimage
 MRPROPER_FILES	+= palo.conf

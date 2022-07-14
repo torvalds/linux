@@ -29,8 +29,7 @@ static const struct of_device_id es8328_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, es8328_of_match);
 
-static int es8328_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int es8328_i2c_probe(struct i2c_client *i2c)
 {
 	return es8328_probe(&i2c->dev,
 			devm_regmap_init_i2c(i2c, &es8328_regmap_config));
@@ -41,7 +40,7 @@ static struct i2c_driver es8328_i2c_driver = {
 		.name		= "es8328",
 		.of_match_table = es8328_of_match,
 	},
-	.probe    = es8328_i2c_probe,
+	.probe_new = es8328_i2c_probe,
 	.id_table = es8328_id,
 };
 

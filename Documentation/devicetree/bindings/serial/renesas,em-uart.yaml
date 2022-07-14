@@ -9,12 +9,16 @@ title: Renesas EMMA Mobile UART Interface
 maintainers:
   - Magnus Damm <magnus.damm@gmail.com>
 
-allOf:
-  - $ref: serial.yaml#
-
 properties:
   compatible:
-    const: renesas,em-uart
+    oneOf:
+      - items:
+          - enum:
+              - renesas,r9a09g011-uart    # RZ/V2M
+          - const: renesas,em-uart        # generic EMMA Mobile compatible UART
+
+      - items:
+          - const: renesas,em-uart        # generic EMMA Mobile compatible UART
 
   reg:
     maxItems: 1
@@ -23,10 +27,31 @@ properties:
     maxItems: 1
 
   clocks:
-    maxItems: 1
+    minItems: 1
+    items:
+      - description: UART functional clock
+      - description: Internal clock to access the registers
 
   clock-names:
-    const: sclk
+    minItems: 1
+    items:
+      - const: sclk
+      - const: pclk
+
+allOf:
+  - $ref: serial.yaml#
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: renesas,r9a09g011-uart
+    then:
+      properties:
+        clocks:
+          minItems: 2
+        clock-names:
+          minItems: 2
 
 required:
   - compatible

@@ -7,9 +7,11 @@
  */
 
 #include <linux/ctype.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/err.h>
+#include <linux/property.h>
 #include <linux/spi/spi.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -422,9 +424,7 @@ static int max31856_probe(struct spi_device *spi)
 	indio_dev->channels = max31856_channels;
 	indio_dev->num_channels = ARRAY_SIZE(max31856_channels);
 
-	ret = of_property_read_u32(spi->dev.of_node, "thermocouple-type",
-				   &data->thermocouple_type);
-
+	ret = device_property_read_u32(&spi->dev, "thermocouple-type", &data->thermocouple_type);
 	if (ret) {
 		dev_info(&spi->dev,
 			 "Could not read thermocouple type DT property, configuring as a K-Type\n");

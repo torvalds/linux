@@ -106,7 +106,7 @@ void nd_region_create_dax_seed(struct nd_region *nd_region);
 int nvdimm_bus_create_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nvdimm_bus_destroy_ndctl(struct nvdimm_bus *nvdimm_bus);
 void nd_synchronize(void);
-void __nd_device_register(struct device *dev);
+void nd_device_register(struct device *dev);
 struct nd_label_id;
 char *nd_label_gen_id(struct nd_label_id *label_id, const uuid_t *uuid,
 		      u32 flags);
@@ -158,72 +158,6 @@ static inline int devm_nsio_enable(struct device *dev,
 
 static inline void devm_nsio_disable(struct device *dev,
 		struct nd_namespace_io *nsio)
-{
-}
-#endif
-
-#ifdef CONFIG_PROVE_NVDIMM_LOCKING
-extern struct class *nd_class;
-
-enum {
-	LOCK_BUS,
-	LOCK_NDCTL,
-	LOCK_REGION,
-	LOCK_DIMM = LOCK_REGION,
-	LOCK_NAMESPACE,
-	LOCK_CLAIM,
-};
-
-static inline void debug_nvdimm_lock(struct device *dev)
-{
-	if (is_nd_region(dev))
-		mutex_lock_nested(&dev->lockdep_mutex, LOCK_REGION);
-	else if (is_nvdimm(dev))
-		mutex_lock_nested(&dev->lockdep_mutex, LOCK_DIMM);
-	else if (is_nd_btt(dev) || is_nd_pfn(dev) || is_nd_dax(dev))
-		mutex_lock_nested(&dev->lockdep_mutex, LOCK_CLAIM);
-	else if (dev->parent && (is_nd_region(dev->parent)))
-		mutex_lock_nested(&dev->lockdep_mutex, LOCK_NAMESPACE);
-	else if (is_nvdimm_bus(dev))
-		mutex_lock_nested(&dev->lockdep_mutex, LOCK_BUS);
-	else if (dev->class && dev->class == nd_class)
-		mutex_lock_nested(&dev->lockdep_mutex, LOCK_NDCTL);
-	else
-		dev_WARN(dev, "unknown lock level\n");
-}
-
-static inline void debug_nvdimm_unlock(struct device *dev)
-{
-	mutex_unlock(&dev->lockdep_mutex);
-}
-
-static inline void nd_device_lock(struct device *dev)
-{
-	device_lock(dev);
-	debug_nvdimm_lock(dev);
-}
-
-static inline void nd_device_unlock(struct device *dev)
-{
-	debug_nvdimm_unlock(dev);
-	device_unlock(dev);
-}
-#else
-static inline void nd_device_lock(struct device *dev)
-{
-	device_lock(dev);
-}
-
-static inline void nd_device_unlock(struct device *dev)
-{
-	device_unlock(dev);
-}
-
-static inline void debug_nvdimm_lock(struct device *dev)
-{
-}
-
-static inline void debug_nvdimm_unlock(struct device *dev)
 {
 }
 #endif

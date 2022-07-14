@@ -1506,8 +1506,7 @@ static const struct snd_soc_component_driver soc_component_dev_da732x = {
 	.non_legacy_dai_naming	= 1,
 };
 
-static int da732x_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int da732x_i2c_probe(struct i2c_client *i2c)
 {
 	struct da732x_priv *da732x;
 	unsigned int reg;
@@ -1562,7 +1561,7 @@ static struct i2c_driver da732x_i2c_driver = {
 	.driver		= {
 		.name	= "da7320",
 	},
-	.probe		= da732x_i2c_probe,
+	.probe_new	= da732x_i2c_probe,
 	.remove		= da732x_i2c_remove,
 	.id_table	= da732x_i2c_id,
 };

@@ -10,6 +10,7 @@ Contents:
 .. toctree::
    :maxdepth: 2
 
+   ctu/ctucanfd-driver
    freescale/flexcan
 
 .. only::  subproject and html

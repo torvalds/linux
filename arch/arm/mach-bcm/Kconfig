@@ -218,4 +218,16 @@ config ARCH_BRCMSTB
 	  This enables support for Broadcom ARM-based set-top box chipsets,
 	  including the 7445 family of chips.
 
+config ARCH_BCMBCA
+	bool "Broadcom Broadband SoC"
+	depends on ARCH_MULTI_V7
+	select ARM_AMBA
+	select ARM_GIC
+	select HAVE_ARM_ARCH_TIMER
+	help
+	  Say Y if you intend to run the kernel on a Broadcom Broadband ARM-based
+	  BCA chipset.
+
+	  This enables support for Broadcom BCA ARM-based broadband chipsets,
+	  including the DSL, PON and Wireless family of chips.
 endif

@@ -15,6 +15,7 @@
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 
+#include <media/mipi-csi2.h>
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-device.h>
 #include <media/v4l2-fwnode.h>
@@ -121,12 +122,12 @@ static const struct csi2tx_fmt csi2tx_formats[] = {
 	{
 		.mbus	= MEDIA_BUS_FMT_UYVY8_1X16,
 		.bpp	= 2,
-		.dt	= 0x1e,
+		.dt	= MIPI_CSI2_DT_YUV422_8B,
 	},
 	{
 		.mbus	= MEDIA_BUS_FMT_RGB888_1X24,
 		.bpp	= 3,
-		.dt	= 0x24,
+		.dt	= MIPI_CSI2_DT_RGB888,
 	},
 };
 

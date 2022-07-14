@@ -379,15 +379,15 @@ static inline int rsb_flag(struct dlm_rsb *r, enum rsb_flags flag)
 #define DLM_FIN			5
 
 struct dlm_header {
-	uint32_t		h_version;
+	__le32			h_version;
 	union {
 		/* for DLM_MSG and DLM_RCOM */
-		uint32_t	h_lockspace;
+		__le32		h_lockspace;
 		/* for DLM_ACK and DLM_OPTS */
-		uint32_t	h_seq;
+		__le32		h_seq;
 	} u;
-	uint32_t		h_nodeid;	/* nodeid of sender */
-	uint16_t		h_length;
+	__le32			h_nodeid;	/* nodeid of sender */
+	__le16			h_length;
 	uint8_t			h_cmd;		/* DLM_MSG, DLM_RCOM */
 	uint8_t			h_pad;
 };
@@ -409,24 +409,24 @@ struct dlm_header {
 
 struct dlm_message {
 	struct dlm_header	m_header;
-	uint32_t		m_type;		/* DLM_MSG_ */
-	uint32_t		m_nodeid;
-	uint32_t		m_pid;
-	uint32_t		m_lkid;		/* lkid on sender */
-	uint32_t		m_remid;	/* lkid on receiver */
-	uint32_t		m_parent_lkid;
-	uint32_t		m_parent_remid;
-	uint32_t		m_exflags;
-	uint32_t		m_sbflags;
-	uint32_t		m_flags;
-	uint32_t		m_lvbseq;
-	uint32_t		m_hash;
-	int			m_status;
-	int			m_grmode;
-	int			m_rqmode;
-	int			m_bastmode;
-	int			m_asts;
-	int			m_result;	/* 0 or -EXXX */
+	__le32			m_type;		/* DLM_MSG_ */
+	__le32			m_nodeid;
+	__le32			m_pid;
+	__le32			m_lkid;		/* lkid on sender */
+	__le32			m_remid;	/* lkid on receiver */
+	__le32			m_parent_lkid;
+	__le32			m_parent_remid;
+	__le32			m_exflags;
+	__le32			m_sbflags;
+	__le32			m_flags;
+	__le32			m_lvbseq;
+	__le32			m_hash;
+	__le32			m_status;
+	__le32			m_grmode;
+	__le32			m_rqmode;
+	__le32			m_bastmode;
+	__le32			m_asts;
+	__le32			m_result;	/* 0 or -EXXX */
 	char			m_extra[];	/* name or lvb */
 };
 
@@ -451,18 +451,18 @@ struct dlm_message {
 
 struct dlm_rcom {
 	struct dlm_header	rc_header;
-	uint32_t		rc_type;	/* DLM_RCOM_ */
-	int			rc_result;	/* multi-purpose */
-	uint64_t		rc_id;		/* match reply with request */
-	uint64_t		rc_seq;		/* sender's ls_recover_seq */
-	uint64_t		rc_seq_reply;	/* remote ls_recover_seq */
+	__le32			rc_type;	/* DLM_RCOM_ */
+	__le32			rc_result;	/* multi-purpose */
+	__le64			rc_id;		/* match reply with request */
+	__le64			rc_seq;		/* sender's ls_recover_seq */
+	__le64			rc_seq_reply;	/* remote ls_recover_seq */
 	char			rc_buf[];
 };
 
 struct dlm_opt_header {
-	uint16_t	t_type;
-	uint16_t	t_length;
-	uint32_t	t_pad;
+	__le16		t_type;
+	__le16		t_length;
+	__le32		t_pad;
 	/* need to be 8 byte aligned */
 	char		t_value[];
 };
@@ -472,8 +472,8 @@ struct dlm_opts {
 	struct dlm_header	o_header;
 	uint8_t			o_nextcmd;
 	uint8_t			o_pad;
-	uint16_t		o_optlen;
-	uint32_t		o_pad2;
+	__le16			o_optlen;
+	__le32			o_pad2;
 	char			o_opts[];
 };
 

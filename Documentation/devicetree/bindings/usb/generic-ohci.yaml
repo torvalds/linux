@@ -42,6 +42,7 @@ properties:
               - brcm,bcm7420-ohci
               - brcm,bcm7425-ohci
               - brcm,bcm7435-ohci
+              - hpe,gxp-ohci
               - ibm,476gtr-ohci
               - ingenic,jz4740-ohci
               - snps,hsdk-v1.0-ohci
@@ -102,7 +103,8 @@ properties:
       Overrides the detected port count
 
   phys:
-    maxItems: 1
+    minItems: 1
+    maxItems: 3
 
   phy-names:
     const: usb

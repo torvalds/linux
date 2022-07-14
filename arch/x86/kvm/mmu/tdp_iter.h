@@ -6,6 +6,7 @@
 #include <linux/kvm_host.h>
 
 #include "mmu.h"
+#include "spte.h"
 
 /*
  * TDP MMU SPTEs are RCU protected to allow paging structures (non-leaf SPTEs)
@@ -17,9 +18,38 @@ static inline u64 kvm_tdp_mmu_read_spte(tdp_ptep_t sptep)
 {
 	return READ_ONCE(*rcu_dereference(sptep));
 }
-static inline void kvm_tdp_mmu_write_spte(tdp_ptep_t sptep, u64 val)
+
+static inline u64 kvm_tdp_mmu_write_spte_atomic(tdp_ptep_t sptep, u64 new_spte)
 {
-	WRITE_ONCE(*rcu_dereference(sptep), val);
+	return xchg(rcu_dereference(sptep), new_spte);
+}
+
+static inline void __kvm_tdp_mmu_write_spte(tdp_ptep_t sptep, u64 new_spte)
+{
+	WRITE_ONCE(*rcu_dereference(sptep), new_spte);
+}
+
+static inline u64 kvm_tdp_mmu_write_spte(tdp_ptep_t sptep, u64 old_spte,
+					 u64 new_spte, int level)
+{
+	/*
+	 * Atomically write the SPTE if it is a shadow-present, leaf SPTE with
+	 * volatile bits, i.e. has bits that can be set outside of mmu_lock.
+	 * The Writable bit can be set by KVM's fast page fault handler, and
+	 * Accessed and Dirty bits can be set by the CPU.
+	 *
+	 * Note, non-leaf SPTEs do have Accessed bits and those bits are
+	 * technically volatile, but KVM doesn't consume the Accessed bit of
+	 * non-leaf SPTEs, i.e. KVM doesn't care if it clobbers the bit.  This
+	 * logic needs to be reassessed if KVM were to use non-leaf Accessed
+	 * bits, e.g. to skip stepping down into child SPTEs when aging SPTEs.
+	 */
+	if (is_shadow_present_pte(old_spte) && is_last_spte(old_spte, level) &&
+	    spte_has_volatile_bits(old_spte))
+		return kvm_tdp_mmu_write_spte_atomic(sptep, new_spte);
+
+	__kvm_tdp_mmu_write_spte(sptep, new_spte);
+	return old_spte;
 }
 
 /*
@@ -84,5 +114,6 @@ void tdp_iter_start(struct tdp_iter *iter, struct kvm_mmu_page *root,
 		    int min_level, gfn_t next_last_level_gfn);
 void tdp_iter_next(struct tdp_iter *iter);
 void tdp_iter_restart(struct tdp_iter *iter);
+void tdp_iter_step_up(struct tdp_iter *iter);
 
 #endif /* __KVM_X86_MMU_TDP_ITER_H */

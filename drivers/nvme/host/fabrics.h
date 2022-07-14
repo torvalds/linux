@@ -187,6 +187,14 @@ static inline char *nvmf_ctrl_subsysnqn(struct nvme_ctrl *ctrl)
 	return ctrl->subsys->subnqn;
 }
 
+static inline void nvmf_complete_timed_out_request(struct request *rq)
+{
+	if (blk_mq_request_started(rq) && !blk_mq_request_completed(rq)) {
+		nvme_req(rq)->status = NVME_SC_HOST_ABORTED_CMD;
+		blk_mq_complete_request(rq);
+	}
+}
+
 int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val);
 int nvmf_reg_read64(struct nvme_ctrl *ctrl, u32 off, u64 *val);
 int nvmf_reg_write32(struct nvme_ctrl *ctrl, u32 off, u32 val);

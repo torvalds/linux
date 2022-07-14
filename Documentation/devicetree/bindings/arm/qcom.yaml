@@ -39,8 +39,11 @@ description: |
         msm8994
         msm8996
         sa8155p
+        sa8540p
         sc7180
         sc7280
+        sc8180x
+        sc8280xp
         sdm630
         sdm632
         sdm660
@@ -99,6 +102,7 @@ properties:
 
       - items:
           - enum:
+              - asus,sparrow
               - lg,lenok
           - const: qcom,apq8026
 
@@ -227,6 +231,18 @@ properties:
 
       - items:
           - enum:
+              - lenovo,flex-5g
+              - microsoft,surface-prox
+              - qcom,sc8180x-primus
+          - const: qcom,sc8180x
+
+      - items:
+          - enum:
+              - qcom,sc8280xp-qrd
+          - const: qcom,sc8280xp
+
+      - items:
+          - enum:
               - fairphone,fp3
           - const: qcom,sdm632
 
@@ -257,6 +273,11 @@ properties:
           - enum:
               - qcom,sa8155p-adp
           - const: qcom,sa8155p
+
+      - items:
+          - enum:
+              - qcom,sa8295p-adp
+          - const: qcom,sa8540p
 
       - items:
           - enum:

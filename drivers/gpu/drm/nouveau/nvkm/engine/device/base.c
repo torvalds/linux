@@ -24,7 +24,6 @@
 #include "priv.h"
 #include "acpi.h"
 
-#include <core/notify.h>
 #include <core/option.h>
 
 #include <subdev/bios.h>
@@ -2668,24 +2667,6 @@ nv177_chipset = {
 	.fifo     = { 0x00000001, ga102_fifo_new },
 };
 
-static int
-nvkm_device_event_ctor(struct nvkm_object *object, void *data, u32 size,
-		       struct nvkm_notify *notify)
-{
-	if (!WARN_ON(size != 0)) {
-		notify->size  = 0;
-		notify->types = 1;
-		notify->index = 0;
-		return 0;
-	}
-	return -EINVAL;
-}
-
-static const struct nvkm_event_func
-nvkm_device_event_func = {
-	.ctor = nvkm_device_event_ctor,
-};
-
 struct nvkm_subdev *
 nvkm_device_subdev(struct nvkm_device *device, int type, int inst)
 {
@@ -2838,8 +2819,6 @@ nvkm_device_del(struct nvkm_device **pdevice)
 		list_for_each_entry_safe_reverse(subdev, subtmp, &device->subdev, head)
 			nvkm_subdev_del(&subdev);
 
-		nvkm_event_fini(&device->event);
-
 		if (device->pri)
 			iounmap(device->pri);
 		list_del(&device->head);
@@ -2913,10 +2892,6 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 	list_add_tail(&device->head, &nv_devices);
 	device->debug = nvkm_dbgopt(device->dbgopt, "device");
 	INIT_LIST_HEAD(&device->subdev);
-
-	ret = nvkm_event_init(&nvkm_device_event_func, 1, 1, &device->event);
-	if (ret)
-		goto done;
 
 	mmio_base = device->func->resource_addr(device, 0);
 	mmio_size = device->func->resource_size(device, 0);

@@ -112,7 +112,8 @@ static void test_lookup_and_delete_hash(void)
 
 	/* Lookup and delete element. */
 	key = 1;
-	err = bpf_map_lookup_and_delete_elem(map_fd, &key, &value);
+	err = bpf_map__lookup_and_delete_elem(skel->maps.hash_map,
+					      &key, sizeof(key), &value, sizeof(value), 0);
 	if (!ASSERT_OK(err, "bpf_map_lookup_and_delete_elem"))
 		goto cleanup;
 
@@ -147,7 +148,8 @@ static void test_lookup_and_delete_percpu_hash(void)
 
 	/* Lookup and delete element. */
 	key = 1;
-	err = bpf_map_lookup_and_delete_elem(map_fd, &key, value);
+	err = bpf_map__lookup_and_delete_elem(skel->maps.hash_map,
+					      &key, sizeof(key), value, sizeof(value), 0);
 	if (!ASSERT_OK(err, "bpf_map_lookup_and_delete_elem"))
 		goto cleanup;
 
@@ -191,7 +193,8 @@ static void test_lookup_and_delete_lru_hash(void)
 		goto cleanup;
 
 	/* Lookup and delete element 3. */
-	err = bpf_map_lookup_and_delete_elem(map_fd, &key, &value);
+	err = bpf_map__lookup_and_delete_elem(skel->maps.hash_map,
+					      &key, sizeof(key), &value, sizeof(value), 0);
 	if (!ASSERT_OK(err, "bpf_map_lookup_and_delete_elem"))
 		goto cleanup;
 
@@ -240,10 +243,10 @@ static void test_lookup_and_delete_lru_percpu_hash(void)
 		value[i] = 0;
 
 	/* Lookup and delete element 3. */
-	err = bpf_map_lookup_and_delete_elem(map_fd, &key, value);
-	if (!ASSERT_OK(err, "bpf_map_lookup_and_delete_elem")) {
+	err = bpf_map__lookup_and_delete_elem(skel->maps.hash_map,
+					      &key, sizeof(key), value, sizeof(value), 0);
+	if (!ASSERT_OK(err, "bpf_map_lookup_and_delete_elem"))
 		goto cleanup;
-	}
 
 	/* Check if only one CPU has set the value. */
 	for (i = 0; i < nr_cpus; i++) {
