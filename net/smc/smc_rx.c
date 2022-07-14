@@ -413,7 +413,6 @@ copy:
 				if (rc < 0) {
 					if (!read_done)
 						read_done = -EFAULT;
-					smc_rmb_sync_sg_for_device(conn);
 					goto out;
 				}
 			}
@@ -427,7 +426,6 @@ copy:
 			chunk_len_sum += chunk_len;
 			chunk_off = 0; /* modulo offset in recv ring buffer */
 		}
-		smc_rmb_sync_sg_for_device(conn);
 
 		/* update cursors */
 		if (!(flags & MSG_PEEK)) {

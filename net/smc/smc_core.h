@@ -513,10 +513,8 @@ void smc_rtoken_set(struct smc_link_group *lgr, int link_idx, int link_idx_new,
 		    __be32 nw_rkey_known, __be64 nw_vaddr, __be32 nw_rkey);
 void smc_rtoken_set2(struct smc_link_group *lgr, int rtok_idx, int link_id,
 		     __be64 nw_vaddr, __be32 nw_rkey);
-void smc_sndbuf_sync_sg_for_cpu(struct smc_connection *conn);
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn);
 void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn);
-void smc_rmb_sync_sg_for_device(struct smc_connection *conn);
 int smc_vlan_by_tcpsk(struct socket *clcsock, struct smc_init_info *ini);
 
 void smc_conn_free(struct smc_connection *conn);
