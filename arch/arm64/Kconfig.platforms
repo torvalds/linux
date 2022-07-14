@@ -49,6 +49,7 @@ config ARCH_BCM2835
 
 config ARCH_BCM4908
 	bool "Broadcom BCM4908 family"
+	select ARCH_BCMBCA
 	select GPIOLIB
 	help
 	  This enables support for the Broadcom BCM4906, BCM4908 and
