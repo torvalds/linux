@@ -882,7 +882,7 @@ static int __bch2_set_nr_journal_buckets(struct bch_dev *ca, unsigned nr,
 
 	if (!new_fs) {
 		for (i = 0; i < nr_got; i++) {
-			ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOFAIL,
+			ret = bch2_trans_run(c,
 				bch2_trans_mark_metadata_bucket(&trans, ca,
 						bu[i], BCH_DATA_journal,
 						ca->mi.bucket_size));
