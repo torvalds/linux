@@ -914,6 +914,7 @@ reclaim:
 	ip->i_checked = 0;
 	spin_unlock(&ip->i_flags_lock);
 
+	ASSERT(!ip->i_itemp || ip->i_itemp->ili_item.li_buf == NULL);
 	xfs_iunlock(ip, XFS_ILOCK_EXCL);
 
 	XFS_STATS_INC(ip->i_mount, xs_ig_reclaims);
