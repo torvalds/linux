@@ -534,11 +534,12 @@ xfs_buf_find_lock(
 	struct xfs_buf          *bp,
 	xfs_buf_flags_t		flags)
 {
-	if (!xfs_buf_trylock(bp)) {
-		if (flags & XBF_TRYLOCK) {
+	if (flags & XBF_TRYLOCK) {
+		if (!xfs_buf_trylock(bp)) {
 			XFS_STATS_INC(bp->b_mount, xb_busy_locked);
 			return -EAGAIN;
 		}
+	} else {
 		xfs_buf_lock(bp);
 		XFS_STATS_INC(bp->b_mount, xb_get_locked_waited);
 	}
