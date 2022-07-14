@@ -25,17 +25,11 @@ static int stf_csiphy_clk_set(struct stf_csiphy_dev *csiphy_dev, int on)
 		clk_set_rate(stfcamss->sys_clk[STFCLK_M31DPHY_TXCLKESC_LAN0].clk,
 			20480000);
 
-		reset_control_deassert(stfcamss->sys_rst[STFRST_M31DPHY_HW].rstc);
-		reset_control_deassert(stfcamss->sys_rst[STFRST_M31DPHY_B09_ALWAYS_ON].rstc);
-
 		count++;
 	} else {
 		if (count == 0)
 			goto exit;
-		if (count == 1) {
-			reset_control_assert(stfcamss->sys_rst[STFRST_M31DPHY_HW].rstc);
-			reset_control_assert(stfcamss->sys_rst[STFRST_M31DPHY_B09_ALWAYS_ON].rstc);
-		}
+
 		count--;
 	}
 exit:
