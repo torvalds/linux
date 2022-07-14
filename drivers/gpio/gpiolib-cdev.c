@@ -1460,15 +1460,15 @@ static ssize_t linereq_read(struct file *file,
 static void linereq_free(struct linereq *lr)
 {
 	unsigned int i;
-	bool hte = false;
+	bool hte;
 
 	for (i = 0; i < lr->num_lines; i++) {
-		if (lr->lines[i].desc)
+		if (lr->lines[i].desc) {
 			hte = !!test_bit(FLAG_EVENT_CLOCK_HTE,
 					 &lr->lines[i].desc->flags);
-		edge_detector_stop(&lr->lines[i], hte);
-		if (lr->lines[i].desc)
+			edge_detector_stop(&lr->lines[i], hte);
 			gpiod_free(lr->lines[i].desc);
+		}
 	}
 	kfifo_free(&lr->events);
 	kfree(lr->label);
