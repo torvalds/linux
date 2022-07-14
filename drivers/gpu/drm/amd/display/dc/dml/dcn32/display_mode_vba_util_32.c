@@ -390,60 +390,6 @@ void dml32_CalculateBytePerPixelAndBlockSizes(
 #endif
 } // CalculateBytePerPixelAndBlockSizes
 
-void dml32_CalculatedoublePipeDPPCLKAndSCLThroughput(
-		double HRatio,
-		double HRatioChroma,
-		double VRatio,
-		double VRatioChroma,
-		double MaxDCHUBToPSCLThroughput,
-		double MaxPSCLToLBThroughput,
-		double PixelClock,
-		enum source_format_class SourcePixelFormat,
-		unsigned int HTaps,
-		unsigned int HTapsChroma,
-		unsigned int VTaps,
-		unsigned int VTapsChroma,
-
-		/* output */
-		double *PSCL_THROUGHPUT,
-		double *PSCL_THROUGHPUT_CHROMA,
-		double *DPPCLKUsingdoubleDPP)
-{
-	double DPPCLKUsingdoubleDPPLuma;
-	double DPPCLKUsingdoubleDPPChroma;
-
-	if (HRatio > 1) {
-		*PSCL_THROUGHPUT = dml_min(MaxDCHUBToPSCLThroughput, MaxPSCLToLBThroughput * HRatio /
-				dml_ceil((double) HTaps / 6.0, 1.0));
-	} else {
-		*PSCL_THROUGHPUT = dml_min(MaxDCHUBToPSCLThroughput, MaxPSCLToLBThroughput);
-	}
-
-	DPPCLKUsingdoubleDPPLuma = PixelClock * dml_max3(VTaps / 6 * dml_min(1, HRatio), HRatio * VRatio /
-			*PSCL_THROUGHPUT, 1);
-
-	if ((HTaps > 6 || VTaps > 6) && DPPCLKUsingdoubleDPPLuma < 2 * PixelClock)
-		DPPCLKUsingdoubleDPPLuma = 2 * PixelClock;
-
-	if ((SourcePixelFormat != dm_420_8 && SourcePixelFormat != dm_420_10 && SourcePixelFormat != dm_420_12 &&
-			SourcePixelFormat != dm_rgbe_alpha)) {
-		*PSCL_THROUGHPUT_CHROMA = 0;
-		*DPPCLKUsingdoubleDPP = DPPCLKUsingdoubleDPPLuma;
-	} else {
-		if (HRatioChroma > 1) {
-			*PSCL_THROUGHPUT_CHROMA = dml_min(MaxDCHUBToPSCLThroughput, MaxPSCLToLBThroughput *
-					HRatioChroma / dml_ceil((double) HTapsChroma / 6.0, 1.0));
-		} else {
-			*PSCL_THROUGHPUT_CHROMA = dml_min(MaxDCHUBToPSCLThroughput, MaxPSCLToLBThroughput);
-		}
-		DPPCLKUsingdoubleDPPChroma = PixelClock * dml_max3(VTapsChroma / 6 * dml_min(1, HRatioChroma),
-				HRatioChroma * VRatioChroma / *PSCL_THROUGHPUT_CHROMA, 1);
-		if ((HTapsChroma > 6 || VTapsChroma > 6) && DPPCLKUsingdoubleDPPChroma < 2 * PixelClock)
-			DPPCLKUsingdoubleDPPChroma = 2 * PixelClock;
-		*DPPCLKUsingdoubleDPP = dml_max(DPPCLKUsingdoubleDPPLuma, DPPCLKUsingdoubleDPPChroma);
-	}
-}
-
 void dml32_CalculateSwathAndDETConfiguration(
 		unsigned int DETSizeOverride[],
 		enum dm_use_mall_for_pstate_change_mode UseMALLForPStateChange[],
