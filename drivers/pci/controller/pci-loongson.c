@@ -26,6 +26,7 @@
 #define FLAG_CFG0	BIT(0)
 #define FLAG_CFG1	BIT(1)
 #define FLAG_DEV_FIX	BIT(2)
+#define FLAG_DEV_HIDDEN	BIT(3)
 
 struct loongson_pci_data {
 	u32 flags;
@@ -138,18 +139,34 @@ static void __iomem *cfg1_map(struct loongson_pci *priv, struct pci_bus *bus,
 	return priv->cfg1_base + addroff;
 }
 
+static bool pdev_may_exist(struct pci_bus *bus, unsigned int device,
+			   unsigned int function)
+{
+	return !(pci_is_root_bus(bus) &&
+		(device >= 9 && device <= 20) && (function > 0));
+}
+
 static void __iomem *pci_loongson_map_bus(struct pci_bus *bus,
 					  unsigned int devfn, int where)
 {
+	unsigned int device = PCI_SLOT(devfn);
+	unsigned int function = PCI_FUNC(devfn);
 	struct loongson_pci *priv = pci_bus_to_loongson_pci(bus);
 
 	/*
 	 * Do not read more than one device on the bus other than
 	 * the host bus.
 	 */
-	if (priv->data->flags & FLAG_DEV_FIX &&
-			!pci_is_root_bus(bus) && PCI_SLOT(devfn) > 0)
-		return NULL;
+	if ((priv->data->flags & FLAG_DEV_FIX) && bus->self) {
+		if (!pci_is_root_bus(bus) && (device > 0))
+			return NULL;
+	}
+
+	/* Don't access non-existent devices */
+	if (priv->data->flags & FLAG_DEV_HIDDEN) {
+		if (!pdev_may_exist(bus, device, function))
+			return NULL;
+	}
 
 	/* CFG0 can only access standard space */
 	if (where < PCI_CFG_SPACE_SIZE && priv->cfg0_base)
@@ -197,12 +214,12 @@ static struct pci_ops loongson_pci_ops32 = {
 };
 
 static const struct loongson_pci_data ls2k_pci_data = {
-	.flags = FLAG_CFG1 | FLAG_DEV_FIX,
+	.flags = FLAG_CFG1 | FLAG_DEV_FIX | FLAG_DEV_HIDDEN,
 	.ops = &loongson_pci_ops,
 };
 
 static const struct loongson_pci_data ls7a_pci_data = {
-	.flags = FLAG_CFG1 | FLAG_DEV_FIX,
+	.flags = FLAG_CFG1 | FLAG_DEV_FIX | FLAG_DEV_HIDDEN,
 	.ops = &loongson_pci_ops,
 };
 
@@ -297,7 +314,7 @@ static int loongson_pci_ecam_init(struct pci_config_window *cfg)
 		return -ENOMEM;
 
 	cfg->priv = priv;
-	data->flags = FLAG_CFG1;
+	data->flags = FLAG_CFG1 | FLAG_DEV_HIDDEN;
 	priv->data = data;
 	priv->cfg1_base = cfg->win - (cfg->busr.start << 16);
 
