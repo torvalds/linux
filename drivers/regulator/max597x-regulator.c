@@ -453,9 +453,6 @@ static int max597x_regulator_probe(struct platform_device *pdev)
 		data->num_switches = num_switches;
 		data->regmap = max597x->regmap;
 
-		if (ret < 0)
-			return ret;
-
 		ret = max597x_adc_range(data->regmap, i, &max597x->irng[i], &max597x->mon_rng[i]);
 		if (ret < 0)
 			return ret;
