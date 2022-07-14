@@ -280,38 +280,38 @@ S:	Maintained
 F:	drivers/hwmon/abituguru3.c
 
 ACCES 104-DIO-48E GPIO DRIVER
-M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-104-dio-48e.c
 
 ACCES 104-IDI-48 GPIO DRIVER
-M:	"William Breathitt Gray" <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-104-idi-48.c
 
 ACCES 104-IDIO-16 GPIO DRIVER
-M:	"William Breathitt Gray" <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-104-idio-16.c
 
 ACCES 104-QUAD-8 DRIVER
-M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 M:	Syed Nayyar Waris <syednwaris@gmail.com>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/counter/104-quad-8.c
 
 ACCES PCI-IDIO-16 GPIO DRIVER
-M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-pci-idio-16.c
 
 ACCES PCIe-IDIO-24 GPIO DRIVER
-M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-pcie-idio-24.c
@@ -1354,7 +1354,7 @@ S:	Maintained
 F:	sound/aoa/
 
 APEX EMBEDDED SYSTEMS STX104 IIO DRIVER
-M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/iio/adc/stx104.c
@@ -5204,10 +5204,10 @@ F:	Documentation/hwmon/corsair-psu.rst
 F:	drivers/hwmon/corsair-psu.c
 
 COUNTER SUBSYSTEM
-M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
-T:	git git@gitlab.com:vilhelmgray/counter.git
+T:	git https://git.linaro.org/people/william.gray/counter.git
 F:	Documentation/ABI/testing/sysfs-bus-counter
 F:	Documentation/driver-api/generic-counter.rst
 F:	drivers/counter/
@@ -5966,7 +5966,7 @@ F:	include/sound/da[79]*.h
 F:	sound/soc/codecs/da[79]*.[ch]
 
 DIAMOND SYSTEMS GPIO-MM GPIO DRIVER
-M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-gpio-mm.c
@@ -10562,7 +10562,7 @@ F:	Documentation/devicetree/bindings/interrupt-controller/
 F:	drivers/irqchip/
 
 ISA
-M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 S:	Maintained
 F:	Documentation/driver-api/isa.rst
 F:	drivers/base/isa.c
@@ -12327,7 +12327,7 @@ F:	drivers/net/ieee802154/mcr20a.c
 F:	drivers/net/ieee802154/mcr20a.h
 
 MEASUREMENT COMPUTING CIO-DAC IIO DRIVER
-M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 F:	drivers/iio/dac/cio-dac.c
@@ -21624,13 +21624,13 @@ S:	Maintained
 F:	drivers/media/rc/winbond-cir.c
 
 WINSYSTEMS EBC-C384 WATCHDOG DRIVER
-M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-watchdog@vger.kernel.org
 S:	Maintained
 F:	drivers/watchdog/ebc-c384_wdt.c
 
 WINSYSTEMS WS16C48 GPIO DRIVER
-M:	William Breathitt Gray <vilhelm.gray@gmail.com>
+M:	William Breathitt Gray <william.gray@linaro.org>
 L:	linux-gpio@vger.kernel.org
 S:	Maintained
 F:	drivers/gpio/gpio-ws16c48.c
