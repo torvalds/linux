@@ -155,6 +155,8 @@ static DEFINE_MUTEX(ublk_ctl_mutex);
 
 static struct miscdevice ublk_misc;
 
+static struct lock_class_key ublk_bio_compl_lkclass;
+
 static inline bool ublk_can_use_task_work(const struct ublk_queue *ubq)
 {
 	if (IS_BUILTIN(CONFIG_BLK_DEV_UBLK) &&
@@ -634,7 +636,7 @@ static void ublk_commit_rqs(struct blk_mq_hw_ctx *hctx)
 static int ublk_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
 		unsigned int hctx_idx)
 {
-	struct ublk_device *ub = hctx->queue->queuedata;
+	struct ublk_device *ub = driver_data;
 	struct ublk_queue *ubq = ublk_get_queue(ub, hctx->queue_num);
 
 	hctx->driver_data = ubq;
@@ -1076,6 +1078,8 @@ static void ublk_cdev_rel(struct device *dev)
 {
 	struct ublk_device *ub = container_of(dev, struct ublk_device, cdev_dev);
 
+	blk_mq_destroy_queue(ub->ub_queue);
+
 	put_disk(ub->ub_disk);
 
 	blk_mq_free_tag_set(&ub->tag_set);
@@ -1165,14 +1169,17 @@ static int ublk_add_dev(struct ublk_device *ub)
 	if (err)
 		goto out_deinit_queues;
 
-	disk = ub->ub_disk = blk_mq_alloc_disk(&ub->tag_set, ub);
+	ub->ub_queue = blk_mq_init_queue(&ub->tag_set);
+	if (IS_ERR(ub->ub_queue))
+		goto out_cleanup_tags;
+	ub->ub_queue->queuedata = ub;
+
+	disk = ub->ub_disk = blk_mq_alloc_disk_for_queue(ub->ub_queue,
+						 &ublk_bio_compl_lkclass);
 	if (IS_ERR(disk)) {
 		err = PTR_ERR(disk);
-		goto out_cleanup_tags;
+		goto out_free_request_queue;
 	}
-	ub->ub_queue = ub->ub_disk->queue;
-
-	ub->ub_queue->queuedata = ub;
 
 	blk_queue_logical_block_size(ub->ub_queue, bsize);
 	blk_queue_physical_block_size(ub->ub_queue, bsize);
@@ -1204,6 +1211,8 @@ static int ublk_add_dev(struct ublk_device *ub)
 
 	return 0;
 
+out_free_request_queue:
+	blk_mq_destroy_queue(ub->ub_queue);
 out_cleanup_tags:
 	blk_mq_free_tag_set(&ub->tag_set);
 out_deinit_queues:
