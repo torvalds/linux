@@ -145,35 +145,93 @@ static void smc_rx_spd_release(struct splice_pipe_desc *spd,
 static int smc_rx_splice(struct pipe_inode_info *pipe, char *src, size_t len,
 			 struct smc_sock *smc)
 {
+	struct smc_link_group *lgr = smc->conn.lgr;
+	int offset = offset_in_page(src);
+	struct partial_page *partial;
 	struct splice_pipe_desc spd;
-	struct partial_page partial;
-	struct smc_spd_priv *priv;
-	int bytes;
+	struct smc_spd_priv **priv;
+	struct page **pages;
+	int bytes, nr_pages;
+	int i;
 
-	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	nr_pages = !lgr->is_smcd && smc->conn.rmb_desc->is_vm ?
+		   PAGE_ALIGN(len + offset) / PAGE_SIZE : 1;
+
+	pages = kcalloc(nr_pages, sizeof(*pages), GFP_KERNEL);
+	if (!pages)
+		goto out;
+	partial = kcalloc(nr_pages, sizeof(*partial), GFP_KERNEL);
+	if (!partial)
+		goto out_page;
+	priv = kcalloc(nr_pages, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
-		return -ENOMEM;
-	priv->len = len;
-	priv->smc = smc;
-	partial.offset = src - (char *)smc->conn.rmb_desc->cpu_addr;
-	partial.len = len;
-	partial.private = (unsigned long)priv;
+		goto out_part;
+	for (i = 0; i < nr_pages; i++) {
+		priv[i] = kzalloc(sizeof(**priv), GFP_KERNEL);
+		if (!priv[i])
+			goto out_priv;
+	}
 
-	spd.nr_pages_max = 1;
-	spd.nr_pages = 1;
-	spd.pages = &smc->conn.rmb_desc->pages;
-	spd.partial = &partial;
+	if (lgr->is_smcd ||
+	    (!lgr->is_smcd && !smc->conn.rmb_desc->is_vm)) {
+		/* smcd or smcr that uses physically contiguous RMBs */
+		priv[0]->len = len;
+		priv[0]->smc = smc;
+		partial[0].offset = src - (char *)smc->conn.rmb_desc->cpu_addr;
+		partial[0].len = len;
+		partial[0].private = (unsigned long)priv[0];
+		pages[0] = smc->conn.rmb_desc->pages;
+	} else {
+		int size, left = len;
+		void *buf = src;
+		/* smcr that uses virtually contiguous RMBs*/
+		for (i = 0; i < nr_pages; i++) {
+			size = min_t(int, PAGE_SIZE - offset, left);
+			priv[i]->len = size;
+			priv[i]->smc = smc;
+			pages[i] = vmalloc_to_page(buf);
+			partial[i].offset = offset;
+			partial[i].len = size;
+			partial[i].private = (unsigned long)priv[i];
+			buf += size / sizeof(*buf);
+			left -= size;
+			offset = 0;
+		}
+	}
+	spd.nr_pages_max = nr_pages;
+	spd.nr_pages = nr_pages;
+	spd.pages = pages;
+	spd.partial = partial;
 	spd.ops = &smc_pipe_ops;
 	spd.spd_release = smc_rx_spd_release;
 
 	bytes = splice_to_pipe(pipe, &spd);
 	if (bytes > 0) {
 		sock_hold(&smc->sk);
-		get_page(smc->conn.rmb_desc->pages);
+		if (!lgr->is_smcd && smc->conn.rmb_desc->is_vm) {
+			for (i = 0; i < PAGE_ALIGN(bytes + offset) / PAGE_SIZE; i++)
+				get_page(pages[i]);
+		} else {
+			get_page(smc->conn.rmb_desc->pages);
+		}
 		atomic_add(bytes, &smc->conn.splice_pending);
 	}
+	kfree(priv);
+	kfree(partial);
+	kfree(pages);
 
 	return bytes;
+
+out_priv:
+	for (i = (i - 1); i >= 0; i--)
+		kfree(priv[i]);
+	kfree(priv);
+out_part:
+	kfree(partial);
+out_page:
+	kfree(pages);
+out:
+	return -ENOMEM;
 }
 
 static int smc_rx_data_available_and_no_splice_pend(struct smc_connection *conn)

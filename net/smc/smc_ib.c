@@ -698,7 +698,7 @@ static int smc_ib_map_mr_sg(struct smc_buf_desc *buf_slot, u8 link_idx)
 	int sg_num;
 
 	/* map the largest prefix of a dma mapped SG list */
-	sg_num = ib_map_mr_sg(buf_slot->mr_rx[link_idx],
+	sg_num = ib_map_mr_sg(buf_slot->mr[link_idx],
 			      buf_slot->sgt[link_idx].sgl,
 			      buf_slot->sgt[link_idx].orig_nents,
 			      &offset, PAGE_SIZE);
@@ -710,20 +710,21 @@ static int smc_ib_map_mr_sg(struct smc_buf_desc *buf_slot, u8 link_idx)
 int smc_ib_get_memory_region(struct ib_pd *pd, int access_flags,
 			     struct smc_buf_desc *buf_slot, u8 link_idx)
 {
-	if (buf_slot->mr_rx[link_idx])
+	if (buf_slot->mr[link_idx])
 		return 0; /* already done */
 
-	buf_slot->mr_rx[link_idx] =
+	buf_slot->mr[link_idx] =
 		ib_alloc_mr(pd, IB_MR_TYPE_MEM_REG, 1 << buf_slot->order);
-	if (IS_ERR(buf_slot->mr_rx[link_idx])) {
+	if (IS_ERR(buf_slot->mr[link_idx])) {
 		int rc;
 
-		rc = PTR_ERR(buf_slot->mr_rx[link_idx]);
-		buf_slot->mr_rx[link_idx] = NULL;
+		rc = PTR_ERR(buf_slot->mr[link_idx]);
+		buf_slot->mr[link_idx] = NULL;
 		return rc;
 	}
 
-	if (smc_ib_map_mr_sg(buf_slot, link_idx) != 1)
+	if (smc_ib_map_mr_sg(buf_slot, link_idx) !=
+			     buf_slot->sgt[link_idx].orig_nents)
 		return -EINVAL;
 
 	return 0;

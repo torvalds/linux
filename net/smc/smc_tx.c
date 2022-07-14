@@ -383,6 +383,7 @@ static int smcr_tx_rdma_writes(struct smc_connection *conn, size_t len,
 
 	dma_addr_t dma_addr =
 		sg_dma_address(conn->sndbuf_desc->sgt[link->link_idx].sgl);
+	u64 virt_addr = (uintptr_t)conn->sndbuf_desc->cpu_addr;
 	int src_len_sum = src_len, dst_len_sum = dst_len;
 	int sent_count = src_off;
 	int srcchunk, dstchunk;
@@ -395,7 +396,7 @@ static int smcr_tx_rdma_writes(struct smc_connection *conn, size_t len,
 		u64 base_addr = dma_addr;
 
 		if (dst_len < link->qp_attr.cap.max_inline_data) {
-			base_addr = (uintptr_t)conn->sndbuf_desc->cpu_addr;
+			base_addr = virt_addr;
 			wr->wr.send_flags |= IB_SEND_INLINE;
 		} else {
 			wr->wr.send_flags &= ~IB_SEND_INLINE;
@@ -403,8 +404,12 @@ static int smcr_tx_rdma_writes(struct smc_connection *conn, size_t len,
 
 		num_sges = 0;
 		for (srcchunk = 0; srcchunk < 2; srcchunk++) {
-			sge[srcchunk].addr = base_addr + src_off;
+			sge[srcchunk].addr = conn->sndbuf_desc->is_vm ?
+				(virt_addr + src_off) : (base_addr + src_off);
 			sge[srcchunk].length = src_len;
+			if (conn->sndbuf_desc->is_vm)
+				sge[srcchunk].lkey =
+					conn->sndbuf_desc->mr[link->link_idx]->lkey;
 			num_sges++;
 
 			src_off += src_len;

@@ -168,9 +168,11 @@ struct smc_buf_desc {
 		struct { /* SMC-R */
 			struct sg_table	sgt[SMC_LINKS_PER_LGR_MAX];
 					/* virtual buffer */
-			struct ib_mr	*mr_rx[SMC_LINKS_PER_LGR_MAX];
-					/* for rmb only: memory region
+			struct ib_mr	*mr[SMC_LINKS_PER_LGR_MAX];
+					/* memory region: for rmb and
+					 * vzalloced sndbuf
 					 * incl. rkey provided to peer
+					 * and lkey provided to local
 					 */
 			u32		order;	/* allocation order */
 
@@ -183,6 +185,8 @@ struct smc_buf_desc {
 			u8		is_dma_need_sync;
 			u8		is_reg_err;
 					/* buffer registration err */
+			u8		is_vm;
+					/* virtually contiguous */
 		};
 		struct { /* SMC-D */
 			unsigned short	sba_idx;
@@ -543,7 +547,7 @@ int smcr_buf_reg_lgr(struct smc_link *lnk);
 void smcr_lgr_set_type(struct smc_link_group *lgr, enum smc_lgr_type new_type);
 void smcr_lgr_set_type_asym(struct smc_link_group *lgr,
 			    enum smc_lgr_type new_type, int asym_lnk_idx);
-int smcr_link_reg_rmb(struct smc_link *link, struct smc_buf_desc *rmb_desc);
+int smcr_link_reg_buf(struct smc_link *link, struct smc_buf_desc *rmb_desc);
 struct smc_link *smc_switch_conns(struct smc_link_group *lgr,
 				  struct smc_link *from_lnk, bool is_dev_err);
 void smcr_link_down_cond(struct smc_link *lnk);
