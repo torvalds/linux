@@ -337,8 +337,12 @@ enum {
 
 typedef __u32 __bitwise blk_mq_req_flags_t;
 
-/*
- * Operations and flags common to the bio and request structures.
+#define REQ_OP_BITS	8
+#define REQ_OP_MASK	((1 << REQ_OP_BITS) - 1)
+#define REQ_FLAG_BITS	24
+
+/**
+ * enum req_op - Operations common to the bio and request structures.
  * We use 8 bits for encoding the operation, and the remaining 24 for flags.
  *
  * The least significant bit of the operation number indicates the data
@@ -350,11 +354,7 @@ typedef __u32 __bitwise blk_mq_req_flags_t;
  * If a operation does not transfer data the least significant bit has no
  * meaning.
  */
-#define REQ_OP_BITS	8
-#define REQ_OP_MASK	((1 << REQ_OP_BITS) - 1)
-#define REQ_FLAG_BITS	24
-
-enum req_opf {
+enum req_op {
 	/* read sectors from the device */
 	REQ_OP_READ		= 0,
 	/* write sectors to the device */
@@ -509,7 +509,7 @@ static inline bool op_is_discard(unsigned int op)
  * due to its different handling in the block layer and device response in
  * case of command failure.
  */
-static inline bool op_is_zone_mgmt(enum req_opf op)
+static inline bool op_is_zone_mgmt(enum req_op op)
 {
 	switch (op & REQ_OP_MASK) {
 	case REQ_OP_ZONE_RESET:

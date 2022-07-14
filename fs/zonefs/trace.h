@@ -20,7 +20,7 @@
 #define show_dev(dev) MAJOR(dev), MINOR(dev)
 
 TRACE_EVENT(zonefs_zone_mgmt,
-	    TP_PROTO(struct inode *inode, enum req_opf op),
+	    TP_PROTO(struct inode *inode, enum req_op op),
 	    TP_ARGS(inode, op),
 	    TP_STRUCT__entry(
 			     __field(dev_t, dev)

@@ -256,9 +256,8 @@ static int blkdev_zone_reset_all(struct block_device *bdev, gfp_t gfp_mask)
  *    The operation to execute on each zone can be a zone reset, open, close
  *    or finish request.
  */
-int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
-		     sector_t sector, sector_t nr_sectors,
-		     gfp_t gfp_mask)
+int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
+		     sector_t sector, sector_t nr_sectors, gfp_t gfp_mask)
 {
 	struct request_queue *q = bdev_get_queue(bdev);
 	sector_t zone_sectors = bdev_zone_sectors(bdev);
@@ -397,7 +396,7 @@ int blkdev_zone_mgmt_ioctl(struct block_device *bdev, fmode_t mode,
 	void __user *argp = (void __user *)arg;
 	struct request_queue *q;
 	struct blk_zone_range zrange;
-	enum req_opf op;
+	enum req_op op;
 	int ret;
 
 	if (!argp)

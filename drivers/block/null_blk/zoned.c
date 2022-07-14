@@ -600,7 +600,7 @@ static blk_status_t null_reset_zone(struct nullb_device *dev,
 	return BLK_STS_OK;
 }
 
-static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
+static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_op op,
 				   sector_t sector)
 {
 	struct nullb_device *dev = cmd->nq->dev;
@@ -653,7 +653,7 @@ static blk_status_t null_zone_mgmt(struct nullb_cmd *cmd, enum req_opf op,
 	return ret;
 }
 
-blk_status_t null_process_zoned_cmd(struct nullb_cmd *cmd, enum req_opf op,
+blk_status_t null_process_zoned_cmd(struct nullb_cmd *cmd, enum req_op op,
 				    sector_t sector, sector_t nr_sectors)
 {
 	struct nullb_device *dev;

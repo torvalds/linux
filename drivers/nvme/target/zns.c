@@ -308,7 +308,7 @@ void nvmet_bdev_execute_zone_mgmt_recv(struct nvmet_req *req)
 	queue_work(zbd_wq, &req->z.zmgmt_work);
 }
 
-static inline enum req_opf zsa_req_op(u8 zsa)
+static inline enum req_op zsa_req_op(u8 zsa)
 {
 	switch (zsa) {
 	case NVME_ZONE_OPEN:
@@ -465,7 +465,7 @@ static void nvmet_bdev_zmgmt_send_work(struct work_struct *w)
 {
 	struct nvmet_req *req = container_of(w, struct nvmet_req, z.zmgmt_work);
 	sector_t sect = nvmet_lba_to_sect(req->ns, req->cmd->zms.slba);
-	enum req_opf op = zsa_req_op(req->cmd->zms.zsa);
+	enum req_op op = zsa_req_op(req->cmd->zms.zsa);
 	struct block_device *bdev = req->ns->bdev;
 	sector_t zone_sectors = bdev_zone_sectors(bdev);
 	u16 status = NVME_SC_SUCCESS;

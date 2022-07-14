@@ -529,7 +529,7 @@ static unsigned int sd_zbc_zone_wp_update(struct scsi_cmnd *cmd,
 	struct request *rq = scsi_cmd_to_rq(cmd);
 	struct scsi_disk *sdkp = scsi_disk(rq->q->disk);
 	unsigned int zno = blk_rq_zone_no(rq);
-	enum req_opf op = req_op(rq);
+	enum req_op op = req_op(rq);
 	unsigned long flags;
 
 	/*

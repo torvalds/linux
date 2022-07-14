@@ -433,9 +433,8 @@ int ufshpb_prep(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	return 0;
 }
 
-static struct ufshpb_req *ufshpb_get_req(struct ufshpb_lu *hpb,
-					 int rgn_idx, enum req_opf dir,
-					 bool atomic)
+static struct ufshpb_req *ufshpb_get_req(struct ufshpb_lu *hpb, int rgn_idx,
+					 enum req_op dir, bool atomic)
 {
 	struct ufshpb_req *rq;
 	struct request *req;

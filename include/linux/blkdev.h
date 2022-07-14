@@ -322,7 +322,7 @@ void disk_set_zoned(struct gendisk *disk, enum blk_zoned_model model);
 int blkdev_report_zones(struct block_device *bdev, sector_t sector,
 			unsigned int nr_zones, report_zones_cb cb, void *data);
 unsigned int bdev_nr_zones(struct block_device *bdev);
-extern int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
+extern int blkdev_zone_mgmt(struct block_device *bdev, enum req_op op,
 			    sector_t sectors, sector_t nr_sectors,
 			    gfp_t gfp_mask);
 int blk_revalidate_disk_zones(struct gendisk *disk,
