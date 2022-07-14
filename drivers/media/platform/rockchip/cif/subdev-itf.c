@@ -360,7 +360,7 @@ static int sditf_channel_enable(struct sditf_priv *priv, int user)
 			ch0 = 24;//dvp
 		ctrl_val = (ch0 << 3) | 0x1;
 		if (user == 0)
-			int_en = CIF_TOISP1_FS(0);
+			int_en = CIF_TOISP0_FS(0);
 		else
 			int_en = CIF_TOISP1_FS(0);
 		priv->toisp_inf.ch_info[0].is_valid = true;
