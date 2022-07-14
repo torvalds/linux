@@ -537,7 +537,6 @@ xfs_buf_find_lock(
 	if (!xfs_buf_trylock(bp)) {
 		if (flags & XBF_TRYLOCK) {
 			XFS_STATS_INC(bp->b_mount, xb_busy_locked);
-			xfs_buf_rele(bp);
 			return -EAGAIN;
 		}
 		xfs_buf_lock(bp);
@@ -557,144 +556,57 @@ xfs_buf_find_lock(
 	return 0;
 }
 
-static inline struct xfs_buf *
+static inline int
 xfs_buf_lookup(
 	struct xfs_perag	*pag,
-	struct xfs_buf_map	*map)
+	struct xfs_buf_map	*map,
+	xfs_buf_flags_t		flags,
+	struct xfs_buf		**bpp)
 {
 	struct xfs_buf          *bp;
+	int			error;
 
+	spin_lock(&pag->pag_buf_lock);
 	bp = rhashtable_lookup(&pag->pag_buf_hash, map, xfs_buf_hash_params);
-	if (!bp)
-		return NULL;
+	if (!bp) {
+		spin_unlock(&pag->pag_buf_lock);
+		return -ENOENT;
+	}
 	atomic_inc(&bp->b_hold);
-	return bp;
+	spin_unlock(&pag->pag_buf_lock);
+
+	error = xfs_buf_find_lock(bp, flags);
+	if (error) {
+		xfs_buf_rele(bp);
+		return error;
+	}
+
+	trace_xfs_buf_find(bp, flags, _RET_IP_);
+	*bpp = bp;
+	return 0;
 }
 
 /*
  * Insert the new_bp into the hash table. This consumes the perag reference
- * taken for the lookup.
+ * taken for the lookup regardless of the result of the insert.
  */
 static int
 xfs_buf_find_insert(
 	struct xfs_buftarg	*btp,
 	struct xfs_perag	*pag,
-	struct xfs_buf		*new_bp)
-{
-	/* No match found */
-	if (!new_bp) {
-		xfs_perag_put(pag);
-		XFS_STATS_INC(btp->bt_mount, xb_miss_locked);
-		return -ENOENT;
-	}
-
-	/* the buffer keeps the perag reference until it is freed */
-	new_bp->b_pag = pag;
-	rhashtable_insert_fast(&pag->pag_buf_hash, &new_bp->b_rhash_head,
-			       xfs_buf_hash_params);
-	return 0;
-}
-
-/*
- * Look up a buffer in the buffer cache and return it referenced and locked
- * in @found_bp.
- *
- * If @new_bp is supplied and we have a lookup miss, insert @new_bp into the
- * cache.
- *
- * If XBF_TRYLOCK is set in @flags, only try to lock the buffer and return
- * -EAGAIN if we fail to lock it.
- *
- * Return values are:
- *	-EFSCORRUPTED if have been supplied with an invalid address
- *	-EAGAIN on trylock failure
- *	-ENOENT if we fail to find a match and @new_bp was NULL
- *	0, with @found_bp:
- *		- @new_bp if we inserted it into the cache
- *		- the buffer we found and locked.
- */
-static int
-xfs_buf_find(
-	struct xfs_buftarg	*btp,
-	struct xfs_buf_map	*map,
-	int			nmaps,
-	xfs_buf_flags_t		flags,
-	struct xfs_buf		*new_bp,
-	struct xfs_buf		**found_bp)
-{
-	struct xfs_perag	*pag;
-	struct xfs_buf		*bp;
-	struct xfs_buf_map	cmap = { .bm_bn = map[0].bm_bn };
-	int			error;
-	int			i;
-
-	*found_bp = NULL;
-
-	for (i = 0; i < nmaps; i++)
-		cmap.bm_len += map[i].bm_len;
-
-	error = xfs_buf_map_verify(btp, &cmap);
-	if (error)
-		return error;
-
-	pag = xfs_perag_get(btp->bt_mount,
-			    xfs_daddr_to_agno(btp->bt_mount, cmap.bm_bn));
-
-	spin_lock(&pag->pag_buf_lock);
-	bp = xfs_buf_lookup(pag, &cmap);
-	if (bp)
-		goto found;
-
-	error = xfs_buf_find_insert(btp, pag, new_bp);
-	spin_unlock(&pag->pag_buf_lock);
-	if (error)
-		return error;
-	*found_bp = new_bp;
-	return 0;
-
-found:
-	spin_unlock(&pag->pag_buf_lock);
-	xfs_perag_put(pag);
-
-	error = xfs_buf_find_lock(bp, flags);
-	if (error)
-		return error;
-
-	trace_xfs_buf_find(bp, flags, _RET_IP_);
-	XFS_STATS_INC(btp->bt_mount, xb_get_locked);
-	*found_bp = bp;
-	return 0;
-}
-
-/*
- * Assembles a buffer covering the specified range. The code is optimised for
- * cache hits, as metadata intensive workloads will see 3 orders of magnitude
- * more hits than misses.
- */
-int
-xfs_buf_get_map(
-	struct xfs_buftarg	*target,
+	struct xfs_buf_map	*cmap,
 	struct xfs_buf_map	*map,
 	int			nmaps,
 	xfs_buf_flags_t		flags,
 	struct xfs_buf		**bpp)
 {
-	struct xfs_buf		*bp;
 	struct xfs_buf		*new_bp;
+	struct xfs_buf		*bp;
 	int			error;
 
-	*bpp = NULL;
-	error = xfs_buf_find(target, map, nmaps, flags, NULL, &bp);
-	if (!error)
-		goto found;
-	if (error != -ENOENT)
-		return error;
-	if (flags & XBF_INCORE)
-		return -ENOENT;
-
-	error = _xfs_buf_alloc(target, map, nmaps, flags, &new_bp);
+	error = _xfs_buf_alloc(btp, map, nmaps, flags, &new_bp);
 	if (error)
-		return error;
+		goto out_drop_pag;
 
 	/*
 	 * For buffers that fit entirely within a single page, first attempt to
@@ -709,18 +621,89 @@ xfs_buf_get_map(
 			goto out_free_buf;
 	}
 
-	error = xfs_buf_find(target, map, nmaps, flags, new_bp, &bp);
-	if (error)
+	spin_lock(&pag->pag_buf_lock);
+	bp = rhashtable_lookup(&pag->pag_buf_hash, cmap, xfs_buf_hash_params);
+	if (bp) {
+		atomic_inc(&bp->b_hold);
+		spin_unlock(&pag->pag_buf_lock);
+		error = xfs_buf_find_lock(bp, flags);
+		if (error)
+			xfs_buf_rele(bp);
+		else
+			*bpp = bp;
 		goto out_free_buf;
+	}
 
-	if (bp != new_bp)
-		xfs_buf_free(new_bp);
+	/* The buffer keeps the perag reference until it is freed. */
+	new_bp->b_pag = pag;
+	rhashtable_insert_fast(&pag->pag_buf_hash, &new_bp->b_rhash_head,
+			       xfs_buf_hash_params);
+	spin_unlock(&pag->pag_buf_lock);
+	*bpp = new_bp;
+	return 0;
 
-found:
+out_free_buf:
+	xfs_buf_free(new_bp);
+out_drop_pag:
+	xfs_perag_put(pag);
+	return error;
+}
+
+/*
+ * Assembles a buffer covering the specified range. The code is optimised for
+ * cache hits, as metadata intensive workloads will see 3 orders of magnitude
+ * more hits than misses.
+ */
+int
+xfs_buf_get_map(
+	struct xfs_buftarg	*btp,
+	struct xfs_buf_map	*map,
+	int			nmaps,
+	xfs_buf_flags_t		flags,
+	struct xfs_buf		**bpp)
+{
+	struct xfs_perag	*pag;
+	struct xfs_buf		*bp = NULL;
+	struct xfs_buf_map	cmap = { .bm_bn = map[0].bm_bn };
+	int			error;
+	int			i;
+
+	for (i = 0; i < nmaps; i++)
+		cmap.bm_len += map[i].bm_len;
+
+	error = xfs_buf_map_verify(btp, &cmap);
+	if (error)
+		return error;
+
+	pag = xfs_perag_get(btp->bt_mount,
+			    xfs_daddr_to_agno(btp->bt_mount, cmap.bm_bn));
+
+	error = xfs_buf_lookup(pag, &cmap, flags, &bp);
+	if (error && error != -ENOENT)
+		goto out_put_perag;
+
+	/* cache hits always outnumber misses by at least 10:1 */
+	if (unlikely(!bp)) {
+		XFS_STATS_INC(btp->bt_mount, xb_miss_locked);
+
+		if (flags & XBF_INCORE)
+			goto out_put_perag;
+
+		/* xfs_buf_find_insert() consumes the perag reference. */
+		error = xfs_buf_find_insert(btp, pag, &cmap, map, nmaps,
+				flags, &bp);
+		if (error)
+			return error;
+	} else {
+		XFS_STATS_INC(btp->bt_mount, xb_get_locked);
+		xfs_perag_put(pag);
+	}
+
+	/* We do not hold a perag reference anymore. */
 	if (!bp->b_addr) {
 		error = _xfs_buf_map_pages(bp, flags);
 		if (unlikely(error)) {
-			xfs_warn_ratelimited(target->bt_mount,
+			xfs_warn_ratelimited(btp->bt_mount,
 				"%s: failed to map %u pages", __func__,
 				bp->b_page_count);
 			xfs_buf_relse(bp);
@@ -735,12 +718,13 @@ found:
 	if (!(flags & XBF_READ))
 		xfs_buf_ioerror(bp, 0);
 
-	XFS_STATS_INC(target->bt_mount, xb_get);
+	XFS_STATS_INC(btp->bt_mount, xb_get);
 	trace_xfs_buf_get(bp, flags, _RET_IP_);
 	*bpp = bp;
 	return 0;
-out_free_buf:
-	xfs_buf_free(new_bp);
+
+out_put_perag:
+	xfs_perag_put(pag);
 	return error;
 }
 
