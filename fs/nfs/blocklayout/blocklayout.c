@@ -121,7 +121,7 @@ static bool offset_in_map(u64 offset, struct pnfs_block_dev_map *map)
 }
 
 static struct bio *
-do_add_page_to_bio(struct bio *bio, int npg, int rw, sector_t isect,
+do_add_page_to_bio(struct bio *bio, int npg, enum req_op op, sector_t isect,
 		struct page *page, struct pnfs_block_dev_map *map,
 		struct pnfs_block_extent *be, bio_end_io_t end_io,
 		struct parallel_io *par, unsigned int offset, int *len)
@@ -131,7 +131,7 @@ do_add_page_to_bio(struct bio *bio, int npg, int rw, sector_t isect,
 	u64 disk_addr, end;
 
 	dprintk("%s: npg %d rw %d isect %llu offset %u len %d\n", __func__,
-		npg, rw, (unsigned long long)isect, offset, *len);
+		npg, (__force u32)op, (unsigned long long)isect, offset, *len);
 
 	/* translate to device offset */
 	isect += be->be_v_offset;
@@ -154,7 +154,7 @@ do_add_page_to_bio(struct bio *bio, int npg, int rw, sector_t isect,
 
 retry:
 	if (!bio) {
-		bio = bio_alloc(map->bdev, bio_max_segs(npg), rw, GFP_NOIO);
+		bio = bio_alloc(map->bdev, bio_max_segs(npg), op, GFP_NOIO);
 		bio->bi_iter.bi_sector = disk_addr >> SECTOR_SHIFT;
 		bio->bi_end_io = end_io;
 		bio->bi_private = par;
@@ -291,7 +291,7 @@ bl_read_pagelist(struct nfs_pgio_header *header)
 		} else {
 			bio = do_add_page_to_bio(bio,
 						 header->page_array.npages - i,
-						 READ,
+						 REQ_OP_READ,
 						 isect, pages[i], &map, &be,
 						 bl_end_io_read, par,
 						 pg_offset, &pg_len);
@@ -420,9 +420,8 @@ bl_write_pagelist(struct nfs_pgio_header *header, int sync)
 
 		pg_len = PAGE_SIZE;
 		bio = do_add_page_to_bio(bio, header->page_array.npages - i,
-					 WRITE, isect, pages[i], &map, &be,
-					 bl_end_io_write, par,
-					 0, &pg_len);
+					 REQ_OP_WRITE, isect, pages[i], &map,
+					 &be, bl_end_io_write, par, 0, &pg_len);
 		if (IS_ERR(bio)) {
 			header->pnfs_error = PTR_ERR(bio);
 			bio = NULL;
