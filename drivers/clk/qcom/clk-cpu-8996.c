@@ -168,6 +168,34 @@ static struct clk_fixed_factor perfcl_pll_postdiv = {
 	},
 };
 
+static struct clk_fixed_factor perfcl_pll_acd = {
+	.mult = 1,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "perfcl_pll_acd",
+		.parent_data = &(const struct clk_parent_data){
+			.hw = &perfcl_pll.clkr.hw
+		},
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
+static struct clk_fixed_factor pwrcl_pll_acd = {
+	.mult = 1,
+	.div = 1,
+	.hw.init = &(struct clk_init_data){
+		.name = "pwrcl_pll_acd",
+		.parent_data = &(const struct clk_parent_data){
+			.hw = &pwrcl_pll.clkr.hw
+		},
+		.num_parents = 1,
+		.ops = &clk_fixed_factor_ops,
+		.flags = CLK_SET_RATE_PARENT,
+	},
+};
+
 static const struct pll_vco alt_pll_vco_modes[] = {
 	VCO(3,  250000000,  500000000),
 	VCO(2,  500000000,  750000000),
@@ -328,14 +356,14 @@ static struct clk_regmap_mux perfcl_smux = {
 static const struct clk_hw *pwrcl_pmux_parents[] = {
 	[SMUX_INDEX] = &pwrcl_smux.clkr.hw,
 	[PLL_INDEX] = &pwrcl_pll.clkr.hw,
-	[ACD_INDEX] = &pwrcl_pll.clkr.hw,
+	[ACD_INDEX] = &pwrcl_pll_acd.hw,
 	[ALT_INDEX] = &pwrcl_alt_pll.clkr.hw,
 };
 
 static const struct clk_hw *perfcl_pmux_parents[] = {
 	[SMUX_INDEX] = &perfcl_smux.clkr.hw,
 	[PLL_INDEX] = &perfcl_pll.clkr.hw,
-	[ACD_INDEX] = &perfcl_pll.clkr.hw,
+	[ACD_INDEX] = &perfcl_pll_acd.hw,
 	[ALT_INDEX] = &perfcl_alt_pll.clkr.hw,
 };
 
@@ -382,6 +410,13 @@ static const struct regmap_config cpu_msm8996_regmap_config = {
 	.val_format_endian	= REGMAP_ENDIAN_LITTLE,
 };
 
+static struct clk_hw *cpu_msm8996_hw_clks[] = {
+	&pwrcl_pll_postdiv.hw,
+	&perfcl_pll_postdiv.hw,
+	&pwrcl_pll_acd.hw,
+	&perfcl_pll_acd.hw,
+};
+
 static struct clk_regmap *cpu_msm8996_clks[] = {
 	&pwrcl_pll.clkr,
 	&perfcl_pll.clkr,
@@ -398,16 +433,10 @@ static int qcom_cpu_clk_msm8996_register_clks(struct device *dev,
 {
 	int i, ret;
 
-	ret = devm_clk_hw_register(dev, &pwrcl_pll_postdiv.hw);
-	if (ret) {
-		dev_err(dev, "Failed to register pwrcl_pll_postdiv: %d", ret);
-		return ret;
-	}
-
-	ret = devm_clk_hw_register(dev, &perfcl_pll_postdiv.hw);
-	if (ret) {
-		dev_err(dev, "Failed to register perfcl_pll_postdiv: %d", ret);
-		return ret;
+	for (i = 0; i < ARRAY_SIZE(cpu_msm8996_hw_clks); i++) {
+		ret = devm_clk_hw_register(dev, cpu_msm8996_hw_clks[i]);
+		if (ret)
+			return ret;
 	}
 
 	for (i = 0; i < ARRAY_SIZE(cpu_msm8996_clks); i++) {
