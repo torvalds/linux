@@ -70,22 +70,14 @@ void reset_memblock_attributes(void);
 void setup_memblock(void);
 void dummy_physical_memory_init(void);
 void dummy_physical_memory_cleanup(void);
+void parse_args(int argc, char **argv);
 
-#ifdef VERBOSE
 void test_fail(void);
 void test_pass(void);
 void test_print(const char *fmt, ...);
 void prefix_reset(void);
 void prefix_push(const char *prefix);
 void prefix_pop(void);
-#else
-static inline void test_fail(void) {}
-static inline void test_pass(void) {}
-static inline void test_print(const char *fmt, ...) {}
-static inline void prefix_reset(void) {}
-static inline void prefix_push(const char *prefix) {}
-static inline void prefix_pop(void) {}
-#endif /* VERBOSE */
 
 static inline void test_pass_pop(void)
 {
