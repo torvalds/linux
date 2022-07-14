@@ -9,6 +9,8 @@
 #include <linux/of_pci.h>
 #include <linux/pci.h>
 #include <linux/pci_ids.h>
+#include <linux/pci-acpi.h>
+#include <linux/pci-ecam.h>
 
 #include "../pci.h"
 
@@ -97,39 +99,53 @@ static void loongson_mrrs_quirk(struct pci_dev *dev)
 }
 DECLARE_PCI_FIXUP_ENABLE(PCI_ANY_ID, PCI_ANY_ID, loongson_mrrs_quirk);
 
-static void __iomem *cfg1_map(struct loongson_pci *priv, int bus,
-				unsigned int devfn, int where)
+static struct loongson_pci *pci_bus_to_loongson_pci(struct pci_bus *bus)
 {
-	unsigned long addroff = 0x0;
+	struct pci_config_window *cfg;
 
-	if (bus != 0)
-		addroff |= BIT(28); /* Type 1 Access */
-	addroff |= (where & 0xff) | ((where & 0xf00) << 16);
-	addroff |= (bus << 16) | (devfn << 8);
-	return priv->cfg1_base + addroff;
+	if (acpi_disabled)
+		return (struct loongson_pci *)(bus->sysdata);
+
+	cfg = bus->sysdata;
+	return (struct loongson_pci *)(cfg->priv);
 }
 
-static void __iomem *cfg0_map(struct loongson_pci *priv, int bus,
-				unsigned int devfn, int where)
+static void __iomem *cfg0_map(struct loongson_pci *priv, struct pci_bus *bus,
+			      unsigned int devfn, int where)
 {
 	unsigned long addroff = 0x0;
+	unsigned char busnum = bus->number;
 
-	if (bus != 0)
+	if (!pci_is_root_bus(bus)) {
 		addroff |= BIT(24); /* Type 1 Access */
-	addroff |= (bus << 16) | (devfn << 8) | where;
+		addroff |= (busnum << 16);
+	}
+	addroff |= (devfn << 8) | where;
 	return priv->cfg0_base + addroff;
 }
 
-static void __iomem *pci_loongson_map_bus(struct pci_bus *bus, unsigned int devfn,
-			       int where)
+static void __iomem *cfg1_map(struct loongson_pci *priv, struct pci_bus *bus,
+			      unsigned int devfn, int where)
 {
+	unsigned long addroff = 0x0;
 	unsigned char busnum = bus->number;
-	struct pci_host_bridge *bridge = pci_find_host_bridge(bus);
-	struct loongson_pci *priv =  pci_host_bridge_priv(bridge);
+
+	if (!pci_is_root_bus(bus)) {
+		addroff |= BIT(28); /* Type 1 Access */
+		addroff |= (busnum << 16);
+	}
+	addroff |= (devfn << 8) | (where & 0xff) | ((where & 0xf00) << 16);
+	return priv->cfg1_base + addroff;
+}
+
+static void __iomem *pci_loongson_map_bus(struct pci_bus *bus,
+					  unsigned int devfn, int where)
+{
+	struct loongson_pci *priv = pci_bus_to_loongson_pci(bus);
 
 	/*
 	 * Do not read more than one device on the bus other than
-	 * the host bus. For our hardware the root bus is always bus 0.
+	 * the host bus.
 	 */
 	if (priv->data->flags & FLAG_DEV_FIX &&
 			!pci_is_root_bus(bus) && PCI_SLOT(devfn) > 0)
@@ -137,14 +153,16 @@ static void __iomem *pci_loongson_map_bus(struct pci_bus *bus, unsigned int devf
 
 	/* CFG0 can only access standard space */
 	if (where < PCI_CFG_SPACE_SIZE && priv->cfg0_base)
-		return cfg0_map(priv, busnum, devfn, where);
+		return cfg0_map(priv, bus, devfn, where);
 
 	/* CFG1 can access extended space */
 	if (where < PCI_CFG_SPACE_EXP_SIZE && priv->cfg1_base)
-		return cfg1_map(priv, busnum, devfn, where);
+		return cfg1_map(priv, bus, devfn, where);
 
 	return NULL;
 }
+
+#ifdef CONFIG_OF
 
 static int loongson_map_irq(const struct pci_dev *dev, u8 slot, u8 pin)
 {
@@ -259,3 +277,41 @@ static struct platform_driver loongson_pci_driver = {
 	.probe = loongson_pci_probe,
 };
 builtin_platform_driver(loongson_pci_driver);
+
+#endif
+
+#ifdef CONFIG_ACPI
+
+static int loongson_pci_ecam_init(struct pci_config_window *cfg)
+{
+	struct device *dev = cfg->parent;
+	struct loongson_pci *priv;
+	struct loongson_pci_data *data;
+
+	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	cfg->priv = priv;
+	data->flags = FLAG_CFG1;
+	priv->data = data;
+	priv->cfg1_base = cfg->win - (cfg->busr.start << 16);
+
+	return 0;
+}
+
+const struct pci_ecam_ops loongson_pci_ecam_ops = {
+	.bus_shift = 16,
+	.init	   = loongson_pci_ecam_init,
+	.pci_ops   = {
+		.map_bus = pci_loongson_map_bus,
+		.read	 = pci_generic_config_read,
+		.write	 = pci_generic_config_write,
+	}
+};
+
+#endif
