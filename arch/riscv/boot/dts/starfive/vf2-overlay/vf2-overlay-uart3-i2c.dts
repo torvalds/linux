@@ -1,0 +1,78 @@
+/dts-v1/;
+/plugin/;
+#include <dt-bindings/gpio/gpio.h>
+#include <dt-bindings/pinctrl/starfive,jh7110-pinfunc.h>
+/ {
+	compatible = "starfive,visionfive-v2", "starfive,jh7110";
+
+	//gpio
+	fragment@0 {
+		target-path = "/soc/gpio@13040000";
+		__overlay__ {
+			dt_uart3_pins: dt-uart3-pins {
+				uart3-pins-tx {
+					sf,pins = <PAD_GPIO60>;
+					sf,pinmux = <PAD_GPIO60_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | GPIO_DS(3))>;
+					sf,pin-gpio-dout = <GPO_UART3_SOUT>;
+					sf,pin-gpio-doen = <OEN_LOW>;
+				};
+
+				uart3-pins-rx {
+					sf,pins = <PAD_GPIO63>;
+					sf,pinmux = <PAD_GPIO63_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | GPIO_PU(1))>;
+					sf,pin-gpio-doen = <OEN_HIGH>;
+					sf,pin-gpio-din =  <GPI_UART3_SIN>;
+				};
+			};
+
+			dt_i2c1_pins: dt-i2c1-pins {
+				i2c1-pins-scl {
+					sf,pins = <PAD_GPIO42>;
+					sf,pinmux = <PAD_GPIO42_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_LOW>;
+					sf,pin-gpio-doen = <OEN_I2C1_IC_CLK_OE>;
+					sf,pin-gpio-din =  <GPI_I2C1_IC_CLK_IN_A>;
+				};
+
+				i2c1-pins-sda {
+					sf,pins = <PAD_GPIO43>;
+					sf,pinmux = <PAD_GPIO43_FUNC_SEL 0>;
+					sf,pin-ioconfig = <IO(GPIO_IE(1) | (GPIO_PU(1)))>;
+					sf,pin-gpio-dout = <GPO_LOW>;
+					sf,pin-gpio-doen = <OEN_I2C1_IC_DATA_OE>;
+					sf,pin-gpio-din =  <GPI_I2C1_IC_DATA_IN_A>;
+				};
+			};
+		};
+	};
+
+	//uart3
+	fragment@1 {
+		target-path = "/soc/serial@12000000";
+		__overlay__ {
+			pinctrl-names = "default";
+       	pinctrl-0 = <&dt_uart3_pins>;
+			status = "okay";
+		};
+	};
+
+	//i2c1
+  	fragment@2 {
+		target-path = "/soc/i2c@10040000";
+		__overlay__ {
+			clock-frequency = <100000>;
+			i2c-sda-hold-time-ns = <300>;
+			i2c-sda-falling-time-ns = <3000>;
+			i2c-scl-falling-time-ns = <3000>;
+			auto_calc_scl_lhcnt;
+			pinctrl-names = "default";
+			pinctrl-0 = <&dt_i2c1_pins>;
+			status = "okay";
+		};
+	};
+};
+
+ 

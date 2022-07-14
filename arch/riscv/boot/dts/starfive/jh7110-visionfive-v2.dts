@@ -646,6 +646,7 @@
 	non-removable;
 	cap-mmc-hw-reset;
 	post-power-on-delay-ms = <200>;
+	vqmmc-supply = <&sdio_vdd>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc0_pins>;
 	status = "okay";
@@ -659,6 +660,7 @@
 	broken-cd;
 	cap-sd-highspeed;
 	post-power-on-delay-ms = <200>;
+	vqmmc-supply = <&sdio_vdd>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdcard1_pins>;
 	//cd-gpios = <&gpio 6 0>;
