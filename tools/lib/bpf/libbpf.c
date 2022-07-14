@@ -1694,7 +1694,7 @@ static int set_kcfg_value_tri(struct extern_desc *ext, void *ext_val,
 	switch (ext->kcfg.type) {
 	case KCFG_BOOL:
 		if (value == 'm') {
-			pr_warn("extern (kcfg) %s=%c should be tristate or char\n",
+			pr_warn("extern (kcfg) '%s': value '%c' implies tristate or char type\n",
 				ext->name, value);
 			return -EINVAL;
 		}
@@ -1715,7 +1715,7 @@ static int set_kcfg_value_tri(struct extern_desc *ext, void *ext_val,
 	case KCFG_INT:
 	case KCFG_CHAR_ARR:
 	default:
-		pr_warn("extern (kcfg) %s=%c should be bool, tristate, or char\n",
+		pr_warn("extern (kcfg) '%s': value '%c' implies bool, tristate, or char type\n",
 			ext->name, value);
 		return -EINVAL;
 	}
@@ -1729,7 +1729,8 @@ static int set_kcfg_value_str(struct extern_desc *ext, char *ext_val,
 	size_t len;
 
 	if (ext->kcfg.type != KCFG_CHAR_ARR) {
-		pr_warn("extern (kcfg) %s=%s should be char array\n", ext->name, value);
+		pr_warn("extern (kcfg) '%s': value '%s' implies char array type\n",
+			ext->name, value);
 		return -EINVAL;
 	}
 
@@ -1743,7 +1744,7 @@ static int set_kcfg_value_str(struct extern_desc *ext, char *ext_val,
 	/* strip quotes */
 	len -= 2;
 	if (len >= ext->kcfg.sz) {
-		pr_warn("extern (kcfg) '%s': long string config %s of (%zu bytes) truncated to %d bytes\n",
+		pr_warn("extern (kcfg) '%s': long string '%s' of (%zu bytes) truncated to %d bytes\n",
 			ext->name, value, len, ext->kcfg.sz - 1);
 		len = ext->kcfg.sz - 1;
 	}
@@ -1800,13 +1801,20 @@ static bool is_kcfg_value_in_range(const struct extern_desc *ext, __u64 v)
 static int set_kcfg_value_num(struct extern_desc *ext, void *ext_val,
 			      __u64 value)
 {
-	if (ext->kcfg.type != KCFG_INT && ext->kcfg.type != KCFG_CHAR) {
-		pr_warn("extern (kcfg) %s=%llu should be integer\n",
+	if (ext->kcfg.type != KCFG_INT && ext->kcfg.type != KCFG_CHAR &&
+	    ext->kcfg.type != KCFG_BOOL) {
+		pr_warn("extern (kcfg) '%s': value '%llu' implies integer, char, or boolean type\n",
 			ext->name, (unsigned long long)value);
 		return -EINVAL;
 	}
+	if (ext->kcfg.type == KCFG_BOOL && value > 1) {
+		pr_warn("extern (kcfg) '%s': value '%llu' isn't boolean compatible\n",
+			ext->name, (unsigned long long)value);
+		return -EINVAL;
+
+	}
 	if (!is_kcfg_value_in_range(ext, value)) {
-		pr_warn("extern (kcfg) %s=%llu value doesn't fit in %d bytes\n",
+		pr_warn("extern (kcfg) '%s': value '%llu' doesn't fit in %d bytes\n",
 			ext->name, (unsigned long long)value, ext->kcfg.sz);
 		return -ERANGE;
 	}
@@ -1870,16 +1878,19 @@ static int bpf_object__process_kconfig_line(struct bpf_object *obj,
 		/* assume integer */
 		err = parse_u64(value, &num);
 		if (err) {
-			pr_warn("extern (kcfg) %s=%s should be integer\n",
-				ext->name, value);
+			pr_warn("extern (kcfg) '%s': value '%s' isn't a valid integer\n", ext->name, value);
 			return err;
+		}
+		if (ext->kcfg.type != KCFG_INT && ext->kcfg.type != KCFG_CHAR) {
+			pr_warn("extern (kcfg) '%s': value '%s' implies integer type\n", ext->name, value);
+			return -EINVAL;
 		}
 		err = set_kcfg_value_num(ext, ext_val, num);
 		break;
 	}
 	if (err)
 		return err;
-	pr_debug("extern (kcfg) %s=%s\n", ext->name, value);
+	pr_debug("extern (kcfg) '%s': set to %s\n", ext->name, value);
 	return 0;
 }
 
@@ -3687,7 +3698,7 @@ static int bpf_object__collect_externs(struct bpf_object *obj)
 			ext->kcfg.type = find_kcfg_type(obj->btf, t->type,
 						        &ext->kcfg.is_signed);
 			if (ext->kcfg.type == KCFG_UNKNOWN) {
-				pr_warn("extern (kcfg) '%s' type is unsupported\n", ext_name);
+				pr_warn("extern (kcfg) '%s': type is unsupported\n", ext_name);
 				return -ENOTSUP;
 			}
 		} else if (strcmp(sec_name, KSYMS_SEC) == 0) {
@@ -7287,14 +7298,14 @@ static int kallsyms_cb(unsigned long long sym_addr, char sym_type,
 		return 0;
 
 	if (ext->is_set && ext->ksym.addr != sym_addr) {
-		pr_warn("extern (ksym) '%s' resolution is ambiguous: 0x%llx or 0x%llx\n",
+		pr_warn("extern (ksym) '%s': resolution is ambiguous: 0x%llx or 0x%llx\n",
 			sym_name, ext->ksym.addr, sym_addr);
 		return -EINVAL;
 	}
 	if (!ext->is_set) {
 		ext->is_set = true;
 		ext->ksym.addr = sym_addr;
-		pr_debug("extern (ksym) %s=0x%llx\n", sym_name, sym_addr);
+		pr_debug("extern (ksym) '%s': set to 0x%llx\n", sym_name, sym_addr);
 	}
 	return 0;
 }
@@ -7498,28 +7509,50 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 	for (i = 0; i < obj->nr_extern; i++) {
 		ext = &obj->externs[i];
 
-		if (ext->type == EXT_KCFG &&
-		    strcmp(ext->name, "LINUX_KERNEL_VERSION") == 0) {
-			void *ext_val = kcfg_data + ext->kcfg.data_off;
-			__u32 kver = get_kernel_version();
-
-			if (!kver) {
-				pr_warn("failed to get kernel version\n");
-				return -EINVAL;
-			}
-			err = set_kcfg_value_num(ext, ext_val, kver);
-			if (err)
-				return err;
-			pr_debug("extern (kcfg) %s=0x%x\n", ext->name, kver);
-		} else if (ext->type == EXT_KCFG && str_has_pfx(ext->name, "CONFIG_")) {
-			need_config = true;
-		} else if (ext->type == EXT_KSYM) {
+		if (ext->type == EXT_KSYM) {
 			if (ext->ksym.type_id)
 				need_vmlinux_btf = true;
 			else
 				need_kallsyms = true;
+			continue;
+		} else if (ext->type == EXT_KCFG) {
+			void *ext_ptr = kcfg_data + ext->kcfg.data_off;
+			__u64 value = 0;
+
+			/* Kconfig externs need actual /proc/config.gz */
+			if (str_has_pfx(ext->name, "CONFIG_")) {
+				need_config = true;
+				continue;
+			}
+
+			/* Virtual kcfg externs are customly handled by libbpf */
+			if (strcmp(ext->name, "LINUX_KERNEL_VERSION") == 0) {
+				value = get_kernel_version();
+				if (!value) {
+					pr_warn("extern (kcfg) '%s': failed to get kernel version\n", ext->name);
+					return -EINVAL;
+				}
+			} else if (strcmp(ext->name, "LINUX_HAS_BPF_COOKIE") == 0) {
+				value = kernel_supports(obj, FEAT_BPF_COOKIE);
+			} else if (!str_has_pfx(ext->name, "LINUX_") || !ext->is_weak) {
+				/* Currently libbpf supports only CONFIG_ and LINUX_ prefixed
+				 * __kconfig externs, where LINUX_ ones are virtual and filled out
+				 * customly by libbpf (their values don't come from Kconfig).
+				 * If LINUX_xxx variable is not recognized by libbpf, but is marked
+				 * __weak, it defaults to zero value, just like for CONFIG_xxx
+				 * externs.
+				 */
+				pr_warn("extern (kcfg) '%s': unrecognized virtual extern\n", ext->name);
+				return -EINVAL;
+			}
+
+			err = set_kcfg_value_num(ext, ext_ptr, value);
+			if (err)
+				return err;
+			pr_debug("extern (kcfg) '%s': set to 0x%llx\n",
+				 ext->name, (long long)value);
 		} else {
-			pr_warn("unrecognized extern '%s'\n", ext->name);
+			pr_warn("extern '%s': unrecognized extern kind\n", ext->name);
 			return -EINVAL;
 		}
 	}
@@ -7555,10 +7588,10 @@ static int bpf_object__resolve_externs(struct bpf_object *obj,
 		ext = &obj->externs[i];
 
 		if (!ext->is_set && !ext->is_weak) {
-			pr_warn("extern %s (strong) not resolved\n", ext->name);
+			pr_warn("extern '%s' (strong): not resolved\n", ext->name);
 			return -ESRCH;
 		} else if (!ext->is_set) {
-			pr_debug("extern %s (weak) not resolved, defaulting to zero\n",
+			pr_debug("extern '%s' (weak): not resolved, defaulting to zero\n",
 				 ext->name);
 		}
 	}
