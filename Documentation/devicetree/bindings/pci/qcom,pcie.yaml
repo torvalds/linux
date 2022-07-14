@@ -625,7 +625,6 @@ allOf:
         - reset-names
 
     # Newer chipsets support either 1 or 8 MSI vectors
-    # On older chipsets it's always 1 MSI vector
   - if:
       properties:
         compatible:
@@ -660,7 +659,21 @@ allOf:
                 - const: msi5
                 - const: msi6
                 - const: msi7
-    else:
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,pcie-apq8064
+              - qcom,pcie-apq8084
+              - qcom,pcie-ipq4019
+              - qcom,pcie-ipq6018
+              - qcom,pcie-ipq8064
+              - qcom,pcie-ipq8064-v2
+              - qcom,pcie-ipq8074
+              - qcom,pcie-qcs404
+    then:
       properties:
         interrupts:
           maxItems: 1
