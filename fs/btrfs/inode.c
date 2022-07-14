@@ -5866,14 +5866,14 @@ struct inode *btrfs_lookup_dentry(struct inode *dir, struct dentry *dentry)
 		if (ret != -ENOENT)
 			inode = ERR_PTR(ret);
 		else
-			inode = new_simple_dir(dir->i_sb, &location, sub_root);
+			inode = new_simple_dir(dir->i_sb, &location, root);
 	} else {
 		inode = btrfs_iget(dir->i_sb, location.objectid, sub_root);
-	}
-	if (root != sub_root)
 		btrfs_put_root(sub_root);
 
-	if (!IS_ERR(inode) && root != sub_root) {
+		if (IS_ERR(inode))
+			return inode;
+
 		down_read(&fs_info->cleanup_work_sem);
 		if (!sb_rdonly(inode->i_sb))
 			ret = btrfs_orphan_cleanup(sub_root);
