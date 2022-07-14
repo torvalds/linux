@@ -1107,9 +1107,21 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			cif_dev->irq_stats.csi_size_err_cnt = 0;
 			cif_dev->irq_stats.dvp_size_err_cnt = 0;
 			cif_dev->irq_stats.dvp_bwidth_lack_cnt = 0;
-			cif_dev->irq_stats.all_frm_end_cnt = 0;
+			cif_dev->irq_stats.frm_end_cnt[0] = 0;
+			cif_dev->irq_stats.frm_end_cnt[1] = 0;
+			cif_dev->irq_stats.frm_end_cnt[2] = 0;
+			cif_dev->irq_stats.frm_end_cnt[3] = 0;
+			cif_dev->irq_stats.not_active_buf_cnt[0] = 0;
+			cif_dev->irq_stats.not_active_buf_cnt[1] = 0;
+			cif_dev->irq_stats.not_active_buf_cnt[2] = 0;
+			cif_dev->irq_stats.not_active_buf_cnt[3] = 0;
+			cif_dev->irq_stats.trig_simult_cnt[0] = 0;
+			cif_dev->irq_stats.trig_simult_cnt[1] = 0;
+			cif_dev->irq_stats.trig_simult_cnt[2] = 0;
+			cif_dev->irq_stats.trig_simult_cnt[3] = 0;
 			cif_dev->reset_watchdog_timer.is_triggered = false;
 			cif_dev->reset_watchdog_timer.is_running = false;
+			cif_dev->err_state_work.last_timestamp = 0;
 			for (i = 0; i < cif_dev->num_channels; i++)
 				cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 			cif_dev->reset_watchdog_timer.run_cnt = 0;
@@ -1179,7 +1191,18 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				cif_dev->irq_stats.all_err_cnt = 0;
 				cif_dev->irq_stats.csi_size_err_cnt = 0;
 				cif_dev->irq_stats.dvp_size_err_cnt = 0;
-				cif_dev->irq_stats.all_frm_end_cnt = 0;
+				cif_dev->irq_stats.frm_end_cnt[0] = 0;
+				cif_dev->irq_stats.frm_end_cnt[1] = 0;
+				cif_dev->irq_stats.frm_end_cnt[2] = 0;
+				cif_dev->irq_stats.frm_end_cnt[3] = 0;
+				cif_dev->irq_stats.not_active_buf_cnt[0] = 0;
+				cif_dev->irq_stats.not_active_buf_cnt[1] = 0;
+				cif_dev->irq_stats.not_active_buf_cnt[2] = 0;
+				cif_dev->irq_stats.not_active_buf_cnt[3] = 0;
+				cif_dev->irq_stats.trig_simult_cnt[0] = 0;
+				cif_dev->irq_stats.trig_simult_cnt[1] = 0;
+				cif_dev->irq_stats.trig_simult_cnt[2] = 0;
+				cif_dev->irq_stats.trig_simult_cnt[3] = 0;
 				cif_dev->is_start_hdr = true;
 				cif_dev->reset_watchdog_timer.is_triggered = false;
 				cif_dev->reset_watchdog_timer.is_running = false;
@@ -1917,6 +1940,8 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->rdbk_debug = 0;
 	if (cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
 		cif_dev->isr_hdl = rkcif_irq_lite_handler;
+
+	INIT_WORK(&cif_dev->err_state_work.work, rkcif_err_print_work);
 
 	if (cif_dev->chip_id < CHIP_RV1126_CIF) {
 		if (cif_dev->inf_id == RKCIF_MIPI_LVDS) {

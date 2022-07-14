@@ -355,7 +355,9 @@ struct rkcif_irq_stats {
 	u64 dvp_pix_err_cnt;
 	u64 dvp_size_err_cnt;
 	u64 dvp_bwidth_lack_cnt;
-	u64 all_frm_end_cnt;
+	u64 frm_end_cnt[RKCIF_MAX_STREAM_MIPI];
+	u64 not_active_buf_cnt[RKCIF_MAX_STREAM_MIPI];
+	u64 trig_simult_cnt[RKCIF_MAX_STREAM_MIPI];
 	u64 all_err_cnt;
 };
 
@@ -749,6 +751,36 @@ int rkcif_register_tools_vdevs(struct rkcif_device *cif_dev,
 void rkcif_unregister_tools_vdevs(struct rkcif_device *cif_dev,
 				   int stream_num);
 
+enum rkcif_err_state {
+	RKCIF_ERR_ID0_NOT_BUF = 0x1,
+	RKCIF_ERR_ID1_NOT_BUF = 0x2,
+	RKCIF_ERR_ID2_NOT_BUF = 0x4,
+	RKCIF_ERR_ID3_NOT_BUF = 0x8,
+	RKCIF_ERR_ID0_TRIG_SIMULT = 0x10,
+	RKCIF_ERR_ID1_TRIG_SIMULT = 0x20,
+	RKCIF_ERR_ID2_TRIG_SIMULT = 0x40,
+	RKCIF_ERR_ID3_TRIG_SIMULT = 0x80,
+	RKCIF_ERR_SIZE = 0x100,
+	RKCIF_ERR_OVERFLOW = 0x200,
+	RKCIF_ERR_BANDWIDTH_LACK = 0x400,
+	RKCIF_ERR_BUS = 0X800,
+	RKCIF_ERR_ID0_MULTI_FS = 0x1000,
+	RKCIF_ERR_ID1_MULTI_FS = 0x2000,
+	RKCIF_ERR_ID2_MULTI_FS = 0x4000,
+	RKCIF_ERR_ID3_MULTI_FS = 0x8000,
+	RKCIF_ERR_PIXEL = 0x10000,
+	RKCIF_ERR_LINE = 0x20000,
+};
+
+struct rkcif_err_state_work {
+	struct work_struct	work;
+	u64 last_timestamp;
+	u32 err_state;
+	u32 intstat;
+	u32 lastline;
+	u32 lastpixel;
+};
+
 /*
  * struct rkcif_device - ISP platform device
  * @base_addr: base register address
@@ -824,6 +856,8 @@ struct rkcif_device {
 	u32				early_line;
 	int				isp_runtime_max;
 	int				sensor_linetime;
+	u32				err_state;
+	struct rkcif_err_state_work	err_state_work;
 };
 
 extern struct platform_driver rkcif_plat_drv;
@@ -918,5 +952,7 @@ cif_output_fmt *rkcif_find_output_fmt(struct rkcif_stream *stream, u32 pixelfmt)
 int rkcif_rockit_buf_done(struct rkcif_stream *stream, struct rkcif_buffer *buf);
 void rkcif_rockit_dev_init(struct rkcif_device *dev);
 void rkcif_rockit_dev_deinit(void);
+
+void rkcif_err_print_work(struct work_struct *work);
 
 #endif

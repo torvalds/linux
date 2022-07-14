@@ -1146,8 +1146,10 @@ static irqreturn_t rkcif_irq_handler(int irq, void *ctx)
 	struct device *dev = ctx;
 	struct rkcif_hw *cif_hw = dev_get_drvdata(dev);
 	unsigned int intstat_glb = 0;
+	u64 irq_start, irq_stop;
 	int i;
 
+	irq_start = ktime_get_ns();
 	if (cif_hw->chip_id >= CHIP_RK3588_CIF) {
 		intstat_glb = rkcif_irq_global(cif_hw->cif_dev[0]);
 		if (intstat_glb)
@@ -1157,11 +1159,18 @@ static irqreturn_t rkcif_irq_handler(int irq, void *ctx)
 	for (i = 0; i < cif_hw->dev_num; i++) {
 		if (cif_hw->cif_dev[i]->isr_hdl) {
 			cif_hw->cif_dev[i]->isr_hdl(irq, cif_hw->cif_dev[i]);
+			if (cif_hw->cif_dev[i]->err_state &&
+			    (!work_busy(&cif_hw->cif_dev[i]->err_state_work.work))) {
+				cif_hw->cif_dev[i]->err_state_work.err_state = cif_hw->cif_dev[i]->err_state;
+				cif_hw->cif_dev[i]->err_state = 0;
+				schedule_work(&cif_hw->cif_dev[i]->err_state_work.work);
+			}
 			if (cif_hw->chip_id >= CHIP_RK3588_CIF && intstat_glb)
 				rkcif_irq_handle_toisp(cif_hw->cif_dev[i], intstat_glb);
 		}
 	}
-
+	irq_stop = ktime_get_ns();
+	cif_hw->irq_time = irq_stop - irq_start;
 	return IRQ_HANDLED;
 }
 

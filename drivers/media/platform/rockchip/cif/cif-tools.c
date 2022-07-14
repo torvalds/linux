@@ -176,7 +176,7 @@ static int rkcif_tools_set_fmt(struct rkcif_tools_vdev *tools_vdev,
 		tools_vdev->tools_out_fmt = stream->cif_fmt_out;
 		tools_vdev->pixm = *pixm;
 
-		v4l2_dbg(3, rkcif_debug, &stream->cifdev->v4l2_dev,
+		v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
 			 "%s: req(%d, %d)\n", __func__,
 			 pixm->width, pixm->height);
 	}
@@ -441,7 +441,7 @@ static void rkcif_tools_vb2_buf_queue(struct vb2_buffer *vb)
 		}
 		if (rkcif_debug && addr && !hw_dev->iommu_en) {
 			memset(addr, 0, pixm->plane_fmt[i].sizeimage);
-			v4l2_dbg(1, rkcif_debug, &tools_vdev->cifdev->v4l2_dev,
+			v4l2_dbg(3, rkcif_debug, &tools_vdev->cifdev->v4l2_dev,
 				 "Clear buffer, size: 0x%08x\n",
 				 pixm->plane_fmt[i].sizeimage);
 		}

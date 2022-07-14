@@ -159,11 +159,13 @@ static int sditf_get_set_fmt(struct v4l2_subdev *sd,
 		pixm.pixelformat = rkcif_mbus_pixelcode_to_v4l2(fmt->format.code);
 		pixm.width = priv->cap_info.width;
 		pixm.height = priv->cap_info.height;
+
 		out_fmt = rkcif_find_output_fmt(NULL, pixm.pixelformat);
 		if (priv->toisp_inf.link_mode == TOISP_UNITE &&
 		    ((pixm.width / 2 - RKMOUDLE_UNITE_EXTEND_PIXEL) * out_fmt->raw_bpp / 8) & 0xf)
 			is_uncompact = true;
-		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
+
+		v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
 			"%s, width %d, height %d, hdr mode %d\n",
 			__func__, fmt->format.width, fmt->format.height, priv->hdr_cfg.hdr_mode);
 		if (priv->hdr_cfg.hdr_mode == NO_HDR ||
@@ -308,9 +310,10 @@ static void sditf_reinit_mode(struct sditf_priv *priv, struct rkisp_vicap_mode *
 		else
 			priv->toisp_inf.link_mode = TOISP0;
 	}
-	v4l2_info(&priv->cif_dev->v4l2_dev,
-		  "%s, mode->rdbk_mode %d, mode->name %s, link_mode %d\n",
-		  __func__, mode->rdbk_mode, mode->name, priv->toisp_inf.link_mode);
+
+	v4l2_dbg(1, rkcif_debug, &priv->cif_dev->v4l2_dev,
+		 "%s, mode->rdbk_mode %d, mode->name %s, link_mode %d\n",
+		 __func__, mode->rdbk_mode, mode->name, priv->toisp_inf.link_mode);
 }
 
 static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
@@ -672,7 +675,7 @@ static int sditf_s_stream(struct v4l2_subdev *sd, int on)
 	if (cif_dev->chip_id >= CHIP_RK3588_CIF) {
 		if (priv->mode.rdbk_mode == RKISP_VICAP_RDBK_AIQ)
 			return 0;
-		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
+		v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
 			"%s, toisp mode %d, hdr %d, stream on %d\n",
 			__func__, priv->toisp_inf.link_mode, priv->hdr_cfg.hdr_mode, on);
 		if (on) {
@@ -700,7 +703,7 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 		return 0;
 
 	if (cif_dev->chip_id >= CHIP_RK3588_CIF) {
-		v4l2_dbg(3, rkcif_debug, &cif_dev->v4l2_dev,
+		v4l2_dbg(1, rkcif_debug, &cif_dev->v4l2_dev,
 			"%s, toisp mode %d, hdr %d, set power %d\n",
 			__func__, priv->toisp_inf.link_mode, priv->hdr_cfg.hdr_mode, on);
 		mutex_lock(&cif_dev->stream_lock);
@@ -981,7 +984,7 @@ static int rkcif_sditf_get_ctrl(struct v4l2_ctrl *ctrl)
 			if (sensor_ctrl) {
 				ctrl->val = v4l2_ctrl_g_ctrl_int64(sensor_ctrl);
 				__v4l2_ctrl_s_ctrl_int64(priv->pixel_rate, ctrl->val);
-				v4l2_dbg(3, rkcif_debug, &priv->cif_dev->v4l2_dev,
+				v4l2_dbg(1, rkcif_debug, &priv->cif_dev->v4l2_dev,
 					"%s, %s pixel rate %d\n",
 					__func__, priv->cif_dev->terminal_sensor.sd->name, ctrl->val);
 				return 0;
