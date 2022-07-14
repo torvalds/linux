@@ -71,4 +71,6 @@ int dcn30_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc,
 
 void dcn3_fpu_build_wm_range_table(struct clk_mgr *base);
 
+void patch_dcn30_soc_bounding_box(struct dc *dc, struct _vcs_dpi_soc_bounding_box_st *dcn3_0_ip);
+
 #endif /* __DCN30_FPU_H__*/
