@@ -543,12 +543,12 @@ unlock:
  * Called by __blk_mq_alloc_request(). The shallow_depth value set by this
  * function is used by __blk_mq_get_tag().
  */
-static void dd_limit_depth(unsigned int op, struct blk_mq_alloc_data *data)
+static void dd_limit_depth(blk_opf_t opf, struct blk_mq_alloc_data *data)
 {
 	struct deadline_data *dd = data->q->elevator->elevator_data;
 
 	/* Do not throttle synchronous reads. */
-	if (op_is_sync(op) && !op_is_write(op))
+	if (op_is_sync(opf) && !op_is_write(opf))
 		return;
 
 	/*
