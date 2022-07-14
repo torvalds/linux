@@ -75,6 +75,9 @@ static int __lan966x_mac_learn(struct lan966x *lan966x, int pgid,
 			       unsigned int vid,
 			       enum macaccess_entry_type type)
 {
+	int ret;
+
+	spin_lock(&lan966x->mac_lock);
 	lan966x_mac_select(lan966x, mac, vid);
 
 	/* Issue a write command */
@@ -86,7 +89,10 @@ static int __lan966x_mac_learn(struct lan966x *lan966x, int pgid,
 	       ANA_MACACCESS_MAC_TABLE_CMD_SET(MACACCESS_CMD_LEARN),
 	       lan966x, ANA_MACACCESS);
 
-	return lan966x_mac_wait_for_completion(lan966x);
+	ret = lan966x_mac_wait_for_completion(lan966x);
+	spin_unlock(&lan966x->mac_lock);
+
+	return ret;
 }
 
 /* The mask of the front ports is encoded inside the mac parameter via a call
