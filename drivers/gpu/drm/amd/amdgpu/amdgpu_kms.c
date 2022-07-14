@@ -147,14 +147,13 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 		goto out;
 	}
 
+	adev->pm.rpm_mode = AMDGPU_RUNPM_NONE;
 	if (amdgpu_device_supports_px(dev) &&
-	    (amdgpu_runtime_pm != 0)) { /* enable runpm by default for atpx */
-		adev->runpm = true;
+	    (amdgpu_runtime_pm != 0)) { /* enable PX as runtime mode */
 		adev->pm.rpm_mode = AMDGPU_RUNPM_PX;
 		dev_info(adev->dev, "Using ATPX for runtime pm\n");
 	} else if (amdgpu_device_supports_boco(dev) &&
-		   (amdgpu_runtime_pm != 0)) { /* enable runpm by default for boco */
-		adev->runpm = true;
+		   (amdgpu_runtime_pm != 0)) { /* enable boco as runtime mode */
 		adev->pm.rpm_mode = AMDGPU_RUNPM_BOCO;
 		dev_info(adev->dev, "Using BOCO for runtime pm\n");
 	} else if (amdgpu_device_supports_baco(dev) &&
@@ -162,25 +161,23 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 		switch (adev->asic_type) {
 		case CHIP_VEGA20:
 		case CHIP_ARCTURUS:
-			/* enable runpm if runpm=1 */
+			/* enable BACO as runpm mode if runpm=1 */
 			if (amdgpu_runtime_pm > 0)
-				adev->runpm = true;
+				adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
 			break;
 		case CHIP_VEGA10:
-			/* turn runpm on if noretry=0 */
+			/* enable BACO as runpm mode if noretry=0 */
 			if (!adev->gmc.noretry)
-				adev->runpm = true;
+				adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
 			break;
 		default:
-			/* enable runpm on CI+ */
-			adev->runpm = true;
+			/* enable BACO as runpm mode on CI+ */
+			adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
 			break;
 		}
 
-		if (adev->runpm) {
-			adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
+		if (adev->pm.rpm_mode == AMDGPU_RUNPM_BACO)
 			dev_info(adev->dev, "Using BACO for runtime pm\n");
-		}
 	}
 
 	/* Call ACPI methods: require modeset init
