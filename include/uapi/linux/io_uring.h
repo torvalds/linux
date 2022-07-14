@@ -613,4 +613,11 @@ struct io_uring_file_index_range {
 	__u64	resv;
 };
 
+struct io_uring_recvmsg_out {
+	__u32 namelen;
+	__u32 controllen;
+	__u32 payloadlen;
+	__u32 flags;
+};
+
 #endif

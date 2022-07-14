@@ -9,6 +9,12 @@
 struct io_async_msghdr {
 	union {
 		struct iovec		fast_iov[UIO_FASTIOV];
+		struct {
+			struct iovec	fast_iov_one;
+			__kernel_size_t	controllen;
+			int		namelen;
+			__kernel_size_t	payloadlen;
+		};
 		struct io_cache_entry	cache;
 	};
 	/* points to an allocated iov, if NULL we use fast_iov instead */
