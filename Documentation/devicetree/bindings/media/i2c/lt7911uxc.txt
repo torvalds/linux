@@ -1,0 +1,49 @@
+* Lontium lt7911uxc type-c/DP to MIPI-CSI Bridge
+
+Required Properties:
+- compatible: should be "lontium,lt7911uxc".
+- clocks: reference to the 27M xvclk input clock.
+- clock-names: should be "xvclk".
+- reset-gpios: Low active reset gpio.
+- power-gpios: High active power gpio.
+- plugin-det-gpios: Low active plugin detect gpio.
+- interrupts: GPIO connected to lt7911uxc gpio0.
+- data-lanes: should be <1 2 3 4> for four-lane DPHY,
+              or <1 2 3> for three-trios CPHY.
+
+Optional Properties:
+- bus-type: should be <1> if use CPHY.
+            should be <4> or default config if use DPHY.
+
+Attention:
+LT7911UXC device address 0x43(7bit)
+
+Example:
+&i2c5 {
+	status = "okay";
+
+	lt7911uxc: lt7911uxc@43 {
+		compatible = "lontium,lt7911uxc";
+		status = "okay";
+		reg = <0x43>;
+		clocks = <&ext_cam_clk>;
+		clock-names = "xvclk";
+		interrupt-parent = <&gpio1>;
+		interrupts = <RK_PA1 IRQ_TYPE_EDGE_RISING>;
+		power-domains = <&power RK3588_PD_VI>;
+		reset-gpios = <&gpio2 RK_PC4 GPIO_ACTIVE_LOW>;
+		power-gpios = <&gpio0 RK_PC6 GPIO_ACTIVE_HIGH>;
+		plugin-det-gpios = <&gpio0 RK_PD6 GPIO_ACTIVE_LOW>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+		rockchip,camera-module-name = "LT7911UXC";
+		rockchip,camera-module-lens-name = "LT7911UXC";
+		port {
+			lt7911uxc_out: endpoint {
+				remote-endpoint = <&dp_mipi_in1>;
+				bus-type = <1>;
+				data-lanes = <1 2 3>;
+			};
+		};
+	};
+};
