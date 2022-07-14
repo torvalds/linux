@@ -369,7 +369,8 @@ No additional type data follow ``btf_type``.
   * ``name_off``: offset to a valid C identifier
   * ``info.kind_flag``: 0
   * ``info.kind``: BTF_KIND_FUNC
-  * ``info.vlen``: 0
+  * ``info.vlen``: linkage information (BTF_FUNC_STATIC, BTF_FUNC_GLOBAL
+                   or BTF_FUNC_EXTERN)
   * ``type``: a BTF_KIND_FUNC_PROTO type
 
 No additional type data follow ``btf_type``.
@@ -379,6 +380,9 @@ signature is defined by ``type``. The subprogram is thus an instance of that
 type. The BTF_KIND_FUNC may in turn be referenced by a func_info in the
 :ref:`BTF_Ext_Section` (ELF) or in the arguments to :ref:`BPF_Prog_Load`
 (ABI).
+
+Currently, only linkage values of BTF_FUNC_STATIC and BTF_FUNC_GLOBAL are
+supported in the kernel.
 
 2.2.13 BTF_KIND_FUNC_PROTO
 ~~~~~~~~~~~~~~~~~~~~~~~~~~
