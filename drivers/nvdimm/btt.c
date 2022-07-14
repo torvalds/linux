@@ -1483,7 +1483,7 @@ static void btt_submit_bio(struct bio *bio)
 }
 
 static int btt_rw_page(struct block_device *bdev, sector_t sector,
-		struct page *page, unsigned int op)
+		struct page *page, enum req_op op)
 {
 	struct btt *btt = bdev->bd_disk->private_data;
 	int rc;

@@ -310,7 +310,7 @@ static void brd_submit_bio(struct bio *bio)
 }
 
 static int brd_rw_page(struct block_device *bdev, sector_t sector,
-		       struct page *page, unsigned int op)
+		       struct page *page, enum req_op op)
 {
 	struct brd_device *brd = bdev->bd_disk->private_data;
 	int err;
