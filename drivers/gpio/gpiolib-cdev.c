@@ -468,9 +468,7 @@ struct line {
 	 * stale value.
 	 */
 	unsigned int level;
-	/*
-	 * -- hte specific fields --
-	 */
+#ifdef CONFIG_HTE
 	struct hte_ts_desc hdesc;
 	/*
 	 * HTE provider sets line level at the time of event. The valid
@@ -487,6 +485,7 @@ struct line {
 	 * last sequence number before debounce period expires.
 	 */
 	u32 last_seqno;
+#endif /* CONFIG_HTE */
 };
 
 /**
@@ -572,7 +571,8 @@ static u64 line_event_timestamp(struct line *line)
 {
 	if (test_bit(FLAG_EVENT_CLOCK_REALTIME, &line->desc->flags))
 		return ktime_get_real_ns();
-	else if (test_bit(FLAG_EVENT_CLOCK_HTE, &line->desc->flags))
+	else if (IS_ENABLED(CONFIG_HTE) &&
+		 test_bit(FLAG_EVENT_CLOCK_HTE, &line->desc->flags))
 		return line->timestamp_ns;
 
 	return ktime_get_ns();
@@ -583,6 +583,8 @@ static u32 line_event_id(int level)
 	return level ? GPIO_V2_LINE_EVENT_RISING_EDGE :
 		       GPIO_V2_LINE_EVENT_FALLING_EDGE;
 }
+
+#ifdef CONFIG_HTE
 
 static enum hte_return process_hw_ts_thread(void *p)
 {
@@ -666,6 +668,42 @@ static enum hte_return process_hw_ts(struct hte_ts_data *ts, void *p)
 
 	return HTE_CB_HANDLED;
 }
+
+static int hte_edge_setup(struct line *line, u64 eflags)
+{
+	int ret;
+	unsigned long flags = 0;
+	struct hte_ts_desc *hdesc = &line->hdesc;
+
+	if (eflags & GPIO_V2_LINE_FLAG_EDGE_RISING)
+		flags |= test_bit(FLAG_ACTIVE_LOW, &line->desc->flags) ?
+				 HTE_FALLING_EDGE_TS :
+				 HTE_RISING_EDGE_TS;
+	if (eflags & GPIO_V2_LINE_FLAG_EDGE_FALLING)
+		flags |= test_bit(FLAG_ACTIVE_LOW, &line->desc->flags) ?
+				 HTE_RISING_EDGE_TS :
+				 HTE_FALLING_EDGE_TS;
+
+	line->total_discard_seq = 0;
+
+	hte_init_line_attr(hdesc, desc_to_gpio(line->desc), flags, NULL,
+			   line->desc);
+
+	ret = hte_ts_get(NULL, hdesc, 0);
+	if (ret)
+		return ret;
+
+	return hte_request_ts_ns(hdesc, process_hw_ts, process_hw_ts_thread,
+				 line);
+}
+
+#else
+
+static int hte_edge_setup(struct line *line, u64 eflags)
+{
+	return 0;
+}
+#endif /* CONFIG_HTE */
 
 static irqreturn_t edge_irq_thread(int irq, void *p)
 {
@@ -766,10 +804,13 @@ static void debounce_work_func(struct work_struct *work)
 	struct line *line = container_of(work, struct line, work.work);
 	struct linereq *lr;
 	u64 eflags, edflags = READ_ONCE(line->edflags);
-	int level = -1, diff_seqno;
+	int level = -1;
+#ifdef CONFIG_HTE
+	int diff_seqno;
 
 	if (edflags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE)
 		level = line->raw_level;
+#endif
 	if (level < 0)
 		level = gpiod_get_raw_value_cansleep(line->desc);
 	if (level < 0) {
@@ -802,6 +843,7 @@ static void debounce_work_func(struct work_struct *work)
 	lr = line->req;
 	le.timestamp_ns = line_event_timestamp(line);
 	le.offset = gpio_chip_hwgpio(line->desc);
+#ifdef CONFIG_HTE
 	if (edflags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE) {
 		/* discard events except the last one */
 		line->total_discard_seq -= 1;
@@ -811,7 +853,9 @@ static void debounce_work_func(struct work_struct *work)
 		le.line_seqno = line->line_seqno;
 		le.seqno = (lr->num_lines == 1) ?
 			le.line_seqno : atomic_add_return(diff_seqno, &lr->seqno);
-	} else {
+	} else
+#endif /* CONFIG_HTE */
+	{
 		line->line_seqno++;
 		le.line_seqno = line->line_seqno;
 		le.seqno = (lr->num_lines == 1) ?
@@ -821,32 +865,6 @@ static void debounce_work_func(struct work_struct *work)
 	le.id = line_event_id(level);
 
 	linereq_put_event(lr, &le);
-}
-
-static int hte_edge_setup(struct line *line, u64 eflags)
-{
-	int ret;
-	unsigned long flags = 0;
-	struct hte_ts_desc *hdesc = &line->hdesc;
-
-	if (eflags & GPIO_V2_LINE_FLAG_EDGE_RISING)
-		flags |= test_bit(FLAG_ACTIVE_LOW, &line->desc->flags) ?
-				  HTE_FALLING_EDGE_TS : HTE_RISING_EDGE_TS;
-	if (eflags & GPIO_V2_LINE_FLAG_EDGE_FALLING)
-		flags |= test_bit(FLAG_ACTIVE_LOW, &line->desc->flags) ?
-				  HTE_RISING_EDGE_TS : HTE_FALLING_EDGE_TS;
-
-	line->total_discard_seq = 0;
-
-	hte_init_line_attr(hdesc, desc_to_gpio(line->desc), flags,
-			   NULL, line->desc);
-
-	ret = hte_ts_get(NULL, hdesc, 0);
-	if (ret)
-		return ret;
-
-	return hte_request_ts_ns(hdesc, process_hw_ts,
-				 process_hw_ts_thread, line);
 }
 
 static int debounce_setup(struct line *line, unsigned int debounce_period_us)
@@ -869,7 +887,8 @@ static int debounce_setup(struct line *line, unsigned int debounce_period_us)
 		if (level < 0)
 			return level;
 
-		if (!test_bit(FLAG_EVENT_CLOCK_HTE, &line->desc->flags)) {
+		if (!(IS_ENABLED(CONFIG_HTE) &&
+		      test_bit(FLAG_EVENT_CLOCK_HTE, &line->desc->flags))) {
 			irq = gpiod_to_irq(line->desc);
 			if (irq < 0)
 				return -ENXIO;
@@ -927,8 +946,10 @@ static void edge_detector_stop(struct line *line)
 		line->irq = 0;
 	}
 
+#ifdef CONFIG_HTE
 	if (READ_ONCE(line->edflags) & GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE)
 		hte_ts_put(&line->hdesc);
+#endif
 
 	cancel_delayed_work_sync(&line->work);
 	WRITE_ONCE(line->sw_debounced, 0);
@@ -966,7 +987,8 @@ static int edge_detector_setup(struct line *line,
 	if (!eflags || READ_ONCE(line->sw_debounced))
 		return 0;
 
-	if (edflags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE)
+	if (IS_ENABLED(CONFIG_HTE) &&
+	    (edflags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE))
 		return hte_edge_setup(line, edflags);
 
 	irq = gpiod_to_irq(line->desc);
@@ -1051,6 +1073,11 @@ static int gpio_v2_line_flags_validate(u64 flags)
 	/* Return an error if an unknown flag is set */
 	if (flags & ~GPIO_V2_LINE_VALID_FLAGS)
 		return -EINVAL;
+
+	if (!IS_ENABLED(CONFIG_HTE) &&
+	    (flags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE))
+		return -EOPNOTSUPP;
+
 	/*
 	 * Do not allow both INPUT and OUTPUT flags to be set as they are
 	 * contradictory.
@@ -1060,7 +1087,8 @@ static int gpio_v2_line_flags_validate(u64 flags)
 		return -EINVAL;
 
 	/* Only allow one event clock source */
-	if ((flags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME) &&
+	if (IS_ENABLED(CONFIG_HTE) &&
+	    (flags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_REALTIME) &&
 	    (flags & GPIO_V2_LINE_FLAG_EVENT_CLOCK_HTE))
 		return -EINVAL;
 
