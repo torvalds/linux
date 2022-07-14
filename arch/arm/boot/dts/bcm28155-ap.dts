@@ -31,22 +31,22 @@
 	};
 
 	i2c@3e016000 {
-		status="okay";
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@3e017000 {
-		status="okay";
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@3e018000 {
-		status="okay";
+		status = "okay";
 		clock-frequency = <400000>;
 	};
 
 	i2c@3500d000 {
-		status="okay";
+		status = "okay";
 		clock-frequency = <100000>;
 
 		pmu: pmu@8 {

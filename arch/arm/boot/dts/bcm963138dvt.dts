@@ -8,7 +8,7 @@
 #include "bcm63138.dtsi"
 
 / {
-	compatible = "brcm,BCM963138DVT", "brcm,bcm63138";
+	compatible = "brcm,BCM963138DVT", "brcm,bcm63138", "brcm,bcmbca";
 	model = "Broadcom BCM963138DVT";
 
 	chosen {

@@ -7,7 +7,7 @@
 #include <dt-bindings/interrupt-controller/irq.h>
 
 / {
-	compatible = "brcm,bcm47622", "brcm,bcmbca";
+	compatible = "brcm,bcm63178", "brcm,bcmbca";
 	#address-cells = <1>;
 	#size-cells = <1>;
 
@@ -32,7 +32,6 @@
 			next-level-cache = <&L2_0>;
 			enable-method = "psci";
 		};
-
 		CA7_2: cpu@2 {
 			device_type = "cpu";
 			compatible = "arm,cortex-a7";
@@ -40,15 +39,6 @@
 			next-level-cache = <&L2_0>;
 			enable-method = "psci";
 		};
-
-		CA7_3: cpu@3 {
-			device_type = "cpu";
-			compatible = "arm,cortex-a7";
-			reg = <0x3>;
-			next-level-cache = <&L2_0>;
-			enable-method = "psci";
-		};
-
 		L2_0: l2-cache0 {
 			compatible = "cache";
 		};
@@ -67,10 +57,9 @@
 		compatible = "arm,cortex-a7-pmu";
 		interrupts = <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>,
 			<GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
-			<GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>,
-			<GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
+			<GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-affinity = <&CA7_0>, <&CA7_1>,
-			<&CA7_2>, <&CA7_3>;
+			<&CA7_2>;
 	};
 
 	clocks: clocks {
@@ -79,7 +68,6 @@
 			#clock-cells = <0>;
 			clock-frequency = <200000000>;
 		};
-
 		uart_clk: uart-clk {
 			compatible = "fixed-factor-clock";
 			#clock-cells = <0>;
@@ -92,23 +80,23 @@
 	psci {
 		compatible = "arm,psci-0.2";
 		method = "smc";
+		cpu_off = <1>;
+		cpu_on = <2>;
 	};
 
 	axi@81000000 {
 		compatible = "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
-		ranges = <0 0x81000000 0x8000>;
+		ranges = <0 0x81000000 0x4000>;
 
 		gic: interrupt-controller@1000 {
 			compatible = "arm,cortex-a7-gic";
 			#interrupt-cells = <3>;
+			#address-cells = <0>;
 			interrupt-controller;
-			interrupts = <GIC_PPI 9 (GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 			reg = <0x1000 0x1000>,
-				<0x2000 0x2000>,
-				<0x4000 0x2000>,
-				<0x6000 0x2000>;
+				<0x2000 0x2000>;
 		};
 	};
 

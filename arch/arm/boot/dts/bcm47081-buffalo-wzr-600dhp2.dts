@@ -91,26 +91,26 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		aoss {
+		button-aoss {
 			label = "AOSS";
 			linux,code = <KEY_WPS_BUTTON>;
 			gpios = <&chipcommon 9 GPIO_ACTIVE_LOW>;
 		};
 
-		restart {
+		button-restart {
 			label = "Reset";
 			linux,code = <KEY_RESTART>;
 			gpios = <&chipcommon 11 GPIO_ACTIVE_LOW>;
 		};
 
 		/* Switch device mode? */
-		mode {
+		button-mode {
 			label = "Mode";
 			linux,code = <KEY_SETUP>;
 			gpios = <&chipcommon 14 GPIO_ACTIVE_LOW>;
 		};
 
-		eject {
+		button-eject {
 			label = "USB eject";
 			linux,code = <KEY_EJECTCD>;
 			gpios = <&chipcommon 15 GPIO_ACTIVE_LOW>;
