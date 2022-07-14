@@ -1905,38 +1905,9 @@ xfs_iunlink_update_bucket(
 	return 0;
 }
 
-/* Set an on-disk inode's next_unlinked pointer. */
-STATIC void
-xfs_iunlink_update_dinode(
-	struct xfs_trans	*tp,
-	struct xfs_perag	*pag,
-	xfs_agino_t		agino,
-	struct xfs_buf		*ibp,
-	struct xfs_dinode	*dip,
-	struct xfs_imap		*imap,
-	xfs_agino_t		next_agino)
-{
-	struct xfs_mount	*mp = tp->t_mountp;
-	int			offset;
-
-	ASSERT(xfs_verify_agino_or_null(pag, next_agino));
-
-	trace_xfs_iunlink_update_dinode(mp, pag->pag_agno, agino,
-			be32_to_cpu(dip->di_next_unlinked), next_agino);
-
-	dip->di_next_unlinked = cpu_to_be32(next_agino);
-	offset = imap->im_boffset +
-			offsetof(struct xfs_dinode, di_next_unlinked);
-
-	/* need to recalc the inode CRC if appropriate */
-	xfs_dinode_calc_crc(mp, dip);
-	xfs_trans_inode_buf(tp, ibp);
-	xfs_trans_log_buf(tp, ibp, offset, offset + sizeof(xfs_agino_t) - 1);
-}
-
 /* Set an in-core inode's unlinked pointer and return the old value. */
 static int
-xfs_iunlink_update_inode(
+xfs_iunlink_log_inode(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	struct xfs_perag	*pag,
@@ -1946,6 +1917,7 @@ xfs_iunlink_update_inode(
 	struct xfs_dinode	*dip;
 	struct xfs_buf		*ibp;
 	xfs_agino_t		old_value;
+	int			offset;
 	int			error;
 
 	ASSERT(xfs_verify_agino_or_null(pag, next_agino));
@@ -1979,9 +1951,17 @@ xfs_iunlink_update_inode(
 		goto out;
 	}
 
-	/* Ok, update the new pointer. */
-	xfs_iunlink_update_dinode(tp, pag, XFS_INO_TO_AGINO(mp, ip->i_ino),
-			ibp, dip, &ip->i_imap, next_agino);
+	trace_xfs_iunlink_update_dinode(mp, pag->pag_agno,
+			XFS_INO_TO_AGINO(mp, ip->i_ino),
+			be32_to_cpu(dip->di_next_unlinked), next_agino);
+
+	dip->di_next_unlinked = cpu_to_be32(next_agino);
+	offset = ip->i_imap.im_boffset +
+			offsetof(struct xfs_dinode, di_next_unlinked);
+
+	xfs_dinode_calc_crc(mp, dip);
+	xfs_trans_inode_buf(tp, ibp);
+	xfs_trans_log_buf(tp, ibp, offset, offset + sizeof(xfs_agino_t) - 1);
 	return 0;
 out:
 	xfs_trans_brelse(tp, ibp);
@@ -2027,7 +2007,7 @@ xfs_iunlink_insert_inode(
 		 * There is already another inode in the bucket, so point this
 		 * inode to the current head of the list.
 		 */
-		error = xfs_iunlink_update_inode(tp, ip, pag, next_agino);
+		error = xfs_iunlink_log_inode(tp, ip, pag, next_agino);
 		if (error)
 			return error;
 		ip->i_next_unlinked = next_agino;
@@ -2103,7 +2083,7 @@ xfs_iunlink_remove_inode(
 	 * the old pointer value so that we can update whatever was previous
 	 * to us in the list to point to whatever was next in the list.
 	 */
-	error = xfs_iunlink_update_inode(tp, ip, pag, NULLAGINO);
+	error = xfs_iunlink_log_inode(tp, ip, pag, NULLAGINO);
 	if (error)
 		return error;
 
@@ -2123,7 +2103,7 @@ xfs_iunlink_remove_inode(
 		if (!prev_ip)
 			return -EFSCORRUPTED;
 
-		error = xfs_iunlink_update_inode(tp, prev_ip, pag,
+		error = xfs_iunlink_log_inode(tp, prev_ip, pag,
 				ip->i_next_unlinked);
 		prev_ip->i_next_unlinked = ip->i_next_unlinked;
 	} else {
