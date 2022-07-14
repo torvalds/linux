@@ -180,7 +180,7 @@ struct qcom_pcie_resources_2_3_3 {
 
 /* 6 clocks typically, 7 for sm8250 */
 struct qcom_pcie_resources_2_7_0 {
-	struct clk_bulk_data clks[9];
+	struct clk_bulk_data clks[12];
 	int num_clks;
 	struct regulator_bulk_data supplies[2];
 	struct reset_control *pci_reset;
@@ -1175,6 +1175,7 @@ static int qcom_pcie_get_resources_2_7_0(struct qcom_pcie *pcie)
 	struct qcom_pcie_resources_2_7_0 *res = &pcie->res.v2_7_0;
 	struct dw_pcie *pci = pcie->pci;
 	struct device *dev = pci->dev;
+	unsigned int num_clks, num_opt_clks;
 	unsigned int idx;
 	int ret;
 
@@ -1204,9 +1205,20 @@ static int qcom_pcie_get_resources_2_7_0(struct qcom_pcie *pcie)
 	if (pcie->cfg->has_aggre1_clk)
 		res->clks[idx++].id = "aggre1";
 
+	num_clks = idx;
+
+	ret = devm_clk_bulk_get(dev, num_clks, res->clks);
+	if (ret < 0)
+		return ret;
+
+	res->clks[idx++].id = "noc_aggr_4";
+	res->clks[idx++].id = "noc_aggr_south_sf";
+	res->clks[idx++].id = "cnoc_qx";
+
+	num_opt_clks = idx - num_clks;
 	res->num_clks = idx;
 
-	ret = devm_clk_bulk_get(dev, res->num_clks, res->clks);
+	ret = devm_clk_bulk_get_optional(dev, num_opt_clks, res->clks + num_clks);
 	if (ret < 0)
 		return ret;
 
@@ -1621,6 +1633,11 @@ static const struct qcom_pcie_cfg ipq4019_cfg = {
 	.ops = &ops_2_4_0,
 };
 
+static const struct qcom_pcie_cfg sc8280xp_cfg = {
+	.ops = &ops_1_9_0,
+	.has_ddrss_sf_tbu_clk = true,
+};
+
 static const struct qcom_pcie_cfg sdm845_cfg = {
 	.ops = &ops_2_7_0,
 	.has_tbu_clk = true,
@@ -1773,6 +1790,7 @@ static const struct of_device_id qcom_pcie_match[] = {
 	{ .compatible = "qcom,pcie-sm8150", .data = &sm8150_cfg },
 	{ .compatible = "qcom,pcie-sm8250", .data = &sm8250_cfg },
 	{ .compatible = "qcom,pcie-sc8180x", .data = &sc8180x_cfg },
+	{ .compatible = "qcom,pcie-sc8280xp", .data = &sc8280xp_cfg },
 	{ .compatible = "qcom,pcie-sm8450-pcie0", .data = &sm8450_pcie0_cfg },
 	{ .compatible = "qcom,pcie-sm8450-pcie1", .data = &sm8450_pcie1_cfg },
 	{ .compatible = "qcom,pcie-sc7280", .data = &sc7280_cfg },
