@@ -27,6 +27,37 @@
 				reg = <0x16>;
 				#reset-cells = <1>;
 			};
+
+			scmi_voltd: protocol@17 {
+				reg = <0x17>;
+
+				scmi_reguls: regulators {
+					#address-cells = <1>;
+					#size-cells = <0>;
+
+					scmi_reg11: reg11@0 {
+						reg = <0>;
+						regulator-name = "reg11";
+						regulator-min-microvolt = <1100000>;
+						regulator-max-microvolt = <1100000>;
+					};
+
+					scmi_reg18: reg18@1 {
+						voltd-name = "reg18";
+						reg = <1>;
+						regulator-name = "reg18";
+						regulator-min-microvolt = <1800000>;
+						regulator-max-microvolt = <1800000>;
+					};
+
+					scmi_usb33: usb33@2 {
+						reg = <2>;
+						regulator-name = "usb33";
+						regulator-min-microvolt = <3300000>;
+						regulator-max-microvolt = <3300000>;
+					};
+				};
+			};
 		};
 	};
 
@@ -45,3 +76,30 @@
 		};
 	};
 };
+
+&reg11 {
+	status = "disabled";
+};
+
+&reg18 {
+	status = "disabled";
+};
+
+&usb33 {
+	status = "disabled";
+};
+
+&usbotg_hs {
+	usb33d-supply = <&scmi_usb33>;
+};
+
+&usbphyc {
+	vdda1v1-supply = <&scmi_reg11>;
+	vdda1v8-supply = <&scmi_reg18>;
+};
+
+/delete-node/ &clk_hse;
+/delete-node/ &clk_hsi;
+/delete-node/ &clk_lse;
+/delete-node/ &clk_lsi;
+/delete-node/ &clk_csi;
