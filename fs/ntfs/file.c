@@ -537,7 +537,7 @@ static inline int ntfs_submit_bh_for_read(struct buffer_head *bh)
 	lock_buffer(bh);
 	get_bh(bh);
 	bh->b_end_io = end_buffer_read_sync;
-	return submit_bh(REQ_OP_READ, 0, bh);
+	return submit_bh(REQ_OP_READ, bh);
 }
 
 /**

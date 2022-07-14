@@ -171,7 +171,7 @@ static inline void __ext4_read_bh(struct buffer_head *bh, int op_flags,
 
 	bh->b_end_io = end_io ? end_io : end_buffer_read_sync;
 	get_bh(bh);
-	submit_bh(REQ_OP_READ, op_flags, bh);
+	submit_bh(REQ_OP_READ | op_flags, bh);
 }
 
 void ext4_read_bh_nowait(struct buffer_head *bh, int op_flags,
@@ -5939,8 +5939,8 @@ static int ext4_commit_super(struct super_block *sb)
 	/* Clear potential dirty bit if it was journalled update */
 	clear_buffer_dirty(sbh);
 	sbh->b_end_io = end_buffer_write_sync;
-	submit_bh(REQ_OP_WRITE,
-		  REQ_SYNC | (test_opt(sb, BARRIER) ? REQ_FUA : 0), sbh);
+	submit_bh(REQ_OP_WRITE | REQ_SYNC |
+		  (test_opt(sb, BARRIER) ? REQ_FUA : 0), sbh);
 	wait_on_buffer(sbh);
 	if (buffer_write_io_error(sbh)) {
 		ext4_msg(sb, KERN_ERR, "I/O error while writing "

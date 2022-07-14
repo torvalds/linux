@@ -242,7 +242,7 @@ static int ntfs_zero_range(struct inode *inode, u64 vbo, u64 vbo_to)
 				lock_buffer(bh);
 				bh->b_end_io = end_buffer_read_sync;
 				get_bh(bh);
-				submit_bh(REQ_OP_READ, 0, bh);
+				submit_bh(REQ_OP_READ, bh);
 
 				wait_on_buffer(bh);
 				if (!buffer_uptodate(bh)) {
