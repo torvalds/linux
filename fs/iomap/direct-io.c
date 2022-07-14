@@ -52,7 +52,7 @@ struct iomap_dio {
 };
 
 static struct bio *iomap_dio_alloc_bio(const struct iomap_iter *iter,
-		struct iomap_dio *dio, unsigned short nr_vecs, unsigned int opf)
+		struct iomap_dio *dio, unsigned short nr_vecs, blk_opf_t opf)
 {
 	if (dio->dops && dio->dops->bio_set)
 		return bio_alloc_bioset(iter->iomap.bdev, nr_vecs, opf,
@@ -212,10 +212,10 @@ static void iomap_dio_zero(const struct iomap_iter *iter, struct iomap_dio *dio,
  * mapping, and whether or not we want FUA.  Note that we can end up
  * clearing the WRITE_FUA flag in the dio request.
  */
-static inline unsigned int iomap_dio_bio_opflags(struct iomap_dio *dio,
+static inline blk_opf_t iomap_dio_bio_opflags(struct iomap_dio *dio,
 		const struct iomap *iomap, bool use_fua)
 {
-	unsigned int opflags = REQ_SYNC | REQ_IDLE;
+	blk_opf_t opflags = REQ_SYNC | REQ_IDLE;
 
 	if (!(dio->flags & IOMAP_DIO_WRITE)) {
 		WARN_ON_ONCE(iomap->flags & IOMAP_F_ZONE_APPEND);
@@ -244,7 +244,7 @@ static loff_t iomap_dio_bio_iter(const struct iomap_iter *iter,
 	unsigned int fs_block_size = i_blocksize(inode), pad;
 	loff_t length = iomap_length(iter);
 	loff_t pos = iter->pos;
-	unsigned int bio_opf;
+	blk_opf_t bio_opf;
 	struct bio *bio;
 	bool need_zeroout = false;
 	bool use_fua = false;
