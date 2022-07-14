@@ -438,11 +438,6 @@
 			no-map;
 		};
 
-		camera_mem: memory@85200000 {
-			reg = <0x0 0x85200000 0x0 0x500000>;
-			no-map;
-		};
-
 		video_mem: memory@85700000 {
 			reg = <0x0 0x85700000 0x0 0x700000>;
 			no-map;
@@ -505,6 +500,11 @@
 			no-map;
 		};
 
+		camera_mem: memory@9f500000 {
+			reg = <0x0 0x9f500000 0x0 0x800000>;
+			no-map;
+		};
+
 		rmtfs_mem: memory@9fd00000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0x0 0x9fd00000 0x0 0x280000>;
@@ -512,6 +512,11 @@
 
 			qcom,client-id = <1>;
 			qcom,vmid = <15>;
+		};
+
+		xbl_sc_mem2: memory@a6e00000 {
+			reg = <0x0 0xa6e00000 0x0 0x40000>;
+			no-map;
 		};
 
 		global_sync_mem: memory@a6f00000 {
