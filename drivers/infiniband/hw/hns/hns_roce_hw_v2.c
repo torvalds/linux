@@ -55,6 +55,42 @@ enum {
 	CMD_RST_PRC_EBUSY,
 };
 
+enum ecc_resource_type {
+	ECC_RESOURCE_QPC,
+	ECC_RESOURCE_CQC,
+	ECC_RESOURCE_MPT,
+	ECC_RESOURCE_SRQC,
+	ECC_RESOURCE_GMV,
+	ECC_RESOURCE_QPC_TIMER,
+	ECC_RESOURCE_CQC_TIMER,
+	ECC_RESOURCE_SCCC,
+	ECC_RESOURCE_COUNT,
+};
+
+static const struct {
+	const char *name;
+	u8 read_bt0_op;
+	u8 write_bt0_op;
+} fmea_ram_res[] = {
+	{ "ECC_RESOURCE_QPC",
+	  HNS_ROCE_CMD_READ_QPC_BT0, HNS_ROCE_CMD_WRITE_QPC_BT0 },
+	{ "ECC_RESOURCE_CQC",
+	  HNS_ROCE_CMD_READ_CQC_BT0, HNS_ROCE_CMD_WRITE_CQC_BT0 },
+	{ "ECC_RESOURCE_MPT",
+	  HNS_ROCE_CMD_READ_MPT_BT0, HNS_ROCE_CMD_WRITE_MPT_BT0 },
+	{ "ECC_RESOURCE_SRQC",
+	  HNS_ROCE_CMD_READ_SRQC_BT0, HNS_ROCE_CMD_WRITE_SRQC_BT0 },
+	/* ECC_RESOURCE_GMV is handled by cmdq, not mailbox */
+	{ "ECC_RESOURCE_GMV",
+	  0, 0 },
+	{ "ECC_RESOURCE_QPC_TIMER",
+	  HNS_ROCE_CMD_READ_QPC_TIMER_BT0, HNS_ROCE_CMD_WRITE_QPC_TIMER_BT0 },
+	{ "ECC_RESOURCE_CQC_TIMER",
+	  HNS_ROCE_CMD_READ_CQC_TIMER_BT0, HNS_ROCE_CMD_WRITE_CQC_TIMER_BT0 },
+	{ "ECC_RESOURCE_SCCC",
+	  HNS_ROCE_CMD_READ_SCCC_BT0, HNS_ROCE_CMD_WRITE_SCCC_BT0 },
+};
+
 static inline void set_data_seg_v2(struct hns_roce_v2_wqe_data_seg *dseg,
 				   struct ib_sge *sg)
 {
@@ -6017,6 +6053,142 @@ static irqreturn_t abnormal_interrupt_basic(struct hns_roce_dev *hr_dev,
 	return IRQ_RETVAL(int_work);
 }
 
+static int fmea_ram_ecc_query(struct hns_roce_dev *hr_dev,
+			       struct fmea_ram_ecc *ecc_info)
+{
+	struct hns_roce_cmq_desc desc;
+	struct hns_roce_cmq_req *req = (struct hns_roce_cmq_req *)desc.data;
+	int ret;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_QUERY_RAM_ECC, true);
+	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
+	if (ret)
+		return ret;
+
+	ecc_info->is_ecc_err = hr_reg_read(req, QUERY_RAM_ECC_1BIT_ERR);
+	ecc_info->res_type = hr_reg_read(req, QUERY_RAM_ECC_RES_TYPE);
+	ecc_info->index = hr_reg_read(req, QUERY_RAM_ECC_TAG);
+
+	return 0;
+}
+
+static int fmea_recover_gmv(struct hns_roce_dev *hr_dev, u32 idx)
+{
+	struct hns_roce_cmq_desc desc;
+	struct hns_roce_cmq_req *req = (struct hns_roce_cmq_req *)desc.data;
+	u32 addr_upper;
+	u32 addr_low;
+	int ret;
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_GMV_BT, true);
+	hr_reg_write(req, CFG_GMV_BT_IDX, idx);
+
+	ret = hns_roce_cmq_send(hr_dev, &desc, 1);
+	if (ret) {
+		dev_err(hr_dev->dev,
+			"failed to execute cmd to read gmv, ret = %d.\n", ret);
+		return ret;
+	}
+
+	addr_low =  hr_reg_read(req, CFG_GMV_BT_BA_L);
+	addr_upper = hr_reg_read(req, CFG_GMV_BT_BA_H);
+
+	hns_roce_cmq_setup_basic_desc(&desc, HNS_ROCE_OPC_CFG_GMV_BT, false);
+	hr_reg_write(req, CFG_GMV_BT_BA_L, addr_low);
+	hr_reg_write(req, CFG_GMV_BT_BA_H, addr_upper);
+	hr_reg_write(req, CFG_GMV_BT_IDX, idx);
+
+	return hns_roce_cmq_send(hr_dev, &desc, 1);
+}
+
+static u64 fmea_get_ram_res_addr(u32 res_type, __le64 *data)
+{
+	if (res_type == ECC_RESOURCE_QPC_TIMER ||
+	    res_type == ECC_RESOURCE_CQC_TIMER ||
+	    res_type == ECC_RESOURCE_SCCC)
+		return le64_to_cpu(*data);
+
+	return le64_to_cpu(*data) << PAGE_SHIFT;
+}
+
+static int fmea_recover_others(struct hns_roce_dev *hr_dev, u32 res_type,
+			       u32 index)
+{
+	u8 write_bt0_op = fmea_ram_res[res_type].write_bt0_op;
+	u8 read_bt0_op = fmea_ram_res[res_type].read_bt0_op;
+	struct hns_roce_cmd_mailbox *mailbox;
+	u64 addr;
+	int ret;
+
+	mailbox = hns_roce_alloc_cmd_mailbox(hr_dev);
+	if (IS_ERR(mailbox))
+		return PTR_ERR(mailbox);
+
+	ret = hns_roce_cmd_mbox(hr_dev, 0, mailbox->dma, read_bt0_op, index);
+	if (ret) {
+		dev_err(hr_dev->dev,
+			"failed to execute cmd to read fmea ram, ret = %d.\n",
+			ret);
+		goto out;
+	}
+
+	addr = fmea_get_ram_res_addr(res_type, mailbox->buf);
+
+	ret = hns_roce_cmd_mbox(hr_dev, addr, 0, write_bt0_op, index);
+	if (ret)
+		dev_err(hr_dev->dev,
+			"failed to execute cmd to write fmea ram, ret = %d.\n",
+			ret);
+
+out:
+	hns_roce_free_cmd_mailbox(hr_dev, mailbox);
+	return ret;
+}
+
+static void fmea_ram_ecc_recover(struct hns_roce_dev *hr_dev,
+				 struct fmea_ram_ecc *ecc_info)
+{
+	u32 res_type = ecc_info->res_type;
+	u32 index = ecc_info->index;
+	int ret;
+
+	BUILD_BUG_ON(ARRAY_SIZE(fmea_ram_res) != ECC_RESOURCE_COUNT);
+
+	if (res_type >= ECC_RESOURCE_COUNT) {
+		dev_err(hr_dev->dev, "unsupported fmea ram ecc type %u.\n",
+			res_type);
+		return;
+	}
+
+	if (res_type == ECC_RESOURCE_GMV)
+		ret = fmea_recover_gmv(hr_dev, index);
+	else
+		ret = fmea_recover_others(hr_dev, res_type, index);
+	if (ret)
+		dev_err(hr_dev->dev,
+			"failed to recover %s, index = %u, ret = %d.\n",
+			fmea_ram_res[res_type].name, index, ret);
+}
+
+static void fmea_ram_ecc_work(struct work_struct *ecc_work)
+{
+	struct hns_roce_dev *hr_dev =
+		container_of(ecc_work, struct hns_roce_dev, ecc_work);
+	struct fmea_ram_ecc ecc_info = {};
+
+	if (fmea_ram_ecc_query(hr_dev, &ecc_info)) {
+		dev_err(hr_dev->dev, "failed to query fmea ram ecc.\n");
+		return;
+	}
+
+	if (!ecc_info.is_ecc_err) {
+		dev_err(hr_dev->dev, "there is no fmea ram ecc err found.\n");
+		return;
+	}
+
+	fmea_ram_ecc_recover(hr_dev, &ecc_info);
+}
+
 static irqreturn_t hns_roce_v2_msix_interrupt_abn(int irq, void *dev_id)
 {
 	struct hns_roce_dev *hr_dev = dev_id;
@@ -6025,10 +6197,14 @@ static irqreturn_t hns_roce_v2_msix_interrupt_abn(int irq, void *dev_id)
 
 	int_st = roce_read(hr_dev, ROCEE_VF_ABN_INT_ST_REG);
 
-	if (int_st)
+	if (int_st) {
 		int_work = abnormal_interrupt_basic(hr_dev, int_st);
-	else
+	} else if (hr_dev->pci_dev->revision >= PCI_REVISION_ID_HIP09) {
+		queue_work(hr_dev->irq_workq, &hr_dev->ecc_work);
+		int_work = IRQ_HANDLED;
+	} else {
 		dev_err(hr_dev->dev, "there is no abnormal irq found.\n");
+	}
 
 	return IRQ_RETVAL(int_work);
 }
@@ -6343,6 +6519,8 @@ static int hns_roce_v2_init_eq_table(struct hns_roce_dev *hr_dev)
 			goto err_create_eq_fail;
 		}
 	}
+
+	INIT_WORK(&hr_dev->ecc_work, fmea_ram_ecc_work);
 
 	hr_dev->irq_workq = alloc_ordered_workqueue("hns_roce_irq_workq", 0);
 	if (!hr_dev->irq_workq) {
