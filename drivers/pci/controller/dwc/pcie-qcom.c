@@ -215,10 +215,6 @@ struct qcom_pcie_ops {
 
 struct qcom_pcie_cfg {
 	const struct qcom_pcie_ops *ops;
-	unsigned int has_tbu_clk:1;
-	unsigned int has_ddrss_sf_tbu_clk:1;
-	unsigned int has_aggre0_clk:1;
-	unsigned int has_aggre1_clk:1;
 };
 
 struct qcom_pcie {
@@ -1196,14 +1192,6 @@ static int qcom_pcie_get_resources_2_7_0(struct qcom_pcie *pcie)
 	res->clks[idx++].id = "bus_master";
 	res->clks[idx++].id = "bus_slave";
 	res->clks[idx++].id = "slave_q2a";
-	if (pcie->cfg->has_tbu_clk)
-		res->clks[idx++].id = "tbu";
-	if (pcie->cfg->has_ddrss_sf_tbu_clk)
-		res->clks[idx++].id = "ddrss_sf_tbu";
-	if (pcie->cfg->has_aggre0_clk)
-		res->clks[idx++].id = "aggre0";
-	if (pcie->cfg->has_aggre1_clk)
-		res->clks[idx++].id = "aggre1";
 
 	num_clks = idx;
 
@@ -1211,6 +1199,10 @@ static int qcom_pcie_get_resources_2_7_0(struct qcom_pcie *pcie)
 	if (ret < 0)
 		return ret;
 
+	res->clks[idx++].id = "tbu";
+	res->clks[idx++].id = "ddrss_sf_tbu";
+	res->clks[idx++].id = "aggre0";
+	res->clks[idx++].id = "aggre1";
 	res->clks[idx++].id = "noc_aggr_4";
 	res->clks[idx++].id = "noc_aggr_south_sf";
 	res->clks[idx++].id = "cnoc_qx";
@@ -1635,17 +1627,14 @@ static const struct qcom_pcie_cfg ipq4019_cfg = {
 
 static const struct qcom_pcie_cfg sa8540p_cfg = {
 	.ops = &ops_1_9_0,
-	.has_ddrss_sf_tbu_clk = true,
 };
 
 static const struct qcom_pcie_cfg sc8280xp_cfg = {
 	.ops = &ops_1_9_0,
-	.has_ddrss_sf_tbu_clk = true,
 };
 
 static const struct qcom_pcie_cfg sdm845_cfg = {
 	.ops = &ops_2_7_0,
-	.has_tbu_clk = true,
 };
 
 static const struct qcom_pcie_cfg sm8150_cfg = {
@@ -1657,31 +1646,22 @@ static const struct qcom_pcie_cfg sm8150_cfg = {
 
 static const struct qcom_pcie_cfg sm8250_cfg = {
 	.ops = &ops_1_9_0,
-	.has_tbu_clk = true,
-	.has_ddrss_sf_tbu_clk = true,
 };
 
 static const struct qcom_pcie_cfg sm8450_pcie0_cfg = {
 	.ops = &ops_1_9_0,
-	.has_ddrss_sf_tbu_clk = true,
-	.has_aggre0_clk = true,
-	.has_aggre1_clk = true,
 };
 
 static const struct qcom_pcie_cfg sm8450_pcie1_cfg = {
 	.ops = &ops_1_9_0,
-	.has_ddrss_sf_tbu_clk = true,
-	.has_aggre1_clk = true,
 };
 
 static const struct qcom_pcie_cfg sc7280_cfg = {
 	.ops = &ops_1_9_0,
-	.has_tbu_clk = true,
 };
 
 static const struct qcom_pcie_cfg sc8180x_cfg = {
 	.ops = &ops_1_9_0,
-	.has_tbu_clk = true,
 };
 
 static const struct qcom_pcie_cfg ipq6018_cfg = {
