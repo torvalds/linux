@@ -2315,6 +2315,21 @@ static int mac80211_hwsim_sta_remove(struct ieee80211_hw *hw,
 	return 0;
 }
 
+static int mac80211_hwsim_sta_state(struct ieee80211_hw *hw,
+				    struct ieee80211_vif *vif,
+				    struct ieee80211_sta *sta,
+				    enum ieee80211_sta_state old_state,
+				    enum ieee80211_sta_state new_state)
+{
+	if (new_state == IEEE80211_STA_NOTEXIST)
+		return mac80211_hwsim_sta_remove(hw, vif, sta);
+
+	if (old_state == IEEE80211_STA_NOTEXIST)
+		return mac80211_hwsim_sta_add(hw, vif, sta);
+
+	return 0;
+}
+
 static void mac80211_hwsim_sta_notify(struct ieee80211_hw *hw,
 				      struct ieee80211_vif *vif,
 				      enum sta_notify_cmd cmd,
@@ -2900,8 +2915,6 @@ static int mac80211_hwsim_change_sta_links(struct ieee80211_hw *hw,
 	.vif_cfg_changed = mac80211_hwsim_vif_info_changed,	\
 	.link_info_changed = mac80211_hwsim_link_info_changed,  \
 	.tx_last_beacon = mac80211_hwsim_tx_last_beacon,	\
-	.sta_add = mac80211_hwsim_sta_add,			\
-	.sta_remove = mac80211_hwsim_sta_remove,		\
 	.sta_notify = mac80211_hwsim_sta_notify,		\
 	.sta_rc_update = mac80211_hwsim_sta_rc_update,		\
 	.conf_tx = mac80211_hwsim_conf_tx,			\
@@ -2914,6 +2927,8 @@ static int mac80211_hwsim_change_sta_links(struct ieee80211_hw *hw,
 	.get_et_strings = mac80211_hwsim_get_et_strings,
 
 #define HWSIM_NON_MLO_OPS					\
+	.sta_add = mac80211_hwsim_sta_add,			\
+	.sta_remove = mac80211_hwsim_sta_remove,		\
 	.set_tim = mac80211_hwsim_set_tim,			\
 	.get_tsf = mac80211_hwsim_get_tsf,			\
 	.set_tsf = mac80211_hwsim_set_tsf,
@@ -2948,6 +2963,7 @@ static const struct ieee80211_ops mac80211_hwsim_mlo_ops = {
 	.set_rts_threshold = mac80211_hwsim_set_rts_threshold,
 	.change_vif_links = mac80211_hwsim_change_vif_links,
 	.change_sta_links = mac80211_hwsim_change_sta_links,
+	.sta_state = mac80211_hwsim_sta_state,
 };
 
 struct hwsim_new_radio_params {
