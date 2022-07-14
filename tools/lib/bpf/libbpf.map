@@ -356,6 +356,7 @@ LIBBPF_0.8.0 {
 LIBBPF_1.0.0 {
 	global:
 		bpf_prog_query_opts;
+		bpf_program__attach_ksyscall;
 		btf__add_enum64;
 		btf__add_enum64_value;
 		libbpf_bpf_attach_type_str;
