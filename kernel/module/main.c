@@ -754,7 +754,7 @@ SYSCALL_DEFINE2(delete_module, const char __user *, name_user,
 	async_synchronize_full();
 
 	/* Store the name of the last unloaded module for diagnostic purposes */
-	strlcpy(last_unloaded_module, mod->name, sizeof(last_unloaded_module));
+	strscpy(last_unloaded_module, mod->name, sizeof(last_unloaded_module));
 
 	free_module(mod);
 	/* someone could wait for the module in add_unformed_module() */
