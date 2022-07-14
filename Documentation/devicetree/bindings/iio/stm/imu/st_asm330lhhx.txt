@@ -1,8 +1,9 @@
-* st_asm330lhh driver for imu MEMS sensors
+* st_asm330lhhx driver for imu MEMS sensors
 
 Required properties for all bus drivers:
 - compatible: must be one of:
               "st,asm330lhh"
+              "st,asm330lhhx"
 
 Required properties for the i2c bindings:
 - reg: i2c slave address
@@ -32,12 +33,27 @@ Optional properties for all bus drivers:
                 Refer to interrupt-controller/interrupts.txt for generic interrupt
                 client node bindings.
 
-Example for an spi device node:
+Example for an spi asm330lhh device node:
 
 asm330lhh-imu@0 {
 	compatible = "st,asm330lhh";
 	reg = <0x0>;
 	spi-max-frequency = <1000000>;
+	interrupt-parent = <&gpio0>;
+	interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+	vddio-supply = <&sensors_vddio>;
+	vdd-supply = <&sensors_vdd>;
+	st,int-pin = <1>;
+	mount-matrix = "1", "0", "0",
+		       "0", "1", "0",
+		       "0", "0", "1";
+};
+
+Example for an i2c asm330lhhx device node (SA0 pulled down):
+
+asm330lhhx-imu@0x6a {
+	compatible = "st,asm330lhhx";
+	reg = <0x6a>;
 	interrupt-parent = <&gpio0>;
 	interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
 	vddio-supply = <&sensors_vddio>;

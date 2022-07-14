@@ -7,7 +7,7 @@
 obj-y += st_lsm6dsox/
 obj-y += st_lsm6dsrx/
 obj-y += st_ism330dhcx/
-obj-y += st_asm330lhh/
+obj-y += st_asm330lhhx/
 obj-y += st_imu68/
 obj-y += st_ism330dlc/
 obj-y += st_lsm6ds3/
