@@ -522,7 +522,7 @@ static inline bool op_is_zone_mgmt(enum req_op op)
 	}
 }
 
-static inline int op_stat_group(unsigned int op)
+static inline int op_stat_group(enum req_op op)
 {
 	if (op_is_discard(op))
 		return STAT_DISCARD;

@@ -872,7 +872,7 @@ extern void blk_queue_exit(struct request_queue *q);
 extern void blk_sync_queue(struct request_queue *q);
 
 /* Helper to convert REQ_OP_XXX to its string format XXX */
-extern const char *blk_op_str(unsigned int op);
+extern const char *blk_op_str(enum req_op op);
 
 int blk_status_to_errno(blk_status_t status);
 blk_status_t errno_to_blk_status(int errno);
@@ -1434,9 +1434,9 @@ static inline void blk_wake_io_task(struct task_struct *waiter)
 }
 
 unsigned long bdev_start_io_acct(struct block_device *bdev,
-				 unsigned int sectors, unsigned int op,
+				 unsigned int sectors, enum req_op op,
 				 unsigned long start_time);
-void bdev_end_io_acct(struct block_device *bdev, unsigned int op,
+void bdev_end_io_acct(struct block_device *bdev, enum req_op op,
 		unsigned long start_time);
 
 void bio_start_io_acct_time(struct bio *bio, unsigned long start_time);

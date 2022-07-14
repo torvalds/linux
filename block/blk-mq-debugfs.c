@@ -304,7 +304,7 @@ static const char *blk_mq_rq_state_name(enum mq_rq_state rq_state)
 int __blk_mq_debugfs_rq_show(struct seq_file *m, struct request *rq)
 {
 	const struct blk_mq_ops *const mq_ops = rq->q->mq_ops;
-	const unsigned int op = req_op(rq);
+	const enum req_op op = req_op(rq);
 	const char *op_str = blk_op_str(op);
 
 	seq_printf(m, "%p {.op=", rq);
