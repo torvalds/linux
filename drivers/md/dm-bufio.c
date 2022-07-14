@@ -577,12 +577,12 @@ static void dmio_complete(unsigned long error, void *context)
 	b->end_io(b, unlikely(error != 0) ? BLK_STS_IOERR : 0);
 }
 
-static void use_dmio(struct dm_buffer *b, int rw, sector_t sector,
+static void use_dmio(struct dm_buffer *b, enum req_op op, sector_t sector,
 		     unsigned n_sectors, unsigned offset)
 {
 	int r;
 	struct dm_io_request io_req = {
-		.bi_opf = rw,
+		.bi_opf = op,
 		.notify.fn = dmio_complete,
 		.notify.context = b,
 		.client = b->c->dm_io,
@@ -615,7 +615,7 @@ static void bio_complete(struct bio *bio)
 	b->end_io(b, status);
 }
 
-static void use_bio(struct dm_buffer *b, int rw, sector_t sector,
+static void use_bio(struct dm_buffer *b, enum req_op op, sector_t sector,
 		    unsigned n_sectors, unsigned offset)
 {
 	struct bio *bio;
@@ -629,10 +629,10 @@ static void use_bio(struct dm_buffer *b, int rw, sector_t sector,
 	bio = bio_kmalloc(vec_size, GFP_NOWAIT | __GFP_NORETRY | __GFP_NOWARN);
 	if (!bio) {
 dmio:
-		use_dmio(b, rw, sector, n_sectors, offset);
+		use_dmio(b, op, sector, n_sectors, offset);
 		return;
 	}
-	bio_init(bio, b->c->bdev, bio->bi_inline_vecs, vec_size, rw);
+	bio_init(bio, b->c->bdev, bio->bi_inline_vecs, vec_size, op);
 	bio->bi_iter.bi_sector = sector;
 	bio->bi_end_io = bio_complete;
 	bio->bi_private = b;
@@ -668,7 +668,8 @@ static inline sector_t block_to_sector(struct dm_bufio_client *c, sector_t block
 	return sector;
 }
 
-static void submit_io(struct dm_buffer *b, int rw, void (*end_io)(struct dm_buffer *, blk_status_t))
+static void submit_io(struct dm_buffer *b, enum req_op op,
+		      void (*end_io)(struct dm_buffer *, blk_status_t))
 {
 	unsigned n_sectors;
 	sector_t sector;
@@ -678,7 +679,7 @@ static void submit_io(struct dm_buffer *b, int rw, void (*end_io)(struct dm_buff
 
 	sector = block_to_sector(b->c, b->block);
 
-	if (rw != REQ_OP_WRITE) {
+	if (op != REQ_OP_WRITE) {
 		n_sectors = b->c->block_size >> SECTOR_SHIFT;
 		offset = 0;
 	} else {
@@ -697,9 +698,9 @@ static void submit_io(struct dm_buffer *b, int rw, void (*end_io)(struct dm_buff
 	}
 
 	if (b->data_mode != DATA_MODE_VMALLOC)
-		use_bio(b, rw, sector, n_sectors, offset);
+		use_bio(b, op, sector, n_sectors, offset);
 	else
-		use_dmio(b, rw, sector, n_sectors, offset);
+		use_dmio(b, op, sector, n_sectors, offset);
 }
 
 /*----------------------------------------------------------------

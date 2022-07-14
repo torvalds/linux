@@ -716,7 +716,7 @@ static void dm_put_live_table_fast(struct mapped_device *md) __releases(RCU)
 }
 
 static inline struct dm_table *dm_get_live_table_bio(struct mapped_device *md,
-						     int *srcu_idx, unsigned bio_opf)
+					int *srcu_idx, blk_opf_t bio_opf)
 {
 	if (bio_opf & REQ_NOWAIT)
 		return dm_get_live_table_fast(md);
@@ -725,7 +725,7 @@ static inline struct dm_table *dm_get_live_table_bio(struct mapped_device *md,
 }
 
 static inline void dm_put_live_table_bio(struct mapped_device *md, int srcu_idx,
-					 unsigned bio_opf)
+					 blk_opf_t bio_opf)
 {
 	if (bio_opf & REQ_NOWAIT)
 		dm_put_live_table_fast(md);
@@ -1511,7 +1511,7 @@ static void __send_changing_extent_only(struct clone_info *ci, struct dm_target 
 
 static bool is_abnormal_io(struct bio *bio)
 {
-	unsigned int op = bio_op(bio);
+	enum req_op op = bio_op(bio);
 
 	if (op != REQ_OP_READ && op != REQ_OP_WRITE && op != REQ_OP_FLUSH) {
 		switch (op) {
@@ -1625,7 +1625,7 @@ static blk_status_t __split_and_process_bio(struct clone_info *ci)
 	 * Only support bio polling for normal IO, and the target io is
 	 * exactly inside the dm_io instance (verified in dm_poll_dm_io)
 	 */
-	ci->submit_as_polled = ci->bio->bi_opf & REQ_POLLED;
+	ci->submit_as_polled = !!(ci->bio->bi_opf & REQ_POLLED);
 
 	len = min_t(sector_t, max_io_len(ti, ci->sector), ci->sector_count);
 	setup_split_accounting(ci, len);
@@ -1722,7 +1722,7 @@ static void dm_submit_bio(struct bio *bio)
 	struct mapped_device *md = bio->bi_bdev->bd_disk->private_data;
 	int srcu_idx;
 	struct dm_table *map;
-	unsigned bio_opf = bio->bi_opf;
+	blk_opf_t bio_opf = bio->bi_opf;
 
 	map = dm_get_live_table_bio(md, &srcu_idx, bio_opf);
 
