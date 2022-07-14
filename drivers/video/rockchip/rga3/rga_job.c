@@ -910,6 +910,7 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 
 struct rga_request *rga_request_config(struct rga_user_request *user_request)
 {
+	int ret;
 	unsigned long flags;
 	struct rga_pending_request_manager *request_manager;
 	struct rga_request *request;
@@ -936,14 +937,15 @@ struct rga_request *rga_request_config(struct rga_user_request *user_request)
 	task_list = kmalloc_array(user_request->task_num, sizeof(struct rga_req), GFP_KERNEL);
 	if (task_list == NULL) {
 		pr_err("task_req list alloc error!\n");
-		return ERR_PTR(-ENOMEM);
+		ret = -ENOMEM;
+		goto err_put_request;
 	}
 
 	if (unlikely(copy_from_user(task_list, u64_to_user_ptr(user_request->task_ptr),
 				    sizeof(struct rga_req) * user_request->task_num))) {
 		pr_err("rga_user_request task list copy_from_user failed\n");
-		kfree(task_list);
-		return ERR_PTR(-EFAULT);
+		ret = -EFAULT;
+		goto err_free_task_list;
 	}
 
 	spin_lock_irqsave(&request->lock, flags);
@@ -958,6 +960,15 @@ struct rga_request *rga_request_config(struct rga_user_request *user_request)
 	spin_unlock_irqrestore(&request->lock, flags);
 
 	return request;
+
+err_free_task_list:
+	kfree(task_list);
+err_put_request:
+	mutex_lock(&request_manager->lock);
+	rga_request_put(request);
+	mutex_unlock(&request_manager->lock);
+
+	return ERR_PTR(ret);
 }
 
 int rga_request_submit(struct rga_request *request)
