@@ -25,6 +25,7 @@ properties:
       - qcom,pcie-ipq4019
       - qcom,pcie-ipq8074
       - qcom,pcie-qcs404
+      - qcom,pcie-sa8540p
       - qcom,pcie-sc7280
       - qcom,pcie-sc8180x
       - qcom,pcie-sc8280xp
@@ -603,6 +604,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,pcie-sa8540p
               - qcom,pcie-sc8280xp
     then:
       properties:
@@ -721,6 +723,7 @@ allOf:
               - qcom,pcie-ipq8064-v2
               - qcom,pcie-ipq8074
               - qcom,pcie-qcs404
+              - qcom,pcie-sa8540p
     then:
       properties:
         interrupts:
