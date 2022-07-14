@@ -431,7 +431,7 @@ fill:
 	return ret;
 err:
 	if (ret != -EINTR) {
-		btree_node_unlock(path, 0);
+		btree_node_unlock(trans, path, 0);
 		path->l[0].b = BTREE_ITER_NO_NODE_ERROR;
 	}
 	return ret;

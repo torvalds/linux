@@ -228,14 +228,15 @@ static inline bool bch2_btree_path_upgrade(struct btree_trans *trans,
 		: path->uptodate == BTREE_ITER_UPTODATE;
 }
 
-void __bch2_btree_path_downgrade(struct btree_path *, unsigned);
+void __bch2_btree_path_downgrade(struct btree_trans *, struct btree_path *, unsigned);
 
-static inline void bch2_btree_path_downgrade(struct btree_path *path)
+static inline void bch2_btree_path_downgrade(struct btree_trans *trans,
+					     struct btree_path *path)
 {
 	unsigned new_locks_want = path->level + !!path->intent_ref;
 
 	if (path->locks_want > new_locks_want)
-		__bch2_btree_path_downgrade(path, new_locks_want);
+		__bch2_btree_path_downgrade(trans, path, new_locks_want);
 }
 
 void bch2_trans_downgrade(struct btree_trans *);

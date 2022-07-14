@@ -883,7 +883,7 @@ lock_node:
 		 * was removed - and we'll bail out:
 		 */
 		if (btree_node_read_locked(path, level + 1))
-			btree_node_unlock(path, level + 1);
+			btree_node_unlock(trans, path, level + 1);
 
 		if (!btree_node_lock(trans, path, b, k->k.p, level, lock_type,
 				     lock_node_check_fn, (void *) k, trace_ip)) {

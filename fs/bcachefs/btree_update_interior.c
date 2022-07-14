@@ -1844,7 +1844,7 @@ int bch2_btree_node_rewrite(struct btree_trans *trans,
 
 	bch2_btree_update_done(as);
 out:
-	bch2_btree_path_downgrade(iter->path);
+	bch2_btree_path_downgrade(trans, iter->path);
 	return ret;
 }
 
@@ -1956,7 +1956,7 @@ static int __bch2_btree_node_update_key(struct btree_trans *trans,
 		BUG_ON(iter2.path->level != b->c.level);
 		BUG_ON(bpos_cmp(iter2.path->pos, new_key->k.p));
 
-		btree_node_unlock(iter2.path, iter2.path->level);
+		btree_node_unlock(trans, iter2.path, iter2.path->level);
 		path_l(iter2.path)->b = BTREE_ITER_NO_NODE_UP;
 		iter2.path->level++;
 		btree_path_set_dirty(iter2.path, BTREE_ITER_NEED_TRAVERSE);
