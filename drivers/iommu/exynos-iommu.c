@@ -135,6 +135,9 @@ static u32 lv2ent_offset(sysmmu_iova_t iova)
 #define CFG_SYSSEL	(1 << 22) /* System MMU 3.2 only */
 #define CFG_FLPDCACHE	(1 << 20) /* System MMU 3.2+ only */
 
+#define CAPA0_CAPA1_EXIST		BIT(11)
+#define CAPA1_VCR_ENABLED		BIT(14)
+
 /* common registers */
 #define REG_MMU_CTRL		0x000
 #define REG_MMU_CFG		0x004
@@ -156,6 +159,10 @@ static u32 lv2ent_offset(sysmmu_iova_t iova)
 /* v5.x registers */
 #define REG_V5_FAULT_AR_VA	0x070
 #define REG_V5_FAULT_AW_VA	0x080
+
+/* v7.x registers */
+#define REG_V7_CAPA0		0x870
+#define REG_V7_CAPA1		0x874
 
 #define has_sysmmu(dev)		(dev_iommu_priv_get(dev) != NULL)
 
@@ -276,6 +283,9 @@ struct sysmmu_drvdata {
 
 	struct iommu_device iommu;	/* IOMMU core handle */
 	const struct sysmmu_variant *variant; /* version specific data */
+
+	/* v7 fields */
+	bool has_vcr;			/* virtual machine control register */
 };
 
 #define SYSMMU_REG(data, reg) ((data)->sfrbase + (data)->variant->reg)
@@ -289,7 +299,7 @@ static const struct sysmmu_variant sysmmu_v1_variant = {
 	.int_clear	= 0x1c,
 };
 
-/* SysMMU v5 */
+/* SysMMU v5 and v7 (non-VM capable) */
 static const struct sysmmu_variant sysmmu_v5_variant = {
 	.pt_base	= 0x0c,
 	.flush_all	= 0x10,
@@ -297,6 +307,18 @@ static const struct sysmmu_variant sysmmu_v5_variant = {
 	.flush_range	= 0x18,
 	.flush_start	= 0x20,
 	.flush_end	= 0x24,
+	.int_status	= 0x60,
+	.int_clear	= 0x64,
+};
+
+/* SysMMU v7: VM capable register set */
+static const struct sysmmu_variant sysmmu_v7_vm_variant = {
+	.pt_base	= 0x800c,
+	.flush_all	= 0x8010,
+	.flush_entry	= 0x8014,
+	.flush_range	= 0x8018,
+	.flush_start	= 0x8020,
+	.flush_end	= 0x8024,
 	.int_status	= 0x60,
 	.int_clear	= 0x64,
 };
@@ -380,6 +402,20 @@ static void __sysmmu_disable_clocks(struct sysmmu_drvdata *data)
 	clk_disable_unprepare(data->clk_master);
 }
 
+static bool __sysmmu_has_capa1(struct sysmmu_drvdata *data)
+{
+	u32 capa0 = readl(data->sfrbase + REG_V7_CAPA0);
+
+	return capa0 & CAPA0_CAPA1_EXIST;
+}
+
+static void __sysmmu_get_vcr(struct sysmmu_drvdata *data)
+{
+	u32 capa1 = readl(data->sfrbase + REG_V7_CAPA1);
+
+	data->has_vcr = capa1 & CAPA1_VCR_ENABLED;
+}
+
 static void __sysmmu_get_version(struct sysmmu_drvdata *data)
 {
 	u32 ver;
@@ -397,10 +433,18 @@ static void __sysmmu_get_version(struct sysmmu_drvdata *data)
 	dev_dbg(data->sysmmu, "hardware version: %d.%d\n",
 		MMU_MAJ_VER(data->version), MMU_MIN_VER(data->version));
 
-	if (MMU_MAJ_VER(data->version) < 5)
+	if (MMU_MAJ_VER(data->version) < 5) {
 		data->variant = &sysmmu_v1_variant;
-	else
+	} else if (MMU_MAJ_VER(data->version) < 7) {
 		data->variant = &sysmmu_v5_variant;
+	} else {
+		if (__sysmmu_has_capa1(data))
+			__sysmmu_get_vcr(data);
+		if (data->has_vcr)
+			data->variant = &sysmmu_v7_vm_variant;
+		else
+			data->variant = &sysmmu_v5_variant;
+	}
 
 	__sysmmu_disable_clocks(data);
 }
