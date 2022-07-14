@@ -805,6 +805,25 @@ static void imx6_pcie_ltssm_enable(struct device *dev)
 	}
 }
 
+static void imx6_pcie_ltssm_disable(struct device *dev)
+{
+	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
+
+	switch (imx6_pcie->drvdata->variant) {
+	case IMX6Q:
+	case IMX6SX:
+	case IMX6QP:
+		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
+				   IMX6Q_GPR12_PCIE_CTL_2, 0);
+		break;
+	case IMX7D:
+	case IMX8MQ:
+	case IMX8MM:
+		reset_control_assert(imx6_pcie->apps_reset);
+		break;
+	}
+}
+
 static int imx6_pcie_start_link(struct dw_pcie *pci)
 {
 	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pci);
@@ -947,25 +966,6 @@ static const struct dw_pcie_host_ops imx6_pcie_host_ops = {
 static const struct dw_pcie_ops dw_pcie_ops = {
 	.start_link = imx6_pcie_start_link,
 };
-
-static void imx6_pcie_ltssm_disable(struct device *dev)
-{
-	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
-
-	switch (imx6_pcie->drvdata->variant) {
-	case IMX6SX:
-	case IMX6QP:
-		regmap_update_bits(imx6_pcie->iomuxc_gpr, IOMUXC_GPR12,
-				   IMX6Q_GPR12_PCIE_CTL_2, 0);
-		break;
-	case IMX7D:
-	case IMX8MM:
-		reset_control_assert(imx6_pcie->apps_reset);
-		break;
-	default:
-		dev_err(dev, "ltssm_disable not supported\n");
-	}
-}
 
 static void imx6_pcie_pm_turnoff(struct imx6_pcie *imx6_pcie)
 {
