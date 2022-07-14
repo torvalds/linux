@@ -385,7 +385,8 @@ int rkisp_rockit_get_tb_stream_info(struct rockit_cfg *input_rockit_cfg,
 	stream = rkisp_rockit_get_stream(input_rockit_cfg);
 	if (!stream)
 		return -EINVAL;
-
+	if (info->buf[0].timestamp)
+		stream->is_using_resmem = false;
 	return rkisp_get_tb_stream_info(stream, info);
 }
 EXPORT_SYMBOL(rkisp_rockit_get_tb_stream_info);

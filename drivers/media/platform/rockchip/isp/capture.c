@@ -1144,7 +1144,6 @@ int rkisp_fh_open(struct file *filp)
 	struct rkisp_stream *stream = video_drvdata(filp);
 	int ret;
 
-	stream->is_using_resmem = false;
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
 		ret = v4l2_pipeline_pm_get(&stream->vnode.vdev.entity);
@@ -1495,7 +1494,7 @@ int rkisp_get_tb_stream_info(struct rkisp_stream *stream,
 		v4l2_err(&dev->v4l2_dev, "thunderboot no enough memory for image\n");
 		return -EINVAL;
 	}
-	stream->is_using_resmem = false;
+
 	memcpy(info, &dev->tb_stream_info, sizeof(*info));
 	return 0;
 }
