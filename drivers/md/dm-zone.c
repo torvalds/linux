@@ -359,7 +359,7 @@ static int dm_update_zone_wp_offset(struct mapped_device *md, unsigned int zno,
 }
 
 struct orig_bio_details {
-	unsigned int op;
+	enum req_op op;
 	unsigned int nr_sectors;
 };
 
