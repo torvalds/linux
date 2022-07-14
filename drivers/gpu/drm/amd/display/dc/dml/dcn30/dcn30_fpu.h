@@ -63,6 +63,12 @@ void dcn30_fpu_update_bw_bounding_box(struct dc *dc,
 	unsigned int *dcfclk_mhz,
 	unsigned int *dram_speed_mts);
 
+int dcn30_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc,
+							    struct dc_state *context,
+							    display_e2e_pipe_params_st *pipes,
+							    int pipe_cnt,
+							    int vlevel);
+
 void dcn3_fpu_build_wm_range_table(struct clk_mgr *base);
 
 #endif /* __DCN30_FPU_H__*/
