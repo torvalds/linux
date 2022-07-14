@@ -2016,6 +2016,9 @@ static int smcr_buf_map_link(struct smc_buf_desc *buf_desc, bool is_rmb,
 		goto free_table;
 	}
 
+	buf_desc->is_dma_need_sync |=
+		smc_ib_is_sg_need_sync(lnk, buf_desc) << lnk->link_idx;
+
 	/* create a new memory region for the RMB */
 	if (is_rmb) {
 		rc = smc_ib_get_memory_region(lnk->roce_pd,
@@ -2234,6 +2237,7 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 		/* check for reusable slot in the link group */
 		buf_desc = smc_buf_get_slot(bufsize_short, lock, buf_list);
 		if (buf_desc) {
+			buf_desc->is_dma_need_sync = 0;
 			SMC_STAT_RMB_SIZE(smc, is_smcd, is_rmb, bufsize);
 			SMC_STAT_BUF_REUSE(smc, is_smcd, is_rmb);
 			break; /* found reusable slot */
@@ -2292,6 +2296,8 @@ static int __smc_buf_create(struct smc_sock *smc, bool is_smcd, bool is_rmb)
 
 void smc_sndbuf_sync_sg_for_device(struct smc_connection *conn)
 {
+	if (!conn->sndbuf_desc->is_dma_need_sync)
+		return;
 	if (!smc_conn_lgr_valid(conn) || conn->lgr->is_smcd ||
 	    !smc_link_active(conn->lnk))
 		return;
@@ -2302,6 +2308,8 @@ void smc_rmb_sync_sg_for_cpu(struct smc_connection *conn)
 {
 	int i;
 
+	if (!conn->rmb_desc->is_dma_need_sync)
+		return;
 	if (!smc_conn_lgr_valid(conn) || conn->lgr->is_smcd)
 		return;
 	for (i = 0; i < SMC_LINKS_PER_LGR_MAX; i++) {
