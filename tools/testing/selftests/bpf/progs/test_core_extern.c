@@ -11,6 +11,7 @@
 static int (*bpf_missing_helper)(const void *arg1, int arg2) = (void *) 999;
 
 extern int LINUX_KERNEL_VERSION __kconfig;
+extern int LINUX_UNKNOWN_VIRTUAL_EXTERN __kconfig __weak;
 extern bool CONFIG_BPF_SYSCALL __kconfig; /* strong */
 extern enum libbpf_tristate CONFIG_TRISTATE __kconfig __weak;
 extern bool CONFIG_BOOL __kconfig __weak;
@@ -22,6 +23,7 @@ extern const char CONFIG_STR[8] __kconfig __weak;
 extern uint64_t CONFIG_MISSING __kconfig __weak;
 
 uint64_t kern_ver = -1;
+uint64_t unkn_virt_val = -1;
 uint64_t bpf_syscall = -1;
 uint64_t tristate_val = -1;
 uint64_t bool_val = -1;
@@ -38,6 +40,7 @@ int handle_sys_enter(struct pt_regs *ctx)
 	int i;
 
 	kern_ver = LINUX_KERNEL_VERSION;
+	unkn_virt_val = LINUX_UNKNOWN_VIRTUAL_EXTERN;
 	bpf_syscall = CONFIG_BPF_SYSCALL;
 	tristate_val = CONFIG_TRISTATE;
 	bool_val = CONFIG_BOOL;
