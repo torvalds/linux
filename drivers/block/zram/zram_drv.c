@@ -1389,9 +1389,9 @@ static int __zram_bvec_write(struct zram *zram, struct bio_vec *bvec,
 			__GFP_HIGHMEM |
 			__GFP_MOVABLE);
 
-	if (unlikely(!handle)) {
+	if (IS_ERR((void *)handle)) {
 		zcomp_stream_put(zram->comp);
-		return -ENOMEM;
+		return PTR_ERR((void *)handle);
 	}
 
 	alloced_pages = zs_get_total_pages(zram->mem_pool);
