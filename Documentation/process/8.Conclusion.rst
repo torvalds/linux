@@ -5,15 +5,13 @@ For more information
 
 There are numerous sources of information on Linux kernel development and
 related topics.  First among those will always be the Documentation
-directory found in the kernel source distribution.  The top-level :ref:`process/howto.rst <process_howto>`
-file is an important starting point; :ref:`process/submitting-patches.rst <submittingpatches>`
-and :ref:`process/submitting-drivers.rst  <submittingdrivers>`
-are also something which all kernel developers should
-read.  Many internal kernel APIs are documented using the kerneldoc
-mechanism; "make htmldocs" or "make pdfdocs" can be used to generate those
-documents in HTML or PDF format (though the version of TeX shipped by some
-distributions runs into internal limits and fails to process the documents
-properly).
+directory found in the kernel source distribution.  Start with the
+top-level :ref:`process/howto.rst <process_howto>`; also read
+:ref:`process/submitting-patches.rst <submittingpatches>`. Many internal
+kernel APIs are documented using the kerneldoc mechanism; "make htmldocs"
+or "make pdfdocs" can be used to generate those documents in HTML or PDF
+format (though the version of TeX shipped by some distributions runs into
+internal limits and fails to process the documents properly).
 
 Various web sites discuss kernel development at all levels of detail.  Your
 author would like to humbly suggest https://lwn.net/ as a source;

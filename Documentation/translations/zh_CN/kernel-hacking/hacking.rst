@@ -633,8 +633,7 @@ C++
    意味着您希望在对子系统进行更改时得到询问，并了解缺陷；这意味着对某部分
    代码做出更多承诺。
 
--  最后，别忘记去阅读 Documentation/process/submitting-patches.rst ，
-   也许还有 Documentation/process/submitting-drivers.rst 。
+-  最后，别忘记去阅读 Documentation/process/submitting-patches.rst。
 
 Kernel 仙女棒
 ===============
