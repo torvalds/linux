@@ -703,13 +703,6 @@ static int imx6_pcie_deassert_core_reset(struct imx6_pcie *imx6_pcie)
 {
 	struct dw_pcie *pci = imx6_pcie->pci;
 	struct device *dev = pci->dev;
-	int ret;
-
-	ret = imx6_pcie_clk_enable(imx6_pcie);
-	if (ret) {
-		dev_err(dev, "unable to enable pcie clocks: %d\n", ret);
-		return ret;
-	}
 
 	switch (imx6_pcie->drvdata->variant) {
 	case IMX8MQ:
@@ -904,6 +897,14 @@ err_reset_phy:
 	return 0;
 }
 
+static void imx6_pcie_stop_link(struct dw_pcie *pci)
+{
+	struct device *dev = pci->dev;
+
+	/* Turn off PCIe LTSSM */
+	imx6_pcie_ltssm_disable(dev);
+}
+
 static int imx6_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
@@ -923,11 +924,17 @@ static int imx6_pcie_host_init(struct dw_pcie_rp *pp)
 	imx6_pcie_assert_core_reset(imx6_pcie);
 	imx6_pcie_init_phy(imx6_pcie);
 
+	ret = imx6_pcie_clk_enable(imx6_pcie);
+	if (ret) {
+		dev_err(dev, "unable to enable pcie clocks: %d\n", ret);
+		goto err_reg_disable;
+	}
+
 	if (imx6_pcie->phy) {
 		ret = phy_power_on(imx6_pcie->phy);
 		if (ret) {
 			dev_err(dev, "pcie PHY power up failed\n");
-			goto err_reg_disable;
+			goto err_clk_disable;
 		}
 	}
 
@@ -941,22 +948,38 @@ static int imx6_pcie_host_init(struct dw_pcie_rp *pp)
 		ret = phy_init(imx6_pcie->phy);
 		if (ret) {
 			dev_err(dev, "waiting for PHY ready timeout!\n");
-			goto err_clk_disable;
+			goto err_phy_off;
 		}
 	}
 	imx6_setup_phy_mpll(imx6_pcie);
 
 	return 0;
 
-err_clk_disable:
-	imx6_pcie_clk_disable(imx6_pcie);
 err_phy_off:
 	if (imx6_pcie->phy)
 		phy_power_off(imx6_pcie->phy);
+err_clk_disable:
+	imx6_pcie_clk_disable(imx6_pcie);
 err_reg_disable:
 	if (imx6_pcie->vpcie)
 		regulator_disable(imx6_pcie->vpcie);
 	return ret;
+}
+
+static void imx6_pcie_host_exit(struct dw_pcie_rp *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct imx6_pcie *imx6_pcie = to_imx6_pcie(pci);
+
+	if (imx6_pcie->phy) {
+		if (phy_power_off(imx6_pcie->phy))
+			dev_err(pci->dev, "unable to power off PHY\n");
+		phy_exit(imx6_pcie->phy);
+	}
+	imx6_pcie_clk_disable(imx6_pcie);
+
+	if (imx6_pcie->vpcie)
+		regulator_disable(imx6_pcie->vpcie);
 }
 
 static const struct dw_pcie_host_ops imx6_pcie_host_ops = {
@@ -1007,25 +1030,14 @@ pm_turnoff_sleep:
 static int imx6_pcie_suspend_noirq(struct device *dev)
 {
 	struct imx6_pcie *imx6_pcie = dev_get_drvdata(dev);
+	struct dw_pcie_rp *pp = &imx6_pcie->pci->pp;
 
 	if (!(imx6_pcie->drvdata->flags & IMX6_PCIE_FLAG_SUPPORTS_SUSPEND))
 		return 0;
 
 	imx6_pcie_pm_turnoff(imx6_pcie);
-	imx6_pcie_ltssm_disable(dev);
-	imx6_pcie_clk_disable(imx6_pcie);
-	switch (imx6_pcie->drvdata->variant) {
-	case IMX8MM:
-		if (phy_power_off(imx6_pcie->phy))
-			dev_err(dev, "unable to power off PHY\n");
-		phy_exit(imx6_pcie->phy);
-		break;
-	default:
-		break;
-	}
-
-	if (imx6_pcie->vpcie)
-		regulator_disable(imx6_pcie->vpcie);
+	imx6_pcie_stop_link(imx6_pcie->pci);
+	imx6_pcie_host_exit(pp);
 
 	return 0;
 }
