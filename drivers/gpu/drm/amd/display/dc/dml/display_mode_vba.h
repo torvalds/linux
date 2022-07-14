@@ -165,7 +165,6 @@ unsigned int get_total_surface_size_in_mall_bytes(
 		struct display_mode_lib *mode_lib,
 		const display_e2e_pipe_params_st *pipes,
 		unsigned int num_pipes);
-unsigned int get_pipe_idx(struct display_mode_lib *mode_lib, unsigned int plane_idx);
 
 bool get_is_phantom_pipe(struct display_mode_lib *mode_lib,
 		const display_e2e_pipe_params_st *pipes,

@@ -251,7 +251,7 @@ unsigned int get_total_surface_size_in_mall_bytes(
 	return size;
 }
 
-unsigned int get_pipe_idx(struct display_mode_lib *mode_lib, unsigned int plane_idx)
+static unsigned int get_pipe_idx(struct display_mode_lib *mode_lib, unsigned int plane_idx)
 {
 	int pipe_idx = -1;
 	int i;
