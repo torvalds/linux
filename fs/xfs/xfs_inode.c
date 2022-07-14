@@ -1935,13 +1935,12 @@ xfs_iunlink_update_dinode(
 }
 
 /* Set an in-core inode's unlinked pointer and return the old value. */
-STATIC int
+static int
 xfs_iunlink_update_inode(
 	struct xfs_trans	*tp,
 	struct xfs_inode	*ip,
 	struct xfs_perag	*pag,
-	xfs_agino_t		next_agino,
-	xfs_agino_t		*old_next_agino)
+	xfs_agino_t		next_agino)
 {
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_dinode	*dip;
@@ -1971,8 +1970,6 @@ xfs_iunlink_update_inode(
 	 * current pointer is the same as the new value, unless we're
 	 * terminating the list.
 	 */
-	if (old_next_agino)
-		*old_next_agino = old_value;
 	if (old_value == next_agino) {
 		if (next_agino != NULLAGINO) {
 			xfs_inode_verifier_error(ip, -EFSCORRUPTED, __func__,
@@ -2026,17 +2023,13 @@ xfs_iunlink_insert_inode(
 		return error;
 
 	if (next_agino != NULLAGINO) {
-		xfs_agino_t		old_agino;
-
 		/*
 		 * There is already another inode in the bucket, so point this
 		 * inode to the current head of the list.
 		 */
-		error = xfs_iunlink_update_inode(tp, ip, pag, next_agino,
-				&old_agino);
+		error = xfs_iunlink_update_inode(tp, ip, pag, next_agino);
 		if (error)
 			return error;
-		ASSERT(old_agino == NULLAGINO);
 		ip->i_next_unlinked = next_agino;
 	}
 
@@ -2088,7 +2081,6 @@ xfs_iunlink_remove_inode(
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_agi		*agi = agibp->b_addr;
 	xfs_agino_t		agino = XFS_INO_TO_AGINO(mp, ip->i_ino);
-	xfs_agino_t		next_agino;
 	xfs_agino_t		head_agino;
 	short			bucket_index = agino % XFS_AGI_UNLINKED_BUCKETS;
 	int			error;
@@ -2111,7 +2103,7 @@ xfs_iunlink_remove_inode(
 	 * the old pointer value so that we can update whatever was previous
 	 * to us in the list to point to whatever was next in the list.
 	 */
-	error = xfs_iunlink_update_inode(tp, ip, pag, NULLAGINO, &next_agino);
+	error = xfs_iunlink_update_inode(tp, ip, pag, NULLAGINO);
 	if (error)
 		return error;
 
@@ -2132,7 +2124,7 @@ xfs_iunlink_remove_inode(
 			return -EFSCORRUPTED;
 
 		error = xfs_iunlink_update_inode(tp, prev_ip, pag,
-				ip->i_next_unlinked, NULL);
+				ip->i_next_unlinked);
 		prev_ip->i_next_unlinked = ip->i_next_unlinked;
 	} else {
 		/* Point the head of the list to the next unlinked inode. */
