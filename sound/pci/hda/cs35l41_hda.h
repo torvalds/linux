@@ -15,6 +15,9 @@
 #include <linux/device.h>
 #include <sound/cs35l41.h>
 
+#include <linux/firmware/cirrus/cs_dsp.h>
+#include <linux/firmware/cirrus/wmfw.h>
+
 enum cs35l41_hda_spk_pos {
 	CS35l41_LEFT,
 	CS35l41_RIGHT,
@@ -32,13 +35,26 @@ struct cs35l41_hda {
 	struct regmap *regmap;
 	struct gpio_desc *reset_gpio;
 	struct cs35l41_hw_cfg hw_cfg;
+	struct hda_codec *codec;
 
 	int irq;
 	int index;
 	int channel_index;
 	unsigned volatile long irq_errors;
 	const char *amp_name;
+	const char *acpi_subsystem_id;
+	int speaker_id;
+	struct mutex fw_mutex;
 	struct regmap_irq_chip_data *irq_data;
+	bool firmware_running;
+	bool halo_initialized;
+	struct cs_dsp cs_dsp;
+};
+
+enum halo_state {
+	HALO_STATE_CODE_INIT_DOWNLOAD = 0,
+	HALO_STATE_CODE_START,
+	HALO_STATE_CODE_RUN
 };
 
 int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int irq,
