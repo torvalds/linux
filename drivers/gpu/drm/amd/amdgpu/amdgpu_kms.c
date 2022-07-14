@@ -43,17 +43,6 @@
 #include "amdgpu_display.h"
 #include "amdgpu_ras.h"
 
-static void amdgpu_runtime_pm_quirk(struct amdgpu_device *adev)
-{
-	/*
-	 * Add below quirk on several sienna_cichlid cards to disable
-	 * runtime pm to fix EMI failures.
-	 */
-	if (((adev->pdev->device == 0x73A1) && (adev->pdev->revision == 0x00)) ||
-	    ((adev->pdev->device == 0x73BF) && (adev->pdev->revision == 0xCF)))
-		adev->runpm = false;
-}
-
 void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
 {
 	struct amdgpu_gpu_instance *gpu_instance;
@@ -187,8 +176,6 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 			adev->runpm = true;
 			break;
 		}
-
-		amdgpu_runtime_pm_quirk(adev);
 
 		if (adev->runpm) {
 			adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
