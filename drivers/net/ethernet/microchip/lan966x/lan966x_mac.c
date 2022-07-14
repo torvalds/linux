@@ -201,7 +201,6 @@ static struct lan966x_mac_entry *lan966x_mac_find_entry(struct lan966x *lan966x,
 	struct lan966x_mac_entry *res = NULL;
 	struct lan966x_mac_entry *mac_entry;
 
-	spin_lock(&lan966x->mac_lock);
 	list_for_each_entry(mac_entry, &lan966x->mac_entries, list) {
 		if (mac_entry->vid == vid &&
 		    ether_addr_equal(mac, mac_entry->mac) &&
@@ -210,7 +209,6 @@ static struct lan966x_mac_entry *lan966x_mac_find_entry(struct lan966x *lan966x,
 			break;
 		}
 	}
-	spin_unlock(&lan966x->mac_lock);
 
 	return res;
 }
@@ -253,8 +251,11 @@ int lan966x_mac_add_entry(struct lan966x *lan966x, struct lan966x_port *port,
 {
 	struct lan966x_mac_entry *mac_entry;
 
-	if (lan966x_mac_lookup(lan966x, addr, vid, ENTRYTYPE_NORMAL))
+	spin_lock(&lan966x->mac_lock);
+	if (lan966x_mac_lookup(lan966x, addr, vid, ENTRYTYPE_NORMAL)) {
+		spin_unlock(&lan966x->mac_lock);
 		return 0;
+	}
 
 	/* In case the entry already exists, don't add it again to SW,
 	 * just update HW, but we need to look in the actual HW because
@@ -263,20 +264,24 @@ int lan966x_mac_add_entry(struct lan966x *lan966x, struct lan966x_port *port,
 	 * add the entry but without the extern_learn flag.
 	 */
 	mac_entry = lan966x_mac_find_entry(lan966x, addr, vid, port->chip_port);
-	if (mac_entry)
-		return lan966x_mac_learn(lan966x, port->chip_port,
-					 addr, vid, ENTRYTYPE_LOCKED);
+	if (mac_entry) {
+		spin_unlock(&lan966x->mac_lock);
+		goto mac_learn;
+	}
 
 	mac_entry = lan966x_mac_alloc_entry(addr, vid, port->chip_port);
-	if (!mac_entry)
+	if (!mac_entry) {
+		spin_unlock(&lan966x->mac_lock);
 		return -ENOMEM;
+	}
 
-	spin_lock(&lan966x->mac_lock);
 	list_add_tail(&mac_entry->list, &lan966x->mac_entries);
 	spin_unlock(&lan966x->mac_lock);
 
-	lan966x_mac_learn(lan966x, port->chip_port, addr, vid, ENTRYTYPE_LOCKED);
 	lan966x_fdb_call_notifiers(SWITCHDEV_FDB_OFFLOADED, addr, vid, port->dev);
+
+mac_learn:
+	lan966x_mac_learn(lan966x, port->chip_port, addr, vid, ENTRYTYPE_LOCKED);
 
 	return 0;
 }
@@ -291,8 +296,9 @@ int lan966x_mac_del_entry(struct lan966x *lan966x, const unsigned char *addr,
 				 list) {
 		if (mac_entry->vid == vid &&
 		    ether_addr_equal(addr, mac_entry->mac)) {
-			lan966x_mac_forget(lan966x, mac_entry->mac, mac_entry->vid,
-					   ENTRYTYPE_LOCKED);
+			lan966x_mac_forget_locked(lan966x, mac_entry->mac,
+						  mac_entry->vid,
+						  ENTRYTYPE_LOCKED);
 
 			list_del(&mac_entry->list);
 			kfree(mac_entry);
@@ -428,6 +434,12 @@ static void lan966x_mac_irq_process(struct lan966x *lan966x, u32 row,
 			continue;
 
 		spin_lock(&lan966x->mac_lock);
+		mac_entry = lan966x_mac_find_entry(lan966x, mac, vid, dest_idx);
+		if (mac_entry) {
+			spin_unlock(&lan966x->mac_lock);
+			continue;
+		}
+
 		mac_entry = lan966x_mac_alloc_entry(mac, vid, dest_idx);
 		if (!mac_entry) {
 			spin_unlock(&lan966x->mac_lock);
