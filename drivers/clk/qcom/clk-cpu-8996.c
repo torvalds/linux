@@ -425,25 +425,10 @@ static int qcom_cpu_clk_msm8996_register_clks(struct device *dev,
 	clk_prepare_enable(pwrcl_alt_pll.clkr.hw.clk);
 	clk_prepare_enable(perfcl_alt_pll.clkr.hw.clk);
 
-	clk_notifier_register(pwrcl_pmux.clkr.hw.clk, &pwrcl_pmux.nb);
-	clk_notifier_register(perfcl_pmux.clkr.hw.clk, &perfcl_pmux.nb);
+	devm_clk_notifier_register(dev, pwrcl_pmux.clkr.hw.clk, &pwrcl_pmux.nb);
+	devm_clk_notifier_register(dev, perfcl_pmux.clkr.hw.clk, &perfcl_pmux.nb);
 
 	return ret;
-}
-
-static int qcom_cpu_clk_msm8996_unregister_clks(void)
-{
-	int ret = 0;
-
-	ret = clk_notifier_unregister(pwrcl_pmux.clkr.hw.clk, &pwrcl_pmux.nb);
-	if (ret)
-		return ret;
-
-	ret = clk_notifier_unregister(perfcl_pmux.clkr.hw.clk, &perfcl_pmux.nb);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 #define CPU_AFINITY_MASK 0xFFF
@@ -544,11 +529,6 @@ static int qcom_cpu_clk_msm8996_driver_probe(struct platform_device *pdev)
 	return devm_of_clk_add_hw_provider(dev, of_clk_hw_onecell_get, data);
 }
 
-static int qcom_cpu_clk_msm8996_driver_remove(struct platform_device *pdev)
-{
-	return qcom_cpu_clk_msm8996_unregister_clks();
-}
-
 static const struct of_device_id qcom_cpu_clk_msm8996_match_table[] = {
 	{ .compatible = "qcom,msm8996-apcc" },
 	{}
@@ -557,7 +537,6 @@ MODULE_DEVICE_TABLE(of, qcom_cpu_clk_msm8996_match_table);
 
 static struct platform_driver qcom_cpu_clk_msm8996_driver = {
 	.probe = qcom_cpu_clk_msm8996_driver_probe,
-	.remove = qcom_cpu_clk_msm8996_driver_remove,
 	.driver = {
 		.name = "qcom-msm8996-apcc",
 		.of_match_table = qcom_cpu_clk_msm8996_match_table,
