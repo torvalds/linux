@@ -77,13 +77,13 @@ struct ad74413r_state {
 	struct spi_transfer	adc_samples_xfer[AD74413R_CHANNEL_MAX + 1];
 
 	/*
-	 * DMA (thus cache coherency maintenance) requires the
+	 * DMA (thus cache coherency maintenance) may require the
 	 * transfer buffers to live in their own cache lines.
 	 */
 	struct {
 		u8 rx_buf[AD74413R_FRAME_SIZE * AD74413R_CHANNEL_MAX];
 		s64 timestamp;
-	} adc_samples_buf ____cacheline_aligned;
+	} adc_samples_buf __aligned(IIO_DMA_MINALIGN);
 
 	u8	adc_samples_tx_buf[AD74413R_FRAME_SIZE * AD74413R_CHANNEL_MAX];
 	u8	reg_tx_buf[AD74413R_FRAME_SIZE];
@@ -284,10 +284,10 @@ static void ad74413r_gpio_set_multiple(struct gpio_chip *chip,
 	struct ad74413r_state *st = gpiochip_get_data(chip);
 	unsigned long real_mask = 0;
 	unsigned long real_bits = 0;
-	unsigned int offset = 0;
+	unsigned int offset;
 	int ret;
 
-	for_each_set_bit_from(offset, mask, chip->ngpio) {
+	for_each_set_bit(offset, mask, chip->ngpio) {
 		unsigned int real_offset = st->gpo_gpio_offsets[offset];
 
 		ret = ad74413r_set_gpo_config(st, real_offset,
@@ -325,7 +325,7 @@ static int ad74413r_gpio_get_multiple(struct gpio_chip *chip,
 				      unsigned long *bits)
 {
 	struct ad74413r_state *st = gpiochip_get_data(chip);
-	unsigned int offset = 0;
+	unsigned int offset;
 	unsigned int val;
 	int ret;
 
@@ -333,7 +333,7 @@ static int ad74413r_gpio_get_multiple(struct gpio_chip *chip,
 	if (ret)
 		return ret;
 
-	for_each_set_bit_from(offset, mask, chip->ngpio) {
+	for_each_set_bit(offset, mask, chip->ngpio) {
 		unsigned int real_offset = st->comp_gpio_offsets[offset];
 
 		__assign_bit(offset, bits, val & BIT(real_offset));

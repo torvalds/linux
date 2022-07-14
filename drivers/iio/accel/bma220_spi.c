@@ -67,7 +67,7 @@ struct bma220_data {
 		/* Ensure timestamp is naturally aligned. */
 		s64 timestamp __aligned(8);
 	} scan;
-	u8 tx_buf[2] ____cacheline_aligned;
+	u8 tx_buf[2] __aligned(IIO_DMA_MINALIGN);
 };
 
 static const struct iio_chan_spec bma220_channels[] = {

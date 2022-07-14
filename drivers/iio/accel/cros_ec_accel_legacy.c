@@ -230,7 +230,7 @@ static int cros_ec_accel_legacy_probe(struct platform_device *pdev)
 	indio_dev->channels = cros_ec_accel_legacy_channels;
 	indio_dev->num_channels = ARRAY_SIZE(cros_ec_accel_legacy_channels);
 	/* The lid sensor needs to be presented inverted. */
-	if (state->loc == MOTIONSENSE_LOC_LID) {
+	if (!strcmp(indio_dev->label, "accel-display")) {
 		state->sign[CROS_EC_SENSOR_X] = -1;
 		state->sign[CROS_EC_SENSOR_Z] = -1;
 	}

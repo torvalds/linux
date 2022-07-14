@@ -7,8 +7,8 @@
  * IIO driver for Freescale MMA7660FC; 7-bit I2C address: 0x4c.
  */
 
-#include <linux/acpi.h>
 #include <linux/i2c.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
@@ -255,7 +255,7 @@ static const struct of_device_id mma7660_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, mma7660_of_match);
 
-static const struct acpi_device_id __maybe_unused mma7660_acpi_id[] = {
+static const struct acpi_device_id mma7660_acpi_id[] = {
 	{"MMA7660", 0},
 	{}
 };
@@ -267,7 +267,7 @@ static struct i2c_driver mma7660_driver = {
 		.name = "mma7660",
 		.pm = pm_sleep_ptr(&mma7660_pm_ops),
 		.of_match_table = mma7660_of_match,
-		.acpi_match_table = ACPI_PTR(mma7660_acpi_id),
+		.acpi_match_table = mma7660_acpi_id,
 	},
 	.probe		= mma7660_probe,
 	.remove		= mma7660_remove,

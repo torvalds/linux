@@ -1752,7 +1752,7 @@ static int at91_adc_set_watermark(struct iio_dev *indio_dev, unsigned int val)
 	int ret;
 
 	if (val > AT91_HWFIFO_MAX_SIZE)
-		return -EINVAL;
+		val = AT91_HWFIFO_MAX_SIZE;
 
 	if (!st->selected_trig->hw_trig) {
 		dev_dbg(&indio_dev->dev, "we need hw trigger for DMA\n");

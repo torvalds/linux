@@ -1115,13 +1115,19 @@ static int vcnl4000_remove(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(client);
 	struct vcnl4000_data *data = iio_priv(indio_dev);
+	int ret;
 
 	pm_runtime_dont_use_autosuspend(&client->dev);
 	pm_runtime_disable(&client->dev);
 	iio_device_unregister(indio_dev);
 	pm_runtime_set_suspended(&client->dev);
 
-	return data->chip_spec->set_power_state(data, false);
+	ret = data->chip_spec->set_power_state(data, false);
+	if (ret)
+		dev_warn(&client->dev, "Failed to power down (%pe)\n",
+			 ERR_PTR(ret));
+
+	return 0;
 }
 
 static int __maybe_unused vcnl4000_runtime_suspend(struct device *dev)

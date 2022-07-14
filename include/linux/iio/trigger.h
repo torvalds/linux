@@ -93,6 +93,11 @@ static inline void iio_trigger_put(struct iio_trigger *trig)
 static inline struct iio_trigger *iio_trigger_get(struct iio_trigger *trig)
 {
 	get_device(&trig->dev);
+
+	WARN_ONCE(list_empty(&trig->list),
+		  "Getting non-registered iio trigger %s is prohibited\n",
+		  trig->name);
+
 	__module_get(trig->owner);
 
 	return trig;

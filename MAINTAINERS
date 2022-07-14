@@ -9724,6 +9724,7 @@ F:	Documentation/ABI/testing/sysfs-bus-iio*
 F:	Documentation/devicetree/bindings/iio/
 F:	drivers/iio/
 F:	drivers/staging/iio/
+F:	include/dt-bindings/iio/
 F:	include/linux/iio/
 F:	tools/iio/
 

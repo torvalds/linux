@@ -71,7 +71,7 @@ struct ti_adc_data {
 	u8 read_size;
 	u8 shift;
 
-	u8 buffer[16] ____cacheline_aligned;
+	u8 buffer[16] __aligned(IIO_DMA_MINALIGN);
 };
 
 static int ti_adc_read_measurement(struct ti_adc_data *data,

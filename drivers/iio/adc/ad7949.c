@@ -86,7 +86,7 @@ struct ad7949_adc_chip {
 	u8 resolution;
 	u16 cfg;
 	unsigned int current_channel;
-	u16 buffer ____cacheline_aligned;
+	u16 buffer __aligned(IIO_DMA_MINALIGN);
 	__be16 buf8b;
 };
 
