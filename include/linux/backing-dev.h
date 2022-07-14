@@ -230,18 +230,6 @@ wb_get_create_current(struct backing_dev_info *bdi, gfp_t gfp)
 }
 
 /**
- * inode_to_wb_is_valid - test whether an inode has a wb associated
- * @inode: inode of interest
- *
- * Returns %true if @inode has a wb associated.  May be called without any
- * locking.
- */
-static inline bool inode_to_wb_is_valid(struct inode *inode)
-{
-	return inode->i_wb;
-}
-
-/**
  * inode_to_wb - determine the wb of an inode
  * @inode: inode of interest
  *
@@ -337,11 +325,6 @@ static inline struct bdi_writeback *
 wb_get_create_current(struct backing_dev_info *bdi, gfp_t gfp)
 {
 	return &bdi->wb;
-}
-
-static inline bool inode_to_wb_is_valid(struct inode *inode)
-{
-	return true;
 }
 
 static inline struct bdi_writeback *inode_to_wb(struct inode *inode)
