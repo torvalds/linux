@@ -228,6 +228,7 @@ static inline void hwsim_clear_magic(struct ieee80211_vif *vif)
 
 struct hwsim_sta_priv {
 	u32 magic;
+	unsigned int last_link;
 };
 
 #define HWSIM_STA_MAGIC	0x6d537749
@@ -1706,30 +1707,48 @@ mac80211_hwsim_select_tx_link(struct mac80211_hwsim_data *data,
 			      struct ieee80211_sta *sta,
 			      struct ieee80211_hdr *hdr)
 {
+	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
 	int i;
+
+	if (!vif->valid_links)
+		return &vif->bss_conf;
+
+	/* FIXME: handle multicast TX properly */
+	if (is_multicast_ether_addr(hdr->addr1) || WARN_ON_ONCE(!sta)) {
+		unsigned int first_link = ffs(vif->valid_links) - 1;
+
+		return rcu_dereference(vif->link_conf[first_link]);
+	}
+
+	if (WARN_ON_ONCE(!sta->valid_links))
+		return &vif->bss_conf;
 
 	for (i = 0; i < ARRAY_SIZE(vif->link_conf); i++) {
 		struct ieee80211_link_sta *link_sta = NULL;
 		struct ieee80211_bss_conf *bss_conf;
+		unsigned int link_id;
 
-		bss_conf = rcu_dereference(vif->link_conf[i]);
-		if (!bss_conf)
+		/* round-robin the available link IDs */
+		link_id = (sp->last_link + i + 1) % ARRAY_SIZE(vif->link_conf);
+
+		link_sta = rcu_dereference(sta->link[link_id]);
+		if (!link_sta)
 			continue;
 
-		if (sta) {
-			link_sta = rcu_dereference(sta->link[i]);
-			if (!link_sta)
-				continue;
-		}
+		bss_conf = rcu_dereference(vif->link_conf[link_id]);
+		if (WARN_ON_ONCE(!bss_conf))
+			continue;
 
-		if (!is_multicast_ether_addr(hdr->addr1)) {
-			if (link_sta)
-				ether_addr_copy(hdr->addr1, link_sta->addr);
-			ether_addr_copy(hdr->addr2, bss_conf->addr);
-		} else {
-			/* TODO: Handle multicast frames */
-		}
+		/* address translation to link addresses on TX */
+		ether_addr_copy(hdr->addr1, link_sta->addr);
+		ether_addr_copy(hdr->addr2, bss_conf->addr);
+		if (ether_addr_equal(hdr->addr3, sta->addr))
+			ether_addr_copy(hdr->addr3, link_sta->addr);
+		else if (ether_addr_equal(hdr->addr3, vif->addr))
+			ether_addr_copy(hdr->addr3, bss_conf->addr);
+		/* no need to look at A4, if present it's SA */
 
+		sp->last_link = link_id;
 		return bss_conf;
 	}
 
