@@ -196,6 +196,7 @@ struct xfs_buf {
 	int			b_last_error;
 
 	const struct xfs_buf_ops	*b_ops;
+	struct rcu_head		b_rcu;
 };
 
 /* Finding and Reading Buffers */

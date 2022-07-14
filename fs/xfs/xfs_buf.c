@@ -295,6 +295,16 @@ xfs_buf_free_pages(
 }
 
 static void
+xfs_buf_free_callback(
+	struct callback_head	*cb)
+{
+	struct xfs_buf		*bp = container_of(cb, struct xfs_buf, b_rcu);
+
+	xfs_buf_free_maps(bp);
+	kmem_cache_free(xfs_buf_cache, bp);
+}
+
+static void
 xfs_buf_free(
 	struct xfs_buf		*bp)
 {
@@ -307,8 +317,7 @@ xfs_buf_free(
 	else if (bp->b_flags & _XBF_KMEM)
 		kmem_free(bp->b_addr);
 
-	xfs_buf_free_maps(bp);
-	kmem_cache_free(xfs_buf_cache, bp);
+	call_rcu(&bp->b_rcu, xfs_buf_free_callback);
 }
 
 static int
@@ -567,14 +576,13 @@ xfs_buf_lookup(
 	struct xfs_buf          *bp;
 	int			error;
 
-	spin_lock(&pag->pag_buf_lock);
+	rcu_read_lock();
 	bp = rhashtable_lookup(&pag->pag_buf_hash, map, xfs_buf_hash_params);
-	if (!bp) {
-		spin_unlock(&pag->pag_buf_lock);
+	if (!bp || !atomic_inc_not_zero(&bp->b_hold)) {
+		rcu_read_unlock();
 		return -ENOENT;
 	}
-	atomic_inc(&bp->b_hold);
-	spin_unlock(&pag->pag_buf_lock);
+	rcu_read_unlock();
 
 	error = xfs_buf_find_lock(bp, flags);
 	if (error) {
