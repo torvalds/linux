@@ -5703,14 +5703,13 @@ Bits 0-3 of ``flags`` encode the type:
     by the ``hist_param`` field. The range of the Nth bucket (1 <= N < ``size``)
     is [``hist_param``*(N-1), ``hist_param``*N), while the range of the last
     bucket is [``hist_param``*(``size``-1), +INF). (+INF means positive infinity
-    value.) The bucket value indicates how many samples fell in the bucket's range.
+    value.)
   * ``KVM_STATS_TYPE_LOG_HIST``
     The statistic is reported as a logarithmic histogram. The number of
     buckets is specified by the ``size`` field. The range of the first bucket is
     [0, 1), while the range of the last bucket is [pow(2, ``size``-2), +INF).
     Otherwise, The Nth bucket (1 < N < ``size``) covers
-    [pow(2, N-2), pow(2, N-1)). The bucket value indicates how many samples fell
-    in the bucket's range.
+    [pow(2, N-2), pow(2, N-1)).
 
 Bits 4-7 of ``flags`` encode the unit:
 
@@ -5730,6 +5729,10 @@ Bits 4-7 of ``flags`` encode the unit:
     statistics of "peak" type will never go back from 1 to 0.  Boolean
     statistics can be linear histograms (with two buckets) but not logarithmic
     histograms.
+
+Note that, in the case of histograms, the unit applies to the bucket
+ranges, while the bucket value indicates how many samples fell in the
+bucket's range.
 
 Bits 8-11 of ``flags``, together with ``exponent``, encode the scale of the
 unit:
@@ -5752,7 +5755,7 @@ the corresponding statistics data.
 
 The ``bucket_size`` field is used as a parameter for histogram statistics data.
 It is only used by linear histogram statistics data, specifying the size of a
-bucket.
+bucket in the unit expressed by bits 4-11 of ``flags`` together with ``exponent``.
 
 The ``name`` field is the name string of the statistics data. The name string
 starts at the end of ``struct kvm_stats_desc``.  The maximum length including
