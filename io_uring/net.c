@@ -369,24 +369,25 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 					struct io_async_msghdr *iomsg)
 {
 	struct io_sr_msg *sr = io_kiocb_to_cmd(req);
+	struct compat_msghdr msg;
 	struct compat_iovec __user *uiov;
-	compat_uptr_t ptr;
-	compat_size_t len;
 	int ret;
 
-	ret = __get_compat_msghdr(&iomsg->msg, sr->umsg_compat, &iomsg->uaddr,
-				  &ptr, &len);
+	if (copy_from_user(&msg, sr->umsg_compat, sizeof(msg)))
+		return -EFAULT;
+
+	ret = __get_compat_msghdr(&iomsg->msg, sr->umsg_compat, &iomsg->uaddr);
 	if (ret)
 		return ret;
 
-	uiov = compat_ptr(ptr);
+	uiov = compat_ptr(msg.msg_iov);
 	if (req->flags & REQ_F_BUFFER_SELECT) {
 		compat_ssize_t clen;
 
-		if (len == 0) {
+		if (msg.msg_iovlen == 0) {
 			sr->len = 0;
 			iomsg->free_iov = NULL;
-		} else if (len > 1) {
+		} else if (msg.msg_iovlen > 1) {
 			return -EINVAL;
 		} else {
 			if (!access_ok(uiov, sizeof(*uiov)))
@@ -400,7 +401,7 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 		}
 	} else {
 		iomsg->free_iov = iomsg->fast_iov;
-		ret = __import_iovec(READ, (struct iovec __user *)uiov, len,
+		ret = __import_iovec(READ, (struct iovec __user *)uiov, msg.msg_iovlen,
 				   UIO_FASTIOV, &iomsg->free_iov,
 				   &iomsg->msg.msg_iter, true);
 		if (ret < 0)
