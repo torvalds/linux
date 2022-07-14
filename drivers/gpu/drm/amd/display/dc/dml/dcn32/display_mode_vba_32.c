@@ -30,8 +30,6 @@
 #include "../dml_inline_defs.h"
 #include "display_mode_vba_util_32.h"
 
-static const unsigned int NumberOfStates = DC__VOLTAGE_STATES;
-
 void dml32_recalculate(struct display_mode_lib *mode_lib);
 static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation(
 		struct display_mode_lib *mode_lib);
