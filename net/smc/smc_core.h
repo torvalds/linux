@@ -217,6 +217,12 @@ enum smc_lgr_type {				/* redundancy state of lgr */
 	SMC_LGR_ASYMMETRIC_LOCAL,	/* local has 1, peer 2 active RNICs */
 };
 
+enum smcr_buf_type {		/* types of SMC-R sndbufs and RMBs */
+	SMCR_PHYS_CONT_BUFS	= 0,
+	SMCR_VIRT_CONT_BUFS	= 1,
+	SMCR_MIXED_BUFS		= 2,
+};
+
 enum smc_llc_flowtype {
 	SMC_LLC_FLOW_NONE	= 0,
 	SMC_LLC_FLOW_ADD_LINK	= 2,
