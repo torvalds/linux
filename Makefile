@@ -483,7 +483,7 @@ ZSTD		= zstd
 # warnings and causes the build to stop upon encountering them.
 ifeq ($(CC),$(CROSS_COMPILE)gcc)
 ifneq ($(wildcard $(srctree)/scripts/gcc-wrapper.py),)
-CC		= $(srctree)/scripts/gcc-wrapper.py $(CROSS_COMPILE)gcc
+CC		= $(abspath $(srctree)/scripts/gcc-wrapper.py) $(CROSS_COMPILE)gcc
 endif
 endif
 
