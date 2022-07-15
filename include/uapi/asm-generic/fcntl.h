@@ -192,6 +192,7 @@ struct f_owner_ex {
 
 #define F_LINUX_SPECIFIC_BASE	1024
 
+#ifndef HAVE_ARCH_STRUCT_FLOCK
 struct flock {
 	short	l_type;
 	short	l_whence;
@@ -216,5 +217,6 @@ struct flock64 {
 	__ARCH_FLOCK64_PAD
 #endif
 };
+#endif /* HAVE_ARCH_STRUCT_FLOCK */
 
 #endif /* _ASM_GENERIC_FCNTL_H */
