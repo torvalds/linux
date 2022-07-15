@@ -482,7 +482,6 @@ static int z_erofs_lookup_pcluster(struct z_erofs_decompress_frontend *fe)
 {
 	struct erofs_map_blocks *map = &fe->map;
 	struct z_erofs_pcluster *pcl = fe->pcl;
-	unsigned int length;
 
 	/* to avoid unexpected loop formed by corrupted images */
 	if (fe->owned_head == &pcl->next || pcl == fe->tailpcl) {
@@ -495,24 +494,6 @@ static int z_erofs_lookup_pcluster(struct z_erofs_decompress_frontend *fe)
 		return -EFSCORRUPTED;
 	}
 
-	length = READ_ONCE(pcl->length);
-	if (length & Z_EROFS_PCLUSTER_FULL_LENGTH) {
-		if ((map->m_llen << Z_EROFS_PCLUSTER_LENGTH_BIT) > length) {
-			DBG_BUGON(1);
-			return -EFSCORRUPTED;
-		}
-	} else {
-		unsigned int llen = map->m_llen << Z_EROFS_PCLUSTER_LENGTH_BIT;
-
-		if (map->m_flags & EROFS_MAP_FULL_MAPPED)
-			llen |= Z_EROFS_PCLUSTER_FULL_LENGTH;
-
-		while (llen > length &&
-		       length != cmpxchg_relaxed(&pcl->length, length, llen)) {
-			cpu_relax();
-			length = READ_ONCE(pcl->length);
-		}
-	}
 	mutex_lock(&pcl->lock);
 	/* used to check tail merging loop due to corrupted images */
 	if (fe->owned_head == Z_EROFS_PCLUSTER_TAIL)
@@ -543,9 +524,8 @@ static int z_erofs_register_pcluster(struct z_erofs_decompress_frontend *fe)
 
 	atomic_set(&pcl->obj.refcount, 1);
 	pcl->algorithmformat = map->m_algorithmformat;
-	pcl->length = (map->m_llen << Z_EROFS_PCLUSTER_LENGTH_BIT) |
-		(map->m_flags & EROFS_MAP_FULL_MAPPED ?
-			Z_EROFS_PCLUSTER_FULL_LENGTH : 0);
+	pcl->length = 0;
+	pcl->partial = true;
 
 	/* new pclusters should be claimed as type 1, primary and followed */
 	pcl->next = fe->owned_head;
@@ -703,7 +683,7 @@ static int z_erofs_do_read_page(struct z_erofs_decompress_frontend *fe,
 	bool tight = true, exclusive;
 
 	enum z_erofs_cache_alloctype cache_strategy;
-	unsigned int cur, end, spiltted, index;
+	unsigned int cur, end, spiltted;
 	int err = 0;
 
 	/* register locked file pages as online pages in pack */
@@ -806,12 +786,17 @@ retry:
 	/* bump up the number of spiltted parts of a page */
 	++spiltted;
 
-	/* also update nr_pages */
-	index = page->index - (map->m_la >> PAGE_SHIFT);
-	fe->pcl->nr_pages = max_t(pgoff_t, fe->pcl->nr_pages, index + 1);
+	if ((map->m_flags & EROFS_MAP_FULL_MAPPED) &&
+	    fe->pcl->length == map->m_llen)
+		fe->pcl->partial = false;
+	if (fe->pcl->length < offset + end - map->m_la) {
+		fe->pcl->length = offset + end - map->m_la;
+		fe->pcl->pageofs_out = map->m_la & ~PAGE_MASK;
+	}
 next_part:
-	/* can be used for verification */
+	/* shorten the remaining extent to update progress */
 	map->m_llen = offset + cur - map->m_la;
+	map->m_flags &= ~EROFS_MAP_FULL_MAPPED;
 
 	end = cur;
 	if (end > 0)
@@ -858,7 +843,7 @@ struct z_erofs_decompress_backend {
 	struct page **compressed_pages;
 
 	struct page **pagepool;
-	unsigned int onstack_used;
+	unsigned int onstack_used, nr_pages;
 };
 
 static int z_erofs_do_decompressed_bvec(struct z_erofs_decompress_backend *be,
@@ -867,7 +852,7 @@ static int z_erofs_do_decompressed_bvec(struct z_erofs_decompress_backend *be,
 	unsigned int pgnr = (bvec->offset + be->pcl->pageofs_out) >> PAGE_SHIFT;
 	struct page *oldpage;
 
-	DBG_BUGON(pgnr >= be->pcl->nr_pages);
+	DBG_BUGON(pgnr >= be->nr_pages);
 	oldpage = be->decompressed_pages[pgnr];
 	be->decompressed_pages[pgnr] = bvec->page;
 
@@ -955,24 +940,23 @@ static int z_erofs_decompress_pcluster(struct z_erofs_decompress_backend *be,
 	struct erofs_sb_info *const sbi = EROFS_SB(be->sb);
 	struct z_erofs_pcluster *pcl = be->pcl;
 	unsigned int pclusterpages = z_erofs_pclusterpages(pcl);
-	unsigned int i, inputsize, outputsize, llen, nr_pages;
-	struct page *page;
+	unsigned int i, inputsize;
 	int err2;
-	bool overlapped, partial;
+	struct page *page;
+	bool overlapped;
 
-	DBG_BUGON(!READ_ONCE(pcl->nr_pages));
 	mutex_lock(&pcl->lock);
-	nr_pages = pcl->nr_pages;
+	be->nr_pages = PAGE_ALIGN(pcl->length + pcl->pageofs_out) >> PAGE_SHIFT;
 
 	/* allocate (de)compressed page arrays if cannot be kept on stack */
 	be->decompressed_pages = NULL;
 	be->compressed_pages = NULL;
 	be->onstack_used = 0;
-	if (nr_pages <= Z_EROFS_ONSTACK_PAGES) {
+	if (be->nr_pages <= Z_EROFS_ONSTACK_PAGES) {
 		be->decompressed_pages = be->onstack_pages;
-		be->onstack_used = nr_pages;
+		be->onstack_used = be->nr_pages;
 		memset(be->decompressed_pages, 0,
-		       sizeof(struct page *) * nr_pages);
+		       sizeof(struct page *) * be->nr_pages);
 	}
 
 	if (pclusterpages + be->onstack_used <= Z_EROFS_ONSTACK_PAGES)
@@ -980,7 +964,7 @@ static int z_erofs_decompress_pcluster(struct z_erofs_decompress_backend *be,
 
 	if (!be->decompressed_pages)
 		be->decompressed_pages =
-			kvcalloc(nr_pages, sizeof(struct page *),
+			kvcalloc(be->nr_pages, sizeof(struct page *),
 				 GFP_KERNEL | __GFP_NOFAIL);
 	if (!be->compressed_pages)
 		be->compressed_pages =
@@ -997,15 +981,6 @@ static int z_erofs_decompress_pcluster(struct z_erofs_decompress_backend *be,
 	if (err)
 		goto out;
 
-	llen = pcl->length >> Z_EROFS_PCLUSTER_LENGTH_BIT;
-	if (nr_pages << PAGE_SHIFT >= pcl->pageofs_out + llen) {
-		outputsize = llen;
-		partial = !(pcl->length & Z_EROFS_PCLUSTER_FULL_LENGTH);
-	} else {
-		outputsize = (nr_pages << PAGE_SHIFT) - pcl->pageofs_out;
-		partial = true;
-	}
-
 	if (z_erofs_is_inline_pcluster(pcl))
 		inputsize = pcl->tailpacking_size;
 	else
@@ -1018,10 +993,10 @@ static int z_erofs_decompress_pcluster(struct z_erofs_decompress_backend *be,
 					.pageofs_in = pcl->pageofs_in,
 					.pageofs_out = pcl->pageofs_out,
 					.inputsize = inputsize,
-					.outputsize = outputsize,
+					.outputsize = pcl->length,
 					.alg = pcl->algorithmformat,
 					.inplace_io = overlapped,
-					.partial_decoding = partial
+					.partial_decoding = pcl->partial,
 				 }, be->pagepool);
 
 out:
@@ -1046,7 +1021,7 @@ out:
 	    be->compressed_pages >= be->onstack_pages + Z_EROFS_ONSTACK_PAGES)
 		kvfree(be->compressed_pages);
 
-	for (i = 0; i < nr_pages; ++i) {
+	for (i = 0; i < be->nr_pages; ++i) {
 		page = be->decompressed_pages[i];
 		if (!page)
 			continue;
@@ -1064,7 +1039,8 @@ out:
 	if (be->decompressed_pages != be->onstack_pages)
 		kvfree(be->decompressed_pages);
 
-	pcl->nr_pages = 0;
+	pcl->length = 0;
+	pcl->partial = true;
 	pcl->bvset.nextpage = NULL;
 	pcl->vcnt = 0;
 

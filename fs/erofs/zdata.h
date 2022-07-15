@@ -12,9 +12,6 @@
 #define Z_EROFS_PCLUSTER_MAX_PAGES	(Z_EROFS_PCLUSTER_MAX_SIZE / PAGE_SIZE)
 #define Z_EROFS_INLINE_BVECS		2
 
-#define Z_EROFS_PCLUSTER_FULL_LENGTH    0x00000001
-#define Z_EROFS_PCLUSTER_LENGTH_BIT     1
-
 /*
  * let's leave a type here in case of introducing
  * another tagged pointer later.
@@ -53,7 +50,7 @@ struct z_erofs_pcluster {
 	/* A: point to next chained pcluster or TAILs */
 	z_erofs_next_pcluster_t next;
 
-	/* A: lower limit of decompressed length and if full length or not */
+	/* L: the maximum decompression size of this round */
 	unsigned int length;
 
 	/* L: total number of bvecs */
@@ -64,9 +61,6 @@ struct z_erofs_pcluster {
 
 	/* I: page offset of inline compressed data */
 	unsigned short pageofs_in;
-
-	/* L: maximum relative page index in bvecs */
-	unsigned short nr_pages;
 
 	union {
 		/* L: inline a certain number of bvec for bootstrap */
@@ -86,6 +80,9 @@ struct z_erofs_pcluster {
 
 	/* I: compression algorithm format */
 	unsigned char algorithmformat;
+
+	/* L: whether partial decompression or not */
+	bool partial;
 
 	/* A: compressed bvecs (can be cached or inplaced pages) */
 	struct z_erofs_bvec compressed_bvecs[];
