@@ -5,7 +5,7 @@
  *
  * Copyright (C) 2003  Kirk Reiser.
  *
- * this code is specificly written as a driver for the speakup screenreview
+ * this code is specifically written as a driver for the speakup screenreview
  * package and is not a general device driver.
  */
 
@@ -397,6 +397,7 @@ static int softsynth_probe(struct spk_synth *synth)
 	synthu_device.name = "softsynthu";
 	synthu_device.fops = &softsynthu_fops;
 	if (misc_register(&synthu_device)) {
+		misc_deregister(&synth_device);
 		pr_warn("Couldn't initialize miscdevice /dev/softsynthu.\n");
 		return -ENODEV;
 	}

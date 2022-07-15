@@ -28,15 +28,6 @@ struct xfs_attr_list_context;
  */
 #define	ATTR_MAX_VALUELEN	(64*1024)	/* max length of a value */
 
-static inline bool xfs_has_larp(struct xfs_mount *mp)
-{
-#ifdef DEBUG
-	return xfs_globals.larp;
-#else
-	return false;
-#endif
-}
-
 /*
  * Kernel-internal version of the attrlist cursor.
  */
@@ -434,7 +425,7 @@ struct xfs_attr_list_context {
  */
 
 /*
- * Enum values for xfs_attr_item.xattri_da_state
+ * Enum values for xfs_attr_intent.xattri_da_state
  *
  * These values are used by delayed attribute operations to keep track  of where
  * they were before they returned -EAGAIN.  A return code of -EAGAIN signals the
@@ -501,44 +492,41 @@ enum xfs_delattr_state {
 	{ XFS_DAS_NODE_REMOVE_ATTR,	"XFS_DAS_NODE_REMOVE_ATTR" }, \
 	{ XFS_DAS_DONE,			"XFS_DAS_DONE" }
 
-/*
- * Defines for xfs_attr_item.xattri_flags
- */
-#define XFS_DAC_LEAF_ADDNAME_INIT	0x01 /* xfs_attr_leaf_addname init*/
+struct xfs_attri_log_nameval;
 
 /*
  * Context used for keeping track of delayed attribute operations
  */
-struct xfs_attr_item {
-	struct xfs_da_args		*xattri_da_args;
-
-	/*
-	 * Used by xfs_attr_set to hold a leaf buffer across a transaction roll
-	 */
-	struct xfs_buf			*xattri_leaf_bp;
-
-	/* Used in xfs_attr_rmtval_set_blk to roll through allocating blocks */
-	struct xfs_bmbt_irec		xattri_map;
-	xfs_dablk_t			xattri_lblkno;
-	int				xattri_blkcnt;
-
-	/* Used in xfs_attr_node_removename to roll through removing blocks */
-	struct xfs_da_state		*xattri_da_state;
-
-	/* Used to keep track of current state of delayed operation */
-	unsigned int			xattri_flags;
-	enum xfs_delattr_state		xattri_dela_state;
-
-	/*
-	 * Attr operation being performed - XFS_ATTR_OP_FLAGS_*
-	 */
-	unsigned int			xattri_op_flags;
-
+struct xfs_attr_intent {
 	/*
 	 * used to log this item to an intent containing a list of attrs to
 	 * commit later
 	 */
 	struct list_head		xattri_list;
+
+	/* Used in xfs_attr_node_removename to roll through removing blocks */
+	struct xfs_da_state		*xattri_da_state;
+
+	struct xfs_da_args		*xattri_da_args;
+
+	/*
+	 * Shared buffer containing the attr name and value so that the logging
+	 * code can share large memory buffers between log items.
+	 */
+	struct xfs_attri_log_nameval	*xattri_nameval;
+
+	/* Used to keep track of current state of delayed operation */
+	enum xfs_delattr_state		xattri_dela_state;
+
+	/*
+	 * Attr operation being performed - XFS_ATTRI_OP_FLAGS_*
+	 */
+	unsigned int			xattri_op_flags;
+
+	/* Used in xfs_attr_rmtval_set_blk to roll through allocating blocks */
+	xfs_dablk_t			xattri_lblkno;
+	int				xattri_blkcnt;
+	struct xfs_bmbt_irec		xattri_map;
 };
 
 
@@ -557,20 +545,12 @@ bool xfs_attr_is_leaf(struct xfs_inode *ip);
 int xfs_attr_get_ilocked(struct xfs_da_args *args);
 int xfs_attr_get(struct xfs_da_args *args);
 int xfs_attr_set(struct xfs_da_args *args);
-int xfs_attr_set_iter(struct xfs_attr_item *attr);
-int xfs_attr_remove_iter(struct xfs_attr_item *attr);
+int xfs_attr_set_iter(struct xfs_attr_intent *attr);
+int xfs_attr_remove_iter(struct xfs_attr_intent *attr);
 bool xfs_attr_namecheck(const void *name, size_t length);
 int xfs_attr_calc_size(struct xfs_da_args *args, int *local);
 void xfs_init_attr_trans(struct xfs_da_args *args, struct xfs_trans_res *tres,
 			 unsigned int *total);
-
-extern struct kmem_cache	*xfs_attri_cache;
-extern struct kmem_cache	*xfs_attrd_cache;
-
-int __init xfs_attri_init_cache(void);
-void xfs_attri_destroy_cache(void);
-int __init xfs_attrd_init_cache(void);
-void xfs_attrd_destroy_cache(void);
 
 /*
  * Check to see if the attr should be upgraded from non-existent or shortform to
@@ -629,9 +609,13 @@ static inline enum xfs_delattr_state
 xfs_attr_init_replace_state(struct xfs_da_args *args)
 {
 	args->op_flags |= XFS_DA_OP_ADDNAME | XFS_DA_OP_REPLACE;
-	if (xfs_has_larp(args->dp->i_mount))
+	if (args->op_flags & XFS_DA_OP_LOGGED)
 		return xfs_attr_init_remove_state(args);
 	return xfs_attr_init_add_state(args);
 }
+
+extern struct kmem_cache *xfs_attr_intent_cache;
+int __init xfs_attr_intent_init_cache(void);
+void xfs_attr_intent_destroy_cache(void);
 
 #endif	/* __XFS_ATTR_H__ */

@@ -1096,6 +1096,7 @@ static void gfx_v11_0_read_wave_data(struct amdgpu_device *adev, uint32_t simd, 
 	dst[(*no_fields)++] = wave_read_ind(adev, wave, ixSQ_WAVE_IB_STS2);
 	dst[(*no_fields)++] = wave_read_ind(adev, wave, ixSQ_WAVE_IB_DBG1);
 	dst[(*no_fields)++] = wave_read_ind(adev, wave, ixSQ_WAVE_M0);
+	dst[(*no_fields)++] = wave_read_ind(adev, wave, ixSQ_WAVE_MODE);
 }
 
 static void gfx_v11_0_read_wave_sgprs(struct amdgpu_device *adev, uint32_t simd,
@@ -1316,7 +1317,7 @@ static void gfx_v11_0_rlc_backdoor_autoload_copy_ucode(struct amdgpu_device *ade
 		memset(ptr + toc_offset + fw_size, 0, toc_fw_size - fw_size);
 
 	if ((id != SOC21_FIRMWARE_ID_RS64_PFP) && (id != SOC21_FIRMWARE_ID_RS64_ME))
-		*(uint64_t *)fw_autoload_mask |= 1 << id;
+		*(uint64_t *)fw_autoload_mask |= 1ULL << id;
 }
 
 static void gfx_v11_0_rlc_backdoor_autoload_copy_toc_ucode(struct amdgpu_device *adev,
@@ -1983,7 +1984,7 @@ static int gfx_v11_0_init_csb(struct amdgpu_device *adev)
 	return 0;
 }
 
-void gfx_v11_0_rlc_stop(struct amdgpu_device *adev)
+static void gfx_v11_0_rlc_stop(struct amdgpu_device *adev)
 {
 	u32 tmp = RREG32_SOC15(GC, 0, regRLC_CNTL);
 
@@ -4082,7 +4083,7 @@ static int gfx_v11_0_compute_mqd_init(struct amdgpu_device *adev, void *m,
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, QUEUE_SIZE,
 			    (order_base_2(prop->queue_size / 4) - 1));
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, RPTR_BLOCK_SIZE,
-			    ((order_base_2(AMDGPU_GPU_PAGE_SIZE / 4) - 1) << 8));
+			    (order_base_2(AMDGPU_GPU_PAGE_SIZE / 4) - 1));
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, UNORD_DISPATCH, 0);
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, TUNNEL_DISPATCH, 0);
 	tmp = REG_SET_FIELD(tmp, CP_HQD_PQ_CONTROL, PRIV_STATE, 1);
@@ -6028,6 +6029,7 @@ static void gfx_v11_0_handle_priv_fault(struct amdgpu_device *adev,
 		break;
 	default:
 		BUG();
+		break;
 	}
 }
 

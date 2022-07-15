@@ -798,6 +798,7 @@ static const struct sm5502_type sm5504_data = {
 static const struct of_device_id sm5502_dt_match[] = {
 	{ .compatible = "siliconmitus,sm5502-muic", .data = &sm5502_data },
 	{ .compatible = "siliconmitus,sm5504-muic", .data = &sm5504_data },
+	{ .compatible = "siliconmitus,sm5703-muic", .data = &sm5502_data },
 	{ },
 };
 MODULE_DEVICE_TABLE(of, sm5502_dt_match);
@@ -830,6 +831,7 @@ static SIMPLE_DEV_PM_OPS(sm5502_muic_pm_ops,
 static const struct i2c_device_id sm5502_i2c_id[] = {
 	{ "sm5502", (kernel_ulong_t)&sm5502_data },
 	{ "sm5504", (kernel_ulong_t)&sm5504_data },
+	{ "sm5703-muic", (kernel_ulong_t)&sm5502_data },
 	{ }
 };
 MODULE_DEVICE_TABLE(i2c, sm5502_i2c_id);

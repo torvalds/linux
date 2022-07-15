@@ -12,9 +12,9 @@
 #include <linux/init.h>
 #include <linux/export.h>
 #include <linux/jump_label.h>
+#include <linux/of.h>
 
 #include <asm/cputable.h>
-#include <asm/prom.h>		/* for PTRRELOC on ARCH=ppc */
 #include <asm/mce.h>
 #include <asm/mmu.h>
 #include <asm/setup.h>
@@ -487,11 +487,29 @@ static struct cpu_spec __initdata cpu_specs[] = {
 		.machine_check_early	= __machine_check_early_realmode_p9,
 		.platform		= "power9",
 	},
-	{	/* Power9 DD2.2 or later */
+	{	/* Power9 DD2.2 */
+		.pvr_mask		= 0xffffefff,
+		.pvr_value		= 0x004e0202,
+		.cpu_name		= "POWER9 (raw)",
+		.cpu_features		= CPU_FTRS_POWER9_DD2_2,
+		.cpu_user_features	= COMMON_USER_POWER9,
+		.cpu_user_features2	= COMMON_USER2_POWER9,
+		.mmu_features		= MMU_FTRS_POWER9,
+		.icache_bsize		= 128,
+		.dcache_bsize		= 128,
+		.num_pmcs		= 6,
+		.pmc_type		= PPC_PMC_IBM,
+		.oprofile_cpu_type	= "ppc64/power9",
+		.cpu_setup		= __setup_cpu_power9,
+		.cpu_restore		= __restore_cpu_power9,
+		.machine_check_early	= __machine_check_early_realmode_p9,
+		.platform		= "power9",
+	},
+	{	/* Power9 DD2.3 or later */
 		.pvr_mask		= 0xffff0000,
 		.pvr_value		= 0x004e0000,
 		.cpu_name		= "POWER9 (raw)",
-		.cpu_features		= CPU_FTRS_POWER9_DD2_2,
+		.cpu_features		= CPU_FTRS_POWER9_DD2_3,
 		.cpu_user_features	= COMMON_USER_POWER9,
 		.cpu_user_features2	= COMMON_USER2_POWER9,
 		.mmu_features		= MMU_FTRS_POWER9,
@@ -2025,7 +2043,7 @@ static struct cpu_spec * __init setup_cpu_spec(unsigned long offset,
 		 * oprofile_cpu_type already has a value, then we are
 		 * possibly overriding a real PVR with a logical one,
 		 * and, in that case, keep the current value for
-		 * oprofile_cpu_type. Futhermore, let's ensure that the
+		 * oprofile_cpu_type. Furthermore, let's ensure that the
 		 * fix for the PMAO bug is enabled on compatibility mode.
 		 */
 		if (old.oprofile_cpu_type != NULL) {
@@ -2119,7 +2137,7 @@ void __init cpu_feature_keys_init(void)
 struct static_key_true mmu_feature_keys[NUM_MMU_FTR_KEYS] = {
 			[0 ... NUM_MMU_FTR_KEYS - 1] = STATIC_KEY_TRUE_INIT
 };
-EXPORT_SYMBOL_GPL(mmu_feature_keys);
+EXPORT_SYMBOL(mmu_feature_keys);
 
 void __init mmu_feature_keys_init(void)
 {

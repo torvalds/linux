@@ -61,7 +61,7 @@ struct bcm2835_chip {
 
 	unsigned int opened;
 	unsigned int spdif_status;
-	struct mutex audio_mutex;
+	struct mutex audio_mutex; /* Serialize chip data access */
 
 	struct bcm2835_vchi_ctx *vchi_ctx;
 };

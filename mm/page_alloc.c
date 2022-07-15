@@ -482,8 +482,12 @@ unsigned long __get_pfnblock_flags_mask(const struct page *page,
 	bitidx = pfn_to_bitidx(page, pfn);
 	word_bitidx = bitidx / BITS_PER_LONG;
 	bitidx &= (BITS_PER_LONG-1);
-
-	word = bitmap[word_bitidx];
+	/*
+	 * This races, without locks, with set_pfnblock_flags_mask(). Ensure
+	 * a consistent read of the memory array, so that results, even though
+	 * racy, are not corrupted.
+	 */
+	word = READ_ONCE(bitmap[word_bitidx]);
 	return (word >> bitidx) & mask;
 }
 
@@ -1100,30 +1104,44 @@ done_merging:
  * @order:		the order of the page
  * @split_pfn_offset:	split offset within the page
  *
+ * Return -ENOENT if the free page is changed, otherwise 0
+ *
  * It is used when the free page crosses two pageblocks with different migratetypes
  * at split_pfn_offset within the page. The split free page will be put into
  * separate migratetype lists afterwards. Otherwise, the function achieves
  * nothing.
  */
-void split_free_page(struct page *free_page,
-				int order, unsigned long split_pfn_offset)
+int split_free_page(struct page *free_page,
+			unsigned int order, unsigned long split_pfn_offset)
 {
 	struct zone *zone = page_zone(free_page);
 	unsigned long free_page_pfn = page_to_pfn(free_page);
 	unsigned long pfn;
 	unsigned long flags;
 	int free_page_order;
+	int mt;
+	int ret = 0;
 
 	if (split_pfn_offset == 0)
-		return;
+		return ret;
 
 	spin_lock_irqsave(&zone->lock, flags);
+
+	if (!PageBuddy(free_page) || buddy_order(free_page) != order) {
+		ret = -ENOENT;
+		goto out;
+	}
+
+	mt = get_pageblock_migratetype(free_page);
+	if (likely(!is_migrate_isolate(mt)))
+		__mod_zone_freepage_state(zone, -(1UL << order), mt);
+
 	del_page_from_free_list(free_page, zone, order);
 	for (pfn = free_page_pfn;
 	     pfn < free_page_pfn + (1UL << order);) {
 		int mt = get_pfnblock_migratetype(pfn_to_page(pfn), pfn);
 
-		free_page_order = min_t(int,
+		free_page_order = min_t(unsigned int,
 					pfn ? __ffs(pfn) : order,
 					__fls(split_pfn_offset));
 		__free_one_page(pfn_to_page(pfn), pfn, zone, free_page_order,
@@ -1134,7 +1152,9 @@ void split_free_page(struct page *free_page,
 		if (split_pfn_offset == 0)
 			split_pfn_offset = (1UL << order) - (pfn - free_page_pfn);
 	}
+out:
 	spin_unlock_irqrestore(&zone->lock, flags);
+	return ret;
 }
 /*
  * A bad page could be due to a number of fields. Instead of multiple branches,
@@ -5324,8 +5344,8 @@ unsigned long __alloc_pages_bulk(gfp_t gfp, int preferred_nid,
 		page = __rmqueue_pcplist(zone, 0, ac.migratetype, alloc_flags,
 								pcp, pcp_list);
 		if (unlikely(!page)) {
-			/* Try and get at least one page */
-			if (!nr_populated)
+			/* Try and allocate at least one page */
+			if (!nr_account)
 				goto failed_irq;
 			break;
 		}

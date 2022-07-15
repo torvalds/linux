@@ -32,6 +32,67 @@ struct sp_pci {
 };
 static struct sp_device *sp_dev_master;
 
+#define attribute_show(name, def)						\
+static ssize_t name##_show(struct device *d, struct device_attribute *attr,	\
+			   char *buf)						\
+{										\
+	struct sp_device *sp = dev_get_drvdata(d);				\
+	struct psp_device *psp = sp->psp_data;					\
+	int bit = PSP_SECURITY_##def << PSP_CAPABILITY_PSP_SECURITY_OFFSET;	\
+	return sysfs_emit(buf, "%d\n", (psp->capability & bit) > 0);		\
+}
+
+attribute_show(fused_part, FUSED_PART)
+static DEVICE_ATTR_RO(fused_part);
+attribute_show(debug_lock_on, DEBUG_LOCK_ON)
+static DEVICE_ATTR_RO(debug_lock_on);
+attribute_show(tsme_status, TSME_STATUS)
+static DEVICE_ATTR_RO(tsme_status);
+attribute_show(anti_rollback_status, ANTI_ROLLBACK_STATUS)
+static DEVICE_ATTR_RO(anti_rollback_status);
+attribute_show(rpmc_production_enabled, RPMC_PRODUCTION_ENABLED)
+static DEVICE_ATTR_RO(rpmc_production_enabled);
+attribute_show(rpmc_spirom_available, RPMC_SPIROM_AVAILABLE)
+static DEVICE_ATTR_RO(rpmc_spirom_available);
+attribute_show(hsp_tpm_available, HSP_TPM_AVAILABLE)
+static DEVICE_ATTR_RO(hsp_tpm_available);
+attribute_show(rom_armor_enforced, ROM_ARMOR_ENFORCED)
+static DEVICE_ATTR_RO(rom_armor_enforced);
+
+static struct attribute *psp_attrs[] = {
+	&dev_attr_fused_part.attr,
+	&dev_attr_debug_lock_on.attr,
+	&dev_attr_tsme_status.attr,
+	&dev_attr_anti_rollback_status.attr,
+	&dev_attr_rpmc_production_enabled.attr,
+	&dev_attr_rpmc_spirom_available.attr,
+	&dev_attr_hsp_tpm_available.attr,
+	&dev_attr_rom_armor_enforced.attr,
+	NULL
+};
+
+static umode_t psp_security_is_visible(struct kobject *kobj, struct attribute *attr, int idx)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct sp_device *sp = dev_get_drvdata(dev);
+	struct psp_device *psp = sp->psp_data;
+
+	if (psp && (psp->capability & PSP_CAPABILITY_PSP_SECURITY_REPORTING))
+		return 0444;
+
+	return 0;
+}
+
+static struct attribute_group psp_attr_group = {
+	.attrs = psp_attrs,
+	.is_visible = psp_security_is_visible,
+};
+
+static const struct attribute_group *psp_groups[] = {
+	&psp_attr_group,
+	NULL,
+};
+
 static int sp_get_msix_irqs(struct sp_device *sp)
 {
 	struct sp_pci *sp_pci = sp->dev_specific;
@@ -391,6 +452,7 @@ static struct pci_driver sp_pci_driver = {
 	.remove = sp_pci_remove,
 	.shutdown = sp_pci_shutdown,
 	.driver.pm = &sp_pci_pm_ops,
+	.dev_groups = psp_groups,
 };
 
 int sp_pci_init(void)

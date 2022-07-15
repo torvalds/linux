@@ -75,6 +75,12 @@ do {									\
 #define xfs_debug_ratelimited(dev, fmt, ...)				\
 	xfs_printk_ratelimited(xfs_debug, dev, fmt, ##__VA_ARGS__)
 
+#define xfs_warn_mount(mp, warntag, fmt, ...)				\
+do {									\
+	if (xfs_should_warn((mp), (warntag)))				\
+		xfs_warn((mp), (fmt), ##__VA_ARGS__);			\
+} while (0)
+
 #define xfs_warn_once(dev, fmt, ...)				\
 	xfs_printk_once(xfs_warn, dev, fmt, ##__VA_ARGS__)
 #define xfs_notice_once(dev, fmt, ...)				\

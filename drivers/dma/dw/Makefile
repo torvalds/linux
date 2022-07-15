@@ -9,3 +9,5 @@ dw_dmac-$(CONFIG_OF)		+= of.o
 
 obj-$(CONFIG_DW_DMAC_PCI)	+= dw_dmac_pci.o
 dw_dmac_pci-y			:= pci.o
+
+obj-$(CONFIG_RZN1_DMAMUX)	+= rzn1-dmamux.o

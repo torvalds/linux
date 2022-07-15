@@ -17,10 +17,12 @@ void ext_int_handler(void);
 void io_int_handler(void);
 void mcck_int_handler(void);
 void restart_int_handler(void);
+void early_pgm_check_handler(void);
 
 void __ret_from_fork(struct task_struct *prev, struct pt_regs *regs);
 void __do_pgm_check(struct pt_regs *regs);
 void __do_syscall(struct pt_regs *regs, int per_trap);
+void __do_early_pgm_check(struct pt_regs *regs);
 
 void do_protection_exception(struct pt_regs *regs);
 void do_dat_exception(struct pt_regs *regs);

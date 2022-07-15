@@ -548,7 +548,7 @@ tcf_ct_flow_table_fill_tuple_ipv6(struct sk_buff *skb,
 		break;
 #endif
 	default:
-		return -1;
+		return false;
 	}
 
 	if (ip6h->hop_limit <= 1)

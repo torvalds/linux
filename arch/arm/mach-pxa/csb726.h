@@ -7,7 +7,7 @@
 #ifndef CSB726_H
 #define CSB726_H
 
-#include <mach/irqs.h> /* PXA_GPIO_TO_IRQ */
+#include "irqs.h" /* PXA_GPIO_TO_IRQ */
 
 #define CSB726_GPIO_IRQ_LAN	52
 #define CSB726_GPIO_IRQ_SM501	53

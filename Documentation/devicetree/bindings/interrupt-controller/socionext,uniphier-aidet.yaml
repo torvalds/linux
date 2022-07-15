@@ -30,6 +30,7 @@ properties:
       - socionext,uniphier-ld11-aidet
       - socionext,uniphier-ld20-aidet
       - socionext,uniphier-pxs3-aidet
+      - socionext,uniphier-nx1-aidet
 
   reg:
     maxItems: 1

@@ -127,7 +127,9 @@ static ssize_t mem_sleep_show(struct kobject *kobj, struct kobj_attribute *attr,
 	char *s = buf;
 	suspend_state_t i;
 
-	for (i = PM_SUSPEND_MIN; i < PM_SUSPEND_MAX; i++)
+	for (i = PM_SUSPEND_MIN; i < PM_SUSPEND_MAX; i++) {
+		if (i >= PM_SUSPEND_MEM && cxl_mem_active())
+			continue;
 		if (mem_sleep_states[i]) {
 			const char *label = mem_sleep_states[i];
 
@@ -136,6 +138,7 @@ static ssize_t mem_sleep_show(struct kobject *kobj, struct kobj_attribute *attr,
 			else
 				s += sprintf(s, "%s ", label);
 		}
+	}
 
 	/* Convert the last space to a newline if needed. */
 	if (s != buf)

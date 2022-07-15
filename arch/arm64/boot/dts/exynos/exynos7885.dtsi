@@ -280,8 +280,8 @@
 			interrupts = <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart0_bus>;
-			clocks = <&cmu_peri CLK_GOUT_UART0_EXT_UCLK>,
-				 <&cmu_peri CLK_GOUT_UART0_PCLK>;
+			clocks = <&cmu_peri CLK_GOUT_UART0_PCLK>,
+				 <&cmu_peri CLK_GOUT_UART0_EXT_UCLK>;
 			clock-names = "uart", "clk_uart_baud0";
 			samsung,uart-fifosize = <64>;
 			status = "disabled";
@@ -293,8 +293,8 @@
 			interrupts = <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart1_bus>;
-			clocks = <&cmu_peri CLK_GOUT_UART1_EXT_UCLK>,
-				 <&cmu_peri CLK_GOUT_UART1_PCLK>;
+			clocks = <&cmu_peri CLK_GOUT_UART1_PCLK>,
+				 <&cmu_peri CLK_GOUT_UART1_EXT_UCLK>;
 			clock-names = "uart", "clk_uart_baud0";
 			samsung,uart-fifosize = <256>;
 			status = "disabled";
@@ -306,8 +306,8 @@
 			interrupts = <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>;
 			pinctrl-names = "default";
 			pinctrl-0 = <&uart2_bus>;
-			clocks = <&cmu_peri CLK_GOUT_UART2_EXT_UCLK>,
-				 <&cmu_peri CLK_GOUT_UART2_PCLK>;
+			clocks = <&cmu_peri CLK_GOUT_UART2_PCLK>,
+				 <&cmu_peri CLK_GOUT_UART2_EXT_UCLK>;
 			clock-names = "uart", "clk_uart_baud0";
 			samsung,uart-fifosize = <256>;
 			status = "disabled";

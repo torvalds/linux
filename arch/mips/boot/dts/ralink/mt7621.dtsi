@@ -151,7 +151,7 @@
 	};
 
 	pinctrl: pinctrl {
-		compatible = "ralink,rt2880-pinmux";
+		compatible = "ralink,mt7621-pinctrl";
 
 		i2c_pins: i2c0-pins {
 			pinmux {
@@ -342,7 +342,7 @@
 			phy-mode = "rgmii-rxid";
 		};
 
-		mdio-bus {
+		mdio: mdio-bus {
 			#address-cells = <1>;
 			#size-cells = <0>;
 

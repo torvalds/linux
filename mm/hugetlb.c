@@ -32,6 +32,7 @@
 #include <linux/cma.h>
 #include <linux/migrate.h>
 #include <linux/nospec.h>
+#include <linux/delayacct.h>
 
 #include <asm/page.h>
 #include <asm/pgalloc.h>
@@ -5230,6 +5231,8 @@ static vm_fault_t hugetlb_wp(struct mm_struct *mm, struct vm_area_struct *vma,
 	pte = huge_ptep_get(ptep);
 	old_page = pte_page(pte);
 
+	delayacct_wpcopy_start();
+
 retry_avoidcopy:
 	/*
 	 * If no-one else is actually using this page, we're the exclusive
@@ -5240,6 +5243,8 @@ retry_avoidcopy:
 			page_move_anon_rmap(old_page, vma);
 		if (likely(!unshare))
 			set_huge_ptep_writable(vma, haddr, ptep);
+
+		delayacct_wpcopy_end();
 		return 0;
 	}
 	VM_BUG_ON_PAGE(PageAnon(old_page) && PageAnonExclusive(old_page),
@@ -5309,6 +5314,7 @@ retry_avoidcopy:
 			 * race occurs while re-acquiring page table
 			 * lock, and our job is done.
 			 */
+			delayacct_wpcopy_end();
 			return 0;
 		}
 
@@ -5367,6 +5373,8 @@ out_release_old:
 	put_page(old_page);
 
 	spin_lock(ptl); /* Caller expects lock to be held */
+
+	delayacct_wpcopy_end();
 	return ret;
 }
 
@@ -6755,7 +6763,14 @@ int huge_pmd_unshare(struct mm_struct *mm, struct vm_area_struct *vma,
 	pud_clear(pud);
 	put_page(virt_to_page(ptep));
 	mm_dec_nr_pmds(mm);
-	*addr = ALIGN(*addr, HPAGE_SIZE * PTRS_PER_PTE) - HPAGE_SIZE;
+	/*
+	 * This update of passed address optimizes loops sequentially
+	 * processing addresses in increments of huge page size (PMD_SIZE
+	 * in this case).  By clearing the pud, a PUD_SIZE area is unmapped.
+	 * Update address to the 'last page' in the cleared area so that
+	 * calling loop can move to first page past this area.
+	 */
+	*addr |= PUD_SIZE - PMD_SIZE;
 	return 1;
 }
 

@@ -404,7 +404,7 @@ static int ppc_xts_decrypt(struct skcipher_request *req)
 
 /*
  * Algorithm definitions. Disabling alignment (cra_alignmask=0) was chosen
- * because the e500 platform can handle unaligned reads/writes very efficently.
+ * because the e500 platform can handle unaligned reads/writes very efficiently.
  * This improves IPsec thoughput by another few percent. Additionally we assume
  * that AES context is always aligned to at least 8 bytes because it is created
  * with kmalloc() in the crypto infrastructure

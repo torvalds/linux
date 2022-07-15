@@ -290,16 +290,16 @@ static int ifcvf_request_config_irq(struct ifcvf_adapter *adapter)
 	struct ifcvf_hw *vf = &adapter->vf;
 	int config_vector, ret;
 
-	if (vf->msix_vector_status == MSIX_VECTOR_DEV_SHARED)
-		return 0;
-
 	if (vf->msix_vector_status == MSIX_VECTOR_PER_VQ_AND_CONFIG)
-		/* vector 0 ~ vf->nr_vring for vqs, num vf->nr_vring vector for config interrupt */
 		config_vector = vf->nr_vring;
-
-	if (vf->msix_vector_status ==  MSIX_VECTOR_SHARED_VQ_AND_CONFIG)
+	else if (vf->msix_vector_status ==  MSIX_VECTOR_SHARED_VQ_AND_CONFIG)
 		/* vector 0 for vqs and 1 for config interrupt */
 		config_vector = 1;
+	else if (vf->msix_vector_status == MSIX_VECTOR_DEV_SHARED)
+		/* re-use the vqs vector */
+		return 0;
+	else
+		return -EINVAL;
 
 	snprintf(vf->config_msix_name, 256, "ifcvf[%s]-config\n",
 		 pci_name(pdev));
@@ -626,6 +626,11 @@ static size_t ifcvf_vdpa_get_config_size(struct vdpa_device *vdpa_dev)
 	return  vf->config_size;
 }
 
+static u32 ifcvf_vdpa_get_vq_group(struct vdpa_device *vdpa, u16 idx)
+{
+	return 0;
+}
+
 static void ifcvf_vdpa_get_config(struct vdpa_device *vdpa_dev,
 				  unsigned int offset,
 				  void *buf, unsigned int len)
@@ -704,6 +709,7 @@ static const struct vdpa_config_ops ifc_vdpa_ops = {
 	.get_device_id	= ifcvf_vdpa_get_device_id,
 	.get_vendor_id	= ifcvf_vdpa_get_vendor_id,
 	.get_vq_align	= ifcvf_vdpa_get_vq_align,
+	.get_vq_group	= ifcvf_vdpa_get_vq_group,
 	.get_config_size	= ifcvf_vdpa_get_config_size,
 	.get_config	= ifcvf_vdpa_get_config,
 	.set_config	= ifcvf_vdpa_set_config,
@@ -758,14 +764,13 @@ static int ifcvf_vdpa_dev_add(struct vdpa_mgmt_dev *mdev, const char *name,
 	pdev = ifcvf_mgmt_dev->pdev;
 	dev = &pdev->dev;
 	adapter = vdpa_alloc_device(struct ifcvf_adapter, vdpa,
-				    dev, &ifc_vdpa_ops, name, false);
+				    dev, &ifc_vdpa_ops, 1, 1, name, false);
 	if (IS_ERR(adapter)) {
 		IFCVF_ERR(pdev, "Failed to allocate vDPA structure");
 		return PTR_ERR(adapter);
 	}
 
 	ifcvf_mgmt_dev->adapter = adapter;
-	pci_set_drvdata(pdev, ifcvf_mgmt_dev);
 
 	vf = &adapter->vf;
 	vf->dev_type = get_dev_type(pdev);
@@ -879,6 +884,8 @@ static int ifcvf_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 			  "Failed to initialize the management interfaces\n");
 		goto err;
 	}
+
+	pci_set_drvdata(pdev, ifcvf_mgmt_dev);
 
 	return 0;
 

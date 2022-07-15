@@ -10,6 +10,7 @@ config PARISC
 	select ARCH_WANT_FRAME_POINTERS
 	select ARCH_HAS_ELF_RANDOMIZE
 	select ARCH_HAS_STRICT_KERNEL_RWX
+	select ARCH_HAS_STRICT_MODULE_RWX
 	select ARCH_HAS_UBSAN_SANITIZE_ALL
 	select ARCH_HAS_PTE_SPECIAL
 	select ARCH_NO_SG_CHAIN
@@ -331,10 +332,6 @@ source "kernel/Kconfig.hz"
 config COMPAT
 	def_bool y
 	depends on 64BIT
-
-config SYSVIPC_COMPAT
-	def_bool y
-	depends on COMPAT && SYSVIPC
 
 config AUDIT_ARCH
 	def_bool y

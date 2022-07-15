@@ -382,9 +382,6 @@ static int read_counter_cpu(struct evsel *counter, struct timespec *rs, int cpu_
 	if (!counter->supported)
 		return -ENOENT;
 
-	if (counter->core.system_wide)
-		nthreads = 1;
-
 	for (thread = 0; thread < nthreads; thread++) {
 		struct perf_counts_values *count;
 
@@ -2261,7 +2258,7 @@ static void setup_system_wide(int forks)
 		struct evsel *counter;
 
 		evlist__for_each_entry(evsel_list, counter) {
-			if (!counter->core.system_wide &&
+			if (!counter->core.requires_cpu &&
 			    strcmp(counter->name, "duration_time")) {
 				return;
 			}
@@ -2589,6 +2586,8 @@ int cmd_stat(int argc, const char **argv)
 	if (evlist__initialize_ctlfd(evsel_list, stat_config.ctl_fd, stat_config.ctl_fd_ack))
 		goto out;
 
+	/* Enable ignoring missing threads when -p option is defined. */
+	evlist__first(evsel_list)->ignore_missing_thread = target.pid;
 	status = 0;
 	for (run_idx = 0; forever || run_idx < stat_config.run_count; run_idx++) {
 		if (stat_config.run_count != 1 && verbose > 0)

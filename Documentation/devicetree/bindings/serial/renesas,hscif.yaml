@@ -51,8 +51,14 @@ properties:
               - renesas,hscif-r8a77980     # R-Car V3H
               - renesas,hscif-r8a77990     # R-Car E3
               - renesas,hscif-r8a77995     # R-Car D3
-              - renesas,hscif-r8a779a0     # R-Car V3U
           - const: renesas,rcar-gen3-hscif # R-Car Gen3 and RZ/G2
+          - const: renesas,hscif           # generic HSCIF compatible UART
+
+      - items:
+          - enum:
+              - renesas,hscif-r8a779a0     # R-Car V3U
+              - renesas,hscif-r8a779g0     # R-Car V4H
+          - const: renesas,rcar-gen4-hscif # R-Car Gen4
           - const: renesas,hscif           # generic HSCIF compatible UART
 
   reg:
@@ -113,6 +119,7 @@ if:
         enum:
           - renesas,rcar-gen2-hscif
           - renesas,rcar-gen3-hscif
+          - renesas,rcar-gen4-hscif
 then:
   required:
     - resets

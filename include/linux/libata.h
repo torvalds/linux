@@ -822,7 +822,6 @@ struct ata_port {
 	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE + 1];
 	u64			qc_active;
 	int			nr_active_links; /* #links with active qcs */
-	unsigned int		sas_last_tag;	/* track next tag hw expects */
 
 	struct ata_link		link;		/* host default link */
 	struct ata_link		*slave_link;	/* see ata_slave_link_init() */

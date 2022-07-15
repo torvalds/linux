@@ -231,5 +231,9 @@ extern int  omapfb_update_window_async(struct fb_info *fbi,
 				       struct omapfb_update_window *win,
 				       void (*callback)(void *),
 				       void *callback_data);
+extern int  hwa742_update_window_async(struct fb_info *fbi,
+				       struct omapfb_update_window *win,
+				       void (*callback)(void *),
+				       void *callback_data);
 
 #endif /* __OMAPFB_H */

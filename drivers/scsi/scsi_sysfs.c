@@ -573,7 +573,6 @@ struct bus_type scsi_bus_type = {
 	.pm		= &scsi_bus_pm_ops,
 #endif
 };
-EXPORT_SYMBOL_GPL(scsi_bus_type);
 
 int scsi_sysfs_register(void)
 {

@@ -165,6 +165,22 @@
 #define MHI_TRE_GET_EV_LINKSPEED(tre)	FIELD_GET(GENMASK(31, 24), (MHI_TRE_GET_DWORD(tre, 1)))
 #define MHI_TRE_GET_EV_LINKWIDTH(tre)	FIELD_GET(GENMASK(7, 0), (MHI_TRE_GET_DWORD(tre, 0)))
 
+/* State change event */
+#define MHI_SC_EV_PTR			0
+#define MHI_SC_EV_DWORD0(state)		cpu_to_le32(FIELD_PREP(GENMASK(31, 24), state))
+#define MHI_SC_EV_DWORD1(type)		cpu_to_le32(FIELD_PREP(GENMASK(23, 16), type))
+
+/* EE event */
+#define MHI_EE_EV_PTR			0
+#define MHI_EE_EV_DWORD0(ee)		cpu_to_le32(FIELD_PREP(GENMASK(31, 24), ee))
+#define MHI_EE_EV_DWORD1(type)		cpu_to_le32(FIELD_PREP(GENMASK(23, 16), type))
+
+
+/* Command Completion event */
+#define MHI_CC_EV_PTR(ptr)		cpu_to_le64(ptr)
+#define MHI_CC_EV_DWORD0(code)		cpu_to_le32(FIELD_PREP(GENMASK(31, 24), code))
+#define MHI_CC_EV_DWORD1(type)		cpu_to_le32(FIELD_PREP(GENMASK(23, 16), type))
+
 /* Transfer descriptor macros */
 #define MHI_TRE_DATA_PTR(ptr)		cpu_to_le64(ptr)
 #define MHI_TRE_DATA_DWORD0(len)	cpu_to_le32(FIELD_PREP(GENMASK(15, 0), len))
@@ -175,6 +191,12 @@
 								FIELD_PREP(BIT(9), ieot) |  \
 								FIELD_PREP(BIT(8), ieob) |  \
 								FIELD_PREP(BIT(0), chain))
+#define MHI_TRE_DATA_GET_PTR(tre)	le64_to_cpu((tre)->ptr)
+#define MHI_TRE_DATA_GET_LEN(tre)	FIELD_GET(GENMASK(15, 0), MHI_TRE_GET_DWORD(tre, 0))
+#define MHI_TRE_DATA_GET_CHAIN(tre)	(!!(FIELD_GET(BIT(0), MHI_TRE_GET_DWORD(tre, 1))))
+#define MHI_TRE_DATA_GET_IEOB(tre)	(!!(FIELD_GET(BIT(8), MHI_TRE_GET_DWORD(tre, 1))))
+#define MHI_TRE_DATA_GET_IEOT(tre)	(!!(FIELD_GET(BIT(9), MHI_TRE_GET_DWORD(tre, 1))))
+#define MHI_TRE_DATA_GET_BEI(tre)	(!!(FIELD_GET(BIT(10), MHI_TRE_GET_DWORD(tre, 1))))
 
 /* RSC transfer descriptor macros */
 #define MHI_RSCTRE_DATA_PTR(ptr, len)	cpu_to_le64(FIELD_PREP(GENMASK(64, 48), len) | ptr)

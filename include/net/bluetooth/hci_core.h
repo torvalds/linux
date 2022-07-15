@@ -155,21 +155,18 @@ struct bdaddr_list_with_irk {
 	u8 local_irk[16];
 };
 
+/* Bitmask of connection flags */
 enum hci_conn_flags {
-	HCI_CONN_FLAG_REMOTE_WAKEUP,
-	HCI_CONN_FLAG_DEVICE_PRIVACY,
-
-	__HCI_CONN_NUM_FLAGS,
+	HCI_CONN_FLAG_REMOTE_WAKEUP = 1,
+	HCI_CONN_FLAG_DEVICE_PRIVACY = 2,
 };
-
-/* Make sure number of flags doesn't exceed sizeof(current_flags) */
-static_assert(__HCI_CONN_NUM_FLAGS < 32);
+typedef u8 hci_conn_flags_t;
 
 struct bdaddr_list_with_flags {
 	struct list_head list;
 	bdaddr_t bdaddr;
 	u8 bdaddr_type;
-	DECLARE_BITMAP(flags, __HCI_CONN_NUM_FLAGS);
+	hci_conn_flags_t flags;
 };
 
 struct bt_uuid {
@@ -576,7 +573,7 @@ struct hci_dev {
 	struct rfkill		*rfkill;
 
 	DECLARE_BITMAP(dev_flags, __HCI_NUM_FLAGS);
-	DECLARE_BITMAP(conn_flags, __HCI_CONN_NUM_FLAGS);
+	hci_conn_flags_t	conn_flags;
 
 	__s8			adv_tx_power;
 	__u8			adv_data[HCI_MAX_EXT_AD_LENGTH];
@@ -775,7 +772,7 @@ struct hci_conn_params {
 
 	struct hci_conn *conn;
 	bool explicit_connect;
-	DECLARE_BITMAP(flags, __HCI_CONN_NUM_FLAGS);
+	hci_conn_flags_t flags;
 	u8  privacy_mode;
 };
 

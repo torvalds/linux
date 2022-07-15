@@ -70,7 +70,7 @@ static unsigned char best_table_len[256];
 
 static void usage(void)
 {
-	fprintf(stderr, "Usage: kallsyms [--all-symbols] "
+	fprintf(stderr, "Usage: kallsyms [--all-symbols] [--absolute-percpu] "
 			"[--base-relative] < in.map > out.S\n");
 	exit(1);
 }

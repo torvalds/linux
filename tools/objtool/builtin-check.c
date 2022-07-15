@@ -68,6 +68,8 @@ const struct option check_options[] = {
 	OPT_BOOLEAN('n', "noinstr", &opts.noinstr, "validate noinstr rules"),
 	OPT_BOOLEAN('o', "orc", &opts.orc, "generate ORC metadata"),
 	OPT_BOOLEAN('r', "retpoline", &opts.retpoline, "validate and annotate retpoline usage"),
+	OPT_BOOLEAN(0,   "rethunk", &opts.rethunk, "validate and annotate rethunk usage"),
+	OPT_BOOLEAN(0,   "unret", &opts.unret, "validate entry unret placement"),
 	OPT_BOOLEAN('l', "sls", &opts.sls, "validate straight-line-speculation mitigations"),
 	OPT_BOOLEAN('s', "stackval", &opts.stackval, "validate frame pointer rules"),
 	OPT_BOOLEAN('t', "static-call", &opts.static_call, "annotate static calls"),
@@ -123,6 +125,7 @@ static bool opts_valid(void)
 	    opts.noinstr		||
 	    opts.orc			||
 	    opts.retpoline		||
+	    opts.rethunk		||
 	    opts.sls			||
 	    opts.stackval		||
 	    opts.static_call		||
@@ -133,6 +136,11 @@ static bool opts_valid(void)
 		}
 
 		return true;
+	}
+
+	if (opts.unret && !opts.rethunk) {
+		ERROR("--unret requires --rethunk");
+		return false;
 	}
 
 	if (opts.dump_orc)
@@ -160,6 +168,11 @@ static bool link_opts_valid(struct objtool_file *file)
 
 	if (opts.ibt) {
 		ERROR("--ibt requires --link");
+		return false;
+	}
+
+	if (opts.unret) {
+		ERROR("--unret requires --link");
 		return false;
 	}
 

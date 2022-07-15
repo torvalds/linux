@@ -13,7 +13,6 @@ static const struct rxe_type_info {
 	size_t size;
 	size_t elem_offset;
 	void (*cleanup)(struct rxe_pool_elem *elem);
-	enum rxe_pool_flags flags;
 	u32 min_index;
 	u32 max_index;
 	u32 max_elem;
@@ -46,6 +45,7 @@ static const struct rxe_type_info {
 		.name		= "srq",
 		.size		= sizeof(struct rxe_srq),
 		.elem_offset	= offsetof(struct rxe_srq, elem),
+		.cleanup	= rxe_srq_cleanup,
 		.min_index	= RXE_MIN_SRQ_INDEX,
 		.max_index	= RXE_MAX_SRQ_INDEX,
 		.max_elem	= RXE_MAX_SRQ_INDEX - RXE_MIN_SRQ_INDEX + 1,
@@ -73,7 +73,6 @@ static const struct rxe_type_info {
 		.size		= sizeof(struct rxe_mr),
 		.elem_offset	= offsetof(struct rxe_mr, elem),
 		.cleanup	= rxe_mr_cleanup,
-		.flags		= RXE_POOL_ALLOC,
 		.min_index	= RXE_MIN_MR_INDEX,
 		.max_index	= RXE_MAX_MR_INDEX,
 		.max_elem	= RXE_MAX_MR_INDEX - RXE_MIN_MR_INDEX + 1,
@@ -82,6 +81,7 @@ static const struct rxe_type_info {
 		.name		= "mw",
 		.size		= sizeof(struct rxe_mw),
 		.elem_offset	= offsetof(struct rxe_mw, elem),
+		.cleanup	= rxe_mw_cleanup,
 		.min_index	= RXE_MIN_MW_INDEX,
 		.max_index	= RXE_MAX_MW_INDEX,
 		.max_elem	= RXE_MAX_MW_INDEX - RXE_MIN_MW_INDEX + 1,
@@ -101,7 +101,6 @@ void rxe_pool_init(struct rxe_dev *rxe, struct rxe_pool *pool,
 	pool->max_elem		= info->max_elem;
 	pool->elem_size		= ALIGN(info->size, RXE_POOL_ALIGN);
 	pool->elem_offset	= info->elem_offset;
-	pool->flags		= info->flags;
 	pool->cleanup		= info->cleanup;
 
 	atomic_set(&pool->num_elem, 0);
@@ -122,7 +121,7 @@ void *rxe_alloc(struct rxe_pool *pool)
 	void *obj;
 	int err;
 
-	if (WARN_ON(!(pool->flags & RXE_POOL_ALLOC)))
+	if (WARN_ON(!(pool->type == RXE_TYPE_MR)))
 		return NULL;
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
@@ -156,7 +155,7 @@ int __rxe_add_to_pool(struct rxe_pool *pool, struct rxe_pool_elem *elem)
 {
 	int err;
 
-	if (WARN_ON(pool->flags & RXE_POOL_ALLOC))
+	if (WARN_ON(pool->type == RXE_TYPE_MR))
 		return -EINVAL;
 
 	if (atomic_inc_return(&pool->num_elem) > pool->max_elem)
@@ -206,7 +205,7 @@ static void rxe_elem_release(struct kref *kref)
 	if (pool->cleanup)
 		pool->cleanup(elem);
 
-	if (pool->flags & RXE_POOL_ALLOC)
+	if (pool->type == RXE_TYPE_MR)
 		kfree(elem->obj);
 
 	atomic_dec(&pool->num_elem);

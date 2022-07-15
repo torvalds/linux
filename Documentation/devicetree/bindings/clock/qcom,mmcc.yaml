@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Qualcomm Multimedia Clock & Reset Controller Binding
 
 maintainers:
-  - Jeffrey Hugo <jhugo@codeaurora.org>
+  - Jeffrey Hugo <quic_jhugo@quicinc.com>
   - Taniya Das <tdas@codeaurora.org>
 
 description: |

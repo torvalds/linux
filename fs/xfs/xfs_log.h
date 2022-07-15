@@ -86,6 +86,13 @@ xlog_copy_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec **vecp,
 	return buf;
 }
 
+static inline void *
+xlog_copy_from_iovec(struct xfs_log_vec *lv, struct xfs_log_iovec **vecp,
+		const struct xfs_log_iovec *src)
+{
+	return xlog_copy_iovec(lv, vecp, src->i_type, src->i_addr, src->i_len);
+}
+
 /*
  * By comparing each component, we don't have to worry about extra
  * endian issues in treating two 32 bit numbers as one 64 bit number

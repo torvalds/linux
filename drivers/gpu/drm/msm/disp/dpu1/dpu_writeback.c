@@ -11,7 +11,14 @@ static int dpu_wb_conn_get_modes(struct drm_connector *connector)
 	struct msm_drm_private *priv = dev->dev_private;
 	struct dpu_kms *dpu_kms = to_dpu_kms(priv->kms);
 
-	return drm_add_modes_noedid(connector, dpu_kms->catalog->caps->max_linewidth,
+	/*
+	 * We should ideally be limiting the modes only to the maxlinewidth but
+	 * on some chipsets this will allow even 4k modes to be added which will
+	 * fail the per SSPP bandwidth checks. So, till we have dual-SSPP support
+	 * and source split support added lets limit the modes based on max_mixer_width
+	 * as 4K modes can then be supported.
+	 */
+	return drm_add_modes_noedid(connector, dpu_kms->catalog->caps->max_mixer_width,
 			dev->mode_config.max_height);
 }
 

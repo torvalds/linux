@@ -757,20 +757,19 @@ static struct bcm_vk_wkent *bcm_vk_dequeue_pending(struct bcm_vk *vk,
 						   u16 q_num,
 						   u16 msg_id)
 {
-	bool found = false;
-	struct bcm_vk_wkent *entry;
+	struct bcm_vk_wkent *entry = NULL, *iter;
 
 	spin_lock(&chan->pendq_lock);
-	list_for_each_entry(entry, &chan->pendq[q_num], node) {
-		if (get_msg_id(&entry->to_v_msg[0]) == msg_id) {
-			list_del(&entry->node);
-			found = true;
+	list_for_each_entry(iter, &chan->pendq[q_num], node) {
+		if (get_msg_id(&iter->to_v_msg[0]) == msg_id) {
+			list_del(&iter->node);
+			entry = iter;
 			bcm_vk_msgid_bitmap_clear(vk, msg_id, 1);
 			break;
 		}
 	}
 	spin_unlock(&chan->pendq_lock);
-	return ((found) ? entry : NULL);
+	return entry;
 }
 
 s32 bcm_to_h_msg_dequeue(struct bcm_vk *vk)
@@ -1010,16 +1009,14 @@ ssize_t bcm_vk_read(struct file *p_file,
 					 miscdev);
 	struct device *dev = &vk->pdev->dev;
 	struct bcm_vk_msg_chan *chan = &vk->to_h_msg_chan;
-	struct bcm_vk_wkent *entry = NULL;
+	struct bcm_vk_wkent *entry = NULL, *iter;
 	u32 q_num;
 	u32 rsp_length;
-	bool found = false;
 
 	if (!bcm_vk_drv_access_ok(vk))
 		return -EPERM;
 
 	dev_dbg(dev, "Buf count %zu\n", count);
-	found = false;
 
 	/*
 	 * search through the pendq on the to_h chan, and return only those
@@ -1028,13 +1025,13 @@ ssize_t bcm_vk_read(struct file *p_file,
 	 */
 	spin_lock(&chan->pendq_lock);
 	for (q_num = 0; q_num < chan->q_nr; q_num++) {
-		list_for_each_entry(entry, &chan->pendq[q_num], node) {
-			if (entry->ctx->idx == ctx->idx) {
+		list_for_each_entry(iter, &chan->pendq[q_num], node) {
+			if (iter->ctx->idx == ctx->idx) {
 				if (count >=
-				    (entry->to_h_blks * VK_MSGQ_BLK_SIZE)) {
-					list_del(&entry->node);
+				    (iter->to_h_blks * VK_MSGQ_BLK_SIZE)) {
+					list_del(&iter->node);
 					atomic_dec(&ctx->pend_cnt);
-					found = true;
+					entry = iter;
 				} else {
 					/* buffer not big enough */
 					rc = -EMSGSIZE;
@@ -1046,7 +1043,7 @@ ssize_t bcm_vk_read(struct file *p_file,
 read_loop_exit:
 	spin_unlock(&chan->pendq_lock);
 
-	if (found) {
+	if (entry) {
 		/* retrieve the passed down msg_id */
 		set_msg_id(&entry->to_h_msg[0], entry->usr_msg_id);
 		rsp_length = entry->to_h_blks * VK_MSGQ_BLK_SIZE;

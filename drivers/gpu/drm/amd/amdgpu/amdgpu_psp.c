@@ -1177,7 +1177,7 @@ int psp_xgmi_initialize(struct psp_context *psp, bool set_extended_data, bool lo
 	psp->xgmi_context.context.mem_context.shared_mem_size = PSP_XGMI_SHARED_MEM_SIZE;
 	psp->xgmi_context.context.ta_load_type = GFX_CMD_ID_LOAD_TA;
 
-	if (!psp->xgmi_context.context.initialized) {
+	if (!psp->xgmi_context.context.mem_context.shared_buf) {
 		ret = psp_ta_init_shared_buf(psp, &psp->xgmi_context.context.mem_context);
 		if (ret)
 			return ret;

@@ -217,8 +217,7 @@ void disable_dp_hpo_output(struct dc_link *link,
 void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable);
 bool is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx);
 
-void dp_retrieve_lttpr_cap(struct dc_link *link);
-bool dp_apply_lttpr_mode(struct dc_link *link);
+bool dp_retrieve_lttpr_cap(struct dc_link *link);
 void edp_panel_backlight_power_on(struct dc_link *link);
 void dp_receiver_power_ctrl(struct dc_link *link, bool on);
 void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode);

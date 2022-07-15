@@ -374,8 +374,8 @@ extern void *memmap_alloc(phys_addr_t size, phys_addr_t align,
 			  phys_addr_t min_addr,
 			  int nid, bool exact_nid);
 
-void split_free_page(struct page *free_page,
-				int order, unsigned long split_pfn_offset);
+int split_free_page(struct page *free_page,
+			unsigned int order, unsigned long split_pfn_offset);
 
 #if defined CONFIG_COMPACTION || defined CONFIG_CMA
 

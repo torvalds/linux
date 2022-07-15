@@ -37,7 +37,7 @@
 __visible int plugin_is_GPL_compatible;
 
 static struct plugin_info structleak_plugin_info = {
-	.version	= UTS_RELEASE,
+	.version	= PLUGIN_VERSION,
 	.help		= "disable\tdo not activate plugin\n"
 			  "byref\tinit structs passed by reference\n"
 			  "byref-all\tinit anything passed by reference\n"

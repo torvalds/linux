@@ -389,6 +389,8 @@ int main(int argc, char **argv)
 		error(1, errno, "ip link set mtu");
 	if (system("ip addr add dev lo 172.17.0.1/24"))
 		error(1, errno, "ip addr add");
+	if (system("sysctl -w net.ipv4.conf.lo.accept_local=1"))
+		error(1, errno, "sysctl lo.accept_local");
 
 	run_test();
 

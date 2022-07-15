@@ -1083,7 +1083,7 @@ out_delete:
 static int __cmd_record(int argc, const char **argv)
 {
 	const char *record_args[] = {
-		"record", "-R", "-m", "1024", "-c", "1", "--synth", "no",
+		"record", "-R", "-m", "1024", "-c", "1", "--synth", "task",
 	};
 	unsigned int rec_argc, i, j, ret;
 	const char **rec_argv;

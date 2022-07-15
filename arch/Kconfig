@@ -892,6 +892,12 @@ config MODULES_USE_ELF_REL
 	  Modules only use ELF REL relocations.  Modules with ELF RELA
 	  relocations will give an error.
 
+config ARCH_WANTS_MODULES_DATA_IN_VMALLOC
+	bool
+	help
+	  For architectures like powerpc/32 which have constraints on module
+	  allocation and need to allocate module data outside of module area.
+
 config HAVE_IRQ_EXIT_ON_IRQ_STACK
 	bool
 	help
@@ -1013,12 +1019,10 @@ config PAGE_SIZE_LESS_THAN_64KB
 	depends on !IA64_PAGE_SIZE_64KB
 	depends on !PAGE_SIZE_64KB
 	depends on !PARISC_PAGE_SIZE_64KB
-	depends on !PPC_64K_PAGES
 	depends on PAGE_SIZE_LESS_THAN_256KB
 
 config PAGE_SIZE_LESS_THAN_256KB
 	def_bool y
-	depends on !PPC_256K_PAGES
 	depends on !PAGE_SIZE_256KB
 
 # This allows to use a set of generic functions to determine mmap base
@@ -1043,6 +1047,10 @@ config HAVE_NOINSTR_HACK
 
 config HAVE_NOINSTR_VALIDATION
 	bool
+
+config HAVE_UACCESS_VALIDATION
+	bool
+	select OBJTOOL
 
 config HAVE_STACK_VALIDATION
 	bool

@@ -579,9 +579,10 @@ static int st_scsi_execute(struct st_request *SRpnt, const unsigned char *cmd,
 	memcpy(scmd->cmnd, cmd, scmd->cmd_len);
 	req->timeout = timeout;
 	scmd->allowed = retries;
+	req->end_io = st_scsi_execute_end;
 	req->end_io_data = SRpnt;
 
-	blk_execute_rq_nowait(req, true, st_scsi_execute_end);
+	blk_execute_rq_nowait(req, true);
 	return 0;
 }
 

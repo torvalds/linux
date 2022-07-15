@@ -251,6 +251,8 @@ static const struct reg_field isp1760_hc_reg_fields[] = {
 	[HW_DM_PULLDOWN]	= REG_FIELD(ISP176x_HC_OTG_CTRL, 2, 2),
 	[HW_DP_PULLDOWN]	= REG_FIELD(ISP176x_HC_OTG_CTRL, 1, 1),
 	[HW_DP_PULLUP]		= REG_FIELD(ISP176x_HC_OTG_CTRL, 0, 0),
+	/* Make sure the array is sized properly during compilation */
+	[HC_FIELD_MAX]		= {},
 };
 
 static const struct reg_field isp1763_hc_reg_fields[] = {
@@ -321,6 +323,8 @@ static const struct reg_field isp1763_hc_reg_fields[] = {
 	[HW_DM_PULLDOWN_CLEAR]	= REG_FIELD(ISP1763_HC_OTG_CTRL_CLEAR, 2, 2),
 	[HW_DP_PULLDOWN_CLEAR]	= REG_FIELD(ISP1763_HC_OTG_CTRL_CLEAR, 1, 1),
 	[HW_DP_PULLUP_CLEAR]	= REG_FIELD(ISP1763_HC_OTG_CTRL_CLEAR, 0, 0),
+	/* Make sure the array is sized properly during compilation */
+	[HC_FIELD_MAX]		= {},
 };
 
 static const struct regmap_range isp1763_hc_volatile_ranges[] = {
@@ -405,6 +409,8 @@ static const struct reg_field isp1761_dc_reg_fields[] = {
 	[DC_CHIP_ID_HIGH]	= REG_FIELD(ISP176x_DC_CHIPID, 16, 31),
 	[DC_CHIP_ID_LOW]	= REG_FIELD(ISP176x_DC_CHIPID, 0, 15),
 	[DC_SCRATCH]		= REG_FIELD(ISP176x_DC_SCRATCH, 0, 15),
+	/* Make sure the array is sized properly during compilation */
+	[DC_FIELD_MAX]		= {},
 };
 
 static const struct regmap_range isp1763_dc_volatile_ranges[] = {
@@ -458,6 +464,8 @@ static const struct reg_field isp1763_dc_reg_fields[] = {
 	[DC_CHIP_ID_HIGH]	= REG_FIELD(ISP1763_DC_CHIPID_HIGH, 0, 15),
 	[DC_CHIP_ID_LOW]	= REG_FIELD(ISP1763_DC_CHIPID_LOW, 0, 15),
 	[DC_SCRATCH]		= REG_FIELD(ISP1763_DC_SCRATCH, 0, 15),
+	/* Make sure the array is sized properly during compilation */
+	[DC_FIELD_MAX]		= {},
 };
 
 static const struct regmap_config isp1763_dc_regmap_conf = {

@@ -1113,6 +1113,7 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	spin_lock_init(&nmk_chip->lock);
 
 	chip = &nmk_chip->chip;
+	chip->parent = &dev->dev;
 	chip->request = gpiochip_generic_request;
 	chip->free = gpiochip_generic_free;
 	chip->get_direction = nmk_gpio_get_dir;
@@ -1154,7 +1155,6 @@ static int nmk_gpio_probe(struct platform_device *dev)
 	clk_enable(nmk_chip->clk);
 	nmk_chip->lowemi = readl_relaxed(nmk_chip->addr + NMK_GPIO_LOWEMI);
 	clk_disable(nmk_chip->clk);
-	chip->of_node = np;
 
 	ret = gpiochip_add_data(chip, nmk_chip);
 	if (ret)

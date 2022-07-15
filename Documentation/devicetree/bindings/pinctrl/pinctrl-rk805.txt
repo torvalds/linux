@@ -27,7 +27,7 @@ Required properties:
 - pins: List of pins. Valid values of pins properties are: gpio0, gpio1.
 
 First 2 properties must be added in the RK805 PMIC node, documented in
-Documentation/devicetree/bindings/mfd/rk808.txt
+Documentation/devicetree/bindings/mfd/rockchip,rk808.yaml
 
 Optional properties:
 -------------------

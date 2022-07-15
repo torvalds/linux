@@ -435,10 +435,13 @@ static __maybe_unused int cros_ec_keyb_resume(struct device *dev)
  * but the ckdev->bs_idev will remain NULL when this function exits.
  *
  * @ckdev: The keyboard device
+ * @expect_buttons_switches: Indicates that EC must report button and/or
+ *   switch events
  *
  * Returns 0 if no error or -error upon error.
  */
-static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev)
+static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev,
+				    bool expect_buttons_switches)
 {
 	struct cros_ec_device *ec_dev = ckdev->ec;
 	struct device *dev = ckdev->dev;
@@ -465,7 +468,7 @@ static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev)
 	switches = get_unaligned_le32(&event_data.switches);
 
 	if (!buttons && !switches)
-		return 0;
+		return expect_buttons_switches ? -EINVAL : 0;
 
 	/*
 	 * We call the non-matrix buttons/switches 'input1', if present.
@@ -516,7 +519,7 @@ static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev)
 }
 
 /**
- * cros_ec_keyb_register_bs - Register matrix keys
+ * cros_ec_keyb_register_matrix - Register matrix keys
  *
  * Handles all the bits of the keyboard driver related to matrix keys.
  *
@@ -648,12 +651,12 @@ static const struct attribute_group cros_ec_keyb_attr_group = {
 	.attrs = cros_ec_keyb_attrs,
 };
 
-
 static int cros_ec_keyb_probe(struct platform_device *pdev)
 {
 	struct cros_ec_device *ec = dev_get_drvdata(pdev->dev.parent);
 	struct device *dev = &pdev->dev;
 	struct cros_ec_keyb *ckdev;
+	bool buttons_switches_only = device_get_match_data(dev);
 	int err;
 
 	if (!dev->of_node)
@@ -667,13 +670,16 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 	ckdev->dev = dev;
 	dev_set_drvdata(dev, ckdev);
 
-	err = cros_ec_keyb_register_matrix(ckdev);
-	if (err) {
-		dev_err(dev, "cannot register matrix inputs: %d\n", err);
-		return err;
+	if (!buttons_switches_only) {
+		err = cros_ec_keyb_register_matrix(ckdev);
+		if (err) {
+			dev_err(dev, "cannot register matrix inputs: %d\n",
+				err);
+			return err;
+		}
 	}
 
-	err = cros_ec_keyb_register_bs(ckdev);
+	err = cros_ec_keyb_register_bs(ckdev, buttons_switches_only);
 	if (err) {
 		dev_err(dev, "cannot register non-matrix inputs: %d\n", err);
 		return err;
@@ -681,7 +687,7 @@ static int cros_ec_keyb_probe(struct platform_device *pdev)
 
 	err = devm_device_add_group(dev, &cros_ec_keyb_attr_group);
 	if (err) {
-		dev_err(dev, "failed to create attributes. err=%d\n", err);
+		dev_err(dev, "failed to create attributes: %d\n", err);
 		return err;
 	}
 
@@ -710,7 +716,8 @@ static int cros_ec_keyb_remove(struct platform_device *pdev)
 #ifdef CONFIG_OF
 static const struct of_device_id cros_ec_keyb_of_match[] = {
 	{ .compatible = "google,cros-ec-keyb" },
-	{},
+	{ .compatible = "google,cros-ec-keyb-switches", .data = (void *)true },
+	{}
 };
 MODULE_DEVICE_TABLE(of, cros_ec_keyb_of_match);
 #endif

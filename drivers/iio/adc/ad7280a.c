@@ -488,7 +488,7 @@ static ssize_t ad7280_store_balance_sw(struct iio_dev *indio_dev,
 	bool readin;
 	int ret;
 
-	ret = strtobool(buf, &readin);
+	ret = kstrtobool(buf, &readin);
 	if (ret)
 		return ret;
 

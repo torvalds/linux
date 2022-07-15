@@ -31,14 +31,14 @@
  * OPAL FADump kernel metadata
  *
  * The address of this structure will be registered with f/w for retrieving
- * and processing during crash dump.
+ * in the capture kernel to process the crash dump.
  */
 struct opal_fadump_mem_struct {
 	u8	version;
 	u8	reserved[3];
-	u16	region_cnt;		/* number of regions */
-	u16	registered_regions;	/* Regions registered for MPIPL */
-	u64	fadumphdr_addr;
+	__be16	region_cnt;		/* number of regions */
+	__be16	registered_regions;	/* Regions registered for MPIPL */
+	__be64	fadumphdr_addr;
 	struct opal_mpipl_region	rgn[FADUMP_MAX_MEM_REGS];
 } __packed;
 
@@ -135,7 +135,7 @@ static inline void opal_fadump_read_regs(char *bufp, unsigned int regs_cnt,
 	for (i = 0; i < regs_cnt; i++, bufp += reg_entry_size) {
 		reg_entry = (struct hdat_fadump_reg_entry *)bufp;
 		val = (cpu_endian ? be64_to_cpu(reg_entry->reg_val) :
-		       reg_entry->reg_val);
+		       (u64)(reg_entry->reg_val));
 		opal_fadump_set_regval_regnum(regs,
 					      be32_to_cpu(reg_entry->reg_type),
 					      be32_to_cpu(reg_entry->reg_num),

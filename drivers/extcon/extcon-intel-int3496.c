@@ -17,6 +17,7 @@
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/platform_device.h>
+#include <linux/regulator/consumer.h>
 
 #define INT3496_GPIO_USB_ID	0
 #define INT3496_GPIO_VBUS_EN	1
@@ -30,7 +31,9 @@ struct int3496_data {
 	struct gpio_desc *gpio_usb_id;
 	struct gpio_desc *gpio_vbus_en;
 	struct gpio_desc *gpio_usb_mux;
+	struct regulator *vbus_boost;
 	int usb_id_irq;
+	bool vbus_boost_enabled;
 };
 
 static const unsigned int int3496_cable[] = {
@@ -53,6 +56,27 @@ static const struct acpi_gpio_mapping acpi_int3496_default_gpios[] = {
 	{ },
 };
 
+static void int3496_set_vbus_boost(struct int3496_data *data, bool enable)
+{
+	int ret;
+
+	if (IS_ERR_OR_NULL(data->vbus_boost))
+		return;
+
+	if (data->vbus_boost_enabled == enable)
+		return;
+
+	if (enable)
+		ret = regulator_enable(data->vbus_boost);
+	else
+		ret = regulator_disable(data->vbus_boost);
+
+	if (ret == 0)
+		data->vbus_boost_enabled = enable;
+	else
+		dev_err(data->dev, "Error updating Vbus boost regulator: %d\n", ret);
+}
+
 static void int3496_do_usb_id(struct work_struct *work)
 {
 	struct int3496_data *data =
@@ -71,6 +95,8 @@ static void int3496_do_usb_id(struct work_struct *work)
 
 	if (!IS_ERR(data->gpio_vbus_en))
 		gpiod_direction_output(data->gpio_vbus_en, !id);
+	else
+		int3496_set_vbus_boost(data, !id);
 
 	extcon_set_state_sync(data->edev, EXTCON_USB_HOST, !id);
 }
@@ -91,10 +117,12 @@ static int int3496_probe(struct platform_device *pdev)
 	struct int3496_data *data;
 	int ret;
 
-	ret = devm_acpi_dev_add_driver_gpios(dev, acpi_int3496_default_gpios);
-	if (ret) {
-		dev_err(dev, "can't add GPIO ACPI mapping\n");
-		return ret;
+	if (has_acpi_companion(dev)) {
+		ret = devm_acpi_dev_add_driver_gpios(dev, acpi_int3496_default_gpios);
+		if (ret) {
+			dev_err(dev, "can't add GPIO ACPI mapping\n");
+			return ret;
+		}
 	}
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -106,7 +134,8 @@ static int int3496_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	data->gpio_usb_id = devm_gpiod_get(dev, "id", GPIOD_IN);
+	data->gpio_usb_id =
+		devm_gpiod_get(dev, "id", GPIOD_IN | GPIOD_FLAGS_BIT_NONEXCLUSIVE);
 	if (IS_ERR(data->gpio_usb_id)) {
 		ret = PTR_ERR(data->gpio_usb_id);
 		dev_err(dev, "can't request USB ID GPIO: %d\n", ret);
@@ -120,12 +149,14 @@ static int int3496_probe(struct platform_device *pdev)
 	}
 
 	data->gpio_vbus_en = devm_gpiod_get(dev, "vbus", GPIOD_ASIS);
-	if (IS_ERR(data->gpio_vbus_en))
-		dev_info(dev, "can't request VBUS EN GPIO\n");
+	if (IS_ERR(data->gpio_vbus_en)) {
+		dev_dbg(dev, "can't request VBUS EN GPIO\n");
+		data->vbus_boost = devm_regulator_get_optional(dev, "vbus");
+	}
 
 	data->gpio_usb_mux = devm_gpiod_get(dev, "mux", GPIOD_ASIS);
 	if (IS_ERR(data->gpio_usb_mux))
-		dev_info(dev, "can't request USB MUX GPIO\n");
+		dev_dbg(dev, "can't request USB MUX GPIO\n");
 
 	/* register extcon device */
 	data->edev = devm_extcon_dev_allocate(dev, int3496_cable);
@@ -164,12 +195,19 @@ static const struct acpi_device_id int3496_acpi_match[] = {
 };
 MODULE_DEVICE_TABLE(acpi, int3496_acpi_match);
 
+static const struct platform_device_id int3496_ids[] = {
+	{ .name = "intel-int3496" },
+	{},
+};
+MODULE_DEVICE_TABLE(platform, int3496_ids);
+
 static struct platform_driver int3496_driver = {
 	.driver = {
 		.name = "intel-int3496",
 		.acpi_match_table = int3496_acpi_match,
 	},
 	.probe = int3496_probe,
+	.id_table = int3496_ids,
 };
 
 module_platform_driver(int3496_driver);

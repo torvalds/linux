@@ -431,21 +431,18 @@ free_pagelist(struct vchiq_pagelist_info *pagelistinfo,
 			if (head_bytes > actual)
 				head_bytes = actual;
 
-			memcpy((char *)kmap(pages[0]) +
+			memcpy_to_page(pages[0],
 				pagelist->offset,
 				fragments,
 				head_bytes);
-			kunmap(pages[0]);
 		}
 		if ((actual >= 0) && (head_bytes < actual) &&
-		    (tail_bytes != 0)) {
-			memcpy((char *)kmap(pages[num_pages - 1]) +
-				((pagelist->offset + actual) &
-				(PAGE_SIZE - 1) & ~(g_cache_line_size - 1)),
+		    (tail_bytes != 0))
+			memcpy_to_page(pages[num_pages - 1],
+				(pagelist->offset + actual) &
+				(PAGE_SIZE - 1) & ~(g_cache_line_size - 1),
 				fragments + g_cache_line_size,
 				tail_bytes);
-			kunmap(pages[num_pages - 1]);
-		}
 
 		down(&g_free_fragments_mutex);
 		*(char **)fragments = g_free_fragments;
@@ -918,8 +915,7 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data, unsigned int size,
 	struct vchiq_instance *instance;
 	struct vchiq_service *service;
 	enum vchiq_status status;
-	struct bulk_waiter_node *waiter = NULL;
-	bool found = false;
+	struct bulk_waiter_node *waiter = NULL, *iter;
 
 	service = find_service_by_handle(handle);
 	if (!service)
@@ -930,16 +926,16 @@ vchiq_blocking_bulk_transfer(unsigned int handle, void *data, unsigned int size,
 	vchiq_service_put(service);
 
 	mutex_lock(&instance->bulk_waiter_list_mutex);
-	list_for_each_entry(waiter, &instance->bulk_waiter_list, list) {
-		if (waiter->pid == current->pid) {
-			list_del(&waiter->list);
-			found = true;
+	list_for_each_entry(iter, &instance->bulk_waiter_list, list) {
+		if (iter->pid == current->pid) {
+			list_del(&iter->list);
+			waiter = iter;
 			break;
 		}
 	}
 	mutex_unlock(&instance->bulk_waiter_list_mutex);
 
-	if (found) {
+	if (waiter) {
 		struct vchiq_bulk *bulk = waiter->bulk_waiter.bulk;
 
 		if (bulk) {

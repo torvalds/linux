@@ -233,8 +233,8 @@ enum {
 };
 
 enum {
-	NVME_CAP_CRMS_CRIMS	= 1ULL << 59,
-	NVME_CAP_CRMS_CRWMS	= 1ULL << 60,
+	NVME_CAP_CRMS_CRWMS	= 1ULL << 59,
+	NVME_CAP_CRMS_CRIMS	= 1ULL << 60,
 };
 
 struct nvme_id_power_state {
@@ -906,12 +906,14 @@ struct nvme_common_command {
 	__le32			cdw2[2];
 	__le64			metadata;
 	union nvme_data_ptr	dptr;
+	struct_group(cdws,
 	__le32			cdw10;
 	__le32			cdw11;
 	__le32			cdw12;
 	__le32			cdw13;
 	__le32			cdw14;
 	__le32			cdw15;
+	);
 };
 
 struct nvme_rw_command {

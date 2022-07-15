@@ -755,12 +755,22 @@ static void set_regs_in_dict(PyObject *dict,
 }
 
 static void set_sym_in_dict(PyObject *dict, struct addr_location *al,
-			    const char *dso_field, const char *sym_field,
-			    const char *symoff_field)
+			    const char *dso_field, const char *dso_bid_field,
+			    const char *dso_map_start, const char *dso_map_end,
+			    const char *sym_field, const char *symoff_field)
 {
+	char sbuild_id[SBUILD_ID_SIZE];
+
 	if (al->map) {
 		pydict_set_item_string_decref(dict, dso_field,
 			_PyUnicode_FromString(al->map->dso->name));
+		build_id__sprintf(&al->map->dso->bid, sbuild_id);
+		pydict_set_item_string_decref(dict, dso_bid_field,
+			_PyUnicode_FromString(sbuild_id));
+		pydict_set_item_string_decref(dict, dso_map_start,
+			PyLong_FromUnsignedLong(al->map->start));
+		pydict_set_item_string_decref(dict, dso_map_end,
+			PyLong_FromUnsignedLong(al->map->end));
 	}
 	if (al->sym) {
 		pydict_set_item_string_decref(dict, sym_field,
@@ -840,7 +850,8 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 			(const char *)sample->raw_data, sample->raw_size));
 	pydict_set_item_string_decref(dict, "comm",
 			_PyUnicode_FromString(thread__comm_str(al->thread)));
-	set_sym_in_dict(dict, al, "dso", "symbol", "symoff");
+	set_sym_in_dict(dict, al, "dso", "dso_bid", "dso_map_start", "dso_map_end",
+			"symbol", "symoff");
 
 	pydict_set_item_string_decref(dict, "callchain", callchain);
 
@@ -856,7 +867,9 @@ static PyObject *get_perf_sample_dict(struct perf_sample *sample,
 	if (addr_al) {
 		pydict_set_item_string_decref(dict_sample, "addr_correlates_sym",
 			PyBool_FromLong(1));
-		set_sym_in_dict(dict_sample, addr_al, "addr_dso", "addr_symbol", "addr_symoff");
+		set_sym_in_dict(dict_sample, addr_al, "addr_dso", "addr_dso_bid",
+				"addr_dso_map_start", "addr_dso_map_end",
+				"addr_symbol", "addr_symoff");
 	}
 
 	if (sample->flags)

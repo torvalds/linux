@@ -244,7 +244,7 @@ static const struct of_device_id bcm_otpc_dt_ids[] = {
 };
 MODULE_DEVICE_TABLE(of, bcm_otpc_dt_ids);
 
-static const struct acpi_device_id bcm_otpc_acpi_ids[] = {
+static const struct acpi_device_id bcm_otpc_acpi_ids[] __maybe_unused = {
 	{ .id = "BRCM0700", .driver_data = (kernel_ulong_t)&otp_map },
 	{ .id = "BRCM0701", .driver_data = (kernel_ulong_t)&otp_map_v2 },
 	{ /* sentinel */ }

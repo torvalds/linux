@@ -251,6 +251,8 @@ struct stm32_usart_info stm32h7_info = {
 #define RX_BUF_P (RX_BUF_L / 2)	 /* dma rx buffer period     */
 #define TX_BUF_L RX_BUF_L	 /* dma tx buffer length     */
 
+#define STM32_USART_TIMEOUT_USEC USEC_PER_SEC /* 1s timeout in µs */
+
 struct stm32_port {
 	struct uart_port port;
 	struct clk *clk;
@@ -269,6 +271,7 @@ struct stm32_port {
 	bool hw_flow_control;
 	bool swap;		 /* swap RX & TX pins */
 	bool fifoen;
+	bool txdone;
 	int rxftcfg;		/* RX FIFO threshold CFG      */
 	int txftcfg;		/* TX FIFO threshold CFG      */
 	bool wakeup_src;

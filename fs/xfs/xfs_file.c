@@ -576,9 +576,9 @@ xfs_file_dio_write_unaligned(
 	 * don't even bother trying the fast path in this case.
 	 */
 	if (iocb->ki_pos > isize || iocb->ki_pos + count >= isize) {
-retry_exclusive:
 		if (iocb->ki_flags & IOCB_NOWAIT)
 			return -EAGAIN;
+retry_exclusive:
 		iolock = XFS_IOLOCK_EXCL;
 		flags = IOMAP_DIO_FORCE_WAIT;
 	}

@@ -14,21 +14,25 @@ description: |
 
 properties:
   compatible:
-    enum:
-      - invensense,iam20680
-      - invensense,icm20608
-      - invensense,icm20609
-      - invensense,icm20689
-      - invensense,icm20602
-      - invensense,icm20690
-      - invensense,mpu6000
-      - invensense,mpu6050
-      - invensense,mpu6500
-      - invensense,mpu6515
-      - invensense,mpu6880
-      - invensense,mpu9150
-      - invensense,mpu9250
-      - invensense,mpu9255
+    oneOf:
+      - enum:
+          - invensense,iam20680
+          - invensense,icm20608
+          - invensense,icm20609
+          - invensense,icm20689
+          - invensense,icm20602
+          - invensense,icm20690
+          - invensense,mpu6000
+          - invensense,mpu6050
+          - invensense,mpu6500
+          - invensense,mpu6515
+          - invensense,mpu6880
+          - invensense,mpu9150
+          - invensense,mpu9250
+          - invensense,mpu9255
+      - items:
+          - const: invensense,icm20608d
+          - const: invensense,icm20608
 
   reg:
     maxItems: 1

@@ -544,7 +544,7 @@ static int do_tls_getsockopt(struct sock *sk, int optname,
 		rc = do_tls_getsockopt_conf(sk, optval, optlen,
 					    optname == TLS_TX);
 		break;
-	case TLS_TX_ZEROCOPY_SENDFILE:
+	case TLS_TX_ZEROCOPY_RO:
 		rc = do_tls_getsockopt_tx_zc(sk, optval, optlen);
 		break;
 	default:
@@ -731,7 +731,7 @@ static int do_tls_setsockopt(struct sock *sk, int optname, sockptr_t optval,
 					    optname == TLS_TX);
 		release_sock(sk);
 		break;
-	case TLS_TX_ZEROCOPY_SENDFILE:
+	case TLS_TX_ZEROCOPY_RO:
 		lock_sock(sk);
 		rc = do_tls_setsockopt_tx_zc(sk, optval, optlen);
 		release_sock(sk);
@@ -921,6 +921,8 @@ static void tls_update(struct sock *sk, struct proto *p,
 {
 	struct tls_context *ctx;
 
+	WARN_ON_ONCE(sk->sk_prot == p);
+
 	ctx = tls_get_ctx(sk);
 	if (likely(ctx)) {
 		ctx->sk_write_space = write_space;
@@ -970,7 +972,7 @@ static int tls_get_info(const struct sock *sk, struct sk_buff *skb)
 		goto nla_failure;
 
 	if (ctx->tx_conf == TLS_HW && ctx->zerocopy_sendfile) {
-		err = nla_put_flag(skb, TLS_INFO_ZC_SENDFILE);
+		err = nla_put_flag(skb, TLS_INFO_ZC_RO_TX);
 		if (err)
 			goto nla_failure;
 	}
@@ -994,7 +996,7 @@ static size_t tls_get_info_size(const struct sock *sk)
 		nla_total_size(sizeof(u16)) +	/* TLS_INFO_CIPHER */
 		nla_total_size(sizeof(u16)) +	/* TLS_INFO_RXCONF */
 		nla_total_size(sizeof(u16)) +	/* TLS_INFO_TXCONF */
-		nla_total_size(0) +		/* TLS_INFO_ZC_SENDFILE */
+		nla_total_size(0) +		/* TLS_INFO_ZC_RO_TX */
 		0;
 
 	return size;

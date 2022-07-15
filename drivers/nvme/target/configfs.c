@@ -773,11 +773,31 @@ static ssize_t nvmet_passthru_io_timeout_store(struct config_item *item,
 }
 CONFIGFS_ATTR(nvmet_passthru_, io_timeout);
 
+static ssize_t nvmet_passthru_clear_ids_show(struct config_item *item,
+		char *page)
+{
+	return sprintf(page, "%u\n", to_subsys(item->ci_parent)->clear_ids);
+}
+
+static ssize_t nvmet_passthru_clear_ids_store(struct config_item *item,
+		const char *page, size_t count)
+{
+	struct nvmet_subsys *subsys = to_subsys(item->ci_parent);
+	unsigned int clear_ids;
+
+	if (kstrtouint(page, 0, &clear_ids))
+		return -EINVAL;
+	subsys->clear_ids = clear_ids;
+	return count;
+}
+CONFIGFS_ATTR(nvmet_passthru_, clear_ids);
+
 static struct configfs_attribute *nvmet_passthru_attrs[] = {
 	&nvmet_passthru_attr_device_path,
 	&nvmet_passthru_attr_enable,
 	&nvmet_passthru_attr_admin_timeout,
 	&nvmet_passthru_attr_io_timeout,
+	&nvmet_passthru_attr_clear_ids,
 	NULL,
 };
 

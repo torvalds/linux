@@ -42,6 +42,7 @@
 
 #include "soc15.h"
 #include "soc15_common.h"
+#include "soc21.h"
 
 static const struct amd_ip_funcs soc21_common_ip_funcs;
 

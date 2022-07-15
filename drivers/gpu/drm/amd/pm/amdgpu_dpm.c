@@ -770,6 +770,9 @@ enum amd_dpm_forced_level amdgpu_dpm_get_performance_level(struct amdgpu_device 
 	const struct amd_pm_funcs *pp_funcs = adev->powerplay.pp_funcs;
 	enum amd_dpm_forced_level level;
 
+	if (!pp_funcs)
+		return AMD_DPM_FORCED_LEVEL_AUTO;
+
 	mutex_lock(&adev->pm.mutex);
 	if (pp_funcs->get_performance_level)
 		level = pp_funcs->get_performance_level(adev->powerplay.pp_handle);

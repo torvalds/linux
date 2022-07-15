@@ -77,7 +77,7 @@ static ssize_t ad7303_write_dac_powerdown(struct iio_dev *indio_dev,
 	bool pwr_down;
 	int ret;
 
-	ret = strtobool(buf, &pwr_down);
+	ret = kstrtobool(buf, &pwr_down);
 	if (ret)
 		return ret;
 

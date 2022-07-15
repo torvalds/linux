@@ -975,7 +975,7 @@ static void nfc_release(struct device *d)
 			kfree(se);
 	}
 
-	ida_simple_remove(&nfc_index_ida, dev->idx);
+	ida_free(&nfc_index_ida, dev->idx);
 
 	kfree(dev);
 }
@@ -1066,7 +1066,7 @@ struct nfc_dev *nfc_allocate_device(const struct nfc_ops *ops,
 	if (!dev)
 		return NULL;
 
-	rc = ida_simple_get(&nfc_index_ida, 0, 0, GFP_KERNEL);
+	rc = ida_alloc(&nfc_index_ida, GFP_KERNEL);
 	if (rc < 0)
 		goto err_free_dev;
 	dev->idx = rc;

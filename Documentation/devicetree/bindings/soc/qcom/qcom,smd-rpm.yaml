@@ -47,6 +47,10 @@ properties:
       - qcom,rpm-qcm2290
       - qcom,rpm-qcs404
 
+  clock-controller:
+    $ref: /schemas/clock/qcom,rpmcc.yaml#
+    unevaluatedProperties: false
+
   qcom,smd-channels:
     $ref: /schemas/types.yaml#/definitions/string-array
     description: Channel name used for the RPM communication

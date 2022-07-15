@@ -71,6 +71,10 @@
 #define SUN6I_LOSC_OUT_GATING			0x0060
 #define SUN6I_LOSC_OUT_GATING_EN_OFFSET		0
 
+/* General-purpose data */
+#define SUN6I_GP_DATA				0x0100
+#define SUN6I_GP_DATA_SIZE			0x20
+
 /*
  * Get date values
  */
@@ -679,6 +683,39 @@ static const struct rtc_class_ops sun6i_rtc_ops = {
 	.alarm_irq_enable	= sun6i_rtc_alarm_irq_enable
 };
 
+static int sun6i_rtc_nvmem_read(void *priv, unsigned int offset, void *_val, size_t bytes)
+{
+	struct sun6i_rtc_dev *chip = priv;
+	u32 *val = _val;
+	int i;
+
+	for (i = 0; i < bytes / 4; ++i)
+		val[i] = readl(chip->base + SUN6I_GP_DATA + offset + 4 * i);
+
+	return 0;
+}
+
+static int sun6i_rtc_nvmem_write(void *priv, unsigned int offset, void *_val, size_t bytes)
+{
+	struct sun6i_rtc_dev *chip = priv;
+	u32 *val = _val;
+	int i;
+
+	for (i = 0; i < bytes / 4; ++i)
+		writel(val[i], chip->base + SUN6I_GP_DATA + offset + 4 * i);
+
+	return 0;
+}
+
+static struct nvmem_config sun6i_rtc_nvmem_cfg = {
+	.type		= NVMEM_TYPE_BATTERY_BACKED,
+	.reg_read	= sun6i_rtc_nvmem_read,
+	.reg_write	= sun6i_rtc_nvmem_write,
+	.size		= SUN6I_GP_DATA_SIZE,
+	.word_size	= 4,
+	.stride		= 4,
+};
+
 #ifdef CONFIG_PM_SLEEP
 /* Enable IRQ wake on suspend, to wake up from RTC. */
 static int sun6i_rtc_suspend(struct device *dev)
@@ -809,6 +846,11 @@ static int sun6i_rtc_probe(struct platform_device *pdev)
 		chip->rtc->range_max = 2019686399LL; /* 2033-12-31 23:59:59 */
 
 	ret = devm_rtc_register_device(chip->rtc);
+	if (ret)
+		return ret;
+
+	sun6i_rtc_nvmem_cfg.priv = chip;
+	ret = devm_rtc_nvmem_register(chip->rtc, &sun6i_rtc_nvmem_cfg);
 	if (ret)
 		return ret;
 

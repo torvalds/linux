@@ -50,9 +50,9 @@ Di conseguenza, nella tabella dei simboli del kernel ci sarà una voce
 rappresentata dalla struttura ``kernel_symbol`` che avrà il campo
 ``namespace`` (spazio dei nomi) impostato. Un simbolo esportato senza uno spazio
 dei nomi avrà questo campo impostato a ``NULL``. Non esiste uno spazio dei nomi
-di base. Il programma ``modpost`` e il codice in kernel/module.c usano lo spazio
-dei nomi, rispettivamente, durante la compilazione e durante il caricamento
-di un modulo.
+di base. Il programma ``modpost`` e il codice in kernel/module/main.c usano lo
+spazio dei nomi, rispettivamente, durante la compilazione e durante il
+caricamento di un modulo.
 
 2.2 Usare il simbolo di preprocessore DEFAULT_SYMBOL_NAMESPACE
 ==============================================================

@@ -27,6 +27,9 @@ properties:
   reg:
     maxItems: 1
 
+  clocks: true
+  clock-names: true
+
   interrupts:
     minItems: 3
     maxItems: 4

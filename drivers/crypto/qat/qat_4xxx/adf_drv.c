@@ -14,6 +14,7 @@
 
 static const struct pci_device_id adf_pci_tbl[] = {
 	{ PCI_VDEVICE(INTEL, ADF_4XXX_PCI_DEVICE_ID), },
+	{ PCI_VDEVICE(INTEL, ADF_401XX_PCI_DEVICE_ID), },
 	{ }
 };
 MODULE_DEVICE_TABLE(pci, adf_pci_tbl);
@@ -74,13 +75,6 @@ static int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
 	ret = adf_cfg_section_add(accel_dev, "Accelerator0");
 	if (ret)
 		goto err;
-
-	/* Temporarily set the number of crypto instances to zero to avoid
-	 * registering the crypto algorithms.
-	 * This will be removed when the algorithms will support the
-	 * CRYPTO_TFM_REQ_MAY_BACKLOG flag
-	 */
-	instances = 0;
 
 	for (i = 0; i < instances; i++) {
 		val = i;

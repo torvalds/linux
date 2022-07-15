@@ -896,7 +896,6 @@ static int otx2_cpt_aead_cbc_aes_sha_setkey(struct crypto_aead *cipher,
 	struct crypto_authenc_key_param *param;
 	int enckeylen = 0, authkeylen = 0;
 	struct rtattr *rta = (void *)key;
-	int status;
 
 	if (!RTA_OK(rta, keylen))
 		return -EINVAL;
@@ -938,11 +937,7 @@ static int otx2_cpt_aead_cbc_aes_sha_setkey(struct crypto_aead *cipher,
 	ctx->enc_key_len = enckeylen;
 	ctx->auth_key_len = authkeylen;
 
-	status = aead_hmac_init(cipher);
-	if (status)
-		return status;
-
-	return 0;
+	return aead_hmac_init(cipher);
 }
 
 static int otx2_cpt_aead_ecb_null_sha_setkey(struct crypto_aead *cipher,

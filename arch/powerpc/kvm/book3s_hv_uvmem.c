@@ -120,7 +120,7 @@ static DEFINE_SPINLOCK(kvmppc_uvmem_bitmap_lock);
  *	content is un-encrypted.
  *
  * (c) Normal - The GFN is a normal. The GFN is associated with
- *	a normal VM. The contents of the GFN is accesible to
+ *	a normal VM. The contents of the GFN is accessible to
  *	the Hypervisor. Its content is never encrypted.
  *
  * States of a VM.
@@ -361,13 +361,15 @@ static bool kvmppc_gfn_is_uvmem_pfn(unsigned long gfn, struct kvm *kvm,
 static bool kvmppc_next_nontransitioned_gfn(const struct kvm_memory_slot *memslot,
 		struct kvm *kvm, unsigned long *gfn)
 {
-	struct kvmppc_uvmem_slot *p;
+	struct kvmppc_uvmem_slot *p = NULL, *iter;
 	bool ret = false;
 	unsigned long i;
 
-	list_for_each_entry(p, &kvm->arch.uvmem_pfns, list)
-		if (*gfn >= p->base_pfn && *gfn < p->base_pfn + p->nr_pfns)
+	list_for_each_entry(iter, &kvm->arch.uvmem_pfns, list)
+		if (*gfn >= iter->base_pfn && *gfn < iter->base_pfn + iter->nr_pfns) {
+			p = iter;
 			break;
+		}
 	if (!p)
 		return ret;
 	/*

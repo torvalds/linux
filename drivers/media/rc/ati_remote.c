@@ -773,7 +773,7 @@ static int ati_remote_initialize(struct ati_remote *ati_remote)
 
 	/* Set up irq_urb */
 	pipe = usb_rcvintpipe(udev, ati_remote->endpoint_in->bEndpointAddress);
-	maxp = usb_maxpacket(udev, pipe, usb_pipeout(pipe));
+	maxp = usb_maxpacket(udev, pipe);
 	maxp = (maxp > DATA_BUFSIZE) ? DATA_BUFSIZE : maxp;
 
 	usb_fill_int_urb(ati_remote->irq_urb, udev, pipe, ati_remote->inbuf,
@@ -784,7 +784,7 @@ static int ati_remote_initialize(struct ati_remote *ati_remote)
 
 	/* Set up out_urb */
 	pipe = usb_sndintpipe(udev, ati_remote->endpoint_out->bEndpointAddress);
-	maxp = usb_maxpacket(udev, pipe, usb_pipeout(pipe));
+	maxp = usb_maxpacket(udev, pipe);
 	maxp = (maxp > DATA_BUFSIZE) ? DATA_BUFSIZE : maxp;
 
 	usb_fill_int_urb(ati_remote->out_urb, udev, pipe, ati_remote->outbuf,

@@ -1202,6 +1202,7 @@ static struct at_xdmac_desc *at_xdmac_memset_create_desc(struct dma_chan *chan,
 	unsigned long		flags;
 	size_t			ublen;
 	u32			dwidth;
+	char			pattern;
 	/*
 	 * WARNING: The channel configuration is set here since there is no
 	 * dmaengine_slave_config call in this case. Moreover we don't know the
@@ -1244,10 +1245,16 @@ static struct at_xdmac_desc *at_xdmac_memset_create_desc(struct dma_chan *chan,
 
 	chan_cc |= AT_XDMAC_CC_DWIDTH(dwidth);
 
+	/* Only the first byte of value is to be used according to dmaengine */
+	pattern = (char)value;
+
 	ublen = len >> dwidth;
 
 	desc->lld.mbr_da = dst_addr;
-	desc->lld.mbr_ds = value;
+	desc->lld.mbr_ds = (pattern << 24) |
+			   (pattern << 16) |
+			   (pattern << 8) |
+			   pattern;
 	desc->lld.mbr_ubc = AT_XDMAC_MBR_UBC_NDV3
 		| AT_XDMAC_MBR_UBC_NDEN
 		| AT_XDMAC_MBR_UBC_NSEN
@@ -1893,6 +1900,11 @@ static int at_xdmac_alloc_chan_resources(struct dma_chan *chan)
 	for (i = 0; i < init_nr_desc_per_channel; i++) {
 		desc = at_xdmac_alloc_desc(chan, GFP_KERNEL);
 		if (!desc) {
+			if (i == 0) {
+				dev_warn(chan2dev(chan),
+					 "can't allocate any descriptors\n");
+				return -EIO;
+			}
 			dev_warn(chan2dev(chan),
 				"only %d descriptors have been allocated\n", i);
 			break;

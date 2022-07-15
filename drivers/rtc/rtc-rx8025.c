@@ -436,7 +436,6 @@ static int rx8025_set_offset(struct device *dev, long offset)
 {
 	struct i2c_client *client = to_i2c_client(dev);
 	u8 digoff;
-	int err;
 
 	offset /= RX8025_ADJ_RESOLUTION;
 	if (offset > RX8025_ADJ_DATA_MAX)
@@ -449,11 +448,7 @@ static int rx8025_set_offset(struct device *dev, long offset)
 		offset += 128;
 	digoff = offset;
 
-	err = rx8025_write_reg(client, RX8025_REG_DIGOFF, digoff);
-	if (err)
-		return err;
-
-	return 0;
+	return rx8025_write_reg(client, RX8025_REG_DIGOFF, digoff);
 }
 
 static const struct rtc_class_ops rx8025_rtc_ops = {

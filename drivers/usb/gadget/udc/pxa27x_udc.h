@@ -326,7 +326,7 @@ struct udc_usb_ep {
  * @addr: usb endpoint number
  * @config: configuration in which this endpoint is active
  * @interface: interface in which this endpoint is active
- * @alternate: altsetting in which this endpoitn is active
+ * @alternate: altsetting in which this endpoint is active
  * @fifo_size: max packet size in the endpoint fifo
  * @type: endpoint type (bulk, iso, int, ...)
  * @udccsr_value: save register of UDCCSR0 for suspend/resume

@@ -16,8 +16,6 @@
 #include <linux/mtd/partitions.h>
 
 #include <asm/io.h>
-#include <mach/hardware.h>
-
 #include <asm/mach/flash.h>
 
 #define CACHELINESIZE	32

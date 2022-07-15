@@ -196,7 +196,9 @@ struct dso {
 		u32		 status_seen;
 		u64		 file_size;
 		struct list_head open_entry;
+		u64		 elf_base_addr;
 		u64		 debug_frame_offset;
+		u64		 eh_frame_hdr_addr;
 		u64		 eh_frame_hdr_offset;
 	} data;
 	/* bpf prog information */

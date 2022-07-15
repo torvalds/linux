@@ -1434,7 +1434,7 @@ static int pmcraid_notify_aen(
 		return -EINVAL;
 	}
 
-	/* send genetlink multicast message to notify appplications */
+	/* send genetlink multicast message to notify applications */
 	genlmsg_end(skb, msg_header);
 
 	result = genlmsg_multicast(&pmcraid_event_family, skb,
@@ -4031,7 +4031,7 @@ pmcraid_register_interrupt_handler(struct pmcraid_instance *pinstance)
 	return 0;
 
 out_unwind:
-	while (--i > 0)
+	while (--i >= 0)
 		free_irq(pci_irq_vector(pdev, i), &pinstance->hrrq_vector[i]);
 	pci_free_irq_vectors(pdev);
 	return rc;

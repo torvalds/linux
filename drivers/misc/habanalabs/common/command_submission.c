@@ -407,8 +407,7 @@ static void staged_cs_put(struct hl_device *hdev, struct hl_cs *cs)
 
 static void cs_handle_tdr(struct hl_device *hdev, struct hl_cs *cs)
 {
-	bool next_entry_found = false;
-	struct hl_cs *next, *first_cs;
+	struct hl_cs *next = NULL, *iter, *first_cs;
 
 	if (!cs_needs_timeout(cs))
 		return;
@@ -443,13 +442,13 @@ static void cs_handle_tdr(struct hl_device *hdev, struct hl_cs *cs)
 	spin_lock(&hdev->cs_mirror_lock);
 
 	/* queue TDR for next CS */
-	list_for_each_entry(next, &hdev->cs_mirror_list, mirror_node)
-		if (cs_needs_timeout(next)) {
-			next_entry_found = true;
+	list_for_each_entry(iter, &hdev->cs_mirror_list, mirror_node)
+		if (cs_needs_timeout(iter)) {
+			next = iter;
 			break;
 		}
 
-	if (next_entry_found && !next->tdr_active) {
+	if (next && !next->tdr_active) {
 		next->tdr_active = true;
 		schedule_delayed_work(&next->work_tdr, next->timeout_jiffies);
 	}
@@ -736,11 +735,10 @@ static void cs_timedout(struct work_struct *work)
 	hdev = cs->ctx->hdev;
 
 	/* Save only the first CS timeout parameters */
-	rc = atomic_cmpxchg(&hdev->last_error.cs_write_disable, 0, 1);
+	rc = atomic_cmpxchg(&hdev->last_error.cs_timeout.write_disable, 0, 1);
 	if (!rc) {
-		hdev->last_error.open_dev_timestamp = hdev->last_successful_open_ktime;
-		hdev->last_error.cs_timeout_timestamp = ktime_get();
-		hdev->last_error.cs_timeout_seq = cs->sequence;
+		hdev->last_error.cs_timeout.timestamp = ktime_get();
+		hdev->last_error.cs_timeout.seq = cs->sequence;
 	}
 
 	switch (cs->type) {
@@ -806,7 +804,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	}
 
 	/* increment refcnt for context */
-	hl_ctx_get(hdev, ctx);
+	hl_ctx_get(ctx);
 
 	cs->ctx = ctx;
 	cs->submitted = false;
@@ -958,9 +956,9 @@ wake_pending_user_interrupt_threads(struct hl_user_interrupt *interrupt)
 
 	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 	list_for_each_entry_safe(pend, temp, &interrupt->wait_list_head, wait_list_node) {
-		if (pend->ts_reg_info.ts_buff) {
+		if (pend->ts_reg_info.buf) {
 			list_del(&pend->wait_list_node);
-			hl_ts_put(pend->ts_reg_info.ts_buff);
+			hl_mmap_mem_buf_put(pend->ts_reg_info.buf);
 			hl_cb_put(pend->ts_reg_info.cq_cb);
 		} else {
 			pend->fence.error = -EIO;
@@ -1072,17 +1070,14 @@ static int validate_queue_index(struct hl_device *hdev,
 }
 
 static struct hl_cb *get_cb_from_cs_chunk(struct hl_device *hdev,
-					struct hl_cb_mgr *cb_mgr,
+					struct hl_mem_mgr *mmg,
 					struct hl_cs_chunk *chunk)
 {
 	struct hl_cb *cb;
-	u32 cb_handle;
 
-	cb_handle = (u32) (chunk->cb_handle >> PAGE_SHIFT);
-
-	cb = hl_cb_get(hdev, cb_mgr, cb_handle);
+	cb = hl_cb_get(mmg, chunk->cb_handle);
 	if (!cb) {
-		dev_err(hdev->dev, "CB handle 0x%x invalid\n", cb_handle);
+		dev_err(hdev->dev, "CB handle 0x%llx invalid\n", chunk->cb_handle);
 		return NULL;
 	}
 
@@ -1344,7 +1339,7 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		}
 
 		if (is_kernel_allocated_cb) {
-			cb = get_cb_from_cs_chunk(hdev, &hpriv->cb_mgr, chunk);
+			cb = get_cb_from_cs_chunk(hdev, &hpriv->mem_mgr, chunk);
 			if (!cb) {
 				atomic64_inc(
 					&ctx->cs_counters.validation_drop_cnt);
@@ -1772,7 +1767,7 @@ static int cs_ioctl_signal_wait_create_jobs(struct hl_device *hdev,
 	 */
 	job->patched_cb = job->user_cb;
 	job->job_cb_size = job->user_cb_size;
-	hl_cb_destroy(hdev, &hdev->kernel_cb_mgr, cb->id << PAGE_SHIFT);
+	hl_cb_destroy(&hdev->kernel_mem_mgr, cb->buf->handle);
 
 	/* increment refcount as for external queues we get completion */
 	cs_get(cs);
@@ -1834,7 +1829,7 @@ static int cs_ioctl_reserve_signals(struct hl_fpriv *hpriv,
 
 	handle->count = count;
 
-	hl_ctx_get(hdev, hpriv->ctx);
+	hl_ctx_get(hpriv->ctx);
 	handle->ctx = hpriv->ctx;
 	mgr = &hpriv->ctx->sig_mgr;
 
@@ -2528,7 +2523,7 @@ static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	if (timestamp)
 		*timestamp = 0;
 
-	hl_ctx_get(hdev, ctx);
+	hl_ctx_get(ctx);
 
 	fence = hl_ctx_get_fence(ctx, seq);
 
@@ -2668,7 +2663,7 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 {
 	struct multi_cs_completion *mcs_compl;
 	struct hl_device *hdev = hpriv->hdev;
-	struct multi_cs_data mcs_data = {0};
+	struct multi_cs_data mcs_data = {};
 	union hl_wait_cs_args *args = data;
 	struct hl_ctx *ctx = hpriv->ctx;
 	struct hl_fence **fence_arr;
@@ -2719,7 +2714,7 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	mcs_data.fence_arr = fence_arr;
 	mcs_data.arr_len = seq_arr_len;
 
-	hl_ctx_get(hdev, ctx);
+	hl_ctx_get(ctx);
 
 	/* wait (with timeout) for the first CS to be completed */
 	mcs_data.timeout_jiffies = hl_usecs64_to_jiffies(args->in.timeout_us);
@@ -2868,12 +2863,13 @@ static int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	return 0;
 }
 
-static int ts_buff_get_kernel_ts_record(struct hl_ts_buff *ts_buff,
+static int ts_buff_get_kernel_ts_record(struct hl_mmap_mem_buf *buf,
 					struct hl_cb *cq_cb,
 					u64 ts_offset, u64 cq_offset, u64 target_value,
 					spinlock_t *wait_list_lock,
 					struct hl_user_pending_interrupt **pend)
 {
+	struct hl_ts_buff *ts_buff = buf->private;
 	struct hl_user_pending_interrupt *requested_offset_record =
 				(struct hl_user_pending_interrupt *)ts_buff->kernel_buff_address +
 				ts_offset;
@@ -2885,7 +2881,7 @@ static int ts_buff_get_kernel_ts_record(struct hl_ts_buff *ts_buff,
 
 	/* Validate ts_offset not exceeding last max */
 	if (requested_offset_record > cb_last) {
-		dev_err(ts_buff->hdev->dev, "Ts offset exceeds max CB offset(0x%llx)\n",
+		dev_err(buf->mmg->dev, "Ts offset exceeds max CB offset(0x%llx)\n",
 								(u64)(uintptr_t)cb_last);
 		return -EINVAL;
 	}
@@ -2904,18 +2900,21 @@ start_over:
 			list_del(&requested_offset_record->wait_list_node);
 			spin_unlock_irqrestore(wait_list_lock, flags);
 
-			hl_ts_put(requested_offset_record->ts_reg_info.ts_buff);
+			hl_mmap_mem_buf_put(requested_offset_record->ts_reg_info.buf);
 			hl_cb_put(requested_offset_record->ts_reg_info.cq_cb);
 
-			dev_dbg(ts_buff->hdev->dev, "ts node removed from interrupt list now can re-use\n");
+			dev_dbg(buf->mmg->dev,
+				"ts node removed from interrupt list now can re-use\n");
 		} else {
-			dev_dbg(ts_buff->hdev->dev, "ts node in middle of irq handling\n");
+			dev_dbg(buf->mmg->dev,
+				"ts node in middle of irq handling\n");
 
 			/* irq handling in the middle give it time to finish */
 			spin_unlock_irqrestore(wait_list_lock, flags);
 			usleep_range(1, 10);
 			if (++iter_counter == MAX_TS_ITER_NUM) {
-				dev_err(ts_buff->hdev->dev, "handling registration interrupt took too long!!\n");
+				dev_err(buf->mmg->dev,
+					"handling registration interrupt took too long!!\n");
 				return -EINVAL;
 			}
 
@@ -2927,7 +2926,7 @@ start_over:
 
 	/* Fill up the new registration node info */
 	requested_offset_record->ts_reg_info.in_use = 1;
-	requested_offset_record->ts_reg_info.ts_buff = ts_buff;
+	requested_offset_record->ts_reg_info.buf = buf;
 	requested_offset_record->ts_reg_info.cq_cb = cq_cb;
 	requested_offset_record->ts_reg_info.timestamp_kernel_addr =
 			(u64 *) ts_buff->user_buff_address + ts_offset;
@@ -2937,21 +2936,20 @@ start_over:
 
 	*pend = requested_offset_record;
 
-	dev_dbg(ts_buff->hdev->dev, "Found available node in TS kernel CB(0x%llx)\n",
+	dev_dbg(buf->mmg->dev, "Found available node in TS kernel CB(0x%llx)\n",
 						(u64)(uintptr_t)requested_offset_record);
 	return 0;
 }
 
 static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
-				struct hl_cb_mgr *cb_mgr, struct hl_ts_mgr *ts_mgr,
+				struct hl_mem_mgr *cb_mmg, struct hl_mem_mgr *mmg,
 				u64 timeout_us, u64 cq_counters_handle,	u64 cq_counters_offset,
 				u64 target_value, struct hl_user_interrupt *interrupt,
 				bool register_ts_record, u64 ts_handle, u64 ts_offset,
 				u32 *status, u64 *timestamp)
 {
-	u32 cq_patched_handle, ts_patched_handle;
 	struct hl_user_pending_interrupt *pend;
-	struct hl_ts_buff *ts_buff;
+	struct hl_mmap_mem_buf *buf;
 	struct hl_cb *cq_cb;
 	unsigned long timeout, flags;
 	long completion_rc;
@@ -2959,10 +2957,9 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 
 	timeout = hl_usecs64_to_jiffies(timeout_us);
 
-	hl_ctx_get(hdev, ctx);
+	hl_ctx_get(ctx);
 
-	cq_patched_handle = lower_32_bits(cq_counters_handle >> PAGE_SHIFT);
-	cq_cb = hl_cb_get(hdev, cb_mgr, cq_patched_handle);
+	cq_cb = hl_cb_get(cb_mmg, cq_counters_handle);
 	if (!cq_cb) {
 		rc = -EINVAL;
 		goto put_ctx;
@@ -2971,16 +2968,14 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	if (register_ts_record) {
 		dev_dbg(hdev->dev, "Timestamp registration: interrupt id: %u, ts offset: %llu, cq_offset: %llu\n",
 					interrupt->interrupt_id, ts_offset, cq_counters_offset);
-
-		ts_patched_handle = lower_32_bits(ts_handle >> PAGE_SHIFT);
-		ts_buff = hl_ts_get(hdev, ts_mgr, ts_patched_handle);
-		if (!ts_buff) {
+		buf = hl_mmap_mem_buf_get(mmg, ts_handle);
+		if (!buf) {
 			rc = -EINVAL;
 			goto put_cq_cb;
 		}
 
 		/* Find first available record */
-		rc = ts_buff_get_kernel_ts_record(ts_buff, cq_cb, ts_offset,
+		rc = ts_buff_get_kernel_ts_record(buf, cq_cb, ts_offset,
 						cq_counters_offset, target_value,
 						&interrupt->wait_list_lock, &pend);
 		if (rc)
@@ -3087,7 +3082,7 @@ ts_registration_exit:
 	return rc;
 
 put_ts_buff:
-	hl_ts_put(ts_buff);
+	hl_mmap_mem_buf_put(buf);
 put_cq_cb:
 	hl_cb_put(cq_cb);
 put_ctx:
@@ -3111,7 +3106,7 @@ static int _hl_interrupt_wait_ioctl_user_addr(struct hl_device *hdev, struct hl_
 
 	timeout = hl_usecs64_to_jiffies(timeout_us);
 
-	hl_ctx_get(hdev, ctx);
+	hl_ctx_get(ctx);
 
 	pend = kzalloc(sizeof(*pend), GFP_KERNEL);
 	if (!pend) {
@@ -3249,7 +3244,7 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		interrupt = &hdev->user_interrupt[interrupt_id - first_interrupt];
 
 	if (args->in.flags & HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ)
-		rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx, &hpriv->cb_mgr, &hpriv->ts_mem_mgr,
+		rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx, &hpriv->mem_mgr, &hpriv->mem_mgr,
 				args->in.interrupt_timeout_us, args->in.cq_counters_handle,
 				args->in.cq_counters_offset,
 				args->in.target, interrupt,

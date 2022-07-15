@@ -591,7 +591,6 @@ qla25xx_free_req_que(struct scsi_qla_host *vha, struct req_que *req)
 	}
 	kfree(req->outstanding_cmds);
 	kfree(req);
-	req = NULL;
 }
 
 static void
@@ -617,7 +616,6 @@ qla25xx_free_rsp_que(struct scsi_qla_host *vha, struct rsp_que *rsp)
 		mutex_unlock(&ha->vport_lock);
 	}
 	kfree(rsp);
-	rsp = NULL;
 }
 
 int

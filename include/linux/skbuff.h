@@ -2696,7 +2696,14 @@ void *skb_pull(struct sk_buff *skb, unsigned int len);
 static inline void *__skb_pull(struct sk_buff *skb, unsigned int len)
 {
 	skb->len -= len;
-	BUG_ON(skb->len < skb->data_len);
+	if (unlikely(skb->len < skb->data_len)) {
+#if defined(CONFIG_DEBUG_NET)
+		skb->len += len;
+		pr_err("__skb_pull(len=%u)\n", len);
+		skb_dump(KERN_ERR, skb, false);
+#endif
+		BUG();
+	}
 	return skb->data += len;
 }
 

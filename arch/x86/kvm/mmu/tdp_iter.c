@@ -146,6 +146,15 @@ static bool try_step_up(struct tdp_iter *iter)
 }
 
 /*
+ * Step the iterator back up a level in the paging structure. Should only be
+ * used when the iterator is below the root level.
+ */
+void tdp_iter_step_up(struct tdp_iter *iter)
+{
+	WARN_ON(!try_step_up(iter));
+}
+
+/*
  * Step to the next SPTE in a pre-order traversal of the paging structure.
  * To get to the next SPTE, the iterator either steps down towards the goal
  * GFN, if at a present, non-last-level SPTE, or over to a SPTE mapping a

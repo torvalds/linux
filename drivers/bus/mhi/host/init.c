@@ -86,7 +86,7 @@ static ssize_t serial_number_show(struct device *dev,
 	struct mhi_device *mhi_dev = to_mhi_device(dev);
 	struct mhi_controller *mhi_cntrl = mhi_dev->mhi_cntrl;
 
-	return snprintf(buf, PAGE_SIZE, "Serial Number: %u\n",
+	return sysfs_emit(buf, "Serial Number: %u\n",
 			mhi_cntrl->serial_number);
 }
 static DEVICE_ATTR_RO(serial_number);
@@ -100,17 +100,30 @@ static ssize_t oem_pk_hash_show(struct device *dev,
 	int i, cnt = 0;
 
 	for (i = 0; i < ARRAY_SIZE(mhi_cntrl->oem_pk_hash); i++)
-		cnt += snprintf(buf + cnt, PAGE_SIZE - cnt,
-				"OEMPKHASH[%d]: 0x%x\n", i,
-				mhi_cntrl->oem_pk_hash[i]);
+		cnt += sysfs_emit_at(buf, cnt, "OEMPKHASH[%d]: 0x%x\n",
+				i, mhi_cntrl->oem_pk_hash[i]);
 
 	return cnt;
 }
 static DEVICE_ATTR_RO(oem_pk_hash);
 
+static ssize_t soc_reset_store(struct device *dev,
+			       struct device_attribute *attr,
+			       const char *buf,
+			       size_t count)
+{
+	struct mhi_device *mhi_dev = to_mhi_device(dev);
+	struct mhi_controller *mhi_cntrl = mhi_dev->mhi_cntrl;
+
+	mhi_soc_reset(mhi_cntrl);
+	return count;
+}
+static DEVICE_ATTR_WO(soc_reset);
+
 static struct attribute *mhi_dev_attrs[] = {
 	&dev_attr_serial_number.attr,
 	&dev_attr_oem_pk_hash.attr,
+	&dev_attr_soc_reset.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(mhi_dev);
@@ -425,74 +438,65 @@ int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 	struct device *dev = &mhi_cntrl->mhi_dev->dev;
 	struct {
 		u32 offset;
-		u32 mask;
 		u32 val;
 	} reg_info[] = {
 		{
-			CCABAP_HIGHER, U32_MAX,
+			CCABAP_HIGHER,
 			upper_32_bits(mhi_cntrl->mhi_ctxt->chan_ctxt_addr),
 		},
 		{
-			CCABAP_LOWER, U32_MAX,
+			CCABAP_LOWER,
 			lower_32_bits(mhi_cntrl->mhi_ctxt->chan_ctxt_addr),
 		},
 		{
-			ECABAP_HIGHER, U32_MAX,
+			ECABAP_HIGHER,
 			upper_32_bits(mhi_cntrl->mhi_ctxt->er_ctxt_addr),
 		},
 		{
-			ECABAP_LOWER, U32_MAX,
+			ECABAP_LOWER,
 			lower_32_bits(mhi_cntrl->mhi_ctxt->er_ctxt_addr),
 		},
 		{
-			CRCBAP_HIGHER, U32_MAX,
+			CRCBAP_HIGHER,
 			upper_32_bits(mhi_cntrl->mhi_ctxt->cmd_ctxt_addr),
 		},
 		{
-			CRCBAP_LOWER, U32_MAX,
+			CRCBAP_LOWER,
 			lower_32_bits(mhi_cntrl->mhi_ctxt->cmd_ctxt_addr),
 		},
 		{
-			MHICFG, MHICFG_NER_MASK,
-			mhi_cntrl->total_ev_rings,
-		},
-		{
-			MHICFG, MHICFG_NHWER_MASK,
-			mhi_cntrl->hw_ev_rings,
-		},
-		{
-			MHICTRLBASE_HIGHER, U32_MAX,
+			MHICTRLBASE_HIGHER,
 			upper_32_bits(mhi_cntrl->iova_start),
 		},
 		{
-			MHICTRLBASE_LOWER, U32_MAX,
+			MHICTRLBASE_LOWER,
 			lower_32_bits(mhi_cntrl->iova_start),
 		},
 		{
-			MHIDATABASE_HIGHER, U32_MAX,
+			MHIDATABASE_HIGHER,
 			upper_32_bits(mhi_cntrl->iova_start),
 		},
 		{
-			MHIDATABASE_LOWER, U32_MAX,
+			MHIDATABASE_LOWER,
 			lower_32_bits(mhi_cntrl->iova_start),
 		},
 		{
-			MHICTRLLIMIT_HIGHER, U32_MAX,
+			MHICTRLLIMIT_HIGHER,
 			upper_32_bits(mhi_cntrl->iova_stop),
 		},
 		{
-			MHICTRLLIMIT_LOWER, U32_MAX,
+			MHICTRLLIMIT_LOWER,
 			lower_32_bits(mhi_cntrl->iova_stop),
 		},
 		{
-			MHIDATALIMIT_HIGHER, U32_MAX,
+			MHIDATALIMIT_HIGHER,
 			upper_32_bits(mhi_cntrl->iova_stop),
 		},
 		{
-			MHIDATALIMIT_LOWER, U32_MAX,
+			MHIDATALIMIT_LOWER,
 			lower_32_bits(mhi_cntrl->iova_stop),
 		},
-		{ 0, 0, 0 }
+		{0, 0}
 	};
 
 	dev_dbg(dev, "Initializing MHI registers\n");
@@ -534,8 +538,22 @@ int mhi_init_mmio(struct mhi_controller *mhi_cntrl)
 
 	/* Write to MMIO registers */
 	for (i = 0; reg_info[i].offset; i++)
-		mhi_write_reg_field(mhi_cntrl, base, reg_info[i].offset,
-				    reg_info[i].mask, reg_info[i].val);
+		mhi_write_reg(mhi_cntrl, base, reg_info[i].offset,
+			      reg_info[i].val);
+
+	ret = mhi_write_reg_field(mhi_cntrl, base, MHICFG, MHICFG_NER_MASK,
+				  mhi_cntrl->total_ev_rings);
+	if (ret) {
+		dev_err(dev, "Unable to write MHICFG register\n");
+		return ret;
+	}
+
+	ret = mhi_write_reg_field(mhi_cntrl, base, MHICFG, MHICFG_NHWER_MASK,
+				  mhi_cntrl->hw_ev_rings);
+	if (ret) {
+		dev_err(dev, "Unable to write MHICFG register\n");
+		return ret;
+	}
 
 	return 0;
 }
@@ -1103,8 +1121,15 @@ int mhi_prepare_for_power_up(struct mhi_controller *mhi_cntrl)
 		 */
 		mhi_alloc_bhie_table(mhi_cntrl, &mhi_cntrl->rddm_image,
 				     mhi_cntrl->rddm_size);
-		if (mhi_cntrl->rddm_image)
-			mhi_rddm_prepare(mhi_cntrl, mhi_cntrl->rddm_image);
+		if (mhi_cntrl->rddm_image) {
+			ret = mhi_rddm_prepare(mhi_cntrl,
+					       mhi_cntrl->rddm_image);
+			if (ret) {
+				mhi_free_bhie_table(mhi_cntrl,
+						    mhi_cntrl->rddm_image);
+				goto error_reg_offset;
+			}
+		}
 	}
 
 	mutex_unlock(&mhi_cntrl->pm_mutex);
