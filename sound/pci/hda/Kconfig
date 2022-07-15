@@ -103,7 +103,7 @@ config SND_HDA_CS_DSP_CONTROLS
 config SND_HDA_SCODEC_CS35L41_I2C
 	tristate "Build CS35L41 HD-audio side codec support for I2C Bus"
 	depends on I2C
-	depends on ACPI || COMPILE_TEST
+	depends on ACPI
 	depends on SND_SOC
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
@@ -118,7 +118,7 @@ comment "Set to Y if you want auto-loading the side codec driver"
 config SND_HDA_SCODEC_CS35L41_SPI
 	tristate "Build CS35L41 HD-audio codec support for SPI Bus"
 	depends on SPI_MASTER
-	depends on ACPI || COMPILE_TEST
+	depends on ACPI
 	depends on SND_SOC
 	select SND_SOC_CS35L41_LIB
 	select SND_HDA_SCODEC_CS35L41
