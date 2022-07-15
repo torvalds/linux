@@ -49,7 +49,6 @@ enum btrfs_chunk_alloc_enum {
 /* Block group flags set at runtime */
 enum btrfs_block_group_flags {
 	BLOCK_GROUP_FLAG_IREF,
-	BLOCK_GROUP_FLAG_HAS_CACHING_CTL,
 	BLOCK_GROUP_FLAG_REMOVED,
 	BLOCK_GROUP_FLAG_TO_COPY,
 	BLOCK_GROUP_FLAG_RELOCATING_REPAIR,
