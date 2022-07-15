@@ -3910,7 +3910,7 @@ cache_index:
 	 * cache.
 	 *
 	 * This is required for both inode re-read from disk and delayed inode
-	 * in the delayed_nodes xarray.
+	 * in delayed_nodes_tree.
 	 */
 	if (BTRFS_I(inode)->last_trans == fs_info->generation)
 		set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,
