@@ -1721,10 +1721,6 @@ void kvm_tdp_mmu_clear_dirty_pt_masked(struct kvm *kvm,
 		clear_dirty_pt_masked(kvm, root, gfn, mask, wrprot);
 }
 
-/*
- * Clear leaf entries which could be replaced by large mappings, for
- * GFNs within the slot.
- */
 static void zap_collapsible_spte_range(struct kvm *kvm,
 				       struct kvm_mmu_page *root,
 				       const struct kvm_memory_slot *slot)
@@ -1736,48 +1732,49 @@ static void zap_collapsible_spte_range(struct kvm *kvm,
 
 	rcu_read_lock();
 
-	tdp_root_for_each_pte(iter, root, start, end) {
+	for_each_tdp_pte_min_level(iter, root, PG_LEVEL_2M, start, end) {
+retry:
 		if (tdp_mmu_iter_cond_resched(kvm, &iter, false, true))
 			continue;
 
-		if (!is_shadow_present_pte(iter.old_spte) ||
-		    !is_last_spte(iter.old_spte, iter.level))
+		if (iter.level > KVM_MAX_HUGEPAGE_LEVEL ||
+		    !is_shadow_present_pte(iter.old_spte))
+			continue;
+
+		/*
+		 * Don't zap leaf SPTEs, if a leaf SPTE could be replaced with
+		 * a large page size, then its parent would have been zapped
+		 * instead of stepping down.
+		 */
+		if (is_last_spte(iter.old_spte, iter.level))
+			continue;
+
+		/*
+		 * If iter.gfn resides outside of the slot, i.e. the page for
+		 * the current level overlaps but is not contained by the slot,
+		 * then the SPTE can't be made huge.  More importantly, trying
+		 * to query that info from slot->arch.lpage_info will cause an
+		 * out-of-bounds access.
+		 */
+		if (iter.gfn < start || iter.gfn >= end)
 			continue;
 
 		max_mapping_level = kvm_mmu_max_mapping_level(kvm, slot,
 							      iter.gfn, PG_LEVEL_NUM);
-
-		WARN_ON(max_mapping_level < iter.level);
-
-		/*
-		 * If this page is already mapped at the highest
-		 * viable level, there's nothing more to do.
-		 */
-		if (max_mapping_level == iter.level)
+		if (max_mapping_level < iter.level)
 			continue;
 
-		/*
-		 * The page can be remapped at a higher level, so step
-		 * up to zap the parent SPTE.
-		 */
-		while (max_mapping_level > iter.level)
-			tdp_iter_step_up(&iter);
-
 		/* Note, a successful atomic zap also does a remote TLB flush. */
-		tdp_mmu_zap_spte_atomic(kvm, &iter);
-
-		/*
-		 * If the atomic zap fails, the iter will recurse back into
-		 * the same subtree to retry.
-		 */
+		if (tdp_mmu_zap_spte_atomic(kvm, &iter))
+			goto retry;
 	}
 
 	rcu_read_unlock();
 }
 
 /*
- * Clear non-leaf entries (and free associated page tables) which could
- * be replaced by large mappings, for GFNs within the slot.
+ * Zap non-leaf SPTEs (and free their associated page tables) which could
+ * be replaced by huge pages, for GFNs within the slot.
  */
 void kvm_tdp_mmu_zap_collapsible_sptes(struct kvm *kvm,
 				       const struct kvm_memory_slot *slot)
