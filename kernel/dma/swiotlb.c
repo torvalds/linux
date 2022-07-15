@@ -88,6 +88,20 @@ struct io_tlb_area {
 	spinlock_t lock;
 };
 
+/*
+ * Round up number of slabs to the next power of 2. The last area is going
+ * be smaller than the rest if default_nslabs is not power of two.
+ *
+ * Return true if default_nslabs is rounded up.
+ */
+static bool round_up_default_nslabs(void)
+{
+	if (!default_nareas || is_power_of_2(default_nslabs))
+		return false;
+	default_nslabs = roundup_pow_of_two(default_nslabs);
+	return true;
+}
+
 static void swiotlb_adjust_nareas(unsigned int nareas)
 {
 	if (!is_power_of_2(nareas))
@@ -96,16 +110,9 @@ static void swiotlb_adjust_nareas(unsigned int nareas)
 	default_nareas = nareas;
 
 	pr_info("area num %d.\n", nareas);
-	/*
-	 * Round up number of slabs to the next power of 2.
-	 * The last area is going be smaller than the rest if
-	 * default_nslabs is not power of two.
-	 */
-	if (nareas && !is_power_of_2(default_nslabs)) {
-		default_nslabs = roundup_pow_of_two(default_nslabs);
+	if (round_up_default_nslabs())
 		pr_info("SWIOTLB bounce buffer size roundup to %luMB",
 			(default_nslabs << IO_TLB_SHIFT) >> 20);
-	}
 }
 
 static int __init
@@ -154,18 +161,10 @@ void __init swiotlb_adjust_size(unsigned long size)
 	if (default_nslabs != IO_TLB_DEFAULT_SIZE >> IO_TLB_SHIFT)
 		return;
 
-	/*
-	 * Round up number of slabs to the next power of 2.
-	 * The last area is going be smaller than the rest if
-	 * default_nslabs is not power of two.
-	 */
 	size = ALIGN(size, IO_TLB_SIZE);
 	default_nslabs = ALIGN(size >> IO_TLB_SHIFT, IO_TLB_SEGSIZE);
-	if (default_nareas) {
-		default_nslabs = roundup_pow_of_two(default_nslabs);
+	if (round_up_default_nslabs())
 		size = default_nslabs << IO_TLB_SHIFT;
-	}
-
 	pr_info("SWIOTLB bounce buffer size adjusted to %luMB", size >> 20);
 }
 
