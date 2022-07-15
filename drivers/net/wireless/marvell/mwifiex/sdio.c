@@ -1549,7 +1549,7 @@ done:
 /*
  * This function decode sdio aggreation pkt.
  *
- * Based on the the data block size and pkt_len,
+ * Based on the data block size and pkt_len,
  * skb data will be decoded to few packets.
  */
 static void mwifiex_deaggr_sdio_pkt(struct mwifiex_adapter *adapter,
