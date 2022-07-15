@@ -793,7 +793,6 @@ struct rkcif_device {
 	struct rkcif_irq_stats		irq_stats;
 	spinlock_t			hdr_lock; /* lock for hdr buf sync */
 	struct rkcif_timer		reset_watchdog_timer;
-	struct notifier_block		reset_notifier; /* reset for mipi csi crc err */
 	struct rkcif_work_struct	reset_work;
 	int				id_use_cnt;
 	unsigned int			csi_host_idx;

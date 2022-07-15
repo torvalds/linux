@@ -19,6 +19,7 @@
 #include <media/v4l2-ioctl.h>
 #include "mipi-csi2.h"
 #include <linux/rkcif-config.h>
+#include <linux/regulator/consumer.h>
 
 static int csi2_debug;
 module_param_named(debug_csi2, csi2_debug, int, 0644);
@@ -378,6 +379,7 @@ static int csi2_media_init(struct v4l2_subdev *sd)
 	csi2->crop.left = 0;
 	csi2->crop.width = RKCIF_DEFAULT_WIDTH;
 	csi2->crop.height = RKCIF_DEFAULT_HEIGHT;
+	csi2->csi_idx = 0;
 
 	return media_entity_pads_init(&sd->entity, num_pads, csi2->pad);
 }
@@ -562,10 +564,55 @@ static int rkcif_csi2_s_power(struct v4l2_subdev *sd, int on)
 	return 0;
 }
 
+static long rkcif_csi2_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
+{
+	struct csi2_dev *csi2 = sd_to_dev(sd);
+	long ret = 0;
+
+	switch (cmd) {
+	case RKCIF_CMD_SET_CSI_IDX:
+		csi2->csi_idx = *((u32 *)arg);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+
+#ifdef CONFIG_COMPAT
+static long rkcif_csi2_compat_ioctl32(struct v4l2_subdev *sd,
+				      unsigned int cmd, unsigned long arg)
+{
+	void __user *up = compat_ptr(arg);
+	u32 csi_idx = 0;
+	long ret;
+
+	switch (cmd) {
+	case RKCIF_CMD_SET_CSI_IDX:
+		if (copy_from_user(&csi_idx, up, sizeof(u32)))
+			return -EFAULT;
+
+		ret = rkcif_csi2_ioctl(sd, cmd, &csi_idx);
+		break;
+	default:
+		ret = -ENOIOCTLCMD;
+		break;
+	}
+
+	return ret;
+}
+#endif
+
 static const struct v4l2_subdev_core_ops csi2_core_ops = {
 	.subscribe_event = rkcif_csi2_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 	.s_power = rkcif_csi2_s_power,
+	.ioctl = rkcif_csi2_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl32 = rkcif_csi2_compat_ioctl32,
+#endif
 };
 
 static const struct v4l2_subdev_video_ops csi2_video_ops = {
@@ -765,7 +812,7 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 
 		atomic_notifier_call_chain(&g_csi_host_chain,
 					   err_stat,
-					   NULL);
+					   &csi2->csi_idx);
 
 	}
 

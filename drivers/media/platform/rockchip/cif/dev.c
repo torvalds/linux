@@ -1420,6 +1420,12 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 
 	if (!completion_done(&dev->cmpl_ntf))
 		complete(&dev->cmpl_ntf);
+	ret = v4l2_subdev_call(dev->active_sensor->sd,
+			       core, ioctl,
+			       RKCIF_CMD_SET_CSI_IDX,
+			       &dev->csi_host_idx);
+	if (ret)
+		v4l2_err(&dev->v4l2_dev, "set csi idx %d fail\n", dev->csi_host_idx);
 	v4l2_info(&dev->v4l2_dev, "Async subdev notifier completed\n");
 
 	return ret;
@@ -1682,7 +1688,6 @@ static int rkcif_detach_hw(struct rkcif_device *cif_dev)
 static void rkcif_init_reset_monitor(struct rkcif_device *dev)
 {
 	struct rkcif_timer *timer = &dev->reset_watchdog_timer;
-	struct notifier_block *notifier = &dev->reset_notifier;
 
 #if defined(CONFIG_ROCKCHIP_CIF_USE_MONITOR)
 	timer->monitor_mode = CONFIG_ROCKCHIP_CIF_MONITOR_MODE;
@@ -1714,9 +1719,6 @@ static void rkcif_init_reset_monitor(struct rkcif_device *dev)
 
 	timer_setup(&timer->timer, rkcif_reset_watchdog_timer_handler, 0);
 
-	notifier->priority = 1;
-	notifier->notifier_call = rkcif_reset_notifier;
-	rkcif_csi2_register_notifier(notifier);
 	INIT_WORK(&dev->reset_work.work, rkcif_reset_work);
 }
 
@@ -1957,7 +1959,6 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 	rkcif_plat_uninit(cif_dev);
 	rkcif_detach_hw(cif_dev);
 	rkcif_proc_cleanup(cif_dev);
-	rkcif_csi2_unregister_notifier(&cif_dev->reset_notifier);
 	sysfs_remove_group(&pdev->dev.kobj, &dev_attr_grp);
 	del_timer_sync(&cif_dev->reset_watchdog_timer.timer);
 

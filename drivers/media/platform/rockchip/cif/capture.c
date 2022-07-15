@@ -7610,10 +7610,24 @@ void rkcif_reset_watchdog_timer_handler(struct timer_list *t)
 int rkcif_reset_notifier(struct notifier_block *nb,
 			 unsigned long action, void *data)
 {
-	struct rkcif_device *dev = container_of(nb, struct rkcif_device, reset_notifier);
-	struct rkcif_timer *timer = &dev->reset_watchdog_timer;
+	struct rkcif_hw *hw = container_of(nb, struct rkcif_hw, reset_notifier);
+	struct rkcif_device *dev = NULL;
+	struct rkcif_timer *timer = NULL;
 	unsigned long flags, val;
+	u32 *csi_idx = data;
+	int i = 0;
+	bool is_match_dev = false;
 
+	for (i = 0; i < hw->dev_num; i++) {
+		dev = hw->cif_dev[i];
+		if (*csi_idx == dev->csi_host_idx) {
+			is_match_dev = true;
+			break;
+		}
+	}
+	if (!is_match_dev)
+		return -EINVAL;
+	timer = &dev->reset_watchdog_timer;
 	if (timer->is_running) {
 		val = action & CSI2_ERR_COUNT_ALL_MASK;
 		spin_lock_irqsave(&timer->csi2_err_lock, flags);

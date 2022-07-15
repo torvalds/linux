@@ -1145,6 +1145,7 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 	struct resource *res;
 	int i, ret, irq;
 	bool is_mem_reserved = false;
+	struct notifier_block *notifier;
 
 	match = of_match_node(rkcif_plat_of_match, node);
 	if (IS_ERR(match))
@@ -1280,6 +1281,11 @@ static int rkcif_plat_hw_probe(struct platform_device *pdev)
 		platform_driver_register(&rkcif_subdev_driver);
 	}
 
+	notifier = &cif_hw->reset_notifier;
+	notifier->priority = 1;
+	notifier->notifier_call = rkcif_reset_notifier;
+	rkcif_csi2_register_notifier(notifier);
+
 	return 0;
 }
 
@@ -1294,6 +1300,8 @@ static int rkcif_plat_remove(struct platform_device *pdev)
 	mutex_destroy(&cif_hw->dev_lock);
 	if (cif_hw->chip_id < CHIP_RK1808_CIF)
 		rkcif_plat_uninit(cif_hw->cif_dev[0]);
+
+	rkcif_csi2_unregister_notifier(&cif_hw->reset_notifier);
 
 	return 0;
 }

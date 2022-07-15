@@ -129,6 +129,7 @@ struct rkcif_hw {
 	struct rkcif_multi_sync_config	sync_config;
 	spinlock_t			group_lock;
 	bool				adapt_to_usbcamerahal;
+	struct notifier_block		reset_notifier; /* reset for mipi csi crc err */
 };
 
 void rkcif_hw_soft_reset(struct rkcif_hw *cif_hw, bool is_rst_iommu);
