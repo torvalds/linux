@@ -50,7 +50,6 @@ void cfg80211_rx_assoc_resp(struct net_device *dev,
 		/* need to have local link addresses for MLO connections */
 		WARN_ON(cr.ap_mld_addr && !cr.links[link_id].addr);
 
-		printk(KERN_CRIT "BSS pointer 0x%lx\n", (unsigned long)cr.links[link_id].bss);
 		BUG_ON(!cr.links[link_id].bss->channel);
 
 		if (cr.links[link_id].bss->channel->band == NL80211_BAND_S1GHZ) {
