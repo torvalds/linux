@@ -288,6 +288,17 @@
 	};
 };
 
+&rkcif_mipi_lvds1_sditf {
+	status = "okay";
+	port {
+		/* MIPI CSI-2 endpoint */
+		mipi_lvds1_sditf: endpoint {
+			remote-endpoint = <&isp1_in>;
+			data-lanes = <1 2>;
+		};
+	};
+};
+
 &rkisp {
 	status = "okay";
 
@@ -304,6 +315,18 @@
 		port@0 {
 			isp0_in: endpoint {
 				remote-endpoint = <&mipi_lvds0_sditf>;
+			};
+		};
+	};
+};
+
+&rkisp_vir1 {
+	status = "okay";
+
+	ports {
+		port@0 {
+			isp1_in: endpoint {
+				remote-endpoint = <&mipi_lvds1_sditf>;
 			};
 		};
 	};
