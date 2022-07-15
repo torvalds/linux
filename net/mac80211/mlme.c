@@ -6402,6 +6402,8 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			err = -ENOMEM;
 			goto out_err;
 		}
+
+		new_sta->sta.mlo = link_id >= 0;
 	}
 
 	/*
