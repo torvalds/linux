@@ -289,6 +289,7 @@
 
 		ethphy: ethernet-phy@1 {
 			reg = <1>;
+			qca,clk-out-frequency = <125000000>;
 		};
 	};
 };

@@ -560,8 +560,8 @@ static int bringup_cpu(unsigned int cpu)
 	int ret;
 
 	/*
-	* Reset stale stack state from the last time this CPU was online.
-	*/
+	 * Reset stale stack state from the last time this CPU was online.
+	 */
 	scs_task_reset(idle);
 	kasan_unpoison_task_stack(idle);
 
@@ -1126,8 +1126,6 @@ static int cpu_down_maps_locked(unsigned int cpu, enum cpuhp_state target)
 static int cpu_down(unsigned int cpu, enum cpuhp_state target)
 {
 	int err;
-
-	trace_android_vh_cpu_down(cpu);
 
 	cpu_maps_update_begin();
 	err = cpu_down_maps_locked(cpu, target);

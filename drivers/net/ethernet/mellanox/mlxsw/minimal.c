@@ -234,6 +234,7 @@ static void mlxsw_m_port_remove(struct mlxsw_m *mlxsw_m, u8 local_port)
 static int mlxsw_m_port_module_map(struct mlxsw_m *mlxsw_m, u8 local_port,
 				   u8 *last_module)
 {
+	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_m->core);
 	u8 module, width;
 	int err;
 
@@ -249,6 +250,9 @@ static int mlxsw_m_port_module_map(struct mlxsw_m *mlxsw_m, u8 local_port,
 	if (module == *last_module)
 		return 0;
 	*last_module = module;
+
+	if (WARN_ON_ONCE(module >= max_ports))
+		return -EINVAL;
 	mlxsw_m->module_to_port[module] = ++mlxsw_m->max_ports;
 
 	return 0;

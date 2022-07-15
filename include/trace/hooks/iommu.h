@@ -12,6 +12,10 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
+DECLARE_RESTRICTED_HOOK(android_rvh_iommu_setup_dma_ops,
+	TP_PROTO(struct device *dev, u64 dma_base, u64 size),
+	TP_ARGS(dev, dma_base, size), 1);
+
 DECLARE_HOOK(android_vh_iommu_setup_dma_ops,
 	TP_PROTO(struct device *dev, u64 dma_base, u64 size),
 	TP_ARGS(dev, dma_base, size));

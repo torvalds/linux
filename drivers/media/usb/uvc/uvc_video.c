@@ -112,6 +112,11 @@ int uvc_query_ctrl(struct uvc_device *dev, u8 query, u8 unit,
 	case 5: /* Invalid unit */
 	case 6: /* Invalid control */
 	case 7: /* Invalid Request */
+		/*
+		 * The firmware has not properly implemented
+		 * the control or there has been a HW error.
+		 */
+		return -EIO;
 	case 8: /* Invalid value within range */
 		return -EINVAL;
 	default: /* reserved or unknown */
@@ -1908,6 +1913,10 @@ static int uvc_video_start_transfer(struct uvc_streaming *stream,
 		ep = uvc_find_endpoint(&intf->altsetting[0],
 				stream->header.bEndpointAddress);
 		if (ep == NULL)
+			return -EIO;
+
+		/* Reject broken descriptors. */
+		if (usb_endpoint_maxp(&ep->desc) == 0)
 			return -EIO;
 
 		ret = uvc_init_video_bulk(stream, ep, gfp_flags);

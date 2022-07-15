@@ -768,7 +768,7 @@ add_dentry:
 	f2fs_wait_on_page_writeback(dentry_page, DATA, true, true);
 
 	if (inode) {
-		down_write(&F2FS_I(inode)->i_sem);
+		f2fs_down_write(&F2FS_I(inode)->i_sem);
 		page = f2fs_init_inode_metadata(inode, dir, fname, NULL);
 		if (IS_ERR(page)) {
 			err = PTR_ERR(page);
@@ -795,7 +795,7 @@ add_dentry:
 	f2fs_update_parent_metadata(dir, inode, current_depth);
 fail:
 	if (inode)
-		up_write(&F2FS_I(inode)->i_sem);
+		f2fs_up_write(&F2FS_I(inode)->i_sem);
 
 	f2fs_put_page(dentry_page, 1);
 
@@ -860,7 +860,7 @@ int f2fs_do_tmpfile(struct inode *inode, struct inode *dir)
 	struct page *page;
 	int err = 0;
 
-	down_write(&F2FS_I(inode)->i_sem);
+	f2fs_down_write(&F2FS_I(inode)->i_sem);
 	page = f2fs_init_inode_metadata(inode, dir, NULL, NULL);
 	if (IS_ERR(page)) {
 		err = PTR_ERR(page);
@@ -871,7 +871,7 @@ int f2fs_do_tmpfile(struct inode *inode, struct inode *dir)
 	clear_inode_flag(inode, FI_NEW_INODE);
 	f2fs_update_time(F2FS_I_SB(inode), REQ_TIME);
 fail:
-	up_write(&F2FS_I(inode)->i_sem);
+	f2fs_up_write(&F2FS_I(inode)->i_sem);
 	return err;
 }
 
@@ -879,7 +879,7 @@ void f2fs_drop_nlink(struct inode *dir, struct inode *inode)
 {
 	struct f2fs_sb_info *sbi = F2FS_I_SB(dir);
 
-	down_write(&F2FS_I(inode)->i_sem);
+	f2fs_down_write(&F2FS_I(inode)->i_sem);
 
 	if (S_ISDIR(inode->i_mode))
 		f2fs_i_links_write(dir, false);
@@ -890,7 +890,7 @@ void f2fs_drop_nlink(struct inode *dir, struct inode *inode)
 		f2fs_i_links_write(inode, false);
 		f2fs_i_size_write(inode, 0);
 	}
-	up_write(&F2FS_I(inode)->i_sem);
+	f2fs_up_write(&F2FS_I(inode)->i_sem);
 
 	if (inode->i_nlink == 0)
 		f2fs_add_orphan_inode(inode);
@@ -1002,6 +1002,7 @@ int f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 	struct f2fs_sb_info *sbi = F2FS_I_SB(d->inode);
 	struct blk_plug plug;
 	bool readdir_ra = sbi->readdir_ra == 1;
+	bool found_valid_dirent = false;
 	int err = 0;
 
 	bit_pos = ((unsigned long)ctx->pos % d->max);
@@ -1016,13 +1017,15 @@ int f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 
 		de = &d->dentry[bit_pos];
 		if (de->name_len == 0) {
+			if (found_valid_dirent || !bit_pos) {
+				printk_ratelimited(
+					"%sF2FS-fs (%s): invalid namelen(0), ino:%u, run fsck to fix.",
+					KERN_WARNING, sbi->sb->s_id,
+					le32_to_cpu(de->ino));
+				set_sbi_flag(sbi, SBI_NEED_FSCK);
+			}
 			bit_pos++;
 			ctx->pos = start_pos + bit_pos;
-			printk_ratelimited(
-				"%sF2FS-fs (%s): invalid namelen(0), ino:%u, run fsck to fix.",
-				KERN_WARNING, sbi->sb->s_id,
-				le32_to_cpu(de->ino));
-			set_sbi_flag(sbi, SBI_NEED_FSCK);
 			continue;
 		}
 
@@ -1065,6 +1068,7 @@ int f2fs_fill_dentries(struct dir_context *ctx, struct f2fs_dentry_ptr *d,
 			f2fs_ra_node_page(sbi, le32_to_cpu(de->ino));
 
 		ctx->pos = start_pos + bit_pos;
+		found_valid_dirent = true;
 	}
 out:
 	if (readdir_ra)

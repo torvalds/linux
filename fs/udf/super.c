@@ -57,6 +57,7 @@
 #include <linux/crc-itu-t.h>
 #include <linux/log2.h>
 #include <asm/byteorder.h>
+#include <linux/iversion.h>
 
 #include "udf_sb.h"
 #include "udf_i.h"
@@ -149,6 +150,7 @@ static struct inode *udf_alloc_inode(struct super_block *sb)
 	init_rwsem(&ei->i_data_sem);
 	ei->cached_extent.lstart = -1;
 	spin_lock_init(&ei->i_extent_cache_lock);
+	inode_set_iversion(&ei->vfs_inode, 1);
 
 	return &ei->vfs_inode;
 }
@@ -2543,5 +2545,6 @@ static unsigned int udf_count_free(struct super_block *sb)
 MODULE_AUTHOR("Ben Fennema");
 MODULE_DESCRIPTION("Universal Disk Format Filesystem");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 module_init(init_udf_fs)
 module_exit(exit_udf_fs)

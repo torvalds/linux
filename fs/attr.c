@@ -114,7 +114,7 @@ kill_priv:
 
 	return 0;
 }
-EXPORT_SYMBOL(setattr_prepare);
+EXPORT_SYMBOL_NS(setattr_prepare, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 /**
  * inode_newsize_ok - may this inode be truncated to a given size
@@ -158,7 +158,7 @@ out_sig:
 out_big:
 	return -EFBIG;
 }
-EXPORT_SYMBOL(inode_newsize_ok);
+EXPORT_SYMBOL_NS(inode_newsize_ok, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 /**
  * setattr_copy - copy simple metadata updates into the generic inode
@@ -345,4 +345,4 @@ int notify_change(struct dentry * dentry, struct iattr * attr, struct inode **de
 
 	return error;
 }
-EXPORT_SYMBOL(notify_change);
+EXPORT_SYMBOL_NS(notify_change, ANDROID_GKI_VFS_EXPORT_ONLY);

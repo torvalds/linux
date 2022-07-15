@@ -77,11 +77,17 @@
 	.endm
 
 SYM_CODE_START(ftrace_regs_caller)
+#ifdef BTI_C
+	BTI_C
+#endif
 	ftrace_regs_entry	1
 	b	ftrace_common
 SYM_CODE_END(ftrace_regs_caller)
 
 SYM_CODE_START(ftrace_caller)
+#ifdef BTI_C
+	BTI_C
+#endif
 	ftrace_regs_entry	0
 	b	ftrace_common
 SYM_CODE_END(ftrace_caller)

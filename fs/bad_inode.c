@@ -207,7 +207,7 @@ void make_bad_inode(struct inode *inode)
 	inode->i_opflags &= ~IOP_XATTR;
 	inode->i_fop = &bad_file_ops;	
 }
-EXPORT_SYMBOL(make_bad_inode);
+EXPORT_SYMBOL_NS(make_bad_inode, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 /*
  * This tests whether an inode has been flagged as bad. The test uses
@@ -227,7 +227,7 @@ bool is_bad_inode(struct inode *inode)
 	return (inode->i_op == &bad_inode_ops);	
 }
 
-EXPORT_SYMBOL(is_bad_inode);
+EXPORT_SYMBOL_NS(is_bad_inode, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 /**
  * iget_failed - Mark an under-construction inode as dead and release it

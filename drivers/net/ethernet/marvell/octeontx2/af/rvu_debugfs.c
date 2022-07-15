@@ -139,18 +139,85 @@ static const struct file_operations rvu_dbg_##name##_fops = { \
 
 static void print_nix_qsize(struct seq_file *filp, struct rvu_pfvf *pfvf);
 
+static void get_lf_str_list(struct rvu_block block, int pcifunc,
+			    char *lfs)
+{
+	int lf = 0, seq = 0, len = 0, prev_lf = block.lf.max;
+
+	for_each_set_bit(lf, block.lf.bmap, block.lf.max) {
+		if (lf >= block.lf.max)
+			break;
+
+		if (block.fn_map[lf] != pcifunc)
+			continue;
+
+		if (lf == prev_lf + 1) {
+			prev_lf = lf;
+			seq = 1;
+			continue;
+		}
+
+		if (seq)
+			len += sprintf(lfs + len, "-%d,%d", prev_lf, lf);
+		else
+			len += (len ? sprintf(lfs + len, ",%d", lf) :
+				      sprintf(lfs + len, "%d", lf));
+
+		prev_lf = lf;
+		seq = 0;
+	}
+
+	if (seq)
+		len += sprintf(lfs + len, "-%d", prev_lf);
+
+	lfs[len] = '\0';
+}
+
+static int get_max_column_width(struct rvu *rvu)
+{
+	int index, pf, vf, lf_str_size = 12, buf_size = 256;
+	struct rvu_block block;
+	u16 pcifunc;
+	char *buf;
+
+	buf = kzalloc(buf_size, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+
+	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
+		for (vf = 0; vf <= rvu->hw->total_vfs; vf++) {
+			pcifunc = pf << 10 | vf;
+			if (!pcifunc)
+				continue;
+
+			for (index = 0; index < BLK_COUNT; index++) {
+				block = rvu->hw->block[index];
+				if (!strlen(block.name))
+					continue;
+
+				get_lf_str_list(block, pcifunc, buf);
+				if (lf_str_size <= strlen(buf))
+					lf_str_size = strlen(buf) + 1;
+			}
+		}
+	}
+
+	kfree(buf);
+	return lf_str_size;
+}
+
 /* Dumps current provisioning status of all RVU block LFs */
 static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 					  char __user *buffer,
 					  size_t count, loff_t *ppos)
 {
-	int index, off = 0, flag = 0, go_back = 0, len = 0;
+	int index, off = 0, flag = 0, len = 0, i = 0;
 	struct rvu *rvu = filp->private_data;
-	int lf, pf, vf, pcifunc;
+	int bytes_not_copied = 0;
 	struct rvu_block block;
-	int bytes_not_copied;
-	int lf_str_size = 12;
+	int pf, vf, pcifunc;
 	int buf_size = 2048;
+	int lf_str_size;
 	char *lfs;
 	char *buf;
 
@@ -161,6 +228,9 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 	buf = kzalloc(buf_size, GFP_KERNEL);
 	if (!buf)
 		return -ENOSPC;
+
+	/* Get the maximum width of a column */
+	lf_str_size = get_max_column_width(rvu);
 
 	lfs = kzalloc(lf_str_size, GFP_KERNEL);
 	if (!lfs) {
@@ -175,65 +245,69 @@ static ssize_t rvu_dbg_rsrc_attach_status(struct file *filp,
 					 "%-*s", lf_str_size,
 					 rvu->hw->block[index].name);
 		}
+
 	off += scnprintf(&buf[off], buf_size - 1 - off, "\n");
+	bytes_not_copied = copy_to_user(buffer + (i * off), buf, off);
+	if (bytes_not_copied)
+		goto out;
+
+	i++;
+	*ppos += off;
 	for (pf = 0; pf < rvu->hw->total_pfs; pf++) {
 		for (vf = 0; vf <= rvu->hw->total_vfs; vf++) {
+			off = 0;
+			flag = 0;
 			pcifunc = pf << 10 | vf;
 			if (!pcifunc)
 				continue;
 
 			if (vf) {
 				sprintf(lfs, "PF%d:VF%d", pf, vf - 1);
-				go_back = scnprintf(&buf[off],
-						    buf_size - 1 - off,
-						    "%-*s", lf_str_size, lfs);
+				off = scnprintf(&buf[off],
+						buf_size - 1 - off,
+						"%-*s", lf_str_size, lfs);
 			} else {
 				sprintf(lfs, "PF%d", pf);
-				go_back = scnprintf(&buf[off],
-						    buf_size - 1 - off,
-						    "%-*s", lf_str_size, lfs);
+				off = scnprintf(&buf[off],
+						buf_size - 1 - off,
+						"%-*s", lf_str_size, lfs);
 			}
 
-			off += go_back;
-			for (index = 0; index < BLKTYPE_MAX; index++) {
+			for (index = 0; index < BLK_COUNT; index++) {
 				block = rvu->hw->block[index];
 				if (!strlen(block.name))
 					continue;
 				len = 0;
 				lfs[len] = '\0';
-				for (lf = 0; lf < block.lf.max; lf++) {
-					if (block.fn_map[lf] != pcifunc)
-						continue;
+				get_lf_str_list(block, pcifunc, lfs);
+				if (strlen(lfs))
 					flag = 1;
-					len += sprintf(&lfs[len], "%d,", lf);
-				}
 
-				if (flag)
-					len--;
-				lfs[len] = '\0';
 				off += scnprintf(&buf[off], buf_size - 1 - off,
 						 "%-*s", lf_str_size, lfs);
-				if (!strlen(lfs))
-					go_back += lf_str_size;
 			}
-			if (!flag)
-				off -= go_back;
-			else
-				flag = 0;
-			off--;
-			off +=	scnprintf(&buf[off], buf_size - 1 - off, "\n");
+			if (flag) {
+				off +=	scnprintf(&buf[off],
+						  buf_size - 1 - off, "\n");
+				bytes_not_copied = copy_to_user(buffer +
+								(i * off),
+								buf, off);
+				if (bytes_not_copied)
+					goto out;
+
+				i++;
+				*ppos += off;
+			}
 		}
 	}
 
-	bytes_not_copied = copy_to_user(buffer, buf, off);
+out:
 	kfree(lfs);
 	kfree(buf);
-
 	if (bytes_not_copied)
 		return -EFAULT;
 
-	*ppos = off;
-	return off;
+	return *ppos;
 }
 
 RVU_DEBUG_FOPS(rsrc_status, rsrc_attach_status, NULL);

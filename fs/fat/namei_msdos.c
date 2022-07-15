@@ -680,6 +680,7 @@ static void __exit exit_msdos_fs(void)
 }
 
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 MODULE_AUTHOR("Werner Almesberger");
 MODULE_DESCRIPTION("MS-DOS filesystem support");
 

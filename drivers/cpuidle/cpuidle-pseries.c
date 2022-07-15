@@ -402,7 +402,7 @@ static void __init fixup_cede0_latency(void)
  * pseries_idle_probe()
  * Choose state table for shared versus dedicated partition
  */
-static int pseries_idle_probe(void)
+static int __init pseries_idle_probe(void)
 {
 
 	if (cpuidle_disable != IDLE_NO_OVERRIDE)
@@ -419,7 +419,21 @@ static int pseries_idle_probe(void)
 			cpuidle_state_table = shared_states;
 			max_idle_state = ARRAY_SIZE(shared_states);
 		} else {
-			fixup_cede0_latency();
+			/*
+			 * Use firmware provided latency values
+			 * starting with POWER10 platforms. In the
+			 * case that we are running on a POWER10
+			 * platform but in an earlier compat mode, we
+			 * can still use the firmware provided values.
+			 *
+			 * However, on platforms prior to POWER10, we
+			 * cannot rely on the accuracy of the firmware
+			 * provided latency values. On such platforms,
+			 * go with the conservative default estimate
+			 * of 10us.
+			 */
+			if (cpu_has_feature(CPU_FTR_ARCH_31) || pvr_version_is(PVR_POWER10))
+				fixup_cede0_latency();
 			cpuidle_state_table = dedicated_states;
 			max_idle_state = NR_DEDICATED_STATES;
 		}

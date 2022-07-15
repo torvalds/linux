@@ -205,12 +205,15 @@ trace_boot_init_one_event(struct trace_array *tr, struct xbc_node *gnode,
 			pr_err("Failed to apply filter: %s\n", buf);
 	}
 
-	xbc_node_for_each_array_value(enode, "actions", anode, p) {
-		if (strlcpy(buf, p, ARRAY_SIZE(buf)) >= ARRAY_SIZE(buf))
-			pr_err("action string is too long: %s\n", p);
-		else if (trigger_process_regex(file, buf) < 0)
-			pr_err("Failed to apply an action: %s\n", buf);
-	}
+	if (IS_ENABLED(CONFIG_HIST_TRIGGERS)) {
+		xbc_node_for_each_array_value(enode, "actions", anode, p) {
+			if (strlcpy(buf, p, ARRAY_SIZE(buf)) >= ARRAY_SIZE(buf))
+				pr_err("action string is too long: %s\n", p);
+			else if (trigger_process_regex(file, buf) < 0)
+				pr_err("Failed to apply an action: %s\n", buf);
+		}
+	} else if (xbc_node_find_value(enode, "actions", NULL))
+		pr_err("Failed to apply event actions because CONFIG_HIST_TRIGGERS is not set.\n");
 
 	if (xbc_node_find_value(enode, "enable", NULL)) {
 		if (trace_event_enable_disable(file, 1, 0) < 0)
@@ -230,8 +233,8 @@ trace_boot_init_events(struct trace_array *tr, struct xbc_node *node)
 	if (!node)
 		return;
 	/* per-event key starts with "event.GROUP.EVENT" */
-	xbc_node_for_each_child(node, gnode)
-		xbc_node_for_each_child(gnode, enode)
+	xbc_node_for_each_subkey(node, gnode)
+		xbc_node_for_each_subkey(gnode, enode)
 			trace_boot_init_one_event(tr, gnode, enode);
 }
 #else
@@ -312,7 +315,7 @@ trace_boot_init_instances(struct xbc_node *node)
 	if (!node)
 		return;
 
-	xbc_node_for_each_child(node, inode) {
+	xbc_node_for_each_subkey(node, inode) {
 		p = xbc_node_get_data(inode);
 		if (!p || *p == '\0')
 			continue;

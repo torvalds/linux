@@ -38,11 +38,11 @@ int wg_packet_queue_init(struct crypt_queue *queue, work_func_t function,
 	return 0;
 }
 
-void wg_packet_queue_free(struct crypt_queue *queue)
+void wg_packet_queue_free(struct crypt_queue *queue, bool purge)
 {
 	free_percpu(queue->worker);
-	WARN_ON(!__ptr_ring_empty(&queue->ring));
-	ptr_ring_cleanup(&queue->ring, NULL);
+	WARN_ON(!purge && !__ptr_ring_empty(&queue->ring));
+	ptr_ring_cleanup(&queue->ring, purge ? (void(*)(void*))kfree_skb : NULL);
 }
 
 #define NEXT(skb) ((skb)->prev)

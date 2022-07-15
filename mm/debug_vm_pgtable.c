@@ -128,6 +128,8 @@ static void __init pte_advanced_tests(struct mm_struct *mm,
 	ptep_test_and_clear_young(vma, vaddr, ptep);
 	pte = ptep_get(ptep);
 	WARN_ON(pte_young(pte));
+
+	ptep_get_and_clear_full(mm, vaddr, ptep, 1);
 }
 
 static void __init pte_savedwrite_tests(unsigned long pfn, pgprot_t prot)

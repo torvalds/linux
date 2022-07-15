@@ -194,3 +194,9 @@
 
 #extend_reclaim.ko
   try_to_free_mem_cgroup_pages
+
+##required by xm_power_debug.ko module
+  wakeup_sources_read_lock
+  wakeup_sources_read_unlock
+  wakeup_sources_walk_start
+  wakeup_sources_walk_next

@@ -260,6 +260,7 @@ static void __exit exit_gfs2_fs(void)
 MODULE_DESCRIPTION("Global File System");
 MODULE_AUTHOR("Red Hat, Inc.");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 
 module_init(init_gfs2_fs);
 module_exit(exit_gfs2_fs);

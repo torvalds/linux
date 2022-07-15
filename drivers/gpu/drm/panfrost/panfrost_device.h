@@ -120,8 +120,12 @@ struct panfrost_device {
 };
 
 struct panfrost_mmu {
+	struct panfrost_device *pfdev;
+	struct kref refcount;
 	struct io_pgtable_cfg pgtbl_cfg;
 	struct io_pgtable_ops *pgtbl_ops;
+	struct drm_mm mm;
+	spinlock_t mm_lock;
 	int as;
 	atomic_t as_count;
 	struct list_head list;
@@ -132,9 +136,7 @@ struct panfrost_file_priv {
 
 	struct drm_sched_entity sched_entity[NUM_JOB_SLOTS];
 
-	struct panfrost_mmu mmu;
-	struct drm_mm mm;
-	spinlock_t mm_lock;
+	struct panfrost_mmu *mmu;
 };
 
 static inline struct panfrost_device *to_panfrost_device(struct drm_device *ddev)

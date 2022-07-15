@@ -92,6 +92,10 @@ static void etnaviv_iommuv1_restore(struct etnaviv_gpu *gpu,
 	struct etnaviv_iommuv1_context *v1_context = to_v1_context(context);
 	u32 pgtable;
 
+	if (gpu->mmu_context)
+		etnaviv_iommu_context_put(gpu->mmu_context);
+	gpu->mmu_context = etnaviv_iommu_context_get(context);
+
 	/* set base addresses */
 	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_RA, context->global->memory_base);
 	gpu_write(gpu, VIVS_MC_MEMORY_BASE_ADDR_FE, context->global->memory_base);

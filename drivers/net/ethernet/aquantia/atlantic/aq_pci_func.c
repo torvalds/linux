@@ -49,6 +49,8 @@ static const struct pci_device_id aq_pci_tbl[] = {
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC113), },
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC113C), },
 	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC115C), },
+	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC113CA), },
+	{ PCI_VDEVICE(AQUANTIA, AQ_DEVICE_ID_AQC116C), },
 
 	{}
 };
@@ -85,7 +87,10 @@ static const struct aq_board_revision_s hw_atl_boards[] = {
 	{ AQ_DEVICE_ID_AQC113CS,	AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc113, },
 	{ AQ_DEVICE_ID_AQC114CS,	AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc113, },
 	{ AQ_DEVICE_ID_AQC113C,		AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc113, },
-	{ AQ_DEVICE_ID_AQC115C,		AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc113, },
+	{ AQ_DEVICE_ID_AQC115C,		AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc115c, },
+	{ AQ_DEVICE_ID_AQC113CA,	AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc113, },
+	{ AQ_DEVICE_ID_AQC116C,		AQ_HWREV_ANY,	&hw_atl2_ops, &hw_atl2_caps_aqc116c, },
+
 };
 
 MODULE_DEVICE_TABLE(pci, aq_pci_tbl);
@@ -419,13 +424,13 @@ static int atl_resume_common(struct device *dev, bool deep)
 	if (deep) {
 		/* Reinitialize Nic/Vecs objects */
 		aq_nic_deinit(nic, !nic->aq_hw->aq_nic_cfg->wol);
-
-		ret = aq_nic_init(nic);
-		if (ret)
-			goto err_exit;
 	}
 
 	if (netif_running(nic->ndev)) {
+		ret = aq_nic_init(nic);
+		if (ret)
+			goto err_exit;
+
 		ret = aq_nic_start(nic);
 		if (ret)
 			goto err_exit;

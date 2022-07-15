@@ -184,7 +184,7 @@ static int get_hem_table_config(struct hns_roce_dev *hr_dev,
 		mhop->hop_num = hr_dev->caps.srqc_hop_num;
 		break;
 	default:
-		dev_err(dev, "Table %d not support multi-hop addressing!\n",
+		dev_err(dev, "table %u not support multi-hop addressing!\n",
 			type);
 		return -EINVAL;
 	}
@@ -232,8 +232,8 @@ int hns_roce_calc_hem_mhop(struct hns_roce_dev *hr_dev,
 		mhop->l0_idx = table_idx;
 		break;
 	default:
-		dev_err(dev, "Table %d not support hop_num = %d!\n",
-			     table->type, mhop->hop_num);
+		dev_err(dev, "table %u not support hop_num = %u!\n",
+			table->type, mhop->hop_num);
 		return -EINVAL;
 	}
 	if (mhop->l0_idx >= mhop->ba_l0_num)
@@ -438,13 +438,13 @@ static int calc_hem_config(struct hns_roce_dev *hr_dev,
 		index->buf = l0_idx;
 		break;
 	default:
-		ibdev_err(ibdev, "Table %d not support mhop.hop_num = %d!\n",
+		ibdev_err(ibdev, "table %u not support mhop.hop_num = %u!\n",
 			  table->type, mhop->hop_num);
 		return -EINVAL;
 	}
 
 	if (unlikely(index->buf >= table->num_hem)) {
-		ibdev_err(ibdev, "Table %d exceed hem limt idx %llu,max %lu!\n",
+		ibdev_err(ibdev, "table %u exceed hem limt idx %llu, max %lu!\n",
 			  table->type, index->buf, table->num_hem);
 		return -EINVAL;
 	}
@@ -714,15 +714,15 @@ static void clear_mhop_hem(struct hns_roce_dev *hr_dev,
 			step_idx = hop_num;
 
 		if (hr_dev->hw->clear_hem(hr_dev, table, obj, step_idx))
-			ibdev_warn(ibdev, "Clear hop%d HEM failed.\n", hop_num);
+			ibdev_warn(ibdev, "failed to clear hop%u HEM.\n", hop_num);
 
 		if (index->inited & HEM_INDEX_L1)
 			if (hr_dev->hw->clear_hem(hr_dev, table, obj, 1))
-				ibdev_warn(ibdev, "Clear HEM step 1 failed.\n");
+				ibdev_warn(ibdev, "failed to clear HEM step 1.\n");
 
 		if (index->inited & HEM_INDEX_L0)
 			if (hr_dev->hw->clear_hem(hr_dev, table, obj, 0))
-				ibdev_warn(ibdev, "Clear HEM step 0 failed.\n");
+				ibdev_warn(ibdev, "failed to clear HEM step 0.\n");
 	}
 }
 
@@ -1234,7 +1234,7 @@ static int hem_list_alloc_mid_bt(struct hns_roce_dev *hr_dev,
 	}
 
 	if (offset < r->offset) {
-		dev_err(hr_dev->dev, "invalid offset %d,min %d!\n",
+		dev_err(hr_dev->dev, "invalid offset %d, min %u!\n",
 			offset, r->offset);
 		return -EINVAL;
 	}

@@ -1127,7 +1127,8 @@ static int coda9_jpeg_prepare_encode(struct coda_ctx *ctx)
 	coda_write(dev, 0, CODA9_REG_JPEG_GBU_BT_PTR);
 	coda_write(dev, 0, CODA9_REG_JPEG_GBU_WD_PTR);
 	coda_write(dev, 0, CODA9_REG_JPEG_GBU_BBSR);
-	coda_write(dev, 0, CODA9_REG_JPEG_BBC_STRM_CTRL);
+	coda_write(dev, BIT(31) | ((end_addr - start_addr - header_len) / 256),
+		   CODA9_REG_JPEG_BBC_STRM_CTRL);
 	coda_write(dev, 0, CODA9_REG_JPEG_GBU_CTRL);
 	coda_write(dev, 0, CODA9_REG_JPEG_GBU_FF_RPTR);
 	coda_write(dev, 127, CODA9_REG_JPEG_GBU_BBER);
@@ -1257,6 +1258,23 @@ static void coda9_jpeg_finish_encode(struct coda_ctx *ctx)
 	coda_hw_reset(ctx);
 }
 
+static void coda9_jpeg_encode_timeout(struct coda_ctx *ctx)
+{
+	struct coda_dev *dev = ctx->dev;
+	u32 end_addr, wr_ptr;
+
+	/* Handle missing BBC overflow interrupt via timeout */
+	end_addr = coda_read(dev, CODA9_REG_JPEG_BBC_END_ADDR);
+	wr_ptr = coda_read(dev, CODA9_REG_JPEG_BBC_WR_PTR);
+	if (wr_ptr >= end_addr - 256) {
+		v4l2_err(&dev->v4l2_dev, "JPEG too large for capture buffer\n");
+		coda9_jpeg_finish_encode(ctx);
+		return;
+	}
+
+	coda_hw_reset(ctx);
+}
+
 static void coda9_jpeg_release(struct coda_ctx *ctx)
 {
 	int i;
@@ -1276,6 +1294,7 @@ const struct coda_context_ops coda9_jpeg_encode_ops = {
 	.start_streaming = coda9_jpeg_start_encoding,
 	.prepare_run = coda9_jpeg_prepare_encode,
 	.finish_run = coda9_jpeg_finish_encode,
+	.run_timeout = coda9_jpeg_encode_timeout,
 	.release = coda9_jpeg_release,
 };
 

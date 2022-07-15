@@ -240,6 +240,17 @@ static int virtio_dev_probe(struct device *_d)
 		driver_features_legacy = driver_features;
 	}
 
+	/*
+	 * Some devices detect legacy solely via F_VERSION_1. Write
+	 * F_VERSION_1 to force LE config space accesses before FEATURES_OK for
+	 * these when needed.
+	 */
+	if (drv->validate && !virtio_legacy_is_little_endian()
+			  && device_features & BIT_ULL(VIRTIO_F_VERSION_1)) {
+		dev->features = BIT_ULL(VIRTIO_F_VERSION_1);
+		dev->config->finalize_features(dev);
+	}
+
 	if (device_features & (1ULL << VIRTIO_F_VERSION_1))
 		dev->features = driver_features & device_features;
 	else
@@ -408,6 +419,13 @@ int virtio_device_restore(struct virtio_device *dev)
 	struct virtio_driver *drv = drv_to_virtio(dev->dev.driver);
 	int ret;
 
+	/* Short path for stateful devices. Here we assume that if the device
+	 * does not have a freeze callback, its state was not changed when
+	 * suspended.
+	 */
+	if (drv && !drv->freeze)
+		goto on_config_enable;
+
 	/* We always start by resetting the device, in case a previous
 	 * driver messed it up. */
 	dev->config->reset(dev);
@@ -439,6 +457,7 @@ int virtio_device_restore(struct virtio_device *dev)
 	/* Finally, tell the device we're all set */
 	virtio_add_status(dev, VIRTIO_CONFIG_S_DRIVER_OK);
 
+on_config_enable:
 	virtio_config_enable(dev);
 
 	return 0;

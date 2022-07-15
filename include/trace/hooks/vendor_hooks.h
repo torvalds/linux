@@ -7,7 +7,9 @@
  *  will override the DECLARE_RESTRICTED_HOOK and break the second include.
  */
 
+#ifndef __GENKSYMS__
 #include <linux/tracepoint.h>
+#endif
 
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 

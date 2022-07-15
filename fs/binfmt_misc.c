@@ -832,3 +832,4 @@ static void __exit exit_misc_binfmt(void)
 core_initcall(init_misc_binfmt);
 module_exit(exit_misc_binfmt);
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);

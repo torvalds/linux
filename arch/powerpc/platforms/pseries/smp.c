@@ -42,6 +42,7 @@
 #include <asm/plpar_wrappers.h>
 #include <asm/code-patching.h>
 #include <asm/svm.h>
+#include <asm/kvm_guest.h>
 
 #include "pseries.h"
 
@@ -206,6 +207,8 @@ static __init void pSeries_smp_probe(void)
 	/* Doorbells can only be used for IPIs between SMT siblings */
 	if (!cpu_has_feature(CPU_FTR_SMT))
 		return;
+
+	check_kvm_guest();
 
 	if (is_kvm_guest()) {
 		/*

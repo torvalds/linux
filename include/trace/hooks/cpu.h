@@ -14,10 +14,6 @@ DECLARE_HOOK(android_vh_cpu_up,
 	TP_PROTO(unsigned int cpu),
 	TP_ARGS(cpu));
 
-DECLARE_HOOK(android_vh_cpu_down,
-	TP_PROTO(unsigned int cpu),
-	TP_ARGS(cpu));
-
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_CPU_H */

@@ -224,7 +224,7 @@
 	n25q128@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "n25q128";
+		compatible = "micron,n25q128", "jedec,spi-nor";
 		reg = <0>;		/* chip select */
 		spi-max-frequency = <100000000>;
 		m25p,fast-read;
@@ -241,7 +241,7 @@
 	n25q00@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
-		compatible = "n25q00";
+		compatible = "micron,mt25qu02g", "jedec,spi-nor";
 		reg = <1>;		/* chip select */
 		spi-max-frequency = <100000000>;
 		m25p,fast-read;

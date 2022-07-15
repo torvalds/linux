@@ -355,3 +355,5 @@
 438	n64	pidfd_getfd			sys_pidfd_getfd
 439	n64	faccessat2			sys_faccessat2
 440	n64	process_madvise			sys_process_madvise
+# 447 reserved for memfd_secret
+448	n64	process_mrelease		sys_process_mrelease

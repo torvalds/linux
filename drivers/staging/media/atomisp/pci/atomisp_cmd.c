@@ -1138,9 +1138,10 @@ void atomisp_buf_done(struct atomisp_sub_device *asd, int error,
 					asd->frame_status[vb->i] =
 					    ATOMISP_FRAME_STATUS_OK;
 				}
-			} else
+			} else {
 				asd->frame_status[vb->i] =
 				    ATOMISP_FRAME_STATUS_OK;
+			}
 		} else {
 			asd->frame_status[vb->i] = ATOMISP_FRAME_STATUS_OK;
 		}
@@ -1714,6 +1715,12 @@ void atomisp_wdt_refresh_pipe(struct atomisp_video_pipe *pipe,
 {
 	unsigned long next;
 
+	if (!pipe->asd) {
+		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, pipe->vdev.name);
+		return;
+	}
+
 	if (delay != ATOMISP_WDT_KEEP_CURRENT_DELAY)
 		pipe->wdt_duration = delay;
 
@@ -1776,6 +1783,12 @@ void atomisp_wdt_refresh(struct atomisp_sub_device *asd, unsigned int delay)
 /* ISP2401 */
 void atomisp_wdt_stop_pipe(struct atomisp_video_pipe *pipe, bool sync)
 {
+	if (!pipe->asd) {
+		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, pipe->vdev.name);
+		return;
+	}
+
 	if (!atomisp_is_wdt_running(pipe))
 		return;
 
@@ -4108,6 +4121,12 @@ void atomisp_handle_parameter_and_buffer(struct atomisp_video_pipe *pipe)
 	unsigned long irqflags;
 	bool need_to_enqueue_buffer = false;
 
+	if (!asd) {
+		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, pipe->vdev.name);
+		return;
+	}
+
 	if (atomisp_is_vf_pipe(pipe))
 		return;
 
@@ -4194,6 +4213,12 @@ int atomisp_set_parameters(struct video_device *vdev,
 	struct atomisp_css_params_with_list *param = NULL;
 	struct atomisp_css_params *css_param = &asd->params.css_param;
 	int ret;
+
+	if (!asd) {
+		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	if (!asd->stream_env[ATOMISP_INPUT_STREAM_GENERAL].stream) {
 		dev_err(asd->isp->dev, "%s: internal error!\n", __func__);
@@ -4855,6 +4880,12 @@ int atomisp_try_fmt(struct video_device *vdev, struct v4l2_format *f,
 	int source_pad = atomisp_subdev_source_pad(vdev);
 	int ret;
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	if (!isp->inputs[asd->input_curr].camera)
 		return -EINVAL;
 
@@ -4945,9 +4976,9 @@ atomisp_try_fmt_file(struct atomisp_device *isp, struct v4l2_format *f)
 
 	depth = get_pixel_depth(pixelformat);
 
-	if (field == V4L2_FIELD_ANY)
+	if (field == V4L2_FIELD_ANY) {
 		field = V4L2_FIELD_NONE;
-	else if (field != V4L2_FIELD_NONE) {
+	} else if (field != V4L2_FIELD_NONE) {
 		dev_err(isp->dev, "Wrong output field\n");
 		return -EINVAL;
 	}
@@ -5200,6 +5231,12 @@ static int atomisp_set_fmt_to_isp(struct video_device *vdev,
 	u16 stream_index = atomisp_source_pad_to_stream_id(asd, source_pad);
 	const struct atomisp_in_fmt_conv *fc;
 	int ret, i;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	v4l2_fh_init(&fh.vfh, vdev);
 
@@ -5512,6 +5549,7 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 				  unsigned int dvs_env_w, unsigned int dvs_env_h)
 {
 	struct atomisp_sub_device *asd = atomisp_to_video_pipe(vdev)->asd;
+	struct atomisp_video_pipe *pipe = atomisp_to_video_pipe(vdev);
 	const struct atomisp_format_bridge *format;
 	struct v4l2_subdev_pad_config pad_cfg;
 	struct v4l2_subdev_format vformat = {
@@ -5526,6 +5564,12 @@ static int atomisp_set_fmt_to_snr(struct video_device *vdev,
 	int source_pad = atomisp_subdev_source_pad(vdev);
 	struct v4l2_subdev_fh fh;
 	int ret;
+
+	if (!asd) {
+		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	v4l2_fh_init(&fh.vfh, vdev);
 
@@ -5616,6 +5660,12 @@ int atomisp_set_fmt(struct video_device *vdev, struct v4l2_format *f)
 	u16 source_pad = atomisp_subdev_source_pad(vdev);
 	struct v4l2_subdev_fh fh;
 	int ret;
+
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	if (source_pad >= ATOMISP_SUBDEV_PADS_NUM)
 		return -EINVAL;
@@ -6050,6 +6100,12 @@ int atomisp_set_fmt_file(struct video_device *vdev, struct v4l2_format *f)
 	struct v4l2_subdev_fh fh;
 	int ret;
 
+	if (!asd) {
+		dev_err(isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
+
 	v4l2_fh_init(&fh.vfh, vdev);
 
 	dev_dbg(isp->dev, "setting fmt %ux%u 0x%x for file inject\n",
@@ -6374,6 +6430,12 @@ bool atomisp_is_vf_pipe(struct atomisp_video_pipe *pipe)
 {
 	struct atomisp_sub_device *asd = pipe->asd;
 
+	if (!asd) {
+		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, pipe->vdev.name);
+		return false;
+	}
+
 	if (pipe == &asd->video_out_vf)
 		return true;
 
@@ -6587,17 +6649,23 @@ static int atomisp_get_pipe_id(struct atomisp_video_pipe *pipe)
 {
 	struct atomisp_sub_device *asd = pipe->asd;
 
-	if (ATOMISP_USE_YUVPP(asd))
+	if (!asd) {
+		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, pipe->vdev.name);
+		return -EINVAL;
+	}
+
+	if (ATOMISP_USE_YUVPP(asd)) {
 		return IA_CSS_PIPE_ID_YUVPP;
-	else if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER)
+	} else if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_SCALER) {
 		return IA_CSS_PIPE_ID_VIDEO;
-	else if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_LOWLAT)
+	} else if (asd->vfpp->val == ATOMISP_VFPP_DISABLE_LOWLAT) {
 		return IA_CSS_PIPE_ID_CAPTURE;
-	else if (pipe == &asd->video_out_video_capture)
+	} else if (pipe == &asd->video_out_video_capture) {
 		return IA_CSS_PIPE_ID_VIDEO;
-	else if (pipe == &asd->video_out_vf)
+	} else if (pipe == &asd->video_out_vf) {
 		return IA_CSS_PIPE_ID_CAPTURE;
-	else if (pipe == &asd->video_out_preview) {
+	} else if (pipe == &asd->video_out_preview) {
 		if (asd->run_mode->val == ATOMISP_RUN_MODE_VIDEO)
 			return IA_CSS_PIPE_ID_VIDEO;
 		else
@@ -6623,6 +6691,12 @@ int atomisp_get_invalid_frame_num(struct video_device *vdev,
 	enum ia_css_pipe_id pipe_id;
 	struct ia_css_pipe_info p_info;
 	int ret;
+
+	if (!asd) {
+		dev_err(pipe->isp->dev, "%s(): asd is NULL, device is %s\n",
+			__func__, vdev->name);
+		return -EINVAL;
+	}
 
 	if (asd->isp->inputs[asd->input_curr].camera_caps->
 	    sensor[asd->sensor_curr].stream_num > 1) {

@@ -29,6 +29,7 @@
 static struct kmem_cache *hfs_inode_cachep;
 
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 
 static int hfs_sync_fs(struct super_block *sb, int wait)
 {

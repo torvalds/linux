@@ -1096,6 +1096,10 @@ static int ionic_ndo_addr_add(struct net_device *netdev, const u8 *addr)
 
 static int ionic_addr_del(struct net_device *netdev, const u8 *addr)
 {
+	/* Don't delete our own address from the uc list */
+	if (ether_addr_equal(addr, netdev->dev_addr))
+		return 0;
+
 	return ionic_lif_addr(netdev_priv(netdev), addr, false, true);
 }
 
@@ -2832,7 +2836,7 @@ int ionic_lif_init(struct ionic_lif *lif)
 		return -EINVAL;
 	}
 
-	lif->dbid_inuse = bitmap_alloc(lif->dbid_count, GFP_KERNEL);
+	lif->dbid_inuse = bitmap_zalloc(lif->dbid_count, GFP_KERNEL);
 	if (!lif->dbid_inuse) {
 		dev_err(dev, "Failed alloc doorbell id bitmap, aborting\n");
 		return -ENOMEM;

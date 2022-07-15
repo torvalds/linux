@@ -120,7 +120,7 @@ static int vcn_v1_0_sw_init(void *handle)
 		adev->firmware.ucode[AMDGPU_UCODE_ID_VCN].fw = adev->vcn.fw;
 		adev->firmware.fw_size +=
 			ALIGN(le32_to_cpu(hdr->ucode_size_bytes), PAGE_SIZE);
-		DRM_INFO("PSP loading VCN firmware\n");
+		dev_info(adev->dev, "Will use PSP to load VCN firmware\n");
 	}
 
 	r = amdgpu_vcn_resume(adev);
@@ -254,6 +254,13 @@ static int vcn_v1_0_suspend(void *handle)
 {
 	int r;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	bool idle_work_unexecuted;
+
+	idle_work_unexecuted = cancel_delayed_work_sync(&adev->vcn.idle_work);
+	if (idle_work_unexecuted) {
+		if (adev->pm.dpm_enabled)
+			amdgpu_dpm_enable_uvd(adev, false);
+	}
 
 	r = vcn_v1_0_hw_fini(adev);
 	if (r)

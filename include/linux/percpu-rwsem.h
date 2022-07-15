@@ -20,6 +20,11 @@ struct percpu_rw_semaphore {
 #endif
 };
 
+struct percpu_rw_semaphore_atomic {
+	struct percpu_rw_semaphore rw_sem;
+	struct list_head destroy_list_entry;
+};
+
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
 #define __PERCPU_RWSEM_DEP_MAP_INIT(lockname)	.dep_map = { .name = #lockname },
 #else
@@ -127,7 +132,11 @@ extern void percpu_up_write(struct percpu_rw_semaphore *);
 extern int __percpu_init_rwsem(struct percpu_rw_semaphore *,
 				const char *, struct lock_class_key *);
 
+/* Can't be called in atomic context. */
 extern void percpu_free_rwsem(struct percpu_rw_semaphore *);
+
+/* Invokes percpu_free_rwsem and frees the semaphore from a worker thread. */
+extern void percpu_rwsem_async_destroy(struct percpu_rw_semaphore_atomic *sem);
 
 #define percpu_init_rwsem(sem)					\
 ({								\

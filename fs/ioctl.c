@@ -146,7 +146,7 @@ int fiemap_fill_next_extent(struct fiemap_extent_info *fieinfo, u64 logical,
 		return 1;
 	return (flags & FIEMAP_EXTENT_LAST) ? 1 : 0;
 }
-EXPORT_SYMBOL(fiemap_fill_next_extent);
+EXPORT_SYMBOL_NS(fiemap_fill_next_extent, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 /**
  * fiemap_prep - check validity of requested flags for fiemap
@@ -191,7 +191,7 @@ int fiemap_prep(struct inode *inode, struct fiemap_extent_info *fieinfo,
 		ret = filemap_write_and_wait(inode->i_mapping);
 	return ret;
 }
-EXPORT_SYMBOL(fiemap_prep);
+EXPORT_SYMBOL_NS(fiemap_prep, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 static int ioctl_fiemap(struct file *filp, struct fiemap __user *ufiemap)
 {

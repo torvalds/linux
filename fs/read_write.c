@@ -471,7 +471,7 @@ ssize_t kernel_read(struct file *file, void *buf, size_t count, loff_t *pos)
 		return ret;
 	return __kernel_read(file, buf, count, pos);
 }
-EXPORT_SYMBOL(kernel_read);
+EXPORT_SYMBOL_NS(kernel_read, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 ssize_t vfs_read(struct file *file, char __user *buf, size_t count, loff_t *pos)
 {
@@ -580,7 +580,7 @@ ssize_t kernel_write(struct file *file, const void *buf, size_t count,
 	file_end_write(file);
 	return ret;
 }
-EXPORT_SYMBOL(kernel_write);
+EXPORT_SYMBOL_NS(kernel_write, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 ssize_t vfs_write(struct file *file, const char __user *buf, size_t count, loff_t *pos)
 {

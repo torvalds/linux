@@ -36,7 +36,7 @@ static int mptcp_diag_dump_one(struct netlink_callback *cb,
 	struct sock *sk;
 
 	net = sock_net(in_skb->sk);
-	msk = mptcp_token_get_sock(req->id.idiag_cookie[0]);
+	msk = mptcp_token_get_sock(net, req->id.idiag_cookie[0]);
 	if (!msk)
 		goto out_nosk;
 

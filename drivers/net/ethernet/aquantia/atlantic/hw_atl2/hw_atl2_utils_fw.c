@@ -84,7 +84,7 @@ static int hw_atl2_shared_buffer_read_block(struct aq_hw_s *self,
 			if (cnt > AQ_A2_FW_READ_TRY_MAX)
 				return -ETIME;
 			if (tid1.transaction_cnt_a != tid1.transaction_cnt_b)
-				udelay(1);
+				mdelay(1);
 		} while (tid1.transaction_cnt_a != tid1.transaction_cnt_b);
 
 		hw_atl2_mif_shared_buf_read(self, offset, (u32 *)data, dwords);
@@ -154,7 +154,7 @@ static void a2_link_speed_mask2fw(u32 speed,
 {
 	link_options->rate_10G = !!(speed & AQ_NIC_RATE_10G);
 	link_options->rate_5G = !!(speed & AQ_NIC_RATE_5G);
-	link_options->rate_N5G = !!(speed & AQ_NIC_RATE_5GSR);
+	link_options->rate_N5G = link_options->rate_5G;
 	link_options->rate_2P5G = !!(speed & AQ_NIC_RATE_2G5);
 	link_options->rate_N2P5G = link_options->rate_2P5G;
 	link_options->rate_1G = !!(speed & AQ_NIC_RATE_1G);
@@ -192,8 +192,6 @@ static u32 a2_fw_lkp_to_mask(struct lkp_link_caps_s *lkp_link_caps)
 		rate |= AQ_NIC_RATE_10G;
 	if (lkp_link_caps->rate_5G)
 		rate |= AQ_NIC_RATE_5G;
-	if (lkp_link_caps->rate_N5G)
-		rate |= AQ_NIC_RATE_5GSR;
 	if (lkp_link_caps->rate_2P5G)
 		rate |= AQ_NIC_RATE_2G5;
 	if (lkp_link_caps->rate_1G)
@@ -335,15 +333,22 @@ static int aq_a2_fw_get_mac_permanent(struct aq_hw_s *self, u8 *mac)
 	return 0;
 }
 
-static int aq_a2_fw_update_stats(struct aq_hw_s *self)
+static void aq_a2_fill_a0_stats(struct aq_hw_s *self,
+				struct statistics_s *stats)
 {
 	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
-	struct statistics_s stats;
+	struct aq_stats_s *cs = &self->curr_stats;
+	struct aq_stats_s curr_stats = *cs;
+	bool corrupted_stats = false;
 
-	hw_atl2_shared_buffer_read_safe(self, stats, &stats);
-
-#define AQ_SDELTA(_N_, _F_) (self->curr_stats._N_ += \
-			stats.msm._F_ - priv->last_stats.msm._F_)
+#define AQ_SDELTA(_N, _F)  \
+do { \
+	if (!corrupted_stats && \
+	    ((s64)(stats->a0.msm._F - priv->last_stats.a0.msm._F)) >= 0) \
+		curr_stats._N += stats->a0.msm._F - priv->last_stats.a0.msm._F;\
+	else \
+		corrupted_stats = true; \
+} while (0)
 
 	if (self->aq_link_status.mbps) {
 		AQ_SDELTA(uprc, rx_unicast_frames);
@@ -362,17 +367,76 @@ static int aq_a2_fw_update_stats(struct aq_hw_s *self)
 		AQ_SDELTA(mbtc, tx_multicast_octets);
 		AQ_SDELTA(bbrc, rx_broadcast_octets);
 		AQ_SDELTA(bbtc, tx_broadcast_octets);
+
+		if (!corrupted_stats)
+			*cs = curr_stats;
 	}
 #undef AQ_SDELTA
-	self->curr_stats.dma_pkt_rc =
-		hw_atl_stats_rx_dma_good_pkt_counter_get(self);
-	self->curr_stats.dma_pkt_tc =
-		hw_atl_stats_tx_dma_good_pkt_counter_get(self);
-	self->curr_stats.dma_oct_rc =
-		hw_atl_stats_rx_dma_good_octet_counter_get(self);
-	self->curr_stats.dma_oct_tc =
-		hw_atl_stats_tx_dma_good_octet_counter_get(self);
-	self->curr_stats.dpc = hw_atl_rpb_rx_dma_drop_pkt_cnt_get(self);
+
+}
+
+static void aq_a2_fill_b0_stats(struct aq_hw_s *self,
+				struct statistics_s *stats)
+{
+	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
+	struct aq_stats_s *cs = &self->curr_stats;
+	struct aq_stats_s curr_stats = *cs;
+	bool corrupted_stats = false;
+
+#define AQ_SDELTA(_N, _F)  \
+do { \
+	if (!corrupted_stats && \
+	    ((s64)(stats->b0._F - priv->last_stats.b0._F)) >= 0) \
+		curr_stats._N += stats->b0._F - priv->last_stats.b0._F; \
+	else \
+		corrupted_stats = true; \
+} while (0)
+
+	if (self->aq_link_status.mbps) {
+		AQ_SDELTA(uprc, rx_unicast_frames);
+		AQ_SDELTA(mprc, rx_multicast_frames);
+		AQ_SDELTA(bprc, rx_broadcast_frames);
+		AQ_SDELTA(erpr, rx_errors);
+		AQ_SDELTA(brc, rx_good_octets);
+
+		AQ_SDELTA(uptc, tx_unicast_frames);
+		AQ_SDELTA(mptc, tx_multicast_frames);
+		AQ_SDELTA(bptc, tx_broadcast_frames);
+		AQ_SDELTA(erpt, tx_errors);
+		AQ_SDELTA(btc, tx_good_octets);
+
+		if (!corrupted_stats)
+			*cs = curr_stats;
+	}
+#undef AQ_SDELTA
+}
+
+static int aq_a2_fw_update_stats(struct aq_hw_s *self)
+{
+	struct hw_atl2_priv *priv = (struct hw_atl2_priv *)self->priv;
+	struct aq_stats_s *cs = &self->curr_stats;
+	struct statistics_s stats;
+	struct version_s version;
+	int err;
+
+	err = hw_atl2_shared_buffer_read_safe(self, version, &version);
+	if (err)
+		return err;
+
+	err = hw_atl2_shared_buffer_read_safe(self, stats, &stats);
+	if (err)
+		return err;
+
+	if (version.drv_iface_ver == AQ_A2_FW_INTERFACE_A0)
+		aq_a2_fill_a0_stats(self, &stats);
+	else
+		aq_a2_fill_b0_stats(self, &stats);
+
+	cs->dma_pkt_rc = hw_atl_stats_rx_dma_good_pkt_counter_get(self);
+	cs->dma_pkt_tc = hw_atl_stats_tx_dma_good_pkt_counter_get(self);
+	cs->dma_oct_rc = hw_atl_stats_rx_dma_good_octet_counter_get(self);
+	cs->dma_oct_tc = hw_atl_stats_tx_dma_good_octet_counter_get(self);
+	cs->dpc = hw_atl_rpb_rx_dma_drop_pkt_cnt_get(self);
 
 	memcpy(&priv->last_stats, &stats, sizeof(stats));
 
@@ -499,9 +563,9 @@ u32 hw_atl2_utils_get_fw_version(struct aq_hw_s *self)
 	hw_atl2_shared_buffer_read_safe(self, version, &version);
 
 	/* A2 FW version is stored in reverse order */
-	return version.mac.major << 24 |
-	       version.mac.minor << 16 |
-	       version.mac.build;
+	return version.bundle.major << 24 |
+	       version.bundle.minor << 16 |
+	       version.bundle.build;
 }
 
 int hw_atl2_utils_get_action_resolve_table_caps(struct aq_hw_s *self,

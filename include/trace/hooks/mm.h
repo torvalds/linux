@@ -68,16 +68,7 @@ DECLARE_HOOK(android_vh_include_reserved_zone,
 DECLARE_HOOK(android_vh_show_mem,
 	TP_PROTO(unsigned int filter, nodemask_t *nodemask),
 	TP_ARGS(filter, nodemask));
-DECLARE_HOOK(android_vh_alloc_pages_slowpath,
-	TP_PROTO(gfp_t gfp_mask, unsigned int order, unsigned long delta),
-	TP_ARGS(gfp_mask, order, delta));
-DECLARE_HOOK(android_vh_print_slabinfo_header,
-	TP_PROTO(struct seq_file *m),
-	TP_ARGS(m));
 struct slabinfo;
-DECLARE_HOOK(android_vh_cache_show,
-	TP_PROTO(struct seq_file *m, struct slabinfo *sinfo, struct kmem_cache *s),
-	TP_ARGS(m, sinfo, s));
 struct dirty_throttle_control;
 DECLARE_HOOK(android_vh_mm_dirty_limits,
 	TP_PROTO(struct dirty_throttle_control *const gdtc, bool strictlimit,
@@ -126,6 +117,21 @@ DECLARE_HOOK(android_vh_mmap_region,
 DECLARE_HOOK(android_vh_try_to_unmap_one,
 	TP_PROTO(struct vm_area_struct *vma, struct page *page, unsigned long addr, bool ret),
 	TP_ARGS(vma, page, addr, ret));
+DECLARE_HOOK(android_vh_drain_all_pages_bypass,
+	TP_PROTO(gfp_t gfp_mask, unsigned int order, unsigned long alloc_flags,
+		int migratetype, unsigned long did_some_progress,
+		bool *bypass),
+	TP_ARGS(gfp_mask, order, alloc_flags, migratetype, did_some_progress, bypass));
+DECLARE_HOOK(android_vh_cma_drain_all_pages_bypass,
+	TP_PROTO(unsigned int migratetype, bool *bypass),
+	TP_ARGS(migratetype, bypass));
+DECLARE_HOOK(android_vh_pcplist_add_cma_pages_bypass,
+	TP_PROTO(int migratetype, bool *bypass),
+	TP_ARGS(migratetype, bypass));
+struct device;
+DECLARE_HOOK(android_vh_subpage_dma_contig_alloc,
+	TP_PROTO(bool *allow_subpage_alloc, struct device *dev, size_t *size),
+	TP_ARGS(allow_subpage_alloc, dev, size));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */

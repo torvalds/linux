@@ -676,6 +676,7 @@ static void __exit exit_affs_fs(void)
 
 MODULE_DESCRIPTION("Amiga filesystem support for Linux");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 
 module_init(init_affs_fs)
 module_exit(exit_affs_fs)

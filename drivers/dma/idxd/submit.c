@@ -45,7 +45,7 @@ struct idxd_desc *idxd_alloc_desc(struct idxd_wq *wq, enum idxd_op_type optype)
 		if (signal_pending_state(TASK_INTERRUPTIBLE, current))
 			break;
 		idx = sbitmap_queue_get(sbq, &cpu);
-		if (idx > 0)
+		if (idx >= 0)
 			break;
 		schedule();
 	}

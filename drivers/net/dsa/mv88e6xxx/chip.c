@@ -726,7 +726,11 @@ static void mv88e6xxx_mac_link_down(struct dsa_switch *ds, int port,
 	ops = chip->info->ops;
 
 	mv88e6xxx_reg_lock(chip);
-	if ((!mv88e6xxx_port_ppu_updates(chip, port) ||
+	/* Internal PHYs propagate their configuration directly to the MAC.
+	 * External PHYs depend on whether the PPU is enabled for this port.
+	 */
+	if (((!mv88e6xxx_phy_is_internal(ds, port) &&
+	      !mv88e6xxx_port_ppu_updates(chip, port)) ||
 	     mode == MLO_AN_FIXED) && ops->port_set_link)
 		err = ops->port_set_link(chip, port, LINK_FORCED_DOWN);
 	mv88e6xxx_reg_unlock(chip);
@@ -749,7 +753,12 @@ static void mv88e6xxx_mac_link_up(struct dsa_switch *ds, int port,
 	ops = chip->info->ops;
 
 	mv88e6xxx_reg_lock(chip);
-	if (!mv88e6xxx_port_ppu_updates(chip, port) || mode == MLO_AN_FIXED) {
+	/* Internal PHYs propagate their configuration directly to the MAC.
+	 * External PHYs depend on whether the PPU is enabled for this port.
+	 */
+	if ((!mv88e6xxx_phy_is_internal(ds, port) &&
+	     !mv88e6xxx_port_ppu_updates(chip, port)) ||
+	    mode == MLO_AN_FIXED) {
 		/* FIXME: for an automedia port, should we force the link
 		 * down here - what if the link comes up due to "other" media
 		 * while we're bringing the port up, how is the exclusivity
@@ -2613,8 +2622,8 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	if (err)
 		return err;
 
-	/* Port Control 2: don't force a good FCS, set the maximum frame size to
-	 * 10240 bytes, disable 802.1q tags checking, don't discard tagged or
+	/* Port Control 2: don't force a good FCS, set the MTU size to
+	 * 10222 bytes, disable 802.1q tags checking, don't discard tagged or
 	 * untagged frames on this port, do a destination address lookup on all
 	 * received packets as usual, disable ARP mirroring and don't send a
 	 * copy of all transmitted/received frames on this port to the CPU.
@@ -2633,7 +2642,7 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 		return err;
 
 	if (chip->info->ops->port_set_jumbo_size) {
-		err = chip->info->ops->port_set_jumbo_size(chip, port, 10240);
+		err = chip->info->ops->port_set_jumbo_size(chip, port, 10218);
 		if (err)
 			return err;
 	}
@@ -2718,16 +2727,19 @@ static int mv88e6xxx_get_max_mtu(struct dsa_switch *ds, int port)
 	struct mv88e6xxx_chip *chip = ds->priv;
 
 	if (chip->info->ops->port_set_jumbo_size)
-		return 10240;
+		return 10240 - VLAN_ETH_HLEN - EDSA_HLEN - ETH_FCS_LEN;
 	else if (chip->info->ops->set_max_frame_size)
-		return 1632;
-	return 1522;
+		return 1632 - VLAN_ETH_HLEN - EDSA_HLEN - ETH_FCS_LEN;
+	return 1522 - VLAN_ETH_HLEN - EDSA_HLEN - ETH_FCS_LEN;
 }
 
 static int mv88e6xxx_change_mtu(struct dsa_switch *ds, int port, int new_mtu)
 {
 	struct mv88e6xxx_chip *chip = ds->priv;
 	int ret = 0;
+
+	if (dsa_is_dsa_port(ds, port) || dsa_is_cpu_port(ds, port))
+		new_mtu += EDSA_HLEN;
 
 	mv88e6xxx_reg_lock(chip);
 	if (chip->info->ops->port_set_jumbo_size)
@@ -3060,7 +3072,7 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 			return err;
 	}
 
-	bus = devm_mdiobus_alloc_size(chip->dev, sizeof(*mdio_bus));
+	bus = mdiobus_alloc_size(sizeof(*mdio_bus));
 	if (!bus)
 		return -ENOMEM;
 
@@ -3085,14 +3097,14 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 	if (!external) {
 		err = mv88e6xxx_g2_irq_mdio_setup(chip, bus);
 		if (err)
-			return err;
+			goto out;
 	}
 
 	err = of_mdiobus_register(bus, np);
 	if (err) {
 		dev_err(chip->dev, "Cannot register MDIO bus (%d)\n", err);
 		mv88e6xxx_g2_irq_mdio_free(chip, bus);
-		return err;
+		goto out;
 	}
 
 	if (external)
@@ -3101,21 +3113,26 @@ static int mv88e6xxx_mdio_register(struct mv88e6xxx_chip *chip,
 		list_add(&mdio_bus->list, &chip->mdios);
 
 	return 0;
+
+out:
+	mdiobus_free(bus);
+	return err;
 }
 
 static void mv88e6xxx_mdios_unregister(struct mv88e6xxx_chip *chip)
 
 {
-	struct mv88e6xxx_mdio_bus *mdio_bus;
+	struct mv88e6xxx_mdio_bus *mdio_bus, *p;
 	struct mii_bus *bus;
 
-	list_for_each_entry(mdio_bus, &chip->mdios, list) {
+	list_for_each_entry_safe(mdio_bus, p, &chip->mdios, list) {
 		bus = mdio_bus->bus;
 
 		if (!mdio_bus->external)
 			mv88e6xxx_g2_irq_mdio_free(chip, bus);
 
 		mdiobus_unregister(bus);
+		mdiobus_free(bus);
 	}
 }
 
@@ -3455,7 +3472,6 @@ static const struct mv88e6xxx_ops mv88e6161_ops = {
 	.port_set_frame_mode = mv88e6351_port_set_frame_mode,
 	.port_set_egress_floods = mv88e6352_port_set_egress_floods,
 	.port_set_ether_type = mv88e6351_port_set_ether_type,
-	.port_set_jumbo_size = mv88e6165_port_set_jumbo_size,
 	.port_egress_rate_limiting = mv88e6097_port_egress_rate_limiting,
 	.port_pause_limit = mv88e6097_port_pause_limit,
 	.port_disable_learn_limit = mv88e6xxx_port_disable_learn_limit,
@@ -3480,6 +3496,7 @@ static const struct mv88e6xxx_ops mv88e6161_ops = {
 	.avb_ops = &mv88e6165_avb_ops,
 	.ptp_ops = &mv88e6165_ptp_ops,
 	.phylink_validate = mv88e6185_phylink_validate,
+	.set_max_frame_size = mv88e6185_g1_set_max_frame_size,
 };
 
 static const struct mv88e6xxx_ops mv88e6165_ops = {

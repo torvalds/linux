@@ -111,37 +111,19 @@ static int __adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 
 	mutex_lock(lock);
 
-	/* Check if PF2VF CSR is in use by remote function */
+	/* Check if the PFVF CSR is in use by remote function */
 	val = ADF_CSR_RD(pmisc_bar_addr, pf2vf_offset);
 	if ((val & remote_in_use_mask) == remote_in_use_pattern) {
 		dev_dbg(&GET_DEV(accel_dev),
-			"PF2VF CSR in use by remote function\n");
+			"PFVF CSR in use by remote function\n");
 		ret = -EBUSY;
 		goto out;
 	}
 
-	/* Attempt to get ownership of PF2VF CSR */
 	msg &= ~local_in_use_mask;
 	msg |= local_in_use_pattern;
-	ADF_CSR_WR(pmisc_bar_addr, pf2vf_offset, msg);
 
-	/* Wait in case remote func also attempting to get ownership */
-	msleep(ADF_IOV_MSG_COLLISION_DETECT_DELAY);
-
-	val = ADF_CSR_RD(pmisc_bar_addr, pf2vf_offset);
-	if ((val & local_in_use_mask) != local_in_use_pattern) {
-		dev_dbg(&GET_DEV(accel_dev),
-			"PF2VF CSR in use by remote - collision detected\n");
-		ret = -EBUSY;
-		goto out;
-	}
-
-	/*
-	 * This function now owns the PV2VF CSR.  The IN_USE_BY pattern must
-	 * remain in the PF2VF CSR for all writes including ACK from remote
-	 * until this local function relinquishes the CSR.  Send the message
-	 * by interrupting the remote.
-	 */
+	/* Attempt to get ownership of the PFVF CSR */
 	ADF_CSR_WR(pmisc_bar_addr, pf2vf_offset, msg | int_bit);
 
 	/* Wait for confirmation from remote func it received the message */
@@ -156,7 +138,14 @@ static int __adf_iov_putmsg(struct adf_accel_dev *accel_dev, u32 msg, u8 vf_nr)
 		ret = -EIO;
 	}
 
-	/* Finished with PF2VF CSR; relinquish it and leave msg in CSR */
+	if (val != msg) {
+		dev_dbg(&GET_DEV(accel_dev),
+			"Collision - PFVF CSR overwritten by remote function\n");
+		ret = -EIO;
+		goto out;
+	}
+
+	/* Finished with the PFVF CSR; relinquish it and leave msg in CSR */
 	ADF_CSR_WR(pmisc_bar_addr, pf2vf_offset, val & ~local_in_use_mask);
 out:
 	mutex_unlock(lock);
@@ -164,12 +153,13 @@ out:
 }
 
 /**
- * adf_iov_putmsg() - send PF2VF message
+ * adf_iov_putmsg() - send PFVF message
  * @accel_dev:  Pointer to acceleration device.
  * @msg:	Message to send
- * @vf_nr:	VF number to which the message will be sent
+ * @vf_nr:	VF number to which the message will be sent if on PF, ignored
+ *		otherwise
  *
- * Function sends a messge from the PF to a VF
+ * Function sends a message through the PFVF channel
  *
  * Return: 0 on success, error code otherwise.
  */
@@ -198,6 +188,11 @@ void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info)
 
 	/* Read message from the VF */
 	msg = ADF_CSR_RD(pmisc_addr, hw_data->get_pf2vf_offset(vf_nr));
+	if (!(msg & ADF_VF2PF_INT)) {
+		dev_info(&GET_DEV(accel_dev),
+			 "Spurious VF2PF interrupt, msg %X. Ignored\n", msg);
+		goto out;
+	}
 
 	/* To ACK, clear the VF2PFINT bit */
 	msg &= ~ADF_VF2PF_INT;
@@ -281,6 +276,7 @@ void adf_vf2pf_req_hndl(struct adf_accel_vf_info *vf_info)
 	if (resp && adf_iov_putmsg(accel_dev, resp, vf_nr))
 		dev_err(&GET_DEV(accel_dev), "Failed to send response to VF\n");
 
+out:
 	/* re-enable interrupt on PF from this VF */
 	adf_enable_vf2pf_interrupts(accel_dev, (1 << vf_nr));
 	return;

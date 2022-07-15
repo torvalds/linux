@@ -35,6 +35,12 @@ struct lockdep_map __mmu_notifier_invalidate_range_start_map = {
  * in mmdrop().
  */
 struct mmu_notifier_subscriptions {
+	/*
+	 * WARNING: hdr should be the first member of this structure
+	 * so that it can be typecasted into mmu_notifier_subscriptions_hdr.
+	 * This is required to avoid KMI CRC breakage.
+	 */
+	struct mmu_notifier_subscriptions_hdr hdr;
 	/* all mmu notifiers registered in this mm are queued in this list */
 	struct hlist_head list;
 	bool has_itree;
@@ -621,6 +627,37 @@ void __mmu_notifier_invalidate_range(struct mm_struct *mm,
 	srcu_read_unlock(&srcu, id);
 }
 
+#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+
+static inline void mmu_notifier_write_lock(struct mm_struct *mm)
+{
+	percpu_down_write(
+		&mm->notifier_subscriptions->hdr.mmu_notifier_lock->rw_sem);
+}
+
+static inline void mmu_notifier_write_unlock(struct mm_struct *mm)
+{
+	percpu_up_write(
+		&mm->notifier_subscriptions->hdr.mmu_notifier_lock->rw_sem);
+}
+
+#else /* CONFIG_SPECULATIVE_PAGE_FAULT */
+
+static inline void mmu_notifier_write_lock(struct mm_struct *mm) {}
+static inline void mmu_notifier_write_unlock(struct mm_struct *mm) {}
+
+#endif /* CONFIG_SPECULATIVE_PAGE_FAULT */
+
+static void init_subscriptions(struct mmu_notifier_subscriptions *subscriptions)
+{
+	INIT_HLIST_HEAD(&subscriptions->list);
+	spin_lock_init(&subscriptions->lock);
+	subscriptions->invalidate_seq = 2;
+	subscriptions->itree = RB_ROOT_CACHED;
+	init_waitqueue_head(&subscriptions->wq);
+	INIT_HLIST_HEAD(&subscriptions->deferred_list);
+}
+
 /*
  * Same as mmu_notifier_register but here the caller must hold the mmap_lock in
  * write mode. A NULL mn signals the notifier is being registered for itree
@@ -653,17 +690,16 @@ int __mmu_notifier_register(struct mmu_notifier *subscription,
 		if (!subscriptions)
 			return -ENOMEM;
 
-		INIT_HLIST_HEAD(&subscriptions->list);
-		spin_lock_init(&subscriptions->lock);
-		subscriptions->invalidate_seq = 2;
-		subscriptions->itree = RB_ROOT_CACHED;
-		init_waitqueue_head(&subscriptions->wq);
-		INIT_HLIST_HEAD(&subscriptions->deferred_list);
+		init_subscriptions(subscriptions);
 	}
 
+	mmu_notifier_write_lock(mm);
+
 	ret = mm_take_all_locks(mm);
-	if (unlikely(ret))
+	if (unlikely(ret)) {
+		mmu_notifier_write_unlock(mm);
 		goto out_clean;
+	}
 
 	/*
 	 * Serialize the update against mmu_notifier_unregister. A
@@ -683,6 +719,7 @@ int __mmu_notifier_register(struct mmu_notifier *subscription,
 	 */
 	if (subscriptions)
 		smp_store_release(&mm->notifier_subscriptions, subscriptions);
+	mm->notifier_subscriptions->hdr.valid = true;
 
 	if (subscription) {
 		/* Pairs with the mmdrop in mmu_notifier_unregister_* */
@@ -698,6 +735,7 @@ int __mmu_notifier_register(struct mmu_notifier *subscription,
 		mm->notifier_subscriptions->has_itree = true;
 
 	mm_drop_all_locks(mm);
+	mmu_notifier_write_unlock(mm);
 	BUG_ON(atomic_read(&mm->mm_users) <= 0);
 	return 0;
 
@@ -1125,3 +1163,41 @@ mmu_notifier_range_update_to_read_only(const struct mmu_notifier_range *range)
 	return range->vma->vm_flags & VM_READ;
 }
 EXPORT_SYMBOL_GPL(mmu_notifier_range_update_to_read_only);
+
+#ifdef CONFIG_SPECULATIVE_PAGE_FAULT
+
+bool mmu_notifier_subscriptions_init(struct mm_struct *mm)
+{
+	struct mmu_notifier_subscriptions *subscriptions;
+	struct percpu_rw_semaphore_atomic *sem;
+
+	subscriptions = kzalloc(
+		sizeof(struct mmu_notifier_subscriptions), GFP_KERNEL);
+	if (!subscriptions)
+		return false;
+
+	sem = kzalloc(sizeof(struct percpu_rw_semaphore_atomic), GFP_KERNEL);
+	if (!sem) {
+		kfree(subscriptions);
+		return false;
+	}
+	percpu_init_rwsem(&sem->rw_sem);
+
+	init_subscriptions(subscriptions);
+	subscriptions->has_itree = true;
+	subscriptions->hdr.valid = false;
+	subscriptions->hdr.mmu_notifier_lock = sem;
+	mm->notifier_subscriptions = subscriptions;
+
+	return true;
+}
+
+void mmu_notifier_subscriptions_destroy(struct mm_struct *mm)
+{
+	percpu_rwsem_async_destroy(
+			mm->notifier_subscriptions->hdr.mmu_notifier_lock);
+	kfree(mm->notifier_subscriptions);
+	mm->notifier_subscriptions = NULL;
+}
+
+#endif /* CONFIG_SPECULATIVE_PAGE_FAULT */

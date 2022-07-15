@@ -80,3 +80,4 @@ module_init(init_nls_koi8_ru)
 module_exit(exit_nls_koi8_ru)
 
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);

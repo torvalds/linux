@@ -36,6 +36,7 @@ int orangefs_dcache_timeout_msecs = 50;
 int orangefs_getattr_timeout_msecs = 50;
 
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(ANDROID_GKI_VFS_EXPORT_ONLY);
 MODULE_AUTHOR("ORANGEFS Development Team");
 MODULE_DESCRIPTION("The Linux Kernel VFS interface to ORANGEFS");
 MODULE_PARM_DESC(module_parm_debug_mask, "debugging level (see orangefs-debug.h for values)");

@@ -53,20 +53,6 @@ struct chnl_net {
 	enum caif_states state;
 };
 
-static void robust_list_del(struct list_head *delete_node)
-{
-	struct list_head *list_node;
-	struct list_head *n;
-	ASSERT_RTNL();
-	list_for_each_safe(list_node, n, &chnl_net_list) {
-		if (list_node == delete_node) {
-			list_del(list_node);
-			return;
-		}
-	}
-	WARN_ON(1);
-}
-
 static int chnl_recv_cb(struct cflayer *layr, struct cfpkt *pkt)
 {
 	struct sk_buff *skb;
@@ -369,6 +355,7 @@ static int chnl_net_init(struct net_device *dev)
 	ASSERT_RTNL();
 	priv = netdev_priv(dev);
 	strncpy(priv->name, dev->name, sizeof(priv->name));
+	INIT_LIST_HEAD(&priv->list_field);
 	return 0;
 }
 
@@ -377,7 +364,7 @@ static void chnl_net_uninit(struct net_device *dev)
 	struct chnl_net *priv;
 	ASSERT_RTNL();
 	priv = netdev_priv(dev);
-	robust_list_del(&priv->list_field);
+	list_del_init(&priv->list_field);
 }
 
 static const struct net_device_ops netdev_ops = {
@@ -542,7 +529,7 @@ static void __exit chnl_exit_module(void)
 	rtnl_lock();
 	list_for_each_safe(list_node, _tmp, &chnl_net_list) {
 		dev = list_entry(list_node, struct chnl_net, list_field);
-		list_del(list_node);
+		list_del_init(list_node);
 		delete_device(dev);
 	}
 	rtnl_unlock();

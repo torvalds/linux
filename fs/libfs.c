@@ -225,7 +225,7 @@ ssize_t generic_read_dir(struct file *filp, char __user *buf, size_t siz, loff_t
 {
 	return -EISDIR;
 }
-EXPORT_SYMBOL(generic_read_dir);
+EXPORT_SYMBOL_NS(generic_read_dir, ANDROID_GKI_VFS_EXPORT_ONLY);
 
 const struct file_operations simple_dir_operations = {
 	.open		= dcache_dir_open,

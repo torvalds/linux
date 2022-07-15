@@ -480,3 +480,5 @@
 548	common	pidfd_getfd			sys_pidfd_getfd
 549	common	faccessat2			sys_faccessat2
 550	common	process_madvise			sys_process_madvise
+# 557 reserved for memfd_secret
+558	common	process_mrelease		sys_process_mrelease

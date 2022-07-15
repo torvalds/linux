@@ -23,7 +23,7 @@ struct sk_buff;
 /* queueing.c APIs: */
 int wg_packet_queue_init(struct crypt_queue *queue, work_func_t function,
 			 unsigned int len);
-void wg_packet_queue_free(struct crypt_queue *queue);
+void wg_packet_queue_free(struct crypt_queue *queue, bool purge);
 struct multicore_worker __percpu *
 wg_packet_percpu_multicore_worker_alloc(work_func_t function, void *ptr);
 

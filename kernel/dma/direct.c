@@ -62,7 +62,7 @@ static gfp_t dma_direct_optimal_gfp_mask(struct device *dev, u64 dma_mask,
 	if (*phys_limit <= DMA_BIT_MASK(zone_dma_bits))
 		return GFP_DMA;
 	if (*phys_limit <= DMA_BIT_MASK(32) &&
-		!zone_dma32_is_empty(dev_to_node(dev)))
+		!zone_dma32_are_empty())
 		return GFP_DMA32;
 	return 0;
 }
@@ -103,7 +103,7 @@ again:
 		if (IS_ENABLED(CONFIG_ZONE_DMA32) &&
 		    phys_limit < DMA_BIT_MASK(64) &&
 		    !(gfp & (GFP_DMA32 | GFP_DMA)) &&
-		    !zone_dma32_is_empty(node)) {
+		    !zone_dma32_are_empty()) {
 			gfp |= GFP_DMA32;
 			goto again;
 		}

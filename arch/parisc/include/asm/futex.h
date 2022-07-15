@@ -16,7 +16,7 @@ static inline void
 _futex_spin_lock_irqsave(u32 __user *uaddr, unsigned long int *flags)
 {
 	extern u32 lws_lock_start[];
-	long index = ((long)uaddr & 0x3f8) >> 1;
+	long index = ((long)uaddr & 0x7f8) >> 1;
 	arch_spinlock_t *s = (arch_spinlock_t *)&lws_lock_start[index];
 	local_irq_save(*flags);
 	arch_spin_lock(s);
@@ -26,7 +26,7 @@ static inline void
 _futex_spin_unlock_irqrestore(u32 __user *uaddr, unsigned long int *flags)
 {
 	extern u32 lws_lock_start[];
-	long index = ((long)uaddr & 0x3f8) >> 1;
+	long index = ((long)uaddr & 0x7f8) >> 1;
 	arch_spinlock_t *s = (arch_spinlock_t *)&lws_lock_start[index];
 	arch_spin_unlock(s);
 	local_irq_restore(*flags);

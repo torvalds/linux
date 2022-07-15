@@ -439,8 +439,8 @@ static int prestera_port_bridge_join(struct prestera_port *port,
 
 	br_port = prestera_bridge_port_add(bridge, port->dev);
 	if (IS_ERR(br_port)) {
-		err = PTR_ERR(br_port);
-		goto err_brport_create;
+		prestera_bridge_put(bridge);
+		return PTR_ERR(br_port);
 	}
 
 	if (bridge->vlan_enabled)
@@ -454,8 +454,6 @@ static int prestera_port_bridge_join(struct prestera_port *port,
 
 err_port_join:
 	prestera_bridge_port_put(br_port);
-err_brport_create:
-	prestera_bridge_put(bridge);
 	return err;
 }
 

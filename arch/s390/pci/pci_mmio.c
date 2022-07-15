@@ -128,7 +128,7 @@ static long get_pfn(unsigned long user_addr, unsigned long access,
 	mmap_read_lock(current->mm);
 	ret = -EINVAL;
 	vma = find_vma(current->mm, user_addr);
-	if (!vma)
+	if (!vma || user_addr < vma->vm_start)
 		goto out;
 	ret = -EACCES;
 	if (!(vma->vm_flags & access))

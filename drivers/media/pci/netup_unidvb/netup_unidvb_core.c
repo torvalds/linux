@@ -258,19 +258,24 @@ static irqreturn_t netup_unidvb_isr(int irq, void *dev_id)
 	if ((reg40 & AVL_IRQ_ASSERTED) != 0) {
 		/* IRQ is being signaled */
 		reg_isr = readw(ndev->bmmio0 + REG_ISR);
-		if (reg_isr & NETUP_UNIDVB_IRQ_I2C0) {
-			iret = netup_i2c_interrupt(&ndev->i2c[0]);
-		} else if (reg_isr & NETUP_UNIDVB_IRQ_I2C1) {
-			iret = netup_i2c_interrupt(&ndev->i2c[1]);
-		} else if (reg_isr & NETUP_UNIDVB_IRQ_SPI) {
+		if (reg_isr & NETUP_UNIDVB_IRQ_SPI)
 			iret = netup_spi_interrupt(ndev->spi);
-		} else if (reg_isr & NETUP_UNIDVB_IRQ_DMA1) {
-			iret = netup_dma_interrupt(&ndev->dma[0]);
-		} else if (reg_isr & NETUP_UNIDVB_IRQ_DMA2) {
-			iret = netup_dma_interrupt(&ndev->dma[1]);
-		} else if (reg_isr & NETUP_UNIDVB_IRQ_CI) {
-			iret = netup_ci_interrupt(ndev);
+		else if (!ndev->old_fw) {
+			if (reg_isr & NETUP_UNIDVB_IRQ_I2C0) {
+				iret = netup_i2c_interrupt(&ndev->i2c[0]);
+			} else if (reg_isr & NETUP_UNIDVB_IRQ_I2C1) {
+				iret = netup_i2c_interrupt(&ndev->i2c[1]);
+			} else if (reg_isr & NETUP_UNIDVB_IRQ_DMA1) {
+				iret = netup_dma_interrupt(&ndev->dma[0]);
+			} else if (reg_isr & NETUP_UNIDVB_IRQ_DMA2) {
+				iret = netup_dma_interrupt(&ndev->dma[1]);
+			} else if (reg_isr & NETUP_UNIDVB_IRQ_CI) {
+				iret = netup_ci_interrupt(ndev);
+			} else {
+				goto err;
+			}
 		} else {
+err:
 			dev_err(&pci_dev->dev,
 				"%s(): unknown interrupt 0x%x\n",
 				__func__, reg_isr);
