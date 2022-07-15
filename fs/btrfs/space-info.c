@@ -293,28 +293,27 @@ out:
 	return ret;
 }
 
-void btrfs_update_space_info(struct btrfs_fs_info *info, u64 flags,
-			     u64 total_bytes, u64 bytes_used,
-			     u64 bytes_readonly, u64 bytes_zone_unusable,
-			     bool active, struct btrfs_space_info **space_info)
+void btrfs_add_bg_to_space_info(struct btrfs_fs_info *info,
+				struct btrfs_block_group *block_group,
+				struct btrfs_space_info **space_info)
 {
 	struct btrfs_space_info *found;
 	int factor;
 
-	factor = btrfs_bg_type_to_factor(flags);
+	factor = btrfs_bg_type_to_factor(block_group->flags);
 
-	found = btrfs_find_space_info(info, flags);
+	found = btrfs_find_space_info(info, block_group->flags);
 	ASSERT(found);
 	spin_lock(&found->lock);
-	found->total_bytes += total_bytes;
-	if (active)
-		found->active_total_bytes += total_bytes;
-	found->disk_total += total_bytes * factor;
-	found->bytes_used += bytes_used;
-	found->disk_used += bytes_used * factor;
-	found->bytes_readonly += bytes_readonly;
-	found->bytes_zone_unusable += bytes_zone_unusable;
-	if (total_bytes > 0)
+	found->total_bytes += block_group->length;
+	if (block_group->zone_is_active)
+		found->active_total_bytes += block_group->length;
+	found->disk_total += block_group->length * factor;
+	found->bytes_used += block_group->used;
+	found->disk_used += block_group->used * factor;
+	found->bytes_readonly += block_group->bytes_super;
+	found->bytes_zone_unusable += block_group->zone_unusable;
+	if (block_group->length > 0)
 		found->full = 0;
 	btrfs_try_granting_tickets(info, found);
 	spin_unlock(&found->lock);
