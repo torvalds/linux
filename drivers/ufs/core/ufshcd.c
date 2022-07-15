@@ -8544,6 +8544,19 @@ out:
 	return ret;
 }
 
+static enum ufs_ref_clk_freq ufshcd_parse_ref_clk_property(struct ufs_hba *hba)
+{
+	u32 freq;
+	int ret = device_property_read_u32(hba->dev, "ref-clk-freq", &freq);
+
+	if (ret) {
+		dev_dbg(hba->dev, "Cannnot query 'ref-clk-freq' property = %d", ret);
+		return REF_CLK_FREQ_INVAL;
+	}
+
+	return ufs_get_bref_clk_from_hz(freq);
+}
+
 static int ufshcd_init_clocks(struct ufs_hba *hba)
 {
 	int ret = 0;
@@ -8636,6 +8649,9 @@ static int ufshcd_hba_init(struct ufs_hba *hba)
 	err = ufshcd_init_clocks(hba);
 	if (err)
 		goto out_disable_hba_vreg;
+
+	if (hba->dev_ref_clk_freq == REF_CLK_FREQ_INVAL)
+		hba->dev_ref_clk_freq = ufshcd_parse_ref_clk_property(hba);
 
 	err = ufshcd_setup_clocks(hba, true);
 	if (err)
