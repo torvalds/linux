@@ -2515,6 +2515,14 @@ static int _intel_bios_dp_max_link_rate(const struct intel_bios_encoder_data *de
 		return parse_bdb_216_dp_max_link_rate(devdata->child.dp_max_link_rate);
 }
 
+static int _intel_bios_dp_max_lane_count(const struct intel_bios_encoder_data *devdata)
+{
+	if (!devdata || devdata->i915->display.vbt.version < 244)
+		return 0;
+
+	return devdata->child.dp_max_lane_count + 1;
+}
+
 static void sanitize_device_type(struct intel_bios_encoder_data *devdata,
 				 enum port port)
 {
@@ -3694,6 +3702,14 @@ int intel_bios_dp_max_link_rate(struct intel_encoder *encoder)
 	const struct intel_bios_encoder_data *devdata = i915->display.vbt.ports[encoder->port];
 
 	return _intel_bios_dp_max_link_rate(devdata);
+}
+
+int intel_bios_dp_max_lane_count(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *i915 = to_i915(encoder->base.dev);
+	const struct intel_bios_encoder_data *devdata = i915->display.vbt.ports[encoder->port];
+
+	return _intel_bios_dp_max_lane_count(devdata);
 }
 
 int intel_bios_alternate_ddc_pin(struct intel_encoder *encoder)

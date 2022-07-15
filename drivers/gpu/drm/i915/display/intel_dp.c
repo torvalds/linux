@@ -286,11 +286,22 @@ static int intel_dp_max_common_rate(struct intel_dp *intel_dp)
 	return intel_dp_common_rate(intel_dp, intel_dp->num_common_rates - 1);
 }
 
+static int intel_dp_max_source_lane_count(struct intel_digital_port *dig_port)
+{
+	int vbt_max_lanes = intel_bios_dp_max_lane_count(&dig_port->base);
+	int max_lanes = dig_port->max_lanes;
+
+	if (vbt_max_lanes)
+		max_lanes = min(max_lanes, vbt_max_lanes);
+
+	return max_lanes;
+}
+
 /* Theoretical max between source and sink */
 static int intel_dp_max_common_lane_count(struct intel_dp *intel_dp)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	int source_max = dig_port->max_lanes;
+	int source_max = intel_dp_max_source_lane_count(dig_port);
 	int sink_max = intel_dp->max_sink_lane_count;
 	int fia_max = intel_tc_port_fia_max_lane_count(dig_port);
 	int lttpr_max = drm_dp_lttpr_max_lane_count(intel_dp->lttpr_common_caps);
