@@ -1478,16 +1478,6 @@ config RTC_DRV_SUNPLUS
 	  This driver can also be built as a module. If so, the module
 	  will be called rtc-sunplus.
 
-config RTC_DRV_VR41XX
-	tristate "NEC VR41XX"
-	depends on CPU_VR41XX || COMPILE_TEST
-	help
-	  If you say Y here you will get access to the real time clock
-	  built into your NEC VR41XX CPU.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called rtc-vr41xx.
-
 config RTC_DRV_PL030
 	tristate "ARM AMBA PL030 RTC"
 	depends on ARM_AMBA
