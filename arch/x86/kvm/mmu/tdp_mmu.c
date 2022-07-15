@@ -1733,7 +1733,6 @@ static void zap_collapsible_spte_range(struct kvm *kvm,
 	gfn_t end = start + slot->npages;
 	struct tdp_iter iter;
 	int max_mapping_level;
-	kvm_pfn_t pfn;
 
 	rcu_read_lock();
 
@@ -1745,13 +1744,8 @@ static void zap_collapsible_spte_range(struct kvm *kvm,
 		    !is_last_spte(iter.old_spte, iter.level))
 			continue;
 
-		/*
-		 * This is a leaf SPTE. Check if the PFN it maps can
-		 * be mapped at a higher level.
-		 */
-		pfn = spte_to_pfn(iter.old_spte);
 		max_mapping_level = kvm_mmu_max_mapping_level(kvm, slot,
-				iter.gfn, pfn, PG_LEVEL_NUM);
+							      iter.gfn, PG_LEVEL_NUM);
 
 		WARN_ON(max_mapping_level < iter.level);
 
