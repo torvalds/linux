@@ -68,6 +68,7 @@ void i915_refct_sgt_init(struct i915_refct_sgt *rsgt, size_t size)
  * drm_mm_node
  * @node: The drm_mm_node.
  * @region_start: An offset to add to the dma addresses of the sg list.
+ * @page_alignment: Required page alignment for each sg entry. Power of two.
  *
  * Create a struct sg_table, initializing it from a struct drm_mm_node,
  * taking a maximum segment length into account, splitting into segments
@@ -77,14 +78,17 @@ void i915_refct_sgt_init(struct i915_refct_sgt *rsgt, size_t size)
  * error code cast to an error pointer on failure.
  */
 struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
-					      u64 region_start)
+					      u64 region_start,
+					      u64 page_alignment)
 {
-	const u64 max_segment = SZ_1G; /* Do we have a limit on this? */
+	const u64 max_segment = round_down(UINT_MAX, page_alignment);
 	u64 segment_pages = max_segment >> PAGE_SHIFT;
 	u64 block_size, offset, prev_end;
 	struct i915_refct_sgt *rsgt;
 	struct sg_table *st;
 	struct scatterlist *sg;
+
+	GEM_BUG_ON(!max_segment);
 
 	rsgt = kmalloc(sizeof(*rsgt), GFP_KERNEL);
 	if (!rsgt)
@@ -112,6 +116,8 @@ struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
 				sg = __sg_next(sg);
 
 			sg_dma_address(sg) = region_start + offset;
+			GEM_BUG_ON(!IS_ALIGNED(sg_dma_address(sg),
+					       page_alignment));
 			sg_dma_len(sg) = 0;
 			sg->length = 0;
 			st->nents++;
@@ -138,6 +144,7 @@ struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
  * i915_buddy_block list
  * @res: The struct i915_ttm_buddy_resource.
  * @region_start: An offset to add to the dma addresses of the sg list.
+ * @page_alignment: Required page alignment for each sg entry. Power of two.
  *
  * Create a struct sg_table, initializing it from struct i915_buddy_block list,
  * taking a maximum segment length into account, splitting into segments
@@ -147,11 +154,12 @@ struct i915_refct_sgt *i915_rsgt_from_mm_node(const struct drm_mm_node *node,
  * error code cast to an error pointer on failure.
  */
 struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
-						     u64 region_start)
+						     u64 region_start,
+						     u64 page_alignment)
 {
 	struct i915_ttm_buddy_resource *bman_res = to_ttm_buddy_resource(res);
 	const u64 size = res->num_pages << PAGE_SHIFT;
-	const u64 max_segment = rounddown(UINT_MAX, PAGE_SIZE);
+	const u64 max_segment = round_down(UINT_MAX, page_alignment);
 	struct drm_buddy *mm = bman_res->mm;
 	struct list_head *blocks = &bman_res->blocks;
 	struct drm_buddy_block *block;
@@ -161,6 +169,7 @@ struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
 	resource_size_t prev_end;
 
 	GEM_BUG_ON(list_empty(blocks));
+	GEM_BUG_ON(!max_segment);
 
 	rsgt = kmalloc(sizeof(*rsgt), GFP_KERNEL);
 	if (!rsgt)
@@ -191,6 +200,8 @@ struct i915_refct_sgt *i915_rsgt_from_buddy_resource(struct ttm_resource *res,
 					sg = __sg_next(sg);
 
 				sg_dma_address(sg) = region_start + offset;
+				GEM_BUG_ON(!IS_ALIGNED(sg_dma_address(sg),
+						       page_alignment));
 				sg_dma_len(sg) = 0;
 				sg->length = 0;
 				st->nents++;
