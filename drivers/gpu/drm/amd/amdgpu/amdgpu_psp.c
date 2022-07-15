@@ -2168,6 +2168,21 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_RLC_DRAM:
 		*type = GFX_FW_TYPE_RLC_DRAM_BOOT;
 		break;
+	case AMDGPU_UCODE_ID_GLOBAL_TAP_DELAYS:
+		*type = GFX_FW_TYPE_GLOBAL_TAP_DELAYS;
+		break;
+	case AMDGPU_UCODE_ID_SE0_TAP_DELAYS:
+		*type = GFX_FW_TYPE_SE0_TAP_DELAYS;
+		break;
+	case AMDGPU_UCODE_ID_SE1_TAP_DELAYS:
+		*type = GFX_FW_TYPE_SE1_TAP_DELAYS;
+		break;
+	case AMDGPU_UCODE_ID_SE2_TAP_DELAYS:
+		*type = GFX_FW_TYPE_SE2_TAP_DELAYS;
+		break;
+	case AMDGPU_UCODE_ID_SE3_TAP_DELAYS:
+		*type = GFX_FW_TYPE_SE3_TAP_DELAYS;
+		break;
 	case AMDGPU_UCODE_ID_SMC:
 		*type = GFX_FW_TYPE_SMU;
 		break;
