@@ -70,10 +70,8 @@ int array_map_alloc_check(union bpf_attr *attr)
 	    attr->map_flags & BPF_F_PRESERVE_ELEMS)
 		return -EINVAL;
 
-	if (attr->value_size > KMALLOC_MAX_SIZE)
-		/* if value_size is bigger, the user space won't be able to
-		 * access the elements.
-		 */
+	/* avoid overflow on round_up(map->value_size) */
+	if (attr->value_size > INT_MAX)
 		return -E2BIG;
 
 	return 0;
