@@ -38,6 +38,7 @@ import sys
 import subprocess
 
 allowed_warnings = set([
+    "cgroup.h:35", # include/trace/hooks/cgroup.h:35:18: warning: 'struct cgroup_subsys' declared inside parameter list will not be visible outside of this definition or declaration
     "vfs.c:1259", # fs/incfs/vfs.c:1259:10: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
     "pseudo_files.c:655", # fs/incfs/pseudo_files.c:655:10: warning: cast to pointer from integer of different size [-Wint-to-pointer-cast]
     "km_apphint.c:230", # drivers/staging/imgtec/rogue/km_apphint.c:230:48: warning: division 'sizeof (void *) / sizeof (void)' does not compute the number of array elements [-Wsizeof-pointer-div]
