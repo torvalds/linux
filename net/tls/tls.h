@@ -39,6 +39,9 @@
 #include <linux/skmsg.h>
 #include <net/tls.h>
 
+#define TLS_PAGE_ORDER	(min_t(unsigned int, PAGE_ALLOC_COSTLY_ORDER,	\
+			       TLS_MAX_PAYLOAD_SIZE >> PAGE_SHIFT))
+
 #define __TLS_INC_STATS(net, field)				\
 	__SNMP_INC_STATS((net)->mib.tls_statistics, field)
 #define TLS_INC_STATS(net, field)				\
