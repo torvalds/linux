@@ -107,7 +107,7 @@ EXPORT_SYMBOL(cpm_command);
  * memory mapped space.
  * The baud rate clock is the system clock divided by something.
  * It was set up long ago during the initial boot phase and is
- * is given to us.
+ * given to us.
  * Baud rate clocks are zero-based in the driver code (as that maps
  * to port numbers).  Documentation uses 1-based numbering.
  */
