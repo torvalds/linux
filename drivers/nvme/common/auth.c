@@ -347,7 +347,7 @@ int nvme_auth_augmented_challenge(u8 hmac_id, u8 *skey, size_t skey_len,
 
 	hmac_name = nvme_auth_hmac_name(hmac_id);
 	if (!hmac_name) {
-		pr_warn("%s: invalid hash algoritm %d\n",
+		pr_warn("%s: invalid hash algorithm %d\n",
 			__func__, hmac_id);
 		ret = -EINVAL;
 		goto out_free_key;

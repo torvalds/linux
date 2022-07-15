@@ -515,7 +515,7 @@ int nvmet_auth_ctrl_sesskey(struct nvmet_req *req,
 					  req->sq->dhchap_skey,
 					  req->sq->dhchap_skey_len);
 	if (ret)
-		pr_debug("failed to compute shared secred, err %d\n", ret);
+		pr_debug("failed to compute shared secret, err %d\n", ret);
 	else
 		pr_debug("%s: shared secret %*ph\n", __func__,
 			 (int)req->sq->dhchap_skey_len,
