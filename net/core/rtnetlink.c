@@ -3444,7 +3444,7 @@ replay:
 
 	if (ops->newlink) {
 		err = ops->newlink(link_net ? : net, dev, tb, data, extack);
-		/* Drivers should call free_netdev() in ->destructor
+		/* Drivers should set dev->needs_free_netdev
 		 * and unregister it on failure after registration
 		 * so that device could be finally freed in rtnl_unlock.
 		 */
