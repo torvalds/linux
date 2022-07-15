@@ -15,6 +15,13 @@
 #ifdef CONFIG_ARM64_64K_PAGES
 #define SECTION_SIZE_BITS 29
 
+#elif defined(CONFIG_ARM64_MEMMAP_ON_MEMORY)
+
+/*
+ * mhp_supports_memmap_on_memory() requires memmap size to be aligned to
+ * pageblock_order.
+ */
+#define SECTION_SIZE_BITS 28
 #else
 
 /*
