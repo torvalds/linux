@@ -72,7 +72,8 @@ struct dma_fence *__dma_fence_unwrap_merge(unsigned int num_fences,
 	count = 0;
 	for (i = 0; i < num_fences; ++i) {
 		dma_fence_unwrap_for_each(tmp, &iter[i], fences[i])
-			++count;
+			if (!dma_fence_is_signaled(tmp))
+				++count;
 	}
 
 	if (count == 0)

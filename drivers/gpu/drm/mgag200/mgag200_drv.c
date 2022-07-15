@@ -28,12 +28,6 @@ int mgag200_init_pci_options(struct pci_dev *pdev, u32 option, u32 option2)
 	struct device *dev = &pdev->dev;
 	int err;
 
-	err = pci_read_config_dword(pdev, PCI_MGA_OPTION, &option);
-	if (err != PCIBIOS_SUCCESSFUL) {
-		dev_err(dev, "pci_read_config_dword(PCI_MGA_OPTION) failed: %d\n", err);
-		return pcibios_err_to_errno(err);
-	}
-
 	err = pci_write_config_dword(pdev, PCI_MGA_OPTION, option);
 	if (err != PCIBIOS_SUCCESSFUL) {
 		dev_err(dev, "pci_write_config_dword(PCI_MGA_OPTION) failed: %d\n", err);
