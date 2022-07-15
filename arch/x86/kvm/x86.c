@@ -9141,6 +9141,7 @@ static struct notifier_block pvclock_gtod_notifier = {
 int kvm_arch_init(void *opaque)
 {
 	struct kvm_x86_init_ops *ops = opaque;
+	u64 host_pat;
 	int r;
 
 	if (kvm_x86_ops.hardware_enable) {
@@ -9176,6 +9177,20 @@ int kvm_arch_init(void *opaque)
 	if (IS_ENABLED(CONFIG_PREEMPT_RT) && !boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
 		pr_err("RT requires X86_FEATURE_CONSTANT_TSC\n");
 		r = -EOPNOTSUPP;
+		goto out;
+	}
+
+	/*
+	 * KVM assumes that PAT entry '0' encodes WB memtype and simply zeroes
+	 * the PAT bits in SPTEs.  Bail if PAT[0] is programmed to something
+	 * other than WB.  Note, EPT doesn't utilize the PAT, but don't bother
+	 * with an exception.  PAT[0] is set to WB on RESET and also by the
+	 * kernel, i.e. failure indicates a kernel bug or broken firmware.
+	 */
+	if (rdmsrl_safe(MSR_IA32_CR_PAT, &host_pat) ||
+	    (host_pat & GENMASK(2, 0)) != 6) {
+		pr_err("kvm: host PAT[0] is not WB\n");
+		r = -EIO;
 		goto out;
 	}
 
