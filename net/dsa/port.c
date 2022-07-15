@@ -799,7 +799,7 @@ int dsa_port_vlan_filtering(struct dsa_port *dp, bool vlan_filtering,
 		ds->vlan_filtering = vlan_filtering;
 
 		dsa_switch_for_each_user_port(other_dp, ds) {
-			struct net_device *slave = dp->slave;
+			struct net_device *slave = other_dp->slave;
 
 			/* We might be called in the unbind path, so not
 			 * all slave devices might still be registered.
