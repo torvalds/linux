@@ -542,6 +542,7 @@ struct bdb_psr {
 #define BDB_DRIVER_FEATURE_INT_SDVO_LVDS	3
 
 struct bdb_driver_features {
+	/* Driver bits */
 	u8 boot_dev_algorithm:1;
 	u8 block_display_switch:1;
 	u8 allow_display_switch:1;
@@ -556,6 +557,7 @@ struct bdb_driver_features {
 	u8 boot_mode_bpp;
 	u8 boot_mode_refresh;
 
+	/* Extended Driver Bits 1 */
 	u16 enable_lfp_primary:1;
 	u16 selective_mode_pruning:1;
 	u16 dual_frequency:1;
@@ -571,6 +573,7 @@ struct bdb_driver_features {
 	u16 tv_hotplug:1;
 	u16 hdmi_config:2;
 
+	/* Driver Flags 1 */
 	u8 static_display:1;					/* 163+ */
 	u8 reserved2:7;
 
@@ -578,8 +581,12 @@ struct bdb_driver_features {
 	u16 legacy_crt_max_y;
 	u8 legacy_crt_max_refresh;
 
+	/* Extended Driver Bits 2 */
 	u8 hdmi_termination;
+
 	u8 custom_vbt_version;					/* 155+ */
+
+	/* Driver Feature Flags */
 	u16 rmpm_enabled:1;					/* 165+ */
 	u16 s2ddt_enabled:1;					/* 165+ */
 	u16 dpst_enabled:1;					/* 165-227 */
