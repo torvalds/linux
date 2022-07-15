@@ -3257,7 +3257,7 @@ static int scrub_simple_mirror(struct scrub_ctx *sctx,
 		}
 		/* Block group removed? */
 		spin_lock(&bg->lock);
-		if (bg->removed) {
+		if (test_bit(BLOCK_GROUP_FLAG_REMOVED, &bg->runtime_flags)) {
 			spin_unlock(&bg->lock);
 			ret = 0;
 			break;
@@ -3597,7 +3597,7 @@ static noinline_for_stack int scrub_chunk(struct scrub_ctx *sctx,
 		 * kthread or relocation.
 		 */
 		spin_lock(&bg->lock);
-		if (!bg->removed)
+		if (!test_bit(BLOCK_GROUP_FLAG_REMOVED, &bg->runtime_flags))
 			ret = -EINVAL;
 		spin_unlock(&bg->lock);
 
@@ -3756,7 +3756,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 
 		if (sctx->is_dev_replace && btrfs_is_zoned(fs_info)) {
 			spin_lock(&cache->lock);
-			if (!cache->to_copy) {
+			if (!test_bit(BLOCK_GROUP_FLAG_TO_COPY, &cache->runtime_flags)) {
 				spin_unlock(&cache->lock);
 				btrfs_put_block_group(cache);
 				goto skip;
@@ -3773,7 +3773,7 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 * repair extents.
 		 */
 		spin_lock(&cache->lock);
-		if (cache->removed) {
+		if (test_bit(BLOCK_GROUP_FLAG_REMOVED, &cache->runtime_flags)) {
 			spin_unlock(&cache->lock);
 			btrfs_put_block_group(cache);
 			goto skip;
@@ -3933,8 +3933,8 @@ int scrub_enumerate_chunks(struct scrub_ctx *sctx,
 		 * balance is triggered or it becomes used and unused again.
 		 */
 		spin_lock(&cache->lock);
-		if (!cache->removed && !cache->ro && cache->reserved == 0 &&
-		    cache->used == 0) {
+		if (!test_bit(BLOCK_GROUP_FLAG_REMOVED, &cache->runtime_flags) &&
+		    !cache->ro && cache->reserved == 0 && cache->used == 0) {
 			spin_unlock(&cache->lock);
 			if (btrfs_test_opt(fs_info, DISCARD_ASYNC))
 				btrfs_discard_queue_work(&fs_info->discard_ctl,

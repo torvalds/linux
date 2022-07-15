@@ -772,7 +772,7 @@ int btrfs_cache_block_group(struct btrfs_block_group *cache, bool wait)
 	WARN_ON(cache->caching_ctl);
 	cache->caching_ctl = caching_ctl;
 	cache->cached = BTRFS_CACHE_STARTED;
-	cache->has_caching_ctl = 1;
+	set_bit(BLOCK_GROUP_FLAG_HAS_CACHING_CTL, &cache->runtime_flags);
 	spin_unlock(&cache->lock);
 
 	write_lock(&fs_info->block_group_cache_lock);
@@ -988,11 +988,12 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 		kobject_put(kobj);
 	}
 
-	if (block_group->has_caching_ctl)
+
+	if (test_bit(BLOCK_GROUP_FLAG_HAS_CACHING_CTL, &block_group->runtime_flags))
 		caching_ctl = btrfs_get_caching_control(block_group);
 	if (block_group->cached == BTRFS_CACHE_STARTED)
 		btrfs_wait_block_group_cache_done(block_group);
-	if (block_group->has_caching_ctl) {
+	if (test_bit(BLOCK_GROUP_FLAG_HAS_CACHING_CTL, &block_group->runtime_flags)) {
 		write_lock(&fs_info->block_group_cache_lock);
 		if (!caching_ctl) {
 			struct btrfs_caching_control *ctl;
@@ -1034,12 +1035,13 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 			< block_group->zone_unusable);
 		WARN_ON(block_group->space_info->disk_total
 			< block_group->length * factor);
-		WARN_ON(block_group->zone_is_active &&
+		WARN_ON(test_bit(BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE,
+				 &block_group->runtime_flags) &&
 			block_group->space_info->active_total_bytes
 			< block_group->length);
 	}
 	block_group->space_info->total_bytes -= block_group->length;
-	if (block_group->zone_is_active)
+	if (test_bit(BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE, &block_group->runtime_flags))
 		block_group->space_info->active_total_bytes -= block_group->length;
 	block_group->space_info->bytes_readonly -=
 		(block_group->length - block_group->zone_unusable);
@@ -1069,7 +1071,8 @@ int btrfs_remove_block_group(struct btrfs_trans_handle *trans,
 		goto out;
 
 	spin_lock(&block_group->lock);
-	block_group->removed = 1;
+	set_bit(BLOCK_GROUP_FLAG_REMOVED, &block_group->runtime_flags);
+
 	/*
 	 * At this point trimming or scrub can't start on this block group,
 	 * because we removed the block group from the rbtree
@@ -2409,7 +2412,8 @@ void btrfs_create_pending_block_groups(struct btrfs_trans_handle *trans)
 		ret = insert_block_group_item(trans, block_group);
 		if (ret)
 			btrfs_abort_transaction(trans, ret);
-		if (!block_group->chunk_item_inserted) {
+		if (!test_bit(BLOCK_GROUP_FLAG_CHUNK_ITEM_INSERTED,
+			      &block_group->runtime_flags)) {
 			mutex_lock(&fs_info->chunk_mutex);
 			ret = btrfs_chunk_alloc_add_chunk_item(trans, block_group);
 			mutex_unlock(&fs_info->chunk_mutex);
@@ -3955,7 +3959,8 @@ void btrfs_put_block_group_cache(struct btrfs_fs_info *info)
 		while (block_group) {
 			btrfs_wait_block_group_cache_done(block_group);
 			spin_lock(&block_group->lock);
-			if (block_group->iref)
+			if (test_bit(BLOCK_GROUP_FLAG_IREF,
+				     &block_group->runtime_flags))
 				break;
 			spin_unlock(&block_group->lock);
 			block_group = btrfs_next_block_group(block_group);
@@ -3968,7 +3973,7 @@ void btrfs_put_block_group_cache(struct btrfs_fs_info *info)
 		}
 
 		inode = block_group->inode;
-		block_group->iref = 0;
+		clear_bit(BLOCK_GROUP_FLAG_IREF, &block_group->runtime_flags);
 		block_group->inode = NULL;
 		spin_unlock(&block_group->lock);
 		ASSERT(block_group->io_ctl.inode == NULL);
@@ -4110,7 +4115,7 @@ void btrfs_unfreeze_block_group(struct btrfs_block_group *block_group)
 
 	spin_lock(&block_group->lock);
 	cleanup = (atomic_dec_and_test(&block_group->frozen) &&
-		   block_group->removed);
+		   test_bit(BLOCK_GROUP_FLAG_REMOVED, &block_group->runtime_flags));
 	spin_unlock(&block_group->lock);
 
 	if (cleanup) {

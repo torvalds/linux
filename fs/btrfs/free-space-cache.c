@@ -126,10 +126,8 @@ struct inode *lookup_free_space_inode(struct btrfs_block_group *block_group,
 		block_group->disk_cache_state = BTRFS_DC_CLEAR;
 	}
 
-	if (!block_group->iref) {
+	if (!test_and_set_bit(BLOCK_GROUP_FLAG_IREF, &block_group->runtime_flags))
 		block_group->inode = igrab(inode);
-		block_group->iref = 1;
-	}
 	spin_unlock(&block_group->lock);
 
 	return inode;
@@ -241,8 +239,7 @@ int btrfs_remove_free_space_inode(struct btrfs_trans_handle *trans,
 	clear_nlink(inode);
 	/* One for the block groups ref */
 	spin_lock(&block_group->lock);
-	if (block_group->iref) {
-		block_group->iref = 0;
+	if (test_and_clear_bit(BLOCK_GROUP_FLAG_IREF, &block_group->runtime_flags)) {
 		block_group->inode = NULL;
 		spin_unlock(&block_group->lock);
 		iput(inode);
@@ -2876,7 +2873,8 @@ void btrfs_dump_free_space(struct btrfs_block_group *block_group,
 	if (btrfs_is_zoned(fs_info)) {
 		btrfs_info(fs_info, "free space %llu active %d",
 			   block_group->zone_capacity - block_group->alloc_offset,
-			   block_group->zone_is_active);
+			   test_bit(BLOCK_GROUP_FLAG_ZONE_IS_ACTIVE,
+				    &block_group->runtime_flags));
 		return;
 	}
 
@@ -4008,7 +4006,7 @@ int btrfs_trim_block_group(struct btrfs_block_group *block_group,
 	*trimmed = 0;
 
 	spin_lock(&block_group->lock);
-	if (block_group->removed) {
+	if (test_bit(BLOCK_GROUP_FLAG_REMOVED, &block_group->runtime_flags)) {
 		spin_unlock(&block_group->lock);
 		return 0;
 	}
@@ -4038,7 +4036,7 @@ int btrfs_trim_block_group_extents(struct btrfs_block_group *block_group,
 	*trimmed = 0;
 
 	spin_lock(&block_group->lock);
-	if (block_group->removed) {
+	if (test_bit(BLOCK_GROUP_FLAG_REMOVED, &block_group->runtime_flags)) {
 		spin_unlock(&block_group->lock);
 		return 0;
 	}
@@ -4060,7 +4058,7 @@ int btrfs_trim_block_group_bitmaps(struct btrfs_block_group *block_group,
 	*trimmed = 0;
 
 	spin_lock(&block_group->lock);
-	if (block_group->removed) {
+	if (test_bit(BLOCK_GROUP_FLAG_REMOVED, &block_group->runtime_flags)) {
 		spin_unlock(&block_group->lock);
 		return 0;
 	}

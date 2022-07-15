@@ -3804,7 +3804,8 @@ static int do_allocation_zoned(struct btrfs_block_group *block_group,
 	       block_group->start == fs_info->data_reloc_bg ||
 	       fs_info->data_reloc_bg == 0);
 
-	if (block_group->ro || block_group->zoned_data_reloc_ongoing) {
+	if (block_group->ro ||
+	    test_bit(BLOCK_GROUP_FLAG_ZONED_DATA_RELOC, &block_group->runtime_flags)) {
 		ret = 1;
 		goto out;
 	}
@@ -3881,7 +3882,7 @@ out:
 		 * regular extents) at the same time to the same zone, which
 		 * easily break the write pointer.
 		 */
-		block_group->zoned_data_reloc_ongoing = 1;
+		set_bit(BLOCK_GROUP_FLAG_ZONED_DATA_RELOC, &block_group->runtime_flags);
 		fs_info->data_reloc_bg = 0;
 	}
 	spin_unlock(&fs_info->relocation_bg_lock);
