@@ -60,6 +60,10 @@
 #include <asm/irq_regs.h>
 #include <asm/io.h>
 
+// GKI: Keep this header to retain the original CRC that previously used the
+// random.h tracepoints.
+#include <linux/writeback.h>
+
 /*********************************************************************
  *
  * Initialization and readiness waiting.
