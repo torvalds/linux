@@ -1406,12 +1406,12 @@ static struct snd_soc_acpi_mach *hda_sdw_machine_select(struct snd_sof_dev *sdev
 
 			/*
 			 * DMICs use up to 4 pins and are typically pin-muxed with SoundWire
-			 * link 2 and 3, thus we only try to enable dmics if all conditions
-			 * are true:
-			 * a) link 2 and 3 are not used by SoundWire
+			 * link 2 and 3, or link 1 and 2, thus we only try to enable dmics
+			 * if all conditions are true:
+			 * a) 2 or fewer links are used by SoundWire
 			 * b) the NHLT table reports the presence of microphones
 			 */
-			if (!(mach->link_mask & GENMASK(3, 2))) {
+			if (hweight_long(mach->link_mask) <= 2) {
 				const char *tplg_filename = mach->sof_tplg_filename;
 				int ret;
 
