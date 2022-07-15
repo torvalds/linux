@@ -2360,3 +2360,4 @@ module_exit(elan_ts_exit);
 MODULE_DESCRIPTION("ELAN HID-I2C and I2C Touchscreen Driver");
 MODULE_AUTHOR("Minger Zhang <chuming.zhang@elanic.com.cn>");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
