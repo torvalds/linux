@@ -889,7 +889,7 @@ config CRYPTO_RMD160
 
 	  RIPEMD-160 is a 160-bit cryptographic hash function. It is intended
 	  to be used as a secure replacement for the 128-bit hash functions
-	  MD4, MD5 and it's predecessor RIPEMD
+	  MD4, MD5 and its predecessor RIPEMD
 	  (not to be confused with RIPEMD-128).
 
 	  It's speed is comparable to SHA1 and there are no known attacks
