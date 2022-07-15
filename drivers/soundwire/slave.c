@@ -12,6 +12,7 @@ static void sdw_slave_release(struct device *dev)
 {
 	struct sdw_slave *slave = dev_to_sdw_dev(dev);
 
+	mutex_destroy(&slave->sdw_dev_lock);
 	kfree(slave);
 }
 
@@ -58,9 +59,9 @@ int sdw_slave_add(struct sdw_bus *bus,
 	init_completion(&slave->enumeration_complete);
 	init_completion(&slave->initialization_complete);
 	slave->dev_num = 0;
-	init_completion(&slave->probe_complete);
 	slave->probed = false;
 	slave->first_interrupt_done = false;
+	mutex_init(&slave->sdw_dev_lock);
 
 	for (i = 0; i < SDW_MAX_PORTS; i++)
 		init_completion(&slave->port_ready[i]);

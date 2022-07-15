@@ -1043,6 +1043,23 @@ static int intel_trigger(struct snd_pcm_substream *substream, int cmd, struct sn
 	return ret;
 }
 
+static int intel_component_probe(struct snd_soc_component *component)
+{
+	int ret;
+
+	/*
+	 * make sure the device is pm_runtime_active before initiating
+	 * bus transactions during the card registration.
+	 * We use pm_runtime_resume() here, without taking a reference
+	 * and releasing it immediately.
+	 */
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
+	return 0;
+}
+
 static int intel_component_dais_suspend(struct snd_soc_component *component)
 {
 	struct snd_soc_dai *dai;
@@ -1098,6 +1115,7 @@ static const struct snd_soc_dai_ops intel_pcm_dai_ops = {
 
 static const struct snd_soc_component_driver dai_component = {
 	.name           = "soundwire",
+	.probe		= intel_component_probe,
 	.suspend	= intel_component_dais_suspend
 };
 
