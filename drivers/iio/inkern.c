@@ -8,7 +8,6 @@
 #include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
 
 #include <linux/iio/iio.h>
 #include <linux/iio/iio-opaque.h>
@@ -143,26 +142,6 @@ static int __fwnode_iio_simple_xlate(struct iio_dev *indio_dev,
 	return iiospec->args[0];
 }
 
-/*
- * Simple helper to copy fwnode_reference_args into of_phandle_args so we
- * can pass it to of_xlate(). Ultimate goal is to drop this together with
- * of_xlate().
- */
-static int __fwnode_to_of_xlate(struct iio_dev *indio_dev,
-				const struct fwnode_reference_args *iiospec)
-{
-	struct of_phandle_args of_args;
-	unsigned int i;
-
-	of_args.args_count = iiospec->nargs;
-	of_args.np = to_of_node(iiospec->fwnode);
-
-	for (i = 0; i < MAX_PHANDLE_ARGS; i++)
-		of_args.args[i] = i < iiospec->nargs ? iiospec->args[i] : 0;
-
-	return indio_dev->info->of_xlate(indio_dev, &of_args);
-}
-
 static int __fwnode_iio_channel_get(struct iio_channel *channel,
 				    struct fwnode_handle *fwnode, int index)
 {
@@ -185,9 +164,7 @@ static int __fwnode_iio_channel_get(struct iio_channel *channel,
 
 	indio_dev = dev_to_iio_dev(idev);
 	channel->indio_dev = indio_dev;
-	if (indio_dev->info->of_xlate)
-		index = __fwnode_to_of_xlate(indio_dev, &iiospec);
-	else if (indio_dev->info->fwnode_xlate)
+	if (indio_dev->info->fwnode_xlate)
 		index = indio_dev->info->fwnode_xlate(indio_dev, &iiospec);
 	else
 		index = __fwnode_iio_simple_xlate(indio_dev, &iiospec);

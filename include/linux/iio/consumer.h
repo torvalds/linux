@@ -7,14 +7,12 @@
 #ifndef _IIO_INKERN_CONSUMER_H_
 #define _IIO_INKERN_CONSUMER_H_
 
-#include <linux/of.h>
 #include <linux/types.h>
 #include <linux/iio/types.h>
 
 struct iio_dev;
 struct iio_chan_spec;
 struct device;
-struct device_node;
 struct fwnode_handle;
 
 /**
@@ -128,14 +126,6 @@ struct iio_channel *fwnode_iio_channel_get_by_name(struct fwnode_handle *fwnode,
 struct iio_channel *devm_fwnode_iio_channel_get_by_name(struct device *dev,
 							struct fwnode_handle *fwnode,
 							const char *consumer_channel);
-
-static inline struct iio_channel
-*devm_of_iio_channel_get_by_name(struct device *dev, struct device_node *np,
-				 const char *consumer_channel)
-{
-	return devm_fwnode_iio_channel_get_by_name(dev, of_fwnode_handle(np),
-						   consumer_channel);
-}
 
 struct iio_cb_buffer;
 /**
