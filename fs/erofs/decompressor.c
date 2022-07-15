@@ -83,7 +83,7 @@ static int z_erofs_lz4_prepare_dstpages(struct z_erofs_lz4_decompress_ctx *ctx,
 			j = 0;
 
 		/* 'valid' bounced can only be tested after a complete round */
-		if (test_bit(j, bounced)) {
+		if (!rq->fillgaps && test_bit(j, bounced)) {
 			DBG_BUGON(i < lz4_max_distance_pages);
 			DBG_BUGON(top >= lz4_max_distance_pages);
 			availables[top++] = rq->out[i - lz4_max_distance_pages];
