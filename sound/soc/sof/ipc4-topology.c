@@ -891,7 +891,6 @@ static int sof_ipc4_init_audio_fmt(struct snd_sof_dev *sdev,
 
 static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
 {
-	struct sof_ipc4_fw_module *fw_module = swidget->module_info;
 	struct sof_ipc4_copier *ipc4_copier = NULL;
 	struct snd_sof_widget *pipe_widget;
 	struct sof_ipc4_pipeline *pipeline;
@@ -925,8 +924,6 @@ static void sof_ipc4_unprepare_copier_module(struct snd_sof_widget *swidget)
 		ipc4_copier->ipc_config_data = NULL;
 		ipc4_copier->ipc_config_size = 0;
 	}
-
-	ida_free(&fw_module->m_ida, swidget->instance_id);
 }
 
 #if IS_ENABLED(CONFIG_ACPI) && IS_ENABLED(CONFIG_SND_INTEL_NHLT)
@@ -1254,15 +1251,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	/* update pipeline memory usage */
 	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &copier_data->base_config);
 
-	/* assign instance ID */
-	return sof_ipc4_widget_assign_instance_id(sdev, swidget);
-}
-
-static void sof_ipc4_unprepare_generic_module(struct snd_sof_widget *swidget)
-{
-	struct sof_ipc4_fw_module *fw_module = swidget->module_info;
-
-	ida_free(&fw_module->m_ida, swidget->instance_id);
+	return 0;
 }
 
 static int sof_ipc4_prepare_gain_module(struct snd_sof_widget *swidget,
@@ -1287,8 +1276,7 @@ static int sof_ipc4_prepare_gain_module(struct snd_sof_widget *swidget,
 	/* update pipeline memory usage */
 	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &gain->base_config);
 
-	/* assign instance ID */
-	return sof_ipc4_widget_assign_instance_id(sdev, swidget);
+	return 0;
 }
 
 static int sof_ipc4_prepare_mixer_module(struct snd_sof_widget *swidget,
@@ -1314,8 +1302,7 @@ static int sof_ipc4_prepare_mixer_module(struct snd_sof_widget *swidget,
 	/* update pipeline memory usage */
 	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &mixer->base_config);
 
-	/* assign instance ID */
-	return sof_ipc4_widget_assign_instance_id(sdev, swidget);
+	return 0;
 }
 
 static int sof_ipc4_control_load_volume(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
@@ -1373,8 +1360,6 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 	u32 ipc_size = 0;
 	int ret;
 
-	dev_dbg(sdev->dev, "Create widget %s instance %d - pipe %d - core %d\n",
-		swidget->widget->name, swidget->instance_id, swidget->pipeline_id, swidget->core);
 
 	switch (swidget->id) {
 	case snd_soc_dapm_scheduler:
@@ -1436,6 +1421,12 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 	}
 
 	if (swidget->id != snd_soc_dapm_scheduler) {
+		ret = sof_ipc4_widget_assign_instance_id(sdev, swidget);
+		if (ret < 0) {
+			dev_err(sdev->dev, "failed to assign instance id for %s\n",
+				swidget->widget->name);
+			return ret;
+		}
 		pipeline = pipe_widget->private;
 		msg->primary &= ~SOF_IPC4_MOD_INSTANCE_MASK;
 		msg->primary |= SOF_IPC4_MOD_INSTANCE(swidget->instance_id);
@@ -1445,6 +1436,8 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 		msg->extension &= ~SOF_IPC4_MOD_EXT_DOMAIN_MASK;
 		msg->extension |= SOF_IPC4_MOD_EXT_DOMAIN(pipeline->lp_mode);
 	}
+	dev_dbg(sdev->dev, "Create widget %s instance %d - pipe %d - core %d\n",
+		swidget->widget->name, swidget->instance_id, swidget->pipeline_id, swidget->core);
 
 	msg->data_size = ipc_size;
 	msg->data_ptr = ipc_data;
@@ -1458,6 +1451,7 @@ static int sof_ipc4_widget_setup(struct snd_sof_dev *sdev, struct snd_sof_widget
 
 static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget)
 {
+	struct sof_ipc4_fw_module *fw_module = swidget->module_info;
 	int ret = 0;
 
 	/* freeing a pipeline frees all the widgets associated with it */
@@ -1480,6 +1474,8 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 
 		pipeline->mem_usage = 0;
 		pipeline->state = SOF_IPC4_PIPE_UNINITIALIZED;
+	} else {
+		ida_free(&fw_module->m_ida, swidget->instance_id);
 	}
 
 	return ret;
@@ -1789,11 +1785,11 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TY
 	[snd_soc_dapm_pga] = {sof_ipc4_widget_setup_comp_pga, sof_ipc4_widget_free_comp_pga,
 			      pga_token_list, ARRAY_SIZE(pga_token_list), NULL,
 			      sof_ipc4_prepare_gain_module,
-			      sof_ipc4_unprepare_generic_module},
+			      NULL},
 	[snd_soc_dapm_mixer] = {sof_ipc4_widget_setup_comp_mixer, sof_ipc4_widget_free_comp_mixer,
 				mixer_token_list, ARRAY_SIZE(mixer_token_list),
 				NULL, sof_ipc4_prepare_mixer_module,
-				sof_ipc4_unprepare_generic_module},
+				NULL},
 };
 
 const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
