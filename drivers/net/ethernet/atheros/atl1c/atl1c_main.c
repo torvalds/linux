@@ -2734,8 +2734,8 @@ static int atl1c_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		netif_napi_add(netdev, &adapter->rrd_ring[i].napi,
 			       atl1c_clean_rx, 64);
 	for (i = 0; i < adapter->tx_queue_count; ++i)
-		netif_napi_add(netdev, &adapter->tpd_ring[i].napi,
-			       atl1c_clean_tx, 64);
+		netif_napi_add_tx(netdev, &adapter->tpd_ring[i].napi,
+				  atl1c_clean_tx);
 	timer_setup(&adapter->phy_config_timer, atl1c_phy_config, 0);
 	/* setup the private structure */
 	err = atl1c_sw_init(adapter);
