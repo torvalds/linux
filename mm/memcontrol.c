@@ -1372,6 +1372,38 @@ out:
 	return lruvec;
 }
 
+struct lruvec *page_to_lruvec(struct page *page, pg_data_t *pgdat)
+{
+	struct lruvec *lruvec;
+
+	lruvec = mem_cgroup_page_lruvec(page, pgdat);
+
+	return lruvec;
+}
+EXPORT_SYMBOL_GPL(page_to_lruvec);
+
+void do_traversal_all_lruvec(void)
+{
+	pg_data_t *pgdat;
+
+	for_each_online_pgdat(pgdat) {
+		struct mem_cgroup *memcg = NULL;
+
+		spin_lock_irq(&pgdat->lru_lock);
+		memcg = mem_cgroup_iter(NULL, NULL, NULL);
+		do {
+			struct lruvec *lruvec = mem_cgroup_lruvec(memcg, pgdat);
+
+			trace_android_vh_do_traversal_lruvec(lruvec);
+
+			memcg = mem_cgroup_iter(NULL, memcg, NULL);
+		} while (memcg);
+
+		spin_unlock_irq(&pgdat->lru_lock);
+	}
+}
+EXPORT_SYMBOL_GPL(do_traversal_all_lruvec);
+
 /**
  * mem_cgroup_update_lru_size - account for adding or removing an lru page
  * @lruvec: mem_cgroup per zone lru vector
