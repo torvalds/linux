@@ -3793,7 +3793,7 @@ static bool is_lag_dev(struct mlx5e_priv *priv,
 
 static bool is_multiport_eligible(struct mlx5e_priv *priv, struct net_device *out_dev)
 {
-	if (mlx5e_eswitch_uplink_rep(out_dev) &&
+	if (same_hw_reps(priv, out_dev) &&
 	    MLX5_CAP_PORT_SELECTION(priv->mdev, port_select_flow_table) &&
 	    MLX5_CAP_GEN(priv->mdev, create_lag_when_not_master_up))
 		return true;
