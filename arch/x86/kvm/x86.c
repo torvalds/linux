@@ -9146,21 +9146,18 @@ int kvm_arch_init(void *opaque)
 
 	if (kvm_x86_ops.hardware_enable) {
 		pr_err("kvm: already loaded vendor module '%s'\n", kvm_x86_ops.name);
-		r = -EEXIST;
-		goto out;
+		return -EEXIST;
 	}
 
 	if (!ops->cpu_has_kvm_support()) {
 		pr_err_ratelimited("kvm: no hardware support for '%s'\n",
 				   ops->runtime_ops->name);
-		r = -EOPNOTSUPP;
-		goto out;
+		return -EOPNOTSUPP;
 	}
 	if (ops->disabled_by_bios()) {
 		pr_err_ratelimited("kvm: support for '%s' disabled by bios\n",
 				   ops->runtime_ops->name);
-		r = -EOPNOTSUPP;
-		goto out;
+		return -EOPNOTSUPP;
 	}
 
 	/*
@@ -9170,14 +9167,12 @@ int kvm_arch_init(void *opaque)
 	 */
 	if (!boot_cpu_has(X86_FEATURE_FPU) || !boot_cpu_has(X86_FEATURE_FXSR)) {
 		printk(KERN_ERR "kvm: inadequate fpu\n");
-		r = -EOPNOTSUPP;
-		goto out;
+		return -EOPNOTSUPP;
 	}
 
 	if (IS_ENABLED(CONFIG_PREEMPT_RT) && !boot_cpu_has(X86_FEATURE_CONSTANT_TSC)) {
 		pr_err("RT requires X86_FEATURE_CONSTANT_TSC\n");
-		r = -EOPNOTSUPP;
-		goto out;
+		return -EOPNOTSUPP;
 	}
 
 	/*
@@ -9190,21 +9185,19 @@ int kvm_arch_init(void *opaque)
 	if (rdmsrl_safe(MSR_IA32_CR_PAT, &host_pat) ||
 	    (host_pat & GENMASK(2, 0)) != 6) {
 		pr_err("kvm: host PAT[0] is not WB\n");
-		r = -EIO;
-		goto out;
+		return -EIO;
 	}
-
-	r = -ENOMEM;
 
 	x86_emulator_cache = kvm_alloc_emulator_cache();
 	if (!x86_emulator_cache) {
 		pr_err("kvm: failed to allocate cache for x86 emulator\n");
-		goto out;
+		return -ENOMEM;
 	}
 
 	user_return_msrs = alloc_percpu(struct kvm_user_return_msrs);
 	if (!user_return_msrs) {
 		printk(KERN_ERR "kvm: failed to allocate percpu kvm_user_return_msrs\n");
+		r = -ENOMEM;
 		goto out_free_x86_emulator_cache;
 	}
 	kvm_nr_uret_msrs = 0;
@@ -9235,7 +9228,6 @@ out_free_percpu:
 	free_percpu(user_return_msrs);
 out_free_x86_emulator_cache:
 	kmem_cache_destroy(x86_emulator_cache);
-out:
 	return r;
 }
 
