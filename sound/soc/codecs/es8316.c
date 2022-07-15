@@ -401,10 +401,8 @@ static int es8316_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	u8 clksw;
 	u8 mask;
 
-	if ((fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) != SND_SOC_DAIFMT_CBC_CFC) {
-		dev_err(component->dev, "Codec driver only supports consumer mode\n");
-		return -EINVAL;
-	}
+	if ((fmt & SND_SOC_DAIFMT_MASTER_MASK) == SND_SOC_DAIFMT_CBP_CFP)
+		serdata1 |= ES8316_SERDATA1_MASTER;
 
 	if ((fmt & SND_SOC_DAIFMT_FORMAT_MASK) != SND_SOC_DAIFMT_I2S) {
 		dev_err(component->dev, "Codec driver only supports I2S format\n");
@@ -464,6 +462,8 @@ static int es8316_pcm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct es8316_priv *es8316 = snd_soc_component_get_drvdata(component);
 	u8 wordlen = 0;
+	u8 bclk_divider;
+	u16 lrck_divider;
 	int i;
 
 	/* Validate supported sample rates that are autodetected from MCLK */
@@ -477,19 +477,24 @@ static int es8316_pcm_hw_params(struct snd_pcm_substream *substream,
 	}
 	if (i == NR_SUPPORTED_MCLK_LRCK_RATIOS)
 		return -EINVAL;
-
+	lrck_divider = es8316->sysclk / params_rate(params);
+	bclk_divider = lrck_divider / 4;
 	switch (params_format(params)) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 		wordlen = ES8316_SERDATA2_LEN_16;
+		bclk_divider /= 16;
 		break;
 	case SNDRV_PCM_FORMAT_S20_3LE:
 		wordlen = ES8316_SERDATA2_LEN_20;
+		bclk_divider /= 20;
 		break;
 	case SNDRV_PCM_FORMAT_S24_LE:
 		wordlen = ES8316_SERDATA2_LEN_24;
+		bclk_divider /= 24;
 		break;
 	case SNDRV_PCM_FORMAT_S32_LE:
 		wordlen = ES8316_SERDATA2_LEN_32;
+		bclk_divider /= 32;
 		break;
 	default:
 		return -EINVAL;
@@ -499,6 +504,11 @@ static int es8316_pcm_hw_params(struct snd_pcm_substream *substream,
 			    ES8316_SERDATA2_LEN_MASK, wordlen);
 	snd_soc_component_update_bits(component, ES8316_SERDATA_ADC,
 			    ES8316_SERDATA2_LEN_MASK, wordlen);
+	snd_soc_component_update_bits(component, ES8316_SERDATA1, 0x1f, bclk_divider);
+	snd_soc_component_update_bits(component, ES8316_CLKMGR_ADCDIV1, 0x0f, lrck_divider >> 8);
+	snd_soc_component_update_bits(component, ES8316_CLKMGR_ADCDIV2, 0xff, lrck_divider & 0xff);
+	snd_soc_component_update_bits(component, ES8316_CLKMGR_DACDIV1, 0x0f, lrck_divider >> 8);
+	snd_soc_component_update_bits(component, ES8316_CLKMGR_DACDIV2, 0xff, lrck_divider & 0xff);
 	return 0;
 }
 
@@ -769,7 +779,6 @@ static const struct snd_soc_component_driver soc_component_dev_es8316 = {
 	.num_dapm_routes	= ARRAY_SIZE(es8316_dapm_routes),
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct regmap_range es8316_volatile_ranges[] = {

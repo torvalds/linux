@@ -17,6 +17,7 @@ if SND_SOC_SOF_AMD_TOPLEVEL
 config SND_SOC_SOF_AMD_COMMON
 	tristate
 	select SND_SOC_SOF
+	select SND_SOC_SOF_IPC3
 	select SND_SOC_SOF_PCI_DEV
 	select SND_AMD_ACP_CONFIG
 	select SND_SOC_ACPI if ACPI

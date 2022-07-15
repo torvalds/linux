@@ -667,6 +667,7 @@ static const struct snd_soc_component_driver sof_probes_component = {
 	.name = "sof-probes-component",
 	.compress_ops = &sof_probes_compressed_ops,
 	.module_get_upon_open = 1,
+	.legacy_dai_naming = 1,
 };
 
 SND_SOC_DAILINK_DEF(dummy, DAILINK_COMP_ARRAY(COMP_DUMMY()));
@@ -691,6 +692,10 @@ static int sof_probes_client_probe(struct auxiliary_device *auxdev,
 
 	/* do not set up the probes support if it is not enabled */
 	if (!sof_probes_enabled)
+		return -ENXIO;
+
+	/* only ipc3 is supported */
+	if (sof_client_get_ipc_type(cdev) != SOF_IPC)
 		return -ENXIO;
 
 	if (!dev->platform_data) {

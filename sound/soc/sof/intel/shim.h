@@ -20,6 +20,7 @@ enum sof_intel_hw_ip_version {
 	SOF_INTEL_CAVS_1_8,	/* CannonLake, CometLake, CoffeeLake */
 	SOF_INTEL_CAVS_2_0,	/* IceLake, JasperLake */
 	SOF_INTEL_CAVS_2_5,	/* TigerLake, AlderLake */
+	SOF_INTEL_ACE_1_0,	/* MeteorLake */
 };
 
 /*
@@ -185,6 +186,7 @@ struct sof_intel_dsp_desc {
 	enum sof_intel_hw_ip_version hw_ip_version;
 	bool (*check_sdw_irq)(struct snd_sof_dev *sdev);
 	bool (*check_ipc_irq)(struct snd_sof_dev *sdev);
+	int (*cl_init)(struct snd_sof_dev *sdev, int stream_tag, bool imr_boot);
 };
 
 extern struct snd_sof_dsp_ops sof_tng_ops;
