@@ -87,8 +87,8 @@ struct z_erofs_pcluster {
 	/* I: compression algorithm format */
 	unsigned char algorithmformat;
 
-	/* A: compressed pages (can be cached or inplaced pages) */
-	struct page *compressed_pages[];
+	/* A: compressed bvecs (can be cached or inplaced pages) */
+	struct z_erofs_bvec compressed_bvecs[];
 };
 
 /* let's avoid the valid 32-bit kernel addresses */
