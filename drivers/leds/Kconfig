@@ -456,7 +456,7 @@ config LEDS_CLEVO_MAIL
 
 	  The driver supports two kinds of interface: using ledtrig-timer
 	  or through /sys/class/leds/clevo::mail/brightness. As this LED
-	  cannot change it's brightness it blinks instead. The brightness
+	  cannot change its brightness it blinks instead. The brightness
 	  value 0 means off, 1..127 means blink at 0.5Hz and 128..255 means
 	  blink at 1Hz.
 
