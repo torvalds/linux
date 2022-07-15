@@ -21,6 +21,21 @@
  */
 typedef void *z_erofs_next_pcluster_t;
 
+struct z_erofs_bvec {
+	struct page *page;
+	int offset;
+	unsigned int end;
+};
+
+#define __Z_EROFS_BVSET(name, total) \
+struct name { \
+	/* point to the next page which contains the following bvecs */ \
+	struct page *nextpage; \
+	struct z_erofs_bvec bvec[total]; \
+}
+__Z_EROFS_BVSET(z_erofs_bvset,);
+__Z_EROFS_BVSET(z_erofs_bvset_inline, Z_EROFS_NR_INLINE_PAGEVECS);
+
 /*
  * Structure fields follow one of the following exclusion rules.
  *
@@ -41,21 +56,24 @@ struct z_erofs_pcluster {
 	/* A: lower limit of decompressed length and if full length or not */
 	unsigned int length;
 
+	/* L: total number of bvecs */
+	unsigned int vcnt;
+
 	/* I: page offset of start position of decompression */
 	unsigned short pageofs_out;
 
 	/* I: page offset of inline compressed data */
 	unsigned short pageofs_in;
 
-	/* L: maximum relative page index in pagevec[] */
+	/* L: maximum relative page index in bvecs */
 	unsigned short nr_pages;
-
-	/* L: total number of pages in pagevec[] */
-	unsigned int vcnt;
 
 	union {
 		/* L: inline a certain number of pagevecs for bootstrap */
 		erofs_vtptr_t pagevec[Z_EROFS_NR_INLINE_PAGEVECS];
+
+		/* L: inline a certain number of bvec for bootstrap */
+		struct z_erofs_bvset_inline bvset;
 
 		/* I: can be used to free the pcluster by RCU. */
 		struct rcu_head rcu;
