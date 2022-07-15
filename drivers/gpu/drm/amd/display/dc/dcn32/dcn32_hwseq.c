@@ -250,6 +250,7 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 	uint32_t total_lines = 0;
 	uint32_t lines_per_way = 0;
 	uint32_t num_ways = 0;
+	uint32_t prev_addr_low = 0;
 
 	for (i = 0; i < ctx->stream_count; i++) {
 		stream = ctx->streams[i];
@@ -267,10 +268,20 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 			plane = ctx->stream_status[i].plane_states[j];
 
 			// Calculate total surface size
-			surface_size = plane->plane_size.surface_pitch *
+			if (prev_addr_low != plane->address.grph.addr.u.low_part) {
+				/* if plane address are different from prev FB, then userspace allocated separate FBs*/
+				surface_size += plane->plane_size.surface_pitch *
 					plane->plane_size.surface_size.height *
 					(plane->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4);
 
+				prev_addr_low = plane->address.grph.addr.u.low_part;
+			} else {
+				/* We have the same fb for all the planes.
+				 * Xorg always creates one giant fb that holds all surfaces,
+				 * so allocating it once is sufficient.
+				 * */
+				continue;
+			}
 			// Convert surface size + starting address to number of cache lines required
 			// (alignment accounted for)
 			cache_lines_used += dcn32_cache_lines_for_surface(dc, surface_size,
