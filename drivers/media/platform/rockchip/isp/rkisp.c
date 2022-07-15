@@ -782,6 +782,13 @@ int rkisp_rdbk_trigger_event(struct rkisp_device *dev, u32 cmd, void *arg)
 	return ret;
 }
 
+static void rkisp_rdbk_task(unsigned long arg)
+{
+	struct rkisp_device *dev = (struct rkisp_device *)arg;
+
+	rkisp_rdbk_trigger_event(dev, T_CMD_END, NULL);
+}
+
 void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 {
 	u32 val = 0;
@@ -830,7 +837,7 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 	}
 	rkisp2_rawrd_isr(val, dev);
 	if (dev->dmarx_dev.trigger == T_MANUAL)
-		rkisp_rdbk_trigger_event(dev, T_CMD_END, NULL);
+		tasklet_schedule(&dev->rdbk_tasklet);
 }
 
 static void rkisp_set_state(u32 *state, u32 val)
@@ -2640,9 +2647,11 @@ static int rkisp_isp_sd_s_stream(struct v4l2_subdev *sd, int on)
 		atomic_dec(&hw_dev->refcnt);
 		rkisp_params_stream_stop(&isp_dev->params_vdev);
 		atomic_set(&isp_dev->isp_sdev.frm_sync_seq, 0);
+		tasklet_disable(&isp_dev->rdbk_tasklet);
 		return 0;
 	}
 
+	tasklet_enable(&isp_dev->rdbk_tasklet);
 	rkisp_start_3a_run(isp_dev);
 	memset(&isp_dev->isp_sdev.dbg, 0, sizeof(isp_dev->isp_sdev.dbg));
 	if (atomic_inc_return(&hw_dev->refcnt) > hw_dev->dev_link_num) {
@@ -3447,6 +3456,8 @@ int rkisp_register_isp_subdev(struct rkisp_device *isp_dev,
 	isp_dev->isp_state = ISP_STOP;
 	atomic_set(&isp_sdev->frm_sync_seq, 0);
 	rkisp_monitor_init(isp_dev);
+	tasklet_init(&isp_dev->rdbk_tasklet, rkisp_rdbk_task, (unsigned long)isp_dev);
+	tasklet_disable(&isp_dev->rdbk_tasklet);
 	return 0;
 err_cleanup_media_entity:
 	media_entity_cleanup(&sd->entity);
@@ -3459,6 +3470,7 @@ void rkisp_unregister_isp_subdev(struct rkisp_device *isp_dev)
 {
 	struct v4l2_subdev *sd = &isp_dev->isp_sdev.sd;
 
+	tasklet_kill(&isp_dev->rdbk_tasklet);
 	kfifo_free(&isp_dev->rdbk_kfifo);
 	v4l2_device_unregister_subdev(sd);
 	media_entity_cleanup(&sd->entity);
