@@ -294,6 +294,7 @@ config BMIPS_GENERIC
 	select HARDIRQS_SW_RESEND
 	select HAVE_PCI
 	select PCI_DRIVERS_GENERIC
+	select FW_CFE
 	help
 	  Build a generic DT-based kernel image that boots on select
 	  BCM33xx cable modem chips, BCM63xx DSL chips, and BCM7xxx set-top
