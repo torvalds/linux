@@ -597,7 +597,7 @@ bool cckrates_included(unsigned char *rate, int ratelen);
 bool cckratesonly_included(unsigned char *rate, int ratelen);
 
 void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len);
-void correct_TSF(struct adapter *padapter, struct mlme_ext_priv *pmlmeext);
+void correct_TSF(struct adapter *padapter);
 
 struct cmd_hdl {
 	uint	parmsize;

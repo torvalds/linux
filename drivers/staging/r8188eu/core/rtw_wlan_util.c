@@ -1586,7 +1586,7 @@ void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe, uint len)
 	pmlmeext->TSFValue |= le32_to_cpu(*pbuf);
 }
 
-void correct_TSF(struct adapter *padapter, struct mlme_ext_priv *pmlmeext)
+void correct_TSF(struct adapter *padapter)
 {
 	SetHwReg8188EU(padapter, HW_VAR_CORRECT_TSF, NULL);
 }

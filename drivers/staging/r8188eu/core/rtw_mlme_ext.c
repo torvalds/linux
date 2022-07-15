@@ -6893,7 +6893,7 @@ void mlmeext_joinbss_event_callback(struct adapter *padapter, int join_res)
 
 	if ((pmlmeinfo->state & 0x03) == WIFI_FW_STATION_STATE) {
 		/*  correcting TSF */
-		correct_TSF(padapter, pmlmeext);
+		correct_TSF(padapter);
 	}
 	rtw_lps_ctrl_wk_cmd(padapter, LPS_CTRL_CONNECT, 0);
 }
@@ -6908,7 +6908,7 @@ void mlmeext_sta_add_event_callback(struct adapter *padapter, struct sta_info *p
 			/* nothing to do */
 		} else { /* adhoc client */
 			/*  correcting TSF */
-			correct_TSF(padapter, pmlmeext);
+			correct_TSF(padapter);
 
 			/* start beacon */
 			if (send_beacon(padapter) == _FAIL) {
