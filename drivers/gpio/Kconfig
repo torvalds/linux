@@ -691,12 +691,6 @@ config GPIO_VISCONTI
 	help
 	  Say yes here to support GPIO on Tohisba Visconti.
 
-config GPIO_VR41XX
-	tristate "NEC VR4100 series General-purpose I/O Unit support"
-	depends on CPU_VR41XX
-	help
-	  Say yes here to support the NEC VR4100 series General-purpose I/O Unit.
-
 config GPIO_VX855
 	tristate "VIA VX855/VX875 GPIO"
 	depends on (X86 || COMPILE_TEST) && PCI
