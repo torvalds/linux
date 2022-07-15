@@ -408,7 +408,8 @@ struct child_device_config {
 			u8 compression_enable:1;		/* 198+ */
 			u8 compression_method_cps:1;		/* 198+ */
 			u8 ganged_edp:1;			/* 202+ */
-			u8 reserved2:4;
+			u8 lttpr_non_transparent:1;		/* 235+ */
+			u8 reserved2:3;
 			u8 compression_structure_index:4;	/* 198+ */
 			u8 reserved3:4;
 			u8 slave_port;				/* 202+ */
