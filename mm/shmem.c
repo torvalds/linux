@@ -28,6 +28,7 @@
 #include <linux/ramfs.h>
 #include <linux/pagemap.h>
 #include <linux/file.h>
+#include <linux/fileattr.h>
 #include <linux/mm.h>
 #include <linux/random.h>
 #include <linux/sched/signal.h>
@@ -1058,6 +1059,15 @@ static int shmem_getattr(struct user_namespace *mnt_userns,
 		shmem_recalc_inode(inode);
 		spin_unlock_irq(&info->lock);
 	}
+	if (info->fsflags & FS_APPEND_FL)
+		stat->attributes |= STATX_ATTR_APPEND;
+	if (info->fsflags & FS_IMMUTABLE_FL)
+		stat->attributes |= STATX_ATTR_IMMUTABLE;
+	if (info->fsflags & FS_NODUMP_FL)
+		stat->attributes |= STATX_ATTR_NODUMP;
+	stat->attributes_mask |= (STATX_ATTR_APPEND |
+			STATX_ATTR_IMMUTABLE |
+			STATX_ATTR_NODUMP);
 	generic_fillattr(&init_user_ns, inode, stat);
 
 	if (shmem_is_huge(NULL, inode, 0))
@@ -2272,7 +2282,18 @@ static int shmem_mmap(struct file *file, struct vm_area_struct *vma)
 	return 0;
 }
 
-static struct inode *shmem_get_inode(struct super_block *sb, const struct inode *dir,
+/* Mask out flags that are inappropriate for the given type of inode. */
+static unsigned shmem_mask_flags(umode_t mode, __u32 flags)
+{
+	if (S_ISDIR(mode))
+		return flags;
+	else if (S_ISREG(mode))
+		return flags & SHMEM_REG_FLMASK;
+	else
+		return flags & SHMEM_OTHER_FLMASK;
+}
+
+static struct inode *shmem_get_inode(struct super_block *sb, struct inode *dir,
 				     umode_t mode, dev_t dev, unsigned long flags)
 {
 	struct inode *inode;
@@ -2297,6 +2318,9 @@ static struct inode *shmem_get_inode(struct super_block *sb, const struct inode 
 		info->seals = F_SEAL_SEAL;
 		info->flags = flags & VM_NORESERVE;
 		info->i_crtime = inode->i_mtime;
+		info->fsflags = (dir == NULL) ? 0 :
+			SHMEM_I(dir)->fsflags & SHMEM_FL_INHERITED;
+		info->fsflags = shmem_mask_flags(mode, info->fsflags);
 		INIT_LIST_HEAD(&info->shrinklist);
 		INIT_LIST_HEAD(&info->swaplist);
 		simple_xattrs_init(&info->xattrs);
@@ -3138,6 +3162,40 @@ static const char *shmem_get_link(struct dentry *dentry,
 }
 
 #ifdef CONFIG_TMPFS_XATTR
+
+static int shmem_fileattr_get(struct dentry *dentry, struct fileattr *fa)
+{
+	struct shmem_inode_info *info = SHMEM_I(d_inode(dentry));
+
+	fileattr_fill_flags(fa, info->fsflags & SHMEM_FL_USER_VISIBLE);
+
+	return 0;
+}
+
+static int shmem_fileattr_set(struct user_namespace *mnt_userns,
+			      struct dentry *dentry, struct fileattr *fa)
+{
+	struct inode *inode = d_inode(dentry);
+	struct shmem_inode_info *info = SHMEM_I(inode);
+
+	if (fileattr_has_fsx(fa))
+		return -EOPNOTSUPP;
+
+	info->fsflags = (info->fsflags & ~SHMEM_FL_USER_MODIFIABLE) |
+		(fa->flags & SHMEM_FL_USER_MODIFIABLE);
+
+	inode->i_flags &= ~(S_APPEND | S_IMMUTABLE | S_NOATIME);
+	if (info->fsflags & FS_APPEND_FL)
+		inode->i_flags |= S_APPEND;
+	if (info->fsflags & FS_IMMUTABLE_FL)
+		inode->i_flags |= S_IMMUTABLE;
+	if (info->fsflags & FS_NOATIME_FL)
+		inode->i_flags |= S_NOATIME;
+
+	inode->i_ctime = current_time(inode);
+	return 0;
+}
+
 /*
  * Superblocks without xattr inode operations may get some security.* xattr
  * support from the LSM "for free". As soon as we have any other xattrs
@@ -3828,6 +3886,8 @@ static const struct inode_operations shmem_inode_operations = {
 #ifdef CONFIG_TMPFS_XATTR
 	.listxattr	= shmem_listxattr,
 	.set_acl	= simple_set_acl,
+	.fileattr_get	= shmem_fileattr_get,
+	.fileattr_set	= shmem_fileattr_set,
 #endif
 };
 
@@ -3847,6 +3907,8 @@ static const struct inode_operations shmem_dir_inode_operations = {
 #endif
 #ifdef CONFIG_TMPFS_XATTR
 	.listxattr	= shmem_listxattr,
+	.fileattr_get	= shmem_fileattr_get,
+	.fileattr_set	= shmem_fileattr_set,
 #endif
 #ifdef CONFIG_TMPFS_POSIX_ACL
 	.setattr	= shmem_setattr,
