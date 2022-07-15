@@ -979,8 +979,8 @@ static int rmem_swiotlb_device_init(struct reserved_mem *rmem,
 		mem->areas = kcalloc(nareas, sizeof(*mem->areas),
 				GFP_KERNEL);
 		if (!mem->areas) {
-			kfree(mem);
 			kfree(mem->slots);
+			kfree(mem);
 			return -ENOMEM;
 		}
 
