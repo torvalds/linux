@@ -1784,6 +1784,66 @@ int gh_rm_mem_reclaim(gh_memparcel_handle_t handle, u8 flags)
 }
 EXPORT_SYMBOL(gh_rm_mem_reclaim);
 
+
+static struct gh_mem_accept_req_payload_hdr *
+gh_rm_mem_accept_prepare_request(gh_memparcel_handle_t handle, u8 mem_type,
+				 u8 trans_type, u8 flags, gh_label_t label,
+				 struct gh_acl_desc *acl_desc,
+				 struct gh_sgl_desc *sgl_desc,
+				 struct gh_mem_attr_desc *mem_attr_desc,
+				 u16 map_vmid, size_t *req_payload_size)
+{
+	void *req_buf;
+	struct gh_mem_accept_req_payload_hdr *req_payload_hdr;
+	u16 req_sgl_entries = 0, req_mem_attr_entries = 0;
+	u32 req_acl_entries = 0;
+	u32 fn_id = GH_RM_RPC_MSG_ID_CALL_MEM_ACCEPT;
+
+	if ((mem_type != GH_RM_MEM_TYPE_NORMAL &&
+	     mem_type != GH_RM_MEM_TYPE_IO) ||
+	    (trans_type != GH_RM_TRANS_TYPE_DONATE &&
+	     trans_type != GH_RM_TRANS_TYPE_LEND &&
+	     trans_type != GH_RM_TRANS_TYPE_SHARE) ||
+	    (flags & ~GH_RM_MEM_ACCEPT_VALID_FLAGS) ||
+	    (sgl_desc && sgl_desc->n_sgl_entries > GH_RM_MEM_MAX_SGL_ENTRIES))
+		return ERR_PTR(-EINVAL);
+
+	if (flags & GH_RM_MEM_ACCEPT_VALIDATE_ACL_ATTRS &&
+	    (!acl_desc || !acl_desc->n_acl_entries) &&
+	    (!mem_attr_desc || !mem_attr_desc->n_mem_attr_entries))
+		return ERR_PTR(-EINVAL);
+
+	if (flags & GH_RM_MEM_ACCEPT_VALIDATE_ACL_ATTRS) {
+		if (acl_desc)
+			req_acl_entries = acl_desc->n_acl_entries;
+		if (mem_attr_desc)
+			req_mem_attr_entries =
+				mem_attr_desc->n_mem_attr_entries;
+	}
+
+	if (sgl_desc)
+		req_sgl_entries = sgl_desc->n_sgl_entries;
+
+	req_buf = gh_rm_alloc_mem_request_buf(fn_id, req_acl_entries,
+					      req_sgl_entries,
+					      req_mem_attr_entries,
+					      req_payload_size);
+	if (IS_ERR(req_buf))
+		return req_buf;
+
+	req_payload_hdr = req_buf;
+	req_payload_hdr->memparcel_handle = handle;
+	req_payload_hdr->mem_type = mem_type;
+	req_payload_hdr->trans_type = trans_type;
+	req_payload_hdr->flags = flags;
+	if (flags & GH_RM_MEM_ACCEPT_VALIDATE_LABEL)
+		req_payload_hdr->validate_label = label;
+	gh_rm_populate_mem_request(req_buf, fn_id, acl_desc, sgl_desc, map_vmid,
+				   mem_attr_desc);
+
+	return req_payload_hdr;
+}
+
 /**
  * gh_rm_mem_accept: Accept a handle representing memory. This results in
  *                   the RM mapping the associated memory from the stage-2
@@ -1823,61 +1883,23 @@ struct gh_sgl_desc *gh_rm_mem_accept(gh_memparcel_handle_t handle, u8 mem_type,
 				     struct gh_mem_attr_desc *mem_attr_desc,
 				     u16 map_vmid)
 {
-	struct gh_mem_accept_req_payload_hdr *req_payload_hdr;
+	struct gh_mem_accept_req_payload_hdr *req_payload;
 	struct gh_sgl_desc *ret_sgl;
 	struct gh_mem_accept_resp_payload *resp_payload;
-	void *req_buf;
 	size_t req_payload_size, resp_payload_size;
-	u16 req_sgl_entries = 0, req_mem_attr_entries = 0;
-	u32 req_acl_entries = 0;
 	int gh_ret;
 	u32 fn_id = GH_RM_RPC_MSG_ID_CALL_MEM_ACCEPT;
 
 	trace_gh_rm_mem_accept(mem_type, flags, label, acl_desc, sgl_desc,
 			       mem_attr_desc, &handle, map_vmid, trans_type);
 
-	if ((mem_type != GH_RM_MEM_TYPE_NORMAL &&
-	     mem_type != GH_RM_MEM_TYPE_IO) ||
-	    (trans_type != GH_RM_TRANS_TYPE_DONATE &&
-	     trans_type != GH_RM_TRANS_TYPE_LEND &&
-	     trans_type != GH_RM_TRANS_TYPE_SHARE) ||
-	    (flags & ~GH_RM_MEM_ACCEPT_VALID_FLAGS))
-		return ERR_PTR(-EINVAL);
+	req_payload = gh_rm_mem_accept_prepare_request(handle, mem_type, trans_type, flags,
+						label, acl_desc, sgl_desc, mem_attr_desc,
+						map_vmid, &req_payload_size);
+	if (IS_ERR(req_payload))
+		return ERR_CAST(req_payload);
 
-	if (flags & GH_RM_MEM_ACCEPT_VALIDATE_ACL_ATTRS &&
-	    (!acl_desc || !acl_desc->n_acl_entries) &&
-	    (!mem_attr_desc || !mem_attr_desc->n_mem_attr_entries))
-		return ERR_PTR(-EINVAL);
-
-	if (flags & GH_RM_MEM_ACCEPT_VALIDATE_ACL_ATTRS) {
-		if (acl_desc)
-			req_acl_entries = acl_desc->n_acl_entries;
-		if (mem_attr_desc)
-			req_mem_attr_entries =
-				mem_attr_desc->n_mem_attr_entries;
-	}
-
-	if (sgl_desc)
-		req_sgl_entries = sgl_desc->n_sgl_entries;
-
-	req_buf = gh_rm_alloc_mem_request_buf(fn_id, req_acl_entries,
-					      req_sgl_entries,
-					      req_mem_attr_entries,
-					      &req_payload_size);
-	if (IS_ERR(req_buf))
-		return req_buf;
-
-	req_payload_hdr = req_buf;
-	req_payload_hdr->memparcel_handle = handle;
-	req_payload_hdr->mem_type = mem_type;
-	req_payload_hdr->trans_type = trans_type;
-	req_payload_hdr->flags = flags;
-	if (flags & GH_RM_MEM_ACCEPT_VALIDATE_LABEL)
-		req_payload_hdr->validate_label = label;
-	gh_rm_populate_mem_request(req_buf, fn_id, acl_desc, sgl_desc, map_vmid,
-				   mem_attr_desc);
-
-	resp_payload = gh_rm_call(fn_id, req_buf, req_payload_size,
+	resp_payload = gh_rm_call(fn_id, req_payload, req_payload_size,
 				  &resp_payload_size, &gh_ret);
 	if (gh_ret || IS_ERR(resp_payload)) {
 		ret_sgl = ERR_CAST(resp_payload);
@@ -1902,10 +1924,9 @@ struct gh_sgl_desc *gh_rm_mem_accept(gh_memparcel_handle_t handle, u8 mem_type,
 	}
 
 err_rm_call:
-	kfree(req_buf);
+	kfree(req_payload);
 
 	trace_gh_rm_mem_accept_reply(ret_sgl);
-
 	return ret_sgl;
 }
 EXPORT_SYMBOL(gh_rm_mem_accept);
