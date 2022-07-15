@@ -5,6 +5,7 @@
  */
 #include <linux/err.h>
 #include <linux/export.h>
+#include <linux/property.h>
 #include <linux/slab.h>
 #include <linux/mutex.h>
 #include <linux/of.h>
@@ -117,15 +118,8 @@ static const struct iio_chan_spec
 	return chan;
 }
 
-#ifdef CONFIG_OF
-
-static int iio_dev_node_match(struct device *dev, const void *data)
-{
-	return dev->of_node == data && dev->type == &iio_device_type;
-}
-
 /**
- * __of_iio_simple_xlate - translate iiospec to the IIO channel index
+ * __fwnode_iio_simple_xlate - translate iiospec to the IIO channel index
  * @indio_dev:	pointer to the iio_dev structure
  * @iiospec:	IIO specifier as found in the device tree
  *
@@ -134,14 +128,14 @@ static int iio_dev_node_match(struct device *dev, const void *data)
  * whether IIO index is less than num_channels (that is specified in the
  * iio_dev).
  */
-static int __of_iio_simple_xlate(struct iio_dev *indio_dev,
-				const struct of_phandle_args *iiospec)
+static int __fwnode_iio_simple_xlate(struct iio_dev *indio_dev,
+				     const struct fwnode_reference_args *iiospec)
 {
-	if (!iiospec->args_count)
+	if (!iiospec->nargs)
 		return 0;
 
 	if (iiospec->args[0] >= indio_dev->num_channels) {
-		dev_err(&indio_dev->dev, "invalid channel index %u\n",
+		dev_err(&indio_dev->dev, "invalid channel index %llu\n",
 			iiospec->args[0]);
 		return -EINVAL;
 	}
@@ -149,34 +143,55 @@ static int __of_iio_simple_xlate(struct iio_dev *indio_dev,
 	return iiospec->args[0];
 }
 
-static int __of_iio_channel_get(struct iio_channel *channel,
-				struct device_node *np, int index)
+/*
+ * Simple helper to copy fwnode_reference_args into of_phandle_args so we
+ * can pass it to of_xlate(). Ultimate goal is to drop this together with
+ * of_xlate().
+ */
+static int __fwnode_to_of_xlate(struct iio_dev *indio_dev,
+				const struct fwnode_reference_args *iiospec)
 {
+	struct of_phandle_args of_args;
+	unsigned int i;
+
+	of_args.args_count = iiospec->nargs;
+	of_args.np = to_of_node(iiospec->fwnode);
+
+	for (i = 0; i < MAX_PHANDLE_ARGS; i++)
+		of_args.args[i] = i < iiospec->nargs ? iiospec->args[i] : 0;
+
+	return indio_dev->info->of_xlate(indio_dev, &of_args);
+}
+
+static int __fwnode_iio_channel_get(struct iio_channel *channel,
+				    struct fwnode_handle *fwnode, int index)
+{
+	struct fwnode_reference_args iiospec;
 	struct device *idev;
 	struct iio_dev *indio_dev;
 	int err;
-	struct of_phandle_args iiospec;
 
-	err = of_parse_phandle_with_args(np, "io-channels",
-					 "#io-channel-cells",
-					 index, &iiospec);
+	err = fwnode_property_get_reference_args(fwnode, "io-channels",
+						 "#io-channel-cells", 0,
+						 index, &iiospec);
 	if (err)
 		return err;
 
-	idev = bus_find_device(&iio_bus_type, NULL, iiospec.np,
-			       iio_dev_node_match);
+	idev = bus_find_device_by_fwnode(&iio_bus_type, iiospec.fwnode);
 	if (idev == NULL) {
-		of_node_put(iiospec.np);
+		fwnode_handle_put(iiospec.fwnode);
 		return -EPROBE_DEFER;
 	}
 
 	indio_dev = dev_to_iio_dev(idev);
 	channel->indio_dev = indio_dev;
 	if (indio_dev->info->of_xlate)
-		index = indio_dev->info->of_xlate(indio_dev, &iiospec);
+		index = __fwnode_to_of_xlate(indio_dev, &iiospec);
+	else if (indio_dev->info->fwnode_xlate)
+		index = indio_dev->info->fwnode_xlate(indio_dev, &iiospec);
 	else
-		index = __of_iio_simple_xlate(indio_dev, &iiospec);
-	of_node_put(iiospec.np);
+		index = __fwnode_iio_simple_xlate(indio_dev, &iiospec);
+	fwnode_handle_put(iiospec.fwnode);
 	if (index < 0)
 		goto err_put;
 	channel->channel = &indio_dev->channels[index];
@@ -188,7 +203,8 @@ err_put:
 	return index;
 }
 
-static struct iio_channel *of_iio_channel_get(struct device_node *np, int index)
+static struct iio_channel *fwnode_iio_channel_get(struct fwnode_handle *fwnode,
+						  int index)
 {
 	struct iio_channel *channel;
 	int err;
@@ -200,7 +216,7 @@ static struct iio_channel *of_iio_channel_get(struct device_node *np, int index)
 	if (channel == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	err = __of_iio_channel_get(channel, np, index);
+	err = __fwnode_iio_channel_get(channel, fwnode, index);
 	if (err)
 		goto err_free_channel;
 
@@ -211,8 +227,8 @@ err_free_channel:
 	return ERR_PTR(err);
 }
 
-static struct iio_channel *__of_iio_channel_get_by_name(struct device_node *np,
-							const char *name)
+static struct iio_channel *
+__fwnode_iio_channel_get_by_name(struct fwnode_handle *fwnode, const char *name)
 {
 	struct iio_channel *chan;
 	int index = 0;
@@ -220,19 +236,20 @@ static struct iio_channel *__of_iio_channel_get_by_name(struct device_node *np,
 	/*
 	 * For named iio channels, first look up the name in the
 	 * "io-channel-names" property.  If it cannot be found, the
-	 * index will be an error code, and of_iio_channel_get()
+	 * index will be an error code, and fwnode_iio_channel_get()
 	 * will fail.
 	 */
 	if (name)
-		index = of_property_match_string(np, "io-channel-names", name);
+		index = fwnode_property_match_string(fwnode, "io-channel-names",
+						     name);
 
-	chan = of_iio_channel_get(np, index);
+	chan = fwnode_iio_channel_get(fwnode, index);
 	if (!IS_ERR(chan) || PTR_ERR(chan) == -EPROBE_DEFER)
 		return chan;
 	if (name) {
 		if (index >= 0) {
-			pr_err("ERROR: could not get IIO channel %pOF:%s(%i)\n",
-			       np, name, index);
+			pr_err("ERROR: could not get IIO channel %pfw:%s(%i)\n",
+			       fwnode, name, index);
 			/*
 			 * In this case, we found 'name' in 'io-channel-names'
 			 * but somehow we still fail so that we should not proceed
@@ -243,16 +260,16 @@ static struct iio_channel *__of_iio_channel_get_by_name(struct device_node *np,
 			return ERR_PTR(-EINVAL);
 		}
 		/*
-		 * If index < 0, then of_parse_phandle_with_args() fails
-		 * with -EINVAL which is expected. We should not proceed
-		 * if we get any other error.
+		 * If index < 0, then fwnode_property_get_reference_args() fails
+		 * with -EINVAL or -ENOENT (ACPI case) which is expected. We
+		 * should not proceed if we get any other error.
 		 */
-		if (PTR_ERR(chan) != -EINVAL)
+		if (PTR_ERR(chan) != -EINVAL && PTR_ERR(chan) != -ENOENT)
 			return chan;
 	} else if (PTR_ERR(chan) != -ENOENT) {
 		/*
 		 * if !name, then we should only proceed the lookup if
-		 * of_parse_phandle_with_args() returns -ENOENT.
+		 * fwnode_property_get_reference_args() returns -ENOENT.
 		 */
 		return chan;
 	}
@@ -261,13 +278,14 @@ static struct iio_channel *__of_iio_channel_get_by_name(struct device_node *np,
 	return ERR_PTR(-ENODEV);
 }
 
-struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
-					       const char *name)
+struct iio_channel *fwnode_iio_channel_get_by_name(struct fwnode_handle *fwnode,
+						   const char *name)
 {
+	struct fwnode_handle *parent;
 	struct iio_channel *chan;
 
 	/* Walk up the tree of devices looking for a matching iio channel */
-	chan = __of_iio_channel_get_by_name(np, name);
+	chan = __fwnode_iio_channel_get_by_name(fwnode, name);
 	if (!IS_ERR(chan) || PTR_ERR(chan) != -ENODEV)
 		return chan;
 
@@ -276,33 +294,34 @@ struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
 	 * If the parent node has a "io-channel-ranges" property,
 	 * then we can try one of its channels.
 	 */
-	np = np->parent;
-	while (np) {
-		if (!of_get_property(np, "io-channel-ranges", NULL))
+	fwnode_for_each_parent_node(fwnode, parent) {
+		if (!fwnode_property_present(parent, "io-channel-ranges")) {
+			fwnode_handle_put(parent);
 			return ERR_PTR(-ENODEV);
+		}
 
-		chan = __of_iio_channel_get_by_name(np, name);
-		if (!IS_ERR(chan) || PTR_ERR(chan) != -ENODEV)
+		chan = __fwnode_iio_channel_get_by_name(fwnode, name);
+		if (!IS_ERR(chan) || PTR_ERR(chan) != -ENODEV) {
+			fwnode_handle_put(parent);
  			return chan;
-
-		np = np->parent;
+		}
 	}
 
 	return ERR_PTR(-ENODEV);
 }
-EXPORT_SYMBOL_GPL(of_iio_channel_get_by_name);
+EXPORT_SYMBOL_GPL(fwnode_iio_channel_get_by_name);
 
-static struct iio_channel *of_iio_channel_get_all(struct device *dev)
+static struct iio_channel *fwnode_iio_channel_get_all(struct device *dev)
 {
+	struct fwnode_handle *fwnode = dev_fwnode(dev);
 	struct iio_channel *chans;
 	int i, mapind, nummaps = 0;
 	int ret;
 
 	do {
-		ret = of_parse_phandle_with_args(dev->of_node,
-						 "io-channels",
-						 "#io-channel-cells",
-						 nummaps, NULL);
+		ret = fwnode_property_get_reference_args(fwnode, "io-channels",
+							 "#io-channel-cells", 0,
+							 nummaps, NULL);
 		if (ret < 0)
 			break;
 	} while (++nummaps);
@@ -315,10 +334,9 @@ static struct iio_channel *of_iio_channel_get_all(struct device *dev)
 	if (chans == NULL)
 		return ERR_PTR(-ENOMEM);
 
-	/* Search for OF matches */
+	/* Search for FW matches */
 	for (mapind = 0; mapind < nummaps; mapind++) {
-		ret = __of_iio_channel_get(&chans[mapind], dev->of_node,
-					   mapind);
+		ret = __fwnode_iio_channel_get(&chans[mapind], fwnode, mapind);
 		if (ret)
 			goto error_free_chans;
 	}
@@ -330,15 +348,6 @@ error_free_chans:
 	kfree(chans);
 	return ERR_PTR(ret);
 }
-
-#else /* CONFIG_OF */
-
-static inline struct iio_channel *of_iio_channel_get_all(struct device *dev)
-{
-	return ERR_PTR(-ENODEV);
-}
-
-#endif /* CONFIG_OF */
 
 static struct iio_channel *iio_channel_get_sys(const char *name,
 					       const char *channel_name)
@@ -400,8 +409,8 @@ struct iio_channel *iio_channel_get(struct device *dev,
 	struct iio_channel *channel;
 
 	if (dev) {
-		channel = of_iio_channel_get_by_name(dev->of_node,
-						     channel_name);
+		channel = fwnode_iio_channel_get_by_name(dev_fwnode(dev),
+							 channel_name);
 		if (!IS_ERR(channel) || PTR_ERR(channel) != -ENODEV)
 			return channel;
 	}
@@ -442,14 +451,14 @@ struct iio_channel *devm_iio_channel_get(struct device *dev,
 }
 EXPORT_SYMBOL_GPL(devm_iio_channel_get);
 
-struct iio_channel *devm_of_iio_channel_get_by_name(struct device *dev,
-						    struct device_node *np,
-						    const char *channel_name)
+struct iio_channel *devm_fwnode_iio_channel_get_by_name(struct device *dev,
+							struct fwnode_handle *fwnode,
+							const char *channel_name)
 {
 	struct iio_channel *channel;
 	int ret;
 
-	channel = of_iio_channel_get_by_name(np, channel_name);
+	channel = fwnode_iio_channel_get_by_name(fwnode, channel_name);
 	if (IS_ERR(channel))
 		return channel;
 
@@ -459,7 +468,7 @@ struct iio_channel *devm_of_iio_channel_get_by_name(struct device *dev,
 
 	return channel;
 }
-EXPORT_SYMBOL_GPL(devm_of_iio_channel_get_by_name);
+EXPORT_SYMBOL_GPL(devm_fwnode_iio_channel_get_by_name);
 
 struct iio_channel *iio_channel_get_all(struct device *dev)
 {
@@ -473,7 +482,7 @@ struct iio_channel *iio_channel_get_all(struct device *dev)
 	if (dev == NULL)
 		return ERR_PTR(-EINVAL);
 
-	chans = of_iio_channel_get_all(dev);
+	chans = fwnode_iio_channel_get_all(dev);
 	/*
 	 * We only want to carry on if the error is -ENODEV.  Anything else
 	 * should be reported up the stack.
