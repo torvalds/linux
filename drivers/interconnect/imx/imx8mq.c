@@ -82,7 +82,7 @@ static struct imx_icc_node_desc nodes[] = {
 
 static int imx8mq_icc_probe(struct platform_device *pdev)
 {
-	return imx_icc_register(pdev, nodes, ARRAY_SIZE(nodes));
+	return imx_icc_register(pdev, nodes, ARRAY_SIZE(nodes), NULL);
 }
 
 static int imx8mq_icc_remove(struct platform_device *pdev)
