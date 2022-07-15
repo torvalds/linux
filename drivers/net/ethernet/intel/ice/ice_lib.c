@@ -3181,7 +3181,7 @@ int ice_vsi_rebuild(struct ice_vsi *vsi, bool init_vsi)
 
 	pf = vsi->back;
 	vtype = vsi->type;
-	if (WARN_ON(vtype == ICE_VSI_VF) && !vsi->vf)
+	if (WARN_ON(vtype == ICE_VSI_VF && !vsi->vf))
 		return -EINVAL;
 
 	ice_vsi_init_vlan_ops(vsi);
