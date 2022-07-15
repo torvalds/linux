@@ -279,8 +279,6 @@ bool cgroup_ssid_enabled(int ssid)
  *
  * - When mounting an existing superblock, mount options should match.
  *
- * - Remount is disallowed.
- *
  * - rename(2) is disallowed.
  *
  * - "tasks" is removed.  Everything should be at process granularity.  Use
@@ -1859,16 +1857,19 @@ int cgroup_show_path(struct seq_file *sf, struct kernfs_node *kf_node,
 }
 
 enum cgroup2_param {
-	Opt_nsdelegate,
-	Opt_memory_localevents,
-	Opt_memory_recursiveprot,
+	Opt_nsdelegate, Opt_nonsdelegate,
+	Opt_memory_localevents, Opt_memory_nolocalevents,
+	Opt_memory_recursiveprot, Opt_memory_norecursiveprot,
 	nr__cgroup2_params
 };
 
 static const struct fs_parameter_spec cgroup2_fs_parameters[] = {
 	fsparam_flag("nsdelegate",		Opt_nsdelegate),
+	fsparam_flag("nonsdelegate",		Opt_nonsdelegate),
 	fsparam_flag("memory_localevents",	Opt_memory_localevents),
+	fsparam_flag("memory_nolocalevents",	Opt_memory_nolocalevents),
 	fsparam_flag("memory_recursiveprot",	Opt_memory_recursiveprot),
+	fsparam_flag("memory_norecursiveprot",	Opt_memory_norecursiveprot),
 	{}
 };
 
@@ -1886,11 +1887,20 @@ static int cgroup2_parse_param(struct fs_context *fc, struct fs_parameter *param
 	case Opt_nsdelegate:
 		ctx->flags |= CGRP_ROOT_NS_DELEGATE;
 		return 0;
+	case Opt_nonsdelegate:
+		ctx->flags &= ~CGRP_ROOT_NS_DELEGATE;
+		return 0;
 	case Opt_memory_localevents:
 		ctx->flags |= CGRP_ROOT_MEMORY_LOCAL_EVENTS;
 		return 0;
+	case Opt_memory_nolocalevents:
+		ctx->flags &= ~CGRP_ROOT_MEMORY_LOCAL_EVENTS;
+		return 0;
 	case Opt_memory_recursiveprot:
 		ctx->flags |= CGRP_ROOT_MEMORY_RECURSIVE_PROT;
+		return 0;
+	case Opt_memory_norecursiveprot:
+		ctx->flags &= ~CGRP_ROOT_MEMORY_RECURSIVE_PROT;
 		return 0;
 	}
 	return -EINVAL;
