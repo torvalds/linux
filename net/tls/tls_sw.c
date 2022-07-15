@@ -1563,21 +1563,13 @@ static int decrypt_skb_update(struct sock *sk, struct sk_buff *skb,
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
 	struct strp_msg *rxm = strp_msg(skb);
-	struct tls_msg *tlm = tls_msg(skb);
 	int pad, err;
-
-	if (tlm->decrypted) {
-		darg->zc = false;
-		darg->async = false;
-		return 0;
-	}
 
 	if (tls_ctx->rx_conf == TLS_HW) {
 		err = tls_device_decrypted(sk, tls_ctx, skb, rxm);
 		if (err < 0)
 			return err;
 		if (err > 0) {
-			tlm->decrypted = 1;
 			darg->zc = false;
 			darg->async = false;
 			goto decrypt_done;
@@ -1610,7 +1602,6 @@ decrypt_done:
 	rxm->full_len -= pad;
 	rxm->offset += prot->prepend_size;
 	rxm->full_len -= prot->overhead_size;
-	tlm->decrypted = 1;
 decrypt_next:
 	tls_advance_record_sn(sk, prot, &tls_ctx->rx);
 
@@ -2130,7 +2121,6 @@ static int tls_read_size(struct strparser *strp, struct sk_buff *skb)
 	if (ret < 0)
 		goto read_failure;
 
-	tlm->decrypted = 0;
 	tlm->control = header[0];
 
 	data_len = ((header[4] & 0xFF) | (header[3] << 8));
