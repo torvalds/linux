@@ -9864,6 +9864,34 @@ static int append_to_file(const char *file, const char *fmt, ...)
 	return err;
 }
 
+#define DEBUGFS "/sys/kernel/debug/tracing"
+#define TRACEFS "/sys/kernel/tracing"
+
+static bool use_debugfs(void)
+{
+	static int has_debugfs = -1;
+
+	if (has_debugfs < 0)
+		has_debugfs = access(DEBUGFS, F_OK) == 0;
+
+	return has_debugfs == 1;
+}
+
+static const char *tracefs_path(void)
+{
+	return use_debugfs() ? DEBUGFS : TRACEFS;
+}
+
+static const char *tracefs_kprobe_events(void)
+{
+	return use_debugfs() ? DEBUGFS"/kprobe_events" : TRACEFS"/kprobe_events";
+}
+
+static const char *tracefs_uprobe_events(void)
+{
+	return use_debugfs() ? DEBUGFS"/uprobe_events" : TRACEFS"/uprobe_events";
+}
+
 static void gen_kprobe_legacy_event_name(char *buf, size_t buf_sz,
 					 const char *kfunc_name, size_t offset)
 {
@@ -9876,9 +9904,7 @@ static void gen_kprobe_legacy_event_name(char *buf, size_t buf_sz,
 static int add_kprobe_event_legacy(const char *probe_name, bool retprobe,
 				   const char *kfunc_name, size_t offset)
 {
-	const char *file = "/sys/kernel/debug/tracing/kprobe_events";
-
-	return append_to_file(file, "%c:%s/%s %s+0x%zx",
+	return append_to_file(tracefs_kprobe_events(), "%c:%s/%s %s+0x%zx",
 			      retprobe ? 'r' : 'p',
 			      retprobe ? "kretprobes" : "kprobes",
 			      probe_name, kfunc_name, offset);
@@ -9886,18 +9912,16 @@ static int add_kprobe_event_legacy(const char *probe_name, bool retprobe,
 
 static int remove_kprobe_event_legacy(const char *probe_name, bool retprobe)
 {
-	const char *file = "/sys/kernel/debug/tracing/kprobe_events";
-
-	return append_to_file(file, "-:%s/%s", retprobe ? "kretprobes" : "kprobes", probe_name);
+	return append_to_file(tracefs_kprobe_events(), "-:%s/%s",
+			      retprobe ? "kretprobes" : "kprobes", probe_name);
 }
 
 static int determine_kprobe_perf_type_legacy(const char *probe_name, bool retprobe)
 {
 	char file[256];
 
-	snprintf(file, sizeof(file),
-		 "/sys/kernel/debug/tracing/events/%s/%s/id",
-		 retprobe ? "kretprobes" : "kprobes", probe_name);
+	snprintf(file, sizeof(file), "%s/events/%s/%s/id",
+		 tracefs_path(), retprobe ? "kretprobes" : "kprobes", probe_name);
 
 	return parse_uint_from_file(file, "%d\n");
 }
@@ -10347,9 +10371,7 @@ static void gen_uprobe_legacy_event_name(char *buf, size_t buf_sz,
 static inline int add_uprobe_event_legacy(const char *probe_name, bool retprobe,
 					  const char *binary_path, size_t offset)
 {
-	const char *file = "/sys/kernel/debug/tracing/uprobe_events";
-
-	return append_to_file(file, "%c:%s/%s %s:0x%zx",
+	return append_to_file(tracefs_uprobe_events(), "%c:%s/%s %s:0x%zx",
 			      retprobe ? 'r' : 'p',
 			      retprobe ? "uretprobes" : "uprobes",
 			      probe_name, binary_path, offset);
@@ -10357,18 +10379,16 @@ static inline int add_uprobe_event_legacy(const char *probe_name, bool retprobe,
 
 static inline int remove_uprobe_event_legacy(const char *probe_name, bool retprobe)
 {
-	const char *file = "/sys/kernel/debug/tracing/uprobe_events";
-
-	return append_to_file(file, "-:%s/%s", retprobe ? "uretprobes" : "uprobes", probe_name);
+	return append_to_file(tracefs_uprobe_events(), "-:%s/%s",
+			      retprobe ? "uretprobes" : "uprobes", probe_name);
 }
 
 static int determine_uprobe_perf_type_legacy(const char *probe_name, bool retprobe)
 {
 	char file[512];
 
-	snprintf(file, sizeof(file),
-		 "/sys/kernel/debug/tracing/events/%s/%s/id",
-		 retprobe ? "uretprobes" : "uprobes", probe_name);
+	snprintf(file, sizeof(file), "%s/events/%s/%s/id",
+		 tracefs_path(), retprobe ? "uretprobes" : "uprobes", probe_name);
 
 	return parse_uint_from_file(file, "%d\n");
 }
@@ -10916,9 +10936,8 @@ static int determine_tracepoint_id(const char *tp_category,
 	char file[PATH_MAX];
 	int ret;
 
-	ret = snprintf(file, sizeof(file),
-		       "/sys/kernel/debug/tracing/events/%s/%s/id",
-		       tp_category, tp_name);
+	ret = snprintf(file, sizeof(file), "%s/events/%s/%s/id",
+		       tracefs_path(), tp_category, tp_name);
 	if (ret < 0)
 		return -errno;
 	if (ret >= sizeof(file)) {
