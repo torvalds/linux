@@ -1266,10 +1266,8 @@ int mlxsw_sp_dpipe_init(struct mlxsw_sp *mlxsw_sp)
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int err;
 
-	err = devlink_dpipe_headers_register(devlink,
-					     &mlxsw_sp_dpipe_headers);
-	if (err)
-		return err;
+	devlink_dpipe_headers_register(devlink, &mlxsw_sp_dpipe_headers);
+
 	err = mlxsw_sp_dpipe_erif_table_init(mlxsw_sp);
 	if (err)
 		goto err_erif_table_init;

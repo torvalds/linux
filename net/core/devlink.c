@@ -1700,9 +1700,9 @@ static int devlink_nl_cmd_port_unsplit_doit(struct sk_buff *skb,
 	return devlink->ops->port_unsplit(devlink, devlink_port, info->extack);
 }
 
-static int devlink_port_new_notifiy(struct devlink *devlink,
-				    unsigned int port_index,
-				    struct genl_info *info)
+static int devlink_port_new_notify(struct devlink *devlink,
+				   unsigned int port_index,
+				   struct genl_info *info)
 {
 	struct devlink_port *devlink_port;
 	struct sk_buff *msg;
@@ -1724,8 +1724,7 @@ static int devlink_port_new_notifiy(struct devlink *devlink,
 	if (err)
 		goto out;
 
-	err = genlmsg_reply(msg, info);
-	return err;
+	return genlmsg_reply(msg, info);
 
 out:
 	nlmsg_free(msg);
@@ -1775,7 +1774,7 @@ static int devlink_nl_cmd_port_new_doit(struct sk_buff *skb,
 	if (err)
 		return err;
 
-	err = devlink_port_new_notifiy(devlink, new_port_index, info);
+	err = devlink_port_new_notify(devlink, new_port_index, info);
 	if (err && err != -ENODEV) {
 		/* Fail to send the response; destroy newly created port. */
 		devlink->ops->port_del(devlink, new_port_index, extack);
@@ -10425,13 +10424,12 @@ EXPORT_SYMBOL_GPL(devlink_sb_unregister);
  *
  *	Register the headers supported by hardware.
  */
-int devlink_dpipe_headers_register(struct devlink *devlink,
-				   struct devlink_dpipe_headers *dpipe_headers)
+void devlink_dpipe_headers_register(struct devlink *devlink,
+				    struct devlink_dpipe_headers *dpipe_headers)
 {
 	devl_lock(devlink);
 	devlink->dpipe_headers = dpipe_headers;
 	devl_unlock(devlink);
-	return 0;
 }
 EXPORT_SYMBOL_GPL(devlink_dpipe_headers_register);
 
