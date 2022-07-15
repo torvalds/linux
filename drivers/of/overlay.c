@@ -903,12 +903,6 @@ static int of_overlay_apply(struct overlay_changeset *ovcs)
 {
 	int ret = 0, ret_revert, ret_tmp;
 
-	if (devicetree_corrupt()) {
-		pr_err("devicetree state suspect, refuse to apply overlay\n");
-		ret = -EBUSY;
-		goto out;
-	}
-
 	ret = of_resolve_phandles(ovcs->overlay_root);
 	if (ret)
 		goto out;
@@ -982,6 +976,11 @@ int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 	struct overlay_changeset *ovcs;
 
 	*ret_ovcs_id = 0;
+
+	if (devicetree_corrupt()) {
+		pr_err("devicetree state suspect, refuse to apply overlay\n");
+		return -EBUSY;
+	}
 
 	if (overlay_fdt_size < sizeof(struct fdt_header) ||
 	    fdt_check_header(overlay_fdt)) {
