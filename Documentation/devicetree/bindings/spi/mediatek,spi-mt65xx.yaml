@@ -34,6 +34,7 @@ properties:
       - items:
           - enum:
               - mediatek,mt7986-spi-ipm
+              - mediatek,mt8188-spi-ipm
           - const: mediatek,spi-ipm
       - items:
           - enum:
