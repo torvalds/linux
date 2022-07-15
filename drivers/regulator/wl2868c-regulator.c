@@ -249,7 +249,7 @@ static const struct i2c_device_id wl2868c_i2c_id[] = {
 	{ }
 };
 
-MODULE_DEVICE_TABLE(i2c, i2c_device_id);
+MODULE_DEVICE_TABLE(i2c, wl2868c_i2c_id);
 
 static const struct of_device_id wl2868c_of_match[] = {
 	{ .compatible = "willsemi,wl2868c" },
