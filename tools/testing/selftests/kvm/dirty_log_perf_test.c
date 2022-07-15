@@ -59,6 +59,7 @@ static void arch_cleanup_vm(struct kvm_vm *vm)
 
 static int nr_vcpus = 1;
 static uint64_t guest_percpu_mem_size = DEFAULT_PER_VCPU_MEM_SIZE;
+static bool run_vcpus_while_disabling_dirty_logging;
 
 /* Host variables */
 static u64 dirty_log_manual_caps;
@@ -109,8 +110,13 @@ static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
 				ts_diff.tv_nsec);
 		}
 
+		/*
+		 * Keep running the guest while dirty logging is being disabled
+		 * (iteration is negative) so that vCPUs are accessing memory
+		 * for the entire duration of zapping collapsible SPTEs.
+		 */
 		while (current_iteration == READ_ONCE(iteration) &&
-		       !READ_ONCE(host_quit)) {}
+		       READ_ONCE(iteration) >= 0 && !READ_ONCE(host_quit)) {}
 	}
 
 	avg = timespec_div(total, vcpu_last_completed_iteration[vcpu_idx]);
@@ -302,6 +308,14 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 		}
 	}
 
+	/*
+	 * Run vCPUs while dirty logging is being disabled to stress disabling
+	 * in terms of both performance and correctness.  Opt-in via command
+	 * line as this significantly increases time to disable dirty logging.
+	 */
+	if (run_vcpus_while_disabling_dirty_logging)
+		WRITE_ONCE(iteration, -1);
+
 	/* Disable dirty logging */
 	clock_gettime(CLOCK_MONOTONIC, &start);
 	disable_dirty_logging(vm, p->slots);
@@ -309,7 +323,11 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	pr_info("Disabling dirty logging time: %ld.%.9lds\n",
 		ts_diff.tv_sec, ts_diff.tv_nsec);
 
-	/* Tell the vcpu thread to quit */
+	/*
+	 * Tell the vCPU threads to quit.  No need to manually check that vCPUs
+	 * have stopped running after disabling dirty logging, the join will
+	 * wait for them to exit.
+	 */
 	host_quit = true;
 	perf_test_join_vcpu_threads(nr_vcpus);
 
@@ -349,6 +367,9 @@ static void help(char *name)
 	       "     Warning: a low offset can conflict with the loaded test code.\n");
 	guest_modes_help();
 	printf(" -n: Run the vCPUs in nested mode (L2)\n");
+	printf(" -e: Run vCPUs while dirty logging is being disabled.  This\n"
+	       "     can significantly increase runtime, especially if there\n"
+	       "     isn't a dedicated pCPU for the main thread.\n");
 	printf(" -b: specify the size of the memory region which should be\n"
 	       "     dirtied by each vCPU. e.g. 10M or 3G.\n"
 	       "     (default: 1G)\n");
@@ -385,8 +406,11 @@ int main(int argc, char *argv[])
 
 	guest_modes_append_default();
 
-	while ((opt = getopt(argc, argv, "ghi:p:m:nb:f:v:os:x:")) != -1) {
+	while ((opt = getopt(argc, argv, "eghi:p:m:nb:f:v:os:x:")) != -1) {
 		switch (opt) {
+		case 'e':
+			/* 'e' is for evil. */
+			run_vcpus_while_disabling_dirty_logging = true;
 		case 'g':
 			dirty_log_manual_caps = 0;
 			break;
