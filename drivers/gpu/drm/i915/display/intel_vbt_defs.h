@@ -502,25 +502,25 @@ struct bdb_general_definitions {
 
 struct psr_table {
 	/* Feature bits */
-	u8 full_link:1;
-	u8 require_aux_to_wakeup:1;
+	u8 full_link:1;						/* 165+ */
+	u8 require_aux_to_wakeup:1;				/* 165+ */
 	u8 feature_bits_rsvd:6;
 
 	/* Wait times */
-	u8 idle_frames:4;
-	u8 lines_to_wait:3;
+	u8 idle_frames:4;					/* 165+ */
+	u8 lines_to_wait:3;					/* 165+ */
 	u8 wait_times_rsvd:1;
 
 	/* TP wake up time in multiple of 100 */
-	u16 tp1_wakeup_time;
-	u16 tp2_tp3_wakeup_time;
+	u16 tp1_wakeup_time;					/* 165+ */
+	u16 tp2_tp3_wakeup_time;				/* 165+ */
 } __packed;
 
 struct bdb_psr {
 	struct psr_table psr_table[16];
 
 	/* PSR2 TP2/TP3 wakeup time for 16 panels */
-	u32 psr2_tp2_tp3_wakeup_time;
+	u32 psr2_tp2_tp3_wakeup_time;				/* 226+ */
 } __packed;
 
 /*
@@ -562,28 +562,28 @@ struct bdb_driver_features {
 	u16 tv_hotplug:1;
 	u16 hdmi_config:2;
 
-	u8 static_display:1;
+	u8 static_display:1;					/* 163+ */
 	u8 reserved2:7;
+
 	u16 legacy_crt_max_x;
 	u16 legacy_crt_max_y;
 	u8 legacy_crt_max_refresh;
 
 	u8 hdmi_termination;
-	u8 custom_vbt_version;
-	/* Driver features data block */
-	u16 rmpm_enabled:1;
-	u16 s2ddt_enabled:1;
-	u16 dpst_enabled:1;
-	u16 bltclt_enabled:1;
-	u16 adb_enabled:1;
-	u16 drrs_enabled:1;
-	u16 grs_enabled:1;
-	u16 gpmt_enabled:1;
-	u16 tbt_enabled:1;
-	u16 psr_enabled:1;
-	u16 ips_enabled:1;
+	u8 custom_vbt_version;					/* 155+ */
+	u16 rmpm_enabled:1;					/* 165+ */
+	u16 s2ddt_enabled:1;					/* 165+ */
+	u16 dpst_enabled:1;					/* 165-227 */
+	u16 bltclt_enabled:1;					/* 165+ */
+	u16 adb_enabled:1;					/* 165-227 */
+	u16 drrs_enabled:1;					/* 165-227 */
+	u16 grs_enabled:1;					/* 165+ */
+	u16 gpmt_enabled:1;					/* 165+ */
+	u16 tbt_enabled:1;					/* 165+ */
+	u16 psr_enabled:1;					/* 165-227 */
+	u16 ips_enabled:1;					/* 165+ */
 	u16 reserved3:1;
-	u16 dmrrs_enabled:1;
+	u16 dmrrs_enabled:1;					/* 174-227 */
 	u16 reserved4:2;
 	u16 pc_feature_valid:1;
 } __packed;
@@ -671,7 +671,7 @@ struct bdb_sdvo_panel_dtds {
 
 
 struct edp_fast_link_params {
-	u8 rate:4;
+	u8 rate:4;						/* ???-223 */
 	u8 lanes:4;
 	u8 preemphasis:4;
 	u8 vswing:4;
@@ -731,7 +731,7 @@ struct bdb_lvds_options {
 	u8 pfit_gfx_mode_enhanced:1;
 	u8 pfit_ratio_auto:1;
 	u8 pixel_dither:1;
-	u8 lvds_edid:1;
+	u8 lvds_edid:1;						/* ???-240 */
 	u8 rsvd2:1;
 	u8 rsvd4;
 	/* LVDS Panel channel bits stored here */
@@ -745,7 +745,7 @@ struct bdb_lvds_options {
 	/* LVDS panel type bits stored here */
 	u32 dps_panel_type_bits;
 	/* LVDS backlight control type bits stored here */
-	u32 blt_control_type_bits;
+	u32 blt_control_type_bits;				/* ???-240 */
 
 	u16 lcdvcc_s0_enable;					/* 200+ */
 	u32 rotation;						/* 228+ */
@@ -888,8 +888,8 @@ struct lfp_power_features {
 	u8 reserved1:1;
 	u8 power_conservation_pref:3;
 	u8 reserved2:1;
-	u8 lace_enabled_status:1;
-	u8 lace_support:1;
+	u8 lace_enabled_status:1;					/* 210+ */
+	u8 lace_support:1;						/* 210+ */
 	u8 als_enable:1;
 } __packed;
 
@@ -909,19 +909,19 @@ struct aggressiveness_profile2_entry {
 } __packed;
 
 struct bdb_lfp_power {
-	struct lfp_power_features features;
+	struct lfp_power_features features;				/* ???-227 */
 	struct als_data_entry als[5];
-	u8 lace_aggressiveness_profile:3;
+	u8 lace_aggressiveness_profile:3;				/* 210-227 */
 	u8 reserved1:5;
-	u16 dpst;
-	u16 psr;
-	u16 drrs;
-	u16 lace_support;
-	u16 adt;
-	u16 dmrrs;
-	u16 adb;
-	u16 lace_enabled_status;
-	struct aggressiveness_profile_entry aggressiveness[16];
+	u16 dpst;							/* 228+ */
+	u16 psr;							/* 228+ */
+	u16 drrs;							/* 228+ */
+	u16 lace_support;						/* 228+ */
+	u16 adt;							/* 228+ */
+	u16 dmrrs;							/* 228+ */
+	u16 adb;							/* 228+ */
+	u16 lace_enabled_status;					/* 228+ */
+	struct aggressiveness_profile_entry aggressiveness[16];		/* 228+ */
 	u16 hobl;							/* 232+ */
 	u16 vrr_feature_enabled;					/* 233+ */
 	u16 elp;							/* 247+ */
