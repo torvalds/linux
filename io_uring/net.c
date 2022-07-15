@@ -327,14 +327,14 @@ int io_send(struct io_kiocb *req, unsigned int issue_flags)
 
 static bool io_recvmsg_multishot_overflow(struct io_async_msghdr *iomsg)
 {
-	unsigned long hdr;
+	int hdr;
 
-	if (check_add_overflow(sizeof(struct io_uring_recvmsg_out),
-			       (unsigned long)iomsg->namelen, &hdr))
+	if (iomsg->namelen < 0)
 		return true;
-	if (check_add_overflow(hdr, iomsg->controllen, &hdr))
+	if (check_add_overflow((int)sizeof(struct io_uring_recvmsg_out),
+			       iomsg->namelen, &hdr))
 		return true;
-	if (hdr > INT_MAX)
+	if (check_add_overflow(hdr, (int)iomsg->controllen, &hdr))
 		return true;
 
 	return false;
