@@ -1535,8 +1535,13 @@ fallback_to_reg_recv:
 		goto exit_free_pages;
 
 	darg->skb = tls_strp_msg(ctx);
-	if (darg->async)
-		return 0;
+
+	if (unlikely(darg->async)) {
+		err = tls_strp_msg_hold(sk, skb, &ctx->async_hold);
+		if (err)
+			__skb_queue_tail(&ctx->async_hold, darg->skb);
+		return err;
+	}
 
 	if (prot->tail_size)
 		darg->tail = dctx->tail;
@@ -1998,14 +2003,16 @@ recv_end:
 		reinit_completion(&ctx->async_wait.completion);
 		pending = atomic_read(&ctx->decrypt_pending);
 		spin_unlock_bh(&ctx->decrypt_compl_lock);
-		if (pending) {
+		ret = 0;
+		if (pending)
 			ret = crypto_wait_req(-EINPROGRESS, &ctx->async_wait);
-			if (ret) {
-				if (err >= 0 || err == -EINPROGRESS)
-					err = ret;
-				decrypted = 0;
-				goto end;
-			}
+		__skb_queue_purge(&ctx->async_hold);
+
+		if (ret) {
+			if (err >= 0 || err == -EINPROGRESS)
+				err = ret;
+			decrypted = 0;
+			goto end;
 		}
 
 		/* Drain records from the rx_list & copy if required */
@@ -2440,6 +2447,7 @@ int tls_set_sw_offload(struct sock *sk, struct tls_context *ctx, int tx)
 		crypto_info = &ctx->crypto_recv.info;
 		cctx = &ctx->rx;
 		skb_queue_head_init(&sw_ctx_rx->rx_list);
+		skb_queue_head_init(&sw_ctx_rx->async_hold);
 		aead = &sw_ctx_rx->aead_recv;
 	}
 
