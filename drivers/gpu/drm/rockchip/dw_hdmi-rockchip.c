@@ -1832,6 +1832,15 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		DRM_MODE_FLAG_3D_FRAME_PACKING)
 		pixclock *= 2;
 
+	if (hdmi->is_hdmi_qp) {
+		if (mode.clock >= 600000) {
+			*color_format = RK_IF_FORMAT_YCBCR420;
+		} else if (mode.clock >= 340000) {
+			if (drm_mode_is_420(info, &mode))
+				*color_format = RK_IF_FORMAT_YCBCR420;
+		}
+	}
+
 	if (*color_format == RK_IF_FORMAT_YCBCR422 || color_depth == 8)
 		tmdsclock = pixclock;
 	else
@@ -1846,7 +1855,11 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 
 	max_tmds_clock = min(max_tmds_clock, hdmi->max_tmdsclk);
 
-	if ((tmdsclock > max_tmds_clock) && !hdmi->is_hdmi_qp) {
+	if (hdmi->is_hdmi_qp && hdmi->link_cfg.rate_per_lane && mode.clock > 600000)
+		max_tmds_clock =
+			hdmi->link_cfg.frl_lanes * hdmi->link_cfg.rate_per_lane * 1000000;
+
+	if (tmdsclock > max_tmds_clock) {
 		if (max_tmds_clock >= 594000) {
 			color_depth = 8;
 		} else if (max_tmds_clock > 340000) {
@@ -1855,19 +1868,6 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		} else {
 			color_depth = 8;
 			if (drm_mode_is_420(info, &mode) || tmdsclock >= 594000)
-				*color_format = RK_IF_FORMAT_YCBCR420;
-		}
-	}
-
-	if (hdmi->is_hdmi_qp) {
-		if (mode.clock >= 340000) {
-			if (drm_mode_is_420(info, &mode))
-				*color_format = RK_IF_FORMAT_YCBCR420;
-			else
-				*color_format = RK_IF_FORMAT_RGB;
-		} else if (tmdsclock > max_tmds_clock) {
-			color_depth = 8;
-			if (drm_mode_is_420(info, &mode))
 				*color_format = RK_IF_FORMAT_YCBCR420;
 		}
 	}
