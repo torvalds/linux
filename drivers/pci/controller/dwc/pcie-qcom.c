@@ -41,6 +41,9 @@
 #define L23_CLK_RMV_DIS				BIT(2)
 #define L1_CLK_RMV_DIS				BIT(1)
 
+#define PCIE20_PARF_PM_CTRL			0x20
+#define REQ_NOT_ENTR_L1				BIT(5)
+
 #define PCIE20_PARF_PHY_CTRL			0x40
 #define PHY_CTRL_PHY_TX0_TERM_OFFSET_MASK	GENMASK(20, 16)
 #define PHY_CTRL_PHY_TX0_TERM_OFFSET(x)		((x) << 16)
@@ -1264,6 +1267,11 @@ static int qcom_pcie_init_2_7_0(struct qcom_pcie *pcie)
 	val = readl(pcie->parf + PCIE20_PARF_MHI_CLOCK_RESET_CTRL);
 	val |= BIT(4);
 	writel(val, pcie->parf + PCIE20_PARF_MHI_CLOCK_RESET_CTRL);
+
+	/* Enable L1 and L1SS */
+	val = readl(pcie->parf + PCIE20_PARF_PM_CTRL);
+	val &= ~REQ_NOT_ENTR_L1;
+	writel(val, pcie->parf + PCIE20_PARF_PM_CTRL);
 
 	if (IS_ENABLED(CONFIG_PCI_MSI)) {
 		val = readl(pcie->parf + PCIE20_PARF_AXI_MSTR_WR_ADDR_HALT);
