@@ -40,7 +40,6 @@ struct uvc_buffer {
 
 #define UVC_QUEUE_DISCONNECTED		(1 << 0)
 #define UVC_QUEUE_DROP_INCOMPLETE	(1 << 1)
-#define UVC_QUEUE_PAUSED		(1 << 2)
 
 struct uvc_video_queue {
 	struct vb2_queue queue;

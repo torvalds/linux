@@ -572,7 +572,9 @@ s32 rtl8723bs_hal_xmit(
 			rtw_issue_addbareq_cmd(padapter, pxmitframe);
 	}
 
+	spin_lock_bh(&pxmitpriv->lock);
 	err = rtw_xmitframe_enqueue(padapter, pxmitframe);
+	spin_unlock_bh(&pxmitpriv->lock);
 	if (err != _SUCCESS) {
 		RT_TRACE(_module_hal_xmit_c_, _drv_err_, ("rtl8723bs_hal_xmit: enqueue xmitframe fail\n"));
 		rtw_free_xmitframe(pxmitpriv, pxmitframe);

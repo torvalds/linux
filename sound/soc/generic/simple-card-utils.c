@@ -255,7 +255,7 @@ int asoc_simple_hw_params(struct snd_pcm_substream *substream,
 	struct simple_dai_props *dai_props =
 		simple_priv_to_props(priv, rtd->num);
 	unsigned int mclk, mclk_fs = 0;
-	int ret = 0;
+	int ret;
 
 	if (dai_props->mclk_fs)
 		mclk_fs = dai_props->mclk_fs;

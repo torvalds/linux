@@ -2130,6 +2130,7 @@
   register_shrinker
   register_syscore_ops
   register_sysctl_table
+  register_tcf_proto_ops
   register_virtio_device
   register_virtio_driver
   regmap_bulk_read
@@ -2629,6 +2630,12 @@
   __task_pid_nr_ns
   __task_rq_lock
   task_rq_lock
+  tcf_action_exec
+  tcf_exts_destroy
+  tcf_exts_dump
+  tcf_exts_dump_stats
+  tcf_exts_validate
+  tcf_queue_work
   tcp_hashinfo
   tcp_parse_options
   thaw_bdev
@@ -2812,6 +2819,7 @@
   __traceiter_android_vh_prepare_update_load_avg_se
   __traceiter_android_vh_printk_hotplug
   __traceiter_android_vh_process_killed
+  __traceiter_android_vh_killed_process
   __traceiter_android_vh_revert_creds
   __traceiter_android_vh_rmqueue
   __traceiter_android_vh_rwsem_init
@@ -3019,6 +3027,7 @@
   __tracepoint_android_vh_prepare_update_load_avg_se
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_process_killed
+  __tracepoint_android_vh_killed_process
   __tracepoint_android_vh_revert_creds
   __tracepoint_android_vh_rmqueue
   __tracepoint_android_vh_rwsem_init
@@ -3209,6 +3218,7 @@
   unregister_shrinker
   unregister_syscore_ops
   unregister_sysctl_table
+  unregister_tcf_proto_ops
   unregister_virtio_device
   unregister_virtio_driver
   up

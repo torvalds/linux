@@ -11,10 +11,11 @@
 
 #include <linux/list.h>
 #include <linux/mutex.h>
+#include <linux/pm_qos.h>
 #include <linux/spinlock.h>
 #include <linux/usb/composite.h>
 #include <linux/videodev2.h>
-#include <linux/pm_qos.h>
+#include <linux/wait.h>
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-dev.h>
@@ -124,6 +125,7 @@ struct uvc_device {
 	struct usb_function func;
 	struct uvc_video video;
 	bool func_connected;
+	wait_queue_head_t func_connected_queue;
 	/* for creating and issuing QoS requests */
 	struct pm_qos_request pm_qos;
 

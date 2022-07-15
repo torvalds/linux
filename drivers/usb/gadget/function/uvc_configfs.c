@@ -2829,6 +2829,46 @@ unlock:
 UVC_ATTR(f_uvc_opts_, device_name, device_name);
 #endif
 
+#define UVCG_OPTS_STRING_ATTR(cname, aname)				\
+static ssize_t f_uvc_opts_string_##cname##_show(struct config_item *item,\
+					 char *page)			\
+{									\
+	struct f_uvc_opts *opts = to_f_uvc_opts(item);			\
+	int result;							\
+									\
+	mutex_lock(&opts->lock);					\
+	result = snprintf(page, sizeof(opts->aname), "%s", opts->aname);\
+	mutex_unlock(&opts->lock);					\
+									\
+	return result;							\
+}									\
+									\
+static ssize_t f_uvc_opts_string_##cname##_store(struct config_item *item,\
+					  const char *page, size_t len)	\
+{									\
+	struct f_uvc_opts *opts = to_f_uvc_opts(item);			\
+	int ret = 0;							\
+									\
+	mutex_lock(&opts->lock);					\
+	if (opts->refcnt) {						\
+		ret = -EBUSY;						\
+		goto end;						\
+	}								\
+									\
+	ret = snprintf(opts->aname, min(sizeof(opts->aname), len),	\
+			"%s", page);					\
+									\
+end:									\
+	mutex_unlock(&opts->lock);					\
+	return ret;							\
+}									\
+									\
+UVC_ATTR(f_uvc_opts_string_, cname, aname)
+
+UVCG_OPTS_STRING_ATTR(function_name, function_name);
+
+#undef UVCG_OPTS_STRING_ATTR
+
 static struct configfs_attribute *uvc_attrs[] = {
 	&f_uvc_opts_attr_streaming_bulk,
 	&f_uvc_opts_attr_streaming_interval,
@@ -2839,6 +2879,7 @@ static struct configfs_attribute *uvc_attrs[] = {
 	&f_uvc_opts_attr_device_name,
 	&f_uvc_opts_attr_uvc_num_request,
 #endif
+	&f_uvc_opts_string_attr_function_name,
 	NULL,
 };
 

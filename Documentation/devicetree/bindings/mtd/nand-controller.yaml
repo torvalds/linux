@@ -44,7 +44,7 @@ patternProperties:
     properties:
       reg:
         description:
-          Contains the native Ready/Busy IDs.
+          Contains the chip-select IDs.
 
       nand-ecc-mode:
         description:
@@ -174,6 +174,6 @@ examples:
         nand-ecc-mode = "soft";
         nand-ecc-algo = "bch";
 
-        /* controller specific properties */
+        /* NAND chip specific properties */
       };
     };

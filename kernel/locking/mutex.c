@@ -1049,6 +1049,7 @@ __mutex_lock_common(struct mutex *lock, long state, unsigned int subclass,
 				goto err;
 		}
 
+		trace_android_vh_mutex_start_check_new_owner(lock);
 		spin_unlock(&lock->wait_lock);
 		schedule_preempt_disabled();
 
@@ -1293,6 +1294,7 @@ static noinline void __sched __mutex_unlock_slowpath(struct mutex *lock, unsigne
 	spin_unlock(&lock->wait_lock);
 
 	wake_up_q(&wake_q);
+	trace_android_vh_mutex_unlock_slowpath_end(lock, next);
 }
 
 #ifndef CONFIG_DEBUG_LOCK_ALLOC

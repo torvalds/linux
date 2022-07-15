@@ -531,9 +531,11 @@ static inline void __fpregs_load_activate(void)
  * The FPU context is only stored/restored for a user task and
  * PF_KTHREAD is used to distinguish between kernel and user threads.
  */
-static inline void switch_fpu_prepare(struct fpu *old_fpu, int cpu)
+static inline void switch_fpu_prepare(struct task_struct *prev, int cpu)
 {
-	if (static_cpu_has(X86_FEATURE_FPU) && !(current->flags & PF_KTHREAD)) {
+	struct fpu *old_fpu = &prev->thread.fpu;
+
+	if (static_cpu_has(X86_FEATURE_FPU) && !(prev->flags & PF_KTHREAD)) {
 		if (!copy_fpregs_to_fpstate(old_fpu))
 			old_fpu->last_cpu = -1;
 		else
@@ -552,10 +554,11 @@ static inline void switch_fpu_prepare(struct fpu *old_fpu, int cpu)
  * Load PKRU from the FPU context if available. Delay loading of the
  * complete FPU state until the return to userland.
  */
-static inline void switch_fpu_finish(struct fpu *new_fpu)
+static inline void switch_fpu_finish(struct task_struct *next)
 {
 	u32 pkru_val = init_pkru_value;
 	struct pkru_state *pk;
+	struct fpu *next_fpu = &next->thread.fpu;
 
 	if (!static_cpu_has(X86_FEATURE_FPU))
 		return;
@@ -569,7 +572,7 @@ static inline void switch_fpu_finish(struct fpu *new_fpu)
 	 * PKRU state is switched eagerly because it needs to be valid before we
 	 * return to userland e.g. for a copy_to_user() operation.
 	 */
-	if (!(current->flags & PF_KTHREAD)) {
+	if (!(next->flags & PF_KTHREAD)) {
 		/*
 		 * If the PKRU bit in xsave.header.xfeatures is not set,
 		 * then the PKRU component was in init state, which means
@@ -578,7 +581,7 @@ static inline void switch_fpu_finish(struct fpu *new_fpu)
 		 * in memory is not valid. This means pkru_val has to be
 		 * set to 0 and not to init_pkru_value.
 		 */
-		pk = get_xsave_addr(&new_fpu->state.xsave, XFEATURE_PKRU);
+		pk = get_xsave_addr(&next_fpu->state.xsave, XFEATURE_PKRU);
 		pkru_val = pk ? pk->pkru : 0;
 	}
 	__write_pkru(pkru_val);

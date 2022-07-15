@@ -1156,7 +1156,7 @@ static inline void __io_req_init_async(struct io_kiocb *req)
  */
 static inline void io_req_init_async(struct io_kiocb *req)
 {
-	struct io_uring_task *tctx = current->io_uring;
+	struct io_uring_task *tctx = req->task->io_uring;
 
 	if (req->flags & REQ_F_WORK_INITIALIZED)
 		return;
@@ -3220,13 +3220,15 @@ static ssize_t loop_rw_iter(int rw, struct io_kiocb *req, struct iov_iter *iter)
 				ret = nr;
 			break;
 		}
+		ret += nr;
 		if (!iov_iter_is_bvec(iter)) {
 			iov_iter_advance(iter, nr);
 		} else {
-			req->rw.len -= nr;
 			req->rw.addr += nr;
+			req->rw.len -= nr;
+			if (!req->rw.len)
+				break;
 		}
-		ret += nr;
 		if (nr != iovec.iov_len)
 			break;
 	}
@@ -4070,6 +4072,7 @@ static int io_add_buffers(struct io_provide_buf *pbuf, struct io_buffer **head)
 		} else {
 			list_add_tail(&buf->list, &(*head)->list);
 		}
+		cond_resched();
 	}
 
 	return i ? i : -ENOMEM;
@@ -7347,6 +7350,7 @@ static int __io_sqe_files_scm(struct io_ring_ctx *ctx, int nr, int offset)
 			fput(fpl->fp[i]);
 	} else {
 		kfree_skb(skb);
+		free_uid(fpl->user);
 		kfree(fpl);
 	}
 
