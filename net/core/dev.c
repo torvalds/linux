@@ -9595,8 +9595,10 @@ static void rollback_registered_many(struct list_head *head)
 
 	synchronize_net();
 
-	list_for_each_entry(dev, head, unreg_list)
+	list_for_each_entry(dev, head, unreg_list) {
 		dev_put(dev);
+		net_set_todo(dev);
+	}
 }
 
 static void rollback_registered(struct net_device *dev)
@@ -10147,7 +10149,6 @@ int register_netdevice(struct net_device *dev)
 		/* Expect explicit free_netdev() on failure */
 		dev->needs_free_netdev = false;
 		rollback_registered(dev);
-		net_set_todo(dev);
 		goto out;
 	}
 	/*
@@ -10755,8 +10756,6 @@ void unregister_netdevice_queue(struct net_device *dev, struct list_head *head)
 		list_move_tail(&dev->unreg_list, head);
 	} else {
 		rollback_registered(dev);
-		/* Finish processing unregister after unlock */
-		net_set_todo(dev);
 	}
 }
 EXPORT_SYMBOL(unregister_netdevice_queue);
@@ -10770,12 +10769,8 @@ EXPORT_SYMBOL(unregister_netdevice_queue);
  */
 void unregister_netdevice_many(struct list_head *head)
 {
-	struct net_device *dev;
-
 	if (!list_empty(head)) {
 		rollback_registered_many(head);
-		list_for_each_entry(dev, head, unreg_list)
-			net_set_todo(dev);
 		list_del(head);
 	}
 }
