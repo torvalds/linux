@@ -193,10 +193,10 @@ config CORESIGHT_TRBE
 	depends on ARM64 && CORESIGHT_SOURCE_ETM4X
 	help
 	  This driver provides support for percpu Trace Buffer Extension (TRBE).
-	  TRBE always needs to be used along with it's corresponding percpu ETE
+	  TRBE always needs to be used along with its corresponding percpu ETE
 	  component. ETE generates trace data which is then captured with TRBE.
 	  Unlike traditional sink devices, TRBE is a CPU feature accessible via
-	  system registers. But it's explicit dependency with trace unit (ETE)
+	  system registers. But its explicit dependency with trace unit (ETE)
 	  requires it to be plugged in as a coresight sink device.
 
 	  To compile this driver as a module, choose M here: the module will be
