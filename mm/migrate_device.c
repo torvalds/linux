@@ -686,6 +686,12 @@ void migrate_vma_pages(struct migrate_vma *migrate)
 		}
 
 		if (!page) {
+			/*
+			 * The only time there is no vma is when called from
+			 * migrate_device_coherent_page(). However this isn't
+			 * called if the page could not be unmapped.
+			 */
+			VM_BUG_ON(!migrate->vma);
 			if (!(migrate->src[i] & MIGRATE_PFN_MIGRATE))
 				continue;
 			if (!notified) {
@@ -794,3 +800,49 @@ void migrate_vma_finalize(struct migrate_vma *migrate)
 	}
 }
 EXPORT_SYMBOL(migrate_vma_finalize);
+
+/*
+ * Migrate a device coherent page back to normal memory. The caller should have
+ * a reference on page which will be copied to the new page if migration is
+ * successful or dropped on failure.
+ */
+int migrate_device_coherent_page(struct page *page)
+{
+	unsigned long src_pfn, dst_pfn = 0;
+	struct migrate_vma args;
+	struct page *dpage;
+
+	WARN_ON_ONCE(PageCompound(page));
+
+	lock_page(page);
+	src_pfn = migrate_pfn(page_to_pfn(page)) | MIGRATE_PFN_MIGRATE;
+	args.src = &src_pfn;
+	args.dst = &dst_pfn;
+	args.cpages = 1;
+	args.npages = 1;
+	args.vma = NULL;
+
+	/*
+	 * We don't have a VMA and don't need to walk the page tables to find
+	 * the source page. So call migrate_vma_unmap() directly to unmap the
+	 * page as migrate_vma_setup() will fail if args.vma == NULL.
+	 */
+	migrate_vma_unmap(&args);
+	if (!(src_pfn & MIGRATE_PFN_MIGRATE))
+		return -EBUSY;
+
+	dpage = alloc_page(GFP_USER | __GFP_NOWARN);
+	if (dpage) {
+		lock_page(dpage);
+		dst_pfn = migrate_pfn(page_to_pfn(dpage));
+	}
+
+	migrate_vma_pages(&args);
+	if (src_pfn & MIGRATE_PFN_MIGRATE)
+		copy_highpage(dpage, page);
+	migrate_vma_finalize(&args);
+
+	if (src_pfn & MIGRATE_PFN_MIGRATE)
+		return 0;
+	return -EBUSY;
+}
