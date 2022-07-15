@@ -506,6 +506,9 @@ static int it6505_read(struct it6505 *it6505, unsigned int reg_addr)
 	int err;
 	struct device *dev = &it6505->client->dev;
 
+	if (!it6505->powered)
+		return -ENODEV;
+
 	err = regmap_read(it6505->regmap, reg_addr, &value);
 	if (err < 0) {
 		dev_err(dev, "read failed reg[0x%x] err: %d", reg_addr, err);
@@ -520,6 +523,9 @@ static int it6505_write(struct it6505 *it6505, unsigned int reg_addr,
 {
 	int err;
 	struct device *dev = &it6505->client->dev;
+
+	if (!it6505->powered)
+		return -ENODEV;
 
 	err = regmap_write(it6505->regmap, reg_addr, reg_val);
 
@@ -537,6 +543,9 @@ static int it6505_set_bits(struct it6505 *it6505, unsigned int reg,
 {
 	int err;
 	struct device *dev = &it6505->client->dev;
+
+	if (!it6505->powered)
+		return -ENODEV;
 
 	err = regmap_update_bits(it6505->regmap, reg, mask, value);
 	if (err < 0) {
@@ -2559,12 +2568,11 @@ static int it6505_poweron(struct it6505 *it6505)
 		usleep_range(10000, 20000);
 	}
 
+	it6505->powered = true;
 	it6505_reset_logic(it6505);
 	it6505_int_mask_enable(it6505);
 	it6505_init(it6505);
 	it6505_lane_off(it6505);
-
-	it6505->powered = true;
 
 	return 0;
 }
