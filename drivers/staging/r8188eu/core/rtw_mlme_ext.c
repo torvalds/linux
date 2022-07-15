@@ -428,6 +428,26 @@ static u32 p2p_listen_state_process(struct adapter *padapter, unsigned char *da)
 	return _SUCCESS;
 }
 
+static void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe)
+{
+	u8 *pIE;
+	__le32 *pbuf;
+
+	pIE = pframe + sizeof(struct ieee80211_hdr_3addr);
+	pbuf = (__le32 *)pIE;
+
+	pmlmeext->TSFValue = le32_to_cpu(*(pbuf + 1));
+
+	pmlmeext->TSFValue = pmlmeext->TSFValue << 32;
+
+	pmlmeext->TSFValue |= le32_to_cpu(*pbuf);
+}
+
+static void correct_TSF(struct adapter *padapter)
+{
+	SetHwReg8188EU(padapter, HW_VAR_CORRECT_TSF, NULL);
+}
+
 /****************************************************************************
 
 Following are the callback functions for each subtype of the management frames

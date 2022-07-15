@@ -1571,26 +1571,6 @@ int update_sta_support_rate(struct adapter *padapter, u8 *pvar_ie, uint var_ie_l
 	return _SUCCESS;
 }
 
-void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe)
-{
-	u8 *pIE;
-	__le32 *pbuf;
-
-	pIE = pframe + sizeof(struct ieee80211_hdr_3addr);
-	pbuf = (__le32 *)pIE;
-
-	pmlmeext->TSFValue = le32_to_cpu(*(pbuf + 1));
-
-	pmlmeext->TSFValue = pmlmeext->TSFValue << 32;
-
-	pmlmeext->TSFValue |= le32_to_cpu(*pbuf);
-}
-
-void correct_TSF(struct adapter *padapter)
-{
-	SetHwReg8188EU(padapter, HW_VAR_CORRECT_TSF, NULL);
-}
-
 void beacon_timing_control(struct adapter *padapter)
 {
 	SetBeaconRelatedRegisters8188EUsb(padapter);
