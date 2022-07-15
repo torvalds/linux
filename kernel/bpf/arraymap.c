@@ -208,7 +208,7 @@ static int array_map_gen_lookup(struct bpf_map *map, struct bpf_insn *insn_buf)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	struct bpf_insn *insn = insn_buf;
-	u32 elem_size = round_up(map->value_size, 8);
+	u32 elem_size = array->elem_size;
 	const int ret = BPF_REG_0;
 	const int map_ptr = BPF_REG_1;
 	const int index = BPF_REG_2;
@@ -277,7 +277,7 @@ int bpf_percpu_array_copy(struct bpf_map *map, void *key, void *value)
 	 * access 'value_size' of them, so copying rounded areas
 	 * will not leak any kernel data
 	 */
-	size = round_up(map->value_size, 8);
+	size = array->elem_size;
 	rcu_read_lock();
 	pptr = array->pptrs[index & array->index_mask];
 	for_each_possible_cpu(cpu) {
@@ -381,7 +381,7 @@ int bpf_percpu_array_update(struct bpf_map *map, void *key, void *value,
 	 * returned or zeros which were zero-filled by percpu_alloc,
 	 * so no kernel data leaks possible
 	 */
-	size = round_up(map->value_size, 8);
+	size = array->elem_size;
 	rcu_read_lock();
 	pptr = array->pptrs[index & array->index_mask];
 	for_each_possible_cpu(cpu) {
@@ -587,6 +587,7 @@ static int __bpf_array_map_seq_show(struct seq_file *seq, void *v)
 	struct bpf_iter_seq_array_map_info *info = seq->private;
 	struct bpf_iter__bpf_map_elem ctx = {};
 	struct bpf_map *map = info->map;
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	struct bpf_iter_meta meta;
 	struct bpf_prog *prog;
 	int off = 0, cpu = 0;
@@ -607,7 +608,7 @@ static int __bpf_array_map_seq_show(struct seq_file *seq, void *v)
 			ctx.value = v;
 		} else {
 			pptr = v;
-			size = round_up(map->value_size, 8);
+			size = array->elem_size;
 			for_each_possible_cpu(cpu) {
 				bpf_long_memcpy(info->percpu_value_buf + off,
 						per_cpu_ptr(pptr, cpu),
@@ -637,11 +638,12 @@ static int bpf_iter_init_array_map(void *priv_data,
 {
 	struct bpf_iter_seq_array_map_info *seq_info = priv_data;
 	struct bpf_map *map = aux->map;
+	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	void *value_buf;
 	u32 buf_size;
 
 	if (map->map_type == BPF_MAP_TYPE_PERCPU_ARRAY) {
-		buf_size = round_up(map->value_size, 8) * num_possible_cpus();
+		buf_size = array->elem_size * num_possible_cpus();
 		value_buf = kmalloc(buf_size, GFP_USER | __GFP_NOWARN);
 		if (!value_buf)
 			return -ENOMEM;
@@ -1326,7 +1328,7 @@ static int array_of_map_gen_lookup(struct bpf_map *map,
 				   struct bpf_insn *insn_buf)
 {
 	struct bpf_array *array = container_of(map, struct bpf_array, map);
-	u32 elem_size = round_up(map->value_size, 8);
+	u32 elem_size = array->elem_size;
 	struct bpf_insn *insn = insn_buf;
 	const int ret = BPF_REG_0;
 	const int map_ptr = BPF_REG_1;
