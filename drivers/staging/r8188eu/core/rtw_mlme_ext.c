@@ -445,7 +445,39 @@ static void update_TSF(struct mlme_ext_priv *pmlmeext, u8 *pframe)
 
 static void correct_TSF(struct adapter *padapter)
 {
-	SetHwReg8188EU(padapter, HW_VAR_CORRECT_TSF, NULL);
+	u8 reg;
+	int res;
+	u64 tsf;
+	struct mlme_ext_priv *pmlmeext = &padapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+
+	tsf = pmlmeext->TSFValue - do_div(pmlmeext->TSFValue,
+					  pmlmeinfo->bcn_interval * 1024) - 1024; /* us */
+
+	if (((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) ||
+	    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE))
+		rtw_stop_tx_beacon(padapter);
+
+	/* disable related TSF function */
+	res = rtw_read8(padapter, REG_BCN_CTRL, &reg);
+	if (res)
+		return;
+
+	rtw_write8(padapter, REG_BCN_CTRL, reg & (~BIT(3)));
+
+	rtw_write32(padapter, REG_TSFTR, tsf);
+	rtw_write32(padapter, REG_TSFTR + 4, tsf >> 32);
+
+	/* enable related TSF function */
+	res = rtw_read8(padapter, REG_BCN_CTRL, &reg);
+	if (res)
+		return;
+
+	rtw_write8(padapter, REG_BCN_CTRL, reg | BIT(3));
+
+	if (((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE) ||
+	    ((pmlmeinfo->state & 0x03) == WIFI_FW_AP_STATE))
+		rtw_resume_tx_beacon(padapter);
 }
 
 /****************************************************************************
