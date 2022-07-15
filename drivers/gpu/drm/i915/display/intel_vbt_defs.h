@@ -393,8 +393,14 @@ struct child_device_config {
 		u8  device_id[10]; /* ascii string */
 		struct {
 			u8 i2c_speed;
-			u8 dp_onboard_redriver;			/* 158+ */
-			u8 dp_ondock_redriver;			/* 158+ */
+			u8 dp_onboard_redriver_preemph:3;	/* 158+ */
+			u8 dp_onboard_redriver_vswing:3;	/* 158+ */
+			u8 dp_onboard_redriver_present:1;	/* 158+ */
+			u8 reserved0:1;
+			u8 dp_ondock_redriver_preemph:3;	/* 158+ */
+			u8 dp_ondock_redriver_vswing:3;		/* 158+ */
+			u8 dp_ondock_redriver_present:1;	/* 158+ */
+			u8 reserved1:1;
 			u8 hdmi_level_shifter_value:5;		/* 158+ */
 			u8 hdmi_max_data_rate:3;		/* 204+ */
 			u16 dtd_buf_ptr;			/* 161+ */
@@ -402,11 +408,11 @@ struct child_device_config {
 			u8 compression_enable:1;		/* 198+ */
 			u8 compression_method_cps:1;		/* 198+ */
 			u8 ganged_edp:1;			/* 202+ */
-			u8 reserved0:4;
+			u8 reserved2:4;
 			u8 compression_structure_index:4;	/* 198+ */
-			u8 reserved1:4;
+			u8 reserved3:4;
 			u8 slave_port;				/* 202+ */
-			u8 reserved2;
+			u8 reserved4;
 		} __packed;
 	} __packed;
 
