@@ -2920,6 +2920,31 @@ static void direct_pte_prefetch(struct kvm_vcpu *vcpu, u64 *sptep)
 	__direct_pte_prefetch(vcpu, sp, sptep);
 }
 
+/*
+ * Lookup the mapping level for @gfn in the current mm.
+ *
+ * WARNING!  Use of host_pfn_mapping_level() requires the caller and the end
+ * consumer to be tied into KVM's handlers for MMU notifier events!
+ *
+ * There are several ways to safely use this helper:
+ *
+ * - Check mmu_notifier_retry_hva() after grabbing the mapping level, before
+ *   consuming it.  In this case, mmu_lock doesn't need to be held during the
+ *   lookup, but it does need to be held while checking the MMU notifier.
+ *
+ * - Hold mmu_lock AND ensure there is no in-progress MMU notifier invalidation
+ *   event for the hva.  This can be done by explicit checking the MMU notifier
+ *   or by ensuring that KVM already has a valid mapping that covers the hva.
+ *
+ * - Do not use the result to install new mappings, e.g. use the host mapping
+ *   level only to decide whether or not to zap an entry.  In this case, it's
+ *   not required to hold mmu_lock (though it's highly likely the caller will
+ *   want to hold mmu_lock anyways, e.g. to modify SPTEs).
+ *
+ * Note!  The lookup can still race with modifications to host page tables, but
+ * the above "rules" ensure KVM will not _consume_ the result of the walk if a
+ * race with the primary MMU occurs.
+ */
 static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn,
 				  const struct kvm_memory_slot *slot)
 {
@@ -2942,16 +2967,19 @@ static int host_pfn_mapping_level(struct kvm *kvm, gfn_t gfn,
 	hva = __gfn_to_hva_memslot(slot, gfn);
 
 	/*
-	 * Lookup the mapping level in the current mm.  The information
-	 * may become stale soon, but it is safe to use as long as
-	 * 1) mmu_notifier_retry was checked after taking mmu_lock, and
-	 * 2) mmu_lock is taken now.
-	 *
-	 * We still need to disable IRQs to prevent concurrent tear down
-	 * of page tables.
+	 * Disable IRQs to prevent concurrent tear down of host page tables,
+	 * e.g. if the primary MMU promotes a P*D to a huge page and then frees
+	 * the original page table.
 	 */
 	local_irq_save(flags);
 
+	/*
+	 * Read each entry once.  As above, a non-leaf entry can be promoted to
+	 * a huge page _during_ this walk.  Re-reading the entry could send the
+	 * walk into the weeks, e.g. p*d_large() returns false (sees the old
+	 * value) and then p*d_offset() walks into the target huge page instead
+	 * of the old page table (sees the new value).
+	 */
 	pgd = READ_ONCE(*pgd_offset(kvm->mm, hva));
 	if (pgd_none(pgd))
 		goto out;
