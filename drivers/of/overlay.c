@@ -1043,20 +1043,15 @@ int of_overlay_fdt_apply(const void *overlay_fdt, u32 overlay_fdt_size,
 	 * goto err_free_ovcs.  Instead, the caller of of_overlay_fdt_apply()
 	 * can call of_overlay_remove();
 	 */
-
-	mutex_unlock(&of_mutex);
-	of_overlay_mutex_unlock();
-
 	*ret_ovcs_id = ovcs->id;
-
-	return ret;
+	goto out_unlock;
 
 err_free_ovcs:
 	free_overlay_changeset(ovcs);
 
+out_unlock:
 	mutex_unlock(&of_mutex);
 	of_overlay_mutex_unlock();
-
 	return ret;
 }
 EXPORT_SYMBOL_GPL(of_overlay_fdt_apply);
