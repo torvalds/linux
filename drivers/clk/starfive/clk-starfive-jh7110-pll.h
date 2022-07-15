@@ -8,7 +8,12 @@
 #ifndef _CLK_STARFIVE_JH7110_PLL_H_
 #define _CLK_STARFIVE_JH7110_PLL_H_
 
-#define PLL2_DEFAULT_FREQ	PLL2_FREQ_1188_VALUE
+/*
+ * If set PLL2_DEFAULT_FREQ NULL of 0 , then PLL2 frequency is original.
+ * If set PLL2_DEFAULT_FREQ one of 'starfive_pll2_freq_value', then PLL2
+ * frequency will be set the new rate during clock tree registering.
+ */
+#define PLL2_DEFAULT_FREQ	PLL2_FREQ_12288_VALUE
 
 #define PLL0_INDEX		0
 #define PLL1_INDEX		1

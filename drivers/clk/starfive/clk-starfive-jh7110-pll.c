@@ -441,6 +441,14 @@ int __init clk_starfive_jh7110_pll_init(struct platform_device *pdev,
 
 	dev_info(&pdev->dev, "PLL0 and PLL2 clock be set done\n");
 
+/* Change PLL2 rate before other driver up */
+	if (PLL2_DEFAULT_FREQ) {
+		struct clk *pll2_clk = pll_priv[PLL2_INDEX].hw.clk;
+
+		if (clk_set_rate(pll2_clk, PLL2_DEFAULT_FREQ))
+			dev_info(&pdev->dev, "set pll2 failed\n");
+	}
+
 	return 0;
 
 pll_init_failed:
