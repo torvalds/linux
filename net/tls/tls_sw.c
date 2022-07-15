@@ -1648,6 +1648,12 @@ static int tls_record_content_type(struct msghdr *msg, struct tls_msg *tlm,
 	return 1;
 }
 
+static void tls_rx_rec_done(struct tls_sw_context_rx *ctx)
+{
+	ctx->recv_pkt = NULL;
+	__strp_unpause(&ctx->strp);
+}
+
 /* This function traverses the rx_list in tls receive context to copies the
  * decrypted records into the buffer provided by caller zero copy is not
  * true. Further, the records are removed from the rx_list if it is not a peek
@@ -1902,15 +1908,20 @@ int tls_sw_recvmsg(struct sock *sk,
 		 * For tls1.3, we disable async.
 		 */
 		err = tls_record_content_type(msg, tlm, &control);
-		if (err <= 0)
+		if (err <= 0) {
+			tls_rx_rec_done(ctx);
+put_on_rx_list_err:
+			__skb_queue_tail(&ctx->rx_list, skb);
 			goto recv_end;
+		}
 
 		/* periodically flush backlog, and feed strparser */
 		tls_read_flush_backlog(sk, prot, len, to_decrypt,
 				       decrypted + copied, &flushed_at);
 
-		ctx->recv_pkt = NULL;
-		__strp_unpause(&ctx->strp);
+		/* TLS 1.3 may have updated the length by more than overhead */
+		chunk = rxm->full_len;
+		tls_rx_rec_done(ctx);
 
 		if (async) {
 			/* TLS 1.2-only, to_decrypt must be text length */
@@ -1921,8 +1932,6 @@ put_on_rx_list:
 			__skb_queue_tail(&ctx->rx_list, skb);
 			continue;
 		}
-		/* TLS 1.3 may have updated the length by more than overhead */
-		chunk = rxm->full_len;
 
 		if (!darg.zc) {
 			bool partially_consumed = chunk > len;
@@ -1943,10 +1952,8 @@ put_on_rx_list:
 
 			err = skb_copy_datagram_msg(skb, rxm->offset,
 						    msg, chunk);
-			if (err < 0) {
-				__skb_queue_tail(&ctx->rx_list, skb);
-				goto recv_end;
-			}
+			if (err < 0)
+				goto put_on_rx_list_err;
 
 			if (is_peek)
 				goto put_on_rx_list;
@@ -2020,7 +2027,6 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	struct tls_msg *tlm;
 	struct sk_buff *skb;
 	ssize_t copied = 0;
-	bool from_queue;
 	int err = 0;
 	long timeo;
 	int chunk;
@@ -2029,8 +2035,7 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	if (timeo < 0)
 		return timeo;
 
-	from_queue = !skb_queue_empty(&ctx->rx_list);
-	if (from_queue) {
+	if (!skb_queue_empty(&ctx->rx_list)) {
 		skb = __skb_dequeue(&ctx->rx_list);
 	} else {
 		struct tls_decrypt_arg darg = {};
@@ -2047,6 +2052,8 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 			tls_err_abort(sk, -EBADMSG);
 			goto splice_read_end;
 		}
+
+		tls_rx_rec_done(ctx);
 	}
 
 	rxm = strp_msg(skb);
@@ -2055,29 +2062,29 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	/* splice does not support reading control messages */
 	if (tlm->control != TLS_RECORD_TYPE_DATA) {
 		err = -EINVAL;
-		goto splice_read_end;
+		goto splice_requeue;
 	}
 
 	chunk = min_t(unsigned int, rxm->full_len, len);
 	copied = skb_splice_bits(skb, sk, rxm->offset, pipe, chunk, flags);
 	if (copied < 0)
-		goto splice_read_end;
+		goto splice_requeue;
 
-	if (!from_queue) {
-		ctx->recv_pkt = NULL;
-		__strp_unpause(&ctx->strp);
-	}
 	if (chunk < rxm->full_len) {
-		__skb_queue_head(&ctx->rx_list, skb);
 		rxm->offset += len;
 		rxm->full_len -= len;
-	} else {
-		consume_skb(skb);
+		goto splice_requeue;
 	}
+
+	consume_skb(skb);
 
 splice_read_end:
 	tls_rx_reader_unlock(sk, ctx);
 	return copied ? : err;
+
+splice_requeue:
+	__skb_queue_head(&ctx->rx_list, skb);
+	goto splice_read_end;
 }
 
 bool tls_sw_sock_is_readable(struct sock *sk)
