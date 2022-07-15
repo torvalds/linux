@@ -227,13 +227,4 @@ extern int  omapfb_register_client(struct omapfb_notifier_block *nb,
 				   omapfb_notifier_callback_t callback,
 				   void *callback_data);
 extern int  omapfb_unregister_client(struct omapfb_notifier_block *nb);
-extern int  omapfb_update_window_async(struct fb_info *fbi,
-				       struct omapfb_update_window *win,
-				       void (*callback)(void *),
-				       void *callback_data);
-extern int  hwa742_update_window_async(struct fb_info *fbi,
-				       struct omapfb_update_window *win,
-				       void (*callback)(void *),
-				       void *callback_data);
-
 #endif /* __OMAPFB_H */
