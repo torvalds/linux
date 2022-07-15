@@ -31,6 +31,9 @@ DECLARE_HOOK(android_vh_page_referenced_check_bypass,
 DECLARE_HOOK(android_vh_shrink_node_memcgs,
 	TP_PROTO(struct mem_cgroup *memcg, bool *skip),
 	TP_ARGS(memcg, skip));
+DECLARE_HOOK(android_vh_tune_memcg_scan_type,
+	TP_PROTO(struct mem_cgroup *memcg, char *scan_type),
+	TP_ARGS(memcg, scan_type));
 #endif /* _TRACE_HOOK_VMSCAN_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>

@@ -3,6 +3,8 @@
 # Makefile for general filesystem caching code
 #
 
+ccflags-y += -DDEFAULT_SYMBOL_NAMESPACE=ANDROID_GKI_VFS_EXPORT_ONLY
+
 fscache-y := \
 	cache.o \
 	cookie.o \

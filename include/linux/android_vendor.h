@@ -26,7 +26,7 @@
  *   Same as ANDROID_VENDOR_DATA but allocates an array of u64 with
  *   the specified size
  */
-#ifdef CONFIG_ANDROID_STRUCT_PADDING
+#ifdef CONFIG_ANDROID_VENDOR_OEM_DATA
 #define ANDROID_VENDOR_DATA(n)		u64 android_vendor_data##n
 #define ANDROID_VENDOR_DATA_ARRAY(n, s)	u64 android_vendor_data##n[s]
 
