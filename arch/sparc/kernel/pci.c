@@ -876,17 +876,22 @@ static void __pci_mmap_set_pgprot(struct pci_dev *dev, struct vm_area_struct *vm
 
 /* Perform the actual remap of the pages for a PCI device mapping, as appropriate
  * for this architecture.  The region in the process to map is described by vm_start
- * and vm_end members of VMA, the base physical address is found in vm_pgoff.
+ * and vm_end members of VMA, the BAR relative address is found in vm_pgoff.
  * The pci device structure is provided so that architectures may make mapping
  * decisions on a per-device or per-bus basis.
  *
  * Returns a negative error code on failure, zero on success.
  */
-int pci_mmap_page_range(struct pci_dev *dev, int bar,
-			struct vm_area_struct *vma,
-			enum pci_mmap_state mmap_state, int write_combine)
+int pci_mmap_resource_range(struct pci_dev *dev, int bar,
+			    struct vm_area_struct *vma,
+			    enum pci_mmap_state mmap_state, int write_combine)
 {
 	int ret;
+	resource_size_t start, end;
+
+	/* convert per-BAR address to PCI bus address */
+	pci_resource_to_user(dev, bar, &dev->resource[bar], &start, &end);
+	vma->vm_pgoff += start >> PAGE_SHIFT;
 
 	ret = __pci_mmap_make_offset(dev, vma, mmap_state);
 	if (ret < 0)
