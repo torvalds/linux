@@ -221,6 +221,7 @@ struct rk_hdmirx_dev {
 	bool get_timing;
 	u8 hdcp_enable;
 	u8 hdcp_support;
+	bool cec_enable;
 	u32 num_clks;
 	u32 edid_blocks_written;
 	u32 hpd_trigger_level;
@@ -2938,6 +2939,9 @@ static int hdmirx_parse_dt(struct rk_hdmirx_dev *hdmirx_dev)
 		hdmirx_dev->hdcp_enable = HDCP_1X_ENABLE;
 	}
 
+	if (of_property_read_bool(np, "cec-enable"))
+		hdmirx_dev->cec_enable = true;
+
 	ret = of_reserved_mem_device_init(dev);
 	if (ret)
 		dev_warn(dev, "No reserved memory for HDMIRX, use default CMA\n");
@@ -3790,29 +3794,31 @@ static int hdmirx_probe(struct platform_device *pdev)
 		goto err_unreg_video_dev;
 	}
 
-	hdmirx_dev->cec_notifier = cec_notifier_conn_register(dev, NULL, NULL);
-	if (!hdmirx_dev->cec_notifier) {
-		ret = -ENOMEM;
-		goto err_hdl;
-	}
+	if (hdmirx_dev->cec_enable) {
+		hdmirx_dev->cec_notifier = cec_notifier_conn_register(dev, NULL, NULL);
+		if (!hdmirx_dev->cec_notifier) {
+			ret = -ENOMEM;
+			goto err_hdl;
+		}
 
-	irq = platform_get_irq_byname(pdev, "cec");
-	if (irq < 0) {
-		dev_err(dev, "get hdmi cec irq failed!\n");
-		cec_notifier_conn_unregister(hdmirx_dev->cec_notifier);
-		ret = irq;
-		goto err_hdl;
-	}
-	cpumask_clear(&cpumask);
-	cpumask_set_cpu(hdmirx_dev->bound_cpu, &cpumask);
-	irq_set_affinity_hint(irq, &cpumask);
+		irq = platform_get_irq_byname(pdev, "cec");
+		if (irq < 0) {
+			dev_err(dev, "get hdmi cec irq failed!\n");
+			cec_notifier_conn_unregister(hdmirx_dev->cec_notifier);
+			ret = irq;
+			goto err_hdl;
+		}
+		cpumask_clear(&cpumask);
+		cpumask_set_cpu(hdmirx_dev->bound_cpu, &cpumask);
+		irq_set_affinity_hint(irq, &cpumask);
 
-	cec_data.hdmirx = hdmirx_dev;
-	cec_data.dev = hdmirx_dev->dev;
-	cec_data.ops = &hdmirx_cec_ops;
-	cec_data.irq = irq;
-	cec_data.edid = edid_init_data_340M;
-	hdmirx_dev->cec = rk_hdmirx_cec_register(&cec_data);
+		cec_data.hdmirx = hdmirx_dev;
+		cec_data.dev = hdmirx_dev->dev;
+		cec_data.ops = &hdmirx_cec_ops;
+		cec_data.irq = irq;
+		cec_data.edid = edid_init_data_340M;
+		hdmirx_dev->cec = rk_hdmirx_cec_register(&cec_data);
+	}
 	hdmirx_register_hdcp(dev, hdmirx_dev, hdmirx_dev->hdcp_enable);
 
 	hdmirx_register_debugfs(hdmirx_dev->dev, hdmirx_dev);
