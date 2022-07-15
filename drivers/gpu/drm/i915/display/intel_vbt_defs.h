@@ -412,8 +412,10 @@ struct child_device_config {
 			u8 reserved2:3;
 			u8 compression_structure_index:4;	/* 198+ */
 			u8 reserved3:4;
-			u8 slave_port;				/* 202+ */
-			u8 reserved4;
+			u8 hdmi_max_frl_rate:4;			/* 237+ */
+			u8 hdmi_max_frl_rate_valid:1;		/* 237+ */
+			u8 reserved4:3;				/* 237+ */
+			u8 reserved5;
 		} __packed;
 	} __packed;
 
