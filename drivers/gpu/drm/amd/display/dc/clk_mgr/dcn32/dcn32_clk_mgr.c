@@ -323,6 +323,8 @@ static void dcn32_update_clocks_update_dtb_dto(struct clk_mgr_internal *clk_mgr,
 				if (pipe_ctx->stream_res.audio != NULL)
 					dto_params.req_audio_dtbclk_khz = 24000;
 			}
+			if (dc_is_hdmi_signal(pipe_ctx->stream->signal))
+				dto_params.is_hdmi = true;
 
 			dccg->funcs->set_dtbclk_dto(clk_mgr->dccg, &dto_params);
 			//dccg->funcs->set_audio_dtbclk_dto(clk_mgr->dccg, &dto_params);

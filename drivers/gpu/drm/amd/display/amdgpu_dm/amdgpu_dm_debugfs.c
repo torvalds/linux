@@ -1226,12 +1226,14 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 	struct drm_connector *connector = &aconnector->base;
 	struct dc_link *link = NULL;
 	struct drm_device *dev = connector->dev;
+	struct amdgpu_device *adev = drm_to_adev(dev);
 	enum dc_connection_type new_connection_type = dc_connection_none;
 	char *wr_buf = NULL;
 	uint32_t wr_buf_size = 42;
 	int max_param_num = 1;
 	long param[1] = {0};
 	uint8_t param_nums = 0;
+	bool ret = false;
 
 	if (!aconnector || !aconnector->dc_link)
 		return -EINVAL;
@@ -1267,7 +1269,11 @@ static ssize_t trigger_hotplug(struct file *f, const char __user *buf,
 			new_connection_type != dc_connection_none)
 			goto unlock;
 
-		if (!dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD))
+		mutex_lock(&adev->dm.dc_lock);
+		ret = dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
+		mutex_unlock(&adev->dm.dc_lock);
+
+		if (!ret)
 			goto unlock;
 
 		amdgpu_dm_update_connector_after_detect(aconnector);
@@ -3290,7 +3296,10 @@ static int trigger_hpd_mst_set(void *data, u64 val)
 			aconnector = to_amdgpu_dm_connector(connector);
 			if (aconnector->dc_link->type == dc_connection_mst_branch &&
 			    aconnector->mst_mgr.aux) {
+				mutex_lock(&adev->dm.dc_lock);
 				dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
+				mutex_unlock(&adev->dm.dc_lock);
+
 				drm_dp_mst_topology_mgr_set_mst(&aconnector->mst_mgr, true);
 			}
 		}

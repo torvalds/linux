@@ -1253,9 +1253,8 @@ int emu_soc_asic_init(struct amdgpu_device *adev);
 bool amdgpu_device_has_job_running(struct amdgpu_device *adev);
 bool amdgpu_device_should_recover_gpu(struct amdgpu_device *adev);
 int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
-			      struct amdgpu_job* job);
-int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
-			      struct amdgpu_job *job);
+			      struct amdgpu_job *job,
+			      struct amdgpu_reset_context *reset_context);
 void amdgpu_device_pci_config_reset(struct amdgpu_device *adev);
 int amdgpu_device_pci_reset(struct amdgpu_device *adev);
 bool amdgpu_device_need_post(struct amdgpu_device *adev);

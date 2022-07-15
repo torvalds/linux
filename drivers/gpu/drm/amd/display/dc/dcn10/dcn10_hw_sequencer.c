@@ -444,7 +444,7 @@ void dcn10_log_hw_state(struct dc *dc,
 
 		struct link_enc_state s = {0};
 
-		if (lenc->funcs->read_state) {
+		if (lenc && lenc->funcs->read_state) {
 			lenc->funcs->read_state(lenc, &s);
 			DTN_INFO("[%-3d]: %-12d %-22d %-22d %-25d\n",
 				i,
@@ -1155,7 +1155,9 @@ void dcn10_plane_atomic_disconnect(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		return;
 
 	mpc->funcs->remove_mpcc(mpc, mpc_tree_params, mpcc_to_remove);
-	if (opp != NULL)
+	// Phantom pipes have OTG disabled by default, so MPCC_STATUS will never assert idle,
+	// so don't wait for MPCC_IDLE in the programming sequence
+	if (opp != NULL && !pipe_ctx->plane_state->is_phantom)
 		opp->mpcc_disconnect_pending[pipe_ctx->plane_res.mpcc_inst] = true;
 
 	dc->optimized_required = true;

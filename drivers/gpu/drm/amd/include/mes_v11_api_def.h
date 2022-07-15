@@ -227,6 +227,7 @@ union MESAPI_SET_HW_RESOURCES {
 			uint32_t	uint32_t_all;
 		};
 		uint32_t	oversubscription_timer;
+		uint64_t        doorbell_info;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];
@@ -286,7 +287,8 @@ union MESAPI__REMOVE_QUEUE {
 			uint32_t unmap_legacy_gfx_queue   : 1;
 			uint32_t unmap_kiq_utility_queue  : 1;
 			uint32_t preempt_legacy_gfx_queue : 1;
-			uint32_t reserved                 : 29;
+			uint32_t unmap_legacy_queue       : 1;
+			uint32_t reserved                 : 28;
 		};
 		struct MES_API_STATUS	    api_status;
 
@@ -295,6 +297,8 @@ union MESAPI__REMOVE_QUEUE {
 
 		uint64_t                    tf_addr;
 		uint32_t                    tf_data;
+
+		enum MES_QUEUE_TYPE         queue_type;
 	};
 
 	uint32_t	max_dwords_in_api[API_FRAME_SIZE_IN_DWORDS];

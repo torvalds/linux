@@ -23,8 +23,6 @@
  *
  */
 
-#include <linux/delay.h>
-
 #include "dce_i2c.h"
 #include "dce_i2c_sw.h"
 #include "include/gpio_service_interface.h"

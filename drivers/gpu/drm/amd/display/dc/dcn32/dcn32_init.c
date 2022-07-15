@@ -50,7 +50,7 @@ static const struct hw_sequencer_funcs dcn32_funcs = {
 	.send_immediate_sdp_message = dcn10_send_immediate_sdp_message,
 	.enable_stream = dcn20_enable_stream,
 	.disable_stream = dce110_disable_stream,
-	.unblank_stream = dcn20_unblank_stream,
+	.unblank_stream = dcn32_unblank_stream,
 	.blank_stream = dce110_blank_stream,
 	.enable_audio_stream = dce110_enable_audio_stream,
 	.disable_audio_stream = dce110_disable_audio_stream,
@@ -58,7 +58,7 @@ static const struct hw_sequencer_funcs dcn32_funcs = {
 	.pipe_control_lock = dcn20_pipe_control_lock,
 	.interdependent_update_lock = dcn10_lock_all_pipes,
 	.cursor_lock = dcn10_cursor_lock,
-	.prepare_bandwidth = dcn20_prepare_bandwidth,
+	.prepare_bandwidth = dcn30_prepare_bandwidth,
 	.optimize_bandwidth = dcn20_optimize_bandwidth,
 	.update_bandwidth = dcn20_update_bandwidth,
 	.set_drr = dcn10_set_drr,
@@ -102,6 +102,7 @@ static const struct hw_sequencer_funcs dcn32_funcs = {
 	.set_disp_pattern_generator = dcn30_set_disp_pattern_generator,
 	.get_dcc_en_bits = dcn10_get_dcc_en_bits,
 	.commit_subvp_config = dcn32_commit_subvp_config,
+	.subvp_pipe_control_lock = dcn32_subvp_pipe_control_lock,
 	.update_visual_confirm_color = dcn20_update_visual_confirm_color,
 };
 
@@ -110,7 +111,7 @@ static const struct hwseq_private_funcs dcn32_private_funcs = {
 	.update_plane_addr = dcn20_update_plane_addr,
 	.plane_atomic_disconnect = dcn10_plane_atomic_disconnect,
 	.update_mpcc = dcn20_update_mpcc,
-	.set_input_transfer_func = dcn30_set_input_transfer_func,
+	.set_input_transfer_func = dcn32_set_input_transfer_func,
 	.set_output_transfer_func = dcn32_set_output_transfer_func,
 	.power_down = dce110_power_down,
 	.enable_display_power_gating = dcn10_dummy_display_power_gating,
@@ -136,12 +137,13 @@ static const struct hwseq_private_funcs dcn32_private_funcs = {
 	.verify_allow_pstate_change_high = dcn10_verify_allow_pstate_change_high,
 	.wait_for_blank_complete = dcn20_wait_for_blank_complete,
 	.dccg_init = dcn20_dccg_init,
-	.set_blend_lut = dcn30_set_blend_lut,
-	.set_shaper_3dlut = dcn20_set_shaper_3dlut,
+	.set_mcm_luts = dcn32_set_mcm_luts,
 	.program_mall_pipe_config = dcn32_program_mall_pipe_config,
 	.subvp_update_force_pstate = dcn32_subvp_update_force_pstate,
 	.update_mall_sel = dcn32_update_mall_sel,
 	.calculate_dccg_k1_k2_values = dcn32_calculate_dccg_k1_k2_values,
+	.set_pixels_per_cycle = dcn32_set_pixels_per_cycle,
+	.is_dp_dig_pixel_rate_div_policy = dcn32_is_dp_dig_pixel_rate_div_policy,
 };
 
 void dcn32_hw_sequencer_init_functions(struct dc *dc)

@@ -417,7 +417,13 @@ static uint32_t soc21_get_rev_id(struct amdgpu_device *adev)
 
 static bool soc21_need_full_reset(struct amdgpu_device *adev)
 {
-	return true;
+	switch (adev->ip_versions[GC_HWIP][0]) {
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 2):
+		return false;
+	default:
+		return true;
+	}
 }
 
 static bool soc21_need_reset_on_init(struct amdgpu_device *adev)

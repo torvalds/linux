@@ -529,6 +529,8 @@ dc_assert_fp_enabled();
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
 				dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
 
+	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching)
+		dcn30_setup_mclk_switch_using_fw_based_vblank_stretch(dc, context);
 }
 
 void dcn30_fpu_update_dram_channel_width_bytes(struct dc *dc)

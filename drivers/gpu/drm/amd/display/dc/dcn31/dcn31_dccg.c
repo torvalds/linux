@@ -43,7 +43,7 @@
 #define DC_LOGGER \
 	dccg->ctx->logger
 
-static void dccg31_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
+void dccg31_update_dpp_dto(struct dccg *dccg, int dpp_inst, int req_dppclk)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -338,7 +338,7 @@ void dccg31_disable_symclk32_le(
 	}
 }
 
-static void dccg31_disable_dscclk(struct dccg *dccg, int inst)
+void dccg31_disable_dscclk(struct dccg *dccg, int inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -373,7 +373,7 @@ static void dccg31_disable_dscclk(struct dccg *dccg, int inst)
 	}
 }
 
-static void dccg31_enable_dscclk(struct dccg *dccg, int inst)
+void dccg31_enable_dscclk(struct dccg *dccg, int inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -510,7 +510,7 @@ void dccg31_set_physymclk(
 }
 
 /* Controls the generation of pixel valid for OTG in (OTG -> HPO case) */
-static void dccg31_set_dtbclk_dto(
+void dccg31_set_dtbclk_dto(
 		struct dccg *dccg,
 		const struct dtbclk_dto_params *params)
 {
@@ -608,7 +608,7 @@ void dccg31_set_audio_dtbclk_dto(
 	}
 }
 
-static void dccg31_get_dccg_ref_freq(struct dccg *dccg,
+void dccg31_get_dccg_ref_freq(struct dccg *dccg,
 		unsigned int xtalin_freq_inKhz,
 		unsigned int *dccg_ref_freq_inKhz)
 {
@@ -620,7 +620,7 @@ static void dccg31_get_dccg_ref_freq(struct dccg *dccg,
 	return;
 }
 
-static void dccg31_set_dispclk_change_mode(
+void dccg31_set_dispclk_change_mode(
 	struct dccg *dccg,
 	enum dentist_dispclk_change_mode change_mode)
 {
@@ -662,7 +662,7 @@ void dccg31_init(struct dccg *dccg)
 	}
 }
 
-static void dccg31_otg_add_pixel(struct dccg *dccg,
+void dccg31_otg_add_pixel(struct dccg *dccg,
 				 uint32_t otg_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
@@ -671,7 +671,7 @@ static void dccg31_otg_add_pixel(struct dccg *dccg,
 			OTG_ADD_PIXEL[otg_inst], 1);
 }
 
-static void dccg31_otg_drop_pixel(struct dccg *dccg,
+void dccg31_otg_drop_pixel(struct dccg *dccg,
 				  uint32_t otg_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);

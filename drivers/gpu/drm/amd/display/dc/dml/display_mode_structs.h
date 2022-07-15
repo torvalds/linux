@@ -184,6 +184,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 	double max_avg_fabric_bw_use_normal_percent;
 	double max_avg_dram_bw_use_normal_strobe_percent;
 	enum dm_prefetch_modes allow_for_pstate_or_stutter_in_vblank_final;
+	bool dram_clock_change_requirement_final;
 	double writeback_latency_us;
 	double ideal_dram_bw_after_urgent_percent;
 	double pct_ideal_dram_sdp_bw_after_urgent_pixel_only; // PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelDataOnly
@@ -362,6 +363,7 @@ struct _vcs_dpi_display_pipe_source_params_st {
 	unsigned int hostvm_levels_force;
 	int source_scan;
 	int source_rotation; // new in dml32
+	unsigned int det_size_override; // use to populate DETSizeOverride in vba struct
 	int sw_mode;
 	int macro_tile_size;
 	unsigned int surface_width_y;
@@ -496,6 +498,7 @@ struct _vcs_dpi_display_pipe_dest_params_st {
 	unsigned int vtotal_min;
 	unsigned int refresh_rate;
 	bool synchronize_timings;
+	unsigned int odm_combine_policy;
 };
 
 struct _vcs_dpi_display_pipe_params_st {

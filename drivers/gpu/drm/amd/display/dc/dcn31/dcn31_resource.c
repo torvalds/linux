@@ -1898,7 +1898,7 @@ static bool dcn31_resource_construct(
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.dp_hpo = true;
-	dc->caps.hdmi_frl_pcon_support = true;
+	dc->caps.dp_hdmi21_pcon_support = true;
 	dc->caps.edp_dsc_support = true;
 	dc->caps.extended_aux_timeout_support = true;
 	dc->caps.dmcub_support = true;
@@ -2161,6 +2161,9 @@ static bool dcn31_resource_construct(
 		/* YELLOW CARP B0 has 4 DPIA's */
 		pool->base.usb4_dpia_count = 4;
 	}
+
+	if (dc->ctx->asic_id.chip_family == AMDGPU_FAMILY_GC_11_0_2)
+		pool->base.usb4_dpia_count = 4;
 
 	/* Audio, Stream Encoders including HPO and virtual, MPC 3D LUTs */
 	if (!resource_construct(num_virtual_links, dc, &pool->base,

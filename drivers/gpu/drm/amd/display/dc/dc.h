@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.191"
+#define DC_VER "3.2.194"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -163,7 +163,8 @@ struct dc_color_caps {
 };
 
 struct dc_dmub_caps {
-    bool psr;
+	bool psr;
+	bool mclk_sw;
 };
 
 struct dc_caps {
@@ -202,12 +203,11 @@ struct dc_caps {
 	struct dc_color_caps color;
 	struct dc_dmub_caps dmub_caps;
 	bool dp_hpo;
-	bool hdmi_frl_pcon_support;
+	bool dp_hdmi21_pcon_support;
 	bool edp_dsc_support;
 	bool vbios_lttpr_aware;
 	bool vbios_lttpr_enable;
 	uint32_t max_otg_num;
-#ifdef CONFIG_DRM_AMD_DC_DCN
 	uint32_t max_cab_allocation_bytes;
 	uint32_t cache_line_size;
 	uint32_t cache_num_ways;
@@ -215,7 +215,6 @@ struct dc_caps {
 	uint16_t subvp_prefetch_end_to_mall_start_us;
 	uint16_t subvp_pstate_allow_width_us;
 	uint16_t subvp_vertical_int_margin_us;
-#endif
 	bool seamless_odm;
 };
 
@@ -361,6 +360,8 @@ enum visual_confirm {
 	VISUAL_CONFIRM_HDR = 2,
 	VISUAL_CONFIRM_MPCTREE = 4,
 	VISUAL_CONFIRM_PSR = 5,
+	VISUAL_CONFIRM_SWAPCHAIN = 6,
+	VISUAL_CONFIRM_FAMS = 7,
 	VISUAL_CONFIRM_SWIZZLE = 9,
 };
 
@@ -442,6 +443,8 @@ struct dc_clocks {
 	bool prev_p_state_change_support;
 	bool fclk_prev_p_state_change_support;
 	int num_ways;
+	bool fw_based_mclk_switching;
+	bool fw_based_mclk_switching_shut_down;
 	int prev_num_ways;
 	enum dtm_pstate dtm_level;
 	int max_supported_dppclk_khz;
@@ -539,9 +542,8 @@ union dpia_debug_options {
 		uint32_t force_non_lttpr:1; /* bit 1 */
 		uint32_t extend_aux_rd_interval:1; /* bit 2 */
 		uint32_t disable_mst_dsc_work_around:1; /* bit 3 */
-		uint32_t hpd_delay_in_ms:12; /* bits 4-15 */
-		uint32_t disable_force_tbt3_work_around:1; /* bit 16 */
-		uint32_t reserved:15;
+		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
+		uint32_t reserved:27;
 	} bits;
 	uint32_t raw;
 };
@@ -727,6 +729,7 @@ struct dc_debug_options {
 
 	/* Enable dmub aux for legacy ddc */
 	bool enable_dmub_aux_for_legacy_ddc;
+	bool disable_fams;
 	bool optimize_edp_link_rate; /* eDP ILR */
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
@@ -738,18 +741,21 @@ struct dc_debug_options {
 	bool enable_sw_cntl_psr;
 	union dpia_debug_options dpia_debug;
 	bool disable_fixed_vs_aux_timeout_wa;
-	uint32_t fixed_vs_aux_delay_config_wa;
 	bool force_disable_subvp;
 	bool force_subvp_mclk_switch;
 	bool force_usr_allow;
 	/* uses value at boot and disables switch */
 	bool disable_dtb_ref_clk_switch;
+	uint32_t fixed_vs_aux_delay_config_wa;
 	bool extended_blank_optimization;
 	union aux_wake_wa_options aux_wake_wa;
+	uint32_t mst_start_top_delay;
 	uint8_t psr_power_use_phy_fsm;
 	enum dml_hostvm_override_opts dml_hostvm_override;
 	bool use_legacy_soc_bb_mechanism;
 	bool exit_idle_opt_for_cursor_updates;
+	bool enable_single_display_2to1_odm_policy;
+	bool enable_dp_dig_pixel_rate_div_policy;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
@@ -802,6 +808,9 @@ struct dc {
 
 	const char *build_id;
 	struct vm_helper *vm_helper;
+
+	uint32_t *dcn_reg_offsets;
+	uint32_t *nbio_reg_offsets;
 };
 
 enum frame_buffer_mode {
@@ -841,6 +850,15 @@ struct dc_init_data {
 
 	struct dpcd_vendor_signature vendor_signature;
 	bool force_smu_not_present;
+	/*
+	 * IP offset for run time initializaion of register addresses
+	 *
+	 * DCN3.5+ will fail dc_create() if these fields are null for them. They are
+	 * applicable starting with DCN32/321 and are not used for ASICs upstreamed
+	 * before them.
+	 */
+	uint32_t *dcn_reg_offsets;
+	uint32_t *nbio_reg_offsets;
 };
 
 struct dc_callback_init {
@@ -1058,6 +1076,8 @@ struct dc_plane_state {
 
 	/* HACK: Workaround for forcing full reprogramming under some conditions */
 	bool force_full_update;
+
+	bool is_phantom; // TODO: Change mall_stream_config into mall_plane_config instead
 
 	/* private to dc_surface.c */
 	enum dc_irq_source irq_source;
@@ -1450,6 +1470,9 @@ void dc_enable_dcmode_clk_limit(struct dc *dc, bool enable);
 
 /* cleanup on driver unload */
 void dc_hardware_release(struct dc *dc);
+
+/* disables fw based mclk switch */
+void dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(struct dc *dc);
 
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
 void dc_z10_restore(const struct dc *dc);

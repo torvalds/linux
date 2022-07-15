@@ -320,6 +320,8 @@ bool dc_link_setup_psr(struct dc_link *dc_link,
 		const struct dc_stream_state *stream, struct psr_config *psr_config,
 		struct psr_context *psr_context);
 
+bool dc_power_alpm_dpcd_enable(struct dc_link *link, bool enable);
+
 void dc_link_get_psr_residency(const struct dc_link *link, uint32_t *residency);
 
 void dc_link_blank_all_dp_displays(struct dc *dc);

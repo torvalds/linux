@@ -47,7 +47,10 @@
 #include "clk_mgr.h"
 #include "dsc.h"
 #include "dcn20/dcn20_optc.h"
+#include "dmub_subvp_state.h"
+#include "dce/dmub_hw_lock_mgr.h"
 #include "dc_link_dp.h"
+#include "dmub/inc/dmub_subvp_state.h"
 
 #define DC_LOGGER_INIT(logger)
 
@@ -374,7 +377,7 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
 	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
 
-	return false;
+	return true;
 }
 
 /* Send DMCUB message with SubVP pipe info
@@ -404,6 +407,64 @@ void dcn32_commit_subvp_config(struct dc *dc, struct dc_state *context)
 	dc_dmub_setup_subvp_dmub_command(dc, context, enable_subvp);
 */
 }
+
+/* Sub-Viewport DMUB lock needs to be acquired by driver whenever SubVP is active and:
+ * 1. Any full update for any SubVP main pipe
+ * 2. Any immediate flip for any SubVP pipe
+ * 3. Any flip for DRR pipe
+ * 4. If SubVP was previously in use (i.e. in old context)
+ */
+void dcn32_subvp_pipe_control_lock(struct dc *dc,
+		struct dc_state *context,
+		bool lock,
+		bool should_lock_all_pipes,
+		struct pipe_ctx *top_pipe_to_program,
+		bool subvp_prev_use)
+{
+	unsigned int i = 0;
+	bool subvp_immediate_flip = false;
+	bool subvp_in_use = false;
+	bool drr_pipe = false;
+	struct pipe_ctx *pipe;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		pipe = &context->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream && pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+			subvp_in_use = true;
+			break;
+		}
+	}
+
+	if (top_pipe_to_program && top_pipe_to_program->stream && top_pipe_to_program->plane_state) {
+		if (top_pipe_to_program->stream->mall_stream_config.type == SUBVP_MAIN &&
+				top_pipe_to_program->plane_state->flip_immediate)
+			subvp_immediate_flip = true;
+		else if (top_pipe_to_program->stream->mall_stream_config.type == SUBVP_NONE &&
+				top_pipe_to_program->stream->ignore_msa_timing_param)
+			drr_pipe = true;
+	}
+
+	if ((subvp_in_use && (should_lock_all_pipes || subvp_immediate_flip || drr_pipe)) || (!subvp_in_use && subvp_prev_use)) {
+		union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
+
+		if (!lock) {
+			for (i = 0; i < dc->res_pool->pipe_count; i++) {
+				pipe = &context->res_ctx.pipe_ctx[i];
+				if (pipe->stream && pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_MAIN &&
+						should_lock_all_pipes)
+					pipe->stream_res.tg->funcs->wait_for_state(pipe->stream_res.tg, CRTC_STATE_VBLANK);
+			}
+		}
+
+		hw_lock_cmd.bits.command_code = DMUB_INBOX0_CMD__HW_LOCK;
+		hw_lock_cmd.bits.hw_lock_client = HW_LOCK_CLIENT_DRIVER;
+		hw_lock_cmd.bits.lock = lock;
+		hw_lock_cmd.bits.should_release = !lock;
+		dmub_hw_lock_mgr_inbox0_cmd(dc->ctx->dmub_srv, hw_lock_cmd);
+	}
+}
+
 
 static bool dcn32_set_mpc_shaper_3dlut(
 	struct pipe_ctx *pipe_ctx, const struct dc_stream_state *stream)
@@ -440,6 +501,97 @@ static bool dcn32_set_mpc_shaper_3dlut(
 
 	return result;
 }
+
+bool dcn32_set_mcm_luts(
+	struct pipe_ctx *pipe_ctx, const struct dc_plane_state *plane_state)
+{
+	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
+	int mpcc_id = pipe_ctx->plane_res.hubp->inst;
+	struct mpc *mpc = pipe_ctx->stream_res.opp->ctx->dc->res_pool->mpc;
+	bool result = true;
+	struct pwl_params *lut_params = NULL;
+
+	// 1D LUT
+	if (plane_state->blend_tf) {
+		if (plane_state->blend_tf->type == TF_TYPE_HWPWL)
+			lut_params = &plane_state->blend_tf->pwl;
+		else if (plane_state->blend_tf->type == TF_TYPE_DISTRIBUTED_POINTS) {
+			cm_helper_translate_curve_to_hw_format(
+					plane_state->blend_tf,
+					&dpp_base->regamma_params, false);
+			lut_params = &dpp_base->regamma_params;
+		}
+	}
+	result = mpc->funcs->program_1dlut(mpc, lut_params, mpcc_id);
+
+	// Shaper
+	if (plane_state->in_shaper_func) {
+		if (plane_state->in_shaper_func->type == TF_TYPE_HWPWL)
+			lut_params = &plane_state->in_shaper_func->pwl;
+		else if (plane_state->in_shaper_func->type == TF_TYPE_DISTRIBUTED_POINTS) {
+			// TODO: dpp_base replace
+			ASSERT(false);
+			cm_helper_translate_curve_to_hw_format(
+					plane_state->in_shaper_func,
+					&dpp_base->shaper_params, true);
+			lut_params = &dpp_base->shaper_params;
+		}
+	}
+
+	result = mpc->funcs->program_shaper(mpc, lut_params, mpcc_id);
+
+	// 3D
+	if (plane_state->lut3d_func && plane_state->lut3d_func->state.bits.initialized == 1)
+		result = mpc->funcs->program_3dlut(mpc, &plane_state->lut3d_func->lut_3d, mpcc_id);
+	else
+		result = mpc->funcs->program_3dlut(mpc, NULL, mpcc_id);
+
+	return result;
+}
+
+bool dcn32_set_input_transfer_func(struct dc *dc,
+				struct pipe_ctx *pipe_ctx,
+				const struct dc_plane_state *plane_state)
+{
+	struct dce_hwseq *hws = dc->hwseq;
+	struct mpc *mpc = dc->res_pool->mpc;
+	struct dpp *dpp_base = pipe_ctx->plane_res.dpp;
+
+	enum dc_transfer_func_predefined tf;
+	bool result = true;
+	struct pwl_params *params = NULL;
+
+	if (mpc == NULL || plane_state == NULL)
+		return false;
+
+	tf = TRANSFER_FUNCTION_UNITY;
+
+	if (plane_state->in_transfer_func &&
+		plane_state->in_transfer_func->type == TF_TYPE_PREDEFINED)
+		tf = plane_state->in_transfer_func->tf;
+
+	dpp_base->funcs->dpp_set_pre_degam(dpp_base, tf);
+
+	if (plane_state->in_transfer_func) {
+		if (plane_state->in_transfer_func->type == TF_TYPE_HWPWL)
+			params = &plane_state->in_transfer_func->pwl;
+		else if (plane_state->in_transfer_func->type == TF_TYPE_DISTRIBUTED_POINTS &&
+			cm3_helper_translate_curve_to_hw_format(plane_state->in_transfer_func,
+					&dpp_base->degamma_params, false))
+			params = &dpp_base->degamma_params;
+	}
+
+	result = dpp_base->funcs->dpp_program_gamcor_lut(dpp_base, params);
+
+	if (result &&
+			pipe_ctx->stream_res.opp &&
+			pipe_ctx->stream_res.opp->ctx &&
+			hws->funcs.set_mcm_luts)
+		result = hws->funcs.set_mcm_luts(pipe_ctx, plane_state);
+
+	return result;
+}
+
 bool dcn32_set_output_transfer_func(struct dc *dc,
 				struct pipe_ctx *pipe_ctx,
 				const struct dc_stream_state *stream)
@@ -500,7 +652,11 @@ void dcn32_subvp_update_force_pstate(struct dc *dc, struct dc_state *context)
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream && pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_MAIN) {
+		// For SubVP + DRR, also force disallow on the DRR pipe
+		// (We will force allow in the DMUB sequence -- some DRR timings by default won't allow P-State so we have
+		// to force once the vblank is stretched).
+		if (pipe->stream && pipe->plane_state && (pipe->stream->mall_stream_config.type == SUBVP_MAIN ||
+				(pipe->stream->mall_stream_config.type == SUBVP_NONE && pipe->stream->ignore_msa_timing_param))) {
 			struct hubp *hubp = pipe->plane_res.hubp;
 
 			if (hubp && hubp->funcs->hubp_update_force_pstate_disallow)
@@ -544,9 +700,8 @@ void dcn32_program_mall_pipe_config(struct dc *dc, struct dc_state *context)
 {
 	int i;
 	struct dce_hwseq *hws = dc->hwseq;
-	// Update force P-state for each pipe accordingly
-	if (hws && hws->funcs.subvp_update_force_pstate)
-		hws->funcs.subvp_update_force_pstate(dc, context);
+
+	// Don't force p-state disallow -- can't block dummy p-state
 
 	// Update MALL_SEL register for each pipe
 	if (hws && hws->funcs.update_mall_sel)
@@ -580,7 +735,6 @@ void dcn32_init_hw(struct dc *dc)
 	int edp_num;
 	uint32_t backlight = MAX_BACKLIGHT_LEVEL;
 
-	dc->debug.disable_idle_power_optimizations = true;
 	if (dc->clk_mgr && dc->clk_mgr->funcs->init_clocks)
 		dc->clk_mgr->funcs->init_clocks(dc->clk_mgr);
 
@@ -927,6 +1081,8 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	unsigned int odm_combine_factor = 0;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	bool two_pix_per_container = optc2_is_two_pixels_per_containter(&stream->timing);
 
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
 
@@ -939,16 +1095,13 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 		else
 			*k2_div = PIXEL_RATE_DIV_BY_4;
 	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
-		if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+		if (two_pix_per_container) {
 			*k1_div = PIXEL_RATE_DIV_BY_1;
 			*k2_div = PIXEL_RATE_DIV_BY_2;
-		} else if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR422) {
-			*k1_div = PIXEL_RATE_DIV_BY_2;
-			*k2_div = PIXEL_RATE_DIV_BY_2;
 		} else {
-			if (odm_combine_factor == 1)
-				*k2_div = PIXEL_RATE_DIV_BY_4;
-			else if (odm_combine_factor == 2)
+			*k1_div = PIXEL_RATE_DIV_BY_1;
+			*k2_div = PIXEL_RATE_DIV_BY_4;
+			if ((odm_combine_factor == 2) || dc->debug.enable_dp_dig_pixel_rate_div_policy)
 				*k2_div = PIXEL_RATE_DIV_BY_2;
 		}
 	}
@@ -957,4 +1110,72 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 		ASSERT(false);
 
 	return odm_combine_factor;
+}
+
+void dcn32_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
+{
+	uint32_t pix_per_cycle = 1;
+	uint32_t odm_combine_factor = 1;
+
+	if (!pipe_ctx || !pipe_ctx->stream || !pipe_ctx->stream_res.stream_enc)
+		return;
+
+	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
+	if (optc2_is_two_pixels_per_containter(&pipe_ctx->stream->timing) || odm_combine_factor > 1
+		|| dcn32_is_dp_dig_pixel_rate_div_policy(pipe_ctx))
+		pix_per_cycle = 2;
+
+	if (pipe_ctx->stream_res.stream_enc->funcs->set_input_mode)
+		pipe_ctx->stream_res.stream_enc->funcs->set_input_mode(pipe_ctx->stream_res.stream_enc,
+				pix_per_cycle);
+}
+
+void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
+		struct dc_link_settings *link_settings)
+{
+	struct encoder_unblank_param params = {0};
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->link;
+	struct dce_hwseq *hws = link->dc->hwseq;
+	struct pipe_ctx *odm_pipe;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	uint32_t pix_per_cycle = 1;
+
+	params.opp_cnt = 1;
+	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+		params.opp_cnt++;
+
+	/* only 3 items below are used by unblank */
+	params.timing = pipe_ctx->stream->timing;
+
+	params.link_settings.link_rate = link_settings->link_rate;
+
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		/* TODO - DP2.0 HW: Set ODM mode in dp hpo encoder here */
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_unblank(
+				pipe_ctx->stream_res.hpo_dp_stream_enc,
+				pipe_ctx->stream_res.tg->inst);
+	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+		if (optc2_is_two_pixels_per_containter(&stream->timing) || params.opp_cnt > 1
+			|| dc->debug.enable_dp_dig_pixel_rate_div_policy) {
+			params.timing.pix_clk_100hz /= 2;
+			pix_per_cycle = 2;
+		}
+		pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine(
+				pipe_ctx->stream_res.stream_enc, pix_per_cycle > 1);
+		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(link, pipe_ctx->stream_res.stream_enc, &params);
+	}
+
+	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP)
+		hws->funcs.edp_backlight_control(link, true);
+}
+
+bool dcn32_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx)
+{
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal) && !is_dp_128b_132b_signal(pipe_ctx) &&
+		dc->debug.enable_dp_dig_pixel_rate_div_policy)
+		return true;
+	return false;
 }

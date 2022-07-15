@@ -145,7 +145,6 @@ struct test_pattern {
 	unsigned int cust_pattern_size;
 };
 
-#ifdef CONFIG_DRM_AMD_DC_DCN
 #define SUBVP_DRR_MARGIN_US 500 // 500us for DRR margin (SubVP + DRR)
 
 enum mall_stream_type {
@@ -161,7 +160,6 @@ struct mall_stream_config {
 	enum mall_stream_type type;
 	struct dc_stream_state *paired_stream;	// master / slave stream
 };
-#endif
 
 struct dc_stream_state {
 	// sink is deprecated, new code should not reference
@@ -277,9 +275,9 @@ struct dc_stream_state {
 
 	bool has_non_synchronizable_pclk;
 	bool vblank_synchronized;
-#ifdef CONFIG_DRM_AMD_DC_DCN
 	struct mall_stream_config mall_stream_config;
-#endif
+
+	bool odm_2to1_policy_applied;
 };
 
 #define ABM_LEVEL_IMMEDIATE_DISABLE 255
@@ -328,6 +326,25 @@ bool dc_is_stream_scaling_unchanged(
 	struct dc_stream_state *old_stream, struct dc_stream_state *stream);
 
 /*
+ * Setup stream attributes if no stream updates are provided
+ * there will be no impact on the stream parameters
+ *
+ * Set up surface attributes and associate to a stream
+ * The surfaces parameter is an absolute set of all surface active for the stream.
+ * If no surfaces are provided, the stream will be blanked; no memory read.
+ * Any flip related attribute changes must be done through this interface.
+ *
+ * After this call:
+ *   Surfaces attributes are programmed and configured to be composed into stream.
+ *   This does not trigger a flip.  No surface address is programmed.
+ *
+ */
+bool dc_update_planes_and_stream(struct dc *dc,
+		struct dc_surface_update *surface_updates, int surface_count,
+		struct dc_stream_state *dc_stream,
+		struct dc_stream_update *stream_update);
+
+/*
  * Set up surface attributes and associate to a stream
  * The surfaces parameter is an absolute set of all surface active for the stream.
  * If no surfaces are provided, the stream will be blanked; no memory read.
@@ -337,7 +354,6 @@ bool dc_is_stream_scaling_unchanged(
  *   Surfaces attributes are programmed and configured to be composed into stream.
  *   This does not trigger a flip.  No surface address is programmed.
  */
-
 void dc_commit_updates_for_stream(struct dc *dc,
 		struct dc_surface_update *srf_updates,
 		int surface_count,

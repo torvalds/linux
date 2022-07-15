@@ -30,6 +30,7 @@
 
 #include "audio_types.h"
 #include "hw_shared.h"
+#include "dc_link.h"
 
 struct dc_bios;
 struct dc_context;

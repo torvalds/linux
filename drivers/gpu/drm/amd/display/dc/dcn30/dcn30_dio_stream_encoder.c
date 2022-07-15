@@ -35,7 +35,6 @@
 #define DC_LOGGER \
 		enc1->base.ctx->logger
 
-
 #define REG(reg)\
 	(enc1->regs->reg)
 
@@ -651,6 +650,9 @@ static void enc3_stream_encoder_hdmi_set_stream_attribute(
 		HDMI_GC_CONT, 1,
 		HDMI_GC_SEND, 1,
 		HDMI_NULL_SEND, 1);
+
+	/* Disable Audio Content Protection packet transmission */
+	REG_UPDATE(HDMI_VBI_PACKET_CONTROL, HDMI_ACP_SEND, 0);
 
 	/* following belongs to audio */
 	/* Enable Audio InfoFrame packet transmission. */

@@ -121,7 +121,7 @@ static const struct IP_BASE DCN_BASE = { { { { 0x00000012, 0x000000C0, 0x000034C
 
 struct _vcs_dpi_ip_params_st dcn3_2_ip = {
 	.gpuvm_enable = 1,
-	.gpuvm_max_page_table_levels = 1,
+	.gpuvm_max_page_table_levels = 4,
 	.hostvm_enable = 0,
 	.rob_buffer_size_kbytes = 128,
 	.det_buffer_size_kbytes = DCN3_2_DEFAULT_DET_SIZE,
@@ -695,18 +695,14 @@ static const struct dcn20_dsc_mask dsc_mask = {
 };
 
 static const struct dcn30_mpc_registers mpc_regs = {
-		MPC_REG_LIST_DCN3_0(0),
-		MPC_REG_LIST_DCN3_0(1),
-		MPC_REG_LIST_DCN3_0(2),
-		MPC_REG_LIST_DCN3_0(3),
+		MPC_REG_LIST_DCN3_2(0),
+		MPC_REG_LIST_DCN3_2(1),
+		MPC_REG_LIST_DCN3_2(2),
+		MPC_REG_LIST_DCN3_2(3),
 		MPC_OUT_MUX_REG_LIST_DCN3_0(0),
 		MPC_OUT_MUX_REG_LIST_DCN3_0(1),
 		MPC_OUT_MUX_REG_LIST_DCN3_0(2),
 		MPC_OUT_MUX_REG_LIST_DCN3_0(3),
-		MPC_MCM_REG_LIST_DCN32(0),
-		MPC_MCM_REG_LIST_DCN32(1),
-		MPC_MCM_REG_LIST_DCN32(2),
-		MPC_MCM_REG_LIST_DCN32(3),
 		MPC_DWB_MUX_REG_LIST_DCN3_0(0),
 };
 
@@ -1001,7 +997,9 @@ static const struct dc_debug_options debug_defaults_drv = {
 		}
 	},
 	.use_max_lb = true,
-	.force_disable_subvp = true
+	.force_disable_subvp = true,
+	.enable_single_display_2to1_odm_policy = true,
+	.enable_dp_dig_pixel_rate_div_policy = 1,
 };
 
 static const struct dc_debug_options debug_defaults_diags = {
@@ -1779,7 +1777,7 @@ static unsigned int dcn32_get_num_free_pipes(struct dc *dc, struct dc_state *con
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
-		if (pipe->stream && pipe->plane_state && !pipe->top_pipe) {
+		if (pipe->stream && !pipe->top_pipe) {
 			while (pipe) {
 				num_pipes++;
 				pipe = pipe->bottom_pipe;
@@ -1802,9 +1800,10 @@ static unsigned int dcn32_get_num_free_pipes(struct dc *dc, struct dc_state *con
  * The number of pipes used for the chosen surface must be less than or equal to the
  * number of free pipes available.
  *
- * In general we choose surfaces that have ActiveDRAMClockChangeLatencyMargin <= 0 first,
- * then among those surfaces we choose the one with the smallest VBLANK time. We only consider
- * surfaces with ActiveDRAMClockChangeLatencyMargin > 0 if we are forcing a Sub-VP config.
+ * In general we choose surfaces with the longest frame time first (better for SubVP + VBLANK).
+ * For multi-display cases the ActiveDRAMClockChangeMargin doesn't provide enough info on its own
+ * for determining which should be the SubVP pipe (need a way to determine if a pipe / plane doesn't
+ * support MCLK switching naturally [i.e. ACTIVE or VBLANK]).
  *
  * @param [in] dc: current dc state
  * @param [in] context: new dc state
@@ -1820,10 +1819,10 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 		unsigned int *index)
 {
 	unsigned int i, pipe_idx;
-	unsigned int min_vblank_us = INT_MAX;
-	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
+	unsigned int max_frame_time = 0;
 	bool valid_assignment_found = false;
 	unsigned int free_pipes = dcn32_get_num_free_pipes(dc, context);
+	bool current_assignment_freesync = false;
 
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
@@ -1842,20 +1841,21 @@ static bool dcn32_assign_subvp_pipe(struct dc *dc,
 			pipe = &context->res_ctx.pipe_ctx[i];
 			if (num_pipes <= free_pipes) {
 				struct dc_stream_state *stream = pipe->stream;
-				unsigned int vblank_us = ((stream->timing.v_total - stream->timing.v_addressable) *
-							stream->timing.h_total /
-							(double)(stream->timing.pix_clk_100hz * 100)) * 1000000;
-				if (vba->ActiveDRAMClockChangeLatencyMargin[vba->pipe_plane[pipe_idx]] <= 0 &&
-						vblank_us < min_vblank_us) {
+				unsigned int frame_us = (stream->timing.v_total * stream->timing.h_total /
+						(double)(stream->timing.pix_clk_100hz * 100)) * 1000000;
+				if (frame_us > max_frame_time && !stream->ignore_msa_timing_param) {
 					*index = i;
-					min_vblank_us = vblank_us;
+					max_frame_time = frame_us;
 					valid_assignment_found = true;
-				} else if (vba->ActiveDRAMClockChangeLatencyMargin[vba->pipe_plane[pipe_idx]] > 0 &&
-						dc->debug.force_subvp_mclk_switch && !valid_assignment_found) {
-					// Handle case for forcing Sub-VP config. In this case we can assign
-					// phantom pipes to a surface that has active margin > 0.
+					current_assignment_freesync = false;
+				/* For the 2-Freesync display case, still choose the one with the
+			     * longest frame time
+			     */
+				} else if (stream->ignore_msa_timing_param && (!valid_assignment_found ||
+						(current_assignment_freesync && frame_us > max_frame_time))) {
 					*index = i;
 					valid_assignment_found = true;
+					current_assignment_freesync = true;
 				}
 			}
 		}
@@ -1896,7 +1896,7 @@ static bool dcn32_enough_pipes_for_subvp(struct dc *dc, struct dc_state *context
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 
 		// Find the minimum pipe split count for non SubVP pipes
-		if (pipe->stream && pipe->plane_state && !pipe->top_pipe &&
+		if (pipe->stream && !pipe->top_pipe &&
 				pipe->stream->mall_stream_config.type == SUBVP_NONE) {
 			split_cnt = 0;
 			while (pipe) {
@@ -2074,7 +2074,8 @@ static struct dc_stream_state *dcn32_enable_phantom_stream(struct dc *dc,
 	return phantom_stream;
 }
 
-void dcn32_remove_phantom_pipes(struct dc *dc, struct dc_state *context)
+// return true if removed piped from ctx, false otherwise
+bool dcn32_remove_phantom_pipes(struct dc *dc, struct dc_state *context)
 {
 	int i;
 	bool removed_pipe = false;
@@ -2094,8 +2095,7 @@ void dcn32_remove_phantom_pipes(struct dc *dc, struct dc_state *context)
 			pipe->stream->mall_stream_config.paired_stream = NULL;
 		}
 	}
-	if (removed_pipe)
-		dc->hwss.apply_ctx_to_hw(dc, context);
+	return removed_pipe;
 }
 
 /* TODO: Input to this function should indicate which pipe indexes (or streams)
@@ -2289,12 +2289,11 @@ static bool subvp_subvp_schedulable(struct dc *dc, struct dc_state *context)
 			microschedule_lines = (phantom->timing.v_total - phantom->timing.v_front_porch) +
 					phantom->timing.v_addressable;
 
-			// Round up when calculating microschedule time
-			time_us = ((microschedule_lines * phantom->timing.h_total +
-					phantom->timing.pix_clk_100hz * 100 - 1) /
-					(double)(phantom->timing.pix_clk_100hz * 100)) * 1000000 +
+			// Round up when calculating microschedule time (+ 1 at the end)
+			time_us = (microschedule_lines * phantom->timing.h_total) /
+					(double)(phantom->timing.pix_clk_100hz * 100) * 1000000 +
 						dc->caps.subvp_prefetch_end_to_mall_start_us +
-						dc->caps.subvp_fw_processing_delay_us;
+						dc->caps.subvp_fw_processing_delay_us + 1;
 			if (time_us > max_microschedule_us)
 				max_microschedule_us = time_us;
 
@@ -2428,12 +2427,12 @@ static bool subvp_vblank_schedulable(struct dc *dc, struct dc_state *context)
 	bool schedulable = false;
 	uint32_t i = 0;
 	uint8_t vblank_index = 0;
-	int16_t prefetch_us = 0;
-	int16_t mall_region_us = 0;
-	int16_t vblank_frame_us = 0;
-	int16_t subvp_active_us = 0;
-	int16_t vblank_blank_us = 0;
-	int16_t max_vblank_mallregion = 0;
+	uint16_t prefetch_us = 0;
+	uint16_t mall_region_us = 0;
+	uint16_t vblank_frame_us = 0;
+	uint16_t subvp_active_us = 0;
+	uint16_t vblank_blank_us = 0;
+	uint16_t max_vblank_mallregion = 0;
 	struct dc_crtc_timing *main_timing = NULL;
 	struct dc_crtc_timing *phantom_timing = NULL;
 	struct dc_crtc_timing *vblank_timing = NULL;
@@ -2462,7 +2461,7 @@ static bool subvp_vblank_schedulable(struct dc *dc, struct dc_state *context)
 			subvp_pipe = pipe;
 	}
 	// Use ignore_msa_timing_param flag to identify as DRR
-	if (found && pipe->stream->ignore_msa_timing_param) {
+	if (found && context->res_ctx.pipe_ctx[vblank_index].stream->ignore_msa_timing_param) {
 		// SUBVP + DRR case
 		schedulable = subvp_drr_schedulable(dc, context, &context->res_ctx.pipe_ctx[vblank_index]);
 	} else if (found) {
@@ -2592,13 +2591,33 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 	 * 4. Display configuration passes validation
 	 * 5. (Config doesn't support MCLK in VACTIVE/VBLANK || dc->debug.force_subvp_mclk_switch)
 	 */
-	if (!dc->debug.force_disable_subvp &&
+	if (!dc->debug.force_disable_subvp && dcn32_all_pipes_have_stream_and_plane(dc, context) &&
 			(*vlevel == context->bw_ctx.dml.soc.num_states ||
 			vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported ||
 			dc->debug.force_subvp_mclk_switch)) {
 
+		dcn32_merge_pipes_for_subvp(dc, context);
+
 		while (!found_supported_config && dcn32_enough_pipes_for_subvp(dc, context) &&
 				dcn32_assign_subvp_pipe(dc, context, &dc_pipe_idx)) {
+
+			/* For the case where *vlevel = num_states, bandwidth validation has failed for this config.
+			 * Adding phantom pipes won't change the validation result, so change the DML input param
+			 * for P-State support before adding phantom pipes and recalculating the DML result.
+			 * However, this case is only applicable for SubVP + DRR cases because the prefetch mode
+			 * will not allow for switch in VBLANK. The DRR display must have it's VBLANK stretched
+			 * enough to support support MCLK switching.
+			 */
+			if (*vlevel == context->bw_ctx.dml.soc.num_states) {
+				context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
+								dm_prefetch_support_stutter;
+				/* There are params (such as FabricClock) that need to be recalculated
+				 * after validation fails (otherwise it will be 0). Calculation for
+				 * phantom vactive requires call into DML, so we must ensure all the
+				 * vba params are valid otherwise we'll get incorrect phantom vactive.
+				 */
+				*vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, *pipe_cnt);
+			}
 
 			dc->res_pool->funcs->add_phantom_pipes(dc, context, pipes, *pipe_cnt, dc_pipe_idx);
 
@@ -2640,6 +2659,7 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 		// remove phantom pipes and repopulate dml pipes
 		if (!found_supported_config) {
 			dc->res_pool->funcs->remove_phantom_pipes(dc, context);
+			vba->DRAMClockChangeSupport[*vlevel][vba->maxMpcComb] = dm_dram_clock_change_unsupported;
 			*pipe_cnt = dc->res_pool->funcs->populate_dml_pipes(dc, context, pipes, false);
 		} else {
 			// only call dcn20_validate_apply_pipe_split_flags if we found a supported config
@@ -2647,9 +2667,8 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 			memset(merge, 0, MAX_PIPES * sizeof(bool));
 			*vlevel = dcn20_validate_apply_pipe_split_flags(dc, context, *vlevel, split, merge);
 
-			// If found a supported SubVP config, phantom pipes were added to the context.
-			// Program timing for the phantom pipes.
-			dc->hwss.apply_ctx_to_hw(dc, context);
+			// Note: We can't apply the phantom pipes to hardware at this time. We have to wait
+			// until driver has acquired the DMCUB lock to do it safely.
 		}
 	}
 }
@@ -2990,7 +3009,9 @@ int dcn32_populate_dml_pipes_from_context(
 			break;
 		case SUBVP_PHANTOM:
 			pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_phantom_pipe;
-			pipes[pipe_cnt].pipe.src.use_mall_for_static_screen = dm_use_mall_static_screen_enable;
+			pipes[pipe_cnt].pipe.src.use_mall_for_static_screen = dm_use_mall_static_screen_disable;
+			// Disallow unbounded req for SubVP according to DCHUB programming guide
+			pipes[pipe_cnt].pipe.src.unbounded_req_mode = false;
 			break;
 		case SUBVP_NONE:
 			pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_disable;
@@ -3017,33 +3038,43 @@ int dcn32_populate_dml_pipes_from_context(
 				break;
 			}
 		}
+
+		pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
+		if (context->stream_count == 1) {
+			if (dc->debug.enable_single_display_2to1_odm_policy)
+				pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
+		}
 		pipe_cnt++;
 	}
 
+	/* For DET allocation, we don't want to use DML policy (not optimal for utilizing all
+	 * the DET available for each pipe). Use the DET override input to maintain our driver
+	 * policy.
+	 */
 	switch (pipe_cnt) {
 	case 1:
-		context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_MAX_DET_SIZE;
+		pipes[0].pipe.src.det_size_override = DCN3_2_MAX_DET_SIZE;
 		if (pipe->plane_state && !dc->debug.disable_z9_mpc) {
 			if (!is_dual_plane(pipe->plane_state->format)) {
-				context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_DEFAULT_DET_SIZE;
+				pipes[0].pipe.src.det_size_override = DCN3_2_DEFAULT_DET_SIZE;
 				pipes[0].pipe.src.unbounded_req_mode = true;
 				if (pipe->plane_state->src_rect.width >= 5120 &&
 					pipe->plane_state->src_rect.height >= 2880)
-					context->bw_ctx.dml.ip.det_buffer_size_kbytes = 320; // 5K or higher
+					pipes[0].pipe.src.det_size_override = 320; // 5K or higher
 			}
 		}
 		break;
 	case 2:
-		context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_MAX_DET_SIZE / 2; // 576 KB (9 segments)
-		break;
 	case 3:
-		context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_MAX_DET_SIZE / 3; // 384 KB (6 segments)
-		break;
 	case 4:
-	default:
-		context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_2_DEFAULT_DET_SIZE; // 256 KB (4 segments)
+		// For 2 and 3 pipes, use (MAX_DET_SIZE / pipe_cnt), for 4 pipes use default size for each pipe
+		for (i = 0; i < pipe_cnt; i++) {
+			pipes[i].pipe.src.det_size_override = (pipe_cnt < 4) ? (DCN3_2_MAX_DET_SIZE / pipe_cnt) : DCN3_2_DEFAULT_DET_SIZE;
+		}
 		break;
 	}
+
+	dcn32_update_det_override_for_mpo(dc, context, pipes);
 
 	return pipe_cnt;
 }
@@ -3055,12 +3086,17 @@ void dcn32_calculate_wm_and_dlg_fp(
 		int vlevel)
 {
 	int i, pipe_idx, vlevel_temp = 0;
-
 	double dcfclk = dcn3_2_soc.clock_limits[0].dcfclk_mhz;
 	double dcfclk_from_validation = context->bw_ctx.dml.vba.DCFCLKState[vlevel][context->bw_ctx.dml.vba.maxMpcComb];
 	unsigned int min_dram_speed_mts = context->bw_ctx.dml.vba.DRAMSpeed;
 	bool pstate_en = context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] !=
 			dm_dram_clock_change_unsupported;
+
+	// Override DRAMClockChangeSupport for SubVP + DRR case where the DRR cannot switch without stretching it's VBLANK
+	if (!pstate_en && dcn32_subvp_in_use(dc, context)) {
+		context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb] = dm_dram_clock_change_vblank_w_mall_sub_vp;
+		pstate_en = true;
+	}
 
 	/* Set B:
 	 * For Set B calculations use clocks from clock_limits[2] when available i.e. when SMU is present,
@@ -3136,6 +3172,10 @@ void dcn32_calculate_wm_and_dlg_fp(
 	 * UCLK  : Min,  as reported by PM FW, when available
 	 * pstate latency as per UCLK state dummy pstate latency
 	 */
+	// For Set A and Set C use values from validation
+	pipes[0].clks_cfg.voltage = vlevel;
+	pipes[0].clks_cfg.dcfclk_mhz = dcfclk_from_validation;
+	pipes[0].clks_cfg.socclk_mhz = context->bw_ctx.dml.soc.clock_limits[vlevel].socclk_mhz;
 
 	if (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_C].valid) {
 		unsigned int min_dram_speed_mts_margin = 160;
@@ -3190,10 +3230,6 @@ void dcn32_calculate_wm_and_dlg_fp(
 		context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.fclk_pstate_change_ns = get_fclk_watermark(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 		context->bw_ctx.bw.dcn.watermarks.a.usr_retraining_ns = get_usr_retraining_watermark(&context->bw_ctx.dml, pipes, pipe_cnt) * 1000;
 	}
-
-	pipes[0].clks_cfg.voltage = vlevel;
-	pipes[0].clks_cfg.dcfclk_mhz = dcfclk_from_validation;
-	pipes[0].clks_cfg.socclk_mhz = context->bw_ctx.dml.soc.clock_limits[vlevel].socclk_mhz;
 
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 		if (!context->res_ctx.pipe_ctx[i].stream)
@@ -3297,8 +3333,9 @@ void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context, display
 	context->bw_ctx.bw.dcn.clk.p_state_change_support =
 			context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb]
 					!= dm_dram_clock_change_unsupported;
-
+	context->bw_ctx.bw.dcn.clk.num_ways = dcn32_helper_calculate_num_ways_for_subvp(dc, context);
 	/*
+ *
 	 * TODO: needs FAMS
 	 * Pstate change might not be supported by hardware, but it might be
 	 * possible with firmware driven vertical blank stretching.
@@ -3334,8 +3371,8 @@ void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context, display
 			context->res_ctx.pipe_ctx[i].det_buffer_size_kb = 0;
 			context->res_ctx.pipe_ctx[i].unbounded_req = false;
 		} else {
-			context->res_ctx.pipe_ctx[i].det_buffer_size_kb =
-					context->bw_ctx.dml.ip.det_buffer_size_kbytes;
+			context->res_ctx.pipe_ctx[i].det_buffer_size_kb = get_det_buffer_size_kbytes(&context->bw_ctx.dml, pipes, pipe_cnt,
+							pipe_idx);
 			context->res_ctx.pipe_ctx[i].unbounded_req = pipes[pipe_idx].pipe.src.unbounded_req_mode;
 		}
 		if (context->bw_ctx.bw.dcn.clk.dppclk_khz < pipes[pipe_idx].clks_cfg.dppclk_mhz * 1000)
@@ -3352,8 +3389,12 @@ void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context, display
 	context->bw_ctx.bw.dcn.clk.max_supported_dispclk_khz = context->bw_ctx.dml.soc.clock_limits[vlevel].dispclk_mhz
 			* 1000;
 
-	context->bw_ctx.bw.dcn.compbuf_size_kb = context->bw_ctx.dml.ip.config_return_buffer_size_in_kbytes
-			- context->bw_ctx.dml.ip.det_buffer_size_kbytes * pipe_idx;
+	context->bw_ctx.bw.dcn.compbuf_size_kb = context->bw_ctx.dml.ip.config_return_buffer_size_in_kbytes;
+
+	for (i = 0; i < dc->res_pool->pipe_count; i++) {
+		if (context->res_ctx.pipe_ctx[i].stream)
+			context->bw_ctx.bw.dcn.compbuf_size_kb -= context->res_ctx.pipe_ctx[i].det_buffer_size_kb;
+	}
 
 	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
 
@@ -3369,6 +3410,277 @@ void dcn32_calculate_dlg_params(struct dc *dc, struct dc_state *context, display
 
 		pipe_idx++;
 	}
+}
+
+static void get_optimal_ntuple(struct _vcs_dpi_voltage_scaling_st *entry)
+{
+	if (entry->dcfclk_mhz > 0) {
+		float bw_on_sdp = entry->dcfclk_mhz * dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_sdp_bw_after_urgent / 100);
+
+		entry->fabricclk_mhz = bw_on_sdp / (dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_fabric_bw_after_urgent / 100));
+		entry->dram_speed_mts = bw_on_sdp / (dcn3_2_soc.num_chans *
+				dcn3_2_soc.dram_channel_width_bytes * ((float)dcn3_2_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only / 100));
+	} else if (entry->fabricclk_mhz > 0) {
+		float bw_on_fabric = entry->fabricclk_mhz * dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_fabric_bw_after_urgent / 100);
+
+		entry->dcfclk_mhz = bw_on_fabric / (dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_sdp_bw_after_urgent / 100));
+		entry->dram_speed_mts = bw_on_fabric / (dcn3_2_soc.num_chans *
+				dcn3_2_soc.dram_channel_width_bytes * ((float)dcn3_2_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only / 100));
+	} else if (entry->dram_speed_mts > 0) {
+		float bw_on_dram = entry->dram_speed_mts * dcn3_2_soc.num_chans *
+				dcn3_2_soc.dram_channel_width_bytes * ((float)dcn3_2_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only / 100);
+
+		entry->fabricclk_mhz = bw_on_dram / (dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_fabric_bw_after_urgent / 100));
+		entry->dcfclk_mhz = bw_on_dram / (dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_sdp_bw_after_urgent / 100));
+	}
+}
+
+static float calculate_net_bw_in_kbytes_sec(struct _vcs_dpi_voltage_scaling_st *entry)
+{
+	float memory_bw_kbytes_sec = entry->dram_speed_mts * dcn3_2_soc.num_chans *
+			dcn3_2_soc.dram_channel_width_bytes * ((float)dcn3_2_soc.pct_ideal_dram_sdp_bw_after_urgent_pixel_only / 100);
+
+	float fabric_bw_kbytes_sec = entry->fabricclk_mhz * dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_fabric_bw_after_urgent / 100);
+
+	float sdp_bw_kbytes_sec = entry->dcfclk_mhz * dcn3_2_soc.return_bus_width_bytes * ((float)dcn3_2_soc.pct_ideal_sdp_bw_after_urgent / 100);
+
+	float limiting_bw_kbytes_sec = memory_bw_kbytes_sec;
+
+	if (fabric_bw_kbytes_sec < limiting_bw_kbytes_sec)
+		limiting_bw_kbytes_sec = fabric_bw_kbytes_sec;
+
+	if (sdp_bw_kbytes_sec < limiting_bw_kbytes_sec)
+		limiting_bw_kbytes_sec = sdp_bw_kbytes_sec;
+
+	return limiting_bw_kbytes_sec;
+}
+
+static void insert_entry_into_table_sorted(struct _vcs_dpi_voltage_scaling_st *table, unsigned int *num_entries,
+		struct _vcs_dpi_voltage_scaling_st *entry)
+{
+	int index = 0;
+	int i = 0;
+	float net_bw_of_new_state = 0;
+
+	if (*num_entries == 0) {
+		table[0] = *entry;
+		(*num_entries)++;
+	} else {
+		net_bw_of_new_state = calculate_net_bw_in_kbytes_sec(entry);
+		while (net_bw_of_new_state > calculate_net_bw_in_kbytes_sec(&table[index])) {
+			index++;
+			if (index >= *num_entries)
+				break;
+		}
+
+		for (i = *num_entries; i > index; i--) {
+			table[i] = table[i - 1];
+		}
+
+		table[index] = *entry;
+		(*num_entries)++;
+	}
+}
+
+static void remove_entry_from_table_at_index(struct _vcs_dpi_voltage_scaling_st *table, unsigned int *num_entries,
+		unsigned int index)
+{
+	int i;
+
+	if (*num_entries == 0)
+		return;
+
+	for (i = index; i < *num_entries - 1; i++) {
+		table[i] = table[i + 1];
+	}
+	memset(&table[--(*num_entries)], 0, sizeof(struct _vcs_dpi_voltage_scaling_st));
+}
+
+static int build_synthetic_soc_states(struct clk_bw_params *bw_params,
+		struct _vcs_dpi_voltage_scaling_st *table, unsigned int *num_entries)
+{
+	int i, j;
+	struct _vcs_dpi_voltage_scaling_st entry = {0};
+
+	unsigned int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0,
+			max_phyclk_mhz = 0, max_dtbclk_mhz = 0, max_fclk_mhz = 0, max_uclk_mhz = 0;
+
+	unsigned int min_dcfclk_mhz = 199, min_fclk_mhz = 299;
+
+	static const unsigned int num_dcfclk_stas = 5;
+	unsigned int dcfclk_sta_targets[DC__VOLTAGE_STATES] = {199, 615, 906, 1324, 1564};
+
+	unsigned int num_uclk_dpms = 0;
+	unsigned int num_fclk_dpms = 0;
+	unsigned int num_dcfclk_dpms = 0;
+
+	for (i = 0; i < MAX_NUM_DPM_LVL; i++) {
+		if (bw_params->clk_table.entries[i].dcfclk_mhz > max_dcfclk_mhz)
+			max_dcfclk_mhz = bw_params->clk_table.entries[i].dcfclk_mhz;
+		if (bw_params->clk_table.entries[i].fclk_mhz > max_fclk_mhz)
+			max_fclk_mhz = bw_params->clk_table.entries[i].fclk_mhz;
+		if (bw_params->clk_table.entries[i].memclk_mhz > max_uclk_mhz)
+			max_uclk_mhz = bw_params->clk_table.entries[i].memclk_mhz;
+		if (bw_params->clk_table.entries[i].dispclk_mhz > max_dispclk_mhz)
+			max_dispclk_mhz = bw_params->clk_table.entries[i].dispclk_mhz;
+		if (bw_params->clk_table.entries[i].dppclk_mhz > max_dppclk_mhz)
+			max_dppclk_mhz = bw_params->clk_table.entries[i].dppclk_mhz;
+		if (bw_params->clk_table.entries[i].phyclk_mhz > max_phyclk_mhz)
+			max_phyclk_mhz = bw_params->clk_table.entries[i].phyclk_mhz;
+		if (bw_params->clk_table.entries[i].dtbclk_mhz > max_dtbclk_mhz)
+			max_dtbclk_mhz = bw_params->clk_table.entries[i].dtbclk_mhz;
+
+		if (bw_params->clk_table.entries[i].memclk_mhz > 0)
+			num_uclk_dpms++;
+		if (bw_params->clk_table.entries[i].fclk_mhz > 0)
+			num_fclk_dpms++;
+		if (bw_params->clk_table.entries[i].dcfclk_mhz > 0)
+			num_dcfclk_dpms++;
+	}
+
+	if (!max_dcfclk_mhz || !max_dispclk_mhz || !max_dtbclk_mhz)
+		return -1;
+
+	if (max_dppclk_mhz == 0)
+		max_dppclk_mhz = max_dispclk_mhz;
+
+	if (max_fclk_mhz == 0)
+		max_fclk_mhz = max_dcfclk_mhz * dcn3_2_soc.pct_ideal_sdp_bw_after_urgent / dcn3_2_soc.pct_ideal_fabric_bw_after_urgent;
+
+	if (max_phyclk_mhz == 0)
+		max_phyclk_mhz = dcn3_2_soc.clock_limits[0].phyclk_mhz;
+
+	*num_entries = 0;
+	entry.dispclk_mhz = max_dispclk_mhz;
+	entry.dscclk_mhz = max_dispclk_mhz / 3;
+	entry.dppclk_mhz = max_dppclk_mhz;
+	entry.dtbclk_mhz = max_dtbclk_mhz;
+	entry.phyclk_mhz = max_phyclk_mhz;
+	entry.phyclk_d18_mhz = dcn3_2_soc.clock_limits[0].phyclk_d18_mhz;
+	entry.phyclk_d32_mhz = dcn3_2_soc.clock_limits[0].phyclk_d32_mhz;
+
+	// Insert all the DCFCLK STAs
+	for (i = 0; i < num_dcfclk_stas; i++) {
+		entry.dcfclk_mhz = dcfclk_sta_targets[i];
+		entry.fabricclk_mhz = 0;
+		entry.dram_speed_mts = 0;
+
+		get_optimal_ntuple(&entry);
+		insert_entry_into_table_sorted(table, num_entries, &entry);
+	}
+
+	// Insert the max DCFCLK
+	entry.dcfclk_mhz = max_dcfclk_mhz;
+	entry.fabricclk_mhz = 0;
+	entry.dram_speed_mts = 0;
+
+	get_optimal_ntuple(&entry);
+	insert_entry_into_table_sorted(table, num_entries, &entry);
+
+	// Insert the UCLK DPMS
+	for (i = 0; i < num_uclk_dpms; i++) {
+		entry.dcfclk_mhz = 0;
+		entry.fabricclk_mhz = 0;
+		entry.dram_speed_mts = bw_params->clk_table.entries[i].memclk_mhz * 16;
+
+		get_optimal_ntuple(&entry);
+		insert_entry_into_table_sorted(table, num_entries, &entry);
+	}
+
+	// If FCLK is coarse grained, insert individual DPMs.
+	if (num_fclk_dpms > 2) {
+		for (i = 0; i < num_fclk_dpms; i++) {
+			entry.dcfclk_mhz = 0;
+			entry.fabricclk_mhz = bw_params->clk_table.entries[i].fclk_mhz;
+			entry.dram_speed_mts = 0;
+
+			get_optimal_ntuple(&entry);
+			insert_entry_into_table_sorted(table, num_entries, &entry);
+		}
+	}
+	// If FCLK fine grained, only insert max
+	else {
+		entry.dcfclk_mhz = 0;
+		entry.fabricclk_mhz = max_fclk_mhz;
+		entry.dram_speed_mts = 0;
+
+		get_optimal_ntuple(&entry);
+		insert_entry_into_table_sorted(table, num_entries, &entry);
+	}
+
+	// At this point, the table contains all "points of interest" based on
+	// DPMs from PMFW, and STAs.  Table is sorted by BW, and all clock
+	// ratios (by derate, are exact).
+
+	// Remove states that require higher clocks than are supported
+	for (i = *num_entries - 1; i >= 0 ; i--) {
+		if (table[i].dcfclk_mhz > max_dcfclk_mhz ||
+				table[i].fabricclk_mhz > max_fclk_mhz ||
+				table[i].dram_speed_mts > max_uclk_mhz * 16)
+			remove_entry_from_table_at_index(table, num_entries, i);
+	}
+
+	// At this point, the table only contains supported points of interest
+	// it could be used as is, but some states may be redundant due to
+	// coarse grained nature of some clocks, so we want to round up to
+	// coarse grained DPMs and remove duplicates.
+
+	// Round up UCLKs
+	for (i = *num_entries - 1; i >= 0 ; i--) {
+		for (j = 0; j < num_uclk_dpms; j++) {
+			if (bw_params->clk_table.entries[j].memclk_mhz * 16 >= table[i].dram_speed_mts) {
+				table[i].dram_speed_mts = bw_params->clk_table.entries[j].memclk_mhz * 16;
+				break;
+			}
+		}
+	}
+
+	// If FCLK is coarse grained, round up to next DPMs
+	if (num_fclk_dpms > 2) {
+		for (i = *num_entries - 1; i >= 0 ; i--) {
+			for (j = 0; j < num_fclk_dpms; j++) {
+				if (bw_params->clk_table.entries[j].fclk_mhz >= table[i].fabricclk_mhz) {
+					table[i].fabricclk_mhz = bw_params->clk_table.entries[j].fclk_mhz;
+					break;
+				}
+			}
+		}
+	}
+	// Otherwise, round up to minimum.
+	else {
+		for (i = *num_entries - 1; i >= 0 ; i--) {
+			if (table[i].fabricclk_mhz < min_fclk_mhz) {
+				table[i].fabricclk_mhz = min_fclk_mhz;
+				break;
+			}
+		}
+	}
+
+	// Round DCFCLKs up to minimum
+	for (i = *num_entries - 1; i >= 0 ; i--) {
+		if (table[i].dcfclk_mhz < min_dcfclk_mhz) {
+			table[i].dcfclk_mhz = min_dcfclk_mhz;
+			break;
+		}
+	}
+
+	// Remove duplicate states, note duplicate states are always neighbouring since table is sorted.
+	i = 0;
+	while (i < *num_entries - 1) {
+		if (table[i].dcfclk_mhz == table[i + 1].dcfclk_mhz &&
+				table[i].fabricclk_mhz == table[i + 1].fabricclk_mhz &&
+				table[i].dram_speed_mts == table[i + 1].dram_speed_mts)
+			remove_entry_from_table_at_index(table, num_entries, i + 1);
+		else
+			i++;
+	}
+
+	// Fix up the state indicies
+	for (i = *num_entries - 1; i >= 0 ; i--) {
+		table[i].state = i;
+	}
+
+	return 0;
 }
 
 /* dcn32_update_bw_bounding_box
@@ -3452,139 +3764,150 @@ static void dcn32_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw
 
 	/* Overrides Clock levelsfrom CLK Mgr table entries as reported by PM FW */
 	if ((!IS_FPGA_MAXIMUS_DC(dc->ctx->dce_environment)) && (bw_params->clk_table.entries[0].memclk_mhz)) {
-		unsigned int i = 0, j = 0, num_states = 0;
+		if (dc->debug.use_legacy_soc_bb_mechanism) {
+			unsigned int i = 0, j = 0, num_states = 0;
 
-		unsigned int dcfclk_mhz[DC__VOLTAGE_STATES] = {0};
-		unsigned int dram_speed_mts[DC__VOLTAGE_STATES] = {0};
-		unsigned int optimal_uclk_for_dcfclk_sta_targets[DC__VOLTAGE_STATES] = {0};
-		unsigned int optimal_dcfclk_for_uclk[DC__VOLTAGE_STATES] = {0};
+			unsigned int dcfclk_mhz[DC__VOLTAGE_STATES] = {0};
+			unsigned int dram_speed_mts[DC__VOLTAGE_STATES] = {0};
+			unsigned int optimal_uclk_for_dcfclk_sta_targets[DC__VOLTAGE_STATES] = {0};
+			unsigned int optimal_dcfclk_for_uclk[DC__VOLTAGE_STATES] = {0};
+			unsigned int min_dcfclk = UINT_MAX;
+			/* Set 199 as first value in STA target array to have a minimum DCFCLK value.
+			 * For DCN32 we set min to 199 so minimum FCLK DPM0 (300Mhz can be achieved) */
+			unsigned int dcfclk_sta_targets[DC__VOLTAGE_STATES] = {199, 615, 906, 1324, 1564};
+			unsigned int num_dcfclk_sta_targets = 4, num_uclk_states = 0;
+			unsigned int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0, max_phyclk_mhz = 0;
 
-		unsigned int dcfclk_sta_targets[DC__VOLTAGE_STATES] = {615, 906, 1324, 1564};
-		unsigned int num_dcfclk_sta_targets = 4, num_uclk_states = 0;
-		unsigned int max_dcfclk_mhz = 0, max_dispclk_mhz = 0, max_dppclk_mhz = 0, max_phyclk_mhz = 0;
+			for (i = 0; i < MAX_NUM_DPM_LVL; i++) {
+				if (bw_params->clk_table.entries[i].dcfclk_mhz > max_dcfclk_mhz)
+					max_dcfclk_mhz = bw_params->clk_table.entries[i].dcfclk_mhz;
+				if (bw_params->clk_table.entries[i].dcfclk_mhz != 0 &&
+						bw_params->clk_table.entries[i].dcfclk_mhz < min_dcfclk)
+					min_dcfclk = bw_params->clk_table.entries[i].dcfclk_mhz;
+				if (bw_params->clk_table.entries[i].dispclk_mhz > max_dispclk_mhz)
+					max_dispclk_mhz = bw_params->clk_table.entries[i].dispclk_mhz;
+				if (bw_params->clk_table.entries[i].dppclk_mhz > max_dppclk_mhz)
+					max_dppclk_mhz = bw_params->clk_table.entries[i].dppclk_mhz;
+				if (bw_params->clk_table.entries[i].phyclk_mhz > max_phyclk_mhz)
+					max_phyclk_mhz = bw_params->clk_table.entries[i].phyclk_mhz;
+			}
+			if (min_dcfclk > dcfclk_sta_targets[0])
+				dcfclk_sta_targets[0] = min_dcfclk;
+			if (!max_dcfclk_mhz)
+				max_dcfclk_mhz = dcn3_2_soc.clock_limits[0].dcfclk_mhz;
+			if (!max_dispclk_mhz)
+				max_dispclk_mhz = dcn3_2_soc.clock_limits[0].dispclk_mhz;
+			if (!max_dppclk_mhz)
+				max_dppclk_mhz = dcn3_2_soc.clock_limits[0].dppclk_mhz;
+			if (!max_phyclk_mhz)
+				max_phyclk_mhz = dcn3_2_soc.clock_limits[0].phyclk_mhz;
 
-		for (i = 0; i < MAX_NUM_DPM_LVL; i++) {
-			if (bw_params->clk_table.entries[i].dcfclk_mhz > max_dcfclk_mhz)
-				max_dcfclk_mhz = bw_params->clk_table.entries[i].dcfclk_mhz;
-			if (bw_params->clk_table.entries[i].dispclk_mhz > max_dispclk_mhz)
-				max_dispclk_mhz = bw_params->clk_table.entries[i].dispclk_mhz;
-			if (bw_params->clk_table.entries[i].dppclk_mhz > max_dppclk_mhz)
-				max_dppclk_mhz = bw_params->clk_table.entries[i].dppclk_mhz;
-			if (bw_params->clk_table.entries[i].phyclk_mhz > max_phyclk_mhz)
-				max_phyclk_mhz = bw_params->clk_table.entries[i].phyclk_mhz;
-		}
-		if (!max_dcfclk_mhz)
-			max_dcfclk_mhz = dcn3_2_soc.clock_limits[0].dcfclk_mhz;
-		if (!max_dispclk_mhz)
-			max_dispclk_mhz = dcn3_2_soc.clock_limits[0].dispclk_mhz;
-		if (!max_dppclk_mhz)
-			max_dppclk_mhz = dcn3_2_soc.clock_limits[0].dppclk_mhz;
-		if (!max_phyclk_mhz)
-			max_phyclk_mhz = dcn3_2_soc.clock_limits[0].phyclk_mhz;
+			if (max_dcfclk_mhz > dcfclk_sta_targets[num_dcfclk_sta_targets-1]) {
+				// If max DCFCLK is greater than the max DCFCLK STA target, insert into the DCFCLK STA target array
+				dcfclk_sta_targets[num_dcfclk_sta_targets] = max_dcfclk_mhz;
+				num_dcfclk_sta_targets++;
+			} else if (max_dcfclk_mhz < dcfclk_sta_targets[num_dcfclk_sta_targets-1]) {
+				// If max DCFCLK is less than the max DCFCLK STA target, cap values and remove duplicates
+				for (i = 0; i < num_dcfclk_sta_targets; i++) {
+					if (dcfclk_sta_targets[i] > max_dcfclk_mhz) {
+						dcfclk_sta_targets[i] = max_dcfclk_mhz;
+						break;
+					}
+				}
+				// Update size of array since we "removed" duplicates
+				num_dcfclk_sta_targets = i + 1;
+			}
 
-		if (max_dcfclk_mhz > dcfclk_sta_targets[num_dcfclk_sta_targets-1]) {
-			// If max DCFCLK is greater than the max DCFCLK STA target, insert into the DCFCLK STA target array
-			dcfclk_sta_targets[num_dcfclk_sta_targets] = max_dcfclk_mhz;
-			num_dcfclk_sta_targets++;
-		} else if (max_dcfclk_mhz < dcfclk_sta_targets[num_dcfclk_sta_targets-1]) {
-			// If max DCFCLK is less than the max DCFCLK STA target, cap values and remove duplicates
+			num_uclk_states = bw_params->clk_table.num_entries;
+
+			// Calculate optimal dcfclk for each uclk
+			for (i = 0; i < num_uclk_states; i++) {
+				dcn32_get_optimal_dcfclk_fclk_for_uclk(bw_params->clk_table.entries[i].memclk_mhz * 16,
+						&optimal_dcfclk_for_uclk[i], NULL);
+				if (optimal_dcfclk_for_uclk[i] < bw_params->clk_table.entries[0].dcfclk_mhz) {
+					optimal_dcfclk_for_uclk[i] = bw_params->clk_table.entries[0].dcfclk_mhz;
+				}
+			}
+
+			// Calculate optimal uclk for each dcfclk sta target
 			for (i = 0; i < num_dcfclk_sta_targets; i++) {
-				if (dcfclk_sta_targets[i] > max_dcfclk_mhz) {
-					dcfclk_sta_targets[i] = max_dcfclk_mhz;
-					break;
+				for (j = 0; j < num_uclk_states; j++) {
+					if (dcfclk_sta_targets[i] < optimal_dcfclk_for_uclk[j]) {
+						optimal_uclk_for_dcfclk_sta_targets[i] =
+								bw_params->clk_table.entries[j].memclk_mhz * 16;
+						break;
+					}
 				}
 			}
-			// Update size of array since we "removed" duplicates
-			num_dcfclk_sta_targets = i + 1;
-		}
 
-		num_uclk_states = bw_params->clk_table.num_entries;
-
-		// Calculate optimal dcfclk for each uclk
-		for (i = 0; i < num_uclk_states; i++) {
-			dcn32_get_optimal_dcfclk_fclk_for_uclk(bw_params->clk_table.entries[i].memclk_mhz * 16,
-					&optimal_dcfclk_for_uclk[i], NULL);
-			if (optimal_dcfclk_for_uclk[i] < bw_params->clk_table.entries[0].dcfclk_mhz) {
-				optimal_dcfclk_for_uclk[i] = bw_params->clk_table.entries[0].dcfclk_mhz;
-			}
-		}
-
-		// Calculate optimal uclk for each dcfclk sta target
-		for (i = 0; i < num_dcfclk_sta_targets; i++) {
-			for (j = 0; j < num_uclk_states; j++) {
-				if (dcfclk_sta_targets[i] < optimal_dcfclk_for_uclk[j]) {
-					optimal_uclk_for_dcfclk_sta_targets[i] =
-							bw_params->clk_table.entries[j].memclk_mhz * 16;
-					break;
+			i = 0;
+			j = 0;
+			// create the final dcfclk and uclk table
+			while (i < num_dcfclk_sta_targets && j < num_uclk_states && num_states < DC__VOLTAGE_STATES) {
+				if (dcfclk_sta_targets[i] < optimal_dcfclk_for_uclk[j] && i < num_dcfclk_sta_targets) {
+					dcfclk_mhz[num_states] = dcfclk_sta_targets[i];
+					dram_speed_mts[num_states++] = optimal_uclk_for_dcfclk_sta_targets[i++];
+				} else {
+					if (j < num_uclk_states && optimal_dcfclk_for_uclk[j] <= max_dcfclk_mhz) {
+						dcfclk_mhz[num_states] = optimal_dcfclk_for_uclk[j];
+						dram_speed_mts[num_states++] = bw_params->clk_table.entries[j++].memclk_mhz * 16;
+					} else {
+						j = num_uclk_states;
+					}
 				}
 			}
-		}
 
-		i = 0;
-		j = 0;
-		// create the final dcfclk and uclk table
-		while (i < num_dcfclk_sta_targets && j < num_uclk_states && num_states < DC__VOLTAGE_STATES) {
-			if (dcfclk_sta_targets[i] < optimal_dcfclk_for_uclk[j] && i < num_dcfclk_sta_targets) {
+			while (i < num_dcfclk_sta_targets && num_states < DC__VOLTAGE_STATES) {
 				dcfclk_mhz[num_states] = dcfclk_sta_targets[i];
 				dram_speed_mts[num_states++] = optimal_uclk_for_dcfclk_sta_targets[i++];
-			} else {
-				if (j < num_uclk_states && optimal_dcfclk_for_uclk[j] <= max_dcfclk_mhz) {
-					dcfclk_mhz[num_states] = optimal_dcfclk_for_uclk[j];
-					dram_speed_mts[num_states++] = bw_params->clk_table.entries[j++].memclk_mhz * 16;
-				} else {
-					j = num_uclk_states;
-				}
 			}
-		}
 
-		while (i < num_dcfclk_sta_targets && num_states < DC__VOLTAGE_STATES) {
-			dcfclk_mhz[num_states] = dcfclk_sta_targets[i];
-			dram_speed_mts[num_states++] = optimal_uclk_for_dcfclk_sta_targets[i++];
-		}
+			while (j < num_uclk_states && num_states < DC__VOLTAGE_STATES &&
+					optimal_dcfclk_for_uclk[j] <= max_dcfclk_mhz) {
+				dcfclk_mhz[num_states] = optimal_dcfclk_for_uclk[j];
+				dram_speed_mts[num_states++] = bw_params->clk_table.entries[j++].memclk_mhz * 16;
+			}
 
-		while (j < num_uclk_states && num_states < DC__VOLTAGE_STATES &&
-				optimal_dcfclk_for_uclk[j] <= max_dcfclk_mhz) {
-			dcfclk_mhz[num_states] = optimal_dcfclk_for_uclk[j];
-			dram_speed_mts[num_states++] = bw_params->clk_table.entries[j++].memclk_mhz * 16;
-		}
+			dcn3_2_soc.num_states = num_states;
+			for (i = 0; i < dcn3_2_soc.num_states; i++) {
+				dcn3_2_soc.clock_limits[i].state = i;
+				dcn3_2_soc.clock_limits[i].dcfclk_mhz = dcfclk_mhz[i];
+				dcn3_2_soc.clock_limits[i].fabricclk_mhz = dcfclk_mhz[i];
 
-		dcn3_2_soc.num_states = num_states;
-		for (i = 0; i < dcn3_2_soc.num_states; i++) {
-			dcn3_2_soc.clock_limits[i].state = i;
-			dcn3_2_soc.clock_limits[i].dcfclk_mhz = dcfclk_mhz[i];
-			dcn3_2_soc.clock_limits[i].fabricclk_mhz = dcfclk_mhz[i];
+				/* Fill all states with max values of all these clocks */
+				dcn3_2_soc.clock_limits[i].dispclk_mhz = max_dispclk_mhz;
+				dcn3_2_soc.clock_limits[i].dppclk_mhz  = max_dppclk_mhz;
+				dcn3_2_soc.clock_limits[i].phyclk_mhz  = max_phyclk_mhz;
+				dcn3_2_soc.clock_limits[i].dscclk_mhz  = max_dispclk_mhz / 3;
 
-			/* Fill all states with max values of all these clocks */
-			dcn3_2_soc.clock_limits[i].dispclk_mhz = max_dispclk_mhz;
-			dcn3_2_soc.clock_limits[i].dppclk_mhz  = max_dppclk_mhz;
-			dcn3_2_soc.clock_limits[i].phyclk_mhz  = max_phyclk_mhz;
-			dcn3_2_soc.clock_limits[i].dscclk_mhz  = max_dispclk_mhz / 3;
-
-			/* Populate from bw_params for DTBCLK, SOCCLK */
-			if (i > 0) {
-				if (!bw_params->clk_table.entries[i].dtbclk_mhz) {
-					dcn3_2_soc.clock_limits[i].dtbclk_mhz  = dcn3_2_soc.clock_limits[i-1].dtbclk_mhz;
-				} else {
+				/* Populate from bw_params for DTBCLK, SOCCLK */
+				if (i > 0) {
+					if (!bw_params->clk_table.entries[i].dtbclk_mhz) {
+						dcn3_2_soc.clock_limits[i].dtbclk_mhz  = dcn3_2_soc.clock_limits[i-1].dtbclk_mhz;
+					} else {
+						dcn3_2_soc.clock_limits[i].dtbclk_mhz  = bw_params->clk_table.entries[i].dtbclk_mhz;
+					}
+				} else if (bw_params->clk_table.entries[i].dtbclk_mhz) {
 					dcn3_2_soc.clock_limits[i].dtbclk_mhz  = bw_params->clk_table.entries[i].dtbclk_mhz;
 				}
-			} else if (bw_params->clk_table.entries[i].dtbclk_mhz) {
-				dcn3_2_soc.clock_limits[i].dtbclk_mhz  = bw_params->clk_table.entries[i].dtbclk_mhz;
+
+				if (!bw_params->clk_table.entries[i].socclk_mhz && i > 0)
+					dcn3_2_soc.clock_limits[i].socclk_mhz = dcn3_2_soc.clock_limits[i-1].socclk_mhz;
+				else
+					dcn3_2_soc.clock_limits[i].socclk_mhz = bw_params->clk_table.entries[i].socclk_mhz;
+
+				if (!dram_speed_mts[i] && i > 0)
+					dcn3_2_soc.clock_limits[i].dram_speed_mts = dcn3_2_soc.clock_limits[i-1].dram_speed_mts;
+				else
+					dcn3_2_soc.clock_limits[i].dram_speed_mts = dram_speed_mts[i];
+
+				/* These clocks cannot come from bw_params, always fill from dcn3_2_soc[0] */
+				/* PHYCLK_D18, PHYCLK_D32 */
+				dcn3_2_soc.clock_limits[i].phyclk_d18_mhz = dcn3_2_soc.clock_limits[0].phyclk_d18_mhz;
+				dcn3_2_soc.clock_limits[i].phyclk_d32_mhz = dcn3_2_soc.clock_limits[0].phyclk_d32_mhz;
 			}
-
-			if (!bw_params->clk_table.entries[i].socclk_mhz && i > 0)
-				dcn3_2_soc.clock_limits[i].socclk_mhz = dcn3_2_soc.clock_limits[i-1].socclk_mhz;
-			else
-				dcn3_2_soc.clock_limits[i].socclk_mhz = bw_params->clk_table.entries[i].socclk_mhz;
-
-			if (!dram_speed_mts[i] && i > 0)
-				dcn3_2_soc.clock_limits[i].dram_speed_mts = dcn3_2_soc.clock_limits[i-1].dram_speed_mts;
-			else
-				dcn3_2_soc.clock_limits[i].dram_speed_mts = dram_speed_mts[i];
-
-			/* These clocks cannot come from bw_params, always fill from dcn3_2_soc[0] */
-			/* PHYCLK_D18, PHYCLK_D32 */
-			dcn3_2_soc.clock_limits[i].phyclk_d18_mhz = dcn3_2_soc.clock_limits[0].phyclk_d18_mhz;
-			dcn3_2_soc.clock_limits[i].phyclk_d32_mhz = dcn3_2_soc.clock_limits[0].phyclk_d32_mhz;
+		} else {
+			build_synthetic_soc_states(bw_params, dcn3_2_soc.clock_limits, &dcn3_2_soc.num_states);
 		}
 
 		/* Re-init DML with updated bb */
@@ -3689,6 +4012,7 @@ static bool dcn32_resource_construct(
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.dp_hpo = true;
+	dc->caps.dp_hdmi21_pcon_support = true;
 	dc->caps.edp_dsc_support = true;
 	dc->caps.extended_aux_timeout_support = true;
 	dc->caps.dmcub_support = true;
@@ -3708,7 +4032,7 @@ static bool dcn32_resource_construct(
 	dc->caps.color.dpp.dgam_rom_for_yuv = 0;
 
 	dc->caps.color.dpp.hw_3d_lut = 1;
-	dc->caps.color.dpp.ogam_ram = 0;  //Blnd Gam also removed
+	dc->caps.color.dpp.ogam_ram = 0;  // no OGAM in DPP since DCN1
 	// no OGAM ROM on DCN2 and later ASICs
 	dc->caps.color.dpp.ogam_rom_caps.srgb = 0;
 	dc->caps.color.dpp.ogam_rom_caps.bt2020 = 0;

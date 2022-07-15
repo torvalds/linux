@@ -3733,35 +3733,10 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			mode_lib->vba.ModeIsSupported = mode_lib->vba.ModeSupport[i][0] == true
 					|| mode_lib->vba.ModeSupport[i][1] == true;
 
-			if ((mode_lib->vba.ModeSupport[i][0] == false && mode_lib->vba.ModeSupport[i][1] == true)
-				|| MPCCombineMethodAsPossible
-				|| (MPCCombineMethodAsNeededForPStateChangeAndVoltage
-				&& mode_lib->vba.DRAMClockChangeRequirementFinal
-				&& (((mode_lib->vba.DRAMClockChangeSupport[i][1] == dm_dram_clock_change_vactive
-				|| mode_lib->vba.DRAMClockChangeSupport[i][1] ==
-						dm_dram_clock_change_vactive_w_mall_full_frame
-				|| mode_lib->vba.DRAMClockChangeSupport[i][1] ==
-						dm_dram_clock_change_vactive_w_mall_sub_vp)
-				&& !(mode_lib->vba.DRAMClockChangeSupport[i][0] == dm_dram_clock_change_vactive
-				|| mode_lib->vba.DRAMClockChangeSupport[i][0] ==
-						dm_dram_clock_change_vactive_w_mall_full_frame
-				|| mode_lib->vba.DRAMClockChangeSupport[i][0] ==
-						dm_dram_clock_change_vactive_w_mall_sub_vp))
-				|| ((mode_lib->vba.DRAMClockChangeSupport[i][1] == dm_dram_clock_change_vblank
-				|| mode_lib->vba.DRAMClockChangeSupport[i][1] ==
-						dm_dram_clock_change_vblank_w_mall_full_frame
-				|| mode_lib->vba.DRAMClockChangeSupport[i][1] ==
-						dm_dram_clock_change_vblank_w_mall_sub_vp)
-				&& mode_lib->vba.DRAMClockChangeSupport[i][0] == dm_dram_clock_change_unsupported)))
-				|| (MPCCombineMethodAsNeededForPStateChangeAndVoltage &&
-				mode_lib->vba.FCLKChangeRequirementFinal
-				&& ((mode_lib->vba.FCLKChangeSupport[i][1] == dm_fclock_change_vactive
-				&& mode_lib->vba.FCLKChangeSupport[i][0] != dm_fclock_change_vactive)
-				|| (mode_lib->vba.FCLKChangeSupport[i][1] == dm_fclock_change_vblank
-				&& mode_lib->vba.FCLKChangeSupport[i][0] == dm_fclock_change_unsupported)))) {
-				MaximumMPCCombine = 1;
-			} else {
+			if (mode_lib->vba.ModeSupport[i][0] == true) {
 				MaximumMPCCombine = 0;
+			} else {
+				MaximumMPCCombine = 1;
 			}
 		}
 	}

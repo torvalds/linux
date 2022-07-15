@@ -5109,7 +5109,8 @@ static inline void amdgpu_device_stop_pending_resets(struct amdgpu_device *adev)
  */
 
 int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
-			      struct amdgpu_job *job)
+			      struct amdgpu_job *job,
+			      struct amdgpu_reset_context *reset_context)
 {
 	struct list_head device_list, *device_list_handle =  NULL;
 	bool job_signaled = false;
@@ -5119,9 +5120,6 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	bool need_emergency_restart = false;
 	bool audio_suspended = false;
 	int tmp_vram_lost_counter;
-	struct amdgpu_reset_context reset_context;
-
-	memset(&reset_context, 0, sizeof(reset_context));
 
 	/*
 	 * Special case: RAS triggered and full reset isn't supported
@@ -5147,12 +5145,8 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 	if (hive)
 		mutex_lock(&hive->hive_lock);
 
-	reset_context.method = AMD_RESET_METHOD_NONE;
-	reset_context.reset_req_dev = adev;
-	reset_context.job = job;
-	reset_context.hive = hive;
-	clear_bit(AMDGPU_NEED_FULL_RESET, &reset_context.flags);
-
+	reset_context->job = job;
+	reset_context->hive = hive;
 	/*
 	 * Build list of devices to reset.
 	 * In case we are in XGMI hive mode, resort the device list
@@ -5245,7 +5239,7 @@ int amdgpu_device_gpu_recover(struct amdgpu_device *adev,
 
 retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 	list_for_each_entry(tmp_adev, device_list_handle, reset_list) {
-		r = amdgpu_device_pre_asic_reset(tmp_adev, &reset_context);
+		r = amdgpu_device_pre_asic_reset(tmp_adev, reset_context);
 		/*TODO Should we stop ?*/
 		if (r) {
 			dev_err(tmp_adev->dev, "GPU pre asic reset failed with err, %d for drm dev, %s ",
@@ -5272,7 +5266,7 @@ retry:	/* Rest of adevs pre asic reset from XGMI hive. */
 		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(9, 4, 2))
 			amdgpu_ras_resume(adev);
 	} else {
-		r = amdgpu_do_asic_reset(device_list_handle, &reset_context);
+		r = amdgpu_do_asic_reset(device_list_handle, reset_context);
 		if (r && r == -EAGAIN)
 			goto retry;
 	}
@@ -5292,7 +5286,7 @@ skip_hw_reset:
 		if (amdgpu_gpu_recovery == 2 &&
 			!(tmp_vram_lost_counter < atomic_read(&adev->vram_lost_counter)))
 			amdgpu_device_recheck_guilty_jobs(
-				tmp_adev, device_list_handle, &reset_context);
+				tmp_adev, device_list_handle, reset_context);
 
 		for (i = 0; i < AMDGPU_MAX_RINGS; ++i) {
 			struct amdgpu_ring *ring = tmp_adev->rings[i];
