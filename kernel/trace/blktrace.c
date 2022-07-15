@@ -1873,11 +1873,11 @@ out:
 /**
  * blk_fill_rwbs - Fill the buffer rwbs by mapping op to character string.
  * @rwbs:	buffer to be filled
- * @op:		REQ_OP_XXX for the tracepoint
+ * @opf:	request operation type (REQ_OP_XXX) and flags for the tracepoint
  *
  * Description:
- *     Maps the REQ_OP_XXX to character and fills the buffer provided by the
- *     caller with resulting string.
+ *     Maps each request operation and flag to a single character and fills the
+ *     buffer provided by the caller with resulting string.
  *
  **/
 void blk_fill_rwbs(char *rwbs, blk_opf_t opf)
