@@ -686,12 +686,15 @@ static int pmu_sbi_setup_irqs(struct riscv_pmu *pmu, struct platform_device *pde
 		child = of_get_compatible_child(cpu, "riscv,cpu-intc");
 		if (!child) {
 			pr_err("Failed to find INTC node\n");
+			of_node_put(cpu);
 			return -ENODEV;
 		}
 		domain = irq_find_host(child);
 		of_node_put(child);
-		if (domain)
+		if (domain) {
+			of_node_put(cpu);
 			break;
+		}
 	}
 	if (!domain) {
 		pr_err("Failed to find INTC IRQ root domain\n");
