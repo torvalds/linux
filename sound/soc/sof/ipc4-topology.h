@@ -15,7 +15,18 @@
 #define SOF_IPC4_FW_PAGE(x) ((((x) + BIT(12) - 1) & ~(BIT(12) - 1)) >> 12)
 #define SOF_IPC4_FW_ROUNDUP(x) (((x) + BIT(6) - 1) & (~(BIT(6) - 1)))
 
-#define SOF_IPC4_MODULE_LL      BIT(5)
+#define SOF_IPC4_MODULE_LOAD_TYPE		GENMASK(3, 0)
+#define SOF_IPC4_MODULE_AUTO_START		BIT(4)
+/*
+ * Two module schedule domains in fw :
+ * LL domain - Low latency domain
+ * DP domain - Data processing domain
+ * The LL setting should be equal to !DP setting
+ */
+#define SOF_IPC4_MODULE_LL		BIT(5)
+#define SOF_IPC4_MODULE_DP		BIT(6)
+#define SOF_IPC4_MODULE_LIB_CODE		BIT(7)
+
 #define SOF_IPC4_MODULE_INSTANCE_LIST_ITEM_SIZE 12
 #define SOF_IPC4_PIPELINE_OBJECT_SIZE 448
 #define SOF_IPC4_DATA_QUEUE_OBJECT_SIZE 128
