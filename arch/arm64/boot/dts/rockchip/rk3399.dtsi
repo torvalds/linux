@@ -1556,7 +1556,7 @@
 		};
 
 		mipi_dphy_rx0: mipi-dphy-rx0 {
-			compatible = "rockchip,rk3399-mipi-dphy-rx0";
+			compatible = "rockchip,rk3399-mipi-dphy";
 			clocks = <&cru SCLK_MIPIDPHY_REF>,
 				 <&cru SCLK_DPHY_RX0_CFG>,
 				 <&cru PCLK_VIO_GRF>;
