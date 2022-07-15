@@ -3105,7 +3105,7 @@
 		rockchip,skip-pmu-idle-request;
 		iommus = <&jpege1_mmu>;
 		rockchip,srv = <&mpp_srv>;
-		rockchip,taskqueue-node = <3>;
+		rockchip,taskqueue-node = <2>;
 		rockchip,ccu = <&jpege_ccu>;
 		power-domains = <&power RK3588_PD_VDPU>;
 		status = "disabled";
@@ -3138,7 +3138,7 @@
 		rockchip,skip-pmu-idle-request;
 		iommus = <&jpege2_mmu>;
 		rockchip,srv = <&mpp_srv>;
-		rockchip,taskqueue-node = <4>;
+		rockchip,taskqueue-node = <2>;
 		rockchip,ccu = <&jpege_ccu>;
 		power-domains = <&power RK3588_PD_VDPU>;
 		status = "disabled";
@@ -3171,7 +3171,7 @@
 		rockchip,skip-pmu-idle-request;
 		iommus = <&jpege3_mmu>;
 		rockchip,srv = <&mpp_srv>;
-		rockchip,taskqueue-node = <5>;
+		rockchip,taskqueue-node = <2>;
 		rockchip,ccu = <&jpege_ccu>;
 		power-domains = <&power RK3588_PD_VDPU>;
 		status = "disabled";
