@@ -553,8 +553,8 @@ struct bdb_psr {
 struct bdb_driver_features {
 	/* Driver bits */
 	u8 boot_dev_algorithm:1;
-	u8 block_display_switch:1;
-	u8 allow_display_switch:1;
+	u8 allow_display_switch_dvd:1;
+	u8 allow_display_switch_dos:1;
 	u8 hotplug_dvo:1;
 	u8 dual_view_zoom:1;
 	u8 int15h_hook:1;
