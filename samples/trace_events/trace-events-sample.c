@@ -19,9 +19,10 @@ static const char *random_strings[] = {
 	"One ring to rule them all"
 };
 
-static void simple_thread_func(int cnt)
+static void do_simple_thread_func(int cnt, const char *fmt, ...)
 {
 	unsigned long bitmask[1] = {0xdeadbeefUL};
+	va_list va;
 	int array[6];
 	int len = cnt % 5;
 	int i;
@@ -33,9 +34,13 @@ static void simple_thread_func(int cnt)
 		array[i] = i + 1;
 	array[i] = 0;
 
+	va_start(va, fmt);
+
 	/* Silly tracepoints */
 	trace_foo_bar("hello", cnt, array, random_strings[len],
-		      current->cpus_ptr);
+		      current->cpus_ptr, fmt, &va);
+
+	va_end(va);
 
 	trace_foo_with_template_simple("HELLO", cnt);
 
@@ -46,6 +51,11 @@ static void simple_thread_func(int cnt)
 	trace_foo_with_template_print("I have to be different", cnt);
 
 	trace_foo_rel_loc("Hello __rel_loc", cnt, bitmask);
+}
+
+static void simple_thread_func(int cnt)
+{
+	do_simple_thread_func(cnt, "iter=%d", cnt);
 }
 
 static int simple_thread(void *arg)
