@@ -239,7 +239,13 @@ static int jh7110_clk_pll_determine_rate(struct clk_hw *hw,
 	if (ret)
 		return ret;
 
-	req->rate = jh7110_pll0_syscon_freq[data->freq_select_idx].freq;
+	if (data->idx == PLL0_INDEX)
+		req->rate = jh7110_pll0_syscon_freq[data->freq_select_idx].freq;
+	else if (data->idx == PLL1_INDEX)
+		req->rate = jh7110_pll1_syscon_freq[data->freq_select_idx].freq;
+	else
+		req->rate = jh7110_pll2_syscon_freq[data->freq_select_idx].freq;
+
 	return 0;
 }
 
@@ -249,19 +255,8 @@ static int jh7110_clk_pll_set_rate(struct clk_hw *hw,
 {
 	struct jh7110_clk_pll_data *data = jh7110_pll_data_from(hw);
 
-	if (parent_rate != data->refclk_freq) {
-		dev_err(data->dev, "pll%d parent rate is err.\n", data->idx);
-		goto rate_err;
-	}
-	if (rate != jh7110_pll0_syscon_freq[data->freq_select_idx].freq) {
-		dev_err(data->dev, "pll%d rate is err.\n", data->idx);
-		goto rate_err;
-	}
-
 	return pll_set_freq_syscon(data);
 
-rate_err:
-	return -EINVAL;
 }
 
 #ifdef CONFIG_DEBUG_FS
@@ -422,6 +417,11 @@ int __init clk_starfive_jh7110_pll_init(struct platform_device *pdev,
 			.num_parents = 1,
 			.flags = 0,
 		};
+
+		/* pll1 use default freq and does not be changed */
+		if (idx == PLL1_INDEX)
+			continue;
+
 		data = &pll_priv[idx];
 		data->dev = &pdev->dev;
 		data->sys_syscon_regmap = pll_syscon_regmap;
@@ -439,7 +439,8 @@ int __init clk_starfive_jh7110_pll_init(struct platform_device *pdev,
 			return ret;
 	}
 
-	dev_info(&pdev->dev, "%d pll clock be set done\n", PLL_INDEX_MAX);
+	dev_info(&pdev->dev, "PLL0 and PLL2 clock be set done\n");
+
 	return 0;
 
 pll_init_failed:

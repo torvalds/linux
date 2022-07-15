@@ -8,17 +8,13 @@
 #ifndef _CLK_STARFIVE_JH7110_PLL_H_
 #define _CLK_STARFIVE_JH7110_PLL_H_
 
-#define OSC_DEFAULT_FREQ	24000000
+#define PLL2_DEFAULT_FREQ	PLL2_FREQ_1188_VALUE
+
 #define PLL0_INDEX		0
-#define PLL0_DEFAULT_FREQ	1250000000
 #define PLL1_INDEX		1
-#define PLL1_DEFAULT_FREQ	1066000000
 #define PLL2_INDEX		2
-#define PLL2_DEFAULT_FREQ	1228800000
-/* If only pll0, PLL_INDEX_MAX should be 1.
- * If want to control pll1 and pll2 ,then should be 3.
- */
-#define PLL_INDEX_MAX	1
+
+#define PLL_INDEX_MAX	3
 
 #define PLL0_DACPD_SHIFT	24
 #define PLL0_DACPD_MASK		0x1000000
@@ -152,11 +148,13 @@ enum starfive_pll1_freq {
 };
 
 enum starfive_pll2_freq_value {
+	PLL2_FREQ_1188_VALUE = 1188000000,
 	PLL2_FREQ_12288_VALUE = 1228800000,
 };
 
 enum starfive_pll2_freq {
-	PLL2_FREQ_12288 = 0,
+	PLL2_FREQ_1188 = 0,
+	PLL2_FREQ_12288,
 };
 
 static const struct starfive_pll_syscon_value
@@ -265,6 +263,14 @@ static const struct starfive_pll_syscon_value
 
 static const struct starfive_pll_syscon_value
 	jh7110_pll2_syscon_freq[] = {
+	[PLL2_FREQ_1188] = {
+		.freq = PLL2_FREQ_1188_VALUE,
+		.prediv = 2,
+		.fbdiv = 99,
+		.postdiv1 = 1,
+		.dacpd = 1,
+		.dsmpd = 1,
+	},
 	[PLL2_FREQ_12288] = {
 		.freq = PLL2_FREQ_12288_VALUE,
 		.prediv = 5,

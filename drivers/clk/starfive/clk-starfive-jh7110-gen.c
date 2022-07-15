@@ -320,7 +320,8 @@ const struct clk_ops *starfive_jh7110_clk_ops(u32 max)
 }
 EXPORT_SYMBOL_GPL(starfive_jh7110_clk_ops);
 
-static struct clk_hw *jh7110_clk_get(struct of_phandle_args *clkspec, void *data)
+static struct clk_hw *jh7110_clk_get(struct of_phandle_args *clkspec,
+						void *data)
 {
 	struct jh7110_clk_priv *priv = data;
 	unsigned int idx = clkspec->args[0];
@@ -330,7 +331,7 @@ static struct clk_hw *jh7110_clk_get(struct of_phandle_args *clkspec, void *data
 
 	if (idx < JH7110_CLK_END) {
 #ifdef CONFIG_CLK_STARFIVE_JH7110_PLL
-		if (idx <= JH7110_PLL2_OUT)
+		if ((idx == JH7110_PLL0_OUT) || (idx == JH7110_PLL2_OUT))
 			return &priv->pll_priv[PLL_OF(idx)].hw;
 #endif
 		return priv->pll[PLL_OF(idx)];
