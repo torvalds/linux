@@ -215,7 +215,7 @@ static struct spi_driver ksz_spi_driver = {
 	.driver = {
 		.name	= "ksz-switch",
 		.owner	= THIS_MODULE,
-		.of_match_table = of_match_ptr(ksz_dt_ids),
+		.of_match_table = ksz_dt_ids,
 	},
 	.id_table = ksz_spi_ids,
 	.probe	= ksz_spi_probe,
