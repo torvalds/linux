@@ -582,7 +582,7 @@ unsigned int OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 			pmlmeinfo->assoc_AP_vendor = check_assoc_AP(pframe + sizeof(struct ieee80211_hdr_3addr), len - sizeof(struct ieee80211_hdr_3addr));
 
 			/* update TSF Value */
-			update_TSF(pmlmeext, pframe, len);
+			update_TSF(pmlmeext, pframe);
 
 			/* start auth */
 			start_clnt_auth(padapter);
@@ -625,7 +625,7 @@ unsigned int OnBeacon(struct adapter *padapter, struct recv_frame *precv_frame)
 				}
 
 				/* update TSF Value */
-				update_TSF(pmlmeext, pframe, len);
+				update_TSF(pmlmeext, pframe);
 
 				/* report sta add event */
 				report_add_sta_event(padapter, GetAddr2Ptr(pframe), cam_idx);
