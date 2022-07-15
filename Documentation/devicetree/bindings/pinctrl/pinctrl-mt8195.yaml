@@ -281,7 +281,7 @@ examples:
           pinmux = <PINMUX_GPIO8__FUNC_SDA0>,
                    <PINMUX_GPIO9__FUNC_SCL0>;
           bias-disable;
-          mediatek,drive-strength-adv = <7>;
+          drive-strength-microamp = <1000>;
         };
       };
     };
