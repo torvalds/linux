@@ -574,7 +574,7 @@ static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 		data_size = sizeof(struct sof_ipc4_notify_resource_data);
 		break;
 	default:
-		dev_dbg(sdev->dev, "%s: Unhandled DSP message: %#x|%#x\n", __func__,
+		dev_dbg(sdev->dev, "Unhandled DSP message: %#x|%#x\n",
 			ipc4_msg->primary, ipc4_msg->extension);
 		break;
 	}
@@ -597,10 +597,53 @@ static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 	}
 }
 
+static int sof_ipc4_set_core_state(struct snd_sof_dev *sdev, int core_idx, bool on)
+{
+	struct sof_ipc4_dx_state_info dx_state;
+	struct sof_ipc4_msg msg;
+
+	dx_state.core_mask = BIT(core_idx);
+	if (on)
+		dx_state.dx_mask = BIT(core_idx);
+	else
+		dx_state.dx_mask = 0;
+
+	msg.primary = SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_MOD_SET_DX);
+	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+	msg.extension = 0;
+	msg.data_ptr = &dx_state;
+	msg.data_size = sizeof(dx_state);
+
+	return sof_ipc4_tx_msg(sdev, &msg, msg.data_size, NULL, 0, false);
+}
+
+/*
+ * The context save callback is used to send a message to the firmware notifying
+ * it that the primary core is going to be turned off, which is used as an
+ * indication to prepare for a full power down, thus preparing for IMR boot
+ * (when supported)
+ *
+ * Note: in IPC4 there is no message used to restore context, thus no context
+ * restore callback is implemented
+ */
+static int sof_ipc4_ctx_save(struct snd_sof_dev *sdev)
+{
+	return sof_ipc4_set_core_state(sdev, SOF_DSP_PRIMARY_CORE, false);
+}
+
+static const struct sof_ipc_pm_ops ipc4_pm_ops = {
+	.ctx_save = sof_ipc4_ctx_save,
+	.set_core_state = sof_ipc4_set_core_state,
+};
+
 const struct sof_ipc_ops ipc4_ops = {
 	.tx_msg = sof_ipc4_tx_msg,
 	.rx_msg = sof_ipc4_rx_msg,
 	.set_get_data = sof_ipc4_set_get_data,
 	.get_reply = sof_ipc4_get_reply,
+	.pm = &ipc4_pm_ops,
 	.fw_loader = &ipc4_loader_ops,
+	.tplg = &ipc4_tplg_ops,
+	.pcm = &ipc4_pcm_ops,
 };

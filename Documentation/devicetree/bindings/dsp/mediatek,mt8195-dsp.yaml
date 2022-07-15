@@ -50,13 +50,13 @@ properties:
 
   mboxes:
     items:
-      - description: ipc reply between host and audio DSP.
-      - description: ipc request between host and audio DSP.
+      - description: mailbox for receiving audio DSP requests.
+      - description: mailbox for transmitting requests to audio DSP.
 
   mbox-names:
     items:
-      - const: mbox0
-      - const: mbox1
+      - const: rx
+      - const: tx
 
   memory-region:
     items:
@@ -100,6 +100,6 @@ examples:
        memory-region = <&adsp_dma_mem_reserved>,
                        <&adsp_mem_reserved>;
        power-domains = <&spm 6>; //MT8195_POWER_DOMAIN_ADSP
-       mbox-names = "mbox0", "mbox1";
+       mbox-names = "rx", "tx";
        mboxes = <&adsp_mailbox0>, <&adsp_mailbox1>;
     };

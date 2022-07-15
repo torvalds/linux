@@ -1033,8 +1033,8 @@ static int aic31xx_clock_master_routes(struct snd_soc_component *component,
 	struct aic31xx_priv *aic31xx = snd_soc_component_get_drvdata(component);
 	int ret;
 
-	fmt &= SND_SOC_DAIFMT_MASTER_MASK;
-	if (fmt == SND_SOC_DAIFMT_CBS_CFS &&
+	fmt &= SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
+	if (fmt == SND_SOC_DAIFMT_CBC_CFC &&
 	    aic31xx->master_dapm_route_applied) {
 		/*
 		 * Remove the DAPM route(s) for codec clock master modes,
@@ -1051,7 +1051,7 @@ static int aic31xx_clock_master_routes(struct snd_soc_component *component,
 			return ret;
 
 		aic31xx->master_dapm_route_applied = false;
-	} else if (fmt != SND_SOC_DAIFMT_CBS_CFS &&
+	} else if (fmt != SND_SOC_DAIFMT_CBC_CFC &&
 		   !aic31xx->master_dapm_route_applied) {
 		/*
 		 * Add the needed DAPM route(s) for codec clock master modes,
@@ -1083,21 +1083,20 @@ static int aic31xx_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	dev_dbg(component->dev, "## %s: fmt = 0x%x\n", __func__, fmt);
 
-	/* set master/slave audio interface */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		iface_reg1 |= AIC31XX_BCLK_MASTER | AIC31XX_WCLK_MASTER;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFM:
+	case SND_SOC_DAIFMT_CBC_CFP:
 		iface_reg1 |= AIC31XX_WCLK_MASTER;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFS:
+	case SND_SOC_DAIFMT_CBP_CFC:
 		iface_reg1 |= AIC31XX_BCLK_MASTER;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
-		dev_err(component->dev, "Invalid DAI master/slave interface\n");
+		dev_err(component->dev, "Invalid DAI clock provider\n");
 		return -EINVAL;
 	}
 
@@ -1418,7 +1417,6 @@ static const struct snd_soc_component_driver soc_codec_driver_aic31xx = {
 	.idle_bias_on		= 1,
 	.use_pmdown_time	= 1,
 	.endianness		= 1,
-	.non_legacy_dai_naming	= 1,
 };
 
 static const struct snd_soc_dai_ops aic31xx_dai_ops = {

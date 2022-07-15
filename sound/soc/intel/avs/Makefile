@@ -10,3 +10,6 @@ snd-soc-avs-objs += trace.o
 CFLAGS_trace.o := -I$(src)
 
 obj-$(CONFIG_SND_SOC_INTEL_AVS) += snd-soc-avs.o
+
+# Machine support
+obj-$(CONFIG_SND_SOC) += boards/

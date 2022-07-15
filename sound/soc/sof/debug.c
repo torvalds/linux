@@ -428,7 +428,7 @@ static void snd_sof_ipc_dump(struct snd_sof_dev *sdev)
 	}
 }
 
-void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
+void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev, const char *msg)
 {
 	if (IS_ENABLED(CONFIG_SND_SOC_SOF_DEBUG_RETAIN_DSP_CONTEXT) ||
 	    sof_debug_check_flag(SOF_DBG_RETAIN_CTX)) {
@@ -441,8 +441,7 @@ void snd_sof_handle_fw_exception(struct snd_sof_dev *sdev)
 
 	/* dump vital information to the logs */
 	snd_sof_ipc_dump(sdev);
-	snd_sof_dsp_dbg_dump(sdev, "Firmware exception",
-			     SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
+	snd_sof_dsp_dbg_dump(sdev, msg, SOF_DBG_DUMP_REGS | SOF_DBG_DUMP_MBOX);
 	sof_fw_trace_fw_crashed(sdev);
 }
 EXPORT_SYMBOL(snd_sof_handle_fw_exception);

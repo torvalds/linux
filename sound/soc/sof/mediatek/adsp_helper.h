@@ -20,6 +20,7 @@ struct mtk_adsp_chip_info {
 	u32 sramsize;
 	u32 dramsize;
 	u32 cfgregsize;
+	u32 shared_size;
 	void __iomem *va_sram; /* corresponding to pa_sram */
 	void __iomem *va_dram; /* corresponding to pa_dram */
 	void __iomem *va_cfgreg;

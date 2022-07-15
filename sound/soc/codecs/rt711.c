@@ -935,9 +935,14 @@ static int rt711_parse_dt(struct rt711_priv *rt711, struct device *dev)
 static int rt711_probe(struct snd_soc_component *component)
 {
 	struct rt711_priv *rt711 = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	rt711_parse_dt(rt711, &rt711->slave->dev);
 	rt711->component = component;
+
+	ret = pm_runtime_resume(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
 
 	return 0;
 }

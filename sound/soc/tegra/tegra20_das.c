@@ -13,72 +13,110 @@
 #include <linux/regmap.h>
 #include <linux/slab.h>
 #include <sound/soc.h>
-#include "tegra20_das.h"
 
 #define DRV_NAME "tegra20-das"
 
-static struct tegra20_das *das;
+/* Register TEGRA20_DAS_DAP_CTRL_SEL */
+#define TEGRA20_DAS_DAP_CTRL_SEL			0x00
+#define TEGRA20_DAS_DAP_CTRL_SEL_COUNT			5
+#define TEGRA20_DAS_DAP_CTRL_SEL_STRIDE			4
+#define TEGRA20_DAS_DAP_CTRL_SEL_DAP_MS_SEL_P		31
+#define TEGRA20_DAS_DAP_CTRL_SEL_DAP_MS_SEL_S		1
+#define TEGRA20_DAS_DAP_CTRL_SEL_DAP_SDATA1_TX_RX_P	30
+#define TEGRA20_DAS_DAP_CTRL_SEL_DAP_SDATA1_TX_RX_S	1
+#define TEGRA20_DAS_DAP_CTRL_SEL_DAP_SDATA2_TX_RX_P	29
+#define TEGRA20_DAS_DAP_CTRL_SEL_DAP_SDATA2_TX_RX_S	1
+#define TEGRA20_DAS_DAP_CTRL_SEL_DAP_CTRL_SEL_P		0
+#define TEGRA20_DAS_DAP_CTRL_SEL_DAP_CTRL_SEL_S		5
 
-static inline void tegra20_das_write(u32 reg, u32 val)
+/* Values for field TEGRA20_DAS_DAP_CTRL_SEL_DAP_CTRL_SEL */
+#define TEGRA20_DAS_DAP_SEL_DAC1	0
+#define TEGRA20_DAS_DAP_SEL_DAC2	1
+#define TEGRA20_DAS_DAP_SEL_DAC3	2
+#define TEGRA20_DAS_DAP_SEL_DAP1	16
+#define TEGRA20_DAS_DAP_SEL_DAP2	17
+#define TEGRA20_DAS_DAP_SEL_DAP3	18
+#define TEGRA20_DAS_DAP_SEL_DAP4	19
+#define TEGRA20_DAS_DAP_SEL_DAP5	20
+
+/* Register TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL */
+#define TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL			0x40
+#define TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_COUNT		3
+#define TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_STRIDE		4
+#define TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA2_SEL_P	28
+#define TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA2_SEL_S	4
+#define TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA1_SEL_P	24
+#define TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA1_SEL_S	4
+#define TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_CLK_SEL_P	0
+#define TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_CLK_SEL_S	4
+
+/*
+ * Values for:
+ * TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA2_SEL
+ * TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA1_SEL
+ * TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_CLK_SEL
+ */
+#define TEGRA20_DAS_DAC_SEL_DAP1	0
+#define TEGRA20_DAS_DAC_SEL_DAP2	1
+#define TEGRA20_DAS_DAC_SEL_DAP3	2
+#define TEGRA20_DAS_DAC_SEL_DAP4	3
+#define TEGRA20_DAS_DAC_SEL_DAP5	4
+
+/*
+ * Names/IDs of the DACs/DAPs.
+ */
+
+#define TEGRA20_DAS_DAP_ID_1 0
+#define TEGRA20_DAS_DAP_ID_2 1
+#define TEGRA20_DAS_DAP_ID_3 2
+#define TEGRA20_DAS_DAP_ID_4 3
+#define TEGRA20_DAS_DAP_ID_5 4
+
+#define TEGRA20_DAS_DAC_ID_1 0
+#define TEGRA20_DAS_DAC_ID_2 1
+#define TEGRA20_DAS_DAC_ID_3 2
+
+struct tegra20_das {
+	struct regmap *regmap;
+};
+
+/*
+ * Terminology:
+ * DAS: Digital audio switch (HW module controlled by this driver)
+ * DAP: Digital audio port (port/pins on Tegra device)
+ * DAC: Digital audio controller (e.g. I2S or AC97 controller elsewhere)
+ *
+ * The Tegra DAS is a mux/cross-bar which can connect each DAP to a specific
+ * DAC, or another DAP. When DAPs are connected, one must be the master and
+ * one the slave. Each DAC allows selection of a specific DAP for input, to
+ * cater for the case where N DAPs are connected to 1 DAC for broadcast
+ * output.
+ *
+ * This driver is dumb; no attempt is made to ensure that a valid routing
+ * configuration is programmed.
+ */
+
+static inline void tegra20_das_write(struct tegra20_das *das, u32 reg, u32 val)
 {
 	regmap_write(das->regmap, reg, val);
 }
 
-static inline u32 tegra20_das_read(u32 reg)
-{
-	u32 val;
-
-	regmap_read(das->regmap, reg, &val);
-	return val;
-}
-
-int tegra20_das_connect_dap_to_dac(int dap, int dac)
+static void tegra20_das_connect_dap_to_dac(struct tegra20_das *das, int dap, int dac)
 {
 	u32 addr;
 	u32 reg;
-
-	if (!das)
-		return -ENODEV;
 
 	addr = TEGRA20_DAS_DAP_CTRL_SEL +
 		(dap * TEGRA20_DAS_DAP_CTRL_SEL_STRIDE);
 	reg = dac << TEGRA20_DAS_DAP_CTRL_SEL_DAP_CTRL_SEL_P;
 
-	tegra20_das_write(addr, reg);
-
-	return 0;
+	tegra20_das_write(das, addr, reg);
 }
-EXPORT_SYMBOL_GPL(tegra20_das_connect_dap_to_dac);
 
-int tegra20_das_connect_dap_to_dap(int dap, int otherdap, int master,
-				   int sdata1rx, int sdata2rx)
+static void tegra20_das_connect_dac_to_dap(struct tegra20_das *das, int dac, int dap)
 {
 	u32 addr;
 	u32 reg;
-
-	if (!das)
-		return -ENODEV;
-
-	addr = TEGRA20_DAS_DAP_CTRL_SEL +
-		(dap * TEGRA20_DAS_DAP_CTRL_SEL_STRIDE);
-	reg = (otherdap << TEGRA20_DAS_DAP_CTRL_SEL_DAP_CTRL_SEL_P) |
-		(!!sdata2rx << TEGRA20_DAS_DAP_CTRL_SEL_DAP_SDATA2_TX_RX_P) |
-		(!!sdata1rx << TEGRA20_DAS_DAP_CTRL_SEL_DAP_SDATA1_TX_RX_P) |
-		(!!master << TEGRA20_DAS_DAP_CTRL_SEL_DAP_MS_SEL_P);
-
-	tegra20_das_write(addr, reg);
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(tegra20_das_connect_dap_to_dap);
-
-int tegra20_das_connect_dac_to_dap(int dac, int dap)
-{
-	u32 addr;
-	u32 reg;
-
-	if (!das)
-		return -ENODEV;
 
 	addr = TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL +
 		(dac * TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_STRIDE);
@@ -86,11 +124,8 @@ int tegra20_das_connect_dac_to_dap(int dac, int dap)
 		dap << TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA1_SEL_P |
 		dap << TEGRA20_DAS_DAC_INPUT_DATA_CLK_SEL_DAC_SDATA2_SEL_P;
 
-	tegra20_das_write(addr, reg);
-
-	return 0;
+	tegra20_das_write(das, addr, reg);
 }
-EXPORT_SYMBOL_GPL(tegra20_das_connect_dac_to_dap);
 
 #define LAST_REG(name) \
 	(TEGRA20_DAS_##name + \
@@ -120,73 +155,31 @@ static const struct regmap_config tegra20_das_regmap_config = {
 static int tegra20_das_probe(struct platform_device *pdev)
 {
 	void __iomem *regs;
-	int ret = 0;
-
-	if (das)
-		return -ENODEV;
+	struct tegra20_das *das;
 
 	das = devm_kzalloc(&pdev->dev, sizeof(struct tegra20_das), GFP_KERNEL);
-	if (!das) {
-		ret = -ENOMEM;
-		goto err;
-	}
-	das->dev = &pdev->dev;
+	if (!das)
+		return -ENOMEM;
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(regs)) {
-		ret = PTR_ERR(regs);
-		goto err;
-	}
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
 
 	das->regmap = devm_regmap_init_mmio(&pdev->dev, regs,
 					    &tegra20_das_regmap_config);
 	if (IS_ERR(das->regmap)) {
 		dev_err(&pdev->dev, "regmap init failed\n");
-		ret = PTR_ERR(das->regmap);
-		goto err;
+		return PTR_ERR(das->regmap);
 	}
 
-	ret = tegra20_das_connect_dap_to_dac(TEGRA20_DAS_DAP_ID_1,
-					     TEGRA20_DAS_DAP_SEL_DAC1);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't set up DAS DAP connection\n");
-		goto err;
-	}
-	ret = tegra20_das_connect_dac_to_dap(TEGRA20_DAS_DAC_ID_1,
-					     TEGRA20_DAS_DAC_SEL_DAP1);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't set up DAS DAC connection\n");
-		goto err;
-	}
-
-	ret = tegra20_das_connect_dap_to_dac(TEGRA20_DAS_DAP_ID_3,
-					     TEGRA20_DAS_DAP_SEL_DAC3);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't set up DAS DAP connection\n");
-		goto err;
-	}
-	ret = tegra20_das_connect_dac_to_dap(TEGRA20_DAS_DAC_ID_3,
-					     TEGRA20_DAS_DAC_SEL_DAP3);
-	if (ret) {
-		dev_err(&pdev->dev, "Can't set up DAS DAC connection\n");
-		goto err;
-	}
-
-	platform_set_drvdata(pdev, das);
-
-	return 0;
-
-err:
-	das = NULL;
-	return ret;
-}
-
-static int tegra20_das_remove(struct platform_device *pdev)
-{
-	if (!das)
-		return -ENODEV;
-
-	das = NULL;
+	tegra20_das_connect_dap_to_dac(das, TEGRA20_DAS_DAP_ID_1,
+				       TEGRA20_DAS_DAP_SEL_DAC1);
+	tegra20_das_connect_dac_to_dap(das, TEGRA20_DAS_DAC_ID_1,
+				       TEGRA20_DAS_DAC_SEL_DAP1);
+	tegra20_das_connect_dap_to_dac(das, TEGRA20_DAS_DAP_ID_3,
+				       TEGRA20_DAS_DAP_SEL_DAC3);
+	tegra20_das_connect_dac_to_dap(das, TEGRA20_DAS_DAC_ID_3,
+				       TEGRA20_DAS_DAC_SEL_DAP3);
 
 	return 0;
 }
@@ -198,7 +191,6 @@ static const struct of_device_id tegra20_das_of_match[] = {
 
 static struct platform_driver tegra20_das_driver = {
 	.probe = tegra20_das_probe,
-	.remove = tegra20_das_remove,
 	.driver = {
 		.name = DRV_NAME,
 		.of_match_table = tegra20_das_of_match,

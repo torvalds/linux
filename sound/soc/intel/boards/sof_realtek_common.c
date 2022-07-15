@@ -463,26 +463,26 @@ EXPORT_SYMBOL_NS(sof_rt1308_dai_link, SND_SOC_INTEL_SOF_REALTEK_COMMON);
  * 2-amp Configuration for RT1019
  */
 
-static const struct snd_soc_dapm_route rt1019_dapm_routes[] = {
+static const struct snd_soc_dapm_route rt1019p_dapm_routes[] = {
 	/* speaker */
 	{ "Left Spk", NULL, "Speaker" },
 	{ "Right Spk", NULL, "Speaker" },
 };
 
-static struct snd_soc_dai_link_component rt1019_components[] = {
+static struct snd_soc_dai_link_component rt1019p_components[] = {
 	{
-		.name = RT1019_DEV0_NAME,
-		.dai_name = RT1019_CODEC_DAI,
+		.name = RT1019P_DEV0_NAME,
+		.dai_name = RT1019P_CODEC_DAI,
 	},
 };
 
-static int rt1019_init(struct snd_soc_pcm_runtime *rtd)
+static int rt1019p_init(struct snd_soc_pcm_runtime *rtd)
 {
 	struct snd_soc_card *card = rtd->card;
 	int ret;
 
-	ret = snd_soc_dapm_add_routes(&card->dapm, rt1019_dapm_routes,
-				      ARRAY_SIZE(rt1019_dapm_routes));
+	ret = snd_soc_dapm_add_routes(&card->dapm, rt1019p_dapm_routes,
+				      ARRAY_SIZE(rt1019p_dapm_routes));
 	if (ret) {
 		dev_err(rtd->dev, "Speaker map addition failed: %d\n", ret);
 		return ret;
@@ -490,13 +490,13 @@ static int rt1019_init(struct snd_soc_pcm_runtime *rtd)
 	return ret;
 }
 
-void sof_rt1019_dai_link(struct snd_soc_dai_link *link)
+void sof_rt1019p_dai_link(struct snd_soc_dai_link *link)
 {
-	link->codecs = rt1019_components;
-	link->num_codecs = ARRAY_SIZE(rt1019_components);
-	link->init = rt1019_init;
+	link->codecs = rt1019p_components;
+	link->num_codecs = ARRAY_SIZE(rt1019p_components);
+	link->init = rt1019p_init;
 }
-EXPORT_SYMBOL_NS(sof_rt1019_dai_link, SND_SOC_INTEL_SOF_REALTEK_COMMON);
+EXPORT_SYMBOL_NS(sof_rt1019p_dai_link, SND_SOC_INTEL_SOF_REALTEK_COMMON);
 
 MODULE_DESCRIPTION("ASoC Intel SOF Realtek helpers");
 MODULE_LICENSE("GPL");

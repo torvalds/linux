@@ -17,6 +17,23 @@
  *	CONFIG_SND_AUDIO_GRAPH_CARD2
  *	CONFIG_SND_AUDIO_GRAPH_CARD2_CUSTOM_SAMPLE
  *	CONFIG_SND_TEST_COMPONENT
+ *
+ *
+ * You can indicate more detail each device behavior as debug if you modify
+ * "compatible" on each test-component. see below
+ *
+ *	test_cpu {
+ *	-	compatible = "test-cpu";
+ *	+	compatible = "test-cpu-verbose";
+ *		...
+ *	};
+ *
+ *	test_codec {
+ *	-	compatible = "test-codec";
+ *	+	compatible = "test-codec-verbose";
+ *		...
+ *	};
+ *
  */
 / {
 	/*
@@ -101,35 +118,74 @@
 			  "TC OUT",		"TC DAI11 Playback",
 			  "TC DAI9 Capture",	"TC IN";
 
-		links = <&cpu0			/* normal: cpu side only */
-			 &mcpu0			/* multi:  cpu side only */
-			 &fe00 &fe01 &be0	/* dpcm:   both FE / BE  */
-			 &fe10 &fe11 &be1	/* dpcm-m: both FE / BE  */
-			 &c2c			/* c2c:    cpu side only */
-			 &c2c_m			/* c2c:    cpu side only */
+		links = <
+			/*
+			 * [Normal]: cpu side only
+			 * cpu0/codec0
+			 */
+			 &cpu0
+
+			/*
+			 * [Multi-CPU/Codec]: cpu side only
+			 * cpu1/cpu2/codec1/codec2
+			 */
+			 &mcpu0
+
+			/*
+			 * [DPCM]: both FE / BE
+			 * cpu3/cpu4/codec3
+			 */
+			 &fe00 &fe01 &be0
+
+			/*
+			 * [DPCM-Multi]: both FE / BE
+			 * cpu5/cpu6/codec4/codec5
+			 */
+			 &fe10 &fe11 &be1
+
+			/*
+			 * [Codec2Codec]: cpu side only
+			 * codec6/codec7
+			 */
+			 &c2c
+
+			/*
+			 * [Codec2Codec-Multi]: cpu side only
+			 * codec8/codec9/codec10/codec11
+			 */
+			 &c2c_m
 		>;
 
 		multi {
 			ports@0 {
+			/* [Multi-CPU] */
 			mcpu0:	port@0 { mcpu0_ep: endpoint { remote-endpoint = <&mcodec0_ep>; }; };
 				port@1 { mcpu1_ep: endpoint { remote-endpoint = <&cpu1_ep>;    }; };
 				port@2 { mcpu2_ep: endpoint { remote-endpoint = <&cpu2_ep>;    }; };
 			};
+
+			/* [Multi-Codec] */
 			ports@1 {
 				port@0 { mcodec0_ep: endpoint { remote-endpoint = <&mcpu0_ep>;  }; };
 				port@1 { mcodec1_ep: endpoint { remote-endpoint = <&codec1_ep>; }; };
 				port@2 { mcodec2_ep: endpoint { remote-endpoint = <&codec2_ep>; }; };
 			};
+
+			/* [DPCM-Multi]::BE */
 			ports@2 {
 				port@0 { mbe_ep:  endpoint { remote-endpoint = <&be10_ep>;  }; };
 				port@1 { mbe1_ep: endpoint { remote-endpoint = <&codec4_ep>; }; };
 				port@2 { mbe2_ep: endpoint { remote-endpoint = <&codec5_ep>; }; };
 			};
+
+			/* [Codec2Codec-Multi]::CPU */
 			ports@3 {
 				port@0 { mc2c0_ep:  endpoint { remote-endpoint = <&c2cmf_ep>;  }; };
 				port@1 { mc2c00_ep: endpoint { remote-endpoint = <&codec8_ep>; }; };
 				port@2 { mc2c01_ep: endpoint { remote-endpoint = <&codec9_ep>; }; };
 			};
+
+			/* [Codec2Codec-Multi]::Codec */
 			ports@4 {
 				port@0 { mc2c1_ep:  endpoint { remote-endpoint = <&c2cmb_ep>;  }; };
 				port@1 { mc2c10_ep: endpoint { remote-endpoint = <&codec10_ep>; }; };
@@ -138,27 +194,36 @@
 		};
 
 		dpcm {
-			/* FE */
 			ports@0 {
+			/* [DPCM]::FE */
 			fe00:	port@0 { fe00_ep: endpoint { remote-endpoint = <&cpu3_ep>; }; };
 			fe01:	port@1 { fe01_ep: endpoint { remote-endpoint = <&cpu4_ep>; }; };
+
+			/* [DPCM-Multi]::FE */
 			fe10:	port@2 { fe10_ep: endpoint { remote-endpoint = <&cpu5_ep>; }; };
 			fe11:	port@3 { fe11_ep: endpoint { remote-endpoint = <&cpu6_ep>; }; };
 			};
-			/* BE */
+
 			ports@1 {
+			/* [DPCM]::BE */
 			be0:	port@0 { be00_ep: endpoint { remote-endpoint = <&codec3_ep>; }; };
+
+			/* [DPCM-Multi]::BE */
 			be1:	port@1 { be10_ep: endpoint { remote-endpoint = <&mbe_ep>; }; };
 			};
 		};
 
 		codec2codec {
+			/* [Codec2Codec] */
 			ports@0 {
-				rate = <48000>;
+				/* use default settings */
 			c2c:	port@0 { c2cf_ep: endpoint { remote-endpoint = <&codec6_ep>; }; };
 				port@1 { c2cb_ep: endpoint { remote-endpoint = <&codec7_ep>; }; };
 			};
+
+			/* [Codec2Codec-Multi] */
 			ports@1 {
+				/* use original settings */
 				rate = <48000>;
 			c2c_m:	port@0 { c2cmf_ep: endpoint { remote-endpoint = <&mc2c0_ep>; }; };
 				port@1 { c2cmb_ep: endpoint { remote-endpoint = <&mc2c1_ep>; }; };
@@ -179,11 +244,18 @@
 		ports {
 			bitclock-master;
 			frame-master;
+			/* [Normal] */
 			cpu0: port@0 { cpu0_ep: endpoint { remote-endpoint = <&codec0_ep>; }; };
+
+			/* [Multi-CPU] */
 			      port@1 { cpu1_ep: endpoint { remote-endpoint = <&mcpu1_ep>; }; };
 			      port@2 { cpu2_ep: endpoint { remote-endpoint = <&mcpu2_ep>; }; };
+
+			/* [DPCM]::FE */
 			      port@3 { cpu3_ep: endpoint { remote-endpoint = <&fe00_ep>; }; };
 			      port@4 { cpu4_ep: endpoint { remote-endpoint = <&fe01_ep>; }; };
+
+			/* [DPCM-Multi]::FE */
 			      port@5 { cpu5_ep: endpoint { remote-endpoint = <&fe10_ep>; }; };
 			      port@6 { cpu6_ep: endpoint { remote-endpoint = <&fe11_ep>; }; };
 		};
@@ -206,16 +278,27 @@
 			 */
 			prefix = "TC";
 
+			/* [Normal] */
 			port@0  { codec0_ep:  endpoint { remote-endpoint = <&cpu0_ep>; }; };
+
+			/* [Multi-Codec] */
 			port@1  { codec1_ep:  endpoint { remote-endpoint = <&mcodec1_ep>; }; };
 			port@2  { codec2_ep:  endpoint { remote-endpoint = <&mcodec2_ep>; }; };
+
+			/* [DPCM]::BE */
 			port@3  { codec3_ep:  endpoint { remote-endpoint = <&be00_ep>; }; };
+
+			/* [DPCM-Multi]::BE */
 			port@4  { codec4_ep:  endpoint { remote-endpoint = <&mbe1_ep>; }; };
 			port@5  { codec5_ep:  endpoint { remote-endpoint = <&mbe2_ep>; }; };
+
+			/* [Codec2Codec] */
 			port@6  { bitclock-master;
 				  frame-master;
 				  codec6_ep:  endpoint { remote-endpoint = <&c2cf_ep>; }; };
 			port@7  { codec7_ep:  endpoint { remote-endpoint = <&c2cb_ep>; }; };
+
+			/* [Codec2Codec-Multi] */
 			port@8  { bitclock-master;
 				  frame-master;
 				  codec8_ep:  endpoint { remote-endpoint = <&mc2c00_ep>; }; };
