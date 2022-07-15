@@ -63,7 +63,7 @@ struct save_area * __init save_area_alloc(bool is_boot_cpu)
 
 	sa = memblock_alloc(sizeof(*sa), 8);
 	if (!sa)
-		panic("Failed to allocate save area\n");
+		return NULL;
 
 	if (is_boot_cpu)
 		list_add(&sa->list, &dump_save_areas);
