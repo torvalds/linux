@@ -89,7 +89,7 @@ int get_compat_msghdr(struct msghdr *kmsg,
 	if (copy_from_user(&msg, umsg, sizeof(*umsg)))
 		return -EFAULT;
 
-	err = __get_compat_msghdr(kmsg, umsg, save_addr);
+	err = __get_compat_msghdr(kmsg, &msg, save_addr);
 	if (err)
 		return err;
 

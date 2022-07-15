@@ -398,7 +398,7 @@ static int __io_compat_recvmsg_copy_hdr(struct io_kiocb *req,
 	if (copy_from_user(&msg, sr->umsg_compat, sizeof(msg)))
 		return -EFAULT;
 
-	ret = __get_compat_msghdr(&iomsg->msg, sr->umsg_compat, &iomsg->uaddr);
+	ret = __get_compat_msghdr(&iomsg->msg, &msg, &iomsg->uaddr);
 	if (ret)
 		return ret;
 
