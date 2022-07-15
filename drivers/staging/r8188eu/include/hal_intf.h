@@ -9,7 +9,6 @@
 #include "Hal8188EPhyCfg.h"
 
 enum hw_variables {
-	HW_VAR_SET_OPMODE,
 	HW_VAR_CORRECT_TSF,
 };
 

@@ -5674,6 +5674,107 @@ void clear_beacon_valid_bit(struct adapter *adapter)
 	rtw_write8(adapter, REG_TDECTRL + 2, reg | BIT(0));
 }
 
+void rtw_resume_tx_beacon(struct adapter *adapt)
+{
+	struct hal_data_8188e *haldata = &adapt->haldata;
+
+	/*  2010.03.01. Marked by tynli. No need to call workitem beacause we record the value */
+	/*  which should be read from register to a global variable. */
+
+	rtw_write8(adapt, REG_FWHW_TXQ_CTRL + 2, (haldata->RegFwHwTxQCtrl) | BIT(6));
+	haldata->RegFwHwTxQCtrl |= BIT(6);
+	rtw_write8(adapt, REG_TBTT_PROHIBIT + 1, 0xff);
+	haldata->RegReg542 |= BIT(0);
+	rtw_write8(adapt, REG_TBTT_PROHIBIT + 2, haldata->RegReg542);
+}
+
+void rtw_stop_tx_beacon(struct adapter *adapt)
+{
+	struct hal_data_8188e *haldata = &adapt->haldata;
+
+	/*  2010.03.01. Marked by tynli. No need to call workitem beacause we record the value */
+	/*  which should be read from register to a global variable. */
+
+	rtw_write8(adapt, REG_FWHW_TXQ_CTRL + 2, (haldata->RegFwHwTxQCtrl) & (~BIT(6)));
+	haldata->RegFwHwTxQCtrl &= (~BIT(6));
+	rtw_write8(adapt, REG_TBTT_PROHIBIT + 1, 0x64);
+	haldata->RegReg542 &= ~(BIT(0));
+	rtw_write8(adapt, REG_TBTT_PROHIBIT + 2, haldata->RegReg542);
+
+	 /* todo: CheckFwRsvdPageContent(Adapter);  2010.06.23. Added by tynli. */
+}
+
+static void rtw_set_opmode(struct adapter *adapter, u8 mode)
+{
+	u8 val8;
+	int res;
+
+	/*  disable Port0 TSF update */
+	res = rtw_read8(adapter, REG_BCN_CTRL, &val8);
+	if (res)
+		return;
+
+	rtw_write8(adapter, REG_BCN_CTRL, val8 | BIT(4));
+
+	/*  set net_type */
+	res = rtw_read8(adapter, MSR, &val8);
+	if (res)
+		return;
+
+	val8 &= 0x0c;
+	val8 |= mode;
+	rtw_write8(adapter, MSR, val8);
+
+	if ((mode == _HW_STATE_STATION_) || (mode == _HW_STATE_NOLINK_)) {
+		rtw_stop_tx_beacon(adapter);
+
+		rtw_write8(adapter, REG_BCN_CTRL, 0x19);/* disable atim wnd */
+	} else if (mode == _HW_STATE_ADHOC_) {
+		rtw_resume_tx_beacon(adapter);
+		rtw_write8(adapter, REG_BCN_CTRL, 0x1a);
+	} else if (mode == _HW_STATE_AP_) {
+		rtw_resume_tx_beacon(adapter);
+
+		rtw_write8(adapter, REG_BCN_CTRL, 0x12);
+
+		/* Set RCR */
+		rtw_write32(adapter, REG_RCR, 0x7000208e);/* CBSSID_DATA must set to 0,reject ICV_ERR packet */
+		/* enable to rx data frame */
+		rtw_write16(adapter, REG_RXFLTMAP2, 0xFFFF);
+		/* enable to rx ps-poll */
+		rtw_write16(adapter, REG_RXFLTMAP1, 0x0400);
+
+		/* Beacon Control related register for first time */
+		rtw_write8(adapter, REG_BCNDMATIM, 0x02); /*  2ms */
+
+		rtw_write8(adapter, REG_ATIMWND, 0x0a); /*  10ms */
+		rtw_write16(adapter, REG_BCNTCFG, 0x00);
+		rtw_write16(adapter, REG_TBTT_PROHIBIT, 0xff04);
+		rtw_write16(adapter, REG_TSFTR_SYN_OFFSET, 0x7fff);/*  +32767 (~32ms) */
+
+		/* reset TSF */
+		rtw_write8(adapter, REG_DUAL_TSF_RST, BIT(0));
+
+		/* BIT(3) - If set 0, hw will clr bcnq when tx becon ok/fail or port 0 */
+		res = rtw_read8(adapter, REG_MBID_NUM, &val8);
+		if (res)
+			return;
+
+		rtw_write8(adapter, REG_MBID_NUM, val8 | BIT(3) | BIT(4));
+
+		/* enable BCN0 Function for if1 */
+		/* don't enable update TSF0 for if1 (due to TSF update when beacon/probe rsp are received) */
+		rtw_write8(adapter, REG_BCN_CTRL, (DIS_TSF_UDT0_NORMAL_CHIP | EN_BCN_FUNCTION | BIT(1)));
+
+		/* dis BCN1 ATIM  WND if if2 is station */
+		res = rtw_read8(adapter, REG_BCN_CTRL_1, &val8);
+		if (res)
+			return;
+
+		rtw_write8(adapter, REG_BCN_CTRL_1, val8 | BIT(0));
+	}
+}
+
 /****************************************************************************
 
 Following are some utitity fuctions for WiFi MLME
@@ -7142,7 +7243,7 @@ u8 setopmode_hdl(struct adapter *padapter, u8 *pbuf)
 		type = _HW_STATE_NOLINK_;
 	}
 
-	SetHwReg8188EU(padapter, HW_VAR_SET_OPMODE, (u8 *)(&type));
+	rtw_set_opmode(padapter, type);
 
 	return H2C_SUCCESS;
 }

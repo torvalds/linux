@@ -532,6 +532,8 @@ unsigned int send_delba(struct adapter *padapter, u8 initiator, u8 *addr);
 unsigned int send_beacon(struct adapter *padapter);
 bool get_beacon_valid_bit(struct adapter *adapter);
 void clear_beacon_valid_bit(struct adapter *adapter);
+void rtw_resume_tx_beacon(struct adapter *adapt);
+void rtw_stop_tx_beacon(struct adapter *adapt);
 
 void start_clnt_assoc(struct adapter *padapter);
 void start_clnt_auth(struct adapter *padapter);
