@@ -438,7 +438,7 @@ struct child_device_config {
 			u8 iboost:1;				/* 196+ */
 			u8 hpd_invert:1;			/* 196+ */
 			u8 use_vbt_vswing:1;			/* 218+ */
-			u8 flag_reserved:2;
+			u8 dp_max_lane_count:2;			/* 244+ */
 			u8 hdmi_support:1;			/* 158+ */
 			u8 dp_support:1;			/* 158+ */
 			u8 tmds_support:1;			/* 158+ */
