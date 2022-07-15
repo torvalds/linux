@@ -1896,16 +1896,6 @@ static int exclude_super_stripes(struct btrfs_block_group *cache)
 	return 0;
 }
 
-static void link_block_group(struct btrfs_block_group *cache)
-{
-	struct btrfs_space_info *space_info = cache->space_info;
-	int index = btrfs_bg_flags_to_raid_index(cache->flags);
-
-	down_write(&space_info->groups_sem);
-	list_add_tail(&cache->list, &space_info->block_groups[index]);
-	up_write(&space_info->groups_sem);
-}
-
 static struct btrfs_block_group *btrfs_create_block_group_cache(
 		struct btrfs_fs_info *fs_info, u64 start)
 {
@@ -2008,7 +1998,6 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 				int need_clear)
 {
 	struct btrfs_block_group *cache;
-	struct btrfs_space_info *space_info;
 	const bool mixed = btrfs_fs_incompat(info, MIXED_GROUPS);
 	int ret;
 
@@ -2101,11 +2090,7 @@ static int read_one_block_group(struct btrfs_fs_info *info,
 		goto error;
 	}
 	trace_btrfs_add_block_group(info, cache, 0);
-	btrfs_add_bg_to_space_info(info, cache, &space_info);
-
-	cache->space_info = space_info;
-
-	link_block_group(cache);
+	btrfs_add_bg_to_space_info(info, cache);
 
 	set_avail_alloc_bits(info, cache->flags);
 	if (btrfs_chunk_writeable(info, cache->start)) {
@@ -2129,7 +2114,6 @@ error:
 static int fill_dummy_bgs(struct btrfs_fs_info *fs_info)
 {
 	struct extent_map_tree *em_tree = &fs_info->mapping_tree;
-	struct btrfs_space_info *space_info;
 	struct rb_node *node;
 	int ret = 0;
 
@@ -2170,9 +2154,7 @@ static int fill_dummy_bgs(struct btrfs_fs_info *fs_info)
 			break;
 		}
 
-		btrfs_add_bg_to_space_info(fs_info, bg, &space_info);
-		bg->space_info = space_info;
-		link_block_group(bg);
+		btrfs_add_bg_to_space_info(fs_info, bg);
 
 		set_avail_alloc_bits(fs_info, bg->flags);
 	}
@@ -2541,7 +2523,7 @@ struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *tran
 	 * the rbtree, update the space info's counters.
 	 */
 	trace_btrfs_add_block_group(fs_info, cache, 1);
-	btrfs_add_bg_to_space_info(fs_info, cache, &cache->space_info);
+	btrfs_add_bg_to_space_info(fs_info, cache);
 	btrfs_update_global_block_rsv(fs_info);
 
 #ifdef CONFIG_BTRFS_DEBUG
@@ -2552,7 +2534,6 @@ struct btrfs_block_group *btrfs_make_block_group(struct btrfs_trans_handle *tran
 		fragment_free_space(cache);
 	}
 #endif
-	link_block_group(cache);
 
 	list_add_tail(&cache->bg_list, &trans->new_bgs);
 	trans->delayed_ref_updates++;
