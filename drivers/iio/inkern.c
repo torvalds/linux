@@ -214,7 +214,7 @@ err_free_channel:
 struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
 					       const char *name)
 {
-	struct iio_channel *chan = NULL;
+	struct iio_channel *chan;
 
 	/* Walk up the tree of devices looking for a matching iio channel */
 	while (np) {
@@ -231,11 +231,33 @@ struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
 							 name);
 		chan = of_iio_channel_get(np, index);
 		if (!IS_ERR(chan) || PTR_ERR(chan) == -EPROBE_DEFER)
-			break;
-		else if (name && index >= 0) {
-			pr_err("ERROR: could not get IIO channel %pOF:%s(%i)\n",
-				np, name ? name : "", index);
-			return NULL;
+			return chan;
+		if (name) {
+			if (index >= 0) {
+				pr_err("ERROR: could not get IIO channel %pOF:%s(%i)\n",
+				       np, name, index);
+				/*
+				 * In this case, we found 'name' in 'io-channel-names'
+				 * but somehow we still fail so that we should not proceed
+				 * with any other lookup. Hence, explicitly return -EINVAL
+				 * (maybe not the better error code) so that the caller
+				 * won't do a system lookup.
+				 */
+				return ERR_PTR(-EINVAL);
+			}
+			/*
+			 * If index < 0, then of_parse_phandle_with_args() fails
+			 * with -EINVAL which is expected. We should not proceed
+			 * if we get any other error.
+			 */
+			if (PTR_ERR(chan) != -EINVAL)
+				return chan;
+		} else if (PTR_ERR(chan) != -ENOENT) {
+			/*
+			 * if !name, then we should only proceed the lookup if
+			 * of_parse_phandle_with_args() returns -ENOENT.
+			 */
+			return chan;
 		}
 
 		/*
@@ -245,10 +267,10 @@ struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
 		 */
 		np = np->parent;
 		if (np && !of_get_property(np, "io-channel-ranges", NULL))
-			return NULL;
+			return ERR_PTR(-ENODEV);
 	}
 
-	return chan;
+	return ERR_PTR(-ENODEV);
 }
 EXPORT_SYMBOL_GPL(of_iio_channel_get_by_name);
 
@@ -267,8 +289,8 @@ static struct iio_channel *of_iio_channel_get_all(struct device *dev)
 			break;
 	} while (++nummaps);
 
-	if (nummaps == 0)	/* no error, return NULL to search map table */
-		return NULL;
+	if (nummaps == 0)
+		return ERR_PTR(-ENODEV);
 
 	/* NULL terminated array to save passing size */
 	chans = kcalloc(nummaps + 1, sizeof(*chans), GFP_KERNEL);
@@ -295,7 +317,7 @@ error_free_chans:
 
 static inline struct iio_channel *of_iio_channel_get_all(struct device *dev)
 {
-	return NULL;
+	return ERR_PTR(-ENODEV);
 }
 
 #endif /* CONFIG_OF */
@@ -362,7 +384,7 @@ struct iio_channel *iio_channel_get(struct device *dev,
 	if (dev) {
 		channel = of_iio_channel_get_by_name(dev->of_node,
 						     channel_name);
-		if (channel != NULL)
+		if (!IS_ERR(channel) || PTR_ERR(channel) != -ENODEV)
 			return channel;
 	}
 
@@ -412,8 +434,6 @@ struct iio_channel *devm_of_iio_channel_get_by_name(struct device *dev,
 	channel = of_iio_channel_get_by_name(np, channel_name);
 	if (IS_ERR(channel))
 		return channel;
-	if (!channel)
-		return ERR_PTR(-ENODEV);
 
 	ret = devm_add_action_or_reset(dev, devm_iio_channel_free, channel);
 	if (ret)
@@ -436,7 +456,11 @@ struct iio_channel *iio_channel_get_all(struct device *dev)
 		return ERR_PTR(-EINVAL);
 
 	chans = of_iio_channel_get_all(dev);
-	if (chans)
+	/*
+	 * We only want to carry on if the error is -ENODEV.  Anything else
+	 * should be reported up the stack.
+	 */
+	if (!IS_ERR(chans) || PTR_ERR(chans) != -ENODEV)
 		return chans;
 
 	name = dev_name(dev);
