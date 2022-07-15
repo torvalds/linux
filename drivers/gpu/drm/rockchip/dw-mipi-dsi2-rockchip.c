@@ -993,8 +993,9 @@ static int dw_mipi_dsi2_connector_get_modes(struct drm_connector *connector)
 	return -EINVAL;
 }
 
-static int dw_mipi_dsi2_connector_mode_valid(struct drm_connector *connector,
-					     struct drm_display_mode *mode)
+static enum drm_mode_status
+dw_mipi_dsi2_connector_mode_valid(struct drm_connector *connector,
+				  struct drm_display_mode *mode)
 {
 	struct videomode vm;
 
