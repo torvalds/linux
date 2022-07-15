@@ -1675,7 +1675,6 @@ static int process_rx_list(struct tls_sw_context_rx *ctx,
 			   u8 *control,
 			   size_t skip,
 			   size_t len,
-			   bool zc,
 			   bool is_peek)
 {
 	struct sk_buff *skb = skb_peek(&ctx->rx_list);
@@ -1709,12 +1708,10 @@ static int process_rx_list(struct tls_sw_context_rx *ctx,
 		if (err <= 0)
 			goto out;
 
-		if (!zc || (rxm->full_len - skip) > len) {
-			err = skb_copy_datagram_msg(skb, rxm->offset + skip,
-						    msg, chunk);
-			if (err < 0)
-				goto out;
-		}
+		err = skb_copy_datagram_msg(skb, rxm->offset + skip,
+					    msg, chunk);
+		if (err < 0)
+			goto out;
 
 		len = len - chunk;
 		copied = copied + chunk;
@@ -1824,9 +1821,9 @@ int tls_sw_recvmsg(struct sock *sk,
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
+	ssize_t decrypted = 0, async_copy_bytes = 0;
 	struct sk_psock *psock;
 	unsigned char control = 0;
-	ssize_t decrypted = 0;
 	size_t flushed_at = 0;
 	struct strp_msg *rxm;
 	struct tls_msg *tlm;
@@ -1855,7 +1852,7 @@ int tls_sw_recvmsg(struct sock *sk,
 		goto end;
 
 	/* Process pending decrypted records. It must be non-zero-copy */
-	err = process_rx_list(ctx, msg, &control, 0, len, false, is_peek);
+	err = process_rx_list(ctx, msg, &control, 0, len, is_peek);
 	if (err < 0)
 		goto end;
 
@@ -1939,18 +1936,19 @@ put_on_rx_list_err:
 		chunk = rxm->full_len;
 		tls_rx_rec_done(ctx);
 
-		if (async) {
-			/* TLS 1.2-only, to_decrypt must be text length */
-			chunk = min_t(int, to_decrypt, len);
-put_on_rx_list:
-			decrypted += chunk;
-			len -= chunk;
-			__skb_queue_tail(&ctx->rx_list, skb);
-			continue;
-		}
-
 		if (!darg.zc) {
 			bool partially_consumed = chunk > len;
+
+			if (async) {
+				/* TLS 1.2-only, to_decrypt must be text len */
+				chunk = min_t(int, to_decrypt, len);
+				async_copy_bytes += chunk;
+put_on_rx_list:
+				decrypted += chunk;
+				len -= chunk;
+				__skb_queue_tail(&ctx->rx_list, skb);
+				continue;
+			}
 
 			if (bpf_strp_enabled) {
 				err = sk_psock_tls_strp_read(psock, skb);
@@ -2018,10 +2016,10 @@ recv_end:
 		/* Drain records from the rx_list & copy if required */
 		if (is_peek || is_kvec)
 			err = process_rx_list(ctx, msg, &control, copied,
-					      decrypted, false, is_peek);
+					      decrypted, is_peek);
 		else
 			err = process_rx_list(ctx, msg, &control, 0,
-					      decrypted, true, is_peek);
+					      async_copy_bytes, is_peek);
 		decrypted = max(err, 0);
 	}
 
