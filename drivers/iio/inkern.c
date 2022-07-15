@@ -211,63 +211,81 @@ err_free_channel:
 	return ERR_PTR(err);
 }
 
+static struct iio_channel *__of_iio_channel_get_by_name(struct device_node *np,
+							const char *name)
+{
+	struct iio_channel *chan;
+	int index = 0;
+
+	/*
+	 * For named iio channels, first look up the name in the
+	 * "io-channel-names" property.  If it cannot be found, the
+	 * index will be an error code, and of_iio_channel_get()
+	 * will fail.
+	 */
+	if (name)
+		index = of_property_match_string(np, "io-channel-names", name);
+
+	chan = of_iio_channel_get(np, index);
+	if (!IS_ERR(chan) || PTR_ERR(chan) == -EPROBE_DEFER)
+		return chan;
+	if (name) {
+		if (index >= 0) {
+			pr_err("ERROR: could not get IIO channel %pOF:%s(%i)\n",
+			       np, name, index);
+			/*
+			 * In this case, we found 'name' in 'io-channel-names'
+			 * but somehow we still fail so that we should not proceed
+			 * with any other lookup. Hence, explicitly return -EINVAL
+			 * (maybe not the better error code) so that the caller
+			 * won't do a system lookup.
+			 */
+			return ERR_PTR(-EINVAL);
+		}
+		/*
+		 * If index < 0, then of_parse_phandle_with_args() fails
+		 * with -EINVAL which is expected. We should not proceed
+		 * if we get any other error.
+		 */
+		if (PTR_ERR(chan) != -EINVAL)
+			return chan;
+	} else if (PTR_ERR(chan) != -ENOENT) {
+		/*
+		 * if !name, then we should only proceed the lookup if
+		 * of_parse_phandle_with_args() returns -ENOENT.
+		 */
+		return chan;
+	}
+
+	/* so we continue the lookup */
+	return ERR_PTR(-ENODEV);
+}
+
 struct iio_channel *of_iio_channel_get_by_name(struct device_node *np,
 					       const char *name)
 {
 	struct iio_channel *chan;
 
 	/* Walk up the tree of devices looking for a matching iio channel */
+	chan = __of_iio_channel_get_by_name(np, name);
+	if (!IS_ERR(chan) || PTR_ERR(chan) != -ENODEV)
+		return chan;
+
+	/*
+	 * No matching IIO channel found on this node.
+	 * If the parent node has a "io-channel-ranges" property,
+	 * then we can try one of its channels.
+	 */
+	np = np->parent;
 	while (np) {
-		int index = 0;
-
-		/*
-		 * For named iio channels, first look up the name in the
-		 * "io-channel-names" property.  If it cannot be found, the
-		 * index will be an error code, and of_iio_channel_get()
-		 * will fail.
-		 */
-		if (name)
-			index = of_property_match_string(np, "io-channel-names",
-							 name);
-		chan = of_iio_channel_get(np, index);
-		if (!IS_ERR(chan) || PTR_ERR(chan) == -EPROBE_DEFER)
-			return chan;
-		if (name) {
-			if (index >= 0) {
-				pr_err("ERROR: could not get IIO channel %pOF:%s(%i)\n",
-				       np, name, index);
-				/*
-				 * In this case, we found 'name' in 'io-channel-names'
-				 * but somehow we still fail so that we should not proceed
-				 * with any other lookup. Hence, explicitly return -EINVAL
-				 * (maybe not the better error code) so that the caller
-				 * won't do a system lookup.
-				 */
-				return ERR_PTR(-EINVAL);
-			}
-			/*
-			 * If index < 0, then of_parse_phandle_with_args() fails
-			 * with -EINVAL which is expected. We should not proceed
-			 * if we get any other error.
-			 */
-			if (PTR_ERR(chan) != -EINVAL)
-				return chan;
-		} else if (PTR_ERR(chan) != -ENOENT) {
-			/*
-			 * if !name, then we should only proceed the lookup if
-			 * of_parse_phandle_with_args() returns -ENOENT.
-			 */
-			return chan;
-		}
-
-		/*
-		 * No matching IIO channel found on this node.
-		 * If the parent node has a "io-channel-ranges" property,
-		 * then we can try one of its channels.
-		 */
-		np = np->parent;
-		if (np && !of_get_property(np, "io-channel-ranges", NULL))
+		if (!of_get_property(np, "io-channel-ranges", NULL))
 			return ERR_PTR(-ENODEV);
+
+		chan = __of_iio_channel_get_by_name(np, name);
+		if (!IS_ERR(chan) || PTR_ERR(chan) != -ENODEV)
+ 			return chan;
+
+		np = np->parent;
 	}
 
 	return ERR_PTR(-ENODEV);
