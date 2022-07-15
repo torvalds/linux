@@ -1345,7 +1345,7 @@
 			interrupts-extended = <&intc GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 12 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 13 IRQ_TYPE_EDGE_BOTH>,
-					      <&pdc 16 IRQ_TYPE_LEVEL_HIGH>;
+					      <&pdc 136 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hs_phy_irq", "dp_hs_phy_irq",
 					  "dm_hs_phy_irq", "ss_phy_irq";
 
