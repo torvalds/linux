@@ -91,12 +91,21 @@ struct io_tlb_area {
 /*
  * Round up number of slabs to the next power of 2. The last area is going
  * be smaller than the rest if default_nslabs is not power of two.
+ * The number of slot in an area should be a multiple of IO_TLB_SEGSIZE,
+ * otherwise a segment may span two or more areas. It conflicts with free
+ * contiguous slots tracking: free slots are treated contiguous no matter
+ * whether they cross an area boundary.
  *
  * Return true if default_nslabs is rounded up.
  */
 static bool round_up_default_nslabs(void)
 {
-	if (!default_nareas || is_power_of_2(default_nslabs))
+	if (!default_nareas)
+		return false;
+
+	if (default_nslabs < IO_TLB_SEGSIZE * default_nareas)
+		default_nslabs = IO_TLB_SEGSIZE * default_nareas;
+	else if (is_power_of_2(default_nslabs))
 		return false;
 	default_nslabs = roundup_pow_of_two(default_nslabs);
 	return true;
