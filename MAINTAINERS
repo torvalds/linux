@@ -10352,9 +10352,20 @@ T:	git git://git.kernel.org/pub/scm/fs/xfs/xfs-linux.git
 F:	fs/iomap/
 F:	include/linux/iomap.h
 
-IOMMU DRIVERS
+IOMMU DMA-API LAYER
+M:	Robin Murphy <robin.murphy@arm.com>
+L:	iommu@lists.linux.dev
+S:	Maintained
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
+F:	drivers/iommu/dma-iommu.c
+F:	drivers/iommu/iova.c
+F:	include/linux/dma-iommu.h
+F:	include/linux/iova.h
+
+IOMMU SUBSYSTEM
 M:	Joerg Roedel <joro@8bytes.org>
 M:	Will Deacon <will@kernel.org>
+R:	Robin Murphy <robin.murphy@arm.com>
 L:	iommu@lists.linux-foundation.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/joro/iommu.git
