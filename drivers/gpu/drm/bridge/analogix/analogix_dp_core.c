@@ -1030,11 +1030,11 @@ static void analogix_dp_process_phy_request(struct analogix_dp_device *dp)
 		break;
 	case DP_PHY_TEST_PATTERN_80BIT_CUSTOM:
 		dev_info(dp->dev, "Set 80Bit Custom Phy Test Pattern\n");
-		analogix_dp_set_training_pattern(dp, TEST_PATTREN_80BIT);
+		analogix_dp_set_training_pattern(dp, TEST_PATTERN_80BIT);
 		break;
 	case DP_PHY_TEST_PATTERN_CP2520:
 		dev_info(dp->dev, "Set HBR2 compliance Phy Test Pattern\n");
-		analogix_dp_set_training_pattern(dp, TEST_PATTREN_HBR2);
+		analogix_dp_set_training_pattern(dp, TEST_PATTERN_HBR2);
 		break;
 	default:
 		dev_err(dp->dev, "Invalid Phy Test Pattern: %d\n", data->phy_pattern);
