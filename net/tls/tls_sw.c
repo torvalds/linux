@@ -1861,8 +1861,11 @@ int tls_sw_recvmsg(struct sock *sk,
 			if (psock) {
 				chunk = sk_msg_recvmsg(sk, psock, msg, len,
 						       flags);
-				if (chunk > 0)
-					goto leave_on_list;
+				if (chunk > 0) {
+					decrypted += chunk;
+					len -= chunk;
+					continue;
+				}
 			}
 			goto recv_end;
 		}
@@ -1908,14 +1911,14 @@ int tls_sw_recvmsg(struct sock *sk,
 
 		ctx->recv_pkt = NULL;
 		__strp_unpause(&ctx->strp);
-		__skb_queue_tail(&ctx->rx_list, skb);
 
 		if (async) {
 			/* TLS 1.2-only, to_decrypt must be text length */
 			chunk = min_t(int, to_decrypt, len);
-leave_on_list:
+put_on_rx_list:
 			decrypted += chunk;
 			len -= chunk;
+			__skb_queue_tail(&ctx->rx_list, skb);
 			continue;
 		}
 		/* TLS 1.3 may have updated the length by more than overhead */
@@ -1925,8 +1928,6 @@ leave_on_list:
 			bool partially_consumed = chunk > len;
 
 			if (bpf_strp_enabled) {
-				/* BPF may try to queue the skb */
-				__skb_unlink(skb, &ctx->rx_list);
 				err = sk_psock_tls_strp_read(psock, skb);
 				if (err != __SK_PASS) {
 					rxm->offset = rxm->offset + rxm->full_len;
@@ -1935,7 +1936,6 @@ leave_on_list:
 						consume_skb(skb);
 					continue;
 				}
-				__skb_queue_tail(&ctx->rx_list, skb);
 			}
 
 			if (partially_consumed)
@@ -1943,23 +1943,24 @@ leave_on_list:
 
 			err = skb_copy_datagram_msg(skb, rxm->offset,
 						    msg, chunk);
-			if (err < 0)
+			if (err < 0) {
+				__skb_queue_tail(&ctx->rx_list, skb);
 				goto recv_end;
+			}
 
 			if (is_peek)
-				goto leave_on_list;
+				goto put_on_rx_list;
 
 			if (partially_consumed) {
 				rxm->offset += chunk;
 				rxm->full_len -= chunk;
-				goto leave_on_list;
+				goto put_on_rx_list;
 			}
 		}
 
 		decrypted += chunk;
 		len -= chunk;
 
-		__skb_unlink(skb, &ctx->rx_list);
 		consume_skb(skb);
 
 		/* Return full control message to userspace before trying
