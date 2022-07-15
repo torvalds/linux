@@ -220,11 +220,11 @@ __uc_fw_auto_select(struct drm_i915_private *i915, struct intel_uc_fw *uc_fw)
 			    fw_blobs[i].rev < fw_blobs[i - 1].rev)
 				continue;
 
-			pr_err("invalid FW blob order: %s r%u comes before %s r%u\n",
-			       intel_platform_name(fw_blobs[i - 1].p),
-			       fw_blobs[i - 1].rev,
-			       intel_platform_name(fw_blobs[i].p),
-			       fw_blobs[i].rev);
+			drm_err(&i915->drm, "Invalid FW blob order: %s r%u comes before %s r%u\n",
+				intel_platform_name(fw_blobs[i - 1].p),
+				fw_blobs[i - 1].rev,
+				intel_platform_name(fw_blobs[i].p),
+				fw_blobs[i].rev);
 
 			uc_fw->path = NULL;
 		}
