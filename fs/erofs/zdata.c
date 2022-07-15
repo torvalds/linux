@@ -913,6 +913,76 @@ static int z_erofs_parse_out_bvecs(struct z_erofs_pcluster *pcl,
 	return err;
 }
 
+static struct page **z_erofs_parse_in_bvecs(struct erofs_sb_info *sbi,
+			struct z_erofs_pcluster *pcl, struct page **pages,
+			struct page **pagepool, bool *overlapped)
+{
+	unsigned int pclusterpages = z_erofs_pclusterpages(pcl);
+	struct page **compressed_pages;
+	int i, err = 0;
+
+	/* XXX: will have a better approach in the following commits */
+	compressed_pages = kmalloc_array(pclusterpages, sizeof(struct page *),
+					 GFP_KERNEL | __GFP_NOFAIL);
+	*overlapped = false;
+
+	for (i = 0; i < pclusterpages; ++i) {
+		unsigned int pagenr;
+		struct page *page = pcl->compressed_pages[i];
+
+		/* compressed pages ought to be present before decompressing */
+		if (!page) {
+			DBG_BUGON(1);
+			continue;
+		}
+		compressed_pages[i] = page;
+
+		if (z_erofs_is_inline_pcluster(pcl)) {
+			if (!PageUptodate(page))
+				err = -EIO;
+			continue;
+		}
+
+		DBG_BUGON(z_erofs_page_is_invalidated(page));
+		if (!z_erofs_is_shortlived_page(page)) {
+			if (erofs_page_is_managed(sbi, page)) {
+				if (!PageUptodate(page))
+					err = -EIO;
+				continue;
+			}
+
+			/*
+			 * only if non-head page can be selected
+			 * for inplace decompression
+			 */
+			pagenr = z_erofs_onlinepage_index(page);
+
+			DBG_BUGON(pagenr >= pcl->nr_pages);
+			if (pages[pagenr]) {
+				DBG_BUGON(1);
+				SetPageError(pages[pagenr]);
+				z_erofs_onlinepage_endio(pages[pagenr]);
+				err = -EFSCORRUPTED;
+			}
+			pages[pagenr] = page;
+
+			*overlapped = true;
+		}
+
+		/* PG_error needs checking for all non-managed pages */
+		if (PageError(page)) {
+			DBG_BUGON(PageUptodate(page));
+			err = -EIO;
+		}
+	}
+
+	if (err) {
+		kfree(compressed_pages);
+		return ERR_PTR(err);
+	}
+	return compressed_pages;
+}
+
 static int z_erofs_decompress_pcluster(struct super_block *sb,
 				       struct z_erofs_pcluster *pcl,
 				       struct page **pagepool)
@@ -957,54 +1027,11 @@ static int z_erofs_decompress_pcluster(struct super_block *sb,
 		pages[i] = NULL;
 
 	err = z_erofs_parse_out_bvecs(pcl, pages, pagepool);
-
-	overlapped = false;
-	compressed_pages = pcl->compressed_pages;
-
-	for (i = 0; i < pclusterpages; ++i) {
-		unsigned int pagenr;
-
-		page = compressed_pages[i];
-		/* all compressed pages ought to be valid */
-		DBG_BUGON(!page);
-
-		if (z_erofs_is_inline_pcluster(pcl)) {
-			if (!PageUptodate(page))
-				err = -EIO;
-			continue;
-		}
-
-		DBG_BUGON(z_erofs_page_is_invalidated(page));
-		if (!z_erofs_is_shortlived_page(page)) {
-			if (erofs_page_is_managed(sbi, page)) {
-				if (!PageUptodate(page))
-					err = -EIO;
-				continue;
-			}
-
-			/*
-			 * only if non-head page can be selected
-			 * for inplace decompression
-			 */
-			pagenr = z_erofs_onlinepage_index(page);
-
-			DBG_BUGON(pagenr >= nr_pages);
-			if (pages[pagenr]) {
-				DBG_BUGON(1);
-				SetPageError(pages[pagenr]);
-				z_erofs_onlinepage_endio(pages[pagenr]);
-				err = -EFSCORRUPTED;
-			}
-			pages[pagenr] = page;
-
-			overlapped = true;
-		}
-
-		/* PG_error needs checking for all non-managed pages */
-		if (PageError(page)) {
-			DBG_BUGON(PageUptodate(page));
-			err = -EIO;
-		}
+	compressed_pages = z_erofs_parse_in_bvecs(sbi, pcl, pages,
+						pagepool, &overlapped);
+	if (IS_ERR(compressed_pages)) {
+		err = PTR_ERR(compressed_pages);
+		compressed_pages = NULL;
 	}
 
 	if (err)
@@ -1040,21 +1067,22 @@ static int z_erofs_decompress_pcluster(struct super_block *sb,
 out:
 	/* must handle all compressed pages before actual file pages */
 	if (z_erofs_is_inline_pcluster(pcl)) {
-		page = compressed_pages[0];
-		WRITE_ONCE(compressed_pages[0], NULL);
+		page = pcl->compressed_pages[0];
+		WRITE_ONCE(pcl->compressed_pages[0], NULL);
 		put_page(page);
 	} else {
 		for (i = 0; i < pclusterpages; ++i) {
-			page = compressed_pages[i];
+			page = pcl->compressed_pages[i];
 
 			if (erofs_page_is_managed(sbi, page))
 				continue;
 
 			/* recycle all individual short-lived pages */
 			(void)z_erofs_put_shortlivedpage(pagepool, page);
-			WRITE_ONCE(compressed_pages[i], NULL);
+			WRITE_ONCE(pcl->compressed_pages[i], NULL);
 		}
 	}
+	kfree(compressed_pages);
 
 	for (i = 0; i < nr_pages; ++i) {
 		page = pages[i];
