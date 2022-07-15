@@ -861,6 +861,26 @@ struct z_erofs_decompress_backend {
 	unsigned int onstack_used;
 };
 
+static int z_erofs_do_decompressed_bvec(struct z_erofs_decompress_backend *be,
+					struct z_erofs_bvec *bvec)
+{
+	unsigned int pgnr = (bvec->offset + be->pcl->pageofs_out) >> PAGE_SHIFT;
+	struct page *oldpage;
+
+	DBG_BUGON(pgnr >= be->pcl->nr_pages);
+	oldpage = be->decompressed_pages[pgnr];
+	be->decompressed_pages[pgnr] = bvec->page;
+
+	/* error out if one pcluster is refenenced multiple times. */
+	if (oldpage) {
+		DBG_BUGON(1);
+		z_erofs_page_mark_eio(oldpage);
+		z_erofs_onlinepage_endio(oldpage);
+		return -EFSCORRUPTED;
+	}
+	return 0;
+}
+
 static int z_erofs_parse_out_bvecs(struct z_erofs_decompress_backend *be)
 {
 	struct z_erofs_pcluster *pcl = be->pcl;
@@ -871,27 +891,14 @@ static int z_erofs_parse_out_bvecs(struct z_erofs_decompress_backend *be)
 	z_erofs_bvec_iter_begin(&biter, &pcl->bvset, Z_EROFS_INLINE_BVECS, 0);
 	for (i = 0; i < pcl->vcnt; ++i) {
 		struct z_erofs_bvec bvec;
-		unsigned int pgnr;
 
 		z_erofs_bvec_dequeue(&biter, &bvec, &old_bvpage);
 
 		if (old_bvpage)
 			z_erofs_put_shortlivedpage(be->pagepool, old_bvpage);
 
-		pgnr = (bvec.offset + pcl->pageofs_out) >> PAGE_SHIFT;
-		DBG_BUGON(pgnr >= pcl->nr_pages);
 		DBG_BUGON(z_erofs_page_is_invalidated(bvec.page));
-		/*
-		 * currently EROFS doesn't support multiref(dedup),
-		 * so here erroring out one multiref page.
-		 */
-		if (be->decompressed_pages[pgnr]) {
-			DBG_BUGON(1);
-			z_erofs_page_mark_eio(be->decompressed_pages[pgnr]);
-			z_erofs_onlinepage_endio(be->decompressed_pages[pgnr]);
-			err = -EFSCORRUPTED;
-		}
-		be->decompressed_pages[pgnr] = bvec.page;
+		err = z_erofs_do_decompressed_bvec(be, &bvec);
 	}
 
 	old_bvpage = z_erofs_bvec_iter_end(&biter);
@@ -911,7 +918,6 @@ static int z_erofs_parse_in_bvecs(struct z_erofs_decompress_backend *be,
 	for (i = 0; i < pclusterpages; ++i) {
 		struct z_erofs_bvec *bvec = &pcl->compressed_bvecs[i];
 		struct page *page = bvec->page;
-		unsigned int pgnr;
 
 		/* compressed pages ought to be present before decompressing */
 		if (!page) {
@@ -933,18 +939,7 @@ static int z_erofs_parse_in_bvecs(struct z_erofs_decompress_backend *be,
 					err = -EIO;
 				continue;
 			}
-
-			pgnr = (bvec->offset + pcl->pageofs_out) >> PAGE_SHIFT;
-			DBG_BUGON(pgnr >= pcl->nr_pages);
-			if (be->decompressed_pages[pgnr]) {
-				DBG_BUGON(1);
-				z_erofs_page_mark_eio(
-						be->decompressed_pages[pgnr]);
-				z_erofs_onlinepage_endio(
-						be->decompressed_pages[pgnr]);
-				err = -EFSCORRUPTED;
-			}
-			be->decompressed_pages[pgnr] = page;
+			err = z_erofs_do_decompressed_bvec(be, bvec);
 			*overlapped = true;
 		}
 	}
