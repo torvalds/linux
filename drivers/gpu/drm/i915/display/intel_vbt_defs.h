@@ -575,14 +575,19 @@ struct bdb_driver_features {
 
 	/* Driver Flags 1 */
 	u8 static_display:1;					/* 163+ */
-	u8 reserved2:7;
+	u8 embedded_platform:1;					/* 163+ */
+	u8 display_subsystem_enable:1;				/* 163+ */
+	u8 reserved0:5;
 
 	u16 legacy_crt_max_x;
 	u16 legacy_crt_max_y;
 	u8 legacy_crt_max_refresh;
 
 	/* Extended Driver Bits 2 */
-	u8 hdmi_termination;
+	u8 hdmi_termination:1;
+	u8 cea861d_hdmi_support:1;
+	u8 self_refresh_enable:1;
+	u8 reserved1:5;
 
 	u8 custom_vbt_version;					/* 155+ */
 
@@ -598,9 +603,10 @@ struct bdb_driver_features {
 	u16 tbt_enabled:1;					/* 165+ */
 	u16 psr_enabled:1;					/* 165-227 */
 	u16 ips_enabled:1;					/* 165+ */
-	u16 reserved3:1;
+	u16 dpfs_enabled:1;					/* 165+ */
 	u16 dmrrs_enabled:1;					/* 174-227 */
-	u16 reserved4:2;
+	u16 adt_enabled:1;					/* ???-228 */
+	u16 hpd_wake:1;						/* 201-240 */
 	u16 pc_feature_valid:1;
 } __packed;
 
