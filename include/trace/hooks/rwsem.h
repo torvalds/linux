@@ -10,8 +10,13 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
+#ifdef __GENKSYMS__
 struct rw_semaphore;
 struct rwsem_waiter;
+#else
+/* struct rw_semaphore, struct rwsem_waiter */
+#include <linux/rwsem.h>
+#endif /* __GENKSYMS__ */
 DECLARE_HOOK(android_vh_rwsem_init,
 	TP_PROTO(struct rw_semaphore *sem),
 	TP_ARGS(sem));

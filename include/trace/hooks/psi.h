@@ -12,8 +12,13 @@
 
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
 
-struct psi_trigger;
+#ifdef __GENKSYMS__
 struct psi_group;
+struct psi_trigger;
+#else
+/* struct psi_group, struct psi_trigger */
+#include <linux/psi_types.h>
+#endif /* __GENKSYMS__ */
 DECLARE_HOOK(android_vh_psi_event,
 	TP_PROTO(struct psi_trigger *t),
 	TP_ARGS(t));

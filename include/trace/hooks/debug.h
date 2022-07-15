@@ -11,7 +11,12 @@
 #include <trace/hooks/vendor_hooks.h>
 
 #if defined(CONFIG_TRACEPOINTS) && defined(CONFIG_ANDROID_VENDOR_HOOKS)
+#ifdef __GENKSYMS__
 struct pt_regs;
+#else
+/* struct pt_regs */
+#include <asm/ptrace.h>
+#endif /* __GENKSYMS__ */
 
 DECLARE_HOOK(android_vh_ipi_stop,
 	TP_PROTO(struct pt_regs *regs),

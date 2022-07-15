@@ -3103,6 +3103,7 @@
   trace_raw_output_prep
   trace_seq_printf
   trace_seq_putc
+  tracing_is_on
   tracing_off
   truncate_inode_pages_range
   truncate_pagecache_range
