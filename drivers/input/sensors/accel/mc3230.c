@@ -1351,3 +1351,4 @@ module_i2c_driver(gsensor_mc3230_driver);
 
 MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("mc3230 3-Axis accelerometer driver");
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
