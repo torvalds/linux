@@ -6,6 +6,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/module.h>
 #include <linux/pci.h>
 #include <linux/aspm_ext.h>
 #include <linux/errno.h>
@@ -95,7 +96,7 @@ static bool rockchip_pcie_bus_aspm_enable_dev(char *device, struct pci_dev *dev,
 	return true;
 }
 
-bool rockchip_pcie_bus_aspm_enable_rc_ep(struct pci_dev *child, struct pci_dev *parent, bool enable)
+static bool rockchip_pcie_bus_aspm_enable_rc_ep(struct pci_dev *child, struct pci_dev *parent, bool enable)
 {
 	bool ret;
 
@@ -341,3 +342,5 @@ void pcie_aspm_ext_l1ss_enable(struct pci_dev *child, struct pci_dev *parent, bo
 		rockchip_pcie_bus_aspm_enable_rc_ep(child, parent, true);
 }
 EXPORT_SYMBOL(pcie_aspm_ext_l1ss_enable);
+
+MODULE_LICENSE("GPL");
