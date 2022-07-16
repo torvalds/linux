@@ -970,9 +970,12 @@ Bridge VLAN filtering
   the specified MAC address from the specified VLAN ID if it was mapped into
   this port forwarding database
 
-- ``port_fdb_dump``: bridge layer function invoked with a switchdev callback
-  function that the driver has to call for each MAC address known to be behind
-  the given port. A switchdev object is used to carry the VID and FDB info.
+- ``port_fdb_dump``: bridge bypass function invoked by ``ndo_fdb_dump`` on the
+  physical DSA port interfaces. Since DSA does not attempt to keep in sync its
+  hardware FDB entries with the software bridge, this method is implemented as
+  a means to view the entries visible on user ports in the hardware database.
+  The entries reported by this function have the ``self`` flag in the output of
+  the ``bridge fdb show`` command.
 
 - ``port_mdb_add``: bridge layer function invoked when the bridge wants to install
   a multicast database entry. If the operation is not supported, this function
