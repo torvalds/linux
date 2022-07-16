@@ -106,10 +106,10 @@ int serial8250_tx_dma(struct uart_8250_port *p)
 				   UART_XMIT_SIZE, DMA_TO_DEVICE);
 
 	dma_async_issue_pending(dma->txchan);
-	if (dma->tx_err) {
+	serial8250_clear_THRI(p);
+	if (dma->tx_err)
 		dma->tx_err = 0;
-		serial8250_clear_THRI(p);
-	}
+
 	return 0;
 err:
 	dma->tx_err = 1;
