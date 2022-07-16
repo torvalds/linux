@@ -54,8 +54,6 @@ config ARCH_BCM_NSP
 	select ARM_ERRATA_775420
 	select ARM_ERRATA_764369 if SMP
 	select ARM_TIMER_SP804
-	select THERMAL
-	select THERMAL_OF
 	help
 	  Support for Broadcom Northstar Plus SoC.
 	  Broadcom Northstar Plus family of SoCs are used for switching control
@@ -202,7 +200,7 @@ config ARCH_BRCMSTB
 	  including the 7445 family of chips.
 
 menuconfig ARCH_BCMBCA
-	bool "Broadcom Broadband SoC"
+	bool "Broadcom Broadband Carrier Access (BCA) origin SoC"
 	depends on ARCH_MULTI_V7
 	select ARM_AMBA
 	select ARM_GIC
