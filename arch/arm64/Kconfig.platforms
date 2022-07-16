@@ -49,6 +49,7 @@ config ARCH_BCM2835
 
 config ARCH_BCM4908
 	bool "Broadcom BCM4908 family"
+	select ARCH_BCMBCA
 	select GPIOLIB
 	help
 	  This enables support for the Broadcom BCM4906, BCM4908 and
@@ -64,7 +65,7 @@ config ARCH_BCM_IPROC
 	  This enables support for Broadcom iProc based SoCs
 
 config ARCH_BCMBCA
-	bool "Broadcom Broadband SoC"
+	bool "Broadcom Broadband Carrier Access (BCA) origin SoC"
 	help
 	  Say Y if you intend to run the kernel on a Broadcom Broadband ARM-based
 	  BCA chipset.
