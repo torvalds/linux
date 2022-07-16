@@ -1270,7 +1270,7 @@ static int tegra_xusb_padctl_remove(struct platform_device *pdev)
 
 	padctl->soc->ops->remove(padctl);
 
-	return err;
+	return 0;
 }
 
 static __maybe_unused int tegra_xusb_padctl_suspend_noirq(struct device *dev)
