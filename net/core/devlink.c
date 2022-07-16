@@ -266,6 +266,12 @@ void devl_lock(struct devlink *devlink)
 }
 EXPORT_SYMBOL_GPL(devl_lock);
 
+int devl_trylock(struct devlink *devlink)
+{
+	return mutex_trylock(&devlink->lock);
+}
+EXPORT_SYMBOL_GPL(devl_trylock);
+
 void devl_unlock(struct devlink *devlink)
 {
 	mutex_unlock(&devlink->lock);
