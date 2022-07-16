@@ -951,9 +951,7 @@ Bridge VLAN filtering
   allowed.
 
 - ``port_vlan_add``: bridge layer function invoked when a VLAN is configured
-  (tagged or untagged) for the given switch port. If the operation is not
-  supported by the hardware, this function should return ``-EOPNOTSUPP`` to
-  inform the bridge code to fallback to a software implementation.
+  (tagged or untagged) for the given switch port..
 
 - ``port_vlan_del``: bridge layer function invoked when a VLAN is removed from the
   given switch port
@@ -961,9 +959,7 @@ Bridge VLAN filtering
 - ``port_fdb_add``: bridge layer function invoked when the bridge wants to install a
   Forwarding Database entry, the switch hardware should be programmed with the
   specified address in the specified VLAN Id in the forwarding database
-  associated with this VLAN ID. If the operation is not supported, this
-  function should return ``-EOPNOTSUPP`` to inform the bridge code to fallback to
-  a software implementation.
+  associated with this VLAN ID.
 
 - ``port_fdb_del``: bridge layer function invoked when the bridge wants to remove a
   Forwarding Database entry, the switch hardware should be programmed to delete
@@ -978,9 +974,7 @@ Bridge VLAN filtering
   the ``bridge fdb show`` command.
 
 - ``port_mdb_add``: bridge layer function invoked when the bridge wants to install
-  a multicast database entry. If the operation is not supported, this function
-  should return ``-EOPNOTSUPP`` to inform the bridge code to fallback to a
-  software implementation. The switch hardware should be programmed with the
+  a multicast database entry. The switch hardware should be programmed with the
   specified address in the specified VLAN ID in the forwarding database
   associated with this VLAN ID.
 
