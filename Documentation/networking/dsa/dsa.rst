@@ -620,6 +620,15 @@ Switch configuration
   may have previously configured. The method responsible for undoing any
   applicable allocations or operations done here is ``teardown``.
 
+- ``port_setup`` and ``port_teardown``: methods for initialization and
+  destruction of per-port data structures. It is mandatory for some operations
+  such as registering and unregistering devlink port regions to be done from
+  these methods, otherwise they are optional. A port will be torn down only if
+  it has been previously set up. It is possible for a port to be set up during
+  probing only to be torn down immediately afterwards, for example in case its
+  PHY cannot be found. In this case, probing of the DSA switch continues
+  without that particular port.
+
 PHY devices and link management
 -------------------------------
 
