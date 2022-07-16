@@ -10555,45 +10555,41 @@ unlock:
 EXPORT_SYMBOL_GPL(devlink_dpipe_table_unregister);
 
 /**
- *	devlink_resource_register - devlink resource register
+ * devl_resource_register - devlink resource register
  *
- *	@devlink: devlink
- *	@resource_name: resource's name
- *	@resource_size: resource's size
- *	@resource_id: resource's id
- *	@parent_resource_id: resource's parent id
- *	@size_params: size parameters
+ * @devlink: devlink
+ * @resource_name: resource's name
+ * @resource_size: resource's size
+ * @resource_id: resource's id
+ * @parent_resource_id: resource's parent id
+ * @size_params: size parameters
  *
- *	Generic resources should reuse the same names across drivers.
- *	Please see the generic resources list at:
- *	Documentation/networking/devlink/devlink-resource.rst
+ * Generic resources should reuse the same names across drivers.
+ * Please see the generic resources list at:
+ * Documentation/networking/devlink/devlink-resource.rst
  */
-int devlink_resource_register(struct devlink *devlink,
-			      const char *resource_name,
-			      u64 resource_size,
-			      u64 resource_id,
-			      u64 parent_resource_id,
-			      const struct devlink_resource_size_params *size_params)
+int devl_resource_register(struct devlink *devlink,
+			   const char *resource_name,
+			   u64 resource_size,
+			   u64 resource_id,
+			   u64 parent_resource_id,
+			   const struct devlink_resource_size_params *size_params)
 {
 	struct devlink_resource *resource;
 	struct list_head *resource_list;
 	bool top_hierarchy;
-	int err = 0;
+
+	lockdep_assert_held(&devlink->lock);
 
 	top_hierarchy = parent_resource_id == DEVLINK_RESOURCE_ID_PARENT_TOP;
 
-	devl_lock(devlink);
 	resource = devlink_resource_find(devlink, NULL, resource_id);
-	if (resource) {
-		err = -EINVAL;
-		goto out;
-	}
+	if (resource)
+		return -EINVAL;
 
 	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
-	if (!resource) {
-		err = -ENOMEM;
-		goto out;
-	}
+	if (!resource)
+		return -ENOMEM;
 
 	if (top_hierarchy) {
 		resource_list = &devlink->resource_list;
@@ -10607,8 +10603,7 @@ int devlink_resource_register(struct devlink *devlink,
 			resource->parent = parent_resource;
 		} else {
 			kfree(resource);
-			err = -EINVAL;
-			goto out;
+			return -EINVAL;
 		}
 	}
 
@@ -10621,7 +10616,39 @@ int devlink_resource_register(struct devlink *devlink,
 	       sizeof(resource->size_params));
 	INIT_LIST_HEAD(&resource->resource_list);
 	list_add_tail(&resource->list, resource_list);
-out:
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devl_resource_register);
+
+/**
+ *	devlink_resource_register - devlink resource register
+ *
+ *	@devlink: devlink
+ *	@resource_name: resource's name
+ *	@resource_size: resource's size
+ *	@resource_id: resource's id
+ *	@parent_resource_id: resource's parent id
+ *	@size_params: size parameters
+ *
+ *	Generic resources should reuse the same names across drivers.
+ *	Please see the generic resources list at:
+ *	Documentation/networking/devlink/devlink-resource.rst
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
+ */
+int devlink_resource_register(struct devlink *devlink,
+			      const char *resource_name,
+			      u64 resource_size,
+			      u64 resource_id,
+			      u64 parent_resource_id,
+			      const struct devlink_resource_size_params *size_params)
+{
+	int err;
+
+	devl_lock(devlink);
+	err = devl_resource_register(devlink, resource_name, resource_size,
+				     resource_id, parent_resource_id, size_params);
 	devl_unlock(devlink);
 	return err;
 }
@@ -10641,15 +10668,15 @@ static void devlink_resource_unregister(struct devlink *devlink,
 }
 
 /**
- *	devlink_resources_unregister - free all resources
+ * devl_resources_unregister - free all resources
  *
- *	@devlink: devlink
+ * @devlink: devlink
  */
-void devlink_resources_unregister(struct devlink *devlink)
+void devl_resources_unregister(struct devlink *devlink)
 {
 	struct devlink_resource *tmp, *child_resource;
 
-	devl_lock(devlink);
+	lockdep_assert_held(&devlink->lock);
 
 	list_for_each_entry_safe(child_resource, tmp, &devlink->resource_list,
 				 list) {
@@ -10657,10 +10684,47 @@ void devlink_resources_unregister(struct devlink *devlink)
 		list_del(&child_resource->list);
 		kfree(child_resource);
 	}
+}
+EXPORT_SYMBOL_GPL(devl_resources_unregister);
 
+/**
+ *	devlink_resources_unregister - free all resources
+ *
+ *	@devlink: devlink
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
+ */
+void devlink_resources_unregister(struct devlink *devlink)
+{
+	devl_lock(devlink);
+	devl_resources_unregister(devlink);
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_resources_unregister);
+
+/**
+ * devl_resource_size_get - get and update size
+ *
+ * @devlink: devlink
+ * @resource_id: the requested resource id
+ * @p_resource_size: ptr to update
+ */
+int devl_resource_size_get(struct devlink *devlink,
+			   u64 resource_id,
+			   u64 *p_resource_size)
+{
+	struct devlink_resource *resource;
+
+	lockdep_assert_held(&devlink->lock);
+
+	resource = devlink_resource_find(devlink, NULL, resource_id);
+	if (!resource)
+		return -EINVAL;
+	*p_resource_size = resource->size_new;
+	resource->size = resource->size_new;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devl_resource_size_get);
 
 /**
  *	devlink_resource_size_get - get and update size
@@ -10668,23 +10732,17 @@ EXPORT_SYMBOL_GPL(devlink_resources_unregister);
  *	@devlink: devlink
  *	@resource_id: the requested resource id
  *	@p_resource_size: ptr to update
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
  */
 int devlink_resource_size_get(struct devlink *devlink,
 			      u64 resource_id,
 			      u64 *p_resource_size)
 {
-	struct devlink_resource *resource;
-	int err = 0;
+	int err;
 
 	devl_lock(devlink);
-	resource = devlink_resource_find(devlink, NULL, resource_id);
-	if (!resource) {
-		err = -EINVAL;
-		goto out;
-	}
-	*p_resource_size = resource->size_new;
-	resource->size = resource->size_new;
-out:
+	err = devl_resource_size_get(devlink, resource_id, p_resource_size);
 	devl_unlock(devlink);
 	return err;
 }
@@ -10722,53 +10780,90 @@ out:
 EXPORT_SYMBOL_GPL(devlink_dpipe_table_resource_set);
 
 /**
+ * devl_resource_occ_get_register - register occupancy getter
+ *
+ * @devlink: devlink
+ * @resource_id: resource id
+ * @occ_get: occupancy getter callback
+ * @occ_get_priv: occupancy getter callback priv
+ */
+void devl_resource_occ_get_register(struct devlink *devlink,
+				    u64 resource_id,
+				    devlink_resource_occ_get_t *occ_get,
+				    void *occ_get_priv)
+{
+	struct devlink_resource *resource;
+
+	lockdep_assert_held(&devlink->lock);
+
+	resource = devlink_resource_find(devlink, NULL, resource_id);
+	if (WARN_ON(!resource))
+		return;
+	WARN_ON(resource->occ_get);
+
+	resource->occ_get = occ_get;
+	resource->occ_get_priv = occ_get_priv;
+}
+EXPORT_SYMBOL_GPL(devl_resource_occ_get_register);
+
+/**
  *	devlink_resource_occ_get_register - register occupancy getter
  *
  *	@devlink: devlink
  *	@resource_id: resource id
  *	@occ_get: occupancy getter callback
  *	@occ_get_priv: occupancy getter callback priv
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
  */
 void devlink_resource_occ_get_register(struct devlink *devlink,
 				       u64 resource_id,
 				       devlink_resource_occ_get_t *occ_get,
 				       void *occ_get_priv)
 {
-	struct devlink_resource *resource;
-
 	devl_lock(devlink);
-	resource = devlink_resource_find(devlink, NULL, resource_id);
-	if (WARN_ON(!resource))
-		goto out;
-	WARN_ON(resource->occ_get);
-
-	resource->occ_get = occ_get;
-	resource->occ_get_priv = occ_get_priv;
-out:
+	devl_resource_occ_get_register(devlink, resource_id,
+				       occ_get, occ_get_priv);
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_resource_occ_get_register);
+
+/**
+ * devl_resource_occ_get_unregister - unregister occupancy getter
+ *
+ * @devlink: devlink
+ * @resource_id: resource id
+ */
+void devl_resource_occ_get_unregister(struct devlink *devlink,
+				      u64 resource_id)
+{
+	struct devlink_resource *resource;
+
+	lockdep_assert_held(&devlink->lock);
+
+	resource = devlink_resource_find(devlink, NULL, resource_id);
+	if (WARN_ON(!resource))
+		return;
+	WARN_ON(!resource->occ_get);
+
+	resource->occ_get = NULL;
+	resource->occ_get_priv = NULL;
+}
+EXPORT_SYMBOL_GPL(devl_resource_occ_get_unregister);
 
 /**
  *	devlink_resource_occ_get_unregister - unregister occupancy getter
  *
  *	@devlink: devlink
  *	@resource_id: resource id
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
  */
 void devlink_resource_occ_get_unregister(struct devlink *devlink,
 					 u64 resource_id)
 {
-	struct devlink_resource *resource;
-
 	devl_lock(devlink);
-	resource = devlink_resource_find(devlink, NULL, resource_id);
-	if (WARN_ON(!resource))
-		goto out;
-	WARN_ON(!resource->occ_get);
-
-	resource->occ_get = NULL;
-	resource->occ_get_priv = NULL;
-out:
+	devl_resource_occ_get_unregister(devlink, resource_id);
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_resource_occ_get_unregister);
