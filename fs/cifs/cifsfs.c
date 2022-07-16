@@ -75,6 +75,8 @@ atomic_t small_buf_alloc_count;
 atomic_t total_buf_alloc_count;
 atomic_t total_small_buf_alloc_count;
 #endif/* STATS2 */
+struct list_head	cifs_tcp_ses_list;
+spinlock_t		cifs_tcp_ses_lock;
 static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, uint, 0444);

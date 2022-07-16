@@ -1941,7 +1941,7 @@ require use of the stronger protocol */
  * sessions (and from that the tree connections) can be found
  * by iterating over cifs_tcp_ses_list
  */
-GLOBAL_EXTERN struct list_head		cifs_tcp_ses_list;
+extern struct list_head		cifs_tcp_ses_list;
 
 /*
  * This lock protects the cifs_tcp_ses_list, the list of smb sessions per
@@ -1953,7 +1953,7 @@ GLOBAL_EXTERN struct list_head		cifs_tcp_ses_list;
  * tcon->open_file_lock and that before file->file_info_lock since the
  * structure order is cifs_socket-->cifs_ses-->cifs_tcon-->cifs_file
  */
-GLOBAL_EXTERN spinlock_t		cifs_tcp_ses_lock;
+extern spinlock_t		cifs_tcp_ses_lock;
 
 /*
  * Global transaction id (XID) information
