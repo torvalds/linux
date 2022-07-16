@@ -68,6 +68,13 @@ bool enable_negotiate_signing; /* false by default */
 unsigned int global_secflags = CIFSSEC_DEF;
 /* unsigned int ntlmv2_support = 0; */
 unsigned int sign_CIFS_PDUs = 1;
+atomic_t mid_count;
+atomic_t buf_alloc_count;
+atomic_t small_buf_alloc_count;
+#ifdef CONFIG_CIFS_STATS2
+atomic_t total_buf_alloc_count;
+atomic_t total_small_buf_alloc_count;
+#endif/* STATS2 */
 static const struct super_operations cifs_super_ops;
 unsigned int CIFSMaxBufSize = CIFS_MAX_MSGSIZE;
 module_param(CIFSMaxBufSize, uint, 0444);
@@ -1579,11 +1586,11 @@ init_cifs(void)
 	atomic_set(&tcpSesReconnectCount, 0);
 	atomic_set(&tconInfoReconnectCount, 0);
 
-	atomic_set(&bufAllocCount, 0);
-	atomic_set(&smBufAllocCount, 0);
+	atomic_set(&buf_alloc_count, 0);
+	atomic_set(&small_buf_alloc_count, 0);
 #ifdef CONFIG_CIFS_STATS2
-	atomic_set(&totBufAllocCount, 0);
-	atomic_set(&totSmBufAllocCount, 0);
+	atomic_set(&total_buf_alloc_count, 0);
+	atomic_set(&total_small_buf_alloc_count, 0);
 	if (slow_rsp_threshold < 1)
 		cifs_dbg(FYI, "slow_response_threshold msgs disabled\n");
 	else if (slow_rsp_threshold > 32767)
@@ -1591,7 +1598,7 @@ init_cifs(void)
 		       "slow response threshold set higher than recommended (0 to 32767)\n");
 #endif /* CONFIG_CIFS_STATS2 */
 
-	atomic_set(&midCount, 0);
+	atomic_set(&mid_count, 0);
 	GlobalCurrentXid = 0;
 	GlobalTotalActiveXid = 0;
 	GlobalMaxActiveXid = 0;

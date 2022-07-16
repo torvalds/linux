@@ -172,9 +172,9 @@ cifs_buf_get(void)
 	/* clear the first few header bytes */
 	/* for most paths, more is cleared in header_assemble */
 	memset(ret_buf, 0, buf_size + 3);
-	atomic_inc(&bufAllocCount);
+	atomic_inc(&buf_alloc_count);
 #ifdef CONFIG_CIFS_STATS2
-	atomic_inc(&totBufAllocCount);
+	atomic_inc(&total_buf_alloc_count);
 #endif /* CONFIG_CIFS_STATS2 */
 
 	return ret_buf;
@@ -189,7 +189,7 @@ cifs_buf_release(void *buf_to_free)
 	}
 	mempool_free(buf_to_free, cifs_req_poolp);
 
-	atomic_dec(&bufAllocCount);
+	atomic_dec(&buf_alloc_count);
 	return;
 }
 
@@ -205,9 +205,9 @@ cifs_small_buf_get(void)
 	ret_buf = mempool_alloc(cifs_sm_req_poolp, GFP_NOFS);
 	/* No need to clear memory here, cleared in header assemble */
 	/*	memset(ret_buf, 0, sizeof(struct smb_hdr) + 27);*/
-	atomic_inc(&smBufAllocCount);
+	atomic_inc(&small_buf_alloc_count);
 #ifdef CONFIG_CIFS_STATS2
-	atomic_inc(&totSmBufAllocCount);
+	atomic_inc(&total_small_buf_alloc_count);
 #endif /* CONFIG_CIFS_STATS2 */
 
 	return ret_buf;
@@ -223,7 +223,7 @@ cifs_small_buf_release(void *buf_to_free)
 	}
 	mempool_free(buf_to_free, cifs_sm_req_poolp);
 
-	atomic_dec(&smBufAllocCount);
+	atomic_dec(&small_buf_alloc_count);
 	return;
 }
 

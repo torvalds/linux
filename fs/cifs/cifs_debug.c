@@ -514,8 +514,8 @@ static ssize_t cifs_stats_proc_write(struct file *file,
 #ifdef CONFIG_CIFS_STATS2
 		int i;
 
-		atomic_set(&totBufAllocCount, 0);
-		atomic_set(&totSmBufAllocCount, 0);
+		atomic_set(&total_buf_alloc_count, 0);
+		atomic_set(&total_small_buf_alloc_count, 0);
 #endif /* CONFIG_CIFS_STATS2 */
 		atomic_set(&tcpSesReconnectCount, 0);
 		atomic_set(&tconInfoReconnectCount, 0);
@@ -579,17 +579,17 @@ static int cifs_stats_proc_show(struct seq_file *m, void *v)
 	seq_printf(m, "Share (unique mount targets): %d\n",
 			tconInfoAllocCount.counter);
 	seq_printf(m, "SMB Request/Response Buffer: %d Pool size: %d\n",
-			bufAllocCount.counter,
+			buf_alloc_count.counter,
 			cifs_min_rcv + tcpSesAllocCount.counter);
 	seq_printf(m, "SMB Small Req/Resp Buffer: %d Pool size: %d\n",
-			smBufAllocCount.counter, cifs_min_small);
+			small_buf_alloc_count.counter, cifs_min_small);
 #ifdef CONFIG_CIFS_STATS2
 	seq_printf(m, "Total Large %d Small %d Allocations\n",
-				atomic_read(&totBufAllocCount),
-				atomic_read(&totSmBufAllocCount));
+				atomic_read(&total_buf_alloc_count),
+				atomic_read(&total_small_buf_alloc_count));
 #endif /* CONFIG_CIFS_STATS2 */
 
-	seq_printf(m, "Operations (MIDs): %d\n", atomic_read(&midCount));
+	seq_printf(m, "Operations (MIDs): %d\n", atomic_read(&mid_count));
 	seq_printf(m,
 		"\n%d session %d share reconnects\n",
 		tcpSesReconnectCount.counter, tconInfoReconnectCount.counter);
