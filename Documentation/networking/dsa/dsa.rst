@@ -828,10 +828,6 @@ Bridge VLAN filtering
 - ``port_vlan_del``: bridge layer function invoked when a VLAN is removed from the
   given switch port
 
-- ``port_vlan_dump``: bridge layer function invoked with a switchdev callback
-  function that the driver has to call for each VLAN the given port is a member
-  of. A switchdev object is used to carry the VID and bridge flags.
-
 - ``port_fdb_add``: bridge layer function invoked when the bridge wants to install a
   Forwarding Database entry, the switch hardware should be programmed with the
   specified address in the specified VLAN Id in the forwarding database
