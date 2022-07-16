@@ -1594,20 +1594,11 @@ int devl_dpipe_table_register(struct devlink *devlink,
 			      const char *table_name,
 			      struct devlink_dpipe_table_ops *table_ops,
 			      void *priv, bool counter_control_extern);
-int devlink_dpipe_table_register(struct devlink *devlink,
-				 const char *table_name,
-				 struct devlink_dpipe_table_ops *table_ops,
-				 void *priv, bool counter_control_extern);
 void devl_dpipe_table_unregister(struct devlink *devlink,
 				 const char *table_name);
-void devlink_dpipe_table_unregister(struct devlink *devlink,
-				    const char *table_name);
 void devl_dpipe_headers_register(struct devlink *devlink,
 				 struct devlink_dpipe_headers *dpipe_headers);
-void devlink_dpipe_headers_register(struct devlink *devlink,
-				   struct devlink_dpipe_headers *dpipe_headers);
 void devl_dpipe_headers_unregister(struct devlink *devlink);
-void devlink_dpipe_headers_unregister(struct devlink *devlink);
 bool devlink_dpipe_table_counter_enabled(struct devlink *devlink,
 					 const char *table_name);
 int devlink_dpipe_entry_ctx_prepare(struct devlink_dpipe_dump_ctx *dump_ctx);
@@ -1640,9 +1631,6 @@ void devlink_resources_unregister(struct devlink *devlink);
 int devl_resource_size_get(struct devlink *devlink,
 			   u64 resource_id,
 			   u64 *p_resource_size);
-int devlink_resource_size_get(struct devlink *devlink,
-			      u64 resource_id,
-			      u64 *p_resource_size);
 int devl_dpipe_table_resource_set(struct devlink *devlink,
 				  const char *table_name, u64 resource_id,
 				  u64 resource_units);
@@ -1817,18 +1805,10 @@ int
 devl_trap_policers_register(struct devlink *devlink,
 			    const struct devlink_trap_policer *policers,
 			    size_t policers_count);
-int
-devlink_trap_policers_register(struct devlink *devlink,
-			       const struct devlink_trap_policer *policers,
-			       size_t policers_count);
 void
 devl_trap_policers_unregister(struct devlink *devlink,
 			      const struct devlink_trap_policer *policers,
 			      size_t policers_count);
-void
-devlink_trap_policers_unregister(struct devlink *devlink,
-				 const struct devlink_trap_policer *policers,
-				 size_t policers_count);
 
 #if IS_ENABLED(CONFIG_NET_DEVLINK)
 
