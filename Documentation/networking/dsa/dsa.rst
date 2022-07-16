@@ -572,6 +572,24 @@ The opposite of registration takes place when calling ``dsa_unregister_switch()`
 which removes a switch's ports from the port list of the tree. The entire tree
 is torn down when the first switch unregisters.
 
+It is mandatory for DSA switch drivers to implement the ``shutdown()`` callback
+of their respective bus, and call ``dsa_switch_shutdown()`` from it (a minimal
+version of the full teardown performed by ``dsa_unregister_switch()``).
+The reason is that DSA keeps a reference on the master net device, and if the
+driver for the master device decides to unbind on shutdown, DSA's reference
+will block that operation from finalizing.
+
+Either ``dsa_switch_shutdown()`` or ``dsa_unregister_switch()`` must be called,
+but not both, and the device driver model permits the bus' ``remove()`` method
+to be called even if ``shutdown()`` was already called. Therefore, drivers are
+expected to implement a mutual exclusion method between ``remove()`` and
+``shutdown()`` by setting their drvdata to NULL after any of these has run, and
+checking whether the drvdata is NULL before proceeding to take any action.
+
+After ``dsa_switch_shutdown()`` or ``dsa_unregister_switch()`` was called, no
+further callbacks via the provided ``dsa_switch_ops`` may take place, and the
+driver may free the data structures associated with the ``dsa_switch``.
+
 Switch configuration
 --------------------
 
