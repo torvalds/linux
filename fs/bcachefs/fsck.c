@@ -852,23 +852,15 @@ fsck_err:
 
 static int check_inode(struct btree_trans *trans,
 		       struct btree_iter *iter,
+		       struct bkey_s_c k,
 		       struct bch_inode_unpacked *prev,
 		       struct snapshots_seen *s,
 		       bool full)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_s_c k;
 	struct bch_inode_unpacked u;
 	bool do_update = false;
 	int ret;
-
-	k = bch2_btree_iter_peek(iter);
-	if (!k.k)
-		return 0;
-
-	ret = bkey_err(k);
-	if (ret)
-		return ret;
 
 	ret = check_key_has_snapshot(trans, iter, k);
 	if (ret < 0)
@@ -984,7 +976,7 @@ static int check_inode(struct btree_trans *trans,
 	}
 
 	if (do_update) {
-		ret = write_inode(trans, &u, iter->pos.snapshot);
+		ret = __write_inode(trans, &u, iter->pos.snapshot);
 		if (ret)
 			bch_err(c, "error in fsck: error %i "
 				"updating inode", ret);
@@ -1003,25 +995,19 @@ static int check_inodes(struct bch_fs *c, bool full)
 	struct btree_iter iter;
 	struct bch_inode_unpacked prev = { 0 };
 	struct snapshots_seen s;
+	struct bkey_s_c k;
 	int ret;
 
 	snapshots_seen_init(&s);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_inodes, POS_MIN,
-			     BTREE_ITER_INTENT|
-			     BTREE_ITER_PREFETCH|
-			     BTREE_ITER_ALL_SNAPSHOTS);
-
-	do {
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_LAZY_RW|
-				      BTREE_INSERT_NOFAIL,
-			check_inode(&trans, &iter, &prev, &s, full));
-		if (ret)
-			break;
-	} while (bch2_btree_iter_advance(&iter));
-	bch2_trans_iter_exit(&trans, &iter);
+	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_inodes,
+			POS_MIN,
+			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
+			k,
+			NULL, NULL,
+			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+		check_inode(&trans, &iter, k, &prev, &s, full));
 
 	bch2_trans_exit(&trans);
 	snapshots_seen_exit(&s);
@@ -1166,23 +1152,15 @@ fsck_err:
 }
 
 static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
+			struct bkey_s_c k,
 			struct inode_walker *inode,
 			struct snapshots_seen *s)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_s_c k;
 	struct inode_walker_entry *i;
 	struct printbuf buf = PRINTBUF;
 	struct bpos equiv;
 	int ret = 0;
-peek:
-	k = bch2_btree_iter_peek(iter);
-	if (!k.k)
-		goto out;
-
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
 
 	ret = check_key_has_snapshot(trans, iter, k);
 	if (ret) {
@@ -1212,7 +1190,7 @@ peek:
 		 * it shouldn't be but we need to fix the new i_sectors check
 		 * code and delete the old bch2_count_inode_sectors() first
 		 */
-		goto peek;
+		return -EINTR;
 	}
 #if 0
 	if (bkey_cmp(prev.k->k.p, bkey_start_pos(k.k)) > 0) {
@@ -1324,6 +1302,7 @@ static int check_extents(struct bch_fs *c)
 	struct snapshots_seen s;
 	struct btree_trans trans;
 	struct btree_iter iter;
+	struct bkey_s_c k;
 	int ret = 0;
 
 #if 0
@@ -1336,21 +1315,12 @@ static int check_extents(struct bch_fs *c)
 
 	bch_verbose(c, "checking extents");
 
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
-			     POS(BCACHEFS_ROOT_INO, 0),
-			     BTREE_ITER_INTENT|
-			     BTREE_ITER_PREFETCH|
-			     BTREE_ITER_ALL_SNAPSHOTS);
-
-	do {
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_LAZY_RW|
-				      BTREE_INSERT_NOFAIL,
-			check_extent(&trans, &iter, &w, &s));
-		if (ret)
-			break;
-	} while (bch2_btree_iter_advance(&iter));
-	bch2_trans_iter_exit(&trans, &iter);
+	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_extents,
+			POS(BCACHEFS_ROOT_INO, 0),
+			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+			NULL, NULL,
+			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+		check_extent(&trans, &iter, k, &w, &s));
 #if 0
 	bch2_bkey_buf_exit(&prev, c);
 #endif
@@ -1522,26 +1492,18 @@ fsck_err:
 }
 
 static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
+			struct bkey_s_c k,
 			struct bch_hash_info *hash_info,
 			struct inode_walker *dir,
 			struct inode_walker *target,
 			struct snapshots_seen *s)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_s_c k;
 	struct bkey_s_c_dirent d;
 	struct inode_walker_entry *i;
 	struct printbuf buf = PRINTBUF;
 	struct bpos equiv;
 	int ret = 0;
-peek:
-	k = bch2_btree_iter_peek(iter);
-	if (!k.k)
-		goto out;
-
-	ret = bkey_err(k);
-	if (ret)
-		goto err;
 
 	ret = check_key_has_snapshot(trans, iter, k);
 	if (ret) {
@@ -1567,7 +1529,7 @@ peek:
 
 	if (!iter->path->should_be_locked) {
 		/* hack: see check_extent() */
-		goto peek;
+		return -EINTR;
 	}
 
 	ret = __walk_inode(trans, dir, equiv);
@@ -1715,6 +1677,7 @@ static int check_dirents(struct bch_fs *c)
 	struct bch_hash_info hash_info;
 	struct btree_trans trans;
 	struct btree_iter iter;
+	struct bkey_s_c k;
 	int ret = 0;
 
 	bch_verbose(c, "checking dirents");
@@ -1722,22 +1685,13 @@ static int check_dirents(struct bch_fs *c)
 	snapshots_seen_init(&s);
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_dirents,
-			     POS(BCACHEFS_ROOT_INO, 0),
-			     BTREE_ITER_INTENT|
-			     BTREE_ITER_PREFETCH|
-			     BTREE_ITER_ALL_SNAPSHOTS);
-
-	do {
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_LAZY_RW|
-				      BTREE_INSERT_NOFAIL,
-			check_dirent(&trans, &iter, &hash_info,
-				     &dir, &target, &s));
-		if (ret)
-			break;
-	} while (bch2_btree_iter_advance(&iter));
-	bch2_trans_iter_exit(&trans, &iter);
+	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_dirents,
+			POS(BCACHEFS_ROOT_INO, 0),
+			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
+			k,
+			NULL, NULL,
+			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+		check_dirent(&trans, &iter, k, &hash_info, &dir, &target, &s));
 
 	bch2_trans_exit(&trans);
 	snapshots_seen_exit(&s);
@@ -1750,20 +1704,12 @@ static int check_dirents(struct bch_fs *c)
 }
 
 static int check_xattr(struct btree_trans *trans, struct btree_iter *iter,
+		       struct bkey_s_c k,
 		       struct bch_hash_info *hash_info,
 		       struct inode_walker *inode)
 {
 	struct bch_fs *c = trans->c;
-	struct bkey_s_c k;
 	int ret;
-
-	k = bch2_btree_iter_peek(iter);
-	if (!k.k)
-		return 0;
-
-	ret = bkey_err(k);
-	if (ret)
-		return ret;
 
 	ret = check_key_has_snapshot(trans, iter, k);
 	if (ret)
@@ -1803,28 +1749,20 @@ static int check_xattrs(struct bch_fs *c)
 	struct bch_hash_info hash_info;
 	struct btree_trans trans;
 	struct btree_iter iter;
+	struct bkey_s_c k;
 	int ret = 0;
 
 	bch_verbose(c, "checking xattrs");
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_xattrs,
-			     POS(BCACHEFS_ROOT_INO, 0),
-			     BTREE_ITER_INTENT|
-			     BTREE_ITER_PREFETCH|
-			     BTREE_ITER_ALL_SNAPSHOTS);
-
-	do {
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_LAZY_RW|
-				      BTREE_INSERT_NOFAIL,
-				      check_xattr(&trans, &iter, &hash_info,
-						  &inode));
-		if (ret)
-			break;
-	} while (bch2_btree_iter_advance(&iter));
-	bch2_trans_iter_exit(&trans, &iter);
+	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_xattrs,
+			POS(BCACHEFS_ROOT_INO, 0),
+			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
+			k,
+			NULL, NULL,
+			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+		check_xattr(&trans, &iter, k, &hash_info, &inode));
 
 	bch2_trans_exit(&trans);
 

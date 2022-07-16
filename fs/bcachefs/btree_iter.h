@@ -393,6 +393,39 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 	return k;
 }
 
+#define for_each_btree_key2(_trans, _iter, _btree_id,			\
+			    _start, _flags, _k, _do)			\
+({									\
+	int _ret = 0;							\
+									\
+	bch2_trans_iter_init((_trans), &(_iter), (_btree_id),		\
+			     (_start), (_flags));			\
+									\
+	do {								\
+		bch2_trans_begin(_trans);				\
+		(_k) = bch2_btree_iter_peek_type(&(_iter), (_flags));	\
+		if (!(_k).k) {						\
+			_ret = 0;					\
+			break;						\
+		}							\
+									\
+		_ret = bkey_err(_k) ?: (_do);				\
+		if (!_ret)						\
+			bch2_btree_iter_advance(&(_iter));		\
+	} while (_ret == 0 || _ret == -EINTR);				\
+									\
+	bch2_trans_iter_exit((_trans), &(_iter));			\
+	_ret;								\
+})
+
+#define for_each_btree_key_commit(_trans, _iter, _btree_id,		\
+				  _start, _iter_flags, _k,		\
+				  _disk_res, _journal_seq, _commit_flags,\
+				  _do)					\
+	for_each_btree_key2(_trans, _iter, _btree_id, _start, _iter_flags, _k,\
+			    (_do) ?: bch2_trans_commit(_trans, (_disk_res),\
+					(_journal_seq), (_commit_flags)))
+
 #define for_each_btree_key(_trans, _iter, _btree_id,			\
 			   _start, _flags, _k, _ret)			\
 	for (bch2_trans_iter_init((_trans), &(_iter), (_btree_id),	\

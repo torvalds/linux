@@ -1845,10 +1845,15 @@ out:
 	return ret;
 }
 
-static bool gc_btree_gens_key(struct bch_fs *c, struct bkey_s_c k)
+static int gc_btree_gens_key(struct btree_trans *trans,
+			     struct btree_iter *iter,
+			     struct bkey_s_c k)
 {
+	struct bch_fs *c = trans->c;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const struct bch_extent_ptr *ptr;
+	struct bkey_i *u;
+	int ret;
 
 	percpu_down_read(&c->mark_lock);
 	bkey_for_each_ptr(ptrs, ptr) {
@@ -1856,7 +1861,7 @@ static bool gc_btree_gens_key(struct bch_fs *c, struct bkey_s_c k)
 
 		if (ptr_stale(ca, ptr) > 16) {
 			percpu_up_read(&c->mark_lock);
-			return true;
+			goto update;
 		}
 	}
 
@@ -1868,76 +1873,26 @@ static bool gc_btree_gens_key(struct bch_fs *c, struct bkey_s_c k)
 			*gen = ptr->gen;
 	}
 	percpu_up_read(&c->mark_lock);
+	return 0;
+update:
+	u = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+	ret = PTR_ERR_OR_ZERO(u);
+	if (ret)
+		return ret;
 
-	return false;
+	bkey_reassemble(u, k);
+
+	bch2_extent_normalize(c, bkey_i_to_s(u));
+	return bch2_trans_update(trans, iter, u, 0);
 }
 
-/*
- * For recalculating oldest gen, we only need to walk keys in leaf nodes; btree
- * node pointers currently never have cached pointers that can become stale:
- */
-static int bch2_gc_btree_gens(struct btree_trans *trans, enum btree_id btree_id)
-{
-	struct bch_fs *c = trans->c;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	struct bkey_buf sk;
-	int ret = 0, commit_err = 0;
-
-	bch2_bkey_buf_init(&sk);
-
-	bch2_trans_iter_init(trans, &iter, btree_id, POS_MIN,
-			     BTREE_ITER_PREFETCH|
-			     BTREE_ITER_NOT_EXTENTS|
-			     BTREE_ITER_ALL_SNAPSHOTS);
-
-	while ((bch2_trans_begin(trans),
-		k = bch2_btree_iter_peek(&iter)).k) {
-		ret = bkey_err(k);
-
-		if (ret == -EINTR)
-			continue;
-		if (ret)
-			break;
-
-		c->gc_gens_pos = iter.pos;
-
-		if (gc_btree_gens_key(c, k) && !commit_err) {
-			bch2_bkey_buf_reassemble(&sk, c, k);
-			bch2_extent_normalize(c, bkey_i_to_s(sk.k));
-
-			commit_err =
-				bch2_trans_update(trans, &iter, sk.k, 0) ?:
-				bch2_trans_commit(trans, NULL, NULL,
-						  BTREE_INSERT_NOWAIT|
-						  BTREE_INSERT_NOFAIL);
-			if (commit_err == -EINTR) {
-				commit_err = 0;
-				continue;
-			}
-		}
-
-		bch2_btree_iter_advance(&iter);
-	}
-	bch2_trans_iter_exit(trans, &iter);
-
-	bch2_bkey_buf_exit(&sk, c);
-
-	return ret;
-}
-
-static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct btree_iter *iter)
+static int bch2_alloc_write_oldest_gen(struct btree_trans *trans, struct btree_iter *iter,
+				       struct bkey_s_c k)
 {
 	struct bch_dev *ca = bch_dev_bkey_exists(trans->c, iter->pos.inode);
-	struct bkey_s_c k;
 	struct bch_alloc_v4 a;
 	struct bkey_i_alloc_v4 *a_mut;
 	int ret;
-
-	k = bch2_btree_iter_peek_slot(iter);
-	ret = bkey_err(k);
-	if (ret)
-		return ret;
 
 	bch2_alloc_to_v4(k, &a);
 
@@ -1998,26 +1953,35 @@ int bch2_gc_gens(struct bch_fs *c)
 
 	for (i = 0; i < BTREE_ID_NR; i++)
 		if ((1 << i) & BTREE_ID_HAS_PTRS) {
+			struct btree_iter iter;
+			struct bkey_s_c k;
+
 			c->gc_gens_btree = i;
 			c->gc_gens_pos = POS_MIN;
-			ret = bch2_gc_btree_gens(&trans, i);
+			ret = for_each_btree_key_commit(&trans, iter, i,
+					POS_MIN,
+					BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
+					k,
+					NULL, NULL,
+					BTREE_INSERT_NOFAIL,
+				gc_btree_gens_key(&trans, &iter, k));
 			if (ret) {
 				bch_err(c, "error recalculating oldest_gen: %i", ret);
 				goto err;
 			}
 		}
 
-	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_NOFAIL,
-				bch2_alloc_write_oldest_gen(&trans, &iter));
-		if (ret) {
-			bch_err(c, "error writing oldest_gen: %i", ret);
-			break;
-		}
+	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_alloc,
+			POS_MIN,
+			BTREE_ITER_PREFETCH,
+			k,
+			NULL, NULL,
+			BTREE_INSERT_NOFAIL,
+		bch2_alloc_write_oldest_gen(&trans, &iter, k));
+	if (ret) {
+		bch_err(c, "error writing oldest_gen: %i", ret);
+		goto err;
 	}
-	bch2_trans_iter_exit(&trans, &iter);
 
 	c->gc_gens_btree	= 0;
 	c->gc_gens_pos		= POS_MIN;

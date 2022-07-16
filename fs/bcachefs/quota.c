@@ -455,21 +455,13 @@ static void bch2_sb_quota_read(struct bch_fs *c)
 }
 
 static int bch2_fs_quota_read_inode(struct btree_trans *trans,
-				    struct btree_iter *iter)
+				    struct btree_iter *iter,
+				    struct bkey_s_c k)
 {
 	struct bch_fs *c = trans->c;
 	struct bch_inode_unpacked u;
 	struct bch_subvolume subvolume;
-	struct bkey_s_c k;
 	int ret;
-
-	k = bch2_btree_iter_peek(iter);
-	ret = bkey_err(k);
-	if (ret)
-		return ret;
-
-	if (!k.k)
-		return 1;
 
 	ret = bch2_snapshot_get_subvol(trans, k.k->p.snapshot, &subvolume);
 	if (ret)
@@ -503,6 +495,7 @@ int bch2_fs_quota_read(struct bch_fs *c)
 	struct bch_memquota_type *q;
 	struct btree_trans trans;
 	struct btree_iter iter;
+	struct bkey_s_c k;
 	int ret;
 
 	mutex_lock(&c->sb_lock);
@@ -517,18 +510,18 @@ int bch2_fs_quota_read(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_inodes, POS_MIN,
+	ret = for_each_btree_key2(&trans, iter, BTREE_ID_inodes,
+			     POS_MIN,
 			     BTREE_ITER_INTENT|
 			     BTREE_ITER_PREFETCH|
-			     BTREE_ITER_ALL_SNAPSHOTS);
-	do {
-		ret = lockrestart_do(&trans,
-				     bch2_fs_quota_read_inode(&trans, &iter));
-	} while (!ret);
-	bch2_trans_iter_exit(&trans, &iter);
+			     BTREE_ITER_ALL_SNAPSHOTS,
+			     k,
+		bch2_fs_quota_read_inode(&trans, &iter, k));
+	if (ret)
+		bch_err(c, "err reading inodes in quota init: %i", ret);
 
 	bch2_trans_exit(&trans);
-	return ret < 0 ? ret : 0;
+	return ret;
 }
 
 /* Enable/disable/delete quotas for an entire filesystem: */

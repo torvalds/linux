@@ -928,16 +928,10 @@ int bch2_check_alloc_to_lru_refs(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_alloc, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_NOFAIL|
-				      BTREE_INSERT_LAZY_RW,
-			bch2_check_alloc_to_lru_ref(&trans, &iter));
-		if (ret)
-			break;
-	}
-	bch2_trans_iter_exit(&trans, &iter);
+	for_each_btree_key_commit(&trans, iter, BTREE_ID_alloc,
+			POS_MIN, BTREE_ITER_PREFETCH, k,
+			NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+		bch2_check_alloc_to_lru_ref(&trans, &iter));
 
 	bch2_trans_exit(&trans);
 	return ret < 0 ? ret : 0;
