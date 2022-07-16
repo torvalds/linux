@@ -10439,21 +10439,55 @@ void devlink_sb_unregister(struct devlink *devlink, unsigned int sb_index)
 EXPORT_SYMBOL_GPL(devlink_sb_unregister);
 
 /**
+ * devl_dpipe_headers_register - register dpipe headers
+ *
+ * @devlink: devlink
+ * @dpipe_headers: dpipe header array
+ *
+ * Register the headers supported by hardware.
+ */
+void devl_dpipe_headers_register(struct devlink *devlink,
+				 struct devlink_dpipe_headers *dpipe_headers)
+{
+	lockdep_assert_held(&devlink->lock);
+
+	devlink->dpipe_headers = dpipe_headers;
+}
+EXPORT_SYMBOL_GPL(devl_dpipe_headers_register);
+
+/**
  *	devlink_dpipe_headers_register - register dpipe headers
  *
  *	@devlink: devlink
  *	@dpipe_headers: dpipe header array
  *
  *	Register the headers supported by hardware.
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
  */
 void devlink_dpipe_headers_register(struct devlink *devlink,
 				    struct devlink_dpipe_headers *dpipe_headers)
 {
 	devl_lock(devlink);
-	devlink->dpipe_headers = dpipe_headers;
+	devl_dpipe_headers_register(devlink, dpipe_headers);
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_dpipe_headers_register);
+
+/**
+ * devl_dpipe_headers_unregister - unregister dpipe headers
+ *
+ * @devlink: devlink
+ *
+ * Unregister the headers supported by hardware.
+ */
+void devl_dpipe_headers_unregister(struct devlink *devlink)
+{
+	lockdep_assert_held(&devlink->lock);
+
+	devlink->dpipe_headers = NULL;
+}
+EXPORT_SYMBOL_GPL(devl_dpipe_headers_unregister);
 
 /**
  *	devlink_dpipe_headers_unregister - unregister dpipe headers
@@ -10461,11 +10495,13 @@ EXPORT_SYMBOL_GPL(devlink_dpipe_headers_register);
  *	@devlink: devlink
  *
  *	Unregister the headers supported by hardware.
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
  */
 void devlink_dpipe_headers_unregister(struct devlink *devlink)
 {
 	devl_lock(devlink);
-	devlink->dpipe_headers = NULL;
+	devl_dpipe_headers_unregister(devlink);
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_dpipe_headers_unregister);
@@ -10502,38 +10538,33 @@ bool devlink_dpipe_table_counter_enabled(struct devlink *devlink,
 EXPORT_SYMBOL_GPL(devlink_dpipe_table_counter_enabled);
 
 /**
- *	devlink_dpipe_table_register - register dpipe table
+ * devl_dpipe_table_register - register dpipe table
  *
- *	@devlink: devlink
- *	@table_name: table name
- *	@table_ops: table ops
- *	@priv: priv
- *	@counter_control_extern: external control for counters
+ * @devlink: devlink
+ * @table_name: table name
+ * @table_ops: table ops
+ * @priv: priv
+ * @counter_control_extern: external control for counters
  */
-int devlink_dpipe_table_register(struct devlink *devlink,
-				 const char *table_name,
-				 struct devlink_dpipe_table_ops *table_ops,
-				 void *priv, bool counter_control_extern)
+int devl_dpipe_table_register(struct devlink *devlink,
+			      const char *table_name,
+			      struct devlink_dpipe_table_ops *table_ops,
+			      void *priv, bool counter_control_extern)
 {
 	struct devlink_dpipe_table *table;
-	int err = 0;
+
+	lockdep_assert_held(&devlink->lock);
 
 	if (WARN_ON(!table_ops->size_get))
 		return -EINVAL;
 
-	devl_lock(devlink);
-
 	if (devlink_dpipe_table_find(&devlink->dpipe_table_list, table_name,
-				     devlink)) {
-		err = -EEXIST;
-		goto unlock;
-	}
+				     devlink))
+		return -EEXIST;
 
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
-	if (!table) {
-		err = -ENOMEM;
-		goto unlock;
-	}
+	if (!table)
+		return -ENOMEM;
 
 	table->name = table_name;
 	table->table_ops = table_ops;
@@ -10541,33 +10572,72 @@ int devlink_dpipe_table_register(struct devlink *devlink,
 	table->counter_control_extern = counter_control_extern;
 
 	list_add_tail_rcu(&table->list, &devlink->dpipe_table_list);
-unlock:
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devl_dpipe_table_register);
+
+/**
+ *	devlink_dpipe_table_register - register dpipe table
+ *
+ *	@devlink: devlink
+ *	@table_name: table name
+ *	@table_ops: table ops
+ *	@priv: priv
+ *	@counter_control_extern: external control for counters
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
+ */
+int devlink_dpipe_table_register(struct devlink *devlink,
+				 const char *table_name,
+				 struct devlink_dpipe_table_ops *table_ops,
+				 void *priv, bool counter_control_extern)
+{
+	int err;
+
+	devl_lock(devlink);
+	err = devl_dpipe_table_register(devlink, table_name, table_ops, priv,
+					counter_control_extern);
 	devl_unlock(devlink);
 	return err;
 }
 EXPORT_SYMBOL_GPL(devlink_dpipe_table_register);
 
 /**
+ * devl_dpipe_table_unregister - unregister dpipe table
+ *
+ * @devlink: devlink
+ * @table_name: table name
+ */
+void devl_dpipe_table_unregister(struct devlink *devlink,
+				 const char *table_name)
+{
+	struct devlink_dpipe_table *table;
+
+	lockdep_assert_held(&devlink->lock);
+
+	table = devlink_dpipe_table_find(&devlink->dpipe_table_list,
+					 table_name, devlink);
+	if (!table)
+		return;
+	list_del_rcu(&table->list);
+	kfree_rcu(table, rcu);
+}
+EXPORT_SYMBOL_GPL(devl_dpipe_table_unregister);
+
+/**
  *	devlink_dpipe_table_unregister - unregister dpipe table
  *
  *	@devlink: devlink
  *	@table_name: table name
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
  */
 void devlink_dpipe_table_unregister(struct devlink *devlink,
 				    const char *table_name)
 {
-	struct devlink_dpipe_table *table;
-
 	devl_lock(devlink);
-	table = devlink_dpipe_table_find(&devlink->dpipe_table_list,
-					 table_name, devlink);
-	if (!table)
-		goto unlock;
-	list_del_rcu(&table->list);
-	devl_unlock(devlink);
-	kfree_rcu(table, rcu);
-	return;
-unlock:
+	devl_dpipe_table_unregister(devlink, table_name);
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_dpipe_table_unregister);
@@ -10767,31 +10837,50 @@ int devlink_resource_size_get(struct devlink *devlink,
 EXPORT_SYMBOL_GPL(devlink_resource_size_get);
 
 /**
+ * devl_dpipe_table_resource_set - set the resource id
+ *
+ * @devlink: devlink
+ * @table_name: table name
+ * @resource_id: resource id
+ * @resource_units: number of resource's units consumed per table's entry
+ */
+int devl_dpipe_table_resource_set(struct devlink *devlink,
+				  const char *table_name, u64 resource_id,
+				  u64 resource_units)
+{
+	struct devlink_dpipe_table *table;
+
+	table = devlink_dpipe_table_find(&devlink->dpipe_table_list,
+					 table_name, devlink);
+	if (!table)
+		return -EINVAL;
+
+	table->resource_id = resource_id;
+	table->resource_units = resource_units;
+	table->resource_valid = true;
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devl_dpipe_table_resource_set);
+
+/**
  *	devlink_dpipe_table_resource_set - set the resource id
  *
  *	@devlink: devlink
  *	@table_name: table name
  *	@resource_id: resource id
  *	@resource_units: number of resource's units consumed per table's entry
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
  */
 int devlink_dpipe_table_resource_set(struct devlink *devlink,
 				     const char *table_name, u64 resource_id,
 				     u64 resource_units)
 {
-	struct devlink_dpipe_table *table;
-	int err = 0;
+	int err;
 
 	devl_lock(devlink);
-	table = devlink_dpipe_table_find(&devlink->dpipe_table_list,
-					 table_name, devlink);
-	if (!table) {
-		err = -EINVAL;
-		goto out;
-	}
-	table->resource_id = resource_id;
-	table->resource_units = resource_units;
-	table->resource_valid = true;
-out:
+	err = devl_dpipe_table_resource_set(devlink, table_name,
+					    resource_id, resource_units);
 	devl_unlock(devlink);
 	return err;
 }
