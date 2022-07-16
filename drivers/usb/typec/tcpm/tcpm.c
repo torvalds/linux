@@ -4520,7 +4520,7 @@ static void run_state_machine(struct tcpm_port *port)
 		 * The specification suggests that dual mode ports in sink
 		 * mode should transition to state PE_SRC_Transition_to_default.
 		 * See USB power delivery specification chapter 8.3.3.6.1.3.
-		 * This would mean to to
+		 * This would mean to
 		 * - turn off VCONN, reset power supply
 		 * - request hardware reset
 		 * - turn on VCONN
