@@ -617,7 +617,8 @@ Switch configuration
   fully configured and ready to serve any kind of request. It is recommended
   to issue a software reset of the switch during this setup function in order to
   avoid relying on what a previous software agent such as a bootloader/firmware
-  may have previously configured.
+  may have previously configured. The method responsible for undoing any
+  applicable allocations or operations done here is ``teardown``.
 
 PHY devices and link management
 -------------------------------
