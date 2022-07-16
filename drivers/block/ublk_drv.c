@@ -407,7 +407,7 @@ static inline unsigned int ublk_req_build_flags(struct request *req)
 	return flags;
 }
 
-static int ublk_setup_iod(struct ublk_queue *ubq, struct request *req)
+static blk_status_t ublk_setup_iod(struct ublk_queue *ubq, struct request *req)
 {
 	struct ublksrv_io_desc *iod = ublk_get_iod(ubq, req->tag);
 	struct ublk_io *io = &ubq->ios[req->tag];
@@ -937,7 +937,6 @@ static int ublk_ch_uring_cmd(struct io_uring_cmd *cmd, unsigned int issue_flags)
 	return -EIOCBQUEUED;
 
  out:
-	io->flags &= ~UBLK_IO_FLAG_ACTIVE;
 	io_uring_cmd_done(cmd, ret, 0);
 	pr_devel("%s: complete: cmd op %d, tag %d ret %x io_flags %x\n",
 			__func__, cmd_op, tag, ret, io->flags);
@@ -1299,13 +1298,12 @@ static int ublk_ctrl_get_queue_affinity(struct io_uring_cmd *cmd)
 	struct ublk_device *ub;
 	unsigned long queue;
 	unsigned int retlen;
-	int ret;
+	int ret = -EINVAL;
 
 	ub = ublk_get_device_from_id(header->dev_id);
 	if (!ub)
 		goto out;
 
-	ret = -EINVAL;
 	queue = header->data[0];
 	if (queue >= ub->dev_info.nr_hw_queues)
 		goto out;
