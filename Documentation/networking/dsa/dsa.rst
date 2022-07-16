@@ -593,8 +593,8 @@ driver may free the data structures associated with the ``dsa_switch``.
 Switch configuration
 --------------------
 
-- ``tag_protocol``: this is to indicate what kind of tagging protocol is supported,
-  should be a valid value from the ``dsa_tag_protocol`` enum
+- ``get_tag_protocol``: this is to indicate what kind of tagging protocol is
+  supported, should be a valid value from the ``dsa_tag_protocol`` enum
 
 - ``setup``: setup function for the switch, this function is responsible for setting
   up the ``dsa_switch_ops`` private structure with all it needs: register maps,
