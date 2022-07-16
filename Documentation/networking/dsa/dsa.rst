@@ -738,15 +738,11 @@ Bridge layer
 - ``port_bridge_leave``: bridge layer function invoked when a given switch port is
   removed from a bridge, this function should do what's necessary at the
   switch level to deny the leaving port from ingress/egress traffic from the
-  remaining bridge members. When the port leaves the bridge, it should be aged
-  out at the switch hardware for the switch to (re) learn MAC addresses behind
-  this port.
+  remaining bridge members.
 
 - ``port_stp_state_set``: bridge layer function invoked when a given switch port STP
   state is computed by the bridge layer and should be propagated to switch
-  hardware to forward/block/learn traffic. The switch driver is responsible for
-  computing a STP state change based on current and asked parameters and perform
-  the relevant ageing based on the intersection results
+  hardware to forward/block/learn traffic.
 
 - ``port_bridge_flags``: bridge layer function invoked when a port must
   configure its settings for e.g. flooding of unknown traffic or source address
@@ -774,6 +770,12 @@ Bridge layer
 
 - ``port_bridge_tx_fwd_unoffload``: bridge layer function invoked when a driver
   leaves a bridge port which had the TX forwarding offload feature enabled.
+
+- ``port_fast_age``: bridge layer function invoked when flushing the
+  dynamically learned FDB entries on the port is necessary. This is called when
+  transitioning from an STP state where learning should take place to an STP
+  state where it shouldn't, or when leaving a bridge, or when address learning
+  is turned off via ``port_bridge_flags``.
 
 Bridge VLAN filtering
 ---------------------
