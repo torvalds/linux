@@ -503,26 +503,80 @@ per-port PHY specific details: interface connection, MDIO bus location, etc.
 Driver development
 ==================
 
-DSA switch drivers need to implement a dsa_switch_ops structure which will
+DSA switch drivers need to implement a ``dsa_switch_ops`` structure which will
 contain the various members described below.
 
-``register_switch_driver()`` registers this dsa_switch_ops in its internal list
-of drivers to probe for. ``unregister_switch_driver()`` does the exact opposite.
+Probing, registration and device lifetime
+-----------------------------------------
 
-Unless requested differently by setting the priv_size member accordingly, DSA
-does not allocate any driver private context space.
+DSA switches are regular ``device`` structures on buses (be they platform, SPI,
+I2C, MDIO or otherwise). The DSA framework is not involved in their probing
+with the device core.
+
+Switch registration from the perspective of a driver means passing a valid
+``struct dsa_switch`` pointer to ``dsa_register_switch()``, usually from the
+switch driver's probing function. The following members must be valid in the
+provided structure:
+
+- ``ds->dev``: will be used to parse the switch's OF node or platform data.
+
+- ``ds->num_ports``: will be used to create the port list for this switch, and
+  to validate the port indices provided in the OF node.
+
+- ``ds->ops``: a pointer to the ``dsa_switch_ops`` structure holding the DSA
+  method implementations.
+
+- ``ds->priv``: backpointer to a driver-private data structure which can be
+  retrieved in all further DSA method callbacks.
+
+In addition, the following flags in the ``dsa_switch`` structure may optionally
+be configured to obtain driver-specific behavior from the DSA core. Their
+behavior when set is documented through comments in ``include/net/dsa.h``.
+
+- ``ds->vlan_filtering_is_global``
+
+- ``ds->needs_standalone_vlan_filtering``
+
+- ``ds->configure_vlan_while_not_filtering``
+
+- ``ds->untag_bridge_pvid``
+
+- ``ds->assisted_learning_on_cpu_port``
+
+- ``ds->mtu_enforcement_ingress``
+
+- ``ds->fdb_isolation``
+
+Internally, DSA keeps an array of switch trees (group of switches) global to
+the kernel, and attaches a ``dsa_switch`` structure to a tree on registration.
+The tree ID to which the switch is attached is determined by the first u32
+number of the ``dsa,member`` property of the switch's OF node (0 if missing).
+The switch ID within the tree is determined by the second u32 number of the
+same OF property (0 if missing). Registering multiple switches with the same
+switch ID and tree ID is illegal and will cause an error. Using platform data,
+a single switch and a single switch tree is permitted.
+
+In case of a tree with multiple switches, probing takes place asymmetrically.
+The first N-1 callers of ``dsa_register_switch()`` only add their ports to the
+port list of the tree (``dst->ports``), each port having a backpointer to its
+associated switch (``dp->ds``). Then, these switches exit their
+``dsa_register_switch()`` call early, because ``dsa_tree_setup_routing_table()``
+has determined that the tree is not yet complete (not all ports referenced by
+DSA links are present in the tree's port list). The tree becomes complete when
+the last switch calls ``dsa_register_switch()``, and this triggers the effective
+continuation of initialization (including the call to ``ds->ops->setup()``) for
+all switches within that tree, all as part of the calling context of the last
+switch's probe function.
+
+The opposite of registration takes place when calling ``dsa_unregister_switch()``,
+which removes a switch's ports from the port list of the tree. The entire tree
+is torn down when the first switch unregisters.
 
 Switch configuration
 --------------------
 
 - ``tag_protocol``: this is to indicate what kind of tagging protocol is supported,
   should be a valid value from the ``dsa_tag_protocol`` enum
-
-- ``probe``: probe routine which will be invoked by the DSA platform device upon
-  registration to test for the presence/absence of a switch device. For MDIO
-  devices, it is recommended to issue a read towards internal registers using
-  the switch pseudo-PHY and return whether this is a supported device. For other
-  buses, return a non-NULL string
 
 - ``setup``: setup function for the switch, this function is responsible for setting
   up the ``dsa_switch_ops`` private structure with all it needs: register maps,
