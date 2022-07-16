@@ -2325,6 +2325,11 @@
 				rockchip,pins =
 					<1 RK_PC3 1 &pcfg_pull_none>;
 			};
+
+			uart1_rts_gpio: uart1-rts-gpio {
+				rockchip,pins =
+					<1 RK_PC3 RK_FUNC_GPIO &pcfg_pull_none>;
+			};
 		};
 
 		uart2-m0 {
