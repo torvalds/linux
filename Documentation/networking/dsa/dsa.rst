@@ -951,7 +951,13 @@ Bridge VLAN filtering
   allowed.
 
 - ``port_vlan_add``: bridge layer function invoked when a VLAN is configured
-  (tagged or untagged) for the given switch port..
+  (tagged or untagged) for the given switch port. The CPU port becomes a member
+  of a VLAN only if a foreign bridge port is also a member of it (and
+  forwarding needs to take place in software), or the VLAN is installed to the
+  VLAN group of the bridge device itself, for termination purposes
+  (``bridge vlan add dev br0 vid 100 self``). VLANs on shared ports are
+  reference counted and removed when there is no user left. Drivers do not need
+  to manually install a VLAN on the CPU port.
 
 - ``port_vlan_del``: bridge layer function invoked when a VLAN is removed from the
   given switch port
