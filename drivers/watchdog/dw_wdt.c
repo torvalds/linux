@@ -218,7 +218,7 @@ static int dw_wdt_set_timeout(struct watchdog_device *wdd, unsigned int top_s)
 
 	/*
 	 * Set the new value in the watchdog.  Some versions of dw_wdt
-	 * have have TOPINIT in the TIMEOUT_RANGE register (as per
+	 * have TOPINIT in the TIMEOUT_RANGE register (as per
 	 * CP_WDT_DUAL_TOP in WDT_COMP_PARAMS_1).  On those we
 	 * effectively get a pat of the watchdog right here.
 	 */
