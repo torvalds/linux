@@ -594,7 +594,11 @@ Switch configuration
 --------------------
 
 - ``get_tag_protocol``: this is to indicate what kind of tagging protocol is
-  supported, should be a valid value from the ``dsa_tag_protocol`` enum
+  supported, should be a valid value from the ``dsa_tag_protocol`` enum.
+  The returned information does not have to be static; the driver is passed the
+  CPU port number, as well as the tagging protocol of a possibly stacked
+  upstream switch, in case there are hardware limitations in terms of supported
+  tag formats.
 
 - ``setup``: setup function for the switch, this function is responsible for setting
   up the ``dsa_switch_ops`` private structure with all it needs: register maps,
