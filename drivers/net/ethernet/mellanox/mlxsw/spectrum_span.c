@@ -106,8 +106,8 @@ int mlxsw_sp_span_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_init;
 
-	devlink_resource_occ_get_register(devlink, MLXSW_SP_RESOURCE_SPAN,
-					  mlxsw_sp_span_occ_get, mlxsw_sp);
+	devl_resource_occ_get_register(devlink, MLXSW_SP_RESOURCE_SPAN,
+				       mlxsw_sp_span_occ_get, mlxsw_sp);
 	INIT_WORK(&span->work, mlxsw_sp_span_respin_work);
 
 	return 0;
@@ -123,7 +123,7 @@ void mlxsw_sp_span_fini(struct mlxsw_sp *mlxsw_sp)
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 
 	cancel_work_sync(&mlxsw_sp->span->work);
-	devlink_resource_occ_get_unregister(devlink, MLXSW_SP_RESOURCE_SPAN);
+	devl_resource_occ_get_unregister(devlink, MLXSW_SP_RESOURCE_SPAN);
 
 	WARN_ON_ONCE(!list_empty(&mlxsw_sp->span->trigger_entries_list));
 	WARN_ON_ONCE(!list_empty(&mlxsw_sp->span->analyzed_ports_list));
