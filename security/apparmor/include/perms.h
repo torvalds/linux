@@ -132,14 +132,6 @@ extern struct aa_perms allperms;
 
 extern struct aa_perms default_perms;
 
-static inline struct aa_perms *aa_lookup_perms(struct aa_perms *perms,
-					       unsigned int state)
-{
-	if (!(perms))
-		return &default_perms;
-
-	return &(perms[state]);
-}
 
 void aa_perm_mask_to_str(char *str, size_t str_size, const char *chrs,
 			 u32 mask);

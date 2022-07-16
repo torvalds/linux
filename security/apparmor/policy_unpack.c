@@ -1055,13 +1055,15 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		}
 		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
 			goto fail;
+		profile->policy.perms = compute_perms(profile->policy.dfa);
+		if (!profile->policy.perms) {
+			info = "failed to remap policydb permission table";
+			goto fail;
+		}
+		/* Do not remap internal dfas */
+		remap_dfa_accept(profile->policy.dfa, 1);
 	} else
 		profile->policy.dfa = aa_get_dfa(nulldfa);
-	profile->policy.perms = compute_perms(profile->policy.dfa);
-	if (!profile->policy.perms) {
-		info = "failed to remap policydb permission table";
-		goto fail;
-	}
 
 	/* get file rules */
 	profile->file.dfa = unpack_dfa(e);
@@ -1238,9 +1240,12 @@ static bool verify_dfa_xindex(struct aa_dfa *dfa, int table_size)
  */
 static int verify_profile(struct aa_profile *profile)
 {
-	if (profile->file.dfa &&
+	if ((profile->file.dfa &&
 	     !verify_dfa_xindex(profile->file.dfa,
-				profile->file.trans.size)) {
+				profile->file.trans.size)) ||
+	    (profile->policy.dfa &&
+	     !verify_dfa_xindex(profile->policy.dfa,
+				profile->policy.trans.size))) {
 		audit_iface(profile, NULL, NULL,
 			    "Unpack: Invalid named transition", NULL, -EPROTO);
 		return -EPROTO;

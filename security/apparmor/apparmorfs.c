@@ -634,7 +634,7 @@ static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 		state = aa_dfa_match_len(dfa, profile->policy.start[0],
 					 match_str, match_len);
 		if (state)
-			tmp = *aa_lookup_perms(profile->policy.perms, state);
+			tmp = *aa_lookup_perms(&profile->policy, state);
 	}
 	aa_apply_modes_to_perms(profile, &tmp);
 	aa_perms_accum_raw(perms, &tmp);

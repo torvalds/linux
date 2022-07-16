@@ -125,7 +125,7 @@ int aa_profile_af_perm(struct aa_profile *profile, struct common_audit_data *sa,
 	buffer[1] = cpu_to_be16((u16) type);
 	state = aa_dfa_match_len(profile->policy.dfa, state, (char *) &buffer,
 				 4);
-	perms = *aa_lookup_perms(profile->policy.perms, state);
+	perms = *aa_lookup_perms(&profile->policy, state);
 	aa_apply_modes_to_perms(profile, &perms);
 
 	return aa_check_perms(profile, &perms, request, sa, audit_net_cb);

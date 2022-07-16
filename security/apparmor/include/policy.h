@@ -90,6 +90,18 @@ static inline void aa_destroy_policydb(struct aa_policydb *policy)
 
 }
 
+static inline struct aa_perms *aa_lookup_perms(struct aa_policydb *policy,
+					       unsigned int state)
+{
+	unsigned int index = ACCEPT_TABLE(policy->dfa)[state];
+
+	if (!(policy->perms))
+		return &default_perms;
+
+	return &(policy->perms[index]);
+}
+
+
 /* struct aa_data - generic data structure
  * key: name for retrieving this data
  * size: size of data in bytes

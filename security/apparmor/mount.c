@@ -249,7 +249,7 @@ static int do_match_mnt(struct aa_policydb *policy, unsigned int start,
 	state = match_mnt_flags(policy->dfa, state, flags);
 	if (!state)
 		return 4;
-	*perms = *aa_lookup_perms(policy->perms, state);
+	*perms = *aa_lookup_perms(policy, state);
 	if (perms->allow & AA_MAY_MOUNT)
 		return 0;
 
@@ -262,7 +262,7 @@ static int do_match_mnt(struct aa_policydb *policy, unsigned int start,
 		state = aa_dfa_match(policy->dfa, state, data);
 		if (!state)
 			return 5;
-		*perms = *aa_lookup_perms(policy->perms, state);
+		*perms = *aa_lookup_perms(policy, state);
 		if (perms->allow & AA_MAY_MOUNT)
 			return 0;
 	}
@@ -584,7 +584,7 @@ static int profile_umount(struct aa_profile *profile, const struct path *path,
 	state = aa_dfa_match(profile->policy.dfa,
 			     profile->policy.start[AA_CLASS_MOUNT],
 			     name);
-	perms = *aa_lookup_perms(profile->policy.perms, state);
+	perms = *aa_lookup_perms(&profile->policy, state);
 	if (AA_MAY_UMOUNT & ~perms.allow)
 		error = -EACCES;
 
@@ -655,7 +655,7 @@ static struct aa_label *build_pivotroot(struct aa_profile *profile,
 			     new_name);
 	state = aa_dfa_null_transition(profile->policy.dfa, state);
 	state = aa_dfa_match(profile->policy.dfa, state, old_name);
-	perms = *aa_lookup_perms(profile->policy.perms, state);
+	perms = *aa_lookup_perms(&profile->policy, state);
 
 	if (AA_MAY_PIVOTROOT & perms.allow)
 		error = 0;
