@@ -26,6 +26,25 @@ struct aa_perms allperms = { .allow = ALL_PERMS_MASK,
 			     .hide = ALL_PERMS_MASK };
 
 /**
+ * aa_free_str_table - free entries str table
+ * @str: the string table to free  (MAYBE NULL)
+ */
+void aa_free_str_table(struct aa_str_table *t)
+{
+	int i;
+
+	if (t) {
+		if (!t->table)
+			return;
+
+		for (i = 0; i < t->size; i++)
+			kfree_sensitive(t->table[i]);
+		kfree_sensitive(t->table);
+		t->table = NULL;
+	}
+}
+
+/**
  * aa_split_fqname - split a fqname into a profile and namespace name
  * @fqname: a full qualified name in namespace profile format (NOT NULL)
  * @ns_name: pointer to portion of the string containing the ns name (NOT NULL)

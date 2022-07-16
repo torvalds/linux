@@ -72,12 +72,14 @@ enum profile_mode {
 
 /* struct aa_policydb - match engine for a policy
  * dfa: dfa pattern match
+ * perms: table of permissions
+ * strs: table of strings, index by x
  * start: set of start states for the different classes of data
  */
 struct aa_policydb {
 	struct aa_dfa *dfa;
 	struct aa_perms *perms;
-	struct aa_domain trans;
+	struct aa_str_table trans;
 	aa_state_t start[AA_CLASS_LAST + 1];
 };
 
@@ -86,7 +88,7 @@ static inline void aa_destroy_policydb(struct aa_policydb *policy)
 	aa_put_dfa(policy->dfa);
 	if (policy->perms)
 		kvfree(policy->perms);
-	aa_free_domain_entries(&policy->trans);
+	aa_free_str_table(&policy->trans);
 
 }
 

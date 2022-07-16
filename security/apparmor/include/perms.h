@@ -79,6 +79,8 @@ struct aa_perms {
 	u32 hide;	/* set only when  ~allow | deny */
 
 	u32 xindex;
+	u32 tag;	/* tag string index, if present */
+	u32 label;	/* label string index, if present */
 };
 
 #define ALL_PERMS_MASK 0xffffffff

@@ -99,6 +99,12 @@ static inline bool path_mediated_fs(struct dentry *dentry)
 	return !(dentry->d_sb->s_flags & SB_NOUSER);
 }
 
+struct aa_str_table {
+	int size;
+	char **table;
+};
+
+void aa_free_str_table(struct aa_str_table *table);
 
 struct counted_str {
 	struct kref count;

@@ -30,24 +30,6 @@
 #include "include/policy_ns.h"
 
 /**
- * aa_free_domain_entries - free entries in a domain table
- * @domain: the domain table to free  (MAYBE NULL)
- */
-void aa_free_domain_entries(struct aa_domain *domain)
-{
-	int i;
-	if (domain) {
-		if (!domain->table)
-			return;
-
-		for (i = 0; i < domain->size; i++)
-			kfree_sensitive(domain->table[i]);
-		kfree_sensitive(domain->table);
-		domain->table = NULL;
-	}
-}
-
-/**
  * may_change_ptraced_domain - check if can change profile on ptraced task
  * @to_label: profile to change to  (NOT NULL)
  * @info: message if there is an error

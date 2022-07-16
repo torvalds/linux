@@ -534,7 +534,7 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 	return true;
 
 fail:
-	aa_free_domain_entries(&profile->file.trans);
+	aa_free_str_table(&profile->file.trans);
 	e->pos = saved_pos;
 	return false;
 }
