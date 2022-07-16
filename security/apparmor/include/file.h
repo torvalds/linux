@@ -88,18 +88,17 @@ static inline struct aa_label *aa_get_file_label(struct aa_file_ctx *ctx)
  * - exec type - which determines how the executable name and index are used
  * - flags - which modify how the destination name is applied
  */
-#define AA_X_INDEX_MASK		0x03ff
+#define AA_X_INDEX_MASK		0x00ffffff
 
-#define AA_X_TYPE_MASK		0x0c00
-#define AA_X_TYPE_SHIFT		10
-#define AA_X_NONE		0x0000
-#define AA_X_NAME		0x0400	/* use executable name px */
-#define AA_X_TABLE		0x0800	/* use a specified name ->n# */
+#define AA_X_TYPE_MASK		0x0c000000
+#define AA_X_NONE		0x00000000
+#define AA_X_NAME		0x04000000 /* use executable name px */
+#define AA_X_TABLE		0x08000000 /* use a specified name ->n# */
 
-#define AA_X_UNSAFE		0x1000
-#define AA_X_CHILD		0x2000	/* make >AA_X_NONE apply to children */
-#define AA_X_INHERIT		0x4000
-#define AA_X_UNCONFINED		0x8000
+#define AA_X_UNSAFE		0x10000000
+#define AA_X_CHILD		0x20000000
+#define AA_X_INHERIT		0x40000000
+#define AA_X_UNCONFINED		0x80000000
 
 /* need to make conditional which ones are being set */
 struct path_cond {

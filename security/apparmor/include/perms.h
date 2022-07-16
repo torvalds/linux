@@ -78,7 +78,7 @@ struct aa_perms {
 	u32 quiet;	/* set only when ~allow | deny */
 	u32 hide;	/* set only when  ~allow | deny */
 
-	u16 xindex;
+	u32 xindex;
 };
 
 #define ALL_PERMS_MASK 0xffffffff

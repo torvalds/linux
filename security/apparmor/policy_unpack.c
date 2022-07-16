@@ -489,8 +489,8 @@ static bool unpack_trans_table(struct aa_ext *e, struct aa_profile *profile)
 		int i, size;
 
 		size = unpack_array(e, NULL);
-		/* currently 4 exec bits and entries 0-3 are reserved iupcx */
-		if (size > 16 - 4)
+		/* currently 2^24 bits entries 0-3 */
+		if (size > (1 << 24))
 			goto fail;
 		profile->file.trans.table = kcalloc(size, sizeof(char *),
 						    GFP_KERNEL);
@@ -672,10 +672,10 @@ static int datacmp(struct rhashtable_compare_arg *arg, const void *obj)
 }
 
 /* remap old accept table embedded permissions to separate permission table */
-static u16 dfa_map_xindex(u16 mask)
+static u32 dfa_map_xindex(u16 mask)
 {
 	u16 old_index = (mask >> 10) & 0xf;
-	u16 index = 0;
+	u32 index = 0;
 
 	if (mask & 0x100)
 		index |= AA_X_UNSAFE;
