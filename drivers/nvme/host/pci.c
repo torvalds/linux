@@ -670,7 +670,6 @@ static blk_status_t nvme_pci_setup_prps(struct nvme_dev *dev,
 
 	prp_list = dma_pool_alloc(pool, GFP_ATOMIC, &prp_dma);
 	if (!prp_list) {
-		iod->first_dma = dma_addr;
 		iod->npages = -1;
 		return BLK_STS_RESOURCE;
 	}
