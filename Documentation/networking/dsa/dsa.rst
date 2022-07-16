@@ -600,6 +600,12 @@ Switch configuration
   upstream switch, in case there are hardware limitations in terms of supported
   tag formats.
 
+- ``change_tag_protocol``: when the default tagging protocol has compatibility
+  problems with the master or other issues, the driver may support changing it
+  at runtime, either through a device tree property or through sysfs. In that
+  case, further calls to ``get_tag_protocol`` should report the protocol in
+  current use.
+
 - ``setup``: setup function for the switch, this function is responsible for setting
   up the ``dsa_switch_ops`` private structure with all it needs: register maps,
   interrupts, mutexes, locks, etc. This function is also expected to properly
