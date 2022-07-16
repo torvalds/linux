@@ -727,6 +727,136 @@ Power management
   ``BR_STATE_DISABLED`` and propagating changes to the hardware if this port is
   disabled while being a bridge member
 
+Address databases
+-----------------
+
+Switching hardware is expected to have a table for FDB entries, however not all
+of them are active at the same time. An address database is the subset (partition)
+of FDB entries that is active (can be matched by address learning on RX, or FDB
+lookup on TX) depending on the state of the port. An address database may
+occasionally be called "FID" (Filtering ID) in this document, although the
+underlying implementation may choose whatever is available to the hardware.
+
+For example, all ports that belong to a VLAN-unaware bridge (which is
+*currently* VLAN-unaware) are expected to learn source addresses in the
+database associated by the driver with that bridge (and not with other
+VLAN-unaware bridges). During forwarding and FDB lookup, a packet received on a
+VLAN-unaware bridge port should be able to find a VLAN-unaware FDB entry having
+the same MAC DA as the packet, which is present on another port member of the
+same bridge. At the same time, the FDB lookup process must be able to not find
+an FDB entry having the same MAC DA as the packet, if that entry points towards
+a port which is a member of a different VLAN-unaware bridge (and is therefore
+associated with a different address database).
+
+Similarly, each VLAN of each offloaded VLAN-aware bridge should have an
+associated address database, which is shared by all ports which are members of
+that VLAN, but not shared by ports belonging to different bridges that are
+members of the same VID.
+
+In this context, a VLAN-unaware database means that all packets are expected to
+match on it irrespective of VLAN ID (only MAC address lookup), whereas a
+VLAN-aware database means that packets are supposed to match based on the VLAN
+ID from the classified 802.1Q header (or the pvid if untagged).
+
+At the bridge layer, VLAN-unaware FDB entries have the special VID value of 0,
+whereas VLAN-aware FDB entries have non-zero VID values. Note that a
+VLAN-unaware bridge may have VLAN-aware (non-zero VID) FDB entries, and a
+VLAN-aware bridge may have VLAN-unaware FDB entries. As in hardware, the
+software bridge keeps separate address databases, and offloads to hardware the
+FDB entries belonging to these databases, through switchdev, asynchronously
+relative to the moment when the databases become active or inactive.
+
+When a user port operates in standalone mode, its driver should configure it to
+use a separate database called a port private database. This is different from
+the databases described above, and should impede operation as standalone port
+(packet in, packet out to the CPU port) as little as possible. For example,
+on ingress, it should not attempt to learn the MAC SA of ingress traffic, since
+learning is a bridging layer service and this is a standalone port, therefore
+it would consume useless space. With no address learning, the port private
+database should be empty in a naive implementation, and in this case, all
+received packets should be trivially flooded to the CPU port.
+
+DSA (cascade) and CPU ports are also called "shared" ports because they service
+multiple address databases, and the database that a packet should be associated
+to is usually embedded in the DSA tag. This means that the CPU port may
+simultaneously transport packets coming from a standalone port (which were
+classified by hardware in one address database), and from a bridge port (which
+were classified to a different address database).
+
+Switch drivers which satisfy certain criteria are able to optimize the naive
+configuration by removing the CPU port from the flooding domain of the switch,
+and just program the hardware with FDB entries pointing towards the CPU port
+for which it is known that software is interested in those MAC addresses.
+Packets which do not match a known FDB entry will not be delivered to the CPU,
+which will save CPU cycles required for creating an skb just to drop it.
+
+DSA is able to perform host address filtering for the following kinds of
+addresses:
+
+- Primary unicast MAC addresses of ports (``dev->dev_addr``). These are
+  associated with the port private database of the respective user port,
+  and the driver is notified to install them through ``port_fdb_add`` towards
+  the CPU port.
+
+- Secondary unicast and multicast MAC addresses of ports (addresses added
+  through ``dev_uc_add()`` and ``dev_mc_add()``). These are also associated
+  with the port private database of the respective user port.
+
+- Local/permanent bridge FDB entries (``BR_FDB_LOCAL``). These are the MAC
+  addresses of the bridge ports, for which packets must be terminated locally
+  and not forwarded. They are associated with the address database for that
+  bridge.
+
+- Static bridge FDB entries installed towards foreign (non-DSA) interfaces
+  present in the same bridge as some DSA switch ports. These are also
+  associated with the address database for that bridge.
+
+- Dynamically learned FDB entries on foreign interfaces present in the same
+  bridge as some DSA switch ports, only if ``ds->assisted_learning_on_cpu_port``
+  is set to true by the driver. These are associated with the address database
+  for that bridge.
+
+For various operations detailed below, DSA provides a ``dsa_db`` structure
+which can be of the following types:
+
+- ``DSA_DB_PORT``: the FDB (or MDB) entry to be installed or deleted belongs to
+  the port private database of user port ``db->dp``.
+- ``DSA_DB_BRIDGE``: the entry belongs to one of the address databases of bridge
+  ``db->bridge``. Separation between the VLAN-unaware database and the per-VID
+  databases of this bridge is expected to be done by the driver.
+- ``DSA_DB_LAG``: the entry belongs to the address database of LAG ``db->lag``.
+  Note: ``DSA_DB_LAG`` is currently unused and may be removed in the future.
+
+The drivers which act upon the ``dsa_db`` argument in ``port_fdb_add``,
+``port_mdb_add`` etc should declare ``ds->fdb_isolation`` as true.
+
+DSA associates each offloaded bridge and each offloaded LAG with a one-based ID
+(``struct dsa_bridge :: num``, ``struct dsa_lag :: id``) for the purposes of
+refcounting addresses on shared ports. Drivers may piggyback on DSA's numbering
+scheme (the ID is readable through ``db->bridge.num`` and ``db->lag.id`` or may
+implement their own.
+
+Only the drivers which declare support for FDB isolation are notified of FDB
+entries on the CPU port belonging to ``DSA_DB_PORT`` databases.
+For compatibility/legacy reasons, ``DSA_DB_BRIDGE`` addresses are notified to
+drivers even if they do not support FDB isolation. However, ``db->bridge.num``
+and ``db->lag.id`` are always set to 0 in that case (to denote the lack of
+isolation, for refcounting purposes).
+
+Note that it is not mandatory for a switch driver to implement physically
+separate address databases for each standalone user port. Since FDB entries in
+the port private databases will always point to the CPU port, there is no risk
+for incorrect forwarding decisions. In this case, all standalone ports may
+share the same database, but the reference counting of host-filtered addresses
+(not deleting the FDB entry for a port's MAC address if it's still in use by
+another port) becomes the responsibility of the driver, because DSA is unaware
+that the port databases are in fact shared. This can be achieved by calling
+``dsa_fdb_present_in_other_db()`` and ``dsa_mdb_present_in_other_db()``.
+The down side is that the RX filtering lists of each user port are in fact
+shared, which means that user port A may accept a packet with a MAC DA it
+shouldn't have, only because that MAC address was in the RX filtering list of
+user port B. These packets will still be dropped in software, however.
+
 Bridge layer
 ------------
 
@@ -835,9 +965,6 @@ Bridge VLAN filtering
   function should return ``-EOPNOTSUPP`` to inform the bridge code to fallback to
   a software implementation.
 
-.. note:: VLAN ID 0 corresponds to the port private database, which, in the context
-        of DSA, would be its port-based VLAN, used by the associated bridge device.
-
 - ``port_fdb_del``: bridge layer function invoked when the bridge wants to remove a
   Forwarding Database entry, the switch hardware should be programmed to delete
   the specified MAC address from the specified VLAN ID if it was mapped into
@@ -853,9 +980,6 @@ Bridge VLAN filtering
   software implementation. The switch hardware should be programmed with the
   specified address in the specified VLAN ID in the forwarding database
   associated with this VLAN ID.
-
-.. note:: VLAN ID 0 corresponds to the port private database, which, in the context
-        of DSA, would be its port-based VLAN, used by the associated bridge device.
 
 - ``port_mdb_del``: bridge layer function invoked when the bridge wants to remove a
   multicast database entry, the switch hardware should be programmed to delete
