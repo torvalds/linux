@@ -730,10 +730,56 @@ Power management
 Bridge layer
 ------------
 
+Offloading the bridge forwarding plane is optional and handled by the methods
+below. They may be absent, return -EOPNOTSUPP, or ``ds->max_num_bridges`` may
+be non-zero and exceeded, and in this case, joining a bridge port is still
+possible, but the packet forwarding will take place in software, and the ports
+under a software bridge must remain configured in the same way as for
+standalone operation, i.e. have all bridging service functions (address
+learning etc) disabled, and send all received packets to the CPU port only.
+
+Concretely, a port starts offloading the forwarding plane of a bridge once it
+returns success to the ``port_bridge_join`` method, and stops doing so after
+``port_bridge_leave`` has been called. Offloading the bridge means autonomously
+learning FDB entries in accordance with the software bridge port's state, and
+autonomously forwarding (or flooding) received packets without CPU intervention.
+This is optional even when offloading a bridge port. Tagging protocol drivers
+are expected to call ``dsa_default_offload_fwd_mark(skb)`` for packets which
+have already been autonomously forwarded in the forwarding domain of the
+ingress switch port. DSA, through ``dsa_port_devlink_setup()``, considers all
+switch ports part of the same tree ID to be part of the same bridge forwarding
+domain (capable of autonomous forwarding to each other).
+
+Offloading the TX forwarding process of a bridge is a distinct concept from
+simply offloading its forwarding plane, and refers to the ability of certain
+driver and tag protocol combinations to transmit a single skb coming from the
+bridge device's transmit function to potentially multiple egress ports (and
+thereby avoid its cloning in software).
+
+Packets for which the bridge requests this behavior are called data plane
+packets and have ``skb->offload_fwd_mark`` set to true in the tag protocol
+driver's ``xmit`` function. Data plane packets are subject to FDB lookup,
+hardware learning on the CPU port, and do not override the port STP state.
+Additionally, replication of data plane packets (multicast, flooding) is
+handled in hardware and the bridge driver will transmit a single skb for each
+packet that may or may not need replication.
+
+When the TX forwarding offload is enabled, the tag protocol driver is
+responsible to inject packets into the data plane of the hardware towards the
+correct bridging domain (FID) that the port is a part of. The port may be
+VLAN-unaware, and in this case the FID must be equal to the FID used by the
+driver for its VLAN-unaware address database associated with that bridge.
+Alternatively, the bridge may be VLAN-aware, and in that case, it is guaranteed
+that the packet is also VLAN-tagged with the VLAN ID that the bridge processed
+this packet in. It is the responsibility of the hardware to untag the VID on
+the egress-untagged ports, or keep the tag on the egress-tagged ones.
+
 - ``port_bridge_join``: bridge layer function invoked when a given switch port is
   added to a bridge, this function should do what's necessary at the switch
   level to permit the joining port to be added to the relevant logical
   domain for it to ingress/egress traffic with other members of the bridge.
+  By setting the ``tx_fwd_offload`` argument to true, the TX forwarding process
+  of this bridge is also offloaded.
 
 - ``port_bridge_leave``: bridge layer function invoked when a given switch port is
   removed from a bridge, this function should do what's necessary at the
@@ -754,22 +800,6 @@ Bridge layer
   learning should be statically enabled (if supported by the hardware) on the
   CPU port, and flooding towards the CPU port should also be enabled, due to a
   lack of an explicit address filtering mechanism in the DSA core.
-
-- ``port_bridge_tx_fwd_offload``: bridge layer function invoked after
-  ``port_bridge_join`` when a driver sets ``ds->num_fwd_offloading_bridges`` to
-  a non-zero value. Returning success in this function activates the TX
-  forwarding offload bridge feature for this port, which enables the tagging
-  protocol driver to inject data plane packets towards the bridging domain that
-  the port is a part of. Data plane packets are subject to FDB lookup, hardware
-  learning on the CPU port, and do not override the port STP state.
-  Additionally, replication of data plane packets (multicast, flooding) is
-  handled in hardware and the bridge driver will transmit a single skb for each
-  packet that needs replication. The method is provided as a configuration
-  point for drivers that need to configure the hardware for enabling this
-  feature.
-
-- ``port_bridge_tx_fwd_unoffload``: bridge layer function invoked when a driver
-  leaves a bridge port which had the TX forwarding offload feature enabled.
 
 - ``port_fast_age``: bridge layer function invoked when flushing the
   dynamically learned FDB entries on the port is necessary. This is called when
