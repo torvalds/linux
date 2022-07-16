@@ -459,7 +459,7 @@ static void ci_otg_drv_vbus(struct otg_fsm *fsm, int on)
 	struct ci_hdrc	*ci = container_of(fsm, struct ci_hdrc, fsm);
 
 	if (on) {
-		/* Enable power power */
+		/* Enable power */
 		hw_write(ci, OP_PORTSC, PORTSC_W1C_BITS | PORTSC_PP,
 							PORTSC_PP);
 		if (ci->platdata->reg_vbus) {
