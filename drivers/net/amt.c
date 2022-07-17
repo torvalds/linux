@@ -584,7 +584,7 @@ static void amt_update_gw_status(struct amt_dev *amt, enum amt_status status,
 		return;
 	netdev_dbg(amt->dev, "Update GW status %s -> %s",
 		   status_str[amt->status], status_str[status]);
-	amt->status = status;
+	WRITE_ONCE(amt->status, status);
 }
 
 static void __amt_update_relay_status(struct amt_tunnel_list *tunnel,
@@ -958,8 +958,8 @@ static void amt_event_send_request(struct amt_dev *amt)
 	if (amt->req_cnt > AMT_MAX_REQ_COUNT) {
 		netdev_dbg(amt->dev, "Gateway is not ready");
 		amt->qi = AMT_INIT_REQ_TIMEOUT;
-		amt->ready4 = false;
-		amt->ready6 = false;
+		WRITE_ONCE(amt->ready4, false);
+		WRITE_ONCE(amt->ready6, false);
 		amt->remote_ip = 0;
 		amt_update_gw_status(amt, AMT_STATUS_INIT, false);
 		amt->req_cnt = 0;
@@ -1239,7 +1239,8 @@ static netdev_tx_t amt_dev_xmit(struct sk_buff *skb, struct net_device *dev)
 		/* Gateway only passes IGMP/MLD packets */
 		if (!report)
 			goto free;
-		if ((!v6 && !amt->ready4) || (v6 && !amt->ready6))
+		if ((!v6 && !READ_ONCE(amt->ready4)) ||
+		    (v6 && !READ_ONCE(amt->ready6)))
 			goto free;
 		if (amt_send_membership_update(amt, skb,  v6))
 			goto free;
@@ -2368,7 +2369,7 @@ static bool amt_membership_query_handler(struct amt_dev *amt,
 		ihv3 = skb_pull(skb, sizeof(*iph) + AMT_IPHDR_OPTS);
 		skb_reset_transport_header(skb);
 		skb_push(skb, sizeof(*iph) + AMT_IPHDR_OPTS);
-		amt->ready4 = true;
+		WRITE_ONCE(amt->ready4, true);
 		amt->mac = amtmq->response_mac;
 		amt->req_cnt = 0;
 		amt->qi = ihv3->qqic;
@@ -2391,7 +2392,7 @@ static bool amt_membership_query_handler(struct amt_dev *amt,
 		mld2q = skb_pull(skb, sizeof(*ip6h) + AMT_IP6HDR_OPTS);
 		skb_reset_transport_header(skb);
 		skb_push(skb, sizeof(*ip6h) + AMT_IP6HDR_OPTS);
-		amt->ready6 = true;
+		WRITE_ONCE(amt->ready6, true);
 		amt->mac = amtmq->response_mac;
 		amt->req_cnt = 0;
 		amt->qi = mld2q->mld2q_qqic;
@@ -2898,7 +2899,7 @@ static int amt_err_lookup(struct sock *sk, struct sk_buff *skb)
 		break;
 	case AMT_MSG_REQUEST:
 	case AMT_MSG_MEMBERSHIP_UPDATE:
-		if (amt->status >= AMT_STATUS_RECEIVED_ADVERTISEMENT)
+		if (READ_ONCE(amt->status) >= AMT_STATUS_RECEIVED_ADVERTISEMENT)
 			mod_delayed_work(amt_wq, &amt->req_wq, 0);
 		break;
 	default:
