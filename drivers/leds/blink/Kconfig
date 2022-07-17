@@ -10,6 +10,8 @@ config LEDS_BCM63138
 	  BCM63138 SoC. The same hardware block is known to be also used
 	  in BCM4908, BCM6848, BCM6858, BCM63148, BCM63381 and BCM68360.
 
+	  If compiled as module it will be called leds-bcm63138.
+
 config LEDS_LGM
        tristate "LED support for LGM SoC series"
        depends on X86 || COMPILE_TEST
