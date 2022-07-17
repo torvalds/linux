@@ -447,12 +447,12 @@ config LEDS_LP8860
 
 config LEDS_CLEVO_MAIL
 	tristate "Mail LED on Clevo notebook"
-	depends on LEDS_CLASS
+	depends on LEDS_CLASS && BROKEN
 	depends on X86 && SERIO_I8042 && DMI
 	help
 	  This driver makes the mail LED accessible from userspace
-	  programs through the leds subsystem. This LED have three
-	  known mode: off, blink at 0.5Hz and blink at 1Hz.
+	  programs through the LEDs subsystem. This LED has three
+	  known modes: off, blink at 0.5Hz and blink at 1Hz.
 
 	  The driver supports two kinds of interface: using ledtrig-timer
 	  or through /sys/class/leds/clevo::mail/brightness. As this LED
