@@ -900,6 +900,28 @@ static void amt_send_mld_gq(struct amt_dev *amt, struct amt_tunnel_list *tunnel)
 }
 #endif
 
+static bool amt_queue_event(struct amt_dev *amt, enum amt_event event,
+			    struct sk_buff *skb)
+{
+	int index;
+
+	spin_lock_bh(&amt->lock);
+	if (amt->nr_events >= AMT_MAX_EVENTS) {
+		spin_unlock_bh(&amt->lock);
+		return 1;
+	}
+
+	index = (amt->event_idx + amt->nr_events) % AMT_MAX_EVENTS;
+	amt->events[index].event = event;
+	amt->events[index].skb = skb;
+	amt->nr_events++;
+	amt->event_idx %= AMT_MAX_EVENTS;
+	queue_work(amt_wq, &amt->event_wq);
+	spin_unlock_bh(&amt->lock);
+
+	return 0;
+}
+
 static void amt_secret_work(struct work_struct *work)
 {
 	struct amt_dev *amt = container_of(to_delayed_work(work),
@@ -913,12 +935,8 @@ static void amt_secret_work(struct work_struct *work)
 			 msecs_to_jiffies(AMT_SECRET_TIMEOUT));
 }
 
-static void amt_discovery_work(struct work_struct *work)
+static void amt_event_send_discovery(struct amt_dev *amt)
 {
-	struct amt_dev *amt = container_of(to_delayed_work(work),
-					   struct amt_dev,
-					   discovery_wq);
-
 	spin_lock_bh(&amt->lock);
 	if (amt->status > AMT_STATUS_SENT_DISCOVERY)
 		goto out;
@@ -933,11 +951,19 @@ out:
 	spin_unlock_bh(&amt->lock);
 }
 
-static void amt_req_work(struct work_struct *work)
+static void amt_discovery_work(struct work_struct *work)
 {
 	struct amt_dev *amt = container_of(to_delayed_work(work),
 					   struct amt_dev,
-					   req_wq);
+					   discovery_wq);
+
+	if (amt_queue_event(amt, AMT_EVENT_SEND_DISCOVERY, NULL))
+		mod_delayed_work(amt_wq, &amt->discovery_wq,
+				 msecs_to_jiffies(AMT_DISCOVERY_TIMEOUT));
+}
+
+static void amt_event_send_request(struct amt_dev *amt)
+{
 	u32 exp;
 
 	spin_lock_bh(&amt->lock);
@@ -965,6 +991,17 @@ out:
 	exp = min_t(u32, (1 * (1 << amt->req_cnt)), AMT_MAX_REQ_TIMEOUT);
 	mod_delayed_work(amt_wq, &amt->req_wq, msecs_to_jiffies(exp * 1000));
 	spin_unlock_bh(&amt->lock);
+}
+
+static void amt_req_work(struct work_struct *work)
+{
+	struct amt_dev *amt = container_of(to_delayed_work(work),
+					   struct amt_dev,
+					   req_wq);
+
+	if (amt_queue_event(amt, AMT_EVENT_SEND_REQUEST, NULL))
+		mod_delayed_work(amt_wq, &amt->req_wq,
+				 msecs_to_jiffies(100));
 }
 
 static bool amt_send_membership_update(struct amt_dev *amt,
@@ -2392,12 +2429,14 @@ static bool amt_membership_query_handler(struct amt_dev *amt,
 	skb->pkt_type = PACKET_MULTICAST;
 	skb->ip_summed = CHECKSUM_NONE;
 	len = skb->len;
+	local_bh_disable();
 	if (__netif_rx(skb) == NET_RX_SUCCESS) {
 		amt_update_gw_status(amt, AMT_STATUS_RECEIVED_QUERY, true);
 		dev_sw_netstats_rx_add(amt->dev, len);
 	} else {
 		amt->dev->stats.rx_dropped++;
 	}
+	local_bh_enable();
 
 	return false;
 }
@@ -2688,6 +2727,38 @@ send:
 	return false;
 }
 
+static void amt_gw_rcv(struct amt_dev *amt, struct sk_buff *skb)
+{
+	int type = amt_parse_type(skb);
+	int err = 1;
+
+	if (type == -1)
+		goto drop;
+
+	if (amt->mode == AMT_MODE_GATEWAY) {
+		switch (type) {
+		case AMT_MSG_ADVERTISEMENT:
+			err = amt_advertisement_handler(amt, skb);
+			break;
+		case AMT_MSG_MEMBERSHIP_QUERY:
+			err = amt_membership_query_handler(amt, skb);
+			if (!err)
+				return;
+			break;
+		default:
+			netdev_dbg(amt->dev, "Invalid type of Gateway\n");
+			break;
+		}
+	}
+drop:
+	if (err) {
+		amt->dev->stats.rx_dropped++;
+		kfree_skb(skb);
+	} else {
+		consume_skb(skb);
+	}
+}
+
 static int amt_rcv(struct sock *sk, struct sk_buff *skb)
 {
 	struct amt_dev *amt;
@@ -2719,8 +2790,12 @@ static int amt_rcv(struct sock *sk, struct sk_buff *skb)
 				err = true;
 				goto drop;
 			}
-			err = amt_advertisement_handler(amt, skb);
-			break;
+			if (amt_queue_event(amt, AMT_EVENT_RECEIVE, skb)) {
+				netdev_dbg(amt->dev, "AMT Event queue full\n");
+				err = true;
+				goto drop;
+			}
+			goto out;
 		case AMT_MSG_MULTICAST_DATA:
 			if (iph->saddr != amt->remote_ip) {
 				netdev_dbg(amt->dev, "Invalid Relay IP\n");
@@ -2738,11 +2813,12 @@ static int amt_rcv(struct sock *sk, struct sk_buff *skb)
 				err = true;
 				goto drop;
 			}
-			err = amt_membership_query_handler(amt, skb);
-			if (err)
+			if (amt_queue_event(amt, AMT_EVENT_RECEIVE, skb)) {
+				netdev_dbg(amt->dev, "AMT Event queue full\n");
+				err = true;
 				goto drop;
-			else
-				goto out;
+			}
+			goto out;
 		default:
 			err = true;
 			netdev_dbg(amt->dev, "Invalid type of Gateway\n");
@@ -2778,6 +2854,46 @@ drop:
 out:
 	rcu_read_unlock_bh();
 	return 0;
+}
+
+static void amt_event_work(struct work_struct *work)
+{
+	struct amt_dev *amt = container_of(work, struct amt_dev, event_wq);
+	struct sk_buff *skb;
+	u8 event;
+	int i;
+
+	for (i = 0; i < AMT_MAX_EVENTS; i++) {
+		spin_lock_bh(&amt->lock);
+		if (amt->nr_events == 0) {
+			spin_unlock_bh(&amt->lock);
+			return;
+		}
+		event = amt->events[amt->event_idx].event;
+		skb = amt->events[amt->event_idx].skb;
+		amt->events[amt->event_idx].event = AMT_EVENT_NONE;
+		amt->events[amt->event_idx].skb = NULL;
+		amt->nr_events--;
+		amt->event_idx++;
+		amt->event_idx %= AMT_MAX_EVENTS;
+		spin_unlock_bh(&amt->lock);
+
+		switch (event) {
+		case AMT_EVENT_RECEIVE:
+			amt_gw_rcv(amt, skb);
+			break;
+		case AMT_EVENT_SEND_DISCOVERY:
+			amt_event_send_discovery(amt);
+			break;
+		case AMT_EVENT_SEND_REQUEST:
+			amt_event_send_request(amt);
+			break;
+		default:
+			if (skb)
+				kfree_skb(skb);
+			break;
+		}
+	}
 }
 
 static int amt_err_lookup(struct sock *sk, struct sk_buff *skb)
@@ -2867,6 +2983,8 @@ static int amt_dev_open(struct net_device *dev)
 
 	amt->ready4 = false;
 	amt->ready6 = false;
+	amt->event_idx = 0;
+	amt->nr_events = 0;
 
 	err = amt_socket_create(amt);
 	if (err)
@@ -2892,6 +3010,8 @@ static int amt_dev_stop(struct net_device *dev)
 	struct amt_dev *amt = netdev_priv(dev);
 	struct amt_tunnel_list *tunnel, *tmp;
 	struct socket *sock;
+	struct sk_buff *skb;
+	int i;
 
 	cancel_delayed_work_sync(&amt->req_wq);
 	cancel_delayed_work_sync(&amt->discovery_wq);
@@ -2903,6 +3023,15 @@ static int amt_dev_stop(struct net_device *dev)
 	synchronize_net();
 	if (sock)
 		udp_tunnel_sock_release(sock);
+
+	cancel_work_sync(&amt->event_wq);
+	for (i = 0; i < AMT_MAX_EVENTS; i++) {
+		skb = amt->events[i].skb;
+		if (skb)
+			kfree_skb(skb);
+		amt->events[i].event = AMT_EVENT_NONE;
+		amt->events[i].skb = NULL;
+	}
 
 	amt->ready4 = false;
 	amt->ready6 = false;
@@ -3146,8 +3275,8 @@ static int amt_newlink(struct net *net, struct net_device *dev,
 	INIT_DELAYED_WORK(&amt->discovery_wq, amt_discovery_work);
 	INIT_DELAYED_WORK(&amt->req_wq, amt_req_work);
 	INIT_DELAYED_WORK(&amt->secret_wq, amt_secret_work);
+	INIT_WORK(&amt->event_wq, amt_event_work);
 	INIT_LIST_HEAD(&amt->tunnel_list);
-
 	return 0;
 err:
 	dev_put(amt->stream_dev);
@@ -3280,7 +3409,7 @@ static int __init amt_init(void)
 	if (err < 0)
 		goto unregister_notifier;
 
-	amt_wq = alloc_workqueue("amt", WQ_UNBOUND, 1);
+	amt_wq = alloc_workqueue("amt", WQ_UNBOUND, 0);
 	if (!amt_wq) {
 		err = -ENOMEM;
 		goto rtnl_unregister;
