@@ -967,8 +967,11 @@ static void amt_event_send_request(struct amt_dev *amt)
 		goto out;
 	}
 
-	if (!amt->req_cnt)
+	if (!amt->req_cnt) {
+		WRITE_ONCE(amt->ready4, false);
+		WRITE_ONCE(amt->ready6, false);
 		get_random_bytes(&amt->nonce, sizeof(__be32));
+	}
 
 	amt_send_request(amt, false);
 	amt_send_request(amt, true);
@@ -2353,6 +2356,9 @@ static bool amt_membership_query_handler(struct amt_dev *amt,
 	if (amtmq->reserved || amtmq->version)
 		return true;
 
+	if (amtmq->nonce != amt->nonce)
+		return true;
+
 	hdr_size -= sizeof(*eth);
 	if (iptunnel_pull_header(skb, hdr_size, htons(ETH_P_TEB), false))
 		return true;
@@ -2367,6 +2373,9 @@ static bool amt_membership_query_handler(struct amt_dev *amt,
 
 	iph = ip_hdr(skb);
 	if (iph->version == 4) {
+		if (READ_ONCE(amt->ready4))
+			return true;
+
 		if (!pskb_may_pull(skb, sizeof(*iph) + AMT_IPHDR_OPTS +
 				   sizeof(*ihv3)))
 			return true;
@@ -2388,6 +2397,9 @@ static bool amt_membership_query_handler(struct amt_dev *amt,
 	} else if (iph->version == 6) {
 		struct mld2_query *mld2q;
 		struct ipv6hdr *ip6h;
+
+		if (READ_ONCE(amt->ready6))
+			return true;
 
 		if (!pskb_may_pull(skb, sizeof(*ip6h) + AMT_IP6HDR_OPTS +
 				   sizeof(*mld2q)))
