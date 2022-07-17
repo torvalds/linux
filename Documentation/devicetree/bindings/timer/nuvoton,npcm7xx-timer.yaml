@@ -8,12 +8,14 @@ title: Nuvoton NPCM7xx timer
 
 maintainers:
   - Jonathan Neuschäfer <j.neuschaefer@gmx.net>
+  - Tomer Maimon <tmaimon77@gmail.com>
 
 properties:
   compatible:
     enum:
       - nuvoton,wpcm450-timer  # for Hermon WPCM450
       - nuvoton,npcm750-timer  # for Poleg NPCM750
+      - nuvoton,npcm845-timer  # for Arbel NPCM845
 
   reg:
     maxItems: 1
