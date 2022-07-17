@@ -715,7 +715,7 @@ static int bch2_check_discard_freespace_key(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter alloc_iter;
-	struct bkey_s_c k, freespace_k;
+	struct bkey_s_c alloc_k;
 	struct bch_alloc_v4 a;
 	u64 genbits;
 	struct bpos pos;
@@ -724,14 +724,6 @@ static int bch2_check_discard_freespace_key(struct btree_trans *trans,
 		: BCH_DATA_free;
 	struct printbuf buf = PRINTBUF;
 	int ret;
-
-	freespace_k = bch2_btree_iter_peek(iter);
-	if (!freespace_k.k)
-		return 1;
-
-	ret = bkey_err(freespace_k);
-	if (ret)
-		return ret;
 
 	pos = iter->pos;
 	pos.offset &= ~(~0ULL << 56);
@@ -744,18 +736,18 @@ static int bch2_check_discard_freespace_key(struct btree_trans *trans,
 			bch2_btree_ids[iter->btree_id], pos.inode, pos.offset))
 		goto delete;
 
-	k = bch2_btree_iter_peek_slot(&alloc_iter);
-	ret = bkey_err(k);
+	alloc_k = bch2_btree_iter_peek_slot(&alloc_iter);
+	ret = bkey_err(alloc_k);
 	if (ret)
 		goto err;
 
-	bch2_alloc_to_v4(k, &a);
+	bch2_alloc_to_v4(alloc_k, &a);
 
 	if (fsck_err_on(a.data_type != state ||
 			(state == BCH_DATA_free &&
 			 genbits != alloc_freespace_genbits(a)), c,
 			"%s\n  incorrectly set in %s index (free %u, genbits %llu should be %llu)",
-			(bch2_bkey_val_to_text(&buf, c, k), buf.buf),
+			(bch2_bkey_val_to_text(&buf, c, alloc_k), buf.buf),
 			bch2_btree_ids[iter->btree_id],
 			a.data_type == state,
 			genbits >> 56, alloc_freespace_genbits(a) >> 56))
@@ -776,6 +768,7 @@ int bch2_check_alloc_info(struct bch_fs *c)
 {
 	struct btree_trans trans;
 	struct btree_iter iter, discard_iter, freespace_iter;
+	struct bkey_s_c k;
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
@@ -805,36 +798,16 @@ int bch2_check_alloc_info(struct bch_fs *c)
 	if (ret < 0)
 		goto err;
 
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_need_discard, POS_MIN,
-			     BTREE_ITER_PREFETCH);
-	while (1) {
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_NOFAIL|
-				      BTREE_INSERT_LAZY_RW,
-			bch2_check_discard_freespace_key(&trans, &iter));
-		if (ret)
-			break;
-
-		bch2_btree_iter_advance(&iter);
-	}
-	bch2_trans_iter_exit(&trans, &iter);
-
-	if (ret < 0)
-		goto err;
-
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_freespace, POS_MIN,
-			     BTREE_ITER_PREFETCH);
-	while (1) {
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_NOFAIL|
-				      BTREE_INSERT_LAZY_RW,
-			bch2_check_discard_freespace_key(&trans, &iter));
-		if (ret)
-			break;
-
-		bch2_btree_iter_advance(&iter);
-	}
-	bch2_trans_iter_exit(&trans, &iter);
+	ret = for_each_btree_key_commit(&trans, iter,
+			BTREE_ID_need_discard, POS_MIN,
+			BTREE_ITER_PREFETCH, k,
+			NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+		bch2_check_discard_freespace_key(&trans, &iter)) ?:
+	      for_each_btree_key_commit(&trans, iter,
+			BTREE_ID_freespace, POS_MIN,
+			BTREE_ITER_PREFETCH, k,
+			NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+		bch2_check_discard_freespace_key(&trans, &iter));
 err:
 	bch2_trans_exit(&trans);
 	return ret < 0 ? ret : 0;
