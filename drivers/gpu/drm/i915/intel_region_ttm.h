@@ -25,7 +25,7 @@ int intel_region_ttm_fini(struct intel_memory_region *mem);
 struct i915_refct_sgt *
 intel_region_ttm_resource_to_rsgt(struct intel_memory_region *mem,
 				  struct ttm_resource *res,
-				  u64 page_alignment);
+				  u32 page_alignment);
 
 void intel_region_ttm_resource_free(struct intel_memory_region *mem,
 				    struct ttm_resource *res);
