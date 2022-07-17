@@ -21,6 +21,7 @@ properties:
       - enum:
           - nuvoton,wpcm450-gcr
           - nuvoton,npcm750-gcr
+          - nuvoton,npcm845-gcr
       - const: syscon
       - const: simple-mfd
 
