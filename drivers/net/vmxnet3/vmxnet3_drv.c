@@ -1550,6 +1550,7 @@ vmxnet3_rq_rx_complete(struct vmxnet3_rx_queue *rq,
 					     hash_type);
 			}
 #endif
+			skb_record_rx_queue(ctx->skb, rq->qid);
 			skb_put(ctx->skb, rcd->len);
 
 			if (VMXNET3_VERSION_GE_2(adapter) &&
