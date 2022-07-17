@@ -31,30 +31,7 @@ static inline bool __must_check rdrand_long(unsigned long *v)
 	return false;
 }
 
-static inline bool __must_check rdrand_int(unsigned int *v)
-{
-	bool ok;
-	unsigned int retry = RDRAND_RETRY_LOOPS;
-	do {
-		asm volatile("rdrand %[out]"
-			     CC_SET(c)
-			     : CC_OUT(c) (ok), [out] "=r" (*v));
-		if (ok)
-			return true;
-	} while (--retry);
-	return false;
-}
-
 static inline bool __must_check rdseed_long(unsigned long *v)
-{
-	bool ok;
-	asm volatile("rdseed %[out]"
-		     CC_SET(c)
-		     : CC_OUT(c) (ok), [out] "=r" (*v));
-	return ok;
-}
-
-static inline bool __must_check rdseed_int(unsigned int *v)
 {
 	bool ok;
 	asm volatile("rdseed %[out]"
@@ -68,24 +45,14 @@ static inline bool __must_check rdseed_int(unsigned int *v)
  * stubs in <linux/random.h> are to be invoked.
  */
 
-static inline bool __must_check arch_get_random_long(unsigned long *v)
+static inline size_t __must_check arch_get_random_longs(unsigned long *v, size_t max_longs)
 {
-	return static_cpu_has(X86_FEATURE_RDRAND) ? rdrand_long(v) : false;
+	return max_longs && static_cpu_has(X86_FEATURE_RDRAND) && rdrand_long(v) ? 1 : 0;
 }
 
-static inline bool __must_check arch_get_random_int(unsigned int *v)
+static inline size_t __must_check arch_get_random_seed_longs(unsigned long *v, size_t max_longs)
 {
-	return static_cpu_has(X86_FEATURE_RDRAND) ? rdrand_int(v) : false;
-}
-
-static inline bool __must_check arch_get_random_seed_long(unsigned long *v)
-{
-	return static_cpu_has(X86_FEATURE_RDSEED) ? rdseed_long(v) : false;
-}
-
-static inline bool __must_check arch_get_random_seed_int(unsigned int *v)
-{
-	return static_cpu_has(X86_FEATURE_RDSEED) ? rdseed_int(v) : false;
+	return max_longs && static_cpu_has(X86_FEATURE_RDSEED) && rdseed_long(v) ? 1 : 0;
 }
 
 #ifndef CONFIG_UML

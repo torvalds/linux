@@ -18,34 +18,19 @@
 DECLARE_STATIC_KEY_FALSE(s390_arch_random_available);
 extern atomic64_t s390_arch_random_counter;
 
-static inline bool __must_check arch_get_random_long(unsigned long *v)
+static inline size_t __must_check arch_get_random_longs(unsigned long *v, size_t max_longs)
 {
-	return false;
+	return 0;
 }
 
-static inline bool __must_check arch_get_random_int(unsigned int *v)
-{
-	return false;
-}
-
-static inline bool __must_check arch_get_random_seed_long(unsigned long *v)
+static inline size_t __must_check arch_get_random_seed_longs(unsigned long *v, size_t max_longs)
 {
 	if (static_branch_likely(&s390_arch_random_available)) {
-		cpacf_trng(NULL, 0, (u8 *)v, sizeof(*v));
-		atomic64_add(sizeof(*v), &s390_arch_random_counter);
-		return true;
+		cpacf_trng(NULL, 0, (u8 *)v, max_longs * sizeof(*v));
+		atomic64_add(max_longs * sizeof(*v), &s390_arch_random_counter);
+		return max_longs;
 	}
-	return false;
-}
-
-static inline bool __must_check arch_get_random_seed_int(unsigned int *v)
-{
-	if (static_branch_likely(&s390_arch_random_available)) {
-		cpacf_trng(NULL, 0, (u8 *)v, sizeof(*v));
-		atomic64_add(sizeof(*v), &s390_arch_random_counter);
-		return true;
-	}
-	return false;
+	return 0;
 }
 
 #endif /* _ASM_S390_ARCHRANDOM_H */

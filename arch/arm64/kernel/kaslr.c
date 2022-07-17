@@ -106,7 +106,7 @@ u64 __init kaslr_early_init(void)
 	 * and supported.
 	 */
 
-	if (arch_get_random_seed_long_early(&raw))
+	if (arch_get_random_seed_longs_early(&raw, 1))
 		seed ^= raw;
 
 	if (!seed) {

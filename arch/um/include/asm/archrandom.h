@@ -7,24 +7,19 @@
 /* This is from <os.h>, but better not to #include that in a global header here. */
 ssize_t os_getrandom(void *buf, size_t len, unsigned int flags);
 
-static inline bool __must_check arch_get_random_long(unsigned long *v)
+static inline size_t __must_check arch_get_random_longs(unsigned long *v, size_t max_longs)
 {
-	return os_getrandom(v, sizeof(*v), 0) == sizeof(*v);
+	ssize_t ret;
+
+	ret = os_getrandom(v, max_longs * sizeof(*v), 0);
+	if (ret < 0)
+		return 0;
+	return ret / sizeof(*v);
 }
 
-static inline bool __must_check arch_get_random_int(unsigned int *v)
+static inline size_t __must_check arch_get_random_seed_longs(unsigned long *v, size_t max_longs)
 {
-	return os_getrandom(v, sizeof(*v), 0) == sizeof(*v);
-}
-
-static inline bool __must_check arch_get_random_seed_long(unsigned long *v)
-{
-	return false;
-}
-
-static inline bool __must_check arch_get_random_seed_int(unsigned int *v)
-{
-	return false;
+	return 0;
 }
 
 #endif
