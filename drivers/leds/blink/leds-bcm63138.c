@@ -113,8 +113,7 @@ static void bcm63138_leds_enable_led(struct bcm63138_leds *leds,
 {
 	u32 bit = BIT(led->pin);
 
-	bcm63138_leds_update_bits(leds, BCM63138_SW_DATA, bit,
-				  value == LED_OFF ? 0 : bit);
+	bcm63138_leds_update_bits(leds, BCM63138_SW_DATA, bit, value ? bit : 0);
 }
 
 /*
