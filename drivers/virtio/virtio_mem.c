@@ -166,6 +166,13 @@ struct virtio_mem {
 	/* If set, the driver is in SBM, otherwise in BBM. */
 	bool in_sbm;
 
+	/*
+	 * The first group of pages in a memory_block are used for memmap.
+	 * If sbm mode is used, sb_size must equal memmap size, and sb_id == 0
+	 * is located at offset sb_size in a memory_block.
+	 */
+	bool memmap_on_memory;
+
 	union {
 		struct {
 			/* Id of the first memory block of this device. */
@@ -287,8 +294,10 @@ static void virtio_mem_fake_offline_cancel_offline(unsigned long pfn,
 static void virtio_mem_retry(struct virtio_mem *vm);
 static int virtio_mem_create_resource(struct virtio_mem *vm);
 static void virtio_mem_delete_resource(struct virtio_mem *vm);
+static int virtio_mem_send_plug_request(struct virtio_mem *vm, uint64_t addr,
+					uint64_t size, bool memmap);
 static int virtio_mem_send_unplug_request(struct virtio_mem *vm, uint64_t addr,
-					  uint64_t size);
+					  uint64_t size, bool memmap);
 
 /*
  * Register a virtio-mem device so it will be considered for the online_page
@@ -342,6 +351,16 @@ static unsigned long virtio_mem_mb_id_to_phys(unsigned long mb_id)
 }
 
 /*
+ * Calculate the physical start address of a given sb memory block id,
+ */
+static unsigned long virtio_mem_sb_id_to_phys(struct virtio_mem *vm, unsigned long mb_id, int sb_id)
+{
+	if (vm->memmap_on_memory)
+		sb_id += 1;
+	return mb_id * memory_block_size_bytes() + sb_id * vm->sbm.sb_size;
+}
+
+/*
  * Calculate the big block id of a given address.
  */
 static unsigned long virtio_mem_phys_to_bb_id(struct virtio_mem *vm,
@@ -367,8 +386,12 @@ static unsigned long virtio_mem_phys_to_sb_id(struct virtio_mem *vm,
 {
 	const unsigned long mb_id = virtio_mem_phys_to_mb_id(addr);
 	const unsigned long mb_addr = virtio_mem_mb_id_to_phys(mb_id);
+	unsigned long sb_id;
 
-	return (addr - mb_addr) / vm->sbm.sb_size;
+	sb_id = (addr - mb_addr) / vm->sbm.sb_size;
+	if (vm->memmap_on_memory)
+		sb_id -= 1;
+	return sb_id;
 }
 
 /*
@@ -617,6 +640,35 @@ static int virtio_mem_sbm_sb_states_prepare_next_mb(struct virtio_mem *vm)
 	return 0;
 }
 
+static unsigned long virtio_mem_memory_block_vmemmap_size(void)
+{
+	return memory_block_size_bytes() / PAGE_SIZE * sizeof(struct page);
+}
+
+static int virtio_mem_plug_memmap(struct virtio_mem *vm, uint64_t addr)
+{
+	unsigned long vmemmap_size = virtio_mem_memory_block_vmemmap_size();
+
+	if (!vm->memmap_on_memory)
+		return 0;
+
+	dev_dbg(&vm->vdev->dev, "plugging memmap: 0x%llx - 0x%llx\n", addr,
+		addr + vmemmap_size - 1);
+	return virtio_mem_send_plug_request(vm, addr, vmemmap_size, true);
+}
+
+static void virtio_mem_unplug_memmap(struct virtio_mem *vm, uint64_t addr)
+{
+	unsigned long vmemmap_size = virtio_mem_memory_block_vmemmap_size();
+
+	if (!vm->memmap_on_memory)
+		return;
+
+	dev_dbg(&vm->vdev->dev, "unplugging memmap: 0x%llx - 0x%llx\n", addr,
+		addr + vmemmap_size - 1);
+	virtio_mem_send_unplug_request(vm, addr, vmemmap_size, true);
+}
+
 /*
  * Test if we could add memory without creating too much offline memory -
  * to avoid running OOM if memory is getting onlined deferred.
@@ -641,6 +693,7 @@ static int virtio_mem_add_memory(struct virtio_mem *vm, uint64_t addr,
 				 uint64_t size)
 {
 	int rc;
+	mhp_t mhp_flags = MHP_MERGE_RESOURCE | MHP_NID_IS_MGID;
 
 	/*
 	 * When force-unloading the driver and we still have memory added to
@@ -655,10 +708,18 @@ static int virtio_mem_add_memory(struct virtio_mem *vm, uint64_t addr,
 
 	dev_dbg(&vm->vdev->dev, "adding memory: 0x%llx - 0x%llx\n", addr,
 		addr + size - 1);
+
+	if (vm->memmap_on_memory)
+		mhp_flags |= MHP_MEMMAP_ON_MEMORY;
+
+	rc = virtio_mem_plug_memmap(vm, addr);
+	if (rc)
+		return rc;
+
 	/* Memory might get onlined immediately. */
 	atomic64_add(size, &vm->offline_size);
 	rc = add_memory_driver_managed(vm->mgid, addr, size, vm->resource_name,
-				       MHP_MERGE_RESOURCE | MHP_NID_IS_MGID);
+				       mhp_flags);
 	if (rc) {
 		atomic64_sub(size, &vm->offline_size);
 		dev_warn(&vm->vdev->dev, "adding memory failed: %d\n", rc);
@@ -666,6 +727,7 @@ static int virtio_mem_add_memory(struct virtio_mem *vm, uint64_t addr,
 		 * TODO: Linux MM does not properly clean up yet in all cases
 		 * where adding of memory failed - especially on -ENOMEM.
 		 */
+		virtio_mem_unplug_memmap(vm, addr);
 	}
 	return rc;
 }
@@ -719,6 +781,10 @@ static int virtio_mem_remove_memory(struct virtio_mem *vm, uint64_t addr,
 	} else {
 		dev_dbg(&vm->vdev->dev, "removing memory failed: %d\n", rc);
 	}
+
+	/* mhp_deinit_memmap_on_memory() will try to access memmap during hotremove */
+	if (!rc)
+		virtio_mem_unplug_memmap(vm, addr);
 	return rc;
 }
 
@@ -763,6 +829,10 @@ static int virtio_mem_offline_and_remove_memory(struct virtio_mem *vm,
 		dev_dbg(&vm->vdev->dev,
 			"offlining and removing memory failed: %d\n", rc);
 	}
+
+	/* mhp_deinit_memmap_on_memory() will try to access memmap during hotremove */
+	if (!rc)
+		virtio_mem_unplug_memmap(vm, addr);
 	return rc;
 }
 
@@ -906,8 +976,7 @@ static void virtio_mem_sbm_notify_going_offline(struct virtio_mem *vm,
 	for (sb_id = 0; sb_id < vm->sbm.sbs_per_mb; sb_id++) {
 		if (virtio_mem_sbm_test_sb_plugged(vm, mb_id, sb_id, 1))
 			continue;
-		pfn = PFN_DOWN(virtio_mem_mb_id_to_phys(mb_id) +
-			       sb_id * vm->sbm.sb_size);
+		pfn = PFN_DOWN(virtio_mem_sb_id_to_phys(vm, mb_id, sb_id));
 		virtio_mem_fake_offline_going_offline(pfn, nr_pages);
 	}
 }
@@ -922,8 +991,7 @@ static void virtio_mem_sbm_notify_cancel_offline(struct virtio_mem *vm,
 	for (sb_id = 0; sb_id < vm->sbm.sbs_per_mb; sb_id++) {
 		if (virtio_mem_sbm_test_sb_plugged(vm, mb_id, sb_id, 1))
 			continue;
-		pfn = PFN_DOWN(virtio_mem_mb_id_to_phys(mb_id) +
-			       sb_id * vm->sbm.sb_size);
+		pfn = PFN_DOWN(virtio_mem_sb_id_to_phys(vm, mb_id, sb_id));
 		virtio_mem_fake_offline_cancel_offline(pfn, nr_pages);
 	}
 }
@@ -974,14 +1042,23 @@ static int virtio_mem_memory_notifier_cb(struct notifier_block *nb,
 		return NOTIFY_DONE;
 
 	if (vm->in_sbm) {
+		unsigned long expected_size = memory_block_size_bytes();
+		unsigned long expected_offset = 0;
+
+		if (vm->memmap_on_memory) {
+			expected_size -= vm->sbm.sb_size;
+			expected_offset += vm->sbm.sb_size;
+		}
+
 		id = virtio_mem_phys_to_mb_id(start);
 		/*
 		 * In SBM, we add memory in separate memory blocks - we expect
 		 * it to be onlined/offlined in the same granularity. Bail out
 		 * if this ever changes.
 		 */
-		if (WARN_ON_ONCE(size != memory_block_size_bytes() ||
-				 !IS_ALIGNED(start, memory_block_size_bytes())))
+		if (WARN_ON_ONCE(size != expected_size ||
+				 !IS_ALIGNED(start - expected_offset,
+					     memory_block_size_bytes())))
 			return NOTIFY_BAD;
 	} else {
 		id = virtio_mem_phys_to_bb_id(vm, start);
@@ -1347,7 +1424,7 @@ static int virtio_mem_convert_error_code(int rc)
  * This function must return one of ENOSPC, ETXTBSY, EBUSY, ENOMEM, EAGAIN
  */
 static int virtio_mem_send_plug_request(struct virtio_mem *vm, uint64_t addr,
-					uint64_t size)
+					uint64_t size, bool memmap)
 {
 	void *membuf;
 	struct mem_buf_allocation_data alloc_data;
@@ -1392,7 +1469,8 @@ static int virtio_mem_send_plug_request(struct virtio_mem *vm, uint64_t addr,
 		}
 
 		xa_store(&xa_membuf, addr, membuf, GFP_KERNEL);
-		vm->plugged_size += block_size;
+		if (!memmap)
+			vm->plugged_size += block_size;
 
 		size -= block_size;
 		addr += block_size;
@@ -1403,13 +1481,13 @@ static int virtio_mem_send_plug_request(struct virtio_mem *vm, uint64_t addr,
 
 err_mem_buf_alloc:
 	if (addr > orig_addr)
-		virtio_mem_send_unplug_request(vm, orig_addr, addr - orig_addr);
+		virtio_mem_send_unplug_request(vm, orig_addr, addr - orig_addr, memmap);
 	kfree(gh_sgl);
 	return ret;
 }
 
 static int virtio_mem_send_unplug_request(struct virtio_mem *vm, uint64_t addr,
-					  uint64_t size)
+					  uint64_t size, bool memmap)
 {
 	void *membuf;
 	u64 block_size = vm->device_block_size;
@@ -1433,7 +1511,8 @@ static int virtio_mem_send_unplug_request(struct virtio_mem *vm, uint64_t addr,
 	 * Only update if all successful to be in-line with how errors
 	 * are handled by this function's callers
 	 */
-	vm->plugged_size -= saved_size;
+	if (!memmap)
+		vm->plugged_size -= saved_size;
 	return 0;
 }
 
@@ -1451,12 +1530,11 @@ static int virtio_mem_send_unplug_all_request(struct virtio_mem *vm)
 static int virtio_mem_sbm_plug_sb(struct virtio_mem *vm, unsigned long mb_id,
 				  int sb_id, int count)
 {
-	const uint64_t addr = virtio_mem_mb_id_to_phys(mb_id) +
-			      sb_id * vm->sbm.sb_size;
+	const uint64_t addr = virtio_mem_sb_id_to_phys(vm, mb_id, sb_id);
 	const uint64_t size = count * vm->sbm.sb_size;
 	int rc;
 
-	rc = virtio_mem_send_plug_request(vm, addr, size);
+	rc = virtio_mem_send_plug_request(vm, addr, size, false);
 	if (!rc)
 		virtio_mem_sbm_set_sb_plugged(vm, mb_id, sb_id, count);
 	return rc;
@@ -1469,12 +1547,11 @@ static int virtio_mem_sbm_plug_sb(struct virtio_mem *vm, unsigned long mb_id,
 static int virtio_mem_sbm_unplug_sb(struct virtio_mem *vm, unsigned long mb_id,
 				    int sb_id, int count)
 {
-	const uint64_t addr = virtio_mem_mb_id_to_phys(mb_id) +
-			      sb_id * vm->sbm.sb_size;
+	const uint64_t addr = virtio_mem_sb_id_to_phys(vm, mb_id, sb_id);
 	const uint64_t size = count * vm->sbm.sb_size;
 	int rc;
 
-	rc = virtio_mem_send_unplug_request(vm, addr, size);
+	rc = virtio_mem_send_unplug_request(vm, addr, size, false);
 	if (!rc)
 		virtio_mem_sbm_set_sb_unplugged(vm, mb_id, sb_id, count);
 	return rc;
@@ -1490,7 +1567,7 @@ static int virtio_mem_bbm_unplug_bb(struct virtio_mem *vm, unsigned long bb_id)
 	const uint64_t addr = virtio_mem_bb_id_to_phys(vm, bb_id);
 	const uint64_t size = vm->bbm.bb_size;
 
-	return virtio_mem_send_unplug_request(vm, addr, size);
+	return virtio_mem_send_unplug_request(vm, addr, size, false);
 }
 
 /*
@@ -1503,7 +1580,7 @@ static int virtio_mem_bbm_plug_bb(struct virtio_mem *vm, unsigned long bb_id)
 	const uint64_t addr = virtio_mem_bb_id_to_phys(vm, bb_id);
 	const uint64_t size = vm->bbm.bb_size;
 
-	return virtio_mem_send_plug_request(vm, addr, size);
+	return virtio_mem_send_plug_request(vm, addr, size, false);
 }
 
 /*
@@ -1673,8 +1750,7 @@ static int virtio_mem_sbm_plug_any_sb(struct virtio_mem *vm,
 			continue;
 
 		/* fake-online the pages if the memory block is online */
-		pfn = PFN_DOWN(virtio_mem_mb_id_to_phys(mb_id) +
-			       sb_id * vm->sbm.sb_size);
+		pfn = PFN_DOWN(virtio_mem_sb_id_to_phys(vm, mb_id, sb_id));
 		nr_pages = PFN_DOWN(count * vm->sbm.sb_size);
 		virtio_mem_fake_online(pfn, nr_pages);
 	}
@@ -1910,8 +1986,7 @@ static int virtio_mem_sbm_unplug_sb_online(struct virtio_mem *vm,
 	unsigned long start_pfn;
 	int rc;
 
-	start_pfn = PFN_DOWN(virtio_mem_mb_id_to_phys(mb_id) +
-			     sb_id * vm->sbm.sb_size);
+	start_pfn = PFN_DOWN(virtio_mem_sb_id_to_phys(vm, mb_id, sb_id));
 
 	rc = virtio_mem_fake_offline(start_pfn, nr_pages);
 	if (rc)
@@ -2428,6 +2503,8 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 	uint64_t unit_pages, sb_size, addr;
 	int rc;
 
+	vm->memmap_on_memory = IS_ENABLED(CONFIG_MHP_MEMMAP_ON_MEMORY);
+
 	/* bad device setup - warn only */
 	if (!IS_ALIGNED(vm->addr, memory_block_size_bytes()))
 		dev_warn(&vm->vdev->dev,
@@ -2489,6 +2566,19 @@ static int virtio_mem_init_hotplug(struct virtio_mem *vm)
 		/* Make sure we can add two big blocks. */
 		vm->offline_threshold = max_t(uint64_t, 2 * vm->bbm.bb_size,
 					      vm->offline_threshold);
+	}
+
+	if (vm->memmap_on_memory && vm->in_sbm) {
+		unsigned long vmemmap_size = virtio_mem_memory_block_vmemmap_size();
+
+		if (vmemmap_size != vm->sbm.sb_size) {
+			dev_err(&vm->vdev->dev, "memmap_on_memory expects sb_size (%llx) == vmemmap_size (%lx)\n",
+				vm->sbm.sb_size, vmemmap_size);
+			return -EINVAL;
+		}
+
+		/* First sb_size block used for memmap */
+		vm->sbm.sbs_per_mb -= 1;
 	}
 
 	/*
@@ -2677,6 +2767,8 @@ static int virtio_mem_init(struct virtio_mem *vm)
 		 (unsigned long long)vm->device_block_size);
 	if (vm->nid != NUMA_NO_NODE && IS_ENABLED(CONFIG_NUMA))
 		dev_info(&vm->vdev->dev, "nid: %d", vm->nid);
+	if (vm->memmap_on_memory)
+		dev_info(&vm->vdev->dev, "memmap_on_memory is enabled\n");
 
 	/*
 	 * We don't want to (un)plug or reuse any memory when in kdump. The
