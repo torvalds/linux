@@ -406,7 +406,7 @@ bch2_bucket_alloc_early(struct btree_trans *trans,
 	u64 alloc_cursor = max(alloc_start, READ_ONCE(ca->alloc_cursor));
 	int ret;
 again:
-	for_each_btree_key(trans, iter, BTREE_ID_alloc, POS(ca->dev_idx, alloc_cursor),
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_alloc, POS(ca->dev_idx, alloc_cursor),
 			   BTREE_ITER_SLOTS, k, ret) {
 		struct bch_alloc_v4 a;
 
