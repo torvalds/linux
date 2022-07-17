@@ -11,7 +11,9 @@ maintainers:
 
 properties:
   compatible:
-    const: nuvoton,npcm750-reset
+    enum:
+      - nuvoton,npcm750-reset        # Poleg NPCM7XX SoC
+      - nuvoton,npcm845-reset        # Arbel NPCM8XX SoC
 
   reg:
     maxItems: 1
