@@ -2260,6 +2260,10 @@ static bool amt_advertisement_handler(struct amt_dev *amt, struct sk_buff *skb)
 	    ipv4_is_zeronet(amta->ip4))
 		return true;
 
+	if (amt->status != AMT_STATUS_SENT_DISCOVERY ||
+	    amt->nonce != amta->nonce)
+		return true;
+
 	amt->remote_ip = amta->ip4;
 	netdev_dbg(amt->dev, "advertised remote ip = %pI4\n", &amt->remote_ip);
 	mod_delayed_work(amt_wq, &amt->req_wq, 0);
@@ -2975,6 +2979,7 @@ static int amt_dev_open(struct net_device *dev)
 
 	amt->req_cnt = 0;
 	amt->remote_ip = 0;
+	amt->nonce = 0;
 	get_random_bytes(&amt->key, sizeof(siphash_key_t));
 
 	amt->status = AMT_STATUS_INIT;
