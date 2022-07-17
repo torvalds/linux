@@ -3076,6 +3076,7 @@ struct dm_pr {
 	u64	old_key;
 	u64	new_key;
 	u32	flags;
+	bool	abort;
 	bool	fail_early;
 	int	ret;
 	enum pr_type type;
@@ -3254,25 +3255,41 @@ static int dm_pr_release(struct block_device *bdev, u64 key, enum pr_type type)
 	return pr.ret;
 }
 
+static int __dm_pr_preempt(struct dm_target *ti, struct dm_dev *dev,
+			   sector_t start, sector_t len, void *data)
+{
+	struct dm_pr *pr = data;
+	const struct pr_ops *ops = dev->bdev->bd_disk->fops->pr_ops;
+
+	if (!ops || !ops->pr_preempt) {
+		pr->ret = -EOPNOTSUPP;
+		return -1;
+	}
+
+	pr->ret = ops->pr_preempt(dev->bdev, pr->old_key, pr->new_key, pr->type,
+				  pr->abort);
+	if (!pr->ret)
+		return -1;
+
+	return 0;
+}
+
 static int dm_pr_preempt(struct block_device *bdev, u64 old_key, u64 new_key,
 			 enum pr_type type, bool abort)
 {
-	struct mapped_device *md = bdev->bd_disk->private_data;
-	const struct pr_ops *ops;
-	int r, srcu_idx;
+	struct dm_pr pr = {
+		.new_key	= new_key,
+		.old_key	= old_key,
+		.type		= type,
+		.fail_early	= false,
+	};
+	int ret;
 
-	r = dm_prepare_ioctl(md, &srcu_idx, &bdev);
-	if (r < 0)
-		goto out;
+	ret = dm_call_pr(bdev, __dm_pr_preempt, &pr);
+	if (ret)
+		return ret;
 
-	ops = bdev->bd_disk->fops->pr_ops;
-	if (ops && ops->pr_preempt)
-		r = ops->pr_preempt(bdev, old_key, new_key, type, abort);
-	else
-		r = -EOPNOTSUPP;
-out:
-	dm_unprepare_ioctl(md, srcu_idx);
-	return r;
+	return pr.ret;
 }
 
 static int dm_pr_clear(struct block_device *bdev, u64 key)
