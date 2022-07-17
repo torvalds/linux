@@ -2679,7 +2679,9 @@ static bool amt_request_handler(struct amt_dev *amt, struct sk_buff *skb)
 		if (tunnel->ip4 == iph->saddr)
 			goto send;
 
+	spin_lock_bh(&amt->lock);
 	if (amt->nr_tunnels >= amt->max_tunnels) {
+		spin_unlock_bh(&amt->lock);
 		icmp_ndo_send(skb, ICMP_DEST_UNREACH, ICMP_HOST_UNREACH, 0);
 		return true;
 	}
@@ -2687,8 +2689,10 @@ static bool amt_request_handler(struct amt_dev *amt, struct sk_buff *skb)
 	tunnel = kzalloc(sizeof(*tunnel) +
 			 (sizeof(struct hlist_head) * amt->hash_buckets),
 			 GFP_ATOMIC);
-	if (!tunnel)
+	if (!tunnel) {
+		spin_unlock_bh(&amt->lock);
 		return true;
+	}
 
 	tunnel->source_port = udph->source;
 	tunnel->ip4 = iph->saddr;
@@ -2701,10 +2705,9 @@ static bool amt_request_handler(struct amt_dev *amt, struct sk_buff *skb)
 
 	INIT_DELAYED_WORK(&tunnel->gc_wq, amt_tunnel_expire);
 
-	spin_lock_bh(&amt->lock);
 	list_add_tail_rcu(&tunnel->list, &amt->tunnel_list);
 	tunnel->key = amt->key;
-	amt_update_relay_status(tunnel, AMT_STATUS_RECEIVED_REQUEST, true);
+	__amt_update_relay_status(tunnel, AMT_STATUS_RECEIVED_REQUEST, true);
 	amt->nr_tunnels++;
 	mod_delayed_work(amt_wq, &tunnel->gc_wq,
 			 msecs_to_jiffies(amt_gmi(amt)));
