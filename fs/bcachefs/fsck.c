@@ -489,6 +489,28 @@ static inline void snapshots_seen_init(struct snapshots_seen *s)
 	memset(s, 0, sizeof(*s));
 }
 
+static int snapshots_seen_add(struct bch_fs *c, struct snapshots_seen *s, u32 id)
+{
+	struct snapshots_seen_entry *i, n = { id, id };
+	int ret;
+
+	darray_for_each(s->ids, i) {
+		if (n.equiv < i->equiv)
+			break;
+
+		if (i->equiv == n.equiv) {
+			bch_err(c, "adding duplicate snapshot in snapshots_seen_add()");
+			return -EINVAL;
+		}
+	}
+
+	ret = darray_insert_item(&s->ids, i - s->ids.data, n);
+	if (ret)
+		bch_err(c, "error reallocating snapshots_seen table (size %zu)",
+			s->ids.size);
+	return ret;
+}
+
 static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
 				 enum btree_id btree_id, struct bpos pos)
 {
@@ -1238,20 +1260,38 @@ peek:
 		goto out;
 	}
 
-	if (!bch2_snapshot_internal_node(c, equiv.snapshot)) {
-		for_each_visible_inode(c, s, inode, equiv.snapshot, i) {
-			if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
-					k.k->type != KEY_TYPE_reservation &&
-					k.k->p.offset > round_up(i->inode.bi_size, block_bytes(c)) >> 9, c,
-					"extent type %u offset %llu past end of inode %llu, i_size %llu",
-					k.k->type, k.k->p.offset, k.k->p.inode, i->inode.bi_size)) {
-				bch2_fs_lazy_rw(c);
-				ret = bch2_btree_delete_range_trans(trans, BTREE_ID_extents,
-						SPOS(k.k->p.inode, round_up(i->inode.bi_size, block_bytes(c)) >> 9,
-						     equiv.snapshot),
-						POS(k.k->p.inode, U64_MAX),
-						0, NULL) ?: -EINTR;
-				goto out;
+	/*
+	 * Check inodes in reverse order, from oldest snapshots to newest, so
+	 * that we emit the fewest number of whiteouts necessary:
+	 */
+	for (i = inode->inodes.data + inode->inodes.nr - 1;
+	     i >= inode->inodes.data;
+	     --i) {
+		if (i->snapshot > equiv.snapshot ||
+		    !key_visible_in_snapshot(c, s, i->snapshot, equiv.snapshot))
+			continue;
+
+		if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_I_SIZE_DIRTY) &&
+				k.k->type != KEY_TYPE_reservation &&
+				k.k->p.offset > round_up(i->inode.bi_size, block_bytes(c)) >> 9, c,
+				"extent type past end of inode %llu:%u, i_size %llu\n  %s",
+				i->inode.bi_inum, i->snapshot, i->inode.bi_size,
+				(bch2_bkey_val_to_text(&buf, c, k), buf.buf))) {
+			struct btree_iter iter2;
+
+			bch2_trans_copy_iter(&iter2, iter);
+			bch2_btree_iter_set_snapshot(&iter2, i->snapshot);
+			ret =   bch2_btree_iter_traverse(&iter2) ?:
+				bch2_btree_delete_at(trans, &iter2,
+					BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+			bch2_trans_iter_exit(trans, &iter2);
+			if (ret)
+				goto err;
+
+			if (i->snapshot != equiv.snapshot) {
+				ret = snapshots_seen_add(c, s, i->snapshot);
+				if (ret)
+					goto err;
 			}
 		}
 	}
