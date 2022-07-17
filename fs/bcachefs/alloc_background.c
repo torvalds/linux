@@ -1218,16 +1218,13 @@ void bch2_do_invalidates(struct bch_fs *c)
 		percpu_ref_put(&c->writes);
 }
 
-static int bucket_freespace_init(struct btree_trans *trans, struct btree_iter *iter)
+static int bucket_freespace_init(struct btree_trans *trans, struct btree_iter *iter,
+				 struct bkey_s_c k, struct bch_dev *ca)
 {
 	struct bch_alloc_v4 a;
-	struct bkey_s_c k;
-	int ret;
 
-	k = bch2_btree_iter_peek_slot(iter);
-	ret = bkey_err(k);
-	if (ret)
-		return ret;
+	if (iter->pos.offset >= ca->mi.nbuckets)
+		return 1;
 
 	bch2_alloc_to_v4(k, &a);
 	return bch2_bucket_do_index(trans, k, &a, true);
@@ -1243,24 +1240,15 @@ static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_alloc,
-			   POS(ca->dev_idx, ca->mi.first_bucket),
-			   BTREE_ITER_SLOTS|
-			   BTREE_ITER_PREFETCH, k, ret) {
-		if (iter.pos.offset >= ca->mi.nbuckets)
-			break;
-
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_LAZY_RW,
-				 bucket_freespace_init(&trans, &iter));
-		if (ret)
-			break;
-	}
-	bch2_trans_iter_exit(&trans, &iter);
+	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_alloc,
+			POS(ca->dev_idx, ca->mi.first_bucket),
+			BTREE_ITER_SLOTS|BTREE_ITER_PREFETCH, k,
+			NULL, NULL, BTREE_INSERT_LAZY_RW,
+		bucket_freespace_init(&trans, &iter, k, ca));
 
 	bch2_trans_exit(&trans);
 
-	if (ret) {
+	if (ret < 0) {
 		bch_err(ca, "error initializing free space: %i", ret);
 		return ret;
 	}
@@ -1270,7 +1258,7 @@ static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca)
 	SET_BCH_MEMBER_FREESPACE_INITIALIZED(m, true);
 	mutex_unlock(&c->sb_lock);
 
-	return ret;
+	return 0;
 }
 
 int bch2_fs_freespace_init(struct bch_fs *c)
