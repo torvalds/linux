@@ -577,8 +577,8 @@ static struct sk_buff *amt_build_igmp_gq(struct amt_dev *amt)
 	return skb;
 }
 
-static void __amt_update_gw_status(struct amt_dev *amt, enum amt_status status,
-				   bool validate)
+static void amt_update_gw_status(struct amt_dev *amt, enum amt_status status,
+				 bool validate)
 {
 	if (validate && amt->status >= status)
 		return;
@@ -598,14 +598,6 @@ static void __amt_update_relay_status(struct amt_tunnel_list *tunnel,
 		   &tunnel->ip4, ntohs(tunnel->source_port),
 		   status_str[tunnel->status], status_str[status]);
 	tunnel->status = status;
-}
-
-static void amt_update_gw_status(struct amt_dev *amt, enum amt_status status,
-				 bool validate)
-{
-	spin_lock_bh(&amt->lock);
-	__amt_update_gw_status(amt, status, validate);
-	spin_unlock_bh(&amt->lock);
 }
 
 static void amt_update_relay_status(struct amt_tunnel_list *tunnel,
@@ -700,9 +692,7 @@ static void amt_send_discovery(struct amt_dev *amt)
 	if (unlikely(net_xmit_eval(err)))
 		amt->dev->stats.tx_errors++;
 
-	spin_lock_bh(&amt->lock);
-	__amt_update_gw_status(amt, AMT_STATUS_SENT_DISCOVERY, true);
-	spin_unlock_bh(&amt->lock);
+	amt_update_gw_status(amt, AMT_STATUS_SENT_DISCOVERY, true);
 out:
 	rcu_read_unlock();
 }
@@ -937,18 +927,14 @@ static void amt_secret_work(struct work_struct *work)
 
 static void amt_event_send_discovery(struct amt_dev *amt)
 {
-	spin_lock_bh(&amt->lock);
 	if (amt->status > AMT_STATUS_SENT_DISCOVERY)
 		goto out;
 	get_random_bytes(&amt->nonce, sizeof(__be32));
-	spin_unlock_bh(&amt->lock);
 
 	amt_send_discovery(amt);
-	spin_lock_bh(&amt->lock);
 out:
 	mod_delayed_work(amt_wq, &amt->discovery_wq,
 			 msecs_to_jiffies(AMT_DISCOVERY_TIMEOUT));
-	spin_unlock_bh(&amt->lock);
 }
 
 static void amt_discovery_work(struct work_struct *work)
@@ -966,7 +952,6 @@ static void amt_event_send_request(struct amt_dev *amt)
 {
 	u32 exp;
 
-	spin_lock_bh(&amt->lock);
 	if (amt->status < AMT_STATUS_RECEIVED_ADVERTISEMENT)
 		goto out;
 
@@ -976,21 +961,18 @@ static void amt_event_send_request(struct amt_dev *amt)
 		amt->ready4 = false;
 		amt->ready6 = false;
 		amt->remote_ip = 0;
-		__amt_update_gw_status(amt, AMT_STATUS_INIT, false);
+		amt_update_gw_status(amt, AMT_STATUS_INIT, false);
 		amt->req_cnt = 0;
 		goto out;
 	}
-	spin_unlock_bh(&amt->lock);
 
 	amt_send_request(amt, false);
 	amt_send_request(amt, true);
-	spin_lock_bh(&amt->lock);
-	__amt_update_gw_status(amt, AMT_STATUS_SENT_REQUEST, true);
+	amt_update_gw_status(amt, AMT_STATUS_SENT_REQUEST, true);
 	amt->req_cnt++;
 out:
 	exp = min_t(u32, (1 * (1 << amt->req_cnt)), AMT_MAX_REQ_TIMEOUT);
 	mod_delayed_work(amt_wq, &amt->req_wq, msecs_to_jiffies(exp * 1000));
-	spin_unlock_bh(&amt->lock);
 }
 
 static void amt_req_work(struct work_struct *work)
@@ -2386,12 +2368,10 @@ static bool amt_membership_query_handler(struct amt_dev *amt,
 		ihv3 = skb_pull(skb, sizeof(*iph) + AMT_IPHDR_OPTS);
 		skb_reset_transport_header(skb);
 		skb_push(skb, sizeof(*iph) + AMT_IPHDR_OPTS);
-		spin_lock_bh(&amt->lock);
 		amt->ready4 = true;
 		amt->mac = amtmq->response_mac;
 		amt->req_cnt = 0;
 		amt->qi = ihv3->qqic;
-		spin_unlock_bh(&amt->lock);
 		skb->protocol = htons(ETH_P_IP);
 		eth->h_proto = htons(ETH_P_IP);
 		ip_eth_mc_map(iph->daddr, eth->h_dest);
@@ -2411,12 +2391,10 @@ static bool amt_membership_query_handler(struct amt_dev *amt,
 		mld2q = skb_pull(skb, sizeof(*ip6h) + AMT_IP6HDR_OPTS);
 		skb_reset_transport_header(skb);
 		skb_push(skb, sizeof(*ip6h) + AMT_IP6HDR_OPTS);
-		spin_lock_bh(&amt->lock);
 		amt->ready6 = true;
 		amt->mac = amtmq->response_mac;
 		amt->req_cnt = 0;
 		amt->qi = mld2q->mld2q_qqic;
-		spin_unlock_bh(&amt->lock);
 		skb->protocol = htons(ETH_P_IPV6);
 		eth->h_proto = htons(ETH_P_IPV6);
 		ipv6_eth_mc_map(&ip6h->daddr, eth->h_dest);
