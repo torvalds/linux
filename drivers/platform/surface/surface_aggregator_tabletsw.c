@@ -410,7 +410,7 @@ static int ssam_pos_get_source(struct ssam_tablet_sw *sw, u32 *source_id)
 	if (status)
 		return status;
 
-	if (sources.count == 0) {
+	if (get_unaligned_le32(&sources.count) == 0) {
 		dev_err(&sw->sdev->dev, "no posture sources found\n");
 		return -ENODEV;
 	}
@@ -422,7 +422,7 @@ static int ssam_pos_get_source(struct ssam_tablet_sw *sw, u32 *source_id)
 	 * is a device that provides multiple sources, at which point we can
 	 * then try to figure out how to handle them.
 	 */
-	WARN_ON(sources.count > 1);
+	WARN_ON(get_unaligned_le32(&sources.count) > 1);
 
 	*source_id = get_unaligned_le32(&sources.id[0]);
 	return 0;
