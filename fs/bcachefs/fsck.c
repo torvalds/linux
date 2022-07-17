@@ -1003,10 +1003,8 @@ static int check_inodes(struct bch_fs *c, bool full)
 
 	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_inodes,
 			POS_MIN,
-			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS,
-			k,
-			NULL, NULL,
-			BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+			BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
 		check_inode(&trans, &iter, k, &prev, &s, full));
 
 	bch2_trans_exit(&trans);
@@ -2194,6 +2192,47 @@ static int check_nlinks_walk_dirents(struct bch_fs *c, struct nlink_table *links
 	return ret;
 }
 
+static int check_nlinks_update_inode(struct btree_trans *trans, struct btree_iter *iter,
+				     struct bkey_s_c k,
+				     struct nlink_table *links,
+				     size_t *idx, u64 range_end)
+{
+	struct bch_fs *c = trans->c;
+	struct bch_inode_unpacked u;
+	struct nlink *link = &links->d[*idx];
+	int ret = 0;
+
+	if (k.k->p.offset >= range_end)
+		return 1;
+
+	if (!bkey_is_inode(k.k))
+		return 0;
+
+	BUG_ON(bch2_inode_unpack(k, &u));
+
+	if (S_ISDIR(le16_to_cpu(u.bi_mode)))
+		return 0;
+
+	if (!u.bi_nlink)
+		return 0;
+
+	while ((cmp_int(link->inum, k.k->p.offset) ?:
+		cmp_int(link->snapshot, k.k->p.snapshot)) < 0) {
+		BUG_ON(*idx == links->nr);
+		link = &links->d[++*idx];
+	}
+
+	if (fsck_err_on(bch2_inode_nlink_get(&u) != link->count, c,
+			"inode %llu type %s has wrong i_nlink (%u, should be %u)",
+			u.bi_inum, bch2_d_types[mode_to_type(u.bi_mode)],
+			bch2_inode_nlink_get(&u), link->count)) {
+		bch2_inode_nlink_set(&u, link->count);
+		ret = __write_inode(trans, &u, k.k->p.snapshot);
+	}
+fsck_err:
+	return ret;
+}
+
 noinline_for_stack
 static int check_nlinks_update_hardlinks(struct bch_fs *c,
 			       struct nlink_table *links,
@@ -2202,56 +2241,25 @@ static int check_nlinks_update_hardlinks(struct bch_fs *c,
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct bch_inode_unpacked u;
-	struct nlink *link = links->d;
+	size_t idx = 0;
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_inodes,
-			   POS(0, range_start),
-			   BTREE_ITER_INTENT|
-			   BTREE_ITER_PREFETCH|
-			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
-		if (k.k->p.offset >= range_end)
-			break;
+	ret = for_each_btree_key_commit(&trans, iter, BTREE_ID_inodes,
+			POS(0, range_start),
+			BTREE_ITER_INTENT|BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+		check_nlinks_update_inode(&trans, &iter, k, links, &idx, range_end));
 
-		if (!bkey_is_inode(k.k))
-			continue;
-
-		BUG_ON(bch2_inode_unpack(k, &u));
-
-		if (S_ISDIR(le16_to_cpu(u.bi_mode)))
-			continue;
-
-		if (!u.bi_nlink)
-			continue;
-
-		while ((cmp_int(link->inum, k.k->p.offset) ?:
-			cmp_int(link->snapshot, k.k->p.snapshot)) < 0) {
-			link++;
-			BUG_ON(link >= links->d + links->nr);
-		}
-
-		if (fsck_err_on(bch2_inode_nlink_get(&u) != link->count, c,
-				"inode %llu type %s has wrong i_nlink (%u, should be %u)",
-				u.bi_inum, bch2_d_types[mode_to_type(u.bi_mode)],
-				bch2_inode_nlink_get(&u), link->count)) {
-			bch2_inode_nlink_set(&u, link->count);
-
-			ret = write_inode(&trans, &u, k.k->p.snapshot);
-			if (ret)
-				bch_err(c, "error in fsck: error %i updating inode", ret);
-		}
-	}
-fsck_err:
-	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 
-	if (ret)
+	if (ret < 0) {
 		bch_err(c, "error in fsck: btree error %i while walking inodes", ret);
+		return ret;
+	}
 
-	return ret;
+	return 0;
 }
 
 noinline_for_stack
@@ -2291,20 +2299,12 @@ static int check_nlinks(struct bch_fs *c)
 	return ret;
 }
 
-static int fix_reflink_p_key(struct btree_trans *trans, struct btree_iter *iter)
+static int fix_reflink_p_key(struct btree_trans *trans, struct btree_iter *iter,
+			     struct bkey_s_c k)
 {
-	struct bkey_s_c k;
 	struct bkey_s_c_reflink_p p;
 	struct bkey_i_reflink_p *u;
 	int ret;
-
-	k = bch2_btree_iter_peek(iter);
-	if (!k.k)
-		return 0;
-
-	ret = bkey_err(k);
-	if (ret)
-		return ret;
 
 	if (k.k->type != KEY_TYPE_reflink_p)
 		return 0;
@@ -2341,20 +2341,11 @@ static int fix_reflink_p(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_extents, POS_MIN,
-			   BTREE_ITER_INTENT|
-			   BTREE_ITER_PREFETCH|
-			   BTREE_ITER_ALL_SNAPSHOTS, k, ret) {
-		if (k.k->type == KEY_TYPE_reflink_p) {
-			ret = commit_do(&trans, NULL, NULL,
-					      BTREE_INSERT_NOFAIL|
-					      BTREE_INSERT_LAZY_RW,
-					      fix_reflink_p_key(&trans, &iter));
-			if (ret)
-				break;
-		}
-	}
-	bch2_trans_iter_exit(&trans, &iter);
+	ret = for_each_btree_key_commit(&trans, iter,
+			BTREE_ID_extents, POS_MIN,
+			BTREE_ITER_INTENT|BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+			NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+		fix_reflink_p_key(&trans, &iter, k));
 
 	bch2_trans_exit(&trans);
 	return ret;
