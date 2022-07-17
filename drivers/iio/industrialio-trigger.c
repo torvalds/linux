@@ -364,7 +364,7 @@ struct iio_poll_func
 	va_list vargs;
 	struct iio_poll_func *pf;
 
-	pf = kmalloc(sizeof *pf, GFP_KERNEL);
+	pf = kmalloc(sizeof(*pf), GFP_KERNEL);
 	if (pf == NULL)
 		return NULL;
 	va_start(vargs, fmt);
@@ -553,7 +553,7 @@ struct iio_trigger *viio_trigger_alloc(struct device *parent,
 	struct iio_trigger *trig;
 	int i;
 
-	trig = kzalloc(sizeof *trig, GFP_KERNEL);
+	trig = kzalloc(sizeof(*trig), GFP_KERNEL);
 	if (!trig)
 		return NULL;
 
