@@ -8,6 +8,7 @@ title: Global Control Registers block in Nuvoton SoCs
 
 maintainers:
   - Jonathan Neuschäfer <j.neuschaefer@gmx.net>
+  - Tomer Maimon <tmaimon77@gmail.com>
 
 description:
   The Global Control Registers (GCR) are a block of registers in Nuvoton SoCs
