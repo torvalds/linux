@@ -291,21 +291,13 @@ int bch2_fs_check_snapshots(struct bch_fs *c)
 }
 
 static int check_subvol(struct btree_trans *trans,
-			struct btree_iter *iter)
+			struct btree_iter *iter,
+			struct bkey_s_c k)
 {
-	struct bkey_s_c k;
 	struct bkey_s_c_subvolume subvol;
 	struct bch_snapshot snapshot;
 	unsigned snapid;
 	int ret;
-
-	k = bch2_btree_iter_peek(iter);
-	if (!k.k)
-		return 0;
-
-	ret = bkey_err(k);
-	if (ret)
-		return ret;
 
 	if (k.k->type != KEY_TYPE_subvolume)
 		return 0;
@@ -336,22 +328,15 @@ int bch2_fs_check_subvols(struct bch_fs *c)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
+	struct bkey_s_c k;
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_subvolumes,
-			     POS_MIN, BTREE_ITER_PREFETCH);
-
-	do {
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_LAZY_RW|
-				      BTREE_INSERT_NOFAIL,
-				      check_subvol(&trans, &iter));
-		if (ret)
-			break;
-	} while (bch2_btree_iter_advance(&iter));
-	bch2_trans_iter_exit(&trans, &iter);
+	ret = for_each_btree_key_commit(&trans, iter,
+			BTREE_ID_subvolumes, POS_MIN, BTREE_ITER_PREFETCH, k,
+			NULL, NULL, BTREE_INSERT_LAZY_RW|BTREE_INSERT_NOFAIL,
+		check_subvol(&trans, &iter, k));
 
 	bch2_trans_exit(&trans);
 
@@ -595,59 +580,27 @@ err:
 	return ret;
 }
 
-static int bch2_snapshot_delete_keys_btree(struct btree_trans *trans,
-					   snapshot_id_list *deleted,
-					   enum btree_id btree_id)
+static int snapshot_delete_key(struct btree_trans *trans,
+			       struct btree_iter *iter,
+			       struct bkey_s_c k,
+			       snapshot_id_list *deleted,
+			       snapshot_id_list *equiv_seen,
+			       struct bpos *last_pos)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	snapshot_id_list equiv_seen = { 0 };
-	struct bpos last_pos = POS_MIN;
-	int ret = 0;
+	u32 equiv = snapshot_t(c, k.k->p.snapshot)->equiv;
 
-	/*
-	 * XXX: We should also delete whiteouts that no longer overwrite
-	 * anything
-	 */
+	if (bkey_cmp(k.k->p, *last_pos))
+		equiv_seen->nr = 0;
+	*last_pos = k.k->p;
 
-	bch2_trans_iter_init(trans, &iter, btree_id, POS_MIN,
-			     BTREE_ITER_INTENT|
-			     BTREE_ITER_PREFETCH|
-			     BTREE_ITER_NOT_EXTENTS|
-			     BTREE_ITER_ALL_SNAPSHOTS);
-
-	while ((bch2_trans_begin(trans),
-		(k = bch2_btree_iter_peek(&iter)).k) &&
-	       !(ret = bkey_err(k))) {
-		u32 equiv = snapshot_t(c, k.k->p.snapshot)->equiv;
-
-		if (bkey_cmp(k.k->p, last_pos))
-			equiv_seen.nr = 0;
-		last_pos = k.k->p;
-
-		if (snapshot_list_has_id(deleted, k.k->p.snapshot) ||
-		    snapshot_list_has_id(&equiv_seen, equiv)) {
-			ret = commit_do(trans, NULL, NULL,
-					      BTREE_INSERT_NOFAIL,
-				bch2_btree_iter_traverse(&iter) ?:
-				bch2_btree_delete_at(trans, &iter,
-					BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE));
-			if (ret)
-				break;
-		} else {
-			ret = snapshot_list_add(c, &equiv_seen, equiv);
-			if (ret)
-				break;
-		}
-
-		bch2_btree_iter_advance(&iter);
+	if (snapshot_list_has_id(deleted, k.k->p.snapshot) ||
+	    snapshot_list_has_id(equiv_seen, equiv)) {
+		return bch2_btree_delete_at(trans, iter,
+					    BTREE_UPDATE_INTERNAL_SNAPSHOT_NODE);
+	} else {
+		return snapshot_list_add(c, equiv_seen, equiv);
 	}
-	bch2_trans_iter_exit(trans, &iter);
-
-	darray_exit(&equiv_seen);
-
-	return ret;
 }
 
 static int bch2_delete_redundant_snapshot(struct btree_trans *trans, struct btree_iter *iter,
@@ -742,10 +695,20 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	}
 
 	for (id = 0; id < BTREE_ID_NR; id++) {
+		struct bpos last_pos = POS_MIN;
+		snapshot_id_list equiv_seen = { 0 };
+
 		if (!btree_type_has_snapshots(id))
 			continue;
 
-		ret = bch2_snapshot_delete_keys_btree(&trans, &deleted, id);
+		ret = for_each_btree_key_commit(&trans, iter,
+				id, POS_MIN,
+				BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
+				NULL, NULL, BTREE_INSERT_NOFAIL,
+			snapshot_delete_key(&trans, &iter, k, &deleted, &equiv_seen, &last_pos));
+
+		darray_exit(&equiv_seen);
+
 		if (ret) {
 			bch_err(c, "error deleting snapshot keys: %i", ret);
 			goto err;
