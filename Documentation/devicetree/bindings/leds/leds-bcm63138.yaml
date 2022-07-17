@@ -54,7 +54,7 @@ patternProperties:
 
       active-low:
         type: boolean
-        description: Makes LED active low.
+        description: Makes LED active low
 
     required:
       - reg
