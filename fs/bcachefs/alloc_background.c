@@ -1088,29 +1088,20 @@ void bch2_do_discards(struct bch_fs *c)
 		percpu_ref_put(&c->writes);
 }
 
-static int invalidate_one_bucket(struct btree_trans *trans, struct bch_dev *ca,
-				 struct bpos *bucket_pos, unsigned *cached_sectors)
+static int invalidate_one_bucket(struct btree_trans *trans,
+				 struct btree_iter *lru_iter, struct bkey_s_c k,
+				 unsigned dev_idx, s64 *nr_to_invalidate)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter lru_iter, alloc_iter = { NULL };
-	struct bkey_s_c k;
+	struct btree_iter alloc_iter = { NULL };
 	struct bkey_i_alloc_v4 *a;
-	u64 bucket, idx;
+	struct bpos bucket;
 	struct printbuf buf = PRINTBUF;
-	int ret;
+	unsigned cached_sectors;
+	int ret = 0;
 
-	bch2_trans_iter_init(trans, &lru_iter, BTREE_ID_lru,
-			     POS(ca->dev_idx, 0), 0);
-next_lru:
-	k = bch2_btree_iter_peek(&lru_iter);
-	ret = bkey_err(k);
-	if (ret)
-		goto out;
-
-	if (!k.k || k.k->p.inode != ca->dev_idx) {
-		ret = 1;
-		goto out;
-	}
+	if (*nr_to_invalidate <= 0 || k.k->p.inode != dev_idx)
+		return 1;
 
 	if (k.k->type != KEY_TYPE_lru) {
 		prt_printf(&buf, "non lru key in lru btree:\n  ");
@@ -1118,26 +1109,22 @@ next_lru:
 
 		if (!test_bit(BCH_FS_CHECK_LRUS_DONE, &c->flags)) {
 			bch_err(c, "%s", buf.buf);
-			bch2_btree_iter_advance(&lru_iter);
-			goto next_lru;
 		} else {
 			bch2_trans_inconsistent(trans, "%s", buf.buf);
 			ret = -EINVAL;
-			goto out;
 		}
+
+		goto out;
 	}
 
-	idx	= k.k->p.offset;
-	bucket	= le64_to_cpu(bkey_s_c_to_lru(k).v->idx);
+	bucket = POS(dev_idx, le64_to_cpu(bkey_s_c_to_lru(k).v->idx));
 
-	*bucket_pos = POS(ca->dev_idx, bucket);
-
-	a = bch2_trans_start_alloc_update(trans, &alloc_iter, *bucket_pos);
+	a = bch2_trans_start_alloc_update(trans, &alloc_iter, bucket);
 	ret = PTR_ERR_OR_ZERO(a);
 	if (ret)
 		goto out;
 
-	if (idx != alloc_lru_idx(a->v)) {
+	if (k.k->p.offset != alloc_lru_idx(a->v)) {
 		prt_printf(&buf, "alloc key does not point back to lru entry when invalidating bucket:\n  ");
 		bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(&a->k_i));
 		prt_printf(&buf, "\n  ");
@@ -1145,19 +1132,18 @@ next_lru:
 
 		if (!test_bit(BCH_FS_CHECK_LRUS_DONE, &c->flags)) {
 			bch_err(c, "%s", buf.buf);
-			bch2_btree_iter_advance(&lru_iter);
-			goto next_lru;
 		} else {
 			bch2_trans_inconsistent(trans, "%s", buf.buf);
 			ret = -EINVAL;
-			goto out;
 		}
+
+		goto out;
 	}
 
 	if (!a->v.cached_sectors)
 		bch_err(c, "invalidating empty bucket, confused");
 
-	*cached_sectors = a->v.cached_sectors;
+	cached_sectors = a->v.cached_sectors;
 
 	SET_BCH_ALLOC_V4_NEED_INC_GEN(&a->v, false);
 	a->v.gen++;
@@ -1167,13 +1153,18 @@ next_lru:
 	a->v.io_time[READ]	= atomic64_read(&c->io_clock[READ].now);
 	a->v.io_time[WRITE]	= atomic64_read(&c->io_clock[WRITE].now);
 
-	ret = bch2_trans_update(trans, &alloc_iter, &a->k_i,
-				BTREE_TRIGGER_BUCKET_INVALIDATE);
+	ret =   bch2_trans_update(trans, &alloc_iter, &a->k_i,
+				BTREE_TRIGGER_BUCKET_INVALIDATE) ?:
+		bch2_trans_commit(trans, NULL, NULL,
+				  BTREE_INSERT_USE_RESERVE|BTREE_INSERT_NOFAIL);
 	if (ret)
 		goto out;
+
+	trace_invalidate_bucket(c, bucket.inode, bucket.offset, cached_sectors);
+	this_cpu_inc(c->counters[BCH_COUNTER_bucket_invalidate]);
+	--*nr_to_invalidate;
 out:
 	bch2_trans_iter_exit(trans, &alloc_iter);
-	bch2_trans_iter_exit(trans, &lru_iter);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -1183,8 +1174,9 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 	struct bch_fs *c = container_of(work, struct bch_fs, invalidate_work);
 	struct bch_dev *ca;
 	struct btree_trans trans;
-	struct bpos bucket;
-	unsigned i, sectors;
+	struct btree_iter iter;
+	struct bkey_s_c k;
+	unsigned i;
 	int ret = 0;
 
 	bch2_trans_init(&trans, c, 0, 0);
@@ -1193,17 +1185,13 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 		s64 nr_to_invalidate =
 			should_invalidate_buckets(ca, bch2_dev_usage_read(ca));
 
-		while (nr_to_invalidate-- >= 0) {
-			ret = commit_do(&trans, NULL, NULL,
-					      BTREE_INSERT_USE_RESERVE|
-					      BTREE_INSERT_NOFAIL,
-					invalidate_one_bucket(&trans, ca, &bucket,
-							      &sectors));
-			if (ret)
-				break;
+		ret = for_each_btree_key2(&trans, iter, BTREE_ID_lru,
+				POS(ca->dev_idx, 0), BTREE_ITER_INTENT, k,
+			invalidate_one_bucket(&trans, &iter, k, ca->dev_idx, &nr_to_invalidate));
 
-			trace_invalidate_bucket(c, bucket.inode, bucket.offset, sectors);
-			this_cpu_inc(c->counters[BCH_COUNTER_bucket_invalidate]);
+		if (ret < 0) {
+			percpu_ref_put(&ca->ref);
+			break;
 		}
 	}
 
