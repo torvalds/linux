@@ -7048,6 +7048,8 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		goto err_clear;
 	}
 
+	/* keep old conn_flags from ieee80211_prep_channel() from auth */
+	conn_flags |= link->u.mgd.conn_flags;
 	conn_flags |= ieee80211_setup_assoc_link(sdata, assoc_data, req,
 						 conn_flags, assoc_link_id);
 	override = link->u.mgd.conn_flags != conn_flags;
