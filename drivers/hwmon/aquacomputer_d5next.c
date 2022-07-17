@@ -71,7 +71,11 @@ static u8 secondary_ctrl_report[] = {
 #define D5NEXT_PUMP_OFFSET		0x6c
 #define D5NEXT_FAN_OFFSET		0x5f
 #define D5NEXT_5V_VOLTAGE		0x39
+#define D5NEXT_CTRL_REPORT_SIZE		0x329
 static u8 d5next_sensor_fan_offsets[] = { D5NEXT_PUMP_OFFSET, D5NEXT_FAN_OFFSET };
+
+/* Pump and fan speed registers in D5 Next control report (from 0-100%) */
+static u16 d5next_ctrl_fan_offsets[] = { 0x97, 0x42 };
 
 /* Register offsets for the Farbwerk RGB controller */
 #define FARBWERK_NUM_SENSORS		4
@@ -667,9 +671,11 @@ static int aqc_probe(struct hid_device *hdev, const struct hid_device_id *id)
 
 		priv->num_fans = D5NEXT_NUM_FANS;
 		priv->fan_sensor_offsets = d5next_sensor_fan_offsets;
+		priv->fan_ctrl_offsets = d5next_ctrl_fan_offsets;
 		priv->num_temp_sensors = D5NEXT_NUM_SENSORS;
 		priv->temp_sensor_start_offset = D5NEXT_COOLANT_TEMP;
 		priv->power_cycle_count_offset = D5NEXT_POWER_CYCLES;
+		priv->buffer_size = D5NEXT_CTRL_REPORT_SIZE;
 
 		priv->temp_label = label_d5next_temp;
 		priv->speed_label = label_d5next_speeds;
