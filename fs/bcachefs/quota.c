@@ -370,6 +370,9 @@ static int __bch2_quota_set(struct bch_fs *c, struct bkey_s_c k)
 
 	BUG_ON(k.k->p.inode >= QTYP_NR);
 
+	if (!((1U << k.k->p.inode) & enabled_qtypes(c)))
+		return 0;
+
 	switch (k.k->type) {
 	case KEY_TYPE_quota:
 		dq = bkey_s_c_to_quota(k);
@@ -391,30 +394,6 @@ static int __bch2_quota_set(struct bch_fs *c, struct bkey_s_c k)
 	}
 
 	return 0;
-}
-
-static int bch2_quota_init_type(struct bch_fs *c, enum quota_types type)
-{
-	struct btree_trans trans;
-	struct btree_iter iter;
-	struct bkey_s_c k;
-	int ret = 0;
-
-	bch2_trans_init(&trans, c, 0, 0);
-
-	for_each_btree_key(&trans, iter, BTREE_ID_quotas, POS(type, 0),
-			   BTREE_ITER_PREFETCH, k, ret) {
-		if (k.k->p.inode != type)
-			break;
-
-		ret = __bch2_quota_set(c, k);
-		if (ret)
-			break;
-	}
-	bch2_trans_iter_exit(&trans, &iter);
-
-	bch2_trans_exit(&trans);
-	return ret;
 }
 
 void bch2_fs_quota_exit(struct bch_fs *c)
@@ -491,8 +470,6 @@ advance:
 
 int bch2_fs_quota_read(struct bch_fs *c)
 {
-	unsigned i, qtypes = enabled_qtypes(c);
-	struct bch_memquota_type *q;
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
@@ -502,23 +479,16 @@ int bch2_fs_quota_read(struct bch_fs *c)
 	bch2_sb_quota_read(c);
 	mutex_unlock(&c->sb_lock);
 
-	for_each_set_qtype(c, i, q, qtypes) {
-		ret = bch2_quota_init_type(c, i);
-		if (ret)
-			return ret;
-	}
-
 	bch2_trans_init(&trans, c, 0, 0);
 
-	ret = for_each_btree_key2(&trans, iter, BTREE_ID_inodes,
-			     POS_MIN,
-			     BTREE_ITER_INTENT|
-			     BTREE_ITER_PREFETCH|
-			     BTREE_ITER_ALL_SNAPSHOTS,
-			     k,
+	ret = for_each_btree_key2(&trans, iter, BTREE_ID_quotas,
+			POS_MIN, BTREE_ITER_PREFETCH, k,
+		__bch2_quota_set(c, k)) ?:
+	      for_each_btree_key2(&trans, iter, BTREE_ID_inodes,
+			POS_MIN, BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
 		bch2_fs_quota_read_inode(&trans, &iter, k));
 	if (ret)
-		bch_err(c, "err reading inodes in quota init: %i", ret);
+		bch_err(c, "err in quota_read: %i", ret);
 
 	bch2_trans_exit(&trans);
 	return ret;
