@@ -3188,7 +3188,7 @@ void *bch2_trans_kmalloc(struct btree_trans *trans, size_t size)
  * node may return EINTR when the trylock fails. When this occurs
  * bch2_trans_begin() should be called and the transaction retried.
  */
-void bch2_trans_begin(struct btree_trans *trans)
+u32 bch2_trans_begin(struct btree_trans *trans)
 {
 	struct btree_path *path;
 
@@ -3234,11 +3234,20 @@ void bch2_trans_begin(struct btree_trans *trans)
 		bch2_trans_relock(trans);
 	}
 
+	trans->last_restarted_ip = _RET_IP_;
 	if (trans->restarted)
 		bch2_btree_path_traverse_all(trans);
 
-	trans->restarted = false;
 	trans->last_begin_time = ktime_get_ns();
+	return trans->restart_count;
+}
+
+void bch2_trans_verify_not_restarted(struct btree_trans *trans, u32 restart_count)
+{
+	bch2_trans_inconsistent_on(trans_was_restarted(trans, restart_count), trans,
+		"trans->restart_count %u, should be %u, last restarted by %ps\n",
+		trans->restart_count, restart_count,
+		(void *) trans->last_restarted_ip);
 }
 
 static void bch2_trans_alloc_paths(struct btree_trans *trans, struct bch_fs *c)

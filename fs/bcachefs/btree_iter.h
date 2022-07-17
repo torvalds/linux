@@ -203,10 +203,18 @@ void bch2_path_put(struct btree_trans *, struct btree_path *, bool);
 bool bch2_trans_relock(struct btree_trans *);
 void bch2_trans_unlock(struct btree_trans *);
 
+static inline int trans_was_restarted(struct btree_trans *trans, u32 restart_count)
+{
+	return restart_count != trans->restart_count ? -EINTR : 0;
+}
+
+void bch2_trans_verify_not_restarted(struct btree_trans *, u32);
+
 __always_inline
 static inline int btree_trans_restart(struct btree_trans *trans)
 {
 	trans->restarted = true;
+	trans->restart_count++;
 	bch2_trans_unlock(trans);
 	return -EINTR;
 }
@@ -321,7 +329,7 @@ static inline void set_btree_iter_dontneed(struct btree_iter *iter)
 }
 
 void *bch2_trans_kmalloc(struct btree_trans *, size_t);
-void bch2_trans_begin(struct btree_trans *);
+u32 bch2_trans_begin(struct btree_trans *);
 
 static inline struct btree *
 __btree_iter_peek_node_and_restart(struct btree_trans *trans, struct btree_iter *iter)
@@ -393,6 +401,42 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 
 	return k;
 }
+
+#define lockrestart_do(_trans, _do)					\
+({									\
+	int _ret;							\
+									\
+	do {								\
+		bch2_trans_begin(_trans);				\
+		_ret = (_do);						\
+	} while (_ret == -EINTR);					\
+									\
+	_ret;								\
+})
+
+/*
+ * nested_lockrestart_do(), nested_commit_do():
+ *
+ * These are like lockrestart_do() and commit_do(), with two differences:
+ *
+ *  - We don't call bch2_trans_begin() unless we had a transaction restart
+ *  - We return -EINTR if we succeeded after a transaction restart
+ */
+#define nested_lockrestart_do(_trans, _do)				\
+({									\
+	u32 _restart_count, _orig_restart_count;			\
+	int _ret;							\
+									\
+	_restart_count = _orig_restart_count = (_trans)->restart_count;	\
+									\
+	while ((_ret = (_do)) == -EINTR)				\
+		_restart_count = bch2_trans_begin(_trans);		\
+									\
+	if (!_ret)							\
+		bch2_trans_verify_not_restarted(_trans, _restart_count);\
+									\
+	_ret ?: trans_was_restarted(_trans, _orig_restart_count);	\
+})
 
 #define for_each_btree_key2(_trans, _iter, _btree_id,			\
 			    _start, _flags, _k, _do)			\
