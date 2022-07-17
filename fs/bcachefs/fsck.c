@@ -512,7 +512,7 @@ static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
 					bch2_btree_ids[btree_id],
 					pos.inode, pos.offset,
 					i->id, n.id, n.equiv);
-				return -EINVAL;
+				return -NEED_SNAPSHOT_CLEANUP;
 			}
 
 			return 0;
@@ -2388,7 +2388,9 @@ static int fix_reflink_p(struct bch_fs *c)
  */
 int bch2_fsck_full(struct bch_fs *c)
 {
-	return  bch2_fs_check_snapshots(c) ?:
+	int ret;
+again:
+	ret =   bch2_fs_check_snapshots(c) ?:
 		bch2_fs_check_subvols(c) ?:
 		bch2_delete_dead_snapshots(c) ?:
 		check_inodes(c, true) ?:
@@ -2399,6 +2401,13 @@ int bch2_fsck_full(struct bch_fs *c)
 		check_directory_structure(c) ?:
 		check_nlinks(c) ?:
 		fix_reflink_p(c);
+
+	if (ret == -NEED_SNAPSHOT_CLEANUP) {
+		set_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
+		goto again;
+	}
+
+	return ret;
 }
 
 int bch2_fsck_walk_inodes_only(struct bch_fs *c)

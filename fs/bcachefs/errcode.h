@@ -7,6 +7,7 @@ enum {
 	OPEN_BUCKETS_EMPTY =	2048,
 	FREELIST_EMPTY,		/* Allocator thread not keeping up */
 	INSUFFICIENT_DEVICES,
+	NEED_SNAPSHOT_CLEANUP,
 };
 
 #endif /* _BCACHFES_ERRCODE_H */
