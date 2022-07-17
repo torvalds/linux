@@ -2083,20 +2083,9 @@ EXPORT_SYMBOL(locks_lock_inode_wait);
  */
 SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 {
-	int can_sleep, error, unlock, type;
-	struct fd f = fdget(fd);
+	int can_sleep, error, type;
 	struct file_lock fl;
-
-	error = -EBADF;
-	if (!f.file)
-		goto out;
-
-	can_sleep = !(cmd & LOCK_NB);
-	cmd &= ~LOCK_NB;
-	unlock = (cmd == LOCK_UN);
-
-	if (!unlock && !(f.file->f_mode & (FMODE_READ|FMODE_WRITE)))
-		goto out_putf;
+	struct fd f;
 
 	/*
 	 * LOCK_MAND locks were broken for a long time in that they never
@@ -2108,35 +2097,41 @@ SYSCALL_DEFINE2(flock, unsigned int, fd, unsigned int, cmd)
 	 */
 	if (cmd & LOCK_MAND) {
 		pr_warn_once("Attempt to set a LOCK_MAND lock via flock(2). This support has been removed and the request ignored.\n");
-		error = 0;
-		goto out_putf;
+		return 0;
 	}
 
-	type = flock_translate_cmd(cmd);
-	if (type < 0) {
-		error = type;
+	type = flock_translate_cmd(cmd & ~LOCK_NB);
+	if (type < 0)
+		return type;
+
+	error = -EBADF;
+	f = fdget(fd);
+	if (!f.file)
+		return error;
+
+	if (type != F_UNLCK && !(f.file->f_mode & (FMODE_READ | FMODE_WRITE)))
 		goto out_putf;
-	}
 
 	flock_make_lock(f.file, &fl, type);
-
-	if (can_sleep)
-		fl.fl_flags |= FL_SLEEP;
 
 	error = security_file_lock(f.file, fl.fl_type);
 	if (error)
 		goto out_putf;
 
+	can_sleep = !(cmd & LOCK_NB);
+	if (can_sleep)
+		fl.fl_flags |= FL_SLEEP;
+
 	if (f.file->f_op->flock)
 		error = f.file->f_op->flock(f.file,
-					  (can_sleep) ? F_SETLKW : F_SETLK,
+					    (can_sleep) ? F_SETLKW : F_SETLK,
 					    &fl);
 	else
 		error = locks_lock_file_wait(f.file, &fl);
 
  out_putf:
 	fdput(f);
- out:
+
 	return error;
 }
 
