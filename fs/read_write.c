@@ -1250,6 +1250,9 @@ static ssize_t do_sendfile(int out_fd, int in_fd, loff_t *ppos,
 					  count, fl);
 		file_end_write(out.file);
 	} else {
+		if (out.file->f_flags & O_NONBLOCK)
+			fl |= SPLICE_F_NONBLOCK;
+
 		retval = splice_file_to_pipe(in.file, opipe, &pos, count, fl);
 	}
 
