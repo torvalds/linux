@@ -333,12 +333,18 @@ static void qcom_glink_channel_release(struct kref *ref)
 	spin_lock_irqsave(&channel->intent_lock, flags);
 	/* Free all non-reuse intents pending rx_done work */
 	list_for_each_entry_safe(intent, tmp, &channel->done_intents, node) {
+		if (!intent->size)
+			intent->data = NULL;
+
 		if (!intent->reuse) {
 			kfree(intent->data);
 			kfree(intent);
 		}
 	}
 	list_for_each_entry_safe(intent, tmp, &channel->defer_intents, node) {
+		if (!intent->size)
+			intent->data = NULL;
+
 		if (!intent->reuse) {
 			kfree(intent->data);
 			kfree(intent);
@@ -633,6 +639,10 @@ static int qcom_glink_send_rx_done(struct qcom_glink *glink,
 	if (ret)
 		return ret;
 
+	/* clear data if zero copy intent */
+	if (!intent->size)
+		intent->data = NULL;
+
 	if (!reuse) {
 		kfree(intent->data);
 		kfree(intent);
@@ -894,9 +904,11 @@ qcom_glink_alloc_intent(struct qcom_glink *glink,
 	if (!intent)
 		return NULL;
 
-	intent->data = kzalloc(size, GFP_KERNEL);
-	if (!intent->data)
-		goto free_intent;
+	if (size) {
+		intent->data = kzalloc(size, GFP_KERNEL);
+		if (!intent->data)
+			goto free_intent;
+	}
 
 	spin_lock_irqsave(&channel->intent_lock, flags);
 	ret = idr_alloc_cyclic(&channel->liids, intent, 1, -1, GFP_ATOMIC);
