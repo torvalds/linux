@@ -2282,6 +2282,9 @@ static bool amt_multicast_data_handler(struct amt_dev *amt, struct sk_buff *skb)
 	struct ethhdr *eth;
 	struct iphdr *iph;
 
+	if (READ_ONCE(amt->status) != AMT_STATUS_SENT_UPDATE)
+		return true;
+
 	hdr_size = sizeof(*amtmd) + sizeof(struct udphdr);
 	if (!pskb_may_pull(skb, hdr_size))
 		return true;
