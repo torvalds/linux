@@ -3077,10 +3077,11 @@ struct dm_pr {
 	u64	new_key;
 	u32	flags;
 	bool	fail_early;
+	int	ret;
 };
 
 static int dm_call_pr(struct block_device *bdev, iterate_devices_callout_fn fn,
-		      void *data)
+		      struct dm_pr *pr)
 {
 	struct mapped_device *md = bdev->bd_disk->private_data;
 	struct dm_table *table;
@@ -3105,7 +3106,8 @@ static int dm_call_pr(struct block_device *bdev, iterate_devices_callout_fn fn,
 	if (!ti->type->iterate_devices)
 		goto out;
 
-	ret = ti->type->iterate_devices(ti, fn, data);
+	ti->type->iterate_devices(ti, fn, pr);
+	ret = 0;
 out:
 	dm_put_live_table(md, srcu_idx);
 	return ret;
@@ -3119,10 +3121,24 @@ static int __dm_pr_register(struct dm_target *ti, struct dm_dev *dev,
 {
 	struct dm_pr *pr = data;
 	const struct pr_ops *ops = dev->bdev->bd_disk->fops->pr_ops;
+	int ret;
 
-	if (!ops || !ops->pr_register)
-		return -EOPNOTSUPP;
-	return ops->pr_register(dev->bdev, pr->old_key, pr->new_key, pr->flags);
+	if (!ops || !ops->pr_register) {
+		pr->ret = -EOPNOTSUPP;
+		return -1;
+	}
+
+	ret = ops->pr_register(dev->bdev, pr->old_key, pr->new_key, pr->flags);
+	if (!ret)
+		return 0;
+
+	if (!pr->ret)
+		pr->ret = ret;
+
+	if (pr->fail_early)
+		return -1;
+
+	return 0;
 }
 
 static int dm_pr_register(struct block_device *bdev, u64 old_key, u64 new_key,
@@ -3133,19 +3149,29 @@ static int dm_pr_register(struct block_device *bdev, u64 old_key, u64 new_key,
 		.new_key	= new_key,
 		.flags		= flags,
 		.fail_early	= true,
+		.ret		= 0,
 	};
 	int ret;
 
 	ret = dm_call_pr(bdev, __dm_pr_register, &pr);
-	if (ret && new_key) {
-		/* unregister all paths if we failed to register any path */
-		pr.old_key = new_key;
-		pr.new_key = 0;
-		pr.flags = 0;
-		pr.fail_early = false;
-		dm_call_pr(bdev, __dm_pr_register, &pr);
+	if (ret) {
+		/* Didn't even get to register a path */
+		return ret;
 	}
 
+	if (!pr.ret)
+		return 0;
+	ret = pr.ret;
+
+	if (!new_key)
+		return ret;
+
+	/* unregister all paths if we failed to register any path */
+	pr.old_key = new_key;
+	pr.new_key = 0;
+	pr.flags = 0;
+	pr.fail_early = false;
+	(void) dm_call_pr(bdev, __dm_pr_register, &pr);
 	return ret;
 }
 
