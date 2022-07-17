@@ -963,8 +963,12 @@ static void amt_event_send_request(struct amt_dev *amt)
 		amt->remote_ip = 0;
 		amt_update_gw_status(amt, AMT_STATUS_INIT, false);
 		amt->req_cnt = 0;
+		amt->nonce = 0;
 		goto out;
 	}
+
+	if (!amt->req_cnt)
+		get_random_bytes(&amt->nonce, sizeof(__be32));
 
 	amt_send_request(amt, false);
 	amt_send_request(amt, true);
