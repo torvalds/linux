@@ -822,80 +822,62 @@ static void extent_stripe_ptr_add(struct bkey_s_extent e,
 	};
 }
 
-static int ec_stripe_update_ptrs(struct bch_fs *c,
+static int ec_stripe_update_extent(struct btree_trans *trans,
+				   struct btree_iter *iter,
+				   struct bkey_s_c k,
+				   struct ec_stripe_buf *s,
+				   struct bpos end)
+{
+	const struct bch_extent_ptr *ptr_c;
+	struct bch_extent_ptr *ptr, *ec_ptr = NULL;
+	struct bkey_i *n;
+	int ret, dev, block;
+
+	if (bkey_cmp(bkey_start_pos(k.k), end) >= 0)
+		return 1;
+
+	if (extent_has_stripe_ptr(k, s->key.k.p.offset))
+		return 0;
+
+	ptr_c = bkey_matches_stripe(&s->key.v, k, &block);
+	/*
+	 * It doesn't generally make sense to erasure code cached ptrs:
+	 * XXX: should we be incrementing a counter?
+	 */
+	if (!ptr_c || ptr_c->cached)
+		return 0;
+
+	dev = s->key.v.ptrs[block].dev;
+
+	n = bch2_trans_kmalloc(trans, bkey_bytes(k.k));
+	ret = PTR_ERR_OR_ZERO(n);
+	if (ret)
+		return ret;
+
+	bkey_reassemble(n, k);
+
+	bch2_bkey_drop_ptrs(bkey_i_to_s(n), ptr, ptr->dev != dev);
+	ec_ptr = (void *) bch2_bkey_has_device(bkey_i_to_s_c(n), dev);
+	BUG_ON(!ec_ptr);
+
+	extent_stripe_ptr_add(bkey_i_to_s_extent(n), s, ec_ptr, block);
+
+	return bch2_trans_update(trans, iter, n, 0);
+}
+
+static int ec_stripe_update_extents(struct bch_fs *c,
 				 struct ec_stripe_buf *s,
 				 struct bkey *pos)
 {
-	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct bkey_s_extent e;
-	struct bkey_buf sk;
-	struct bpos next_pos;
-	int ret = 0, dev, block;
 
-	bch2_bkey_buf_init(&sk);
-	bch2_trans_init(&trans, c, BTREE_ITER_MAX, 0);
-
-	/* XXX this doesn't support the reflink btree */
-
-	bch2_trans_iter_init(&trans, &iter, BTREE_ID_extents,
-			     bkey_start_pos(pos),
-			     BTREE_ITER_INTENT);
-retry:
-	while (bch2_trans_begin(&trans),
-	       (k = bch2_btree_iter_peek(&iter)).k &&
-	       !(ret = bkey_err(k)) &&
-	       bkey_cmp(bkey_start_pos(k.k), pos->p) < 0) {
-		const struct bch_extent_ptr *ptr_c;
-		struct bch_extent_ptr *ptr, *ec_ptr = NULL;
-
-		if (extent_has_stripe_ptr(k, s->key.k.p.offset)) {
-			bch2_btree_iter_advance(&iter);
-			continue;
-		}
-
-		ptr_c = bkey_matches_stripe(&s->key.v, k, &block);
-		/*
-		 * It doesn't generally make sense to erasure code cached ptrs:
-		 * XXX: should we be incrementing a counter?
-		 */
-		if (!ptr_c || ptr_c->cached) {
-			bch2_btree_iter_advance(&iter);
-			continue;
-		}
-
-		dev = s->key.v.ptrs[block].dev;
-
-		bch2_bkey_buf_reassemble(&sk, c, k);
-		e = bkey_i_to_s_extent(sk.k);
-
-		bch2_bkey_drop_ptrs(e.s, ptr, ptr->dev != dev);
-		ec_ptr = (void *) bch2_bkey_has_device(e.s_c, dev);
-		BUG_ON(!ec_ptr);
-
-		extent_stripe_ptr_add(e, s, ec_ptr, block);
-
-		bch2_btree_iter_set_pos(&iter, bkey_start_pos(&sk.k->k));
-		next_pos = sk.k->k.p;
-
-		ret   = bch2_btree_iter_traverse(&iter) ?:
-			bch2_trans_update(&trans, &iter, sk.k, 0) ?:
-			bch2_trans_commit(&trans, NULL, NULL,
-					BTREE_INSERT_NOFAIL);
-		if (!ret)
-			bch2_btree_iter_set_pos(&iter, next_pos);
-		if (ret)
-			break;
-	}
-	if (ret == -EINTR)
-		goto retry;
-	bch2_trans_iter_exit(&trans, &iter);
-
-	bch2_trans_exit(&trans);
-	bch2_bkey_buf_exit(&sk, c);
-
-	return ret;
+	return bch2_trans_run(c,
+		for_each_btree_key_commit(&trans, iter,
+			BTREE_ID_extents, bkey_start_pos(pos),
+			BTREE_ITER_NOT_EXTENTS|BTREE_ITER_INTENT, k,
+			NULL, NULL, BTREE_INSERT_NOFAIL,
+		ec_stripe_update_extent(&trans, &iter, k, s, pos->p)));
 }
 
 /*
@@ -966,7 +948,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	}
 
 	for_each_keylist_key(&s->keys, k) {
-		ret = ec_stripe_update_ptrs(c, &s->new_stripe, &k->k);
+		ret = ec_stripe_update_extents(c, &s->new_stripe, &k->k);
 		if (ret) {
 			bch_err(c, "error creating stripe: error %i updating pointers", ret);
 			break;
