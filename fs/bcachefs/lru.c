@@ -130,24 +130,17 @@ int bch2_lru_change(struct btree_trans *trans, u64 id, u64 idx,
 }
 
 static int bch2_check_lru_key(struct btree_trans *trans,
-			      struct btree_iter *lru_iter)
+			      struct btree_iter *lru_iter,
+			      struct bkey_s_c lru_k)
 {
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
-	struct bkey_s_c lru_k, k;
+	struct bkey_s_c k;
 	struct bch_alloc_v4 a;
 	struct printbuf buf1 = PRINTBUF;
 	struct printbuf buf2 = PRINTBUF;
 	struct bpos alloc_pos;
 	int ret;
-
-	lru_k = bch2_btree_iter_peek(lru_iter);
-	if (!lru_k.k)
-		return 0;
-
-	ret = bkey_err(lru_k);
-	if (ret)
-		return ret;
 
 	alloc_pos = POS(lru_k.k->p.inode,
 			le64_to_cpu(bkey_s_c_to_lru(lru_k).v->idx));
@@ -202,16 +195,10 @@ int bch2_check_lrus(struct bch_fs *c)
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_lru, POS_MIN,
-			   BTREE_ITER_PREFETCH, k, ret) {
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_NOFAIL|
-				      BTREE_INSERT_LAZY_RW,
-			bch2_check_lru_key(&trans, &iter));
-		if (ret)
-			break;
-	}
-	bch2_trans_iter_exit(&trans, &iter);
+	ret = for_each_btree_key_commit(&trans, iter,
+			BTREE_ID_lru, POS_MIN, BTREE_ITER_PREFETCH, k,
+			NULL, NULL, BTREE_INSERT_NOFAIL|BTREE_INSERT_LAZY_RW,
+		bch2_check_lru_key(&trans, &iter, k));
 
 	bch2_trans_exit(&trans);
 	return ret;
