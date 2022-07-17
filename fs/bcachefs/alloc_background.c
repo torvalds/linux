@@ -937,17 +937,43 @@ int bch2_check_alloc_to_lru_refs(struct bch_fs *c)
 	return ret < 0 ? ret : 0;
 }
 
-static int bch2_clear_need_discard(struct btree_trans *trans, struct bpos pos,
-				   struct bch_dev *ca, bool *discard_done)
+static int bch2_discard_one_bucket(struct btree_trans *trans,
+				   struct btree_iter *need_discard_iter,
+				   struct bpos *discard_pos_done,
+				   u64 *seen,
+				   u64 *open,
+				   u64 *need_journal_commit,
+				   u64 *discarded)
 {
 	struct bch_fs *c = trans->c;
-	struct btree_iter iter;
+	struct bpos pos = need_discard_iter->pos;
+	struct btree_iter iter = { NULL };
 	struct bkey_s_c k;
+	struct bch_dev *ca;
 	struct bkey_i_alloc_v4 *a;
 	struct printbuf buf = PRINTBUF;
-	int ret;
+	int ret = 0;
 
-	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc, pos,
+	ca = bch_dev_bkey_exists(c, pos.inode);
+	if (!percpu_ref_tryget(&ca->io_ref)) {
+		bch2_btree_iter_set_pos(need_discard_iter, POS(pos.inode + 1, 0));
+		return 0;
+	}
+
+	if (bch2_bucket_is_open_safe(c, pos.inode, pos.offset)) {
+		(*open)++;
+		goto out;
+	}
+
+	if (bch2_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
+			c->journal.flushed_seq_ondisk,
+			pos.inode, pos.offset)) {
+		(*need_journal_commit)++;
+		goto out;
+	}
+
+	bch2_trans_iter_init(trans, &iter, BTREE_ID_alloc,
+			     need_discard_iter->pos,
 			     BTREE_ITER_CACHED);
 	k = bch2_btree_iter_peek_slot(&iter);
 	ret = bkey_err(k);
@@ -983,7 +1009,8 @@ static int bch2_clear_need_discard(struct btree_trans *trans, struct bpos pos,
 		goto out;
 	}
 
-	if (!*discard_done && ca->mi.discard && !c->opts.nochanges) {
+	if (bkey_cmp(*discard_pos_done, iter.pos) &&
+	    ca->mi.discard && !c->opts.nochanges) {
 		/*
 		 * This works without any other locks because this is the only
 		 * thread that removes items from the need_discard tree
@@ -993,7 +1020,7 @@ static int bch2_clear_need_discard(struct btree_trans *trans, struct bpos pos,
 				     k.k->p.offset * ca->mi.bucket_size,
 				     ca->mi.bucket_size,
 				     GFP_KERNEL);
-		*discard_done = true;
+		*discard_pos_done = iter.pos;
 
 		ret = bch2_trans_relock(trans) ? 0 : -EINTR;
 		if (ret)
@@ -1003,9 +1030,18 @@ static int bch2_clear_need_discard(struct btree_trans *trans, struct bpos pos,
 	SET_BCH_ALLOC_V4_NEED_DISCARD(&a->v, false);
 	a->v.data_type = alloc_data_type(a->v, a->v.data_type);
 write:
-	ret = bch2_trans_update(trans, &iter, &a->k_i, 0);
+	ret =   bch2_trans_update(trans, &iter, &a->k_i, 0) ?:
+		bch2_trans_commit(trans, NULL, NULL,
+				  BTREE_INSERT_USE_RESERVE|BTREE_INSERT_NOFAIL);
+	if (ret)
+		goto out;
+
+	this_cpu_inc(c->counters[BCH_COUNTER_bucket_discard]);
+	(*discarded)++;
 out:
+	(*seen)++;
 	bch2_trans_iter_exit(trans, &iter);
+	percpu_ref_put(&ca->io_ref);
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -1013,61 +1049,27 @@ out:
 static void bch2_do_discards_work(struct work_struct *work)
 {
 	struct bch_fs *c = container_of(work, struct bch_fs, discard_work);
-	struct bch_dev *ca = NULL;
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
 	u64 seen = 0, open = 0, need_journal_commit = 0, discarded = 0;
+	struct bpos discard_pos_done = POS_MAX;
 	int ret;
 
 	bch2_trans_init(&trans, c, 0, 0);
 
-	for_each_btree_key(&trans, iter, BTREE_ID_need_discard,
-			   POS_MIN, 0, k, ret) {
-		bool discard_done = false;
-
-		if (ca && k.k->p.inode != ca->dev_idx) {
-			percpu_ref_put(&ca->io_ref);
-			ca = NULL;
-		}
-
-		if (!ca) {
-			ca = bch_dev_bkey_exists(c, k.k->p.inode);
-			if (!percpu_ref_tryget(&ca->io_ref)) {
-				ca = NULL;
-				bch2_btree_iter_set_pos(&iter, POS(k.k->p.inode + 1, 0));
-				continue;
-			}
-		}
-
-		seen++;
-
-		if (bch2_bucket_is_open_safe(c, k.k->p.inode, k.k->p.offset)) {
-			open++;
-			continue;
-		}
-
-		if (bch2_bucket_needs_journal_commit(&c->buckets_waiting_for_journal,
-				c->journal.flushed_seq_ondisk,
-				k.k->p.inode, k.k->p.offset)) {
-			need_journal_commit++;
-			continue;
-		}
-
-		ret = commit_do(&trans, NULL, NULL,
-				      BTREE_INSERT_USE_RESERVE|
-				      BTREE_INSERT_NOFAIL,
-				bch2_clear_need_discard(&trans, k.k->p, ca, &discard_done));
-		if (ret)
-			break;
-
-		this_cpu_inc(c->counters[BCH_COUNTER_bucket_discard]);
-		discarded++;
-	}
-	bch2_trans_iter_exit(&trans, &iter);
-
-	if (ca)
-		percpu_ref_put(&ca->io_ref);
+	/*
+	 * We're doing the commit in bch2_discard_one_bucket instead of using
+	 * for_each_btree_key_commit() so that we can increment counters after
+	 * successful commit:
+	 */
+	ret = for_each_btree_key2(&trans, iter,
+			BTREE_ID_need_discard, POS_MIN, 0, k,
+		bch2_discard_one_bucket(&trans, &iter, &discard_pos_done,
+					&seen,
+					&open,
+					&need_journal_commit,
+					&discarded));
 
 	bch2_trans_exit(&trans);
 
