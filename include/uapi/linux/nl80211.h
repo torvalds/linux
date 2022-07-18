@@ -764,6 +764,10 @@
  *	%NL80211_ATTR_CSA_C_OFFSETS_TX is an array of offsets to CSA
  *	counters which will be updated to the current value. This attribute
  *	is used during CSA period.
+ *	For TX on an MLD, the frequency can be omitted and the link ID be
+ *	specified, or if transmitting to a known peer MLD (with MLD addresses
+ *	in the frame) both can be omitted and the link will be selected by
+ *	lower layers.
  *	For RX notification, %NL80211_ATTR_RX_HW_TIMESTAMP may be included to
  *	indicate the frame RX timestamp and %NL80211_ATTR_TX_HW_TIMESTAMP may
  *	be included to indicate the ack TX timestamp.

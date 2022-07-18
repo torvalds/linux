@@ -12256,6 +12256,18 @@ static int nl80211_tx_mgmt(struct sk_buff *skb, struct genl_info *info)
 		wdev_unlock(wdev);
 		return -EBUSY;
 	}
+
+	params.link_id = nl80211_link_id_or_invalid(info->attrs);
+	/*
+	 * This now races due to the unlock, but we cannot check
+	 * the valid links for the _station_ anyway, so that's up
+	 * to the driver.
+	 */
+	if (params.link_id >= 0 &&
+	    !(wdev->valid_links & BIT(params.link_id))) {
+		wdev_unlock(wdev);
+		return -EINVAL;
+	}
 	wdev_unlock(wdev);
 
 	params.buf = nla_data(info->attrs[NL80211_ATTR_FRAME]);
