@@ -8,7 +8,7 @@ menuconfig ARCH_S3C24XX
 	bool "Samsung S3C24XX SoCs (deprecated, see help)"
 	depends on ARCH_MULTI_V4T || ARCH_MULTI_V5
 	depends on CPU_LITTLE_ENDIAN
-	depends on ATAGS
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select CLKSRC_SAMSUNG_PWM
 	select GPIO_SAMSUNG
 	select GPIOLIB

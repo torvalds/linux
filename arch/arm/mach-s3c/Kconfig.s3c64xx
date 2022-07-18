@@ -114,8 +114,8 @@ config S3C64XX_SETUP_USB_PHY
 # S36400 Macchine support
 
 config MACH_SMDK6400
-       bool "SMDK6400"
-	depends on ATAGS
+	bool "SMDK6400"
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select CPU_S3C6400
 	select S3C64XX_SETUP_SDHCI
 	select S3C_DEV_HSMMC1
@@ -126,7 +126,7 @@ config MACH_SMDK6400
 
 config MACH_ANW6410
 	bool "A&W6410"
-	depends on ATAGS
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select CPU_S3C6410
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C_DEV_FB
@@ -135,7 +135,7 @@ config MACH_ANW6410
 
 config MACH_MINI6410
 	bool "MINI6410"
-	depends on ATAGS
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select CPU_S3C6410
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C64XX_SETUP_SDHCI
@@ -151,7 +151,7 @@ config MACH_MINI6410
 
 config MACH_REAL6410
 	bool "REAL6410"
-	depends on ATAGS
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select CPU_S3C6410
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C64XX_SETUP_SDHCI
@@ -167,7 +167,7 @@ config MACH_REAL6410
 
 config MACH_SMDK6410
 	bool "SMDK6410"
-	depends on ATAGS
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select CPU_S3C6410
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C64XX_SETUP_I2C1
@@ -254,7 +254,7 @@ config SMDK6410_WM1192_EV1
 
 config MACH_NCP
 	bool "NCP"
-	depends on ATAGS
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select CPU_S3C6410
 	select S3C64XX_SETUP_I2C1
 	select S3C_DEV_HSMMC1
@@ -264,7 +264,7 @@ config MACH_NCP
 
 config MACH_HMT
 	bool "Airgoo HMT"
-	depends on ATAGS
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select CPU_S3C6410
 	select S3C64XX_SETUP_FB_24BPP
 	select S3C_DEV_FB
@@ -296,14 +296,14 @@ config MACH_SMARTQ
 
 config MACH_SMARTQ5
 	bool "SmartQ 5"
-	depends on ATAGS
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select MACH_SMARTQ
 	help
 	    Machine support for the SmartQ 5
 
 config MACH_SMARTQ7
 	bool "SmartQ 7"
-	depends on ATAGS
+	depends on ATAGS && UNUSED_BOARD_FILES
 	select MACH_SMARTQ
 	help
 	    Machine support for the SmartQ 7
