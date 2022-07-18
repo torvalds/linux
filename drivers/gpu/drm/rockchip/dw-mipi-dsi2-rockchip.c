@@ -1091,7 +1091,8 @@ static irqreturn_t dw_mipi_dsi2_te_irq_handler(int irq, void *dev_id)
 	struct dw_mipi_dsi2 *dsi2 = (struct dw_mipi_dsi2 *)dev_id;
 	struct drm_encoder *encoder = &dsi2->encoder;
 
-	rockchip_drm_te_handle(encoder->crtc);
+	if (encoder->crtc)
+		rockchip_drm_te_handle(encoder->crtc);
 
 	return IRQ_HANDLED;
 }
