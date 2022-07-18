@@ -25,9 +25,6 @@
 #include <asm/io.h>
 #include <video/vga.h>
 
-#define VGA_FB_PHYS 0xA0000
-#define VGA_FB_PHYS_LEN 65536
-
 #define MODE_SKIP4	1
 #define MODE_8BPP	2
 #define MODE_CFB	4
@@ -87,8 +84,8 @@ static struct fb_var_screeninfo vga16fb_defined = {
 /* name should not depend on EGA/VGA */
 static const struct fb_fix_screeninfo vga16fb_fix = {
 	.id		= "VGA16 VGA",
-	.smem_start	= VGA_FB_PHYS,
-	.smem_len	= VGA_FB_PHYS_LEN,
+	.smem_start	= VGA_FB_PHYS_BASE,
+	.smem_len	= VGA_FB_PHYS_SIZE,
 	.type		= FB_TYPE_VGA_PLANES,
 	.type_aux	= FB_AUX_VGA_PLANES_VGA4,
 	.visual		= FB_VISUAL_PSEUDOCOLOR,
@@ -1333,8 +1330,8 @@ static int vga16fb_probe(struct platform_device *dev)
 		goto err_ioremap;
 	}
 
-	/* XXX share VGA_FB_PHYS and I/O region with vgacon and others */
-	info->screen_base = (void __iomem *)VGA_MAP_MEM(VGA_FB_PHYS, 0);
+	/* XXX share VGA_FB_PHYS_BASE and I/O region with vgacon and others */
+	info->screen_base = (void __iomem *)VGA_MAP_MEM(VGA_FB_PHYS_BASE, 0);
 
 	if (!info->screen_base) {
 		printk(KERN_ERR "vga16fb: unable to map device\n");
@@ -1385,8 +1382,8 @@ static int vga16fb_probe(struct platform_device *dev)
 
 	vga16fb_update_fix(info);
 
-	info->apertures->ranges[0].base = VGA_FB_PHYS;
-	info->apertures->ranges[0].size = VGA_FB_PHYS_LEN;
+	info->apertures->ranges[0].base = VGA_FB_PHYS_BASE;
+	info->apertures->ranges[0].size = VGA_FB_PHYS_SIZE;
 
 	if (register_framebuffer(info) < 0) {
 		printk(KERN_ERR "vga16fb: unable to register framebuffer\n");

@@ -39,6 +39,7 @@
 
 #include <asm/fb.h>
 
+#include <video/vga.h>
 
     /*
      *  Frame buffer device initialization and setup routines
@@ -1561,7 +1562,6 @@ static bool fb_do_apertures_overlap(struct apertures_struct *gena,
 
 static void do_unregister_framebuffer(struct fb_info *fb_info);
 
-#define VGA_FB_PHYS 0xA0000
 static void do_remove_conflicting_framebuffers(struct apertures_struct *a,
 					       const char *name, bool primary)
 {
@@ -1580,7 +1580,7 @@ restart_removal:
 		device = registered_fb[i]->device;
 		if (fb_do_apertures_overlap(gen_aper, a) ||
 			(primary && gen_aper && gen_aper->count &&
-			 gen_aper->ranges[0].base == VGA_FB_PHYS)) {
+			 gen_aper->ranges[0].base == VGA_FB_PHYS_BASE)) {
 
 			printk(KERN_INFO "fb%d: switching to %s from %s\n",
 			       i, name, registered_fb[i]->fix.id);

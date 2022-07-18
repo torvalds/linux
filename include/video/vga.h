@@ -22,6 +22,8 @@
 #include <asm/vga.h>
 #include <asm/byteorder.h>
 
+#define VGA_FB_PHYS_BASE	0xA0000 /* VGA framebuffer I/O base */
+#define VGA_FB_PHYS_SIZE	65536	/* VGA framebuffer I/O size */
 
 /* Some of the code below is taken from SVGAlib.  The original,
    unmodified copyright notice for that code is below. */
