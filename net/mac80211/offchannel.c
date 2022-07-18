@@ -769,9 +769,11 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
 	struct ieee80211_local *local = sdata->local;
 	struct sk_buff *skb;
-	struct sta_info *sta;
+	struct sta_info *sta = NULL;
 	const struct ieee80211_mgmt *mgmt = (void *)params->buf;
 	bool need_offchan = false;
+	bool mlo_sta = false;
+	int link_id = -1;
 	u32 flags;
 	int ret;
 	u8 *data;
@@ -804,16 +806,30 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		    !ieee80211_vif_is_mesh(&sdata->vif) &&
 		    !sdata->bss->active)
 			need_offchan = true;
+
+		rcu_read_lock();
+		sta = sta_info_get_bss(sdata, mgmt->da);
+		mlo_sta = sta && sta->sta.mlo;
+
 		if (!ieee80211_is_action(mgmt->frame_control) ||
 		    mgmt->u.action.category == WLAN_CATEGORY_PUBLIC ||
 		    mgmt->u.action.category == WLAN_CATEGORY_SELF_PROTECTED ||
-		    mgmt->u.action.category == WLAN_CATEGORY_SPECTRUM_MGMT)
+		    mgmt->u.action.category == WLAN_CATEGORY_SPECTRUM_MGMT) {
+			rcu_read_unlock();
 			break;
-		rcu_read_lock();
-		sta = sta_info_get_bss(sdata, mgmt->da);
-		rcu_read_unlock();
-		if (!sta)
+		}
+
+		if (!sta) {
+			rcu_read_unlock();
 			return -ENOLINK;
+		}
+		if (params->link_id >= 0 &&
+		    !(sta->sta.valid_links & BIT(params->link_id))) {
+			rcu_read_unlock();
+			return -ENOLINK;
+		}
+		link_id = params->link_id;
+		rcu_read_unlock();
 		break;
 	case NL80211_IFTYPE_STATION:
 	case NL80211_IFTYPE_P2P_CLIENT:
@@ -821,8 +837,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		if (!sdata->u.mgd.associated ||
 		    (params->offchan && params->wait &&
 		     local->ops->remain_on_channel &&
-		     memcmp(sdata->deflink.u.mgd.bssid,
-			    mgmt->bssid, ETH_ALEN)))
+		     memcmp(sdata->vif.cfg.ap_addr, mgmt->bssid, ETH_ALEN)))
 			need_offchan = true;
 		sdata_unlock(sdata);
 		break;
@@ -843,7 +858,9 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	mutex_lock(&local->mtx);
 
 	/* Check if the operating channel is the requested channel */
-	if (!need_offchan) {
+	if (!params->chan && mlo_sta) {
+		need_offchan = false;
+	} else if (!need_offchan) {
 		struct ieee80211_chanctx_conf *chanctx_conf = NULL;
 		int i;
 
@@ -860,6 +877,12 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			if (!chanctx_conf)
 				continue;
 
+			if (mlo_sta && params->chan == chanctx_conf->def.chan &&
+			    ether_addr_equal(sdata->vif.addr, mgmt->sa)) {
+				link_id = i;
+				break;
+			}
+
 			if (ether_addr_equal(conf->addr, mgmt->sa))
 				break;
 
@@ -870,10 +893,6 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 			need_offchan = params->chan &&
 				       (params->chan !=
 					chanctx_conf->def.chan);
-		} else if (!params->chan) {
-			ret = -EINVAL;
-			rcu_read_unlock();
-			goto out_unlock;
 		} else {
 			need_offchan = true;
 		}
@@ -943,7 +962,7 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 	}
 
 	if (!need_offchan) {
-		ieee80211_tx_skb(sdata, skb);
+		ieee80211_tx_skb_tid(sdata, skb, 7, link_id);
 		ret = 0;
 		goto out_unlock;
 	}

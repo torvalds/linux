@@ -2141,7 +2141,7 @@ void ieee80211_xmit(struct ieee80211_sub_if_data *sdata,
 		    struct sta_info *sta, struct sk_buff *skb);
 
 void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
-				 struct sk_buff *skb, int tid,
+				 struct sk_buff *skb, int tid, int link_id,
 				 enum nl80211_band band);
 
 /* sta_out needs to be checked for ERR_PTR() before using */
@@ -2155,18 +2155,18 @@ ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 			  enum nl80211_band band)
 {
 	rcu_read_lock();
-	__ieee80211_tx_skb_tid_band(sdata, skb, tid, band);
+	__ieee80211_tx_skb_tid_band(sdata, skb, tid, -1, band);
 	rcu_read_unlock();
 }
 
 void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
-			  struct sk_buff *skb, int tid);
+			  struct sk_buff *skb, int tid, int link_id);
 
 static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
 				    struct sk_buff *skb)
 {
 	/* Send all internal mgmt frames on VO. Accordingly set TID to 7. */
-	ieee80211_tx_skb_tid(sdata, skb, 7);
+	ieee80211_tx_skb_tid(sdata, skb, 7, -1);
 }
 
 /**

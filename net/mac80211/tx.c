@@ -5647,7 +5647,7 @@ void ieee80211_unreserve_tid(struct ieee80211_sta *pubsta, u8 tid)
 EXPORT_SYMBOL(ieee80211_unreserve_tid);
 
 void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
-				 struct sk_buff *skb, int tid,
+				 struct sk_buff *skb, int tid, int link_id,
 				 enum nl80211_band band)
 {
 	const struct ieee80211_hdr *hdr = (void *)skb->data;
@@ -5666,6 +5666,8 @@ void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 
 	if (!sdata->vif.valid_links) {
 		link = 0;
+	} else if (link_id >= 0) {
+		link = link_id;
 	} else if (memcmp(sdata->vif.addr, hdr->addr2, ETH_ALEN) == 0) {
 		/* address from the MLD */
 		link = IEEE80211_LINK_UNSPECIFIED;
@@ -5702,13 +5704,14 @@ void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 }
 
 void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
-			  struct sk_buff *skb, int tid)
+			  struct sk_buff *skb, int tid, int link_id)
 {
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	enum nl80211_band band;
 
 	rcu_read_lock();
 	if (!sdata->vif.valid_links) {
+		WARN_ON(link_id >= 0);
 		chanctx_conf =
 			rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 		if (WARN_ON(!chanctx_conf)) {
@@ -5718,11 +5721,13 @@ void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
 		}
 		band = chanctx_conf->def.chan->band;
 	} else {
+		WARN_ON(link_id >= 0 &&
+			!(sdata->vif.valid_links & BIT(link_id)));
 		/* MLD transmissions must not rely on the band */
 		band = 0;
 	}
 
-	__ieee80211_tx_skb_tid_band(sdata, skb, tid, band);
+	__ieee80211_tx_skb_tid_band(sdata, skb, tid, link_id, band);
 	rcu_read_unlock();
 }
 
