@@ -1631,4 +1631,6 @@ module_exit(rga_exit);
 MODULE_AUTHOR("putin.li@rock-chips.com");
 MODULE_DESCRIPTION("Driver for rga device");
 MODULE_LICENSE("GPL");
+#ifdef MODULE_IMPORT_NS
 MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
+#endif
