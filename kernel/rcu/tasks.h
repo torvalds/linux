@@ -1500,6 +1500,7 @@ static void rcu_tasks_trace_pregp_step(struct list_head *hop)
 		if (rcu_tasks_trace_pertask_prep(t, true))
 			trc_add_holdout(t, hop);
 		rcu_read_unlock();
+		cond_resched_tasks_rcu_qs();
 	}
 
 	// Only after all running tasks have been accounted for is it
@@ -1520,6 +1521,7 @@ static void rcu_tasks_trace_pregp_step(struct list_head *hop)
 			raw_spin_lock_irqsave_rcu_node(rtpcp, flags);
 		}
 		raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
+		cond_resched_tasks_rcu_qs();
 	}
 
 	// Re-enable CPU hotplug now that the holdout list is populated.
@@ -1619,6 +1621,7 @@ static void check_all_holdout_tasks_trace(struct list_head *hop,
 			trc_del_holdout(t);
 		else if (needreport)
 			show_stalled_task_trace(t, firstreport);
+		cond_resched_tasks_rcu_qs();
 	}
 
 	// Re-enable CPU hotplug now that the holdout list scan has completed.
