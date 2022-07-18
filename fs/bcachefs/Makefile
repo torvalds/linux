@@ -27,6 +27,7 @@ bcachefs-y		:=	\
 	disk_groups.o		\
 	data_update.o		\
 	ec.o			\
+	errcode.o		\
 	error.o			\
 	extents.o		\
 	extent_update.o		\

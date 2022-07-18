@@ -1051,7 +1051,8 @@ static void bch2_do_discards_work(struct work_struct *work)
 
 	percpu_ref_put(&c->writes);
 
-	trace_discard_buckets(c, seen, open, need_journal_commit, discarded, ret);
+	trace_discard_buckets(c, seen, open, need_journal_commit, discarded,
+			      bch2_err_str(ret));
 }
 
 void bch2_do_discards(struct bch_fs *c)

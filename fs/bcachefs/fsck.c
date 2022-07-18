@@ -534,7 +534,7 @@ static int snapshots_seen_update(struct bch_fs *c, struct snapshots_seen *s,
 					bch2_btree_ids[btree_id],
 					pos.inode, pos.offset,
 					i->id, n.id, n.equiv);
-				return -NEED_SNAPSHOT_CLEANUP;
+				return -BCH_ERR_need_snapshot_cleanup;
 			}
 
 			return 0;
@@ -2371,7 +2371,7 @@ again:
 		check_nlinks(c) ?:
 		fix_reflink_p(c);
 
-	if (ret == -NEED_SNAPSHOT_CLEANUP) {
+	if (bch2_err_matches(ret, BCH_ERR_need_snapshot_cleanup)) {
 		set_bit(BCH_FS_HAVE_DELETED_SNAPSHOTS, &c->flags);
 		goto again;
 	}
