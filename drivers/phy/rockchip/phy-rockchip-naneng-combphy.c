@@ -802,6 +802,12 @@ static int rk3588_combphy_cfg(struct rockchip_combphy_priv *priv)
 			val &= ~GENMASK(7, 4);
 			val |= 0x50;
 			writel(val, priv->mmio + (0x1f << 2));
+
+			/* ssc ppm adjust to 3500ppm */
+			val = readl(priv->mmio + (0x9 << 2));
+			val &= ~GENMASK(3, 0);
+			val |= 0x7;
+			writel(val, priv->mmio + (0x9 << 2));
 		}
 		break;
 	default:
