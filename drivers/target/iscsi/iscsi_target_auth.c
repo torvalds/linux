@@ -416,7 +416,13 @@ static int chap_server_compute_hash(
 	/*
 	 * Get CHAP_I.
 	 */
-	if (extract_param(nr_in_ptr, "CHAP_I", 10, identifier, &type) < 0) {
+	ret = extract_param(nr_in_ptr, "CHAP_I", 10, identifier, &type);
+	if (ret == -ENOENT) {
+		pr_debug("Could not find CHAP_I. Initiator uses One way authentication.\n");
+		auth_ret = 0;
+		goto out;
+	}
+	if (ret < 0) {
 		pr_err("Could not find CHAP_I.\n");
 		goto out;
 	}

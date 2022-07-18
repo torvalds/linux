@@ -62,15 +62,15 @@ int extract_param(
 	int len;
 
 	if (!in_buf || !pattern || !out_buf || !type)
-		return -1;
+		return -EINVAL;
 
 	ptr = strstr(in_buf, pattern);
 	if (!ptr)
-		return -1;
+		return -ENOENT;
 
 	ptr = strstr(ptr, "=");
 	if (!ptr)
-		return -1;
+		return -EINVAL;
 
 	ptr += 1;
 	if (*ptr == '0' && (*(ptr+1) == 'x' || *(ptr+1) == 'X')) {
@@ -84,12 +84,12 @@ int extract_param(
 
 	len = strlen_semi(ptr);
 	if (len < 0)
-		return -1;
+		return -EINVAL;
 
 	if (len >= max_length) {
 		pr_err("Length of input: %d exceeds max_length:"
 			" %d\n", len, max_length);
-		return -1;
+		return -EINVAL;
 	}
 	memcpy(out_buf, ptr, len);
 	out_buf[len] = '\0';
