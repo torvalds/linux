@@ -5,6 +5,7 @@
  *  Copyright (C) 2014 Alexander Shiyan <shc_work@mail.ru>
  */
 
+#include <linux/bits.h>
 #include <linux/err.h>
 #include <linux/gpio/driver.h>
 #include <linux/mod_devicetable.h>
@@ -14,7 +15,7 @@
 
 #define MMIO_74XX_DIR_IN	(0 << 8)
 #define MMIO_74XX_DIR_OUT	(1 << 8)
-#define MMIO_74XX_BIT_CNT(x)	((x) & 0xff)
+#define MMIO_74XX_BIT_CNT(x)	((x) & GENMASK(7, 0))
 
 struct mmio_74xx_gpio_priv {
 	struct gpio_chip	gc;
