@@ -26,7 +26,8 @@ properties:
   compatible:
     items:
       - enum:
-          - renesas,r9a07g044-irqc    # RZ/G2L
+          - renesas,r9a07g044-irqc    # RZ/G2{L,LC}
+          - renesas,r9a07g054-irqc    # RZ/V2L
       - const: renesas,rzg2l-irqc
 
   '#interrupt-cells':
