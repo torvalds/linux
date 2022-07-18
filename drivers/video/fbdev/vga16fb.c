@@ -185,19 +185,19 @@ static inline void setindex(int index)
 }
 
 /* Check if the video mode is supported by the driver */
-static inline int check_mode_supported(void)
+static inline int check_mode_supported(const struct screen_info *si)
 {
 	/* non-x86 architectures treat orig_video_isVGA as a boolean flag */
 #if defined(CONFIG_X86)
 	/* only EGA and VGA in 16 color graphic mode are supported */
-	if (screen_info.orig_video_isVGA != VIDEO_TYPE_EGAC &&
-	    screen_info.orig_video_isVGA != VIDEO_TYPE_VGAC)
+	if (si->orig_video_isVGA != VIDEO_TYPE_EGAC &&
+	    si->orig_video_isVGA != VIDEO_TYPE_VGAC)
 		return -ENODEV;
 
-	if (screen_info.orig_video_mode != 0x0D &&	/* 320x200/4 (EGA) */
-	    screen_info.orig_video_mode != 0x0E &&	/* 640x200/4 (EGA) */
-	    screen_info.orig_video_mode != 0x10 &&	/* 640x350/4 (EGA) */
-	    screen_info.orig_video_mode != 0x12)	/* 640x480/4 (VGA) */
+	if (si->orig_video_mode != 0x0D &&	/* 320x200/4 (EGA) */
+	    si->orig_video_mode != 0x0E &&	/* 640x200/4 (EGA) */
+	    si->orig_video_mode != 0x10 &&	/* 640x350/4 (EGA) */
+	    si->orig_video_mode != 0x12)	/* 640x480/4 (VGA) */
 		return -ENODEV;
 #endif
 	return 0;
@@ -1321,10 +1321,19 @@ static int __init vga16fb_setup(char *options)
 
 static int vga16fb_probe(struct platform_device *dev)
 {
+	struct screen_info *si;
 	struct fb_info *info;
 	struct vga16fb_par *par;
 	int i;
 	int ret = 0;
+
+	si = dev_get_platdata(&dev->dev);
+	if (!si)
+		return -ENODEV;
+
+	ret = check_mode_supported(si);
+	if (ret)
+		return ret;
 
 	printk(KERN_DEBUG "vga16fb: initializing\n");
 	info = framebuffer_alloc(sizeof(struct vga16fb_par), &dev->dev);
@@ -1352,10 +1361,10 @@ static int vga16fb_probe(struct platform_device *dev)
 	par = info->par;
 
 #if defined(CONFIG_X86)
-	par->isVGA = screen_info.orig_video_isVGA == VIDEO_TYPE_VGAC;
+	par->isVGA = si->orig_video_isVGA == VIDEO_TYPE_VGAC;
 #else
 	/* non-x86 architectures treat orig_video_isVGA as a boolean flag */
-	par->isVGA = screen_info.orig_video_isVGA;
+	par->isVGA = si->orig_video_isVGA;
 #endif
 	par->palette_blanked = 0;
 	par->vesa_blanked = 0;
@@ -1425,15 +1434,20 @@ static int vga16fb_remove(struct platform_device *dev)
 	return 0;
 }
 
+static const struct platform_device_id vga16fb_driver_id_table[] = {
+	{"ega-framebuffer", 0},
+	{"vga-framebuffer", 0},
+	{ }
+};
+
 static struct platform_driver vga16fb_driver = {
 	.probe = vga16fb_probe,
 	.remove = vga16fb_remove,
 	.driver = {
 		.name = "vga16fb",
 	},
+	.id_table = vga16fb_driver_id_table,
 };
-
-static struct platform_device *vga16fb_device;
 
 static int __init vga16fb_init(void)
 {
@@ -1447,32 +1461,15 @@ static int __init vga16fb_init(void)
 	vga16fb_setup(option);
 #endif
 
-	ret = check_mode_supported();
+	ret = platform_driver_register(&vga16fb_driver);
 	if (ret)
 		return ret;
 
-	ret = platform_driver_register(&vga16fb_driver);
-
-	if (!ret) {
-		vga16fb_device = platform_device_alloc("vga16fb", 0);
-
-		if (vga16fb_device)
-			ret = platform_device_add(vga16fb_device);
-		else
-			ret = -ENOMEM;
-
-		if (ret) {
-			platform_device_put(vga16fb_device);
-			platform_driver_unregister(&vga16fb_driver);
-		}
-	}
-
-	return ret;
+	return 0;
 }
 
 static void __exit vga16fb_exit(void)
 {
-	platform_device_unregister(vga16fb_device);
 	platform_driver_unregister(&vga16fb_driver);
 }
 
