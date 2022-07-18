@@ -1434,8 +1434,10 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req)
 	cmd.abort.sqid = cpu_to_le16(nvmeq->qid);
 
 	dev_warn(nvmeq->dev->ctrl.device,
-		"I/O %d QID %d timeout, aborting\n",
-		 req->tag, nvmeq->qid);
+		"I/O %d (%s) QID %d timeout, aborting\n",
+		 req->tag,
+		 nvme_get_opcode_str(nvme_req(req)->cmd->common.opcode),
+		 nvmeq->qid);
 
 	abort_req = blk_mq_alloc_request(dev->ctrl.admin_q, nvme_req_op(&cmd),
 					 BLK_MQ_REQ_NOWAIT);
