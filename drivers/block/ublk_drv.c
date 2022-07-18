@@ -1174,8 +1174,8 @@ static int ublk_add_dev(struct ublk_device *ub)
 
 	disk = ub->ub_disk = blk_mq_alloc_disk_for_queue(ub->ub_queue,
 						 &ublk_bio_compl_lkclass);
-	if (IS_ERR(disk)) {
-		err = PTR_ERR(disk);
+	if (!disk) {
+		err = -ENOMEM;
 		goto out_free_request_queue;
 	}
 
