@@ -7797,6 +7797,9 @@ void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
  *
  * @freq: Frequency on which the frame was received in kHz
  * @sig_dbm: signal strength in dBm, or 0 if unknown
+ * @have_link_id: indicates the frame was received on a link of
+ *	an MLD, i.e. the @link_id field is valid
+ * @link_id: the ID of the link the frame was received	on
  * @buf: Management frame (header + body)
  * @len: length of the frame data
  * @flags: flags, as defined in enum nl80211_rxmgmt_flags
@@ -7806,6 +7809,8 @@ void cfg80211_conn_failed(struct net_device *dev, const u8 *mac_addr,
 struct cfg80211_rx_info {
 	int freq;
 	int sig_dbm;
+	bool have_link_id;
+	u8 link_id;
 	const u8 *buf;
 	size_t len;
 	u32 flags;
