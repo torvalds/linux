@@ -1169,8 +1169,10 @@ static int ublk_add_dev(struct ublk_device *ub)
 		goto out_deinit_queues;
 
 	ub->ub_queue = blk_mq_init_queue(&ub->tag_set);
-	if (IS_ERR(ub->ub_queue))
+	if (IS_ERR(ub->ub_queue)) {
+		err = PTR_ERR(ub->ub_queue);
 		goto out_cleanup_tags;
+	}
 	ub->ub_queue->queuedata = ub;
 
 	disk = ub->ub_disk = blk_mq_alloc_disk_for_queue(ub->ub_queue,
