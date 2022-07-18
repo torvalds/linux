@@ -547,22 +547,6 @@ int bch2_mark_alloc(struct btree_trans *trans,
 		}
 	}
 
-	if (new_a.data_type == BCH_DATA_free &&
-	    (!new_a.journal_seq || new_a.journal_seq < c->journal.flushed_seq_ondisk))
-		closure_wake_up(&c->freelist_wait);
-
-	if (new_a.data_type == BCH_DATA_need_discard &&
-	    (!new_a.journal_seq || new_a.journal_seq < c->journal.flushed_seq_ondisk))
-		bch2_do_discards(c);
-
-	if (old_a.data_type != BCH_DATA_cached &&
-	    new_a.data_type == BCH_DATA_cached &&
-	    should_invalidate_buckets(ca, bch2_dev_usage_read(ca)))
-		bch2_do_invalidates(c);
-
-	if (new_a.data_type == BCH_DATA_need_gc_gens)
-		bch2_do_gc_gens(c);
-
 	percpu_down_read(&c->mark_lock);
 	if (!gc && new_a.gen != old_a.gen)
 		*bucket_gen(ca, new.k->p.offset) = new_a.gen;
@@ -601,6 +585,22 @@ int bch2_mark_alloc(struct btree_trans *trans,
 			return ret;
 		}
 	}
+
+	if (new_a.data_type == BCH_DATA_free &&
+	    (!new_a.journal_seq || new_a.journal_seq < c->journal.flushed_seq_ondisk))
+		closure_wake_up(&c->freelist_wait);
+
+	if (new_a.data_type == BCH_DATA_need_discard &&
+	    (!new_a.journal_seq || new_a.journal_seq < c->journal.flushed_seq_ondisk))
+		bch2_do_discards(c);
+
+	if (old_a.data_type != BCH_DATA_cached &&
+	    new_a.data_type == BCH_DATA_cached &&
+	    should_invalidate_buckets(ca, bch2_dev_usage_read(ca)))
+		bch2_do_invalidates(c);
+
+	if (new_a.data_type == BCH_DATA_need_gc_gens)
+		bch2_do_gc_gens(c);
 
 	return 0;
 }
