@@ -429,6 +429,7 @@ static int rk1608_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 static long rk1608_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct rk1608_dphy *pdata = to_state(sd);
+	struct v4l2_subdev *link_sensor;
 	long ret = 0;
 
 	switch (cmd) {
@@ -456,6 +457,16 @@ static long rk1608_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 				       cmd, arg);
 		mutex_unlock(&rk1608_dphy_mutex);
 		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		if (!IS_ERR_OR_NULL(pdata->link_sensor_client)) {
+			link_sensor = i2c_get_clientdata(pdata->link_sensor_client);
+			if (IS_ERR_OR_NULL(link_sensor)) {
+				dev_err(pdata->dev, "can not get link sensor i2c client\n");
+				return -EINVAL;
+			}
+			ret = v4l2_subdev_call(link_sensor, core, ioctl, cmd, arg);
+		}
+		break;
 	default:
 		ret = -ENOIOCTLCMD;
 		break;
@@ -471,6 +482,7 @@ static long rk1608_compat_ioctl32(struct v4l2_subdev *sd,
 	struct preisp_hdrae_exp_s hdrae_exp;
 	struct rkmodule_inf *inf;
 	struct rkmodule_awb_cfg *cfg;
+	struct rkmodule_csi_dphy_param *dphy_param;
 	u32  stream;
 	long ret = -EFAULT;
 
@@ -501,7 +513,7 @@ static long rk1608_compat_ioctl32(struct v4l2_subdev *sd,
 			ret = -ENOMEM;
 			return ret;
 		}
-		if (copy_from_user(cfg, up, sizeof(cfg)))
+		if (copy_from_user(cfg, up, sizeof(*cfg)))
 			return -EFAULT;
 		ret = rk1608_ioctl(sd, cmd, cfg);
 		kfree(cfg);
@@ -513,6 +525,17 @@ static long rk1608_compat_ioctl32(struct v4l2_subdev *sd,
 		else
 			ret = -EFAULT;
 
+		break;
+	case RKMODULE_GET_CSI_DPHY_PARAM:
+		dphy_param = kzalloc(sizeof(*dphy_param), GFP_KERNEL);
+		if (!dphy_param) {
+			ret = -ENOMEM;
+			return ret;
+		}
+		if (copy_from_user(dphy_param, up, sizeof(*dphy_param)))
+			return -EFAULT;
+		ret = rk1608_ioctl(sd, cmd, dphy_param);
+		kfree(dphy_param);
 		break;
 	default:
 		ret = -ENOIOCTLCMD;
