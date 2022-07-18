@@ -242,12 +242,12 @@ void _of_init_opp_table(struct opp_table *opp_table, struct device *dev,
 	opp_table->np = opp_np;
 
 	_opp_table_alloc_required_tables(opp_table, dev, opp_np);
-	of_node_put(opp_np);
 }
 
 void _of_clear_opp_table(struct opp_table *opp_table)
 {
 	_opp_table_free_required_tables(opp_table);
+	of_node_put(opp_table->np);
 }
 
 /*
