@@ -724,8 +724,7 @@ xfs_ifork_verify_local_attr(
 
 	if (fa) {
 		xfs_inode_verifier_error(ip, -EFSCORRUPTED, "attr fork",
-				ifp ? ifp->if_u1.if_data : NULL,
-				ifp ? ifp->if_bytes : 0, fa);
+				ifp->if_u1.if_data, ifp->if_bytes, fa);
 		return -EFSCORRUPTED;
 	}
 
