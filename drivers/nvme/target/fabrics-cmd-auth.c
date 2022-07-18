@@ -247,8 +247,8 @@ void nvmet_execute_auth_send(struct nvmet_req *req)
 			pr_debug("%s: ctrl %d qid %d reset negotiation\n", __func__,
 				 ctrl->cntlid, req->sq->qid);
 			if (!req->sq->qid) {
-				status = nvmet_setup_auth(ctrl);
-				if (status < 0) {
+				if (nvmet_setup_auth(ctrl) < 0) {
+					status = NVME_SC_INTERNAL;
 					pr_err("ctrl %d qid 0 failed to setup"
 					       "re-authentication",
 					       ctrl->cntlid);
