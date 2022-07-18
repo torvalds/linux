@@ -88,7 +88,10 @@ static int mmio_74xx_dir_in(struct gpio_chip *gc, unsigned int gpio)
 {
 	struct mmio_74xx_gpio_priv *priv = gpiochip_get_data(gc);
 
-	return (priv->flags & MMIO_74XX_DIR_OUT) ? -ENOTSUPP : 0;
+	if (priv->flags & MMIO_74XX_DIR_IN)
+		return 0;
+
+	return -ENOTSUPP;
 }
 
 static int mmio_74xx_dir_out(struct gpio_chip *gc, unsigned int gpio, int val)
