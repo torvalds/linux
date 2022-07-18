@@ -4727,7 +4727,8 @@ int mpi3mr_soft_reset_handler(struct mpi3mr_ioc *mrioc,
 		    "max io throttle group doesn't match old(%d), new(%d)\n",
 		    mrioc->num_io_throttle_group,
 		    mrioc->facts.max_io_throttle_group);
-		return -EPERM;
+		retval = -EPERM;
+		goto out;
 	}
 
 	mpi3mr_flush_delayed_cmd_lists(mrioc);
