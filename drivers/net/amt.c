@@ -563,7 +563,7 @@ static struct sk_buff *amt_build_igmp_gq(struct amt_dev *amt)
 	ihv3->nsrcs	= 0;
 	ihv3->resv	= 0;
 	ihv3->suppress	= false;
-	ihv3->qrv	= amt->net->ipv4.sysctl_igmp_qrv;
+	ihv3->qrv	= READ_ONCE(amt->net->ipv4.sysctl_igmp_qrv);
 	ihv3->csum	= 0;
 	csum		= &ihv3->csum;
 	csum_start	= (void *)ihv3;
@@ -3095,7 +3095,7 @@ static int amt_newlink(struct net *net, struct net_device *dev,
 		goto err;
 	}
 	if (amt->mode == AMT_MODE_RELAY) {
-		amt->qrv = amt->net->ipv4.sysctl_igmp_qrv;
+		amt->qrv = READ_ONCE(amt->net->ipv4.sysctl_igmp_qrv);
 		amt->qri = 10;
 		dev->needed_headroom = amt->stream_dev->needed_headroom +
 				       AMT_RELAY_HLEN;
