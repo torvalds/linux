@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 menuconfig CLK_SUNXI
 	bool "Legacy clock support for Allwinner SoCs"
-	depends on ARCH_SUNXI || COMPILE_TEST
+	depends on (ARM && ARCH_SUNXI) || COMPILE_TEST
 	default y
 
 if CLK_SUNXI
@@ -19,7 +19,6 @@ config CLK_SUNXI_CLOCKS
 
 config CLK_SUNXI_PRCM_SUN6I
 	bool "Legacy A31 PRCM driver"
-	select MFD_SUN6I_PRCM
 	default y
 	help
 	  Legacy clock driver for the A31 PRCM clocks. Those are
@@ -27,7 +26,6 @@ config CLK_SUNXI_PRCM_SUN6I
 
 config CLK_SUNXI_PRCM_SUN8I
 	bool "Legacy sun8i PRCM driver"
-	select MFD_SUN6I_PRCM
 	default y
 	help
 	  Legacy clock driver for the sun8i family PRCM clocks.
