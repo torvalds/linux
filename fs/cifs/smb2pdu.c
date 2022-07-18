@@ -543,6 +543,7 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 		      struct TCP_Server_Info *server, unsigned int *total_len)
 {
 	char *pneg_ctxt;
+	char *hostname = NULL;
 	unsigned int ctxt_len, neg_context_count;
 
 	if (*total_len > 200) {
@@ -570,16 +571,25 @@ assemble_neg_contexts(struct smb2_negotiate_req *req,
 	*total_len += ctxt_len;
 	pneg_ctxt += ctxt_len;
 
-	ctxt_len = build_netname_ctxt((struct smb2_netname_neg_context *)pneg_ctxt,
-					server->hostname);
-	*total_len += ctxt_len;
-	pneg_ctxt += ctxt_len;
+	/*
+	 * secondary channels don't have the hostname field populated
+	 * use the hostname field in the primary channel instead
+	 */
+	hostname = CIFS_SERVER_IS_CHAN(server) ?
+		server->primary_server->hostname : server->hostname;
+	if (hostname && (hostname[0] != 0)) {
+		ctxt_len = build_netname_ctxt((struct smb2_netname_neg_context *)pneg_ctxt,
+					      hostname);
+		*total_len += ctxt_len;
+		pneg_ctxt += ctxt_len;
+		neg_context_count = 3;
+	} else
+		neg_context_count = 2;
 
 	build_posix_ctxt((struct smb2_posix_neg_context *)pneg_ctxt);
 	*total_len += sizeof(struct smb2_posix_neg_context);
 	pneg_ctxt += sizeof(struct smb2_posix_neg_context);
-
-	neg_context_count = 4;
+	neg_context_count++;
 
 	if (server->compress_algorithm) {
 		build_compression_ctxt((struct smb2_compression_capabilities_context *)

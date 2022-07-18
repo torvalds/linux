@@ -323,10 +323,10 @@ static int ima_eventdigest_init_common(const u8 *digest, u32 digestsize,
 	else
 		/*
 		 * If digest is NULL, the event being recorded is a violation.
-		 * Make room for the digest by increasing the offset of
-		 * IMA_DIGEST_SIZE.
+		 * Make room for the digest by increasing the offset by the
+		 * hash algorithm digest size.
 		 */
-		offset += IMA_DIGEST_SIZE;
+		offset += hash_digest_size[hash_algo];
 
 	return ima_write_template_field_data(buffer, offset + digestsize,
 					     fmt, field_data);

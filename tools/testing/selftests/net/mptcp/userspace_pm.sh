@@ -770,10 +770,42 @@ test_subflows()
 	rm -f "$evts"
 }
 
+test_prio()
+{
+	local count
+
+	# Send MP_PRIO signal from client to server machine
+	ip netns exec "$ns2" ./pm_nl_ctl set 10.0.1.2 port "$client4_port" flags backup token "$client4_token" rip 10.0.1.1 rport "$server4_port"
+	sleep 0.5
+
+	# Check TX
+	stdbuf -o0 -e0 printf "MP_PRIO TX                                                 \t"
+	count=$(ip netns exec "$ns2" nstat -as | grep MPTcpExtMPPrioTx | awk '{print $2}')
+	[ -z "$count" ] && count=0
+	if [ $count != 1 ]; then
+		stdbuf -o0 -e0 printf "[FAIL]\n"
+		exit 1
+	else
+		stdbuf -o0 -e0 printf "[OK]\n"
+	fi
+
+	# Check RX
+	stdbuf -o0 -e0 printf "MP_PRIO RX                                                 \t"
+	count=$(ip netns exec "$ns1" nstat -as | grep MPTcpExtMPPrioRx | awk '{print $2}')
+	[ -z "$count" ] && count=0
+	if [ $count != 1 ]; then
+		stdbuf -o0 -e0 printf "[FAIL]\n"
+		exit 1
+	else
+		stdbuf -o0 -e0 printf "[OK]\n"
+	fi
+}
+
 make_connection
 make_connection "v6"
 test_announce
 test_remove
 test_subflows
+test_prio
 
 exit 0

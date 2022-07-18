@@ -2966,7 +2966,7 @@ static void begin_page_read(struct btrfs_fs_info *fs_info, struct page *page)
 }
 
 /*
- * Find extent buffer for a given bytenr.
+ * Find extent buffer for a givne bytenr.
  *
  * This is for end_bio_extent_readpage(), thus we can't do any unsafe locking
  * in endio context.
@@ -2985,9 +2985,11 @@ static struct extent_buffer *find_extent_buffer_readpage(
 		return (struct extent_buffer *)page->private;
 	}
 
-	/* For subpage case, we need to lookup extent buffer xarray */
-	eb = xa_load(&fs_info->extent_buffers,
-		     bytenr >> fs_info->sectorsize_bits);
+	/* For subpage case, we need to lookup buffer radix tree */
+	rcu_read_lock();
+	eb = radix_tree_lookup(&fs_info->buffer_radix,
+			       bytenr >> fs_info->sectorsize_bits);
+	rcu_read_unlock();
 	ASSERT(eb);
 	return eb;
 }
@@ -4435,8 +4437,8 @@ static struct extent_buffer *find_extent_buffer_nolock(
 	struct extent_buffer *eb;
 
 	rcu_read_lock();
-	eb = xa_load(&fs_info->extent_buffers,
-		     start >> fs_info->sectorsize_bits);
+	eb = radix_tree_lookup(&fs_info->buffer_radix,
+			       start >> fs_info->sectorsize_bits);
 	if (eb && atomic_inc_not_zero(&eb->refs)) {
 		rcu_read_unlock();
 		return eb;
@@ -5241,13 +5243,14 @@ int extent_writepages(struct address_space *mapping,
 	 */
 	btrfs_zoned_data_reloc_lock(BTRFS_I(inode));
 	ret = extent_write_cache_pages(mapping, wbc, &epd);
-	btrfs_zoned_data_reloc_unlock(BTRFS_I(inode));
 	ASSERT(ret <= 0);
 	if (ret < 0) {
+		btrfs_zoned_data_reloc_unlock(BTRFS_I(inode));
 		end_write_bio(&epd, ret);
 		return ret;
 	}
 	flush_write_bio(&epd);
+	btrfs_zoned_data_reloc_unlock(BTRFS_I(inode));
 	return ret;
 }
 
@@ -6128,22 +6131,24 @@ struct extent_buffer *alloc_test_extent_buffer(struct btrfs_fs_info *fs_info,
 	if (!eb)
 		return ERR_PTR(-ENOMEM);
 	eb->fs_info = fs_info;
-
-	do {
-		ret = xa_insert(&fs_info->extent_buffers,
-				start >> fs_info->sectorsize_bits,
-				eb, GFP_NOFS);
-		if (ret == -ENOMEM) {
-			exists = ERR_PTR(ret);
+again:
+	ret = radix_tree_preload(GFP_NOFS);
+	if (ret) {
+		exists = ERR_PTR(ret);
+		goto free_eb;
+	}
+	spin_lock(&fs_info->buffer_lock);
+	ret = radix_tree_insert(&fs_info->buffer_radix,
+				start >> fs_info->sectorsize_bits, eb);
+	spin_unlock(&fs_info->buffer_lock);
+	radix_tree_preload_end();
+	if (ret == -EEXIST) {
+		exists = find_extent_buffer(fs_info, start);
+		if (exists)
 			goto free_eb;
-		}
-		if (ret == -EBUSY) {
-			exists = find_extent_buffer(fs_info, start);
-			if (exists)
-				goto free_eb;
-		}
-	} while (ret);
-
+		else
+			goto again;
+	}
 	check_buffer_tree_ref(eb);
 	set_bit(EXTENT_BUFFER_IN_TREE, &eb->bflags);
 
@@ -6318,22 +6323,25 @@ struct extent_buffer *alloc_extent_buffer(struct btrfs_fs_info *fs_info,
 	}
 	if (uptodate)
 		set_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags);
+again:
+	ret = radix_tree_preload(GFP_NOFS);
+	if (ret) {
+		exists = ERR_PTR(ret);
+		goto free_eb;
+	}
 
-	do {
-		ret = xa_insert(&fs_info->extent_buffers,
-				start >> fs_info->sectorsize_bits,
-				eb, GFP_NOFS);
-		if (ret == -ENOMEM) {
-			exists = ERR_PTR(ret);
+	spin_lock(&fs_info->buffer_lock);
+	ret = radix_tree_insert(&fs_info->buffer_radix,
+				start >> fs_info->sectorsize_bits, eb);
+	spin_unlock(&fs_info->buffer_lock);
+	radix_tree_preload_end();
+	if (ret == -EEXIST) {
+		exists = find_extent_buffer(fs_info, start);
+		if (exists)
 			goto free_eb;
-		}
-		if (ret == -EBUSY) {
-			exists = find_extent_buffer(fs_info, start);
-			if (exists)
-				goto free_eb;
-		}
-	} while (ret);
-
+		else
+			goto again;
+	}
 	/* add one reference for the tree */
 	check_buffer_tree_ref(eb);
 	set_bit(EXTENT_BUFFER_IN_TREE, &eb->bflags);
@@ -6378,8 +6386,10 @@ static int release_extent_buffer(struct extent_buffer *eb)
 
 			spin_unlock(&eb->refs_lock);
 
-			xa_erase(&fs_info->extent_buffers,
-				 eb->start >> fs_info->sectorsize_bits);
+			spin_lock(&fs_info->buffer_lock);
+			radix_tree_delete(&fs_info->buffer_radix,
+					  eb->start >> fs_info->sectorsize_bits);
+			spin_unlock(&fs_info->buffer_lock);
 		} else {
 			spin_unlock(&eb->refs_lock);
 		}
@@ -7324,25 +7334,42 @@ void memmove_extent_buffer(const struct extent_buffer *dst,
 	}
 }
 
+#define GANG_LOOKUP_SIZE	16
 static struct extent_buffer *get_next_extent_buffer(
 		struct btrfs_fs_info *fs_info, struct page *page, u64 bytenr)
 {
-	struct extent_buffer *eb;
-	unsigned long index;
+	struct extent_buffer *gang[GANG_LOOKUP_SIZE];
+	struct extent_buffer *found = NULL;
 	u64 page_start = page_offset(page);
+	u64 cur = page_start;
 
 	ASSERT(in_range(bytenr, page_start, PAGE_SIZE));
 	lockdep_assert_held(&fs_info->buffer_lock);
 
-	xa_for_each_start(&fs_info->extent_buffers, index, eb,
-			  page_start >> fs_info->sectorsize_bits) {
-		if (in_range(eb->start, page_start, PAGE_SIZE))
-			return eb;
-		else if (eb->start >= page_start + PAGE_SIZE)
-		        /* Already beyond page end */
-			return NULL;
+	while (cur < page_start + PAGE_SIZE) {
+		int ret;
+		int i;
+
+		ret = radix_tree_gang_lookup(&fs_info->buffer_radix,
+				(void **)gang, cur >> fs_info->sectorsize_bits,
+				min_t(unsigned int, GANG_LOOKUP_SIZE,
+				      PAGE_SIZE / fs_info->nodesize));
+		if (ret == 0)
+			goto out;
+		for (i = 0; i < ret; i++) {
+			/* Already beyond page end */
+			if (gang[i]->start >= page_start + PAGE_SIZE)
+				goto out;
+			/* Found one */
+			if (gang[i]->start >= bytenr) {
+				found = gang[i];
+				goto out;
+			}
+		}
+		cur = gang[ret - 1]->start + gang[ret - 1]->len;
 	}
-	return NULL;
+out:
+	return found;
 }
 
 static int try_release_subpage_extent_buffer(struct page *page)

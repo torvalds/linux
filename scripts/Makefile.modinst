@@ -28,9 +28,6 @@ modules := $(patsubst $(extmod_prefix)%, $(dst)/%$(suffix-y), $(modules))
 __modinst: $(modules)
 	@:
 
-quiet_cmd_none =
-      cmd_none = :
-
 #
 # Installation
 #

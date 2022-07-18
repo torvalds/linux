@@ -60,7 +60,7 @@ static LIST_HEAD(sclp_reg_list);
 /* List of queued requests. */
 static LIST_HEAD(sclp_req_queue);
 
-/* Data for read and and init requests. */
+/* Data for read and init requests. */
 static struct sclp_req sclp_read_req;
 static struct sclp_req sclp_init_req;
 static void *sclp_read_sccb;

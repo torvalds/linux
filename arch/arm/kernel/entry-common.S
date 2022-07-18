@@ -302,6 +302,7 @@ local_restart:
 	b	ret_fast_syscall
 #endif
 ENDPROC(vector_swi)
+	.ltorg
 
 	/*
 	 * This is the really slow path.  We're going to be doing

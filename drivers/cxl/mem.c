@@ -29,6 +29,7 @@ static int create_endpoint(struct cxl_memdev *cxlmd,
 {
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct cxl_port *endpoint;
+	int rc;
 
 	endpoint = devm_cxl_add_port(&parent_port->dev, &cxlmd->dev,
 				     cxlds->component_reg_phys, parent_port);
@@ -37,13 +38,17 @@ static int create_endpoint(struct cxl_memdev *cxlmd,
 
 	dev_dbg(&cxlmd->dev, "add: %s\n", dev_name(&endpoint->dev));
 
+	rc = cxl_endpoint_autoremove(cxlmd, endpoint);
+	if (rc)
+		return rc;
+
 	if (!endpoint->dev.driver) {
 		dev_err(&cxlmd->dev, "%s failed probe\n",
 			dev_name(&endpoint->dev));
 		return -ENXIO;
 	}
 
-	return cxl_endpoint_autoremove(cxlmd, endpoint);
+	return 0;
 }
 
 static void enable_suspend(void *data)

@@ -146,16 +146,6 @@
 	movgr2fcsr	fcsr0, \tmp0
 	.endm
 
-	.macro sc_save_vcsr base, tmp0
-	movfcsr2gr	\tmp0, vcsr16
-	EX	st.w \tmp0, \base, 0
-	.endm
-
-	.macro sc_restore_vcsr base, tmp0
-	EX	ld.w \tmp0, \base, 0
-	movgr2fcsr	vcsr16, \tmp0
-	.endm
-
 /*
  * Save a thread's fp context.
  */

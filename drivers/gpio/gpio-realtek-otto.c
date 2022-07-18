@@ -172,6 +172,8 @@ static void realtek_gpio_irq_unmask(struct irq_data *data)
 	unsigned long flags;
 	u16 m;
 
+	gpiochip_enable_irq(&ctrl->gc, line);
+
 	raw_spin_lock_irqsave(&ctrl->lock, flags);
 	m = ctrl->intr_mask[port];
 	m |= realtek_gpio_imr_bits(port_pin, REALTEK_GPIO_IMR_LINE_MASK);
@@ -195,6 +197,8 @@ static void realtek_gpio_irq_mask(struct irq_data *data)
 	ctrl->intr_mask[port] = m;
 	realtek_gpio_write_imr(ctrl, port, ctrl->intr_type[port], m);
 	raw_spin_unlock_irqrestore(&ctrl->lock, flags);
+
+	gpiochip_disable_irq(&ctrl->gc, line);
 }
 
 static int realtek_gpio_irq_set_type(struct irq_data *data, unsigned int flow_type)
@@ -315,13 +319,15 @@ static int realtek_gpio_irq_init(struct gpio_chip *gc)
 	return 0;
 }
 
-static struct irq_chip realtek_gpio_irq_chip = {
+static const struct irq_chip realtek_gpio_irq_chip = {
 	.name = "realtek-otto-gpio",
 	.irq_ack = realtek_gpio_irq_ack,
 	.irq_mask = realtek_gpio_irq_mask,
 	.irq_unmask = realtek_gpio_irq_unmask,
 	.irq_set_type = realtek_gpio_irq_set_type,
 	.irq_set_affinity = realtek_gpio_irq_set_affinity,
+	.flags = IRQCHIP_IMMUTABLE,
+	GPIOCHIP_IRQ_RESOURCE_HELPERS,
 };
 
 static const struct of_device_id realtek_gpio_of_match[] = {
@@ -404,7 +410,7 @@ static int realtek_gpio_probe(struct platform_device *pdev)
 	irq = platform_get_irq_optional(pdev, 0);
 	if (!(dev_flags & GPIO_INTERRUPTS_DISABLED) && irq > 0) {
 		girq = &ctrl->gc.irq;
-		girq->chip = &realtek_gpio_irq_chip;
+		gpio_irq_chip_set_chip(girq, &realtek_gpio_irq_chip);
 		girq->default_type = IRQ_TYPE_NONE;
 		girq->handler = handle_bad_irq;
 		girq->parent_handler = realtek_gpio_irq_handler;

@@ -4912,6 +4912,8 @@ static int hwsim_virtio_probe(struct virtio_device *vdev)
 	if (err)
 		return err;
 
+	virtio_device_ready(vdev);
+
 	err = fill_vq(hwsim_vqs[HWSIM_VQ_RX]);
 	if (err)
 		goto out_remove;

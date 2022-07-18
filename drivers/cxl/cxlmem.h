@@ -300,13 +300,13 @@ struct cxl_mbox_identify {
 } __packed;
 
 struct cxl_mbox_get_lsa {
-	u32 offset;
-	u32 length;
+	__le32 offset;
+	__le32 length;
 } __packed;
 
 struct cxl_mbox_set_lsa {
-	u32 offset;
-	u32 reserved;
+	__le32 offset;
+	__le32 reserved;
 	u8 data[];
 } __packed;
 

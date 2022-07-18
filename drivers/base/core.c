@@ -486,7 +486,18 @@ static void device_link_release_fn(struct work_struct *work)
 	/* Ensure that all references to the link object have been dropped. */
 	device_link_synchronize_removal();
 
-	pm_runtime_release_supplier(link, true);
+	pm_runtime_release_supplier(link);
+	/*
+	 * If supplier_preactivated is set, the link has been dropped between
+	 * the pm_runtime_get_suppliers() and pm_runtime_put_suppliers() calls
+	 * in __driver_probe_device().  In that case, drop the supplier's
+	 * PM-runtime usage counter to remove the reference taken by
+	 * pm_runtime_get_suppliers().
+	 */
+	if (link->supplier_preactivated)
+		pm_runtime_put_noidle(link->supplier);
+
+	pm_request_idle(link->supplier);
 
 	put_device(link->consumer);
 	put_device(link->supplier);

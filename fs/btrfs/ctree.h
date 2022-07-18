@@ -675,9 +675,8 @@ struct btrfs_fs_info {
 	rwlock_t global_root_lock;
 	struct rb_root global_root_tree;
 
-	/* The xarray that holds all the FS roots */
-	spinlock_t fs_roots_lock;
-	struct xarray fs_roots;
+	spinlock_t fs_roots_radix_lock;
+	struct radix_tree_root fs_roots_radix;
 
 	/* block group cache stuff */
 	rwlock_t block_group_cache_lock;
@@ -995,10 +994,10 @@ struct btrfs_fs_info {
 
 	struct btrfs_delayed_root *delayed_root;
 
-	/* Extent buffer xarray */
+	/* Extent buffer radix tree */
 	spinlock_t buffer_lock;
 	/* Entries are eb->start / sectorsize */
-	struct xarray extent_buffers;
+	struct radix_tree_root buffer_radix;
 
 	/* next backup root to be overwritten */
 	int backup_root_index;
@@ -1119,8 +1118,7 @@ enum {
 	 */
 	BTRFS_ROOT_SHAREABLE,
 	BTRFS_ROOT_TRACK_DIRTY,
-	/* The root is tracked in fs_info::fs_roots */
-	BTRFS_ROOT_REGISTERED,
+	BTRFS_ROOT_IN_RADIX,
 	BTRFS_ROOT_ORPHAN_ITEM_INSERTED,
 	BTRFS_ROOT_DEFRAG_RUNNING,
 	BTRFS_ROOT_FORCE_COW,
@@ -1224,10 +1222,10 @@ struct btrfs_root {
 	struct rb_root inode_tree;
 
 	/*
-	 * Xarray that keeps track of delayed nodes of every inode, protected
-	 * by inode_lock
+	 * radix tree that keeps track of delayed nodes of every inode,
+	 * protected by inode_lock
 	 */
-	struct xarray delayed_nodes;
+	struct radix_tree_root delayed_nodes_tree;
 	/*
 	 * right now this just gets used so that a root has its own devid
 	 * for stat.  It may be used for more later
@@ -1330,6 +1328,8 @@ struct btrfs_replace_extent_info {
 	 * existing extent into a file range.
 	 */
 	bool is_new_extent;
+	/* Indicate if we should update the inode's mtime and ctime. */
+	bool update_times;
 	/* Meaningful only if is_new_extent is true. */
 	int qgroup_reserved;
 	/*

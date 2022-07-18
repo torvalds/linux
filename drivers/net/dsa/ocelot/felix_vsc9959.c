@@ -1886,6 +1886,8 @@ static void vsc9959_psfp_sgi_table_del(struct ocelot *ocelot,
 static void vsc9959_psfp_counters_get(struct ocelot *ocelot, u32 index,
 				      struct felix_stream_filter_counters *counters)
 {
+	mutex_lock(&ocelot->stats_lock);
+
 	ocelot_rmw(ocelot, SYS_STAT_CFG_STAT_VIEW(index),
 		   SYS_STAT_CFG_STAT_VIEW_M,
 		   SYS_STAT_CFG);
@@ -1900,6 +1902,8 @@ static void vsc9959_psfp_counters_get(struct ocelot *ocelot, u32 index,
 		     SYS_STAT_CFG_STAT_VIEW(index) |
 		     SYS_STAT_CFG_STAT_CLEAR_SHOT(0x10),
 		     SYS_STAT_CFG);
+
+	mutex_unlock(&ocelot->stats_lock);
 }
 
 static int vsc9959_psfp_filter_add(struct ocelot *ocelot, int port,

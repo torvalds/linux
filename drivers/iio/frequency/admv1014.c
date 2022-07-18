@@ -700,8 +700,10 @@ static int admv1014_init(struct admv1014_state *st)
 			 ADMV1014_DET_EN_MSK;
 
 	enable_reg = FIELD_PREP(ADMV1014_P1DB_COMPENSATION_MSK, st->p1db_comp ? 3 : 0) |
-		     FIELD_PREP(ADMV1014_IF_AMP_PD_MSK, !(st->input_mode)) |
-		     FIELD_PREP(ADMV1014_BB_AMP_PD_MSK, st->input_mode) |
+		     FIELD_PREP(ADMV1014_IF_AMP_PD_MSK,
+				(st->input_mode == ADMV1014_IF_MODE) ? 0 : 1) |
+		     FIELD_PREP(ADMV1014_BB_AMP_PD_MSK,
+				(st->input_mode == ADMV1014_IF_MODE) ? 1 : 0) |
 		     FIELD_PREP(ADMV1014_DET_EN_MSK, st->det_en);
 
 	return __admv1014_spi_update_bits(st, ADMV1014_REG_ENABLE, enable_reg_msk, enable_reg);
