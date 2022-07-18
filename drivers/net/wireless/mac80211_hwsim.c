@@ -1705,7 +1705,8 @@ static struct ieee80211_bss_conf *
 mac80211_hwsim_select_tx_link(struct mac80211_hwsim_data *data,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_sta *sta,
-			      struct ieee80211_hdr *hdr)
+			      struct ieee80211_hdr *hdr,
+			      struct ieee80211_link_sta **link_sta)
 {
 	struct hwsim_sta_priv *sp = (void *)sta->drv_priv;
 	int i;
@@ -1724,29 +1725,19 @@ mac80211_hwsim_select_tx_link(struct mac80211_hwsim_data *data,
 		return &vif->bss_conf;
 
 	for (i = 0; i < ARRAY_SIZE(vif->link_conf); i++) {
-		struct ieee80211_link_sta *link_sta = NULL;
 		struct ieee80211_bss_conf *bss_conf;
 		unsigned int link_id;
 
 		/* round-robin the available link IDs */
 		link_id = (sp->last_link + i + 1) % ARRAY_SIZE(vif->link_conf);
 
-		link_sta = rcu_dereference(sta->link[link_id]);
-		if (!link_sta)
+		*link_sta = rcu_dereference(sta->link[link_id]);
+		if (!*link_sta)
 			continue;
 
 		bss_conf = rcu_dereference(vif->link_conf[link_id]);
 		if (WARN_ON_ONCE(!bss_conf))
 			continue;
-
-		/* address translation to link addresses on TX */
-		ether_addr_copy(hdr->addr1, link_sta->addr);
-		ether_addr_copy(hdr->addr2, bss_conf->addr);
-		if (ether_addr_equal(hdr->addr3, sta->addr))
-			ether_addr_copy(hdr->addr3, link_sta->addr);
-		else if (ether_addr_equal(hdr->addr3, vif->addr))
-			ether_addr_copy(hdr->addr3, bss_conf->addr);
-		/* no need to look at A4, if present it's SA */
 
 		sp->last_link = link_id;
 		return bss_conf;
@@ -1780,21 +1771,44 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 	} else if (txi->hw_queue == 4) {
 		channel = data->tmp_chan;
 	} else {
-		struct ieee80211_bss_conf *bss_conf;
 		u8 link = u32_get_bits(IEEE80211_SKB_CB(skb)->control.flags,
 				       IEEE80211_TX_CTRL_MLO_LINK);
+		struct ieee80211_vif *vif = txi->control.vif;
+		struct ieee80211_link_sta *link_sta = NULL;
+		struct ieee80211_sta *sta = control->sta;
+		struct ieee80211_bss_conf *bss_conf;
 
-		if (link != IEEE80211_LINK_UNSPECIFIED)
+		if (link != IEEE80211_LINK_UNSPECIFIED) {
 			bss_conf = rcu_dereference(txi->control.vif->link_conf[link]);
-		else
-			bss_conf = mac80211_hwsim_select_tx_link(data,
-								 txi->control.vif,
-								 control->sta,
-								 hdr);
+			if (sta)
+				link_sta = rcu_dereference(sta->link[link]);
+		} else {
+			bss_conf = mac80211_hwsim_select_tx_link(data, vif, sta,
+								 hdr, &link_sta);
+		}
 
 		if (WARN_ON(!bss_conf)) {
 			ieee80211_free_txskb(hw, skb);
 			return;
+		}
+
+		if (sta && sta->mlo) {
+			if (WARN_ON(!link_sta)) {
+				ieee80211_free_txskb(hw, skb);
+				return;
+			}
+			/* address translation to link addresses on TX */
+			ether_addr_copy(hdr->addr1, link_sta->addr);
+			ether_addr_copy(hdr->addr2, bss_conf->addr);
+			/* translate A3 only if it's the BSSID */
+			if (!ieee80211_has_tods(hdr->frame_control) &&
+			    !ieee80211_has_fromds(hdr->frame_control)) {
+				if (ether_addr_equal(hdr->addr3, sta->addr))
+					ether_addr_copy(hdr->addr3, link_sta->addr);
+				else if (ether_addr_equal(hdr->addr3, vif->addr))
+					ether_addr_copy(hdr->addr3, bss_conf->addr);
+			}
+			/* no need to look at A4, if present it's SA */
 		}
 
 		chanctx_conf = rcu_dereference(bss_conf->chanctx_conf);
