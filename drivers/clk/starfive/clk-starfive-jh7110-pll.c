@@ -17,8 +17,8 @@
 
 #include "clk-starfive-jh7110-pll.h"
 
-static struct jh7110_clk_pll_data * __init jh7110_pll_data_from(
-				struct clk_hw *hw)
+static struct jh7110_clk_pll_data * __init
+		jh7110_pll_data_from(struct clk_hw *hw)
 {
 	return container_of(hw, struct jh7110_clk_pll_data, hw);
 }
