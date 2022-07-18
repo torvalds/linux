@@ -3045,7 +3045,21 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 		fc |= cpu_to_le16(IEEE80211_FCTL_FROMDS);
 		/* DA BSSID SA */
 		build.da_offs = offsetof(struct ieee80211_hdr, addr1);
-		memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
+		if (sta->sta.mlo || !sdata->vif.valid_links) {
+			memcpy(hdr->addr2, sdata->vif.addr, ETH_ALEN);
+		} else {
+			unsigned int link_id = sta->deflink.link_id;
+			struct ieee80211_link_data *link;
+
+			rcu_read_lock();
+			link = rcu_dereference(sdata->link[link_id]);
+			if (WARN_ON(!link)) {
+				rcu_read_unlock();
+				goto out;
+			}
+			memcpy(hdr->addr2, link->conf->addr, ETH_ALEN);
+			rcu_read_unlock();
+		}
 		build.sa_offs = offsetof(struct ieee80211_hdr, addr3);
 		build.hdr_len = 24;
 		break;
