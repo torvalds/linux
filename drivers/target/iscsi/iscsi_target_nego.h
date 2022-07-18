@@ -22,5 +22,5 @@ extern int iscsi_target_locate_portal(struct iscsi_np *, struct iscsit_conn *,
 extern int iscsi_target_start_negotiation(
 		struct iscsi_login *, struct iscsit_conn *);
 extern void iscsi_target_nego_release(struct iscsit_conn *);
-
+extern bool iscsi_conn_auth_required(struct iscsit_conn *conn);
 #endif /* ISCSI_TARGET_NEGO_H */

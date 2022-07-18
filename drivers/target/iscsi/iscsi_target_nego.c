@@ -814,7 +814,7 @@ static int iscsi_target_do_authentication(
 	return 0;
 }
 
-static bool iscsi_conn_auth_required(struct iscsit_conn *conn)
+bool iscsi_conn_auth_required(struct iscsit_conn *conn)
 {
 	struct iscsi_node_acl *nacl;
 	struct se_node_acl *se_nacl;
