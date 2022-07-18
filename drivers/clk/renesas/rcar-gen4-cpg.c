@@ -23,7 +23,7 @@
 #include "rcar-gen4-cpg.h"
 #include "rcar-cpg-lib.h"
 
-static const struct rcar_gen4_cpg_pll_config *cpg_pll_config __initconst;
+static const struct rcar_gen4_cpg_pll_config *cpg_pll_config __initdata;
 static unsigned int cpg_clk_extalr __initdata;
 static u32 cpg_mode __initdata;
 

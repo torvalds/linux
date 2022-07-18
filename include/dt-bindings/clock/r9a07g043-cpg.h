@@ -108,6 +108,15 @@
 #define R9A07G043_ADC_ADCLK		76
 #define R9A07G043_ADC_PCLK		77
 #define R9A07G043_TSU_PCLK		78
+#define R9A07G043_NCEPLDM_DM_CLK	79	/* RZ/Five Only */
+#define R9A07G043_NCEPLDM_ACLK		80	/* RZ/Five Only */
+#define R9A07G043_NCEPLDM_TCK		81	/* RZ/Five Only */
+#define R9A07G043_NCEPLMT_ACLK		82	/* RZ/Five Only */
+#define R9A07G043_NCEPLIC_ACLK		83	/* RZ/Five Only */
+#define R9A07G043_AX45MP_CORE0_CLK	84	/* RZ/Five Only */
+#define R9A07G043_AX45MP_ACLK		85	/* RZ/Five Only */
+#define R9A07G043_IAX45_CLK		86	/* RZ/Five Only */
+#define R9A07G043_IAX45_PCLK		87	/* RZ/Five Only */
 
 /* R9A07G043 Resets */
 #define R9A07G043_CA55_RST_1_0		0	/* RZ/G2UL Only */
@@ -180,5 +189,16 @@
 #define R9A07G043_ADC_PRESETN		67
 #define R9A07G043_ADC_ADRST_N		68
 #define R9A07G043_TSU_PRESETN		69
+#define R9A07G043_NCEPLDM_DTM_PWR_RST_N	70	/* RZ/Five Only */
+#define R9A07G043_NCEPLDM_ARESETN	71	/* RZ/Five Only */
+#define R9A07G043_NCEPLMT_POR_RSTN	72	/* RZ/Five Only */
+#define R9A07G043_NCEPLMT_ARESETN	73	/* RZ/Five Only */
+#define R9A07G043_NCEPLIC_ARESETN	74	/* RZ/Five Only */
+#define R9A07G043_AX45MP_ARESETNM	75	/* RZ/Five Only */
+#define R9A07G043_AX45MP_ARESETNS	76	/* RZ/Five Only */
+#define R9A07G043_AX45MP_L2_RESETN	77	/* RZ/Five Only */
+#define R9A07G043_AX45MP_CORE0_RESETN	78	/* RZ/Five Only */
+#define R9A07G043_IAX45_RESETN		79	/* RZ/Five Only */
+
 
 #endif /* __DT_BINDINGS_CLOCK_R9A07G043_CPG_H__ */
