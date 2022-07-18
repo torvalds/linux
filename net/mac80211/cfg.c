@@ -1597,7 +1597,7 @@ static void sta_apply_mesh_params(struct ieee80211_local *local,
 }
 
 static int sta_link_apply_parameters(struct ieee80211_local *local,
-				     struct sta_info *sta,
+				     struct sta_info *sta, bool new_link,
 				     struct link_station_parameters *params)
 {
 	int ret = 0;
@@ -1618,8 +1618,13 @@ static int sta_link_apply_parameters(struct ieee80211_local *local,
 		return -EINVAL;
 
 	if (params->link_mac) {
-		memcpy(link_sta->addr, params->link_mac, ETH_ALEN);
-		memcpy(link_sta->pub->addr, params->link_mac, ETH_ALEN);
+		if (new_link) {
+			memcpy(link_sta->addr, params->link_mac, ETH_ALEN);
+			memcpy(link_sta->pub->addr, params->link_mac, ETH_ALEN);
+		} else if (!ether_addr_equal(link_sta->addr,
+					     params->link_mac)) {
+			return -EINVAL;
+		}
 	}
 
 	if (params->txpwr_set) {
@@ -1797,7 +1802,8 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	if (params->listen_interval >= 0)
 		sta->listen_interval = params->listen_interval;
 
-	ret = sta_link_apply_parameters(local, sta, &params->link_sta_params);
+	ret = sta_link_apply_parameters(local, sta, false,
+					&params->link_sta_params);
 	if (ret)
 		return ret;
 
@@ -4650,7 +4656,7 @@ static int sta_add_link_station(struct ieee80211_local *local,
 	if (ret)
 		return ret;
 
-	ret = sta_link_apply_parameters(local, sta, params);
+	ret = sta_link_apply_parameters(local, sta, true, params);
 	if (ret) {
 		ieee80211_sta_free_link(sta, params->link_id);
 		return ret;
@@ -4688,7 +4694,7 @@ static int sta_mod_link_station(struct ieee80211_local *local,
 	if (!(sta->sta.valid_links & BIT(params->link_id)))
 		return -EINVAL;
 
-	return sta_link_apply_parameters(local, sta, params);
+	return sta_link_apply_parameters(local, sta, false, params);
 }
 
 static int
