@@ -23,9 +23,9 @@
  *
  * 0.3.3
  *  - Porting over to new fbdev api. (jsimmons)
- *  
+ *
  * 0.3.2
- *  - got rid of all floating point (dok) 
+ *  - got rid of all floating point (dok)
  *
  * 0.3.1
  *  - added module license (dok)
@@ -1154,14 +1154,14 @@ static int neofb_set_par(struct fb_info *info)
 
 	switch (info->fix.accel) {
 		case FB_ACCEL_NEOMAGIC_NM2200:
-		case FB_ACCEL_NEOMAGIC_NM2230: 
-		case FB_ACCEL_NEOMAGIC_NM2360: 
-		case FB_ACCEL_NEOMAGIC_NM2380: 
+		case FB_ACCEL_NEOMAGIC_NM2230:
+		case FB_ACCEL_NEOMAGIC_NM2360:
+		case FB_ACCEL_NEOMAGIC_NM2380:
 			neo2200_accel_init(info, &info->var);
 			break;
 		default:
 			break;
-	}	
+	}
 	return 0;
 }
 
@@ -1493,15 +1493,15 @@ neofb_fillrect(struct fb_info *info, const struct fb_fillrect *rect)
 {
 	switch (info->fix.accel) {
 		case FB_ACCEL_NEOMAGIC_NM2200:
-		case FB_ACCEL_NEOMAGIC_NM2230: 
-		case FB_ACCEL_NEOMAGIC_NM2360: 
+		case FB_ACCEL_NEOMAGIC_NM2230:
+		case FB_ACCEL_NEOMAGIC_NM2360:
 		case FB_ACCEL_NEOMAGIC_NM2380:
 			neo2200_fillrect(info, rect);
 			break;
 		default:
 			cfb_fillrect(info, rect);
 			break;
-	}	
+	}
 }
 
 static void
@@ -1509,15 +1509,15 @@ neofb_copyarea(struct fb_info *info, const struct fb_copyarea *area)
 {
 	switch (info->fix.accel) {
 		case FB_ACCEL_NEOMAGIC_NM2200:
-		case FB_ACCEL_NEOMAGIC_NM2230: 
-		case FB_ACCEL_NEOMAGIC_NM2360: 
-		case FB_ACCEL_NEOMAGIC_NM2380: 
+		case FB_ACCEL_NEOMAGIC_NM2230:
+		case FB_ACCEL_NEOMAGIC_NM2360:
+		case FB_ACCEL_NEOMAGIC_NM2380:
 			neo2200_copyarea(info, area);
 			break;
 		default:
 			cfb_copyarea(info, area);
 			break;
-	}	
+	}
 }
 
 static void
@@ -1536,20 +1536,20 @@ neofb_imageblit(struct fb_info *info, const struct fb_image *image)
 	}
 }
 
-static int 
+static int
 neofb_sync(struct fb_info *info)
 {
 	switch (info->fix.accel) {
 		case FB_ACCEL_NEOMAGIC_NM2200:
-		case FB_ACCEL_NEOMAGIC_NM2230: 
-		case FB_ACCEL_NEOMAGIC_NM2360: 
-		case FB_ACCEL_NEOMAGIC_NM2380: 
+		case FB_ACCEL_NEOMAGIC_NM2230:
+		case FB_ACCEL_NEOMAGIC_NM2360:
+		case FB_ACCEL_NEOMAGIC_NM2380:
 			neo2200_sync(info);
 			break;
 		default:
 			break;
 	}
-	return 0;		
+	return 0;
 }
 
 /*
