@@ -519,7 +519,7 @@ static int rockchip_pmu_domain_mem_reset(struct rockchip_pm_domain *pd)
 		goto error;
 	}
 
-	udelay(20);
+	udelay(60);
 
 	regmap_write(pmu->regmap, pmu->info->mem_pwr_offset + pd->info->pwr_offset,
 		     (pd->info->pwr_mask | pd->info->pwr_w_mask));
