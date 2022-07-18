@@ -6393,7 +6393,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (!have_sta) {
-		if (link_id >= 0)
+		if (mlo)
 			new_sta = sta_info_alloc_with_link(sdata, ap_mld_addr,
 							   link_id, cbss->bssid,
 							   GFP_KERNEL);
@@ -6405,7 +6405,7 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 			goto out_err;
 		}
 
-		new_sta->sta.mlo = link_id >= 0;
+		new_sta->sta.mlo = mlo;
 	}
 
 	/*
