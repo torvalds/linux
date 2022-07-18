@@ -4776,10 +4776,14 @@ static bool ieee80211_prepare_and_rx_handle(struct ieee80211_rx_data *rx,
 			ether_addr_copy(hdr->addr1, rx->sdata->vif.addr);
 		if (ether_addr_equal(link_sta->addr, hdr->addr2))
 			ether_addr_copy(hdr->addr2, rx->sta->addr);
-		if (ether_addr_equal(link_sta->addr, hdr->addr3))
-			ether_addr_copy(hdr->addr3, rx->sta->addr);
-		else if (ether_addr_equal(link->conf->addr, hdr->addr3))
-			ether_addr_copy(hdr->addr3, rx->sdata->vif.addr);
+		/* translate A3 only if it's the BSSID */
+		if (!ieee80211_has_tods(hdr->frame_control) &&
+		    !ieee80211_has_fromds(hdr->frame_control)) {
+			if (ether_addr_equal(link_sta->addr, hdr->addr3))
+				ether_addr_copy(hdr->addr3, rx->sta->addr);
+			else if (ether_addr_equal(link->conf->addr, hdr->addr3))
+				ether_addr_copy(hdr->addr3, rx->sdata->vif.addr);
+		}
 		/* not needed for A4 since it can only carry the SA */
 	}
 
