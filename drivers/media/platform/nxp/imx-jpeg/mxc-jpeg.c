@@ -330,6 +330,10 @@ static unsigned int debug;
 module_param(debug, int, 0644);
 MODULE_PARM_DESC(debug, "Debug level (0-3)");
 
+static unsigned int hw_timeout = 2000;
+module_param(hw_timeout, int, 0644);
+MODULE_PARM_DESC(hw_timeout, "MXC JPEG hw timeout, the number of milliseconds");
+
 static void mxc_jpeg_bytesperline(struct mxc_jpeg_q_data *q, u32 precision);
 static void mxc_jpeg_sizeimage(struct mxc_jpeg_q_data *q);
 
@@ -569,6 +573,26 @@ static void mxc_jpeg_check_and_set_last_buffer(struct mxc_jpeg_ctx *ctx,
 	}
 }
 
+static void mxc_jpeg_job_finish(struct mxc_jpeg_ctx *ctx, enum vb2_buffer_state state, bool reset)
+{
+	struct mxc_jpeg_dev *jpeg = ctx->mxc_jpeg;
+	void __iomem *reg = jpeg->base_reg;
+	struct vb2_v4l2_buffer *src_buf, *dst_buf;
+
+	dst_buf = v4l2_m2m_next_dst_buf(ctx->fh.m2m_ctx);
+	src_buf = v4l2_m2m_next_src_buf(ctx->fh.m2m_ctx);
+	mxc_jpeg_check_and_set_last_buffer(ctx, src_buf, dst_buf);
+	v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
+	v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
+	v4l2_m2m_buf_done(src_buf, state);
+	v4l2_m2m_buf_done(dst_buf, state);
+
+	mxc_jpeg_disable_irq(reg, ctx->slot);
+	ctx->mxc_jpeg->slot_data[ctx->slot].used = false;
+	if (reset)
+		mxc_jpeg_sw_reset(reg);
+}
+
 static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 {
 	struct mxc_jpeg_dev *jpeg = priv;
@@ -600,6 +624,9 @@ static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 			 slot, ctx->slot);
 		goto job_unlock;
 	}
+
+	if (!jpeg->slot_data[slot].used)
+		goto job_unlock;
 
 	dec_ret = readl(reg + MXC_SLOT_OFFSET(slot, SLOT_STATUS));
 	writel(dec_ret, reg + MXC_SLOT_OFFSET(slot, SLOT_STATUS)); /* w1c */
@@ -665,14 +692,9 @@ static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 	buf_state = VB2_BUF_STATE_DONE;
 
 buffers_done:
-	mxc_jpeg_disable_irq(reg, ctx->slot);
-	jpeg->slot_data[slot].used = false; /* unused, but don't free */
-	mxc_jpeg_check_and_set_last_buffer(ctx, src_buf, dst_buf);
-	v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
-	v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
-	v4l2_m2m_buf_done(src_buf, buf_state);
-	v4l2_m2m_buf_done(dst_buf, buf_state);
+	mxc_jpeg_job_finish(ctx, buf_state, false);
 	spin_unlock(&jpeg->hw_lock);
+	cancel_delayed_work(&ctx->task_timer);
 	v4l2_m2m_job_finish(jpeg->m2m_dev, ctx->fh.m2m_ctx);
 	return IRQ_HANDLED;
 job_unlock:
@@ -1003,6 +1025,23 @@ static int mxc_jpeg_job_ready(void *priv)
 	return ctx->source_change ? 0 : 1;
 }
 
+static void mxc_jpeg_device_run_timeout(struct work_struct *work)
+{
+	struct delayed_work *dwork = to_delayed_work(work);
+	struct mxc_jpeg_ctx *ctx = container_of(dwork, struct mxc_jpeg_ctx, task_timer);
+	struct mxc_jpeg_dev *jpeg = ctx->mxc_jpeg;
+	unsigned long flags;
+
+	spin_lock_irqsave(&ctx->mxc_jpeg->hw_lock, flags);
+	if (ctx->slot < MXC_MAX_SLOTS && ctx->mxc_jpeg->slot_data[ctx->slot].used) {
+		dev_warn(jpeg->dev, "%s timeout, cancel it\n",
+			 ctx->mxc_jpeg->mode == MXC_JPEG_DECODE ? "decode" : "encode");
+		mxc_jpeg_job_finish(ctx, VB2_BUF_STATE_ERROR, true);
+		v4l2_m2m_job_finish(ctx->mxc_jpeg->m2m_dev, ctx->fh.m2m_ctx);
+	}
+	spin_unlock_irqrestore(&ctx->mxc_jpeg->hw_lock, flags);
+}
+
 static void mxc_jpeg_device_run(void *priv)
 {
 	struct mxc_jpeg_ctx *ctx = priv;
@@ -1088,6 +1127,7 @@ static void mxc_jpeg_device_run(void *priv)
 					 &src_buf->vb2_buf, &dst_buf->vb2_buf);
 		mxc_jpeg_dec_mode_go(dev, reg);
 	}
+	schedule_delayed_work(&ctx->task_timer, msecs_to_jiffies(hw_timeout));
 end:
 	spin_unlock_irqrestore(&ctx->mxc_jpeg->hw_lock, flags);
 }
@@ -1671,6 +1711,7 @@ static int mxc_jpeg_open(struct file *file)
 	ctx->fh.ctrl_handler = &ctx->ctrl_handler;
 	mxc_jpeg_set_default_params(ctx);
 	ctx->slot = MXC_MAX_SLOTS; /* slot not allocated yet */
+	INIT_DELAYED_WORK(&ctx->task_timer, mxc_jpeg_device_run_timeout);
 
 	if (mxc_jpeg->mode == MXC_JPEG_DECODE)
 		dev_dbg(dev, "Opened JPEG decoder instance %p\n", ctx);
