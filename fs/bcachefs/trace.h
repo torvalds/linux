@@ -440,19 +440,26 @@ DEFINE_EVENT(bch_fs, gc_gens_end,
 
 DECLARE_EVENT_CLASS(bucket_alloc,
 	TP_PROTO(struct bch_dev *ca, const char *alloc_reserve,
+		 u64 free,
 		 u64 avail,
+		 u64 copygc_wait_amount,
+		 s64 copygc_waiting_for,
 		 u64 seen,
 		 u64 open,
 		 u64 need_journal_commit,
 		 u64 nouse,
 		 bool nonblocking,
 		 int ret),
-	TP_ARGS(ca, alloc_reserve, avail, seen, open, need_journal_commit, nouse, nonblocking, ret),
+	TP_ARGS(ca, alloc_reserve, free, avail, copygc_wait_amount, copygc_waiting_for,
+		seen, open, need_journal_commit, nouse, nonblocking, ret),
 
 	TP_STRUCT__entry(
 		__field(dev_t,			dev			)
 		__array(char,	reserve,	16			)
+		__field(u64,			free			)
 		__field(u64,			avail			)
+		__field(u64,			copygc_wait_amount	)
+		__field(s64,			copygc_waiting_for	)
 		__field(u64,			seen			)
 		__field(u64,			open			)
 		__field(u64,			need_journal_commit	)
@@ -464,7 +471,10 @@ DECLARE_EVENT_CLASS(bucket_alloc,
 	TP_fast_assign(
 		__entry->dev		= ca->dev;
 		strlcpy(__entry->reserve, alloc_reserve, sizeof(__entry->reserve));
+		__entry->free		= free;
 		__entry->avail		= avail;
+		__entry->copygc_wait_amount	= copygc_wait_amount;
+		__entry->copygc_waiting_for	= copygc_waiting_for;
 		__entry->seen		= seen;
 		__entry->open		= open;
 		__entry->need_journal_commit = need_journal_commit;
@@ -473,10 +483,13 @@ DECLARE_EVENT_CLASS(bucket_alloc,
 		__entry->ret		= ret;
 	),
 
-	TP_printk("%d,%d reserve %s avail %llu seen %llu open %llu need_journal_commit %llu nouse %llu nonblocking %u ret %i",
+	TP_printk("%d,%d reserve %s free %llu avail %llu copygc_wait %llu/%lli seen %llu open %llu need_journal_commit %llu nouse %llu nonblocking %u ret %i",
 		  MAJOR(__entry->dev), MINOR(__entry->dev),
 		  __entry->reserve,
+		  __entry->free,
 		  __entry->avail,
+		  __entry->copygc_wait_amount,
+		  __entry->copygc_waiting_for,
 		  __entry->seen,
 		  __entry->open,
 		  __entry->need_journal_commit,
@@ -487,26 +500,34 @@ DECLARE_EVENT_CLASS(bucket_alloc,
 
 DEFINE_EVENT(bucket_alloc, bucket_alloc,
 	TP_PROTO(struct bch_dev *ca, const char *alloc_reserve,
+		 u64 free,
 		 u64 avail,
+		 u64 copygc_wait_amount,
+		 s64 copygc_waiting_for,
 		 u64 seen,
 		 u64 open,
 		 u64 need_journal_commit,
 		 u64 nouse,
 		 bool nonblocking,
 		 int ret),
-	TP_ARGS(ca, alloc_reserve, avail, seen, open, need_journal_commit, nouse, nonblocking, ret)
+	TP_ARGS(ca, alloc_reserve, free, avail, copygc_wait_amount, copygc_waiting_for,
+		seen, open, need_journal_commit, nouse, nonblocking, ret)
 );
 
 DEFINE_EVENT(bucket_alloc, bucket_alloc_fail,
 	TP_PROTO(struct bch_dev *ca, const char *alloc_reserve,
+		 u64 free,
 		 u64 avail,
+		 u64 copygc_wait_amount,
+		 s64 copygc_waiting_for,
 		 u64 seen,
 		 u64 open,
 		 u64 need_journal_commit,
 		 u64 nouse,
 		 bool nonblocking,
 		 int ret),
-	TP_ARGS(ca, alloc_reserve, avail, seen, open, need_journal_commit, nouse, nonblocking, ret)
+	TP_ARGS(ca, alloc_reserve, free, avail, copygc_wait_amount, copygc_waiting_for,
+		seen, open, need_journal_commit, nouse, nonblocking, ret)
 );
 
 TRACE_EVENT(discard_buckets,
