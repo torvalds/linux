@@ -648,6 +648,54 @@ fail:
 	return false;
 }
 
+static int unpack_pdb(struct aa_ext *e, struct aa_policydb *policy,
+		      bool required_dfa, bool required_trans,
+		      const char **info)
+{
+	int i;
+
+	policy->dfa = unpack_dfa(e);
+	if (IS_ERR(policy->dfa)) {
+		int error = PTR_ERR(policy->dfa);
+
+		policy->dfa = NULL;
+		*info = "failed to unpack - dfa";
+		return error;
+	} else if (!policy->dfa) {
+		if (required_dfa) {
+			*info = "missing required dfa";
+			return -EPROTO;
+		}
+		goto out;
+	}
+
+	/*
+	 * only unpack the following if a dfa is present
+	 *
+	 * sadly start was given different names for file and policydb
+	 * but since it is optional we can try both
+	 */
+	if (!unpack_u32(e, &policy->start[0], "start"))
+		/* default start state */
+		policy->start[0] = DFA_START;
+	if (!unpack_u32(e, &policy->start[AA_CLASS_FILE], "dfa_start")) {
+		/* default start state for xmatch and file dfa */
+		policy->start[AA_CLASS_FILE] = DFA_START;
+	}	/* setup class index */
+	for (i = AA_CLASS_FILE + 1; i <= AA_CLASS_LAST; i++) {
+		policy->start[i] = aa_dfa_next(policy->dfa, policy->start[0],
+					       i);
+	}
+	if (!unpack_trans_table(e, &policy->trans) && required_trans) {
+		*info = "failed to unpack profile transition table";
+		return -EPROTO;
+	}
+	/* TODO: move compat mapping here, requires dfa merging first */
+
+out:
+	return 0;
+}
+
 static u32 strhash(const void *data, u32 len, u32 seed)
 {
 	const char * const *key = data;
@@ -679,7 +727,7 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	struct rhashtable_params params = { 0 };
 	char *key = NULL;
 	struct aa_data *data;
-	int i, error = -EPROTO;
+	int error = -EPROTO;
 	kernel_cap_t tmpcap;
 	u32 tmp;
 
@@ -714,13 +762,10 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	(void) unpack_str(e, &profile->attach, "attach");
 
 	/* xmatch is optional and may be NULL */
-	profile->xmatch.dfa = unpack_dfa(e);
-	if (IS_ERR(profile->xmatch.dfa)) {
-		error = PTR_ERR(profile->xmatch.dfa);
-		profile->xmatch.dfa = NULL;
-		info = "bad xmatch";
+	error = unpack_pdb(e, &profile->xmatch, false, false, &info);
+	if (error)
 		goto fail;
-	}
+
 	/* neither xmatch_len not xmatch_perms are optional if xmatch is set */
 	if (profile->xmatch.dfa) {
 		if (!unpack_u32(e, &tmp, NULL)) {
@@ -838,25 +883,16 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	if (unpack_nameX(e, AA_STRUCT, "policydb")) {
 		/* generic policy dfa - optional and may be NULL */
 		info = "failed to unpack policydb";
-		profile->policy.dfa = unpack_dfa(e);
-		if (IS_ERR(profile->policy.dfa)) {
-			error = PTR_ERR(profile->policy.dfa);
-			profile->policy.dfa = NULL;
+		error = unpack_pdb(e, &profile->policy, true, false, &info);
+		if (error)
 			goto fail;
-		} else if (!profile->policy.dfa) {
-			error = -EPROTO;
-			goto fail;
-		}
-		if (!unpack_u32(e, &profile->policy.start[0], "start"))
-			/* default start state */
-			profile->policy.start[0] = DFA_START;
-		/* setup class index */
-		for (i = AA_CLASS_FILE; i <= AA_CLASS_LAST; i++) {
-			profile->policy.start[i] =
-				aa_dfa_next(profile->policy.dfa,
-					    profile->policy.start[0],
-					    i);
-		}
+		/* Fixup: drop when we get rid of start array */
+		if (aa_dfa_next(profile->policy.dfa, profile->policy.start[0],
+				AA_CLASS_FILE))
+			profile->policy.start[AA_CLASS_FILE] =
+			  aa_dfa_next(profile->policy.dfa,
+				      profile->policy.start[0],
+				      AA_CLASS_FILE);
 		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
 			goto fail;
 		if (aa_compat_map_policy(&profile->policy, e->version)) {
@@ -867,23 +903,12 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		profile->policy.dfa = aa_get_dfa(nulldfa);
 
 	/* get file rules */
-	profile->file.dfa = unpack_dfa(e);
-	if (IS_ERR(profile->file.dfa)) {
-		error = PTR_ERR(profile->file.dfa);
-		profile->file.dfa = NULL;
-		info = "failed to unpack profile file rules";
+	error = unpack_pdb(e, &profile->file, false, true, &info);
+	if (error) {
 		goto fail;
 	} else if (profile->file.dfa) {
-		if (!unpack_u32(e, &profile->file.start[AA_CLASS_FILE],
-				"dfa_start"))
-			/* default start state */
-			profile->file.start[AA_CLASS_FILE] = DFA_START;
 		if (aa_compat_map_file(&profile->file)) {
 			info = "failed to remap file permission table";
-			goto fail;
-		}
-		if (!unpack_trans_table(e, &profile->file.trans)) {
-			info = "failed to unpack profile transition table";
 			goto fail;
 		}
 	} else if (profile->policy.dfa &&
