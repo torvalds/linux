@@ -2738,7 +2738,7 @@ void mlx5e_activate_priv_channels(struct mlx5e_priv *priv)
 	netif_tx_start_all_queues(priv->netdev);
 
 	if (mlx5e_is_vport_rep(priv))
-		mlx5e_add_sqs_fwd_rules(priv);
+		mlx5e_rep_activate_channels(priv);
 
 	mlx5e_wait_channels_min_rx_wqes(&priv->channels);
 
@@ -2752,7 +2752,7 @@ void mlx5e_deactivate_priv_channels(struct mlx5e_priv *priv)
 		mlx5e_rx_res_channels_deactivate(priv->rx_res);
 
 	if (mlx5e_is_vport_rep(priv))
-		mlx5e_remove_sqs_fwd_rules(priv);
+		mlx5e_rep_deactivate_channels(priv);
 
 	/* The results of ndo_select_queue are unreliable, while netdev config
 	 * is being changed (real_num_tx_queues, num_tc). Stop all queues to

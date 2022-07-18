@@ -398,7 +398,8 @@ out_err:
 	return err;
 }
 
-int mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
+static int
+mlx5e_add_sqs_fwd_rules(struct mlx5e_priv *priv)
 {
 	int sqs_per_channel = mlx5e_get_dcb_num_tc(&priv->channels.params);
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
@@ -452,13 +453,61 @@ out:
 	return err;
 }
 
-void mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv)
+static void
+mlx5e_remove_sqs_fwd_rules(struct mlx5e_priv *priv)
 {
 	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 	struct mlx5_eswitch_rep *rep = rpriv->rep;
 
 	mlx5e_sqs2vport_stop(esw, rep);
+}
+
+static int
+mlx5e_rep_add_meta_tunnel_rule(struct mlx5e_priv *priv)
+{
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+	struct mlx5_eswitch_rep *rep = rpriv->rep;
+	struct mlx5_flow_handle *flow_rule;
+	struct mlx5_flow_group *g;
+	int err;
+
+	g = esw->fdb_table.offloads.send_to_vport_meta_grp;
+	if (!g)
+		return 0;
+
+	flow_rule = mlx5_eswitch_add_send_to_vport_meta_rule(esw, rep->vport);
+	if (IS_ERR(flow_rule)) {
+		err = PTR_ERR(flow_rule);
+		goto out;
+	}
+
+	rpriv->send_to_vport_meta_rule = flow_rule;
+
+out:
+	return err;
+}
+
+static void
+mlx5e_rep_del_meta_tunnel_rule(struct mlx5e_priv *priv)
+{
+	struct mlx5e_rep_priv *rpriv = priv->ppriv;
+
+	if (rpriv->send_to_vport_meta_rule)
+		mlx5_eswitch_del_send_to_vport_meta_rule(rpriv->send_to_vport_meta_rule);
+}
+
+void mlx5e_rep_activate_channels(struct mlx5e_priv *priv)
+{
+	mlx5e_add_sqs_fwd_rules(priv);
+	mlx5e_rep_add_meta_tunnel_rule(priv);
+}
+
+void mlx5e_rep_deactivate_channels(struct mlx5e_priv *priv)
+{
+	mlx5e_rep_del_meta_tunnel_rule(priv);
+	mlx5e_remove_sqs_fwd_rules(priv);
 }
 
 static int mlx5e_rep_open(struct net_device *dev)
