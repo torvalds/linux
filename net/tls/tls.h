@@ -39,6 +39,9 @@
 #include <linux/skmsg.h>
 #include <net/tls.h>
 
+#define TLS_PAGE_ORDER	(min_t(unsigned int, PAGE_ALLOC_COSTLY_ORDER,	\
+			       TLS_MAX_PAYLOAD_SIZE >> PAGE_SHIFT))
+
 #define __TLS_INC_STATS(net, field)				\
 	__SNMP_INC_STATS((net)->mib.tls_statistics, field)
 #define TLS_INC_STATS(net, field)				\
@@ -118,18 +121,25 @@ void tls_device_write_space(struct sock *sk, struct tls_context *ctx);
 
 int tls_process_cmsg(struct sock *sk, struct msghdr *msg,
 		     unsigned char *record_type);
-int decrypt_skb(struct sock *sk, struct sk_buff *skb,
-		struct scatterlist *sgout);
+int decrypt_skb(struct sock *sk, struct scatterlist *sgout);
 
 int tls_sw_fallback_init(struct sock *sk,
 			 struct tls_offload_context_tx *offload_ctx,
 			 struct tls_crypto_info *crypto_info);
+
+int tls_strp_msg_hold(struct sock *sk, struct sk_buff *skb,
+		      struct sk_buff_head *dst);
 
 static inline struct tls_msg *tls_msg(struct sk_buff *skb)
 {
 	struct sk_skb_cb *scb = (struct sk_skb_cb *)skb->cb;
 
 	return &scb->tls;
+}
+
+static inline struct sk_buff *tls_strp_msg(struct tls_sw_context_rx *ctx)
+{
+	return ctx->recv_pkt;
 }
 
 #ifdef CONFIG_TLS_DEVICE
@@ -140,8 +150,7 @@ void tls_device_free_resources_tx(struct sock *sk);
 int tls_set_device_offload_rx(struct sock *sk, struct tls_context *ctx);
 void tls_device_offload_cleanup_rx(struct sock *sk);
 void tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq);
-int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx,
-			 struct sk_buff *skb, struct strp_msg *rxm);
+int tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx);
 #else
 static inline int tls_device_init(void) { return 0; }
 static inline void tls_device_cleanup(void) {}
@@ -165,8 +174,7 @@ static inline void
 tls_device_rx_resync_new_rec(struct sock *sk, u32 rcd_len, u32 seq) {}
 
 static inline int
-tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx,
-		     struct sk_buff *skb, struct strp_msg *rxm)
+tls_device_decrypted(struct sock *sk, struct tls_context *tls_ctx)
 {
 	return 0;
 }

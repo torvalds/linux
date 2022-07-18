@@ -72,7 +72,6 @@ struct sk_skb_cb {
 	/* strp users' data follows */
 	struct tls_msg {
 		u8 control;
-		u8 decrypted;
 	} tls;
 	/* temp_reg is a temporary register used for bpf_convert_data_end_access
 	 * when dst_reg == src_reg.
