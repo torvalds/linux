@@ -1808,9 +1808,9 @@ static struct configfs_attribute *nvmet_host_attrs[] = {
 static void nvmet_host_release(struct config_item *item)
 {
 	struct nvmet_host *host = to_host(item);
+
 #ifdef CONFIG_NVME_TARGET_AUTH
-	if (host->dhchap_secret)
-		kfree(host->dhchap_secret);
+	kfree(host->dhchap_secret);
 #endif
 	kfree(host);
 }
