@@ -1,7 +1,11 @@
-# SPDX-License-Identifier: GPL-2.0
+# SPDX-License-Identifier: GPL-2.0-only
+
+comment "Verisilicon media platform drivers"
+
 config VIDEO_HANTRO
 	tristate "Hantro VPU driver"
 	depends on ARCH_MXC || ARCH_ROCKCHIP || ARCH_AT91 || ARCH_SUNXI || COMPILE_TEST
+	depends on V4L_MEM2MEM_DRIVERS
 	depends on VIDEO_DEV
 	select MEDIA_CONTROLLER
 	select MEDIA_CONTROLLER_REQUEST_API
