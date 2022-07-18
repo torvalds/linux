@@ -3647,7 +3647,9 @@ ieee80211_rx_h_userspace_mgmt(struct ieee80211_rx_data *rx)
 	struct cfg80211_rx_info info = {
 		.freq = ieee80211_rx_status_to_khz(status),
 		.buf = rx->skb->data,
-		.len = rx->skb->len
+		.len = rx->skb->len,
+		.link_id = rx->link_id,
+		.have_link_id = rx->link_id >= 0,
 	};
 
 	/* skip known-bad action frames and return them in the next handler */
