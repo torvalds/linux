@@ -348,7 +348,7 @@
 
 		rpm: rpm@108000 {
 			compatible = "qcom,rpm-ipq8064";
-			reg = <0x108000 0x1000>;
+			reg = <0x00108000 0x1000>;
 			qcom,ipc = <&l2cc 0x8 2>;
 
 			interrupts = <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
@@ -389,7 +389,7 @@
 
 		qcom_pinmux: pinmux@800000 {
 			compatible = "qcom,ipq8064-pinctrl";
-			reg = <0x800000 0x4000>;
+			reg = <0x00800000 0x4000>;
 
 			gpio-controller;
 			gpio-ranges = <&qcom_pinmux 0 0 69>;
@@ -571,7 +571,7 @@
 
 		l2cc: clock-controller@2011000 {
 			compatible = "qcom,kpss-gcc", "syscon";
-			reg = <0x2011000 0x1000>;
+			reg = <0x02011000 0x1000>;
 			clocks = <&gcc PLL8_VOTE>, <&pxo_board>;
 			clock-names = "pll8_vote", "pxo";
 			clock-output-names = "acpu_l2_aux";
