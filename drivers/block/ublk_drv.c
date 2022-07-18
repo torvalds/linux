@@ -389,9 +389,6 @@ static inline unsigned int ublk_req_build_flags(struct request *req)
 	if (req->cmd_flags & REQ_META)
 		flags |= UBLK_IO_F_META;
 
-	if (req->cmd_flags & REQ_INTEGRITY)
-		flags |= UBLK_IO_F_INTEGRITY;
-
 	if (req->cmd_flags & REQ_FUA)
 		flags |= UBLK_IO_F_FUA;
 

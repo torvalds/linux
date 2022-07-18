@@ -106,7 +106,6 @@ struct ublksrv_ctrl_dev_info {
 #define		UBLK_IO_F_FAILFAST_TRANSPORT	(1U << 9)
 #define		UBLK_IO_F_FAILFAST_DRIVER	(1U << 10)
 #define		UBLK_IO_F_META			(1U << 11)
-#define		UBLK_IO_F_INTEGRITY		(1U << 12)
 #define		UBLK_IO_F_FUA			(1U << 13)
 #define		UBLK_IO_F_PREFLUSH		(1U << 14)
 #define		UBLK_IO_F_NOUNMAP		(1U << 15)
