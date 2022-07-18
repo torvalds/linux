@@ -2769,6 +2769,7 @@ UVCG_OPTS_ATTR(streaming_maxburst, streaming_maxburst, 15);
 UVCG_OPTS_ATTR(pm_qos_latency, pm_qos_latency, PM_QOS_LATENCY_ANY);
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 UVCG_OPTS_ATTR(uvc_num_request, uvc_num_request, 64);
+UVCG_OPTS_ATTR(uvc_zero_copy, uvc_zero_copy, 1);
 #endif
 
 #undef UVCG_OPTS_ATTR
@@ -2878,6 +2879,7 @@ static struct configfs_attribute *uvc_attrs[] = {
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 	&f_uvc_opts_attr_device_name,
 	&f_uvc_opts_attr_uvc_num_request,
+	&f_uvc_opts_attr_uvc_zero_copy,
 #endif
 	&f_uvc_opts_string_attr_function_name,
 	NULL,

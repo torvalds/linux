@@ -30,6 +30,7 @@ struct f_uvc_opts {
 	bool						device_name_allocated;
 	const char					*device_name;
 	unsigned int					uvc_num_request;
+	unsigned int					uvc_zero_copy;
 #endif
 
 	unsigned int					control_interface;
