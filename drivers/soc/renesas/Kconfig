@@ -44,6 +44,7 @@ config ARCH_RZG2L
 	bool
 	select PM
 	select PM_GENERIC_DOMAINS
+	select RENESAS_RZG2L_IRQC
 
 config ARCH_RZN1
 	bool
