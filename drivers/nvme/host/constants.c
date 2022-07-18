@@ -6,7 +6,6 @@
 
 #include "nvme.h"
 
-#ifdef CONFIG_NVME_VERBOSE_ERRORS
 static const char * const nvme_ops[] = {
 	[nvme_cmd_flush] = "Flush",
 	[nvme_cmd_write] = "Write",
@@ -185,4 +184,3 @@ const unsigned char *nvme_get_admin_opcode_str(u8 opcode)
 		return nvme_admin_ops[opcode];
 	return "Unknown";
 }
-#endif /* CONFIG_NVME_VERBOSE_ERRORS */
