@@ -93,6 +93,9 @@ mtk_flow_get_wdma_info(struct net_device *dev, const u8 *addr, struct mtk_wdma_i
 	};
 	struct net_device_path path = {};
 
+	if (!ctx.dev)
+		return -ENODEV;
+
 	memcpy(ctx.daddr, addr, sizeof(ctx.daddr));
 
 	if (!IS_ENABLED(CONFIG_NET_MEDIATEK_SOC_WED))
