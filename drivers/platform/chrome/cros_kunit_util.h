@@ -24,8 +24,12 @@ struct ec_xfer_mock {
 };
 
 extern int cros_kunit_ec_xfer_mock_default_ret;
+extern int cros_kunit_ec_cmd_xfer_mock_called;
+extern int cros_kunit_ec_pkt_xfer_mock_called;
 
 int cros_kunit_ec_xfer_mock(struct cros_ec_device *ec_dev, struct cros_ec_command *msg);
+int cros_kunit_ec_cmd_xfer_mock(struct cros_ec_device *ec_dev, struct cros_ec_command *msg);
+int cros_kunit_ec_pkt_xfer_mock(struct cros_ec_device *ec_dev, struct cros_ec_command *msg);
 struct ec_xfer_mock *cros_kunit_ec_xfer_mock_add(struct kunit *test, size_t size);
 struct ec_xfer_mock *cros_kunit_ec_xfer_mock_addx(struct kunit *test,
 						  int ret, int result, size_t size);

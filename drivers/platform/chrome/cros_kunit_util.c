@@ -15,6 +15,10 @@
 
 int cros_kunit_ec_xfer_mock_default_ret;
 EXPORT_SYMBOL_GPL(cros_kunit_ec_xfer_mock_default_ret);
+int cros_kunit_ec_cmd_xfer_mock_called;
+EXPORT_SYMBOL_GPL(cros_kunit_ec_cmd_xfer_mock_called);
+int cros_kunit_ec_pkt_xfer_mock_called;
+EXPORT_SYMBOL_GPL(cros_kunit_ec_pkt_xfer_mock_called);
 
 static struct list_head cros_kunit_ec_xfer_mock_in;
 static struct list_head cros_kunit_ec_xfer_mock_out;
@@ -45,6 +49,20 @@ int cros_kunit_ec_xfer_mock(struct cros_ec_device *ec_dev, struct cros_ec_comman
 	return mock->ret;
 }
 EXPORT_SYMBOL_GPL(cros_kunit_ec_xfer_mock);
+
+int cros_kunit_ec_cmd_xfer_mock(struct cros_ec_device *ec_dev, struct cros_ec_command *msg)
+{
+	++cros_kunit_ec_cmd_xfer_mock_called;
+	return cros_kunit_ec_xfer_mock(ec_dev, msg);
+}
+EXPORT_SYMBOL_GPL(cros_kunit_ec_cmd_xfer_mock);
+
+int cros_kunit_ec_pkt_xfer_mock(struct cros_ec_device *ec_dev, struct cros_ec_command *msg)
+{
+	++cros_kunit_ec_pkt_xfer_mock_called;
+	return cros_kunit_ec_xfer_mock(ec_dev, msg);
+}
+EXPORT_SYMBOL_GPL(cros_kunit_ec_pkt_xfer_mock);
 
 struct ec_xfer_mock *cros_kunit_ec_xfer_mock_add(struct kunit *test, size_t size)
 {
@@ -90,6 +108,8 @@ EXPORT_SYMBOL_GPL(cros_kunit_ec_xfer_mock_next);
 void cros_kunit_mock_reset(void)
 {
 	cros_kunit_ec_xfer_mock_default_ret = 0;
+	cros_kunit_ec_cmd_xfer_mock_called = 0;
+	cros_kunit_ec_pkt_xfer_mock_called = 0;
 	INIT_LIST_HEAD(&cros_kunit_ec_xfer_mock_in);
 	INIT_LIST_HEAD(&cros_kunit_ec_xfer_mock_out);
 }
