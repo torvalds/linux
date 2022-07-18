@@ -13022,6 +13022,7 @@ void kvm_fixup_and_inject_pf_error(struct kvm_vcpu *vcpu, gva_t gva, u16 error_c
 		fault.error_code = error_code;
 		fault.nested_page_fault = false;
 		fault.address = gva;
+		fault.async_page_fault = false;
 	}
 	vcpu->arch.walk_mmu->inject_page_fault(vcpu, &fault);
 }
