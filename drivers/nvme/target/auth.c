@@ -488,7 +488,7 @@ int nvmet_auth_ctrl_exponential(struct nvmet_req *req,
 		return -ENOKEY;
 	}
 	if (buf_size != ctrl->dh_keysize) {
-		pr_warn("ctrl %d DH public key size mismatch, need %lu is %d\n",
+		pr_warn("ctrl %d DH public key size mismatch, need %zu is %d\n",
 			ctrl->cntlid, ctrl->dh_keysize, buf_size);
 		ret = -EINVAL;
 	} else {
