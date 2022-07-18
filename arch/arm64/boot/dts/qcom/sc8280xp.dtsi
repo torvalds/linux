@@ -36,6 +36,9 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+		};
 		opp-403200000 {
 			opp-hz = /bits/ 64 <403200000>;
 		};
