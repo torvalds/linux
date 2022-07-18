@@ -387,7 +387,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 			break;
 
 		ret = bkey_err(k);
-		if (ret == -EINTR)
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			continue;
 		if (ret)
 			break;
@@ -409,7 +409,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 			ret = lookup_inode(&trans,
 					SPOS(0, k.k->p.inode, k.k->p.snapshot),
 					&inode);
-			if (ret == -EINTR)
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				continue;
 
 			if (!ret)
@@ -432,7 +432,7 @@ static int __bch2_move_data(struct moving_context *ctxt,
 		ret2 = bch2_move_extent(&trans, ctxt, io_opts,
 					btree_id, k, data_opts);
 		if (ret2) {
-			if (ret2 == -EINTR)
+			if (bch2_err_matches(ret2, BCH_ERR_transaction_restart))
 				continue;
 
 			if (ret2 == -ENOMEM) {
@@ -546,14 +546,14 @@ retry:
 				goto next;
 
 			ret = bch2_btree_node_rewrite(&trans, &iter, b, 0) ?: ret;
-			if (ret == -EINTR)
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 				continue;
 			if (ret)
 				break;
 next:
 			bch2_btree_iter_next_node(&iter);
 		}
-		if (ret == -EINTR)
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;
 
 		bch2_trans_iter_exit(&trans, &iter);

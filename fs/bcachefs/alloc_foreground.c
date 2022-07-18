@@ -470,8 +470,9 @@ again:
 		for (alloc_cursor = max(alloc_cursor, bkey_start_offset(k.k));
 		     alloc_cursor < k.k->p.offset;
 		     alloc_cursor++) {
-			if (btree_trans_too_many_iters(trans)) {
-				ob = ERR_PTR(-EINTR);
+			ret = btree_trans_too_many_iters(trans);
+			if (ret) {
+				ob = ERR_PTR(ret);
 				break;
 			}
 
@@ -488,7 +489,8 @@ again:
 				break;
 			}
 		}
-		if (ob)
+
+		if (ob || ret)
 			break;
 	}
 	bch2_trans_iter_exit(trans, &iter);
@@ -738,7 +740,7 @@ static int bch2_bucket_alloc_set_trans(struct btree_trans *trans,
 
 		ret = PTR_ERR_OR_ZERO(ob);
 		if (ret) {
-			if (ret == -EINTR || cl)
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart) || cl)
 				break;
 			continue;
 		}
@@ -925,7 +927,7 @@ static int open_bucket_add_buckets(struct btree_trans *trans,
 						 target, erasure_code,
 						 nr_replicas, nr_effective,
 						 have_cache, flags, _cl);
-			if (ret == -EINTR ||
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
 			    bch2_err_matches(ret, BCH_ERR_freelist_empty) ||
 			    bch2_err_matches(ret, BCH_ERR_open_buckets_empty))
 				return ret;
@@ -949,7 +951,7 @@ retry_blocking:
 				nr_replicas, nr_effective, have_cache,
 				reserve, flags, cl);
 	if (ret &&
-	    ret != -EINTR &&
+	    !bch2_err_matches(ret, BCH_ERR_transaction_restart) &&
 	    !bch2_err_matches(ret, BCH_ERR_insufficient_devices) &&
 	    !cl && _cl) {
 		cl = _cl;
@@ -1191,7 +1193,8 @@ retry:
 					      nr_replicas, &nr_effective,
 					      &have_cache, reserve,
 					      ob_flags, NULL);
-		if (!ret || ret == -EINTR)
+		if (!ret ||
+		    bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto alloc_done;
 
 		ret = open_bucket_add_buckets(trans, &ptrs, wp, devs_have,

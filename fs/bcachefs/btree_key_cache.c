@@ -5,6 +5,7 @@
 #include "btree_key_cache.h"
 #include "btree_locking.h"
 #include "btree_update.h"
+#include "errcode.h"
 #include "error.h"
 #include "journal.h"
 #include "journal_reclaim.h"
@@ -292,7 +293,7 @@ static int btree_key_cache_fill(struct btree_trans *trans,
 	if (!bch2_btree_node_relock(trans, ck_path, 0)) {
 		trace_trans_restart_relock_key_cache_fill(trans->fn,
 				_THIS_IP_, ck_path->btree_id, &ck_path->pos);
-		ret = btree_trans_restart(trans);
+		ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_key_cache_raced);
 		goto err;
 	}
 
@@ -347,8 +348,10 @@ static int bkey_cached_check_fn(struct six_lock *lock, void *p)
 	struct bkey_cached *ck = container_of(lock, struct bkey_cached, c.lock);
 	const struct btree_path *path = p;
 
-	return ck->key.btree_id == path->btree_id &&
-		!bpos_cmp(ck->key.pos, path->pos) ? 0 : -1;
+	if (ck->key.btree_id != path->btree_id &&
+	    bpos_cmp(ck->key.pos, path->pos))
+		return BCH_ERR_lock_fail_node_reused;
+	return 0;
 }
 
 __flatten
@@ -387,14 +390,15 @@ retry:
 	} else {
 		enum six_lock_type lock_want = __btree_lock_want(path, 0);
 
-		if (!btree_node_lock(trans, path, (void *) ck, path->pos, 0,
-				     lock_want,
-				     bkey_cached_check_fn, path, _THIS_IP_)) {
-			if (!trans->restarted)
+		ret = btree_node_lock(trans, path, (void *) ck, path->pos, 0,
+				      lock_want,
+				      bkey_cached_check_fn, path, _THIS_IP_);
+		if (ret) {
+			if (bch2_err_matches(ret, BCH_ERR_lock_fail_node_reused))
 				goto retry;
-
-			ret = -EINTR;
-			goto err;
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+				goto err;
+			BUG();
 		}
 
 		if (ck->key.btree_id != path->btree_id ||
@@ -413,7 +417,7 @@ fill:
 		if (!path->locks_want &&
 		    !__bch2_btree_path_upgrade(trans, path, 1)) {
 			trace_transaction_restart_ip(trans->fn, _THIS_IP_);
-			ret = btree_trans_restart(trans);
+			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
 			goto err;
 		}
 
@@ -430,7 +434,7 @@ fill:
 
 	return ret;
 err:
-	if (ret != -EINTR) {
+	if (!bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
 		btree_node_unlock(trans, path, 0);
 		path->l[0].b = BTREE_ITER_NO_NODE_ERROR;
 	}
@@ -497,13 +501,14 @@ static int btree_key_cache_flush_pos(struct btree_trans *trans,
 				   ? JOURNAL_WATERMARK_reserved
 				   : 0)|
 				  commit_flags);
-	if (ret) {
-		bch2_fs_fatal_err_on(ret != -EINTR &&
-				     ret != -EAGAIN &&
-				     !bch2_journal_error(j), c,
-			"error flushing key cache: %i", ret);
+
+	bch2_fs_fatal_err_on(ret &&
+			     !bch2_err_matches(ret, BCH_ERR_transaction_restart) &&
+			     !bch2_err_matches(ret, BCH_ERR_journal_reclaim_would_deadlock) &&
+			     !bch2_journal_error(j), c,
+			     "error flushing key cache: %s", bch2_err_str(ret));
+	if (ret)
 		goto out;
-	}
 
 	bch2_journal_pin_drop(j, &ck->journal);
 	bch2_journal_preres_put(j, &ck->res);

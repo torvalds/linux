@@ -152,7 +152,7 @@ static inline enum bch_time_stats lock_to_time_stat(enum six_lock_type type)
 	}
 }
 
-static inline bool btree_node_lock_type(struct btree_trans *trans,
+static inline int btree_node_lock_type(struct btree_trans *trans,
 				       struct btree_path *path,
 				       struct btree *b,
 				       struct bpos pos, unsigned level,
@@ -161,10 +161,10 @@ static inline bool btree_node_lock_type(struct btree_trans *trans,
 {
 	struct bch_fs *c = trans->c;
 	u64 start_time;
-	bool ret;
+	int ret;
 
 	if (six_trylock_type(&b->c.lock, type))
-		return true;
+		return 0;
 
 	start_time = local_clock();
 
@@ -174,13 +174,14 @@ static inline bool btree_node_lock_type(struct btree_trans *trans,
 	trans->locking_level	= level;
 	trans->locking_lock_type = type;
 	trans->locking		= b;
-	ret = six_lock_type(&b->c.lock, type, should_sleep_fn, p) == 0;
+	ret = six_lock_type(&b->c.lock, type, should_sleep_fn, p);
 	trans->locking = NULL;
 
 	if (ret)
-		bch2_time_stats_update(&c->times[lock_to_time_stat(type)], start_time);
+		return ret;
 
-	return ret;
+	bch2_time_stats_update(&c->times[lock_to_time_stat(type)], start_time);
+	return 0;
 }
 
 /*
@@ -203,33 +204,34 @@ static inline bool btree_node_lock_increment(struct btree_trans *trans,
 	return false;
 }
 
-bool __bch2_btree_node_lock(struct btree_trans *, struct btree_path *,
-			    struct btree *, struct bpos, unsigned,
-			    enum six_lock_type,
-			    six_lock_should_sleep_fn, void *,
-			    unsigned long);
+int __bch2_btree_node_lock(struct btree_trans *, struct btree_path *,
+			   struct btree *, struct bpos, unsigned,
+			   enum six_lock_type,
+			   six_lock_should_sleep_fn, void *,
+			   unsigned long);
 
-static inline bool btree_node_lock(struct btree_trans *trans,
+static inline int btree_node_lock(struct btree_trans *trans,
 			struct btree_path *path,
 			struct btree *b, struct bpos pos, unsigned level,
 			enum six_lock_type type,
 			six_lock_should_sleep_fn should_sleep_fn, void *p,
 			unsigned long ip)
 {
+	int ret = 0;
+
 	EBUG_ON(level >= BTREE_MAX_DEPTH);
 	EBUG_ON(!(trans->paths_allocated & (1ULL << path->idx)));
 
 	if (likely(six_trylock_type(&b->c.lock, type)) ||
-		btree_node_lock_increment(trans, b, level, type) ||
-		__bch2_btree_node_lock(trans, path, b, pos, level, type,
-				       should_sleep_fn, p, ip)) {
+	    btree_node_lock_increment(trans, b, level, type) ||
+	    !(ret = __bch2_btree_node_lock(trans, path, b, pos, level, type,
+					   should_sleep_fn, p, ip))) {
 #ifdef CONFIG_BCACHEFS_LOCK_TIME_STATS
 		path->l[b->c.level].lock_taken_time = ktime_get_ns();
 #endif
-		return true;
-	} else {
-		return false;
 	}
+
+	return ret;
 }
 
 bool __bch2_btree_node_relock(struct btree_trans *, struct btree_path *, unsigned);

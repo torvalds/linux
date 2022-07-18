@@ -572,18 +572,14 @@ static int ec_stripe_mem_alloc(struct btree_trans *trans,
 			       struct btree_iter *iter)
 {
 	size_t idx = iter->pos.offset;
-	int ret = 0;
 
 	if (!__ec_stripe_mem_alloc(trans->c, idx, GFP_NOWAIT|__GFP_NOWARN))
-		return ret;
+		return 0;
 
 	bch2_trans_unlock(trans);
-	ret = -EINTR;
 
-	if (!__ec_stripe_mem_alloc(trans->c, idx, GFP_KERNEL))
-		return ret;
-
-	return -ENOMEM;
+	return   __ec_stripe_mem_alloc(trans->c, idx, GFP_KERNEL) ?:
+		bch2_trans_relock(trans);
 }
 
 static ssize_t stripe_idx_to_delete(struct bch_fs *c)

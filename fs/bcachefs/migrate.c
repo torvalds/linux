@@ -146,7 +146,7 @@ retry:
 			}
 
 			ret = bch2_btree_node_update_key(&trans, &iter, b, k.k, false);
-			if (ret == -EINTR) {
+			if (bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
 				ret = 0;
 				continue;
 			}
@@ -159,7 +159,7 @@ retry:
 next:
 			bch2_btree_iter_next_node(&iter);
 		}
-		if (ret == -EINTR)
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;
 
 		bch2_trans_iter_exit(&trans, &iter);
@@ -174,7 +174,7 @@ err:
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&k, c);
 
-	BUG_ON(ret == -EINTR);
+	BUG_ON(bch2_err_matches(ret, BCH_ERR_transaction_restart));
 
 	return ret;
 }

@@ -640,7 +640,7 @@ static int rand_mixed_trans(struct btree_trans *trans,
 
 	k = bch2_btree_iter_peek(iter);
 	ret = bkey_err(k);
-	if (ret && ret != -EINTR)
+	if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		bch_err(trans->c, "lookup error in rand_mixed: %s", bch2_err_str(ret));
 	if (ret)
 		return ret;

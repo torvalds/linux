@@ -996,7 +996,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	if (!bch2_btree_path_upgrade(trans, path, U8_MAX)) {
 		trace_trans_restart_iter_upgrade(trans->fn, _RET_IP_,
 						 path->btree_id, &path->pos);
-		ret = btree_trans_restart(trans);
+		ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
 		return ERR_PTR(ret);
 	}
 
@@ -1005,9 +1005,10 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 	else if (!down_read_trylock(&c->gc_lock)) {
 		bch2_trans_unlock(trans);
 		down_read(&c->gc_lock);
-		if (!bch2_trans_relock(trans)) {
+		ret = bch2_trans_relock(trans);
+		if (ret) {
 			up_read(&c->gc_lock);
-			return ERR_PTR(-EINTR);
+			return ERR_PTR(ret);
 		}
 	}
 
@@ -1053,7 +1054,7 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 					      journal_flags);
 		if (ret) {
 			trace_trans_restart_journal_preres_get(trans->fn, _RET_IP_);
-			btree_trans_restart(trans);
+			ret = btree_trans_restart(trans, BCH_ERR_transaction_restart_journal_preres_get);
 			goto err;
 		}
 
@@ -1090,10 +1091,9 @@ bch2_btree_update_start(struct btree_trans *trans, struct btree_path *path,
 		goto err;
 	}
 
-	if (!bch2_trans_relock(trans)) {
-		ret = -EINTR;
+	ret = bch2_trans_relock(trans);
+	if (ret)
 		goto err;
-	}
 
 	return as;
 err:
@@ -2030,10 +2030,8 @@ int bch2_btree_node_update_key(struct btree_trans *trans, struct btree_iter *ite
 	int ret = 0;
 
 	if (!btree_node_intent_locked(path, b->c.level) &&
-	    !bch2_btree_path_upgrade(trans, path, b->c.level + 1)) {
-		btree_trans_restart(trans);
-		return -EINTR;
-	}
+	    !bch2_btree_path_upgrade(trans, path, b->c.level + 1))
+		return btree_trans_restart(trans, BCH_ERR_transaction_restart_upgrade);
 
 	closure_init_stack(&cl);
 
@@ -2046,8 +2044,9 @@ int bch2_btree_node_update_key(struct btree_trans *trans, struct btree_iter *ite
 		if (ret) {
 			bch2_trans_unlock(trans);
 			closure_sync(&cl);
-			if (!bch2_trans_relock(trans))
-				return -EINTR;
+			ret = bch2_trans_relock(trans);
+			if (ret)
+				return ret;
 		}
 
 		new_hash = bch2_btree_node_mem_alloc(c, false);

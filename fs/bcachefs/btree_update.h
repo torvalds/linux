@@ -90,7 +90,6 @@ int bch2_trans_log_msg(struct btree_trans *, const char *);
  * This is main entry point for btree updates.
  *
  * Return values:
- * -EINTR: locking changed, this function should be called again.
  * -EROFS: filesystem read only
  * -EIO: journal or btree node IO error
  */

@@ -471,7 +471,7 @@ retry:
 
 	ret = __bch2_dirent_lookup_trans(&trans, &iter, dir, hash_info,
 					  name, inum, 0);
-	if (ret == -EINTR)
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 	if (!ret)
 		bch2_trans_iter_exit(&trans, &iter);
@@ -556,7 +556,7 @@ retry:
 	}
 	bch2_trans_iter_exit(&trans, &iter);
 err:
-	if (ret == -EINTR)
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 
 	bch2_trans_exit(&trans);

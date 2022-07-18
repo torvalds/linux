@@ -7,7 +7,30 @@
 	x(0,			freelist_empty)				\
 	x(freelist_empty,	no_buckets_found)			\
 	x(0,			insufficient_devices)			\
-	x(0,			need_snapshot_cleanup)
+	x(0,			need_snapshot_cleanup)			\
+	x(0,			transaction_restart)			\
+	x(transaction_restart,	transaction_restart_fault_inject)	\
+	x(transaction_restart,	transaction_restart_relock)		\
+	x(transaction_restart,	transaction_restart_relock_path)	\
+	x(transaction_restart,	transaction_restart_relock_path_intent)	\
+	x(transaction_restart,	transaction_restart_relock_after_fill)	\
+	x(transaction_restart,	transaction_restart_too_many_iters)	\
+	x(transaction_restart,	transaction_restart_lock_node_reused)	\
+	x(transaction_restart,	transaction_restart_fill_relock)	\
+	x(transaction_restart,	transaction_restart_fill_mem_alloc_fail)\
+	x(transaction_restart,	transaction_restart_mem_realloced)	\
+	x(transaction_restart,	transaction_restart_in_traverse_all)	\
+	x(transaction_restart,	transaction_restart_would_deadlock)	\
+	x(transaction_restart,	transaction_restart_would_deadlock_write)\
+	x(transaction_restart,	transaction_restart_upgrade)		\
+	x(transaction_restart,	transaction_restart_key_cache_fill)	\
+	x(transaction_restart,	transaction_restart_key_cache_raced)	\
+	x(transaction_restart,	transaction_restart_key_cache_realloced)\
+	x(transaction_restart,	transaction_restart_journal_preres_get)	\
+	x(transaction_restart,	transaction_restart_nested)		\
+	x(0,			lock_fail_node_reused)			\
+	x(0,			lock_fail_root_changed)			\
+	x(0,			journal_reclaim_would_deadlock)
 
 enum bch_errcode {
 	BCH_ERR_START		= 2048,

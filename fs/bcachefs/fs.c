@@ -154,7 +154,7 @@ retry:
 
 	bch2_trans_iter_exit(&trans, &iter);
 
-	if (ret == -EINTR)
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 
 	bch2_trans_exit(&trans);
@@ -324,7 +324,7 @@ retry:
 		bch2_quota_acct(c, bch_qid(&inode_u), Q_INO, -1,
 				KEY_TYPE_QUOTA_WARN);
 err_before_quota:
-		if (ret == -EINTR)
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;
 		goto err_trans;
 	}
@@ -755,7 +755,7 @@ retry:
 btree_err:
 	bch2_trans_iter_exit(&trans, &inode_iter);
 
-	if (ret == -EINTR)
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 	if (unlikely(ret))
 		goto err_trans;
@@ -987,7 +987,7 @@ retry:
 	start = iter.pos.offset;
 	bch2_trans_iter_exit(&trans, &iter);
 err:
-	if (ret == -EINTR)
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 
 	if (!ret && have_extent)
@@ -1337,7 +1337,7 @@ found:
 	memcpy(name, d.v->d_name, name_len);
 	name[name_len] = '\0';
 err:
-	if (ret == -EINTR)
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 
 	bch2_trans_iter_exit(&trans, &iter1);

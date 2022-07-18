@@ -236,7 +236,7 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 				bch2_ob_add_backpointer(c, ec_ob, &insert->k);
 		}
 err:
-		if (ret == -EINTR)
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			ret = 0;
 		if (ret)
 			break;
@@ -264,7 +264,7 @@ out:
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&_insert, c);
 	bch2_bkey_buf_exit(&_new, c);
-	BUG_ON(ret == -EINTR);
+	BUG_ON(bch2_err_matches(ret, BCH_ERR_transaction_restart));
 	return ret;
 }
 

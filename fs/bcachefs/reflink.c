@@ -299,7 +299,8 @@ s64 bch2_remap_range(struct bch_fs *c,
 	bch2_trans_iter_init(&trans, &dst_iter, BTREE_ID_extents, dst_start,
 			     BTREE_ITER_INTENT);
 
-	while ((ret == 0 || ret == -EINTR) &&
+	while ((ret == 0 ||
+		bch2_err_matches(ret, BCH_ERR_transaction_restart)) &&
 	       bkey_cmp(dst_iter.pos, dst_end) < 0) {
 		struct disk_reservation disk_res = { 0 };
 
@@ -409,7 +410,7 @@ s64 bch2_remap_range(struct bch_fs *c,
 		}
 
 		bch2_trans_iter_exit(&trans, &inode_iter);
-	} while (ret2 == -EINTR);
+	} while (bch2_err_matches(ret2, BCH_ERR_transaction_restart));
 
 	bch2_trans_exit(&trans);
 	bch2_bkey_buf_exit(&new_src, c);

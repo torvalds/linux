@@ -315,7 +315,7 @@ static int check_subvol(struct btree_trans *trans,
 
 	if (BCH_SUBVOLUME_UNLINKED(subvol.v)) {
 		ret = bch2_subvolume_delete(trans, iter->pos.offset);
-		if (ret && ret != -EINTR)
+		if (ret && !bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			bch_err(trans->c, "error deleting subvolume %llu: %s",
 				iter->pos.offset, bch2_err_str(ret));
 		if (ret)

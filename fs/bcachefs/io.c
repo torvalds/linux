@@ -390,7 +390,7 @@ err:
 }
 
 /*
- * Returns -EINTR if we had to drop locks:
+ * Returns -BCH_ERR_transacton_restart if we had to drop locks:
  */
 int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 		   subvol_inum inum, u64 end,
@@ -403,7 +403,8 @@ int bch2_fpunch_at(struct btree_trans *trans, struct btree_iter *iter,
 	int ret = 0, ret2 = 0;
 	u32 snapshot;
 
-	while (!ret || ret == -EINTR) {
+	while (!ret ||
+	       bch2_err_matches(ret, BCH_ERR_transaction_restart)) {
 		struct disk_reservation disk_res =
 			bch2_disk_reservation_init(c, 0);
 		struct bkey_i delete;
@@ -462,7 +463,10 @@ int bch2_fpunch(struct bch_fs *c, subvol_inum inum, u64 start, u64 end,
 	bch2_trans_iter_exit(&trans, &iter);
 	bch2_trans_exit(&trans);
 
-	return ret == -EINTR ? 0 : ret;
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
+		ret = 0;
+
+	return ret;
 }
 
 static int bch2_write_index_default(struct bch_write_op *op)
@@ -493,7 +497,7 @@ static int bch2_write_index_default(struct bch_write_op *op)
 
 		ret = bch2_subvolume_get_snapshot(&trans, inum.subvol,
 						  &sk.k->k.p.snapshot);
-		if (ret == -EINTR)
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			continue;
 		if (ret)
 			break;
@@ -508,7 +512,7 @@ static int bch2_write_index_default(struct bch_write_op *op)
 					 op->flags & BCH_WRITE_CHECK_ENOSPC);
 		bch2_trans_iter_exit(&trans, &iter);
 
-		if (ret == -EINTR)
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			continue;
 		if (ret)
 			break;
@@ -663,7 +667,7 @@ static void __bch2_write_index(struct bch_write_op *op)
 			? bch2_write_index_default(op)
 			: bch2_data_update_index_update(op);
 
-		BUG_ON(ret == -EINTR);
+		BUG_ON(bch2_err_matches(ret, BCH_ERR_transaction_restart));
 		BUG_ON(keylist_sectors(keys) && !ret);
 
 		op->written += sectors_start - keylist_sectors(keys);
@@ -2429,10 +2433,9 @@ retry:
 		 * read_extent -> io_time_reset may cause a transaction restart
 		 * without returning an error, we need to check for that here:
 		 */
-		if (!bch2_trans_relock(&trans)) {
-			ret = -EINTR;
+		ret = bch2_trans_relock(&trans);
+		if (ret)
 			break;
-		}
 
 		bch2_btree_iter_set_pos(&iter,
 				POS(inum.inum, bvec_iter.bi_sector));
@@ -2486,7 +2489,9 @@ retry:
 err:
 	bch2_trans_iter_exit(&trans, &iter);
 
-	if (ret == -EINTR || ret == READ_RETRY || ret == READ_RETRY_AVOID)
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart) ||
+	    ret == READ_RETRY ||
+	    ret == READ_RETRY_AVOID)
 		goto retry;
 
 	bch2_trans_exit(&trans);

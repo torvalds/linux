@@ -272,7 +272,7 @@ retry:
 		       !test_bit(BCH_FS_STOPPING, &c->flags))
 			b = bch2_btree_iter_next_node(&iter);
 
-		if (ret == -EINTR)
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;
 
 		bch2_trans_iter_exit(&trans, &iter);

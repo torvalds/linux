@@ -234,7 +234,7 @@ retry:
 			&X_SEARCH(acl_to_xattr_type(type), "", 0),
 			0);
 	if (ret) {
-		if (ret == -EINTR)
+		if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 			goto retry;
 		if (ret != -ENOENT)
 			acl = ERR_PTR(ret);
@@ -334,7 +334,7 @@ retry:
 btree_err:
 	bch2_trans_iter_exit(&trans, &inode_iter);
 
-	if (ret == -EINTR)
+	if (bch2_err_matches(ret, BCH_ERR_transaction_restart))
 		goto retry;
 	if (unlikely(ret))
 		goto err;
