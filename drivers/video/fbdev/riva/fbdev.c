@@ -29,6 +29,7 @@
  *	doublescan modes are broken
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1897,6 +1898,10 @@ static int rivafb_probe(struct pci_dev *pd, const struct pci_device_id *ent)
 
 	NVTRACE_ENTER();
 	assert(pd != NULL);
+
+	ret = aperture_remove_conflicting_pci_devices(pd, "rivafb");
+	if (ret)
+		return ret;
 
 	info = framebuffer_alloc(sizeof(struct riva_par), &pd->dev);
 	if (!info) {

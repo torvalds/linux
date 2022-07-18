@@ -12,6 +12,7 @@
  *  more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/bitrev.h>
 #include <linux/compiler.h>
 #include <linux/delay.h>
@@ -106,6 +107,12 @@ static struct pci_driver tgafb_pci_driver = {
 static int tgafb_pci_register(struct pci_dev *pdev,
 			      const struct pci_device_id *ent)
 {
+	int ret;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "tgafb");
+	if (ret)
+		return ret;
+
 	return tgafb_register(&pdev->dev);
 }
 

@@ -28,6 +28,7 @@
  *  more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -2015,6 +2016,10 @@ static int i810fb_init_pci(struct pci_dev *dev,
 	struct i810fb_par *par = NULL;
 	struct fb_videomode mode;
 	int err = -1, vfreq, hfreq, pixclock;
+
+	err = aperture_remove_conflicting_pci_devices(dev, "i810fb");
+	if (err)
+		return err;
 
 	info = framebuffer_alloc(sizeof(struct i810fb_par), &dev->dev);
 	if (!info)

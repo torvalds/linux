@@ -80,6 +80,7 @@
  * Includes
  */
 
+#include <linux/aperture.h>
 #include <linux/string.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
@@ -1325,6 +1326,10 @@ static int sstfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	struct sstfb_par *par;
 	struct sst_spec *spec;
 	int err;
+
+	err = aperture_remove_conflicting_pci_devices(pdev, "sstfb");
+	if (err)
+		return err;
 
 	/* Enable device in PCI config. */
 	if ((err=pci_enable_device(pdev))) {

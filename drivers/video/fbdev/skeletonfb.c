@@ -42,6 +42,7 @@
  *  more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -667,6 +668,13 @@ static int xxxfb_probe(struct pci_dev *dev, const struct pci_device_id *ent)
     struct xxx_par *par;
     struct device *device = &dev->dev; /* or &pdev->dev */
     int cmap_len, retval;
+
+    /*
+     * Remove firmware-based drivers that create resource conflicts.
+     */
+    retval = aperture_remove_conflicting_pci_devices(pdev, "xxxfb");
+    if (retval)
+	    return retval;
 
     /*
      * Dynamically allocate info and par

@@ -16,6 +16,7 @@
  *  more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -1469,7 +1470,12 @@ static int imsttfb_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct imstt_par *par;
 	struct fb_info *info;
 	struct device_node *dp;
-	int ret = -ENOMEM;
+	int ret;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "imsttfb");
+	if (ret)
+		return ret;
+	ret = -ENOMEM;
 
 	dp = pci_device_to_OF_node(pdev);
 	if(dp)

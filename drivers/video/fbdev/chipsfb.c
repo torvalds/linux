@@ -14,6 +14,7 @@
  *  more details.
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -351,7 +352,11 @@ static int chipsfb_pci_init(struct pci_dev *dp, const struct pci_device_id *ent)
 	struct fb_info *p;
 	unsigned long addr;
 	unsigned short cmd;
-	int rc = -ENODEV;
+	int rc;
+
+	rc = aperture_remove_conflicting_pci_devices(dp, "chipsfb");
+	if (rc)
+		return rc;
 
 	if (pci_enable_device(dp) < 0) {
 		dev_err(&dp->dev, "Cannot enable PCI device\n");

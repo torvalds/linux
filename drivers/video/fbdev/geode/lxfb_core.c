@@ -6,6 +6,7 @@
  * Built from gxfb (which is Copyright (C) 2006 Arcom Control Systems Ltd.)
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -483,6 +484,10 @@ static int lxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	struct fb_videomode *modedb_ptr;
 	unsigned int modedb_size;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "lxfb");
+	if (ret)
+		return ret;
 
 	info = lxfb_init_fbinfo(&pdev->dev);
 

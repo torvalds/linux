@@ -54,6 +54,7 @@
  *
  */
 
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -2028,6 +2029,10 @@ static int neofb_probe(struct pci_dev *dev, const struct pci_device_id *id)
 	int video_len, err;
 
 	DBG("neofb_probe");
+
+	err = aperture_remove_conflicting_pci_devices(dev, "neofb");
+	if (err)
+		return err;
 
 	err = pci_enable_device(dev);
 	if (err)

@@ -15,6 +15,7 @@
  *
  * 16 MiB of framebuffer memory is assumed to be available.
  */
+#include <linux/aperture.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/errno.h>
@@ -363,6 +364,10 @@ static int gxfb_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	struct fb_videomode *modedb_ptr;
 	unsigned int modedb_size;
+
+	ret = aperture_remove_conflicting_pci_devices(pdev, "gxfb");
+	if (ret)
+		return ret;
 
 	info = gxfb_init_fbinfo(&pdev->dev);
 	if (!info)
