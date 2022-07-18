@@ -12,6 +12,8 @@
 #include <linux/types.h>
 #include <linux/vgaarb.h>
 
+#include <video/vga.h>
+
 /**
  * DOC: overview
  *
@@ -300,6 +302,16 @@ int aperture_remove_conflicting_devices(resource_size_t base, resource_size_t si
 	 */
 	sysfb_disable();
 
+	aperture_detach_devices(base, size);
+
+	/*
+	 * If this is the primary adapter, there could be a VGA device
+	 * that consumes the VGA framebuffer I/O range. Remove this device
+	 * as well.
+	 */
+	if (primary)
+		aperture_detach_devices(VGA_FB_PHYS_BASE, VGA_FB_PHYS_SIZE);
+
 #if IS_REACHABLE(CONFIG_FB)
 	a = alloc_apertures(1);
 	if (!a)
@@ -314,8 +326,6 @@ int aperture_remove_conflicting_devices(resource_size_t base, resource_size_t si
 	if (ret)
 		return ret;
 #endif
-
-	aperture_detach_devices(base, size);
 
 	return 0;
 }
