@@ -17,6 +17,7 @@
 #include "subvolume.h"
 #include "trace.h"
 
+#include <linux/random.h>
 #include <linux/prefetch.h>
 
 static inline void btree_path_list_remove(struct btree_trans *, struct btree_path *);
@@ -1660,6 +1661,16 @@ out:
 int __must_check bch2_btree_path_traverse(struct btree_trans *trans,
 					  struct btree_path *path, unsigned flags)
 {
+	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
+		unsigned restart_probability_bits = 4 << min(trans->restart_count, 32U);
+		u64 max = ~(~0ULL << restart_probability_bits);
+
+		if (!get_random_u32_below(max)) {
+			trace_transaction_restart_injected(trans->fn, _RET_IP_);
+			return btree_trans_restart(trans, BCH_ERR_transaction_restart_fault_inject);
+		}
+	}
+
 	if (path->uptodate < BTREE_ITER_NEED_RELOCK)
 		return 0;
 
