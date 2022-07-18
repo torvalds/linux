@@ -2294,13 +2294,14 @@ static int cdns3_gadget_ep_enable(struct usb_ep *ep,
 	int val;
 
 	priv_ep = ep_to_cdns3_ep(ep);
-	priv_dev = priv_ep->cdns3_dev;
-	comp_desc = priv_ep->endpoint.comp_desc;
 
 	if (!ep || !desc || desc->bDescriptorType != USB_DT_ENDPOINT) {
 		dev_dbg(priv_dev->dev, "usbss: invalid parameters\n");
 		return -EINVAL;
 	}
+
+	comp_desc = priv_ep->endpoint.comp_desc;
+	priv_dev = priv_ep->cdns3_dev;
 
 	if (!desc->wMaxPacketSize) {
 		dev_err(priv_dev->dev, "usbss: missing wMaxPacketSize\n");
@@ -2609,7 +2610,7 @@ int cdns3_gadget_ep_dequeue(struct usb_ep *ep,
 			    struct usb_request *request)
 {
 	struct cdns3_endpoint *priv_ep = ep_to_cdns3_ep(ep);
-	struct cdns3_device *priv_dev = priv_ep->cdns3_dev;
+	struct cdns3_device *priv_dev;
 	struct usb_request *req, *req_temp;
 	struct cdns3_request *priv_req;
 	struct cdns3_trb *link_trb;
@@ -2619,6 +2620,8 @@ int cdns3_gadget_ep_dequeue(struct usb_ep *ep,
 
 	if (!ep || !request || !ep->desc)
 		return -EINVAL;
+
+	priv_dev = priv_ep->cdns3_dev;
 
 	spin_lock_irqsave(&priv_dev->lock, flags);
 
