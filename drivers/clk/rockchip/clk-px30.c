@@ -982,7 +982,17 @@ static struct rockchip_clk_branch px30_clk_pmu_branches[] __initdata = {
 	GATE(0, "pclk_cru_pmu", "pclk_pmu_pre", CLK_IGNORE_UNUSED, PX30_PMU_CLKGATE_CON(0), 8, GFLAGS),
 };
 
-static struct rockchip_clk_provider *cru_ctx;
+static __initdata struct rockchip_clk_provider *cru_ctx, *pmucru_ctx;
+static void __init px30_register_armclk(void)
+{
+	rockchip_clk_register_armclk(cru_ctx, ARMCLK, "armclk", 2,
+				     cru_ctx->clk_data.clks[PLL_APLL],
+				     pmucru_ctx->clk_data.clks[PLL_GPLL],
+				     &px30_cpuclk_data,
+				     px30_cpuclk_rates,
+				     ARRAY_SIZE(px30_cpuclk_rates));
+}
+
 static void __init px30_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
@@ -1000,10 +1010,15 @@ static void __init px30_clk_init(struct device_node *np)
 		iounmap(reg_base);
 		return;
 	}
+	cru_ctx = ctx;
 
 	rockchip_clk_register_plls(ctx, px30_pll_clks,
 				   ARRAY_SIZE(px30_pll_clks),
 				   PX30_GRF_SOC_STATUS0);
+
+	if (pmucru_ctx)
+		px30_register_armclk();
+
 	rockchip_clk_register_branches(ctx, px30_clk_branches,
 				       ARRAY_SIZE(px30_clk_branches));
 	if (of_machine_is_compatible("rockchip,px30"))
@@ -1019,8 +1034,6 @@ static void __init px30_clk_init(struct device_node *np)
 	rockchip_register_restart_notifier(ctx, PX30_GLB_SRST_FST, NULL);
 
 	rockchip_clk_of_add_provider(np, ctx);
-
-	cru_ctx = ctx;
 }
 CLK_OF_DECLARE(px30_cru, "rockchip,px30-cru", px30_clk_init);
 
@@ -1028,7 +1041,6 @@ static void __init px30_pmu_clk_init(struct device_node *np)
 {
 	struct rockchip_clk_provider *ctx;
 	void __iomem *reg_base;
-	struct clk **pmucru_clks, **cru_clks;
 
 	reg_base = of_iomap(np, 0);
 	if (!reg_base) {
@@ -1041,16 +1053,13 @@ static void __init px30_pmu_clk_init(struct device_node *np)
 		pr_err("%s: rockchip pmu clk init failed\n", __func__);
 		return;
 	}
-	pmucru_clks = ctx->clk_data.clks;
-	cru_clks = cru_ctx->clk_data.clks;
+	pmucru_ctx = ctx;
 
 	rockchip_clk_register_plls(ctx, px30_pmu_pll_clks,
 				   ARRAY_SIZE(px30_pmu_pll_clks), PX30_GRF_SOC_STATUS0);
 
-	rockchip_clk_register_armclk(cru_ctx, ARMCLK, "armclk",
-				     2, cru_clks[PLL_APLL], pmucru_clks[PLL_GPLL],
-				     &px30_cpuclk_data, px30_cpuclk_rates,
-				     ARRAY_SIZE(px30_cpuclk_rates));
+	if (cru_ctx)
+		px30_register_armclk();
 
 	rockchip_clk_register_branches(ctx, px30_clk_pmu_branches,
 				       ARRAY_SIZE(px30_clk_pmu_branches));
