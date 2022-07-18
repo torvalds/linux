@@ -1304,21 +1304,6 @@ static const struct fb_ops vga16fb_ops = {
 	.fb_imageblit	= vga16fb_imageblit,
 };
 
-#ifndef MODULE
-static int __init vga16fb_setup(char *options)
-{
-	char *this_opt;
-
-	if (!options || !*options)
-		return 0;
-
-	while ((this_opt = strsep(&options, ",")) != NULL) {
-		if (!*this_opt) continue;
-	}
-	return 0;
-}
-#endif
-
 static int vga16fb_probe(struct platform_device *dev)
 {
 	struct screen_info *si;
@@ -1449,31 +1434,7 @@ static struct platform_driver vga16fb_driver = {
 	.id_table = vga16fb_driver_id_table,
 };
 
-static int __init vga16fb_init(void)
-{
-	int ret;
-#ifndef MODULE
-	char *option = NULL;
-
-	if (fb_get_options("vga16fb", &option))
-		return -ENODEV;
-
-	vga16fb_setup(option);
-#endif
-
-	ret = platform_driver_register(&vga16fb_driver);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
-static void __exit vga16fb_exit(void)
-{
-	platform_driver_unregister(&vga16fb_driver);
-}
+module_platform_driver(vga16fb_driver);
 
 MODULE_DESCRIPTION("Legacy VGA framebuffer device driver");
 MODULE_LICENSE("GPL");
-module_init(vga16fb_init);
-module_exit(vga16fb_exit);
