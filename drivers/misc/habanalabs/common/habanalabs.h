@@ -2506,7 +2506,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 				break; \
 			(val) = __elbi_read; \
 		} else {\
-			(val) = RREG32((u32)addr); \
+			(val) = RREG32((u32)(addr)); \
 		} \
 		if (cond) \
 			break; \
@@ -2517,7 +2517,7 @@ void hl_wreg(struct hl_device *hdev, u32 reg, u32 val);
 					break; \
 				(val) = __elbi_read; \
 			} else {\
-				(val) = RREG32((u32)addr); \
+				(val) = RREG32((u32)(addr)); \
 			} \
 			break; \
 		} \
