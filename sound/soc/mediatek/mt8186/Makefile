@@ -15,5 +15,6 @@ snd-soc-mt8186-afe-objs := \
 	mt8186-dai-hostless.o \
 	mt8186-dai-tdm.o \
 	mt8186-misc-control.o \
+	mt8186-mt6366-common.o
 
 obj-$(CONFIG_SND_SOC_MT8186) += snd-soc-mt8186-afe.o
