@@ -49,7 +49,7 @@ mt7663_usb_sdio_write_txwi(struct mt7615_dev *dev, struct mt76_wcid *wcid,
 	__le32 *txwi = (__le32 *)(skb->data - MT_USB_TXD_SIZE);
 
 	memset(txwi, 0, MT_USB_TXD_SIZE);
-	mt7615_mac_write_txwi(dev, txwi, skb, wcid, sta, pid, key, false);
+	mt7615_mac_write_txwi(dev, txwi, skb, wcid, sta, pid, key, qid, false);
 	skb_push(skb, MT_USB_TXD_SIZE);
 }
 
