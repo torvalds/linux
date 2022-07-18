@@ -353,7 +353,7 @@ static void watchdog_timer_interrupt(int cpu)
 	if (__wd_nmi_output && xchg(&__wd_nmi_output, 0)) {
 		/*
 		 * Something has called printk from NMI context. It might be
-		 * stuck, so this this triggers a flush that will get that
+		 * stuck, so this triggers a flush that will get that
 		 * printk output to the console.
 		 *
 		 * See wd_lockup_ipi.

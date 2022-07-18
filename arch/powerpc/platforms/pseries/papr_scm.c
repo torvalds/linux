@@ -29,7 +29,7 @@
 	 (1ul << ND_CMD_SET_CONFIG_DATA) | \
 	 (1ul << ND_CMD_CALL))
 
-/* DIMM health bitmap bitmap indicators */
+/* DIMM health bitmap indicators */
 /* SCM device is unable to persist memory contents */
 #define PAPR_PMEM_UNARMED                   (1ULL << (63 - 0))
 /* SCM device failed to persist memory contents */

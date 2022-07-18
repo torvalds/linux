@@ -2779,7 +2779,7 @@ EXC_COMMON_BEGIN(soft_nmi_common)
 
 /*
  * An interrupt came in while soft-disabled. We set paca->irq_happened, then:
- * - If it was a decrementer interrupt, we bump the dec to max and and return.
+ * - If it was a decrementer interrupt, we bump the dec to max and return.
  * - If it was a doorbell we return immediately since doorbells are edge
  *   triggered and won't automatically refire.
  * - If it was a HMI we return immediately since we handled it in realmode
