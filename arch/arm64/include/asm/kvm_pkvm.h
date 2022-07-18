@@ -335,9 +335,26 @@ static inline unsigned long host_s2_pgtable_pages(void)
 
 #define KVM_FFA_MBOX_NR_PAGES	1
 
+/*
+ * Maximum number of consitutents allowed in a descriptor. This number is
+ * arbitrary, see comment below on SG_MAX_SEGMENTS in hyp_ffa_proxy_pages().
+ */
+#define KVM_FFA_MAX_NR_CONSTITUENTS	4096
+
 static inline unsigned long hyp_ffa_proxy_pages(void)
 {
 	size_t desc_max;
+
+	/*
+	 * SG_MAX_SEGMENTS is supposed to bound the number of elements in an
+	 * sglist, which should match the number of consituents in the
+	 * corresponding FFA descriptor. As such, the EL2 buffer needs to be
+	 * large enough to hold a descriptor with SG_MAX_SEGMENTS consituents
+	 * at least. But the kernel's DMA code doesn't enforce the limit, and
+	 * it is sometimes abused, so let's allow larger descriptors and hope
+	 * for the best.
+	 */
+	BUILD_BUG_ON(KVM_FFA_MAX_NR_CONSTITUENTS < SG_MAX_SEGMENTS);
 
 	/*
 	 * The hypervisor FFA proxy needs enough memory to buffer a fragmented
@@ -346,7 +363,7 @@ static inline unsigned long hyp_ffa_proxy_pages(void)
 	desc_max = sizeof(struct ffa_mem_region) +
 		   sizeof(struct ffa_mem_region_attributes) +
 		   sizeof(struct ffa_composite_mem_region) +
-		   SG_MAX_SEGMENTS * sizeof(struct ffa_mem_region_addr_range);
+		   KVM_FFA_MAX_NR_CONSTITUENTS * sizeof(struct ffa_mem_region_addr_range);
 
 	/* Plus a page each for the hypervisor's RX and TX mailboxes. */
 	return (2 * KVM_FFA_MBOX_NR_PAGES) + DIV_ROUND_UP(desc_max, PAGE_SIZE);
