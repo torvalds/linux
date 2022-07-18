@@ -76,6 +76,9 @@ int extract_param(
 	if (*ptr == '0' && (*(ptr+1) == 'x' || *(ptr+1) == 'X')) {
 		ptr += 2; /* skip 0x */
 		*type = HEX;
+	} else if (*ptr == '0' && (*(ptr+1) == 'b' || *(ptr+1) == 'B')) {
+		ptr += 2; /* skip 0b */
+		*type = BASE64;
 	} else
 		*type = DECIMAL;
 
