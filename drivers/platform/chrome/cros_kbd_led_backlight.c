@@ -119,7 +119,7 @@ static const struct keyboard_led_drvdata keyboard_led_drvdata_acpi = {
 
 #endif /* CONFIG_ACPI */
 
-#ifdef CONFIG_CROS_EC
+#if IS_ENABLED(CONFIG_CROS_EC)
 
 static int
 keyboard_led_set_brightness_ec_pwm(struct led_classdev *cdev,
@@ -180,18 +180,18 @@ static int keyboard_led_init_ec_pwm(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct keyboard_led_drvdata keyboard_led_drvdata_ec_pwm = {
+static const __maybe_unused struct keyboard_led_drvdata keyboard_led_drvdata_ec_pwm = {
 	.init = keyboard_led_init_ec_pwm,
 	.brightness_set_blocking = keyboard_led_set_brightness_ec_pwm,
 	.brightness_get = keyboard_led_get_brightness_ec_pwm,
 	.max_brightness = KEYBOARD_BACKLIGHT_MAX,
 };
 
-#else /* CONFIG_CROS_EC */
+#else /* IS_ENABLED(CONFIG_CROS_EC) */
 
-static const struct keyboard_led_drvdata keyboard_led_drvdata_ec_pwm = {};
+static const __maybe_unused struct keyboard_led_drvdata keyboard_led_drvdata_ec_pwm = {};
 
-#endif /* CONFIG_CROS_EC */
+#endif /* IS_ENABLED(CONFIG_CROS_EC) */
 
 static int keyboard_led_probe(struct platform_device *pdev)
 {
