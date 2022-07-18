@@ -134,11 +134,13 @@ void bch2_do_discards(struct bch_fs *);
 static inline u64 should_invalidate_buckets(struct bch_dev *ca,
 					    struct bch_dev_usage u)
 {
-	u64 free = u.d[BCH_DATA_free].buckets +
-		u.d[BCH_DATA_need_discard].buckets;
+	u64 want_free = ca->mi.nbuckets >> 7;
+	u64 free = max_t(s64, 0,
+			   u.d[BCH_DATA_free].buckets
+			 + u.d[BCH_DATA_need_discard].buckets
+			 - bch2_dev_buckets_reserved(ca, RESERVE_none));
 
-	return clamp_t(s64, (ca->mi.nbuckets >> 7) - free,
-		       0, u.d[BCH_DATA_cached].buckets);
+	return clamp_t(s64, want_free - free, 0, u.d[BCH_DATA_cached].buckets);
 }
 
 void bch2_do_invalidates(struct bch_fs *);
