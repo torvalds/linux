@@ -365,7 +365,7 @@ struct iio_poll_func
 	struct iio_poll_func *pf;
 
 	pf = kmalloc(sizeof(*pf), GFP_KERNEL);
-	if (pf == NULL)
+	if (!pf)
 		return NULL;
 	va_start(vargs, fmt);
 	pf->name = kvasprintf(GFP_KERNEL, fmt, vargs);
