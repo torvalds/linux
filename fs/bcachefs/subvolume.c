@@ -3,6 +3,7 @@
 #include "bcachefs.h"
 #include "btree_key_cache.h"
 #include "btree_update.h"
+#include "errcode.h"
 #include "error.h"
 #include "fs.h"
 #include "subvolume.h"
@@ -315,8 +316,8 @@ static int check_subvol(struct btree_trans *trans,
 	if (BCH_SUBVOLUME_UNLINKED(subvol.v)) {
 		ret = bch2_subvolume_delete(trans, iter->pos.offset);
 		if (ret && ret != -EINTR)
-			bch_err(trans->c, "error deleting subvolume %llu: %i",
-				iter->pos.offset, ret);
+			bch_err(trans->c, "error deleting subvolume %llu: %s",
+				iter->pos.offset, bch2_err_str(ret));
 		if (ret)
 			return ret;
 	}
@@ -365,7 +366,7 @@ int bch2_fs_snapshots_start(struct bch_fs *c)
 	bch2_trans_exit(&trans);
 
 	if (ret)
-		bch_err(c, "error starting snapshots: %i", ret);
+		bch_err(c, "error starting snapshots: %s", bch2_err_str(ret));
 	return ret;
 }
 
@@ -647,7 +648,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	if (!test_bit(BCH_FS_STARTED, &c->flags)) {
 		ret = bch2_fs_read_write_early(c);
 		if (ret) {
-			bch_err(c, "error deleleting dead snapshots: error going rw: %i", ret);
+			bch_err(c, "error deleleting dead snapshots: error going rw: %s", bch2_err_str(ret));
 			return ret;
 		}
 	}
@@ -663,7 +664,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 			NULL, NULL, 0,
 		bch2_delete_redundant_snapshot(&trans, &iter, k));
 	if (ret) {
-		bch_err(c, "error deleting redundant snapshots: %i", ret);
+		bch_err(c, "error deleting redundant snapshots: %s", bch2_err_str(ret));
 		goto err;
 	}
 
@@ -671,7 +672,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 			   POS_MIN, 0, k,
 		bch2_snapshot_set_equiv(&trans, k));
 	if (ret) {
-		bch_err(c, "error in bch2_snapshots_set_equiv: %i", ret);
+		bch_err(c, "error in bch2_snapshots_set_equiv: %s", bch2_err_str(ret));
 		goto err;
 	}
 
@@ -690,7 +691,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 	bch2_trans_iter_exit(&trans, &iter);
 
 	if (ret) {
-		bch_err(c, "error walking snapshots: %i", ret);
+		bch_err(c, "error walking snapshots: %s", bch2_err_str(ret));
 		goto err;
 	}
 
@@ -710,7 +711,7 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		darray_exit(&equiv_seen);
 
 		if (ret) {
-			bch_err(c, "error deleting snapshot keys: %i", ret);
+			bch_err(c, "error deleting snapshot keys: %s", bch2_err_str(ret));
 			goto err;
 		}
 	}
@@ -719,8 +720,8 @@ int bch2_delete_dead_snapshots(struct bch_fs *c)
 		ret = commit_do(&trans, NULL, NULL, 0,
 			bch2_snapshot_node_delete(&trans, deleted.data[i]));
 		if (ret) {
-			bch_err(c, "error deleting snapshot %u: %i",
-				deleted.data[i], ret);
+			bch_err(c, "error deleting snapshot %u: %s",
+				deleted.data[i], bch2_err_str(ret));
 			goto err;
 		}
 	}
@@ -912,7 +913,7 @@ void bch2_subvolume_wait_for_pagecache_and_delete(struct work_struct *work)
 			ret = bch2_trans_do(c, NULL, NULL, BTREE_INSERT_NOFAIL,
 				      bch2_subvolume_delete(&trans, *id));
 			if (ret) {
-				bch_err(c, "error %i deleting subvolume %u", ret, *id);
+				bch_err(c, "error deleting subvolume %u: %s", *id, bch2_err_str(ret));
 				break;
 			}
 		}

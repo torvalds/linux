@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
 #include "btree_update.h"
+#include "errcode.h"
 #include "inode.h"
 #include "quota.h"
 #include "subvolume.h"
@@ -488,7 +489,7 @@ int bch2_fs_quota_read(struct bch_fs *c)
 			POS_MIN, BTREE_ITER_PREFETCH|BTREE_ITER_ALL_SNAPSHOTS, k,
 		bch2_fs_quota_read_inode(&trans, &iter, k));
 	if (ret)
-		bch_err(c, "err in quota_read: %i", ret);
+		bch_err(c, "err in quota_read: %s", bch2_err_str(ret));
 
 	bch2_trans_exit(&trans);
 	return ret;

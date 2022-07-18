@@ -8,6 +8,7 @@
 #include "buckets.h"
 #include "chardev.h"
 #include "dirent.h"
+#include "errcode.h"
 #include "extents.h"
 #include "fs.h"
 #include "fs-common.h"
@@ -1871,10 +1872,9 @@ got_sb:
 	sb->s_shrink.seeks = 0;
 
 	vinode = bch2_vfs_inode_get(c, BCACHEFS_ROOT_SUBVOL_INUM);
-	if (IS_ERR(vinode)) {
-		bch_err(c, "error mounting: error getting root inode %i",
-			(int) PTR_ERR(vinode));
-		ret = PTR_ERR(vinode);
+	ret = PTR_ERR_OR_ZERO(vinode);
+	if (ret) {
+		bch_err(c, "error mounting: error getting root inode: %s", bch2_err_str(ret));
 		goto err_put_super;
 	}
 

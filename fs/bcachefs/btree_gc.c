@@ -402,8 +402,8 @@ again:
 		}
 
 		if (ret) {
-			bch_err(c, "%s: error %i getting btree node",
-				__func__, ret);
+			bch_err(c, "%s: error getting btree node: %s",
+				__func__, bch2_err_str(ret));
 			break;
 		}
 
@@ -471,8 +471,8 @@ again:
 		ret = PTR_ERR_OR_ZERO(cur);
 
 		if (ret) {
-			bch_err(c, "%s: error %i getting btree node",
-				__func__, ret);
+			bch_err(c, "%s: error getting btree node: %s",
+				__func__, bch2_err_str(ret));
 			goto err;
 		}
 
@@ -804,7 +804,7 @@ static int bch2_gc_mark_key(struct btree_trans *trans, enum btree_id btree_id,
 fsck_err:
 err:
 	if (ret)
-		bch_err(c, "%s: ret %i", __func__, ret);
+		bch_err(c, "error from %s(): %s", __func__, bch2_err_str(ret));
 	return ret;
 }
 
@@ -910,7 +910,8 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 		ret = bch2_gc_mark_key(trans, b->c.btree_id, b->c.level,
 				       false, &k, true);
 		if (ret) {
-			bch_err(c, "%s: error %i from bch2_gc_mark_key", __func__, ret);
+			bch_err(c, "%s: error from bch2_gc_mark_key: %s",
+				__func__, bch2_err_str(ret));
 			goto fsck_err;
 		}
 
@@ -970,8 +971,8 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 					continue;
 				}
 			} else if (ret) {
-				bch_err(c, "%s: error %i getting btree node",
-					__func__, ret);
+				bch_err(c, "%s: error getting btree node: %s",
+					__func__, bch2_err_str(ret));
 				break;
 			}
 
@@ -1038,7 +1039,7 @@ fsck_err:
 	six_unlock_read(&b->c.lock);
 
 	if (ret < 0)
-		bch_err(c, "%s: ret %i", __func__, ret);
+		bch_err(c, "error from %s(): %s", __func__, bch2_err_str(ret));
 	printbuf_exit(&buf);
 	return ret;
 }
@@ -1068,7 +1069,7 @@ static int bch2_gc_btrees(struct bch_fs *c, bool initial, bool metadata_only)
 			: bch2_gc_btree(&trans, ids[i], initial, metadata_only);
 
 	if (ret < 0)
-		bch_err(c, "%s: ret %i", __func__, ret);
+		bch_err(c, "error from %s(): %s", __func__, bch2_err_str(ret));
 
 	bch2_trans_exit(&trans);
 	return ret;
@@ -1266,7 +1267,7 @@ fsck_err:
 	if (ca)
 		percpu_ref_put(&ca->ref);
 	if (ret)
-		bch_err(c, "%s: ret %i", __func__, ret);
+		bch_err(c, "error from %s(): %s", __func__, bch2_err_str(ret));
 
 	percpu_up_write(&c->mark_lock);
 	printbuf_exit(&buf);
@@ -1433,7 +1434,7 @@ static int bch2_gc_alloc_done(struct bch_fs *c, bool metadata_only)
 			bch2_alloc_write_key(&trans, &iter, k, metadata_only));
 
 		if (ret < 0) {
-			bch_err(c, "error writing alloc info: %i", ret);
+			bch_err(c, "error writing alloc info: %s", bch2_err_str(ret));
 			percpu_ref_put(&ca->ref);
 			break;
 		}
@@ -1497,7 +1498,7 @@ static int bch2_gc_alloc_start(struct bch_fs *c, bool metadata_only)
 	bch2_trans_exit(&trans);
 
 	if (ret)
-		bch_err(c, "error reading alloc info at gc start: %i", ret);
+		bch_err(c, "error reading alloc info at gc start: %s", bch2_err_str(ret));
 
 	return ret;
 }
@@ -1968,7 +1969,7 @@ int bch2_gc_gens(struct bch_fs *c)
 					BTREE_INSERT_NOFAIL,
 				gc_btree_gens_key(&trans, &iter, k));
 			if (ret) {
-				bch_err(c, "error recalculating oldest_gen: %i", ret);
+				bch_err(c, "error recalculating oldest_gen: %s", bch2_err_str(ret));
 				goto err;
 			}
 		}
@@ -1981,7 +1982,7 @@ int bch2_gc_gens(struct bch_fs *c)
 			BTREE_INSERT_NOFAIL,
 		bch2_alloc_write_oldest_gen(&trans, &iter, k));
 	if (ret) {
-		bch_err(c, "error writing oldest_gen: %i", ret);
+		bch_err(c, "error writing oldest_gen: %s", bch2_err_str(ret));
 		goto err;
 	}
 
@@ -2053,7 +2054,7 @@ static int bch2_gc_thread(void *arg)
 		ret = bch2_gc_gens(c);
 #endif
 		if (ret < 0)
-			bch_err(c, "btree gc failed: %i", ret);
+			bch_err(c, "btree gc failed: %s", bch2_err_str(ret));
 
 		debug_check_no_locks_held();
 	}
@@ -2083,7 +2084,7 @@ int bch2_gc_thread_start(struct bch_fs *c)
 
 	p = kthread_create(bch2_gc_thread, c, "bch-gc/%s", c->name);
 	if (IS_ERR(p)) {
-		bch_err(c, "error creating gc thread: %li", PTR_ERR(p));
+		bch_err(c, "error creating gc thread: %s", bch2_err_str(PTR_ERR(p)));
 		return PTR_ERR(p);
 	}
 

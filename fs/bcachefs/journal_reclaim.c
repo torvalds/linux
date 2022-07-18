@@ -2,6 +2,7 @@
 
 #include "bcachefs.h"
 #include "btree_key_cache.h"
+#include "errcode.h"
 #include "error.h"
 #include "journal.h"
 #include "journal_io.h"
@@ -741,15 +742,17 @@ int bch2_journal_reclaim_start(struct journal *j)
 {
 	struct bch_fs *c = container_of(j, struct bch_fs, journal);
 	struct task_struct *p;
+	int ret;
 
 	if (j->reclaim_thread)
 		return 0;
 
 	p = kthread_create(bch2_journal_reclaim_thread, j,
 			   "bch-reclaim/%s", c->name);
-	if (IS_ERR(p)) {
-		bch_err(c, "error creating journal reclaim thread: %li", PTR_ERR(p));
-		return PTR_ERR(p);
+	ret = PTR_ERR_OR_ZERO(p);
+	if (ret) {
+		bch_err(c, "error creating journal reclaim thread: %s", bch2_err_str(ret));
+		return ret;
 	}
 
 	get_task_struct(p);

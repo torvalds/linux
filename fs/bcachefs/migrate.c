@@ -8,6 +8,7 @@
 #include "btree_update.h"
 #include "btree_update_interior.h"
 #include "buckets.h"
+#include "errcode.h"
 #include "extents.h"
 #include "io.h"
 #include "journal.h"
@@ -151,7 +152,8 @@ retry:
 			}
 
 			if (ret) {
-				bch_err(c, "Error updating btree node key: %i", ret);
+				bch_err(c, "Error updating btree node key: %s",
+					bch2_err_str(ret));
 				break;
 			}
 next:

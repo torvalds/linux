@@ -10,6 +10,7 @@
 #include "buckets.h"
 #include "dirent.h"
 #include "ec.h"
+#include "errcode.h"
 #include "error.h"
 #include "fs-common.h"
 #include "fsck.h"
@@ -1419,9 +1420,9 @@ out:
 	}
 
 	if (ret)
-		bch_err(c, "Error in recovery: %s (%i)", err, ret);
+		bch_err(c, "Error in recovery: %s (%s)", err, bch2_err_str(ret));
 	else
-		bch_verbose(c, "ret %i", ret);
+		bch_verbose(c, "ret %s", bch2_err_str(ret));
 	return ret;
 err:
 fsck_err:

@@ -949,7 +949,8 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 	for_each_keylist_key(&s->keys, k) {
 		ret = ec_stripe_update_extents(c, &s->new_stripe, &k->k);
 		if (ret) {
-			bch_err(c, "error creating stripe: error %i updating pointers", ret);
+			bch_err(c, "error creating stripe: error updating pointers: %s",
+				bch2_err_str(ret));
 			break;
 		}
 	}

@@ -46,7 +46,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_trans_update(&trans, &iter, &k.k_i, 0));
 	if (ret) {
-		bch_err(c, "update error in test_delete: %i", ret);
+		bch_err(c, "update error in test_delete: %s", bch2_err_str(ret));
 		goto err;
 	}
 
@@ -55,7 +55,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_btree_delete_at(&trans, &iter, 0));
 	if (ret) {
-		bch_err(c, "delete error (first) in test_delete: %i", ret);
+		bch_err(c, "delete error (first) in test_delete: %s", bch2_err_str(ret));
 		goto err;
 	}
 
@@ -64,7 +64,7 @@ static int test_delete(struct bch_fs *c, u64 nr)
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_btree_delete_at(&trans, &iter, 0));
 	if (ret) {
-		bch_err(c, "delete error (second) in test_delete: %i", ret);
+		bch_err(c, "delete error (second) in test_delete: %s", bch2_err_str(ret));
 		goto err;
 	}
 err:
@@ -92,7 +92,7 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_trans_update(&trans, &iter, &k.k_i, 0));
 	if (ret) {
-		bch_err(c, "update error in test_delete_written: %i", ret);
+		bch_err(c, "update error in test_delete_written: %s", bch2_err_str(ret));
 		goto err;
 	}
 
@@ -103,7 +103,7 @@ static int test_delete_written(struct bch_fs *c, u64 nr)
 		bch2_btree_iter_traverse(&iter) ?:
 		bch2_btree_delete_at(&trans, &iter, 0));
 	if (ret) {
-		bch_err(c, "delete error in test_delete_written: %i", ret);
+		bch_err(c, "delete error in test_delete_written: %s", bch2_err_str(ret));
 		goto err;
 	}
 err:
@@ -136,7 +136,7 @@ static int test_iterate(struct bch_fs *c, u64 nr)
 		ret = bch2_btree_insert(c, BTREE_ID_xattrs, &k.k_i,
 					NULL, NULL, 0);
 		if (ret) {
-			bch_err(c, "insert error in test_iterate: %i", ret);
+			bch_err(c, "insert error in test_iterate: %s", bch2_err_str(ret));
 			goto err;
 		}
 	}
@@ -192,7 +192,7 @@ static int test_iterate_extents(struct bch_fs *c, u64 nr)
 		ret = bch2_btree_insert(c, BTREE_ID_extents, &k.k_i,
 					NULL, NULL, 0);
 		if (ret) {
-			bch_err(c, "insert error in test_iterate_extents: %i", ret);
+			bch_err(c, "insert error in test_iterate_extents: %s", bch2_err_str(ret));
 			goto err;
 		}
 	}
@@ -247,7 +247,7 @@ static int test_iterate_slots(struct bch_fs *c, u64 nr)
 		ret = bch2_btree_insert(c, BTREE_ID_xattrs, &k.k_i,
 					NULL, NULL, 0);
 		if (ret) {
-			bch_err(c, "insert error in test_iterate_slots: %i", ret);
+			bch_err(c, "insert error in test_iterate_slots: %s", bch2_err_str(ret));
 			goto err;
 		}
 	}
@@ -313,7 +313,7 @@ static int test_iterate_slots_extents(struct bch_fs *c, u64 nr)
 		ret = bch2_btree_insert(c, BTREE_ID_extents, &k.k_i,
 					NULL, NULL, 0);
 		if (ret) {
-			bch_err(c, "insert error in test_iterate_slots_extents: %i", ret);
+			bch_err(c, "insert error in test_iterate_slots_extents: %s", bch2_err_str(ret));
 			goto err;
 		}
 	}
@@ -419,7 +419,7 @@ static int insert_test_extent(struct bch_fs *c,
 	ret = bch2_btree_insert(c, BTREE_ID_extents, &k.k_i,
 				NULL, NULL, 0);
 	if (ret)
-		bch_err(c, "insert error in insert_test_extent: %i", ret);
+		bch_err(c, "insert error in insert_test_extent: %s", bch2_err_str(ret));
 	return ret;
 }
 
@@ -518,7 +518,7 @@ static int test_snapshots(struct bch_fs *c, u64 nr)
 
 	ret = test_snapshot_filter(c, snapids[0], snapids[1]);
 	if (ret) {
-		bch_err(c, "err %i from test_snapshot_filter", ret);
+		bch_err(c, "err from test_snapshot_filter: %s", bch2_err_str(ret));
 		return ret;
 	}
 
@@ -555,7 +555,7 @@ static int rand_insert(struct bch_fs *c, u64 nr)
 		ret = commit_do(&trans, NULL, NULL, 0,
 			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k.k_i));
 		if (ret) {
-			bch_err(c, "error in rand_insert: %i", ret);
+			bch_err(c, "error in rand_insert: %s", bch2_err_str(ret));
 			break;
 		}
 	}
@@ -591,7 +591,7 @@ static int rand_insert_multi(struct bch_fs *c, u64 nr)
 			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[6].k_i) ?:
 			__bch2_btree_insert(&trans, BTREE_ID_xattrs, &k[7].k_i));
 		if (ret) {
-			bch_err(c, "error in rand_insert_multi: %i", ret);
+			bch_err(c, "error in rand_insert_multi: %s", bch2_err_str(ret));
 			break;
 		}
 	}
@@ -618,7 +618,7 @@ static int rand_lookup(struct bch_fs *c, u64 nr)
 		k = bch2_btree_iter_peek(&iter);
 		ret = bkey_err(k);
 		if (ret) {
-			bch_err(c, "error in rand_lookup: %i", ret);
+			bch_err(c, "error in rand_lookup: %s", bch2_err_str(ret));
 			break;
 		}
 	}
@@ -641,7 +641,7 @@ static int rand_mixed_trans(struct btree_trans *trans,
 	k = bch2_btree_iter_peek(iter);
 	ret = bkey_err(k);
 	if (ret && ret != -EINTR)
-		bch_err(trans->c, "lookup error in rand_mixed: %i", ret);
+		bch_err(trans->c, "lookup error in rand_mixed: %s", bch2_err_str(ret));
 	if (ret)
 		return ret;
 
@@ -671,7 +671,7 @@ static int rand_mixed(struct bch_fs *c, u64 nr)
 		ret = commit_do(&trans, NULL, NULL, 0,
 			rand_mixed_trans(&trans, &iter, &cookie, i, rand));
 		if (ret) {
-			bch_err(c, "update error in rand_mixed: %i", ret);
+			bch_err(c, "update error in rand_mixed: %s", bch2_err_str(ret));
 			break;
 		}
 	}
@@ -717,7 +717,7 @@ static int rand_delete(struct bch_fs *c, u64 nr)
 		ret = commit_do(&trans, NULL, NULL, 0,
 			__do_delete(&trans, pos));
 		if (ret) {
-			bch_err(c, "error in rand_delete: %i", ret);
+			bch_err(c, "error in rand_delete: %s", bch2_err_str(ret));
 			break;
 		}
 	}
@@ -747,7 +747,7 @@ static int seq_insert(struct bch_fs *c, u64 nr)
 			bch2_btree_iter_traverse(&iter) ?:
 			bch2_trans_update(&trans, &iter, &insert.k_i, 0));
 		if (ret) {
-			bch_err(c, "error in seq_insert: %i", ret);
+			bch_err(c, "error in seq_insert: %s", bch2_err_str(ret));
 			break;
 		}
 
@@ -798,7 +798,7 @@ static int seq_overwrite(struct bch_fs *c, u64 nr)
 			bch2_btree_iter_traverse(&iter) ?:
 			bch2_trans_update(&trans, &iter, &u.k_i, 0));
 		if (ret) {
-			bch_err(c, "error in seq_overwrite: %i", ret);
+			bch_err(c, "error in seq_overwrite: %s", bch2_err_str(ret));
 			break;
 		}
 	}
@@ -816,7 +816,7 @@ static int seq_delete(struct bch_fs *c, u64 nr)
 				      SPOS(0, 0, U32_MAX), SPOS_MAX,
 				      0, NULL);
 	if (ret)
-		bch_err(c, "error in seq_delete: %i", ret);
+		bch_err(c, "error in seq_delete: %s", bch2_err_str(ret));
 	return ret;
 }
 
@@ -853,7 +853,7 @@ static int btree_perf_test_thread(void *data)
 
 	ret = j->fn(j->c, div64_u64(j->nr, j->nr_threads));
 	if (ret) {
-		bch_err(j->c, "%ps: error %i", j->fn, ret);
+		bch_err(j->c, "%ps: error %s", j->fn, bch2_err_str(ret));
 		j->ret = ret;
 	}
 

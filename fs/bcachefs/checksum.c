@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "bcachefs.h"
 #include "checksum.h"
+#include "errcode.h"
 #include "super.h"
 #include "super-io.h"
 
@@ -527,7 +528,7 @@ int bch2_decrypt_sb_key(struct bch_fs *c,
 
 	ret = bch2_request_key(c->disk_sb.sb, &user_key);
 	if (ret) {
-		bch_err(c, "error requesting encryption key: %i", ret);
+		bch_err(c, "error requesting encryption key: %s", bch2_err_str(ret));
 		goto err;
 	}
 
@@ -552,20 +553,24 @@ err:
 
 static int bch2_alloc_ciphers(struct bch_fs *c)
 {
+	int ret;
+
 	if (!c->chacha20)
 		c->chacha20 = crypto_alloc_sync_skcipher("chacha20", 0, 0);
-	if (IS_ERR(c->chacha20)) {
-		bch_err(c, "error requesting chacha20 module: %li",
-			PTR_ERR(c->chacha20));
-		return PTR_ERR(c->chacha20);
+	ret = PTR_ERR_OR_ZERO(c->chacha20);
+
+	if (ret) {
+		bch_err(c, "error requesting chacha20 module: %s", bch2_err_str(ret));
+		return ret;
 	}
 
 	if (!c->poly1305)
 		c->poly1305 = crypto_alloc_shash("poly1305", 0, 0);
-	if (IS_ERR(c->poly1305)) {
-		bch_err(c, "error requesting poly1305 module: %li",
-			PTR_ERR(c->poly1305));
-		return PTR_ERR(c->poly1305);
+	ret = PTR_ERR_OR_ZERO(c->poly1305);
+
+	if (ret) {
+		bch_err(c, "error requesting poly1305 module: %s", bch2_err_str(ret));
+		return ret;
 	}
 
 	return 0;
@@ -626,7 +631,7 @@ int bch2_enable_encryption(struct bch_fs *c, bool keyed)
 	if (keyed) {
 		ret = bch2_request_key(c->disk_sb.sb, &user_key);
 		if (ret) {
-			bch_err(c, "error requesting encryption key: %i", ret);
+			bch_err(c, "error requesting encryption key: %s", bch2_err_str(ret));
 			goto err;
 		}
 
@@ -678,9 +683,9 @@ int bch2_fs_encryption_init(struct bch_fs *c)
 	pr_verbose_init(c->opts, "");
 
 	c->sha256 = crypto_alloc_shash("sha256", 0, 0);
-	if (IS_ERR(c->sha256)) {
-		bch_err(c, "error requesting sha256 module");
-		ret = PTR_ERR(c->sha256);
+	ret = PTR_ERR_OR_ZERO(c->sha256);
+	if (ret) {
+		bch_err(c, "error requesting sha256 module: %s", bch2_err_str(ret));
 		goto out;
 	}
 

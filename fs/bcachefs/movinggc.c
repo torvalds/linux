@@ -13,6 +13,7 @@
 #include "buckets.h"
 #include "clock.h"
 #include "disk_groups.h"
+#include "errcode.h"
 #include "error.h"
 #include "extents.h"
 #include "eytzinger.h"
@@ -319,7 +320,7 @@ static int bch2_copygc(struct bch_fs *c)
 			     false,
 			     copygc_pred, NULL);
 	if (ret < 0)
-		bch_err(c, "error %i from bch2_move_data() in copygc", ret);
+		bch_err(c, "error from bch2_move_data() in copygc: %s", bch2_err_str(ret));
 	if (ret)
 		return ret;
 
@@ -427,6 +428,7 @@ void bch2_copygc_stop(struct bch_fs *c)
 int bch2_copygc_start(struct bch_fs *c)
 {
 	struct task_struct *t;
+	int ret;
 
 	if (c->copygc_thread)
 		return 0;
@@ -438,9 +440,10 @@ int bch2_copygc_start(struct bch_fs *c)
 		return -ENOMEM;
 
 	t = kthread_create(bch2_copygc_thread, c, "bch-copygc/%s", c->name);
-	if (IS_ERR(t)) {
-		bch_err(c, "error creating copygc thread: %li", PTR_ERR(t));
-		return PTR_ERR(t);
+	ret = PTR_ERR_OR_ZERO(t);
+	if (ret) {
+		bch_err(c, "error creating copygc thread: %s", bch2_err_str(ret));
+		return ret;
 	}
 
 	get_task_struct(t);
