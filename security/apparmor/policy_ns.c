@@ -54,10 +54,10 @@ bool aa_ns_visible(struct aa_ns *curr, struct aa_ns *view, bool subns)
 }
 
 /**
- * aa_na_name - Find the ns name to display for @view from @curr
- * @curr - current namespace (NOT NULL)
- * @view - namespace attempting to view (NOT NULL)
- * @subns - are subns visible
+ * aa_ns_name - Find the ns name to display for @view from @curr
+ * @curr: current namespace (NOT NULL)
+ * @view: namespace attempting to view (NOT NULL)
+ * @subns: are subns visible
  *
  * Returns: name of @view visible from @curr
  */
@@ -200,7 +200,7 @@ struct aa_ns *aa_find_ns(struct aa_ns *root, const char *name)
 
 /**
  * __aa_lookupn_ns - lookup the namespace matching @hname
- * @base: base list to start looking up profile name from  (NOT NULL)
+ * @view: namespace to search in  (NOT NULL)
  * @hname: hierarchical ns name  (NOT NULL)
  * @n: length of @hname
  *
@@ -285,7 +285,7 @@ static struct aa_ns *__aa_create_ns(struct aa_ns *parent, const char *name,
 }
 
 /**
- * aa_create_ns - create an ns, fail if it already exists
+ * __aa_find_or_create_ns - create an ns, fail if it already exists
  * @parent: the parent of the namespace being created
  * @name: the name of the namespace
  * @dir: if not null the dir to put the ns entries in
