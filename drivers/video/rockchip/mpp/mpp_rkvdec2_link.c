@@ -1859,6 +1859,7 @@ static struct mpp_dev *rkvdec2_get_idle_core(struct mpp_taskqueue *queue,
 		mpp_task->core_id = dec->mpp.core_id;
 		clear_bit(mpp_task->core_id, &queue->core_idle);
 		dec->task_index++;
+		atomic_inc(&dec->mpp.task_count);
 		mpp_dbg_core("clear core %d idle\n", mpp_task->core_id);
 		return mpp_task->mpp;
 	}

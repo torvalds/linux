@@ -818,6 +818,7 @@ again:
 	if (task) {
 		struct mpp_dev *task_mpp = mpp_get_task_used_device(task, task->session);
 
+		atomic_inc(&task_mpp->task_count);
 		mpp_taskqueue_pending_to_run(queue, task);
 		set_bit(TASK_STATE_RUNNING, &task->state);
 		if (mpp_task_run(task_mpp, task))
@@ -1521,8 +1522,6 @@ static void mpp_msgs_trigger(struct list_head *msgs_list)
 
 		if (test_bit(TASK_STATE_ABORT, &task->state))
 			pr_info("try to trigger abort task %d\n", task->task_id);
-
-		atomic_inc(&mpp->task_count);
 
 		set_bit(TASK_STATE_PENDING, &task->state);
 		list_add_tail(&task->queue_link, &queue->pending_list);
