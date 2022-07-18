@@ -358,7 +358,7 @@ void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 		if (!(sta->sta.valid_links & BIT(i)))
 			continue;
 
-		sta_remove_link(sta, i, true);
+		sta_remove_link(sta, i, false);
 	}
 
 	/*
@@ -846,6 +846,8 @@ static int sta_info_insert_finish(struct sta_info *sta) __acquires(RCU)
 
 	return 0;
  out_remove:
+	if (sta->sta.valid_links)
+		link_sta_info_hash_del(local, &sta->deflink);
 	sta_info_hash_del(local, sta);
 	list_del_rcu(&sta->list);
  out_drop_sta:
@@ -1140,7 +1142,7 @@ static int __must_check __sta_info_destroy_part1(struct sta_info *sta)
 {
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
-	int ret;
+	int ret, i;
 
 	might_sleep();
 
@@ -1167,6 +1169,18 @@ static int __must_check __sta_info_destroy_part1(struct sta_info *sta)
 	 * all such frames to be processed.
 	 */
 	drv_sync_rx_queues(local, sta);
+
+	for (i = 0; i < ARRAY_SIZE(sta->link); i++) {
+		struct link_sta_info *link_sta;
+
+		if (!(sta->sta.valid_links & BIT(i)))
+			continue;
+
+		link_sta = rcu_dereference_protected(sta->link[i],
+						     lockdep_is_held(&local->sta_mtx));
+
+		link_sta_info_hash_del(local, link_sta);
+	}
 
 	ret = sta_info_hash_del(local, sta);
 	if (WARN_ON(ret))
