@@ -517,6 +517,14 @@
 			status = "okay";
 		};
 
+		leds: leds@800 {
+			compatible = "brcm,bcm4908-leds", "brcm,bcm63138-leds";
+			reg = <0x800 0xdc>;
+
+			#address-cells = <1>;
+			#size-cells = <0>;
+		};
+
 		nand-controller@1800 {
 			#address-cells = <1>;
 			#size-cells = <0>;
