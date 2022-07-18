@@ -18,6 +18,7 @@ if ATAGS
 config MACH_ASPENITE
 	bool "Marvell's PXA168 Aspenite Development Board"
 	depends on ARCH_MULTI_V5
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA168
 	help
 	  Say 'Y' here if you want to support the Marvell PXA168-based
@@ -26,6 +27,7 @@ config MACH_ASPENITE
 config MACH_ZYLONITE2
 	bool "Marvell's PXA168 Zylonite2 Development Board"
 	depends on ARCH_MULTI_V5
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA168
 	help
 	  Say 'Y' here if you want to support the Marvell PXA168-based
@@ -34,6 +36,7 @@ config MACH_ZYLONITE2
 config MACH_AVENGERS_LITE
 	bool "Marvell's PXA168 Avengers Lite Development Board"
 	depends on ARCH_MULTI_V5
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA168
 	help
 	  Say 'Y' here if you want to support the Marvell PXA168-based
@@ -42,6 +45,7 @@ config MACH_AVENGERS_LITE
 config MACH_TTC_DKB
 	bool "Marvell's PXA910 TavorEVB/TTC_DKB Development Board"
 	depends on ARCH_MULTI_V5
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA910
 	help
 	  Say 'Y' here if you want to support the Marvell PXA910-based
@@ -50,6 +54,7 @@ config MACH_TTC_DKB
 config MACH_BROWNSTONE
 	bool "Marvell's Brownstone Development Platform"
 	depends on ARCH_MULTI_V7
+	depends on UNUSED_BOARD_FILES
 	select CPU_MMP2
 	help
 	  Say 'Y' here if you want to support the Marvell MMP2-based
@@ -61,6 +66,7 @@ config MACH_BROWNSTONE
 config MACH_FLINT
 	bool "Marvell's Flint Development Platform"
 	depends on ARCH_MULTI_V7
+	depends on UNUSED_BOARD_FILES
 	select CPU_MMP2
 	help
 	  Say 'Y' here if you want to support the Marvell MMP2-based
@@ -72,6 +78,7 @@ config MACH_FLINT
 config MACH_MARVELL_JASPER
 	bool "Marvell's Jasper Development Platform"
 	depends on ARCH_MULTI_V7
+	depends on UNUSED_BOARD_FILES
 	select CPU_MMP2
 	help
 	  Say 'Y' here if you want to support the Marvell MMP2-base
@@ -83,6 +90,7 @@ config MACH_MARVELL_JASPER
 config MACH_TETON_BGA
 	bool "Marvell's PXA168 Teton BGA Development Board"
 	depends on ARCH_MULTI_V5
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA168
 	help
 	  Say 'Y' here if you want to support the Marvell PXA168-based
@@ -91,6 +99,7 @@ config MACH_TETON_BGA
 config MACH_GPLUGD
 	bool "Marvell's PXA168 GuruPlug Display (gplugD) Board"
 	depends on ARCH_MULTI_V5
+	depends on UNUSED_BOARD_FILES
 	select CPU_PXA168
 	help
 	  Say 'Y' here if you want to support the Marvell PXA168-based
