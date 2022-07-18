@@ -164,6 +164,22 @@ config SND_SOC_MT8186
 	  Select Y if you have such device.
 	  If unsure select "N".
 
+config SND_SOC_MT8186_MT6366_DA7219_MAX98357
+	tristate "ASoC Audio driver for MT8186 with DA7219 MAX98357A codec"
+	depends on I2C && GPIOLIB
+	depends on SND_SOC_MT8186 && MTK_PMIC_WRAP
+	select SND_SOC_MT6358
+	select SND_SOC_MAX98357A
+	select SND_SOC_DA7219
+	select SND_SOC_BT_SCO
+	select SND_SOC_DMIC
+	select SND_SOC_HDMI_CODEC
+	help
+	  This adds ASoC driver for Mediatek MT8186 boards
+	  with the MT6366(MT6358) DA7219 MAX98357A codecs.
+	  Select Y if you have such device.
+	  If unsure select "N".
+
 config SND_SOC_MTK_BTCVSD
 	tristate "ALSA BT SCO CVSD/MSBC Driver"
 	help
