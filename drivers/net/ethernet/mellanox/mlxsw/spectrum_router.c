@@ -9588,7 +9588,7 @@ static void mlxsw_sp_mp4_hash_init(struct mlxsw_sp *mlxsw_sp,
 	unsigned long *fields = config->fields;
 	u32 hash_fields;
 
-	switch (net->ipv4.sysctl_fib_multipath_hash_policy) {
+	switch (READ_ONCE(net->ipv4.sysctl_fib_multipath_hash_policy)) {
 	case 0:
 		mlxsw_sp_mp4_hash_outer_addr(config);
 		break;
