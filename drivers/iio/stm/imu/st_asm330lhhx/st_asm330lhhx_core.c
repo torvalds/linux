@@ -161,6 +161,29 @@ static const struct st_asm330lhhx_odr_table_entry st_asm330lhhx_odr_table[] = {
 #endif /* CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE */
 };
 
+/**
+ * List of supported supported device settings
+ *
+ * The following table list all device features in terms of supported
+ * MLC and SHUB.
+ */
+static const struct st_asm330lhhx_settings st_asm330lhhx_sensor_settings[] = {
+	{
+		.id =  {
+				.hw_id = ST_ASM330LHHX_ID,
+				.name = ST_ASM330LHHX_DEV_NAME,
+	},
+		.st_mlc_probe = true,
+		.st_shub_probe = true,
+	},
+	{
+		.id = {
+				.hw_id = ST_ASM330LHH_ID,
+				.name = ST_ASM330LHH_DEV_NAME,
+		},
+	},
+};
+
 static const struct st_asm330lhhx_fs_table_entry st_asm330lhhx_fs_table[] = {
 	[ST_ASM330LHHX_ID_ACC] = {
 		.size = ST_ASM330LHHX_FS_ACC_LIST_SIZE,
@@ -766,10 +789,23 @@ static __maybe_unused int st_asm330lhhx_reg_access(struct iio_dev *iio_dev,
 	return (ret < 0) ? ret : 0;
 }
 
-static int st_asm330lhhx_check_whoami(struct st_asm330lhhx_hw *hw)
+static int st_asm330lhhx_check_whoami(struct st_asm330lhhx_hw *hw,
+				      int id)
 {
+	int err, i;
 	u8 data;
-	int err;
+
+	for (i = 0; i < ARRAY_SIZE(st_asm330lhhx_sensor_settings); i++) {
+			if (st_asm330lhhx_sensor_settings[i].id.name &&
+			    st_asm330lhhx_sensor_settings[i].id.hw_id == id)
+				break;
+	}
+
+	if (i == ARRAY_SIZE(st_asm330lhhx_sensor_settings)) {
+		dev_err(hw->dev, "unsupported hw id [%02x]\n", id);
+
+		return -ENODEV;
+	}
 
 	err = hw->tf->read(hw->dev, ST_ASM330LHHX_REG_WHOAMI_ADDR, sizeof(data),
 			   &data);
@@ -782,6 +818,8 @@ static int st_asm330lhhx_check_whoami(struct st_asm330lhhx_hw *hw)
 		dev_err(hw->dev, "unsupported whoami [%02x]\n", data);
 		return -ENODEV;
 	}
+
+	hw->settings = &st_asm330lhhx_sensor_settings[i];
 
 	return err;
 }
@@ -1657,7 +1695,8 @@ static struct iio_dev *st_asm330lhhx_alloc_iiodev(struct st_asm330lhhx_hw *hw,
 	case ST_ASM330LHHX_ID_ACC:
 		iio_dev->channels = st_asm330lhhx_acc_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_asm330lhhx_acc_channels);
-		iio_dev->name = "asm330lhhx_accel";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			 "%s_accel", hw->settings->id.name);
 		iio_dev->info = &st_asm330lhhx_acc_info;
 		iio_dev->available_scan_masks =
 					st_asm330lhhx_available_scan_masks;
@@ -1672,7 +1711,8 @@ static struct iio_dev *st_asm330lhhx_alloc_iiodev(struct st_asm330lhhx_hw *hw,
 	case ST_ASM330LHHX_ID_GYRO:
 		iio_dev->channels = st_asm330lhhx_gyro_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_asm330lhhx_gyro_channels);
-		iio_dev->name = "asm330lhhx_gyro";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  "%s_gyro", hw->settings->id.name);
 		iio_dev->info = &st_asm330lhhx_gyro_info;
 		iio_dev->available_scan_masks =
 					st_asm330lhhx_available_scan_masks;
@@ -1688,7 +1728,8 @@ static struct iio_dev *st_asm330lhhx_alloc_iiodev(struct st_asm330lhhx_hw *hw,
 	case ST_ASM330LHHX_ID_TEMP:
 		iio_dev->channels = st_asm330lhhx_temp_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_asm330lhhx_temp_channels);
-		iio_dev->name = "asm330lhhx_temp";
+		scnprintf(sensor->name, sizeof(sensor->name),
+			  "%s_temp", hw->settings->id.name);
 		iio_dev->info = &st_asm330lhhx_temp_info;
 		sensor->max_watermark = ST_ASM330LHHX_MAX_FIFO_DEPTH;
 		sensor->gain = st_asm330lhhx_fs_table[id].fs_avl[ST_ASM330LHHX_DEFAULT_T_FS_INDEX].gain;
@@ -1704,6 +1745,7 @@ static struct iio_dev *st_asm330lhhx_alloc_iiodev(struct st_asm330lhhx_hw *hw,
 	}
 
 	st_asm330lhhx_set_full_scale(sensor, sensor->gain);
+	iio_dev->name = sensor->name;
 
 	return iio_dev;
 }
@@ -1761,7 +1803,7 @@ static int st_asm330lhhx_power_enable(struct st_asm330lhhx_hw *hw)
 	return 0;
 }
 
-int st_asm330lhhx_probe(struct device *dev, int irq,
+int st_asm330lhhx_probe(struct device *dev, int irq, int hw_id,
 		     const struct st_asm330lhhx_transfer_function *tf_ops)
 {
 	struct st_asm330lhhx_hw *hw;
@@ -1787,7 +1829,7 @@ int st_asm330lhhx_probe(struct device *dev, int irq,
 	if (err != 0)
 		return err;
 
-	err = st_asm330lhhx_check_whoami(hw);
+	err = st_asm330lhhx_check_whoami(hw, hw_id);
 	if (err < 0)
 		return err;
 

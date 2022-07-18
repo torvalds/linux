@@ -75,24 +75,29 @@ static const struct st_asm330lhhx_transfer_function st_asm330lhhx_transfer_fn = 
 
 static int st_asm330lhhx_spi_probe(struct spi_device *spi)
 {
-	return st_asm330lhhx_probe(&spi->dev, spi->irq,
-				&st_asm330lhhx_transfer_fn);
+	const struct spi_device_id *id = spi_get_device_id(spi);
+	int hw_id = id->driver_data;
+
+	return st_asm330lhhx_probe(&spi->dev, spi->irq, hw_id,
+				   &st_asm330lhhx_transfer_fn);
 }
 
 static const struct of_device_id st_asm330lhhx_spi_of_match[] = {
 	{
 		.compatible = "st,asm330lhhx",
+		.data = (void *)ST_ASM330LHHX_ID,
 	},
 	{
 		.compatible = "st,asm330lhh",
+		.data = (void *)ST_ASM330LHH_ID,
 	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_asm330lhhx_spi_of_match);
 
 static const struct spi_device_id st_asm330lhhx_spi_id_table[] = {
-	{ ST_ASM330LHH_DEV_NAME },
-	{ ST_ASM330LHHX_DEV_NAME },
+	{ ST_ASM330LHHX_DEV_NAME, ST_ASM330LHHX_ID },
+	{ ST_ASM330LHH_DEV_NAME , ST_ASM330LHH_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(spi, st_asm330lhhx_spi_id_table);

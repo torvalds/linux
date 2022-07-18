@@ -61,24 +61,28 @@ static const struct st_asm330lhhx_transfer_function st_asm330lhhx_transfer_fn = 
 static int st_asm330lhhx_i2c_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
-	return st_asm330lhhx_probe(&client->dev, client->irq,
-				&st_asm330lhhx_transfer_fn);
+	int hw_id = id->driver_data;
+
+	return st_asm330lhhx_probe(&client->dev, client->irq, hw_id,
+				   &st_asm330lhhx_transfer_fn);
 }
 
 static const struct of_device_id st_asm330lhhx_i2c_of_match[] = {
 	{
 		.compatible = "st,asm330lhhx",
+		.data = (void *)ST_ASM330LHHX_ID,
 	},
 	{
 		.compatible = "st,asm330lhh",
+		.data = (void *)ST_ASM330LHH_ID,
 	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, st_asm330lhhx_i2c_of_match);
 
 static const struct i2c_device_id st_asm330lhhx_i2c_id_table[] = {
-	{ ST_ASM330LHH_DEV_NAME },
-	{ ST_ASM330LHHX_DEV_NAME },
+	{ ST_ASM330LHHX_DEV_NAME, ST_ASM330LHHX_ID },
+	{ ST_ASM330LHH_DEV_NAME , ST_ASM330LHH_ID },
 	{},
 };
 MODULE_DEVICE_TABLE(i2c, st_asm330lhhx_i2c_id_table);

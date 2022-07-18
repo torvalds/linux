@@ -323,8 +323,32 @@ enum {
 	ST_ASM330LHHX_HW_OPERATIONAL,
 };
 
+enum st_asm330lhhx_hw_id {
+	ST_ASM330LHH_ID,
+	ST_ASM330LHHX_ID,
+	ST_ASM330LHHX_MAX_ID,
+};
+
+/**
+ * struct st_asm330lhhx_settings - ST IMU sensor settings
+ *
+ * @hw_id: Hw id supported by the driver configuration.
+ * @name: Device name supported by the driver configuration.
+ * @st_mlc_probe: MLC probe flag.
+ * @st_shub_probe: SHUB probe flag.
+ */
+struct st_asm330lhhx_settings {
+	struct {
+		enum st_asm330lhhx_hw_id hw_id;
+		const char *name;
+	} id;
+	bool st_mlc_probe;
+	bool st_shub_probe;
+};
+
 /**
  * struct st_asm330lhhx_sensor - ST IMU sensor instance
+ * @name: Sensor name.
  * @id: Sensor identifier.
  * @hw: Pointer to instance of struct st_asm330lhhx_hw.
  * @gain: Configured sensor sensitivity.
@@ -339,6 +363,7 @@ enum {
  * @min_st, @max_st: Min/Max acc/gyro data values during self test procedure
  */
 struct st_asm330lhhx_sensor {
+	char name[32];
 	enum st_asm330lhhx_sensor_id id;
 	struct st_asm330lhhx_hw *hw;
 	struct iio_trigger *trig;
@@ -404,6 +429,7 @@ struct st_asm330lhhx_sensor {
  * @tf: Transfer function structure used by I/O operations.
  * @tb: Transfer buffers used by SPI I/O operations.
  * @orientation: sensor chip orientation relative to main hardware.
+ * @settings: ST IMU sensor settings.
  */
 struct st_asm330lhhx_hw {
 	struct device *dev;
@@ -448,6 +474,8 @@ struct st_asm330lhhx_hw {
 	struct st_asm330lhhx_transfer_buffer tb;
 
 	struct iio_mount_matrix orientation;
+
+	const struct st_asm330lhhx_settings *settings;
 };
 
 /**
@@ -524,7 +552,7 @@ static inline s64 st_asm330lhhx_get_time_ns(struct iio_dev *iio_dev)
         return iio_get_time_ns(iio_dev);
 }
 
-int st_asm330lhhx_probe(struct device *dev, int irq,
+int st_asm330lhhx_probe(struct device *dev, int irq, int hw_id,
 		  const struct st_asm330lhhx_transfer_function *tf_ops);
 int st_asm330lhhx_sensor_set_enable(struct st_asm330lhhx_sensor *sensor,
 				    bool enable);
