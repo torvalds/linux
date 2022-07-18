@@ -726,7 +726,7 @@ static int ec_stripe_bkey_insert(struct btree_trans *trans,
 	struct bpos start_pos = bpos_max(min_pos, POS(0, c->ec_stripe_hint));
 	int ret;
 
-	for_each_btree_key(trans, iter, BTREE_ID_stripes, start_pos,
+	for_each_btree_key_norestart(trans, iter, BTREE_ID_stripes, start_pos,
 			   BTREE_ITER_SLOTS|BTREE_ITER_INTENT, k, ret) {
 		if (bkey_cmp(k.k->p, POS(0, U32_MAX)) > 0) {
 			if (start_pos.offset) {
@@ -740,12 +740,13 @@ static int ec_stripe_bkey_insert(struct btree_trans *trans,
 		}
 
 		if (bkey_deleted(k.k))
-			goto found_slot;
+			break;
 	}
 
-	goto err;
-found_slot:
-	start_pos = iter.pos;
+	c->ec_stripe_hint = iter.pos.offset;
+
+	if (ret)
+		goto err;
 
 	ret = ec_stripe_mem_alloc(trans, &iter);
 	if (ret)
@@ -754,8 +755,6 @@ found_slot:
 	stripe->k.p = iter.pos;
 
 	ret = bch2_trans_update(trans, &iter, &stripe->k_i, 0);
-
-	c->ec_stripe_hint = start_pos.offset;
 err:
 	bch2_trans_iter_exit(trans, &iter);
 
