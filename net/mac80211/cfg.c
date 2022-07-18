@@ -4649,6 +4649,9 @@ static int sta_add_link_station(struct ieee80211_local *local,
 	if (!sta)
 		return -ENOENT;
 
+	if (!sta->sta.valid_links)
+		return -EINVAL;
+
 	if (sta->sta.valid_links & BIT(params->link_id))
 		return -EALREADY;
 
@@ -4722,6 +4725,10 @@ static int sta_del_link_station(struct ieee80211_sub_if_data *sdata,
 		return -ENOENT;
 
 	if (!(sta->sta.valid_links & BIT(params->link_id)))
+		return -EINVAL;
+
+	/* must not create a STA without links */
+	if (sta->sta.valid_links == BIT(params->link_id))
 		return -EINVAL;
 
 	ieee80211_sta_remove_link(sta, params->link_id);
