@@ -330,7 +330,9 @@ int imx_icc_unregister(struct platform_device *pdev)
 
 	imx_icc_unregister_nodes(&imx_provider->provider);
 
-	return icc_provider_del(&imx_provider->provider);
+	icc_provider_del(&imx_provider->provider);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(imx_icc_unregister);
 
