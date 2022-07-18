@@ -4340,7 +4340,7 @@ static int mpi3mr_qcmd(struct Scsi_Host *shost,
 		goto out;
 	}
 	op_req_q = &mrioc->req_qinfo[scmd_priv_data->req_q_idx];
-		data_len_blks = scsi_bufflen(scmd) >> 9;
+	data_len_blks = scsi_bufflen(scmd) >> 9;
 	if ((data_len_blks >= mrioc->io_throttle_data_length) &&
 	    stgt_priv_data->io_throttle_enabled) {
 		tracked_io_sz = data_len_blks;
