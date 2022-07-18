@@ -4373,7 +4373,7 @@ L:	linux-pm@vger.kernel.org
 L:	linux-samsung-soc@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/chanwoo/linux.git
-F:	Documentation/devicetree/bindings/devfreq/exynos-bus.txt
+F:	Documentation/devicetree/bindings/interconnect/samsung,exynos-bus.yaml
 F:	drivers/devfreq/exynos-bus.c
 
 BUSLOGIC SCSI DRIVER
@@ -5855,6 +5855,7 @@ L:	linux-pm@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/chanwoo/linux.git
 F:	Documentation/devicetree/bindings/devfreq/
+F:	Documentation/devicetree/bindings/interconnect/mediatek,cci.yaml
 F:	drivers/devfreq/
 F:	include/linux/devfreq.h
 F:	include/trace/events/devfreq.h
