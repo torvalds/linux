@@ -1535,6 +1535,151 @@ static void cros_ec_proto_test_query_all_default_wake_mask_return0(struct kunit 
 	}
 }
 
+static void cros_ec_proto_test_cmd_xfer_normal(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	struct ec_xfer_mock *mock;
+	int ret;
+	struct {
+		struct cros_ec_command msg;
+		u8 data[0x100];
+	} __packed buf;
+
+	ec_dev->max_request = 0xff;
+	ec_dev->max_response = 0xee;
+	ec_dev->max_passthru = 0xdd;
+
+	buf.msg.version = 0;
+	buf.msg.command = EC_CMD_HELLO;
+	buf.msg.insize = 4;
+	buf.msg.outsize = 2;
+	buf.data[0] = 0x55;
+	buf.data[1] = 0xaa;
+
+	{
+		u8 *data;
+
+		mock = cros_kunit_ec_xfer_mock_add(test, 4);
+		KUNIT_ASSERT_PTR_NE(test, mock, NULL);
+
+		data = (u8 *)mock->o_data;
+		data[0] = 0xaa;
+		data[1] = 0x55;
+		data[2] = 0xcc;
+		data[3] = 0x33;
+	}
+
+	ret = cros_ec_cmd_xfer(ec_dev, &buf.msg);
+	KUNIT_EXPECT_EQ(test, ret, 4);
+
+	{
+		u8 *data;
+
+		mock = cros_kunit_ec_xfer_mock_next();
+		KUNIT_EXPECT_PTR_NE(test, mock, NULL);
+
+		KUNIT_EXPECT_EQ(test, mock->msg.version, 0);
+		KUNIT_EXPECT_EQ(test, mock->msg.command, EC_CMD_HELLO);
+		KUNIT_EXPECT_EQ(test, mock->msg.insize, 4);
+		KUNIT_EXPECT_EQ(test, mock->msg.outsize, 2);
+
+		data = (u8 *)mock->i_data;
+		KUNIT_EXPECT_EQ(test, data[0], 0x55);
+		KUNIT_EXPECT_EQ(test, data[1], 0xaa);
+
+		KUNIT_EXPECT_EQ(test, buf.data[0], 0xaa);
+		KUNIT_EXPECT_EQ(test, buf.data[1], 0x55);
+		KUNIT_EXPECT_EQ(test, buf.data[2], 0xcc);
+		KUNIT_EXPECT_EQ(test, buf.data[3], 0x33);
+	}
+}
+
+static void cros_ec_proto_test_cmd_xfer_excess_msg_insize(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	struct ec_xfer_mock *mock;
+	int ret;
+	struct {
+		struct cros_ec_command msg;
+		u8 data[0x100];
+	} __packed buf;
+
+	ec_dev->max_request = 0xff;
+	ec_dev->max_response = 0xee;
+	ec_dev->max_passthru = 0xdd;
+
+	buf.msg.version = 0;
+	buf.msg.command = EC_CMD_HELLO;
+	buf.msg.insize = 0xee + 1;
+	buf.msg.outsize = 2;
+
+	{
+		mock = cros_kunit_ec_xfer_mock_add(test, 0xcc);
+		KUNIT_ASSERT_PTR_NE(test, mock, NULL);
+	}
+
+	ret = cros_ec_cmd_xfer(ec_dev, &buf.msg);
+	KUNIT_EXPECT_EQ(test, ret, 0xcc);
+
+	{
+		mock = cros_kunit_ec_xfer_mock_next();
+		KUNIT_EXPECT_PTR_NE(test, mock, NULL);
+
+		KUNIT_EXPECT_EQ(test, mock->msg.version, 0);
+		KUNIT_EXPECT_EQ(test, mock->msg.command, EC_CMD_HELLO);
+		KUNIT_EXPECT_EQ(test, mock->msg.insize, 0xee);
+		KUNIT_EXPECT_EQ(test, mock->msg.outsize, 2);
+	}
+}
+
+static void cros_ec_proto_test_cmd_xfer_excess_msg_outsize_without_passthru(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	int ret;
+	struct {
+		struct cros_ec_command msg;
+		u8 data[0x100];
+	} __packed buf;
+
+	ec_dev->max_request = 0xff;
+	ec_dev->max_response = 0xee;
+	ec_dev->max_passthru = 0xdd;
+
+	buf.msg.version = 0;
+	buf.msg.command = EC_CMD_HELLO;
+	buf.msg.insize = 4;
+	buf.msg.outsize = 0xff + 1;
+
+	ret = cros_ec_cmd_xfer(ec_dev, &buf.msg);
+	KUNIT_EXPECT_EQ(test, ret, -EMSGSIZE);
+}
+
+static void cros_ec_proto_test_cmd_xfer_excess_msg_outsize_with_passthru(struct kunit *test)
+{
+	struct cros_ec_proto_test_priv *priv = test->priv;
+	struct cros_ec_device *ec_dev = &priv->ec_dev;
+	int ret;
+	struct {
+		struct cros_ec_command msg;
+		u8 data[0x100];
+	} __packed buf;
+
+	ec_dev->max_request = 0xff;
+	ec_dev->max_response = 0xee;
+	ec_dev->max_passthru = 0xdd;
+
+	buf.msg.version = 0;
+	buf.msg.command = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX) + EC_CMD_HELLO;
+	buf.msg.insize = 4;
+	buf.msg.outsize = 0xdd + 1;
+
+	ret = cros_ec_cmd_xfer(ec_dev, &buf.msg);
+	KUNIT_EXPECT_EQ(test, ret, -EMSGSIZE);
+}
+
 static void cros_ec_proto_test_release(struct device *dev)
 {
 }
@@ -1601,6 +1746,10 @@ static struct kunit_case cros_ec_proto_test_cases[] = {
 	KUNIT_CASE(cros_ec_proto_test_query_all_no_host_sleep_return0),
 	KUNIT_CASE(cros_ec_proto_test_query_all_default_wake_mask_return_error),
 	KUNIT_CASE(cros_ec_proto_test_query_all_default_wake_mask_return0),
+	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_normal),
+	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_excess_msg_insize),
+	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_excess_msg_outsize_without_passthru),
+	KUNIT_CASE(cros_ec_proto_test_cmd_xfer_excess_msg_outsize_with_passthru),
 	{}
 };
 
