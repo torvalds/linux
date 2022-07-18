@@ -74,36 +74,36 @@ static int snd_card_cs46xx_probe(struct pci_dev *pci,
 	err = snd_cs46xx_create(card, pci,
 				external_amp[dev], thinkpad[dev]);
 	if (err < 0)
-		return err;
+		goto error;
 	card->private_data = chip;
 	chip->accept_valid = mmap_valid[dev];
 	err = snd_cs46xx_pcm(chip, 0);
 	if (err < 0)
-		return err;
+		goto error;
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 	err = snd_cs46xx_pcm_rear(chip, 1);
 	if (err < 0)
-		return err;
+		goto error;
 	err = snd_cs46xx_pcm_iec958(chip, 2);
 	if (err < 0)
-		return err;
+		goto error;
 #endif
 	err = snd_cs46xx_mixer(chip, 2);
 	if (err < 0)
-		return err;
+		goto error;
 #ifdef CONFIG_SND_CS46XX_NEW_DSP
 	if (chip->nr_ac97_codecs ==2) {
 		err = snd_cs46xx_pcm_center_lfe(chip, 3);
 		if (err < 0)
-			return err;
+			goto error;
 	}
 #endif
 	err = snd_cs46xx_midi(chip, 0);
 	if (err < 0)
-		return err;
+		goto error;
 	err = snd_cs46xx_start_dsp(chip);
 	if (err < 0)
-		return err;
+		goto error;
 
 	snd_cs46xx_gameport(chip);
 
@@ -117,11 +117,15 @@ static int snd_card_cs46xx_probe(struct pci_dev *pci,
 
 	err = snd_card_register(card);
 	if (err < 0)
-		return err;
+		goto error;
 
 	pci_set_drvdata(pci, card);
 	dev++;
 	return 0;
+
+ error:
+	snd_card_free(card);
+	return err;
 }
 
 static struct pci_driver cs46xx_driver = {

@@ -44,7 +44,7 @@ objtool-enabled := $(or $(delay-objtool),$(CONFIG_NOINSTR_VALIDATION))
 
 objtool_args := \
 	$(if $(delay-objtool),$(objtool_args)) \
-	$(if $(CONFIG_NOINSTR_VALIDATION), --noinstr) \
+	$(if $(CONFIG_NOINSTR_VALIDATION), --noinstr $(if $(CONFIG_CPU_UNRET_ENTRY), --unret)) \
 	$(if $(CONFIG_GCOV_KERNEL), --no-unreachable) \
 	--link
 

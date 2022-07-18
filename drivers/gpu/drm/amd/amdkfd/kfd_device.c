@@ -184,6 +184,8 @@ static void kfd_device_info_init(struct kfd_dev *kfd,
 			/* Navi2x+, Navi1x+ */
 			if (gc_version == IP_VERSION(10, 3, 6))
 				kfd->device_info.no_atomic_fw_version = 14;
+			else if (gc_version == IP_VERSION(10, 3, 7))
+				kfd->device_info.no_atomic_fw_version = 3;
 			else if (gc_version >= IP_VERSION(10, 3, 0))
 				kfd->device_info.no_atomic_fw_version = 92;
 			else if (gc_version >= IP_VERSION(10, 1, 1))

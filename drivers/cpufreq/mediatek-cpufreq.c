@@ -439,9 +439,13 @@ static int mtk_cpu_dvfs_info_init(struct mtk_cpu_dvfs_info *info, int cpu)
 
 	/* Both presence and absence of sram regulator are valid cases. */
 	info->sram_reg = regulator_get_optional(cpu_dev, "sram");
-	if (IS_ERR(info->sram_reg))
+	if (IS_ERR(info->sram_reg)) {
+		ret = PTR_ERR(info->sram_reg);
+		if (ret == -EPROBE_DEFER)
+			goto out_free_resources;
+
 		info->sram_reg = NULL;
-	else {
+	} else {
 		ret = regulator_enable(info->sram_reg);
 		if (ret) {
 			dev_warn(cpu_dev, "cpu%d: failed to enable vsram\n", cpu);

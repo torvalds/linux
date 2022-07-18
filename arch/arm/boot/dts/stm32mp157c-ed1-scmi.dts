@@ -34,6 +34,10 @@
 	resets = <&scmi_reset RST_SCMI_CRYP1>;
 };
 
+&dsi {
+	clocks = <&rcc DSI_K>, <&scmi_clk CK_SCMI_HSE>, <&rcc DSI_PX>;
+};
+
 &gpioz {
 	clocks = <&scmi_clk CK_SCMI_GPIOZ>;
 };

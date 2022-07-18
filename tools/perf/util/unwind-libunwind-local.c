@@ -197,7 +197,7 @@ out_err:
 #ifndef NO_LIBUNWIND_DEBUG_FRAME
 static u64 elf_section_offset(int fd, const char *name)
 {
-	u64 address, offset;
+	u64 address, offset = 0;
 
 	if (elf_section_address_and_offset(fd, name, &address, &offset))
 		return 0;

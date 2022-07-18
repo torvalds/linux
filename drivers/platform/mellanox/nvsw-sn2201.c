@@ -890,6 +890,7 @@ nvsw_sn2201_create_static_devices(struct nvsw_sn2201 *nvsw_sn2201,
 				  int size)
 {
 	struct mlxreg_hotplug_device *dev = devs;
+	int ret;
 	int i;
 
 	/* Create I2C static devices. */
@@ -901,6 +902,7 @@ nvsw_sn2201_create_static_devices(struct nvsw_sn2201 *nvsw_sn2201,
 				dev->nr, dev->brdinfo->addr);
 
 			dev->adapter = NULL;
+			ret = PTR_ERR(dev->client);
 			goto fail_create_static_devices;
 		}
 	}
@@ -914,7 +916,7 @@ fail_create_static_devices:
 		dev->client = NULL;
 		dev->adapter = NULL;
 	}
-	return IS_ERR(dev->client);
+	return ret;
 }
 
 static void nvsw_sn2201_destroy_static_devices(struct nvsw_sn2201 *nvsw_sn2201,

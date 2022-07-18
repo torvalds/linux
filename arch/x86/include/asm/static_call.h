@@ -21,6 +21,16 @@
  * relative displacement across sections.
  */
 
+/*
+ * The trampoline is 8 bytes and of the general form:
+ *
+ *   jmp.d32 \func
+ *   ud1 %esp, %ecx
+ *
+ * That trailing #UD provides both a speculation stop and serves as a unique
+ * 3 byte signature identifying static call trampolines. Also see tramp_ud[]
+ * and __static_call_fixup().
+ */
 #define __ARCH_DEFINE_STATIC_CALL_TRAMP(name, insns)			\
 	asm(".pushsection .static_call.text, \"ax\"		\n"	\
 	    ".align 4						\n"	\
@@ -28,7 +38,7 @@
 	    STATIC_CALL_TRAMP_STR(name) ":			\n"	\
 	    ANNOTATE_NOENDBR						\
 	    insns "						\n"	\
-	    ".byte 0x53, 0x43, 0x54				\n"	\
+	    ".byte 0x0f, 0xb9, 0xcc				\n"	\
 	    ".type " STATIC_CALL_TRAMP_STR(name) ", @function	\n"	\
 	    ".size " STATIC_CALL_TRAMP_STR(name) ", . - " STATIC_CALL_TRAMP_STR(name) " \n" \
 	    ".popsection					\n")
@@ -36,8 +46,13 @@
 #define ARCH_DEFINE_STATIC_CALL_TRAMP(name, func)			\
 	__ARCH_DEFINE_STATIC_CALL_TRAMP(name, ".byte 0xe9; .long " #func " - (. + 4)")
 
+#ifdef CONFIG_RETHUNK
+#define ARCH_DEFINE_STATIC_CALL_NULL_TRAMP(name)			\
+	__ARCH_DEFINE_STATIC_CALL_TRAMP(name, "jmp __x86_return_thunk")
+#else
 #define ARCH_DEFINE_STATIC_CALL_NULL_TRAMP(name)			\
 	__ARCH_DEFINE_STATIC_CALL_TRAMP(name, "ret; int3; nop; nop; nop")
+#endif
 
 #define ARCH_DEFINE_STATIC_CALL_RET0_TRAMP(name)			\
 	ARCH_DEFINE_STATIC_CALL_TRAMP(name, __static_call_return0)
@@ -47,5 +62,7 @@
 	    ".long " STATIC_CALL_TRAMP_STR(name) " - .		\n"	\
 	    ".long " STATIC_CALL_KEY_STR(name) " - .		\n"	\
 	    ".popsection					\n")
+
+extern bool __static_call_fixup(void *tramp, u8 op, void *dest);
 
 #endif /* _ASM_STATIC_CALL_H */

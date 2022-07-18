@@ -1577,23 +1577,22 @@ static int sof_ipc3_control_load_bytes(struct snd_sof_dev *sdev, struct snd_sof_
 	struct sof_ipc_ctrl_data *cdata;
 	int ret;
 
+	if (scontrol->max_size < (sizeof(*cdata) + sizeof(struct sof_abi_hdr))) {
+		dev_err(sdev->dev, "%s: insufficient size for a bytes control: %zu.\n",
+			__func__, scontrol->max_size);
+		return -EINVAL;
+	}
+
+	if (scontrol->priv_size > scontrol->max_size - sizeof(*cdata)) {
+		dev_err(sdev->dev,
+			"%s: bytes data size %zu exceeds max %zu.\n", __func__,
+			scontrol->priv_size, scontrol->max_size - sizeof(*cdata));
+		return -EINVAL;
+	}
+
 	scontrol->ipc_control_data = kzalloc(scontrol->max_size, GFP_KERNEL);
 	if (!scontrol->ipc_control_data)
 		return -ENOMEM;
-
-	if (scontrol->max_size < sizeof(*cdata) ||
-	    scontrol->max_size < sizeof(struct sof_abi_hdr)) {
-		ret = -EINVAL;
-		goto err;
-	}
-
-	/* init the get/put bytes data */
-	if (scontrol->priv_size > scontrol->max_size - sizeof(*cdata)) {
-		dev_err(sdev->dev, "err: bytes data size %zu exceeds max %zu.\n",
-			scontrol->priv_size, scontrol->max_size - sizeof(*cdata));
-		ret = -EINVAL;
-		goto err;
-	}
 
 	scontrol->size = sizeof(struct sof_ipc_ctrl_data) + scontrol->priv_size;
 

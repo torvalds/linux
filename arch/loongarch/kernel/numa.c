@@ -429,7 +429,6 @@ int __init init_numa_memory(void)
 	return 0;
 }
 
-EXPORT_SYMBOL(init_numa_memory);
 #endif
 
 void __init paging_init(void)

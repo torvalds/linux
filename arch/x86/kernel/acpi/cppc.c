@@ -11,6 +11,22 @@
 
 /* Refer to drivers/acpi/cppc_acpi.c for the description of functions */
 
+bool cpc_supported_by_cpu(void)
+{
+	switch (boot_cpu_data.x86_vendor) {
+	case X86_VENDOR_AMD:
+	case X86_VENDOR_HYGON:
+		if (boot_cpu_data.x86 == 0x19 && ((boot_cpu_data.x86_model <= 0x0f) ||
+		    (boot_cpu_data.x86_model >= 0x20 && boot_cpu_data.x86_model <= 0x2f)))
+			return true;
+		else if (boot_cpu_data.x86 == 0x17 &&
+			 boot_cpu_data.x86_model >= 0x70 && boot_cpu_data.x86_model <= 0x7f)
+			return true;
+		return boot_cpu_has(X86_FEATURE_CPPC);
+	}
+	return false;
+}
+
 bool cpc_ffh_supported(void)
 {
 	return true;

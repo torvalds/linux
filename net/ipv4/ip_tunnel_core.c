@@ -410,7 +410,7 @@ int skb_tunnel_check_pmtu(struct sk_buff *skb, struct dst_entry *encap_dst,
 	u32 mtu = dst_mtu(encap_dst) - headroom;
 
 	if ((skb_is_gso(skb) && skb_gso_validate_network_len(skb, mtu)) ||
-	    (!skb_is_gso(skb) && (skb->len - skb_mac_header_len(skb)) <= mtu))
+	    (!skb_is_gso(skb) && (skb->len - skb_network_offset(skb)) <= mtu))
 		return 0;
 
 	skb_dst_update_pmtu_no_confirm(skb, mtu);

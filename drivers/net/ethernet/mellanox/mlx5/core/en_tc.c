@@ -3793,7 +3793,7 @@ static bool is_lag_dev(struct mlx5e_priv *priv,
 
 static bool is_multiport_eligible(struct mlx5e_priv *priv, struct net_device *out_dev)
 {
-	if (mlx5e_eswitch_uplink_rep(out_dev) &&
+	if (same_hw_reps(priv, out_dev) &&
 	    MLX5_CAP_PORT_SELECTION(priv->mdev, port_select_flow_table) &&
 	    MLX5_CAP_GEN(priv->mdev, create_lag_when_not_master_up))
 		return true;
@@ -4529,13 +4529,6 @@ static int mlx5e_policer_validate(const struct flow_action *action,
 		return -EOPNOTSUPP;
 	}
 
-	if (act->police.notexceed.act_id != FLOW_ACTION_PIPE &&
-	    act->police.notexceed.act_id != FLOW_ACTION_ACCEPT) {
-		NL_SET_ERR_MSG_MOD(extack,
-				   "Offload not supported when conform action is not pipe or ok");
-		return -EOPNOTSUPP;
-	}
-
 	if (act->police.notexceed.act_id == FLOW_ACTION_ACCEPT &&
 	    !flow_action_is_last_entry(action, act)) {
 		NL_SET_ERR_MSG_MOD(extack,
@@ -4586,6 +4579,12 @@ static int scan_tc_matchall_fdb_actions(struct mlx5e_priv *priv,
 	flow_action_for_each(i, act, flow_action) {
 		switch (act->id) {
 		case FLOW_ACTION_POLICE:
+			if (act->police.notexceed.act_id != FLOW_ACTION_CONTINUE) {
+				NL_SET_ERR_MSG_MOD(extack,
+						   "Offload not supported when conform action is not continue");
+				return -EOPNOTSUPP;
+			}
+
 			err = mlx5e_policer_validate(flow_action, act, extack);
 			if (err)
 				return err;

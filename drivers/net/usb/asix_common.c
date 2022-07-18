@@ -431,6 +431,7 @@ void asix_adjust_link(struct net_device *netdev)
 
 	asix_write_medium_mode(dev, mode, 0);
 	phy_print_status(phydev);
+	usbnet_link_change(dev, phydev->link, 0);
 }
 
 int asix_write_gpio(struct usbnet *dev, u16 value, int sleep, int in_pm)

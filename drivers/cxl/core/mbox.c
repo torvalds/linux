@@ -355,11 +355,13 @@ static int cxl_to_mem_cmd(struct cxl_mem_command *mem_cmd,
 		return -EBUSY;
 
 	/* Check the input buffer is the expected size */
-	if (info->size_in != send_cmd->in.size)
+	if ((info->size_in != CXL_VARIABLE_PAYLOAD) &&
+	    (info->size_in != send_cmd->in.size))
 		return -ENOMEM;
 
 	/* Check the output buffer is at least large enough */
-	if (send_cmd->out.size < info->size_out)
+	if ((info->size_out != CXL_VARIABLE_PAYLOAD) &&
+	    (send_cmd->out.size < info->size_out))
 		return -ENOMEM;
 
 	*mem_cmd = (struct cxl_mem_command) {

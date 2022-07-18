@@ -87,22 +87,22 @@
 
 	phy4: ethernet-phy@5 {
 		reg = <5>;
-		coma-mode-gpios = <&gpio 37 GPIO_ACTIVE_HIGH>;
+		coma-mode-gpios = <&gpio 37 GPIO_OPEN_DRAIN>;
 	};
 
 	phy5: ethernet-phy@6 {
 		reg = <6>;
-		coma-mode-gpios = <&gpio 37 GPIO_ACTIVE_HIGH>;
+		coma-mode-gpios = <&gpio 37 GPIO_OPEN_DRAIN>;
 	};
 
 	phy6: ethernet-phy@7 {
 		reg = <7>;
-		coma-mode-gpios = <&gpio 37 GPIO_ACTIVE_HIGH>;
+		coma-mode-gpios = <&gpio 37 GPIO_OPEN_DRAIN>;
 	};
 
 	phy7: ethernet-phy@8 {
 		reg = <8>;
-		coma-mode-gpios = <&gpio 37 GPIO_ACTIVE_HIGH>;
+		coma-mode-gpios = <&gpio 37 GPIO_OPEN_DRAIN>;
 	};
 };
 
