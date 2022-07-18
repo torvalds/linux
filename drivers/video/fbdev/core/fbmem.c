@@ -1526,102 +1526,6 @@ static int fb_check_foreignness(struct fb_info *fi)
 	return 0;
 }
 
-static bool apertures_overlap(struct aperture *gen, struct aperture *hw)
-{
-	/* is the generic aperture base the same as the HW one */
-	if (gen->base == hw->base)
-		return true;
-	/* is the generic aperture base inside the hw base->hw base+size */
-	if (gen->base > hw->base && gen->base < hw->base + hw->size)
-		return true;
-	return false;
-}
-
-static bool fb_do_apertures_overlap(struct apertures_struct *gena,
-				    struct apertures_struct *hwa)
-{
-	int i, j;
-	if (!hwa || !gena)
-		return false;
-
-	for (i = 0; i < hwa->count; ++i) {
-		struct aperture *h = &hwa->ranges[i];
-		for (j = 0; j < gena->count; ++j) {
-			struct aperture *g = &gena->ranges[j];
-			printk(KERN_DEBUG "checking generic (%llx %llx) vs hw (%llx %llx)\n",
-				(unsigned long long)g->base,
-				(unsigned long long)g->size,
-				(unsigned long long)h->base,
-				(unsigned long long)h->size);
-			if (apertures_overlap(g, h))
-				return true;
-		}
-	}
-
-	return false;
-}
-
-static void do_unregister_framebuffer(struct fb_info *fb_info);
-
-static void do_remove_conflicting_framebuffers(struct apertures_struct *a,
-					       const char *name, bool primary)
-{
-	int i;
-
-restart_removal:
-	/* check all firmware fbs and kick off if the base addr overlaps */
-	for_each_registered_fb(i) {
-		struct apertures_struct *gen_aper;
-		struct device *device;
-
-		if (!(registered_fb[i]->flags & FBINFO_MISC_FIRMWARE))
-			continue;
-
-		gen_aper = registered_fb[i]->apertures;
-		device = registered_fb[i]->device;
-		if (fb_do_apertures_overlap(gen_aper, a) ||
-			(primary && gen_aper && gen_aper->count &&
-			 gen_aper->ranges[0].base == VGA_FB_PHYS_BASE)) {
-
-			printk(KERN_INFO "fb%d: switching to %s from %s\n",
-			       i, name, registered_fb[i]->fix.id);
-
-			/*
-			 * If we kick-out a firmware driver, we also want to remove
-			 * the underlying platform device, such as simple-framebuffer,
-			 * VESA, EFI, etc. A native driver will then be able to
-			 * allocate the memory range.
-			 *
-			 * If it's not a platform device, at least print a warning. A
-			 * fix would add code to remove the device from the system. For
-			 * framebuffers without any Linux device, print a warning as
-			 * well.
-			 */
-			if (!device) {
-				pr_warn("fb%d: no device set\n", i);
-				do_unregister_framebuffer(registered_fb[i]);
-			} else if (dev_is_platform(device)) {
-				/*
-				 * Drop the lock because if the device is unregistered, its
-				 * driver will call to unregister_framebuffer(), that takes
-				 * this lock.
-				 */
-				mutex_unlock(&registration_lock);
-				platform_device_unregister(to_platform_device(device));
-				mutex_lock(&registration_lock);
-			} else {
-				pr_warn("fb%d: cannot remove device\n", i);
-				do_unregister_framebuffer(registered_fb[i]);
-			}
-			/*
-			 * Restart the removal loop now that the device has been
-			 * unregistered and its associated framebuffer gone.
-			 */
-			goto restart_removal;
-		}
-	}
-}
-
 static int do_register_framebuffer(struct fb_info *fb_info)
 {
 	int i;
@@ -1629,10 +1533,6 @@ static int do_register_framebuffer(struct fb_info *fb_info)
 
 	if (fb_check_foreignness(fb_info))
 		return -ENOSYS;
-
-	do_remove_conflicting_framebuffers(fb_info->apertures,
-					   fb_info->fix.id,
-					   fb_is_primary_device(fb_info));
 
 	if (num_registered_fb == FB_MAX)
 		return -ENXIO;
@@ -1777,42 +1677,6 @@ static int fb_aperture_acquire_for_platform_device(struct fb_info *fb_info)
 
 	return ret;
 }
-
-/**
- * remove_conflicting_framebuffers - remove firmware-configured framebuffers
- * @a: memory range, users of which are to be removed
- * @name: requesting driver name
- * @primary: also kick vga16fb if present
- *
- * This function removes framebuffer devices (initialized by firmware/bootloader)
- * which use memory range described by @a. If @a is NULL all such devices are
- * removed.
- */
-int remove_conflicting_framebuffers(struct apertures_struct *a,
-				    const char *name, bool primary)
-{
-	bool do_free = false;
-
-	if (!a) {
-		a = alloc_apertures(1);
-		if (!a)
-			return -ENOMEM;
-
-		a->ranges[0].base = 0;
-		a->ranges[0].size = ~0;
-		do_free = true;
-	}
-
-	mutex_lock(&registration_lock);
-	do_remove_conflicting_framebuffers(a, name, primary);
-	mutex_unlock(&registration_lock);
-
-	if (do_free)
-		kfree(a);
-
-	return 0;
-}
-EXPORT_SYMBOL(remove_conflicting_framebuffers);
 
 /**
  *	register_framebuffer - registers a frame buffer device
