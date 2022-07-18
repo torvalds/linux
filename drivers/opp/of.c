@@ -254,8 +254,8 @@ void _of_clear_opp_table(struct opp_table *opp_table)
  * Release all resources previously acquired with a call to
  * _of_opp_alloc_required_opps().
  */
-void _of_opp_free_required_opps(struct opp_table *opp_table,
-				struct dev_pm_opp *opp)
+static void _of_opp_free_required_opps(struct opp_table *opp_table,
+				       struct dev_pm_opp *opp)
 {
 	struct dev_pm_opp **required_opps = opp->required_opps;
 	int i;
@@ -273,6 +273,12 @@ void _of_opp_free_required_opps(struct opp_table *opp_table,
 
 	opp->required_opps = NULL;
 	kfree(required_opps);
+}
+
+void _of_clear_opp(struct opp_table *opp_table, struct dev_pm_opp *opp)
+{
+	_of_opp_free_required_opps(opp_table, opp);
+	of_node_put(opp->np);
 }
 
 /* Populate all required OPPs which are part of "required-opps" list */
@@ -938,7 +944,7 @@ static struct dev_pm_opp *_opp_add_static_v2(struct opp_table *opp_table,
 
 	new_opp->turbo = of_property_read_bool(np, "turbo-mode");
 
-	new_opp->np = np;
+	new_opp->np = of_node_get(np);
 	new_opp->dynamic = false;
 	new_opp->available = true;
 

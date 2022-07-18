@@ -267,14 +267,12 @@ static inline bool lazy_linking_pending(struct opp_table *opp_table)
 void _of_init_opp_table(struct opp_table *opp_table, struct device *dev, int index);
 void _of_clear_opp_table(struct opp_table *opp_table);
 struct opp_table *_managed_opp(struct device *dev, int index);
-void _of_opp_free_required_opps(struct opp_table *opp_table,
-				struct dev_pm_opp *opp);
+void _of_clear_opp(struct opp_table *opp_table, struct dev_pm_opp *opp);
 #else
 static inline void _of_init_opp_table(struct opp_table *opp_table, struct device *dev, int index) {}
 static inline void _of_clear_opp_table(struct opp_table *opp_table) {}
 static inline struct opp_table *_managed_opp(struct device *dev, int index) { return NULL; }
-static inline void _of_opp_free_required_opps(struct opp_table *opp_table,
-					      struct dev_pm_opp *opp) {}
+static inline void _of_clear_opp(struct opp_table *opp_table, struct dev_pm_opp *opp) {}
 #endif
 
 #ifdef CONFIG_DEBUG_FS
