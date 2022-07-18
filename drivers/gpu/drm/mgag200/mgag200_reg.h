@@ -96,7 +96,7 @@
 #define MGAREG_SRCORG		0x2cb4
 #define MGAREG_DSTORG		0x2cb8
 
-/* add or or this to one of the previous "power registers" to start
+/* add or this to one of the previous "power registers" to start
    the drawing engine */
 
 #define MGAREG_EXEC		0x0100
