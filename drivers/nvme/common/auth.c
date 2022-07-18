@@ -272,26 +272,33 @@ u8 *nvme_auth_transform_key(struct nvme_dhchap_key *key, char *nqn)
 	shash->tfm = key_tfm;
 	ret = crypto_shash_setkey(key_tfm, key->key, key->len);
 	if (ret < 0)
-		goto out_free_shash;
+		goto out_free_transformed_key;
 	ret = crypto_shash_init(shash);
 	if (ret < 0)
-		goto out_free_shash;
+		goto out_free_transformed_key;
 	ret = crypto_shash_update(shash, nqn, strlen(nqn));
 	if (ret < 0)
-		goto out_free_shash;
+		goto out_free_transformed_key;
 	ret = crypto_shash_update(shash, "NVMe-over-Fabrics", 17);
 	if (ret < 0)
-		goto out_free_shash;
+		goto out_free_transformed_key;
 	ret = crypto_shash_final(shash, transformed_key);
+	if (ret < 0)
+		goto out_free_transformed_key;
+
+	kfree(shash);
+	crypto_free_shash(key_tfm);
+
+	return transformed_key;
+
+out_free_transformed_key:
+	kfree_sensitive(transformed_key);
 out_free_shash:
 	kfree(shash);
 out_free_key:
 	crypto_free_shash(key_tfm);
-	if (ret < 0) {
-		kfree_sensitive(transformed_key);
-		return ERR_PTR(ret);
-	}
-	return transformed_key;
+
+	return ERR_PTR(ret);
 }
 EXPORT_SYMBOL_GPL(nvme_auth_transform_key);
 
