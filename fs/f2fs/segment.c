@@ -196,6 +196,7 @@ void f2fs_abort_atomic_write(struct inode *inode, bool clean)
 		clear_inode_flag(fi->cow_inode, FI_ATOMIC_FILE);
 		iput(fi->cow_inode);
 		fi->cow_inode = NULL;
+		release_atomic_write_cnt(inode);
 		clear_inode_flag(inode, FI_ATOMIC_FILE);
 
 		spin_lock(&sbi->inode_lock[ATOMIC_FILE]);
@@ -335,6 +336,11 @@ next:
 	}
 
 out:
+	if (ret)
+		sbi->revoked_atomic_block += fi->atomic_write_cnt;
+	else
+		sbi->committed_atomic_block += fi->atomic_write_cnt;
+
 	__complete_revoke_list(inode, &revoke_list, ret ? true : false);
 
 	return ret;
