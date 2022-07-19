@@ -96,6 +96,7 @@ static void stats_test(int stats_fd)
 		 * Exponent for unit seconds should be less than or equal to 0
 		 * Exponent for unit clock cycles should be greater than or
 		 * equal to 0
+		 * Exponent for unit boolean should be 0
 		 */
 		switch (pdesc->flags & KVM_STATS_UNIT_MASK) {
 		case KVM_STATS_UNIT_NONE:
@@ -108,6 +109,11 @@ static void stats_test(int stats_fd)
 		case KVM_STATS_UNIT_SECONDS:
 			TEST_ASSERT(pdesc->exponent <= 0,
 				    "Unsupported KVM stats (%s) exponent: %i",
+				    pdesc->name, pdesc->exponent);
+			break;
+		case KVM_STATS_UNIT_BOOLEAN:
+			TEST_ASSERT(pdesc->exponent == 0,
+				    "Unsupported KVM stats (%s) exponent: %d",
 				    pdesc->name, pdesc->exponent);
 			break;
 		}
