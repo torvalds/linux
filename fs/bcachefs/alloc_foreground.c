@@ -351,6 +351,7 @@ static struct open_bucket *try_alloc_bucket(struct btree_trans *trans, struct bc
 	if (!ob)
 		iter.path->preserve = false;
 err:
+	set_btree_iter_dontneed(&iter);
 	bch2_trans_iter_exit(trans, &iter);
 	printbuf_exit(&buf);
 	return ob;
