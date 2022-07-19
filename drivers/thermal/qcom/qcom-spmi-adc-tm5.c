@@ -20,6 +20,8 @@
 #include <linux/thermal.h>
 #include <asm-generic/unaligned.h>
 
+#include "../thermal_hwmon.h"
+
 /*
  * Thermal monitoring block consists of 8 (ADC_TM5_NUM_CHANNELS) channels. Each
  * channel is programmed to use one of ADC channels for voltage comparison.
@@ -687,6 +689,9 @@ static int adc_tm5_register_tzd(struct adc_tm5_chip *adc_tm)
 			return PTR_ERR(tzd);
 		}
 		adc_tm->channels[i].tzd = tzd;
+		if (devm_thermal_add_hwmon_sysfs(tzd))
+			dev_warn(adc_tm->dev,
+				 "Failed to add hwmon sysfs attributes\n");
 	}
 
 	return 0;
