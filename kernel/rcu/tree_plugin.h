@@ -718,9 +718,6 @@ static void rcu_flavor_sched_clock_irq(int user)
 	struct task_struct *t = current;
 
 	lockdep_assert_irqs_disabled();
-	if (user || rcu_is_cpu_rrupt_from_idle()) {
-		rcu_note_voluntary_context_switch(current);
-	}
 	if (rcu_preempt_depth() > 0 ||
 	    (preempt_count() & (PREEMPT_MASK | SOFTIRQ_MASK))) {
 		/* No QS, force context switch if deferred. */
@@ -972,7 +969,6 @@ static void rcu_flavor_sched_clock_irq(int user)
 		 * neither access nor modify, at least not while the
 		 * corresponding CPU is online.
 		 */
-
 		rcu_qs();
 	}
 }
