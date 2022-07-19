@@ -2256,7 +2256,10 @@ static int pl022_probe(struct amba_device *adev, const struct amba_id *id)
 	/* If that failed, use channels from platform_info */
 	if (status == 0)
 		platform_info->enable_dma = 1;
-	else if (platform_info->enable_dma) {
+	else if (platform_flag) {
+		platform_info->enable_dma = 0;
+		dev_info(&adev->dev, "work without dma!\n");
+	} else if (platform_info->enable_dma) {
 		status = pl022_dma_probe(pl022);
 		if (status != 0)
 			platform_info->enable_dma = 0;
