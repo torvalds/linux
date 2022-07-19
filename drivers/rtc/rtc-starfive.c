@@ -139,9 +139,7 @@ struct sft_rtc {
 	struct completion onesec_done;
 	struct clk *pclk;
 	struct clk *cal_clk;
-	struct reset_control *rst_apb;
-	struct reset_control *rst_cal;
-	struct reset_control *rst_osc;
+	struct reset_control *rst_array;
 	int hw_cal_map;
 	void __iomem *regs;
 	int rtc_irq;
@@ -579,27 +577,11 @@ static int sft_rtc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	srtc->rst_apb = devm_reset_control_get_exclusive(dev, "rst_apb");
-	if (IS_ERR(srtc->rst_apb)) {
-		ret = PTR_ERR(srtc->rst_apb);
+	srtc->rst_array = devm_reset_control_array_get_exclusive(dev);
+	if (IS_ERR(srtc->rst_array)) {
+		ret = PTR_ERR(srtc->rst_array);
 		dev_err(dev,
-			"Failed to retrieve the rtc apb reset, %d\n", ret);
-		return ret;
-	}
-
-	srtc->rst_cal = devm_reset_control_get_exclusive(dev, "rst_cal");
-	if (IS_ERR(srtc->rst_cal)) {
-		ret = PTR_ERR(srtc->rst_cal);
-		dev_err(dev,
-			"Failed to retrieve the rtc cal reset, %d\n", ret);
-		return ret;
-	}
-
-	srtc->rst_osc = devm_reset_control_get_exclusive(dev, "rst_osc");
-	if (IS_ERR(srtc->rst_osc)) {
-		ret = PTR_ERR(srtc->rst_osc);
-		dev_err(dev,
-			"Failed to retrieve the rtc osc reset, %d\n", ret);
+			"Failed to retrieve the rtc reset, %d\n", ret);
 		return ret;
 	}
 
@@ -617,9 +599,12 @@ static int sft_rtc_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_disable_pclk;
 
-	reset_control_deassert(srtc->rst_osc);
-	reset_control_deassert(srtc->rst_apb);
-	reset_control_deassert(srtc->rst_cal);
+	ret = reset_control_deassert(srtc->rst_array);
+	if (ret) {
+		dev_err(dev,
+			"Failed to deassert rtc resets, %d\n", ret);
+		goto err_disable_cal_clk;
+	}
 
 	ret = sft_rtc_get_irq(pdev, srtc);
 	if (ret)
