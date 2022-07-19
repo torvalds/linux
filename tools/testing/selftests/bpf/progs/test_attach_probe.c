@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 // Copyright (c) 2017 Facebook
 
-#include <linux/ptrace.h>
-#include <linux/bpf.h>
+#include "vmlinux.h"
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include <stdbool.h>
+#include <bpf/bpf_core_read.h>
 #include "bpf_misc.h"
 
 int kprobe_res = 0;
@@ -31,8 +30,8 @@ int handle_kprobe(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kprobe/" SYS_PREFIX "sys_nanosleep")
-int BPF_KPROBE(handle_kprobe_auto)
+SEC("ksyscall/nanosleep")
+int BPF_KSYSCALL(handle_kprobe_auto, struct __kernel_timespec *req, struct __kernel_timespec *rem)
 {
 	kprobe2_res = 11;
 	return 0;
@@ -56,11 +55,11 @@ int handle_kretprobe(struct pt_regs *ctx)
 	return 0;
 }
 
-SEC("kretprobe/" SYS_PREFIX "sys_nanosleep")
-int BPF_KRETPROBE(handle_kretprobe_auto)
+SEC("kretsyscall/nanosleep")
+int BPF_KRETPROBE(handle_kretprobe_auto, int ret)
 {
 	kretprobe2_res = 22;
-	return 0;
+	return ret;
 }
 
 SEC("uprobe")

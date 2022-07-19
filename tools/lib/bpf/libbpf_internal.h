@@ -352,6 +352,8 @@ enum kern_feature_id {
 	FEAT_BPF_COOKIE,
 	/* BTF_KIND_ENUM64 support and BTF_KIND_ENUM kflag support */
 	FEAT_BTF_ENUM64,
+	/* Kernel uses syscall wrapper (CONFIG_ARCH_HAS_SYSCALL_WRAPPER) */
+	FEAT_SYSCALL_WRAPPER,
 	__FEAT_CNT,
 };
 
