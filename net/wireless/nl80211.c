@@ -15827,14 +15827,13 @@ nl80211_add_mod_link_station(struct sk_buff *skb, struct genl_info *info,
 	if (add && !info->attrs[NL80211_ATTR_MAC])
 		return -EINVAL;
 
-	if (add && !info->attrs[NL80211_ATTR_MLD_ADDR])
+	if (!info->attrs[NL80211_ATTR_MLD_ADDR])
 		return -EINVAL;
 
 	if (add && !info->attrs[NL80211_ATTR_STA_SUPPORTED_RATES])
 		return -EINVAL;
 
-	if (info->attrs[NL80211_ATTR_MLD_ADDR])
-		params.mld_mac = nla_data(info->attrs[NL80211_ATTR_MLD_ADDR]);
+	params.mld_mac = nla_data(info->attrs[NL80211_ATTR_MLD_ADDR]);
 
 	if (info->attrs[NL80211_ATTR_MAC]) {
 		params.link_mac = nla_data(info->attrs[NL80211_ATTR_MAC]);
