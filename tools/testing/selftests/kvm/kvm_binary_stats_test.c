@@ -31,6 +31,7 @@ static void stats_test(int stats_fd)
 	struct kvm_stats_desc *stats_desc;
 	u64 *stats_data;
 	struct kvm_stats_desc *pdesc;
+	u32 type, unit, base;
 
 	/* Read kvm stats header */
 	read_stats_header(stats_fd, &header);
@@ -72,18 +73,21 @@ static void stats_test(int stats_fd)
 	/* Sanity check for fields in descriptors */
 	for (i = 0; i < header.num_desc; ++i) {
 		pdesc = get_stats_descriptor(stats_desc, i, &header);
+		type = pdesc->flags & KVM_STATS_TYPE_MASK;
+		unit = pdesc->flags & KVM_STATS_UNIT_MASK;
+		base = pdesc->flags & KVM_STATS_BASE_MASK;
 
 		/* Check name string */
 		TEST_ASSERT(strlen(pdesc->name) < header.name_size,
 			    "KVM stats name (index: %d) too long", i);
 
 		/* Check type,unit,base boundaries */
-		TEST_ASSERT((pdesc->flags & KVM_STATS_TYPE_MASK) <= KVM_STATS_TYPE_MAX,
-			    "Unknown KVM stats type");
-		TEST_ASSERT((pdesc->flags & KVM_STATS_UNIT_MASK) <= KVM_STATS_UNIT_MAX,
-			    "Unknown KVM stats unit");
-		TEST_ASSERT((pdesc->flags & KVM_STATS_BASE_MASK) <= KVM_STATS_BASE_MAX,
-			    "Unknown KVM stats base");
+		TEST_ASSERT(type <= KVM_STATS_TYPE_MAX,
+			    "Unknown KVM stats (%s) type: %u", pdesc->name, type);
+		TEST_ASSERT(unit <= KVM_STATS_UNIT_MAX,
+			    "Unknown KVM stats (%s) unit: %u", pdesc->name, unit);
+		TEST_ASSERT(base <= KVM_STATS_BASE_MAX,
+			    "Unknown KVM stats (%s) base: %u", pdesc->name, base);
 
 		/*
 		 * Check exponent for stats unit
@@ -97,10 +101,14 @@ static void stats_test(int stats_fd)
 		case KVM_STATS_UNIT_NONE:
 		case KVM_STATS_UNIT_BYTES:
 		case KVM_STATS_UNIT_CYCLES:
-			TEST_ASSERT(pdesc->exponent >= 0, "Unsupported KVM stats unit");
+			TEST_ASSERT(pdesc->exponent >= 0,
+				    "Unsupported KVM stats (%s) exponent: %i",
+				    pdesc->name, pdesc->exponent);
 			break;
 		case KVM_STATS_UNIT_SECONDS:
-			TEST_ASSERT(pdesc->exponent <= 0, "Unsupported KVM stats unit");
+			TEST_ASSERT(pdesc->exponent <= 0,
+				    "Unsupported KVM stats (%s) exponent: %i",
+				    pdesc->name, pdesc->exponent);
 			break;
 		}
 
