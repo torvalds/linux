@@ -22,7 +22,6 @@ prb_desc_type = utils.CachedType("struct prb_desc")
 prb_desc_ring_type = utils.CachedType("struct prb_desc_ring")
 prb_data_ring_type = utils.CachedType("struct prb_data_ring")
 printk_ringbuffer_type = utils.CachedType("struct printk_ringbuffer")
-atomic_long_type = utils.CachedType("atomic_long_t")
 
 class LxDmesg(gdb.Command):
     """Print Linux kernel log buffer."""
@@ -68,8 +67,6 @@ class LxDmesg(gdb.Command):
         off = prb_data_ring_type.get_type()['data'].bitpos // 8
         text_data_addr = utils.read_ulong(text_data_ring, off)
 
-        counter_off = atomic_long_type.get_type()['counter'].bitpos // 8
-
         sv_off = prb_desc_type.get_type()['state_var'].bitpos // 8
 
         off = prb_desc_type.get_type()['text_blk_lpos'].bitpos // 8
@@ -89,9 +86,9 @@ class LxDmesg(gdb.Command):
 
         # read in tail and head descriptor ids
         off = prb_desc_ring_type.get_type()['tail_id'].bitpos // 8
-        tail_id = utils.read_u64(desc_ring, off + counter_off)
+        tail_id = utils.read_atomic_long(desc_ring, off)
         off = prb_desc_ring_type.get_type()['head_id'].bitpos // 8
-        head_id = utils.read_u64(desc_ring, off + counter_off)
+        head_id = utils.read_atomic_long(desc_ring, off)
 
         did = tail_id
         while True:
@@ -102,7 +99,7 @@ class LxDmesg(gdb.Command):
             desc = utils.read_memoryview(inf, desc_addr + desc_off, desc_sz).tobytes()
 
             # skip non-committed record
-            state = 3 & (utils.read_u64(desc, sv_off + counter_off) >> desc_flags_shift)
+            state = 3 & (utils.read_atomic_long(desc, sv_off) >> desc_flags_shift)
             if state != desc_committed and state != desc_finalized:
                 if did == head_id:
                     break
