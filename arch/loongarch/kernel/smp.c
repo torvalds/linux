@@ -242,10 +242,7 @@ void loongson3_smp_finish(void)
 
 static bool io_master(int cpu)
 {
-	if (cpu == 0)
-		return true;
-
-	return false;
+	return test_bit(cpu, &loongson_sysconf.cores_io_master);
 }
 
 int loongson3_cpu_disable(void)
