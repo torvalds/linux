@@ -530,6 +530,54 @@ int run_stdlib(int min, int max)
 	return ret;
 }
 
+/* prepare what needs to be prepared for pid 1 (stdio, /dev, /proc, etc) */
+int prepare(void)
+{
+	struct stat stat_buf;
+
+	/* It's possible that /dev doesn't even exist or was not mounted, so
+	 * we'll try to create it, mount it, or create minimal entries into it.
+	 * We want at least /dev/null and /dev/console.
+	 */
+	if (stat("/dev/.", &stat_buf) == 0 || mkdir("/dev", 0755) == 0) {
+		if (stat("/dev/console", &stat_buf) != 0 ||
+		    stat("/dev/null", &stat_buf) != 0) {
+			/* try devtmpfs first, otherwise fall back to manual creation */
+			if (mount("/dev", "/dev", "devtmpfs", 0, 0) != 0) {
+				mknod("/dev/console", 0600 | S_IFCHR, makedev(5, 1));
+				mknod("/dev/null",    0666 | S_IFCHR, makedev(1, 3));
+			}
+		}
+	}
+
+	/* If no /dev/console was found before calling init, stdio is closed so
+	 * we need to reopen it from /dev/console. If it failed above, it will
+	 * still fail here and we cannot emit a message anyway.
+	 */
+	if (close(dup(1)) == -1) {
+		int fd = open("/dev/console", O_RDWR);
+
+		if (fd >= 0) {
+			if (fd != 0)
+				dup2(fd, 0);
+			if (fd != 1)
+				dup2(fd, 1);
+			if (fd != 2)
+				dup2(fd, 2);
+			if (fd > 2)
+				close(fd);
+			puts("\nSuccessfully reopened /dev/console.");
+		}
+	}
+
+	/* try to mount /proc if not mounted. Silently fail otherwise */
+	if (stat("/proc/.", &stat_buf) == 0 || mkdir("/proc", 0755) == 0) {
+		if (stat("/proc/self", &stat_buf) != 0)
+			mount("/proc", "/proc", "proc", 0, 0);
+	}
+
+	return 0;
+}
 
 /* This is the definition of known test names, with their functions */
 static struct test test_names[] = {
@@ -549,6 +597,14 @@ int main(int argc, char **argv, char **envp)
 	char *test;
 
 	environ = envp;
+
+	/* when called as init, it's possible that no console was opened, for
+	 * example if no /dev file system was provided. We'll check that fd#1
+	 * was opened, and if not we'll attempt to create and open /dev/console
+	 * and /dev/null that we'll use for later tests.
+	 */
+	if (getpid() == 1)
+		prepare();
 
 	/* the definition of a series of tests comes from either argv[1] or the
 	 * "NOLIBC_TEST" environment variable. It's made of a comma-delimited
