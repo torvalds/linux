@@ -484,8 +484,6 @@ static int ab8500_chargalg_kick_watchdog(struct ab8500_chargalg *di)
 static int ab8500_chargalg_ac_en(struct ab8500_chargalg *di, int enable,
 	int vset_uv, int iset_ua)
 {
-	static int ab8500_chargalg_ex_ac_enable_toggle;
-
 	if (!di->ac_chg || !di->ac_chg->ops.enable)
 		return -ENXIO;
 
