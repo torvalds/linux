@@ -138,6 +138,7 @@ static struct ccu_common *sun50i_h6_r_ccu_clks[] = {
 	&r_apb2_rsb_clk.common,
 	&r_apb1_ir_clk.common,
 	&r_apb1_w1_clk.common,
+	&r_apb1_rtc_clk.common,
 	&ir_clk.common,
 	&w1_clk.common,
 };
