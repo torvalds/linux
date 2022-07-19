@@ -164,3 +164,13 @@ Description:
 		expander memory (type-3). The 'target_type' attribute indicates
 		the current setting which may dynamically change based on what
 		memory regions are activated in this decode hierarchy.
+
+What:		/sys/bus/cxl/devices/endpointX/CDAT
+Date:		July, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RO) If this sysfs entry is not present no DOE mailbox was
+		found to support CDAT data.  If it is present and the length of
+		the data is 0 reading the CDAT data failed.  Otherwise the CDAT
+		data is reported.

@@ -289,6 +289,8 @@ struct cxl_nvdimm {
  * @component_reg_phys: component register capability base address (optional)
  * @dead: last ep has been removed, force port re-creation
  * @depth: How deep this port is relative to the root. depth 0 is the root.
+ * @cdat: Cached CDAT data
+ * @cdat_available: Should a CDAT attribute be available in sysfs
  */
 struct cxl_port {
 	struct device dev;
@@ -301,6 +303,11 @@ struct cxl_port {
 	resource_size_t component_reg_phys;
 	bool dead;
 	unsigned int depth;
+	struct cxl_cdat {
+		void *table;
+		size_t length;
+	} cdat;
+	bool cdat_available;
 };
 
 /**
