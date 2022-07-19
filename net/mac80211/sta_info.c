@@ -99,6 +99,7 @@ static int sta_info_hash_del(struct ieee80211_local *local,
 static int link_sta_info_hash_add(struct ieee80211_local *local,
 				  struct link_sta_info *link_sta)
 {
+	lockdep_assert_held(&local->sta_mtx);
 	return rhltable_insert(&local->link_sta_hash,
 			       &link_sta->link_hash_node,
 			       link_sta_rht_params);
@@ -107,6 +108,7 @@ static int link_sta_info_hash_add(struct ieee80211_local *local,
 static int link_sta_info_hash_del(struct ieee80211_local *local,
 				  struct link_sta_info *link_sta)
 {
+	lockdep_assert_held(&local->sta_mtx);
 	return rhltable_remove(&local->link_sta_hash,
 			       &link_sta->link_hash_node,
 			       link_sta_rht_params);
@@ -2765,6 +2767,14 @@ int ieee80211_sta_activate_link(struct sta_info *sta, unsigned int link_id)
 	if (WARN_ON(old_links == new_links || !link_sta))
 		return -EINVAL;
 
+	rcu_read_lock();
+	if (link_sta_info_hash_lookup(sdata->local, link_sta->addr)) {
+		rcu_read_unlock();
+		return -EALREADY;
+	}
+	/* we only modify under the mutex so this is fine */
+	rcu_read_unlock();
+
 	sta->sta.valid_links = new_links;
 
 	if (!test_sta_flag(sta, WLAN_STA_INSERTED)) {
@@ -2777,12 +2787,13 @@ int ieee80211_sta_activate_link(struct sta_info *sta, unsigned int link_id)
 	if (ret) {
 		sta->sta.valid_links = old_links;
 		sta_remove_link(sta, link_id, false);
+		return ret;
 	}
 
 hash:
-	link_sta_info_hash_add(sdata->local, link_sta);
-
-	return ret;
+	ret = link_sta_info_hash_add(sdata->local, link_sta);
+	WARN_ON(ret);
+	return 0;
 }
 
 void ieee80211_sta_remove_link(struct sta_info *sta, unsigned int link_id)
