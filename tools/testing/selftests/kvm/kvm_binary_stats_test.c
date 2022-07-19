@@ -73,6 +73,10 @@ static void stats_test(int stats_fd)
 	for (i = 0; i < header.num_desc; ++i) {
 		pdesc = get_stats_descriptor(stats_desc, i, &header);
 
+		/* Check name string */
+		TEST_ASSERT(strlen(pdesc->name) < header.name_size,
+			    "KVM stats name (index: %d) too long", i);
+
 		/* Check type,unit,base boundaries */
 		TEST_ASSERT((pdesc->flags & KVM_STATS_TYPE_MASK) <= KVM_STATS_TYPE_MAX,
 			    "Unknown KVM stats type");
@@ -99,9 +103,7 @@ static void stats_test(int stats_fd)
 			TEST_ASSERT(pdesc->exponent <= 0, "Unsupported KVM stats unit");
 			break;
 		}
-		/* Check name string */
-		TEST_ASSERT(strlen(pdesc->name) < header.name_size,
-			    "KVM stats name(%s) too long", pdesc->name);
+
 		/* Check size field, which should not be zero */
 		TEST_ASSERT(pdesc->size,
 			    "KVM descriptor(%s) with size of 0", pdesc->name);
