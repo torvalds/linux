@@ -53,6 +53,8 @@ struct save_area {
 };
 
 static LIST_HEAD(dump_save_areas);
+static DEFINE_MUTEX(memcpy_real_mutex);
+static char memcpy_real_buf[PAGE_SIZE];
 
 /*
  * Allocate a save area
@@ -178,25 +180,21 @@ int copy_oldmem_kernel(void *dst, unsigned long src, size_t count)
  */
 static int copy_to_user_real(void __user *dest, unsigned long src, unsigned long count)
 {
-	int offs = 0, size, rc;
-	char *buf;
+	unsigned long offs = 0, size;
 
-	buf = (char *)__get_free_page(GFP_KERNEL);
-	if (!buf)
-		return -ENOMEM;
-	rc = -EFAULT;
+	mutex_lock(&memcpy_real_mutex);
 	while (offs < count) {
 		size = min(PAGE_SIZE, count - offs);
-		if (memcpy_real(buf, src + offs, size))
-			goto out;
-		if (copy_to_user(dest + offs, buf, size))
-			goto out;
+		if (memcpy_real(memcpy_real_buf, src + offs, size))
+			break;
+		if (copy_to_user(dest + offs, memcpy_real_buf, size))
+			break;
 		offs += size;
 	}
-	rc = 0;
-out:
-	free_page((unsigned long)buf);
-	return rc;
+	mutex_unlock(&memcpy_real_mutex);
+	if (offs < count)
+		return -EFAULT;
+	return 0;
 }
 
 /*
