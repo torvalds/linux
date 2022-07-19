@@ -17,6 +17,12 @@
 /* will be used by nolibc by getenv() */
 char **environ;
 
+/* definition of a series of tests */
+struct test {
+	const char *name;              // test name
+	int (*func)(int min, int max); // handler
+};
+
 #define CASE_ERR(err) \
 	case err: return #err
 
@@ -376,18 +382,103 @@ static int expect_strne(const char *expr, int llen, const char *cmp)
 	return ret;
 }
 
+
 /* declare tests based on line numbers. There must be exactly one test per line. */
 #define CASE_TEST(name) \
 	case __LINE__: llen += printf("%d %s", test, #name);
 
+
+/* This is the definition of known test names, with their functions */
+static struct test test_names[] = {
+	/* add new tests here */
+	{ 0 }
+};
 
 int main(int argc, char **argv, char **envp)
 {
 	int min = 0;
 	int max = __INT_MAX__;
 	int ret = 0;
+	int err;
+	int idx;
+	char *test;
 
 	environ = envp;
+
+	/* the definition of a series of tests comes from either argv[1] or the
+	 * "NOLIBC_TEST" environment variable. It's made of a comma-delimited
+	 * series of test names and optional ranges:
+	 *    syscall:5-15[:.*],stdlib:8-10
+	 */
+	test = argv[1];
+	if (!test)
+		test = getenv("NOLIBC_TEST");
+
+	if (test) {
+		char *comma, *colon, *dash, *value;
+
+		do {
+			comma = strchr(test, ',');
+			if (comma)
+				*(comma++) = '\0';
+
+			colon = strchr(test, ':');
+			if (colon)
+				*(colon++) = '\0';
+
+			for (idx = 0; test_names[idx].name; idx++) {
+				if (strcmp(test, test_names[idx].name) == 0)
+					break;
+			}
+
+			if (test_names[idx].name) {
+				/* The test was named, it will be called at least
+				 * once. We may have an optional range at <colon>
+				 * here, which defaults to the full range.
+				 */
+				do {
+					min = 0; max = __INT_MAX__;
+					value = colon;
+					if (value && *value) {
+						colon = strchr(value, ':');
+						if (colon)
+							*(colon++) = '\0';
+
+						dash = strchr(value, '-');
+						if (dash)
+							*(dash++) = '\0';
+
+						/* support :val: :min-max: :min-: :-max: */
+						if (*value)
+							min = atoi(value);
+						if (!dash)
+							max = min;
+						else if (*dash)
+							max = atoi(dash);
+
+						value = colon;
+					}
+
+					/* now's time to call the test */
+					printf("Running test '%s'\n", test_names[idx].name);
+					err = test_names[idx].func(min, max);
+					ret += err;
+					printf("Errors during this test: %d\n\n", err);
+				} while (colon && *colon);
+			} else
+				printf("Ignoring unknown test name '%s'\n", test);
+
+			test = comma;
+		} while (test && *test);
+	} else {
+		/* no test mentioned, run everything */
+		for (idx = 0; test_names[idx].name; idx++) {
+			printf("Running test '%s'\n", test_names[idx].name);
+			err = test_names[idx].func(min, max);
+			ret += err;
+			printf("Errors during this test: %d\n\n", err);
+		}
+	}
 
 	printf("Total number of errors: %d\n", ret);
 	printf("Exiting with status %d\n", !!ret);
