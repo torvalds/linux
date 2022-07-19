@@ -16,6 +16,12 @@
 	aliases {
 		serial0 = &usart3;
 	};
+
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpio 56 GPIO_ACTIVE_LOW>;
+		priority = <200>;
+	};
 };
 
 &gpio {
