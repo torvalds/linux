@@ -290,10 +290,7 @@ void
 xfs_ifork_zap_attr(
 	struct xfs_inode	*ip)
 {
-	ASSERT(ip->i_af.if_broot == NULL);
-	ASSERT(ip->i_af.if_u1.if_data == NULL);
-	ASSERT(ip->i_af.if_height == 0);
-
+	xfs_idestroy_fork(&ip->i_af);
 	memset(&ip->i_af, 0, sizeof(struct xfs_ifork));
 	ip->i_af.if_format = XFS_DINODE_FMT_EXTENTS;
 }

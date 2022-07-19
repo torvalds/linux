@@ -799,7 +799,6 @@ xfs_attr_fork_remove(
 {
 	ASSERT(ip->i_af.if_nextents == 0);
 
-	xfs_idestroy_fork(&ip->i_af);
 	xfs_ifork_zap_attr(ip);
 	ip->i_forkoff = 0;
 	xfs_trans_log_inode(tp, ip, XFS_ILOG_CORE);
