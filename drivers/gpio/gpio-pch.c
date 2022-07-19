@@ -37,6 +37,11 @@ struct pch_regs {
 	u32	reset;
 };
 
+#define PCI_DEVICE_ID_INTEL_EG20T_PCH		0x8803
+#define PCI_DEVICE_ID_ROHM_ML7223m_IOH		0x8014
+#define PCI_DEVICE_ID_ROHM_ML7223n_IOH		0x8043
+#define PCI_DEVICE_ID_ROHM_EG20T_PCH		0x8803
+
 enum pch_type_t {
 	INTEL_EG20T_PCH,
 	OKISEMI_ML7223m_IOH, /* LAPIS Semiconductor ML7223 IOH PCIe Bus-m */
@@ -357,16 +362,12 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 
 	chip->dev = dev;
 	ret = pcim_enable_device(pdev);
-	if (ret) {
-		dev_err(dev, "pci_enable_device FAILED");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to enable PCI device\n");
 
 	ret = pcim_iomap_regions(pdev, BIT(1), KBUILD_MODNAME);
-	if (ret) {
-		dev_err(dev, "pci_request_regions FAILED-%d", ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to request and map PCI regions\n");
 
 	chip->base = pcim_iomap_table(pdev)[1];
 	chip->ioh = id->driver_data;
@@ -376,10 +377,8 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 	pch_gpio_setup(chip);
 
 	ret = devm_gpiochip_add_data(dev, &chip->gpio, chip);
-	if (ret) {
-		dev_err(dev, "PCH gpio: Failed to register GPIO\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to register GPIO\n");
 
 	irq_base = devm_irq_alloc_descs(dev, -1, 0,
 					gpio_pins[chip->ioh], NUMA_NO_NODE);
@@ -396,10 +395,8 @@ static int pch_gpio_probe(struct pci_dev *pdev,
 
 	ret = devm_request_irq(dev, pdev->irq, pch_gpio_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, chip);
-	if (ret) {
-		dev_err(dev, "request_irq failed\n");
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "Failed to request IRQ\n");
 
 	return pch_gpio_alloc_generic_chip(chip, irq_base, gpio_pins[chip->ioh]);
 }
@@ -433,15 +430,11 @@ static int __maybe_unused pch_gpio_resume(struct device *dev)
 static SIMPLE_DEV_PM_OPS(pch_gpio_pm_ops, pch_gpio_suspend, pch_gpio_resume);
 
 static const struct pci_device_id pch_gpio_pcidev_id[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, 0x8803),
-	  .driver_data = INTEL_EG20T_PCH },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8014),
-	  .driver_data = OKISEMI_ML7223m_IOH },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8043),
-	  .driver_data = OKISEMI_ML7223n_IOH },
-	{ PCI_DEVICE(PCI_VENDOR_ID_ROHM, 0x8803),
-	  .driver_data = INTEL_EG20T_PCH },
-	{ 0, }
+	{ PCI_DEVICE_DATA(INTEL, EG20T_PCH, INTEL_EG20T_PCH) },
+	{ PCI_DEVICE_DATA(ROHM, ML7223m_IOH, OKISEMI_ML7223m_IOH) },
+	{ PCI_DEVICE_DATA(ROHM, ML7223n_IOH, OKISEMI_ML7223n_IOH) },
+	{ PCI_DEVICE_DATA(ROHM, EG20T_PCH, INTEL_EG20T_PCH) },
+	{ }
 };
 MODULE_DEVICE_TABLE(pci, pch_gpio_pcidev_id);
 
