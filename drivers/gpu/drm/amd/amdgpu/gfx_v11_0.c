@@ -74,21 +74,6 @@ MODULE_FIRMWARE("amdgpu/gc_11_0_2_me.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_2_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_2_rlc.bin");
 
-static const struct soc15_reg_golden golden_settings_gc_11_0[] =
-{
-	/* Pending on emulation bring up */
-};
-
-static const struct soc15_reg_golden golden_settings_gc_11_0_0[] =
-{
-	/* Pending on emulation bring up */
-};
-
-static const struct soc15_reg_golden golden_settings_gc_rlc_spm_11_0[] =
-{
-	/* Pending on emulation bring up */
-};
-
 static const struct soc15_reg_golden golden_settings_gc_11_0_1[] =
 {
 	SOC15_REG_GOLDEN_VALUE(GC, 0, regCGTT_GS_NGG_CLK_CTRL, 0x9fff8fff, 0x00000010),
@@ -269,34 +254,10 @@ static void gfx_v11_0_set_kiq_pm4_funcs(struct amdgpu_device *adev)
 	adev->gfx.kiq.pmf = &gfx_v11_0_kiq_pm4_funcs;
 }
 
-static void gfx_v11_0_init_spm_golden_registers(struct amdgpu_device *adev)
-{
-	switch (adev->ip_versions[GC_HWIP][0]) {
-	case IP_VERSION(11, 0, 0):
-		soc15_program_register_sequence(adev,
-						golden_settings_gc_rlc_spm_11_0,
-						(const u32)ARRAY_SIZE(golden_settings_gc_rlc_spm_11_0));
-		break;
-	default:
-		break;
-	}
-}
-
 static void gfx_v11_0_init_golden_registers(struct amdgpu_device *adev)
 {
 	switch (adev->ip_versions[GC_HWIP][0]) {
-	case IP_VERSION(11, 0, 0):
-		soc15_program_register_sequence(adev,
-						golden_settings_gc_11_0,
-						(const u32)ARRAY_SIZE(golden_settings_gc_11_0));
-		soc15_program_register_sequence(adev,
-						golden_settings_gc_11_0_0,
-						(const u32)ARRAY_SIZE(golden_settings_gc_11_0_0));
-		break;
 	case IP_VERSION(11, 0, 1):
-		soc15_program_register_sequence(adev,
-						golden_settings_gc_11_0,
-						(const u32)ARRAY_SIZE(golden_settings_gc_11_0));
 		soc15_program_register_sequence(adev,
 						golden_settings_gc_11_0_1,
 						(const u32)ARRAY_SIZE(golden_settings_gc_11_0_1));
@@ -304,7 +265,6 @@ static void gfx_v11_0_init_golden_registers(struct amdgpu_device *adev)
 	default:
 		break;
 	}
-	gfx_v11_0_init_spm_golden_registers(adev);
 }
 
 static void gfx_v11_0_write_data_to_reg(struct amdgpu_ring *ring, int eng_sel,
@@ -1140,7 +1100,6 @@ static const struct amdgpu_gfx_funcs gfx_v11_0_gfx_funcs = {
 	.read_wave_sgprs = &gfx_v11_0_read_wave_sgprs,
 	.read_wave_vgprs = &gfx_v11_0_read_wave_vgprs,
 	.select_me_pipe_q = &gfx_v11_0_select_me_pipe_q,
-	.init_spm_golden = &gfx_v11_0_init_spm_golden_registers,
 	.update_perfmon_mgcg = &gfx_v11_0_update_perf_clk,
 };
 
