@@ -83,9 +83,10 @@ struct gsi_trans_pool {
 struct gsi_trans_info {
 	atomic_t tre_avail;		/* TREs available for allocation */
 	struct gsi_trans_pool pool;	/* transaction pool */
+	struct gsi_trans **map;		/* TRE -> transaction map */
+
 	struct gsi_trans_pool sg_pool;	/* scatterlist pool */
 	struct gsi_trans_pool cmd_pool;	/* command payload DMA pool */
-	struct gsi_trans **map;		/* TRE -> transaction map */
 
 	spinlock_t spinlock;		/* protects updates to the lists */
 	struct list_head alloc;		/* allocated, not committed */
