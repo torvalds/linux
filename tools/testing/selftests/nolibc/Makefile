@@ -65,7 +65,32 @@ endif
 CFLAGS  ?= -Os -fno-ident -fno-asynchronous-unwind-tables
 LDFLAGS := -s
 
-all: nolibc-test
+help:
+	@echo "Supported targets under selftests/nolibc:"
+	@echo "  all          call the \"run\" target below"
+	@echo "  help         this help"
+	@echo "  sysroot      create the nolibc sysroot here (uses \$$ARCH)"
+	@echo "  nolibc-test  build the executable (uses \$$CC and \$$CROSS_COMPILE)"
+	@echo "  initramfs    prepare the initramfs with nolibc-test"
+	@echo "  defconfig    create a fresh new default config (uses \$$ARCH)"
+	@echo "  kernel       (re)build the kernel with the initramfs (uses \$$ARCH)"
+	@echo "  run          runs the kernel in QEMU after building it (uses \$$ARCH, \$$TEST)"
+	@echo "  rerun        runs a previously prebuilt kernel in QEMU (uses \$$ARCH, \$$TEST)"
+	@echo "  clean        clean the sysroot, initramfs, build and output files"
+	@echo ""
+	@echo "The output file is \"run.out\". Test ranges may be passed using \$$TEST."
+	@echo ""
+	@echo "Currently using the following variables:"
+	@echo "  ARCH          = $(ARCH)"
+	@echo "  CROSS_COMPILE = $(CROSS_COMPILE)"
+	@echo "  CC            = $(CC)"
+	@echo "  OUTPUT        = $(OUTPUT)"
+	@echo "  TEST          = $(TEST)"
+	@echo "  QEMU_ARCH     = $(if $(QEMU_ARCH),$(QEMU_ARCH),UNKNOWN_ARCH) [determined from \$$ARCH]"
+	@echo "  IMAGE_NAME    = $(if $(IMAGE_NAME),$(IMAGE_NAME),UNKNOWN_ARCH) [determined from \$$ARCH]"
+	@echo ""
+
+all: run
 
 sysroot: sysroot/$(ARCH)/include
 
