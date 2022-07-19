@@ -1739,8 +1739,12 @@ static int rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 	if (dev->hdr.hdr_mode != NO_HDR && stream->id != 0 && (!dev->rdbk_buf[RDBK_L]))
 		return -EINVAL;
 
-	if (stream->to_stop_dma && stream->dma_en & RKCIF_DMAEN_BY_ISP)
-		goto stop_dma;
+	if (stream->to_stop_dma) {
+		if (stream->dma_en & RKCIF_DMAEN_BY_ISP)
+			goto stop_dma;
+		else
+			return -EINVAL;
+	}
 
 	spin_lock_irqsave(&stream->vbq_lock, flags);
 	if (!list_empty(&stream->buf_head)) {
@@ -1883,10 +1887,7 @@ static int rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 				  mbus_cfg->type == V4L2_MBUS_CCP2) ? "mipi/lvds" : "dvp",
 				  stream->id);
 		} else {
-			if (dev->chip_id < CHIP_RK3588_CIF)
 				ret = -EINVAL;
-			else
-				ret = 0;
 			v4l2_dbg(3, rkcif_debug, &dev->v4l2_dev,
 				"not active buffer, lack_buf_cnt %d, stop capture, %s stream[%d]\n",
 				stream->lack_buf_cnt,
@@ -1901,7 +1902,6 @@ static int rkcif_assign_new_buffer_update(struct rkcif_stream *stream,
 stop_dma:
 	if (stream->buf_replace_cnt) {
 		spin_lock_irqsave(&stream->vbq_lock, flags);
-		stream->buf_replace_cnt--;
 		rkcif_write_register(dev, frm_addr_y,
 				     stream->curr_buf_toisp->dummy.dma_addr);
 		if (stream->frame_phase == CIF_CSI_FRAME0_READY &&
@@ -1919,13 +1919,17 @@ stop_dma:
 			dbufs = &stream->curr_buf_toisp->dbufs;
 		}
 		rkcif_s_rx_buffer(dev, dbufs);
-		if (stream->frame_phase == CIF_CSI_FRAME0_READY)
+		if (stream->frame_phase == CIF_CSI_FRAME0_READY) {
+			list_add_tail(&stream->curr_buf->queue, &stream->buf_head);
 			stream->curr_buf = NULL;
-		else
+		} else {
+			list_add_tail(&stream->next_buf->queue, &stream->buf_head);
 			stream->next_buf = NULL;
+		}
+		stream->buf_replace_cnt--;
 		spin_unlock_irqrestore(&stream->vbq_lock, flags);
 	}
-	return ret;
+	return -EINVAL;
 }
 
 static int rkcif_get_new_buffer_wake_up_mode(struct rkcif_stream *stream)
@@ -3020,7 +3024,10 @@ static void rkcif_check_buffer_update_pingpong(struct rkcif_stream *stream,
 	      (!dummy_buf->vaddr)) ||
 	     stream->curr_buf == NULL ||
 	     stream->next_buf == NULL)) {
-		frame_phase = stream->frame_phase_cache;
+		if (!stream->dma_en)
+			frame_phase = CIF_CSI_FRAME0_READY;
+		else
+			frame_phase = stream->frame_phase_cache;
 		if (!stream->is_line_wake_up ||
 		    (stream->is_line_wake_up && stream->frame_idx < 2)) {
 			if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
@@ -3194,7 +3201,7 @@ void rkcif_buf_queue(struct vb2_buffer *vb)
 		list_add_tail(&dbufs->list, &stream->rx_buf_head_vicap);
 	}
 	if (stream->cifdev->workmode == RKCIF_WORKMODE_PINGPONG &&
-	    stream->dma_en == RKCIF_DMAEN_BY_VICAP)
+	    stream->lack_buf_cnt)
 		rkcif_check_buffer_update_pingpong(stream, stream->id);
 	v4l2_dbg(2, rkcif_debug, &stream->cifdev->v4l2_dev,
 		 "stream[%d] buf queue, index: %d\n",
@@ -3423,7 +3430,7 @@ static void rkcif_release_rdbk_buf(struct rkcif_stream *stream)
 			}
 
 			if (!has_added)
-				vb2_buffer_done(&rdbk_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+				list_add_tail(&rdbk_buf->queue, &stream->buf_head);
 		}
 		dev->rdbk_buf[index] = NULL;
 	}
@@ -3531,18 +3538,18 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 		/* release buffers */
 		spin_lock_irqsave(&stream->vbq_lock, flags);
 		if (stream->curr_buf)
-			vb2_buffer_done(&stream->curr_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+			list_add_tail(&stream->curr_buf->queue, &stream->buf_head);
 		if (stream->next_buf &&
 		    stream->next_buf != stream->curr_buf)
-			vb2_buffer_done(&stream->next_buf->vb.vb2_buf, VB2_BUF_STATE_ERROR);
+			list_add_tail(&stream->next_buf->queue, &stream->buf_head);
 		spin_unlock_irqrestore(&stream->vbq_lock, flags);
+
+		stream->curr_buf = NULL;
+		stream->next_buf = NULL;
 
 		if (dev->hdr.hdr_mode == HDR_X2 ||
 		    dev->hdr.hdr_mode == HDR_X3)
 			rkcif_release_rdbk_buf(stream);
-
-		stream->curr_buf = NULL;
-		stream->next_buf = NULL;
 
 		rkcif_rx_buffer_free(stream);
 		list_for_each_entry(buf, &stream->buf_head, queue)
@@ -3600,7 +3607,7 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 	if (!atomic_read(&dev->pipe.stream_cnt) && dev->dummy_buf.vaddr)
 		rkcif_destroy_dummy_buf(stream);
 	stream->cur_stream_mode &= ~mode;
-	v4l2_info(&dev->v4l2_dev, "stream[%d] stopping finished\n", stream->id);
+	v4l2_info(&dev->v4l2_dev, "stream[%d] stopping finished, dma_en 0x%x\n", stream->id, stream->dma_en);
 	mutex_unlock(&dev->stream_lock);
 	rkcif_detach_sync_mode(dev);
 }
@@ -4961,6 +4968,7 @@ void rkcif_stream_init(struct rkcif_device *dev, u32 id)
 	}
 
 	stream->is_high_align = false;
+	stream->is_finish_stop_dma = false;
 
 	if (dev->chip_id == CHIP_RV1126_CIF ||
 	    dev->chip_id == CHIP_RV1126_CIF_LITE)
@@ -7839,6 +7847,12 @@ void rkcif_enable_dma_capture(struct rkcif_stream *stream, bool is_only_enable)
 							       RKCIF_YUV_ADDR_STATE_INIT,
 							       stream->id);
 		}
+	} else {
+		if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
+		    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY)
+			rkcif_write_register_or(cif_dev, CIF_REG_MIPI_LVDS_CTRL, 0x000A0000);
+		else
+			rkcif_write_register_or(cif_dev, CIF_REG_DVP_CTRL, 0x000A0000);
 	}
 	if (mbus_cfg->type == V4L2_MBUS_CSI2_DPHY ||
 	    mbus_cfg->type == V4L2_MBUS_CSI2_CPHY) {
@@ -8338,10 +8352,9 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 			}
 
 			spin_lock_irqsave(&stream->vbq_lock, flags);
-			if (stream->to_stop_dma) {
-				ret = rkcif_stop_dma_capture(stream);
-				if (!ret)
-					wake_up(&stream->wq_stopped);
+			if (stream->is_finish_stop_dma) {
+				wake_up(&stream->wq_stopped);
+				stream->is_finish_stop_dma = false;
 			}
 			if (!(stream->dma_en & RKCIF_DMAEN_BY_ISP) && stream->lack_buf_cnt == 2) {
 				stream->to_stop_dma = RKCIF_DMAEN_BY_VICAP;
@@ -8382,6 +8395,11 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 					stream->readout.fs_timestamp = ktime_get_ns();
 					stream->frame_idx++;
 					spin_unlock_irqrestore(&stream->fps_lock, flags);
+				}
+				if (stream->to_stop_dma) {
+					ret = rkcif_stop_dma_capture(stream);
+					if (!ret)
+						stream->is_finish_stop_dma = true;
 				}
 			}
 			if (intstat & CSI_LINE_INTSTAT(i)) {

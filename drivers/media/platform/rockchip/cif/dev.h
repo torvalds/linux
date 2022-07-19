@@ -533,6 +533,7 @@ struct rkcif_stream {
 	bool				is_buf_active;
 	bool				is_high_align;
 	bool				to_en_scale;
+	bool				is_finish_stop_dma;
 };
 
 struct rkcif_lvds_subdev {
