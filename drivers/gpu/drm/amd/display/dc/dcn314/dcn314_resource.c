@@ -1645,109 +1645,16 @@ static struct clock_source *dcn31_clock_source_create(
 	return NULL;
 }
 
-static bool is_dual_plane(enum surface_pixel_format format)
-{
-	return format >= SURFACE_PIXEL_FORMAT_VIDEO_BEGIN || format == SURFACE_PIXEL_FORMAT_GRPH_RGBE_ALPHA;
-}
-
 static int dcn314_populate_dml_pipes_from_context(
 	struct dc *dc, struct dc_state *context,
 	display_e2e_pipe_params_st *pipes,
 	bool fast_validate)
 {
-	int i, pipe_cnt;
-	struct resource_context *res_ctx = &context->res_ctx;
-	struct pipe_ctx *pipe;
-	bool upscaled = false;
+	int pipe_cnt;
 
-	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
-
-	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
-		struct dc_crtc_timing *timing;
-
-		if (!res_ctx->pipe_ctx[i].stream)
-			continue;
-		pipe = &res_ctx->pipe_ctx[i];
-		timing = &pipe->stream->timing;
-
-		if (dc_extended_blank_supported(dc) && pipe->stream->adjust.v_total_max == pipe->stream->adjust.v_total_min
-			&& pipe->stream->adjust.v_total_min > timing->v_total)
-			pipes[pipe_cnt].pipe.dest.vtotal = pipe->stream->adjust.v_total_min;
-
-		if (pipe->plane_state &&
-				(pipe->plane_state->src_rect.height < pipe->plane_state->dst_rect.height ||
-				pipe->plane_state->src_rect.width < pipe->plane_state->dst_rect.width))
-			upscaled = true;
-
-		/*
-		 * Immediate flip can be set dynamically after enabling the plane.
-		 * We need to require support for immediate flip or underflow can be
-		 * intermittently experienced depending on peak b/w requirements.
-		 */
-		pipes[pipe_cnt].pipe.src.immediate_flip = true;
-
-		pipes[pipe_cnt].pipe.src.unbounded_req_mode = false;
-		pipes[pipe_cnt].pipe.src.hostvm = dc->res_pool->hubbub->riommu_active;
-		pipes[pipe_cnt].pipe.src.gpuvm = true;
-		pipes[pipe_cnt].pipe.src.dcc_fraction_of_zs_req_luma = 0;
-		pipes[pipe_cnt].pipe.src.dcc_fraction_of_zs_req_chroma = 0;
-		pipes[pipe_cnt].pipe.dest.vfront_porch = timing->v_front_porch;
-		pipes[pipe_cnt].pipe.src.dcc_rate = 3;
-		pipes[pipe_cnt].dout.dsc_input_bpc = 0;
-
-		if (pipes[pipe_cnt].dout.dsc_enable) {
-			switch (timing->display_color_depth) {
-			case COLOR_DEPTH_888:
-				pipes[pipe_cnt].dout.dsc_input_bpc = 8;
-				break;
-			case COLOR_DEPTH_101010:
-				pipes[pipe_cnt].dout.dsc_input_bpc = 10;
-				break;
-			case COLOR_DEPTH_121212:
-				pipes[pipe_cnt].dout.dsc_input_bpc = 12;
-				break;
-			default:
-				ASSERT(0);
-				break;
-			}
-		}
-
-		pipe_cnt++;
-	}
-	context->bw_ctx.dml.ip.det_buffer_size_kbytes = DCN3_14_DEFAULT_DET_SIZE;
-
-	dc->config.enable_4to1MPC = false;
-	if (pipe_cnt == 1 && pipe->plane_state && !dc->debug.disable_z9_mpc) {
-		if (is_dual_plane(pipe->plane_state->format)
-				&& pipe->plane_state->src_rect.width <= 1920 && pipe->plane_state->src_rect.height <= 1080) {
-			dc->config.enable_4to1MPC = true;
-		} else if (!is_dual_plane(pipe->plane_state->format) && pipe->plane_state->src_rect.width <= 5120) {
-			/* Limit to 5k max to avoid forced pipe split when there is not enough detile for swath */
-			context->bw_ctx.dml.ip.det_buffer_size_kbytes = 192;
-			pipes[0].pipe.src.unbounded_req_mode = true;
-		}
-	} else if (context->stream_count >= dc->debug.crb_alloc_policy_min_disp_count
-			&& dc->debug.crb_alloc_policy > DET_SIZE_DEFAULT) {
-		context->bw_ctx.dml.ip.det_buffer_size_kbytes = dc->debug.crb_alloc_policy * 64;
-	} else if (context->stream_count >= 3 && upscaled) {
-		context->bw_ctx.dml.ip.det_buffer_size_kbytes = 192;
-	}
-
-	for (i = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-
-		if (!pipe->stream)
-			continue;
-
-		if (pipe->stream->signal == SIGNAL_TYPE_EDP && dc->debug.seamless_boot_odm_combine &&
-				pipe->stream->apply_seamless_boot_optimization) {
-
-			if (pipe->stream->apply_boot_odm_mode == dm_odm_combine_policy_2to1) {
-				context->bw_ctx.dml.vba.ODMCombinePolicy = dm_odm_combine_policy_2to1;
-				break;
-			}
-		}
-	}
+	DC_FP_START();
+	pipe_cnt = dcn314_populate_dml_pipes_from_context_fpu(dc, context, pipes, fast_validate);
+	DC_FP_END();
 
 	return pipe_cnt;
 }
