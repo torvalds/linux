@@ -66,6 +66,7 @@ struct devlink {
 	 * port, sb, dpipe, resource, params, region, traps and more.
 	 */
 	struct mutex lock;
+	struct lock_class_key lock_key;
 	u8 reload_failed:1;
 	refcount_t refcount;
 	struct completion comp;
@@ -264,6 +265,12 @@ void devl_lock(struct devlink *devlink)
 	mutex_lock(&devlink->lock);
 }
 EXPORT_SYMBOL_GPL(devl_lock);
+
+int devl_trylock(struct devlink *devlink)
+{
+	return mutex_trylock(&devlink->lock);
+}
+EXPORT_SYMBOL_GPL(devl_trylock);
 
 void devl_unlock(struct devlink *devlink)
 {
@@ -9472,7 +9479,9 @@ struct devlink *devlink_alloc_ns(const struct devlink_ops *ops,
 	INIT_LIST_HEAD(&devlink->trap_list);
 	INIT_LIST_HEAD(&devlink->trap_group_list);
 	INIT_LIST_HEAD(&devlink->trap_policer_list);
+	lockdep_register_key(&devlink->lock_key);
 	mutex_init(&devlink->lock);
+	lockdep_set_class(&devlink->lock, &devlink->lock_key);
 	mutex_init(&devlink->reporters_lock);
 	mutex_init(&devlink->linecards_lock);
 	refcount_set(&devlink->refcount, 1);
@@ -9619,6 +9628,7 @@ void devlink_free(struct devlink *devlink)
 	mutex_destroy(&devlink->linecards_lock);
 	mutex_destroy(&devlink->reporters_lock);
 	mutex_destroy(&devlink->lock);
+	lockdep_unregister_key(&devlink->lock_key);
 	WARN_ON(!list_empty(&devlink->trap_policer_list));
 	WARN_ON(!list_empty(&devlink->trap_group_list));
 	WARN_ON(!list_empty(&devlink->trap_list));
@@ -10371,25 +10381,21 @@ void devlink_linecard_deactivate(struct devlink_linecard *linecard)
 }
 EXPORT_SYMBOL_GPL(devlink_linecard_deactivate);
 
-int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
-			u32 size, u16 ingress_pools_count,
-			u16 egress_pools_count, u16 ingress_tc_count,
-			u16 egress_tc_count)
+int devl_sb_register(struct devlink *devlink, unsigned int sb_index,
+		     u32 size, u16 ingress_pools_count,
+		     u16 egress_pools_count, u16 ingress_tc_count,
+		     u16 egress_tc_count)
 {
 	struct devlink_sb *devlink_sb;
-	int err = 0;
 
-	devl_lock(devlink);
-	if (devlink_sb_index_exists(devlink, sb_index)) {
-		err = -EEXIST;
-		goto unlock;
-	}
+	lockdep_assert_held(&devlink->lock);
+
+	if (devlink_sb_index_exists(devlink, sb_index))
+		return -EEXIST;
 
 	devlink_sb = kzalloc(sizeof(*devlink_sb), GFP_KERNEL);
-	if (!devlink_sb) {
-		err = -ENOMEM;
-		goto unlock;
-	}
+	if (!devlink_sb)
+		return -ENOMEM;
 	devlink_sb->index = sb_index;
 	devlink_sb->size = size;
 	devlink_sb->ingress_pools_count = ingress_pools_count;
@@ -10397,56 +10403,78 @@ int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
 	devlink_sb->ingress_tc_count = ingress_tc_count;
 	devlink_sb->egress_tc_count = egress_tc_count;
 	list_add_tail(&devlink_sb->list, &devlink->sb_list);
-unlock:
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devl_sb_register);
+
+int devlink_sb_register(struct devlink *devlink, unsigned int sb_index,
+			u32 size, u16 ingress_pools_count,
+			u16 egress_pools_count, u16 ingress_tc_count,
+			u16 egress_tc_count)
+{
+	int err;
+
+	devl_lock(devlink);
+	err = devl_sb_register(devlink, sb_index, size, ingress_pools_count,
+			       egress_pools_count, ingress_tc_count,
+			       egress_tc_count);
 	devl_unlock(devlink);
 	return err;
 }
 EXPORT_SYMBOL_GPL(devlink_sb_register);
 
-void devlink_sb_unregister(struct devlink *devlink, unsigned int sb_index)
+void devl_sb_unregister(struct devlink *devlink, unsigned int sb_index)
 {
 	struct devlink_sb *devlink_sb;
 
-	devl_lock(devlink);
+	lockdep_assert_held(&devlink->lock);
+
 	devlink_sb = devlink_sb_get_by_index(devlink, sb_index);
 	WARN_ON(!devlink_sb);
 	list_del(&devlink_sb->list);
-	devl_unlock(devlink);
 	kfree(devlink_sb);
+}
+EXPORT_SYMBOL_GPL(devl_sb_unregister);
+
+void devlink_sb_unregister(struct devlink *devlink, unsigned int sb_index)
+{
+	devl_lock(devlink);
+	devl_sb_unregister(devlink, sb_index);
+	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_sb_unregister);
 
 /**
- *	devlink_dpipe_headers_register - register dpipe headers
+ * devl_dpipe_headers_register - register dpipe headers
  *
- *	@devlink: devlink
- *	@dpipe_headers: dpipe header array
+ * @devlink: devlink
+ * @dpipe_headers: dpipe header array
  *
- *	Register the headers supported by hardware.
+ * Register the headers supported by hardware.
  */
-void devlink_dpipe_headers_register(struct devlink *devlink,
-				    struct devlink_dpipe_headers *dpipe_headers)
+void devl_dpipe_headers_register(struct devlink *devlink,
+				 struct devlink_dpipe_headers *dpipe_headers)
 {
-	devl_lock(devlink);
+	lockdep_assert_held(&devlink->lock);
+
 	devlink->dpipe_headers = dpipe_headers;
-	devl_unlock(devlink);
 }
-EXPORT_SYMBOL_GPL(devlink_dpipe_headers_register);
+EXPORT_SYMBOL_GPL(devl_dpipe_headers_register);
 
 /**
- *	devlink_dpipe_headers_unregister - unregister dpipe headers
+ * devl_dpipe_headers_unregister - unregister dpipe headers
  *
- *	@devlink: devlink
+ * @devlink: devlink
  *
- *	Unregister the headers supported by hardware.
+ * Unregister the headers supported by hardware.
  */
-void devlink_dpipe_headers_unregister(struct devlink *devlink)
+void devl_dpipe_headers_unregister(struct devlink *devlink)
 {
-	devl_lock(devlink);
+	lockdep_assert_held(&devlink->lock);
+
 	devlink->dpipe_headers = NULL;
-	devl_unlock(devlink);
 }
-EXPORT_SYMBOL_GPL(devlink_dpipe_headers_unregister);
+EXPORT_SYMBOL_GPL(devl_dpipe_headers_unregister);
 
 /**
  *	devlink_dpipe_table_counter_enabled - check if counter allocation
@@ -10480,38 +10508,33 @@ bool devlink_dpipe_table_counter_enabled(struct devlink *devlink,
 EXPORT_SYMBOL_GPL(devlink_dpipe_table_counter_enabled);
 
 /**
- *	devlink_dpipe_table_register - register dpipe table
+ * devl_dpipe_table_register - register dpipe table
  *
- *	@devlink: devlink
- *	@table_name: table name
- *	@table_ops: table ops
- *	@priv: priv
- *	@counter_control_extern: external control for counters
+ * @devlink: devlink
+ * @table_name: table name
+ * @table_ops: table ops
+ * @priv: priv
+ * @counter_control_extern: external control for counters
  */
-int devlink_dpipe_table_register(struct devlink *devlink,
-				 const char *table_name,
-				 struct devlink_dpipe_table_ops *table_ops,
-				 void *priv, bool counter_control_extern)
+int devl_dpipe_table_register(struct devlink *devlink,
+			      const char *table_name,
+			      struct devlink_dpipe_table_ops *table_ops,
+			      void *priv, bool counter_control_extern)
 {
 	struct devlink_dpipe_table *table;
-	int err = 0;
+
+	lockdep_assert_held(&devlink->lock);
 
 	if (WARN_ON(!table_ops->size_get))
 		return -EINVAL;
 
-	devl_lock(devlink);
-
 	if (devlink_dpipe_table_find(&devlink->dpipe_table_list, table_name,
-				     devlink)) {
-		err = -EEXIST;
-		goto unlock;
-	}
+				     devlink))
+		return -EEXIST;
 
 	table = kzalloc(sizeof(*table), GFP_KERNEL);
-	if (!table) {
-		err = -ENOMEM;
-		goto unlock;
-	}
+	if (!table)
+		return -ENOMEM;
 
 	table->name = table_name;
 	table->table_ops = table_ops;
@@ -10519,36 +10542,99 @@ int devlink_dpipe_table_register(struct devlink *devlink,
 	table->counter_control_extern = counter_control_extern;
 
 	list_add_tail_rcu(&table->list, &devlink->dpipe_table_list);
-unlock:
-	devl_unlock(devlink);
-	return err;
+
+	return 0;
 }
-EXPORT_SYMBOL_GPL(devlink_dpipe_table_register);
+EXPORT_SYMBOL_GPL(devl_dpipe_table_register);
 
 /**
- *	devlink_dpipe_table_unregister - unregister dpipe table
+ * devl_dpipe_table_unregister - unregister dpipe table
  *
- *	@devlink: devlink
- *	@table_name: table name
+ * @devlink: devlink
+ * @table_name: table name
  */
-void devlink_dpipe_table_unregister(struct devlink *devlink,
-				    const char *table_name)
+void devl_dpipe_table_unregister(struct devlink *devlink,
+				 const char *table_name)
 {
 	struct devlink_dpipe_table *table;
 
-	devl_lock(devlink);
+	lockdep_assert_held(&devlink->lock);
+
 	table = devlink_dpipe_table_find(&devlink->dpipe_table_list,
 					 table_name, devlink);
 	if (!table)
-		goto unlock;
+		return;
 	list_del_rcu(&table->list);
-	devl_unlock(devlink);
 	kfree_rcu(table, rcu);
-	return;
-unlock:
-	devl_unlock(devlink);
 }
-EXPORT_SYMBOL_GPL(devlink_dpipe_table_unregister);
+EXPORT_SYMBOL_GPL(devl_dpipe_table_unregister);
+
+/**
+ * devl_resource_register - devlink resource register
+ *
+ * @devlink: devlink
+ * @resource_name: resource's name
+ * @resource_size: resource's size
+ * @resource_id: resource's id
+ * @parent_resource_id: resource's parent id
+ * @size_params: size parameters
+ *
+ * Generic resources should reuse the same names across drivers.
+ * Please see the generic resources list at:
+ * Documentation/networking/devlink/devlink-resource.rst
+ */
+int devl_resource_register(struct devlink *devlink,
+			   const char *resource_name,
+			   u64 resource_size,
+			   u64 resource_id,
+			   u64 parent_resource_id,
+			   const struct devlink_resource_size_params *size_params)
+{
+	struct devlink_resource *resource;
+	struct list_head *resource_list;
+	bool top_hierarchy;
+
+	lockdep_assert_held(&devlink->lock);
+
+	top_hierarchy = parent_resource_id == DEVLINK_RESOURCE_ID_PARENT_TOP;
+
+	resource = devlink_resource_find(devlink, NULL, resource_id);
+	if (resource)
+		return -EINVAL;
+
+	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
+	if (!resource)
+		return -ENOMEM;
+
+	if (top_hierarchy) {
+		resource_list = &devlink->resource_list;
+	} else {
+		struct devlink_resource *parent_resource;
+
+		parent_resource = devlink_resource_find(devlink, NULL,
+							parent_resource_id);
+		if (parent_resource) {
+			resource_list = &parent_resource->resource_list;
+			resource->parent = parent_resource;
+		} else {
+			kfree(resource);
+			return -EINVAL;
+		}
+	}
+
+	resource->name = resource_name;
+	resource->size = resource_size;
+	resource->size_new = resource_size;
+	resource->id = resource_id;
+	resource->size_valid = true;
+	memcpy(&resource->size_params, size_params,
+	       sizeof(resource->size_params));
+	INIT_LIST_HEAD(&resource->resource_list);
+	list_add_tail(&resource->list, resource_list);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(devl_resource_register);
 
 /**
  *	devlink_resource_register - devlink resource register
@@ -10563,6 +10649,8 @@ EXPORT_SYMBOL_GPL(devlink_dpipe_table_unregister);
  *	Generic resources should reuse the same names across drivers.
  *	Please see the generic resources list at:
  *	Documentation/networking/devlink/devlink-resource.rst
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
  */
 int devlink_resource_register(struct devlink *devlink,
 			      const char *resource_name,
@@ -10571,53 +10659,11 @@ int devlink_resource_register(struct devlink *devlink,
 			      u64 parent_resource_id,
 			      const struct devlink_resource_size_params *size_params)
 {
-	struct devlink_resource *resource;
-	struct list_head *resource_list;
-	bool top_hierarchy;
-	int err = 0;
-
-	top_hierarchy = parent_resource_id == DEVLINK_RESOURCE_ID_PARENT_TOP;
+	int err;
 
 	devl_lock(devlink);
-	resource = devlink_resource_find(devlink, NULL, resource_id);
-	if (resource) {
-		err = -EINVAL;
-		goto out;
-	}
-
-	resource = kzalloc(sizeof(*resource), GFP_KERNEL);
-	if (!resource) {
-		err = -ENOMEM;
-		goto out;
-	}
-
-	if (top_hierarchy) {
-		resource_list = &devlink->resource_list;
-	} else {
-		struct devlink_resource *parent_resource;
-
-		parent_resource = devlink_resource_find(devlink, NULL,
-							parent_resource_id);
-		if (parent_resource) {
-			resource_list = &parent_resource->resource_list;
-			resource->parent = parent_resource;
-		} else {
-			kfree(resource);
-			err = -EINVAL;
-			goto out;
-		}
-	}
-
-	resource->name = resource_name;
-	resource->size = resource_size;
-	resource->size_new = resource_size;
-	resource->id = resource_id;
-	resource->size_valid = true;
-	memcpy(&resource->size_params, size_params,
-	       sizeof(resource->size_params));
-	INIT_LIST_HEAD(&resource->resource_list);
-	list_add_tail(&resource->list, resource_list);
-out:
+	err = devl_resource_register(devlink, resource_name, resource_size,
+				     resource_id, parent_resource_id, size_params);
 	devl_unlock(devlink);
 	return err;
 }
@@ -10637,15 +10683,15 @@ static void devlink_resource_unregister(struct devlink *devlink,
 }
 
 /**
- *	devlink_resources_unregister - free all resources
+ * devl_resources_unregister - free all resources
  *
- *	@devlink: devlink
+ * @devlink: devlink
  */
-void devlink_resources_unregister(struct devlink *devlink)
+void devl_resources_unregister(struct devlink *devlink)
 {
 	struct devlink_resource *tmp, *child_resource;
 
-	devl_lock(devlink);
+	lockdep_assert_held(&devlink->lock);
 
 	list_for_each_entry_safe(child_resource, tmp, &devlink->resource_list,
 				 list) {
@@ -10653,69 +10699,100 @@ void devlink_resources_unregister(struct devlink *devlink)
 		list_del(&child_resource->list);
 		kfree(child_resource);
 	}
+}
+EXPORT_SYMBOL_GPL(devl_resources_unregister);
 
+/**
+ *	devlink_resources_unregister - free all resources
+ *
+ *	@devlink: devlink
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
+ */
+void devlink_resources_unregister(struct devlink *devlink)
+{
+	devl_lock(devlink);
+	devl_resources_unregister(devlink);
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_resources_unregister);
 
 /**
- *	devlink_resource_size_get - get and update size
+ * devl_resource_size_get - get and update size
  *
- *	@devlink: devlink
- *	@resource_id: the requested resource id
- *	@p_resource_size: ptr to update
+ * @devlink: devlink
+ * @resource_id: the requested resource id
+ * @p_resource_size: ptr to update
  */
-int devlink_resource_size_get(struct devlink *devlink,
-			      u64 resource_id,
-			      u64 *p_resource_size)
+int devl_resource_size_get(struct devlink *devlink,
+			   u64 resource_id,
+			   u64 *p_resource_size)
 {
 	struct devlink_resource *resource;
-	int err = 0;
 
-	devl_lock(devlink);
+	lockdep_assert_held(&devlink->lock);
+
 	resource = devlink_resource_find(devlink, NULL, resource_id);
-	if (!resource) {
-		err = -EINVAL;
-		goto out;
-	}
+	if (!resource)
+		return -EINVAL;
 	*p_resource_size = resource->size_new;
 	resource->size = resource->size_new;
-out:
-	devl_unlock(devlink);
-	return err;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(devlink_resource_size_get);
+EXPORT_SYMBOL_GPL(devl_resource_size_get);
 
 /**
- *	devlink_dpipe_table_resource_set - set the resource id
+ * devl_dpipe_table_resource_set - set the resource id
  *
- *	@devlink: devlink
- *	@table_name: table name
- *	@resource_id: resource id
- *	@resource_units: number of resource's units consumed per table's entry
+ * @devlink: devlink
+ * @table_name: table name
+ * @resource_id: resource id
+ * @resource_units: number of resource's units consumed per table's entry
  */
-int devlink_dpipe_table_resource_set(struct devlink *devlink,
-				     const char *table_name, u64 resource_id,
-				     u64 resource_units)
+int devl_dpipe_table_resource_set(struct devlink *devlink,
+				  const char *table_name, u64 resource_id,
+				  u64 resource_units)
 {
 	struct devlink_dpipe_table *table;
-	int err = 0;
 
-	devl_lock(devlink);
 	table = devlink_dpipe_table_find(&devlink->dpipe_table_list,
 					 table_name, devlink);
-	if (!table) {
-		err = -EINVAL;
-		goto out;
-	}
+	if (!table)
+		return -EINVAL;
+
 	table->resource_id = resource_id;
 	table->resource_units = resource_units;
 	table->resource_valid = true;
-out:
-	devl_unlock(devlink);
-	return err;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(devlink_dpipe_table_resource_set);
+EXPORT_SYMBOL_GPL(devl_dpipe_table_resource_set);
+
+/**
+ * devl_resource_occ_get_register - register occupancy getter
+ *
+ * @devlink: devlink
+ * @resource_id: resource id
+ * @occ_get: occupancy getter callback
+ * @occ_get_priv: occupancy getter callback priv
+ */
+void devl_resource_occ_get_register(struct devlink *devlink,
+				    u64 resource_id,
+				    devlink_resource_occ_get_t *occ_get,
+				    void *occ_get_priv)
+{
+	struct devlink_resource *resource;
+
+	lockdep_assert_held(&devlink->lock);
+
+	resource = devlink_resource_find(devlink, NULL, resource_id);
+	if (WARN_ON(!resource))
+		return;
+	WARN_ON(resource->occ_get);
+
+	resource->occ_get = occ_get;
+	resource->occ_get_priv = occ_get_priv;
+}
+EXPORT_SYMBOL_GPL(devl_resource_occ_get_register);
 
 /**
  *	devlink_resource_occ_get_register - register occupancy getter
@@ -10724,47 +10801,57 @@ EXPORT_SYMBOL_GPL(devlink_dpipe_table_resource_set);
  *	@resource_id: resource id
  *	@occ_get: occupancy getter callback
  *	@occ_get_priv: occupancy getter callback priv
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
  */
 void devlink_resource_occ_get_register(struct devlink *devlink,
 				       u64 resource_id,
 				       devlink_resource_occ_get_t *occ_get,
 				       void *occ_get_priv)
 {
-	struct devlink_resource *resource;
-
 	devl_lock(devlink);
-	resource = devlink_resource_find(devlink, NULL, resource_id);
-	if (WARN_ON(!resource))
-		goto out;
-	WARN_ON(resource->occ_get);
-
-	resource->occ_get = occ_get;
-	resource->occ_get_priv = occ_get_priv;
-out:
+	devl_resource_occ_get_register(devlink, resource_id,
+				       occ_get, occ_get_priv);
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_resource_occ_get_register);
+
+/**
+ * devl_resource_occ_get_unregister - unregister occupancy getter
+ *
+ * @devlink: devlink
+ * @resource_id: resource id
+ */
+void devl_resource_occ_get_unregister(struct devlink *devlink,
+				      u64 resource_id)
+{
+	struct devlink_resource *resource;
+
+	lockdep_assert_held(&devlink->lock);
+
+	resource = devlink_resource_find(devlink, NULL, resource_id);
+	if (WARN_ON(!resource))
+		return;
+	WARN_ON(!resource->occ_get);
+
+	resource->occ_get = NULL;
+	resource->occ_get_priv = NULL;
+}
+EXPORT_SYMBOL_GPL(devl_resource_occ_get_unregister);
 
 /**
  *	devlink_resource_occ_get_unregister - unregister occupancy getter
  *
  *	@devlink: devlink
  *	@resource_id: resource id
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
  */
 void devlink_resource_occ_get_unregister(struct devlink *devlink,
 					 u64 resource_id)
 {
-	struct devlink_resource *resource;
-
 	devl_lock(devlink);
-	resource = devlink_resource_find(devlink, NULL, resource_id);
-	if (WARN_ON(!resource))
-		goto out;
-	WARN_ON(!resource->occ_get);
-
-	resource->occ_get = NULL;
-	resource->occ_get_priv = NULL;
-out:
+	devl_resource_occ_get_unregister(devlink, resource_id);
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_resource_occ_get_unregister);
@@ -10986,36 +11073,31 @@ void devlink_param_value_changed(struct devlink *devlink, u32 param_id)
 EXPORT_SYMBOL_GPL(devlink_param_value_changed);
 
 /**
- *	devlink_region_create - create a new address region
+ * devl_region_create - create a new address region
  *
- *	@devlink: devlink
- *	@ops: region operations and name
- *	@region_max_snapshots: Maximum supported number of snapshots for region
- *	@region_size: size of region
+ * @devlink: devlink
+ * @ops: region operations and name
+ * @region_max_snapshots: Maximum supported number of snapshots for region
+ * @region_size: size of region
  */
-struct devlink_region *
-devlink_region_create(struct devlink *devlink,
-		      const struct devlink_region_ops *ops,
-		      u32 region_max_snapshots, u64 region_size)
+struct devlink_region *devl_region_create(struct devlink *devlink,
+					  const struct devlink_region_ops *ops,
+					  u32 region_max_snapshots,
+					  u64 region_size)
 {
 	struct devlink_region *region;
-	int err = 0;
+
+	devl_assert_locked(devlink);
 
 	if (WARN_ON(!ops) || WARN_ON(!ops->destructor))
 		return ERR_PTR(-EINVAL);
 
-	devl_lock(devlink);
-
-	if (devlink_region_get_by_name(devlink, ops->name)) {
-		err = -EEXIST;
-		goto unlock;
-	}
+	if (devlink_region_get_by_name(devlink, ops->name))
+		return ERR_PTR(-EEXIST);
 
 	region = kzalloc(sizeof(*region), GFP_KERNEL);
-	if (!region) {
-		err = -ENOMEM;
-		goto unlock;
-	}
+	if (!region)
+		return ERR_PTR(-ENOMEM);
 
 	region->devlink = devlink;
 	region->max_snapshots = region_max_snapshots;
@@ -11025,12 +11107,32 @@ devlink_region_create(struct devlink *devlink,
 	list_add_tail(&region->list, &devlink->region_list);
 	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
 
+	return region;
+}
+EXPORT_SYMBOL_GPL(devl_region_create);
+
+/**
+ *	devlink_region_create - create a new address region
+ *
+ *	@devlink: devlink
+ *	@ops: region operations and name
+ *	@region_max_snapshots: Maximum supported number of snapshots for region
+ *	@region_size: size of region
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
+ */
+struct devlink_region *
+devlink_region_create(struct devlink *devlink,
+		      const struct devlink_region_ops *ops,
+		      u32 region_max_snapshots, u64 region_size)
+{
+	struct devlink_region *region;
+
+	devl_lock(devlink);
+	region = devl_region_create(devlink, ops, region_max_snapshots,
+				    region_size);
 	devl_unlock(devlink);
 	return region;
-
-unlock:
-	devl_unlock(devlink);
-	return ERR_PTR(err);
 }
 EXPORT_SYMBOL_GPL(devlink_region_create);
 
@@ -11041,6 +11143,8 @@ EXPORT_SYMBOL_GPL(devlink_region_create);
  *	@ops: region operations and name
  *	@region_max_snapshots: Maximum supported number of snapshots for region
  *	@region_size: size of region
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
  */
 struct devlink_region *
 devlink_port_region_create(struct devlink_port *port,
@@ -11086,16 +11190,16 @@ unlock:
 EXPORT_SYMBOL_GPL(devlink_port_region_create);
 
 /**
- *	devlink_region_destroy - destroy address region
+ * devl_region_destroy - destroy address region
  *
- *	@region: devlink region to destroy
+ * @region: devlink region to destroy
  */
-void devlink_region_destroy(struct devlink_region *region)
+void devl_region_destroy(struct devlink_region *region)
 {
 	struct devlink *devlink = region->devlink;
 	struct devlink_snapshot *snapshot, *ts;
 
-	devl_lock(devlink);
+	devl_assert_locked(devlink);
 
 	/* Free all snapshots of region */
 	list_for_each_entry_safe(snapshot, ts, &region->snapshot_list, list)
@@ -11104,8 +11208,24 @@ void devlink_region_destroy(struct devlink_region *region)
 	list_del(&region->list);
 
 	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_DEL);
-	devl_unlock(devlink);
 	kfree(region);
+}
+EXPORT_SYMBOL_GPL(devl_region_destroy);
+
+/**
+ *	devlink_region_destroy - destroy address region
+ *
+ *	@region: devlink region to destroy
+ *
+ *	Context: Takes and release devlink->lock <mutex>.
+ */
+void devlink_region_destroy(struct devlink_region *region)
+{
+	struct devlink *devlink = region->devlink;
+
+	devl_lock(devlink);
+	devl_region_destroy(region);
+	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_region_destroy);
 
@@ -11540,7 +11660,7 @@ static void devlink_trap_disable(struct devlink *devlink,
 }
 
 /**
- * devlink_traps_register - Register packet traps with devlink.
+ * devl_traps_register - Register packet traps with devlink.
  * @devlink: devlink.
  * @traps: Packet traps.
  * @traps_count: Count of provided packet traps.
@@ -11548,16 +11668,16 @@ static void devlink_trap_disable(struct devlink *devlink,
  *
  * Return: Non-zero value on failure.
  */
-int devlink_traps_register(struct devlink *devlink,
-			   const struct devlink_trap *traps,
-			   size_t traps_count, void *priv)
+int devl_traps_register(struct devlink *devlink,
+			const struct devlink_trap *traps,
+			size_t traps_count, void *priv)
 {
 	int i, err;
 
 	if (!devlink->ops->trap_init || !devlink->ops->trap_action_set)
 		return -EINVAL;
 
-	devl_lock(devlink);
+	devl_assert_locked(devlink);
 	for (i = 0; i < traps_count; i++) {
 		const struct devlink_trap *trap = &traps[i];
 
@@ -11569,7 +11689,6 @@ int devlink_traps_register(struct devlink *devlink,
 		if (err)
 			goto err_trap_register;
 	}
-	devl_unlock(devlink);
 
 	return 0;
 
@@ -11577,24 +11696,47 @@ err_trap_register:
 err_trap_verify:
 	for (i--; i >= 0; i--)
 		devlink_trap_unregister(devlink, &traps[i]);
+	return err;
+}
+EXPORT_SYMBOL_GPL(devl_traps_register);
+
+/**
+ * devlink_traps_register - Register packet traps with devlink.
+ * @devlink: devlink.
+ * @traps: Packet traps.
+ * @traps_count: Count of provided packet traps.
+ * @priv: Driver private information.
+ *
+ * Context: Takes and release devlink->lock <mutex>.
+ *
+ * Return: Non-zero value on failure.
+ */
+int devlink_traps_register(struct devlink *devlink,
+			   const struct devlink_trap *traps,
+			   size_t traps_count, void *priv)
+{
+	int err;
+
+	devl_lock(devlink);
+	err = devl_traps_register(devlink, traps, traps_count, priv);
 	devl_unlock(devlink);
 	return err;
 }
 EXPORT_SYMBOL_GPL(devlink_traps_register);
 
 /**
- * devlink_traps_unregister - Unregister packet traps from devlink.
+ * devl_traps_unregister - Unregister packet traps from devlink.
  * @devlink: devlink.
  * @traps: Packet traps.
  * @traps_count: Count of provided packet traps.
  */
-void devlink_traps_unregister(struct devlink *devlink,
-			      const struct devlink_trap *traps,
-			      size_t traps_count)
+void devl_traps_unregister(struct devlink *devlink,
+			   const struct devlink_trap *traps,
+			   size_t traps_count)
 {
 	int i;
 
-	devl_lock(devlink);
+	devl_assert_locked(devlink);
 	/* Make sure we do not have any packets in-flight while unregistering
 	 * traps by disabling all of them and waiting for a grace period.
 	 */
@@ -11603,6 +11745,23 @@ void devlink_traps_unregister(struct devlink *devlink,
 	synchronize_rcu();
 	for (i = traps_count - 1; i >= 0; i--)
 		devlink_trap_unregister(devlink, &traps[i]);
+}
+EXPORT_SYMBOL_GPL(devl_traps_unregister);
+
+/**
+ * devlink_traps_unregister - Unregister packet traps from devlink.
+ * @devlink: devlink.
+ * @traps: Packet traps.
+ * @traps_count: Count of provided packet traps.
+ *
+ * Context: Takes and release devlink->lock <mutex>.
+ */
+void devlink_traps_unregister(struct devlink *devlink,
+			      const struct devlink_trap *traps,
+			      size_t traps_count)
+{
+	devl_lock(devlink);
+	devl_traps_unregister(devlink, traps, traps_count);
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_traps_unregister);
@@ -11762,20 +11921,20 @@ devlink_trap_group_unregister(struct devlink *devlink,
 }
 
 /**
- * devlink_trap_groups_register - Register packet trap groups with devlink.
+ * devl_trap_groups_register - Register packet trap groups with devlink.
  * @devlink: devlink.
  * @groups: Packet trap groups.
  * @groups_count: Count of provided packet trap groups.
  *
  * Return: Non-zero value on failure.
  */
-int devlink_trap_groups_register(struct devlink *devlink,
-				 const struct devlink_trap_group *groups,
-				 size_t groups_count)
+int devl_trap_groups_register(struct devlink *devlink,
+			      const struct devlink_trap_group *groups,
+			      size_t groups_count)
 {
 	int i, err;
 
-	devl_lock(devlink);
+	devl_assert_locked(devlink);
 	for (i = 0; i < groups_count; i++) {
 		const struct devlink_trap_group *group = &groups[i];
 
@@ -11787,7 +11946,6 @@ int devlink_trap_groups_register(struct devlink *devlink,
 		if (err)
 			goto err_trap_group_register;
 	}
-	devl_unlock(devlink);
 
 	return 0;
 
@@ -11795,26 +11953,65 @@ err_trap_group_register:
 err_trap_group_verify:
 	for (i--; i >= 0; i--)
 		devlink_trap_group_unregister(devlink, &groups[i]);
+	return err;
+}
+EXPORT_SYMBOL_GPL(devl_trap_groups_register);
+
+/**
+ * devlink_trap_groups_register - Register packet trap groups with devlink.
+ * @devlink: devlink.
+ * @groups: Packet trap groups.
+ * @groups_count: Count of provided packet trap groups.
+ *
+ * Context: Takes and release devlink->lock <mutex>.
+ *
+ * Return: Non-zero value on failure.
+ */
+int devlink_trap_groups_register(struct devlink *devlink,
+				 const struct devlink_trap_group *groups,
+				 size_t groups_count)
+{
+	int err;
+
+	devl_lock(devlink);
+	err = devl_trap_groups_register(devlink, groups, groups_count);
 	devl_unlock(devlink);
 	return err;
 }
 EXPORT_SYMBOL_GPL(devlink_trap_groups_register);
 
 /**
+ * devl_trap_groups_unregister - Unregister packet trap groups from devlink.
+ * @devlink: devlink.
+ * @groups: Packet trap groups.
+ * @groups_count: Count of provided packet trap groups.
+ */
+void devl_trap_groups_unregister(struct devlink *devlink,
+				 const struct devlink_trap_group *groups,
+				 size_t groups_count)
+{
+	int i;
+
+	devl_assert_locked(devlink);
+	for (i = groups_count - 1; i >= 0; i--)
+		devlink_trap_group_unregister(devlink, &groups[i]);
+}
+EXPORT_SYMBOL_GPL(devl_trap_groups_unregister);
+
+/**
  * devlink_trap_groups_unregister - Unregister packet trap groups from devlink.
  * @devlink: devlink.
  * @groups: Packet trap groups.
  * @groups_count: Count of provided packet trap groups.
+ *
+ * Context: Takes and release devlink->lock <mutex>.
  */
 void devlink_trap_groups_unregister(struct devlink *devlink,
 				    const struct devlink_trap_group *groups,
 				    size_t groups_count)
 {
-	int i;
-
 	devl_lock(devlink);
-	for (i = groups_count - 1; i >= 0; i--)
-		devlink_trap_group_unregister(devlink, &groups[i]);
+	devl_trap_groups_unregister(devlink, groups, groups_count);
 	devl_unlock(devlink);
 }
 EXPORT_SYMBOL_GPL(devlink_trap_groups_unregister);
@@ -11901,7 +12098,7 @@ devlink_trap_policer_unregister(struct devlink *devlink,
 }
 
 /**
- * devlink_trap_policers_register - Register packet trap policers with devlink.
+ * devl_trap_policers_register - Register packet trap policers with devlink.
  * @devlink: devlink.
  * @policers: Packet trap policers.
  * @policers_count: Count of provided packet trap policers.
@@ -11909,13 +12106,13 @@ devlink_trap_policer_unregister(struct devlink *devlink,
  * Return: Non-zero value on failure.
  */
 int
-devlink_trap_policers_register(struct devlink *devlink,
-			       const struct devlink_trap_policer *policers,
-			       size_t policers_count)
+devl_trap_policers_register(struct devlink *devlink,
+			    const struct devlink_trap_policer *policers,
+			    size_t policers_count)
 {
 	int i, err;
 
-	devl_lock(devlink);
+	devl_assert_locked(devlink);
 	for (i = 0; i < policers_count; i++) {
 		const struct devlink_trap_policer *policer = &policers[i];
 
@@ -11930,38 +12127,34 @@ devlink_trap_policers_register(struct devlink *devlink,
 		if (err)
 			goto err_trap_policer_register;
 	}
-	devl_unlock(devlink);
-
 	return 0;
 
 err_trap_policer_register:
 err_trap_policer_verify:
 	for (i--; i >= 0; i--)
 		devlink_trap_policer_unregister(devlink, &policers[i]);
-	devl_unlock(devlink);
 	return err;
 }
-EXPORT_SYMBOL_GPL(devlink_trap_policers_register);
+EXPORT_SYMBOL_GPL(devl_trap_policers_register);
 
 /**
- * devlink_trap_policers_unregister - Unregister packet trap policers from devlink.
+ * devl_trap_policers_unregister - Unregister packet trap policers from devlink.
  * @devlink: devlink.
  * @policers: Packet trap policers.
  * @policers_count: Count of provided packet trap policers.
  */
 void
-devlink_trap_policers_unregister(struct devlink *devlink,
-				 const struct devlink_trap_policer *policers,
-				 size_t policers_count)
+devl_trap_policers_unregister(struct devlink *devlink,
+			      const struct devlink_trap_policer *policers,
+			      size_t policers_count)
 {
 	int i;
 
-	devl_lock(devlink);
+	devl_assert_locked(devlink);
 	for (i = policers_count - 1; i >= 0; i--)
 		devlink_trap_policer_unregister(devlink, &policers[i]);
-	devl_unlock(devlink);
 }
-EXPORT_SYMBOL_GPL(devlink_trap_policers_unregister);
+EXPORT_SYMBOL_GPL(devl_trap_policers_unregister);
 
 static void __devlink_compat_running_version(struct devlink *devlink,
 					     char *buf, size_t len)
