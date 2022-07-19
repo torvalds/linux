@@ -1702,9 +1702,15 @@ static int amdgpu_discovery_set_smu_ip_blocks(struct amdgpu_device *adev)
 	return 0;
 }
 
+static void amdgpu_discovery_set_sriov_display(struct amdgpu_device *adev)
+{
+	amdgpu_device_set_sriov_virtual_display(adev);
+	amdgpu_device_ip_block_add(adev, &amdgpu_vkms_ip_block);
+}
+
 static int amdgpu_discovery_set_display_ip_blocks(struct amdgpu_device *adev)
 {
-	if (adev->enable_virtual_display || amdgpu_sriov_vf(adev)) {
+	if (adev->enable_virtual_display) {
 		amdgpu_device_ip_block_add(adev, &amdgpu_vkms_ip_block);
 		return 0;
 	}
@@ -1732,7 +1738,10 @@ static int amdgpu_discovery_set_display_ip_blocks(struct amdgpu_device *adev)
 		case IP_VERSION(3, 1, 6):
 		case IP_VERSION(3, 2, 0):
 		case IP_VERSION(3, 2, 1):
-			amdgpu_device_ip_block_add(adev, &dm_ip_block);
+			if (amdgpu_sriov_vf(adev))
+				amdgpu_discovery_set_sriov_display(adev);
+			else
+				amdgpu_device_ip_block_add(adev, &dm_ip_block);
 			break;
 		default:
 			dev_err(adev->dev,
@@ -1745,7 +1754,10 @@ static int amdgpu_discovery_set_display_ip_blocks(struct amdgpu_device *adev)
 		case IP_VERSION(12, 0, 0):
 		case IP_VERSION(12, 0, 1):
 		case IP_VERSION(12, 1, 0):
-			amdgpu_device_ip_block_add(adev, &dm_ip_block);
+			if (amdgpu_sriov_vf(adev))
+				amdgpu_discovery_set_sriov_display(adev);
+			else
+				amdgpu_device_ip_block_add(adev, &dm_ip_block);
 			break;
 		default:
 			dev_err(adev->dev,
