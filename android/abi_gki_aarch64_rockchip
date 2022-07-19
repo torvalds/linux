@@ -15,6 +15,7 @@
   atomic_notifier_call_chain
   atomic_notifier_chain_register
   atomic_notifier_chain_unregister
+  bcmp
   bdget_disk
   bdput
   blk_cleanup_queue
@@ -41,6 +42,20 @@
   cdev_device_add
   cdev_device_del
   cdev_init
+  cec_allocate_adapter
+  cec_delete_adapter
+  cec_fill_conn_info_from_drm
+  cec_notifier_cec_adap_register
+  cec_notifier_cec_adap_unregister
+  cec_notifier_conn_register
+  cec_notifier_conn_unregister
+  cec_notifier_set_phys_addr
+  cec_notifier_set_phys_addr_from_edid
+  cec_queue_pin_hpd_event
+  cec_received_msg_ts
+  cec_register_adapter
+  cec_transmit_attempt_done_ts
+  cec_unregister_adapter
   __cfi_slowpath
   __check_object_size
   __class_create
@@ -188,6 +203,7 @@
   devm_regulator_get
   devm_regulator_get_optional
   devm_regulator_register
+  devm_remove_action
   devm_request_threaded_irq
   devm_reset_control_array_get
   __devm_reset_control_get
@@ -257,6 +273,7 @@
   drm_bridge_attach
   drm_bridge_detect
   drm_bridge_get_modes
+  drm_bridge_hpd_notify
   drm_bridge_remove
   drm_compat_ioctl
   drm_connector_attach_encoder
@@ -293,6 +310,8 @@
   drm_gem_vm_close
   drm_get_edid
   drm_hdmi_avi_infoframe_from_display_mode
+  drm_hdmi_avi_infoframe_quant_range
+  drm_hdmi_infoframe_set_hdr_metadata
   drm_hdmi_vendor_infoframe_from_display_mode
   drm_helper_hpd_irq_event
   drm_helper_probe_single_connector_modes
@@ -322,10 +341,15 @@
   drm_property_replace_global_blob
   drm_read
   drm_release
+  drm_scdc_read
+  drm_scdc_set_high_tmds_clock_ratio
+  drm_scdc_set_scrambling
+  drm_scdc_write
   enable_irq
   extcon_get_edev_by_phandle
   extcon_get_state
   extcon_register_notifier
+  extcon_set_property_capability
   extcon_set_state_sync
   extcon_unregister_notifier
   failure_tracking
@@ -373,6 +397,8 @@
   gpio_to_desc
   handle_nested_irq
   handle_simple_irq
+  hdmi_audio_infoframe_pack
+  hdmi_drm_infoframe_pack
   hid_debug
   hid_hw_close
   hid_hw_open
@@ -529,6 +555,7 @@
   of_find_property
   of_get_child_by_name
   of_get_drm_display_mode
+  of_get_i2c_adapter_by_node
   of_get_named_gpio_flags
   of_get_next_available_child
   of_get_next_child
@@ -649,6 +676,7 @@
   regmap_field_update_bits_base
   regmap_irq_get_domain
   regmap_irq_get_virq
+  regmap_raw_read
   regmap_raw_write
   regmap_read
   regmap_update_bits_base
@@ -762,6 +790,7 @@
   tasklet_init
   tasklet_kill
   __tasklet_schedule
+  tcpm_tcpc_reset
   thermal_zone_get_zone_by_name
   __traceiter_rwmmio_post_read
   __traceiter_rwmmio_read
@@ -1000,18 +1029,6 @@
   power_supply_am_i_supplied
   power_supply_get_battery_info
   power_supply_put_battery_info
-  regmap_raw_read
-
-# required by dw-hdmi-cec.ko
-  cec_allocate_adapter
-  cec_delete_adapter
-  cec_notifier_cec_adap_register
-  cec_notifier_cec_adap_unregister
-  cec_received_msg_ts
-  cec_register_adapter
-  cec_transmit_attempt_done_ts
-  cec_unregister_adapter
-  devm_remove_action
 
 # required by dw-hdmi-hdcp.ko
   device_create_file
@@ -1022,29 +1039,16 @@
   sha1_init
   sha1_transform
 
+# required by dw-hdmi-qp.ko
+  drm_mode_equal
+  hdmi_avi_infoframe_pack_only
+
 # required by dw-hdmi.ko
-  bcmp
-  cec_fill_conn_info_from_drm
-  cec_notifier_conn_register
-  cec_notifier_conn_unregister
-  cec_notifier_set_phys_addr
-  cec_notifier_set_phys_addr_from_edid
-  cec_queue_pin_hpd_event
-  drm_bridge_hpd_notify
   drm_connector_attach_max_bpc_property
   drm_default_rgb_quant_range
-  drm_hdmi_avi_infoframe_quant_range
-  drm_hdmi_infoframe_set_hdr_metadata
   drm_mode_is_420_also
   drm_mode_is_420_only
-  drm_scdc_read
-  drm_scdc_set_high_tmds_clock_ratio
-  drm_scdc_set_scrambling
-  drm_scdc_write
-  extcon_set_property_capability
-  hdmi_drm_infoframe_pack
   hdmi_vendor_infoframe_pack
-  of_get_i2c_adapter_by_node
   of_graph_get_endpoint_by_regs
 
 # required by dw-mipi-dsi.ko
@@ -1754,6 +1758,7 @@
   drm_flip_work_init
   drm_flip_work_queue
   drm_format_info
+  drm_format_info_min_pitch
   drm_framebuffer_cleanup
   drm_framebuffer_init
   drm_gem_cma_vm_ops
@@ -1781,11 +1786,13 @@
   drmm_mode_config_init
   drm_mm_print
   drm_mm_remove_node
+  drm_mm_reserve_node
   drm_mm_takedown
   drm_mode_config_cleanup
   drm_mode_config_helper_resume
   drm_mode_config_helper_suspend
   drm_mode_config_reset
+  drm_mode_create_hdmi_colorspace_property
   drm_mode_create_tv_properties
   drm_mode_crtc_set_gamma_size
   drm_mode_debug_printmodeline
@@ -1835,6 +1842,7 @@
   iommu_set_fault_handler
   iommu_unmap
   memblock_free
+  mipi_dsi_packet_format_is_short
   of_clk_set_defaults
   of_find_backlight_by_node
   of_fwnode_ops
@@ -1919,7 +1927,6 @@
   irq_stat
 
 # required by sii902x.ko
-  hdmi_audio_infoframe_pack
   hdmi_avi_infoframe_pack
 
 # required by snd-soc-cx2072x.ko
@@ -1936,7 +1943,9 @@
   snd_ctl_add
   snd_ctl_new1
   snd_pcm_add_chmap_ctls
-  snd_pcm_create_iec958_consumer_hw_params
+  snd_pcm_create_iec958_consumer_default
+  snd_pcm_fill_iec958_consumer
+  snd_pcm_fill_iec958_consumer_hw_params
   snd_pcm_hw_constraint_eld
   snd_soc_dapm_add_routes
 
@@ -1994,6 +2003,7 @@
 
 # required by tcpci_husb311.ko
   i2c_smbus_read_word_data
+  tcpci_get_tcpm_port
   tcpci_irq
   tcpci_register_port
   tcpci_unregister_port
