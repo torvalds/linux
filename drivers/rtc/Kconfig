@@ -1314,6 +1314,14 @@ config RTC_DRV_NTXEC
 	  embedded controller found in certain e-book readers designed by the
 	  original design manufacturer Netronix.
 
+config RTC_DRV_STARFIVE
+	tristate "StarFive 32.768k-RTC"
+	depends on SOC_STARFIVE
+	depends on OF
+	help
+	  If you say Y here you will get support for the RTC found on
+	  StarFive SOCS.
+
 comment "on-CPU RTC drivers"
 
 config RTC_DRV_ASM9260
@@ -1586,14 +1594,6 @@ config RTC_DRV_STARFIRE
 	help
 	  If you say Y here you will get support for the RTC found on
 	  Starfire systems.
-
-config RTC_DRV_STARFIVE
-	tristate "StarFive 32.768k-RTC"
-	depends on SOC_STARFIVE
-	depends on OF
-	help
-	  If you say Y here you will get support for the RTC found on
-	  StarFive SOCS.
 
 config RTC_DRV_MV
 	tristate "Marvell SoC RTC"
