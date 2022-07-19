@@ -59,12 +59,6 @@ struct vs_dc {
 	struct clk *disp_axi;
 	struct clk *stg_axi;
 
-	struct reset_control *cpu_axi_n;
-	struct reset_control *axicfg0_axi_n;
-	struct reset_control *apb_bus_n;
-	struct reset_control *disp_axi_n;
-	struct reset_control *stg_axi_n;
-
 	struct clk *vout_src;
 	struct clk *vout_axi;
 	struct clk *ahb1;
@@ -72,17 +66,11 @@ struct vs_dc {
 	struct clk *hdmitx0_mclk;
 	struct clk *bclk_mst;
 
-	struct reset_control *rstn_vout_src;
-
 	struct clk *dc8200_clk_pix0;
 	struct clk *dc8200_clk_pix1;
 	struct clk *dc8200_axi;
 	struct clk *dc8200_core;
 	struct clk *dc8200_ahb;
-
-	struct reset_control *rstn_dc8200_axi;
-	struct reset_control *rstn_dc8200_core;
-	struct reset_control *rstn_dc8200_ahb;
 
 	struct clk *vout_top_axi;
 	struct clk *vout_top_lcd;
@@ -91,6 +79,8 @@ struct vs_dc {
 	struct clk *dc8200_pix0;
 	struct clk *dc8200_clk_pix0_out;
 	struct clk *dc8200_clk_pix1_out;
+
+	struct reset_control *vout_resets;
 
 	struct regmap *dss_regmap;
 

@@ -372,103 +372,6 @@ static void  vs_dc_clock_disable(struct vs_dc *dc)
 	clk_disable_unprepare(dc->stg_axi);
 }
 
-static int vs_dc_get_reset(struct device *dev, struct vs_dc *dc)
-{
-	int ret;
-
-	dc->cpu_axi_n = reset_control_get_exclusive(dev, "rst_noc_cpu");
-	if (IS_ERR(dc->cpu_axi_n)) {
-		dev_err(dev, "failed to get cpu_axi_n\n");
-		return PTR_ERR(dc->cpu_axi_n);
-	}
-	dc->axicfg0_axi_n = reset_control_get_exclusive(dev, "rst_noc_axicfg0");
-	if (IS_ERR(dc->axicfg0_axi_n)) {
-		dev_err(dev, "failed to get axicfg0_axi_n\n");
-		return PTR_ERR(dc->axicfg0_axi_n);
-	}
-	dc->apb_bus_n = reset_control_get_exclusive(dev, "rst_noc_apb");
-	if (IS_ERR(dc->apb_bus_n)) {
-		dev_err(dev, "failed to get apb_bus_n\n");
-		return PTR_ERR(dc->apb_bus_n);
-	}
-	dc->disp_axi_n = reset_control_get_exclusive(dev, "rst_noc_disp");
-	if (IS_ERR(dc->disp_axi_n)) {
-		dev_err(dev, "failed to get disp_axi_n\n");
-		return PTR_ERR(dc->disp_axi_n);
-	}
-	dc->stg_axi_n = reset_control_get_exclusive(dev, "rst_noc_stg");
-	if (IS_ERR(dc->stg_axi_n)) {
-		dev_err(dev, "failed to get stg_axi_n\n");
-		return PTR_ERR(dc->stg_axi_n);
-	}
-
-	return ret;
-}
-
-static int vs_dc_resets_deassert(struct device *dev, struct vs_dc *dc)
-{
-	int ret;
-
-	ret = reset_control_deassert(dc->cpu_axi_n);
-	if (ret < 0) {
-		dev_err(dev, "failed to deassert cpu_axi_n\n");
-		return ret;
-	}
-	ret = reset_control_deassert(dc->axicfg0_axi_n);
-	if (ret < 0) {
-		dev_err(dev, "failed to deassert axicfg0_axi_n\n");
-		return ret;
-	}
-	ret = reset_control_deassert(dc->apb_bus_n);
-	if (ret < 0) {
-		dev_err(dev, "failed to deassert apb_bus_n\n");
-		return ret;
-	}
-	ret = reset_control_deassert(dc->disp_axi_n);
-	if (ret < 0) {
-		dev_err(dev, "failed to deassert disp_axi_n\n");
-		return ret;
-	}
-	ret = reset_control_deassert(dc->stg_axi_n);
-	if (ret < 0) {
-		dev_err(dev, "failed to deassert stg_axi_n\n");
-		return ret;
-	}
-	return ret;
-}
-
-static int vs_dc_resets_assert(struct device *dev, struct vs_dc *dc)
-{
-	int ret;
-
-	ret = reset_control_assert(dc->cpu_axi_n);
-	if (ret < 0) {
-		dev_err(dev, "failed to assert cpu_axi_n\n");
-		return ret;
-	}
-	ret = reset_control_assert(dc->axicfg0_axi_n);
-	if (ret < 0) {
-		dev_err(dev, "failed to assert axicfg0_axi_n\n");
-		return ret;
-	}
-	ret = reset_control_assert(dc->apb_bus_n);
-	if (ret < 0) {
-		dev_err(dev, "failed to assert apb_bus_n\n");
-		return ret;
-	}
-	ret = reset_control_assert(dc->disp_axi_n);
-	if (ret < 0) {
-		dev_err(dev, "failed to assert disp_axi_n\n");
-		return ret;
-	}
-	ret = reset_control_assert(dc->stg_axi_n);
-	if (ret < 0) {
-		dev_err(dev, "failed to assert stg_axi_n\n");
-		return ret;
-	}
-	return ret;
-}
-
 static int vs_dc_vouttop_get_clock(struct device *dev, struct vs_dc *dc)
 {
 	int ret;
@@ -553,40 +456,6 @@ static void  vs_dc_vouttop_clock_disable(struct vs_dc *dc)
 	clk_disable_unprepare(dc->bclk_mst);
 }
 
-static int vs_dc_vouttop_get_reset(struct device *dev, struct vs_dc *dc)
-{
-	int ret;
-
-	dc->rstn_vout_src = reset_control_get_exclusive(dev, "rst_vout_src");
-	if (IS_ERR(dc->rstn_vout_src)) {
-		dev_err(dev, "failed to get rstn_vout_src\n");
-		return PTR_ERR(dc->rstn_vout_src);
-	}
-	return ret;
-}
-
-static int vs_dc_vouttop_resets_deassert(struct device *dev, struct vs_dc *dc)
-{
-	int ret;
-	ret = reset_control_deassert(dc->rstn_vout_src);
-	if (ret < 0) {
-		dev_err(dev, "failed to deassert rstn_vout_src\n");
-		return ret;
-	}
-	return ret;
-}
-
-static int vs_dc_vouttop_resets_assert(struct device *dev, struct vs_dc *dc)
-{
-	int ret;
-	ret = reset_control_assert(dc->rstn_vout_src);
-	if (ret < 0) {
-		dev_err(dev, "failed to deassert rstn_vout_src\n");
-		return ret;
-	}
-	return ret;
-}
-
 static int vs_dc_dc8200_get_clock(struct device *dev, struct vs_dc *dc)
 {
 	int ret;
@@ -664,70 +533,6 @@ static void  vs_dc_dc8200_clock_disable(struct vs_dc *dc)
 	clk_disable_unprepare(dc->dc8200_ahb);
 }
 
-static int vs_dc_dc8200_get_reset(struct device *dev, struct vs_dc *dc)
-{
-	int ret;
-
-	dc->rstn_dc8200_axi = reset_control_get_exclusive(dev, "rst_axi");
-	if (IS_ERR(dc->rstn_dc8200_axi)) {
-		dev_err(dev, "failed to get rstn_dc8200_axi\n");
-		return PTR_ERR(dc->rstn_dc8200_axi);
-	}
-	dc->rstn_dc8200_core = reset_control_get_exclusive(dev, "rst_core");
-	if (IS_ERR(dc->rstn_dc8200_core)) {
-		dev_err(dev, "failed to get rstn_dc8200_core\n");
-		return PTR_ERR(dc->rstn_dc8200_core);
-	}
-	dc->rstn_dc8200_ahb = reset_control_get_exclusive(dev, "rst_ahb");
-	if (IS_ERR(dc->rstn_dc8200_ahb)) {
-		dev_err(dev, "failed to get rstn_dc8200_ahb\n");
-		return PTR_ERR(dc->rstn_dc8200_ahb);
-	}
-	return ret;
-}
-
-static int vs_dc_dc8200_resets_deassert(struct device *dev, struct vs_dc *dc)
-{
-	int ret;
-	ret = reset_control_deassert(dc->rstn_dc8200_axi);
-	if (ret < 0) {
-		dev_err(dev, "failed to deassert rstn_dc8200_axi\n");
-		return ret;
-	}
-	ret = reset_control_deassert(dc->rstn_dc8200_core);
-	if (ret < 0) {
-		dev_err(dev, "failed to deassert rstn_dc8200_core\n");
-		return ret;
-	}
-	ret = reset_control_deassert(dc->rstn_dc8200_ahb);
-	if (ret < 0) {
-		dev_err(dev, "failed to deassert rstn_dc8200_ahb\n");
-		return ret;
-	}
-	return ret;
-}
-
-static int vs_dc_dc8200_resets_assert(struct device *dev, struct vs_dc *dc)
-{
-	int ret;
-	ret = reset_control_assert(dc->rstn_dc8200_axi);
-	if (ret < 0) {
-		dev_err(dev, "failed to assert rstn_dc8200_axi\n");
-		return ret;
-	}
-	ret = reset_control_assert(dc->rstn_dc8200_core);
-	if (ret < 0) {
-		dev_err(dev, "failed to assert rstn_dc8200_core\n");
-		return ret;
-	}
-	ret = reset_control_assert(dc->rstn_dc8200_ahb);
-	if (ret < 0) {
-		dev_err(dev, "failed to assert rstn_dc8200_ahb\n");
-		return ret;
-	}
-	return ret;
-}
-
 static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
 {
 	int ret;
@@ -736,19 +541,10 @@ static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
 		dev_err(dev, "failed to get clock\n");
 		return ret;
 	}
-	ret = vs_dc_get_reset(dev, dc);
-	if (ret) {
-		dev_err(dev, "failed to get reset\n");
-		return ret;
-	}
+
 	ret = vs_dc_clock_enable(dev, dc);
 	if (ret) {
 		dev_err(dev, "failed to enable clock\n");
-		return ret;
-	}
-	ret = vs_dc_resets_deassert(dev, dc);
-	if (ret) {
-		dev_err(dev, "failed to deassert reset\n");
 		return ret;
 	}
 
@@ -757,19 +553,10 @@ static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
 		dev_err(dev, "failed to get clock\n");
 		return ret;
 	}
-	ret = vs_dc_vouttop_get_reset(dev, dc);
-	if (ret) {
-		dev_err(dev, "failed to get reset\n");
-		return ret;
-	}
+
 	ret = vs_dc_vouttop_clock_enable(dev, dc);
 	if (ret) {
 		dev_err(dev, "failed to enable clock\n");
-		return ret;
-	}
-	ret = vs_dc_vouttop_resets_deassert(dev, dc);
-	if (ret) {
-		dev_err(dev, "failed to deassert reset\n");
 		return ret;
 	}
 
@@ -778,19 +565,22 @@ static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
 		dev_err(dev, "failed to get clock\n");
 		return ret;
 	}
-	ret = vs_dc_dc8200_get_reset(dev, dc);
-	if (ret) {
-		dev_err(dev, "failed to get reset\n");
-		return ret;
-	}
+
 	ret = vs_dc_dc8200_clock_enable(dev, dc);
 	if (ret) {
 		dev_err(dev, "failed to enable clock\n");
 		return ret;
 	}
-	ret = vs_dc_dc8200_resets_deassert(dev, dc);
-	if (ret) {
-		dev_err(dev, "failed to deassert reset\n");
+
+	dc->vout_resets = devm_reset_control_array_get_exclusive(dev);
+	if (IS_ERR(dc->vout_resets)) {
+		ret = PTR_ERR(dc->vout_resets);
+		dev_err(dev, "faied to get vout resets controls\n");
+	}
+
+	ret = reset_control_deassert(dc->vout_resets);
+	if (ret){
+		dev_err(dev, "deassert error.\n");
 		return ret;
 	}
 
@@ -877,16 +667,16 @@ static void dc_deinit(struct device *dev)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
 	struct platform_device *pdev = to_platform_device(dev);
-
+	int ret;
 	dc_hw_enable_interrupt(&dc->hw, 0);
 	dc_hw_deinit(&dc->hw);
 	vs_dc_dc8200_clock_disable(dc);
 	vs_dc_vouttop_clock_disable(dc);
 	vs_dc_clock_disable(dc);
-	vs_dc_dc8200_resets_assert(dev, dc);
-	vs_dc_vouttop_resets_assert(dev, dc);
-	//vs_dc_resets_assert(dev, dc);
-	//plda_clk_rst_deinit(dev);
+	ret = reset_control_assert(dc->vout_resets);
+	if (ret)
+		dev_err(dev, "assert vout resets error.\n");
+
 	pm_runtime_put_sync(&pdev->dev);
 	pm_runtime_disable(&pdev->dev);
 }
