@@ -44,6 +44,41 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_vblank.h>
 
+/**
+ * amdgpu_display_hotplug_work_func - work handler for display hotplug event
+ *
+ * @work: work struct pointer
+ *
+ * This is the hotplug event work handler (all ASICs).
+ * The work gets scheduled from the IRQ handler if there
+ * was a hotplug interrupt.  It walks through the connector table
+ * and calls hotplug handler for each connector. After this, it sends
+ * a DRM hotplug event to alert userspace.
+ *
+ * This design approach is required in order to defer hotplug event handling
+ * from the IRQ handler to a work handler because hotplug handler has to use
+ * mutexes which cannot be locked in an IRQ handler (since &mutex_lock may
+ * sleep).
+ */
+void amdgpu_display_hotplug_work_func(struct work_struct *work)
+{
+	struct amdgpu_device *adev = container_of(work, struct amdgpu_device,
+						  hotplug_work);
+	struct drm_device *dev = adev_to_drm(adev);
+	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_connector *connector;
+	struct drm_connector_list_iter iter;
+
+	mutex_lock(&mode_config->mutex);
+	drm_connector_list_iter_begin(dev, &iter);
+	drm_for_each_connector_iter(connector, &iter)
+		amdgpu_connector_hotplug(connector);
+	drm_connector_list_iter_end(&iter);
+	mutex_unlock(&mode_config->mutex);
+	/* Just fire off a uevent and let userspace tell us what to do */
+	drm_helper_hpd_irq_event(dev);
+}
+
 static int amdgpu_display_framebuffer_init(struct drm_device *dev,
 					   struct amdgpu_framebuffer *rfb,
 					   const struct drm_mode_fb_cmd2 *mode_cmd,
