@@ -1325,7 +1325,7 @@ static void io_req_clean_work(struct io_kiocb *req)
  */
 static bool io_identity_cow(struct io_kiocb *req)
 {
-	struct io_uring_task *tctx = current->io_uring;
+	struct io_uring_task *tctx = req->task->io_uring;
 	const struct cred *creds = NULL;
 	struct io_identity *id;
 
