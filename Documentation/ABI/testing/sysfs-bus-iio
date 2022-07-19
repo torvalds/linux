@@ -2038,3 +2038,14 @@ Description:
 		Available range for the forced calibration value, expressed as:
 
 		- a range specified as "[min step max]"
+
+What:		/sys/bus/iio/devices/iio:deviceX/in_voltageX_sampling_frequency
+What:		/sys/bus/iio/devices/iio:deviceX/in_powerY_sampling_frequency
+What:		/sys/bus/iio/devices/iio:deviceX/in_currentZ_sampling_frequency
+KernelVersion:	5.20
+Contact:	linux-iio@vger.kernel.org
+Description:
+		Some devices have separate controls of sampling frequency for
+		individual channels. If multiple channels are enabled in a scan,
+		then the sampling_frequency of the scan may be computed from the
+		per channel sampling frequencies.
