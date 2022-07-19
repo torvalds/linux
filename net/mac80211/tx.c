@@ -5712,6 +5712,7 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 	struct ethhdr *ehdr;
 	u32 ctrl_flags = 0;
 	u32 flags = 0;
+	int err;
 
 	/* Only accept CONTROL_PORT_PROTOCOL configured in CONNECT/ASSOCIATE
 	 * or Pre-Authentication
@@ -5772,14 +5773,18 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 	 * AF_PACKET
 	 */
 	rcu_read_lock();
+	err = ieee80211_lookup_ra_sta(sdata, skb, &sta);
+	if (err) {
+		rcu_read_unlock();
+		return err;
+	}
 
-	if (ieee80211_lookup_ra_sta(sdata, skb, &sta) == 0 && !IS_ERR(sta)) {
+	if (!IS_ERR(sta)) {
 		u16 queue = __ieee80211_select_queue(sdata, sta, skb);
 
 		skb_set_queue_mapping(skb, queue);
 		skb_get_hash(skb);
 	}
-
 	rcu_read_unlock();
 
 	/* mutex lock is only needed for incrementing the cookie counter */
