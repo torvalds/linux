@@ -22,6 +22,15 @@ IMAGE_riscv   = arch/riscv/boot/Image
 IMAGE         = $(IMAGE_$(ARCH))
 IMAGE_NAME    = $(notdir $(IMAGE))
 
+# default kernel configurations that appear to be usable
+DEFCONFIG_i386    = defconfig
+DEFCONFIG_x86     = defconfig
+DEFCONFIG_arm64   = defconfig
+DEFCONFIG_arm     = multi_v7_defconfig
+DEFCONFIG_mips    = malta_defconfig
+DEFCONFIG_riscv   = defconfig
+DEFCONFIG         = $(DEFCONFIG_$(ARCH))
+
 # OUTPUT is only set when run from the main makefile, otherwise
 # it defaults to this nolibc directory.
 OUTPUT ?= $(CURDIR)/
@@ -45,6 +54,9 @@ initramfs: nolibc-test
 	$(QUIET_MKDIR)mkdir -p initramfs
 	$(call QUIET_INSTALL, initramfs/init)
 	$(Q)cp nolibc-test initramfs/init
+
+defconfig:
+	$(Q)$(MAKE) -C $(srctree) ARCH=$(ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) mrproper $(DEFCONFIG) prepare
 
 kernel: initramfs
 	$(Q)$(MAKE) -C $(srctree) ARCH=$(ARCH) CC=$(CC) CROSS_COMPILE=$(CROSS_COMPILE) $(IMAGE_NAME) CONFIG_INITRAMFS_SOURCE=$(CURDIR)/initramfs
