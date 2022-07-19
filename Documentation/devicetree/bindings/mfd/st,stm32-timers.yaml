@@ -33,7 +33,7 @@ properties:
     items:
       - const: int
 
-  reset:
+  resets:
     maxItems: 1
 
   dmas:
