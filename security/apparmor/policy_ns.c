@@ -80,7 +80,7 @@ const char *aa_ns_name(struct aa_ns *curr, struct aa_ns *view, bool subns)
 	return aa_hidden_ns_name;
 }
 
-struct aa_profile *alloc_unconfined(const char *name)
+static struct aa_profile *alloc_unconfined(const char *name)
 {
 	struct aa_profile *profile;
 
