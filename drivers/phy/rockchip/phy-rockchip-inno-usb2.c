@@ -2692,18 +2692,26 @@ static int rk3568_vbus_detect_control(struct rockchip_usb2phy *rphy, bool en)
 
 static int rk3588_usb2phy_tuning(struct rockchip_usb2phy *rphy)
 {
+	unsigned int reg;
 	int ret = 0;
 
-	/* Deassert SIDDQ to power on analog block */
-	ret = regmap_write(rphy->grf, 0x0008,
-			   GENMASK(29, 29) | 0x0000);
+	/* Read the SIDDQ control register */
+	ret = regmap_read(rphy->grf, 0x0008, &reg);
 	if (ret)
 		return ret;
 
-	/* Do reset after exit IDDQ mode */
-	ret = rockchip_usb2phy_reset(rphy);
-	if (ret)
-		return ret;
+	if (reg & BIT(13)) {
+		/* Deassert SIDDQ to power on analog block */
+		ret = regmap_write(rphy->grf, 0x0008,
+				   GENMASK(29, 29) | 0x0000);
+		if (ret)
+			return ret;
+
+		/* Do reset after exit IDDQ mode */
+		ret = rockchip_usb2phy_reset(rphy);
+		if (ret)
+			return ret;
+	}
 
 	if (rphy->phy_cfg->reg == 0x0000) {
 		/*
