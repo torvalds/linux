@@ -692,7 +692,7 @@ void *sys_mmap(void *addr, size_t length, int prot, int flags, int fd,
 {
 #ifndef my_syscall6
 	/* Function not implemented. */
-	return -ENOSYS;
+	return (void *)-ENOSYS;
 #else
 
 	int n;
