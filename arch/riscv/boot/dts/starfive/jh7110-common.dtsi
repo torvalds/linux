@@ -127,8 +127,8 @@
 &i2c0 {
 	clock-frequency = <100000>;
 	i2c-sda-hold-time-ns = <300>;
-	i2c-sda-falling-time-ns = <3000>;
-	i2c-scl-falling-time-ns = <3000>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins>;
@@ -153,8 +153,8 @@
 &i2c1 {
 	clock-frequency = <100000>;
 	i2c-sda-hold-time-ns = <300>;
-	i2c-sda-falling-time-ns = <3000>;
-	i2c-scl-falling-time-ns = <3000>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins>;
@@ -164,8 +164,8 @@
 &i2c2 {
 	clock-frequency = <100000>;
 	i2c-sda-hold-time-ns = <300>;
-	i2c-sda-falling-time-ns = <3000>;
-	i2c-scl-falling-time-ns = <3000>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
@@ -187,8 +187,8 @@
 &i2c3 {
 	clock-frequency = <100000>;
 	i2c-sda-hold-time-ns = <300>;
-	i2c-sda-falling-time-ns = <3000>;
-	i2c-scl-falling-time-ns = <3000>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pins>;
@@ -198,8 +198,8 @@
 &i2c4 {
 	clock-frequency = <100000>;
 	i2c-sda-hold-time-ns = <300>;
-	i2c-sda-falling-time-ns = <3000>;
-	i2c-scl-falling-time-ns = <3000>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4_pins>;
@@ -240,8 +240,8 @@
 &i2c5 {
 	clock-frequency = <100000>;
 	i2c-sda-hold-time-ns = <300>;
-	i2c-sda-falling-time-ns = <3000>;
-	i2c-scl-falling-time-ns = <3000>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c5_pins>;
@@ -251,8 +251,8 @@
 &i2c6 {
 	clock-frequency = <100000>;
 	i2c-sda-hold-time-ns = <300>;
-	i2c-sda-falling-time-ns = <3000>;
-	i2c-scl-falling-time-ns = <3000>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c6_pins>;
