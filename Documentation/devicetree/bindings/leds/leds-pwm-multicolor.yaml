@@ -22,6 +22,12 @@ properties:
     $ref: leds-class-multicolor.yaml#
     unevaluatedProperties: false
 
+    properties:
+      max-brightness:
+        description:
+          Maximum brightness possible for the LED
+        $ref: /schemas/types.yaml#/definitions/uint32
+
     patternProperties:
       "^led-[0-9a-z]+$":
         type: object
