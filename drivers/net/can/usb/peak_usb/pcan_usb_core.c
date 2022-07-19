@@ -57,7 +57,7 @@ MODULE_DEVICE_TABLE(usb, peak_usb_table);
  * dump memory
  */
 #define DUMP_WIDTH	16
-void pcan_dump_mem(char *prompt, void *p, int l)
+void pcan_dump_mem(const char *prompt, const void *p, int l)
 {
 	pr_info("%s dumping %s (%d bytes):\n",
 		PCAN_USB_DRIVER_NAME, prompt ? prompt : "memory", l);
