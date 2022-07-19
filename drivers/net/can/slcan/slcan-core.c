@@ -306,19 +306,17 @@ static void slc_bump_state(struct slcan *sl)
 		return;
 
 	skb = alloc_can_err_skb(dev, &cf);
-	if (skb) {
-		cf->data[6] = txerr;
-		cf->data[7] = rxerr;
-	} else {
-		cf = NULL;
-	}
 
 	tx_state = txerr >= rxerr ? state : 0;
 	rx_state = txerr <= rxerr ? state : 0;
 	can_change_state(dev, cf, tx_state, rx_state);
 
-	if (state == CAN_STATE_BUS_OFF)
+	if (state == CAN_STATE_BUS_OFF) {
 		can_bus_off(dev);
+	} else if (skb) {
+		cf->data[6] = txerr;
+		cf->data[7] = rxerr;
+	}
 
 	if (skb)
 		netif_rx(skb);
