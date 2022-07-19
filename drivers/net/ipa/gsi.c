@@ -665,7 +665,8 @@ static void gsi_evt_ring_doorbell(struct gsi *gsi, u32 evt_ring_id, u32 index)
 static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 {
 	struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
-	size_t size = evt_ring->ring.count * GSI_RING_ELEMENT_SIZE;
+	struct gsi_ring *ring = &evt_ring->ring;
+	size_t size;
 	u32 val;
 
 	/* We program all event rings as GPI type/protocol */
@@ -674,6 +675,7 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	val |= u32_encode_bits(GSI_RING_ELEMENT_SIZE, EV_ELEMENT_SIZE_FMASK);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_0_OFFSET(evt_ring_id));
 
+	size = ring->count * GSI_RING_ELEMENT_SIZE;
 	val = ev_r_length_encoded(gsi->version, size);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_1_OFFSET(evt_ring_id));
 
@@ -681,9 +683,9 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	 * high-order 32 bits of the address of the event ring,
 	 * respectively.
 	 */
-	val = lower_32_bits(evt_ring->ring.addr);
+	val = lower_32_bits(ring->addr);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_2_OFFSET(evt_ring_id));
-	val = upper_32_bits(evt_ring->ring.addr);
+	val = upper_32_bits(ring->addr);
 	iowrite32(val, gsi->virt + GSI_EV_CH_E_CNTXT_3_OFFSET(evt_ring_id));
 
 	/* Enable interrupt moderation by setting the moderation delay */
@@ -700,8 +702,8 @@ static void gsi_evt_ring_program(struct gsi *gsi, u32 evt_ring_id)
 	iowrite32(0, gsi->virt + GSI_EV_CH_E_CNTXT_12_OFFSET(evt_ring_id));
 	iowrite32(0, gsi->virt + GSI_EV_CH_E_CNTXT_13_OFFSET(evt_ring_id));
 
-	/* Finally, tell the hardware we've completed event 0 (arbitrary) */
-	gsi_evt_ring_doorbell(gsi, evt_ring_id, 0);
+	/* Finally, tell the hardware our "last processed" event (arbitrary) */
+	gsi_evt_ring_doorbell(gsi, evt_ring_id, ring->index);
 }
 
 /* Find the transaction whose completion indicates a channel is quiesced */
@@ -769,9 +771,6 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 	struct gsi *gsi = channel->gsi;
 	u32 wrr_weight = 0;
 	u32 val;
-
-	/* Arbitrarily pick TRE 0 as the first channel element to use */
-	channel->tre_ring.index = 0;
 
 	/* We program all channels as GPI type/protocol */
 	val = chtype_protocol_encoded(gsi->version, GSI_CHANNEL_TYPE_GPI);
@@ -949,6 +948,8 @@ void gsi_channel_reset(struct gsi *gsi, u32 channel_id, bool doorbell)
 	if (gsi->version < IPA_VERSION_4_0 && !channel->toward_ipa)
 		gsi_channel_reset_command(channel);
 
+	/* Hardware assumes this is 0 following reset */
+	channel->tre_ring.index = 0;
 	gsi_channel_program(channel, doorbell);
 	gsi_channel_trans_cancel_pending(channel);
 
@@ -1433,6 +1434,7 @@ static int gsi_ring_alloc(struct gsi *gsi, struct gsi_ring *ring, u32 count)
 
 	ring->addr = addr;
 	ring->count = count;
+	ring->index = 0;
 
 	return 0;
 }

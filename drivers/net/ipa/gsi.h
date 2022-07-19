@@ -48,12 +48,13 @@ struct gsi_ring {
 	 *
 	 * A channel ring consists of TRE entries filled by the AP and passed
 	 * to the hardware for processing.  For a channel ring, the ring index
-	 * identifies the next unused entry to be filled by the AP.
+	 * identifies the next unused entry to be filled by the AP.  In this
+	 * case the initial value is assumed by hardware to be 0.
 	 *
 	 * An event ring consists of event structures filled by the hardware
 	 * and passed to the AP.  For event rings, the ring index identifies
 	 * the next ring entry that is not known to have been filled by the
-	 * hardware.
+	 * hardware.  The initial value used is arbitrary (so we use 0).
 	 */
 	u32 index;
 };
