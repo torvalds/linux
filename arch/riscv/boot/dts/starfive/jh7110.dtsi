@@ -1611,17 +1611,11 @@
 				 <&rstgen RSTN_U0_NOC_BUS_CPU_AXI_N>,
 				 <&rstgen RSTN_U0_NOC_BUS_AXICFG0_AXI_N>,
 				 <&rstgen RSTN_U0_NOC_BUS_APB_BUS_N>,
-				 <&rstgen RSTN_U0_NOC_BUS_GPU_AXI_N>,
-				 <&rstgen RSTN_U0_NOC_BUS_VDEC_AXI_N>,
-				 <&rstgen RSTN_U0_JTAG2APB_PRESETN>,
 				 <&rstgen RSTN_U0_NOC_BUS_DISP_AXI_N>,
-				 <&rstgen RSTN_U0_NOC_BUS_ISP_AXI_N>,
-				 <&rstgen RSTN_U0_NOC_BUS_STG_AXI_N>,
-				 <&rstgen RSTN_U0_NOC_BUS_DDRC_N>;
+				 <&rstgen RSTN_U0_NOC_BUS_STG_AXI_N>;
 			reset-names = "rst_vout_src","rst_axi","rst_ahb","rst_core",
 					"rst_noc_cpu","rst_noc_axicfg0","rst_noc_apb",
-					"rst_noc_gpu","rst_noc_vdec","rst_jtag2apb",
-					"rst_noc_disp","rst_noc_isp","rst_noc_stg","rst_noc_ddrc";
+					"rst_noc_disp","rst_noc_stg";
 			power-domains = <&pwrc JH7110_PD_VOUT>;
 		};
 
