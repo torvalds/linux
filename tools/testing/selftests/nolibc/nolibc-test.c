@@ -1,17 +1,41 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#define _GNU_SOURCE
+
 /* platform-specific include files coming from the compiler */
 #include <limits.h>
 
 /* libc-specific include files
- * The program may be built in 2 ways:
+ * The program may be built in 3 ways:
  *   $(CC) -nostdlib -include /path/to/nolibc.h => NOLIBC already defined
- *   $(CC) -nostdlib -I/path/to/nolibc/sysroot
+ *   $(CC) -nostdlib -I/path/to/nolibc/sysroot  => _NOLIBC_* guards are present
+ *   $(CC) with default libc                    => NOLIBC* never defined
  */
 #ifndef NOLIBC
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#ifndef _NOLIBC_STDIO_H
+/* standard libcs need more includes */
+#include <linux/reboot.h>
+#include <sys/io.h>
+#include <sys/ioctl.h>
+#include <sys/mount.h>
+#include <sys/reboot.h>
+#include <sys/stat.h>
+#include <sys/syscall.h>
+#include <sys/sysmacros.h>
+#include <sys/time.h>
+#include <sys/wait.h>
+#include <dirent.h>
+#include <errno.h>
+#include <fcntl.h>
+#include <poll.h>
+#include <sched.h>
+#include <signal.h>
+#include <stdarg.h>
+#include <unistd.h>
+#endif
 #endif
 
 /* will be used by nolibc by getenv() */
@@ -22,6 +46,17 @@ struct test {
 	const char *name;              // test name
 	int (*func)(int min, int max); // handler
 };
+
+#ifndef _NOLIBC_STDLIB_H
+char *itoa(int i)
+{
+	static char buf[12];
+	int ret;
+
+	ret = snprintf(buf, sizeof(buf), "%d", i);
+	return (ret >= 0 && ret < sizeof(buf)) ? buf : "#err";
+}
+#endif
 
 #define CASE_ERR(err) \
 	case err: return #err
@@ -431,7 +466,9 @@ int run_syscall(int min, int max)
 		switch (test + __LINE__ + 1) {
 		CASE_TEST(getpid);            EXPECT_SYSNE(1, getpid(), -1); break;
 		CASE_TEST(getppid);           EXPECT_SYSNE(1, getppid(), -1); break;
+#ifdef NOLIBC
 		CASE_TEST(gettid);            EXPECT_SYSNE(1, gettid(), -1); break;
+#endif
 		CASE_TEST(getpgid_self);      EXPECT_SYSNE(1, getpgid(0), -1); break;
 		CASE_TEST(getpgid_bad);       EXPECT_SYSER(1, getpgid(-1), -1, ESRCH); break;
 		CASE_TEST(kill_0);            EXPECT_SYSZR(1, kill(getpid(), 0)); break;
@@ -460,9 +497,11 @@ int run_syscall(int min, int max)
 		CASE_TEST(getdents64_root);   EXPECT_SYSNE(1, test_getdents64("/"), -1); break;
 		CASE_TEST(getdents64_null);   EXPECT_SYSER(1, test_getdents64("/dev/null"), -1, ENOTDIR); break;
 		CASE_TEST(gettimeofday_null); EXPECT_SYSZR(1, gettimeofday(NULL, NULL)); break;
+#ifdef NOLIBC
 		CASE_TEST(gettimeofday_bad1); EXPECT_SYSER(1, gettimeofday((void *)1, NULL), -1, EFAULT); break;
 		CASE_TEST(gettimeofday_bad2); EXPECT_SYSER(1, gettimeofday(NULL, (void *)1), -1, EFAULT); break;
 		CASE_TEST(gettimeofday_bad2); EXPECT_SYSER(1, gettimeofday(NULL, (void *)1), -1, EFAULT); break;
+#endif
 		CASE_TEST(ioctl_tiocinq);     EXPECT_SYSZR(1, ioctl(0, TIOCINQ, &tmp)); break;
 		CASE_TEST(ioctl_tiocinq);     EXPECT_SYSZR(1, ioctl(0, TIOCINQ, &tmp)); break;
 		CASE_TEST(link_root1);        EXPECT_SYSER(1, link("/", "/"), -1, EEXIST); break;
@@ -703,7 +742,11 @@ int main(int argc, char **argv, char **envp)
 		 * exit with status code 2N+1 when N is written to 0x501. We
 		 * hard-code the syscall here as it's arch-dependent.
 		 */
+#if defined(_NOLIBC_SYS_H)
 		else if (my_syscall3(__NR_ioperm, 0x501, 1, 1) == 0)
+#else
+		else if (ioperm(0x501, 1, 1) == 0)
+#endif
 			asm volatile ("outb %%al, %%dx" :: "d"(0x501), "a"(0));
 		/* if it does nothing, fall back to the regular panic */
 #endif
