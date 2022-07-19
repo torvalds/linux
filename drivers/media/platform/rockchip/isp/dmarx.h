@@ -6,6 +6,7 @@
 
 #include "capture.h"
 #include "common.h"
+#include "isp_external.h"
 
 #define DMA_VDEV_NAME DRIVER_NAME	"_dmapath"
 #define DMARX0_VDEV_NAME DRIVER_NAME	"_rawrd0_m"
@@ -37,6 +38,12 @@ struct rkisp_dmarx_frame {
 	u64 sof_timestamp;
 	u64 timestamp;
 	u32 id;
+};
+
+struct rkisp_rx_buf_pool {
+	struct rkisp_buffer buf;
+	struct rkisp_rx_buf *dbufs;
+	void *mem_priv;
 };
 
 /*

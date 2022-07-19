@@ -67,6 +67,10 @@ bool rkisp_irq_dbg;
 module_param_named(irq_dbg, rkisp_irq_dbg, bool, 0644);
 MODULE_PARM_DESC(irq_dbg, "rkisp interrupt runtime");
 
+static bool rkisp_rdbk_auto;
+module_param_named(rdbk_auto, rkisp_rdbk_auto, bool, 0644);
+MODULE_PARM_DESC(irq_dbg, "rkisp and vicap auto readback mode");
+
 static bool rkisp_clk_dbg;
 module_param_named(clk_dbg, rkisp_clk_dbg, bool, 0644);
 MODULE_PARM_DESC(clk_dbg, "rkisp clk set by user");
@@ -958,6 +962,7 @@ static int __maybe_unused rkisp_runtime_resume(struct device *dev)
 
 	isp_dev->cap_dev.wait_line = rkisp_wait_line;
 	isp_dev->cap_dev.wrap_line = rkisp_wrap_line;
+	isp_dev->is_rdbk_auto = rkisp_rdbk_auto;
 	mutex_lock(&isp_dev->hw_dev->dev_lock);
 	ret = pm_runtime_get_sync(isp_dev->hw_dev->dev);
 	mutex_unlock(&isp_dev->hw_dev->dev_lock);

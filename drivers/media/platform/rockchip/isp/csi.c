@@ -572,12 +572,14 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 		ret = rkisp_csi_get_hdr_cfg(dev, &hdr_cfg);
 		if (dev->isp_inp & INP_CIF) {
 			struct rkisp_vicap_mode mode;
+			int buf_cnt;
 
 			memset(&mode, 0, sizeof(mode));
 			mode.name = dev->name;
-			mode.is_rdbk = true;
 
 			get_remote_mipi_sensor(dev, &mipi_sensor, MEDIA_ENT_F_PROC_VIDEO_COMPOSER);
+			if (!mipi_sensor)
+				return -EINVAL;
 			dev->hdr.op_mode = HDR_NORMAL;
 			dev->hdr.esp_mode = HDR_NORMAL_VC;
 			if (!ret) {
@@ -591,13 +593,14 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 				dev->hdr.op_mode = HDR_RDBK_FRAME1;
 
 			if (dev->isp_inp == INP_CIF && dev->hw_dev->is_single && dev->isp_ver > ISP_V21)
-				mode.is_rdbk = false;
-			v4l2_subdev_call(mipi_sensor, core, ioctl,
-					 RKISP_VICAP_CMD_MODE, &mode);
+				mode.rdbk_mode = dev->is_rdbk_auto ? RKISP_VICAP_RDBK_AUTO : RKISP_VICAP_ONLINE;
+			else
+				mode.rdbk_mode = RKISP_VICAP_RDBK_AIQ;
+			v4l2_subdev_call(mipi_sensor, core, ioctl, RKISP_VICAP_CMD_MODE, &mode);
 			dev->vicap_in = mode.input;
 			/* vicap direct to isp */
 			if ((dev->isp_ver == ISP_V30 || dev->isp_ver == ISP_V32) &&
-			    !mode.is_rdbk) {
+			    !mode.rdbk_mode) {
 				switch (dev->hdr.op_mode) {
 				case HDR_RDBK_FRAME3:
 					dev->hdr.op_mode = HDR_LINEX3_DDR;
@@ -608,12 +611,15 @@ int rkisp_csi_config_patch(struct rkisp_device *dev)
 				default:
 					dev->hdr.op_mode = HDR_NORMAL;
 				}
-				if (dev->hdr.op_mode != HDR_NORMAL && mipi_sensor) {
-					int cnt = RKISP_VICAP_BUF_CNT;
-
+				if (dev->hdr.op_mode != HDR_NORMAL) {
+					buf_cnt = 1;
 					v4l2_subdev_call(mipi_sensor, core, ioctl,
-							 RKISP_VICAP_CMD_INIT_BUF, &cnt);
+							 RKISP_VICAP_CMD_INIT_BUF, &buf_cnt);
 				}
+			} else if (mode.rdbk_mode == RKISP_VICAP_RDBK_AUTO) {
+				buf_cnt = RKISP_VICAP_BUF_CNT;
+				v4l2_subdev_call(mipi_sensor, core, ioctl,
+						 RKISP_VICAP_CMD_INIT_BUF, &buf_cnt);
 			}
 		} else {
 			dev->hdr.op_mode = hdr_cfg.hdr_mode;

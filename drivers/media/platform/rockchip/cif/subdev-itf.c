@@ -220,7 +220,7 @@ static int sditf_get_selection(struct v4l2_subdev *sd,
 
 static void sditf_reinit_mode(struct sditf_priv *priv, struct rkisp_vicap_mode *mode)
 {
-	if (mode->is_rdbk) {
+	if (mode->rdbk_mode) {
 		priv->toisp_inf.link_mode = TOISP_NONE;
 	} else {
 		if (strstr(mode->name, RKISP0_DEVNAME))
@@ -237,8 +237,8 @@ static void sditf_reinit_mode(struct sditf_priv *priv, struct rkisp_vicap_mode *
 			 __func__, mode->name);
 	}
 	v4l2_dbg(3, rkcif_debug, &priv->cif_dev->v4l2_dev,
-		 "%s, mode->is_rdbk %d, mode->name %s, link_mode %d\n",
-		 __func__, mode->is_rdbk, mode->name, priv->toisp_inf.link_mode);
+		 "%s, mode->rdbk_mode %d, mode->name %s, link_mode %d\n",
+		 __func__, mode->rdbk_mode, mode->name, priv->toisp_inf.link_mode);
 }
 
 static long sditf_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
@@ -829,7 +829,7 @@ static int rkcif_subdev_media_init(struct sditf_priv *priv)
 	strncpy(priv->sd.name, dev_name(cif_dev->dev), sizeof(priv->sd.name));
 	priv->cap_info.width = 0;
 	priv->cap_info.height = 0;
-	priv->mode.is_rdbk = 0;
+	priv->mode.rdbk_mode = 0;
 	priv->toisp_inf.link_mode = TOISP_NONE;
 	priv->toisp_inf.ch_info[0].is_valid = false;
 	priv->toisp_inf.ch_info[1].is_valid = false;

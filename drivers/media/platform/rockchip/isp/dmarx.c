@@ -388,13 +388,14 @@ static void update_rawrd(struct rkisp_stream *stream)
 		}
 		stream->frame_end = false;
 		if (stream->id == RKISP_STREAM_RAWRD2 &&
-		    stream->out_isp_fmt.fmt_type == FMT_YUV) {
+		    (stream->out_isp_fmt.fmt_type == FMT_YUV ||
+		     dev->dmarx_dev.trigger == T_AUTO)) {
 			struct vb2_v4l2_buffer *vbuf = &stream->curr_buf->vb;
 			struct isp2x_csi_trigger trigger = {
 				.frame_timestamp = vbuf->vb2_buf.timestamp,
 				.sof_timestamp = vbuf->vb2_buf.timestamp,
 				.frame_id = vbuf->sequence,
-				.mode = T_START_X1,
+				.mode = 0,
 				.times = 0,
 			};
 
@@ -447,8 +448,35 @@ static int dmarx_frame_end(struct rkisp_stream *stream)
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
 	if (stream->curr_buf) {
-		vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
-			VB2_BUF_STATE_DONE);
+		if (stream->curr_buf->other) {
+			struct rkisp_device *dev = stream->ispdev;
+			struct v4l2_subdev *sd = dev->active_sensor->sd;
+			struct rkisp_rx_buf *rx_buf = stream->curr_buf->other;
+
+			if (rx_buf->is_switch && stream->id == RKISP_STREAM_RAWRD2) {
+				switch (dev->rd_mode) {
+				case HDR_RDBK_FRAME3:
+					dev->rd_mode = HDR_LINEX3_DDR;
+					break;
+				case HDR_RDBK_FRAME2:
+					dev->rd_mode = HDR_LINEX2_DDR;
+					break;
+				default:
+					dev->rd_mode = HDR_NORMAL;
+				}
+				dev->hdr.op_mode = dev->rd_mode;
+				rkisp_unite_write(dev, CSI2RX_CTRL0,
+						  SW_IBUF_OP_MODE(dev->hdr.op_mode),
+						  true, dev->hw_dev->is_unite);
+				rkisp_unite_set_bits(dev, CSI2RX_MASK_STAT,
+						     0, ISP21_MIPI_DROP_FRM,
+						     true, dev->hw_dev->is_unite);
+			}
+			rx_buf->runtime_us = dev->isp_sdev.dbg.interval / 1000;
+			v4l2_subdev_call(sd, video, s_rx_buffer, rx_buf, NULL);
+		} else {
+			vb2_buffer_done(&stream->curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		}
 		stream->curr_buf = NULL;
 	}
 
@@ -460,7 +488,7 @@ static int dmarx_frame_end(struct rkisp_stream *stream)
 		list_del(&stream->curr_buf->queue);
 	}
 
-	if (stream->streaming)
+	if (stream->curr_buf)
 		stream->ops->update_mi(stream);
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 	return 0;
@@ -552,6 +580,7 @@ static void rkisp_buf_queue(struct vb2_buffer *vb)
 	struct sg_table *sgt;
 	int i;
 
+	ispbuf->other = NULL;
 	memset(ispbuf->buff_addr, 0, sizeof(ispbuf->buff_addr));
 	for (i = 0; i < isp_fmt->mplanes; i++) {
 		void *vaddr = vb2_plane_vaddr(vb, i);
@@ -619,15 +648,15 @@ static void destroy_buf_queue(struct rkisp_stream *stream,
 	unsigned long lock_flags = 0;
 
 	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
-	if (stream->curr_buf) {
+	if (stream->curr_buf && !stream->curr_buf->other)
 		list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
-		stream->curr_buf = NULL;
-	}
+	stream->curr_buf = NULL;
 	while (!list_empty(&stream->buf_queue)) {
 		buf = list_first_entry(&stream->buf_queue,
 			struct rkisp_buffer, queue);
 		list_del(&buf->queue);
-		vb2_buffer_done(&buf->vb.vb2_buf, state);
+		if (!buf->other)
+			vb2_buffer_done(&buf->vb.vb2_buf, state);
 	}
 	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
 }
@@ -1133,7 +1162,7 @@ void rkisp_dmarx_get_frame(struct rkisp_device *dev, u32 *id,
 	u64 sof_time = 0, frame_timestamp = 0;
 	u32 frame_id = 0;
 
-	if (!dev->dmarx_dev.trigger && id) {
+	if (!IS_HDR_RDBK(dev->rd_mode) && id) {
 		*id = atomic_read(&dev->isp_sdev.frm_sync_seq) - 1;
 		return;
 	}
