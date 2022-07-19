@@ -611,6 +611,22 @@ static int glink_pkt_tiocmset(struct glink_pkt_device *gpdev, unsigned int cmd,
 	return qcom_glink_set_signals(gpdev->rpdev->ept, set, clear);
 }
 
+static const struct vm_operations_struct glink_pkt_vm_ops = {
+};
+
+static int glink_pkt_mmap(struct file *file, struct vm_area_struct *vma)
+{
+	if (vma->vm_flags & (VM_WRITE | VM_EXEC))
+		return -EPERM;
+	vma->vm_flags &= ~(VM_MAYWRITE | VM_MAYEXEC);
+
+	/* Instruct vm_insert_page() to not mmap_read_lock(mm) */
+	vma->vm_flags |= VM_MIXEDMAP;
+
+	vma->vm_ops = &glink_pkt_vm_ops;
+	return 0;
+}
+
 /**
  * glink_pkt_ioctl() - ioctl() syscall for the glink_pkt device
  * file:	Pointer to the file structure.
@@ -679,6 +695,7 @@ static const struct file_operations glink_pkt_fops = {
 	.write = glink_pkt_write,
 	.poll = glink_pkt_poll,
 	.unlocked_ioctl = glink_pkt_ioctl,
+	.mmap = glink_pkt_mmap,
 	.compat_ioctl = glink_pkt_ioctl,
 };
 
