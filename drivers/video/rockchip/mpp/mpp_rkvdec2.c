@@ -26,6 +26,16 @@ static struct mpp_hw_info rkvdec_v2_hw_info = {
 	.reg_start = RKVDEC_REG_START_INDEX,
 	.reg_end = RKVDEC_REG_END_INDEX,
 	.reg_en = RKVDEC_REG_START_EN_INDEX,
+	.link_info = &rkvdec_link_v2_hw_info,
+};
+
+static struct mpp_hw_info rkvdec_rk356x_hw_info = {
+	.reg_num = RKVDEC_REG_NUM,
+	.reg_id = RKVDEC_REG_HW_ID_INDEX,
+	.reg_start = RKVDEC_REG_START_INDEX,
+	.reg_end = RKVDEC_REG_END_INDEX,
+	.reg_en = RKVDEC_REG_START_EN_INDEX,
+	.link_info = &rkvdec_link_rk356x_hw_info,
 };
 
 /*
@@ -899,7 +909,7 @@ static const struct mpp_dev_var rkvdec_v2_data = {
 
 static const struct mpp_dev_var rkvdec_rk3568_data = {
 	.device_type = MPP_DEVICE_RKVDEC,
-	.hw_info = &rkvdec_v2_hw_info,
+	.hw_info = &rkvdec_rk356x_hw_info,
 	.trans_info = rkvdec_v2_trans,
 	.hw_ops = &rkvdec_rk3568_hw_ops,
 	.dev_ops = &rkvdec_rk3568_dev_ops,

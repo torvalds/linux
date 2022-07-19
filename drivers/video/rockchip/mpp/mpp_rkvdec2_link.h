@@ -82,6 +82,38 @@
 
 #define RKVDEC_CCU_CORE_RW_MASK		0x30000
 
+#define RKVDEC_MAX_WRITE_PART	6
+#define RKVDEC_MAX_READ_PART	2
+
+struct rkvdec_link_part {
+	/* register offset of table buffer */
+	u32 tb_reg_off;
+	/* start idx of task register */
+	u32 reg_start;
+	/* number of task register */
+	u32 reg_num;
+};
+
+struct rkvdec_link_info {
+	dma_addr_t iova;
+	/* total register for link table buffer */
+	u32 tb_reg_num;
+	/* next link table addr in table buffer */
+	u32 tb_reg_next;
+	/* current read back addr in table buffer */
+	u32 tb_reg_r;
+	/* secondary enable in table buffer */
+	u32 tb_reg_second_en;
+	u32 part_w_num;
+	u32 part_r_num;
+
+	struct rkvdec_link_part part_w[RKVDEC_MAX_WRITE_PART];
+	struct rkvdec_link_part part_r[RKVDEC_MAX_READ_PART];
+
+	/* interrupt read back in table buffer */
+	u32 tb_reg_int;
+};
+
 struct rkvdec_link_dev {
 	struct device *dev;
 	struct mpp_dev *mpp;
@@ -152,6 +184,9 @@ struct rkvdec2_ccu {
 #endif
 	struct reset_control *rst_a;
 };
+
+extern struct rkvdec_link_info rkvdec_link_rk356x_hw_info;
+extern struct rkvdec_link_info rkvdec_link_v2_hw_info;
 
 int rkvdec_link_dump(struct mpp_dev *mpp);
 

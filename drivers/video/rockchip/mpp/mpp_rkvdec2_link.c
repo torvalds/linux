@@ -21,39 +21,8 @@
 #define WORK_TIMEOUT_MS		(200)
 #define WAIT_TIMEOUT_MS		(500)
 
-#define RKVDEC_MAX_WRITE_PART	6
-#define RKVDEC_MAX_READ_PART	2
-
-struct rkvdec_link_part {
-	/* register offset of table buffer */
-	u32 tb_reg_off;
-	/* start idx of task register */
-	u32 reg_start;
-	/* number of task register */
-	u32 reg_num;
-};
-
-struct rkvdec_link_info {
-	dma_addr_t iova;
-	/* total register for link table buffer */
-	u32 tb_reg_num;
-	/* next link table addr in table buffer */
-	u32 tb_reg_next;
-	/* current read back addr in table buffer */
-	u32 tb_reg_r;
-	/* secondary enable in table buffer */
-	u32 tb_reg_second_en;
-	u32 part_w_num;
-	u32 part_r_num;
-
-	struct rkvdec_link_part part_w[RKVDEC_MAX_WRITE_PART];
-	struct rkvdec_link_part part_r[RKVDEC_MAX_READ_PART];
-
-	/* interrupt read back in table buffer */
-	u32 tb_reg_int;
-};
-
-static struct rkvdec_link_info rkvdec_link_v2_hw_info = {
+/* vdpu381 link hw info for rk3588 */
+struct rkvdec_link_info rkvdec_link_v2_hw_info = {
 	.tb_reg_num = 218,
 	.tb_reg_next = 0,
 	.tb_reg_r = 1,
@@ -102,6 +71,58 @@ static struct rkvdec_link_info rkvdec_link_v2_hw_info = {
 		.reg_num = 28,
 	},
 	.tb_reg_int = 180,
+};
+
+/* vdpu34x link hw info for rk356x */
+struct rkvdec_link_info rkvdec_link_rk356x_hw_info = {
+	.tb_reg_num = 202,
+	.tb_reg_next = 0,
+	.tb_reg_r = 1,
+	.tb_reg_second_en = 8,
+
+	.part_w_num = 6,
+	.part_r_num = 2,
+	.part_w[0] = {
+		.tb_reg_off = 4,
+		.reg_start = 8,
+		.reg_num = 20,
+	},
+	.part_w[1] = {
+		.tb_reg_off = 24,
+		.reg_start = 64,
+		.reg_num = 52,
+	},
+	.part_w[2] = {
+		.tb_reg_off = 76,
+		.reg_start = 128,
+		.reg_num = 16,
+	},
+	.part_w[3] = {
+		.tb_reg_off = 92,
+		.reg_start = 160,
+		.reg_num = 40,
+	},
+	.part_w[4] = {
+		.tb_reg_off = 132,
+		.reg_start = 224,
+		.reg_num = 16,
+	},
+	.part_w[5] = {
+		.tb_reg_off = 148,
+		.reg_start = 256,
+		.reg_num = 16,
+	},
+	.part_r[0] = {
+		.tb_reg_off = 164,
+		.reg_start = 224,
+		.reg_num = 10,
+	},
+	.part_r[1] = {
+		.tb_reg_off = 174,
+		.reg_start = 258,
+		.reg_num = 28,
+	},
+	.tb_reg_int = 164,
 };
 
 static void rkvdec_link_status_update(struct rkvdec_link_dev *dev)
@@ -460,6 +481,8 @@ static int rkvdec_link_send_task_to_hw(struct rkvdec_link_dev *dev,
 
 	/* start config before all registers are set */
 	wmb();
+
+	mpp_iommu_flush_tlb(dev->mpp->iommu_info);
 
 	/* configure done */
 	writel(RKVDEC_LINK_BIT_CFG_DONE, reg_base + RKVDEC_LINK_CFG_CTRL_BASE);
@@ -913,7 +936,7 @@ int rkvdec2_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec)
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "link");
 	if (res)
-		link_dec->info = &rkvdec_link_v2_hw_info;
+		link_dec->info = mpp->var->hw_info->link_info;
 	else {
 		dev_err(dev, "link mode resource not found\n");
 		ret = -ENOMEM;
@@ -1534,7 +1557,7 @@ int rkvdec2_ccu_link_init(struct platform_device *pdev, struct rkvdec2_dev *dec)
 	if (!res)
 		return -ENOMEM;
 
-	link_dec->info = &rkvdec_link_v2_hw_info;
+	link_dec->info = dec->mpp.var->hw_info->link_info;
 	link_dec->reg_base = devm_ioremap(dev, res->start, resource_size(res));
 	if (!link_dec->reg_base) {
 		dev_err(dev, "ioremap failed for resource %pR\n", res);

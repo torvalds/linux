@@ -245,6 +245,7 @@ struct mpp_hw_info {
 	u32 reg_end;
 	/* register of enable hardware */
 	int reg_en;
+	void *link_info;
 };
 
 struct mpp_trans_info {
