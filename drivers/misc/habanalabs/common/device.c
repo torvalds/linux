@@ -1091,7 +1091,9 @@ int hl_device_resume(struct hl_device *hdev)
 	/* 'in_reset' was set to true during suspend, now we must clear it in order
 	 * for hard reset to be performed
 	 */
+	spin_lock(&hdev->reset_info.lock);
 	hdev->reset_info.in_reset = 0;
+	spin_unlock(&hdev->reset_info.lock);
 
 	rc = hl_device_reset(hdev, HL_DRV_RESET_HARD);
 	if (rc) {
