@@ -1127,7 +1127,7 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 	/* bus error interrupt */
 	if (isrc == CEVTIND_BEI) {
 		mod->can.can_stats.bus_error++;
-		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR;
+		cf->can_id |= CAN_ERR_PROT | CAN_ERR_BUSERROR | CAN_ERR_CNT;
 
 		switch (ecc & ECC_MASK) {
 		case ECC_BIT:
@@ -1153,7 +1153,7 @@ static int ican3_handle_cevtind(struct ican3_dev *mod, struct ican3_msg *msg)
 
 	if (state != mod->can.state && (state == CAN_STATE_ERROR_WARNING ||
 					state == CAN_STATE_ERROR_PASSIVE)) {
-		cf->can_id |= CAN_ERR_CRTL;
+		cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 		if (state == CAN_STATE_ERROR_WARNING) {
 			mod->can.can_stats.error_warning++;
 			cf->data[1] = (txerr > rxerr) ?

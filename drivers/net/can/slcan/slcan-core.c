@@ -314,6 +314,7 @@ static void slc_bump_state(struct slcan *sl)
 	if (state == CAN_STATE_BUS_OFF) {
 		can_bus_off(dev);
 	} else if (skb) {
+		cf->can_id |= CAN_ERR_CNT;
 		cf->data[6] = txerr;
 		cf->data[7] = rxerr;
 	}

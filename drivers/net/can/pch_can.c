@@ -497,6 +497,7 @@ static void pch_can_error(struct net_device *ndev, u32 status)
 		priv->can.can_stats.bus_off++;
 		can_bus_off(ndev);
 	} else {
+		cf->can_id |= CAN_ERR_CNT;
 		cf->data[6] = errc & PCH_TEC;
 		cf->data[7] = (errc & PCH_REC) >> 8;
 	}

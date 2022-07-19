@@ -680,6 +680,7 @@ static irqreturn_t hi3110_can_ist(int irq, void *dev_id)
 					break;
 				}
 			} else {
+				cf->can_id |= CAN_ERR_CNT;
 				cf->data[6] = txerr;
 				cf->data[7] = rxerr;
 			}

@@ -373,7 +373,7 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 		priv->can.state = CAN_STATE_ERROR_PASSIVE;
 		priv->can.can_stats.error_passive++;
 		if (skb) {
-			cf->can_id |= CAN_ERR_CRTL;
+			cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 			cf->data[1] = (priv->bec.txerr > priv->bec.rxerr) ?
 					CAN_ERR_CRTL_TX_PASSIVE :
 					CAN_ERR_CRTL_RX_PASSIVE;
@@ -386,7 +386,7 @@ static int pucan_handle_status(struct peak_canfd_priv *priv,
 		priv->can.state = CAN_STATE_ERROR_WARNING;
 		priv->can.can_stats.error_warning++;
 		if (skb) {
-			cf->can_id |= CAN_ERR_CRTL;
+			cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 			cf->data[1] = (priv->bec.txerr > priv->bec.rxerr) ?
 					CAN_ERR_CRTL_TX_WARNING :
 					CAN_ERR_CRTL_RX_WARNING;
@@ -430,7 +430,7 @@ static int pucan_handle_cache_critical(struct peak_canfd_priv *priv)
 		return -ENOMEM;
 	}
 
-	cf->can_id |= CAN_ERR_CRTL;
+	cf->can_id |= CAN_ERR_CRTL | CAN_ERR_CNT;
 	cf->data[1] = CAN_ERR_CRTL_RX_OVERFLOW;
 
 	cf->data[6] = priv->bec.txerr;

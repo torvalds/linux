@@ -1306,7 +1306,7 @@ static int kvaser_pciefd_rx_error_frame(struct kvaser_pciefd_can *can,
 	shhwtstamps->hwtstamp =
 		ns_to_ktime(div_u64(p->timestamp * 1000,
 				    can->kv_pcie->freq_to_ticks_div));
-	cf->can_id |= CAN_ERR_BUSERROR;
+	cf->can_id |= CAN_ERR_BUSERROR | CAN_ERR_CNT;
 
 	cf->data[6] = bec.txerr;
 	cf->data[7] = bec.rxerr;

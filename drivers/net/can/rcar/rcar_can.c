@@ -334,6 +334,7 @@ static void rcar_can_error(struct net_device *ndev)
 		if (skb)
 			cf->can_id |= CAN_ERR_BUSOFF;
 	} else if (skb) {
+		cf->can_id |= CAN_ERR_CNT;
 		cf->data[6] = txerr;
 		cf->data[7] = rxerr;
 	}
