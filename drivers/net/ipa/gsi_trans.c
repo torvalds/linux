@@ -362,7 +362,7 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	trans->rsvd_count = tre_count;
 	init_completion(&trans->completion);
 
-	/* Allocate the scatterlist and (if requested) info entries. */
+	/* Allocate the scatterlist */
 	trans->sgl = gsi_trans_pool_alloc(&trans_info->sg_pool, tre_count);
 	sg_init_marker(trans->sgl, tre_count);
 
