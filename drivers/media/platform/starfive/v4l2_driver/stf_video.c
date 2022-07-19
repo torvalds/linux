@@ -760,6 +760,8 @@ static int video_enum_framesizes(struct file *file, void *fh,
 	struct media_entity *entity = &vdev->entity;
 	struct media_entity *sensor;
 	struct v4l2_subdev *subdev;
+	struct media_pad *pad;
+	bool support_selection = false;
 	int i;
 	int ret;
 
@@ -771,8 +773,41 @@ static int video_enum_framesizes(struct file *file, void *fh,
 	if (i == video->nformats)
 		return -EINVAL;
 
-	sensor = stfcamss_find_sensor(entity);
-	if (sensor) {
+	entity = &vdev->entity;
+	while (1) {
+		pad = &entity->pads[0];
+		if (!(pad->flags & MEDIA_PAD_FL_SINK))
+			break;
+
+		pad = media_entity_remote_pad(pad);
+		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
+			break;
+
+		entity = pad->entity;
+		subdev = media_entity_to_v4l2_subdev(entity);
+
+		if (subdev->ops->pad->set_selection) {
+			support_selection = true;
+			break;
+		}
+	}
+
+	if (support_selection) {
+		if (fsize->index)
+			return -ENOTTY;
+		fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
+		fsize->stepwise.min_width = STFCAMSS_FRAME_MIN_WIDTH;
+		fsize->stepwise.max_width = STFCAMSS_FRAME_MAX_WIDTH;
+		fsize->stepwise.min_height = STFCAMSS_FRAME_MIN_HEIGHT;
+		fsize->stepwise.max_height = STFCAMSS_FRAME_MAX_HEIGHT;
+		fsize->stepwise.step_width = 1;
+		fsize->stepwise.step_height = 1;
+	} else {
+		entity = &vdev->entity;
+		sensor = stfcamss_find_sensor(entity);
+		if (!sensor)
+			return -ENOTTY;
+
 		subdev = media_entity_to_v4l2_subdev(sensor);
 		code.index = 0;
 		code.which = V4L2_SUBDEV_FORMAT_ACTIVE;
@@ -788,20 +823,11 @@ static int video_enum_framesizes(struct file *file, void *fh,
 		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 		fsize->discrete.width = fse.min_width;
 		fsize->discrete.height = fse.min_height;
-	} else {
-		if (fsize->index)
-			return -EINVAL;
-		fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
-		fsize->stepwise.min_width = STFCAMSS_FRAME_MIN_WIDTH;
-		fsize->stepwise.max_width = STFCAMSS_FRAME_MAX_WIDTH;
-		fsize->stepwise.min_height = STFCAMSS_FRAME_MIN_HEIGHT;
-		fsize->stepwise.max_height = STFCAMSS_FRAME_MAX_HEIGHT;
-		fsize->stepwise.step_width = 1;
-		fsize->stepwise.step_height = 1;
 	}
 
 	return 0;
 }
+
 static int video_enum_frameintervals(struct file *file, void *fh,
 				struct v4l2_frmivalenum *fival)
 {

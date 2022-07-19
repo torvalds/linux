@@ -14,9 +14,9 @@
 #include <media/v4l2-ioctl.h>
 
 #define STFCAMSS_FRAME_MIN_WIDTH           64
-#define STFCAMSS_FRAME_MAX_WIDTH           8191
+#define STFCAMSS_FRAME_MAX_WIDTH           1920
 #define STFCAMSS_FRAME_MIN_HEIGHT          64
-#define STFCAMSS_FRAME_MAX_HEIGHT          8191
+#define STFCAMSS_FRAME_MAX_HEIGHT          1080
 #define STFCAMSS_FRAME_WIDTH_ALIGN_8       8
 #define STFCAMSS_FRAME_WIDTH_ALIGN_128     128
 #define STFCAMSS_MIN_BUFFERS               2
