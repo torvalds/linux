@@ -20,7 +20,6 @@
 #include <linux/usb/typec_altmode.h>
 #include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_mux.h>
-#include <linux/usb/typec_retimer.h>
 #include <linux/usb/typec_tbt.h>
 #include <linux/usb/role.h>
 
@@ -54,7 +53,6 @@ struct cros_typec_port {
 	struct usb_pd_identity c_identity;
 	struct typec_switch *ori_sw;
 	struct typec_mux *mux;
-	struct typec_retimer *retimer;
 	struct usb_role_switch *role_sw;
 
 	/* Variables keeping track of switch state. */
@@ -144,12 +142,6 @@ static int cros_typec_get_switch_handles(struct cros_typec_port *port,
 		goto mux_err;
 	}
 
-	port->retimer = fwnode_typec_retimer_get(fwnode);
-	if (IS_ERR(port->retimer)) {
-		dev_dbg(dev, "Retimer handle not found.\n");
-		goto retimer_sw_err;
-	}
-
 	port->ori_sw = fwnode_typec_switch_get(fwnode);
 	if (IS_ERR(port->ori_sw)) {
 		dev_dbg(dev, "Orientation switch handle not found.\n");
@@ -167,8 +159,6 @@ static int cros_typec_get_switch_handles(struct cros_typec_port *port,
 role_sw_err:
 	typec_switch_put(port->ori_sw);
 ori_sw_err:
-	typec_retimer_put(port->retimer);
-retimer_sw_err:
 	typec_mux_put(port->mux);
 mux_err:
 	return -ENODEV;
@@ -213,21 +203,6 @@ static void cros_typec_unregister_altmodes(struct cros_typec_data *typec, int po
 	}
 }
 
-/*
- * Map the Type-C Mux state to retimer state and call the retimer set function. We need this
- * because we re-use the Type-C mux state for retimers.
- */
-static int cros_typec_retimer_set(struct typec_retimer  *retimer, struct typec_mux_state state)
-{
-	struct typec_retimer_state rstate = {
-		.alt = state.alt,
-		.mode = state.mode,
-		.data = state.data,
-	};
-
-	return typec_retimer_set(retimer, &rstate);
-}
-
 static int cros_typec_usb_disconnect_state(struct cros_typec_port *port)
 {
 	port->state.alt = NULL;
@@ -236,7 +211,6 @@ static int cros_typec_usb_disconnect_state(struct cros_typec_port *port)
 
 	usb_role_switch_set_role(port->role_sw, USB_ROLE_NONE);
 	typec_switch_set(port->ori_sw, TYPEC_ORIENTATION_NONE);
-	cros_typec_retimer_set(port->retimer, port->state);
 
 	return typec_mux_set(port->mux, &port->state);
 }
@@ -407,14 +381,9 @@ unregister_ports:
 
 static int cros_typec_usb_safe_state(struct cros_typec_port *port)
 {
-	int ret;
 	port->state.mode = TYPEC_STATE_SAFE;
 
-	ret = cros_typec_retimer_set(port->retimer, port->state);
-	if (!ret)
-		ret = typec_mux_set(port->mux, &port->state);
-
-	return ret;
+	return typec_mux_set(port->mux, &port->state);
 }
 
 /*
@@ -511,11 +480,7 @@ static int cros_typec_enable_dp(struct cros_typec_data *typec,
 	port->state.data = &dp_data;
 	port->state.mode = TYPEC_MODAL_STATE(ffs(pd_ctrl->dp_mode));
 
-	ret = cros_typec_retimer_set(port->retimer, port->state);
-	if (!ret)
-		ret = typec_mux_set(port->mux, &port->state);
-
-	return ret;
+	return typec_mux_set(port->mux, &port->state);
 }
 
 static int cros_typec_enable_usb4(struct cros_typec_data *typec,
@@ -604,10 +569,7 @@ static int cros_typec_configure_mux(struct cros_typec_data *typec, int port_num,
 	} else if (port->mux_flags & USB_PD_MUX_USB_ENABLED) {
 		port->state.alt = NULL;
 		port->state.mode = TYPEC_STATE_USB;
-
-		ret = cros_typec_retimer_set(port->retimer, port->state);
-		if (!ret)
-			ret = typec_mux_set(port->mux, &port->state);
+		ret = typec_mux_set(port->mux, &port->state);
 	} else {
 		dev_dbg(typec->dev,
 			"Unrecognized mode requested, mux flags: %x\n",
