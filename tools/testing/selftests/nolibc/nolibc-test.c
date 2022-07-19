@@ -638,6 +638,15 @@ int main(int argc, char **argv, char **envp)
 		printf("Leaving init with final status: %d\n", !!ret);
 		if (ret == 0)
 			reboot(LINUX_REBOOT_CMD_POWER_OFF);
+#if defined(__x86_64__)
+		/* QEMU started with "-device isa-debug-exit -no-reboot" will
+		 * exit with status code 2N+1 when N is written to 0x501. We
+		 * hard-code the syscall here as it's arch-dependent.
+		 */
+		else if (my_syscall3(__NR_ioperm, 0x501, 1, 1) == 0)
+			asm volatile ("outb %%al, %%dx" :: "d"(0x501), "a"(0));
+		/* if it does nothing, fall back to the regular panic */
+#endif
 	}
 
 	printf("Exiting with status %d\n", !!ret);
