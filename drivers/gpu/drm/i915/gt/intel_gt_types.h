@@ -76,6 +76,8 @@ enum intel_submission_method {
 };
 
 struct gt_defaults {
+	u32 min_freq;
+	u32 max_freq;
 };
 
 struct intel_gt {
