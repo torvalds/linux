@@ -816,6 +816,9 @@
 &pm8150l_lpg {
 	status = "okay";
 
+	#address-cells = <1>;
+	#size-cells = <0>;
+
 	led@1 {
 		reg = <1>;
 		color = <LED_COLOR_ID_GREEN>;
