@@ -862,7 +862,6 @@ err_link:
 	return ret;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int dra7xx_pcie_suspend(struct device *dev)
 {
 	struct dra7xx_pcie *dra7xx = dev_get_drvdata(dev);
@@ -919,7 +918,6 @@ static int dra7xx_pcie_resume_noirq(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static void dra7xx_pcie_shutdown(struct platform_device *pdev)
 {
@@ -940,9 +938,9 @@ static void dra7xx_pcie_shutdown(struct platform_device *pdev)
 }
 
 static const struct dev_pm_ops dra7xx_pcie_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend, dra7xx_pcie_resume)
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend_noirq,
-				      dra7xx_pcie_resume_noirq)
+	SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend, dra7xx_pcie_resume)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(dra7xx_pcie_suspend_noirq,
+				  dra7xx_pcie_resume_noirq)
 };
 
 static struct platform_driver dra7xx_pcie_driver = {

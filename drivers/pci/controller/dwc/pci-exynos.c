@@ -390,7 +390,7 @@ static int __exit exynos_pcie_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int __maybe_unused exynos_pcie_suspend_noirq(struct device *dev)
+static int exynos_pcie_suspend_noirq(struct device *dev)
 {
 	struct exynos_pcie *ep = dev_get_drvdata(dev);
 
@@ -402,7 +402,7 @@ static int __maybe_unused exynos_pcie_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused exynos_pcie_resume_noirq(struct device *dev)
+static int exynos_pcie_resume_noirq(struct device *dev)
 {
 	struct exynos_pcie *ep = dev_get_drvdata(dev);
 	struct dw_pcie *pci = &ep->pci;
@@ -421,8 +421,8 @@ static int __maybe_unused exynos_pcie_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops exynos_pcie_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(exynos_pcie_suspend_noirq,
-				      exynos_pcie_resume_noirq)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(exynos_pcie_suspend_noirq,
+				  exynos_pcie_resume_noirq)
 };
 
 static const struct of_device_id exynos_pcie_of_match[] = {

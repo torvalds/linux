@@ -917,7 +917,7 @@ static int mtk_pcie_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static void __maybe_unused mtk_pcie_irq_save(struct mtk_gen3_pcie *pcie)
+static void mtk_pcie_irq_save(struct mtk_gen3_pcie *pcie)
 {
 	int i;
 
@@ -935,7 +935,7 @@ static void __maybe_unused mtk_pcie_irq_save(struct mtk_gen3_pcie *pcie)
 	raw_spin_unlock(&pcie->irq_lock);
 }
 
-static void __maybe_unused mtk_pcie_irq_restore(struct mtk_gen3_pcie *pcie)
+static void mtk_pcie_irq_restore(struct mtk_gen3_pcie *pcie)
 {
 	int i;
 
@@ -953,7 +953,7 @@ static void __maybe_unused mtk_pcie_irq_restore(struct mtk_gen3_pcie *pcie)
 	raw_spin_unlock(&pcie->irq_lock);
 }
 
-static int __maybe_unused mtk_pcie_turn_off_link(struct mtk_gen3_pcie *pcie)
+static int mtk_pcie_turn_off_link(struct mtk_gen3_pcie *pcie)
 {
 	u32 val;
 
@@ -968,7 +968,7 @@ static int __maybe_unused mtk_pcie_turn_off_link(struct mtk_gen3_pcie *pcie)
 				   50 * USEC_PER_MSEC);
 }
 
-static int __maybe_unused mtk_pcie_suspend_noirq(struct device *dev)
+static int mtk_pcie_suspend_noirq(struct device *dev)
 {
 	struct mtk_gen3_pcie *pcie = dev_get_drvdata(dev);
 	int err;
@@ -994,7 +994,7 @@ static int __maybe_unused mtk_pcie_suspend_noirq(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused mtk_pcie_resume_noirq(struct device *dev)
+static int mtk_pcie_resume_noirq(struct device *dev)
 {
 	struct mtk_gen3_pcie *pcie = dev_get_drvdata(dev);
 	int err;
@@ -1015,8 +1015,8 @@ static int __maybe_unused mtk_pcie_resume_noirq(struct device *dev)
 }
 
 static const struct dev_pm_ops mtk_pcie_pm_ops = {
-	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(mtk_pcie_suspend_noirq,
-				      mtk_pcie_resume_noirq)
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(mtk_pcie_suspend_noirq,
+				  mtk_pcie_resume_noirq)
 };
 
 static const struct of_device_id mtk_pcie_of_match[] = {
