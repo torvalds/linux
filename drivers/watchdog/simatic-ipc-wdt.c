@@ -16,6 +16,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/platform_data/x86/p2sb.h>
 #include <linux/platform_data/x86/simatic-ipc-base.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
@@ -54,9 +55,9 @@ static struct resource io_resource_trigger =
 	DEFINE_RES_IO_NAMED(WD_TRIGGER_IOADR, SZ_1,
 			    KBUILD_MODNAME " WD_TRIGGER_IOADR");
 
-/* the actual start will be discovered with pci, 0 is a placeholder */
+/* the actual start will be discovered with p2sb, 0 is a placeholder */
 static struct resource mem_resource =
-	DEFINE_RES_MEM_NAMED(0, SZ_4, "WD_RESET_BASE_ADR");
+	DEFINE_RES_MEM_NAMED(0, 0, "WD_RESET_BASE_ADR");
 
 static u32 wd_timeout_table[] = {2, 4, 6, 8, 16, 32, 48, 64 };
 static void __iomem *wd_reset_base_addr;
@@ -150,6 +151,7 @@ static int simatic_ipc_wdt_probe(struct platform_device *pdev)
 	struct simatic_ipc_platform *plat = pdev->dev.platform_data;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
+	int ret;
 
 	switch (plat->devmode) {
 	case SIMATIC_IPC_DEVICE_227E:
@@ -190,15 +192,14 @@ static int simatic_ipc_wdt_probe(struct platform_device *pdev)
 	if (plat->devmode == SIMATIC_IPC_DEVICE_427E) {
 		res = &mem_resource;
 
-		/* get GPIO base from PCI */
-		res->start = simatic_ipc_get_membase0(PCI_DEVFN(0x1f, 1));
-		if (res->start == 0)
-			return -ENODEV;
+		ret = p2sb_bar(NULL, 0, res);
+		if (ret)
+			return ret;
 
 		/* do the final address calculation */
 		res->start = res->start + (GPIO_COMMUNITY0_PORT_ID << 16) +
 			     PAD_CFG_DW0_GPP_A_23;
-		res->end += res->start;
+		res->end = res->start + SZ_4 - 1;
 
 		wd_reset_base_addr = devm_ioremap_resource(dev, res);
 		if (IS_ERR(wd_reset_base_addr))
