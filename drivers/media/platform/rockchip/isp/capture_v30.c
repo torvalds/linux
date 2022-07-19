@@ -759,20 +759,14 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		stream->dbg.delay = ns - dev->isp_sdev.frm_timestamp;
 
 		if (vir->streaming && vir->conn_id == stream->id) {
-
 			spin_lock_irqsave(&vir->vbq_lock, lock_flags);
-			if (vir->streaming)
-				list_add_tail(&stream->curr_buf->queue,
-					&dev->cap_dev.vir_cpy.queue);
+			list_add_tail(&stream->curr_buf->queue,
+				      &dev->cap_dev.vir_cpy.queue);
 			spin_unlock_irqrestore(&vir->vbq_lock, lock_flags);
 			if (!completion_done(&dev->cap_dev.vir_cpy.cmpl))
 				complete(&dev->cap_dev.vir_cpy.cmpl);
-
-			if (!vir->streaming)
-				vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
-
 		} else {
-			vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
+			rkisp_stream_buf_done(stream, stream->curr_buf);
 		}
 
 		stream->curr_buf = NULL;
@@ -1033,7 +1027,7 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 		v4l2_err(v4l2_dev, "pipeline close failed error:%d\n", ret);
 	rkisp_destroy_dummy_buf(stream);
 	atomic_dec(&dev->cap_dev.refcnt);
-
+	tasklet_disable(&stream->buf_done_tasklet);
 end:
 	mutex_unlock(&dev->hw_dev->dev_lock);
 }
@@ -1248,7 +1242,7 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 		v4l2_err(v4l2_dev, "start pipeline failed %d\n", ret);
 		goto pipe_stream_off;
 	}
-
+	tasklet_enable(&stream->buf_done_tasklet);
 	mutex_unlock(&dev->hw_dev->dev_lock);
 	return 0;
 

@@ -797,7 +797,7 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 		return;
 
 	if (isp_dev->hdr.op_mode == HDR_RDBK_FRAME1) {
-		vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		rkisp_stream_buf_done(stream, cap->rdbk_buf[RDBK_S]);
 		cap->rdbk_buf[RDBK_S] = NULL;
 		return;
 	}
@@ -834,12 +834,9 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 			goto RDBK_FRM_UNMATCH;
 		}
 
-		cap->rdbk_buf[RDBK_S]->vb.sequence =
-			cap->rdbk_buf[RDBK_L]->vb.sequence;
-		vb2_buffer_done(&cap->rdbk_buf[RDBK_L]->vb.vb2_buf,
-			VB2_BUF_STATE_DONE);
-		vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf,
-			VB2_BUF_STATE_DONE);
+		cap->rdbk_buf[RDBK_S]->vb.sequence = cap->rdbk_buf[RDBK_L]->vb.sequence;
+		rkisp_stream_buf_done(&cap->stream[RKISP_STREAM_DMATX0], cap->rdbk_buf[RDBK_L]);
+		rkisp_stream_buf_done(stream, cap->rdbk_buf[RDBK_S]);
 	} else {
 		v4l2_err(&isp_dev->v4l2_dev, "lost long frames\n");
 		goto RDBK_FRM_UNMATCH;
@@ -936,7 +933,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 				rdbk_frame_end(stream);
 			}
 		} else {
-			vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
+			rkisp_stream_buf_done(stream, stream->curr_buf);
 		}
 
 		stream->curr_buf = NULL;
@@ -1251,7 +1248,7 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 		v4l2_err(v4l2_dev, "pipeline close failed error:%d\n", ret);
 	rkisp_destroy_dummy_buf(stream);
 	atomic_dec(&dev->cap_dev.refcnt);
-
+	tasklet_disable(&stream->buf_done_tasklet);
 end:
 	mutex_unlock(&dev->hw_dev->dev_lock);
 }
@@ -1377,7 +1374,7 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 			goto pipe_stream_off;
 		}
 	}
-
+	tasklet_enable(&stream->buf_done_tasklet);
 	mutex_unlock(&dev->hw_dev->dev_lock);
 	return 0;
 

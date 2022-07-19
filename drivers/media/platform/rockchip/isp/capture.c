@@ -1828,6 +1828,38 @@ static const struct v4l2_ioctl_ops rkisp_v4l2_ioctl_ops = {
 	.vidioc_default = rkisp_ioctl_default,
 };
 
+static void rkisp_buf_done_task(unsigned long arg)
+{
+	struct rkisp_stream *stream = (struct rkisp_stream *)arg;
+	struct rkisp_buffer *buf = NULL;
+	unsigned long lock_flags = 0;
+	LIST_HEAD(local_list);
+
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+	list_replace_init(&stream->buf_done_list, &local_list);
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+
+	while (!list_empty(&local_list)) {
+		buf = list_first_entry(&local_list,
+				       struct rkisp_buffer, queue);
+		list_del(&buf->queue);
+		vb2_buffer_done(&buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+	}
+}
+
+void rkisp_stream_buf_done(struct rkisp_stream *stream,
+			   struct rkisp_buffer *buf)
+{
+	unsigned long lock_flags = 0;
+
+	if (!stream || !buf)
+		return;
+	spin_lock_irqsave(&stream->vbq_lock, lock_flags);
+	list_add_tail(&buf->queue, &stream->buf_done_list);
+	spin_unlock_irqrestore(&stream->vbq_lock, lock_flags);
+	tasklet_schedule(&stream->buf_done_tasklet);
+}
+
 static void rkisp_stream_fast(struct work_struct *work)
 {
 	struct rkisp_capture_device *cap_dev =
@@ -1869,6 +1901,7 @@ static void rkisp_stream_fast(struct work_struct *work)
 
 void rkisp_unregister_stream_vdev(struct rkisp_stream *stream)
 {
+	tasklet_kill(&stream->buf_done_tasklet);
 	media_entity_cleanup(&stream->vnode.vdev.entity);
 	video_unregister_device(&stream->vnode.vdev);
 }
@@ -1928,6 +1961,11 @@ int rkisp_register_stream_vdev(struct rkisp_stream *stream)
 		sink, 0, stream->linked);
 	if (ret < 0)
 		goto unreg;
+	INIT_LIST_HEAD(&stream->buf_done_list);
+	tasklet_init(&stream->buf_done_tasklet,
+		     rkisp_buf_done_task,
+		     (unsigned long)stream);
+	tasklet_disable(&stream->buf_done_tasklet);
 	return 0;
 unreg:
 	video_unregister_device(vdev);

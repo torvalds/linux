@@ -937,16 +937,11 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 				goto RDBK_FRM_UNMATCH;
 			}
 
-			cap->rdbk_buf[RDBK_S]->vb.sequence =
-				cap->rdbk_buf[RDBK_L]->vb.sequence;
-			cap->rdbk_buf[RDBK_M]->vb.sequence =
-				cap->rdbk_buf[RDBK_L]->vb.sequence;
-			vb2_buffer_done(&cap->rdbk_buf[RDBK_L]->vb.vb2_buf,
-				VB2_BUF_STATE_DONE);
-			vb2_buffer_done(&cap->rdbk_buf[RDBK_M]->vb.vb2_buf,
-				VB2_BUF_STATE_DONE);
-			vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf,
-				VB2_BUF_STATE_DONE);
+			cap->rdbk_buf[RDBK_S]->vb.sequence = cap->rdbk_buf[RDBK_L]->vb.sequence;
+			cap->rdbk_buf[RDBK_M]->vb.sequence = cap->rdbk_buf[RDBK_L]->vb.sequence;
+			rkisp_stream_buf_done(&cap->stream[RKISP_STREAM_DMATX0], cap->rdbk_buf[RDBK_L]);
+			rkisp_stream_buf_done(&cap->stream[RKISP_STREAM_DMATX1], cap->rdbk_buf[RDBK_M]);
+			rkisp_stream_buf_done(stream, cap->rdbk_buf[RDBK_S]);
 		} else {
 			v4l2_err(&isp_dev->v4l2_dev, "lost long or middle frames\n");
 			goto RDBK_FRM_UNMATCH;
@@ -981,18 +976,15 @@ static void rdbk_frame_end(struct rkisp_stream *stream)
 				goto RDBK_FRM_UNMATCH;
 			}
 
-			cap->rdbk_buf[RDBK_S]->vb.sequence =
-				cap->rdbk_buf[RDBK_L]->vb.sequence;
-			vb2_buffer_done(&cap->rdbk_buf[RDBK_L]->vb.vb2_buf,
-				VB2_BUF_STATE_DONE);
-			vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf,
-				VB2_BUF_STATE_DONE);
+			cap->rdbk_buf[RDBK_S]->vb.sequence = cap->rdbk_buf[RDBK_L]->vb.sequence;
+			rkisp_stream_buf_done(&cap->stream[RKISP_STREAM_DMATX0], cap->rdbk_buf[RDBK_L]);
+			rkisp_stream_buf_done(stream, cap->rdbk_buf[RDBK_S]);
 		} else {
 			v4l2_err(&isp_dev->v4l2_dev, "lost long frames\n");
 			goto RDBK_FRM_UNMATCH;
 		}
 	} else {
-		vb2_buffer_done(&cap->rdbk_buf[RDBK_S]->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		rkisp_stream_buf_done(stream, cap->rdbk_buf[RDBK_S]);
 	}
 
 	cap->rdbk_buf[RDBK_L] = NULL;
@@ -1097,7 +1089,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 				cap->rdbk_buf[RDBK_S] = stream->curr_buf;
 				rdbk_frame_end(stream);
 			} else {
-				vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
+				rkisp_stream_buf_done(stream, stream->curr_buf);
 			}
 		} else {
 			if (stream->id == RKISP_STREAM_SP && isp_fmt->fmt_type == FMT_FBCGAIN) {
@@ -1108,7 +1100,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 				stream->curr_buf->dev_id = dev->dev_id;
 				rkisp_bridge_save_spbuf(dev, stream->curr_buf);
 			} else {
-				vb2_buffer_done(vb2_buf, VB2_BUF_STATE_DONE);
+				rkisp_stream_buf_done(stream, stream->curr_buf);
 			}
 		}
 

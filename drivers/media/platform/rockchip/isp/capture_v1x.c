@@ -424,8 +424,7 @@ static int mi_frame_end(struct rkisp_stream *stream)
 		}
 		stream->curr_buf->vb.sequence = atomic_read(&dev->isp_sdev.frm_sync_seq) - 1;
 		stream->curr_buf->vb.vb2_buf.timestamp = ns;
-		vb2_buffer_done(&stream->curr_buf->vb.vb2_buf,
-				VB2_BUF_STATE_DONE);
+		rkisp_stream_buf_done(stream, stream->curr_buf);
 		stream->curr_buf = NULL;
 	}
 
@@ -684,6 +683,7 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 		v4l2_err(v4l2_dev, "pipeline close failed error:%d\n", ret);
 	rkisp_destroy_dummy_buf(stream);
 	atomic_dec(&dev->cap_dev.refcnt);
+	tasklet_disable(&stream->buf_done_tasklet);
 }
 
 static int rkisp_stream_start(struct rkisp_stream *stream)
@@ -788,7 +788,7 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 			 "start pipeline failed %d\n", ret);
 		goto pipe_stream_off;
 	}
-
+	tasklet_enable(&stream->buf_done_tasklet);
 	return 0;
 
 pipe_stream_off:
