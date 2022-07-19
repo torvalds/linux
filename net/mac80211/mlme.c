@@ -4213,7 +4213,7 @@ out:
 
 static int ieee80211_mgd_setup_link_sta(struct ieee80211_link_data *link,
 					struct sta_info *sta,
-					struct ieee80211_link_sta *link_sta,
+					struct link_sta_info *link_sta,
 					struct cfg80211_bss *cbss)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
@@ -4227,6 +4227,7 @@ static int ieee80211_mgd_setup_link_sta(struct ieee80211_link_data *link,
 	struct ieee80211_supported_band *sband;
 
 	memcpy(link_sta->addr, cbss->bssid, ETH_ALEN);
+	memcpy(link_sta->pub->addr, cbss->bssid, ETH_ALEN);
 
 	/* TODO: S1G Basic Rate Set is expressed elsewhere */
 	if (cbss->channel->band == NL80211_BAND_S1GHZ) {
@@ -4259,7 +4260,7 @@ static int ieee80211_mgd_setup_link_sta(struct ieee80211_link_data *link,
 	}
 
 	if (rates)
-		link_sta->supp_rates[cbss->channel->band] = rates;
+		link_sta->pub->supp_rates[cbss->channel->band] = rates;
 	else
 		link_info(link, "No rates found, keeping mandatory only\n");
 
@@ -4858,7 +4859,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 				goto out_err;
 		}
 
-		err = ieee80211_mgd_setup_link_sta(link, sta, link_sta->pub,
+		err = ieee80211_mgd_setup_link_sta(link, sta, link_sta,
 						   assoc_data->link[link_id].bss);
 		if (err)
 			goto out_err;
@@ -6423,10 +6424,10 @@ static int ieee80211_prep_connection(struct ieee80211_sub_if_data *sdata,
 	 */
 	if (new_sta) {
 		const struct cfg80211_bss_ies *ies;
-		struct ieee80211_link_sta *link_sta;
+		struct link_sta_info *link_sta;
 
 		rcu_read_lock();
-		link_sta = rcu_dereference(new_sta->sta.link[link_id]);
+		link_sta = rcu_dereference(new_sta->link[link_id]);
 		if (WARN_ON(!link_sta)) {
 			rcu_read_unlock();
 			sta_info_free(local, new_sta);
