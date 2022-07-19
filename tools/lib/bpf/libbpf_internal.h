@@ -108,9 +108,9 @@ static inline bool str_has_sfx(const char *str, const char *sfx)
 	size_t str_len = strlen(str);
 	size_t sfx_len = strlen(sfx);
 
-	if (sfx_len <= str_len)
-		return strcmp(str + str_len - sfx_len, sfx);
-	return false;
+	if (sfx_len > str_len)
+		return false;
+	return strcmp(str + str_len - sfx_len, sfx) == 0;
 }
 
 /* Symbol versioning is different between static and shared library.
