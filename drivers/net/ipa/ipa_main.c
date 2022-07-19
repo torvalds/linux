@@ -851,6 +851,7 @@ static void ipa_shutdown(struct platform_device *pdev)
 static const struct attribute_group *ipa_attribute_groups[] = {
 	&ipa_attribute_group,
 	&ipa_feature_attribute_group,
+	&ipa_endpoint_id_attribute_group,
 	&ipa_modem_attribute_group,
 	NULL,
 };
