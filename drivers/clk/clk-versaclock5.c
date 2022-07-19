@@ -392,9 +392,8 @@ static int vc5_pfd_set_rate(struct clk_hw *hw, unsigned long rate,
 
 	/* CLKIN within range of PLL input, feed directly to PLL. */
 	if (parent_rate <= 50000000) {
-		ret = regmap_update_bits(vc5->regmap, VC5_VCO_CTRL_AND_PREDIV,
-					 VC5_VCO_CTRL_AND_PREDIV_BYPASS_PREDIV,
-					 VC5_VCO_CTRL_AND_PREDIV_BYPASS_PREDIV);
+		ret = regmap_set_bits(vc5->regmap, VC5_VCO_CTRL_AND_PREDIV,
+				      VC5_VCO_CTRL_AND_PREDIV_BYPASS_PREDIV);
 		if (ret)
 			return ret;
 
@@ -413,8 +412,8 @@ static int vc5_pfd_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (ret)
 		return ret;
 
-	return regmap_update_bits(vc5->regmap, VC5_VCO_CTRL_AND_PREDIV,
-				  VC5_VCO_CTRL_AND_PREDIV_BYPASS_PREDIV, 0);
+	return regmap_clear_bits(vc5->regmap, VC5_VCO_CTRL_AND_PREDIV,
+				 VC5_VCO_CTRL_AND_PREDIV_BYPASS_PREDIV);
 }
 
 static const struct clk_ops vc5_pfd_ops = {
@@ -579,14 +578,13 @@ static int vc5_fod_set_rate(struct clk_hw *hw, unsigned long rate,
 	 * datasheet somewhat implies this is needed, but the register
 	 * and the bit is not documented.
 	 */
-	ret = regmap_update_bits(vc5->regmap, VC5_GLOBAL_REGISTER,
-				 VC5_GLOBAL_REGISTER_GLOBAL_RESET, 0);
+	ret = regmap_clear_bits(vc5->regmap, VC5_GLOBAL_REGISTER,
+				VC5_GLOBAL_REGISTER_GLOBAL_RESET);
 	if (ret)
 		return ret;
 
-	return regmap_update_bits(vc5->regmap, VC5_GLOBAL_REGISTER,
-				  VC5_GLOBAL_REGISTER_GLOBAL_RESET,
-				  VC5_GLOBAL_REGISTER_GLOBAL_RESET);
+	return regmap_set_bits(vc5->regmap, VC5_GLOBAL_REGISTER,
+			       VC5_GLOBAL_REGISTER_GLOBAL_RESET);
 }
 
 static const struct clk_ops vc5_fod_ops = {
@@ -614,10 +612,9 @@ static int vc5_clk_out_prepare(struct clk_hw *hw)
 	 * registers.
 	 */
 	if (vc5->chip_info->flags & VC5_HAS_BYPASS_SYNC_BIT) {
-		ret = regmap_update_bits(vc5->regmap,
-					 VC5_RESERVED_X0(hwdata->num),
-					 VC5_RESERVED_X0_BYPASS_SYNC,
-					 VC5_RESERVED_X0_BYPASS_SYNC);
+		ret = regmap_set_bits(vc5->regmap,
+				      VC5_RESERVED_X0(hwdata->num),
+				      VC5_RESERVED_X0_BYPASS_SYNC);
 		if (ret)
 			return ret;
 	}
@@ -640,10 +637,8 @@ static int vc5_clk_out_prepare(struct clk_hw *hw)
 	}
 
 	/* Enable the clock buffer */
-	ret = regmap_update_bits(vc5->regmap,
-				 VC5_CLK_OUTPUT_CFG(hwdata->num, 1),
-				 VC5_CLK_OUTPUT_CFG1_EN_CLKBUF,
-				 VC5_CLK_OUTPUT_CFG1_EN_CLKBUF);
+	ret = regmap_set_bits(vc5->regmap, VC5_CLK_OUTPUT_CFG(hwdata->num, 1),
+			      VC5_CLK_OUTPUT_CFG1_EN_CLKBUF);
 	if (ret)
 		return ret;
 
@@ -669,8 +664,8 @@ static void vc5_clk_out_unprepare(struct clk_hw *hw)
 	struct vc5_driver_data *vc5 = hwdata->vc5;
 
 	/* Disable the clock buffer */
-	regmap_update_bits(vc5->regmap, VC5_CLK_OUTPUT_CFG(hwdata->num, 1),
-			   VC5_CLK_OUTPUT_CFG1_EN_CLKBUF, 0);
+	regmap_clear_bits(vc5->regmap, VC5_CLK_OUTPUT_CFG(hwdata->num, 1),
+			  VC5_CLK_OUTPUT_CFG1_EN_CLKBUF);
 }
 
 static unsigned char vc5_clk_out_get_parent(struct clk_hw *hw)
