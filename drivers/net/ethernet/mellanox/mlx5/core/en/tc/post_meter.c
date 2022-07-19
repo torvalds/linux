@@ -84,9 +84,11 @@ mlx5e_post_meter_fg_create(struct mlx5e_priv *priv,
 static int
 mlx5e_post_meter_rules_create(struct mlx5e_priv *priv,
 			      struct mlx5e_post_meter_priv *post_meter,
-			      struct mlx5e_post_act *post_act)
+			      struct mlx5e_post_act *post_act,
+			      struct mlx5_fc *green_counter,
+			      struct mlx5_fc *red_counter)
 {
-	struct mlx5_flow_destination dest = {};
+	struct mlx5_flow_destination dest[2] = {};
 	struct mlx5_flow_act flow_act = {};
 	struct mlx5_flow_handle *rule;
 	struct mlx5_flow_spec *spec;
@@ -98,10 +100,13 @@ mlx5e_post_meter_rules_create(struct mlx5e_priv *priv,
 
 	mlx5e_tc_match_to_reg_match(spec, PACKET_COLOR_TO_REG,
 				    MLX5_FLOW_METER_COLOR_RED, MLX5_PACKET_COLOR_MASK);
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP;
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_DROP |
+			  MLX5_FLOW_CONTEXT_ACTION_COUNT;
 	flow_act.flags |= FLOW_ACT_IGNORE_FLOW_LEVEL;
+	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+	dest[0].counter_id = mlx5_fc_id(red_counter);
 
-	rule = mlx5_add_flow_rules(post_meter->ft, spec, &flow_act, NULL, 0);
+	rule = mlx5_add_flow_rules(post_meter->ft, spec, &flow_act, dest, 1);
 	if (IS_ERR(rule)) {
 		mlx5_core_warn(priv->mdev, "Failed to create post_meter flow drop rule\n");
 		err = PTR_ERR(rule);
@@ -111,11 +116,14 @@ mlx5e_post_meter_rules_create(struct mlx5e_priv *priv,
 
 	mlx5e_tc_match_to_reg_match(spec, PACKET_COLOR_TO_REG,
 				    MLX5_FLOW_METER_COLOR_GREEN, MLX5_PACKET_COLOR_MASK);
-	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST;
-	dest.type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
-	dest.ft = mlx5e_tc_post_act_get_ft(post_act);
+	flow_act.action = MLX5_FLOW_CONTEXT_ACTION_FWD_DEST |
+			  MLX5_FLOW_CONTEXT_ACTION_COUNT;
+	dest[0].type = MLX5_FLOW_DESTINATION_TYPE_FLOW_TABLE;
+	dest[0].ft = mlx5e_tc_post_act_get_ft(post_act);
+	dest[1].type = MLX5_FLOW_DESTINATION_TYPE_COUNTER;
+	dest[1].counter_id = mlx5_fc_id(green_counter);
 
-	rule = mlx5_add_flow_rules(post_meter->ft, spec, &flow_act, &dest, 1);
+	rule = mlx5_add_flow_rules(post_meter->ft, spec, &flow_act, dest, 2);
 	if (IS_ERR(rule)) {
 		mlx5_core_warn(priv->mdev, "Failed to create post_meter flow fwd rule\n");
 		err = PTR_ERR(rule);
@@ -155,7 +163,9 @@ mlx5e_post_meter_table_destroy(struct mlx5e_post_meter_priv *post_meter)
 struct mlx5e_post_meter_priv *
 mlx5e_post_meter_init(struct mlx5e_priv *priv,
 		      enum mlx5_flow_namespace_type ns_type,
-		      struct mlx5e_post_act *post_act)
+		      struct mlx5e_post_act *post_act,
+		      struct mlx5_fc *green_counter,
+		      struct mlx5_fc *red_counter)
 {
 	struct mlx5e_post_meter_priv *post_meter;
 	int err;
@@ -172,7 +182,8 @@ mlx5e_post_meter_init(struct mlx5e_priv *priv,
 	if (err)
 		goto err_fg;
 
-	err = mlx5e_post_meter_rules_create(priv, post_meter, post_act);
+	err = mlx5e_post_meter_rules_create(priv, post_meter, post_act, green_counter,
+					    red_counter);
 	if (err)
 		goto err_rules;
 

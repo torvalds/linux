@@ -240,12 +240,27 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters)
 	struct mlx5_core_dev *mdev = flow_meters->mdev;
 	struct mlx5e_flow_meter_aso_obj *meters_obj;
 	struct mlx5e_flow_meter_handle *meter;
+	struct mlx5_fc *counter;
 	int err, pos, total;
 	u32 id;
 
 	meter = kzalloc(sizeof(*meter), GFP_KERNEL);
 	if (!meter)
 		return ERR_PTR(-ENOMEM);
+
+	counter = mlx5_fc_create(mdev, true);
+	if (IS_ERR(counter)) {
+		err = PTR_ERR(counter);
+		goto err_red_counter;
+	}
+	meter->red_counter = counter;
+
+	counter = mlx5_fc_create(mdev, true);
+	if (IS_ERR(counter)) {
+		err = PTR_ERR(counter);
+		goto err_green_counter;
+	}
+	meter->green_counter = counter;
 
 	meters_obj = list_first_entry_or_null(&flow_meters->partial_list,
 					      struct mlx5e_flow_meter_aso_obj,
@@ -292,6 +307,10 @@ __mlx5e_flow_meter_alloc(struct mlx5e_flow_meters *flow_meters)
 err_mem:
 	mlx5e_flow_meter_destroy_aso_obj(mdev, id);
 err_create:
+	mlx5_fc_destroy(mdev, meter->green_counter);
+err_green_counter:
+	mlx5_fc_destroy(mdev, meter->red_counter);
+err_red_counter:
 	kfree(meter);
 	return ERR_PTR(err);
 }
@@ -303,6 +322,9 @@ __mlx5e_flow_meter_free(struct mlx5e_flow_meter_handle *meter)
 	struct mlx5_core_dev *mdev = flow_meters->mdev;
 	struct mlx5e_flow_meter_aso_obj *meters_obj;
 	int n, pos;
+
+	mlx5_fc_destroy(mdev, meter->green_counter);
+	mlx5_fc_destroy(mdev, meter->red_counter);
 
 	meters_obj = meter->meters_obj;
 	pos = (meter->obj_id - meters_obj->base_id) * 2 + meter->idx;

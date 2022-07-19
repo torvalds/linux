@@ -31,6 +31,9 @@ struct mlx5e_flow_meter_handle {
 	int refcnt;
 	struct hlist_node hlist;
 	struct mlx5e_flow_meter_params params;
+
+	struct mlx5_fc *green_counter;
+	struct mlx5_fc *red_counter;
 };
 
 struct mlx5e_meter_attr {

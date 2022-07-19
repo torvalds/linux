@@ -368,7 +368,8 @@ mlx5e_tc_add_flow_meter(struct mlx5e_priv *priv,
 	}
 
 	ns_type = mlx5e_tc_meter_get_namespace(meter->flow_meters);
-	post_meter = mlx5e_post_meter_init(priv, ns_type, post_act);
+	post_meter = mlx5e_post_meter_init(priv, ns_type, post_act, meter->green_counter,
+					   meter->red_counter);
 	if (IS_ERR(post_meter)) {
 		mlx5_core_err(priv->mdev, "Failed to init post meter\n");
 		goto err_meter_init;
