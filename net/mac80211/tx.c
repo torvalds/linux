@@ -2896,9 +2896,35 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	info->flags = info_flags;
 	info->ack_frame_id = info_id;
 	info->band = band;
-	info->control.flags = ctrl_flags |
-			      u32_encode_bits(link_id,
+
+	if (likely(!cookie)) {
+		ctrl_flags |= u32_encode_bits(link_id,
 					      IEEE80211_TX_CTRL_MLO_LINK);
+	} else {
+		unsigned int pre_conf_link_id;
+
+		/*
+		 * ctrl_flags already have been set by
+		 * ieee80211_tx_control_port(), here
+		 * we just sanity check that
+		 */
+
+		pre_conf_link_id = u32_get_bits(ctrl_flags,
+						IEEE80211_TX_CTRL_MLO_LINK);
+
+		if (pre_conf_link_id != link_id &&
+		    link_id != IEEE80211_LINK_UNSPECIFIED) {
+#ifdef CPTCFG_MAC80211_VERBOSE_DEBUG
+			net_info_ratelimited("%s: dropped frame to %pM with bad link ID request (%d vs. %d)\n",
+					     sdata->name, hdr.addr1,
+					     pre_conf_link_id, link_id);
+#endif
+			ret = -EINVAL;
+			goto free;
+		}
+	}
+
+	info->control.flags = ctrl_flags;
 
 	return skb;
  free:
@@ -5745,10 +5771,16 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 	ehdr = skb_push(skb, sizeof(struct ethhdr));
 	memcpy(ehdr->h_dest, dest, ETH_ALEN);
 
+	/* we may override the SA for MLO STA later */
 	if (link_id < 0) {
+		ctrl_flags |= u32_encode_bits(IEEE80211_LINK_UNSPECIFIED,
+					      IEEE80211_TX_CTRL_MLO_LINK);
 		memcpy(ehdr->h_source, sdata->vif.addr, ETH_ALEN);
 	} else {
 		struct ieee80211_bss_conf *link_conf;
+
+		ctrl_flags |= u32_encode_bits(link_id,
+					      IEEE80211_TX_CTRL_MLO_LINK);
 
 		rcu_read_lock();
 		link_conf = rcu_dereference(sdata->vif.link_conf[link_id]);
@@ -5784,6 +5816,13 @@ int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,
 
 		skb_set_queue_mapping(skb, queue);
 		skb_get_hash(skb);
+
+		/*
+		 * for MLO STA, the SA should be the AP MLD address, but
+		 * the link ID has been selected already
+		 */
+		if (sta->sta.mlo)
+			memcpy(ehdr->h_source, sdata->vif.addr, ETH_ALEN);
 	}
 	rcu_read_unlock();
 

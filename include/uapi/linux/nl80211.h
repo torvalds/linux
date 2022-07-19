@@ -1119,6 +1119,12 @@
  *	has been received. %NL80211_ATTR_FRAME is used to specify the
  *	frame contents.  The frame is the raw EAPoL data, without ethernet or
  *	802.11 headers.
+ *	For an MLD transmitter, the %NL80211_ATTR_MLO_LINK_ID may be given and
+ *	its effect will depend on the destination: If the destination is known
+ *	to be an MLD, this will be used as a hint to select the link to transmit
+ *	the frame on. If the destination is not an MLD, this will select both
+ *	the link to transmit on and the source address will be set to the link
+ *	address of that link.
  *	When used as an event indication %NL80211_ATTR_CONTROL_PORT_ETHERTYPE,
  *	%NL80211_ATTR_CONTROL_PORT_NO_ENCRYPT and %NL80211_ATTR_MAC are added
  *	indicating the protocol type of the received frame; whether the frame
