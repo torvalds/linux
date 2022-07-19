@@ -13,6 +13,8 @@
 #include <drm/drm_connector.h>
 #include <drm/drm_probe_helper.h>
 
+#include <linux/gpio/consumer.h>
+#include <linux/irq.h>
 #include <linux/module.h>
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
@@ -37,6 +39,11 @@ struct max96755f_bridge {
 	bool dv_swp_ab;
 	bool dpi_deskew_en;
 	bool split_mode;
+	struct {
+		struct gpio_desc *gpio;
+		int irq;
+		atomic_t triggered;
+	} lock;
 };
 
 #define to_max96755f_bridge(x)	container_of(x, struct max96755f_bridge, x)
@@ -60,6 +67,9 @@ static enum drm_connector_status
 max96755f_bridge_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(connector);
+
+	if (!drm_kms_helper_is_poll_worker())
+		return connector->status;
 
 	return drm_bridge_detect(&ser->bridge);
 }
@@ -107,6 +117,19 @@ static struct mipi_dsi_device *max96755f_attach_dsi(struct max96755f_bridge *max
 	return dsi;
 }
 
+static bool max96755f_bridge_link_locked(struct max96755f_bridge *ser)
+{
+	u32 val;
+
+	if (regmap_read(ser->regmap, 0x0013, &val))
+		return false;
+
+	if (!FIELD_GET(LOCKED, val))
+		return false;
+
+	return true;
+}
+
 static int max96755f_bridge_attach(struct drm_bridge *bridge,
 				   enum drm_bridge_attach_flags flags)
 {
@@ -138,6 +161,13 @@ static int max96755f_bridge_attach(struct drm_bridge *bridge,
 	if (ret) {
 		DRM_ERROR("Failed to initialize connector\n");
 		return ret;
+	}
+
+	if (max96755f_bridge_link_locked(ser)) {
+		connector->status = connector_status_connected;
+		enable_irq(ser->lock.irq);
+	} else {
+		connector->status = connector_status_disconnected;
 	}
 
 	drm_connector_attach_encoder(connector, bridge->encoder);
@@ -238,6 +268,16 @@ static void max96755f_bridge_pre_enable(struct drm_bridge *bridge)
 		drm_panel_prepare(ser->panel);
 }
 
+static void max96755f_bridge_reset_oneshot(struct max96755f_bridge *ser)
+{
+	regmap_update_bits(ser->regmap, 0x10, RESET_ONESHOT,
+			   FIELD_PREP(RESET_ONESHOT, 1));
+
+	mdelay(100);
+	/* One-Shot Link Reset will trigger lock interrupt */
+	atomic_set(&ser->lock.triggered, 0);
+}
+
 static void max96755f_bridge_enable(struct drm_bridge *bridge)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
@@ -272,17 +312,19 @@ static void max96755f_bridge_enable(struct drm_bridge *bridge)
 				   FIELD_PREP(VID_TX_EN_X, 1));
 	}
 
-	regmap_update_bits(ser->regmap, 0x10, RESET_ONESHOT,
-			   FIELD_PREP(RESET_ONESHOT, 1));
-	mdelay(100);
+	max96755f_bridge_reset_oneshot(ser);
 
 	if (ser->panel)
 		drm_panel_enable(ser->panel);
+
+	enable_irq(ser->lock.irq);
 }
 
 static void max96755f_bridge_disable(struct drm_bridge *bridge)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
+
+	disable_irq(ser->lock.irq);
 
 	if (ser->panel)
 		drm_panel_disable(ser->panel);
@@ -310,13 +352,20 @@ static enum drm_connector_status
 max96755f_bridge_detect(struct drm_bridge *bridge)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
-	u32 val;
+	struct drm_connector *connector = &ser->connector;
 
-	if (regmap_read(ser->regmap, 0x0013, &val))
+	if (!max96755f_bridge_link_locked(ser))
 		return connector_status_disconnected;
 
-	if (!FIELD_GET(LOCKED, val))
-		return connector_status_disconnected;
+	if (connector->status == connector_status_connected) {
+		if (atomic_cmpxchg(&ser->lock.triggered, 1, 0))
+			return connector_status_disconnected;
+	} else {
+		atomic_set(&ser->lock.triggered, 0);
+	}
+
+	if (ser->next_bridge && (ser->next_bridge->ops & DRM_BRIDGE_OP_DETECT))
+		return drm_bridge_detect(ser->next_bridge);
 
 	return connector_status_connected;
 }
@@ -379,6 +428,15 @@ static int max96755f_link_parse(struct max96755f_bridge *ser)
 	return ret;
 }
 
+static irqreturn_t max96755f_bridge_lock_irq_handler(int irq, void *arg)
+{
+	struct max96755f_bridge *ser = arg;
+
+	atomic_set(&ser->lock.triggered, 1);
+
+	return IRQ_HANDLED;
+}
+
 static int max96755f_bridge_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
@@ -405,6 +463,23 @@ static int max96755f_bridge_probe(struct platform_device *pdev)
 	ret = max96755f_link_parse(ser);
 	if (ret)
 		dev_err_probe(dev, ret, "failed to parse link\n");
+
+	ser->lock.gpio = devm_gpiod_get(dev, "lock", GPIOD_IN);
+	if (IS_ERR(ser->lock.gpio))
+		return dev_err_probe(dev, PTR_ERR(ser->lock.gpio),
+				     "failed to get lock GPIO\n");
+
+	ser->lock.irq = gpiod_to_irq(ser->lock.gpio);
+	if (ser->lock.irq < 0)
+		return ser->lock.irq;
+
+	irq_set_status_flags(ser->lock.irq, IRQ_NOAUTOEN);
+	ret = devm_request_threaded_irq(dev, ser->lock.irq, NULL,
+					max96755f_bridge_lock_irq_handler,
+					IRQF_TRIGGER_FALLING | IRQF_ONESHOT,
+					dev_name(dev), ser);
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to request lock IRQ\n");
 
 	ser->bridge.funcs = &max96755f_bridge_funcs;
 	ser->bridge.of_node = dev->of_node;
