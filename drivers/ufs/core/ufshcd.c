@@ -8550,7 +8550,7 @@ static enum ufs_ref_clk_freq ufshcd_parse_ref_clk_property(struct ufs_hba *hba)
 	int ret = device_property_read_u32(hba->dev, "ref-clk-freq", &freq);
 
 	if (ret) {
-		dev_dbg(hba->dev, "Cannnot query 'ref-clk-freq' property = %d", ret);
+		dev_dbg(hba->dev, "Cannot query 'ref-clk-freq' property = %d", ret);
 		return REF_CLK_FREQ_INVAL;
 	}
 
