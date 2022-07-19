@@ -374,3 +374,31 @@ unsigned int dcn314_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsig
 
 	return odm_combine_factor;
 }
+
+void dcn314_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
+{
+	uint32_t pix_per_cycle = 1;
+	uint32_t odm_combine_factor = 1;
+
+	if (!pipe_ctx || !pipe_ctx->stream || !pipe_ctx->stream_res.stream_enc)
+		return;
+
+	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
+	if (optc2_is_two_pixels_per_containter(&pipe_ctx->stream->timing) || odm_combine_factor > 1
+		|| dcn314_is_dp_dig_pixel_rate_div_policy(pipe_ctx))
+		pix_per_cycle = 2;
+
+	if (pipe_ctx->stream_res.stream_enc->funcs->set_input_mode)
+		pipe_ctx->stream_res.stream_enc->funcs->set_input_mode(pipe_ctx->stream_res.stream_enc,
+				pix_per_cycle);
+}
+
+bool dcn314_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx)
+{
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal) && !is_dp_128b_132b_signal(pipe_ctx) &&
+		dc->debug.enable_dp_dig_pixel_rate_div_policy)
+		return true;
+	return false;
+}
