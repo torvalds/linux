@@ -8,6 +8,7 @@
 
 #include <linux/kernel.h>
 #include <linux/export.h>
+#include <linux/module.h>
 #include <linux/bitops.h>
 #include <linux/string.h>
 #include <crypto/sha1.h>
@@ -135,3 +136,5 @@ void sha1_init(__u32 *buf)
 	buf[4] = 0xc3d2e1f0;
 }
 EXPORT_SYMBOL(sha1_init);
+
+MODULE_LICENSE("GPL");
