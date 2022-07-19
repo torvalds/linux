@@ -324,7 +324,7 @@ static void *sym_get_data_by_offset(const struct elf_info *info,
 	return (void *)info->hdr + sechdr->sh_offset + offset;
 }
 
-static void *sym_get_data(const struct elf_info *info, const Elf_Sym *sym)
+void *sym_get_data(const struct elf_info *info, const Elf_Sym *sym)
 {
 	return sym_get_data_by_offset(info, get_secindex(info, sym),
 				      sym->st_value);

@@ -187,6 +187,7 @@ void get_src_version(const char *modname, char sum[], unsigned sumlen);
 /* from modpost.c */
 char *read_text_file(const char *filename);
 char *get_line(char **stringp);
+void *sym_get_data(const struct elf_info *info, const Elf_Sym *sym);
 
 enum loglevel {
 	LOG_WARN,
