@@ -136,7 +136,7 @@
 /* TWAKEUP. */
 #define MIPI_DSI_WAKEUP_TIM				0x20
 
-/* when in RxULPS check state, after the the logic enable the analog,
+/* when in RxULPS check state, after the logic enable the analog,
  *	how long we should wait to check the lP state .
  */
 #define MIPI_DSI_LPOK_TIM				0x24

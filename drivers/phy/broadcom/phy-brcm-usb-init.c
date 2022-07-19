@@ -861,7 +861,7 @@ static void usb_init_common(struct brcm_usb_init_params *params)
 	brcmusb_usb2_eye_fix(ctrl);
 
 	/*
-	 * Make sure the the second and third memory controller
+	 * Make sure the second and third memory controller
 	 * interfaces are enabled if they exist.
 	 */
 	if (USB_CTRL_MASK_FAMILY(params, SETUP, SCB1_EN))
