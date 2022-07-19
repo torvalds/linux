@@ -3296,6 +3296,11 @@ static int sd_revalidate_disk(struct gendisk *disk)
 				      (sector_t)BLK_DEF_MAX_SECTORS);
 	}
 
+	/*
+	 * Limit default to SCSI host optimal sector limit if set. There may be
+	 * an impact on performance for when the size of a request exceeds this
+	 * host limit.
+	 */
 	rw_max = min_not_zero(rw_max, sdp->host->opt_sectors);
 
 	/* Do not exceed controller limit */
