@@ -207,6 +207,22 @@ EXPORT_SYMBOL(rockchip_drm_of_find_possible_crtcs);
 static DEFINE_MUTEX(rockchip_drm_sub_dev_lock);
 static LIST_HEAD(rockchip_drm_sub_dev_list);
 
+void rockchip_connector_update_vfp_for_vrr(struct drm_crtc *crtc, struct drm_display_mode *mode,
+					   int vfp)
+{
+	struct rockchip_drm_sub_dev *sub_dev;
+
+	mutex_lock(&rockchip_drm_sub_dev_lock);
+	list_for_each_entry(sub_dev, &rockchip_drm_sub_dev_list, list) {
+		if (sub_dev->connector->state->crtc == crtc) {
+			if (sub_dev->update_vfp_for_vrr)
+				sub_dev->update_vfp_for_vrr(sub_dev->connector, mode, vfp);
+		}
+	}
+	mutex_unlock(&rockchip_drm_sub_dev_lock);
+}
+EXPORT_SYMBOL(rockchip_connector_update_vfp_for_vrr);
+
 void rockchip_drm_register_sub_dev(struct rockchip_drm_sub_dev *sub_dev)
 {
 	mutex_lock(&rockchip_drm_sub_dev_lock);

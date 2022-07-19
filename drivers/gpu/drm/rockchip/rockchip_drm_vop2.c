@@ -652,10 +652,30 @@ struct vop2_video_port {
 	struct drm_property *feature_prop;
 
 	/**
+	 * @variable_refresh_rate_prop: crtc variable refresh rate interaction with userspace
+	 */
+	struct drm_property *variable_refresh_rate_prop;
+
+	/**
+	 * @max_refresh_rate_prop: crtc max refresh rate interaction with userspace
+	 */
+	struct drm_property *max_refresh_rate_prop;
+
+	/**
+	 * @min_refresh_rate_prop: crtc min refresh rate interaction with userspace
+	 */
+	struct drm_property *min_refresh_rate_prop;
+
+	/**
 	 * @primary_plane_phy_id: vp primary plane phy id, the primary plane
 	 * will be used to show uboot logo and kernel logo
 	 */
 	enum vop2_layer_phy_id primary_plane_phy_id;
+
+	/**
+	 * @refresh_rate_change: indicate whether refresh rate change
+	 */
+	bool refresh_rate_change;
 };
 
 struct vop2_extend_pll {
@@ -6837,6 +6857,11 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 
 	VOP_MODULE_SET(vop2, vp, dsp_vtotal, vtotal);
 	VOP_MODULE_SET(vop2, vp, dsp_vs_end, vsync_len);
+	/**
+	 * when display interface support vrr, config vtotal valid immediately
+	 */
+	if (vcstate->max_refresh_rate && vcstate->min_refresh_rate)
+		VOP_MODULE_SET(vop2, vp, sw_dsp_vtotal_imd, 1);
 
 	if (vop2->version == VOP_VERSION_RK3568) {
 		if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK ||
@@ -6955,6 +6980,7 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 	const struct vop2_data *vop2_data = vop2->data;
 	const struct vop2_video_port_data *vp_data = &vop2_data->vp[vp->id];
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct rockchip_crtc_state *new_vcstate = to_rockchip_crtc_state(crtc_state);
 	struct drm_display_mode *adjusted_mode = &crtc->state->adjusted_mode;
 
 	if (vop2_has_feature(vop2, VOP_FEATURE_SPLICE)) {
@@ -6965,6 +6991,11 @@ static int vop2_crtc_atomic_check(struct drm_crtc *crtc,
 			splice_vp->left_vp = vp;
 		}
 	}
+
+	if (vcstate->request_refresh_rate != new_vcstate->request_refresh_rate)
+		vp->refresh_rate_change = true;
+	else
+		vp->refresh_rate_change = false;
 
 	return 0;
 }
@@ -7686,6 +7717,55 @@ out:
 	kfree(vop2_zpos_splice_hdr);
 }
 
+static void vop2_crtc_update_vrr(struct drm_crtc *crtc)
+{
+	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct vop2 *vop2 = vp->vop2;
+	struct drm_display_mode *adjust_mode = &crtc->state->adjusted_mode;
+
+	unsigned int vrefresh;
+	unsigned int new_vtotal, vfp, new_vfp;
+
+	if (!vp->refresh_rate_change)
+		return;
+
+	if (!vcstate->min_refresh_rate || !vcstate->max_refresh_rate)
+		return;
+
+	if (vcstate->request_refresh_rate < vcstate->min_refresh_rate ||
+	    vcstate->request_refresh_rate > vcstate->max_refresh_rate) {
+		DRM_ERROR("invalid rate:%d\n", vcstate->request_refresh_rate);
+		return;
+	}
+
+	vrefresh = drm_mode_vrefresh(adjust_mode);
+
+	/* calculate new vfp for new refresh rate */
+	new_vtotal = adjust_mode->vtotal * vrefresh / vcstate->request_refresh_rate;
+	vfp = adjust_mode->vsync_start -  adjust_mode->vdisplay;
+	new_vfp = vfp + new_vtotal - adjust_mode->vtotal;
+
+	/* config vop2 vtotal register */
+	VOP_MODULE_SET(vop2, vp, dsp_vtotal, new_vtotal);
+
+	/* config dsc vtotal register */
+	if (vcstate->dsc_enable) {
+		struct vop2_dsc *dsc;
+
+		dsc = &vop2->dscs[vcstate->dsc_id];
+		VOP_MODULE_SET(vop2, dsc, dsc_vtotal, new_vtotal);
+
+		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) {
+			dsc = &vop2->dscs[vcstate->dsc_id ? 0 : 1];
+			VOP_MODULE_SET(vop2, dsc, dsc_vtotal, new_vtotal);
+		}
+	}
+
+	/* config all connectors attach to this crtc */
+	rockchip_connector_update_vfp_for_vrr(crtc, adjust_mode, new_vfp);
+}
+
 static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state *old_crtc_state)
 {
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -7713,6 +7793,9 @@ static void vop2_crtc_atomic_begin(struct drm_crtc *crtc, struct drm_crtc_state 
 		if (!vop2_zpos_splice)
 			goto out;
 	}
+
+	if (vop2->version == VOP_VERSION_RK3588)
+		vop2_crtc_update_vrr(crtc);
 
 	/* Process cluster sub windows overlay. */
 	drm_atomic_crtc_for_each_plane(plane, crtc) {
@@ -8294,6 +8377,21 @@ static int vop2_crtc_atomic_get_property(struct drm_crtc *crtc,
 		return 0;
 	}
 
+	if (property == vp->variable_refresh_rate_prop) {
+		*val = vcstate->request_refresh_rate;
+		return 0;
+	}
+
+	if (property == vp->max_refresh_rate_prop) {
+		*val = vcstate->max_refresh_rate;
+		return 0;
+	}
+
+	if (property == vp->min_refresh_rate_prop) {
+		*val = vcstate->min_refresh_rate;
+		return 0;
+	}
+
 	DRM_ERROR("failed to get vop2 crtc property: %s\n", property->name);
 
 	return -EINVAL;
@@ -8308,6 +8406,7 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 	struct rockchip_drm_private *private = drm_dev->dev_private;
 	struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(state);
 	struct drm_mode_config *mode_config = &drm_dev->mode_config;
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
 
 	if (property == mode_config->tv_left_margin_property) {
 		vcstate->left_margin = val;
@@ -8337,6 +8436,21 @@ static int vop2_crtc_atomic_set_property(struct drm_crtc *crtc,
 
 	if (property == private->line_flag_prop) {
 		vcstate->line_flag = val;
+		return 0;
+	}
+
+	if (property == vp->variable_refresh_rate_prop) {
+		vcstate->request_refresh_rate = val;
+		return 0;
+	}
+
+	if (property == vp->max_refresh_rate_prop) {
+		vcstate->max_refresh_rate = val;
+		return 0;
+	}
+
+	if (property == vp->min_refresh_rate_prop) {
+		vcstate->min_refresh_rate = val;
 		return 0;
 	}
 
@@ -8920,6 +9034,38 @@ static int vop2_crtc_create_feature_property(struct vop2 *vop2, struct drm_crtc 
 	return 0;
 }
 
+static int vop2_crtc_create_vrr_property(struct vop2 *vop2, struct drm_crtc *crtc)
+{
+	struct vop2_video_port *vp = to_vop2_video_port(crtc);
+	struct drm_property *prop;
+
+	prop = drm_property_create_range(vop2->drm_dev, 0, "variable refresh rate", 0, 144);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create vrr prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+	vp->variable_refresh_rate_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->variable_refresh_rate_prop, 0);
+
+	prop = drm_property_create_range(vop2->drm_dev, 0, "max refresh rate", 0, 144);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create vrr prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+	vp->max_refresh_rate_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->max_refresh_rate_prop, 0);
+
+	prop = drm_property_create_range(vop2->drm_dev, 0, "min refresh rate", 0, 144);
+	if (!prop) {
+		DRM_DEV_ERROR(vop2->dev, "create vrr prop for vp%d failed\n", vp->id);
+		return -ENOMEM;
+	}
+	vp->min_refresh_rate_prop = prop;
+	drm_object_attach_property(&crtc->base, vp->min_refresh_rate_prop, 0);
+
+	return 0;
+}
+
 #define RK3566_MIRROR_PLANE_MASK (BIT(ROCKCHIP_VOP2_CLUSTER1) | BIT(ROCKCHIP_VOP2_ESMART1) | \
 				  BIT(ROCKCHIP_VOP2_SMART1))
 
@@ -9127,6 +9273,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		}
 		vop2_crtc_create_plane_mask_property(vop2, crtc, plane_mask);
 		vop2_crtc_create_feature_property(vop2, crtc);
+		vop2_crtc_create_vrr_property(vop2, crtc);
 
 		ret = drm_self_refresh_helper_init(crtc);
 		if (ret)
