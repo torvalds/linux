@@ -40,6 +40,9 @@ static const struct rga_backend_ops rga2_ops = {
 	.soft_reset = rga2_soft_reset
 };
 
+static struct rga_session *rga_session_init(void);
+static int rga_session_deinit(struct rga_session *session);
+
 static int rga_mpi_set_channel_buffer(struct dma_buf *dma_buf,
 				      struct rga_img_info_t *channel_info,
 				      struct rga_session *session)
@@ -260,28 +263,75 @@ EXPORT_SYMBOL_GPL(rga_mpi_commit);
 int rga_kernel_commit(struct rga_req *cmd)
 {
 	int ret = 0;
-	struct rga_request request;
+	int request_id;
+	struct rga_user_request kernel_request;
+	struct rga_request *request = NULL;
+	struct rga_session *session = NULL;
+	struct rga_pending_request_manager *request_manager = rga_drvdata->pend_request_manager;
 
-	if (DEBUGGER_EN(MSG))
-		rga_cmd_print_debug_info(cmd);
+	session = rga_session_init();
+	if (!session)
+		return -ENOMEM;
 
-	request.sync_mode = RGA_BLIT_SYNC;
-	request.use_batch_mode = false;
-	request.task_list = cmd;
-	request.task_count = 1;
-
-	ret = rga_request_commit(&request);
-	if (ret < 0) {
-		if (ret == -ERESTARTSYS) {
-			if (DEBUGGER_EN(MSG))
-				pr_err("%s, commit kernel job failed, by a software interrupt.\n",
-				       __func__);
-		} else {
-			pr_err("%s, commit kernel job failed\n", __func__);
-		}
-
+	request_id = rga_request_alloc(0, session);
+	if (request_id < 0) {
+		pr_err("request alloc error!\n");
+		ret = request_id;
 		return ret;
 	}
+
+	memset(&kernel_request, 0, sizeof(kernel_request));
+	kernel_request.id = request_id;
+	kernel_request.task_ptr = (uint64_t)(unsigned long)cmd;
+	kernel_request.task_num = 1;
+	kernel_request.sync_mode = RGA_BLIT_SYNC;
+
+	ret = rga_request_check(&kernel_request);
+	if (ret < 0) {
+		pr_err("user request check error!\n");
+		goto err_free_request_by_id;
+	}
+
+	request = rga_request_kernel_config(&kernel_request);
+	if (IS_ERR(request)) {
+		pr_err("request[%d] config failed!\n", kernel_request.id);
+		ret = -EFAULT;
+		goto err_free_request_by_id;
+	}
+
+	if (DEBUGGER_EN(MSG)) {
+		pr_info("kernel blit mode: request id = %d", kernel_request.id);
+		rga_cmd_print_debug_info(cmd);
+	}
+
+	ret = rga_request_submit(request);
+	if (ret < 0) {
+		pr_err("request[%d] submit failed!\n", kernel_request.id);
+		goto err_put_request;
+	}
+
+err_put_request:
+	mutex_lock(&request_manager->lock);
+	rga_request_put(request);
+	mutex_unlock(&request_manager->lock);
+
+	rga_session_deinit(session);
+
+	return ret;
+
+err_free_request_by_id:
+	mutex_lock(&request_manager->lock);
+
+	request = rga_request_lookup(request_manager, request_id);
+	if (IS_ERR_OR_NULL(request)) {
+		pr_err("can not find request from id[%d]", request_id);
+		mutex_unlock(&request_manager->lock);
+		return -EINVAL;
+	}
+
+	rga_request_free(request);
+
+	mutex_unlock(&request_manager->lock);
 
 	return ret;
 }

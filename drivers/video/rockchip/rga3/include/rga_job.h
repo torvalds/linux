@@ -43,6 +43,7 @@ int rga_request_free(struct rga_request *request);
 int rga_request_alloc(uint32_t flags, struct rga_session *session);
 
 struct rga_request *rga_request_config(struct rga_user_request *user_request);
+struct rga_request *rga_request_kernel_config(struct rga_user_request *user_request);
 int rga_request_submit(struct rga_request *request);
 int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request);
 int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job *job);

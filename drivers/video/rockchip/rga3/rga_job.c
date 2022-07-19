@@ -848,6 +848,63 @@ err_put_request:
 	return ERR_PTR(ret);
 }
 
+struct rga_request *rga_request_kernel_config(struct rga_user_request *user_request)
+{
+	int ret = 0;
+	unsigned long flags;
+	struct rga_pending_request_manager *request_manager;
+	struct rga_request *request;
+	struct rga_req *task_list;
+
+	request_manager = rga_drvdata->pend_request_manager;
+	if (request_manager == NULL) {
+		pr_err("rga_pending_request_manager is null!\n");
+		return ERR_PTR(-EFAULT);
+	}
+
+	mutex_lock(&request_manager->lock);
+
+	request = rga_request_lookup(request_manager, user_request->id);
+	if (IS_ERR_OR_NULL(request)) {
+		pr_err("can not find request from id[%d]", user_request->id);
+		mutex_unlock(&request_manager->lock);
+		return ERR_PTR(-EINVAL);
+	}
+
+	rga_request_get(request);
+	mutex_unlock(&request_manager->lock);
+
+	task_list = kmalloc_array(user_request->task_num, sizeof(struct rga_req), GFP_KERNEL);
+	if (task_list == NULL) {
+		pr_err("task_req list alloc error!\n");
+		ret = -ENOMEM;
+		goto err_put_request;
+	}
+
+	memcpy(task_list, u64_to_user_ptr(user_request->task_ptr),
+	       sizeof(struct rga_req) * user_request->task_num);
+
+	spin_lock_irqsave(&request->lock, flags);
+
+	request->use_batch_mode = true;
+	request->task_list = task_list;
+	request->task_count = user_request->task_num;
+	request->sync_mode = user_request->sync_mode;
+	request->mpi_config_flags = user_request->mpi_config_flags;
+	request->acquire_fence_fd = user_request->acquire_fence_fd;
+
+	spin_unlock_irqrestore(&request->lock, flags);
+
+	return request;
+
+err_put_request:
+	mutex_lock(&request_manager->lock);
+	rga_request_put(request);
+	mutex_unlock(&request_manager->lock);
+
+	return ERR_PTR(ret);
+}
+
 int rga_request_submit(struct rga_request *request)
 {
 	int ret = 0;
