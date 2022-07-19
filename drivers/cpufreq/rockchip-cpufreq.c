@@ -184,6 +184,35 @@ out:
 	return ret;
 }
 
+static int rk3588_get_soc_info(struct device *dev, struct device_node *np,
+			       int *bin, int *process)
+{
+	int ret = 0;
+	u8 value = 0;
+
+	if (!bin)
+		return 0;
+
+	if (of_property_match_string(np, "nvmem-cell-names",
+				     "specification_serial_number") >= 0) {
+		ret = rockchip_nvmem_cell_read_u8(np,
+						  "specification_serial_number",
+						  &value);
+		if (ret) {
+			dev_err(dev,
+				"Failed to get specification_serial_number\n");
+			return ret;
+		}
+		/* RK3588M */
+		if (value == 0xd)
+			*bin = 1;
+	}
+	if (*bin < 0)
+		*bin = 0;
+	dev_info(dev, "bin=%d\n", *bin);
+
+	return ret;
+}
 static int rk3588_change_length(struct device *dev, struct device_node *np,
 				int bin, int process, int volt_sel)
 {
@@ -326,6 +355,7 @@ static const struct rockchip_opp_data rk3399_cpu_opp_data = {
 };
 
 static const struct rockchip_opp_data rk3588_cpu_opp_data = {
+	.get_soc_info = rk3588_get_soc_info,
 	.set_soc_info = rk3588_set_soc_info,
 	.set_read_margin = rk3588_cpu_set_read_margin,
 };
@@ -450,9 +480,8 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 		rockchip_set_read_margin(dev, opp_info, target_rm, true);
 		ret = clk_set_rate(clk, new_freq);
 		if (ret) {
-			dev_err(dev,
-				"%s: failed to set clk rate: %d\n", __func__,
-				ret);
+			dev_err(dev, "%s: failed to set clk rate: %lu %d\n",
+				__func__, new_freq, ret);
 			goto restore_rm;
 		}
 	/* Scaling down? Scale voltage after frequency */
@@ -468,9 +497,8 @@ static int cpu_opp_helper(struct dev_pm_set_opp_data *data)
 		rockchip_set_read_margin(dev, opp_info, target_rm, true);
 		ret = clk_set_rate(clk, new_freq);
 		if (ret) {
-			dev_err(dev,
-				"%s: failed to set clk rate: %d\n", __func__,
-				ret);
+			dev_err(dev, "%s: failed to set clk rate: %lu %d\n",
+				__func__, new_freq, ret);
 			goto restore_rm;
 		}
 		ret = rockchip_cpufreq_set_volt(dev, vdd_reg, new_supply_vdd,
