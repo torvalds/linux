@@ -63,14 +63,12 @@ static void st_asm330lhhx_read_hw_timestamp(struct st_asm330lhhx_hw *hw)
 		iio_push_event(hw->iio_devs[ST_ASM330LHHX_ID_ACC], eventMSB,
 			       timestamp_cpu);
 	}
-#ifdef CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE
 	if (hw->enable_mask & BIT(ST_ASM330LHHX_ID_TEMP)) {
 		iio_push_event(hw->iio_devs[ST_ASM330LHHX_ID_TEMP], eventLSB,
 			       timestamp_cpu);
 		iio_push_event(hw->iio_devs[ST_ASM330LHHX_ID_TEMP], eventMSB,
 			       timestamp_cpu);
 	}
-#endif /* CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE */
 
 	if (hw->timesync_c < 6)
 		hw->timesync_c++;

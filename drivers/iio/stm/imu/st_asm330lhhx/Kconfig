@@ -27,12 +27,6 @@ config IIO_ST_ASM330LHHX_MAY_WAKEUP
 	help
 	  Enable wake-up irq on interrupt line
 
-config IIO_ST_ASM330LHHX_EN_TEMPERATURE
-	bool "Enable internal temperature sensor"
-	depends on IIO_ST_ASM330LHHX
-	help
-	  Enable internal temperature sensor channel
-
 config IIO_ST_ASM330LHHX_EN_BASIC_FEATURES
 	bool "Enable internal basic features event detection"
 	depends on IIO_ST_ASM330LHHX

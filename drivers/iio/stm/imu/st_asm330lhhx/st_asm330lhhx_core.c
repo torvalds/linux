@@ -148,7 +148,6 @@ static const struct st_asm330lhhx_odr_table_entry st_asm330lhhx_odr_table[] = {
 		.odr_avl[5] = { 416,      0,  0x06,  0x06 },
 		.odr_avl[6] = { 833,      0,  0x07,  0x07 },
 	},
-#ifdef CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE
 	[ST_ASM330LHHX_ID_TEMP] = {
 		.size = 2,
 		.batching_reg = {
@@ -158,7 +157,6 @@ static const struct st_asm330lhhx_odr_table_entry st_asm330lhhx_odr_table[] = {
 		.odr_avl[0] = { 12, 500000,   0x02,  0x02 },
 		.odr_avl[1] = { 52,      0,   0x03,  0x03 },
 	},
-#endif /* CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE */
 };
 
 /**
@@ -263,7 +261,6 @@ static const struct st_asm330lhhx_fs_table_entry st_asm330lhhx_fs_table[] = {
 			.val = 0x1,
 		},
 	},
-#ifdef CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE
 	[ST_ASM330LHHX_ID_TEMP] = {
 		.size = ST_ASM330LHHX_FS_TEMP_LIST_SIZE,
 		.fs_avl[0] = {
@@ -271,7 +268,6 @@ static const struct st_asm330lhhx_fs_table_entry st_asm330lhhx_fs_table[] = {
 			.val = 0x0
 		},
 	},
-#endif /* CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE */
 };
 
 #ifdef CONFIG_IIO_ST_ASM330LHHX_EN_BASIC_FEATURES
@@ -965,9 +961,7 @@ static int st_asm330lhhx_set_odr(struct st_asm330lhhx_sensor *sensor, int req_od
 	case ST_ASM330LHHX_ID_FF:
 	case ST_ASM330LHHX_ID_SC:
 	case ST_ASM330LHHX_ID_6D:
-#ifdef CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE
 	case ST_ASM330LHHX_ID_TEMP:
-#endif /* CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE */
 	case ST_ASM330LHHX_ID_ACC: {
 		int odr;
 		int i;
@@ -1084,13 +1078,11 @@ static int st_asm330lhhx_read_raw(struct iio_dev *iio_dev,
 		break;
 	case IIO_CHAN_INFO_SCALE:
 		switch (ch->type) {
-#ifdef CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE
 		case IIO_TEMP:
 			*val = 1;
 			*val2 = ST_ASM330LHHX_TEMP_GAIN;
 			ret = IIO_VAL_FRACTIONAL;
 			break;
-#endif /* CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE */
 		case IIO_ACCEL:
 		case IIO_ANGL_VEL:
 			*val = 0;
@@ -1562,11 +1554,13 @@ static const struct iio_info st_asm330lhhx_temp_info = {
 	.write_raw = st_asm330lhhx_write_raw,
 };
 
-static const unsigned long st_asm330lhhx_available_scan_masks[] = { BIT(0) |
-								   BIT(1) |
-								   BIT(2) |
-								   BIT(3),
-								   0x0 };
+static const unsigned long st_asm330lhhx_available_scan_masks[] = {
+	GENMASK(3, 0), 0x0
+};
+
+static const unsigned long st_asm330lhhx_temp_available_scan_masks[] = {
+	GENMASK(1, 0), 0x0
+};
 
 static int st_asm330lhhx_reset_device(struct st_asm330lhhx_hw *hw)
 {
@@ -1724,20 +1718,20 @@ static struct iio_dev *st_asm330lhhx_alloc_iiodev(struct st_asm330lhhx_hw *hw,
 		sensor->min_st = ST_ASM330LHHX_SELFTEST_GYRO_MIN;
 		sensor->max_st = ST_ASM330LHHX_SELFTEST_GYRO_MAX;
 		break;
-#ifdef CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE
 	case ST_ASM330LHHX_ID_TEMP:
 		iio_dev->channels = st_asm330lhhx_temp_channels;
 		iio_dev->num_channels = ARRAY_SIZE(st_asm330lhhx_temp_channels);
 		scnprintf(sensor->name, sizeof(sensor->name),
 			  "%s_temp", hw->settings->id.name);
 		iio_dev->info = &st_asm330lhhx_temp_info;
+		iio_dev->available_scan_masks =
+				    st_asm330lhhx_temp_available_scan_masks;
 		sensor->max_watermark = ST_ASM330LHHX_MAX_FIFO_DEPTH;
 		sensor->gain = st_asm330lhhx_fs_table[id].fs_avl[ST_ASM330LHHX_DEFAULT_T_FS_INDEX].gain;
 		sensor->odr = st_asm330lhhx_odr_table[id].odr_avl[ST_ASM330LHHX_DEFAULT_T_ODR_INDEX].hz;
 		sensor->uodr = st_asm330lhhx_odr_table[id].odr_avl[ST_ASM330LHHX_DEFAULT_T_ODR_INDEX].uhz;
 		sensor->offset = ST_ASM330LHHX_TEMP_OFFSET;
 		break;
-#endif /* CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE */
 	default:
 		iio_device_free(iio_dev);
 

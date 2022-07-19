@@ -34,9 +34,7 @@
 enum {
 	ST_ASM330LHHX_GYRO_TAG = 0x01,
 	ST_ASM330LHHX_ACC_TAG = 0x02,
-#ifdef CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE
 	ST_ASM330LHHX_TEMP_TAG = 0x03,
-#endif /* CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE */
 	ST_ASM330LHHX_TS_TAG = 0x04,
 };
 
@@ -211,11 +209,9 @@ static struct iio_dev *st_asm330lhhx_get_iiodev_from_tag(struct st_asm330lhhx_hw
 	case ST_ASM330LHHX_ACC_TAG:
 		iio_dev = hw->iio_devs[ST_ASM330LHHX_ID_ACC];
 		break;
-#ifdef CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE
 	case ST_ASM330LHHX_TEMP_TAG:
 		iio_dev = hw->iio_devs[ST_ASM330LHHX_ID_TEMP];
 		break;
-#endif /* CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE */
 	default:
 		iio_dev = NULL;
 		break;
@@ -493,7 +489,6 @@ static int st_asm330lhhx_update_fifo(struct iio_dev *iio_dev,
 	if (err < 0)
 		goto out;
 
-#ifdef CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE
 	/*
 	 * This is an auxiliary sensor, it need to get batched
 	 * toghether at least with a primary sensor (Acc/Gyro).
@@ -521,7 +516,6 @@ static int st_asm330lhhx_update_fifo(struct iio_dev *iio_dev,
 				goto out;
 		}
 	}
-#endif /* CONFIG_IIO_ST_ASM330LHHX_EN_TEMPERATURE */
 
 	err = st_asm330lhhx_update_watermark(sensor, sensor->watermark);
 	if (err < 0)
