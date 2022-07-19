@@ -5905,13 +5905,13 @@ static bool vop2_crtc_mode_update(struct drm_crtc *crtc)
 	u16 vact_end = vact_st + vdisplay;
 	u32 htotal_sync = htotal << 16 | hsync_len;
 	u32 hactive_st_end = hact_st << 16 | hact_end;
-	u32 vtotal_sync = vtotal << 16 | vsync_len;
 	u32 vactive_st_end = vact_st << 16 | vact_end;
 	u32 crtc_clock = adjusted_mode->crtc_clock * 100;
 
 	if (htotal_sync != VOP_MODULE_GET(vop2, vp, htotal_pw) ||
 	    hactive_st_end != VOP_MODULE_GET(vop2, vp, hact_st_end) ||
-	    vtotal_sync != VOP_MODULE_GET(vop2, vp, vtotal_pw) ||
+	    vtotal != VOP_MODULE_GET(vop2, vp, dsp_vtotal) ||
+	    vsync_len != VOP_MODULE_GET(vop2, vp, dsp_vs_end) ||
 	    vactive_st_end != VOP_MODULE_GET(vop2, vp, vact_st_end) ||
 	    crtc_clock != clk_get_rate(vp->dclk))
 		return true;
@@ -6369,7 +6369,8 @@ static void vop2_crtc_enable_dsc(struct drm_crtc *crtc, struct drm_crtc_state *o
 		val = dsc_hact_end << 16 | dsc_hact_st;
 		VOP_MODULE_SET(vop2, dsc, dsc_hact_st_end, val);
 
-		VOP_MODULE_SET(vop2, dsc, dsc_vtotal_pw, vtotal << 16 | vsync_len);
+		VOP_MODULE_SET(vop2, dsc, dsc_vtotal, vtotal);
+		VOP_MODULE_SET(vop2, dsc, dsc_vs_end, vsync_len);
 		VOP_MODULE_SET(vop2, dsc, dsc_vact_st_end, vact_end << 16 | vact_st);
 	}
 
@@ -6834,7 +6835,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	VOP_INTR_SET(vop2, intr, line_flag_num[0], act_end);
 	VOP_INTR_SET(vop2, intr, line_flag_num[1], act_end);
 
-	VOP_MODULE_SET(vop2, vp, vtotal_pw, vtotal << 16 | vsync_len);
+	VOP_MODULE_SET(vop2, vp, dsp_vtotal, vtotal);
+	VOP_MODULE_SET(vop2, vp, dsp_vs_end, vsync_len);
 
 	if (vop2->version == VOP_VERSION_RK3568) {
 		if (adjusted_mode->flags & DRM_MODE_FLAG_DBLCLK ||
