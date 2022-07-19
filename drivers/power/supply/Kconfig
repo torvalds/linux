@@ -529,14 +529,11 @@ config CHARGER_MANAGER
 	  with help of suspend_again support.
 
 config ROCKCHIP_CHARGER_MANAGER
-	tristate "Battery charger manager for multiple chargers"
+	tristate "rockchip battery charger manager"
 	select EXTCON
 	help
 	  Say Y to enable charger manager support, which allows multiple
-	  chargers attached to a battery and multiple batteries attached to a
-	  system. The charger manager also can monitor charging status in
-	  runtime and in suspend-to-RAM by waking up the system periodically
-	  with help of suspend_again support.
+	  chargers attached to a battery.
 
 config CHARGER_LT3651
 	tristate "Analog Devices LT3651 charger"
