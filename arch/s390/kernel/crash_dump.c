@@ -174,6 +174,32 @@ int copy_oldmem_kernel(void *dst, unsigned long src, size_t count)
 }
 
 /*
+ * Copy memory from kernel (real) to user (virtual)
+ */
+static int copy_to_user_real(void __user *dest, unsigned long src, unsigned long count)
+{
+	int offs = 0, size, rc;
+	char *buf;
+
+	buf = (char *)__get_free_page(GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
+	rc = -EFAULT;
+	while (offs < count) {
+		size = min(PAGE_SIZE, count - offs);
+		if (memcpy_real(buf, src + offs, size))
+			goto out;
+		if (copy_to_user(dest + offs, buf, size))
+			goto out;
+		offs += size;
+	}
+	rc = 0;
+out:
+	free_page((unsigned long)buf);
+	return rc;
+}
+
+/*
  * Copy memory of the old, dumped system to a user space virtual address
  */
 static int copy_oldmem_user(void __user *dst, unsigned long src, size_t count)
