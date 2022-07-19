@@ -372,20 +372,9 @@ static int mtl_dsp_core_power_up(struct snd_sof_dev *sdev, int core)
 	ret = snd_sof_dsp_read_poll_timeout(sdev, HDA_DSP_BAR, MTL_DSP2CXCTL_PRIMARY_CORE, dspcxctl,
 					    (dspcxctl & cpa) == cpa, HDA_DSP_REG_POLL_INTERVAL_US,
 					    HDA_DSP_RESET_TIMEOUT_US);
-	if (ret < 0) {
+	if (ret < 0)
 		dev_err(sdev->dev, "%s: timeout on MTL_DSP2CXCTL_PRIMARY_CORE read\n",
 			__func__);
-		return ret;
-	}
-
-	/* did core power up ? */
-	dspcxctl = snd_sof_dsp_read(sdev, HDA_DSP_BAR, MTL_DSP2CXCTL_PRIMARY_CORE);
-	if ((dspcxctl & MTL_DSP2CXCTL_PRIMARY_CORE_CPA_MASK)
-		!= MTL_DSP2CXCTL_PRIMARY_CORE_CPA_MASK) {
-		dev_err(sdev->dev, "power up core failed core %d adspcs %#x\n",
-			core, dspcxctl);
-		ret = -EIO;
-	}
 
 	return ret;
 }
