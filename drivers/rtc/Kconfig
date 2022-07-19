@@ -1589,7 +1589,7 @@ config RTC_DRV_STARFIRE
 
 config RTC_DRV_STARFIVE
 	tristate "StarFive 32.768k-RTC"
-	depends on RISCV
+	depends on SOC_STARFIVE
 	depends on OF
 	help
 	  If you say Y here you will get support for the RTC found on
