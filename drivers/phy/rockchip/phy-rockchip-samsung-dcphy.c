@@ -1275,13 +1275,13 @@ static void samsung_mipi_dcphy_bias_block_enable(struct samsung_mipi_dcphy *sams
 	u32 bias_con2 = 0x3223;
 
 	if (csi_dphy &&
-	    csi_dphy->dphy_param->lp_vol_ref != 3 &&
-	    csi_dphy->dphy_param->lp_vol_ref < 0x7) {
+	    csi_dphy->dphy_param.lp_vol_ref != 3 &&
+	    csi_dphy->dphy_param.lp_vol_ref < 0x7) {
 		bias_con2 &= 0xfffffff8;
-		bias_con2 |= csi_dphy->dphy_param->lp_vol_ref;
+		bias_con2 |= csi_dphy->dphy_param.lp_vol_ref;
 		dev_info(samsung->dev,
 			 "rx change lp_vol_ref to %d, it may cause tx exception\n",
-			 csi_dphy->dphy_param->lp_vol_ref);
+			 csi_dphy->dphy_param.lp_vol_ref);
 	}
 	regmap_write(samsung->regmap, BIAS_CON0, 0x0010);
 	regmap_write(samsung->regmap, BIAS_CON1, 0x0110);
@@ -1987,87 +1987,87 @@ static int samsung_dcphy_rx_config_common(struct csi2_dphy *dphy,
 			dlysel = 1 << 8;
 		else if (dphy->data_rate_mbps < 6500)
 			dlysel = 0;
-		if (dphy->dphy_param->clk_hs_term_sel > 0x7) {
+		if (dphy->dphy_param.clk_hs_term_sel > 0x7) {
 			dev_err(dphy->dev, "clk_hs_term_sel error param %d\n",
-				dphy->dphy_param->clk_hs_term_sel);
+				dphy->dphy_param.clk_hs_term_sel);
 			return -EINVAL;
 		}
 		for (i = 0; i < sensor->lanes; i++) {
-			if (dphy->dphy_param->data_hs_term_sel[i] > 0x7) {
+			if (dphy->dphy_param.data_hs_term_sel[i] > 0x7) {
 				dev_err(dphy->dev, "data_hs_term_sel[%d] error param %d\n",
 					i,
-					dphy->dphy_param->data_hs_term_sel[i]);
+					dphy->dphy_param.data_hs_term_sel[i]);
 				return -EINVAL;
 			}
-			if (dphy->dphy_param->lp_hys_sw[i] > 0x3) {
+			if (dphy->dphy_param.lp_hys_sw[i] > 0x3) {
 				dev_err(dphy->dev, "lp_hys_sw[%d] error param %d\n",
 					i,
-					dphy->dphy_param->lp_hys_sw[i]);
+					dphy->dphy_param.lp_hys_sw[i]);
 				return -EINVAL;
 			}
-			if (dphy->dphy_param->lp_escclk_pol_sel[i] > 0x1) {
+			if (dphy->dphy_param.lp_escclk_pol_sel[i] > 0x1) {
 				dev_err(dphy->dev, "lp_escclk_pol_sel[%d] error param %d\n",
 					i,
-					dphy->dphy_param->lp_escclk_pol_sel[i]);
+					dphy->dphy_param.lp_escclk_pol_sel[i]);
 				return -EINVAL;
 			}
-			if (dphy->dphy_param->skew_data_cal_clk[i] > 0x1f) {
+			if (dphy->dphy_param.skew_data_cal_clk[i] > 0x1f) {
 				dev_err(dphy->dev, "skew_data_cal_clk[%d] error param %d\n",
 					i,
-					dphy->dphy_param->skew_data_cal_clk[i]);
+					dphy->dphy_param.skew_data_cal_clk[i]);
 				return -EINVAL;
 			}
 		}
 		regmap_write(samsung->regmap, RX_S0C_GNR_CON1, 0x1450);
 		regmap_write(samsung->regmap, RX_S0C_ANA_CON1, 0x8000);
-		regmap_write(samsung->regmap, RX_S0C_ANA_CON2, dphy->dphy_param->clk_hs_term_sel);
+		regmap_write(samsung->regmap, RX_S0C_ANA_CON2, dphy->dphy_param.clk_hs_term_sel);
 		regmap_write(samsung->regmap, RX_S0C_ANA_CON3, 0x0600);
 		if (sensor->lanes > 0x00) {
 			regmap_write(samsung->regmap, RX_COMBO_S0D0_GNR_CON1, 0x1450);
 			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON1, 0x8000);
 			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON2, dlysel |
-				     dphy->dphy_param->data_hs_term_sel[0]);
+				     dphy->dphy_param.data_hs_term_sel[0]);
 			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON3, 0x0600 |
-				     (dphy->dphy_param->lp_hys_sw[0] << 4) |
-				     (dphy->dphy_param->lp_escclk_pol_sel[0] << 11));
+				     (dphy->dphy_param.lp_hys_sw[0] << 4) |
+				     (dphy->dphy_param.lp_escclk_pol_sel[0] << 11));
 			regmap_write(samsung->regmap, RX_COMBO_S0D0_ANA_CON7, 0x40);
 			regmap_write(samsung->regmap, RX_COMBO_S0D0_DESKEW_CON2,
-				     dphy->dphy_param->skew_data_cal_clk[0]);
+				     dphy->dphy_param.skew_data_cal_clk[0]);
 		}
 		if (sensor->lanes > 0x01) {
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_GNR_CON1, 0x1450);
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON1, 0x8000);
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON2, dlysel |
-				     dphy->dphy_param->data_hs_term_sel[1]);
+				     dphy->dphy_param.data_hs_term_sel[1]);
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON3, 0x0600 |
-				     (dphy->dphy_param->lp_hys_sw[1] << 4) |
-				     (dphy->dphy_param->lp_escclk_pol_sel[1] << 11));
+				     (dphy->dphy_param.lp_hys_sw[1] << 4) |
+				     (dphy->dphy_param.lp_escclk_pol_sel[1] << 11));
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_ANA_CON7, 0x40);
 			regmap_write(samsung->regmap, RX_COMBO_S0D1_DESKEW_CON2,
-				     dphy->dphy_param->skew_data_cal_clk[1]);
+				     dphy->dphy_param.skew_data_cal_clk[1]);
 		}
 		if (sensor->lanes > 0x02) {
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_GNR_CON1, 0x1450);
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON1, 0x8000);
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON2, dlysel |
-				     dphy->dphy_param->data_hs_term_sel[2]);
+				     dphy->dphy_param.data_hs_term_sel[2]);
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON3, 0x0600 |
-				     (dphy->dphy_param->lp_hys_sw[2] << 4) |
-				     (dphy->dphy_param->lp_escclk_pol_sel[2] << 11));
+				     (dphy->dphy_param.lp_hys_sw[2] << 4) |
+				     (dphy->dphy_param.lp_escclk_pol_sel[2] << 11));
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_ANA_CON7, 0x40);
 			regmap_write(samsung->regmap, RX_COMBO_S0D2_DESKEW_CON2,
-				     dphy->dphy_param->skew_data_cal_clk[2]);
+				     dphy->dphy_param.skew_data_cal_clk[2]);
 		}
 		if (sensor->lanes > 0x03) {
 			regmap_write(samsung->regmap, RX_S0D3_GNR_CON1, 0x1450);
 			regmap_write(samsung->regmap, RX_S0D3_ANA_CON1, 0x8000);
 			regmap_write(samsung->regmap, RX_S0D3_ANA_CON2, dlysel |
-				     dphy->dphy_param->data_hs_term_sel[3]);
+				     dphy->dphy_param.data_hs_term_sel[3]);
 			regmap_write(samsung->regmap, RX_S0D3_ANA_CON3, 0x0600 |
-				     (dphy->dphy_param->lp_hys_sw[3] << 4) |
-				     (dphy->dphy_param->lp_escclk_pol_sel[3] << 11));
+				     (dphy->dphy_param.lp_hys_sw[3] << 4) |
+				     (dphy->dphy_param.lp_escclk_pol_sel[3] << 11));
 			regmap_write(samsung->regmap, RX_S0D3_DESKEW_CON2,
-				     dphy->dphy_param->skew_data_cal_clk[3]);
+				     dphy->dphy_param.skew_data_cal_clk[3]);
 		}
 	} else {
 		if (sensor->lanes > 0x00) {
