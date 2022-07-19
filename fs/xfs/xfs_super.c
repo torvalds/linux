@@ -1967,11 +1967,19 @@ xfs_init_caches(void)
 {
 	int		error;
 
+	xfs_buf_cache = kmem_cache_create("xfs_buf", sizeof(struct xfs_buf), 0,
+					 SLAB_HWCACHE_ALIGN |
+					 SLAB_RECLAIM_ACCOUNT |
+					 SLAB_MEM_SPREAD,
+					 NULL);
+	if (!xfs_buf_cache)
+		goto out;
+
 	xfs_log_ticket_cache = kmem_cache_create("xfs_log_ticket",
 						sizeof(struct xlog_ticket),
 						0, 0, NULL);
 	if (!xfs_log_ticket_cache)
-		goto out;
+		goto out_destroy_buf_cache;
 
 	error = xfs_btree_init_cur_caches();
 	if (error)
@@ -2145,6 +2153,8 @@ xfs_init_caches(void)
 	xfs_btree_destroy_cur_caches();
  out_destroy_log_ticket_cache:
 	kmem_cache_destroy(xfs_log_ticket_cache);
+ out_destroy_buf_cache:
+	kmem_cache_destroy(xfs_buf_cache);
  out:
 	return -ENOMEM;
 }
@@ -2178,6 +2188,7 @@ xfs_destroy_caches(void)
 	xfs_defer_destroy_item_caches();
 	xfs_btree_destroy_cur_caches();
 	kmem_cache_destroy(xfs_log_ticket_cache);
+	kmem_cache_destroy(xfs_buf_cache);
 }
 
 STATIC int __init
@@ -2283,13 +2294,9 @@ init_xfs_fs(void)
 	if (error)
 		goto out_destroy_wq;
 
-	error = xfs_buf_init();
-	if (error)
-		goto out_mru_cache_uninit;
-
 	error = xfs_init_procfs();
 	if (error)
-		goto out_buf_terminate;
+		goto out_mru_cache_uninit;
 
 	error = xfs_sysctl_register();
 	if (error)
@@ -2346,8 +2353,6 @@ init_xfs_fs(void)
 	xfs_sysctl_unregister();
  out_cleanup_procfs:
 	xfs_cleanup_procfs();
- out_buf_terminate:
-	xfs_buf_terminate();
  out_mru_cache_uninit:
 	xfs_mru_cache_uninit();
  out_destroy_wq:
@@ -2373,7 +2378,6 @@ exit_xfs_fs(void)
 	kset_unregister(xfs_kset);
 	xfs_sysctl_unregister();
 	xfs_cleanup_procfs();
-	xfs_buf_terminate();
 	xfs_mru_cache_uninit();
 	xfs_destroy_workqueues();
 	xfs_destroy_caches();

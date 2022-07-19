@@ -15,6 +15,8 @@
 #include <linux/uio.h>
 #include <linux/list_lru.h>
 
+extern struct kmem_cache *xfs_buf_cache;
+
 /*
  *	Base types
  */
@@ -306,10 +308,6 @@ extern bool xfs_buf_delwri_queue(struct xfs_buf *, struct list_head *);
 extern int xfs_buf_delwri_submit(struct list_head *);
 extern int xfs_buf_delwri_submit_nowait(struct list_head *);
 extern int xfs_buf_delwri_pushbuf(struct xfs_buf *, struct list_head *);
-
-/* Buffer Daemon Setup Routines */
-extern int xfs_buf_init(void);
-extern void xfs_buf_terminate(void);
 
 static inline xfs_daddr_t xfs_buf_daddr(struct xfs_buf *bp)
 {
