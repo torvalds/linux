@@ -457,7 +457,6 @@ struct dup_block_ctx {
  *                 the user can map.
  * @lfsr_rand_seeds: array of MME ACC random seeds to set.
  * @hw_queues_lock: protects the H/W queues from concurrent access.
- * @kdma_lock: protects the KDMA engine from concurrent access.
  * @scratchpad_kernel_address: general purpose PAGE_SIZE contiguous memory,
  *                             this memory region should be write-only.
  *                             currently used for HBW QMAN writes which is
@@ -509,7 +508,6 @@ struct dup_block_ctx {
  * @flush_db_fifo: flag to force flush DB FIFO after a write.
  * @hbm_cfg: HBM subsystem settings
  * @hw_queues_lock_mutex: used by simulator instead of hw_queues_lock.
- * @kdma_lock_mutex: used by simulator instead of kdma_lock.
  */
 struct gaudi2_device {
 	int (*cpucp_info_get)(struct hl_device *hdev);
@@ -518,7 +516,6 @@ struct gaudi2_device {
 	int				lfsr_rand_seeds[MME_NUM_OF_LFSR_SEEDS];
 
 	spinlock_t			hw_queues_lock;
-	spinlock_t			kdma_lock;
 
 	void				*scratchpad_kernel_address;
 	dma_addr_t			scratchpad_bus_address;

@@ -3010,7 +3010,6 @@ static int gaudi2_sw_init(struct hl_device *hdev)
 	}
 
 	spin_lock_init(&gaudi2->hw_queues_lock);
-	spin_lock_init(&gaudi2->kdma_lock);
 
 	gaudi2->scratchpad_kernel_address = hl_asic_dma_alloc_coherent(hdev, PAGE_SIZE,
 							&gaudi2->scratchpad_bus_address,
@@ -6464,22 +6463,6 @@ static void gaudi2_hw_queues_unlock(struct hl_device *hdev)
 	spin_unlock(&gaudi2->hw_queues_lock);
 }
 
-static void gaudi2_kdma_lock(struct hl_device *hdev, int dcore_id)
-	__acquires(&gaudi2->kdma_lock)
-{
-	struct gaudi2_device *gaudi2 = hdev->asic_specific;
-
-	spin_lock(&gaudi2->kdma_lock);
-}
-
-static void gaudi2_kdma_unlock(struct hl_device *hdev, int dcore_id)
-	__releases(&gaudi2->kdma_lock)
-{
-	struct gaudi2_device *gaudi2 = hdev->asic_specific;
-
-	spin_unlock(&gaudi2->kdma_lock);
-}
-
 static u32 gaudi2_get_pci_id(struct hl_device *hdev)
 {
 	return hdev->pdev->device;
@@ -9122,8 +9105,6 @@ static int gaudi2_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size, v
 		goto unreserve_va;
 	}
 
-	hdev->asic_funcs->kdma_lock(hdev, 0);
-
 	/* Enable MMU on KDMA */
 	gaudi2_kdma_set_mmbp_asid(hdev, false, ctx->asid);
 
@@ -9150,8 +9131,6 @@ static int gaudi2_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size, v
 	}
 
 	gaudi2_kdma_set_mmbp_asid(hdev, true, HL_KERNEL_ASID_ID);
-
-	hdev->asic_funcs->kdma_unlock(hdev, 0);
 
 	mutex_lock(&ctx->mmu_lock);
 	hl_mmu_unmap_contiguous(ctx, reserved_va_base, SZ_2M);
@@ -9951,8 +9930,6 @@ static const struct hl_asic_funcs gaudi2_funcs = {
 	.compute_reset_late_init = gaudi2_compute_reset_late_init,
 	.hw_queues_lock = gaudi2_hw_queues_lock,
 	.hw_queues_unlock = gaudi2_hw_queues_unlock,
-	.kdma_lock = gaudi2_kdma_lock,
-	.kdma_unlock = gaudi2_kdma_unlock,
 	.get_pci_id = gaudi2_get_pci_id,
 	.get_eeprom_data = gaudi2_get_eeprom_data,
 	.get_monitor_dump = gaudi2_get_monitor_dump,
