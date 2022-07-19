@@ -91,26 +91,11 @@ do {									\
  * be able to repair:
  */
 
-enum {
-	BCH_FSCK_OK			= 0,
-	BCH_FSCK_ERRORS_NOT_FIXED	= 1,
-	BCH_FSCK_REPAIR_UNIMPLEMENTED	= 2,
-	BCH_FSCK_REPAIR_IMPOSSIBLE	= 3,
-	BCH_FSCK_UNKNOWN_VERSION	= 4,
-};
-
 enum fsck_err_opts {
 	FSCK_OPT_EXIT,
 	FSCK_OPT_YES,
 	FSCK_OPT_NO,
 	FSCK_OPT_ASK,
-};
-
-enum fsck_err_ret {
-	FSCK_ERR_IGNORE	= 0,
-	FSCK_ERR_FIX	= 1,
-	FSCK_ERR_EXIT	= 2,
-	FSCK_ERR_START_TOPOLOGY_REPAIR = 3,
 };
 
 struct fsck_err_state {
@@ -127,21 +112,21 @@ struct fsck_err_state {
 #define FSCK_NO_RATELIMIT	(1 << 3)
 
 __printf(3, 4) __cold
-enum fsck_err_ret bch2_fsck_err(struct bch_fs *,
-				unsigned, const char *, ...);
+int bch2_fsck_err(struct bch_fs *, unsigned, const char *, ...);
 void bch2_flush_fsck_errs(struct bch_fs *);
 
 #define __fsck_err(c, _flags, msg, ...)					\
 ({									\
-	int _fix = bch2_fsck_err(c, _flags, msg, ##__VA_ARGS__);\
+	int _ret = bch2_fsck_err(c, _flags, msg, ##__VA_ARGS__);	\
 									\
-	if (_fix == FSCK_ERR_EXIT) {					\
+	if (_ret != -BCH_ERR_fsck_fix &&				\
+	    _ret != -BCH_ERR_fsck_ignore) {				\
 		bch_err(c, "Unable to continue, halting");		\
-		ret = BCH_FSCK_ERRORS_NOT_FIXED;			\
+		ret = _ret;						\
 		goto fsck_err;						\
 	}								\
 									\
-	_fix;								\
+	_ret == -BCH_ERR_fsck_fix;					\
 })
 
 /* These macros return true if error should be fixed: */

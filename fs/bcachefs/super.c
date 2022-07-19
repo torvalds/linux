@@ -927,31 +927,10 @@ out:
 	up_write(&c->state_lock);
 	return ret;
 err:
-	switch (ret) {
-	case BCH_FSCK_ERRORS_NOT_FIXED:
-		bch_err(c, "filesystem contains errors: please report this to the developers");
-		pr_cont("mount with -o fix_errors to repair\n");
-		break;
-	case BCH_FSCK_REPAIR_UNIMPLEMENTED:
-		bch_err(c, "filesystem contains errors: please report this to the developers");
-		pr_cont("repair unimplemented: inform the developers so that it can be added\n");
-		break;
-	case BCH_FSCK_REPAIR_IMPOSSIBLE:
-		bch_err(c, "filesystem contains errors, but repair impossible");
-		break;
-	case BCH_FSCK_UNKNOWN_VERSION:
-		bch_err(c, "unknown metadata version");
-		break;
-	case -ENOMEM:
-		bch_err(c, "cannot allocate memory");
-		break;
-	case -EIO:
-		bch_err(c, "IO error");
-		break;
-	}
+	bch_err(c, "error starting filesystem: %s", bch2_err_str(ret));
 
-	if (ret >= 0)
-		ret = -EIO;
+	if (ret < -BCH_ERR_START)
+		ret = -EINVAL;
 	goto out;
 }
 

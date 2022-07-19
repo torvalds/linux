@@ -98,7 +98,7 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 				  buf1.buf, buf2.buf) &&
 			    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags)) {
 				bch_info(c, "Halting mark and sweep to start topology repair pass");
-				ret = FSCK_ERR_START_TOPOLOGY_REPAIR;
+				ret = -BCH_ERR_need_topology_repair;
 				goto err;
 			} else {
 				set_bit(BCH_FS_INITIAL_GC_UNFIXED, &c->flags);
@@ -126,7 +126,7 @@ static int bch2_gc_check_topology(struct bch_fs *c,
 			  buf1.buf, buf2.buf) &&
 		    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags)) {
 			bch_info(c, "Halting mark and sweep to start topology repair pass");
-			ret = FSCK_ERR_START_TOPOLOGY_REPAIR;
+			ret = -BCH_ERR_need_topology_repair;
 			goto err;
 		} else {
 			set_bit(BCH_FS_INITIAL_GC_UNFIXED, &c->flags);
@@ -537,7 +537,7 @@ static int bch2_repair_topology(struct bch_fs *c)
 
 		if (ret == DROP_THIS_NODE) {
 			bch_err(c, "empty btree root - repair unimplemented");
-			ret = FSCK_ERR_EXIT;
+			ret = -BCH_ERR_fsck_repair_unimplemented;
 		}
 	}
 
@@ -960,7 +960,7 @@ static int bch2_gc_btree_init_recurse(struct btree_trans *trans, struct btree *b
 					  (printbuf_reset(&buf),
 					   bch2_bkey_val_to_text(&buf, c, bkey_i_to_s_c(cur.k)), buf.buf)) &&
 				    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags)) {
-					ret = FSCK_ERR_START_TOPOLOGY_REPAIR;
+					ret = -BCH_ERR_need_topology_repair;
 					bch_info(c, "Halting mark and sweep to start topology repair pass");
 					goto fsck_err;
 				} else {
@@ -1013,7 +1013,7 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 	if (mustfix_fsck_err_on(bpos_cmp(b->data->min_key, POS_MIN), c,
 			"btree root with incorrect min_key: %s", buf.buf)) {
 		bch_err(c, "repair unimplemented");
-		ret = FSCK_ERR_EXIT;
+		ret = -BCH_ERR_fsck_repair_unimplemented;
 		goto fsck_err;
 	}
 
@@ -1022,7 +1022,7 @@ static int bch2_gc_btree_init(struct btree_trans *trans,
 	if (mustfix_fsck_err_on(bpos_cmp(b->data->max_key, SPOS_MAX), c,
 			"btree root with incorrect max_key: %s", buf.buf)) {
 		bch_err(c, "repair unimplemented");
-		ret = FSCK_ERR_EXIT;
+		ret = -BCH_ERR_fsck_repair_unimplemented;
 		goto fsck_err;
 	}
 
@@ -1777,7 +1777,7 @@ again:
 
 	ret = bch2_gc_btrees(c, initial, metadata_only);
 
-	if (ret == FSCK_ERR_START_TOPOLOGY_REPAIR &&
+	if (ret == -BCH_ERR_need_topology_repair &&
 	    !test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags) &&
 	    !test_bit(BCH_FS_INITIAL_GC_DONE, &c->flags)) {
 		set_bit(BCH_FS_NEED_ANOTHER_GC, &c->flags);
@@ -1785,8 +1785,8 @@ again:
 		ret = 0;
 	}
 
-	if (ret == FSCK_ERR_START_TOPOLOGY_REPAIR)
-		ret = FSCK_ERR_EXIT;
+	if (ret == -BCH_ERR_need_topology_repair)
+		ret = -BCH_ERR_fsck_errors_not_fixed;
 
 	if (ret)
 		goto out;

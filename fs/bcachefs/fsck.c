@@ -838,15 +838,14 @@ bad_hash:
 		     "hashed to %llu\n%s",
 		     bch2_btree_ids[desc.btree_id], hash_k.k->p.inode, hash_k.k->p.offset, hash,
 		     (printbuf_reset(&buf),
-		      bch2_bkey_val_to_text(&buf, c, hash_k), buf.buf)) == FSCK_ERR_IGNORE)
-		return 0;
-
-	ret = hash_redo_key(trans, desc, hash_info, k_iter, hash_k);
-	if (ret) {
-		bch_err(c, "hash_redo_key err %s", bch2_err_str(ret));
-		return ret;
+		      bch2_bkey_val_to_text(&buf, c, hash_k), buf.buf))) {
+		ret = hash_redo_key(trans, desc, hash_info, k_iter, hash_k);
+		if (ret) {
+			bch_err(c, "hash_redo_key err %s", bch2_err_str(ret));
+			return ret;
+		}
+		ret = -BCH_ERR_transaction_restart_nested;
 	}
-	ret = -BCH_ERR_transaction_restart_nested;
 fsck_err:
 	goto out;
 }
@@ -1137,14 +1136,13 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 		if (fsck_err_on(!(i->inode.bi_flags & BCH_INODE_I_SECTORS_DIRTY), c,
 			    "inode %llu:%u has incorrect i_sectors: got %llu, should be %llu",
 			    w->cur_inum, i->snapshot,
-			    i->inode.bi_sectors, i->count) == FSCK_ERR_IGNORE)
-			continue;
-
-		i->inode.bi_sectors = i->count;
-		ret = write_inode(trans, &i->inode, i->snapshot);
-		if (ret)
-			break;
-		ret2 = -BCH_ERR_transaction_restart_nested;
+			    i->inode.bi_sectors, i->count)) {
+			i->inode.bi_sectors = i->count;
+			ret = write_inode(trans, &i->inode, i->snapshot);
+			if (ret)
+				break;
+			ret2 = -BCH_ERR_transaction_restart_nested;
+		}
 	}
 fsck_err:
 	if (ret)

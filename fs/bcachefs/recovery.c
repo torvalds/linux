@@ -1158,7 +1158,7 @@ int bch2_fs_recovery(struct bch_fs *c)
 use_clean:
 		if (!clean) {
 			bch_err(c, "no superblock clean section found");
-			ret = BCH_FSCK_REPAIR_IMPOSSIBLE;
+			ret = -BCH_ERR_fsck_repair_impossible;
 			goto err;
 
 		}

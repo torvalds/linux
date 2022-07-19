@@ -196,7 +196,7 @@ static void journal_entry_null_range(void *start, void *end)
 		bch_err(c, "corrupt metadata before write:\n"		\
 			msg, ##__VA_ARGS__);				\
 		if (bch2_fs_inconsistent(c)) {				\
-			ret = BCH_FSCK_ERRORS_NOT_FIXED;		\
+			ret = -BCH_ERR_fsck_errors_not_fixed;		\
 			goto fsck_err;					\
 		}							\
 		break;							\
@@ -857,7 +857,7 @@ reread:
 				    end - offset, sectors_read,
 				    READ);
 		switch (ret) {
-		case BCH_FSCK_OK:
+		case 0:
 			sectors = vstruct_sectors(j, c->block_bits);
 			break;
 		case JOURNAL_ENTRY_REREAD:

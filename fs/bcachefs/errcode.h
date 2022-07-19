@@ -7,7 +7,6 @@
 	x(0,			freelist_empty)				\
 	x(freelist_empty,	no_buckets_found)			\
 	x(0,			insufficient_devices)			\
-	x(0,			need_snapshot_cleanup)			\
 	x(0,			transaction_restart)			\
 	x(transaction_restart,	transaction_restart_fault_inject)	\
 	x(transaction_restart,	transaction_restart_relock)		\
@@ -30,7 +29,15 @@
 	x(transaction_restart,	transaction_restart_nested)		\
 	x(0,			lock_fail_node_reused)			\
 	x(0,			lock_fail_root_changed)			\
-	x(0,			journal_reclaim_would_deadlock)
+	x(0,			journal_reclaim_would_deadlock)		\
+	x(0,			fsck)					\
+	x(fsck,			fsck_fix)				\
+	x(fsck,			fsck_ignore)				\
+	x(fsck,			fsck_errors_not_fixed)			\
+	x(fsck,			fsck_repair_unimplemented)		\
+	x(fsck,			fsck_repair_impossible)			\
+	x(0,			need_snapshot_cleanup)			\
+	x(0,			need_topology_repair)
 
 enum bch_errcode {
 	BCH_ERR_START		= 2048,

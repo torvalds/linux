@@ -68,8 +68,7 @@ void bch2_io_error(struct bch_dev *ca)
 #include "tools-util.h"
 #endif
 
-enum fsck_err_ret bch2_fsck_err(struct bch_fs *c, unsigned flags,
-				const char *fmt, ...)
+int bch2_fsck_err(struct bch_fs *c, unsigned flags, const char *fmt, ...)
 {
 	struct fsck_err_state *s = NULL;
 	va_list args;
@@ -83,10 +82,10 @@ enum fsck_err_ret bch2_fsck_err(struct bch_fs *c, unsigned flags,
 
 		if (c->opts.errors == BCH_ON_ERROR_continue) {
 			bch_err(c, "fixing");
-			return FSCK_ERR_FIX;
+			return -BCH_ERR_fsck_fix;
 		} else {
 			bch2_inconsistent_error(c);
-			return FSCK_ERR_EXIT;
+			return -BCH_ERR_fsck_errors_not_fixed;
 		}
 	}
 
@@ -156,14 +155,14 @@ print:
 
 	if (fix) {
 		set_bit(BCH_FS_ERRORS_FIXED, &c->flags);
-		return FSCK_ERR_FIX;
+		return -BCH_ERR_fsck_fix;
 	} else {
 		set_bit(BCH_FS_ERRORS_NOT_FIXED, &c->flags);
 		set_bit(BCH_FS_ERROR, &c->flags);
 		return c->opts.fix_errors == FSCK_OPT_EXIT ||
 			!(flags & FSCK_CAN_IGNORE)
-			? FSCK_ERR_EXIT
-			: FSCK_ERR_IGNORE;
+			? -BCH_ERR_fsck_errors_not_fixed
+			: -BCH_ERR_fsck_ignore;
 	}
 }
 
