@@ -67,9 +67,16 @@ LDFLAGS := -s
 
 all: nolibc-test
 
-nolibc-test: nolibc-test.c
+sysroot: sysroot/$(ARCH)/include
+
+sysroot/$(ARCH)/include:
+	$(QUIET_MKDIR)mkdir -p sysroot
+	$(Q)$(MAKE) -C ../../../include/nolibc ARCH=$(ARCH) OUTPUT=$(CURDIR)/sysroot/ headers_standalone
+	$(Q)mv sysroot/sysroot sysroot/$(ARCH)
+
+nolibc-test: nolibc-test.c sysroot/$(ARCH)/include
 	$(QUIET_CC)$(CC) $(CFLAGS) $(LDFLAGS) -o $@ \
-	  -nostdlib -static -include ../../../include/nolibc/nolibc.h $^ -lgcc
+	  -nostdlib -static -Isysroot/$(ARCH)/include $< -lgcc
 
 initramfs: nolibc-test
 	$(QUIET_MKDIR)mkdir -p initramfs
@@ -93,6 +100,8 @@ rerun:
 	$(Q)grep -w FAIL "$(CURDIR)/run.out" && echo "See all results in $(CURDIR)/run.out" || echo "$$(grep -c ^[0-9].*OK $(CURDIR)/run.out) test(s) passed."
 
 clean:
+	$(call QUIET_CLEAN, sysroot)
+	$(Q)rm -rf sysroot
 	$(call QUIET_CLEAN, nolibc-test)
 	$(Q)rm -f nolibc-test
 	$(call QUIET_CLEAN, initramfs)
