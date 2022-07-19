@@ -1292,6 +1292,34 @@ done:
 	return 0;
 }
 
+static void vmxnet3_get_channels(struct net_device *netdev,
+				 struct ethtool_channels *ec)
+{
+	struct vmxnet3_adapter *adapter = netdev_priv(netdev);
+
+	if (IS_ENABLED(CONFIG_PCI_MSI) && adapter->intr.type == VMXNET3_IT_MSIX) {
+		if (adapter->share_intr == VMXNET3_INTR_BUDDYSHARE) {
+			ec->combined_count = adapter->num_tx_queues;
+		} else {
+			ec->rx_count = adapter->num_rx_queues;
+			ec->tx_count =
+				adapter->share_intr == VMXNET3_INTR_TXSHARE ?
+					       1 : adapter->num_tx_queues;
+		}
+	} else {
+		ec->combined_count = 1;
+	}
+
+	ec->other_count = 1;
+
+	/* Number of interrupts cannot be changed on the fly */
+	/* Just set maximums to actual values */
+	ec->max_rx = ec->rx_count;
+	ec->max_tx = ec->tx_count;
+	ec->max_combined = ec->combined_count;
+	ec->max_other = ec->other_count;
+}
+
 static const struct ethtool_ops vmxnet3_ethtool_ops = {
 	.supported_coalesce_params = ETHTOOL_COALESCE_RX_USECS |
 				     ETHTOOL_COALESCE_MAX_FRAMES |
@@ -1317,6 +1345,7 @@ static const struct ethtool_ops vmxnet3_ethtool_ops = {
 	.set_rxfh          = vmxnet3_set_rss,
 #endif
 	.get_link_ksettings = vmxnet3_get_link_ksettings,
+	.get_channels      = vmxnet3_get_channels,
 };
 
 void vmxnet3_set_ethtool_ops(struct net_device *netdev)
