@@ -85,6 +85,7 @@ struct sensor {
 	struct sensor_mode	*cur_mode;
 	struct rkmodule_bus_config bus_config;
 	struct sensor_crop	crop;
+	struct rkmodule_csi_dphy_param dphy_param;
 	u32			module_index;
 	const char		*module_facing;
 	const char		*module_name;
@@ -721,15 +722,14 @@ end_set_reg:
 		break;
 	case RKMODULE_SET_CSI_DPHY_PARAM:
 		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
-		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
-			rk3588_dcphy_param = *dphy_param;
+		if (dphy_param->vendor == PHY_VENDOR_SAMSUNG)
+			sensor->dphy_param = *dphy_param;
 		dev_dbg(&sensor->client->dev,
 			"sensor set dphy param\n");
 		break;
 	case RKMODULE_GET_CSI_DPHY_PARAM:
 		dphy_param = (struct rkmodule_csi_dphy_param *)arg;
-		if (dphy_param->vendor == rk3588_dcphy_param.vendor)
-			*dphy_param = rk3588_dcphy_param;
+		*dphy_param = sensor->dphy_param;
 		dev_dbg(&sensor->client->dev,
 			"sensor get dphy param\n");
 	case RKMODULE_SET_SENSOR_INFOS:
@@ -1383,6 +1383,7 @@ static int sensor_probe(struct i2c_client *client,
 	sensor->is_link = false;
 	sensor->sync_mode = NO_SYNC_MODE;
 	sensor->crop.is_enable = false;
+	sensor->dphy_param = rk3588_dcphy_param;
 	sd = &sensor->subdev;
 	v4l2_i2c_subdev_init(sd, client, &sensor_subdev_ops);
 	ret = sensor_initialize_controls(sensor);
