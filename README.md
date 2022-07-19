@@ -65,6 +65,6 @@ Driver config can be merged into current target pre-configured kernel using a sc
 ```bash
 export ARCH=arm
 export CROSS_COMPILE=arm-linux-gnu-
-scrips/kconfig/merge_config.sh -n .config stm_iio_configs/lsm6dsm_defconfig
+scripts/kconfig/merge_config.sh -n .config stm_iio_configs/lsm6dsm_defconfig
 ```
 
