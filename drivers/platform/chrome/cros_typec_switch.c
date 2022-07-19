@@ -9,10 +9,7 @@
 #include <linux/acpi.h>
 #include <linux/module.h>
 #include <linux/platform_data/cros_ec_commands.h>
-#include <linux/platform_data/cros_ec_proto.h>
 #include <linux/platform_device.h>
-#include <linux/usb/typec_altmode.h>
-#include <linux/usb/typec_dp.h>
 #include <linux/usb/typec_retimer.h>
 
 #define DRV_NAME "cros-typec-switch"
@@ -31,60 +28,9 @@ struct cros_typec_switch_data {
 	struct cros_typec_port *ports[EC_USB_PD_MAX_PORTS];
 };
 
-static int cros_typec_cmd_mux_set(struct cros_typec_switch_data *sdata, int port_num, u8 index,
-				  u8 state)
-{
-	struct typec_usb_mux_set params = {
-		.mux_index = index,
-		.mux_flags = state,
-	};
-
-	struct ec_params_typec_control req = {
-		.port = port_num,
-		.command = TYPEC_CONTROL_COMMAND_USB_MUX_SET,
-		.mux_params = params,
-	};
-
-	return cros_ec_command(sdata->ec, 0, EC_CMD_TYPEC_CONTROL, &req,
-			       sizeof(req), NULL, 0);
-}
-
-static int cros_typec_get_mux_state(unsigned long mode, struct typec_altmode *alt)
-{
-	int ret = -EOPNOTSUPP;
-
-	if (mode == TYPEC_STATE_SAFE)
-		ret = USB_PD_MUX_SAFE_MODE;
-	else if (mode == TYPEC_STATE_USB)
-		ret = USB_PD_MUX_USB_ENABLED;
-	else if (alt && alt->svid == USB_TYPEC_DP_SID)
-		ret = USB_PD_MUX_DP_ENABLED;
-
-	return ret;
-}
-
-/*
- * The Chrome EC treats both mode-switches and retimers as "muxes" for the purposes of the
- * host command API. This common function configures and verifies the retimer/mode-switch
- * according to the provided setting.
- */
-static int cros_typec_configure_mux(struct cros_typec_switch_data *sdata, int port_num, int index,
-				    unsigned long mode, struct typec_altmode *alt)
-{
-	int ret = cros_typec_get_mux_state(mode, alt);
-
-	if (ret < 0)
-		return ret;
-
-	return cros_typec_cmd_mux_set(sdata, port_num, index, (u8)ret);
-}
-
 static int cros_typec_retimer_set(struct typec_retimer *retimer, struct typec_retimer_state *state)
 {
-	struct cros_typec_port *port = typec_retimer_get_drvdata(retimer);
-
-	/* Retimers have index 1. */
-	return cros_typec_configure_mux(port->sdata, port->port_num, 1, state->mode, state->alt);
+	return 0;
 }
 
 static void cros_typec_unregister_switches(struct cros_typec_switch_data *sdata)
