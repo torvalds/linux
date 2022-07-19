@@ -158,10 +158,8 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	low_irq = platform_get_irq_byname(pdev, "IRQ_HOTMON_LOW");
-	if (low_irq < 0) {
-		dev_err(dev, "Get IRQ_HOTMON_LOW failed\n");
+	if (low_irq < 0)
 		return low_irq;
-	}
 
 	ret = devm_request_threaded_irq(dev, low_irq, NULL,
 		prcmu_low_irq_handler, IRQF_NO_SUSPEND | IRQF_ONESHOT,
@@ -172,10 +170,8 @@ static int db8500_thermal_probe(struct platform_device *pdev)
 	}
 
 	high_irq = platform_get_irq_byname(pdev, "IRQ_HOTMON_HIGH");
-	if (high_irq < 0) {
-		dev_err(dev, "Get IRQ_HOTMON_HIGH failed\n");
+	if (high_irq < 0)
 		return high_irq;
-	}
 
 	ret = devm_request_threaded_irq(dev, high_irq, NULL,
 		prcmu_high_irq_handler, IRQF_NO_SUSPEND | IRQF_ONESHOT,
