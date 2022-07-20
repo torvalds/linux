@@ -228,7 +228,6 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 {
 	struct mtk_vcodec_dev *dev;
 	struct video_device *vfd_enc;
-	struct resource *res;
 	phandle rproc_phandle;
 	enum mtk_vcodec_fw_type fw_type;
 	int ret;
@@ -269,13 +268,6 @@ static int mtk_vcodec_probe(struct platform_device *pdev)
 		devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->reg_base[dev->venc_pdata->core_id])) {
 		ret = PTR_ERR(dev->reg_base[dev->venc_pdata->core_id]);
-		goto err_res;
-	}
-
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (res == NULL) {
-		dev_err(&pdev->dev, "failed to get irq resource");
-		ret = -ENOENT;
 		goto err_res;
 	}
 
