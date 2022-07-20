@@ -2493,7 +2493,6 @@ static int gaudi2_early_init(struct hl_device *hdev)
 	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	struct pci_dev *pdev = hdev->pdev;
 	resource_size_t pci_bar_size;
-	u32 fw_boot_status;
 	int rc;
 
 	rc = gaudi2_set_fixed_properties(hdev);
@@ -2521,22 +2520,14 @@ static int gaudi2_early_init(struct hl_device *hdev)
 	prop->dram_pci_bar_size = pci_resource_len(pdev, DRAM_BAR_ID);
 	hdev->dram_pci_bar_start = pci_resource_start(pdev, DRAM_BAR_ID);
 
-	/* If FW security is enabled at this point it means no access to ELBI */
-	if (hdev->asic_prop.fw_security_enabled) {
-		hdev->asic_prop.iatu_done_by_fw = true;
-		goto pci_init;
-	}
-
-	rc = hl_pci_elbi_read(hdev, CFG_BASE + mmCPU_BOOT_DEV_STS0, &fw_boot_status);
-	if (rc)
-		goto free_queue_props;
-
-	/* Check whether FW is configuring iATU */
-	if ((fw_boot_status & CPU_BOOT_DEV_STS0_ENABLED) &&
-			(fw_boot_status & CPU_BOOT_DEV_STS0_FW_IATU_CONF_EN))
+	/*
+	 * Only in pldm driver config iATU
+	 */
+	if (hdev->pldm)
+		hdev->asic_prop.iatu_done_by_fw = false;
+	else
 		hdev->asic_prop.iatu_done_by_fw = true;
 
-pci_init:
 	rc = hl_pci_init(hdev);
 	if (rc)
 		goto free_queue_props;
