@@ -371,6 +371,15 @@ static inline int bkey_err(struct bkey_s_c k)
 	return PTR_ERR_OR_ZERO(k.k);
 }
 
+static inline struct bkey_s_c bch2_btree_iter_peek_prev_type(struct btree_iter *iter,
+							     unsigned flags)
+{
+	BUG_ON(flags & BTREE_ITER_ALL_LEVELS);
+
+	return  flags & BTREE_ITER_SLOTS      ? bch2_btree_iter_peek_slot(iter) :
+						bch2_btree_iter_peek_prev(iter);
+}
+
 static inline struct bkey_s_c bch2_btree_iter_peek_type(struct btree_iter *iter,
 							unsigned flags)
 {
@@ -477,7 +486,37 @@ __bch2_btree_iter_peek_and_restart(struct btree_trans *trans,
 			continue;					\
 		if (_ret)						\
 			break;						\
-		bch2_btree_iter_advance(&(_iter));			\
+		if (!bch2_btree_iter_advance(&(_iter)))			\
+			break;						\
+	}								\
+									\
+	bch2_trans_iter_exit((_trans), &(_iter));			\
+	_ret;								\
+})
+
+#define for_each_btree_key_reverse(_trans, _iter, _btree_id,		\
+				   _start, _flags, _k, _do)		\
+({									\
+	int _ret = 0;							\
+									\
+	bch2_trans_iter_init((_trans), &(_iter), (_btree_id),		\
+			     (_start), (_flags));			\
+									\
+	while (1) {							\
+		bch2_trans_begin(_trans);				\
+		(_k) = bch2_btree_iter_peek_prev_type(&(_iter), (_flags));\
+		if (!(_k).k) {						\
+			_ret = 0;					\
+			break;						\
+		}							\
+									\
+		_ret = bkey_err(_k) ?: (_do);				\
+		if (bch2_err_matches(_ret, BCH_ERR_transaction_restart))\
+			continue;					\
+		if (_ret)						\
+			break;						\
+		if (!bch2_btree_iter_rewind(&(_iter)))			\
+			break;						\
 	}								\
 									\
 	bch2_trans_iter_exit((_trans), &(_iter));			\
