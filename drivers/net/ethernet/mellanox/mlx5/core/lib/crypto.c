@@ -14,6 +14,28 @@ enum {
 struct mlx5_crypto_dek_pool {
 	struct mlx5_core_dev *mdev;
 	u32 key_purpose;
+	int num_deks; /* the total number of keys in this pool */
+	int avail_deks; /* the number of available keys in this pool */
+	int in_use_deks; /* the number of being used keys in this pool */
+	struct mutex lock; /* protect the following lists, and the bulks */
+	struct list_head partial_list; /* some of keys are available */
+	struct list_head full_list; /* no available keys */
+};
+
+struct mlx5_crypto_dek_bulk {
+	struct mlx5_core_dev *mdev;
+	int base_obj_id;
+	int avail_start; /* the bit to start search */
+	int num_deks; /* the total number of keys in a bulk */
+	int avail_deks; /* the number of keys available, with need_sync bit 0 */
+	int in_use_deks; /* the number of keys being used, with in_use bit 1 */
+	struct list_head entry;
+
+	/* 0: not being used by any user, 1: otherwise */
+	unsigned long *in_use;
+
+	/* The bits are set when they are used, and initialized to 0 */
+	unsigned long *need_sync;
 };
 
 struct mlx5_crypto_dek_priv {
@@ -22,6 +44,7 @@ struct mlx5_crypto_dek_priv {
 };
 
 struct mlx5_crypto_dek {
+	struct mlx5_crypto_dek_bulk *bulk;
 	u32 obj_id;
 };
 
@@ -227,13 +250,166 @@ void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id)
 	mlx5_crypto_destroy_dek_key(mdev, key_id);
 }
 
+static struct mlx5_crypto_dek_bulk *
+mlx5_crypto_dek_bulk_create(struct mlx5_crypto_dek_pool *pool)
+{
+	struct mlx5_crypto_dek_priv *dek_priv = pool->mdev->mlx5e_res.dek_priv;
+	struct mlx5_core_dev *mdev = pool->mdev;
+	struct mlx5_crypto_dek_bulk *bulk;
+	int num_deks, base_obj_id;
+	int err;
+
+	bulk = kzalloc(sizeof(*bulk), GFP_KERNEL);
+	if (!bulk)
+		return ERR_PTR(-ENOMEM);
+
+	num_deks = 1 << dek_priv->log_dek_obj_range;
+	bulk->need_sync = bitmap_zalloc(num_deks, GFP_KERNEL);
+	if (!bulk->need_sync) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+
+	bulk->in_use = bitmap_zalloc(num_deks, GFP_KERNEL);
+	if (!bulk->in_use) {
+		err = -ENOMEM;
+		goto err_out;
+	}
+
+	err = mlx5_crypto_create_dek_bulk(mdev, pool->key_purpose,
+					  dek_priv->log_dek_obj_range,
+					  &base_obj_id);
+	if (err)
+		goto err_out;
+
+	bulk->base_obj_id = base_obj_id;
+	bulk->num_deks = num_deks;
+	bulk->avail_deks = num_deks;
+	bulk->mdev = mdev;
+
+	return bulk;
+
+err_out:
+	bitmap_free(bulk->in_use);
+	bitmap_free(bulk->need_sync);
+	kfree(bulk);
+	return ERR_PTR(err);
+}
+
+static struct mlx5_crypto_dek_bulk *
+mlx5_crypto_dek_pool_add_bulk(struct mlx5_crypto_dek_pool *pool)
+{
+	struct mlx5_crypto_dek_bulk *bulk;
+
+	bulk = mlx5_crypto_dek_bulk_create(pool);
+	if (IS_ERR(bulk))
+		return bulk;
+
+	pool->avail_deks += bulk->num_deks;
+	pool->num_deks += bulk->num_deks;
+	list_add(&bulk->entry, &pool->partial_list);
+
+	return bulk;
+}
+
+static void mlx5_crypto_dek_bulk_free(struct mlx5_crypto_dek_bulk *bulk)
+{
+	mlx5_crypto_destroy_dek_key(bulk->mdev, bulk->base_obj_id);
+	bitmap_free(bulk->need_sync);
+	bitmap_free(bulk->in_use);
+	kfree(bulk);
+}
+
+static void mlx5_crypto_dek_pool_remove_bulk(struct mlx5_crypto_dek_pool *pool,
+					     struct mlx5_crypto_dek_bulk *bulk)
+{
+	pool->num_deks -= bulk->num_deks;
+	pool->avail_deks -= bulk->avail_deks;
+	pool->in_use_deks -= bulk->in_use_deks;
+	list_del(&bulk->entry);
+	mlx5_crypto_dek_bulk_free(bulk);
+}
+
+static struct mlx5_crypto_dek_bulk *
+mlx5_crypto_dek_pool_pop(struct mlx5_crypto_dek_pool *pool, u32 *obj_offset)
+{
+	struct mlx5_crypto_dek_bulk *bulk;
+	int pos;
+
+	mutex_lock(&pool->lock);
+	bulk = list_first_entry_or_null(&pool->partial_list,
+					struct mlx5_crypto_dek_bulk, entry);
+
+	if (bulk) {
+		pos = find_next_zero_bit(bulk->need_sync, bulk->num_deks,
+					 bulk->avail_start);
+		if (pos == bulk->num_deks) {
+			mlx5_core_err(pool->mdev, "Wrong DEK bulk avail_start.\n");
+			pos = find_first_zero_bit(bulk->need_sync, bulk->num_deks);
+		}
+		WARN_ON(pos == bulk->num_deks);
+	} else {
+		bulk = mlx5_crypto_dek_pool_add_bulk(pool);
+		if (IS_ERR(bulk))
+			goto out;
+		pos = 0;
+	}
+
+	*obj_offset = pos;
+	bitmap_set(bulk->need_sync, pos, 1);
+	bitmap_set(bulk->in_use, pos, 1);
+	bulk->in_use_deks++;
+	bulk->avail_deks--;
+	if (!bulk->avail_deks) {
+		list_move(&bulk->entry, &pool->full_list);
+		bulk->avail_start = bulk->num_deks;
+	} else {
+		bulk->avail_start = pos + 1;
+	}
+	pool->avail_deks--;
+	pool->in_use_deks++;
+
+out:
+	mutex_unlock(&pool->lock);
+	return bulk;
+}
+
+static int mlx5_crypto_dek_pool_push(struct mlx5_crypto_dek_pool *pool,
+				     struct mlx5_crypto_dek *dek)
+{
+	struct mlx5_crypto_dek_bulk *bulk = dek->bulk;
+	int obj_offset;
+	bool old_val;
+	int err = 0;
+
+	mutex_lock(&pool->lock);
+	obj_offset = dek->obj_id - bulk->base_obj_id;
+	old_val = test_and_clear_bit(obj_offset, bulk->in_use);
+	WARN_ON_ONCE(!old_val);
+	if (!old_val) {
+		err = -ENOENT;
+		goto out_free;
+	}
+	pool->in_use_deks--;
+	bulk->in_use_deks--;
+	if (!bulk->avail_deks && !bulk->in_use_deks)
+		mlx5_crypto_dek_pool_remove_bulk(pool, bulk);
+
+out_free:
+	mutex_unlock(&pool->lock);
+	kfree(dek);
+	return err;
+}
+
 struct mlx5_crypto_dek *mlx5_crypto_dek_create(struct mlx5_crypto_dek_pool *dek_pool,
 					       const void *key, u32 sz_bytes)
 {
 	struct mlx5_crypto_dek_priv *dek_priv = dek_pool->mdev->mlx5e_res.dek_priv;
 	struct mlx5_core_dev *mdev = dek_pool->mdev;
 	u32 key_purpose = dek_pool->key_purpose;
+	struct mlx5_crypto_dek_bulk *bulk;
 	struct mlx5_crypto_dek *dek;
+	int obj_offset;
 	int err;
 
 	dek = kzalloc(sizeof(*dek), GFP_KERNEL);
@@ -246,14 +422,20 @@ struct mlx5_crypto_dek *mlx5_crypto_dek_create(struct mlx5_crypto_dek_pool *dek_
 		goto out;
 	}
 
-	err = mlx5_crypto_create_dek_bulk(mdev, key_purpose, 0, &dek->obj_id);
-	if (err)
+	bulk = mlx5_crypto_dek_pool_pop(dek_pool, &obj_offset);
+	if (IS_ERR(bulk)) {
+		err = PTR_ERR(bulk);
 		goto out;
+	}
 
+	dek->bulk = bulk;
+	dek->obj_id = bulk->base_obj_id + obj_offset;
 	err = mlx5_crypto_modify_dek_key(mdev, key, sz_bytes, key_purpose,
-					 dek->obj_id, 0);
-	if (err)
-		mlx5_crypto_destroy_dek_key(mdev, dek->obj_id);
+					 bulk->base_obj_id, obj_offset);
+	if (err) {
+		mlx5_crypto_dek_pool_push(dek_pool, dek);
+		return ERR_PTR(err);
+	}
 
 out:
 	if (err) {
@@ -267,10 +449,15 @@ out:
 void mlx5_crypto_dek_destroy(struct mlx5_crypto_dek_pool *dek_pool,
 			     struct mlx5_crypto_dek *dek)
 {
+	struct mlx5_crypto_dek_priv *dek_priv = dek_pool->mdev->mlx5e_res.dek_priv;
 	struct mlx5_core_dev *mdev = dek_pool->mdev;
 
-	mlx5_crypto_destroy_dek_key(mdev, dek->obj_id);
-	kfree(dek);
+	if (!dek_priv) {
+		mlx5_crypto_destroy_dek_key(mdev, dek->obj_id);
+		kfree(dek);
+	} else {
+		mlx5_crypto_dek_pool_push(dek_pool, dek);
+	}
 }
 
 struct mlx5_crypto_dek_pool *
@@ -285,11 +472,25 @@ mlx5_crypto_dek_pool_create(struct mlx5_core_dev *mdev, int key_purpose)
 	pool->mdev = mdev;
 	pool->key_purpose = key_purpose;
 
+	mutex_init(&pool->lock);
+	INIT_LIST_HEAD(&pool->partial_list);
+	INIT_LIST_HEAD(&pool->full_list);
+
 	return pool;
 }
 
 void mlx5_crypto_dek_pool_destroy(struct mlx5_crypto_dek_pool *pool)
 {
+	struct mlx5_crypto_dek_bulk *bulk, *tmp;
+
+	list_for_each_entry_safe(bulk, tmp, &pool->full_list, entry)
+		mlx5_crypto_dek_pool_remove_bulk(pool, bulk);
+
+	list_for_each_entry_safe(bulk, tmp, &pool->partial_list, entry)
+		mlx5_crypto_dek_pool_remove_bulk(pool, bulk);
+
+	mutex_destroy(&pool->lock);
+
 	kfree(pool);
 }
 
