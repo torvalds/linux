@@ -844,12 +844,12 @@ static int imx6_pcie_start_link(struct dw_pcie *pci)
 	if (ret)
 		goto err_reset_phy;
 
-	if (pci->link_gen == 2) {
-		/* Allow Gen2 mode after the link is up. */
+	if (pci->link_gen > 1) {
+		/* Allow faster modes after the link is up */
 		dw_pcie_dbi_ro_wr_en(pci);
 		tmp = dw_pcie_readl_dbi(pci, offset + PCI_EXP_LNKCAP);
 		tmp &= ~PCI_EXP_LNKCAP_SLS;
-		tmp |= PCI_EXP_LNKCAP_SLS_5_0GB;
+		tmp |= pci->link_gen;
 		dw_pcie_writel_dbi(pci, offset + PCI_EXP_LNKCAP, tmp);
 
 		/*
@@ -884,7 +884,7 @@ static int imx6_pcie_start_link(struct dw_pcie *pci)
 		if (ret)
 			goto err_reset_phy;
 	} else {
-		dev_info(dev, "Link: Gen2 disabled\n");
+		dev_info(dev, "Link: Only Gen1 is enabled\n");
 	}
 
 	imx6_pcie->link_is_up = true;
