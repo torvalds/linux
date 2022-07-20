@@ -2098,6 +2098,13 @@ void dcn32_update_bw_bounding_box_fpu(struct dc *dc, struct clk_bw_params *bw_pa
 				dc->bb_overrides.dram_clock_change_latency_ns / 1000.0;
 		}
 
+		if ((int)(dcn3_2_soc.fclk_change_latency_us * 1000)
+				!= dc->bb_overrides.fclk_clock_change_latency_ns
+				&& dc->bb_overrides.fclk_clock_change_latency_ns) {
+			dcn3_2_soc.fclk_change_latency_us =
+				dc->bb_overrides.fclk_clock_change_latency_ns / 1000;
+		}
+
 		if ((int)(dcn3_2_soc.dummy_pstate_latency_us * 1000)
 				!= dc->bb_overrides.dummy_clock_change_latency_ns
 				&& dc->bb_overrides.dummy_clock_change_latency_ns) {
