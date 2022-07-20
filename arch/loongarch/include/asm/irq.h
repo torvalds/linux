@@ -105,7 +105,7 @@ struct acpi_madt_lpc_pic;
 
 struct irq_domain *loongarch_cpu_irq_init(void);
 
-struct irq_domain *liointc_acpi_init(struct irq_domain *parent,
+int liointc_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_lio_pic *acpi_liointc);
 struct irq_domain *eiointc_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_eio_pic *acpi_eiointc);
@@ -138,7 +138,7 @@ extern struct acpi_madt_msi_pic *acpi_pchmsi[MAX_IO_PICS];
 extern struct acpi_madt_bio_pic *acpi_pchpic[MAX_IO_PICS];
 
 extern struct irq_domain *cpu_domain;
-extern struct irq_domain *liointc_domain;
+extern struct fwnode_handle *liointc_handle;
 extern struct fwnode_handle *pch_lpc_handle;
 extern struct fwnode_handle *pch_pic_handle[MAX_IO_PICS];
 
