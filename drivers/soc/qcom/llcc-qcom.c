@@ -1098,7 +1098,7 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 	const struct llcc_slice_config *llcc_cfg;
 	struct resource *res;
 	void __iomem *ch_reg = NULL;
-	u32 sz, ch_reg_sz, ch_reg_off, ch_num;
+	u32 sz, max_banks, ch_reg_sz, ch_reg_off, ch_num;
 
 	drv_data = devm_kzalloc(dev, sizeof(*drv_data), GFP_KERNEL);
 	if (!drv_data) {
@@ -1155,7 +1155,12 @@ static int qcom_llcc_probe(struct platform_device *pdev)
 
 	num_banks &= LLCC_LB_CNT_MASK;
 	num_banks >>= LLCC_LB_CNT_SHIFT;
-	drv_data->num_banks = num_banks;
+
+	/* some devices have more logical banks than we use, so check for max banks */
+	if (!of_property_read_u32(dev->of_node, "max-banks", &max_banks))
+		drv_data->num_banks = min(num_banks, max_banks);
+	else
+		drv_data->num_banks = num_banks;
 
 	cfg = of_device_get_match_data(&pdev->dev);
 	if (!cfg) {
