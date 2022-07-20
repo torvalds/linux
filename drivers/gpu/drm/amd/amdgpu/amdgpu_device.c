@@ -4668,7 +4668,6 @@ static int amdgpu_reset_reg_dumps(struct amdgpu_device *adev)
 	int i;
 
 	lockdep_assert_held(&adev->reset_domain->sem);
-	dump_stack();
 
 	for (i = 0; i < adev->num_regs; i++) {
 		adev->reset_dump_reg_value[i] = RREG32(adev->reset_dump_reg_list[i]);
