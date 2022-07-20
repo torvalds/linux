@@ -8,6 +8,7 @@
 #include <linux/kasan.h>
 #include <asm/ptdump.h>
 #include <asm/kasan.h>
+#include <asm/abs_lowcore.h>
 #include <asm/nospec-branch.h>
 #include <asm/sections.h>
 
@@ -41,6 +42,8 @@ enum address_markers_idx {
 	VMALLOC_END_NR,
 	MODULES_NR,
 	MODULES_END_NR,
+	ABS_LOWCORE_NR,
+	ABS_LOWCORE_END_NR,
 };
 
 static struct addr_marker address_markers[] = {
@@ -66,6 +69,8 @@ static struct addr_marker address_markers[] = {
 	[VMALLOC_END_NR]	= {0, "vmalloc Area End"},
 	[MODULES_NR]		= {0, "Modules Area Start"},
 	[MODULES_END_NR]	= {0, "Modules Area End"},
+	[ABS_LOWCORE_NR]	= {0, "Lowcore Area Start"},
+	[ABS_LOWCORE_END_NR]	= {0, "Lowcore Area End"},
 	{ -1, NULL }
 };
 
@@ -284,6 +289,8 @@ static int pt_dump_init(void)
 	address_markers[AMODE31_END_NR].start_address = __eamode31;
 	address_markers[MODULES_NR].start_address = MODULES_VADDR;
 	address_markers[MODULES_END_NR].start_address = MODULES_END;
+	address_markers[ABS_LOWCORE_NR].start_address = __abs_lowcore;
+	address_markers[ABS_LOWCORE_END_NR].start_address = __abs_lowcore + ABS_LOWCORE_MAP_SIZE;
 	address_markers[VMEMMAP_NR].start_address = (unsigned long) vmemmap;
 	address_markers[VMEMMAP_END_NR].start_address = (unsigned long)vmemmap + vmemmap_size;
 	address_markers[VMALLOC_NR].start_address = VMALLOC_START;
