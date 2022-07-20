@@ -1155,6 +1155,9 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	 */
 	kvm->debugfs_dentry = ERR_PTR(-ENOENT);
 
+	snprintf(kvm->stats_id, sizeof(kvm->stats_id), "kvm-%d",
+		 task_pid_nr(current));
+
 	if (init_srcu_struct(&kvm->srcu))
 		goto out_err_no_srcu;
 	if (init_srcu_struct(&kvm->irq_srcu))
@@ -4901,9 +4904,6 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 	r = get_unused_fd_flags(O_CLOEXEC);
 	if (r < 0)
 		goto put_kvm;
-
-	snprintf(kvm->stats_id, sizeof(kvm->stats_id),
-			"kvm-%d", task_pid_nr(current));
 
 	file = anon_inode_getfile("kvm-vm", &kvm_vm_fops, kvm, O_RDWR);
 	if (IS_ERR(file)) {
