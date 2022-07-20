@@ -251,6 +251,7 @@ void shrinker_debugfs_remove(struct shrinker *shrinker)
 	lockdep_assert_held(&shrinker_rwsem);
 
 	kfree_const(shrinker->name);
+	shrinker->name = NULL;
 
 	if (!shrinker->debugfs_entry)
 		return;
