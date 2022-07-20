@@ -946,6 +946,7 @@ static int ef100_probe_main(struct efx_nic *efx)
 	unsigned int bar_size = resource_size(&efx->pci_dev->resource[efx->mem_bar]);
 	struct ef100_nic_data *nic_data;
 	char fw_version[32];
+	u32 priv_mask = 0;
 	int i, rc;
 
 	if (WARN_ON(bar_size == 0))
@@ -1026,6 +1027,12 @@ static int ef100_probe_main(struct efx_nic *efx)
 
 	efx_mcdi_print_fwver(efx, fw_version, sizeof(fw_version));
 	pci_dbg(efx->pci_dev, "Firmware version %s\n", fw_version);
+
+	rc = efx_mcdi_get_privilege_mask(efx, &priv_mask);
+	if (rc) /* non-fatal, and priv_mask will still be 0 */
+		pci_info(efx->pci_dev,
+			 "Failed to get privilege mask from FW, rc %d\n", rc);
+	nic_data->grp_mae = !!(priv_mask & MC_CMD_PRIVILEGE_MASK_IN_GRP_MAE);
 
 	if (compare_versions(fw_version, "1.1.0.1000") < 0) {
 		pci_info(efx->pci_dev, "Firmware uses old event descriptors\n");
