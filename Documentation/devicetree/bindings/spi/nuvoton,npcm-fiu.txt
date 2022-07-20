@@ -6,8 +6,13 @@ The NPCM7XX supports three FIU modules,
 FIU0 and FIUx supports two chip selects,
 FIU3 support four chip select.
 
+The NPCM8XX supports four FIU modules,
+FIU0 and FIUx supports two chip selects,
+FIU1 and FIU3 supports four chip selects.
+
 Required properties:
-  - compatible : "nuvoton,npcm750-fiu" for the NPCM7XX BMC
+  - compatible : "nuvoton,npcm750-fiu" for Poleg NPCM7XX BMC
+			     "nuvoton,npcm845-fiu" for Arbel NPCM8XX BMC
   - #address-cells : should be 1.
   - #size-cells : should be 0.
   - reg : the first contains the register location and length,
@@ -29,6 +34,12 @@ Aliases:
   		fiu0 represent fiu 0 controller
   		fiu1 represent fiu 3 controller
   		fiu2 represent fiu x controller
+
+  In the NPCM8XX BMC:
+  		fiu0 represent fiu 0 controller
+  		fiu1 represent fiu 1 controller
+  		fiu2 represent fiu 3 controller
+  		fiu3 represent fiu x controller
 
 Example:
 fiu3: spi@c00000000 {
