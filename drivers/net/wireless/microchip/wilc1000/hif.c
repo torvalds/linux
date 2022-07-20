@@ -635,7 +635,7 @@ static inline void host_int_parse_assoc_resp_info(struct wilc_vif *vif,
 	conn_info->req_ies_len = 0;
 }
 
-static inline void host_int_handle_disconnect(struct wilc_vif *vif)
+inline void wilc_handle_disconnect(struct wilc_vif *vif)
 {
 	struct host_if_drv *hif_drv = vif->hif_drv;
 
@@ -647,8 +647,6 @@ static inline void host_int_handle_disconnect(struct wilc_vif *vif)
 	if (hif_drv->conn_info.conn_result)
 		hif_drv->conn_info.conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF,
 					       0, hif_drv->conn_info.arg);
-	else
-		netdev_err(vif->ndev, "%s: conn_result is NULL\n", __func__);
 
 	eth_zero_addr(hif_drv->assoc_bssid);
 
@@ -684,7 +682,7 @@ static void handle_rcvd_gnrl_async_info(struct work_struct *work)
 		host_int_parse_assoc_resp_info(vif, mac_info->status);
 	} else if (mac_info->status == WILC_MAC_STATUS_DISCONNECTED) {
 		if (hif_drv->hif_state == HOST_IF_CONNECTED) {
-			host_int_handle_disconnect(vif);
+			wilc_handle_disconnect(vif);
 		} else if (hif_drv->usr_scan_req.scan_result) {
 			del_timer(&hif_drv->scan_timer);
 			handle_scan_done(vif, SCAN_EVENT_ABORTED);

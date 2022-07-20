@@ -780,6 +780,7 @@ static int wilc_mac_close(struct net_device *ndev)
 	if (vif->ndev) {
 		netif_stop_queue(vif->ndev);
 
+		wilc_handle_disconnect(vif);
 		wilc_deinit_host_int(vif->ndev);
 	}
 
