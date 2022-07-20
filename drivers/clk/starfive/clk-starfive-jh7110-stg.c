@@ -13,6 +13,11 @@
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 #include "clk-starfive-jh7110.h"
 
+/* external clocks */
+#define JH7110_OSC				(JH7110_CLK_END + 0)
+/* stg external clocks */
+#define JH7110_STG_APB				(JH7110_CLK_END + 11)
+
 static const struct jh7110_clk_data jh7110_clk_stg_data[] __initconst = {
 	//hifi4
 	JH7110_GATE(JH7110_HIFI4_CLK_CORE, "u0_hifi4_clk_core",
@@ -130,8 +135,8 @@ int __init clk_starfive_jh7110_stg_init(struct platform_device *pdev,
 			.name = jh7110_clk_stg_data[idx].name,
 			.ops = starfive_jh7110_clk_ops(max),
 			.parent_data = parents,
-			.num_parents = ((max & JH7110_CLK_MUX_MASK) \
-					>> JH7110_CLK_MUX_SHIFT) + 1,
+			.num_parents = ((max & JH7110_CLK_MUX_MASK) >>
+					JH7110_CLK_MUX_SHIFT) + 1,
 			.flags = jh7110_clk_stg_data[idx].flags,
 		};
 		struct jh7110_clk *clk = &priv->reg[idx];
@@ -142,9 +147,11 @@ int __init clk_starfive_jh7110_stg_init(struct platform_device *pdev,
 
 			if (pidx < JH7110_CLK_STG_REG_END)
 				parents[i].hw = &priv->reg[pidx].hw;
-			else if ((pidx < JH7110_CLK_STG_END) && \
+			else if ((pidx < JH7110_CLK_STG_END) &&
 				(pidx > JH7110_CLK_SYS_END))
 				parents[i].hw = priv->pll[PLL_OF(pidx)];
+			else if (pidx == JH7110_OSC)
+				parents[i].fw_name = "osc";
 			else if (pidx == JH7110_STG_APB)
 				parents[i].fw_name = "stg_apb";
 		}
@@ -159,6 +166,6 @@ int __init clk_starfive_jh7110_stg_init(struct platform_device *pdev,
 			return ret;
 	}
 
-	dev_dbg(&pdev->dev,"starfive JH7110 clk_stg init successfully.");
+	dev_dbg(&pdev->dev, "starfive JH7110 clk_stg init successfully.");
 	return 0;
 }

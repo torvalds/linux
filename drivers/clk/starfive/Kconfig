@@ -23,3 +23,12 @@ config CLK_STARFIVE_JH7110_ISP
 	help
 		Say yes here to support the isp clocks on the StarFive
 		JH7110 SoC.
+
+config CLK_STARFIVE_JH7110_PLL
+	bool "StarFive JH7110 pll clock support"
+	depends on CLK_STARFIVE_JH7110
+	default y if SOC_STARFIVE_JH7110
+	help
+		Say yes here to support the pll clocks on the StarFive
+		JH7110 SoC and then change or read the pll clock's rate
+		through setting or reading the syscon registers and calculate.

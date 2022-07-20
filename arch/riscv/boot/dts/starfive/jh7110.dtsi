@@ -290,6 +290,8 @@
 				"stg_apb", "clk_rtc",
 				"gmac0_rmii_refin", "gmac0_rgmii_rxin";
 			#clock-cells = <1>;
+			starfive,sys-syscon = <&sys_syscon 0x18 0x1c
+					0x20 0x24 0x28 0x2c 0x30 0x34>;
 			status = "okay";
 		};
 

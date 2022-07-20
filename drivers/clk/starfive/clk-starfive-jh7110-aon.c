@@ -13,6 +13,13 @@
 #include <dt-bindings/clock/starfive-jh7110-clkgen.h>
 #include "clk-starfive-jh7110.h"
 
+/* external clocks */
+#define JH7110_OSC				(JH7110_CLK_END + 0)
+/* aon external clocks */
+#define JH7110_GMAC0_RMII_REFIN			(JH7110_CLK_END + 12)
+#define JH7110_GMAC0_RGMII_RXIN			(JH7110_CLK_END + 13)
+#define JH7110_CLK_RTC				(JH7110_CLK_END + 14)
+
 static const struct jh7110_clk_data jh7110_clk_aon_data[] __initconst = {
 	//source
 	JH7110__DIV(JH7110_OSC_DIV4, "osc_div4", 4, JH7110_OSC),
@@ -20,7 +27,7 @@ static const struct jh7110_clk_data jh7110_clk_aon_data[] __initconst = {
 			JH7110_OSC_DIV4,
 			JH7110_OSC),
 	//gmac5
-	JH7110_GATE(JH7110_U0_GMAC5_CLK_AHB, 
+	JH7110_GATE(JH7110_U0_GMAC5_CLK_AHB,
 			"u0_dw_gmac5_axi64_clk_ahb",
 			GATE_FLAG_NORMAL, JH7110_AON_AHB),
 	JH7110_GATE(JH7110_U0_GMAC5_CLK_AXI,
@@ -118,8 +125,8 @@ int __init clk_starfive_jh7110_aon_init(struct platform_device *pdev,
 			.name = jh7110_clk_aon_data[idx].name,
 			.ops = starfive_jh7110_clk_ops(max),
 			.parent_data = parents,
-			.num_parents = ((max & JH7110_CLK_MUX_MASK) \
-					>> JH7110_CLK_MUX_SHIFT) + 1,
+			.num_parents = ((max & JH7110_CLK_MUX_MASK) >>
+					JH7110_CLK_MUX_SHIFT) + 1,
 			.flags = jh7110_clk_aon_data[idx].flags,
 		};
 		struct jh7110_clk *clk = &priv->reg[idx];
@@ -130,9 +137,11 @@ int __init clk_starfive_jh7110_aon_init(struct platform_device *pdev,
 
 			if (pidx < JH7110_CLK_REG_END)
 				parents[i].hw = &priv->reg[pidx].hw;
-			else if ((pidx < JH7110_CLK_END) && \
+			else if ((pidx < JH7110_CLK_END) &&
 				(pidx > JH7110_RTC_HMS_CLK_CAL))
 				parents[i].hw = priv->pll[PLL_OF(pidx)];
+			else if (pidx == JH7110_OSC)
+				parents[i].fw_name = "osc";
 			else if (pidx == JH7110_GMAC0_RMII_REFIN)
 				parents[i].fw_name = "gmac0_rmii_refin";
 			else if (pidx == JH7110_GMAC0_RGMII_RXIN)
@@ -151,6 +160,6 @@ int __init clk_starfive_jh7110_aon_init(struct platform_device *pdev,
 			return ret;
 	}
 
-	dev_dbg(&pdev->dev,"starfive JH7110 clk_aon init successfully.");
+	dev_dbg(&pdev->dev, "starfive JH7110 clk_aon init successfully.");
 	return 0;
 }
