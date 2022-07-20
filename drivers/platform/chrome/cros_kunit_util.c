@@ -13,6 +13,7 @@
 #include "cros_ec.h"
 #include "cros_kunit_util.h"
 
+int cros_kunit_ec_xfer_mock_default_result;
 int cros_kunit_ec_xfer_mock_default_ret;
 int cros_kunit_ec_cmd_xfer_mock_called;
 int cros_kunit_ec_pkt_xfer_mock_called;
@@ -25,8 +26,10 @@ int cros_kunit_ec_xfer_mock(struct cros_ec_device *ec_dev, struct cros_ec_comman
 	struct ec_xfer_mock *mock;
 
 	mock = list_first_entry_or_null(&cros_kunit_ec_xfer_mock_in, struct ec_xfer_mock, list);
-	if (!mock)
+	if (!mock) {
+		msg->result = cros_kunit_ec_xfer_mock_default_result;
 		return cros_kunit_ec_xfer_mock_default_ret;
+	}
 
 	list_del(&mock->list);
 
@@ -112,6 +115,7 @@ int cros_kunit_readmem_mock(struct cros_ec_device *ec_dev, unsigned int offset,
 
 void cros_kunit_mock_reset(void)
 {
+	cros_kunit_ec_xfer_mock_default_result = 0;
 	cros_kunit_ec_xfer_mock_default_ret = 0;
 	cros_kunit_ec_cmd_xfer_mock_called = 0;
 	cros_kunit_ec_pkt_xfer_mock_called = 0;

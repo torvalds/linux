@@ -23,6 +23,7 @@ struct ec_xfer_mock {
 	u32 o_data_len;
 };
 
+extern int cros_kunit_ec_xfer_mock_default_result;
 extern int cros_kunit_ec_xfer_mock_default_ret;
 extern int cros_kunit_ec_cmd_xfer_mock_called;
 extern int cros_kunit_ec_pkt_xfer_mock_called;
