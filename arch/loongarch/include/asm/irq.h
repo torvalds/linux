@@ -112,7 +112,7 @@ struct irq_domain *eiointc_acpi_init(struct irq_domain *parent,
 
 struct irq_domain *htvec_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_ht_pic *acpi_htvec);
-struct irq_domain *pch_lpc_acpi_init(struct irq_domain *parent,
+int pch_lpc_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_lpc_pic *acpi_pchlpc);
 struct irq_domain *pch_msi_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_msi_pic *acpi_pchmsi);
@@ -129,7 +129,7 @@ extern struct acpi_madt_bio_pic *acpi_pchpic[MAX_IO_PICS];
 
 extern struct irq_domain *cpu_domain;
 extern struct irq_domain *liointc_domain;
-extern struct irq_domain *pch_lpc_domain;
+extern struct fwnode_handle *pch_lpc_handle;
 extern struct irq_domain *pch_msi_domain[MAX_IO_PICS];
 extern struct irq_domain *pch_pic_domain[MAX_IO_PICS];
 
