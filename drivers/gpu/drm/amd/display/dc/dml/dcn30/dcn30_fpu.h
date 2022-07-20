@@ -63,5 +63,6 @@ void dcn30_fpu_update_bw_bounding_box(struct dc *dc,
 	unsigned int *dcfclk_mhz,
 	unsigned int *dram_speed_mts);
 
+void dcn3_fpu_build_wm_range_table(struct clk_mgr *base);
 
 #endif /* __DCN30_FPU_H__*/

@@ -29,7 +29,7 @@
 #include "dcn20/dcn20_resource.h"
 #include "dcn30/dcn30_resource.h"
 
-
+#include "clk_mgr/dcn30/dcn30_smu11_driver_if.h"
 #include "display_mode_vba_30.h"
 #include "dcn30_fpu.h"
 
@@ -616,4 +616,65 @@ void dcn30_fpu_update_bw_bounding_box(struct dc *dc,
 
 }
 
+void dcn3_fpu_build_wm_range_table(struct clk_mgr *base)
+{
+	/* defaults */
+	double pstate_latency_us = base->ctx->dc->dml.soc.dram_clock_change_latency_us;
+	double sr_exit_time_us = base->ctx->dc->dml.soc.sr_exit_time_us;
+	double sr_enter_plus_exit_time_us = base->ctx->dc->dml.soc.sr_enter_plus_exit_time_us;
+	uint16_t min_uclk_mhz = base->bw_params->clk_table.entries[0].memclk_mhz;
 
+	dc_assert_fp_enabled();
+
+	/* Set A - Normal - default values*/
+	base->bw_params->wm_table.nv_entries[WM_A].valid = true;
+	base->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us = pstate_latency_us;
+	base->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_exit_time_us = sr_exit_time_us;
+	base->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_enter_plus_exit_time_us = sr_enter_plus_exit_time_us;
+	base->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.wm_type = WATERMARKS_CLOCK_RANGE;
+	base->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.min_dcfclk = 0;
+	base->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.max_dcfclk = 0xFFFF;
+	base->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.min_uclk = min_uclk_mhz;
+	base->bw_params->wm_table.nv_entries[WM_A].pmfw_breakdown.max_uclk = 0xFFFF;
+
+	/* Set B - Performance - higher minimum clocks */
+//	base->bw_params->wm_table.nv_entries[WM_B].valid = true;
+//	base->bw_params->wm_table.nv_entries[WM_B].dml_input.pstate_latency_us = pstate_latency_us;
+//	base->bw_params->wm_table.nv_entries[WM_B].dml_input.sr_exit_time_us = sr_exit_time_us;
+//	base->bw_params->wm_table.nv_entries[WM_B].dml_input.sr_enter_plus_exit_time_us = sr_enter_plus_exit_time_us;
+//	base->bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.wm_type = WATERMARKS_CLOCK_RANGE;
+//	base->bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.min_dcfclk = TUNED VALUE;
+//	base->bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.max_dcfclk = 0xFFFF;
+//	base->bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.min_uclk = TUNED VALUE;
+//	base->bw_params->wm_table.nv_entries[WM_B].pmfw_breakdown.max_uclk = 0xFFFF;
+
+	/* Set C - Dummy P-State - P-State latency set to "dummy p-state" value */
+	base->bw_params->wm_table.nv_entries[WM_C].valid = true;
+	base->bw_params->wm_table.nv_entries[WM_C].dml_input.pstate_latency_us = 0;
+	base->bw_params->wm_table.nv_entries[WM_C].dml_input.sr_exit_time_us = sr_exit_time_us;
+	base->bw_params->wm_table.nv_entries[WM_C].dml_input.sr_enter_plus_exit_time_us = sr_enter_plus_exit_time_us;
+	base->bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.wm_type = WATERMARKS_DUMMY_PSTATE;
+	base->bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.min_dcfclk = 0;
+	base->bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.max_dcfclk = 0xFFFF;
+	base->bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.min_uclk = min_uclk_mhz;
+	base->bw_params->wm_table.nv_entries[WM_C].pmfw_breakdown.max_uclk = 0xFFFF;
+	base->bw_params->dummy_pstate_table[0].dram_speed_mts = 1600;
+	base->bw_params->dummy_pstate_table[0].dummy_pstate_latency_us = 38;
+	base->bw_params->dummy_pstate_table[1].dram_speed_mts = 8000;
+	base->bw_params->dummy_pstate_table[1].dummy_pstate_latency_us = 9;
+	base->bw_params->dummy_pstate_table[2].dram_speed_mts = 10000;
+	base->bw_params->dummy_pstate_table[2].dummy_pstate_latency_us = 8;
+	base->bw_params->dummy_pstate_table[3].dram_speed_mts = 16000;
+	base->bw_params->dummy_pstate_table[3].dummy_pstate_latency_us = 5;
+
+	/* Set D - MALL - SR enter and exit times adjusted for MALL */
+	base->bw_params->wm_table.nv_entries[WM_D].valid = true;
+	base->bw_params->wm_table.nv_entries[WM_D].dml_input.pstate_latency_us = pstate_latency_us;
+	base->bw_params->wm_table.nv_entries[WM_D].dml_input.sr_exit_time_us = 2;
+	base->bw_params->wm_table.nv_entries[WM_D].dml_input.sr_enter_plus_exit_time_us = 4;
+	base->bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.wm_type = WATERMARKS_MALL;
+	base->bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.min_dcfclk = 0;
+	base->bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.max_dcfclk = 0xFFFF;
+	base->bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.min_uclk = min_uclk_mhz;
+	base->bw_params->wm_table.nv_entries[WM_D].pmfw_breakdown.max_uclk = 0xFFFF;
+}
