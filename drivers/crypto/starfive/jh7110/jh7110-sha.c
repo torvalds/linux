@@ -45,12 +45,10 @@
 static inline int jh7110_hash_wait_hmac_done(struct jh7110_sec_ctx *ctx)
 {
 	struct jh7110_sec_dev *sdev = ctx->sdev;
-	int ret = -1;
+	u32 status;
 
-	if (sdev->done_flags & JH7110_SHA_HMAC_DONE)
-		ret = 0;
-
-	return ret;
+	return readl_relaxed_poll_timeout(sdev->io_base + JH7110_SHA_SHACSR, status,
+			(status & JH7110_SHA_HMAC_DONE), 10, 100000);
 }
 
 static inline int jh7110_hash_wait_busy(struct jh7110_sec_ctx *ctx)
@@ -312,8 +310,6 @@ static int jh7110_hash_xmit(struct jh7110_sec_ctx *ctx, int flags)
 
 	rctx->csr.sha_csr.v = 0;
 	rctx->csr.sha_csr.mode = ctx->sha_mode & JH7110_SHA_MODE_MASK;
-	if (ctx->sdev->use_dma)
-		rctx->csr.sha_csr.ie = 1;
 
 	if (ctx->sha_mode & JH7110_SHA_HMAC_FLAGS)
 		ret = jh7110_sha_hmac_key(ctx);
