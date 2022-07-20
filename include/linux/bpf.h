@@ -751,6 +751,11 @@ struct btf_func_model {
 /* Return the return value of fentry prog. Only used by bpf_struct_ops. */
 #define BPF_TRAMP_F_RET_FENTRY_RET	BIT(4)
 
+/* Get original function from stack instead of from provided direct address.
+ * Makes sense for trampolines with fexit or fmod_ret programs.
+ */
+#define BPF_TRAMP_F_ORIG_STACK		BIT(5)
+
 /* Each call __bpf_prog_enter + call bpf_func + call __bpf_prog_exit is ~50
  * bytes on x86.
  */
