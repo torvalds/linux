@@ -635,8 +635,19 @@ int rxe_requester(void *arg)
 	if (!rxe_get(qp))
 		return -EAGAIN;
 
-	if (unlikely(!qp->valid || qp->req.state == QP_STATE_ERROR))
+	if (unlikely(!qp->valid))
 		goto exit;
+
+	if (unlikely(qp->req.state == QP_STATE_ERROR)) {
+		wqe = req_next_wqe(qp);
+		if (wqe)
+			/*
+			 * Generate an error completion for error qp state
+			 */
+			goto err;
+		else
+			goto exit;
+	}
 
 	if (unlikely(qp->req.state == QP_STATE_RESET)) {
 		qp->req.wqe_index = queue_get_consumer(q,
