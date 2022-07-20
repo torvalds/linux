@@ -5,6 +5,22 @@
 
 #include "px30.dtsi"
 
+&cru {
+	assigned-clocks = <&cru PLL_NPLL>;
+	assigned-clock-rates = <1040000000>;
+};
+
+&gpu_opp_table {
+	opp-520000000 {
+		opp-hz = /bits/ 64 <520000000>;
+		opp-microvolt = <1175000>;
+		opp-microvolt-L0 = <1175000>;
+		opp-microvolt-L1 = <1150000>;
+		opp-microvolt-L2 = <1100000>;
+		opp-microvolt-L3 = <1050000>;
+	};
+};
+
 &rgb {
 	phys = <&video_phy>;
 	phy-names = "phy";
