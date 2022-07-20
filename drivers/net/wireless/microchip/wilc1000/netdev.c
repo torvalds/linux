@@ -472,7 +472,7 @@ static int wlan_initialize_threads(struct net_device *dev)
 				       "%s-tx", dev->name);
 	if (IS_ERR(wilc->txq_thread)) {
 		netdev_err(dev, "couldn't create TXQ thread\n");
-		wilc->close = 0;
+		wilc->close = 1;
 		return PTR_ERR(wilc->txq_thread);
 	}
 	wait_for_completion(&wilc->txq_thread_started);
