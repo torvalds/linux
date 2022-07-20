@@ -134,8 +134,7 @@ struct starfive_wdt {
 	struct watchdog_device wdt_device;
 	struct clk *core_clk;
 	struct clk *apb_clk;
-	struct reset_control *rst_apb;
-	struct reset_control *rst_core;
+	struct reset_control *rsts;
 	const struct starfive_wdt_variant *drv_data;
 	u32 count;	/*count of timeout*/
 	u32 reload;	/*restore the count*/
@@ -252,18 +251,13 @@ static int starfive_wdt_reset_init(struct starfive_wdt *wdt)
 {
 	int err = 0;
 
-	wdt->rst_apb = devm_reset_control_get_exclusive(wdt->dev, "rst_apb");
-	if (!IS_ERR(wdt->rst_apb)) {
-		err = reset_control_deassert(wdt->rst_apb);
+	wdt->rsts = devm_reset_control_array_get_exclusive(wdt->dev);
+	if (!IS_ERR(wdt->rsts)) {
+		err = reset_control_deassert(wdt->rsts);
 		if (err)
-			dev_warn(wdt->dev, "deassert apb_rst error.\n");
-	}
-	wdt->rst_core = devm_reset_control_get_exclusive(wdt->dev, "rst_core");
-	if (!IS_ERR(wdt->rst_core)) {
-		err = reset_control_deassert(wdt->rst_core);
-		if (err)
-			dev_warn(wdt->dev, "deassert core_rst error.\n");
-	}
+			dev_err(wdt->dev, "deassert rsts error.\n");
+	} else
+		err = PTR_ERR(wdt->rsts);
 
 	return err;
 }
