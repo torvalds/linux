@@ -10,6 +10,7 @@
  */
 
 #include "ef100_rep.h"
+#include "ef100_netdev.h"
 #include "ef100_nic.h"
 #include "mae.h"
 
@@ -26,6 +27,25 @@ static int efx_ef100_rep_init_struct(struct efx_nic *efx, struct efx_rep *efv,
 			  NETIF_MSG_IFUP | NETIF_MSG_RX_ERR |
 			  NETIF_MSG_TX_ERR | NETIF_MSG_HW;
 	return 0;
+}
+
+static netdev_tx_t efx_ef100_rep_xmit(struct sk_buff *skb,
+				      struct net_device *dev)
+{
+	struct efx_rep *efv = netdev_priv(dev);
+	struct efx_nic *efx = efv->parent;
+	netdev_tx_t rc;
+
+	/* __ef100_hard_start_xmit() will always return success even in the
+	 * case of TX drops, where it will increment efx's tx_dropped.  The
+	 * efv stats really only count attempted TX, not success/failure.
+	 */
+	atomic64_inc(&efv->stats.tx_packets);
+	atomic64_add(skb->len, &efv->stats.tx_bytes);
+	netif_tx_lock(efx->net_dev);
+	rc = __ef100_hard_start_xmit(skb, efx, dev, efv);
+	netif_tx_unlock(efx->net_dev);
+	return rc;
 }
 
 static int efx_ef100_rep_get_port_parent_id(struct net_device *dev,
@@ -60,6 +80,7 @@ static int efx_ef100_rep_get_phys_port_name(struct net_device *dev,
 }
 
 static const struct net_device_ops efx_ef100_rep_netdev_ops = {
+	.ndo_start_xmit		= efx_ef100_rep_xmit,
 	.ndo_get_port_parent_id	= efx_ef100_rep_get_port_parent_id,
 	.ndo_get_phys_port_name	= efx_ef100_rep_get_phys_port_name,
 };
@@ -119,6 +140,8 @@ static struct efx_rep *efx_ef100_rep_create_netdev(struct efx_nic *efx,
 	net_dev->ethtool_ops = &efx_ef100_rep_ethtool_ops;
 	net_dev->min_mtu = EFX_MIN_MTU;
 	net_dev->max_mtu = EFX_MAX_MTU;
+	net_dev->features |= NETIF_F_LLTX;
+	net_dev->hw_features |= NETIF_F_LLTX;
 	return efv;
 fail1:
 	free_netdev(net_dev);

@@ -195,6 +195,15 @@ static netdev_tx_t ef100_hard_start_xmit(struct sk_buff *skb,
 					 struct net_device *net_dev)
 {
 	struct efx_nic *efx = efx_netdev_priv(net_dev);
+
+	return __ef100_hard_start_xmit(skb, efx, net_dev, NULL);
+}
+
+netdev_tx_t __ef100_hard_start_xmit(struct sk_buff *skb,
+				    struct efx_nic *efx,
+				    struct net_device *net_dev,
+				    struct efx_rep *efv)
+{
 	struct efx_tx_queue *tx_queue;
 	struct efx_channel *channel;
 	int rc;
@@ -209,7 +218,7 @@ static netdev_tx_t ef100_hard_start_xmit(struct sk_buff *skb,
 	}
 
 	tx_queue = &channel->tx_queue[0];
-	rc = ef100_enqueue_skb(tx_queue, skb);
+	rc = __ef100_enqueue_skb(tx_queue, skb, efv);
 	if (rc == 0)
 		return NETDEV_TX_OK;
 
