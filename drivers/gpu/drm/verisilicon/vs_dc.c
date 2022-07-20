@@ -996,8 +996,15 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 
 	display.v_active = mode->vdisplay;
 	display.v_total = mode->vtotal;
-	display.v_sync_start = mode->vsync_start;
-	display.v_sync_end = mode->vsync_end;
+
+	if (crtc_state->encoder_type == DRM_MODE_ENCODER_DSI){
+		display.v_sync_start = mode->vsync_start + 1;
+		display.v_sync_end = mode->vsync_end - 1;
+	}else{
+		display.v_sync_start = mode->vsync_start;
+		display.v_sync_end = mode->vsync_end;
+	}
+
 	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
 		display.v_sync_polarity = true;
 	else
