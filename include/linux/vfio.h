@@ -49,7 +49,7 @@ struct vfio_device {
 	unsigned int open_count;
 	struct completion comp;
 	struct list_head group_next;
-	struct notifier_block iommu_nb;
+	struct list_head iommu_entry;
 };
 
 /**

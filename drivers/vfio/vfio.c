@@ -231,7 +231,7 @@ int vfio_register_iommu_driver(const struct vfio_iommu_driver_ops *ops)
 {
 	struct vfio_iommu_driver *driver, *tmp;
 
-	if (WARN_ON(!ops->register_notifier != !ops->unregister_notifier))
+	if (WARN_ON(!ops->register_device != !ops->unregister_device))
 		return -EINVAL;
 
 	driver = kzalloc(sizeof(*driver), GFP_KERNEL);
@@ -1082,17 +1082,6 @@ static void vfio_device_unassign_container(struct vfio_device *device)
 	up_write(&device->group->group_rwsem);
 }
 
-static int vfio_iommu_notifier(struct notifier_block *nb, unsigned long action,
-			       void *data)
-{
-	struct vfio_device *vfio_device =
-		container_of(nb, struct vfio_device, iommu_nb);
-	struct vfio_iommu_type1_dma_unmap *unmap = data;
-
-	vfio_device->ops->dma_unmap(vfio_device, unmap->iova, unmap->size);
-	return NOTIFY_OK;
-}
-
 static struct file *vfio_device_open(struct vfio_device *device)
 {
 	struct vfio_iommu_driver *iommu_driver;
@@ -1128,15 +1117,9 @@ static struct file *vfio_device_open(struct vfio_device *device)
 		}
 
 		iommu_driver = device->group->container->iommu_driver;
-		if (device->ops->dma_unmap && iommu_driver &&
-		    iommu_driver->ops->register_notifier) {
-			unsigned long events = VFIO_IOMMU_NOTIFY_DMA_UNMAP;
-
-			device->iommu_nb.notifier_call = vfio_iommu_notifier;
-			iommu_driver->ops->register_notifier(
-				device->group->container->iommu_data, &events,
-				&device->iommu_nb);
-		}
+		if (iommu_driver && iommu_driver->ops->register_device)
+			iommu_driver->ops->register_device(
+				device->group->container->iommu_data, device);
 
 		up_read(&device->group->group_rwsem);
 	}
@@ -1176,11 +1159,9 @@ err_close_device:
 		device->ops->close_device(device);
 
 		iommu_driver = device->group->container->iommu_driver;
-		if (device->ops->dma_unmap && iommu_driver &&
-		    iommu_driver->ops->unregister_notifier)
-			iommu_driver->ops->unregister_notifier(
-				device->group->container->iommu_data,
-				&device->iommu_nb);
+		if (iommu_driver && iommu_driver->ops->unregister_device)
+			iommu_driver->ops->unregister_device(
+				device->group->container->iommu_data, device);
 	}
 err_undo_count:
 	up_read(&device->group->group_rwsem);
@@ -1385,11 +1366,9 @@ static int vfio_device_fops_release(struct inode *inode, struct file *filep)
 		device->ops->close_device(device);
 
 	iommu_driver = device->group->container->iommu_driver;
-	if (device->ops->dma_unmap && iommu_driver &&
-	    iommu_driver->ops->unregister_notifier)
-		iommu_driver->ops->unregister_notifier(
-			device->group->container->iommu_data,
-			&device->iommu_nb);
+	if (iommu_driver && iommu_driver->ops->unregister_device)
+		iommu_driver->ops->unregister_device(
+			device->group->container->iommu_data, device);
 	up_read(&device->group->group_rwsem);
 	device->open_count--;
 	if (device->open_count == 0)
