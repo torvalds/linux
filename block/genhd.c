@@ -1138,6 +1138,18 @@ static void disk_release(struct device *dev)
 	might_sleep();
 	WARN_ON_ONCE(disk_live(disk));
 
+	/*
+	 * To undo the all initialization from blk_mq_init_allocated_queue in
+	 * case of a probe failure where add_disk is never called we have to
+	 * call blk_mq_exit_queue here. We can't do this for the more common
+	 * teardown case (yet) as the tagset can be gone by the time the disk
+	 * is released once it was added.
+	 */
+	if (queue_is_mq(disk->queue) &&
+	    test_bit(GD_OWNS_QUEUE, &disk->state) &&
+	    !test_bit(GD_ADDED, &disk->state))
+		blk_mq_exit_queue(disk->queue);
+
 	blkcg_exit_queue(disk->queue);
 
 	disk_release_events(disk);
@@ -1402,6 +1414,9 @@ EXPORT_SYMBOL(__blk_alloc_disk);
  *
  * This decrements the refcount for the struct gendisk. When this reaches 0
  * we'll have disk_release() called.
+ *
+ * Note: for blk-mq disk put_disk must be called before freeing the tag_set
+ * when handling probe errors (that is before add_disk() is called).
  *
  * Context: Any context, but the last reference must not be dropped from
  *          atomic context.
