@@ -4492,7 +4492,7 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 		win->color_key_prop = drm_property_create_range(vop->drm_dev, 0,
 								"colorkey", 0, 0x80ffffff);
 	if (!win->input_width_prop || !win->input_height_prop ||
-	    !win->scale_prop || !win->color_key_prop) {
+	    !win->scale_prop) {
 		DRM_ERROR("failed to create property\n");
 		return -ENOMEM;
 	}
@@ -4502,7 +4502,8 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	drm_object_attach_property(&win->base.base, win->output_width_prop, 0);
 	drm_object_attach_property(&win->base.base, win->output_height_prop, 0);
 	drm_object_attach_property(&win->base.base, win->scale_prop, 0);
-	drm_object_attach_property(&win->base.base, win->color_key_prop, 0);
+	if (VOP_WIN_SUPPORT(vop, win, color_key))
+		drm_object_attach_property(&win->base.base, win->color_key_prop, 0);
 
 	return 0;
 }
