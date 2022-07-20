@@ -4,10 +4,27 @@
 #include "mlx5_core.h"
 #include "lib/crypto.h"
 
+#define MLX5_CRYPTO_DEK_POOLS_NUM (MLX5_ACCEL_OBJ_TYPE_KEY_NUM - 1)
+#define type2idx(type) ((type) - 1)
+
+struct mlx5_crypto_dek_pool {
+	struct mlx5_core_dev *mdev;
+	u32 key_purpose;
+};
+
 struct mlx5_crypto_dek_priv {
 	struct mlx5_core_dev *mdev;
 	int log_dek_obj_range;
 };
+
+struct mlx5_crypto_dek {
+	u32 obj_id;
+};
+
+u32 mlx5_crypto_dek_get_id(struct mlx5_crypto_dek *dek)
+{
+	return dek->obj_id;
+}
 
 static int mlx5_crypto_dek_get_key_sz(struct mlx5_core_dev *mdev,
 				      u32 sz_bytes, u8 *key_sz_p)
@@ -54,9 +71,9 @@ static int mlx5_crypto_dek_fill_key(struct mlx5_core_dev *mdev, u8 *key_obj,
 	return 0;
 }
 
-int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
-			       const void *key, u32 sz_bytes,
-			       u32 key_type, u32 *p_key_id)
+static int mlx5_crypto_create_dek_key(struct mlx5_core_dev *mdev,
+				      const void *key, u32 sz_bytes,
+				      u32 key_purpose, u32 *p_key_id)
 {
 	u32 in[MLX5_ST_SZ_DW(create_encryption_key_in)] = {};
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
@@ -75,7 +92,7 @@ int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
 		 MLX5_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY);
 
 	obj = MLX5_ADDR_OF(create_encryption_key_in, in, encryption_key_object);
-	MLX5_SET(encryption_key_obj, obj, key_purpose, key_type);
+	MLX5_SET(encryption_key_obj, obj, key_purpose, key_purpose);
 	MLX5_SET(encryption_key_obj, obj, pd, mdev->mlx5e_res.hw_objs.pdn);
 
 	err = mlx5_crypto_dek_fill_key(mdev, obj, key, sz_bytes);
@@ -92,7 +109,7 @@ int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
 	return err;
 }
 
-void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id)
+static void mlx5_crypto_destroy_dek_key(struct mlx5_core_dev *mdev, u32 key_id)
 {
 	u32 in[MLX5_ST_SZ_DW(general_obj_in_cmd_hdr)] = {};
 	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
@@ -104,6 +121,69 @@ void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id)
 	MLX5_SET(general_obj_in_cmd_hdr, in, obj_id, key_id);
 
 	mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+}
+
+int mlx5_create_encryption_key(struct mlx5_core_dev *mdev,
+			       const void *key, u32 sz_bytes,
+			       u32 key_type, u32 *p_key_id)
+{
+	return mlx5_crypto_create_dek_key(mdev, key, sz_bytes, key_type, p_key_id);
+}
+
+void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id)
+{
+	mlx5_crypto_destroy_dek_key(mdev, key_id);
+}
+
+struct mlx5_crypto_dek *mlx5_crypto_dek_create(struct mlx5_crypto_dek_pool *dek_pool,
+					       const void *key, u32 sz_bytes)
+{
+	struct mlx5_core_dev *mdev = dek_pool->mdev;
+	u32 key_purpose = dek_pool->key_purpose;
+	struct mlx5_crypto_dek *dek;
+	int err;
+
+	dek = kzalloc(sizeof(*dek), GFP_KERNEL);
+	if (!dek)
+		return ERR_PTR(-ENOMEM);
+
+	err = mlx5_crypto_create_dek_key(mdev, key, sz_bytes,
+					 key_purpose, &dek->obj_id);
+	if (err) {
+		kfree(dek);
+		return ERR_PTR(err);
+	}
+
+	return dek;
+}
+
+void mlx5_crypto_dek_destroy(struct mlx5_crypto_dek_pool *dek_pool,
+			     struct mlx5_crypto_dek *dek)
+{
+	struct mlx5_core_dev *mdev = dek_pool->mdev;
+
+	mlx5_crypto_destroy_dek_key(mdev, dek->obj_id);
+	kfree(dek);
+}
+
+struct mlx5_crypto_dek_pool *
+mlx5_crypto_dek_pool_create(struct mlx5_core_dev *mdev, int key_purpose)
+{
+	struct mlx5_crypto_dek_pool *pool;
+
+	pool = kzalloc(sizeof(*pool), GFP_KERNEL);
+	if (!pool)
+		return ERR_PTR(-ENOMEM);
+
+	pool->mdev = mdev;
+	pool->key_purpose = key_purpose;
+
+	return pool;
+}
+
+void mlx5_crypto_dek_pool_destroy(struct mlx5_crypto_dek_pool *pool)
+{
+	kfree(pool);
 }
 
 void mlx5_crypto_dek_cleanup(struct mlx5_crypto_dek_priv *dek_priv)
