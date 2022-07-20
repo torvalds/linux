@@ -554,6 +554,26 @@ out:
 }
 EXPORT_SYMBOL_GPL(mt7921_mac_add_txs);
 
+bool mt7921_rx_check(struct mt76_dev *mdev, void *data, int len)
+{
+	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	__le32 *rxd = (__le32 *)data;
+	__le32 *end = (__le32 *)&rxd[len / 4];
+	enum rx_pkt_type type;
+
+	type = le32_get_bits(rxd[0], MT_RXD0_PKT_TYPE);
+
+	switch (type) {
+	case PKT_TYPE_TXS:
+		for (rxd += 2; rxd + 8 <= end; rxd += 8)
+			mt7921_mac_add_txs(dev, rxd);
+		return false;
+	default:
+		return true;
+	}
+}
+EXPORT_SYMBOL_GPL(mt7921_rx_check);
+
 void mt7921_queue_rx_skb(struct mt76_dev *mdev, enum mt76_rxq_id q,
 			 struct sk_buff *skb)
 {
