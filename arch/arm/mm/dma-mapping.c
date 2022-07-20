@@ -679,8 +679,7 @@ static void dma_cache_maint_page(struct page *page, unsigned long offset,
 
 /*
  * Make an area consistent for devices.
- * Note: Drivers should NOT use this function directly, as it will break
- * platforms with CONFIG_DMABOUNCE.
+ * Note: Drivers should NOT use this function directly.
  * Use the driver DMA support - see dma-mapping.h (dma_sync_*)
  */
 static void __dma_page_cpu_to_dev(struct page *page, unsigned long off,
