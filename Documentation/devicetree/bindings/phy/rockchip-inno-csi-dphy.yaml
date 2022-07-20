@@ -20,6 +20,7 @@ properties:
       - rockchip,rk1808-csi-dphy
       - rockchip,rk3326-csi-dphy
       - rockchip,rk3368-csi-dphy
+      - rockchip,rk3568-csi-dphy
 
   reg:
     maxItems: 1
