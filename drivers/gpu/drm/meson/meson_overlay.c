@@ -16,7 +16,6 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_gem_cma_helper.h>
-#include <drm/drm_plane_helper.h>
 
 #include "meson_overlay.h"
 #include "meson_registers.h"

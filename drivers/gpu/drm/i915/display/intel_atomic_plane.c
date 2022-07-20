@@ -33,7 +33,6 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_fourcc.h>
-#include <drm/drm_plane_helper.h>
 
 #include "gt/intel_rps.h"
 
