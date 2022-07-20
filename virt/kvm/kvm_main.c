@@ -1021,7 +1021,7 @@ static void kvm_destroy_vm_debugfs(struct kvm *kvm)
 	}
 }
 
-static int kvm_create_vm_debugfs(struct kvm *kvm, int fd)
+static int kvm_create_vm_debugfs(struct kvm *kvm, const char *fdname)
 {
 	static DEFINE_MUTEX(kvm_debugfs_lock);
 	struct dentry *dent;
@@ -1035,7 +1035,7 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, int fd)
 	if (!debugfs_initialized())
 		return 0;
 
-	snprintf(dir_name, sizeof(dir_name), "%d-%d", task_pid_nr(current), fd);
+	snprintf(dir_name, sizeof(dir_name), "%d-%s", task_pid_nr(current), fdname);
 	mutex_lock(&kvm_debugfs_lock);
 	dent = debugfs_lookup(dir_name, kvm_debugfs_dir);
 	if (dent) {
@@ -4889,6 +4889,7 @@ EXPORT_SYMBOL_GPL(file_is_kvm);
 
 static int kvm_dev_ioctl_create_vm(unsigned long type)
 {
+	char fdname[ITOA_MAX_LEN + 1];
 	int r, fd;
 	struct kvm *kvm;
 	struct file *file;
@@ -4896,6 +4897,8 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 	fd = get_unused_fd_flags(O_CLOEXEC);
 	if (fd < 0)
 		return fd;
+
+	snprintf(fdname, sizeof(fdname), "%d", fd);
 
 	kvm = kvm_create_vm(type);
 	if (IS_ERR(kvm)) {
@@ -4920,7 +4923,7 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 	 * cases it will be called by the final fput(file) and will take
 	 * care of doing kvm_put_kvm(kvm).
 	 */
-	if (kvm_create_vm_debugfs(kvm, fd) < 0) {
+	if (kvm_create_vm_debugfs(kvm, fdname) < 0) {
 		fput(file);
 		r = -ENOMEM;
 		goto put_fd;
