@@ -82,4 +82,6 @@ bool dcn21_validate_bandwidth_fp(struct dc *dc,
 				 bool fast_validate);
 void dcn21_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params);
 
+void dcn21_clk_mgr_set_bw_params_wm_table(struct clk_bw_params *bw_params);
+
 #endif /* __DCN20_FPU_H__ */
