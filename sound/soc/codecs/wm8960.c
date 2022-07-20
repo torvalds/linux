@@ -9,7 +9,6 @@
 
 #include <linux/module.h>
 #include <linux/moduleparam.h>
-#include <linux/device.h>
 #include <linux/init.h>
 #include <linux/delay.h>
 #include <linux/pm.h>
@@ -816,9 +815,10 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	struct snd_soc_component *component = dai->component;
 	struct wm8960_priv *wm8960 = snd_soc_component_get_drvdata(component);
 	u16 iface = snd_soc_component_read(component, WM8960_IFACE1) & 0xfff3;
-	u16 audio_format = iface & 0x3;
 	bool tx = substream->stream == SNDRV_PCM_STREAM_PLAYBACK;
-	int i;
+	u16 audio_format = iface & 0x3;
+	int freq_out, freq_in;
+	int i, j, k;
 
 	wm8960->bclk = snd_soc_params_to_bclk(params);
 	if (params_channels(params) == 1)
@@ -862,15 +862,20 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	/* set iface */
 	snd_soc_component_write(component, WM8960_IFACE1, iface);
 
-	if (audio_format == 0x3) //TDM Format
-	{
+	if (audio_format == 0x3) {//TDM Format
 		snd_soc_component_write(component, WM8960_POWER1, 0xfe);
 		snd_soc_component_write(component, WM8960_POWER2, 0x1f8);
 		snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
 		snd_soc_component_write(component, WM8960_PLL1, 0x28);
 		snd_soc_component_write(component, WM8960_PLL1, 0x38);
-		snd_soc_component_write(component, WM8960_CLOCK1, 0xdd);
-		snd_soc_component_write(component, WM8960_CLOCK2, 0x1cc);
+
+		freq_in = wm8960->freq_in;
+		freq_out = wm8960_configure_pll(component, freq_in, &i, &j, &k);
+		snd_soc_component_update_bits(component, WM8960_CLOCK1, 3 << 1, i << 1);
+		snd_soc_component_update_bits(component, WM8960_CLOCK1, 0x7 << 3, j << 3);
+		snd_soc_component_update_bits(component, WM8960_CLOCK1, 0x7 << 6, j << 6);
+		snd_soc_component_update_bits(component, WM8960_CLOCK2, 0xf, k);
+
 		snd_soc_component_write(component, WM8960_POWER3, 0x3c);
 
 		if (tx) {
@@ -909,12 +914,16 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 		snd_soc_component_write(component, WM8960_NOISEG, 0xf9);
 		snd_soc_component_write(component, WM8960_ALC1, 0x1bb);
 		snd_soc_component_write(component, WM8960_ALC2, 0x30);
+
+		for (i = 0; i < ARRAY_SIZE(alc_rates); i++)
+			if (alc_rates[i].rate == params_rate(params))
+				snd_soc_component_update_bits(component,
+								WM8960_ADDCTL3, 0x7,
+								alc_rates[i].val);
 		/* bclk inverted */
 		snd_soc_component_update_bits(component, WM8960_IFACE1, 0x80, 0x80);
-		snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
-	} else if (audio_format == 0x2) { //I2S Format
-		if (!tx)
-		{
+	} else if (audio_format == 0x2) {//I2S Format
+		if (!tx) {
 			snd_soc_component_update_bits(component, WM8960_LINVOL, 0x3<<7, 0x2<<7);
 			snd_soc_component_update_bits(component, WM8960_RINVOL, 0x3<<7, 0x2<<7);
 			snd_soc_component_write(component, WM8960_CLOCK1, 0x00); //0xd8
@@ -1385,10 +1394,14 @@ static int wm8960_set_dai_sysclk(struct snd_soc_dai *dai, int clk_id,
 }
 
 #define WM8960_RATES SNDRV_PCM_RATE_8000_48000
-
+/*
 #define WM8960_FORMATS \
 	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S20_3LE | \
 	SNDRV_PCM_FMTBIT_S24_LE | SNDRV_PCM_FMTBIT_S32_LE)
+*/
+
+#define WM8960_FORMATS \
+	(SNDRV_PCM_FMTBIT_S16_LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 static const struct snd_soc_dai_ops wm8960_dai_ops = {
 	.hw_params = wm8960_hw_params,
@@ -1577,8 +1590,8 @@ static int wm8960_i2c_probe(struct i2c_client *i2c,
 	regmap_update_bits(wm8960->regmap, WM8960_LOUT2, 0x100, 0x100);
 	regmap_update_bits(wm8960->regmap, WM8960_ROUT2, 0x100, 0x100);
 
-	regmap_update_bits(wm8960->regmap, WM8960_LINPATH, 0x138, 0x138);
-	regmap_update_bits(wm8960->regmap, WM8960_RINPATH, 0x138, 0x138);
+	regmap_update_bits(wm8960->regmap, WM8960_LINPATH, 0x138, 0x108);
+	regmap_update_bits(wm8960->regmap, WM8960_RINPATH, 0x138, 0x108);
 	regmap_update_bits(wm8960->regmap, WM8960_POWER1, 0x7E, 0x7E);
 	regmap_update_bits(wm8960->regmap, WM8960_POWER3, 0x30, 0x30);
 	regmap_update_bits(wm8960->regmap, WM8960_LINVOL, 0x1ff, 0x128);
@@ -1634,7 +1647,6 @@ static struct i2c_driver wm8960_i2c_driver = {
 };
 
 module_i2c_driver(wm8960_i2c_driver);
-
 
 MODULE_DESCRIPTION("ASoC WM8960 driver");
 MODULE_AUTHOR("Liam Girdwood");
