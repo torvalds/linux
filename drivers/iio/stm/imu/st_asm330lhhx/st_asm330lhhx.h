@@ -36,7 +36,9 @@
 #define ST_ASM330LHHX_DEFAULT_T_ODR_INDEX	1
 
 #define ST_ASM330LHHX_REG_FUNC_CFG_ACCESS_ADDR	0x01
+#define ST_ASM330LHHX_REG_SHUB_REG_MASK		BIT(6)
 #define ST_ASM330LHHX_REG_FUNC_CFG_MASK		BIT(7)
+#define ST_ASM330LHHX_REG_ACCESS_MASK		GENMASK(7, 6)
 
 #define ST_ASM330LHHX_REG_FIFO_CTRL1_ADDR	0x07
 #define ST_ASM330LHHX_REG_FIFO_CTRL2_ADDR	0x08
@@ -133,6 +135,26 @@
 
 #define ST_ASM330LHHX_INTERNAL_FREQ_FINE	0x63
 
+/* shub registers */
+#define ST_ASM330LHHX_REG_MASTER_CONFIG_ADDR	0x14
+#define ST_ASM330LHHX_REG_WRITE_ONCE_MASK		BIT(6)
+#define ST_ASM330LHHX_REG_SHUB_PU_EN_MASK		BIT(3)
+#define ST_ASM330LHHX_REG_MASTER_ON_MASK		BIT(2)
+
+#define ST_ASM330LHHX_REG_SLV0_ADDR			0x15
+#define ST_ASM330LHHX_REG_SLV0_CFG			0x17
+#define ST_ASM330LHHX_REG_SLV1_ADDR			0x18
+#define ST_ASM330LHHX_REG_SLV2_ADDR			0x1b
+#define ST_ASM330LHHX_REG_SLV3_ADDR			0x1e
+#define ST_ASM330LHHX_REG_DATAWRITE_SLV0_ADDR	0x21
+#define ST_ASM330LHHX_REG_BATCH_EXT_SENS_EN_MASK	BIT(3)
+#define ST_ASM330LHHX_REG_SLAVE_NUMOP_MASK		GENMASK(2, 0)
+
+#define ST_ASM330LHHX_REG_STATUS_MASTER_ADDR	0x22
+#define ST_ASM330LHHX_REG_SENS_HUB_ENDOP_MASK	BIT(0)
+
+#define ST_ASM330LHHX_REG_SLV0_OUT_ADDR		0x02
+
 /* Timestamp Tick 25us/LSB */
 #define ST_ASM330LHHX_TS_DELTA_NS		25000ULL
 
@@ -153,7 +175,7 @@
 #define ST_ASM330LHHX_FAST_KTIME		(5000000)
 
 #define ST_ASM330LHHX_DATA_CHANNEL(chan_type, addr, mod, ch2, scan_idx,	\
-				rb, sb, sg)				\
+				rb, sb, sg, ex_info)			\
 {									\
 	.type = chan_type,						\
 	.address = addr,						\
@@ -169,7 +191,7 @@
 		.storagebits = sb,					\
 		.endianness = IIO_LE,					\
 	},								\
-	.ext_info = st_asm330lhhx_ext_info,				\
+	.ext_info = ex_info,						\
 }
 
 static const struct iio_event_spec st_asm330lhhx_flush_event = {
@@ -193,8 +215,10 @@ static const struct iio_event_spec st_asm330lhhx_thr_event = {
 	.num_event_specs = 1,				\
 }
 
-#define ST_ASM330LHHX_RX_MAX_LENGTH	64
-#define ST_ASM330LHHX_TX_MAX_LENGTH	16
+#define ST_ASM330LHHX_SHIFT_VAL(val, mask)	(((val) << __ffs(mask)) & (mask))
+
+#define ST_ASM330LHHX_RX_MAX_LENGTH		64
+#define ST_ASM330LHHX_TX_MAX_LENGTH		16
 
 struct st_asm330lhhx_transfer_buffer {
 	u8 rx_buf[ST_ASM330LHHX_RX_MAX_LENGTH];
@@ -311,6 +335,8 @@ enum st_asm330lhhx_sensor_id {
 	ST_ASM330LHHX_ID_GYRO = 0,
 	ST_ASM330LHHX_ID_ACC,
 	ST_ASM330LHHX_ID_TEMP,
+	ST_ASM330LHHX_ID_EXT0,
+	ST_ASM330LHHX_ID_EXT1,
 	ST_ASM330LHHX_ID_EVENT,
 	ST_ASM330LHHX_ID_FF = ST_ASM330LHHX_ID_EVENT,
 	ST_ASM330LHHX_ID_SC,
@@ -328,6 +354,11 @@ enum st_asm330lhhx_fifo_mode {
 enum {
 	ST_ASM330LHHX_HW_FLUSH,
 	ST_ASM330LHHX_HW_OPERATIONAL,
+};
+
+struct st_asm330lhhx_ext_dev_info {
+	const struct st_asm330lhhx_ext_dev_settings *ext_dev_settings;
+	u8 ext_dev_i2c_addr;
 };
 
 enum st_asm330lhhx_hw_id {
@@ -377,8 +408,11 @@ struct st_asm330lhhx_settings {
  * @name: Sensor name.
  * @id: Sensor identifier.
  * @hw: Pointer to instance of struct st_asm330lhhx_hw.
+ * @ext_dev_info: For sensor hub indicate device info struct.
  * @gain: Configured sensor sensitivity.
  * @offset: Sensor data offset.
+ * @decimator: Sensor decimator
+ * @dec_counter: Sensor decimator counter
  * @conf: Used in case of sensor event to manage configuration.
  * @odr: Output data rate of the sensor [Hz].
  * @uodr: Output data rate of the sensor [uHz].
@@ -393,6 +427,7 @@ struct st_asm330lhhx_sensor {
 	char name[32];
 	enum st_asm330lhhx_sensor_id id;
 	struct st_asm330lhhx_hw *hw;
+	struct st_asm330lhhx_ext_dev_info ext_dev_info;
 	struct iio_trigger *trig;
 
 	union {
@@ -400,6 +435,8 @@ struct st_asm330lhhx_sensor {
 		struct {
 			u32 gain;
 			u32 offset;
+			u8 decimator;
+			u8 dec_counter;
 			int odr;
 			int uodr;
 
@@ -436,6 +473,7 @@ struct st_asm330lhhx_sensor {
  * @fifo_mode: FIFO operating mode supported by the device.
  * @state: hw operational state.
  * @enable_mask: Enabled sensor bitmask.
+ * @ext_data_len: External sensor data len.
  * @hw_timestamp_global: hw timestamp value always monotonic where the most
  *                       significant 8byte are incremented at every disable/enable.
  * @timesync_workqueue: runs the async task in private workqueue.
@@ -452,6 +490,7 @@ struct st_asm330lhhx_sensor {
  * @tsample: Timestamp for each sensor sample.
  * @delta_ts: Delta time between two consecutive interrupts.
  * @ts: Latest timestamp from irq handler.
+ * @i2c_master_pu: I2C master line Pull Up configuration.
  * @odr_table_entry: Sensors ODR table.
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @tf: Transfer function structure used by I/O operations.
@@ -471,7 +510,7 @@ struct st_asm330lhhx_hw {
 	enum st_asm330lhhx_fifo_mode fifo_mode;
 	unsigned long state;
 	u32 enable_mask;
-
+	u8 ext_data_len;
 	s64 hw_timestamp_global;
 
 #if defined (CONFIG_IIO_ST_ASM330LHHX_ASYNC_HW_TIMESTAMP)
@@ -491,6 +530,7 @@ struct st_asm330lhhx_hw {
 	s64 tsample;
 	s64 delta_ts;
 	s64 ts;
+	u8 i2c_master_pu;
 
 	const struct st_asm330lhhx_odr_table_entry *odr_table_entry;
 	struct iio_dev *iio_devs[ST_ASM330LHHX_ID_MAX];
@@ -568,6 +608,16 @@ st_asm330lhhx_write_with_mask(struct st_asm330lhhx_hw *hw, u8 addr,
 	return err;
 }
 
+/* no page_lock */
+static inline int
+st_asm330lhhx_set_page_access(struct st_asm330lhhx_hw *hw,
+			      bool val, unsigned int mask)
+{
+	return __st_asm330lhhx_write_with_mask(hw,
+				ST_ASM330LHHX_REG_FUNC_CFG_ACCESS_ADDR,
+				mask, val ? 1 : 0);
+}
+
 static inline bool
 st_asm330lhhx_is_fifo_enabled(struct st_asm330lhhx_hw *hw)
 {
@@ -608,6 +658,10 @@ int __st_asm330lhhx_set_sensor_batching_odr(struct st_asm330lhhx_sensor *sensor,
 					    bool enable);
 int st_asm330lhhx_update_batching(struct iio_dev *iio_dev, bool enable);
 int st_asm330lhhx_reset_hwts(struct st_asm330lhhx_hw *hw);
+int st_asm330lhhx_shub_probe(struct st_asm330lhhx_hw *hw);
+int st_asm330lhhx_shub_set_enable(struct st_asm330lhhx_sensor *sensor,
+			      bool enable);
+
 #ifdef CONFIG_IIO_ST_ASM330LHHX_EN_BASIC_FEATURES
 int st_asm330lhhx_event_handler(struct st_asm330lhhx_hw *hw);
 int st_asm330lhhx_probe_event(struct st_asm330lhhx_hw *hw);

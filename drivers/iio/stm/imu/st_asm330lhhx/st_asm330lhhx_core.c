@@ -378,11 +378,11 @@ static const struct iio_chan_spec_ext_info st_asm330lhhx_ext_info[] = {
 
 static const struct iio_chan_spec st_asm330lhhx_acc_channels[] = {
 	ST_ASM330LHHX_DATA_CHANNEL(IIO_ACCEL, ST_ASM330LHHX_REG_OUTX_L_A_ADDR,
-				1, IIO_MOD_X, 0, 16, 16, 's'),
+				1, IIO_MOD_X, 0, 16, 16, 's', st_asm330lhhx_ext_info),
 	ST_ASM330LHHX_DATA_CHANNEL(IIO_ACCEL, ST_ASM330LHHX_REG_OUTY_L_A_ADDR,
-				1, IIO_MOD_Y, 1, 16, 16, 's'),
+				1, IIO_MOD_Y, 1, 16, 16, 's', st_asm330lhhx_ext_info),
 	ST_ASM330LHHX_DATA_CHANNEL(IIO_ACCEL, ST_ASM330LHHX_REG_OUTZ_L_A_ADDR,
-				1, IIO_MOD_Z, 2, 16, 16, 's'),
+				1, IIO_MOD_Z, 2, 16, 16, 's', st_asm330lhhx_ext_info),
 	ST_ASM330LHHX_EVENT_CHANNEL(IIO_ACCEL, flush),
 	IIO_CHAN_HW_TIMESTAMP(3),
 	IIO_CHAN_SOFT_TIMESTAMP(4),
@@ -390,11 +390,11 @@ static const struct iio_chan_spec st_asm330lhhx_acc_channels[] = {
 
 static const struct iio_chan_spec st_asm330lhhx_gyro_channels[] = {
 	ST_ASM330LHHX_DATA_CHANNEL(IIO_ANGL_VEL, ST_ASM330LHHX_REG_OUTX_L_G_ADDR,
-				1, IIO_MOD_X, 0, 16, 16, 's'),
+				1, IIO_MOD_X, 0, 16, 16, 's', st_asm330lhhx_ext_info),
 	ST_ASM330LHHX_DATA_CHANNEL(IIO_ANGL_VEL, ST_ASM330LHHX_REG_OUTY_L_G_ADDR,
-				1, IIO_MOD_Y, 1, 16, 16, 's'),
+				1, IIO_MOD_Y, 1, 16, 16, 's', st_asm330lhhx_ext_info),
 	ST_ASM330LHHX_DATA_CHANNEL(IIO_ANGL_VEL, ST_ASM330LHHX_REG_OUTZ_L_G_ADDR,
-				1, IIO_MOD_Z, 2, 16, 16, 's'),
+				1, IIO_MOD_Z, 2, 16, 16, 's', st_asm330lhhx_ext_info),
 	ST_ASM330LHHX_EVENT_CHANNEL(IIO_ANGL_VEL, flush),
 	IIO_CHAN_HW_TIMESTAMP(3),
 	IIO_CHAN_SOFT_TIMESTAMP(4),
@@ -987,6 +987,8 @@ static int st_asm330lhhx_set_odr(struct st_asm330lhhx_sensor *sensor, int req_od
 	int err;
 
 	switch (id) {
+	case ST_ASM330LHHX_ID_EXT0:
+	case ST_ASM330LHHX_ID_EXT1:
 	case ST_ASM330LHHX_ID_WK:
 	case ST_ASM330LHHX_ID_FF:
 	case ST_ASM330LHHX_ID_SC:
@@ -1798,6 +1800,8 @@ static struct iio_dev *st_asm330lhhx_alloc_iiodev(struct st_asm330lhhx_hw *hw,
 	sensor->id = id;
 	sensor->hw = hw;
 	sensor->watermark = 1;
+	sensor->decimator = 0;
+	sensor->dec_counter = 0;
 	sensor->last_fifo_timestamp = 0;
 
 #ifdef ST_ASM330LHHX_DEBUG_DISCHARGE
@@ -1981,10 +1985,16 @@ int st_asm330lhhx_probe(struct device *dev, int irq, int hw_id,
 		return err;
 #endif /* LINUX_VERSION_CODE */
 
-	for (i = 0; i < ST_ASM330LHHX_ID_EVENT; i++) {
+	for (i = ST_ASM330LHHX_ID_GYRO; i < ST_ASM330LHHX_ID_TEMP; i++) {
 		hw->iio_devs[i] = st_asm330lhhx_alloc_iiodev(hw, i);
 		if (!hw->iio_devs[i])
 			return -ENOMEM;
+	}
+
+	if (hw->settings->st_shub_probe) {
+		err = st_asm330lhhx_shub_probe(hw);
+		if (err < 0)
+			return err;
 	}
 
 	if (hw->irq > 0) {
@@ -1993,7 +2003,7 @@ int st_asm330lhhx_probe(struct device *dev, int irq, int hw_id,
 			return err;
 	}
 
-	for (i = 0; i < ST_ASM330LHHX_ID_EVENT; i++) {
+	for (i = ST_ASM330LHHX_ID_GYRO; i <= ST_ASM330LHHX_ID_EXT1; i++) {
 		if (!hw->iio_devs[i])
 			continue;
 
