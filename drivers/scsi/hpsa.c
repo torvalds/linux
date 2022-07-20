@@ -6233,8 +6233,7 @@ static struct CommandList *cmd_alloc(struct ctlr_info *h)
 			offset = (i + 1) % HPSA_NRESERVED_CMDS;
 			continue;
 		}
-		set_bit(i & (BITS_PER_LONG - 1),
-			h->cmd_pool_bits + (i / BITS_PER_LONG));
+		set_bit(i, h->cmd_pool_bits);
 		break; /* it's ours now. */
 	}
 	hpsa_cmd_partial_init(h, i, c);
@@ -6261,8 +6260,7 @@ static void cmd_free(struct ctlr_info *h, struct CommandList *c)
 		int i;
 
 		i = c - h->cmd_pool;
-		clear_bit(i & (BITS_PER_LONG - 1),
-			  h->cmd_pool_bits + (i / BITS_PER_LONG));
+		clear_bit(i, h->cmd_pool_bits);
 	}
 }
 
