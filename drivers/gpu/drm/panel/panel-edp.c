@@ -53,7 +53,7 @@ struct panel_delay {
 	 * before the HPD signal is reliable. Ideally this is 0 but some panels,
 	 * board designs, or bad pulldown configs can cause a glitch here.
 	 *
-	 * NOTE: on some old panel data this number appers to be much too big.
+	 * NOTE: on some old panel data this number appears to be much too big.
 	 * Presumably some old panels simply didn't have HPD hooked up and put
 	 * the hpd_absent here because this field predates the
 	 * hpd_absent. While that works, it's non-ideal.
