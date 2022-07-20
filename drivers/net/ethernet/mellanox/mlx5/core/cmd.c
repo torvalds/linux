@@ -104,6 +104,7 @@ static bool mlx5_cmd_is_throttle_opcode(u16 op)
 	case MLX5_CMD_OP_DESTROY_GENERAL_OBJECT:
 	case MLX5_CMD_OP_MODIFY_GENERAL_OBJECT:
 	case MLX5_CMD_OP_QUERY_GENERAL_OBJECT:
+	case MLX5_CMD_OP_SYNC_CRYPTO:
 		return true;
 	}
 	return false;
@@ -523,6 +524,7 @@ static int mlx5_internal_err_ret_value(struct mlx5_core_dev *dev, u16 op,
 	case MLX5_CMD_OP_QUERY_VHCA_MIGRATION_STATE:
 	case MLX5_CMD_OP_SAVE_VHCA_STATE:
 	case MLX5_CMD_OP_LOAD_VHCA_STATE:
+	case MLX5_CMD_OP_SYNC_CRYPTO:
 		*status = MLX5_DRIVER_STATUS_ABORTED;
 		*synd = MLX5_DRIVER_SYND;
 		return -ENOLINK;
@@ -725,6 +727,7 @@ const char *mlx5_command_str(int command)
 	MLX5_COMMAND_STR_CASE(QUERY_VHCA_MIGRATION_STATE);
 	MLX5_COMMAND_STR_CASE(SAVE_VHCA_STATE);
 	MLX5_COMMAND_STR_CASE(LOAD_VHCA_STATE);
+	MLX5_COMMAND_STR_CASE(SYNC_CRYPTO);
 	default: return "unknown command opcode";
 	}
 }

@@ -7,6 +7,10 @@
 #define MLX5_CRYPTO_DEK_POOLS_NUM (MLX5_ACCEL_OBJ_TYPE_KEY_NUM - 1)
 #define type2idx(type) ((type) - 1)
 
+enum {
+	MLX5_CRYPTO_DEK_ALL_TYPE = BIT(0),
+};
+
 struct mlx5_crypto_dek_pool {
 	struct mlx5_core_dev *mdev;
 	u32 key_purpose;
@@ -69,6 +73,28 @@ static int mlx5_crypto_dek_fill_key(struct mlx5_core_dev *mdev, u8 *key_obj,
 	memcpy(dst, key, sz_bytes);
 
 	return 0;
+}
+
+static int mlx5_crypto_cmd_sync_crypto(struct mlx5_core_dev *mdev,
+				       int crypto_type)
+{
+	u32 in[MLX5_ST_SZ_DW(sync_crypto_in)] = {};
+	int err;
+
+	mlx5_core_dbg(mdev,
+		      "Execute SYNC_CRYPTO command with crypto_type(0x%x)\n",
+		      crypto_type);
+
+	MLX5_SET(sync_crypto_in, in, opcode, MLX5_CMD_OP_SYNC_CRYPTO);
+	MLX5_SET(sync_crypto_in, in, crypto_type, crypto_type);
+
+	err = mlx5_cmd_exec_in(mdev, sync_crypto, in);
+	if (err)
+		mlx5_core_err(mdev,
+			      "Failed to exec sync crypto, type=%d, err=%d\n",
+			      crypto_type, err);
+
+	return err;
 }
 
 static int mlx5_crypto_create_dek_key(struct mlx5_core_dev *mdev,
@@ -197,6 +223,7 @@ void mlx5_crypto_dek_cleanup(struct mlx5_crypto_dek_priv *dek_priv)
 struct mlx5_crypto_dek_priv *mlx5_crypto_dek_init(struct mlx5_core_dev *mdev)
 {
 	struct mlx5_crypto_dek_priv *dek_priv;
+	int err;
 
 	if (!MLX5_CAP_CRYPTO(mdev, log_dek_max_alloc))
 		return NULL;
@@ -209,10 +236,19 @@ struct mlx5_crypto_dek_priv *mlx5_crypto_dek_init(struct mlx5_core_dev *mdev)
 	dek_priv->log_dek_obj_range = min_t(int, 12,
 					    MLX5_CAP_CRYPTO(mdev, log_dek_max_alloc));
 
+	/* sync all types of objects */
+	err = mlx5_crypto_cmd_sync_crypto(mdev, MLX5_CRYPTO_DEK_ALL_TYPE);
+	if (err)
+		goto err_sync_crypto;
+
 	mlx5_core_dbg(mdev, "Crypto DEK enabled, %d deks per alloc (max %d), total %d\n",
 		      1 << dek_priv->log_dek_obj_range,
 		      1 << MLX5_CAP_CRYPTO(mdev, log_dek_max_alloc),
 		      1 << MLX5_CAP_CRYPTO(mdev, log_max_num_deks));
 
 	return dek_priv;
+
+err_sync_crypto:
+	kfree(dek_priv);
+	return ERR_PTR(err);
 }
