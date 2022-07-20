@@ -13,6 +13,7 @@
 #include <linux/static_call.h>
 #include <linux/bpf_verifier.h>
 #include <linux/bpf_lsm.h>
+#include <linux/delay.h>
 
 /* dummy _ops. The verifier will operate on target program's ops. */
 const struct bpf_verifier_ops bpf_extension_verifier_ops = {
@@ -28,6 +29,81 @@ static struct hlist_head trampoline_table[TRAMPOLINE_TABLE_SIZE];
 
 /* serializes access to trampoline_table */
 static DEFINE_MUTEX(trampoline_mutex);
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+static int bpf_trampoline_update(struct bpf_trampoline *tr, bool lock_direct_mutex);
+
+static int bpf_tramp_ftrace_ops_func(struct ftrace_ops *ops, enum ftrace_ops_cmd cmd)
+{
+	struct bpf_trampoline *tr = ops->private;
+	int ret = 0;
+
+	if (cmd == FTRACE_OPS_CMD_ENABLE_SHARE_IPMODIFY_SELF) {
+		/* This is called inside register_ftrace_direct_multi(), so
+		 * tr->mutex is already locked.
+		 */
+		lockdep_assert_held_once(&tr->mutex);
+
+		/* Instead of updating the trampoline here, we propagate
+		 * -EAGAIN to register_ftrace_direct_multi(). Then we can
+		 * retry register_ftrace_direct_multi() after updating the
+		 * trampoline.
+		 */
+		if ((tr->flags & BPF_TRAMP_F_CALL_ORIG) &&
+		    !(tr->flags & BPF_TRAMP_F_ORIG_STACK)) {
+			if (WARN_ON_ONCE(tr->flags & BPF_TRAMP_F_SHARE_IPMODIFY))
+				return -EBUSY;
+
+			tr->flags |= BPF_TRAMP_F_SHARE_IPMODIFY;
+			return -EAGAIN;
+		}
+
+		return 0;
+	}
+
+	/* The normal locking order is
+	 *    tr->mutex => direct_mutex (ftrace.c) => ftrace_lock (ftrace.c)
+	 *
+	 * The following two commands are called from
+	 *
+	 *   prepare_direct_functions_for_ipmodify
+	 *   cleanup_direct_functions_after_ipmodify
+	 *
+	 * In both cases, direct_mutex is already locked. Use
+	 * mutex_trylock(&tr->mutex) to avoid deadlock in race condition
+	 * (something else is making changes to this same trampoline).
+	 */
+	if (!mutex_trylock(&tr->mutex)) {
+		/* sleep 1 ms to make sure whatever holding tr->mutex makes
+		 * some progress.
+		 */
+		msleep(1);
+		return -EAGAIN;
+	}
+
+	switch (cmd) {
+	case FTRACE_OPS_CMD_ENABLE_SHARE_IPMODIFY_PEER:
+		tr->flags |= BPF_TRAMP_F_SHARE_IPMODIFY;
+
+		if ((tr->flags & BPF_TRAMP_F_CALL_ORIG) &&
+		    !(tr->flags & BPF_TRAMP_F_ORIG_STACK))
+			ret = bpf_trampoline_update(tr, false /* lock_direct_mutex */);
+		break;
+	case FTRACE_OPS_CMD_DISABLE_SHARE_IPMODIFY_PEER:
+		tr->flags &= ~BPF_TRAMP_F_SHARE_IPMODIFY;
+
+		if (tr->flags & BPF_TRAMP_F_ORIG_STACK)
+			ret = bpf_trampoline_update(tr, false /* lock_direct_mutex */);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	};
+
+	mutex_unlock(&tr->mutex);
+	return ret;
+}
+#endif
 
 bool bpf_prog_has_trampoline(const struct bpf_prog *prog)
 {
@@ -89,6 +165,16 @@ static struct bpf_trampoline *bpf_trampoline_lookup(u64 key)
 	tr = kzalloc(sizeof(*tr), GFP_KERNEL);
 	if (!tr)
 		goto out;
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	tr->fops = kzalloc(sizeof(struct ftrace_ops), GFP_KERNEL);
+	if (!tr->fops) {
+		kfree(tr);
+		tr = NULL;
+		goto out;
+	}
+	tr->fops->private = tr;
+	tr->fops->ops_func = bpf_tramp_ftrace_ops_func;
+#endif
 
 	tr->key = key;
 	INIT_HLIST_NODE(&tr->hlist);
@@ -128,7 +214,7 @@ static int unregister_fentry(struct bpf_trampoline *tr, void *old_addr)
 	int ret;
 
 	if (tr->func.ftrace_managed)
-		ret = unregister_ftrace_direct((long)ip, (long)old_addr);
+		ret = unregister_ftrace_direct_multi(tr->fops, (long)old_addr);
 	else
 		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, old_addr, NULL);
 
@@ -137,15 +223,20 @@ static int unregister_fentry(struct bpf_trampoline *tr, void *old_addr)
 	return ret;
 }
 
-static int modify_fentry(struct bpf_trampoline *tr, void *old_addr, void *new_addr)
+static int modify_fentry(struct bpf_trampoline *tr, void *old_addr, void *new_addr,
+			 bool lock_direct_mutex)
 {
 	void *ip = tr->func.addr;
 	int ret;
 
-	if (tr->func.ftrace_managed)
-		ret = modify_ftrace_direct((long)ip, (long)old_addr, (long)new_addr);
-	else
+	if (tr->func.ftrace_managed) {
+		if (lock_direct_mutex)
+			ret = modify_ftrace_direct_multi(tr->fops, (long)new_addr);
+		else
+			ret = modify_ftrace_direct_multi_nolock(tr->fops, (long)new_addr);
+	} else {
 		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, old_addr, new_addr);
+	}
 	return ret;
 }
 
@@ -163,10 +254,12 @@ static int register_fentry(struct bpf_trampoline *tr, void *new_addr)
 	if (bpf_trampoline_module_get(tr))
 		return -ENOENT;
 
-	if (tr->func.ftrace_managed)
-		ret = register_ftrace_direct((long)ip, (long)new_addr);
-	else
+	if (tr->func.ftrace_managed) {
+		ftrace_set_filter_ip(tr->fops, (unsigned long)ip, 0, 0);
+		ret = register_ftrace_direct_multi(tr->fops, (long)new_addr);
+	} else {
 		ret = bpf_arch_text_poke(ip, BPF_MOD_CALL, NULL, new_addr);
+	}
 
 	if (ret)
 		bpf_trampoline_module_put(tr);
@@ -332,11 +425,11 @@ out:
 	return ERR_PTR(err);
 }
 
-static int bpf_trampoline_update(struct bpf_trampoline *tr)
+static int bpf_trampoline_update(struct bpf_trampoline *tr, bool lock_direct_mutex)
 {
 	struct bpf_tramp_image *im;
 	struct bpf_tramp_links *tlinks;
-	u32 flags = BPF_TRAMP_F_RESTORE_REGS;
+	u32 orig_flags = tr->flags;
 	bool ip_arg = false;
 	int err, total;
 
@@ -358,18 +451,31 @@ static int bpf_trampoline_update(struct bpf_trampoline *tr)
 		goto out;
 	}
 
+	/* clear all bits except SHARE_IPMODIFY */
+	tr->flags &= BPF_TRAMP_F_SHARE_IPMODIFY;
+
 	if (tlinks[BPF_TRAMP_FEXIT].nr_links ||
-	    tlinks[BPF_TRAMP_MODIFY_RETURN].nr_links)
+	    tlinks[BPF_TRAMP_MODIFY_RETURN].nr_links) {
 		/* NOTE: BPF_TRAMP_F_RESTORE_REGS and BPF_TRAMP_F_SKIP_FRAME
 		 * should not be set together.
 		 */
-		flags = BPF_TRAMP_F_CALL_ORIG | BPF_TRAMP_F_SKIP_FRAME;
+		tr->flags |= BPF_TRAMP_F_CALL_ORIG | BPF_TRAMP_F_SKIP_FRAME;
+	} else {
+		tr->flags |= BPF_TRAMP_F_RESTORE_REGS;
+	}
 
 	if (ip_arg)
-		flags |= BPF_TRAMP_F_IP_ARG;
+		tr->flags |= BPF_TRAMP_F_IP_ARG;
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+again:
+	if ((tr->flags & BPF_TRAMP_F_SHARE_IPMODIFY) &&
+	    (tr->flags & BPF_TRAMP_F_CALL_ORIG))
+		tr->flags |= BPF_TRAMP_F_ORIG_STACK;
+#endif
 
 	err = arch_prepare_bpf_trampoline(im, im->image, im->image + PAGE_SIZE,
-					  &tr->func.model, flags, tlinks,
+					  &tr->func.model, tr->flags, tlinks,
 					  tr->func.addr);
 	if (err < 0)
 		goto out;
@@ -378,17 +484,34 @@ static int bpf_trampoline_update(struct bpf_trampoline *tr)
 	WARN_ON(!tr->cur_image && tr->selector);
 	if (tr->cur_image)
 		/* progs already running at this address */
-		err = modify_fentry(tr, tr->cur_image->image, im->image);
+		err = modify_fentry(tr, tr->cur_image->image, im->image, lock_direct_mutex);
 	else
 		/* first time registering */
 		err = register_fentry(tr, im->image);
+
+#ifdef CONFIG_DYNAMIC_FTRACE_WITH_DIRECT_CALLS
+	if (err == -EAGAIN) {
+		/* -EAGAIN from bpf_tramp_ftrace_ops_func. Now
+		 * BPF_TRAMP_F_SHARE_IPMODIFY is set, we can generate the
+		 * trampoline again, and retry register.
+		 */
+		/* reset fops->func and fops->trampoline for re-register */
+		tr->fops->func = NULL;
+		tr->fops->trampoline = 0;
+		goto again;
+	}
+#endif
 	if (err)
 		goto out;
+
 	if (tr->cur_image)
 		bpf_tramp_image_put(tr->cur_image);
 	tr->cur_image = im;
 	tr->selector++;
 out:
+	/* If any error happens, restore previous flags */
+	if (err)
+		tr->flags = orig_flags;
 	kfree(tlinks);
 	return err;
 }
@@ -454,7 +577,7 @@ static int __bpf_trampoline_link_prog(struct bpf_tramp_link *link, struct bpf_tr
 
 	hlist_add_head(&link->tramp_hlist, &tr->progs_hlist[kind]);
 	tr->progs_cnt[kind]++;
-	err = bpf_trampoline_update(tr);
+	err = bpf_trampoline_update(tr, true /* lock_direct_mutex */);
 	if (err) {
 		hlist_del_init(&link->tramp_hlist);
 		tr->progs_cnt[kind]--;
@@ -487,7 +610,7 @@ static int __bpf_trampoline_unlink_prog(struct bpf_tramp_link *link, struct bpf_
 	}
 	hlist_del_init(&link->tramp_hlist);
 	tr->progs_cnt[kind]--;
-	return bpf_trampoline_update(tr);
+	return bpf_trampoline_update(tr, true /* lock_direct_mutex */);
 }
 
 /* bpf_trampoline_unlink_prog() should never fail. */
@@ -715,6 +838,7 @@ void bpf_trampoline_put(struct bpf_trampoline *tr)
 	 * multiple rcu callbacks.
 	 */
 	hlist_del(&tr->hlist);
+	kfree(tr->fops);
 	kfree(tr);
 out:
 	mutex_unlock(&trampoline_mutex);
