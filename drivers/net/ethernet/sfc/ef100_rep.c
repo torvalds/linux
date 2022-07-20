@@ -12,6 +12,8 @@
 #include "ef100_rep.h"
 #include "ef100_nic.h"
 
+#define EFX_EF100_REP_DRIVER	"efx_ef100_rep"
+
 static int efx_ef100_rep_init_struct(struct efx_nic *efx, struct efx_rep *efv)
 {
 	efv->parent = efx;
@@ -26,7 +28,31 @@ static int efx_ef100_rep_init_struct(struct efx_nic *efx, struct efx_rep *efv)
 static const struct net_device_ops efx_ef100_rep_netdev_ops = {
 };
 
+static void efx_ef100_rep_get_drvinfo(struct net_device *dev,
+				      struct ethtool_drvinfo *drvinfo)
+{
+	strscpy(drvinfo->driver, EFX_EF100_REP_DRIVER, sizeof(drvinfo->driver));
+}
+
+static u32 efx_ef100_rep_ethtool_get_msglevel(struct net_device *net_dev)
+{
+	struct efx_rep *efv = netdev_priv(net_dev);
+
+	return efv->msg_enable;
+}
+
+static void efx_ef100_rep_ethtool_set_msglevel(struct net_device *net_dev,
+					       u32 msg_enable)
+{
+	struct efx_rep *efv = netdev_priv(net_dev);
+
+	efv->msg_enable = msg_enable;
+}
+
 static const struct ethtool_ops efx_ef100_rep_ethtool_ops = {
+	.get_drvinfo		= efx_ef100_rep_get_drvinfo,
+	.get_msglevel		= efx_ef100_rep_ethtool_get_msglevel,
+	.set_msglevel		= efx_ef100_rep_ethtool_set_msglevel,
 };
 
 static struct efx_rep *efx_ef100_rep_create_netdev(struct efx_nic *efx,
