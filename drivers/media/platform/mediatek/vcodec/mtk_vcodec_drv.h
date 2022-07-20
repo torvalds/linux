@@ -401,6 +401,7 @@ struct mtk_vcodec_dec_pdata {
  * @output_formats: array of supported output formats
  * @num_output_formats: number of entries in output_formats
  * @core_id: stand for h264 or vp8 encode index
+ * @uses_34bit: whether the encoder uses 34-bit iova
  */
 struct mtk_vcodec_enc_pdata {
 	bool uses_ext;
@@ -411,9 +412,11 @@ struct mtk_vcodec_enc_pdata {
 	const struct mtk_video_fmt *output_formats;
 	size_t num_output_formats;
 	int core_id;
+	bool uses_34bit;
 };
 
 #define MTK_ENC_CTX_IS_EXT(ctx) ((ctx)->dev->venc_pdata->uses_ext)
+#define MTK_ENC_IOVA_IS_34BIT(ctx) ((ctx)->dev->venc_pdata->uses_34bit)
 
 /**
  * struct mtk_vcodec_dev - driver data

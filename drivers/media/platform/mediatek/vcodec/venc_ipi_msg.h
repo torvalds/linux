@@ -101,6 +101,30 @@ struct venc_ap_ipi_msg_enc_ext {
 };
 
 /**
+ * struct venc_ap_ipi_msg_enc_ext_34 - AP to SCP extended enc cmd structure
+ * @msg_id:		message id (AP_IPIMSG_XXX_ENC_ENCODE)
+ * @vpu_inst_addr:	VPU encoder instance addr
+ * @bs_mode:		bitstream mode for h264
+ * @reserved:		for struct padding
+ * @input_addr:		input frame buffer 34 bit address
+ * @bs_addr:		output bitstream buffer 34 bit address
+ * @bs_size:		bitstream buffer size
+ * @data_item:		number of items in the data array
+ * @data:		data array to store the set parameters
+ */
+struct venc_ap_ipi_msg_enc_ext_34 {
+	u32 msg_id;
+	u32 vpu_inst_addr;
+	u32 bs_mode;
+	u32 reserved;
+	u64 input_addr[3];
+	u64 bs_addr;
+	u32 bs_size;
+	u32 data_item;
+	u32 data[32];
+};
+
+/**
  * struct venc_ap_ipi_msg_deinit - AP to VPU deinit cmd structure
  * @msg_id:	message id (AP_IPIMSG_XXX_ENC_DEINIT)
  * @vpu_inst_addr:	VPU encoder instance addr
