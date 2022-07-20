@@ -290,7 +290,7 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 	struct buffer_head *bh;
 	struct item_head *ih, tmp_ih;
 	b_blocknr_t blocknr;
-	char *p = NULL;
+	char *p;
 	int chars;
 	int ret;
 	int result;
@@ -305,8 +305,6 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 	result = search_for_position_by_key(inode->i_sb, &key, &path);
 	if (result != POSITION_FOUND) {
 		pathrelse(&path);
-		if (p)
-			kunmap(bh_result->b_page);
 		if (result == IO_ERROR)
 			return -EIO;
 		/*
@@ -352,8 +350,6 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 		}
 
 		pathrelse(&path);
-		if (p)
-			kunmap(bh_result->b_page);
 		return ret;
 	}
 	/* requested data are in direct item(s) */
@@ -363,8 +359,6 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 		 * when it is stored in direct item(s)
 		 */
 		pathrelse(&path);
-		if (p)
-			kunmap(bh_result->b_page);
 		return -ENOENT;
 	}
 
@@ -396,9 +390,7 @@ static int _get_block_create_0(struct inode *inode, sector_t block,
 	 * sure we need to.  But, this means the item might move if
 	 * kmap schedules
 	 */
-	if (!p)
-		p = (char *)kmap(bh_result->b_page);
-
+	p = (char *)kmap(bh_result->b_page);
 	p += offset;
 	memset(p, 0, inode->i_sb->s_blocksize);
 	do {
