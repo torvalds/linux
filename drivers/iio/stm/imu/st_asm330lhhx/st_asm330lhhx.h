@@ -87,6 +87,12 @@
 #define ST_ASM330LHHX_SELF_TEST_NEG_ACCEL_SIGN_VAL	2
 #define ST_ASM330LHHX_SELF_TEST_NEG_GYRO_SIGN_VAL	3
 
+#define ST_ASM330LHHX_REG_CTRL6_C_ADDR		0x15
+#define ST_ASM330LHHX_REG_XL_HM_MODE_MASK	BIT(4)
+
+#define ST_ASM330LHHX_REG_CTRL7_G_ADDR		0x16
+#define ST_ASM330LHHX_REG_G_HM_MODE_MASK	BIT(7)
+
 #define ST_ASM330LHHX_REG_CTRL9_XL_ADDR		0x18
 #define ST_ASM330LHHX_REG_DEVICE_CONF_MASK	BIT(1)
 
@@ -251,12 +257,14 @@ struct st_asm330lhhx_odr {
  * struct st_asm330lhhx_odr_table_entry - Sensor ODR table
  * @size: Size of ODR table.
  * @reg: ODR register.
+ * @pm: Power mode register.
  * @batching_reg: ODR register for batching on fifo.
  * @odr_avl: Array of supported ODR value.
  */
 struct st_asm330lhhx_odr_table_entry {
 	u8 size;
 	struct st_asm330lhhx_reg reg;
+	struct st_asm330lhhx_reg pm;
 	struct st_asm330lhhx_reg batching_reg;
 	struct st_asm330lhhx_odr odr_avl[ST_ASM330LHHX_ODR_LIST_SIZE];
 };
@@ -328,6 +336,23 @@ enum st_asm330lhhx_hw_id {
 	ST_ASM330LHHX_MAX_ID,
 };
 
+enum st_asm330lhhx_pm_t {
+	ST_ASM330LHHX_HP_MODE = 0,
+	ST_ASM330LHHX_LP_MODE,
+	ST_ASM330LHHX_NO_MODE,
+};
+
+/**
+ * struct st_asm330lhhx_pm_table - Power mode table
+ *
+ * @mode: Power mode string.
+ * @pm: Power mode setting.
+ */
+struct st_asm330lhhx_pm_table {
+	char *mode;
+	enum st_asm330lhhx_pm_t pm;
+};
+
 /**
  * struct st_asm330lhhx_settings - ST IMU sensor settings
  *
@@ -335,6 +360,7 @@ enum st_asm330lhhx_hw_id {
  * @name: Device name supported by the driver configuration.
  * @st_mlc_probe: MLC probe flag.
  * @st_shub_probe: SHUB probe flag.
+ * @st_power_mode: Support power mode flag.
  */
 struct st_asm330lhhx_settings {
 	struct {
@@ -343,6 +369,7 @@ struct st_asm330lhhx_settings {
 	} id;
 	bool st_mlc_probe;
 	bool st_shub_probe;
+	bool st_power_mode;
 };
 
 /**
@@ -357,6 +384,7 @@ struct st_asm330lhhx_settings {
  * @uodr: Output data rate of the sensor [uHz].
  * @max_watermark: Max supported watermark level.
  * @watermark: Sensor watermark level.
+ * @pm: sensor power mode (HP, LP).
  * @last_fifo_timestamp: Store last sample timestamp in FIFO, used by flush
  * @selftest_status: Last status of self test output
  * @min_st, @max_st: Min/Max acc/gyro data values during self test procedure
@@ -381,6 +409,7 @@ struct st_asm330lhhx_sensor {
 
 			u16 max_watermark;
 			u16 watermark;
+			enum st_asm330lhhx_pm_t pm;
 			s64 last_fifo_timestamp;
 
 			/* self test */

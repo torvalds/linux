@@ -51,6 +51,20 @@ static struct st_asm330lhhx_selftest_table {
 	},
 };
 
+static const struct st_asm330lhhx_power_mode_table {
+	char *string_mode;
+	enum st_asm330lhhx_pm_t val;
+} st_asm330lhhx_power_mode[] = {
+	[0] = {
+		.string_mode = "HP_MODE",
+		.val = ST_ASM330LHHX_HP_MODE,
+	},
+	[1] = {
+		.string_mode = "LP_MODE",
+		.val = ST_ASM330LHHX_LP_MODE,
+	},
+};
+
 static struct st_asm330lhhx_suspend_resume_entry
 	st_asm330lhhx_suspend_resume[ST_ASM330LHHX_SUSPEND_RESUME_REGS] = {
 	[ST_ASM330LHHX_CTRL1_XL_REG] = {
@@ -118,6 +132,10 @@ static const struct st_asm330lhhx_odr_table_entry st_asm330lhhx_odr_table[] = {
 			.addr = ST_ASM330LHHX_CTRL1_XL_ADDR,
 			.mask = GENMASK(7, 4),
 		},
+		.pm = {
+			.addr = ST_ASM330LHHX_REG_CTRL6_C_ADDR,
+			.mask = ST_ASM330LHHX_REG_XL_HM_MODE_MASK,
+		},
 		.batching_reg = {
 			.addr = ST_ASM330LHHX_REG_FIFO_CTRL3_ADDR,
 			.mask = GENMASK(3, 0),
@@ -135,6 +153,10 @@ static const struct st_asm330lhhx_odr_table_entry st_asm330lhhx_odr_table[] = {
 		.reg = {
 			.addr = ST_ASM330LHHX_CTRL2_G_ADDR,
 			.mask = GENMASK(7, 4),
+		},
+		.pm = {
+			.addr = ST_ASM330LHHX_REG_CTRL7_G_ADDR,
+			.mask = ST_ASM330LHHX_REG_G_HM_MODE_MASK,
 		},
 		.batching_reg = {
 			.addr = ST_ASM330LHHX_REG_FIFO_CTRL3_ADDR,
@@ -173,6 +195,7 @@ static const struct st_asm330lhhx_settings st_asm330lhhx_sensor_settings[] = {
 	},
 		.st_mlc_probe = true,
 		.st_shub_probe = true,
+		.st_power_mode = true,
 	},
 	{
 		.id = {
@@ -999,6 +1022,17 @@ static int st_asm330lhhx_set_odr(struct st_asm330lhhx_sensor *sensor, int req_od
 	if (err < 0)
 		return err;
 
+	/* check if sensor supports power mode setting */
+	if (sensor->pm != ST_ASM330LHHX_NO_MODE &&
+	    hw->settings->st_power_mode) {
+		err = st_asm330lhhx_write_with_mask(hw,
+				st_asm330lhhx_odr_table[id].pm.addr,
+				st_asm330lhhx_odr_table[id].pm.mask,
+				sensor->pm);
+		if (err < 0)
+			return err;
+	}
+
 	err = st_asm330lhhx_write_with_mask(hw,
 					   st_asm330lhhx_odr_table[sensor->id].reg.addr,
 					   st_asm330lhhx_odr_table[sensor->id].reg.mask,
@@ -1197,6 +1231,78 @@ static ssize_t st_asm330lhhx_sysfs_scale_avail(struct device *dev,
 	buf[len - 1] = '\n';
 
 	return len;
+}
+
+static ssize_t
+st_asm330lhhx_sysfs_get_power_mode_avail(struct device *dev,
+				     struct device_attribute *attr,
+				     char *buf)
+{
+	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
+	struct st_asm330lhhx_hw *hw = sensor->hw;
+	int i, len = 0;
+
+	/* check for supported feature */
+	if (hw->settings->st_power_mode) {
+		for (i = 0; i < ARRAY_SIZE(st_asm330lhhx_power_mode); i++) {
+			len += scnprintf(buf + len, PAGE_SIZE - len, "%s ",
+					 st_asm330lhhx_power_mode[i].string_mode);
+		}
+	} else {
+		len += scnprintf(buf + len, PAGE_SIZE - len, "%s ",
+				 st_asm330lhhx_power_mode[0].string_mode);
+	}
+
+	buf[len - 1] = '\n';
+
+	return len;
+}
+
+static ssize_t
+st_asm330lhhx_get_power_mode(struct device *dev,
+			 struct device_attribute *attr, char *buf)
+{
+	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
+
+	return sprintf(buf, "%s\n",
+		       st_asm330lhhx_power_mode[sensor->pm].string_mode);
+}
+
+static ssize_t
+st_asm330lhhx_set_power_mode(struct device *dev,
+			 struct device_attribute *attr,
+			 const char *buf, size_t size)
+{
+	struct iio_dev *iio_dev = dev_get_drvdata(dev);
+	struct st_asm330lhhx_sensor *sensor = iio_priv(iio_dev);
+	struct st_asm330lhhx_hw *hw = sensor->hw;
+	int err, i;
+
+	/* check for supported feature */
+	if (!hw->settings->st_power_mode)
+		return -EINVAL;
+
+	for (i = 0; i < ARRAY_SIZE(st_asm330lhhx_power_mode); i++) {
+		if (strncmp(buf, st_asm330lhhx_power_mode[i].string_mode,
+		    strlen(st_asm330lhhx_power_mode[i].string_mode)) == 0)
+			break;
+	}
+
+	if (i == ARRAY_SIZE(st_asm330lhhx_power_mode))
+		return -EINVAL;
+
+	err = iio_device_claim_direct_mode(iio_dev);
+	if (err)
+		return err;
+
+	/* update power mode */
+	sensor->pm = st_asm330lhhx_power_mode[i].val;
+
+	iio_device_release_direct_mode(iio_dev);
+
+	return size;
 }
 
 static int st_asm330lhhx_selftest_sensor(struct st_asm330lhhx_sensor *sensor,
@@ -1442,6 +1548,13 @@ static IIO_DEVICE_ATTR(in_temp_scale_available, 0444,
 static IIO_DEVICE_ATTR(hwfifo_flush, 0200, NULL, st_asm330lhhx_flush_fifo, 0);
 static IIO_DEVICE_ATTR(hwfifo_watermark, 0644, st_asm330lhhx_get_watermark,
 		       st_asm330lhhx_set_watermark, 0);
+
+static IIO_DEVICE_ATTR(power_mode_available, 0444,
+		       st_asm330lhhx_sysfs_get_power_mode_avail, NULL, 0);
+static IIO_DEVICE_ATTR(power_mode, 0644,
+		       st_asm330lhhx_get_power_mode,
+		       st_asm330lhhx_set_power_mode, 0);
+
 static IIO_DEVICE_ATTR(selftest_available, 0444,
 		       st_asm330lhhx_sysfs_get_selftest_available,
 		       NULL, 0);
@@ -1493,8 +1606,10 @@ static struct attribute *st_asm330lhhx_acc_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_in_accel_scale_available.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
+	&iio_dev_attr_power_mode_available.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_power_mode.dev_attr.attr,
 	&iio_dev_attr_selftest_available.dev_attr.attr,
 	&iio_dev_attr_selftest.dev_attr.attr,
 #ifdef ST_ASM330LHHX_DEBUG_DISCHARGE
@@ -1521,8 +1636,10 @@ static struct attribute *st_asm330lhhx_gyro_attributes[] = {
 	&iio_dev_attr_sampling_frequency_available.dev_attr.attr,
 	&iio_dev_attr_in_anglvel_scale_available.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark_max.dev_attr.attr,
+	&iio_dev_attr_power_mode_available.dev_attr.attr,
 	&iio_dev_attr_hwfifo_watermark.dev_attr.attr,
 	&iio_dev_attr_hwfifo_flush.dev_attr.attr,
+	&iio_dev_attr_power_mode.dev_attr.attr,
 	&iio_dev_attr_selftest_available.dev_attr.attr,
 	&iio_dev_attr_selftest.dev_attr.attr,
 #ifdef ST_ASM330LHHX_DEBUG_DISCHARGE
@@ -1706,6 +1823,7 @@ static struct iio_dev *st_asm330lhhx_alloc_iiodev(struct st_asm330lhhx_hw *hw,
 		sensor->odr = st_asm330lhhx_odr_table[id].odr_avl[ST_ASM330LHHX_DEFAULT_XL_ODR_INDEX].hz;
 		sensor->uodr = st_asm330lhhx_odr_table[id].odr_avl[ST_ASM330LHHX_DEFAULT_XL_ODR_INDEX].uhz;
 		sensor->offset = 0;
+		sensor->pm = ST_ASM330LHHX_HP_MODE;
 		sensor->min_st = ST_ASM330LHHX_SELFTEST_ACCEL_MIN;
 		sensor->max_st = ST_ASM330LHHX_SELFTEST_ACCEL_MAX;
 		break;
@@ -1722,6 +1840,7 @@ static struct iio_dev *st_asm330lhhx_alloc_iiodev(struct st_asm330lhhx_hw *hw,
 		sensor->odr = st_asm330lhhx_odr_table[id].odr_avl[ST_ASM330LHHX_DEFAULT_G_ODR_INDEX].hz;
 		sensor->uodr = st_asm330lhhx_odr_table[id].odr_avl[ST_ASM330LHHX_DEFAULT_G_ODR_INDEX].uhz;
 		sensor->offset = 0;
+		sensor->pm = ST_ASM330LHHX_HP_MODE;
 		sensor->min_st = ST_ASM330LHHX_SELFTEST_GYRO_MIN;
 		sensor->max_st = ST_ASM330LHHX_SELFTEST_GYRO_MAX;
 		break;
@@ -1738,6 +1857,7 @@ static struct iio_dev *st_asm330lhhx_alloc_iiodev(struct st_asm330lhhx_hw *hw,
 		sensor->odr = st_asm330lhhx_odr_table[id].odr_avl[ST_ASM330LHHX_DEFAULT_T_ODR_INDEX].hz;
 		sensor->uodr = st_asm330lhhx_odr_table[id].odr_avl[ST_ASM330LHHX_DEFAULT_T_ODR_INDEX].uhz;
 		sensor->offset = ST_ASM330LHHX_TEMP_OFFSET;
+		sensor->pm = ST_ASM330LHHX_NO_MODE;
 		break;
 	default:
 		return NULL;
