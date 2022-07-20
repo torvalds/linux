@@ -28,6 +28,7 @@
 AMDGPUDM = \
 	amdgpu_dm.o \
 	amdgpu_dm_plane.o \
+	amdgpu_dm_crtc.o \
 	amdgpu_dm_irq.o \
 	amdgpu_dm_mst_types.o \
 	amdgpu_dm_color.o
