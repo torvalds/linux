@@ -88,7 +88,7 @@ static int con_remove(int n, char **error_out)
 }
 
 /* Set in an initcall, checked in an exitcall */
-static int con_init_done = 0;
+static int con_init_done;
 
 static int con_install(struct tty_driver *driver, struct tty_struct *tty)
 {
