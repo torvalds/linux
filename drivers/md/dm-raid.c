@@ -3095,6 +3095,7 @@ static int raid_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	INIT_WORK(&rs->md.event_work, do_table_event);
 	ti->private = rs;
 	ti->num_flush_bios = 1;
+	ti->needs_bio_set_dev = true;
 
 	/* Restore any requested new layout for conversion decision */
 	rs_config_restore(rs, &rs_layout);

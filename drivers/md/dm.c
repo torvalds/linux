@@ -574,9 +574,6 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	struct bio *clone;
 
 	clone = bio_alloc_clone(NULL, bio, GFP_NOIO, &md->mempools->io_bs);
-	/* Set default bdev, but target must bio_set_dev() before issuing IO */
-	clone->bi_bdev = md->disk->part0;
-
 	tio = clone_to_tio(clone);
 	tio->flags = 0;
 	dm_tio_set_flag(tio, DM_TIO_INSIDE_DM_IO);
@@ -609,6 +606,7 @@ static void free_io(struct dm_io *io)
 static struct bio *alloc_tio(struct clone_info *ci, struct dm_target *ti,
 			     unsigned target_bio_nr, unsigned *len, gfp_t gfp_mask)
 {
+	struct mapped_device *md = ci->io->md;
 	struct dm_target_io *tio;
 	struct bio *clone;
 
@@ -618,14 +616,10 @@ static struct bio *alloc_tio(struct clone_info *ci, struct dm_target *ti,
 		/* alloc_io() already initialized embedded clone */
 		clone = &tio->clone;
 	} else {
-		struct mapped_device *md = ci->io->md;
-
 		clone = bio_alloc_clone(NULL, ci->bio, gfp_mask,
 					&md->mempools->bs);
 		if (!clone)
 			return NULL;
-		/* Set default bdev, but target must bio_set_dev() before issuing IO */
-		clone->bi_bdev = md->disk->part0;
 
 		/* REQ_DM_POLL_LIST shouldn't be inherited */
 		clone->bi_opf &= ~REQ_DM_POLL_LIST;
@@ -640,6 +634,11 @@ static struct bio *alloc_tio(struct clone_info *ci, struct dm_target *ti,
 	tio->target_bio_nr = target_bio_nr;
 	tio->len_ptr = len;
 	tio->old_sector = 0;
+
+	/* Set default bdev, but target must bio_set_dev() before issuing IO */
+	clone->bi_bdev = md->disk->part0;
+	if (unlikely(ti->needs_bio_set_dev))
+		bio_set_dev(clone, md->disk->part0);
 
 	if (len) {
 		clone->bi_iter.bi_size = to_bytes(*len);

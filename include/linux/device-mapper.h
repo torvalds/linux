@@ -373,6 +373,12 @@ struct dm_target {
 	 * after returning DM_MAPIO_SUBMITTED from its map function.
 	 */
 	bool accounts_remapped_io:1;
+
+	/*
+	 * Set if the target will submit the DM bio without first calling
+	 * bio_set_dev(). NOTE: ideally a target should _not_ need this.
+	 */
+	bool needs_bio_set_dev:1;
 };
 
 void *dm_per_bio_data(struct bio *bio, size_t data_size);
