@@ -1733,8 +1733,6 @@ static struct iio_dev *st_asm330lhhx_alloc_iiodev(struct st_asm330lhhx_hw *hw,
 		sensor->offset = ST_ASM330LHHX_TEMP_OFFSET;
 		break;
 	default:
-		iio_device_free(iio_dev);
-
 		return NULL;
 	}
 
