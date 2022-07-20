@@ -27,6 +27,9 @@
 
 #define RK3368_GRF_SOC_CON6_OFFSET	0x0418
 
+#define RK3568_GRF_VI_CON0		0x0340
+#define RK3568_GRF_VI_CON1		0x0344
+
 /* PHY */
 #define CSIDPHY_CTRL_LANE_ENABLE		0x00
 #define CSIDPHY_CTRL_LANE_ENABLE_CK		BIT(6)
@@ -58,9 +61,11 @@
 #define RK1808_CSIDPHY_CLK_WR_THS_SETTLE	0x160
 #define RK3326_CSIDPHY_CLK_WR_THS_SETTLE	0x100
 #define RK3368_CSIDPHY_CLK_WR_THS_SETTLE	0x100
+#define RK3568_CSIDPHY_CLK_WR_THS_SETTLE	0x160
 
 /* Calibration reception enable */
 #define RK1808_CSIDPHY_CLK_CALIB_EN		0x168
+#define RK3568_CSIDPHY_CLK_CALIB_EN		0x168
 
 /*
  * The higher 16-bit of this register is used for write protection
@@ -101,6 +106,12 @@ static const struct dphy_reg rk3326_grf_dphy_regs[] = {
 
 static const struct dphy_reg rk3368_grf_dphy_regs[] = {
 	[GRF_DPHY_CSIPHY_FORCERXMODE] = PHY_REG(RK3368_GRF_SOC_CON6_OFFSET, 4, 8),
+};
+
+static const struct dphy_reg rk3568_grf_dphy_regs[] = {
+	[GRF_DPHY_CSIPHY_FORCERXMODE] = PHY_REG(RK3568_GRF_VI_CON0, 4, 0),
+	[GRF_DPHY_CSIPHY_DATALANE_EN] = PHY_REG(RK3568_GRF_VI_CON0, 4, 4),
+	[GRF_DPHY_CSIPHY_CLKLANE_EN] = PHY_REG(RK3568_GRF_VI_CON0, 1, 8),
 };
 
 struct hsfreq_range {
@@ -352,6 +363,15 @@ static const struct dphy_drv_data rk3368_mipidphy_drv_data = {
 	.grf_regs = rk3368_grf_dphy_regs,
 };
 
+static const struct dphy_drv_data rk3568_mipidphy_drv_data = {
+	.pwrctl_offset = -1,
+	.ths_settle_offset = RK3568_CSIDPHY_CLK_WR_THS_SETTLE,
+	.calib_offset = RK3568_CSIDPHY_CLK_CALIB_EN,
+	.hsfreq_ranges = rk1808_mipidphy_hsfreq_ranges,
+	.num_hsfreq_ranges = ARRAY_SIZE(rk1808_mipidphy_hsfreq_ranges),
+	.grf_regs = rk3568_grf_dphy_regs,
+};
+
 static const struct of_device_id rockchip_inno_csidphy_match_id[] = {
 	{
 		.compatible = "rockchip,px30-csi-dphy",
@@ -368,6 +388,10 @@ static const struct of_device_id rockchip_inno_csidphy_match_id[] = {
 	{
 		.compatible = "rockchip,rk3368-csi-dphy",
 		.data = &rk3368_mipidphy_drv_data,
+	},
+	{
+		.compatible = "rockchip,rk3568-csi-dphy",
+		.data = &rk3568_mipidphy_drv_data,
 	},
 	{}
 };
