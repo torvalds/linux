@@ -1146,7 +1146,6 @@ void __init fsl_pci_assign_primary(void)
 	for_each_matching_node(np, pci_ids) {
 		if (of_device_is_available(np)) {
 			fsl_pci_primary = np;
-			of_node_put(np);
 			return;
 		}
 	}
