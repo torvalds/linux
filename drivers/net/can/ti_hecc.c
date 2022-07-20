@@ -662,6 +662,7 @@ static void ti_hecc_change_state(struct net_device *ndev,
 	can_change_state(priv->ndev, cf, tx_state, rx_state);
 
 	if (max(tx_state, rx_state) != CAN_STATE_BUS_OFF) {
+		cf->can_id |= CAN_ERR_CNT;
 		cf->data[6] = hecc_read(priv, HECC_CANTEC);
 		cf->data[7] = hecc_read(priv, HECC_CANREC);
 	}
