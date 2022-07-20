@@ -84,12 +84,6 @@ properties:
 
       - items:
           - enum:
-              - renesas,r8a779a0-cmt0     # 32-bit CMT0 on R-Car V3U
-              - renesas,r8a779f0-cmt0     # 32-bit CMT0 on R-Car S4-8
-          - const: renesas,rcar-gen4-cmt0 # 32-bit CMT0 on R-Car Gen4
-
-      - items:
-          - enum:
               - renesas,r8a774a1-cmt1     # 48-bit CMT on RZ/G2M
               - renesas,r8a774b1-cmt1     # 48-bit CMT on RZ/G2N
               - renesas,r8a774c0-cmt1     # 48-bit CMT on RZ/G2E
@@ -103,6 +97,12 @@ properties:
               - renesas,r8a77990-cmt1     # 48-bit CMT on R-Car E3
               - renesas,r8a77995-cmt1     # 48-bit CMT on R-Car D3
           - const: renesas,rcar-gen3-cmt1 # 48-bit CMT on R-Car Gen3 and RZ/G2
+
+      - items:
+          - enum:
+              - renesas,r8a779a0-cmt0     # 32-bit CMT0 on R-Car V3U
+              - renesas,r8a779f0-cmt0     # 32-bit CMT0 on R-Car S4-8
+          - const: renesas,rcar-gen4-cmt0 # 32-bit CMT0 on R-Car Gen4
 
       - items:
           - enum:
@@ -145,6 +145,7 @@ allOf:
             enum:
               - renesas,rcar-gen2-cmt0
               - renesas,rcar-gen3-cmt0
+              - renesas,rcar-gen4-cmt0
     then:
       properties:
         interrupts:
@@ -158,6 +159,7 @@ allOf:
             enum:
               - renesas,rcar-gen2-cmt1
               - renesas,rcar-gen3-cmt1
+              - renesas,rcar-gen4-cmt1
     then:
       properties:
         interrupts:
