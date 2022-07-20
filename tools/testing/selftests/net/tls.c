@@ -1597,6 +1597,38 @@ TEST_F(tls_err, bad_cmsg)
 	EXPECT_EQ(errno, EBADMSG);
 }
 
+TEST_F(tls_err, timeo)
+{
+	struct timeval tv = { .tv_usec = 10000, };
+	char buf[128];
+	int ret;
+
+	if (self->notls)
+		SKIP(return, "no TLS support");
+
+	ret = setsockopt(self->cfd2, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv));
+	ASSERT_EQ(ret, 0);
+
+	ret = fork();
+	ASSERT_GE(ret, 0);
+
+	if (ret) {
+		usleep(1000); /* Give child a head start */
+
+		EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
+		EXPECT_EQ(errno, EAGAIN);
+
+		EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
+		EXPECT_EQ(errno, EAGAIN);
+
+		wait(&ret);
+	} else {
+		EXPECT_EQ(recv(self->cfd2, buf, sizeof(buf), 0), -1);
+		EXPECT_EQ(errno, EAGAIN);
+		exit(0);
+	}
+}
+
 TEST(non_established) {
 	struct tls12_crypto_info_aes_gcm_256 tls12;
 	struct sockaddr_in addr;
