@@ -24,6 +24,7 @@
 #include <linux/mutex.h>
 #include <linux/rcupdate.h>
 #include "input-compat.h"
+#include "input-core-private.h"
 #include "input-poller.h"
 
 MODULE_AUTHOR("Vojtech Pavlik <vojtech@suse.cz>");
@@ -141,6 +142,8 @@ static void input_pass_values(struct input_dev *dev,
 {
 	struct input_handle *handle;
 	struct input_value *v;
+
+	lockdep_assert_held(&dev->event_lock);
 
 	if (!count)
 		return;
@@ -384,8 +387,8 @@ static void input_event_dispose(struct input_dev *dev, int disposition,
 	}
 }
 
-static void input_handle_event(struct input_dev *dev,
-			       unsigned int type, unsigned int code, int value)
+void input_handle_event(struct input_dev *dev,
+			unsigned int type, unsigned int code, int value)
 {
 	int disposition;
 
@@ -722,20 +725,21 @@ EXPORT_SYMBOL(input_close_device);
  * Simulate keyup events for all keys that are marked as pressed.
  * The function must be called with dev->event_lock held.
  */
-static void input_dev_release_keys(struct input_dev *dev)
+static bool input_dev_release_keys(struct input_dev *dev)
 {
 	bool need_sync = false;
 	int code;
+
+	lockdep_assert_held(&dev->event_lock);
 
 	if (is_event_supported(EV_KEY, dev->evbit, EV_MAX)) {
 		for_each_set_bit(code, dev->key, KEY_CNT) {
 			input_handle_event(dev, EV_KEY, code, 0);
 			need_sync = true;
 		}
-
-		if (need_sync)
-			input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
 	}
+
+	return need_sync;
 }
 
 /*
@@ -762,7 +766,8 @@ static void input_disconnect_device(struct input_dev *dev)
 	 * generate events even after we done here but they will not
 	 * reach any handlers.
 	 */
-	input_dev_release_keys(dev);
+	if (input_dev_release_keys(dev))
+		input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
 
 	list_for_each_entry(handle, &dev->h_list, d_node)
 		handle->open = 0;
@@ -1757,7 +1762,8 @@ void input_reset_device(struct input_dev *dev)
 	spin_lock_irqsave(&dev->event_lock, flags);
 
 	input_dev_toggle(dev, true);
-	input_dev_release_keys(dev);
+	if (input_dev_release_keys(dev))
+		input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
 
 	spin_unlock_irqrestore(&dev->event_lock, flags);
 	mutex_unlock(&dev->mutex);
@@ -1779,7 +1785,9 @@ static int input_inhibit_device(struct input_dev *dev)
 	}
 
 	spin_lock_irq(&dev->event_lock);
+	input_mt_release_slots(dev);
 	input_dev_release_keys(dev);
+	input_handle_event(dev, EV_SYN, SYN_REPORT, 1);
 	input_dev_toggle(dev, false);
 	spin_unlock_irq(&dev->event_lock);
 
@@ -1830,7 +1838,8 @@ static int input_dev_suspend(struct device *dev)
 	 * Keys that are pressed now are unlikely to be
 	 * still pressed when we resume.
 	 */
-	input_dev_release_keys(input_dev);
+	if (input_dev_release_keys(input_dev))
+		input_handle_event(input_dev, EV_SYN, SYN_REPORT, 1);
 
 	/* Turn off LEDs and sounds, if any are active. */
 	input_dev_toggle(input_dev, false);
@@ -1864,7 +1873,8 @@ static int input_dev_freeze(struct device *dev)
 	 * Keys that are pressed now are unlikely to be
 	 * still pressed when we resume.
 	 */
-	input_dev_release_keys(input_dev);
+	if (input_dev_release_keys(input_dev))
+		input_handle_event(input_dev, EV_SYN, SYN_REPORT, 1);
 
 	spin_unlock_irq(&input_dev->event_lock);
 
