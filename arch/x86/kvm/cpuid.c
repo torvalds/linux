@@ -1047,9 +1047,7 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		 * userspace.  ATTRIBUTES.XFRM is not adjusted as userspace is
 		 * expected to derive it from supported XCR0.
 		 */
-		entry->eax &= SGX_ATTR_DEBUG | SGX_ATTR_MODE64BIT |
-			      SGX_ATTR_PROVISIONKEY | SGX_ATTR_EINITTOKENKEY |
-			      SGX_ATTR_KSS;
+		entry->eax &= SGX_ATTR_PRIV_MASK | SGX_ATTR_UNPRIV_MASK;
 		entry->ebx &= 0;
 		break;
 	/* Intel PT */
