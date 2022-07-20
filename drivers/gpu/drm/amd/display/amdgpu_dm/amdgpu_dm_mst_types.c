@@ -179,6 +179,8 @@ amdgpu_dm_mst_connector_early_unregister(struct drm_connector *connector)
 		aconnector->dc_sink = NULL;
 		aconnector->edid = NULL;
 	}
+
+	aconnector->mst_status = MST_STATUS_DEFAULT;
 	drm_modeset_unlock(&root->mst_mgr.base.lock);
 }
 
@@ -279,6 +281,9 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 		edid = drm_dp_mst_get_edid(connector, &aconnector->mst_port->mst_mgr, aconnector->port);
 
 		if (!edid) {
+			amdgpu_dm_set_mst_status(&aconnector->mst_status,
+			MST_REMOTE_EDID, false);
+
 			drm_connector_update_edid_property(
 				&aconnector->base,
 				NULL);
@@ -309,6 +314,8 @@ static int dm_dp_mst_get_modes(struct drm_connector *connector)
 		}
 
 		aconnector->edid = edid;
+		amdgpu_dm_set_mst_status(&aconnector->mst_status,
+			MST_REMOTE_EDID, true);
 	}
 
 	if (aconnector->dc_sink && aconnector->dc_sink->sink_signal == SIGNAL_TYPE_VIRTUAL) {
@@ -430,6 +437,10 @@ dm_dp_mst_detect(struct drm_connector *connector,
 		dc_sink_release(aconnector->dc_sink);
 		aconnector->dc_sink = NULL;
 		aconnector->edid = NULL;
+
+		amdgpu_dm_set_mst_status(&aconnector->mst_status,
+			MST_REMOTE_EDID | MST_ALLOCATE_NEW_PAYLOAD | MST_CLEAR_ALLOCATED_PAYLOAD,
+			false);
 	}
 
 	return connection_status;
@@ -526,6 +537,8 @@ dm_dp_add_mst_connector(struct drm_dp_mst_topology_mgr *mgr,
 	connector = &aconnector->base;
 	aconnector->port = port;
 	aconnector->mst_port = master;
+	amdgpu_dm_set_mst_status(&aconnector->mst_status,
+			MST_PROBE, true);
 
 	if (drm_connector_init(
 		dev,

@@ -571,6 +571,14 @@ struct dsc_preferred_settings {
 	bool dsc_force_disable_passthrough;
 };
 
+enum mst_progress_status {
+	MST_STATUS_DEFAULT = 0,
+	MST_PROBE = BIT(0),
+	MST_REMOTE_EDID = BIT(1),
+	MST_ALLOCATE_NEW_PAYLOAD = BIT(2),
+	MST_CLEAR_ALLOCATED_PAYLOAD = BIT(3),
+};
+
 struct amdgpu_dm_connector {
 
 	struct drm_connector base;
@@ -623,7 +631,19 @@ struct amdgpu_dm_connector {
 	struct drm_display_mode freesync_vid_base;
 
 	int psr_skip_count;
+
+	/* Record progress status of mst*/
+	uint8_t mst_status;
 };
+
+static inline void amdgpu_dm_set_mst_status(uint8_t *status,
+		uint8_t flags, bool set)
+{
+	if (set)
+		*status |= flags;
+	else
+		*status &= ~flags;
+}
 
 #define to_amdgpu_dm_connector(x) container_of(x, struct amdgpu_dm_connector, base)
 
