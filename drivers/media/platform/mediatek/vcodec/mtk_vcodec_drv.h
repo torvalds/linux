@@ -278,6 +278,7 @@ struct vdec_pic_info {
  * @hw_id: hardware index used to identify different hardware.
  *
  * @msg_queue: msg queue used to store lat buffer information.
+ * @q_mutex: vb2_queue mutex.
  */
 struct mtk_vcodec_ctx {
 	enum mtk_instance_type type;
@@ -324,6 +325,8 @@ struct mtk_vcodec_ctx {
 	int hw_id;
 
 	struct vdec_msg_queue msg_queue;
+
+	struct mutex q_mutex;
 };
 
 /*
