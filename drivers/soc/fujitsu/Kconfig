@@ -2,7 +2,7 @@
 menu "fujitsu SoC drivers"
 
 config A64FX_DIAG
-	tristate "A64FX diag driver"
+	bool "A64FX diag driver"
 	depends on ARM64
 	depends on ACPI
 	help
