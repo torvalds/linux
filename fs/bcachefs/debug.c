@@ -188,6 +188,7 @@ struct dump_iter {
 	struct bch_fs		*c;
 	enum btree_id		id;
 	struct bpos		from;
+	struct bpos		prev_node;
 	u64			iter;
 
 	struct printbuf		buf;
@@ -257,39 +258,30 @@ static ssize_t bch2_read_btree(struct file *file, char __user *buf,
 	i->size	= size;
 	i->ret	= 0;
 
-	err = flush_buf(i);
-	if (err)
-		return err;
-
-	if (!i->size)
-		return i->ret;
-
 	bch2_trans_init(&trans, i->c, 0, 0);
 
-	bch2_trans_iter_init(&trans, &iter, i->id, i->from,
-			     BTREE_ITER_PREFETCH|
-			     BTREE_ITER_ALL_SNAPSHOTS);
-	k = bch2_btree_iter_peek(&iter);
-
-	while (k.k && !(err = bkey_err(k))) {
-		bch2_bkey_val_to_text(&i->buf, i->c, k);
-		prt_char(&i->buf, '\n');
-
-		k = bch2_btree_iter_next(&iter);
-		i->from = iter.pos;
-
+	err = for_each_btree_key2(&trans, iter, i->id, i->from,
+				  BTREE_ITER_PREFETCH|
+				  BTREE_ITER_ALL_SNAPSHOTS, k, ({
 		err = flush_buf(i);
 		if (err)
 			break;
 
 		if (!i->size)
 			break;
-	}
-	bch2_trans_iter_exit(&trans, &iter);
+
+		bch2_bkey_val_to_text(&i->buf, i->c, k);
+		prt_newline(&i->buf);
+		0;
+	}));
+	i->from = iter.pos;
+
+	if (!err)
+		err = flush_buf(i);
 
 	bch2_trans_exit(&trans);
 
-	return err < 0 ? err : i->ret;
+	return err ?: i->ret;
 }
 
 static const struct file_operations btree_debug_ops = {
@@ -359,7 +351,6 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct btree *prev_node = NULL;
 	int err;
 
 	i->ubuf = buf;
@@ -375,31 +366,12 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 
 	bch2_trans_init(&trans, i->c, 0, 0);
 
-	bch2_trans_iter_init(&trans, &iter, i->id, i->from,
-			     BTREE_ITER_PREFETCH|
-			     BTREE_ITER_ALL_SNAPSHOTS);
-
-	while ((k = bch2_btree_iter_peek(&iter)).k &&
-	       !(err = bkey_err(k))) {
+	err = for_each_btree_key2(&trans, iter, i->id, i->from,
+				  BTREE_ITER_PREFETCH|
+				  BTREE_ITER_ALL_SNAPSHOTS, k, ({
 		struct btree_path_level *l = &iter.path->l[0];
 		struct bkey_packed *_k =
 			bch2_btree_node_iter_peek(&l->iter, l->b);
-
-		if (l->b != prev_node) {
-			bch2_btree_node_to_text(&i->buf, i->c, l->b);
-			err = flush_buf(i);
-			if (err)
-				break;
-		}
-		prev_node = l->b;
-
-		bch2_bfloat_to_text(&i->buf, l->b, _k);
-		err = flush_buf(i);
-		if (err)
-			break;
-
-		bch2_btree_iter_advance(&iter);
-		i->from = iter.pos;
 
 		err = flush_buf(i);
 		if (err)
@@ -407,12 +379,23 @@ static ssize_t bch2_read_bfloat_failed(struct file *file, char __user *buf,
 
 		if (!i->size)
 			break;
-	}
-	bch2_trans_iter_exit(&trans, &iter);
+
+		if (bpos_cmp(l->b->key.k.p, i->prev_node) > 0) {
+			bch2_btree_node_to_text(&i->buf, i->c, l->b);
+			i->prev_node = l->b->key.k.p;
+		}
+
+		bch2_bfloat_to_text(&i->buf, l->b, _k);
+		0;
+	}));
+	i->from = iter.pos;
+
+	if (!err)
+		err = flush_buf(i);
 
 	bch2_trans_exit(&trans);
 
-	return err < 0 ? err : i->ret;
+	return err ?: i->ret;
 }
 
 static const struct file_operations bfloat_failed_debug_ops = {
