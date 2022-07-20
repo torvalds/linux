@@ -21,6 +21,7 @@
  * @parent: the efx PF which manages this representor
  * @net_dev: representor netdevice
  * @msg_enable: log message enable flags
+ * @mport: m-port ID of corresponding VF
  * @idx: VF index
  * @list: entry on efx->vf_reps
  */
@@ -28,6 +29,7 @@ struct efx_rep {
 	struct efx_nic *parent;
 	struct net_device *net_dev;
 	u32 msg_enable;
+	u32 mport;
 	unsigned int idx;
 	struct list_head list;
 };

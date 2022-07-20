@@ -11,6 +11,7 @@
 
 #include "ef100_rep.h"
 #include "ef100_nic.h"
+#include "mae.h"
 
 #define EFX_EF100_REP_DRIVER	"efx_ef100_rep"
 
@@ -124,6 +125,25 @@ fail1:
 	return ERR_PTR(rc);
 }
 
+static int efx_ef100_configure_rep(struct efx_rep *efv)
+{
+	struct efx_nic *efx = efv->parent;
+	u32 selector;
+	int rc;
+
+	/* Construct mport selector for corresponding VF */
+	efx_mae_mport_vf(efx, efv->idx, &selector);
+	/* Look up actual mport ID */
+	rc = efx_mae_lookup_mport(efx, selector, &efv->mport);
+	if (rc)
+		return rc;
+	pci_dbg(efx->pci_dev, "VF %u has mport ID %#x\n", efv->idx, efv->mport);
+	/* mport label should fit in 16 bits */
+	WARN_ON(efv->mport >> 16);
+
+	return 0;
+}
+
 static void efx_ef100_rep_destroy_netdev(struct efx_rep *efv)
 {
 	struct efx_nic *efx = efv->parent;
@@ -146,6 +166,13 @@ int efx_ef100_vfrep_create(struct efx_nic *efx, unsigned int i)
 			"Failed to create representor for VF %d, rc %d\n", i,
 			rc);
 		return rc;
+	}
+	rc = efx_ef100_configure_rep(efv);
+	if (rc) {
+		pci_err(efx->pci_dev,
+			"Failed to configure representor for VF %d, rc %d\n",
+			i, rc);
+		goto fail;
 	}
 	rc = register_netdev(efv->net_dev);
 	if (rc) {
