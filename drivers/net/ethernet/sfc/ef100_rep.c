@@ -132,8 +132,13 @@ static struct efx_rep *efx_ef100_rep_create_netdev(struct efx_nic *efx,
 	spin_lock_bh(&efx->vf_reps_lock);
 	list_add_tail(&efv->list, &efx->vf_reps);
 	spin_unlock_bh(&efx->vf_reps_lock);
-	netif_carrier_off(net_dev);
-	netif_tx_stop_all_queues(net_dev);
+	if (netif_running(efx->net_dev) && efx->state == STATE_NET_UP) {
+		netif_device_attach(net_dev);
+		netif_carrier_on(net_dev);
+	} else {
+		netif_carrier_off(net_dev);
+		netif_tx_stop_all_queues(net_dev);
+	}
 	rtnl_unlock();
 
 	net_dev->netdev_ops = &efx_ef100_rep_netdev_ops;
@@ -171,9 +176,11 @@ static void efx_ef100_rep_destroy_netdev(struct efx_rep *efv)
 {
 	struct efx_nic *efx = efv->parent;
 
+	rtnl_lock();
 	spin_lock_bh(&efx->vf_reps_lock);
 	list_del(&efv->list);
 	spin_unlock_bh(&efx->vf_reps_lock);
+	rtnl_unlock();
 	free_netdev(efv->net_dev);
 }
 

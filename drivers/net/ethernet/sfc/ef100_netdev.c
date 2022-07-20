@@ -85,6 +85,7 @@ static int ef100_net_stop(struct net_device *net_dev)
 	netif_dbg(efx, ifdown, efx->net_dev, "closing on CPU %d\n",
 		  raw_smp_processor_id());
 
+	efx_detach_reps(efx);
 	netif_stop_queue(net_dev);
 	efx_stop_all(efx);
 	efx_mcdi_mac_fini_stats(efx);
@@ -176,6 +177,8 @@ static int ef100_net_open(struct net_device *net_dev)
 	mutex_unlock(&efx->mac_lock);
 
 	efx->state = STATE_NET_UP;
+	if (netif_running(efx->net_dev))
+		efx_attach_reps(efx);
 
 	return 0;
 
