@@ -45,7 +45,7 @@
 #include <asm/irq.h>
 #include <asm/tlbflush.h>
 #include <asm/vtimer.h>
-#include <asm/lowcore.h>
+#include <asm/abs_lowcore.h>
 #include <asm/sclp.h>
 #include <asm/debug.h>
 #include <asm/os_info.h>
@@ -212,10 +212,14 @@ static int pcpu_alloc_lowcore(struct pcpu *pcpu, int cpu)
 	lc->preempt_count = PREEMPT_DISABLED;
 	if (nmi_alloc_mcesa(&lc->mcesad))
 		goto out;
+	if (abs_lowcore_map(cpu, lc, true))
+		goto out_mcesa;
 	lowcore_ptr[cpu] = lc;
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, __pa(lc));
 	return 0;
 
+out_mcesa:
+	nmi_free_mcesa(&lc->mcesad);
 out:
 	stack_free(mcck_stack);
 	stack_free(async_stack);
@@ -237,6 +241,7 @@ static void pcpu_free_lowcore(struct pcpu *pcpu)
 	mcck_stack = lc->mcck_stack - STACK_INIT_OFFSET;
 	pcpu_sigp_retry(pcpu, SIGP_SET_PREFIX, 0);
 	lowcore_ptr[cpu] = NULL;
+	abs_lowcore_unmap(cpu);
 	nmi_free_mcesa(&lc->mcesad);
 	stack_free(async_stack);
 	stack_free(mcck_stack);
@@ -315,9 +320,12 @@ static void pcpu_delegate(struct pcpu *pcpu,
 			  pcpu_delegate_fn *func,
 			  void *data, unsigned long stack)
 {
-	struct lowcore *lc = lowcore_ptr[pcpu - pcpu_devices];
-	unsigned int source_cpu = stap();
+	struct lowcore *lc, *abs_lc;
+	unsigned int source_cpu;
+	unsigned long flags;
 
+	lc = lowcore_ptr[pcpu - pcpu_devices];
+	source_cpu = stap();
 	__load_psw_mask(PSW_KERNEL_BITS | PSW_MASK_DAT);
 	if (pcpu->address == source_cpu) {
 		call_on_stack(2, stack, void, __pcpu_delegate,
@@ -332,10 +340,12 @@ static void pcpu_delegate(struct pcpu *pcpu,
 		lc->restart_data = (unsigned long)data;
 		lc->restart_source = source_cpu;
 	} else {
-		put_abs_lowcore(restart_stack, stack);
-		put_abs_lowcore(restart_fn, (unsigned long)func);
-		put_abs_lowcore(restart_data, (unsigned long)data);
-		put_abs_lowcore(restart_source, source_cpu);
+		abs_lc = get_abs_lowcore(&flags);
+		abs_lc->restart_stack = stack;
+		abs_lc->restart_fn = (unsigned long)func;
+		abs_lc->restart_data = (unsigned long)data;
+		abs_lc->restart_source = source_cpu;
+		put_abs_lowcore(abs_lc, flags);
 	}
 	__bpon();
 	asm volatile(
@@ -581,6 +591,8 @@ static DEFINE_SPINLOCK(ctl_lock);
 void smp_ctl_set_clear_bit(int cr, int bit, bool set)
 {
 	struct ec_creg_mask_parms parms = { .cr = cr, };
+	struct lowcore *abs_lc;
+	unsigned long flags;
 	u64 ctlreg;
 
 	if (set) {
@@ -591,9 +603,11 @@ void smp_ctl_set_clear_bit(int cr, int bit, bool set)
 		parms.andval = ~(1UL << bit);
 	}
 	spin_lock(&ctl_lock);
-	get_abs_lowcore(ctlreg, cregs_save_area[cr]);
+	abs_lc = get_abs_lowcore(&flags);
+	ctlreg = abs_lc->cregs_save_area[cr];
 	ctlreg = (ctlreg & parms.andval) | parms.orval;
-	put_abs_lowcore(cregs_save_area[cr], ctlreg);
+	abs_lc->cregs_save_area[cr] = ctlreg;
+	put_abs_lowcore(abs_lc, flags);
 	spin_unlock(&ctl_lock);
 	on_each_cpu(smp_ctl_bit_callback, &parms, 1);
 }
@@ -1281,6 +1295,8 @@ int __init smp_reinit_ipl_cpu(void)
 	__ctl_clear_bit(0, 28); /* disable lowcore protection */
 	S390_lowcore.mcesad = mcesad;
 	__ctl_load(cr0, 0, 0);
+	if (abs_lowcore_map(0, lc, false))
+		panic("Couldn't remap absolute lowcore");
 	lowcore_ptr[0] = lc;
 	local_mcck_enable();
 	local_irq_restore(flags);

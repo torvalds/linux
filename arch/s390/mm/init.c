@@ -37,7 +37,7 @@
 #include <asm/kfence.h>
 #include <asm/ptdump.h>
 #include <asm/dma.h>
-#include <asm/lowcore.h>
+#include <asm/abs_lowcore.h>
 #include <asm/tlb.h>
 #include <asm/tlbflush.h>
 #include <asm/sections.h>

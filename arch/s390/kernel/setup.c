@@ -58,7 +58,7 @@
 #include <asm/smp.h>
 #include <asm/mmu_context.h>
 #include <asm/cpcmd.h>
-#include <asm/lowcore.h>
+#include <asm/abs_lowcore.h>
 #include <asm/nmi.h>
 #include <asm/irq.h>
 #include <asm/page.h>
@@ -412,8 +412,9 @@ void __init arch_call_rest_init(void)
 static void __init setup_lowcore_dat_off(void)
 {
 	unsigned long int_psw_mask = PSW_KERNEL_BITS;
+	struct lowcore *abs_lc, *lc;
 	unsigned long mcck_stack;
-	struct lowcore *lc;
+	unsigned long flags;
 
 	if (IS_ENABLED(CONFIG_KASAN))
 		int_psw_mask |= PSW_MASK_DAT;
@@ -475,12 +476,14 @@ static void __init setup_lowcore_dat_off(void)
 	lc->restart_data = 0;
 	lc->restart_source = -1U;
 
-	put_abs_lowcore(restart_stack, lc->restart_stack);
-	put_abs_lowcore(restart_fn, lc->restart_fn);
-	put_abs_lowcore(restart_data, lc->restart_data);
-	put_abs_lowcore(restart_source, lc->restart_source);
-	put_abs_lowcore(restart_psw, lc->restart_psw);
-	put_abs_lowcore(mcesad, lc->mcesad);
+	abs_lc = get_abs_lowcore(&flags);
+	abs_lc->restart_stack = lc->restart_stack;
+	abs_lc->restart_fn = lc->restart_fn;
+	abs_lc->restart_data = lc->restart_data;
+	abs_lc->restart_source = lc->restart_source;
+	abs_lc->restart_psw = lc->restart_psw;
+	abs_lc->mcesad = lc->mcesad;
+	put_abs_lowcore(abs_lc, flags);
 
 	mcck_stack = (unsigned long)memblock_alloc(THREAD_SIZE, THREAD_SIZE);
 	if (!mcck_stack)
@@ -501,8 +504,8 @@ static void __init setup_lowcore_dat_off(void)
 
 static void __init setup_lowcore_dat_on(void)
 {
-	struct lowcore *lc = lowcore_ptr[0];
-	int cr;
+	struct lowcore *abs_lc;
+	unsigned long flags;
 
 	__ctl_clear_bit(0, 28);
 	S390_lowcore.external_new_psw.mask |= PSW_MASK_DAT;
@@ -511,10 +514,15 @@ static void __init setup_lowcore_dat_on(void)
 	S390_lowcore.io_new_psw.mask |= PSW_MASK_DAT;
 	__ctl_set_bit(0, 28);
 	__ctl_store(S390_lowcore.cregs_save_area, 0, 15);
-	put_abs_lowcore(restart_flags, RESTART_FLAG_CTLREGS);
-	put_abs_lowcore(program_new_psw, lc->program_new_psw);
-	for (cr = 0; cr < ARRAY_SIZE(lc->cregs_save_area); cr++)
-		put_abs_lowcore(cregs_save_area[cr], lc->cregs_save_area[cr]);
+	if (abs_lowcore_map(0, lowcore_ptr[0], true))
+		panic("Couldn't setup absolute lowcore");
+	abs_lowcore_mapped = true;
+	abs_lc = get_abs_lowcore(&flags);
+	abs_lc->restart_flags = RESTART_FLAG_CTLREGS;
+	abs_lc->program_new_psw = S390_lowcore.program_new_psw;
+	memcpy(abs_lc->cregs_save_area, S390_lowcore.cregs_save_area,
+	       sizeof(abs_lc->cregs_save_area));
+	put_abs_lowcore(abs_lc, flags);
 }
 
 static struct resource code_resource = {

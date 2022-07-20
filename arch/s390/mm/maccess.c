@@ -15,6 +15,7 @@
 #include <asm/asm-extable.h>
 #include <asm/ctl_reg.h>
 #include <asm/io.h>
+#include <asm/abs_lowcore.h>
 #include <asm/stacktrace.h>
 
 static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t size)
@@ -148,46 +149,20 @@ int memcpy_real(void *dest, unsigned long src, size_t count)
 }
 
 /*
- * Copy memory in absolute mode (kernel to kernel)
+ * Find CPU that owns swapped prefix page
  */
-void memcpy_absolute(void *dest, void *src, size_t count)
-{
-	unsigned long cr0, flags, prefix;
-
-	flags = arch_local_irq_save();
-	__ctl_store(cr0, 0, 0);
-	__ctl_clear_bit(0, 28); /* disable lowcore protection */
-	prefix = store_prefix();
-	if (prefix) {
-		local_mcck_disable();
-		set_prefix(0);
-		memcpy(dest, src, count);
-		set_prefix(prefix);
-		local_mcck_enable();
-	} else {
-		memcpy(dest, src, count);
-	}
-	__ctl_load(cr0, 0, 0);
-	arch_local_irq_restore(flags);
-}
-
-/*
- * Check if physical address is within prefix or zero page
- */
-static int is_swapped(phys_addr_t addr)
+static int get_swapped_owner(phys_addr_t addr)
 {
 	phys_addr_t lc;
 	int cpu;
 
-	if (addr < sizeof(struct lowcore))
-		return 1;
 	for_each_online_cpu(cpu) {
 		lc = virt_to_phys(lowcore_ptr[cpu]);
 		if (addr > lc + sizeof(struct lowcore) - 1 || addr < lc)
 			continue;
-		return 1;
+		return cpu;
 	}
-	return 0;
+	return -1;
 }
 
 /*
@@ -200,17 +175,35 @@ void *xlate_dev_mem_ptr(phys_addr_t addr)
 {
 	void *ptr = phys_to_virt(addr);
 	void *bounce = ptr;
+	struct lowcore *abs_lc;
+	unsigned long flags;
 	unsigned long size;
+	int this_cpu, cpu;
 
 	cpus_read_lock();
-	preempt_disable();
-	if (is_swapped(addr)) {
-		size = PAGE_SIZE - (addr & ~PAGE_MASK);
-		bounce = (void *) __get_free_page(GFP_ATOMIC);
-		if (bounce)
-			memcpy_absolute(bounce, ptr, size);
+	this_cpu = get_cpu();
+	if (addr >= sizeof(struct lowcore)) {
+		cpu = get_swapped_owner(addr);
+		if (cpu < 0)
+			goto out;
 	}
-	preempt_enable();
+	bounce = (void *)__get_free_page(GFP_ATOMIC);
+	if (!bounce)
+		goto out;
+	size = PAGE_SIZE - (addr & ~PAGE_MASK);
+	if (addr < sizeof(struct lowcore)) {
+		abs_lc = get_abs_lowcore(&flags);
+		ptr = (void *)abs_lc + addr;
+		memcpy(bounce, ptr, size);
+		put_abs_lowcore(abs_lc, flags);
+	} else if (cpu == this_cpu) {
+		ptr = (void *)(addr - virt_to_phys(lowcore_ptr[cpu]));
+		memcpy(bounce, ptr, size);
+	} else {
+		memcpy(bounce, ptr, size);
+	}
+out:
+	put_cpu();
 	cpus_read_unlock();
 	return bounce;
 }
