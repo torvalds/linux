@@ -97,6 +97,72 @@ static int mlx5_crypto_cmd_sync_crypto(struct mlx5_core_dev *mdev,
 	return err;
 }
 
+static int mlx5_crypto_create_dek_bulk(struct mlx5_core_dev *mdev,
+				       u32 key_purpose, int log_obj_range,
+				       u32 *obj_id)
+{
+	u32 in[MLX5_ST_SZ_DW(create_encryption_key_in)] = {};
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
+	void *obj, *param;
+	int err;
+
+	MLX5_SET(general_obj_in_cmd_hdr, in, opcode,
+		 MLX5_CMD_OP_CREATE_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type,
+		 MLX5_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY);
+	param = MLX5_ADDR_OF(general_obj_in_cmd_hdr, in, op_param);
+	MLX5_SET(general_obj_create_param, param, log_obj_range, log_obj_range);
+
+	obj = MLX5_ADDR_OF(create_encryption_key_in, in, encryption_key_object);
+	MLX5_SET(encryption_key_obj, obj, key_purpose, key_purpose);
+	MLX5_SET(encryption_key_obj, obj, pd, mdev->mlx5e_res.hw_objs.pdn);
+
+	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+	if (err)
+		return err;
+
+	*obj_id = MLX5_GET(general_obj_out_cmd_hdr, out, obj_id);
+	mlx5_core_dbg(mdev, "DEK objects created, bulk=%d, obj_id=%d\n",
+		      1 << log_obj_range, *obj_id);
+
+	return 0;
+}
+
+static int mlx5_crypto_modify_dek_key(struct mlx5_core_dev *mdev,
+				      const void *key, u32 sz_bytes, u32 key_purpose,
+				      u32 obj_id, u32 obj_offset)
+{
+	u32 in[MLX5_ST_SZ_DW(modify_encryption_key_in)] = {};
+	u32 out[MLX5_ST_SZ_DW(general_obj_out_cmd_hdr)];
+	void *obj, *param;
+	int err;
+
+	MLX5_SET(general_obj_in_cmd_hdr, in, opcode,
+		 MLX5_CMD_OP_MODIFY_GENERAL_OBJECT);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_type,
+		 MLX5_GENERAL_OBJECT_TYPES_ENCRYPTION_KEY);
+	MLX5_SET(general_obj_in_cmd_hdr, in, obj_id, obj_id);
+
+	param = MLX5_ADDR_OF(general_obj_in_cmd_hdr, in, op_param);
+	MLX5_SET(general_obj_query_param, param, obj_offset, obj_offset);
+
+	obj = MLX5_ADDR_OF(modify_encryption_key_in, in, encryption_key_object);
+	MLX5_SET64(encryption_key_obj, obj, modify_field_select, 1);
+	MLX5_SET(encryption_key_obj, obj, key_purpose, key_purpose);
+	MLX5_SET(encryption_key_obj, obj, pd, mdev->mlx5e_res.hw_objs.pdn);
+
+	err = mlx5_crypto_dek_fill_key(mdev, obj, key, sz_bytes);
+	if (err)
+		return err;
+
+	err = mlx5_cmd_exec(mdev, in, sizeof(in), out, sizeof(out));
+
+	/* avoid leaking key on the stack */
+	memzero_explicit(in, sizeof(in));
+
+	return err;
+}
+
 static int mlx5_crypto_create_dek_key(struct mlx5_core_dev *mdev,
 				      const void *key, u32 sz_bytes,
 				      u32 key_purpose, u32 *p_key_id)
@@ -164,6 +230,7 @@ void mlx5_destroy_encryption_key(struct mlx5_core_dev *mdev, u32 key_id)
 struct mlx5_crypto_dek *mlx5_crypto_dek_create(struct mlx5_crypto_dek_pool *dek_pool,
 					       const void *key, u32 sz_bytes)
 {
+	struct mlx5_crypto_dek_priv *dek_priv = dek_pool->mdev->mlx5e_res.dek_priv;
 	struct mlx5_core_dev *mdev = dek_pool->mdev;
 	u32 key_purpose = dek_pool->key_purpose;
 	struct mlx5_crypto_dek *dek;
@@ -173,8 +240,22 @@ struct mlx5_crypto_dek *mlx5_crypto_dek_create(struct mlx5_crypto_dek_pool *dek_
 	if (!dek)
 		return ERR_PTR(-ENOMEM);
 
-	err = mlx5_crypto_create_dek_key(mdev, key, sz_bytes,
-					 key_purpose, &dek->obj_id);
+	if (!dek_priv) {
+		err = mlx5_crypto_create_dek_key(mdev, key, sz_bytes,
+						 key_purpose, &dek->obj_id);
+		goto out;
+	}
+
+	err = mlx5_crypto_create_dek_bulk(mdev, key_purpose, 0, &dek->obj_id);
+	if (err)
+		goto out;
+
+	err = mlx5_crypto_modify_dek_key(mdev, key, sz_bytes, key_purpose,
+					 dek->obj_id, 0);
+	if (err)
+		mlx5_crypto_destroy_dek_key(mdev, dek->obj_id);
+
+out:
 	if (err) {
 		kfree(dek);
 		return ERR_PTR(err);
