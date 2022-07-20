@@ -87,15 +87,6 @@ extern struct acpi_vector_group msi_group[MAX_IO_PICS];
 extern int find_pch_pic(u32 gsi);
 extern int eiointc_get_node(int id);
 
-static inline void eiointc_enable(void)
-{
-	uint64_t misc;
-
-	misc = iocsr_read64(LOONGARCH_IOCSR_MISC_FUNC);
-	misc |= IOCSR_MISC_FUNC_EXT_IOI_EN;
-	iocsr_write64(misc, LOONGARCH_IOCSR_MISC_FUNC);
-}
-
 struct acpi_madt_lio_pic;
 struct acpi_madt_eio_pic;
 struct acpi_madt_ht_pic;
@@ -107,7 +98,7 @@ struct irq_domain *loongarch_cpu_irq_init(void);
 
 int liointc_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_lio_pic *acpi_liointc);
-struct irq_domain *eiointc_acpi_init(struct irq_domain *parent,
+int eiointc_acpi_init(struct irq_domain *parent,
 					struct acpi_madt_eio_pic *acpi_eiointc);
 
 struct irq_domain *htvec_acpi_init(struct irq_domain *parent,
