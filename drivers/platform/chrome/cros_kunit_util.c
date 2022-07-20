@@ -14,11 +14,8 @@
 #include "cros_kunit_util.h"
 
 int cros_kunit_ec_xfer_mock_default_ret;
-EXPORT_SYMBOL_GPL(cros_kunit_ec_xfer_mock_default_ret);
 int cros_kunit_ec_cmd_xfer_mock_called;
-EXPORT_SYMBOL_GPL(cros_kunit_ec_cmd_xfer_mock_called);
 int cros_kunit_ec_pkt_xfer_mock_called;
-EXPORT_SYMBOL_GPL(cros_kunit_ec_pkt_xfer_mock_called);
 
 static struct list_head cros_kunit_ec_xfer_mock_in;
 static struct list_head cros_kunit_ec_xfer_mock_out;
@@ -48,27 +45,23 @@ int cros_kunit_ec_xfer_mock(struct cros_ec_device *ec_dev, struct cros_ec_comman
 
 	return mock->ret;
 }
-EXPORT_SYMBOL_GPL(cros_kunit_ec_xfer_mock);
 
 int cros_kunit_ec_cmd_xfer_mock(struct cros_ec_device *ec_dev, struct cros_ec_command *msg)
 {
 	++cros_kunit_ec_cmd_xfer_mock_called;
 	return cros_kunit_ec_xfer_mock(ec_dev, msg);
 }
-EXPORT_SYMBOL_GPL(cros_kunit_ec_cmd_xfer_mock);
 
 int cros_kunit_ec_pkt_xfer_mock(struct cros_ec_device *ec_dev, struct cros_ec_command *msg)
 {
 	++cros_kunit_ec_pkt_xfer_mock_called;
 	return cros_kunit_ec_xfer_mock(ec_dev, msg);
 }
-EXPORT_SYMBOL_GPL(cros_kunit_ec_pkt_xfer_mock);
 
 struct ec_xfer_mock *cros_kunit_ec_xfer_mock_add(struct kunit *test, size_t size)
 {
 	return cros_kunit_ec_xfer_mock_addx(test, size, EC_RES_SUCCESS, size);
 }
-EXPORT_SYMBOL_GPL(cros_kunit_ec_xfer_mock_add);
 
 struct ec_xfer_mock *cros_kunit_ec_xfer_mock_addx(struct kunit *test,
 						  int ret, int result, size_t size)
@@ -91,7 +84,6 @@ struct ec_xfer_mock *cros_kunit_ec_xfer_mock_addx(struct kunit *test,
 
 	return mock;
 }
-EXPORT_SYMBOL_GPL(cros_kunit_ec_xfer_mock_addx);
 
 struct ec_xfer_mock *cros_kunit_ec_xfer_mock_next(void)
 {
@@ -103,14 +95,10 @@ struct ec_xfer_mock *cros_kunit_ec_xfer_mock_next(void)
 
 	return mock;
 }
-EXPORT_SYMBOL_GPL(cros_kunit_ec_xfer_mock_next);
 
 int cros_kunit_readmem_mock_offset;
-EXPORT_SYMBOL_GPL(cros_kunit_readmem_mock_offset);
 u8 *cros_kunit_readmem_mock_data;
-EXPORT_SYMBOL_GPL(cros_kunit_readmem_mock_data);
 int cros_kunit_readmem_mock_ret;
-EXPORT_SYMBOL_GPL(cros_kunit_readmem_mock_ret);
 
 int cros_kunit_readmem_mock(struct cros_ec_device *ec_dev, unsigned int offset,
 			    unsigned int bytes, void *dest)
@@ -121,7 +109,6 @@ int cros_kunit_readmem_mock(struct cros_ec_device *ec_dev, unsigned int offset,
 
 	return cros_kunit_readmem_mock_ret;
 }
-EXPORT_SYMBOL_GPL(cros_kunit_readmem_mock);
 
 void cros_kunit_mock_reset(void)
 {
@@ -135,6 +122,5 @@ void cros_kunit_mock_reset(void)
 	cros_kunit_readmem_mock_data = NULL;
 	cros_kunit_readmem_mock_ret = 0;
 }
-EXPORT_SYMBOL_GPL(cros_kunit_mock_reset);
 
 MODULE_LICENSE("GPL");
