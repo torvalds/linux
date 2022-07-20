@@ -186,6 +186,15 @@ config INPUT_PMIC8XXX_PWRKEY
 	  To compile this driver as a module, choose M here: the
 	  module will be called pmic8xxx-pwrkey.
 
+config INPUT_QPNP_POWER_ON
+        tristate "QPNP PMIC Power-on support"
+        depends on SPMI
+        help
+          This option enables device driver support for the power-on
+          functionality of Qualcomm Technologies, Inc. PNP PMICs.  It supports
+          reporting the change in status of the KPDPWR_N line (connected to the
+          power-key) as well as reset features.
+
 config INPUT_QCOM_HV_HAPTICS
 	tristate "QTI High Voltage Haptics support"
 	depends on MFD_SPMI_PMIC
