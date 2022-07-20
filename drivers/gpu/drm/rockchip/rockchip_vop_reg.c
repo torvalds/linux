@@ -1603,6 +1603,8 @@ static const struct vop_win_phy px30_win23_data = {
 	.alpha_en = VOP_REG(RK3368_WIN2_SRC_ALPHA_CTRL, 0x1, 0),
 	.global_alpha_val = VOP_REG(RK3368_WIN2_SRC_ALPHA_CTRL, 0xff, 4),
 	.channel = VOP_REG(RK3368_WIN2_CTRL1, 0xf, 8),
+	.color_key = VOP_REG(RK3368_WIN2_COLOR_KEY, 0xffffff, 0),
+	.color_key_en = VOP_REG(RK3368_WIN2_COLOR_KEY, 0x1, 24),
 };
 
 static const struct vop_win_data px30_vop_big_win_data[] = {
