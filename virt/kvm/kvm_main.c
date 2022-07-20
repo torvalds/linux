@@ -1028,7 +1028,7 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, const char *fdname)
 	char dir_name[ITOA_MAX_LEN * 2];
 	struct kvm_stat_data *stat_data;
 	const struct _kvm_stats_desc *pdesc;
-	int i, ret;
+	int i, ret = -ENOMEM;
 	int kvm_debugfs_num_entries = kvm_vm_stats_header.num_desc +
 				      kvm_vcpu_stats_header.num_desc;
 
@@ -1054,13 +1054,13 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, const char *fdname)
 					 sizeof(*kvm->debugfs_stat_data),
 					 GFP_KERNEL_ACCOUNT);
 	if (!kvm->debugfs_stat_data)
-		return -ENOMEM;
+		goto out_err;
 
 	for (i = 0; i < kvm_vm_stats_header.num_desc; ++i) {
 		pdesc = &kvm_vm_stats_desc[i];
 		stat_data = kzalloc(sizeof(*stat_data), GFP_KERNEL_ACCOUNT);
 		if (!stat_data)
-			return -ENOMEM;
+			goto out_err;
 
 		stat_data->kvm = kvm;
 		stat_data->desc = pdesc;
@@ -1075,7 +1075,7 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, const char *fdname)
 		pdesc = &kvm_vcpu_stats_desc[i];
 		stat_data = kzalloc(sizeof(*stat_data), GFP_KERNEL_ACCOUNT);
 		if (!stat_data)
-			return -ENOMEM;
+			goto out_err;
 
 		stat_data->kvm = kvm;
 		stat_data->desc = pdesc;
@@ -1087,12 +1087,13 @@ static int kvm_create_vm_debugfs(struct kvm *kvm, const char *fdname)
 	}
 
 	ret = kvm_arch_create_vm_debugfs(kvm);
-	if (ret) {
-		kvm_destroy_vm_debugfs(kvm);
-		return i;
-	}
+	if (ret)
+		goto out_err;
 
 	return 0;
+out_err:
+	kvm_destroy_vm_debugfs(kvm);
+	return ret;
 }
 
 /*
@@ -1123,7 +1124,7 @@ int __weak kvm_arch_create_vm_debugfs(struct kvm *kvm)
 	return 0;
 }
 
-static struct kvm *kvm_create_vm(unsigned long type)
+static struct kvm *kvm_create_vm(unsigned long type, const char *fdname)
 {
 	struct kvm *kvm = kvm_arch_alloc_vm();
 	struct kvm_memslots *slots;
@@ -1212,7 +1213,7 @@ static struct kvm *kvm_create_vm(unsigned long type)
 
 	r = kvm_arch_post_init_vm(kvm);
 	if (r)
-		goto out_err;
+		goto out_err_mmu_notifier;
 
 	mutex_lock(&kvm_lock);
 	list_add(&kvm->vm_list, &vm_list);
@@ -1228,12 +1229,18 @@ static struct kvm *kvm_create_vm(unsigned long type)
 	 */
 	if (!try_module_get(kvm_chardev_ops.owner)) {
 		r = -ENODEV;
-		goto out_err;
+		goto out_err_mmu_notifier;
 	}
+
+	r = kvm_create_vm_debugfs(kvm, fdname);
+	if (r)
+		goto out_err;
 
 	return kvm;
 
 out_err:
+	module_put(kvm_chardev_ops.owner);
+out_err_mmu_notifier:
 #if defined(CONFIG_MMU_NOTIFIER) && defined(KVM_ARCH_WANT_MMU_NOTIFIER)
 	if (kvm->mmu_notifier.ops)
 		mmu_notifier_unregister(&kvm->mmu_notifier, current->mm);
@@ -4900,7 +4907,7 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 
 	snprintf(fdname, sizeof(fdname), "%d", fd);
 
-	kvm = kvm_create_vm(type);
+	kvm = kvm_create_vm(type, fdname);
 	if (IS_ERR(kvm)) {
 		r = PTR_ERR(kvm);
 		goto put_fd;
@@ -4923,11 +4930,6 @@ static int kvm_dev_ioctl_create_vm(unsigned long type)
 	 * cases it will be called by the final fput(file) and will take
 	 * care of doing kvm_put_kvm(kvm).
 	 */
-	if (kvm_create_vm_debugfs(kvm, fdname) < 0) {
-		fput(file);
-		r = -ENOMEM;
-		goto put_fd;
-	}
 	kvm_uevent_notify_change(KVM_EVENT_CREATE_VM, kvm);
 
 	fd_install(fd, file);
