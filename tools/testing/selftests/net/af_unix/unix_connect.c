@@ -3,6 +3,7 @@
 #define _GNU_SOURCE
 #include <sched.h>
 
+#include <stddef.h>
 #include <stdio.h>
 #include <unistd.h>
 
@@ -111,8 +112,6 @@ FIXTURE_TEARDOWN(unix_connect)
 	if (variant->sun_path[0])
 		remove("test");
 }
-
-#define offsetof(type, member) ((size_t)&((type *)0)->(member))
 
 TEST_F(unix_connect, test)
 {
