@@ -785,6 +785,13 @@ static __maybe_unused int st_asm330lhhx_reg_access(struct iio_dev *iio_dev,
 	return (ret < 0) ? ret : 0;
 }
 
+static int st_asm330lhhx_set_page_0(struct st_asm330lhhx_hw *hw)
+{
+	return st_asm330lhhx_write_with_mask(hw,
+				 ST_ASM330LHHX_REG_FUNC_CFG_ACCESS_ADDR,
+				 ST_ASM330LHHX_REG_FUNC_CFG_MASK, 0);
+}
+
 static int st_asm330lhhx_check_whoami(struct st_asm330lhhx_hw *hw,
 				      int id)
 {
@@ -1820,6 +1827,13 @@ int st_asm330lhhx_probe(struct device *dev, int irq, int hw_id,
 	err = st_asm330lhhx_power_enable(hw);
 	if (err != 0)
 		return err;
+
+	/* set page zero before access to registers */
+	if (hw_id == ST_ASM330LHHX_ID) {
+		err = st_asm330lhhx_set_page_0(hw);
+		if (err < 0)
+			return err;
+	}
 
 	err = st_asm330lhhx_check_whoami(hw, hw_id);
 	if (err < 0)
