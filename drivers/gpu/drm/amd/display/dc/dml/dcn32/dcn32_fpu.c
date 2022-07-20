@@ -983,9 +983,15 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 	 * DML favors voltage over p-state, but we're more interested in
 	 * supporting p-state over voltage. We can't support p-state in
 	 * prefetch mode > 0 so try capping the prefetch mode to start.
+	 * Override present for testing.
 	 */
-	context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
+	if (dc->debug.dml_disallow_alternate_prefetch_modes)
+		context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
 			dm_prefetch_support_uclk_fclk_and_stutter;
+	else
+		context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
+			dm_prefetch_support_uclk_fclk_and_stutter_if_possible;
+
 	*vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, *pipe_cnt);
 	/* This may adjust vlevel and maxMpcComb */
 	if (*vlevel < context->bw_ctx.dml.soc.num_states)
@@ -1014,7 +1020,9 @@ static void dcn32_full_validate_bw_helper(struct dc *dc,
 			 * will not allow for switch in VBLANK. The DRR display must have it's VBLANK stretched
 			 * enough to support MCLK switching.
 			 */
-			if (*vlevel == context->bw_ctx.dml.soc.num_states) {
+			if (*vlevel == context->bw_ctx.dml.soc.num_states &&
+				context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final ==
+					dm_prefetch_support_uclk_fclk_and_stutter) {
 				context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
 								dm_prefetch_support_stutter;
 				/* There are params (such as FabricClock) that need to be recalculated
@@ -1344,7 +1352,8 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 	int split[MAX_PIPES] = { 0 };
 	bool merge[MAX_PIPES] = { false };
 	bool newly_split[MAX_PIPES] = { false };
-	int pipe_cnt, i, pipe_idx, vlevel;
+	int pipe_cnt, i, pipe_idx;
+	int vlevel = context->bw_ctx.dml.soc.num_states;
 	struct vba_vars_st *vba = &context->bw_ctx.dml.vba;
 
 	dc_assert_fp_enabled();
@@ -1373,17 +1382,22 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 		DC_FP_END();
 	}
 
-	if (fast_validate || vlevel == context->bw_ctx.dml.soc.num_states ||
-			vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported) {
+	if (fast_validate ||
+			dc->debug.dml_disallow_alternate_prefetch_modes &&
+			(vlevel == context->bw_ctx.dml.soc.num_states ||
+				vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported)) {
 		/*
-		 * If mode is unsupported or there's still no p-state support then
-		 * fall back to favoring voltage.
+		 * If dml_disallow_alternate_prefetch_modes is false, then we have already
+		 * tried alternate prefetch modes during full validation.
 		 *
-		 * If Prefetch mode 0 failed for this config, or passed with Max UCLK, try if
-		 * supported with Prefetch mode 1 (dm_prefetch_support_fclk_and_stutter == 2)
+		 * If mode is unsupported or there is no p-state support, then
+		 * fall back to favouring voltage.
+		 *
+		 * If Prefetch mode 0 failed for this config, or passed with Max UCLK, then try
+		 * to support with Prefetch mode 1 (dm_prefetch_support_fclk_and_stutter == 2)
 		 */
 		context->bw_ctx.dml.soc.allow_for_pstate_or_stutter_in_vblank_final =
-				dm_prefetch_support_fclk_and_stutter;
+			dm_prefetch_support_fclk_and_stutter;
 
 		vlevel = dml_get_voltage_level(&context->bw_ctx.dml, pipes, pipe_cnt);
 
