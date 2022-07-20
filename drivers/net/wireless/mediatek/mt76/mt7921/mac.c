@@ -800,6 +800,7 @@ void mt7921_mac_reset_work(struct work_struct *work)
 void mt7921_reset(struct mt76_dev *mdev)
 {
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
+	struct mt76_connac_pm *pm = &dev->pm;
 
 	if (!dev->hw_init_done)
 		return;
@@ -807,8 +808,12 @@ void mt7921_reset(struct mt76_dev *mdev)
 	if (dev->hw_full_reset)
 		return;
 
+	if (pm->suspended)
+		return;
+
 	queue_work(dev->mt76.wq, &dev->reset_work);
 }
+EXPORT_SYMBOL_GPL(mt7921_reset);
 
 void mt7921_mac_update_mib_stats(struct mt7921_phy *phy)
 {

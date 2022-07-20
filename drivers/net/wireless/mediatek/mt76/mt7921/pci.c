@@ -363,6 +363,7 @@ static int mt7921_pci_suspend(struct device *device)
 	int i, err;
 
 	pm->suspended = true;
+	flush_work(&dev->reset_work);
 	cancel_delayed_work_sync(&pm->ps_work);
 	cancel_work_sync(&pm->wake_work);
 
@@ -424,6 +425,9 @@ restore_napi:
 restore_suspend:
 	pm->suspended = false;
 
+	if (err < 0)
+		mt7921_reset(&dev->mt76);
+
 	return err;
 }
 
@@ -437,7 +441,7 @@ static int mt7921_pci_resume(struct device *device)
 
 	err = mt7921_mcu_drv_pmctrl(dev);
 	if (err < 0)
-		return err;
+		goto failed;
 
 	mt7921_wpdma_reinit_cond(dev);
 
@@ -467,10 +471,11 @@ static int mt7921_pci_resume(struct device *device)
 		mt76_connac_mcu_set_deep_sleep(&dev->mt76, false);
 
 	err = mt76_connac_mcu_set_hif_suspend(mdev, false);
-	if (err)
-		return err;
-
+failed:
 	pm->suspended = false;
+
+	if (err < 0)
+		mt7921_reset(&dev->mt76);
 
 	return err;
 }
