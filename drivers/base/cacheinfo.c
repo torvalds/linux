@@ -356,7 +356,7 @@ int detect_cache_attributes(unsigned int cpu)
 		return -ENOENT;
 
 	per_cpu_cacheinfo(cpu) = kcalloc(cache_leaves(cpu),
-					 sizeof(struct cacheinfo), GFP_KERNEL);
+					 sizeof(struct cacheinfo), GFP_ATOMIC);
 	if (per_cpu_cacheinfo(cpu) == NULL) {
 		cache_leaves(cpu) = 0;
 		return -ENOMEM;
