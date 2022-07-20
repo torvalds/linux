@@ -108,6 +108,12 @@ static const uint32_t safe_modeset_formats[] = {
 	DRM_FORMAT_ARGB8888,
 };
 
+static const struct drm_plane_funcs primary_plane_funcs = {
+	.update_plane = drm_plane_helper_update_primary,
+	.disable_plane = drm_plane_helper_disable_primary,
+	.destroy = drm_plane_helper_destroy,
+};
+
 static struct drm_plane *create_primary_plane(struct drm_device *dev)
 {
 	struct drm_plane *primary;
@@ -127,7 +133,7 @@ static struct drm_plane *create_primary_plane(struct drm_device *dev)
 
 	/* possible_crtc's will be filled in later by crtc_init */
 	ret = drm_universal_plane_init(dev, primary, 0,
-				       &drm_primary_helper_funcs,
+				       &primary_plane_funcs,
 				       safe_modeset_formats,
 				       ARRAY_SIZE(safe_modeset_formats),
 				       NULL,
