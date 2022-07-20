@@ -567,10 +567,10 @@ int rxe_completer(void *arg)
 	if (!rxe_get(qp))
 		return -EAGAIN;
 
-	if (!qp->valid || qp->req.state == QP_STATE_ERROR ||
-	    qp->req.state == QP_STATE_RESET) {
+	if (!qp->valid || qp->comp.state == QP_STATE_ERROR ||
+	    qp->comp.state == QP_STATE_RESET) {
 		rxe_drain_resp_pkts(qp, qp->valid &&
-				    qp->req.state == QP_STATE_ERROR);
+				    qp->comp.state == QP_STATE_ERROR);
 		goto exit;
 	}
 

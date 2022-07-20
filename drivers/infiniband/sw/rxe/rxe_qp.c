@@ -228,6 +228,7 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 					       QUEUE_TYPE_FROM_CLIENT);
 
 	qp->req.state		= QP_STATE_RESET;
+	qp->comp.state		= QP_STATE_RESET;
 	qp->req.opcode		= -1;
 	qp->comp.opcode		= -1;
 
@@ -488,6 +489,7 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 
 	/* move qp to the reset state */
 	qp->req.state = QP_STATE_RESET;
+	qp->comp.state = QP_STATE_RESET;
 	qp->resp.state = QP_STATE_RESET;
 
 	/* let state machines reset themselves drain work and packet queues
@@ -551,6 +553,7 @@ void rxe_qp_error(struct rxe_qp *qp)
 {
 	qp->req.state = QP_STATE_ERROR;
 	qp->resp.state = QP_STATE_ERROR;
+	qp->comp.state = QP_STATE_ERROR;
 	qp->attr.qp_state = IB_QPS_ERR;
 
 	/* drain work and packet queues */
@@ -688,6 +691,7 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 			pr_debug("qp#%d state -> INIT\n", qp_num(qp));
 			qp->req.state = QP_STATE_INIT;
 			qp->resp.state = QP_STATE_INIT;
+			qp->comp.state = QP_STATE_INIT;
 			break;
 
 		case IB_QPS_RTR:
@@ -698,6 +702,7 @@ int rxe_qp_from_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask,
 		case IB_QPS_RTS:
 			pr_debug("qp#%d state -> RTS\n", qp_num(qp));
 			qp->req.state = QP_STATE_READY;
+			qp->comp.state = QP_STATE_READY;
 			break;
 
 		case IB_QPS_SQD:
