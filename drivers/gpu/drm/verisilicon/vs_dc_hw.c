@@ -1891,26 +1891,6 @@ static void setup_display(struct dc_hw *hw, struct dc_hw_display *display)
 		else
 			dc_set_clear(hw, DC_DISPLAY_PANEL_START, 0, BIT(1) | BIT(2));
 
-#ifdef CONFIG_STARFIVE_DSI
-		dc_write(hw, DC_DISPLAY_H + offset, hw->display[id].h_active |
-				(hw->display[id].h_total << 16));
-
-		dc_write(hw, DC_DISPLAY_H_SYNC + offset,
-				hw->display[id].h_sync_start |
-				(hw->display[id].h_sync_end << 15) |
-				BIT(31) |
-				BIT(30));
-
-		dc_write(hw, DC_DISPLAY_V + offset, hw->display[id].v_active |
-				(hw->display[id].v_total << 16));
-
-		dc_write(hw, DC_DISPLAY_V_SYNC + offset,
-				hw->display[id].v_sync_start |
-				(hw->display[id].v_sync_end << 15) |
-				(hw->display[id].v_sync_polarity ? 0 : BIT(31)) |
-				BIT(30));
-
-#else
 		dc_write(hw, DC_DISPLAY_H + offset, hw->display[id].h_active |
 				(hw->display[id].h_total << 16));
 		dc_write(hw, DC_DISPLAY_H_SYNC + offset,
@@ -1925,7 +1905,6 @@ static void setup_display(struct dc_hw *hw, struct dc_hw_display *display)
 				(hw->display[id].v_sync_end << 15) |
 				(hw->display[id].v_sync_polarity ? 0 : BIT(31)) |
 				BIT(30));
-#endif
 
 		if (hw->info->pipe_sync) {
 			switch (display->sync_mode) {
