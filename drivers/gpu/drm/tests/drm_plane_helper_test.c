@@ -9,7 +9,6 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_framebuffer.h>
-#include <drm/drm_plane_helper.h>
 #include <drm/drm_modes.h>
 
 static void set_src(struct drm_plane_state *plane_state,

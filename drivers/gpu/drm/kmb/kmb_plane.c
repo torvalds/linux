@@ -14,7 +14,6 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_managed.h>
-#include <drm/drm_plane_helper.h>
 
 #include "kmb_drv.h"
 #include "kmb_plane.h"

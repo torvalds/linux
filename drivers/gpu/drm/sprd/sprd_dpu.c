@@ -23,7 +23,6 @@
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
-#include <drm/drm_plane_helper.h>
 
 #include "sprd_drm.h"
 #include "sprd_dpu.h"

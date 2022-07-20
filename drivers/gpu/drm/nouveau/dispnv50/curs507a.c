@@ -29,7 +29,6 @@
 #include <nvhw/class/cl507a.h>
 
 #include <drm/drm_atomic_helper.h>
-#include <drm/drm_plane_helper.h>
 
 bool
 curs507a_space(struct nv50_wndw *wndw)
