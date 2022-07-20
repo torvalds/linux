@@ -1803,6 +1803,7 @@ static long tls_rx_reader_lock(struct sock *sk, struct tls_sw_context_rx *ctx,
 			       bool nonblock)
 {
 	long timeo;
+	int err;
 
 	lock_sock(sk);
 
@@ -1818,15 +1819,23 @@ static long tls_rx_reader_lock(struct sock *sk, struct tls_sw_context_rx *ctx,
 			      !READ_ONCE(ctx->reader_present), &wait);
 		remove_wait_queue(&ctx->wq, &wait);
 
-		if (!timeo)
-			return -EAGAIN;
-		if (signal_pending(current))
-			return sock_intr_errno(timeo);
+		if (timeo <= 0) {
+			err = -EAGAIN;
+			goto err_unlock;
+		}
+		if (signal_pending(current)) {
+			err = sock_intr_errno(timeo);
+			goto err_unlock;
+		}
 	}
 
 	WRITE_ONCE(ctx->reader_present, 1);
 
 	return timeo;
+
+err_unlock:
+	release_sock(sk);
+	return err;
 }
 
 static void tls_rx_reader_unlock(struct sock *sk, struct tls_sw_context_rx *ctx)
