@@ -1880,11 +1880,6 @@ void hci_free_adv_monitor(struct hci_dev *hdev, struct adv_monitor *monitor)
 	kfree(monitor);
 }
 
-int hci_add_adv_patterns_monitor_complete(struct hci_dev *hdev, u8 status)
-{
-	return mgmt_add_adv_patterns_monitor_complete(hdev, status);
-}
-
 int hci_remove_adv_monitor_complete(struct hci_dev *hdev, u8 status)
 {
 	return mgmt_remove_adv_monitor_complete(hdev, status);
@@ -1892,49 +1887,48 @@ int hci_remove_adv_monitor_complete(struct hci_dev *hdev, u8 status)
 
 /* Assigns handle to a monitor, and if offloading is supported and power is on,
  * also attempts to forward the request to the controller.
- * Returns true if request is forwarded (result is pending), false otherwise.
- * This function requires the caller holds hdev->lock.
+ * This function requires the caller holds hci_req_sync_lock.
  */
-bool hci_add_adv_monitor(struct hci_dev *hdev, struct adv_monitor *monitor,
-			 int *err)
+int hci_add_adv_monitor(struct hci_dev *hdev, struct adv_monitor *monitor)
 {
 	int min, max, handle;
+	int status = 0;
 
-	*err = 0;
+	if (!monitor)
+		return -EINVAL;
 
-	if (!monitor) {
-		*err = -EINVAL;
-		return false;
-	}
+	hci_dev_lock(hdev);
 
 	min = HCI_MIN_ADV_MONITOR_HANDLE;
 	max = HCI_MIN_ADV_MONITOR_HANDLE + HCI_MAX_ADV_MONITOR_NUM_HANDLES;
 	handle = idr_alloc(&hdev->adv_monitors_idr, monitor, min, max,
 			   GFP_KERNEL);
-	if (handle < 0) {
-		*err = handle;
-		return false;
-	}
+
+	hci_dev_unlock(hdev);
+
+	if (handle < 0)
+		return handle;
 
 	monitor->handle = handle;
 
 	if (!hdev_is_powered(hdev))
-		return false;
+		return status;
 
 	switch (hci_get_adv_monitor_offload_ext(hdev)) {
 	case HCI_ADV_MONITOR_EXT_NONE:
-		hci_update_passive_scan(hdev);
-		bt_dev_dbg(hdev, "%s add monitor status %d", hdev->name, *err);
+		bt_dev_dbg(hdev, "%s add monitor %d status %d", hdev->name,
+			   monitor->handle, status);
 		/* Message was not forwarded to controller - not an error */
-		return false;
+		break;
+
 	case HCI_ADV_MONITOR_EXT_MSFT:
-		*err = msft_add_monitor_pattern(hdev, monitor);
-		bt_dev_dbg(hdev, "%s add monitor msft status %d", hdev->name,
-			   *err);
+		status = msft_add_monitor_pattern(hdev, monitor);
+		bt_dev_dbg(hdev, "%s add monitor %d msft status %d", hdev->name,
+			   monitor->handle, status);
 		break;
 	}
 
-	return (*err == 0);
+	return status;
 }
 
 /* Attempts to tell the controller and free the monitor. If somehow the
