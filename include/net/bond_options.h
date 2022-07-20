@@ -7,6 +7,14 @@
 #ifndef _NET_BOND_OPTIONS_H
 #define _NET_BOND_OPTIONS_H
 
+#include <linux/bits.h>
+#include <linux/limits.h>
+#include <linux/types.h>
+#include <linux/string.h>
+
+struct netlink_ext_ack;
+struct nlattr;
+
 #define BOND_OPT_MAX_NAMELEN 32
 #define BOND_OPT_VALID(opt) ((opt) < BOND_OPT_LAST)
 #define BOND_MODE_ALL_EX(x) (~(x))

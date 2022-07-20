@@ -1,3 +1,4 @@
+
 #ifndef __NET_REGULATORY_H
 #define __NET_REGULATORY_H
 /*
@@ -19,6 +20,8 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
+#include <linux/ieee80211.h>
+#include <linux/nl80211.h>
 #include <linux/rcupdate.h>
 
 /**

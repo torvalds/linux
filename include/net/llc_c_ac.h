@@ -16,6 +16,13 @@
  * Connection state transition actions
  * (Fb = F bit; Pb = P bit; Xb = X bit)
  */
+
+#include <linux/types.h>
+
+struct sk_buff;
+struct sock;
+struct timer_list;
+
 #define LLC_CONN_AC_CLR_REMOTE_BUSY			 1
 #define LLC_CONN_AC_CONN_IND				 2
 #define LLC_CONN_AC_CONN_CONFIRM			 3

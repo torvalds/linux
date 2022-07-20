@@ -4,6 +4,8 @@
 
 #include <linux/netlink.h>
 #include <linux/refcount.h>
+#include <linux/rtnetlink.h>
+#include <net/fib_rules.h>
 
 extern const struct nla_policy rtm_dn_policy[];
 

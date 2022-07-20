@@ -5,6 +5,8 @@
 #ifndef __NETNS_UNIX_H__
 #define __NETNS_UNIX_H__
 
+#include <linux/spinlock.h>
+
 struct unix_table {
 	spinlock_t		*locks;
 	struct hlist_head	*buckets;
