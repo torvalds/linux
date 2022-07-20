@@ -264,6 +264,7 @@ properties:
                   - renesas,r8a779m4
                   - renesas,r8a779m5
                   - renesas,r8a779m8
+                  - renesas,r8a779mb
               - enum:
                   - renesas,r8a7795
                   - renesas,r8a77961
@@ -407,6 +408,14 @@ properties:
               - renesas,h3ulcb      # H3ULCB (R-Car Starter Kit Premier)
               - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version)
           - const: renesas,r8a779m8
+          - const: renesas,r8a7795
+
+      - description: R-Car H3Ne-1.7G (R8A779MB)
+        items:
+          - enum:
+              - renesas,h3ulcb      # H3ULCB (R-Car Starter Kit Premier)
+              - renesas,salvator-xs # Salvator-XS (Salvator-X 2nd version)
+          - const: renesas,r8a779mb
           - const: renesas,r8a7795
 
       - description: RZ/N1D (R9A06G032)
