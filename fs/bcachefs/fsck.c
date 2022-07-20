@@ -1122,8 +1122,7 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 		if (i->inode.bi_sectors == i->count)
 			continue;
 
-		count2 = lockrestart_do(trans,
-			bch2_count_inode_sectors(trans, w->cur_inum, i->snapshot));
+		count2 = bch2_count_inode_sectors(trans, w->cur_inum, i->snapshot);
 
 		if (i->count != count2) {
 			bch_err(c, "fsck counted i_sectors wrong: got %llu should be %llu",
