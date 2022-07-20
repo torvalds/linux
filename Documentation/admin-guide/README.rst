@@ -262,8 +262,6 @@ Compiling the kernel
  - Make sure you have at least gcc 5.1 available.
    For more information, refer to :ref:`Documentation/process/changes.rst <changes>`.
 
-   Please note that you can still run a.out user programs with this kernel.
-
  - Do a ``make`` to create a compressed kernel image. It is also
    possible to do ``make install`` if you have lilo installed to suit the
    kernel makefiles, but you may want to check your particular lilo setup first.
