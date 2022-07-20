@@ -3233,13 +3233,6 @@ L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	drivers/hwmon/asus_wmi_sensors.c
 
-ASUS WMI EC HARDWARE MONITOR DRIVER
-M:	Eugene Shalygin <eugene.shalygin@gmail.com>
-M:	Denis Pauk <pauk.denis@gmail.com>
-L:	linux-hwmon@vger.kernel.org
-S:	Maintained
-F:	drivers/hwmon/asus_wmi_ec_sensors.c
-
 ASUS EC HARDWARE MONITOR DRIVER
 M:	Eugene Shalygin <eugene.shalygin@gmail.com>
 L:	linux-hwmon@vger.kernel.org
