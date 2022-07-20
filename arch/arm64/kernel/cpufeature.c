@@ -1001,15 +1001,24 @@ void __init init_cpu_features(struct cpuinfo_arm64 *info)
 	if (id_aa64pfr0_32bit_el0(info->reg_id_aa64pfr0))
 		init_32bit_cpu_features(&info->aarch32);
 
-	if (id_aa64pfr0_sve(info->reg_id_aa64pfr0)) {
+	if (IS_ENABLED(CONFIG_ARM64_SVE) &&
+	    id_aa64pfr0_sve(read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1))) {
+		info->reg_zcr = read_zcr_features();
 		init_cpu_ftr_reg(SYS_ZCR_EL1, info->reg_zcr);
 		vec_init_vq_map(ARM64_VEC_SVE);
 	}
 
-	if (id_aa64pfr1_sme(info->reg_id_aa64pfr1)) {
+	if (IS_ENABLED(CONFIG_ARM64_SME) &&
+	    id_aa64pfr1_sme(read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1))) {
+		info->reg_smcr = read_smcr_features();
+		/*
+		 * We mask out SMPS since even if the hardware
+		 * supports priorities the kernel does not at present
+		 * and we block access to them.
+		 */
+		info->reg_smidr = read_cpuid(SMIDR_EL1) & ~SMIDR_EL1_SMPS;
 		init_cpu_ftr_reg(SYS_SMCR_EL1, info->reg_smcr);
-		if (IS_ENABLED(CONFIG_ARM64_SME))
-			vec_init_vq_map(ARM64_VEC_SME);
+		vec_init_vq_map(ARM64_VEC_SME);
 	}
 
 	if (id_aa64pfr1_mte(info->reg_id_aa64pfr1))
@@ -1241,23 +1250,31 @@ void update_cpu_features(int cpu,
 	taint |= check_update_ftr_reg(SYS_ID_AA64SMFR0_EL1, cpu,
 				      info->reg_id_aa64smfr0, boot->reg_id_aa64smfr0);
 
-	if (id_aa64pfr0_sve(info->reg_id_aa64pfr0)) {
+	if (IS_ENABLED(CONFIG_ARM64_SVE) &&
+	    id_aa64pfr0_sve(read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1))) {
+		info->reg_zcr = read_zcr_features();
 		taint |= check_update_ftr_reg(SYS_ZCR_EL1, cpu,
 					info->reg_zcr, boot->reg_zcr);
 
-		/* Probe vector lengths, unless we already gave up on SVE */
-		if (id_aa64pfr0_sve(read_sanitised_ftr_reg(SYS_ID_AA64PFR0_EL1)) &&
-		    !system_capabilities_finalized())
+		/* Probe vector lengths */
+		if (!system_capabilities_finalized())
 			vec_update_vq_map(ARM64_VEC_SVE);
 	}
 
-	if (id_aa64pfr1_sme(info->reg_id_aa64pfr1)) {
+	if (IS_ENABLED(CONFIG_ARM64_SME) &&
+	    id_aa64pfr1_sme(read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1))) {
+		info->reg_smcr = read_smcr_features();
+		/*
+		 * We mask out SMPS since even if the hardware
+		 * supports priorities the kernel does not at present
+		 * and we block access to them.
+		 */
+		info->reg_smidr = read_cpuid(SMIDR_EL1) & ~SMIDR_EL1_SMPS;
 		taint |= check_update_ftr_reg(SYS_SMCR_EL1, cpu,
 					info->reg_smcr, boot->reg_smcr);
 
-		/* Probe vector lengths, unless we already gave up on SME */
-		if (id_aa64pfr1_sme(read_sanitised_ftr_reg(SYS_ID_AA64PFR1_EL1)) &&
-		    !system_capabilities_finalized())
+		/* Probe vector lengths */
+		if (!system_capabilities_finalized())
 			vec_update_vq_map(ARM64_VEC_SME);
 	}
 
