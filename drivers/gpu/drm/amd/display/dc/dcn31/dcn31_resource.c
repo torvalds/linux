@@ -1863,8 +1863,6 @@ static bool dcn31_resource_construct(
 	struct dc_context *ctx = dc->ctx;
 	struct irq_service_init_data init_data;
 
-	DC_FP_START();
-
 	ctx->dc_bios->regs = &bios_regs;
 
 	pool->base.res_cap = &res_cap_dcn31;
@@ -2175,13 +2173,9 @@ static bool dcn31_resource_construct(
 
 	dc->dcn_ip->max_num_dpp = dcn3_1_ip.max_num_dpp;
 
-	DC_FP_END();
-
 	return true;
 
 create_fail:
-
-	DC_FP_END();
 	dcn31_resource_destruct(pool);
 
 	return false;
