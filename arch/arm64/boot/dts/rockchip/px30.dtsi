@@ -765,10 +765,8 @@
 
 		lvds: lvds {
 			compatible = "rockchip,px30-lvds";
-			phys = <&dsi_dphy>;
-			phy-names = "dphy";
-			rockchip,grf = <&grf>;
-			rockchip,output = "lvds";
+			phys = <&video_phy>;
+			phy-names = "phy";
 			status = "disabled";
 
 			ports {
@@ -1223,11 +1221,14 @@
 		};
 	};
 
-	dsi_dphy: phy@ff2e0000 {
-		compatible = "rockchip,px30-dsi-dphy";
-		reg = <0x0 0xff2e0000 0x0 0x10000>;
-		clocks = <&pmucru SCLK_MIPIDSIPHY_REF>, <&cru PCLK_MIPIDSIPHY>;
-		clock-names = "ref", "pclk";
+	video_phy: dsi_dphy: phy@ff2e0000 {
+		compatible = "rockchip,px30-dsi-dphy", "rockchip,px30-video-phy";
+		reg = <0x0 0xff2e0000 0x0 0x10000>,
+		      <0x0 0xff450000 0x0 0x10000>;
+		reg-names = "phy", "host";
+		clocks = <&pmucru SCLK_MIPIDSIPHY_REF>,
+			 <&cru PCLK_MIPIDSIPHY>, <&cru PCLK_MIPI_DSI>;
+		clock-names = "ref", "pclk", "pclk_host";
 		resets = <&cru SRST_MIPIDSIPHY_P>;
 		reset-names = "apb";
 		#phy-cells = <0>;
@@ -1579,7 +1580,7 @@
 		interrupts = <GIC_SPI 75 IRQ_TYPE_LEVEL_HIGH>;
 		clocks = <&cru PCLK_MIPI_DSI>;
 		clock-names = "pclk";
-		phys = <&dsi_dphy>;
+		phys = <&video_phy>;
 		phy-names = "dphy";
 		power-domains = <&power PX30_PD_VO>;
 		resets = <&cru SRST_MIPIDSI_HOST_P>;
