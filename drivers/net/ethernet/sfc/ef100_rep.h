@@ -15,6 +15,12 @@
 
 #include "net_driver.h"
 
+struct efx_rep_sw_stats {
+	atomic64_t rx_packets, tx_packets;
+	atomic64_t rx_bytes, tx_bytes;
+	atomic64_t rx_dropped, tx_errors;
+};
+
 /**
  * struct efx_rep - Private data for an Efx representor
  *
@@ -24,6 +30,7 @@
  * @mport: m-port ID of corresponding VF
  * @idx: VF index
  * @list: entry on efx->vf_reps
+ * @stats: software traffic counters for netdev stats
  */
 struct efx_rep {
 	struct efx_nic *parent;
@@ -32,6 +39,7 @@ struct efx_rep {
 	u32 mport;
 	unsigned int idx;
 	struct list_head list;
+	struct efx_rep_sw_stats stats;
 };
 
 int efx_ef100_vfrep_create(struct efx_nic *efx, unsigned int i);
