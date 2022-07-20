@@ -21,12 +21,14 @@
  * @parent: the efx PF which manages this representor
  * @net_dev: representor netdevice
  * @msg_enable: log message enable flags
+ * @idx: VF index
  * @list: entry on efx->vf_reps
  */
 struct efx_rep {
 	struct efx_nic *parent;
 	struct net_device *net_dev;
 	u32 msg_enable;
+	unsigned int idx;
 	struct list_head list;
 };
 
