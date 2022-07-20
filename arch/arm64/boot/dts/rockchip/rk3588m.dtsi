@@ -1,0 +1,77 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+&cluster0_opp_table {
+	/delete-node/ opp-1800000000;
+
+	opp-1704000000 {
+		opp-supported-hw = <0x02 0xffff>;
+		opp-hz = /bits/ 64 <1704000000>;
+		opp-microvolt = <900000 900000 950000>,
+				<900000 900000 950000>;
+		opp-microvolt-L1 = <887500 887500 950000>,
+				   <887500 887500 950000>;
+		opp-microvolt-L2 = <875000 875000 950000>,
+				   <875000 875000 950000>;
+		opp-microvolt-L3 = <862500 862500 950000>,
+				   <862500 862500 950000>;
+		opp-microvolt-L4 = <850000 850000 950000>,
+				   <850000 850000 950000>;
+		opp-microvolt-L5 = <837500 837500 950000>,
+				   <837500 837500 950000>;
+		opp-microvolt-L6 = <825000 825000 950000>,
+				   <825000 825000 950000>;
+		clock-latency-ns = <40000>;
+	};
+};
+
+&cluster1_opp_table {
+	/delete-node/ opp-2208000000;
+	/delete-node/ opp-2256000000;
+	/delete-node/ opp-2304000000;
+	/delete-node/ opp-2352000000;
+	/delete-node/ opp-2400000000;
+
+	opp-2112000000 {
+		opp-supported-hw = <0x02 0xffff>;
+		opp-hz = /bits/ 64 <2112000000>;
+		opp-microvolt = <900000 900000 1000000>,
+				<900000 900000 1000000>;
+		opp-microvolt-L4 = <887500 887500 1000000>,
+				   <887500 887500 1000000>;
+		opp-microvolt-L5 = <875000 875000 1000000>,
+				   <875000 875000 1000000>;
+		opp-microvolt-L6 = <862500 862500 1000000>,
+				   <862500 862500 1000000>;
+		opp-microvolt-L7 = <850000 850000 1000000>,
+				   <850000 850000 1000000>;
+		clock-latency-ns = <40000>;
+	};
+};
+
+&cluster2_opp_table {
+	/delete-node/ opp-2208000000;
+	/delete-node/ opp-2256000000;
+	/delete-node/ opp-2304000000;
+	/delete-node/ opp-2352000000;
+	/delete-node/ opp-2400000000;
+
+	opp-2112000000 {
+		opp-supported-hw = <0x02 0xffff>;
+		opp-hz = /bits/ 64 <2112000000>;
+		opp-microvolt = <900000 900000 1000000>,
+				<900000 900000 1000000>;
+		opp-microvolt-L4 = <887500 887500 1000000>,
+				   <887500 887500 1000000>;
+		opp-microvolt-L5 = <875000 875000 1000000>,
+				   <875000 875000 1000000>;
+		opp-microvolt-L6 = <862500 862500 1000000>,
+				   <862500 862500 1000000>;
+		opp-microvolt-L7 = <850000 850000 1000000>,
+				   <850000 850000 1000000>;
+		clock-latency-ns = <40000>;
+	};
+};

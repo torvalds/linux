@@ -570,8 +570,8 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		nvmem-cells = <&cpul_leakage>;
-		nvmem-cell-names = "leakage";
+		nvmem-cells = <&cpul_leakage>, <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "specification_serial_number";
 		rockchip,supported-hw;
 		rockchip,opp-shared-dsu;
 
@@ -690,7 +690,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-1800000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xfd 0xffff>;
 			opp-hz = /bits/ 64 <1800000000>;
 			opp-microvolt = <950000 950000 950000>,
 					<950000 950000 950000>;
@@ -714,8 +714,8 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		nvmem-cells = <&cpub0_leakage>;
-		nvmem-cell-names = "leakage";
+		nvmem-cells = <&cpub0_leakage>, <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "specification_serial_number";
 		rockchip,supported-hw;
 
 		rockchip,pvtm-voltage-sel = <
@@ -873,7 +873,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-2208000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xfd 0xffff>;
 			opp-hz = /bits/ 64 <2208000000>;
 			opp-microvolt = <987500 987500 1000000>,
 					<987500 987500 1000000>;
@@ -894,28 +894,28 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-2256000000 {
-			opp-supported-hw = <0xff 0x13>;
+			opp-supported-hw = <0xfd 0x13>;
 			opp-hz = /bits/ 64 <2256000000>;
 			opp-microvolt = <1000000 1000000 1000000>,
 					<1000000 1000000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-2304000000 {
-			opp-supported-hw = <0xff 0x24>;
+			opp-supported-hw = <0xfd 0x24>;
 			opp-hz = /bits/ 64 <2304000000>;
 			opp-microvolt = <1000000 1000000 1000000>,
 					<1000000 1000000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-2352000000 {
-			opp-supported-hw = <0xff 0x48>;
+			opp-supported-hw = <0xfd 0x48>;
 			opp-hz = /bits/ 64 <2352000000>;
 			opp-microvolt = <1000000 1000000 1000000>,
 					<1000000 1000000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-2400000000 {
-			opp-supported-hw = <0xff 0x80>;
+			opp-supported-hw = <0xfd 0x80>;
 			opp-hz = /bits/ 64 <2400000000>;
 			opp-microvolt = <1000000 1000000 1000000>,
 					<1000000 1000000 1000000>;
@@ -927,8 +927,8 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
-		nvmem-cells = <&cpub1_leakage>;
-		nvmem-cell-names = "leakage";
+		nvmem-cells = <&cpub1_leakage>, <&specification_serial_number>;
+		nvmem-cell-names = "leakage", "specification_serial_number";
 		rockchip,supported-hw;
 
 		rockchip,pvtm-voltage-sel = <
@@ -1086,7 +1086,7 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-2208000000 {
-			opp-supported-hw = <0xff 0xffff>;
+			opp-supported-hw = <0xfd 0xffff>;
 			opp-hz = /bits/ 64 <2208000000>;
 			opp-microvolt = <987500 987500 1000000>,
 					<987500 987500 1000000>;
@@ -1103,28 +1103,28 @@
 			clock-latency-ns = <40000>;
 		};
 		opp-2256000000 {
-			opp-supported-hw = <0xff 0x13>;
+			opp-supported-hw = <0xfd 0x13>;
 			opp-hz = /bits/ 64 <2256000000>;
 			opp-microvolt = <1000000 1000000 1000000>,
 					<1000000 1000000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-2304000000 {
-			opp-supported-hw = <0xff 0x24>;
+			opp-supported-hw = <0xfd 0x24>;
 			opp-hz = /bits/ 64 <2304000000>;
 			opp-microvolt = <1000000 1000000 1000000>,
 					<1000000 1000000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-2352000000 {
-			opp-supported-hw = <0xff 0x48>;
+			opp-supported-hw = <0xfd 0x48>;
 			opp-hz = /bits/ 64 <2352000000>;
 			opp-microvolt = <1000000 1000000 1000000>,
 					<1000000 1000000 1000000>;
 			clock-latency-ns = <40000>;
 		};
 		opp-2400000000 {
-			opp-supported-hw = <0xff 0x80>;
+			opp-supported-hw = <0xfd 0x80>;
 			opp-hz = /bits/ 64 <2400000000>;
 			opp-microvolt = <1000000 1000000 1000000>,
 					<1000000 1000000 1000000>;
@@ -5554,6 +5554,10 @@
 		/* Data cells */
 		cpu_code: cpu-code@2 {
 			reg = <0x02 0x2>;
+		};
+		specification_serial_number: specification-serial-number@6 {
+			reg = <0x06 0x1>;
+			bits = <0 5>;
 		};
 		otp_id: id@7 {
 			reg = <0x07 0x10>;
