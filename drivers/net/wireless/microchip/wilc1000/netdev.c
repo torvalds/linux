@@ -97,12 +97,12 @@ static struct net_device *get_if_handler(struct wilc *wilc, u8 *mac_header)
 	struct ieee80211_hdr *h = (struct ieee80211_hdr *)mac_header;
 
 	list_for_each_entry_rcu(vif, &wilc->vif_list, list) {
-		if (vif->mode == WILC_STATION_MODE)
+		if (vif->iftype == WILC_STATION_MODE)
 			if (ether_addr_equal_unaligned(h->addr2, vif->bssid)) {
 				ndev = vif->ndev;
 				goto out;
 			}
-		if (vif->mode == WILC_AP_MODE)
+		if (vif->iftype == WILC_AP_MODE)
 			if (ether_addr_equal_unaligned(h->addr1, vif->bssid)) {
 				ndev = vif->ndev;
 				goto out;
@@ -122,7 +122,7 @@ void wilc_wlan_set_bssid(struct net_device *wilc_netdev, const u8 *bssid,
 	else
 		eth_zero_addr(vif->bssid);
 
-	vif->mode = mode;
+	vif->iftype = mode;
 }
 
 int wilc_wlan_get_num_conn_ifcs(struct wilc *wilc)
