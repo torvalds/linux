@@ -1435,10 +1435,10 @@ static IIO_DEVICE_ATTR(in_temp_scale_available, 0444,
 static IIO_DEVICE_ATTR(hwfifo_flush, 0200, NULL, st_asm330lhhx_flush_fifo, 0);
 static IIO_DEVICE_ATTR(hwfifo_watermark, 0644, st_asm330lhhx_get_watermark,
 		       st_asm330lhhx_set_watermark, 0);
-static IIO_DEVICE_ATTR(selftest_available, S_IRUGO,
+static IIO_DEVICE_ATTR(selftest_available, 0444,
 		       st_asm330lhhx_sysfs_get_selftest_available,
 		       NULL, 0);
-static IIO_DEVICE_ATTR(selftest, S_IWUSR | S_IRUGO,
+static IIO_DEVICE_ATTR(selftest, 0644,
 		       st_asm330lhhx_sysfs_get_selftest_status,
 		       st_asm330lhhx_sysfs_start_selftest, 0);
 
