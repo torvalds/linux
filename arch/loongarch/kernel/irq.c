@@ -28,7 +28,6 @@ EXPORT_PER_CPU_SYMBOL(irq_stat);
 struct irq_domain *cpu_domain;
 struct irq_domain *liointc_domain;
 struct irq_domain *pch_msi_domain[MAX_IO_PICS];
-struct irq_domain *pch_pic_domain[MAX_IO_PICS];
 
 struct acpi_vector_group pch_group[MAX_IO_PICS];
 struct acpi_vector_group msi_group[MAX_IO_PICS];
