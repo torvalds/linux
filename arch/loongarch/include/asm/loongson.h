@@ -39,18 +39,6 @@ extern const struct plat_smp_ops loongson3_smp_ops;
 
 #define MAX_PACKAGES 16
 
-/* Chip Config register of each physical cpu package */
-extern u64 loongson_chipcfg[MAX_PACKAGES];
-#define LOONGSON_CHIPCFG(id) (*(volatile u32 *)(loongson_chipcfg[id]))
-
-/* Chip Temperature register of each physical cpu package */
-extern u64 loongson_chiptemp[MAX_PACKAGES];
-#define LOONGSON_CHIPTEMP(id) (*(volatile u32 *)(loongson_chiptemp[id]))
-
-/* Freq Control register of each physical cpu package */
-extern u64 loongson_freqctrl[MAX_PACKAGES];
-#define LOONGSON_FREQCTRL(id) (*(volatile u32 *)(loongson_freqctrl[id]))
-
 #define xconf_readl(addr) readl(addr)
 #define xconf_readq(addr) readq(addr)
 
