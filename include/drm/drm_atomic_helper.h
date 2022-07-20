@@ -41,7 +41,7 @@
  * Due to src being in 16.16 fixed point and dest being in integer pixels,
  * 1<<16 represents no scaling.
  */
-#define DRM_PLANE_HELPER_NO_SCALING (1<<16)
+#define DRM_PLANE_NO_SCALING (1<<16)
 
 struct drm_atomic_state;
 struct drm_private_obj;

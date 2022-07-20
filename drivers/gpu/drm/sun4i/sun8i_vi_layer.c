@@ -379,8 +379,8 @@ static int sun8i_vi_layer_atomic_check(struct drm_plane *plane,
 	if (WARN_ON(!crtc_state))
 		return -EINVAL;
 
-	min_scale = DRM_PLANE_HELPER_NO_SCALING;
-	max_scale = DRM_PLANE_HELPER_NO_SCALING;
+	min_scale = DRM_PLANE_NO_SCALING;
+	max_scale = DRM_PLANE_NO_SCALING;
 
 	if (layer->mixer->cfg->scaler_mask & BIT(layer->channel)) {
 		min_scale = SUN8I_VI_SCALER_SCALE_MIN;

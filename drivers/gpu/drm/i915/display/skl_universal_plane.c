@@ -1855,8 +1855,8 @@ static int skl_plane_check(struct intel_crtc_state *crtc_state,
 	struct intel_plane *plane = to_intel_plane(plane_state->uapi.plane);
 	struct drm_i915_private *dev_priv = to_i915(plane->base.dev);
 	const struct drm_framebuffer *fb = plane_state->hw.fb;
-	int min_scale = DRM_PLANE_HELPER_NO_SCALING;
-	int max_scale = DRM_PLANE_HELPER_NO_SCALING;
+	int min_scale = DRM_PLANE_NO_SCALING;
+	int max_scale = DRM_PLANE_NO_SCALING;
 	int ret;
 
 	ret = skl_plane_check_fb(crtc_state, plane_state);

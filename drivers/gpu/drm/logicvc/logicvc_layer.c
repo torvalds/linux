@@ -116,8 +116,8 @@ static int logicvc_plane_atomic_check(struct drm_plane *drm_plane,
 		}
 	}
 
-	min_scale = DRM_PLANE_HELPER_NO_SCALING;
-	max_scale = DRM_PLANE_HELPER_NO_SCALING;
+	min_scale = DRM_PLANE_NO_SCALING;
+	max_scale = DRM_PLANE_NO_SCALING;
 
 	can_position = (drm_plane->type == DRM_PLANE_TYPE_OVERLAY &&
 			layer->index != (logicvc->config.layers_count - 1) &&

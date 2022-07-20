@@ -269,8 +269,8 @@ static int vbox_primary_atomic_check(struct drm_plane *plane,
 	}
 
 	return drm_atomic_helper_check_plane_state(new_state, crtc_state,
-						   DRM_PLANE_HELPER_NO_SCALING,
-						   DRM_PLANE_HELPER_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
+						   DRM_PLANE_NO_SCALING,
 						   false, true);
 }
 
@@ -351,8 +351,8 @@ static int vbox_cursor_atomic_check(struct drm_plane *plane,
 	}
 
 	ret = drm_atomic_helper_check_plane_state(new_state, crtc_state,
-						  DRM_PLANE_HELPER_NO_SCALING,
-						  DRM_PLANE_HELPER_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
+						  DRM_PLANE_NO_SCALING,
 						  true, true);
 	if (ret)
 		return ret;
