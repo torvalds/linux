@@ -802,6 +802,8 @@ done:
 	ret = 0;
 	goto out;
 err:
+	/* update wqe_index for each wqe completion */
+	qp->req.wqe_index = queue_next_index(qp->sq.queue, qp->req.wqe_index);
 	wqe->state = wqe_state_error;
 	rxe_run_task(&qp->comp.task, 0);
 exit:
