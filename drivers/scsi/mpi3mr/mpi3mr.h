@@ -954,7 +954,7 @@ struct mpi3mr_ioc {
 	u16 active_poll_qcount;
 	u16 requested_poll_qcount;
 
-	struct device *bsg_dev;
+	struct device bsg_dev;
 	struct request_queue *bsg_queue;
 	u8 stop_bsgs;
 	u8 *logdata_buf;

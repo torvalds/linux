@@ -90,28 +90,7 @@ struct inet_bind_bucket {
 	struct hlist_head	owners;
 };
 
-struct inet_bind2_bucket {
-	possible_net_t		ib_net;
-	int			l3mdev;
-	unsigned short		port;
-	union {
-#if IS_ENABLED(CONFIG_IPV6)
-		struct in6_addr		v6_rcv_saddr;
-#endif
-		__be32			rcv_saddr;
-	};
-	/* Node in the inet2_bind_hashbucket chain */
-	struct hlist_node	node;
-	/* List of sockets hashed to this bucket */
-	struct hlist_head	owners;
-};
-
 static inline struct net *ib_net(struct inet_bind_bucket *ib)
-{
-	return read_pnet(&ib->ib_net);
-}
-
-static inline struct net *ib2_net(struct inet_bind2_bucket *ib)
 {
 	return read_pnet(&ib->ib_net);
 }
@@ -121,15 +100,6 @@ static inline struct net *ib2_net(struct inet_bind2_bucket *ib)
 
 struct inet_bind_hashbucket {
 	spinlock_t		lock;
-	struct hlist_head	chain;
-};
-
-/* This is synchronized using the inet_bind_hashbucket's spinlock.
- * Instead of having separate spinlocks, the inet_bind2_hashbucket can share
- * the inet_bind_hashbucket's given that in every case where the bhash2 table
- * is useful, a lookup in the bhash table also occurs.
- */
-struct inet_bind2_hashbucket {
 	struct hlist_head	chain;
 };
 
@@ -164,12 +134,6 @@ struct inet_hashinfo {
 	 */
 	struct kmem_cache		*bind_bucket_cachep;
 	struct inet_bind_hashbucket	*bhash;
-	/* The 2nd binding table hashed by port and address.
-	 * This is used primarily for expediting the resolution of bind
-	 * conflicts.
-	 */
-	struct kmem_cache		*bind2_bucket_cachep;
-	struct inet_bind2_hashbucket	*bhash2;
 	unsigned int			bhash_size;
 
 	/* The 2nd listener table hashed by local port and address */
@@ -229,36 +193,6 @@ inet_bind_bucket_create(struct kmem_cache *cachep, struct net *net,
 void inet_bind_bucket_destroy(struct kmem_cache *cachep,
 			      struct inet_bind_bucket *tb);
 
-static inline bool check_bind_bucket_match(struct inet_bind_bucket *tb,
-					   struct net *net,
-					   const unsigned short port,
-					   int l3mdev)
-{
-	return net_eq(ib_net(tb), net) && tb->port == port &&
-		tb->l3mdev == l3mdev;
-}
-
-struct inet_bind2_bucket *
-inet_bind2_bucket_create(struct kmem_cache *cachep, struct net *net,
-			 struct inet_bind2_hashbucket *head,
-			 const unsigned short port, int l3mdev,
-			 const struct sock *sk);
-
-void inet_bind2_bucket_destroy(struct kmem_cache *cachep,
-			       struct inet_bind2_bucket *tb);
-
-struct inet_bind2_bucket *
-inet_bind2_bucket_find(struct inet_hashinfo *hinfo, struct net *net,
-		       const unsigned short port, int l3mdev,
-		       struct sock *sk,
-		       struct inet_bind2_hashbucket **head);
-
-bool check_bind2_bucket_match_nulladdr(struct inet_bind2_bucket *tb,
-				       struct net *net,
-				       const unsigned short port,
-				       int l3mdev,
-				       const struct sock *sk);
-
 static inline u32 inet_bhashfn(const struct net *net, const __u16 lport,
 			       const u32 bhash_size)
 {
@@ -266,7 +200,7 @@ static inline u32 inet_bhashfn(const struct net *net, const __u16 lport,
 }
 
 void inet_bind_hash(struct sock *sk, struct inet_bind_bucket *tb,
-		    struct inet_bind2_bucket *tb2, const unsigned short snum);
+		    const unsigned short snum);
 
 /* Caller must disable local BH processing. */
 int __inet_inherit_port(const struct sock *sk, struct sock *child);

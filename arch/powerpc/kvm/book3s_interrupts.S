@@ -15,7 +15,7 @@
 #include <asm/asm-compat.h>
 
 #if defined(CONFIG_PPC_BOOK3S_64)
-#ifdef PPC64_ELF_ABI_v2
+#ifdef CONFIG_PPC64_ELF_ABI_V2
 #define FUNC(name) 		name
 #else
 #define FUNC(name) 		GLUE(.,name)

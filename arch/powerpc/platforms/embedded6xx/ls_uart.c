@@ -14,8 +14,8 @@
 #include <linux/delay.h>
 #include <linux/serial_reg.h>
 #include <linux/serial_8250.h>
+#include <linux/of.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/termbits.h>
 
 #include "mpc10x.h"

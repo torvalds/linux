@@ -44,6 +44,7 @@ config ADB_IOP
 config ADB_CUDA
 	bool "Support for Cuda/Egret based Macs and PowerMacs"
 	depends on (ADB || PPC_PMAC) && !PPC_PMAC64
+	select RTC_LIB
 	help
 	  This provides support for Cuda/Egret based Macintosh and
 	  Power Macintosh systems. This includes most m68k based Macs,
@@ -57,6 +58,7 @@ config ADB_CUDA
 config ADB_PMU
 	bool "Support for PMU based PowerMacs and PowerBooks"
 	depends on PPC_PMAC || MAC
+	select RTC_LIB
 	help
 	  On PowerBooks, iBooks, and recent iMacs and Power Macintoshes, the
 	  PMU is an embedded microprocessor whose primary function is to
@@ -66,6 +68,10 @@ config ADB_PMU
 	  RAM and the RTC (real time clock) chip.  Say Y to enable support for
 	  this device; you should do so if your machine is one of those
 	  mentioned above.
+
+config ADB_PMU_EVENT
+	def_bool y
+	depends on ADB_PMU && INPUT=y
 
 config ADB_PMU_LED
 	bool "Support for the Power/iBook front LED"

@@ -424,7 +424,7 @@ void unregister_kretprobe(struct kretprobe *rp);
 int register_kretprobes(struct kretprobe **rps, int num);
 void unregister_kretprobes(struct kretprobe **rps, int num);
 
-#ifdef CONFIG_KRETPROBE_ON_RETHOOK
+#if defined(CONFIG_KRETPROBE_ON_RETHOOK) || !defined(CONFIG_KRETPROBES)
 #define kprobe_flush_task(tk)	do {} while (0)
 #else
 void kprobe_flush_task(struct task_struct *tk);

@@ -317,15 +317,6 @@ void switch_mmu_context(struct mm_struct *prev, struct mm_struct *next,
  */
 int init_new_context(struct task_struct *t, struct mm_struct *mm)
 {
-	/*
-	 * We have MMU_NO_CONTEXT set to be ~0. Hence check
-	 * explicitly against context.id == 0. This ensures that we properly
-	 * initialize context slice details for newly allocated mm's (which will
-	 * have id == 0) and don't alter context slice inherited via fork (which
-	 * will have id != 0).
-	 */
-	if (mm->context.id == 0)
-		slice_init_new_context_exec(mm);
 	mm->context.id = MMU_NO_CONTEXT;
 	mm->context.active = 0;
 	pte_frag_set(&mm->context, NULL);

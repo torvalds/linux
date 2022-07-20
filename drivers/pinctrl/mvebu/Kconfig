@@ -45,6 +45,10 @@ config PINCTRL_ORION
 	bool
 	select PINCTRL_MVEBU
 
+config PINCTRL_AC5
+	bool
+	select PINCTRL_MVEBU
+
 config PINCTRL_ARMADA_37XX
 	bool
 	select GENERIC_PINCONF

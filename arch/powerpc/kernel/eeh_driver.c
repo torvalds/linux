@@ -16,7 +16,6 @@
 #include <asm/eeh_event.h>
 #include <asm/ppc-pci.h>
 #include <asm/pci-bridge.h>
-#include <asm/prom.h>
 #include <asm/rtas.h>
 
 struct eeh_rmv_data {

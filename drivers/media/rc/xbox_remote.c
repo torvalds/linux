@@ -171,7 +171,7 @@ static int xbox_remote_initialize(struct xbox_remote *xbox_remote,
 
 	/* Set up irq_urb */
 	pipe = usb_rcvintpipe(udev, endpoint_in->bEndpointAddress);
-	maxp = usb_maxpacket(udev, pipe, usb_pipeout(pipe));
+	maxp = usb_maxpacket(udev, pipe);
 	maxp = (maxp > DATA_BUFSIZE) ? DATA_BUFSIZE : maxp;
 
 	usb_fill_int_urb(xbox_remote->irq_urb, udev, pipe, xbox_remote->inbuf,

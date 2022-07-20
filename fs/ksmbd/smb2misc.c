@@ -338,7 +338,7 @@ static int smb2_validate_credit_charge(struct ksmbd_conn *conn,
 		ret = 1;
 	}
 
-	if ((u64)conn->outstanding_credits + credit_charge > conn->vals->max_credits) {
+	if ((u64)conn->outstanding_credits + credit_charge > conn->total_credits) {
 		ksmbd_debug(SMB, "Limits exceeding the maximum allowable outstanding requests, given : %u, pending : %u\n",
 			    credit_charge, conn->outstanding_credits);
 		ret = 1;

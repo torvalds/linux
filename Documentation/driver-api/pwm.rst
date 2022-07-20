@@ -49,6 +49,12 @@ After being requested, a PWM has to be configured using::
 
 This API controls both the PWM period/duty_cycle config and the
 enable/disable state.
+
+As a consumer, don't rely on the output's state for a disabled PWM. If it's
+easily possible, drivers are supposed to emit the inactive state, but some
+drivers cannot. If you rely on getting the inactive state, use .duty_cycle=0,
+.enabled=true.
+
 There is also a usage_power setting: If set, the PWM driver is only required to
 maintain the power output but has more freedom regarding signal form.
 If supported by the driver, the signal can be optimized, for example to improve

@@ -5,6 +5,7 @@
 #include "util/env.h"
 #include "util/pmu.h"
 #include "linux/string.h"
+#include "evsel.h"
 
 void arch_evsel__set_sample_weight(struct evsel *evsel)
 {
@@ -32,7 +33,7 @@ void arch_evsel__fixup_new_cycles(struct perf_event_attr *attr)
 }
 
 /* Check whether the evsel's PMU supports the perf metrics */
-static bool evsel__sys_has_perf_metrics(const struct evsel *evsel)
+bool evsel__sys_has_perf_metrics(const struct evsel *evsel)
 {
 	const char *pmu_name = evsel->pmu_name ? evsel->pmu_name : "cpu";
 
@@ -57,6 +58,6 @@ bool arch_evsel__must_be_in_group(const struct evsel *evsel)
 		return false;
 
 	return evsel->name &&
-		(!strcasecmp(evsel->name, "slots") ||
+		(strcasestr(evsel->name, "slots") ||
 		 strcasestr(evsel->name, "topdown"));
 }

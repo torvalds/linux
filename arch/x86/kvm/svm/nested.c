@@ -616,6 +616,8 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	struct kvm_vcpu *vcpu = &svm->vcpu;
 	struct vmcb *vmcb01 = svm->vmcb01.ptr;
 	struct vmcb *vmcb02 = svm->nested.vmcb02.ptr;
+	u32 pause_count12;
+	u32 pause_thresh12;
 
 	/*
 	 * Filled at exit: exit_code, exit_code_hi, exit_info_1, exit_info_2,
@@ -671,27 +673,25 @@ static void nested_vmcb02_prepare_control(struct vcpu_svm *svm)
 	if (!nested_vmcb_needs_vls_intercept(svm))
 		vmcb02->control.virt_ext |= VIRTUAL_VMLOAD_VMSAVE_ENABLE_MASK;
 
+	pause_count12 = svm->pause_filter_enabled ? svm->nested.ctl.pause_filter_count : 0;
+	pause_thresh12 = svm->pause_threshold_enabled ? svm->nested.ctl.pause_filter_thresh : 0;
 	if (kvm_pause_in_guest(svm->vcpu.kvm)) {
-		/* use guest values since host doesn't use them */
-		vmcb02->control.pause_filter_count =
-				svm->pause_filter_enabled ?
-				svm->nested.ctl.pause_filter_count : 0;
+		/* use guest values since host doesn't intercept PAUSE */
+		vmcb02->control.pause_filter_count = pause_count12;
+		vmcb02->control.pause_filter_thresh = pause_thresh12;
 
-		vmcb02->control.pause_filter_thresh =
-				svm->pause_threshold_enabled ?
-				svm->nested.ctl.pause_filter_thresh : 0;
-
-	} else if (!vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_PAUSE)) {
-		/* use host values when guest doesn't use them */
+	} else {
+		/* start from host values otherwise */
 		vmcb02->control.pause_filter_count = vmcb01->control.pause_filter_count;
 		vmcb02->control.pause_filter_thresh = vmcb01->control.pause_filter_thresh;
-	} else {
-		/*
-		 * Intercept every PAUSE otherwise and
-		 * ignore both host and guest values
-		 */
-		vmcb02->control.pause_filter_count = 0;
-		vmcb02->control.pause_filter_thresh = 0;
+
+		/* ... but ensure filtering is disabled if so requested.  */
+		if (vmcb12_is_intercept(&svm->nested.ctl, INTERCEPT_PAUSE)) {
+			if (!pause_count12)
+				vmcb02->control.pause_filter_count = 0;
+			if (!pause_thresh12)
+				vmcb02->control.pause_filter_thresh = 0;
+		}
 	}
 
 	nested_svm_transition_tlb_flush(vcpu);
@@ -951,8 +951,11 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	vmcb12->control.event_inj         = svm->nested.ctl.event_inj;
 	vmcb12->control.event_inj_err     = svm->nested.ctl.event_inj_err;
 
-	if (!kvm_pause_in_guest(vcpu->kvm) && vmcb02->control.pause_filter_count)
+	if (!kvm_pause_in_guest(vcpu->kvm)) {
 		vmcb01->control.pause_filter_count = vmcb02->control.pause_filter_count;
+		vmcb_mark_dirty(vmcb01, VMCB_INTERCEPTS);
+
+	}
 
 	nested_svm_copy_common_state(svm->nested.vmcb02.ptr, svm->vmcb01.ptr);
 
@@ -982,7 +985,7 @@ int nested_svm_vmexit(struct vcpu_svm *svm)
 	if (svm->tsc_ratio_msr != kvm_default_tsc_scaling_ratio) {
 		WARN_ON(!svm->tsc_scaling_enabled);
 		vcpu->arch.tsc_scaling_ratio = vcpu->arch.l1_tsc_scaling_ratio;
-		svm_write_tsc_multiplier(vcpu, vcpu->arch.tsc_scaling_ratio);
+		__svm_write_tsc_multiplier(vcpu->arch.tsc_scaling_ratio);
 	}
 
 	svm->nested.ctl.nested_cr3 = 0;
@@ -1387,7 +1390,7 @@ void nested_svm_update_tsc_ratio_msr(struct kvm_vcpu *vcpu)
 	vcpu->arch.tsc_scaling_ratio =
 		kvm_calc_nested_tsc_multiplier(vcpu->arch.l1_tsc_scaling_ratio,
 					       svm->tsc_ratio_msr);
-	svm_write_tsc_multiplier(vcpu, vcpu->arch.tsc_scaling_ratio);
+	__svm_write_tsc_multiplier(vcpu->arch.tsc_scaling_ratio);
 }
 
 /* Inverse operation of nested_copy_vmcb_control_to_cache(). asid is copied too. */

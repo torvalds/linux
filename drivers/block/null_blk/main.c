@@ -77,12 +77,6 @@ enum {
 	NULL_IRQ_TIMER		= 2,
 };
 
-enum {
-	NULL_Q_BIO		= 0,
-	NULL_Q_RQ		= 1,
-	NULL_Q_MQ		= 2,
-};
-
 static bool g_virt_boundary = false;
 module_param_named(virt_boundary, g_virt_boundary, bool, 0444);
 MODULE_PARM_DESC(virt_boundary, "Require a virtual boundary for the device. Default: False");

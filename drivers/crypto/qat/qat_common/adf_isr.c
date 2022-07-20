@@ -66,41 +66,38 @@ void adf_enable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
 	spin_unlock_irqrestore(&accel_dev->pf.vf2pf_ints_lock, flags);
 }
 
-void adf_disable_vf2pf_interrupts(struct adf_accel_dev *accel_dev, u32 vf_mask)
+void adf_disable_all_vf2pf_interrupts(struct adf_accel_dev *accel_dev)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	unsigned long flags;
 
 	spin_lock_irqsave(&accel_dev->pf.vf2pf_ints_lock, flags);
-	GET_PFVF_OPS(accel_dev)->disable_vf2pf_interrupts(pmisc_addr, vf_mask);
+	GET_PFVF_OPS(accel_dev)->disable_all_vf2pf_interrupts(pmisc_addr);
 	spin_unlock_irqrestore(&accel_dev->pf.vf2pf_ints_lock, flags);
 }
 
-static void adf_disable_vf2pf_interrupts_irq(struct adf_accel_dev *accel_dev,
-					     u32 vf_mask)
+static u32 adf_disable_pending_vf2pf_interrupts(struct adf_accel_dev *accel_dev)
 {
 	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
+	u32 pending;
 
 	spin_lock(&accel_dev->pf.vf2pf_ints_lock);
-	GET_PFVF_OPS(accel_dev)->disable_vf2pf_interrupts(pmisc_addr, vf_mask);
+	pending = GET_PFVF_OPS(accel_dev)->disable_pending_vf2pf_interrupts(pmisc_addr);
 	spin_unlock(&accel_dev->pf.vf2pf_ints_lock);
+
+	return pending;
 }
 
 static bool adf_handle_vf2pf_int(struct adf_accel_dev *accel_dev)
 {
-	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	bool irq_handled = false;
 	unsigned long vf_mask;
 
-	/* Get the interrupt sources triggered by VFs */
-	vf_mask = GET_PFVF_OPS(accel_dev)->get_vf2pf_sources(pmisc_addr);
-
+	/* Get the interrupt sources triggered by VFs, except for those already disabled */
+	vf_mask = adf_disable_pending_vf2pf_interrupts(accel_dev);
 	if (vf_mask) {
 		struct adf_accel_vf_info *vf_info;
 		int i;
-
-		/* Disable VF2PF interrupts for VFs with pending ints */
-		adf_disable_vf2pf_interrupts_irq(accel_dev, vf_mask);
 
 		/*
 		 * Handle VF2PF interrupt unless the VF is malicious and

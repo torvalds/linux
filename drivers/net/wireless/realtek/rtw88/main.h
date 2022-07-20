@@ -2008,6 +2008,7 @@ struct rtw_dev {
 	struct work_struct c2h_work;
 	struct work_struct ips_work;
 	struct work_struct fw_recovery_work;
+	struct work_struct update_beacon_work;
 
 	/* used to protect txqs list */
 	spinlock_t txq_lock;

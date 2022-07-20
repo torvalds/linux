@@ -24,7 +24,6 @@
 #include <media/v4l2-dev.h>
 #include <media/v4l2-event.h>
 
-#include "u_uvc.h"
 #include "uvc.h"
 #include "uvc_configfs.h"
 #include "uvc_v4l2.h"
@@ -44,7 +43,7 @@ MODULE_PARM_DESC(trace, "Trace level bitmask");
 #define UVC_STRING_STREAMING_IDX		1
 
 static struct usb_string uvc_en_us_strings[] = {
-	[UVC_STRING_CONTROL_IDX].s = "UVC Camera",
+	/* [UVC_STRING_CONTROL_IDX].s = DYNAMIC, */
 	[UVC_STRING_STREAMING_IDX].s = "Video Streaming",
 	{  }
 };
@@ -676,6 +675,7 @@ uvc_function_bind(struct usb_configuration *c, struct usb_function *f)
 	uvc_hs_streaming_ep.bEndpointAddress = uvc->video.ep->address;
 	uvc_ss_streaming_ep.bEndpointAddress = uvc->video.ep->address;
 
+	uvc_en_us_strings[UVC_STRING_CONTROL_IDX].s = opts->function_name;
 	us = usb_gstrings_attach(cdev, uvc_function_strings,
 				 ARRAY_SIZE(uvc_en_us_strings));
 	if (IS_ERR(us)) {
@@ -866,6 +866,7 @@ static struct usb_function_instance *uvc_alloc_inst(void)
 
 	opts->streaming_interval = 1;
 	opts->streaming_maxpacket = 1024;
+	snprintf(opts->function_name, sizeof(opts->function_name), "UVC Camera");
 
 	ret = uvcg_attach_configfs(opts);
 	if (ret < 0) {

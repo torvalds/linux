@@ -46,10 +46,10 @@
 #include <linux/syscore_ops.h>
 
 #include "pxa25x.h"
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/video-pxafb.h>
-#include <mach/regs-uart.h>
-#include <linux/platform_data/pcmcia-pxa2xx_viper.h>
+#include "regs-uart.h"
+#include "viper-pcmcia.h"
 #include "viper.h"
 
 #include <asm/setup.h>
@@ -851,7 +851,7 @@ static void __init viper_init_vcore_gpios(void)
 		goto err_dir;
 
 	/* c/should assume redboot set the correct level ??? */
-	viper_set_core_cpu_voltage(get_clk_frequency_khz(0), 1);
+	viper_set_core_cpu_voltage(pxa25x_get_clk_frequency_khz(0), 1);
 
 	return;
 
@@ -996,6 +996,18 @@ static struct map_desc viper_io_desc[] __initdata = {
 		.virtual = VIPER_PC104IO_BASE,
 		.pfn     = __phys_to_pfn(0x30000000),
 		.length  = 0x00800000,
+		.type    = MT_DEVICE,
+	},
+	{
+		/*
+		 * ISA I/O space mapping:
+		 * -  ports 0x0000-0x0fff are PC/104
+		 * -  ports 0x10000-0x10fff are PCMCIA slot 1
+		 * -  ports 0x11000-0x11fff are PC/104
+		 */
+		.virtual = PCI_IO_VIRT_BASE,
+		.pfn     = __phys_to_pfn(0x30000000),
+		.length  = 0x1000,
 		.type    = MT_DEVICE,
 	},
 };

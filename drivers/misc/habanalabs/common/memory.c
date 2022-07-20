@@ -41,7 +41,7 @@ static int set_alloc_page_size(struct hl_device *hdev, struct hl_mem_in *args, u
 			return -EINVAL;
 		}
 	} else {
-		psize = hdev->asic_prop.dram_page_size;
+		psize = prop->device_mem_alloc_default_page_size;
 	}
 
 	*page_size = psize;
@@ -117,7 +117,7 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 			paddr = gen_pool_alloc(vm->dram_pg_pool, total_size);
 		if (!paddr) {
 			dev_err(hdev->dev,
-				"failed to allocate %llu contiguous pages with total size of %llu\n",
+				"Cannot allocate %llu contiguous pages with total size of %llu\n",
 				num_pgs, total_size);
 			return -ENOMEM;
 		}
@@ -156,9 +156,10 @@ static int alloc_device_memory(struct hl_ctx *ctx, struct hl_mem_in *args,
 			else
 				phys_pg_pack->pages[i] = gen_pool_alloc(vm->dram_pg_pool,
 									page_size);
+
 			if (!phys_pg_pack->pages[i]) {
 				dev_err(hdev->dev,
-					"Failed to allocate device memory (out of memory)\n");
+					"Cannot allocate device memory (out of memory)\n");
 				rc = -ENOMEM;
 				goto page_err;
 			}
@@ -237,18 +238,17 @@ static int dma_map_host_va(struct hl_device *hdev, u64 addr, u64 size,
 		goto pin_err;
 	}
 
-	rc = hdev->asic_funcs->asic_dma_map_sg(hdev, userptr->sgt->sgl,
-					userptr->sgt->nents, DMA_BIDIRECTIONAL);
-	if (rc) {
-		dev_err(hdev->dev, "failed to map sgt with DMA region\n");
-		goto dma_map_err;
-	}
-
 	userptr->dma_mapped = true;
 	userptr->dir = DMA_BIDIRECTIONAL;
 	userptr->vm_type = VM_TYPE_USERPTR;
 
 	*p_userptr = userptr;
+
+	rc = hdev->asic_funcs->asic_dma_map_sgtable(hdev, userptr->sgt, DMA_BIDIRECTIONAL);
+	if (rc) {
+		dev_err(hdev->dev, "failed to map sgt with DMA region\n");
+		goto dma_map_err;
+	}
 
 	return 0;
 
@@ -900,7 +900,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 	 * consecutive block.
 	 */
 	total_npages = 0;
-	for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents, i) {
+	for_each_sgtable_dma_sg(userptr->sgt, sg, i) {
 		npages = hl_get_sg_info(sg, &dma_addr);
 
 		total_npages += npages;
@@ -929,7 +929,7 @@ static int init_phys_pg_pack_from_userptr(struct hl_ctx *ctx,
 	phys_pg_pack->total_size = total_npages * page_size;
 
 	j = 0;
-	for_each_sg(userptr->sgt->sgl, sg, userptr->sgt->nents, i) {
+	for_each_sgtable_dma_sg(userptr->sgt, sg, i) {
 		npages = hl_get_sg_info(sg, &dma_addr);
 
 		/* align down to physical page size and save the offset */
@@ -1102,21 +1102,24 @@ static int get_paddr_from_handle(struct hl_ctx *ctx, struct hl_mem_in *args,
  *   map a device virtual block to this pages and return the start address of
  *   this block.
  */
-static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
-		u64 *device_addr)
+static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args, u64 *device_addr)
 {
-	struct hl_device *hdev = ctx->hdev;
-	struct hl_vm *vm = &hdev->vm;
 	struct hl_vm_phys_pg_pack *phys_pg_pack;
-	struct hl_userptr *userptr = NULL;
-	struct hl_vm_hash_node *hnode;
-	struct hl_va_range *va_range;
-	enum vm_type *vm_type;
-	u64 ret_vaddr, hint_addr;
-	u32 handle = 0, va_block_align;
-	int rc;
-	bool is_userptr = args->flags & HL_MEM_USERPTR;
 	enum hl_va_range_type va_range_type = 0;
+	struct hl_device *hdev = ctx->hdev;
+	struct hl_userptr *userptr = NULL;
+	u32 handle = 0, va_block_align;
+	struct hl_vm_hash_node *hnode;
+	struct hl_vm *vm = &hdev->vm;
+	struct hl_va_range *va_range;
+	bool is_userptr, do_prefetch;
+	u64 ret_vaddr, hint_addr;
+	enum vm_type *vm_type;
+	int rc;
+
+	/* set map flags */
+	is_userptr = args->flags & HL_MEM_USERPTR;
+	do_prefetch = hdev->supports_mmu_prefetch && (args->flags & HL_MEM_PREFETCH);
 
 	/* Assume failure */
 	*device_addr = 0;
@@ -1241,19 +1244,27 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 
 	rc = map_phys_pg_pack(ctx, ret_vaddr, phys_pg_pack);
 	if (rc) {
-		mutex_unlock(&ctx->mmu_lock);
-		dev_err(hdev->dev, "mapping page pack failed for handle %u\n",
-				handle);
+		dev_err(hdev->dev, "mapping page pack failed for handle %u\n", handle);
 		goto map_err;
 	}
 
 	rc = hl_mmu_invalidate_cache_range(hdev, false, *vm_type | MMU_OP_SKIP_LOW_CACHE_INV,
 				ctx->asid, ret_vaddr, phys_pg_pack->total_size);
+	if (rc)
+		goto map_err;
 
 	mutex_unlock(&ctx->mmu_lock);
 
-	if (rc)
-		goto map_err;
+	/*
+	 * prefetch is done upon user's request. it is performed in WQ as and so can
+	 * be outside the MMU lock. the operation itself is already protected by the mmu lock
+	 */
+	if (do_prefetch) {
+		rc = hl_mmu_prefetch_cache_range(ctx, *vm_type, ctx->asid, ret_vaddr,
+							phys_pg_pack->total_size);
+		if (rc)
+			goto map_err;
+	}
 
 	ret_vaddr += phys_pg_pack->offset;
 
@@ -1272,6 +1283,8 @@ static int map_device_va(struct hl_ctx *ctx, struct hl_mem_in *args,
 	return rc;
 
 map_err:
+	mutex_unlock(&ctx->mmu_lock);
+
 	if (add_va_block(hdev, va_range, ret_vaddr,
 				ret_vaddr + phys_pg_pack->total_size - 1))
 		dev_warn(hdev->dev,
@@ -1509,7 +1522,7 @@ int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 	vma->vm_ops = &hw_block_vm_ops;
 	vma->vm_private_data = lnode;
 
-	hl_ctx_get(hdev, ctx);
+	hl_ctx_get(ctx);
 
 	rc = hdev->asic_funcs->hw_block_mmap(hdev, vma, block_id, block_size);
 	if (rc) {
@@ -1819,7 +1832,7 @@ static int export_dmabuf_common(struct hl_ctx *ctx,
 	}
 
 	hl_dmabuf->ctx = ctx;
-	hl_ctx_get(hdev, hl_dmabuf->ctx);
+	hl_ctx_get(hl_dmabuf->ctx);
 
 	*dmabuf_fd = fd;
 
@@ -2076,164 +2089,34 @@ out:
 	return rc;
 }
 
-static void ts_buff_release(struct kref *ref)
+static void ts_buff_release(struct hl_mmap_mem_buf *buf)
 {
-	struct hl_ts_buff *buff;
+	struct hl_ts_buff *ts_buff = buf->private;
 
-	buff = container_of(ref, struct hl_ts_buff, refcount);
-
-	vfree(buff->kernel_buff_address);
-	vfree(buff->user_buff_address);
-	kfree(buff);
+	vfree(ts_buff->kernel_buff_address);
+	vfree(ts_buff->user_buff_address);
+	kfree(ts_buff);
 }
 
-struct hl_ts_buff *hl_ts_get(struct hl_device *hdev, struct hl_ts_mgr *mgr,
-					u32 handle)
+static int hl_ts_mmap(struct hl_mmap_mem_buf *buf, struct vm_area_struct *vma, void *args)
 {
-	struct hl_ts_buff *buff;
+	struct hl_ts_buff *ts_buff = buf->private;
 
-	spin_lock(&mgr->ts_lock);
-	buff = idr_find(&mgr->ts_handles, handle);
-	if (!buff) {
-		spin_unlock(&mgr->ts_lock);
-		dev_warn(hdev->dev,
-			"TS buff get failed, no match to handle 0x%x\n", handle);
-		return NULL;
-	}
-	kref_get(&buff->refcount);
-	spin_unlock(&mgr->ts_lock);
-
-	return buff;
-}
-
-void hl_ts_put(struct hl_ts_buff *buff)
-{
-	kref_put(&buff->refcount, ts_buff_release);
-}
-
-static void buff_vm_close(struct vm_area_struct *vma)
-{
-	struct hl_ts_buff *buff = (struct hl_ts_buff *) vma->vm_private_data;
-	long new_mmap_size;
-
-	new_mmap_size = buff->mmap_size - (vma->vm_end - vma->vm_start);
-
-	if (new_mmap_size > 0) {
-		buff->mmap_size = new_mmap_size;
-		return;
-	}
-
-	atomic_set(&buff->mmap, 0);
-	hl_ts_put(buff);
-	vma->vm_private_data = NULL;
-}
-
-static const struct vm_operations_struct ts_buff_vm_ops = {
-	.close = buff_vm_close
-};
-
-int hl_ts_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
-{
-	struct hl_device *hdev = hpriv->hdev;
-	struct hl_ts_buff *buff;
-	u32 handle, user_buff_size;
-	int rc;
-
-	/* We use the page offset to hold the idr and thus we need to clear
-	 * it before doing the mmap itself
-	 */
-	handle = vma->vm_pgoff;
-	vma->vm_pgoff = 0;
-
-	buff = hl_ts_get(hdev, &hpriv->ts_mem_mgr, handle);
-	if (!buff) {
-		dev_err(hdev->dev,
-			"TS buff mmap failed, no match to handle 0x%x\n", handle);
-		return -EINVAL;
-	}
-
-	/* Validation check */
-	user_buff_size = vma->vm_end - vma->vm_start;
-	if (user_buff_size != ALIGN(buff->user_buff_size, PAGE_SIZE)) {
-		dev_err(hdev->dev,
-			"TS buff mmap failed, mmap size 0x%x != 0x%x buff size\n",
-			user_buff_size, ALIGN(buff->user_buff_size, PAGE_SIZE));
-		rc = -EINVAL;
-		goto put_buff;
-	}
-
-#ifdef _HAS_TYPE_ARG_IN_ACCESS_OK
-	if (!access_ok(VERIFY_WRITE,
-		(void __user *) (uintptr_t) vma->vm_start, user_buff_size)) {
-#else
-	if (!access_ok((void __user *) (uintptr_t) vma->vm_start,
-						user_buff_size)) {
-#endif
-		dev_err(hdev->dev,
-			"user pointer is invalid - 0x%lx\n",
-			vma->vm_start);
-
-		rc = -EINVAL;
-		goto put_buff;
-	}
-
-	if (atomic_cmpxchg(&buff->mmap, 0, 1)) {
-		dev_err(hdev->dev, "TS buff memory mmap failed, already mmaped to user\n");
-		rc = -EINVAL;
-		goto put_buff;
-	}
-
-	vma->vm_ops = &ts_buff_vm_ops;
-	vma->vm_private_data = buff;
 	vma->vm_flags |= VM_DONTEXPAND | VM_DONTDUMP | VM_DONTCOPY | VM_NORESERVE;
-	rc = remap_vmalloc_range(vma, buff->user_buff_address, 0);
-	if (rc) {
-		atomic_set(&buff->mmap, 0);
-		goto put_buff;
-	}
-
-	buff->mmap_size = buff->user_buff_size;
-	vma->vm_pgoff = handle;
-
-	return 0;
-
-put_buff:
-	hl_ts_put(buff);
-	return rc;
+	return remap_vmalloc_range(vma, ts_buff->user_buff_address, 0);
 }
 
-void hl_ts_mgr_init(struct hl_ts_mgr *mgr)
-{
-	spin_lock_init(&mgr->ts_lock);
-	idr_init(&mgr->ts_handles);
-}
-
-void hl_ts_mgr_fini(struct hl_device *hdev, struct hl_ts_mgr *mgr)
-{
-	struct hl_ts_buff *buff;
-	struct idr *idp;
-	u32 id;
-
-	idp = &mgr->ts_handles;
-
-	idr_for_each_entry(idp, buff, id) {
-		if (kref_put(&buff->refcount, ts_buff_release) != 1)
-			dev_err(hdev->dev, "TS buff handle %d for CTX is still alive\n",
-							id);
-	}
-
-	idr_destroy(&mgr->ts_handles);
-}
-
-static struct hl_ts_buff *hl_ts_alloc_buff(struct hl_device *hdev, u32 num_elements)
+static int hl_ts_alloc_buf(struct hl_mmap_mem_buf *buf, gfp_t gfp, void *args)
 {
 	struct hl_ts_buff *ts_buff = NULL;
-	u32 size;
+	u32 size, num_elements;
 	void *p;
+
+	num_elements = *(u32 *)args;
 
 	ts_buff = kzalloc(sizeof(*ts_buff), GFP_KERNEL);
 	if (!ts_buff)
-		return NULL;
+		return -ENOMEM;
 
 	/* Allocate the user buffer */
 	size = num_elements * sizeof(u64);
@@ -2242,7 +2125,7 @@ static struct hl_ts_buff *hl_ts_alloc_buff(struct hl_device *hdev, u32 num_eleme
 		goto free_mem;
 
 	ts_buff->user_buff_address = p;
-	ts_buff->user_buff_size = size;
+	buf->mappable_size = size;
 
 	/* Allocate the internal kernel buffer */
 	size = num_elements * sizeof(struct hl_user_pending_interrupt);
@@ -2253,14 +2136,24 @@ static struct hl_ts_buff *hl_ts_alloc_buff(struct hl_device *hdev, u32 num_eleme
 	ts_buff->kernel_buff_address = p;
 	ts_buff->kernel_buff_size = size;
 
-	return ts_buff;
+	buf->private = ts_buff;
+
+	return 0;
 
 free_user_buff:
 	vfree(ts_buff->user_buff_address);
 free_mem:
 	kfree(ts_buff);
-	return NULL;
+	return -ENOMEM;
 }
+
+static struct hl_mmap_mem_buf_behavior hl_ts_behavior = {
+	.topic = "TS",
+	.mem_id = HL_MMAP_TYPE_TS_BUFF,
+	.mmap = hl_ts_mmap,
+	.alloc = hl_ts_alloc_buf,
+	.release = ts_buff_release,
+};
 
 /**
  * allocate_timestamps_buffers() - allocate timestamps buffers
@@ -2278,54 +2171,22 @@ free_mem:
  */
 static int allocate_timestamps_buffers(struct hl_fpriv *hpriv, struct hl_mem_in *args, u64 *handle)
 {
-	struct hl_ts_mgr *ts_mgr = &hpriv->ts_mem_mgr;
-	struct hl_device *hdev = hpriv->hdev;
-	struct hl_ts_buff *ts_buff;
-	int rc = 0;
+	struct hl_mem_mgr *mmg = &hpriv->mem_mgr;
+	struct hl_mmap_mem_buf *buf;
 
 	if (args->num_of_elements > TS_MAX_ELEMENTS_NUM) {
-		dev_err(hdev->dev, "Num of elements exceeds Max allowed number (0x%x > 0x%x)\n",
+		dev_err(mmg->dev, "Num of elements exceeds Max allowed number (0x%x > 0x%x)\n",
 				args->num_of_elements, TS_MAX_ELEMENTS_NUM);
 		return -EINVAL;
 	}
 
-	/* Allocate ts buffer object
-	 * This object will contain two buffers one that will be mapped to the user
-	 * and another internal buffer for the driver use only, which won't be mapped
-	 * to the user.
-	 */
-	ts_buff = hl_ts_alloc_buff(hdev, args->num_of_elements);
-	if (!ts_buff) {
-		rc = -ENOMEM;
-		goto out_err;
-	}
+	buf = hl_mmap_mem_buf_alloc(mmg, &hl_ts_behavior, GFP_KERNEL, &args->num_of_elements);
+	if (!buf)
+		return -ENOMEM;
 
-	spin_lock(&ts_mgr->ts_lock);
-	rc = idr_alloc(&ts_mgr->ts_handles, ts_buff, 1, 0, GFP_ATOMIC);
-	spin_unlock(&ts_mgr->ts_lock);
-	if (rc < 0) {
-		dev_err(hdev->dev, "Failed to allocate IDR for a new ts buffer\n");
-		goto release_ts_buff;
-	}
-
-	ts_buff->id = rc;
-	ts_buff->hdev = hdev;
-
-	kref_init(&ts_buff->refcount);
-
-	/* idr is 32-bit so we can safely OR it with a mask that is above 32 bit */
-	*handle = (u64) ts_buff->id | HL_MMAP_TYPE_TS_BUFF;
-	*handle <<= PAGE_SHIFT;
-
-	dev_dbg(hdev->dev, "Created ts buff object handle(%u)\n", ts_buff->id);
+	*handle = buf->handle;
 
 	return 0;
-
-release_ts_buff:
-	kref_put(&ts_buff->refcount, ts_buff_release);
-out_err:
-	*handle = 0;
-	return rc;
 }
 
 int hl_mem_ioctl(struct hl_fpriv *hpriv, void *data)
@@ -2587,9 +2448,7 @@ void hl_unpin_host_memory(struct hl_device *hdev, struct hl_userptr *userptr)
 	hl_debugfs_remove_userptr(hdev, userptr);
 
 	if (userptr->dma_mapped)
-		hdev->asic_funcs->hl_dma_unmap_sg(hdev, userptr->sgt->sgl,
-							userptr->sgt->nents,
-							userptr->dir);
+		hdev->asic_funcs->hl_dma_unmap_sgtable(hdev, userptr->sgt, userptr->dir);
 
 	unpin_user_pages_dirty_lock(userptr->pages, userptr->npages, true);
 	kvfree(userptr->pages);

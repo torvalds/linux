@@ -77,11 +77,6 @@ static const struct cpg_core_clk r8a774c0_core_clks[] __initconst = {
 
 	DEF_FIXED_RPCSRC_E3(".rpcsrc", CLK_RPCSRC, CLK_PLL0, CLK_PLL1),
 
-	DEF_BASE("rpc",		R8A774C0_CLK_RPC, CLK_TYPE_GEN3_RPC,
-		 CLK_RPCSRC),
-	DEF_BASE("rpcd2",	R8A774C0_CLK_RPCD2, CLK_TYPE_GEN3_RPCD2,
-		 R8A774C0_CLK_RPC),
-
 	DEF_DIV6_RO(".r",      CLK_RINT,           CLK_EXTAL, CPG_RCKCR, 32),
 
 	DEF_RATE(".oco",       CLK_OCO,            8 * 1000 * 1000),
@@ -107,6 +102,9 @@ static const struct cpg_core_clk r8a774c0_core_clks[] __initconst = {
 	DEF_FIXED("s3d1",      R8A774C0_CLK_S3D1,  CLK_S3,         1, 1),
 	DEF_FIXED("s3d2",      R8A774C0_CLK_S3D2,  CLK_S3,         2, 1),
 	DEF_FIXED("s3d4",      R8A774C0_CLK_S3D4,  CLK_S3,         4, 1),
+
+	DEF_BASE("rpc",        R8A774C0_CLK_RPC,   CLK_TYPE_GEN3_RPC,   CLK_RPCSRC),
+	DEF_BASE("rpcd2",      R8A774C0_CLK_RPCD2, CLK_TYPE_GEN3_RPCD2, R8A774C0_CLK_RPC),
 
 	DEF_GEN3_SDH("sd0h",   R8A774C0_CLK_SD0H, CLK_SDSRC,         0x0074),
 	DEF_GEN3_SDH("sd1h",   R8A774C0_CLK_SD1H, CLK_SDSRC,         0x0078),

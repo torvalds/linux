@@ -66,9 +66,7 @@ patternProperties:
           The identifier for the remote processor as known by the rest of the
           system.
 
-    # Binding for edge subnodes is not complete
-    patternProperties:
-      "^rpm-requests$":
+      rpm-requests:
         type: object
         description:
           In turn, subnodes of the "edges" represent devices tied to SMD

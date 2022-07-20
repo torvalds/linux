@@ -406,7 +406,7 @@ alloc_workqueue(const char *fmt, unsigned int flags, int max_active, ...);
  * alloc_ordered_workqueue - allocate an ordered workqueue
  * @fmt: printf format for the name of the workqueue
  * @flags: WQ_* flags (only WQ_FREEZABLE and WQ_MEM_RECLAIM are meaningful)
- * @args...: args for @fmt
+ * @args: args for @fmt
  *
  * Allocate an ordered workqueue.  An ordered workqueue executes at
  * most one work item at any given time in the queued order.  They are
@@ -445,7 +445,7 @@ extern bool mod_delayed_work_on(int cpu, struct workqueue_struct *wq,
 			struct delayed_work *dwork, unsigned long delay);
 extern bool queue_rcu_work(struct workqueue_struct *wq, struct rcu_work *rwork);
 
-extern void flush_workqueue(struct workqueue_struct *wq);
+extern void __flush_workqueue(struct workqueue_struct *wq);
 extern void drain_workqueue(struct workqueue_struct *wq);
 
 extern int schedule_on_each_cpu(work_func_t func);
@@ -563,15 +563,23 @@ static inline bool schedule_work(struct work_struct *work)
 	return queue_work(system_wq, work);
 }
 
+/*
+ * Detect attempt to flush system-wide workqueues at compile time when possible.
+ *
+ * See https://lkml.kernel.org/r/49925af7-78a8-a3dd-bce6-cfc02e1a9236@I-love.SAKURA.ne.jp
+ * for reasons and steps for converting system-wide workqueues into local workqueues.
+ */
+extern void __warn_flushing_systemwide_wq(void)
+	__compiletime_warning("Please avoid flushing system-wide workqueues.");
+
 /**
  * flush_scheduled_work - ensure that any scheduled work has run to completion.
  *
  * Forces execution of the kernel-global workqueue and blocks until its
  * completion.
  *
- * Think twice before calling this function!  It's very easy to get into
- * trouble if you don't take great care.  Either of the following situations
- * will lead to deadlock:
+ * It's very easy to get into trouble if you don't take great care.
+ * Either of the following situations will lead to deadlock:
  *
  *	One of the work items currently on the workqueue needs to acquire
  *	a lock held by your code or its caller.
@@ -586,11 +594,51 @@ static inline bool schedule_work(struct work_struct *work)
  * need to know that a particular work item isn't queued and isn't running.
  * In such cases you should use cancel_delayed_work_sync() or
  * cancel_work_sync() instead.
+ *
+ * Please stop calling this function! A conversion to stop flushing system-wide
+ * workqueues is in progress. This function will be removed after all in-tree
+ * users stopped calling this function.
  */
-static inline void flush_scheduled_work(void)
-{
-	flush_workqueue(system_wq);
-}
+/*
+ * The background of commit 771c035372a036f8 ("deprecate the
+ * '__deprecated' attribute warnings entirely and for good") is that,
+ * since Linus builds all modules between every single pull he does,
+ * the standard kernel build needs to be _clean_ in order to be able to
+ * notice when new problems happen. Therefore, don't emit warning while
+ * there are in-tree users.
+ */
+#define flush_scheduled_work()						\
+({									\
+	if (0)								\
+		__warn_flushing_systemwide_wq();			\
+	__flush_workqueue(system_wq);					\
+})
+
+/*
+ * Although there is no longer in-tree caller, for now just emit warning
+ * in order to give out-of-tree callers time to update.
+ */
+#define flush_workqueue(wq)						\
+({									\
+	struct workqueue_struct *_wq = (wq);				\
+									\
+	if ((__builtin_constant_p(_wq == system_wq) &&			\
+	     _wq == system_wq) ||					\
+	    (__builtin_constant_p(_wq == system_highpri_wq) &&		\
+	     _wq == system_highpri_wq) ||				\
+	    (__builtin_constant_p(_wq == system_long_wq) &&		\
+	     _wq == system_long_wq) ||					\
+	    (__builtin_constant_p(_wq == system_unbound_wq) &&		\
+	     _wq == system_unbound_wq) ||				\
+	    (__builtin_constant_p(_wq == system_freezable_wq) &&	\
+	     _wq == system_freezable_wq) ||				\
+	    (__builtin_constant_p(_wq == system_power_efficient_wq) &&	\
+	     _wq == system_power_efficient_wq) ||			\
+	    (__builtin_constant_p(_wq == system_freezable_power_efficient_wq) && \
+	     _wq == system_freezable_power_efficient_wq))		\
+		__warn_flushing_systemwide_wq();			\
+	__flush_workqueue(_wq);						\
+})
 
 /**
  * schedule_delayed_work_on - queue work in global workqueue on CPU after delay

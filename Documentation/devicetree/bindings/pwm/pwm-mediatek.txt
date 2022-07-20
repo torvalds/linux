@@ -3,6 +3,7 @@ MediaTek PWM controller
 Required properties:
  - compatible: should be "mediatek,<name>-pwm":
    - "mediatek,mt2712-pwm": found on mt2712 SoC.
+   - "mediatek,mt6795-pwm": found on mt6795 SoC.
    - "mediatek,mt7622-pwm": found on mt7622 SoC.
    - "mediatek,mt7623-pwm": found on mt7623 SoC.
    - "mediatek,mt7628-pwm": found on mt7628 SoC.

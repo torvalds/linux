@@ -14,23 +14,27 @@ description:
 
 properties:
   compatible:
-    enum:
-      - st,lsm6ds3
-      - st,lsm6ds3h
-      - st,lsm6dsl
-      - st,lsm6dsm
-      - st,ism330dlc
-      - st,lsm6dso
-      - st,asm330lhh
-      - st,lsm6dsox
-      - st,lsm6dsr
-      - st,lsm6ds3tr-c
-      - st,ism330dhcx
-      - st,lsm9ds1-imu
-      - st,lsm6ds0
-      - st,lsm6dsrx
-      - st,lsm6dst
-      - st,lsm6dsop
+    oneOf:
+      - enum:
+          - st,lsm6ds3
+          - st,lsm6ds3h
+          - st,lsm6dsl
+          - st,lsm6dsm
+          - st,ism330dlc
+          - st,lsm6dso
+          - st,asm330lhh
+          - st,lsm6dsox
+          - st,lsm6dsr
+          - st,lsm6ds3tr-c
+          - st,ism330dhcx
+          - st,lsm9ds1-imu
+          - st,lsm6ds0
+          - st,lsm6dsrx
+          - st,lsm6dst
+          - st,lsm6dsop
+      - items:
+          - const: st,asm330lhhx
+          - const: st,lsm6dsr
 
   reg:
     maxItems: 1

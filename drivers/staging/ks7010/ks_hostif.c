@@ -84,10 +84,6 @@ static void ks_wlan_hw_wakeup_task(struct work_struct *work)
 			return;
 		}
 	}
-
-	/* power save */
-	if (atomic_read(&priv->sme_task.count) > 0)
-		tasklet_enable(&priv->sme_task);
 }
 
 static void ks_wlan_do_power_save(struct ks_wlan_private *priv)
@@ -2200,10 +2196,11 @@ static void hostif_sme_execute(struct ks_wlan_private *priv, int event)
 	}
 }
 
-static
-void hostif_sme_task(struct tasklet_struct *t)
+static void hostif_sme_work(struct work_struct *work)
 {
-	struct ks_wlan_private *priv = from_tasklet(priv, t, sme_task);
+	struct ks_wlan_private *priv;
+
+	priv = container_of(work, struct ks_wlan_private, sme_work);
 
 	if (priv->dev_state < DEVICE_STATE_BOOT)
 		return;
@@ -2214,7 +2211,7 @@ void hostif_sme_task(struct tasklet_struct *t)
 	hostif_sme_execute(priv, priv->sme_i.event_buff[priv->sme_i.qhead]);
 	inc_smeqhead(priv);
 	if (cnt_smeqbody(priv) > 0)
-		tasklet_schedule(&priv->sme_task);
+		schedule_work(&priv->sme_work);
 }
 
 /* send to Station Management Entity module */
@@ -2229,7 +2226,7 @@ void hostif_sme_enqueue(struct ks_wlan_private *priv, u16 event)
 		netdev_err(priv->net_dev, "sme queue buffer overflow\n");
 	}
 
-	tasklet_schedule(&priv->sme_task);
+	schedule_work(&priv->sme_work);
 }
 
 static inline void hostif_aplist_init(struct ks_wlan_private *priv)
@@ -2254,7 +2251,7 @@ static inline void hostif_sme_init(struct ks_wlan_private *priv)
 	priv->sme_i.qtail = 0;
 	spin_lock_init(&priv->sme_i.sme_spin);
 	priv->sme_i.sme_flag = 0;
-	tasklet_setup(&priv->sme_task, hostif_sme_task);
+	INIT_WORK(&priv->sme_work, hostif_sme_work);
 }
 
 static inline void hostif_wpa_init(struct ks_wlan_private *priv)
@@ -2312,5 +2309,5 @@ int hostif_init(struct ks_wlan_private *priv)
 
 void hostif_exit(struct ks_wlan_private *priv)
 {
-	tasklet_kill(&priv->sme_task);
+	cancel_work_sync(&priv->sme_work);
 }

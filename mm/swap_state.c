@@ -410,6 +410,9 @@ struct page *find_get_incore_page(struct address_space *mapping, pgoff_t index)
 		return NULL;
 
 	swp = radix_to_swp_entry(page);
+	/* There might be swapin error entries in shmem mapping. */
+	if (non_swap_entry(swp))
+		return NULL;
 	/* Prevent swapoff from happening to us */
 	si = get_swap_device(swp);
 	if (!si)

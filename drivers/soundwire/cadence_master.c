@@ -386,12 +386,11 @@ static int cdns_parity_error_injection(void *data, u64 value)
 	 * Resume Master device. If this results in a bus reset, the
 	 * Slave devices will re-attach and be re-enumerated.
 	 */
-	ret = pm_runtime_get_sync(bus->dev);
+	ret = pm_runtime_resume_and_get(bus->dev);
 	if (ret < 0 && ret != -EACCES) {
 		dev_err_ratelimited(cdns->dev,
-				    "pm_runtime_get_sync failed in %s, ret %d\n",
+				    "pm_runtime_resume_and_get failed in %s, ret %d\n",
 				    __func__, ret);
-		pm_runtime_put_noidle(bus->dev);
 		return ret;
 	}
 
@@ -959,6 +958,8 @@ static void cdns_update_slave_status_work(struct work_struct *work)
 		container_of(work, struct sdw_cdns, work);
 	u32 slave0, slave1;
 	u64 slave_intstat;
+	u32 device0_status;
+	int retry_count = 0;
 
 	slave0 = cdns_readl(cdns, CDNS_MCP_SLAVE_INTSTAT0);
 	slave1 = cdns_readl(cdns, CDNS_MCP_SLAVE_INTSTAT1);
@@ -968,9 +969,44 @@ static void cdns_update_slave_status_work(struct work_struct *work)
 
 	dev_dbg_ratelimited(cdns->dev, "Slave status change: 0x%llx\n", slave_intstat);
 
+update_status:
 	cdns_update_slave_status(cdns, slave_intstat);
 	cdns_writel(cdns, CDNS_MCP_SLAVE_INTSTAT0, slave0);
 	cdns_writel(cdns, CDNS_MCP_SLAVE_INTSTAT1, slave1);
+
+	/*
+	 * When there is more than one peripheral per link, it's
+	 * possible that a deviceB becomes attached after we deal with
+	 * the attachment of deviceA. Since the hardware does a
+	 * logical AND, the attachment of the second device does not
+	 * change the status seen by the driver.
+	 *
+	 * In that case, clearing the registers above would result in
+	 * the deviceB never being detected - until a change of status
+	 * is observed on the bus.
+	 *
+	 * To avoid this race condition, re-check if any device0 needs
+	 * attention with PING commands. There is no need to check for
+	 * ALERTS since they are not allowed until a non-zero
+	 * device_number is assigned.
+	 */
+
+	device0_status = cdns_readl(cdns, CDNS_MCP_SLAVE_STAT);
+	device0_status &= 3;
+
+	if (device0_status == SDW_SLAVE_ATTACHED) {
+		if (retry_count++ < SDW_MAX_DEVICES) {
+			dev_dbg_ratelimited(cdns->dev,
+					    "Device0 detected after clearing status, iteration %d\n",
+					    retry_count);
+			slave_intstat = CDNS_MCP_SLAVE_INTSTAT_ATTACHED;
+			goto update_status;
+		} else {
+			dev_err_ratelimited(cdns->dev,
+					    "Device0 detected after %d iterations\n",
+					    retry_count);
+		}
+	}
 
 	/* clear and unmask Slave interrupt now */
 	cdns_writel(cdns, CDNS_MCP_INTSTAT, CDNS_MCP_INT_SLAVE_MASK);

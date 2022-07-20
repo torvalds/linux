@@ -2092,8 +2092,6 @@ xlog_dealloc_log(
 	xlog_in_core_t	*iclog, *next_iclog;
 	int		i;
 
-	xlog_cil_destroy(log);
-
 	/*
 	 * Cycle all the iclogbuf locks to make sure all log IO completion
 	 * is done before we tear down these buffers.
@@ -2104,6 +2102,13 @@ xlog_dealloc_log(
 		up(&iclog->ic_sema);
 		iclog = iclog->ic_next;
 	}
+
+	/*
+	 * Destroy the CIL after waiting for iclog IO completion because an
+	 * iclog EIO error will try to shut down the log, which accesses the
+	 * CIL to wake up the waiters.
+	 */
+	xlog_cil_destroy(log);
 
 	iclog = log->l_iclog;
 	for (i = 0; i < log->l_iclog_bufs; i++) {
@@ -3876,45 +3881,4 @@ xlog_drop_incompat_feat(
 	struct xlog		*log)
 {
 	up_read(&log->l_incompat_users);
-}
-
-/*
- * Get permission to use log-assisted atomic exchange of file extents.
- *
- * Callers must not be running any transactions or hold any inode locks, and
- * they must release the permission by calling xlog_drop_incompat_feat
- * when they're done.
- */
-int
-xfs_attr_use_log_assist(
-	struct xfs_mount	*mp)
-{
-	int			error = 0;
-
-	/*
-	 * Protect ourselves from an idle log clearing the logged xattrs log
-	 * incompat feature bit.
-	 */
-	xlog_use_incompat_feat(mp->m_log);
-
-	/*
-	 * If log-assisted xattrs are already enabled, the caller can use the
-	 * log assisted swap functions with the log-incompat reference we got.
-	 */
-	if (xfs_sb_version_haslogxattrs(&mp->m_sb))
-		return 0;
-
-	/* Enable log-assisted xattrs. */
-	error = xfs_add_incompat_log_feature(mp,
-			XFS_SB_FEAT_INCOMPAT_LOG_XATTRS);
-	if (error)
-		goto drop_incompat;
-
-	xfs_warn_once(mp,
-"EXPERIMENTAL logged extended attributes feature added. Use at your own risk!");
-
-	return 0;
-drop_incompat:
-	xlog_drop_incompat_feat(mp->m_log);
-	return error;
 }

@@ -129,7 +129,7 @@ static ssize_t ad5624r_write_dac_powerdown(struct iio_dev *indio_dev,
 	int ret;
 	struct ad5624r_state *st = iio_priv(indio_dev);
 
-	ret = strtobool(buf, &pwr_down);
+	ret = kstrtobool(buf, &pwr_down);
 	if (ret)
 		return ret;
 

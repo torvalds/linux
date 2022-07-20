@@ -129,6 +129,21 @@ static void bond_info_show_master(struct seq_file *seq)
 			printed = 1;
 		}
 		seq_printf(seq, "\n");
+
+#if IS_ENABLED(CONFIG_IPV6)
+		printed = 0;
+		seq_printf(seq, "NS IPv6 target/s (xx::xx form):");
+
+		for (i = 0; (i < BOND_MAX_NS_TARGETS); i++) {
+			if (ipv6_addr_any(&bond->params.ns_targets[i]))
+				break;
+			if (printed)
+				seq_printf(seq, ",");
+			seq_printf(seq, " %pI6c", &bond->params.ns_targets[i]);
+			printed = 1;
+		}
+		seq_printf(seq, "\n");
+#endif
 	}
 
 	if (BOND_MODE(bond) == BOND_MODE_8023AD) {

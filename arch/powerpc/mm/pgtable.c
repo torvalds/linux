@@ -351,7 +351,7 @@ EXPORT_SYMBOL_GPL(vmalloc_to_phys);
  * (4) hugepd pointer, _PAGE_PTE = 0 and bits [2..6] indicate size of table
  *
  * So long as we atomically load page table pointers we are safe against teardown,
- * we can follow the address down to the the page and take a ref on it.
+ * we can follow the address down to the page and take a ref on it.
  * This function need to be called with interrupts disabled. We use this variant
  * when we have MSR[EE] = 0 but the paca->irq_soft_mask = IRQS_ENABLED
  */

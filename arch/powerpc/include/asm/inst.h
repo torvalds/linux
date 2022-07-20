@@ -158,12 +158,9 @@ static inline char *__ppc_inst_as_str(char str[PPC_INST_STR_LEN], ppc_inst_t x)
 	__str;				\
 })
 
-static inline int copy_inst_from_kernel_nofault(ppc_inst_t *inst, u32 *src)
+static inline int __copy_inst_from_kernel_nofault(ppc_inst_t *inst, u32 *src)
 {
 	unsigned int val, suffix;
-
-	if (unlikely(!is_kernel_addr((unsigned long)src)))
-		return -ERANGE;
 
 /* See https://github.com/ClangBuiltLinux/linux/issues/1521 */
 #if defined(CONFIG_CC_IS_CLANG) && CONFIG_CLANG_VERSION < 140000
@@ -179,6 +176,14 @@ static inline int copy_inst_from_kernel_nofault(ppc_inst_t *inst, u32 *src)
 	return 0;
 Efault:
 	return -EFAULT;
+}
+
+static inline int copy_inst_from_kernel_nofault(ppc_inst_t *inst, u32 *src)
+{
+	if (unlikely(!is_kernel_addr((unsigned long)src)))
+		return -ERANGE;
+
+	return __copy_inst_from_kernel_nofault(inst, src);
 }
 
 #endif /* _ASM_POWERPC_INST_H */

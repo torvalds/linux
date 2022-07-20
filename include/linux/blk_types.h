@@ -105,6 +105,10 @@ typedef u16 blk_short_t;
 /* hack for device mapper, don't use elsewhere: */
 #define BLK_STS_DM_REQUEUE    ((__force blk_status_t)11)
 
+/*
+ * BLK_STS_AGAIN should only be returned if RQF_NOWAIT is set
+ * and the bio would block (cf bio_wouldblock_error())
+ */
 #define BLK_STS_AGAIN		((__force blk_status_t)12)
 
 /*

@@ -1597,12 +1597,11 @@ static int __maybe_unused svc_i3c_runtime_suspend(struct device *dev)
 static int __maybe_unused svc_i3c_runtime_resume(struct device *dev)
 {
 	struct svc_i3c_master *master = dev_get_drvdata(dev);
-	int ret = 0;
 
 	pinctrl_pm_select_default_state(dev);
 	svc_i3c_master_prepare_clks(master);
 
-	return ret;
+	return 0;
 }
 
 static const struct dev_pm_ops svc_i3c_pm_ops = {

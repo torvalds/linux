@@ -42,6 +42,7 @@ MODULE_PARM_DESC(sg_tablesize,
 
 static DEFINE_MUTEX(device_list_mutex);
 static LIST_HEAD(device_list);
+static struct workqueue_struct *isert_login_wq;
 static struct workqueue_struct *isert_comp_wq;
 static struct workqueue_struct *isert_release_wq;
 
@@ -230,7 +231,7 @@ isert_create_device_ib_res(struct isert_device *device)
 	}
 
 	/* Check signature cap */
-	if (ib_dev->attrs.device_cap_flags & IB_DEVICE_INTEGRITY_HANDOVER)
+	if (ib_dev->attrs.kernel_cap_flags & IBK_INTEGRITY_HANDOVER)
 		device->pi_capable = true;
 	else
 		device->pi_capable = false;
@@ -1017,7 +1018,7 @@ isert_rx_login_req(struct isert_conn *isert_conn)
 		complete(&isert_conn->login_comp);
 		return;
 	}
-	schedule_delayed_work(&conn->login_work, 0);
+	queue_delayed_work(isert_login_wq, &conn->login_work, 0);
 }
 
 static struct iscsit_cmd
@@ -2348,9 +2349,9 @@ isert_get_login_rx(struct iscsit_conn *conn, struct iscsi_login *login)
 
 	/*
 	 * For login requests after the first PDU, isert_rx_login_req() will
-	 * kick schedule_delayed_work(&conn->login_work) as the packet is
-	 * received, which turns this callback from iscsi_target_do_login_rx()
-	 * into a NOP.
+	 * kick queue_delayed_work(isert_login_wq, &conn->login_work) as
+	 * the packet is received, which turns this callback from
+	 * iscsi_target_do_login_rx() into a NOP.
 	 */
 	if (!login->first_request)
 		return 0;
@@ -2606,20 +2607,23 @@ static struct iscsit_transport iser_target_transport = {
 
 static int __init isert_init(void)
 {
-	int ret;
+	isert_login_wq = alloc_workqueue("isert_login_wq", 0, 0);
+	if (!isert_login_wq) {
+		isert_err("Unable to allocate isert_login_wq\n");
+		return -ENOMEM;
+	}
 
 	isert_comp_wq = alloc_workqueue("isert_comp_wq",
 					WQ_UNBOUND | WQ_HIGHPRI, 0);
 	if (!isert_comp_wq) {
 		isert_err("Unable to allocate isert_comp_wq\n");
-		return -ENOMEM;
+		goto destroy_login_wq;
 	}
 
 	isert_release_wq = alloc_workqueue("isert_release_wq", WQ_UNBOUND,
 					WQ_UNBOUND_MAX_ACTIVE);
 	if (!isert_release_wq) {
 		isert_err("Unable to allocate isert_release_wq\n");
-		ret = -ENOMEM;
 		goto destroy_comp_wq;
 	}
 
@@ -2630,17 +2634,20 @@ static int __init isert_init(void)
 
 destroy_comp_wq:
 	destroy_workqueue(isert_comp_wq);
+destroy_login_wq:
+	destroy_workqueue(isert_login_wq);
 
-	return ret;
+	return -ENOMEM;
 }
 
 static void __exit isert_exit(void)
 {
-	flush_scheduled_work();
+	flush_workqueue(isert_login_wq);
 	destroy_workqueue(isert_release_wq);
 	destroy_workqueue(isert_comp_wq);
 	iscsit_unregister_transport(&iser_target_transport);
 	isert_info("iSER_TARGET[0] - Released iser_target_transport\n");
+	destroy_workqueue(isert_login_wq);
 }
 
 MODULE_DESCRIPTION("iSER-Target for mainline target infrastructure");

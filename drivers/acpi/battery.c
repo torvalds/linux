@@ -52,7 +52,6 @@ static bool battery_driver_registered;
 static int battery_bix_broken_package;
 static int battery_notification_delay_ms;
 static int battery_ac_is_broken;
-static int battery_quirk_notcharging;
 static unsigned int cache_time = 1000;
 module_param(cache_time, uint, 0644);
 MODULE_PARM_DESC(cache_time, "cache time in milliseconds");
@@ -216,10 +215,8 @@ static int acpi_battery_get_property(struct power_supply *psy,
 			val->intval = POWER_SUPPLY_STATUS_CHARGING;
 		else if (acpi_battery_is_charged(battery))
 			val->intval = POWER_SUPPLY_STATUS_FULL;
-		else if (battery_quirk_notcharging)
-			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		else
-			val->intval = POWER_SUPPLY_STATUS_UNKNOWN;
+			val->intval = POWER_SUPPLY_STATUS_NOT_CHARGING;
 		break;
 	case POWER_SUPPLY_PROP_PRESENT:
 		val->intval = acpi_battery_present(battery);
@@ -1105,12 +1102,6 @@ battery_ac_is_broken_quirk(const struct dmi_system_id *d)
 	return 0;
 }
 
-static int __init battery_quirk_not_charging(const struct dmi_system_id *d)
-{
-	battery_quirk_notcharging = 1;
-	return 0;
-}
-
 static const struct dmi_system_id bat_dmi_table[] __initconst = {
 	{
 		/* NEC LZ750/LS */
@@ -1137,19 +1128,6 @@ static const struct dmi_system_id bat_dmi_table[] __initconst = {
 			DMI_MATCH(DMI_BIOS_VERSION, "3BAIR1013"),
 			/* Above matches are too generic, add bios-date match */
 			DMI_MATCH(DMI_BIOS_DATE, "08/22/2014"),
-		},
-	},
-	{
-		/*
-		 * On Lenovo ThinkPads the BIOS specification defines
-		 * a state when the bits for charging and discharging
-		 * are both set to 0. That state is "Not Charging".
-		 */
-		.callback = battery_quirk_not_charging,
-		.ident = "Lenovo ThinkPad",
-		.matches = {
-			DMI_MATCH(DMI_SYS_VENDOR, "LENOVO"),
-			DMI_MATCH(DMI_PRODUCT_VERSION, "ThinkPad"),
 		},
 	},
 	{

@@ -304,6 +304,7 @@ config NVMEM_LAYERSCAPE_SFP
 	tristate "Layerscape SFP (Security Fuse Processor) support"
 	depends on ARCH_LAYERSCAPE || COMPILE_TEST
 	depends on HAS_IOMEM
+	select REGMAP_MMIO
 	help
 	  This driver provides support to read the eFuses on Freescale
 	  Layerscape SoC's. For example, the vendor provides a per part
@@ -323,5 +324,17 @@ config NVMEM_SUNPLUS_OCOTP
 
 	  This driver can also be built as a module. If so, the module
 	  will be called nvmem-sunplus-ocotp.
+
+config NVMEM_APPLE_EFUSES
+	tristate "Apple eFuse support"
+	depends on ARCH_APPLE || COMPILE_TEST
+	default ARCH_APPLE
+	help
+	  Say y here to enable support for reading eFuses on Apple SoCs
+	  such as the M1. These are e.g. used to store factory programmed
+	  calibration data required for the PCIe or the USB-C PHY.
+
+	  This driver can also be built as a module. If so, the module will
+	  be called nvmem-apple-efuses.
 
 endif

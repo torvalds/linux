@@ -23,6 +23,7 @@
  */
 
 #include <linux/sched/mm.h>
+#include <linux/dma-fence-array.h>
 #include <drm/drm_gem.h>
 
 #include "display/intel_frontbuffer.h"
@@ -1636,10 +1637,10 @@ static void force_unbind(struct i915_vma *vma)
 	GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
 }
 
-static void release_references(struct i915_vma *vma, bool vm_ddestroy)
+static void release_references(struct i915_vma *vma, struct intel_gt *gt,
+			       bool vm_ddestroy)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
-	struct intel_gt *gt = vma->vm->gt;
 
 	GEM_BUG_ON(i915_vma_is_active(vma));
 
@@ -1694,11 +1695,12 @@ void i915_vma_destroy_locked(struct i915_vma *vma)
 
 	force_unbind(vma);
 	list_del_init(&vma->vm_link);
-	release_references(vma, false);
+	release_references(vma, vma->vm->gt, false);
 }
 
 void i915_vma_destroy(struct i915_vma *vma)
 {
+	struct intel_gt *gt;
 	bool vm_ddestroy;
 
 	mutex_lock(&vma->vm->mutex);
@@ -1706,8 +1708,11 @@ void i915_vma_destroy(struct i915_vma *vma)
 	list_del_init(&vma->vm_link);
 	vm_ddestroy = vma->vm_ddestroy;
 	vma->vm_ddestroy = false;
+
+	/* vma->vm may be freed when releasing vma->vm->mutex. */
+	gt = vma->vm->gt;
 	mutex_unlock(&vma->vm->mutex);
-	release_references(vma, vm_ddestroy);
+	release_references(vma, gt, vm_ddestroy);
 }
 
 void i915_vma_parked(struct intel_gt *gt)
@@ -1823,6 +1828,21 @@ int _i915_vma_move_to_active(struct i915_vma *vma,
 	if (unlikely(err))
 		return err;
 
+	/*
+	 * Reserve fences slot early to prevent an allocation after preparing
+	 * the workload and associating fences with dma_resv.
+	 */
+	if (fence && !(flags & __EXEC_OBJECT_NO_RESERVE)) {
+		struct dma_fence *curr;
+		int idx;
+
+		dma_fence_array_for_each(curr, idx, fence)
+			;
+		err = dma_resv_reserve_fences(vma->obj->base.resv, idx);
+		if (unlikely(err))
+			return err;
+	}
+
 	if (flags & EXEC_OBJECT_WRITE) {
 		struct intel_frontbuffer *front;
 
@@ -1832,31 +1852,23 @@ int _i915_vma_move_to_active(struct i915_vma *vma,
 				i915_active_add_request(&front->write, rq);
 			intel_frontbuffer_put(front);
 		}
+	}
 
-		if (!(flags & __EXEC_OBJECT_NO_RESERVE)) {
-			err = dma_resv_reserve_fences(vma->obj->base.resv, 1);
-			if (unlikely(err))
-				return err;
-		}
+	if (fence) {
+		struct dma_fence *curr;
+		enum dma_resv_usage usage;
+		int idx;
 
-		if (fence) {
-			dma_resv_add_fence(vma->obj->base.resv, fence,
-					   DMA_RESV_USAGE_WRITE);
+		obj->read_domains = 0;
+		if (flags & EXEC_OBJECT_WRITE) {
+			usage = DMA_RESV_USAGE_WRITE;
 			obj->write_domain = I915_GEM_DOMAIN_RENDER;
-			obj->read_domains = 0;
-		}
-	} else {
-		if (!(flags & __EXEC_OBJECT_NO_RESERVE)) {
-			err = dma_resv_reserve_fences(vma->obj->base.resv, 1);
-			if (unlikely(err))
-				return err;
+		} else {
+			usage = DMA_RESV_USAGE_READ;
 		}
 
-		if (fence) {
-			dma_resv_add_fence(vma->obj->base.resv, fence,
-					   DMA_RESV_USAGE_READ);
-			obj->write_domain = 0;
-		}
+		dma_fence_array_for_each(curr, idx, fence)
+			dma_resv_add_fence(vma->obj->base.resv, curr, usage);
 	}
 
 	if (flags & EXEC_OBJECT_NEEDS_FENCE && vma->fence)

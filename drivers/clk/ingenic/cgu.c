@@ -660,7 +660,7 @@ static int ingenic_register_clock(struct ingenic_cgu *cgu, unsigned idx)
 	ingenic_clk->idx = idx;
 
 	clk_init.name = clk_info->name;
-	clk_init.flags = 0;
+	clk_init.flags = clk_info->flags;
 	clk_init.parent_names = parent_names;
 
 	caps = clk_info->type;

@@ -386,6 +386,7 @@ struct usb_gadget_ops {
  * @lpm_capable: If the gadget max_speed is FULL or HIGH, this flag
  *	indicates that it supports LPM as per the LPM ECN & errata.
  * @irq: the interrupt number for device controller.
+ * @id_number: a unique ID number for ensuring that gadget names are distinct
  *
  * Gadgets have a mostly-portable "gadget driver" implementing device
  * functions, handling all usb configurations and interfaces.  Gadget
@@ -446,6 +447,7 @@ struct usb_gadget {
 	unsigned			connected:1;
 	unsigned			lpm_capable:1;
 	int				irq;
+	int				id_number;
 };
 #define work_to_gadget(w)	(container_of((w), struct usb_gadget, work))
 
@@ -664,9 +666,9 @@ static inline int usb_gadget_check_config(struct usb_gadget *gadget)
  * @driver: Driver model state for this driver.
  * @udc_name: A name of UDC this driver should be bound to. If udc_name is NULL,
  *	this driver will be bound to any available UDC.
- * @pending: UDC core private data used for deferred probe of this driver.
- * @match_existing_only: If udc is not found, return an error and don't add this
- *      gadget driver to list of pending driver
+ * @match_existing_only: If udc is not found, return an error and fail
+ *	the driver registration
+ * @is_bound: Allow a driver to be bound to only one gadget
  *
  * Devices are disabled till a gadget driver successfully bind()s, which
  * means the driver will handle setup() requests needed to enumerate (and
@@ -729,8 +731,8 @@ struct usb_gadget_driver {
 	struct device_driver	driver;
 
 	char			*udc_name;
-	struct list_head	pending;
 	unsigned                match_existing_only:1;
+	bool			is_bound:1;
 };
 
 
@@ -740,22 +742,30 @@ struct usb_gadget_driver {
 /* driver modules register and unregister, as usual.
  * these calls must be made in a context that can sleep.
  *
- * these will usually be implemented directly by the hardware-dependent
- * usb bus interface driver, which will only support a single driver.
+ * A gadget driver can be bound to only one gadget at a time.
  */
 
 /**
- * usb_gadget_probe_driver - probe a gadget driver
+ * usb_gadget_register_driver_owner - register a gadget driver
  * @driver: the driver being registered
+ * @owner: the driver module
+ * @mod_name: the driver module's build name
  * Context: can sleep
  *
  * Call this in your gadget driver's module initialization function,
- * to tell the underlying usb controller driver about your driver.
+ * to tell the underlying UDC controller driver about your driver.
  * The @bind() function will be called to bind it to a gadget before this
  * registration call returns.  It's expected that the @bind() function will
  * be in init sections.
+ *
+ * Use the macro defined below instead of calling this directly.
  */
-int usb_gadget_probe_driver(struct usb_gadget_driver *driver);
+int usb_gadget_register_driver_owner(struct usb_gadget_driver *driver,
+		struct module *owner, const char *mod_name);
+
+/* use a define to avoid include chaining to get THIS_MODULE & friends */
+#define usb_gadget_register_driver(driver) \
+	usb_gadget_register_driver_owner(driver, THIS_MODULE, KBUILD_MODNAME)
 
 /**
  * usb_gadget_unregister_driver - unregister a gadget driver

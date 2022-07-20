@@ -283,7 +283,7 @@
 	/*P0-P7*/	"","","","","led-pcieslot-power","","","",
 	/*Q0-Q7*/	"","","regulator-standby-faulted","","","","","",
 	/*R0-R7*/	"bmc-tpm-reset","power-chassis-control","power-chassis-good","","","I2C_FLASH_MICRO_N","","",
-	/*S0-S7*/	"","","","","","","","",
+	/*S0-S7*/	"","","","","power-ffs-sync-history","","","",
 	/*T0-T7*/	"","","","","","","","",
 	/*U0-U7*/	"","","","","","","","",
 	/*V0-V7*/	"","BMC_3RESTART_ATTEMPT_P","","","","","","",

@@ -100,17 +100,18 @@ static const struct seq_operations misc_seq_ops = {
 static int misc_open(struct inode *inode, struct file *file)
 {
 	int minor = iminor(inode);
-	struct miscdevice *c;
+	struct miscdevice *c = NULL, *iter;
 	int err = -ENODEV;
 	const struct file_operations *new_fops = NULL;
 
 	mutex_lock(&misc_mtx);
 
-	list_for_each_entry(c, &misc_list, list) {
-		if (c->minor == minor) {
-			new_fops = fops_get(c->fops);
-			break;
-		}
+	list_for_each_entry(iter, &misc_list, list) {
+		if (iter->minor != minor)
+			continue;
+		c = iter;
+		new_fops = fops_get(iter->fops);
+		break;
 	}
 
 	if (!new_fops) {
@@ -118,11 +119,12 @@ static int misc_open(struct inode *inode, struct file *file)
 		request_module("char-major-%d-%d", MISC_MAJOR, minor);
 		mutex_lock(&misc_mtx);
 
-		list_for_each_entry(c, &misc_list, list) {
-			if (c->minor == minor) {
-				new_fops = fops_get(c->fops);
-				break;
-			}
+		list_for_each_entry(iter, &misc_list, list) {
+			if (iter->minor != minor)
+				continue;
+			c = iter;
+			new_fops = fops_get(iter->fops);
+			break;
 		}
 		if (!new_fops)
 			goto fail;

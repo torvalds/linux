@@ -46,8 +46,7 @@
 struct nfp_nfdk_tx_desc {
 	union {
 		struct {
-			u8 dma_addr_hi;  /* High bits of host buf address */
-			u8 padding;  /* Must be zero */
+			__le16 dma_addr_hi;  /* High bits of host buf address */
 			__le16 dma_len_type; /* Length to DMA for this desc */
 			__le32 dma_addr_lo;  /* Low 32bit of host buf addr */
 		};

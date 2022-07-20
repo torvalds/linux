@@ -331,7 +331,7 @@ void task_set_vl_onexec(struct task_struct *task, enum vec_type type,
  *    trapping to the kernel.
  *
  *    When stored, Z0-Z31 (incorporating Vn in bits[127:0] or the
- *    corresponding Zn), P0-P15 and FFR are encoded in in
+ *    corresponding Zn), P0-P15 and FFR are encoded in
  *    task->thread.sve_state, formatted appropriately for vector
  *    length task->thread.sve_vl or, if SVCR.SM is set,
  *    task->thread.sme_vl.
@@ -1916,10 +1916,15 @@ void __efi_fpsimd_begin(void)
 			if (system_supports_sme()) {
 				svcr = read_sysreg_s(SYS_SVCR);
 
-				if (!system_supports_fa64())
-					ffr = svcr & SVCR_SM_MASK;
+				__this_cpu_write(efi_sm_state,
+						 svcr & SVCR_SM_MASK);
 
-				__this_cpu_write(efi_sm_state, ffr);
+				/*
+				 * Unless we have FA64 FFR does not
+				 * exist in streaming mode.
+				 */
+				if (!system_supports_fa64())
+					ffr = !(svcr & SVCR_SM_MASK);
 			}
 
 			sve_save_state(sve_state + sve_ffr_offset(sve_max_vl()),
@@ -1964,8 +1969,13 @@ void __efi_fpsimd_end(void)
 					sysreg_clear_set_s(SYS_SVCR,
 							   0,
 							   SVCR_SM_MASK);
+
+					/*
+					 * Unless we have FA64 FFR does not
+					 * exist in streaming mode.
+					 */
 					if (!system_supports_fa64())
-						ffr = efi_sm_state;
+						ffr = false;
 				}
 			}
 

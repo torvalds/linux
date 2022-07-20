@@ -197,7 +197,7 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 	else
 		cxld->target_type = CXL_DECODER_ACCELERATOR;
 
-	if (is_cxl_endpoint(to_cxl_port(cxld->dev.parent)))
+	if (is_endpoint_decoder(&cxld->dev))
 		return 0;
 
 	target_list.value =

@@ -167,21 +167,24 @@ struct gpio_irq_chip {
 	 */
 	irq_flow_handler_t parent_handler;
 
-	/**
-	 * @parent_handler_data:
-	 *
-	 * If @per_parent_data is false, @parent_handler_data is a single
-	 * pointer used as the data associated with every parent interrupt.
-	 *
-	 * @parent_handler_data_array:
-	 *
-	 * If @per_parent_data is true, @parent_handler_data_array is
-	 * an array of @num_parents pointers, and is used to associate
-	 * different data for each parent. This cannot be NULL if
-	 * @per_parent_data is true.
-	 */
 	union {
+		/**
+		 * @parent_handler_data:
+		 *
+		 * If @per_parent_data is false, @parent_handler_data is a
+		 * single pointer used as the data associated with every
+		 * parent interrupt.
+		 */
 		void *parent_handler_data;
+
+		/**
+		 * @parent_handler_data_array:
+		 *
+		 * If @per_parent_data is true, @parent_handler_data_array is
+		 * an array of @num_parents pointers, and is used to associate
+		 * different data for each parent. This cannot be NULL if
+		 * @per_parent_data is true.
+		 */
 		void **parent_handler_data_array;
 	};
 
@@ -333,6 +336,10 @@ struct gpio_irq_chip {
  * @add_pin_ranges: optional routine to initialize pin ranges, to be used when
  *	requires special mapping of the pins that provides GPIO functionality.
  *	It is called after adding GPIO chip and before adding IRQ chip.
+ * @en_hw_timestamp: Dependent on GPIO chip, an optional routine to
+ *	enable hardware timestamp.
+ * @dis_hw_timestamp: Dependent on GPIO chip, an optional routine to
+ *	disable hardware timestamp.
  * @base: identifies the first GPIO number handled by this chip;
  *	or, if negative during registration, requests dynamic ID allocation.
  *	DEPRECATION: providing anything non-negative and nailing the base
@@ -429,6 +436,12 @@ struct gpio_chip {
 
 	int			(*add_pin_ranges)(struct gpio_chip *gc);
 
+	int			(*en_hw_timestamp)(struct gpio_chip *gc,
+						   u32 offset,
+						   unsigned long flags);
+	int			(*dis_hw_timestamp)(struct gpio_chip *gc,
+						    u32 offset,
+						    unsigned long flags);
 	int			base;
 	u16			ngpio;
 	u16			offset;
@@ -502,6 +515,18 @@ struct gpio_chip {
 	 */
 	int (*of_xlate)(struct gpio_chip *gc,
 			const struct of_phandle_args *gpiospec, u32 *flags);
+
+	/**
+	 * @of_gpio_ranges_fallback:
+	 *
+	 * Optional hook for the case that no gpio-ranges property is defined
+	 * within the device tree node "np" (usually DT before introduction
+	 * of gpio-ranges). So this callback is helpful to provide the
+	 * necessary backward compatibility for the pin ranges.
+	 */
+	int (*of_gpio_ranges_fallback)(struct gpio_chip *gc,
+				       struct device_node *np);
+
 #endif /* CONFIG_OF_GPIO */
 };
 

@@ -1271,6 +1271,12 @@ static void kfd_fill_iolink_non_crat_info(struct kfd_topology_device *dev)
 		if (!peer_dev)
 			continue;
 
+		/* Include the CPU peer in GPU hive if connected over xGMI. */
+		if (!peer_dev->gpu && !peer_dev->node_props.hive_id &&
+				dev->node_props.hive_id &&
+				dev->gpu->adev->gmc.xgmi.connected_to_cpu)
+			peer_dev->node_props.hive_id = dev->node_props.hive_id;
+
 		list_for_each_entry(inbound_link, &peer_dev->io_link_props,
 									list) {
 			if (inbound_link->node_to != link->node_from)
@@ -1301,22 +1307,6 @@ int kfd_topology_add_device(struct kfd_dev *gpu)
 	gpu_id = kfd_generate_gpu_id(gpu);
 
 	pr_debug("Adding new GPU (ID: 0x%x) to topology\n", gpu_id);
-
-	/* Include the CPU in xGMI hive if xGMI connected by assigning it the hive ID. */
-	if (gpu->hive_id && gpu->adev->gmc.xgmi.connected_to_cpu) {
-		struct kfd_topology_device *top_dev;
-
-		down_read(&topology_lock);
-
-		list_for_each_entry(top_dev, &topology_device_list, list) {
-			if (top_dev->gpu)
-				break;
-
-			top_dev->node_props.hive_id = gpu->hive_id;
-		}
-
-		up_read(&topology_lock);
-	}
 
 	/* Check to see if this gpu device exists in the topology_device_list.
 	 * If so, assign the gpu to that device,

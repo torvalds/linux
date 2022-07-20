@@ -21,7 +21,6 @@
  * Callbacks for platform drivers to implement.
  */
 extern void (*pm_power_off)(void);
-extern void (*pm_power_off_prepare)(void);
 
 struct device; /* we have a circular dep with device.h */
 #ifdef CONFIG_VT_CONSOLE_SLEEP
@@ -35,6 +34,15 @@ static inline void pm_vt_switch_unregister(struct device *dev)
 {
 }
 #endif /* CONFIG_VT_CONSOLE_SLEEP */
+
+#ifdef CONFIG_CXL_SUSPEND
+bool cxl_mem_active(void);
+#else
+static inline bool cxl_mem_active(void)
+{
+	return false;
+}
+#endif
 
 /*
  * Device power management

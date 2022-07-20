@@ -2263,11 +2263,11 @@ static int copy_user_syms(struct user_syms *us, unsigned long __user *usyms, u32
 	int err = -ENOMEM;
 	unsigned int i;
 
-	syms = kvmalloc(cnt * sizeof(*syms), GFP_KERNEL);
+	syms = kvmalloc_array(cnt, sizeof(*syms), GFP_KERNEL);
 	if (!syms)
 		goto error;
 
-	buf = kvmalloc(cnt * KSYM_NAME_LEN, GFP_KERNEL);
+	buf = kvmalloc_array(cnt, KSYM_NAME_LEN, GFP_KERNEL);
 	if (!buf)
 		goto error;
 
@@ -2423,12 +2423,34 @@ kprobe_multi_link_handler(struct fprobe *fp, unsigned long entry_ip,
 	kprobe_multi_link_prog_run(link, entry_ip, regs);
 }
 
-static int symbols_cmp(const void *a, const void *b)
+static int symbols_cmp_r(const void *a, const void *b, const void *priv)
 {
 	const char **str_a = (const char **) a;
 	const char **str_b = (const char **) b;
 
 	return strcmp(*str_a, *str_b);
+}
+
+struct multi_symbols_sort {
+	const char **funcs;
+	u64 *cookies;
+};
+
+static void symbols_swap_r(void *a, void *b, int size, const void *priv)
+{
+	const struct multi_symbols_sort *data = priv;
+	const char **name_a = a, **name_b = b;
+
+	swap(*name_a, *name_b);
+
+	/* If defined, swap also related cookies. */
+	if (data->cookies) {
+		u64 *cookie_a, *cookie_b;
+
+		cookie_a = data->cookies + (name_a - data->funcs);
+		cookie_b = data->cookies + (name_b - data->funcs);
+		swap(*cookie_a, *cookie_b);
+	}
 }
 
 int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *prog)
@@ -2464,32 +2486,13 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 		return -EINVAL;
 
 	size = cnt * sizeof(*addrs);
-	addrs = kvmalloc(size, GFP_KERNEL);
+	addrs = kvmalloc_array(cnt, sizeof(*addrs), GFP_KERNEL);
 	if (!addrs)
 		return -ENOMEM;
 
-	if (uaddrs) {
-		if (copy_from_user(addrs, uaddrs, size)) {
-			err = -EFAULT;
-			goto error;
-		}
-	} else {
-		struct user_syms us;
-
-		err = copy_user_syms(&us, usyms, cnt);
-		if (err)
-			goto error;
-
-		sort(us.syms, cnt, sizeof(*us.syms), symbols_cmp, NULL);
-		err = ftrace_lookup_symbols(us.syms, cnt, addrs);
-		free_user_syms(&us);
-		if (err)
-			goto error;
-	}
-
 	ucookies = u64_to_user_ptr(attr->link_create.kprobe_multi.cookies);
 	if (ucookies) {
-		cookies = kvmalloc(size, GFP_KERNEL);
+		cookies = kvmalloc_array(cnt, sizeof(*addrs), GFP_KERNEL);
 		if (!cookies) {
 			err = -ENOMEM;
 			goto error;
@@ -2498,6 +2501,33 @@ int bpf_kprobe_multi_link_attach(const union bpf_attr *attr, struct bpf_prog *pr
 			err = -EFAULT;
 			goto error;
 		}
+	}
+
+	if (uaddrs) {
+		if (copy_from_user(addrs, uaddrs, size)) {
+			err = -EFAULT;
+			goto error;
+		}
+	} else {
+		struct multi_symbols_sort data = {
+			.cookies = cookies,
+		};
+		struct user_syms us;
+
+		err = copy_user_syms(&us, usyms, cnt);
+		if (err)
+			goto error;
+
+		if (cookies)
+			data.funcs = us.syms;
+
+		sort_r(us.syms, cnt, sizeof(*us.syms), symbols_cmp_r,
+		       symbols_swap_r, &data);
+
+		err = ftrace_lookup_symbols(us.syms, cnt, addrs);
+		free_user_syms(&us);
+		if (err)
+			goto error;
 	}
 
 	link = kzalloc(sizeof(*link), GFP_KERNEL);

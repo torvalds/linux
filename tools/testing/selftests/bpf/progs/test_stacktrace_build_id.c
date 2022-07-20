@@ -39,7 +39,7 @@ struct {
 	__type(value, stack_trace_t);
 } stack_amap SEC(".maps");
 
-SEC("kprobe/urandom_read")
+SEC("kprobe/urandom_read_iter")
 int oncpu(struct pt_regs *args)
 {
 	__u32 max_len = sizeof(struct bpf_stack_build_id)

@@ -10,10 +10,12 @@ Required properties:
 		or one irq for pdma device
 
 Optional properties:
-- #dma-channels: Number of DMA channels supported by the controller (defaults
+- dma-channels: Number of DMA channels supported by the controller (defaults
   to 32 when not specified)
-- #dma-requests: Number of DMA requestor lines supported by the controller
+- #dma-channels: deprecated
+- dma-requests: Number of DMA requestor lines supported by the controller
   (defaults to 32 when not specified)
+- #dma-requests: deprecated
 
 "marvell,pdma-1.0"
 Used platforms: pxa25x, pxa27x, pxa3xx, pxa93x, pxa168, pxa910, pxa688.
@@ -33,7 +35,7 @@ pdma: dma-controller@d4000000 {
 	      reg = <0xd4000000 0x10000>;
 	      interrupts = <0 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15>;
 	      interrupt-parent = <&intcmux32>;
-	      #dma-channels = <16>;
+	      dma-channels = <16>;
       };
 
 /*
@@ -45,7 +47,7 @@ pdma: dma-controller@d4000000 {
 	      compatible = "marvell,pdma-1.0";
 	      reg = <0xd4000000 0x10000>;
 	      interrupts = <47>;
-	      #dma-channels = <16>;
+	      dma-channels = <16>;
       };
 
 

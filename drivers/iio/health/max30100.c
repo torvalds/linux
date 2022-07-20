@@ -433,7 +433,6 @@ static int max30100_probe(struct i2c_client *client,
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	ret = devm_iio_kfifo_buffer_setup(&client->dev, indio_dev,
-					  INDIO_BUFFER_SOFTWARE,
 					  &max30100_buffer_setup_ops);
 	if (ret)
 		return ret;

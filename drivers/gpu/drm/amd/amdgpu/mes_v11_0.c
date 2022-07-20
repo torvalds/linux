@@ -541,7 +541,7 @@ static void mes_v11_0_enable(struct amdgpu_device *adev, bool enable)
 
 /* This function is for backdoor MES firmware */
 static int mes_v11_0_load_microcode(struct amdgpu_device *adev,
-				    enum admgpu_mes_pipe pipe)
+				    enum admgpu_mes_pipe pipe, bool prime_icache)
 {
 	int r;
 	uint32_t data;
@@ -593,16 +593,18 @@ static int mes_v11_0_load_microcode(struct amdgpu_device *adev,
 	/* Set 0x3FFFF (256K-1) to CP_MES_MDBOUND_LO */
 	WREG32_SOC15(GC, 0, regCP_MES_MDBOUND_LO, 0x3FFFF);
 
-	/* invalidate ICACHE */
-	data = RREG32_SOC15(GC, 0, regCP_MES_IC_OP_CNTL);
-	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, PRIME_ICACHE, 0);
-	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, INVALIDATE_CACHE, 1);
-	WREG32_SOC15(GC, 0, regCP_MES_IC_OP_CNTL, data);
+	if (prime_icache) {
+		/* invalidate ICACHE */
+		data = RREG32_SOC15(GC, 0, regCP_MES_IC_OP_CNTL);
+		data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, PRIME_ICACHE, 0);
+		data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, INVALIDATE_CACHE, 1);
+		WREG32_SOC15(GC, 0, regCP_MES_IC_OP_CNTL, data);
 
-	/* prime the ICACHE. */
-	data = RREG32_SOC15(GC, 0, regCP_MES_IC_OP_CNTL);
-	data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, PRIME_ICACHE, 1);
-	WREG32_SOC15(GC, 0, regCP_MES_IC_OP_CNTL, data);
+		/* prime the ICACHE. */
+		data = RREG32_SOC15(GC, 0, regCP_MES_IC_OP_CNTL);
+		data = REG_SET_FIELD(data, CP_MES_IC_OP_CNTL, PRIME_ICACHE, 1);
+		WREG32_SOC15(GC, 0, regCP_MES_IC_OP_CNTL, data);
+	}
 
 	soc21_grbm_select(adev, 0, 0, 0, 0);
 	mutex_unlock(&adev->srbm_mutex);
@@ -1044,17 +1046,19 @@ static int mes_v11_0_kiq_hw_init(struct amdgpu_device *adev)
 	int r = 0;
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
-		r = mes_v11_0_load_microcode(adev, AMDGPU_MES_KIQ_PIPE);
+
+		r = mes_v11_0_load_microcode(adev, AMDGPU_MES_SCHED_PIPE, false);
+		if (r) {
+			DRM_ERROR("failed to load MES fw, r=%d\n", r);
+			return r;
+		}
+
+		r = mes_v11_0_load_microcode(adev, AMDGPU_MES_KIQ_PIPE, true);
 		if (r) {
 			DRM_ERROR("failed to load MES kiq fw, r=%d\n", r);
 			return r;
 		}
 
-		r = mes_v11_0_load_microcode(adev, AMDGPU_MES_SCHED_PIPE);
-		if (r) {
-			DRM_ERROR("failed to load MES fw, r=%d\n", r);
-			return r;
-		}
 	}
 
 	mes_v11_0_enable(adev, true);
@@ -1086,7 +1090,7 @@ static int mes_v11_0_hw_init(void *handle)
 	if (!adev->enable_mes_kiq) {
 		if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
 			r = mes_v11_0_load_microcode(adev,
-					     AMDGPU_MES_SCHED_PIPE);
+					     AMDGPU_MES_SCHED_PIPE, true);
 			if (r) {
 				DRM_ERROR("failed to MES fw, r=%d\n", r);
 				return r;

@@ -539,10 +539,9 @@ i2c_davinci_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[], int num)
 
 	dev_dbg(dev->dev, "%s: msgs: %d\n", __func__, num);
 
-	ret = pm_runtime_get_sync(dev->dev);
+	ret = pm_runtime_resume_and_get(dev->dev);
 	if (ret < 0) {
 		dev_err(dev->dev, "Failed to runtime_get device: %d\n", ret);
-		pm_runtime_put_noidle(dev->dev);
 		return ret;
 	}
 
@@ -821,10 +820,9 @@ static int davinci_i2c_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev->dev);
 
-	r = pm_runtime_get_sync(dev->dev);
+	r = pm_runtime_resume_and_get(dev->dev);
 	if (r < 0) {
 		dev_err(dev->dev, "failed to runtime_get device: %d\n", r);
-		pm_runtime_put_noidle(dev->dev);
 		return r;
 	}
 
@@ -898,11 +896,9 @@ static int davinci_i2c_remove(struct platform_device *pdev)
 
 	i2c_del_adapter(&dev->adapter);
 
-	ret = pm_runtime_get_sync(&pdev->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(&pdev->dev);
+	ret = pm_runtime_resume_and_get(&pdev->dev);
+	if (ret < 0)
 		return ret;
-	}
 
 	davinci_i2c_write_reg(dev, DAVINCI_I2C_MDR_REG, 0);
 

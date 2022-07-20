@@ -12,3 +12,4 @@ pkey_exec_prot
 pkey_siginfo
 stack_expansion_ldst
 stack_expansion_signal
+large_vm_gpr_corruption

@@ -274,19 +274,18 @@ static int qcom_icc_set(struct icc_node *src, struct icc_node *dst)
 	do_div(rate, qn->buswidth);
 	rate = min_t(u64, rate, LONG_MAX);
 
-	if (qn->rate == rate)
-		return 0;
-
 	for (i = 0; i < qp->num_clks; i++) {
+		if (qp->bus_clk_rate[i] == rate)
+			continue;
+
 		ret = clk_set_rate(qp->bus_clks[i].clk, rate);
 		if (ret) {
 			pr_err("%s clk_set_rate error: %d\n",
 			       qp->bus_clks[i].id, ret);
 			return ret;
 		}
+		qp->bus_clk_rate[i] = rate;
 	}
-
-	qn->rate = rate;
 
 	return 0;
 }
@@ -301,7 +300,7 @@ int qnoc_probe(struct platform_device *pdev)
 	const struct qcom_icc_desc *desc;
 	struct icc_onecell_data *data;
 	struct icc_provider *provider;
-	struct qcom_icc_node **qnodes;
+	struct qcom_icc_node * const *qnodes;
 	struct qcom_icc_provider *qp;
 	struct icc_node *node;
 	size_t num_nodes, i;
@@ -330,6 +329,11 @@ int qnoc_probe(struct platform_device *pdev)
 
 	qp = devm_kzalloc(dev, struct_size(qp, bus_clks, cd_num), GFP_KERNEL);
 	if (!qp)
+		return -ENOMEM;
+
+	qp->bus_clk_rate = devm_kcalloc(dev, cd_num, sizeof(*qp->bus_clk_rate),
+					GFP_KERNEL);
+	if (!qp->bus_clk_rate)
 		return -ENOMEM;
 
 	data = devm_kzalloc(dev, struct_size(data, nodes, num_nodes),

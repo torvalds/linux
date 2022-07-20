@@ -649,7 +649,7 @@ static int smbd_ia_open(
 		smbd_max_frmr_depth,
 		info->id->device->attrs.max_fast_reg_page_list_len);
 	info->mr_type = IB_MR_TYPE_MEM_REG;
-	if (info->id->device->attrs.device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+	if (info->id->device->attrs.kernel_cap_flags & IBK_SG_GAPS_REG)
 		info->mr_type = IB_MR_TYPE_SG_GAPS;
 
 	info->pd = ib_alloc_pd(info->id->device, 0);
@@ -1350,7 +1350,7 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	wait_event(info->wait_send_pending,
 		atomic_read(&info->send_pending) == 0);
 
-	/* It's not posssible for upper layer to get to reassembly */
+	/* It's not possible for upper layer to get to reassembly */
 	log_rdma_event(INFO, "drain the reassembly queue\n");
 	do {
 		spin_lock_irqsave(&info->reassembly_queue_lock, flags);
@@ -1382,9 +1382,9 @@ void smbd_destroy(struct TCP_Server_Info *server)
 	log_rdma_event(INFO, "freeing mr list\n");
 	wake_up_interruptible_all(&info->wait_mr);
 	while (atomic_read(&info->mr_used_count)) {
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		msleep(1000);
-		mutex_lock(&server->srv_mutex);
+		cifs_server_lock(server);
 	}
 	destroy_mr_list(info);
 

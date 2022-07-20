@@ -279,7 +279,7 @@ static int usb_kbd_probe(struct usb_interface *iface,
 		return -ENODEV;
 
 	pipe = usb_rcvintpipe(dev, endpoint->bEndpointAddress);
-	maxp = usb_maxpacket(dev, pipe, usb_pipeout(pipe));
+	maxp = usb_maxpacket(dev, pipe);
 
 	kbd = kzalloc(sizeof(struct usb_kbd), GFP_KERNEL);
 	input_dev = input_allocate_device();

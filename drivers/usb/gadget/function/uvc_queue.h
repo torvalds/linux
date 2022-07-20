@@ -43,7 +43,6 @@ struct uvc_buffer {
 
 #define UVC_QUEUE_DISCONNECTED		(1 << 0)
 #define UVC_QUEUE_DROP_INCOMPLETE	(1 << 1)
-#define UVC_QUEUE_PAUSED		(1 << 2)
 
 struct uvc_video_queue {
 	struct vb2_queue queue;
@@ -93,7 +92,7 @@ void uvcg_queue_cancel(struct uvc_video_queue *queue, int disconnect);
 
 int uvcg_queue_enable(struct uvc_video_queue *queue, int enable);
 
-struct uvc_buffer *uvcg_queue_next_buffer(struct uvc_video_queue *queue,
+void uvcg_complete_buffer(struct uvc_video_queue *queue,
 					  struct uvc_buffer *buf);
 
 struct uvc_buffer *uvcg_queue_head(struct uvc_video_queue *queue);

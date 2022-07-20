@@ -1374,6 +1374,12 @@ u16 nvmet_alloc_ctrl(const char *subsysnqn, const char *hostnqn,
 	ctrl->port = req->port;
 	ctrl->ops = req->ops;
 
+#ifdef CONFIG_NVME_TARGET_PASSTHRU
+	/* By default, set loop targets to clear IDS by default */
+	if (ctrl->port->disc_addr.trtype == NVMF_TRTYPE_LOOP)
+		subsys->clear_ids = 1;
+#endif
+
 	INIT_WORK(&ctrl->async_event_work, nvmet_async_event_work);
 	INIT_LIST_HEAD(&ctrl->async_events);
 	INIT_RADIX_TREE(&ctrl->p2p_ns_map, GFP_KERNEL);

@@ -284,7 +284,7 @@ static ssize_t ad5360_write_dac_powerdown(struct device *dev,
 	bool pwr_down;
 	int ret;
 
-	ret = strtobool(buf, &pwr_down);
+	ret = kstrtobool(buf, &pwr_down);
 	if (ret)
 		return ret;
 

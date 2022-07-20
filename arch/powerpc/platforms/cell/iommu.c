@@ -12,8 +12,10 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
+#include <linux/irqdomain.h>
 #include <linux/notifier.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/slab.h>
 #include <linux/memblock.h>
@@ -582,7 +584,7 @@ static int cell_of_bus_notify(struct notifier_block *nb, unsigned long action,
 {
 	struct device *dev = data;
 
-	/* We are only intereted in device addition */
+	/* We are only interested in device addition */
 	if (action != BUS_NOTIFY_ADD_DEVICE)
 		return 0;
 

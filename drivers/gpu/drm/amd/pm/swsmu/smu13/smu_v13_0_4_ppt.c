@@ -644,41 +644,39 @@ static int smu_v13_0_4_set_watermarks_table(struct smu_context *smu,
 	if (!table || !clock_ranges)
 		return -EINVAL;
 
-	if (clock_ranges) {
-		if (clock_ranges->num_reader_wm_sets > NUM_WM_RANGES ||
-			clock_ranges->num_writer_wm_sets > NUM_WM_RANGES)
-			return -EINVAL;
+	if (clock_ranges->num_reader_wm_sets > NUM_WM_RANGES ||
+		clock_ranges->num_writer_wm_sets > NUM_WM_RANGES)
+		return -EINVAL;
 
-		for (i = 0; i < clock_ranges->num_reader_wm_sets; i++) {
-			table->WatermarkRow[WM_DCFCLK][i].MinClock =
-				clock_ranges->reader_wm_sets[i].min_drain_clk_mhz;
-			table->WatermarkRow[WM_DCFCLK][i].MaxClock =
-				clock_ranges->reader_wm_sets[i].max_drain_clk_mhz;
-			table->WatermarkRow[WM_DCFCLK][i].MinMclk =
-				clock_ranges->reader_wm_sets[i].min_fill_clk_mhz;
-			table->WatermarkRow[WM_DCFCLK][i].MaxMclk =
-				clock_ranges->reader_wm_sets[i].max_fill_clk_mhz;
+	for (i = 0; i < clock_ranges->num_reader_wm_sets; i++) {
+		table->WatermarkRow[WM_DCFCLK][i].MinClock =
+			clock_ranges->reader_wm_sets[i].min_drain_clk_mhz;
+		table->WatermarkRow[WM_DCFCLK][i].MaxClock =
+			clock_ranges->reader_wm_sets[i].max_drain_clk_mhz;
+		table->WatermarkRow[WM_DCFCLK][i].MinMclk =
+			clock_ranges->reader_wm_sets[i].min_fill_clk_mhz;
+		table->WatermarkRow[WM_DCFCLK][i].MaxMclk =
+			clock_ranges->reader_wm_sets[i].max_fill_clk_mhz;
 
-			table->WatermarkRow[WM_DCFCLK][i].WmSetting =
-				clock_ranges->reader_wm_sets[i].wm_inst;
-		}
-
-		for (i = 0; i < clock_ranges->num_writer_wm_sets; i++) {
-			table->WatermarkRow[WM_SOCCLK][i].MinClock =
-				clock_ranges->writer_wm_sets[i].min_fill_clk_mhz;
-			table->WatermarkRow[WM_SOCCLK][i].MaxClock =
-				clock_ranges->writer_wm_sets[i].max_fill_clk_mhz;
-			table->WatermarkRow[WM_SOCCLK][i].MinMclk =
-				clock_ranges->writer_wm_sets[i].min_drain_clk_mhz;
-			table->WatermarkRow[WM_SOCCLK][i].MaxMclk =
-				clock_ranges->writer_wm_sets[i].max_drain_clk_mhz;
-
-			table->WatermarkRow[WM_SOCCLK][i].WmSetting =
-				clock_ranges->writer_wm_sets[i].wm_inst;
-		}
-
-		smu->watermarks_bitmap |= WATERMARKS_EXIST;
+		table->WatermarkRow[WM_DCFCLK][i].WmSetting =
+			clock_ranges->reader_wm_sets[i].wm_inst;
 	}
+
+	for (i = 0; i < clock_ranges->num_writer_wm_sets; i++) {
+		table->WatermarkRow[WM_SOCCLK][i].MinClock =
+			clock_ranges->writer_wm_sets[i].min_fill_clk_mhz;
+		table->WatermarkRow[WM_SOCCLK][i].MaxClock =
+			clock_ranges->writer_wm_sets[i].max_fill_clk_mhz;
+		table->WatermarkRow[WM_SOCCLK][i].MinMclk =
+			clock_ranges->writer_wm_sets[i].min_drain_clk_mhz;
+		table->WatermarkRow[WM_SOCCLK][i].MaxMclk =
+			clock_ranges->writer_wm_sets[i].max_drain_clk_mhz;
+
+		table->WatermarkRow[WM_SOCCLK][i].WmSetting =
+			clock_ranges->writer_wm_sets[i].wm_inst;
+	}
+
+	smu->watermarks_bitmap |= WATERMARKS_EXIST;
 
 	/* pass data to smu controller */
 	if ((smu->watermarks_bitmap & WATERMARKS_EXIST) &&

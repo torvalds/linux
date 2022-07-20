@@ -731,7 +731,6 @@ struct iio_dev *inv_icm42600_accel_init(struct inv_icm42600_state *st)
 	indio_dev->available_scan_masks = inv_icm42600_accel_scan_masks;
 
 	ret = devm_iio_kfifo_buffer_setup(dev, indio_dev,
-					  INDIO_BUFFER_SOFTWARE,
 					  &inv_icm42600_buffer_ops);
 	if (ret)
 		return ERR_PTR(ret);

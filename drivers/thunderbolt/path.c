@@ -166,6 +166,9 @@ struct tb_path *tb_path_discover(struct tb_port *src, int src_hopid,
 		return NULL;
 	}
 
+	tb_dbg(path->tb, "discovering %s path starting from %llx:%u\n",
+	       path->name, tb_route(src->sw), src->port);
+
 	p = src;
 	h = src_hopid;
 
@@ -198,10 +201,13 @@ struct tb_path *tb_path_discover(struct tb_port *src, int src_hopid,
 		path->hops[i].out_port = out_port;
 		path->hops[i].next_hop_index = next_hop;
 
+		tb_dump_hop(&path->hops[i], &hop);
+
 		h = next_hop;
 		p = out_port->remote;
 	}
 
+	tb_dbg(path->tb, "path discovery complete\n");
 	return path;
 
 err:

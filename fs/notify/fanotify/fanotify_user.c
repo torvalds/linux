@@ -1513,8 +1513,15 @@ static int fanotify_test_fid(struct dentry *dentry)
 	return 0;
 }
 
-static int fanotify_events_supported(struct path *path, __u64 mask)
+static int fanotify_events_supported(struct fsnotify_group *group,
+				     struct path *path, __u64 mask,
+				     unsigned int flags)
 {
+	unsigned int mark_type = flags & FANOTIFY_MARK_TYPE_BITS;
+	/* Strict validation of events in non-dir inode mask with v5.17+ APIs */
+	bool strict_dir_events = FAN_GROUP_FLAG(group, FAN_REPORT_TARGET_FID) ||
+				 (mask & FAN_RENAME);
+
 	/*
 	 * Some filesystems such as 'proc' acquire unusual locks when opening
 	 * files. For them fanotify permission events have high chances of
@@ -1526,6 +1533,16 @@ static int fanotify_events_supported(struct path *path, __u64 mask)
 	if (mask & FANOTIFY_PERM_EVENTS &&
 	    path->mnt->mnt_sb->s_type->fs_flags & FS_DISALLOW_NOTIFY_PERM)
 		return -EINVAL;
+
+	/*
+	 * We shouldn't have allowed setting dirent events and the directory
+	 * flags FAN_ONDIR and FAN_EVENT_ON_CHILD in mask of non-dir inode,
+	 * but because we always allowed it, error only when using new APIs.
+	 */
+	if (strict_dir_events && mark_type == FAN_MARK_INODE &&
+	    !d_is_dir(path->dentry) && (mask & FANOTIFY_DIRONLY_EVENT_BITS))
+		return -ENOTDIR;
+
 	return 0;
 }
 
@@ -1672,7 +1689,7 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		goto fput_and_out;
 
 	if (flags & FAN_MARK_ADD) {
-		ret = fanotify_events_supported(&path, mask);
+		ret = fanotify_events_supported(group, &path, mask, flags);
 		if (ret)
 			goto path_put_and_out;
 	}
@@ -1694,19 +1711,6 @@ static int do_fanotify_mark(int fanotify_fd, unsigned int flags, __u64 mask,
 		inode = path.dentry->d_inode;
 	else
 		mnt = path.mnt;
-
-	/*
-	 * FAN_RENAME is not allowed on non-dir (for now).
-	 * We shouldn't have allowed setting any dirent events in mask of
-	 * non-dir, but because we always allowed it, error only if group
-	 * was initialized with the new flag FAN_REPORT_TARGET_FID.
-	 */
-	ret = -ENOTDIR;
-	if (inode && !S_ISDIR(inode->i_mode) &&
-	    ((mask & FAN_RENAME) ||
-	     ((mask & FANOTIFY_DIRENT_EVENTS) &&
-	      FAN_GROUP_FLAG(group, FAN_REPORT_TARGET_FID))))
-		goto path_put_and_out;
 
 	/* Mask out FAN_EVENT_ON_CHILD flag for sb/mount/non-dir marks */
 	if (mnt || !S_ISDIR(inode->i_mode)) {

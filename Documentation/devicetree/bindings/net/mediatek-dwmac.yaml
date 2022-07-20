@@ -58,6 +58,9 @@ properties:
       - const: rmii_internal
       - const: mac_cg
 
+  power-domains:
+    maxItems: 1
+
   mediatek,pericfg:
     $ref: /schemas/types.yaml#/definitions/phandle
     description:

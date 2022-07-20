@@ -11,6 +11,7 @@
 #include <linux/types.h>
 #include <linux/spinlock.h>
 #include <linux/pci.h>
+#include <linux/of.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
 #include <asm/firmware.h>

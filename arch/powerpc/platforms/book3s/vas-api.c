@@ -30,7 +30,7 @@
  *
  * where "vas_copy" and "vas_paste" are defined in copy-paste.h.
  * copy/paste returns to the user space directly. So refer NX hardware
- * documententation for exact copy/paste usage and completion / error
+ * documentation for exact copy/paste usage and completion / error
  * conditions.
  */
 

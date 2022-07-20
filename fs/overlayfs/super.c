@@ -53,6 +53,11 @@ module_param_named(xino_auto, ovl_xino_auto_def, bool, 0644);
 MODULE_PARM_DESC(xino_auto,
 		 "Auto enable xino feature");
 
+static bool __read_mostly ovl_override_creds_def = true;
+module_param_named(override_creds, ovl_override_creds_def, bool, 0644);
+MODULE_PARM_DESC(ovl_override_creds_def,
+		 "Use mounter's credentials for accesses");
+
 static void ovl_entry_stack_free(struct ovl_entry *oe)
 {
 	unsigned int i;
@@ -184,7 +189,8 @@ static struct inode *ovl_alloc_inode(struct super_block *sb)
 	oi->version = 0;
 	oi->flags = 0;
 	oi->__upperdentry = NULL;
-	oi->lower = NULL;
+	oi->lowerpath.dentry = NULL;
+	oi->lowerpath.layer = NULL;
 	oi->lowerdata = NULL;
 	mutex_init(&oi->lock);
 
@@ -205,7 +211,7 @@ static void ovl_destroy_inode(struct inode *inode)
 	struct ovl_inode *oi = OVL_I(inode);
 
 	dput(oi->__upperdentry);
-	iput(oi->lower);
+	dput(oi->lowerpath.dentry);
 	if (S_ISDIR(inode->i_mode))
 		ovl_dir_cache_free(inode);
 	else
@@ -382,6 +388,9 @@ static int ovl_show_options(struct seq_file *m, struct dentry *dentry)
 		seq_puts(m, ",volatile");
 	if (ofs->config.userxattr)
 		seq_puts(m, ",userxattr");
+	if (ofs->config.override_creds != ovl_override_creds_def)
+		seq_show_option(m, "override_creds",
+				ofs->config.override_creds ? "on" : "off");
 	return 0;
 }
 
@@ -437,6 +446,8 @@ enum {
 	OPT_METACOPY_ON,
 	OPT_METACOPY_OFF,
 	OPT_VOLATILE,
+	OPT_OVERRIDE_CREDS_ON,
+	OPT_OVERRIDE_CREDS_OFF,
 	OPT_ERR,
 };
 
@@ -459,6 +470,8 @@ static const match_table_t ovl_tokens = {
 	{OPT_METACOPY_ON,		"metacopy=on"},
 	{OPT_METACOPY_OFF,		"metacopy=off"},
 	{OPT_VOLATILE,			"volatile"},
+	{OPT_OVERRIDE_CREDS_ON,		"override_creds=on"},
+	{OPT_OVERRIDE_CREDS_OFF,	"override_creds=off"},
 	{OPT_ERR,			NULL}
 };
 
@@ -518,6 +531,7 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 	config->redirect_mode = kstrdup(ovl_redirect_mode_def(), GFP_KERNEL);
 	if (!config->redirect_mode)
 		return -ENOMEM;
+	config->override_creds = ovl_override_creds_def;
 
 	while ((p = ovl_next_opt(&opt)) != NULL) {
 		int token;
@@ -617,6 +631,14 @@ static int ovl_parse_opt(char *opt, struct ovl_config *config)
 
 		case OPT_USERXATTR:
 			config->userxattr = true;
+			break;
+
+		case OPT_OVERRIDE_CREDS_ON:
+			config->override_creds = true;
+			break;
+
+		case OPT_OVERRIDE_CREDS_OFF:
+			config->override_creds = false;
 			break;
 
 		default:
@@ -761,7 +783,7 @@ static struct dentry *ovl_workdir_create(struct ovl_fs *ofs,
 
 	inode_lock_nested(dir, I_MUTEX_PARENT);
 retry:
-	work = lookup_one_len(name, ofs->workbasedir, strlen(name));
+	work = ovl_lookup_upper(ofs, name, ofs->workbasedir, strlen(name));
 
 	if (!IS_ERR(work)) {
 		struct iattr attr = {
@@ -778,7 +800,7 @@ retry:
 				goto out_unlock;
 
 			retried = true;
-			err = ovl_workdir_cleanup(dir, mnt, work, 0);
+			err = ovl_workdir_cleanup(ofs, dir, mnt, work, 0);
 			dput(work);
 			if (err == -EINVAL) {
 				work = ERR_PTR(err);
@@ -787,7 +809,7 @@ retry:
 			goto retry;
 		}
 
-		err = ovl_mkdir_real(dir, &work, attr.ia_mode);
+		err = ovl_mkdir_real(ofs, dir, &work, attr.ia_mode);
 		if (err)
 			goto out_dput;
 
@@ -809,19 +831,19 @@ retry:
 		 * allowed as upper are limited to "normal" ones, where checking
 		 * for the above two errors is sufficient.
 		 */
-		err = vfs_removexattr(&init_user_ns, work,
-				      XATTR_NAME_POSIX_ACL_DEFAULT);
+		err = ovl_do_removexattr(ofs, work,
+					 XATTR_NAME_POSIX_ACL_DEFAULT);
 		if (err && err != -ENODATA && err != -EOPNOTSUPP)
 			goto out_dput;
 
-		err = vfs_removexattr(&init_user_ns, work,
-				      XATTR_NAME_POSIX_ACL_ACCESS);
+		err = ovl_do_removexattr(ofs, work,
+					 XATTR_NAME_POSIX_ACL_ACCESS);
 		if (err && err != -ENODATA && err != -EOPNOTSUPP)
 			goto out_dput;
 
 		/* Clear any inherited mode bits */
 		inode_lock(work->d_inode);
-		err = notify_change(&init_user_ns, work, &attr, NULL);
+		err = ovl_do_notify_change(ofs, work, &attr);
 		inode_unlock(work->d_inode);
 		if (err)
 			goto out_dput;
@@ -871,10 +893,6 @@ static int ovl_mount_dir_noesc(const char *name, struct path *path)
 	err = -EINVAL;
 	if (ovl_dentry_weird(path->dentry)) {
 		pr_err("filesystem on '%s' not supported\n", name);
-		goto out_put;
-	}
-	if (is_idmapped_mnt(path->mnt)) {
-		pr_err("idmapped layers are currently not supported\n");
 		goto out_put;
 	}
 	if (!d_is_dir(path->dentry)) {
@@ -1006,6 +1024,9 @@ ovl_posix_acl_xattr_get(const struct xattr_handler *handler,
 			struct dentry *dentry, struct inode *inode,
 			const char *name, void *buffer, size_t size)
 {
+	if (!IS_POSIXACL(inode))
+		return -EOPNOTSUPP;
+
 	return ovl_xattr_get(dentry, inode, handler->name, buffer, size);
 }
 
@@ -1020,6 +1041,9 @@ ovl_posix_acl_xattr_set(const struct xattr_handler *handler,
 	struct inode *realinode = ovl_inode_real(inode);
 	struct posix_acl *acl = NULL;
 	int err;
+
+	if (!IS_POSIXACL(inode))
+		return -EOPNOTSUPP;
 
 	/* Check that everything is OK before copy-up */
 	if (value) {
@@ -1256,8 +1280,9 @@ out:
  * Returns 1 if RENAME_WHITEOUT is supported, 0 if not supported and
  * negative values if error is encountered.
  */
-static int ovl_check_rename_whiteout(struct dentry *workdir)
+static int ovl_check_rename_whiteout(struct ovl_fs *ofs)
 {
+	struct dentry *workdir = ofs->workdir;
 	struct inode *dir = d_inode(workdir);
 	struct dentry *temp;
 	struct dentry *dest;
@@ -1267,12 +1292,12 @@ static int ovl_check_rename_whiteout(struct dentry *workdir)
 
 	inode_lock_nested(dir, I_MUTEX_PARENT);
 
-	temp = ovl_create_temp(workdir, OVL_CATTR(S_IFREG | 0));
+	temp = ovl_create_temp(ofs, workdir, OVL_CATTR(S_IFREG | 0));
 	err = PTR_ERR(temp);
 	if (IS_ERR(temp))
 		goto out_unlock;
 
-	dest = ovl_lookup_temp(workdir);
+	dest = ovl_lookup_temp(ofs, workdir);
 	err = PTR_ERR(dest);
 	if (IS_ERR(dest)) {
 		dput(temp);
@@ -1281,14 +1306,14 @@ static int ovl_check_rename_whiteout(struct dentry *workdir)
 
 	/* Name is inline and stable - using snapshot as a copy helper */
 	take_dentry_name_snapshot(&name, temp);
-	err = ovl_do_rename(dir, temp, dir, dest, RENAME_WHITEOUT);
+	err = ovl_do_rename(ofs, dir, temp, dir, dest, RENAME_WHITEOUT);
 	if (err) {
 		if (err == -EINVAL)
 			err = 0;
 		goto cleanup_temp;
 	}
 
-	whiteout = lookup_one_len(name.name.name, workdir, name.name.len);
+	whiteout = ovl_lookup_upper(ofs, name.name.name, workdir, name.name.len);
 	err = PTR_ERR(whiteout);
 	if (IS_ERR(whiteout))
 		goto cleanup_temp;
@@ -1297,11 +1322,11 @@ static int ovl_check_rename_whiteout(struct dentry *workdir)
 
 	/* Best effort cleanup of whiteout and temp file */
 	if (err)
-		ovl_cleanup(dir, whiteout);
+		ovl_cleanup(ofs, dir, whiteout);
 	dput(whiteout);
 
 cleanup_temp:
-	ovl_cleanup(dir, temp);
+	ovl_cleanup(ofs, dir, temp);
 	release_dentry_name_snapshot(&name);
 	dput(temp);
 	dput(dest);
@@ -1312,16 +1337,17 @@ out_unlock:
 	return err;
 }
 
-static struct dentry *ovl_lookup_or_create(struct dentry *parent,
+static struct dentry *ovl_lookup_or_create(struct ovl_fs *ofs,
+					   struct dentry *parent,
 					   const char *name, umode_t mode)
 {
 	size_t len = strlen(name);
 	struct dentry *child;
 
 	inode_lock_nested(parent->d_inode, I_MUTEX_PARENT);
-	child = lookup_one_len(name, parent, len);
+	child = ovl_lookup_upper(ofs, name, parent, len);
 	if (!IS_ERR(child) && !child->d_inode)
-		child = ovl_create_real(parent->d_inode, child,
+		child = ovl_create_real(ofs, parent->d_inode, child,
 					OVL_CATTR(mode));
 	inode_unlock(parent->d_inode);
 	dput(parent);
@@ -1343,7 +1369,7 @@ static int ovl_create_volatile_dirty(struct ovl_fs *ofs)
 	const char *const *name = volatile_path;
 
 	for (ctr = ARRAY_SIZE(volatile_path); ctr; ctr--, name++) {
-		d = ovl_lookup_or_create(d, *name, ctr > 1 ? S_IFDIR : S_IFREG);
+		d = ovl_lookup_or_create(ofs, d, *name, ctr > 1 ? S_IFDIR : S_IFREG);
 		if (IS_ERR(d))
 			return PTR_ERR(d);
 	}
@@ -1391,7 +1417,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 		pr_warn("upper fs needs to support d_type.\n");
 
 	/* Check if upper/work fs supports O_TMPFILE */
-	temp = ovl_do_tmpfile(ofs->workdir, S_IFREG | 0);
+	temp = ovl_do_tmpfile(ofs, ofs->workdir, S_IFREG | 0);
 	ofs->tmpfile = !IS_ERR(temp);
 	if (ofs->tmpfile)
 		dput(temp);
@@ -1400,7 +1426,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 
 
 	/* Check if upper/work fs supports RENAME_WHITEOUT */
-	err = ovl_check_rename_whiteout(ofs->workdir);
+	err = ovl_check_rename_whiteout(ofs);
 	if (err < 0)
 		goto out;
 
@@ -1411,7 +1437,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 	/*
 	 * Check if upper/work fs supports (trusted|user).overlay.* xattr
 	 */
-	err = ovl_do_setxattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE, "0", 1);
+	err = ovl_setxattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE, "0", 1);
 	if (err) {
 		ofs->noxattr = true;
 		if (ofs->config.index || ofs->config.metacopy) {
@@ -1429,7 +1455,7 @@ static int ovl_make_workdir(struct super_block *sb, struct ovl_fs *ofs,
 		}
 		err = 0;
 	} else {
-		ovl_do_removexattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE);
+		ovl_removexattr(ofs, ofs->workdir, OVL_XATTR_OPAQUE);
 	}
 
 	/*
@@ -1961,6 +1987,20 @@ static struct dentry *ovl_get_root(struct super_block *sb,
 	return root;
 }
 
+static bool ovl_has_idmapped_layers(struct ovl_fs *ofs)
+{
+
+	unsigned int i;
+	const struct vfsmount *mnt;
+
+	for (i = 0; i < ofs->numlayer; i++) {
+		mnt = ofs->layers[i].mnt;
+		if (mnt && is_idmapped_mnt(mnt))
+			return true;
+	}
+	return false;
+}
+
 static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 {
 	struct path upperpath = { };
@@ -2130,7 +2170,10 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_xattr = ofs->config.userxattr ? ovl_user_xattr_handlers :
 		ovl_trusted_xattr_handlers;
 	sb->s_fs_info = ofs;
-	sb->s_flags |= SB_POSIXACL;
+	if (ovl_has_idmapped_layers(ofs))
+		pr_warn("POSIX ACLs are not yet supported with idmapped layers, mounting without ACL support.\n");
+	else
+		sb->s_flags |= SB_POSIXACL;
 	sb->s_iflags |= SB_I_SKIP_SYNC;
 
 	err = -ENOMEM;
@@ -2142,7 +2185,6 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	kfree(splitlower);
 
 	sb->s_root = root_dentry;
-
 	return 0;
 
 out_free_oe:

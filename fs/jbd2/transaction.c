@@ -2114,7 +2114,7 @@ out:
 /**
  * jbd2_journal_try_to_free_buffers() - try to free page buffers.
  * @journal: journal for operation
- * @page: to try and free
+ * @folio: Folio to detach data from.
  *
  * For all the buffers on this page,
  * if they are fully written out ordered data, move them onto BUF_CLEAN

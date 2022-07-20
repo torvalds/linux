@@ -64,6 +64,13 @@ config XTERM_CHAN
 	  its own xterm.
 	  It is safe to say 'Y' here.
 
+config XTERM_CHAN_DEFAULT_EMULATOR
+	string "xterm channel default terminal emulator"
+	depends on XTERM_CHAN
+	default "xterm"
+	help
+	  This option allows changing the default terminal emulator.
+
 config NOCONFIG_CHAN
 	bool
 	default !(XTERM_CHAN && TTY_CHAN && PTY_CHAN && PORT_CHAN && NULL_CHAN)
@@ -230,6 +237,14 @@ config UML_NET_DAEMON
 	  migrate to UML_NET_VECTOR.
 
 	  If unsure, say N.
+
+config UML_NET_DAEMON_DEFAULT_SOCK
+	string "Default socket for daemon transport"
+	default "/tmp/uml.ctl"
+	depends on UML_NET_DAEMON
+	help
+	  This option allows setting the default socket for the daemon
+	  transport, normally it defaults to /tmp/uml.ctl.
 
 config UML_NET_VECTOR
 	bool "Vector I/O high performance network devices"

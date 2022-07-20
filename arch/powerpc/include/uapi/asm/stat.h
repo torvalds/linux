@@ -37,8 +37,8 @@ struct stat {
 	__kernel_mode_t	st_mode;
 	unsigned short	st_nlink;
 #endif
-	__kernel_uid_t	st_uid;
-	__kernel_gid_t	st_gid;
+	__kernel_uid32_t st_uid;
+	__kernel_gid32_t st_gid;
 	unsigned long	st_rdev;
 	long		st_size;
 	unsigned long	st_blksize;

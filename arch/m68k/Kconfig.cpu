@@ -37,7 +37,7 @@ endchoice
 if M68KCLASSIC
 
 config M68000
-	bool
+	def_bool y
 	depends on !MMU
 	select CPU_HAS_NO_BITFIELDS
 	select CPU_HAS_NO_CAS

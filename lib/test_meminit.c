@@ -279,13 +279,18 @@ static int __init do_kmem_cache_rcu_persistent(int size, int *total_failures)
 	c = kmem_cache_create("test_cache", size, size, SLAB_TYPESAFE_BY_RCU,
 			      NULL);
 	buf = kmem_cache_alloc(c, GFP_KERNEL);
+	if (!buf)
+		goto out;
 	saved_ptr = buf;
 	fill_with_garbage(buf, size);
 	buf_contents = kmalloc(size, GFP_KERNEL);
-	if (!buf_contents)
+	if (!buf_contents) {
+		kmem_cache_free(c, buf);
 		goto out;
+	}
 	used_objects = kmalloc_array(maxiter, sizeof(void *), GFP_KERNEL);
 	if (!used_objects) {
+		kmem_cache_free(c, buf);
 		kfree(buf_contents);
 		goto out;
 	}
@@ -306,11 +311,14 @@ static int __init do_kmem_cache_rcu_persistent(int size, int *total_failures)
 		}
 	}
 
+	for (iter = 0; iter < maxiter; iter++)
+		kmem_cache_free(c, used_objects[iter]);
+
 free_out:
-	kmem_cache_destroy(c);
 	kfree(buf_contents);
 	kfree(used_objects);
 out:
+	kmem_cache_destroy(c);
 	*total_failures += fail;
 	return 1;
 }

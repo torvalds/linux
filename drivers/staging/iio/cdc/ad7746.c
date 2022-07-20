@@ -290,7 +290,7 @@ static inline ssize_t ad7746_start_calib(struct device *dev,
 	int ret, timeout = 10;
 	bool doit;
 
-	ret = strtobool(buf, &doit);
+	ret = kstrtobool(buf, &doit);
 	if (ret < 0)
 		return ret;
 

@@ -322,19 +322,6 @@ void blk_cleanup_queue(struct request_queue *q)
 		blk_mq_exit_queue(q);
 	}
 
-	/*
-	 * In theory, request pool of sched_tags belongs to request queue.
-	 * However, the current implementation requires tag_set for freeing
-	 * requests, so free the pool now.
-	 *
-	 * Queue has become frozen, there can't be any in-queue requests, so
-	 * it is safe to free requests now.
-	 */
-	mutex_lock(&q->sysfs_lock);
-	if (q->elevator)
-		blk_mq_sched_free_rqs(q);
-	mutex_unlock(&q->sysfs_lock);
-
 	/* @q is and will stay empty, shutdown and put */
 	blk_put_queue(q);
 }
@@ -939,7 +926,7 @@ int bio_poll(struct bio *bio, struct io_comp_batch *iob, unsigned int flags)
 
 	blk_flush_plug(current->plug, false);
 
-	if (blk_queue_enter(q, BLK_MQ_REQ_NOWAIT))
+	if (bio_queue_enter(bio))
 		return 0;
 	if (queue_is_mq(q)) {
 		ret = blk_mq_poll(q, cookie, iob, flags);

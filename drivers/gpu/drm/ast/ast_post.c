@@ -391,7 +391,7 @@ void ast_post_gpu(struct drm_device *dev)
 
 		ast_init_3rdtx(dev);
 	} else {
-		if (ast->tx_chip_type != AST_TX_NONE)
+		if (ast->tx_chip_types & AST_TX_SIL164_BIT)
 			ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xa3, 0xcf, 0x80);	/* Enable DVO */
 	}
 }

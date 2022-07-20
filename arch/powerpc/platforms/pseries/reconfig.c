@@ -13,7 +13,6 @@
 #include <linux/slab.h>
 #include <linux/of.h>
 
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <linux/uaccess.h>
 #include <asm/mmu.h>

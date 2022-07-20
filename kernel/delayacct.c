@@ -177,11 +177,14 @@ int delayacct_add_tsk(struct taskstats *d, struct task_struct *tsk)
 	d->thrashing_delay_total = (tmp < d->thrashing_delay_total) ? 0 : tmp;
 	tmp = d->compact_delay_total + tsk->delays->compact_delay;
 	d->compact_delay_total = (tmp < d->compact_delay_total) ? 0 : tmp;
+	tmp = d->wpcopy_delay_total + tsk->delays->wpcopy_delay;
+	d->wpcopy_delay_total = (tmp < d->wpcopy_delay_total) ? 0 : tmp;
 	d->blkio_count += tsk->delays->blkio_count;
 	d->swapin_count += tsk->delays->swapin_count;
 	d->freepages_count += tsk->delays->freepages_count;
 	d->thrashing_count += tsk->delays->thrashing_count;
 	d->compact_count += tsk->delays->compact_count;
+	d->wpcopy_count += tsk->delays->wpcopy_count;
 	raw_spin_unlock_irqrestore(&tsk->delays->lock, flags);
 
 	return 0;
@@ -248,4 +251,17 @@ void __delayacct_compact_end(void)
 		      &current->delays->compact_start,
 		      &current->delays->compact_delay,
 		      &current->delays->compact_count);
+}
+
+void __delayacct_wpcopy_start(void)
+{
+	current->delays->wpcopy_start = local_clock();
+}
+
+void __delayacct_wpcopy_end(void)
+{
+	delayacct_end(&current->delays->lock,
+		      &current->delays->wpcopy_start,
+		      &current->delays->wpcopy_delay,
+		      &current->delays->wpcopy_count);
 }

@@ -570,8 +570,7 @@ static int cs2000_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int cs2000_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int cs2000_probe(struct i2c_client *client)
 {
 	struct cs2000_priv *priv;
 	struct device *dev = &client->dev;
@@ -625,7 +624,7 @@ static struct i2c_driver cs2000_driver = {
 		.pm	= &cs2000_pm_ops,
 		.of_match_table = cs2000_of_match,
 	},
-	.probe		= cs2000_probe,
+	.probe_new	= cs2000_probe,
 	.remove		= cs2000_remove,
 	.id_table	= cs2000_id,
 };

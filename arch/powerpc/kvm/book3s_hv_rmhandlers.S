@@ -51,6 +51,14 @@
 #define STACK_SLOT_FSCR		(SFS-96)
 
 /*
+ * Use the last LPID (all implemented LPID bits = 1) for partition switching.
+ * This is reserved in the LPID allocator. POWER7 only implements 0x3ff, but
+ * we write 0xfff into the LPID SPR anyway, which seems to work and just
+ * ignores the top bits.
+ */
+#define   LPID_RSVD		0xfff
+
+/*
  * Call kvmppc_hv_entry in real mode.
  * Must be called with interrupts hard-disabled.
  *
@@ -1784,13 +1792,8 @@ hcall_real_table:
 	.long	DOTSYM(kvmppc_h_clear_mod) - hcall_real_table
 	.long	DOTSYM(kvmppc_h_clear_ref) - hcall_real_table
 	.long	DOTSYM(kvmppc_h_protect) - hcall_real_table
-#ifdef CONFIG_SPAPR_TCE_IOMMU
-	.long	DOTSYM(kvmppc_h_get_tce) - hcall_real_table
-	.long	DOTSYM(kvmppc_rm_h_put_tce) - hcall_real_table
-#else
 	.long	0		/* 0x1c */
 	.long	0		/* 0x20 */
-#endif
 	.long	0		/* 0x24 - H_SET_SPRG0 */
 	.long	DOTSYM(kvmppc_h_set_dabr) - hcall_real_table
 	.long	DOTSYM(kvmppc_rm_h_page_init) - hcall_real_table
@@ -1808,11 +1811,11 @@ hcall_real_table:
 	.long	0		/* 0x5c */
 	.long	0		/* 0x60 */
 #ifdef CONFIG_KVM_XICS
-	.long	DOTSYM(kvmppc_rm_h_eoi) - hcall_real_table
-	.long	DOTSYM(kvmppc_rm_h_cppr) - hcall_real_table
-	.long	DOTSYM(kvmppc_rm_h_ipi) - hcall_real_table
-	.long	DOTSYM(kvmppc_rm_h_ipoll) - hcall_real_table
-	.long	DOTSYM(kvmppc_rm_h_xirr) - hcall_real_table
+	.long	DOTSYM(xics_rm_h_eoi) - hcall_real_table
+	.long	DOTSYM(xics_rm_h_cppr) - hcall_real_table
+	.long	DOTSYM(xics_rm_h_ipi) - hcall_real_table
+	.long	0		/* 0x70 - H_IPOLL */
+	.long	DOTSYM(xics_rm_h_xirr) - hcall_real_table
 #else
 	.long	0		/* 0x64 - H_EOI */
 	.long	0		/* 0x68 - H_CPPR */
@@ -1868,13 +1871,8 @@ hcall_real_table:
 	.long	0		/* 0x12c */
 	.long	0		/* 0x130 */
 	.long	DOTSYM(kvmppc_h_set_xdabr) - hcall_real_table
-#ifdef CONFIG_SPAPR_TCE_IOMMU
-	.long	DOTSYM(kvmppc_rm_h_stuff_tce) - hcall_real_table
-	.long	DOTSYM(kvmppc_rm_h_put_tce_indirect) - hcall_real_table
-#else
 	.long	0		/* 0x138 */
 	.long	0		/* 0x13c */
-#endif
 	.long	0		/* 0x140 */
 	.long	0		/* 0x144 */
 	.long	0		/* 0x148 */
@@ -1987,7 +1985,7 @@ hcall_real_table:
 	.long	0		/* 0x2f4 */
 	.long	0		/* 0x2f8 */
 #ifdef CONFIG_KVM_XICS
-	.long	DOTSYM(kvmppc_rm_h_xirr_x) - hcall_real_table
+	.long	DOTSYM(xics_rm_h_xirr_x) - hcall_real_table
 #else
 	.long	0		/* 0x2fc - H_XIRR_X*/
 #endif

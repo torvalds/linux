@@ -33,7 +33,7 @@
 #include <linux/platform_device.h>
 
 #include <asm/mach-types.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 
 #include <sound/core.h>
 #include <sound/pcm.h>

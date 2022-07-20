@@ -32,6 +32,7 @@
 #include <linux/dma-map-ops.h> /* for dma_default_coherent */
 
 #include "base.h"
+#include "physical_location.h"
 #include "power/power.h"
 
 #ifdef CONFIG_SYSFS_DEPRECATED
@@ -485,7 +486,18 @@ static void device_link_release_fn(struct work_struct *work)
 	/* Ensure that all references to the link object have been dropped. */
 	device_link_synchronize_removal();
 
-	pm_runtime_release_supplier(link, true);
+	pm_runtime_release_supplier(link);
+	/*
+	 * If supplier_preactivated is set, the link has been dropped between
+	 * the pm_runtime_get_suppliers() and pm_runtime_put_suppliers() calls
+	 * in __driver_probe_device().  In that case, drop the supplier's
+	 * PM-runtime usage counter to remove the reference taken by
+	 * pm_runtime_get_suppliers().
+	 */
+	if (link->supplier_preactivated)
+		pm_runtime_put_noidle(link->supplier);
+
+	pm_request_idle(link->supplier);
 
 	put_device(link->consumer);
 	put_device(link->supplier);
@@ -2649,8 +2661,17 @@ static int device_add_attrs(struct device *dev)
 			goto err_remove_dev_waiting_for_supplier;
 	}
 
+	if (dev_add_physical_location(dev)) {
+		error = device_add_group(dev,
+			&dev_attr_physical_location_group);
+		if (error)
+			goto err_remove_dev_removable;
+	}
+
 	return 0;
 
+ err_remove_dev_removable:
+	device_remove_file(dev, &dev_attr_removable);
  err_remove_dev_waiting_for_supplier:
 	device_remove_file(dev, &dev_attr_waiting_for_supplier);
  err_remove_dev_online:
@@ -2671,6 +2692,11 @@ static void device_remove_attrs(struct device *dev)
 {
 	struct class *class = dev->class;
 	const struct device_type *type = dev->type;
+
+	if (dev->physical_location) {
+		device_remove_group(dev, &dev_attr_physical_location_group);
+		kfree(dev->physical_location);
+	}
 
 	device_remove_file(dev, &dev_attr_removable);
 	device_remove_file(dev, &dev_attr_waiting_for_supplier);
@@ -2864,9 +2890,6 @@ void device_initialize(struct device *dev)
 	kobject_init(&dev->kobj, &device_ktype);
 	INIT_LIST_HEAD(&dev->dma_pools);
 	mutex_init(&dev->mutex);
-#ifdef CONFIG_PROVE_LOCKING
-	mutex_init(&dev->lockdep_mutex);
-#endif
 	lockdep_set_novalidate_class(&dev->mutex);
 	spin_lock_init(&dev->devres_lock);
 	INIT_LIST_HEAD(&dev->devres_head);

@@ -357,25 +357,6 @@ config ARCH_FOOTBRIDGE
 	  Support for systems based on the DC21285 companion chip
 	  ("FootBridge"), such as the Simtec CATS and the Rebel NetWinder.
 
-config ARCH_PXA
-	bool "PXA2xx/PXA3xx-based"
-	depends on CPU_LITTLE_ENDIAN
-	select ARCH_MTD_XIP
-	select ARM_CPU_SUSPEND if PM
-	select AUTO_ZRELADDR
-	select COMMON_CLK
-	select CLKSRC_PXA
-	select CLKSRC_MMIO
-	select TIMER_OF
-	select CPU_XSCALE if !CPU_XSC3
-	select GPIO_PXA
-	select GPIOLIB
-	select IRQ_DOMAIN
-	select PLAT_PXA
-	select SPARSE_IRQ
-	help
-	  Support for Intel/Marvell's PXA2xx/PXA3xx processor line.
-
 config ARCH_RPC
 	bool "RiscPC"
 	depends on !CC_IS_CLANG && GCC_VERSION < 90100 && GCC_VERSION >= 60000
@@ -414,19 +395,6 @@ config ARCH_SA1100
 	select SPARSE_IRQ
 	help
 	  Support for StrongARM 11x0 based boards.
-
-config ARCH_OMAP1
-	bool "TI OMAP1"
-	depends on CPU_LITTLE_ENDIAN
-	select CLKSRC_MMIO
-	select FORCE_PCI if PCCARD
-	select GENERIC_IRQ_CHIP
-	select GPIOLIB
-	select HAVE_LEGACY_CLK
-	select IRQ_DOMAIN
-	select SPARSE_IRQ
-	help
-	  Support for older TI OMAP1 (omap7xx, omap15xx or omap16xx)
 
 endchoice
 
@@ -550,6 +518,8 @@ source "arch/arm/mach-highbank/Kconfig"
 
 source "arch/arm/mach-hisi/Kconfig"
 
+source "arch/arm/mach-hpe/Kconfig"
+
 source "arch/arm/mach-imx/Kconfig"
 
 source "arch/arm/mach-iop32x/Kconfig"
@@ -593,7 +563,6 @@ source "arch/arm/mach-orion5x/Kconfig"
 source "arch/arm/mach-oxnas/Kconfig"
 
 source "arch/arm/mach-pxa/Kconfig"
-source "arch/arm/plat-pxa/Kconfig"
 
 source "arch/arm/mach-qcom/Kconfig"
 
@@ -671,9 +640,6 @@ config PLAT_ORION
 config PLAT_ORION_LEGACY
 	bool
 	select PLAT_ORION
-
-config PLAT_PXA
-	bool
 
 config PLAT_VERSATILE
 	bool

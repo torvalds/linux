@@ -704,6 +704,13 @@ static CLK_FIXED_FACTOR_HWS(pll_periph0_2x_clk, "pll-periph0-2x",
 			    pll_periph0_parents,
 			    1, 2, 0);
 
+static const struct clk_hw *pll_periph0_2x_hws[] = {
+	&pll_periph0_2x_clk.hw
+};
+
+static CLK_FIXED_FACTOR_HWS(pll_system_32k_clk, "pll-system-32k",
+			    pll_periph0_2x_hws, 36621, 1, 0);
+
 static const struct clk_hw *pll_periph1_parents[] = {
 	&pll_periph1_clk.common.hw
 };
@@ -852,6 +859,7 @@ static struct clk_hw_onecell_data sun50i_h616_hw_clks = {
 		[CLK_PLL_DDR1]		= &pll_ddr1_clk.common.hw,
 		[CLK_PLL_PERIPH0]	= &pll_periph0_clk.common.hw,
 		[CLK_PLL_PERIPH0_2X]	= &pll_periph0_2x_clk.hw,
+		[CLK_PLL_SYSTEM_32K]	= &pll_system_32k_clk.hw,
 		[CLK_PLL_PERIPH1]	= &pll_periph1_clk.common.hw,
 		[CLK_PLL_PERIPH1_2X]	= &pll_periph1_2x_clk.hw,
 		[CLK_PLL_GPU]		= &pll_gpu_clk.common.hw,

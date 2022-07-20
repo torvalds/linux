@@ -16,7 +16,7 @@ static int usb_read(struct intf_hdl *intf, u16 value, void *data, u8 size)
 	int status;
 	u8 io_buf[4];
 
-	if (adapt->bSurpriseRemoved || adapt->pwrctrlpriv.pnp_bstop_trx)
+	if (adapt->bSurpriseRemoved)
 		return -EPERM;
 
 	status = usb_control_msg_recv(udev, 0, REALTEK_USB_VENQT_CMD_REQ,
@@ -59,7 +59,7 @@ static int usb_write(struct intf_hdl *intf, u16 value, void *data, u8 size)
 	int status;
 	u8 io_buf[VENDOR_CMD_MAX_DATA_LEN];
 
-	if (adapt->bSurpriseRemoved || adapt->pwrctrlpriv.pnp_bstop_trx)
+	if (adapt->bSurpriseRemoved)
 		return -EPERM;
 
 	memcpy(io_buf, data, size);
@@ -260,7 +260,6 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 
 		pkt_copy = netdev_alloc_skb(adapt->pnetdev, alloc_sz);
 		if (pkt_copy) {
-			pkt_copy->dev = adapt->pnetdev;
 			precvframe->pkt = pkt_copy;
 			precvframe->rx_head = pkt_copy->data;
 			precvframe->rx_end = pkt_copy->data + alloc_sz;
@@ -288,7 +287,7 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 
 		recvframe_put(precvframe, skb_len);
 
-		pkt_offset = (u16)_RND128(pkt_offset);
+		pkt_offset = (u16)round_up(pkt_offset, 128);
 
 		if (pattrib->pkt_rpt_type == NORMAL_RX) { /* Normal rx packet */
 			if (pattrib->physt)
@@ -415,8 +414,7 @@ u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 	size_t alignment = 0;
 	u32 ret = _SUCCESS;
 
-	if (adapter->bDriverStopped || adapter->bSurpriseRemoved ||
-	    adapter->pwrctrlpriv.pnp_bstop_trx)
+	if (adapter->bDriverStopped || adapter->bSurpriseRemoved)
 		return _FAIL;
 
 	if (!precvbuf)

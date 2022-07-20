@@ -290,11 +290,6 @@ static int bond_changelink(struct net_device *bond_dev, struct nlattr *tb[],
 
 			addr6 = nla_get_in6_addr(attr);
 
-			if (ipv6_addr_type(&addr6) & IPV6_ADDR_LINKLOCAL) {
-				NL_SET_ERR_MSG(extack, "Invalid IPv6 addr6");
-				return -EINVAL;
-			}
-
 			bond_opt_initextra(&newval, &addr6, sizeof(addr6));
 			err = __bond_opt_set(bond, BOND_OPT_NS_TARGETS,
 					     &newval);

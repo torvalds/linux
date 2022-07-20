@@ -31,10 +31,10 @@
 #include <linux/gfp.h>
 #include <linux/of.h>
 #include <linux/of_device.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include <linux/sizes.h>
 
-#include <mach/hardware.h>
 #include <linux/platform_data/mmc-pxamci.h>
 
 #include "pxamci.h"

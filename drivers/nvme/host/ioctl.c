@@ -453,6 +453,7 @@ static int nvme_uring_cmd_io(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 			blk_flags);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
+	req->end_io = nvme_uring_cmd_end_io;
 	req->end_io_data = ioucmd;
 
 	/* to free bio on completion, as req->bio will be null at that time */
@@ -461,7 +462,7 @@ static int nvme_uring_cmd_io(struct nvme_ctrl *ctrl, struct nvme_ns *ns,
 	pdu->meta_buffer = nvme_to_user_ptr(d.metadata);
 	pdu->meta_len = d.metadata_len;
 
-	blk_execute_rq_nowait(req, 0, nvme_uring_cmd_end_io);
+	blk_execute_rq_nowait(req, false);
 	return -EIOCBQUEUED;
 }
 

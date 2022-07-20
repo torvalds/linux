@@ -95,7 +95,7 @@ static void nd_region_remove(struct device *dev)
 	nvdimm_bus_unlock(dev);
 
 	/*
-	 * Note, this assumes nd_device_lock() context to not race
+	 * Note, this assumes device_lock() context to not race
 	 * nd_region_notify()
 	 */
 	sysfs_put(nd_region->bb_state);

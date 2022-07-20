@@ -8,7 +8,6 @@
 #include "../include/xmit_osdep.h"
 #include "../include/hal_intf.h"
 #include "../include/osdep_intf.h"
-#include "../include/usb_vendor_req.h"
 #include "../include/usb_ops.h"
 #include "../include/usb_osintf.h"
 #include "../include/rtw_ioctl.h"
@@ -200,8 +199,6 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	struct pwrctrl_priv *pwrpriv = &padapter->pwrctrlpriv;
 
-	int ret = 0;
-
 	if ((!padapter->bup) || (padapter->bDriverStopped) ||
 	    (padapter->bSurpriseRemoved))
 		goto exit;
@@ -240,7 +237,7 @@ static int rtw_suspend(struct usb_interface *pusb_intf, pm_message_t message)
 		rtw_indicate_disconnect(padapter);
 
 exit:
-		return ret;
+		return 0;
 }
 
 static int rtw_resume(struct usb_interface *pusb_intf)

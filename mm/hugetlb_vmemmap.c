@@ -33,7 +33,7 @@ DEFINE_STATIC_KEY_MAYBE(CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON,
 EXPORT_SYMBOL(hugetlb_optimize_vmemmap_key);
 
 static enum vmemmap_optimize_mode vmemmap_optimize_mode =
-	IS_ENABLED(CONFIG_HUGETLB_PAGE_FREE_VMEMMAP_DEFAULT_ON);
+	IS_ENABLED(CONFIG_HUGETLB_PAGE_OPTIMIZE_VMEMMAP_DEFAULT_ON);
 
 static void vmemmap_optimize_mode_switch(enum vmemmap_optimize_mode to)
 {

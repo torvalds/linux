@@ -20,10 +20,10 @@
 # $ ./scripts/objdiff diff COMMIT_A COMMIT_B
 # $
 
-# And to clean up (everything is in .tmp_objdiff/*)
+# And to clean up (everything is in .objdiff/*)
 # $ ./scripts/objdiff clean all
 #
-# Note: 'make mrproper' will also remove .tmp_objdiff
+# Note: 'make mrproper' will also remove .objdiff
 
 SRCTREE=$(cd $(git rev-parse --show-toplevel 2>/dev/null); pwd)
 
@@ -32,7 +32,7 @@ if [ -z "$SRCTREE" ]; then
 	exit 1
 fi
 
-TMPD=$SRCTREE/.tmp_objdiff
+TMPD=$SRCTREE/.objdiff
 
 usage() {
 	echo >&2 "Usage: $0 <command> <args>"

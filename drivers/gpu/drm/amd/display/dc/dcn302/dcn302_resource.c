@@ -43,6 +43,8 @@
 #include "dcn20/dcn20_dsc.h"
 #include "dcn20/dcn20_resource.h"
 
+#include "dml/dcn30/dcn30_fpu.h"
+
 #include "dcn10/dcn10_resource.h"
 
 #include "dce/dce_abm.h"

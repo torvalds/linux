@@ -36,8 +36,7 @@
 #include <linux/usb.h>
 #include <linux/usb/hcd.h>
 #include <linux/usb/otg.h>
-
-#include <mach/hardware.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include "ohci.h"
 

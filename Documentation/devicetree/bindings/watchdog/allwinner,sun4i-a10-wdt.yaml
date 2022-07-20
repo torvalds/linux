@@ -64,7 +64,6 @@ if:
 then:
   properties:
     clocks:
-      minItems: 2
       items:
         - description: High-frequency oscillator input, divided internally
         - description: Low-frequency oscillator input

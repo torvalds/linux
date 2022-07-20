@@ -17,13 +17,14 @@
 #include <linux/irq.h>
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include <asm/exception.h>
 
-#include <mach/hardware.h>
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #include "generic.h"
+#include "pxa-regs.h"
 
 #define ICIP			(0x000)
 #define ICMR			(0x004)

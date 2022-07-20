@@ -27,6 +27,7 @@
 #include "core_types.h"
 #include "dccg.h"
 #include "dc_link_dp.h"
+#include "clk_mgr.h"
 
 static enum phyd32clk_clock_source get_phyd32clk_src(struct dc_link *link)
 {
@@ -106,14 +107,18 @@ static void setup_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx)
 	struct hpo_dp_link_encoder *link_enc = pipe_ctx->link_res.hpo_dp_link_enc;
 	struct dccg *dccg = dc->res_pool->dccg;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
-	int odm_segment_count = get_odm_segment_count(pipe_ctx);
+	struct dtbclk_dto_params dto_params = {0};
 	enum phyd32clk_clock_source phyd32clk = get_phyd32clk_src(pipe_ctx->stream->link);
+
+	dto_params.otg_inst = tg->inst;
+	dto_params.pixclk_khz = pipe_ctx->stream->phy_pix_clk;
+	dto_params.num_odm_segments = get_odm_segment_count(pipe_ctx);
+	dto_params.timing = &pipe_ctx->stream->timing;
+	dto_params.ref_dtbclk_khz = dc->clk_mgr->funcs->get_dtb_ref_clk_frequency(dc->clk_mgr);
 
 	dccg->funcs->set_dpstreamclk(dccg, DTBCLK0, tg->inst);
 	dccg->funcs->enable_symclk32_se(dccg, stream_enc->inst, phyd32clk);
-	dccg->funcs->set_dtbclk_dto(dccg, tg->inst, pipe_ctx->stream->phy_pix_clk,
-			odm_segment_count,
-			&pipe_ctx->stream->timing);
+	dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
 	stream_enc->funcs->enable_stream(stream_enc);
 	stream_enc->funcs->map_stream_to_link(stream_enc, stream_enc->inst, link_enc->inst);
 }
@@ -124,9 +129,13 @@ static void reset_hpo_dp_stream_encoder(struct pipe_ctx *pipe_ctx)
 	struct hpo_dp_stream_encoder *stream_enc = pipe_ctx->stream_res.hpo_dp_stream_enc;
 	struct dccg *dccg = dc->res_pool->dccg;
 	struct timing_generator *tg = pipe_ctx->stream_res.tg;
+	struct dtbclk_dto_params dto_params = {0};
+
+	dto_params.otg_inst = tg->inst;
+	dto_params.timing = &pipe_ctx->stream->timing;
 
 	stream_enc->funcs->disable(stream_enc);
-	dccg->funcs->set_dtbclk_dto(dccg, tg->inst, 0, 0, &pipe_ctx->stream->timing);
+	dccg->funcs->set_dtbclk_dto(dccg, &dto_params);
 	dccg->funcs->disable_symclk32_se(dccg, stream_enc->inst);
 	dccg->funcs->set_dpstreamclk(dccg, REFCLK, tg->inst);
 }

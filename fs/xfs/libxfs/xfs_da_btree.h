@@ -92,6 +92,7 @@ typedef struct xfs_da_args {
 #define XFS_DA_OP_NOTIME	(1u << 5) /* don't update inode timestamps */
 #define XFS_DA_OP_REMOVE	(1u << 6) /* this is a remove operation */
 #define XFS_DA_OP_RECOVERY	(1u << 7) /* Log recovery operation */
+#define XFS_DA_OP_LOGGED	(1u << 8) /* Use intent items to track op */
 
 #define XFS_DA_OP_FLAGS \
 	{ XFS_DA_OP_JUSTCHECK,	"JUSTCHECK" }, \
@@ -101,7 +102,8 @@ typedef struct xfs_da_args {
 	{ XFS_DA_OP_CILOOKUP,	"CILOOKUP" }, \
 	{ XFS_DA_OP_NOTIME,	"NOTIME" }, \
 	{ XFS_DA_OP_REMOVE,	"REMOVE" }, \
-	{ XFS_DA_OP_RECOVERY,	"RECOVERY" }
+	{ XFS_DA_OP_RECOVERY,	"RECOVERY" }, \
+	{ XFS_DA_OP_LOGGED,	"LOGGED" }
 
 /*
  * Storage for holding state during Btree searches and split/join ops.
@@ -225,6 +227,7 @@ enum xfs_dacmp xfs_da_compname(struct xfs_da_args *args,
 
 struct xfs_da_state *xfs_da_state_alloc(struct xfs_da_args *args);
 void xfs_da_state_free(xfs_da_state_t *state);
+void xfs_da_state_reset(struct xfs_da_state *state, struct xfs_da_args *args);
 
 void	xfs_da3_node_hdr_from_disk(struct xfs_mount *mp,
 		struct xfs_da3_icnode_hdr *to, struct xfs_da_intnode *from);

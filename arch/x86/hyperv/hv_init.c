@@ -13,6 +13,7 @@
 #include <linux/io.h>
 #include <asm/apic.h>
 #include <asm/desc.h>
+#include <asm/sev.h>
 #include <asm/hypervisor.h>
 #include <asm/hyperv-tlfs.h>
 #include <asm/mshyperv.h>
@@ -405,6 +406,11 @@ void __init hyperv_init(void)
 	}
 
 	if (hv_isolation_type_snp()) {
+		/* Negotiate GHCB Version. */
+		if (!hv_ghcb_negotiate_protocol())
+			hv_ghcb_terminate(SEV_TERM_SET_GEN,
+					  GHCB_SEV_ES_PROT_UNSUPPORTED);
+
 		hv_ghcb_pg = alloc_percpu(union hv_ghcb *);
 		if (!hv_ghcb_pg)
 			goto free_vp_assist_page;

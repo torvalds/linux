@@ -218,13 +218,25 @@ int smu_v13_0_init_pptable_microcode(struct smu_context *smu)
 			pptable_id == 3688)
 			pptable_id = 36881;
 		/*
-		 * Temporary solution for SMU V13.0.0:
-		 *   - use 99991 signed pptable when SCPM enabled
-		 * TODO: drop this when the pptable carried in vbios
-		 * is ready.
+		 * Temporary solution for SMU V13.0.0 with SCPM enabled:
+		 *   - use 36831 signed pptable when pp_table_id is 3683
+		 *   - use 36641 signed pptable when pp_table_id is 3664 or 0
+		 * TODO: drop these when the pptable carried in vbios is ready.
 		 */
-		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 0))
-			pptable_id = 99991;
+		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 0)) {
+			switch (pptable_id) {
+			case 0:
+			case 3664:
+				pptable_id = 36641;
+				break;
+			case 3683:
+				pptable_id = 36831;
+				break;
+			default:
+				dev_err(adev->dev, "Unsupported pptable id %d\n", pptable_id);
+				return -EINVAL;
+			}
+		}
 	}
 
 	/* "pptable_id == 0" means vbios carries the pptable. */
@@ -448,13 +460,24 @@ int smu_v13_0_setup_pptable(struct smu_context *smu)
 		pptable_id = smu->smu_table.boot_values.pp_table_id;
 
 		/*
-		 * Temporary solution for SMU V13.0.0:
-		 *   - use 9999 unsigned pptable when SCPM disabled
-		 * TODO: drop this when the pptable carried in vbios
-		 * is ready.
+		 * Temporary solution for SMU V13.0.0 with SCPM disabled:
+		 *   - use 3664 or 3683 on request
+		 *   - use 3664 when pptable_id is 0
+		 * TODO: drop these when the pptable carried in vbios is ready.
 		 */
-		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 0))
-			pptable_id = 9999;
+		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 0)) {
+			switch (pptable_id) {
+			case 0:
+				pptable_id = 3664;
+				break;
+			case 3664:
+			case 3683:
+				break;
+			default:
+				dev_err(adev->dev, "Unsupported pptable id %d\n", pptable_id);
+				return -EINVAL;
+			}
+		}
 	}
 
 	/* force using vbios pptable in sriov mode */
@@ -814,7 +837,7 @@ int smu_v13_0_set_allowed_mask(struct smu_context *smu)
 	    feature->feature_num < 64)
 		return -EINVAL;
 
-	bitmap_copy((unsigned long *)feature_mask, feature->allowed, 64);
+	bitmap_to_arr32(feature_mask, feature->allowed, 64);
 
 	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetAllowedFeaturesMaskHigh,
 					      feature_mask[1], NULL);

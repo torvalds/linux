@@ -4257,7 +4257,6 @@ static void perf_event_remove_on_exec(int ctxn)
 {
 	struct perf_event_context *ctx, *clone_ctx = NULL;
 	struct perf_event *event, *next;
-	LIST_HEAD(free_list);
 	unsigned long flags;
 	bool modified = false;
 
