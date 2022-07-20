@@ -593,8 +593,6 @@ static int cdns_dsi_resets_assert(struct cdns_dsi *dsi, struct device *dev)
 //get clock func
 static int cdns_dsi_get_clock(struct device *dev, struct cdns_dsi *dsi)
 {
-	int ret;
-
 	dsi->dsi_sys_clk = devm_clk_get(dev, "sys");
 	if (IS_ERR(dsi->dsi_sys_clk)){
 		dev_err(dev, "failed to get dsi_sys_clk\n");
@@ -619,14 +617,12 @@ static int cdns_dsi_get_clock(struct device *dev, struct cdns_dsi *dsi)
 		return PTR_ERR(dsi->dpi_clk);
 	}
 
-	return ret;
+	return 0;
 }
 
 //get reset func
 static int cdns_dsi_get_reset(struct device *dev, struct cdns_dsi *dsi)
 {
-	int ret;
-
 	dsi->dpi_rst = reset_control_get_exclusive(dev, "dsi_dpi");
 	if (IS_ERR(dsi->dpi_rst)){
 		dev_err(dev, "failed to get dpi_rst\n");
@@ -663,7 +659,7 @@ static int cdns_dsi_get_reset(struct device *dev, struct cdns_dsi *dsi)
 		return PTR_ERR(dsi->txesc_rst);
 	}
 
-	return ret;
+	return 0;
 }
 
 static inline struct cdns_dsi *input_to_dsi(struct cdns_dsi_input *input)
