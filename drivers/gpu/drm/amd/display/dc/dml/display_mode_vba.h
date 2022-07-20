@@ -196,6 +196,13 @@ struct DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCal
 	unsigned int ReorderBytes;
 	unsigned int VMDataOnlyReturnBW;
 	double HostVMInefficiencyFactor;
+	DmlPipe myPipe;
+	SOCParametersList mmSOCParameters;
+	double dummy_unit_vector[DC__NUM_DPP__MAX];
+	double dummy_single[2];
+	enum clock_change_support dummy_dramchange_support;
+	enum dm_fclock_change_support dummy_fclkchange_support;
+	bool dummy_USRRetrainingSupport;
 };
 
 struct dml32_ModeSupportAndSystemConfigurationFull {
@@ -211,6 +218,35 @@ struct dml32_ModeSupportAndSystemConfigurationFull {
 	double DSTXAfterScaler[DC__NUM_DPP__MAX];
 	double MaxTotalVActiveRDBandwidth;
 	bool dummy_boolean_array[2][DC__NUM_DPP__MAX];
+	enum odm_combine_mode dummy_odm_mode[DC__NUM_DPP__MAX];
+	DmlPipe myPipe;
+	unsigned int dummy_integer[4];
+	unsigned int TotalNumberOfActiveOTG;
+	unsigned int TotalNumberOfActiveHDMIFRL;
+	unsigned int TotalNumberOfActiveDP2p0;
+	unsigned int TotalNumberOfActiveDP2p0Outputs;
+	unsigned int TotalDSCUnitsRequired;
+	unsigned int ReorderingBytes;
+	unsigned int TotalSlots;
+	unsigned int NumberOfDPPDSC;
+	unsigned int NumberOfDPPNoDSC;
+	unsigned int NextPrefetchModeState;
+	bool MPCCombineMethodAsNeededForPStateChangeAndVoltage;
+	bool MPCCombineMethodAsPossible;
+	bool FullFrameMALLPStateMethod;
+	bool SubViewportMALLPStateMethod;
+	bool PhantomPipeMALLPStateMethod;
+	bool NoChroma;
+	bool TotalAvailablePipesSupportNoDSC;
+	bool TotalAvailablePipesSupportDSC;
+	enum odm_combine_mode ODMModeNoDSC;
+	enum odm_combine_mode ODMModeDSC;
+	double RequiredDISPCLKPerSurfaceNoDSC;
+	double RequiredDISPCLKPerSurfaceDSC;
+	double BWOfNonCombinedSurfaceOfMaximumBandwidth;
+	double VMDataOnlyReturnBWPerState;
+	double HostVMInefficiencyFactor;
+	bool dummy_boolean[2];
 };
 
 struct dummy_vars {
