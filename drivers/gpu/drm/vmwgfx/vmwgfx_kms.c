@@ -2257,7 +2257,7 @@ out_fini:
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 	mutex_unlock(&dev->mode_config.mutex);
- 
+
 	return 0;
 }
 
