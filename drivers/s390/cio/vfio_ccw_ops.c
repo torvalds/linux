@@ -33,30 +33,16 @@ static int vfio_ccw_mdev_reset(struct vfio_ccw_private *private)
 	return 0;
 }
 
-static int vfio_ccw_mdev_notifier(struct notifier_block *nb,
-				  unsigned long action,
-				  void *data)
+static void vfio_ccw_dma_unmap(struct vfio_device *vdev, u64 iova, u64 length)
 {
 	struct vfio_ccw_private *private =
-		container_of(nb, struct vfio_ccw_private, nb);
+		container_of(vdev, struct vfio_ccw_private, vdev);
 
-	/*
-	 * Vendor drivers MUST unpin pages in response to an
-	 * invalidation.
-	 */
-	if (action == VFIO_IOMMU_NOTIFY_DMA_UNMAP) {
-		struct vfio_iommu_type1_dma_unmap *unmap = data;
+	/* Drivers MUST unpin pages in response to an invalidation. */
+	if (!cp_iova_pinned(&private->cp, iova))
+		return;
 
-		if (!cp_iova_pinned(&private->cp, unmap->iova))
-			return NOTIFY_OK;
-
-		if (vfio_ccw_mdev_reset(private))
-			return NOTIFY_BAD;
-
-		return NOTIFY_OK;
-	}
-
-	return NOTIFY_DONE;
+	vfio_ccw_mdev_reset(private);
 }
 
 static ssize_t name_show(struct mdev_type *mtype,
@@ -154,23 +140,15 @@ static int vfio_ccw_mdev_open_device(struct vfio_device *vdev)
 {
 	struct vfio_ccw_private *private =
 		container_of(vdev, struct vfio_ccw_private, vdev);
-	unsigned long events = VFIO_IOMMU_NOTIFY_DMA_UNMAP;
 	int ret;
 
 	/* Device cannot simply be opened again from this state */
 	if (private->state == VFIO_CCW_STATE_NOT_OPER)
 		return -EINVAL;
 
-	private->nb.notifier_call = vfio_ccw_mdev_notifier;
-
-	ret = vfio_register_notifier(vdev, VFIO_IOMMU_NOTIFY,
-				     &events, &private->nb);
-	if (ret)
-		return ret;
-
 	ret = vfio_ccw_register_async_dev_regions(private);
 	if (ret)
-		goto out_unregister;
+		return ret;
 
 	ret = vfio_ccw_register_schib_dev_regions(private);
 	if (ret)
@@ -190,7 +168,6 @@ static int vfio_ccw_mdev_open_device(struct vfio_device *vdev)
 
 out_unregister:
 	vfio_ccw_unregister_dev_regions(private);
-	vfio_unregister_notifier(vdev, VFIO_IOMMU_NOTIFY, &private->nb);
 	return ret;
 }
 
@@ -201,7 +178,6 @@ static void vfio_ccw_mdev_close_device(struct vfio_device *vdev)
 
 	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_CLOSE);
 	vfio_ccw_unregister_dev_regions(private);
-	vfio_unregister_notifier(vdev, VFIO_IOMMU_NOTIFY, &private->nb);
 }
 
 static ssize_t vfio_ccw_mdev_read_io_region(struct vfio_ccw_private *private,
@@ -624,6 +600,7 @@ static const struct vfio_device_ops vfio_ccw_dev_ops = {
 	.write = vfio_ccw_mdev_write,
 	.ioctl = vfio_ccw_mdev_ioctl,
 	.request = vfio_ccw_mdev_request,
+	.dma_unmap = vfio_ccw_dma_unmap,
 };
 
 struct mdev_driver vfio_ccw_mdev_driver = {

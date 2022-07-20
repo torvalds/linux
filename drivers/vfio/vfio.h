@@ -33,6 +33,9 @@ enum vfio_iommu_notify_type {
 	VFIO_IOMMU_CONTAINER_CLOSE = 0,
 };
 
+/* events for register_notifier() */
+#define VFIO_IOMMU_NOTIFY_DMA_UNMAP BIT(0)
+
 /**
  * struct vfio_iommu_driver_ops - VFIO IOMMU driver callbacks
  */
