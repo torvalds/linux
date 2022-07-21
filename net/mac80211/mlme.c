@@ -1305,7 +1305,6 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	struct ieee80211_prep_tx_info info = {};
 	unsigned int link_id, n_links = 0;
 	u16 present_elems[PRESENT_ELEMS_MAX] = {};
-	const u8 *bssid;
 	void *capab_pos;
 	size_t size;
 	int ret;
@@ -1398,8 +1397,6 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 	if (WARN_ON(!assoc_data->link[assoc_data->assoc_link_id].bss))
 		return -EINVAL;
 
-	bssid = assoc_data->link[assoc_data->assoc_link_id].bss->bssid;
-
 	skb = alloc_skb(size, GFP_KERNEL);
 	if (!skb)
 		return -ENOMEM;
@@ -1416,9 +1413,9 @@ static int ieee80211_send_assoc(struct ieee80211_sub_if_data *sdata)
 		ext_capa->data[2] |= WLAN_EXT_CAPA3_MULTI_BSSID_SUPPORT;
 
 	mgmt = skb_put_zero(skb, 24);
-	memcpy(mgmt->da, bssid, ETH_ALEN);
-	memcpy(mgmt->sa, link->conf->addr, ETH_ALEN);
-	memcpy(mgmt->bssid, bssid, ETH_ALEN);
+	memcpy(mgmt->da, sdata->vif.cfg.ap_addr, ETH_ALEN);
+	memcpy(mgmt->sa, sdata->vif.addr, ETH_ALEN);
+	memcpy(mgmt->bssid, sdata->vif.cfg.ap_addr, ETH_ALEN);
 
 	listen_int = cpu_to_le16(assoc_data->s1g ?
 			ieee80211_encode_usf(local->hw.conf.listen_interval) :
@@ -4892,9 +4889,6 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	sta->sta.wme = (elems->wmm_param || elems->s1g_capab) &&
 		       local->hw.queues >= IEEE80211_NUM_ACS;
 
-	/* needed for fast-xmit setup in sta_info_move_state() */
-	memcpy(sdata->vif.cfg.ap_addr, assoc_data->ap_addr, ETH_ALEN);
-
 	err = sta_info_move_state(sta, IEEE80211_STA_ASSOC);
 	if (!err && !(ifmgd->flags & IEEE80211_STA_CONTROL_PORT))
 		err = sta_info_move_state(sta, IEEE80211_STA_AUTHORIZED);
@@ -6647,6 +6641,9 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 
 	sdata_info(sdata, "authenticate with %pM\n", auth_data->ap_addr);
 
+	/* needed for transmitting the auth frame(s) properly */
+	memcpy(sdata->vif.cfg.ap_addr, auth_data->ap_addr, ETH_ALEN);
+
 	err = ieee80211_prep_connection(sdata, req->bss, req->link_id,
 					req->ap_mld_addr, cont_auth, false);
 	if (err)
@@ -7111,6 +7108,9 @@ int ieee80211_mgd_assoc(struct ieee80211_sub_if_data *sdata,
 		if (err)
 			goto err_clear;
 	}
+
+	/* needed for transmitting the assoc frames properly */
+	memcpy(sdata->vif.cfg.ap_addr, assoc_data->ap_addr, ETH_ALEN);
 
 	err = ieee80211_prep_connection(sdata, cbss, req->link_id,
 					req->ap_mld_addr, true, override);
