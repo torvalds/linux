@@ -353,24 +353,15 @@ static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
 		ppb = -ppb;
 	}
 
-	freq = I40E_PTP_40GB_INCVAL;
-	freq *= ppb;
-	diff = div_u64(freq, 1000000000ULL);
+	smp_mb(); /* Force any pending update before accessing. */
+	freq = I40E_PTP_40GB_INCVAL * READ_ONCE(pf->ptp_adj_mult);
+	diff = mul_u64_u64_div_u64(freq, (u64)ppb,
+				   1000000000ULL);
 
 	if (neg_adj)
 		adj = I40E_PTP_40GB_INCVAL - diff;
 	else
 		adj = I40E_PTP_40GB_INCVAL + diff;
-
-	/* At some link speeds, the base incval is so large that directly
-	 * multiplying by ppb would result in arithmetic overflow even when
-	 * using a u64. Avoid this by instead calculating the new incval
-	 * always in terms of the 40GbE clock rate and then multiplying by the
-	 * link speed factor afterwards. This does result in slightly lower
-	 * precision at lower link speeds, but it is fairly minor.
-	 */
-	smp_mb(); /* Force any pending update before accessing. */
-	adj *= READ_ONCE(pf->ptp_adj_mult);
 
 	wr32(hw, I40E_PRTTSYN_INC_L, adj & 0xFFFFFFFF);
 	wr32(hw, I40E_PRTTSYN_INC_H, adj >> 32);
