@@ -251,6 +251,7 @@
 	.expected_insns = { PSEUDO_CALL_INSN() },
 	.unexpected_insns = { HELPER_CALL_INSN() },
 	.result = ACCEPT,
+	.prog_type = BPF_PROG_TYPE_TRACEPOINT,
 	.func_info = { { 0, MAIN_TYPE }, { 16, CALLBACK_TYPE } },
 	.func_info_cnt = 2,
 	BTF_TYPES
