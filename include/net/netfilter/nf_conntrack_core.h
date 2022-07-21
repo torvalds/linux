@@ -98,6 +98,8 @@ static inline void __nf_ct_set_timeout(struct nf_conn *ct, u64 timeout)
 }
 
 int __nf_ct_change_timeout(struct nf_conn *ct, u64 cta_timeout);
+void __nf_ct_change_status(struct nf_conn *ct, unsigned long on, unsigned long off);
+int nf_ct_change_status_common(struct nf_conn *ct, unsigned int status);
 
 #endif
 
