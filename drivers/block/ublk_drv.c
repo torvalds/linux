@@ -1245,26 +1245,15 @@ out_unlock:
 	return ret;
 }
 
-static struct blk_mq_hw_ctx *ublk_get_hw_queue(struct ublk_device *ub,
-		unsigned int index)
-{
-	struct blk_mq_hw_ctx *hctx;
-	unsigned long i;
-
-	queue_for_each_hw_ctx(ub->ub_queue, hctx, i)
-		if (hctx->queue_num == index)
-			return hctx;
-	return NULL;
-}
-
 static int ublk_ctrl_get_queue_affinity(struct io_uring_cmd *cmd)
 {
 	struct ublksrv_ctrl_cmd *header = (struct ublksrv_ctrl_cmd *)cmd->cmd;
 	void __user *argp = (void __user *)(unsigned long)header->addr;
-	struct blk_mq_hw_ctx *hctx;
 	struct ublk_device *ub;
+	cpumask_var_t cpumask;
 	unsigned long queue;
 	unsigned int retlen;
+	unsigned int i;
 	int ret = -EINVAL;
 	
 	if (header->len * BITS_PER_BYTE < nr_cpu_ids)
@@ -1276,30 +1265,34 @@ static int ublk_ctrl_get_queue_affinity(struct io_uring_cmd *cmd)
 
 	ub = ublk_get_device_from_id(header->dev_id);
 	if (!ub)
-		goto out;
+		return -EINVAL;
 
 	queue = header->data[0];
 	if (queue >= ub->dev_info.nr_hw_queues)
-		goto out;
-	hctx = ublk_get_hw_queue(ub, queue);
-	if (!hctx)
-		goto out;
+		goto out_put_device;
 
+	ret = -ENOMEM;
+	if (!zalloc_cpumask_var(&cpumask, GFP_KERNEL))
+		goto out_put_device;
+
+	for_each_possible_cpu(i) {
+		if (ub->tag_set.map[HCTX_TYPE_DEFAULT].mq_map[i] == queue)
+			cpumask_set_cpu(i, cpumask);
+	}
+
+	ret = -EFAULT;
 	retlen = min_t(unsigned short, header->len, cpumask_size());
-	if (copy_to_user(argp, hctx->cpumask, retlen)) {
-		ret = -EFAULT;
-		goto out;
-	}
-	if (retlen != header->len) {
-		if (clear_user(argp + retlen, header->len - retlen)) {
-			ret = -EFAULT;
-			goto out;
-		}
-	}
+	if (copy_to_user(argp, cpumask, retlen))
+		goto out_free_cpumask;
+	if (retlen != header->len &&
+	    clear_user(argp + retlen, header->len - retlen))
+		goto out_free_cpumask;
+
 	ret = 0;
- out:
-	if (ub)
-		ublk_put_device(ub);
+out_free_cpumask:
+	free_cpumask_var(cpumask);
+out_put_device:
+	ublk_put_device(ub);
 	return ret;
 }
 
