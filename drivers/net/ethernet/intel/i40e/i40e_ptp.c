@@ -334,29 +334,31 @@ static void i40e_ptp_convert_to_hwtstamp(struct skb_shared_hwtstamps *hwtstamps,
 }
 
 /**
- * i40e_ptp_adjfreq - Adjust the PHC frequency
+ * i40e_ptp_adjfine - Adjust the PHC frequency
  * @ptp: The PTP clock structure
- * @ppb: Parts per billion adjustment from the base
+ * @scaled_ppm: Scaled parts per million adjustment from base
  *
- * Adjust the frequency of the PHC by the indicated parts per billion from the
- * base frequency.
+ * Adjust the frequency of the PHC by the indicated delta from the base
+ * frequency.
+ *
+ * Scaled parts per million is ppm with a 16 bit binary fractional field.
  **/
-static int i40e_ptp_adjfreq(struct ptp_clock_info *ptp, s32 ppb)
+static int i40e_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
 	struct i40e_pf *pf = container_of(ptp, struct i40e_pf, ptp_caps);
 	struct i40e_hw *hw = &pf->hw;
 	u64 adj, freq, diff;
 	int neg_adj = 0;
 
-	if (ppb < 0) {
+	if (scaled_ppm < 0) {
 		neg_adj = 1;
-		ppb = -ppb;
+		scaled_ppm = -scaled_ppm;
 	}
 
 	smp_mb(); /* Force any pending update before accessing. */
 	freq = I40E_PTP_40GB_INCVAL * READ_ONCE(pf->ptp_adj_mult);
-	diff = mul_u64_u64_div_u64(freq, (u64)ppb,
-				   1000000000ULL);
+	diff = mul_u64_u64_div_u64(freq, (u64)scaled_ppm,
+				   1000000ULL << 16);
 
 	if (neg_adj)
 		adj = I40E_PTP_40GB_INCVAL - diff;
@@ -1392,7 +1394,7 @@ static long i40e_ptp_create_clock(struct i40e_pf *pf)
 		sizeof(pf->ptp_caps.name) - 1);
 	pf->ptp_caps.owner = THIS_MODULE;
 	pf->ptp_caps.max_adj = 999999999;
-	pf->ptp_caps.adjfreq = i40e_ptp_adjfreq;
+	pf->ptp_caps.adjfine = i40e_ptp_adjfine;
 	pf->ptp_caps.adjtime = i40e_ptp_adjtime;
 	pf->ptp_caps.gettimex64 = i40e_ptp_gettimex;
 	pf->ptp_caps.settime64 = i40e_ptp_settime;
