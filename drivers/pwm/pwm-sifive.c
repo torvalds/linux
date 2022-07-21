@@ -168,24 +168,24 @@ static int pwm_sifive_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	}
 	mutex_unlock(&ddata->lock);
 
-	ret = clk_enable(ddata->clk);
-	if (ret) {
-		dev_err(ddata->chip.dev, "Enable clk failed\n");
-		return ret;
+	/*
+	 * If the PWM is enabled the clk is already on. So only enable it
+	 * conditionally to have it on exactly once afterwards independent of
+	 * the PWM state.
+	 */
+	if (!enabled) {
+		ret = clk_enable(ddata->clk);
+		if (ret) {
+			dev_err(ddata->chip.dev, "Enable clk failed\n");
+			return ret;
+		}
 	}
 
 	writel(frac, ddata->regs + PWM_SIFIVE_PWMCMP(pwm->hwpwm));
 
-	if (state->enabled != enabled) {
-		if (state->enabled) {
-			if (clk_enable(ddata->clk))
-				dev_err(ddata->chip.dev, "Enable clk failed\n");
-		} else {
-			clk_disable(ddata->clk);
-		}
-	}
+	if (!state->enabled)
+		clk_disable(ddata->clk);
 
-	clk_disable(ddata->clk);
 	return 0;
 }
 
