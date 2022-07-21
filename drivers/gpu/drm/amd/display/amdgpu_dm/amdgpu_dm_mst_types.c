@@ -36,6 +36,7 @@
 #include "dm_helpers.h"
 
 #include "dc_link_ddc.h"
+#include "dc_link_dp.h"
 #include "ddc_service_types.h"
 #include "dpcd_defs.h"
 
@@ -1386,19 +1387,90 @@ clean_exit:
 	return (ret == 0);
 }
 
-#endif
+static unsigned int kbps_from_pbn(unsigned int pbn)
+{
+	unsigned int kbps = pbn;
+
+	kbps *= (1000000 / PEAK_FACTOR_X1000);
+	kbps *= 8;
+	kbps *= 54;
+	kbps /= 64;
+
+	return kbps;
+}
+
+static bool is_dsc_common_config_possible(struct dc_stream_state *stream,
+					  struct dc_dsc_bw_range *bw_range)
+{
+	struct dc_dsc_policy dsc_policy = {0};
+
+	dc_dsc_get_policy_for_timing(&stream->timing, 0, &dsc_policy);
+	dc_dsc_compute_bandwidth_range(stream->sink->ctx->dc->res_pool->dscs[0],
+				       stream->sink->ctx->dc->debug.dsc_min_slice_height_override,
+				       dsc_policy.min_target_bpp * 16,
+				       dsc_policy.max_target_bpp * 16,
+				       &stream->sink->dsc_caps.dsc_dec_caps,
+				       &stream->timing, bw_range);
+
+	return bw_range->max_target_bpp_x16 && bw_range->min_target_bpp_x16;
+}
+#endif /* CONFIG_DRM_AMD_DC_DCN */
 
 enum dc_status dm_dp_mst_is_port_support_mode(
 	struct amdgpu_dm_connector *aconnector,
 	struct dc_stream_state *stream)
 {
 	int bpp, pbn, branch_max_throughput_mps = 0;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	struct dc_link_settings cur_link_settings;
+	unsigned int end_to_end_bw_in_kbps = 0;
+	unsigned int upper_link_bw_in_kbps = 0, down_link_bw_in_kbps = 0;
+	unsigned int max_compressed_bw_in_kbps = 0;
+	struct dc_dsc_bw_range bw_range = {0};
 
-	/* check if mode could be supported within fUll_pbn */
-	bpp = convert_dc_color_depth_into_bpc(stream->timing.display_color_depth) * 3;
-	pbn = drm_dp_calc_pbn_mode(stream->timing.pix_clk_100hz / 10, bpp, false);
-	if (pbn > aconnector->port->full_pbn)
-		return DC_FAIL_BANDWIDTH_VALIDATE;
+	/*
+	 * check if the mode could be supported if DSC pass-through is supported
+	 * AND check if there enough bandwidth available to support the mode
+	 * with DSC enabled.
+	 */
+	if (is_dsc_common_config_possible(stream, &bw_range) &&
+	    aconnector->port->passthrough_aux) {
+		mutex_lock(&aconnector->mst_mgr.lock);
+
+		cur_link_settings = stream->link->verified_link_cap;
+
+		upper_link_bw_in_kbps = dc_link_bandwidth_kbps(aconnector->dc_link,
+							       &cur_link_settings
+							       );
+		down_link_bw_in_kbps = kbps_from_pbn(aconnector->port->full_pbn);
+
+		/* pick the bottleneck */
+		end_to_end_bw_in_kbps = min(upper_link_bw_in_kbps,
+					    down_link_bw_in_kbps);
+
+		mutex_unlock(&aconnector->mst_mgr.lock);
+
+		/*
+		 * use the maximum dsc compression bandwidth as the required
+		 * bandwidth for the mode
+		 */
+		max_compressed_bw_in_kbps = bw_range.min_kbps;
+
+		if (end_to_end_bw_in_kbps < max_compressed_bw_in_kbps) {
+			DRM_DEBUG_DRIVER("Mode does not fit into DSC pass-through bandwidth validation\n");
+			return DC_FAIL_BANDWIDTH_VALIDATE;
+		}
+	} else {
+#endif
+		/* check if mode could be supported within full_pbn */
+		bpp = convert_dc_color_depth_into_bpc(stream->timing.display_color_depth) * 3;
+		pbn = drm_dp_calc_pbn_mode(stream->timing.pix_clk_100hz / 10, bpp, false);
+
+		if (pbn > aconnector->port->full_pbn)
+			return DC_FAIL_BANDWIDTH_VALIDATE;
+#if defined(CONFIG_DRM_AMD_DC_DCN)
+	}
+#endif
 
 	/* check is mst dsc output bandwidth branch_overall_throughput_0_mps */
 	switch (stream->timing.pixel_encoding) {
