@@ -172,6 +172,18 @@ static const struct dmi_system_id dmi_lid_device_table[] = {
 		.driver_data = (void *)lid_device_props_l4D,
 	},
 	{
+		.ident = "Surface Laptop 4 (Intel 13\")",
+		.matches = {
+			/*
+			 * We match for SKU here due to different variants: The
+			 * AMD (15") version does not rely on GPEs.
+			 */
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_SKU, "Surface_Laptop_4_1950:1951"),
+		},
+		.driver_data = (void *)lid_device_props_l4B,
+	},
+	{
 		.ident = "Surface Laptop Studio",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
