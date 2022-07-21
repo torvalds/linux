@@ -549,6 +549,7 @@ static int anx7411_typec_register_altmode(struct anx7411_data *ctx,
 {
 	struct device *dev = &ctx->spi_client->dev;
 	struct typec_altmode_desc desc;
+	int err;
 	int i;
 
 	desc.svid = svid;
@@ -569,8 +570,9 @@ static int anx7411_typec_register_altmode(struct anx7411_data *ctx,
 							     &desc);
 	if (IS_ERR(ctx->typec.amode[i])) {
 		dev_err(dev, "failed to register altmode\n");
+		err = PTR_ERR(ctx->typec.amode[i]);
 		ctx->typec.amode[i] = NULL;
-		return PTR_ERR(ctx->typec.amode);
+		return err;
 	}
 
 	return 0;
