@@ -219,48 +219,21 @@ void bpf_ct_release(struct nf_conn *nfct)
 
 __diag_pop()
 
-BTF_SET_START(nf_ct_xdp_check_kfunc_ids)
-BTF_ID(func, bpf_xdp_ct_lookup)
-BTF_ID(func, bpf_ct_release)
-BTF_SET_END(nf_ct_xdp_check_kfunc_ids)
+BTF_SET8_START(nf_ct_kfunc_set)
+BTF_ID_FLAGS(func, bpf_xdp_ct_lookup, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_skb_ct_lookup, KF_ACQUIRE | KF_RET_NULL)
+BTF_ID_FLAGS(func, bpf_ct_release, KF_RELEASE)
+BTF_SET8_END(nf_ct_kfunc_set)
 
-BTF_SET_START(nf_ct_tc_check_kfunc_ids)
-BTF_ID(func, bpf_skb_ct_lookup)
-BTF_ID(func, bpf_ct_release)
-BTF_SET_END(nf_ct_tc_check_kfunc_ids)
-
-BTF_SET_START(nf_ct_acquire_kfunc_ids)
-BTF_ID(func, bpf_xdp_ct_lookup)
-BTF_ID(func, bpf_skb_ct_lookup)
-BTF_SET_END(nf_ct_acquire_kfunc_ids)
-
-BTF_SET_START(nf_ct_release_kfunc_ids)
-BTF_ID(func, bpf_ct_release)
-BTF_SET_END(nf_ct_release_kfunc_ids)
-
-/* Both sets are identical */
-#define nf_ct_ret_null_kfunc_ids nf_ct_acquire_kfunc_ids
-
-static const struct btf_kfunc_id_set nf_conntrack_xdp_kfunc_set = {
-	.owner        = THIS_MODULE,
-	.check_set    = &nf_ct_xdp_check_kfunc_ids,
-	.acquire_set  = &nf_ct_acquire_kfunc_ids,
-	.release_set  = &nf_ct_release_kfunc_ids,
-	.ret_null_set = &nf_ct_ret_null_kfunc_ids,
-};
-
-static const struct btf_kfunc_id_set nf_conntrack_tc_kfunc_set = {
-	.owner        = THIS_MODULE,
-	.check_set    = &nf_ct_tc_check_kfunc_ids,
-	.acquire_set  = &nf_ct_acquire_kfunc_ids,
-	.release_set  = &nf_ct_release_kfunc_ids,
-	.ret_null_set = &nf_ct_ret_null_kfunc_ids,
+static const struct btf_kfunc_id_set nf_conntrack_kfunc_set = {
+	.owner = THIS_MODULE,
+	.set   = &nf_ct_kfunc_set,
 };
 
 int register_nf_conntrack_bpf(void)
 {
 	int ret;
 
-	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_XDP, &nf_conntrack_xdp_kfunc_set);
-	return ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &nf_conntrack_tc_kfunc_set);
+	ret = register_btf_kfunc_id_set(BPF_PROG_TYPE_XDP, &nf_conntrack_kfunc_set);
+	return ret ?: register_btf_kfunc_id_set(BPF_PROG_TYPE_SCHED_CLS, &nf_conntrack_kfunc_set);
 }

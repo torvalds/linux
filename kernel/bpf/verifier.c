@@ -7562,6 +7562,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	int err, insn_idx = *insn_idx_p;
 	const struct btf_param *args;
 	struct btf *desc_btf;
+	u32 *kfunc_flags;
 	bool acq;
 
 	/* skip for now, but return error when we find this in fixup_kfunc_call */
@@ -7577,18 +7578,16 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 	func_name = btf_name_by_offset(desc_btf, func->name_off);
 	func_proto = btf_type_by_id(desc_btf, func->type);
 
-	if (!btf_kfunc_id_set_contains(desc_btf, resolve_prog_type(env->prog),
-				      BTF_KFUNC_TYPE_CHECK, func_id)) {
+	kfunc_flags = btf_kfunc_id_set_contains(desc_btf, resolve_prog_type(env->prog), func_id);
+	if (!kfunc_flags) {
 		verbose(env, "calling kernel function %s is not allowed\n",
 			func_name);
 		return -EACCES;
 	}
-
-	acq = btf_kfunc_id_set_contains(desc_btf, resolve_prog_type(env->prog),
-					BTF_KFUNC_TYPE_ACQUIRE, func_id);
+	acq = *kfunc_flags & KF_ACQUIRE;
 
 	/* Check the arguments */
-	err = btf_check_kfunc_arg_match(env, desc_btf, func_id, regs);
+	err = btf_check_kfunc_arg_match(env, desc_btf, func_id, regs, *kfunc_flags);
 	if (err < 0)
 		return err;
 	/* In case of release function, we get register number of refcounted
@@ -7632,8 +7631,7 @@ static int check_kfunc_call(struct bpf_verifier_env *env, struct bpf_insn *insn,
 		regs[BPF_REG_0].btf = desc_btf;
 		regs[BPF_REG_0].type = PTR_TO_BTF_ID;
 		regs[BPF_REG_0].btf_id = ptr_type_id;
-		if (btf_kfunc_id_set_contains(desc_btf, resolve_prog_type(env->prog),
-					      BTF_KFUNC_TYPE_RET_NULL, func_id)) {
+		if (*kfunc_flags & KF_RET_NULL) {
 			regs[BPF_REG_0].type |= PTR_MAYBE_NULL;
 			/* For mark_ptr_or_null_reg, see 93c230e3f5bd6 */
 			regs[BPF_REG_0].id = ++env->id_gen;

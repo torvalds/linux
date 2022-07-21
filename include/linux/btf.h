@@ -12,14 +12,11 @@
 #define BTF_TYPE_EMIT(type) ((void)(type *)0)
 #define BTF_TYPE_EMIT_ENUM(enum_val) ((void)enum_val)
 
-enum btf_kfunc_type {
-	BTF_KFUNC_TYPE_CHECK,
-	BTF_KFUNC_TYPE_ACQUIRE,
-	BTF_KFUNC_TYPE_RELEASE,
-	BTF_KFUNC_TYPE_RET_NULL,
-	BTF_KFUNC_TYPE_KPTR_ACQUIRE,
-	BTF_KFUNC_TYPE_MAX,
-};
+/* These need to be macros, as the expressions are used in assembler input */
+#define KF_ACQUIRE	(1 << 0) /* kfunc is an acquire function */
+#define KF_RELEASE	(1 << 1) /* kfunc is a release function */
+#define KF_RET_NULL	(1 << 2) /* kfunc returns a pointer that may be NULL */
+#define KF_KPTR_GET	(1 << 3) /* kfunc returns reference to a kptr */
 
 struct btf;
 struct btf_member;
@@ -30,16 +27,7 @@ struct btf_id_set;
 
 struct btf_kfunc_id_set {
 	struct module *owner;
-	union {
-		struct {
-			struct btf_id_set *check_set;
-			struct btf_id_set *acquire_set;
-			struct btf_id_set *release_set;
-			struct btf_id_set *ret_null_set;
-			struct btf_id_set *kptr_acquire_set;
-		};
-		struct btf_id_set *sets[BTF_KFUNC_TYPE_MAX];
-	};
+	struct btf_id_set8 *set;
 };
 
 struct btf_id_dtor_kfunc {
@@ -378,9 +366,9 @@ const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id);
 const char *btf_name_by_offset(const struct btf *btf, u32 offset);
 struct btf *btf_parse_vmlinux(void);
 struct btf *bpf_prog_get_target_btf(const struct bpf_prog *prog);
-bool btf_kfunc_id_set_contains(const struct btf *btf,
+u32 *btf_kfunc_id_set_contains(const struct btf *btf,
 			       enum bpf_prog_type prog_type,
-			       enum btf_kfunc_type type, u32 kfunc_btf_id);
+			       u32 kfunc_btf_id);
 int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
 			      const struct btf_kfunc_id_set *s);
 s32 btf_find_dtor_kfunc(struct btf *btf, u32 btf_id);
@@ -397,12 +385,11 @@ static inline const char *btf_name_by_offset(const struct btf *btf,
 {
 	return NULL;
 }
-static inline bool btf_kfunc_id_set_contains(const struct btf *btf,
+static inline u32 *btf_kfunc_id_set_contains(const struct btf *btf,
 					     enum bpf_prog_type prog_type,
-					     enum btf_kfunc_type type,
 					     u32 kfunc_btf_id)
 {
-	return false;
+	return NULL;
 }
 static inline int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
 					    const struct btf_kfunc_id_set *s)
