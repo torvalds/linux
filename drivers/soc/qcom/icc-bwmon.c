@@ -345,10 +345,8 @@ static int bwmon_probe(struct platform_device *pdev)
 	}
 
 	bwmon->irq = platform_get_irq(pdev, 0);
-	if (bwmon->irq < 0) {
-		dev_err(dev, "failed to acquire bwmon IRQ\n");
+	if (bwmon->irq < 0)
 		return bwmon->irq;
-	}
 
 	ret = devm_pm_opp_of_add_table(dev);
 	if (ret)
