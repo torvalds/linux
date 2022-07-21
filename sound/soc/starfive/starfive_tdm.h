@@ -37,7 +37,8 @@
 
 /*  DMA registers */
 #define TDM_FIFO		0x170c0000
-#define TDM_FIFO_DEPTH			16
+//#define TDM_FIFO_DEPTH			16
+#define TDM_FIFO_DEPTH			32
 
 #define TWO_CHANNEL_SUPPORT		2	
 #define FOUR_CHANNEL_SUPPORT		4
@@ -123,9 +124,7 @@ struct sf_tdm_dev {
 	struct clk *clk_tdm_ext;
 	struct clk *clk_tdm;
 	struct clk *clk_mclk_inner;
-	struct reset_control *rst_ahb;
-	struct reset_control *rst_apb;
-	struct reset_control *rst_tdm;
+	struct reset_control *resets;
 	int active;
 	
 	enum TDM_CLKPOL clkpolity;

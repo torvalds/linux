@@ -18,8 +18,6 @@
 #include <sound/tlv.h>
 #include "starfive_tdm.h"
 
-#define CLOCK_BASE	0x13020000UL
-
 static inline u32 sf_tdm_readl(struct sf_tdm_dev *dev, u16 reg)
 {
 	return readl_relaxed(dev->tdm_base + reg);
@@ -137,17 +135,41 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 	struct snd_dmaengine_dai_dma_data *dma_data = NULL;
 	unsigned int data_width;
 	unsigned int mclk_rate;
+	unsigned int dma_bus_width;
 	int ret;
 
 	dev->samplerate = params_rate(params);
 	switch (dev->samplerate) {
+	/*  There is a issue with 8k sample rate  */
+/*
 	case 8000:
-		mclk_rate = 12288000;
-		dev->pcmclk = 256000;
+		mclk_rate = 11289600; //sysclk
+		dev->pcmclk = 352800; //bit clock
+		break;
+*/
+	case 11025:
+		mclk_rate = 11289600; //sysclk
+		dev->pcmclk = 352800; //bit clock, for 16-bit
 		break;
 	case 16000:
+		mclk_rate = 12288000; //sysclk
+		dev->pcmclk = 512000; //bit clock
+		break;
+	case 22050:
+		mclk_rate = 11289600;
+		dev->pcmclk = 705600;
+		break;
+	case 32000:
 		mclk_rate = 12288000;
-		dev->pcmclk = 512000;
+		dev->pcmclk = 1024000;
+		break;
+	case 44100:
+		mclk_rate = 11289600;
+		dev->pcmclk = 1411200;
+		break;
+	case 48000:
+		mclk_rate = 12288000;
+		dev->pcmclk = 1536000;
 		break;
 	default:
 		pr_err("TDM: not support sample rate:%d\n", dev->samplerate);
@@ -155,27 +177,37 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	data_width = params_width(params);
+
 	dev->pcmclk = 2 * dev->samplerate * data_width;
 
 	switch (params_format(params)) {
+/*
 	case SNDRV_PCM_FORMAT_S8:
 		chan_wl = TDM_8BIT_WORD_LEN;
 		chan_sl = TDM_8BIT_SLOT_LEN;
+		dma_bus_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
 		break;
+*/
 
 	case SNDRV_PCM_FORMAT_S16_LE:
 		chan_wl = TDM_16BIT_WORD_LEN;
 		chan_sl = TDM_16BIT_SLOT_LEN;
+		dma_bus_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 		break;
 
+	/*  There is a issue with 24-bit  */
+/*
 	case SNDRV_PCM_FORMAT_S24_LE:
 		chan_wl = TDM_24BIT_WORD_LEN;
 		chan_sl = TDM_32BIT_SLOT_LEN;
+		dma_bus_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
+*/
 
 	case SNDRV_PCM_FORMAT_S32_LE:
 		chan_wl = TDM_32BIT_WORD_LEN;
 		chan_sl = TDM_32BIT_SLOT_LEN;
+		dma_bus_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
 
 	default:
@@ -199,11 +231,13 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 		dev->tx.wl = chan_wl;
 		dev->tx.sl = chan_sl;
 		dev->tx.sscale = chan_nr;
+		dev->play_dma_data.addr_width = dma_bus_width;
 		dma_data = &dev->play_dma_data;
 	} else {
 		dev->rx.wl = chan_wl;
 		dev->rx.sl = chan_sl;
 		dev->rx.sscale = chan_nr;
+		dev->capture_dma_data.addr_width = dma_bus_width;
 		dma_data = &dev->capture_dma_data;
 	}
 
@@ -310,13 +344,11 @@ static int sf_tdm_dai_probe(struct snd_soc_dai *dai)
 	return 0;
 }
 
-#define SF_TDM_RATE	(SNDRV_PCM_RATE_8000 | \
-			SNDRV_PCM_RATE_16000 | \
-			SNDRV_PCM_RATE_32000)
+#define SF_TDM_RATES	(SNDRV_PCM_RATE_11025 | SNDRV_PCM_RATE_16000 | \
+			SNDRV_PCM_RATE_22050 | SNDRV_PCM_RATE_32000 | \
+			SNDRV_PCM_RATE_44100 | SNDRV_PCM_RATE_48000)
 
-#define SF_TDM_FORMATS	(SNDRV_PCM_FMTBIT_S8 | \
-			SNDRV_PCM_FMTBIT_S16_LE | \
-			SNDRV_PCM_FMTBIT_S24_LE | \
+#define SF_TDM_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
 			SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_driver sf_tdm_dai = {
@@ -326,14 +358,14 @@ static struct snd_soc_dai_driver sf_tdm_dai = {
 		.stream_name    = "Playback",
 		.channels_min   = 2,
 		.channels_max   = 8,
-		.rates          = SF_TDM_RATE,
+		.rates          = SF_TDM_RATES,
 		.formats        = SF_TDM_FORMATS,
 	},
 	.capture = {
 		.stream_name    = "Capture",
 		.channels_min   = 2,
 		.channels_max   = 8,
-		.rates          = SF_TDM_RATE,
+		.rates          = SF_TDM_RATES,
 		.formats        = SF_TDM_FORMATS,
 	},
 	.ops = &sf_tdm_dai_ops,
@@ -404,42 +436,16 @@ static int sf_tdm_clk_reset_init(struct platform_device *pdev, struct sf_tdm_dev
 	dev->clk_tdm = clks[6].clk;
 	dev->clk_mclk_inner = clks[7].clk;
 
-	dev->rst_ahb = devm_reset_control_get_exclusive(&pdev->dev, "tdm_ahb");
-	if (IS_ERR(dev->rst_ahb)) {
-		dev_err(&pdev->dev, "Failed to get tdm_ahb reset control\n");
-		ret = PTR_ERR(dev->rst_ahb);
+	dev->resets = devm_reset_control_array_get_exclusive(&pdev->dev);
+	if (IS_ERR(dev->resets)) {
+		ret = PTR_ERR(dev->resets);
+		dev_err(&pdev->dev, "Failed to get tdm resets");
 		goto exit;
 	}
 
-	dev->rst_apb = devm_reset_control_get_exclusive(&pdev->dev, "tdm_apb");
-	if (IS_ERR(dev->rst_apb)) {
-		dev_err(&pdev->dev, "Failed to get tdm_apb reset control\n");
-		ret = PTR_ERR(dev->rst_apb);
-		goto exit;
-	}
-
-	dev->rst_tdm = devm_reset_control_get_exclusive(&pdev->dev, "tdm_rst");
-	if (IS_ERR(dev->rst_tdm)) {
-		dev_err(&pdev->dev, "Failed to get tdm_rst reset control\n");
-		ret = PTR_ERR(dev->rst_tdm);
-		goto exit;
-	}
-
-	ret = reset_control_assert(dev->rst_ahb);
+	ret = reset_control_assert(dev->resets);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to assert rst_ahb\n");
-		goto exit;
-	}
-
-	ret = reset_control_assert(dev->rst_apb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to assert rst_apb\n");
-		goto exit;
-	}
-
-	ret = reset_control_assert(dev->rst_tdm);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to assert rst_tdm\n");
+		dev_err(&pdev->dev, "Failed to assert tdm resets\n");
 		goto exit;
 	}
 
@@ -485,21 +491,9 @@ static int sf_tdm_clk_reset_init(struct platform_device *pdev, struct sf_tdm_dev
 		goto err_dis_tdm_ext;
 	}
 
-	ret = reset_control_deassert(dev->rst_ahb);
+	ret = reset_control_deassert(dev->resets);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to deassert rst_ahb\n");
-		goto err_clk_disable;
-	}
-
-	ret = reset_control_deassert(dev->rst_apb);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to deassert rst_apb\n");
-		goto err_clk_disable;
-	}
-
-	ret = reset_control_deassert(dev->rst_tdm);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to deassert rst_tdm\n");
+		dev_err(&pdev->dev, "Failed to deassert tdm resets\n");
 		goto err_clk_disable;
 	}
 
