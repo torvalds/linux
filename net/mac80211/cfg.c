@@ -1684,21 +1684,9 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 				struct sta_info *sta,
 				struct station_parameters *params)
 {
-	int ret = 0;
-	struct ieee80211_supported_band *sband;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
-	u32 link_id = params->link_sta_params.link_id < 0 ?
-		      0 : params->link_sta_params.link_id;
-	struct ieee80211_link_data *link;
 	u32 mask, set;
-
-	link = sdata_dereference(sdata->link[link_id], sdata);
-	if (!link)
-		return -ENOLINK;
-
-	sband = ieee80211_get_link_sband(link);
-	if (!sband)
-		return -EINVAL;
+	int ret = 0;
 
 	mask = params->sta_flags_mask;
 	set = params->sta_flags_set;
