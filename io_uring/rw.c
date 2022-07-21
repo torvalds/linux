@@ -647,11 +647,6 @@ static bool need_read_all(struct io_kiocb *req)
 		S_ISBLK(file_inode(req->file)->i_mode);
 }
 
-static inline bool io_req_ffs_set(struct io_kiocb *req)
-{
-	return req->flags & REQ_F_FIXED_FILE;
-}
-
 static int io_rw_init_file(struct io_kiocb *req, fmode_t mode)
 {
 	struct io_rw *rw = io_kiocb_to_cmd(req);
