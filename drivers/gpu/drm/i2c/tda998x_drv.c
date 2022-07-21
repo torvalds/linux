@@ -1599,9 +1599,9 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	 * TDA19988 requires high-active sync at input stage,
 	 * so invert low-active sync provided by master encoder here
 	 */
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
 		reg |= VIP_CNTRL_3_H_TGL;
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
 		reg |= VIP_CNTRL_3_V_TGL;
 	reg_write(priv, REG_VIP_CNTRL_3, reg);
 
@@ -1637,9 +1637,9 @@ static void tda998x_bridge_mode_set(struct drm_bridge *bridge,
 	 * revert input stage toggled sync at output stage
 	 */
 	reg = TBG_CNTRL_1_DWIN_DIS | TBG_CNTRL_1_TGL_EN;
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+	if (mode->flags & DRM_MODE_FLAG_PHSYNC)
 		reg |= TBG_CNTRL_1_H_TGL;
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+	if (mode->flags & DRM_MODE_FLAG_PVSYNC)
 		reg |= TBG_CNTRL_1_V_TGL;
 	reg_write(priv, REG_TBG_CNTRL_1, reg);
 
