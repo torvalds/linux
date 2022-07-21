@@ -1041,6 +1041,7 @@ static int vcn_v4_0_start(struct amdgpu_device *adev)
 			}
 
 			if (amdgpu_emu_mode==1) {
+				r = -1;
 				if (status & 2) {
 					r = 0;
 					break;
