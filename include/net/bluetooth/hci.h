@@ -497,6 +497,7 @@ enum {
 #define LMP_EXT_INQ	0x01
 #define LMP_SIMUL_LE_BR	0x02
 #define LMP_SIMPLE_PAIR	0x08
+#define LMP_ERR_DATA_REPORTING 0x20
 #define LMP_NO_FLUSH	0x40
 
 #define LMP_LSTO	0x01
