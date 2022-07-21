@@ -4185,6 +4185,7 @@ void dml32_CalculateFlipSchedule(
 } // CalculateFlipSchedule
 
 void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
+		struct dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport *st_vars,
 		bool USRRetrainingRequiredFinal,
 		enum dm_use_mall_for_pstate_change_mode UseMALLForPStateChange[],
 		unsigned int PrefetchMode,
@@ -4246,37 +4247,15 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 		double ActiveDRAMClockChangeLatencyMargin[])
 {
 	unsigned int i, j, k;
-	unsigned int SurfaceWithMinActiveFCLKChangeMargin = 0;
-	unsigned int DRAMClockChangeSupportNumber = 0;
-	unsigned int LastSurfaceWithoutMargin;
-	unsigned int DRAMClockChangeMethod = 0;
-	bool FoundFirstSurfaceWithMinActiveFCLKChangeMargin = false;
-	double MinActiveFCLKChangeMargin = 0.;
-	double SecondMinActiveFCLKChangeMarginOneDisplayInVBLank = 0.;
-	double ActiveClockChangeLatencyHidingY;
-	double ActiveClockChangeLatencyHidingC;
-	double ActiveClockChangeLatencyHiding;
-    double EffectiveDETBufferSizeY;
-	double     ActiveFCLKChangeLatencyMargin[DC__NUM_DPP__MAX];
-	double     USRRetrainingLatencyMargin[DC__NUM_DPP__MAX];
-	double TotalPixelBW = 0.0;
-	bool    SynchronizedSurfaces[DC__NUM_DPP__MAX][DC__NUM_DPP__MAX];
-	double     EffectiveLBLatencyHidingY;
-	double     EffectiveLBLatencyHidingC;
-	double     LinesInDETY[DC__NUM_DPP__MAX];
-	double     LinesInDETC[DC__NUM_DPP__MAX];
-	unsigned int    LinesInDETYRoundedDownToSwath[DC__NUM_DPP__MAX];
-	unsigned int    LinesInDETCRoundedDownToSwath[DC__NUM_DPP__MAX];
-	double     FullDETBufferingTimeY;
-	double     FullDETBufferingTimeC;
-	double     WritebackDRAMClockChangeLatencyMargin;
-	double     WritebackFCLKChangeLatencyMargin;
-	double     WritebackLatencyHiding;
-	bool    SameTimingForFCLKChange;
 
-	unsigned int    TotalActiveWriteback = 0;
-	unsigned int LBLatencyHidingSourceLinesY[DC__NUM_DPP__MAX];
-	unsigned int LBLatencyHidingSourceLinesC[DC__NUM_DPP__MAX];
+	st_vars->SurfaceWithMinActiveFCLKChangeMargin = 0;
+	st_vars->DRAMClockChangeSupportNumber = 0;
+	st_vars->DRAMClockChangeMethod = 0;
+	st_vars->FoundFirstSurfaceWithMinActiveFCLKChangeMargin = false;
+	st_vars->MinActiveFCLKChangeMargin = 0.;
+	st_vars->SecondMinActiveFCLKChangeMarginOneDisplayInVBLank = 0.;
+	st_vars->TotalPixelBW = 0.0;
+	st_vars->TotalActiveWriteback = 0;
 
 	Watermark->UrgentWatermark = mmSOCParameters.UrgentLatency + mmSOCParameters.ExtraLatency;
 	Watermark->USRRetrainingWatermark = mmSOCParameters.UrgentLatency + mmSOCParameters.ExtraLatency
@@ -4308,13 +4287,13 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 #endif
 
 
-	TotalActiveWriteback = 0;
+	st_vars->TotalActiveWriteback = 0;
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
 		if (WritebackEnable[k] == true)
-			TotalActiveWriteback = TotalActiveWriteback + 1;
+			st_vars->TotalActiveWriteback = st_vars->TotalActiveWriteback + 1;
 	}
 
-	if (TotalActiveWriteback <= 1) {
+	if (st_vars->TotalActiveWriteback <= 1) {
 		Watermark->WritebackUrgentWatermark = mmSOCParameters.WritebackLatency;
 	} else {
 		Watermark->WritebackUrgentWatermark = mmSOCParameters.WritebackLatency
@@ -4324,7 +4303,7 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 		Watermark->WritebackUrgentWatermark = Watermark->WritebackUrgentWatermark
 				+ mmSOCParameters.USRRetrainingLatency;
 
-	if (TotalActiveWriteback <= 1) {
+	if (st_vars->TotalActiveWriteback <= 1) {
 		Watermark->WritebackDRAMClockChangeWatermark = mmSOCParameters.DRAMClockChangeLatency
 				+ mmSOCParameters.WritebackLatency;
 		Watermark->WritebackFCLKChangeWatermark = mmSOCParameters.FCLKChangeLatency
@@ -4354,14 +4333,14 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 #endif
 
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
-		TotalPixelBW = TotalPixelBW + DPPPerSurface[k] * (SwathWidthY[k] * BytePerPixelDETY[k] * VRatio[k] +
+		st_vars->TotalPixelBW = st_vars->TotalPixelBW + DPPPerSurface[k] * (SwathWidthY[k] * BytePerPixelDETY[k] * VRatio[k] +
 				SwathWidthC[k] * BytePerPixelDETC[k] * VRatioChroma[k]) / (HTotal[k] / PixelClock[k]);
 	}
 
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
 
-		LBLatencyHidingSourceLinesY[k] = dml_min((double) MaxLineBufferLines, dml_floor(LineBufferSize / LBBitPerPixel[k] / (SwathWidthY[k] / dml_max(HRatio[k], 1.0)), 1)) - (VTaps[k] - 1);
-		LBLatencyHidingSourceLinesC[k] = dml_min((double) MaxLineBufferLines, dml_floor(LineBufferSize / LBBitPerPixel[k] / (SwathWidthC[k] / dml_max(HRatioChroma[k], 1.0)), 1)) - (VTapsChroma[k] - 1);
+		st_vars->LBLatencyHidingSourceLinesY[k] = dml_min((double) MaxLineBufferLines, dml_floor(LineBufferSize / LBBitPerPixel[k] / (SwathWidthY[k] / dml_max(HRatio[k], 1.0)), 1)) - (VTaps[k] - 1);
+		st_vars->LBLatencyHidingSourceLinesC[k] = dml_min((double) MaxLineBufferLines, dml_floor(LineBufferSize / LBBitPerPixel[k] / (SwathWidthC[k] / dml_max(HRatioChroma[k], 1.0)), 1)) - (VTapsChroma[k] - 1);
 
 
 #ifdef __DML_VBA_DEBUG__
@@ -4372,72 +4351,72 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 		dml_print("DML::%s: k=%d, VTaps              = %d\n", __func__, k, VTaps[k]);
 #endif
 
-		EffectiveLBLatencyHidingY = LBLatencyHidingSourceLinesY[k] / VRatio[k] * (HTotal[k] / PixelClock[k]);
-		EffectiveLBLatencyHidingC = LBLatencyHidingSourceLinesC[k] / VRatioChroma[k] * (HTotal[k] / PixelClock[k]);
-		EffectiveDETBufferSizeY = DETBufferSizeY[k];
+		st_vars->EffectiveLBLatencyHidingY = st_vars->LBLatencyHidingSourceLinesY[k] / VRatio[k] * (HTotal[k] / PixelClock[k]);
+		st_vars->EffectiveLBLatencyHidingC = st_vars->LBLatencyHidingSourceLinesC[k] / VRatioChroma[k] * (HTotal[k] / PixelClock[k]);
+		st_vars->EffectiveDETBufferSizeY = DETBufferSizeY[k];
 
 		if (UnboundedRequestEnabled) {
-			EffectiveDETBufferSizeY = EffectiveDETBufferSizeY
+			st_vars->EffectiveDETBufferSizeY = st_vars->EffectiveDETBufferSizeY
 					+ CompressedBufferSizeInkByte * 1024
 							* (SwathWidthY[k] * BytePerPixelDETY[k] * VRatio[k])
-							/ (HTotal[k] / PixelClock[k]) / TotalPixelBW;
+							/ (HTotal[k] / PixelClock[k]) / st_vars->TotalPixelBW;
 		}
 
-		LinesInDETY[k] = (double) EffectiveDETBufferSizeY / BytePerPixelDETY[k] / SwathWidthY[k];
-		LinesInDETYRoundedDownToSwath[k] = dml_floor(LinesInDETY[k], SwathHeightY[k]);
-		FullDETBufferingTimeY = LinesInDETYRoundedDownToSwath[k] * (HTotal[k] / PixelClock[k]) / VRatio[k];
+		st_vars->LinesInDETY[k] = (double) st_vars->EffectiveDETBufferSizeY / BytePerPixelDETY[k] / SwathWidthY[k];
+		st_vars->LinesInDETYRoundedDownToSwath[k] = dml_floor(st_vars->LinesInDETY[k], SwathHeightY[k]);
+		st_vars->FullDETBufferingTimeY = st_vars->LinesInDETYRoundedDownToSwath[k] * (HTotal[k] / PixelClock[k]) / VRatio[k];
 
-		ActiveClockChangeLatencyHidingY = EffectiveLBLatencyHidingY + FullDETBufferingTimeY
+		st_vars->ActiveClockChangeLatencyHidingY = st_vars->EffectiveLBLatencyHidingY + st_vars->FullDETBufferingTimeY
 				- (DSTXAfterScaler[k] / HTotal[k] + DSTYAfterScaler[k]) * HTotal[k] / PixelClock[k];
 
 		if (NumberOfActiveSurfaces > 1) {
-			ActiveClockChangeLatencyHidingY = ActiveClockChangeLatencyHidingY
+			st_vars->ActiveClockChangeLatencyHidingY = st_vars->ActiveClockChangeLatencyHidingY
 					- (1 - 1 / NumberOfActiveSurfaces) * SwathHeightY[k] * HTotal[k]
 							/ PixelClock[k] / VRatio[k];
 		}
 
 		if (BytePerPixelDETC[k] > 0) {
-			LinesInDETC[k] = DETBufferSizeC[k] / BytePerPixelDETC[k] / SwathWidthC[k];
-			LinesInDETCRoundedDownToSwath[k] = dml_floor(LinesInDETC[k], SwathHeightC[k]);
-			FullDETBufferingTimeC = LinesInDETCRoundedDownToSwath[k] * (HTotal[k] / PixelClock[k])
+			st_vars->LinesInDETC[k] = DETBufferSizeC[k] / BytePerPixelDETC[k] / SwathWidthC[k];
+			st_vars->LinesInDETCRoundedDownToSwath[k] = dml_floor(st_vars->LinesInDETC[k], SwathHeightC[k]);
+			st_vars->FullDETBufferingTimeC = st_vars->LinesInDETCRoundedDownToSwath[k] * (HTotal[k] / PixelClock[k])
 					/ VRatioChroma[k];
-			ActiveClockChangeLatencyHidingC = EffectiveLBLatencyHidingC + FullDETBufferingTimeC
+			st_vars->ActiveClockChangeLatencyHidingC = st_vars->EffectiveLBLatencyHidingC + st_vars->FullDETBufferingTimeC
 					- (DSTXAfterScaler[k] / HTotal[k] + DSTYAfterScaler[k]) * HTotal[k]
 							/ PixelClock[k];
 			if (NumberOfActiveSurfaces > 1) {
-				ActiveClockChangeLatencyHidingC = ActiveClockChangeLatencyHidingC
+				st_vars->ActiveClockChangeLatencyHidingC = st_vars->ActiveClockChangeLatencyHidingC
 						- (1 - 1 / NumberOfActiveSurfaces) * SwathHeightC[k] * HTotal[k]
 								/ PixelClock[k] / VRatioChroma[k];
 			}
-			ActiveClockChangeLatencyHiding = dml_min(ActiveClockChangeLatencyHidingY,
-					ActiveClockChangeLatencyHidingC);
+			st_vars->ActiveClockChangeLatencyHiding = dml_min(st_vars->ActiveClockChangeLatencyHidingY,
+					st_vars->ActiveClockChangeLatencyHidingC);
 		} else {
-			ActiveClockChangeLatencyHiding = ActiveClockChangeLatencyHidingY;
+			st_vars->ActiveClockChangeLatencyHiding = st_vars->ActiveClockChangeLatencyHidingY;
 		}
 
-		ActiveDRAMClockChangeLatencyMargin[k] = ActiveClockChangeLatencyHiding - Watermark->UrgentWatermark
+		ActiveDRAMClockChangeLatencyMargin[k] = st_vars->ActiveClockChangeLatencyHiding - Watermark->UrgentWatermark
 				- Watermark->DRAMClockChangeWatermark;
-		ActiveFCLKChangeLatencyMargin[k] = ActiveClockChangeLatencyHiding - Watermark->UrgentWatermark
+		st_vars->ActiveFCLKChangeLatencyMargin[k] = st_vars->ActiveClockChangeLatencyHiding - Watermark->UrgentWatermark
 				- Watermark->FCLKChangeWatermark;
-		USRRetrainingLatencyMargin[k] = ActiveClockChangeLatencyHiding - Watermark->USRRetrainingWatermark;
+		st_vars->USRRetrainingLatencyMargin[k] = st_vars->ActiveClockChangeLatencyHiding - Watermark->USRRetrainingWatermark;
 
 		if (WritebackEnable[k]) {
-			WritebackLatencyHiding = WritebackInterfaceBufferSize * 1024
+			st_vars->WritebackLatencyHiding = WritebackInterfaceBufferSize * 1024
 					/ (WritebackDestinationWidth[k] * WritebackDestinationHeight[k]
 							/ (WritebackSourceHeight[k] * HTotal[k] / PixelClock[k]) * 4);
 			if (WritebackPixelFormat[k] == dm_444_64)
-				WritebackLatencyHiding = WritebackLatencyHiding / 2;
+				st_vars->WritebackLatencyHiding = st_vars->WritebackLatencyHiding / 2;
 
-			WritebackDRAMClockChangeLatencyMargin = WritebackLatencyHiding
+			st_vars->WritebackDRAMClockChangeLatencyMargin = st_vars->WritebackLatencyHiding
 					- Watermark->WritebackDRAMClockChangeWatermark;
 
-			WritebackFCLKChangeLatencyMargin = WritebackLatencyHiding
+			st_vars->WritebackFCLKChangeLatencyMargin = st_vars->WritebackLatencyHiding
 					- Watermark->WritebackFCLKChangeWatermark;
 
 			ActiveDRAMClockChangeLatencyMargin[k] = dml_min(ActiveDRAMClockChangeLatencyMargin[k],
-					WritebackFCLKChangeLatencyMargin);
-			ActiveFCLKChangeLatencyMargin[k] = dml_min(ActiveFCLKChangeLatencyMargin[k],
-					WritebackDRAMClockChangeLatencyMargin);
+					st_vars->WritebackFCLKChangeLatencyMargin);
+			st_vars->ActiveFCLKChangeLatencyMargin[k] = dml_min(st_vars->ActiveFCLKChangeLatencyMargin[k],
+					st_vars->WritebackDRAMClockChangeLatencyMargin);
 		}
 		MaxActiveDRAMClockChangeLatencySupported[k] =
 				(UseMALLForPStateChange[k] == dm_use_mall_pstate_change_phantom_pipe) ?
@@ -4456,41 +4435,41 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 					HTotal[i] == HTotal[j] && VTotal[i] == VTotal[j] &&
 					VActive[i] == VActive[j]) || (SynchronizeDRRDisplaysForUCLKPStateChangeFinal &&
 					(DRRDisplay[i] || DRRDisplay[j]))) {
-				SynchronizedSurfaces[i][j] = true;
+				st_vars->SynchronizedSurfaces[i][j] = true;
 			} else {
-				SynchronizedSurfaces[i][j] = false;
+				st_vars->SynchronizedSurfaces[i][j] = false;
 			}
 		}
 	}
 
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
 		if ((UseMALLForPStateChange[k] != dm_use_mall_pstate_change_phantom_pipe) &&
-				(!FoundFirstSurfaceWithMinActiveFCLKChangeMargin ||
-				ActiveFCLKChangeLatencyMargin[k] < MinActiveFCLKChangeMargin)) {
-			FoundFirstSurfaceWithMinActiveFCLKChangeMargin = true;
-			MinActiveFCLKChangeMargin = ActiveFCLKChangeLatencyMargin[k];
-			SurfaceWithMinActiveFCLKChangeMargin = k;
+				(!st_vars->FoundFirstSurfaceWithMinActiveFCLKChangeMargin ||
+				st_vars->ActiveFCLKChangeLatencyMargin[k] < st_vars->MinActiveFCLKChangeMargin)) {
+			st_vars->FoundFirstSurfaceWithMinActiveFCLKChangeMargin = true;
+			st_vars->MinActiveFCLKChangeMargin = st_vars->ActiveFCLKChangeLatencyMargin[k];
+			st_vars->SurfaceWithMinActiveFCLKChangeMargin = k;
 		}
 	}
 
-	*MinActiveFCLKChangeLatencySupported = MinActiveFCLKChangeMargin + mmSOCParameters.FCLKChangeLatency;
+	*MinActiveFCLKChangeLatencySupported = st_vars->MinActiveFCLKChangeMargin + mmSOCParameters.FCLKChangeLatency;
 
-	SameTimingForFCLKChange = true;
+	st_vars->SameTimingForFCLKChange = true;
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
-		if (!SynchronizedSurfaces[k][SurfaceWithMinActiveFCLKChangeMargin]) {
+		if (!st_vars->SynchronizedSurfaces[k][st_vars->SurfaceWithMinActiveFCLKChangeMargin]) {
 			if ((UseMALLForPStateChange[k] != dm_use_mall_pstate_change_phantom_pipe) &&
-					(SameTimingForFCLKChange ||
-					ActiveFCLKChangeLatencyMargin[k] <
-					SecondMinActiveFCLKChangeMarginOneDisplayInVBLank)) {
-				SecondMinActiveFCLKChangeMarginOneDisplayInVBLank = ActiveFCLKChangeLatencyMargin[k];
+					(st_vars->SameTimingForFCLKChange ||
+					st_vars->ActiveFCLKChangeLatencyMargin[k] <
+					st_vars->SecondMinActiveFCLKChangeMarginOneDisplayInVBLank)) {
+				st_vars->SecondMinActiveFCLKChangeMarginOneDisplayInVBLank = st_vars->ActiveFCLKChangeLatencyMargin[k];
 			}
-			SameTimingForFCLKChange = false;
+			st_vars->SameTimingForFCLKChange = false;
 		}
 	}
 
-	if (MinActiveFCLKChangeMargin > 0) {
+	if (st_vars->MinActiveFCLKChangeMargin > 0) {
 		*FCLKChangeSupport = dm_fclock_change_vactive;
-	} else if ((SameTimingForFCLKChange || SecondMinActiveFCLKChangeMarginOneDisplayInVBLank > 0) &&
+	} else if ((st_vars->SameTimingForFCLKChange || st_vars->SecondMinActiveFCLKChangeMarginOneDisplayInVBLank > 0) &&
 			(PrefetchMode <= 1)) {
 		*FCLKChangeSupport = dm_fclock_change_vblank;
 	} else {
@@ -4500,7 +4479,7 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 	*USRRetrainingSupport = true;
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
 		if ((UseMALLForPStateChange[k] != dm_use_mall_pstate_change_phantom_pipe) &&
-				(USRRetrainingLatencyMargin[k] < 0)) {
+				(st_vars->USRRetrainingLatencyMargin[k] < 0)) {
 			*USRRetrainingSupport = false;
 		}
 	}
@@ -4511,42 +4490,42 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 				UseMALLForPStateChange[k] != dm_use_mall_pstate_change_phantom_pipe &&
 				ActiveDRAMClockChangeLatencyMargin[k] < 0) {
 			if (PrefetchMode > 0) {
-				DRAMClockChangeSupportNumber = 2;
-			} else if (DRAMClockChangeSupportNumber == 0) {
-				DRAMClockChangeSupportNumber = 1;
-				LastSurfaceWithoutMargin = k;
-			} else if (DRAMClockChangeSupportNumber == 1 &&
-					!SynchronizedSurfaces[LastSurfaceWithoutMargin][k]) {
-				DRAMClockChangeSupportNumber = 2;
+				st_vars->DRAMClockChangeSupportNumber = 2;
+			} else if (st_vars->DRAMClockChangeSupportNumber == 0) {
+				st_vars->DRAMClockChangeSupportNumber = 1;
+				st_vars->LastSurfaceWithoutMargin = k;
+			} else if (st_vars->DRAMClockChangeSupportNumber == 1 &&
+					!st_vars->SynchronizedSurfaces[st_vars->LastSurfaceWithoutMargin][k]) {
+				st_vars->DRAMClockChangeSupportNumber = 2;
 			}
 		}
 	}
 
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
 		if (UseMALLForPStateChange[k] == dm_use_mall_pstate_change_full_frame)
-			DRAMClockChangeMethod = 1;
+			st_vars->DRAMClockChangeMethod = 1;
 		else if (UseMALLForPStateChange[k] == dm_use_mall_pstate_change_sub_viewport)
-			DRAMClockChangeMethod = 2;
+			st_vars->DRAMClockChangeMethod = 2;
 	}
 
-	if (DRAMClockChangeMethod == 0) {
-		if (DRAMClockChangeSupportNumber == 0)
+	if (st_vars->DRAMClockChangeMethod == 0) {
+		if (st_vars->DRAMClockChangeSupportNumber == 0)
 			*DRAMClockChangeSupport = dm_dram_clock_change_vactive;
-		else if (DRAMClockChangeSupportNumber == 1)
+		else if (st_vars->DRAMClockChangeSupportNumber == 1)
 			*DRAMClockChangeSupport = dm_dram_clock_change_vblank;
 		else
 			*DRAMClockChangeSupport = dm_dram_clock_change_unsupported;
-	} else if (DRAMClockChangeMethod == 1) {
-		if (DRAMClockChangeSupportNumber == 0)
+	} else if (st_vars->DRAMClockChangeMethod == 1) {
+		if (st_vars->DRAMClockChangeSupportNumber == 0)
 			*DRAMClockChangeSupport = dm_dram_clock_change_vactive_w_mall_full_frame;
-		else if (DRAMClockChangeSupportNumber == 1)
+		else if (st_vars->DRAMClockChangeSupportNumber == 1)
 			*DRAMClockChangeSupport = dm_dram_clock_change_vblank_w_mall_full_frame;
 		else
 			*DRAMClockChangeSupport = dm_dram_clock_change_unsupported;
 	} else {
-		if (DRAMClockChangeSupportNumber == 0)
+		if (st_vars->DRAMClockChangeSupportNumber == 0)
 			*DRAMClockChangeSupport = dm_dram_clock_change_vactive_w_mall_sub_vp;
-		else if (DRAMClockChangeSupportNumber == 1)
+		else if (st_vars->DRAMClockChangeSupportNumber == 1)
 			*DRAMClockChangeSupport = dm_dram_clock_change_vblank_w_mall_sub_vp;
 		else
 			*DRAMClockChangeSupport = dm_dram_clock_change_unsupported;
@@ -4560,7 +4539,7 @@ void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
 
 		dst_y_pstate = dml_ceil((mmSOCParameters.DRAMClockChangeLatency + mmSOCParameters.UrgentLatency) / (HTotal[k] / PixelClock[k]), 1);
 		src_y_pstate_l = dml_ceil(dst_y_pstate * VRatio[k], SwathHeightY[k]);
-		src_y_ahead_l = dml_floor(DETBufferSizeY[k] / BytePerPixelDETY[k] / SwathWidthY[k], SwathHeightY[k]) + LBLatencyHidingSourceLinesY[k];
+		src_y_ahead_l = dml_floor(DETBufferSizeY[k] / BytePerPixelDETY[k] / SwathWidthY[k], SwathHeightY[k]) + st_vars->LBLatencyHidingSourceLinesY[k];
 		sub_vp_lines_l = src_y_pstate_l + src_y_ahead_l + meta_row_height[k];
 
 #ifdef __DML_VBA_DEBUG__
@@ -4568,7 +4547,7 @@ dml_print("DML::%s: k=%d, DETBufferSizeY               = %d\n", __func__, k, DET
 dml_print("DML::%s: k=%d, BytePerPixelDETY             = %f\n", __func__, k, BytePerPixelDETY[k]);
 dml_print("DML::%s: k=%d, SwathWidthY                  = %d\n", __func__, k, SwathWidthY[k]);
 dml_print("DML::%s: k=%d, SwathHeightY                 = %d\n", __func__, k, SwathHeightY[k]);
-dml_print("DML::%s: k=%d, LBLatencyHidingSourceLinesY  = %d\n", __func__, k, LBLatencyHidingSourceLinesY[k]);
+dml_print("DML::%s: k=%d, LBLatencyHidingSourceLinesY  = %d\n", __func__, k, st_vars->LBLatencyHidingSourceLinesY[k]);
 dml_print("DML::%s: k=%d, dst_y_pstate      = %d\n", __func__, k, dst_y_pstate);
 dml_print("DML::%s: k=%d, src_y_pstate_l    = %d\n", __func__, k, src_y_pstate_l);
 dml_print("DML::%s: k=%d, src_y_ahead_l     = %d\n", __func__, k, src_y_ahead_l);
@@ -4579,7 +4558,7 @@ dml_print("DML::%s: k=%d, sub_vp_lines_l    = %d\n", __func__, k, sub_vp_lines_l
 
 		if (BytePerPixelDETC[k] > 0) {
 			src_y_pstate_c = dml_ceil(dst_y_pstate * VRatioChroma[k], SwathHeightC[k]);
-			src_y_ahead_c = dml_floor(DETBufferSizeC[k] / BytePerPixelDETC[k] / SwathWidthC[k], SwathHeightC[k]) + LBLatencyHidingSourceLinesC[k];
+			src_y_ahead_c = dml_floor(DETBufferSizeC[k] / BytePerPixelDETC[k] / SwathWidthC[k], SwathHeightC[k]) + st_vars->LBLatencyHidingSourceLinesC[k];
 			sub_vp_lines_c = src_y_pstate_c + src_y_ahead_c + meta_row_height_chroma[k];
 			SubViewportLinesNeededInMALL[k] = dml_max(sub_vp_lines_l, sub_vp_lines_c);
 
