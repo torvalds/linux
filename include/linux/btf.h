@@ -17,6 +17,38 @@
 #define KF_RELEASE	(1 << 1) /* kfunc is a release function */
 #define KF_RET_NULL	(1 << 2) /* kfunc returns a pointer that may be NULL */
 #define KF_KPTR_GET	(1 << 3) /* kfunc returns reference to a kptr */
+/* Trusted arguments are those which are meant to be referenced arguments with
+ * unchanged offset. It is used to enforce that pointers obtained from acquire
+ * kfuncs remain unmodified when being passed to helpers taking trusted args.
+ *
+ * Consider
+ *	struct foo {
+ *		int data;
+ *		struct foo *next;
+ *	};
+ *
+ *	struct bar {
+ *		int data;
+ *		struct foo f;
+ *	};
+ *
+ *	struct foo *f = alloc_foo(); // Acquire kfunc
+ *	struct bar *b = alloc_bar(); // Acquire kfunc
+ *
+ * If a kfunc set_foo_data() wants to operate only on the allocated object, it
+ * will set the KF_TRUSTED_ARGS flag, which will prevent unsafe usage like:
+ *
+ *	set_foo_data(f, 42);	   // Allowed
+ *	set_foo_data(f->next, 42); // Rejected, non-referenced pointer
+ *	set_foo_data(&f->next, 42);// Rejected, referenced, but wrong type
+ *	set_foo_data(&b->f, 42);   // Rejected, referenced, but bad offset
+ *
+ * In the final case, usually for the purposes of type matching, it is deduced
+ * by looking at the type of the member at the offset, but due to the
+ * requirement of trusted argument, this deduction will be strict and not done
+ * for this case.
+ */
+#define KF_TRUSTED_ARGS (1 << 4) /* kfunc only takes trusted pointer arguments */
 
 struct btf;
 struct btf_member;
