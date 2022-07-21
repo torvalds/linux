@@ -33,9 +33,6 @@ static int e1000e_phc_adjfreq(struct ptp_clock_info *ptp, s32 delta)
 	u32 timinca, incvalue;
 	s32 ret_val;
 
-	if ((delta > ptp->max_adj) || (delta <= -1000000000))
-		return -EINVAL;
-
 	if (delta < 0) {
 		neg_adj = true;
 		delta = -delta;
