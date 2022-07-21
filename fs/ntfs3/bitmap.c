@@ -51,11 +51,6 @@ void ntfs3_exit_bitmap(void)
 	kmem_cache_destroy(ntfs_enode_cachep);
 }
 
-static inline u32 wnd_bits(const struct wnd_bitmap *wnd, size_t i)
-{
-	return i + 1 == wnd->nwnd ? wnd->bits_last : wnd->sb->s_blocksize * 8;
-}
-
 /*
  * wnd_scan
  *
