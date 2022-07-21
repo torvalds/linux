@@ -681,7 +681,7 @@ These are the steps:
 	    default drivers pool:    adapter 0-15, domain 1
 	    alternate drivers pool:  adapter 16-255, domains 0, 2-255
 
-   Note ***:
+   **Note:**
    Changing a mask such that one or more APQNs will be taken from a vfio_ap
    mediated device (see below) will fail with an error (EBUSY). A message
    is logged to the kernel ring buffer which can be viewed with the 'dmesg'
@@ -940,7 +940,7 @@ host. If the vfio_ap mdev is removed, one may want to also reconfigure
 the pool of adapters and queues reserved for use by the default drivers.
 
 Hot plug/unplug support:
-================
+========================
 An adapter, domain or control domain may be hot plugged into a running KVM
 guest by assigning it to the vfio_ap mediated device being used by the guest if
 the following conditions are met:
@@ -962,7 +962,7 @@ guest by unassigning it from the vfio_ap mediated device being used by the
 guest.
 
 Over-provisioning of AP queues for a KVM guest:
-==============================================
+===============================================
 Over-provisioning is defined herein as the assignment of adapters or domains to
 a vfio_ap mediated device that do not reference AP devices in the host's AP
 configuration. The idea here is that when the adapter or domain becomes
@@ -992,6 +992,8 @@ its mdev can be hot unplugged from the guest in one of two ways:
 
             The contents of my-guest-hostdev.xml:
 
+.. code-block:: xml
+
             <hostdev mode='subsystem' type='mdev' managed='no' model='vfio-ap'>
               <source>
                 <address uuid='62177883-f1bb-47f0-914d-32a22e3a8804'/>
@@ -1003,6 +1005,8 @@ its mdev can be hot unplugged from the guest in one of two ways:
 
       For example, to hot unplug the vfio_ap mediated device identified on the
       qemu command line with 'id=hostdev0' from the guest named 'my-guest':
+
+.. code-block:: sh
 
          virsh qemu-monitor-command my-guest --hmp "device_del hostdev0"
 
@@ -1031,6 +1035,8 @@ system into the guest in one of two ways:
          virsh attach-device my-guest ~/config/my-guest-hostdev.xml
 
             The contents of my-guest-hostdev.xml:
+
+.. code-block:: xml
 
             <hostdev mode='subsystem' type='mdev' managed='no' model='vfio-ap'>
               <source>
