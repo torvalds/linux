@@ -241,15 +241,31 @@ struct gsi_trans *gsi_channel_trans_complete(struct gsi_channel *channel)
 					struct gsi_trans, links);
 }
 
-/* Move a transaction from the allocated list to the pending list */
-static void gsi_trans_move_pending(struct gsi_trans *trans)
+/* Move a transaction from the allocated list to the committed list */
+static void gsi_trans_move_committed(struct gsi_trans *trans)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 	struct gsi_trans_info *trans_info = &channel->trans_info;
 
 	spin_lock_bh(&trans_info->spinlock);
 
-	list_move_tail(&trans->links, &trans_info->pending);
+	list_move_tail(&trans->links, &trans_info->committed);
+
+	spin_unlock_bh(&trans_info->spinlock);
+}
+
+/* Move transactions from the committed list to the pending list */
+static void gsi_trans_move_pending(struct gsi_trans *trans)
+{
+	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
+	struct gsi_trans_info *trans_info = &channel->trans_info;
+	struct list_head list;
+
+	spin_lock_bh(&trans_info->spinlock);
+
+	/* Move this transaction and all predecessors to the pending list */
+	list_cut_position(&list, &trans_info->committed, &trans->links);
+	list_splice_tail(&list, &trans_info->pending);
 
 	spin_unlock_bh(&trans_info->spinlock);
 }
@@ -346,7 +362,7 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	trans->rsvd_count = tre_count;
 	init_completion(&trans->completion);
 
-	/* Allocate the scatterlist and (if requested) info entries. */
+	/* Allocate the scatterlist */
 	trans->sgl = gsi_trans_pool_alloc(&trans_info->sg_pool, tre_count);
 	sg_init_marker(trans->sgl, tre_count);
 
@@ -388,7 +404,8 @@ void gsi_trans_free(struct gsi_trans *trans)
 	if (!last)
 		return;
 
-	ipa_gsi_trans_release(trans);
+	if (trans->used_count)
+		ipa_gsi_trans_release(trans);
 
 	/* Releasing the reserved TREs implicitly frees the sgl[] and
 	 * (if present) info[] arrays, plus the transaction itself.
@@ -581,13 +598,14 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 	if (channel->toward_ipa)
 		gsi_trans_tx_committed(trans);
 
-	gsi_trans_move_pending(trans);
+	gsi_trans_move_committed(trans);
 
 	/* Ring doorbell if requested, or if all TREs are allocated */
 	if (ring_db || !atomic_read(&channel->trans_info.tre_avail)) {
 		/* Report what we're handing off to hardware for TX channels */
 		if (channel->toward_ipa)
 			gsi_trans_tx_queued(trans);
+		gsi_trans_move_pending(trans);
 		gsi_channel_doorbell(channel);
 	}
 }
@@ -692,6 +710,7 @@ void gsi_trans_read_byte_done(struct gsi *gsi, u32 channel_id)
 int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
+	u32 tre_count = channel->tre_count;
 	struct gsi_trans_info *trans_info;
 	u32 tre_max;
 	int ret;
@@ -699,30 +718,40 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 	/* Ensure the size of a channel element is what's expected */
 	BUILD_BUG_ON(sizeof(struct gsi_tre) != GSI_RING_ELEMENT_SIZE);
 
-	/* The map array is used to determine what transaction is associated
-	 * with a TRE that the hardware reports has completed.  We need one
-	 * map entry per TRE.
-	 */
 	trans_info = &channel->trans_info;
-	trans_info->map = kcalloc(channel->tre_count, sizeof(*trans_info->map),
-				  GFP_KERNEL);
-	if (!trans_info->map)
-		return -ENOMEM;
 
-	/* We can't use more TREs than there are available in the ring.
-	 * This limits the number of transactions that can be oustanding.
-	 * Worst case is one TRE per transaction (but we actually limit
-	 * it to something a little less than that).  We allocate resources
-	 * for transactions (including transaction structures) based on
-	 * this maximum number.
+	/* The tre_avail field is what ultimately limits the number of
+	 * outstanding transactions and their resources.  A transaction
+	 * allocation succeeds only if the TREs available are sufficient
+	 * for what the transaction might need.
 	 */
 	tre_max = gsi_channel_tre_max(channel->gsi, channel_id);
+	atomic_set(&trans_info->tre_avail, tre_max);
 
-	/* Transactions are allocated one at a time. */
+	/* We can't use more TREs than the number available in the ring.
+	 * This limits the number of transactions that can be outstanding.
+	 * Worst case is one TRE per transaction (but we actually limit
+	 * it to something a little less than that).  By allocating a
+	 * power-of-two number of transactions we can use an index
+	 * modulo that number to determine the next one that's free.
+	 * Transactions are allocated one at a time.
+	 */
 	ret = gsi_trans_pool_init(&trans_info->pool, sizeof(struct gsi_trans),
 				  tre_max, 1);
 	if (ret)
-		goto err_kfree;
+		return -ENOMEM;
+
+	/* A completion event contains a pointer to the TRE that caused
+	 * the event (which will be the last one used by the transaction).
+	 * Each entry in this map records the transaction associated
+	 * with a corresponding completed TRE.
+	 */
+	trans_info->map = kcalloc(tre_count, sizeof(*trans_info->map),
+				  GFP_KERNEL);
+	if (!trans_info->map) {
+		ret = -ENOMEM;
+		goto err_trans_free;
+	}
 
 	/* A transaction uses a scatterlist array to represent the data
 	 * transfers implemented by the transaction.  Each scatterlist
@@ -734,29 +763,21 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 				  sizeof(struct scatterlist),
 				  tre_max, channel->trans_tre_max);
 	if (ret)
-		goto err_trans_pool_exit;
-
-	/* Finally, the tre_avail field is what ultimately limits the number
-	 * of outstanding transactions and their resources.  A transaction
-	 * allocation succeeds only if the TREs available are sufficient for
-	 * what the transaction might need.  Transaction resource pools are
-	 * sized based on the maximum number of outstanding TREs, so there
-	 * will always be resources available if there are TREs available.
-	 */
-	atomic_set(&trans_info->tre_avail, tre_max);
+		goto err_map_free;
 
 	spin_lock_init(&trans_info->spinlock);
 	INIT_LIST_HEAD(&trans_info->alloc);
+	INIT_LIST_HEAD(&trans_info->committed);
 	INIT_LIST_HEAD(&trans_info->pending);
 	INIT_LIST_HEAD(&trans_info->complete);
 	INIT_LIST_HEAD(&trans_info->polled);
 
 	return 0;
 
-err_trans_pool_exit:
-	gsi_trans_pool_exit(&trans_info->pool);
-err_kfree:
+err_map_free:
 	kfree(trans_info->map);
+err_trans_free:
+	gsi_trans_pool_exit(&trans_info->pool);
 
 	dev_err(gsi->dev, "error %d initializing channel %u transactions\n",
 		ret, channel_id);

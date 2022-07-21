@@ -722,6 +722,9 @@ static struct gsi_trans *gsi_channel_trans_last(struct gsi_channel *channel)
 		list = &trans_info->alloc;
 		if (!list_empty(list))
 			goto done;
+		list = &trans_info->committed;
+		if (!list_empty(list))
+			goto done;
 		list = &trans_info->pending;
 		if (!list_empty(list))
 			goto done;
@@ -1364,7 +1367,7 @@ gsi_event_trans(struct gsi *gsi, struct gsi_event *event)
  * first *unfilled* event in the ring (following the last filled one).
  *
  * Events are sequential within the event ring, and transactions are
- * sequential within the transaction pool.
+ * sequential within the transaction array.
  *
  * Note that @index always refers to an element *within* the event ring.
  */
