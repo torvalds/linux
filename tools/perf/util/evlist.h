@@ -104,6 +104,8 @@ static inline int evlist__add_default(struct evlist *evlist)
 	return __evlist__add_default(evlist, true);
 }
 
+int evlist__add_attrs(struct evlist *evlist, struct perf_event_attr *attrs, size_t nr_attrs);
+
 int __evlist__add_default_attrs(struct evlist *evlist,
 				     struct perf_event_attr *attrs, size_t nr_attrs);
 
