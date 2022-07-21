@@ -55,6 +55,9 @@ properties:
       - const: apb_pclk
       - const: atclk
 
+  iommus:
+    maxItems: 1
+
   power-domains:
     maxItems: 1
 
