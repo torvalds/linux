@@ -29,7 +29,7 @@
 static struct platform_device *dmic_dev;
 static struct platform_device *pdev;
 
-static const struct resource acp3x_res[] = {
+static const struct resource acp_res[] = {
 	{
 		.start = 0,
 		.end = ACP3x_REG_END - ACP3x_REG_START,
@@ -75,16 +75,15 @@ static int acp_pci_probe(struct pci_dev *pci, const struct pci_device_id *pci_id
 
 	pci_set_master(pci);
 
+	res_acp = acp_res;
+	num_res = ARRAY_SIZE(acp_res);
+
 	switch (pci->revision) {
 	case 0x01:
-		res_acp = acp3x_res;
-		num_res = ARRAY_SIZE(acp3x_res);
 		chip->name = "acp_asoc_renoir";
 		chip->acp_rev = ACP3X_DEV;
 		break;
 	case 0x6f:
-		res_acp = acp3x_res;
-		num_res = ARRAY_SIZE(acp3x_res);
 		chip->name = "acp_asoc_rembrandt";
 		chip->acp_rev = ACP6X_DEV;
 		break;
