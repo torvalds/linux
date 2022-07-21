@@ -389,8 +389,8 @@ static int __prestera_inetaddr_event(struct prestera_switch *sw,
 				     unsigned long event,
 				     struct netlink_ext_ack *extack)
 {
-	if (!prestera_netdev_check(dev) || netif_is_bridge_port(dev) ||
-	    netif_is_lag_port(dev) || netif_is_ovs_port(dev))
+	if (!prestera_netdev_check(dev) || netif_is_any_bridge_port(dev) ||
+	    netif_is_lag_port(dev))
 		return 0;
 
 	return __prestera_inetaddr_port_event(dev, event, extack);
