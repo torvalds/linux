@@ -7,19 +7,23 @@ This document describes the locks that are pertinent to the secure operation
 of the vfio_ap device driver. Throughout this document, the following variables
 will be used to denote instances of the structures herein described:
 
-struct ap_matrix_dev *matrix_dev;
-struct ap_matrix_mdev *matrix_mdev;
-struct kvm *kvm;
+.. code-block:: c
+
+  struct ap_matrix_dev *matrix_dev;
+  struct ap_matrix_mdev *matrix_mdev;
+  struct kvm *kvm;
 
 The Matrix Devices Lock (drivers/s390/crypto/vfio_ap_private.h)
---------------------------------------------------------------
+---------------------------------------------------------------
 
-struct ap_matrix_dev {
-	...
-	struct list_head mdev_list;
-	struct mutex mdevs_lock;
-	...
-}
+.. code-block:: c
+
+  struct ap_matrix_dev {
+  	...
+  	struct list_head mdev_list;
+  	struct mutex mdevs_lock;
+  	...
+  }
 
 The Matrix Devices Lock (matrix_dev->mdevs_lock) is implemented as a global
 mutex contained within the single object of struct ap_matrix_dev. This lock
@@ -31,11 +35,13 @@ representing one of the vfio_ap device driver's mediated devices.
 The KVM Lock (include/linux/kvm_host.h)
 ---------------------------------------
 
-struct kvm {
-	...
-	struct mutex lock;
-	...
-}
+.. code-block:: c
+
+  struct kvm {
+  	...
+  	struct mutex lock;
+  	...
+  }
 
 The KVM Lock (kvm->lock) controls access to the state data for a KVM guest. This
 lock must be held by the vfio_ap device driver while one or more AP adapters,
@@ -48,12 +54,14 @@ been attached to the KVM guest.
 The Guests Lock (drivers/s390/crypto/vfio_ap_private.h)
 -----------------------------------------------------------
 
-struct ap_matrix_dev {
-	...
-	struct list_head mdev_list;
-	struct mutex guests_lock;
-	...
-}
+.. code-block:: c
+
+  struct ap_matrix_dev {
+  	...
+  	struct list_head mdev_list;
+  	struct mutex guests_lock;
+  	...
+  }
 
 The Guests Lock (matrix_dev->guests_lock) controls access to the
 matrix_mdev instances (matrix_dev->mdev_list) that represent mediated devices
@@ -89,17 +97,19 @@ resources, so only the matrix_dev->mdevs_lock needs to be held.
 The PQAP Hook Lock (arch/s390/include/asm/kvm_host.h)
 -----------------------------------------------------
 
-typedef int (*crypto_hook)(struct kvm_vcpu *vcpu);
+.. code-block:: c
 
-struct kvm_s390_crypto {
-	...
-	struct rw_semaphore pqap_hook_rwsem;
-	crypto_hook *pqap_hook;
-	...
-};
+  typedef int (*crypto_hook)(struct kvm_vcpu *vcpu);
+
+  struct kvm_s390_crypto {
+  	...
+  	struct rw_semaphore pqap_hook_rwsem;
+  	crypto_hook *pqap_hook;
+  	...
+  };
 
 The PQAP Hook Lock is a r/w semaphore that controls access to the function
-pointer of the handler (*kvm->arch.crypto.pqap_hook) to invoke when the
+pointer of the handler ``(*kvm->arch.crypto.pqap_hook)`` to invoke when the
 PQAP(AQIC) instruction sub-function is intercepted by the host. The lock must be
 held in write mode when pqap_hook value is set, and in read mode when the
 pqap_hook function is called.
