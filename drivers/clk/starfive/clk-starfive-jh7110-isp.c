@@ -69,6 +69,12 @@ static const struct jh7110_clk_data jh7110_clk_isp_data[] __initconst = {
 			JH7110_DVP_INV),
 };
 
+static struct clk_bulk_data isp_top_clks[] = {
+	{ .id = "u0_dom_isp_top_clk_dom_isp_top_clk_ispcore_2x" },
+	{ .id = "u0_dom_isp_top_clk_dom_isp_top_clk_isp_axi" },
+	{ .id = "u0_sft7110_noc_bus_clk_isp_axi" },
+};
+
 static struct clk_hw *jh7110_isp_clk_get(struct of_phandle_args *clkspec,
 					void *data)
 {
@@ -88,12 +94,8 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 {
 	struct jh7110_clk_priv *priv;
 	unsigned int idx;
-	struct clk *clk_isp_noc_bus;
-	struct clk *clk_isp_2x;
-	struct clk *clk_isp_axi;
-	struct reset_control *rst_isp_noc_bus;
-	struct reset_control *rst_isp_n;
-	struct reset_control *rst_isp_axi;
+	struct reset_control *rsts;
+	int num_clks;
 	int ret = 0;
 
 	priv = devm_kzalloc(&pdev->dev, struct_size(priv, reg,
@@ -114,87 +116,29 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_isp_noc_bus = devm_clk_get(priv->dev,
-			"u0_sft7110_noc_bus_clk_isp_axi");
-	if (!IS_ERR(clk_isp_noc_bus)) {
-		ret = clk_prepare_enable(clk_isp_noc_bus);
+	rsts = devm_reset_control_array_get_shared(priv->dev);
+	if (!IS_ERR(rsts)) {
+		ret = reset_control_deassert(rsts);
 		if (ret) {
-			dev_err(priv->dev, "clk_isp_noc_bus enable failed\n");
-			goto clk_noc_enable_failed;
+			dev_err(priv->dev, "rst deassert failed: %d\n", ret);
+			goto rsts_deassert_failed;
 		}
 	} else {
-		dev_err(priv->dev, "clk_isp_noc_bus get failed\n");
-		return PTR_ERR(clk_isp_noc_bus);
+		dev_err(priv->dev, "rst get failed\n");
+		return PTR_ERR(rsts);
 	}
 
-	rst_isp_noc_bus = devm_reset_control_get_exclusive(
-			priv->dev, "rst_isp_noc_bus_n");
-	if (!IS_ERR(rst_isp_noc_bus)) {
-		ret = reset_control_deassert(rst_isp_noc_bus);
+	num_clks = ARRAY_SIZE(isp_top_clks);
+	ret = clk_bulk_get(priv->dev, num_clks, isp_top_clks);
+	if (!ret) {
+		ret = clk_bulk_prepare_enable(num_clks, isp_top_clks);
 		if (ret) {
-			dev_err(priv->dev, "rst_isp_noc_bus deassert failed.\n");
-			goto rst_noc_deassert_failed;
+			dev_err(priv->dev, "clks enable failed: %d\n", ret);
+			goto clks_enable_failed;
 		}
 	} else {
-		dev_err(priv->dev, "rst_isp_noc_bus get failed.\n");
-		ret = PTR_ERR(rst_isp_noc_bus);
-		goto rst_noc_get_failed;
-	}
-
-	clk_isp_2x = devm_clk_get(priv->dev,
-			"u0_dom_isp_top_clk_dom_isp_top_clk_ispcore_2x");
-	if (!IS_ERR(clk_isp_2x)) {
-		ret = clk_prepare_enable(clk_isp_2x);
-		if (ret) {
-			dev_err(priv->dev, "clk_isp_2x enable failed\n");
-			goto clk_2x_enable_failed;
-		}
-	} else {
-		dev_err(priv->dev, "clk_isp_2x get failed\n");
-		ret = PTR_ERR(clk_isp_2x);
-		goto clk_2x_get_failed;
-	}
-
-	clk_isp_axi = devm_clk_get(priv->dev,
-			"u0_dom_isp_top_clk_dom_isp_top_clk_isp_axi");
-	if (!IS_ERR(clk_isp_axi)) {
-		ret = clk_prepare_enable(clk_isp_axi);
-		if (ret) {
-			dev_err(priv->dev, "clk_isp_axi enable failed\n");
-			goto clk_axi_enable_failed;
-		}
-	} else {
-		dev_err(priv->dev, "clk_isp_axi get failed\n");
-		ret = PTR_ERR(clk_isp_axi);
-		goto clk_axi_get_failed;
-	}
-
-	rst_isp_n = devm_reset_control_get_exclusive(
-			priv->dev, "rst_isp_top_n");
-	if (!IS_ERR(rst_isp_n)) {
-		ret = reset_control_deassert(rst_isp_n);
-		if (ret) {
-			dev_err(priv->dev, "rst_isp_n deassert failed.\n");
-			goto rst_n_deassert_failed;
-		}
-	} else {
-		dev_err(priv->dev, "rst_isp_n get failed.\n");
-		ret = PTR_ERR(rst_isp_n);
-		goto rst_n_get_failed;
-	}
-
-	rst_isp_axi = devm_reset_control_get_exclusive(
-			priv->dev, "rst_isp_top_axi");
-	if (!IS_ERR(rst_isp_axi)) {
-		ret = reset_control_deassert(rst_isp_axi);
-		if (ret) {
-			dev_err(priv->dev, "rst_isp_axi deassert failed.\n");
-			goto rst_axi_deassert_failed;
-		}
-	} else {
-		dev_err(priv->dev, "rst_isp_axi get failed.\n");
-		ret = PTR_ERR(rst_isp_axi);
-		goto rst_axi_get_failed;
+		dev_err(priv->dev, "clks get failed: %d\n", ret);
+		goto clks_get_failed;
 	}
 
 	priv->pll[PLL_OFI(JH7110_U3_PCLK_MUX_FUNC_PCLK)] =
@@ -310,36 +254,18 @@ static int __init clk_starfive_jh7110_isp_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	reset_control_put(rst_isp_axi);
-	reset_control_put(rst_isp_n);
-	reset_control_put(rst_isp_noc_bus);
-	devm_clk_put(priv->dev, clk_isp_axi);
-	devm_clk_put(priv->dev, clk_isp_2x);
-	devm_clk_put(priv->dev, clk_isp_noc_bus);
+	clk_bulk_put(num_clks, isp_top_clks);
+	reset_control_put(rsts);
 
 	dev_info(&pdev->dev, "starfive JH7110 clk_isp init successfully.");
 	return 0;
 
-rst_axi_deassert_failed:
-	reset_control_put(rst_isp_axi);
-rst_axi_get_failed:
-	reset_control_assert(rst_isp_n);
-rst_n_deassert_failed:
-	reset_control_put(rst_isp_n);
-rst_n_get_failed:
-	clk_disable_unprepare(clk_isp_axi);
-clk_axi_enable_failed:
-	devm_clk_put(priv->dev, clk_isp_axi);
-clk_axi_get_failed:
-	clk_disable_unprepare(clk_isp_2x);
-clk_2x_enable_failed:
-	devm_clk_put(priv->dev, clk_isp_2x);
-clk_2x_get_failed:
-rst_noc_deassert_failed:
-	reset_control_put(rst_isp_noc_bus);
-rst_noc_get_failed:
-clk_noc_enable_failed:
-	devm_clk_put(priv->dev, clk_isp_noc_bus);
+clks_enable_failed:
+	clk_bulk_put(num_clks, isp_top_clks);
+clks_get_failed:
+	reset_control_assert(rsts);
+rsts_deassert_failed:
+	reset_control_put(rsts);
 
 	return ret;
 

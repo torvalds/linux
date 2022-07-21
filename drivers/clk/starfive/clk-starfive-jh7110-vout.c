@@ -77,6 +77,11 @@ static const struct jh7110_clk_data jh7110_clk_vout_data[] __initconst = {
 			GATE_FLAG_NORMAL, JH7110_DISP_APB),
 };
 
+static struct clk_bulk_data vout_top_clks[] = {
+	{ .id = "vout_src" },
+	{ .id = "vout_top_ahb" },
+};
+
 static struct clk_hw *jh7110_vout_clk_get(struct of_phandle_args *clkspec,
 					void *data)
 {
@@ -96,9 +101,8 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 {
 	struct jh7110_clk_priv *priv;
 	unsigned int idx;
-	struct clk *clk_vout_src;
-	struct clk *clk_vout_top_ahb;
 	struct reset_control *rst_vout_src;
+	int num_clks;
 	int ret = 0;
 
 	priv = devm_kzalloc(&pdev->dev, struct_size(priv,
@@ -119,43 +123,29 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	clk_vout_src = devm_clk_get(priv->dev, "vout_src");
-	if (!IS_ERR(clk_vout_src)) {
-		ret = clk_prepare_enable(clk_vout_src);
-		if (ret) {
-			dev_err(priv->dev, "clk_vout_src enable failed\n");
-			goto clk_src_enable_failed;
-		}
-	} else {
-		dev_err(priv->dev, "clk_vout_src get failed\n");
-		return PTR_ERR(clk_vout_src);
-	}
-
-	rst_vout_src = devm_reset_control_get_exclusive(
-			priv->dev, "vout_src");
+	rst_vout_src = reset_control_get_shared(priv->dev, "vout_src");
 	if (!IS_ERR(rst_vout_src)) {
 		ret = reset_control_deassert(rst_vout_src);
 		if (ret) {
 			dev_err(priv->dev, "rst_vout_src deassert failed.\n");
-			goto rst_src_deassert_failed;
+			goto rst_deassert_failed;
 		}
 	} else {
 		dev_err(priv->dev, "rst_vout_src get failed.\n");
-		ret = PTR_ERR(rst_vout_src);
-		goto rst_src_get_failed;
+		return PTR_ERR(rst_vout_src);
 	}
 
-	clk_vout_top_ahb = devm_clk_get(priv->dev, "vout_top_ahb");
-	if (!IS_ERR(clk_vout_top_ahb)) {
-		ret = clk_prepare_enable(clk_vout_top_ahb);
+	num_clks = ARRAY_SIZE(vout_top_clks);
+	ret = clk_bulk_get(priv->dev, num_clks, vout_top_clks);
+	if (!ret) {
+		ret = clk_bulk_prepare_enable(num_clks, vout_top_clks);
 		if (ret) {
-			dev_err(priv->dev, "clk_vout_top_ahb enable failed\n");
-			goto clk_ahb_enable_failed;
+			dev_err(priv->dev, "clks enable failed: %d\n", ret);
+			goto clks_enable_failed;
 		}
 	} else {
-		dev_err(priv->dev, "clk_vout_top_ahb get failed\n");
-		ret = PTR_ERR(clk_vout_top_ahb);
-		goto clk_ahb_get_failed;
+		dev_err(priv->dev, "clks get failed: %d\n", ret);
+		goto clks_get_failed;
 	}
 
 	//source
@@ -305,23 +295,18 @@ static int __init clk_starfive_jh7110_vout_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	devm_clk_put(priv->dev, clk_vout_src);
+	clk_bulk_put(num_clks, vout_top_clks);
 	reset_control_put(rst_vout_src);
-	devm_clk_put(priv->dev, clk_vout_top_ahb);
 
 	dev_info(&pdev->dev, "starfive JH7110 clk_vout init successfully.");
 	return 0;
 
-clk_ahb_enable_failed:
-	devm_clk_put(priv->dev, clk_vout_top_ahb);
-clk_ahb_get_failed:
+clks_enable_failed:
+	clk_bulk_put(num_clks, vout_top_clks);
+clks_get_failed:
 	reset_control_assert(rst_vout_src);
-rst_src_deassert_failed:
+rst_deassert_failed:
 	reset_control_put(rst_vout_src);
-rst_src_get_failed:
-	clk_disable_unprepare(clk_vout_src);
-clk_src_enable_failed:
-	devm_clk_put(priv->dev, clk_vout_src);
 
 	return ret;
 
