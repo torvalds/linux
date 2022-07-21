@@ -208,19 +208,8 @@ static inline int ublk_queue_cmd_buf_size(struct ublk_device *ub, int q_id)
 			PAGE_SIZE);
 }
 
-static int ublk_open(struct block_device *bdev, fmode_t mode)
-{
-	return 0;
-}
-
-static void ublk_release(struct gendisk *disk, fmode_t mode)
-{
-}
-
 static const struct block_device_operations ub_fops = {
 	.owner =	THIS_MODULE,
-	.open =		ublk_open,
-	.release =	ublk_release,
 };
 
 #define UBLK_MAX_PIN_PAGES	32
