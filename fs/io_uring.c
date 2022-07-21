@@ -12931,7 +12931,7 @@ static int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 {
 	struct io_uring_buf_ring *br;
 	struct io_uring_buf_reg reg;
-	struct io_buffer_list *bl;
+	struct io_buffer_list *bl, *free_bl = NULL;
 	struct page **pages;
 	int nr_pages;
 
@@ -12963,7 +12963,7 @@ static int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 		if (bl->buf_nr_pages || !list_empty(&bl->buf_list))
 			return -EEXIST;
 	} else {
-		bl = kzalloc(sizeof(*bl), GFP_KERNEL);
+		free_bl = bl = kzalloc(sizeof(*bl), GFP_KERNEL);
 		if (!bl)
 			return -ENOMEM;
 	}
@@ -12972,7 +12972,7 @@ static int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 			     struct_size(br, bufs, reg.ring_entries),
 			     &nr_pages);
 	if (IS_ERR(pages)) {
-		kfree(bl);
+		kfree(free_bl);
 		return PTR_ERR(pages);
 	}
 
