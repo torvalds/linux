@@ -340,11 +340,12 @@ static int psp_init_sriov_microcode(struct psp_context *psp)
 		ret = psp_init_cap_microcode(psp, "aldebaran");
 		ret &= psp_init_ta_microcode(psp, "aldebaran");
 		break;
+	case IP_VERSION(13, 0, 0):
+		break;
 	default:
 		BUG();
 		break;
 	}
-
 	return ret;
 }
 
@@ -2412,19 +2413,7 @@ static bool fw_load_skip_check(struct psp_context *psp,
 		return true;
 
 	if (amdgpu_sriov_vf(psp->adev) &&
-	   (ucode->ucode_id == AMDGPU_UCODE_ID_SDMA0
-	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA1
-	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA2
-	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA3
-	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA4
-	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA5
-	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA6
-	    || ucode->ucode_id == AMDGPU_UCODE_ID_SDMA7
-	    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_G
-	    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL
-	    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM
-	    || ucode->ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM
-	    || ucode->ucode_id == AMDGPU_UCODE_ID_SMC))
+	    amdgpu_virt_fw_load_skip_check(psp->adev, ucode->ucode_id))
 		/*skip ucode loading in SRIOV VF */
 		return true;
 

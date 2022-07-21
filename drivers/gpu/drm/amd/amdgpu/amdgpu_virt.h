@@ -343,4 +343,6 @@ void amdgpu_sriov_wreg(struct amdgpu_device *adev,
 		       u32 acc_flags, u32 hwip);
 u32 amdgpu_sriov_rreg(struct amdgpu_device *adev,
 		      u32 offset, u32 acc_flags, u32 hwip);
+bool amdgpu_virt_fw_load_skip_check(struct amdgpu_device *adev,
+			uint32_t ucode_id);
 #endif
