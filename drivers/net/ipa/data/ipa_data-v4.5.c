@@ -4,10 +4,10 @@
 
 #include <linux/log2.h>
 
-#include "gsi.h"
-#include "ipa_data.h"
-#include "ipa_endpoint.h"
-#include "ipa_mem.h"
+#include "../gsi.h"
+#include "../ipa_data.h"
+#include "../ipa_endpoint.h"
+#include "../ipa_mem.h"
 
 /** enum ipa_resource_type - IPA resource types for an SoC having IPA v4.5 */
 enum ipa_resource_type {
