@@ -262,6 +262,8 @@ extern unsigned int xdr_align_data(struct xdr_stream *, unsigned int offset, uns
 extern unsigned int xdr_expand_hole(struct xdr_stream *, unsigned int offset, unsigned int length);
 extern bool xdr_stream_subsegment(struct xdr_stream *xdr, struct xdr_buf *subbuf,
 				  unsigned int len);
+extern unsigned int xdr_stream_move_subsegment(struct xdr_stream *xdr, unsigned int offset,
+					       unsigned int target, unsigned int length);
 
 /**
  * xdr_set_scratch_buffer - Attach a scratch buffer for decoding data.
