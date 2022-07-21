@@ -444,6 +444,32 @@ static void ieee80211_free_links(struct ieee80211_sub_if_data *sdata,
 	}
 }
 
+static int ieee80211_check_dup_link_addrs(struct ieee80211_sub_if_data *sdata)
+{
+	unsigned int i, j;
+
+	for (i = 0; i < IEEE80211_MLD_MAX_NUM_LINKS; i++) {
+		struct ieee80211_link_data *link1;
+
+		link1 = sdata_dereference(sdata->link[i], sdata);
+		if (!link1)
+			continue;
+		for (j = i + 1; j < IEEE80211_MLD_MAX_NUM_LINKS; j++) {
+			struct ieee80211_link_data *link2;
+
+			link2 = sdata_dereference(sdata->link[j], sdata);
+			if (!link2)
+				continue;
+
+			if (ether_addr_equal(link1->conf->addr,
+					     link2->conf->addr))
+				return -EALREADY;
+		}
+	}
+
+	return 0;
+}
+
 static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 				      struct link_container **to_free,
 				      u16 new_links)
@@ -518,10 +544,14 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 
 	sdata->vif.valid_links = new_links;
 
-	/* tell the driver */
-	ret = drv_change_vif_links(sdata->local, sdata,
-				   old_links, new_links,
-				   old);
+	ret = ieee80211_check_dup_link_addrs(sdata);
+	if (!ret) {
+		/* tell the driver */
+		ret = drv_change_vif_links(sdata->local, sdata,
+					   old_links, new_links,
+					   old);
+	}
+
 	if (ret) {
 		/* restore config */
 		memcpy(sdata->link, old_data, sizeof(old_data));
