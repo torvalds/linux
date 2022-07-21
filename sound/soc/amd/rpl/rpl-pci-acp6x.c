@@ -10,6 +10,7 @@
 #include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/platform_device.h>
+#include <linux/pm_runtime.h>
 
 #include "rpl_acp6x.h"
 
@@ -144,6 +145,11 @@ static int snd_rpl_probe(struct pci_dev *pci,
 	ret = rpl_init(adata->acp6x_base);
 	if (ret)
 		goto release_regions;
+	pm_runtime_set_autosuspend_delay(&pci->dev, ACP_SUSPEND_DELAY_MS);
+	pm_runtime_use_autosuspend(&pci->dev);
+	pm_runtime_put_noidle(&pci->dev);
+	pm_runtime_allow(&pci->dev);
+
 	return 0;
 release_regions:
 	pci_release_regions(pci);
@@ -152,6 +158,35 @@ disable_pci:
 
 	return ret;
 }
+
+static int __maybe_unused snd_rpl_suspend(struct device *dev)
+{
+	struct rpl_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+	ret = rpl_deinit(adata->acp6x_base);
+	if (ret)
+		dev_err(dev, "ACP de-init failed\n");
+	return ret;
+}
+
+static int __maybe_unused snd_rpl_resume(struct device *dev)
+{
+	struct rpl_dev_data *adata;
+	int ret;
+
+	adata = dev_get_drvdata(dev);
+	ret = rpl_init(adata->acp6x_base);
+	if (ret)
+		dev_err(dev, "ACP init failed\n");
+	return ret;
+}
+
+static const struct dev_pm_ops rpl_pm = {
+	SET_RUNTIME_PM_OPS(snd_rpl_suspend, snd_rpl_resume, NULL)
+	SET_SYSTEM_SLEEP_PM_OPS(snd_rpl_suspend, snd_rpl_resume)
+};
 
 static void snd_rpl_remove(struct pci_dev *pci)
 {
@@ -162,6 +197,8 @@ static void snd_rpl_remove(struct pci_dev *pci)
 	ret = rpl_deinit(adata->acp6x_base);
 	if (ret)
 		dev_err(&pci->dev, "ACP de-init failed\n");
+	pm_runtime_forbid(&pci->dev);
+	pm_runtime_get_noresume(&pci->dev);
 	pci_release_regions(pci);
 	pci_disable_device(pci);
 }
@@ -179,6 +216,9 @@ static struct pci_driver rpl_acp6x_driver  = {
 	.id_table = snd_rpl_ids,
 	.probe = snd_rpl_probe,
 	.remove = snd_rpl_remove,
+	.driver = {
+		.pm = &rpl_pm,
+	}
 };
 
 module_pci_driver(rpl_acp6x_driver);
