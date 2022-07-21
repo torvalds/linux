@@ -97,6 +97,8 @@ static inline void __nf_ct_set_timeout(struct nf_conn *ct, u64 timeout)
 	WRITE_ONCE(ct->timeout, nfct_time_stamp + (u32)timeout);
 }
 
+int __nf_ct_change_timeout(struct nf_conn *ct, u64 cta_timeout);
+
 #endif
 
 #endif /* _NF_CONNTRACK_CORE_H */

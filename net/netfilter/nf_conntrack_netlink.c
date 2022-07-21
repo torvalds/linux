@@ -2023,14 +2023,7 @@ static int ctnetlink_change_helper(struct nf_conn *ct,
 static int ctnetlink_change_timeout(struct nf_conn *ct,
 				    const struct nlattr * const cda[])
 {
-	u64 timeout = (u64)ntohl(nla_get_be32(cda[CTA_TIMEOUT])) * HZ;
-
-	__nf_ct_set_timeout(ct, timeout);
-
-	if (test_bit(IPS_DYING_BIT, &ct->status))
-		return -ETIME;
-
-	return 0;
+	return __nf_ct_change_timeout(ct, (u64)ntohl(nla_get_be32(cda[CTA_TIMEOUT])) * HZ);
 }
 
 #if defined(CONFIG_NF_CONNTRACK_MARK)

@@ -331,12 +331,12 @@ bpf_skb_ct_lookup(struct __sk_buff *skb_ctx, struct bpf_sock_tuple *bpf_tuple,
  *
  * This must be invoked for referenced PTR_TO_BTF_ID.
  *
- * @nfct__ref	 - Pointer to referenced nf_conn___init object, obtained
+ * @nfct	 - Pointer to referenced nf_conn___init object, obtained
  *		   using bpf_xdp_ct_alloc or bpf_skb_ct_alloc.
  */
-struct nf_conn *bpf_ct_insert_entry(struct nf_conn___init *nfct__ref)
+struct nf_conn *bpf_ct_insert_entry(struct nf_conn___init *nfct_i)
 {
-	struct nf_conn *nfct = (struct nf_conn *)nfct__ref;
+	struct nf_conn *nfct = (struct nf_conn *)nfct_i;
 	int err;
 
 	err = nf_conntrack_hash_check_insert(nfct);
@@ -364,6 +364,36 @@ void bpf_ct_release(struct nf_conn *nfct)
 	nf_ct_put(nfct);
 }
 
+/* bpf_ct_set_timeout - Set timeout of allocated nf_conn
+ *
+ * Sets the default timeout of newly allocated nf_conn before insertion.
+ * This helper must be invoked for refcounted pointer to nf_conn___init.
+ *
+ * Parameters:
+ * @nfct	 - Pointer to referenced nf_conn object, obtained using
+ *                 bpf_xdp_ct_alloc or bpf_skb_ct_alloc.
+ * @timeout      - Timeout in msecs.
+ */
+void bpf_ct_set_timeout(struct nf_conn___init *nfct, u32 timeout)
+{
+	__nf_ct_set_timeout((struct nf_conn *)nfct, msecs_to_jiffies(timeout));
+}
+
+/* bpf_ct_change_timeout - Change timeout of inserted nf_conn
+ *
+ * Change timeout associated of the inserted or looked up nf_conn.
+ * This helper must be invoked for refcounted pointer to nf_conn.
+ *
+ * Parameters:
+ * @nfct	 - Pointer to referenced nf_conn object, obtained using
+ *		   bpf_ct_insert_entry, bpf_xdp_ct_lookup, or bpf_skb_ct_lookup.
+ * @timeout      - New timeout in msecs.
+ */
+int bpf_ct_change_timeout(struct nf_conn *nfct, u32 timeout)
+{
+	return __nf_ct_change_timeout(nfct, msecs_to_jiffies(timeout));
+}
+
 __diag_pop()
 
 BTF_SET8_START(nf_ct_kfunc_set)
@@ -373,6 +403,8 @@ BTF_ID_FLAGS(func, bpf_skb_ct_alloc, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_skb_ct_lookup, KF_ACQUIRE | KF_RET_NULL)
 BTF_ID_FLAGS(func, bpf_ct_insert_entry, KF_ACQUIRE | KF_RET_NULL | KF_RELEASE)
 BTF_ID_FLAGS(func, bpf_ct_release, KF_RELEASE)
+BTF_ID_FLAGS(func, bpf_ct_set_timeout, KF_TRUSTED_ARGS)
+BTF_ID_FLAGS(func, bpf_ct_change_timeout, KF_TRUSTED_ARGS)
 BTF_SET8_END(nf_ct_kfunc_set)
 
 static const struct btf_kfunc_id_set nf_conntrack_kfunc_set = {
