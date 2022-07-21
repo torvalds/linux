@@ -897,6 +897,29 @@ free_es:
 	return NULL;
 }
 
+static inline void exfat_reset_empty_hint(struct exfat_hint_femp *hint_femp)
+{
+	hint_femp->eidx = EXFAT_HINT_NONE;
+	hint_femp->count = 0;
+}
+
+static inline void exfat_set_empty_hint(struct exfat_inode_info *ei,
+		struct exfat_hint_femp *candi_empty, struct exfat_chain *clu,
+		int dentry, int num_entries)
+{
+	if (ei->hint_femp.eidx == EXFAT_HINT_NONE ||
+	    ei->hint_femp.eidx > dentry) {
+		if (candi_empty->count == 0) {
+			candi_empty->cur = *clu;
+			candi_empty->eidx = dentry;
+		}
+
+		candi_empty->count++;
+		if (candi_empty->count == num_entries)
+			ei->hint_femp = *candi_empty;
+	}
+}
+
 enum {
 	DIRENT_STEP_FILE,
 	DIRENT_STEP_STRM,
@@ -921,7 +944,7 @@ int exfat_find_dir_entry(struct super_block *sb, struct exfat_inode_info *ei,
 {
 	int i, rewind = 0, dentry = 0, end_eidx = 0, num_ext = 0, len;
 	int order, step, name_len = 0;
-	int dentries_per_clu, num_empty = 0;
+	int dentries_per_clu;
 	unsigned int entry_type;
 	unsigned short *uniname = NULL;
 	struct exfat_chain clu;
@@ -939,10 +962,13 @@ int exfat_find_dir_entry(struct super_block *sb, struct exfat_inode_info *ei,
 		end_eidx = dentry;
 	}
 
-	candi_empty.eidx = EXFAT_HINT_NONE;
+	exfat_reset_empty_hint(&ei->hint_femp);
+
 rewind:
 	order = 0;
 	step = DIRENT_STEP_FILE;
+	exfat_reset_empty_hint(&candi_empty);
+
 	while (clu.dir != EXFAT_EOF_CLUSTER) {
 		i = dentry & (dentries_per_clu - 1);
 		for (; i < dentries_per_clu; i++, dentry++) {
@@ -962,26 +988,8 @@ rewind:
 			    entry_type == TYPE_DELETED) {
 				step = DIRENT_STEP_FILE;
 
-				num_empty++;
-				if (candi_empty.eidx == EXFAT_HINT_NONE &&
-						num_empty == 1) {
-					exfat_chain_set(&candi_empty.cur,
-						clu.dir, clu.size, clu.flags);
-				}
-
-				if (candi_empty.eidx == EXFAT_HINT_NONE &&
-						num_empty >= num_entries) {
-					candi_empty.eidx =
-						dentry - (num_empty - 1);
-					WARN_ON(candi_empty.eidx < 0);
-					candi_empty.count = num_empty;
-
-					if (ei->hint_femp.eidx ==
-							EXFAT_HINT_NONE ||
-						candi_empty.eidx <=
-							 ei->hint_femp.eidx)
-						ei->hint_femp = candi_empty;
-				}
+				exfat_set_empty_hint(ei, &candi_empty, &clu,
+						dentry, num_entries);
 
 				brelse(bh);
 				if (entry_type == TYPE_UNUSED)
@@ -989,8 +997,7 @@ rewind:
 				continue;
 			}
 
-			num_empty = 0;
-			candi_empty.eidx = EXFAT_HINT_NONE;
+			exfat_reset_empty_hint(&candi_empty);
 
 			if (entry_type == TYPE_FILE || entry_type == TYPE_DIR) {
 				step = DIRENT_STEP_FILE;
@@ -1090,9 +1097,6 @@ not_found:
 		rewind = 1;
 		dentry = 0;
 		clu.dir = p_dir->dir;
-		/* reset empty hint */
-		num_empty = 0;
-		candi_empty.eidx = EXFAT_HINT_NONE;
 		goto rewind;
 	}
 
