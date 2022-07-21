@@ -320,7 +320,8 @@ static const struct apple_key_translation swapped_fn_leftctrl_keys[] = {
 static const struct apple_non_apple_keyboard non_apple_keyboards[] = {
 	{ "SONiX USB DEVICE" },
 	{ "Keychron" },
-	{ "AONE" }
+	{ "AONE" },
+	{ "GANSS" }
 };
 
 static bool apple_is_non_apple_keyboard(struct hid_device *hdev)
