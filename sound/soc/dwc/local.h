@@ -146,7 +146,9 @@ struct dw_i2s_dev {
 	struct clk *clks_mclk_out;
 	struct clk *clks_apb0;
 	struct clk *clks_4ch_apb;
-	struct reset_control *rstc[RST_AUDIO_NUM];
+	struct reset_control *rstc_rx;
+	struct reset_control *rstc_ch0;
+	struct reset_control *rstc_ch1;
 
 	/* data related to DMA transfers b/w i2s and DMAC */
 	union dw_i2s_snd_dma_data play_dma_data;

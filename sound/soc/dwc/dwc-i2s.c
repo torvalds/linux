@@ -29,15 +29,6 @@
 #include <linux/reset.h>
 #include "local.h"
 
-static const char * const rst_name[RST_AUDIO_NUM] = {
-	[RST_APB0_BUS] = "rst_apb0",
-	[RST_BCLK_0] = "rst_bclk0",
-	[RST_APB1_BUS] = "rst_apb1",
-	[RST_BCLK_1] = "rst_bclk1",
-	[RST_APB_RX] = "rst_apb_rx",
-	[RST_BCLK_RX] = "rst_bclk_rx",
-};
-
 #define CLOCK_BASE	0x13020000UL
 
 static void saif_set_reg(void __iomem *addr, u32 data, u32 shift, u32 mask)
@@ -593,24 +584,23 @@ static int dw_i2srx_clk_init(struct platform_device *pdev, struct dw_i2s_dev *de
 	dev_dbg(&pdev->dev, "dev->clks[CLK_ADC_RX_BCLK] = %lu \n", clk_get_rate(dev->clks[CLK_ADC_RX_BCLK]));
 	dev_dbg(&pdev->dev, "dev->clks[CLK_ADC_RX_LRCK] = %lu \n", clk_get_rate(dev->clks[CLK_ADC_RX_LRCK]));
 
-	dev->rstc[RST_APB_RX] = devm_reset_control_get_exclusive(&pdev->dev, rst_name[RST_APB_RX]);
-	if (IS_ERR(dev->rstc[RST_APB_RX])) {
-		dev_err(&pdev->dev, "%s: failed to get apb_i2srx reset control\n", __func__);
-                return PTR_ERR(dev->rstc[RST_APB_RX]);
+	dev->rstc_rx = devm_reset_control_array_get_exclusive(&pdev->dev);
+	if (IS_ERR(dev->rstc_rx)) {
+		dev_err(&pdev->dev, "%s: failed to get rstc_rx reset control\n", __func__);
+		goto disable_rx_lrclk;
 	}
 
-	dev->rstc[RST_BCLK_RX] = devm_reset_control_get_exclusive(&pdev->dev, rst_name[RST_BCLK_RX]);
-	if (IS_ERR(dev->rstc[RST_BCLK_RX])) {
-		dev_err(&pdev->dev, "%s: failed to get i2s bclk rx reset control", __func__);
-                return PTR_ERR(dev->rstc[RST_BCLK_RX]);
+	ret = reset_control_assert(dev->rstc_rx);
+	if (ret) {
+		dev_err(&pdev->dev, "%s: failed to reset control assert rstc_rx\n", __func__);
+		goto disable_rx_lrclk;
 	}
-	reset_control_assert(dev->rstc[RST_APB_RX]);
-	reset_control_assert(dev->rstc[RST_BCLK_RX]);
-
 	udelay(5);
-
-	reset_control_deassert(dev->rstc[RST_APB_RX]);
-	reset_control_deassert(dev->rstc[RST_BCLK_RX]);
+	ret = reset_control_deassert(dev->rstc_rx);
+	if (ret) {
+		dev_err(&pdev->dev, "%s: failed to reset control deassert rstc_rx\n", __func__);
+		goto disable_rx_lrclk;
+	}
 
 	/*i2srx_3ch_adc_enable*/
 	regmap_update_bits(dev->syscon_base, dev->syscon_offset_18,
@@ -704,20 +694,17 @@ static int dw_i2stx_4ch0_clk_init(struct platform_device *pdev, struct dw_i2s_de
 		goto disable_lrclk0;
 	}
 
-	dev->rstc[RST_APB0_BUS] = devm_reset_control_get_exclusive(&pdev->dev, rst_name[RST_APB0_BUS]);
-	if (IS_ERR(dev->rstc[RST_APB0_BUS])) {
-		dev_err(&pdev->dev, "%s: failed to get apb_i2stx reset control\n", __func__);
-                return PTR_ERR(dev->rstc[RST_APB0_BUS]);
+	dev->rstc_ch0 = devm_reset_control_array_get_exclusive(&pdev->dev);
+	if (IS_ERR(dev->rstc_ch0)) {
+		dev_err(&pdev->dev, "%s: failed to get rstc_ch0 reset control\n", __func__);
+		goto disable_lrclk0;
 	}
 
-	dev->rstc[RST_BCLK_0] = devm_reset_control_get_exclusive(&pdev->dev, rst_name[RST_BCLK_0]);
-	if (IS_ERR(dev->rstc[RST_BCLK_0])) {
-		dev_err(&pdev->dev, "%s: failed to get i2s bclk0 reset control\n", __func__);
-                return PTR_ERR(dev->rstc[RST_BCLK_0]);
+	ret = reset_control_deassert(dev->rstc_ch0);
+	if (ret) {
+		dev_err(&pdev->dev, "%s: failed to reset control deassert rstc_ch0\n", __func__);
+		goto disable_lrclk0;
 	}
-
-	reset_control_deassert(dev->rstc[RST_APB0_BUS]);
-	reset_control_deassert(dev->rstc[RST_BCLK_0]);
 
 	return 0;
 
@@ -869,38 +856,21 @@ static int dw_i2stx_4ch1_clk_init(struct platform_device *pdev, struct dw_i2s_de
 	dev_dbg(&pdev->dev, "dev->clks_apb0 = %lu \n", clk_get_rate(dev->clks_apb0));
 	dev_dbg(&pdev->dev, "dev->clks_4ch_apb = %lu \n", clk_get_rate(dev->clks_4ch_apb));
 
-	dev->rstc[RST_APB1_BUS] = devm_reset_control_get_exclusive(&pdev->dev, rst_name[RST_APB1_BUS]);
-	if (IS_ERR(dev->rstc[RST_APB1_BUS])) {
-		dev_err(&pdev->dev, "%s: failed to get apb_i2stx reset control\n", __func__);
-                return PTR_ERR(dev->rstc[RST_APB1_BUS]);
-	}
-
-	dev->rstc[RST_BCLK_1] = devm_reset_control_get_exclusive(&pdev->dev, rst_name[RST_BCLK_1]);
-	if (IS_ERR(dev->rstc[RST_BCLK_1])) {
-		dev_err(&pdev->dev, "%s: failed to get i2s bclk1 reset control\n", __func__);
-                return PTR_ERR(dev->rstc[RST_BCLK_1]);
-	}
-
-	ret = reset_control_assert(dev->rstc[RST_APB1_BUS]);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to reset control assert RST_APB1_BUS\n", __func__);
-		goto disable_4ch_apb;
-	}
-	ret = reset_control_assert(dev->rstc[RST_BCLK_1]);
-	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to reset control assert RST_BCLK_1\n", __func__);
+	dev->rstc_ch1 = devm_reset_control_array_get_exclusive(&pdev->dev);
+	if (IS_ERR(dev->rstc_ch1)) {
+		dev_err(&pdev->dev, "%s: failed to get rstc_ch1 reset control\n", __func__);
 		goto disable_4ch_apb;
 	}
 
-	ret = reset_control_deassert(dev->rstc[RST_APB1_BUS]);
+	ret = reset_control_assert(dev->rstc_ch1);
 	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to reset control deassert RST_APB1_BUS\n", __func__);
+		dev_err(&pdev->dev, "%s: failed to reset control assert rstc_ch1\n", __func__);
 		goto disable_4ch_apb;
 	}
 
-	ret = reset_control_deassert(dev->rstc[RST_BCLK_1]);
+	ret = reset_control_deassert(dev->rstc_ch1);
 	if (ret) {
-		dev_err(&pdev->dev, "%s: failed to reset control deassert RST_APB1_BUS\n", __func__);
+		dev_err(&pdev->dev, "%s: failed to reset control deassert rstc_ch1\n", __func__);
 		goto disable_4ch_apb;
 	}
 

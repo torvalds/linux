@@ -1225,7 +1225,6 @@
 					"rx-bclk", "rx-lrck";
 			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
 				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
-			reset-names = "rst_apb_rx", "rst_bclk_rx";
 			dmas = <&dma 24 1>;
 			dma-names = "rx";
 			starfive,sys-syscon = <&sys_syscon 0x18 0x34>;
@@ -1247,7 +1246,6 @@
 					"bclk0", "lrck0";
 			resets = <&rstgen RSTN_U0_I2STX_4CH_APB>,
 				 <&rstgen RSTN_U0_I2STX_4CH_BCLK>;
-			reset-names = "rst_apb0", "rst_bclk0";
 			dmas = <&dma 47 1>;
 			dma-names = "tx";
 			#sound-dai-cells = <0>;
@@ -1278,7 +1276,6 @@
 
 			resets = <&rstgen RSTN_U1_I2STX_4CH_APB>,
 				 <&rstgen RSTN_U1_I2STX_4CH_BCLK>;
-			reset-names = "rst_apb1", "rst_bclk1";
 			dmas = <&dma 48 1>;
 			dma-names = "tx";
 			#sound-dai-cells = <0>;
