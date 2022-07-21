@@ -2062,7 +2062,7 @@ mlx5_tc_ct_init_check_support(struct mlx5e_priv *priv,
 		/* Ignore_flow_level support isn't supported by default for VFs and so post_act
 		 * won't be supported. Skip showing error msg.
 		 */
-		if (priv->mdev->coredev_type != MLX5_COREDEV_VF)
+		if (priv->mdev->coredev_type == MLX5_COREDEV_PF)
 			err_msg = "post action is missing";
 		err = -EOPNOTSUPP;
 		goto out_err;
