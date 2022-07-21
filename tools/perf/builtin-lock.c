@@ -892,7 +892,7 @@ static bool is_lock_function(u64 addr)
 		sym = machine__find_kernel_symbol_by_name(machine,
 							  "__lock_text_end",
 							  &kmap);
-		lock_text_start = kmap->unmap_ip(kmap, sym->start);
+		lock_text_end = kmap->unmap_ip(kmap, sym->start);
 	}
 
 	/* failed to get kernel symbols */
