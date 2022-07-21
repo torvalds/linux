@@ -17,7 +17,7 @@ description: |+
   			"aspeed,ast2500-scu", "syscon", "simple-mfd"
   			"aspeed,g5-scu", "syscon", "simple-mfd"
 
-  Refer to the the bindings described in
+  Refer to the bindings described in
   Documentation/devicetree/bindings/mfd/syscon.yaml
 
 properties:

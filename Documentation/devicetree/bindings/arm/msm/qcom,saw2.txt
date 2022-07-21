@@ -10,7 +10,7 @@ system, notifying them when a low power state is entered or exited.
 Multiple revisions of the SAW hardware are supported using these Device Nodes.
 SAW2 revisions differ in the register offset and configuration data. Also, the
 same revision of the SAW in different SoCs may have different configuration
-data due the the differences in hardware capabilities. Hence the SoC name, the
+data due the differences in hardware capabilities. Hence the SoC name, the
 version of the SAW hardware in that SoC and the distinction between cpu (big
 or Little) or cache, may be needed to uniquely identify the SAW register
 configuration and initialization data. The compatible string is used to

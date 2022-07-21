@@ -15,7 +15,7 @@ Required properties:
 	- for "ti,da850-pll1", shall be "clksrc"
 
 Optional properties:
-- ti,clkmode-square-wave: Indicates that the the board is supplying a square
+- ti,clkmode-square-wave: Indicates that the board is supplying a square
 	wave input on the OSCIN pin instead of using a crystal oscillator.
 	This property is only valid when compatible = "ti,da850-pll0".
 

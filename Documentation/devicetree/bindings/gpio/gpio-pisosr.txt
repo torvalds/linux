@@ -14,7 +14,7 @@ Optional properties:
  - ngpios		: Number of used GPIO lines (0..n-1), default is 8.
  - load-gpios		: GPIO pin specifier attached to load enable, this
 			  pin is pulsed before reading from the device to
-			  load input pin values into the the device.
+			  load input pin values into the device.
 
 For other required and optional properties of SPI slave
 nodes please refer to ../spi/spi-bus.txt.
