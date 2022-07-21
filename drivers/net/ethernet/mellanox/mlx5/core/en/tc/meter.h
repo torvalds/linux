@@ -67,4 +67,8 @@ mlx5e_flow_meters_init(struct mlx5e_priv *priv,
 void
 mlx5e_flow_meters_cleanup(struct mlx5e_flow_meters *flow_meters);
 
+void
+mlx5e_tc_meter_get_stats(struct mlx5e_flow_meter_handle *meter,
+			 u64 *bytes, u64 *packets, u64 *drops, u64 *lastuse);
+
 #endif /* __MLX5_EN_FLOW_METER_H__ */

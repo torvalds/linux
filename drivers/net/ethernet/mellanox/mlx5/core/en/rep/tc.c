@@ -21,6 +21,7 @@
 #include "en/tc/sample.h"
 #include "en_accel/ipsec_rxtx.h"
 #include "en/tc/int_port.h"
+#include "en/tc/act/act.h"
 
 struct mlx5e_rep_indr_block_priv {
 	struct net_device *netdev;
@@ -511,6 +512,120 @@ mlx5e_rep_indr_setup_block(struct net_device *netdev, struct Qdisc *sch,
 	return 0;
 }
 
+static int
+mlx5e_rep_indr_replace_act(struct mlx5e_rep_priv *rpriv,
+			   struct flow_offload_action *fl_act)
+
+{
+	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	enum mlx5_flow_namespace_type ns_type;
+	struct flow_action_entry *action;
+	struct mlx5e_tc_act *act;
+	bool add = false;
+	int i;
+
+	/* There is no use case currently for more than one action (e.g. pedit).
+	 * when there will be, need to handle cleaning multiple actions on err.
+	 */
+	if (!flow_offload_has_one_action(&fl_act->action))
+		return -EOPNOTSUPP;
+
+	if (esw && esw->mode == MLX5_ESWITCH_OFFLOADS)
+		ns_type = MLX5_FLOW_NAMESPACE_FDB;
+	else
+		ns_type = MLX5_FLOW_NAMESPACE_KERNEL;
+
+	flow_action_for_each(i, action, &fl_act->action) {
+		act = mlx5e_tc_act_get(action->id, ns_type);
+		if (!act)
+			continue;
+
+		if (!act->offload_action)
+			continue;
+
+		if (!act->offload_action(priv, fl_act, action))
+			add = true;
+	}
+
+	return add ? 0 : -EOPNOTSUPP;
+}
+
+static int
+mlx5e_rep_indr_destroy_act(struct mlx5e_rep_priv *rpriv,
+			   struct flow_offload_action *fl_act)
+{
+	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	enum mlx5_flow_namespace_type ns_type;
+	struct mlx5e_tc_act *act;
+
+	if (esw && esw->mode == MLX5_ESWITCH_OFFLOADS)
+		ns_type = MLX5_FLOW_NAMESPACE_FDB;
+	else
+		ns_type = MLX5_FLOW_NAMESPACE_KERNEL;
+
+	act = mlx5e_tc_act_get(fl_act->id, ns_type);
+	if (!act || !act->destroy_action)
+		return -EOPNOTSUPP;
+
+	return act->destroy_action(priv, fl_act);
+}
+
+static int
+mlx5e_rep_indr_stats_act(struct mlx5e_rep_priv *rpriv,
+			 struct flow_offload_action *fl_act)
+
+{
+	struct mlx5e_priv *priv = netdev_priv(rpriv->netdev);
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
+	enum mlx5_flow_namespace_type ns_type;
+	struct mlx5e_tc_act *act;
+
+	if (esw && esw->mode == MLX5_ESWITCH_OFFLOADS)
+		ns_type = MLX5_FLOW_NAMESPACE_FDB;
+	else
+		ns_type = MLX5_FLOW_NAMESPACE_KERNEL;
+
+	act = mlx5e_tc_act_get(fl_act->id, ns_type);
+	if (!act || !act->stats_action)
+		return -EOPNOTSUPP;
+
+	return act->stats_action(priv, fl_act);
+}
+
+static int
+mlx5e_rep_indr_setup_act(struct mlx5e_rep_priv *rpriv,
+			 struct flow_offload_action *fl_act)
+{
+	switch (fl_act->command) {
+	case FLOW_ACT_REPLACE:
+		return mlx5e_rep_indr_replace_act(rpriv, fl_act);
+	case FLOW_ACT_DESTROY:
+		return mlx5e_rep_indr_destroy_act(rpriv, fl_act);
+	case FLOW_ACT_STATS:
+		return mlx5e_rep_indr_stats_act(rpriv, fl_act);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
+static int
+mlx5e_rep_indr_no_dev_setup(struct mlx5e_rep_priv *rpriv,
+			    enum tc_setup_type type,
+			    void *data)
+{
+	if (!data)
+		return -EOPNOTSUPP;
+
+	switch (type) {
+	case TC_SETUP_ACT:
+		return mlx5e_rep_indr_setup_act(rpriv, data);
+	default:
+		return -EOPNOTSUPP;
+	}
+}
+
 static
 int mlx5e_rep_indr_setup_cb(struct net_device *netdev, struct Qdisc *sch, void *cb_priv,
 			    enum tc_setup_type type, void *type_data,
@@ -518,7 +633,7 @@ int mlx5e_rep_indr_setup_cb(struct net_device *netdev, struct Qdisc *sch, void *
 			    void (*cleanup)(struct flow_block_cb *block_cb))
 {
 	if (!netdev)
-		return -EOPNOTSUPP;
+		return mlx5e_rep_indr_no_dev_setup(cb_priv, type, data);
 
 	switch (type) {
 	case TC_SETUP_BLOCK:

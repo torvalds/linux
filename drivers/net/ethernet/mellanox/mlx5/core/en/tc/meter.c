@@ -561,3 +561,19 @@ mlx5e_flow_meters_cleanup(struct mlx5e_flow_meters *flow_meters)
 	mlx5_core_dealloc_pd(flow_meters->mdev, flow_meters->pdn);
 	kfree(flow_meters);
 }
+
+void
+mlx5e_tc_meter_get_stats(struct mlx5e_flow_meter_handle *meter,
+			 u64 *bytes, u64 *packets, u64 *drops, u64 *lastuse)
+{
+	u64 bytes1, packets1, lastuse1;
+	u64 bytes2, packets2, lastuse2;
+
+	mlx5_fc_query_cached(meter->green_counter, &bytes1, &packets1, &lastuse1);
+	mlx5_fc_query_cached(meter->red_counter, &bytes2, &packets2, &lastuse2);
+
+	*bytes = bytes1 + bytes2;
+	*packets = packets1 + packets2;
+	*drops = packets2;
+	*lastuse = max_t(u64, lastuse1, lastuse2);
+}
