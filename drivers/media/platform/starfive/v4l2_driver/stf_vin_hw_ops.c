@@ -233,8 +233,6 @@ static int stf_vin_top_clk_init(struct stf_vin2_dev *vin_dev)
 
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_ISP_TOP_N].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rstc);
 
 	return 0;
 }
@@ -243,8 +241,6 @@ static int stf_vin_top_clk_deinit(struct stf_vin2_dev *vin_dev)
 {
 	struct stfcamss *stfcamss = vin_dev->stfcamss;
 
-	reset_control_assert(stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rstc);
-	reset_control_assert(stfcamss->sys_rst[STFRST_ISP_TOP_N].rstc);
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
 
@@ -257,28 +253,32 @@ static int stf_vin_top_clk_deinit(struct stf_vin2_dev *vin_dev)
 static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 {
 	struct stfcamss *stfcamss = vin_dev->stfcamss;
+	int ret;
 
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PCLK].clk);
 	clk_set_rate(stfcamss->sys_clk[STFCLK_APB_FUNC].clk, 51200000);
 	clk_set_rate(stfcamss->sys_clk[STFCLK_SYS_CLK].clk, 307200000);
 
-	reset_control_deassert(stfcamss->sys_rst[STFRST_PCLK].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_SYS_CLK].rstc);
+	ret = reset_control_deassert(stfcamss->resets);
+	if (ret)
+		dev_err(stfcamss->dev, "deassert stfcamss error.\n");
 
-	return 0;
+	return ret;
 }
 
 
 static int stf_vin_clk_disable(struct stf_vin2_dev *vin_dev)
 {
 	struct stfcamss *stfcamss = vin_dev->stfcamss;
+	int ret;
 
-	reset_control_assert(stfcamss->sys_rst[STFRST_PCLK].rstc);
-	reset_control_assert(stfcamss->sys_rst[STFRST_SYS_CLK].rstc);
+	ret = reset_control_assert(stfcamss->resets);
+	if (ret)
+		dev_err(stfcamss->dev, "assert stfcamss error.\n");
 
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PCLK].clk);
 
-	return 0;
+	return ret;
 }
 
 static int stf_vin_config_set(struct stf_vin2_dev *vin_dev)
@@ -288,14 +288,11 @@ static int stf_vin_config_set(struct stf_vin2_dev *vin_dev)
 
 static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 {
-	struct stfcamss *stfcamss = vin_dev->stfcamss;
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
 	//make the axiwr alway on
-	if (on) {
-		reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
+	if (on)
 		reg_set(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
-	}
 
 	return 0;
 }

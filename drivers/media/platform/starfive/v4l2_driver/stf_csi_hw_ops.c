@@ -79,26 +79,12 @@ static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF2].clk);
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF3].clk);
 
-	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF2].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF3].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
-
 	return 0;
 }
 
 static int stf_csi_clk_disable(struct stf_csi_dev *csi_dev)
 {
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
-
-	reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
-	reset_control_assert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
-	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF3].rstc);
-	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF2].rstc);
-	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF1].rstc);
-	reset_control_assert(stfcamss->sys_rst[STFRST_PIXEL_CLK_IF0].rstc);
 
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF0].clk);
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PIXEL_CLK_IF1].clk);
