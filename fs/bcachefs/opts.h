@@ -346,6 +346,11 @@ enum opt_type {
 	  OPT_BOOL(),							\
 	  BCH2_NO_SB_OPT,		false,				\
 	  NULL,		"Don't open device in exclusive mode")		\
+	x(direct_io,			u8,				\
+	  OPT_FS|OPT_MOUNT,						\
+	  OPT_BOOL(),							\
+	  BCH2_NO_SB_OPT,			true,			\
+	  NULL,		"Use O_DIRECT (userspace only)")		\
 	x(sb,				u64,				\
 	  OPT_MOUNT,							\
 	  OPT_UINT(0, S64_MAX),						\
