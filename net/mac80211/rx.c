@@ -3990,6 +3990,9 @@ static void ieee80211_rx_handlers(struct ieee80211_rx_data *rx,
 		 */
 		rx->skb = skb;
 
+		if (WARN_ON_ONCE(!rx->link))
+			goto rxh_next;
+
 		CALL_RXH(ieee80211_rx_h_check_more_data);
 		CALL_RXH(ieee80211_rx_h_uapsd_and_pspoll);
 		CALL_RXH(ieee80211_rx_h_sta_process);
@@ -4118,6 +4121,7 @@ void ieee80211_mark_rx_ba_filtered_frames(struct ieee80211_sta *pubsta, u8 tid,
 
 	rx.sta = sta;
 	rx.sdata = sta->sdata;
+	rx.link = &rx.sdata->deflink;
 	rx.local = sta->local;
 
 	rcu_read_lock();
@@ -4758,12 +4762,22 @@ static bool ieee80211_prepare_and_rx_handle(struct ieee80211_rx_data *rx,
 	if (!ieee80211_accept_frame(rx))
 		return false;
 
+	if (rx->link_id >= 0) {
+		link = rcu_dereference(rx->sdata->link[rx->link_id]);
+
+		/* we might race link removal */
+		if (!link)
+			return true;
+		rx->link = link;
+	} else {
+		rx->link = &sdata->deflink;
+	}
+
 	if (unlikely(!is_multicast_ether_addr(hdr->addr1) &&
 		     rx->link_id >= 0 && rx->sta && rx->sta->sta.mlo)) {
 		link_sta = rcu_dereference(rx->sta->link[rx->link_id]);
-		link = rcu_dereference(rx->sdata->link[rx->link_id]);
 
-		if (WARN_ON_ONCE(!link_sta || !link))
+		if (WARN_ON_ONCE(!link_sta))
 			return true;
 	}
 
@@ -4833,6 +4847,7 @@ static void __ieee80211_rx_handle_8023(struct ieee80211_hw *hw,
 
 	rx.sta = container_of(pubsta, struct sta_info, sta);
 	rx.sdata = rx.sta->sdata;
+	rx.link = &rx.sdata->deflink;
 
 	fast_rx = rcu_dereference(rx.sta->fast_rx);
 	if (!fast_rx)

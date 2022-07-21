@@ -211,6 +211,7 @@ struct ieee80211_rx_data {
 	struct sk_buff *skb;
 	struct ieee80211_local *local;
 	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_link_data *link;
 	struct sta_info *sta;
 	struct ieee80211_key *key;
 
