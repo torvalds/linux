@@ -999,7 +999,7 @@ static int anx7411_register_i2c_dummy_clients(struct anx7411_data *ctx,
 			spi_addr = anx7411_i2c_addr[i].spi_address >> 1;
 			ctx->spi_client = i2c_new_dummy_device(client->adapter,
 							       spi_addr);
-			if (ctx->spi_client)
+			if (!IS_ERR(ctx->spi_client))
 				return 0;
 		}
 	}
