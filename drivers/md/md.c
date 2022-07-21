@@ -714,6 +714,7 @@ static dev_t mddev_alloc_unit(void)
 	return dev;
 }
 
+#ifndef MODULE
 static struct mddev *mddev_find(dev_t unit)
 {
 	struct mddev *mddev;
@@ -729,6 +730,7 @@ static struct mddev *mddev_find(dev_t unit)
 
 	return mddev;
 }
+#endif
 
 static struct mddev *mddev_alloc(dev_t unit)
 {
