@@ -1650,6 +1650,13 @@ static void pex_ep_event_pex_rst_deassert(struct tegra_pcie_dw *pcie)
 		return;
 	}
 
+	ret = tegra_pcie_bpmp_set_ctrl_state(pcie, true);
+	if (ret) {
+		dev_err(pcie->dev, "Failed to enable controller %u: %d\n",
+			pcie->cid, ret);
+		goto fail_set_ctrl_state;
+	}
+
 	ret = tegra_pcie_bpmp_set_pll_state(pcie, true);
 	if (ret) {
 		dev_err(dev, "Failed to init UPHY for PCIe EP: %d\n", ret);
@@ -1798,6 +1805,8 @@ fail_core_apb_rst:
 fail_core_clk_enable:
 	tegra_pcie_bpmp_set_pll_state(pcie, false);
 fail_pll_init:
+	tegra_pcie_bpmp_set_ctrl_state(pcie, false);
+fail_set_ctrl_state:
 	pm_runtime_put_sync(dev);
 }
 
