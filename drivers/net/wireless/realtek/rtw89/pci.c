@@ -3111,7 +3111,7 @@ void rtw89_pci_config_intr_mask(struct rtw89_dev *rtwdev)
 	rtwpci->halt_c2h_intrs = B_AX_HALT_C2H_INT_EN | 0;
 
 	if (rtwpci->under_recovery) {
-		rtwpci->intrs[0] = 0;
+		rtwpci->intrs[0] = B_AX_HS0ISR_IND_INT_EN;
 		rtwpci->intrs[1] = 0;
 	} else {
 		rtwpci->intrs[0] = B_AX_TXDMA_STUCK_INT_EN |
