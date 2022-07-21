@@ -473,8 +473,11 @@ void dcn32_set_phantom_stream_timing(struct dc *dc,
 
 	// DML calculation for MALL region doesn't take into account FW delay
 	// and required pstate allow width for multi-display cases
+	/* Add 16 lines margin to the MALL REGION because SUB_VP_START_LINE must be aligned
+	 * to 2 swaths (i.e. 16 lines)
+	 */
 	phantom_vactive = get_subviewport_lines_needed_in_mall(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx) +
-				pstate_width_fw_delay_lines;
+				pstate_width_fw_delay_lines + dc->caps.subvp_swath_height_margin_lines;
 
 	// For backporch of phantom pipe, use vstartup of the main pipe
 	phantom_bp = get_vstartup(&context->bw_ctx.dml, pipes, pipe_cnt, pipe_idx);

@@ -213,6 +213,7 @@ struct dc_caps {
 	uint32_t cache_num_ways;
 	uint16_t subvp_fw_processing_delay_us;
 	uint16_t subvp_prefetch_end_to_mall_start_us;
+	uint8_t subvp_swath_height_margin_lines; // subvp start line must be aligned to 2 x swath height
 	uint16_t subvp_pstate_allow_width_us;
 	uint16_t subvp_vertical_int_margin_us;
 	bool seamless_odm;
