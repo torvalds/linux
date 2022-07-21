@@ -1501,7 +1501,7 @@ static int host__finished_init(struct perf_session *session, union perf_event *e
 		return ret;
 
 	if (!gs->vcpu_cnt) {
-		pr_err("No VCPU theads found for pid %u\n", gs->machine_pid);
+		pr_err("No VCPU threads found for pid %u\n", gs->machine_pid);
 		return -EINVAL;
 	}
 
