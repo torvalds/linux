@@ -1102,9 +1102,8 @@ static void ice_ptp_reset_phy_timestamping(struct ice_pf *pf)
 static int ice_ptp_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 {
 	struct ice_pf *pf = ptp_info_to_pf(info);
-	u64 freq, divisor = 1000000ULL;
 	struct ice_hw *hw = &pf->hw;
-	s64 incval, diff;
+	u64 incval, diff;
 	int neg_adj = 0;
 	int err;
 
@@ -1115,17 +1114,8 @@ static int ice_ptp_adjfine(struct ptp_clock_info *info, long scaled_ppm)
 		scaled_ppm = -scaled_ppm;
 	}
 
-	while ((u64)scaled_ppm > div64_u64(U64_MAX, incval)) {
-		/* handle overflow by scaling down the scaled_ppm and
-		 * the divisor, losing some precision
-		 */
-		scaled_ppm >>= 2;
-		divisor >>= 2;
-	}
-
-	freq = (incval * (u64)scaled_ppm) >> 16;
-	diff = div_u64(freq, divisor);
-
+	diff = mul_u64_u64_div_u64(incval, (u64)scaled_ppm,
+				   1000000ULL << 16);
 	if (neg_adj)
 		incval -= diff;
 	else
