@@ -1,0 +1,48 @@
+* lis2duxs12 driver for accel MEMS sensors
+
+Required properties for all bus drivers:
+- compatible: must be one of:
+              "st,lis2duxs12"
+
+Required properties for the i2c bindings:
+- reg: i2c slave address
+
+Required properties for the spi bindings:
+- reg:               the chipselect index
+- spi-max-frequency: maximal bus speed, should be set to 1000000 unless
+                     constrained by external circuitry
+
+Optional properties for all bus drivers:
+- st,int-pin:  the pin on the package that will be used to signal when
+	       sensor data are available (valid values: 1 or 2, default: 1).
+
+- interrupts:  interrupt mapping for IRQ. It should be configured with
+               flags IRQ_TYPE_LEVEL_HIGH.
+
+               Refer to interrupt-controller/interrupts.txt for generic
+               interrupt client node bindings.
+
+- pd_dis_int1: disable pull down on int1 pin.
+- pd_dis_int2: disable pull down on int2 pin.
+- drive-open-drain: set interrupt pin in open drain (disable push-pull)
+
+Example for an spi device node:
+
+lis2duxs12-accel@0 {
+	compatible = "st,lis2duxs12";
+	reg = <0x0>;
+	spi-max-frequency = <1000000>;
+	interrupt-parent = <&gpio0>;
+	interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+	st,int-pin = <1>;
+};
+
+Example for an i2c device node (I2C slave address 0x19):
+
+lis2duxs12-accel@19 {
+	compatible = "st,lis2duxs12";
+	reg = <0x19>;
+	interrupt-parent = <&gpio0>;
+	interrupts = <0 IRQ_TYPE_LEVEL_HIGH>;
+	st,int-pin = <1>;
+};
