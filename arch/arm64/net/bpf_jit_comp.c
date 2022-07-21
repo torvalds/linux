@@ -610,8 +610,8 @@ asm (
 #if IS_ENABLED(CONFIG_ARM64_BTI_KERNEL)
 "	bti j\n" /* dummy_tramp is called via "br x10" */
 #endif
-"	mov x10, lr\n"
-"	mov lr, x9\n"
+"	mov x10, x30\n"
+"	mov x30, x9\n"
 "	ret x10\n"
 "	.size dummy_tramp, .-dummy_tramp\n"
 "	.popsection\n"
