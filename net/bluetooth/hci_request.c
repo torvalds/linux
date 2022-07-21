@@ -1875,69 +1875,6 @@ void __hci_req_update_class(struct hci_request *req)
 	hci_req_add(req, HCI_OP_WRITE_CLASS_OF_DEV, sizeof(cod), cod);
 }
 
-static void write_iac(struct hci_request *req)
-{
-	struct hci_dev *hdev = req->hdev;
-	struct hci_cp_write_current_iac_lap cp;
-
-	if (!hci_dev_test_flag(hdev, HCI_DISCOVERABLE))
-		return;
-
-	if (hci_dev_test_flag(hdev, HCI_LIMITED_DISCOVERABLE)) {
-		/* Limited discoverable mode */
-		cp.num_iac = min_t(u8, hdev->num_iac, 2);
-		cp.iac_lap[0] = 0x00;	/* LIAC */
-		cp.iac_lap[1] = 0x8b;
-		cp.iac_lap[2] = 0x9e;
-		cp.iac_lap[3] = 0x33;	/* GIAC */
-		cp.iac_lap[4] = 0x8b;
-		cp.iac_lap[5] = 0x9e;
-	} else {
-		/* General discoverable mode */
-		cp.num_iac = 1;
-		cp.iac_lap[0] = 0x33;	/* GIAC */
-		cp.iac_lap[1] = 0x8b;
-		cp.iac_lap[2] = 0x9e;
-	}
-
-	hci_req_add(req, HCI_OP_WRITE_CURRENT_IAC_LAP,
-		    (cp.num_iac * 3) + 1, &cp);
-}
-
-static int discoverable_update(struct hci_request *req, unsigned long opt)
-{
-	struct hci_dev *hdev = req->hdev;
-
-	hci_dev_lock(hdev);
-
-	if (hci_dev_test_flag(hdev, HCI_BREDR_ENABLED)) {
-		write_iac(req);
-		__hci_req_update_scan(req);
-		__hci_req_update_class(req);
-	}
-
-	/* Advertising instances don't use the global discoverable setting, so
-	 * only update AD if advertising was enabled using Set Advertising.
-	 */
-	if (hci_dev_test_flag(hdev, HCI_ADVERTISING)) {
-		__hci_req_update_adv_data(req, 0x00);
-
-		/* Discoverable mode affects the local advertising
-		 * address in limited privacy mode.
-		 */
-		if (hci_dev_test_flag(hdev, HCI_LIMITED_PRIVACY)) {
-			if (ext_adv_capable(hdev))
-				__hci_req_start_ext_adv(req, 0x00);
-			else
-				__hci_req_enable_advertising(req);
-		}
-	}
-
-	hci_dev_unlock(hdev);
-
-	return 0;
-}
-
 void __hci_abort_conn(struct hci_request *req, struct hci_conn *conn,
 		      u8 reason)
 {
@@ -2307,33 +2244,8 @@ error:
 	return err;
 }
 
-static void discov_off(struct work_struct *work)
-{
-	struct hci_dev *hdev = container_of(work, struct hci_dev,
-					    discov_off.work);
-
-	bt_dev_dbg(hdev, "");
-
-	hci_dev_lock(hdev);
-
-	/* When discoverable timeout triggers, then just make sure
-	 * the limited discoverable flag is cleared. Even in the case
-	 * of a timeout triggered from general discoverable, it is
-	 * safe to unconditionally clear the flag.
-	 */
-	hci_dev_clear_flag(hdev, HCI_LIMITED_DISCOVERABLE);
-	hci_dev_clear_flag(hdev, HCI_DISCOVERABLE);
-	hdev->discov_timeout = 0;
-
-	hci_dev_unlock(hdev);
-
-	hci_req_sync(hdev, discoverable_update, 0, HCI_CMD_TIMEOUT, NULL);
-	mgmt_new_settings(hdev);
-}
-
 void hci_request_setup(struct hci_dev *hdev)
 {
-	INIT_DELAYED_WORK(&hdev->discov_off, discov_off);
 	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 	INIT_DELAYED_WORK(&hdev->le_scan_restart, le_scan_restart_work);
 	INIT_DELAYED_WORK(&hdev->adv_instance_expire, adv_timeout_expire);
@@ -2344,7 +2256,6 @@ void hci_request_cancel_all(struct hci_dev *hdev)
 {
 	__hci_cmd_sync_cancel(hdev, ENODEV);
 
-	cancel_delayed_work_sync(&hdev->discov_off);
 	cancel_delayed_work_sync(&hdev->le_scan_disable);
 	cancel_delayed_work_sync(&hdev->le_scan_restart);
 
