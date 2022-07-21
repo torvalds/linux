@@ -1029,6 +1029,7 @@ struct ieee80211_sub_if_data {
 	struct ieee80211_key __rcu *default_unicast_key;
 
 	u16 sequence_number;
+	u16 mld_mcast_seq;
 	__be16 control_port_protocol;
 	bool control_port_no_encrypt;
 	bool control_port_no_preauth;

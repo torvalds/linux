@@ -4,7 +4,7 @@
  *
  * Copyright 2007	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright (C) 2018 - 2019, 2021 Intel Corporation
+ * Copyright (C) 2018 - 2019, 2021-2022 Intel Corporation
  */
 
 #include <linux/debugfs.h>
@@ -495,6 +495,7 @@ static const char *hw_flag_names[] = {
 	FLAG(SUPPORTS_RX_DECAP_OFFLOAD),
 	FLAG(SUPPORTS_CONC_MON_RX_DECAP),
 	FLAG(DETECTS_COLOR_COLLISION),
+	FLAG(MLO_MCAST_MULTI_LINK_TX),
 #undef FLAG
 };
 

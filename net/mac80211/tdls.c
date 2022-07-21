@@ -1054,7 +1054,8 @@ ieee80211_tdls_prep_mgmt_packet(struct wiphy *wiphy, struct net_device *dev,
 
 	/* disable bottom halves when entering the Tx path */
 	local_bh_disable();
-	__ieee80211_subif_start_xmit(skb, dev, flags, 0, NULL);
+	__ieee80211_subif_start_xmit(skb, dev, flags,
+				     IEEE80211_TX_CTRL_MLO_LINK_UNSPEC, NULL);
 	local_bh_enable();
 
 	return ret;
