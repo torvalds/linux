@@ -124,24 +124,6 @@ static void pwm_sifive_get_state(struct pwm_chip *chip, struct pwm_device *pwm,
 	state->polarity = PWM_POLARITY_INVERSED;
 }
 
-static int pwm_sifive_enable(struct pwm_chip *chip, bool enable)
-{
-	struct pwm_sifive_ddata *ddata = pwm_sifive_chip_to_ddata(chip);
-	int ret;
-
-	if (enable) {
-		ret = clk_enable(ddata->clk);
-		if (ret) {
-			dev_err(ddata->chip.dev, "Enable clk failed\n");
-			return ret;
-		}
-	} else {
-		clk_disable(ddata->clk);
-	}
-
-	return 0;
-}
-
 static int pwm_sifive_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 			    const struct pwm_state *state)
 {
@@ -192,8 +174,14 @@ static int pwm_sifive_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 
 	writel(frac, ddata->regs + PWM_SIFIVE_PWMCMP(pwm->hwpwm));
 
-	if (state->enabled != enabled)
-		pwm_sifive_enable(chip, state->enabled);
+	if (state->enabled != enabled) {
+		if (state->enabled) {
+			if (clk_enable(ddata->clk))
+				dev_err(ddata->chip.dev, "Enable clk failed\n");
+		} else {
+			clk_disable(ddata->clk);
+		}
+	}
 
 exit:
 	clk_disable(ddata->clk);
