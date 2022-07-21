@@ -1766,37 +1766,35 @@ static void nvme_dev_remove_admin(struct nvme_dev *dev)
 	}
 }
 
-static int nvme_alloc_admin_tags(struct nvme_dev *dev)
+static int nvme_pci_alloc_admin_tag_set(struct nvme_dev *dev)
 {
-	if (!dev->ctrl.admin_q) {
-		dev->admin_tagset.ops = &nvme_mq_admin_ops;
-		dev->admin_tagset.nr_hw_queues = 1;
+	struct blk_mq_tag_set *set = &dev->admin_tagset;
 
-		dev->admin_tagset.queue_depth = NVME_AQ_MQ_TAG_DEPTH;
-		dev->admin_tagset.timeout = NVME_ADMIN_TIMEOUT;
-		dev->admin_tagset.numa_node = dev->ctrl.numa_node;
-		dev->admin_tagset.cmd_size = sizeof(struct nvme_iod);
-		dev->admin_tagset.flags = BLK_MQ_F_NO_SCHED;
-		dev->admin_tagset.driver_data = dev;
+	set->ops = &nvme_mq_admin_ops;
+	set->nr_hw_queues = 1;
 
-		if (blk_mq_alloc_tag_set(&dev->admin_tagset))
-			return -ENOMEM;
-		dev->ctrl.admin_tagset = &dev->admin_tagset;
+	set->queue_depth = NVME_AQ_MQ_TAG_DEPTH;
+	set->timeout = NVME_ADMIN_TIMEOUT;
+	set->numa_node = dev->ctrl.numa_node;
+	set->cmd_size = sizeof(struct nvme_iod);
+	set->flags = BLK_MQ_F_NO_SCHED;
+	set->driver_data = dev;
 
-		dev->ctrl.admin_q = blk_mq_init_queue(&dev->admin_tagset);
-		if (IS_ERR(dev->ctrl.admin_q)) {
-			blk_mq_free_tag_set(&dev->admin_tagset);
-			dev->ctrl.admin_q = NULL;
-			return -ENOMEM;
-		}
-		if (!blk_get_queue(dev->ctrl.admin_q)) {
-			nvme_dev_remove_admin(dev);
-			dev->ctrl.admin_q = NULL;
-			return -ENODEV;
-		}
-	} else
-		nvme_start_admin_queue(&dev->ctrl);
+	if (blk_mq_alloc_tag_set(set))
+		return -ENOMEM;
+	dev->ctrl.admin_tagset = set;
 
+	dev->ctrl.admin_q = blk_mq_init_queue(set);
+	if (IS_ERR(dev->ctrl.admin_q)) {
+		blk_mq_free_tag_set(set);
+		dev->ctrl.admin_q = NULL;
+		return -ENOMEM;
+	}
+	if (!blk_get_queue(dev->ctrl.admin_q)) {
+		nvme_dev_remove_admin(dev);
+		dev->ctrl.admin_q = NULL;
+		return -ENODEV;
+	}
 	return 0;
 }
 
@@ -2841,9 +2839,13 @@ static void nvme_reset_work(struct work_struct *work)
 	if (result)
 		goto out_unlock;
 
-	result = nvme_alloc_admin_tags(dev);
-	if (result)
-		goto out_unlock;
+	if (!dev->ctrl.admin_q) {
+		result = nvme_pci_alloc_admin_tag_set(dev);
+		if (result)
+			goto out_unlock;
+	} else {
+		nvme_start_admin_queue(&dev->ctrl);
+	}
 
 	/*
 	 * Limit the max command size to prevent iod->sg allocations going
