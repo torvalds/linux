@@ -7,7 +7,6 @@
 #include <linux/smp.h>
 #include <linux/timex.h>
 
-#include <asm/compiler.h>
 #include <asm/processor.h>
 
 void __delay(unsigned long cycles)

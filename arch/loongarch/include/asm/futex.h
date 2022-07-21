@@ -8,7 +8,6 @@
 #include <linux/futex.h>
 #include <linux/uaccess.h>
 #include <asm/barrier.h>
-#include <asm/compiler.h>
 #include <asm/errno.h>
 
 #define __futex_atomic_op(insn, ret, oldval, uaddr, oparg)		\
@@ -95,8 +94,8 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval, u32 newv
 	"	"__UA_ADDR "\t1b, 4b				\n"
 	"	"__UA_ADDR "\t2b, 4b				\n"
 	"	.previous					\n"
-	: "+r" (ret), "=&r" (val), "=" GCC_OFF_SMALL_ASM() (*uaddr)
-	: GCC_OFF_SMALL_ASM() (*uaddr), "Jr" (oldval), "Jr" (newval),
+	: "+r" (ret), "=&r" (val), "=ZC" (*uaddr)
+	: "ZC" (*uaddr), "Jr" (oldval), "Jr" (newval),
 	  "i" (-EFAULT)
 	: "memory", "t0");
 
