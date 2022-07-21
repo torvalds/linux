@@ -3578,7 +3578,6 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 	u64 last_objectid = 0;
 	int ret = 0, nr_unlink = 0;
 
-	/* Bail out if the cleanup is already running. */
 	if (test_and_set_bit(BTRFS_ROOT_ORPHAN_CLEANUP, &root->state))
 		return 0;
 
@@ -3661,17 +3660,17 @@ int btrfs_orphan_cleanup(struct btrfs_root *root)
 			 *
 			 * btrfs_find_orphan_roots() ran before us, which has
 			 * found all deleted roots and loaded them into
-			 * fs_info->fs_roots. So here we can find if an
+			 * fs_info->fs_roots_radix. So here we can find if an
 			 * orphan item corresponds to a deleted root by looking
-			 * up the root from that xarray.
+			 * up the root from that radix tree.
 			 */
 
-			spin_lock(&fs_info->fs_roots_lock);
-			dead_root = xa_load(&fs_info->fs_roots,
-					    (unsigned long)found_key.objectid);
+			spin_lock(&fs_info->fs_roots_radix_lock);
+			dead_root = radix_tree_lookup(&fs_info->fs_roots_radix,
+							 (unsigned long)found_key.objectid);
 			if (dead_root && btrfs_root_refs(&dead_root->root_item) == 0)
 				is_dead_root = 1;
-			spin_unlock(&fs_info->fs_roots_lock);
+			spin_unlock(&fs_info->fs_roots_radix_lock);
 
 			if (is_dead_root) {
 				/* prevent this orphan from being found again */
@@ -3911,7 +3910,7 @@ cache_index:
 	 * cache.
 	 *
 	 * This is required for both inode re-read from disk and delayed inode
-	 * in the delayed_nodes xarray.
+	 * in delayed_nodes_tree.
 	 */
 	if (BTRFS_I(inode)->last_trans == fs_info->generation)
 		set_bit(BTRFS_INODE_NEEDS_FULL_SYNC,

@@ -112,6 +112,9 @@ static struct platform_device *fsl_usb2_device_register(
 			goto error;
 	}
 
+	pdev->dev.of_node = ofdev->dev.of_node;
+	pdev->dev.of_node_reused = true;
+
 	retval = platform_device_add(pdev);
 	if (retval)
 		goto error;
