@@ -131,6 +131,25 @@
 #define PCIE_ATU_UNR_UPPER_LIMIT	0x20
 
 /*
+ * RAS-DES register definitions
+ */
+#define PCIE_RAS_DES_EVENT_COUNTER_CONTROL	0x8
+#define EVENT_COUNTER_ALL_CLEAR		0x3
+#define EVENT_COUNTER_ENABLE_ALL	0x7
+#define EVENT_COUNTER_ENABLE_SHIFT	2
+#define EVENT_COUNTER_EVENT_SEL_MASK	GENMASK(7, 0)
+#define EVENT_COUNTER_EVENT_SEL_SHIFT	16
+#define EVENT_COUNTER_EVENT_Tx_L0S	0x2
+#define EVENT_COUNTER_EVENT_Rx_L0S	0x3
+#define EVENT_COUNTER_EVENT_L1		0x5
+#define EVENT_COUNTER_EVENT_L1_1	0x7
+#define EVENT_COUNTER_EVENT_L1_2	0x8
+#define EVENT_COUNTER_GROUP_SEL_SHIFT	24
+#define EVENT_COUNTER_GROUP_5		0x5
+
+#define PCIE_RAS_DES_EVENT_COUNTER_DATA		0xc
+
+/*
  * The default address offset between dbi_base and atu_base. Root controller
  * drivers are not required to initialize atu_base if the offset matches this
  * default; the driver core automatically derives atu_base from dbi_base using
