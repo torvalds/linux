@@ -38,6 +38,8 @@ description: |
         msm8992
         msm8994
         msm8996
+        msm8998
+        qcs404
         sa8155p
         sa8540p
         sc7180
@@ -47,10 +49,13 @@ description: |
         sda660
         sdm630
         sdm632
+        sdm636
         sdm660
         sdm845
         sdx55
         sdx65
+        sm6125
+        sm6350
         sm7225
         sm8150
         sm8250
@@ -159,28 +164,50 @@ properties:
           - const: qcom,msm8974
 
       - items:
-          - enum:
-              - alcatel,idol347
-          - const: qcom,msm8916-mtp/1
           - const: qcom,msm8916-mtp
+          - const: qcom,msm8916-mtp/1
           - const: qcom,msm8916
 
       - items:
           - enum:
-              - longcheer,l8150
+              - alcatel,idol347
+              - asus,z00l
+              - huawei,g7
+              - longcheer,l8910
               - samsung,a3u-eur
               - samsung,a5u-eur
+              - samsung,j5
+              - samsung,serranove
+              - wingtech,wt88047
           - const: qcom,msm8916
+
+      - items:
+          - const: longcheer,l8150
+          - const: qcom,msm8916-v1-qrd/9-v1
+          - const: qcom,msm8916
+
+      - items:
+          - enum:
+              - lg,bullhead
+              - microsoft,talkman
+              - xiaomi,libra
+          - const: qcom,msm8992
 
       - items:
           - enum:
               - sony,karin_windy
+          - const: qcom,apq8094
+
+      - items:
+          - enum:
+              - huawei,angler
+              - microsoft,cityman
+              - sony,ivy-row
               - sony,karin-row
               - sony,satsuki-row
               - sony,sumire-row
               - sony,suzuran-row
-              - qcom,msm8994
-          - const: qcom,apq8094
+          - const: qcom,msm8994
 
       - items:
           - enum:
@@ -199,6 +226,20 @@ properties:
               - xiaomi,natrium
               - xiaomi,scorpio
           - const: qcom,msm8996
+
+      - items:
+          - enum:
+              - asus,novago-tp370ql
+              - fxtec,pro1
+              - hp,envy-x2
+              - lenovo,miix-630
+              - oneplus,cheeseburger
+              - oneplus,dumpling
+              - qcom,msm8998-mtp
+              - sony,xperia-lilac
+              - sony,xperia-maple
+              - sony,xperia-poplar
+          - const: qcom,msm8998
 
       - items:
           - enum:
@@ -550,6 +591,14 @@ properties:
 
       - items:
           - enum:
+              - sony,discovery-row
+              - sony,kirin-row
+              - sony,pioneer-row
+              - sony,voyager-row
+          - const: qcom,sdm630
+
+      - items:
+          - enum:
               - inforce,ifc6560
           - const: qcom,sda660
 
@@ -557,6 +606,11 @@ properties:
           - enum:
               - fairphone,fp3
           - const: qcom,sdm632
+
+      - items:
+          - enum:
+              - sony,mermaid-row
+          - const: qcom,sdm636
 
       - items:
           - enum:
@@ -583,6 +637,13 @@ properties:
 
       - items:
           - enum:
+              - qcom,qcs404-evb-1000
+              - qcom,qcs404-evb-4000
+          - const: qcom,qcs404-evb
+          - const: qcom,qcs404
+
+      - items:
+          - enum:
               - qcom,sa8155p-adp
           - const: qcom,sa8155p
 
@@ -593,24 +654,62 @@ properties:
 
       - items:
           - enum:
+              - lenovo,yoga-c630
+              - lg,judyln
+              - lg,judyp
+              - oneplus,enchilada
+              - oneplus,fajita
+              - qcom,sdm845-mtp
+              - shift,axolotl
+              - samsung,w737
+              - sony,akari-row
+              - sony,akatsuki-row
+              - sony,apollo-row
+              - thundercomm,db845c
+              - xiaomi,beryllium
+              - xiaomi,polaris
+          - const: qcom,sdm845
+
+      - items:
+          - enum:
+              - sony,pdx201
+          - const: qcom,sm6125
+
+      - items:
+          - enum:
+              - sony,pdx213
+          - const: qcom,sm6350
+
+      - items:
+          - enum:
               - fairphone,fp4
           - const: qcom,sm7225
 
       - items:
           - enum:
+              - microsoft,surface-duo
+              - qcom,sm8150-hdk
               - qcom,sm8150-mtp
+              - sony,bahamut-generic
+              - sony,griffin-generic
           - const: qcom,sm8150
 
       - items:
           - enum:
               - qcom,qrb5165-rb5
+              - qcom,sm8250-hdk
               - qcom,sm8250-mtp
+              - sony,pdx203-generic
+              - sony,pdx206-generic
           - const: qcom,sm8250
 
       - items:
           - enum:
+              - microsoft,surface-duo2
               - qcom,sm8350-hdk
               - qcom,sm8350-mtp
+              - sony,pdx214-generic
+              - sony,pdx215-generic
           - const: qcom,sm8350
 
       - items:

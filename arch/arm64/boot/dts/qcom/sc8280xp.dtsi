@@ -36,6 +36,9 @@
 		compatible = "operating-points-v2";
 		opp-shared;
 
+		opp-300000000 {
+			opp-hz = /bits/ 64 <300000000>;
+		};
 		opp-403200000 {
 			opp-hz = /bits/ 64 <403200000>;
 		};
@@ -476,7 +479,7 @@
 
 	pmu {
 		compatible = "arm,armv8-pmuv3";
-		interrupts = <GIC_PPI 5 IRQ_TYPE_LEVEL_HIGH>;
+		interrupts = <GIC_PPI 7 IRQ_TYPE_LEVEL_HIGH>;
 	};
 
 	psci {
@@ -1276,16 +1279,16 @@
 			#size-cells = <2>;
 			ranges;
 
-			clocks = <&gcc GCC_USB30_PRIM_MASTER_CLK>,
-				 <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+				 <&gcc GCC_USB30_PRIM_MASTER_CLK>,
 				 <&gcc GCC_AGGRE_USB3_PRIM_AXI_CLK>,
-				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
 				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
+				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
 				 <&gcc GCC_AGGRE_USB_NOC_AXI_CLK>,
 				 <&gcc GCC_AGGRE_USB_NOC_NORTH_AXI_CLK>,
 				 <&gcc GCC_AGGRE_USB_NOC_SOUTH_AXI_CLK>,
 				 <&gcc GCC_SYS_NOC_USB_AXI_CLK>;
-			clock-names = "core", "iface", "bus_aggr", "utmi", "sleep",
+			clock-names = "cfg_noc", "core", "iface", "sleep", "mock_utmi",
 				      "noc_aggr", "noc_aggr_north", "noc_aggr_south", "noc_sys";
 
 			assigned-clocks = <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
@@ -1296,8 +1299,10 @@
 					      <&pdc 14 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 15 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 138 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "hs_phy_irq", "dp_hs_phy_irq",
-					  "dm_hs_phy_irq", "ss_phy_irq";
+			interrupt-names = "pwr_event",
+					  "dp_hs_phy_irq",
+					  "dm_hs_phy_irq",
+					  "ss_phy_irq";
 
 			power-domains = <&gcc USB30_PRIM_GDSC>;
 
@@ -1326,28 +1331,30 @@
 			#size-cells = <2>;
 			ranges;
 
-			clocks = <&gcc GCC_USB30_SEC_MASTER_CLK>,
-				 <&gcc GCC_CFG_NOC_USB3_SEC_AXI_CLK>,
+			clocks = <&gcc GCC_CFG_NOC_USB3_SEC_AXI_CLK>,
+				 <&gcc GCC_USB30_SEC_MASTER_CLK>,
 				 <&gcc GCC_AGGRE_USB3_SEC_AXI_CLK>,
-				 <&gcc GCC_USB30_SEC_MOCK_UTMI_CLK>,
 				 <&gcc GCC_USB30_SEC_SLEEP_CLK>,
+				 <&gcc GCC_USB30_SEC_MOCK_UTMI_CLK>,
 				 <&gcc GCC_AGGRE_USB_NOC_AXI_CLK>,
 				 <&gcc GCC_AGGRE_USB_NOC_NORTH_AXI_CLK>,
 				 <&gcc GCC_AGGRE_USB_NOC_SOUTH_AXI_CLK>,
 				 <&gcc GCC_SYS_NOC_USB_AXI_CLK>;
-			clock-names = "core", "iface", "bus_aggr", "utmi", "sleep",
+			clock-names = "cfg_noc", "core", "iface", "sleep", "mock_utmi",
 				      "noc_aggr", "noc_aggr_north", "noc_aggr_south", "noc_sys";
 
 			assigned-clocks = <&gcc GCC_USB30_SEC_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB30_SEC_MASTER_CLK>;
 			assigned-clock-rates = <19200000>, <200000000>;
 
-			interrupts-extended = <&intc GIC_SPI 136 IRQ_TYPE_LEVEL_HIGH>,
+			interrupts-extended = <&intc GIC_SPI 811 IRQ_TYPE_LEVEL_HIGH>,
 					      <&pdc 12 IRQ_TYPE_EDGE_BOTH>,
 					      <&pdc 13 IRQ_TYPE_EDGE_BOTH>,
-					      <&pdc 16 IRQ_TYPE_LEVEL_HIGH>;
-			interrupt-names = "hs_phy_irq", "dp_hs_phy_irq",
-					  "dm_hs_phy_irq", "ss_phy_irq";
+					      <&pdc 136 IRQ_TYPE_LEVEL_HIGH>;
+			interrupt-names = "pwr_event",
+					  "dp_hs_phy_irq",
+					  "dm_hs_phy_irq",
+					  "ss_phy_irq";
 
 			power-domains = <&gcc USB30_SEC_GDSC>;
 
@@ -1580,7 +1587,6 @@
 				     <GIC_SPI 412 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 421 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 706 IRQ_TYPE_LEVEL_HIGH>,
-				     <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 423 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 424 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 425 IRQ_TYPE_LEVEL_HIGH>,
@@ -1591,6 +1597,7 @@
 				     <GIC_SPI 693 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 694 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 695 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 696 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 410 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 411 IRQ_TYPE_LEVEL_HIGH>,
 				     <GIC_SPI 420 IRQ_TYPE_LEVEL_HIGH>,
@@ -1665,6 +1672,7 @@
 			reg = <0x0 0x17c20000 0x0 0x1000>;
 			#address-cells = <1>;
 			#size-cells = <1>;
+			ranges = <0x0 0x0 0x0 0x20000000>;
 
 			frame@17c21000 {
 				frame-number = <0>;

@@ -58,7 +58,7 @@
 	leds {
 		compatible = "gpio-leds";
 
-		user4 {
+		led-user4 {
 			label = "green:user4";
 			function = LED_FUNCTION_INDICATOR;
 			color = <LED_COLOR_ID_GREEN>;
@@ -67,7 +67,7 @@
 			default-state = "off";
 		};
 
-		wlan {
+		led-wlan {
 			label = "yellow:wlan";
 			function = LED_FUNCTION_WLAN;
 			color = <LED_COLOR_ID_YELLOW>;
@@ -76,7 +76,7 @@
 			default-state = "off";
 		};
 
-		bt {
+		led-bt {
 			label = "blue:bt";
 			function = LED_FUNCTION_BLUETOOTH;
 			color = <LED_COLOR_ID_BLUE>;
@@ -84,7 +84,6 @@
 			linux,default-trigger = "bluetooth-power";
 			default-state = "off";
 		};
-
 	};
 
 	lt9611_1v2: lt9611-vdd12-regulator {
@@ -815,6 +814,9 @@
 
 &pm8150l_lpg {
 	status = "okay";
+
+	#address-cells = <1>;
+	#size-cells = <0>;
 
 	led@1 {
 		reg = <1>;
