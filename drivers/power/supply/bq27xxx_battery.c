@@ -1044,12 +1044,12 @@ struct bq27xxx_dm_buf {
 	.block = (di)->dm_regs[i].offset / BQ27XXX_DM_SZ, \
 }
 
-static inline u16 *bq27xxx_dm_reg_ptr(struct bq27xxx_dm_buf *buf,
+static inline __be16 *bq27xxx_dm_reg_ptr(struct bq27xxx_dm_buf *buf,
 				      struct bq27xxx_dm_reg *reg)
 {
 	if (buf->class == reg->subclass_id &&
 	    buf->block == reg->offset / BQ27XXX_DM_SZ)
-		return (u16 *) (buf->data + reg->offset % BQ27XXX_DM_SZ);
+		return (__be16 *) (buf->data + reg->offset % BQ27XXX_DM_SZ);
 
 	return NULL;
 }
@@ -1275,7 +1275,7 @@ static void bq27xxx_battery_update_dm_block(struct bq27xxx_device_info *di,
 {
 	struct bq27xxx_dm_reg *reg = &di->dm_regs[reg_id];
 	const char *str = bq27xxx_dm_reg_name[reg_id];
-	u16 *prev = bq27xxx_dm_reg_ptr(buf, reg);
+	__be16 *prev = bq27xxx_dm_reg_ptr(buf, reg);
 
 	if (prev == NULL) {
 		dev_warn(di->dev, "buffer does not match %s dm spec\n", str);
