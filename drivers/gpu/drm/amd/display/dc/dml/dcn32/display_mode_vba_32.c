@@ -221,6 +221,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 		// VBA_DELTA
 		// Calculate DET size, swath height
 		dml32_CalculateSwathAndDETConfiguration(
+				&v->dummy_vars.dml32_CalculateSwathAndDETConfiguration,
 				mode_lib->vba.DETSizeOverride,
 				mode_lib->vba.UsesMALLForPStateChange,
 				mode_lib->vba.ConfigReturnBufferSizeInKByte,
@@ -1878,6 +1879,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	}
 
 	dml32_CalculateSwathAndDETConfiguration(
+			&v->dummy_vars.dml32_CalculateSwathAndDETConfiguration,
 			mode_lib->vba.DETSizeOverride,
 			mode_lib->vba.UsesMALLForPStateChange,
 			mode_lib->vba.ConfigReturnBufferSizeInKByte,
@@ -2474,6 +2476,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 			}
 
 			dml32_CalculateSwathAndDETConfiguration(
+					&v->dummy_vars.dml32_CalculateSwathAndDETConfiguration,
 					mode_lib->vba.DETSizeOverride,
 					mode_lib->vba.UsesMALLForPStateChange,
 					mode_lib->vba.ConfigReturnBufferSizeInKByte,
