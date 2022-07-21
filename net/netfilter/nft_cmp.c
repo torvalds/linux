@@ -125,13 +125,13 @@ static void nft_payload_n2h(union nft_cmp_offload_data *data,
 {
 	switch (len) {
 	case 2:
-		data->val16 = ntohs(*((u16 *)val));
+		data->val16 = ntohs(*((__be16 *)val));
 		break;
 	case 4:
-		data->val32 = ntohl(*((u32 *)val));
+		data->val32 = ntohl(*((__be32 *)val));
 		break;
 	case 8:
-		data->val64 = be64_to_cpu(*((u64 *)val));
+		data->val64 = be64_to_cpu(*((__be64 *)val));
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -196,6 +196,18 @@ static const struct nft_expr_ops nft_cmp_ops = {
 	.reduce		= NFT_REDUCE_READONLY,
 	.offload	= nft_cmp_offload,
 };
+
+/* Calculate the mask for the nft_cmp_fast expression. On big endian the
+ * mask needs to include the *upper* bytes when interpreting that data as
+ * something smaller than the full u32, therefore a cpu_to_le32 is done.
+ */
+static u32 nft_cmp_fast_mask(unsigned int len)
+{
+	__le32 mask = cpu_to_le32(~0U >> (sizeof_field(struct nft_cmp_fast_expr,
+					  data) * BITS_PER_BYTE - len));
+
+	return (__force u32)mask;
+}
 
 static int nft_cmp_fast_init(const struct nft_ctx *ctx,
 			     const struct nft_expr *expr,

@@ -329,20 +329,18 @@ nf_ct_get_tuple(const struct sk_buff *skb,
 		return gre_pkt_to_tuple(skb, dataoff, net, tuple);
 #endif
 	case IPPROTO_TCP:
-	case IPPROTO_UDP: /* fallthrough */
-		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
+	case IPPROTO_UDP:
 #ifdef CONFIG_NF_CT_PROTO_UDPLITE
 	case IPPROTO_UDPLITE:
-		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
 #endif
 #ifdef CONFIG_NF_CT_PROTO_SCTP
 	case IPPROTO_SCTP:
-		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
 #endif
 #ifdef CONFIG_NF_CT_PROTO_DCCP
 	case IPPROTO_DCCP:
-		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
 #endif
+		/* fallthrough */
+		return nf_ct_get_tuple_ports(skb, dataoff, tuple);
 	default:
 		break;
 	}

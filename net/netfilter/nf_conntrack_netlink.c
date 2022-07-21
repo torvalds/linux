@@ -2005,7 +2005,7 @@ static int ctnetlink_change_helper(struct nf_conn *ct,
 	}
 
 	if (help) {
-		if (help->helper == helper) {
+		if (rcu_access_pointer(help->helper) == helper) {
 			/* update private helper data if allowed. */
 			if (helper->from_nlattr)
 				helper->from_nlattr(helpinfo, ct);
@@ -3413,12 +3413,17 @@ static int ctnetlink_get_expect(struct sk_buff *skb,
 
 static bool expect_iter_name(struct nf_conntrack_expect *exp, void *data)
 {
+	struct nf_conntrack_helper *helper;
 	const struct nf_conn_help *m_help;
 	const char *name = data;
 
 	m_help = nfct_help(exp->master);
 
-	return strcmp(m_help->helper->name, name) == 0;
+	helper = rcu_dereference(m_help->helper);
+	if (!helper)
+		return false;
+
+	return strcmp(helper->name, name) == 0;
 }
 
 static bool expect_iter_all(struct nf_conntrack_expect *exp, void *data)
