@@ -450,6 +450,7 @@ properties:
 
       - description: Google Pazquel with LTE and Parade (newest rev)
         items:
+          - const: google,pazquel-sku6
           - const: google,pazquel-sku4
           - const: qcom,sc7180
 
