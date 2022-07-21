@@ -3173,7 +3173,7 @@ static void hci_conn_complete_evt(struct hci_dev *hdev, void *data,
 			hci_send_cmd(hdev, HCI_OP_READ_REMOTE_FEATURES,
 				     sizeof(cp), &cp);
 
-			hci_req_update_scan(hdev);
+			hci_update_scan(hdev);
 		}
 
 		/* Set packet type for incoming connection */
@@ -3371,7 +3371,7 @@ static void hci_disconn_complete_evt(struct hci_dev *hdev, void *data,
 		if (test_and_clear_bit(HCI_CONN_FLUSH_KEY, &conn->flags))
 			hci_remove_link_key(hdev, &conn->dst);
 
-		hci_req_update_scan(hdev);
+		hci_update_scan(hdev);
 	}
 
 	params = hci_conn_params_lookup(hdev, &conn->dst, conn->dst_type);
