@@ -1483,12 +1483,14 @@ static int anx7411_i2c_probe(struct i2c_client *client,
 
 	if (!plat->intp_irq) {
 		dev_err(dev, "fail to get interrupt IRQ\n");
+		ret = -EINVAL;
 		goto free_typec_port;
 	}
 
 	plat->dev = dev;
 	plat->psy_online = ANX7411_PSY_OFFLINE;
-	if (anx7411_psy_register(plat)) {
+	ret = anx7411_psy_register(plat);
+	if (ret) {
 		dev_err(dev, "register psy\n");
 		goto free_typec_port;
 	}
