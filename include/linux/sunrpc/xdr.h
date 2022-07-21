@@ -265,6 +265,8 @@ extern bool xdr_stream_subsegment(struct xdr_stream *xdr, struct xdr_buf *subbuf
 				  unsigned int len);
 extern unsigned int xdr_stream_move_subsegment(struct xdr_stream *xdr, unsigned int offset,
 					       unsigned int target, unsigned int length);
+extern unsigned int xdr_stream_zero(struct xdr_stream *xdr, unsigned int offset,
+				    unsigned int length);
 
 /**
  * xdr_set_scratch_buffer - Attach a scratch buffer for decoding data.
