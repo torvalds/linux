@@ -17,6 +17,17 @@
 		reg = <0x0 0xff8d0000 0x0 0x20000>;
 	};
 
+	hub_reset: hub-reset {
+		compatible = "regulator-fixed";
+		enable-active-high;
+		gpio = <&gpio4 18 GPIO_ACTIVE_HIGH>;
+		regulator-name = "hub_reset";
+		regulator-always-on;
+		regulator-boot-on;
+		regulator-min-microvolt = <5000000>;
+		regulator-max-microvolt = <5000000>;
+	};
+
 	vcc_lcd: vcc-lcd {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_lcd";
@@ -117,6 +128,10 @@
 	status = "disabled";
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &i2c1 {
 	status = "okay";
 
@@ -163,15 +178,11 @@
 
 &i2s1 {
 	#sound-dai-cells = <0>;
-	status = "disabled";
+	status = "okay";
 };
 
 &i2s2 {
 	#sound-dai-cells = <0>;
-	status = "okay";
-};
-
-&hdmi_sound {
 	status = "okay";
 };
 
@@ -289,6 +300,30 @@
 
 &tc358749x_sound {
 	status = "disabled";
+};
+
+&vcca_0v9 {
+	regulator-always-on;
+	regulator-boot-on;
+	regulator-min-microvolt = <900000>;
+	regulator-max-microvolt = <900000>;
+	regulator-name = "vcca_0v9";
+	regulator-state-mem {
+		regulator-on-in-suspend;
+		regulator-suspend-microvolt = <900000>;
+	};
+};
+
+&vcc0v9_soc {
+	regulator-always-on;
+	regulator-boot-on;
+	regulator-min-microvolt = <900000>;
+	regulator-max-microvolt = <900000>;
+
+	regulator-name = "vcc0v9_soc";
+	regulator-state-mem {
+		regulator-off-in-suspend;
+	};
 };
 
 &vopb {
