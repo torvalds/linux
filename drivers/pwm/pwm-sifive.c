@@ -326,6 +326,9 @@ static int pwm_sifive_remove(struct platform_device *dev)
 	struct pwm_device *pwm;
 	int ch;
 
+	pwmchip_remove(&ddata->chip);
+	clk_notifier_unregister(ddata->clk, &ddata->notifier);
+
 	for (ch = 0; ch < ddata->chip.npwm; ch++) {
 		pwm = &ddata->chip.pwms[ch];
 		if (pwm->state.enabled)
@@ -333,8 +336,6 @@ static int pwm_sifive_remove(struct platform_device *dev)
 	}
 
 	clk_unprepare(ddata->clk);
-	pwmchip_remove(&ddata->chip);
-	clk_notifier_unregister(ddata->clk, &ddata->notifier);
 
 	return 0;
 }
