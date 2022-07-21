@@ -5,6 +5,7 @@
 #include "stfcamss.h"
 #include "stf_video.h"
 #include <media/media-entity.h>
+#include <media/v4l2-event.h>
 #include <media/v4l2-mc.h>
 #include <media/videobuf2-dma-sg.h>
 #include <media/videobuf2-vmalloc.h>
@@ -741,8 +742,8 @@ static struct v4l2_subdev *get_senname(struct file *file, const char *name)
 			break;
 		entity = pad->entity;
 	}
-	if (!strncmp(vin_name, entity->name, 13)) {
-		st_err(ST_VIDEO, "===== [%s] Please configure pipeline first =====\n", name);
+	if (!strncmp(vin_name, entity->name, STFCAMSS_MAX_ENTITY_NAME_LEN)) {
+		st_err(ST_VIDEO, " [%s] Please configure pipeline first!\n", name);
 		return NULL;
 	}
 	subdev = media_entity_to_v4l2_subdev(entity);
@@ -760,6 +761,8 @@ static int video_enum_framesizes(struct file *file, void *fh,
 	struct media_entity *entity = &vdev->entity;
 	struct media_entity *sensor;
 	struct v4l2_subdev *subdev;
+	struct media_pad *pad;
+	bool support_selection = false;
 	int i;
 	int ret;
 
@@ -771,8 +774,41 @@ static int video_enum_framesizes(struct file *file, void *fh,
 	if (i == video->nformats)
 		return -EINVAL;
 
-	sensor = stfcamss_find_sensor(entity);
-	if (sensor) {
+	entity = &vdev->entity;
+	while (1) {
+		pad = &entity->pads[0];
+		if (!(pad->flags & MEDIA_PAD_FL_SINK))
+			break;
+
+		pad = media_entity_remote_pad(pad);
+		if (!pad || !is_media_entity_v4l2_subdev(pad->entity))
+			break;
+
+		entity = pad->entity;
+		subdev = media_entity_to_v4l2_subdev(entity);
+
+		if (subdev->ops->pad->set_selection) {
+			support_selection = true;
+			break;
+		}
+	}
+
+	if (support_selection) {
+		if (fsize->index)
+			return -ENOTTY;
+		fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
+		fsize->stepwise.min_width = STFCAMSS_FRAME_MIN_WIDTH;
+		fsize->stepwise.max_width = STFCAMSS_FRAME_MAX_WIDTH;
+		fsize->stepwise.min_height = STFCAMSS_FRAME_MIN_HEIGHT;
+		fsize->stepwise.max_height = STFCAMSS_FRAME_MAX_HEIGHT;
+		fsize->stepwise.step_width = 1;
+		fsize->stepwise.step_height = 1;
+	} else {
+		entity = &vdev->entity;
+		sensor = stfcamss_find_sensor(entity);
+		if (!sensor)
+			return -ENOTTY;
+
 		subdev = media_entity_to_v4l2_subdev(sensor);
 		code.index = 0;
 		code.which = V4L2_SUBDEV_FORMAT_ACTIVE;
@@ -788,20 +824,11 @@ static int video_enum_framesizes(struct file *file, void *fh,
 		fsize->type = V4L2_FRMSIZE_TYPE_DISCRETE;
 		fsize->discrete.width = fse.min_width;
 		fsize->discrete.height = fse.min_height;
-	} else {
-		if (fsize->index)
-			return -EINVAL;
-		fsize->type = V4L2_FRMSIZE_TYPE_CONTINUOUS;
-		fsize->stepwise.min_width = STFCAMSS_FRAME_MIN_WIDTH;
-		fsize->stepwise.max_width = STFCAMSS_FRAME_MAX_WIDTH;
-		fsize->stepwise.min_height = STFCAMSS_FRAME_MIN_HEIGHT;
-		fsize->stepwise.max_height = STFCAMSS_FRAME_MAX_HEIGHT;
-		fsize->stepwise.step_width = 1;
-		fsize->stepwise.step_height = 1;
 	}
 
 	return 0;
 }
+
 static int video_enum_frameintervals(struct file *file, void *fh,
 				struct v4l2_frmivalenum *fival)
 {
@@ -816,7 +843,7 @@ static int video_enum_frameintervals(struct file *file, void *fh,
 
 	sensor = stfcamss_find_sensor(entity);
 	if (!sensor)
-		return -EINVAL;
+		return -ENOTTY;
 	fie.index = fival->index;
 	fie.width = fival->width;
 	fie.height = fival->height;
@@ -825,6 +852,12 @@ static int video_enum_frameintervals(struct file *file, void *fh,
 
 	code.index = 0;
 	code.which = V4L2_SUBDEV_FORMAT_ACTIVE;
+
+	/* Don't care about the code, just find by pixelformat */
+	ret = video_find_format(0, fival->pixel_format,
+				video->formats, video->nformats);
+	if (ret < 0)
+		return -EINVAL;
 
 	ret = v4l2_subdev_call(subdev, pad, enum_mbus_code, NULL, &code);
 	if (ret < 0)
@@ -846,8 +879,9 @@ static int video_g_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	struct stfcamss_video *video = video_drvdata(file);
 
 	st_debug(ST_VIDEO, "%s, fmt.type = 0x%x\n", __func__, f->type);
-	st_debug(ST_VIDEO, "%s, active_fmt.type = 0x%x\n",
-			__func__, video->active_fmt.type);
+	st_debug(ST_VIDEO, "%s, active_fmt.type = 0x%x,0x%x\n",
+			__func__, video->active_fmt.type,
+			video->active_fmt.fmt.pix.pixelformat);
 	*f = video->active_fmt;
 	return 0;
 }
@@ -889,9 +923,9 @@ static int video_entity_s_fmt(struct stfcamss_video *video,
 				mf->code = dst_code;
 			ret = v4l2_subdev_call(subdev, pad, set_fmt, state, fmt);
 			st_warn(ST_VIDEO,
-				"\"%s\":%d pad fmt set to 0x%x %ux%u, dst_code = 0x%x\n",
+				"\"%s\":%d pad fmt set to 0x%x %ux%u, dst_code = 0x%x, ret=%d\n",
 				subdev->name, fmt->pad, mf->code,
-				mf->width, mf->height, dst_code);
+				mf->width, mf->height, dst_code, ret);
 			if (mf->code != code ||
 				mf->width != width || mf->height != height) {
 				st_warn(ST_VIDEO,
@@ -968,7 +1002,7 @@ static int video_pipeline_s_fmt(struct stfcamss_video *video,
 		}
 	} else {
 		st_err(ST_VIDEO, "Can't find sensor\n");
-		return -EINVAL;
+		return -ENOTTY;
 	}
 	/*
 	 * Starting from sensor subdevice, walk within
@@ -985,6 +1019,9 @@ static int video_pipeline_s_fmt(struct stfcamss_video *video,
 	index = video_find_format(mf->code,
 				video->formats[index].pixelformat,
 				video->formats, video->nformats);
+	st_debug(ST_VIDEO, "%s, code=%x, index=%d\n",
+			__func__, mf->code, index);
+
 	if (index < 0)
 		return index;
 
@@ -1007,7 +1044,8 @@ static int video_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 	struct stfcamss_video *video = video_drvdata(file);
 	int ret;
 
-	st_debug(ST_VIDEO, "%s, fmt.type = 0x%x\n", __func__, f->type);
+	st_debug(ST_VIDEO, "%s, fmt.type = 0x%x, v4l2fmt=%x\n",
+			__func__, f->type, f->fmt.pix.pixelformat);
 
 	if (vb2_is_busy(&video->vb2_q))
 		return -EBUSY;
@@ -1017,6 +1055,9 @@ static int video_s_fmt(struct file *file, void *fh, struct v4l2_format *f)
 		return ret;
 
 	ret = video_pipeline_s_fmt(video, NULL, f);
+
+	st_debug(ST_VIDEO, "%s, pixelformat=0x%x, ret=%d\n",
+			__func__, f->fmt.pix.pixelformat, ret);
 	if (ret < 0)
 		return ret;
 
@@ -1310,7 +1351,6 @@ static int video_s_ctrl(struct file *file, void *fh,
 	return ret;
 }
 
-#ifdef UNUSED_CODE
 static int video_query_ext_ctrl(struct file *file, void *fh,
 				    struct v4l2_query_ext_ctrl *qec)
 {
@@ -1325,7 +1365,6 @@ static int video_query_ext_ctrl(struct file *file, void *fh,
 
 	return ret;
 }
-#endif
 
 static int video_g_ext_ctrls(struct file *file, void *fh,
 				 struct v4l2_ext_controls *ctrls)
@@ -1333,11 +1372,16 @@ static int video_g_ext_ctrls(struct file *file, void *fh,
 	struct stfcamss_video *video = video_drvdata(file);
 	struct video_device *vdev = &video->vdev;
 	struct v4l2_subdev *subdev;
+	struct v4l2_fh *vfh;
 	int ret;
 
 	subdev = get_senname(file, (char *)__func__);
 	if (!subdev)
 		return -EINVAL;
+
+	vfh = container_of(&subdev->ctrl_handler, struct v4l2_fh, ctrl_handler);
+	if (!vfh->ctrl_handler)
+		return -ENOTTY;
 
 	ret = v4l2_g_ext_ctrls(subdev->ctrl_handler,
 						vdev, subdev->v4l2_dev->mdev, ctrls);
@@ -1361,7 +1405,7 @@ static int video_queryctrl(struct file *file, void *fh,
 		ret = v4l2_queryctrl(subdev->ctrl_handler, qc);
 	} else {
 	//	st_err(ST_VIDEO, "== [%s] Please configure pipeline first ==\n", __func__);
-		return -EINVAL;
+		return -ENOTTY;
 	}
 
 	return ret;
@@ -1412,7 +1456,6 @@ static int video_try_ext_ctrls(struct file *file, void *fh,
 }
 
 
-#ifdef UNUSED_CODE
 static int video_querymenu(struct file *file, void *fh,
 			       struct v4l2_querymenu *qm)
 {
@@ -1427,7 +1470,42 @@ static int video_querymenu(struct file *file, void *fh,
 
 	return ret;
 }
-#endif
+
+static int video_subscribe_event(struct v4l2_fh *fh,
+			      const struct v4l2_event_subscription *sub)
+{
+	struct v4l2_subdev *subdev = NULL;
+	struct media_entity *entity = &fh->vdev->entity;
+	struct media_entity *sensor;
+
+	sensor = stfcamss_find_sensor(entity);
+	if (sensor)
+		subdev = media_entity_to_v4l2_subdev(sensor);
+
+	if (!subdev)
+		return -ENOTTY;
+
+	fh->ctrl_handler = subdev->ctrl_handler;
+	return v4l2_ctrl_subscribe_event(fh, sub);
+}
+
+static int video_unsubscribe_event(struct v4l2_fh *fh,
+			      const struct v4l2_event_subscription *sub)
+{
+	struct v4l2_subdev *subdev = NULL;
+	struct media_entity *entity = &fh->vdev->entity;
+	struct media_entity *sensor;
+
+	sensor = stfcamss_find_sensor(entity);
+	if (sensor)
+		subdev = media_entity_to_v4l2_subdev(sensor);
+
+	if (!subdev)
+		return -ENOTTY;
+
+	fh->ctrl_handler = subdev->ctrl_handler;
+	return v4l2_event_unsubscribe(fh, sub);
+}
 
 static const struct v4l2_ioctl_ops stf_vid_ioctl_ops = {
 	.vidioc_querycap                = video_querycap,
@@ -1457,8 +1535,12 @@ static const struct v4l2_ioctl_ops stf_vid_ioctl_ops = {
 	.vidioc_s_ctrl                  = video_s_ctrl,
 	.vidioc_g_ext_ctrls             = video_g_ext_ctrls,
 	.vidioc_queryctrl               = video_queryctrl,
+	.vidioc_query_ext_ctrl          = video_query_ext_ctrl,
 	.vidioc_s_ext_ctrls             = video_s_ext_ctrls,
 	.vidioc_try_ext_ctrls           = video_try_ext_ctrls,
+	.vidioc_querymenu		= video_querymenu,
+	.vidioc_subscribe_event		= video_subscribe_event,
+	.vidioc_unsubscribe_event	= video_unsubscribe_event,
 };
 
 static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_mp = {
@@ -1489,8 +1571,13 @@ static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_mp = {
 	.vidioc_s_ctrl                  = video_s_ctrl,
 	.vidioc_g_ext_ctrls             = video_g_ext_ctrls,
 	.vidioc_queryctrl               = video_queryctrl,
+	.vidioc_query_ext_ctrl          = video_query_ext_ctrl,
 	.vidioc_s_ext_ctrls             = video_s_ext_ctrls,
 	.vidioc_try_ext_ctrls           = video_try_ext_ctrls,
+	.vidioc_querymenu		= video_querymenu,
+	.vidioc_subscribe_event		= video_subscribe_event,
+	.vidioc_unsubscribe_event	= video_unsubscribe_event,
+
 };
 
 static const struct v4l2_ioctl_ops stf_vid_ioctl_ops_out = {

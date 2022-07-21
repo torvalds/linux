@@ -134,9 +134,9 @@ static enum isp_line_id stf_vin_map_isp_line(enum vin_line_id line)
 	enum isp_line_id line_id;
 
 	if ((line > VIN_LINE_WR) && (line < VIN_LINE_MAX)) {
-		line_id = line % STF_ISP_LINE_SRC_SCD_Y;
+		line_id = line % STF_ISP_LINE_MAX;
 		if (line_id == 0)
-			line_id = line_id ? line_id : STF_ISP_LINE_SRC_SCD_Y;
+			line_id = STF_ISP_LINE_SRC_SCD_Y;
 	} else
 		line_id = STF_ISP_LINE_INVALID;
 
@@ -779,6 +779,9 @@ static int vin_set_format(struct v4l2_subdev *sd,
 {
 	struct vin_line *line = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
+
+	st_debug(ST_VIDEO, "%s, pad %d, fmt code  %x\n",
+			__func__, fmt->pad, fmt->format.code);
 
 	format = __vin_get_format(line, state, fmt->pad, fmt->which);
 	if (format == NULL)
