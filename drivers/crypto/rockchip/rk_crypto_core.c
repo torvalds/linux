@@ -353,6 +353,8 @@ static void rk_complete_op(struct rk_crypto_dev *rk_dev, int err)
 
 	alg_ctx->ops.complete(rk_dev->async_req, err);
 
+	rk_dev->async_req = NULL;
+
 	tasklet_schedule(&rk_dev->queue_task);
 }
 
@@ -387,6 +389,11 @@ static void rk_crypto_queue_task_cb(unsigned long data)
 	struct rk_crypto_dev *rk_dev = (struct rk_crypto_dev *)data;
 	struct crypto_async_request *async_req, *backlog;
 	unsigned long flags;
+
+	if (rk_dev->async_req) {
+		dev_err(rk_dev->dev, "%s: Unexpected crypto paths.\n", __func__);
+		return;
+	}
 
 	rk_dev->err = 0;
 	spin_lock_irqsave(&rk_dev->lock, flags);
