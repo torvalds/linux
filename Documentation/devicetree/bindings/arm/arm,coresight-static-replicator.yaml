@@ -27,6 +27,9 @@ properties:
   compatible:
     const: arm,coresight-static-replicator
 
+  power-domains:
+    maxItems: 1
+
   in-ports:
     $ref: /schemas/graph.yaml#/properties/ports
     additionalProperties: false
