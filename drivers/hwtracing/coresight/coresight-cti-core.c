@@ -541,7 +541,7 @@ cti_match_fixup_csdev(struct cti_device *ctidev, const char *node_name,
 /*
  * Search the cti list to add an associated CTI into the supplied CS device
  * This will set the association if CTI declared before the CS device.
- * (called from coresight_register() with coresight_mutex locked).
+ * (called from coresight_register() without coresight_mutex locked).
  */
 static void cti_add_assoc_to_csdev(struct coresight_device *csdev)
 {
@@ -569,7 +569,8 @@ static void cti_add_assoc_to_csdev(struct coresight_device *csdev)
 			 * if we found a matching csdev then update the ECT
 			 * association pointer for the device with this CTI.
 			 */
-			csdev->ect_dev = ect_item->csdev;
+			coresight_set_assoc_ectdev_mutex(csdev->ect_dev,
+							 ect_item->csdev);
 			break;
 		}
 	}
