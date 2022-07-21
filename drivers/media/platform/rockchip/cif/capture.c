@@ -8117,7 +8117,8 @@ static void rkcif_deal_sof(struct rkcif_device *cif_dev)
 	int i = 0;
 	int ret = 0;
 
-	detect_stream->fs_cnt_in_single_frame++;
+	if (cif_dev->chip_id < CHIP_RK3588_CIF)
+		detect_stream->fs_cnt_in_single_frame++;
 	spin_lock_irqsave(&detect_stream->fps_lock, flags);
 	detect_stream->readout.fs_timestamp = ktime_get_ns();
 	spin_unlock_irqrestore(&detect_stream->fps_lock, flags);
@@ -8352,7 +8353,8 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				rkcif_scale_start(stream->scale_vdev);
 			}
 			rkcif_detect_wake_up_mode_change(stream);
-			if (mipi_id == RKCIF_STREAM_MIPI_ID0) {
+			if (cif_dev->chip_id < CHIP_RK3588_CIF &&
+			    mipi_id == RKCIF_STREAM_MIPI_ID0) {
 				if ((intstat & (CSI_FRAME1_START_ID0 | CSI_FRAME0_START_ID0)) == 0 &&
 				    detect_stream->fs_cnt_in_single_frame > 1) {
 					v4l2_err(&cif_dev->v4l2_dev,
