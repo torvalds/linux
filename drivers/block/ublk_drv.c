@@ -1017,23 +1017,6 @@ static int __ublk_alloc_dev_number(struct ublk_device *ub, int idx)
 	return err;
 }
 
-static struct ublk_device *__ublk_create_dev(int idx)
-{
-	struct ublk_device *ub = NULL;
-	int ret;
-
-	ub = kzalloc(sizeof(*ub), GFP_KERNEL);
-	if (!ub)
-		return ERR_PTR(-ENOMEM);
-
-	ret = __ublk_alloc_dev_number(ub, idx);
-	if (ret < 0) {
-		kfree(ub);
-		return ERR_PTR(ret);
-	}
-	return ub;
-}
-
 static void __ublk_destroy_dev(struct ublk_device *ub)
 {
 	spin_lock(&ublk_idr_lock);
@@ -1357,9 +1340,14 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 	if (ret)
 		return ret;
 
-	ub = __ublk_create_dev(header->dev_id);
-	if (IS_ERR(ub)) {
-		ret = PTR_ERR(ub);
+	ret = -ENOMEM;
+	ub = kzalloc(sizeof(*ub), GFP_KERNEL);
+	if (!ub)
+		goto out_unlock;
+
+	ret = __ublk_alloc_dev_number(ub, header->dev_id);
+	if (ret < 0) {
+		kfree(ub);
 		goto out_unlock;
 	}
 
