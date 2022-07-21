@@ -74,6 +74,7 @@
 enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 {
 	enum dce_version dc_version = DCE_VERSION_UNKNOWN;
+
 	switch (asic_id.chip_family) {
 
 #if defined(CONFIG_DRM_AMD_DC_SI)
@@ -169,8 +170,7 @@ enum dce_version resource_parse_asic_id(struct hw_asic_id asic_id)
 			dc_version = DCN_VERSION_3_21;
 		break;
 	case AMDGPU_FAMILY_GC_11_0_2:
-		if (ASICREV_IS_GC_11_0_2(asic_id.hw_internal_rev))
-			dc_version = DCN_VERSION_3_14;
+		dc_version = DCN_VERSION_3_14;
 		break;
 	default:
 		dc_version = DCE_VERSION_UNKNOWN;
