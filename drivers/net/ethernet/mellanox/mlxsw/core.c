@@ -2296,8 +2296,8 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 		devl_resources_unregister(devlink);
 	mlxsw_core->bus->fini(mlxsw_core->bus_priv);
 	if (!reload) {
-		devlink_free(devlink);
 		devl_unlock(devlink);
+		devlink_free(devlink);
 	}
 
 	return;
@@ -2305,8 +2305,8 @@ void mlxsw_core_bus_device_unregister(struct mlxsw_core *mlxsw_core,
 reload_fail_deinit:
 	mlxsw_core_params_unregister(mlxsw_core);
 	devl_resources_unregister(devlink);
-	devlink_free(devlink);
 	devl_unlock(devlink);
+	devlink_free(devlink);
 }
 EXPORT_SYMBOL(mlxsw_core_bus_device_unregister);
 
