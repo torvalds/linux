@@ -227,18 +227,24 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 		config->data_width = 16;
 		dev->ccr = 0x00;
 		dev->xfer_resolution = 0x02;
+		dev->capture_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 		break;
 
+	/* There is a issue with hardware while using 24-bit  */
+/*
 	case SNDRV_PCM_FORMAT_S24_LE:
 		config->data_width = 24;
 		dev->ccr = 0x08;
 		dev->xfer_resolution = 0x04;
+		dev->capture_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
+*/
 
 	case SNDRV_PCM_FORMAT_S32_LE:
 		config->data_width = 32;
 		dev->ccr = 0x10;
 		dev->xfer_resolution = 0x05;
+		dev->capture_dma_data.dt.addr_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
 
 	default:
@@ -249,6 +255,9 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 	switch (params_rate(params)) {
 	case 8000:
 		bclk_rate = 512000;
+		break;
+	case 11025:
+		bclk_rate = 705600;
 		break;
 	case 16000:
 		bclk_rate = 1024000;
@@ -272,9 +281,8 @@ static int dw_i2s_hw_params(struct snd_pcm_substream *substream,
 		return -EINVAL;
 	}
 
-	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE) {
+	if (substream->stream == SNDRV_PCM_STREAM_CAPTURE)
 		dma_data = &dev->capture_dma_data;
-	}
 	snd_soc_dai_set_dma_data(dai, substream, (void *)dma_data);
 
 	dw_i2s_config(dev, substream->stream);
@@ -382,53 +390,76 @@ static const struct snd_soc_dai_ops dw_i2s_dai_ops = {
 #ifdef CONFIG_PM
 static int dw_i2s_runtime_suspend(struct device *dev)
 {
-/*
 	struct dw_i2s_dev *dw_dev = dev_get_drvdata(dev);
 
-	if (dw_dev->capability & DW_I2S_MASTER)
-		clk_disable(dw_dev->clk);
-*/
+	if (dw_dev->capability & DW_I2S_MASTER) {
+		clk_disable_unprepare(dw_dev->clk_i2srx_lrck);
+		clk_disable_unprepare(dw_dev->clk_i2srx_bclk);
+	}
+
 	return 0;
 }
 
 static int dw_i2s_runtime_resume(struct device *dev)
 {
-/*
 	struct dw_i2s_dev *dw_dev = dev_get_drvdata(dev);
+	int ret;
 
-	if (dw_dev->capability & DW_I2S_MASTER)
-		clk_enable(dw_dev->clk);
-*/
+	if (dw_dev->capability & DW_I2S_MASTER) {
+		ret = clk_prepare_enable(dw_dev->clk_i2srx_bclk);
+		if (ret) {
+			dev_err(dw_dev->dev, "Failed to enable clk_i2srx_3ch_bclk\n");
+			return ret;
+		}
+
+		ret = clk_prepare_enable(dw_dev->clk_i2srx_lrck);
+		if (ret) {
+			dev_err(dw_dev->dev, "Failed to enable clk_i2srx_3ch_lrck\n");
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
 static int dw_i2s_suspend(struct snd_soc_component *component)
 {
-/*
 	struct dw_i2s_dev *dev = snd_soc_component_get_drvdata(component);
 
-	if (dev->capability & DW_I2S_MASTER)
-		clk_disable(dev->clk);
-*/
+	if (dev->capability & DW_I2S_MASTER) {
+		clk_disable_unprepare(dev->clk_i2srx_lrck);
+		clk_disable_unprepare(dev->clk_i2srx_bclk);
+	}
+
 	return 0;
 }
 
 static int dw_i2s_resume(struct snd_soc_component *component)
 {
-/*
 	struct dw_i2s_dev *dev = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dai *dai;
 	int stream;
+	int ret;
 
-	if (dev->capability & DW_I2S_MASTER)
-		clk_enable(dev->clk);
+	if (dev->capability & DW_I2S_MASTER) {
+		ret = clk_prepare_enable(dev->clk_i2srx_bclk);
+		if (ret) {
+			dev_err(dev->dev, "Failed to enable clk_i2srx_3ch_bclk\n");
+			return ret;
+		}
+
+		ret = clk_prepare_enable(dev->clk_i2srx_lrck);
+		if (ret) {
+			dev_err(dev->dev, "Failed to enable clk_i2srx_3ch_lrck\n");
+			return ret;
+		}
+	}
 
 	for_each_component_dais(component, dai) {
 		for_each_pcm_streams(stream)
 			if (snd_soc_dai_stream_active(dai, stream))
 				dw_i2s_config(dev, stream);
 	}
-*/
 
 	return 0;
 }
@@ -577,6 +608,9 @@ static const u32 formats[COMP_MAX_WORDSIZE] = {
 	0
 };
 
+#define SF_IIS_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
+			SNDRV_PCM_FMTBIT_S32_LE)
+
 static int dw_configure_dai(struct dw_i2s_dev *dev,
 				   struct snd_soc_dai_driver *dw_i2s_dai,
 				   unsigned int rates)
@@ -622,46 +656,13 @@ static int dw_configure_dai(struct dw_i2s_dev *dev,
 		dw_i2s_dai->capture.channels_min = MIN_CHANNEL_NUM;
 		dw_i2s_dai->capture.channels_max =
 				1 << (COMP1_RX_CHANNELS(comp1) + 1);
-		dw_i2s_dai->capture.formats = SNDRV_PCM_FMTBIT_S16_LE;
+		dw_i2s_dai->capture.formats = SF_IIS_FORMATS;
 		dw_i2s_dai->capture.rates = rates;
 	}
 
 	dev_dbg(dev->dev, "designware: i2s master mode supported\n");
 	dev->capability |= DW_I2S_MASTER;
 	dev->fifo_th = fifo_depth / 2;
-	return 0;
-}
-
-static int dw_configure_dai_by_pd(struct dw_i2s_dev *dev,
-				   struct snd_soc_dai_driver *dw_i2s_dai,
-				   struct resource *res,
-				   const struct i2s_platform_data *pdata)
-{
-	u32 comp1 = i2s_read_reg(dev->i2s_base, dev->i2s_reg_comp1);
-	u32 idx = COMP1_APB_DATA_WIDTH(comp1);
-	int ret;
-
-	if (WARN_ON(idx >= ARRAY_SIZE(bus_widths)))
-		return -EINVAL;
-
-	ret = dw_configure_dai(dev, dw_i2s_dai, pdata->snd_rates);
-	if (ret < 0)
-		return ret;
-
-	if (dev->quirks & DW_I2S_QUIRK_16BIT_IDX_OVERRIDE)
-		idx = 1;
-	/* Set DMA slaves info */
-	dev->play_dma_data.pd.data = pdata->play_dma_data;
-	dev->capture_dma_data.pd.data = pdata->capture_dma_data;
-	dev->play_dma_data.pd.addr = res->start + I2S_TXDMA;
-	dev->capture_dma_data.pd.addr = res->start + I2S_RXDMA;
-	dev->play_dma_data.pd.max_burst = 16;
-	dev->capture_dma_data.pd.max_burst = 16;
-	dev->play_dma_data.pd.addr_width = bus_widths[idx];
-	dev->capture_dma_data.pd.addr_width = bus_widths[idx];
-	dev->play_dma_data.pd.filter = pdata->filter;
-	dev->capture_dma_data.pd.filter = pdata->filter;
-
 	return 0;
 }
 
@@ -785,19 +786,9 @@ static int dw_i2s_probe(struct platform_device *pdev)
 
 	dev->i2s_reg_comp1 = I2S_COMP_PARAM_1;
 	dev->i2s_reg_comp2 = I2S_COMP_PARAM_2;
-	if (pdata) {
-		dev->capability = pdata->cap;
-		clk_id = NULL;
-		dev->quirks = pdata->quirks;
-		if (dev->quirks & DW_I2S_QUIRK_COMP_REG_OFFSET) {
-			dev->i2s_reg_comp1 = pdata->i2s_reg_comp1;
-			dev->i2s_reg_comp2 = pdata->i2s_reg_comp2;
-		}
-		ret = dw_configure_dai_by_pd(dev, dw_i2s_dai, res, pdata);
-	} else {
-		clk_id = "i2srx_bclk";
-		ret = dw_configure_dai_by_dt(dev, dw_i2s_dai, res);
-	}
+
+	clk_id = "i2srx_bclk";
+	ret = dw_configure_dai_by_dt(dev, dw_i2s_dai, res);
 	if (ret < 0)
 		return ret;
 

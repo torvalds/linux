@@ -102,6 +102,9 @@ static int sf_pdm_hw_params(struct snd_pcm_substream *substream,
 	case 8000:
 		mclk_rate = 12288000;
 		break;
+	case 11025:
+		mclk_rate = 11289600;
+		break;
 	case 16000:
 		mclk_rate = 24576000;
 		break;
@@ -113,16 +116,12 @@ static int sf_pdm_hw_params(struct snd_pcm_substream *substream,
 	data_width = params_width(params);
 	switch (data_width) {
 	case 16:
-	case 24:
 	case 32:
 		break;
 	default:
 		pr_err("PDM: not support bit width %d\n", data_width);
 		return -EINVAL;
 	}
-
-	if (data_width == 24)
-		data_width = 32;
 
 	/* set clk_mclk */
 	ret = clk_set_rate(priv->clk_mclk_inner, mclk_rate);
@@ -215,9 +214,12 @@ static int sf_pdm_dai_remove(struct snd_soc_dai *dai)
 	return 0;
 }
 
-#define SF_PCM_RATE (SNDRV_PCM_RATE_8000 | \
-			SNDRV_PCM_RATE_16000 | \
-			SNDRV_PCM_RATE_32000)
+#define SF_PDM_RATES	(SNDRV_PCM_RATE_8000 | \
+			SNDRV_PCM_RATE_11025 | \
+			SNDRV_PCM_RATE_16000)
+
+#define SF_PDM_FORMATS	(SNDRV_PCM_FMTBIT_S16_LE | \
+			SNDRV_PCM_FMTBIT_S32_LE)
 
 static struct snd_soc_dai_driver sf_pdm_dai_drv = {
 	.name = "PDM",
@@ -226,10 +228,8 @@ static struct snd_soc_dai_driver sf_pdm_dai_drv = {
 		.stream_name	= "Capture",
 		.channels_min	= 2,
 		.channels_max	= 2,
-		.rates		= SF_PCM_RATE,
-		.formats	= SNDRV_PCM_FMTBIT_S16_LE |
-				  SNDRV_PCM_FMTBIT_S24_LE |
-				  SNDRV_PCM_FMTBIT_S32_LE,
+		.rates		= SF_PDM_RATES,
+		.formats	= SF_PDM_FORMATS,
 	},
 	.ops = &sf_pdm_dai_ops,
 	.probe = sf_pdm_dai_probe,
