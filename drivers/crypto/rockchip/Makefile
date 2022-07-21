@@ -3,7 +3,8 @@ obj-$(CONFIG_CRYPTO_DEV_ROCKCHIP) += rk_crypto.o
 rk_crypto-objs := rk_crypto_core.o \
 		  rk_crypto_utils.o \
 		  rk_crypto_ahash_utils.o \
-		  rk_crypto_skcipher_utils.o
+		  rk_crypto_skcipher_utils.o \
+		  procfs.o
 
 rk_crypto-$(CONFIG_CRYPTO_DEV_ROCKCHIP_V1) += \
 		rk_crypto_v1.o \

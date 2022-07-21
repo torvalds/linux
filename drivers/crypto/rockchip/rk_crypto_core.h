@@ -48,6 +48,20 @@
 #define RK_FLAG_FINAL			BIT(0)
 #define RK_FLAG_UPDATE			BIT(1)
 
+struct rk_crypto_stat {
+	unsigned long long	busy_cnt;
+	unsigned long long	equeue_cnt;
+	unsigned long long	dequeue_cnt;
+	unsigned long long	complete_cnt;
+	unsigned long long	done_cnt;
+	unsigned long long	fake_cnt;
+	unsigned long long	irq_cnt;
+	unsigned long long	timeout_cnt;
+	unsigned long long	error_cnt;
+	unsigned long long	ever_queue_max;
+	int			last_error;
+};
+
 struct rk_crypto_dev {
 	struct device			*dev;
 	struct reset_control		*rst;
@@ -62,6 +76,9 @@ struct rk_crypto_dev {
 	struct rk_crypto_soc_data	*soc_data;
 	int clks_num;
 	struct clk_bulk_data		*clk_bulks;
+	const char			*name;
+	struct proc_dir_entry		*procfs;
+	struct rk_crypto_stat		stat;
 
 	/* device lock */
 	spinlock_t			lock;
@@ -208,6 +225,7 @@ enum alg_type {
 	ALG_TYPE_CIPHER,
 	ALG_TYPE_ASYM,
 	ALG_TYPE_AEAD,
+	ALG_TYPE_MAX,
 };
 
 struct rk_crypto_algt {
@@ -223,6 +241,7 @@ struct rk_crypto_algt {
 	u32				mode;
 	char				*name;
 	bool				use_soft_aes192;
+	bool				valid_flag;
 };
 
 enum rk_hash_algo {

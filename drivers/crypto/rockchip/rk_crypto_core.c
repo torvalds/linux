@@ -26,6 +26,9 @@
 #include "rk_crypto_v2.h"
 #include "rk_crypto_v3.h"
 #include "cryptodev_linux/rk_cryptodev.h"
+#include "procfs.h"
+
+#define CRYPTO_NAME	"rkcrypto"
 
 static struct rk_alg_ctx *rk_alg_ctx_cast(struct crypto_async_request *async_req)
 {
@@ -271,6 +274,7 @@ static void rk_crypto_irq_timer_handle(struct timer_list *t)
 	struct rk_crypto_dev *rk_dev = from_timer(rk_dev, t, timer);
 
 	rk_dev->err = -ETIMEDOUT;
+	rk_dev->stat.timeout_cnt++;
 	tasklet_schedule(&rk_dev->done_task);
 }
 
@@ -280,6 +284,8 @@ static irqreturn_t rk_crypto_irq_handle(int irq, void *dev_id)
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
 
 	spin_lock(&rk_dev->lock);
+
+	rk_dev->stat.irq_cnt++;
 
 	if (alg_ctx->ops.irq_handle)
 		alg_ctx->ops.irq_handle(irq, dev_id);
@@ -310,6 +316,7 @@ static int rk_start_op(struct rk_crypto_dev *rk_dev)
 	/* fake calculations are used to trigger the Done Task */
 	if (alg_ctx->total == 0) {
 		CRYPTO_TRACE("fake done_task");
+		rk_dev->stat.fake_cnt++;
 		tasklet_schedule(&rk_dev->done_task);
 	}
 
@@ -333,13 +340,18 @@ static void rk_complete_op(struct rk_crypto_dev *rk_dev, int err)
 	disable_irq(rk_dev->irq);
 	del_timer(&rk_dev->timer);
 
+	rk_dev->stat.complete_cnt++;
+
+	if (err) {
+		rk_dev->stat.error_cnt++;
+		rk_dev->stat.last_error = err;
+		dev_err(rk_dev->dev, "complete_op err = %d\n", err);
+	}
+
 	if (!alg_ctx || !alg_ctx->ops.complete)
 		return;
 
 	alg_ctx->ops.complete(rk_dev->async_req, err);
-
-	if (err)
-		dev_err(rk_dev->dev, "complete_op err = %d\n", err);
 
 	tasklet_schedule(&rk_dev->queue_task);
 }
@@ -352,10 +364,17 @@ static int rk_crypto_enqueue(struct rk_crypto_dev *rk_dev,
 
 	spin_lock_irqsave(&rk_dev->lock, flags);
 	ret = crypto_enqueue_request(&rk_dev->queue, async_req);
+
+	if (rk_dev->queue.qlen > rk_dev->stat.ever_queue_max)
+		rk_dev->stat.ever_queue_max = rk_dev->queue.qlen;
+
 	if (rk_dev->busy) {
+		rk_dev->stat.busy_cnt++;
 		spin_unlock_irqrestore(&rk_dev->lock, flags);
 		return ret;
 	}
+
+	rk_dev->stat.equeue_cnt++;
 	rk_dev->busy = true;
 	spin_unlock_irqrestore(&rk_dev->lock, flags);
 	tasklet_schedule(&rk_dev->queue_task);
@@ -379,6 +398,7 @@ static void rk_crypto_queue_task_cb(unsigned long data)
 		spin_unlock_irqrestore(&rk_dev->lock, flags);
 		return;
 	}
+	rk_dev->stat.dequeue_cnt++;
 	spin_unlock_irqrestore(&rk_dev->lock, flags);
 
 	if (backlog) {
@@ -396,6 +416,8 @@ static void rk_crypto_done_task_cb(unsigned long data)
 {
 	struct rk_crypto_dev *rk_dev = (struct rk_crypto_dev *)data;
 	struct rk_alg_ctx *alg_ctx = rk_alg_ctx_cast(rk_dev->async_req);
+
+	rk_dev->stat.done_cnt++;
 
 	if (rk_dev->err)
 		goto exit;
@@ -499,6 +521,8 @@ static int rk_crypto_register(struct rk_crypto_dev *rk_dev)
 
 		if (err)
 			goto err_cipher_algs;
+
+		tmp_algs->valid_flag = true;
 
 		CRYPTO_TRACE("%s register OK!!!\n", *algs_name);
 	}
@@ -691,6 +715,8 @@ static int rk_crypto_probe(struct platform_device *pdev)
 		goto err_crypto;
 	}
 
+	rk_dev->name = CRYPTO_NAME;
+
 	match = of_match_node(crypto_of_id_table, np);
 	soc_data = (struct rk_crypto_soc_data *)match->data;
 	rk_dev->soc_data = soc_data;
@@ -818,6 +844,8 @@ static int rk_crypto_probe(struct platform_device *pdev)
 
 	rk_cryptodev_register_dev(rk_dev->dev, soc_data->crypto_ver);
 
+	rkcrypto_proc_init(rk_dev);
+
 	dev_info(dev, "%s Accelerator successfully registered\n", soc_data->crypto_ver);
 	return 0;
 
@@ -831,6 +859,8 @@ err_crypto:
 static int rk_crypto_remove(struct platform_device *pdev)
 {
 	struct rk_crypto_dev *rk_dev = platform_get_drvdata(pdev);
+
+	rkcrypto_proc_cleanup(rk_dev);
 
 	rk_cryptodev_unregister_dev(rk_dev->dev);
 
