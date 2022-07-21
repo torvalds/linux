@@ -71,6 +71,7 @@
 #include "util/bpf_counter.h"
 #include "util/iostat.h"
 #include "util/pmu-hybrid.h"
+ #include "util/topdown.h"
 #include "asm/bug.h"
 
 #include <linux/time64.h>
@@ -1858,21 +1859,10 @@ static int add_default_attributes(void)
 		unsigned int max_level = 1;
 		char *str = NULL;
 		bool warn = false;
-		const char *pmu_name = "cpu";
+		const char *pmu_name = arch_get_topdown_pmu_name(evsel_list, true);
 
 		if (!force_metric_only)
 			stat_config.metric_only = true;
-
-		if (perf_pmu__has_hybrid()) {
-			if (!evsel_list->hybrid_pmu_name) {
-				pr_warning("WARNING: default to use cpu_core topdown events\n");
-				evsel_list->hybrid_pmu_name = perf_pmu__hybrid_type_to_pmu("core");
-			}
-
-			pmu_name = evsel_list->hybrid_pmu_name;
-			if (!pmu_name)
-				return -1;
-		}
 
 		if (pmu_have_event(pmu_name, topdown_metric_L2_attrs[5])) {
 			metric_attrs = topdown_metric_L2_attrs;
