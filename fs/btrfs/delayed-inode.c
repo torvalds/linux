@@ -691,8 +691,21 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 	int total_size;
 	char *ins_data = NULL;
 	int ret;
+	bool continuous_keys_only = false;
 
 	lockdep_assert_held(&node->mutex);
+
+	/*
+	 * During normal operation the delayed index offset is continuously
+	 * increasing, so we can batch insert all items as there will not be any
+	 * overlapping keys in the tree.
+	 *
+	 * The exception to this is log replay, where we may have interleaved
+	 * offsets in the tree, so our batch needs to be continuous keys only in
+	 * order to ensure we do not end up with out of order items in our leaf.
+	 */
+	if (test_bit(BTRFS_FS_LOG_RECOVERING, &fs_info->flags))
+		continuous_keys_only = true;
 
 	/*
 	 * For delayed items to insert, we track reserved metadata bytes based
@@ -713,6 +726,14 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 
 		next = __btrfs_next_delayed_item(curr);
 		if (!next)
+			break;
+
+		/*
+		 * We cannot allow gaps in the key space if we're doing log
+		 * replay.
+		 */
+		if (continuous_keys_only &&
+		    (next->key.offset != curr->key.offset + 1))
 			break;
 
 		ASSERT(next->bytes_reserved == 0);
@@ -775,7 +796,17 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 
 	ASSERT(node->index_item_leaves > 0);
 
-	if (next) {
+	/*
+	 * For normal operations we will batch an entire leaf's worth of delayed
+	 * items, so if there are more items to process we can decrement
+	 * index_item_leaves by 1 as we inserted 1 leaf's worth of items.
+	 *
+	 * However for log replay we may not have inserted an entire leaf's
+	 * worth of items, we may have not had continuous items, so decrementing
+	 * here would mess up the index_item_leaves accounting.  For this case
+	 * only clean up the accounting when there are no items left.
+	 */
+	if (next && !continuous_keys_only) {
 		/*
 		 * We inserted one batch of items into a leaf a there are more
 		 * items to flush in a future batch, now release one unit of
@@ -784,7 +815,7 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 		 */
 		btrfs_delayed_item_release_leaves(node, 1);
 		node->index_item_leaves--;
-	} else {
+	} else if (!next) {
 		/*
 		 * There are no more items to insert. We can have a number of
 		 * reserved leaves > 1 here - this happens when many dir index
