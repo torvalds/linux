@@ -1738,6 +1738,14 @@ static void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 		return;
 
 	/*
+	 * READV uses fields in `struct io_rw` (len/addr) to stash the selected
+	 * buffer data. However if that buffer is recycled the original request
+	 * data stored in addr is lost. Therefore forbid recycling for now.
+	 */
+	if (req->opcode == IORING_OP_READV)
+		return;
+
+	/*
 	 * We don't need to recycle for REQ_F_BUFFER_RING, we can just clear
 	 * the flag and hence ensure that bl->head doesn't get incremented.
 	 * If the tail has already been incremented, hang on to it.
