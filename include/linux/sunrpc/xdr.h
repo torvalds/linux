@@ -259,8 +259,6 @@ extern unsigned int xdr_read_pages(struct xdr_stream *xdr, unsigned int len);
 extern void xdr_enter_page(struct xdr_stream *xdr, unsigned int len);
 extern int xdr_process_buf(const struct xdr_buf *buf, unsigned int offset, unsigned int len, int (*actor)(struct scatterlist *, void *), void *data);
 extern void xdr_set_pagelen(struct xdr_stream *, unsigned int len);
-extern unsigned int xdr_align_data(struct xdr_stream *, unsigned int offset, unsigned int length);
-extern unsigned int xdr_expand_hole(struct xdr_stream *, unsigned int offset, unsigned int length);
 extern bool xdr_stream_subsegment(struct xdr_stream *xdr, struct xdr_buf *subbuf,
 				  unsigned int len);
 extern unsigned int xdr_stream_move_subsegment(struct xdr_stream *xdr, unsigned int offset,
