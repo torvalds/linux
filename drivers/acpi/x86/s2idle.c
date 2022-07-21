@@ -423,8 +423,10 @@ static int lps0_device_attach(struct acpi_device *adev,
 	 * line.
 	 */
 	if ((acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0) &&
-	    mem_sleep_default > PM_SUSPEND_MEM && !acpi_sleep_default_s3)
+	    mem_sleep_default > PM_SUSPEND_MEM && !acpi_sleep_default_s3) {
 		mem_sleep_current = PM_SUSPEND_TO_IDLE;
+		pr_info("Low-power S0 idle used by default for system suspend\n");
+	}
 
 	/*
 	 * Some LPS0 systems, like ASUS Zenbook UX430UNR/i7-8550U, require the

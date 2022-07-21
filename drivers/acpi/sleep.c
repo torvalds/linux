@@ -824,6 +824,9 @@ static const struct platform_s2idle_ops acpi_s2idle_ops = {
 
 void __weak acpi_s2idle_setup(void)
 {
+	if (acpi_gbl_FADT.flags & ACPI_FADT_LOW_POWER_S0)
+		pr_info("Efficient low-power S0 idle declared\n");
+
 	s2idle_set_ops(&acpi_s2idle_ops);
 }
 
