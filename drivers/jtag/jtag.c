@@ -18,7 +18,7 @@ struct jtag {
 	struct miscdevice miscdev;
 	const struct jtag_ops *ops;
 	int id;
-	unsigned long priv[0];
+	unsigned long *priv;
 };
 
 static DEFINE_IDA(jtag_ida);
@@ -248,8 +248,11 @@ struct jtag *jtag_alloc(struct device *host, size_t priv_size,
 	if (!ops->status_set || !ops->status_get || !ops->xfer)
 		return NULL;
 
-	jtag = kzalloc(sizeof(*jtag) + priv_size, GFP_KERNEL);
+	jtag = kzalloc(sizeof(*jtag), GFP_KERNEL);
 	if (!jtag)
+		return NULL;
+	jtag->priv = kzalloc(priv_size, GFP_KERNEL);
+	if (!jtag->priv)
 		return NULL;
 
 	jtag->ops = ops;
