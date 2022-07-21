@@ -139,12 +139,6 @@ static int pwm_sifive_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (state->polarity != PWM_POLARITY_INVERSED)
 		return -EINVAL;
 
-	ret = clk_enable(ddata->clk);
-	if (ret) {
-		dev_err(ddata->chip.dev, "Enable clk failed\n");
-		return ret;
-	}
-
 	cur_state = pwm->state;
 	enabled = cur_state.enabled;
 
@@ -167,13 +161,18 @@ static int pwm_sifive_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (state->period != ddata->approx_period) {
 		if (ddata->user_count != 1) {
 			mutex_unlock(&ddata->lock);
-			ret = -EBUSY;
-			goto exit;
+			return -EBUSY;
 		}
 		ddata->approx_period = state->period;
 		pwm_sifive_update_clock(ddata, clk_get_rate(ddata->clk));
 	}
 	mutex_unlock(&ddata->lock);
+
+	ret = clk_enable(ddata->clk);
+	if (ret) {
+		dev_err(ddata->chip.dev, "Enable clk failed\n");
+		return ret;
+	}
 
 	writel(frac, ddata->regs + PWM_SIFIVE_PWMCMP(pwm->hwpwm));
 
@@ -186,9 +185,8 @@ static int pwm_sifive_apply(struct pwm_chip *chip, struct pwm_device *pwm,
 		}
 	}
 
-exit:
 	clk_disable(ddata->clk);
-	return ret;
+	return 0;
 }
 
 static const struct pwm_ops pwm_sifive_ops = {
