@@ -1020,6 +1020,7 @@ static inline struct bkey_s_c btree_path_level_peek(struct btree_trans *trans,
 
 	path->pos = k.k ? k.k->p : l->b->key.k.p;
 	trans->paths_sorted = false;
+	bch2_btree_path_verify_level(trans, path, l - path->l);
 	return k;
 }
 
@@ -1033,6 +1034,7 @@ static inline struct bkey_s_c btree_path_level_prev(struct btree_trans *trans,
 
 	path->pos = k.k ? k.k->p : l->b->data->min_key;
 	trans->paths_sorted = false;
+	bch2_btree_path_verify_level(trans, path, l - path->l);
 	return k;
 }
 
@@ -1661,7 +1663,7 @@ out:
 int __must_check bch2_btree_path_traverse(struct btree_trans *trans,
 					  struct btree_path *path, unsigned flags)
 {
-	if (IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
+	if (0 && IS_ENABLED(CONFIG_BCACHEFS_DEBUG)) {
 		unsigned restart_probability_bits = 4 << min(trans->restart_count, 32U);
 		u64 max = ~(~0ULL << restart_probability_bits);
 
