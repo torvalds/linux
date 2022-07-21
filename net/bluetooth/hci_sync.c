@@ -3865,9 +3865,6 @@ static const struct {
 	HCI_QUIRK_BROKEN(STORED_LINK_KEY,
 			 "HCI Delete Stored Link Key command is advertised, "
 			 "but not supported."),
-	HCI_QUIRK_BROKEN(ERR_DATA_REPORTING,
-			 "HCI Read Default Erroneous Data Reporting command is "
-			 "advertised, but not supported."),
 	HCI_QUIRK_BROKEN(READ_TRANSMIT_POWER,
 			 "HCI Read Transmit Power Level command is advertised, "
 			 "but not supported."),
