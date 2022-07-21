@@ -243,11 +243,6 @@ void __init smp_cpus_done(unsigned int max_cpus)
 {
 }
 
-int setup_profiling_timer(unsigned int multiplier)
-{
-	return -EINVAL;
-}
-
 void csky_start_secondary(void)
 {
 	struct mm_struct *mm = &init_mm;
