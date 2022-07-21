@@ -92,8 +92,7 @@
 			"." STR(DRIVER_REVISION_VERSION))
 
 /* time limit */
-#define RGA_ASYNC_TIMEOUT_DELAY		500
-#define RGA_SYNC_TIMEOUT_DELAY		HZ
+#define RGA_JOB_TIMEOUT_DELAY		HZ
 #define RGA_RESET_TIMEOUT			1000
 
 #define RGA_MAX_SCHEDULER	3
@@ -320,9 +319,12 @@ struct rga_request {
 	struct rga_req *task_list;
 	int task_count;
 	uint32_t finished_task_count;
+	uint32_t failed_task_count;
 
 	bool use_batch_mode;
 	bool is_running;
+	bool is_done;
+	int ret;
 	uint32_t sync_mode;
 
 	int32_t acquire_fence_fd;

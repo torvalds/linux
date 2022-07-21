@@ -221,13 +221,13 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 	ret = scheduler->ops->init_reg(job);
 	if (ret < 0) {
 		pr_err("init reg failed");
-		goto failed;
+		goto err_put_buffer_info;
 	}
 
 	ret = scheduler->ops->set_reg(job, scheduler);
 	if (ret < 0) {
 		pr_err("set reg failed");
-		goto failed;
+		goto err_put_buffer_info;
 	}
 
 	/* for debug */
@@ -235,6 +235,14 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		rga_job_dump_info(job);
 
 	return ret;
+
+err_put_buffer_info:
+	if (job->flags & RGA_JOB_USE_HANDLE) {
+		rga_mm_put_handle_info(job);
+	} else {
+		rga_mm_unmap_buffer_info(job);
+		rga_mm_put_external_buffer(job);
+	}
 
 failed:
 	rga_power_disable(scheduler);
@@ -267,7 +275,6 @@ next_job:
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	job->ret = rga_job_run(job, scheduler);
-
 	/* If some error before hw run */
 	if (job->ret < 0) {
 		pr_err("some error on rga_job_run before hw start, %s(%d)\n",
@@ -278,13 +285,6 @@ next_job:
 		scheduler->running_job = NULL;
 
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-
-		if (job->flags & RGA_JOB_USE_HANDLE) {
-			rga_mm_put_handle_info(job);
-		} else {
-			rga_mm_unmap_buffer_info(job);
-			rga_mm_put_external_buffer(job);
-		}
 
 		rga_request_release_signal(scheduler, job);
 
@@ -341,7 +341,7 @@ void rga_job_done(struct rga_scheduler_t *scheduler, int ret)
 	rga_job_finish_and_next(scheduler, job, ret);
 }
 
-static void rga_job_timeout_clean(struct rga_scheduler_t *scheduler)
+static void rga_job_scheduler_timeout_clean(struct rga_scheduler_t *scheduler)
 {
 	unsigned long flags;
 	struct rga_job *job = NULL;
@@ -349,14 +349,17 @@ static void rga_job_timeout_clean(struct rga_scheduler_t *scheduler)
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
+	if (scheduler->running_job == NULL) {
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+		return;
+	}
+
 	job = scheduler->running_job;
-	if (job && (job->flags & RGA_JOB_ASYNC) &&
-	   (ktime_ms_delta(now, job->hw_running_time) >= RGA_ASYNC_TIMEOUT_DELAY)) {
+	if (ktime_ms_delta(now, job->hw_running_time) >= RGA_JOB_TIMEOUT_DELAY) {
 		scheduler->running_job = NULL;
+		scheduler->ops->soft_reset(scheduler);
 
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-
-		scheduler->ops->soft_reset(scheduler);
 
 		if (job->flags & RGA_JOB_USE_HANDLE) {
 			rga_mm_put_handle_info(job);
@@ -365,6 +368,7 @@ static void rga_job_timeout_clean(struct rga_scheduler_t *scheduler)
 			rga_mm_put_external_buffer(job);
 		}
 
+		job->ret = -EBUSY;
 		rga_request_release_signal(scheduler, job);
 
 		rga_power_disable(scheduler);
@@ -397,8 +401,7 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 		return NULL;
 	}
 
-	/* Only async will timeout clean */
-	rga_job_timeout_clean(scheduler);
+	rga_job_scheduler_timeout_clean(scheduler);
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
@@ -430,35 +433,11 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
-	rga_job_next(scheduler);
-
 	return scheduler;
-}
-
-static void rga_running_job_abort(struct rga_job *job,
-				 struct rga_scheduler_t *scheduler)
-{
-	unsigned long flags;
-
-	spin_lock_irqsave(&scheduler->irq_lock, flags);
-
-	/* invalid job */
-	if (job == scheduler->running_job)
-		scheduler->running_job = NULL;
-
-	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-
-	rga_job_cleanup(job);
-}
-
-static void rga_invalid_job_abort(struct rga_job *job)
-{
-	rga_job_cleanup(job);
 }
 
 struct rga_job *rga_job_commit(struct rga_req *rga_command_base, struct rga_request *request)
 {
-	int ret;
 	struct rga_job *job = NULL;
 	struct rga_scheduler_t *scheduler = NULL;
 
@@ -474,41 +453,32 @@ struct rga_job *rga_job_commit(struct rga_req *rga_command_base, struct rga_requ
 	job->mm = request->current_mm;
 
 	if (!(job->flags & RGA_JOB_USE_HANDLE)) {
-		ret = rga_mm_get_external_buffer(job);
-		if (ret < 0) {
+		job->ret = rga_mm_get_external_buffer(job);
+		if (job->ret < 0) {
 			pr_err("%s: failed to get external buffer from job_cmd!\n", __func__);
-			goto free_job;
+			goto err_free_job;
 		}
 	}
 
 	scheduler = rga_job_schedule(job);
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
-		ret = -EINVAL;
-		goto invalid_job;
+		job->ret = -EINVAL;
+		goto err_invalid_job;
 	}
 
-	ret = job->ret;
-	if (ret < 0) {
-		pr_err("some error on job, %s(%d)\n", __func__,
-			__LINE__);
-		goto running_job_abort;
-	}
+	rga_job_next(scheduler);
 
 	return job;
 
-free_job:
-	rga_job_free(job);
-	return ERR_PTR(ret);
+err_invalid_job:
+	if (!(job->flags & RGA_JOB_USE_HANDLE))
+		rga_mm_put_external_buffer(job);
 
-invalid_job:
-	rga_invalid_job_abort(job);
-	return ERR_PTR(ret);
+err_free_job:
+	rga_request_release_signal(scheduler, job);
 
-/* only used by SYNC mode */
-running_job_abort:
-	rga_running_job_abort(job, scheduler);
-	return ERR_PTR(ret);
+	return ERR_PTR(job->ret);
 }
 
 static bool rga_is_need_current_mm(struct rga_req *req)
@@ -672,9 +642,8 @@ static int rga_request_wait(struct rga_request *request)
 	int left_time;
 	int ret;
 
-	left_time = wait_event_timeout(request->finished_wq,
-				       request->finished_task_count == request->task_count,
-				       RGA_SYNC_TIMEOUT_DELAY * request->task_count);
+	left_time = wait_event_timeout(request->finished_wq, request->is_done,
+				       RGA_JOB_TIMEOUT_DELAY * request->task_count);
 
 	switch (left_time) {
 	case 0:
@@ -685,7 +654,7 @@ static int rga_request_wait(struct rga_request *request)
 		ret = -ERESTARTSYS;
 		break;
 	default:
-		ret = 0;
+		ret = request->ret;
 		break;
 	}
 
@@ -696,15 +665,9 @@ int rga_request_commit(struct rga_request *request)
 {
 	int ret;
 	int i = 0;
-	struct rga_job *job = NULL;
 
-	for (i = 0; i < request->task_count; i++) {
-		job = rga_job_commit(&(request->task_list[i]), request);
-		if (IS_ERR_OR_NULL(job)) {
-			pr_err("failed to commit job!\n");
-			return job ? PTR_ERR(job) : -EFAULT;
-		}
-	}
+	for (i = 0; i < request->task_count; i++)
+		rga_job_commit(&(request->task_list[i]), request);
 
 	if (request->sync_mode == RGA_BLIT_SYNC) {
 		ret = rga_request_wait(request);
@@ -730,7 +693,7 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 {
 	struct rga_pending_request_manager *request_manager;
 	struct rga_request *request;
-	int finished_task_count;
+	int finished_count, failed_count;
 	unsigned long flags;
 
 	request_manager = rga_drvdata->pend_request_manager;
@@ -755,11 +718,19 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 
 	spin_lock_irqsave(&request->lock, flags);
 
-	finished_task_count = ++request->finished_task_count;
+	if (job->ret < 0) {
+		request->failed_task_count++;
+		request->ret = job->ret;
+	} else {
+		request->finished_task_count++;
+	}
+
+	failed_count = request->failed_task_count;
+	finished_count = request->finished_task_count;
 
 	spin_unlock_irqrestore(&request->lock, flags);
 
-	if (finished_task_count >= request->task_count) {
+	if ((failed_count + finished_count) >= request->task_count) {
 		rga_dma_fence_signal(request->release_fence);
 
 		wake_up(&request->finished_wq);
@@ -767,10 +738,15 @@ int rga_request_release_signal(struct rga_scheduler_t *scheduler, struct rga_job
 		spin_lock_irqsave(&request->lock, flags);
 
 		request->is_running = false;
+		request->is_done = true;
 
 		rga_request_put_current_mm(request);
 
 		spin_unlock_irqrestore(&request->lock, flags);
+
+		if (DEBUGGER_EN(MSG))
+			pr_info("request[%d] finished %d failed %d\n",
+				request->id, finished_count, failed_count);
 
 		/* current submit request put */
 		mutex_lock(&request_manager->lock);
@@ -918,16 +894,18 @@ int rga_request_submit(struct rga_request *request)
 		return -EFAULT;
 	}
 
-	/* Reset */
-	request->finished_task_count = 0;
-
 	if (request->task_list == NULL) {
 		pr_err("can not find task list from id[%d]", request->id);
 		spin_unlock_irqrestore(&request->lock, flags);
 		return -EINVAL;
 	}
 
+	/* Reset */
 	request->is_running = true;
+	request->is_done = false;
+	request->finished_task_count = 0;
+	request->failed_task_count = 0;
+
 	rga_request_get_current_mm(request);
 
 	spin_unlock_irqrestore(&request->lock, flags);
@@ -991,16 +969,17 @@ int rga_request_mpi_submit(struct rga_req *req, struct rga_request *request)
 		return -EFAULT;
 	}
 
-	/* Reset */
-	request->finished_task_count = 0;
-
 	if (request->task_list == NULL) {
 		pr_err("can not find task list from id[%d]", request->id);
 		spin_unlock_irqrestore(&request->lock, flags);
 		return -EINVAL;
 	}
 
+	/* Reset */
 	request->is_running = true;
+	request->is_done = false;
+	request->finished_task_count = 0;
+	request->failed_task_count = 0;
 
 	spin_unlock_irqrestore(&request->lock, flags);
 
@@ -1069,7 +1048,7 @@ static void rga_request_kref_release(struct kref *ref)
 
 	rga_dma_fence_put(request->release_fence);
 
-	if (!request->is_running || request->finished_task_count >= request->task_count) {
+	if (!request->is_running || request->is_done) {
 		spin_unlock_irqrestore(&request->lock, flags);
 		goto free_request;
 	}
@@ -1103,10 +1082,9 @@ static void rga_request_kref_release(struct kref *ref)
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 		if (need_reset) {
+			need_reset = false;
 			pr_info("reset core[%d] by user cancel", scheduler->core);
 			scheduler->ops->soft_reset(scheduler);
-
-			rga_job_finish_and_next(scheduler, job, 0);
 		}
 	}
 

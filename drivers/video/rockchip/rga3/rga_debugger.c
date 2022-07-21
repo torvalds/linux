@@ -319,7 +319,7 @@ static int rga_request_manager_show(struct seq_file *m, void *data)
 	struct rga_req *task_list;
 	unsigned long flags;
 	int task_count = 0;
-	int finished_task_count = 0;
+	int finished_task_count = 0, failed_task_count = 0;
 
 	request_manager = rga_drvdata->pend_request_manager;
 
@@ -336,6 +336,7 @@ static int rga_request_manager_show(struct seq_file *m, void *data)
 
 		task_count = request->task_count;
 		finished_task_count = request->finished_task_count;
+		failed_task_count = request->failed_task_count;
 		task_list = request->task_list;
 
 		spin_unlock_irqrestore(&request->lock, flags);
@@ -345,8 +346,8 @@ static int rga_request_manager_show(struct seq_file *m, void *data)
 			continue;
 		}
 
-		seq_printf(m, "\t set cmd num: %d, finish job sum: %d, flags = 0x%x, ref = %d\n",
-			   task_count, finished_task_count,
+		seq_printf(m, "\t set cmd num: %d, finish job: %d, failed job: %d, flags = 0x%x, ref = %d\n",
+			   task_count, finished_task_count, failed_task_count,
 			   request->flags, kref_read(&request->refcount));
 
 		seq_puts(m, "\t cmd dump:\n\n");
