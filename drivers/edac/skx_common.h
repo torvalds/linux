@@ -86,6 +86,7 @@ struct skx_dev {
 			struct pci_dev	*edev;
 			u32 retry_rd_err_log_s;
 			u32 retry_rd_err_log_d;
+			u32 retry_rd_err_log_d2;
 			struct skx_dimm {
 				u8 close_pg;
 				u8 bank_xor_enable;
@@ -167,6 +168,7 @@ struct res_config {
 	u32 *offsets_scrub_hbm0;
 	u32 *offsets_scrub_hbm1;
 	u32 *offsets_demand;
+	u32 *offsets_demand2;
 	u32 *offsets_demand_hbm0;
 	u32 *offsets_demand_hbm1;
 };
