@@ -1005,7 +1005,7 @@ static int ublk_init_queues(struct ublk_device *ub)
 	return ret;
 }
 
-static int __ublk_alloc_dev_number(struct ublk_device *ub, int idx)
+static int ublk_alloc_dev_number(struct ublk_device *ub, int idx)
 {
 	int i = idx;
 	int err;
@@ -1027,16 +1027,12 @@ static int __ublk_alloc_dev_number(struct ublk_device *ub, int idx)
 	return err;
 }
 
-static void __ublk_destroy_dev(struct ublk_device *ub)
+static void ublk_free_dev_number(struct ublk_device *ub)
 {
 	spin_lock(&ublk_idr_lock);
 	idr_remove(&ublk_index_idr, ub->ub_number);
 	wake_up_all(&ublk_idr_wq);
 	spin_unlock(&ublk_idr_lock);
-
-	mutex_destroy(&ub->mutex);
-
-	kfree(ub);
 }
 
 static void ublk_cdev_rel(struct device *dev)
@@ -1045,8 +1041,9 @@ static void ublk_cdev_rel(struct device *dev)
 
 	blk_mq_free_tag_set(&ub->tag_set);
 	ublk_deinit_queues(ub);
-
-	__ublk_destroy_dev(ub);
+	ublk_free_dev_number(ub);
+	mutex_destroy(&ub->mutex);
+	kfree(ub);
 }
 
 static int ublk_add_chdev(struct ublk_device *ub)
@@ -1092,24 +1089,8 @@ static void ublk_align_max_io_size(struct ublk_device *ub)
 		round_down(max_rq_bytes, PAGE_SIZE) >> ub->bs_shift;
 }
 
-/* add tag_set & cdev, cleanup everything in case of failure */
-static int ublk_add_dev(struct ublk_device *ub)
+static int ublk_add_tag_set(struct ublk_device *ub)
 {
-	int err = -ENOMEM;
-
-	/* We are not ready to support zero copy */
-	ub->dev_info.flags[0] &= ~UBLK_F_SUPPORT_ZERO_COPY;
-
-	ub->bs_shift = ilog2(ub->dev_info.block_size);
-	ub->dev_info.nr_hw_queues = min_t(unsigned int,
-			ub->dev_info.nr_hw_queues, nr_cpu_ids);
-
-	INIT_WORK(&ub->stop_work, ublk_stop_work_fn);
-	INIT_DELAYED_WORK(&ub->monitor_work, ublk_daemon_monitor_work);
-
-	if (ublk_init_queues(ub))
-		goto out_destroy_dev;
-
 	ub->tag_set.ops = &ublk_mq_ops;
 	ub->tag_set.nr_hw_queues = ub->dev_info.nr_hw_queues;
 	ub->tag_set.queue_depth = ub->dev_info.queue_depth;
@@ -1117,22 +1098,7 @@ static int ublk_add_dev(struct ublk_device *ub)
 	ub->tag_set.cmd_size = sizeof(struct ublk_rq_data);
 	ub->tag_set.flags = BLK_MQ_F_SHOULD_MERGE;
 	ub->tag_set.driver_data = ub;
-	err = blk_mq_alloc_tag_set(&ub->tag_set);
-	if (err)
-		goto out_deinit_queues;
-
-	ublk_align_max_io_size(ub);
-	mutex_init(&ub->mutex);
-	spin_lock_init(&ub->mm_lock);
-
-	/* add char dev so that ublksrv daemon can be setup */
-	return ublk_add_chdev(ub);
-
-out_deinit_queues:
-	ublk_deinit_queues(ub);
-out_destroy_dev:
-	__ublk_destroy_dev(ub);
-	return err;
+	return blk_mq_alloc_tag_set(&ub->tag_set);
 }
 
 static void ublk_remove(struct ublk_device *ub)
@@ -1318,26 +1284,56 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 	ub = kzalloc(sizeof(*ub), GFP_KERNEL);
 	if (!ub)
 		goto out_unlock;
+	mutex_init(&ub->mutex);
+	spin_lock_init(&ub->mm_lock);
+	INIT_WORK(&ub->stop_work, ublk_stop_work_fn);
+	INIT_DELAYED_WORK(&ub->monitor_work, ublk_daemon_monitor_work);
 
-	ret = __ublk_alloc_dev_number(ub, header->dev_id);
-	if (ret < 0) {
-		kfree(ub);
-		goto out_unlock;
-	}
+	ret = ublk_alloc_dev_number(ub, header->dev_id);
+	if (ret < 0)
+		goto out_free_ub;
 
 	memcpy(&ub->dev_info, &info, sizeof(info));
 
 	/* update device id */
 	ub->dev_info.dev_id = ub->ub_number;
 
-	ret = ublk_add_dev(ub);
-	if (ret)
-		goto out_unlock;
+	/* We are not ready to support zero copy */
+	ub->dev_info.flags[0] &= ~UBLK_F_SUPPORT_ZERO_COPY;
 
-	if (copy_to_user(argp, &ub->dev_info, sizeof(info))) {
-		ublk_remove(ub);
-		ret = -EFAULT;
-	}
+	ub->bs_shift = ilog2(ub->dev_info.block_size);
+	ub->dev_info.nr_hw_queues = min_t(unsigned int,
+			ub->dev_info.nr_hw_queues, nr_cpu_ids);
+	ublk_align_max_io_size(ub);
+
+	ret = ublk_init_queues(ub);
+	if (ret)
+		goto out_free_dev_number;
+
+	ret = ublk_add_tag_set(ub);
+	if (ret)
+		goto out_deinit_queues;
+
+	ret = -EFAULT;
+	if (copy_to_user(argp, &ub->dev_info, sizeof(info)))
+		goto out_free_tag_set;
+
+	/*
+	 * Add the char dev so that ublksrv daemon can be setup.
+	 * ublk_add_chdev() will cleanup everything if it fails.
+	 */
+	ret = ublk_add_chdev(ub);
+	goto out_unlock;
+
+out_free_tag_set:
+	blk_mq_free_tag_set(&ub->tag_set);
+out_deinit_queues:
+	ublk_deinit_queues(ub);
+out_free_dev_number:
+	ublk_free_dev_number(ub);
+out_free_ub:
+	mutex_destroy(&ub->mutex);
+	kfree(ub);
 out_unlock:
 	mutex_unlock(&ublk_ctl_mutex);
 	return ret;
