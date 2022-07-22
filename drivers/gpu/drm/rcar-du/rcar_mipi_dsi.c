@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * rcar_mipi_dsi.c  --  R-Car MIPI DSI Encoder
+ * R-Car MIPI DSI Encoder
  *
  * Copyright (C) 2020 Renesas Electronics Corporation
  */

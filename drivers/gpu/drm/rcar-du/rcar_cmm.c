@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * rcar_cmm.c -- R-Car Display Unit Color Management Module
+ * R-Car Display Unit Color Management Module
  *
  * Copyright (C) 2019 Jacopo Mondi <jacopo+renesas@jmondi.org>
  */

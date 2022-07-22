@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
- * rcar_mipi_dsi_regs.h  --  R-Car MIPI DSI Interface Registers Definitions
+ * R-Car MIPI DSI Interface Registers Definitions
  *
  * Copyright (C) 2020 Renesas Electronics Corporation
  */

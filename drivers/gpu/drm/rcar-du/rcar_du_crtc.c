@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * rcar_du_crtc.c  --  R-Car Display Unit CRTCs
+ * R-Car Display Unit CRTCs
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
@@ -300,6 +300,11 @@ static void rcar_du_crtc_set_display_timing(struct rcar_du_crtc *rcrtc)
 	     | DSMR_DIPM_DISP | DSMR_CSPM;
 	rcar_du_crtc_write(rcrtc, DSMR, dsmr);
 
+	/*
+	 * When the CMM is enabled, an additional offset of 25 pixels must be
+	 * subtracted from the HDS (horizontal display start) and HDE
+	 * (horizontal display end) registers.
+	 */
 	hdse_offset = 19;
 	if (rcrtc->group->cmms_mask & BIT(rcrtc->index % 2))
 		hdse_offset += 25;

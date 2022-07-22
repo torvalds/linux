@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * rcar_du_kms.c  --  R-Car Display Unit Mode Setting
+ * R-Car Display Unit Mode Setting
  *
  * Copyright (C) 2013-2015 Renesas Electronics Corporation
  *
