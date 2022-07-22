@@ -3263,18 +3263,21 @@ TRACE_EVENT(cfg80211_ch_switch_notify,
 
 TRACE_EVENT(cfg80211_ch_switch_started_notify,
 	TP_PROTO(struct net_device *netdev,
-		 struct cfg80211_chan_def *chandef),
-	TP_ARGS(netdev, chandef),
+		 struct cfg80211_chan_def *chandef,
+		 unsigned int link_id),
+	TP_ARGS(netdev, chandef, link_id),
 	TP_STRUCT__entry(
 		NETDEV_ENTRY
 		CHAN_DEF_ENTRY
+		__field(unsigned int, link_id)
 	),
 	TP_fast_assign(
 		NETDEV_ASSIGN;
 		CHAN_DEF_ASSIGN(chandef);
+		__entry->link_id = link_id;
 	),
-	TP_printk(NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT,
-		  NETDEV_PR_ARG, CHAN_DEF_PR_ARG)
+	TP_printk(NETDEV_PR_FMT ", " CHAN_DEF_PR_FMT ", link:%d",
+		  NETDEV_PR_ARG, CHAN_DEF_PR_ARG, __entry->link_id)
 );
 
 TRACE_EVENT(cfg80211_radar_event,
