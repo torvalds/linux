@@ -84,7 +84,7 @@ xfs_prealloc_blocks(
 /*
  * The number of blocks per AG that we withhold from xfs_mod_fdblocks to
  * guarantee that we can refill the AGFL prior to allocating space in a nearly
- * full AG.  Although the the space described by the free space btrees, the
+ * full AG.  Although the space described by the free space btrees, the
  * blocks used by the freesp btrees themselves, and the blocks owned by the
  * AGFL are counted in the ondisk fdblocks, it's a mistake to let the ondisk
  * free space in the AG drop so low that the free space btrees cannot refill an
