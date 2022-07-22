@@ -1432,6 +1432,68 @@ static void mtk_update_rx_cpu_idx(struct mtk_eth *eth)
 	}
 }
 
+static struct page_pool *mtk_create_page_pool(struct mtk_eth *eth,
+					      struct xdp_rxq_info *xdp_q,
+					      int id, int size)
+{
+	struct page_pool_params pp_params = {
+		.order = 0,
+		.flags = PP_FLAG_DMA_MAP | PP_FLAG_DMA_SYNC_DEV,
+		.pool_size = size,
+		.nid = NUMA_NO_NODE,
+		.dev = eth->dma_dev,
+		.dma_dir = DMA_FROM_DEVICE,
+		.offset = MTK_PP_HEADROOM,
+		.max_len = MTK_PP_MAX_BUF_SIZE,
+	};
+	struct page_pool *pp;
+	int err;
+
+	pp = page_pool_create(&pp_params);
+	if (IS_ERR(pp))
+		return pp;
+
+	err = __xdp_rxq_info_reg(xdp_q, &eth->dummy_dev, eth->rx_napi.napi_id,
+				 id, PAGE_SIZE);
+	if (err < 0)
+		goto err_free_pp;
+
+	err = xdp_rxq_info_reg_mem_model(xdp_q, MEM_TYPE_PAGE_POOL, pp);
+	if (err)
+		goto err_unregister_rxq;
+
+	return pp;
+
+err_unregister_rxq:
+	xdp_rxq_info_unreg(xdp_q);
+err_free_pp:
+	page_pool_destroy(pp);
+
+	return ERR_PTR(err);
+}
+
+static void *mtk_page_pool_get_buff(struct page_pool *pp, dma_addr_t *dma_addr,
+				    gfp_t gfp_mask)
+{
+	struct page *page;
+
+	page = page_pool_alloc_pages(pp, gfp_mask | __GFP_NOWARN);
+	if (!page)
+		return NULL;
+
+	*dma_addr = page_pool_get_dma_addr(page) + MTK_PP_HEADROOM;
+	return page_address(page);
+}
+
+static void mtk_rx_put_buff(struct mtk_rx_ring *ring, void *data, bool napi)
+{
+	if (ring->page_pool)
+		page_pool_put_full_page(ring->page_pool,
+					virt_to_head_page(data), napi);
+	else
+		skb_free_frag(data);
+}
+
 static int mtk_poll_rx(struct napi_struct *napi, int budget,
 		       struct mtk_eth *eth)
 {
@@ -1445,9 +1507,9 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 
 	while (done < budget) {
 		unsigned int pktlen, *rxdcsum;
+		u32 hash, reason, reserve_len;
 		struct net_device *netdev;
 		dma_addr_t dma_addr;
-		u32 hash, reason;
 		int mac = 0;
 
 		ring = mtk_get_rx_ring(eth);
@@ -1478,36 +1540,54 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 			goto release_desc;
 
 		/* alloc new buffer */
-		if (ring->frag_size <= PAGE_SIZE)
-			new_data = napi_alloc_frag(ring->frag_size);
-		else
-			new_data = mtk_max_lro_buf_alloc(GFP_ATOMIC);
-		if (unlikely(!new_data)) {
-			netdev->stats.rx_dropped++;
-			goto release_desc;
-		}
-		dma_addr = dma_map_single(eth->dma_dev,
-					  new_data + NET_SKB_PAD +
-					  eth->ip_align,
-					  ring->buf_size,
-					  DMA_FROM_DEVICE);
-		if (unlikely(dma_mapping_error(eth->dma_dev, dma_addr))) {
-			skb_free_frag(new_data);
-			netdev->stats.rx_dropped++;
-			goto release_desc;
-		}
+		if (ring->page_pool) {
+			new_data = mtk_page_pool_get_buff(ring->page_pool,
+							  &dma_addr,
+							  GFP_ATOMIC);
+			if (unlikely(!new_data)) {
+				netdev->stats.rx_dropped++;
+				goto release_desc;
+			}
+		} else {
+			if (ring->frag_size <= PAGE_SIZE)
+				new_data = napi_alloc_frag(ring->frag_size);
+			else
+				new_data = mtk_max_lro_buf_alloc(GFP_ATOMIC);
 
-		dma_unmap_single(eth->dma_dev, trxd.rxd1,
-				 ring->buf_size, DMA_FROM_DEVICE);
+			if (unlikely(!new_data)) {
+				netdev->stats.rx_dropped++;
+				goto release_desc;
+			}
+
+			dma_addr = dma_map_single(eth->dma_dev,
+				new_data + NET_SKB_PAD + eth->ip_align,
+				ring->buf_size, DMA_FROM_DEVICE);
+			if (unlikely(dma_mapping_error(eth->dma_dev,
+						       dma_addr))) {
+				skb_free_frag(new_data);
+				netdev->stats.rx_dropped++;
+				goto release_desc;
+			}
+
+			dma_unmap_single(eth->dma_dev, trxd.rxd1,
+					 ring->buf_size, DMA_FROM_DEVICE);
+		}
 
 		/* receive data */
 		skb = build_skb(data, ring->frag_size);
 		if (unlikely(!skb)) {
-			skb_free_frag(data);
+			mtk_rx_put_buff(ring, data, true);
 			netdev->stats.rx_dropped++;
 			goto skip_rx;
 		}
-		skb_reserve(skb, NET_SKB_PAD + NET_IP_ALIGN);
+
+		if (ring->page_pool) {
+			reserve_len = MTK_PP_HEADROOM;
+			skb_mark_for_recycle(skb);
+		} else {
+			reserve_len = NET_SKB_PAD + NET_IP_ALIGN;
+		}
+		skb_reserve(skb, reserve_len);
 
 		pktlen = RX_DMA_GET_PLEN0(trxd.rxd2);
 		skb->dev = netdev;
@@ -1561,7 +1641,6 @@ static int mtk_poll_rx(struct napi_struct *napi, int budget,
 skip_rx:
 		ring->data[idx] = new_data;
 		rxd->rxd1 = (unsigned int)dma_addr;
-
 release_desc:
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
 			rxd->rxd2 = RX_DMA_LSO;
@@ -1569,7 +1648,6 @@ release_desc:
 			rxd->rxd2 = RX_DMA_PREP_PLEN0(ring->buf_size);
 
 		ring->calc_idx = idx;
-
 		done++;
 	}
 
@@ -1933,13 +2011,15 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 	if (!ring->data)
 		return -ENOMEM;
 
-	for (i = 0; i < rx_dma_size; i++) {
-		if (ring->frag_size <= PAGE_SIZE)
-			ring->data[i] = netdev_alloc_frag(ring->frag_size);
-		else
-			ring->data[i] = mtk_max_lro_buf_alloc(GFP_KERNEL);
-		if (!ring->data[i])
-			return -ENOMEM;
+	if (!eth->hwlro) {
+		struct page_pool *pp;
+
+		pp = mtk_create_page_pool(eth, &ring->xdp_q, ring_no,
+					  rx_dma_size);
+		if (IS_ERR(pp))
+			return PTR_ERR(pp);
+
+		ring->page_pool = pp;
 	}
 
 	ring->dma = dma_alloc_coherent(eth->dma_dev,
@@ -1950,16 +2030,33 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 
 	for (i = 0; i < rx_dma_size; i++) {
 		struct mtk_rx_dma_v2 *rxd;
-
-		dma_addr_t dma_addr = dma_map_single(eth->dma_dev,
-				ring->data[i] + NET_SKB_PAD + eth->ip_align,
-				ring->buf_size,
-				DMA_FROM_DEVICE);
-		if (unlikely(dma_mapping_error(eth->dma_dev, dma_addr)))
-			return -ENOMEM;
+		dma_addr_t dma_addr;
+		void *data;
 
 		rxd = ring->dma + i * eth->soc->txrx.rxd_size;
+		if (ring->page_pool) {
+			data = mtk_page_pool_get_buff(ring->page_pool,
+						      &dma_addr, GFP_KERNEL);
+			if (!data)
+				return -ENOMEM;
+		} else {
+			if (ring->frag_size <= PAGE_SIZE)
+				data = netdev_alloc_frag(ring->frag_size);
+			else
+				data = mtk_max_lro_buf_alloc(GFP_KERNEL);
+
+			if (!data)
+				return -ENOMEM;
+
+			dma_addr = dma_map_single(eth->dma_dev,
+				data + NET_SKB_PAD + eth->ip_align,
+				ring->buf_size, DMA_FROM_DEVICE);
+			if (unlikely(dma_mapping_error(eth->dma_dev,
+						       dma_addr)))
+				return -ENOMEM;
+		}
 		rxd->rxd1 = (unsigned int)dma_addr;
+		ring->data[i] = data;
 
 		if (MTK_HAS_CAPS(eth->soc->caps, MTK_SOC_MT7628))
 			rxd->rxd2 = RX_DMA_LSO;
@@ -1975,6 +2072,7 @@ static int mtk_rx_alloc(struct mtk_eth *eth, int ring_no, int rx_flag)
 			rxd->rxd8 = 0;
 		}
 	}
+
 	ring->dma_size = rx_dma_size;
 	ring->calc_idx_update = false;
 	ring->calc_idx = rx_dma_size - 1;
@@ -2026,7 +2124,7 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 
 			dma_unmap_single(eth->dma_dev, rxd->rxd1,
 					 ring->buf_size, DMA_FROM_DEVICE);
-			skb_free_frag(ring->data[i]);
+			mtk_rx_put_buff(ring, ring->data[i], false);
 		}
 		kfree(ring->data);
 		ring->data = NULL;
@@ -2037,6 +2135,13 @@ static void mtk_rx_clean(struct mtk_eth *eth, struct mtk_rx_ring *ring)
 				  ring->dma_size * eth->soc->txrx.rxd_size,
 				  ring->dma, ring->phys);
 		ring->dma = NULL;
+	}
+
+	if (ring->page_pool) {
+		if (xdp_rxq_info_is_reg(&ring->xdp_q))
+			xdp_rxq_info_unreg(&ring->xdp_q);
+		page_pool_destroy(ring->page_pool);
+		ring->page_pool = NULL;
 	}
 }
 

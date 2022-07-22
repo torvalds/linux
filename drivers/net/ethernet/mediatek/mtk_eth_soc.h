@@ -18,6 +18,8 @@
 #include <linux/rhashtable.h>
 #include <linux/dim.h>
 #include <linux/bitfield.h>
+#include <net/page_pool.h>
+#include <linux/bpf_trace.h>
 #include "mtk_ppe.h"
 
 #define MTK_QDMA_PAGE_SIZE	2048
@@ -48,6 +50,11 @@
 				 NETIF_F_HW_TC)
 #define MTK_HW_FEATURES_MT7628	(NETIF_F_SG | NETIF_F_RXCSUM)
 #define NEXT_DESP_IDX(X, Y)	(((X) + 1) & ((Y) - 1))
+
+#define MTK_PP_HEADROOM		XDP_PACKET_HEADROOM
+#define MTK_PP_PAD		(MTK_PP_HEADROOM + \
+				 SKB_DATA_ALIGN(sizeof(struct skb_shared_info)))
+#define MTK_PP_MAX_BUF_SIZE	(PAGE_SIZE - MTK_PP_PAD)
 
 #define MTK_QRX_OFFSET		0x10
 
@@ -745,6 +752,9 @@ struct mtk_rx_ring {
 	bool calc_idx_update;
 	u16 calc_idx;
 	u32 crx_idx_reg;
+	/* page_pool */
+	struct page_pool *page_pool;
+	struct xdp_rxq_info xdp_q;
 };
 
 enum mkt_eth_capabilities {
