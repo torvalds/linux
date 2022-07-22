@@ -88,32 +88,28 @@ mtk_flow_offload_mangle_eth(const struct flow_action_entry *act, void *eth)
 static int
 mtk_flow_get_wdma_info(struct net_device *dev, const u8 *addr, struct mtk_wdma_info *info)
 {
-	struct net_device_path_ctx ctx = {
-		.dev = dev,
-	};
-	struct net_device_path path = {};
+	struct net_device_path_stack stack;
+	struct net_device_path *path;
+	int err;
 
-	if (!ctx.dev)
+	if (!dev)
 		return -ENODEV;
-
-	memcpy(ctx.daddr, addr, sizeof(ctx.daddr));
 
 	if (!IS_ENABLED(CONFIG_NET_MEDIATEK_SOC_WED))
 		return -1;
 
-	if (!dev->netdev_ops->ndo_fill_forward_path)
+	err = dev_fill_forward_path(dev, addr, &stack);
+	if (err)
+		return err;
+
+	path = &stack.path[stack.num_paths - 1];
+	if (path->type != DEV_PATH_MTK_WDMA)
 		return -1;
 
-	if (dev->netdev_ops->ndo_fill_forward_path(&ctx, &path))
-		return -1;
-
-	if (path.type != DEV_PATH_MTK_WDMA)
-		return -1;
-
-	info->wdma_idx = path.mtk_wdma.wdma_idx;
-	info->queue = path.mtk_wdma.queue;
-	info->bss = path.mtk_wdma.bss;
-	info->wcid = path.mtk_wdma.wcid;
+	info->wdma_idx = path->mtk_wdma.wdma_idx;
+	info->queue = path->mtk_wdma.queue;
+	info->bss = path->mtk_wdma.bss;
+	info->wcid = path->mtk_wdma.wcid;
 
 	return 0;
 }
