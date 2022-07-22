@@ -81,6 +81,8 @@
  */
 struct dm_bufio_client {
 	struct mutex lock;
+	spinlock_t spinlock;
+	unsigned long spinlock_flags;
 
 	struct list_head lru[LIST_SIZE];
 	unsigned long n_buffers[LIST_SIZE];
@@ -90,6 +92,7 @@ struct dm_bufio_client {
 	s8 sectors_per_block_bits;
 	void (*alloc_callback)(struct dm_buffer *);
 	void (*write_callback)(struct dm_buffer *);
+	bool no_sleep;
 
 	struct kmem_cache *slab_buffer;
 	struct kmem_cache *slab_cache;
@@ -167,17 +170,26 @@ struct dm_buffer {
 
 static void dm_bufio_lock(struct dm_bufio_client *c)
 {
-	mutex_lock_nested(&c->lock, dm_bufio_in_request());
+	if (c->no_sleep)
+		spin_lock_irqsave_nested(&c->spinlock, c->spinlock_flags, dm_bufio_in_request());
+	else
+		mutex_lock_nested(&c->lock, dm_bufio_in_request());
 }
 
 static int dm_bufio_trylock(struct dm_bufio_client *c)
 {
-	return mutex_trylock(&c->lock);
+	if (c->no_sleep)
+		return spin_trylock_irqsave(&c->spinlock, c->spinlock_flags);
+	else
+		return mutex_trylock(&c->lock);
 }
 
 static void dm_bufio_unlock(struct dm_bufio_client *c)
 {
-	mutex_unlock(&c->lock);
+	if (c->no_sleep)
+		spin_unlock_irqrestore(&c->spinlock, c->spinlock_flags);
+	else
+		mutex_unlock(&c->lock);
 }
 
 /*----------------------------------------------------------------*/
@@ -1748,12 +1760,16 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	c->alloc_callback = alloc_callback;
 	c->write_callback = write_callback;
 
+	if (flags & DM_BUFIO_CLIENT_NO_SLEEP)
+		c->no_sleep = true;
+
 	for (i = 0; i < LIST_SIZE; i++) {
 		INIT_LIST_HEAD(&c->lru[i]);
 		c->n_buffers[i] = 0;
 	}
 
 	mutex_init(&c->lock);
+	spin_lock_init(&c->spinlock);
 	INIT_LIST_HEAD(&c->reserved_buffers);
 	c->need_reserved_buffers = reserved_buffers;
 

@@ -18,6 +18,11 @@ struct dm_bufio_client;
 struct dm_buffer;
 
 /*
+ * Flags for dm_bufio_client_create
+ */
+#define DM_BUFIO_CLIENT_NO_SLEEP 0x1
+
+/*
  * Create a buffered IO cache on a given device
  */
 struct dm_bufio_client *
