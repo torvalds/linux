@@ -3939,7 +3939,7 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 				 struct file *file, unsigned long maxcount)
 {
 	struct xdr_stream *xdr = resp->xdr;
-	int starting_len = xdr->buf->len - 8;
+	unsigned int starting_len = xdr->buf->len;
 	__be32 nfserr;
 	__be32 tmp;
 	int pad;
@@ -3954,14 +3954,13 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 	read->rd_length = maxcount;
 	if (nfserr)
 		return nfserr;
-	if (svc_encode_result_payload(resp->rqstp, starting_len + 8, maxcount))
+	if (svc_encode_result_payload(resp->rqstp, starting_len, maxcount))
 		return nfserr_io;
-	xdr_truncate_encode(xdr, starting_len + 8 + xdr_align_size(maxcount));
+	xdr_truncate_encode(xdr, starting_len + xdr_align_size(maxcount));
 
 	tmp = xdr_zero;
 	pad = (maxcount&3) ? 4 - (maxcount&3) : 0;
-	write_bytes_to_xdr_buf(xdr->buf, starting_len + 8 + maxcount,
-								&tmp, pad);
+	write_bytes_to_xdr_buf(xdr->buf, starting_len + maxcount, &tmp, pad);
 	return 0;
 
 }
