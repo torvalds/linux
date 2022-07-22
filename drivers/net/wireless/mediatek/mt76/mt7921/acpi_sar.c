@@ -13,6 +13,7 @@ mt7921_acpi_read(struct mt7921_dev *dev, u8 *method, u8 **tbl, u32 *len)
 	acpi_handle root, handle;
 	acpi_status status;
 	u32 i = 0;
+	int ret;
 
 	root = ACPI_HANDLE(mdev->dev);
 	if (!root)
@@ -52,9 +53,11 @@ mt7921_acpi_read(struct mt7921_dev *dev, u8 *method, u8 **tbl, u32 *len)
 		*(*tbl + i) = (u8)sar_unit->integer.value;
 	}
 free:
+	ret = (i == sar_root->package.count) ? 0 : -EINVAL;
+
 	kfree(sar_root);
 
-	return (i == sar_root->package.count) ? 0 : -EINVAL;
+	return ret;
 }
 
 /* MTCL : Country List Table for 6G band */
