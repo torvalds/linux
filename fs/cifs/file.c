@@ -928,9 +928,7 @@ int cifs_close(struct inode *inode, struct file *file)
 void
 cifs_reopen_persistent_handles(struct cifs_tcon *tcon)
 {
-	struct cifsFileInfo *open_file;
-	struct list_head *tmp;
-	struct list_head *tmp1;
+	struct cifsFileInfo *open_file, *tmp;
 	struct list_head tmp_list;
 
 	if (!tcon->use_persistent || !tcon->need_reopen_files)
@@ -943,8 +941,7 @@ cifs_reopen_persistent_handles(struct cifs_tcon *tcon)
 
 	/* list all files open on tree connection, reopen resilient handles  */
 	spin_lock(&tcon->open_file_lock);
-	list_for_each(tmp, &tcon->openFileList) {
-		open_file = list_entry(tmp, struct cifsFileInfo, tlist);
+	list_for_each_entry(open_file, &tcon->openFileList, tlist) {
 		if (!open_file->invalidHandle)
 			continue;
 		cifsFileInfo_get(open_file);
@@ -952,8 +949,7 @@ cifs_reopen_persistent_handles(struct cifs_tcon *tcon)
 	}
 	spin_unlock(&tcon->open_file_lock);
 
-	list_for_each_safe(tmp, tmp1, &tmp_list) {
-		open_file = list_entry(tmp, struct cifsFileInfo, rlist);
+	list_for_each_entry_safe(open_file, tmp, &tmp_list, rlist) {
 		if (cifs_reopen_file(open_file, false /* do not flush */))
 			tcon->need_reopen_files = true;
 		list_del_init(&open_file->rlist);

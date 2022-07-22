@@ -2257,13 +2257,10 @@ static int match_tcon(struct cifs_tcon *tcon, struct smb3_fs_context *ctx)
 static struct cifs_tcon *
 cifs_find_tcon(struct cifs_ses *ses, struct smb3_fs_context *ctx)
 {
-	struct list_head *tmp;
 	struct cifs_tcon *tcon;
 
 	spin_lock(&cifs_tcp_ses_lock);
-	list_for_each(tmp, &ses->tcon_list) {
-		tcon = list_entry(tmp, struct cifs_tcon, tcon_list);
-
+	list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 		if (!match_tcon(tcon, ctx))
 			continue;
 		++tcon->tc_count;
