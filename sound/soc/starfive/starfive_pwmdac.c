@@ -573,6 +573,10 @@ static int sf_pwmdac_hw_params(struct snd_pcm_substream *substream,
 		dev->datan = PWMDAC_SAMPLE_CNT_3;
 		mclk_dac_value = 6144000;
 		break;
+	case 11025:
+		dev->datan = PWMDAC_SAMPLE_CNT_2;
+		mclk_dac_value = 5644800;
+		break;
 	case 16000:
 		dev->datan = PWMDAC_SAMPLE_CNT_3;
 		mclk_dac_value = 12288000;
