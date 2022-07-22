@@ -992,7 +992,7 @@ static int anx7411_register_i2c_dummy_clients(struct anx7411_data *ctx,
 	int i;
 	u8 spi_addr;
 
-	for (i = 0; i < sizeof(anx7411_i2c_addr); i++) {
+	for (i = 0; i < ARRAY_SIZE(anx7411_i2c_addr); i++) {
 		if (client->addr == (anx7411_i2c_addr[i].tcpc_address >> 1)) {
 			spi_addr = anx7411_i2c_addr[i].spi_address >> 1;
 			ctx->spi_client = i2c_new_dummy_device(client->adapter,
