@@ -8205,7 +8205,7 @@ static void *md_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 			break;
 		mddev = next_mddev;
 		tmp = mddev->all_mddevs.next;
-	};
+	}
 	spin_unlock(&all_mddevs_lock);
 
 	if (to_put)
