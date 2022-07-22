@@ -9,8 +9,6 @@
 
 #define pcibios_assign_all_busses() 1
 
-extern int isa_dma_bridge_buggy;
-
 #ifdef CONFIG_PCI_DOMAINS
 static inline int pci_proc_domain(struct pci_bus *bus)
 {

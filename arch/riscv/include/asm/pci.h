@@ -20,8 +20,6 @@
 
 #define ARCH_GENERIC_PCI_MMAP_RESOURCE 1
 
-extern int isa_dma_bridge_buggy;
-
 #ifdef CONFIG_PCI
 static inline int pci_proc_domain(struct pci_bus *bus)
 {
