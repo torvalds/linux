@@ -650,6 +650,7 @@ static int __walk_inode(struct btree_trans *trans,
 	struct bch_fs *c = trans->c;
 	struct btree_iter iter;
 	struct bkey_s_c k;
+	u32 restart_count = trans->restart_count;
 	unsigned i;
 	int ret;
 
@@ -677,6 +678,10 @@ static int __walk_inode(struct btree_trans *trans,
 
 	w->cur_inum		= pos.inode;
 	w->first_this_inode	= true;
+
+	if (trans_was_restarted(trans, restart_count))
+		return -BCH_ERR_transaction_restart_nested;
+
 lookup_snapshot:
 	for (i = 0; i < w->inodes.nr; i++)
 		if (bch2_snapshot_is_ancestor(c, pos.snapshot, w->inodes.data[i].snapshot))
@@ -1115,7 +1120,8 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 {
 	struct bch_fs *c = trans->c;
 	struct inode_walker_entry *i;
-	int ret = 0, ret2 = 0;
+	u32 restart_count = trans->restart_count;
+	int ret = 0;
 	s64 count2;
 
 	darray_for_each(w->inodes, i) {
@@ -1140,13 +1146,16 @@ static int check_i_sectors(struct btree_trans *trans, struct inode_walker *w)
 			ret = write_inode(trans, &i->inode, i->snapshot);
 			if (ret)
 				break;
-			ret2 = -BCH_ERR_transaction_restart_nested;
 		}
 	}
 fsck_err:
-	if (ret)
+	if (ret) {
 		bch_err(c, "error from check_i_sectors(): %s", bch2_err_str(ret));
-	return ret ?: ret2;
+		return ret;
+	}
+	if (trans_was_restarted(trans, restart_count))
+		return -BCH_ERR_transaction_restart_nested;
+	return 0;
 }
 
 static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
@@ -1182,14 +1191,7 @@ static int check_extent(struct btree_trans *trans, struct btree_iter *iter,
 			goto err;
 	}
 
-	if (!iter->path->should_be_locked) {
-		/*
-		 * hack: check_i_sectors may have handled a transaction restart,
-		 * it shouldn't be but we need to fix the new i_sectors check
-		 * code and delete the old bch2_count_inode_sectors() first
-		 */
-		return -BCH_ERR_transaction_restart_nested;
-	}
+	BUG_ON(!iter->path->should_be_locked);
 #if 0
 	if (bkey_cmp(prev.k->k.p, bkey_start_pos(k.k)) > 0) {
 		char buf1[200];
@@ -1336,7 +1338,8 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 {
 	struct bch_fs *c = trans->c;
 	struct inode_walker_entry *i;
-	int ret = 0, ret2 = 0;
+	u32 restart_count = trans->restart_count;
+	int ret = 0;
 	s64 count2;
 
 	darray_for_each(w->inodes, i) {
@@ -1362,13 +1365,16 @@ static int check_subdir_count(struct btree_trans *trans, struct inode_walker *w)
 			ret = write_inode(trans, &i->inode, i->snapshot);
 			if (ret)
 				break;
-			ret2 = -BCH_ERR_transaction_restart_nested;
 		}
 	}
 fsck_err:
-	if (ret)
+	if (ret) {
 		bch_err(c, "error from check_subdir_count(): %s", bch2_err_str(ret));
-	return ret ?: ret2;
+		return ret;
+	}
+	if (trans_was_restarted(trans, restart_count))
+		return -BCH_ERR_transaction_restart_nested;
+	return 0;
 }
 
 static int check_dirent_target(struct btree_trans *trans,
@@ -1526,10 +1532,7 @@ static int check_dirent(struct btree_trans *trans, struct btree_iter *iter,
 			goto err;
 	}
 
-	if (!iter->path->should_be_locked) {
-		/* hack: see check_extent() */
-		return -BCH_ERR_transaction_restart_nested;
-	}
+	BUG_ON(!iter->path->should_be_locked);
 
 	ret = __walk_inode(trans, dir, equiv);
 	if (ret < 0)
