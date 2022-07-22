@@ -754,7 +754,7 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 			void (*handler)(struct ex_regs *));
 
 /* If a toddler were to say "abracadabra". */
-#define KVM_EXCEPTION_MAGIC 0xabacadabaull
+#define KVM_EXCEPTION_MAGIC 0xabacadabaULL
 
 /*
  * KVM selftest exception fixup uses registers to coordinate with the exception
