@@ -286,6 +286,58 @@ static void dw_pcie_msi_init(struct dw_pcie_rp *pp)
 	dw_pcie_writel_dbi(pci, PCIE_MSI_ADDR_HI, upper_32_bits(msi_target));
 }
 
+static int dw_pcie_msi_host_init(struct dw_pcie_rp *pp)
+{
+	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
+	struct device *dev = pci->dev;
+	struct platform_device *pdev = to_platform_device(dev);
+	int ret;
+	u32 ctrl, num_ctrls;
+
+	num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
+	for (ctrl = 0; ctrl < num_ctrls; ctrl++)
+		pp->irq_mask[ctrl] = ~0;
+
+	if (!pp->msi_irq) {
+		pp->msi_irq = platform_get_irq_byname_optional(pdev, "msi");
+		if (pp->msi_irq < 0) {
+			pp->msi_irq = platform_get_irq(pdev, 0);
+			if (pp->msi_irq < 0)
+				return pp->msi_irq;
+		}
+	}
+
+	pp->msi_irq_chip = &dw_pci_msi_bottom_irq_chip;
+
+	ret = dw_pcie_allocate_domains(pp);
+	if (ret)
+		return ret;
+
+	if (pp->msi_irq > 0)
+		irq_set_chained_handler_and_data(pp->msi_irq,
+					    dw_chained_msi_isr, pp);
+
+	ret = dma_set_mask(dev, DMA_BIT_MASK(32));
+	if (ret)
+		dev_warn(dev, "Failed to set DMA mask to 32-bit. Devices with only 32-bit MSI support may not work properly\n");
+
+	pp->msi_page = alloc_page(GFP_DMA32);
+	pp->msi_data = dma_map_page(dev, pp->msi_page, 0,
+				    PAGE_SIZE, DMA_FROM_DEVICE);
+	ret = dma_mapping_error(dev, pp->msi_data);
+	if (ret) {
+		dev_err(pci->dev, "Failed to map MSI data\n");
+		__free_page(pp->msi_page);
+		pp->msi_page = NULL;
+		pp->msi_data = 0;
+		dw_pcie_free_msi(pp);
+
+		return ret;
+	}
+
+	return 0;
+}
+
 int dw_pcie_host_init(struct dw_pcie_rp *pp)
 {
 	struct dw_pcie *pci = to_dw_pcie_from_pp(pp);
@@ -364,49 +416,9 @@ int dw_pcie_host_init(struct dw_pcie_rp *pp)
 			if (ret < 0)
 				goto err_deinit_host;
 		} else if (pp->has_msi_ctrl) {
-			u32 ctrl, num_ctrls;
-
-			num_ctrls = pp->num_vectors / MAX_MSI_IRQS_PER_CTRL;
-			for (ctrl = 0; ctrl < num_ctrls; ctrl++)
-				pp->irq_mask[ctrl] = ~0;
-
-			if (!pp->msi_irq) {
-				pp->msi_irq = platform_get_irq_byname_optional(pdev, "msi");
-				if (pp->msi_irq < 0) {
-					pp->msi_irq = platform_get_irq(pdev, 0);
-					if (pp->msi_irq < 0) {
-						ret = pp->msi_irq;
-						goto err_deinit_host;
-					}
-				}
-			}
-
-			pp->msi_irq_chip = &dw_pci_msi_bottom_irq_chip;
-
-			ret = dw_pcie_allocate_domains(pp);
-			if (ret)
+			ret = dw_pcie_msi_host_init(pp);
+			if (ret < 0)
 				goto err_deinit_host;
-
-			if (pp->msi_irq > 0)
-				irq_set_chained_handler_and_data(pp->msi_irq,
-							    dw_chained_msi_isr,
-							    pp);
-
-			ret = dma_set_mask(dev, DMA_BIT_MASK(32));
-			if (ret)
-				dev_warn(dev, "Failed to set DMA mask to 32-bit. Devices with only 32-bit MSI support may not work properly\n");
-
-			pp->msi_page = alloc_page(GFP_DMA32);
-			pp->msi_data = dma_map_page(dev, pp->msi_page, 0,
-						    PAGE_SIZE, DMA_FROM_DEVICE);
-			ret = dma_mapping_error(dev, pp->msi_data);
-			if (ret) {
-				dev_err(pci->dev, "Failed to map MSI data\n");
-				__free_page(pp->msi_page);
-				pp->msi_page = NULL;
-				pp->msi_data = 0;
-				goto err_free_msi;
-			}
 		}
 	}
 
