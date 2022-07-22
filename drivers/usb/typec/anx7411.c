@@ -1326,13 +1326,13 @@ static void anx7411_get_gpio_irq(struct anx7411_data *ctx)
 	struct device *dev = &ctx->tcpc_client->dev;
 
 	ctx->intp_gpiod = devm_gpiod_get_optional(dev, "interrupt", GPIOD_IN);
-	if (!ctx->intp_gpiod) {
+	if (IS_ERR_OR_NULL(ctx->intp_gpiod)) {
 		dev_err(dev, "no interrupt gpio property\n");
 		return;
 	}
 
 	ctx->intp_irq = gpiod_to_irq(ctx->intp_gpiod);
-	if (!ctx->intp_irq)
+	if (ctx->intp_irq < 0)
 		dev_err(dev, "failed to get GPIO IRQ\n");
 }
 
