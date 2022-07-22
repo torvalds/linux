@@ -18,12 +18,6 @@
 extern int isa_dma_bridge_buggy;
 
 #ifdef CONFIG_PCI
-static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
-{
-	/* no legacy IRQ on csky */
-	return -ENODEV;
-}
-
 static inline int pci_proc_domain(struct pci_bus *bus)
 {
 	/* always show the domain in /proc */
