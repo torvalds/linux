@@ -64,7 +64,7 @@
 		interrupt-parent = <&gpio3>;
 		interrupts = <2 IRQ_TYPE_NONE>;
 		status = "disabled";
-        };
+	};
 };
 
 &ipu1_di0_disp0 {
