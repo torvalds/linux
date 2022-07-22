@@ -409,19 +409,22 @@ struct st_asm330lhhx_settings {
  * @id: Sensor identifier.
  * @hw: Pointer to instance of struct st_asm330lhhx_hw.
  * @ext_dev_info: For sensor hub indicate device info struct.
+ * @trig: Trigger used by IIO event sensors.
  * @gain: Configured sensor sensitivity.
  * @offset: Sensor data offset.
  * @decimator: Sensor decimator
  * @dec_counter: Sensor decimator counter
- * @conf: Used in case of sensor event to manage configuration.
  * @odr: Output data rate of the sensor [Hz].
  * @uodr: Output data rate of the sensor [uHz].
+ * @discharged_samples: Report number of samples discharded by drdy mask
+ * 			filters.
  * @max_watermark: Max supported watermark level.
  * @watermark: Sensor watermark level.
  * @pm: sensor power mode (HP, LP).
  * @last_fifo_timestamp: Store last sample timestamp in FIFO, used by flush
  * @selftest_status: Last status of self test output
  * @min_st, @max_st: Min/Max acc/gyro data values during self test procedure
+ * @conf: Used in case of sensor event to manage configuration.
  */
 struct st_asm330lhhx_sensor {
 	char name[32];
@@ -473,7 +476,7 @@ struct st_asm330lhhx_sensor {
  * @fifo_mode: FIFO operating mode supported by the device.
  * @state: hw operational state.
  * @enable_mask: Enabled sensor bitmask.
- * @ext_data_len: External sensor data len.
+ * @ext_data_len: SHUB external sensor data len.
  * @hw_timestamp_global: hw timestamp value always monotonic where the most
  *                       significant 8byte are incremented at every disable/enable.
  * @timesync_workqueue: runs the async task in private workqueue.
@@ -493,6 +496,8 @@ struct st_asm330lhhx_sensor {
  * @i2c_master_pu: I2C master line Pull Up configuration.
  * @odr_table_entry: Sensors ODR table.
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
+ * @vdd_supply: Voltage regulator for VDD.
+ * @vddio_supply: Voltage regulator for VDDIIO.
  * @tf: Transfer function structure used by I/O operations.
  * @tb: Transfer buffers used by SPI I/O operations.
  * @orientation: sensor chip orientation relative to main hardware.

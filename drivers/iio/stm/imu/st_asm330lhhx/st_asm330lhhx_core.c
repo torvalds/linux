@@ -189,18 +189,18 @@ static const struct st_asm330lhhx_odr_table_entry st_asm330lhhx_odr_table[] = {
  */
 static const struct st_asm330lhhx_settings st_asm330lhhx_sensor_settings[] = {
 	{
-		.id =  {
-				.hw_id = ST_ASM330LHHX_ID,
-				.name = ST_ASM330LHHX_DEV_NAME,
-	},
+		.id = {
+			.hw_id = ST_ASM330LHHX_ID,
+			.name = ST_ASM330LHHX_DEV_NAME,
+		},
 		.st_mlc_probe = true,
 		.st_shub_probe = true,
 		.st_power_mode = true,
 	},
 	{
 		.id = {
-				.hw_id = ST_ASM330LHH_ID,
-				.name = ST_ASM330LHH_DEV_NAME,
+			.hw_id = ST_ASM330LHH_ID,
+			.name = ST_ASM330LHH_DEV_NAME,
 		},
 	},
 };
@@ -1331,7 +1331,7 @@ static int st_asm330lhhx_selftest_sensor(struct st_asm330lhhx_sensor *sensor,
 	}
 
 	/* set selftest normal mode */
-	ret =st_asm330lhhx_set_selftest(sensor, 0);
+	ret = st_asm330lhhx_set_selftest(sensor, 0);
 	if (ret < 0)
 		return ret;
 
