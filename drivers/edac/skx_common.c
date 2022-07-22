@@ -27,9 +27,11 @@ static const char * const component_names[] = {
 	[INDEX_MEMCTRL]		= "MemoryControllerId",
 	[INDEX_CHANNEL]		= "ChannelId",
 	[INDEX_DIMM]		= "DimmSlotId",
+	[INDEX_CS]		= "ChipSelect",
 	[INDEX_NM_MEMCTRL]	= "NmMemoryControllerId",
 	[INDEX_NM_CHANNEL]	= "NmChannelId",
 	[INDEX_NM_DIMM]		= "NmDimmSlotId",
+	[INDEX_NM_CS]		= "NmChipSelect",
 };
 
 static int component_indices[ARRAY_SIZE(component_names)];
@@ -139,10 +141,13 @@ static bool skx_adxl_decode(struct decoded_addr *res, bool error_in_1st_level_me
 			       (int)adxl_values[component_indices[INDEX_NM_CHANNEL]] : -1;
 		res->dimm    = (adxl_nm_bitmap & BIT_NM_DIMM) ?
 			       (int)adxl_values[component_indices[INDEX_NM_DIMM]] : -1;
+		res->cs      = (adxl_nm_bitmap & BIT_NM_CS) ?
+			       (int)adxl_values[component_indices[INDEX_NM_CS]] : -1;
 	} else {
 		res->imc     = (int)adxl_values[component_indices[INDEX_MEMCTRL]];
 		res->channel = (int)adxl_values[component_indices[INDEX_CHANNEL]];
 		res->dimm    = (int)adxl_values[component_indices[INDEX_DIMM]];
+		res->cs      = (int)adxl_values[component_indices[INDEX_CS]];
 	}
 
 	if (res->imc > NUM_IMC - 1 || res->imc < 0) {

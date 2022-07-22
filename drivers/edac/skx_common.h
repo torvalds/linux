@@ -112,16 +112,19 @@ enum {
 	INDEX_MEMCTRL,
 	INDEX_CHANNEL,
 	INDEX_DIMM,
+	INDEX_CS,
 	INDEX_NM_FIRST,
 	INDEX_NM_MEMCTRL = INDEX_NM_FIRST,
 	INDEX_NM_CHANNEL,
 	INDEX_NM_DIMM,
+	INDEX_NM_CS,
 	INDEX_MAX
 };
 
 #define BIT_NM_MEMCTRL	BIT_ULL(INDEX_NM_MEMCTRL)
 #define BIT_NM_CHANNEL	BIT_ULL(INDEX_NM_CHANNEL)
 #define BIT_NM_DIMM	BIT_ULL(INDEX_NM_DIMM)
+#define BIT_NM_CS	BIT_ULL(INDEX_NM_CS)
 
 struct decoded_addr {
 	struct mce *mce;
@@ -134,6 +137,7 @@ struct decoded_addr {
 	int	sktways;
 	int	chanways;
 	int	dimm;
+	int	cs;
 	int	rank;
 	int	channel_rank;
 	u64	rank_address;
