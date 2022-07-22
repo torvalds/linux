@@ -310,7 +310,7 @@ struct i915_vma_work {
 	struct i915_address_space *vm;
 	struct i915_vm_pt_stash stash;
 	struct i915_vma_resource *vma_res;
-	struct drm_i915_gem_object *pinned;
+	struct drm_i915_gem_object *obj;
 	struct i915_sw_dma_fence_cb cb;
 	enum i915_cache_level cache_level;
 	unsigned int flags;
@@ -321,17 +321,25 @@ static void __vma_bind(struct dma_fence_work *work)
 	struct i915_vma_work *vw = container_of(work, typeof(*vw), base);
 	struct i915_vma_resource *vma_res = vw->vma_res;
 
+	/*
+	 * We are about the bind the object, which must mean we have already
+	 * signaled the work to potentially clear/move the pages underneath. If
+	 * something went wrong at that stage then the object should have
+	 * unknown_state set, in which case we need to skip the bind.
+	 */
+	if (i915_gem_object_has_unknown_state(vw->obj))
+		return;
+
 	vma_res->ops->bind_vma(vma_res->vm, &vw->stash,
 			       vma_res, vw->cache_level, vw->flags);
-
 }
 
 static void __vma_release(struct dma_fence_work *work)
 {
 	struct i915_vma_work *vw = container_of(work, typeof(*vw), base);
 
-	if (vw->pinned)
-		i915_gem_object_put(vw->pinned);
+	if (vw->obj)
+		i915_gem_object_put(vw->obj);
 
 	i915_vm_free_pt_stash(vw->vm, &vw->stash);
 	if (vw->vma_res)
@@ -517,14 +525,7 @@ int i915_vma_bind(struct i915_vma *vma,
 		}
 
 		work->base.dma.error = 0; /* enable the queue_work() */
-
-		/*
-		 * If we don't have the refcounted pages list, keep a reference
-		 * on the object to avoid waiting for the async bind to
-		 * complete in the object destruction path.
-		 */
-		if (!work->vma_res->bi.pages_rsgt)
-			work->pinned = i915_gem_object_get(vma->obj);
+		work->obj = i915_gem_object_get(vma->obj);
 	} else {
 		ret = i915_gem_object_wait_moving_fence(vma->obj, true);
 		if (ret) {
@@ -1645,10 +1646,10 @@ static void force_unbind(struct i915_vma *vma)
 	GEM_BUG_ON(drm_mm_node_allocated(&vma->node));
 }
 
-static void release_references(struct i915_vma *vma, bool vm_ddestroy)
+static void release_references(struct i915_vma *vma, struct intel_gt *gt,
+			       bool vm_ddestroy)
 {
 	struct drm_i915_gem_object *obj = vma->obj;
-	struct intel_gt *gt = vma->vm->gt;
 
 	GEM_BUG_ON(i915_vma_is_active(vma));
 
@@ -1703,11 +1704,12 @@ void i915_vma_destroy_locked(struct i915_vma *vma)
 
 	force_unbind(vma);
 	list_del_init(&vma->vm_link);
-	release_references(vma, false);
+	release_references(vma, vma->vm->gt, false);
 }
 
 void i915_vma_destroy(struct i915_vma *vma)
 {
+	struct intel_gt *gt;
 	bool vm_ddestroy;
 
 	mutex_lock(&vma->vm->mutex);
@@ -1715,8 +1717,11 @@ void i915_vma_destroy(struct i915_vma *vma)
 	list_del_init(&vma->vm_link);
 	vm_ddestroy = vma->vm_ddestroy;
 	vma->vm_ddestroy = false;
+
+	/* vma->vm may be freed when releasing vma->vm->mutex. */
+	gt = vma->vm->gt;
 	mutex_unlock(&vma->vm->mutex);
-	release_references(vma, vm_ddestroy);
+	release_references(vma, gt, vm_ddestroy);
 }
 
 void i915_vma_parked(struct intel_gt *gt)

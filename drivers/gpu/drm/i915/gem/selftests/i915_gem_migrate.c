@@ -9,6 +9,7 @@
 
 #include "i915_deps.h"
 
+#include "selftests/igt_reset.h"
 #include "selftests/igt_spinner.h"
 
 static int igt_fill_check_buffer(struct drm_i915_gem_object *obj,
@@ -109,7 +110,8 @@ static int igt_same_create_migrate(void *arg)
 
 static int lmem_pages_migrate_one(struct i915_gem_ww_ctx *ww,
 				  struct drm_i915_gem_object *obj,
-				  struct i915_vma *vma)
+				  struct i915_vma *vma,
+				  bool silent_migrate)
 {
 	int err;
 
@@ -138,7 +140,8 @@ static int lmem_pages_migrate_one(struct i915_gem_ww_ctx *ww,
 	if (i915_gem_object_is_lmem(obj)) {
 		err = i915_gem_object_migrate(obj, ww, INTEL_REGION_SMEM);
 		if (err) {
-			pr_err("Object failed migration to smem\n");
+			if (!silent_migrate)
+				pr_err("Object failed migration to smem\n");
 			if (err)
 				return err;
 		}
@@ -156,7 +159,8 @@ static int lmem_pages_migrate_one(struct i915_gem_ww_ctx *ww,
 	} else {
 		err = i915_gem_object_migrate(obj, ww, INTEL_REGION_LMEM_0);
 		if (err) {
-			pr_err("Object failed migration to lmem\n");
+			if (!silent_migrate)
+				pr_err("Object failed migration to lmem\n");
 			if (err)
 				return err;
 		}
@@ -179,7 +183,8 @@ static int __igt_lmem_pages_migrate(struct intel_gt *gt,
 				    struct i915_address_space *vm,
 				    struct i915_deps *deps,
 				    struct igt_spinner *spin,
-				    struct dma_fence *spin_fence)
+				    struct dma_fence *spin_fence,
+				    bool borked_migrate)
 {
 	struct drm_i915_private *i915 = gt->i915;
 	struct drm_i915_gem_object *obj;
@@ -242,7 +247,8 @@ static int __igt_lmem_pages_migrate(struct intel_gt *gt,
 	 */
 	for (i = 1; i <= 5; ++i) {
 		for_i915_gem_ww(&ww, err, true)
-			err = lmem_pages_migrate_one(&ww, obj, vma);
+			err = lmem_pages_migrate_one(&ww, obj, vma,
+						     borked_migrate);
 		if (err)
 			goto out_put;
 	}
@@ -283,23 +289,70 @@ out_put:
 
 static int igt_lmem_pages_failsafe_migrate(void *arg)
 {
-	int fail_gpu, fail_alloc, ret;
+	int fail_gpu, fail_alloc, ban_memcpy, ret;
 	struct intel_gt *gt = arg;
 
 	for (fail_gpu = 0; fail_gpu < 2; ++fail_gpu) {
 		for (fail_alloc = 0; fail_alloc < 2; ++fail_alloc) {
-			pr_info("Simulated failure modes: gpu: %d, alloc: %d\n",
-				fail_gpu, fail_alloc);
-			i915_ttm_migrate_set_failure_modes(fail_gpu,
-							   fail_alloc);
-			ret = __igt_lmem_pages_migrate(gt, NULL, NULL, NULL, NULL);
-			if (ret)
-				goto out_err;
+			for (ban_memcpy = 0; ban_memcpy < 2; ++ban_memcpy) {
+				pr_info("Simulated failure modes: gpu: %d, alloc:%d, ban_memcpy: %d\n",
+					fail_gpu, fail_alloc, ban_memcpy);
+				i915_ttm_migrate_set_ban_memcpy(ban_memcpy);
+				i915_ttm_migrate_set_failure_modes(fail_gpu,
+								   fail_alloc);
+				ret = __igt_lmem_pages_migrate(gt, NULL, NULL,
+							       NULL, NULL,
+							       ban_memcpy &&
+							       fail_gpu);
+
+				if (ban_memcpy && fail_gpu) {
+					struct intel_gt *__gt;
+					unsigned int id;
+
+					if (ret != -EIO) {
+						pr_err("expected -EIO, got (%d)\n", ret);
+						ret = -EINVAL;
+					} else {
+						ret = 0;
+					}
+
+					for_each_gt(__gt, gt->i915, id) {
+						intel_wakeref_t wakeref;
+						bool wedged;
+
+						mutex_lock(&__gt->reset.mutex);
+						wedged = test_bit(I915_WEDGED, &__gt->reset.flags);
+						mutex_unlock(&__gt->reset.mutex);
+
+						if (fail_gpu && !fail_alloc) {
+							if (!wedged) {
+								pr_err("gt(%u) not wedged\n", id);
+								ret = -EINVAL;
+								continue;
+							}
+						} else if (wedged) {
+							pr_err("gt(%u) incorrectly wedged\n", id);
+							ret = -EINVAL;
+						} else {
+							continue;
+						}
+
+						wakeref = intel_runtime_pm_get(__gt->uncore->rpm);
+						igt_global_reset_lock(__gt);
+						intel_gt_reset(__gt, ALL_ENGINES, NULL);
+						igt_global_reset_unlock(__gt);
+						intel_runtime_pm_put(__gt->uncore->rpm, wakeref);
+					}
+					if (ret)
+						goto out_err;
+				}
+			}
 		}
 	}
 
 out_err:
 	i915_ttm_migrate_set_failure_modes(false, false);
+	i915_ttm_migrate_set_ban_memcpy(false);
 	return ret;
 }
 
@@ -370,7 +423,7 @@ static int igt_async_migrate(struct intel_gt *gt)
 			goto out_ce;
 
 		err = __igt_lmem_pages_migrate(gt, &ppgtt->vm, &deps, &spin,
-					       spin_fence);
+					       spin_fence, false);
 		i915_deps_fini(&deps);
 		dma_fence_put(spin_fence);
 		if (err)
@@ -394,23 +447,67 @@ out_spin:
 #define ASYNC_FAIL_ALLOC 1
 static int igt_lmem_async_migrate(void *arg)
 {
-	int fail_gpu, fail_alloc, ret;
+	int fail_gpu, fail_alloc, ban_memcpy, ret;
 	struct intel_gt *gt = arg;
 
 	for (fail_gpu = 0; fail_gpu < 2; ++fail_gpu) {
 		for (fail_alloc = 0; fail_alloc < ASYNC_FAIL_ALLOC; ++fail_alloc) {
-			pr_info("Simulated failure modes: gpu: %d, alloc: %d\n",
-				fail_gpu, fail_alloc);
-			i915_ttm_migrate_set_failure_modes(fail_gpu,
-							   fail_alloc);
-			ret = igt_async_migrate(gt);
-			if (ret)
-				goto out_err;
+			for (ban_memcpy = 0; ban_memcpy < 2; ++ban_memcpy) {
+				pr_info("Simulated failure modes: gpu: %d, alloc: %d, ban_memcpy: %d\n",
+					fail_gpu, fail_alloc, ban_memcpy);
+				i915_ttm_migrate_set_ban_memcpy(ban_memcpy);
+				i915_ttm_migrate_set_failure_modes(fail_gpu,
+								   fail_alloc);
+				ret = igt_async_migrate(gt);
+
+				if (fail_gpu && ban_memcpy) {
+					struct intel_gt *__gt;
+					unsigned int id;
+
+					if (ret != -EIO) {
+						pr_err("expected -EIO, got (%d)\n", ret);
+						ret = -EINVAL;
+					} else {
+						ret = 0;
+					}
+
+					for_each_gt(__gt, gt->i915, id) {
+						intel_wakeref_t wakeref;
+						bool wedged;
+
+						mutex_lock(&__gt->reset.mutex);
+						wedged = test_bit(I915_WEDGED, &__gt->reset.flags);
+						mutex_unlock(&__gt->reset.mutex);
+
+						if (fail_gpu && !fail_alloc) {
+							if (!wedged) {
+								pr_err("gt(%u) not wedged\n", id);
+								ret = -EINVAL;
+								continue;
+							}
+						} else if (wedged) {
+							pr_err("gt(%u) incorrectly wedged\n", id);
+							ret = -EINVAL;
+						} else {
+							continue;
+						}
+
+						wakeref = intel_runtime_pm_get(__gt->uncore->rpm);
+						igt_global_reset_lock(__gt);
+						intel_gt_reset(__gt, ALL_ENGINES, NULL);
+						igt_global_reset_unlock(__gt);
+						intel_runtime_pm_put(__gt->uncore->rpm, wakeref);
+					}
+				}
+				if (ret)
+					goto out_err;
+			}
 		}
 	}
 
 out_err:
 	i915_ttm_migrate_set_failure_modes(false, false);
+	i915_ttm_migrate_set_ban_memcpy(false);
 	return ret;
 }
 

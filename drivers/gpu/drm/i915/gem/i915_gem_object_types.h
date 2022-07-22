@@ -548,6 +548,24 @@ struct drm_i915_gem_object {
 		bool ttm_shrinkable;
 
 		/**
+		 * @unknown_state: Indicate that the object is effectively
+		 * borked. This is write-once and set if we somehow encounter a
+		 * fatal error when moving/clearing the pages, and we are not
+		 * able to fallback to memcpy/memset, like on small-BAR systems.
+		 * The GPU should also be wedged (or in the process) at this
+		 * point.
+		 *
+		 * Only valid to read this after acquiring the dma-resv lock and
+		 * waiting for all DMA_RESV_USAGE_KERNEL fences to be signalled,
+		 * or if we otherwise know that the moving fence has signalled,
+		 * and we are certain the pages underneath are valid for
+		 * immediate access (under normal operation), like just prior to
+		 * binding the object or when setting up the CPU fault handler.
+		 * See i915_gem_object_has_unknown_state();
+		 */
+		bool unknown_state;
+
+		/**
 		 * Priority list of potential placements for this object.
 		 */
 		struct intel_memory_region **placements;

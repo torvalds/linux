@@ -1517,7 +1517,6 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone)
 {
 	struct drm_i915_private *i915 = engine->i915;
-	const struct sseu_dev_info *sseu = &engine->gt->info.sseu;
 	struct intel_uncore *uncore = engine->uncore;
 	u32 mmio_base = engine->mmio_base;
 	int slice;
@@ -1542,32 +1541,19 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 				intel_uncore_read(uncore, GEN12_SC_INSTDONE_EXTRA2);
 		}
 
-		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
-			for_each_instdone_gslice_dss_xehp(i915, sseu, iter, slice, subslice) {
-				instdone->sampler[slice][subslice] =
-					intel_gt_mcr_read(engine->gt,
-							  GEN7_SAMPLER_INSTDONE,
-							  slice, subslice);
-				instdone->row[slice][subslice] =
-					intel_gt_mcr_read(engine->gt,
-							  GEN7_ROW_INSTDONE,
-							  slice, subslice);
-			}
-		} else {
-			for_each_instdone_slice_subslice(i915, sseu, slice, subslice) {
-				instdone->sampler[slice][subslice] =
-					intel_gt_mcr_read(engine->gt,
-							  GEN7_SAMPLER_INSTDONE,
-							  slice, subslice);
-				instdone->row[slice][subslice] =
-					intel_gt_mcr_read(engine->gt,
-							  GEN7_ROW_INSTDONE,
-							  slice, subslice);
-			}
+		for_each_ss_steering(iter, engine->gt, slice, subslice) {
+			instdone->sampler[slice][subslice] =
+				intel_gt_mcr_read(engine->gt,
+						  GEN7_SAMPLER_INSTDONE,
+						  slice, subslice);
+			instdone->row[slice][subslice] =
+				intel_gt_mcr_read(engine->gt,
+						  GEN7_ROW_INSTDONE,
+						  slice, subslice);
 		}
 
 		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
-			for_each_instdone_gslice_dss_xehp(i915, sseu, iter, slice, subslice)
+			for_each_ss_steering(iter, engine->gt, slice, subslice)
 				instdone->geom_svg[slice][subslice] =
 					intel_gt_mcr_read(engine->gt,
 							  XEHPG_INSTDONE_GEOM_SVG,

@@ -498,7 +498,21 @@ static int query_memregion_info(struct drm_i915_private *i915,
 		info.region.memory_class = mr->type;
 		info.region.memory_instance = mr->instance;
 		info.probed_size = mr->total;
-		info.unallocated_size = mr->avail;
+
+		if (mr->type == INTEL_MEMORY_LOCAL)
+			info.probed_cpu_visible_size = mr->io_size;
+		else
+			info.probed_cpu_visible_size = mr->total;
+
+		if (perfmon_capable()) {
+			intel_memory_region_avail(mr,
+						  &info.unallocated_size,
+						  &info.unallocated_cpu_visible_size);
+		} else {
+			info.unallocated_size = info.probed_size;
+			info.unallocated_cpu_visible_size =
+				info.probed_cpu_visible_size;
+		}
 
 		if (__copy_to_user(info_ptr, &info, sizeof(info)))
 			return -EFAULT;

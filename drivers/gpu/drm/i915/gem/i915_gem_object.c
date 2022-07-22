@@ -717,6 +717,32 @@ bool i915_gem_object_placement_possible(struct drm_i915_gem_object *obj,
 	return false;
 }
 
+/**
+ * i915_gem_object_needs_ccs_pages - Check whether the object requires extra
+ * pages when placed in system-memory, in order to save and later restore the
+ * flat-CCS aux state when the object is moved between local-memory and
+ * system-memory
+ * @obj: Pointer to the object
+ *
+ * Return: True if the object needs extra ccs pages. False otherwise.
+ */
+bool i915_gem_object_needs_ccs_pages(struct drm_i915_gem_object *obj)
+{
+	bool lmem_placement = false;
+	int i;
+
+	for (i = 0; i < obj->mm.n_placements; i++) {
+		/* Compression is not allowed for the objects with smem placement */
+		if (obj->mm.placements[i]->type == INTEL_MEMORY_SYSTEM)
+			return false;
+		if (!lmem_placement &&
+		    obj->mm.placements[i]->type == INTEL_MEMORY_LOCAL)
+			lmem_placement = true;
+	}
+
+	return lmem_placement;
+}
+
 void i915_gem_init__objects(struct drm_i915_private *i915)
 {
 	INIT_DELAYED_WORK(&i915->mm.free_work, __i915_gem_free_work);
@@ -783,8 +809,29 @@ int i915_gem_object_wait_moving_fence(struct drm_i915_gem_object *obj,
 				    intr, MAX_SCHEDULE_TIMEOUT);
 	if (!ret)
 		ret = -ETIME;
+	else if (ret > 0 && i915_gem_object_has_unknown_state(obj))
+		ret = -EIO;
 
 	return ret < 0 ? ret : 0;
+}
+
+/**
+ * i915_gem_object_has_unknown_state - Return true if the object backing pages are
+ * in an unknown_state. This means that userspace must NEVER be allowed to touch
+ * the pages, with either the GPU or CPU.
+ *
+ * ONLY valid to be called after ensuring that all kernel fences have signalled
+ * (in particular the fence for moving/clearing the object).
+ */
+bool i915_gem_object_has_unknown_state(struct drm_i915_gem_object *obj)
+{
+	/*
+	 * The below barrier pairs with the dma_fence_signal() in
+	 * __memcpy_work(). We should only sample the unknown_state after all
+	 * the kernel fences have signalled.
+	 */
+	smp_rmb();
+	return obj->mm.unknown_state;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

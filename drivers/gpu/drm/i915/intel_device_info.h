@@ -89,6 +89,7 @@ enum intel_platform {
 	INTEL_XEHPSDV,
 	INTEL_DG2,
 	INTEL_PONTEVECCHIO,
+	INTEL_METEORLAKE,
 	INTEL_MAX_PLATFORMS
 };
 
@@ -125,6 +126,10 @@ enum intel_platform {
  * bit set
  */
 #define INTEL_SUBPLATFORM_N    1
+
+/* MTL */
+#define INTEL_SUBPLATFORM_M	0
+#define INTEL_SUBPLATFORM_P	1
 
 enum intel_ppgtt_type {
 	INTEL_PPGTT_NONE = I915_GEM_PPGTT_NONE,

@@ -371,6 +371,9 @@
 #define GEN9_WM_CHICKEN3			_MMIO(0x5588)
 #define   GEN9_FACTOR_IN_CLR_VAL_HIZ		(1 << 9)
 
+#define CHICKEN_RASTER_1			_MMIO(0x6204)
+#define   DIS_SF_ROUND_NEAREST_EVEN		REG_BIT(8)
+
 #define VFLSKPD					_MMIO(0x62a8)
 #define   DIS_OVER_FETCH_CACHE			REG_BIT(1)
 #define   DIS_MULT_MISS_RD_SQUASH		REG_BIT(0)
@@ -918,6 +921,10 @@
 #define GEN7_L3CNTLREG1				_MMIO(0xb01c)
 #define   GEN7_WA_FOR_GEN7_L3_CONTROL		0x3C47FF8C
 #define   GEN7_L3AGDIS				(1 << 19)
+
+#define XEHPC_LNCFMISCCFGREG0			_MMIO(0xb01c)
+#define   XEHPC_OVRLSCCC			REG_BIT(0)
+
 #define GEN7_L3CNTLREG2				_MMIO(0xb020)
 
 /* MOCS (Memory Object Control State) registers */

@@ -31,4 +31,28 @@ void intel_gt_mcr_get_nonterminated_steering(struct intel_gt *gt,
 void intel_gt_mcr_report_steering(struct drm_printer *p, struct intel_gt *gt,
 				  bool dump_table);
 
+void intel_gt_mcr_get_ss_steering(struct intel_gt *gt, unsigned int dss,
+				  unsigned int *group, unsigned int *instance);
+
+/*
+ * Helper for for_each_ss_steering loop.  On pre-Xe_HP platforms, subslice
+ * presence is determined by using the group/instance as direct lookups in the
+ * slice/subslice topology.  On Xe_HP and beyond, the steering is unrelated to
+ * the topology, so we lookup the DSS ID directly in "slice 0."
+ */
+#define _HAS_SS(ss_, gt_, group_, instance_) ( \
+	GRAPHICS_VER_FULL(gt_->i915) >= IP_VER(12, 50) ? \
+		intel_sseu_has_subslice(&(gt_)->info.sseu, 0, ss_) : \
+		intel_sseu_has_subslice(&(gt_)->info.sseu, group_, instance_))
+
+/*
+ * Loop over each subslice/DSS and determine the group and instance IDs that
+ * should be used to steer MCR accesses toward this DSS.
+ */
+#define for_each_ss_steering(ss_, gt_, group_, instance_) \
+	for (ss_ = 0, intel_gt_mcr_get_ss_steering(gt_, 0, &group_, &instance_); \
+	     ss_ < I915_MAX_SS_FUSE_BITS; \
+	     ss_++, intel_gt_mcr_get_ss_steering(gt_, ss_, &group_, &instance_)) \
+		for_each_if(_HAS_SS(ss_, gt_, group_, instance_))
+
 #endif /* __INTEL_GT_MCR__ */
