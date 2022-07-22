@@ -2045,7 +2045,7 @@ static int btf_dump_get_enum_value(struct btf_dump *d,
 		*value = *(__s64 *)data;
 		return 0;
 	case 4:
-		*value = is_signed ? *(__s32 *)data : *(__u32 *)data;
+		*value = is_signed ? (__s64)*(__s32 *)data : *(__u32 *)data;
 		return 0;
 	case 2:
 		*value = is_signed ? *(__s16 *)data : *(__u16 *)data;

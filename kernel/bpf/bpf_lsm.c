@@ -63,10 +63,11 @@ BTF_ID(func, bpf_lsm_socket_post_create)
 BTF_ID(func, bpf_lsm_socket_socketpair)
 BTF_SET_END(bpf_lsm_unlocked_sockopt_hooks)
 
+#ifdef CONFIG_CGROUP_BPF
 void bpf_lsm_find_cgroup_shim(const struct bpf_prog *prog,
 			     bpf_func_t *bpf_func)
 {
-	const struct btf_param *args;
+	const struct btf_param *args __maybe_unused;
 
 	if (btf_type_vlen(prog->aux->attach_func_proto) < 1 ||
 	    btf_id_set_contains(&bpf_lsm_current_hooks,
@@ -75,9 +76,9 @@ void bpf_lsm_find_cgroup_shim(const struct bpf_prog *prog,
 		return;
 	}
 
+#ifdef CONFIG_NET
 	args = btf_params(prog->aux->attach_func_proto);
 
-#ifdef CONFIG_NET
 	if (args[0].type == btf_sock_ids[BTF_SOCK_TYPE_SOCKET])
 		*bpf_func = __cgroup_bpf_run_lsm_socket;
 	else if (args[0].type == btf_sock_ids[BTF_SOCK_TYPE_SOCK])
@@ -86,6 +87,7 @@ void bpf_lsm_find_cgroup_shim(const struct bpf_prog *prog,
 #endif
 		*bpf_func = __cgroup_bpf_run_lsm_current;
 }
+#endif
 
 int bpf_lsm_verify_prog(struct bpf_verifier_log *vlog,
 			const struct bpf_prog *prog)
@@ -219,6 +221,7 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 	case BPF_FUNC_get_retval:
 		return prog->expected_attach_type == BPF_LSM_CGROUP ?
 			&bpf_get_retval_proto : NULL;
+#ifdef CONFIG_NET
 	case BPF_FUNC_setsockopt:
 		if (prog->expected_attach_type != BPF_LSM_CGROUP)
 			return NULL;
@@ -239,6 +242,7 @@ bpf_lsm_func_proto(enum bpf_func_id func_id, const struct bpf_prog *prog)
 					prog->aux->attach_btf_id))
 			return &bpf_unlocked_sk_getsockopt_proto;
 		return NULL;
+#endif
 	default:
 		return tracing_prog_func_proto(func_id, prog);
 	}

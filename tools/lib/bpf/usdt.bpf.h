@@ -6,7 +6,6 @@
 #include <linux/errno.h>
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_tracing.h>
-#include <bpf/bpf_core_read.h>
 
 /* Below types and maps are internal implementation details of libbpf's USDT
  * support and are subjects to change. Also, bpf_usdt_xxx() API helpers should
@@ -29,14 +28,6 @@
  */
 #ifndef BPF_USDT_MAX_IP_CNT
 #define BPF_USDT_MAX_IP_CNT (4 * BPF_USDT_MAX_SPEC_CNT)
-#endif
-/* We use BPF CO-RE to detect support for BPF cookie from BPF side. This is
- * the only dependency on CO-RE, so if it's undesirable, user can override
- * BPF_USDT_HAS_BPF_COOKIE to specify whether to BPF cookie is supported or not.
- */
-#ifndef BPF_USDT_HAS_BPF_COOKIE
-#define BPF_USDT_HAS_BPF_COOKIE \
-	bpf_core_enum_value_exists(enum bpf_func_id___usdt, BPF_FUNC_get_attach_cookie___usdt)
 #endif
 
 enum __bpf_usdt_arg_type {
@@ -83,15 +74,12 @@ struct {
 	__type(value, __u32);
 } __bpf_usdt_ip_to_spec_id SEC(".maps") __weak;
 
-/* don't rely on user's BPF code to have latest definition of bpf_func_id */
-enum bpf_func_id___usdt {
-	BPF_FUNC_get_attach_cookie___usdt = 0xBAD, /* value doesn't matter */
-};
+extern const _Bool LINUX_HAS_BPF_COOKIE __kconfig;
 
 static __always_inline
 int __bpf_usdt_spec_id(struct pt_regs *ctx)
 {
-	if (!BPF_USDT_HAS_BPF_COOKIE) {
+	if (!LINUX_HAS_BPF_COOKIE) {
 		long ip = PT_REGS_IP(ctx);
 		int *spec_id_ptr;
 

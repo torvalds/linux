@@ -17,6 +17,7 @@
 #include <bpf/libbpf.h>
 #include "bpf_insn.h"
 #include "sock_example.h"
+#include "bpf_util.h"
 
 #define BPF_F_PIN	(1 << 0)
 #define BPF_F_GET	(1 << 1)
@@ -52,7 +53,7 @@ static int bpf_prog_create(const char *object)
 		BPF_MOV64_IMM(BPF_REG_0, 1),
 		BPF_EXIT_INSN(),
 	};
-	size_t insns_cnt = sizeof(insns) / sizeof(struct bpf_insn);
+	size_t insns_cnt = ARRAY_SIZE(insns);
 	struct bpf_object *obj;
 	int err;
 

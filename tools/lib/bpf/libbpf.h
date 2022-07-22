@@ -457,6 +457,52 @@ bpf_program__attach_kprobe_multi_opts(const struct bpf_program *prog,
 				      const char *pattern,
 				      const struct bpf_kprobe_multi_opts *opts);
 
+struct bpf_ksyscall_opts {
+	/* size of this struct, for forward/backward compatiblity */
+	size_t sz;
+	/* custom user-provided value fetchable through bpf_get_attach_cookie() */
+	__u64 bpf_cookie;
+	/* attach as return probe? */
+	bool retprobe;
+	size_t :0;
+};
+#define bpf_ksyscall_opts__last_field retprobe
+
+/**
+ * @brief **bpf_program__attach_ksyscall()** attaches a BPF program
+ * to kernel syscall handler of a specified syscall. Optionally it's possible
+ * to request to install retprobe that will be triggered at syscall exit. It's
+ * also possible to associate BPF cookie (though options).
+ *
+ * Libbpf automatically will determine correct full kernel function name,
+ * which depending on system architecture and kernel version/configuration
+ * could be of the form __<arch>_sys_<syscall> or __se_sys_<syscall>, and will
+ * attach specified program using kprobe/kretprobe mechanism.
+ *
+ * **bpf_program__attach_ksyscall()** is an API counterpart of declarative
+ * **SEC("ksyscall/<syscall>")** annotation of BPF programs.
+ *
+ * At the moment **SEC("ksyscall")** and **bpf_program__attach_ksyscall()** do
+ * not handle all the calling convention quirks for mmap(), clone() and compat
+ * syscalls. It also only attaches to "native" syscall interfaces. If host
+ * system supports compat syscalls or defines 32-bit syscalls in 64-bit
+ * kernel, such syscall interfaces won't be attached to by libbpf.
+ *
+ * These limitations may or may not change in the future. Therefore it is
+ * recommended to use SEC("kprobe") for these syscalls or if working with
+ * compat and 32-bit interfaces is required.
+ *
+ * @param prog BPF program to attach
+ * @param syscall_name Symbolic name of the syscall (e.g., "bpf")
+ * @param opts Additional options (see **struct bpf_ksyscall_opts**)
+ * @return Reference to the newly created BPF link; or NULL is returned on
+ * error, error code is stored in errno
+ */
+LIBBPF_API struct bpf_link *
+bpf_program__attach_ksyscall(const struct bpf_program *prog,
+			     const char *syscall_name,
+			     const struct bpf_ksyscall_opts *opts);
+
 struct bpf_uprobe_opts {
 	/* size of this struct, for forward/backward compatiblity */
 	size_t sz;
@@ -1053,6 +1099,22 @@ LIBBPF_API int perf_buffer__consume(struct perf_buffer *pb);
 LIBBPF_API int perf_buffer__consume_buffer(struct perf_buffer *pb, size_t buf_idx);
 LIBBPF_API size_t perf_buffer__buffer_cnt(const struct perf_buffer *pb);
 LIBBPF_API int perf_buffer__buffer_fd(const struct perf_buffer *pb, size_t buf_idx);
+/**
+ * @brief **perf_buffer__buffer()** returns the per-cpu raw mmap()'ed underlying
+ * memory region of the ring buffer.
+ * This ring buffer can be used to implement a custom events consumer.
+ * The ring buffer starts with the *struct perf_event_mmap_page*, which
+ * holds the ring buffer managment fields, when accessing the header
+ * structure it's important to be SMP aware.
+ * You can refer to *perf_event_read_simple* for a simple example.
+ * @param pb the perf buffer structure
+ * @param buf_idx the buffer index to retreive
+ * @param buf (out) gets the base pointer of the mmap()'ed memory
+ * @param buf_size (out) gets the size of the mmap()'ed region
+ * @return 0 on success, negative error code for failure
+ */
+LIBBPF_API int perf_buffer__buffer(struct perf_buffer *pb, int buf_idx, void **buf,
+				   size_t *buf_size);
 
 struct bpf_prog_linfo;
 struct bpf_prog_info;
