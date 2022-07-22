@@ -15,9 +15,11 @@
   atomic_notifier_call_chain
   atomic_notifier_chain_register
   atomic_notifier_chain_unregister
+  _bcd2bin
   bcmp
   bdget_disk
   bdput
+  _bin2bcd
   blk_cleanup_queue
   blk_execute_rq_nowait
   blk_mq_free_request
@@ -61,6 +63,7 @@
   __class_create
   class_destroy
   class_for_each_device
+  __class_register
   clk_bulk_disable
   clk_bulk_enable
   clk_bulk_prepare
@@ -173,6 +176,7 @@
   devm_gpiod_get_index_optional
   devm_gpiod_get_optional
   devm_gpio_request
+  devm_gpio_request_one
   devm_input_allocate_device
   devm_ioremap
   devm_ioremap_resource
@@ -225,6 +229,7 @@
   dev_set_name
   _dev_warn
   disable_irq
+  disable_irq_nosync
   dma_alloc_attrs
   dma_buf_attach
   dma_buf_detach
@@ -386,11 +391,13 @@
   gpiod_cansleep
   gpiod_direction_input
   gpiod_direction_output
+  gpiod_direction_output_raw
   gpiod_get_optional
   gpiod_get_raw_value
   gpiod_get_value
   gpiod_get_value_cansleep
   gpiod_set_consumer_name
+  gpiod_set_raw_value
   gpiod_set_value
   gpiod_set_value_cansleep
   gpiod_to_irq
@@ -420,6 +427,9 @@
   i2c_put_adapter
   i2c_register_driver
   i2c_smbus_read_byte_data
+  i2c_smbus_read_i2c_block_data
+  i2c_smbus_write_byte_data
+  i2c_smbus_write_i2c_block_data
   __i2c_smbus_xfer
   i2c_smbus_xfer
   i2c_transfer
@@ -436,8 +446,12 @@
   init_timer_key
   init_wait_entry
   __init_waitqueue_head
+  input_allocate_device
   input_event
   input_ff_create_memless
+  input_free_device
+  input_mt_init_slots
+  input_mt_report_slot_state
   input_register_device
   input_set_abs_params
   iommu_attach_device
@@ -642,6 +656,7 @@
   prepare_to_wait_event
   print_hex_dump
   printk
+  proc_create
   proc_create_data
   put_device
   put_disk
@@ -687,6 +702,7 @@
   regulator_disable_regmap
   regulator_enable
   regulator_enable_regmap
+  regulator_get
   regulator_get_voltage
   regulator_get_voltage_sel_regmap
   regulator_is_enabled
@@ -698,6 +714,7 @@
   regulator_set_voltage
   regulator_set_voltage_sel_regmap
   regulator_set_voltage_time_sel
+  regulator_unregister
   remap_pfn_range
   remove_proc_entry
   request_threaded_irq
@@ -825,6 +842,7 @@
   v4l2_ctrl_handler_init_class
   v4l2_ctrl_handler_setup
   v4l2_ctrl_new_std
+  v4l2_ctrl_new_std_menu
   v4l2_ctrl_new_std_menu_items
   v4l2_device_register
   v4l2_device_register_subdev
@@ -1131,16 +1149,9 @@
   usb_speed_string
   usb_wakeup_enabled_descendants
 
-# required by fan53555.ko
-  gpiod_set_raw_value
-
 # required by fusb302.ko
-  disable_irq_nosync
   extcon_get_extcon_dev
   fwnode_create_software_node
-  i2c_smbus_read_i2c_block_data
-  i2c_smbus_write_byte_data
-  i2c_smbus_write_i2c_block_data
   tcpm_cc_change
   tcpm_pd_hard_reset
   tcpm_pd_receive
@@ -1175,13 +1186,12 @@
 # required by grf.ko
   of_find_matching_node_and_match
 
+# required by gslx680-pad.ko
+  input_unregister_device
+
 # required by hid-alps.ko
   down
   input_alloc_absinfo
-  input_allocate_device
-  input_free_device
-  input_mt_init_slots
-  input_mt_report_slot_state
   input_mt_sync_frame
   up
 
@@ -1245,8 +1255,11 @@
   __kfifo_to_user
   mutex_lock_interruptible
 
-# required by leds-gpio.ko
-  devm_gpio_request_one
+# required by leds-rgb13h.ko
+  led_classdev_flash_register_ext
+  led_classdev_flash_unregister
+  ns_to_kernel_old_timeval
+  __usecs_to_jiffies
 
 # required by ledtrig-heartbeat.ko
   avenrun
@@ -1410,7 +1423,6 @@
 
 # required by ov2680.ko
   v4l2_ctrl_auto_cluster
-  v4l2_ctrl_new_std_menu
   __v4l2_find_nearest_size
 
 # required by ov5695.ko
@@ -1541,6 +1553,22 @@
   devres_release
   kernel_kobj
 
+# required by rfkill-rk.ko
+  gpio_free
+  gpio_request
+  kstrtoll
+  proc_mkdir
+  rfkill_alloc
+  rfkill_destroy
+  rfkill_init_sw_state
+  rfkill_register
+  rfkill_set_hw_state
+  rfkill_set_sw_state
+  rfkill_unregister
+
+# required by rk1000.ko
+  of_find_i2c_device_by_node
+
 # required by rk628.ko
   irq_dispose_mapping
   irq_domain_xlate_onetwocell
@@ -1569,13 +1597,18 @@
   register_syscore_ops
   regmap_add_irq_chip
   regmap_del_irq_chip
-  system_state
   unregister_syscore_ops
 
 # required by rk818_battery.ko
   blocking_notifier_call_chain
   blocking_notifier_chain_register
   blocking_notifier_chain_unregister
+
+# required by rk860x-regulator.ko
+  regulator_suspend_enable
+
+# required by rk_headset_irq_hook_adc.ko
+  iio_read_channel_raw
 
 # required by rknpu.ko
   dev_pm_domain_attach_by_name
@@ -1599,6 +1632,8 @@
   cpufreq_unregister_notifier
   dev_pm_opp_put_prop_name
   dev_pm_opp_set_supported_hw
+  freq_qos_remove_request
+  freq_qos_update_request
 
 # required by rockchip-iommu.ko
   bus_set_iommu
@@ -1650,6 +1685,7 @@
   devfreq_update_interval
   _dev_notice
   dev_pm_opp_add
+  dev_pm_opp_unregister_set_opp_helper
   input_close_device
   input_open_device
   input_register_handle
@@ -1661,12 +1697,20 @@
 # required by rockchip_dmc_common.ko
   down_write_trylock
 
+# required by rockchip_headset_core.ko
+  iio_channel_get
+
+# required by rockchip_ipa.ko
+  bpf_trace_run7
+  of_get_compatible_child
+
 # required by rockchip_opp_select.ko
   dev_pm_opp_get_opp_table
   dev_pm_opp_of_add_table
   dev_pm_opp_put_opp_table
   dev_pm_opp_set_prop_name
   of_find_node_opts_by_path
+  regulator_get_linear_step
   regulator_get_optional
   regulator_put
 
@@ -1676,6 +1720,19 @@
   iio_get_time_ns
   iio_push_to_buffers
   iio_trigger_notify_done
+
+# required by rockchip_system_monitor.ko
+  add_cpu
+  bitmap_parselist
+  compat_only_sysfs_link_entry_to_kobj
+  dev_pm_opp_find_freq_floor
+  dev_pm_qos_add_request
+  dev_pm_qos_remove_request
+  dev_pm_qos_update_request
+  remove_cpu
+  strchr
+  strsep
+  thermal_zone_get_temp
 
 # required by rockchip_thermal.ko
   devm_clk_put
@@ -1860,9 +1917,15 @@
   __sw_hweight8
   __vmalloc
 
+# required by rohm-bu18tl82.ko
+  mipi_dsi_device_register_full
+  mipi_dsi_device_unregister
+  of_find_mipi_dsi_host_by_node
+
+# required by rtc-hym8563.ko
+  devm_rtc_device_register
+
 # required by rtc-rk808.ko
-  _bcd2bin
-  _bin2bcd
   devm_rtc_allocate_device
   __rtc_register_device
   rtc_time64_to_tm
@@ -2080,7 +2143,6 @@
   __alloc_percpu
   bio_endio
   blk_alloc_queue
-  __class_register
   class_unregister
   __cpuhp_state_add_instance
   __cpuhp_state_remove_instance
