@@ -1400,22 +1400,24 @@ void brcmf_msgbuf_delete_flowring(struct brcmf_pub *drvr, u16 flowid)
 	struct brcmf_msgbuf *msgbuf = (struct brcmf_msgbuf *)drvr->proto->pd;
 	struct msgbuf_tx_flowring_delete_req *delete;
 	struct brcmf_commonring *commonring;
-	struct brcmf_commonring *commonring_del;
-
+	struct brcmf_commonring *commonring_del = msgbuf->flowrings[flowid];
+	struct brcmf_flowring *flow = msgbuf->flow;
 	void *ret_ptr;
 	u8 ifidx;
 	int err;
 	int retry = BRCMF_MAX_TXSTATUS_WAIT_RETRIES;
 
-	/* wait for commonring txflow finished */
-	commonring_del = msgbuf->flowrings[flowid];
+	/* make sure it is not in txflow */
 	brcmf_commonring_lock(commonring_del);
+	flow->rings[flowid]->status = RING_CLOSING;
+	brcmf_commonring_unlock(commonring_del);
+
+	/* wait for commonring txflow finished */
 	while (retry && atomic_read(&commonring_del->outstanding_tx)) {
 		usleep_range(5000, 10000);
 		retry--;
 	}
-	brcmf_commonring_unlock(commonring_del);
-	if (!retry && atomic_read(&commonring_del->outstanding_tx)) {
+	if (!retry) {
 		brcmf_err("timed out waiting for txstatus\n");
 		atomic_set(&commonring_del->outstanding_tx, 0);
 	}
