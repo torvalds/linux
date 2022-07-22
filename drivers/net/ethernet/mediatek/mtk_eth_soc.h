@@ -570,6 +570,16 @@ struct mtk_tx_dma_v2 {
 struct mtk_eth;
 struct mtk_mac;
 
+struct mtk_xdp_stats {
+	u64 rx_xdp_redirect;
+	u64 rx_xdp_pass;
+	u64 rx_xdp_drop;
+	u64 rx_xdp_tx;
+	u64 rx_xdp_tx_errors;
+	u64 tx_xdp_xmit;
+	u64 tx_xdp_xmit_errors;
+};
+
 /* struct mtk_hw_stats - the structure that holds the traffic statistics.
  * @stats_lock:		make sure that stats operations are atomic
  * @reg_offset:		the status register offset of the SoC
@@ -592,6 +602,8 @@ struct mtk_hw_stats {
 	u64 rx_long_errors;
 	u64 rx_checksum_errors;
 	u64 rx_flow_control_packets;
+
+	struct mtk_xdp_stats	xdp_stats;
 
 	spinlock_t		stats_lock;
 	u32			reg_offset;
