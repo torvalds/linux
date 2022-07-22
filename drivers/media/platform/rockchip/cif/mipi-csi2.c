@@ -747,6 +747,7 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 	u32 val;
 	char err_str[CSI_ERRSTR_LEN] = {0};
 	char vc_info[CSI_VCINFO_LEN] = {0};
+	bool is_add_cnt = false;
 
 	val = read_csihost_reg(csi2->base, CSIHOST_ERR1);
 	if (val) {
@@ -768,6 +769,7 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 			} else {
 				csi2_find_err_vc(val & 0xf, vc_info);
 				snprintf(err_str, CSI_ERRSTR_LEN, "%s(sot sync,lane:%s) ", err_str, vc_info);
+				is_add_cnt = true;
 			}
 		}
 
@@ -776,6 +778,8 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 			err_list->cnt++;
 			csi2_find_err_vc((val >> 4) & 0xf, vc_info);
 			snprintf(err_str, CSI_ERRSTR_LEN, "%s(fs/fe mis,vc:%s) ", err_str, vc_info);
+			if (csi2->match_data->chip_id < CHIP_RK3588_CSI2)
+				is_add_cnt = true;
 		}
 
 		if (val & CSIHOST_ERR1_ERR_SEQ) {
@@ -787,6 +791,7 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 
 		if (val & CSIHOST_ERR1_ERR_FRM_DATA) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_CRC_ONCE];
+			is_add_cnt = true;
 			err_list->cnt++;
 			csi2_find_err_vc((val >> 12) & 0xf, vc_info);
 			snprintf(err_str, CSI_ERRSTR_LEN, "%s(err_data,vc:%s) ", err_str, vc_info);
@@ -795,6 +800,7 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 		if (val & CSIHOST_ERR1_ERR_CRC) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_CRC];
 			err_list->cnt++;
+			is_add_cnt = true;
 			csi2_find_err_vc((val >> 24) & 0xf, vc_info);
 			snprintf(err_str, CSI_ERRSTR_LEN, "%s(crc,vc:%s) ", err_str, vc_info);
 		}
@@ -802,17 +808,21 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 		if (val & CSIHOST_ERR1_ERR_ECC2) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_CRC];
 			err_list->cnt++;
+			is_add_cnt = true;
 			snprintf(err_str, CSI_ERRSTR_LEN, "%s(ecc2)", err_str);
 		}
 
 		pr_err("%s ERR1:0x%x %s\n", csi2->dev_name, val, err_str);
-		csi2->err_list[RK_CSI2_ERR_ALL].cnt++;
-		err_stat = ((csi2->err_list[RK_CSI2_ERR_FS_FE_MIS].cnt & 0xff) << 8) |
-			    ((csi2->err_list[RK_CSI2_ERR_ALL].cnt) & 0xff);
 
-		atomic_notifier_call_chain(&g_csi_host_chain,
-					   err_stat,
-					   &csi2->csi_idx);
+		if (is_add_cnt) {
+			csi2->err_list[RK_CSI2_ERR_ALL].cnt++;
+			err_stat = ((csi2->err_list[RK_CSI2_ERR_FS_FE_MIS].cnt & 0xff) << 8) |
+				    ((csi2->err_list[RK_CSI2_ERR_ALL].cnt) & 0xff);
+
+			atomic_notifier_call_chain(&g_csi_host_chain,
+						   err_stat,
+						   &csi2->csi_idx);
+		}
 
 	}
 
