@@ -514,18 +514,18 @@ static int ieee80211_vif_update_links(struct ieee80211_sub_if_data *sdata,
 
 	/* grab old links to free later */
 	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
+		if (rcu_access_pointer(sdata->link[link_id]) != &sdata->deflink) {
+			/*
+			 * we must have allocated the data through this path so
+			 * we know we can free both at the same time
+			 */
+			to_free[link_id] = container_of(rcu_access_pointer(sdata->link[link_id]),
+							typeof(*links[link_id]),
+							data);
+		}
+
 		RCU_INIT_POINTER(sdata->link[link_id], NULL);
 		RCU_INIT_POINTER(sdata->vif.link_conf[link_id], NULL);
-
-		if (rcu_access_pointer(sdata->link[link_id]) == &sdata->deflink)
-			continue;
-		/*
-		 * we must have allocated the data through this path so
-		 * we know we can free both at the same time
-		 */
-		to_free[link_id] = container_of(rcu_access_pointer(sdata->link[link_id]),
-						typeof(*links[link_id]),
-						data);
 	}
 
 	/* link them into data structures */
