@@ -516,6 +516,19 @@ int rcu_cpu_stall_suppress_at_boot __read_mostly; // !0 = suppress boot stalls.
 EXPORT_SYMBOL_GPL(rcu_cpu_stall_suppress_at_boot);
 module_param(rcu_cpu_stall_suppress_at_boot, int, 0444);
 
+/**
+ * get_completed_synchronize_rcu - Return a pre-completed polled state cookie
+ *
+ * Returns a value that will always be treated by functions like
+ * poll_state_synchronize_rcu() as a cookie whose grace period has already
+ * completed.
+ */
+unsigned long get_completed_synchronize_rcu(void)
+{
+	return RCU_GET_STATE_COMPLETED;
+}
+EXPORT_SYMBOL_GPL(get_completed_synchronize_rcu);
+
 #ifdef CONFIG_PROVE_RCU
 
 /*

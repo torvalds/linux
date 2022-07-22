@@ -41,6 +41,7 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func);
 void rcu_barrier_tasks(void);
 void rcu_barrier_tasks_rude(void);
 void synchronize_rcu(void);
+unsigned long get_completed_synchronize_rcu(void);
 
 #ifdef CONFIG_PREEMPT_RCU
 
@@ -169,13 +170,24 @@ void synchronize_rcu_tasks(void);
 # endif
 
 # ifdef CONFIG_TASKS_TRACE_RCU
-# define rcu_tasks_trace_qs(t)						\
-	do {								\
-		if (!likely(READ_ONCE((t)->trc_reader_checked)) &&	\
-		    !unlikely(READ_ONCE((t)->trc_reader_nesting))) {	\
-			smp_store_release(&(t)->trc_reader_checked, true); \
-			smp_mb(); /* Readers partitioned by store. */	\
-		}							\
+// Bits for ->trc_reader_special.b.need_qs field.
+#define TRC_NEED_QS		0x1  // Task needs a quiescent state.
+#define TRC_NEED_QS_CHECKED	0x2  // Task has been checked for needing quiescent state.
+
+u8 rcu_trc_cmpxchg_need_qs(struct task_struct *t, u8 old, u8 new);
+void rcu_tasks_trace_qs_blkd(struct task_struct *t);
+
+# define rcu_tasks_trace_qs(t)							\
+	do {									\
+		int ___rttq_nesting = READ_ONCE((t)->trc_reader_nesting);	\
+										\
+		if (likely(!READ_ONCE((t)->trc_reader_special.b.need_qs)) &&	\
+		    likely(!___rttq_nesting)) {					\
+			rcu_trc_cmpxchg_need_qs((t), 0,	TRC_NEED_QS_CHECKED);	\
+		} else if (___rttq_nesting && ___rttq_nesting != INT_MIN &&	\
+			   !READ_ONCE((t)->trc_reader_special.b.blocked)) {	\
+			rcu_tasks_trace_qs_blkd(t);				\
+		}								\
 	} while (0)
 # else
 # define rcu_tasks_trace_qs(t) do { } while (0)
@@ -184,7 +196,7 @@ void synchronize_rcu_tasks(void);
 #define rcu_tasks_qs(t, preempt)					\
 do {									\
 	rcu_tasks_classic_qs((t), (preempt));				\
-	rcu_tasks_trace_qs((t));					\
+	rcu_tasks_trace_qs(t);						\
 } while (0)
 
 # ifdef CONFIG_TASKS_RUDE_RCU

@@ -23,6 +23,16 @@ static inline void cond_synchronize_rcu(unsigned long oldstate)
 	might_sleep();
 }
 
+static inline unsigned long start_poll_synchronize_rcu_expedited(void)
+{
+	return start_poll_synchronize_rcu();
+}
+
+static inline void cond_synchronize_rcu_expedited(unsigned long oldstate)
+{
+	cond_synchronize_rcu(oldstate);
+}
+
 extern void rcu_barrier(void);
 
 static inline void synchronize_rcu_expedited(void)
@@ -38,7 +48,7 @@ static inline void synchronize_rcu_expedited(void)
  */
 extern void kvfree(const void *addr);
 
-static inline void kvfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
+static inline void __kvfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
 {
 	if (head) {
 		call_rcu(head, func);
@@ -50,6 +60,15 @@ static inline void kvfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
 	synchronize_rcu();
 	kvfree((void *) func);
 }
+
+#ifdef CONFIG_KASAN_GENERIC
+void kvfree_call_rcu(struct rcu_head *head, rcu_callback_t func);
+#else
+static inline void kvfree_call_rcu(struct rcu_head *head, rcu_callback_t func)
+{
+	__kvfree_call_rcu(head, func);
+}
+#endif
 
 void rcu_qs(void);
 

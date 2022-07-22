@@ -3659,6 +3659,9 @@
 			just as if they had also been called out in the
 			rcu_nocbs= boot parameter.
 
+			Note that this argument takes precedence over
+			the CONFIG_RCU_NOCB_CPU_DEFAULT_ALL option.
+
 	noiotrap	[SH] Disables trapped I/O port accesses.
 
 	noirqdebug	[X86-32] Disables the code which attempts to detect and
@@ -4556,6 +4559,9 @@
 			arguments are omitted, no CPU will be set to
 			no-callback mode from boot but the mode may be
 			toggled at runtime via cpusets.
+
+			Note that this argument takes precedence over
+			the CONFIG_RCU_NOCB_CPU_DEFAULT_ALL option.
 
 	rcu_nocb_poll	[KNL]
 			Rather than requiring that offloaded CPUs
@@ -5798,6 +5804,24 @@
 			grace period will be considered for automatic
 			expediting.  Set to zero to disable automatic
 			expediting.
+
+	srcutree.srcu_max_nodelay [KNL]
+			Specifies the number of no-delay instances
+			per jiffy for which the SRCU grace period
+			worker thread will be rescheduled with zero
+			delay. Beyond this limit, worker thread will
+			be rescheduled with a sleep delay of one jiffy.
+
+	srcutree.srcu_max_nodelay_phase [KNL]
+			Specifies the per-grace-period phase, number of
+			non-sleeping polls of readers. Beyond this limit,
+			grace period worker thread will be rescheduled
+			with a sleep delay of one jiffy, between each
+			rescan of the readers, for a grace period phase.
+
+	srcutree.srcu_retry_check_delay [KNL]
+			Specifies number of microseconds of non-sleeping
+			delay between each non-sleeping poll of readers.
 
 	srcutree.small_contention_lim [KNL]
 			Specifies the number of update-side contention
