@@ -616,7 +616,7 @@ int __zerocopy_sg_from_iter(struct msghdr *msg, struct sock *sk,
 {
 	int frag;
 
-	if (msg && msg->sg_from_iter)
+	if (msg && msg->msg_ubuf && msg->sg_from_iter)
 		return msg->sg_from_iter(sk, skb, from, length);
 
 	frag = skb_shinfo(skb)->nr_frags;
