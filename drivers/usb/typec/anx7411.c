@@ -374,6 +374,7 @@ static int anx7411_register_partner(struct anx7411_data *ctx,
 				    int pd, int accessory)
 {
 	struct typec_partner_desc desc;
+	struct typec_partner *partner;
 
 	if (ctx->typec.partner)
 		return 0;
@@ -381,11 +382,11 @@ static int anx7411_register_partner(struct anx7411_data *ctx,
 	desc.usb_pd = pd;
 	desc.accessory = accessory;
 	desc.identity = NULL;
-	ctx->typec.partner = typec_register_partner(ctx->typec.port, &desc);
-	if (IS_ERR(ctx->typec.partner)) {
-		ctx->typec.partner = NULL;
-		return PTR_ERR(ctx->typec.partner);
-	}
+	partner = typec_register_partner(ctx->typec.port, &desc);
+	if (IS_ERR(partner))
+		return PTR_ERR(partner);
+
+	ctx->typec.partner = partner;
 
 	return 0;
 }
