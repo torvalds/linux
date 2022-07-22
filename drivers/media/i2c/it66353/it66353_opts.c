@@ -65,9 +65,9 @@
 
 IT6635_RX_OPTIONS it66353_s_RxOpts = {
 	0xC3,	// u8 tag1;
-	1,		// u8 EnRxDDCBypass;
+	0,		// u8 EnRxDDCBypass;
 	0,		// u8 EnRxPWR5VBypass;
-	1,		// u8 EnRxHPDBypass;
+	0,		// u8 EnRxHPDBypass;
 	1,		// u8 TryFixedEQFirst;
 	1,		// u8 EnableAutoEQ;
 	1,		// u8 NonActivePortReplyHPD;
@@ -75,7 +75,7 @@ IT6635_RX_OPTIONS it66353_s_RxOpts = {
 	{DEFAULT_RS_IDX, DEFAULT_RS_IDX, DEFAULT_RS_IDX}, // u8 DefaultEQ[3];
 	1,		// u8 FixIncorrectHdmiEnc;
 	0,		// u8 HPDOutputInverse;
-	HPD_TOGGLE_TIMEOUT_400MS,	// u8 HPDTogglePeriod;
+	HPD_TOGGLE_TIMEOUT_2SEC,	// u8 HPDTogglePeriod;
 	1,		// u8 TxOEAlignment;
 	(u8)sizeof(IT6635_RX_OPTIONS),	// u8 str_size;
 };

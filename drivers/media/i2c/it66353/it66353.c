@@ -48,7 +48,7 @@
 		do {\
 			if (debug_on)\
 				printk(__VA_ARGS__);\
-		} while (0)\
+		} while (0)
 /*
  * ********* compile options ***********
  * CHECK_DEV_PRESENT:
@@ -77,10 +77,10 @@ struct it66353_dev {
 	struct		device *dev;
 	struct		miscdevice miscdev;
 	struct		i2c_client *client;
-	struct		mutex confctl_mutex;
 	struct		timer_list timer;
 	struct		delayed_work work_i2c_poll;
 	struct		mutex poll_lock;
+	struct		mutex port_lock;
 	struct		task_struct *poll_task;
 	bool		auto_switch_en;
 	bool		is_chip_ready;
@@ -265,7 +265,9 @@ static void it66353_work_i2c_poll(struct work_struct *work)
 	struct it66353_dev *it66353 =
 		container_of(dwork, struct it66353_dev, work_i2c_poll);
 
+	mutex_lock(&it66353->poll_lock);
 	it66353_dev_loop();
+	mutex_unlock(&it66353->poll_lock);
 	schedule_delayed_work(&it66353->work_i2c_poll, msecs_to_jiffies(50));
 }
 
@@ -288,6 +290,7 @@ static ssize_t it66353_hdmirxsel_store(struct device *dev,
 	u32 hdmirxstate = 0;
 	int ret;
 
+	mutex_lock(&it66353->port_lock);
 	ret = kstrtouint(buf, 10, &hdmirxstate);
 	if (!ret && hdmirxstate >= 0 && hdmirxstate <= RX_PORT_COUNT) {
 		it66353->hdmi_rx_sel = hdmirxstate;
@@ -302,6 +305,7 @@ static ssize_t it66353_hdmirxsel_store(struct device *dev,
 		dev_info(it66353->dev, "%s: write hdmi_rx_sel failed!!!, hdmirxstate:%d \n",
 						__func__, hdmirxstate);
 	}
+	mutex_unlock(&it66353->port_lock);
 
 	return count;
 }
@@ -343,6 +347,9 @@ static int it66353_probe(struct i2c_client *client,
 	it66353->dev = dev;
 	client->flags |= I2C_CLIENT_SCCB;
 
+	mutex_init(&it66353->poll_lock);
+	mutex_init(&it66353->port_lock);
+
 	ret = misc_register(&it66353_miscdev);
 	if (ret) {
 		dev_err(it66353->dev,
@@ -357,7 +364,7 @@ static int it66353_probe(struct i2c_client *client,
 				&dev_attr_it66353_hdmirxsel);
 	if (ret) {
 		dev_err(it66353->dev, "failed to create attr hdmirxsel!\n");
-		return ret;
+		goto err0;
 	}
 	it66353_options_init();
 	schedule_delayed_work(&it66353->work_i2c_poll, msecs_to_jiffies(10));
@@ -365,14 +372,20 @@ static int it66353_probe(struct i2c_client *client,
 				client->name, client->addr << 1,
 				client->adapter->name);
 	return 0;
+err0:
+	misc_deregister(&it66353_miscdev);
+	return ret;
 }
 
 static int it66353_remove(struct i2c_client *client)
 {
 	cancel_delayed_work_sync(&it66353->work_i2c_poll);
 
-	mutex_destroy(&it66353->confctl_mutex);
+	device_remove_file(it66353_miscdev.this_device,
+			   &dev_attr_it66353_hdmirxsel);
 	misc_deregister(&it66353_miscdev);
+	mutex_destroy(&it66353->poll_lock);
+	mutex_destroy(&it66353->port_lock);
 
 	return 0;
 }
@@ -414,22 +427,10 @@ MODULE_LICENSE("GPL v2");
 
 static void _pr_buf(void *buffer, int length)
 {
-	int i;
 	u8 *buf = (u8 *)buffer;
-	u8 data = 0;
-	int pr_len = 16;
 
-	while (length) {
-		if (length < pr_len)
-			pr_len = length;
-		for (i = 0; i < pr_len; i++) {
-			data = *buf;
-			DEBUG("%02x ", data);
-			buf++;
-		}
-		DEBUG("\r\n");
-		length -= pr_len;
-	}
+	print_hex_dump(KERN_INFO, "", DUMP_PREFIX_NONE, 16, 1, buf,
+			length, false);
 }
 
 u8 it66353_h2swwr(u8 offset, u8 wdata)
@@ -572,9 +573,9 @@ void it66353_chgrxbank(u8 bankno)
 static bool _tx_is_sink_hpd_high(void)
 {
 	if (it66353_h2swrd(0x11) & 0x20)
-		return FALSE;
-	else
 		return TRUE;
+	else
+		return FALSE;
 }
 
 static bool _tx_ddcwait(void)
