@@ -61,7 +61,7 @@ static inline bool fsl_sai_dir_is_synced(struct fsl_sai *sai, int dir)
 
 static struct pinctrl_state *fsl_sai_get_pins_state(struct fsl_sai *sai, u32 bclk)
 {
-	struct pinctrl_state *state = 0;
+	struct pinctrl_state *state = NULL;
 
 	if (sai->is_pdm_mode) {
 		/* DSD512@44.1kHz, DSD512@48kHz */
