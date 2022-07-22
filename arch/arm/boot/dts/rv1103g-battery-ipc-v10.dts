@@ -33,8 +33,6 @@
 		/delete-property/ pwm7;
 		/delete-property/ pwm8;
 		/delete-property/ pwm9;
-		/delete-property/ pwm10;
-		/delete-property/ pwm11;
 		/delete-property/ rkcif_mipi_lvds1;
 		/delete-property/ serial0;
 		/delete-property/ serial1;
@@ -89,8 +87,6 @@
 /delete-node/ &pwm7;
 /delete-node/ &pwm8;
 /delete-node/ &pwm9;
-/delete-node/ &pwm10;
-/delete-node/ &pwm11;
 /delete-node/ &rkcif_dvp;
 /delete-node/ &rkcif_dvp_sditf;
 /delete-node/ &rkcif_mipi_lvds1;
@@ -223,6 +219,14 @@
 			};
 		};
 	};
+};
+
+&pwm10 {
+	status = "okay";
+};
+
+&pwm11 {
+	status = "okay";
 };
 
 &rkcif {
