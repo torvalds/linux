@@ -1416,6 +1416,8 @@ tls_alloc_clrtxt_skb(struct sock *sk, struct sk_buff *skb,
  *    zc | Zero-copy decrypt allowed | Zero-copy performed
  * async | Async decrypt allowed     | Async crypto used / in progress
  *   skb |            *              | Output skb
+ *
+ * If ZC decryption was performed darg.skb will point to the input skb.
  */
 
 /* This function decrypts the input skb into either out_iov or in out_sg
@@ -1615,12 +1617,10 @@ tls_decrypt_sw(struct sock *sk, struct tls_context *tls_ctx,
 		return tls_decrypt_sw(sk, tls_ctx, msg, darg);
 	}
 
-	if (darg->skb == ctx->recv_pkt)
-		ctx->recv_pkt = NULL;
-
 	pad = tls_padding_length(prot, darg->skb, darg);
 	if (pad < 0) {
-		consume_skb(darg->skb);
+		if (darg->skb != tls_strp_msg(ctx))
+			consume_skb(darg->skb);
 		return pad;
 	}
 
@@ -1890,7 +1890,6 @@ int tls_sw_recvmsg(struct sock *sk,
 	size_t flushed_at = 0;
 	struct strp_msg *rxm;
 	struct tls_msg *tlm;
-	struct sk_buff *skb;
 	ssize_t copied = 0;
 	bool async = false;
 	int target, err = 0;
@@ -1970,10 +1969,6 @@ int tls_sw_recvmsg(struct sock *sk,
 			goto recv_end;
 		}
 
-		skb = darg.skb;
-		rxm = strp_msg(skb);
-		tlm = tls_msg(skb);
-
 		async |= darg.async;
 
 		/* If the type of records being processed is not known yet,
@@ -1983,11 +1978,12 @@ int tls_sw_recvmsg(struct sock *sk,
 		 * is known just after record is dequeued from stream parser.
 		 * For tls1.3, we disable async.
 		 */
-		err = tls_record_content_type(msg, tlm, &control);
+		err = tls_record_content_type(msg, tls_msg(darg.skb), &control);
 		if (err <= 0) {
+			DEBUG_NET_WARN_ON_ONCE(darg.zc);
 			tls_rx_rec_done(ctx);
 put_on_rx_list_err:
-			__skb_queue_tail(&ctx->rx_list, skb);
+			__skb_queue_tail(&ctx->rx_list, darg.skb);
 			goto recv_end;
 		}
 
@@ -1996,11 +1992,15 @@ put_on_rx_list_err:
 				       decrypted + copied, &flushed_at);
 
 		/* TLS 1.3 may have updated the length by more than overhead */
+		rxm = strp_msg(darg.skb);
 		chunk = rxm->full_len;
 		tls_rx_rec_done(ctx);
 
 		if (!darg.zc) {
 			bool partially_consumed = chunk > len;
+			struct sk_buff *skb = darg.skb;
+
+			DEBUG_NET_WARN_ON_ONCE(darg.skb == ctx->recv_pkt);
 
 			if (async) {
 				/* TLS 1.2-only, to_decrypt must be text len */
@@ -2040,12 +2040,12 @@ put_on_rx_list:
 				rxm->full_len -= chunk;
 				goto put_on_rx_list;
 			}
+
+			consume_skb(skb);
 		}
 
 		decrypted += chunk;
 		len -= chunk;
-
-		consume_skb(skb);
 
 		/* Return full control message to userspace before trying
 		 * to parse another message type
