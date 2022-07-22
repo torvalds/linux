@@ -50,7 +50,7 @@ static void aspeed_pciecfg_init(struct aspeed_pciecfg *pciecfg)
 		reset_control_assert(pciecfg->rc_high_rst);
 	}
 
-	mdelay(1);
+	mdelay(5);
 	reset_control_deassert(pciecfg->rst);
 
 	//workaround : Send vender define message for avoid when PCIE RESET send unknown message out
