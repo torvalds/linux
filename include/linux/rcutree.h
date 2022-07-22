@@ -47,12 +47,6 @@ unsigned long start_poll_synchronize_rcu(void);
 bool poll_state_synchronize_rcu(unsigned long oldstate);
 void cond_synchronize_rcu(unsigned long oldstate);
 
-void rcu_idle_enter(void);
-void rcu_idle_exit(void);
-void rcu_irq_enter(void);
-void rcu_irq_exit(void);
-void rcu_irq_enter_irqson(void);
-void rcu_irq_exit_irqson(void);
 bool rcu_is_idle_cpu(int cpu);
 
 #ifdef CONFIG_PROVE_RCU
@@ -60,6 +54,9 @@ void rcu_irq_exit_check_preempt(void);
 #else
 static inline void rcu_irq_exit_check_preempt(void) { }
 #endif
+
+struct task_struct;
+void rcu_preempt_deferred_qs(struct task_struct *t);
 
 void exit_rcu(void);
 

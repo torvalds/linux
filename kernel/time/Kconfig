@@ -73,6 +73,15 @@ config TIME_KUNIT_TEST
 
 	  If unsure, say N.
 
+config CONTEXT_TRACKING
+	bool
+
+config CONTEXT_TRACKING_IDLE
+	bool
+	select CONTEXT_TRACKING
+	help
+	  Tracks idle state on behalf of RCU.
+
 if GENERIC_CLOCKEVENTS
 menu "Timers subsystem"
 
@@ -111,7 +120,7 @@ config NO_HZ_FULL
 	# NO_HZ_COMMON dependency
 	# We need at least one periodic CPU for timekeeping
 	depends on SMP
-	depends on HAVE_CONTEXT_TRACKING
+	depends on HAVE_CONTEXT_TRACKING_USER
 	# VIRT_CPU_ACCOUNTING_GEN dependency
 	depends on HAVE_VIRT_CPU_ACCOUNTING_GEN
 	select NO_HZ_COMMON
@@ -137,31 +146,37 @@ config NO_HZ_FULL
 
 endchoice
 
-config CONTEXT_TRACKING
-       bool
+config CONTEXT_TRACKING_USER
+	bool
+	depends on HAVE_CONTEXT_TRACKING_USER
+	select CONTEXT_TRACKING
+	help
+	  Track transitions between kernel and user on behalf of RCU and
+	  tickless cputime accounting. The former case relies on context
+	  tracking to enter/exit RCU extended quiescent states.
 
-config CONTEXT_TRACKING_FORCE
-	bool "Force context tracking"
-	depends on CONTEXT_TRACKING
+config CONTEXT_TRACKING_USER_FORCE
+	bool "Force user context tracking"
+	depends on CONTEXT_TRACKING_USER
 	default y if !NO_HZ_FULL
 	help
 	  The major pre-requirement for full dynticks to work is to
-	  support the context tracking subsystem. But there are also
+	  support the user context tracking subsystem. But there are also
 	  other dependencies to provide in order to make the full
 	  dynticks working.
 
 	  This option stands for testing when an arch implements the
-	  context tracking backend but doesn't yet fulfill all the
+	  user context tracking backend but doesn't yet fulfill all the
 	  requirements to make the full dynticks feature working.
 	  Without the full dynticks, there is no way to test the support
-	  for context tracking and the subsystems that rely on it: RCU
+	  for user context tracking and the subsystems that rely on it: RCU
 	  userspace extended quiescent state and tickless cputime
 	  accounting. This option copes with the absence of the full
-	  dynticks subsystem by forcing the context tracking on all
+	  dynticks subsystem by forcing the user context tracking on all
 	  CPUs in the system.
 
 	  Say Y only if you're working on the development of an
-	  architecture backend for the context tracking.
+	  architecture backend for the user context tracking.
 
 	  Say N otherwise, this option brings an overhead that you
 	  don't want in production.

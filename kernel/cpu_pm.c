@@ -35,11 +35,11 @@ static int cpu_pm_notify(enum cpu_pm_event event)
 	 * disfunctional in cpu idle. Copy RCU_NONIDLE code to let RCU know
 	 * this.
 	 */
-	rcu_irq_enter_irqson();
+	ct_irq_enter_irqson();
 	rcu_read_lock();
 	ret = raw_notifier_call_chain(&cpu_pm_notifier.chain, event, NULL);
 	rcu_read_unlock();
-	rcu_irq_exit_irqson();
+	ct_irq_exit_irqson();
 
 	return notifier_to_errno(ret);
 }
@@ -49,11 +49,11 @@ static int cpu_pm_notify_robust(enum cpu_pm_event event_up, enum cpu_pm_event ev
 	unsigned long flags;
 	int ret;
 
-	rcu_irq_enter_irqson();
+	ct_irq_enter_irqson();
 	raw_spin_lock_irqsave(&cpu_pm_notifier.lock, flags);
 	ret = raw_notifier_call_chain_robust(&cpu_pm_notifier.chain, event_up, event_down, NULL);
 	raw_spin_unlock_irqrestore(&cpu_pm_notifier.lock, flags);
-	rcu_irq_exit_irqson();
+	ct_irq_exit_irqson();
 
 	return notifier_to_errno(ret);
 }

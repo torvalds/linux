@@ -29,6 +29,7 @@
 #include <linux/lockdep.h>
 #include <asm/processor.h>
 #include <linux/cpumask.h>
+#include <linux/context_tracking_irq.h>
 
 #define ULONG_CMP_GE(a, b)	(ULONG_MAX / 2 >= (a) - (b))
 #define ULONG_CMP_LT(a, b)	(ULONG_MAX / 2 < (a) - (b))
@@ -104,13 +105,11 @@ static inline void rcu_sysrq_start(void) { }
 static inline void rcu_sysrq_end(void) { }
 #endif /* #else #ifdef CONFIG_RCU_STALL_COMMON */
 
-#ifdef CONFIG_NO_HZ_FULL
-void rcu_user_enter(void);
-void rcu_user_exit(void);
+#if defined(CONFIG_NO_HZ_FULL) && (!defined(CONFIG_GENERIC_ENTRY) || !defined(CONFIG_KVM_XFER_TO_GUEST_WORK))
+void rcu_irq_work_resched(void);
 #else
-static inline void rcu_user_enter(void) { }
-static inline void rcu_user_exit(void) { }
-#endif /* CONFIG_NO_HZ_FULL */
+static inline void rcu_irq_work_resched(void) { }
+#endif
 
 #ifdef CONFIG_RCU_NOCB_CPU
 void rcu_init_nohz(void);
@@ -129,7 +128,7 @@ static inline void rcu_nocb_flush_deferred_wakeup(void) { }
  * @a: Code that RCU needs to pay attention to.
  *
  * RCU read-side critical sections are forbidden in the inner idle loop,
- * that is, between the rcu_idle_enter() and the rcu_idle_exit() -- RCU
+ * that is, between the ct_idle_enter() and the ct_idle_exit() -- RCU
  * will happily ignore any such read-side critical sections.  However,
  * things like powertop need tracepoints in the inner idle loop.
  *
@@ -144,9 +143,9 @@ static inline void rcu_nocb_flush_deferred_wakeup(void) { }
  */
 #define RCU_NONIDLE(a) \
 	do { \
-		rcu_irq_enter_irqson(); \
+		ct_irq_enter_irqson(); \
 		do { a; } while (0); \
-		rcu_irq_exit_irqson(); \
+		ct_irq_exit_irqson(); \
 	} while (0)
 
 /*
