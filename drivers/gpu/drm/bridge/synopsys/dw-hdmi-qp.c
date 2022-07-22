@@ -578,10 +578,9 @@ void dw_hdmi_qp_set_audio_infoframe(struct dw_hdmi_qp *hdmi,
 	 */
 	regmap_bulk_write(hdmi->regm, PKT_AUDI_CONTENTS1, &infoframe_buf[3], 2);
 
-	/* Enable ACR, AUDI, AMD */
-	hdmi_modb(hdmi,
-		  PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN | PKTSCHED_AMD_TX_EN,
-		  PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN | PKTSCHED_AMD_TX_EN,
+	/* Enable ACR, AUDI */
+	hdmi_modb(hdmi, PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN,
+		  PKTSCHED_ACR_TX_EN | PKTSCHED_AUDI_TX_EN,
 		  PKTSCHED_PKT_EN);
 
 	/* Enable AUDS */
