@@ -42,6 +42,9 @@ properties:
   panel-height-mm:
     description: physical panel height [mm]
 
+  spi-cpha: true
+  spi-cpol: true
+
 required:
   - compatible
   - reg

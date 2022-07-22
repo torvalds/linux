@@ -95,6 +95,17 @@ patternProperties:
     type: object
     $ref: spi-peripheral-props.yaml
 
+    properties:
+      spi-cpha:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          The device requires shifted clock phase (CPHA) mode.
+
+      spi-cpol:
+        $ref: /schemas/types.yaml#/definitions/flag
+        description:
+          The device requires inverse clock polarity (CPOL) mode.
+
     required:
       - compatible
       - reg
