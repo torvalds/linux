@@ -406,9 +406,6 @@ static int mt7921_pci_suspend(struct device *device)
 	if (err)
 		goto restore_napi;
 
-	if (err)
-		goto restore_napi;
-
 	return 0;
 
 restore_napi:
