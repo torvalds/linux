@@ -3918,7 +3918,7 @@ static void *bpf_xdp_pointer(struct xdp_buff *xdp, u32 offset, u32 len)
 		offset -= frag_size;
 	}
 out:
-	return offset + len < size ? addr + offset : NULL;
+	return offset + len <= size ? addr + offset : NULL;
 }
 
 BPF_CALL_4(bpf_xdp_load_bytes, struct xdp_buff *, xdp, u32, offset,
