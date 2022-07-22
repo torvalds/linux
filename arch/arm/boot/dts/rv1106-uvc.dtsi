@@ -41,6 +41,13 @@
 
 &i2s0_8ch {
 	status = "okay";
+	clocks = <&cru MCLK_I2S0_8CH_TX>, <&cru MCLK_I2S0_8CH_RX>, <&cru HCLK_I2S0>,
+		 <&cru CLK_I2S0_8CH_TX_SRC>, <&cru CLK_I2S0_8CH_RX_SRC>,
+		 <&cru PLL_GPLL>, <&cru PLL_GPLL>;
+	clock-names = "mclk_tx", "mclk_rx", "hclk",
+		      "mclk_tx_src", "mclk_rx_src",
+		      "mclk_root0", "mclk_root1";
+	rockchip,mclk-calibrate;
 };
 
 &mpp_srv {
