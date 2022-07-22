@@ -3880,7 +3880,6 @@ static __be32 nfsd4_encode_splice_read(
 	struct xdr_buf *buf = xdr->buf;
 	int status, space_left;
 	__be32 nfserr;
-	__be32 *p = xdr->p - 2;
 
 	/* Make sure there will be room for padding if needed */
 	if (xdr->end - xdr->p < 1)
@@ -3898,9 +3897,6 @@ static __be32 nfsd4_encode_splice_read(
 		nfserr = nfserrno(status);
 		goto out_err;
 	}
-
-	*(p++) = htonl(read->rd_eof);
-	*(p++) = htonl(maxcount);
 
 	buf->page_len = maxcount;
 	buf->len += maxcount;
@@ -3962,11 +3958,6 @@ static __be32 nfsd4_encode_readv(struct nfsd4_compoundres *resp,
 		return nfserr_io;
 	xdr_truncate_encode(xdr, starting_len + 8 + xdr_align_size(maxcount));
 
-	tmp = htonl(read->rd_eof);
-	write_bytes_to_xdr_buf(xdr->buf, starting_len    , &tmp, 4);
-	tmp = htonl(maxcount);
-	write_bytes_to_xdr_buf(xdr->buf, starting_len + 4, &tmp, 4);
-
 	tmp = xdr_zero;
 	pad = (maxcount&3) ? 4 - (maxcount&3) : 0;
 	write_bytes_to_xdr_buf(xdr->buf, starting_len + 8 + maxcount,
@@ -4008,11 +3999,14 @@ nfsd4_encode_read(struct nfsd4_compoundres *resp, __be32 nfserr,
 		nfserr = nfsd4_encode_splice_read(resp, read, file, maxcount);
 	else
 		nfserr = nfsd4_encode_readv(resp, read, file, maxcount);
-
-	if (nfserr)
+	if (nfserr) {
 		xdr_truncate_encode(xdr, starting_len);
+		return nfserr;
+	}
 
-	return nfserr;
+	p = xdr_encode_bool(p, read->rd_eof);
+	*p = cpu_to_be32(read->rd_length);
+	return nfs_ok;
 }
 
 static __be32
