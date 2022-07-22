@@ -1,4 +1,5 @@
 /*
+ * Copyright (c) 2016 Tom Herbert <tom@herbertland.com>
  * Copyright (c) 2016-2017, Mellanox Technologies. All rights reserved.
  * Copyright (c) 2016-2017, Dave Watson <davejwatson@fb.com>. All rights reserved.
  *
@@ -127,10 +128,24 @@ int tls_sw_fallback_init(struct sock *sk,
 			 struct tls_offload_context_tx *offload_ctx,
 			 struct tls_crypto_info *crypto_info);
 
+int tls_strp_dev_init(void);
+void tls_strp_dev_exit(void);
+
+void tls_strp_done(struct tls_strparser *strp);
+void tls_strp_stop(struct tls_strparser *strp);
+int tls_strp_init(struct tls_strparser *strp, struct sock *sk);
+void tls_strp_data_ready(struct tls_strparser *strp);
+
+void tls_strp_check_rcv(struct tls_strparser *strp);
+void tls_strp_msg_done(struct tls_strparser *strp);
+
+int tls_rx_msg_size(struct tls_strparser *strp, struct sk_buff *skb);
+void tls_rx_msg_ready(struct tls_strparser *strp);
+
+void tls_strp_msg_load(struct tls_strparser *strp, bool force_refresh);
 int tls_strp_msg_cow(struct tls_sw_context_rx *ctx);
 struct sk_buff *tls_strp_msg_detach(struct tls_sw_context_rx *ctx);
-int tls_strp_msg_hold(struct sock *sk, struct sk_buff *skb,
-		      struct sk_buff_head *dst);
+int tls_strp_msg_hold(struct tls_strparser *strp, struct sk_buff_head *dst);
 
 static inline struct tls_msg *tls_msg(struct sk_buff *skb)
 {
@@ -141,12 +156,13 @@ static inline struct tls_msg *tls_msg(struct sk_buff *skb)
 
 static inline struct sk_buff *tls_strp_msg(struct tls_sw_context_rx *ctx)
 {
-	return ctx->recv_pkt;
+	DEBUG_NET_WARN_ON_ONCE(!ctx->strp.msg_ready || !ctx->strp.anchor->len);
+	return ctx->strp.anchor;
 }
 
 static inline bool tls_strp_msg_ready(struct tls_sw_context_rx *ctx)
 {
-	return ctx->recv_pkt;
+	return ctx->strp.msg_ready;
 }
 
 #ifdef CONFIG_TLS_DEVICE

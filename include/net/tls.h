@@ -108,18 +108,33 @@ struct tls_sw_context_tx {
 	unsigned long tx_bitmask;
 };
 
+struct tls_strparser {
+	struct sock *sk;
+
+	u32 mark : 8;
+	u32 stopped : 1;
+	u32 copy_mode : 1;
+	u32 msg_ready : 1;
+
+	struct strp_msg stm;
+
+	struct sk_buff *anchor;
+	struct work_struct work;
+};
+
 struct tls_sw_context_rx {
 	struct crypto_aead *aead_recv;
 	struct crypto_wait async_wait;
-	struct strparser strp;
 	struct sk_buff_head rx_list;	/* list of decrypted 'data' records */
 	void (*saved_data_ready)(struct sock *sk);
 
-	struct sk_buff *recv_pkt;
 	u8 reader_present;
 	u8 async_capable:1;
 	u8 zc_capable:1;
 	u8 reader_contended:1;
+
+	struct tls_strparser strp;
+
 	atomic_t decrypt_pending;
 	/* protect crypto_wait with decrypt_pending*/
 	spinlock_t decrypt_compl_lock;
