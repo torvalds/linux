@@ -39,6 +39,17 @@ if (print) { \
 } \
 } while (0)
 
+#define DEFAULT_BUS_WIDTH	(4)
+
+/* In KHz */
+#define DEFAULT_SE_CLK	19200
+#define SPI_CORE2X_VOTE	100000
+#define I2C_CORE2X_VOTE	19200
+#define I3C_CORE2X_VOTE	19200
+#define UART_CORE2X_VOTE	100000
+#define UART_CONSOLE_CORE2X_VOTE	19200
+#define APPS_PROC_TO_QUP_VOTE	76800
+/* SE_DMA_GENERAL_CFG */
 #define SE_DMA_DEBUG_REG0		(0xE40)
 
 #define SE_DMA_TX_PTR_L			(0xC30)
