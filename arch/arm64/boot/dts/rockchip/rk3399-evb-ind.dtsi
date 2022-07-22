@@ -976,11 +976,6 @@
 	gpio1830-supply = <&vcc_3v0>;		/* gpio1833_gpio4cd_ms */
 };
 
-&pmu_io_domains {
-	pmu1830-supply = <&vcc_1v8>;
-	status = "okay";
-};
-
 &isp0_mmu {
 	status = "okay";
 };
