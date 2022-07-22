@@ -50,6 +50,10 @@ static const struct renesas_family fam_rza2 __initconst __maybe_unused = {
 	.name	= "RZ/A2",
 };
 
+static const struct renesas_family fam_rzfive __initconst __maybe_unused = {
+	.name	= "RZ/Five",
+};
+
 static const struct renesas_family fam_rzg1 __initconst __maybe_unused = {
 	.name	= "RZ/G1",
 	.reg	= 0xff000044,		/* PRR (Product Register) */
@@ -100,6 +104,11 @@ static const struct renesas_soc soc_rmobile_ape6 __initconst __maybe_unused = {
 static const struct renesas_soc soc_rmobile_a1 __initconst __maybe_unused = {
 	.family	= &fam_rmobile,
 	.id	= 0x40,
+};
+
+static const struct renesas_soc soc_rz_five __initconst __maybe_unused = {
+	.family = &fam_rzfive,
+	.id     = 0x847c447,
 };
 
 static const struct renesas_soc soc_rz_g1h __initconst __maybe_unused = {
@@ -359,7 +368,11 @@ static const struct of_device_id renesas_socs[] __initconst = {
 	{ .compatible = "renesas,r8a779g0",	.data = &soc_rcar_v4h },
 #endif
 #if defined(CONFIG_ARCH_R9A07G043)
+#ifdef CONFIG_RISCV
+	{ .compatible = "renesas,r9a07g043",	.data = &soc_rz_five },
+#else
 	{ .compatible = "renesas,r9a07g043",	.data = &soc_rz_g2ul },
+#endif
 #endif
 #if defined(CONFIG_ARCH_R9A07G044)
 	{ .compatible = "renesas,r9a07g044",	.data = &soc_rz_g2l },
