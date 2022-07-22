@@ -713,7 +713,7 @@ static int generic_edp_panel_probe(struct device *dev, struct panel_edp *panel)
 	of_property_read_u32(dev->of_node, "hpd-reliable-delay-ms", &reliable_ms);
 	desc->delay.hpd_reliable = reliable_ms;
 	of_property_read_u32(dev->of_node, "hpd-absent-delay-ms", &absent_ms);
-	desc->delay.hpd_reliable = absent_ms;
+	desc->delay.hpd_absent = absent_ms;
 
 	/* Power the panel on so we can read the EDID */
 	ret = pm_runtime_get_sync(dev);
