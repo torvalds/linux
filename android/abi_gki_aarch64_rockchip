@@ -95,6 +95,7 @@
   clk_put
   clk_register
   clk_round_rate
+  clk_set_parent
   clk_set_phase
   clk_set_rate
   clk_unprepare
@@ -123,6 +124,8 @@
   __cpu_possible_mask
   cpus_read_lock
   cpus_read_unlock
+  crc16
+  crc32_le
   crypto_destroy_tfm
   crypto_inc
   __crypto_memneq
@@ -155,6 +158,7 @@
   device_add_disk
   device_create
   device_create_file
+  device_del
   device_destroy
   device_get_child_node_count
   device_get_named_child_node
@@ -170,7 +174,11 @@
   device_property_read_u8_array
   device_release_driver
   device_remove_file
+  device_set_wakeup_capable
+  device_set_wakeup_enable
+  device_wakeup_enable
   _dev_info
+  __dev_kfree_skb_any
   devm_add_action
   devm_clk_bulk_get
   devm_clk_bulk_get_all
@@ -193,6 +201,7 @@
   devm_gpiod_get_optional
   devm_gpio_request
   devm_gpio_request_one
+  devm_iio_channel_get
   devm_iio_device_alloc
   __devm_iio_device_register
   devm_input_allocate_device
@@ -231,6 +240,7 @@
   devm_reset_control_array_get
   __devm_reset_control_get
   devm_snd_dmaengine_pcm_register
+  devm_snd_soc_register_card
   devm_snd_soc_register_component
   devm_usb_get_phy
   dev_pm_domain_detach
@@ -275,6 +285,10 @@
   dma_map_sg_attrs
   dmam_free_coherent
   dma_mmap_attrs
+  dma_pool_alloc
+  dma_pool_create
+  dma_pool_destroy
+  dma_pool_free
   dma_release_channel
   dma_request_chan
   dma_set_coherent_mask
@@ -384,7 +398,6 @@
   drm_panel_prepare
   drm_panel_unprepare
   drm_poll
-  drm_prime_gem_destroy
   drm_prime_pages_to_sg
   drm_prime_sg_to_page_addr_arrays
   drm_property_replace_global_blob
@@ -395,6 +408,9 @@
   drm_scdc_set_scrambling
   drm_scdc_write
   enable_irq
+  eth_mac_addr
+  eth_platform_get_mac_address
+  eth_validate_addr
   event_triggers_call
   extcon_get_edev_by_phandle
   extcon_get_state
@@ -425,6 +441,12 @@
   fwnode_property_read_u32_array
   gcd
   generic_handle_irq
+  generic_mii_ioctl
+  __genphy_config_aneg
+  genphy_read_status
+  genphy_resume
+  genphy_soft_reset
+  genphy_suspend
   gen_pool_add_owner
   gen_pool_alloc_algo_owner
   gen_pool_create
@@ -432,6 +454,7 @@
   gen_pool_free_owner
   get_cpu_device
   get_device
+  get_random_bytes
   get_zeroed_page
   gic_nonsecure_priorities
   gpiochip_add_pin_range
@@ -458,6 +481,7 @@
   hdmi_audio_infoframe_pack
   hdmi_drm_infoframe_pack
   hdmi_infoframe_pack
+  hdmi_vendor_infoframe_pack
   hid_debug
   hid_hw_close
   hid_hw_open
@@ -493,6 +517,9 @@
   idr_remove
   iio_buffer_init
   iio_buffer_put
+  iio_device_attach_buffer
+  iio_push_to_buffers
+  iio_read_channel_processed
   __init_rwsem
   __init_swait_queue_head
   init_timer_key
@@ -582,6 +609,8 @@
   __log_read_mmio
   __log_write_mmio
   lzo1x_decompress_safe
+  mdiobus_read
+  mdiobus_write
   media_create_pad_link
   media_device_init
   __media_device_register
@@ -596,10 +625,14 @@
   media_pipeline_stop
   memcpy
   memdup_user
+  memmove
   memset
   memstart_addr
   mfd_add_devices
   mfd_remove_devices
+  mii_check_media
+  mii_ethtool_gset
+  mii_nway_restart
   mipi_dsi_attach
   mipi_dsi_create_packet
   mipi_dsi_detach
@@ -618,7 +651,11 @@
   __mutex_init
   mutex_is_locked
   mutex_lock
+  mutex_lock_interruptible
   mutex_unlock
+  netdev_err
+  netdev_info
+  netdev_warn
   no_llseek
   nonseekable_open
   noop_llseek
@@ -671,6 +708,7 @@
   of_node_name_eq
   of_nvmem_cell_get
   of_parse_phandle
+  of_parse_phandle_with_args
   of_phy_simple_xlate
   of_property_count_elems_of_size
   of_property_match_string
@@ -679,6 +717,7 @@
   of_property_read_u32_index
   of_property_read_variable_u32_array
   of_property_read_variable_u8_array
+  of_prop_next_string
   of_regulator_match
   of_reserved_mem_device_init_by_idx
   __of_reset_control_get
@@ -695,6 +734,8 @@
   perf_trace_run_bpf_submit
   pfn_valid
   phy_configure
+  phy_drivers_register
+  phy_drivers_unregister
   phy_exit
   phy_init
   phy_power_off
@@ -757,6 +798,7 @@
   proc_create
   proc_create_data
   proc_mkdir
+  pskb_expand_head
   put_device
   put_disk
   __put_page
@@ -861,26 +903,50 @@
   simple_strtol
   single_open
   single_release
+  skb_clone
+  skb_copy_expand
+  skb_pull
+  skb_push
+  skb_put
+  skb_trim
   skcipher_walk_aead_decrypt
   skcipher_walk_aead_encrypt
   skcipher_walk_done
   snd_pcm_format_width
+  snd_soc_add_component_controls
+  snd_soc_card_jack_new
   snd_soc_component_read
+  snd_soc_component_set_jack
   snd_soc_component_update_bits
   snd_soc_component_write
+  snd_soc_dai_set_sysclk
+  snd_soc_dapm_add_routes
+  snd_soc_dapm_disable_pin_unlocked
   snd_soc_dapm_force_enable_pin_unlocked
   snd_soc_dapm_get_enum_double
+  snd_soc_dapm_get_pin_switch
   snd_soc_dapm_get_volsw
+  snd_soc_dapm_info_pin_switch
+  snd_soc_dapm_new_controls
   snd_soc_dapm_put_enum_double
+  snd_soc_dapm_put_pin_switch
   snd_soc_dapm_put_volsw
+  snd_soc_dapm_sync_unlocked
+  snd_soc_get_dai_name
   snd_soc_get_enum_double
   snd_soc_get_volsw
   snd_soc_info_enum_double
   snd_soc_info_volsw
   snd_soc_jack_add_gpios
   snd_soc_jack_report
+  snd_soc_of_parse_audio_routing
+  snd_soc_of_parse_card_name
+  snd_soc_of_parse_daifmt
+  snd_soc_params_to_frame_size
+  snd_soc_pm_ops
   snd_soc_put_enum_double
   snd_soc_put_volsw
+  snd_soc_unregister_component
   snprintf
   __spi_register_driver
   spi_sync
@@ -907,6 +973,8 @@
   sysfs_remove_group
   sysfs_remove_link
   system_freezable_wq
+  system_power_efficient_wq
+  system_state
   system_unbound_wq
   system_wq
   tasklet_init
@@ -928,6 +996,8 @@
   __tracepoint_rwmmio_write
   trace_raw_output_prep
   trace_seq_printf
+  try_module_get
+  tty_termios_baud_rate
   typec_switch_get_drvdata
   typec_switch_register
   typec_switch_unregister
@@ -939,8 +1009,63 @@
   update_devfreq
   up_read
   up_write
+  usb_add_hcd
+  usb_alloc_urb
+  usb_autopm_get_interface
+  usb_autopm_put_interface
+  usb_calc_bus_time
+  usb_control_msg
+  usb_create_hcd
   usb_debug_root
+  usb_deregister
+  usb_deregister_dev
+  usb_disabled
+  usb_free_urb
+  usb_get_dev
+  usb_get_intf
+  usb_hcd_check_unlink_urb
+  usb_hcd_giveback_urb
+  usb_hcd_link_urb_to_ep
+  usb_hcd_resume_root_hub
+  usb_hcd_unlink_urb_from_ep
   usb_hid_driver
+  usb_match_id
+  usbnet_change_mtu
+  usbnet_defer_kevent
+  usbnet_disconnect
+  usbnet_get_drvinfo
+  usbnet_get_endpoints
+  usbnet_get_link
+  usbnet_get_link_ksettings
+  usbnet_get_msglevel
+  usbnet_get_stats64
+  usbnet_link_change
+  usbnet_nway_reset
+  usbnet_open
+  usbnet_probe
+  usbnet_read_cmd
+  usbnet_read_cmd_nopm
+  usbnet_resume
+  usbnet_set_link_ksettings
+  usbnet_set_msglevel
+  usbnet_skb_return
+  usbnet_start_xmit
+  usbnet_stop
+  usbnet_suspend
+  usbnet_tx_timeout
+  usbnet_write_cmd
+  usbnet_write_cmd_async
+  usbnet_write_cmd_nopm
+  usb_poison_urb
+  usb_put_dev
+  usb_put_hcd
+  usb_put_intf
+  usb_register_dev
+  usb_register_driver
+  usb_remove_hcd
+  usb_set_interface
+  usb_submit_urb
+  usb_unpoison_urb
   usleep_range
   uuid_null
   v4l2_async_notifier_cleanup
@@ -1049,15 +1174,12 @@
   serial8250_suspend_port
   serial8250_unregister_port
   serial8250_update_uartclk
-  tty_termios_baud_rate
 
 # required by act8865-regulator.ko
   regulator_set_pull_down_regmap
 
 # required by adc-keys.ko
-  devm_iio_channel_get
   iio_get_channel_type
-  iio_read_channel_processed
   input_set_poll_interval
   input_setup_polling
 
@@ -1072,8 +1194,23 @@
   of_find_compatible_node
   power_supply_get_by_name
 
-# required by bq25890_charger.ko
-  system_power_efficient_wq
+# required by cdc-wdm.ko
+  cdc_parse_cdc_header
+
+# required by cdc_mbim.ko
+  cdc_ncm_bind_common
+  cdc_ncm_change_mtu
+  cdc_ncm_fill_tx_frame
+  cdc_ncm_rx_verify_ndp16
+  cdc_ncm_rx_verify_nth16
+  cdc_ncm_select_altsetting
+  cdc_ncm_unbind
+  in6_dev_finish_destroy
+  __ipv6_addr_type
+  ipv6_stub
+  __netdev_alloc_skb
+  __rcu_read_lock
+  __rcu_read_unlock
 
 # required by ch.ko
   param_array_ops
@@ -1171,6 +1308,9 @@
   drm_atomic_get_new_bridge_state
   drm_probe_ddc
 
+# required by dm9601.ko
+  mii_link_ok
+
 # required by dw-hdmi-hdcp.ko
   kstrtobool
   sha1_init
@@ -1183,7 +1323,6 @@
 # required by dw-hdmi.ko
   drm_connector_attach_max_bpc_property
   drm_default_rgb_quant_range
-  hdmi_vendor_infoframe_pack
   of_graph_get_endpoint_by_regs
 
 # required by dw-mipi-dsi.ko
@@ -1231,33 +1370,20 @@
   __bitmap_clear
   bitmap_find_next_zero_area_off
   __bitmap_set
-  device_set_wakeup_capable
-  device_wakeup_enable
   phy_reset
   _raw_spin_trylock
   usb_add_gadget_udc
-  usb_add_hcd
-  usb_calc_bus_time
-  usb_create_hcd
   usb_del_gadget_udc
-  usb_disabled
   usb_ep_set_maxpacket_limit
   usb_gadget_giveback_request
   usb_gadget_map_request
   usb_gadget_set_state
   usb_gadget_unmap_request
   usb_get_dr_mode
-  usb_hcd_check_unlink_urb
-  usb_hcd_giveback_urb
-  usb_hcd_link_urb_to_ep
   usb_hcd_map_urb_for_dma
-  usb_hcd_resume_root_hub
-  usb_hcd_unlink_urb_from_ep
   usb_hcd_unmap_urb_for_dma
   usb_hub_clear_tt_buffer
   usb_phy_set_charger_current
-  usb_put_hcd
-  usb_remove_hcd
   usb_role_switch_get_drvdata
   usb_role_switch_register
   usb_role_switch_unregister
@@ -1282,6 +1408,9 @@
 # required by ghash-ce.ko
   aes_expandkey
   gf128mul_lle
+
+# required by gl620a.ko
+  __alloc_skb
 
 # required by gpio-regulator.ko
   gpiod_count
@@ -1313,9 +1442,6 @@
 
 # required by hid-holtek-kbd.ko
   usb_ifnum_to_if
-
-# required by hid-ntrig.ko
-  usb_control_msg
 
 # required by hid-primax.ko
   hid_report_raw_event
@@ -1359,16 +1485,17 @@
 # required by industrialio-triggered-buffer.ko
   iio_alloc_pollfunc
   iio_dealloc_pollfunc
-  iio_device_attach_buffer
 
 # required by io-domain.ko
   _dev_crit
   regulator_register_notifier
   regulator_unregister_notifier
 
+# required by kalmia.ko
+  usb_bulk_msg
+
 # required by kfifo_buf.ko
   __kfifo_to_user
-  mutex_lock_interruptible
 
 # required by leds-rgb13h.ko
   led_classdev_flash_register_ext
@@ -1416,7 +1543,6 @@
   bpf_trace_run3
   capable
   cleanup_srcu_struct
-  device_del
   device_remove_file_self
   dev_pm_qos_expose_latency_tolerance
   dev_pm_qos_hide_latency_tolerance
@@ -1436,7 +1562,6 @@
   synchronize_srcu
   trace_print_symbols_seq
   trace_seq_putc
-  try_module_get
   xa_destroy
   xa_erase
   xa_find
@@ -1458,10 +1583,6 @@
   blk_put_queue
   __blk_rq_map_sg
   dma_max_mapping_size
-  dma_pool_alloc
-  dma_pool_create
-  dma_pool_destroy
-  dma_pool_free
   __do_once_done
   __do_once_start
   mempool_alloc
@@ -1503,6 +1624,24 @@
 
 # required by nvp6188.ko
   kthread_should_stop
+
+# required by ohci-hcd.ko
+  default_llseek
+  gen_pool_dma_alloc_align
+  gen_pool_dma_zalloc_align
+  sb800_prefetch
+  schedule_timeout_uninterruptible
+  simple_read_from_buffer
+  usb_amd_dev_put
+  usb_amd_quirk_pll_disable
+  usb_amd_quirk_pll_enable
+  usb_hc_died
+  usb_hcd_poll_rh_status
+  usb_hcds_loaded
+  usb_root_hub_lost_power
+
+# required by ohci-platform.ko
+  usb_hcd_platform_shutdown
 
 # required by optee-rng.ko
   hwrng_register
@@ -1551,7 +1690,6 @@
   dw_pcie_setup_rc
   dw_pcie_write
   dw_pcie_write_dbi
-  of_prop_next_string
 
 # required by pcierockchiphost.ko
   devm_pci_alloc_host_bridge
@@ -1709,7 +1847,9 @@
   dev_pm_opp_of_remove_table
   disable_hardirq
   dma_buf_begin_cpu_access
+  dma_buf_begin_cpu_access_partial
   dma_buf_end_cpu_access
+  dma_buf_end_cpu_access_partial
   dma_buf_get
   __fdget
   iommu_attach_group
@@ -1743,6 +1883,7 @@
   drm_gem_prime_export
   drm_gem_prime_import_dev
   drm_gem_vm_open
+  drm_prime_gem_destroy
   hrtimer_forward
   set_user_nice
   vmf_insert_mixed
@@ -1756,16 +1897,6 @@
 # required by rockchip-rng.ko
   devm_hwrng_register
   devm_of_iomap
-
-# required by rockchip.ko
-  __genphy_config_aneg
-  genphy_resume
-  genphy_soft_reset
-  genphy_suspend
-  mdiobus_read
-  mdiobus_write
-  phy_drivers_register
-  phy_drivers_unregister
 
 # required by rockchip_bus.ko
   cpu_topology
@@ -1819,7 +1950,6 @@
 
 # required by rockchip_saradc.ko
   iio_get_time_ns
-  iio_push_to_buffers
   iio_trigger_notify_done
 
 # required by rockchip_system_monitor.ko
@@ -1844,7 +1974,6 @@
 
 # required by rockchipdrm.ko
   adjust_managed_page_count
-  clk_set_parent
   component_add
   component_bind_all
   component_del
@@ -2091,13 +2220,30 @@
 # required by sii902x.ko
   hdmi_avi_infoframe_pack
 
-# required by snd-soc-cx2072x.ko
-  snd_soc_params_to_frame_size
+# required by smsc95xx.ko
+  csum_partial
+  ethtool_op_get_ts_info
+  mdiobus_alloc_size
+  mdiobus_free
+  __mdiobus_register
+  mdiobus_unregister
+  phy_attached_info
+  phy_connect_direct
+  phy_disconnect
+  phy_ethtool_get_link_ksettings
+  phy_ethtool_nway_reset
+  phy_ethtool_set_link_ksettings
+  phy_find_first
+  phy_get_pause
+  phy_init_hw
+  phy_mii_ioctl
+  phy_print_status
+  phy_start
+  phy_stop
+  usb_autopm_get_interface_no_resume
 
 # required by snd-soc-es8316.ko
   snd_pcm_hw_constraint_list
-  snd_soc_dapm_disable_pin_unlocked
-  snd_soc_dapm_sync_unlocked
 
 # required by snd-soc-hdmi-codec.ko
   snd_ctl_add
@@ -2107,38 +2253,43 @@
   snd_pcm_fill_iec958_consumer
   snd_pcm_fill_iec958_consumer_hw_params
   snd_pcm_hw_constraint_eld
-  snd_soc_dapm_add_routes
 
 # required by snd-soc-rk817.ko
-  snd_soc_add_component_controls
   snd_soc_component_exit_regmap
   snd_soc_component_init_regmap
-  snd_soc_unregister_component
+
+# required by snd-soc-rockchip-hdmi.ko
+  snd_soc_dapm_new_widgets
+
+# required by snd-soc-rockchip-i2s-tdm.ko
+  clk_is_match
+  snd_soc_add_dai_controls
+
+# required by snd-soc-rockchip-multicodecs.ko
+  of_parse_phandle_with_fixed_args
+  round_jiffies_relative
+  snd_soc_jack_add_zones
+  snd_soc_jack_get_type
+
+# required by snd-soc-rt5640.ko
+  gpiod_set_raw_value_cansleep
+  regmap_register_patch
+  snd_soc_dapm_force_bias_level
+  system_long_wq
 
 # required by snd-soc-simple-card-utils.ko
   devm_kasprintf
   devm_kvasprintf
-  snd_soc_card_jack_new
-  snd_soc_dai_set_sysclk
   snd_soc_dai_set_tdm_slot
-  snd_soc_dapm_get_pin_switch
-  snd_soc_dapm_info_pin_switch
-  snd_soc_dapm_put_pin_switch
-  snd_soc_of_parse_audio_routing
   snd_soc_of_parse_audio_simple_widgets
-  snd_soc_of_parse_card_name
-  snd_soc_of_parse_daifmt
   snd_soc_runtime_calc_hw
 
 # required by snd-soc-simple-card.ko
-  devm_snd_soc_register_card
-  of_parse_phandle_with_args
   snd_soc_dai_link_set_capabilities
   snd_soc_of_get_dai_name
   snd_soc_of_parse_aux_devs
   snd_soc_of_parse_node_prefix
   snd_soc_of_parse_tdm_slot
-  snd_soc_pm_ops
 
 # required by spi-rockchip.ko
   devm_spi_register_controller
@@ -2218,6 +2369,53 @@
   typec_altmode_unregister_driver
   typec_altmode_vdm
   typec_get_negotiated_svdm_version
+
+# required by usblp.ko
+  add_wait_queue
+  default_wake_function
+  remove_wait_queue
+  stpcpy
+  usb_anchor_urb
+  usb_find_common_endpoints
+  usb_find_interface
+  usb_kill_anchored_urbs
+  usb_poison_anchored_urbs
+  usb_unanchor_urb
+
+# required by usbserial.ko
+  driver_attach
+  param_ops_ushort
+  put_tty_driver
+  schedule_timeout_interruptible
+  seq_putc
+  __tty_alloc_driver
+  tty_flip_buffer_push
+  tty_hangup
+  __tty_insert_flip_char
+  tty_insert_flip_string_fixed_flag
+  tty_kref_put
+  tty_ldisc_deref
+  tty_ldisc_ref
+  tty_port_close
+  tty_port_destroy
+  tty_port_hangup
+  tty_port_init
+  tty_port_open
+  tty_port_register_device
+  tty_port_tty_get
+  tty_port_tty_wakeup
+  tty_register_driver
+  tty_set_operations
+  tty_standard_install
+  tty_std_termios
+  tty_termios_copy_hw
+  tty_unregister_device
+  tty_unregister_driver
+  tty_vhangup
+  usb_kill_urb
+  usb_match_one_id
+  usb_show_dynids
+  usb_store_new_id
 
 # required by v4l2-fwnode.ko
   fwnode_device_is_available
