@@ -30,7 +30,7 @@
 #define S_PERIOD_T_LRA_X_8		6
 /* F_8KHZ to F_48KHZ periods can only be specified for FIFO based effects */
 #define S_PERIOD_F_8KHZ			8
-#define S_PERIOD_F_16HKZ		9
+#define S_PERIOD_F_16KHZ		9
 #define S_PERIOD_F_24KHZ		10
 #define S_PERIOD_F_32KHZ		11
 #define S_PERIOD_F_44P1KHZ		12
