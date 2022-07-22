@@ -1576,6 +1576,75 @@ TRACE_EVENT(nfs_commit_done,
 		)
 );
 
+#define nfs_show_direct_req_flags(v) \
+	__print_flags(v, "|", \
+			{ NFS_ODIRECT_DO_COMMIT, "DO_COMMIT" }, \
+			{ NFS_ODIRECT_RESCHED_WRITES, "RESCHED_WRITES" }, \
+			{ NFS_ODIRECT_SHOULD_DIRTY, "SHOULD DIRTY" }, \
+			{ NFS_ODIRECT_DONE, "DONE" } )
+
+DECLARE_EVENT_CLASS(nfs_direct_req_class,
+		TP_PROTO(
+			const struct nfs_direct_req *dreq
+		),
+
+		TP_ARGS(dreq),
+
+		TP_STRUCT__entry(
+			__field(const struct nfs_direct_req *, dreq)
+			__field(dev_t, dev)
+			__field(u64, fileid)
+			__field(u32, fhandle)
+			__field(int, ref)
+			__field(loff_t, io_start)
+			__field(ssize_t, count)
+			__field(ssize_t, bytes_left)
+			__field(ssize_t, error)
+			__field(int, flags)
+		),
+
+		TP_fast_assign(
+			const struct inode *inode = dreq->inode;
+			const struct nfs_inode *nfsi = NFS_I(inode);
+			const struct nfs_fh *fh = &nfsi->fh;
+
+			__entry->dreq = dreq;
+			__entry->dev = inode->i_sb->s_dev;
+			__entry->fileid = nfsi->fileid;
+			__entry->fhandle = nfs_fhandle_hash(fh);
+			__entry->ref = kref_read(&dreq->kref);
+			__entry->io_start = dreq->io_start;
+			__entry->count = dreq->count;
+			__entry->bytes_left = dreq->bytes_left;
+			__entry->error = dreq->error;
+			__entry->flags = dreq->flags;
+		),
+
+		TP_printk(
+			"dreq=%p fileid=%02x:%02x:%llu fhandle=0x%08x ref=%d "
+			"io_start=%lld count=%zd bytes_left=%zd error=%zd flags=%s",
+			__entry->dreq, MAJOR(__entry->dev), MINOR(__entry->dev),
+			(unsigned long long)__entry->fileid,
+			__entry->fhandle, __entry->ref,
+			__entry->io_start, __entry->count, __entry->bytes_left,
+			__entry->error, nfs_show_direct_req_flags(__entry->flags)
+		)
+);
+
+#define DEFINE_NFS_DIRECT_REQ_EVENT(name) \
+	DEFINE_EVENT(nfs_direct_req_class, name, \
+			TP_PROTO( \
+				const struct nfs_direct_req *dreq \
+			), \
+			TP_ARGS(dreq))
+
+DEFINE_NFS_DIRECT_REQ_EVENT(nfs_direct_commit_complete);
+DEFINE_NFS_DIRECT_REQ_EVENT(nfs_direct_resched_write);
+DEFINE_NFS_DIRECT_REQ_EVENT(nfs_direct_write_complete);
+DEFINE_NFS_DIRECT_REQ_EVENT(nfs_direct_write_completion);
+DEFINE_NFS_DIRECT_REQ_EVENT(nfs_direct_write_schedule_iovec);
+DEFINE_NFS_DIRECT_REQ_EVENT(nfs_direct_write_reschedule_io);
+
 TRACE_EVENT(nfs_fh_to_dentry,
 		TP_PROTO(
 			const struct super_block *sb,
