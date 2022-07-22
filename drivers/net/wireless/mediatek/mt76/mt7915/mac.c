@@ -232,7 +232,7 @@ mt7915_mac_fill_rx(struct mt7915_dev *dev, struct sk_buff *skb)
 	bool unicast, insert_ccmp_hdr = false;
 	u8 remove_pad, amsdu_info;
 	u8 mode = 0, qos_ctl = 0;
-	struct mt7915_sta *msta;
+	struct mt7915_sta *msta = NULL;
 	bool hdr_trans;
 	u16 hdr_gap;
 	u16 seq_ctrl = 0;
