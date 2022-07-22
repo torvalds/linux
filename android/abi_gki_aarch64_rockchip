@@ -136,7 +136,16 @@
   cpus_read_unlock
   crc16
   crc32_le
+  crypto_aead_decrypt
+  crypto_aead_encrypt
+  crypto_aead_setauthsize
+  crypto_aead_setkey
+  crypto_ahash_setkey
+  crypto_alloc_aead
+  crypto_alloc_ahash
   crypto_alloc_shash
+  crypto_alloc_skcipher
+  crypto_cipher_encrypt_one
   crypto_destroy_tfm
   crypto_inc
   __crypto_memneq
@@ -144,11 +153,16 @@
   crypto_register_alg
   crypto_register_scomp
   crypto_register_shash
+  crypto_register_template
   crypto_shash_update
+  crypto_skcipher_decrypt
+  crypto_skcipher_encrypt
+  crypto_skcipher_setkey
   crypto_unregister_aead
   crypto_unregister_alg
   crypto_unregister_scomp
   crypto_unregister_shash
+  crypto_unregister_template
   __crypto_xor
   debugfs_attr_read
   debugfs_attr_write
@@ -456,6 +470,7 @@
   find_next_zero_bit
   find_vma
   finish_wait
+  flush_dcache_page
   flush_delayed_work
   flush_work
   flush_workqueue
@@ -703,6 +718,7 @@
   mutex_is_locked
   mutex_lock
   mutex_lock_interruptible
+  mutex_trylock
   mutex_unlock
   __netdev_alloc_skb
   netdev_err
@@ -977,7 +993,9 @@
   sg_alloc_table
   sg_alloc_table_from_pages
   sg_free_table
+  sg_init_one
   sg_init_table
+  sg_nents
   sg_next
   __sg_page_iter_next
   __sg_page_iter_start
@@ -994,9 +1012,12 @@
   skb_push
   skb_put
   skb_trim
+  skcipher_alloc_instance_simple
+  skcipher_register_instance
   skcipher_walk_aead_decrypt
   skcipher_walk_aead_encrypt
   skcipher_walk_done
+  skcipher_walk_virt
   snd_pcm_format_width
   snd_soc_add_component_controls
   snd_soc_card_jack_new
@@ -1522,6 +1543,17 @@
   devm_blk_ksm_init
   mmc_cqe_request_done
 
+# required by cryptodev.ko
+  __close_fd
+  crypto_ahash_final
+  crypto_alloc_akcipher
+  get_user_pages_remote
+  krealloc
+  proc_dointvec
+  register_sysctl_table
+  sg_last
+  unregister_sysctl_table
+
 # required by display-connector.ko
   drm_atomic_get_new_bridge_state
   drm_probe_ddc
@@ -1686,9 +1718,6 @@
 # required by i2c-rk3x.ko
   i2c_parse_fw_timings
 
-# required by iep.ko
-  mutex_trylock
-
 # required by industrialio-buffer-cb.ko
   bitmap_free
   bitmap_zalloc
@@ -1731,18 +1760,9 @@
   arc4_setkey
   call_rcu
   crc32_be
-  crypto_aead_decrypt
-  crypto_aead_encrypt
-  crypto_aead_setauthsize
-  crypto_aead_setkey
-  crypto_alloc_aead
-  crypto_alloc_skcipher
   crypto_shash_digest
   crypto_shash_finup
   crypto_shash_setkey
-  crypto_skcipher_decrypt
-  crypto_skcipher_encrypt
-  crypto_skcipher_setkey
   dev_alloc_name
   dev_fetch_sw_netstats
   dev_queue_xmit
@@ -1783,7 +1803,6 @@
   rht_bucket_nested_insert
   round_jiffies
   round_jiffies_up
-  sg_init_one
   skb_checksum_help
   skb_clone_sk
   skb_complete_wifi_ack
@@ -2106,6 +2125,28 @@
 
 # required by rk860x-regulator.ko
   regulator_suspend_enable
+
+# required by rk_crypto.ko
+  crypto_ahash_digest
+  crypto_dequeue_request
+  crypto_enqueue_request
+  crypto_init_queue
+  crypto_register_ahash
+  crypto_register_akcipher
+  crypto_register_skcipher
+  crypto_req_done
+  crypto_unregister_ahash
+  crypto_unregister_akcipher
+  crypto_unregister_skcipher
+  des_expand_key
+  rsa_parse_priv_key
+  rsa_parse_pub_key
+  scatterwalk_ffwd
+  sg_copy_from_buffer
+  sg_copy_to_buffer
+  sg_nents_for_len
+  sg_pcopy_from_buffer
+  sg_pcopy_to_buffer
 
 # required by rk_headset_irq_hook_adc.ko
   iio_read_channel_raw
@@ -2693,7 +2734,6 @@
   crypto_has_alg
   disk_end_io_acct
   disk_start_io_acct
-  flush_dcache_page
   fsync_bdev
   kstrtou16
   memparse
