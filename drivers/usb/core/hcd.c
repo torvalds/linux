@@ -3033,8 +3033,14 @@ EXPORT_SYMBOL_GPL(usb_add_hcd);
  */
 void usb_remove_hcd(struct usb_hcd *hcd)
 {
-	struct usb_device *rhdev = hcd->self.root_hub;
+	struct usb_device *rhdev;
 	bool rh_registered;
+
+	if (!hcd) {
+		pr_debug("%s: hcd is NULL\n", __func__);
+		return;
+	}
+	rhdev = hcd->self.root_hub;
 
 	dev_info(hcd->self.controller, "remove, state %x\n", hcd->state);
 
