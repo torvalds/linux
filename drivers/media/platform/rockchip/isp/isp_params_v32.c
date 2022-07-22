@@ -4692,7 +4692,7 @@ rkisp_params_isr_v32(struct rkisp_isp_params_vdev *params_vdev,
 	struct rkisp_device *dev = params_vdev->dev;
 	u32 cur_frame_id;
 
-	if (params_vdev->is_first_cfg) {
+	if (params_vdev->is_first_cfg && (isp_mis & CIF_ISP_FRAME)) {
 		rkisp_params_first_cfg(params_vdev, &dev->isp_sdev.in_fmt,
 				       dev->isp_sdev.quantization);
 		rkisp_set_bits(dev, ISP3X_ISP_CTRL0, 0, CIF_ISP_CTRL_ISP_CFG_UPD, true);
