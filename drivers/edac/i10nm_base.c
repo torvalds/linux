@@ -79,18 +79,20 @@ static bool mem_cfg_2lm;
 
 static u32 offsets_scrub_icx[]  = {0x22c60, 0x22c54, 0x22c5c, 0x22c58, 0x22c28, 0x20ed8};
 static u32 offsets_scrub_spr[]  = {0x22c60, 0x22c54, 0x22f08, 0x22c58, 0x22c28, 0x20ed8};
+static u32 offsets_scrub_spr_hbm0[]  = {0x2860, 0x2854, 0x2b08, 0x2858, 0x2828, 0x0ed8};
+static u32 offsets_scrub_spr_hbm1[]  = {0x2c60, 0x2c54, 0x2f08, 0x2c58, 0x2c28, 0x0fa8};
 static u32 offsets_demand_icx[] = {0x22e54, 0x22e60, 0x22e64, 0x22e58, 0x22e5c, 0x20ee0};
 static u32 offsets_demand_spr[] = {0x22e54, 0x22e60, 0x22f10, 0x22e58, 0x22e5c, 0x20ee0};
+static u32 offsets_demand_spr_hbm0[] = {0x2a54, 0x2a60, 0x2b10, 0x2a58, 0x2a5c, 0x0ee0};
+static u32 offsets_demand_spr_hbm1[] = {0x2e54, 0x2e60, 0x2f10, 0x2e58, 0x2e5c, 0x0fb0};
 
-static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable)
+static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable,
+				      u32 *offsets_scrub, u32 *offsets_demand)
 {
 	u32 s, d;
 
-	if (!imc->mbase)
-		return;
-
-	s = I10NM_GET_REG32(imc, chan, res_cfg->offsets_scrub[0]);
-	d = I10NM_GET_REG32(imc, chan, res_cfg->offsets_demand[0]);
+	s = I10NM_GET_REG32(imc, chan, offsets_scrub[0]);
+	d = I10NM_GET_REG32(imc, chan, offsets_demand[0]);
 
 	if (enable) {
 		/* Save default configurations */
@@ -117,21 +119,39 @@ static void __enable_retry_rd_err_log(struct skx_imc *imc, int chan, bool enable
 			d &= ~RETRY_RD_ERR_LOG_EN;
 	}
 
-	I10NM_SET_REG32(imc, chan, res_cfg->offsets_scrub[0], s);
-	I10NM_SET_REG32(imc, chan, res_cfg->offsets_demand[0], d);
+	I10NM_SET_REG32(imc, chan, offsets_scrub[0], s);
+	I10NM_SET_REG32(imc, chan, offsets_demand[0], d);
 }
 
 static void enable_retry_rd_err_log(bool enable)
 {
+	struct skx_imc *imc;
 	struct skx_dev *d;
 	int i, j;
 
 	edac_dbg(2, "\n");
 
 	list_for_each_entry(d, i10nm_edac_list, list)
-		for (i = 0; i < I10NM_NUM_IMC; i++)
-			for (j = 0; j < I10NM_NUM_CHANNELS; j++)
-				__enable_retry_rd_err_log(&d->imc[i], j, enable);
+		for (i = 0; i < I10NM_NUM_IMC; i++) {
+			imc = &d->imc[i];
+			if (!imc->mbase)
+				continue;
+
+			for (j = 0; j < I10NM_NUM_CHANNELS; j++) {
+				if (imc->hbm_mc) {
+					__enable_retry_rd_err_log(imc, j, enable,
+								  res_cfg->offsets_scrub_hbm0,
+								  res_cfg->offsets_demand_hbm0);
+					__enable_retry_rd_err_log(imc, j, enable,
+								  res_cfg->offsets_scrub_hbm1,
+								  res_cfg->offsets_demand_hbm1);
+				} else {
+					__enable_retry_rd_err_log(imc, j, enable,
+								  res_cfg->offsets_scrub,
+								  res_cfg->offsets_demand);
+				}
+			}
+	}
 }
 
 static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
@@ -142,12 +162,24 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 	u32 corr0, corr1, corr2, corr3;
 	u64 log2a, log5;
 	u32 *offsets;
-	int n;
+	int n, pch;
 
 	if (!imc->mbase)
 		return;
 
-	offsets = scrub_err ? res_cfg->offsets_scrub : res_cfg->offsets_demand;
+	if (imc->hbm_mc) {
+		pch = res->cs & 1;
+
+		if (pch)
+			offsets = scrub_err ? res_cfg->offsets_scrub_hbm1 :
+					      res_cfg->offsets_demand_hbm1;
+		else
+			offsets = scrub_err ? res_cfg->offsets_scrub_hbm0 :
+					      res_cfg->offsets_demand_hbm0;
+	} else {
+		offsets = scrub_err ? res_cfg->offsets_scrub :
+				      res_cfg->offsets_demand;
+	}
 
 	log0 = I10NM_GET_REG32(imc, res->channel, offsets[0]);
 	log1 = I10NM_GET_REG32(imc, res->channel, offsets[1]);
@@ -165,10 +197,24 @@ static void show_retry_rd_err_log(struct decoded_addr *res, char *msg,
 			     log0, log1, log2, log3, log4, log5);
 	}
 
-	corr0 = I10NM_GET_REG32(imc, res->channel, 0x22c18);
-	corr1 = I10NM_GET_REG32(imc, res->channel, 0x22c1c);
-	corr2 = I10NM_GET_REG32(imc, res->channel, 0x22c20);
-	corr3 = I10NM_GET_REG32(imc, res->channel, 0x22c24);
+	if (imc->hbm_mc) {
+		if (pch) {
+			corr0 = I10NM_GET_REG32(imc, res->channel, 0x2c18);
+			corr1 = I10NM_GET_REG32(imc, res->channel, 0x2c1c);
+			corr2 = I10NM_GET_REG32(imc, res->channel, 0x2c20);
+			corr3 = I10NM_GET_REG32(imc, res->channel, 0x2c24);
+		} else {
+			corr0 = I10NM_GET_REG32(imc, res->channel, 0x2818);
+			corr1 = I10NM_GET_REG32(imc, res->channel, 0x281c);
+			corr2 = I10NM_GET_REG32(imc, res->channel, 0x2820);
+			corr3 = I10NM_GET_REG32(imc, res->channel, 0x2824);
+		}
+	} else {
+		corr0 = I10NM_GET_REG32(imc, res->channel, 0x22c18);
+		corr1 = I10NM_GET_REG32(imc, res->channel, 0x22c1c);
+		corr2 = I10NM_GET_REG32(imc, res->channel, 0x22c20);
+		corr3 = I10NM_GET_REG32(imc, res->channel, 0x22c24);
+	}
 
 	if (len - n > 0)
 		snprintf(msg + n, len - n,
@@ -519,7 +565,11 @@ static struct res_config spr_cfg = {
 	.sad_all_devfn		= PCI_DEVFN(10, 0),
 	.sad_all_offset		= 0x300,
 	.offsets_scrub		= offsets_scrub_spr,
+	.offsets_scrub_hbm0	= offsets_scrub_spr_hbm0,
+	.offsets_scrub_hbm1	= offsets_scrub_spr_hbm1,
 	.offsets_demand		= offsets_demand_spr,
+	.offsets_demand_hbm0	= offsets_demand_spr_hbm0,
+	.offsets_demand_hbm1	= offsets_demand_spr_hbm1,
 };
 
 static const struct x86_cpu_id i10nm_cpuids[] = {

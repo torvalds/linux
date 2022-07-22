@@ -164,7 +164,11 @@ struct res_config {
 	int sad_all_offset;
 	/* Offsets of retry_rd_err_log registers */
 	u32 *offsets_scrub;
+	u32 *offsets_scrub_hbm0;
+	u32 *offsets_scrub_hbm1;
 	u32 *offsets_demand;
+	u32 *offsets_demand_hbm0;
+	u32 *offsets_demand_hbm1;
 };
 
 typedef int (*get_dimm_config_f)(struct mem_ctl_info *mci,
