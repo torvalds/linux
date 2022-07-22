@@ -112,6 +112,10 @@ static int entry_dwc3_gadget_pullup(struct kretprobe_instance *ri,
 	dwc3_msm_notify_event(data->dwc, DWC3_CONTROLLER_PULLUP_ENTER,
 				data->xi0);
 
+	/* Only write PID to IMEM if pullup is being enabled */
+	if (data->xi0)
+		dwc3_msm_notify_event(data->dwc, DWC3_IMEM_UPDATE_PID, 0);
+
 	return 0;
 }
 
