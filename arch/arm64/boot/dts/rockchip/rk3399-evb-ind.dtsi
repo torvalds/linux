@@ -429,7 +429,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&rgmii_pins>;
 	tx_delay = <0x22>;
-	rx_delay = <0x08>;
+	rx_delay = <0x23>;
 	status = "okay";
 };
 
