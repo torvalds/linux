@@ -1678,6 +1678,65 @@ TRACE_EVENT(nfs_fh_to_dentry,
 		)
 );
 
+TRACE_EVENT(nfs_mount_assign,
+	TP_PROTO(
+		const char *option,
+		const char *value
+	),
+
+	TP_ARGS(option, value),
+
+	TP_STRUCT__entry(
+		__string(option, option)
+		__string(value, value)
+	),
+
+	TP_fast_assign(
+		__assign_str(option, option);
+		__assign_str(value, value);
+	),
+
+	TP_printk("option %s=%s",
+		__get_str(option), __get_str(value)
+	)
+);
+
+TRACE_EVENT(nfs_mount_option,
+	TP_PROTO(
+		const struct fs_parameter *param
+	),
+
+	TP_ARGS(param),
+
+	TP_STRUCT__entry(
+		__string(option, param->key)
+	),
+
+	TP_fast_assign(
+		__assign_str(option, param->key);
+	),
+
+	TP_printk("option %s", __get_str(option))
+);
+
+TRACE_EVENT(nfs_mount_path,
+	TP_PROTO(
+		const char *path
+	),
+
+	TP_ARGS(path),
+
+	TP_STRUCT__entry(
+		__string(path, path)
+	),
+
+	TP_fast_assign(
+		__assign_str(path, path);
+	),
+
+	TP_printk("path='%s'", __get_str(path))
+);
+
 DECLARE_EVENT_CLASS(nfs_xdr_event,
 		TP_PROTO(
 			const struct xdr_stream *xdr,
