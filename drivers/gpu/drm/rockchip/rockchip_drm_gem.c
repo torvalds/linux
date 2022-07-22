@@ -1005,7 +1005,7 @@ static int rockchip_gem_prime_sgl_sync_range(struct device *dev,
 		if (len <= offset)
 			continue;
 
-		sg_dma_addr = sg_dma_address(sg);
+		sg_dma_addr = sg_phys(sg);
 		sg_left = len - offset;
 		sg_offset = sg->length - sg_left;
 
