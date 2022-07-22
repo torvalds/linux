@@ -2129,6 +2129,52 @@ fail:
 	return rc;
 }
 
+/* Failure to read a privilege mask is never fatal, because we can always
+ * carry on as though we didn't have the privilege we were interested in.
+ * So use efx_mcdi_rpc_quiet().
+ */
+int efx_mcdi_get_privilege_mask(struct efx_nic *efx, u32 *mask)
+{
+	MCDI_DECLARE_BUF(fi_outbuf, MC_CMD_GET_FUNCTION_INFO_OUT_LEN);
+	MCDI_DECLARE_BUF(pm_inbuf, MC_CMD_PRIVILEGE_MASK_IN_LEN);
+	MCDI_DECLARE_BUF(pm_outbuf, MC_CMD_PRIVILEGE_MASK_OUT_LEN);
+	size_t outlen;
+	u16 pf, vf;
+	int rc;
+
+	if (!efx || !mask)
+		return -EINVAL;
+
+	/* Get our function number */
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_GET_FUNCTION_INFO, NULL, 0,
+				fi_outbuf, MC_CMD_GET_FUNCTION_INFO_OUT_LEN,
+				&outlen);
+	if (rc != 0)
+		return rc;
+	if (outlen < MC_CMD_GET_FUNCTION_INFO_OUT_LEN)
+		return -EIO;
+
+	pf = MCDI_DWORD(fi_outbuf, GET_FUNCTION_INFO_OUT_PF);
+	vf = MCDI_DWORD(fi_outbuf, GET_FUNCTION_INFO_OUT_VF);
+
+	MCDI_POPULATE_DWORD_2(pm_inbuf, PRIVILEGE_MASK_IN_FUNCTION,
+			      PRIVILEGE_MASK_IN_FUNCTION_PF, pf,
+			      PRIVILEGE_MASK_IN_FUNCTION_VF, vf);
+
+	rc = efx_mcdi_rpc_quiet(efx, MC_CMD_PRIVILEGE_MASK,
+				pm_inbuf, sizeof(pm_inbuf),
+				pm_outbuf, sizeof(pm_outbuf), &outlen);
+
+	if (rc != 0)
+		return rc;
+	if (outlen < MC_CMD_PRIVILEGE_MASK_OUT_LEN)
+		return -EIO;
+
+	*mask = MCDI_DWORD(pm_outbuf, PRIVILEGE_MASK_OUT_OLD_MASK);
+
+	return 0;
+}
+
 #ifdef CONFIG_SFC_MTD
 
 #define EFX_MCDI_NVRAM_LEN_MAX 128

@@ -111,4 +111,7 @@ int efx_get_phys_port_id(struct net_device *net_dev,
 
 int efx_get_phys_port_name(struct net_device *net_dev,
 			   char *name, size_t len);
+
+void efx_detach_reps(struct efx_nic *efx);
+void efx_attach_reps(struct efx_nic *efx);
 #endif

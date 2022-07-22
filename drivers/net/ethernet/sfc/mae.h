@@ -8,7 +8,15 @@
  * under the terms of the GNU General Public License version 2 as published
  * by the Free Software Foundation, incorporated herein by reference.
  */
+
+#ifndef EF100_MAE_H
+#define EF100_MAE_H
+/* MCDI interface for the ef100 Match-Action Engine */
+
 #include "net_driver.h"
 
-int efx_ef100_sriov_configure(struct efx_nic *efx, int num_vfs);
-int efx_ef100_pci_sriov_disable(struct efx_nic *efx, bool force);
+void efx_mae_mport_vf(struct efx_nic *efx, u32 vf_id, u32 *out);
+
+int efx_mae_lookup_mport(struct efx_nic *efx, u32 selector, u32 *id);
+
+#endif /* EF100_MAE_H */

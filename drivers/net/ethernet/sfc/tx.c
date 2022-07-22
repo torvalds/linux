@@ -559,6 +559,7 @@ netdev_tx_t efx_hard_start_xmit(struct sk_buff *skb,
 void efx_xmit_done_single(struct efx_tx_queue *tx_queue)
 {
 	unsigned int pkts_compl = 0, bytes_compl = 0;
+	unsigned int efv_pkts_compl = 0;
 	unsigned int read_ptr;
 	bool finished = false;
 
@@ -580,7 +581,8 @@ void efx_xmit_done_single(struct efx_tx_queue *tx_queue)
 		/* Need to check the flag before dequeueing. */
 		if (buffer->flags & EFX_TX_BUF_SKB)
 			finished = true;
-		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl);
+		efx_dequeue_buffer(tx_queue, buffer, &pkts_compl, &bytes_compl,
+				   &efv_pkts_compl);
 
 		++tx_queue->read_count;
 		read_ptr = tx_queue->read_count & tx_queue->ptr_mask;
@@ -589,7 +591,7 @@ void efx_xmit_done_single(struct efx_tx_queue *tx_queue)
 	tx_queue->pkts_compl += pkts_compl;
 	tx_queue->bytes_compl += bytes_compl;
 
-	EFX_WARN_ON_PARANOID(pkts_compl != 1);
+	EFX_WARN_ON_PARANOID(pkts_compl + efv_pkts_compl != 1);
 
 	efx_xmit_done_check_empty(tx_queue);
 }

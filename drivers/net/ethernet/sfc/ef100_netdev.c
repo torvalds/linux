@@ -85,6 +85,7 @@ static int ef100_net_stop(struct net_device *net_dev)
 	netif_dbg(efx, ifdown, efx->net_dev, "closing on CPU %d\n",
 		  raw_smp_processor_id());
 
+	efx_detach_reps(efx);
 	netif_stop_queue(net_dev);
 	efx_stop_all(efx);
 	efx_mcdi_mac_fini_stats(efx);
@@ -176,6 +177,8 @@ static int ef100_net_open(struct net_device *net_dev)
 	mutex_unlock(&efx->mac_lock);
 
 	efx->state = STATE_NET_UP;
+	if (netif_running(efx->net_dev))
+		efx_attach_reps(efx);
 
 	return 0;
 
@@ -195,6 +198,15 @@ static netdev_tx_t ef100_hard_start_xmit(struct sk_buff *skb,
 					 struct net_device *net_dev)
 {
 	struct efx_nic *efx = efx_netdev_priv(net_dev);
+
+	return __ef100_hard_start_xmit(skb, efx, net_dev, NULL);
+}
+
+netdev_tx_t __ef100_hard_start_xmit(struct sk_buff *skb,
+				    struct efx_nic *efx,
+				    struct net_device *net_dev,
+				    struct efx_rep *efv)
+{
 	struct efx_tx_queue *tx_queue;
 	struct efx_channel *channel;
 	int rc;
@@ -209,7 +221,7 @@ static netdev_tx_t ef100_hard_start_xmit(struct sk_buff *skb,
 	}
 
 	tx_queue = &channel->tx_queue[0];
-	rc = ef100_enqueue_skb(tx_queue, skb);
+	rc = __ef100_enqueue_skb(tx_queue, skb, efv);
 	if (rc == 0)
 		return NETDEV_TX_OK;
 
@@ -312,7 +324,7 @@ void ef100_remove_netdev(struct efx_probe_data *probe_data)
 	unregister_netdevice_notifier(&efx->netdev_notifier);
 #if defined(CONFIG_SFC_SRIOV)
 	if (!efx->type->is_vf)
-		efx_ef100_pci_sriov_disable(efx);
+		efx_ef100_pci_sriov_disable(efx, true);
 #endif
 
 	ef100_unregister_netdev(efx);
