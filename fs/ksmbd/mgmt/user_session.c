@@ -152,8 +152,6 @@ void ksmbd_session_destroy(struct ksmbd_session *sess)
 	if (!atomic_dec_and_test(&sess->refcnt))
 		return;
 
-	list_del(&sess->sessions_entry);
-
 	down_write(&sessions_table_lock);
 	hash_del(&sess->hlist);
 	up_write(&sessions_table_lock);
@@ -181,42 +179,28 @@ static struct ksmbd_session *__session_lookup(unsigned long long id)
 	return NULL;
 }
 
-void ksmbd_session_register(struct ksmbd_conn *conn,
-			    struct ksmbd_session *sess)
+int ksmbd_session_register(struct ksmbd_conn *conn,
+			   struct ksmbd_session *sess)
 {
 	sess->conn = conn;
-	list_add(&sess->sessions_entry, &conn->sessions);
+	return xa_err(xa_store(&conn->sessions, sess->id, sess, GFP_KERNEL));
 }
 
 void ksmbd_sessions_deregister(struct ksmbd_conn *conn)
 {
 	struct ksmbd_session *sess;
+	unsigned long id;
 
-	while (!list_empty(&conn->sessions)) {
-		sess = list_entry(conn->sessions.next,
-				  struct ksmbd_session,
-				  sessions_entry);
-
+	xa_for_each(&conn->sessions, id, sess) {
+		xa_erase(&conn->sessions, sess->id);
 		ksmbd_session_destroy(sess);
 	}
-}
-
-static bool ksmbd_session_id_match(struct ksmbd_session *sess,
-				   unsigned long long id)
-{
-	return sess->id == id;
 }
 
 struct ksmbd_session *ksmbd_session_lookup(struct ksmbd_conn *conn,
 					   unsigned long long id)
 {
-	struct ksmbd_session *sess = NULL;
-
-	list_for_each_entry(sess, &conn->sessions, sessions_entry) {
-		if (ksmbd_session_id_match(sess, id))
-			return sess;
-	}
-	return NULL;
+	return xa_load(&conn->sessions, id);
 }
 
 int get_session(struct ksmbd_session *sess)
@@ -314,7 +298,6 @@ static struct ksmbd_session *__session_create(int protocol)
 		goto error;
 
 	set_session_flag(sess, protocol);
-	INIT_LIST_HEAD(&sess->sessions_entry);
 	xa_init(&sess->tree_conns);
 	INIT_LIST_HEAD(&sess->ksmbd_chann_list);
 	INIT_LIST_HEAD(&sess->rpc_handle_list);

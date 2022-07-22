@@ -57,7 +57,6 @@ struct ksmbd_session {
 	__u8				smb3decryptionkey[SMB3_ENC_DEC_KEY_SIZE];
 	__u8				smb3signingkey[SMB3_SIGN_KEY_SIZE];
 
-	struct list_head		sessions_entry;
 	struct ksmbd_file_table		file_table;
 	atomic_t			refcnt;
 };
@@ -84,8 +83,8 @@ void ksmbd_session_destroy(struct ksmbd_session *sess);
 struct ksmbd_session *ksmbd_session_lookup_slowpath(unsigned long long id);
 struct ksmbd_session *ksmbd_session_lookup(struct ksmbd_conn *conn,
 					   unsigned long long id);
-void ksmbd_session_register(struct ksmbd_conn *conn,
-			    struct ksmbd_session *sess);
+int ksmbd_session_register(struct ksmbd_conn *conn,
+			   struct ksmbd_session *sess);
 void ksmbd_sessions_deregister(struct ksmbd_conn *conn);
 struct ksmbd_session *ksmbd_session_lookup_all(struct ksmbd_conn *conn,
 					       unsigned long long id);

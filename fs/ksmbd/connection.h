@@ -55,7 +55,7 @@ struct ksmbd_conn {
 	struct nls_table		*local_nls;
 	struct list_head		conns_list;
 	/* smb session 1 per user */
-	struct list_head		sessions;
+	struct xarray			sessions;
 	unsigned long			last_active;
 	/* How many request are running currently */
 	atomic_t			req_running;

@@ -588,7 +588,8 @@ int smb2_check_user_session(struct ksmbd_work *work)
 	return -EINVAL;
 }
 
-static void destroy_previous_session(struct ksmbd_user *user, u64 id)
+static void destroy_previous_session(struct ksmbd_conn *conn,
+				     struct ksmbd_user *user, u64 id)
 {
 	struct ksmbd_session *prev_sess = ksmbd_session_lookup_slowpath(id);
 	struct ksmbd_user *prev_user;
@@ -607,6 +608,7 @@ static void destroy_previous_session(struct ksmbd_user *user, u64 id)
 	}
 
 	put_session(prev_sess);
+	xa_erase(&conn->sessions, prev_sess->id);
 	ksmbd_session_destroy(prev_sess);
 }
 
@@ -1439,7 +1441,7 @@ static int ntlm_authenticate(struct ksmbd_work *work)
 	/* Check for previous session */
 	prev_id = le64_to_cpu(req->PreviousSessionId);
 	if (prev_id && prev_id != sess->id)
-		destroy_previous_session(user, prev_id);
+		destroy_previous_session(conn, user, prev_id);
 
 	if (sess->state == SMB2_SESSION_VALID) {
 		/*
@@ -1561,7 +1563,7 @@ static int krb5_authenticate(struct ksmbd_work *work)
 	/* Check previous session */
 	prev_sess_id = le64_to_cpu(req->PreviousSessionId);
 	if (prev_sess_id && prev_sess_id != sess->id)
-		destroy_previous_session(sess->user, prev_sess_id);
+		destroy_previous_session(conn, sess->user, prev_sess_id);
 
 	if (sess->state == SMB2_SESSION_VALID)
 		ksmbd_free_user(sess->user);
@@ -1650,7 +1652,9 @@ int smb2_sess_setup(struct ksmbd_work *work)
 			goto out_err;
 		}
 		rsp->hdr.SessionId = cpu_to_le64(sess->id);
-		ksmbd_session_register(conn, sess);
+		rc = ksmbd_session_register(conn, sess);
+		if (rc)
+			goto out_err;
 	} else if (conn->dialect >= SMB30_PROT_ID &&
 		   (server_conf.flags & KSMBD_GLOBAL_FLAG_SMB3_MULTICHANNEL) &&
 		   req->Flags & SMB2_SESSION_REQ_FLAG_BINDING) {
@@ -1828,6 +1832,7 @@ out_err:
 			if (sess->user && sess->user->flags & KSMBD_USER_FLAG_DELAY_SESSION)
 				try_delay = true;
 
+			xa_erase(&conn->sessions, sess->id);
 			ksmbd_session_destroy(sess);
 			work->sess = NULL;
 			if (try_delay)
