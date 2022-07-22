@@ -44,23 +44,20 @@ ap_ts_pen_1v8: &i2c4 {
 	compatible = "auo,b116xa01";
 };
 
-&pp3300_hub {
-	/* pp3300_l7c is used to power the USB hub */
-	/delete-property/regulator-always-on;
-	/delete-property/regulator-boot-on;
-};
-
-&pp3300_l7c {
-	regulator-always-on;
-	regulator-boot-on;
-};
-
 &sdhc_2 {
 	status = "okay";
 };
 
 &trackpad {
 	interrupts = <58 IRQ_TYPE_EDGE_FALLING>;
+};
+
+&usb_hub_2_x {
+	 vdd-supply = <&pp3300_l7c>;
+};
+
+&usb_hub_3_x {
+	 vdd-supply = <&pp3300_l7c>;
 };
 
 /* PINCTRL - modifications to sc7180-trogdor.dtsi */
