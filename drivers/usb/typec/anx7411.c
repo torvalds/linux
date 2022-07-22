@@ -1421,12 +1421,12 @@ static int anx7411_psy_register(struct anx7411_data *ctx)
 	psy_desc->type = POWER_SUPPLY_TYPE_USB;
 	psy_desc->usb_types = anx7411_psy_usb_types;
 	psy_desc->num_usb_types = ARRAY_SIZE(anx7411_psy_usb_types);
-	psy_desc->properties = anx7411_psy_props,
-	psy_desc->num_properties = ARRAY_SIZE(anx7411_psy_props),
+	psy_desc->properties = anx7411_psy_props;
+	psy_desc->num_properties = ARRAY_SIZE(anx7411_psy_props);
 
-	psy_desc->get_property = anx7411_psy_get_prop,
-	psy_desc->set_property = anx7411_psy_set_prop,
-	psy_desc->property_is_writeable = anx7411_psy_prop_writeable,
+	psy_desc->get_property = anx7411_psy_get_prop;
+	psy_desc->set_property = anx7411_psy_set_prop;
+	psy_desc->property_is_writeable = anx7411_psy_prop_writeable;
 
 	ctx->usb_type = POWER_SUPPLY_USB_TYPE_C;
 	ctx->psy = devm_power_supply_register(ctx->dev, psy_desc, &psy_cfg);
