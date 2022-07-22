@@ -1383,9 +1383,9 @@ bool dcn32_internal_validate_bw(struct dc *dc,
 	}
 
 	if (fast_validate ||
-			dc->debug.dml_disallow_alternate_prefetch_modes &&
+			(dc->debug.dml_disallow_alternate_prefetch_modes &&
 			(vlevel == context->bw_ctx.dml.soc.num_states ||
-				vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported)) {
+				vba->DRAMClockChangeSupport[vlevel][vba->maxMpcComb] == dm_dram_clock_change_unsupported))) {
 		/*
 		 * If dml_disallow_alternate_prefetch_modes is false, then we have already
 		 * tried alternate prefetch modes during full validation.
