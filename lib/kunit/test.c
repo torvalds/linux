@@ -713,12 +713,18 @@ void *kunit_kmalloc_array(struct kunit *test, size_t n, size_t size, gfp_t gfp)
 }
 EXPORT_SYMBOL_GPL(kunit_kmalloc_array);
 
+static inline bool kunit_kfree_match(struct kunit *test,
+				     struct kunit_resource *res, void *match_data)
+{
+	/* Only match resources allocated with kunit_kmalloc() and friends. */
+	return res->free == kunit_kmalloc_array_free && res->data == match_data;
+}
+
 void kunit_kfree(struct kunit *test, const void *ptr)
 {
 	struct kunit_resource *res;
 
-	res = kunit_find_resource(test, kunit_resource_instance_match,
-				  (void *)ptr);
+	res = kunit_find_resource(test, kunit_kfree_match, (void *)ptr);
 
 	/*
 	 * Removing the resource from the list of resources drops the
