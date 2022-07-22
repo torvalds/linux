@@ -50,6 +50,19 @@ static inline struct cxl_memdev *to_cxl_memdev(struct device *dev)
 	return container_of(dev, struct cxl_memdev, dev);
 }
 
+static inline struct cxl_port *cxled_to_port(struct cxl_endpoint_decoder *cxled)
+{
+	return to_cxl_port(cxled->cxld.dev.parent);
+}
+
+static inline struct cxl_memdev *
+cxled_to_memdev(struct cxl_endpoint_decoder *cxled)
+{
+	struct cxl_port *port = to_cxl_port(cxled->cxld.dev.parent);
+
+	return to_cxl_memdev(port->uport);
+}
+
 bool is_cxl_memdev(struct device *dev);
 static inline bool is_cxl_endpoint(struct cxl_port *port)
 {
