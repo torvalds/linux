@@ -722,18 +722,8 @@ static inline bool kunit_kfree_match(struct kunit *test,
 
 void kunit_kfree(struct kunit *test, const void *ptr)
 {
-	struct kunit_resource *res;
-
-	res = kunit_find_resource(test, kunit_kfree_match, (void *)ptr);
-
-	/*
-	 * Removing the resource from the list of resources drops the
-	 * reference count to 1; the final put will trigger the free.
-	 */
-	kunit_remove_resource(test, res);
-
-	kunit_put_resource(res);
-
+	if (kunit_destroy_resource(test, kunit_kfree_match, (void *)ptr))
+		KUNIT_FAIL(test, "kunit_kfree: %px already freed or not allocated by kunit", ptr);
 }
 EXPORT_SYMBOL_GPL(kunit_kfree);
 
