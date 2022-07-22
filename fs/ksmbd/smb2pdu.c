@@ -593,6 +593,7 @@ static void destroy_previous_session(struct ksmbd_conn *conn,
 {
 	struct ksmbd_session *prev_sess = ksmbd_session_lookup_slowpath(id);
 	struct ksmbd_user *prev_user;
+	struct channel *chann;
 
 	if (!prev_sess)
 		return;
@@ -608,8 +609,11 @@ static void destroy_previous_session(struct ksmbd_conn *conn,
 	}
 
 	put_session(prev_sess);
-	xa_erase(&conn->sessions, prev_sess->id);
-	ksmbd_session_destroy(prev_sess);
+	prev_sess->state = SMB2_SESSION_EXPIRED;
+	write_lock(&prev_sess->chann_lock);
+	list_for_each_entry(chann, &prev_sess->ksmbd_chann_list, chann_list)
+		chann->conn->status = KSMBD_SESS_EXITING;
+	write_unlock(&prev_sess->chann_lock);
 }
 
 /**
