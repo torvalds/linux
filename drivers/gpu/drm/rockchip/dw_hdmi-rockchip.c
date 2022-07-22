@@ -95,7 +95,7 @@
 #define RK3588_YUV420			0x3
 #define RK3588_COMPRESSED_DATA		0xb
 #define RK3588_COLOR_DEPTH_MASK		(0xf << 4)
-#define RK3588_8BPC			(0x5 << 4)
+#define RK3588_8BPC			0
 #define RK3588_10BPC			(0x6 << 4)
 #define RK3588_CECIN_MASK		BIT(8)
 #define RK3588_SCLIN_MASK		BIT(9)
