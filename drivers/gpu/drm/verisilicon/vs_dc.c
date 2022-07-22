@@ -309,7 +309,6 @@ static void plda_clk_rst_deinit(struct device *dev)
 
 static int vs_dc_get_clock(struct device *dev, struct vs_dc *dc)
 {
-	int ret;
 	dc->cpu_axi = devm_clk_get(dev, "noc_cpu");
 	if (IS_ERR(dc->cpu_axi)) {
 		dev_err(dev, "---cpu_axi get error\n");
@@ -333,7 +332,7 @@ static int vs_dc_get_clock(struct device *dev, struct vs_dc *dc)
 		dev_err(dev, "---stg_axi get error\n");
 		return PTR_ERR(dc->stg_axi);
 	}
-	return ret;
+	return 0;
 }
 
 static int  vs_dc_clock_enable(struct device *dev, struct vs_dc *dc)
@@ -374,8 +373,6 @@ static void  vs_dc_clock_disable(struct vs_dc *dc)
 
 static int vs_dc_vouttop_get_clock(struct device *dev, struct vs_dc *dc)
 {
-	int ret;
-
 	dc->vout_src = devm_clk_get(dev, "vout_src");
 	if (IS_ERR(dc->vout_src)) {
 		dev_err(dev, "failed to get vout_src\n");
@@ -412,7 +409,7 @@ static int vs_dc_vouttop_get_clock(struct device *dev, struct vs_dc *dc)
 		return PTR_ERR(dc->bclk_mst);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int  vs_dc_vouttop_clock_enable(struct device *dev, struct vs_dc *dc)
@@ -458,7 +455,6 @@ static void  vs_dc_vouttop_clock_disable(struct vs_dc *dc)
 
 static int vs_dc_dc8200_get_clock(struct device *dev, struct vs_dc *dc)
 {
-	int ret;
 	dc->dc8200_clk_pix0 = devm_clk_get(dev, "pix_clk");
 	if (IS_ERR(dc->dc8200_clk_pix0)) {
 		dev_err(dev, "---dc8200_clk_pix0 get error\n");
@@ -488,7 +484,7 @@ static int vs_dc_dc8200_get_clock(struct device *dev, struct vs_dc *dc)
 		dev_err(dev, "---dc8200_ahb get error\n");
 		return PTR_ERR(dc->dc8200_ahb);
 	}
-	return ret;
+	return 0;
 }
 
 static int  vs_dc_dc8200_clock_enable(struct device *dev, struct vs_dc *dc)

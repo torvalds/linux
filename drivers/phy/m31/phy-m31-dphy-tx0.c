@@ -152,8 +152,6 @@ struct sf_dphy {
 
 static int sf_dphy_clkrst_get(struct device *dev, struct sf_dphy *dphy)
 {
-	int ret;
-
 	dphy->txesc_clk = devm_clk_get(dev, "dphy_txesc");
 	if (IS_ERR(dphy->txesc_clk)){
 		dev_err(dev, "===txesc_clk get error\n");
@@ -165,7 +163,7 @@ static int sf_dphy_clkrst_get(struct device *dev, struct sf_dphy *dphy)
 		return PTR_ERR(dphy->sys_rst);
 	}
 
-	return ret;
+	return 0;
 }
 static int sf_dphy_clkrst_ena_deas(struct device *dev, struct sf_dphy *dphy)
 {

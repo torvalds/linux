@@ -1395,7 +1395,6 @@ static void inno_hdmi_get_edid(struct inno_hdmi *hdmi, unsigned int tmds_clk, un
 
 static int inno_hdmi_get_clk_rst(struct device *dev, struct inno_hdmi *hdmi)
 {
-	int ret;
 	hdmi->sys_clk = devm_clk_get(dev, "sysclk");
 	if (IS_ERR(hdmi->sys_clk)) {
 		DRM_DEV_ERROR(dev, "Unable to get HDMI sysclk clk\n");
@@ -1416,7 +1415,7 @@ static int inno_hdmi_get_clk_rst(struct device *dev, struct inno_hdmi *hdmi)
 		DRM_DEV_ERROR(dev, "Unable to get HDMI tx rst\n");
 		return PTR_ERR(hdmi->tx_rst);
 	}
-	return ret;
+	return 0;
 }
 
 static int inno_hdmi_en_clk_deas_rst(struct device *dev, struct inno_hdmi *hdmi)
