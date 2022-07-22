@@ -570,6 +570,7 @@
   geni_icc_disable
   geni_icc_enable
   geni_icc_get
+  geni_icc_set_bw
   geni_se_clk_freq_match
   geni_se_config_packing
   geni_se_get_qup_hw_version
