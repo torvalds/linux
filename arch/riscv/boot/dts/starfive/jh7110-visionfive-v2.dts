@@ -375,10 +375,28 @@
 		};
 	};
 
-	pcie0_power_active: pcie0_power_active {
-		power-pins {
+	pcie0_wake_default: pcie0_wake_default {
+		wake-pins {
 			sf,pins = <PAD_GPIO32>;
 			sf,pinmux = <PAD_GPIO32_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+		};
+	};
+
+	pcie0_clkreq_default: pcie0_clkreq_default {
+		clkreq-pins {
+			sf,pins = <PAD_GPIO27>;
+			sf,pinmux = <PAD_GPIO27_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+		};
+	};
+
+	pcie0_vbus_default: pcie0_vbus_default {
+		drive-vbus-pin {
+			sf,pins = <PAD_GPIO25>;
+			sf,pinmux = <PAD_GPIO25_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
 			sf,pin-gpio-dout = <GPO_HIGH>;
 			sf,pin-gpio-doen = <OEN_LOW>;
@@ -405,13 +423,21 @@
 		};
 	};
 
-	pcie1_power_active: pcie1_power_active {
-		power-pins {
+	pcie1_wake_default: pcie1_wake_default {
+		wake-pins {
 			sf,pins = <PAD_GPIO21>;
 			sf,pinmux = <PAD_GPIO21_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_HIGH>;
-			sf,pin-gpio-doen = <OEN_LOW>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+		};
+	};
+
+	pcie1_clkreq_default: pcie1_clkreq_default {
+		clkreq-pins {
+			sf,pins = <PAD_GPIO29>;
+			sf,pinmux = <PAD_GPIO29_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
 		};
 	};
 
@@ -775,18 +801,21 @@
 };
 
 &pcie0 {
-	pinctrl-names = "perst-default", "perst-active", "power-active";
-	pinctrl-0 = <&pcie0_perst_default>;
-	pinctrl-1 = <&pcie0_perst_active>;
-	pinctrl-2 = <&pcie0_power_active>;
+	pinctrl-names = "default", "perst-default", "perst-active";
+	pinctrl-0 = <&pcie0_wake_default>,
+		    <&pcie0_clkreq_default>,
+		    <&pcie0_vbus_default>;
+	pinctrl-1 = <&pcie0_perst_default>;
+	pinctrl-2 = <&pcie0_perst_active>;
 	status = "okay";
 };
 
 &pcie1 {
-	pinctrl-names = "perst-default", "perst-active", "power-active";
-	pinctrl-0 = <&pcie1_perst_default>;
-	pinctrl-1 = <&pcie1_perst_active>;
-	pinctrl-2 = <&pcie1_power_active>;
+	pinctrl-names = "default", "perst-default", "perst-active";
+	pinctrl-0 = <&pcie1_wake_default>,
+		    <&pcie1_clkreq_default>;
+	pinctrl-1 = <&pcie1_perst_default>;
+	pinctrl-2 = <&pcie1_perst_active>;
 	status = "okay";
 };
 

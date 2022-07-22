@@ -156,8 +156,6 @@ struct plda_pcie {
 	struct pinctrl *pinctrl;
 	struct pinctrl_state *perst_state_def;
 	struct pinctrl_state *perst_state_active;
-	struct pinctrl_state *power_state_def;
-	struct pinctrl_state *power_state_active;
 };
 
 static inline void plda_writel(struct plda_pcie *pcie, const u32 value,
@@ -742,20 +740,6 @@ int plda_pinctrl_init(struct plda_pcie *pcie)
 		return -EINVAL;
 	}
 
-	pcie->power_state_def
-		= pinctrl_lookup_state(pcie->pinctrl, "power-default");
-	if (IS_ERR_OR_NULL(pcie->power_state_def)) {
-		dev_err(dev, "Failed to get the power-default pinctrl handle\n");
-		return -EINVAL;
-	}
-
-	pcie->power_state_active
-		= pinctrl_lookup_state(pcie->pinctrl, "power-active");
-	if (IS_ERR_OR_NULL(pcie->power_state_active)) {
-		dev_err(dev, "Failed to get the power-active pinctrl handle\n");
-		return -EINVAL;
-	}
-
 	return 0;
 }
 
@@ -764,12 +748,6 @@ static void plda_pcie_hw_init(struct plda_pcie *pcie)
 	unsigned int value;
 	int i, ret;
 	struct device *dev = &pcie->pdev->dev;
-
-	if (pcie->power_state_active) {
-		ret = pinctrl_select_state(pcie->pinctrl, pcie->power_state_active);
-		if (ret)
-			dev_err(dev, "Cannot set power pin to high\n");
-	}
 
 	if (pcie->perst_state_active) {
 		ret = pinctrl_select_state(pcie->pinctrl, pcie->perst_state_active);
@@ -964,9 +942,6 @@ exit:
 	return ret;
 
 release:
-	if (pcie->power_state_def &&
-	    pinctrl_select_state(pcie->pinctrl, pcie->power_state_def))
-		dev_err(dev, "Cannot set power pin to low\n");
 	plda_clk_rst_deinit(pcie);
 
 	pm_runtime_put_sync(&pdev->dev);
