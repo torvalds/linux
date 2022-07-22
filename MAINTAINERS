@@ -2454,7 +2454,7 @@ F:	arch/arm64/boot/dts/nuvoton/
 F:	drivers/*/*npcm*
 F:	drivers/*/*/*npcm*
 F:	include/dt-bindings/clock/nuvoton,npcm7xx-clock.h
-F:	include/dt-bindings/clock/nuvoton,npcm8xx-clock.h
+F:	include/dt-bindings/clock/nuvoton,npcm845-clk.h
 
 ARM/NUVOTON WPCM450 ARCHITECTURE
 M:	Jonathan Neuschäfer <j.neuschaefer@gmx.net>
