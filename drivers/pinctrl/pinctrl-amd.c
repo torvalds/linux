@@ -202,8 +202,6 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 	struct amd_gpio *gpio_dev = gpiochip_get_data(gc);
 
 	bool tmr_out_unit;
-	unsigned int time;
-	unsigned int unit;
 	bool tmr_large;
 
 	char *level_trig;
@@ -217,13 +215,14 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 	char *pull_up_sel;
 	char *pull_up_enable;
 	char *pull_down_enable;
-	char *output_value;
+	char *orientation;
 	char *output_enable;
 	char debounce_value[40];
 	char *debounce_enable;
 
 	for (bank = 0; bank < gpio_dev->hwbank_num; bank++) {
-		seq_printf(s, "GPIO bank%d\n", bank);
+		unsigned int time = 0;
+		unsigned int unit = 0;
 
 		switch (bank) {
 		case 0:
@@ -246,8 +245,9 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			/* Illegal bank number, ignore */
 			continue;
 		}
+		seq_printf(s, "GPIO bank%d\n", bank);
 		for (; i < pin_num; i++) {
-			seq_printf(s, "pin%d\t", i);
+			seq_printf(s, "📌%d\t", i);
 			raw_spin_lock_irqsave(&gpio_dev->lock, flags);
 			pin_reg = readl(gpio_dev->base + i * 4);
 			raw_spin_unlock_irqrestore(&gpio_dev->lock, flags);
@@ -255,84 +255,91 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 			if (pin_reg & BIT(INTERRUPT_ENABLE_OFF)) {
 				u8 level = (pin_reg >> ACTIVE_LEVEL_OFF) &
 						ACTIVE_LEVEL_MASK;
-				interrupt_enable = "interrupt is enabled|";
+				interrupt_enable = "+";
 
 				if (level == ACTIVE_LEVEL_HIGH)
-					active_level = "Active high|";
+					active_level = "↑";
 				else if (level == ACTIVE_LEVEL_LOW)
-					active_level = "Active low|";
+					active_level = "↓";
 				else if (!(pin_reg & BIT(LEVEL_TRIG_OFF)) &&
 					 level == ACTIVE_LEVEL_BOTH)
-					active_level = "Active on both|";
+					active_level = "b";
 				else
-					active_level = "Unknown Active level|";
+					active_level = "?";
 
 				if (pin_reg & BIT(LEVEL_TRIG_OFF))
-					level_trig = "Level trigger|";
+					level_trig = "level";
 				else
-					level_trig = "Edge trigger|";
+					level_trig = " edge";
 
 			} else {
-				interrupt_enable =
-					"interrupt is disabled|";
-				active_level = " ";
-				level_trig = " ";
+				interrupt_enable = "∅";
+				active_level = "∅";
+				level_trig = "    ∅";
 			}
 
 			if (pin_reg & BIT(INTERRUPT_MASK_OFF))
-				interrupt_mask =
-					"interrupt is unmasked|";
+				interrupt_mask = "-";
 			else
-				interrupt_mask =
-					"interrupt is masked|";
+				interrupt_mask = "+";
+			seq_printf(s, "int %s (🎭 %s)| active-%s| %s-🔫| ",
+				   interrupt_enable,
+				   interrupt_mask,
+				   active_level,
+				   level_trig);
 
 			if (pin_reg & BIT(WAKE_CNTRL_OFF_S0I3))
-				wake_cntrl0 = "enable wakeup in S0i3 state|";
+				wake_cntrl0 = "+";
 			else
-				wake_cntrl0 = "disable wakeup in S0i3 state|";
+				wake_cntrl0 = "∅";
+			seq_printf(s, "S0i3 🌅 %s| ", wake_cntrl0);
 
 			if (pin_reg & BIT(WAKE_CNTRL_OFF_S3))
-				wake_cntrl1 = "enable wakeup in S3 state|";
+				wake_cntrl1 = "+";
 			else
-				wake_cntrl1 = "disable wakeup in S3 state|";
+				wake_cntrl1 = "∅";
+			seq_printf(s, "S3 🌅 %s| ", wake_cntrl1);
 
 			if (pin_reg & BIT(WAKE_CNTRL_OFF_S4))
-				wake_cntrl2 = "enable wakeup in S4/S5 state|";
+				wake_cntrl2 = "+";
 			else
-				wake_cntrl2 = "disable wakeup in S4/S5 state|";
+				wake_cntrl2 = "∅";
+			seq_printf(s, "S4/S5 🌅 %s| ", wake_cntrl2);
 
 			if (pin_reg & BIT(PULL_UP_ENABLE_OFF)) {
-				pull_up_enable = "pull-up is enabled|";
+				pull_up_enable = "+";
 				if (pin_reg & BIT(PULL_UP_SEL_OFF))
-					pull_up_sel = "8k pull-up|";
+					pull_up_sel = "8k";
 				else
-					pull_up_sel = "4k pull-up|";
+					pull_up_sel = "4k";
 			} else {
-				pull_up_enable = "pull-up is disabled|";
-				pull_up_sel = " ";
+				pull_up_enable = "∅";
+				pull_up_sel = "  ";
 			}
+			seq_printf(s, "pull-↑ %s (%s)| ",
+				   pull_up_enable,
+				   pull_up_sel);
 
 			if (pin_reg & BIT(PULL_DOWN_ENABLE_OFF))
-				pull_down_enable = "pull-down is enabled|";
+				pull_down_enable = "+";
 			else
-				pull_down_enable = "Pull-down is disabled|";
+				pull_down_enable = "∅";
+			seq_printf(s, "pull-↓ %s| ", pull_down_enable);
 
 			if (pin_reg & BIT(OUTPUT_ENABLE_OFF)) {
-				pin_sts = " ";
-				output_enable = "output is enabled|";
+				pin_sts = "output";
 				if (pin_reg & BIT(OUTPUT_VALUE_OFF))
-					output_value = "output is high|";
+					orientation = "↑";
 				else
-					output_value = "output is low|";
+					orientation = "↓";
 			} else {
-				output_enable = "output is disabled|";
-				output_value = " ";
-
+				pin_sts = "input ";
 				if (pin_reg & BIT(PIN_STS_OFF))
-					pin_sts = "input is high|";
+					orientation = "↑";
 				else
-					pin_sts = "input is low|";
+					orientation = "↓";
 			}
+			seq_printf(s, "%s %s| ", pin_sts, orientation);
 
 			db_cntrl = (DB_CNTRl_MASK << DB_CNTRL_OFF) & pin_reg;
 			if (db_cntrl) {
@@ -351,27 +358,18 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 						unit = 61;
 				}
 				if ((DB_TYPE_REMOVE_GLITCH << DB_CNTRL_OFF) == db_cntrl)
-					debounce_enable = "debouncing filter (high and low) enabled|";
+					debounce_enable = "b +";
 				else if ((DB_TYPE_PRESERVE_LOW_GLITCH << DB_CNTRL_OFF) == db_cntrl)
-					debounce_enable = "debouncing filter (low) enabled|";
+					debounce_enable = "↓ +";
 				else
-					debounce_enable = "debouncing filter (high) enabled|";
+					debounce_enable = "↑ +";
 
-				snprintf(debounce_value, sizeof(debounce_value),
-					 "debouncing timeout is %u (us)|", time * unit);
 			} else {
-				debounce_enable = "debouncing filter disabled|";
-				snprintf(debounce_value, sizeof(debounce_value), " ");
+				debounce_enable = "  ∅";
 			}
-
-			seq_printf(s, "%s %s %s %s %s %s\n"
-				" %s %s %s %s %s %s %s %s %s 0x%x\n",
-				level_trig, active_level, interrupt_enable,
-				interrupt_mask, wake_cntrl0, wake_cntrl1,
-				wake_cntrl2, pin_sts, pull_up_sel,
-				pull_up_enable, pull_down_enable,
-				output_value, output_enable,
-				debounce_enable, debounce_value, pin_reg);
+			snprintf(debounce_value, sizeof(debounce_value), "%u", time * unit);
+			seq_printf(s, "debounce %s (⏰ %sus)| ", debounce_enable, debounce_value);
+			seq_printf(s, " 0x%x\n", pin_reg);
 		}
 	}
 }
