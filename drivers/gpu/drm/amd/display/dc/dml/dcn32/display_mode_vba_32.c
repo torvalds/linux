@@ -1654,6 +1654,75 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 #endif
 }
 
+static void mode_support_configuration(struct vba_vars_st *v,
+				  struct display_mode_lib *mode_lib)
+{
+	int i, j;
+
+	for (i = v->soc.num_states - 1; i >= 0; i--) {
+		for (j = 0; j < 2; j++) {
+			if (mode_lib->vba.ScaleRatioAndTapsSupport == true
+				&& mode_lib->vba.SourceFormatPixelAndScanSupport == true
+				&& mode_lib->vba.ViewportSizeSupport[i][j] == true
+				&& !mode_lib->vba.LinkRateDoesNotMatchDPVersion
+				&& !mode_lib->vba.LinkRateForMultistreamNotIndicated
+				&& !mode_lib->vba.BPPForMultistreamNotIndicated
+				&& !mode_lib->vba.MultistreamWithHDMIOreDP
+				&& !mode_lib->vba.ExceededMultistreamSlots[i]
+				&& !mode_lib->vba.MSOOrODMSplitWithNonDPLink
+				&& !mode_lib->vba.NotEnoughLanesForMSO
+				&& mode_lib->vba.LinkCapacitySupport[i] == true && !mode_lib->vba.P2IWith420
+				&& !mode_lib->vba.DSCOnlyIfNecessaryWithBPP
+				&& !mode_lib->vba.DSC422NativeNotSupported
+				&& !mode_lib->vba.MPCCombineMethodIncompatible
+				&& mode_lib->vba.ODMCombine2To1SupportCheckOK[i] == true
+				&& mode_lib->vba.ODMCombine4To1SupportCheckOK[i] == true
+				&& mode_lib->vba.NotEnoughDSCUnits[i] == false
+				&& !mode_lib->vba.NotEnoughDSCSlices[i]
+				&& !mode_lib->vba.ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe
+				&& !mode_lib->vba.InvalidCombinationOfMALLUseForPStateAndStaticScreen
+				&& mode_lib->vba.DSCCLKRequiredMoreThanSupported[i] == false
+				&& mode_lib->vba.PixelsPerLinePerDSCUnitSupport[i]
+				&& mode_lib->vba.DTBCLKRequiredMoreThanSupported[i] == false
+				&& !mode_lib->vba.InvalidCombinationOfMALLUseForPState
+				&& !mode_lib->vba.ImmediateFlipRequiredButTheRequirementForEachSurfaceIsNotSpecified
+				&& mode_lib->vba.ROBSupport[i][j] == true
+				&& mode_lib->vba.DISPCLK_DPPCLK_Support[i][j] == true
+				&& mode_lib->vba.TotalAvailablePipesSupport[i][j] == true
+				&& mode_lib->vba.NumberOfOTGSupport == true
+				&& mode_lib->vba.NumberOfHDMIFRLSupport == true
+				&& mode_lib->vba.EnoughWritebackUnits == true
+				&& mode_lib->vba.WritebackLatencySupport == true
+				&& mode_lib->vba.WritebackScaleRatioAndTapsSupport == true
+				&& mode_lib->vba.CursorSupport == true && mode_lib->vba.PitchSupport == true
+				&& mode_lib->vba.ViewportExceedsSurface == false
+				&& mode_lib->vba.PrefetchSupported[i][j] == true
+				&& mode_lib->vba.VActiveBandwithSupport[i][j] == true
+				&& mode_lib->vba.DynamicMetadataSupported[i][j] == true
+				&& mode_lib->vba.TotalVerticalActiveBandwidthSupport[i][j] == true
+				&& mode_lib->vba.VRatioInPrefetchSupported[i][j] == true
+				&& mode_lib->vba.PTEBufferSizeNotExceeded[i][j] == true
+				&& mode_lib->vba.DCCMetaBufferSizeNotExceeded[i][j] == true
+				&& mode_lib->vba.NonsupportedDSCInputBPC == false
+				&& !mode_lib->vba.ExceededMALLSize
+				&& ((mode_lib->vba.HostVMEnable == false
+				&& !mode_lib->vba.ImmediateFlipRequiredFinal)
+				|| mode_lib->vba.ImmediateFlipSupportedForState[i][j])
+				&& (!mode_lib->vba.DRAMClockChangeRequirementFinal
+				|| i == v->soc.num_states - 1
+				|| mode_lib->vba.DRAMClockChangeSupport[i][j] != dm_dram_clock_change_unsupported)
+				&& (!mode_lib->vba.FCLKChangeRequirementFinal || i == v->soc.num_states - 1
+				|| mode_lib->vba.FCLKChangeSupport[i][j] != dm_fclock_change_unsupported)
+				&& (!mode_lib->vba.USRRetrainingRequiredFinal
+				|| mode_lib->vba.USRRetrainingSupport[i][j])) {
+				mode_lib->vba.ModeSupport[i][j] = true;
+			} else {
+				mode_lib->vba.ModeSupport[i][j] = false;
+			}
+		}
+	}
+}
+
 void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_lib)
 {
 	struct vba_vars_st *v = &mode_lib->vba;
@@ -3632,68 +3701,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	}
 
 	/*Mode Support, Voltage State and SOC Configuration*/
-	for (i = v->soc.num_states - 1; i >= 0; i--) {
-		for (j = 0; j < 2; j++) {
-			if (mode_lib->vba.ScaleRatioAndTapsSupport == true
-				&& mode_lib->vba.SourceFormatPixelAndScanSupport == true
-				&& mode_lib->vba.ViewportSizeSupport[i][j] == true
-				&& !mode_lib->vba.LinkRateDoesNotMatchDPVersion
-				&& !mode_lib->vba.LinkRateForMultistreamNotIndicated
-				&& !mode_lib->vba.BPPForMultistreamNotIndicated
-				&& !mode_lib->vba.MultistreamWithHDMIOreDP
-				&& !mode_lib->vba.ExceededMultistreamSlots[i]
-				&& !mode_lib->vba.MSOOrODMSplitWithNonDPLink
-				&& !mode_lib->vba.NotEnoughLanesForMSO
-				&& mode_lib->vba.LinkCapacitySupport[i] == true && !mode_lib->vba.P2IWith420
-				&& !mode_lib->vba.DSCOnlyIfNecessaryWithBPP
-				&& !mode_lib->vba.DSC422NativeNotSupported
-				&& !mode_lib->vba.MPCCombineMethodIncompatible
-				&& mode_lib->vba.ODMCombine2To1SupportCheckOK[i] == true
-				&& mode_lib->vba.ODMCombine4To1SupportCheckOK[i] == true
-				&& mode_lib->vba.NotEnoughDSCUnits[i] == false
-				&& !mode_lib->vba.NotEnoughDSCSlices[i]
-				&& !mode_lib->vba.ImmediateFlipOrHostVMAndPStateWithMALLFullFrameOrPhantomPipe
-				&& !mode_lib->vba.InvalidCombinationOfMALLUseForPStateAndStaticScreen
-				&& mode_lib->vba.DSCCLKRequiredMoreThanSupported[i] == false
-				&& mode_lib->vba.PixelsPerLinePerDSCUnitSupport[i]
-				&& mode_lib->vba.DTBCLKRequiredMoreThanSupported[i] == false
-				&& !mode_lib->vba.InvalidCombinationOfMALLUseForPState
-				&& !mode_lib->vba.ImmediateFlipRequiredButTheRequirementForEachSurfaceIsNotSpecified
-				&& mode_lib->vba.ROBSupport[i][j] == true
-				&& mode_lib->vba.DISPCLK_DPPCLK_Support[i][j] == true
-				&& mode_lib->vba.TotalAvailablePipesSupport[i][j] == true
-				&& mode_lib->vba.NumberOfOTGSupport == true
-				&& mode_lib->vba.NumberOfHDMIFRLSupport == true
-				&& mode_lib->vba.EnoughWritebackUnits == true
-				&& mode_lib->vba.WritebackLatencySupport == true
-				&& mode_lib->vba.WritebackScaleRatioAndTapsSupport == true
-				&& mode_lib->vba.CursorSupport == true && mode_lib->vba.PitchSupport == true
-				&& mode_lib->vba.ViewportExceedsSurface == false
-				&& mode_lib->vba.PrefetchSupported[i][j] == true
-				&& mode_lib->vba.VActiveBandwithSupport[i][j] == true
-				&& mode_lib->vba.DynamicMetadataSupported[i][j] == true
-				&& mode_lib->vba.TotalVerticalActiveBandwidthSupport[i][j] == true
-				&& mode_lib->vba.VRatioInPrefetchSupported[i][j] == true
-				&& mode_lib->vba.PTEBufferSizeNotExceeded[i][j] == true
-				&& mode_lib->vba.DCCMetaBufferSizeNotExceeded[i][j] == true
-				&& mode_lib->vba.NonsupportedDSCInputBPC == false
-				&& !mode_lib->vba.ExceededMALLSize
-				&& ((mode_lib->vba.HostVMEnable == false
-				&& !mode_lib->vba.ImmediateFlipRequiredFinal)
-				|| mode_lib->vba.ImmediateFlipSupportedForState[i][j])
-				&& (!mode_lib->vba.DRAMClockChangeRequirementFinal
-				|| i == v->soc.num_states - 1
-				|| mode_lib->vba.DRAMClockChangeSupport[i][j] != dm_dram_clock_change_unsupported)
-				&& (!mode_lib->vba.FCLKChangeRequirementFinal || i == v->soc.num_states - 1
-				|| mode_lib->vba.FCLKChangeSupport[i][j] != dm_fclock_change_unsupported)
-				&& (!mode_lib->vba.USRRetrainingRequiredFinal
-				|| mode_lib->vba.USRRetrainingSupport[i][j])) {
-				mode_lib->vba.ModeSupport[i][j] = true;
-			} else {
-				mode_lib->vba.ModeSupport[i][j] = false;
-			}
-		}
-	}
+	mode_support_configuration(v, mode_lib);
 
 	MaximumMPCCombine = 0;
 
