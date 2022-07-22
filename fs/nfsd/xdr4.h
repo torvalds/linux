@@ -302,9 +302,10 @@ struct nfsd4_read {
 	u32			rd_length;          /* request */
 	int			rd_vlen;
 	struct nfsd_file	*rd_nf;
-	
+
 	struct svc_rqst		*rd_rqstp;          /* response */
-	struct svc_fh		*rd_fhp;             /* response */
+	struct svc_fh		*rd_fhp;            /* response */
+	u32			rd_eof;             /* response */
 };
 
 struct nfsd4_readdir {
