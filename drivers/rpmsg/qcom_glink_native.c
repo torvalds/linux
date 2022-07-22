@@ -1720,9 +1720,10 @@ static int qcom_glink_announce_create(struct rpmsg_device *rpdev)
 	struct glink_core_rx_intent *intent;
 	struct glink_core_rx_intent *tmp;
 	const struct property *prop = NULL;
-	__be32 defaults[] = { cpu_to_be32(SZ_1K), cpu_to_be32(5) };
+	__be32 defaults[] = { cpu_to_be32(0), cpu_to_be32(2),
+			      cpu_to_be32(SZ_1K), cpu_to_be32(5) };
 	int num_intents;
-	int num_groups = 1;
+	int num_groups = 2;
 	__be32 *val = defaults;
 	unsigned long flags;
 	int iid;
