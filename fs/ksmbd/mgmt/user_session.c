@@ -32,11 +32,13 @@ static void free_channel_list(struct ksmbd_session *sess)
 {
 	struct channel *chann, *tmp;
 
+	write_lock(&sess->chann_lock);
 	list_for_each_entry_safe(chann, tmp, &sess->ksmbd_chann_list,
 				 chann_list) {
 		list_del(&chann->chann_list);
 		kfree(chann);
 	}
+	write_unlock(&sess->chann_lock);
 }
 
 static void __session_rpc_close(struct ksmbd_session *sess,
@@ -303,6 +305,7 @@ static struct ksmbd_session *__session_create(int protocol)
 	INIT_LIST_HEAD(&sess->rpc_handle_list);
 	sess->sequence_number = 1;
 	atomic_set(&sess->refcnt, 1);
+	rwlock_init(&sess->chann_lock);
 
 	switch (protocol) {
 	case CIFDS_SESSION_FLAG_SMB2:
