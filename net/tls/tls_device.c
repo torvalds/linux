@@ -894,27 +894,26 @@ static void tls_device_core_ctrl_rx_resync(struct tls_context *tls_ctx,
 static int
 tls_device_reencrypt(struct sock *sk, struct tls_sw_context_rx *sw_ctx)
 {
-	int err = 0, offset, copy, nsg, data_len, pos;
-	struct sk_buff *skb, *skb_iter, *unused;
+	int err, offset, copy, data_len, pos;
+	struct sk_buff *skb, *skb_iter;
 	struct scatterlist sg[1];
 	struct strp_msg *rxm;
 	char *orig_buf, *buf;
 
-	skb = tls_strp_msg(sw_ctx);
-	rxm = strp_msg(skb);
-	offset = rxm->offset;
-
+	rxm = strp_msg(tls_strp_msg(sw_ctx));
 	orig_buf = kmalloc(rxm->full_len + TLS_HEADER_SIZE +
 			   TLS_CIPHER_AES_GCM_128_IV_SIZE, sk->sk_allocation);
 	if (!orig_buf)
 		return -ENOMEM;
 	buf = orig_buf;
 
-	nsg = skb_cow_data(skb, 0, &unused);
-	if (unlikely(nsg < 0)) {
-		err = nsg;
+	err = tls_strp_msg_cow(sw_ctx);
+	if (unlikely(err))
 		goto free_buf;
-	}
+
+	skb = tls_strp_msg(sw_ctx);
+	rxm = strp_msg(skb);
+	offset = rxm->offset;
 
 	sg_init_table(sg, 1);
 	sg_set_buf(&sg[0], buf,

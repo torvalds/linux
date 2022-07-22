@@ -13,6 +13,17 @@ struct sk_buff *tls_strp_msg_detach(struct tls_sw_context_rx *ctx)
 	return skb;
 }
 
+int tls_strp_msg_cow(struct tls_sw_context_rx *ctx)
+{
+	struct sk_buff *unused;
+	int nsg;
+
+	nsg = skb_cow_data(ctx->recv_pkt, 0, &unused);
+	if (nsg < 0)
+		return nsg;
+	return 0;
+}
+
 int tls_strp_msg_hold(struct sock *sk, struct sk_buff *skb,
 		      struct sk_buff_head *dst)
 {
