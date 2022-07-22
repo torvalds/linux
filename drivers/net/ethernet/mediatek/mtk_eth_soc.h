@@ -1088,6 +1088,8 @@ struct mtk_eth {
 
 	struct mtk_ppe			*ppe;
 	struct rhashtable		flow_table;
+
+	struct bpf_prog			__rcu *prog;
 };
 
 /* struct mtk_mac -	the structure that holds the info about the MACs of the
