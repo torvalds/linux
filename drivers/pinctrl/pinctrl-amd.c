@@ -223,7 +223,7 @@ static void amd_gpio_dbg_show(struct seq_file *s, struct gpio_chip *gc)
 	char *debounce_enable;
 
 	for (bank = 0; bank < gpio_dev->hwbank_num; bank++) {
-		seq_printf(s, "GPIO bank%d\t", bank);
+		seq_printf(s, "GPIO bank%d\n", bank);
 
 		switch (bank) {
 		case 0:
