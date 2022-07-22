@@ -142,6 +142,11 @@ static inline struct sk_buff *tls_strp_msg(struct tls_sw_context_rx *ctx)
 	return ctx->recv_pkt;
 }
 
+static inline bool tls_strp_msg_ready(struct tls_sw_context_rx *ctx)
+{
+	return ctx->recv_pkt;
+}
+
 #ifdef CONFIG_TLS_DEVICE
 int tls_device_init(void);
 void tls_device_cleanup(void);
