@@ -2074,7 +2074,6 @@ err_reset_platform_ops: __maybe_unused;
 static int arm_smmu_device_probe(struct platform_device *pdev)
 {
 	struct resource *res;
-	resource_size_t ioaddr;
 	struct arm_smmu_device *smmu;
 	struct device *dev = &pdev->dev;
 	int num_irqs, i, err;
@@ -2098,7 +2097,8 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	smmu->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(smmu->base))
 		return PTR_ERR(smmu->base);
-	ioaddr = res->start;
+	smmu->ioaddr = res->start;
+
 	/*
 	 * The resource size should effectively match the value of SMMU_TOP;
 	 * stash that temporarily until we know PAGESIZE to validate it with.
@@ -2178,7 +2178,7 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	}
 
 	err = iommu_device_sysfs_add(&smmu->iommu, smmu->dev, NULL,
-				     "smmu.%pa", &ioaddr);
+				     "smmu.%pa", &smmu->ioaddr);
 	if (err) {
 		dev_err(dev, "Failed to register iommu in sysfs\n");
 		return err;
