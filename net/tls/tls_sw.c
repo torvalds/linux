@@ -1631,8 +1631,8 @@ tls_decrypt_sw(struct sock *sk, struct tls_context *tls_ctx,
 }
 
 static int
-tls_decrypt_device(struct sock *sk, struct tls_context *tls_ctx,
-		   struct tls_decrypt_arg *darg)
+tls_decrypt_device(struct sock *sk, struct msghdr *msg,
+		   struct tls_context *tls_ctx, struct tls_decrypt_arg *darg)
 {
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 	struct tls_prot_info *prot = &tls_ctx->prot_info;
@@ -1650,13 +1650,33 @@ tls_decrypt_device(struct sock *sk, struct tls_context *tls_ctx,
 	if (pad < 0)
 		return pad;
 
-	darg->zc = false;
 	darg->async = false;
 	darg->skb = tls_strp_msg(ctx);
-	ctx->recv_pkt = NULL;
+	/* ->zc downgrade check, in case TLS 1.3 gets here */
+	darg->zc &= !(prot->version == TLS_1_3_VERSION &&
+		      tls_msg(darg->skb)->control != TLS_RECORD_TYPE_DATA);
 
 	rxm = strp_msg(darg->skb);
 	rxm->full_len -= pad;
+
+	if (!darg->zc) {
+		/* Non-ZC case needs a real skb */
+		darg->skb = tls_strp_msg_detach(ctx);
+		if (!darg->skb)
+			return -ENOMEM;
+	} else {
+		unsigned int off, len;
+
+		/* In ZC case nobody cares about the output skb.
+		 * Just copy the data here. Note the skb is not fully trimmed.
+		 */
+		off = rxm->offset + prot->prepend_size;
+		len = rxm->full_len - prot->overhead_size;
+
+		err = skb_copy_datagram_msg(darg->skb, off, msg, len);
+		if (err)
+			return err;
+	}
 	return 1;
 }
 
@@ -1668,7 +1688,7 @@ static int tls_rx_one_record(struct sock *sk, struct msghdr *msg,
 	struct strp_msg *rxm;
 	int err;
 
-	err = tls_decrypt_device(sk, tls_ctx, darg);
+	err = tls_decrypt_device(sk, msg, tls_ctx, darg);
 	if (!err)
 		err = tls_decrypt_sw(sk, tls_ctx, msg, darg);
 	if (err < 0)
