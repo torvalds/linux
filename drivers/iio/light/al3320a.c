@@ -223,17 +223,18 @@ static int al3320a_probe(struct i2c_client *client,
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
 
-static int __maybe_unused al3320a_suspend(struct device *dev)
+static int al3320a_suspend(struct device *dev)
 {
 	return al3320a_set_pwr(to_i2c_client(dev), false);
 }
 
-static int __maybe_unused al3320a_resume(struct device *dev)
+static int al3320a_resume(struct device *dev)
 {
 	return al3320a_set_pwr(to_i2c_client(dev), true);
 }
 
-static SIMPLE_DEV_PM_OPS(al3320a_pm_ops, al3320a_suspend, al3320a_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(al3320a_pm_ops, al3320a_suspend,
+				al3320a_resume);
 
 static const struct i2c_device_id al3320a_id[] = {
 	{"al3320a", 0},
@@ -251,7 +252,7 @@ static struct i2c_driver al3320a_driver = {
 	.driver = {
 		.name = AL3320A_DRV_NAME,
 		.of_match_table = al3320a_of_match,
-		.pm = &al3320a_pm_ops,
+		.pm = pm_sleep_ptr(&al3320a_pm_ops),
 	},
 	.probe		= al3320a_probe,
 	.id_table	= al3320a_id,

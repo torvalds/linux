@@ -364,7 +364,7 @@ static int itg3200_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused itg3200_suspend(struct device *dev)
+static int itg3200_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct itg3200 *st = iio_priv(indio_dev);
@@ -375,14 +375,15 @@ static int __maybe_unused itg3200_suspend(struct device *dev)
 				   ITG3200_SLEEP);
 }
 
-static int __maybe_unused itg3200_resume(struct device *dev)
+static int itg3200_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
 	return itg3200_initial_setup(indio_dev);
 }
 
-static SIMPLE_DEV_PM_OPS(itg3200_pm_ops, itg3200_suspend, itg3200_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(itg3200_pm_ops, itg3200_suspend,
+				itg3200_resume);
 
 static const struct i2c_device_id itg3200_id[] = {
 	{ "itg3200", 0 },
@@ -400,7 +401,7 @@ static struct i2c_driver itg3200_driver = {
 	.driver = {
 		.name	= "itg3200",
 		.of_match_table = itg3200_of_match,
-		.pm	= &itg3200_pm_ops,
+		.pm	= pm_sleep_ptr(&itg3200_pm_ops),
 	},
 	.id_table	= itg3200_id,
 	.probe		= itg3200_probe,

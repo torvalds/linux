@@ -400,7 +400,7 @@ static int ad7949_spi_probe(struct spi_device *spi)
 
 	ret = ad7949_spi_init(ad7949_adc);
 	if (ret) {
-		dev_err(dev, "enable to init this device: %d\n", ret);
+		dev_err(dev, "fail to init this device: %d\n", ret);
 		return ret;
 	}
 

@@ -193,7 +193,7 @@ static int ads124s_reset(struct iio_dev *indio_dev)
 	return 0;
 };
 
-static int ads124s_read(struct iio_dev *indio_dev, unsigned int chan)
+static int ads124s_read(struct iio_dev *indio_dev)
 {
 	struct ads124s_private *priv = iio_priv(indio_dev);
 	int ret;
@@ -242,7 +242,7 @@ static int ads124s_read_raw(struct iio_dev *indio_dev,
 			goto out;
 		}
 
-		ret = ads124s_read(indio_dev, chan->channel);
+		ret = ads124s_read(indio_dev);
 		if (ret < 0) {
 			dev_err(&priv->spi->dev, "Read ADC failed\n");
 			goto out;
@@ -290,7 +290,7 @@ static irqreturn_t ads124s_trigger_handler(int irq, void *p)
 		if (ret)
 			dev_err(&priv->spi->dev, "Start ADC conversions failed\n");
 
-		priv->buffer[j] = ads124s_read(indio_dev, scan_index);
+		priv->buffer[j] = ads124s_read(indio_dev);
 		ret = ads124s_write_cmd(indio_dev, ADS124S08_STOP_CONV);
 		if (ret)
 			dev_err(&priv->spi->dev, "Stop ADC conversions failed\n");

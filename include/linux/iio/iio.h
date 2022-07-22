@@ -727,10 +727,13 @@ static inline void *iio_priv(const struct iio_dev *indio_dev)
 
 void iio_device_free(struct iio_dev *indio_dev);
 struct iio_dev *devm_iio_device_alloc(struct device *parent, int sizeof_priv);
-__printf(2, 3)
-struct iio_trigger *devm_iio_trigger_alloc(struct device *parent,
-					   const char *fmt, ...);
 
+#define devm_iio_trigger_alloc(parent, fmt, ...) \
+	__devm_iio_trigger_alloc((parent), THIS_MODULE, (fmt), ##__VA_ARGS__)
+__printf(3, 4)
+struct iio_trigger *__devm_iio_trigger_alloc(struct device *parent,
+					     struct module *this_mod,
+					     const char *fmt, ...);
 /**
  * iio_get_debugfs_dentry() - helper function to get the debugfs_dentry
  * @indio_dev:		IIO device structure for device

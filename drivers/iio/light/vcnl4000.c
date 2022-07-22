@@ -1130,7 +1130,7 @@ static int vcnl4000_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int __maybe_unused vcnl4000_runtime_suspend(struct device *dev)
+static int vcnl4000_runtime_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct vcnl4000_data *data = iio_priv(indio_dev);
@@ -1138,7 +1138,7 @@ static int __maybe_unused vcnl4000_runtime_suspend(struct device *dev)
 	return data->chip_spec->set_power_state(data, false);
 }
 
-static int __maybe_unused vcnl4000_runtime_resume(struct device *dev)
+static int vcnl4000_runtime_resume(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
 	struct vcnl4000_data *data = iio_priv(indio_dev);
@@ -1146,17 +1146,13 @@ static int __maybe_unused vcnl4000_runtime_resume(struct device *dev)
 	return data->chip_spec->set_power_state(data, true);
 }
 
-static const struct dev_pm_ops vcnl4000_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(pm_runtime_force_suspend,
-				pm_runtime_force_resume)
-	SET_RUNTIME_PM_OPS(vcnl4000_runtime_suspend,
-			   vcnl4000_runtime_resume, NULL)
-};
+static DEFINE_RUNTIME_DEV_PM_OPS(vcnl4000_pm_ops, vcnl4000_runtime_suspend,
+				 vcnl4000_runtime_resume, NULL);
 
 static struct i2c_driver vcnl4000_driver = {
 	.driver = {
 		.name   = VCNL4000_DRV_NAME,
-		.pm	= &vcnl4000_pm_ops,
+		.pm	= pm_ptr(&vcnl4000_pm_ops),
 		.of_match_table = vcnl_4000_of_match,
 	},
 	.probe  = vcnl4000_probe,
