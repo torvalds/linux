@@ -690,7 +690,7 @@ static void nfs_direct_write_completion(struct nfs_pgio_header *hdr)
 	}
 
 	nfs_direct_count_bytes(dreq, hdr);
-	if (hdr->good_bytes != 0 && nfs_write_need_commit(hdr)) {
+	if (test_bit(NFS_IOHDR_UNSTABLE_WRITES, &hdr->flags)) {
 		if (!dreq->flags)
 			dreq->flags = NFS_ODIRECT_DO_COMMIT;
 		flags = dreq->flags;
