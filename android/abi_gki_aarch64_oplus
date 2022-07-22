@@ -2811,6 +2811,8 @@
   __traceiter_android_vh_mem_cgroup_free
   __traceiter_android_vh_mem_cgroup_id_remove
   __traceiter_android_vh_meminfo_proc_show
+  __traceiter_android_vh_alloc_pages_slowpath_begin
+  __traceiter_android_vh_alloc_pages_slowpath_end
   __traceiter_android_vh_mutex_unlock_slowpath
   __traceiter_android_vh_mutex_unlock_slowpath_end
   __traceiter_android_vh_mutex_wait_finish
@@ -3025,6 +3027,8 @@
   __tracepoint_android_vh_mem_cgroup_free
   __tracepoint_android_vh_mem_cgroup_id_remove
   __tracepoint_android_vh_meminfo_proc_show
+  __tracepoint_android_vh_alloc_pages_slowpath_begin
+  __tracepoint_android_vh_alloc_pages_slowpath_end
   __tracepoint_android_vh_mutex_unlock_slowpath
   __tracepoint_android_vh_mutex_unlock_slowpath_end
   __tracepoint_android_vh_mutex_wait_finish
