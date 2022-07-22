@@ -55,14 +55,19 @@ static const guid_t ads_guid =
 	GUID_INIT(0xdbb8e3e6, 0x5886, 0x4ba6,
 		  0x87, 0x95, 0x13, 0x19, 0xf5, 0x2a, 0x96, 0x6b);
 
+static const guid_t buffer_prop_guid =
+	GUID_INIT(0xedb12dd0, 0x363d, 0x4085,
+		  0xa3, 0xd2, 0x49, 0x52, 0x2c, 0xa1, 0x60, 0xc4);
+
 static bool acpi_enumerate_nondev_subnodes(acpi_handle scope,
-					   const union acpi_object *desc,
+					   union acpi_object *desc,
 					   struct acpi_device_data *data,
 					   struct fwnode_handle *parent);
-static bool acpi_extract_properties(const union acpi_object *desc,
+static bool acpi_extract_properties(acpi_handle handle,
+				    union acpi_object *desc,
 				    struct acpi_device_data *data);
 
-static bool acpi_nondev_subnode_extract(const union acpi_object *desc,
+static bool acpi_nondev_subnode_extract(union acpi_object *desc,
 					acpi_handle handle,
 					const union acpi_object *link,
 					struct list_head *list,
@@ -81,7 +86,7 @@ static bool acpi_nondev_subnode_extract(const union acpi_object *desc,
 	INIT_LIST_HEAD(&dn->data.properties);
 	INIT_LIST_HEAD(&dn->data.subnodes);
 
-	result = acpi_extract_properties(desc, &dn->data);
+	result = acpi_extract_properties(handle, desc, &dn->data);
 
 	if (handle) {
 		acpi_handle scope;
@@ -156,7 +161,7 @@ static bool acpi_nondev_subnode_ok(acpi_handle scope,
 }
 
 static bool acpi_add_nondev_subnodes(acpi_handle scope,
-				     const union acpi_object *links,
+				     union acpi_object *links,
 				     struct list_head *list,
 				     struct fwnode_handle *parent)
 {
@@ -164,7 +169,7 @@ static bool acpi_add_nondev_subnodes(acpi_handle scope,
 	int i;
 
 	for (i = 0; i < links->package.count; i++) {
-		const union acpi_object *link, *desc;
+		union acpi_object *link, *desc;
 		acpi_handle handle;
 		bool result;
 
@@ -204,7 +209,7 @@ static bool acpi_add_nondev_subnodes(acpi_handle scope,
 }
 
 static bool acpi_enumerate_nondev_subnodes(acpi_handle scope,
-					   const union acpi_object *desc,
+					   union acpi_object *desc,
 					   struct acpi_device_data *data,
 					   struct fwnode_handle *parent)
 {
@@ -212,7 +217,8 @@ static bool acpi_enumerate_nondev_subnodes(acpi_handle scope,
 
 	/* Look for the ACPI data subnodes GUID. */
 	for (i = 0; i < desc->package.count; i += 2) {
-		const union acpi_object *guid, *links;
+		const union acpi_object *guid;
+		union acpi_object *links;
 
 		guid = &desc->package.elements[i];
 		links = &desc->package.elements[i + 1];
@@ -325,7 +331,7 @@ static bool acpi_is_property_guid(const guid_t *guid)
 
 struct acpi_device_properties *
 acpi_data_add_props(struct acpi_device_data *data, const guid_t *guid,
-		    const union acpi_object *properties)
+		    union acpi_object *properties)
 {
 	struct acpi_device_properties *props;
 
@@ -377,7 +383,104 @@ static bool acpi_tie_nondev_subnodes(struct acpi_device_data *data)
 	return true;
 }
 
-static bool acpi_extract_properties(const union acpi_object *desc,
+static void acpi_data_add_buffer_props(acpi_handle handle,
+				       struct acpi_device_data *data,
+				       union acpi_object *properties)
+{
+	struct acpi_device_properties *props;
+	union acpi_object *package;
+	size_t alloc_size;
+	unsigned int i;
+	u32 *count;
+
+	if (check_mul_overflow((size_t)properties->package.count,
+			       sizeof(*package) + sizeof(void *),
+			       &alloc_size) ||
+	    check_add_overflow(sizeof(*props) + sizeof(*package), alloc_size,
+			       &alloc_size)) {
+		acpi_handle_warn(handle,
+				 "can't allocate memory for %u buffer props",
+				 properties->package.count);
+		return;
+	}
+
+	props = kvzalloc(alloc_size, GFP_KERNEL);
+	if (!props)
+		return;
+
+	props->guid = &buffer_prop_guid;
+	props->bufs = (void *)(props + 1);
+	props->properties = (void *)(props->bufs + properties->package.count);
+
+	/* Outer package */
+	package = props->properties;
+	package->type = ACPI_TYPE_PACKAGE;
+	package->package.elements = package + 1;
+	count = &package->package.count;
+	*count = 0;
+
+	/* Inner packages */
+	package++;
+
+	for (i = 0; i < properties->package.count; i++) {
+		struct acpi_buffer buf = { ACPI_ALLOCATE_BUFFER };
+		union acpi_object *property = &properties->package.elements[i];
+		union acpi_object *prop, *obj, *buf_obj;
+		acpi_status status;
+
+		if (property->type != ACPI_TYPE_PACKAGE ||
+		    property->package.count != 2) {
+			acpi_handle_warn(handle,
+					 "buffer property %u has %u entries\n",
+					 i, property->package.count);
+			continue;
+		}
+
+		prop = &property->package.elements[0];
+		obj = &property->package.elements[1];
+
+		if (prop->type != ACPI_TYPE_STRING ||
+		    obj->type != ACPI_TYPE_STRING) {
+			acpi_handle_warn(handle,
+					 "wrong object types %u and %u\n",
+					 prop->type, obj->type);
+			continue;
+		}
+
+		status = acpi_evaluate_object_typed(handle, obj->string.pointer,
+						    NULL, &buf,
+						    ACPI_TYPE_BUFFER);
+		if (ACPI_FAILURE(status)) {
+			acpi_handle_warn(handle,
+					 "can't evaluate \"%*pE\" as buffer\n",
+					 obj->string.length,
+					 obj->string.pointer);
+			continue;
+		}
+
+		package->type = ACPI_TYPE_PACKAGE;
+		package->package.elements = prop;
+		package->package.count = 2;
+
+		buf_obj = buf.pointer;
+
+		/* Replace the string object with a buffer object */
+		obj->type = ACPI_TYPE_BUFFER;
+		obj->buffer.length = buf_obj->buffer.length;
+		obj->buffer.pointer = buf_obj->buffer.pointer;
+
+		props->bufs[i] = buf.pointer;
+		package++;
+		(*count)++;
+	}
+
+	if (*count)
+		list_add(&props->list, &data->properties);
+	else
+		kvfree(props);
+}
+
+static bool acpi_extract_properties(acpi_handle scope, union acpi_object *desc,
 				    struct acpi_device_data *data)
 {
 	int i;
@@ -387,7 +490,8 @@ static bool acpi_extract_properties(const union acpi_object *desc,
 
 	/* Look for the device properties GUID. */
 	for (i = 0; i < desc->package.count; i += 2) {
-		const union acpi_object *guid, *properties;
+		const union acpi_object *guid;
+		union acpi_object *properties;
 
 		guid = &desc->package.elements[i];
 		properties = &desc->package.elements[i + 1];
@@ -400,6 +504,12 @@ static bool acpi_extract_properties(const union acpi_object *desc,
 		    guid->buffer.length != 16 ||
 		    properties->type != ACPI_TYPE_PACKAGE)
 			break;
+
+		if (guid_equal((guid_t *)guid->buffer.pointer,
+			       &buffer_prop_guid)) {
+			acpi_data_add_buffer_props(scope, data, properties);
+			continue;
+		}
 
 		if (!acpi_is_property_guid((guid_t *)guid->buffer.pointer))
 			continue;
@@ -447,7 +557,7 @@ void acpi_init_properties(struct acpi_device *adev)
 	if (ACPI_FAILURE(status))
 		goto out;
 
-	if (acpi_extract_properties(buf.pointer, &adev->data)) {
+	if (acpi_extract_properties(adev->handle, buf.pointer, &adev->data)) {
 		adev->data.pointer = buf.pointer;
 		if (acpi_of)
 			acpi_init_of_compatible(adev);
@@ -477,8 +587,14 @@ static void acpi_free_device_properties(struct list_head *list)
 	struct acpi_device_properties *props, *tmp;
 
 	list_for_each_entry_safe(props, tmp, list, list) {
+		u32 i;
+
 		list_del(&props->list);
-		kfree(props);
+		/* Buffer data properties were separately allocated */
+		if (props->bufs)
+			for (i = 0; i < props->properties->package.count; i++)
+				ACPI_FREE(props->bufs[i]);
+		kvfree(props);
 	}
 }
 
