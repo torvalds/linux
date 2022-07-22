@@ -20,7 +20,7 @@ description:
 properties:
   compatible:
     enum:
-      - renesas,r9a07g043-sysc # RZ/G2UL
+      - renesas,r9a07g043-sysc # RZ/G2UL and RZ/Five
       - renesas,r9a07g044-sysc # RZ/G2{L,LC}
       - renesas,r9a07g054-sysc # RZ/V2L
 
@@ -44,8 +44,6 @@ properties:
 required:
   - compatible
   - reg
-  - interrupts
-  - interrupt-names
 
 additionalProperties: false
 
