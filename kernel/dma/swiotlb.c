@@ -119,7 +119,10 @@ static bool round_up_default_nslabs(void)
 
 static void swiotlb_adjust_nareas(unsigned int nareas)
 {
-	if (!is_power_of_2(nareas))
+	/* use a single area when non is specified */
+	if (!nareas)
+		nareas = 1;
+	else if (!is_power_of_2(nareas))
 		nareas = roundup_pow_of_two(nareas);
 
 	default_nareas = nareas;
@@ -276,6 +279,7 @@ static void swiotlb_init_io_tlb_mem(struct io_tlb_mem *mem, phys_addr_t start,
 	for (i = 0; i < mem->nareas; i++) {
 		spin_lock_init(&mem->areas[i].lock);
 		mem->areas[i].index = 0;
+		mem->areas[i].used = 0;
 	}
 
 	for (i = 0; i < mem->nslabs; i++) {
@@ -358,8 +362,8 @@ retry:
 		panic("%s: Failed to allocate %zu bytes align=0x%lx\n",
 		      __func__, alloc_size, PAGE_SIZE);
 
-	mem->areas = memblock_alloc(sizeof(struct io_tlb_area) *
-		default_nareas, SMP_CACHE_BYTES);
+	mem->areas = memblock_alloc(array_size(sizeof(struct io_tlb_area),
+		default_nareas), SMP_CACHE_BYTES);
 	if (!mem->areas)
 		panic("%s: Failed to allocate mem->areas.\n", __func__);
 
@@ -484,7 +488,7 @@ void __init swiotlb_exit(void)
 		free_pages((unsigned long)mem->slots, get_order(slots_size));
 	} else {
 		memblock_free_late(__pa(mem->areas),
-				   mem->nareas * sizeof(struct io_tlb_area));
+			array_size(sizeof(*mem->areas), mem->nareas));
 		memblock_free_late(mem->start, tbl_size);
 		memblock_free_late(__pa(mem->slots), slots_size);
 	}
@@ -598,11 +602,12 @@ static unsigned int wrap_area_index(struct io_tlb_mem *mem, unsigned int index)
  * Find a suitable number of IO TLB entries size that will fit this request and
  * allocate a buffer from that IO TLB pool.
  */
-static int swiotlb_do_find_slots(struct io_tlb_mem *mem,
-		struct io_tlb_area *area, int area_index,
-		struct device *dev, phys_addr_t orig_addr,
-		size_t alloc_size, unsigned int alloc_align_mask)
+static int swiotlb_do_find_slots(struct device *dev, int area_index,
+		phys_addr_t orig_addr, size_t alloc_size,
+		unsigned int alloc_align_mask)
 {
+	struct io_tlb_mem *mem = dev->dma_io_tlb_mem;
+	struct io_tlb_area *area = mem->areas + area_index;
 	unsigned long boundary_mask = dma_get_seg_boundary(dev);
 	dma_addr_t tbl_dma_addr =
 		phys_to_dma_unencrypted(dev, mem->start) & boundary_mask;
@@ -691,12 +696,11 @@ static int swiotlb_find_slots(struct device *dev, phys_addr_t orig_addr,
 		size_t alloc_size, unsigned int alloc_align_mask)
 {
 	struct io_tlb_mem *mem = dev->dma_io_tlb_mem;
-	int start = raw_smp_processor_id() & ((1U << __fls(mem->nareas)) - 1);
+	int start = raw_smp_processor_id() & (mem->nareas - 1);
 	int i = start, index;
 
 	do {
-		index = swiotlb_do_find_slots(mem, mem->areas + i, i,
-					      dev, orig_addr, alloc_size,
+		index = swiotlb_do_find_slots(dev, i, orig_addr, alloc_size,
 					      alloc_align_mask);
 		if (index >= 0)
 			return index;
