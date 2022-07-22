@@ -1206,10 +1206,9 @@ static int ti_sn_bridge_probe(struct auxiliary_device *adev,
 	int ret;
 
 	pdata->next_bridge = devm_drm_of_get_bridge(pdata->dev, np, 1, 0);
-	if (IS_ERR(pdata->next_bridge)) {
-		DRM_ERROR("failed to create panel bridge\n");
-		return PTR_ERR(pdata->next_bridge);
-	}
+	if (IS_ERR(pdata->next_bridge))
+		return dev_err_probe(pdata->dev, PTR_ERR(pdata->next_bridge),
+				     "failed to create panel bridge\n");
 
 	ti_sn_bridge_parse_lanes(pdata, np);
 
