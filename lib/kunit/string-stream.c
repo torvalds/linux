@@ -22,7 +22,6 @@ static struct string_stream_fragment *alloc_string_stream_fragment(
 	if (!frag)
 		return ERR_PTR(-ENOMEM);
 
-	frag->test = test;
 	frag->fragment = kunit_kmalloc(test, len, gfp);
 	if (!frag->fragment)
 		return ERR_PTR(-ENOMEM);
@@ -30,11 +29,12 @@ static struct string_stream_fragment *alloc_string_stream_fragment(
 	return frag;
 }
 
-static void string_stream_fragment_destroy(struct string_stream_fragment *frag)
+static void string_stream_fragment_destroy(struct kunit *test,
+					   struct string_stream_fragment *frag)
 {
 	list_del(&frag->node);
-	kunit_kfree(frag->test, frag->fragment);
-	kunit_kfree(frag->test, frag);
+	kunit_kfree(test, frag->fragment);
+	kunit_kfree(test, frag);
 }
 
 int string_stream_vadd(struct string_stream *stream,
@@ -89,7 +89,7 @@ static void string_stream_clear(struct string_stream *stream)
 				 frag_container_safe,
 				 &stream->fragments,
 				 node) {
-		string_stream_fragment_destroy(frag_container);
+		string_stream_fragment_destroy(stream->test, frag_container);
 	}
 	stream->length = 0;
 	spin_unlock(&stream->lock);
