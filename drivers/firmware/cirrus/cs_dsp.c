@@ -2725,6 +2725,9 @@ void cs_dsp_stop(struct cs_dsp *dsp)
 
 	mutex_lock(&dsp->pwr_lock);
 
+	if (dsp->client_ops->pre_stop)
+		dsp->client_ops->pre_stop(dsp);
+
 	dsp->running = false;
 
 	if (dsp->ops->stop_core)

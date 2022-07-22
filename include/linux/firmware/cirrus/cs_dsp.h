@@ -189,7 +189,8 @@ struct cs_dsp {
  * @control_remove:	Called under the pwr_lock when a control is destroyed
  * @pre_run:		Called under the pwr_lock by cs_dsp_run() before the core is started
  * @post_run:		Called under the pwr_lock by cs_dsp_run() after the core is started
- * @post_stop:		Called under the pwr_lock by cs_dsp_stop()
+ * @pre_stop:		Called under the pwr_lock by cs_dsp_stop() before the core is stopped
+ * @post_stop:		Called under the pwr_lock by cs_dsp_stop() after the core is stopped
  * @watchdog_expired:	Called when a watchdog expiry is detected
  *
  * These callbacks give the cs_dsp client an opportunity to respond to events
@@ -200,6 +201,7 @@ struct cs_dsp_client_ops {
 	void (*control_remove)(struct cs_dsp_coeff_ctl *ctl);
 	int (*pre_run)(struct cs_dsp *dsp);
 	int (*post_run)(struct cs_dsp *dsp);
+	void (*pre_stop)(struct cs_dsp *dsp);
 	void (*post_stop)(struct cs_dsp *dsp);
 	void (*watchdog_expired)(struct cs_dsp *dsp);
 };
