@@ -667,7 +667,7 @@ int st_asm330lhhx_buffers_setup(struct st_asm330lhhx_hw *hw)
 					st_asm330lhhx_handler_irq,
 					st_asm330lhhx_handler_thread,
 					irq_type | IRQF_ONESHOT,
-					"asm330lhhx", hw);
+					hw->settings->id.name, hw);
 	if (err) {
 		dev_err(hw->dev, "failed to request trigger irq %d\n",
 			hw->irq);
