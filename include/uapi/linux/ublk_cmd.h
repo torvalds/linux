@@ -46,13 +46,13 @@
  * zero copy requires 4k block size, and can remap ublk driver's io
  * request into ublksrv's vm space
  */
-#define UBLK_F_SUPPORT_ZERO_COPY	(1UL << 0)
+#define UBLK_F_SUPPORT_ZERO_COPY	(1ULL << 0)
 
 /*
  * Force to complete io cmd via io_uring_cmd_complete_in_task so that
  * performance comparison is done easily with using task_work_add
  */
-#define UBLK_F_URING_CMD_COMP_IN_TASK	(1UL << 1)
+#define UBLK_F_URING_CMD_COMP_IN_TASK	(1ULL << 1)
 
 /* device state */
 #define UBLK_S_DEV_DEAD	0
@@ -88,7 +88,8 @@ struct ublksrv_ctrl_dev_info {
 
 	__s32	ublksrv_pid;
 	__s32	reserved0;
-	__u64	flags[2];
+	__u64	flags;
+	__u64	flags_reserved;
 
 	/* For ublksrv internal use, invisible to ublk driver */
 	__u64	ublksrv_flags;

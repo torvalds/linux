@@ -46,6 +46,9 @@
 
 #define UBLK_MINORS		(1U << MINORBITS)
 
+/* All UBLK_F_* have to be included into UBLK_F_ALL */
+#define UBLK_F_ALL (UBLK_F_SUPPORT_ZERO_COPY | UBLK_F_URING_CMD_COMP_IN_TASK)
+
 struct ublk_rq_data {
 	struct callback_head work;
 };
@@ -953,7 +956,7 @@ static int ublk_init_queue(struct ublk_device *ub, int q_id)
 	void *ptr;
 	int size;
 
-	ubq->flags = ub->dev_info.flags[0];
+	ubq->flags = ub->dev_info.flags;
 	ubq->q_id = q_id;
 	ubq->q_depth = ub->dev_info.queue_depth;
 	size = ublk_queue_cmd_buf_size(ub, q_id);
@@ -1246,7 +1249,7 @@ out_put_device:
 static inline void ublk_dump_dev_info(struct ublksrv_ctrl_dev_info *info)
 {
 	pr_devel("%s: dev id %d flags %llx\n", __func__,
-			info->dev_id, info->flags[0]);
+			info->dev_id, info->flags);
 	pr_devel("\t nr_hw_queues %d queue_depth %d block size %d dev_capacity %lld\n",
 			info->nr_hw_queues, info->queue_depth,
 			info->block_size, info->dev_blocks);
@@ -1298,8 +1301,16 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 	/* update device id */
 	ub->dev_info.dev_id = ub->ub_number;
 
+	/*
+	 * 64bit flags will be copied back to userspace as feature
+	 * negotiation result, so have to clear flags which driver
+	 * doesn't support yet, then userspace can get correct flags
+	 * (features) to handle.
+	 */
+	ub->dev_info.flags &= UBLK_F_ALL;
+
 	/* We are not ready to support zero copy */
-	ub->dev_info.flags[0] &= ~UBLK_F_SUPPORT_ZERO_COPY;
+	ub->dev_info.flags &= ~UBLK_F_SUPPORT_ZERO_COPY;
 
 	ub->bs_shift = ilog2(ub->dev_info.block_size);
 	ub->dev_info.nr_hw_queues = min_t(unsigned int,
