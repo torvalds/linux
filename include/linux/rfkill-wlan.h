@@ -46,7 +46,14 @@ struct rksdmmc_gpio_wifi_moudle {
 	struct clk *ext_clk;
 };
 
+#if IS_REACHABLE(CONFIG_RFKILL_RK)
 int rfkill_get_wifi_power_state(int *power);
+#else
+static inline int rfkill_get_wifi_power_state(int *power)
+{
+	return -1;
+}
+#endif
 void *rockchip_mem_prealloc(int section, unsigned long size);
 int rfkill_set_wifi_bt_power(int on);
 int rockchip_wifi_power(int on);
