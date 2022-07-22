@@ -286,7 +286,6 @@
 	status = "disabled";
 };
 
-
 /* Verdin CAN_2 */
 &flexcan2 {
 	pinctrl-names = "default";
