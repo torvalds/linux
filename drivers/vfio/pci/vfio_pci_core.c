@@ -316,9 +316,13 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 		pci_write_config_word(pdev, PCI_COMMAND, cmd);
 	}
 
-	ret = vfio_config_init(vdev);
+	ret = vfio_pci_zdev_open_device(vdev);
 	if (ret)
 		goto out_free_state;
+
+	ret = vfio_config_init(vdev);
+	if (ret)
+		goto out_free_zdev;
 
 	msix_pos = pdev->msix_cap;
 	if (msix_pos) {
@@ -340,6 +344,8 @@ int vfio_pci_core_enable(struct vfio_pci_core_device *vdev)
 
 	return 0;
 
+out_free_zdev:
+	vfio_pci_zdev_close_device(vdev);
 out_free_state:
 	kfree(vdev->pci_saved_state);
 	vdev->pci_saved_state = NULL;
@@ -417,6 +423,8 @@ void vfio_pci_core_disable(struct vfio_pci_core_device *vdev)
 	}
 
 	vdev->needs_reset = true;
+
+	vfio_pci_zdev_close_device(vdev);
 
 	/*
 	 * If we have saved state, restore it.  If we can reset the device,

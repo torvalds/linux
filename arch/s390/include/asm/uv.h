@@ -124,7 +124,10 @@ struct uv_cb_qui {
 	u64 reservedc0;				/* 0x00c0 */
 	u64 conf_dump_storage_state_len;	/* 0x00c8 */
 	u64 conf_dump_finalize_len;		/* 0x00d0 */
-	u8  reservedd8[256 - 216];		/* 0x00d8 */
+	u64 reservedd8;				/* 0x00d8 */
+	u64 supp_att_req_hdr_ver;		/* 0x00e0 */
+	u64 supp_att_pflags;			/* 0x00e8 */
+	u8 reservedf0[256 - 240];		/* 0x00f0 */
 } __packed __aligned(8);
 
 /* Initialize Ultravisor */
@@ -350,6 +353,8 @@ struct uv_info {
 	unsigned long supp_se_hdr_pcf;
 	unsigned long conf_dump_storage_state_len;
 	unsigned long conf_dump_finalize_len;
+	unsigned long supp_att_req_hdr_ver;
+	unsigned long supp_att_pflags;
 };
 
 extern struct uv_info uv_info;
@@ -421,6 +426,7 @@ static inline int is_prot_virt_host(void)
 }
 
 int gmap_make_secure(struct gmap *gmap, unsigned long gaddr, void *uvcb);
+int gmap_destroy_page(struct gmap *gmap, unsigned long gaddr);
 int uv_destroy_owned_page(unsigned long paddr);
 int uv_convert_from_secure(unsigned long paddr);
 int uv_convert_owned_from_secure(unsigned long paddr);

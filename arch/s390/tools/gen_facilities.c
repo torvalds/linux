@@ -111,6 +111,7 @@ static struct facility_def facility_defs[] = {
 			193, /* bear enhancement facility */
 			194, /* rdp enhancement facility */
 			196, /* processor activity instrumentation facility */
+			197, /* processor activity instrumentation extension 1 */
 			-1  /* END */
 		}
 	},
