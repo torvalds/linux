@@ -571,8 +571,9 @@ static void nfs_direct_commit_complete(struct nfs_commit_data *data)
 		dreq->max_count = 0;
 		dreq->count = 0;
 		dreq->flags = NFS_ODIRECT_DONE;
-	} else if (dreq->flags == NFS_ODIRECT_DONE)
+	} else {
 		status = dreq->error;
+	}
 
 	nfs_init_cinfo_from_dreq(&cinfo, dreq);
 
