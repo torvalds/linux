@@ -515,12 +515,19 @@ static const struct acpi_device_id cxl_acpi_ids[] = {
 };
 MODULE_DEVICE_TABLE(acpi, cxl_acpi_ids);
 
+static const struct platform_device_id cxl_test_ids[] = {
+	{ "cxl_acpi" },
+	{ },
+};
+MODULE_DEVICE_TABLE(platform, cxl_test_ids);
+
 static struct platform_driver cxl_acpi_driver = {
 	.probe = cxl_acpi_probe,
 	.driver = {
 		.name = KBUILD_MODNAME,
 		.acpi_match_table = cxl_acpi_ids,
 	},
+	.id_table = cxl_test_ids,
 };
 
 module_platform_driver(cxl_acpi_driver);
