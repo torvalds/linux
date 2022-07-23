@@ -937,13 +937,6 @@ static int imxfb_probe(struct platform_device *pdev)
 		info->fix.smem_len = max_t(size_t, info->fix.smem_len,
 				m->mode.xres * m->mode.yres * bytes_per_pixel);
 
-	res = request_mem_region(res->start, resource_size(res),
-				DRIVER_NAME);
-	if (!res) {
-		ret = -EBUSY;
-		goto failed_req;
-	}
-
 	fbi->clk_ipg = devm_clk_get(&pdev->dev, "ipg");
 	if (IS_ERR(fbi->clk_ipg)) {
 		ret = PTR_ERR(fbi->clk_ipg);
@@ -977,7 +970,7 @@ static int imxfb_probe(struct platform_device *pdev)
 		goto failed_getclock;
 	}
 
-	fbi->regs = ioremap(res->start, resource_size(res));
+	fbi->regs = devm_ioremap_resource(&pdev->dev, res);
 	if (fbi->regs == NULL) {
 		dev_err(&pdev->dev, "Cannot map frame buffer registers\n");
 		ret = -ENOMEM;
@@ -1049,11 +1042,9 @@ failed_cmap:
 	dma_free_wc(&pdev->dev, fbi->map_size, info->screen_buffer,
 		    fbi->map_dma);
 failed_map:
-	iounmap(fbi->regs);
 failed_ioremap:
 failed_getclock:
 	release_mem_region(res->start, resource_size(res));
-failed_req:
 failed_of_parse:
 	kfree(info->pseudo_palette);
 failed_init:
@@ -1065,11 +1056,6 @@ static int imxfb_remove(struct platform_device *pdev)
 {
 	struct fb_info *info = platform_get_drvdata(pdev);
 	struct imxfb_info *fbi = info->par;
-	struct resource *res;
-
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res)
-		return -EINVAL;
 
 	imxfb_disable_controller(fbi);
 
@@ -1077,8 +1063,6 @@ static int imxfb_remove(struct platform_device *pdev)
 	fb_dealloc_cmap(&info->cmap);
 	dma_free_wc(&pdev->dev, fbi->map_size, info->screen_buffer,
 		    fbi->map_dma);
-	iounmap(fbi->regs);
-	release_mem_region(res->start, resource_size(res));
 	kfree(info->pseudo_palette);
 	framebuffer_release(info);
 
