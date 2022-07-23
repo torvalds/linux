@@ -635,7 +635,7 @@ static inline struct mddev *mddev_get(struct mddev *mddev)
 
 static void mddev_delayed_delete(struct work_struct *ws);
 
-static void mddev_put(struct mddev *mddev)
+void mddev_put(struct mddev *mddev)
 {
 	if (!atomic_dec_and_lock(&mddev->active, &all_mddevs_lock))
 		return;
@@ -713,24 +713,6 @@ static dev_t mddev_alloc_unit(void)
 
 	return dev;
 }
-
-#ifndef MODULE
-static struct mddev *mddev_find(dev_t unit)
-{
-	struct mddev *mddev;
-
-	if (MAJOR(unit) != MD_MAJOR)
-		unit &= ~((1 << MdpMinorShift) - 1);
-
-	spin_lock(&all_mddevs_lock);
-	mddev = mddev_find_locked(unit);
-	if (mddev && !mddev_get(mddev))
-		mddev = NULL;
-	spin_unlock(&all_mddevs_lock);
-
-	return mddev;
-}
-#endif
 
 static struct mddev *mddev_alloc(dev_t unit)
 {
@@ -5614,7 +5596,7 @@ int mddev_init_writes_pending(struct mddev *mddev)
 }
 EXPORT_SYMBOL_GPL(mddev_init_writes_pending);
 
-int md_alloc(dev_t dev, char *name)
+struct mddev *md_alloc(dev_t dev, char *name)
 {
 	/*
 	 * If dev is zero, name is the name of a device to allocate with
@@ -5706,17 +5688,16 @@ int md_alloc(dev_t dev, char *name)
 		 * different from a normal close on last release now.
 		 */
 		mddev->hold_active = 0;
-		goto done;
+		mutex_unlock(&disks_mutex);
+		mddev_put(mddev);
+		return ERR_PTR(error);
 	}
 
 	kobject_uevent(&mddev->kobj, KOBJ_ADD);
 	mddev->sysfs_state = sysfs_get_dirent_safe(mddev->kobj.sd, "array_state");
 	mddev->sysfs_level = sysfs_get_dirent_safe(mddev->kobj.sd, "level");
-
-done:
 	mutex_unlock(&disks_mutex);
-	mddev_put(mddev);
-	return error;
+	return mddev;
 
 out_put_disk:
 	put_disk(disk);
@@ -5724,7 +5705,17 @@ out_free_mddev:
 	mddev_free(mddev);
 out_unlock:
 	mutex_unlock(&disks_mutex);
-	return error;
+	return ERR_PTR(error);
+}
+
+static int md_alloc_and_put(dev_t dev, char *name)
+{
+	struct mddev *mddev = md_alloc(dev, name);
+
+	if (IS_ERR(mddev))
+		return PTR_ERR(mddev);
+	mddev_put(mddev);
+	return 0;
 }
 
 static void md_probe(dev_t dev)
@@ -5732,7 +5723,7 @@ static void md_probe(dev_t dev)
 	if (MAJOR(dev) == MD_MAJOR && MINOR(dev) >= 512)
 		return;
 	if (create_on_open)
-		md_alloc(dev, NULL);
+		md_alloc_and_put(dev, NULL);
 }
 
 static int add_named_array(const char *val, const struct kernel_param *kp)
@@ -5754,12 +5745,12 @@ static int add_named_array(const char *val, const struct kernel_param *kp)
 		return -E2BIG;
 	strscpy(buf, val, len+1);
 	if (strncmp(buf, "md_", 3) == 0)
-		return md_alloc(0, buf);
+		return md_alloc_and_put(0, buf);
 	if (strncmp(buf, "md", 2) == 0 &&
 	    isdigit(buf[2]) &&
 	    kstrtoul(buf+2, 10, &devnum) == 0 &&
 	    devnum <= MINORMASK)
-		return md_alloc(MKDEV(MD_MAJOR, devnum), NULL);
+		return md_alloc_and_put(MKDEV(MD_MAJOR, devnum), NULL);
 
 	return -EINVAL;
 }
@@ -6500,9 +6491,8 @@ static void autorun_devices(int part)
 			break;
 		}
 
-		md_alloc(dev, NULL);
-		mddev = mddev_find(dev);
-		if (!mddev)
+		mddev = md_alloc(dev, NULL);
+		if (IS_ERR(mddev))
 			break;
 
 		if (mddev_lock(mddev))
