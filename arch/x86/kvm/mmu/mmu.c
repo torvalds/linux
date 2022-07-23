@@ -4735,7 +4735,7 @@ reset_tdp_shadow_zero_bits_mask(struct kvm_mmu *context)
 
 	if (boot_cpu_is_amd())
 		__reset_rsvds_bits_mask(shadow_zero_check, reserved_hpa_bits(),
-					context->root_role.level, false,
+					context->root_role.level, true,
 					boot_cpu_has(X86_FEATURE_GBPAGES),
 					false, true);
 	else
