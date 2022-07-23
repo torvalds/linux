@@ -290,7 +290,6 @@ static struct attribute *cxl_decoder_base_attrs[] = {
 	&dev_attr_locked.attr,
 	&dev_attr_interleave_granularity.attr,
 	&dev_attr_interleave_ways.attr,
-	SET_CXL_REGION_ATTR(region)
 	NULL,
 };
 
@@ -345,6 +344,7 @@ static const struct attribute_group *cxl_decoder_root_attribute_groups[] = {
 static struct attribute *cxl_decoder_switch_attrs[] = {
 	&dev_attr_target_type.attr,
 	&dev_attr_target_list.attr,
+	SET_CXL_REGION_ATTR(region)
 	NULL,
 };
 
@@ -364,6 +364,7 @@ static struct attribute *cxl_decoder_endpoint_attrs[] = {
 	&dev_attr_mode.attr,
 	&dev_attr_dpa_size.attr,
 	&dev_attr_dpa_resource.attr,
+	SET_CXL_REGION_ATTR(region)
 	NULL,
 };
 
