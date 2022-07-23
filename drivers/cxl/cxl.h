@@ -248,6 +248,8 @@ enum cxl_decoder_type {
  */
 #define CXL_DECODER_MAX_INTERLEAVE 16
 
+#define CXL_DECODER_MIN_GRANULARITY 256
+
 /**
  * struct cxl_decoder - Common CXL HDM Decoder Attributes
  * @dev: this decoder's device

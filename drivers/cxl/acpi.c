@@ -140,6 +140,12 @@ static int cxl_parse_cfmws(union acpi_subtable_headers *header, void *arg,
 		.end = res->end,
 	};
 	cxld->interleave_ways = ways;
+	/*
+	 * Minimize the x1 granularity to advertise support for any
+	 * valid region granularity
+	 */
+	if (ways == 1)
+		ig = CXL_DECODER_MIN_GRANULARITY;
 	cxld->interleave_granularity = ig;
 
 	rc = cxl_decoder_add(cxld, target_map);
