@@ -6500,7 +6500,7 @@ static void autorun_devices(int part)
 			break;
 		}
 
-		md_probe(dev);
+		md_alloc(dev, NULL);
 		mddev = mddev_find(dev);
 		if (!mddev)
 			break;
