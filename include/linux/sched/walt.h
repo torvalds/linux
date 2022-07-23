@@ -138,6 +138,7 @@ struct walt_task_struct {
 	int				prev_cpu;
 	int				new_cpu;
 	u8				enqueue_after_migration;
+	u8				hung_detect_status;
 };
 
 #define wts_to_ts(wts) ({ \
