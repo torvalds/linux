@@ -19,7 +19,7 @@ KernelVersion:	3.13
 Description:
 		The attributes:
 
-		===========	==============================================
+		============	==============================================
 		file		The path to the backing file for the LUN.
 				Required if LUN is not marked as removable.
 		ro		Flag specifying access to the LUN shall be
@@ -38,4 +38,4 @@ Description:
 				regardless of whether the host has allowed it.
 				Any non-zero number of bytes written will
 				result in ejection.
-		===========	==============================================
+		============	==============================================
