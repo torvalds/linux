@@ -485,8 +485,8 @@ static void stmmac_get_ringparam(struct net_device *netdev,
 
 	ring->rx_max_pending = DMA_MAX_RX_SIZE;
 	ring->tx_max_pending = DMA_MAX_TX_SIZE;
-	ring->rx_pending = priv->dma_rx_size;
-	ring->tx_pending = priv->dma_tx_size;
+	ring->rx_pending = priv->dma_conf.dma_rx_size;
+	ring->tx_pending = priv->dma_conf.dma_tx_size;
 }
 
 static int stmmac_set_ringparam(struct net_device *netdev,
