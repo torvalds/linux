@@ -71,6 +71,20 @@ void max96752f_init(struct max96752f *max96752f)
 }
 EXPORT_SYMBOL(max96752f_init);
 
+static void max96752f_power_on(struct max96752f *max96752f)
+{
+	if (max96752f->enable_gpio) {
+		gpiod_direction_output(max96752f->enable_gpio, 1);
+		msleep(500);
+	}
+}
+
+static void max96752f_power_off(struct max96752f *max96752f)
+{
+	if (max96752f->enable_gpio)
+		gpiod_direction_output(max96752f->enable_gpio, 0);
+}
+
 static int max96752f_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
@@ -98,6 +112,12 @@ static int max96752f_i2c_probe(struct i2c_client *client)
 	max96752f->dev = dev;
 	max96752f->client = client;
 
+	max96752f->enable_gpio = devm_gpiod_get_optional(dev, "enable",
+							 GPIOD_ASIS);
+	if (IS_ERR(max96752f->enable_gpio))
+		return dev_err_probe(dev, PTR_ERR(max96752f->enable_gpio),
+				     "failed to get enable GPIO\n");
+
 	ret = device_property_read_u32(dev->parent, "reg", &max96752f->stream_id);
 	if (ret)
 		return dev_err_probe(dev, ret, "failed to get gmsl id\n");
@@ -110,6 +130,7 @@ static int max96752f_i2c_probe(struct i2c_client *client)
 		return dev_err_probe(dev, PTR_ERR(max96752f->regmap),
 				     "failed to initialize regmap\n");
 
+	max96752f_power_on(max96752f);
 	max96752f_init(max96752f);
 
 	ret = devm_mfd_add_devices(dev, PLATFORM_DEVID_AUTO, max96752f_devs,
@@ -137,7 +158,29 @@ static void max96752f_i2c_shutdown(struct i2c_client *client)
 
 	regmap_update_bits(max96752f->regmap, 0x0010, RESET_ALL,
 			   FIELD_PREP(RESET_ALL, 1));
+
+	max96752f_power_off(max96752f);
 }
+
+static int __maybe_unused max96752f_suspend(struct device *dev)
+{
+	struct max96752f *max96752f = dev_get_drvdata(dev);
+
+	max96752f_power_off(max96752f);
+
+	return 0;
+}
+
+static int __maybe_unused max96752f_resume(struct device *dev)
+{
+	struct max96752f *max96752f = dev_get_drvdata(dev);
+
+	max96752f_power_on(max96752f);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(max96752f_pm_ops, max96752f_suspend, max96752f_resume);
 
 static const struct of_device_id max96752f_of_match[] = {
 	{ .compatible = "maxim,max96752f", },
@@ -149,6 +192,7 @@ static struct i2c_driver max96752f_i2c_driver = {
 	.driver = {
 		.name = "max96752f",
 		.of_match_table = of_match_ptr(max96752f_of_match),
+		.pm = &max96752f_pm_ops,
 	},
 	.probe_new = max96752f_i2c_probe,
 	.shutdown = max96752f_i2c_shutdown,
