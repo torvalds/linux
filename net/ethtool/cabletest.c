@@ -356,7 +356,7 @@ out_dev_put:
 	ethnl_parse_header_dev_put(&req_info);
 	return ret;
 }
- 
+
 int ethnl_cable_test_amplitude(struct phy_device *phydev,
 			       u8 pair, s16 mV)
 {
