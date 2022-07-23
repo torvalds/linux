@@ -7,7 +7,9 @@
  *
  * Author: Basavaraj Natikar <Basavaraj.Natikar@amd.com>
  */
+#include <linux/io-64-nonatomic-lo-hi.h>
 #include <linux/iopoll.h>
+
 #include "amd_sfh_interface.h"
 
 static int amd_sfh_wait_response(struct amd_mp2_dev *mp2, u8 sid, u32 cmd_id)
