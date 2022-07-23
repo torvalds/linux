@@ -112,7 +112,7 @@ static void vfio_ap_wait_for_irqclear(int apqn)
  *
  * Unregisters the ISC in the GIB when the saved ISC not invalid.
  * Unpins the guest's page holding the NIB when it exists.
- * Resets the saved_pfn and saved_isc to invalid values.
+ * Resets the saved_iova and saved_isc to invalid values.
  */
 static void vfio_ap_free_aqic_resources(struct vfio_ap_queue *q)
 {
@@ -123,9 +123,9 @@ static void vfio_ap_free_aqic_resources(struct vfio_ap_queue *q)
 		kvm_s390_gisc_unregister(q->matrix_mdev->kvm, q->saved_isc);
 		q->saved_isc = VFIO_AP_ISC_INVALID;
 	}
-	if (q->saved_pfn && !WARN_ON(!q->matrix_mdev)) {
-		vfio_unpin_pages(&q->matrix_mdev->vdev, q->saved_pfn << PAGE_SHIFT, 1);
-		q->saved_pfn = 0;
+	if (q->saved_iova && !WARN_ON(!q->matrix_mdev)) {
+		vfio_unpin_pages(&q->matrix_mdev->vdev, q->saved_iova, 1);
+		q->saved_iova = 0;
 	}
 }
 
@@ -189,27 +189,19 @@ end_free:
  *
  * @vcpu: the object representing the vcpu executing the PQAP(AQIC) instruction.
  * @nib: the location for storing the nib address.
- * @g_pfn: the location for storing the page frame number of the page containing
- *	   the nib.
  *
  * When the PQAP(AQIC) instruction is executed, general register 2 contains the
  * address of the notification indicator byte (nib) used for IRQ notification.
- * This function parses the nib from gr2 and calculates the page frame
- * number for the guest of the page containing the nib. The values are
- * stored in @nib and @g_pfn respectively.
- *
- * The g_pfn of the nib is then validated to ensure the nib address is valid.
+ * This function parses and validates the nib from gr2.
  *
  * Return: returns zero if the nib address is a valid; otherwise, returns
  *	   -EINVAL.
  */
-static int vfio_ap_validate_nib(struct kvm_vcpu *vcpu, unsigned long *nib,
-				unsigned long *g_pfn)
+static int vfio_ap_validate_nib(struct kvm_vcpu *vcpu, dma_addr_t *nib)
 {
 	*nib = vcpu->run->s.regs.gprs[2];
-	*g_pfn = *nib >> PAGE_SHIFT;
 
-	if (kvm_is_error_hva(gfn_to_hva(vcpu->kvm, *g_pfn)))
+	if (kvm_is_error_hva(gfn_to_hva(vcpu->kvm, *nib >> PAGE_SHIFT)))
 		return -EINVAL;
 
 	return 0;
@@ -239,34 +231,34 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 						 int isc,
 						 struct kvm_vcpu *vcpu)
 {
-	unsigned long nib;
 	struct ap_qirq_ctrl aqic_gisa = {};
 	struct ap_queue_status status = {};
 	struct kvm_s390_gisa *gisa;
 	int nisc;
 	struct kvm *kvm;
-	unsigned long g_pfn, h_pfn;
+	unsigned long h_pfn;
 	phys_addr_t h_nib;
+	dma_addr_t nib;
 	int ret;
 
 	/* Verify that the notification indicator byte address is valid */
-	if (vfio_ap_validate_nib(vcpu, &nib, &g_pfn)) {
-		VFIO_AP_DBF_WARN("%s: invalid NIB address: nib=%#lx, g_pfn=%#lx, apqn=%#04x\n",
-				 __func__, nib, g_pfn, q->apqn);
+	if (vfio_ap_validate_nib(vcpu, &nib)) {
+		VFIO_AP_DBF_WARN("%s: invalid NIB address: nib=%pad, apqn=%#04x\n",
+				 __func__, &nib, q->apqn);
 
 		status.response_code = AP_RESPONSE_INVALID_ADDRESS;
 		return status;
 	}
 
-	ret = vfio_pin_pages(&q->matrix_mdev->vdev, g_pfn << PAGE_SHIFT, 1,
+	ret = vfio_pin_pages(&q->matrix_mdev->vdev, nib, 1,
 			     IOMMU_READ | IOMMU_WRITE, &h_pfn);
 	switch (ret) {
 	case 1:
 		break;
 	default:
 		VFIO_AP_DBF_WARN("%s: vfio_pin_pages failed: rc=%d,"
-				 "nib=%#lx, g_pfn=%#lx, apqn=%#04x\n",
-				 __func__, ret, nib, g_pfn, q->apqn);
+				 "nib=%pad, apqn=%#04x\n",
+				 __func__, ret, &nib, q->apqn);
 
 		status.response_code = AP_RESPONSE_INVALID_ADDRESS;
 		return status;
@@ -296,12 +288,12 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 	case AP_RESPONSE_NORMAL:
 		/* See if we did clear older IRQ configuration */
 		vfio_ap_free_aqic_resources(q);
-		q->saved_pfn = g_pfn;
+		q->saved_iova = nib;
 		q->saved_isc = isc;
 		break;
 	case AP_RESPONSE_OTHERWISE_CHANGED:
 		/* We could not modify IRQ setings: clear new configuration */
-		vfio_unpin_pages(&q->matrix_mdev->vdev, g_pfn << PAGE_SHIFT, 1);
+		vfio_unpin_pages(&q->matrix_mdev->vdev, nib, 1);
 		kvm_s390_gisc_unregister(kvm, isc);
 		break;
 	default:
