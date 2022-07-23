@@ -327,6 +327,7 @@
   devm_krealloc
   devm_kstrdup
   devm_led_classdev_register_ext
+  devm_mbox_controller_register
   devm_nvmem_cell_get
   devm_nvmem_device_get
   devm_nvmem_register
