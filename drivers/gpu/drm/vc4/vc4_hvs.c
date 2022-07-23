@@ -564,6 +564,7 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 	struct vc4_hvs *hvs = NULL;
 	int ret;
 	u32 dispctrl;
+	u32 reg;
 
 	hvs = devm_kzalloc(&pdev->dev, sizeof(*hvs), GFP_KERNEL);
 	if (!hvs)
@@ -635,6 +636,26 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 
 	vc4->hvs = hvs;
 
+	reg = HVS_READ(SCALER_DISPECTRL);
+	reg &= ~SCALER_DISPECTRL_DSP2_MUX_MASK;
+	HVS_WRITE(SCALER_DISPECTRL,
+		  reg | VC4_SET_FIELD(0, SCALER_DISPECTRL_DSP2_MUX));
+
+	reg = HVS_READ(SCALER_DISPCTRL);
+	reg &= ~SCALER_DISPCTRL_DSP3_MUX_MASK;
+	HVS_WRITE(SCALER_DISPCTRL,
+		  reg | VC4_SET_FIELD(3, SCALER_DISPCTRL_DSP3_MUX));
+
+	reg = HVS_READ(SCALER_DISPEOLN);
+	reg &= ~SCALER_DISPEOLN_DSP4_MUX_MASK;
+	HVS_WRITE(SCALER_DISPEOLN,
+		  reg | VC4_SET_FIELD(3, SCALER_DISPEOLN_DSP4_MUX));
+
+	reg = HVS_READ(SCALER_DISPDITHER);
+	reg &= ~SCALER_DISPDITHER_DSP5_MUX_MASK;
+	HVS_WRITE(SCALER_DISPDITHER,
+		  reg | VC4_SET_FIELD(3, SCALER_DISPDITHER_DSP5_MUX));
+
 	dispctrl = HVS_READ(SCALER_DISPCTRL);
 
 	dispctrl |= SCALER_DISPCTRL_ENABLE;
@@ -642,10 +663,6 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 		    SCALER_DISPCTRL_DISPEIRQ(1) |
 		    SCALER_DISPCTRL_DISPEIRQ(2);
 
-	/* Set DSP3 (PV1) to use HVS channel 2, which would otherwise
-	 * be unused.
-	 */
-	dispctrl &= ~SCALER_DISPCTRL_DSP3_MUX_MASK;
 	dispctrl &= ~(SCALER_DISPCTRL_DMAEIRQ |
 		      SCALER_DISPCTRL_SLVWREIRQ |
 		      SCALER_DISPCTRL_SLVRDEIRQ |
@@ -659,7 +676,6 @@ static int vc4_hvs_bind(struct device *dev, struct device *master, void *data)
 		      SCALER_DISPCTRL_DSPEISLUR(1) |
 		      SCALER_DISPCTRL_DSPEISLUR(2) |
 		      SCALER_DISPCTRL_SCLEIRQ);
-	dispctrl |= VC4_SET_FIELD(2, SCALER_DISPCTRL_DSP3_MUX);
 
 	HVS_WRITE(SCALER_DISPCTRL, dispctrl);
 

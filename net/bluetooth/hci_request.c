@@ -382,6 +382,53 @@ void __hci_req_write_fast_connectable(struct hci_request *req, bool enable)
 		hci_req_add(req, HCI_OP_WRITE_PAGE_SCAN_TYPE, 1, &type);
 }
 
+static void start_interleave_scan(struct hci_dev *hdev)
+{
+	hdev->interleave_scan_state = INTERLEAVE_SCAN_NO_FILTER;
+	queue_delayed_work(hdev->req_workqueue,
+			   &hdev->interleave_scan, 0);
+}
+
+static bool is_interleave_scanning(struct hci_dev *hdev)
+{
+	return hdev->interleave_scan_state != INTERLEAVE_SCAN_NONE;
+}
+
+static void cancel_interleave_scan(struct hci_dev *hdev)
+{
+	bt_dev_dbg(hdev, "cancelling interleave scan");
+
+	cancel_delayed_work_sync(&hdev->interleave_scan);
+
+	hdev->interleave_scan_state = INTERLEAVE_SCAN_NONE;
+}
+
+/* Return true if interleave_scan wasn't started until exiting this function,
+ * otherwise, return false
+ */
+static bool __hci_update_interleaved_scan(struct hci_dev *hdev)
+{
+	/* If there is at least one ADV monitors and one pending LE connection
+	 * or one device to be scanned for, we should alternate between
+	 * allowlist scan and one without any filters to save power.
+	 */
+	bool use_interleaving = hci_is_adv_monitoring(hdev) &&
+				!(list_empty(&hdev->pend_le_conns) &&
+				  list_empty(&hdev->pend_le_reports));
+	bool is_interleaving = is_interleave_scanning(hdev);
+
+	if (use_interleaving && !is_interleaving) {
+		start_interleave_scan(hdev);
+		bt_dev_dbg(hdev, "starting interleave scan");
+		return true;
+	}
+
+	if (!use_interleaving && is_interleaving)
+		cancel_interleave_scan(hdev);
+
+	return false;
+}
+
 /* This function controls the background scanning based on hdev->pend_le_conns
  * list. If there are pending LE connection we start the background scanning,
  * otherwise we stop it.
@@ -454,8 +501,7 @@ static void __hci_update_background_scan(struct hci_request *req)
 			hci_req_add_le_scan_disable(req, false);
 
 		hci_req_add_le_passive_scan(req);
-
-		BT_DBG("%s starting background scanning", hdev->name);
+		bt_dev_dbg(hdev, "starting background scanning");
 	}
 }
 
@@ -690,17 +736,17 @@ void hci_req_add_le_scan_disable(struct hci_request *req, bool rpa_le_conn)
 	}
 }
 
-static void del_from_white_list(struct hci_request *req, bdaddr_t *bdaddr,
-				u8 bdaddr_type)
+static void del_from_accept_list(struct hci_request *req, bdaddr_t *bdaddr,
+				 u8 bdaddr_type)
 {
-	struct hci_cp_le_del_from_white_list cp;
+	struct hci_cp_le_del_from_accept_list cp;
 
 	cp.bdaddr_type = bdaddr_type;
 	bacpy(&cp.bdaddr, bdaddr);
 
-	bt_dev_dbg(req->hdev, "Remove %pMR (0x%x) from whitelist", &cp.bdaddr,
+	bt_dev_dbg(req->hdev, "Remove %pMR (0x%x) from accept list", &cp.bdaddr,
 		   cp.bdaddr_type);
-	hci_req_add(req, HCI_OP_LE_DEL_FROM_WHITE_LIST, sizeof(cp), &cp);
+	hci_req_add(req, HCI_OP_LE_DEL_FROM_ACCEPT_LIST, sizeof(cp), &cp);
 
 	if (use_ll_privacy(req->hdev) &&
 	    hci_dev_test_flag(req->hdev, HCI_ENABLE_LL_PRIVACY)) {
@@ -719,31 +765,31 @@ static void del_from_white_list(struct hci_request *req, bdaddr_t *bdaddr,
 	}
 }
 
-/* Adds connection to white list if needed. On error, returns -1. */
-static int add_to_white_list(struct hci_request *req,
-			     struct hci_conn_params *params, u8 *num_entries,
-			     bool allow_rpa)
+/* Adds connection to accept list if needed. On error, returns -1. */
+static int add_to_accept_list(struct hci_request *req,
+			      struct hci_conn_params *params, u8 *num_entries,
+			      bool allow_rpa)
 {
-	struct hci_cp_le_add_to_white_list cp;
+	struct hci_cp_le_add_to_accept_list cp;
 	struct hci_dev *hdev = req->hdev;
 
-	/* Already in white list */
-	if (hci_bdaddr_list_lookup(&hdev->le_white_list, &params->addr,
+	/* Already in accept list */
+	if (hci_bdaddr_list_lookup(&hdev->le_accept_list, &params->addr,
 				   params->addr_type))
 		return 0;
 
 	/* Select filter policy to accept all advertising */
-	if (*num_entries >= hdev->le_white_list_size)
+	if (*num_entries >= hdev->le_accept_list_size)
 		return -1;
 
-	/* White list can not be used with RPAs */
+	/* Accept list can not be used with RPAs */
 	if (!allow_rpa &&
 	    !hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY) &&
 	    hci_find_irk_by_addr(hdev, &params->addr, params->addr_type)) {
 		return -1;
 	}
 
-	/* During suspend, only wakeable devices can be in whitelist */
+	/* During suspend, only wakeable devices can be in accept list */
 	if (hdev->suspended && !hci_conn_test_flag(HCI_CONN_FLAG_REMOTE_WAKEUP,
 						   params->current_flags))
 		return 0;
@@ -752,9 +798,9 @@ static int add_to_white_list(struct hci_request *req,
 	cp.bdaddr_type = params->addr_type;
 	bacpy(&cp.bdaddr, &params->addr);
 
-	bt_dev_dbg(hdev, "Add %pMR (0x%x) to whitelist", &cp.bdaddr,
+	bt_dev_dbg(hdev, "Add %pMR (0x%x) to accept list", &cp.bdaddr,
 		   cp.bdaddr_type);
-	hci_req_add(req, HCI_OP_LE_ADD_TO_WHITE_LIST, sizeof(cp), &cp);
+	hci_req_add(req, HCI_OP_LE_ADD_TO_ACCEPT_LIST, sizeof(cp), &cp);
 
 	if (use_ll_privacy(hdev) &&
 	    hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY)) {
@@ -782,27 +828,31 @@ static int add_to_white_list(struct hci_request *req,
 	return 0;
 }
 
-static u8 update_white_list(struct hci_request *req)
+static u8 update_accept_list(struct hci_request *req)
 {
 	struct hci_dev *hdev = req->hdev;
 	struct hci_conn_params *params;
 	struct bdaddr_list *b;
 	u8 num_entries = 0;
 	bool pend_conn, pend_report;
-	/* We allow whitelisting even with RPAs in suspend. In the worst case,
-	 * we won't be able to wake from devices that use the privacy1.2
+	/* We allow usage of accept list even with RPAs in suspend. In the worst
+	 * case, we won't be able to wake from devices that use the privacy1.2
 	 * features. Additionally, once we support privacy1.2 and IRK
 	 * offloading, we can update this to also check for those conditions.
 	 */
 	bool allow_rpa = hdev->suspended;
 
-	/* Go through the current white list programmed into the
+	if (use_ll_privacy(hdev) &&
+	    hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY))
+		allow_rpa = true;
+
+	/* Go through the current accept list programmed into the
 	 * controller one by one and check if that address is still
 	 * in the list of pending connections or list of devices to
 	 * report. If not present in either list, then queue the
 	 * command to remove it from the controller.
 	 */
-	list_for_each_entry(b, &hdev->le_white_list, list) {
+	list_for_each_entry(b, &hdev->le_accept_list, list) {
 		pend_conn = hci_pend_le_action_lookup(&hdev->pend_le_conns,
 						      &b->bdaddr,
 						      b->bdaddr_type);
@@ -811,14 +861,14 @@ static u8 update_white_list(struct hci_request *req)
 							b->bdaddr_type);
 
 		/* If the device is not likely to connect or report,
-		 * remove it from the whitelist.
+		 * remove it from the accept list.
 		 */
 		if (!pend_conn && !pend_report) {
-			del_from_white_list(req, &b->bdaddr, b->bdaddr_type);
+			del_from_accept_list(req, &b->bdaddr, b->bdaddr_type);
 			continue;
 		}
 
-		/* White list can not be used with RPAs */
+		/* Accept list can not be used with RPAs */
 		if (!allow_rpa &&
 		    !hci_dev_test_flag(hdev, HCI_ENABLE_LL_PRIVACY) &&
 		    hci_find_irk_by_addr(hdev, &b->bdaddr, b->bdaddr_type)) {
@@ -828,39 +878,44 @@ static u8 update_white_list(struct hci_request *req)
 		num_entries++;
 	}
 
-	/* Since all no longer valid white list entries have been
+	/* Since all no longer valid accept list entries have been
 	 * removed, walk through the list of pending connections
 	 * and ensure that any new device gets programmed into
 	 * the controller.
 	 *
 	 * If the list of the devices is larger than the list of
-	 * available white list entries in the controller, then
+	 * available accept list entries in the controller, then
 	 * just abort and return filer policy value to not use the
-	 * white list.
+	 * accept list.
 	 */
 	list_for_each_entry(params, &hdev->pend_le_conns, action) {
-		if (add_to_white_list(req, params, &num_entries, allow_rpa))
+		if (add_to_accept_list(req, params, &num_entries, allow_rpa))
 			return 0x00;
 	}
 
 	/* After adding all new pending connections, walk through
 	 * the list of pending reports and also add these to the
-	 * white list if there is still space. Abort if space runs out.
+	 * accept list if there is still space. Abort if space runs out.
 	 */
 	list_for_each_entry(params, &hdev->pend_le_reports, action) {
-		if (add_to_white_list(req, params, &num_entries, allow_rpa))
+		if (add_to_accept_list(req, params, &num_entries, allow_rpa))
 			return 0x00;
 	}
 
-	/* Once the controller offloading of advertisement monitor is in place,
-	 * the if condition should include the support of MSFT extension
-	 * support. If suspend is ongoing, whitelist should be the default to
-	 * prevent waking by random advertisements.
+	/* Use the allowlist unless the following conditions are all true:
+	 * - We are not currently suspending
+	 * - There are 1 or more ADV monitors registered
+	 * - Interleaved scanning is not currently using the allowlist
+	 *
+	 * Once the controller offloading of advertisement monitor is in place,
+	 * the above condition should include the support of MSFT extension
+	 * support.
 	 */
-	if (!idr_is_empty(&hdev->adv_monitors_idr) && !hdev->suspended)
+	if (!idr_is_empty(&hdev->adv_monitors_idr) && !hdev->suspended &&
+	    hdev->interleave_scan_state != INTERLEAVE_SCAN_ALLOWLIST)
 		return 0x00;
 
-	/* Select filter policy to use white list */
+	/* Select filter policy to use accept list */
 	return 0x01;
 }
 
@@ -1010,20 +1065,24 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 				      &own_addr_type))
 		return;
 
-	/* Adding or removing entries from the white list must
+	if (__hci_update_interleaved_scan(hdev))
+		return;
+
+	bt_dev_dbg(hdev, "interleave state %d", hdev->interleave_scan_state);
+	/* Adding or removing entries from the accept list must
 	 * happen before enabling scanning. The controller does
-	 * not allow white list modification while scanning.
+	 * not allow accept list modification while scanning.
 	 */
-	filter_policy = update_white_list(req);
+	filter_policy = update_accept_list(req);
 
 	/* When the controller is using random resolvable addresses and
 	 * with that having LE privacy enabled, then controllers with
 	 * Extended Scanner Filter Policies support can now enable support
 	 * for handling directed advertising.
 	 *
-	 * So instead of using filter polices 0x00 (no whitelist)
-	 * and 0x01 (whitelist enabled) use the new filter policies
-	 * 0x02 (no whitelist) and 0x03 (whitelist enabled).
+	 * So instead of using filter polices 0x00 (no accept list)
+	 * and 0x01 (accept list enabled) use the new filter policies
+	 * 0x02 (no accept list) and 0x03 (accept list enabled).
 	 */
 	if (hci_dev_test_flag(hdev, HCI_PRIVACY) &&
 	    (hdev->le_features[0] & HCI_LE_EXT_SCAN_POLICY))
@@ -1043,7 +1102,8 @@ void hci_req_add_le_passive_scan(struct hci_request *req)
 		interval = hdev->le_scan_interval;
 	}
 
-	bt_dev_dbg(hdev, "LE passive scan with whitelist = %d", filter_policy);
+	bt_dev_dbg(hdev, "LE passive scan with accept list = %d",
+		   filter_policy);
 	hci_req_start_scan(req, LE_SCAN_PASSIVE, interval, window,
 			   own_addr_type, filter_policy, addr_resolv);
 }
@@ -1091,7 +1151,7 @@ static void hci_req_set_event_filter(struct hci_request *req)
 	/* Always clear event filter when starting */
 	hci_req_clear_event_filter(req);
 
-	list_for_each_entry(b, &hdev->whitelist, list) {
+	list_for_each_entry(b, &hdev->accept_list, list) {
 		if (!hci_conn_test_flag(HCI_CONN_FLAG_REMOTE_WAKEUP,
 					b->current_flags))
 			continue;
@@ -1877,6 +1937,62 @@ unlock:
 	hci_dev_unlock(hdev);
 }
 
+static int hci_req_add_le_interleaved_scan(struct hci_request *req,
+					   unsigned long opt)
+{
+	struct hci_dev *hdev = req->hdev;
+	int ret = 0;
+
+	hci_dev_lock(hdev);
+
+	if (hci_dev_test_flag(hdev, HCI_LE_SCAN))
+		hci_req_add_le_scan_disable(req, false);
+	hci_req_add_le_passive_scan(req);
+
+	switch (hdev->interleave_scan_state) {
+	case INTERLEAVE_SCAN_ALLOWLIST:
+		bt_dev_dbg(hdev, "next state: allowlist");
+		hdev->interleave_scan_state = INTERLEAVE_SCAN_NO_FILTER;
+		break;
+	case INTERLEAVE_SCAN_NO_FILTER:
+		bt_dev_dbg(hdev, "next state: no filter");
+		hdev->interleave_scan_state = INTERLEAVE_SCAN_ALLOWLIST;
+		break;
+	case INTERLEAVE_SCAN_NONE:
+		BT_ERR("unexpected error");
+		ret = -1;
+	}
+
+	hci_dev_unlock(hdev);
+
+	return ret;
+}
+
+static void interleave_scan_work(struct work_struct *work)
+{
+	struct hci_dev *hdev = container_of(work, struct hci_dev,
+					    interleave_scan.work);
+	u8 status;
+	unsigned long timeout;
+
+	if (hdev->interleave_scan_state == INTERLEAVE_SCAN_ALLOWLIST) {
+		timeout = msecs_to_jiffies(hdev->advmon_allowlist_duration);
+	} else if (hdev->interleave_scan_state == INTERLEAVE_SCAN_NO_FILTER) {
+		timeout = msecs_to_jiffies(hdev->advmon_no_filter_duration);
+	} else {
+		bt_dev_err(hdev, "unexpected error");
+		return;
+	}
+
+	hci_req_sync(hdev, hci_req_add_le_interleaved_scan, 0,
+		     HCI_CMD_TIMEOUT, &status);
+
+	/* Don't continue interleaving if it was canceled */
+	if (is_interleave_scanning(hdev))
+		queue_delayed_work(hdev->req_workqueue,
+				   &hdev->interleave_scan, timeout);
+}
+
 int hci_get_random_address(struct hci_dev *hdev, bool require_privacy,
 			   bool use_rpa, struct adv_info *adv_instance,
 			   u8 *own_addr_type, bdaddr_t *rand_addr)
@@ -2440,11 +2556,11 @@ int hci_update_random_address(struct hci_request *req, bool require_privacy,
 	return 0;
 }
 
-static bool disconnected_whitelist_entries(struct hci_dev *hdev)
+static bool disconnected_accept_list_entries(struct hci_dev *hdev)
 {
 	struct bdaddr_list *b;
 
-	list_for_each_entry(b, &hdev->whitelist, list) {
+	list_for_each_entry(b, &hdev->accept_list, list) {
 		struct hci_conn *conn;
 
 		conn = hci_conn_hash_lookup_ba(hdev, ACL_LINK, &b->bdaddr);
@@ -2476,7 +2592,7 @@ void __hci_req_update_scan(struct hci_request *req)
 		return;
 
 	if (hci_dev_test_flag(hdev, HCI_CONNECTABLE) ||
-	    disconnected_whitelist_entries(hdev))
+	    disconnected_accept_list_entries(hdev))
 		scan = SCAN_PAGE;
 	else
 		scan = SCAN_DISABLED;
@@ -2965,7 +3081,7 @@ static int active_scan(struct hci_request *req, unsigned long opt)
 	uint16_t interval = opt;
 	struct hci_dev *hdev = req->hdev;
 	u8 own_addr_type;
-	/* White list is not used for discovery */
+	/* Accept list is not used for discovery */
 	u8 filter_policy = 0x00;
 	/* Discovery doesn't require controller address resolution */
 	bool addr_resolv = false;
@@ -3304,6 +3420,7 @@ void hci_request_setup(struct hci_dev *hdev)
 	INIT_DELAYED_WORK(&hdev->le_scan_disable, le_scan_disable_work);
 	INIT_DELAYED_WORK(&hdev->le_scan_restart, le_scan_restart_work);
 	INIT_DELAYED_WORK(&hdev->adv_instance_expire, adv_timeout_expire);
+	INIT_DELAYED_WORK(&hdev->interleave_scan, interleave_scan_work);
 }
 
 void hci_request_cancel_all(struct hci_dev *hdev)
@@ -3323,4 +3440,6 @@ void hci_request_cancel_all(struct hci_dev *hdev)
 		cancel_delayed_work_sync(&hdev->adv_instance_expire);
 		hdev->adv_instance_timeout = 0;
 	}
+
+	cancel_interleave_scan(hdev);
 }

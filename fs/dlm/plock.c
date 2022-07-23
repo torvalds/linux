@@ -23,11 +23,11 @@ struct plock_op {
 	struct list_head list;
 	int done;
 	struct dlm_plock_info info;
+	int (*callback)(struct file_lock *fl, int result);
 };
 
 struct plock_xop {
 	struct plock_op xop;
-	int (*callback)(struct file_lock *fl, int result);
 	void *fl;
 	void *file;
 	struct file_lock flc;
@@ -129,19 +129,18 @@ int dlm_posix_lock(dlm_lockspace_t *lockspace, u64 number, struct file *file,
 		/* fl_owner is lockd which doesn't distinguish
 		   processes on the nfs client */
 		op->info.owner	= (__u64) fl->fl_pid;
-		xop->callback	= fl->fl_lmops->lm_grant;
+		op->callback	= fl->fl_lmops->lm_grant;
 		locks_init_lock(&xop->flc);
 		locks_copy_lock(&xop->flc, fl);
 		xop->fl		= fl;
 		xop->file	= file;
 	} else {
 		op->info.owner	= (__u64)(long) fl->fl_owner;
-		xop->callback	= NULL;
 	}
 
 	send_op(op);
 
-	if (xop->callback == NULL) {
+	if (!op->callback) {
 		rv = wait_event_interruptible(recv_wq, (op->done != 0));
 		if (rv == -ERESTARTSYS) {
 			log_debug(ls, "dlm_posix_lock: wait killed %llx",
@@ -203,7 +202,7 @@ static int dlm_plock_callback(struct plock_op *op)
 	file = xop->file;
 	flc = &xop->flc;
 	fl = xop->fl;
-	notify = xop->callback;
+	notify = op->callback;
 
 	if (op->info.rv) {
 		notify(fl, op->info.rv);
@@ -436,10 +435,9 @@ static ssize_t dev_write(struct file *file, const char __user *u, size_t count,
 		if (op->info.fsid == info.fsid &&
 		    op->info.number == info.number &&
 		    op->info.owner == info.owner) {
-			struct plock_xop *xop = (struct plock_xop *)op;
 			list_del_init(&op->list);
 			memcpy(&op->info, &info, sizeof(info));
-			if (xop->callback)
+			if (op->callback)
 				do_callback = 1;
 			else
 				op->done = 1;

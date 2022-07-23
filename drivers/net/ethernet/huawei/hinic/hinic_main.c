@@ -144,13 +144,12 @@ static int create_txqs(struct hinic_dev *nic_dev)
 {
 	int err, i, j, num_txqs = hinic_hwdev_num_qps(nic_dev->hwdev);
 	struct net_device *netdev = nic_dev->netdev;
-	size_t txq_size;
 
 	if (nic_dev->txqs)
 		return -EINVAL;
 
-	txq_size = num_txqs * sizeof(*nic_dev->txqs);
-	nic_dev->txqs = devm_kzalloc(&netdev->dev, txq_size, GFP_KERNEL);
+	nic_dev->txqs = devm_kcalloc(&netdev->dev, num_txqs,
+				     sizeof(*nic_dev->txqs), GFP_KERNEL);
 	if (!nic_dev->txqs)
 		return -ENOMEM;
 
@@ -242,13 +241,12 @@ static int create_rxqs(struct hinic_dev *nic_dev)
 {
 	int err, i, j, num_rxqs = hinic_hwdev_num_qps(nic_dev->hwdev);
 	struct net_device *netdev = nic_dev->netdev;
-	size_t rxq_size;
 
 	if (nic_dev->rxqs)
 		return -EINVAL;
 
-	rxq_size = num_rxqs * sizeof(*nic_dev->rxqs);
-	nic_dev->rxqs = devm_kzalloc(&netdev->dev, rxq_size, GFP_KERNEL);
+	nic_dev->rxqs = devm_kcalloc(&netdev->dev, num_rxqs,
+				     sizeof(*nic_dev->rxqs), GFP_KERNEL);
 	if (!nic_dev->rxqs)
 		return -ENOMEM;
 

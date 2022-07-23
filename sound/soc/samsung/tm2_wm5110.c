@@ -611,8 +611,7 @@ static int tm2_probe(struct platform_device *pdev)
 
 	ret = devm_snd_soc_register_card(dev, card);
 	if (ret < 0) {
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to register card: %d\n", ret);
+		dev_err_probe(dev, ret, "Failed to register card\n");
 		goto dai_node_put;
 	}
 

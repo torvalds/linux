@@ -1960,6 +1960,7 @@ static const struct mount_opts {
 	 MOPT_EXT4_ONLY | MOPT_CLEAR},
 	{Opt_warn_on_error, EXT4_MOUNT_WARN_ON_ERROR, MOPT_SET},
 	{Opt_nowarn_on_error, EXT4_MOUNT_WARN_ON_ERROR, MOPT_CLEAR},
+	{Opt_commit, 0, MOPT_NO_EXT2},
 	{Opt_nojournal_checksum, EXT4_MOUNT_JOURNAL_CHECKSUM,
 	 MOPT_EXT4_ONLY | MOPT_CLEAR},
 	{Opt_journal_checksum, EXT4_MOUNT_JOURNAL_CHECKSUM,
@@ -2083,6 +2084,12 @@ static int ext4_set_test_dummy_encryption(struct super_block *sb,
 	struct ext4_sb_info *sbi = EXT4_SB(sb);
 	int err;
 
+	if (!ext4_has_feature_encrypt(sb)) {
+		ext4_msg(sb, KERN_WARNING,
+			 "test_dummy_encryption requires encrypt feature");
+		return -1;
+	}
+
 	/*
 	 * This mount option is just for testing, and it's not worthwhile to
 	 * implement the extra complexity (e.g. RCU protection) that would be
@@ -2110,11 +2117,13 @@ static int ext4_set_test_dummy_encryption(struct super_block *sb,
 		return -1;
 	}
 	ext4_msg(sb, KERN_WARNING, "Test dummy encryption mode enabled");
+	return 1;
 #else
 	ext4_msg(sb, KERN_WARNING,
-		 "Test dummy encryption mount option ignored");
+		 "test_dummy_encryption option not supported");
+	return -1;
+
 #endif
-	return 1;
 }
 
 static int handle_mount_opt(struct super_block *sb, char *opt, int token,
@@ -4531,7 +4540,7 @@ static int ext4_fill_super(struct super_block *sb, void *data, int silent)
 					sbi->s_inodes_per_block;
 	sbi->s_desc_per_block = blocksize / EXT4_DESC_SIZE(sb);
 	sbi->s_sbh = bh;
-	sbi->s_mount_state = le16_to_cpu(es->s_state);
+	sbi->s_mount_state = le16_to_cpu(es->s_state) & ~EXT4_FC_REPLAY;
 	sbi->s_addr_per_block_bits = ilog2(EXT4_ADDR_PER_BLOCK(sb));
 	sbi->s_desc_per_block_bits = ilog2(EXT4_DESC_PER_BLOCK(sb));
 
@@ -4920,12 +4929,6 @@ no_journal:
 	if (ext4_has_feature_verity(sb) && blocksize != PAGE_SIZE) {
 		ext4_msg(sb, KERN_ERR, "Unsupported blocksize for fs-verity");
 		goto failed_mount_wq;
-	}
-
-	if (DUMMY_ENCRYPTION_ENABLED(sbi) && !sb_rdonly(sb) &&
-	    !ext4_has_feature_encrypt(sb)) {
-		ext4_set_feature_encrypt(sb);
-		ext4_commit_super(sb, 1);
 	}
 
 	/*
@@ -5986,7 +5989,8 @@ static int ext4_remount(struct super_block *sb, int *flags, char *data)
 				if (err)
 					goto restore_opts;
 			}
-			sbi->s_mount_state = le16_to_cpu(es->s_state);
+			sbi->s_mount_state = (le16_to_cpu(es->s_state) &
+					      ~EXT4_FC_REPLAY);
 
 			err = ext4_setup_super(sb, es, 0);
 			if (err)

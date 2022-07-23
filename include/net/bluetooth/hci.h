@@ -1503,7 +1503,7 @@ struct hci_cp_le_set_scan_enable {
 } __packed;
 
 #define HCI_LE_USE_PEER_ADDR		0x00
-#define HCI_LE_USE_WHITELIST		0x01
+#define HCI_LE_USE_ACCEPT_LIST		0x01
 
 #define HCI_OP_LE_CREATE_CONN		0x200d
 struct hci_cp_le_create_conn {
@@ -1523,22 +1523,22 @@ struct hci_cp_le_create_conn {
 
 #define HCI_OP_LE_CREATE_CONN_CANCEL	0x200e
 
-#define HCI_OP_LE_READ_WHITE_LIST_SIZE	0x200f
-struct hci_rp_le_read_white_list_size {
+#define HCI_OP_LE_READ_ACCEPT_LIST_SIZE	0x200f
+struct hci_rp_le_read_accept_list_size {
 	__u8	status;
 	__u8	size;
 } __packed;
 
-#define HCI_OP_LE_CLEAR_WHITE_LIST	0x2010
+#define HCI_OP_LE_CLEAR_ACCEPT_LIST	0x2010
 
-#define HCI_OP_LE_ADD_TO_WHITE_LIST	0x2011
-struct hci_cp_le_add_to_white_list {
+#define HCI_OP_LE_ADD_TO_ACCEPT_LIST	0x2011
+struct hci_cp_le_add_to_accept_list {
 	__u8     bdaddr_type;
 	bdaddr_t bdaddr;
 } __packed;
 
-#define HCI_OP_LE_DEL_FROM_WHITE_LIST	0x2012
-struct hci_cp_le_del_from_white_list {
+#define HCI_OP_LE_DEL_FROM_ACCEPT_LIST	0x2012
+struct hci_cp_le_del_from_accept_list {
 	__u8     bdaddr_type;
 	bdaddr_t bdaddr;
 } __packed;

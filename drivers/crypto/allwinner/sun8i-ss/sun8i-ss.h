@@ -120,11 +120,15 @@ struct sginfo {
  * @complete:	completion for the current task on this flow
  * @status:	set to 1 by interrupt if task is done
  * @stat_req:	number of request done by this flow
+ * @iv:		list of IV to use for each step
+ * @biv:	buffer which contain the backuped IV
  */
 struct sun8i_ss_flow {
 	struct crypto_engine *engine;
 	struct completion complete;
 	int status;
+	u8 *iv[MAX_SG];
+	u8 *biv;
 #ifdef CONFIG_CRYPTO_DEV_SUN8I_SS_DEBUG
 	unsigned long stat_req;
 #endif
@@ -163,28 +167,28 @@ struct sun8i_ss_dev {
  * @t_src:		list of mapped SGs with their size
  * @t_dst:		list of mapped SGs with their size
  * @p_key:		DMA address of the key
- * @p_iv:		DMA address of the IV
+ * @p_iv:		DMA address of the IVs
+ * @niv:		Number of IVs DMA mapped
  * @method:		current algorithm for this request
  * @op_mode:		op_mode for this request
  * @op_dir:		direction (encrypt vs decrypt) for this request
  * @flow:		the flow to use for this request
- * @ivlen:		size of biv
+ * @ivlen:		size of IVs
  * @keylen:		keylen for this request
- * @biv:		buffer which contain the IV
  * @fallback_req:	request struct for invoking the fallback skcipher TFM
  */
 struct sun8i_cipher_req_ctx {
 	struct sginfo t_src[MAX_SG];
 	struct sginfo t_dst[MAX_SG];
 	u32 p_key;
-	u32 p_iv;
+	u32 p_iv[MAX_SG];
+	int niv;
 	u32 method;
 	u32 op_mode;
 	u32 op_dir;
 	int flow;
 	unsigned int ivlen;
 	unsigned int keylen;
-	void *biv;
 	struct skcipher_request fallback_req;   // keep at the end
 };
 
