@@ -58,7 +58,7 @@
  */
 static unsigned int sec;
 
-static char *alg = NULL;
+static char *alg;
 static u32 type;
 static u32 mask;
 static int mode;
