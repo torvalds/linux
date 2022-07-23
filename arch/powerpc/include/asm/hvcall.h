@@ -79,6 +79,7 @@
 #define H_NOT_ENOUGH_RESOURCES -44
 #define H_R_STATE       -45
 #define H_RESCINDED     -46
+#define H_P1		-54
 #define H_P2		-55
 #define H_P3		-56
 #define H_P4		-57
@@ -98,6 +99,8 @@
 #define H_OP_MODE	-73
 #define H_COP_HW	-74
 #define H_STATE		-75
+#define H_IN_USE	-77
+#define H_ABORTED	-78
 #define H_UNSUPPORTED_FLAG_START	-256
 #define H_UNSUPPORTED_FLAG_END		-511
 #define H_MULTI_THREADS_ACTIVE	-9005
@@ -322,6 +325,14 @@
 #define H_SCM_UNBIND_ALL        0x3FC
 #define H_SCM_HEALTH            0x400
 #define H_SCM_PERFORMANCE_STATS 0x418
+#define H_PKS_GET_CONFIG	0x41C
+#define H_PKS_SET_PASSWORD	0x420
+#define H_PKS_GEN_PASSWORD	0x424
+#define H_PKS_WRITE_OBJECT	0x42C
+#define H_PKS_GEN_KEY		0x430
+#define H_PKS_READ_OBJECT	0x434
+#define H_PKS_REMOVE_OBJECT	0x438
+#define H_PKS_CONFIRM_OBJECT_FLUSHED	0x43C
 #define H_RPT_INVALIDATE	0x448
 #define H_SCM_FLUSH		0x44C
 #define H_GET_ENERGY_SCALE_INFO	0x450
