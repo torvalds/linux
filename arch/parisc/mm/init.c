@@ -722,7 +722,7 @@ static unsigned long space_id[SID_ARRAY_SIZE] = { 1 }; /* disallow space 0 */
 static unsigned long dirty_space_id[SID_ARRAY_SIZE];
 static unsigned long space_id_index;
 static unsigned long free_space_ids = NR_SPACE_IDS - 1;
-static unsigned long dirty_space_ids = 0;
+static unsigned long dirty_space_ids;
 
 static DEFINE_SPINLOCK(sid_lock);
 
