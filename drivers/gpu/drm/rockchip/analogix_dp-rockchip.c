@@ -89,6 +89,9 @@ struct rockchip_dp_device {
 	struct analogix_dp_device *adp;
 	struct analogix_dp_plat_data plat_data;
 	struct rockchip_drm_sub_dev sub_dev;
+
+	unsigned int min_refresh_rate;
+	unsigned int max_refresh_rate;
 };
 
 static int rockchip_grf_write(struct regmap *grf, unsigned int reg,
@@ -394,6 +397,7 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	struct rockchip_dp_device *dp = to_dp(encoder);
 	struct rockchip_crtc_state *s = to_rockchip_crtc_state(crtc_state);
 	struct drm_display_info *di = &conn_state->connector->display_info;
+	int refresh_rate;
 
 	if (di->num_bus_formats)
 		s->bus_format = di->bus_formats[0];
@@ -422,6 +426,33 @@ rockchip_dp_drm_encoder_atomic_check(struct drm_encoder *encoder,
 	s->tv_state = &conn_state->tv;
 	s->eotf = HDMI_EOTF_TRADITIONAL_GAMMA_SDR;
 	s->color_space = V4L2_COLORSPACE_DEFAULT;
+	/**
+	 * It's priority to user rate range define in dtsi.
+	 */
+	if (dp->max_refresh_rate && dp->min_refresh_rate) {
+		s->max_refresh_rate = dp->max_refresh_rate;
+		s->min_refresh_rate = dp->min_refresh_rate;
+	} else {
+		s->max_refresh_rate = di->monitor_range.max_vfreq;
+		s->min_refresh_rate = di->monitor_range.min_vfreq;
+	}
+
+	/**
+	 * Timing exposed in DisplayID or legacy EDID is usually optimized
+	 * for bandwidth by using minimum horizontal and vertical blank. If
+	 * timing beyond the Adaptive-Sync range, it should not enable the
+	 * Ignore MSA option in this timing. If the refresh rate of the
+	 * timing is with the Adaptive-Sync range, this timing should support
+	 * the Adaptive-Sync from the timing's refresh rate to minimum
+	 * support range.
+	 */
+	refresh_rate = drm_mode_vrefresh(&crtc_state->adjusted_mode);
+	if (refresh_rate > s->max_refresh_rate || refresh_rate < s->min_refresh_rate) {
+		s->max_refresh_rate = 0;
+		s->min_refresh_rate = 0;
+	} else if (refresh_rate < s->max_refresh_rate) {
+		s->max_refresh_rate = refresh_rate;
+	}
 
 	return 0;
 }
@@ -625,6 +656,9 @@ static int rockchip_dp_probe(struct platform_device *pdev)
 		secondary->plat_data.left = dp->adp;
 		secondary->plat_data.split_mode = true;
 	}
+
+	device_property_read_u32(dev, "min-refresh-rate", &dp->min_refresh_rate);
+	device_property_read_u32(dev, "max-refresh-rate", &dp->max_refresh_rate);
 
 	return component_add(dev, &rockchip_dp_component_ops);
 }
