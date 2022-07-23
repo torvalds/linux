@@ -545,8 +545,8 @@ struct ice_pf {
 	u32 msg_enable;
 	struct ice_ptp ptp;
 	struct tty_driver *ice_gnss_tty_driver;
-	struct tty_port gnss_tty_port;
-	struct gnss_serial *gnss_serial;
+	struct tty_port *gnss_tty_port[ICE_GNSS_TTY_MINOR_DEVICES];
+	struct gnss_serial *gnss_serial[ICE_GNSS_TTY_MINOR_DEVICES];
 	u16 num_rdma_msix;		/* Total MSIX vectors for RDMA driver */
 	u16 rdma_base_vector;
 
