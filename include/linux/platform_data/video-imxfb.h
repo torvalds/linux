@@ -55,16 +55,4 @@ struct imx_fb_videomode {
 	unsigned char	bpp;
 };
 
-struct imx_fb_platform_data {
-	struct imx_fb_videomode *mode;
-	int		num_modes;
-
-	u_int		pwmr;
-	u_int		lscr1;
-	u_int		dmacr;
-
-	int (*init)(struct platform_device *);
-	void (*exit)(struct platform_device *);
-};
-
 #endif /* ifndef __MACH_IMXFB_H__ */
