@@ -99,6 +99,10 @@ void proc_task_name(struct seq_file *m, struct task_struct *p, bool escape)
 {
 	char tcomm[64];
 
+	/*
+	 * Test before PF_KTHREAD because all workqueue worker threads are
+	 * kernel threads.
+	 */
 	if (p->flags & PF_WQ_WORKER)
 		wq_worker_comm(tcomm, sizeof(tcomm), p);
 	else if (p->flags & PF_KTHREAD)
