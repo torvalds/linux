@@ -4,7 +4,7 @@
 
 #ifdef CONFIG_ARCH_RANDOM
 
-#include <asm/machdep.h>
+bool __must_check arch_get_random_seed_long(unsigned long *v);
 
 static inline bool __must_check arch_get_random_long(unsigned long *v)
 {
@@ -16,13 +16,6 @@ static inline bool __must_check arch_get_random_int(unsigned int *v)
 	return false;
 }
 
-static inline bool __must_check arch_get_random_seed_long(unsigned long *v)
-{
-	if (ppc_md.get_random_seed)
-		return ppc_md.get_random_seed(v);
-
-	return false;
-}
 
 static inline bool __must_check arch_get_random_seed_int(unsigned int *v)
 {
