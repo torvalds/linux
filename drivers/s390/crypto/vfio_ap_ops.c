@@ -234,9 +234,9 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 	struct ap_qirq_ctrl aqic_gisa = {};
 	struct ap_queue_status status = {};
 	struct kvm_s390_gisa *gisa;
+	struct page *h_page;
 	int nisc;
 	struct kvm *kvm;
-	unsigned long h_pfn;
 	phys_addr_t h_nib;
 	dma_addr_t nib;
 	int ret;
@@ -251,7 +251,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 	}
 
 	ret = vfio_pin_pages(&q->matrix_mdev->vdev, nib, 1,
-			     IOMMU_READ | IOMMU_WRITE, &h_pfn);
+			     IOMMU_READ | IOMMU_WRITE, &h_page);
 	switch (ret) {
 	case 1:
 		break;
@@ -267,7 +267,7 @@ static struct ap_queue_status vfio_ap_irq_enable(struct vfio_ap_queue *q,
 	kvm = q->matrix_mdev->kvm;
 	gisa = kvm->arch.gisa_int.origin;
 
-	h_nib = (h_pfn << PAGE_SHIFT) | (nib & ~PAGE_MASK);
+	h_nib = page_to_phys(h_page) | (nib & ~PAGE_MASK);
 	aqic_gisa.gisc = isc;
 
 	nisc = kvm_s390_gisc_register(kvm, isc);

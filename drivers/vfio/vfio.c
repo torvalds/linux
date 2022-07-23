@@ -1941,18 +1941,18 @@ EXPORT_SYMBOL(vfio_set_irqs_validate_and_prepare);
  * @npage [in]   : count of pages to be pinned.  This count should not
  *		   be greater than VFIO_PIN_PAGES_MAX_ENTRIES.
  * @prot [in]    : protection flags
- * @phys_pfn[out]: array of host PFNs
+ * @pages[out]   : array of host pages
  * Return error or number of pages pinned.
  */
 int vfio_pin_pages(struct vfio_device *device, dma_addr_t iova,
-		   int npage, int prot, unsigned long *phys_pfn)
+		   int npage, int prot, struct page **pages)
 {
 	struct vfio_container *container;
 	struct vfio_group *group = device->group;
 	struct vfio_iommu_driver *driver;
 	int ret;
 
-	if (!phys_pfn || !npage || !vfio_assert_device_open(device))
+	if (!pages || !npage || !vfio_assert_device_open(device))
 		return -EINVAL;
 
 	if (npage > VFIO_PIN_PAGES_MAX_ENTRIES)
@@ -1967,7 +1967,7 @@ int vfio_pin_pages(struct vfio_device *device, dma_addr_t iova,
 	if (likely(driver && driver->ops->pin_pages))
 		ret = driver->ops->pin_pages(container->iommu_data,
 					     group->iommu_group, iova,
-					     npage, prot, phys_pfn);
+					     npage, prot, pages);
 	else
 		ret = -ENOTTY;
 

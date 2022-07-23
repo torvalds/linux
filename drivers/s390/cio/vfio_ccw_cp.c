@@ -22,8 +22,8 @@
 struct page_array {
 	/* Array that stores pages need to pin. */
 	dma_addr_t		*pa_iova;
-	/* Array that receives PFNs of the pages pinned. */
-	unsigned long		*pa_pfn;
+	/* Array that receives the pinned pages. */
+	struct page		**pa_page;
 	/* Number of pages pinned from @pa_iova. */
 	int			pa_nr;
 };
@@ -68,19 +68,19 @@ static int page_array_alloc(struct page_array *pa, u64 iova, unsigned int len)
 		return -EINVAL;
 
 	pa->pa_iova = kcalloc(pa->pa_nr,
-			      sizeof(*pa->pa_iova) + sizeof(*pa->pa_pfn),
+			      sizeof(*pa->pa_iova) + sizeof(*pa->pa_page),
 			      GFP_KERNEL);
 	if (unlikely(!pa->pa_iova)) {
 		pa->pa_nr = 0;
 		return -ENOMEM;
 	}
-	pa->pa_pfn = (unsigned long *)&pa->pa_iova[pa->pa_nr];
+	pa->pa_page = (struct page **)&pa->pa_iova[pa->pa_nr];
 
 	pa->pa_iova[0] = iova;
-	pa->pa_pfn[0] = -1ULL;
+	pa->pa_page[0] = NULL;
 	for (i = 1; i < pa->pa_nr; i++) {
 		pa->pa_iova[i] = pa->pa_iova[i - 1] + PAGE_SIZE;
-		pa->pa_pfn[i] = -1ULL;
+		pa->pa_page[i] = NULL;
 	}
 
 	return 0;
@@ -144,7 +144,7 @@ static int page_array_pin(struct page_array *pa, struct vfio_device *vdev)
 
 		ret = vfio_pin_pages(vdev, *first, npage,
 				     IOMMU_READ | IOMMU_WRITE,
-				     &pa->pa_pfn[pinned]);
+				     &pa->pa_page[pinned]);
 		if (ret < 0) {
 			goto err_out;
 		} else if (ret > 0 && ret != npage) {
@@ -195,7 +195,7 @@ static inline void page_array_idal_create_words(struct page_array *pa,
 	 */
 
 	for (i = 0; i < pa->pa_nr; i++)
-		idaws[i] = pa->pa_pfn[i] << PAGE_SHIFT;
+		idaws[i] = page_to_phys(pa->pa_page[i]);
 
 	/* Adjust the first IDAW, since it may not start on a page boundary */
 	idaws[0] += pa->pa_iova[0] & (PAGE_SIZE - 1);
@@ -246,8 +246,7 @@ static long copy_from_iova(struct vfio_device *vdev, void *to, u64 iova,
 
 	l = n;
 	for (i = 0; i < pa.pa_nr; i++) {
-		struct page *page = pfn_to_page(pa.pa_pfn[i]);
-		void *from = kmap_local_page(page);
+		void *from = kmap_local_page(pa.pa_page[i]);
 
 		m = PAGE_SIZE;
 		if (i == 0) {

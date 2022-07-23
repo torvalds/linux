@@ -263,7 +263,7 @@ The following APIs are provided for translating user pfn to host pfn in a VFIO
 driver::
 
 	int vfio_pin_pages(struct vfio_device *device, dma_addr_t iova,
-				  int npage, int prot, unsigned long *phys_pfn);
+				  int npage, int prot, struct page **pages);
 
 	void vfio_unpin_pages(struct vfio_device *device, dma_addr_t iova,
 				    int npage);
