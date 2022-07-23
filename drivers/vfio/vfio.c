@@ -1934,17 +1934,17 @@ int vfio_set_irqs_validate_and_prepare(struct vfio_irq_set *hdr, int num_irqs,
 EXPORT_SYMBOL(vfio_set_irqs_validate_and_prepare);
 
 /*
- * Pin a set of guest PFNs and return their associated host PFNs for local
+ * Pin contiguous user pages and return their associated host pages for local
  * domain only.
  * @device [in]  : device
- * @user_pfn [in]: array of user/guest PFNs to be pinned.
- * @npage [in]   : count of elements in user_pfn array.  This count should not
- *		   be greater VFIO_PIN_PAGES_MAX_ENTRIES.
+ * @iova [in]    : starting IOVA of user pages to be pinned.
+ * @npage [in]   : count of pages to be pinned.  This count should not
+ *		   be greater than VFIO_PIN_PAGES_MAX_ENTRIES.
  * @prot [in]    : protection flags
  * @phys_pfn[out]: array of host PFNs
  * Return error or number of pages pinned.
  */
-int vfio_pin_pages(struct vfio_device *device, unsigned long *user_pfn,
+int vfio_pin_pages(struct vfio_device *device, dma_addr_t iova,
 		   int npage, int prot, unsigned long *phys_pfn)
 {
 	struct vfio_container *container;
@@ -1952,8 +1952,7 @@ int vfio_pin_pages(struct vfio_device *device, unsigned long *user_pfn,
 	struct vfio_iommu_driver *driver;
 	int ret;
 
-	if (!user_pfn || !phys_pfn || !npage ||
-	    !vfio_assert_device_open(device))
+	if (!phys_pfn || !npage || !vfio_assert_device_open(device))
 		return -EINVAL;
 
 	if (npage > VFIO_PIN_PAGES_MAX_ENTRIES)
@@ -1967,7 +1966,7 @@ int vfio_pin_pages(struct vfio_device *device, unsigned long *user_pfn,
 	driver = container->iommu_driver;
 	if (likely(driver && driver->ops->pin_pages))
 		ret = driver->ops->pin_pages(container->iommu_data,
-					     group->iommu_group, user_pfn,
+					     group->iommu_group, iova,
 					     npage, prot, phys_pfn);
 	else
 		ret = -ENOTTY;
@@ -1977,15 +1976,13 @@ int vfio_pin_pages(struct vfio_device *device, unsigned long *user_pfn,
 EXPORT_SYMBOL(vfio_pin_pages);
 
 /*
- * Unpin set of host PFNs for local domain only.
+ * Unpin contiguous host pages for local domain only.
  * @device [in]  : device
- * @user_pfn [in]: array of user/guest PFNs to be unpinned. Number of user/guest
- *		   PFNs should not be greater than VFIO_PIN_PAGES_MAX_ENTRIES.
- * @npage [in]   : count of elements in user_pfn array.  This count should not
+ * @iova [in]    : starting address of user pages to be unpinned.
+ * @npage [in]   : count of pages to be unpinned.  This count should not
  *                 be greater than VFIO_PIN_PAGES_MAX_ENTRIES.
  */
-void vfio_unpin_pages(struct vfio_device *device, unsigned long *user_pfn,
-		      int npage)
+void vfio_unpin_pages(struct vfio_device *device, dma_addr_t iova, int npage)
 {
 	struct vfio_container *container;
 	struct vfio_iommu_driver *driver;
@@ -2000,7 +1997,7 @@ void vfio_unpin_pages(struct vfio_device *device, unsigned long *user_pfn,
 	container = device->group->container;
 	driver = container->iommu_driver;
 
-	driver->ops->unpin_pages(container->iommu_data, user_pfn, npage);
+	driver->ops->unpin_pages(container->iommu_data, iova, npage);
 }
 EXPORT_SYMBOL(vfio_unpin_pages);
 

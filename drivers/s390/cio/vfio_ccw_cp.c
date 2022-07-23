@@ -114,7 +114,7 @@ static void pfn_array_unpin(struct pfn_array *pa,
 			continue;
 		}
 
-		vfio_unpin_pages(vdev, first, npage);
+		vfio_unpin_pages(vdev, *first << PAGE_SHIFT, npage);
 		unpinned += npage;
 		npage = 1;
 	}
@@ -146,7 +146,7 @@ static int pfn_array_pin(struct pfn_array *pa, struct vfio_device *vdev)
 			continue;
 		}
 
-		ret = vfio_pin_pages(vdev, first, npage,
+		ret = vfio_pin_pages(vdev, *first << PAGE_SHIFT, npage,
 				     IOMMU_READ | IOMMU_WRITE,
 				     &pa->pa_pfn[pinned]);
 		if (ret < 0) {
