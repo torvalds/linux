@@ -6229,6 +6229,11 @@ xfs_bmap_validate_extent(
 	xfs_fsblock_t		endfsb;
 	bool			isrt;
 
+	if (irec->br_startblock + irec->br_blockcount <= irec->br_startblock)
+		return __this_address;
+	if (irec->br_startoff + irec->br_blockcount <= irec->br_startoff)
+		return __this_address;
+
 	isrt = XFS_IS_REALTIME_INODE(ip);
 	endfsb = irec->br_startblock + irec->br_blockcount - 1;
 	if (isrt && whichfork == XFS_DATA_FORK) {
