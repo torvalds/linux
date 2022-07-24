@@ -217,6 +217,25 @@ MLXSW_ITEM32(pci, cqe0, dqn, 0x0C, 1, 5);
 MLXSW_ITEM32(pci, cqe12, dqn, 0x0C, 1, 6);
 mlxsw_pci_cqe_item_helpers(dqn, 0, 12, 12);
 
+/* pci_cqe_time_stamp_low
+ * Time stamp of the CQE
+ * Format according to time_stamp_type:
+ * 0: uSec - 1.024uSec (default for devices which do not support
+ * time_stamp_type). Only bits 15:0 are valid
+ * 1: FRC - Free Running Clock - units of 1nSec
+ * 2: UTC - time_stamp[37:30] = Sec
+ *	  - time_stamp[29:0] = nSec
+ * 3: Mirror_UTC. UTC time stamp of the original packet that has
+ * MIRROR_SESSION traps
+ *   - time_stamp[37:30] = Sec
+ *   - time_stamp[29:0] = nSec
+ *   Formats 0..2 are configured by
+ *   CONFIG_PROFILE.cqe_time_stamp_type for PTP traps
+ *   Format 3 is used for MIRROR_SESSION traps
+ *   Note that Spectrum does not reveal FRC, UTC and Mirror_UTC
+ */
+MLXSW_ITEM32(pci, cqe2, time_stamp_low, 0x0C, 16, 16);
+
 #define MLXSW_PCI_CQE2_MIRROR_TCLASS_INVALID	0x1F
 
 /* pci_cqe_mirror_tclass
@@ -280,7 +299,66 @@ MLXSW_ITEM32(pci, cqe2, user_def_val_orig_pkt_len, 0x14, 0, 20);
  */
 MLXSW_ITEM32(pci, cqe2, mirror_reason, 0x18, 24, 8);
 
+enum mlxsw_pci_cqe_time_stamp_type {
+	MLXSW_PCI_CQE_TIME_STAMP_TYPE_USEC,
+	MLXSW_PCI_CQE_TIME_STAMP_TYPE_FRC,
+	MLXSW_PCI_CQE_TIME_STAMP_TYPE_UTC,
+	MLXSW_PCI_CQE_TIME_STAMP_TYPE_MIRROR_UTC,
+};
+
+/* pci_cqe_time_stamp_type
+ * Time stamp type:
+ * 0: uSec - 1.024uSec (default for devices which do not support
+ * time_stamp_type)
+ * 1: FRC - Free Running Clock - units of 1nSec
+ * 2: UTC
+ * 3: Mirror_UTC. UTC time stamp of the original packet that has
+ * MIRROR_SESSION traps
+ */
+MLXSW_ITEM32(pci, cqe2, time_stamp_type, 0x18, 22, 2);
+
 #define MLXSW_PCI_CQE2_MIRROR_LATENCY_INVALID	0xFFFFFF
+
+/* pci_cqe_time_stamp_high
+ * Time stamp of the CQE
+ * Format according to time_stamp_type:
+ * 0: uSec - 1.024uSec (default for devices which do not support
+ * time_stamp_type). Only bits 15:0 are valid
+ * 1: FRC - Free Running Clock - units of 1nSec
+ * 2: UTC - time_stamp[37:30] = Sec
+ *	  - time_stamp[29:0] = nSec
+ * 3: Mirror_UTC. UTC time stamp of the original packet that has
+ * MIRROR_SESSION traps
+ *   - time_stamp[37:30] = Sec
+ *   - time_stamp[29:0] = nSec
+ *   Formats 0..2 are configured by
+ *   CONFIG_PROFILE.cqe_time_stamp_type for PTP traps
+ *   Format 3 is used for MIRROR_SESSION traps
+ *   Note that Spectrum does not reveal FRC, UTC and Mirror_UTC
+ */
+MLXSW_ITEM32(pci, cqe2, time_stamp_high, 0x18, 0, 22);
+
+static inline u64 mlxsw_pci_cqe2_time_stamp_get(const char *cqe)
+{
+	u64 ts_high = mlxsw_pci_cqe2_time_stamp_high_get(cqe);
+	u64 ts_low = mlxsw_pci_cqe2_time_stamp_low_get(cqe);
+
+	return ts_high << 16 | ts_low;
+}
+
+static inline u8 mlxsw_pci_cqe2_time_stamp_sec_get(const char *cqe)
+{
+	u64 full_ts = mlxsw_pci_cqe2_time_stamp_get(cqe);
+
+	return full_ts >> 30 & 0xFF;
+}
+
+static inline u32 mlxsw_pci_cqe2_time_stamp_nsec_get(const char *cqe)
+{
+	u64 full_ts = mlxsw_pci_cqe2_time_stamp_get(cqe);
+
+	return full_ts & 0x3FFFFFFF;
+}
 
 /* pci_cqe_mirror_latency
  * End-to-end latency of the original packet that does mirroring to the CPU.
