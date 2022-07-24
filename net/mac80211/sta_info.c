@@ -2799,6 +2799,7 @@ hash:
 void ieee80211_sta_remove_link(struct sta_info *sta, unsigned int link_id)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	u16 old_links = sta->sta.valid_links;
 
 	lockdep_assert_held(&sdata->local->sta_mtx);
 
@@ -2806,8 +2807,7 @@ void ieee80211_sta_remove_link(struct sta_info *sta, unsigned int link_id)
 
 	if (test_sta_flag(sta, WLAN_STA_INSERTED))
 		drv_change_sta_links(sdata->local, sdata, &sta->sta,
-				     sta->sta.valid_links,
-				     sta->sta.valid_links & ~BIT(link_id));
+				     old_links, sta->sta.valid_links);
 
 	sta_remove_link(sta, link_id, true);
 }
