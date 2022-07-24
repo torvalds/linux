@@ -3411,6 +3411,8 @@ static const struct mlxsw_config_profile mlxsw_sp2_config_profile = {
 			.type		= MLXSW_PORT_SWID_TYPE_ETH,
 		}
 	},
+	.used_cqe_time_stamp_type	= 1,
+	.cqe_time_stamp_type		= MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
 };
 
 static void

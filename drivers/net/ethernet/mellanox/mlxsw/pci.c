@@ -1267,6 +1267,13 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 		mlxsw_cmd_mbox_config_profile_cqe_version_set(mbox, 1);
 	}
 
+	if (profile->used_cqe_time_stamp_type) {
+		mlxsw_cmd_mbox_config_profile_set_cqe_time_stamp_type_set(mbox,
+									  1);
+		mlxsw_cmd_mbox_config_profile_cqe_time_stamp_type_set(mbox,
+					profile->cqe_time_stamp_type);
+	}
+
 	return mlxsw_cmd_config_profile_set(mlxsw_pci->core, mbox);
 }
 

@@ -689,6 +689,12 @@ MLXSW_ITEM32(cmd_mbox, config_profile, set_kvd_hash_double_size, 0x0C, 26, 1);
  */
 MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_version, 0x08, 0, 1);
 
+/* cmd_mbox_config_set_cqe_time_stamp_type
+ * Capability bit. Setting a bit to 1 configures the profile
+ * according to the mailbox contents.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, set_cqe_time_stamp_type, 0x08, 2, 1);
+
 /* cmd_mbox_config_profile_max_vepa_channels
  * Maximum number of VEPA channels per port (0 through 16)
  * 0 - multi-channel VEPA is disabled
@@ -883,6 +889,26 @@ MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_type,
  */
 MLXSW_ITEM32_INDEXED(cmd_mbox, config_profile, swid_config_properties,
 		     0x60, 0, 8, 0x08, 0x00, false);
+
+enum mlxsw_cmd_mbox_config_profile_cqe_time_stamp_type {
+	/* uSec - 1.024uSec (default). Only bits 15:0 are valid. */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_USEC,
+	/* FRC - Free Running Clock, units of 1nSec.
+	 * Reserved when SwitchX/-2, Switch-IB/2 and Spectrum-1.
+	 */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_FRC,
+	/* UTC. time_stamp[37:30] = Sec, time_stamp[29:0] = nSec.
+	 * Reserved when SwitchX/2, Switch-IB/2 and Spectrum-1.
+	 */
+	MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
+};
+
+/* cmd_mbox_config_profile_cqe_time_stamp_type
+ * CQE time_stamp_type for non-mirror-packets.
+ * Configured if set_cqe_time_stamp_type is set.
+ * Reserved when SwitchX/-2, Switch-IB/2 and Spectrum-1.
+ */
+MLXSW_ITEM32(cmd_mbox, config_profile, cqe_time_stamp_type, 0xB0, 8, 2);
 
 /* cmd_mbox_config_profile_cqe_version
  * CQE version:
