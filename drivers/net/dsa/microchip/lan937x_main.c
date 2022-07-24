@@ -315,6 +315,45 @@ int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu)
 	return 0;
 }
 
+static void lan937x_set_tune_adj(struct ksz_device *dev, int port,
+				 u16 reg, u8 val)
+{
+	u16 data16;
+
+	ksz_pread16(dev, port, reg, &data16);
+
+	/* Update tune Adjust */
+	data16 |= FIELD_PREP(PORT_TUNE_ADJ, val);
+	ksz_pwrite16(dev, port, reg, data16);
+
+	/* write DLL reset to take effect */
+	data16 |= PORT_DLL_RESET;
+	ksz_pwrite16(dev, port, reg, data16);
+}
+
+static void lan937x_set_rgmii_tx_delay(struct ksz_device *dev, int port)
+{
+	u8 val;
+
+	/* Apply different codes based on the ports as per characterization
+	 * results
+	 */
+	val = (port == LAN937X_RGMII_1_PORT) ? RGMII_1_TX_DELAY_2NS :
+		RGMII_2_TX_DELAY_2NS;
+
+	lan937x_set_tune_adj(dev, port, REG_PORT_XMII_CTRL_5, val);
+}
+
+static void lan937x_set_rgmii_rx_delay(struct ksz_device *dev, int port)
+{
+	u8 val;
+
+	val = (port == LAN937X_RGMII_1_PORT) ? RGMII_1_RX_DELAY_2NS :
+		RGMII_2_RX_DELAY_2NS;
+
+	lan937x_set_tune_adj(dev, port, REG_PORT_XMII_CTRL_4, val);
+}
+
 void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
 			      struct phylink_config *config)
 {
@@ -324,6 +363,23 @@ void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
 		/* MII/RMII/RGMII ports */
 		config->mac_capabilities |= MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 					    MAC_100HD | MAC_10 | MAC_1000FD;
+	}
+}
+
+void lan937x_setup_rgmii_delay(struct ksz_device *dev, int port)
+{
+	struct ksz_port *p = &dev->ports[port];
+
+	if (p->rgmii_tx_val) {
+		lan937x_set_rgmii_tx_delay(dev, port);
+		dev_info(dev->dev, "Applied rgmii tx delay for the port %d\n",
+			 port);
+	}
+
+	if (p->rgmii_rx_val) {
+		lan937x_set_rgmii_rx_delay(dev, port);
+		dev_info(dev->dev, "Applied rgmii rx delay for the port %d\n",
+			 port);
 	}
 }
 

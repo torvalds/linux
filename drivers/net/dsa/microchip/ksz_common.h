@@ -79,6 +79,8 @@ struct ksz_port {
 	struct ksz_port_mib mib;
 	phy_interface_t interface;
 	u16 max_frame;
+	u32 rgmii_tx_val;
+	u32 rgmii_rx_val;
 };
 
 struct ksz_device {
@@ -301,6 +303,7 @@ struct ksz_dev_ops {
 				    phy_interface_t interface,
 				    struct phy_device *phydev, int speed,
 				    int duplex, bool tx_pause, bool rx_pause);
+	void (*setup_rgmii_delay)(struct ksz_device *dev, int port);
 	void (*config_cpu_port)(struct dsa_switch *ds);
 	int (*enable_stp_addr)(struct ksz_device *dev);
 	int (*reset)(struct ksz_device *dev);

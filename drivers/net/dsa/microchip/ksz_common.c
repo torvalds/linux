@@ -223,6 +223,7 @@ static const struct ksz_dev_ops lan937x_dev_ops = {
 	.mirror_del = ksz9477_port_mirror_del,
 	.get_caps = lan937x_phylink_get_caps,
 	.phylink_mac_config = lan937x_phylink_mac_config,
+	.setup_rgmii_delay = lan937x_setup_rgmii_delay,
 	.fdb_dump = ksz9477_fdb_dump,
 	.fdb_add = ksz9477_fdb_add,
 	.fdb_del = ksz9477_fdb_del,
@@ -1411,12 +1412,14 @@ static int ksz_max_mtu(struct dsa_switch *ds, int port)
 void ksz_set_xmii(struct ksz_device *dev, int port, phy_interface_t interface)
 {
 	const u8 *bitval = dev->info->xmii_ctrl1;
+	struct ksz_port *p = &dev->ports[port];
 	const u16 *regs = dev->info->regs;
 	u8 data8;
 
 	ksz_pread8(dev, port, regs[P_XMII_CTRL_1], &data8);
 
-	data8 &= ~P_MII_SEL_M;
+	data8 &= ~(P_MII_SEL_M | P_RGMII_ID_IG_ENABLE |
+		   P_RGMII_ID_EG_ENABLE);
 
 	switch (interface) {
 	case PHY_INTERFACE_MODE_MII:
@@ -1440,6 +1443,12 @@ void ksz_set_xmii(struct ksz_device *dev, int port, phy_interface_t interface)
 		return;
 	}
 
+	if (p->rgmii_tx_val)
+		data8 |= P_RGMII_ID_EG_ENABLE;
+
+	if (p->rgmii_rx_val)
+		data8 |= P_RGMII_ID_IG_ENABLE;
+
 	/* Write the updated value */
 	ksz_pwrite8(dev, port, regs[P_XMII_CTRL_1], data8);
 }
@@ -1452,6 +1461,9 @@ static void ksz_phylink_mac_config(struct dsa_switch *ds, int port,
 
 	if (dev->dev_ops->phylink_mac_config)
 		dev->dev_ops->phylink_mac_config(dev, port, mode, state);
+
+	if (dev->dev_ops->setup_rgmii_delay)
+		dev->dev_ops->setup_rgmii_delay(dev, port);
 }
 
 bool ksz_get_gbit(struct ksz_device *dev, int port)
@@ -1701,6 +1713,43 @@ struct ksz_device *ksz_switch_alloc(struct device *base, void *priv)
 }
 EXPORT_SYMBOL(ksz_switch_alloc);
 
+static void ksz_parse_rgmii_delay(struct ksz_device *dev, int port_num,
+				  struct device_node *port_dn)
+{
+	phy_interface_t phy_mode = dev->ports[port_num].interface;
+	int rx_delay = -1, tx_delay = -1;
+
+	if (!phy_interface_mode_is_rgmii(phy_mode))
+		return;
+
+	of_property_read_u32(port_dn, "rx-internal-delay-ps", &rx_delay);
+	of_property_read_u32(port_dn, "tx-internal-delay-ps", &tx_delay);
+
+	if (rx_delay == -1 && tx_delay == -1) {
+		dev_warn(dev->dev,
+			 "Port %d interpreting RGMII delay settings based on \"phy-mode\" property, "
+			 "please update device tree to specify \"rx-internal-delay-ps\" and "
+			 "\"tx-internal-delay-ps\"",
+			 port_num);
+
+		if (phy_mode == PHY_INTERFACE_MODE_RGMII_RXID ||
+		    phy_mode == PHY_INTERFACE_MODE_RGMII_ID)
+			rx_delay = 2000;
+
+		if (phy_mode == PHY_INTERFACE_MODE_RGMII_TXID ||
+		    phy_mode == PHY_INTERFACE_MODE_RGMII_ID)
+			tx_delay = 2000;
+	}
+
+	if (rx_delay < 0)
+		rx_delay = 0;
+	if (tx_delay < 0)
+		tx_delay = 0;
+
+	dev->ports[port_num].rgmii_rx_val = rx_delay;
+	dev->ports[port_num].rgmii_tx_val = tx_delay;
+}
+
 int ksz_switch_register(struct ksz_device *dev)
 {
 	const struct ksz_chip_data *info;
@@ -1798,6 +1847,8 @@ int ksz_switch_register(struct ksz_device *dev)
 				}
 				of_get_phy_mode(port,
 						&dev->ports[port_num].interface);
+
+				ksz_parse_rgmii_delay(dev, port_num, port);
 			}
 			of_node_put(ports);
 		}

@@ -20,4 +20,5 @@ void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
 void lan937x_phylink_mac_config(struct ksz_device *dev, int port,
 				unsigned int mode,
 				const struct phylink_link_state *state);
+void lan937x_setup_rgmii_delay(struct ksz_device *dev, int port);
 #endif
