@@ -899,12 +899,13 @@ static int gaudi_early_fini(struct hl_device *hdev)
  */
 static int gaudi_fetch_psoc_frequency(struct hl_device *hdev)
 {
-	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u32 nr = 0, nf = 0, od = 0, div_fctr = 0, pll_clk, div_sel;
+	struct asic_fixed_properties *prop = &hdev->asic_prop;
 	u16 pll_freq_arr[HL_PLL_NUM_OUTPUTS], freq;
 	int rc;
 
-	if (hdev->asic_prop.fw_security_enabled) {
+	if ((hdev->fw_components & FW_TYPE_LINUX) &&
+			(prop->fw_app_cpu_boot_dev_sts0 & CPU_BOOT_DEV_STS0_PLL_INFO_EN)) {
 		struct gaudi_device *gaudi = hdev->asic_specific;
 
 		if (!(gaudi->hw_cap_initialized & HW_CAP_CPU_Q))
