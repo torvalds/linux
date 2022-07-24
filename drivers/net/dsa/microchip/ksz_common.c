@@ -257,6 +257,7 @@ static const u16 ksz8795_regs[] = {
 	[S_START_CTRL]			= 0x01,
 	[S_BROADCAST_CTRL]		= 0x06,
 	[S_MULTICAST_CTRL]		= 0x04,
+	[P_XMII_CTRL_0]			= 0x06,
 	[P_XMII_CTRL_1]			= 0x56,
 };
 
@@ -280,6 +281,11 @@ static const u32 ksz8795_masks[] = {
 	[DYNAMIC_MAC_TABLE_FID]		= GENMASK(26, 20),
 	[DYNAMIC_MAC_TABLE_SRC_PORT]	= GENMASK(26, 24),
 	[DYNAMIC_MAC_TABLE_TIMESTAMP]	= GENMASK(28, 27),
+};
+
+static const u8 ksz8795_xmii_ctrl0[] = {
+	[P_MII_100MBIT]			= 0,
+	[P_MII_10MBIT]			= 1,
 };
 
 static const u8 ksz8795_xmii_ctrl1[] = {
@@ -357,6 +363,7 @@ static const u16 ksz9477_regs[] = {
 	[S_START_CTRL]			= 0x0300,
 	[S_BROADCAST_CTRL]		= 0x0332,
 	[S_MULTICAST_CTRL]		= 0x0331,
+	[P_XMII_CTRL_0]			= 0x0300,
 	[P_XMII_CTRL_1]			= 0x0301,
 };
 
@@ -367,6 +374,11 @@ static const u32 ksz9477_masks[] = {
 
 static const u8 ksz9477_shifts[] = {
 	[ALU_STAT_INDEX]		= 16,
+};
+
+static const u8 ksz9477_xmii_ctrl0[] = {
+	[P_MII_100MBIT]			= 1,
+	[P_MII_10MBIT]			= 0,
 };
 
 static const u8 ksz9477_xmii_ctrl1[] = {
@@ -400,6 +412,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz8795_regs,
 		.masks = ksz8795_masks,
 		.shifts = ksz8795_shifts,
+		.xmii_ctrl0 = ksz8795_xmii_ctrl0,
 		.xmii_ctrl1 = ksz8795_xmii_ctrl1,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
@@ -437,6 +450,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz8795_regs,
 		.masks = ksz8795_masks,
 		.shifts = ksz8795_shifts,
+		.xmii_ctrl0 = ksz8795_xmii_ctrl0,
 		.xmii_ctrl1 = ksz8795_xmii_ctrl1,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
@@ -460,6 +474,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz8795_regs,
 		.masks = ksz8795_masks,
 		.shifts = ksz8795_shifts,
+		.xmii_ctrl0 = ksz8795_xmii_ctrl0,
 		.xmii_ctrl1 = ksz8795_xmii_ctrl1,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
@@ -503,6 +518,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = ksz9477_masks,
 		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
 		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii	= {false, false, false, false,
 				   false, true, false},
@@ -530,6 +546,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = ksz9477_masks,
 		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
 		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii	= {false, false, false, false,
 				   false, true, true},
@@ -556,6 +573,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = ksz9477_masks,
 		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
 		.xmii_ctrl1 = ksz8795_xmii_ctrl1, /* Same as ksz8795 */
 		.supports_mii = {false, false, true},
 		.supports_rmii = {false, false, true},
@@ -579,6 +597,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = ksz9477_masks,
 		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
 		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii	= {false, false, false, false,
 				   false, true, true},
@@ -605,6 +624,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = lan937x_masks,
 		.shifts = lan937x_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
 		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
@@ -627,6 +647,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = lan937x_masks,
 		.shifts = lan937x_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
 		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii = {false, false, false, false, true, true},
 		.supports_rmii = {false, false, false, false, true, true},
@@ -649,6 +670,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = lan937x_masks,
 		.shifts = lan937x_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
 		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii	= {false, false, false, false,
 				   true, true, false, false},
@@ -675,6 +697,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = lan937x_masks,
 		.shifts = lan937x_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
 		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii	= {false, false, false, false,
 				   true, true, false, false},
@@ -701,6 +724,7 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = lan937x_masks,
 		.shifts = lan937x_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
 		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii	= {false, false, false, false,
 				   true, true, false, false},
@@ -1412,6 +1436,36 @@ void ksz_set_gbit(struct ksz_device *dev, int port, bool gbit)
 
 	/* Write the updated value */
 	ksz_pwrite8(dev, port, regs[P_XMII_CTRL_1], data8);
+}
+
+static void ksz_set_100_10mbit(struct ksz_device *dev, int port, int speed)
+{
+	const u8 *bitval = dev->info->xmii_ctrl0;
+	const u16 *regs = dev->info->regs;
+	u8 data8;
+
+	ksz_pread8(dev, port, regs[P_XMII_CTRL_0], &data8);
+
+	data8 &= ~P_MII_100MBIT_M;
+
+	if (speed == SPEED_100)
+		data8 |= FIELD_PREP(P_MII_100MBIT_M, bitval[P_MII_100MBIT]);
+	else
+		data8 |= FIELD_PREP(P_MII_100MBIT_M, bitval[P_MII_10MBIT]);
+
+	/* Write the updated value */
+	ksz_pwrite8(dev, port, regs[P_XMII_CTRL_0], data8);
+}
+
+void ksz_port_set_xmii_speed(struct ksz_device *dev, int port, int speed)
+{
+	if (speed == SPEED_1000)
+		ksz_set_gbit(dev, port, true);
+	else
+		ksz_set_gbit(dev, port, false);
+
+	if (speed == SPEED_100 || speed == SPEED_10)
+		ksz_set_100_10mbit(dev, port, speed);
 }
 
 static void ksz_phylink_mac_link_up(struct dsa_switch *ds, int port,

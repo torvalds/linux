@@ -51,6 +51,7 @@ struct ksz_chip_data {
 	const u16 *regs;
 	const u32 *masks;
 	const u8 *shifts;
+	const u8 *xmii_ctrl0;
 	const u8 *xmii_ctrl1;
 	int stp_ctrl_reg;
 	int broadcast_ctrl_reg;
@@ -170,6 +171,7 @@ enum ksz_regs {
 	S_START_CTRL,
 	S_BROADCAST_CTRL,
 	S_MULTICAST_CTRL,
+	P_XMII_CTRL_0,
 	P_XMII_CTRL_1,
 };
 
@@ -208,6 +210,11 @@ enum ksz_shifts {
 	DYNAMIC_MAC_TIMESTAMP,
 	DYNAMIC_MAC_SRC_PORT,
 	ALU_STAT_INDEX,
+};
+
+enum ksz_xmii_ctrl0 {
+	P_MII_100MBIT,
+	P_MII_10MBIT,
 };
 
 enum ksz_xmii_ctrl1 {
@@ -302,6 +309,7 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port);
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
 bool ksz_get_gbit(struct ksz_device *dev, int port);
 void ksz_set_gbit(struct ksz_device *dev, int port, bool gbit);
+void ksz_port_set_xmii_speed(struct ksz_device *dev, int port, int speed);
 extern const struct ksz_chip_data ksz_switch_chips[];
 
 /* Common register access functions */
@@ -466,6 +474,8 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define SW_START			0x01
 
 /* xMII configuration */
+#define P_MII_100MBIT_M			BIT(4)
+
 #define P_GMII_1GBIT_M			BIT(6)
 
 /* Regmap tables generation */

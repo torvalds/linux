@@ -346,21 +346,14 @@ static void lan937x_config_interface(struct ksz_device *dev, int port,
 				     int speed, int duplex,
 				     bool tx_pause, bool rx_pause)
 {
-	u8 xmii_ctrl0, xmii_ctrl1;
+	u8 xmii_ctrl0;
+
+	ksz_port_set_xmii_speed(dev, port, speed);
 
 	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_0, &xmii_ctrl0);
-	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &xmii_ctrl1);
 
-	xmii_ctrl0 &= ~(PORT_MII_100MBIT | PORT_MII_FULL_DUPLEX |
-			PORT_MII_TX_FLOW_CTRL | PORT_MII_RX_FLOW_CTRL);
-
-	if (speed == SPEED_1000)
-		ksz_set_gbit(dev, port, true);
-	else
-		ksz_set_gbit(dev, port, false);
-
-	if (speed == SPEED_100)
-		xmii_ctrl0 |= PORT_MII_100MBIT;
+	xmii_ctrl0 &= ~(PORT_MII_FULL_DUPLEX | PORT_MII_TX_FLOW_CTRL |
+			PORT_MII_RX_FLOW_CTRL);
 
 	if (duplex)
 		xmii_ctrl0 |= PORT_MII_FULL_DUPLEX;
@@ -372,7 +365,6 @@ static void lan937x_config_interface(struct ksz_device *dev, int port,
 		xmii_ctrl0 |= PORT_MII_RX_FLOW_CTRL;
 
 	ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_0, xmii_ctrl0);
-	ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_1, xmii_ctrl1);
 }
 
 void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
