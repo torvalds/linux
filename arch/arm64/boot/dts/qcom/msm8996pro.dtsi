@@ -264,3 +264,28 @@
 		};
 	};
 };
+
+&gpu_opp_table {
+	/*
+	 * Unlike CPU opp tables, the GPU driver does not shift speed bins.
+	 *
+	 * 652.8 Mhz is available on speed bin 0 only.
+	 * 624 Mhz and 560 Mhz are available on speed bins 0 and 1.
+	 * All the rest are available on all bins of the hardware (like on
+	 * plain 8996).
+	 */
+
+	opp-652800000 {
+		opp-hz = /bits/ 64 <652800000>;
+		opp-supported-hw = <0x01>;
+	};
+	opp-624000000 {
+		opp-hz = /bits/ 64 <624000000>;
+		opp-supported-hw = <0x03>;
+	};
+	opp-560000000 {
+		opp-hz = /bits/ 64 <560000000>;
+		opp-supported-hw = <0x03>;
+	};
+	/* The rest is inherited from msm8996 */
+};
