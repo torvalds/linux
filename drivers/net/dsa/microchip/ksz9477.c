@@ -866,32 +866,6 @@ void ksz9477_port_mirror_del(struct ksz_device *dev, int port,
 			     PORT_MIRROR_SNIFFER, false);
 }
 
-static bool ksz9477_get_gbit(struct ksz_device *dev, u8 data)
-{
-	bool gbit;
-
-	if (dev->features & NEW_XMII)
-		gbit = !(data & PORT_MII_NOT_1GBIT);
-	else
-		gbit = !!(data & PORT_MII_1000MBIT_S1);
-	return gbit;
-}
-
-static void ksz9477_set_gbit(struct ksz_device *dev, bool gbit, u8 *data)
-{
-	if (dev->features & NEW_XMII) {
-		if (gbit)
-			*data &= ~PORT_MII_NOT_1GBIT;
-		else
-			*data |= PORT_MII_NOT_1GBIT;
-	} else {
-		if (gbit)
-			*data |= PORT_MII_1000MBIT_S1;
-		else
-			*data &= ~PORT_MII_1000MBIT_S1;
-	}
-}
-
 static int ksz9477_get_xmii(struct ksz_device *dev, u8 data)
 {
 	int mode;
@@ -977,7 +951,7 @@ static phy_interface_t ksz9477_get_interface(struct ksz_device *dev, int port)
 	if (port < dev->phy_port_cnt)
 		return PHY_INTERFACE_MODE_NA;
 	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &data8);
-	gbit = ksz9477_get_gbit(dev, data8);
+	gbit = ksz_get_gbit(dev, port);
 	mode = ksz9477_get_xmii(dev, data8);
 	switch (mode) {
 	case 2:
@@ -1122,22 +1096,22 @@ void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 		switch (p->interface) {
 		case PHY_INTERFACE_MODE_MII:
 			ksz9477_set_xmii(dev, 0, &data8);
-			ksz9477_set_gbit(dev, false, &data8);
+			ksz_set_gbit(dev, port, false);
 			p->phydev.speed = SPEED_100;
 			break;
 		case PHY_INTERFACE_MODE_RMII:
 			ksz9477_set_xmii(dev, 1, &data8);
-			ksz9477_set_gbit(dev, false, &data8);
+			ksz_set_gbit(dev, port, false);
 			p->phydev.speed = SPEED_100;
 			break;
 		case PHY_INTERFACE_MODE_GMII:
 			ksz9477_set_xmii(dev, 2, &data8);
-			ksz9477_set_gbit(dev, true, &data8);
+			ksz_set_gbit(dev, port, true);
 			p->phydev.speed = SPEED_1000;
 			break;
 		default:
 			ksz9477_set_xmii(dev, 3, &data8);
-			ksz9477_set_gbit(dev, true, &data8);
+			ksz_set_gbit(dev, port, true);
 			data8 &= ~PORT_RGMII_ID_IG_ENABLE;
 			data8 &= ~PORT_RGMII_ID_EG_ENABLE;
 			if (p->interface == PHY_INTERFACE_MODE_RGMII_ID ||

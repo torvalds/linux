@@ -312,14 +312,6 @@ int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu)
 	return 0;
 }
 
-static void lan937x_config_gbit(struct ksz_device *dev, bool gbit, u8 *data)
-{
-	if (gbit)
-		*data &= ~PORT_MII_NOT_1GBIT;
-	else
-		*data |= PORT_MII_NOT_1GBIT;
-}
-
 static void lan937x_mac_config(struct ksz_device *dev, int port,
 			       phy_interface_t interface)
 {
@@ -333,11 +325,11 @@ static void lan937x_mac_config(struct ksz_device *dev, int port,
 	/* configure MAC based on interface */
 	switch (interface) {
 	case PHY_INTERFACE_MODE_MII:
-		lan937x_config_gbit(dev, false, &data8);
+		ksz_set_gbit(dev, port, false);
 		data8 |= PORT_MII_SEL;
 		break;
 	case PHY_INTERFACE_MODE_RMII:
-		lan937x_config_gbit(dev, false, &data8);
+		ksz_set_gbit(dev, port, false);
 		data8 |= PORT_RMII_SEL;
 		break;
 	default:
@@ -363,9 +355,9 @@ static void lan937x_config_interface(struct ksz_device *dev, int port,
 			PORT_MII_TX_FLOW_CTRL | PORT_MII_RX_FLOW_CTRL);
 
 	if (speed == SPEED_1000)
-		lan937x_config_gbit(dev, true, &xmii_ctrl1);
+		ksz_set_gbit(dev, port, true);
 	else
-		lan937x_config_gbit(dev, false, &xmii_ctrl1);
+		ksz_set_gbit(dev, port, false);
 
 	if (speed == SPEED_100)
 		xmii_ctrl0 |= PORT_MII_100MBIT;
