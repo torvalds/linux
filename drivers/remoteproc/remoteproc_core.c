@@ -972,7 +972,7 @@ static int rproc_handle_carveout(struct rproc *rproc,
 		return 0;
 	}
 
-	/* Register carveout in in list */
+	/* Register carveout in list */
 	carveout = rproc_mem_entry_init(dev, NULL, 0, rsc->len, rsc->da,
 					rproc_alloc_carveout,
 					rproc_release_carveout, rsc->name);
