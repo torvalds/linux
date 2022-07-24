@@ -29,6 +29,10 @@
 
 struct mlxsw_sp_ptp_state {
 	struct mlxsw_sp *mlxsw_sp;
+};
+
+struct mlxsw_sp1_ptp_state {
+	struct mlxsw_sp_ptp_state common;
 	struct rhltable unmatched_ht;
 	spinlock_t unmatched_lock; /* protects the HT */
 	struct delayed_work ht_gc_dw;
@@ -69,6 +73,13 @@ struct mlxsw_sp_ptp_clock {
 	unsigned long overflow_period;
 	struct delayed_work overflow_work;
 };
+
+static struct mlxsw_sp1_ptp_state *
+mlxsw_sp1_ptp_state(struct mlxsw_sp *mlxsw_sp)
+{
+	return container_of(mlxsw_sp->ptp_state, struct mlxsw_sp1_ptp_state,
+			    common);
+}
 
 static u64 __mlxsw_sp1_ptp_read_frc(struct mlxsw_sp_ptp_clock *clock,
 				    struct ptp_system_timestamp *sts)
@@ -347,7 +358,7 @@ mlxsw_sp1_ptp_unmatched_save(struct mlxsw_sp *mlxsw_sp,
 			     u64 timestamp)
 {
 	int cycles = MLXSW_SP1_PTP_HT_GC_TIMEOUT / MLXSW_SP1_PTP_HT_GC_INTERVAL;
-	struct mlxsw_sp_ptp_state *ptp_state = mlxsw_sp->ptp_state;
+	struct mlxsw_sp1_ptp_state *ptp_state = mlxsw_sp1_ptp_state(mlxsw_sp);
 	struct mlxsw_sp1_ptp_unmatched *unmatched;
 	int err;
 
@@ -358,7 +369,7 @@ mlxsw_sp1_ptp_unmatched_save(struct mlxsw_sp *mlxsw_sp,
 	unmatched->key = key;
 	unmatched->skb = skb;
 	unmatched->timestamp = timestamp;
-	unmatched->gc_cycle = mlxsw_sp->ptp_state->gc_cycle + cycles;
+	unmatched->gc_cycle = ptp_state->gc_cycle + cycles;
 
 	err = rhltable_insert(&ptp_state->unmatched_ht, &unmatched->ht_node,
 			      mlxsw_sp1_ptp_unmatched_ht_params);
@@ -372,11 +383,12 @@ static struct mlxsw_sp1_ptp_unmatched *
 mlxsw_sp1_ptp_unmatched_lookup(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp1_ptp_key key, int *p_length)
 {
+	struct mlxsw_sp1_ptp_state *ptp_state = mlxsw_sp1_ptp_state(mlxsw_sp);
 	struct mlxsw_sp1_ptp_unmatched *unmatched, *last = NULL;
 	struct rhlist_head *tmp, *list;
 	int length = 0;
 
-	list = rhltable_lookup(&mlxsw_sp->ptp_state->unmatched_ht, &key,
+	list = rhltable_lookup(&ptp_state->unmatched_ht, &key,
 			       mlxsw_sp1_ptp_unmatched_ht_params);
 	rhl_for_each_entry_rcu(unmatched, tmp, list, ht_node) {
 		last = unmatched;
@@ -391,7 +403,9 @@ static int
 mlxsw_sp1_ptp_unmatched_remove(struct mlxsw_sp *mlxsw_sp,
 			       struct mlxsw_sp1_ptp_unmatched *unmatched)
 {
-	return rhltable_remove(&mlxsw_sp->ptp_state->unmatched_ht,
+	struct mlxsw_sp1_ptp_state *ptp_state = mlxsw_sp1_ptp_state(mlxsw_sp);
+
+	return rhltable_remove(&ptp_state->unmatched_ht,
 			       &unmatched->ht_node,
 			       mlxsw_sp1_ptp_unmatched_ht_params);
 }
@@ -480,13 +494,14 @@ static void mlxsw_sp1_ptp_got_piece(struct mlxsw_sp *mlxsw_sp,
 				    struct mlxsw_sp1_ptp_key key,
 				    struct sk_buff *skb, u64 timestamp)
 {
+	struct mlxsw_sp1_ptp_state *ptp_state = mlxsw_sp1_ptp_state(mlxsw_sp);
 	struct mlxsw_sp1_ptp_unmatched *unmatched;
 	int length;
 	int err;
 
 	rcu_read_lock();
 
-	spin_lock(&mlxsw_sp->ptp_state->unmatched_lock);
+	spin_lock(&ptp_state->unmatched_lock);
 
 	unmatched = mlxsw_sp1_ptp_unmatched_lookup(mlxsw_sp, key, &length);
 	if (skb && unmatched && unmatched->timestamp) {
@@ -514,7 +529,7 @@ static void mlxsw_sp1_ptp_got_piece(struct mlxsw_sp *mlxsw_sp,
 		WARN_ON_ONCE(err);
 	}
 
-	spin_unlock(&mlxsw_sp->ptp_state->unmatched_lock);
+	spin_unlock(&ptp_state->unmatched_lock);
 
 	if (unmatched)
 		mlxsw_sp1_ptp_unmatched_finish(mlxsw_sp, unmatched);
@@ -610,9 +625,10 @@ void mlxsw_sp1_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
 }
 
 static void
-mlxsw_sp1_ptp_ht_gc_collect(struct mlxsw_sp_ptp_state *ptp_state,
+mlxsw_sp1_ptp_ht_gc_collect(struct mlxsw_sp1_ptp_state *ptp_state,
 			    struct mlxsw_sp1_ptp_unmatched *unmatched)
 {
+	struct mlxsw_sp *mlxsw_sp = ptp_state->common.mlxsw_sp;
 	struct mlxsw_sp_ptp_port_dir_stats *stats;
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	int err;
@@ -635,7 +651,7 @@ mlxsw_sp1_ptp_ht_gc_collect(struct mlxsw_sp_ptp_state *ptp_state,
 		/* The packet was matched with timestamp during the walk. */
 		goto out;
 
-	mlxsw_sp_port = ptp_state->mlxsw_sp->ports[unmatched->key.local_port];
+	mlxsw_sp_port = mlxsw_sp->ports[unmatched->key.local_port];
 	if (mlxsw_sp_port) {
 		stats = unmatched->key.ingress ?
 			&mlxsw_sp_port->ptp.stats.rx_gcd :
@@ -652,7 +668,7 @@ mlxsw_sp1_ptp_ht_gc_collect(struct mlxsw_sp_ptp_state *ptp_state,
 	 * netif_receive_skb(), in process context, is seen elsewhere in the
 	 * kernel, notably in pktgen.
 	 */
-	mlxsw_sp1_ptp_unmatched_finish(ptp_state->mlxsw_sp, unmatched);
+	mlxsw_sp1_ptp_unmatched_finish(mlxsw_sp, unmatched);
 
 out:
 	local_bh_enable();
@@ -662,12 +678,12 @@ static void mlxsw_sp1_ptp_ht_gc(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
 	struct mlxsw_sp1_ptp_unmatched *unmatched;
-	struct mlxsw_sp_ptp_state *ptp_state;
+	struct mlxsw_sp1_ptp_state *ptp_state;
 	struct rhashtable_iter iter;
 	u32 gc_cycle;
 	void *obj;
 
-	ptp_state = container_of(dwork, struct mlxsw_sp_ptp_state, ht_gc_dw);
+	ptp_state = container_of(dwork, struct mlxsw_sp1_ptp_state, ht_gc_dw);
 	gc_cycle = ptp_state->gc_cycle++;
 
 	rhltable_walk_enter(&ptp_state->unmatched_ht, &iter);
@@ -808,7 +824,7 @@ static int mlxsw_sp1_ptp_shaper_params_set(struct mlxsw_sp *mlxsw_sp)
 
 struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 {
-	struct mlxsw_sp_ptp_state *ptp_state;
+	struct mlxsw_sp1_ptp_state *ptp_state;
 	u16 message_type;
 	int err;
 
@@ -819,7 +835,7 @@ struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
 	if (!ptp_state)
 		return ERR_PTR(-ENOMEM);
-	ptp_state->mlxsw_sp = mlxsw_sp;
+	ptp_state->common.mlxsw_sp = mlxsw_sp;
 
 	spin_lock_init(&ptp_state->unmatched_lock);
 
@@ -852,7 +868,7 @@ struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 	INIT_DELAYED_WORK(&ptp_state->ht_gc_dw, mlxsw_sp1_ptp_ht_gc);
 	mlxsw_core_schedule_dw(&ptp_state->ht_gc_dw,
 			       MLXSW_SP1_PTP_HT_GC_INTERVAL);
-	return ptp_state;
+	return &ptp_state->common;
 
 err_fifo_clr:
 	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP1, 0);
@@ -865,9 +881,12 @@ err_hashtable_init:
 	return ERR_PTR(err);
 }
 
-void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
+void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state_common)
 {
-	struct mlxsw_sp *mlxsw_sp = ptp_state->mlxsw_sp;
+	struct mlxsw_sp *mlxsw_sp = ptp_state_common->mlxsw_sp;
+	struct mlxsw_sp1_ptp_state *ptp_state;
+
+	ptp_state = mlxsw_sp1_ptp_state(mlxsw_sp);
 
 	cancel_delayed_work_sync(&ptp_state->ht_gc_dw);
 	mlxsw_sp1_ptp_mtpppc_set(mlxsw_sp, 0, 0);
