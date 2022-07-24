@@ -567,7 +567,7 @@ int vmem_add_mapping(unsigned long start, unsigned long size)
  * while traversing is an error, since the function is expected to be
  * called against virtual regions reserverd for 4KB mappings only.
  */
-static pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
+pte_t *vmem_get_alloc_pte(unsigned long addr, bool alloc)
 {
 	pte_t *ptep = NULL;
 	pgd_t *pgd;

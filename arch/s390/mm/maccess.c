@@ -12,11 +12,16 @@
 #include <linux/errno.h>
 #include <linux/gfp.h>
 #include <linux/cpu.h>
+#include <linux/uio.h>
 #include <asm/asm-extable.h>
 #include <asm/ctl_reg.h>
 #include <asm/io.h>
 #include <asm/abs_lowcore.h>
 #include <asm/stacktrace.h>
+
+unsigned long __bootdata_preserved(__memcpy_real_area);
+static __ro_after_init pte_t *memcpy_real_ptep;
+static DEFINE_MUTEX(memcpy_real_mutex);
 
 static notrace long s390_kernel_write_odd(void *dst, const void *src, size_t size)
 {
@@ -77,75 +82,55 @@ notrace void *s390_kernel_write(void *dst, const void *src, size_t size)
 	return dst;
 }
 
-static int __no_sanitize_address __memcpy_real(void *dest, void *src, size_t count)
+void __init memcpy_real_init(void)
 {
-	union register_pair _dst, _src;
-	int rc = -EFAULT;
-
-	_dst.even = (unsigned long) dest;
-	_dst.odd  = (unsigned long) count;
-	_src.even = (unsigned long) src;
-	_src.odd  = (unsigned long) count;
-	asm volatile (
-		"0:	mvcle	%[dst],%[src],0\n"
-		"1:	jo	0b\n"
-		"	lhi	%[rc],0\n"
-		"2:\n"
-		EX_TABLE(1b,2b)
-		: [rc] "+&d" (rc), [dst] "+&d" (_dst.pair), [src] "+&d" (_src.pair)
-		: : "cc", "memory");
-	return rc;
+	memcpy_real_ptep = vmem_get_alloc_pte(__memcpy_real_area, true);
+	if (!memcpy_real_ptep)
+		panic("Couldn't setup memcpy real area");
 }
 
-static unsigned long __no_sanitize_address _memcpy_real(unsigned long dest,
-							unsigned long src,
-							unsigned long count)
+size_t memcpy_real_iter(struct iov_iter *iter, unsigned long src, size_t count)
 {
-	int irqs_disabled, rc;
-	unsigned long flags;
+	size_t len, copied, res = 0;
+	unsigned long phys, offset;
+	void *chunk;
+	pte_t pte;
 
-	if (!count)
-		return 0;
-	flags = arch_local_irq_save();
-	irqs_disabled = arch_irqs_disabled_flags(flags);
-	if (!irqs_disabled)
-		trace_hardirqs_off();
-	__arch_local_irq_stnsm(0xf8); // disable DAT
-	rc = __memcpy_real((void *) dest, (void *) src, (size_t) count);
-	if (flags & PSW_MASK_DAT)
-		__arch_local_irq_stosm(0x04); // enable DAT
-	if (!irqs_disabled)
-		trace_hardirqs_on();
-	__arch_local_irq_ssm(flags);
-	return rc;
+	while (count) {
+		phys = src & PAGE_MASK;
+		offset = src & ~PAGE_MASK;
+		chunk = (void *)(__memcpy_real_area + offset);
+		len = min(count, PAGE_SIZE - offset);
+		pte = mk_pte_phys(phys, PAGE_KERNEL_RO);
+
+		mutex_lock(&memcpy_real_mutex);
+		if (pte_val(pte) != pte_val(*memcpy_real_ptep)) {
+			__ptep_ipte(__memcpy_real_area, memcpy_real_ptep, 0, 0, IPTE_GLOBAL);
+			set_pte(memcpy_real_ptep, pte);
+		}
+		copied = copy_to_iter(chunk, len, iter);
+		mutex_unlock(&memcpy_real_mutex);
+
+		count -= copied;
+		src += copied;
+		res += copied;
+		if (copied < len)
+			break;
+	}
+	return res;
 }
 
-/*
- * Copy memory in real mode (kernel to kernel)
- */
 int memcpy_real(void *dest, unsigned long src, size_t count)
 {
-	unsigned long _dest  = (unsigned long)dest;
-	unsigned long _src   = (unsigned long)src;
-	unsigned long _count = (unsigned long)count;
-	int rc;
+	struct iov_iter iter;
+	struct kvec kvec;
 
-	if (S390_lowcore.nodat_stack != 0) {
-		preempt_disable();
-		rc = call_on_stack(3, S390_lowcore.nodat_stack,
-				   unsigned long, _memcpy_real,
-				   unsigned long, _dest,
-				   unsigned long, _src,
-				   unsigned long, _count);
-		preempt_enable();
-		return rc;
-	}
-	/*
-	 * This is a really early memcpy_real call, the stacks are
-	 * not set up yet. Just call _memcpy_real on the early boot
-	 * stack
-	 */
-	return _memcpy_real(_dest, _src, _count);
+	kvec.iov_base = dest;
+	kvec.iov_len = count;
+	iov_iter_kvec(&iter, WRITE, &kvec, 1, count);
+	if (memcpy_real_iter(&iter, src, count) < count)
+		return -EFAULT;
+	return 0;
 }
 
 /*

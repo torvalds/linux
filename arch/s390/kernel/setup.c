@@ -74,6 +74,7 @@
 #include <asm/alternative.h>
 #include <asm/nospec-branch.h>
 #include <asm/mem_detect.h>
+#include <asm/maccess.h>
 #include <asm/uv.h>
 #include <asm/asm-offsets.h>
 #include "entry.h"
@@ -1050,7 +1051,7 @@ void __init setup_arch(char **cmdline_p)
 	 * Create kernel page tables and switch to virtual addressing.
 	 */
         paging_init();
-
+	memcpy_real_init();
 	/*
 	 * After paging_init created the kernel page table, the new PSWs
 	 * in lowcore can now run with DAT enabled.
