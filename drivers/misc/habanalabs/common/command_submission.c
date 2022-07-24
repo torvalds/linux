@@ -12,7 +12,9 @@
 #include <linux/slab.h>
 
 #define HL_CS_FLAGS_TYPE_MASK	(HL_CS_FLAGS_SIGNAL | HL_CS_FLAGS_WAIT | \
-					HL_CS_FLAGS_COLLECTIVE_WAIT)
+			HL_CS_FLAGS_COLLECTIVE_WAIT | HL_CS_FLAGS_RESERVE_SIGNALS_ONLY | \
+			HL_CS_FLAGS_UNRESERVE_SIGNALS_ONLY)
+
 
 #define MAX_TS_ITER_NUM 10
 
@@ -1253,6 +1255,7 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 	u32 cs_type_flags, num_chunks;
 	enum hl_device_status status;
 	enum hl_cs_type cs_type;
+	bool is_sync_stream;
 
 	if (!hl_device_operational(hdev, &status)) {
 		return -EBUSY;
@@ -1276,9 +1279,10 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 	cs_type = hl_cs_get_cs_type(cs_type_flags);
 	num_chunks = args->in.num_chunks_execute;
 
-	if (unlikely((cs_type == CS_TYPE_SIGNAL || cs_type == CS_TYPE_WAIT ||
-			cs_type == CS_TYPE_COLLECTIVE_WAIT) &&
-			!hdev->supports_sync_stream)) {
+	is_sync_stream = (cs_type == CS_TYPE_SIGNAL || cs_type == CS_TYPE_WAIT ||
+			cs_type == CS_TYPE_COLLECTIVE_WAIT);
+
+	if (unlikely(is_sync_stream && !hdev->supports_sync_stream)) {
 		dev_err(hdev->dev, "Sync stream CS is not supported\n");
 		return -EINVAL;
 	}
@@ -1288,7 +1292,7 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 			dev_err(hdev->dev, "Got execute CS with 0 chunks, context %d\n", ctx->asid);
 			return -EINVAL;
 		}
-	} else if (num_chunks != 1) {
+	} else if (is_sync_stream && num_chunks != 1) {
 		dev_err(hdev->dev,
 			"Sync stream CS mandates one chunk only, context %d\n",
 			ctx->asid);
