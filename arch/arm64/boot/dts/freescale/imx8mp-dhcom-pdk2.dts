@@ -16,7 +16,8 @@
 
 / {
 	model = "DH electronics i.MX8M Plus DHCOM Premium Developer Kit (2)";
-	compatible = "dh,imx8mp-dhcom-pdk2", "fsl,imx8mp";
+	compatible = "dh,imx8mp-dhcom-pdk2", "dh,imx8mp-dhcom-som",
+		     "fsl,imx8mp";
 
 	chosen {
 		stdout-path = &uart1;
