@@ -41,6 +41,10 @@
 	gpio = <&msmgpio 72 GPIO_ACTIVE_HIGH>;
 };
 
+&reg_touch_key {
+	status = "disabled";
+};
+
 &msmgpio {
 	gpio_leds_default: gpio-led-default {
 		pins = "gpio60";
