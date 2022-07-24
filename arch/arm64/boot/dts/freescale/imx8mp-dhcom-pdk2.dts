@@ -11,7 +11,6 @@
 /dts-v1/;
 
 #include <dt-bindings/leds/common.h>
-#include <dt-bindings/net/qca-ar803x.h>
 #include <dt-bindings/phy/phy-imx8-pcie.h>
 #include "imx8mp-dhcom-som.dtsi"
 
