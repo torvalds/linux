@@ -1913,22 +1913,23 @@ static int tc_mipi_dsi_host_attach(struct tc_data *tc)
 static int tc_probe_dpi_bridge_endpoint(struct tc_data *tc)
 {
 	struct device *dev = tc->dev;
+	struct drm_bridge *bridge;
 	struct drm_panel *panel;
 	int ret;
 
 	/* port@1 is the DPI input/output port */
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, NULL);
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0, &panel, &bridge);
 	if (ret && ret != -ENODEV)
 		return ret;
 
 	if (panel) {
-		struct drm_bridge *panel_bridge;
+		bridge = devm_drm_panel_bridge_add(dev, panel);
+		if (IS_ERR(bridge))
+			return PTR_ERR(bridge);
+	}
 
-		panel_bridge = devm_drm_panel_bridge_add(dev, panel);
-		if (IS_ERR(panel_bridge))
-			return PTR_ERR(panel_bridge);
-
-		tc->panel_bridge = panel_bridge;
+	if (bridge) {
+		tc->panel_bridge = bridge;
 		tc->bridge.type = DRM_MODE_CONNECTOR_DPI;
 		tc->bridge.funcs = &tc_dpi_bridge_funcs;
 
