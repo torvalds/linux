@@ -694,7 +694,7 @@ static int mlxsw_sp_ptp_mtptpt_set(struct mlxsw_sp *mlxsw_sp,
 {
 	char mtptpt_pl[MLXSW_REG_MTPTPT_LEN];
 
-	mlxsw_reg_mtptptp_pack(mtptpt_pl, trap_id, message_type);
+	mlxsw_reg_mtptpt_pack(mtptpt_pl, trap_id, message_type);
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mtptpt), mtptpt_pl);
 }
 
