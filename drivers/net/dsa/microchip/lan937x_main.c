@@ -383,22 +383,6 @@ void lan937x_setup_rgmii_delay(struct ksz_device *dev, int port)
 	}
 }
 
-void lan937x_phylink_mac_config(struct ksz_device *dev, int port,
-				unsigned int mode,
-				const struct phylink_link_state *state)
-{
-	/* Internal PHYs */
-	if (dev->info->internal_phy[port])
-		return;
-
-	if (phylink_autoneg_inband(mode)) {
-		dev_err(dev->dev, "In-band AN not supported!\n");
-		return;
-	}
-
-	ksz_set_xmii(dev, port, state->interface);
-}
-
 int lan937x_setup(struct dsa_switch *ds)
 {
 	struct ksz_device *dev = ds->priv;

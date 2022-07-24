@@ -26,11 +26,6 @@
 #include "ksz8795_reg.h"
 #include "ksz8.h"
 
-static bool ksz_is_ksz88x3(struct ksz_device *dev)
-{
-	return dev->chip_id == 0x8830;
-}
-
 static void ksz_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
 {
 	regmap_update_bits(dev->regmap[0], addr, bits, set ? bits : 0);
@@ -1124,8 +1119,6 @@ static void ksz8795_cpu_interface_select(struct ksz_device *dev, int port)
 			 port);
 		p->interface = dev->compat_interface;
 	}
-
-	ksz_set_xmii(dev, port, p->interface);
 }
 
 void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)

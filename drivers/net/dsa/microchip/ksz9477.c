@@ -944,7 +944,6 @@ void ksz9477_get_caps(struct ksz_device *dev, int port,
 
 void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
-	struct ksz_port *p = &dev->ports[port];
 	struct dsa_switch *ds = dev->ds;
 	u16 data16;
 	u8 member;
@@ -987,9 +986,6 @@ void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 		ksz_port_cfg(dev, port, REG_PORT_CTRL_0,
 			     PORT_FORCE_TX_FLOW_CTRL | PORT_FORCE_RX_FLOW_CTRL,
 			     true);
-
-		/* configure MAC to 1G & RGMII mode */
-		ksz_set_xmii(dev, port, p->interface);
 	}
 
 	if (cpu_port)

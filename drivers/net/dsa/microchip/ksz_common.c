@@ -222,7 +222,6 @@ static const struct ksz_dev_ops lan937x_dev_ops = {
 	.mirror_add = ksz9477_port_mirror_add,
 	.mirror_del = ksz9477_port_mirror_del,
 	.get_caps = lan937x_phylink_get_caps,
-	.phylink_mac_config = lan937x_phylink_mac_config,
 	.setup_rgmii_delay = lan937x_setup_rgmii_delay,
 	.fdb_dump = ksz9477_fdb_dump,
 	.fdb_add = ksz9477_fdb_add,
@@ -1409,7 +1408,8 @@ static int ksz_max_mtu(struct dsa_switch *ds, int port)
 	return dev->dev_ops->max_mtu(dev, port);
 }
 
-void ksz_set_xmii(struct ksz_device *dev, int port, phy_interface_t interface)
+static void ksz_set_xmii(struct ksz_device *dev, int port,
+			 phy_interface_t interface)
 {
 	const u8 *bitval = dev->info->xmii_ctrl1;
 	struct ksz_port *p = &dev->ports[port];
@@ -1494,6 +1494,20 @@ static void ksz_phylink_mac_config(struct dsa_switch *ds, int port,
 				   const struct phylink_link_state *state)
 {
 	struct ksz_device *dev = ds->priv;
+
+	if (ksz_is_ksz88x3(dev))
+		return;
+
+	/* Internal PHYs */
+	if (dev->info->internal_phy[port])
+		return;
+
+	if (phylink_autoneg_inband(mode)) {
+		dev_err(dev->dev, "In-band AN not supported!\n");
+		return;
+	}
+
+	ksz_set_xmii(dev, port, state->interface);
 
 	if (dev->dev_ops->phylink_mac_config)
 		dev->dev_ops->phylink_mac_config(dev, port, mode, state);

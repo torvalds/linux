@@ -319,7 +319,6 @@ void ksz_init_mib_timer(struct ksz_device *dev);
 void ksz_r_mib_stats64(struct ksz_device *dev, int port);
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
 bool ksz_get_gbit(struct ksz_device *dev, int port);
-void ksz_set_xmii(struct ksz_device *dev, int port, phy_interface_t interface);
 phy_interface_t ksz_get_xmii(struct ksz_device *dev, int port, bool gbit);
 extern const struct ksz_chip_data ksz_switch_chips[];
 
@@ -445,6 +444,11 @@ static inline void ksz_regmap_unlock(void *__mtx)
 {
 	struct mutex *mtx = __mtx;
 	mutex_unlock(mtx);
+}
+
+static inline bool ksz_is_ksz88x3(struct ksz_device *dev)
+{
+	return dev->chip_id == KSZ8830_CHIP_ID;
 }
 
 static inline int is_lan937x(struct ksz_device *dev)
