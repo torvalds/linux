@@ -1255,6 +1255,17 @@ dso__load_sym_internal(struct dso *dso, struct map *map, struct symsrc *syms_ss,
 
 		gelf_getshdr(sec, &shdr);
 
+		/*
+		 * If the attribute bit SHF_ALLOC is not set, the section
+		 * doesn't occupy memory during process execution.
+		 * E.g. ".gnu.warning.*" section is used by linker to generate
+		 * warnings when calling deprecated functions, the symbols in
+		 * the section aren't loaded to memory during process execution,
+		 * so skip them.
+		 */
+		if (!(shdr.sh_flags & SHF_ALLOC))
+			continue;
+
 		secstrs = secstrs_sym;
 
 		/*
