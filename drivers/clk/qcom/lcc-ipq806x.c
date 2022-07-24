@@ -134,7 +134,7 @@ static struct clk_rcg mi2s_osr_src = {
 		.hw.init = &(struct clk_init_data){
 			.name = "mi2s_osr_src",
 			.parent_data = lcc_pxo_pll4,
-			.num_parents = 2,
+			.num_parents = ARRAY_SIZE(lcc_pxo_pll4),
 			.ops = &clk_rcg_ops,
 			.flags = CLK_SET_RATE_GATE,
 		},
@@ -251,7 +251,7 @@ static struct clk_rcg pcm_src = {
 		.hw.init = &(struct clk_init_data){
 			.name = "pcm_src",
 			.parent_data = lcc_pxo_pll4,
-			.num_parents = 2,
+			.num_parents = ARRAY_SIZE(lcc_pxo_pll4),
 			.ops = &clk_rcg_ops,
 			.flags = CLK_SET_RATE_GATE,
 		},
@@ -335,7 +335,7 @@ static struct clk_rcg spdif_src = {
 		.hw.init = &(struct clk_init_data){
 			.name = "spdif_src",
 			.parent_data = lcc_pxo_pll4,
-			.num_parents = 2,
+			.num_parents = ARRAY_SIZE(lcc_pxo_pll4),
 			.ops = &clk_rcg_ops,
 			.flags = CLK_SET_RATE_GATE,
 		},
@@ -392,7 +392,7 @@ static struct clk_rcg ahbix_clk = {
 		.hw.init = &(struct clk_init_data){
 			.name = "ahbix",
 			.parent_data = lcc_pxo_pll4,
-			.num_parents = 2,
+			.num_parents = ARRAY_SIZE(lcc_pxo_pll4),
 			.ops = &clk_rcg_lcc_ops,
 		},
 	},
