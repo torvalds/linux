@@ -319,8 +319,8 @@ void ksz_init_mib_timer(struct ksz_device *dev);
 void ksz_r_mib_stats64(struct ksz_device *dev, int port);
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
 bool ksz_get_gbit(struct ksz_device *dev, int port);
-void ksz_set_gbit(struct ksz_device *dev, int port, bool gbit);
 void ksz_set_xmii(struct ksz_device *dev, int port, phy_interface_t interface);
+phy_interface_t ksz_get_xmii(struct ksz_device *dev, int port, bool gbit);
 extern const struct ksz_chip_data ksz_switch_chips[];
 
 /* Common register access functions */
@@ -492,6 +492,10 @@ static inline int is_lan937x(struct ksz_device *dev)
 
 #define SW_START			0x01
 
+/* Used with variable features to indicate capabilities. */
+#define GBIT_SUPPORT			BIT(0)
+#define IS_9893				BIT(2)
+
 /* xMII configuration */
 #define P_MII_DUPLEX_M			BIT(6)
 #define P_MII_100MBIT_M			BIT(4)
@@ -499,6 +503,7 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define P_GMII_1GBIT_M			BIT(6)
 #define P_RGMII_ID_IG_ENABLE		BIT(4)
 #define P_RGMII_ID_EG_ENABLE		BIT(3)
+#define P_MII_MAC_MODE			BIT(2)
 #define P_MII_SEL_M			0x3
 
 /* Regmap tables generation */
