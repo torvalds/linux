@@ -51,6 +51,11 @@ struct mlx5e_flow_meter_handle *
 mlx5e_tc_meter_get(struct mlx5_core_dev *mdev, struct mlx5e_flow_meter_params *params);
 void
 mlx5e_tc_meter_put(struct mlx5e_flow_meter_handle *meter);
+int
+mlx5e_tc_meter_update(struct mlx5e_flow_meter_handle *meter,
+		      struct mlx5e_flow_meter_params *params);
+struct mlx5e_flow_meter_handle *
+mlx5e_tc_meter_replace(struct mlx5_core_dev *mdev, struct mlx5e_flow_meter_params *params);
 
 enum mlx5_flow_namespace_type
 mlx5e_tc_meter_get_namespace(struct mlx5e_flow_meters *flow_meters);

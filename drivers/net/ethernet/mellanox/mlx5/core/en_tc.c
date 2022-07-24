@@ -361,7 +361,7 @@ mlx5e_tc_add_flow_meter(struct mlx5e_priv *priv,
 	enum mlx5_flow_namespace_type ns_type;
 	struct mlx5e_flow_meter_handle *meter;
 
-	meter = mlx5e_tc_meter_get(priv->mdev, &attr->meter_attr.params);
+	meter = mlx5e_tc_meter_replace(priv->mdev, &attr->meter_attr.params);
 	if (IS_ERR(meter)) {
 		mlx5_core_err(priv->mdev, "Failed to get flow meter\n");
 		return PTR_ERR(meter);

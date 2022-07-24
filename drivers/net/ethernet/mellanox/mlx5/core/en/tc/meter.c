@@ -344,8 +344,118 @@ __mlx5e_flow_meter_free(struct mlx5e_flow_meter_handle *meter)
 	kfree(meter);
 }
 
+static struct mlx5e_flow_meter_handle *
+__mlx5e_tc_meter_get(struct mlx5e_flow_meters *flow_meters, u32 index)
+{
+	struct mlx5e_flow_meter_handle *meter;
+
+	hash_for_each_possible(flow_meters->hashtbl, meter, hlist, index)
+		if (meter->params.index == index)
+			goto add_ref;
+
+	return ERR_PTR(-ENOENT);
+
+add_ref:
+	meter->refcnt++;
+
+	return meter;
+}
+
 struct mlx5e_flow_meter_handle *
 mlx5e_tc_meter_get(struct mlx5_core_dev *mdev, struct mlx5e_flow_meter_params *params)
+{
+	struct mlx5e_flow_meters *flow_meters;
+	struct mlx5e_flow_meter_handle *meter;
+
+	flow_meters = mlx5e_get_flow_meters(mdev);
+	if (!flow_meters)
+		return ERR_PTR(-EOPNOTSUPP);
+
+	mutex_lock(&flow_meters->sync_lock);
+	meter = __mlx5e_tc_meter_get(flow_meters, params->index);
+	mutex_unlock(&flow_meters->sync_lock);
+
+	return meter;
+}
+
+static void
+__mlx5e_tc_meter_put(struct mlx5e_flow_meter_handle *meter)
+{
+	if (--meter->refcnt == 0) {
+		hash_del(&meter->hlist);
+		__mlx5e_flow_meter_free(meter);
+	}
+}
+
+void
+mlx5e_tc_meter_put(struct mlx5e_flow_meter_handle *meter)
+{
+	struct mlx5e_flow_meters *flow_meters = meter->flow_meters;
+
+	mutex_lock(&flow_meters->sync_lock);
+	__mlx5e_tc_meter_put(meter);
+	mutex_unlock(&flow_meters->sync_lock);
+}
+
+static struct mlx5e_flow_meter_handle *
+mlx5e_tc_meter_alloc(struct mlx5e_flow_meters *flow_meters,
+		     struct mlx5e_flow_meter_params *params)
+{
+	struct mlx5e_flow_meter_handle *meter;
+
+	meter = __mlx5e_flow_meter_alloc(flow_meters);
+	if (IS_ERR(meter))
+		return meter;
+
+	hash_add(flow_meters->hashtbl, &meter->hlist, params->index);
+	meter->params.index = params->index;
+	meter->refcnt++;
+
+	return meter;
+}
+
+static int
+__mlx5e_tc_meter_update(struct mlx5e_flow_meter_handle *meter,
+			struct mlx5e_flow_meter_params *params)
+{
+	struct mlx5_core_dev *mdev = meter->flow_meters->mdev;
+	int err = 0;
+
+	if (meter->params.mode != params->mode || meter->params.rate != params->rate ||
+	    meter->params.burst != params->burst) {
+		err = mlx5e_tc_meter_modify(mdev, meter, params);
+		if (err)
+			goto out;
+
+		meter->params.mode = params->mode;
+		meter->params.rate = params->rate;
+		meter->params.burst = params->burst;
+	}
+
+out:
+	return err;
+}
+
+int
+mlx5e_tc_meter_update(struct mlx5e_flow_meter_handle *meter,
+		      struct mlx5e_flow_meter_params *params)
+{
+	struct mlx5_core_dev *mdev = meter->flow_meters->mdev;
+	struct mlx5e_flow_meters *flow_meters;
+	int err;
+
+	flow_meters = mlx5e_get_flow_meters(mdev);
+	if (!flow_meters)
+		return -EOPNOTSUPP;
+
+	mutex_lock(&flow_meters->sync_lock);
+	err = __mlx5e_tc_meter_update(meter, params);
+	mutex_unlock(&flow_meters->sync_lock);
+	return err;
+}
+
+struct mlx5e_flow_meter_handle *
+mlx5e_tc_meter_replace(struct mlx5_core_dev *mdev, struct mlx5e_flow_meter_params *params)
 {
 	struct mlx5e_flow_meters *flow_meters;
 	struct mlx5e_flow_meter_handle *meter;
@@ -356,57 +466,27 @@ mlx5e_tc_meter_get(struct mlx5_core_dev *mdev, struct mlx5e_flow_meter_params *p
 		return ERR_PTR(-EOPNOTSUPP);
 
 	mutex_lock(&flow_meters->sync_lock);
-	hash_for_each_possible(flow_meters->hashtbl, meter, hlist, params->index)
-		if (meter->params.index == params->index)
-			goto add_ref;
-
-	meter = __mlx5e_flow_meter_alloc(flow_meters);
+	meter = __mlx5e_tc_meter_get(flow_meters, params->index);
 	if (IS_ERR(meter)) {
-		err = PTR_ERR(meter);
-		goto err_alloc;
+		meter = mlx5e_tc_meter_alloc(flow_meters, params);
+		if (IS_ERR(meter)) {
+			err = PTR_ERR(meter);
+			goto err_get;
+		}
 	}
 
-	hash_add(flow_meters->hashtbl, &meter->hlist, params->index);
-	meter->params.index = params->index;
-
-add_ref:
-	meter->refcnt++;
-
-	if (meter->params.mode != params->mode || meter->params.rate != params->rate ||
-	    meter->params.burst != params->burst) {
-		err = mlx5e_tc_meter_modify(mdev, meter, params);
-		if (err)
-			goto err_update;
-
-		meter->params.mode = params->mode;
-		meter->params.rate = params->rate;
-		meter->params.burst = params->burst;
-	}
+	err = __mlx5e_tc_meter_update(meter, params);
+	if (err)
+		goto err_update;
 
 	mutex_unlock(&flow_meters->sync_lock);
 	return meter;
 
 err_update:
-	if (--meter->refcnt == 0) {
-		hash_del(&meter->hlist);
-		__mlx5e_flow_meter_free(meter);
-	}
-err_alloc:
+	__mlx5e_tc_meter_put(meter);
+err_get:
 	mutex_unlock(&flow_meters->sync_lock);
 	return ERR_PTR(err);
-}
-
-void
-mlx5e_tc_meter_put(struct mlx5e_flow_meter_handle *meter)
-{
-	struct mlx5e_flow_meters *flow_meters = meter->flow_meters;
-
-	mutex_lock(&flow_meters->sync_lock);
-	if (--meter->refcnt == 0) {
-		hash_del(&meter->hlist);
-		__mlx5e_flow_meter_free(meter);
-	}
-	mutex_unlock(&flow_meters->sync_lock);
 }
 
 enum mlx5_flow_namespace_type
