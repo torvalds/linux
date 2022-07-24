@@ -548,8 +548,6 @@ unsigned int OnProbeReq(struct adapter *padapter,
 			struct recv_frame *precv_frame);
 unsigned int OnProbeRsp(struct adapter *padapter,
 			struct recv_frame *precv_frame);
-unsigned int DoReserved(struct adapter *padapter,
-			struct recv_frame *precv_frame);
 unsigned int OnBeacon(struct adapter *padapter,
 		      struct recv_frame *precv_frame);
 unsigned int OnDisassoc(struct adapter *padapter,
