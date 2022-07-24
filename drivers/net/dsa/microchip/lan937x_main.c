@@ -234,6 +234,8 @@ int lan937x_reset_switch(struct ksz_device *dev)
 
 void lan937x_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
+	const u32 *masks = dev->info->masks;
+	const u16 *regs = dev->info->regs;
 	struct dsa_switch *ds = dev->ds;
 	u8 member;
 
@@ -254,8 +256,9 @@ void lan937x_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	lan937x_port_cfg(dev, port, P_PRIO_CTRL, PORT_802_1P_PRIO_ENABLE, true);
 
 	if (!dev->info->internal_phy[port])
-		lan937x_port_cfg(dev, port, REG_PORT_XMII_CTRL_0,
-				 PORT_MII_TX_FLOW_CTRL | PORT_MII_RX_FLOW_CTRL,
+		lan937x_port_cfg(dev, port, regs[P_XMII_CTRL_0],
+				 masks[P_MII_TX_FLOW_CTRL] |
+				 masks[P_MII_RX_FLOW_CTRL],
 				 true);
 
 	if (cpu_port)
@@ -346,25 +349,9 @@ static void lan937x_config_interface(struct ksz_device *dev, int port,
 				     int speed, int duplex,
 				     bool tx_pause, bool rx_pause)
 {
-	u8 xmii_ctrl0;
-
 	ksz_port_set_xmii_speed(dev, port, speed);
 
-	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_0, &xmii_ctrl0);
-
-	xmii_ctrl0 &= ~(PORT_MII_FULL_DUPLEX | PORT_MII_TX_FLOW_CTRL |
-			PORT_MII_RX_FLOW_CTRL);
-
-	if (duplex)
-		xmii_ctrl0 |= PORT_MII_FULL_DUPLEX;
-
-	if (tx_pause)
-		xmii_ctrl0 |= PORT_MII_TX_FLOW_CTRL;
-
-	if (rx_pause)
-		xmii_ctrl0 |= PORT_MII_RX_FLOW_CTRL;
-
-	ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_0, xmii_ctrl0);
+	ksz_duplex_flowctrl(dev, port, duplex, tx_pause, rx_pause);
 }
 
 void lan937x_phylink_get_caps(struct ksz_device *dev, int port,

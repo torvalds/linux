@@ -197,6 +197,8 @@ enum ksz_masks {
 	DYNAMIC_MAC_TABLE_TIMESTAMP,
 	ALU_STAT_WRITE,
 	ALU_STAT_READ,
+	P_MII_TX_FLOW_CTRL,
+	P_MII_RX_FLOW_CTRL,
 };
 
 enum ksz_shifts {
@@ -215,6 +217,8 @@ enum ksz_shifts {
 enum ksz_xmii_ctrl0 {
 	P_MII_100MBIT,
 	P_MII_10MBIT,
+	P_MII_FULL_DUPLEX,
+	P_MII_HALF_DUPLEX,
 };
 
 enum ksz_xmii_ctrl1 {
@@ -310,6 +314,8 @@ void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
 bool ksz_get_gbit(struct ksz_device *dev, int port);
 void ksz_set_gbit(struct ksz_device *dev, int port, bool gbit);
 void ksz_port_set_xmii_speed(struct ksz_device *dev, int port, int speed);
+void ksz_duplex_flowctrl(struct ksz_device *dev, int port, int duplex,
+			 bool tx_pause, bool rx_pause);
 extern const struct ksz_chip_data ksz_switch_chips[];
 
 /* Common register access functions */
@@ -416,6 +422,14 @@ static inline void ksz_pwrite32(struct ksz_device *dev, int port, int offset,
 	ksz_write32(dev, dev->dev_ops->get_port_addr(port, offset), data);
 }
 
+static inline void ksz_prmw8(struct ksz_device *dev, int port, int offset,
+			     u8 mask, u8 val)
+{
+	regmap_update_bits(dev->regmap[0],
+			   dev->dev_ops->get_port_addr(port, offset),
+			   mask, val);
+}
+
 static inline void ksz_regmap_lock(void *__mtx)
 {
 	struct mutex *mtx = __mtx;
@@ -474,6 +488,7 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define SW_START			0x01
 
 /* xMII configuration */
+#define P_MII_DUPLEX_M			BIT(6)
 #define P_MII_100MBIT_M			BIT(4)
 
 #define P_GMII_1GBIT_M			BIT(6)

@@ -281,11 +281,15 @@ static const u32 ksz8795_masks[] = {
 	[DYNAMIC_MAC_TABLE_FID]		= GENMASK(26, 20),
 	[DYNAMIC_MAC_TABLE_SRC_PORT]	= GENMASK(26, 24),
 	[DYNAMIC_MAC_TABLE_TIMESTAMP]	= GENMASK(28, 27),
+	[P_MII_TX_FLOW_CTRL]		= BIT(5),
+	[P_MII_RX_FLOW_CTRL]		= BIT(5),
 };
 
 static const u8 ksz8795_xmii_ctrl0[] = {
 	[P_MII_100MBIT]			= 0,
 	[P_MII_10MBIT]			= 1,
+	[P_MII_FULL_DUPLEX]		= 0,
+	[P_MII_HALF_DUPLEX]		= 1,
 };
 
 static const u8 ksz8795_xmii_ctrl1[] = {
@@ -370,6 +374,8 @@ static const u16 ksz9477_regs[] = {
 static const u32 ksz9477_masks[] = {
 	[ALU_STAT_WRITE]		= 0,
 	[ALU_STAT_READ]			= 1,
+	[P_MII_TX_FLOW_CTRL]		= BIT(5),
+	[P_MII_RX_FLOW_CTRL]		= BIT(3),
 };
 
 static const u8 ksz9477_shifts[] = {
@@ -379,6 +385,8 @@ static const u8 ksz9477_shifts[] = {
 static const u8 ksz9477_xmii_ctrl0[] = {
 	[P_MII_100MBIT]			= 1,
 	[P_MII_10MBIT]			= 0,
+	[P_MII_FULL_DUPLEX]		= 1,
+	[P_MII_HALF_DUPLEX]		= 0,
 };
 
 static const u8 ksz9477_xmii_ctrl1[] = {
@@ -389,6 +397,8 @@ static const u8 ksz9477_xmii_ctrl1[] = {
 static const u32 lan937x_masks[] = {
 	[ALU_STAT_WRITE]		= 1,
 	[ALU_STAT_READ]			= 2,
+	[P_MII_TX_FLOW_CTRL]		= BIT(5),
+	[P_MII_RX_FLOW_CTRL]		= BIT(3),
 };
 
 static const u8 lan937x_shifts[] = {
@@ -1466,6 +1476,32 @@ void ksz_port_set_xmii_speed(struct ksz_device *dev, int port, int speed)
 
 	if (speed == SPEED_100 || speed == SPEED_10)
 		ksz_set_100_10mbit(dev, port, speed);
+}
+
+void ksz_duplex_flowctrl(struct ksz_device *dev, int port, int duplex,
+			 bool tx_pause, bool rx_pause)
+{
+	const u8 *bitval = dev->info->xmii_ctrl0;
+	const u32 *masks = dev->info->masks;
+	const u16 *regs = dev->info->regs;
+	u8 mask;
+	u8 val;
+
+	mask = P_MII_DUPLEX_M | masks[P_MII_TX_FLOW_CTRL] |
+	       masks[P_MII_RX_FLOW_CTRL];
+
+	if (duplex == DUPLEX_FULL)
+		val = FIELD_PREP(P_MII_DUPLEX_M, bitval[P_MII_FULL_DUPLEX]);
+	else
+		val = FIELD_PREP(P_MII_DUPLEX_M, bitval[P_MII_HALF_DUPLEX]);
+
+	if (tx_pause)
+		val |= masks[P_MII_TX_FLOW_CTRL];
+
+	if (rx_pause)
+		val |= masks[P_MII_RX_FLOW_CTRL];
+
+	ksz_prmw8(dev, port, regs[P_XMII_CTRL_0], mask, val);
 }
 
 static void ksz_phylink_mac_link_up(struct dsa_switch *ds, int port,
