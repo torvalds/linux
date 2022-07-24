@@ -1,6 +1,11 @@
 // SPDX-License-Identifier: (GPL-2.0+ OR MIT)
 /*
  * Copyright (C) 2022 Marek Vasut <marex@denx.de>
+ *
+ * DHCOM iMX8MP variant:
+ * DHCM-iMX8ML8-C160-R409-F1638-SPI16-GE-CAN2-SD-RTC-WBTA-ADC-T-RGB-CSI2-HS-I-01D2
+ * DHCOM PCB number: 660-100 or newer
+ * PDK2 PCB number: 516-400 or newer
  */
 
 /dts-v1/;
