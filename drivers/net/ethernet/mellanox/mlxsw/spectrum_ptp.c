@@ -107,7 +107,7 @@ mlxsw_sp1_ptp_phc_adjfreq(struct mlxsw_sp_ptp_clock *clock, int freq_adj)
 	char mtutc_pl[MLXSW_REG_MTUTC_LEN];
 
 	mlxsw_reg_mtutc_pack(mtutc_pl, MLXSW_REG_MTUTC_OPERATION_ADJUST_FREQ,
-			     freq_adj, 0);
+			     freq_adj, 0, 0, 0);
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(mtutc), mtutc_pl);
 }
 
@@ -144,7 +144,7 @@ mlxsw_sp1_ptp_phc_settime(struct mlxsw_sp_ptp_clock *clock, u64 nsec)
 
 	mlxsw_reg_mtutc_pack(mtutc_pl,
 			     MLXSW_REG_MTUTC_OPERATION_SET_TIME_AT_NEXT_SEC,
-			     0, next_sec);
+			     0, next_sec, 0, 0);
 	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(mtutc), mtutc_pl);
 }
 

@@ -10347,6 +10347,8 @@ MLXSW_REG_DEFINE(mtutc, MLXSW_REG_MTUTC_ID, MLXSW_REG_MTUTC_LEN);
 
 enum mlxsw_reg_mtutc_operation {
 	MLXSW_REG_MTUTC_OPERATION_SET_TIME_AT_NEXT_SEC = 0,
+	MLXSW_REG_MTUTC_OPERATION_SET_TIME_IMMEDIATE = 1,
+	MLXSW_REG_MTUTC_OPERATION_ADJUST_TIME = 2,
 	MLXSW_REG_MTUTC_OPERATION_ADJUST_FREQ = 3,
 };
 
@@ -10359,10 +10361,14 @@ MLXSW_ITEM32(reg, mtutc, operation, 0x00, 0, 4);
 /* reg_mtutc_freq_adjustment
  * Frequency adjustment: Every PPS the HW frequency will be
  * adjusted by this value. Units of HW clock, where HW counts
- * 10^9 HW clocks for 1 HW second.
+ * 10^9 HW clocks for 1 HW second. Range is from -50,000,000 to +50,000,000.
+ * In Spectrum-2, the field is reversed, positive values mean to decrease the
+ * frequency.
  * Access: RW
  */
 MLXSW_ITEM32(reg, mtutc, freq_adjustment, 0x04, 0, 32);
+
+#define MLXSW_REG_MTUTC_MAX_FREQ_ADJ (50 * 1000 * 1000)
 
 /* reg_mtutc_utc_sec
  * UTC seconds.
@@ -10370,14 +10376,35 @@ MLXSW_ITEM32(reg, mtutc, freq_adjustment, 0x04, 0, 32);
  */
 MLXSW_ITEM32(reg, mtutc, utc_sec, 0x10, 0, 32);
 
+/* reg_mtutc_utc_nsec
+ * UTC nSecs.
+ * Range 0..(10^9-1)
+ * Updated when operation is SET_TIME_IMMEDIATE.
+ * Reserved on Spectrum-1.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mtutc, utc_nsec, 0x14, 0, 30);
+
+/* reg_mtutc_time_adjustment
+ * Time adjustment.
+ * Units of nSec.
+ * Range is from -32768 to +32767.
+ * Updated when operation is ADJUST_TIME.
+ * Reserved on Spectrum-1.
+ * Access: WO
+ */
+MLXSW_ITEM32(reg, mtutc, time_adjustment, 0x18, 0, 32);
+
 static inline void
 mlxsw_reg_mtutc_pack(char *payload, enum mlxsw_reg_mtutc_operation oper,
-		     u32 freq_adj, u32 utc_sec)
+		     u32 freq_adj, u32 utc_sec, u32 utc_nsec, u32 time_adj)
 {
 	MLXSW_REG_ZERO(mtutc, payload);
 	mlxsw_reg_mtutc_operation_set(payload, oper);
 	mlxsw_reg_mtutc_freq_adjustment_set(payload, freq_adj);
 	mlxsw_reg_mtutc_utc_sec_set(payload, utc_sec);
+	mlxsw_reg_mtutc_utc_nsec_set(payload, utc_nsec);
+	mlxsw_reg_mtutc_time_adjustment_set(payload, time_adj);
 }
 
 /* MCQI - Management Component Query Information
