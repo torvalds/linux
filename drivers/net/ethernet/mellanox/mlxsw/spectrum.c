@@ -3096,7 +3096,7 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_router_init;
 	}
 
-	if (mlxsw_sp->bus_info->read_frc_capable) {
+	if (mlxsw_sp->bus_info->read_clock_capable) {
 		/* NULL is a valid return value from clock_init */
 		mlxsw_sp->clock =
 			mlxsw_sp->ptp_ops->clock_init(mlxsw_sp,
