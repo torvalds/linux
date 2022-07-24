@@ -329,6 +329,32 @@ MLXSW_ITEM64(cmd_mbox, query_fw, free_running_clock_offset, 0x50, 0, 64);
  */
 MLXSW_ITEM32(cmd_mbox, query_fw, fr_rn_clk_bar, 0x58, 30, 2);
 
+/* cmd_mbox_query_fw_utc_sec_offset
+ * The offset of the UTC_Sec page
+ */
+MLXSW_ITEM64(cmd_mbox, query_fw, utc_sec_offset, 0x70, 0, 64);
+
+/* cmd_mbox_query_fw_utc_sec_bar
+ * PCI base address register (BAR) of the UTC_Sec page
+ * 0: BAR 0
+ * 1: 64 bit BAR
+ * Reserved on SwitchX/-2, Switch-IB/2, Spectrum-1
+ */
+MLXSW_ITEM32(cmd_mbox, query_fw, utc_sec_bar, 0x78, 30, 2);
+
+/* cmd_mbox_query_fw_utc_nsec_offset
+ * The offset of the UTC_nSec page
+ */
+MLXSW_ITEM64(cmd_mbox, query_fw, utc_nsec_offset, 0x80, 0, 64);
+
+/* cmd_mbox_query_fw_utc_nsec_bar
+ * PCI base address register (BAR) of the UTC_nSec page
+ * 0: BAR 0
+ * 1: 64 bit BAR
+ * Reserved on SwitchX/-2, Switch-IB/2, Spectrum-1
+ */
+MLXSW_ITEM32(cmd_mbox, query_fw, utc_nsec_bar, 0x88, 30, 2);
+
 /* QUERY_BOARDINFO - Query Board Information
  * -----------------------------------------
  * OpMod == 0 (N/A), INMmod == 0 (N/A)
