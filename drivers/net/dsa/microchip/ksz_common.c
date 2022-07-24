@@ -223,7 +223,6 @@ static const struct ksz_dev_ops lan937x_dev_ops = {
 	.mirror_del = ksz9477_port_mirror_del,
 	.get_caps = lan937x_phylink_get_caps,
 	.phylink_mac_config = lan937x_phylink_mac_config,
-	.phylink_mac_link_up = lan937x_phylink_mac_link_up,
 	.fdb_dump = ksz9477_fdb_dump,
 	.fdb_add = ksz9477_fdb_add,
 	.fdb_del = ksz9477_fdb_del,
@@ -1467,7 +1466,7 @@ static void ksz_set_100_10mbit(struct ksz_device *dev, int port, int speed)
 	ksz_pwrite8(dev, port, regs[P_XMII_CTRL_0], data8);
 }
 
-void ksz_port_set_xmii_speed(struct ksz_device *dev, int port, int speed)
+static void ksz_port_set_xmii_speed(struct ksz_device *dev, int port, int speed)
 {
 	if (speed == SPEED_1000)
 		ksz_set_gbit(dev, port, true);
@@ -1478,8 +1477,8 @@ void ksz_port_set_xmii_speed(struct ksz_device *dev, int port, int speed)
 		ksz_set_100_10mbit(dev, port, speed);
 }
 
-void ksz_duplex_flowctrl(struct ksz_device *dev, int port, int duplex,
-			 bool tx_pause, bool rx_pause)
+static void ksz_duplex_flowctrl(struct ksz_device *dev, int port, int duplex,
+				bool tx_pause, bool rx_pause)
 {
 	const u8 *bitval = dev->info->xmii_ctrl0;
 	const u32 *masks = dev->info->masks;
@@ -1511,6 +1510,19 @@ static void ksz_phylink_mac_link_up(struct dsa_switch *ds, int port,
 				    int duplex, bool tx_pause, bool rx_pause)
 {
 	struct ksz_device *dev = ds->priv;
+	struct ksz_port *p;
+
+	p = &dev->ports[port];
+
+	/* Internal PHYs */
+	if (dev->info->internal_phy[port])
+		return;
+
+	p->phydev.speed = speed;
+
+	ksz_port_set_xmii_speed(dev, port, speed);
+
+	ksz_duplex_flowctrl(dev, port, duplex, tx_pause, rx_pause);
 
 	if (dev->dev_ops->phylink_mac_link_up)
 		dev->dev_ops->phylink_mac_link_up(dev, port, mode, interface,

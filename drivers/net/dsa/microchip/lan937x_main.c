@@ -345,15 +345,6 @@ static void lan937x_mac_config(struct ksz_device *dev, int port,
 	ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_1, data8);
 }
 
-static void lan937x_config_interface(struct ksz_device *dev, int port,
-				     int speed, int duplex,
-				     bool tx_pause, bool rx_pause)
-{
-	ksz_port_set_xmii_speed(dev, port, speed);
-
-	ksz_duplex_flowctrl(dev, port, duplex, tx_pause, rx_pause);
-}
-
 void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
 			      struct phylink_config *config)
 {
@@ -364,19 +355,6 @@ void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
 		config->mac_capabilities |= MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
 					    MAC_100HD | MAC_10 | MAC_1000FD;
 	}
-}
-
-void lan937x_phylink_mac_link_up(struct ksz_device *dev, int port,
-				 unsigned int mode, phy_interface_t interface,
-				 struct phy_device *phydev, int speed,
-				 int duplex, bool tx_pause, bool rx_pause)
-{
-	/* Internal PHYs */
-	if (dev->info->internal_phy[port])
-		return;
-
-	lan937x_config_interface(dev, port, speed, duplex,
-				 tx_pause, rx_pause);
 }
 
 void lan937x_phylink_mac_config(struct ksz_device *dev, int port,

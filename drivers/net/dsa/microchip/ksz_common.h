@@ -313,9 +313,6 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port);
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
 bool ksz_get_gbit(struct ksz_device *dev, int port);
 void ksz_set_gbit(struct ksz_device *dev, int port, bool gbit);
-void ksz_port_set_xmii_speed(struct ksz_device *dev, int port, int speed);
-void ksz_duplex_flowctrl(struct ksz_device *dev, int port, int duplex,
-			 bool tx_pause, bool rx_pause);
 extern const struct ksz_chip_data ksz_switch_chips[];
 
 /* Common register access functions */
