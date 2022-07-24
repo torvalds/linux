@@ -11081,6 +11081,67 @@ static inline void mlxsw_reg_mtptpt_pack(char *payload,
 	mlxsw_reg_mtptpt_message_type_set(payload, message_type);
 }
 
+/* MTPCPC - Monitoring Time Precision Correction Port Configuration Register
+ * -------------------------------------------------------------------------
+ */
+#define MLXSW_REG_MTPCPC_ID 0x9093
+#define MLXSW_REG_MTPCPC_LEN 0x2C
+
+MLXSW_REG_DEFINE(mtpcpc, MLXSW_REG_MTPCPC_ID, MLXSW_REG_MTPCPC_LEN);
+
+/* reg_mtpcpc_pport
+ * Per port:
+ * 0: config is global. When reading - the local_port is 1.
+ * 1: config is per port.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, mtpcpc, pport, 0x00, 31, 1);
+
+/* reg_mtpcpc_local_port
+ * Local port number.
+ * Supported to/from CPU port.
+ * Reserved when pport = 0.
+ * Access: Index
+ */
+MLXSW_ITEM32_LP(reg, mtpcpc, 0x00, 16, 0x00, 12);
+
+/* reg_mtpcpc_ptp_trap_en
+ * Enable PTP traps.
+ * The trap_id is configured by MTPTPT.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mtpcpc, ptp_trap_en, 0x04, 0, 1);
+
+/* reg_mtpcpc_ing_correction_message_type
+ * Bitwise vector of PTP message types to update correction-field at ingress.
+ * MessageType field as defined by IEEE 1588 Each bit corresponds to a value
+ * (e.g. Bit0: Sync, Bit1: Delay_Req). Supported also from CPU port.
+ * Default all 0
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mtpcpc, ing_correction_message_type, 0x10, 0, 16);
+
+/* reg_mtpcpc_egr_correction_message_type
+ * Bitwise vector of PTP message types to update correction-field at egress.
+ * MessageType field as defined by IEEE 1588 Each bit corresponds to a value
+ * (e.g. Bit0: Sync, Bit1: Delay_Req). Supported also from CPU port.
+ * Default all 0
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, mtpcpc, egr_correction_message_type, 0x14, 0, 16);
+
+static inline void mlxsw_reg_mtpcpc_pack(char *payload, bool pport,
+					 u16 local_port, bool ptp_trap_en,
+					 u16 ing, u16 egr)
+{
+	MLXSW_REG_ZERO(mtpcpc, payload);
+	mlxsw_reg_mtpcpc_pport_set(payload, pport);
+	mlxsw_reg_mtpcpc_local_port_set(payload, pport ? local_port : 0);
+	mlxsw_reg_mtpcpc_ptp_trap_en_set(payload, ptp_trap_en);
+	mlxsw_reg_mtpcpc_ing_correction_message_type_set(payload, ing);
+	mlxsw_reg_mtpcpc_egr_correction_message_type_set(payload, egr);
+}
+
 /* MFGD - Monitoring FW General Debug Register
  * -------------------------------------------
  */
@@ -12797,6 +12858,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(mtpppc),
 	MLXSW_REG(mtpptr),
 	MLXSW_REG(mtptpt),
+	MLXSW_REG(mtpcpc),
 	MLXSW_REG(mfgd),
 	MLXSW_REG(mgpir),
 	MLXSW_REG(mbct),
