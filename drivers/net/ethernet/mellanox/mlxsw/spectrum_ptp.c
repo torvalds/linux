@@ -267,8 +267,7 @@ mlxsw_sp1_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 	clock->cycles.mask = CLOCKSOURCE_MASK(MLXSW_SP1_PTP_CLOCK_MASK);
 	clock->core = mlxsw_sp->core;
 
-	timecounter_init(&clock->tc, &clock->cycles,
-			 ktime_to_ns(ktime_get_real()));
+	timecounter_init(&clock->tc, &clock->cycles, 0);
 
 	/* Calculate period in seconds to call the overflow watchdog - to make
 	 * sure counter is checked at least twice every wrap around.
