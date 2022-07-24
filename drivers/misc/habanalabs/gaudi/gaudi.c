@@ -939,9 +939,7 @@ static int gaudi_fetch_psoc_frequency(struct hl_device *hdev)
 			else
 				freq = pll_clk / (div_fctr + 1);
 		} else {
-			dev_warn(hdev->dev,
-				"Received invalid div select value: %d",
-				div_sel);
+			dev_warn(hdev->dev, "Received invalid div select value: %#x", div_sel);
 			freq = 0;
 		}
 	}
