@@ -176,6 +176,9 @@ properties:
               - longcheer,l8910
               - samsung,a3u-eur
               - samsung,a5u-eur
+              - samsung,e5
+              - samsung,e7
+              - samsung,grandmax
               - samsung,j5
               - samsung,serranove
               - wingtech,wt88047
