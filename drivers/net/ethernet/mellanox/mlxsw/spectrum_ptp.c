@@ -64,12 +64,16 @@ static const struct rhashtable_params mlxsw_sp1_ptp_unmatched_ht_params = {
 
 struct mlxsw_sp_ptp_clock {
 	struct mlxsw_core *core;
+	struct ptp_clock *ptp;
+	struct ptp_clock_info ptp_info;
+};
+
+struct mlxsw_sp1_ptp_clock {
+	struct mlxsw_sp_ptp_clock common;
 	spinlock_t lock; /* protect this structure */
 	struct cyclecounter cycles;
 	struct timecounter tc;
 	u32 nominal_c_mult;
-	struct ptp_clock *ptp;
-	struct ptp_clock_info ptp_info;
 	unsigned long overflow_period;
 	struct delayed_work overflow_work;
 };
@@ -81,10 +85,16 @@ mlxsw_sp1_ptp_state(struct mlxsw_sp *mlxsw_sp)
 			    common);
 }
 
-static u64 __mlxsw_sp1_ptp_read_frc(struct mlxsw_sp_ptp_clock *clock,
+static struct mlxsw_sp1_ptp_clock *
+mlxsw_sp1_ptp_clock(struct ptp_clock_info *ptp)
+{
+	return container_of(ptp, struct mlxsw_sp1_ptp_clock, common.ptp_info);
+}
+
+static u64 __mlxsw_sp1_ptp_read_frc(struct mlxsw_sp1_ptp_clock *clock,
 				    struct ptp_system_timestamp *sts)
 {
-	struct mlxsw_core *mlxsw_core = clock->core;
+	struct mlxsw_core *mlxsw_core = clock->common.core;
 	u32 frc_h1, frc_h2, frc_l;
 
 	frc_h1 = mlxsw_core_read_frc_h(mlxsw_core);
@@ -105,8 +115,8 @@ static u64 __mlxsw_sp1_ptp_read_frc(struct mlxsw_sp_ptp_clock *clock,
 
 static u64 mlxsw_sp1_ptp_read_frc(const struct cyclecounter *cc)
 {
-	struct mlxsw_sp_ptp_clock *clock =
-		container_of(cc, struct mlxsw_sp_ptp_clock, cycles);
+	struct mlxsw_sp1_ptp_clock *clock =
+		container_of(cc, struct mlxsw_sp1_ptp_clock, cycles);
 
 	return __mlxsw_sp1_ptp_read_frc(clock, NULL) & cc->mask;
 }
@@ -133,9 +143,9 @@ static u64 mlxsw_sp1_ptp_ns2cycles(const struct timecounter *tc, u64 nsec)
 }
 
 static int
-mlxsw_sp1_ptp_phc_settime(struct mlxsw_sp_ptp_clock *clock, u64 nsec)
+mlxsw_sp1_ptp_phc_settime(struct mlxsw_sp1_ptp_clock *clock, u64 nsec)
 {
-	struct mlxsw_core *mlxsw_core = clock->core;
+	struct mlxsw_core *mlxsw_core = clock->common.core;
 	u64 next_sec, next_sec_in_nsec, cycles;
 	char mtutc_pl[MLXSW_REG_MTUTC_LEN];
 	char mtpps_pl[MLXSW_REG_MTPPS_LEN];
@@ -161,8 +171,7 @@ mlxsw_sp1_ptp_phc_settime(struct mlxsw_sp_ptp_clock *clock, u64 nsec)
 
 static int mlxsw_sp1_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 {
-	struct mlxsw_sp_ptp_clock *clock =
-		container_of(ptp, struct mlxsw_sp_ptp_clock, ptp_info);
+	struct mlxsw_sp1_ptp_clock *clock = mlxsw_sp1_ptp_clock(ptp);
 	int neg_adj = 0;
 	u32 diff;
 	u64 adj;
@@ -185,13 +194,12 @@ static int mlxsw_sp1_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 				       clock->nominal_c_mult + diff;
 	spin_unlock_bh(&clock->lock);
 
-	return mlxsw_sp1_ptp_phc_adjfreq(clock, neg_adj ? -ppb : ppb);
+	return mlxsw_sp1_ptp_phc_adjfreq(&clock->common, neg_adj ? -ppb : ppb);
 }
 
 static int mlxsw_sp1_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
 {
-	struct mlxsw_sp_ptp_clock *clock =
-		container_of(ptp, struct mlxsw_sp_ptp_clock, ptp_info);
+	struct mlxsw_sp1_ptp_clock *clock = mlxsw_sp1_ptp_clock(ptp);
 	u64 nsec;
 
 	spin_lock_bh(&clock->lock);
@@ -206,8 +214,7 @@ static int mlxsw_sp1_ptp_gettimex(struct ptp_clock_info *ptp,
 				  struct timespec64 *ts,
 				  struct ptp_system_timestamp *sts)
 {
-	struct mlxsw_sp_ptp_clock *clock =
-		container_of(ptp, struct mlxsw_sp_ptp_clock, ptp_info);
+	struct mlxsw_sp1_ptp_clock *clock = mlxsw_sp1_ptp_clock(ptp);
 	u64 cycles, nsec;
 
 	spin_lock_bh(&clock->lock);
@@ -223,8 +230,7 @@ static int mlxsw_sp1_ptp_gettimex(struct ptp_clock_info *ptp,
 static int mlxsw_sp1_ptp_settime(struct ptp_clock_info *ptp,
 				 const struct timespec64 *ts)
 {
-	struct mlxsw_sp_ptp_clock *clock =
-		container_of(ptp, struct mlxsw_sp_ptp_clock, ptp_info);
+	struct mlxsw_sp1_ptp_clock *clock = mlxsw_sp1_ptp_clock(ptp);
 	u64 nsec = timespec64_to_ns(ts);
 
 	spin_lock_bh(&clock->lock);
@@ -248,9 +254,9 @@ static const struct ptp_clock_info mlxsw_sp1_ptp_clock_info = {
 static void mlxsw_sp1_ptp_clock_overflow(struct work_struct *work)
 {
 	struct delayed_work *dwork = to_delayed_work(work);
-	struct mlxsw_sp_ptp_clock *clock;
+	struct mlxsw_sp1_ptp_clock *clock;
 
-	clock = container_of(dwork, struct mlxsw_sp_ptp_clock, overflow_work);
+	clock = container_of(dwork, struct mlxsw_sp1_ptp_clock, overflow_work);
 
 	spin_lock_bh(&clock->lock);
 	timecounter_read(&clock->tc);
@@ -262,7 +268,7 @@ struct mlxsw_sp_ptp_clock *
 mlxsw_sp1_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 {
 	u64 overflow_cycles, nsec, frac = 0;
-	struct mlxsw_sp_ptp_clock *clock;
+	struct mlxsw_sp1_ptp_clock *clock;
 	int err;
 
 	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
@@ -276,7 +282,7 @@ mlxsw_sp1_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 						  clock->cycles.shift);
 	clock->nominal_c_mult = clock->cycles.mult;
 	clock->cycles.mask = CLOCKSOURCE_MASK(MLXSW_SP1_PTP_CLOCK_MASK);
-	clock->core = mlxsw_sp->core;
+	clock->common.core = mlxsw_sp->core;
 
 	timecounter_init(&clock->tc, &clock->cycles, 0);
 
@@ -296,15 +302,15 @@ mlxsw_sp1_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 	INIT_DELAYED_WORK(&clock->overflow_work, mlxsw_sp1_ptp_clock_overflow);
 	mlxsw_core_schedule_dw(&clock->overflow_work, 0);
 
-	clock->ptp_info = mlxsw_sp1_ptp_clock_info;
-	clock->ptp = ptp_clock_register(&clock->ptp_info, dev);
-	if (IS_ERR(clock->ptp)) {
-		err = PTR_ERR(clock->ptp);
+	clock->common.ptp_info = mlxsw_sp1_ptp_clock_info;
+	clock->common.ptp = ptp_clock_register(&clock->common.ptp_info, dev);
+	if (IS_ERR(clock->common.ptp)) {
+		err = PTR_ERR(clock->common.ptp);
 		dev_err(dev, "ptp_clock_register failed %d\n", err);
 		goto err_ptp_clock_register;
 	}
 
-	return clock;
+	return &clock->common;
 
 err_ptp_clock_register:
 	cancel_delayed_work_sync(&clock->overflow_work);
@@ -312,9 +318,12 @@ err_ptp_clock_register:
 	return ERR_PTR(err);
 }
 
-void mlxsw_sp1_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock)
+void mlxsw_sp1_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock_common)
 {
-	ptp_clock_unregister(clock->ptp);
+	struct mlxsw_sp1_ptp_clock *clock =
+		container_of(clock_common, struct mlxsw_sp1_ptp_clock, common);
+
+	ptp_clock_unregister(clock_common->ptp);
 	cancel_delayed_work_sync(&clock->overflow_work);
 	kfree(clock);
 }
@@ -451,12 +460,16 @@ static void mlxsw_sp1_packet_timestamp(struct mlxsw_sp *mlxsw_sp,
 				       struct sk_buff *skb,
 				       u64 timestamp)
 {
+	struct mlxsw_sp_ptp_clock *clock_common = mlxsw_sp->clock;
+	struct mlxsw_sp1_ptp_clock *clock =
+		container_of(clock_common, struct mlxsw_sp1_ptp_clock, common);
+
 	struct skb_shared_hwtstamps hwtstamps;
 	u64 nsec;
 
-	spin_lock_bh(&mlxsw_sp->clock->lock);
-	nsec = timecounter_cyc2time(&mlxsw_sp->clock->tc, timestamp);
-	spin_unlock_bh(&mlxsw_sp->clock->lock);
+	spin_lock_bh(&clock->lock);
+	nsec = timecounter_cyc2time(&clock->tc, timestamp);
+	spin_unlock_bh(&clock->lock);
 
 	hwtstamps.hwtstamp = ns_to_ktime(nsec);
 	mlxsw_sp1_ptp_packet_finish(mlxsw_sp, skb,
