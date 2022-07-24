@@ -166,7 +166,7 @@ MLXSW_ITEM32(tx, hdr, port_mid, 0x04, 16, 16);
  * set, otherwise calculated based on the packet's VID using VID to FID mapping.
  * Valid for data packets only.
  */
-MLXSW_ITEM32(tx, hdr, fid, 0x08, 0, 16);
+MLXSW_ITEM32(tx, hdr, fid, 0x08, 16, 16);
 
 /* tx_hdr_type
  * 0 - Data packets
