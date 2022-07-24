@@ -552,8 +552,6 @@ unsigned int DoReserved(struct adapter *padapter,
 			struct recv_frame *precv_frame);
 unsigned int OnBeacon(struct adapter *padapter,
 		      struct recv_frame *precv_frame);
-unsigned int OnAtim(struct adapter *padapter,
-		    struct recv_frame *precv_frame);
 unsigned int OnDisassoc(struct adapter *padapter,
 			struct recv_frame *precv_frame);
 unsigned int OnAuth(struct adapter *padapter,
