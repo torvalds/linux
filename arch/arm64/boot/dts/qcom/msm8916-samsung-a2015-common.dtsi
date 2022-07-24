@@ -61,9 +61,9 @@
 		};
 	};
 
-	reg_vdd_tsp: regulator-vdd-tsp {
+	reg_vdd_tsp_a: regulator-vdd-tsp-a {
 		compatible = "regulator-fixed";
-		regulator-name = "vdd_tsp";
+		regulator-name = "vdd_tsp_a";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 
