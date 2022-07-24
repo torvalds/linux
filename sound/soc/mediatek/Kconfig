@@ -157,6 +157,7 @@ config SND_SOC_MT8186
 	depends on ARCH_MEDIATEK || COMPILE_TEST
 	depends on COMMON_CLK
 	select SND_SOC_MEDIATEK
+	select SND_SOC_MT6358
 	select MFD_SYSCON if SND_SOC_MT6358
 	help
 	  This adds ASoC driver for Mediatek MT8186 boards
