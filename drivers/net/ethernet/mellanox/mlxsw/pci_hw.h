@@ -41,9 +41,6 @@
 #define MLXSW_PCI_DOORBELL(offset, type_offset, num)	\
 	((offset) + (type_offset) + (num) * 4)
 
-#define MLXSW_PCI_FREE_RUNNING_CLOCK_H(offset)	(offset)
-#define MLXSW_PCI_FREE_RUNNING_CLOCK_L(offset)	((offset) + 4)
-
 #define MLXSW_PCI_CQS_MAX	96
 #define MLXSW_PCI_EQS_COUNT	2
 #define MLXSW_PCI_EQ_ASYNC_NUM	0

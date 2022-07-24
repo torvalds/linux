@@ -505,6 +505,12 @@ static void mlxsw_pci_cq_fini(struct mlxsw_pci *mlxsw_pci,
 	mlxsw_cmd_hw2sw_cq(mlxsw_pci->core, q->num);
 }
 
+static unsigned int mlxsw_pci_read32_off(struct mlxsw_pci *mlxsw_pci,
+					 ptrdiff_t off)
+{
+	return ioread32be(mlxsw_pci->hw_addr + off);
+}
+
 static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 				     struct mlxsw_pci_queue *q,
 				     u16 consumer_counter_limit,
@@ -1809,19 +1815,19 @@ static int mlxsw_pci_cmd_exec(void *bus_priv, u16 opcode, u8 opcode_mod,
 static u32 mlxsw_pci_read_frc_h(void *bus_priv)
 {
 	struct mlxsw_pci *mlxsw_pci = bus_priv;
-	u64 frc_offset;
+	u64 frc_offset_h;
 
-	frc_offset = mlxsw_pci->free_running_clock_offset;
-	return mlxsw_pci_read32(mlxsw_pci, FREE_RUNNING_CLOCK_H(frc_offset));
+	frc_offset_h = mlxsw_pci->free_running_clock_offset;
+	return mlxsw_pci_read32_off(mlxsw_pci, frc_offset_h);
 }
 
 static u32 mlxsw_pci_read_frc_l(void *bus_priv)
 {
 	struct mlxsw_pci *mlxsw_pci = bus_priv;
-	u64 frc_offset;
+	u64 frc_offset_l;
 
-	frc_offset = mlxsw_pci->free_running_clock_offset;
-	return mlxsw_pci_read32(mlxsw_pci, FREE_RUNNING_CLOCK_L(frc_offset));
+	frc_offset_l = mlxsw_pci->free_running_clock_offset + 4;
+	return mlxsw_pci_read32_off(mlxsw_pci, frc_offset_l);
 }
 
 static const struct mlxsw_bus mlxsw_pci_bus = {
