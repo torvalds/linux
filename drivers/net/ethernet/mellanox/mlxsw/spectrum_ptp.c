@@ -122,7 +122,7 @@ static u64 mlxsw_sp1_ptp_read_frc(const struct cyclecounter *cc)
 }
 
 static int
-mlxsw_sp1_ptp_phc_adjfreq(struct mlxsw_sp_ptp_clock *clock, int freq_adj)
+mlxsw_sp_ptp_phc_adjfreq(struct mlxsw_sp_ptp_clock *clock, int freq_adj)
 {
 	struct mlxsw_core *mlxsw_core = clock->core;
 	char mtutc_pl[MLXSW_REG_MTUTC_LEN];
@@ -194,7 +194,7 @@ static int mlxsw_sp1_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
 				       clock->nominal_c_mult + diff;
 	spin_unlock_bh(&clock->lock);
 
-	return mlxsw_sp1_ptp_phc_adjfreq(&clock->common, neg_adj ? -ppb : ppb);
+	return mlxsw_sp_ptp_phc_adjfreq(&clock->common, neg_adj ? -ppb : ppb);
 }
 
 static int mlxsw_sp1_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
