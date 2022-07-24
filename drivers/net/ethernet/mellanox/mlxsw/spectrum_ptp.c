@@ -918,9 +918,10 @@ int mlxsw_sp1_ptp_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,
 	return 0;
 }
 
-static int mlxsw_sp_ptp_get_message_types(const struct hwtstamp_config *config,
-					  u16 *p_ing_types, u16 *p_egr_types,
-					  enum hwtstamp_rx_filters *p_rx_filter)
+static int
+mlxsw_sp1_ptp_get_message_types(const struct hwtstamp_config *config,
+				u16 *p_ing_types, u16 *p_egr_types,
+				enum hwtstamp_rx_filters *p_rx_filter)
 {
 	enum hwtstamp_rx_filters rx_filter = config->rx_filter;
 	enum hwtstamp_tx_types tx_type = config->tx_type;
@@ -1081,8 +1082,8 @@ int mlxsw_sp1_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	u16 egr_types;
 	int err;
 
-	err = mlxsw_sp_ptp_get_message_types(config, &ing_types, &egr_types,
-					     &rx_filter);
+	err = mlxsw_sp1_ptp_get_message_types(config, &ing_types, &egr_types,
+					      &rx_filter);
 	if (err)
 		return err;
 
