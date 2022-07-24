@@ -1116,7 +1116,6 @@ void ksz8_port_mirror_del(struct ksz_device *dev, int port,
 static void ksz8795_cpu_interface_select(struct ksz_device *dev, int port)
 {
 	struct ksz_port *p = &dev->ports[port];
-	u8 data8;
 
 	if (!p->interface && dev->compat_interface) {
 		dev_warn(dev->dev,
@@ -1126,39 +1125,7 @@ static void ksz8795_cpu_interface_select(struct ksz_device *dev, int port)
 		p->interface = dev->compat_interface;
 	}
 
-	/* Configure MII interface for proper network communication. */
-	ksz_read8(dev, REG_PORT_5_CTRL_6, &data8);
-	data8 &= ~PORT_INTERFACE_TYPE;
-	data8 &= ~PORT_GMII_1GPS_MODE;
-	switch (p->interface) {
-	case PHY_INTERFACE_MODE_MII:
-		p->phydev.speed = SPEED_100;
-		break;
-	case PHY_INTERFACE_MODE_RMII:
-		data8 |= PORT_INTERFACE_RMII;
-		p->phydev.speed = SPEED_100;
-		break;
-	case PHY_INTERFACE_MODE_GMII:
-		data8 |= PORT_GMII_1GPS_MODE;
-		data8 |= PORT_INTERFACE_GMII;
-		p->phydev.speed = SPEED_1000;
-		break;
-	default:
-		data8 &= ~PORT_RGMII_ID_IN_ENABLE;
-		data8 &= ~PORT_RGMII_ID_OUT_ENABLE;
-		if (p->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-		    p->interface == PHY_INTERFACE_MODE_RGMII_RXID)
-			data8 |= PORT_RGMII_ID_IN_ENABLE;
-		if (p->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-		    p->interface == PHY_INTERFACE_MODE_RGMII_TXID)
-			data8 |= PORT_RGMII_ID_OUT_ENABLE;
-		data8 |= PORT_GMII_1GPS_MODE;
-		data8 |= PORT_INTERFACE_RGMII;
-		p->phydev.speed = SPEED_1000;
-		break;
-	}
-	ksz_write8(dev, REG_PORT_5_CTRL_6, data8);
-	p->phydev.duplex = 1;
+	ksz_set_xmii(dev, port, p->interface);
 }
 
 void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
