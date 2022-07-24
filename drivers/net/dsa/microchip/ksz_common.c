@@ -292,6 +292,10 @@ static const u8 ksz8795_xmii_ctrl0[] = {
 };
 
 static const u8 ksz8795_xmii_ctrl1[] = {
+	[P_RGMII_SEL]			= 3,
+	[P_GMII_SEL]			= 2,
+	[P_RMII_SEL]			= 1,
+	[P_MII_SEL]			= 0,
 	[P_GMII_1GBIT]			= 1,
 	[P_GMII_NOT_1GBIT]		= 0,
 };
@@ -389,6 +393,10 @@ static const u8 ksz9477_xmii_ctrl0[] = {
 };
 
 static const u8 ksz9477_xmii_ctrl1[] = {
+	[P_RGMII_SEL]			= 0,
+	[P_RMII_SEL]			= 1,
+	[P_GMII_SEL]			= 2,
+	[P_MII_SEL]			= 3,
 	[P_GMII_1GBIT]			= 0,
 	[P_GMII_NOT_1GBIT]		= 1,
 };
@@ -1398,6 +1406,42 @@ static int ksz_max_mtu(struct dsa_switch *ds, int port)
 		return -EOPNOTSUPP;
 
 	return dev->dev_ops->max_mtu(dev, port);
+}
+
+void ksz_set_xmii(struct ksz_device *dev, int port, phy_interface_t interface)
+{
+	const u8 *bitval = dev->info->xmii_ctrl1;
+	const u16 *regs = dev->info->regs;
+	u8 data8;
+
+	ksz_pread8(dev, port, regs[P_XMII_CTRL_1], &data8);
+
+	data8 &= ~P_MII_SEL_M;
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_MII:
+		data8 |= bitval[P_MII_SEL];
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+		data8 |= bitval[P_RMII_SEL];
+		break;
+	case PHY_INTERFACE_MODE_GMII:
+		data8 |= bitval[P_GMII_SEL];
+		break;
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		data8 |= bitval[P_RGMII_SEL];
+		break;
+	default:
+		dev_err(dev->dev, "Unsupported interface '%s' for port %d\n",
+			phy_modes(interface), port);
+		return;
+	}
+
+	/* Write the updated value */
+	ksz_pwrite8(dev, port, regs[P_XMII_CTRL_1], data8);
 }
 
 static void ksz_phylink_mac_config(struct dsa_switch *ds, int port,

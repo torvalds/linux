@@ -315,36 +315,6 @@ int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu)
 	return 0;
 }
 
-static void lan937x_mac_config(struct ksz_device *dev, int port,
-			       phy_interface_t interface)
-{
-	u8 data8;
-
-	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &data8);
-
-	/* clear MII selection & set it based on interface later */
-	data8 &= ~PORT_MII_SEL_M;
-
-	/* configure MAC based on interface */
-	switch (interface) {
-	case PHY_INTERFACE_MODE_MII:
-		ksz_set_gbit(dev, port, false);
-		data8 |= PORT_MII_SEL;
-		break;
-	case PHY_INTERFACE_MODE_RMII:
-		ksz_set_gbit(dev, port, false);
-		data8 |= PORT_RMII_SEL;
-		break;
-	default:
-		dev_err(dev->dev, "Unsupported interface '%s' for port %d\n",
-			phy_modes(interface), port);
-		return;
-	}
-
-	/* Write the updated value */
-	ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_1, data8);
-}
-
 void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
 			      struct phylink_config *config)
 {
@@ -370,7 +340,7 @@ void lan937x_phylink_mac_config(struct ksz_device *dev, int port,
 		return;
 	}
 
-	lan937x_mac_config(dev, port, state->interface);
+	ksz_set_xmii(dev, port, state->interface);
 }
 
 int lan937x_setup(struct dsa_switch *ds)

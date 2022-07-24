@@ -222,6 +222,10 @@ enum ksz_xmii_ctrl0 {
 };
 
 enum ksz_xmii_ctrl1 {
+	P_RGMII_SEL,
+	P_RMII_SEL,
+	P_GMII_SEL,
+	P_MII_SEL,
 	P_GMII_1GBIT,
 	P_GMII_NOT_1GBIT,
 };
@@ -313,6 +317,7 @@ void ksz_r_mib_stats64(struct ksz_device *dev, int port);
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
 bool ksz_get_gbit(struct ksz_device *dev, int port);
 void ksz_set_gbit(struct ksz_device *dev, int port, bool gbit);
+void ksz_set_xmii(struct ksz_device *dev, int port, phy_interface_t interface);
 extern const struct ksz_chip_data ksz_switch_chips[];
 
 /* Common register access functions */
@@ -489,6 +494,9 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define P_MII_100MBIT_M			BIT(4)
 
 #define P_GMII_1GBIT_M			BIT(6)
+#define P_RGMII_ID_IG_ENABLE		BIT(4)
+#define P_RGMII_ID_EG_ENABLE		BIT(3)
+#define P_MII_SEL_M			0x3
 
 /* Regmap tables generation */
 #define KSZ_SPI_OP_RD		3
