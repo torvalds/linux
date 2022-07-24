@@ -709,7 +709,7 @@ static void *__dma_alloc(struct device *dev, size_t size, dma_addr_t *handle,
 
 	*handle = DMA_MAPPING_ERROR;
 	allowblock = gfpflags_allow_blocking(gfp);
-	cma = allowblock ? dev_get_cma_area(dev) : false;
+	cma = allowblock ? dev_get_cma_area(dev) : NULL;
 
 	if (cma)
 		buf->allocator = &cma_allocator;
