@@ -15,7 +15,7 @@ source "crypto/async_tx/Kconfig"
 #
 menuconfig CRYPTO
 	tristate "Cryptographic API"
-	select LIB_MEMNEQ
+	select CRYPTO_LIB_UTILS
 	help
 	  This option provides the core Cryptographic API.
 

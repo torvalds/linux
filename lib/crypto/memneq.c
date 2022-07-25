@@ -59,8 +59,9 @@
  * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-#include <crypto/algapi.h>
 #include <asm/unaligned.h>
+#include <crypto/algapi.h>
+#include <linux/module.h>
 
 #ifndef __HAVE_ARCH_CRYPTO_MEMNEQ
 
@@ -174,3 +175,5 @@ noinline unsigned long __crypto_memneq(const void *a, const void *b,
 EXPORT_SYMBOL(__crypto_memneq);
 
 #endif /* __HAVE_ARCH_CRYPTO_MEMNEQ */
+
+MODULE_LICENSE("GPL");
