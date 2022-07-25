@@ -21716,7 +21716,6 @@ F:	drivers/ptp/ptp_vmw.c
 
 VMWARE VMCI DRIVER
 M:	Bryan Tan <bryantan@vmware.com>
-M:	Rajesh Jalisatgi <rjalisatgi@vmware.com>
 M:	Vishnu Dasa <vdasa@vmware.com>
 R:	VMware PV-Drivers Reviewers <pv-drivers@vmware.com>
 L:	linux-kernel@vger.kernel.org
