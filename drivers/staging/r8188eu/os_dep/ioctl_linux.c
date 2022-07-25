@@ -687,12 +687,9 @@ static int rtw_wx_set_mode(struct net_device *dev, struct iw_request_info *a,
 	enum ndis_802_11_network_infra networkType;
 	int ret = 0;
 
-
-
-	if (_FAIL == rtw_pwr_wakeup(padapter)) {
-		ret = -EPERM;
+	ret = rtw_pwr_wakeup(padapter);
+	if (ret)
 		goto exit;
-	}
 
 	if (!padapter->hw_init_completed) {
 		ret = -EPERM;
@@ -931,12 +928,9 @@ static int rtw_wx_set_wap(struct net_device *dev,
 	struct	wlan_network	*pnetwork = NULL;
 	enum ndis_802_11_auth_mode	authmode;
 
-
-
-	if (_FAIL == rtw_pwr_wakeup(padapter)) {
-		ret = -1;
+	ret = rtw_pwr_wakeup(padapter);
+	if (ret)
 		goto exit;
-	}
 
 	if (!padapter->bup) {
 		ret = -1;
@@ -1049,10 +1043,9 @@ static int rtw_wx_set_scan(struct net_device *dev, struct iw_request_info *a,
 	struct ndis_802_11_ssid ssid[RTW_SSID_SCAN_AMOUNT];
 	struct wifidirect_info *pwdinfo = &padapter->wdinfo;
 
-	if (_FAIL == rtw_pwr_wakeup(padapter)) {
-		ret = -1;
+	ret = rtw_pwr_wakeup(padapter);
+	if (ret)
 		goto exit;
-	}
 
 	if (padapter->bDriverStopped) {
 		ret = -1;
@@ -1252,10 +1245,9 @@ static int rtw_wx_set_essid(struct net_device *dev,
 
 	uint ret = 0, len;
 
-	if (_FAIL == rtw_pwr_wakeup(padapter)) {
-		ret = -1;
+	ret = rtw_pwr_wakeup(padapter);
+	if (ret)
 		goto exit;
-	}
 
 	if (!padapter->bup) {
 		ret = -1;
