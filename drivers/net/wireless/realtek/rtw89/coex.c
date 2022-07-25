@@ -551,8 +551,10 @@ static void _send_fw_cmd(struct rtw89_dev *rtwdev, u8 h2c_class, u8 h2c_func,
 			    "[BTC], %s(): return by btc not init!!\n", __func__);
 		pfwinfo->cnt_h2c_fail++;
 		return;
-	} else if ((wl->status.map.rf_off_pre == 1 && wl->status.map.rf_off == 1) ||
-		   (wl->status.map.lps_pre == 1 && wl->status.map.lps == 1)) {
+	} else if ((wl->status.map.rf_off_pre == BTC_LPS_RF_OFF &&
+		    wl->status.map.rf_off == BTC_LPS_RF_OFF) ||
+		   (wl->status.map.lps_pre == BTC_LPS_RF_OFF &&
+		    wl->status.map.lps == BTC_LPS_RF_OFF)) {
 		rtw89_debug(rtwdev, RTW89_DBG_BTC,
 			    "[BTC], %s(): return by wl off!!\n", __func__);
 		pfwinfo->cnt_h2c_fail++;
@@ -3743,11 +3745,14 @@ void rtw89_btc_ntfy_poweron(struct rtw89_dev *rtwdev)
 void rtw89_btc_ntfy_poweroff(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): !!\n", __func__);
 	btc->dm.cnt_notify[BTC_NCNT_POWER_OFF]++;
 
 	btc->cx.wl.status.map.rf_off = 1;
+	btc->cx.wl.status.map.busy = 0;
+	wl->status.map.lps = BTC_LPS_OFF;
 
 	_write_scbd(rtwdev, BTC_WSCB_ALL, false);
 	_run_coex(rtwdev, BTC_RSN_NTFY_POWEROFF);
@@ -4239,6 +4244,7 @@ void rtw89_btc_ntfy_radio_state(struct rtw89_dev *rtwdev, enum btc_rfctrl rf_sta
 	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_wl_info *wl = &btc->cx.wl;
+	u32 val;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC, "[BTC], %s(): rf_state = %d\n",
 		    __func__, rf_state);
@@ -4248,10 +4254,12 @@ void rtw89_btc_ntfy_radio_state(struct rtw89_dev *rtwdev, enum btc_rfctrl rf_sta
 	case BTC_RFCTRL_WL_OFF:
 		wl->status.map.rf_off = 1;
 		wl->status.map.lps = BTC_LPS_OFF;
+		wl->status.map.busy = 0;
 		break;
 	case BTC_RFCTRL_FW_CTRL:
 		wl->status.map.rf_off = 0;
 		wl->status.map.lps = BTC_LPS_RF_OFF;
+		wl->status.map.busy = 0;
 		break;
 	case BTC_RFCTRL_WL_ON:
 	default:
@@ -4261,14 +4269,17 @@ void rtw89_btc_ntfy_radio_state(struct rtw89_dev *rtwdev, enum btc_rfctrl rf_sta
 	}
 
 	if (rf_state == BTC_RFCTRL_WL_ON) {
+		btc->dm.cnt_dm[BTC_DCNT_BTCNT_FREEZE] = 0;
 		rtw89_btc_fw_en_rpt(rtwdev,
 				    RPT_EN_MREG | RPT_EN_BT_VER_INFO, true);
-		_write_scbd(rtwdev, BTC_WSCB_ACTIVE, true);
+		val = BTC_WSCB_ACTIVE | BTC_WSCB_ON | BTC_WSCB_BTLOG;
+		_write_scbd(rtwdev, val, true);
 		_update_bt_scbd(rtwdev, true);
 		chip->ops->btc_init_cfg(rtwdev);
 	} else {
 		rtw89_btc_fw_en_rpt(rtwdev, RPT_EN_ALL, false);
-		_write_scbd(rtwdev, BTC_WSCB_ACTIVE | BTC_WSCB_WLBUSY, false);
+		if (rf_state == BTC_RFCTRL_WL_OFF)
+			_write_scbd(rtwdev, BTC_WSCB_ALL, false);
 	}
 
 	_run_coex(rtwdev, BTC_RSN_NTFY_RADIO_STATE);
@@ -4739,9 +4750,8 @@ static void _show_wl_info(struct rtw89_dev *rtwdev, struct seq_file *m)
 		   "[status]", (u32)wl_rinfo->link_mode);
 
 	seq_printf(m,
-		   "rf_off:%s, power_save:%s, scan:%s(band:%d/phy_map:0x%x), ",
-		   wl->status.map.rf_off ? "Y" : "N",
-		   wl->status.map.lps ? "Y" : "N",
+		   "rf_off:%d, power_save:%d, scan:%s(band:%d/phy_map:0x%x), ",
+		   wl->status.map.rf_off, wl->status.map.lps,
 		   wl->status.map.scan ? "Y" : "N",
 		   wl->scan_info.band[RTW89_PHY_0], wl->scan_info.phy_map);
 

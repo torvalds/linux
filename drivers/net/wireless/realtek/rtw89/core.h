@@ -935,12 +935,12 @@ struct rtw89_btc_wl_smap {
 	u32 roaming: 1;
 	u32 _4way: 1;
 	u32 rf_off: 1;
-	u32 lps: 1;
+	u32 lps: 2;
 	u32 ips: 1;
 	u32 init_ok: 1;
 	u32 traffic_dir : 2;
 	u32 rf_off_pre: 1;
-	u32 lps_pre: 1;
+	u32 lps_pre: 2;
 };
 
 enum rtw89_tfc_lv {
