@@ -261,6 +261,9 @@ enum btc_cx_poicy_type {
 	/* TDMA off + pri: WL_Hi-Tx > BT_Hi_Rx, BT_Hi > WL > BT_Lo */
 	BTC_CXP_OFF_BWB1 = (BTC_CXP_OFF << 8) | 7,
 
+	/* TDMA off + pri: WL_Hi-Tx > BT, BT_Hi > other-WL > BT_Lo */
+	BTC_CXP_OFF_BWB2 = (BTC_CXP_OFF << 8) | 8,
+
 	/* TDMA off+Bcn-Protect + pri: WL_Hi-Tx > BT_Hi_Rx, BT_Hi > WL > BT_Lo*/
 	BTC_CXP_OFFB_BWB0 = (BTC_CXP_OFFB << 8) | 0,
 
@@ -299,6 +302,9 @@ enum btc_cx_poicy_type {
 
 	/* TDMA Fix slot-9: W1:B1 = 40:20 */
 	BTC_CXP_FIX_TD4020 = (BTC_CXP_FIX << 8) | 9,
+
+	/* TDMA Fix slot-9: W1:B1 = 40:10 */
+	BTC_CXP_FIX_TD4010ISO = (BTC_CXP_FIX << 8) | 10,
 
 	/* PS-TDMA Fix slot-0: W1:B1 = 30:30 */
 	BTC_CXP_PFIX_TD3030 = (BTC_CXP_PFIX << 8) | 0,
@@ -2021,6 +2027,15 @@ union btc_btinfo {
 static void _set_policy(struct rtw89_dev *rtwdev, u16 policy_type,
 			enum btc_reason_and_action action)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
+
+	chip->ops->btc_set_policy(rtwdev, policy_type);
+	_fw_set_policy(rtwdev, policy_type, action);
+}
+
+#define BTC_B1_MAX 250 /* unit ms */
+void rtw89_btc_set_policy(struct rtw89_dev *rtwdev, u16 policy_type)
+{
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_fbtc_tdma *t = &dm->tdma;
@@ -2316,9 +2331,372 @@ static void _set_policy(struct rtw89_dev *rtwdev, u16 policy_type,
 		}
 		break;
 	}
-
-	_fw_set_policy(rtwdev, policy_type, action);
 }
+EXPORT_SYMBOL(rtw89_btc_set_policy);
+
+void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type)
+{
+	struct rtw89_btc *btc = &rtwdev->btc;
+	struct rtw89_btc_dm *dm = &btc->dm;
+	struct rtw89_btc_fbtc_tdma *t = &dm->tdma;
+	struct rtw89_btc_fbtc_slot *s = dm->slot;
+	struct rtw89_btc_bt_hid_desc *hid = &btc->cx.bt.link_info.hid_desc;
+	struct rtw89_btc_bt_hfp_desc *hfp = &btc->cx.bt.link_info.hfp_desc;
+	u8 type;
+	u32 tbl_w1, tbl_b1, tbl_b4;
+
+	type = FIELD_GET(BTC_CXP_MASK, policy_type);
+
+	if (btc->mdinfo.ant.type == BTC_ANT_SHARED) {
+		if (btc->cx.wl.status.map._4way)
+			tbl_w1 = cxtbl[1];
+		else if (hid->exist && hid->type == BTC_HID_218)
+			tbl_w1 = cxtbl[7]; /* Ack/BA no break bt Hi-Pri-rx */
+		else
+			tbl_w1 = cxtbl[8];
+
+		if (dm->leak_ap &&
+		    (type == BTC_CXP_PFIX || type == BTC_CXP_PAUTO2)) {
+			tbl_b1 = cxtbl[3];
+			tbl_b4 = cxtbl[3];
+		} else if (hid->exist && hid->type == BTC_HID_218) {
+			tbl_b1 = cxtbl[4]; /* Ack/BA no break bt Hi-Pri-rx */
+			tbl_b4 = cxtbl[4];
+		} else {
+			tbl_b1 = cxtbl[2];
+			tbl_b4 = cxtbl[2];
+		}
+	} else {
+		tbl_w1 = cxtbl[16];
+		tbl_b1 = cxtbl[17];
+		tbl_b4 = cxtbl[17];
+	}
+
+	btc->bt_req_en = false;
+
+	switch (type) {
+	case BTC_CXP_USERDEF0:
+		btc->update_policy_force = true;
+		*t = t_def[CXTD_OFF];
+		s[CXST_OFF] = s_def[CXST_OFF];
+		_slot_set_tbl(btc, CXST_OFF, cxtbl[2]);
+		break;
+	case BTC_CXP_OFF: /* TDMA off */
+		_write_scbd(rtwdev, BTC_WSCB_TDMA, false);
+		*t = t_def[CXTD_OFF];
+		s[CXST_OFF] = s_def[CXST_OFF];
+
+		switch (policy_type) {
+		case BTC_CXP_OFF_BT:
+			_slot_set_tbl(btc, CXST_OFF, cxtbl[2]);
+			break;
+		case BTC_CXP_OFF_WL:
+			_slot_set_tbl(btc, CXST_OFF, cxtbl[1]);
+			break;
+		case BTC_CXP_OFF_EQ0:
+			_slot_set_tbl(btc, CXST_OFF, cxtbl[0]);
+			break;
+		case BTC_CXP_OFF_EQ1:
+			_slot_set_tbl(btc, CXST_OFF, cxtbl[16]);
+			break;
+		case BTC_CXP_OFF_EQ2:
+			_slot_set_tbl(btc, CXST_OFF, cxtbl[17]);
+			break;
+		case BTC_CXP_OFF_EQ3:
+			_slot_set_tbl(btc, CXST_OFF, cxtbl[18]);
+			break;
+		case BTC_CXP_OFF_BWB0:
+			_slot_set_tbl(btc, CXST_OFF, cxtbl[5]);
+			break;
+		case BTC_CXP_OFF_BWB1:
+			_slot_set_tbl(btc, CXST_OFF, cxtbl[8]);
+			break;
+		case BTC_CXP_OFF_BWB2:
+			_slot_set_tbl(btc, CXST_OFF, cxtbl[7]);
+			break;
+		default:
+			break;
+		}
+		break;
+	case BTC_CXP_OFFB: /* TDMA off + beacon protect */
+		_write_scbd(rtwdev, BTC_WSCB_TDMA, false);
+		*t = t_def[CXTD_OFF_B2];
+		s[CXST_OFF] = s_def[CXST_OFF];
+
+		switch (policy_type) {
+		case BTC_CXP_OFFB_BWB0:
+			_slot_set_tbl(btc, CXST_OFF, cxtbl[8]);
+			break;
+		default:
+			break;
+		}
+		break;
+	case BTC_CXP_OFFE: /* TDMA off + beacon protect + Ext_control */
+		btc->bt_req_en = true;
+		_write_scbd(rtwdev, BTC_WSCB_TDMA, true);
+		*t = t_def[CXTD_OFF_EXT];
+
+		/* To avoid wl-s0 tx break by hid/hfp tx */
+		if (hid->exist || hfp->exist)
+			tbl_w1 = cxtbl[16];
+
+		switch (policy_type) {
+		case BTC_CXP_OFFE_DEF:
+			s[CXST_E2G] = s_def[CXST_E2G];
+			s[CXST_E5G] = s_def[CXST_E5G];
+			s[CXST_EBT] = s_def[CXST_EBT];
+			s[CXST_ENULL] = s_def[CXST_ENULL];
+			break;
+		case BTC_CXP_OFFE_DEF2:
+			_slot_set(btc, CXST_E2G, 20, cxtbl[1], SLOT_ISO);
+			s[CXST_E5G] = s_def[CXST_E5G];
+			s[CXST_EBT] = s_def[CXST_EBT];
+			s[CXST_ENULL] = s_def[CXST_ENULL];
+			break;
+		default:
+			break;
+		}
+		break;
+	case BTC_CXP_FIX: /* TDMA Fix-Slot */
+		_write_scbd(rtwdev, BTC_WSCB_TDMA, true);
+		*t = t_def[CXTD_FIX];
+
+		switch (policy_type) {
+		case BTC_CXP_FIX_TD3030:
+			_slot_set(btc, CXST_W1, 30, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 30, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_FIX_TD5050:
+			_slot_set(btc, CXST_W1, 50, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 50, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_FIX_TD2030:
+			_slot_set(btc, CXST_W1, 20, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 30, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_FIX_TD4010:
+			_slot_set(btc, CXST_W1, 40, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 10, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_FIX_TD4010ISO:
+			_slot_set(btc, CXST_W1, 40, cxtbl[1], SLOT_ISO);
+			_slot_set(btc, CXST_B1, 10, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_FIX_TD7010:
+			_slot_set(btc, CXST_W1, 70, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 10, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_FIX_TD2060:
+			_slot_set(btc, CXST_W1, 20, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 60, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_FIX_TD3060:
+			_slot_set(btc, CXST_W1, 30, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 60, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_FIX_TD2080:
+			_slot_set(btc, CXST_W1, 20, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 80, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_FIX_TDW1B1: /* W1:B1 = user-define */
+			_slot_set(btc, CXST_W1, dm->slot_dur[CXST_W1],
+				  tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, dm->slot_dur[CXST_B1],
+				  tbl_b1, SLOT_MIX);
+			break;
+		default:
+			break;
+		}
+		break;
+	case BTC_CXP_PFIX: /* PS-TDMA Fix-Slot */
+		_write_scbd(rtwdev, BTC_WSCB_TDMA, true);
+		*t = t_def[CXTD_PFIX];
+
+		switch (policy_type) {
+		case BTC_CXP_PFIX_TD3030:
+			_slot_set(btc, CXST_W1, 30, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 30, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_PFIX_TD5050:
+			_slot_set(btc, CXST_W1, 50, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 50, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_PFIX_TD2030:
+			_slot_set(btc, CXST_W1, 20, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 30, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_PFIX_TD2060:
+			_slot_set(btc, CXST_W1, 20, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 60, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_PFIX_TD3070:
+			_slot_set(btc, CXST_W1, 30, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 60, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_PFIX_TD2080:
+			_slot_set(btc, CXST_W1, 20, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, 80, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_PFIX_TDW1B1: /* W1:B1 = user-define */
+			_slot_set(btc, CXST_W1, dm->slot_dur[CXST_W1],
+				  tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, dm->slot_dur[CXST_B1],
+				  tbl_b1, SLOT_MIX);
+			break;
+		default:
+			break;
+		}
+		break;
+	case BTC_CXP_AUTO: /* TDMA Auto-Slot */
+		_write_scbd(rtwdev, BTC_WSCB_TDMA, true);
+		*t = t_def[CXTD_AUTO];
+
+		switch (policy_type) {
+		case BTC_CXP_AUTO_TD50B1:
+			_slot_set(btc, CXST_W1,  50, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_AUTO_TD60B1:
+			_slot_set(btc, CXST_W1,  60, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_AUTO_TD20B1:
+			_slot_set(btc, CXST_W1,  20, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_AUTO_TDW1B1: /* W1:B1 = user-define */
+			_slot_set(btc, CXST_W1, dm->slot_dur[CXST_W1],
+				  tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, dm->slot_dur[CXST_B1],
+				  tbl_b1, SLOT_MIX);
+			break;
+		default:
+			break;
+		}
+		break;
+	case BTC_CXP_PAUTO: /* PS-TDMA Auto-Slot */
+		_write_scbd(rtwdev, BTC_WSCB_TDMA, true);
+		*t = t_def[CXTD_PAUTO];
+
+		switch (policy_type) {
+		case BTC_CXP_PAUTO_TD50B1:
+			_slot_set(btc, CXST_W1,  50, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_PAUTO_TD60B1:
+			_slot_set(btc, CXST_W1,  60, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_PAUTO_TD20B1:
+			_slot_set(btc, CXST_W1,  20, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			break;
+		case BTC_CXP_PAUTO_TDW1B1:
+			_slot_set(btc, CXST_W1, dm->slot_dur[CXST_W1],
+				  tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, dm->slot_dur[CXST_B1],
+				  tbl_b1, SLOT_MIX);
+			break;
+		default:
+			break;
+		}
+		break;
+	case BTC_CXP_AUTO2: /* TDMA Auto-Slot2 */
+		_write_scbd(rtwdev, BTC_WSCB_TDMA, true);
+		*t = t_def[CXTD_AUTO2];
+
+		switch (policy_type) {
+		case BTC_CXP_AUTO2_TD3050:
+			_slot_set(btc, CXST_W1,  30, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			_slot_set(btc, CXST_B4,  50, tbl_b4, SLOT_MIX);
+			break;
+		case BTC_CXP_AUTO2_TD3070:
+			_slot_set(btc, CXST_W1,  30, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			_slot_set(btc, CXST_B4,  70, tbl_b4, SLOT_MIX);
+			break;
+		case BTC_CXP_AUTO2_TD5050:
+			_slot_set(btc, CXST_W1,  50, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			_slot_set(btc, CXST_B4,  50, tbl_b4, SLOT_MIX);
+			break;
+		case BTC_CXP_AUTO2_TD6060:
+			_slot_set(btc, CXST_W1,  60, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			_slot_set(btc, CXST_B4,  60, tbl_b4, SLOT_MIX);
+			break;
+		case BTC_CXP_AUTO2_TD2080:
+			_slot_set(btc, CXST_W1,  20, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			_slot_set(btc, CXST_B4,  80, tbl_b4, SLOT_MIX);
+			break;
+		case BTC_CXP_AUTO2_TDW1B4: /* W1:B1 = user-define */
+			_slot_set(btc, CXST_W1, dm->slot_dur[CXST_W1],
+				  tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, dm->slot_dur[CXST_B1],
+				  tbl_b1, SLOT_MIX);
+			_slot_set(btc, CXST_B4, dm->slot_dur[CXST_B4],
+				  tbl_b4, SLOT_MIX);
+			break;
+		default:
+			break;
+		}
+		break;
+	case BTC_CXP_PAUTO2: /* PS-TDMA Auto-Slot2 */
+		_write_scbd(rtwdev, BTC_WSCB_TDMA, true);
+		*t = t_def[CXTD_PAUTO2];
+
+		switch (policy_type) {
+		case BTC_CXP_PAUTO2_TD3050:
+			_slot_set(btc, CXST_W1,  30, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			_slot_set(btc, CXST_B4,  50, tbl_b4, SLOT_MIX);
+			break;
+		case BTC_CXP_PAUTO2_TD3070:
+			_slot_set(btc, CXST_W1,  30, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			_slot_set(btc, CXST_B4,  70, tbl_b4, SLOT_MIX);
+			break;
+		case BTC_CXP_PAUTO2_TD5050:
+			_slot_set(btc, CXST_W1,  50, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			_slot_set(btc, CXST_B4,  50, tbl_b4, SLOT_MIX);
+			break;
+		case BTC_CXP_PAUTO2_TD6060:
+			_slot_set(btc, CXST_W1,  60, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			_slot_set(btc, CXST_B4,  60, tbl_b4, SLOT_MIX);
+			break;
+		case BTC_CXP_PAUTO2_TD2080:
+			_slot_set(btc, CXST_W1,  20, tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, BTC_B1_MAX, tbl_b1, SLOT_MIX);
+			_slot_set(btc, CXST_B4,  80, tbl_b4, SLOT_MIX);
+			break;
+		case BTC_CXP_PAUTO2_TDW1B4: /* W1:B1 = user-define */
+			_slot_set(btc, CXST_W1, dm->slot_dur[CXST_W1],
+				  tbl_w1, SLOT_ISO);
+			_slot_set(btc, CXST_B1, dm->slot_dur[CXST_B1],
+				  tbl_b1, SLOT_MIX);
+			_slot_set(btc, CXST_B4, dm->slot_dur[CXST_B4],
+				  tbl_b4, SLOT_MIX);
+			break;
+		default:
+			break;
+		}
+		break;
+	}
+
+	/* enter leak_slot after each null-1 */
+	if (dm->leak_ap && dm->tdma.leak_n > 1)
+		_tdma_set_lek(btc, 1);
+
+	if (dm->tdma_instant_excute) {
+		btc->dm.tdma.option_ctrl |= BIT(0);
+		btc->update_policy_force = true;
+	}
+}
+EXPORT_SYMBOL(rtw89_btc_set_policy_v1);
 
 static void _set_gnt_bt(struct rtw89_dev *rtwdev, u8 phy_map, u8 state)
 {
@@ -5285,6 +5663,7 @@ static const char *steps_to_str(u16 step)
 	CASE_BTC_POLICY_STR(OFF_EQ3);
 	CASE_BTC_POLICY_STR(OFF_BWB0);
 	CASE_BTC_POLICY_STR(OFF_BWB1);
+	CASE_BTC_POLICY_STR(OFF_BWB2);
 	CASE_BTC_POLICY_STR(OFFB_BWB0);
 	CASE_BTC_POLICY_STR(OFFE_DEF);
 	CASE_BTC_POLICY_STR(OFFE_DEF2);
@@ -5298,6 +5677,7 @@ static const char *steps_to_str(u16 step)
 	CASE_BTC_POLICY_STR(FIX_TD2080);
 	CASE_BTC_POLICY_STR(FIX_TDW1B1);
 	CASE_BTC_POLICY_STR(FIX_TD4020);
+	CASE_BTC_POLICY_STR(FIX_TD4010ISO);
 	CASE_BTC_POLICY_STR(PFIX_TD3030);
 	CASE_BTC_POLICY_STR(PFIX_TD5050);
 	CASE_BTC_POLICY_STR(PFIX_TD2030);

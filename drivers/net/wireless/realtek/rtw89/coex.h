@@ -162,6 +162,8 @@ void rtw89_coex_act1_work(struct work_struct *work);
 void rtw89_coex_bt_devinfo_work(struct work_struct *work);
 void rtw89_coex_rfk_chk_work(struct work_struct *work);
 void rtw89_coex_power_on(struct rtw89_dev *rtwdev);
+void rtw89_btc_set_policy(struct rtw89_dev *rtwdev, u16 policy_type);
+void rtw89_btc_set_policy_v1(struct rtw89_dev *rtwdev, u16 policy_type);
 
 static inline u8 rtw89_btc_phymap(struct rtw89_dev *rtwdev,
 				  enum rtw89_phy_idx phy_idx,
