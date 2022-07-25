@@ -3263,6 +3263,7 @@ static void vop2_wb_commit(struct drm_crtc *crtc)
 		VOP_MODULE_SET(vop2, wb, r2y_en, r2y);
 		VOP_MODULE_SET(vop2, wb, enable, 1);
 		vop2_wb_irqs_enable(vop2);
+		VOP_CTRL_SET(vop2, wb_dma_finish_and_en, 1);
 	}
 }
 
@@ -4236,6 +4237,8 @@ static void vop2_crtc_atomic_disable(struct drm_crtc *crtc,
 
 	vop2_lock(vop2);
 	DRM_DEV_INFO(vop2->dev, "Crtc atomic disable vp%d\n", vp->id);
+	VOP_MODULE_SET(vop2, vp, almost_full_or_en, 0);
+	VOP_MODULE_SET(vop2, vp, line_flag_or_en, 0);
 	drm_crtc_vblank_off(crtc);
 	if (vop2->dscs[vcstate->dsc_id].enabled &&
 	    vop2->dscs[vcstate->dsc_id].attach_vp_id == vp->id &&
@@ -7625,6 +7628,8 @@ static void vop2_crtc_atomic_enable(struct drm_crtc *crtc, struct drm_crtc_state
 	else
 		clk_set_rate(vp->dclk, adjusted_mode->crtc_clock * 1000);
 
+	VOP_MODULE_SET(vop2, vp, almost_full_or_en, 1);
+	VOP_MODULE_SET(vop2, vp, line_flag_or_en, 1);
 	if (vcstate->dsc_enable) {
 		if (vcstate->output_flags & ROCKCHIP_OUTPUT_DUAL_CHANNEL_LEFT_RIGHT_MODE) {
 			vop2_crtc_enable_dsc(crtc, old_state, 0);
@@ -9881,6 +9886,7 @@ static void vop2_wb_disable(struct vop2_video_port *vp)
 	struct vop2_wb *wb = &vop2->wb;
 
 	VOP_MODULE_SET(vop2, wb, enable, 0);
+	VOP_CTRL_SET(vop2, wb_dma_finish_and_en, 0);
 	vop2_wb_cfg_done(vp);
 }
 

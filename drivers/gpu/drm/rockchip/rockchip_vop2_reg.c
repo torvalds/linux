@@ -1271,6 +1271,10 @@ static const struct vop2_video_port_regs rk3588_vop_vp0_regs = {
 	.cubic_lut_en = VOP_REG(RK3568_VP0_3D_LUT_CTRL, 0x1, 0),
 	.cubic_lut_update_en = VOP_REG(RK3568_VP0_3D_LUT_CTRL, 0x1, 2),
 	.cubic_lut_mst = VOP_REG(RK3568_VP0_3D_LUT_MST, 0xffffffff, 0),
+
+	.line_flag_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 20),
+	.dsp_hold_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 24),
+	.almost_full_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 28),
 };
 
 /*
@@ -1365,6 +1369,10 @@ static const struct vop2_video_port_regs rk3588_vop_vp1_regs = {
 	.cubic_lut_en = VOP_REG(RK3588_VP1_3D_LUT_CTRL, 0x1, 0),
 	.cubic_lut_update_en = VOP_REG(RK3588_VP1_3D_LUT_CTRL, 0x1, 2),
 	.cubic_lut_mst = VOP_REG(RK3588_VP1_3D_LUT_MST, 0xffffffff, 0),
+
+	.line_flag_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 21),
+	.dsp_hold_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 25),
+	.almost_full_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 29),
 };
 
 static const struct vop2_video_port_regs rk3588_vop_vp2_regs = {
@@ -1425,6 +1433,10 @@ static const struct vop2_video_port_regs rk3588_vop_vp2_regs = {
 	.cubic_lut_en = VOP_REG(RK3588_VP2_3D_LUT_CTRL, 0x1, 0),
 	.cubic_lut_update_en = VOP_REG(RK3588_VP2_3D_LUT_CTRL, 0x1, 2),
 	.cubic_lut_mst = VOP_REG(RK3588_VP2_3D_LUT_MST, 0xffffffff, 0),
+
+	.line_flag_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 22),
+	.dsp_hold_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 26),
+	.almost_full_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 30),
 };
 
 static const struct vop2_video_port_regs rk3588_vop_vp3_regs = {
@@ -1480,6 +1492,10 @@ static const struct vop2_video_port_regs rk3588_vop_vp3_regs = {
 	.edpi_te_en = VOP_REG(RK3588_VP3_DUAL_CHANNEL_CTRL, 0x1, 28),
 	.edpi_wms_hold_en = VOP_REG(RK3588_VP3_DUAL_CHANNEL_CTRL, 0x1, 30),
 	.edpi_wms_fs = VOP_REG(RK3588_VP3_DUAL_CHANNEL_CTRL, 0x1, 31),
+
+	.line_flag_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 23),
+	.dsp_hold_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 27),
+	.almost_full_or_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 31),
 };
 
 static const struct vop2_video_port_data rk3588_vop_video_ports[] = {
@@ -3260,6 +3276,9 @@ static const struct vop2_ctrl rk3588_vop_ctrl = {
 	.cfg_done_en = VOP_REG(RK3568_REG_CFG_DONE, 0x1, 15),
 	.wb_cfg_done = VOP_REG_MASK(RK3568_REG_CFG_DONE, 0x1, 14),
 	.auto_gating_en = VOP_REG(RK3568_SYS_AUTO_GATING_CTRL, 0x1, 31),
+	.dma_finish_mode = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x3, 0),
+	.axi_dma_finish_and_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 2),
+	.wb_dma_finish_and_en = VOP_REG(RK3588_SYS_VAR_FREQ_CTRL, 0x1, 3),
 	.ovl_cfg_done_port = VOP_REG(RK3568_OVL_CTRL, 0x3, 30),
 	.ovl_port_mux_cfg_done_imd = VOP_REG(RK3568_OVL_CTRL, 0x1, 28),
 	.ovl_port_mux_cfg = VOP_REG(RK3568_OVL_PORT_SEL, 0xffff, 0),

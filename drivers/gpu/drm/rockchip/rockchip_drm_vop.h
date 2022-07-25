@@ -922,6 +922,11 @@ struct vop2_video_port_regs {
 	struct vop_reg mcu_type;
 	struct vop_reg mcu_rw_bypass_port;
 
+	/* for DCF */
+	struct vop_reg line_flag_or_en;
+	struct vop_reg dsp_hold_or_en;
+	struct vop_reg almost_full_or_en;
+
 	/* CSC */
 	struct vop_reg acm_bypass_en;
 	struct vop_reg csc_en;
@@ -1206,6 +1211,9 @@ struct vop2_ctrl {
 	struct vop_reg wb_cfg_done;
 	struct vop_reg auto_gating_en;
 	struct vop_reg aclk_pre_auto_gating_en;
+	struct vop_reg dma_finish_mode;
+	struct vop_reg axi_dma_finish_and_en;
+	struct vop_reg wb_dma_finish_and_en;
 	struct vop_reg ovl_cfg_done_port;
 	struct vop_reg ovl_port_mux_cfg_done_imd;
 	struct vop_reg ovl_port_mux_cfg;
