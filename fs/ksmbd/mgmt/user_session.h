@@ -33,8 +33,10 @@ struct preauth_session {
 struct ksmbd_session {
 	u64				id;
 
+	__u16				dialect;
+	char				ClientGUID[SMB2_CLIENT_GUID_SIZE];
+
 	struct ksmbd_user		*user;
-	struct ksmbd_conn		*conn;
 	unsigned int			sequence_number;
 	unsigned int			flags;
 
@@ -59,7 +61,6 @@ struct ksmbd_session {
 	__u8				smb3signingkey[SMB3_SIGN_KEY_SIZE];
 
 	struct ksmbd_file_table		file_table;
-	atomic_t			refcnt;
 };
 
 static inline int test_session_flag(struct ksmbd_session *sess, int bit)
@@ -100,6 +101,4 @@ void ksmbd_release_tree_conn_id(struct ksmbd_session *sess, int id);
 int ksmbd_session_rpc_open(struct ksmbd_session *sess, char *rpc_name);
 void ksmbd_session_rpc_close(struct ksmbd_session *sess, int id);
 int ksmbd_session_rpc_method(struct ksmbd_session *sess, int id);
-int get_session(struct ksmbd_session *sess);
-void put_session(struct ksmbd_session *sess);
 #endif /* __USER_SESSION_MANAGEMENT_H__ */

@@ -151,9 +151,6 @@ void ksmbd_session_destroy(struct ksmbd_session *sess)
 	if (!sess)
 		return;
 
-	if (!atomic_dec_and_test(&sess->refcnt))
-		return;
-
 	down_write(&sessions_table_lock);
 	hash_del(&sess->hlist);
 	up_write(&sessions_table_lock);
@@ -184,16 +181,58 @@ static struct ksmbd_session *__session_lookup(unsigned long long id)
 int ksmbd_session_register(struct ksmbd_conn *conn,
 			   struct ksmbd_session *sess)
 {
-	sess->conn = conn;
+	sess->dialect = conn->dialect;
+	memcpy(sess->ClientGUID, conn->ClientGUID, SMB2_CLIENT_GUID_SIZE);
 	return xa_err(xa_store(&conn->sessions, sess->id, sess, GFP_KERNEL));
+}
+
+static int ksmbd_chann_del(struct ksmbd_conn *conn, struct ksmbd_session *sess)
+{
+	struct channel *chann, *tmp;
+
+	write_lock(&sess->chann_lock);
+	list_for_each_entry_safe(chann, tmp, &sess->ksmbd_chann_list,
+				 chann_list) {
+		if (chann->conn == conn) {
+			list_del(&chann->chann_list);
+			kfree(chann);
+			write_unlock(&sess->chann_lock);
+			return 0;
+		}
+	}
+	write_unlock(&sess->chann_lock);
+
+	return -ENOENT;
 }
 
 void ksmbd_sessions_deregister(struct ksmbd_conn *conn)
 {
 	struct ksmbd_session *sess;
-	unsigned long id;
 
-	xa_for_each(&conn->sessions, id, sess) {
+	if (conn->binding) {
+		int bkt;
+
+		down_write(&sessions_table_lock);
+		hash_for_each(sessions_table, bkt, sess, hlist) {
+			if (!ksmbd_chann_del(conn, sess)) {
+				up_write(&sessions_table_lock);
+				goto sess_destroy;
+			}
+		}
+		up_write(&sessions_table_lock);
+	} else {
+		unsigned long id;
+
+		xa_for_each(&conn->sessions, id, sess) {
+			if (!ksmbd_chann_del(conn, sess))
+				goto sess_destroy;
+		}
+	}
+
+	return;
+
+sess_destroy:
+	if (list_empty(&sess->ksmbd_chann_list)) {
 		xa_erase(&conn->sessions, sess->id);
 		ksmbd_session_destroy(sess);
 	}
@@ -205,27 +244,12 @@ struct ksmbd_session *ksmbd_session_lookup(struct ksmbd_conn *conn,
 	return xa_load(&conn->sessions, id);
 }
 
-int get_session(struct ksmbd_session *sess)
-{
-	return atomic_inc_not_zero(&sess->refcnt);
-}
-
-void put_session(struct ksmbd_session *sess)
-{
-	if (atomic_dec_and_test(&sess->refcnt))
-		pr_err("get/%s seems to be mismatched.", __func__);
-}
-
 struct ksmbd_session *ksmbd_session_lookup_slowpath(unsigned long long id)
 {
 	struct ksmbd_session *sess;
 
 	down_read(&sessions_table_lock);
 	sess = __session_lookup(id);
-	if (sess) {
-		if (!get_session(sess))
-			sess = NULL;
-	}
 	up_read(&sessions_table_lock);
 
 	return sess;
@@ -306,7 +330,6 @@ static struct ksmbd_session *__session_create(int protocol)
 	INIT_LIST_HEAD(&sess->ksmbd_chann_list);
 	INIT_LIST_HEAD(&sess->rpc_handle_list);
 	sess->sequence_number = 1;
-	atomic_set(&sess->refcnt, 1);
 	rwlock_init(&sess->chann_lock);
 
 	switch (protocol) {
