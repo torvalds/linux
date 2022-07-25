@@ -235,6 +235,8 @@ int		rpc_clnt_setup_test_and_add_xprt(struct rpc_clnt *,
 			struct rpc_xprt *,
 			void *);
 void		rpc_clnt_manage_trunked_xprts(struct rpc_clnt *);
+void		rpc_clnt_probe_trunked_xprts(struct rpc_clnt *,
+			struct rpc_add_xprt_test *);
 
 const char *rpc_proc_name(const struct rpc_task *task);
 

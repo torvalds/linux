@@ -807,6 +807,13 @@ int rpc_clnt_xprt_iter_init(struct rpc_clnt *clnt, struct rpc_xprt_iter *xpi)
 	return _rpc_clnt_xprt_iter_init(clnt, xpi, xprt_iter_init_listall);
 }
 
+static
+int rpc_clnt_xprt_iter_offline_init(struct rpc_clnt *clnt,
+				    struct rpc_xprt_iter *xpi)
+{
+	return _rpc_clnt_xprt_iter_init(clnt, xpi, xprt_iter_init_listoffline);
+}
+
 /**
  * rpc_clnt_iterate_for_each_xprt - Apply a function to all transports
  * @clnt: pointer to client
@@ -3017,6 +3024,64 @@ out_put_switch:
 	return ret;
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_add_xprt);
+
+static int rpc_xprt_probe_trunked(struct rpc_clnt *clnt,
+				  struct rpc_xprt *xprt,
+				  struct rpc_add_xprt_test *data)
+{
+	struct rpc_xprt_switch *xps;
+	struct rpc_xprt *main_xprt;
+	int status = 0;
+
+	xprt_get(xprt);
+
+	rcu_read_lock();
+	main_xprt = xprt_get(rcu_dereference(clnt->cl_xprt));
+	xps = xprt_switch_get(rcu_dereference(clnt->cl_xpi.xpi_xpswitch));
+	status = rpc_cmp_addr_port((struct sockaddr *)&xprt->addr,
+				   (struct sockaddr *)&main_xprt->addr);
+	rcu_read_unlock();
+	xprt_put(main_xprt);
+	if (status || !test_bit(XPRT_OFFLINE, &xprt->state))
+		goto out;
+
+	status = rpc_clnt_add_xprt_helper(clnt, xprt, data);
+out:
+	xprt_put(xprt);
+	xprt_switch_put(xps);
+	return status;
+}
+
+/* rpc_clnt_probe_trunked_xprt -- probe offlined transport for session trunking
+ * @clnt rpc_clnt structure
+ *
+ * For each offlined transport found in the rpc_clnt structure call
+ * the function rpc_xprt_probe_trunked() which will determine if this
+ * transport still belongs to the trunking group.
+ */
+void rpc_clnt_probe_trunked_xprts(struct rpc_clnt *clnt,
+				  struct rpc_add_xprt_test *data)
+{
+	struct rpc_xprt_iter xpi;
+	int ret;
+
+	ret = rpc_clnt_xprt_iter_offline_init(clnt, &xpi);
+	if (ret)
+		return;
+	for (;;) {
+		struct rpc_xprt *xprt = xprt_iter_get_next(&xpi);
+
+		if (!xprt)
+			break;
+		ret = rpc_xprt_probe_trunked(clnt, xprt, data);
+		xprt_put(xprt);
+		if (ret < 0)
+			break;
+		xprt_iter_rewind(&xpi);
+	}
+	xprt_iter_destroy(&xpi);
+}
+EXPORT_SYMBOL_GPL(rpc_clnt_probe_trunked_xprts);
 
 static int rpc_xprt_offline(struct rpc_clnt *clnt,
 			    struct rpc_xprt *xprt,
