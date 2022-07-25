@@ -208,15 +208,13 @@ static int opticon_write(struct tty_struct *tty, struct usb_serial_port *port,
 	priv->outstanding_bytes += count;
 	spin_unlock_irqrestore(&priv->lock, flags);
 
-	buffer = kmalloc(count, GFP_ATOMIC);
+	buffer = kmemdup(buf, count, GFP_ATOMIC);
 	if (!buffer)
 		goto error_no_buffer;
 
 	urb = usb_alloc_urb(0, GFP_ATOMIC);
 	if (!urb)
 		goto error_no_urb;
-
-	memcpy(buffer, buf, count);
 
 	usb_serial_debug_data(&port->dev, __func__, count, buffer);
 
