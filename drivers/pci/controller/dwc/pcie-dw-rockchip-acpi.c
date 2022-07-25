@@ -18,7 +18,7 @@
 
 #if defined(CONFIG_ACPI) && defined(CONFIG_PCI_QUIRKS)
 
-#define PCIE_ATU_REGION_INDEX1		(0x1 << 0)
+#define DWC_ATU_REGION_INDEX1		(0x1 << 0)
 #define ECAM_RESV_SIZE	SZ_16M
 
 struct rk_pcie_acpi  {
@@ -174,7 +174,7 @@ static void __iomem *rk_pcie_ecam_map_bus(struct pci_bus *bus, unsigned int devf
 	 * index2: IO
 	 * index3: 64-bit np memory
 	 */
-	rk_pcie_prog_outbound_atu_unroll(cfg->parent, rk_pcie->dbi_base, PCIE_ATU_REGION_INDEX1,
+	rk_pcie_prog_outbound_atu_unroll(cfg->parent, rk_pcie->dbi_base, DWC_ATU_REGION_INDEX1,
 					 atu_type, (u64)rk_pcie->mcfg_addr, busdev, ECAM_RESV_SIZE);
 
 	dev_dbg(cfg->parent, "Read other config: 0x%p where = %d\n",
