@@ -145,8 +145,7 @@ int pnv_tce_build(struct iommu_table *tbl, long index, long npages,
 
 #ifdef CONFIG_IOMMU_API
 int pnv_tce_xchg(struct iommu_table *tbl, long index,
-		unsigned long *hpa, enum dma_data_direction *direction,
-		bool alloc)
+		unsigned long *hpa, enum dma_data_direction *direction)
 {
 	u64 proto_tce = iommu_direction_to_tce_perm(*direction);
 	unsigned long newtce = *hpa | proto_tce, oldtce;
@@ -164,7 +163,7 @@ int pnv_tce_xchg(struct iommu_table *tbl, long index,
 	}
 
 	if (!ptce) {
-		ptce = pnv_tce(tbl, false, idx, alloc);
+		ptce = pnv_tce(tbl, false, idx, true);
 		if (!ptce)
 			return -ENOMEM;
 	}

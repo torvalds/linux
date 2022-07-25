@@ -48,7 +48,6 @@ struct	stainfo_stats	{
 	u64 rx_ctrl_pkts;
 	u64 rx_data_pkts;
 
-	u64	last_rx_mgnt_pkts;
 	u64 last_rx_beacon_pkts;
 	u64 last_rx_probereq_pkts;
 	u64 last_rx_probersp_pkts;
@@ -230,7 +229,6 @@ struct sta_info {
 
 #define sta_update_last_rx_pkts(sta) \
 do { \
-	sta->sta_stats.last_rx_mgnt_pkts = sta->sta_stats.rx_mgnt_pkts; \
 	sta->sta_stats.last_rx_beacon_pkts = sta->sta_stats.rx_beacon_pkts; \
 	sta->sta_stats.last_rx_probereq_pkts = sta->sta_stats.rx_probereq_pkts; \
 	sta->sta_stats.last_rx_probersp_pkts = sta->sta_stats.rx_probersp_pkts; \

@@ -1867,8 +1867,7 @@ static struct r8a66597_td *r8a66597_make_td(struct r8a66597 *r8a66597,
 	td->pipe = hep->hcpriv;
 	td->urb = urb;
 	td->address = get_urb_to_r8a66597_addr(r8a66597, urb);
-	td->maxpacket = usb_maxpacket(urb->dev, urb->pipe,
-				      !usb_pipein(urb->pipe));
+	td->maxpacket = usb_maxpacket(urb->dev, urb->pipe);
 	if (usb_pipecontrol(urb->pipe))
 		td->type = USB_PID_SETUP;
 	else if (usb_pipein(urb->pipe))

@@ -780,8 +780,6 @@ static int vfat_create(struct user_namespace *mnt_userns, struct inode *dir,
 		goto out;
 	}
 	inode_inc_iversion(inode);
-	fat_truncate_time(inode, &ts, S_ATIME|S_CTIME|S_MTIME);
-	/* timestamp is already written, so mark_inode_dirty() is unneeded. */
 
 	d_instantiate(dentry, inode);
 out:
@@ -878,8 +876,6 @@ static int vfat_mkdir(struct user_namespace *mnt_userns, struct inode *dir,
 	}
 	inode_inc_iversion(inode);
 	set_nlink(inode, 2);
-	fat_truncate_time(inode, &ts, S_ATIME|S_CTIME|S_MTIME);
-	/* timestamp is already written, so mark_inode_dirty() is unneeded. */
 
 	d_instantiate(dentry, inode);
 

@@ -99,13 +99,16 @@ static int s390_iommu_attach_device(struct iommu_domain *domain,
 	if (!domain_device)
 		return -ENOMEM;
 
-	if (zdev->dma_table) {
+	if (zdev->dma_table && !zdev->s390_domain) {
 		cc = zpci_dma_exit_device(zdev);
 		if (cc) {
 			rc = -EIO;
 			goto out_free;
 		}
 	}
+
+	if (zdev->s390_domain)
+		zpci_unregister_ioat(zdev, 0);
 
 	zdev->dma_table = s390_domain->dma_table;
 	cc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
@@ -136,7 +139,13 @@ static int s390_iommu_attach_device(struct iommu_domain *domain,
 	return 0;
 
 out_restore:
-	zpci_dma_init_device(zdev);
+	if (!zdev->s390_domain) {
+		zpci_dma_init_device(zdev);
+	} else {
+		zdev->dma_table = zdev->s390_domain->dma_table;
+		zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
+				   virt_to_phys(zdev->dma_table));
+	}
 out_free:
 	kfree(domain_device);
 
@@ -167,7 +176,7 @@ static void s390_iommu_detach_device(struct iommu_domain *domain,
 	}
 	spin_unlock_irqrestore(&s390_domain->list_lock, flags);
 
-	if (found) {
+	if (found && (zdev->s390_domain == s390_domain)) {
 		zdev->s390_domain = NULL;
 		zpci_unregister_ioat(zdev, 0);
 		zpci_dma_init_device(zdev);

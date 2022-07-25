@@ -126,7 +126,7 @@ struct s3c_hsudc_req {
 /**
  * struct s3c_hsudc - Driver's abstraction of the device controller.
  * @gadget: Instance of usb_gadget which is referenced by gadget driver.
- * @driver: Reference to currenty active gadget driver.
+ * @driver: Reference to currently active gadget driver.
  * @dev: The device reference used by probe function.
  * @lock: Lock to synchronize the usage of Endpoints (EP's are indexed).
  * @regs: Remapped base address of controller's register space.
@@ -633,7 +633,7 @@ static void s3c_hsudc_process_setup(struct s3c_hsudc *hsudc)
 }
 
 /** s3c_hsudc_handle_ep0_intr - Handle endpoint 0 interrupt.
- * @hsudc: Device controller on which endpoint 0 interrupt has occured.
+ * @hsudc: Device controller on which endpoint 0 interrupt has occurred.
  *
  * Handle endpoint 0 interrupt when it occurs. EP0 interrupt could occur
  * when a stall handshake is sent to host or data is sent/received on

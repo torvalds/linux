@@ -44,8 +44,8 @@ static const struct spi_device_id kxsd9_spi_id[] = {
 MODULE_DEVICE_TABLE(spi, kxsd9_spi_id);
 
 static const struct of_device_id kxsd9_of_match[] = {
-        { .compatible = "kionix,kxsd9" },
-        { },
+	{ .compatible = "kionix,kxsd9" },
+	{ }
 };
 MODULE_DEVICE_TABLE(of, kxsd9_of_match);
 

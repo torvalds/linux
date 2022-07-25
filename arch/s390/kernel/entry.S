@@ -29,23 +29,6 @@
 #include <asm/export.h>
 #include <asm/nospec-insn.h>
 
-__PT_R0      =	__PT_GPRS
-__PT_R1      =	__PT_GPRS + 8
-__PT_R2      =	__PT_GPRS + 16
-__PT_R3      =	__PT_GPRS + 24
-__PT_R4      =	__PT_GPRS + 32
-__PT_R5      =	__PT_GPRS + 40
-__PT_R6      =	__PT_GPRS + 48
-__PT_R7      =	__PT_GPRS + 56
-__PT_R8      =	__PT_GPRS + 64
-__PT_R9      =	__PT_GPRS + 72
-__PT_R10     =	__PT_GPRS + 80
-__PT_R11     =	__PT_GPRS + 88
-__PT_R12     =	__PT_GPRS + 96
-__PT_R13     =	__PT_GPRS + 104
-__PT_R14     =	__PT_GPRS + 112
-__PT_R15     =	__PT_GPRS + 120
-
 STACK_SHIFT = PAGE_SHIFT + THREAD_SIZE_ORDER
 STACK_SIZE  = 1 << STACK_SHIFT
 STACK_INIT = STACK_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE
@@ -268,6 +251,10 @@ ENTRY(sie64a)
 	BPEXIT	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 .Lsie_entry:
 	sie	0(%r14)
+# Let the next instruction be NOP to avoid triggering a machine check
+# and handling it in a guest as result of the instruction execution.
+	nopr	7
+.Lsie_leave:
 	BPOFF
 	BPENTER	__SF_SIE_FLAGS(%r15),(_TIF_ISOLATE_BP|_TIF_ISOLATE_BP_GUEST)
 .Lsie_skip:
@@ -564,7 +551,7 @@ ENTRY(mcck_int_handler)
 	jno	.Lmcck_panic
 #if IS_ENABLED(CONFIG_KVM)
 	OUTSIDE	%r9,.Lsie_gmap,.Lsie_done,6f
-	OUTSIDE	%r9,.Lsie_entry,.Lsie_skip,4f
+	OUTSIDE	%r9,.Lsie_entry,.Lsie_leave,4f
 	oi	__LC_CPU_FLAGS+7, _CIF_MCCK_GUEST
 	j	5f
 4:	CHKSTG	.Lmcck_panic

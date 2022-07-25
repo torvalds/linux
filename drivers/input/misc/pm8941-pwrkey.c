@@ -57,7 +57,6 @@ struct pm8941_data {
 	unsigned int	status_bit;
 	bool		supports_ps_hold_poff_config;
 	bool		supports_debounce_config;
-	bool		needs_sw_debounce;
 	bool		has_pon_pbs;
 	const char	*name;
 	const char	*phys;
@@ -77,7 +76,7 @@ struct pm8941_pwrkey {
 
 	u32 code;
 	u32 sw_debounce_time_us;
-	ktime_t last_release_time;
+	ktime_t sw_debounce_end_time;
 	bool last_status;
 	const struct pm8941_data *data;
 };
@@ -148,28 +147,26 @@ static irqreturn_t pm8941_pwrkey_irq(int irq, void *_data)
 {
 	struct pm8941_pwrkey *pwrkey = _data;
 	unsigned int sts;
-	int error;
-	u64 elapsed_us;
+	int err;
 
 	if (pwrkey->sw_debounce_time_us) {
-		elapsed_us = ktime_us_delta(ktime_get(),
-					    pwrkey->last_release_time);
-		if (elapsed_us < pwrkey->sw_debounce_time_us) {
-			dev_dbg(pwrkey->dev, "ignoring key event received after %llu us, debounce time=%u us\n",
-				elapsed_us, pwrkey->sw_debounce_time_us);
+		if (ktime_before(ktime_get(), pwrkey->sw_debounce_end_time)) {
+			dev_dbg(pwrkey->dev,
+				"ignoring key event received before debounce end %llu us\n",
+				pwrkey->sw_debounce_end_time);
 			return IRQ_HANDLED;
 		}
 	}
 
-	error = regmap_read(pwrkey->regmap,
-			    pwrkey->baseaddr + PON_RT_STS, &sts);
-	if (error)
+	err = regmap_read(pwrkey->regmap, pwrkey->baseaddr + PON_RT_STS, &sts);
+	if (err)
 		return IRQ_HANDLED;
 
 	sts &= pwrkey->data->status_bit;
 
 	if (pwrkey->sw_debounce_time_us && !sts)
-		pwrkey->last_release_time = ktime_get();
+		pwrkey->sw_debounce_end_time = ktime_add_us(ktime_get(),
+						pwrkey->sw_debounce_time_us);
 
 	/*
 	 * Simulate a press event in case a release event occurred without a
@@ -189,11 +186,12 @@ static irqreturn_t pm8941_pwrkey_irq(int irq, void *_data)
 
 static int pm8941_pwrkey_sw_debounce_init(struct pm8941_pwrkey *pwrkey)
 {
-	unsigned int val, addr;
+	unsigned int val, addr, mask;
 	int error;
 
 	if (pwrkey->data->has_pon_pbs && !pwrkey->pon_pbs_baseaddr) {
-		dev_err(pwrkey->dev, "PON_PBS address missing, can't read HW debounce time\n");
+		dev_err(pwrkey->dev,
+			"PON_PBS address missing, can't read HW debounce time\n");
 		return 0;
 	}
 
@@ -206,11 +204,12 @@ static int pm8941_pwrkey_sw_debounce_init(struct pm8941_pwrkey *pwrkey)
 		return error;
 
 	if (pwrkey->subtype >= PON_SUBTYPE_GEN2_PRIMARY)
-		pwrkey->sw_debounce_time_us = 2 * USEC_PER_SEC /
-						(1 << (0xf - (val & 0xf)));
+		mask = 0xf;
 	else
-		pwrkey->sw_debounce_time_us = 2 * USEC_PER_SEC /
-						(1 << (0x7 - (val & 0x7)));
+		mask = 0x7;
+
+	pwrkey->sw_debounce_time_us =
+		2 * USEC_PER_SEC / (1 << (mask - (val & mask)));
 
 	dev_dbg(pwrkey->dev, "SW debounce time = %u us\n",
 		pwrkey->sw_debounce_time_us);
@@ -294,13 +293,13 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "reg property missing\n");
 		return -EINVAL;
 	}
-	pwrkey->baseaddr = be32_to_cpu(*addr);
+	pwrkey->baseaddr = be32_to_cpup(addr);
 
 	if (pwrkey->data->has_pon_pbs) {
 		/* PON_PBS base address is optional */
 		addr = of_get_address(regmap_node, 1, NULL, NULL);
 		if (addr)
-			pwrkey->pon_pbs_baseaddr = be32_to_cpu(*addr);
+			pwrkey->pon_pbs_baseaddr = be32_to_cpup(addr);
 	}
 
 	pwrkey->irq = platform_get_irq(pdev, 0);
@@ -355,11 +354,9 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 		}
 	}
 
-	if (pwrkey->data->needs_sw_debounce) {
-		error = pm8941_pwrkey_sw_debounce_init(pwrkey);
-		if (error)
-			return error;
-	}
+	error = pm8941_pwrkey_sw_debounce_init(pwrkey);
+	if (error)
+		return error;
 
 	if (pwrkey->data->pull_up_bit) {
 		error = regmap_update_bits(pwrkey->regmap,
@@ -422,7 +419,6 @@ static const struct pm8941_data pwrkey_data = {
 	.phys = "pm8941_pwrkey/input0",
 	.supports_ps_hold_poff_config = true,
 	.supports_debounce_config = true,
-	.needs_sw_debounce = true,
 	.has_pon_pbs = false,
 };
 
@@ -433,7 +429,6 @@ static const struct pm8941_data resin_data = {
 	.phys = "pm8941_resin/input0",
 	.supports_ps_hold_poff_config = true,
 	.supports_debounce_config = true,
-	.needs_sw_debounce = true,
 	.has_pon_pbs = false,
 };
 
@@ -443,7 +438,6 @@ static const struct pm8941_data pon_gen3_pwrkey_data = {
 	.phys = "pmic_pwrkey/input0",
 	.supports_ps_hold_poff_config = false,
 	.supports_debounce_config = false,
-	.needs_sw_debounce = true,
 	.has_pon_pbs = true,
 };
 
@@ -453,7 +447,6 @@ static const struct pm8941_data pon_gen3_resin_data = {
 	.phys = "pmic_resin/input0",
 	.supports_ps_hold_poff_config = false,
 	.supports_debounce_config = false,
-	.needs_sw_debounce = true,
 	.has_pon_pbs = true,
 };
 

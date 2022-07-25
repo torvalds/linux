@@ -1372,6 +1372,7 @@ static int parse_ids(bool metric_no_merge, struct perf_pmu *fake_pmu,
 
 	*out_evlist = NULL;
 	if (!metric_no_merge || hashmap__size(ids->ids) == 0) {
+		bool added_event = false;
 		int i;
 		/*
 		 * We may fail to share events between metrics because a tool
@@ -1393,7 +1394,15 @@ static int parse_ids(bool metric_no_merge, struct perf_pmu *fake_pmu,
 				if (!tmp)
 					return -ENOMEM;
 				ids__insert(ids->ids, tmp);
+				added_event = true;
 			}
+		}
+		if (!added_event && hashmap__size(ids->ids) == 0) {
+			char *tmp = strdup("duration_time");
+
+			if (!tmp)
+				return -ENOMEM;
+			ids__insert(ids->ids, tmp);
 		}
 	}
 	ret = metricgroup__build_event_string(&events, ids, modifier,

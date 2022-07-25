@@ -23,7 +23,6 @@
 #include <linux/highmem.h>
 #include <linux/memblock.h>
 
-#include <asm/prom.h>
 #include <asm/mmu.h>
 #include <asm/machdep.h>
 #include <asm/code-patching.h>

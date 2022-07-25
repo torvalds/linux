@@ -110,7 +110,7 @@ static int smsc_phy_config_init(struct phy_device *phydev)
 	struct smsc_phy_priv *priv = phydev->priv;
 	int rc;
 
-	if (!priv->energy_enable)
+	if (!priv->energy_enable || phydev->irq != PHY_POLL)
 		return 0;
 
 	rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
@@ -210,6 +210,8 @@ static int lan95xx_config_aneg_ext(struct phy_device *phydev)
  * response on link pulses to detect presence of plugged Ethernet cable.
  * The Energy Detect Power-Down mode is enabled again in the end of procedure to
  * save approximately 220 mW of power if cable is unplugged.
+ * The workaround is only applicable to poll mode. Energy Detect Power-Down may
+ * not be used in interrupt mode lest link change detection becomes unreliable.
  */
 static int lan87xx_read_status(struct phy_device *phydev)
 {
@@ -217,7 +219,7 @@ static int lan87xx_read_status(struct phy_device *phydev)
 
 	int err = genphy_read_status(phydev);
 
-	if (!phydev->link && priv->energy_enable) {
+	if (!phydev->link && priv->energy_enable && phydev->irq == PHY_POLL) {
 		/* Disable EDPD to wake up PHY */
 		int rc = phy_read(phydev, MII_LAN83C185_CTRL_STATUS);
 		if (rc < 0)

@@ -163,7 +163,7 @@ extra_header_fields:
 	.long	0x200				# SizeOfHeaders
 	.long	0				# CheckSum
 	.word	IMAGE_SUBSYSTEM_EFI_APPLICATION	# Subsystem (EFI application)
-#ifdef CONFIG_DXE_MEM_ATTRIBUTES
+#ifdef CONFIG_EFI_DXE_MEM_ATTRIBUTES
 	.word	IMAGE_DLL_CHARACTERISTICS_NX_COMPAT	# DllCharacteristics
 #else
 	.word	0				# DllCharacteristics

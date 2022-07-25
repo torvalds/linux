@@ -24,7 +24,7 @@
 struct qcom_icc_provider {
 	struct icc_provider provider;
 	struct device *dev;
-	struct qcom_icc_bcm **bcms;
+	struct qcom_icc_bcm * const *bcms;
 	size_t num_bcms;
 	struct list_head probe_list;
 	struct regmap *regmap;
@@ -137,9 +137,9 @@ struct qcom_icc_fabric {
 
 struct qcom_icc_desc {
 	const struct regmap_config *config;
-	struct qcom_icc_node **nodes;
+	struct qcom_icc_node * const *nodes;
 	size_t num_nodes;
-	struct qcom_icc_bcm **bcms;
+	struct qcom_icc_bcm * const *bcms;
 	size_t num_bcms;
 	char **voters;
 	size_t num_voters;

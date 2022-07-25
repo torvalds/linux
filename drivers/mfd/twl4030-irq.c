@@ -753,14 +753,11 @@ fail:
 	return status;
 }
 
-int twl4030_exit_irq(void)
+void twl4030_exit_irq(void)
 {
 	/* FIXME undo twl_init_irq() */
-	if (twl4030_irq_base) {
+	if (twl4030_irq_base)
 		pr_err("twl4030: can't yet clean up IRQs?\n");
-		return -ENOSYS;
-	}
-	return 0;
 }
 
 int twl4030_init_chip_irq(const char *chip)

@@ -1095,11 +1095,6 @@ static struct mlx5_ib_flow_handler *_create_flow_rule(struct mlx5_ib_dev *dev,
 
 	spec->match_criteria_enable = get_match_criteria_enable(spec->match_criteria);
 
-	if (is_egress) {
-		err = -EINVAL;
-		goto free;
-	}
-
 	if (flow_act.action & MLX5_FLOW_CONTEXT_ACTION_COUNT) {
 		struct mlx5_ib_mcounters *mcounters;
 

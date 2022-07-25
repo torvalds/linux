@@ -227,6 +227,7 @@ struct page {
  * struct folio - Represents a contiguous set of bytes.
  * @flags: Identical to the page flags.
  * @lru: Least Recently Used list; tracks how recently this folio was used.
+ * @mlock_count: Number of times this folio has been pinned by mlock().
  * @mapping: The file this page belongs to, or refers to the anon_vma for
  *    anonymous memory.
  * @index: Offset within the file, in units of pages.  For anonymous memory,
@@ -255,10 +256,14 @@ struct folio {
 			unsigned long flags;
 			union {
 				struct list_head lru;
+	/* private: avoid cluttering the output */
 				struct {
 					void *__filler;
+	/* public: */
 					unsigned int mlock_count;
+	/* private: */
 				};
+	/* public: */
 			};
 			struct address_space *mapping;
 			pgoff_t index;

@@ -13,7 +13,6 @@
 #include <trace/hooks/fpsimd.h>
 #include <trace/hooks/binder.h>
 #include <trace/hooks/cpuidle.h>
-#include <trace/hooks/topology.h>
 #include <trace/hooks/mpam.h>
 #include <trace/hooks/wqlockup.h>
 #include <trace/hooks/debug.h>
@@ -33,8 +32,6 @@
 #include <trace/hooks/vmscan.h>
 #include <trace/hooks/avc.h>
 #include <trace/hooks/creds.h>
-#include <trace/hooks/memory.h>
-#include <trace/hooks/module.h>
 #include <trace/hooks/selinux.h>
 #include <trace/hooks/syscall_check.h>
 
@@ -55,7 +52,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_prepare_prio_fork);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_finish_prio_fork);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_set_user_nice);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_setscheduler);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_arch_set_freq_scale);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_is_fpsimd_save);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_transaction_init);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_set_priority);
@@ -125,7 +121,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_replace_next_task_fair);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_binder_wait_for_work);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_sync_txn_recvd);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_build_sched_domains);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_update_topology_flags_workfn);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_sched_balance_rt);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_pick_next_entity);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_check_preempt_wakeup);
@@ -148,10 +143,6 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_commit_creds);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_exit_creds);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_override_creds);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_revert_creds);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_memory_nx);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_memory_rw);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_module_permit_before_init);
-EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_set_module_permit_after_init);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_rvh_selinux_is_initialized);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_mmap_file);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_check_file_open);

@@ -497,7 +497,7 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 			   struct snd_soc_dai *dai)
 {
 	int ret;
-	struct gbaudio_module_info *module;
+	struct gbaudio_module_info *module = NULL, *iter;
 	struct gbaudio_data_connection *data;
 	struct gb_bundle *bundle;
 	struct gbaudio_codec_info *codec = dev_get_drvdata(dai->dev);
@@ -511,11 +511,13 @@ static int gbcodec_prepare(struct snd_pcm_substream *substream,
 		return -ENODEV;
 	}
 
-	list_for_each_entry(module, &codec->module_list, list) {
+	list_for_each_entry(iter, &codec->module_list, list) {
 		/* find the dai */
-		data = find_data(module, dai->id);
-		if (data)
+		data = find_data(iter, dai->id);
+		if (data) {
+			module = iter;
 			break;
+		}
 	}
 	if (!data) {
 		dev_err(dai->dev, "DATA connection missing\n");
@@ -563,7 +565,7 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 {
 	int ret;
 	struct gbaudio_data_connection *data;
-	struct gbaudio_module_info *module;
+	struct gbaudio_module_info *module = NULL, *iter;
 	struct gb_bundle *bundle;
 	struct gbaudio_codec_info *codec = dev_get_drvdata(dai->dev);
 	struct gbaudio_stream_params *params;
@@ -592,15 +594,17 @@ static int gbcodec_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
 		return ret;
 	}
 
-	list_for_each_entry(module, &codec->module_list, list) {
+	list_for_each_entry(iter, &codec->module_list, list) {
 		/* find the dai */
-		data = find_data(module, dai->id);
-		if (data)
+		data = find_data(iter, dai->id);
+		if (data) {
+			module = iter;
 			break;
+		}
 	}
 	if (!data) {
-		dev_err(dai->dev, "%s:%s DATA connection missing\n",
-			dai->name, module->name);
+		dev_err(dai->dev, "%s DATA connection missing\n",
+			dai->name);
 		mutex_unlock(&codec->lock);
 		return -ENODEV;
 	}
@@ -1027,12 +1031,6 @@ static int gbcodec_probe(struct snd_soc_component *comp)
 	return 0;
 }
 
-static void gbcodec_remove(struct snd_soc_component *comp)
-{
-	/* Empty function for now */
-	return;
-}
-
 static int gbcodec_write(struct snd_soc_component *comp, unsigned int reg,
 			 unsigned int value)
 {
@@ -1047,8 +1045,6 @@ static unsigned int gbcodec_read(struct snd_soc_component *comp,
 
 static const struct snd_soc_component_driver soc_codec_dev_gbaudio = {
 	.probe	= gbcodec_probe,
-	.remove	= gbcodec_remove,
-
 	.read = gbcodec_read,
 	.write = gbcodec_write,
 };

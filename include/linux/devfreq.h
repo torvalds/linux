@@ -148,6 +148,8 @@ struct devfreq_stats {
  *		reevaluate operable frequencies. Devfreq users may use
  *		devfreq.nb to the corresponding register notifier call chain.
  * @work:	delayed work for load monitoring.
+ * @freq_table:		current frequency table used by the devfreq driver.
+ * @max_state:		count of entry present in the frequency table.
  * @previous_freq:	previously configured frequency value.
  * @last_status:	devfreq user device info, performance statistics
  * @data:	Private data of the governor. The devfreq framework does not
@@ -184,6 +186,9 @@ struct devfreq {
 	struct opp_table *opp_table;
 	struct notifier_block nb;
 	struct delayed_work work;
+
+	unsigned long *freq_table;
+	unsigned int max_state;
 
 	unsigned long previous_freq;
 	struct devfreq_dev_status last_status;

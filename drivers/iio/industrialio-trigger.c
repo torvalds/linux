@@ -444,7 +444,7 @@ static ssize_t iio_trigger_write_current(struct device *dev,
 	int ret;
 
 	mutex_lock(&indio_dev->mlock);
-	if (indio_dev->currentmode == INDIO_BUFFER_TRIGGERED) {
+	if (iio_dev_opaque->currentmode == INDIO_BUFFER_TRIGGERED) {
 		mutex_unlock(&indio_dev->mlock);
 		return -EBUSY;
 	}

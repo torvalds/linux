@@ -11,6 +11,7 @@
 #include <linux/clkdev.h>
 #include <linux/io.h>
 #include <linux/of.h>
+#include <linux/soc/pxa/smemc.h>
 
 #include <dt-bindings/clock/pxa-clock.h>
 #include "clk-pxa.h"
@@ -94,7 +95,8 @@ void __init clkdev_pxa_register(int ckid, const char *con_id,
 		clk_register_clkdev(clk, con_id, dev_id);
 }
 
-int __init clk_pxa_cken_init(const struct desc_clk_cken *clks, int nb_clks)
+int __init clk_pxa_cken_init(const struct desc_clk_cken *clks,
+			     int nb_clks, void __iomem *clk_regs)
 {
 	int i;
 	struct pxa_clk *pxa_clk;
@@ -106,6 +108,7 @@ int __init clk_pxa_cken_init(const struct desc_clk_cken *clks, int nb_clks)
 		pxa_clk->lp = clks[i].lp;
 		pxa_clk->hp = clks[i].hp;
 		pxa_clk->gate = clks[i].gate;
+		pxa_clk->gate.reg = clk_regs + clks[i].cken_reg;
 		pxa_clk->gate.lock = &pxa_clk_lock;
 		clk = clk_register_composite(NULL, clks[i].name,
 					     clks[i].parent_names, 2,
@@ -150,12 +153,13 @@ void pxa2xx_core_turbo_switch(bool on)
 }
 
 void pxa2xx_cpll_change(struct pxa2xx_freq *freq,
-			u32 (*mdrefr_dri)(unsigned int), void __iomem *mdrefr,
+			u32 (*mdrefr_dri)(unsigned int),
 			void __iomem *cccr)
 {
 	unsigned int clkcfg = freq->clkcfg;
 	unsigned int unused, preset_mdrefr, postset_mdrefr;
 	unsigned long flags;
+	void __iomem *mdrefr = pxa_smemc_get_mdrefr();
 
 	local_irq_save(flags);
 

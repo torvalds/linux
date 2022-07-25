@@ -7,6 +7,7 @@
 /dts-v1/;
 
 #include "stm32mp157a-dk1.dts"
+#include "stm32mp15-scmi.dtsi"
 
 / {
 	model = "STMicroelectronics STM32MP157A-DK1 SCMI Discovery Board";
@@ -26,6 +27,10 @@
 
 &cpu1 {
 	clocks = <&scmi_clk CK_SCMI_MPU>;
+};
+
+&dsi {
+	clocks = <&rcc DSI_K>, <&scmi_clk CK_SCMI_HSE>, <&rcc DSI_PX>;
 };
 
 &gpioz {
@@ -54,10 +59,6 @@
 	resets = <&scmi_reset RST_SCMI_MCU>;
 };
 
-&optee {
-	status = "okay";
-};
-
 &rcc {
 	compatible = "st,stm32mp1-rcc-secure", "syscon";
 	clock-names = "hse", "hsi", "csi", "lse", "lsi";
@@ -75,12 +76,4 @@
 
 &rtc {
 	clocks = <&scmi_clk CK_SCMI_RTCAPB>, <&scmi_clk CK_SCMI_RTC>;
-};
-
-&scmi {
-	status = "okay";
-};
-
-&scmi_shm {
-	status = "okay";
 };

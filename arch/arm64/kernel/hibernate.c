@@ -427,7 +427,7 @@ int swsusp_arch_resume(void)
 		return rc;
 
 	/*
-	 * We need a zero page that is zero before & after resume in order to
+	 * We need a zero page that is zero before & after resume in order
 	 * to break before make on the ttbr1 page tables.
 	 */
 	zero_page = (void *)get_safe_page(GFP_ATOMIC);

@@ -308,19 +308,19 @@
 	extcon = <&typec>;
 
 	qcom,select-utmi-as-pipe-clk;
+};
 
-	dwc3@6a00000 {
-		extcon = <&typec>;
+&usb3_dwc3 {
+	extcon = <&typec>;
 
-		/* usb3-phy is not used on this device */
-		phys = <&hsusb_phy1>;
-		phy-names = "usb2-phy";
+	/* usb3-phy is not used on this device */
+	phys = <&hsusb_phy1>;
+	phy-names = "usb2-phy";
 
-		maximum-speed = "high-speed";
-		snps,is-utmi-l1-suspend;
-		snps,usb2-gadget-lpm-disable;
-		snps,hird-threshold = /bits/ 8 <0>;
-	};
+	maximum-speed = "high-speed";
+	snps,is-utmi-l1-suspend;
+	snps,usb2-gadget-lpm-disable;
+	snps,hird-threshold = /bits/ 8 <0>;
 };
 
 &hsusb_phy1 {

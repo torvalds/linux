@@ -44,7 +44,7 @@ void dump_chip_info(struct HAL_VERSION	chip_vers)
 
 	cnt += sprintf((buf + cnt), "1T1R_");
 
-	cnt += sprintf((buf + cnt), "RomVer(%d)\n", chip_vers.ROMVer);
+	cnt += sprintf((buf + cnt), "RomVer(%d)\n", 0);
 
 	pr_info("%s", buf);
 }
@@ -267,7 +267,7 @@ static void three_out_pipe(struct adapter *adapter, bool wifi_cfg)
 bool Hal_MappingOutPipe(struct adapter *adapter, u8 numoutpipe)
 {
 	struct registry_priv *pregistrypriv = &adapter->registrypriv;
-	bool  wifi_cfg = (pregistrypriv->wifi_spec) ? true : false;
+	bool wifi_cfg = pregistrypriv->wifi_spec;
 	bool result = true;
 
 	switch (numoutpipe) {

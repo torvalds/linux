@@ -359,7 +359,7 @@ static void __init radix_init_pgtable(void)
 	if (!cpu_has_feature(CPU_FTR_HVMODE) &&
 			cpu_has_feature(CPU_FTR_P9_RADIX_PREFETCH_BUG)) {
 		/*
-		 * Older versions of KVM on these machines perfer if the
+		 * Older versions of KVM on these machines prefer if the
 		 * guest only uses the low 19 PID bits.
 		 */
 		mmu_pid_bits = 19;

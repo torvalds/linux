@@ -438,7 +438,7 @@ int ext4_ext_migrate(struct inode *inode)
 
 	/*
 	 * Worst case we can touch the allocation bitmaps and a block
-	 * group descriptor block.  We do need need to worry about
+	 * group descriptor block.  We do need to worry about
 	 * credits for modifying the quota inode.
 	 */
 	handle = ext4_journal_start(inode, EXT4_HT_MIGRATE,

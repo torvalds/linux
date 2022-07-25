@@ -32,7 +32,6 @@
 #include <linux/hugetlb.h>
 
 #include <asm/page.h>
-#include <asm/prom.h>
 #include <asm/mmu_context.h>
 #include <asm/mmu.h>
 #include <asm/smp.h>

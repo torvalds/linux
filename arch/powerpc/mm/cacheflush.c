@@ -12,7 +12,7 @@ static inline bool flush_coherent_icache(void)
 	/*
 	 * For a snooping icache, we still need a dummy icbi to purge all the
 	 * prefetched instructions from the ifetch buffers. We also need a sync
-	 * before the icbi to order the the actual stores to memory that might
+	 * before the icbi to order the actual stores to memory that might
 	 * have modified instructions with the icbi.
 	 */
 	if (cpu_has_feature(CPU_FTR_COHERENT_ICACHE)) {

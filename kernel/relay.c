@@ -440,7 +440,7 @@ int relay_prepare_cpu(unsigned int cpu)
 
 	mutex_lock(&relay_channels_mutex);
 	list_for_each_entry(chan, &relay_channels, list) {
-		if ((buf = *per_cpu_ptr(chan->buf, cpu)))
+		if (*per_cpu_ptr(chan->buf, cpu))
 			continue;
 		buf = relay_open_buf(chan, cpu);
 		if (!buf) {

@@ -162,7 +162,7 @@ while [ "$#" -gt 0 ]; do
 	fi
 	;;
     --no-gzip)
-        # a "feature" of the the wrapper script is that it can be used outside
+        # a "feature" of the wrapper script is that it can be used outside
         # the kernel tree. So keeping this around for backwards compatibility.
         compression=
 	uboot_comp=none

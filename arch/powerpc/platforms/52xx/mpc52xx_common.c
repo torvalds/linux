@@ -15,11 +15,11 @@
 #include <linux/gpio.h>
 #include <linux/kernel.h>
 #include <linux/spinlock.h>
+#include <linux/of_address.h>
 #include <linux/of_platform.h>
 #include <linux/of_gpio.h>
 #include <linux/export.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/mpc52xx.h>
 
 /* MPC5200 device tree match tables */
@@ -308,7 +308,7 @@ int mpc5200_psc_ac97_gpio_reset(int psc_number)
 
 	spin_lock_irqsave(&gpio_lock, flags);
 
-	/* Reconfiure pin-muxing to gpio */
+	/* Reconfigure pin-muxing to gpio */
 	mux = in_be32(&simple_gpio->port_config);
 	out_be32(&simple_gpio->port_config, mux & (~gpio));
 

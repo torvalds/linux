@@ -22,6 +22,8 @@
 #ifndef SMU_13_0_7_PPTABLE_H
 #define SMU_13_0_7_PPTABLE_H
 
+#pragma pack(push, 1)
+
 #define SMU_13_0_7_TABLE_FORMAT_REVISION 15
 
 //// POWERPLAYTABLE::ulPlatformCaps
@@ -194,7 +196,8 @@ struct smu_13_0_7_powerplay_table
     struct smu_13_0_7_overdrive_table overdrive_table;
     uint8_t padding1;
     PPTable_t smc_pptable; //PPTable_t in driver_if.h
-} __attribute__((packed));
+};
 
+#pragma pack(pop)
 
 #endif

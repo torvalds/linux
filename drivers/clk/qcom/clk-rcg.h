@@ -145,6 +145,7 @@ extern const struct clk_ops clk_dyn_rcg_ops;
  * @clkr: regmap clock handle
  * @cfg_off: defines the cfg register offset from the CMD_RCGR + CFG_REG
  * @flags: additional flag parameters for the RCG
+ * @parked_cfg: cached value of the CFG register for parked RCGs
  */
 struct clk_rcg2 {
 	u32			cmd_rcgr;
@@ -161,6 +162,7 @@ struct clk_rcg2 {
 #define FORCE_ENABLE_RCG	BIT(0)
 #define HW_CLK_CTRL_MODE	BIT(1)
 #define DFS_SUPPORT		BIT(2)
+	u32			parked_cfg;
 };
 
 #define to_clk_rcg2(_hw) container_of(to_clk_regmap(_hw), struct clk_rcg2, clkr)

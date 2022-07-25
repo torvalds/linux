@@ -567,6 +567,7 @@ int amdgpu_bo_create(struct amdgpu_device *adev,
 		bp->domain;
 	bo->allowed_domains = bo->preferred_domains;
 	if (bp->type != ttm_bo_type_kernel &&
+	    !(bp->flags & AMDGPU_GEM_CREATE_DISCARDABLE) &&
 	    bo->allowed_domains == AMDGPU_GEM_DOMAIN_VRAM)
 		bo->allowed_domains |= AMDGPU_GEM_DOMAIN_GTT;
 
@@ -1018,7 +1019,9 @@ static const char *amdgpu_vram_names[] = {
 	"DDR3",
 	"DDR4",
 	"GDDR6",
-	"DDR5"
+	"DDR5",
+	"LPDDR4",
+	"LPDDR5"
 };
 
 /**

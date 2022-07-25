@@ -38,6 +38,7 @@ static inline void smp_init_pseries(void) { }
 #endif
 
 extern void pseries_kexec_cpu_down(int crash_shutdown, int secondary);
+void pseries_machine_kexec(struct kimage *image);
 
 extern void pSeries_final_fixup(void);
 
@@ -120,5 +121,7 @@ void pseries_lpar_read_hblkrm_characteristics(void);
 #else
 static inline void pseries_lpar_read_hblkrm_characteristics(void) { }
 #endif
+
+void pseries_rng_init(void);
 
 #endif /* _PSERIES_PSERIES_H */

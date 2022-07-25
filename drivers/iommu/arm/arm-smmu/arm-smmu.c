@@ -2616,6 +2616,10 @@ static int arm_smmu_def_domain_type(struct device *dev)
 		return 0;
 
 	impl = cfg->smmu->impl;
+
+	if (using_legacy_binding)
+		return IOMMU_DOMAIN_IDENTITY;
+
 	if (impl && impl->def_domain_type)
 		return impl->def_domain_type(dev);
 
@@ -3463,11 +3467,10 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 	if (err)
 		return err;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ioaddr = res->start;
-	smmu->base = devm_ioremap_resource(dev, res);
+	smmu->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(smmu->base))
 		return PTR_ERR(smmu->base);
+	ioaddr = res->start;
 	/*
 	 * The resource size should effectively match the value of SMMU_TOP;
 	 * stash that temporarily until we know PAGESIZE to validate it with.

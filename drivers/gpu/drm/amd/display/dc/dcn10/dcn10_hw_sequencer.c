@@ -2550,12 +2550,21 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 	blnd_cfg.overlap_only = false;
 	blnd_cfg.global_gain = 0xff;
 
-	if (per_pixel_alpha && pipe_ctx->plane_state->global_alpha) {
-		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA_COMBINED_GLOBAL_GAIN;
-		blnd_cfg.global_gain = pipe_ctx->plane_state->global_alpha_value;
-	} else if (per_pixel_alpha) {
-		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
+	if (per_pixel_alpha) {
+		/* DCN1.0 has output CM before MPC which seems to screw with
+		 * pre-multiplied alpha.
+		 */
+		blnd_cfg.pre_multiplied_alpha = (is_rgb_cspace(
+				pipe_ctx->stream->output_color_space)
+						&& pipe_ctx->plane_state->pre_multiplied_alpha);
+		if (pipe_ctx->plane_state->global_alpha) {
+			blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA_COMBINED_GLOBAL_GAIN;
+			blnd_cfg.global_gain = pipe_ctx->plane_state->global_alpha_value;
+		} else {
+			blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_PER_PIXEL_ALPHA;
+		}
 	} else {
+		blnd_cfg.pre_multiplied_alpha = false;
 		blnd_cfg.alpha_mode = MPCC_ALPHA_BLEND_MODE_GLOBAL_ALPHA;
 	}
 
@@ -2563,14 +2572,6 @@ void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
 		blnd_cfg.global_alpha = pipe_ctx->plane_state->global_alpha_value;
 	else
 		blnd_cfg.global_alpha = 0xff;
-
-	/* DCN1.0 has output CM before MPC which seems to screw with
-	 * pre-multiplied alpha.
-	 */
-	blnd_cfg.pre_multiplied_alpha = is_rgb_cspace(
-			pipe_ctx->stream->output_color_space)
-					&& per_pixel_alpha;
-
 
 	/*
 	 * TODO: remove hack

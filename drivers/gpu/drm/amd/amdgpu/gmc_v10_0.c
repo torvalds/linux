@@ -613,6 +613,9 @@ static void gmc_v10_0_get_vm_pte(struct amdgpu_device *adev,
 	*flags &= ~AMDGPU_PTE_MTYPE_NV10_MASK;
 	*flags |= (mapping->flags & AMDGPU_PTE_MTYPE_NV10_MASK);
 
+	*flags &= ~AMDGPU_PTE_NOALLOC;
+	*flags |= (mapping->flags & AMDGPU_PTE_NOALLOC);
+
 	if (mapping->flags & AMDGPU_PTE_PRT) {
 		*flags |= AMDGPU_PTE_PRT;
 		*flags |= AMDGPU_PTE_SNOOPED;

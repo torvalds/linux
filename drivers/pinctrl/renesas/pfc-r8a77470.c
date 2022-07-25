@@ -2485,16 +2485,11 @@ static const struct sh_pfc_function pinmux_functions[] = {
 };
 
 static const struct pinmux_cfg_reg pinmux_config_regs[] = {
-	{ PINMUX_CFG_REG("GPSR0", 0xE6060004, 32, 1, GROUP(
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("GPSR0", 0xE6060004, 32,
+			     GROUP(-9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+			     GROUP(
+		/* GP0_31_23 RESERVED */
 		GP_0_22_FN, FN_MMC0_D7,
 		GP_0_21_FN, FN_MMC0_D6,
 		GP_0_20_FN, FN_IP1_7_4,
@@ -2519,16 +2514,11 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_0_1_FN, FN_USB0_OVC,
 		GP_0_0_FN, FN_USB0_PWEN, ))
 	},
-	{ PINMUX_CFG_REG("GPSR1", 0xE6060008, 32, 1, GROUP(
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("GPSR1", 0xE6060008, 32,
+			     GROUP(-9, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
+				   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+			     GROUP(
+		/* GP1_31_23 RESERVED */
 		GP_1_22_FN, FN_IP4_3_0,
 		GP_1_21_FN, FN_IP3_31_28,
 		GP_1_20_FN, FN_IP3_27_24,
@@ -2587,22 +2577,15 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_2_1_FN, FN_IP4_11_8,
 		GP_2_0_FN, FN_IP4_7_4, ))
 	},
-	{ PINMUX_CFG_REG("GPSR3", 0xE6060010, 32, 1, GROUP(
-		0, 0,
-		0, 0,
+	{ PINMUX_CFG_REG_VAR("GPSR3", 0xE6060010, 32,
+			     GROUP(-2, 1, 1, -10, 1, 1, 1, 1, 1, 1, 1, 1,
+				   1, 1, 1, 1, 1, 1, 1, 1, 1, 1),
+			     GROUP(
+		/* GP3_31_30 RESERVED */
 		GP_3_29_FN, FN_IP10_19_16,
 		GP_3_28_FN, FN_IP10_15_12,
 		GP_3_27_FN, FN_IP10_11_8,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
-		0, 0,
+		/* GP3_26_17 RESERVED */
 		GP_3_16_FN, FN_IP10_7_4,
 		GP_3_15_FN, FN_IP10_3_0,
 		GP_3_14_FN, FN_IP9_31_28,
@@ -2689,9 +2672,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		GP_5_1_FN, FN_IP14_3_0,
 		GP_5_0_FN, FN_IP13_31_28, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR0", 0xE6060040, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR0", 0xE6060040, 32, 4, GROUP(
 		/* IP0_31_28 [4] */
 		FN_SD0_WP, FN_IRQ7, FN_CAN0_TX_A, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -2717,9 +2698,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_SD0_CLK, 0, 0, FN_SSI_SCK1_C, FN_RX3_C, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR1", 0xE6060044, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR1", 0xE6060044, 32, 4, GROUP(
 		/* IP1_31_28 [4] */
 		FN_D5, FN_HRX2, FN_SCL1_B, FN_PWM2_C, FN_TCLK2_B, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -2745,9 +2724,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_MMC0_D4, FN_SD1_CD, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR2", 0xE6060048, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR2", 0xE6060048, 32, 4, GROUP(
 		/* IP2_31_28 [4] */
 		FN_D13, FN_MSIOF2_SYNC_A, 0, FN_RX4_C, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0,
@@ -2773,9 +2750,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_D6, FN_HTX2, FN_SDA1_B, FN_PWM4_C, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR3", 0xE606004C, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR3", 0xE606004C, 32, 4, GROUP(
 		/* IP3_31_28 [4] */
 		FN_QSPI0_SSL, FN_WE1_N, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
 		0, 0,
@@ -2802,9 +2777,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, FN_AVB_AVTP_CAPTURE_A,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR4", 0xE6060050, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR4", 0xE6060050, 32, 4, GROUP(
 		/* IP4_31_28 [4] */
 		FN_DU0_DR6, 0, FN_RX2_C, 0, 0, 0, FN_A6, 0,
 		0, 0, 0, 0, 0, 0, 0, 0,
@@ -2830,9 +2803,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_EX_WAIT0, FN_CAN_CLK_B, FN_SCIF_CLK_A, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR5", 0xE6060054, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR5", 0xE6060054, 32, 4, GROUP(
 		/* IP5_31_28 [4] */
 		FN_DU0_DG6, 0, FN_HRX1_C, 0, 0, 0, FN_A14,  0, 0, 0,
 		0, 0, 0, 0, 0, 0,
@@ -2858,9 +2829,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_DU0_DR7, 0, FN_TX2_C, 0, FN_PWM2_B, 0, FN_A7, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR6", 0xE6060058, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR6", 0xE6060058, 32, 4, GROUP(
 		/* IP6_31_28 [4] */
 		FN_DU0_DB6, 0, 0, 0, 0, 0, FN_A22, 0, 0,
 		0, 0, 0, 0, 0, 0, 0,
@@ -2886,9 +2855,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_DU0_DG7, 0, FN_HTX1_C, 0,  FN_PWM6_B, 0, FN_A15,
 		0, 0, 0, 0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR7", 0xE606005C, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR7", 0xE606005C, 32, 4, GROUP(
 		/* IP7_31_28 [4] */
 		FN_DU0_DISP, 0, 0, 0, FN_CAN1_RX_C, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
@@ -2914,9 +2881,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_DU0_DB7, 0, 0, 0, 0, 0, FN_A23, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR8", 0xE6060060, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR8", 0xE6060060, 32, 4, GROUP(
 		/* IP8_31_28 [4] */
 		FN_VI1_DATA5, 0, 0, 0, FN_AVB_RXD4, FN_ETH_LINK, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0,
@@ -2942,9 +2907,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_DU0_CDE, 0, 0, 0, FN_CAN1_TX_C, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR9", 0xE6060064, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR9", 0xE6060064, 32, 4, GROUP(
 		/* IP9_31_28 [4] */
 		FN_VI1_DATA9, 0, 0, FN_SDA2_B, FN_AVB_TXD0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
@@ -2970,9 +2933,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_VI1_DATA6, 0, 0, 0, FN_AVB_RXD5, FN_ETH_TXD1, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR10", 0xE6060068, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR10", 0xE6060068, 32, 4, GROUP(
 		/* IP10_31_28 [4] */
 		FN_SCL1_A, FN_RX4_A, FN_PWM5_D, FN_DU1_DR0, 0, 0,
 		FN_SSI_SCK6_B, FN_VI0_G0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -2999,9 +2960,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_VI1_DATA10, 0, 0, FN_CAN0_RX_B, FN_AVB_TXD1, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR11", 0xE606006C, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR11", 0xE606006C, 32, 4, GROUP(
 		/* IP11_31_28 [4] */
 		FN_HRX1_A, FN_SCL4_A, FN_PWM6_A, FN_DU1_DG0, FN_RX0_A, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3031,9 +2990,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_SDA1_A, FN_TX4_A, 0, FN_DU1_DR1, 0, 0, FN_SSI_WS6_B,
 		FN_VI0_G1, 0, 0, 0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR12", 0xE6060070, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR12", 0xE6060070, 32, 4, GROUP(
 		/* IP12_31_28 [4] */
 		FN_SD2_DAT2, FN_RX2_A, 0, FN_DU1_DB0, FN_SSI_SDATA2_B, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3059,9 +3016,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_HTX1_A, FN_SDA4_A, 0, FN_DU1_DG1, FN_TX0_A, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR13", 0xE6060074, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR13", 0xE6060074, 32, 4, GROUP(
 		/* IP13_31_28 [4] */
 		FN_SSI_SCK5_A, 0, 0, FN_DU1_DOTCLKOUT1, 0, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0,
@@ -3088,9 +3043,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_SD2_DAT3, FN_TX2_A, 0, FN_DU1_DB1, FN_SSI_WS9_B, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR14", 0xE6060078, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR14", 0xE6060078, 32, 4, GROUP(
 		/* IP14_31_28 [4] */
 		FN_SSI_SDATA7_A, 0, 0, FN_IRQ8, FN_AUDIO_CLKA_D, FN_CAN_CLK_D,
 		FN_VI0_G5, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3116,9 +3069,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_SSI_WS5_A, 0, FN_SCL3_C, FN_DU1_DOTCLKIN, 0, 0, 0, 0, 0, 0,
 		0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR15", 0xE606007C, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR15", 0xE606007C, 32, 4, GROUP(
 		/* IP15_31_28 [4] */
 		FN_SSI_WS4_A, 0, FN_AVB_PHY_INT, 0, 0, 0, FN_VI0_R5, 0, 0, 0,
 		0, 0, 0, 0, 0, 0,
@@ -3144,9 +3095,7 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_SSI_SCK0129_A, FN_MSIOF1_RXD_A, FN_RX5_D, 0, 0, 0,
 		FN_VI0_G6, 0, 0, 0, 0, 0, 0, 0, 0, 0, ))
 	},
-	{ PINMUX_CFG_REG_VAR("IPSR16", 0xE6060080, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
-			     GROUP(
+	{ PINMUX_CFG_REG("IPSR16", 0xE6060080, 32, 4, GROUP(
 		/* IP16_31_28 [4] */
 		FN_SSI_SDATA2_A, FN_HRTS1_N_B, 0, 0, 0, 0,
 		FN_VI0_DATA4_VI0_B4, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3174,10 +3123,9 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		0, 0, 0, 0, 0, 0, ))
 	},
 	{ PINMUX_CFG_REG_VAR("IPSR17", 0xE6060084, 32,
-			     GROUP(4, 4, 4, 4, 4, 4, 4, 4),
+			     GROUP(-4, 4, 4, 4, 4, 4, 4, 4),
 			     GROUP(
-		/* IP17_31_28 [4] */
-		0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		/* IP17_31_28 [4] RESERVED */
 		/* IP17_27_24 [4] */
 		FN_AUDIO_CLKOUT_A, FN_SDA4_B, 0, 0, 0, 0,
 		FN_VI0_VSYNC_N, 0, 0, 0, 0, 0, 0, 0, 0, 0,
@@ -3201,25 +3149,13 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_VI0_DATA5_VI0_B5, 0, 0, 0, 0, 0, 0, 0, 0, 0, ))
 	},
 	{ PINMUX_CFG_REG_VAR("MOD_SEL0", 0xE60600C0, 32,
-			     GROUP(1, 1, 1, 1, 1, 2, 1, 1, 2, 2, 2, 1,
-				   3, 3, 1, 2, 3, 3, 1),
+			     GROUP(-5, 2, -2, 2, 2, 2, -1,
+				   3, 3, -1, 2, 3, 3, 1),
 			     GROUP(
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
+		/* RESERVED [5] */
 		/* SEL_ADGA [2] */
 		FN_SEL_ADGA_0, FN_SEL_ADGA_1, FN_SEL_ADGA_2, FN_SEL_ADGA_3,
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
+		/* RESERVED [2] */
 		/* SEL_CANCLK [2] */
 		FN_SEL_CANCLK_0, FN_SEL_CANCLK_1, FN_SEL_CANCLK_2,
 		FN_SEL_CANCLK_3,
@@ -3228,7 +3164,6 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		/* SEL_CAN0 [2] */
 		FN_SEL_CAN0_0, FN_SEL_CAN0_1, FN_SEL_CAN0_2, FN_SEL_CAN0_3,
 		/* RESERVED [1] */
-		0, 0,
 		/* SEL_I2C04 [3] */
 		FN_SEL_I2C04_0, FN_SEL_I2C04_1, FN_SEL_I2C04_2, FN_SEL_I2C04_3,
 		FN_SEL_I2C04_4, 0, 0, 0,
@@ -3236,7 +3171,6 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_SEL_I2C03_0, FN_SEL_I2C03_1, FN_SEL_I2C03_2, FN_SEL_I2C03_3,
 		FN_SEL_I2C03_4, 0, 0, 0,
 		/* RESERVED [1] */
-		0, 0,
 		/* SEL_I2C02 [2] */
 		FN_SEL_I2C02_0, FN_SEL_I2C02_1, FN_SEL_I2C02_2, FN_SEL_I2C02_3,
 		/* SEL_I2C01 [3] */
@@ -3249,8 +3183,8 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		FN_SEL_AVB_0, FN_SEL_AVB_1, ))
 	},
 	{ PINMUX_CFG_REG_VAR("MOD_SEL1", 0xE60600C4, 32,
-			     GROUP(1, 3, 3, 2, 2, 1, 2, 2, 2, 1, 1, 1,
-				   1, 1, 2, 1, 1, 2, 2, 1),
+			     GROUP(1, 3, 3, 2, 2, 1, 2, 2, 2, -1, 1, -1,
+				   1, 1, -2, 1, 1, -2, 2, 1),
 			     GROUP(
 		/* SEL_SCIFCLK [1] */
 		FN_SEL_SCIFCLK_0, FN_SEL_SCIFCLK_1,
@@ -3273,52 +3207,28 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 		/* SEL_MSIOF2 [2] */
 		FN_SEL_MSIOF2_0, FN_SEL_MSIOF2_1, FN_SEL_MSIOF2_2, 0,
 		/* RESERVED [1] */
-		0, 0,
 		/* SEL_MSIOF1 [1] */
 		FN_SEL_MSIOF1_0, FN_SEL_MSIOF1_1,
 		/* RESERVED [1] */
-		0, 0,
 		/* SEL_MSIOF0 [1] */
 		FN_SEL_MSIOF0_0, FN_SEL_MSIOF0_1,
 		/* SEL_RCN [1] */
 		FN_SEL_RCN_0, FN_SEL_RCN_1,
 		/* RESERVED [2] */
-		0, 0, 0, 0,
 		/* SEL_TMU2 [1] */
 		FN_SEL_TMU2_0, FN_SEL_TMU2_1,
 		/* SEL_TMU1 [1] */
 		FN_SEL_TMU1_0, FN_SEL_TMU1_1,
 		/* RESERVED [2] */
-		0, 0, 0, 0,
 		/* SEL_HSCIF1 [2] */
 		FN_SEL_HSCIF1_0, FN_SEL_HSCIF1_1, FN_SEL_HSCIF1_2, 0,
 		/* SEL_HSCIF0 [1] */
 		FN_SEL_HSCIF0_0, FN_SEL_HSCIF0_1, ))
 	},
 	{ PINMUX_CFG_REG_VAR("MOD_SEL2", 0xE60600C8, 32,
-			     GROUP(1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2,
-				   2, 2, 2, 2, 2, 2, 2, 2, 2),
+			     GROUP(-10, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2, 2),
 			     GROUP(
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
-		/* RESERVED [1] */
-		0, 0,
+		/* RESERVED [10] */
 		/* SEL_ADGB [2] */
 		FN_SEL_ADGB_0, FN_SEL_ADGB_1, FN_SEL_ADGB_2, 0,
 		/* SEL_ADGC [2] */

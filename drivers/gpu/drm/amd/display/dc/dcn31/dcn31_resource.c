@@ -36,6 +36,8 @@
 #include "dcn20/dcn20_resource.h"
 #include "dcn30/dcn30_resource.h"
 
+#include "dml/dcn30/dcn30_fpu.h"
+
 #include "dcn10/dcn10_ipp.h"
 #include "dcn30/dcn30_hubbub.h"
 #include "dcn31/dcn31_hubbub.h"

@@ -195,7 +195,7 @@ int frwr_query_device(struct rpcrdma_ep *ep, const struct ib_device *device)
 	ep->re_attr.cap.max_recv_sge = 1;
 
 	ep->re_mrtype = IB_MR_TYPE_MEM_REG;
-	if (attrs->device_cap_flags & IB_DEVICE_SG_GAPS_REG)
+	if (attrs->kernel_cap_flags & IBK_SG_GAPS_REG)
 		ep->re_mrtype = IB_MR_TYPE_SG_GAPS;
 
 	/* Quirk: Some devices advertise a large max_fast_reg_page_list_len

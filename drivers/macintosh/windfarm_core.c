@@ -35,8 +35,6 @@
 #include <linux/mutex.h>
 #include <linux/freezer.h>
 
-#include <asm/prom.h>
-
 #include "windfarm.h"
 
 #define VERSION "0.2"

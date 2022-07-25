@@ -128,10 +128,10 @@ struct avs_tplg_token_parser {
 static int
 avs_parse_uuid_token(struct snd_soc_component *comp, void *elem, void *object, u32 offset)
 {
-	struct snd_soc_tplg_vendor_value_elem *tuple = elem;
+	struct snd_soc_tplg_vendor_uuid_elem *tuple = elem;
 	guid_t *val = (guid_t *)((u8 *)object + offset);
 
-	guid_copy((guid_t *)val, (const guid_t *)&tuple->value);
+	guid_copy((guid_t *)val, (const guid_t *)&tuple->uuid);
 
 	return 0;
 }

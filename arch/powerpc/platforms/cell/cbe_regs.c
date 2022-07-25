@@ -10,12 +10,12 @@
 #include <linux/percpu.h>
 #include <linux/types.h>
 #include <linux/export.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
 #include <linux/pgtable.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/ptrace.h>
 #include <asm/cell-regs.h>
 
@@ -23,7 +23,7 @@
  * Current implementation uses "cpu" nodes. We build our own mapping
  * array of cpu numbers to cpu nodes locally for now to allow interrupt
  * time code to have a fast path rather than call of_get_cpu_node(). If
- * we implement cpu hotplug, we'll have to install an appropriate norifier
+ * we implement cpu hotplug, we'll have to install an appropriate notifier
  * in order to release references to the cpu going away
  */
 static struct cbe_regs_map
