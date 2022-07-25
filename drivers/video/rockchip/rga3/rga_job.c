@@ -189,8 +189,29 @@ static struct rga_job *rga_job_alloc(struct rga_req *rga_command_base)
 
 static void rga_job_dump_info(struct rga_job *job)
 {
-	pr_info("job: priority = %d, core = %d\n",
-		job->priority, job->core);
+	pr_info("job: reqeust_id = %d, priority = %d, core = %d\n",
+		job->request_id, job->priority, job->core);
+}
+
+void rga_job_scheduler_dump_info(struct rga_scheduler_t *scheduler)
+{
+	struct rga_job *job_pos;
+
+	lockdep_assert_held(&scheduler->irq_lock);
+
+	pr_info("===============================================================\n");
+	pr_info("%s core = %d job_count = %d status = %d\n",
+		dev_driver_string(scheduler->dev),
+		scheduler->core, scheduler->job_count, scheduler->status);
+
+	if (scheduler->running_job)
+		rga_job_dump_info(scheduler->running_job);
+
+	list_for_each_entry(job_pos, &scheduler->todo_list, head) {
+		rga_job_dump_info(job_pos);
+	}
+
+	pr_info("===============================================================\n");
 }
 
 static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
