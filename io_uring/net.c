@@ -55,10 +55,10 @@ struct io_sr_msg {
 		struct user_msghdr __user	*umsg;
 		void __user			*buf;
 	};
-	int				msg_flags;
+	unsigned			msg_flags;
+	unsigned			flags;
 	size_t				len;
 	size_t				done_io;
-	unsigned int			flags;
 };
 
 struct io_sendzc {
