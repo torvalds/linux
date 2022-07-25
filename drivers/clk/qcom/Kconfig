@@ -628,9 +628,18 @@ config SM_DISPCC_PINEAPPLE
 	depends on SM_GCC_PINEAPPLE
 	help
 	  Support for the display clock controller on Qualcomm Technologies, Inc
-	  ppneapple devices.
+	  Pineapple devices.
 	  Say Y if you want to support display devices and functionality such as
 	  splash screen.
+
+config SM_DEBUGCC_PINEAPPLE
+	tristate "Pineapple Debug Clock Controller"
+	depends on COMMON_CLK_QCOM
+	help
+	  Support for the debug clock controller on Qualcomm Technologies, Inc
+	  Pineapple devices.
+	  Say Y if you want to support the debug clocks such as clock
+	  measurement functionality.
 
 config SM_GCC_6115
 	tristate "SM6115 and SM4250 Global Clock Controller"
