@@ -28,6 +28,8 @@ properties:
   gpio-ranges:
     maxItems: 1
 
+  gpio-line-names: true
+
   reg:
     description: |
       Physical address base for gpio base registers. There are 8 different GPIO
