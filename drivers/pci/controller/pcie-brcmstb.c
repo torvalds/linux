@@ -683,14 +683,18 @@ static void __iomem *brcm_pcie_map_conf(struct pci_bus *bus, unsigned int devfn,
 	void __iomem *base = pcie->base;
 	int idx;
 
-	/* Accesses to the RC go right to the RC registers if slot==0 */
+	/* Accesses to the RC go right to the RC registers if !devfn */
 	if (pci_is_root_bus(bus))
-		return PCI_SLOT(devfn) ? NULL : base + where;
+		return devfn ? NULL : base + PCIE_ECAM_REG(where);
+
+	/* An access to our HW w/o link-up will cause a CPU Abort */
+	if (!brcm_pcie_link_up(pcie))
+		return NULL;
 
 	/* For devices, write to the config space index register */
 	idx = PCIE_ECAM_OFFSET(bus->number, devfn, 0);
 	writel(idx, pcie->base + PCIE_EXT_CFG_INDEX);
-	return base + PCIE_EXT_CFG_DATA + where;
+	return base + PCIE_EXT_CFG_DATA + PCIE_ECAM_REG(where);
 }
 
 static void __iomem *brcm_pcie_map_conf32(struct pci_bus *bus, unsigned int devfn,
@@ -700,12 +704,16 @@ static void __iomem *brcm_pcie_map_conf32(struct pci_bus *bus, unsigned int devf
 	void __iomem *base = pcie->base;
 	int idx;
 
-	/* Accesses to the RC go right to the RC registers if slot==0 */
+	/* Accesses to the RC go right to the RC registers if !devfn */
 	if (pci_is_root_bus(bus))
-		return PCI_SLOT(devfn) ? NULL : base + (where & ~0x3);
+		return devfn ? NULL : base + PCIE_ECAM_REG(where);
+
+	/* An access to our HW w/o link-up will cause a CPU Abort */
+	if (!brcm_pcie_link_up(pcie))
+		return NULL;
 
 	/* For devices, write to the config space index register */
-	idx = PCIE_ECAM_OFFSET(bus->number, devfn, (where & ~3));
+	idx = PCIE_ECAM_OFFSET(bus->number, devfn, where);
 	writel(idx, base + IDX_ADDR(pcie));
 	return base + DATA_ADDR(pcie);
 }
