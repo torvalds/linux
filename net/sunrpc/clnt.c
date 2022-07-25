@@ -2144,7 +2144,8 @@ call_connect_status(struct rpc_task *task)
 				xprt_release(task);
 				value = atomic_long_dec_return(&xprt->queuelen);
 				if (value == 0)
-					rpc_xprt_switch_remove_xprt(xps, saved);
+					rpc_xprt_switch_remove_xprt(xps, saved,
+								    true);
 				xprt_put(saved);
 				task->tk_xprt = NULL;
 				task->tk_action = call_start;
@@ -3117,6 +3118,19 @@ void rpc_clnt_xprt_switch_add_xprt(struct rpc_clnt *clnt, struct rpc_xprt *xprt)
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_xprt_switch_add_xprt);
+
+void rpc_clnt_xprt_switch_remove_xprt(struct rpc_clnt *clnt, struct rpc_xprt *xprt)
+{
+	struct rpc_xprt_switch *xps;
+
+	rcu_read_lock();
+	xps = rcu_dereference(clnt->cl_xpi.xpi_xpswitch);
+	rpc_xprt_switch_remove_xprt(rcu_dereference(clnt->cl_xpi.xpi_xpswitch),
+				    xprt, 0);
+	xps->xps_nunique_destaddr_xprts--;
+	rcu_read_unlock();
+}
+EXPORT_SYMBOL_GPL(rpc_clnt_xprt_switch_remove_xprt);
 
 bool rpc_clnt_xprt_switch_has_addr(struct rpc_clnt *clnt,
 				   const struct sockaddr *sap)

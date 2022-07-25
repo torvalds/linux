@@ -2182,5 +2182,5 @@ void xprt_delete_locked(struct rpc_xprt *xprt, struct rpc_xprt_switch *xps)
 
 	if (!xprt->sending.qlen && !xprt->pending.qlen &&
 	    !xprt->backlog.qlen && !atomic_long_read(&xprt->queuelen))
-		rpc_xprt_switch_remove_xprt(xps, xprt);
+		rpc_xprt_switch_remove_xprt(xps, xprt, true);
 }

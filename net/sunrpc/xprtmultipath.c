@@ -62,11 +62,11 @@ void rpc_xprt_switch_add_xprt(struct rpc_xprt_switch *xps,
 }
 
 static void xprt_switch_remove_xprt_locked(struct rpc_xprt_switch *xps,
-		struct rpc_xprt *xprt)
+		struct rpc_xprt *xprt, bool offline)
 {
 	if (unlikely(xprt == NULL))
 		return;
-	if (!test_bit(XPRT_OFFLINE, &xprt->state))
+	if (!test_bit(XPRT_OFFLINE, &xprt->state) && offline)
 		xps->xps_nactive--;
 	xps->xps_nxprts--;
 	if (xps->xps_nxprts == 0)
@@ -79,14 +79,15 @@ static void xprt_switch_remove_xprt_locked(struct rpc_xprt_switch *xps,
  * rpc_xprt_switch_remove_xprt - Removes an rpc_xprt from a rpc_xprt_switch
  * @xps: pointer to struct rpc_xprt_switch
  * @xprt: pointer to struct rpc_xprt
+ * @offline: indicates if the xprt that's being removed is in an offline state
  *
  * Removes xprt from the list of struct rpc_xprt in xps.
  */
 void rpc_xprt_switch_remove_xprt(struct rpc_xprt_switch *xps,
-		struct rpc_xprt *xprt)
+		struct rpc_xprt *xprt, bool offline)
 {
 	spin_lock(&xps->xps_lock);
-	xprt_switch_remove_xprt_locked(xps, xprt);
+	xprt_switch_remove_xprt_locked(xps, xprt, offline);
 	spin_unlock(&xps->xps_lock);
 	xprt_put(xprt);
 }
@@ -155,7 +156,7 @@ static void xprt_switch_free_entries(struct rpc_xprt_switch *xps)
 
 		xprt = list_first_entry(&xps->xps_xprt_list,
 				struct rpc_xprt, xprt_switch);
-		xprt_switch_remove_xprt_locked(xps, xprt);
+		xprt_switch_remove_xprt_locked(xps, xprt, true);
 		spin_unlock(&xps->xps_lock);
 		xprt_put(xprt);
 		spin_lock(&xps->xps_lock);
