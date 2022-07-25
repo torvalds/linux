@@ -345,17 +345,16 @@ static void rga_job_scheduler_timeout_clean(struct rga_scheduler_t *scheduler)
 {
 	unsigned long flags;
 	struct rga_job *job = NULL;
-	ktime_t now = ktime_get();
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
-	if (scheduler->running_job == NULL) {
+	if (scheduler->running_job == NULL || scheduler->running_job->hw_running_time == 0) {
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 		return;
 	}
 
 	job = scheduler->running_job;
-	if (ktime_ms_delta(now, job->hw_running_time) >= RGA_JOB_TIMEOUT_DELAY) {
+	if (ktime_ms_delta(ktime_get(), job->hw_running_time) >= RGA_JOB_TIMEOUT_DELAY) {
 		scheduler->running_job = NULL;
 		scheduler->ops->soft_reset(scheduler);
 
@@ -637,10 +636,89 @@ struct rga_request *rga_request_lookup(struct rga_pending_request_manager *manag
 	return request;
 }
 
+static int rga_request_scheduler_job_abort(struct rga_request *request)
+{
+	int i;
+	unsigned long flags;
+	int running_abort_count = 0, todo_abort_count = 0;
+	struct rga_scheduler_t *scheduler = NULL;
+	struct rga_job *job, *job_q;
+	LIST_HEAD(list_to_free);
+
+	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
+		scheduler = rga_drvdata->scheduler[i];
+		spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+		list_for_each_entry_safe(job, job_q, &scheduler->todo_list, head) {
+			if (request->id == job->request_id) {
+				list_move(&job->head, &list_to_free);
+				scheduler->job_count--;
+
+				todo_abort_count++;
+			}
+		}
+
+		job = NULL;
+		if (scheduler->running_job) {
+			if (request->id == scheduler->running_job->request_id) {
+				job = scheduler->running_job;
+				scheduler->running_job = NULL;
+
+				if (job->hw_running_time != 0) {
+					scheduler->timer.busy_time +=
+						ktime_us_delta(ktime_get(), job->hw_recoder_time);
+					scheduler->ops->soft_reset(scheduler);
+				}
+
+				running_abort_count++;
+			}
+		}
+
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
+		if (job) {
+			if (job->flags & RGA_JOB_USE_HANDLE) {
+				rga_mm_put_handle_info(job);
+			} else {
+				rga_mm_unmap_buffer_info(job);
+				rga_mm_put_external_buffer(job);
+			}
+
+			job->ret = -EBUSY;
+			rga_job_cleanup(job);
+
+			rga_power_disable(scheduler);
+
+			pr_err("reset core[%d] by request abort", scheduler->core);
+		}
+	}
+
+	/* Clean up the jobs in the todo list that need to be free. */
+	list_for_each_entry_safe(job, job_q, &list_to_free, head) {
+		if (!(job->flags & RGA_JOB_USE_HANDLE))
+			rga_mm_put_external_buffer(job);
+
+		job->ret = -EBUSY;
+		rga_job_cleanup(job);
+	}
+
+	/* This means it has been cleaned up. */
+	if (running_abort_count + todo_abort_count == 0)
+		return 1;
+
+	pr_err("request[%d] timeout abort! finished %d failed %d running_abort %d todo_abort %d\n",
+	       request->id, request->finished_task_count, request->failed_task_count,
+	       running_abort_count, todo_abort_count);
+
+	return 0;
+}
+
 static int rga_request_wait(struct rga_request *request)
 {
 	int left_time;
 	int ret;
+	unsigned long flags;
+	struct rga_pending_request_manager *request_manager = rga_drvdata->pend_request_manager;
 
 	left_time = wait_event_timeout(request->finished_wq, request->is_done,
 				       RGA_JOB_TIMEOUT_DELAY * request->task_count);
@@ -649,15 +727,41 @@ static int rga_request_wait(struct rga_request *request)
 	case 0:
 		pr_err("%s timeout", __func__);
 		ret = -EBUSY;
-		break;
+		goto err_request_abort;
 	case -ERESTARTSYS:
 		ret = -ERESTARTSYS;
-		break;
+		goto err_request_abort;
 	default:
 		ret = request->ret;
 		break;
 	}
 
+	return ret;
+
+err_request_abort:
+	if (rga_request_scheduler_job_abort(request) > 0)
+		goto err_return;
+
+	spin_lock_irqsave(&request->lock, flags);
+
+	if (request->is_done) {
+		spin_unlock_irqrestore(&request->lock, flags);
+		goto err_return;
+	}
+
+	request->is_running = false;
+	request->is_done = false;
+
+	rga_request_put_current_mm(request);
+
+	spin_unlock_irqrestore(&request->lock, flags);
+
+	mutex_lock(&request_manager->lock);
+	/* current submit request put */
+	rga_request_put(request);
+	mutex_unlock(&request_manager->lock);
+
+err_return:
 	return ret;
 }
 
@@ -1035,12 +1139,7 @@ int rga_request_free(struct rga_request *request)
 static void rga_request_kref_release(struct kref *ref)
 {
 	struct rga_request *request;
-	struct rga_scheduler_t *scheduler = NULL;
-	struct rga_job *job_pos, *job_q, *job;
-	int i;
-	bool need_reset = false;
 	unsigned long flags;
-	ktime_t now = ktime_get();
 
 	request = container_of(ref, struct rga_request, refcount);
 
@@ -1055,38 +1154,7 @@ static void rga_request_kref_release(struct kref *ref)
 
 	spin_unlock_irqrestore(&request->lock, flags);
 
-	for (i = 0; i < rga_drvdata->num_of_scheduler; i++) {
-		scheduler = rga_drvdata->scheduler[i];
-
-		spin_lock_irqsave(&scheduler->irq_lock, flags);
-
-		list_for_each_entry_safe(job_pos, job_q, &scheduler->todo_list, head) {
-			if (request->id == job_pos->request_id) {
-				job = job_pos;
-				list_del_init(&job_pos->head);
-
-				scheduler->job_count--;
-			}
-		}
-
-		if (scheduler->running_job) {
-			job = scheduler->running_job;
-
-			if (job->request_id == request->id) {
-				scheduler->running_job = NULL;
-				scheduler->timer.busy_time += ktime_us_delta(now, job->hw_recoder_time);
-				need_reset = true;
-			}
-		}
-
-		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
-
-		if (need_reset) {
-			need_reset = false;
-			pr_info("reset core[%d] by user cancel", scheduler->core);
-			scheduler->ops->soft_reset(scheduler);
-		}
-	}
+	rga_request_scheduler_job_abort(request);
 
 free_request:
 	rga_request_free(request);
