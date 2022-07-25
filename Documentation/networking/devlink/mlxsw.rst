@@ -75,6 +75,9 @@ The ``mlxsw`` driver reports the following versions for line card auxiliary devi
    * - ``ini.version``
      - running
      - Version of line card INI loaded
+   * - ``fw.version``
+     - running
+     - Three digit firmware version of line card device
 
 Driver-specific Traps
 =====================
