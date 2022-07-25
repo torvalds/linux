@@ -98,7 +98,7 @@ static int bpf_tramp_ftrace_ops_func(struct ftrace_ops *ops, enum ftrace_ops_cmd
 	default:
 		ret = -EINVAL;
 		break;
-	};
+	}
 
 	mutex_unlock(&tr->mutex);
 	return ret;
