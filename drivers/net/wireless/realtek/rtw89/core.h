@@ -808,7 +808,7 @@ struct rtw89_mac_ax_gnt {
 	u8 gnt_bt;
 	u8 gnt_wl_sw_en;
 	u8 gnt_wl;
-};
+} __packed;
 
 #define RTW89_MAC_AX_COEX_GNT_NR 2
 struct rtw89_mac_ax_coex_gnt {
@@ -1375,13 +1375,18 @@ struct rtw89_btc_fbtc_tdma {
 #define FCXMAX_STEP 255 /*STEP trace record cnt, Max:65535, default:255*/
 #define BTC_CYCLE_SLOT_MAX 48 /* must be even number, non-zero */
 
-enum rtw89_btc_bt_rfk_counter {
+enum rtw89_btc_bt_sta_counter {
 	BTC_BCNT_RFK_REQ = 0,
 	BTC_BCNT_RFK_GO = 1,
 	BTC_BCNT_RFK_REJECT = 2,
 	BTC_BCNT_RFK_FAIL = 3,
 	BTC_BCNT_RFK_TIMEOUT = 4,
-	BTC_BCNT_RFK_MAX
+	BTC_BCNT_HI_TX = 5,
+	BTC_BCNT_HI_RX = 6,
+	BTC_BCNT_LO_TX = 7,
+	BTC_BCNT_LO_RX = 8,
+	BTC_BCNT_POLLUTED = 9,
+	BTC_BCNT_STA_MAX
 };
 
 struct rtw89_btc_fbtc_rpt_ctrl {
@@ -1398,9 +1403,54 @@ struct rtw89_btc_fbtc_rpt_ctrl {
 	u32 mb_a2dp_empty_cnt; /* a2dp empty count */
 	u32 mb_a2dp_flct_cnt; /* a2dp empty flow control counter */
 	u32 mb_a2dp_full_cnt; /* a2dp empty full counter */
-	u32 bt_rfk_cnt[BTC_BCNT_RFK_MAX];
+	u32 bt_rfk_cnt[BTC_BCNT_HI_TX];
 	u32 c2h_cnt; /* fw send c2h counter  */
 	u32 h2c_cnt; /* fw recv h2c counter */
+} __packed;
+
+struct rtw89_btc_fbtc_rpt_ctrl_info {
+	__le32 cnt; /* fw report counter */
+	__le32 en; /* report map */
+	__le32 para; /* not used */
+
+	__le32 cnt_c2h; /* fw send c2h counter  */
+	__le32 cnt_h2c; /* fw recv h2c counter */
+	__le32 len_c2h; /* The total length of the last C2H  */
+
+	__le32 cnt_aoac_rf_on;  /* rf-on counter for aoac switch notify */
+	__le32 cnt_aoac_rf_off; /* rf-off counter for aoac switch notify */
+} __packed;
+
+struct rtw89_btc_fbtc_rpt_ctrl_wl_fw_info {
+	__le32 cx_ver; /* match which driver's coex version */
+	__le32 cx_offload;
+	__le32 fw_ver;
+} __packed;
+
+struct rtw89_btc_fbtc_rpt_ctrl_a2dp_empty {
+	__le32 cnt_empty; /* a2dp empty count */
+	__le32 cnt_flowctrl; /* a2dp empty flow control counter */
+	__le32 cnt_tx;
+	__le32 cnt_ack;
+	__le32 cnt_nack;
+} __packed;
+
+struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox {
+	__le32 cnt_send_ok; /* fw send mailbox ok counter */
+	__le32 cnt_send_fail; /* fw send mailbox fail counter */
+	__le32 cnt_recv; /* fw recv mailbox counter */
+	struct rtw89_btc_fbtc_rpt_ctrl_a2dp_empty a2dp;
+} __packed;
+
+struct rtw89_btc_fbtc_rpt_ctrl_v1 {
+	u8 fver;
+	u8 rsvd;
+	__le16 rsvd1;
+	struct rtw89_btc_fbtc_rpt_ctrl_info rpt_info;
+	struct rtw89_btc_fbtc_rpt_ctrl_wl_fw_info wl_fw_info;
+	struct rtw89_btc_fbtc_rpt_ctrl_bt_mailbox bt_mbx_info;
+	__le32 bt_cnt[BTC_BCNT_STA_MAX];
+	struct rtw89_mac_ax_gnt gnt_val[RTW89_PHY_MAX];
 } __packed;
 
 enum rtw89_fbtc_ext_ctrl_type {
@@ -1706,7 +1756,10 @@ struct rtw89_btc_rpt_cmn_info {
 
 struct rtw89_btc_report_ctrl_state {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
-	struct rtw89_btc_fbtc_rpt_ctrl finfo; /* info from fw */
+	union {
+		struct rtw89_btc_fbtc_rpt_ctrl finfo; /* info from fw for 52A*/
+		struct rtw89_btc_fbtc_rpt_ctrl_v1 finfo_v1; /* info from fw for 52C*/
+	};
 };
 
 struct rtw89_btc_rpt_fbtc_tdma {
