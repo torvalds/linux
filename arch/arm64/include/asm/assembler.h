@@ -423,7 +423,7 @@ alternative_endif
 	b.lo	.Ldcache_op\@
 	dsb	\domain
 
-	_cond_extable .Ldcache_op\@, \fixup
+	_cond_uaccess_extable .Ldcache_op\@, \fixup
 	.endm
 
 /*
@@ -462,7 +462,7 @@ alternative_endif
 	dsb	ish
 	isb
 
-	_cond_extable .Licache_op\@, \fixup
+	_cond_uaccess_extable .Licache_op\@, \fixup
 	.endm
 
 /*
