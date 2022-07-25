@@ -17,6 +17,9 @@ description: |
   Techstar TS8550B is 480x854, 2-lane MIPI DSI LCD panel which has
   inbuilt ST7701 chip.
 
+  Densitron DMT028VGHMCMI-1A is 480x640, 2-lane MIPI DSI LCD panel
+  which has built-in ST7701 chip.
+
 allOf:
   - $ref: panel-common.yaml#
 
@@ -24,6 +27,7 @@ properties:
   compatible:
     items:
       - enum:
+          - densitron,dmt028vghmcmi-1a
           - techstar,ts8550b
       - const: sitronix,st7701
 
