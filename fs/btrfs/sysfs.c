@@ -35,12 +35,12 @@
  * qgroup_attrs				/sys/fs/btrfs/<uuid>/qgroups/<level>_<qgroupid>
  * space_info_attrs			/sys/fs/btrfs/<uuid>/allocation/<bg-type>
  * raid_attrs				/sys/fs/btrfs/<uuid>/allocation/<bg-type>/<bg-profile>
+ * discard_attrs			/sys/fs/btrfs/<uuid>/discard
  *
  * When built with BTRFS_CONFIG_DEBUG:
  *
  * btrfs_debug_feature_attrs		/sys/fs/btrfs/debug
  * btrfs_debug_mount_attrs		/sys/fs/btrfs/<uuid>/debug
- * discard_debug_attrs			/sys/fs/btrfs/<uuid>/debug/discard
  */
 
 struct btrfs_feature_attr {
@@ -429,12 +429,10 @@ static const struct attribute_group btrfs_static_feature_attr_group = {
 	.attrs = btrfs_supported_static_feature_attrs,
 };
 
-#ifdef CONFIG_BTRFS_DEBUG
-
 /*
  * Discard statistics and tunables
  */
-#define discard_to_fs_info(_kobj)	to_fs_info((_kobj)->parent->parent)
+#define discard_to_fs_info(_kobj)	to_fs_info(get_btrfs_kobj(_kobj))
 
 static ssize_t btrfs_discardable_bytes_show(struct kobject *kobj,
 					    struct kobj_attribute *a,
@@ -583,11 +581,11 @@ BTRFS_ATTR_RW(discard, max_discard_size, btrfs_discard_max_discard_size_show,
 	      btrfs_discard_max_discard_size_store);
 
 /*
- * Per-filesystem debugging of discard (when mounted with discard=async).
+ * Per-filesystem stats for discard (when mounted with discard=async).
  *
- * Path: /sys/fs/btrfs/<uuid>/debug/discard/
+ * Path: /sys/fs/btrfs/<uuid>/discard/
  */
-static const struct attribute *discard_debug_attrs[] = {
+static const struct attribute *discard_attrs[] = {
 	BTRFS_ATTR_PTR(discard, discardable_bytes),
 	BTRFS_ATTR_PTR(discard, discardable_extents),
 	BTRFS_ATTR_PTR(discard, discard_bitmap_bytes),
@@ -598,6 +596,8 @@ static const struct attribute *discard_debug_attrs[] = {
 	BTRFS_ATTR_PTR(discard, max_discard_size),
 	NULL,
 };
+
+#ifdef CONFIG_BTRFS_DEBUG
 
 /*
  * Per-filesystem runtime debugging exported via sysfs.
@@ -1408,13 +1408,12 @@ void btrfs_sysfs_remove_mounted(struct btrfs_fs_info *fs_info)
 		kobject_del(fs_info->space_info_kobj);
 		kobject_put(fs_info->space_info_kobj);
 	}
-#ifdef CONFIG_BTRFS_DEBUG
-	if (fs_info->discard_debug_kobj) {
-		sysfs_remove_files(fs_info->discard_debug_kobj,
-				   discard_debug_attrs);
-		kobject_del(fs_info->discard_debug_kobj);
-		kobject_put(fs_info->discard_debug_kobj);
+	if (fs_info->discard_kobj) {
+		sysfs_remove_files(fs_info->discard_kobj, discard_attrs);
+		kobject_del(fs_info->discard_kobj);
+		kobject_put(fs_info->discard_kobj);
 	}
+#ifdef CONFIG_BTRFS_DEBUG
 	if (fs_info->debug_kobj) {
 		sysfs_remove_files(fs_info->debug_kobj, btrfs_debug_mount_attrs);
 		kobject_del(fs_info->debug_kobj);
@@ -1982,20 +1981,18 @@ int btrfs_sysfs_add_mounted(struct btrfs_fs_info *fs_info)
 	error = sysfs_create_files(fs_info->debug_kobj, btrfs_debug_mount_attrs);
 	if (error)
 		goto failure;
+#endif
 
 	/* Discard directory */
-	fs_info->discard_debug_kobj = kobject_create_and_add("discard",
-						     fs_info->debug_kobj);
-	if (!fs_info->discard_debug_kobj) {
+	fs_info->discard_kobj = kobject_create_and_add("discard", fsid_kobj);
+	if (!fs_info->discard_kobj) {
 		error = -ENOMEM;
 		goto failure;
 	}
 
-	error = sysfs_create_files(fs_info->discard_debug_kobj,
-				   discard_debug_attrs);
+	error = sysfs_create_files(fs_info->discard_kobj, discard_attrs);
 	if (error)
 		goto failure;
-#endif
 
 	error = addrm_unknown_feature_attrs(fs_info, true);
 	if (error)
