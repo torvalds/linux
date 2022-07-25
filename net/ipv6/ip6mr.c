@@ -2133,10 +2133,8 @@ static void ip6_mr_forward(struct net *net, struct mr_table *mrt,
 		 */
 		cache_proxy = mr_mfc_find_any_parent(mrt, vif);
 		if (cache_proxy &&
-		    cache_proxy->_c.mfc_un.res.ttls[true_vifi] < 255) {
-			rcu_read_unlock();
+		    cache_proxy->_c.mfc_un.res.ttls[true_vifi] < 255)
 			goto forward;
-		}
 	}
 
 	/*
