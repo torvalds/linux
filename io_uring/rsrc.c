@@ -44,16 +44,12 @@ void io_rsrc_refs_drop(struct io_ring_ctx *ctx)
 	}
 }
 
-static inline void __io_unaccount_mem(struct user_struct *user,
-				      unsigned long nr_pages)
-{
-	atomic_long_sub(nr_pages, &user->locked_vm);
-}
-
-static inline int __io_account_mem(struct user_struct *user,
-				   unsigned long nr_pages)
+int __io_account_mem(struct user_struct *user, unsigned long nr_pages)
 {
 	unsigned long page_limit, cur_pages, new_pages;
+
+	if (!nr_pages)
+		return 0;
 
 	/* Don't allow more pages than we can safely lock */
 	page_limit = rlimit(RLIMIT_MEMLOCK) >> PAGE_SHIFT;

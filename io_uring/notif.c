@@ -14,12 +14,10 @@ static void __io_notif_complete_tw(struct callback_head *cb)
 	struct io_notif *notif = container_of(cb, struct io_notif, task_work);
 	struct io_rsrc_node *rsrc_node = notif->rsrc_node;
 	struct io_ring_ctx *ctx = notif->ctx;
-	struct mmpin *mmp = &notif->uarg.mmp;
 
-	if (mmp->user) {
-		atomic_long_sub(mmp->num_pg, &mmp->user->locked_vm);
-		free_uid(mmp->user);
-		mmp->user = NULL;
+	if (notif->account_pages && ctx->user) {
+		__io_unaccount_mem(ctx->user, notif->account_pages);
+		notif->account_pages = 0;
 	}
 	if (likely(notif->task)) {
 		io_put_task(notif->task, 1);
@@ -121,6 +119,7 @@ struct io_notif *io_alloc_notif(struct io_ring_ctx *ctx,
 		notif->ctx = ctx;
 		notif->uarg.flags = SKBFL_ZEROCOPY_FRAG | SKBFL_DONT_ORPHAN;
 		notif->uarg.callback = io_uring_tx_zerocopy_callback;
+		notif->account_pages = 0;
 	}
 
 	notif->seq = slot->seq++;

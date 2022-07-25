@@ -5,6 +5,8 @@
 #include <net/sock.h>
 #include <linux/nospec.h>
 
+#include "rsrc.h"
+
 #define IO_NOTIF_SPLICE_BATCH	32
 #define IORING_MAX_NOTIF_SLOTS (1U << 10)
 
@@ -22,6 +24,8 @@ struct io_notif {
 	u32			seq;
 	/* hook into ctx->notif_list and ctx->notif_list_locked */
 	struct list_head	cache_node;
+
+	unsigned long		account_pages;
 
 	union {
 		struct callback_head	task_work;
@@ -84,4 +88,19 @@ static inline void io_notif_slot_flush_submit(struct io_notif_slot *slot,
 		io_get_task_refs(1);
 	}
 	io_notif_slot_flush(slot);
+}
+
+static inline int io_notif_account_mem(struct io_notif *notif, unsigned len)
+{
+	struct io_ring_ctx *ctx = notif->ctx;
+	unsigned nr_pages = (len >> PAGE_SHIFT) + 2;
+	int ret;
+
+	if (ctx->user) {
+		ret = __io_account_mem(ctx->user, nr_pages);
+		if (ret)
+			return ret;
+		notif->account_pages += nr_pages;
+	}
+	return 0;
 }
