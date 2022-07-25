@@ -18,6 +18,7 @@
 #include <linux/module.h>
 #include <linux/rbtree.h>
 #include <linux/stacktrace.h>
+#include <linux/jump_label.h>
 
 #define DM_MSG_PREFIX "bufio"
 
@@ -164,13 +165,15 @@ struct dm_buffer {
 #endif
 };
 
+static DEFINE_STATIC_KEY_FALSE(no_sleep_enabled);
+
 /*----------------------------------------------------------------*/
 
 #define dm_bufio_in_request()	(!!current->bio_list)
 
 static void dm_bufio_lock(struct dm_bufio_client *c)
 {
-	if (c->no_sleep)
+	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
 		spin_lock_irqsave_nested(&c->spinlock, c->spinlock_flags, dm_bufio_in_request());
 	else
 		mutex_lock_nested(&c->lock, dm_bufio_in_request());
@@ -178,7 +181,7 @@ static void dm_bufio_lock(struct dm_bufio_client *c)
 
 static int dm_bufio_trylock(struct dm_bufio_client *c)
 {
-	if (c->no_sleep)
+	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
 		return spin_trylock_irqsave(&c->spinlock, c->spinlock_flags);
 	else
 		return mutex_trylock(&c->lock);
@@ -186,7 +189,7 @@ static int dm_bufio_trylock(struct dm_bufio_client *c)
 
 static void dm_bufio_unlock(struct dm_bufio_client *c)
 {
-	if (c->no_sleep)
+	if (static_branch_unlikely(&no_sleep_enabled) && c->no_sleep)
 		spin_unlock_irqrestore(&c->spinlock, c->spinlock_flags);
 	else
 		mutex_unlock(&c->lock);
@@ -1760,8 +1763,10 @@ struct dm_bufio_client *dm_bufio_client_create(struct block_device *bdev, unsign
 	c->alloc_callback = alloc_callback;
 	c->write_callback = write_callback;
 
-	if (flags & DM_BUFIO_CLIENT_NO_SLEEP)
+	if (flags & DM_BUFIO_CLIENT_NO_SLEEP) {
 		c->no_sleep = true;
+		static_branch_inc(&no_sleep_enabled);
+	}
 
 	for (i = 0; i < LIST_SIZE; i++) {
 		INIT_LIST_HEAD(&c->lru[i]);
@@ -1895,6 +1900,8 @@ void dm_bufio_client_destroy(struct dm_bufio_client *c)
 	kmem_cache_destroy(c->slab_buffer);
 	dm_io_client_destroy(c->dm_io);
 	mutex_destroy(&c->lock);
+	if (c->no_sleep)
+		static_branch_dec(&no_sleep_enabled);
 	kfree(c);
 }
 EXPORT_SYMBOL_GPL(dm_bufio_client_destroy);
