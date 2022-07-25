@@ -33,17 +33,6 @@ int smc_ism_cantalk(u64 peer_gid, unsigned short vlan_id, struct smcd_dev *smcd)
 					   vlan_id);
 }
 
-int smc_ism_write(struct smcd_dev *smcd, const struct smc_ism_position *pos,
-		  void *data, size_t len)
-{
-	int rc;
-
-	rc = smcd->ops->move_data(smcd, pos->token, pos->index, pos->signal,
-				  pos->offset, data, len);
-
-	return rc < 0 ? rc : 0;
-}
-
 void smc_ism_get_system_eid(u8 **eid)
 {
 	if (!smc_ism_v2_capable)
