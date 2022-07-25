@@ -409,20 +409,19 @@ static void ism_create_system_eid(void)
 	memcpy(&SYSTEM_EID.type, tmp, 4);
 }
 
-static void ism_get_system_eid(struct smcd_dev *smcd, u8 **eid)
+static u8 *ism_get_system_eid(void)
 {
-	*eid = &SYSTEM_EID.seid_string[0];
+	return SYSTEM_EID.seid_string;
 }
 
 static u16 ism_get_chid(struct smcd_dev *smcd)
 {
-	struct ism_dev *ismdev;
+	struct ism_dev *ism = (struct ism_dev *)smcd->priv;
 
-	ismdev = (struct ism_dev *)smcd->priv;
-	if (!ismdev || !ismdev->pdev)
+	if (!ism || !ism->pdev)
 		return 0;
 
-	return to_zpci(ismdev->pdev)->pchid;
+	return to_zpci(ism->pdev)->pchid;
 }
 
 static void ism_handle_event(struct ism_dev *ism)

@@ -72,7 +72,7 @@ struct smcd_ops {
 	int (*move_data)(struct smcd_dev *dev, u64 dmb_tok, unsigned int idx,
 			 bool sf, unsigned int offset, void *data,
 			 unsigned int size);
-	void (*get_system_eid)(struct smcd_dev *dev, u8 **eid);
+	u8* (*get_system_eid)(void);
 	u16 (*get_chid)(struct smcd_dev *dev);
 };
 
