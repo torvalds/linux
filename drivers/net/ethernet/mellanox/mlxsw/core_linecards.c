@@ -87,6 +87,27 @@ static const char *mlxsw_linecard_type_name(struct mlxsw_linecard *linecard)
 	return linecard->name;
 }
 
+static int mlxsw_linecard_device_psid_get(struct mlxsw_linecard *linecard,
+					  u8 device_index, char *psid)
+{
+	struct mlxsw_core *mlxsw_core = linecard->linecards->mlxsw_core;
+	char mddt_pl[MLXSW_REG_MDDT_LEN];
+	char *mgir_pl;
+	int err;
+
+	mlxsw_reg_mddt_pack(mddt_pl, linecard->slot_index, device_index,
+			    MLXSW_REG_MDDT_METHOD_QUERY,
+			    MLXSW_REG(mgir), &mgir_pl);
+
+	mlxsw_reg_mgir_pack(mgir_pl);
+	err = mlxsw_reg_query(mlxsw_core, MLXSW_REG(mddt), mddt_pl);
+	if (err)
+		return err;
+
+	mlxsw_reg_mgir_fw_info_psid_memcpy_from(mgir_pl, psid);
+	return 0;
+}
+
 static int mlxsw_linecard_device_info_update(struct mlxsw_linecard *linecard)
 {
 	struct mlxsw_core *mlxsw_core = linecard->linecards->mlxsw_core;
@@ -121,6 +142,12 @@ static int mlxsw_linecard_device_info_update(struct mlxsw_linecard *linecard)
 				      linecard->slot_index);
 			return 0;
 		}
+
+		err = mlxsw_linecard_device_psid_get(linecard, device_index,
+						     info.psid);
+		if (err)
+			return err;
+
 		linecard->device.info = info;
 		flashable_found = true;
 	} while (msg_seq);
@@ -292,6 +319,10 @@ int mlxsw_linecard_devlink_info_get(struct mlxsw_linecard *linecard,
 
 	if (linecard->active) {
 		struct mlxsw_linecard_device_info *info = &linecard->device.info;
+
+		err = devlink_info_version_fixed_put(req,
+						     DEVLINK_INFO_VERSION_GENERIC_FW_PSID,
+						     info->psid);
 
 		sprintf(buf, "%u.%u.%u", info->fw_major, info->fw_minor,
 			info->fw_sub_minor);
