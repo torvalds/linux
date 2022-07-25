@@ -463,10 +463,12 @@ static int spi_nor_parse_bfpt(struct spi_nor *nor,
 	case BFPT_DWORD1_ADDRESS_BYTES_3_ONLY:
 	case BFPT_DWORD1_ADDRESS_BYTES_3_OR_4:
 		params->addr_nbytes = 3;
+		params->addr_mode_nbytes = 3;
 		break;
 
 	case BFPT_DWORD1_ADDRESS_BYTES_4_ONLY:
 		params->addr_nbytes = 4;
+		params->addr_mode_nbytes = 4;
 		break;
 
 	default:
@@ -653,7 +655,7 @@ static u8 spi_nor_smpt_addr_nbytes(const struct spi_nor *nor, const u32 settings
 		return 4;
 	case SMPT_CMD_ADDRESS_LEN_USE_CURRENT:
 	default:
-		return nor->params->addr_nbytes;
+		return nor->params->addr_mode_nbytes;
 	}
 }
 
