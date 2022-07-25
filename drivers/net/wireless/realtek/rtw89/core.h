@@ -1159,6 +1159,12 @@ struct rtw89_btc_wl_role_info_bpos {
 	u16 nan: 1;
 };
 
+struct rtw89_btc_wl_scc_ctrl {
+	u8 null_role1;
+	u8 null_role2;
+	u8 ebt_null; /* if tx null at EBT slot */
+};
+
 union rtw89_btc_wl_role_info_map {
 	u16 val;
 	struct rtw89_btc_wl_role_info_bpos role;
@@ -1707,6 +1713,7 @@ struct rtw89_btc_dm {
 	struct rtw89_btc_rf_trx_para rf_trx_para;
 	struct rtw89_btc_wl_tx_limit_para wl_tx_limit;
 	struct rtw89_btc_dm_step dm_step;
+	struct rtw89_btc_wl_scc_ctrl wl_scc;
 	union rtw89_btc_dm_error_map error;
 	u32 cnt_dm[BTC_DCNT_NUM];
 	u32 cnt_notify[BTC_NCNT_NUM];
