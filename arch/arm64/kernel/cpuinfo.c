@@ -267,6 +267,7 @@ static struct kobj_type cpuregs_kobj_type = {
 
 CPUREGS_ATTR_RO(midr_el1, midr);
 CPUREGS_ATTR_RO(revidr_el1, revidr);
+CPUREGS_ATTR_RO(smidr_el1, smidr);
 
 static struct attribute *cpuregs_id_attrs[] = {
 	&cpuregs_attr_midr_el1.attr,
@@ -276,6 +277,16 @@ static struct attribute *cpuregs_id_attrs[] = {
 
 static const struct attribute_group cpuregs_attr_group = {
 	.attrs = cpuregs_id_attrs,
+	.name = "identification"
+};
+
+static struct attribute *sme_cpuregs_id_attrs[] = {
+	&cpuregs_attr_smidr_el1.attr,
+	NULL
+};
+
+static const struct attribute_group sme_cpuregs_attr_group = {
+	.attrs = sme_cpuregs_id_attrs,
 	.name = "identification"
 };
 
@@ -296,6 +307,8 @@ static int cpuid_cpu_online(unsigned int cpu)
 	rc = sysfs_create_group(&info->kobj, &cpuregs_attr_group);
 	if (rc)
 		kobject_del(&info->kobj);
+	if (system_supports_sme())
+		rc = sysfs_merge_group(&info->kobj, &sme_cpuregs_attr_group);
 out:
 	return rc;
 }
@@ -423,8 +436,16 @@ static void __cpuinfo_store_cpu(struct cpuinfo_arm64 *info)
 		info->reg_zcr = read_zcr_features();
 
 	if (IS_ENABLED(CONFIG_ARM64_SME) &&
-	    id_aa64pfr1_sme(info->reg_id_aa64pfr1))
+	    id_aa64pfr1_sme(info->reg_id_aa64pfr1)) {
 		info->reg_smcr = read_smcr_features();
+
+		/*
+		 * We mask out SMPS since even if the hardware
+		 * supports priorities the kernel does not at present
+		 * and we block access to them.
+		 */
+		info->reg_smidr = read_cpuid(SMIDR_EL1) & ~SMIDR_EL1_SMPS;
+	}
 
 	cpuinfo_detect_icache_policy(info);
 }
