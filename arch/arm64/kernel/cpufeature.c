@@ -1646,14 +1646,34 @@ static bool unmap_kernel_at_el0(const struct arm64_cpu_capabilities *entry,
 }
 
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
+#define KPTI_NG_TEMP_VA		(-(1UL << PMD_SHIFT))
+
+extern
+void create_kpti_ng_temp_pgd(pgd_t *pgdir, phys_addr_t phys, unsigned long virt,
+			     phys_addr_t size, pgprot_t prot,
+			     phys_addr_t (*pgtable_alloc)(int), int flags);
+
+static phys_addr_t kpti_ng_temp_alloc;
+
+static phys_addr_t kpti_ng_pgd_alloc(int shift)
+{
+	kpti_ng_temp_alloc -= PAGE_SIZE;
+	return kpti_ng_temp_alloc;
+}
+
 static void __nocfi
 kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
 {
-	typedef void (kpti_remap_fn)(int, int, phys_addr_t);
+	typedef void (kpti_remap_fn)(int, int, phys_addr_t, unsigned long);
 	extern kpti_remap_fn idmap_kpti_install_ng_mappings;
 	kpti_remap_fn *remap_fn;
 
 	int cpu = smp_processor_id();
+	int levels = CONFIG_PGTABLE_LEVELS;
+	int order = order_base_2(levels);
+	u64 kpti_ng_temp_pgd_pa = 0;
+	pgd_t *kpti_ng_temp_pgd;
+	u64 alloc = 0;
 
 	if (__this_cpu_read(this_cpu_vector) == vectors) {
 		const char *v = arm64_get_bp_hardening_vector(EL1_VECTOR_KPTI);
@@ -1671,12 +1691,40 @@ kpti_install_ng_mappings(const struct arm64_cpu_capabilities *__unused)
 
 	remap_fn = (void *)__pa_symbol(function_nocfi(idmap_kpti_install_ng_mappings));
 
+	if (!cpu) {
+		alloc = __get_free_pages(GFP_ATOMIC | __GFP_ZERO, order);
+		kpti_ng_temp_pgd = (pgd_t *)(alloc + (levels - 1) * PAGE_SIZE);
+		kpti_ng_temp_alloc = kpti_ng_temp_pgd_pa = __pa(kpti_ng_temp_pgd);
+
+		//
+		// Create a minimal page table hierarchy that permits us to map
+		// the swapper page tables temporarily as we traverse them.
+		//
+		// The physical pages are laid out as follows:
+		//
+		// +--------+-/-------+-/------ +-\\--------+
+		// :  PTE[] : | PMD[] : | PUD[] : || PGD[]  :
+		// +--------+-\-------+-\------ +-//--------+
+		//      ^
+		// The first page is mapped into this hierarchy at a PMD_SHIFT
+		// aligned virtual address, so that we can manipulate the PTE
+		// level entries while the mapping is active. The first entry
+		// covers the PTE[] page itself, the remaining entries are free
+		// to be used as a ad-hoc fixmap.
+		//
+		create_kpti_ng_temp_pgd(kpti_ng_temp_pgd, __pa(alloc),
+					KPTI_NG_TEMP_VA, PAGE_SIZE, PAGE_KERNEL,
+					kpti_ng_pgd_alloc, 0);
+	}
+
 	cpu_install_idmap();
-	remap_fn(cpu, num_online_cpus(), __pa_symbol(swapper_pg_dir));
+	remap_fn(cpu, num_online_cpus(), kpti_ng_temp_pgd_pa, KPTI_NG_TEMP_VA);
 	cpu_uninstall_idmap();
 
-	if (!cpu)
+	if (!cpu) {
+		free_pages(alloc, order);
 		arm64_use_ng_mappings = true;
+	}
 }
 #else
 static void
