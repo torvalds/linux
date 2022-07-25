@@ -665,33 +665,33 @@ u64 ata_tf_read_block(const struct ata_taskfile *tf, struct ata_device *dev)
 
 /**
  *	ata_build_rw_tf - Build ATA taskfile for given read/write request
- *	@tf: Target ATA taskfile
- *	@dev: ATA device @tf belongs to
+ *	@qc: Metadata associated with the taskfile to build
  *	@block: Block address
  *	@n_block: Number of blocks
  *	@tf_flags: RW/FUA etc...
- *	@tag: tag
  *	@class: IO priority class
  *
  *	LOCKING:
  *	None.
  *
- *	Build ATA taskfile @tf for read/write request described by
- *	@block, @n_block, @tf_flags and @tag on @dev.
+ *	Build ATA taskfile for the command @qc for read/write request described
+ *	by @block, @n_block, @tf_flags and @class.
  *
  *	RETURNS:
  *
  *	0 on success, -ERANGE if the request is too large for @dev,
  *	-EINVAL if the request is invalid.
  */
-int ata_build_rw_tf(struct ata_taskfile *tf, struct ata_device *dev,
-		    u64 block, u32 n_block, unsigned int tf_flags,
-		    unsigned int tag, int class)
+int ata_build_rw_tf(struct ata_queued_cmd *qc, u64 block, u32 n_block,
+		    unsigned int tf_flags, int class)
 {
+	struct ata_taskfile *tf = &qc->tf;
+	struct ata_device *dev = qc->dev;
+
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf->flags |= tf_flags;
 
-	if (ata_ncq_enabled(dev) && !ata_tag_internal(tag)) {
+	if (ata_ncq_enabled(dev)) {
 		/* yay, NCQ */
 		if (!lba_48_ok(block, n_block))
 			return -ERANGE;
@@ -704,7 +704,7 @@ int ata_build_rw_tf(struct ata_taskfile *tf, struct ata_device *dev,
 		else
 			tf->command = ATA_CMD_FPDMA_READ;
 
-		tf->nsect = tag << 3;
+		tf->nsect = qc->hw_tag << 3;
 		tf->hob_feature = (n_block >> 8) & 0xff;
 		tf->feature = n_block & 0xff;
 
