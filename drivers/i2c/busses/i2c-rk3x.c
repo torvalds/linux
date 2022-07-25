@@ -6,6 +6,7 @@
  * based on the patches by Rockchip Inc.
  */
 
+#include <linux/acpi.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -1315,6 +1316,45 @@ static unsigned int rk3x_i2c_get_version(struct rk3x_i2c *i2c)
 	return version;
 }
 
+static int rk3x_i2c_of_get_bus_id(struct device *dev, struct rk3x_i2c *priv)
+{
+	int bus_id = -1;
+
+	if (IS_ENABLED(CONFIG_OF) && dev->of_node)
+		bus_id = of_alias_get_id(dev->of_node, "i2c");
+
+	return bus_id;
+}
+
+#ifdef CONFIG_ACPI
+static int rk3x_i2c_acpi_get_bus_id(struct device *dev, struct rk3x_i2c *priv)
+{
+	struct acpi_device *adev;
+	unsigned long bus_id = -1;
+	const char *uid;
+	int ret;
+
+	adev = ACPI_COMPANION(dev);
+	if (!adev)
+		return -ENXIO;
+
+	uid = acpi_device_uid(adev);
+	if (!uid || !(*uid)) {
+		dev_err(dev, "Cannot retrieve UID\n");
+		return -ENODEV;
+	}
+
+	ret = kstrtoul(uid, 0, &bus_id);
+
+	return !ret ? bus_id : -ERANGE;
+}
+#else
+static int rk3x_i2c_acpi_get_bus_id(struct device *dev, struct rk3x_i2c *priv)
+{
+	return -ENOENT;
+}
+#endif /* CONFIG_ACPI */
+
 static __maybe_unused int rk3x_i2c_suspend_noirq(struct device *dev)
 {
 	struct rk3x_i2c *i2c = dev_get_drvdata(dev);
@@ -1435,8 +1475,8 @@ static void rk3x_i2c_tb_cb(void *data)
 
 static int rk3x_i2c_probe(struct platform_device *pdev)
 {
+	struct fwnode_handle *fw = dev_fwnode(&pdev->dev);
 	struct device_node *np = pdev->dev.of_node;
-	const struct of_device_id *match;
 	struct rk3x_i2c *i2c;
 	int ret = 0;
 	u32 value;
@@ -1447,8 +1487,16 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	if (!i2c)
 		return -ENOMEM;
 
-	match = of_match_node(rk3x_i2c_match, np);
-	i2c->soc_data = match->data;
+	i2c->soc_data = (struct rk3x_i2c_soc_data *)device_get_match_data(&pdev->dev);
+
+	ret = rk3x_i2c_acpi_get_bus_id(&pdev->dev, i2c);
+	if (ret < 0) {
+		ret = rk3x_i2c_of_get_bus_id(&pdev->dev, i2c);
+		if (ret < 0)
+			return ret;
+	}
+
+	i2c->adap.nr = ret;
 
 	/* use common interface to get I2C timing properties */
 	i2c_parse_fw_timings(&pdev->dev, &i2c->t, true);
@@ -1457,9 +1505,10 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	i2c->adap.owner = THIS_MODULE;
 	i2c->adap.algo = &rk3x_i2c_algorithm;
 	i2c->adap.retries = 3;
-	i2c->adap.dev.of_node = np;
+	i2c->adap.dev.of_node = pdev->dev.of_node;
 	i2c->adap.algo_data = i2c;
 	i2c->adap.dev.parent = &pdev->dev;
+	i2c->adap.dev.fwnode = fw;
 
 	i2c->dev = &pdev->dev;
 
@@ -1487,14 +1536,7 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 
 		grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 		if (!IS_ERR(grf)) {
-			int bus_nr;
-
-			/* Try to set the I2C adapter number from dt */
-			bus_nr = of_alias_get_id(np, "i2c");
-			if (bus_nr < 0) {
-				dev_err(&pdev->dev, "rk3x-i2c needs i2cX alias");
-				return -EINVAL;
-			}
+			int bus_nr = i2c->adap.nr;
 
 			if (i2c->soc_data == &rv1108_soc_data && bus_nr == 2)
 				/* rv1108 i2c2 set grf offset-0x408, bit-10 */
@@ -1541,22 +1583,24 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, i2c);
 
-	if (i2c->soc_data->calc_timings == rk3x_i2c_v0_calc_timings) {
-		/* Only one clock to use for bus clock and peripheral clock */
-		i2c->clk = devm_clk_get(&pdev->dev, NULL);
-		i2c->pclk = i2c->clk;
-	} else {
-		i2c->clk = devm_clk_get(&pdev->dev, "i2c");
-		i2c->pclk = devm_clk_get(&pdev->dev, "pclk");
+	if (!has_acpi_companion(&pdev->dev)) {
+		if (i2c->soc_data->calc_timings == rk3x_i2c_v0_calc_timings) {
+			/* Only one clock to use for bus clock and peripheral clock */
+			i2c->clk = devm_clk_get(&pdev->dev, NULL);
+			i2c->pclk = i2c->clk;
+		} else {
+			i2c->clk = devm_clk_get(&pdev->dev, "i2c");
+			i2c->pclk = devm_clk_get(&pdev->dev, "pclk");
+		}
+
+		if (IS_ERR(i2c->clk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(i2c->clk),
+					     "Can't get bus clk\n");
+
+		if (IS_ERR(i2c->pclk))
+			return dev_err_probe(&pdev->dev, PTR_ERR(i2c->pclk),
+					     "Can't get periph clk\n");
 	}
-
-	if (IS_ERR(i2c->clk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(i2c->clk),
-				     "Can't get bus clk\n");
-
-	if (IS_ERR(i2c->pclk))
-		return dev_err_probe(&pdev->dev, PTR_ERR(i2c->pclk),
-				     "Can't get periph clk\n");
 
 	ret = clk_prepare(i2c->clk);
 	if (ret < 0) {
@@ -1569,20 +1613,25 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	i2c->clk_rate_nb.notifier_call = rk3x_i2c_clk_notifier_cb;
-	ret = clk_notifier_register(i2c->clk, &i2c->clk_rate_nb);
-	if (ret != 0) {
-		dev_err(&pdev->dev, "Unable to register clock notifier\n");
-		goto err_pclk;
+	if (i2c->clk) {
+		i2c->clk_rate_nb.notifier_call = rk3x_i2c_clk_notifier_cb;
+		ret = clk_notifier_register(i2c->clk, &i2c->clk_rate_nb);
+		if (ret != 0) {
+			dev_err(&pdev->dev, "Unable to register clock notifier\n");
+			goto err_pclk;
+		}
 	}
 
 	clk_rate = clk_get_rate(i2c->clk);
+	if (!clk_rate)
+		device_property_read_u32(&pdev->dev, "i2c,clk-rate", (u32 *)&clk_rate);
+
 	rk3x_i2c_adapt_div(i2c, clk_rate);
 
 	if (rk3x_i2c_get_version(i2c) >= RK_I2C_VERSION5)
 		i2c->autostop_supported = true;
 
-	ret = i2c_add_adapter(&i2c->adap);
+	ret = i2c_add_numbered_adapter(&i2c->adap);
 	if (ret < 0)
 		goto err_clk_notifier;
 
