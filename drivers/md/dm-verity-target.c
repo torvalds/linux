@@ -19,6 +19,7 @@
 #include <linux/module.h>
 #include <linux/reboot.h>
 #include <linux/scatterlist.h>
+#include <linux/jump_label.h>
 
 #define DM_MSG_PREFIX			"verity"
 
@@ -42,6 +43,8 @@
 static unsigned dm_verity_prefetch_cluster = DM_VERITY_DEFAULT_PREFETCH_SIZE;
 
 module_param_named(prefetch_cluster, dm_verity_prefetch_cluster, uint, S_IRUGO | S_IWUSR);
+
+static DEFINE_STATIC_KEY_FALSE(use_tasklet_enabled);
 
 struct dm_verity_prefetch_work {
 	struct work_struct work;
@@ -287,7 +290,7 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 
 	verity_hash_at_level(v, block, level, &hash_block, &offset);
 
-	if (io->in_tasklet) {
+	if (static_branch_unlikely(&use_tasklet_enabled) && io->in_tasklet) {
 		data = dm_bufio_get(v->bufio, hash_block, &buf);
 		if (data == NULL) {
 			/*
@@ -320,7 +323,8 @@ static int verity_verify_level(struct dm_verity *v, struct dm_verity_io *io,
 		if (likely(memcmp(verity_io_real_digest(v, io), want_digest,
 				  v->digest_size) == 0))
 			aux->hash_verified = 1;
-		else if (io->in_tasklet) {
+		else if (static_branch_unlikely(&use_tasklet_enabled) &&
+			 io->in_tasklet) {
 			/*
 			 * Error handling code (FEC included) cannot be run in a
 			 * tasklet since it may sleep, so fallback to work-queue.
@@ -553,7 +557,8 @@ static int verity_verify_io(struct dm_verity_io *io)
 			if (v->validated_blocks)
 				set_bit(cur_block, v->validated_blocks);
 			continue;
-		} else if (io->in_tasklet) {
+		} else if (static_branch_unlikely(&use_tasklet_enabled) &&
+			   io->in_tasklet) {
 			/*
 			 * Error handling code (FEC included) cannot be run in a
 			 * tasklet since it may sleep, so fallback to work-queue.
@@ -598,7 +603,7 @@ static void verity_finish_io(struct dm_verity_io *io, blk_status_t status)
 	bio->bi_end_io = io->orig_bi_end_io;
 	bio->bi_status = status;
 
-	if (!io->in_tasklet)
+	if (!static_branch_unlikely(&use_tasklet_enabled) || !io->in_tasklet)
 		verity_fec_finish_io(io);
 
 	bio_endio(bio);
@@ -641,7 +646,7 @@ static void verity_end_io(struct bio *bio)
 		return;
 	}
 
-	if (io->v->use_tasklet) {
+	if (static_branch_unlikely(&use_tasklet_enabled) && io->v->use_tasklet) {
 		tasklet_init(&io->tasklet, verity_tasklet, (unsigned long)io);
 		tasklet_schedule(&io->tasklet);
 	} else {
@@ -949,6 +954,9 @@ static void verity_dtr(struct dm_target *ti)
 
 	kfree(v->signature_key_desc);
 
+	if (v->use_tasklet)
+		static_branch_dec(&use_tasklet_enabled);
+
 	kfree(v);
 }
 
@@ -1080,6 +1088,7 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 
 		} else if (!strcasecmp(arg_name, DM_VERITY_OPT_TASKLET_VERIFY)) {
 			v->use_tasklet = true;
+			static_branch_inc(&use_tasklet_enabled);
 			continue;
 
 		} else if (verity_is_fec_opt_arg(arg_name)) {
