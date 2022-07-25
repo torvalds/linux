@@ -118,7 +118,14 @@ static const struct svm_direct_access_msrs {
 	{ .index = X2APIC_MSR(APIC_ESR),		.always = false },
 	{ .index = X2APIC_MSR(APIC_ICR),		.always = false },
 	{ .index = X2APIC_MSR(APIC_ICR2),		.always = false },
-	{ .index = X2APIC_MSR(APIC_LVTT),		.always = false },
+
+	/*
+	 * Note:
+	 * AMD does not virtualize APIC TSC-deadline timer mode, but it is
+	 * emulated by KVM. When setting APIC LVTT (0x832) register bit 18,
+	 * the AVIC hardware would generate GP fault. Therefore, always
+	 * intercept the MSR 0x832, and do not setup direct_access_msr.
+	 */
 	{ .index = X2APIC_MSR(APIC_LVTTHMR),		.always = false },
 	{ .index = X2APIC_MSR(APIC_LVTPC),		.always = false },
 	{ .index = X2APIC_MSR(APIC_LVT0),		.always = false },
