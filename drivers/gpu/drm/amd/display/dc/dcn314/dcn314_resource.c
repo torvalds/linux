@@ -1254,7 +1254,7 @@ static struct stream_encoder *dcn314_stream_encoder_create(
 	int afmt_inst;
 
 	/* Mapping of VPG, AFMT, DME register blocks to DIO block instance */
-	if (eng_id <= ENGINE_ID_DIGF) {
+	if (eng_id < ENGINE_ID_DIGF) {
 		vpg_inst = eng_id;
 		afmt_inst = eng_id;
 	} else
@@ -1299,7 +1299,8 @@ static struct hpo_dp_stream_encoder *dcn31_hpo_dp_stream_encoder_create(
 	 * VPG[8] -> HPO_DP[2]
 	 * VPG[9] -> HPO_DP[3]
 	 */
-	vpg_inst = hpo_dp_inst + 6;
+	//Uses offset index 5-8, but actually maps to vpg_inst 6-9
+	vpg_inst = hpo_dp_inst + 5;
 
 	/* Mapping of APG register blocks to HPO DP block instance:
 	 * APG[0] -> HPO_DP[0]
