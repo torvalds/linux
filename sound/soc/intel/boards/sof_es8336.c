@@ -604,18 +604,14 @@ static int sof_es8336_probe(struct platform_device *pdev)
 			/*
 			 * Set configuration based on platform NHLT.
 			 * In this machine driver, we can only support one SSP for the
-			 * ES8336 link, the else-if below are intentional.
+			 * ES8336 link.
 			 * In some cases multiple SSPs can be reported by NHLT, starting MSB-first
 			 * seems to pick the right connection.
 			 */
-			unsigned long ssp = 0;
+			unsigned long ssp;
 
-			if (mach->mach_params.i2s_link_mask & BIT(2))
-				ssp = SOF_ES8336_SSP_CODEC(2);
-			else if (mach->mach_params.i2s_link_mask & BIT(1))
-				ssp = SOF_ES8336_SSP_CODEC(1);
-			else  if (mach->mach_params.i2s_link_mask & BIT(0))
-				ssp = SOF_ES8336_SSP_CODEC(0);
+			/* fls returns 1-based results, SSPs indices are 0-based */
+			ssp = fls(mach->mach_params.i2s_link_mask) - 1;
 
 			quirk |= ssp;
 		}
