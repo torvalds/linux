@@ -36,8 +36,13 @@ static int retimer_fwnode_match(struct device *dev, const void *fwnode)
 
 static void *typec_retimer_match(struct fwnode_handle *fwnode, const char *id, void *data)
 {
-	struct device *dev  = class_find_device(&retimer_class, NULL, fwnode,
-						retimer_fwnode_match);
+	struct device *dev;
+
+	if (id && !fwnode_property_present(fwnode, id))
+		return NULL;
+
+	dev = class_find_device(&retimer_class, NULL, fwnode,
+				retimer_fwnode_match);
 
 	return dev ? to_typec_retimer(dev) : ERR_PTR(-EPROBE_DEFER);
 }
