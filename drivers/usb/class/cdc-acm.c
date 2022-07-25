@@ -658,7 +658,7 @@ static void acm_port_dtr_rts(struct tty_port *port, int raise)
 	int res;
 
 	if (raise)
-		val = ACM_CTRL_DTR | ACM_CTRL_RTS;
+		val = USB_CDC_CTRL_DTR | USB_CDC_CTRL_RTS;
 	else
 		val = 0;
 
@@ -903,8 +903,8 @@ static int acm_tty_tiocmget(struct tty_struct *tty)
 {
 	struct acm *acm = tty->driver_data;
 
-	return (acm->ctrlout & ACM_CTRL_DTR ? TIOCM_DTR : 0) |
-	       (acm->ctrlout & ACM_CTRL_RTS ? TIOCM_RTS : 0) |
+	return (acm->ctrlout & USB_CDC_CTRL_DTR ? TIOCM_DTR : 0) |
+	       (acm->ctrlout & USB_CDC_CTRL_RTS ? TIOCM_RTS : 0) |
 	       (acm->ctrlin  & ACM_CTRL_DSR ? TIOCM_DSR : 0) |
 	       (acm->ctrlin  & ACM_CTRL_RI  ? TIOCM_RI  : 0) |
 	       (acm->ctrlin  & ACM_CTRL_DCD ? TIOCM_CD  : 0) |
@@ -918,10 +918,10 @@ static int acm_tty_tiocmset(struct tty_struct *tty,
 	unsigned int newctrl;
 
 	newctrl = acm->ctrlout;
-	set = (set & TIOCM_DTR ? ACM_CTRL_DTR : 0) |
-					(set & TIOCM_RTS ? ACM_CTRL_RTS : 0);
-	clear = (clear & TIOCM_DTR ? ACM_CTRL_DTR : 0) |
-					(clear & TIOCM_RTS ? ACM_CTRL_RTS : 0);
+	set = (set & TIOCM_DTR ? USB_CDC_CTRL_DTR : 0) |
+	      (set & TIOCM_RTS ? USB_CDC_CTRL_RTS : 0);
+	clear = (clear & TIOCM_DTR ? USB_CDC_CTRL_DTR : 0) |
+		(clear & TIOCM_RTS ? USB_CDC_CTRL_RTS : 0);
 
 	newctrl = (newctrl & ~clear) | set;
 
@@ -1068,9 +1068,9 @@ static void acm_tty_set_termios(struct tty_struct *tty,
 
 	if (C_BAUD(tty) == B0) {
 		newline.dwDTERate = acm->line.dwDTERate;
-		newctrl &= ~ACM_CTRL_DTR;
+		newctrl &= ~USB_CDC_CTRL_DTR;
 	} else if (termios_old && (termios_old->c_cflag & CBAUD) == B0) {
-		newctrl |=  ACM_CTRL_DTR;
+		newctrl |=  USB_CDC_CTRL_DTR;
 	}
 
 	if (newctrl != acm->ctrlout)
