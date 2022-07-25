@@ -1891,6 +1891,31 @@ void svm_range_set_max_pages(struct amdgpu_device *adev)
 	} while (cmpxchg(&max_svm_range_pages, max_pages, _pages) != max_pages);
 }
 
+static int
+svm_range_split_new(struct svm_range_list *svms, uint64_t start, uint64_t last,
+		    uint64_t max_pages, struct list_head *insert_list,
+		    struct list_head *update_list)
+{
+	struct svm_range *prange;
+	uint64_t l;
+
+	pr_debug("max_svm_range_pages 0x%llx adding [0x%llx 0x%llx]\n",
+		 max_pages, start, last);
+
+	while (last >= start) {
+		l = min(last, ALIGN_DOWN(start + max_pages, max_pages) - 1);
+
+		prange = svm_range_new(svms, start, l);
+		if (!prange)
+			return -ENOMEM;
+		list_add(&prange->list, insert_list);
+		list_add(&prange->update_list, update_list);
+
+		start = l + 1;
+	}
+	return 0;
+}
+
 /**
  * svm_range_add - add svm range and handle overlap
  * @p: the range add to this process svms
@@ -1993,14 +2018,11 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 
 		/* insert a new node if needed */
 		if (node->start > start) {
-			prange = svm_range_new(svms, start, node->start - 1);
-			if (!prange) {
-				r = -ENOMEM;
+			r = svm_range_split_new(svms, start, node->start - 1,
+						READ_ONCE(max_svm_range_pages),
+						insert_list, update_list);
+			if (r)
 				goto out;
-			}
-
-			list_add(&prange->list, insert_list);
-			list_add(&prange->update_list, update_list);
 		}
 
 		node = next;
@@ -2008,15 +2030,10 @@ svm_range_add(struct kfd_process *p, uint64_t start, uint64_t size,
 	}
 
 	/* add a final range at the end if needed */
-	if (start <= last) {
-		prange = svm_range_new(svms, start, last);
-		if (!prange) {
-			r = -ENOMEM;
-			goto out;
-		}
-		list_add(&prange->list, insert_list);
-		list_add(&prange->update_list, update_list);
-	}
+	if (start <= last)
+		r = svm_range_split_new(svms, start, last,
+					READ_ONCE(max_svm_range_pages),
+					insert_list, update_list);
 
 out:
 	if (r)
