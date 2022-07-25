@@ -38,6 +38,7 @@ import sys
 import subprocess
 
 allowed_warnings = set([
+    "tcpci.h:195", # drivers/usb/typec/tcpm/tcpci.h:195:12: warning: 'enum typec_cc_status' declared inside parameter list will not be visible outside of this definition or declaration
     "atags_to_fdt.c:129", # arch/arm/boot/compressed/atags_to_fdt.c:129:5: warning: stack frame size of 2368 bytes in function 'atags_to_fdt' [-Wframe-larger-than=]
     "file.c:3010", # fs/f2fs/file.c:3010:12: warning: unused function 'f2fs_ioctl_check_project'
     "configfs.c:1488", # drivers/usb/gadget/configfs.c:1488:12: warning: unused function 'configfs_composite_setup'
