@@ -525,6 +525,7 @@ void btrfs_remove_ordered_extent(struct btrfs_inode *btrfs_inode,
 	struct rb_node *node;
 	bool pending;
 
+	btrfs_lockdep_acquire(fs_info, btrfs_trans_pending_ordered);
 	/* This is paired with btrfs_add_ordered_extent. */
 	spin_lock(&btrfs_inode->lock);
 	btrfs_mod_outstanding_extents(btrfs_inode, -1);
@@ -579,6 +580,8 @@ void btrfs_remove_ordered_extent(struct btrfs_inode *btrfs_inode,
 			btrfs_put_transaction(trans);
 		}
 	}
+
+	btrfs_lockdep_release(fs_info, btrfs_trans_pending_ordered);
 
 	spin_lock(&root->ordered_extent_lock);
 	list_del_init(&entry->root_extent_list);
