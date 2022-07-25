@@ -2284,7 +2284,7 @@
 		};
 
 		tsadc {
-			tsadc_otp_pin: tsadc-otp-pin {
+			tsadc_otp_gpio: tsadc_otp_pin: tsadc-otp-pin {
 				rockchip,pins =
 					<0 RK_PA6 RK_FUNC_GPIO &pcfg_pull_none>;
 			};
