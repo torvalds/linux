@@ -38,6 +38,8 @@
  * @kr_cur:      When KRETPROBES is selected, holds the kretprobe instance
  *               associated with the most recently encountered replacement lr
  *               value.
+ *
+ * @task:        The task being unwound.
  */
 struct unwind_state {
 	unsigned long fp;
@@ -48,13 +50,13 @@ struct unwind_state {
 #ifdef CONFIG_KRETPROBES
 	struct llist_node *kr_cur;
 #endif
+	struct task_struct *task;
 };
 
-static notrace void unwind_init(struct unwind_state *state, unsigned long fp,
-				unsigned long pc)
+static void unwind_init_common(struct unwind_state *state,
+			       struct task_struct *task)
 {
-	state->fp = fp;
-	state->pc = pc;
+	state->task = task;
 #ifdef CONFIG_KRETPROBES
 	state->kr_cur = NULL;
 #endif
@@ -72,7 +74,57 @@ static notrace void unwind_init(struct unwind_state *state, unsigned long fp,
 	state->prev_fp = 0;
 	state->prev_type = STACK_TYPE_UNKNOWN;
 }
-NOKPROBE_SYMBOL(unwind_init);
+
+/*
+ * Start an unwind from a pt_regs.
+ *
+ * The unwind will begin at the PC within the regs.
+ *
+ * The regs must be on a stack currently owned by the calling task.
+ */
+static inline void unwind_init_from_regs(struct unwind_state *state,
+					 struct pt_regs *regs)
+{
+	unwind_init_common(state, current);
+
+	state->fp = regs->regs[29];
+	state->pc = regs->pc;
+}
+
+/*
+ * Start an unwind from a caller.
+ *
+ * The unwind will begin at the caller of whichever function this is inlined
+ * into.
+ *
+ * The function which invokes this must be noinline.
+ */
+static __always_inline void unwind_init_from_caller(struct unwind_state *state)
+{
+	unwind_init_common(state, current);
+
+	state->fp = (unsigned long)__builtin_frame_address(1);
+	state->pc = (unsigned long)__builtin_return_address(0);
+}
+
+/*
+ * Start an unwind from a blocked task.
+ *
+ * The unwind will begin at the blocked tasks saved PC (i.e. the caller of
+ * cpu_switch_to()).
+ *
+ * The caller should ensure the task is blocked in cpu_switch_to() for the
+ * duration of the unwind, or the unwind will be bogus. It is never valid to
+ * call this for the current task.
+ */
+static inline void unwind_init_from_task(struct unwind_state *state,
+					 struct task_struct *task)
+{
+	unwind_init_common(state, task);
+
+	state->fp = thread_saved_fp(task);
+	state->pc = thread_saved_pc(task);
+}
 
 /*
  * Unwind from one frame record (A) to the next frame record (B).
@@ -81,9 +133,9 @@ NOKPROBE_SYMBOL(unwind_init);
  * records (e.g. a cycle), determined based on the location and fp value of A
  * and the location (but not the fp value) of B.
  */
-static int notrace unwind_next(struct task_struct *tsk,
-			       struct unwind_state *state)
+static int notrace unwind_next(struct unwind_state *state)
 {
+	struct task_struct *tsk = state->task;
 	unsigned long fp = state->fp;
 	struct stack_info info;
 
@@ -117,15 +169,15 @@ static int notrace unwind_next(struct task_struct *tsk,
 		if (fp <= state->prev_fp)
 			return -EINVAL;
 	} else {
-		set_bit(state->prev_type, state->stacks_done);
+		__set_bit(state->prev_type, state->stacks_done);
 	}
 
 	/*
 	 * Record this frame record's values and location. The prev_fp and
 	 * prev_type are only meaningful to the next unwind_next() invocation.
 	 */
-	state->fp = READ_ONCE_NOCHECK(*(unsigned long *)(fp));
-	state->pc = READ_ONCE_NOCHECK(*(unsigned long *)(fp + 8));
+	state->fp = READ_ONCE(*(unsigned long *)(fp));
+	state->pc = READ_ONCE(*(unsigned long *)(fp + 8));
 	state->prev_fp = fp;
 	state->prev_type = info.type;
 
@@ -157,8 +209,7 @@ static int notrace unwind_next(struct task_struct *tsk,
 }
 NOKPROBE_SYMBOL(unwind_next);
 
-static void notrace unwind(struct task_struct *tsk,
-			   struct unwind_state *state,
+static void notrace unwind(struct unwind_state *state,
 			   stack_trace_consume_fn consume_entry, void *cookie)
 {
 	while (1) {
@@ -166,7 +217,7 @@ static void notrace unwind(struct task_struct *tsk,
 
 		if (!consume_entry(cookie, state->pc))
 			break;
-		ret = unwind_next(tsk, state);
+		ret = unwind_next(state);
 		if (ret < 0)
 			break;
 	}
@@ -212,15 +263,15 @@ noinline notrace void arch_stack_walk(stack_trace_consume_fn consume_entry,
 {
 	struct unwind_state state;
 
-	if (regs)
-		unwind_init(&state, regs->regs[29], regs->pc);
-	else if (task == current)
-		unwind_init(&state,
-				(unsigned long)__builtin_frame_address(1),
-				(unsigned long)__builtin_return_address(0));
-	else
-		unwind_init(&state, thread_saved_fp(task),
-				thread_saved_pc(task));
+	if (regs) {
+		if (task != current)
+			return;
+		unwind_init_from_regs(&state, regs);
+	} else if (task == current) {
+		unwind_init_from_caller(&state);
+	} else {
+		unwind_init_from_task(&state, task);
+	}
 
-	unwind(task, &state, consume_entry, cookie);
+	unwind(&state, consume_entry, cookie);
 }
