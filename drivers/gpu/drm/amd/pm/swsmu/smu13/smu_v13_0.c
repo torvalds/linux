@@ -494,6 +494,8 @@ int smu_v13_0_setup_pptable(struct smu_context *smu)
 				dev_err(adev->dev, "Unsupported pptable id %d\n", pptable_id);
 				return -EINVAL;
 			}
+		} else if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 10)) {
+			pptable_id = 6666;
 		}
 	}
 
