@@ -985,7 +985,9 @@ int io_sendzc(struct io_kiocb *req, unsigned int issue_flags)
 					  &msg.msg_iter);
 		if (unlikely(ret))
 			return ret;
-		mm_account_pinned_pages(&notif->uarg.mmp, zc->len);
+		ret = mm_account_pinned_pages(&notif->uarg.mmp, zc->len);
+		if (unlikely(ret))
+			return ret;
 	}
 
 	if (zc->addr) {
