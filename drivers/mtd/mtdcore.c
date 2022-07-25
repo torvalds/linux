@@ -559,6 +559,8 @@ static void mtd_check_of_node(struct mtd_info *mtd)
 		return;
 
 	/* Check if a partitions node exist */
+	if (!mtd_is_partition(mtd))
+		return;
 	parent = mtd->parent;
 	parent_dn = dev_of_node(&parent->dev);
 	if (!parent_dn)
