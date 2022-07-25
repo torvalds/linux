@@ -190,4 +190,6 @@ then
 	run_test ./protection_keys_64
 fi
 
+run_test ./soft-dirty
+
 exit $exitcode
