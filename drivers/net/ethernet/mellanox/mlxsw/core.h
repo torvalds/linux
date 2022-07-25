@@ -12,6 +12,7 @@
 #include <linux/skbuff.h>
 #include <linux/workqueue.h>
 #include <linux/net_namespace.h>
+#include <linux/auxiliary_bus.h>
 #include <net/devlink.h>
 
 #include "trap.h"
@@ -563,6 +564,8 @@ enum mlxsw_linecard_status_event_type {
 	MLXSW_LINECARD_STATUS_EVENT_TYPE_UNPROVISION,
 };
 
+struct mlxsw_linecard_bdev;
+
 struct mlxsw_linecard {
 	u8 slot_index;
 	struct mlxsw_linecards *linecards;
@@ -577,6 +580,7 @@ struct mlxsw_linecard {
 	   active:1;
 	u16 hw_revision;
 	u16 ini_version;
+	struct mlxsw_linecard_bdev *bdev;
 };
 
 struct mlxsw_linecard_types_info;
@@ -615,5 +619,11 @@ int mlxsw_linecards_event_ops_register(struct mlxsw_core *mlxsw_core,
 void mlxsw_linecards_event_ops_unregister(struct mlxsw_core *mlxsw_core,
 					  struct mlxsw_linecards_event_ops *ops,
 					  void *priv);
+
+int mlxsw_linecard_bdev_add(struct mlxsw_linecard *linecard);
+void mlxsw_linecard_bdev_del(struct mlxsw_linecard *linecard);
+
+int mlxsw_linecard_driver_register(void);
+void mlxsw_linecard_driver_unregister(void);
 
 #endif
