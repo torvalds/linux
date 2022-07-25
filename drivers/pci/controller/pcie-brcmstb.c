@@ -24,6 +24,7 @@
 #include <linux/pci.h>
 #include <linux/pci-ecam.h>
 #include <linux/printk.h>
+#include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -218,6 +219,11 @@ struct pcie_cfg_data {
 	void (*bridge_sw_init_set)(struct brcm_pcie *pcie, u32 val);
 };
 
+struct subdev_regulators {
+	unsigned int num_supplies;
+	struct regulator_bulk_data supplies[];
+};
+
 struct brcm_msi {
 	struct device		*dev;
 	void __iomem		*base;
@@ -255,6 +261,7 @@ struct brcm_pcie {
 	u32			hw_rev;
 	void			(*perst_set)(struct brcm_pcie *pcie, u32 val);
 	void			(*bridge_sw_init_set)(struct brcm_pcie *pcie, u32 val);
+	struct subdev_regulators *sr;
 };
 
 static inline bool is_bmips(const struct brcm_pcie *pcie)
@@ -1065,6 +1072,82 @@ static int brcm_pcie_start_link(struct brcm_pcie *pcie)
 	return 0;
 }
 
+static const char * const supplies[] = {
+	"vpcie3v3",
+	"vpcie3v3aux",
+	"vpcie12v",
+};
+
+static void *alloc_subdev_regulators(struct device *dev)
+{
+	const size_t size = sizeof(struct subdev_regulators) +
+		sizeof(struct regulator_bulk_data) * ARRAY_SIZE(supplies);
+	struct subdev_regulators *sr;
+	int i;
+
+	sr = devm_kzalloc(dev, size, GFP_KERNEL);
+	if (sr) {
+		sr->num_supplies = ARRAY_SIZE(supplies);
+		for (i = 0; i < ARRAY_SIZE(supplies); i++)
+			sr->supplies[i].supply = supplies[i];
+	}
+
+	return sr;
+}
+
+static int brcm_pcie_add_bus(struct pci_bus *bus)
+{
+	struct brcm_pcie *pcie = bus->sysdata;
+	struct device *dev = &bus->dev;
+	struct subdev_regulators *sr;
+	int ret;
+
+	if (!bus->parent || !pci_is_root_bus(bus->parent))
+		return 0;
+
+	if (dev->of_node) {
+		sr = alloc_subdev_regulators(dev);
+		if (!sr) {
+			dev_info(dev, "Can't allocate regulators for downstream device\n");
+			goto no_regulators;
+		}
+
+		pcie->sr = sr;
+
+		ret = regulator_bulk_get(dev, sr->num_supplies, sr->supplies);
+		if (ret) {
+			dev_info(dev, "No regulators for downstream device\n");
+			goto no_regulators;
+		}
+
+		ret = regulator_bulk_enable(sr->num_supplies, sr->supplies);
+		if (ret) {
+			dev_err(dev, "Can't enable regulators for downstream device\n");
+			regulator_bulk_free(sr->num_supplies, sr->supplies);
+			pcie->sr = NULL;
+		}
+	}
+
+no_regulators:
+	brcm_pcie_start_link(pcie);
+	return 0;
+}
+
+static void brcm_pcie_remove_bus(struct pci_bus *bus)
+{
+	struct brcm_pcie *pcie = bus->sysdata;
+	struct subdev_regulators *sr = pcie->sr;
+	struct device *dev = &bus->dev;
+
+	if (!sr)
+		return;
+
+	if (regulator_bulk_disable(sr->num_supplies, sr->supplies))
+		dev_err(dev, "Failed to disable regulators for downstream device\n");
+	regulator_bulk_free(sr->num_supplies, sr->supplies);
+	pcie->sr = NULL;
+}
+
 /* L23 is a low-power PCIe link state */
 static void brcm_pcie_enter_l23(struct brcm_pcie *pcie)
 {
@@ -1336,12 +1419,16 @@ static struct pci_ops brcm_pcie_ops = {
 	.map_bus = brcm_pcie_map_conf,
 	.read = pci_generic_config_read,
 	.write = pci_generic_config_write,
+	.add_bus = brcm_pcie_add_bus,
+	.remove_bus = brcm_pcie_remove_bus,
 };
 
 static struct pci_ops brcm_pcie_ops32 = {
 	.map_bus = brcm_pcie_map_conf32,
 	.read = pci_generic_config_read32,
 	.write = pci_generic_config_write32,
+	.add_bus = brcm_pcie_add_bus,
+	.remove_bus = brcm_pcie_remove_bus,
 };
 
 static int brcm_pcie_probe(struct platform_device *pdev)
@@ -1414,10 +1501,6 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 	if (ret)
 		goto fail;
 
-	ret = brcm_pcie_start_link(pcie);
-	if (ret)
-		goto fail;
-
 	pcie->hw_rev = readl(pcie->base + PCIE_MISC_REVISION);
 	if (pcie->type == BCM4908 && pcie->hw_rev >= BRCM_PCIE_HW_REV_3_20) {
 		dev_err(pcie->dev, "hardware revision with unsupported PERST# setup\n");
@@ -1439,7 +1522,17 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pcie);
 
-	return pci_host_probe(bridge);
+	ret = pci_host_probe(bridge);
+	if (!ret && !brcm_pcie_link_up(pcie))
+		ret = -ENODEV;
+
+	if (ret) {
+		brcm_pcie_remove(pdev);
+		return ret;
+	}
+
+	return 0;
+
 fail:
 	__brcm_pcie_remove(pcie);
 	return ret;
