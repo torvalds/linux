@@ -627,15 +627,9 @@ extern int fb_get_color_depth(struct fb_var_screeninfo *var,
 extern int fb_get_options(const char *name, char **option);
 extern int fb_new_modelist(struct fb_info *info);
 
-extern struct fb_info *registered_fb[FB_MAX];
-extern int num_registered_fb;
 extern bool fb_center_logo;
 extern int fb_logo_count;
 extern struct class *fb_class;
-
-#define for_each_registered_fb(i)		\
-	for (i = 0; i < FB_MAX; i++)		\
-		if (!registered_fb[i]) {} else
 
 static inline void lock_fb_info(struct fb_info *info)
 {
