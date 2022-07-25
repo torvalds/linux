@@ -778,7 +778,6 @@ kfd_mem_attach_dmabuf(struct amdgpu_device *adev, struct kgd_mem *mem,
 
 	*bo = gem_to_amdgpu_bo(gobj);
 	(*bo)->flags |= AMDGPU_GEM_CREATE_PREEMPTIBLE;
-	(*bo)->parent = amdgpu_bo_ref(mem->bo);
 
 	return 0;
 }
