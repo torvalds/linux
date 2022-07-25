@@ -4,6 +4,7 @@
  */
 /dts-v1/;
 #include "lan966x.dtsi"
+#include "dt-bindings/phy/phy-lan966x-serdes.h"
 
 / {
 	model = "Microchip EVB - LAN9662";
@@ -15,6 +16,12 @@
 
 	aliases {
 		serial0 = &usart3;
+	};
+
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpio 56 GPIO_ACTIVE_LOW>;
+		priority = <200>;
 	};
 };
 
@@ -35,7 +42,7 @@
 &can0 {
 	pinctrl-0 = <&can0_b_pins>;
 	pinctrl-names = "default";
-	status = "okay";
+	status = "disabled"; /* Conflict with switch */
 };
 
 &flx3 {
@@ -47,6 +54,40 @@
 		pinctrl-names = "default";
 		status = "okay";
 	};
+};
+
+&mdio1 {
+	status = "okay";
+};
+
+&phy0 {
+	status = "okay";
+};
+
+&phy1 {
+	status = "okay";
+};
+
+&port0 {
+	phy-handle = <&phy0>;
+	phy-mode = "gmii";
+	phys = <&serdes 0 CU(0)>;
+	status = "okay";
+};
+
+&port1 {
+	phy-handle = <&phy1>;
+	phy-mode = "gmii";
+	phys = <&serdes 1 CU(1)>;
+	status = "okay";
+};
+
+&serdes {
+	status = "okay";
+};
+
+&switch {
+	status = "okay";
 };
 
 &watchdog {

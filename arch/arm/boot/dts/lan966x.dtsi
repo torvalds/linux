@@ -65,7 +65,7 @@
 		#clock-cells = <1>;
 		clocks = <&cpu_clk>, <&ddr_clk>, <&sys_clk>;
 		clock-names = "cpu", "ddr", "sys";
-		reg = <0xe00c00a8 0x38>;
+		reg = <0xe00c00a8 0x38>, <0xe00c02cc 0x4>;
 	};
 
 	timer {
