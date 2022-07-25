@@ -145,6 +145,18 @@ static enum {
  */
 #define CONTENTION_STACK_SKIP  3
 
+/*
+ * flags for lock:contention_begin
+ * Imported from include/trace/events/lock.h.
+ */
+#define LCB_F_SPIN	(1U << 0)
+#define LCB_F_READ	(1U << 1)
+#define LCB_F_WRITE	(1U << 2)
+#define LCB_F_RT	(1U << 3)
+#define LCB_F_PERCPU	(1U << 4)
+#define LCB_F_MUTEX	(1U << 5)
+
+
 static u64 sched_text_start;
 static u64 sched_text_end;
 static u64 lock_text_start;
@@ -1022,6 +1034,51 @@ next:
 	return -1;
 }
 
+static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample)
+{
+	struct callchain_cursor *cursor = &callchain_cursor;
+	struct thread *thread;
+	u64 hash = 0;
+	int skip = 0;
+	int ret;
+
+	thread = machine__findnew_thread(&session->machines.host,
+					 -1, sample->pid);
+	if (thread == NULL)
+		return -1;
+
+	/* use caller function name from the callchain */
+	ret = thread__resolve_callchain(thread, cursor, evsel, sample,
+					NULL, NULL, CONTENTION_STACK_DEPTH);
+	thread__put(thread);
+
+	if (ret != 0)
+		return -1;
+
+	callchain_cursor_commit(cursor);
+
+	while (true) {
+		struct callchain_cursor_node *node;
+
+		node = callchain_cursor_current(cursor);
+		if (node == NULL)
+			break;
+
+		/* skip first few entries - for lock functions */
+		if (++skip <= CONTENTION_STACK_SKIP)
+			goto next;
+
+		if (node->ms.sym && is_lock_function(node->ip))
+			goto next;
+
+		hash ^= hash_long((unsigned long)node->ip, 64);
+
+next:
+		callchain_cursor_advance(cursor);
+	}
+	return hash;
+}
+
 static int report_lock_contention_begin_event(struct evsel *evsel,
 					      struct perf_sample *sample)
 {
@@ -1039,6 +1096,8 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 		key = sample->tid;
 		break;
 	case LOCK_AGGR_CALLER:
+		key = callchain_id(evsel, sample);
+		break;
 	default:
 		pr_err("Invalid aggregation mode: %d\n", aggr_mode);
 		return -EINVAL;
@@ -1120,6 +1179,8 @@ static int report_lock_contention_end_event(struct evsel *evsel,
 		key = sample->tid;
 		break;
 	case LOCK_AGGR_CALLER:
+		key = callchain_id(evsel, sample);
+		break;
 	default:
 		pr_err("Invalid aggregation mode: %d\n", aggr_mode);
 		return -EINVAL;
@@ -1182,6 +1243,12 @@ static struct trace_lock_handler report_lock_ops  = {
 	.contention_begin_event	= report_lock_contention_begin_event,
 	.contention_end_event	= report_lock_contention_end_event,
 };
+
+static struct trace_lock_handler contention_lock_ops  = {
+	.contention_begin_event	= report_lock_contention_begin_event,
+	.contention_end_event	= report_lock_contention_end_event,
+};
+
 
 static struct trace_lock_handler *trace_handler;
 
@@ -1428,6 +1495,67 @@ static void sort_result(void)
 	}
 }
 
+static const char *get_type_str(struct lock_stat *st)
+{
+	static const struct {
+		unsigned int flags;
+		const char *name;
+	} table[] = {
+		{ 0,				"semaphore" },
+		{ LCB_F_SPIN,			"spinlock" },
+		{ LCB_F_SPIN | LCB_F_READ,	"rwlock:R" },
+		{ LCB_F_SPIN | LCB_F_WRITE,	"rwlock:W"},
+		{ LCB_F_READ,			"rwsem:R" },
+		{ LCB_F_WRITE,			"rwsem:W" },
+		{ LCB_F_RT,			"rtmutex" },
+		{ LCB_F_RT | LCB_F_READ,	"rwlock-rt:R" },
+		{ LCB_F_RT | LCB_F_WRITE,	"rwlock-rt:W"},
+		{ LCB_F_PERCPU | LCB_F_READ,	"pcpu-sem:R" },
+		{ LCB_F_PERCPU | LCB_F_WRITE,	"pcpu-sem:W" },
+		{ LCB_F_MUTEX,			"mutex" },
+		{ LCB_F_MUTEX | LCB_F_SPIN,	"mutex" },
+	};
+
+	for (unsigned int i = 0; i < ARRAY_SIZE(table); i++) {
+		if (table[i].flags == st->flags)
+			return table[i].name;
+	}
+	return "unknown";
+}
+
+static void sort_contention_result(void)
+{
+	sort_result();
+}
+
+static void print_contention_result(void)
+{
+	struct lock_stat *st;
+	struct lock_key *key;
+	int bad, total;
+
+	list_for_each_entry(key, &lock_keys, list)
+		pr_info("%*s ", key->len, key->header);
+
+	pr_info("  %10s   %s\n\n", "type", "caller");
+
+	bad = total = 0;
+	while ((st = pop_from_result())) {
+		total++;
+		if (st->broken)
+			bad++;
+
+		list_for_each_entry(key, &lock_keys, list) {
+			key->print(key, st);
+			pr_info(" ");
+		}
+
+		pr_info("  %10s   %s\n", get_type_str(st), st->name);
+	}
+
+	print_bad_events(bad, total);
+}
+
 static const struct evsel_str_handler lock_tracepoints[] = {
 	{ "lock:lock_acquire",	 evsel__process_lock_acquire,   }, /* CONFIG_LOCKDEP */
 	{ "lock:lock_acquired",	 evsel__process_lock_acquired,  }, /* CONFIG_LOCKDEP, CONFIG_LOCK_STAT */
@@ -1507,6 +1635,68 @@ out_delete:
 	perf_session__delete(session);
 	return err;
 }
+
+static int __cmd_contention(void)
+{
+	int err = -EINVAL;
+	struct perf_tool eops = {
+		.sample		 = process_sample_event,
+		.comm		 = perf_event__process_comm,
+		.mmap		 = perf_event__process_mmap,
+		.ordered_events	 = true,
+	};
+	struct perf_data data = {
+		.path  = input_name,
+		.mode  = PERF_DATA_MODE_READ,
+		.force = force,
+	};
+
+	session = perf_session__new(&data, &eops);
+	if (IS_ERR(session)) {
+		pr_err("Initializing perf session failed\n");
+		return PTR_ERR(session);
+	}
+
+	/* for lock function check */
+	symbol_conf.sort_by_name = true;
+	symbol__init(&session->header.env);
+
+	if (!perf_session__has_traces(session, "lock record"))
+		goto out_delete;
+
+	if (!evlist__find_evsel_by_str(session->evlist, "lock:contention_begin")) {
+		pr_err("lock contention evsel not found\n");
+		goto out_delete;
+	}
+
+	if (perf_session__set_tracepoints_handlers(session, contention_tracepoints)) {
+		pr_err("Initializing perf session tracepoint handlers failed\n");
+		goto out_delete;
+	}
+
+	if (setup_output_field("contended,wait_total,wait_max,avg_wait"))
+		goto out_delete;
+
+	sort_key = "wait_total";
+	if (select_key())
+		goto out_delete;
+
+	aggr_mode = LOCK_AGGR_CALLER;
+
+	err = perf_session__process_events(session);
+	if (err)
+		goto out_delete;
+
+	setup_pager();
+
+	sort_contention_result();
+	print_contention_result();
+
+out_delete:
+	perf_session__delete(session);
+	return err;
+}
+
 
 static int __cmd_record(int argc, const char **argv)
 {
@@ -1626,18 +1816,27 @@ int cmd_lock(int argc, const char **argv)
 	OPT_PARENT(lock_options)
 	};
 
+	const struct option contention_options[] = {
+	OPT_PARENT(lock_options)
+	};
+
 	const char * const info_usage[] = {
 		"perf lock info [<options>]",
 		NULL
 	};
 	const char *const lock_subcommands[] = { "record", "report", "script",
-						 "info", NULL };
+						 "info", "contention",
+						 "contention", NULL };
 	const char *lock_usage[] = {
 		NULL,
 		NULL
 	};
 	const char * const report_usage[] = {
 		"perf lock report [<options>]",
+		NULL
+	};
+	const char * const contention_usage[] = {
+		"perf lock contention [<options>]",
 		NULL
 	};
 	unsigned int i;
@@ -1675,6 +1874,17 @@ int cmd_lock(int argc, const char **argv)
 		/* recycling report_lock_ops */
 		trace_handler = &report_lock_ops;
 		rc = __cmd_report(true);
+	} else if (strlen(argv[0]) > 2 && strstarts("contention", argv[0])) {
+		trace_handler = &contention_lock_ops;
+		if (argc) {
+			argc = parse_options(argc, argv, contention_options,
+					     contention_usage, 0);
+			if (argc) {
+				usage_with_options(contention_usage,
+						   contention_options);
+			}
+		}
+		rc = __cmd_contention();
 	} else {
 		usage_with_options(lock_usage, lock_options);
 	}

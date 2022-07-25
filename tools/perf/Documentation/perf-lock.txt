@@ -8,7 +8,7 @@ perf-lock - Analyze lock events
 SYNOPSIS
 --------
 [verse]
-'perf lock' {record|report|script|info}
+'perf lock' {record|report|script|info|contention}
 
 DESCRIPTION
 -----------
@@ -26,6 +26,8 @@ and statistics with this 'perf lock' command.
 
   'perf lock info' shows metadata like threads or addresses
   of lock instances.
+
+  'perf lock contention' shows contention statistics.
 
 COMMON OPTIONS
 --------------
