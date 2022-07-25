@@ -43,3 +43,7 @@ qcom_hwspinlock.ko
 smem.ko
 socinfo.ko
 qcom-reboot-reason.ko
+qrtr.ko
+qcom_aoss.ko
+msm_qmp.ko
+qcom_ipc_logging.ko
