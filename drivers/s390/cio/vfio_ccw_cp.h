@@ -27,7 +27,6 @@
  * struct channel_program - manage information for channel program
  * @ccwchain_list: list head of ccwchains
  * @orb: orb for the currently processed ssch request
- * @mdev: the mediated device to perform page pinning/unpinning
  * @initialized: whether this instance is actually initialized
  *
  * @ccwchain_list is the head of a ccwchain list, that contents the

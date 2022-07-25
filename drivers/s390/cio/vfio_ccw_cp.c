@@ -121,7 +121,7 @@ static void page_array_unpin(struct page_array *pa,
 /*
  * page_array_pin() - Pin user pages in memory
  * @pa: page_array on which to perform the operation
- * @mdev: the mediated device to perform pin operations
+ * @vdev: the vfio device to perform pin operations
  *
  * Returns number of pages pinned upon success.
  * If the pin request partially succeeds, or fails completely,
@@ -229,7 +229,7 @@ static void convert_ccw0_to_ccw1(struct ccw1 *source, unsigned long len)
 }
 
 /*
- * Within the domain (@mdev), copy @n bytes from a guest physical
+ * Within the domain (@vdev), copy @n bytes from a guest physical
  * address (@iova) to a host physical address (@to).
  */
 static long copy_from_iova(struct vfio_device *vdev, void *to, u64 iova,
@@ -665,7 +665,6 @@ static int ccwchain_fetch_one(struct ccwchain *chain,
 /**
  * cp_init() - allocate ccwchains for a channel program.
  * @cp: channel_program on which to perform the operation
- * @mdev: the mediated device to perform pin/unpin operations
  * @orb: control block for the channel program from the guest
  *
  * This creates one or more ccwchain(s), and copies the raw data of
