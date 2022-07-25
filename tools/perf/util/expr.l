@@ -91,7 +91,7 @@ static int literal(yyscan_t scanner)
 }
 %}
 
-number		([0-9]+\.?[0-9]*|[0-9]*\.?[0-9]+)
+number		([0-9]+\.?[0-9]*|[0-9]*\.?[0-9]+)(e-?[0-9]+)?
 
 sch		[-,=]
 spec		\\{sch}

@@ -1129,7 +1129,7 @@ hns3_is_ringparam_changed(struct net_device *ndev,
 	if (old_ringparam->tx_desc_num == new_ringparam->tx_desc_num &&
 	    old_ringparam->rx_desc_num == new_ringparam->rx_desc_num &&
 	    old_ringparam->rx_buf_len == new_ringparam->rx_buf_len) {
-		netdev_info(ndev, "ringparam not changed\n");
+		netdev_info(ndev, "descriptor number and rx buffer length not changed\n");
 		return false;
 	}
 

@@ -758,7 +758,9 @@ batt_err:
 
 static int wm97xx_mfd_remove(struct platform_device *pdev)
 {
-	return wm97xx_remove(&pdev->dev);
+	wm97xx_remove(&pdev->dev);
+
+	return 0;
 }
 
 static int __maybe_unused wm97xx_suspend(struct device *dev)

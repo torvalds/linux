@@ -48,6 +48,7 @@
 #include "util.h"
 #include "hashmap.h"
 #include "pmu-hybrid.h"
+#include "off_cpu.h"
 #include "../perf-sys.h"
 #include "util/parse-branch-options.h"
 #include <internal/xyarray.h>
@@ -1102,6 +1103,11 @@ static void evsel__set_default_freq_period(struct record_opts *opts,
 	}
 }
 
+static bool evsel__is_offcpu_event(struct evsel *evsel)
+{
+	return evsel__is_bpf_output(evsel) && !strcmp(evsel->name, OFFCPU_EVENT);
+}
+
 /*
  * The enable_on_exec/disabled value strategy:
  *
@@ -1366,6 +1372,9 @@ void evsel__config(struct evsel *evsel, struct record_opts *opts,
 	 */
 	if (evsel__is_dummy_event(evsel))
 		evsel__reset_sample_bit(evsel, BRANCH_STACK);
+
+	if (evsel__is_offcpu_event(evsel))
+		evsel->core.attr.sample_type &= OFFCPU_SAMPLE_TYPES;
 }
 
 int evsel__set_filter(struct evsel *evsel, const char *filter)

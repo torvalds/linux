@@ -172,3 +172,4 @@ module_platform_driver(gxp_wdt_driver);
 MODULE_AUTHOR("Nick Hawkins <nick.hawkins@hpe.com>");
 MODULE_AUTHOR("Jean-Marie Verdun <verdun@hpe.com>");
 MODULE_DESCRIPTION("Driver for GXP watchdog timer");
+MODULE_LICENSE("GPL");

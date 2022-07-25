@@ -6,6 +6,7 @@
 #define _ASM_PAGE_H
 
 #include <linux/const.h>
+#include <asm/addrspace.h>
 
 /*
  * PAGE_SHIFT determines the page size

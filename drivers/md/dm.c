@@ -555,6 +555,10 @@ static void dm_start_io_acct(struct dm_io *io, struct bio *clone)
 		unsigned long flags;
 		/* Can afford locking given DM_TIO_IS_DUPLICATE_BIO */
 		spin_lock_irqsave(&io->lock, flags);
+		if (dm_io_flagged(io, DM_IO_ACCOUNTED)) {
+			spin_unlock_irqrestore(&io->lock, flags);
+			return;
+		}
 		dm_io_set_flag(io, DM_IO_ACCOUNTED);
 		spin_unlock_irqrestore(&io->lock, flags);
 	}
@@ -590,6 +594,7 @@ static struct dm_io *alloc_io(struct mapped_device *md, struct bio *bio)
 	atomic_set(&io->io_count, 2);
 	this_cpu_inc(*md->pending_io);
 	io->orig_bio = bio;
+	io->split_bio = NULL;
 	io->md = md;
 	spin_lock_init(&io->lock);
 	io->start_time = jiffies;
@@ -711,18 +716,18 @@ static void dm_put_live_table_fast(struct mapped_device *md) __releases(RCU)
 }
 
 static inline struct dm_table *dm_get_live_table_bio(struct mapped_device *md,
-						     int *srcu_idx, struct bio *bio)
+						     int *srcu_idx, unsigned bio_opf)
 {
-	if (bio->bi_opf & REQ_NOWAIT)
+	if (bio_opf & REQ_NOWAIT)
 		return dm_get_live_table_fast(md);
 	else
 		return dm_get_live_table(md, srcu_idx);
 }
 
 static inline void dm_put_live_table_bio(struct mapped_device *md, int srcu_idx,
-					 struct bio *bio)
+					 unsigned bio_opf)
 {
-	if (bio->bi_opf & REQ_NOWAIT)
+	if (bio_opf & REQ_NOWAIT)
 		dm_put_live_table_fast(md);
 	else
 		dm_put_live_table(md, srcu_idx);
@@ -883,7 +888,7 @@ static void dm_io_complete(struct dm_io *io)
 {
 	blk_status_t io_error;
 	struct mapped_device *md = io->md;
-	struct bio *bio = io->orig_bio;
+	struct bio *bio = io->split_bio ? io->split_bio : io->orig_bio;
 
 	if (io->status == BLK_STS_DM_REQUEUE) {
 		unsigned long flags;
@@ -935,9 +940,11 @@ static void dm_io_complete(struct dm_io *io)
 			if (io_error == BLK_STS_AGAIN) {
 				/* io_uring doesn't handle BLK_STS_AGAIN (yet) */
 				queue_io(md, bio);
+				return;
 			}
 		}
-		return;
+		if (io_error == BLK_STS_DM_REQUEUE)
+			return;
 	}
 
 	if (bio_is_flush_with_data(bio)) {
@@ -1609,7 +1616,12 @@ static blk_status_t __split_and_process_bio(struct clone_info *ci)
 	ti = dm_table_find_target(ci->map, ci->sector);
 	if (unlikely(!ti))
 		return BLK_STS_IOERR;
-	else if (unlikely(ci->is_abnormal_io))
+
+	if (unlikely((ci->bio->bi_opf & REQ_NOWAIT) != 0) &&
+	    unlikely(!dm_target_supports_nowait(ti->type)))
+		return BLK_STS_NOTSUPP;
+
+	if (unlikely(ci->is_abnormal_io))
 		return __process_abnormal_io(ci, ti);
 
 	/*
@@ -1682,9 +1694,11 @@ static void dm_split_and_process_bio(struct mapped_device *md,
 	 * Remainder must be passed to submit_bio_noacct() so it gets handled
 	 * *after* bios already submitted have been completely processed.
 	 */
-	bio_trim(bio, io->sectors, ci.sector_count);
-	trace_block_split(bio, bio->bi_iter.bi_sector);
-	bio_inc_remaining(bio);
+	WARN_ON_ONCE(!dm_io_flagged(io, DM_IO_WAS_SPLIT));
+	io->split_bio = bio_split(bio, io->sectors, GFP_NOIO,
+				  &md->queue->bio_split);
+	bio_chain(io->split_bio, bio);
+	trace_block_split(io->split_bio, bio->bi_iter.bi_sector);
 	submit_bio_noacct(bio);
 out:
 	/*
@@ -1711,8 +1725,9 @@ static void dm_submit_bio(struct bio *bio)
 	struct mapped_device *md = bio->bi_bdev->bd_disk->private_data;
 	int srcu_idx;
 	struct dm_table *map;
+	unsigned bio_opf = bio->bi_opf;
 
-	map = dm_get_live_table_bio(md, &srcu_idx, bio);
+	map = dm_get_live_table_bio(md, &srcu_idx, bio_opf);
 
 	/* If suspended, or map not yet available, queue this IO for later */
 	if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) ||
@@ -1728,7 +1743,7 @@ static void dm_submit_bio(struct bio *bio)
 
 	dm_split_and_process_bio(md, map, bio);
 out:
-	dm_put_live_table_bio(md, srcu_idx, bio);
+	dm_put_live_table_bio(md, srcu_idx, bio_opf);
 }
 
 static bool dm_poll_dm_io(struct dm_io *io, struct io_comp_batch *iob,

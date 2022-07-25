@@ -21,6 +21,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/clockchips.h>
 #include <linux/cpu.h>
+#include <linux/sched/isolation.h>
 #include <linux/sched/task_stack.h>
 
 #include <linux/delay.h>
@@ -1768,6 +1769,9 @@ static ssize_t target_cpu_store(struct vmbus_channel *channel,
 
 	/* Validate target_cpu for the cpumask_test_cpu() operation below. */
 	if (target_cpu >= nr_cpumask_bits)
+		return -EINVAL;
+
+	if (!cpumask_test_cpu(target_cpu, housekeeping_cpumask(HK_TYPE_MANAGED_IRQ)))
 		return -EINVAL;
 
 	/* No CPUs should come up or down during this. */

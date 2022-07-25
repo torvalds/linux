@@ -13,8 +13,8 @@ disappeared as of Linux 3.0.
 
 There are two places where extended attributes can be found. The first
 place is between the end of each inode entry and the beginning of the
-next inode entry. For example, if inode.i\_extra\_isize = 28 and
-sb.inode\_size = 256, then there are 256 - (128 + 28) = 100 bytes
+next inode entry. For example, if inode.i_extra_isize = 28 and
+sb.inode_size = 256, then there are 256 - (128 + 28) = 100 bytes
 available for in-inode extended attribute storage. The second place
 where extended attributes can be found is in the block pointed to by
 ``inode.i_file_acl``. As of Linux 3.11, it is not possible for this
@@ -38,8 +38,8 @@ Extended attributes, when stored after the inode, have a header
      - Name
      - Description
    * - 0x0
-     - \_\_le32
-     - h\_magic
+     - __le32
+     - h_magic
      - Magic number for identification, 0xEA020000. This value is set by the
        Linux driver, though e2fsprogs doesn't seem to check it(?)
 
@@ -55,28 +55,28 @@ The beginning of an extended attribute block is in
      - Name
      - Description
    * - 0x0
-     - \_\_le32
-     - h\_magic
+     - __le32
+     - h_magic
      - Magic number for identification, 0xEA020000.
    * - 0x4
-     - \_\_le32
-     - h\_refcount
+     - __le32
+     - h_refcount
      - Reference count.
    * - 0x8
-     - \_\_le32
-     - h\_blocks
+     - __le32
+     - h_blocks
      - Number of disk blocks used.
    * - 0xC
-     - \_\_le32
-     - h\_hash
+     - __le32
+     - h_hash
      - Hash value of all attributes.
    * - 0x10
-     - \_\_le32
-     - h\_checksum
+     - __le32
+     - h_checksum
      - Checksum of the extended attribute block.
    * - 0x14
-     - \_\_u32
-     - h\_reserved[3]
+     - __u32
+     - h_reserved[3]
      - Zero.
 
 The checksum is calculated against the FS UUID, the 64-bit block number
@@ -100,46 +100,46 @@ Attributes stored inside an inode do not need be stored in sorted order.
      - Name
      - Description
    * - 0x0
-     - \_\_u8
-     - e\_name\_len
+     - __u8
+     - e_name_len
      - Length of name.
    * - 0x1
-     - \_\_u8
-     - e\_name\_index
+     - __u8
+     - e_name_index
      - Attribute name index. There is a discussion of this below.
    * - 0x2
-     - \_\_le16
-     - e\_value\_offs
+     - __le16
+     - e_value_offs
      - Location of this attribute's value on the disk block where it is stored.
        Multiple attributes can share the same value. For an inode attribute
        this value is relative to the start of the first entry; for a block this
        value is relative to the start of the block (i.e. the header).
    * - 0x4
-     - \_\_le32
-     - e\_value\_inum
+     - __le32
+     - e_value_inum
      - The inode where the value is stored. Zero indicates the value is in the
        same block as this entry. This field is only used if the
-       INCOMPAT\_EA\_INODE feature is enabled.
+       INCOMPAT_EA_INODE feature is enabled.
    * - 0x8
-     - \_\_le32
-     - e\_value\_size
+     - __le32
+     - e_value_size
      - Length of attribute value.
    * - 0xC
-     - \_\_le32
-     - e\_hash
+     - __le32
+     - e_hash
      - Hash value of attribute name and attribute value. The kernel doesn't
        update the hash for in-inode attributes, so for that case this value
        must be zero, because e2fsck validates any non-zero hash regardless of
        where the xattr lives.
    * - 0x10
      - char
-     - e\_name[e\_name\_len]
+     - e_name[e_name_len]
      - Attribute name. Does not include trailing NULL.
 
 Attribute values can follow the end of the entry table. There appears to
 be a requirement that they be aligned to 4-byte boundaries. The values
 are stored starting at the end of the block and grow towards the
-xattr\_header/xattr\_entry table. When the two collide, the overflow is
+xattr_header/xattr_entry table. When the two collide, the overflow is
 put into a separate disk block. If the disk block fills up, the
 filesystem returns -ENOSPC.
 
@@ -167,15 +167,15 @@ the key name. Here is a map of name index values to key prefixes:
    * - 1
      - “user.”
    * - 2
-     - “system.posix\_acl\_access”
+     - “system.posix_acl_access”
    * - 3
-     - “system.posix\_acl\_default”
+     - “system.posix_acl_default”
    * - 4
      - “trusted.”
    * - 6
      - “security.”
    * - 7
-     - “system.” (inline\_data only?)
+     - “system.” (inline_data only?)
    * - 8
      - “system.richacl” (SuSE kernels only?)
 

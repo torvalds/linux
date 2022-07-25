@@ -39,6 +39,12 @@
 
 #define LIOINTC_ERRATA_IRQ	10
 
+#if defined(CONFIG_MIPS)
+#define liointc_core_id get_ebase_cpunum()
+#else
+#define liointc_core_id get_csr_cpuid()
+#endif
+
 struct liointc_handler_data {
 	struct liointc_priv	*priv;
 	u32			parent_int_map;
@@ -57,7 +63,7 @@ static void liointc_chained_handle_irq(struct irq_desc *desc)
 	struct liointc_handler_data *handler = irq_desc_get_handler_data(desc);
 	struct irq_chip *chip = irq_desc_get_chip(desc);
 	struct irq_chip_generic *gc = handler->priv->gc;
-	int core = cpu_logical_map(smp_processor_id()) % LIOINTC_NUM_CORES;
+	int core = liointc_core_id % LIOINTC_NUM_CORES;
 	u32 pending;
 
 	chained_irq_enter(chip, desc);

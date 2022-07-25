@@ -127,6 +127,9 @@ static int vc4_v3d_debugfs_ident(struct seq_file *m, void *unused)
 int
 vc4_v3d_pm_get(struct vc4_dev *vc4)
 {
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
+
 	mutex_lock(&vc4->power_lock);
 	if (vc4->power_refcount++ == 0) {
 		int ret = pm_runtime_get_sync(&vc4->v3d->pdev->dev);
@@ -145,6 +148,9 @@ vc4_v3d_pm_get(struct vc4_dev *vc4)
 void
 vc4_v3d_pm_put(struct vc4_dev *vc4)
 {
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
+
 	mutex_lock(&vc4->power_lock);
 	if (--vc4->power_refcount == 0) {
 		pm_runtime_mark_last_busy(&vc4->v3d->pdev->dev);
@@ -171,6 +177,9 @@ int vc4_v3d_get_bin_slot(struct vc4_dev *vc4)
 	int slot;
 	uint64_t seqno = 0;
 	struct vc4_exec_info *exec;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 try_again:
 	spin_lock_irqsave(&vc4->job_lock, irqflags);
@@ -316,6 +325,9 @@ int vc4_v3d_bin_bo_get(struct vc4_dev *vc4, bool *used)
 {
 	int ret = 0;
 
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
+
 	mutex_lock(&vc4->bin_bo_lock);
 
 	if (used && *used)
@@ -348,6 +360,9 @@ static void bin_bo_release(struct kref *ref)
 
 void vc4_v3d_bin_bo_put(struct vc4_dev *vc4)
 {
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
+
 	mutex_lock(&vc4->bin_bo_lock);
 	kref_put(&vc4->bin_bo_kref, bin_bo_release);
 	mutex_unlock(&vc4->bin_bo_lock);

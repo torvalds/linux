@@ -1941,11 +1941,6 @@ static int uart_proc_show(struct seq_file *m, void *v)
 }
 #endif
 
-static inline bool uart_console_enabled(struct uart_port *port)
-{
-	return uart_console(port) && (port->cons->flags & CON_ENABLED);
-}
-
 static void uart_port_spin_lock_init(struct uart_port *port)
 {
 	spin_lock_init(&port->lock);
@@ -2214,11 +2209,12 @@ int uart_suspend_port(struct uart_driver *drv, struct uart_port *uport)
 	/*
 	 * Nothing to do if the console is not suspending
 	 * except stop_rx to prevent any asynchronous data
-	 * over RX line. Re-start_rx, when required, is
-	 * done by set_termios in resume sequence
+	 * over RX line. However ensure that we will be
+	 * able to Re-start_rx later.
 	 */
 	if (!console_suspend_enabled && uart_console(uport)) {
-		uport->ops->stop_rx(uport);
+		if (uport->ops->start_rx)
+			uport->ops->stop_rx(uport);
 		goto unlock;
 	}
 
@@ -2310,6 +2306,8 @@ int uart_resume_port(struct uart_driver *drv, struct uart_port *uport)
 		if (console_suspend_enabled)
 			uart_change_pm(state, UART_PM_STATE_ON);
 		uport->ops->set_termios(uport, &termios, NULL);
+		if (!console_suspend_enabled && uport->ops->start_rx)
+			uport->ops->start_rx(uport);
 		if (console_suspend_enabled)
 			console_start(uport->cons);
 	}

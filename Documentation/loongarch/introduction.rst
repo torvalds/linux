@@ -45,10 +45,12 @@ Name              Alias           Usage               Preserved
 ``$r23``-``$r31`` ``$s0``-``$s8`` Static registers    Yes
 ================= =============== =================== ============
 
-Note: The register ``$r21`` is reserved in the ELF psABI, but used by the Linux
-kernel for storing the percpu base address. It normally has no ABI name, but is
-called ``$u0`` in the kernel. You may also see ``$v0`` or ``$v1`` in some old code,
-however they are deprecated aliases of ``$a0`` and ``$a1`` respectively.
+.. Note::
+    The register ``$r21`` is reserved in the ELF psABI, but used by the Linux
+    kernel for storing the percpu base address. It normally has no ABI name,
+    but is called ``$u0`` in the kernel. You may also see ``$v0`` or ``$v1``
+    in some old code,however they are deprecated aliases of ``$a0`` and ``$a1``
+    respectively.
 
 FPRs
 ----
@@ -69,8 +71,9 @@ Name              Alias              Usage               Preserved
 ``$f24``-``$f31`` ``$fs0``-``$fs7``  Static registers    Yes
 ================= ================== =================== ============
 
-Note: You may see ``$fv0`` or ``$fv1`` in some old code, however they are deprecated
-aliases of ``$fa0`` and ``$fa1`` respectively.
+.. Note::
+    You may see ``$fv0`` or ``$fv1`` in some old code, however they are
+    deprecated aliases of ``$fa0`` and ``$fa1`` respectively.
 
 VRs
 ----
