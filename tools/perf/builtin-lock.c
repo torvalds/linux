@@ -362,7 +362,7 @@ static const char		*output_fields;
 
 #define DEF_KEY_LOCK(name, header, fn_suffix, len)			\
 	{ #name, header, len, lock_stat_key_ ## fn_suffix, lock_stat_key_print_ ## fn_suffix, {} }
-struct lock_key keys[] = {
+static struct lock_key report_keys[] = {
 	DEF_KEY_LOCK(acquired, "acquired", nr_acquired, 10),
 	DEF_KEY_LOCK(contended, "contended", nr_contended, 10),
 	DEF_KEY_LOCK(avg_wait, "avg wait", avg_wait_time, 12),
@@ -374,9 +374,24 @@ struct lock_key keys[] = {
 	{ }
 };
 
-static int select_key(void)
+static struct lock_key contention_keys[] = {
+	DEF_KEY_LOCK(contended, "contended", nr_contended, 10),
+	DEF_KEY_LOCK(wait_total, "total wait", wait_time_total, 12),
+	DEF_KEY_LOCK(wait_max, "max wait", wait_time_max, 12),
+	DEF_KEY_LOCK(wait_min, "min wait", wait_time_min, 12),
+	DEF_KEY_LOCK(avg_wait, "avg wait", avg_wait_time, 12),
+
+	/* extra comparisons much complicated should be here */
+	{ }
+};
+
+static int select_key(bool contention)
 {
 	int i;
+	struct lock_key *keys = report_keys;
+
+	if (contention)
+		keys = contention_keys;
 
 	for (i = 0; keys[i].name; i++) {
 		if (!strcmp(keys[i].name, sort_key)) {
@@ -394,9 +409,13 @@ static int select_key(void)
 	return -1;
 }
 
-static int add_output_field(struct list_head *head, char *name)
+static int add_output_field(bool contention, char *name)
 {
 	int i;
+	struct lock_key *keys = report_keys;
+
+	if (contention)
+		keys = contention_keys;
 
 	for (i = 0; keys[i].name; i++) {
 		if (strcmp(keys[i].name, name))
@@ -404,7 +423,7 @@ static int add_output_field(struct list_head *head, char *name)
 
 		/* prevent double link */
 		if (list_empty(&keys[i].list))
-			list_add_tail(&keys[i].list, head);
+			list_add_tail(&keys[i].list, &lock_keys);
 
 		return 0;
 	}
@@ -413,10 +432,14 @@ static int add_output_field(struct list_head *head, char *name)
 	return -1;
 }
 
-static int setup_output_field(const char *str)
+static int setup_output_field(bool contention, const char *str)
 {
 	char *tok, *tmp, *orig;
 	int i, ret = 0;
+	struct lock_key *keys = report_keys;
+
+	if (contention)
+		keys = contention_keys;
 
 	/* no output field given: use all of them */
 	if (str == NULL) {
@@ -433,7 +456,7 @@ static int setup_output_field(const char *str)
 		return -ENOMEM;
 
 	while ((tok = strsep(&tmp, ",")) != NULL){
-		ret = add_output_field(&lock_keys, tok);
+		ret = add_output_field(contention, tok);
 		if (ret < 0)
 			break;
 	}
@@ -1609,10 +1632,10 @@ static int __cmd_report(bool display_info)
 		goto out_delete;
 	}
 
-	if (setup_output_field(output_fields))
+	if (setup_output_field(false, output_fields))
 		goto out_delete;
 
-	if (select_key())
+	if (select_key(false))
 		goto out_delete;
 
 	if (show_thread_stats)
@@ -1674,11 +1697,10 @@ static int __cmd_contention(void)
 		goto out_delete;
 	}
 
-	if (setup_output_field("contended,wait_total,wait_max,avg_wait"))
+	if (setup_output_field(true, output_fields))
 		goto out_delete;
 
-	sort_key = "wait_total";
-	if (select_key())
+	if (select_key(true))
 		goto out_delete;
 
 	aggr_mode = LOCK_AGGR_CALLER;
@@ -1817,6 +1839,10 @@ int cmd_lock(int argc, const char **argv)
 	};
 
 	const struct option contention_options[] = {
+	OPT_STRING('k', "key", &sort_key, "wait_total",
+		    "key for sorting (contended / wait_total / wait_max / wait_min / avg_wait)"),
+	OPT_STRING('F', "field", &output_fields, "contended,wait_total,wait_max,avg_wait",
+		    "output fields (contended / wait_total / wait_max / wait_min / avg_wait)"),
 	OPT_PARENT(lock_options)
 	};
 
@@ -1876,6 +1902,9 @@ int cmd_lock(int argc, const char **argv)
 		rc = __cmd_report(true);
 	} else if (strlen(argv[0]) > 2 && strstarts("contention", argv[0])) {
 		trace_handler = &contention_lock_ops;
+		sort_key = "wait_total";
+		output_fields = "contended,wait_total,wait_max,avg_wait";
+
 		if (argc) {
 			argc = parse_options(argc, argv, contention_options,
 					     contention_usage, 0);
