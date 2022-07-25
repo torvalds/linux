@@ -16,6 +16,30 @@
 #include <asm/ptrace.h>
 #include <asm/virt.h>
 
+// Warning, hardcoded register allocation
+// This will clobber x1 and x2, and expect x1 to contain
+// the id register value as read from the HW
+.macro __check_override idreg, fld, width, pass, fail
+	ubfx	x1, x1, #\fld, #\width
+	cbz	x1, \fail
+
+	adr_l	x1, \idreg\()_override
+	ldr	x2, [x1, FTR_OVR_VAL_OFFSET]
+	ldr	x1, [x1, FTR_OVR_MASK_OFFSET]
+	ubfx	x2, x2, #\fld, #\width
+	ubfx	x1, x1, #\fld, #\width
+	cmp	x1, xzr
+	and	x2, x2, x1
+	csinv	x2, x2, xzr, ne
+	cbnz	x2, \pass
+	b	\fail
+.endm
+
+.macro check_override idreg, fld, pass, fail
+	mrs	x1, \idreg\()_el1
+	__check_override \idreg \fld 4 \pass \fail
+.endm
+
 	.text
 	.pushsection	.hyp.text, "ax"
 
@@ -51,8 +75,8 @@ SYM_CODE_START_LOCAL(elx_sync)
 	msr	vbar_el2, x1
 	b	9f
 
-1:	cmp	x0, #HVC_VHE_RESTART
-	b.eq	mutate_to_vhe
+1:	cmp	x0, #HVC_FINALISE_EL2
+	b.eq	__finalise_el2
 
 2:	cmp	x0, #HVC_SOFT_RESTART
 	b.ne	3f
@@ -73,27 +97,67 @@ SYM_CODE_START_LOCAL(elx_sync)
 	eret
 SYM_CODE_END(elx_sync)
 
-// nVHE? No way! Give me the real thing!
-SYM_CODE_START_LOCAL(mutate_to_vhe)
+SYM_CODE_START_LOCAL(__finalise_el2)
+	check_override id_aa64pfr0 ID_AA64PFR0_SVE_SHIFT .Linit_sve .Lskip_sve
+
+.Linit_sve:	/* SVE register access */
+	mrs	x0, cptr_el2			// Disable SVE traps
+	bic	x0, x0, #CPTR_EL2_TZ
+	msr	cptr_el2, x0
+	isb
+	mov	x1, #ZCR_ELx_LEN_MASK		// SVE: Enable full vector
+	msr_s	SYS_ZCR_EL2, x1			// length for EL1.
+
+.Lskip_sve:
+	check_override id_aa64pfr1 ID_AA64PFR1_SME_SHIFT .Linit_sme .Lskip_sme
+
+.Linit_sme:	/* SME register access and priority mapping */
+	mrs	x0, cptr_el2			// Disable SME traps
+	bic	x0, x0, #CPTR_EL2_TSM
+	msr	cptr_el2, x0
+	isb
+
+	mrs	x1, sctlr_el2
+	orr	x1, x1, #SCTLR_ELx_ENTP2	// Disable TPIDR2 traps
+	msr	sctlr_el2, x1
+	isb
+
+	mov	x0, #0				// SMCR controls
+
+	// Full FP in SM?
+	mrs_s	x1, SYS_ID_AA64SMFR0_EL1
+	__check_override id_aa64smfr0 ID_AA64SMFR0_EL1_FA64_SHIFT 1 .Linit_sme_fa64 .Lskip_sme_fa64
+
+.Linit_sme_fa64:
+	orr	x0, x0, SMCR_ELx_FA64_MASK
+.Lskip_sme_fa64:
+
+	orr	x0, x0, #SMCR_ELx_LEN_MASK	// Enable full SME vector
+	msr_s	SYS_SMCR_EL2, x0		// length for EL1.
+
+	mrs_s	x1, SYS_SMIDR_EL1		// Priority mapping supported?
+	ubfx    x1, x1, #SMIDR_EL1_SMPS_SHIFT, #1
+	cbz     x1, .Lskip_sme
+
+	msr_s	SYS_SMPRIMAP_EL2, xzr		// Make all priorities equal
+
+	mrs	x1, id_aa64mmfr1_el1		// HCRX_EL2 present?
+	ubfx	x1, x1, #ID_AA64MMFR1_HCX_SHIFT, #4
+	cbz	x1, .Lskip_sme
+
+	mrs_s	x1, SYS_HCRX_EL2
+	orr	x1, x1, #HCRX_EL2_SMPME_MASK	// Enable priority mapping
+	msr_s	SYS_HCRX_EL2, x1
+
+.Lskip_sme:
+
+	// nVHE? No way! Give me the real thing!
 	// Sanity check: MMU *must* be off
 	mrs	x1, sctlr_el2
 	tbnz	x1, #0, 1f
 
 	// Needs to be VHE capable, obviously
-	mrs	x1, id_aa64mmfr1_el1
-	ubfx	x1, x1, #ID_AA64MMFR1_VHE_SHIFT, #4
-	cbz	x1, 1f
-
-	// Check whether VHE is disabled from the command line
-	adr_l	x1, id_aa64mmfr1_override
-	ldr	x2, [x1, FTR_OVR_VAL_OFFSET]
-	ldr	x1, [x1, FTR_OVR_MASK_OFFSET]
-	ubfx	x2, x2, #ID_AA64MMFR1_VHE_SHIFT, #4
-	ubfx	x1, x1, #ID_AA64MMFR1_VHE_SHIFT, #4
-	cmp	x1, xzr
-	and	x2, x2, x1
-	csinv	x2, x2, xzr, ne
-	cbnz	x2, 2f
+	check_override id_aa64mmfr1 ID_AA64MMFR1_VHE_SHIFT 2f 1f
 
 1:	mov_q	x0, HVC_STUB_ERR
 	eret
@@ -140,10 +204,10 @@ SYM_CODE_START_LOCAL(mutate_to_vhe)
 	msr	spsr_el1, x0
 
 	b	enter_vhe
-SYM_CODE_END(mutate_to_vhe)
+SYM_CODE_END(__finalise_el2)
 
 	// At the point where we reach enter_vhe(), we run with
-	// the MMU off (which is enforced by mutate_to_vhe()).
+	// the MMU off (which is enforced by __finalise_el2()).
 	// We thus need to be in the idmap, or everything will
 	// explode when enabling the MMU.
 
@@ -222,12 +286,12 @@ SYM_FUNC_START(__hyp_reset_vectors)
 SYM_FUNC_END(__hyp_reset_vectors)
 
 /*
- * Entry point to switch to VHE if deemed capable
+ * Entry point to finalise EL2 and switch to VHE if deemed capable
+ *
+ * w0: boot mode, as returned by init_kernel_el()
  */
-SYM_FUNC_START(switch_to_vhe)
+SYM_FUNC_START(finalise_el2)
 	// Need to have booted at EL2
-	adr_l	x1, __boot_cpu_mode
-	ldr	w0, [x1]
 	cmp	w0, #BOOT_CPU_MODE_EL2
 	b.ne	1f
 
@@ -236,9 +300,8 @@ SYM_FUNC_START(switch_to_vhe)
 	cmp	x0, #CurrentEL_EL1
 	b.ne	1f
 
-	// Turn the world upside down
-	mov	x0, #HVC_VHE_RESTART
+	mov	x0, #HVC_FINALISE_EL2
 	hvc	#0
 1:
 	ret
-SYM_FUNC_END(switch_to_vhe)
+SYM_FUNC_END(finalise_el2)
