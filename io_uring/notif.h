@@ -67,7 +67,7 @@ static inline struct io_notif *io_get_notif(struct io_ring_ctx *ctx,
 }
 
 static inline struct io_notif_slot *io_get_notif_slot(struct io_ring_ctx *ctx,
-						      int idx)
+						      unsigned idx)
 	__must_hold(&ctx->uring_lock)
 {
 	if (idx >= ctx->nr_notif_slots)
