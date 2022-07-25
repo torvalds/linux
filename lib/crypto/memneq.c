@@ -63,8 +63,6 @@
 #include <crypto/algapi.h>
 #include <linux/module.h>
 
-#ifndef __HAVE_ARCH_CRYPTO_MEMNEQ
-
 /* Generic path for arbitrary size */
 static inline unsigned long
 __crypto_memneq_generic(const void *a, const void *b, size_t size)
@@ -173,5 +171,3 @@ noinline unsigned long __crypto_memneq(const void *a, const void *b,
 	}
 }
 EXPORT_SYMBOL(__crypto_memneq);
-
-#endif /* __HAVE_ARCH_CRYPTO_MEMNEQ */
