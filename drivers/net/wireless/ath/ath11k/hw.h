@@ -201,8 +201,6 @@ struct ath11k_hw_params {
 	bool fixed_mem_region;
 	bool static_window_map;
 	bool hybrid_bus_type;
-	u8 dp_window_idx;
-	u8 ce_window_idx;
 	bool fixed_fw_mem;
 	bool support_off_channel_tx;
 };
