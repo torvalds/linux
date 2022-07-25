@@ -126,6 +126,12 @@ static struct rb_root		thread_stats;
 static bool combine_locks;
 static bool show_thread_stats;
 
+static enum {
+	LOCK_AGGR_ADDR,
+	LOCK_AGGR_TASK,
+	LOCK_AGGR_CALLER,
+} aggr_mode = LOCK_AGGR_ADDR;
+
 /*
  * CONTENTION_STACK_DEPTH
  * Number of stack trace entries to find callers
@@ -622,12 +628,22 @@ static int report_lock_acquire_event(struct evsel *evsel,
 	const char *name = evsel__strval(evsel, sample, "name");
 	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
 	int flag = evsel__intval(evsel, sample, "flags");
+	u64 key;
 
-	/* abuse ls->addr for tid */
-	if (show_thread_stats)
-		addr = sample->tid;
+	switch (aggr_mode) {
+	case LOCK_AGGR_ADDR:
+		key = addr;
+		break;
+	case LOCK_AGGR_TASK:
+		key = sample->tid;
+		break;
+	case LOCK_AGGR_CALLER:
+	default:
+		pr_err("Invalid aggregation mode: %d\n", aggr_mode);
+		return -EINVAL;
+	}
 
-	ls = lock_stat_findnew(addr, name, 0);
+	ls = lock_stat_findnew(key, name, 0);
 	if (!ls)
 		return -ENOMEM;
 
@@ -695,11 +711,22 @@ static int report_lock_acquired_event(struct evsel *evsel,
 	u64 contended_term;
 	const char *name = evsel__strval(evsel, sample, "name");
 	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
+	u64 key;
 
-	if (show_thread_stats)
-		addr = sample->tid;
+	switch (aggr_mode) {
+	case LOCK_AGGR_ADDR:
+		key = addr;
+		break;
+	case LOCK_AGGR_TASK:
+		key = sample->tid;
+		break;
+	case LOCK_AGGR_CALLER:
+	default:
+		pr_err("Invalid aggregation mode: %d\n", aggr_mode);
+		return -EINVAL;
+	}
 
-	ls = lock_stat_findnew(addr, name, 0);
+	ls = lock_stat_findnew(key, name, 0);
 	if (!ls)
 		return -ENOMEM;
 
@@ -757,11 +784,22 @@ static int report_lock_contended_event(struct evsel *evsel,
 	struct lock_seq_stat *seq;
 	const char *name = evsel__strval(evsel, sample, "name");
 	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
+	u64 key;
 
-	if (show_thread_stats)
-		addr = sample->tid;
+	switch (aggr_mode) {
+	case LOCK_AGGR_ADDR:
+		key = addr;
+		break;
+	case LOCK_AGGR_TASK:
+		key = sample->tid;
+		break;
+	case LOCK_AGGR_CALLER:
+	default:
+		pr_err("Invalid aggregation mode: %d\n", aggr_mode);
+		return -EINVAL;
+	}
 
-	ls = lock_stat_findnew(addr, name, 0);
+	ls = lock_stat_findnew(key, name, 0);
 	if (!ls)
 		return -ENOMEM;
 
@@ -812,11 +850,22 @@ static int report_lock_release_event(struct evsel *evsel,
 	struct lock_seq_stat *seq;
 	const char *name = evsel__strval(evsel, sample, "name");
 	u64 addr = evsel__intval(evsel, sample, "lockdep_addr");
+	u64 key;
 
-	if (show_thread_stats)
-		addr = sample->tid;
+	switch (aggr_mode) {
+	case LOCK_AGGR_ADDR:
+		key = addr;
+		break;
+	case LOCK_AGGR_TASK:
+		key = sample->tid;
+		break;
+	case LOCK_AGGR_CALLER:
+	default:
+		pr_err("Invalid aggregation mode: %d\n", aggr_mode);
+		return -EINVAL;
+	}
 
-	ls = lock_stat_findnew(addr, name, 0);
+	ls = lock_stat_findnew(key, name, 0);
 	if (!ls)
 		return -ENOMEM;
 
@@ -980,11 +1029,22 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 	struct thread_stat *ts;
 	struct lock_seq_stat *seq;
 	u64 addr = evsel__intval(evsel, sample, "lock_addr");
+	u64 key;
 
-	if (show_thread_stats)
-		addr = sample->tid;
+	switch (aggr_mode) {
+	case LOCK_AGGR_ADDR:
+		key = addr;
+		break;
+	case LOCK_AGGR_TASK:
+		key = sample->tid;
+		break;
+	case LOCK_AGGR_CALLER:
+	default:
+		pr_err("Invalid aggregation mode: %d\n", aggr_mode);
+		return -EINVAL;
+	}
 
-	ls = lock_stat_find(addr);
+	ls = lock_stat_find(key);
 	if (!ls) {
 		char buf[128];
 		const char *caller = buf;
@@ -993,7 +1053,7 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 		if (lock_contention_caller(evsel, sample, buf, sizeof(buf)) < 0)
 			caller = "Unknown";
 
-		ls = lock_stat_findnew(addr, caller, flags);
+		ls = lock_stat_findnew(key, caller, flags);
 		if (!ls)
 			return -ENOMEM;
 	}
@@ -1050,11 +1110,22 @@ static int report_lock_contention_end_event(struct evsel *evsel,
 	struct lock_seq_stat *seq;
 	u64 contended_term;
 	u64 addr = evsel__intval(evsel, sample, "lock_addr");
+	u64 key;
 
-	if (show_thread_stats)
-		addr = sample->tid;
+	switch (aggr_mode) {
+	case LOCK_AGGR_ADDR:
+		key = addr;
+		break;
+	case LOCK_AGGR_TASK:
+		key = sample->tid;
+		break;
+	case LOCK_AGGR_CALLER:
+	default:
+		pr_err("Invalid aggregation mode: %d\n", aggr_mode);
+		return -EINVAL;
+	}
 
-	ls = lock_stat_find(addr);
+	ls = lock_stat_find(key);
 	if (!ls)
 		return 0;
 
@@ -1415,6 +1486,9 @@ static int __cmd_report(bool display_info)
 
 	if (select_key())
 		goto out_delete;
+
+	if (show_thread_stats)
+		aggr_mode = LOCK_AGGR_TASK;
 
 	err = perf_session__process_events(session);
 	if (err)
