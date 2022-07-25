@@ -69,6 +69,7 @@ static bool lapic_timer_advance_dynamic __read_mostly;
 /* step-by-step approximation to mitigate fluctuation */
 #define LAPIC_TIMER_ADVANCE_ADJUST_STEP 8
 static int kvm_lapic_msr_read(struct kvm_lapic *apic, u32 reg, u64 *data);
+static int kvm_lapic_msr_write(struct kvm_lapic *apic, u32 reg, u64 data);
 
 static inline void __kvm_lapic_set_reg(char *regs, int reg_off, u32 val)
 {
@@ -2283,21 +2284,20 @@ void kvm_apic_write_nodecode(struct kvm_vcpu *vcpu, u32 offset)
 	struct kvm_lapic *apic = vcpu->arch.apic;
 	u64 val;
 
-	if (apic_x2apic_mode(apic)) {
-		/*
-		 * When guest APIC is in x2APIC mode and IPI virtualization
-		 * is enabled, accessing APIC_ICR may cause trap-like VM-exit
-		 * on Intel hardware. Other offsets are not possible.
-		 */
-		if (WARN_ON_ONCE(offset != APIC_ICR))
-			return;
-
+	if (apic_x2apic_mode(apic))
 		kvm_lapic_msr_read(apic, offset, &val);
+	else
+		val = kvm_lapic_get_reg(apic, offset);
+
+	/*
+	 * ICR is a single 64-bit register when x2APIC is enabled.  For legacy
+	 * xAPIC, ICR writes need to go down the common (slightly slower) path
+	 * to get the upper half from ICR2.
+	 */
+	if (apic_x2apic_mode(apic) && offset == APIC_ICR) {
 		kvm_apic_send_ipi(apic, (u32)val, (u32)(val >> 32));
 		trace_kvm_apic_write(APIC_ICR, val);
 	} else {
-		val = kvm_lapic_get_reg(apic, offset);
-
 		/* TODO: optimize to just emulate side effect w/o one more write */
 		kvm_lapic_reg_write(apic, offset, (u32)val);
 	}
