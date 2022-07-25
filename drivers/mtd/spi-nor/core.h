@@ -84,9 +84,9 @@
 		   SPI_MEM_OP_NO_DUMMY,					\
 		   SPI_MEM_OP_NO_DATA)
 
-#define SPI_NOR_SECTOR_ERASE_OP(opcode, addr_width, addr)		\
+#define SPI_NOR_SECTOR_ERASE_OP(opcode, addr_nbytes, addr)		\
 	SPI_MEM_OP(SPI_MEM_OP_CMD(opcode, 0),				\
-		   SPI_MEM_OP_ADDR(addr_width, addr, 0),		\
+		   SPI_MEM_OP_ADDR(addr_nbytes, addr, 0),		\
 		   SPI_MEM_OP_NO_DUMMY,					\
 		   SPI_MEM_OP_NO_DATA)
 
@@ -429,7 +429,7 @@ struct spi_nor_fixups {
  *                  isn't necessarily called a "sector" by the vendor.
  * @n_sectors:      the number of sectors.
  * @page_size:      the flash's page size.
- * @addr_width:     the flash's address width.
+ * @addr_nbytes:    number of address bytes to send.
  *
  * @parse_sfdp:     true when flash supports SFDP tables. The false value has no
  *                  meaning. If one wants to skip the SFDP tables, one should
@@ -487,7 +487,7 @@ struct flash_info {
 	unsigned sector_size;
 	u16 n_sectors;
 	u16 page_size;
-	u16 addr_width;
+	u16 addr_nbytes;
 
 	bool parse_sfdp;
 	u16 flags;
@@ -548,11 +548,11 @@ struct flash_info {
 		.n_sectors = (_n_sectors),				\
 		.page_size = 256,					\
 
-#define CAT25_INFO(_sector_size, _n_sectors, _page_size, _addr_width)	\
+#define CAT25_INFO(_sector_size, _n_sectors, _page_size, _addr_nbytes)	\
 		.sector_size = (_sector_size),				\
 		.n_sectors = (_n_sectors),				\
 		.page_size = (_page_size),				\
-		.addr_width = (_addr_width),				\
+		.addr_nbytes = (_addr_nbytes),				\
 		.flags = SPI_NOR_NO_ERASE | SPI_NOR_NO_FR,		\
 
 #define OTP_INFO(_len, _n_regions, _base, _offset)			\

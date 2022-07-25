@@ -14,13 +14,13 @@ is25lp256_post_bfpt_fixups(struct spi_nor *nor,
 			   const struct sfdp_bfpt *bfpt)
 {
 	/*
-	 * IS25LP256 supports 4B opcodes, but the BFPT advertises a
-	 * BFPT_DWORD1_ADDRESS_BYTES_3_ONLY address width.
-	 * Overwrite the address width advertised by the BFPT.
+	 * IS25LP256 supports 4B opcodes, but the BFPT advertises
+	 * BFPT_DWORD1_ADDRESS_BYTES_3_ONLY.
+	 * Overwrite the number of address bytes advertised by the BFPT.
 	 */
 	if ((bfpt->dwords[BFPT_DWORD(1)] & BFPT_DWORD1_ADDRESS_BYTES_MASK) ==
 		BFPT_DWORD1_ADDRESS_BYTES_3_ONLY)
-		nor->addr_width = 4;
+		nor->addr_nbytes = 4;
 
 	return 0;
 }
