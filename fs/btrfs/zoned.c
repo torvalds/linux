@@ -1735,12 +1735,14 @@ static int read_zone_info(struct btrfs_fs_info *fs_info, u64 logical,
 	ret = btrfs_map_sblock(fs_info, BTRFS_MAP_GET_READ_MIRRORS, logical,
 			       &mapped_length, &bioc);
 	if (ret || !bioc || mapped_length < PAGE_SIZE) {
-		btrfs_put_bioc(bioc);
-		return -EIO;
+		ret = -EIO;
+		goto out_put_bioc;
 	}
 
-	if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK)
-		return -EINVAL;
+	if (bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
+		ret = -EINVAL;
+		goto out_put_bioc;
+	}
 
 	nofs_flag = memalloc_nofs_save();
 	nmirrors = (int)bioc->num_stripes;
@@ -1759,7 +1761,8 @@ static int read_zone_info(struct btrfs_fs_info *fs_info, u64 logical,
 		break;
 	}
 	memalloc_nofs_restore(nofs_flag);
-
+out_put_bioc:
+	btrfs_put_bioc(bioc);
 	return ret;
 }
 
@@ -1885,7 +1888,6 @@ static int do_zone_finish(struct btrfs_block_group *block_group, bool fully_writ
 {
 	struct btrfs_fs_info *fs_info = block_group->fs_info;
 	struct map_lookup *map;
-	bool need_zone_finish;
 	int ret = 0;
 	int i;
 
@@ -1942,12 +1944,6 @@ static int do_zone_finish(struct btrfs_block_group *block_group, bool fully_writ
 		}
 	}
 
-	/*
-	 * The block group is not fully allocated, so not fully written yet. We
-	 * need to send ZONE_FINISH command to free up an active zone.
-	 */
-	need_zone_finish = !btrfs_zoned_bg_is_full(block_group);
-
 	block_group->zone_is_active = 0;
 	block_group->alloc_offset = block_group->zone_capacity;
 	block_group->free_space_ctl->free_space = 0;
@@ -1963,15 +1959,13 @@ static int do_zone_finish(struct btrfs_block_group *block_group, bool fully_writ
 		if (device->zone_info->max_active_zones == 0)
 			continue;
 
-		if (need_zone_finish) {
-			ret = blkdev_zone_mgmt(device->bdev, REQ_OP_ZONE_FINISH,
-					       physical >> SECTOR_SHIFT,
-					       device->zone_info->zone_size >> SECTOR_SHIFT,
-					       GFP_NOFS);
+		ret = blkdev_zone_mgmt(device->bdev, REQ_OP_ZONE_FINISH,
+				       physical >> SECTOR_SHIFT,
+				       device->zone_info->zone_size >> SECTOR_SHIFT,
+				       GFP_NOFS);
 
-			if (ret)
-				return ret;
-		}
+		if (ret)
+			return ret;
 
 		btrfs_dev_clear_active_zone(device, physical);
 	}

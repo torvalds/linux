@@ -4,8 +4,8 @@
 
 #include <asm/vmx.h>
 
-#include "lapic.h"
-#include "x86.h"
+#include "../lapic.h"
+#include "../x86.h"
 
 extern bool __read_mostly enable_vpid;
 extern bool __read_mostly flexpriority_enabled;

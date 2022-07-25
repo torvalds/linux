@@ -782,7 +782,8 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 
 					if (!osc_cpc_flexible_adr_space_confirmed) {
 						pr_debug("Flexible address space capability not supported\n");
-						goto out_free;
+						if (!cpc_supported_by_cpu())
+							goto out_free;
 					}
 
 					addr = ioremap(gas_t->address, gas_t->bit_width/8);
@@ -809,7 +810,8 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 				}
 				if (!osc_cpc_flexible_adr_space_confirmed) {
 					pr_debug("Flexible address space capability not supported\n");
-					goto out_free;
+					if (!cpc_supported_by_cpu())
+						goto out_free;
 				}
 			} else {
 				if (gas_t->space_id != ACPI_ADR_SPACE_FIXED_HARDWARE || !cpc_ffh_supported()) {
