@@ -59,7 +59,10 @@ struct lock_stat {
 	unsigned int		nr_contended;
 	unsigned int		nr_release;
 
-	unsigned int		nr_readlock;
+	union {
+		unsigned int	nr_readlock;
+		unsigned int	flags;
+	};
 	unsigned int		nr_trylock;
 
 	/* these times are in nano sec. */
@@ -516,7 +519,7 @@ static struct lock_stat *lock_stat_find(u64 addr)
 	return NULL;
 }
 
-static struct lock_stat *lock_stat_findnew(u64 addr, const char *name)
+static struct lock_stat *lock_stat_findnew(u64 addr, const char *name, int flags)
 {
 	struct hlist_head *entry = lockhashentry(addr);
 	struct lock_stat *ret, *new;
@@ -531,13 +534,13 @@ static struct lock_stat *lock_stat_findnew(u64 addr, const char *name)
 		goto alloc_failed;
 
 	new->addr = addr;
-	new->name = zalloc(sizeof(char) * strlen(name) + 1);
+	new->name = strdup(name);
 	if (!new->name) {
 		free(new);
 		goto alloc_failed;
 	}
 
-	strcpy(new->name, name);
+	new->flags = flags;
 	new->wait_time_min = ULLONG_MAX;
 
 	hlist_add_head(&new->hash_entry, entry);
@@ -624,7 +627,7 @@ static int report_lock_acquire_event(struct evsel *evsel,
 	if (show_thread_stats)
 		addr = sample->tid;
 
-	ls = lock_stat_findnew(addr, name);
+	ls = lock_stat_findnew(addr, name, 0);
 	if (!ls)
 		return -ENOMEM;
 
@@ -696,7 +699,7 @@ static int report_lock_acquired_event(struct evsel *evsel,
 	if (show_thread_stats)
 		addr = sample->tid;
 
-	ls = lock_stat_findnew(addr, name);
+	ls = lock_stat_findnew(addr, name, 0);
 	if (!ls)
 		return -ENOMEM;
 
@@ -758,7 +761,7 @@ static int report_lock_contended_event(struct evsel *evsel,
 	if (show_thread_stats)
 		addr = sample->tid;
 
-	ls = lock_stat_findnew(addr, name);
+	ls = lock_stat_findnew(addr, name, 0);
 	if (!ls)
 		return -ENOMEM;
 
@@ -813,7 +816,7 @@ static int report_lock_release_event(struct evsel *evsel,
 	if (show_thread_stats)
 		addr = sample->tid;
 
-	ls = lock_stat_findnew(addr, name);
+	ls = lock_stat_findnew(addr, name, 0);
 	if (!ls)
 		return -ENOMEM;
 
@@ -985,11 +988,12 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 	if (!ls) {
 		char buf[128];
 		const char *caller = buf;
+		unsigned int flags = evsel__intval(evsel, sample, "flags");
 
 		if (lock_contention_caller(evsel, sample, buf, sizeof(buf)) < 0)
 			caller = "Unknown";
 
-		ls = lock_stat_findnew(addr, caller);
+		ls = lock_stat_findnew(addr, caller, flags);
 		if (!ls)
 			return -ENOMEM;
 	}
