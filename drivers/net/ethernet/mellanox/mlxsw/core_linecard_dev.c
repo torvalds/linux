@@ -108,8 +108,21 @@ static int mlxsw_linecard_dev_devlink_info_get(struct devlink *devlink,
 	return mlxsw_linecard_devlink_info_get(linecard, req, extack);
 }
 
+static int
+mlxsw_linecard_dev_devlink_flash_update(struct devlink *devlink,
+					struct devlink_flash_update_params *params,
+					struct netlink_ext_ack *extack)
+{
+	struct mlxsw_linecard_dev *linecard_dev = devlink_priv(devlink);
+	struct mlxsw_linecard *linecard = linecard_dev->linecard;
+
+	return mlxsw_linecard_flash_update(devlink, linecard,
+					   params->fw, extack);
+}
+
 static const struct devlink_ops mlxsw_linecard_dev_devlink_ops = {
 	.info_get			= mlxsw_linecard_dev_devlink_info_get,
+	.flash_update			= mlxsw_linecard_dev_devlink_flash_update,
 };
 
 static int mlxsw_linecard_bdev_probe(struct auxiliary_device *adev,
