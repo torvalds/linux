@@ -1727,7 +1727,7 @@
 		compatible = "aspeed,ast2600-i3c", "syscon";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C0CLK>;
 		resets = <&syscon ASPEED_RESET_I3C0>;
-		i2c-scl-hz = <400000>;
+		i2c-scl-hz = <1000000>;
 		i3c-scl-hz = <12500000>;
 		sda-tx-hold-ns = <10>;
 		timed-reset-scl-low-ns = <52428800>;
@@ -1752,7 +1752,7 @@
 		compatible = "aspeed,ast2600-i3c", "syscon";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C1CLK>;
 		resets = <&syscon ASPEED_RESET_I3C1>;
-		i2c-scl-hz = <400000>;
+		i2c-scl-hz = <1000000>;
 		i3c-scl-hz = <12500000>;
 		sda-tx-hold-ns = <10>;
 		timed-reset-scl-low-ns = <52428800>;
@@ -1777,7 +1777,7 @@
 		compatible = "aspeed,ast2600-i3c", "syscon";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C2CLK>;
 		resets = <&syscon ASPEED_RESET_I3C2>;
-		i2c-scl-hz = <400000>;
+		i2c-scl-hz = <1000000>;
 		i3c-scl-hz = <12500000>;
 		sda-tx-hold-ns = <10>;
 		timed-reset-scl-low-ns = <52428800>;
@@ -1800,7 +1800,7 @@
 		compatible = "aspeed,ast2600-i3c", "syscon";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C3CLK>;
 		resets = <&syscon ASPEED_RESET_I3C3>;
-		i2c-scl-hz = <400000>;
+		i2c-scl-hz = <1000000>;
 		i3c-scl-hz = <12500000>;
 		sda-tx-hold-ns = <10>;
 		timed-reset-scl-low-ns = <52428800>;
@@ -1823,7 +1823,7 @@
 		compatible = "aspeed,ast2600-i3c", "syscon";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C4CLK>;
 		resets = <&syscon ASPEED_RESET_I3C4>;
-		i2c-scl-hz = <400000>;
+		i2c-scl-hz = <1000000>;
 		i3c-scl-hz = <12500000>;
 		sda-tx-hold-ns = <10>;
 		timed-reset-scl-low-ns = <52428800>;
@@ -1848,7 +1848,7 @@
 		compatible = "aspeed,ast2600-i3c", "syscon";
 		clocks = <&syscon ASPEED_CLK_GATE_I3C5CLK>;
 		resets = <&syscon ASPEED_RESET_I3C5>;
-		i2c-scl-hz = <400000>;
+		i2c-scl-hz = <1000000>;
 		i3c-scl-hz = <12500000>;
 		sda-tx-hold-ns = <10>;
 		timed-reset-scl-low-ns = <52428800>;
