@@ -508,13 +508,13 @@ void smcd_handle_event(struct smcd_dev *smcd, struct smcd_event *event)
 EXPORT_SYMBOL_GPL(smcd_handle_event);
 
 /* SMCD Device interrupt handler. Called from ISM device interrupt handler.
- * Parameters are smcd device pointer and DMB number. Find the connection and
- * schedule the tasklet for this connection.
+ * Parameters are smcd device pointer, DMB number, and the DMBE bitmask.
+ * Find the connection and schedule the tasklet for this connection.
  *
  * Context:
  * - Function called in IRQ context from ISM device driver IRQ handler.
  */
-void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbno)
+void smcd_handle_irq(struct smcd_dev *smcd, unsigned int dmbno, u16 dmbemask)
 {
 	struct smc_connection *conn = NULL;
 	unsigned long flags;

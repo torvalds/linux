@@ -101,5 +101,5 @@ int smcd_register_dev(struct smcd_dev *smcd);
 void smcd_unregister_dev(struct smcd_dev *smcd);
 void smcd_free_dev(struct smcd_dev *smcd);
 void smcd_handle_event(struct smcd_dev *dev, struct smcd_event *event);
-void smcd_handle_irq(struct smcd_dev *dev, unsigned int bit);
+void smcd_handle_irq(struct smcd_dev *dev, unsigned int bit, u16 dmbemask);
 #endif	/* _SMC_H */
