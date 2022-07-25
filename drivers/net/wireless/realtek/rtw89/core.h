@@ -1367,8 +1367,15 @@ struct rtw89_btc_fbtc_tdma {
 	u8 wtgle_n;
 	u8 leak_n;
 	u8 ext_ctrl;
-	u8 rsvd0;
-	u8 rsvd1;
+	u8 rxflctrl_role;
+	u8 option_ctrl;
+} __packed;
+
+struct rtw89_btc_fbtc_tdma_v1 {
+	u8 fver; /* chip_info::fcxtdma_ver */
+	u8 rsvd;
+	__le16 rsvd1;
+	struct rtw89_btc_fbtc_tdma tdma;
 } __packed;
 
 #define CXMREG_MAX 30
@@ -1682,7 +1689,8 @@ struct rtw89_btc_dm {
 	u32 wl_btg_rx: 1;
 	u32 trx_para_level: 8;
 	u32 wl_stb_chg: 1;
-	u32 rsvd: 3;
+	u32 tdma_instant_excute: 1;
+	u32 rsvd: 2;
 
 	u16 slot_dur[CXST_MAX];
 
@@ -1764,7 +1772,10 @@ struct rtw89_btc_report_ctrl_state {
 
 struct rtw89_btc_rpt_fbtc_tdma {
 	struct rtw89_btc_rpt_cmn_info cinfo; /* common info, by driver */
-	struct rtw89_btc_fbtc_tdma finfo; /* info from fw */
+	union {
+		struct rtw89_btc_fbtc_tdma finfo; /* info from fw */
+		struct rtw89_btc_fbtc_tdma_v1 finfo_v1; /* info from fw for 52C*/
+	};
 };
 
 struct rtw89_btc_rpt_fbtc_slots {
