@@ -487,7 +487,7 @@ struct flash_info {
 	unsigned sector_size;
 	u16 n_sectors;
 	u16 page_size;
-	u16 addr_nbytes;
+	u8 addr_nbytes;
 
 	bool parse_sfdp;
 	u16 flags;
