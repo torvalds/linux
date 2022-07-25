@@ -135,10 +135,9 @@ static int i2s_tdm_runtime_suspend(struct device *dev)
 	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
 
 	regcache_cache_only(i2s_tdm->regmap, true);
-	if (!IS_ERR(i2s_tdm->mclk_tx))
-		clk_disable_unprepare(i2s_tdm->mclk_tx);
-	if (!IS_ERR(i2s_tdm->mclk_rx))
-		clk_disable_unprepare(i2s_tdm->mclk_rx);
+
+	clk_disable_unprepare(i2s_tdm->mclk_tx);
+	clk_disable_unprepare(i2s_tdm->mclk_rx);
 
 	return 0;
 }
@@ -148,22 +147,27 @@ static int i2s_tdm_runtime_resume(struct device *dev)
 	struct rk_i2s_tdm_dev *i2s_tdm = dev_get_drvdata(dev);
 	int ret;
 
-	if (!IS_ERR(i2s_tdm->mclk_tx))
-		clk_prepare_enable(i2s_tdm->mclk_tx);
-	if (!IS_ERR(i2s_tdm->mclk_rx))
-		clk_prepare_enable(i2s_tdm->mclk_rx);
+	ret = clk_prepare_enable(i2s_tdm->mclk_tx);
+	if (ret)
+		goto err_mclk_tx;
+
+	ret = clk_prepare_enable(i2s_tdm->mclk_rx);
+	if (ret)
+		goto err_mclk_rx;
 
 	regcache_cache_only(i2s_tdm->regmap, false);
 	regcache_mark_dirty(i2s_tdm->regmap);
-
 	ret = regcache_sync(i2s_tdm->regmap);
-	if (ret) {
-		if (!IS_ERR(i2s_tdm->mclk_tx))
-			clk_disable_unprepare(i2s_tdm->mclk_tx);
-		if (!IS_ERR(i2s_tdm->mclk_rx))
-			clk_disable_unprepare(i2s_tdm->mclk_rx);
-	}
+	if (ret)
+		goto err_regmap;
 
+	return 0;
+
+err_regmap:
+	clk_disable_unprepare(i2s_tdm->mclk_rx);
+err_mclk_rx:
+	clk_disable_unprepare(i2s_tdm->mclk_tx);
+err_mclk_tx:
 	return ret;
 }
 
@@ -230,7 +234,7 @@ static void rockchip_snd_xfer_reset_assert(struct rk_i2s_tdm_dev *i2s_tdm)
 			writeq(val, addr);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		local_irq_save(flags);
 		writel(BIT(tx_offset) | (BIT(tx_offset) << 16),
@@ -292,7 +296,7 @@ static void rockchip_snd_xfer_reset_deassert(struct rk_i2s_tdm_dev *i2s_tdm)
 			writeq(val, addr);
 			break;
 		}
-		/* fall through */
+		fallthrough;
 	default:
 		local_irq_save(flags);
 		writel((BIT(tx_offset) << 16),
@@ -1552,7 +1556,6 @@ static int common_soc_init(struct device *dev, u32 addr)
 
 	switch (trcm) {
 	case I2S_CKR_TRCM_TXONLY:
-		/* fall through */
 	case I2S_CKR_TRCM_RXONLY:
 		break;
 	default:
@@ -2017,13 +2020,12 @@ static int rockchip_i2s_tdm_probe(struct platform_device *pdev)
 		i2s_tdm->mclk_root1_freq = i2s_tdm->mclk_root1_initial_freq;
 	}
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	regs = devm_ioremap_resource(&pdev->dev, res);
+	regs = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
 	if (IS_ERR(regs))
 		return PTR_ERR(regs);
 
 	i2s_tdm->regmap = devm_regmap_init_mmio(&pdev->dev, regs,
-					    &rockchip_i2s_tdm_regmap_config);
+						&rockchip_i2s_tdm_regmap_config);
 	if (IS_ERR(i2s_tdm->regmap))
 		return PTR_ERR(i2s_tdm->regmap);
 
@@ -2108,12 +2110,9 @@ static int rockchip_i2s_tdm_remove(struct platform_device *pdev)
 	if (!pm_runtime_status_suspended(&pdev->dev))
 		i2s_tdm_runtime_suspend(&pdev->dev);
 
-	if (!IS_ERR(i2s_tdm->mclk_tx))
-		clk_prepare_enable(i2s_tdm->mclk_tx);
-	if (!IS_ERR(i2s_tdm->mclk_rx))
-		clk_prepare_enable(i2s_tdm->mclk_rx);
-	if (!IS_ERR(i2s_tdm->hclk))
-		clk_disable_unprepare(i2s_tdm->hclk);
+	clk_disable_unprepare(i2s_tdm->mclk_tx);
+	clk_disable_unprepare(i2s_tdm->mclk_rx);
+	clk_disable_unprepare(i2s_tdm->hclk);
 
 	return 0;
 }
