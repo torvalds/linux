@@ -311,7 +311,7 @@ static void acm_process_notification(struct acm *acm, unsigned char *buf)
 		dev_dbg(&acm->control->dev,
 			"%s - serial state: 0x%x\n", __func__, newctrl);
 
-		if (!acm->clocal && (acm->ctrlin & ~newctrl & ACM_CTRL_DCD)) {
+		if (!acm->clocal && (acm->ctrlin & ~newctrl & USB_CDC_SERIAL_STATE_DCD)) {
 			dev_dbg(&acm->control->dev,
 				"%s - calling hangup\n", __func__);
 			tty_port_tty_hangup(&acm->port, false);
@@ -322,25 +322,25 @@ static void acm_process_notification(struct acm *acm, unsigned char *buf)
 		acm->ctrlin = newctrl;
 		acm->oldcount = acm->iocount;
 
-		if (difference & ACM_CTRL_DSR)
+		if (difference & USB_CDC_SERIAL_STATE_DSR)
 			acm->iocount.dsr++;
-		if (difference & ACM_CTRL_DCD)
+		if (difference & USB_CDC_SERIAL_STATE_DCD)
 			acm->iocount.dcd++;
-		if (newctrl & ACM_CTRL_BRK) {
+		if (newctrl & USB_CDC_SERIAL_STATE_BREAK) {
 			acm->iocount.brk++;
 			tty_insert_flip_char(&acm->port, 0, TTY_BREAK);
 		}
-		if (newctrl & ACM_CTRL_RI)
+		if (newctrl & USB_CDC_SERIAL_STATE_RING_SIGNAL)
 			acm->iocount.rng++;
-		if (newctrl & ACM_CTRL_FRAMING)
+		if (newctrl & USB_CDC_SERIAL_STATE_FRAMING)
 			acm->iocount.frame++;
-		if (newctrl & ACM_CTRL_PARITY)
+		if (newctrl & USB_CDC_SERIAL_STATE_PARITY)
 			acm->iocount.parity++;
-		if (newctrl & ACM_CTRL_OVERRUN)
+		if (newctrl & USB_CDC_SERIAL_STATE_OVERRUN)
 			acm->iocount.overrun++;
 		spin_unlock_irqrestore(&acm->read_lock, flags);
 
-		if (newctrl & ACM_CTRL_BRK)
+		if (newctrl & USB_CDC_SERIAL_STATE_BREAK)
 			tty_flip_buffer_push(&acm->port);
 
 		if (difference)
@@ -905,9 +905,9 @@ static int acm_tty_tiocmget(struct tty_struct *tty)
 
 	return (acm->ctrlout & USB_CDC_CTRL_DTR ? TIOCM_DTR : 0) |
 	       (acm->ctrlout & USB_CDC_CTRL_RTS ? TIOCM_RTS : 0) |
-	       (acm->ctrlin  & ACM_CTRL_DSR ? TIOCM_DSR : 0) |
-	       (acm->ctrlin  & ACM_CTRL_RI  ? TIOCM_RI  : 0) |
-	       (acm->ctrlin  & ACM_CTRL_DCD ? TIOCM_CD  : 0) |
+	       (acm->ctrlin  & USB_CDC_SERIAL_STATE_DSR ? TIOCM_DSR : 0) |
+	       (acm->ctrlin  & USB_CDC_SERIAL_STATE_RING_SIGNAL ? TIOCM_RI : 0) |
+	       (acm->ctrlin  & USB_CDC_SERIAL_STATE_DCD ? TIOCM_CD : 0) |
 	       TIOCM_CTS;
 }
 
