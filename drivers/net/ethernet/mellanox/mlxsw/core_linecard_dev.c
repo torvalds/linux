@@ -98,7 +98,18 @@ void mlxsw_linecard_bdev_del(struct mlxsw_linecard *linecard)
 	linecard->bdev = NULL;
 }
 
+static int mlxsw_linecard_dev_devlink_info_get(struct devlink *devlink,
+					       struct devlink_info_req *req,
+					       struct netlink_ext_ack *extack)
+{
+	struct mlxsw_linecard_dev *linecard_dev = devlink_priv(devlink);
+	struct mlxsw_linecard *linecard = linecard_dev->linecard;
+
+	return mlxsw_linecard_devlink_info_get(linecard, req, extack);
+}
+
 static const struct devlink_ops mlxsw_linecard_dev_devlink_ops = {
+	.info_get			= mlxsw_linecard_dev_devlink_info_get,
 };
 
 static int mlxsw_linecard_bdev_probe(struct auxiliary_device *adev,

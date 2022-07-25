@@ -601,6 +601,10 @@ mlxsw_linecard_get(struct mlxsw_linecards *linecards, u8 slot_index)
 	return &linecards->linecards[slot_index - 1];
 }
 
+int mlxsw_linecard_devlink_info_get(struct mlxsw_linecard *linecard,
+				    struct devlink_info_req *req,
+				    struct netlink_ext_ack *extack);
+
 int mlxsw_linecards_init(struct mlxsw_core *mlxsw_core,
 			 const struct mlxsw_bus_info *bus_info);
 void mlxsw_linecards_fini(struct mlxsw_core *mlxsw_core);
