@@ -2874,6 +2874,30 @@ success:
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_test_and_add_xprt);
 
+static int rpc_clnt_add_xprt_helper(struct rpc_clnt *clnt,
+				    struct rpc_xprt *xprt,
+				    struct rpc_add_xprt_test *data)
+{
+	struct rpc_task *task;
+	int status = -EADDRINUSE;
+
+	/* Test the connection */
+	task = rpc_call_null_helper(clnt, xprt, NULL, 0, NULL, NULL);
+	if (IS_ERR(task))
+		return PTR_ERR(task);
+
+	status = task->tk_status;
+	rpc_put_task(task);
+
+	if (status < 0)
+		return status;
+
+	/* rpc_xprt_switch and rpc_xprt are deferrenced by add_xprt_test() */
+	data->add_xprt_test(clnt, xprt, data->data);
+
+	return 0;
+}
+
 /**
  * rpc_clnt_setup_test_and_add_xprt()
  *
@@ -2897,8 +2921,6 @@ int rpc_clnt_setup_test_and_add_xprt(struct rpc_clnt *clnt,
 				     struct rpc_xprt *xprt,
 				     void *data)
 {
-	struct rpc_task *task;
-	struct rpc_add_xprt_test *xtest = (struct rpc_add_xprt_test *)data;
 	int status = -EADDRINUSE;
 
 	xprt = xprt_get(xprt);
@@ -2907,31 +2929,19 @@ int rpc_clnt_setup_test_and_add_xprt(struct rpc_clnt *clnt,
 	if (rpc_xprt_switch_has_addr(xps, (struct sockaddr *)&xprt->addr))
 		goto out_err;
 
-	/* Test the connection */
-	task = rpc_call_null_helper(clnt, xprt, NULL, 0, NULL, NULL);
-	if (IS_ERR(task)) {
-		status = PTR_ERR(task);
-		goto out_err;
-	}
-	status = task->tk_status;
-	rpc_put_task(task);
-
+	status = rpc_clnt_add_xprt_helper(clnt, xprt, data);
 	if (status < 0)
 		goto out_err;
 
-	/* rpc_xprt_switch and rpc_xprt are deferrenced by add_xprt_test() */
-	xtest->add_xprt_test(clnt, xprt, xtest->data);
-
-	xprt_put(xprt);
-	xprt_switch_put(xps);
-
-	/* so that rpc_clnt_add_xprt does not call rpc_xprt_switch_add_xprt */
-	return 1;
+	status = 1;
 out_err:
 	xprt_put(xprt);
 	xprt_switch_put(xps);
-	pr_info("RPC:   rpc_clnt_test_xprt failed: %d addr %s not added\n",
-		status, xprt->address_strings[RPC_DISPLAY_ADDR]);
+	if (status < 0)
+		pr_info("RPC:   rpc_clnt_test_xprt failed: %d addr %s not "
+			"added\n", status,
+			xprt->address_strings[RPC_DISPLAY_ADDR]);
+	/* so that rpc_clnt_add_xprt does not call rpc_xprt_switch_add_xprt */
 	return status;
 }
 EXPORT_SYMBOL_GPL(rpc_clnt_setup_test_and_add_xprt);
