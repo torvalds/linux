@@ -871,6 +871,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 			   struct rtw89_btc_btf_fwinfo *pfwinfo,
 			   u8 *prptbuf, u32 index)
 {
+	const struct rtw89_chip_info *chip = rtwdev->chip;
 	struct rtw89_btc *btc = &rtwdev->btc;
 	struct rtw89_btc_dm *dm = &btc->dm;
 	struct rtw89_btc_rpt_cmn_info *pcinfo = NULL;
@@ -908,7 +909,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		pcinfo = &pfwinfo->rpt_ctrl.cinfo;
 		pfinfo = (u8 *)(&pfwinfo->rpt_ctrl.finfo);
 		pcinfo->req_len = sizeof(pfwinfo->rpt_ctrl.finfo);
-		pcinfo->req_fver = BTCRPT_VER;
+		pcinfo->req_fver = chip->fcxbtcrpt_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
 		break;
@@ -916,7 +917,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		pcinfo = &pfwinfo->rpt_fbtc_tdma.cinfo;
 		pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_tdma.finfo);
 		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_tdma.finfo);
-		pcinfo->req_fver = FCXTDMA_VER;
+		pcinfo->req_fver = chip->fcxtdma_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
 		break;
@@ -924,7 +925,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		pcinfo = &pfwinfo->rpt_fbtc_slots.cinfo;
 		pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_slots.finfo);
 		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_slots.finfo);
-		pcinfo->req_fver = FCXSLOTS_VER;
+		pcinfo->req_fver = chip->fcxslots_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
 		break;
@@ -934,7 +935,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		pcysta_le32 = &pfwinfo->rpt_fbtc_cysta.finfo;
 		rtw89_btc_fbtc_cysta_to_cpu(pcysta_le32, pcysta);
 		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_cysta.finfo);
-		pcinfo->req_fver = FCXCYSTA_VER;
+		pcinfo->req_fver = chip->fcxcysta_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
 		break;
@@ -943,7 +944,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_step.finfo);
 		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_step.finfo.step[0]) *
 				  trace_step + 8;
-		pcinfo->req_fver = FCXSTEP_VER;
+		pcinfo->req_fver = chip->fcxstep_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
 		break;
@@ -951,7 +952,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		pcinfo = &pfwinfo->rpt_fbtc_nullsta.cinfo;
 		pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_nullsta.finfo);
 		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_nullsta.finfo);
-		pcinfo->req_fver = FCXNULLSTA_VER;
+		pcinfo->req_fver = chip->fcxnullsta_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
 		break;
@@ -959,7 +960,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		pcinfo = &pfwinfo->rpt_fbtc_mregval.cinfo;
 		pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_mregval.finfo);
 		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_mregval.finfo);
-		pcinfo->req_fver = FCXMREG_VER;
+		pcinfo->req_fver = chip->fcxmreg_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
 		break;
@@ -967,7 +968,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		pcinfo = &pfwinfo->rpt_fbtc_gpio_dbg.cinfo;
 		pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_gpio_dbg.finfo);
 		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_gpio_dbg.finfo);
-		pcinfo->req_fver = FCXGPIODBG_VER;
+		pcinfo->req_fver = chip->fcxgpiodbg_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
 		break;
@@ -975,7 +976,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		pcinfo = &pfwinfo->rpt_fbtc_btver.cinfo;
 		pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_btver.finfo);
 		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btver.finfo);
-		pcinfo->req_fver = FCX_BTVER_VER;
+		pcinfo->req_fver = chip->fcxbtver_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
 		break;
@@ -983,7 +984,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		pcinfo = &pfwinfo->rpt_fbtc_btscan.cinfo;
 		pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_btscan.finfo);
 		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btscan.finfo);
-		pcinfo->req_fver = FCX_BTSCAN_VER;
+		pcinfo->req_fver = chip->fcxbtscan_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
 		break;
@@ -991,7 +992,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		pcinfo = &pfwinfo->rpt_fbtc_btafh.cinfo;
 		pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_btafh.finfo);
 		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btafh.finfo);
-		pcinfo->req_fver = FCX_BTAFH_VER;
+		pcinfo->req_fver = chip->fcxbtafh_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
 		break;
@@ -999,7 +1000,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		pcinfo = &pfwinfo->rpt_fbtc_btdev.cinfo;
 		pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_btdev.finfo);
 		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_btdev.finfo);
-		pcinfo->req_fver = FCX_BTDEVINFO_VER;
+		pcinfo->req_fver = chip->fcxbtdevinfo_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
 		break;

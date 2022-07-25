@@ -1361,7 +1361,7 @@ struct rtw89_btc_cx {
 };
 
 struct rtw89_btc_fbtc_tdma {
-	u8 type;
+	u8 type; /* chip_info::fcxtdma_ver */
 	u8 rxflctrl;
 	u8 txpause;
 	u8 wtgle_n;
@@ -1373,7 +1373,6 @@ struct rtw89_btc_fbtc_tdma {
 
 #define CXMREG_MAX 30
 #define FCXMAX_STEP 255 /*STEP trace record cnt, Max:65535, default:255*/
-#define BTCRPT_VER 1
 #define BTC_CYCLE_SLOT_MAX 48 /* must be even number, non-zero */
 
 enum rtw89_btc_bt_rfk_counter {
@@ -1386,7 +1385,7 @@ enum rtw89_btc_bt_rfk_counter {
 };
 
 struct rtw89_btc_fbtc_rpt_ctrl {
-	u16 fver;
+	u16 fver; /* chip_info::fcxbtcrpt_ver */
 	u16 rpt_cnt; /* tmr counters */
 	u32 wl_fw_coex_ver; /* match which driver's coex version */
 	u32 wl_fw_cx_offload;
@@ -1472,10 +1471,9 @@ enum { /* STEP TYPE */
 	CXSTEP_MAX,
 };
 
-#define FCXGPIODBG_VER 1
 #define BTC_DBG_MAX1  32
 struct rtw89_btc_fbtc_gpio_dbg {
-	u8 fver;
+	u8 fver; /* chip_info::fcxgpiodbg_ver */
 	u8 rsvd;
 	u16 rsvd2;
 	u32 en_map; /* which debug signal (see btc_wl_gpio_debug) is enable */
@@ -1483,9 +1481,8 @@ struct rtw89_btc_fbtc_gpio_dbg {
 	u8 gpio_map[BTC_DBG_MAX1]; /*the debug signals to GPIO-Position */
 } __packed;
 
-#define FCXMREG_VER 1
 struct rtw89_btc_fbtc_mreg_val {
-	u8 fver;
+	u8 fver; /* chip_info::fcxmreg_ver */
 	u8 reg_num;
 	__le16 rsvd;
 	__le32 mreg_val[CXMREG_MAX];
@@ -1507,16 +1504,14 @@ struct rtw89_btc_fbtc_slot {
 	__le16 cxtype;
 } __packed;
 
-#define FCXSLOTS_VER 1
 struct rtw89_btc_fbtc_slots {
-	u8 fver;
+	u8 fver; /* chip_info::fcxslots_ver */
 	u8 tbl_num;
 	__le16 rsvd;
 	__le32 update_map;
 	struct rtw89_btc_fbtc_slot slot[CXST_MAX];
 } __packed;
 
-#define FCXSTEP_VER 2
 struct rtw89_btc_fbtc_step {
 	u8 type;
 	u8 val;
@@ -1524,7 +1519,7 @@ struct rtw89_btc_fbtc_step {
 } __packed;
 
 struct rtw89_btc_fbtc_steps {
-	u8 fver;
+	u8 fver; /* chip_info::fcxstep_ver */
 	u8 rsvd;
 	__le16 cnt;
 	__le16 pos_old;
@@ -1532,9 +1527,8 @@ struct rtw89_btc_fbtc_steps {
 	struct rtw89_btc_fbtc_step step[FCXMAX_STEP];
 } __packed;
 
-#define FCXCYSTA_VER 2
 struct rtw89_btc_fbtc_cysta { /* statistics for cycles */
-	u8 fver;
+	u8 fver; /* chip_info::fcxcysta_ver */
 	u8 rsvd;
 	__le16 cycles; /* total cycle number */
 	__le16 cycles_a2dp[CXT_FLCTRL_MAX];
@@ -1559,9 +1553,8 @@ struct rtw89_btc_fbtc_cysta { /* statistics for cycles */
 	__le16 tslot_cycle[BTC_CYCLE_SLOT_MAX];
 } __packed;
 
-#define FCXNULLSTA_VER 1
 struct rtw89_btc_fbtc_cynullsta { /* cycle null statistics */
-	u8 fver;
+	u8 fver; /* chip_info::fcxnullsta_ver */
 	u8 rsvd;
 	__le16 rsvd2;
 	__le32 max_t[2]; /* max_t for 0:null0/1:null1 */
@@ -1569,9 +1562,8 @@ struct rtw89_btc_fbtc_cynullsta { /* cycle null statistics */
 	__le32 result[2][4]; /* 0:fail, 1:ok, 2:on_time, 3:retry */
 } __packed;
 
-#define FCX_BTVER_VER 1
 struct rtw89_btc_fbtc_btver {
-	u8 fver;
+	u8 fver; /* chip_info::fcxbtver_ver */
 	u8 rsvd;
 	__le16 rsvd2;
 	__le32 coex_ver; /*bit[15:8]->shared, bit[7:0]->non-shared */
@@ -1579,17 +1571,15 @@ struct rtw89_btc_fbtc_btver {
 	__le32 feature;
 } __packed;
 
-#define FCX_BTSCAN_VER 1
 struct rtw89_btc_fbtc_btscan {
-	u8 fver;
+	u8 fver; /* chip_info::fcxbtscan_ver */
 	u8 rsvd;
 	__le16 rsvd2;
 	u8 scan[6];
 } __packed;
 
-#define FCX_BTAFH_VER 1
 struct rtw89_btc_fbtc_btafh {
-	u8 fver;
+	u8 fver; /* chip_info::fcxbtafh_ver */
 	u8 rsvd;
 	__le16 rsvd2;
 	u8 afh_l[4]; /*bit0:2402, bit1: 2403.... bit31:2433 */
@@ -1597,9 +1587,8 @@ struct rtw89_btc_fbtc_btafh {
 	u8 afh_h[4]; /*bit0:2466, bit1:2467......bit14:2480 */
 } __packed;
 
-#define FCX_BTDEVINFO_VER 1
 struct rtw89_btc_fbtc_btdevinfo {
-	u8 fver;
+	u8 fver; /* chip_info::fcxbtdevinfo_ver */
 	u8 rsvd;
 	__le16 vendor_id;
 	__le32 dev_name; /* only 24 bits valid */
@@ -1664,8 +1653,6 @@ struct rtw89_btc_dbg {
 	bool rb_done;
 	u32 rb_val;
 };
-
-#define FCXTDMA_VER 1
 
 enum rtw89_btc_btf_fw_event {
 	BTF_EVNT_RPT = 0,
@@ -2461,6 +2448,19 @@ struct rtw89_chip_info {
 	u8 btcx_desired;
 	u8 scbd;
 	u8 mailbox;
+
+	u8 fcxbtcrpt_ver;
+	u8 fcxtdma_ver;
+	u8 fcxslots_ver;
+	u8 fcxcysta_ver;
+	u8 fcxstep_ver;
+	u8 fcxnullsta_ver;
+	u8 fcxmreg_ver;
+	u8 fcxgpiodbg_ver;
+	u8 fcxbtver_ver;
+	u8 fcxbtscan_ver;
+	u8 fcxbtafh_ver;
+	u8 fcxbtdevinfo_ver;
 
 	u8 afh_guard_ch;
 	const u8 *wl_rssi_thres;
