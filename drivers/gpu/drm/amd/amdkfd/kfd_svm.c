@@ -46,6 +46,12 @@
  */
 #define AMDGPU_SVM_RANGE_RETRY_FAULT_PENDING	(2UL * NSEC_PER_MSEC)
 
+/* Giant svm range split into smaller ranges based on this, it is decided using
+ * minimum of all dGPU/APU 1/32 VRAM size, between 2MB to 1GB and alignment to
+ * power of 2MB.
+ */
+static uint64_t max_svm_range_pages;
+
 struct criu_svm_metadata {
 	struct list_head list;
 	struct kfd_criu_svm_range_priv_data data;
@@ -1868,6 +1874,21 @@ static struct svm_range *svm_range_clone(struct svm_range *old)
 	bitmap_copy(new->bitmap_aip, old->bitmap_aip, MAX_GPU_INSTANCE);
 
 	return new;
+}
+
+void svm_range_set_max_pages(struct amdgpu_device *adev)
+{
+	uint64_t max_pages;
+	uint64_t pages, _pages;
+
+	/* 1/32 VRAM size in pages */
+	pages = adev->gmc.real_vram_size >> 17;
+	pages = clamp(pages, 1ULL << 9, 1ULL << 18);
+	pages = rounddown_pow_of_two(pages);
+	do {
+		max_pages = READ_ONCE(max_svm_range_pages);
+		_pages = min_not_zero(max_pages, pages);
+	} while (cmpxchg(&max_svm_range_pages, max_pages, _pages) != max_pages);
 }
 
 /**
