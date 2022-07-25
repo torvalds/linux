@@ -692,6 +692,9 @@ struct msm_aer_err_info {
 	unsigned int status;		/* COR/UNCOR Error Status */
 	unsigned int mask;		/* COR/UNCOR Error Mask */
 	struct aer_header_log_regs tlp;	/* TLP Header */
+
+	u32 l1ss_ctl1;			/* PCI_L1SS_CTL1 reg value */
+	u16 lnksta;			/* PCI_EXP_LNKSTA reg value */
 };
 
 struct aer_err_source {
@@ -5379,6 +5382,10 @@ void msm_aer_print_error(struct pci_dev *dev, struct msm_aer_err_info *info)
 		 info->rdev->rc_idx, dev->vendor, dev->device, info->status,
 		 info->mask);
 
+	PCIE_DBG(info->rdev, "PCIe: RC%d: device [%04x:%04x] error l1ss_ctl1=%x lnkstat=%x\n",
+		info->rdev->rc_idx, dev->vendor, dev->device, info->l1ss_ctl1,
+		info->lnksta);
+
 	msm_aer_print_error_stats(dev, info);
 
 	if (info->tlp_header_valid)
@@ -5593,6 +5600,7 @@ static int msm_aer_get_device_error_info(struct pci_dev *dev,
 	int type = pci_pcie_type(dev);
 	int aer = dev->aer_cap;
 	int temp;
+	u32 l1ss_cap_id_offset;
 
 	/* Must reset in this function */
 	info->status = 0;
@@ -5602,11 +5610,25 @@ static int msm_aer_get_device_error_info(struct pci_dev *dev,
 	if (!aer)
 		return 0;
 
+	l1ss_cap_id_offset = pci_find_ext_capability(dev, PCI_EXT_CAP_ID_L1SS);
+	if (!l1ss_cap_id_offset) {
+		PCIE_DBG(info->rdev,
+			"PCIe: RC%d: Could not read l1ss cap reg offset\n",
+			info->rdev->rc_idx);
+		return 0;
+	}
+
 	if (info->severity == AER_CORRECTABLE) {
 		pci_read_config_dword(dev, aer + PCI_ERR_COR_STATUS,
 			&info->status);
 		pci_read_config_dword(dev, aer + PCI_ERR_COR_MASK,
 			&info->mask);
+
+		pci_read_config_dword(dev, l1ss_cap_id_offset + PCI_L1SS_CTL1,
+			&info->l1ss_ctl1);
+		pcie_capability_read_word(dev, PCI_EXP_LNKSTA,
+			&info->lnksta);
+
 		if (!(info->status & ~info->mask))
 			return 0;
 	} else if (type == PCI_EXP_TYPE_ROOT_PORT ||
@@ -5619,6 +5641,12 @@ static int msm_aer_get_device_error_info(struct pci_dev *dev,
 			&info->status);
 		pci_read_config_dword(dev, aer + PCI_ERR_UNCOR_MASK,
 			&info->mask);
+
+		pci_read_config_dword(dev, l1ss_cap_id_offset + PCI_L1SS_CTL1,
+			&info->l1ss_ctl1);
+		pcie_capability_read_word(dev, PCI_EXP_LNKSTA,
+			&info->lnksta);
+
 		if (!(info->status & ~info->mask))
 			return 0;
 
