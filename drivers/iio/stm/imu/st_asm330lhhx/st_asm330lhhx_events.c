@@ -93,32 +93,28 @@ int st_asm330lhhx_event_sensor_set_enable(struct st_asm330lhhx_sensor *sensor,
 
 	switch (sensor->id) {
 	case ST_ASM330LHHX_ID_WK:
-		err = st_asm330lhhx_write_with_mask(hw,
-					int_reg,
-					ST_ASM330LHHX_INT_WU_MASK,
-					eint);
+		err = st_asm330lhhx_write_with_mask_locked(hw, int_reg,
+					      ST_ASM330LHHX_INT_WU_MASK,
+					      eint);
 		if (err < 0)
 			return err;
 		break;
 	case ST_ASM330LHHX_ID_FF:
-		err = st_asm330lhhx_write_with_mask(hw,
-					int_reg,
-					ST_ASM330LHHX_INT_FF_MASK,
-					eint);
+		err = st_asm330lhhx_write_with_mask_locked(hw, int_reg,
+					      ST_ASM330LHHX_INT_FF_MASK,
+					      eint);
 		if (err < 0)
 			return err;
 		break;
 	case ST_ASM330LHHX_ID_SC:
-		err = st_asm330lhhx_write_with_mask(hw,
-					int_reg,
-					ST_ASM330LHHX_INT_SLEEP_CHANGE_MASK,
-					eint);
+		err = st_asm330lhhx_write_with_mask_locked(hw, int_reg,
+				    ST_ASM330LHHX_INT_SLEEP_CHANGE_MASK,
+				    eint);
 		if (err < 0)
 			return err;
 		break;
 	case ST_ASM330LHHX_ID_6D:
-		err = st_asm330lhhx_write_with_mask(hw,
-					int_reg,
+		err = st_asm330lhhx_write_with_mask_locked(hw, int_reg,
 					ST_ASM330LHHX_INT_6D_MASK,
 					eint);
 		if (err < 0)
@@ -130,10 +126,10 @@ int st_asm330lhhx_event_sensor_set_enable(struct st_asm330lhhx_sensor *sensor,
 	}
 
 	if (err >= 0) {
-		err = st_asm330lhhx_write_with_mask(hw,
-					ST_ASM330LHHX_REG_INT_CFG1_ADDR,
-					ST_ASM330LHHX_INTERRUPTS_ENABLE_MASK,
-					eint);
+		err = st_asm330lhhx_write_with_mask_locked(hw,
+				   ST_ASM330LHHX_REG_INT_CFG1_ADDR,
+				   ST_ASM330LHHX_INTERRUPTS_ENABLE_MASK,
+				   eint);
 		if (eint == 0)
 			hw->enable_mask &= ~BIT(sensor->id);
 		else
@@ -455,9 +451,9 @@ int st_asm330lhhx_event_handler(struct st_asm330lhhx_hw *hw)
 	if (hw->enable_mask &
 	    (BIT(ST_ASM330LHHX_ID_WK) | BIT(ST_ASM330LHHX_ID_FF) |
 	     BIT(ST_ASM330LHHX_ID_SC) | BIT(ST_ASM330LHHX_ID_6D))) {
-		err = hw->tf->read(hw->dev,
-				   ST_ASM330LHHX_REG_ALL_INT_SRC_ADDR,
-				   sizeof(status), &status);
+		err = regmap_bulk_read(hw->regmap,
+				     ST_ASM330LHHX_REG_ALL_INT_SRC_ADDR,
+				     &status, sizeof(status));
 		if (err < 0)
 			return IRQ_HANDLED;
 

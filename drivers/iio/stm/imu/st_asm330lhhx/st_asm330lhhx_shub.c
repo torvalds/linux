@@ -332,7 +332,8 @@ static int st_asm330lhhx_shub_read_reg(struct st_asm330lhhx_hw *hw,
 	if (err < 0)
 		goto out;
 
-	err = hw->tf->read(hw->dev, addr, len, data);
+	err = regmap_bulk_read(hw->regmap, (unsigned int)addr,
+			       (unsigned int *)data, len);
 	st_asm330lhhx_set_page_access(hw, false,
 				      ST_ASM330LHHX_REG_SHUB_REG_MASK);
 out:
@@ -363,7 +364,8 @@ static int st_asm330lhhx_shub_write_reg(struct st_asm330lhhx_hw *hw,
 	if (err < 0)
 		goto out;
 
-	err = hw->tf->write(hw->dev, addr, len, data);
+	err = regmap_bulk_write(hw->regmap, (unsigned int)addr,
+				(unsigned int *)data, len);
 	st_asm330lhhx_set_page_access(hw, false,
 				      ST_ASM330LHHX_REG_SHUB_REG_MASK);
 out:

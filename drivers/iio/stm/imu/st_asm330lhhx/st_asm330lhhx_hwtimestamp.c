@@ -27,8 +27,9 @@ static void st_asm330lhhx_read_hw_timestamp(struct st_asm330lhhx_hw *hw)
 	__le32 tmp;
 	int err;
 
-	err = st_asm330lhhx_read_atomic(hw, ST_ASM330LHHX_REG_TIMESTAMP0_ADDR,
-					sizeof(timestamp_hw), (u8 *)&timestamp_hw);
+	err = st_asm330lhhx_read_locked(hw, ST_ASM330LHHX_REG_TIMESTAMP0_ADDR,
+				    (u8 *)&timestamp_hw,
+				    sizeof(timestamp_hw));
 	if (err < 0)
 		return;
 

@@ -11,11 +11,13 @@
 #ifndef ST_ASM330LHHX_H
 #define ST_ASM330LHHX_H
 
+#include <linux/bitfield.h>
 #include <linux/device.h>
 #include <linux/iio/iio.h>
 #include <linux/delay.h>
 #include <linux/workqueue.h>
 #include <linux/hrtimer.h>
+#include <linux/regmap.h>
 #include <linux/spinlock.h>
 
 #define ST_ASM330LHHX_DRV_VERSION		"1.1"
@@ -216,19 +218,6 @@ static const struct iio_event_spec st_asm330lhhx_thr_event = {
 }
 
 #define ST_ASM330LHHX_SHIFT_VAL(val, mask)	(((val) << __ffs(mask)) & (mask))
-
-#define ST_ASM330LHHX_RX_MAX_LENGTH		64
-#define ST_ASM330LHHX_TX_MAX_LENGTH		16
-
-struct st_asm330lhhx_transfer_buffer {
-	u8 rx_buf[ST_ASM330LHHX_RX_MAX_LENGTH];
-	u8 tx_buf[ST_ASM330LHHX_TX_MAX_LENGTH] ____cacheline_aligned;
-};
-
-struct st_asm330lhhx_transfer_function {
-	int (*read)(struct device *dev, u8 addr, int len, u8 *data);
-	int (*write)(struct device *dev, u8 addr, int len, const u8 *data);
-};
 
 /**
  * struct st_asm330lhhx_reg - Generic sensor register description (addr + mask)
@@ -469,6 +458,7 @@ struct st_asm330lhhx_sensor {
  * struct st_asm330lhhx_hw - ST IMU MEMS hw instance
  * @dev: Pointer to instance of struct device (I2C or SPI).
  * @irq: Device interrupt line (I2C or SPI).
+ * @regmap: Register map of the device.
  * @int_pin: Save interrupt pin used by sensor.
  * @lock: Mutex to protect read and write operations.
  * @fifo_lock: Mutex to prevent concurrent access to the hw FIFO.
@@ -498,14 +488,13 @@ struct st_asm330lhhx_sensor {
  * @iio_devs: Pointers to acc/gyro iio_dev instances.
  * @vdd_supply: Voltage regulator for VDD.
  * @vddio_supply: Voltage regulator for VDDIIO.
- * @tf: Transfer function structure used by I/O operations.
- * @tb: Transfer buffers used by SPI I/O operations.
  * @orientation: sensor chip orientation relative to main hardware.
  * @settings: ST IMU sensor settings.
  */
 struct st_asm330lhhx_hw {
 	struct device *dev;
 	int irq;
+	struct regmap *regmap;
 	int int_pin;
 
 	struct mutex lock;
@@ -543,9 +532,6 @@ struct st_asm330lhhx_hw {
 	struct regulator *vdd_supply;
 	struct regulator *vddio_supply;
 
-	const struct st_asm330lhhx_transfer_function *tf;
-	struct st_asm330lhhx_transfer_buffer tb;
-
 	struct iio_mount_matrix orientation;
 
 	const struct st_asm330lhhx_settings *settings;
@@ -573,36 +559,22 @@ struct st_asm330lhhx_6D_th {
 
 extern const struct dev_pm_ops st_asm330lhhx_pm_ops;
 
-static inline int st_asm330lhhx_read_atomic(struct st_asm330lhhx_hw *hw,
-					    u8 addr, int len, u8 *data)
+static inline int __st_asm330lhhx_write_with_mask(struct st_asm330lhhx_hw *hw,
+					      unsigned int addr,
+					      unsigned int mask,
+					      unsigned int data)
 {
 	int err;
+	unsigned int val = ST_ASM330LHHX_SHIFT_VAL(data, mask);
 
-	mutex_lock(&hw->page_lock);
-	err = hw->tf->read(hw->dev, addr, len, data);
-	mutex_unlock(&hw->page_lock);
+	err = regmap_update_bits(hw->regmap, addr, mask, val);
 
 	return err;
 }
 
 static inline int
-st_asm330lhhx_write_atomic(struct st_asm330lhhx_hw *hw,
-			   u8 addr, int len, u8 *data)
-{
-	int err;
-
-	mutex_lock(&hw->page_lock);
-	err = hw->tf->write(hw->dev, addr, len, data);
-	mutex_unlock(&hw->page_lock);
-
-	return err;
-}
-
-int __st_asm330lhhx_write_with_mask(struct st_asm330lhhx_hw *hw, u8 addr,
-				    u8 mask, u8 val);
-static inline int
-st_asm330lhhx_write_with_mask(struct st_asm330lhhx_hw *hw, u8 addr,
-			      u8 mask, u8 val)
+st_asm330lhhx_update_bits_locked(struct st_asm330lhhx_hw *hw, unsigned int addr,
+			     unsigned int mask, unsigned int val)
 {
 	int err;
 
@@ -613,14 +585,57 @@ st_asm330lhhx_write_with_mask(struct st_asm330lhhx_hw *hw, u8 addr,
 	return err;
 }
 
-/* no page_lock */
+/* use when mask is constant */
 static inline int
-st_asm330lhhx_set_page_access(struct st_asm330lhhx_hw *hw,
-			      bool val, unsigned int mask)
+st_asm330lhhx_write_with_mask_locked(struct st_asm330lhhx_hw *hw,
+				 unsigned int addr,
+				 unsigned int mask,
+				 unsigned int data)
 {
-	return __st_asm330lhhx_write_with_mask(hw,
-				ST_ASM330LHHX_REG_FUNC_CFG_ACCESS_ADDR,
-				mask, val ? 1 : 0);
+	int err;
+	unsigned int val = FIELD_PREP(mask, data);
+
+	mutex_lock(&hw->page_lock);
+	err = regmap_update_bits(hw->regmap, addr, mask, val);
+	mutex_unlock(&hw->page_lock);
+
+	return err;
+}
+
+static inline int
+st_asm330lhhx_read_locked(struct st_asm330lhhx_hw *hw, unsigned int addr,
+		      void *val, unsigned int len)
+{
+	int err;
+
+	mutex_lock(&hw->page_lock);
+	err = regmap_bulk_read(hw->regmap, addr, val, len);
+	mutex_unlock(&hw->page_lock);
+
+	return err;
+}
+
+static inline int
+st_asm330lhhx_write_locked(struct st_asm330lhhx_hw *hw, unsigned int addr,
+		       unsigned int val)
+{
+	int err;
+
+	mutex_lock(&hw->page_lock);
+	err = regmap_write(hw->regmap, addr, val);
+	mutex_unlock(&hw->page_lock);
+
+	return err;
+}
+
+static inline int st_asm330lhhx_set_page_access(struct st_asm330lhhx_hw *hw,
+					    unsigned int val,
+					    unsigned int mask)
+{
+	return regmap_update_bits(hw->regmap,
+				  ST_ASM330LHHX_REG_FUNC_CFG_ACCESS_ADDR,
+				  mask,
+				  ST_ASM330LHHX_SHIFT_VAL(val, mask));
 }
 
 static inline bool
@@ -636,7 +651,7 @@ static inline s64 st_asm330lhhx_get_time_ns(struct iio_dev *iio_dev)
 }
 
 int st_asm330lhhx_probe(struct device *dev, int irq, int hw_id,
-		  const struct st_asm330lhhx_transfer_function *tf_ops);
+		  struct regmap *regmap);
 int st_asm330lhhx_sensor_set_enable(struct st_asm330lhhx_sensor *sensor,
 				    bool enable);
 int st_asm330lhhx_buffers_setup(struct st_asm330lhhx_hw *hw);
