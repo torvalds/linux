@@ -161,7 +161,7 @@
 	mov	x1, #0				// SMCR controls
 
 	mrs_s	x2, SYS_ID_AA64SMFR0_EL1
-	ubfx	x2, x2, #ID_AA64SMFR0_FA64_SHIFT, #1 // Full FP in SM?
+	ubfx	x2, x2, #ID_AA64SMFR0_EL1_FA64_SHIFT, #1 // Full FP in SM?
 	cbz	x2, .Lskip_sme_fa64_\@
 
 	orr	x1, x1, SMCR_ELx_FA64_MASK
