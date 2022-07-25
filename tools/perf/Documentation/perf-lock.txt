@@ -119,6 +119,10 @@ CONTENTION OPTIONS
 	and users can customize that using this.  Possible values:
 	contended, wait_total, wait_max, wait_min, avg_wait.
 
+-t::
+--threads::
+	Show per-thread lock contention stat
+
 
 SEE ALSO
 --------

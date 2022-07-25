@@ -1560,7 +1560,10 @@ static void print_contention_result(void)
 	list_for_each_entry(key, &lock_keys, list)
 		pr_info("%*s ", key->len, key->header);
 
-	pr_info("  %10s   %s\n\n", "type", "caller");
+	if (show_thread_stats)
+		pr_info("  %10s   %s\n\n", "pid", "comm");
+	else
+		pr_info("  %10s   %s\n\n", "type", "caller");
 
 	bad = total = 0;
 	while ((st = pop_from_result())) {
@@ -1571,6 +1574,16 @@ static void print_contention_result(void)
 		list_for_each_entry(key, &lock_keys, list) {
 			key->print(key, st);
 			pr_info(" ");
+		}
+
+		if (show_thread_stats) {
+			struct thread *t;
+			int pid = st->addr;
+
+			/* st->addr contains tid of thread */
+			t = perf_session__findnew(session, pid);
+			pr_info("  %10d   %s\n", pid, thread__comm_str(t));
+			continue;
 		}
 
 		pr_info("  %10s   %s\n", get_type_str(st), st->name);
@@ -1703,7 +1716,10 @@ static int __cmd_contention(void)
 	if (select_key(true))
 		goto out_delete;
 
-	aggr_mode = LOCK_AGGR_CALLER;
+	if (show_thread_stats)
+		aggr_mode = LOCK_AGGR_TASK;
+	else
+		aggr_mode = LOCK_AGGR_CALLER;
 
 	err = perf_session__process_events(session);
 	if (err)
@@ -1843,6 +1859,8 @@ int cmd_lock(int argc, const char **argv)
 		    "key for sorting (contended / wait_total / wait_max / wait_min / avg_wait)"),
 	OPT_STRING('F', "field", &output_fields, "contended,wait_total,wait_max,avg_wait",
 		    "output fields (contended / wait_total / wait_max / wait_min / avg_wait)"),
+	OPT_BOOLEAN('t', "threads", &show_thread_stats,
+		    "show per-thread lock stats"),
 	OPT_PARENT(lock_options)
 	};
 
