@@ -481,7 +481,6 @@ struct rpc_xprt *xprt_iter_next_entry_offline(struct rpc_xprt_iter *xpi)
  * Resets xpi to ensure that it points to the first entry in the list
  * of transports.
  */
-static
 void xprt_iter_rewind(struct rpc_xprt_iter *xpi)
 {
 	rcu_read_lock();

@@ -68,6 +68,8 @@ extern void xprt_iter_init_listoffline(struct rpc_xprt_iter *xpi,
 
 extern void xprt_iter_destroy(struct rpc_xprt_iter *xpi);
 
+extern void xprt_iter_rewind(struct rpc_xprt_iter *xpi);
+
 extern struct rpc_xprt_switch *xprt_iter_xchg_switch(
 		struct rpc_xprt_iter *xpi,
 		struct rpc_xprt_switch *newswitch);
