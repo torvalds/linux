@@ -786,7 +786,8 @@ out_revert:
 EXPORT_SYMBOL_GPL(rpc_switch_client_transport);
 
 static
-int rpc_clnt_xprt_iter_init(struct rpc_clnt *clnt, struct rpc_xprt_iter *xpi)
+int _rpc_clnt_xprt_iter_init(struct rpc_clnt *clnt, struct rpc_xprt_iter *xpi,
+			     void func(struct rpc_xprt_iter *xpi, struct rpc_xprt_switch *xps))
 {
 	struct rpc_xprt_switch *xps;
 
@@ -795,9 +796,15 @@ int rpc_clnt_xprt_iter_init(struct rpc_clnt *clnt, struct rpc_xprt_iter *xpi)
 	rcu_read_unlock();
 	if (xps == NULL)
 		return -EAGAIN;
-	xprt_iter_init_listall(xpi, xps);
+	func(xpi, xps);
 	xprt_switch_put(xps);
 	return 0;
+}
+
+static
+int rpc_clnt_xprt_iter_init(struct rpc_clnt *clnt, struct rpc_xprt_iter *xpi)
+{
+	return _rpc_clnt_xprt_iter_init(clnt, xpi, xprt_iter_init_listall);
 }
 
 /**
