@@ -4,6 +4,7 @@
 
 #include <stdio.h>
 #include <stdbool.h>
+#include <unistd.h>
 #include <linux/types.h>
 
 enum perf_data_mode {
