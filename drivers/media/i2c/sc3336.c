@@ -26,6 +26,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+#include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x01)
 
@@ -35,11 +36,15 @@
 
 #define SC3336_LANES			2
 #define SC3336_BITS_PER_SAMPLE		10
+#define SC3336_LINK_FREQ_253		253125000
 #define SC3336_LINK_FREQ_255		255000000
 
+#define PIXEL_RATE_WITH_253M_10BIT	(SC3336_LINK_FREQ_253 * 2 * \
+					SC3336_LANES / SC3336_BITS_PER_SAMPLE)
 #define PIXEL_RATE_WITH_255M_10BIT	(SC3336_LINK_FREQ_255 * 2 * \
 					SC3336_LANES / SC3336_BITS_PER_SAMPLE)
-#define SC3336_XVCLK_FREQ		24000000
+
+#define SC3336_XVCLK_FREQ		27000000
 
 #define CHIP_ID				0xcc41
 #define SC3336_REG_CHIP_ID		0x3107
@@ -120,6 +125,8 @@ struct sc3336_mode {
 	u32 exp_def;
 	const struct regval *reg_list;
 	u32 hdr_mode;
+	u32 xvclk_freq;
+	u32 link_freq_idx;
 	u32 vc[PAD_MAX];
 };
 
@@ -142,6 +149,8 @@ struct sc3336 {
 	struct v4l2_ctrl	*digi_gain;
 	struct v4l2_ctrl	*hblank;
 	struct v4l2_ctrl	*vblank;
+	struct v4l2_ctrl	*pixel_rate;
+	struct v4l2_ctrl	*link_freq;
 	struct v4l2_ctrl	*test_pattern;
 	struct mutex		mutex;
 	bool			streaming;
@@ -152,6 +161,10 @@ struct sc3336 {
 	const char		*module_name;
 	const char		*len_name;
 	u32			cur_vts;
+	bool			has_init_exp;
+	bool			is_thunderboot;
+	bool			is_first_streamoff;
+	struct preisp_hdrae_exp_s init_hdrae_exp;
 };
 
 #define to_sc3336(sd) container_of(sd, struct sc3336, subdev)
@@ -164,11 +177,151 @@ static const struct regval sc3336_global_regs[] = {
 };
 
 /*
+ * Xclk 27Mhz
+ * max_framerate 25fps
+ * mipi_datarate per lane 506.25Mbps, 2lane
+ */
+static const struct regval sc3336_linear_10_2304x1296_25fps_regs[] = {
+	{0x0103, 0x01},
+	{0x36e9, 0x80},
+	{0x37f9, 0x80},
+	{0x301f, 0x62},
+	{0x30b8, 0x33},
+	{0x320c, 0x05},
+	{0x320d, 0xdc},
+	{0x3253, 0x10},
+	{0x325f, 0x20},
+	{0x3301, 0x04},
+	{0x3302, 0xa0},
+	{0x3306, 0x50},
+	{0x3309, 0xa8},
+	{0x330a, 0x00},
+	{0x330b, 0xd8},
+	{0x330d, 0xa0},
+	{0x3314, 0x13},
+	{0x331f, 0x99},
+	{0x3333, 0x10},
+	{0x3334, 0x40},
+	{0x335e, 0x06},
+	{0x335f, 0x0a},
+	{0x3364, 0x5e},
+	{0x337c, 0x02},
+	{0x337d, 0x0e},
+	{0x3390, 0x01},
+	{0x3391, 0x03},
+	{0x3392, 0x07},
+	{0x3393, 0x04},
+	{0x3394, 0x04},
+	{0x3395, 0x04},
+	{0x3396, 0x08},
+	{0x3397, 0x0b},
+	{0x3398, 0x1f},
+	{0x3399, 0x04},
+	{0x339a, 0x0a},
+	{0x339b, 0x3a},
+	{0x339c, 0xa0},
+	{0x33a2, 0x04},
+	{0x33ac, 0x08},
+	{0x33ad, 0x1c},
+	{0x33ae, 0x10},
+	{0x33af, 0x30},
+	{0x33b1, 0x80},
+	{0x33b3, 0x48},
+	{0x33f9, 0x60},
+	{0x33fb, 0x74},
+	{0x33fc, 0x4b},
+	{0x33fd, 0x5f},
+	{0x349f, 0x03},
+	{0x34a6, 0x4b},
+	{0x34a7, 0x5f},
+	{0x34a8, 0x20},
+	{0x34a9, 0x18},
+	{0x34ab, 0xe8},
+	{0x34ac, 0x01},
+	{0x34ad, 0x00},
+	{0x34f8, 0x5f},
+	{0x34f9, 0x18},
+	{0x3630, 0xc0},
+	{0x3631, 0x84},
+	{0x3632, 0x64},
+	{0x3633, 0x32},
+	{0x363b, 0x03},
+	{0x363c, 0x08},
+	{0x3641, 0x38},
+	{0x3670, 0x4e},
+	{0x3674, 0xc0},
+	{0x3675, 0xc0},
+	{0x3676, 0xc0},
+	{0x3677, 0x84},
+	{0x3678, 0x84},
+	{0x3679, 0x84},
+	{0x367c, 0x48},
+	{0x367d, 0x49},
+	{0x367e, 0x4b},
+	{0x367f, 0x5f},
+	{0x3690, 0x32},
+	{0x3691, 0x32},
+	{0x3692, 0x42},
+	{0x369c, 0x4b},
+	{0x369d, 0x5f},
+	{0x36b0, 0x87},
+	{0x36b1, 0x90},
+	{0x36b2, 0xa1},
+	{0x36b3, 0xd8},
+	{0x36b4, 0x49},
+	{0x36b5, 0x4b},
+	{0x36b6, 0x4f},
+	{0x370f, 0x01},
+	{0x3722, 0x09},
+	{0x3724, 0x41},
+	{0x3725, 0xc1},
+	{0x3771, 0x09},
+	{0x3772, 0x09},
+	{0x3773, 0x05},
+	{0x377a, 0x48},
+	{0x377b, 0x5f},
+	{0x3904, 0x04},
+	{0x3905, 0x8c},
+	{0x391d, 0x04},
+	{0x3921, 0x20},
+	{0x3926, 0x21},
+	{0x3933, 0x80},
+	{0x3934, 0x0a},
+	{0x3935, 0x00},
+	{0x3936, 0x2a},
+	{0x3937, 0x6a},
+	{0x3938, 0x6a},
+	{0x39dc, 0x02},
+	{0x3e01, 0x53},
+	{0x3e02, 0xe0},
+	{0x3e09, 0x00},
+	{0x440e, 0x02},
+	{0x4509, 0x20},
+	{0x5ae0, 0xfe},
+	{0x5ae1, 0x40},
+	{0x5ae2, 0x38},
+	{0x5ae3, 0x30},
+	{0x5ae4, 0x28},
+	{0x5ae5, 0x38},
+	{0x5ae6, 0x30},
+	{0x5ae7, 0x28},
+	{0x5ae8, 0x3f},
+	{0x5ae9, 0x34},
+	{0x5aea, 0x2c},
+	{0x5aeb, 0x3f},
+	{0x5aec, 0x34},
+	{0x5aed, 0x2c},
+	{0x36e9, 0x54},
+	{0x37f9, 0x27},
+	{REG_NULL, 0x00},
+};
+
+/*
  * Xclk 24Mhz
  * max_framerate 30fps
  * mipi_datarate per lane 510Mbps, 2lane
  */
-static const struct regval sc3336_linear_10_2304x1296_regs[] = {
+static const struct regval sc3336_linear_10_2304x1296_30fps_regs[] = {
 	{0x0103, 0x01},
 	{0x36e9, 0x80},
 	{0x37f9, 0x80},
@@ -313,20 +466,40 @@ static const struct sc3336_mode supported_modes[] = {
 		.height = 1296,
 		.max_fps = {
 			.numerator = 10000,
+			.denominator = 250000,
+		},
+		.exp_def = 0x0080,
+		.hts_def = 0x05dc,
+		.vts_def = 0x0546,
+		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.reg_list = sc3336_linear_10_2304x1296_25fps_regs,
+		.hdr_mode = NO_HDR,
+		.xvclk_freq = 27000000,
+		.link_freq_idx = 0,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+	},
+	{
+		.width = 2304,
+		.height = 1296,
+		.max_fps = {
+			.numerator = 10000,
 			.denominator = 300000,
 		},
 		.exp_def = 0x0080,
 		.hts_def = 0x0578 * 2,
 		.vts_def = 0x0550,
 		.bus_fmt = MEDIA_BUS_FMT_SBGGR10_1X10,
-		.reg_list = sc3336_linear_10_2304x1296_regs,
+		.reg_list = sc3336_linear_10_2304x1296_30fps_regs,
 		.hdr_mode = NO_HDR,
+		.xvclk_freq = 24000000,
+		.link_freq_idx = 1,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	}
 };
 
 static const s64 link_freq_menu_items[] = {
-	SC3336_LINK_FREQ_255
+	SC3336_LINK_FREQ_253,
+	SC3336_LINK_FREQ_255,
 };
 
 static const char * const sc3336_test_pattern_menu[] = {
@@ -334,7 +507,7 @@ static const char * const sc3336_test_pattern_menu[] = {
 	"Vertical Color Bar Type 1",
 	"Vertical Color Bar Type 2",
 	"Vertical Color Bar Type 3",
-	"Vertical Color Bar Type 4"
+	"Vertical Color Bar Type 4",
 };
 
 /* Write registers up to 4 at a time */
@@ -518,6 +691,8 @@ static int sc3336_set_fmt(struct v4l2_subdev *sd,
 	struct sc3336 *sc3336 = to_sc3336(sd);
 	const struct sc3336_mode *mode;
 	s64 h_blank, vblank_def;
+	u64 dst_link_freq = 0;
+	u64 dst_pixel_rate = 0;
 
 	mutex_lock(&sc3336->mutex);
 
@@ -542,6 +717,13 @@ static int sc3336_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(sc3336->vblank, vblank_def,
 					 SC3336_VTS_MAX - mode->height,
 					 1, vblank_def);
+		dst_link_freq = mode->link_freq_idx;
+		dst_pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] /
+						 SC3336_BITS_PER_SAMPLE * 2 * SC3336_LANES;
+		__v4l2_ctrl_s_ctrl_int64(sc3336->pixel_rate,
+					 dst_pixel_rate);
+		__v4l2_ctrl_s_ctrl(sc3336->link_freq,
+				   dst_link_freq);
 	}
 
 	mutex_unlock(&sc3336->mutex);
@@ -647,6 +829,7 @@ static int sc3336_g_mbus_config(struct v4l2_subdev *sd,
 {
 	struct sc3336 *sc3336 = to_sc3336(sd);
 	const struct sc3336_mode *mode = sc3336->cur_mode;
+
 	u32 val = 1 << (SC3336_LANES - 1) |
 		V4L2_MBUS_CSI2_CHANNEL_0 |
 		V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
@@ -823,25 +1006,39 @@ static int __sc3336_start_stream(struct sc3336 *sc3336)
 {
 	int ret;
 
-	ret = sc3336_write_array(sc3336->client, sc3336->cur_mode->reg_list);
-	if (ret)
-		return ret;
-
-	/* In case these controls are set before streaming */
-	ret = __v4l2_ctrl_handler_setup(&sc3336->ctrl_handler);
-	if (ret)
-		return ret;
-
-	return sc3336_write_reg(sc3336->client, SC3336_REG_CTRL_MODE,
+	if (!sc3336->is_thunderboot) {
+		ret = sc3336_write_array(sc3336->client, sc3336->cur_mode->reg_list);
+		if (ret)
+			return ret;
+		/* In case these controls are set before streaming */
+		ret = __v4l2_ctrl_handler_setup(&sc3336->ctrl_handler);
+		if (ret)
+			return ret;
+		if (sc3336->has_init_exp && sc3336->cur_mode->hdr_mode != NO_HDR) {
+			ret = sc3336_ioctl(&sc3336->subdev, PREISP_CMD_SET_HDRAE_EXP,
+				&sc3336->init_hdrae_exp);
+			if (ret) {
+				dev_err(&sc3336->client->dev,
+					"init exp fail in hdr mode\n");
+				return ret;
+			}
+		}
+	}
+	ret = sc3336_write_reg(sc3336->client, SC3336_REG_CTRL_MODE,
 				 SC3336_REG_VALUE_08BIT, SC3336_MODE_STREAMING);
+	return ret;
 }
 
 static int __sc3336_stop_stream(struct sc3336 *sc3336)
 {
+	sc3336->has_init_exp = false;
+	if (sc3336->is_thunderboot)
+		sc3336->is_first_streamoff = true;
 	return sc3336_write_reg(sc3336->client, SC3336_REG_CTRL_MODE,
 				 SC3336_REG_VALUE_08BIT, SC3336_MODE_SW_STANDBY);
 }
 
+static int __sc3336_power_on(struct sc3336 *sc3336);
 static int sc3336_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct sc3336 *sc3336 = to_sc3336(sd);
@@ -852,14 +1049,16 @@ static int sc3336_s_stream(struct v4l2_subdev *sd, int on)
 	on = !!on;
 	if (on == sc3336->streaming)
 		goto unlock_and_return;
-
 	if (on) {
+		if (sc3336->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+			sc3336->is_thunderboot = false;
+			__sc3336_power_on(sc3336);
+		}
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(&client->dev);
 			goto unlock_and_return;
 		}
-
 		ret = __sc3336_start_stream(sc3336);
 		if (ret) {
 			v4l2_err(sd, "start stream failed while write regs\n");
@@ -872,10 +1071,8 @@ static int sc3336_s_stream(struct v4l2_subdev *sd, int on)
 	}
 
 	sc3336->streaming = on;
-
 unlock_and_return:
 	mutex_unlock(&sc3336->mutex);
-
 	return ret;
 }
 
@@ -898,11 +1095,13 @@ static int sc3336_s_power(struct v4l2_subdev *sd, int on)
 			goto unlock_and_return;
 		}
 
-		ret = sc3336_write_array(sc3336->client, sc3336_global_regs);
-		if (ret) {
-			v4l2_err(sd, "could not set init registers\n");
-			pm_runtime_put_noidle(&client->dev);
-			goto unlock_and_return;
+		if (!sc3336->is_thunderboot) {
+			ret = sc3336_write_array(sc3336->client, sc3336_global_regs);
+			if (ret) {
+				v4l2_err(sd, "could not set init registers\n");
+				pm_runtime_put_noidle(&client->dev);
+				goto unlock_and_return;
+			}
 		}
 
 		sc3336->power_on = true;
@@ -918,9 +1117,9 @@ unlock_and_return:
 }
 
 /* Calculate the delay in us by clock rate and clock cycles */
-static inline u32 sc3336_cal_delay(u32 cycles)
+static inline u32 sc3336_cal_delay(u32 cycles, struct sc3336 *sc3336)
 {
-	return DIV_ROUND_UP(cycles, SC3336_XVCLK_FREQ / 1000 / 1000);
+	return DIV_ROUND_UP(cycles, sc3336->cur_mode->xvclk_freq / 1000 / 1000);
 }
 
 static int __sc3336_power_on(struct sc3336 *sc3336)
@@ -935,16 +1134,21 @@ static int __sc3336_power_on(struct sc3336 *sc3336)
 		if (ret < 0)
 			dev_err(dev, "could not set pins\n");
 	}
-	ret = clk_set_rate(sc3336->xvclk, SC3336_XVCLK_FREQ);
+	ret = clk_set_rate(sc3336->xvclk, sc3336->cur_mode->xvclk_freq);
 	if (ret < 0)
-		dev_warn(dev, "Failed to set xvclk rate (24MHz)\n");
-	if (clk_get_rate(sc3336->xvclk) != SC3336_XVCLK_FREQ)
-		dev_warn(dev, "xvclk mismatched, modes are based on 24MHz\n");
+		dev_warn(dev, "Failed to set xvclk rate (%dHz)\n", sc3336->cur_mode->xvclk_freq);
+	if (clk_get_rate(sc3336->xvclk) != sc3336->cur_mode->xvclk_freq)
+		dev_warn(dev, "xvclk mismatched, modes are based on %dHz\n",
+			 sc3336->cur_mode->xvclk_freq);
 	ret = clk_prepare_enable(sc3336->xvclk);
 	if (ret < 0) {
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
+
+	if (sc3336->is_thunderboot)
+		return 0;
+
 	if (!IS_ERR(sc3336->reset_gpio))
 		gpiod_set_value_cansleep(sc3336->reset_gpio, 0);
 
@@ -958,6 +1162,7 @@ static int __sc3336_power_on(struct sc3336 *sc3336)
 		gpiod_set_value_cansleep(sc3336->reset_gpio, 1);
 
 	usleep_range(500, 1000);
+
 	if (!IS_ERR(sc3336->pwdn_gpio))
 		gpiod_set_value_cansleep(sc3336->pwdn_gpio, 1);
 
@@ -967,7 +1172,7 @@ static int __sc3336_power_on(struct sc3336 *sc3336)
 		usleep_range(12000, 16000);
 
 	/* 8192 cycles prior to first SCCB transaction */
-	delay_us = sc3336_cal_delay(8192);
+	delay_us = sc3336_cal_delay(8192, sc3336);
 	usleep_range(delay_us, delay_us * 2);
 
 	return 0;
@@ -982,6 +1187,16 @@ static void __sc3336_power_off(struct sc3336 *sc3336)
 {
 	int ret;
 	struct device *dev = &sc3336->client->dev;
+
+	clk_disable_unprepare(sc3336->xvclk);
+	if (sc3336->is_thunderboot) {
+		if (sc3336->is_first_streamoff) {
+			sc3336->is_thunderboot = false;
+			sc3336->is_first_streamoff = false;
+		} else {
+			return;
+		}
+	}
 
 	if (!IS_ERR(sc3336->pwdn_gpio))
 		gpiod_set_value_cansleep(sc3336->pwdn_gpio, 0);
@@ -1192,10 +1407,11 @@ static int sc3336_initialize_controls(struct sc3336 *sc3336)
 {
 	const struct sc3336_mode *mode;
 	struct v4l2_ctrl_handler *handler;
-	struct v4l2_ctrl *ctrl;
 	s64 exposure_max, vblank_def;
 	u32 h_blank;
 	int ret;
+	u64 dst_link_freq = 0;
+	u64 dst_pixel_rate = 0;
 
 	handler = &sc3336->ctrl_handler;
 	mode = sc3336->cur_mode;
@@ -1204,13 +1420,19 @@ static int sc3336_initialize_controls(struct sc3336 *sc3336)
 		return ret;
 	handler->lock = &sc3336->mutex;
 
-	ctrl = v4l2_ctrl_new_int_menu(handler, NULL, V4L2_CID_LINK_FREQ,
-				      0, 0, link_freq_menu_items);
-	if (ctrl)
-		ctrl->flags |= V4L2_CTRL_FLAG_READ_ONLY;
+	sc3336->link_freq = v4l2_ctrl_new_int_menu(handler, NULL,
+			V4L2_CID_LINK_FREQ,
+			ARRAY_SIZE(link_freq_menu_items) - 1, 0, link_freq_menu_items);
+	if (sc3336->link_freq)
+		sc3336->link_freq->flags |= V4L2_CTRL_FLAG_READ_ONLY;
 
-	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
-			  0, PIXEL_RATE_WITH_255M_10BIT, 1, PIXEL_RATE_WITH_255M_10BIT);
+	dst_link_freq = mode->link_freq_idx;
+	dst_pixel_rate = (u32)link_freq_menu_items[mode->link_freq_idx] /
+					 SC3336_BITS_PER_SAMPLE * 2 * SC3336_LANES;
+	sc3336->pixel_rate = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
+			  0, PIXEL_RATE_WITH_255M_10BIT, 1, dst_pixel_rate);
+
+	__v4l2_ctrl_s_ctrl(sc3336->link_freq, dst_link_freq);
 
 	h_blank = mode->hts_def - mode->width;
 	sc3336->hblank = v4l2_ctrl_new_std(handler, NULL, V4L2_CID_HBLANK,
@@ -1248,6 +1470,7 @@ static int sc3336_initialize_controls(struct sc3336 *sc3336)
 	}
 
 	sc3336->subdev.ctrl_handler = handler;
+	sc3336->has_init_exp = false;
 
 	return 0;
 
@@ -1263,6 +1486,11 @@ static int sc3336_check_sensor_id(struct sc3336 *sc3336,
 	struct device *dev = &sc3336->client->dev;
 	u32 id = 0;
 	int ret;
+
+	if (sc3336->is_thunderboot) {
+		dev_info(dev, "Enable thunderboot mode, skip sensor id check\n");
+		return 0;
+	}
 
 	ret = sc3336_read_reg(client, SC3336_REG_CHIP_ID,
 			       SC3336_REG_VALUE_16BIT, &id);
@@ -1297,6 +1525,7 @@ static int sc3336_probe(struct i2c_client *client,
 	struct v4l2_subdev *sd;
 	char facing[2];
 	int ret;
+	int i, hdr_mode = 0;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		 DRIVER_VERSION >> 16,
@@ -1320,8 +1549,17 @@ static int sc3336_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
+	sc3336->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
+
 	sc3336->client = client;
-	sc3336->cur_mode = &supported_modes[0];
+	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
+		if (hdr_mode == supported_modes[i].hdr_mode) {
+			sc3336->cur_mode = &supported_modes[i];
+			break;
+		}
+	}
+	if (i == ARRAY_SIZE(supported_modes))
+		sc3336->cur_mode = &supported_modes[0];
 
 	sc3336->xvclk = devm_clk_get(dev, "xvclk");
 	if (IS_ERR(sc3336->xvclk)) {
@@ -1329,11 +1567,11 @@ static int sc3336_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	sc3336->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	sc3336->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(sc3336->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
-	sc3336->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
+	sc3336->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
 	if (IS_ERR(sc3336->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
@@ -1478,7 +1716,11 @@ static void __exit sensor_mod_exit(void)
 	i2c_del_driver(&sc3336_i2c_driver);
 }
 
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
+subsys_initcall(sensor_mod_init);
+#else
 device_initcall_sync(sensor_mod_init);
+#endif
 module_exit(sensor_mod_exit);
 
 MODULE_DESCRIPTION("smartsens sc3336 sensor driver");
