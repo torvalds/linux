@@ -662,13 +662,13 @@
 };
 
 &sdio0 {
-	clock-frequency = <102400000>;
-	max-frequency = <100000000>;
+	clock-frequency = <204800000>;
+	max-frequency = <200000000>;
 	card-detect-delay = <300>;
 	bus-width = <8>;
 	cap-mmc-highspeed;
-	//mmc-hs400-1_8v;
-	//mmc-hs400-enhanced-strobe;
+	mmc-hs400-1_8v;
+	mmc-hs400-enhanced-strobe;
 	non-removable;
 	cap-mmc-hw-reset;
 	post-power-on-delay-ms = <200>;
@@ -686,7 +686,6 @@
 	broken-cd;
 	cap-sd-highspeed;
 	post-power-on-delay-ms = <200>;
-	vqmmc-supply = <&sdio_vdd>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdcard1_pins>;
 	//cd-gpios = <&gpio 6 0>;
