@@ -166,7 +166,7 @@ MLXSW_ITEM32(tx, hdr, port_mid, 0x04, 16, 16);
  * set, otherwise calculated based on the packet's VID using VID to FID mapping.
  * Valid for data packets only.
  */
-MLXSW_ITEM32(tx, hdr, fid, 0x08, 0, 16);
+MLXSW_ITEM32(tx, hdr, fid, 0x08, 16, 16);
 
 /* tx_hdr_type
  * 0 - Data packets
@@ -3096,7 +3096,7 @@ static int mlxsw_sp_init(struct mlxsw_core *mlxsw_core,
 		goto err_router_init;
 	}
 
-	if (mlxsw_sp->bus_info->read_frc_capable) {
+	if (mlxsw_sp->bus_info->read_clock_capable) {
 		/* NULL is a valid return value from clock_init */
 		mlxsw_sp->clock =
 			mlxsw_sp->ptp_ops->clock_init(mlxsw_sp,
@@ -3411,6 +3411,8 @@ static const struct mlxsw_config_profile mlxsw_sp2_config_profile = {
 			.type		= MLXSW_PORT_SWID_TYPE_ETH,
 		}
 	},
+	.used_cqe_time_stamp_type	= 1,
+	.cqe_time_stamp_type		= MLXSW_CMD_MBOX_CONFIG_PROFILE_CQE_TIME_STAMP_TYPE_UTC,
 };
 
 static void
