@@ -313,6 +313,7 @@ loop:
 		atomic_inc(&cur_trans->num_writers);
 		extwriter_counter_inc(cur_trans, type);
 		spin_unlock(&fs_info->trans_lock);
+		btrfs_lockdep_acquire(fs_info, btrfs_trans_num_writers);
 		return 0;
 	}
 	spin_unlock(&fs_info->trans_lock);
@@ -334,16 +335,20 @@ loop:
 	if (!cur_trans)
 		return -ENOMEM;
 
+	btrfs_lockdep_acquire(fs_info, btrfs_trans_num_writers);
+
 	spin_lock(&fs_info->trans_lock);
 	if (fs_info->running_transaction) {
 		/*
 		 * someone started a transaction after we unlocked.  Make sure
 		 * to redo the checks above
 		 */
+		btrfs_lockdep_release(fs_info, btrfs_trans_num_writers);
 		kfree(cur_trans);
 		goto loop;
 	} else if (BTRFS_FS_ERROR(fs_info)) {
 		spin_unlock(&fs_info->trans_lock);
+		btrfs_lockdep_release(fs_info, btrfs_trans_num_writers);
 		kfree(cur_trans);
 		return -EROFS;
 	}
@@ -1022,6 +1027,9 @@ static int __btrfs_end_transaction(struct btrfs_trans_handle *trans,
 	extwriter_counter_dec(cur_trans, trans->type);
 
 	cond_wake_up(&cur_trans->writer_wait);
+
+	btrfs_lockdep_release(info, btrfs_trans_num_writers);
+
 	btrfs_put_transaction(cur_trans);
 
 	if (current->journal_info == trans)
@@ -1994,6 +2002,12 @@ static void cleanup_transaction(struct btrfs_trans_handle *trans, int err)
 	if (cur_trans == fs_info->running_transaction) {
 		cur_trans->state = TRANS_STATE_COMMIT_DOING;
 		spin_unlock(&fs_info->trans_lock);
+
+		/*
+		 * The thread has already released the lockdep map as reader
+		 * already in btrfs_commit_transaction().
+		 */
+		btrfs_might_wait_for_event(fs_info, btrfs_trans_num_writers);
 		wait_event(cur_trans->writer_wait,
 			   atomic_read(&cur_trans->num_writers) == 1);
 
@@ -2222,7 +2236,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 			btrfs_put_transaction(prev_trans);
 			if (ret)
-				goto cleanup_transaction;
+				goto lockdep_release;
 		} else {
 			spin_unlock(&fs_info->trans_lock);
 		}
@@ -2236,7 +2250,7 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 		 */
 		if (BTRFS_FS_ERROR(fs_info)) {
 			ret = -EROFS;
-			goto cleanup_transaction;
+			goto lockdep_release;
 		}
 	}
 
@@ -2250,19 +2264,21 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 
 	ret = btrfs_start_delalloc_flush(fs_info);
 	if (ret)
-		goto cleanup_transaction;
+		goto lockdep_release;
 
 	ret = btrfs_run_delayed_items(trans);
 	if (ret)
-		goto cleanup_transaction;
+		goto lockdep_release;
 
 	wait_event(cur_trans->writer_wait,
 		   extwriter_counter_read(cur_trans) == 0);
 
 	/* some pending stuffs might be added after the previous flush. */
 	ret = btrfs_run_delayed_items(trans);
-	if (ret)
+	if (ret) {
+		btrfs_lockdep_release(fs_info, btrfs_trans_num_writers);
 		goto cleanup_transaction;
+	}
 
 	btrfs_wait_delalloc_flush(fs_info);
 
@@ -2284,6 +2300,14 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	add_pending_snapshot(trans);
 	cur_trans->state = TRANS_STATE_COMMIT_DOING;
 	spin_unlock(&fs_info->trans_lock);
+
+	/*
+	 * The thread has started/joined the transaction thus it holds the
+	 * lockdep map as a reader. It has to release it before acquiring the
+	 * lockdep map as a writer.
+	 */
+	btrfs_lockdep_release(fs_info, btrfs_trans_num_writers);
+	btrfs_might_wait_for_event(fs_info, btrfs_trans_num_writers);
 	wait_event(cur_trans->writer_wait,
 		   atomic_read(&cur_trans->num_writers) == 1);
 
@@ -2515,6 +2539,10 @@ cleanup_transaction:
 	cleanup_transaction(trans, ret);
 
 	return ret;
+
+lockdep_release:
+	btrfs_lockdep_release(fs_info, btrfs_trans_num_writers);
+	goto cleanup_transaction;
 }
 
 /*
