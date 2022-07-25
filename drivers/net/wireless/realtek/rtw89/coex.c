@@ -912,12 +912,14 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 	struct rtw89_btc_fbtc_rpt_ctrl *prpt;
 	struct rtw89_btc_fbtc_rpt_ctrl_v1 *prpt_v1;
 	struct rtw89_btc_fbtc_cysta *pcysta_le32 = NULL;
+	struct rtw89_btc_fbtc_cysta_v1 *pcysta_v1 = NULL;
 	struct rtw89_btc_fbtc_cysta_cpu pcysta[1];
 	struct rtw89_btc_prpt *btc_prpt = NULL;
 	struct rtw89_btc_fbtc_slot *rtp_slot = NULL;
 	u8 rpt_type = 0, *rpt_content = NULL, *pfinfo = NULL;
-	u16 wl_slot_set = 0;
+	u16 wl_slot_set = 0, wl_slot_real = 0;
 	u32 trace_step = btc->ctrl.trace_step, rpt_len = 0, diff_t;
+	u32 cnt_leak_slot = 0, bt_slot_real = 0, cnt_rx_imr = 0;
 	u8 i;
 
 	rtw89_debug(rtwdev, RTW89_DBG_BTC,
@@ -975,10 +977,16 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		break;
 	case BTC_RPT_TYPE_CYSTA:
 		pcinfo = &pfwinfo->rpt_fbtc_cysta.cinfo;
-		pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_cysta.finfo);
-		pcysta_le32 = &pfwinfo->rpt_fbtc_cysta.finfo;
-		rtw89_btc_fbtc_cysta_to_cpu(pcysta_le32, pcysta);
-		pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_cysta.finfo);
+		if (chip->chip_id == RTL8852A) {
+			pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_cysta.finfo);
+			pcysta_le32 = &pfwinfo->rpt_fbtc_cysta.finfo;
+			rtw89_btc_fbtc_cysta_to_cpu(pcysta_le32, pcysta);
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_cysta.finfo);
+		} else {
+			pfinfo = (u8 *)(&pfwinfo->rpt_fbtc_cysta.finfo_v1);
+			pcysta_v1 = &pfwinfo->rpt_fbtc_cysta.finfo_v1;
+			pcinfo->req_len = sizeof(pfwinfo->rpt_fbtc_cysta.finfo_v1);
+		}
 		pcinfo->req_fver = chip->fcxcysta_ver;
 		pcinfo->rx_len = rpt_len;
 		pcinfo->rx_cnt++;
@@ -1177,7 +1185,7 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 				    sizeof(dm->slot_now)));
 	}
 
-	if (rpt_type == BTC_RPT_TYPE_CYSTA &&
+	if (rpt_type == BTC_RPT_TYPE_CYSTA && chip->chip_id == RTL8852A &&
 	    pcysta->cycles >= BTC_CYSTA_CHK_PERIOD) {
 		/* Check Leak-AP */
 		if (pcysta->slot_cnt[CXST_LK] != 0 &&
@@ -1200,8 +1208,47 @@ static u32 _chk_btc_report(struct rtw89_dev *rtwdev,
 		}
 
 		_chk_btc_err(rtwdev, BTC_DCNT_W1_FREEZE, pcysta->slot_cnt[CXST_W1]);
-		_chk_btc_err(rtwdev, BTC_DCNT_W1_FREEZE, pcysta->slot_cnt[CXST_W1]);
+		_chk_btc_err(rtwdev, BTC_DCNT_W1_FREEZE, pcysta->slot_cnt[CXST_B1]);
 		_chk_btc_err(rtwdev, BTC_DCNT_CYCLE_FREEZE, (u32)pcysta->cycles);
+	} else if (rpt_type == BTC_RPT_TYPE_CYSTA && pcysta_v1 &&
+		   le16_to_cpu(pcysta_v1->cycles) >= BTC_CYSTA_CHK_PERIOD) {
+		cnt_leak_slot = le32_to_cpu(pcysta_v1->slot_cnt[CXST_LK]);
+		cnt_rx_imr = le32_to_cpu(pcysta_v1->leak_slot.cnt_rximr);
+		/* Check Leak-AP */
+		if (cnt_leak_slot != 0 && cnt_rx_imr != 0 &&
+		    dm->tdma_now.rxflctrl) {
+			if (cnt_leak_slot < BTC_LEAK_AP_TH * cnt_rx_imr)
+				dm->leak_ap = 1;
+		}
+
+		/* Check diff time between real WL slot and W1 slot */
+		if (dm->tdma_now.type == CXTDMA_OFF) {
+			wl_slot_set = le16_to_cpu(dm->slot_now[CXST_W1].dur);
+			wl_slot_real = le16_to_cpu(pcysta_v1->cycle_time.tavg[CXT_WL]);
+			if (wl_slot_real > wl_slot_set) {
+				diff_t = wl_slot_real - wl_slot_set;
+				_chk_btc_err(rtwdev, BTC_DCNT_WL_SLOT_DRIFT, diff_t);
+			}
+		}
+
+		/* Check diff time between real BT slot and EBT/E5G slot */
+		if (dm->tdma_now.type == CXTDMA_OFF &&
+		    dm->tdma_now.ext_ctrl == CXECTL_EXT &&
+		    btc->bt_req_len != 0) {
+			bt_slot_real = le16_to_cpu(pcysta_v1->cycle_time.tavg[CXT_BT]);
+
+			if (btc->bt_req_len > bt_slot_real) {
+				diff_t = btc->bt_req_len - bt_slot_real;
+				_chk_btc_err(rtwdev, BTC_DCNT_BT_SLOT_DRIFT, diff_t);
+			}
+		}
+
+		_chk_btc_err(rtwdev, BTC_DCNT_W1_FREEZE,
+			     le32_to_cpu(pcysta_v1->slot_cnt[CXST_W1]));
+		_chk_btc_err(rtwdev, BTC_DCNT_B1_FREEZE,
+			     le32_to_cpu(pcysta_v1->slot_cnt[CXST_B1]));
+		_chk_btc_err(rtwdev, BTC_DCNT_CYCLE_FREEZE,
+			     (u32)le16_to_cpu(pcysta_v1->cycles));
 	}
 
 	if (rpt_type == BTC_RPT_TYPE_CTRL && chip->chip_id == RTL8852A) {
