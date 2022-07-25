@@ -2361,7 +2361,7 @@ static inline bool check_new_pcp(struct page *page, unsigned int order)
 }
 #endif /* CONFIG_DEBUG_VM */
 
-static inline bool should_skip_kasan_unpoison(gfp_t flags, bool init_tags)
+static inline bool should_skip_kasan_unpoison(gfp_t flags)
 {
 	/* Don't skip if a software KASAN mode is enabled. */
 	if (IS_ENABLED(CONFIG_KASAN_GENERIC) ||
@@ -2373,12 +2373,10 @@ static inline bool should_skip_kasan_unpoison(gfp_t flags, bool init_tags)
 		return true;
 
 	/*
-	 * With hardware tag-based KASAN enabled, skip if either:
-	 *
-	 * 1. Memory tags have already been cleared via tag_clear_highpage().
-	 * 2. Skipping has been requested via __GFP_SKIP_KASAN_UNPOISON.
+	 * With hardware tag-based KASAN enabled, skip if this has been
+	 * requested via __GFP_SKIP_KASAN_UNPOISON.
 	 */
-	return init_tags || (flags & __GFP_SKIP_KASAN_UNPOISON);
+	return flags & __GFP_SKIP_KASAN_UNPOISON;
 }
 
 static inline bool should_skip_init(gfp_t flags)
@@ -2397,6 +2395,7 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
 	bool init = !want_init_on_free() && want_init_on_alloc(gfp_flags) &&
 			!should_skip_init(gfp_flags);
 	bool init_tags = init && (gfp_flags & __GFP_ZEROTAGS);
+	int i;
 
 	set_page_private(page, 0);
 	set_page_refcounted(page);
@@ -2422,8 +2421,6 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
 	 * should be initialized as well).
 	 */
 	if (init_tags) {
-		int i;
-
 		/* Initialize both memory and tags. */
 		for (i = 0; i != 1 << order; ++i)
 			tag_clear_highpage(page + i);
@@ -2431,13 +2428,17 @@ inline void post_alloc_hook(struct page *page, unsigned int order,
 		/* Note that memory is already initialized by the loop above. */
 		init = false;
 	}
-	if (!should_skip_kasan_unpoison(gfp_flags, init_tags)) {
+	if (!should_skip_kasan_unpoison(gfp_flags)) {
 		/* Unpoison shadow memory or set memory tags. */
 		kasan_unpoison_pages(page, order, init);
 
 		/* Note that memory is already initialized by KASAN. */
 		if (kasan_has_integrated_init())
 			init = false;
+	} else {
+		/* Ensure page_address() dereferencing does not fault. */
+		for (i = 0; i != 1 << order; ++i)
+			page_kasan_tag_reset(page + i);
 	}
 	/* If memory is still not initialized, do it now. */
 	if (init)
