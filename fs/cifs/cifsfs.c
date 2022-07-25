@@ -68,6 +68,25 @@ bool enable_negotiate_signing; /* false by default */
 unsigned int global_secflags = CIFSSEC_DEF;
 /* unsigned int ntlmv2_support = 0; */
 unsigned int sign_CIFS_PDUs = 1;
+
+/*
+ * Global transaction id (XID) information
+ */
+unsigned int GlobalCurrentXid;	/* protected by GlobalMid_Sem */
+unsigned int GlobalTotalActiveXid; /* prot by GlobalMid_Sem */
+unsigned int GlobalMaxActiveXid;	/* prot by GlobalMid_Sem */
+spinlock_t GlobalMid_Lock; /* protects above & list operations on midQ entries */
+
+/*
+ *  Global counters, updated atomically
+ */
+atomic_t sesInfoAllocCount;
+atomic_t tconInfoAllocCount;
+atomic_t tcpSesNextId;
+atomic_t tcpSesAllocCount;
+atomic_t tcpSesReconnectCount;
+atomic_t tconInfoReconnectCount;
+
 atomic_t mid_count;
 atomic_t buf_alloc_count;
 atomic_t small_buf_alloc_count;
