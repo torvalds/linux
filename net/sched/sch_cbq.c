@@ -979,7 +979,7 @@ cbq_reset(struct Qdisc *sch)
 }
 
 
-static int cbq_set_lss(struct cbq_class *cl, struct tc_cbq_lssopt *lss)
+static void cbq_set_lss(struct cbq_class *cl, struct tc_cbq_lssopt *lss)
 {
 	if (lss->change & TCF_CBQ_LSS_FLAGS) {
 		cl->share = (lss->flags & TCF_CBQ_LSS_ISOLATED) ? NULL : cl->tparent;
@@ -997,7 +997,6 @@ static int cbq_set_lss(struct cbq_class *cl, struct tc_cbq_lssopt *lss)
 	}
 	if (lss->change & TCF_CBQ_LSS_OFFTIME)
 		cl->offtime = lss->offtime;
-	return 0;
 }
 
 static void cbq_rmprio(struct cbq_sched_data *q, struct cbq_class *cl)
