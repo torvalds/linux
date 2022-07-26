@@ -262,7 +262,6 @@ static const u32 svs_regs_v2[] = {
  * @rst: svs platform reset control
  * @efuse_parsing: svs platform efuse parsing function pointer
  * @probe: svs platform probe function pointer
- * @irqflags: svs platform irq settings flags
  * @efuse_max: total number of svs efuse
  * @tefuse_max: total number of thermal efuse
  * @regs: svs platform registers map
@@ -280,7 +279,6 @@ struct svs_platform {
 	struct reset_control *rst;
 	bool (*efuse_parsing)(struct svs_platform *svsp);
 	int (*probe)(struct svs_platform *svsp);
-	unsigned long irqflags;
 	size_t efuse_max;
 	size_t tefuse_max;
 	const u32 *regs;
@@ -294,7 +292,6 @@ struct svs_platform_data {
 	struct svs_bank *banks;
 	bool (*efuse_parsing)(struct svs_platform *svsp);
 	int (*probe)(struct svs_platform *svsp);
-	unsigned long irqflags;
 	const u32 *regs;
 	u32 bank_max;
 };
@@ -2244,7 +2241,6 @@ static const struct svs_platform_data svs_mt8192_platform_data = {
 	.banks = svs_mt8192_banks,
 	.efuse_parsing = svs_mt8192_efuse_parsing,
 	.probe = svs_mt8192_platform_probe,
-	.irqflags = IRQF_TRIGGER_HIGH,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8192_banks),
 };
@@ -2254,7 +2250,6 @@ static const struct svs_platform_data svs_mt8183_platform_data = {
 	.banks = svs_mt8183_banks,
 	.efuse_parsing = svs_mt8183_efuse_parsing,
 	.probe = svs_mt8183_platform_probe,
-	.irqflags = IRQF_TRIGGER_LOW,
 	.regs = svs_regs_v2,
 	.bank_max = ARRAY_SIZE(svs_mt8183_banks),
 };
@@ -2292,7 +2287,6 @@ static struct svs_platform *svs_platform_probe(struct platform_device *pdev)
 	svsp->banks = svsp_data->banks;
 	svsp->efuse_parsing = svsp_data->efuse_parsing;
 	svsp->probe = svsp_data->probe;
-	svsp->irqflags = svsp_data->irqflags;
 	svsp->regs = svsp_data->regs;
 	svsp->bank_max = svsp_data->bank_max;
 
@@ -2331,8 +2325,7 @@ static int svs_probe(struct platform_device *pdev)
 	}
 
 	ret = devm_request_threaded_irq(svsp->dev, svsp_irq, NULL, svs_isr,
-					svsp->irqflags | IRQF_ONESHOT,
-					svsp->name, svsp);
+					IRQF_ONESHOT, svsp->name, svsp);
 	if (ret) {
 		dev_err(svsp->dev, "register irq(%d) failed: %d\n",
 			svsp_irq, ret);
