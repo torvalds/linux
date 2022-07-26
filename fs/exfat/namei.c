@@ -442,7 +442,7 @@ static int __exfat_resolve_path(struct inode *inode, const unsigned char *path,
 		return namelen; /* return error value */
 
 	if ((lossy && !lookup) || !namelen)
-		return -EINVAL;
+		return (lossy & NLS_NAME_OVERLEN) ? -ENAMETOOLONG : -EINVAL;
 
 	exfat_chain_set(p_dir, ei->start_clu,
 		EXFAT_B_TO_CLU(i_size_read(inode), sbi), ei->flags);
