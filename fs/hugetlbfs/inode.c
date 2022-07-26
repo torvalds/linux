@@ -1320,7 +1320,7 @@ static int hugetlbfs_parse_param(struct fs_context *fc, struct fs_parameter *par
 		ps = memparse(param->string, &rest);
 		ctx->hstate = size_to_hstate(ps);
 		if (!ctx->hstate) {
-			pr_err("Unsupported page size %lu MB\n", ps >> 20);
+			pr_err("Unsupported page size %lu MB\n", ps / SZ_1M);
 			return -EINVAL;
 		}
 		return 0;
@@ -1566,7 +1566,7 @@ static struct vfsmount *__init mount_one_hugetlbfs(struct hstate *h)
 	}
 	if (IS_ERR(mnt))
 		pr_err("Cannot mount internal hugetlbfs for page size %luK",
-		       huge_page_size(h) >> 10);
+		       huge_page_size(h) / SZ_1K);
 	return mnt;
 }
 
