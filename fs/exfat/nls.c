@@ -509,7 +509,7 @@ static int exfat_utf8_to_utf16(struct super_block *sb,
 	}
 
 	if (unilen > MAX_NAME_LENGTH) {
-		exfat_err(sb, "failed to %s (estr:ENAMETOOLONG) nls len : %d, unilen : %d > %d",
+		exfat_debug(sb, "failed to %s (estr:ENAMETOOLONG) nls len : %d, unilen : %d > %d",
 			  __func__, len, unilen, MAX_NAME_LENGTH);
 		return -ENAMETOOLONG;
 	}
