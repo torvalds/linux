@@ -713,7 +713,8 @@ void dcn314_clk_mgr_construct(
 			dcn314_bw_params.wm_table = ddr5_wm_table;
 
 		/* Saved clocks configured at boot for debug purposes */
-		 dcn314_dump_clk_registers(&clk_mgr->base.base.boot_snapshot, &clk_mgr->base.base, &log_info);
+		dcn314_dump_clk_registers(&clk_mgr->base.base.boot_snapshot,
+					  &clk_mgr->base.base, &log_info);
 
 	}
 
