@@ -3747,6 +3747,20 @@ int __cold open_ctree(struct super_block *sb, struct btrfs_fs_devices *fs_device
 	}
 
 	/*
+	 * For devices supporting discard turn on discard=async automatically,
+	 * unless it's already set or disabled. This could be turned off by
+	 * nodiscard for the same mount.
+	 */
+	if (!(btrfs_test_opt(fs_info, DISCARD_SYNC) ||
+	      btrfs_test_opt(fs_info, DISCARD_ASYNC) ||
+	      btrfs_test_opt(fs_info, NODISCARD)) &&
+	    fs_info->fs_devices->discardable) {
+		btrfs_set_and_info(fs_info, DISCARD_ASYNC,
+				   "auto enabling async discard");
+		btrfs_clear_opt(fs_info->mount_opt, NODISCARD);
+	}
+
+	/*
 	 * Mount does not set all options immediately, we can do it now and do
 	 * not have to wait for transaction commit
 	 */

@@ -354,6 +354,8 @@ struct btrfs_fs_devices {
 	 * nonrot flag set
 	 */
 	bool rotating;
+	/* Devices support TRIM/discard commands */
+	bool discardable;
 
 	struct btrfs_fs_info *fs_info;
 	/* sysfs kobjects */

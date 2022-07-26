@@ -918,12 +918,14 @@ int btrfs_parse_options(struct btrfs_fs_info *info, char *options,
 				ret = -EINVAL;
 				goto out;
 			}
+			btrfs_clear_opt(info->mount_opt, NODISCARD);
 			break;
 		case Opt_nodiscard:
 			btrfs_clear_and_info(info, DISCARD_SYNC,
 					     "turning off discard");
 			btrfs_clear_and_info(info, DISCARD_ASYNC,
 					     "turning off async discard");
+			btrfs_set_opt(info->mount_opt, NODISCARD);
 			break;
 		case Opt_space_cache:
 		case Opt_space_cache_version:

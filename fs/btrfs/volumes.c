@@ -641,6 +641,9 @@ static int btrfs_open_one_device(struct btrfs_fs_devices *fs_devices,
 	if (!bdev_nonrot(bdev))
 		fs_devices->rotating = true;
 
+	if (bdev_max_discard_sectors(bdev))
+		fs_devices->discardable = true;
+
 	device->bdev = bdev;
 	clear_bit(BTRFS_DEV_STATE_IN_FS_METADATA, &device->dev_state);
 	device->mode = flags;
