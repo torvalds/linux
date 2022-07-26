@@ -1090,7 +1090,7 @@ static int hugetlbfs_statfs(struct dentry *dentry, struct kstatfs *buf)
 	buf->f_bsize = huge_page_size(h);
 	if (sbinfo) {
 		spin_lock(&sbinfo->stat_lock);
-		/* If no limits set, just report 0 for max/free/used
+		/* If no limits set, just report 0 or -1 for max/free/used
 		 * blocks, like simple_statfs() */
 		if (sbinfo->spool) {
 			long free_pages;
