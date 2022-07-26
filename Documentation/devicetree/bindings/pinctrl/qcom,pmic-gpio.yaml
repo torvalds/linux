@@ -159,6 +159,7 @@ allOf:
         compatible:
           contains:
             enum:
+              - qcom,pm8226-gpio
               - qcom,pm8350b-gpio
               - qcom,pm8950-gpio
     then:
