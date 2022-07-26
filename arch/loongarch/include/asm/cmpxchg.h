@@ -57,7 +57,7 @@ static inline unsigned long __xchg(volatile void *ptr, unsigned long x,
 	"	bne	%0, %z3, 2f			\n"		\
 	"	move	$t0, %z4			\n"		\
 	"	" st "	$t0, %1				\n"		\
-	"	beq	$zero, $t0, 1b			\n"		\
+	"	beqz	$t0, 1b				\n"		\
 	"2:						\n"		\
 	__WEAK_LLSC_MB							\
 	: "=&r" (__ret), "=ZB"(*m)					\

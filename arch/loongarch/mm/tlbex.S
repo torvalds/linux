@@ -80,7 +80,7 @@ vmalloc_done_load:
 	 * see if we need to jump to huge tlb processing.
 	 */
 	andi	t0, ra, _PAGE_HUGE
-	bne	t0, zero, tlb_huge_update_load
+	bnez	t0, tlb_huge_update_load
 
 	csrrd	t0, LOONGARCH_CSR_BADV
 	srli.d	t0, t0, (PAGE_SHIFT + PTE_ORDER)
@@ -100,12 +100,12 @@ smp_pgtable_change_load:
 
 	srli.d	ra, t0, _PAGE_PRESENT_SHIFT
 	andi	ra, ra, 1
-	beq	ra, zero, nopage_tlb_load
+	beqz	ra, nopage_tlb_load
 
 	ori	t0, t0, _PAGE_VALID
 #ifdef CONFIG_SMP
 	sc.d	t0, t1, 0
-	beq	t0, zero, smp_pgtable_change_load
+	beqz	t0, smp_pgtable_change_load
 #else
 	st.d	t0, t1, 0
 #endif
@@ -139,13 +139,13 @@ tlb_huge_update_load:
 #endif
 	srli.d	ra, t0, _PAGE_PRESENT_SHIFT
 	andi	ra, ra, 1
-	beq	ra, zero, nopage_tlb_load
+	beqz	ra, nopage_tlb_load
 	tlbsrch
 
 	ori	t0, t0, _PAGE_VALID
 #ifdef CONFIG_SMP
 	sc.d	t0, t1, 0
-	beq	t0, zero, tlb_huge_update_load
+	beqz	t0, tlb_huge_update_load
 	ld.d	t0, t1, 0
 #else
 	st.d	t0, t1, 0
@@ -244,7 +244,7 @@ vmalloc_done_store:
 	 * see if we need to jump to huge tlb processing.
 	 */
 	andi	t0, ra, _PAGE_HUGE
-	bne	t0, zero, tlb_huge_update_store
+	bnez	t0, tlb_huge_update_store
 
 	csrrd	t0, LOONGARCH_CSR_BADV
 	srli.d	t0, t0, (PAGE_SHIFT + PTE_ORDER)
@@ -265,12 +265,12 @@ smp_pgtable_change_store:
 	srli.d	ra, t0, _PAGE_PRESENT_SHIFT
 	andi	ra, ra, ((_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT)
 	xori	ra, ra, ((_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT)
-	bne	ra, zero, nopage_tlb_store
+	bnez	ra, nopage_tlb_store
 
 	ori	t0, t0, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 #ifdef CONFIG_SMP
 	sc.d	t0, t1, 0
-	beq	t0, zero, smp_pgtable_change_store
+	beqz	t0, smp_pgtable_change_store
 #else
 	st.d	t0, t1, 0
 #endif
@@ -306,14 +306,14 @@ tlb_huge_update_store:
 	srli.d	ra, t0, _PAGE_PRESENT_SHIFT
 	andi	ra, ra, ((_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT)
 	xori	ra, ra, ((_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT)
-	bne	ra, zero, nopage_tlb_store
+	bnez	ra, nopage_tlb_store
 
 	tlbsrch
 	ori	t0, t0, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 
 #ifdef CONFIG_SMP
 	sc.d	t0, t1, 0
-	beq	t0, zero, tlb_huge_update_store
+	beqz	t0, tlb_huge_update_store
 	ld.d	t0, t1, 0
 #else
 	st.d	t0, t1, 0
@@ -411,7 +411,7 @@ vmalloc_done_modify:
 	 * see if we need to jump to huge tlb processing.
 	 */
 	andi	t0, ra, _PAGE_HUGE
-	bne	t0, zero, tlb_huge_update_modify
+	bnez	t0, tlb_huge_update_modify
 
 	csrrd	t0, LOONGARCH_CSR_BADV
 	srli.d	t0, t0, (PAGE_SHIFT + PTE_ORDER)
@@ -431,12 +431,12 @@ smp_pgtable_change_modify:
 
 	srli.d	ra, t0, _PAGE_WRITE_SHIFT
 	andi	ra, ra, 1
-	beq	ra, zero, nopage_tlb_modify
+	beqz	ra, nopage_tlb_modify
 
 	ori	t0, t0, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 #ifdef CONFIG_SMP
 	sc.d	t0, t1, 0
-	beq	t0, zero, smp_pgtable_change_modify
+	beqz	t0, smp_pgtable_change_modify
 #else
 	st.d	t0, t1, 0
 #endif
@@ -471,14 +471,14 @@ tlb_huge_update_modify:
 
 	srli.d	ra, t0, _PAGE_WRITE_SHIFT
 	andi	ra, ra, 1
-	beq	ra, zero, nopage_tlb_modify
+	beqz	ra, nopage_tlb_modify
 
 	tlbsrch
 	ori	t0, t0, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 
 #ifdef CONFIG_SMP
 	sc.d	t0, t1, 0
-	beq	t0, zero, tlb_huge_update_modify
+	beqz	t0, tlb_huge_update_modify
 	ld.d	t0, t1, 0
 #else
 	st.d	t0, t1, 0

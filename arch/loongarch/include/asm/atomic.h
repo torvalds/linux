@@ -160,7 +160,7 @@ static inline int arch_atomic_sub_if_positive(int i, atomic_t *v)
 		"	move	%1, %0					\n"
 		"	blt	%0, $zero, 2f				\n"
 		"	sc.w	%1, %2					\n"
-		"	beq	$zero, %1, 1b				\n"
+		"	beqz	%1, 1b					\n"
 		"2:							\n"
 		__WEAK_LLSC_MB
 		: "=&r" (result), "=&r" (temp),
@@ -173,7 +173,7 @@ static inline int arch_atomic_sub_if_positive(int i, atomic_t *v)
 		"	move	%1, %0					\n"
 		"	blt	%0, $zero, 2f				\n"
 		"	sc.w	%1, %2					\n"
-		"	beq	$zero, %1, 1b				\n"
+		"	beqz	%1, 1b					\n"
 		"2:							\n"
 		__WEAK_LLSC_MB
 		: "=&r" (result), "=&r" (temp),
@@ -323,7 +323,7 @@ static inline long arch_atomic64_sub_if_positive(long i, atomic64_t *v)
 		"	move	%1, %0					\n"
 		"	blt	%0, $zero, 2f				\n"
 		"	sc.d	%1, %2					\n"
-		"	beq	%1, $zero, 1b				\n"
+		"	beqz	%1, 1b					\n"
 		"2:							\n"
 		__WEAK_LLSC_MB
 		: "=&r" (result), "=&r" (temp),
@@ -336,7 +336,7 @@ static inline long arch_atomic64_sub_if_positive(long i, atomic64_t *v)
 		"	move	%1, %0					\n"
 		"	blt	%0, $zero, 2f				\n"
 		"	sc.d	%1, %2					\n"
-		"	beq	%1, $zero, 1b				\n"
+		"	beqz	%1, 1b					\n"
 		"2:							\n"
 		__WEAK_LLSC_MB
 		: "=&r" (result), "=&r" (temp),
