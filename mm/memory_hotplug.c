@@ -932,7 +932,7 @@ static struct zone *auto_movable_zone_for_pfn(int nid,
 			if (!page)
 				continue;
 			/* If anything is !MOVABLE online the rest !MOVABLE. */
-			if (page_zonenum(page) != ZONE_MOVABLE)
+			if (!is_zone_movable_page(page))
 				goto kernel_zone;
 			online_pages += PAGES_PER_SECTION;
 		}
