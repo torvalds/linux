@@ -7849,7 +7849,7 @@ int dhd_get_download_buffer(dhd_pub_t	*dhd, char *file_path, download_type_t com
 				goto err;
 			} else {
 				if ((fw->size <= 0 || fw->size > *length)) {
-					DHD_ERROR(("fw->size = %d, *length = %d\n", fw->size, *length));
+					DHD_ERROR(("fw->size = %zu, *length = %d\n", fw->size, *length));
 					*length = fw->size;
 					goto err;
 				}
