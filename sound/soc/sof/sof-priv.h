@@ -126,6 +126,7 @@ struct snd_sof_platform_stream_params {
 	bool use_phy_address;
 	u32 phy_addr;
 	bool no_ipc_position;
+	bool cont_update_posn;
 };
 
 /*
