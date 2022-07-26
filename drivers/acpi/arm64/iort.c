@@ -1162,6 +1162,34 @@ void iort_iommu_get_resv_regions(struct device *dev, struct list_head *head)
 	iort_iommu_rmr_get_resv_regions(fwspec->iommu_fwnode, dev, head);
 }
 
+/**
+ * iort_get_rmr_sids - Retrieve IORT RMR node reserved regions with
+ *                     associated StreamIDs information.
+ * @iommu_fwnode: fwnode associated with IOMMU
+ * @head: Resereved region list
+ */
+void iort_get_rmr_sids(struct fwnode_handle *iommu_fwnode,
+		       struct list_head *head)
+{
+	iort_iommu_rmr_get_resv_regions(iommu_fwnode, NULL, head);
+}
+EXPORT_SYMBOL_GPL(iort_get_rmr_sids);
+
+/**
+ * iort_put_rmr_sids - Free memory allocated for RMR reserved regions.
+ * @iommu_fwnode: fwnode associated with IOMMU
+ * @head: Resereved region list
+ */
+void iort_put_rmr_sids(struct fwnode_handle *iommu_fwnode,
+		       struct list_head *head)
+{
+	struct iommu_resv_region *entry, *next;
+
+	list_for_each_entry_safe(entry, next, head, list)
+		entry->free(NULL, entry);
+}
+EXPORT_SYMBOL_GPL(iort_put_rmr_sids);
+
 static inline bool iort_iommu_driver_enabled(u8 type)
 {
 	switch (type) {
@@ -1393,34 +1421,6 @@ int iort_dma_get_ranges(struct device *dev, u64 *size)
 	else
 		return nc_dma_get_range(dev, size);
 }
-
-/**
- * iort_get_rmr_sids - Retrieve IORT RMR node reserved regions with
- *                     associated StreamIDs information.
- * @iommu_fwnode: fwnode associated with IOMMU
- * @head: Resereved region list
- */
-void iort_get_rmr_sids(struct fwnode_handle *iommu_fwnode,
-		       struct list_head *head)
-{
-	iort_iommu_rmr_get_resv_regions(iommu_fwnode, NULL, head);
-}
-EXPORT_SYMBOL_GPL(iort_get_rmr_sids);
-
-/**
- * iort_put_rmr_sids - Free memory allocated for RMR reserved regions.
- * @iommu_fwnode: fwnode associated with IOMMU
- * @head: Resereved region list
- */
-void iort_put_rmr_sids(struct fwnode_handle *iommu_fwnode,
-		       struct list_head *head)
-{
-	struct iommu_resv_region *entry, *next;
-
-	list_for_each_entry_safe(entry, next, head, list)
-		entry->free(NULL, entry);
-}
-EXPORT_SYMBOL_GPL(iort_put_rmr_sids);
 
 static void __init acpi_iort_register_irq(int hwirq, const char *name,
 					  int trigger,
