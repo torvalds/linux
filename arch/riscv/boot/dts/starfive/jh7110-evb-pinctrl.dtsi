@@ -1350,7 +1350,7 @@
 			sf,pins = <PAD_GPIO33>;
 			sf,pinmux = <PAD_GPIO33_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
-			sf,pin-gpio-dout = <GPO_USB0_DRIVE_VBUS_IO>;
+			sf,pin-gpio-dout = <GPO_HIGH>;
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 
