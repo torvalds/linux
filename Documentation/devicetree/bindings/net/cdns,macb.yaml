@@ -20,9 +20,16 @@ properties:
 
       - items:
           - enum:
-              - cdns,versal-gem       # Xilinx Versal
               - cdns,zynq-gem         # Xilinx Zynq-7xxx SoC
               - cdns,zynqmp-gem       # Xilinx Zynq Ultrascale+ MPSoC
+          - const: cdns,gem           # Generic
+        deprecated: true
+
+      - items:
+          - enum:
+              - xlnx,versal-gem       # Xilinx Versal
+              - xlnx,zynq-gem         # Xilinx Zynq-7xxx SoC
+              - xlnx,zynqmp-gem       # Xilinx Zynq Ultrascale+ MPSoC
           - const: cdns,gem           # Generic
 
       - items:
@@ -183,7 +190,7 @@ examples:
             #address-cells = <2>;
             #size-cells = <2>;
             gem1: ethernet@ff0c0000 {
-                    compatible = "cdns,zynqmp-gem", "cdns,gem";
+                    compatible = "xlnx,zynqmp-gem", "cdns,gem";
                     interrupt-parent = <&gic>;
                     interrupts = <0 59 4>, <0 59 4>;
                     reg = <0x0 0xff0c0000 0x0 0x1000>;
