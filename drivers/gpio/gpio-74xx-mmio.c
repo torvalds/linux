@@ -13,8 +13,8 @@
 #include <linux/platform_device.h>
 #include <linux/property.h>
 
-#define MMIO_74XX_DIR_IN	(0 << 8)
-#define MMIO_74XX_DIR_OUT	(1 << 8)
+#define MMIO_74XX_DIR_IN	BIT(8)
+#define MMIO_74XX_DIR_OUT	BIT(9)
 #define MMIO_74XX_BIT_CNT(x)	((x) & GENMASK(7, 0))
 
 struct mmio_74xx_gpio_priv {
