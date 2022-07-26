@@ -820,7 +820,7 @@ static int ov2740_set_stream(struct v4l2_subdev *sd, int enable)
 	return ret;
 }
 
-static int __maybe_unused ov2740_suspend(struct device *dev)
+static int ov2740_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2740 *ov2740 = to_ov2740(sd);
@@ -834,7 +834,7 @@ static int __maybe_unused ov2740_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused ov2740_resume(struct device *dev)
+static int ov2740_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct ov2740 *ov2740 = to_ov2740(sd);
@@ -1209,9 +1209,7 @@ probe_error_v4l2_ctrl_handler_free:
 	return ret;
 }
 
-static const struct dev_pm_ops ov2740_pm_ops = {
-	SET_SYSTEM_SLEEP_PM_OPS(ov2740_suspend, ov2740_resume)
-};
+static DEFINE_SIMPLE_DEV_PM_OPS(ov2740_pm_ops, ov2740_suspend, ov2740_resume);
 
 static const struct acpi_device_id ov2740_acpi_ids[] = {
 	{"INT3474"},
@@ -1223,7 +1221,7 @@ MODULE_DEVICE_TABLE(acpi, ov2740_acpi_ids);
 static struct i2c_driver ov2740_i2c_driver = {
 	.driver = {
 		.name = "ov2740",
-		.pm = &ov2740_pm_ops,
+		.pm = pm_sleep_ptr(&ov2740_pm_ops),
 		.acpi_match_table = ov2740_acpi_ids,
 	},
 	.probe_new = ov2740_probe,
