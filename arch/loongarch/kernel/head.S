@@ -85,8 +85,8 @@ SYM_CODE_START(smpboot_entry)
 	ld.d		sp, t0, CPU_BOOT_STACK
 	ld.d		tp, t0, CPU_BOOT_TINFO
 
-	la.abs	t0, 0f
-	jr	t0
+	la.abs		t0, 0f
+	jr		t0
 0:
 	bl		start_secondary
 SYM_CODE_END(smpboot_entry)

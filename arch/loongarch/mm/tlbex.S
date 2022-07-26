@@ -18,7 +18,7 @@
 	REG_S	a2, sp, PT_BVADDR
 	li.w	a1, \write
 	la.abs	t0, do_page_fault
-	jirl    ra, t0, 0
+	jirl	ra, t0, 0
 	RESTORE_ALL_AND_RET
 	SYM_FUNC_END(tlb_do_page_fault_\write)
 	.endm
@@ -34,7 +34,7 @@ SYM_FUNC_START(handle_tlb_protect)
 	csrrd	a2, LOONGARCH_CSR_BADV
 	REG_S	a2, sp, PT_BVADDR
 	la.abs	t0, do_page_fault
-	jirl    ra, t0, 0
+	jirl	ra, t0, 0
 	RESTORE_ALL_AND_RET
 SYM_FUNC_END(handle_tlb_protect)
 
@@ -151,8 +151,8 @@ tlb_huge_update_load:
 	st.d	t0, t1, 0
 #endif
 	addu16i.d	t1, zero, -(CSR_TLBIDX_EHINV >> 16)
-	addi.d	ra, t1, 0
-	csrxchg	ra, t1, LOONGARCH_CSR_TLBIDX
+	addi.d		ra, t1, 0
+	csrxchg		ra, t1, LOONGARCH_CSR_TLBIDX
 	tlbwr
 
 	csrxchg	zero, t1, LOONGARCH_CSR_TLBIDX
@@ -319,8 +319,8 @@ tlb_huge_update_store:
 	st.d	t0, t1, 0
 #endif
 	addu16i.d	t1, zero, -(CSR_TLBIDX_EHINV >> 16)
-	addi.d	ra, t1, 0
-	csrxchg	ra, t1, LOONGARCH_CSR_TLBIDX
+	addi.d		ra, t1, 0
+	csrxchg		ra, t1, LOONGARCH_CSR_TLBIDX
 	tlbwr
 
 	csrxchg	zero, t1, LOONGARCH_CSR_TLBIDX
@@ -454,7 +454,7 @@ leave_modify:
 	ertn
 #ifdef CONFIG_64BIT
 vmalloc_modify:
-	la.abs  t1, swapper_pg_dir
+	la.abs	t1, swapper_pg_dir
 	b	vmalloc_done_modify
 #endif
 
@@ -512,14 +512,14 @@ tlb_huge_update_modify:
 	/* Set huge page tlb entry size */
 	addu16i.d	t0, zero, (CSR_TLBIDX_PS >> 16)
 	addu16i.d	t1, zero, (PS_HUGE_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
-	csrxchg	t1, t0, LOONGARCH_CSR_TLBIDX
+	csrxchg		t1, t0, LOONGARCH_CSR_TLBIDX
 
 	tlbwr
 
 	/* Reset default page size */
 	addu16i.d	t0, zero, (CSR_TLBIDX_PS >> 16)
 	addu16i.d	t1, zero, (PS_DEFAULT_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
-	csrxchg	t1, t0, LOONGARCH_CSR_TLBIDX
+	csrxchg		t1, t0, LOONGARCH_CSR_TLBIDX
 
 nopage_tlb_modify:
 	dbar	0

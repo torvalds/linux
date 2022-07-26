@@ -35,16 +35,16 @@ SYM_FUNC_START(handle_vint)
 	BACKUP_T0T1
 	SAVE_ALL
 	la.abs	t1, __arch_cpu_idle
-	LONG_L  t0, sp, PT_ERA
+	LONG_L	t0, sp, PT_ERA
 	/* 32 byte rollback region */
 	ori	t0, t0, 0x1f
 	xori	t0, t0, 0x1f
 	bne	t0, t1, 1f
-	LONG_S  t0, sp, PT_ERA
+	LONG_S	t0, sp, PT_ERA
 1:	move	a0, sp
 	move	a1, sp
 	la.abs	t0, do_vint
-	jirl    ra, t0, 0
+	jirl	ra, t0, 0
 	RESTORE_ALL_AND_RET
 SYM_FUNC_END(handle_vint)
 
@@ -72,7 +72,7 @@ SYM_FUNC_END(except_vec_cex)
 	build_prep_\prep
 	move	a0, sp
 	la.abs	t0, do_\handler
-	jirl    ra, t0, 0
+	jirl	ra, t0, 0
 	RESTORE_ALL_AND_RET
 	SYM_FUNC_END(handle_\exception)
 	.endm
