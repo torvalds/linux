@@ -14,32 +14,32 @@
 #include <asm/assembler.h>
                 .text
 
+#ifdef __ARMEB__
+#define SWAB_ENDIAN le
+#else
+#define SWAB_ENDIAN be
+#endif
+
 		.macro	find_first, endian, set, name
 ENTRY(_find_first_\name\()bit_\endian)
 		teq	r1, #0
 		beq	3f
 		mov	r2, #0
-1:
-		.ifc	\endian, be
-		eor	r3, r2, #0x18
- ARM(		ldrb	r3, [r0, r3, lsr #3]	)
- THUMB(		lsr	r3, #3			)
- THUMB(		ldrb	r3, [r0, r3]		)
+1:		ldr	r3, [r0], #4
+		.ifeq \set
+		mvns	r3, r3			@ invert/test bits
 		.else
- ARM(		ldrb	r3, [r0, r2, lsr #3]	)
- THUMB(		lsr	r3, r2, #3		)
- THUMB(		ldrb	r3, [r0, r3]		)
+		movs	r3, r3			@ test bits
 		.endif
-		.ifeq	\set
-		eors	r3, r3, #0xff		@ invert bits
+		.ifc \endian, SWAB_ENDIAN
+		bne	.L_found_swab
 		.else
-		movs	r3, r3
+		bne	.L_found		@ found the bit?
 		.endif
-		bne	.L_found		@ any now set - found zero bit
-		add	r2, r2, #8		@ next bit pointer
+		add	r2, r2, #32		@ next index
 2:		cmp	r2, r1			@ any more?
 		blo	1b
-3:		mov	r0, r1			@ no free bits
+3:		mov	r0, r1			@ no more bits
 		ret	lr
 ENDPROC(_find_first_\name\()bit_\endian)
 		.endm
@@ -48,24 +48,25 @@ ENDPROC(_find_first_\name\()bit_\endian)
 ENTRY(_find_next_\name\()bit_\endian)
 		cmp	r2, r1
 		bhs	3b
-		ands	ip, r2, #7
-		beq	1b			@ If new byte, goto old routine
-		.ifc	\endian, be
-		eor	r3, r2, #0x18
- ARM(		ldrb	r3, [r0, r3, lsr #3]	)
- THUMB(		lsr	r3, #3			)
- THUMB(		ldrb	r3, [r0, r3]		)
-		.else
- ARM(		ldrb	r3, [r0, r2, lsr #3]	)
- THUMB(		lsr	r3, r2, #3		)
- THUMB(		ldrb	r3, [r0, r3]		)
+		mov	ip, r2, lsr #5		@ word index
+		add	r0, r0, ip, lsl #2
+		ands	ip, r2, #31		@ bit position
+		beq	1b
+		ldr	r3, [r0], #4
+		.ifeq \set
+		mvn	r3, r3			@ invert bits
 		.endif
-		.ifeq	\set
-		eor	r3, r3, #0xff		@ now looking for a 1 bit
+		.ifc \endian, SWAB_ENDIAN
+		rev_l	r3, ip
+		.if	.Lrev_l_uses_tmp
+		@ we need to recompute ip because rev_l will have overwritten
+		@ it.
+		and	ip, r2, #31		@ bit position
+		.endif
 		.endif
 		movs	r3, r3, lsr ip		@ shift off unused bits
 		bne	.L_found
-		orr	r2, r2, #7		@ if zero, then no bits here
+		orr	r2, r2, #31		@ no zero bits
 		add	r2, r2, #1		@ align bit pointer
 		b	2b			@ loop for next bit
 ENDPROC(_find_next_\name\()bit_\endian)
@@ -95,6 +96,8 @@ ENDPROC(_find_next_\name\()bit_\endian)
 /*
  * One or more bits in the LSB of r3 are assumed to be set.
  */
+.L_found_swab:
+		rev_l	r3, ip
 .L_found:
 #if __LINUX_ARM_ARCH__ >= 7
 		rbit	r3, r3			@ reverse bits
@@ -107,13 +110,20 @@ ENDPROC(_find_next_\name\()bit_\endian)
 		rsb	r3, r3, #31		@ offset of first set bit
 		add	r0, r2, r3		@ add offset of first set bit
 #else
-		tst	r3, #0x0f
+		mov	ip, #~0
+		tst	r3, ip, lsr #16		@ test bits 0-15
+		addeq	r2, r2, #16
+		moveq	r3, r3, lsr #16
+		tst	r3, #0x00ff
+		addeq	r2, r2, #8
+		moveq	r3, r3, lsr #8
+		tst	r3, #0x000f
 		addeq	r2, r2, #4
-		movne	r3, r3, lsl #4
-		tst	r3, #0x30
+		moveq	r3, r3, lsr #4
+		tst	r3, #0x0003
 		addeq	r2, r2, #2
-		movne	r3, r3, lsl #2
-		tst	r3, #0x40
+		moveq	r3, r3, lsr #2
+		tst	r3, #0x0001
 		addeq	r2, r2, #1
 		mov	r0, r2
 #endif
