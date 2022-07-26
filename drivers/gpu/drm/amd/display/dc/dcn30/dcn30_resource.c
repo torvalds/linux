@@ -927,6 +927,7 @@ static const struct encoder_feature_support link_enc_feature = {
 };
 
 static struct link_encoder *dcn30_link_encoder_create(
+	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn20_link_encoder *enc20 =
@@ -1521,25 +1522,10 @@ static bool init_soc_bounding_box(struct dc *dc,
 	loaded_ip->max_num_otg = pool->base.res_cap->num_timing_generator;
 	loaded_ip->max_num_dpp = pool->base.pipe_count;
 	loaded_ip->clamp_min_dcfclk = dc->config.clamp_min_dcfclk;
-
-	DC_FP_START();
 	dcn20_patch_bounding_box(dc, loaded_bb);
+	DC_FP_START();
+	patch_dcn30_soc_bounding_box(dc, &dcn3_0_soc);
 	DC_FP_END();
-
-	if (dc->ctx->dc_bios->funcs->get_soc_bb_info) {
-		struct bp_soc_bb_info bb_info = {0};
-
-		if (dc->ctx->dc_bios->funcs->get_soc_bb_info(dc->ctx->dc_bios, &bb_info) == BP_RESULT_OK) {
-			if (bb_info.dram_clock_change_latency_100ns > 0)
-				dcn3_0_soc.dram_clock_change_latency_us = bb_info.dram_clock_change_latency_100ns * 10;
-
-			if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
-				dcn3_0_soc.sr_enter_plus_exit_time_us = bb_info.dram_sr_enter_exit_latency_100ns * 10;
-
-			if (bb_info.dram_sr_exit_latency_100ns > 0)
-				dcn3_0_soc.sr_exit_time_us = bb_info.dram_sr_exit_latency_100ns * 10;
-		}
-	}
 
 	return true;
 }
@@ -2029,44 +2015,6 @@ void dcn30_setup_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, struct
 
 	/* Set wm_a.pstate so high natural MCLK switches are impossible: 4 seconds */
 	context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = 4U * 1000U * 1000U * 1000U;
-}
-
-/*
- * Finds dummy_latency_index when MCLK switching using firmware based
- * vblank stretch is enabled. This function will iterate through the
- * table of dummy pstate latencies until the lowest value that allows
- * dm_allow_self_refresh_and_mclk_switch to happen is found
- */
-int dcn30_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc, struct dc_state *context,
-		display_e2e_pipe_params_st *pipes, int pipe_cnt, int vlevel)
-{
-	const int max_latency_table_entries = 4;
-	int dummy_latency_index = 0;
-
-	while (dummy_latency_index < max_latency_table_entries) {
-		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
-				dc->clk_mgr->bw_params->dummy_pstate_table[dummy_latency_index].dummy_pstate_latency_us;
-		dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
-
-		if (context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank ==
-			dm_allow_self_refresh_and_mclk_switch)
-			break;
-
-		dummy_latency_index++;
-	}
-
-	if (dummy_latency_index == max_latency_table_entries) {
-		ASSERT(dummy_latency_index != max_latency_table_entries);
-		/* If the execution gets here, it means dummy p_states are
-		 * not possible. This should never happen and would mean
-		 * something is severely wrong.
-		 * Here we reset dummy_latency_index to 3, because it is
-		 * better to have underflows than system crashes.
-		 */
-		dummy_latency_index = 3;
-	}
-
-	return dummy_latency_index;
 }
 
 void dcn30_update_soc_for_wm_a(struct dc *dc, struct dc_state *context)

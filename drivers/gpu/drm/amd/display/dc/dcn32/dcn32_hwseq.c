@@ -424,7 +424,6 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 	unsigned int i = 0;
 	bool subvp_immediate_flip = false;
 	bool subvp_in_use = false;
-	bool drr_pipe = false;
 	struct pipe_ctx *pipe;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -440,12 +439,10 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 		if (top_pipe_to_program->stream->mall_stream_config.type == SUBVP_MAIN &&
 				top_pipe_to_program->plane_state->flip_immediate)
 			subvp_immediate_flip = true;
-		else if (top_pipe_to_program->stream->mall_stream_config.type == SUBVP_NONE &&
-				top_pipe_to_program->stream->ignore_msa_timing_param)
-			drr_pipe = true;
 	}
 
-	if ((subvp_in_use && (should_lock_all_pipes || subvp_immediate_flip || drr_pipe)) || (!subvp_in_use && subvp_prev_use)) {
+	// Don't need to lock for DRR VSYNC flips -- FW will wait for DRR pending update cleared.
+	if ((subvp_in_use && (should_lock_all_pipes || subvp_immediate_flip)) || (!subvp_in_use && subvp_prev_use)) {
 		union dmub_inbox0_cmd_lock_hw hw_lock_cmd = { 0 };
 
 		if (!lock) {
@@ -673,18 +670,23 @@ void dcn32_update_mall_sel(struct dc *dc, struct dc_state *context)
 {
 	int i;
 	unsigned int num_ways = dcn32_calculate_cab_allocation(dc, context);
+	bool cache_cursor = false;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
 		struct hubp *hubp = pipe->plane_res.hubp;
 
 		if (pipe->stream && pipe->plane_state && hubp && hubp->funcs->hubp_update_mall_sel) {
+			if (hubp->curs_attr.width * hubp->curs_attr.height * 4 > 16384)
+				cache_cursor = true;
+
 			if (pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
-					hubp->funcs->hubp_update_mall_sel(hubp, 1);
+					hubp->funcs->hubp_update_mall_sel(hubp, 1, false);
 			} else {
 				hubp->funcs->hubp_update_mall_sel(hubp,
 					num_ways <= dc->caps.cache_num_ways &&
-					pipe->stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED ? 2 : 0);
+					pipe->stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED ? 2 : 0,
+							cache_cursor);
 			}
 		}
 	}
@@ -1082,8 +1084,13 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	unsigned int odm_combine_factor = 0;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
-	bool two_pix_per_container = optc2_is_two_pixels_per_containter(&stream->timing);
+	bool two_pix_per_container = false;
 
+	// For phantom pipes, use the same programming as the main pipes
+	if (pipe_ctx->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+		stream = pipe_ctx->stream->mall_stream_config.paired_stream;
+	}
+	two_pix_per_container = optc2_is_two_pixels_per_containter(&stream->timing);
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
 
 	if (is_dp_128b_132b_signal(pipe_ctx)) {

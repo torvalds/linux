@@ -42,6 +42,9 @@
 #define MIN(X, Y) ((X) < (Y) ? (X) : (Y))
 #endif
 
+/* Constant */
+#define LPDDR_MEM_RETRAIN_LATENCY 4.977 /* Number obtained from LPDDR4 Training Counter Requirement doc */
+
 /**
  * DOC: DCN2x FPU manipulation Overview
  *
@@ -648,6 +651,228 @@ struct _vcs_dpi_soc_bounding_box_st dcn2_1_soc = {
 	.xfc_xbuf_latency_tolerance_us = 4,
 	.use_urgent_burst_bw = 1,
 	.num_states = 8
+};
+
+struct wm_table ddr4_wm_table_gs = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 7.09,
+			.sr_enter_plus_exit_time_us = 8.14,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 10.12,
+			.sr_enter_plus_exit_time_us = 11.48,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 10.12,
+			.sr_enter_plus_exit_time_us = 11.48,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 10.12,
+			.sr_enter_plus_exit_time_us = 11.48,
+			.valid = true,
+		},
+	}
+};
+
+struct wm_table lpddr4_wm_table_gs = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 5.32,
+			.sr_enter_plus_exit_time_us = 6.38,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.82,
+			.sr_enter_plus_exit_time_us = 11.196,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.89,
+			.sr_enter_plus_exit_time_us = 11.24,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.748,
+			.sr_enter_plus_exit_time_us = 11.102,
+			.valid = true,
+		},
+	}
+};
+
+struct wm_table lpddr4_wm_table_with_disabled_ppt = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 8.32,
+			.sr_enter_plus_exit_time_us = 9.38,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.82,
+			.sr_enter_plus_exit_time_us = 11.196,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.89,
+			.sr_enter_plus_exit_time_us = 11.24,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.748,
+			.sr_enter_plus_exit_time_us = 11.102,
+			.valid = true,
+		},
+	}
+};
+
+struct wm_table ddr4_wm_table_rn = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 11.90,
+			.sr_enter_plus_exit_time_us = 12.80,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 13.18,
+			.sr_enter_plus_exit_time_us = 14.30,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 13.18,
+			.sr_enter_plus_exit_time_us = 14.30,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 13.18,
+			.sr_enter_plus_exit_time_us = 14.30,
+			.valid = true,
+		},
+	}
+};
+
+struct wm_table ddr4_1R_wm_table_rn = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 13.90,
+			.sr_enter_plus_exit_time_us = 14.80,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 13.90,
+			.sr_enter_plus_exit_time_us = 14.80,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 13.90,
+			.sr_enter_plus_exit_time_us = 14.80,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.72,
+			.sr_exit_time_us = 13.90,
+			.sr_enter_plus_exit_time_us = 14.80,
+			.valid = true,
+		},
+	}
+};
+
+struct wm_table lpddr4_wm_table_rn = {
+	.entries = {
+		{
+			.wm_inst = WM_A,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 7.32,
+			.sr_enter_plus_exit_time_us = 8.38,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_B,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.82,
+			.sr_enter_plus_exit_time_us = 11.196,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_C,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.89,
+			.sr_enter_plus_exit_time_us = 11.24,
+			.valid = true,
+		},
+		{
+			.wm_inst = WM_D,
+			.wm_type = WM_TYPE_PSTATE_CHG,
+			.pstate_latency_us = 11.65333,
+			.sr_exit_time_us = 9.748,
+			.sr_enter_plus_exit_time_us = 11.102,
+			.valid = true,
+		},
+	}
 };
 
 void dcn20_populate_dml_writeback_from_context(struct dc *dc,
@@ -2067,4 +2292,101 @@ void dcn21_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params
 	}
 
 	dml_init_instance(&dc->dml, &dcn2_1_soc, &dcn2_1_ip, DML_PROJECT_DCN21);
+}
+
+void dcn21_clk_mgr_set_bw_params_wm_table(struct clk_bw_params *bw_params)
+{
+	dc_assert_fp_enabled();
+
+	bw_params->wm_table.entries[WM_D].pstate_latency_us = LPDDR_MEM_RETRAIN_LATENCY;
+	bw_params->wm_table.entries[WM_D].wm_inst = WM_D;
+	bw_params->wm_table.entries[WM_D].wm_type = WM_TYPE_RETRAINING;
+	bw_params->wm_table.entries[WM_D].valid = true;
+}
+
+void dcn201_populate_dml_writeback_from_context_fpu(struct dc *dc,
+						    struct resource_context *res_ctx,
+						    display_e2e_pipe_params_st *pipes)
+{
+	int pipe_cnt, i, j;
+	double max_calc_writeback_dispclk;
+	double writeback_dispclk;
+	struct writeback_st dout_wb;
+
+	dc_assert_fp_enabled();
+
+	for (i = 0, pipe_cnt = 0; i < dc->res_pool->pipe_count; i++) {
+		struct dc_stream_state *stream = res_ctx->pipe_ctx[i].stream;
+
+		if (!stream)
+			continue;
+		max_calc_writeback_dispclk = 0;
+
+		/* Set writeback information */
+		pipes[pipe_cnt].dout.wb_enable = 0;
+		pipes[pipe_cnt].dout.num_active_wb = 0;
+		for (j = 0; j < stream->num_wb_info; j++) {
+			struct dc_writeback_info *wb_info = &stream->writeback_info[j];
+
+			if (wb_info->wb_enabled && wb_info->writeback_source_plane &&
+					(wb_info->writeback_source_plane == res_ctx->pipe_ctx[i].plane_state)) {
+				pipes[pipe_cnt].dout.wb_enable = 1;
+				pipes[pipe_cnt].dout.num_active_wb++;
+				dout_wb.wb_src_height = wb_info->dwb_params.cnv_params.crop_en ?
+					wb_info->dwb_params.cnv_params.crop_height :
+					wb_info->dwb_params.cnv_params.src_height;
+				dout_wb.wb_src_width = wb_info->dwb_params.cnv_params.crop_en ?
+					wb_info->dwb_params.cnv_params.crop_width :
+					wb_info->dwb_params.cnv_params.src_width;
+				dout_wb.wb_dst_width = wb_info->dwb_params.dest_width;
+				dout_wb.wb_dst_height = wb_info->dwb_params.dest_height;
+				dout_wb.wb_htaps_luma = wb_info->dwb_params.scaler_taps.h_taps;
+				dout_wb.wb_vtaps_luma = wb_info->dwb_params.scaler_taps.v_taps;;
+				dout_wb.wb_htaps_chroma = wb_info->dwb_params.scaler_taps.h_taps_c;
+				dout_wb.wb_vtaps_chroma = wb_info->dwb_params.scaler_taps.v_taps_c;
+				dout_wb.wb_hratio = wb_info->dwb_params.cnv_params.crop_en ?
+					(double)wb_info->dwb_params.cnv_params.crop_width /
+						(double)wb_info->dwb_params.dest_width :
+					(double)wb_info->dwb_params.cnv_params.src_width /
+						(double)wb_info->dwb_params.dest_width;
+				dout_wb.wb_vratio = wb_info->dwb_params.cnv_params.crop_en ?
+					(double)wb_info->dwb_params.cnv_params.crop_height /
+						(double)wb_info->dwb_params.dest_height :
+					(double)wb_info->dwb_params.cnv_params.src_height /
+						(double)wb_info->dwb_params.dest_height;
+				if (wb_info->dwb_params.out_format == dwb_scaler_mode_yuv420) {
+					if (wb_info->dwb_params.output_depth == DWB_OUTPUT_PIXEL_DEPTH_8BPC)
+						dout_wb.wb_pixel_format = dm_420_8;
+					else
+						dout_wb.wb_pixel_format = dm_420_10;
+				} else
+					dout_wb.wb_pixel_format = dm_444_32;
+
+				/* Workaround for cases where multiple writebacks are connected to same plane
+				 * In which case, need to compute worst case and set the associated writeback parameters
+				 * This workaround is necessary due to DML computation assuming only 1 set of writeback
+				 * parameters per pipe */
+				writeback_dispclk = CalculateWriteBackDISPCLK(
+						dout_wb.wb_pixel_format,
+						pipes[pipe_cnt].pipe.dest.pixel_rate_mhz,
+						dout_wb.wb_hratio,
+						dout_wb.wb_vratio,
+						dout_wb.wb_htaps_luma,
+						dout_wb.wb_vtaps_luma,
+						dout_wb.wb_htaps_chroma,
+						dout_wb.wb_vtaps_chroma,
+						dout_wb.wb_dst_width,
+						pipes[pipe_cnt].pipe.dest.htotal,
+						2);
+
+				if (writeback_dispclk > max_calc_writeback_dispclk) {
+					max_calc_writeback_dispclk = writeback_dispclk;
+					pipes[pipe_cnt].dout.wb = dout_wb;
+				}
+			}
+		}
+
+		pipe_cnt++;
+	}
+
 }

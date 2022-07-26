@@ -47,6 +47,10 @@ struct amdgpu_bo_list {
 	struct amdgpu_bo *oa_obj;
 	unsigned first_userptr;
 	unsigned num_entries;
+
+	/* Protect access during command submission.
+	 */
+	struct mutex bo_list_mutex;
 };
 
 int amdgpu_bo_list_get(struct amdgpu_fpriv *fpriv, int id,

@@ -96,6 +96,7 @@ struct resource_funcs {
 	struct panel_cntl*(*panel_cntl_create)(
 		const struct panel_cntl_init_data *panel_cntl_init_data);
 	struct link_encoder *(*link_enc_create)(
+			struct dc_context *ctx,
 			const struct encoder_init_data *init);
 	/* Create a minimal link encoder object with no dc_link object
 	 * associated with it. */

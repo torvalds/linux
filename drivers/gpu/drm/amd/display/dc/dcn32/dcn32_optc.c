@@ -26,9 +26,11 @@
 #include "dcn32_optc.h"
 
 #include "dcn30/dcn30_optc.h"
+#include "dcn31/dcn31_optc.h"
 #include "reg_helper.h"
 #include "dc.h"
 #include "dcn_calc_math.h"
+#include "dc_dmub_srv.h"
 
 #define REG(reg)\
 	optc1->tg_regs->reg
@@ -188,6 +190,65 @@ static void optc32_set_odm_bypass(struct timing_generator *optc,
 	optc1->opp_count = 1;
 }
 
+void optc32_setup_manual_trigger(struct timing_generator *optc)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	struct dc *dc = optc->ctx->dc;
+
+	if (dc->caps.dmub_caps.mclk_sw && !dc->debug.disable_fams)
+		dc_dmub_srv_set_drr_manual_trigger_cmd(dc, optc->inst);
+	else {
+		/*
+		 * MIN_MASK_EN is gone and MASK is now always enabled.
+		 *
+		 * To get it to it work with manual trigger we need to make sure
+		 * we program the correct bit.
+		 */
+		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
+				OTG_V_TOTAL_MIN_SEL, 1,
+				OTG_V_TOTAL_MAX_SEL, 1,
+				OTG_FORCE_LOCK_ON_EVENT, 0,
+				OTG_SET_V_TOTAL_MIN_MASK, (1 << 1)); /* TRIGA */
+
+		// Setup manual flow control for EOF via TRIG_A
+		optc->funcs->setup_manual_trigger(optc);
+	}
+}
+
+void optc32_set_drr(
+	struct timing_generator *optc,
+	const struct drr_params *params)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	if (params != NULL &&
+		params->vertical_total_max > 0 &&
+		params->vertical_total_min > 0) {
+
+		if (params->vertical_total_mid != 0) {
+
+			REG_SET(OTG_V_TOTAL_MID, 0,
+				OTG_V_TOTAL_MID, params->vertical_total_mid - 1);
+
+			REG_UPDATE_2(OTG_V_TOTAL_CONTROL,
+					OTG_VTOTAL_MID_REPLACING_MAX_EN, 1,
+					OTG_VTOTAL_MID_FRAME_NUM,
+					(uint8_t)params->vertical_total_mid_frame_num);
+
+		}
+
+		optc->funcs->set_vtotal_min_max(optc, params->vertical_total_min - 1, params->vertical_total_max - 1);
+		optc32_setup_manual_trigger(optc);
+	} else {
+		REG_UPDATE_4(OTG_V_TOTAL_CONTROL,
+				OTG_SET_V_TOTAL_MIN_MASK, 0,
+				OTG_V_TOTAL_MIN_SEL, 0,
+				OTG_V_TOTAL_MAX_SEL, 0,
+				OTG_FORCE_LOCK_ON_EVENT, 0);
+
+		optc->funcs->set_vtotal_min_max(optc, 0, 0);
+	}
+}
 
 static struct timing_generator_funcs dcn32_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
@@ -221,7 +282,7 @@ static struct timing_generator_funcs dcn32_tg_funcs = {
 		.lock_doublebuffer_disable = optc3_lock_doublebuffer_disable,
 		.enable_optc_clock = optc1_enable_optc_clock,
 		.set_vrr_m_const = optc3_set_vrr_m_const,
-		.set_drr = optc1_set_drr,
+		.set_drr = optc31_set_drr, // TODO: Update to optc32_set_drr once FW headers are promoted
 		.get_last_used_drr_vtotal = optc2_get_last_used_drr_vtotal,
 		.set_vtotal_min_max = optc3_set_vtotal_min_max,
 		.set_static_screen_control = optc1_set_static_screen_control,

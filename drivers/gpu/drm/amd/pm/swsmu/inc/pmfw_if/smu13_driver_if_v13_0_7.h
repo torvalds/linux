@@ -25,10 +25,10 @@
 
 // *** IMPORTANT ***
 // PMFW TEAM: Always increment the interface version on any change to this file
-#define SMU13_DRIVER_IF_VERSION  0x2A
+#define SMU13_DRIVER_IF_VERSION  0x2C
 
 //Increment this version if SkuTable_t or BoardTable_t change
-#define PPTABLE_VERSION 0x1E
+#define PPTABLE_VERSION 0x20
 
 #define NUM_GFXCLK_DPM_LEVELS    16
 #define NUM_SOCCLK_DPM_LEVELS    8
@@ -152,6 +152,7 @@ typedef enum {
 #define DEBUG_OVERRIDE_DISABLE_DFLL                    0x00000200
 #define DEBUG_OVERRIDE_ENABLE_RLC_VF_BRINGUP_MODE      0x00000400
 #define DEBUG_OVERRIDE_DFLL_MASTER_MODE                0x00000800
+#define DEBUG_OVERRIDE_ENABLE_PROFILING_MODE           0x00001000
 
 // VR Mapping Bit Defines
 #define VR_MAPPING_VR_SELECT_MASK  0x01
@@ -1014,8 +1015,8 @@ typedef struct {
   uint16_t        Vmin_Hot_Eol[PMFW_VOLT_PLANE_COUNT];           //In mV(Q2) End-of-life Vset to be used at hot.
   uint16_t        Vmin_Cold_Eol[PMFW_VOLT_PLANE_COUNT];          //In mV(Q2) End-of-life Vset to be used at cold.
   uint16_t        Vmin_Aging_Offset[PMFW_VOLT_PLANE_COUNT];      //In mV(Q2) Worst-case aging margin
-  uint16_t        Vmin_Plat_Offset_Hot[PMFW_VOLT_PLANE_COUNT];   //In mV(Q2) Platform offset apply to T0 Hot
-  uint16_t        Vmin_Plat_Offset_Cold[PMFW_VOLT_PLANE_COUNT];  //In mV(Q2) Platform offset apply to T0 Cold
+  uint16_t        Spare_Vmin_Plat_Offset_Hot[PMFW_VOLT_PLANE_COUNT];   //In mV(Q2) Platform offset apply to T0 Hot
+  uint16_t        Spare_Vmin_Plat_Offset_Cold[PMFW_VOLT_PLANE_COUNT];  //In mV(Q2) Platform offset apply to T0 Cold
 
   //This is a fixed/minimum VMIN aging degradation offset which is applied at T0. This reflects the minimum amount of aging already accounted for.
   uint16_t        VcBtcFixedVminAgingOffset[PMFW_VOLT_PLANE_COUNT];
@@ -1081,11 +1082,15 @@ typedef struct {
 
   uint16_t        GfxclkFreqGfxUlv; // in MHz
   uint8_t         GfxIdlePadding2[2];
-
-  uint32_t        GfxoffSpare[16];
+  uint32_t        GfxOffEntryHysteresis; //For RLC to count after it enters CGCG, and before triggers GFXOFF entry
+  uint32_t        GfxoffSpare[15];
 
   // GFX GPO
-  uint32_t        GfxGpoSpare[16];
+  float           DfllBtcMasterScalerM;
+  int32_t         DfllBtcMasterScalerB;
+  float           DfllBtcSlaveScalerM;
+  int32_t         DfllBtcSlaveScalerB;
+  uint32_t        GfxGpoSpare[12];
 
   // GFX DCS
 
@@ -1326,8 +1331,11 @@ typedef struct {
   uint32_t    PostVoltageSetBacoDelay; // in microseconds. Amount of time FW will wait after power good is established or PSI0 command is issued
   uint32_t    BacoEntryDelay; // in milliseconds. Amount of time FW will wait to trigger BACO entry after receiving entry notification from OS
 
+  uint8_t     FuseWritePowerMuxPresent;
+  uint8_t     FuseWritePadding[3];
+
   // SECTION: Board Reserved
-  uint32_t     BoardSpare[64];
+  uint32_t     BoardSpare[63];
 
   // SECTION: Structure Padding
 

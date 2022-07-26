@@ -211,7 +211,8 @@ static void dccg32_get_dccg_ref_freq(struct dccg *dccg,
 void dccg32_set_dpstreamclk(
 		struct dccg *dccg,
 		enum streamclk_source src,
-		int otg_inst)
+		int otg_inst,
+		int dp_hpo_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 

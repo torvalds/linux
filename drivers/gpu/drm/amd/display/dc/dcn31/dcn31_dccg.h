@@ -161,11 +161,6 @@ struct dccg *dccg31_create(
 
 void dccg31_init(struct dccg *dccg);
 
-void dccg31_set_dpstreamclk(
-		struct dccg *dccg,
-		enum streamclk_source src,
-		int otg_inst);
-
 void dccg31_enable_symclk32_se(
 		struct dccg *dccg,
 		int hpo_se_inst,
@@ -207,7 +202,8 @@ void dccg31_get_dccg_ref_freq(
 void dccg31_set_dpstreamclk(
 	struct dccg *dccg,
 	enum streamclk_source src,
-	int otg_inst);
+	int otg_inst,
+	int dp_hpo_inst);
 
 void dccg31_set_dtbclk_dto(
 		struct dccg *dccg,

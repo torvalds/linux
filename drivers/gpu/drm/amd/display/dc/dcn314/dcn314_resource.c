@@ -69,6 +69,7 @@
 #include "virtual/virtual_stream_encoder.h"
 #include "dce110/dce110_resource.h"
 #include "dml/display_mode_vba.h"
+#include "dml/dcn31/dcn31_fpu.h"
 #include "dcn314/dcn314_dccg.h"
 #include "dcn10/dcn10_resource.h"
 #include "dcn31/dcn31_panel_cntl.h"
@@ -1261,6 +1262,7 @@ static const struct encoder_feature_support link_enc_feature = {
 };
 
 static struct link_encoder *dcn31_link_encoder_create(
+	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn20_link_encoder *enc20 =
@@ -1781,7 +1783,7 @@ static struct clock_source *dcn31_clock_source_create(
 	if (!clk_src)
 		return NULL;
 
-	if (dcn3_clk_src_construct(clk_src, ctx, bios, id,
+	if (dcn31_clk_src_construct(clk_src, ctx, bios, id,
 			regs, &cs_shift, &cs_mask)) {
 		clk_src->base.dp_clk_src = dp_clk_src;
 		return &clk_src->base;
@@ -1915,8 +1917,11 @@ static void dcn314_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *b
 
 		dcn3_14_ip.max_num_otg = dc->res_pool->res_cap->num_timing_generator;
 		dcn3_14_ip.max_num_dpp = dc->res_pool->pipe_count;
-		dcn3_14_soc.num_chans = bw_params->num_channels;
 
+		if (bw_params->num_channels > 0)
+			dcn3_14_soc.num_chans = bw_params->num_channels;
+
+		ASSERT(dcn3_14_soc.num_chans);
 		ASSERT(clk_table->num_entries);
 
 		/* Prepass to find max clocks independent of voltage level. */

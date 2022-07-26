@@ -338,3 +338,39 @@ void dcn314_enable_power_gating_plane(struct dce_hwseq *hws, bool enable)
 	if (org_ip_request_cntl == 0)
 		REG_SET(DC_IP_REQUEST_CNTL, 0, IP_REQUEST_EN, 0);
 }
+
+unsigned int dcn314_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsigned int *k1_div, unsigned int *k2_div)
+{
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	unsigned int odm_combine_factor = 0;
+
+	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
+
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		*k2_div = PIXEL_RATE_DIV_BY_1;
+	} else if (dc_is_hdmi_tmds_signal(pipe_ctx->stream->signal) || dc_is_dvi_signal(pipe_ctx->stream->signal)) {
+		*k1_div = PIXEL_RATE_DIV_BY_1;
+		if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420)
+			*k2_div = PIXEL_RATE_DIV_BY_2;
+		else
+			*k2_div = PIXEL_RATE_DIV_BY_4;
+	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+		if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR420) {
+			*k1_div = PIXEL_RATE_DIV_BY_1;
+			*k2_div = PIXEL_RATE_DIV_BY_2;
+		} else if (stream->timing.pixel_encoding == PIXEL_ENCODING_YCBCR422) {
+			*k1_div = PIXEL_RATE_DIV_BY_2;
+			*k2_div = PIXEL_RATE_DIV_BY_2;
+		} else {
+			if (odm_combine_factor == 1)
+				*k2_div = PIXEL_RATE_DIV_BY_4;
+			else if (odm_combine_factor == 2)
+				*k2_div = PIXEL_RATE_DIV_BY_2;
+		}
+	}
+
+	if ((*k1_div == PIXEL_RATE_DIV_NA) && (*k2_div == PIXEL_RATE_DIV_NA))
+		ASSERT(false);
+
+	return odm_combine_factor;
+}

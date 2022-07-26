@@ -45,6 +45,13 @@ enum amdgpu_int_thermal_type {
 	THERMAL_TYPE_KV,
 };
 
+enum amdgpu_runpm_mode {
+	AMDGPU_RUNPM_NONE,
+	AMDGPU_RUNPM_PX,
+	AMDGPU_RUNPM_BOCO,
+	AMDGPU_RUNPM_BACO,
+};
+
 struct amdgpu_ps {
 	u32 caps; /* vbios flags */
 	u32 class; /* vbios flags */
@@ -355,6 +362,8 @@ struct amdgpu_pm {
 	struct amdgpu_ctx       *stable_pstate_ctx;
 
 	struct config_table_setting config_table;
+	/* runtime mode */
+	enum amdgpu_runpm_mode rpm_mode;
 };
 
 int amdgpu_dpm_read_sensor(struct amdgpu_device *adev, enum amd_pp_sensors sensor,

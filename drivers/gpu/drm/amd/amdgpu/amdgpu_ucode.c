@@ -561,6 +561,16 @@ const char *amdgpu_ucode_name(enum AMDGPU_UCODE_ID ucode_id)
 		return "RLC_P";
 	case AMDGPU_UCODE_ID_RLC_V:
 		return "RLC_V";
+	case AMDGPU_UCODE_ID_GLOBAL_TAP_DELAYS:
+		return "GLOBAL_TAP_DELAYS";
+	case AMDGPU_UCODE_ID_SE0_TAP_DELAYS:
+		return "SE0_TAP_DELAYS";
+	case AMDGPU_UCODE_ID_SE1_TAP_DELAYS:
+		return "SE1_TAP_DELAYS";
+	case AMDGPU_UCODE_ID_SE2_TAP_DELAYS:
+		return "SE2_TAP_DELAYS";
+	case AMDGPU_UCODE_ID_SE3_TAP_DELAYS:
+		return "SE3_TAP_DELAYS";
 	case AMDGPU_UCODE_ID_IMU_I:
 		return "IMU_I";
 	case AMDGPU_UCODE_ID_IMU_D:
@@ -744,6 +754,26 @@ static int amdgpu_ucode_init_single_fw(struct amdgpu_device *adev,
 		case AMDGPU_UCODE_ID_RLC_V:
 			ucode->ucode_size = adev->gfx.rlc.rlcv_ucode_size_bytes;
 			ucode_addr = adev->gfx.rlc.rlcv_ucode;
+			break;
+		case AMDGPU_UCODE_ID_GLOBAL_TAP_DELAYS:
+			ucode->ucode_size = adev->gfx.rlc.global_tap_delays_ucode_size_bytes;
+			ucode_addr = adev->gfx.rlc.global_tap_delays_ucode;
+			break;
+		case AMDGPU_UCODE_ID_SE0_TAP_DELAYS:
+			ucode->ucode_size = adev->gfx.rlc.se0_tap_delays_ucode_size_bytes;
+			ucode_addr = adev->gfx.rlc.se0_tap_delays_ucode;
+			break;
+		case AMDGPU_UCODE_ID_SE1_TAP_DELAYS:
+			ucode->ucode_size = adev->gfx.rlc.se1_tap_delays_ucode_size_bytes;
+			ucode_addr = adev->gfx.rlc.se1_tap_delays_ucode;
+			break;
+		case AMDGPU_UCODE_ID_SE2_TAP_DELAYS:
+			ucode->ucode_size = adev->gfx.rlc.se2_tap_delays_ucode_size_bytes;
+			ucode_addr = adev->gfx.rlc.se2_tap_delays_ucode;
+			break;
+		case AMDGPU_UCODE_ID_SE3_TAP_DELAYS:
+			ucode->ucode_size = adev->gfx.rlc.se3_tap_delays_ucode_size_bytes;
+			ucode_addr = adev->gfx.rlc.se3_tap_delays_ucode;
 			break;
 		case AMDGPU_UCODE_ID_CP_MES:
 			ucode->ucode_size = le32_to_cpu(mes_hdr->mes_ucode_size_bytes);

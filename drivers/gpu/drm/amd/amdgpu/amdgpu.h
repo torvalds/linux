@@ -197,6 +197,7 @@ extern uint amdgpu_smu_memory_pool_size;
 extern int amdgpu_smu_pptable_id;
 extern uint amdgpu_dc_feature_mask;
 extern uint amdgpu_dc_debug_mask;
+extern uint amdgpu_dc_visual_confirm;
 extern uint amdgpu_dm_abm_level;
 extern int amdgpu_backlight;
 extern struct amdgpu_mgpu_info mgpu_info;
@@ -1011,7 +1012,6 @@ struct amdgpu_device {
 	uint64_t	df_perfmon_config_assign_mask[AMDGPU_MAX_DF_PERFMONS];
 
 	/* enable runtime pm on the device */
-	bool                            runpm;
 	bool                            in_runpm;
 	bool                            has_pr3;
 

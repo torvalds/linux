@@ -925,6 +925,7 @@ static const struct encoder_feature_support link_enc_feature = {
 };
 
 struct link_encoder *dcn20_link_encoder_create(
+	struct dc_context *ctx,
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn20_link_encoder *enc20 =
@@ -1268,7 +1269,6 @@ static void get_pixel_clock_parameters(
 		pixel_clk_params->requested_pix_clk_100hz /= 4;
 	else if (optc2_is_two_pixels_per_containter(&stream->timing) || opp_cnt == 2)
 		pixel_clk_params->requested_pix_clk_100hz /= 2;
-
 	else if (hws->funcs.is_dp_dig_pixel_rate_div_policy) {
 		if (hws->funcs.is_dp_dig_pixel_rate_div_policy(pipe_ctx))
 			pixel_clk_params->requested_pix_clk_100hz /= 2;

@@ -2168,6 +2168,21 @@ static int psp_get_fw_type(struct amdgpu_firmware_info *ucode,
 	case AMDGPU_UCODE_ID_RLC_DRAM:
 		*type = GFX_FW_TYPE_RLC_DRAM_BOOT;
 		break;
+	case AMDGPU_UCODE_ID_GLOBAL_TAP_DELAYS:
+		*type = GFX_FW_TYPE_GLOBAL_TAP_DELAYS;
+		break;
+	case AMDGPU_UCODE_ID_SE0_TAP_DELAYS:
+		*type = GFX_FW_TYPE_SE0_TAP_DELAYS;
+		break;
+	case AMDGPU_UCODE_ID_SE1_TAP_DELAYS:
+		*type = GFX_FW_TYPE_SE1_TAP_DELAYS;
+		break;
+	case AMDGPU_UCODE_ID_SE2_TAP_DELAYS:
+		*type = GFX_FW_TYPE_SE2_TAP_DELAYS;
+		break;
+	case AMDGPU_UCODE_ID_SE3_TAP_DELAYS:
+		*type = GFX_FW_TYPE_SE3_TAP_DELAYS;
+		break;
 	case AMDGPU_UCODE_ID_SMC:
 		*type = GFX_FW_TYPE_SMU;
 		break;
@@ -2347,6 +2362,13 @@ static int psp_load_smu_fw(struct psp_context *psp)
 	struct amdgpu_firmware_info *ucode =
 			&adev->firmware.ucode[AMDGPU_UCODE_ID_SMC];
 	struct amdgpu_ras *ras = psp->ras_context.ras;
+
+	/*
+	 * Skip SMU FW reloading in case of using BACO for runpm only,
+	 * as SMU is always alive.
+	 */
+	if (adev->in_runpm && (adev->pm.rpm_mode == AMDGPU_RUNPM_BACO))
+		return 0;
 
 	if (!ucode->fw || amdgpu_sriov_vf(psp->adev))
 		return 0;

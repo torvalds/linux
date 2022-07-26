@@ -43,17 +43,6 @@
 #include "amdgpu_display.h"
 #include "amdgpu_ras.h"
 
-static void amdgpu_runtime_pm_quirk(struct amdgpu_device *adev)
-{
-	/*
-	 * Add below quirk on several sienna_cichlid cards to disable
-	 * runtime pm to fix EMI failures.
-	 */
-	if (((adev->pdev->device == 0x73A1) && (adev->pdev->revision == 0x00)) ||
-	    ((adev->pdev->device == 0x73BF) && (adev->pdev->revision == 0xCF)))
-		adev->runpm = false;
-}
-
 void amdgpu_unregister_gpu_instance(struct amdgpu_device *adev)
 {
 	struct amdgpu_gpu_instance *gpu_instance;
@@ -158,37 +147,36 @@ int amdgpu_driver_load_kms(struct amdgpu_device *adev, unsigned long flags)
 		goto out;
 	}
 
+	adev->pm.rpm_mode = AMDGPU_RUNPM_NONE;
 	if (amdgpu_device_supports_px(dev) &&
-	    (amdgpu_runtime_pm != 0)) { /* enable runpm by default for atpx */
-		adev->runpm = true;
+	    (amdgpu_runtime_pm != 0)) { /* enable PX as runtime mode */
+		adev->pm.rpm_mode = AMDGPU_RUNPM_PX;
 		dev_info(adev->dev, "Using ATPX for runtime pm\n");
 	} else if (amdgpu_device_supports_boco(dev) &&
-		   (amdgpu_runtime_pm != 0)) { /* enable runpm by default for boco */
-		adev->runpm = true;
+		   (amdgpu_runtime_pm != 0)) { /* enable boco as runtime mode */
+		adev->pm.rpm_mode = AMDGPU_RUNPM_BOCO;
 		dev_info(adev->dev, "Using BOCO for runtime pm\n");
 	} else if (amdgpu_device_supports_baco(dev) &&
 		   (amdgpu_runtime_pm != 0)) {
 		switch (adev->asic_type) {
 		case CHIP_VEGA20:
 		case CHIP_ARCTURUS:
-			/* enable runpm if runpm=1 */
+			/* enable BACO as runpm mode if runpm=1 */
 			if (amdgpu_runtime_pm > 0)
-				adev->runpm = true;
+				adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
 			break;
 		case CHIP_VEGA10:
-			/* turn runpm on if noretry=0 */
+			/* enable BACO as runpm mode if noretry=0 */
 			if (!adev->gmc.noretry)
-				adev->runpm = true;
+				adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
 			break;
 		default:
-			/* enable runpm on CI+ */
-			adev->runpm = true;
+			/* enable BACO as runpm mode on CI+ */
+			adev->pm.rpm_mode = AMDGPU_RUNPM_BACO;
 			break;
 		}
 
-		amdgpu_runtime_pm_quirk(adev);
-
-		if (adev->runpm)
+		if (adev->pm.rpm_mode == AMDGPU_RUNPM_BACO)
 			dev_info(adev->dev, "Using BACO for runtime pm\n");
 	}
 
@@ -473,6 +461,30 @@ static int amdgpu_hw_ip_info(struct amdgpu_device *adev,
 
 	result->hw_ip_version_major = adev->ip_blocks[i].version->major;
 	result->hw_ip_version_minor = adev->ip_blocks[i].version->minor;
+
+	if (adev->asic_type >= CHIP_VEGA10) {
+		switch (type) {
+		case AMD_IP_BLOCK_TYPE_GFX:
+			result->ip_discovery_version = adev->ip_versions[GC_HWIP][0];
+			break;
+		case AMD_IP_BLOCK_TYPE_SDMA:
+			result->ip_discovery_version = adev->ip_versions[SDMA0_HWIP][0];
+			break;
+		case AMD_IP_BLOCK_TYPE_UVD:
+		case AMD_IP_BLOCK_TYPE_VCN:
+		case AMD_IP_BLOCK_TYPE_JPEG:
+			result->ip_discovery_version = adev->ip_versions[UVD_HWIP][0];
+			break;
+		case AMD_IP_BLOCK_TYPE_VCE:
+			result->ip_discovery_version = adev->ip_versions[VCE_HWIP][0];
+			break;
+		default:
+			result->ip_discovery_version = 0;
+			break;
+		}
+	} else {
+		result->ip_discovery_version = 0;
+	}
 	result->capabilities_flags = 0;
 	result->available_rings = (1 << num_rings) - 1;
 	result->ib_start_alignment = ib_start_alignment;

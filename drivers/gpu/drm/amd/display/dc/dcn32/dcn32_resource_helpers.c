@@ -26,49 +26,7 @@
 // header file of functions being implemented
 #include "dcn32_resource.h"
 #include "dcn20/dcn20_resource.h"
-/**
- * ********************************************************************************************
- * dcn32_helper_populate_phantom_dlg_params: Get DLG params for phantom pipes and populate pipe_ctx
- * with those params.
- *
- * This function must be called AFTER the phantom pipes are added to context and run through DML
- * (so that the DLG params for the phantom pipes can be populated), and BEFORE we program the
- * timing for the phantom pipes.
- *
- * @param [in] dc: current dc state
- * @param [in] context: new dc state
- * @param [in] pipes: DML pipe params array
- * @param [in] pipe_cnt: DML pipe count
- *
- * @return: void
- *
- * ********************************************************************************************
- */
-void dcn32_helper_populate_phantom_dlg_params(struct dc *dc,
-		struct dc_state *context,
-		display_e2e_pipe_params_st *pipes,
-		int pipe_cnt)
-{
-	uint32_t i, pipe_idx;
-	for (i = 0, pipe_idx = 0; i < dc->res_pool->pipe_count; i++) {
-		struct pipe_ctx *pipe = &context->res_ctx.pipe_ctx[i];
-		if (!pipe->stream)
-			continue;
-
-		if (pipe->plane_state && pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
-			pipes[pipe_idx].pipe.dest.vstartup_start = get_vstartup(&context->bw_ctx.dml, pipes, pipe_cnt,
-					pipe_idx);
-			pipes[pipe_idx].pipe.dest.vupdate_offset = get_vupdate_offset(&context->bw_ctx.dml, pipes, pipe_cnt,
-					pipe_idx);
-			pipes[pipe_idx].pipe.dest.vupdate_width = get_vupdate_width(&context->bw_ctx.dml, pipes, pipe_cnt,
-					pipe_idx);
-			pipes[pipe_idx].pipe.dest.vready_offset = get_vready_offset(&context->bw_ctx.dml, pipes, pipe_cnt,
-					pipe_idx);
-			pipe->pipe_dlg_param = pipes[pipe_idx].pipe.dest;
-		}
-		pipe_idx++;
-	}
-}
+#include "dml/dcn32/display_mode_vba_util_32.h"
 
 /**
  * ********************************************************************************************
@@ -93,6 +51,9 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 	uint32_t cache_lines_used = 0;
 	uint32_t lines_per_way = 0;
 	uint32_t total_cache_lines = 0;
+	uint32_t bytes_in_mall = 0;
+	uint32_t num_mblks = 0;
+	uint32_t cache_lines_per_plane = 0;
 	uint32_t i = 0;
 
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
@@ -103,9 +64,19 @@ uint32_t dcn32_helper_calculate_num_ways_for_subvp(struct dc *dc, struct dc_stat
 				pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
 			bytes_per_pixel = pipe->plane_state->format >= SURFACE_PIXEL_FORMAT_GRPH_ARGB16161616 ? 8 : 4;
 			mall_region_pixels = pipe->stream->timing.h_addressable * pipe->stream->timing.v_addressable;
+
+			// For bytes required in MALL, calculate based on number of MBlks required
+			num_mblks = (mall_region_pixels * bytes_per_pixel +
+					DCN3_2_MALL_MBLK_SIZE_BYTES - 1) / DCN3_2_MALL_MBLK_SIZE_BYTES;
+			bytes_in_mall = num_mblks * DCN3_2_MALL_MBLK_SIZE_BYTES;
 			// cache lines used is total bytes / cache_line size. Add +2 for worst case alignment
 			// (MALL is 64-byte aligned)
-			cache_lines_used += (bytes_per_pixel * mall_region_pixels) / dc->caps.cache_line_size + 2;
+			cache_lines_per_plane = bytes_in_mall / dc->caps.cache_line_size + 2;
+
+			// For DCC we must cache the meat surface, so double cache lines required
+			if (pipe->plane_state->dcc.enable)
+				cache_lines_per_plane *= 2;
+			cache_lines_used += cache_lines_per_plane;
 		}
 	}
 
@@ -195,66 +166,47 @@ bool dcn32_subvp_in_use(struct dc *dc,
 	return false;
 }
 
-/* For MPO we adjust the DET allocation to ensure we have enough DET buffer when an MPO pipe
- * is removed. For example for 1 MPO + 1 non-MPO normally we would allocate 6 DET segments
- * for each pipe [6, 6, 6]. But when transitioning out of MPO it would change from
- * [6, 6, 6] -> [9, 9]. However, if VUPDATE for the non-MPO pipe comes first we would be
- * trying to allocate more DET than what's currently available which would result in underflow.
- *
- * In this case we must ensure there is enough buffer when transitioning in and out of MPO:
- *
- * 1 MPO (2 plane) + 1 non-MPO case:
- * [4, 4, 9]<->[9, 9]: Allocate 4 each for MPO pipes, and maintain 9 for non-MPO pipe
- *
- * 1 MPO (2 plane) + 2 non-MPO case:
- * [3, 3, 5, 5]<->[6, 6, 6]
- *
- * 1 MPO (3 plane) + 1 non-MPO case:
- * [3, 3, 3, 9]<->[4, 4, 9] or [3, 3, 3, 6]<->[9, 9]
- *
- * For multi-display MPO case all pipes will have 4 segments:
- * Removing MPO on one of the displays will result in 3 pipes
- * (1 MPO and 1 non-MPO which is covered by single MPO stream case).
- */
-void dcn32_update_det_override_for_mpo(struct dc *dc, struct dc_state *context,
-	display_e2e_pipe_params_st *pipes)
+bool dcn32_mpo_in_use(struct dc_state *context)
 {
-	uint8_t i, mpo_stream_index, pipe_cnt;
-	uint8_t mpo_stream_count = 0;
-	uint8_t mpo_planes = 0; // Only used in single display MPO case
-	unsigned int j;
-	struct resource_context *res_ctx = &context->res_ctx;
+	uint32_t i;
 
 	for (i = 0; i < context->stream_count; i++) {
-		if (context->stream_status[i].plane_count > 1) {
-			mpo_stream_index = i;
-			mpo_stream_count++;
-			mpo_planes = context->stream_status[i].plane_count;
-		}
+		if (context->stream_status[i].plane_count > 1)
+			return true;
 	}
+	return false;
+}
 
-	if (mpo_stream_count == 1) {
-		for (j = 0, pipe_cnt = 0; j < dc->res_pool->pipe_count; j++) {
-			if (!res_ctx->pipe_ctx[j].stream)
-				continue;
+void dcn32_determine_det_override(struct dc_state *context, display_e2e_pipe_params_st *pipes,
+		bool *is_pipe_split_expected, int pipe_cnt)
+{
+	int i, j, count, stream_segments, pipe_segments[MAX_PIPES];
 
-			if (context->res_ctx.pipe_ctx[j].stream == context->streams[mpo_stream_index]) {
-				// For 3 plane MPO + 1 non-MPO, do [3, 3, 3, 9]
-				// For 2 plane MPO + 1 non-MPO, do [4, 4, 9]
-				if (context->stream_count - mpo_stream_count == 1)
-					pipes[pipe_cnt].pipe.src.det_size_override = DCN3_2_DET_SEG_SIZE * (mpo_planes == 2 ? 4 : 3);
-				else if (context->stream_count - mpo_stream_count == 2)
-					pipes[pipe_cnt].pipe.src.det_size_override = DCN3_2_DET_SEG_SIZE * 3;
-
-			} else if (context->res_ctx.pipe_ctx[j].stream &&
-					context->res_ctx.pipe_ctx[j].stream != context->streams[mpo_stream_index]) {
-				// Update for non-MPO pipes
-				if (context->stream_count - mpo_stream_count == 1)
-					pipes[pipe_cnt].pipe.src.det_size_override = DCN3_2_DET_SEG_SIZE * 9;
-				else if (context->stream_count - mpo_stream_count == 2)
-					pipes[pipe_cnt].pipe.src.det_size_override = DCN3_2_DET_SEG_SIZE * 5;
+	if (context->stream_count > 0) {
+		stream_segments = 18 / context->stream_count;
+		for (i = 0; i < context->stream_count; i++) {
+			count = 0;
+			for (j = 0; j < pipe_cnt; j++) {
+				if (context->res_ctx.pipe_ctx[j].stream == context->streams[i]) {
+					count++;
+					if (is_pipe_split_expected[j])
+						count++;
+				}
 			}
-			pipe_cnt++;
+			pipe_segments[i] = stream_segments / count;
 		}
+
+		for (i = 0; i < pipe_cnt; i++) {
+			pipes[i].pipe.src.det_size_override = 0;
+			for (j = 0; j < context->stream_count; j++) {
+				if (context->res_ctx.pipe_ctx[i].stream == context->streams[j]) {
+					pipes[i].pipe.src.det_size_override = pipe_segments[j] * DCN3_2_DET_SEG_SIZE;
+					break;
+				}
+			}
+		}
+	} else {
+		for (i = 0; i < pipe_cnt; i++)
+			pipes[i].pipe.src.det_size_override = 4 * DCN3_2_DET_SEG_SIZE; //DCN3_2_DEFAULT_DET_SIZE
 	}
 }

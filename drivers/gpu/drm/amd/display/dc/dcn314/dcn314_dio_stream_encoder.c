@@ -50,6 +50,26 @@
 	enc1->base.ctx
 
 
+static void enc314_enable_fifo(struct stream_encoder *enc)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	/* TODO: Confirm if we need to wait for DIG_SYMCLK_FE_ON */
+	REG_WAIT(DIG_FE_CNTL, DIG_SYMCLK_FE_ON, 1, 10, 5000);
+	REG_UPDATE_2(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 1, DIG_FIFO_READ_START_LEVEL, 0x7);
+	REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 1, 10, 5000);
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 0);
+	REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 0, 10, 5000);
+	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 1);
+}
+
+static void enc314_disable_fifo(struct stream_encoder *enc)
+{
+	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+
+	REG_UPDATE_2(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 0,
+		     DIG_FIFO_READ_START_LEVEL, 0);
+}
 
 static void enc314_dp_set_odm_combine(
 	struct stream_encoder *enc,
@@ -92,7 +112,7 @@ void enc314_stream_encoder_dvi_set_stream_attribute(
 
 		//DIG_SOURCE_SELECT is already set in dig_connect_to_otg
 
-		/* DIG_START is removed from the register spec */
+		enc314_enable_fifo(enc);
 	}
 
 	ASSERT(crtc_timing->pixel_encoding == PIXEL_ENCODING_RGB);
@@ -132,7 +152,7 @@ static void enc314_stream_encoder_hdmi_set_stream_attribute(
 
 		//DIG_SOURCE_SELECT is already set in dig_connect_to_otg
 
-		/* DIG_START is removed from the register spec */
+		enc314_enable_fifo(enc);
 	}
 
 	/* Configure pixel encoding */
@@ -302,16 +322,8 @@ static void enc314_stream_encoder_dp_unblank(
 
 	REG_UPDATE(DP_STEER_FIFO, DP_STEER_FIFO_RESET, 0);
 
-	/*
-	 * DIG Resync FIFO now needs to be explicitly enabled.
-	 * TODO: Confirm if we need to wait for DIG_SYMCLK_FE_ON
-	 */
-	REG_WAIT(DIG_FE_CNTL, DIG_SYMCLK_FE_ON, 1, 10, 5000);
-	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 1);
-	REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 1, 10, 5000);
-	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_RESET, 0);
-	REG_WAIT(DIG_FIFO_CTRL0, DIG_FIFO_RESET_DONE, 0, 10, 5000);
-	REG_UPDATE(DIG_FIFO_CTRL0, DIG_FIFO_ENABLE, 1);
+	/* DIG Resync FIFO now needs to be explicitly enabled. */
+	enc314_enable_fifo(enc);
 
 	/* wait 100us for DIG/DP logic to prime
 	 * (i.e. a few video lines)
@@ -420,6 +432,8 @@ static const struct stream_encoder_funcs dcn314_str_enc_funcs = {
 	.set_dynamic_metadata = enc2_set_dynamic_metadata,
 	.hdmi_reset_stream_attribute = enc1_reset_hdmi_stream_attribute,
 
+	.enable_fifo = enc314_enable_fifo,
+	.disable_fifo = enc314_disable_fifo,
 	.set_input_mode = enc314_set_dig_input_mode,
 };
 

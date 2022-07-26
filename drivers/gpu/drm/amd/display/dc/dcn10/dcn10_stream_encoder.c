@@ -59,7 +59,6 @@ void enc1_update_generic_info_packet(
 	uint32_t packet_index,
 	const struct dc_info_packet *info_packet)
 {
-	uint32_t regval;
 	/* TODOFPGA Figure out a proper number for max_retries polling for lock
 	 * use 50 for now.
 	 */
@@ -88,7 +87,6 @@ void enc1_update_generic_info_packet(
 	REG_UPDATE(AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_CONFLICT_CLR, 1);
 
 	/* choose which generic packet to use */
-	regval = REG_READ(AFMT_VBI_PACKET_CONTROL);
 	REG_UPDATE(AFMT_VBI_PACKET_CONTROL,
 			AFMT_GENERIC_INDEX, packet_index);
 
@@ -259,8 +257,6 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	uint32_t h_back_porch;
 	uint8_t synchronous_clock = 0; /* asynchronous mode */
 	uint8_t colorimetry_bpc;
-	uint8_t dynamic_range_rgb = 0; /*full range*/
-	uint8_t dynamic_range_ycbcr = 1; /*bt709*/
 	uint8_t dp_pixel_encoding = 0;
 	uint8_t dp_component_depth = 0;
 
@@ -372,18 +368,15 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	switch (output_color_space) {
 	case COLOR_SPACE_SRGB:
 		misc1 = misc1 & ~0x80; /* bit7 = 0*/
-		dynamic_range_rgb = 0; /*full range*/
 		break;
 	case COLOR_SPACE_SRGB_LIMITED:
 		misc0 = misc0 | 0x8; /* bit3=1 */
 		misc1 = misc1 & ~0x80; /* bit7 = 0*/
-		dynamic_range_rgb = 1; /*limited range*/
 		break;
 	case COLOR_SPACE_YCBCR601:
 	case COLOR_SPACE_YCBCR601_LIMITED:
 		misc0 = misc0 | 0x8; /* bit3=1, bit4=0 */
 		misc1 = misc1 & ~0x80; /* bit7 = 0*/
-		dynamic_range_ycbcr = 0; /*bt601*/
 		if (hw_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
 			misc0 = misc0 | 0x2; /* bit2=0, bit1=1 */
 		else if (hw_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR444)
@@ -393,15 +386,12 @@ void enc1_stream_encoder_dp_set_stream_attribute(
 	case COLOR_SPACE_YCBCR709_LIMITED:
 		misc0 = misc0 | 0x18; /* bit3=1, bit4=1 */
 		misc1 = misc1 & ~0x80; /* bit7 = 0*/
-		dynamic_range_ycbcr = 1; /*bt709*/
 		if (hw_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR422)
 			misc0 = misc0 | 0x2; /* bit2=0, bit1=1 */
 		else if (hw_crtc_timing.pixel_encoding == PIXEL_ENCODING_YCBCR444)
 			misc0 = misc0 | 0x4; /* bit2=1, bit1=0 */
 		break;
 	case COLOR_SPACE_2020_RGB_LIMITEDRANGE:
-		dynamic_range_rgb = 1; /*limited range*/
-		break;
 	case COLOR_SPACE_2020_RGB_FULLRANGE:
 	case COLOR_SPACE_2020_YCBCR:
 	case COLOR_SPACE_XR_RGB:

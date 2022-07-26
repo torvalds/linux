@@ -184,7 +184,8 @@ void dccg314_set_dtbclk_dto(
 void dccg314_set_dpstreamclk(
 		struct dccg *dccg,
 		enum streamclk_source src,
-		int otg_inst)
+		int otg_inst,
+		int dp_hpo_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -192,31 +193,46 @@ void dccg314_set_dpstreamclk(
 	dccg314_set_dtbclk_p_src(dccg, src, otg_inst);
 
 	/* enabled to select one of the DTBCLKs for pipe */
-	switch (otg_inst) {
+	switch (dp_hpo_inst) {
 	case 0:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL,
 					DPSTREAMCLK0_EN, (src == REFCLK) ? 0 : 1,
-					DPSTREAMCLK0_SRC_SEL, 0);
+					DPSTREAMCLK0_SRC_SEL, otg_inst);
 		break;
 	case 1:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL,
 					DPSTREAMCLK1_EN, (src == REFCLK) ? 0 : 1,
-					DPSTREAMCLK1_SRC_SEL, 1);
+					DPSTREAMCLK1_SRC_SEL, otg_inst);
 		break;
 	case 2:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL,
 					DPSTREAMCLK2_EN, (src == REFCLK) ? 0 : 1,
-					DPSTREAMCLK2_SRC_SEL, 2);
+					DPSTREAMCLK2_SRC_SEL, otg_inst);
 		break;
 	case 3:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL,
 					DPSTREAMCLK3_EN, (src == REFCLK) ? 0 : 1,
-					DPSTREAMCLK3_SRC_SEL, 3);
+					DPSTREAMCLK3_SRC_SEL, otg_inst);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
 		return;
 	}
+}
+
+void dccg314_set_valid_pixel_rate(
+		struct dccg *dccg,
+		int ref_dtbclk_khz,
+		int otg_inst,
+		int pixclk_khz)
+{
+	struct dtbclk_dto_params dto_params = {0};
+
+	dto_params.ref_dtbclk_khz = ref_dtbclk_khz;
+	dto_params.otg_inst = otg_inst;
+	dto_params.pixclk_khz = pixclk_khz;
+
+	dccg314_set_dtbclk_dto(dccg, &dto_params);
 }
 
 static const struct dccg_funcs dccg314_funcs = {
@@ -237,6 +253,8 @@ static const struct dccg_funcs dccg314_funcs = {
 	.set_dispclk_change_mode = dccg31_set_dispclk_change_mode,
 	.disable_dsc = dccg31_disable_dscclk,
 	.enable_dsc = dccg31_enable_dscclk,
+	.set_pixel_rate_div = dccg314_set_pixel_rate_div,
+	.set_valid_pixel_rate = dccg314_set_valid_pixel_rate,
 };
 
 struct dccg *dccg314_create(

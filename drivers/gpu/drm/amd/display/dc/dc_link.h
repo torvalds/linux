@@ -514,4 +514,7 @@ bool dc_dp_trace_is_logged(struct dc_link *link,
 struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
 		bool in_detection);
 unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
+
+/* Destruct the mst topology of the link and reset the allocated payload table */
+bool reset_cur_dp_mst_topology(struct dc_link *link);
 #endif /* DC_LINK_H_ */

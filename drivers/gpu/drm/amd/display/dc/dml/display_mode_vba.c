@@ -111,6 +111,7 @@ dml_get_attr_func(tcalc, mode_lib->vba.TCalc);
 dml_get_attr_func(fraction_of_urgent_bandwidth, mode_lib->vba.FractionOfUrgentBandwidth);
 dml_get_attr_func(fraction_of_urgent_bandwidth_imm_flip, mode_lib->vba.FractionOfUrgentBandwidthImmediateFlip);
 
+
 dml_get_attr_func(cstate_max_cap_mode, mode_lib->vba.DCHUBBUB_ARB_CSTATE_MAX_CAP_MODE);
 dml_get_attr_func(comp_buffer_size_kbytes, mode_lib->vba.CompressedBufferSizeInkByte);
 dml_get_attr_func(pixel_chunk_size_in_kbyte, mode_lib->vba.PixelChunkSizeInKByte);
@@ -251,7 +252,7 @@ unsigned int get_total_surface_size_in_mall_bytes(
 	return size;
 }
 
-unsigned int get_pipe_idx(struct display_mode_lib *mode_lib, unsigned int plane_idx)
+static unsigned int get_pipe_idx(struct display_mode_lib *mode_lib, unsigned int plane_idx)
 {
 	int pipe_idx = -1;
 	int i;
@@ -697,6 +698,7 @@ static void fetch_pipe_params(struct display_mode_lib *mode_lib)
 		mode_lib->vba.PixelClock[mode_lib->vba.NumberOfActivePlanes] = dst->pixel_rate_mhz;
 		mode_lib->vba.PixelClockBackEnd[mode_lib->vba.NumberOfActivePlanes] = dst->pixel_rate_mhz;
 		mode_lib->vba.DPPCLK[mode_lib->vba.NumberOfActivePlanes] = clks->dppclk_mhz;
+		mode_lib->vba.DRRDisplay[mode_lib->vba.NumberOfActiveSurfaces] = dst->drr_display;
 		if (ip->is_line_buffer_bpp_fixed)
 			mode_lib->vba.LBBitPerPixel[mode_lib->vba.NumberOfActivePlanes] =
 					ip->line_buffer_fixed_bpp;

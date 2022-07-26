@@ -24,6 +24,10 @@ static enum dc_irq_source to_dal_irq_source_dcn303(struct irq_service *irq_servi
 		return DC_IRQ_SOURCE_VBLANK1;
 	case DCN_1_0__SRCID__DC_D2_OTG_VSTARTUP:
 		return DC_IRQ_SOURCE_VBLANK2;
+	case DCN_1_0__SRCID__OTG1_VERTICAL_INTERRUPT0_CONTROL:
+		return DC_IRQ_SOURCE_DC1_VLINE0;
+	case DCN_1_0__SRCID__OTG2_VERTICAL_INTERRUPT0_CONTROL:
+		return DC_IRQ_SOURCE_DC2_VLINE0;
 	case DCN_1_0__SRCID__HUBP0_FLIP_INTERRUPT:
 		return DC_IRQ_SOURCE_PFLIP1;
 	case DCN_1_0__SRCID__HUBP1_FLIP_INTERRUPT:
@@ -96,6 +100,11 @@ static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 		.ack = NULL
 };
 
+static const struct irq_source_info_funcs vline0_irq_info_funcs = {
+	.set = NULL,
+	.ack = NULL
+};
+
 #undef BASE_INNER
 #define BASE_INNER(seg) DCN_BASE__INST0_SEG ## seg
 
@@ -162,6 +171,14 @@ static const struct irq_source_info_funcs vblank_irq_info_funcs = {
 			OTG_GLOBAL_SYNC_STATUS, VSTARTUP_INT_EN,\
 			OTG_GLOBAL_SYNC_STATUS, VSTARTUP_EVENT_CLEAR),\
 		.funcs = &vblank_irq_info_funcs\
+	}
+
+#define vline0_int_entry(reg_num)\
+	[DC_IRQ_SOURCE_DC1_VLINE0 + reg_num] = {\
+		IRQ_REG_ENTRY(OTG, reg_num,\
+			OTG_VERTICAL_INTERRUPT0_CONTROL, OTG_VERTICAL_INTERRUPT0_INT_ENABLE,\
+			OTG_VERTICAL_INTERRUPT0_CONTROL, OTG_VERTICAL_INTERRUPT0_CLEAR),\
+		.funcs = &vline0_irq_info_funcs\
 	}
 
 #define dummy_irq_entry() { .funcs = &dummy_irq_info_funcs }
@@ -236,6 +253,8 @@ static const struct irq_source_info irq_source_info_dcn303[DAL_IRQ_SOURCES_NUMBE
 		vupdate_no_lock_int_entry(1),
 		vblank_int_entry(0),
 		vblank_int_entry(1),
+		vline0_int_entry(0),
+		vline0_int_entry(1),
 };
 
 static const struct irq_service_funcs irq_service_funcs_dcn303 = {

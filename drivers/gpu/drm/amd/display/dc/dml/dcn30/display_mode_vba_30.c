@@ -3037,40 +3037,12 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 
 	{
 		//Maximum Bandwidth Used
-		double TotalWRBandwidth = 0;
-		double MaxPerPlaneVActiveWRBandwidth = 0;
-		double WRBandwidth = 0;
-		double MaxUsedBW = 0;
-		for (k = 0; k < v->NumberOfActivePlanes; ++k) {
-			if (v->WritebackEnable[k] == true
-					&& v->WritebackPixelFormat[k] == dm_444_32) {
-				WRBandwidth = v->WritebackDestinationWidth[k] * v->WritebackDestinationHeight[k]
-						/ (v->HTotal[k] * v->WritebackSourceHeight[k] / v->PixelClock[k]) * 4;
-			} else if (v->WritebackEnable[k] == true) {
-				WRBandwidth = v->WritebackDestinationWidth[k] * v->WritebackDestinationHeight[k]
-						/ (v->HTotal[k] * v->WritebackSourceHeight[k] / v->PixelClock[k]) * 8;
-			}
-			TotalWRBandwidth = TotalWRBandwidth + WRBandwidth;
-			MaxPerPlaneVActiveWRBandwidth = dml_max(MaxPerPlaneVActiveWRBandwidth, WRBandwidth);
-		}
-
 		v->TotalDataReadBandwidth = 0;
 		for (k = 0; k < v->NumberOfActivePlanes; ++k) {
 			v->TotalDataReadBandwidth = v->TotalDataReadBandwidth
 					+ v->ReadBandwidthPlaneLuma[k]
 					+ v->ReadBandwidthPlaneChroma[k];
 		}
-
-		{
-			double MaxPerPlaneVActiveRDBandwidth = 0;
-			for (k = 0; k < v->NumberOfActivePlanes; ++k) {
-				MaxPerPlaneVActiveRDBandwidth = dml_max(MaxPerPlaneVActiveRDBandwidth,
-						v->ReadBandwidthPlaneLuma[k] + v->ReadBandwidthPlaneChroma[k]);
-
-			}
-		}
-
-		MaxUsedBW = MaxTotalRDBandwidth + TotalWRBandwidth;
 	}
 
 	// VStartup Margin

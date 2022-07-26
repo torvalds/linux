@@ -976,7 +976,8 @@ struct dmub_cmd_fw_assisted_mclk_switch_pipe_data_v2 {
 			uint16_t vtotal;
 			uint8_t main_pipe_index;
 			uint8_t phantom_pipe_index;
-			uint8_t padding[2];
+			uint8_t is_drr;
+			uint8_t padding;
 		} subvp_data;
 
 		struct {
@@ -1579,6 +1580,12 @@ enum dmub_cmd_fams_type {
 	DMUB_CMD__FAMS_SETUP_FW_CTRL	= 0,
 	DMUB_CMD__FAMS_DRR_UPDATE		= 1,
 	DMUB_CMD__HANDLE_SUBVP_CMD	= 2, // specifically for SubVP cmd
+	/**
+	 * For SubVP set manual trigger in FW because it
+	 * triggers DRR_UPDATE_PENDING which SubVP relies
+	 * on (for any SubVP cases that use a DRR display)
+	 */
+	DMUB_CMD__FAMS_SET_MANUAL_TRIGGER = 3,
 };
 
 /**
