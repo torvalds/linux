@@ -47,7 +47,7 @@ SYM_FUNC_START(handle_tlb_load)
 	 * The vmalloc handling is not in the hotpath.
 	 */
 	csrrd	t0, LOONGARCH_CSR_BADV
-	blt	t0, zero, vmalloc_load
+	bltz	t0, vmalloc_load
 	csrrd	t1, LOONGARCH_CSR_PGDL
 
 vmalloc_done_load:
@@ -210,7 +210,7 @@ SYM_FUNC_START(handle_tlb_store)
 	 * The vmalloc handling is not in the hotpath.
 	 */
 	csrrd	t0, LOONGARCH_CSR_BADV
-	blt	t0, zero, vmalloc_store
+	bltz	t0, vmalloc_store
 	csrrd	t1, LOONGARCH_CSR_PGDL
 
 vmalloc_done_store:
@@ -378,7 +378,7 @@ SYM_FUNC_START(handle_tlb_modify)
 	 * The vmalloc handling is not in the hotpath.
 	 */
 	csrrd	t0, LOONGARCH_CSR_BADV
-	blt	t0, zero, vmalloc_modify
+	bltz	t0, vmalloc_modify
 	csrrd	t1, LOONGARCH_CSR_PGDL
 
 vmalloc_done_modify:
