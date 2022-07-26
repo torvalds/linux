@@ -288,15 +288,9 @@ static void regmap_format_16_native(void *buf, unsigned int val,
 	memcpy(buf, &v, sizeof(v));
 }
 
-static void regmap_format_24(void *buf, unsigned int val, unsigned int shift)
+static void regmap_format_24_be(void *buf, unsigned int val, unsigned int shift)
 {
-	u8 *b = buf;
-
-	val <<= shift;
-
-	b[0] = val >> 16;
-	b[1] = val >> 8;
-	b[2] = val;
+	put_unaligned_be24(val << shift, buf);
 }
 
 static void regmap_format_32_be(void *buf, unsigned int val, unsigned int shift)
@@ -380,14 +374,9 @@ static unsigned int regmap_parse_16_native(const void *buf)
 	return v;
 }
 
-static unsigned int regmap_parse_24(const void *buf)
+static unsigned int regmap_parse_24_be(const void *buf)
 {
-	const u8 *b = buf;
-	unsigned int ret = b[2];
-	ret |= ((unsigned int)b[1]) << 8;
-	ret |= ((unsigned int)b[0]) << 16;
-
-	return ret;
+	return get_unaligned_be24(buf);
 }
 
 static unsigned int regmap_parse_32_be(const void *buf)
@@ -991,9 +980,13 @@ struct regmap *__regmap_init(struct device *dev,
 		break;
 
 	case 24:
-		if (reg_endian != REGMAP_ENDIAN_BIG)
+		switch (reg_endian) {
+		case REGMAP_ENDIAN_BIG:
+			map->format.format_reg = regmap_format_24_be;
+			break;
+		default:
 			goto err_hwlock;
-		map->format.format_reg = regmap_format_24;
+		}
 		break;
 
 	case 32:
@@ -1064,10 +1057,14 @@ struct regmap *__regmap_init(struct device *dev,
 		}
 		break;
 	case 24:
-		if (val_endian != REGMAP_ENDIAN_BIG)
+		switch (val_endian) {
+		case REGMAP_ENDIAN_BIG:
+			map->format.format_val = regmap_format_24_be;
+			map->format.parse_val = regmap_parse_24_be;
+			break;
+		default:
 			goto err_hwlock;
-		map->format.format_val = regmap_format_24;
-		map->format.parse_val = regmap_parse_24;
+		}
 		break;
 	case 32:
 		switch (val_endian) {
