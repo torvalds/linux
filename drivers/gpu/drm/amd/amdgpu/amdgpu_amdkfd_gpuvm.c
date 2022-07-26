@@ -1775,6 +1775,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 {
 	struct amdkfd_process_info *process_info = mem->process_info;
 	unsigned long bo_size = mem->bo->tbo.base.size;
+	bool use_release_notifier = (mem->bo->kfd_bo == mem);
 	struct kfd_mem_attachment *entry, *tmp;
 	struct bo_vm_reservation_context ctx;
 	struct ttm_validate_buffer *bo_list_entry;
@@ -1865,6 +1866,13 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 	 * this needs to be the last call here.
 	 */
 	drm_gem_object_put(&mem->bo->tbo.base);
+
+	/*
+	 * For kgd_mem allocated in amdgpu_amdkfd_gpuvm_import_dmabuf(),
+	 * explicitly free it here.
+	 */
+	if (!use_release_notifier)
+		kfree(mem);
 
 	return ret;
 }
