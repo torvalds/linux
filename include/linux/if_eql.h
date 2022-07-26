@@ -21,6 +21,7 @@
 
 #include <linux/timer.h>
 #include <linux/spinlock.h>
+#include <net/net_trackers.h>
 #include <uapi/linux/if_eql.h>
 
 typedef struct slave {
