@@ -725,6 +725,10 @@ static int do_tls_setsockopt_conf(struct sock *sk, sockptr_t optval,
 	if (tx) {
 		ctx->sk_write_space = sk->sk_write_space;
 		sk->sk_write_space = tls_write_space;
+	} else {
+		struct tls_sw_context_rx *rx_ctx = tls_sw_ctx_rx(ctx);
+
+		tls_strp_check_rcv(&rx_ctx->strp);
 	}
 	return 0;
 
@@ -1141,20 +1145,28 @@ static int __init tls_register(void)
 	if (err)
 		return err;
 
+	err = tls_strp_dev_init();
+	if (err)
+		goto err_pernet;
+
 	err = tls_device_init();
-	if (err) {
-		unregister_pernet_subsys(&tls_proc_ops);
-		return err;
-	}
+	if (err)
+		goto err_strp;
 
 	tcp_register_ulp(&tcp_tls_ulp_ops);
 
 	return 0;
+err_strp:
+	tls_strp_dev_exit();
+err_pernet:
+	unregister_pernet_subsys(&tls_proc_ops);
+	return err;
 }
 
 static void __exit tls_unregister(void)
 {
 	tcp_unregister_ulp(&tcp_tls_ulp_ops);
+	tls_strp_dev_exit();
 	tls_device_cleanup();
 	unregister_pernet_subsys(&tls_proc_ops);
 }
