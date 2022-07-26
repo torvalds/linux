@@ -153,7 +153,7 @@ SYM_FUNC_START(_save_fp)
 	fpu_save_csr	a0 t1
 	fpu_save_double a0 t1			# clobbers t1
 	fpu_save_cc	a0 t1 t2		# clobbers t1, t2
-	jirl zero, ra, 0
+	jr	ra
 SYM_FUNC_END(_save_fp)
 EXPORT_SYMBOL(_save_fp)
 
@@ -164,7 +164,7 @@ SYM_FUNC_START(_restore_fp)
 	fpu_restore_double a0 t1		# clobbers t1
 	fpu_restore_csr	a0 t1
 	fpu_restore_cc	a0 t1 t2		# clobbers t1, t2
-	jirl zero, ra, 0
+	jr	ra
 SYM_FUNC_END(_restore_fp)
 
 /*
@@ -216,7 +216,7 @@ SYM_FUNC_START(_init_fpu)
 	movgr2fr.d	$f30, t1
 	movgr2fr.d	$f31, t1
 
-	jirl zero, ra, 0
+	jr	ra
 SYM_FUNC_END(_init_fpu)
 
 /*
@@ -229,7 +229,7 @@ SYM_FUNC_START(_save_fp_context)
 	sc_save_fcsr a2 t1
 	sc_save_fp a0
 	li.w	a0, 0					# success
-	jirl zero, ra, 0
+	jr	ra
 SYM_FUNC_END(_save_fp_context)
 
 /*
@@ -242,10 +242,10 @@ SYM_FUNC_START(_restore_fp_context)
 	sc_restore_fcc a1 t1 t2
 	sc_restore_fcsr a2 t1
 	li.w	a0, 0					# success
-	jirl zero, ra, 0
+	jr	ra
 SYM_FUNC_END(_restore_fp_context)
 
 SYM_FUNC_START(fault)
 	li.w	a0, -EFAULT				# failure
-	jirl zero, ra, 0
+	jr	ra
 SYM_FUNC_END(fault)

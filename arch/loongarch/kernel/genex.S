@@ -28,7 +28,7 @@ SYM_FUNC_START(__arch_cpu_idle)
 	nop
 	idle	0
 	/* end of rollback region */
-1:	jirl	zero, ra, 0
+1:	jr	ra
 SYM_FUNC_END(__arch_cpu_idle)
 
 SYM_FUNC_START(handle_vint)
@@ -91,5 +91,5 @@ SYM_FUNC_END(except_vec_cex)
 
 SYM_FUNC_START(handle_sys)
 	la.abs	t0, handle_syscall
-	jirl    zero, t0, 0
+	jr	t0
 SYM_FUNC_END(handle_sys)

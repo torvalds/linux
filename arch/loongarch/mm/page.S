@@ -32,7 +32,7 @@ SYM_FUNC_START(clear_page)
 	st.d     zero, a0, -8
 	bne      t0,   a0, 1b
 
-	jirl     zero, ra, 0
+	jr       ra
 SYM_FUNC_END(clear_page)
 EXPORT_SYMBOL(clear_page)
 
@@ -79,6 +79,6 @@ SYM_FUNC_START(copy_page)
 	st.d     t7, a0,  -8
 
 	bne      t8, a0, 1b
-	jirl     zero, ra, 0
+	jr       ra
 SYM_FUNC_END(copy_page)
 EXPORT_SYMBOL(copy_page)

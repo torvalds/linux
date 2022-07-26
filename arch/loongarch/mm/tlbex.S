@@ -198,7 +198,7 @@ nopage_tlb_load:
 	dbar	0
 	csrrd	ra, EXCEPTION_KS2
 	la.abs	t0, tlb_do_page_fault_0
-	jirl	zero, t0, 0
+	jr	t0
 SYM_FUNC_END(handle_tlb_load)
 
 SYM_FUNC_START(handle_tlb_store)
@@ -366,7 +366,7 @@ nopage_tlb_store:
 	dbar	0
 	csrrd	ra, EXCEPTION_KS2
 	la.abs	t0, tlb_do_page_fault_1
-	jirl	zero, t0, 0
+	jr	t0
 SYM_FUNC_END(handle_tlb_store)
 
 SYM_FUNC_START(handle_tlb_modify)
@@ -525,7 +525,7 @@ nopage_tlb_modify:
 	dbar	0
 	csrrd	ra, EXCEPTION_KS2
 	la.abs	t0, tlb_do_page_fault_1
-	jirl	zero, t0, 0
+	jr	t0
 SYM_FUNC_END(handle_tlb_modify)
 
 SYM_FUNC_START(handle_tlb_refill)

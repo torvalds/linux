@@ -32,7 +32,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	/* We might not get launched at the address the kernel is linked to,
 	   so we jump there.  */
 	la.abs		t0, 0f
-	jirl		zero, t0, 0
+	jr		t0
 0:
 	la		t0, __bss_start		# clear .bss
 	st.d		zero, t0, 0
@@ -86,7 +86,7 @@ SYM_CODE_START(smpboot_entry)
 	ld.d		tp, t0, CPU_BOOT_TINFO
 
 	la.abs	t0, 0f
-	jirl	zero, t0, 0
+	jr	t0
 0:
 	bl		start_secondary
 SYM_CODE_END(smpboot_entry)
