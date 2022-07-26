@@ -130,11 +130,6 @@ properties:
       Set this flag to indicate that the hardware sometimes turns on
       the OC bit when an over-current isn't actually present.
 
-  companion:
-    $ref: /schemas/types.yaml#/definitions/phandle
-    description:
-      Phandle of a companion.
-
   phys:
     minItems: 1
     maxItems: 3
@@ -155,7 +150,7 @@ required:
   - reg
   - interrupts
 
-additionalProperties: false
+unevaluatedProperties: false
 
 examples:
   - |
