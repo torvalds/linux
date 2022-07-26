@@ -532,6 +532,7 @@ int update_irq_load_avg(struct rq *rq, u64 running)
 }
 #endif
 
+#include <trace/hooks/sched.h>
 DEFINE_PER_CPU(u64, clock_task_mult);
 
 unsigned int sysctl_sched_pelt_multiplier = 1;
@@ -552,6 +553,10 @@ int sched_pelt_multiplier(struct ctl_table *table, int write, void *buffer,
 		goto undo;
 	if (!write)
 		goto done;
+
+	trace_android_vh_sched_pelt_multiplier(old, sysctl_sched_pelt_multiplier, &ret);
+	if (ret)
+		goto undo;
 
 	switch (sysctl_sched_pelt_multiplier)  {
 	case 1:
