@@ -50,7 +50,7 @@ SYM_CODE_START(kernel_entry)			# kernel entry point
 	/* KSave3 used for percpu base, initialized as 0 */
 	csrwr		zero, PERCPU_BASE_KS
 	/* GPR21 used for percpu base (runtime), initialized as 0 */
-	or		u0, zero, zero
+	move		u0, zero
 
 	la		tp, init_thread_union
 	/* Set the SP after an empty pt_regs.  */

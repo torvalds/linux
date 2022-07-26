@@ -82,7 +82,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval, u32 newv
 	"# futex_atomic_cmpxchg_inatomic			\n"
 	"1:	ll.w	%1, %3					\n"
 	"	bne	%1, %z4, 3f				\n"
-	"	or	$t0, %z5, $zero				\n"
+	"	move	$t0, %z5				\n"
 	"2:	sc.w	$t0, %2					\n"
 	"	beq	$zero, $t0, 1b				\n"
 	"3:							\n"
