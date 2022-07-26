@@ -75,7 +75,7 @@ patternProperties:
 
   "^pwm@[0-2]$":
     description: The timer block channels that are used as PWMs.
-    $ref: ../../pwm/pwm.yaml#
+    $ref: /schemas/pwm/pwm.yaml#
     type: object
     properties:
       compatible:
