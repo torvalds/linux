@@ -4816,8 +4816,16 @@ void perf_limit_reasons_probe(unsigned int family, unsigned int model)
 
 void automatic_cstate_conversion_probe(unsigned int family, unsigned int model)
 {
-	if (is_skx(family, model) || is_bdx(family, model) || is_icx(family, model) || is_spr(family, model))
+	if (family != 6)
+		return;
+
+	switch (model) {
+	case INTEL_FAM6_BROADWELL_X:
+	case INTEL_FAM6_SKYLAKE_X:
+	case INTEL_FAM6_ICELAKE_X:
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:
 		has_automatic_cstate_conversion = 1;
+	}
 }
 
 void prewake_cstate_probe(unsigned int family, unsigned int model)
