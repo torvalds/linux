@@ -995,10 +995,10 @@ static int ov2740_check_hwcfg(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (mclk != OV2740_MCLK) {
-		dev_err(dev, "external clock %d is not supported", mclk);
-		return -EINVAL;
-	}
+	if (mclk != OV2740_MCLK)
+		return dev_err_probe(dev, -EINVAL,
+				     "external clock %d is not supported\n",
+				     mclk);
 
 	ep = fwnode_graph_get_next_endpoint(fwnode, NULL);
 	if (!ep)
@@ -1010,15 +1010,14 @@ static int ov2740_check_hwcfg(struct device *dev)
 		return ret;
 
 	if (bus_cfg.bus.mipi_csi2.num_data_lanes != OV2740_DATA_LANES) {
-		dev_err(dev, "number of CSI2 data lanes %d is not supported",
-			bus_cfg.bus.mipi_csi2.num_data_lanes);
-		ret = -EINVAL;
+		ret = dev_err_probe(dev, -EINVAL,
+				    "number of CSI2 data lanes %d is not supported\n",
+				    bus_cfg.bus.mipi_csi2.num_data_lanes);
 		goto check_hwcfg_error;
 	}
 
 	if (!bus_cfg.nr_of_link_frequencies) {
-		dev_err(dev, "no link frequencies defined");
-		ret = -EINVAL;
+		ret = dev_err_probe(dev, -EINVAL, "no link frequencies defined\n");
 		goto check_hwcfg_error;
 	}
 
@@ -1030,9 +1029,9 @@ static int ov2740_check_hwcfg(struct device *dev)
 		}
 
 		if (j == bus_cfg.nr_of_link_frequencies) {
-			dev_err(dev, "no link frequency %lld supported",
-				link_freq_menu_items[i]);
-			ret = -EINVAL;
+			ret = dev_err_probe(dev, -EINVAL,
+					    "no link frequency %lld supported\n",
+					    link_freq_menu_items[i]);
 			goto check_hwcfg_error;
 		}
 	}
@@ -1133,16 +1132,14 @@ static int ov2740_register_nvmem(struct i2c_client *client,
 
 static int ov2740_probe(struct i2c_client *client)
 {
+	struct device *dev = &client->dev;
 	struct ov2740 *ov2740;
 	bool full_power;
 	int ret;
 
 	ret = ov2740_check_hwcfg(&client->dev);
-	if (ret) {
-		dev_err(&client->dev, "failed to check HW configuration: %d",
-			ret);
-		return ret;
-	}
+	if (ret)
+		return dev_err_probe(dev, ret, "failed to check HW configuration\n");
 
 	ov2740 = devm_kzalloc(&client->dev, sizeof(*ov2740), GFP_KERNEL);
 	if (!ov2740)
@@ -1152,17 +1149,15 @@ static int ov2740_probe(struct i2c_client *client)
 	full_power = acpi_dev_state_d0(&client->dev);
 	if (full_power) {
 		ret = ov2740_identify_module(ov2740);
-		if (ret) {
-			dev_err(&client->dev, "failed to find sensor: %d", ret);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "failed to find sensor\n");
 	}
 
 	mutex_init(&ov2740->mutex);
 	ov2740->cur_mode = &supported_modes[0];
 	ret = ov2740_init_controls(ov2740);
 	if (ret) {
-		dev_err(&client->dev, "failed to init controls: %d", ret);
+		dev_err_probe(dev, ret, "failed to init controls\n");
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
@@ -1173,14 +1168,13 @@ static int ov2740_probe(struct i2c_client *client)
 	ov2740->pad.flags = MEDIA_PAD_FL_SOURCE;
 	ret = media_entity_pads_init(&ov2740->sd.entity, 1, &ov2740->pad);
 	if (ret) {
-		dev_err(&client->dev, "failed to init entity pads: %d", ret);
+		dev_err_probe(dev, ret, "failed to init entity pads\n");
 		goto probe_error_v4l2_ctrl_handler_free;
 	}
 
 	ret = v4l2_async_register_subdev_sensor(&ov2740->sd);
 	if (ret < 0) {
-		dev_err(&client->dev, "failed to register V4L2 subdev: %d",
-			ret);
+		dev_err_probe(dev, ret, "failed to register V4L2 subdev\n");
 		goto probe_error_media_entity_cleanup;
 	}
 
