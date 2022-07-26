@@ -755,12 +755,10 @@ struct mlx5_cache_ent {
 	u8 fill_to_high_water:1;
 
 	/*
-	 * - total_mrs is stored mkeys plus all in use MRs that could be
-	 *   returned to the cache.
 	 * - limit is the low water mark for stored mkeys, 2* limit is the
 	 *   upper water mark.
 	 */
-	u32 total_mrs;
+	u32 in_use;
 	u32 limit;
 
 	/* Statistics */
