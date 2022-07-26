@@ -77,7 +77,6 @@
 #define OV2740_REG_OTP_CUSTOMER		0x7010
 
 struct nvm_data {
-	struct i2c_client *client;
 	struct nvmem_device *nvmem;
 	struct regmap *regmap;
 	char *nvm_buffer;
@@ -649,20 +648,14 @@ static void ov2740_update_pad_format(const struct ov2740_mode *mode,
 
 static int ov2740_load_otp_data(struct nvm_data *nvm)
 {
-	struct i2c_client *client;
-	struct ov2740 *ov2740;
+	struct device *dev = regmap_get_device(nvm->regmap);
+	struct ov2740 *ov2740 = to_ov2740(dev_get_drvdata(dev));
 	u32 isp_ctrl00 = 0;
 	u32 isp_ctrl01 = 0;
 	int ret;
 
-	if (!nvm)
-		return -EINVAL;
-
 	if (nvm->nvm_buffer)
 		return 0;
-
-	client = nvm->client;
-	ov2740 = to_ov2740(i2c_get_clientdata(client));
 
 	nvm->nvm_buffer = kzalloc(CUSTOMER_USE_OTP_SIZE, GFP_KERNEL);
 	if (!nvm->nvm_buffer)
@@ -670,13 +663,13 @@ static int ov2740_load_otp_data(struct nvm_data *nvm)
 
 	ret = ov2740_read_reg(ov2740, OV2740_REG_ISP_CTRL00, 1, &isp_ctrl00);
 	if (ret) {
-		dev_err(&client->dev, "failed to read ISP CTRL00\n");
+		dev_err(dev, "failed to read ISP CTRL00\n");
 		goto err;
 	}
 
 	ret = ov2740_read_reg(ov2740, OV2740_REG_ISP_CTRL01, 1, &isp_ctrl01);
 	if (ret) {
-		dev_err(&client->dev, "failed to read ISP CTRL01\n");
+		dev_err(dev, "failed to read ISP CTRL01\n");
 		goto err;
 	}
 
@@ -684,7 +677,7 @@ static int ov2740_load_otp_data(struct nvm_data *nvm)
 	ret = ov2740_write_reg(ov2740, OV2740_REG_ISP_CTRL00, 1,
 			       isp_ctrl00 & ~BIT(5));
 	if (ret) {
-		dev_err(&client->dev, "failed to set ISP CTRL00\n");
+		dev_err(dev, "failed to set ISP CTRL00\n");
 		goto err;
 	}
 
@@ -692,14 +685,14 @@ static int ov2740_load_otp_data(struct nvm_data *nvm)
 	ret = ov2740_write_reg(ov2740, OV2740_REG_ISP_CTRL01, 1,
 			       isp_ctrl01 & ~BIT(7));
 	if (ret) {
-		dev_err(&client->dev, "failed to set ISP CTRL01\n");
+		dev_err(dev, "failed to set ISP CTRL01\n");
 		goto err;
 	}
 
 	ret = ov2740_write_reg(ov2740, OV2740_REG_MODE_SELECT, 1,
 			       OV2740_MODE_STREAMING);
 	if (ret) {
-		dev_err(&client->dev, "failed to set streaming mode\n");
+		dev_err(dev, "failed to set streaming mode\n");
 		goto err;
 	}
 
@@ -712,26 +705,26 @@ static int ov2740_load_otp_data(struct nvm_data *nvm)
 	ret = regmap_bulk_read(nvm->regmap, OV2740_REG_OTP_CUSTOMER,
 			       nvm->nvm_buffer, CUSTOMER_USE_OTP_SIZE);
 	if (ret) {
-		dev_err(&client->dev, "failed to read OTP data, ret %d\n", ret);
+		dev_err(dev, "failed to read OTP data, ret %d\n", ret);
 		goto err;
 	}
 
 	ret = ov2740_write_reg(ov2740, OV2740_REG_MODE_SELECT, 1,
 			       OV2740_MODE_STANDBY);
 	if (ret) {
-		dev_err(&client->dev, "failed to set streaming mode\n");
+		dev_err(dev, "failed to set streaming mode\n");
 		goto err;
 	}
 
 	ret = ov2740_write_reg(ov2740, OV2740_REG_ISP_CTRL01, 1, isp_ctrl01);
 	if (ret) {
-		dev_err(&client->dev, "failed to set ISP CTRL01\n");
+		dev_err(dev, "failed to set ISP CTRL01\n");
 		goto err;
 	}
 
 	ret = ov2740_write_reg(ov2740, OV2740_REG_ISP_CTRL00, 1, isp_ctrl00);
 	if (ret) {
-		dev_err(&client->dev, "failed to set ISP CTRL00\n");
+		dev_err(dev, "failed to set ISP CTRL00\n");
 		goto err;
 	}
 
@@ -746,7 +739,6 @@ err:
 static int ov2740_start_streaming(struct ov2740 *ov2740)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov2740->sd);
-	struct nvm_data *nvm = ov2740->nvm;
 	const struct ov2740_reg_list *reg_list;
 	int link_freq_index;
 	int ret = 0;
@@ -755,7 +747,8 @@ static int ov2740_start_streaming(struct ov2740 *ov2740)
 	if (ret)
 		return ret;
 
-	ov2740_load_otp_data(nvm);
+	if (ov2740->nvm)
+		ov2740_load_otp_data(ov2740->nvm);
 
 	link_freq_index = ov2740->cur_mode->link_freq_index;
 	reg_list = &link_freq_configs[link_freq_index].reg_list;
@@ -1069,9 +1062,8 @@ static int ov2740_nvmem_read(void *priv, unsigned int off, void *val,
 			     size_t count)
 {
 	struct nvm_data *nvm = priv;
-	struct v4l2_subdev *sd = i2c_get_clientdata(nvm->client);
-	struct device *dev = &nvm->client->dev;
-	struct ov2740 *ov2740 = to_ov2740(sd);
+	struct device *dev = regmap_get_device(nvm->regmap);
+	struct ov2740 *ov2740 = to_ov2740(dev_get_drvdata(dev));
 	int ret = 0;
 
 	mutex_lock(&ov2740->mutex);
@@ -1118,7 +1110,6 @@ static int ov2740_register_nvmem(struct i2c_client *client,
 		return PTR_ERR(regmap);
 
 	nvm->regmap = regmap;
-	nvm->client = client;
 
 	nvmem_config.name = dev_name(dev);
 	nvmem_config.dev = dev;
