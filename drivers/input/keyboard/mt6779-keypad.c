@@ -18,6 +18,7 @@
 #define MTK_KPD_DEBOUNCE_MASK	GENMASK(13, 0)
 #define MTK_KPD_DEBOUNCE_MAX_MS	256
 #define MTK_KPD_SEL		0x0020
+#define MTK_KPD_SEL_DOUBLE_KP_MODE	BIT(0)
 #define MTK_KPD_SEL_COL	GENMASK(15, 10)
 #define MTK_KPD_SEL_ROW	GENMASK(9, 4)
 #define MTK_KPD_SEL_COLMASK(c)	GENMASK((c) + 9, 10)
@@ -103,12 +104,21 @@ static void mt6779_keypad_calc_row_col_single(unsigned int key,
 	*col = key % 9;
 }
 
+static void mt6779_keypad_calc_row_col_double(unsigned int key,
+					      unsigned int *row,
+					      unsigned int *col)
+{
+	*row = key / 13;
+	*col = (key % 13) / 2;
+}
+
 static int mt6779_keypad_pdrv_probe(struct platform_device *pdev)
 {
 	struct mt6779_keypad *keypad;
 	void __iomem *base;
 	int irq;
 	u32 debounce;
+	u32 keys_per_group;
 	bool wakeup;
 	int error;
 
@@ -157,7 +167,22 @@ static int mt6779_keypad_pdrv_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	keypad->calc_row_col = mt6779_keypad_calc_row_col_single;
+	if (device_property_read_u32(&pdev->dev, "mediatek,keys-per-group",
+				     &keys_per_group))
+		keys_per_group = 1;
+
+	switch (keys_per_group) {
+	case 1:
+		keypad->calc_row_col = mt6779_keypad_calc_row_col_single;
+		break;
+	case 2:
+		keypad->calc_row_col = mt6779_keypad_calc_row_col_double;
+		break;
+	default:
+		dev_err(&pdev->dev,
+			"Invalid keys-per-group: %d\n", keys_per_group);
+		return -EINVAL;
+	}
 
 	wakeup = device_property_read_bool(&pdev->dev, "wakeup-source");
 
@@ -176,6 +201,11 @@ static int mt6779_keypad_pdrv_probe(struct platform_device *pdev)
 
 	regmap_write(keypad->regmap, MTK_KPD_DEBOUNCE,
 		     (debounce * (1 << 5)) & MTK_KPD_DEBOUNCE_MASK);
+
+	if (keys_per_group == 2)
+		regmap_update_bits(keypad->regmap, MTK_KPD_SEL,
+				   MTK_KPD_SEL_DOUBLE_KP_MODE,
+				   MTK_KPD_SEL_DOUBLE_KP_MODE);
 
 	regmap_update_bits(keypad->regmap, MTK_KPD_SEL, MTK_KPD_SEL_ROW,
 			   MTK_KPD_SEL_ROWMASK(keypad->n_rows));
