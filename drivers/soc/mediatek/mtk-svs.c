@@ -1586,7 +1586,7 @@ static int svs_bank_resource_setup(struct svs_platform *svsp)
 
 		dev_set_drvdata(svsb->dev, svsp);
 
-		ret = dev_pm_opp_of_add_table(svsb->opp_dev);
+		ret = devm_pm_opp_of_add_table(svsb->opp_dev);
 		if (ret) {
 			dev_err(svsb->dev, "add opp table fail: %d\n", ret);
 			return ret;
