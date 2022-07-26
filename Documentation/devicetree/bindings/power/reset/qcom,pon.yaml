@@ -36,6 +36,10 @@ properties:
     type: object
     $ref: /schemas/input/qcom,pm8941-pwrkey.yaml#
 
+  watchdog:
+    type: object
+    $ref: /schemas/watchdog/qcom,pm8916-wdt.yaml
+
 required:
   - compatible
   - reg
