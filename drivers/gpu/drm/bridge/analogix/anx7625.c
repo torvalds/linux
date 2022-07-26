@@ -1797,8 +1797,13 @@ static int anx7625_audio_hw_params(struct device *dev, void *data,
 	int wl, ch, rate;
 	int ret = 0;
 
-	if (fmt->fmt != HDMI_DSP_A) {
-		DRM_DEV_ERROR(dev, "only supports DSP_A\n");
+	if (anx7625_sink_detect(ctx) == connector_status_disconnected) {
+		DRM_DEV_DEBUG_DRIVER(dev, "DP not connected\n");
+		return 0;
+	}
+
+	if (fmt->fmt != HDMI_DSP_A && fmt->fmt != HDMI_I2S) {
+		DRM_DEV_ERROR(dev, "only supports DSP_A & I2S\n");
 		return -EINVAL;
 	}
 
@@ -1806,10 +1811,16 @@ static int anx7625_audio_hw_params(struct device *dev, void *data,
 			     params->sample_rate, params->sample_width,
 			     params->cea.channels);
 
-	ret |= anx7625_write_and_or(ctx, ctx->i2c.tx_p2_client,
-				    AUDIO_CHANNEL_STATUS_6,
-				    ~I2S_SLAVE_MODE,
-				    TDM_SLAVE_MODE);
+	if (fmt->fmt == HDMI_DSP_A)
+		ret = anx7625_write_and_or(ctx, ctx->i2c.tx_p2_client,
+					   AUDIO_CHANNEL_STATUS_6,
+					   ~I2S_SLAVE_MODE,
+					   TDM_SLAVE_MODE);
+	else
+		ret = anx7625_write_and_or(ctx, ctx->i2c.tx_p2_client,
+					   AUDIO_CHANNEL_STATUS_6,
+					   ~TDM_SLAVE_MODE,
+					   I2S_SLAVE_MODE);
 
 	/* Word length */
 	switch (params->sample_width) {
