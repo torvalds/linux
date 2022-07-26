@@ -217,6 +217,13 @@ static const char * const sysmmu_v5_fault_names[] = {
 	"SECURITY PROTECTION"
 };
 
+static const char * const sysmmu_v7_fault_names[] = {
+	"PTW",
+	"PAGE",
+	"ACCESS PROTECTION",
+	"RESERVED"
+};
+
 /*
  * This structure is attached to dev->iommu->priv of the master device
  * on device add, contains a list of SYSMMU controllers defined by device tree,
@@ -260,6 +267,8 @@ struct sysmmu_variant {
 	u32 flush_end;		/* end address of range invalidation */
 	u32 int_status;		/* interrupt status information */
 	u32 int_clear;		/* clear the interrupt */
+	u32 fault_va;		/* IOVA address that caused fault */
+	u32 fault_info;		/* fault transaction info */
 
 	int (*get_fault_info)(struct sysmmu_drvdata *data, unsigned int itype,
 			      struct sysmmu_fault *fault);
@@ -337,6 +346,19 @@ static int exynos_sysmmu_v5_get_fault_info(struct sysmmu_drvdata *data,
 	return 0;
 }
 
+static int exynos_sysmmu_v7_get_fault_info(struct sysmmu_drvdata *data,
+					   unsigned int itype,
+					   struct sysmmu_fault *fault)
+{
+	u32 info = readl(SYSMMU_REG(data, fault_info));
+
+	fault->addr = readl(SYSMMU_REG(data, fault_va));
+	fault->name = sysmmu_v7_fault_names[itype % 4];
+	fault->type = (info & BIT(20)) ? IOMMU_FAULT_WRITE : IOMMU_FAULT_READ;
+
+	return 0;
+}
+
 /* SysMMU v1..v3 */
 static const struct sysmmu_variant sysmmu_v1_variant = {
 	.flush_all	= 0x0c,
@@ -348,7 +370,7 @@ static const struct sysmmu_variant sysmmu_v1_variant = {
 	.get_fault_info	= exynos_sysmmu_v1_get_fault_info,
 };
 
-/* SysMMU v5 and v7 (non-VM capable) */
+/* SysMMU v5 */
 static const struct sysmmu_variant sysmmu_v5_variant = {
 	.pt_base	= 0x0c,
 	.flush_all	= 0x10,
@@ -362,7 +384,23 @@ static const struct sysmmu_variant sysmmu_v5_variant = {
 	.get_fault_info	= exynos_sysmmu_v5_get_fault_info,
 };
 
-/* SysMMU v7: VM capable register set */
+/* SysMMU v7: non-VM capable register layout */
+static const struct sysmmu_variant sysmmu_v7_variant = {
+	.pt_base	= 0x0c,
+	.flush_all	= 0x10,
+	.flush_entry	= 0x14,
+	.flush_range	= 0x18,
+	.flush_start	= 0x20,
+	.flush_end	= 0x24,
+	.int_status	= 0x60,
+	.int_clear	= 0x64,
+	.fault_va	= 0x70,
+	.fault_info	= 0x78,
+
+	.get_fault_info	= exynos_sysmmu_v7_get_fault_info,
+};
+
+/* SysMMU v7: VM capable register layout */
 static const struct sysmmu_variant sysmmu_v7_vm_variant = {
 	.pt_base	= 0x800c,
 	.flush_all	= 0x8010,
@@ -372,8 +410,10 @@ static const struct sysmmu_variant sysmmu_v7_vm_variant = {
 	.flush_end	= 0x8024,
 	.int_status	= 0x60,
 	.int_clear	= 0x64,
+	.fault_va	= 0x1000,
+	.fault_info	= 0x1004,
 
-	.get_fault_info	= exynos_sysmmu_v5_get_fault_info,
+	.get_fault_info	= exynos_sysmmu_v7_get_fault_info,
 };
 
 static struct exynos_iommu_domain *to_exynos_domain(struct iommu_domain *dom)
@@ -496,7 +536,7 @@ static void __sysmmu_get_version(struct sysmmu_drvdata *data)
 		if (data->has_vcr)
 			data->variant = &sysmmu_v7_vm_variant;
 		else
-			data->variant = &sysmmu_v5_variant;
+			data->variant = &sysmmu_v7_variant;
 	}
 
 	__sysmmu_disable_clocks(data);
