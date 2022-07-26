@@ -2,6 +2,21 @@
 /*
  * Common arm64 stack unwinder code.
  *
+ * To implement a new arm64 stack unwinder:
+ *     1) Include this header
+ *
+ *     2) Provide implementations for the following functions:
+ *          on_overflow_stack():   Returns true if SP is on the overflow
+ *                                 stack.
+ *          on_accessible_stack(): Returns true is SP is on any accessible
+ *                                 stack.
+ *          unwind_next():         Performs validation checks on the frame
+ *                                 pointer, and transitions unwind_state
+ *                                 to the next frame.
+ *
+ *         See: arch/arm64/include/asm/stacktrace.h for reference
+ *              implementations.
+ *
  * Copyright (C) 2012 ARM Ltd.
  */
 #ifndef __ASM_STACKTRACE_COMMON_H
