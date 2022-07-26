@@ -1175,7 +1175,7 @@ static int do_skeleton(int argc, char **argv)
 		static inline void					    \n\
 		%1$s__detach(struct %1$s *obj)				    \n\
 		{							    \n\
-			return bpf_object__detach_skeleton(obj->skeleton);  \n\
+			bpf_object__detach_skeleton(obj->skeleton);	    \n\
 		}							    \n\
 		",
 		obj_name
