@@ -684,8 +684,8 @@ static bool brcm_pcie_link_up(struct brcm_pcie *pcie)
 	return dla && plu;
 }
 
-static void __iomem *brcm_pcie_map_conf(struct pci_bus *bus, unsigned int devfn,
-					int where)
+static void __iomem *brcm_pcie_map_bus(struct pci_bus *bus,
+				       unsigned int devfn, int where)
 {
 	struct brcm_pcie *pcie = bus->sysdata;
 	void __iomem *base = pcie->base;
@@ -705,8 +705,8 @@ static void __iomem *brcm_pcie_map_conf(struct pci_bus *bus, unsigned int devfn,
 	return base + PCIE_EXT_CFG_DATA + PCIE_ECAM_REG(where);
 }
 
-static void __iomem *brcm_pcie_map_conf32(struct pci_bus *bus, unsigned int devfn,
-					 int where)
+static void __iomem *brcm7425_pcie_map_bus(struct pci_bus *bus,
+					   unsigned int devfn, int where)
 {
 	struct brcm_pcie *pcie = bus->sysdata;
 	void __iomem *base = pcie->base;
@@ -1470,15 +1470,15 @@ static const struct of_device_id brcm_pcie_match[] = {
 };
 
 static struct pci_ops brcm_pcie_ops = {
-	.map_bus = brcm_pcie_map_conf,
+	.map_bus = brcm_pcie_map_bus,
 	.read = pci_generic_config_read,
 	.write = pci_generic_config_write,
 	.add_bus = brcm_pcie_add_bus,
 	.remove_bus = brcm_pcie_remove_bus,
 };
 
-static struct pci_ops brcm_pcie_ops32 = {
-	.map_bus = brcm_pcie_map_conf32,
+static struct pci_ops brcm7425_pcie_ops = {
+	.map_bus = brcm7425_pcie_map_bus,
 	.read = pci_generic_config_read32,
 	.write = pci_generic_config_write32,
 	.add_bus = brcm_pcie_add_bus,
@@ -1571,7 +1571,7 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 		}
 	}
 
-	bridge->ops = pcie->type == BCM7425 ? &brcm_pcie_ops32 : &brcm_pcie_ops;
+	bridge->ops = pcie->type == BCM7425 ? &brcm7425_pcie_ops : &brcm_pcie_ops;
 	bridge->sysdata = pcie;
 
 	platform_set_drvdata(pdev, pcie);
