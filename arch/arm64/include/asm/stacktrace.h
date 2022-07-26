@@ -65,16 +65,14 @@ static inline bool on_accessible_stack(const struct task_struct *tsk,
 				       unsigned long sp, unsigned long size,
 				       struct stack_info *info)
 {
-	if (info)
-		info->type = STACK_TYPE_UNKNOWN;
+	if (on_accessible_stack_common(tsk, sp, size, info))
+		return true;
 
 	if (on_task_stack(tsk, sp, size, info))
 		return true;
 	if (tsk != current || preemptible())
 		return false;
 	if (on_irq_stack(sp, size, info))
-		return true;
-	if (on_overflow_stack(sp, size, info))
 		return true;
 	if (on_sdei_stack(sp, size, info))
 		return true;
