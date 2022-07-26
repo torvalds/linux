@@ -762,6 +762,11 @@
 			};
 		};
 
+		sram@fc190000 {
+			compatible = "qcom,msm8974-rpm-stats";
+			reg = <0xfc190000 0x10000>;
+		};
+
 		etf@fc307000 {
 			compatible = "arm,coresight-tmc", "arm,primecell";
 			reg = <0xfc307000 0x1000>;
