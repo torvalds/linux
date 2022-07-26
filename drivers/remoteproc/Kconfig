@@ -315,6 +315,13 @@ config TI_K3_R5_REMOTEPROC
 	  It's safe to say N here if you're not interested in utilizing
 	  a slave processor.
 
+config AST2600_SSP
+	tristate "ASPEED AST2600 SSP remoteproc support"
+	depends on ARCH_ASPEED
+	help
+	  Say y here to support Aspeed AST2600 SSP via the
+	  remote processor framework.
+
 endif # REMOTEPROC
 
 endmenu
