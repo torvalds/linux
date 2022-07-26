@@ -7,6 +7,7 @@
 #define _USB_MISC_ONBOARD_USB_HUB_H
 
 static const struct of_device_id onboard_hub_match[] = {
+	{ .compatible = "usb424,2514" },
 	{ .compatible = "usbbda,411" },
 	{ .compatible = "usbbda,5411" },
 	{ .compatible = "usbbda,414" },
