@@ -106,11 +106,6 @@ static int mtk_tdm_en_event(struct snd_soc_dapm_widget *w,
 	int dai_id = get_tdm_id_by_name(w->name);
 	struct mtk_afe_tdm_priv *tdm_priv = afe_priv->dai_priv[dai_id];
 
-	if (!tdm_priv) {
-		dev_err(afe->dev, "%s(), tdm_priv == NULL", __func__);
-		return -EINVAL;
-	}
-
 	dev_dbg(cmpnt->dev, "%s(), name %s, event 0x%x\n",
 		__func__, w->name, event);
 
@@ -137,11 +132,6 @@ static int mtk_tdm_mck_en_event(struct snd_soc_dapm_widget *w,
 	struct mt8186_afe_private *afe_priv = afe->platform_priv;
 	int dai_id = get_tdm_id_by_name(w->name);
 	struct mtk_afe_tdm_priv *tdm_priv = afe_priv->dai_priv[dai_id];
-
-	if (!tdm_priv) {
-		dev_err(afe->dev, "%s(), tdm_priv == NULL", __func__);
-		return -EINVAL;
-	}
 
 	dev_dbg(cmpnt->dev, "%s(), name %s, event 0x%x, dai_id %d\n",
 		__func__, w->name, event, dai_id);
@@ -215,11 +205,6 @@ static int mtk_afe_tdm_mclk_connect(struct snd_soc_dapm_widget *source,
 	int dai_id = get_tdm_id_by_name(w->name);
 	struct mtk_afe_tdm_priv *tdm_priv = afe_priv->dai_priv[dai_id];
 
-	if (!tdm_priv) {
-		dev_err(afe->dev, "%s(), tdm_priv == NULL", __func__);
-		return 0;
-	}
-
 	return (tdm_priv->mclk_rate > 0) ? 1 : 0;
 }
 
@@ -250,11 +235,6 @@ static int mtk_afe_tdm_hd_connect(struct snd_soc_dapm_widget *source,
 	int dai_id = get_tdm_id_by_name(w->name);
 	struct mtk_afe_tdm_priv *tdm_priv = afe_priv->dai_priv[dai_id];
 
-	if (!tdm_priv) {
-		dev_err(afe->dev, "%s(), tdm_priv == NULL", __func__);
-		return 0;
-	}
-
 	return tdm_priv->low_jitter_en;
 }
 
@@ -269,11 +249,6 @@ static int mtk_afe_tdm_apll_connect(struct snd_soc_dapm_widget *source,
 	struct mtk_afe_tdm_priv *tdm_priv = afe_priv->dai_priv[dai_id];
 	int cur_apll;
 	int tdm_need_apll;
-
-	if (!tdm_priv) {
-		dev_err(afe->dev, "%s(), tdm_priv == NULL", __func__);
-		return 0;
-	}
 
 	/* which apll */
 	cur_apll = mt8186_get_apll_by_name(afe, source->name);
@@ -303,11 +278,6 @@ static int mt8186_tdm_hd_get(struct snd_kcontrol *kcontrol,
 	int dai_id = get_tdm_id_by_name(kcontrol->id.name);
 	struct mtk_afe_tdm_priv *tdm_priv = afe_priv->dai_priv[dai_id];
 
-	if (!tdm_priv) {
-		dev_err(afe->dev, "%s(), tdm_priv == NULL", __func__);
-		return -EINVAL;
-	}
-
 	ucontrol->value.integer.value[0] = tdm_priv->low_jitter_en;
 
 	return 0;
@@ -331,11 +301,6 @@ static int mt8186_tdm_hd_set(struct snd_kcontrol *kcontrol,
 
 	dev_dbg(afe->dev, "%s(), kcontrol name %s, hd_en %d\n",
 		__func__, kcontrol->id.name, hd_en);
-
-	if (!tdm_priv) {
-		dev_err(afe->dev, "%s(), tdm_priv == NULL", __func__);
-		return -EINVAL;
-	}
 
 	if (tdm_priv->low_jitter_en == hd_en)
 		return 0;
@@ -421,22 +386,14 @@ static int mtk_dai_tdm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int tran_rate;
 	unsigned int tran_relatch_rate;
 
-	if (!tdm_priv) {
-		dev_err(afe->dev, "%s(), tdm_priv == NULL", __func__);
-		return -EINVAL;
-	}
-
 	tdm_priv->rate = rate;
-
 	tran_rate = mt8186_rate_transform(afe->dev, rate, dai->id);
 	tran_relatch_rate = mt8186_tdm_relatch_rate_transform(afe->dev, rate);
 
 	/* calculate mclk_rate, if not set explicitly */
 	if (!tdm_priv->mclk_rate) {
 		tdm_priv->mclk_rate = rate * tdm_priv->mclk_multiple;
-		mtk_dai_tdm_cal_mclk(afe,
-				     tdm_priv,
-				     tdm_priv->mclk_rate);
+		mtk_dai_tdm_cal_mclk(afe, tdm_priv, tdm_priv->mclk_rate);
 	}
 
 	/* ETDM_IN1_CON0 */
@@ -508,11 +465,6 @@ static int mtk_dai_tdm_set_sysclk(struct snd_soc_dai *dai,
 	struct mt8186_afe_private *afe_priv = afe->platform_priv;
 	struct mtk_afe_tdm_priv *tdm_priv = afe_priv->dai_priv[dai->id];
 
-	if (!tdm_priv) {
-		dev_err(afe->dev, "%s(), tdm_priv == NULL", __func__);
-		return -EINVAL;
-	}
-
 	if (dir != SND_SOC_CLOCK_IN) {
 		dev_err(afe->dev, "%s(), dir != SND_SOC_CLOCK_OUT", __func__);
 		return -EINVAL;
@@ -528,11 +480,6 @@ static int mtk_dai_tdm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct mtk_base_afe *afe = dev_get_drvdata(dai->dev);
 	struct mt8186_afe_private *afe_priv = afe->platform_priv;
 	struct mtk_afe_tdm_priv *tdm_priv = afe_priv->dai_priv[dai->id];
-
-	if (!tdm_priv) {
-		dev_err(afe->dev, "%s(), tdm_priv == NULL", __func__);
-		return -EINVAL;
-	}
 
 	/* DAI mode*/
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {

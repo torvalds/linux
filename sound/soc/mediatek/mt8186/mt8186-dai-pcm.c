@@ -287,11 +287,6 @@ static int mtk_dai_pcm_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct mt8186_afe_private *afe_priv = afe->platform_priv;
 	struct mtk_afe_pcm_priv *pcm_priv = afe_priv->dai_priv[dai->id];
 
-	if (!pcm_priv) {
-		dev_err(afe->dev, "%s(), tdm_priv == NULL", __func__);
-		return -EINVAL;
-	}
-
 	/* DAI mode*/
 	switch (fmt & SND_SOC_DAIFMT_FORMAT_MASK) {
 	case SND_SOC_DAIFMT_I2S:

@@ -654,11 +654,6 @@ static int mtk_dai_adda_hw_params(struct snd_pcm_substream *substream,
 	dev_dbg(afe->dev, "%s(), id %d, stream %d, rate %d\n",
 		__func__, id, substream->stream, rate);
 
-	if (!adda_priv) {
-		dev_err(afe->dev, "%s(), adda_priv == NULL", __func__);
-		return -EINVAL;
-	}
-
 	if (substream->stream == SNDRV_PCM_STREAM_PLAYBACK) {
 		unsigned int dl_src2_con0;
 		unsigned int dl_src2_con1;
