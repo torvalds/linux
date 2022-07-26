@@ -181,7 +181,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_0_soc = {
 void optc3_fpu_set_vrr_m_const(struct timing_generator *optc,
 		double vtotal_avg)
 {
-struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
 	double vtotal_min, vtotal_max;
 	double ratio, modulo, phase;
 	uint32_t vblank_start;
@@ -350,24 +350,24 @@ void dcn30_fpu_set_mcif_arb_params(struct mcif_arb_params *wb_arb_params,
 	int pipe_cnt,
 	int cur_pipe)
 {
-    int i;
+	int i;
 
 	dc_assert_fp_enabled();
 
-    for (i = 0; i < sizeof(wb_arb_params->cli_watermark)/sizeof(wb_arb_params->cli_watermark[0]); i++) {
+	for (i = 0; i < ARRAY_SIZE(wb_arb_params->cli_watermark); i++) {
 		wb_arb_params->cli_watermark[i] = get_wm_writeback_urgent(dml, pipes, pipe_cnt) * 1000;
 		wb_arb_params->pstate_watermark[i] = get_wm_writeback_dram_clock_change(dml, pipes, pipe_cnt) * 1000;
-    }
+	}
 
-    wb_arb_params->dram_speed_change_duration = dml->vba.WritebackAllowDRAMClockChangeEndPosition[cur_pipe] * pipes[0].clks_cfg.refclk_mhz; /* num_clock_cycles = us * MHz */
+	wb_arb_params->dram_speed_change_duration = dml->vba.WritebackAllowDRAMClockChangeEndPosition[cur_pipe] * pipes[0].clks_cfg.refclk_mhz; /* num_clock_cycles = us * MHz */
 }
 
 void dcn30_fpu_update_soc_for_wm_a(struct dc *dc, struct dc_state *context)
 {
 
-dc_assert_fp_enabled();
+	dc_assert_fp_enabled();
 
-if (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].valid) {
+	if (dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].valid) {
 		context->bw_ctx.dml.soc.dram_clock_change_latency_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.pstate_latency_us;
 		context->bw_ctx.dml.soc.sr_enter_plus_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_enter_plus_exit_time_us;
 		context->bw_ctx.dml.soc.sr_exit_time_us = dc->clk_mgr->bw_params->wm_table.nv_entries[WM_A].dml_input.sr_exit_time_us;
@@ -380,12 +380,12 @@ void dcn30_fpu_calculate_wm_and_dlg(
 		int pipe_cnt,
 		int vlevel)
 {
-int maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
+	int maxMpcComb = context->bw_ctx.dml.vba.maxMpcComb;
 	int i, pipe_idx;
 	double dcfclk = context->bw_ctx.dml.vba.DCFCLKState[vlevel][maxMpcComb];
 	bool pstate_en = context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][maxMpcComb] != dm_dram_clock_change_unsupported;
 
-dc_assert_fp_enabled();
+	dc_assert_fp_enabled();
 
 	if (context->bw_ctx.dml.soc.min_dcfclk > dcfclk)
 		dcfclk = context->bw_ctx.dml.soc.min_dcfclk;
