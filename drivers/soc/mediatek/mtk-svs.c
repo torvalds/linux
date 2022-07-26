@@ -2389,7 +2389,7 @@ static struct platform_driver svs_driver = {
 	.driver	= {
 		.name		= "mtk-svs",
 		.pm		= &svs_pm_ops,
-		.of_match_table	= of_match_ptr(svs_of_match),
+		.of_match_table	= svs_of_match,
 	},
 };
 
