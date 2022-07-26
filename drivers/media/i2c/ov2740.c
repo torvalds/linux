@@ -433,7 +433,7 @@ static int ov2740_write_reg_list(struct ov2740 *ov2740,
 				       r_list->regs[i].val);
 		if (ret) {
 			dev_err_ratelimited(&client->dev,
-					    "write reg 0x%4.4x return err = %d",
+					    "write reg 0x%4.4x return err = %d\n",
 					    r_list->regs[i].address, ret);
 			return ret;
 		}
@@ -456,7 +456,7 @@ static int ov2740_identify_module(struct ov2740 *ov2740)
 		return ret;
 
 	if (val != OV2740_CHIP_ID) {
-		dev_err(&client->dev, "chip id mismatch: %x!=%x",
+		dev_err(&client->dev, "chip id mismatch: %x != %x\n",
 			OV2740_CHIP_ID, val);
 		return -ENXIO;
 	}
@@ -754,14 +754,14 @@ static int ov2740_start_streaming(struct ov2740 *ov2740)
 	reg_list = &link_freq_configs[link_freq_index].reg_list;
 	ret = ov2740_write_reg_list(ov2740, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "failed to set plls");
+		dev_err(&client->dev, "failed to set plls\n");
 		return ret;
 	}
 
 	reg_list = &ov2740->cur_mode->reg_list;
 	ret = ov2740_write_reg_list(ov2740, reg_list);
 	if (ret) {
-		dev_err(&client->dev, "failed to set mode");
+		dev_err(&client->dev, "failed to set mode\n");
 		return ret;
 	}
 
@@ -772,7 +772,7 @@ static int ov2740_start_streaming(struct ov2740 *ov2740)
 	ret = ov2740_write_reg(ov2740, OV2740_REG_MODE_SELECT, 1,
 			       OV2740_MODE_STREAMING);
 	if (ret)
-		dev_err(&client->dev, "failed to start streaming");
+		dev_err(&client->dev, "failed to start streaming\n");
 
 	return ret;
 }
@@ -783,7 +783,7 @@ static void ov2740_stop_streaming(struct ov2740 *ov2740)
 
 	if (ov2740_write_reg(ov2740, OV2740_REG_MODE_SELECT, 1,
 			     OV2740_MODE_STANDBY))
-		dev_err(&client->dev, "failed to stop streaming");
+		dev_err(&client->dev, "failed to stop streaming\n");
 }
 
 static int ov2740_set_stream(struct v4l2_subdev *sd, int enable)
