@@ -716,28 +716,27 @@ static enum dc_lut_mode dpp3_get_blndgam_current(struct dpp *dpp_base)
 
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
-	REG_GET(CM_BLNDGAM_CONTROL,
-			CM_BLNDGAM_MODE_CURRENT, &mode_current);
-	REG_GET(CM_BLNDGAM_CONTROL,
-			CM_BLNDGAM_SELECT_CURRENT, &in_use);
+	REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_MODE_CURRENT, &mode_current);
+	REG_GET(CM_BLNDGAM_CONTROL, CM_BLNDGAM_SELECT_CURRENT, &in_use);
 
-		switch (mode_current) {
-		case 0:
-		case 1:
-			mode = LUT_BYPASS;
-			break;
+	switch (mode_current) {
+	case 0:
+	case 1:
+		mode = LUT_BYPASS;
+		break;
 
-		case 2:
-			if (in_use == 0)
-				mode = LUT_RAM_A;
-			else
-				mode = LUT_RAM_B;
-			break;
-		default:
-			mode = LUT_BYPASS;
-			break;
-		}
-		return mode;
+	case 2:
+		if (in_use == 0)
+			mode = LUT_RAM_A;
+		else
+			mode = LUT_RAM_B;
+		break;
+	default:
+		mode = LUT_BYPASS;
+		break;
+	}
+
+	return mode;
 }
 
 static bool dpp3_program_blnd_lut(struct dpp *dpp_base,
@@ -817,24 +816,24 @@ static enum dc_lut_mode dpp3_get_shaper_current(struct dpp *dpp_base)
 	uint32_t state_mode;
 	struct dcn3_dpp *dpp = TO_DCN30_DPP(dpp_base);
 
-	REG_GET(CM_SHAPER_CONTROL,
-			CM_SHAPER_MODE_CURRENT, &state_mode);
+	REG_GET(CM_SHAPER_CONTROL, CM_SHAPER_MODE_CURRENT, &state_mode);
 
-		switch (state_mode) {
-		case 0:
-			mode = LUT_BYPASS;
-			break;
-		case 1:
-			mode = LUT_RAM_A;
-			break;
-		case 2:
-			mode = LUT_RAM_B;
-			break;
-		default:
-			mode = LUT_BYPASS;
-			break;
-		}
-		return mode;
+	switch (state_mode) {
+	case 0:
+		mode = LUT_BYPASS;
+		break;
+	case 1:
+		mode = LUT_RAM_A;
+		break;
+	case 2:
+		mode = LUT_RAM_B;
+		break;
+	default:
+		mode = LUT_BYPASS;
+		break;
+	}
+
+	return mode;
 }
 
 static void dpp3_configure_shaper_lut(
