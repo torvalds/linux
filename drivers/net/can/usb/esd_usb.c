@@ -1138,7 +1138,7 @@ static void esd_usb_disconnect(struct usb_interface *intf)
 
 /* usb specific object needed to register this driver with the usb subsystem */
 static struct usb_driver esd_usb_driver = {
-	.name = "esd_usb",
+	.name = KBUILD_MODNAME,
 	.probe = esd_usb_probe,
 	.disconnect = esd_usb_disconnect,
 	.id_table = esd_usb_table,
