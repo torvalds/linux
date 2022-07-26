@@ -255,8 +255,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		drv_leave_ibss(local, sdata);
 	}
 
-	presp = rcu_dereference_protected(ifibss->presp,
-					  lockdep_is_held(&sdata->wdev.mtx));
+	presp = sdata_dereference(ifibss->presp, sdata);
 	RCU_INIT_POINTER(ifibss->presp, NULL);
 	if (presp)
 		kfree_rcu(presp, rcu_head);
@@ -301,7 +300,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	radar_required = err;
 
 	mutex_lock(&local->mtx);
-	if (ieee80211_link_use_channel(sdata->link[0], &chandef,
+	if (ieee80211_link_use_channel(&sdata->deflink, &chandef,
 				       ifibss->fixed_channel ?
 					IEEE80211_CHANCTX_SHARED :
 					IEEE80211_CHANCTX_EXCLUSIVE)) {
@@ -352,12 +351,10 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	bss_change |= BSS_CHANGED_ERP_SLOT;
 
 	/* cf. IEEE 802.11 9.2.12 */
-	if (chan->band == NL80211_BAND_2GHZ && have_higher_than_11mbit)
-		sdata->flags |= IEEE80211_SDATA_OPERATING_GMODE;
-	else
-		sdata->flags &= ~IEEE80211_SDATA_OPERATING_GMODE;
+	sdata->deflink.operating_11g_mode =
+		chan->band == NL80211_BAND_2GHZ && have_higher_than_11mbit;
 
-	ieee80211_set_wmm_default(sdata, true, false);
+	ieee80211_set_wmm_default(&sdata->deflink, true, false);
 
 	sdata->vif.cfg.ibss_joined = true;
 	sdata->vif.cfg.ibss_creator = creator;
@@ -371,7 +368,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		RCU_INIT_POINTER(ifibss->presp, NULL);
 		kfree_rcu(presp, rcu_head);
 		mutex_lock(&local->mtx);
-		ieee80211_link_release_channel(sdata->link[0]);
+		ieee80211_link_release_channel(&sdata->deflink);
 		mutex_unlock(&local->mtx);
 		sdata_info(sdata, "Failed to join IBSS, driver failure: %d\n",
 			   err);
@@ -509,8 +506,7 @@ int ieee80211_ibss_csa_beacon(struct ieee80211_sub_if_data *sdata,
 	rcu_read_unlock();
 	cfg80211_put_bss(sdata->local->hw.wiphy, cbss);
 
-	old_presp = rcu_dereference_protected(ifibss->presp,
-					  lockdep_is_held(&sdata->wdev.mtx));
+	old_presp = sdata_dereference(ifibss->presp, sdata);
 
 	presp = ieee80211_ibss_build_presp(sdata,
 					   sdata->vif.bss_conf.beacon_int,
@@ -629,7 +625,7 @@ ieee80211_ibss_add_sta(struct ieee80211_sub_if_data *sdata, const u8 *bssid,
 	scan_width = cfg80211_chandef_to_scan_width(&chanctx_conf->def);
 	rcu_read_unlock();
 
-	sta = sta_info_alloc(sdata, addr, -1, GFP_KERNEL);
+	sta = sta_info_alloc(sdata, addr, GFP_KERNEL);
 	if (!sta) {
 		rcu_read_lock();
 		return NULL;
@@ -714,8 +710,7 @@ static void ieee80211_ibss_disconnect(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.cfg.ssid_len = 0;
 
 	/* remove beacon */
-	presp = rcu_dereference_protected(ifibss->presp,
-					  lockdep_is_held(&sdata->wdev.mtx));
+	presp = sdata_dereference(ifibss->presp, sdata);
 	RCU_INIT_POINTER(sdata->u.ibss.presp, NULL);
 	if (presp)
 		kfree_rcu(presp, rcu_head);
@@ -725,7 +720,7 @@ static void ieee80211_ibss_disconnect(struct ieee80211_sub_if_data *sdata)
 						BSS_CHANGED_IBSS);
 	drv_leave_ibss(local, sdata);
 	mutex_lock(&local->mtx);
-	ieee80211_link_release_channel(sdata->link[0]);
+	ieee80211_link_release_channel(&sdata->deflink);
 	mutex_unlock(&local->mtx);
 }
 
@@ -773,20 +768,21 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_if_ibss *ifibss = &sdata->u.ibss;
 	enum nl80211_channel_type ch_type;
 	int err;
-	u32 sta_flags;
+	ieee80211_conn_flags_t conn_flags;
 	u32 vht_cap_info = 0;
 
 	sdata_assert_lock(sdata);
 
-	sta_flags = IEEE80211_STA_DISABLE_VHT;
+	conn_flags = IEEE80211_CONN_DISABLE_VHT;
+
 	switch (ifibss->chandef.width) {
 	case NL80211_CHAN_WIDTH_5:
 	case NL80211_CHAN_WIDTH_10:
 	case NL80211_CHAN_WIDTH_20_NOHT:
-		sta_flags |= IEEE80211_STA_DISABLE_HT;
+		conn_flags |= IEEE80211_CONN_DISABLE_HT;
 		fallthrough;
 	case NL80211_CHAN_WIDTH_20:
-		sta_flags |= IEEE80211_STA_DISABLE_40MHZ;
+		conn_flags |= IEEE80211_CONN_DISABLE_40MHZ;
 		break;
 	default:
 		break;
@@ -799,7 +795,7 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 	err = ieee80211_parse_ch_switch_ie(sdata, elems,
 					   ifibss->chandef.chan->band,
 					   vht_cap_info,
-					   sta_flags, ifibss->bssid, &csa_ie);
+					   conn_flags, ifibss->bssid, &csa_ie);
 	/* can't switch to destination channel, fail */
 	if (err < 0)
 		goto disconnect;
@@ -842,7 +838,7 @@ ieee80211_ibss_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		}
 		break;
 	default:
-		/* should not happen, sta_flags should prevent VHT modes. */
+		/* should not happen, conn_flags should prevent VHT modes. */
 		WARN_ON(1);
 		goto disconnect;
 	}
@@ -1230,7 +1226,7 @@ void ieee80211_ibss_rx_no_sta(struct ieee80211_sub_if_data *sdata,
 	scan_width = cfg80211_chandef_to_scan_width(&chanctx_conf->def);
 	rcu_read_unlock();
 
-	sta = sta_info_alloc(sdata, addr, -1, GFP_ATOMIC);
+	sta = sta_info_alloc(sdata, addr, GFP_ATOMIC);
 	if (!sta)
 		return;
 
@@ -1530,8 +1526,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 
 	sdata_assert_lock(sdata);
 
-	presp = rcu_dereference_protected(ifibss->presp,
-					  lockdep_is_held(&sdata->wdev.mtx));
+	presp = sdata_dereference(ifibss->presp, sdata);
 
 	if (ifibss->state != IEEE80211_IBSS_MLME_JOINED ||
 	    len < 24 + 2 || !presp)
@@ -1604,8 +1599,7 @@ void ieee80211_rx_mgmt_probe_beacon(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	elems = ieee802_11_parse_elems(mgmt->u.probe_resp.variable,
-				       len - baselen, false,
-				       mgmt->bssid, NULL);
+				       len - baselen, false, NULL);
 
 	if (elems) {
 		ieee80211_rx_bss_info(sdata, mgmt, len, rx_status, elems);
@@ -1658,7 +1652,7 @@ void ieee80211_ibss_rx_queued_mgmt(struct ieee80211_sub_if_data *sdata,
 
 			elems = ieee802_11_parse_elems(
 				mgmt->u.action.u.chan_switch.variable,
-				ies_len, true, mgmt->bssid, NULL);
+				ies_len, true, NULL);
 
 			if (elems && !elems->parse_error)
 				ieee80211_rx_mgmt_spectrum_mgmt(sdata, mgmt,
@@ -1852,7 +1846,7 @@ int ieee80211_ibss_join(struct ieee80211_sub_if_data *sdata,
 		| IEEE80211_HT_PARAM_RIFS_MODE;
 
 	changed |= BSS_CHANGED_HT | BSS_CHANGED_MCAST_RATE;
-	ieee80211_link_info_change_notify(sdata, 0, changed);
+	ieee80211_link_info_change_notify(sdata, &sdata->deflink, changed);
 
 	sdata->deflink.smps_mode = IEEE80211_SMPS_OFF;
 	sdata->deflink.needed_rx_chains = local->rx_chains;

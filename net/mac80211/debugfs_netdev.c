@@ -256,7 +256,7 @@ static int ieee80211_set_smps(struct ieee80211_sub_if_data *sdata,
 		return -EOPNOTSUPP;
 
 	sdata_lock(sdata);
-	err = __ieee80211_request_smps_mgd(sdata, 0, smps_mode);
+	err = __ieee80211_request_smps_mgd(sdata, &sdata->deflink, smps_mode);
 	sdata_unlock(sdata);
 
 	return err;

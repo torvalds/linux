@@ -341,39 +341,50 @@ ieee80211_sta_cap_rx_bw(struct link_sta_info *link_sta)
 {
 	unsigned int link_id = link_sta->link_id;
 	struct ieee80211_sub_if_data *sdata = link_sta->sta->sdata;
-	struct ieee80211_bss_conf *link_conf = sdata->vif.link_conf[link_id];
 	struct ieee80211_sta_vht_cap *vht_cap = &link_sta->pub->vht_cap;
 	struct ieee80211_sta_he_cap *he_cap = &link_sta->pub->he_cap;
 	struct ieee80211_sta_eht_cap *eht_cap = &link_sta->pub->eht_cap;
 	u32 cap_width;
 
 	if (he_cap->has_he) {
+		struct ieee80211_bss_conf *link_conf;
+		enum ieee80211_sta_rx_bandwidth ret;
 		u8 info;
+
+		rcu_read_lock();
+		link_conf = rcu_dereference(sdata->vif.link_conf[link_id]);
 
 		if (eht_cap->has_eht &&
 		    link_conf->chandef.chan->band == NL80211_BAND_6GHZ) {
 			info = eht_cap->eht_cap_elem.phy_cap_info[0];
 
-			if (info & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ)
-				return IEEE80211_STA_RX_BW_320;
+			if (info & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ) {
+				ret = IEEE80211_STA_RX_BW_320;
+				goto out;
+			}
 		}
 
 		info = he_cap->he_cap_elem.phy_cap_info[0];
 
 		if (link_conf->chandef.chan->band == NL80211_BAND_2GHZ) {
 			if (info & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G)
-				return IEEE80211_STA_RX_BW_40;
+				ret = IEEE80211_STA_RX_BW_40;
 			else
-				return IEEE80211_STA_RX_BW_20;
+				ret = IEEE80211_STA_RX_BW_20;
+			goto out;
 		}
 
 		if (info & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_160MHZ_IN_5G ||
 		    info & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_80PLUS80_MHZ_IN_5G)
-			return IEEE80211_STA_RX_BW_160;
+			ret = IEEE80211_STA_RX_BW_160;
 		else if (info & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_80MHZ_IN_5G)
-			return IEEE80211_STA_RX_BW_80;
+			ret = IEEE80211_STA_RX_BW_80;
+		else
+			ret = IEEE80211_STA_RX_BW_20;
+out:
+		rcu_read_unlock();
 
-		return IEEE80211_STA_RX_BW_20;
+		return ret;
 	}
 
 	if (!vht_cap->vht_supported)
@@ -481,10 +492,17 @@ enum ieee80211_sta_rx_bandwidth
 ieee80211_sta_cur_vht_bw(struct link_sta_info *link_sta)
 {
 	struct sta_info *sta = link_sta->sta;
-	struct ieee80211_bss_conf *link_conf =
-		sta->sdata->vif.link_conf[link_sta->link_id];
-	enum nl80211_chan_width bss_width = link_conf->chandef.width;
+	struct ieee80211_bss_conf *link_conf;
+	enum nl80211_chan_width bss_width;
 	enum ieee80211_sta_rx_bandwidth bw;
+
+	rcu_read_lock();
+	link_conf = rcu_dereference(sta->sdata->vif.link_conf[link_sta->link_id]);
+	if (WARN_ON(!link_conf))
+		bss_width = NL80211_CHAN_WIDTH_20_NOHT;
+	else
+		bss_width = link_conf->chandef.width;
+	rcu_read_unlock();
 
 	bw = ieee80211_sta_cap_rx_bw(link_sta);
 	bw = min(bw, link_sta->cur_max_bandwidth);
@@ -659,10 +677,10 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 }
 
 void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
-				 unsigned int link_id,
+				 struct ieee80211_link_data *link,
 				 struct ieee80211_mgmt *mgmt)
 {
-	struct ieee80211_bss_conf *link_conf = sdata->vif.link_conf[link_id];
+	struct ieee80211_bss_conf *link_conf = link->conf;
 
 	if (!link_conf->mu_mimo_owner)
 		return;
@@ -680,19 +698,25 @@ void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
 	       mgmt->u.action.u.vht_group_notif.position,
 	       WLAN_USER_POSITION_LEN);
 
-	ieee80211_link_info_change_notify(sdata, link_id, BSS_CHANGED_MU_GROUPS);
+	ieee80211_link_info_change_notify(sdata, link,
+					  BSS_CHANGED_MU_GROUPS);
 }
 
 void ieee80211_update_mu_groups(struct ieee80211_vif *vif, unsigned int link_id,
 				const u8 *membership, const u8 *position)
 {
-	struct ieee80211_bss_conf *link_conf = vif->link_conf[link_id];
+	struct ieee80211_bss_conf *link_conf;
 
-	if (WARN_ON_ONCE(!link_conf->mu_mimo_owner))
-		return;
+	rcu_read_lock();
+	link_conf = rcu_dereference(vif->link_conf[link_id]);
 
-	memcpy(link_conf->mu_group.membership, membership, WLAN_MEMBERSHIP_LEN);
-	memcpy(link_conf->mu_group.position, position, WLAN_USER_POSITION_LEN);
+	if (!WARN_ON_ONCE(!link_conf || !link_conf->mu_mimo_owner)) {
+		memcpy(link_conf->mu_group.membership, membership,
+		       WLAN_MEMBERSHIP_LEN);
+		memcpy(link_conf->mu_group.position, position,
+		       WLAN_USER_POSITION_LEN);
+	}
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(ieee80211_update_mu_groups);
 
@@ -707,7 +731,7 @@ void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 						    opmode, band);
 
 	if (changed > 0) {
-		ieee80211_recalc_min_chandef(sdata);
+		ieee80211_recalc_min_chandef(sdata, link_sta->link_id);
 		rate_control_rate_update(local, sband, link_sta->sta,
 					 link_sta->link_id, changed);
 	}

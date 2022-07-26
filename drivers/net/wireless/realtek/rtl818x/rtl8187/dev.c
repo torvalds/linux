@@ -1338,7 +1338,8 @@ static void rtl8187_configure_filter(struct ieee80211_hw *dev,
 }
 
 static int rtl8187_conf_tx(struct ieee80211_hw *dev,
-			   struct ieee80211_vif *vif, u16 queue,
+			   struct ieee80211_vif *vif,
+			   unsigned int link_id, u16 queue,
 			   const struct ieee80211_tx_queue_params *params)
 {
 	struct rtl8187_priv *priv = dev->priv;

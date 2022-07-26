@@ -372,7 +372,7 @@ int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			 const u8 *ie, int ie_len, u16 reason,
 			 bool local_state_change);
 int cfg80211_mlme_disassoc(struct cfg80211_registered_device *rdev,
-			   struct net_device *dev, const u8 *bssid,
+			   struct net_device *dev, const u8 *ap_addr,
 			   const u8 *ie, int ie_len, u16 reason,
 			   bool local_state_change);
 void cfg80211_mlme_down(struct cfg80211_registered_device *rdev,
@@ -561,5 +561,10 @@ void cfg80211_cqm_config_free(struct wireless_dev *wdev);
 void cfg80211_release_pmsr(struct wireless_dev *wdev, u32 portid);
 void cfg80211_pmsr_wdev_down(struct wireless_dev *wdev);
 void cfg80211_pmsr_free_wk(struct work_struct *work);
+
+void cfg80211_remove_link(struct wireless_dev *wdev, unsigned int link_id);
+void cfg80211_remove_links(struct wireless_dev *wdev);
+int cfg80211_remove_virtual_intf(struct cfg80211_registered_device *rdev,
+				 struct wireless_dev *wdev);
 
 #endif /* __NET_WIRELESS_CORE_H */

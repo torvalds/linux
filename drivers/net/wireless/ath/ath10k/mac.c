@@ -6252,7 +6252,7 @@ static void ath10k_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_PS) {
-		arvif->ps = vif->bss_conf.ps;
+		arvif->ps = vif->cfg.ps;
 
 		ret = ath10k_config_ps(ar);
 		if (ret)
@@ -7814,7 +7814,8 @@ exit:
 }
 
 static int ath10k_conf_tx(struct ieee80211_hw *hw,
-			  struct ieee80211_vif *vif, u16 ac,
+			  struct ieee80211_vif *vif,
+			  unsigned int link_id, u16 ac,
 			  const struct ieee80211_tx_queue_params *params)
 {
 	struct ath10k *ar = hw->priv;
@@ -8919,7 +8920,7 @@ unlock:
 static int
 ath10k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
-				 unsigned int link_id,
+				 struct ieee80211_bss_conf *link_conf,
 				 struct ieee80211_chanctx_conf *ctx)
 {
 	struct ath10k *ar = hw->priv;
@@ -8999,7 +9000,7 @@ err:
 static void
 ath10k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
-				   unsigned int link_id,
+				   struct ieee80211_bss_conf *link_conf,
 				   struct ieee80211_chanctx_conf *ctx)
 {
 	struct ath10k *ar = hw->priv;

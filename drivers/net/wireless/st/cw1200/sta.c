@@ -606,7 +606,8 @@ void cw1200_configure_filter(struct ieee80211_hw *dev,
 }
 
 int cw1200_conf_tx(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
-		   u16 queue, const struct ieee80211_tx_queue_params *params)
+		   unsigned int link_id, u16 queue,
+		   const struct ieee80211_tx_queue_params *params)
 {
 	struct cw1200_common *priv = dev->priv;
 	int ret = 0;

@@ -502,7 +502,7 @@ void ieee80211_process_addba_request(struct ieee80211_local *local,
 				 u.action.u.addba_req.variable);
 	if (ies_len) {
 		elems = ieee802_11_parse_elems(mgmt->u.action.u.addba_req.variable,
-					       ies_len, true, mgmt->bssid, NULL);
+					       ies_len, true, NULL);
 		if (!elems || elems->parse_error)
 			goto free;
 	}

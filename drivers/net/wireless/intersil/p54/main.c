@@ -404,7 +404,8 @@ static void p54_configure_filter(struct ieee80211_hw *dev,
 }
 
 static int p54_conf_tx(struct ieee80211_hw *dev,
-		       struct ieee80211_vif *vif, u16 queue,
+		       struct ieee80211_vif *vif,
+		       unsigned int link_id, u16 queue,
 		       const struct ieee80211_tx_queue_params *params)
 {
 	struct p54_common *priv = dev->priv;
@@ -682,7 +683,7 @@ static void p54_flush(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
 	 * queues have already been stopped and no new frames can sneak
 	 * up from behind.
 	 */
-	while ((total = p54_flush_count(priv) && i--)) {
+	while ((total = p54_flush_count(priv)) && i--) {
 		/* waste time */
 		msleep(20);
 	}
@@ -830,7 +831,7 @@ void p54_free_common(struct ieee80211_hw *dev)
 	kfree(priv->output_limit);
 	kfree(priv->curve_data);
 	kfree(priv->rssi_db);
-	kfree(priv->used_rxkeys);
+	bitmap_free(priv->used_rxkeys);
 	kfree(priv->survey);
 	priv->iq_autocal = NULL;
 	priv->output_limit = NULL;

@@ -67,25 +67,17 @@ static bool ieee80211_can_create_new_chanctx(struct ieee80211_local *local)
 }
 
 static struct ieee80211_chanctx *
-ieee80211_vif_get_chanctx(struct ieee80211_sub_if_data *sdata,
-			  unsigned int link_id)
+ieee80211_link_get_chanctx(struct ieee80211_link_data *link)
 {
-	struct ieee80211_bss_conf *link_conf = sdata->vif.link_conf[link_id];
-	struct ieee80211_local *local __maybe_unused = sdata->local;
+	struct ieee80211_local *local __maybe_unused = link->sdata->local;
 	struct ieee80211_chanctx_conf *conf;
 
-	conf = rcu_dereference_protected(link_conf->chanctx_conf,
+	conf = rcu_dereference_protected(link->conf->chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 	if (!conf)
 		return NULL;
 
 	return container_of(conf, struct ieee80211_chanctx, conf);
-}
-
-static struct ieee80211_chanctx *
-ieee80211_link_get_chanctx(struct ieee80211_link_data *link)
-{
-	return ieee80211_vif_get_chanctx(link->sdata, link->link_id);
 }
 
 static const struct cfg80211_chan_def *
@@ -122,8 +114,7 @@ ieee80211_chanctx_non_reserved_chandef(struct ieee80211_local *local,
 
 	list_for_each_entry(link, &ctx->assigned_links,
 			    assigned_chanctx_list) {
-		struct ieee80211_bss_conf *link_conf =
-			link->sdata->vif.link_conf[link->link_id];
+		struct ieee80211_bss_conf *link_conf = link->conf;
 
 		if (link->reserved_chanctx)
 			continue;
@@ -254,7 +245,6 @@ ieee80211_get_max_required_bw(struct ieee80211_sub_if_data *sdata,
 	enum nl80211_chan_width max_bw = NL80211_CHAN_WIDTH_20_NOHT;
 	struct sta_info *sta;
 
-	rcu_read_lock();
 	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
 		if (sdata != sta->sdata &&
 		    !(sta->sdata->bss && sta->sdata->bss == sdata->bss))
@@ -262,7 +252,6 @@ ieee80211_get_max_required_bw(struct ieee80211_sub_if_data *sdata,
 
 		max_bw = max(max_bw, ieee80211_get_sta_bw(sta, link_id));
 	}
-	rcu_read_unlock();
 
 	return max_bw;
 }
@@ -275,10 +264,11 @@ ieee80211_get_chanctx_vif_max_required_bw(struct ieee80211_sub_if_data *sdata,
 	struct ieee80211_vif *vif = &sdata->vif;
 	int link_id;
 
+	rcu_read_lock();
 	for (link_id = 0; link_id < ARRAY_SIZE(sdata->link); link_id++) {
 		enum nl80211_chan_width width = NL80211_CHAN_WIDTH_20_NOHT;
 		struct ieee80211_bss_conf *link_conf =
-			sdata->vif.link_conf[link_id];
+			rcu_dereference(sdata->vif.link_conf[link_id]);
 
 		if (!link_conf)
 			continue;
@@ -319,6 +309,7 @@ ieee80211_get_chanctx_vif_max_required_bw(struct ieee80211_sub_if_data *sdata,
 
 		max_bw = max(max_bw, width);
 	}
+	rcu_read_unlock();
 
 	return max_bw;
 }
@@ -345,7 +336,7 @@ ieee80211_get_chanctx_max_required_bw(struct ieee80211_local *local,
 	/* use the configured bandwidth in case of monitor interface */
 	sdata = rcu_dereference(local->monitor_sdata);
 	if (sdata &&
-	    rcu_access_pointer(sdata->vif.link_conf[0]->chanctx_conf) == conf)
+	    rcu_access_pointer(sdata->vif.bss_conf.chanctx_conf) == conf)
 		max_bw = max(max_bw, conf->def.width);
 
 	rcu_read_unlock();
@@ -419,7 +410,7 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 
 		for (link_id = 0; link_id < ARRAY_SIZE(sta->sdata->link); link_id++) {
 			struct ieee80211_bss_conf *link_conf =
-				sdata->vif.link_conf[link_id];
+				rcu_dereference(sdata->vif.link_conf[link_id]);
 			struct link_sta_info *link_sta;
 
 			if (!link_conf)
@@ -572,8 +563,11 @@ bool ieee80211_is_radar_required(struct ieee80211_local *local)
 		unsigned int link_id;
 
 		for (link_id = 0; link_id < ARRAY_SIZE(sdata->link); link_id++) {
-			if (sdata->link[link_id] &&
-			    sdata->link[link_id]->radar_required) {
+			struct ieee80211_link_data *link;
+
+			link = rcu_dereference(sdata->link[link_id]);
+
+			if (link && link->radar_required) {
 				rcu_read_unlock();
 				return true;
 			}
@@ -602,15 +596,15 @@ ieee80211_chanctx_radar_required(struct ieee80211_local *local,
 		if (!ieee80211_sdata_running(sdata))
 			continue;
 		for (link_id = 0; link_id < ARRAY_SIZE(sdata->link); link_id++) {
-			struct ieee80211_bss_conf *link_conf =
-				sdata->vif.link_conf[link_id];
+			struct ieee80211_link_data *link;
 
-			if (!link_conf)
+			link = rcu_dereference(sdata->link[link_id]);
+			if (!link)
 				continue;
 
-			if (rcu_access_pointer(link_conf->chanctx_conf) != conf)
+			if (rcu_access_pointer(link->conf->chanctx_conf) != conf)
 				continue;
-			if (!sdata->link[link_id]->radar_required)
+			if (!link->radar_required)
 				continue;
 			required = true;
 			break;
@@ -774,7 +768,7 @@ void ieee80211_recalc_chanctx_chantype(struct ieee80211_local *local,
 
 		for (link_id = 0; link_id < ARRAY_SIZE(sdata->link); link_id++) {
 			struct ieee80211_bss_conf *link_conf =
-				sdata->vif.link_conf[link_id];
+				rcu_dereference(sdata->vif.link_conf[link_id]);
 
 			if (!link_conf)
 				continue;
@@ -841,7 +835,6 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 					 struct ieee80211_chanctx *new_ctx)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
-	unsigned int link_id = link->link_id;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *curr_ctx = NULL;
@@ -850,19 +843,19 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 	if (WARN_ON(sdata->vif.type == NL80211_IFTYPE_NAN))
 		return -ENOTSUPP;
 
-	conf = rcu_dereference_protected(sdata->vif.link_conf[link_id]->chanctx_conf,
+	conf = rcu_dereference_protected(link->conf->chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 
 	if (conf) {
 		curr_ctx = container_of(conf, struct ieee80211_chanctx, conf);
 
-		drv_unassign_vif_chanctx(local, sdata, link_id, curr_ctx);
+		drv_unassign_vif_chanctx(local, sdata, link->conf, curr_ctx);
 		conf = NULL;
 		list_del(&link->assigned_chanctx_list);
 	}
 
 	if (new_ctx) {
-		ret = drv_assign_vif_chanctx(local, sdata, link_id, new_ctx);
+		ret = drv_assign_vif_chanctx(local, sdata, link->conf, new_ctx);
 		if (ret)
 			goto out;
 
@@ -872,7 +865,7 @@ static int ieee80211_assign_link_chanctx(struct ieee80211_link_data *link,
 	}
 
 out:
-	rcu_assign_pointer(sdata->vif.link_conf[link_id]->chanctx_conf, conf);
+	rcu_assign_pointer(link->conf->chanctx_conf, conf);
 
 	sdata->vif.cfg.idle = !conf;
 
@@ -931,14 +924,14 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 		}
 
 		for (link_id = 0; link_id < ARRAY_SIZE(sdata->link); link_id++) {
-			struct ieee80211_link_data *link = sdata->link[link_id];
-			struct ieee80211_bss_conf *link_conf =
-				sdata->vif.link_conf[link_id];
+			struct ieee80211_link_data *link;
 
-			if (!link_conf)
+			link = rcu_dereference(sdata->link[link_id]);
+
+			if (!link)
 				continue;
 
-			if (rcu_access_pointer(link_conf->chanctx_conf) != &chanctx->conf)
+			if (rcu_access_pointer(link->conf->chanctx_conf) != &chanctx->conf)
 				continue;
 
 			switch (link->smps_mode) {
@@ -968,7 +961,7 @@ void ieee80211_recalc_smps_chanctx(struct ieee80211_local *local,
 	/* Disable SMPS for the monitor interface */
 	sdata = rcu_dereference(local->monitor_sdata);
 	if (sdata &&
-	    rcu_access_pointer(sdata->vif.link_conf[0]->chanctx_conf) == &chanctx->conf)
+	    rcu_access_pointer(sdata->vif.bss_conf.chanctx_conf) == &chanctx->conf)
 		rx_chains_dynamic = rx_chains_static = local->rx_chains;
 
 	rcu_read_unlock();
@@ -998,7 +991,7 @@ __ieee80211_link_copy_chanctx_to_vlans(struct ieee80211_link_data *link,
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	unsigned int link_id = link->link_id;
-	struct ieee80211_bss_conf *link_conf = sdata->vif.link_conf[link_id];
+	struct ieee80211_bss_conf *link_conf = link->conf;
 	struct ieee80211_local *local __maybe_unused = sdata->local;
 	struct ieee80211_sub_if_data *vlan;
 	struct ieee80211_chanctx_conf *conf;
@@ -1021,9 +1014,17 @@ __ieee80211_link_copy_chanctx_to_vlans(struct ieee80211_link_data *link,
 	if (clear)
 		conf = NULL;
 
-	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-		rcu_assign_pointer(vlan->vif.link_conf[link_id]->chanctx_conf,
-				   conf);
+	rcu_read_lock();
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
+		struct ieee80211_bss_conf *vlan_conf;
+
+		vlan_conf = rcu_dereference(vlan->vif.link_conf[link_id]);
+		if (WARN_ON(!vlan_conf))
+			continue;
+
+		rcu_assign_pointer(vlan_conf->chanctx_conf, conf);
+	}
+	rcu_read_unlock();
 }
 
 void ieee80211_link_copy_chanctx_to_vlans(struct ieee80211_link_data *link,
@@ -1186,7 +1187,7 @@ ieee80211_link_chanctx_reservation_complete(struct ieee80211_link_data *link)
 		break;
 	case NL80211_IFTYPE_STATION:
 		ieee80211_queue_work(&sdata->local->hw,
-				     &sdata->u.mgd.chswitch_work);
+				     &link->u.mgd.chswitch_work);
 		break;
 	case NL80211_IFTYPE_UNSPECIFIED:
 	case NL80211_IFTYPE_AP_VLAN:
@@ -1210,21 +1211,29 @@ ieee80211_link_update_chandef(struct ieee80211_link_data *link,
 	unsigned int link_id = link->link_id;
 	struct ieee80211_sub_if_data *vlan;
 
-	sdata->vif.link_conf[link_id]->chandef = *chandef;
+	link->conf->chandef = *chandef;
 
 	if (sdata->vif.type != NL80211_IFTYPE_AP)
 		return;
 
-	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
-		vlan->vif.link_conf[link_id]->chandef = *chandef;
+	rcu_read_lock();
+	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list) {
+		struct ieee80211_bss_conf *vlan_conf;
+
+		vlan_conf = rcu_dereference(vlan->vif.link_conf[link_id]);
+		if (WARN_ON(!vlan_conf))
+			continue;
+
+		vlan_conf->chandef = *chandef;
+	}
+	rcu_read_unlock();
 }
 
 static int
 ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
-	unsigned int link_id = link->link_id;
-	struct ieee80211_bss_conf *link_conf = sdata->vif.link_conf[link_id];
+	struct ieee80211_bss_conf *link_conf = link->conf;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_vif_chanctx_switch vif_chsw[1] = {};
 	struct ieee80211_chanctx *old_ctx, *new_ctx;
@@ -1266,7 +1275,7 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 	vif_chsw[0].vif = &sdata->vif;
 	vif_chsw[0].old_ctx = &old_ctx->conf;
 	vif_chsw[0].new_ctx = &new_ctx->conf;
-	vif_chsw[0].link_id = link->link_id;
+	vif_chsw[0].link_conf = link->conf;
 
 	list_del(&link->reserved_chanctx_list);
 	link->reserved_chanctx = NULL;
@@ -1296,7 +1305,7 @@ ieee80211_link_use_reserved_reassign(struct ieee80211_link_data *link)
 	ieee80211_recalc_radar_chanctx(local, new_ctx);
 
 	if (changed)
-		ieee80211_link_info_change_notify(sdata, link_id, changed);
+		ieee80211_link_info_change_notify(sdata, link, changed);
 
 out:
 	ieee80211_link_chanctx_reservation_complete(link);
@@ -1307,13 +1316,12 @@ static int
 ieee80211_link_use_reserved_assign(struct ieee80211_link_data *link)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
-	unsigned int link_id = link->link_id;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx *old_ctx, *new_ctx;
 	const struct cfg80211_chan_def *chandef;
 	int err;
 
-	old_ctx = ieee80211_vif_get_chanctx(sdata, link_id);
+	old_ctx = ieee80211_link_get_chanctx(link);
 	new_ctx = link->reserved_chanctx;
 
 	if (WARN_ON(!link->reserved_ready))
@@ -1431,7 +1439,7 @@ static int ieee80211_chsw_switch_vifs(struct ieee80211_local *local,
 			vif_chsw[i].vif = &link->sdata->vif;
 			vif_chsw[i].old_ctx = &old_ctx->conf;
 			vif_chsw[i].new_ctx = &ctx->conf;
-			vif_chsw[i].link_id = link->link_id;
+			vif_chsw[i].link_conf = link->conf;
 
 			i++;
 		}
@@ -1625,8 +1633,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 		list_for_each_entry(link, &ctx->reserved_links,
 				    reserved_chanctx_list) {
 			struct ieee80211_sub_if_data *sdata = link->sdata;
-			struct ieee80211_bss_conf *link_conf =
-				sdata->vif.link_conf[link->link_id];
+			struct ieee80211_bss_conf *link_conf = link->conf;
 			u32 changed = 0;
 
 			if (!ieee80211_link_has_in_place_reservation(link))
@@ -1649,7 +1656,7 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 			ieee80211_link_update_chandef(link, &link->reserved_chandef);
 			if (changed)
 				ieee80211_link_info_change_notify(sdata,
-								  link->link_id,
+								  link,
 								  changed);
 
 			ieee80211_recalc_txpower(sdata, false);
@@ -1746,8 +1753,7 @@ err:
 static void __ieee80211_link_release_channel(struct ieee80211_link_data *link)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
-	unsigned int link_id = link->link_id;
-	struct ieee80211_bss_conf *link_conf = sdata->vif.link_conf[link_id];
+	struct ieee80211_bss_conf *link_conf = link->conf;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *ctx;
@@ -1786,15 +1792,12 @@ int ieee80211_link_use_channel(struct ieee80211_link_data *link,
 			       enum ieee80211_chanctx_mode mode)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
-	unsigned int link_id = link->link_id;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx *ctx;
 	u8 radar_detect_width = 0;
 	int ret;
 
 	lockdep_assert_held(&local->mtx);
-
-	WARN_ON(sdata->dev && netif_carrier_ok(sdata->dev));
 
 	mutex_lock(&local->chanctx_mtx);
 
@@ -1806,7 +1809,7 @@ int ieee80211_link_use_channel(struct ieee80211_link_data *link,
 	if (ret > 0)
 		radar_detect_width = BIT(chandef->width);
 
-	sdata->link[link_id]->radar_required = ret;
+	link->radar_required = ret;
 
 	ret = ieee80211_check_combinations(sdata, chandef, mode,
 					   radar_detect_width);
@@ -1910,8 +1913,7 @@ int ieee80211_link_change_bandwidth(struct ieee80211_link_data *link,
 				    u32 *changed)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
-	unsigned int link_id = link->link_id;
-	struct ieee80211_bss_conf *link_conf = sdata->vif.link_conf[link_id];
+	struct ieee80211_bss_conf *link_conf = link->conf;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *ctx;
@@ -1984,12 +1986,11 @@ void ieee80211_link_release_channel(struct ieee80211_link_data *link)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 
-	WARN_ON(sdata->dev && netif_carrier_ok(sdata->dev));
-
-	lockdep_assert_held(&sdata->local->mtx);
-
 	mutex_lock(&sdata->local->chanctx_mtx);
-	__ieee80211_link_release_channel(link);
+	if (rcu_access_pointer(link->conf->chanctx_conf)) {
+		lockdep_assert_held(&sdata->local->mtx);
+		__ieee80211_link_release_channel(link);
+	}
 	mutex_unlock(&sdata->local->chanctx_mtx);
 }
 
@@ -1997,7 +1998,8 @@ void ieee80211_link_vlan_copy_chanctx(struct ieee80211_link_data *link)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
 	unsigned int link_id = link->link_id;
-	struct ieee80211_bss_conf *link_conf = sdata->vif.link_conf[link_id];
+	struct ieee80211_bss_conf *link_conf = link->conf;
+	struct ieee80211_bss_conf *ap_conf;
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_sub_if_data *ap;
 	struct ieee80211_chanctx_conf *conf;
@@ -2009,9 +2011,12 @@ void ieee80211_link_vlan_copy_chanctx(struct ieee80211_link_data *link)
 
 	mutex_lock(&local->chanctx_mtx);
 
-	conf = rcu_dereference_protected(ap->vif.link_conf[link_id]->chanctx_conf,
+	rcu_read_lock();
+	ap_conf = rcu_dereference(ap->vif.link_conf[link_id]);
+	conf = rcu_dereference_protected(ap_conf->chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 	rcu_assign_pointer(link_conf->chanctx_conf, conf);
+	rcu_read_unlock();
 	mutex_unlock(&local->chanctx_mtx);
 }
 

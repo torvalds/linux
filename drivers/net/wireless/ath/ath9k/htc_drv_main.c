@@ -1369,7 +1369,8 @@ static void ath9k_htc_sta_rc_update(struct ieee80211_hw *hw,
 }
 
 static int ath9k_htc_conf_tx(struct ieee80211_hw *hw,
-			     struct ieee80211_vif *vif, u16 queue,
+			     struct ieee80211_vif *vif,
+			     unsigned int link_id, u16 queue,
 			     const struct ieee80211_tx_queue_params *params)
 {
 	struct ath9k_htc_priv *priv = hw->priv;

@@ -1683,7 +1683,8 @@ struct il_cfg {
  ***************************/
 
 int il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		   u16 queue, const struct ieee80211_tx_queue_params *params);
+		   unsigned int link_id, u16 queue,
+		   const struct ieee80211_tx_queue_params *params);
 int il_mac_tx_last_beacon(struct ieee80211_hw *hw);
 
 void il_set_rxon_hwcrypto(struct il_priv *il, int hw_decrypt);

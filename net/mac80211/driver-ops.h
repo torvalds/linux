@@ -167,6 +167,7 @@ static inline void drv_vif_cfg_changed(struct ieee80211_local *local,
 
 static inline void drv_link_info_changed(struct ieee80211_local *local,
 					 struct ieee80211_sub_if_data *sdata,
+					 struct ieee80211_bss_conf *info,
 					 int link_id, u64 changed)
 {
 	might_sleep();
@@ -189,13 +190,13 @@ static inline void drv_link_info_changed(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	trace_drv_link_info_changed(local, sdata, link_id, changed);
+	trace_drv_link_info_changed(local, sdata, info, changed);
 	if (local->ops->link_info_changed)
 		local->ops->link_info_changed(&local->hw, &sdata->vif,
-					      link_id, changed);
+					      info, changed);
 	else if (local->ops->bss_info_changed)
 		local->ops->bss_info_changed(&local->hw, &sdata->vif,
-					     &sdata->vif.bss_conf, changed);
+					     info, changed);
 	trace_drv_return_void(local);
 }
 
@@ -589,7 +590,7 @@ static inline void drv_sta_statistics(struct ieee80211_local *local,
 }
 
 int drv_conf_tx(struct ieee80211_local *local,
-		struct ieee80211_sub_if_data *sdata, u16 ac,
+		struct ieee80211_link_data *link, u16 ac,
 		const struct ieee80211_tx_queue_params *params);
 
 u64 drv_get_tsf(struct ieee80211_local *local,
@@ -936,22 +937,31 @@ static inline void drv_change_chanctx(struct ieee80211_local *local,
 	trace_drv_return_void(local);
 }
 
+static inline void drv_verify_link_exists(struct ieee80211_sub_if_data *sdata,
+					  struct ieee80211_bss_conf *link_conf)
+{
+	/* deflink always exists, so need to check only for other links */
+	if (sdata->deflink.conf != link_conf)
+		sdata_assert_lock(sdata);
+}
+
 static inline int drv_assign_vif_chanctx(struct ieee80211_local *local,
 					 struct ieee80211_sub_if_data *sdata,
-					 unsigned int link_id,
+					 struct ieee80211_bss_conf *link_conf,
 					 struct ieee80211_chanctx *ctx)
 {
 	int ret = 0;
 
+	drv_verify_link_exists(sdata, link_conf);
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
 
-	trace_drv_assign_vif_chanctx(local, sdata, link_id, ctx);
+	trace_drv_assign_vif_chanctx(local, sdata, link_conf, ctx);
 	if (local->ops->assign_vif_chanctx) {
 		WARN_ON_ONCE(!ctx->driver_present);
 		ret = local->ops->assign_vif_chanctx(&local->hw,
 						     &sdata->vif,
-						     link_id,
+						     link_conf,
 						     &ctx->conf);
 	}
 	trace_drv_return_int(local, ret);
@@ -961,20 +971,21 @@ static inline int drv_assign_vif_chanctx(struct ieee80211_local *local,
 
 static inline void drv_unassign_vif_chanctx(struct ieee80211_local *local,
 					    struct ieee80211_sub_if_data *sdata,
-					    unsigned int link_id,
+					    struct ieee80211_bss_conf *link_conf,
 					    struct ieee80211_chanctx *ctx)
 {
 	might_sleep();
 
+	drv_verify_link_exists(sdata, link_conf);
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	trace_drv_unassign_vif_chanctx(local, sdata, link_id, ctx);
+	trace_drv_unassign_vif_chanctx(local, sdata, link_conf, ctx);
 	if (local->ops->unassign_vif_chanctx) {
 		WARN_ON_ONCE(!ctx->driver_present);
 		local->ops->unassign_vif_chanctx(&local->hw,
 						 &sdata->vif,
-						 link_id,
+						 link_conf,
 						 &ctx->conf);
 	}
 	trace_drv_return_void(local);
@@ -986,33 +997,38 @@ int drv_switch_vif_chanctx(struct ieee80211_local *local,
 
 static inline int drv_start_ap(struct ieee80211_local *local,
 			       struct ieee80211_sub_if_data *sdata,
-			       unsigned int link_id)
+			       struct ieee80211_bss_conf *link_conf)
 {
 	int ret = 0;
+
+	/* make sure link_conf is protected */
+	drv_verify_link_exists(sdata, link_conf);
 
 	might_sleep();
 
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
 
-	trace_drv_start_ap(local, sdata, sdata->vif.link_conf[link_id],
-			   link_id);
+	trace_drv_start_ap(local, sdata, link_conf);
 	if (local->ops->start_ap)
-		ret = local->ops->start_ap(&local->hw, &sdata->vif, link_id);
+		ret = local->ops->start_ap(&local->hw, &sdata->vif, link_conf);
 	trace_drv_return_int(local, ret);
 	return ret;
 }
 
 static inline void drv_stop_ap(struct ieee80211_local *local,
 			       struct ieee80211_sub_if_data *sdata,
-			       unsigned int link_id)
+			       struct ieee80211_bss_conf *link_conf)
 {
+	/* make sure link_conf is protected */
+	drv_verify_link_exists(sdata, link_conf);
+
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	trace_drv_stop_ap(local, sdata, link_id);
+	trace_drv_stop_ap(local, sdata, link_conf);
 	if (local->ops->stop_ap)
-		local->ops->stop_ap(&local->hw, &sdata->vif, link_id);
+		local->ops->stop_ap(&local->hw, &sdata->vif, link_conf);
 	trace_drv_return_void(local);
 }
 

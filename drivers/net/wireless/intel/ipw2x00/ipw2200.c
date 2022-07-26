@@ -2584,7 +2584,7 @@ static int ipw_send_retry_limit(struct ipw_priv *priv, u8 slimit, u8 llimit)
  * through a couple of memory mapped registers.
  *
  * The following is a simplified implementation for pulling data out of the
- * the eeprom, along with some helper functions to find information in
+ * eeprom, along with some helper functions to find information in
  * the per device private data's copy of the eeprom.
  *
  * NOTE: To better understand how these functions work (i.e what is a chip

@@ -1712,7 +1712,8 @@ static void ath9k_sta_notify(struct ieee80211_hw *hw,
 }
 
 static int ath9k_conf_tx(struct ieee80211_hw *hw,
-			 struct ieee80211_vif *vif, u16 queue,
+			 struct ieee80211_vif *vif,
+			 unsigned int link_id, u16 queue,
 			 const struct ieee80211_tx_queue_params *params)
 {
 	struct ath_softc *sc = hw->priv;
@@ -2596,7 +2597,7 @@ static void ath9k_change_chanctx(struct ieee80211_hw *hw,
 
 static int ath9k_assign_vif_chanctx(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
-				    unsigned int link_id,
+				    struct ieee80211_bss_conf *link_conf,
 				    struct ieee80211_chanctx_conf *conf)
 {
 	struct ath_softc *sc = hw->priv;
@@ -2628,7 +2629,7 @@ static int ath9k_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 static void ath9k_unassign_vif_chanctx(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
-				       unsigned int link_id,
+				       struct ieee80211_bss_conf *link_conf,
 				       struct ieee80211_chanctx_conf *conf)
 {
 	struct ath_softc *sc = hw->priv;

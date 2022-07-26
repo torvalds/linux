@@ -1401,7 +1401,8 @@ void ath11k_mac_bcn_tx_event(struct ath11k_vif *arvif)
 	if (!vif->bss_conf.color_change_active && !arvif->bcca_zero_sent)
 		return;
 
-	if (vif->bss_conf.color_change_active && ieee80211_beacon_cntdwn_is_complete(vif)) {
+	if (vif->bss_conf.color_change_active &&
+	    ieee80211_beacon_cntdwn_is_complete(vif)) {
 		arvif->bcca_zero_sent = true;
 		ieee80211_color_change_finish(vif);
 		return;
@@ -3292,7 +3293,7 @@ static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 
 	if (changed & BSS_CHANGED_PS &&
 	    ar->ab->hw_params.supports_sta_ps) {
-		arvif->ps = vif->bss_conf.ps;
+		arvif->ps = vif->cfg.ps;
 
 		ret = ath11k_mac_config_ps(ar);
 		if (ret)
@@ -4822,7 +4823,8 @@ exit:
 }
 
 static int ath11k_mac_op_conf_tx(struct ieee80211_hw *hw,
-				 struct ieee80211_vif *vif, u16 ac,
+				 struct ieee80211_vif *vif,
+				 unsigned int link_id, u16 ac,
 				 const struct ieee80211_tx_queue_params *params)
 {
 	struct ath11k *ar = hw->priv;
@@ -7072,7 +7074,7 @@ static int ath11k_start_vdev_delay(struct ieee80211_hw *hw,
 static int
 ath11k_mac_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
-				 unsigned int link_id,
+				 struct ieee80211_bss_conf *link_conf,
 				 struct ieee80211_chanctx_conf *ctx)
 {
 	struct ath11k *ar = hw->priv;
@@ -7162,7 +7164,7 @@ out:
 static void
 ath11k_mac_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
-				   unsigned int link_id,
+				   struct ieee80211_bss_conf *link_conf,
 				   struct ieee80211_chanctx_conf *ctx)
 {
 	struct ath11k *ar = hw->priv;

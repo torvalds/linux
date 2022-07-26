@@ -175,7 +175,7 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 			/* It is useless to enable PS if channels are the same. */
 			if (enable_ps)
 				*enable_ps = false;
-			if (vif->cfg.assoc && vif->bss_conf.ps)
+			if (vif->cfg.assoc && vif->cfg.ps)
 				dev_info(wvif->wdev->dev, "ignoring requested PS mode");
 			return -1;
 		}
@@ -188,8 +188,8 @@ static int wfx_get_ps_timeout(struct wfx_vif *wvif, bool *enable_ps)
 			return 30;
 	}
 	if (enable_ps)
-		*enable_ps = vif->bss_conf.ps;
-	if (vif->cfg.assoc && vif->bss_conf.ps)
+		*enable_ps = vif->cfg.ps;
+	if (vif->cfg.assoc && vif->cfg.ps)
 		return conf->dynamic_ps_timeout;
 	else
 		return -1;
@@ -216,7 +216,8 @@ int wfx_update_pm(struct wfx_vif *wvif)
 }
 
 int wfx_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		u16 queue, const struct ieee80211_tx_queue_params *params)
+		unsigned int link_id, u16 queue,
+		const struct ieee80211_tx_queue_params *params)
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
@@ -379,7 +380,7 @@ static void wfx_set_mfp_ap(struct wfx_vif *wvif)
 }
 
 int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		 unsigned int link_id)
+		 struct ieee80211_bss_conf *link_conf)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 	struct wfx_dev *wdev = wvif->wdev;
@@ -398,7 +399,7 @@ int wfx_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 void wfx_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		 unsigned int link_id)
+		 struct ieee80211_bss_conf *link_conf)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
 
@@ -682,7 +683,7 @@ void wfx_change_chanctx(struct ieee80211_hw *hw, struct ieee80211_chanctx_conf *
 }
 
 int wfx_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			   unsigned int link_id,
+			   struct ieee80211_bss_conf *link_conf,
 			   struct ieee80211_chanctx_conf *conf)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;
@@ -695,7 +696,7 @@ int wfx_assign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 }
 
 void wfx_unassign_vif_chanctx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			      unsigned int link_id,
+			      struct ieee80211_bss_conf *link_conf,
 			      struct ieee80211_chanctx_conf *conf)
 {
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;

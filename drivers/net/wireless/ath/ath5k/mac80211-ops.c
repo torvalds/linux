@@ -410,7 +410,7 @@ ath5k_configure_filter(struct ieee80211_hw *hw, unsigned int changed_flags,
 	/* FIF_CONTROL doc says we should only pass on control frames for this
 	 * station. This needs testing. I believe right now this
 	 * enables *all* control frames, which is OK.. but
-	 * but we should see if we can improve on granularity */
+	 * we should see if we can improve on granularity */
 	if (*new_flags & FIF_CONTROL)
 		rfilt |= AR5K_RX_FILTER_CONTROL;
 
@@ -572,7 +572,8 @@ ath5k_get_stats(struct ieee80211_hw *hw,
 
 
 static int
-ath5k_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+ath5k_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	      unsigned int link_id, u16 queue,
 	      const struct ieee80211_tx_queue_params *params)
 {
 	struct ath5k_hw *ah = hw->priv;

@@ -156,7 +156,8 @@ int mt76x02_set_key(struct ieee80211_hw *hw, enum set_key_cmd cmd,
 		    struct ieee80211_vif *vif, struct ieee80211_sta *sta,
 		    struct ieee80211_key_conf *key);
 int mt76x02_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		    u16 queue, const struct ieee80211_tx_queue_params *params);
+		    unsigned int link_id, u16 queue,
+		    const struct ieee80211_tx_queue_params *params);
 void mt76x02_sta_rate_tbl_update(struct ieee80211_hw *hw,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_sta *sta);

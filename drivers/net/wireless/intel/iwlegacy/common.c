@@ -4480,7 +4480,8 @@ il_clear_isr_stats(struct il_priv *il)
 }
 
 int
-il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif, u16 queue,
+il_mac_conf_tx(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+	       unsigned int link_id, u16 queue,
 	       const struct ieee80211_tx_queue_params *params)
 {
 	struct il_priv *il = hw->priv;
@@ -4816,7 +4817,7 @@ il_check_stuck_queue(struct il_priv *il, int cnt)
 #define IL_WD_TICK(timeout) ((timeout) / 4)
 
 /*
- * Watchdog timer callback, we check each tx queue for stuck, if if hung
+ * Watchdog timer callback, we check each tx queue for stuck, if hung
  * we reset the firmware. If everything is fine just rearm the timer.
  */
 void

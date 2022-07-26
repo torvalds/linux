@@ -342,7 +342,7 @@ void cfg80211_destroy_ifaces(struct cfg80211_registered_device *rdev)
 
 			wiphy_lock(&rdev->wiphy);
 			cfg80211_leave(rdev, wdev);
-			rdev_del_virtual_intf(rdev, wdev);
+			cfg80211_remove_virtual_intf(rdev, wdev);
 			wiphy_unlock(&rdev->wiphy);
 		}
 	}
@@ -1437,6 +1437,7 @@ static int cfg80211_netdev_notifier_call(struct notifier_block *nb,
 	case NETDEV_GOING_DOWN:
 		wiphy_lock(&rdev->wiphy);
 		cfg80211_leave(rdev, wdev);
+		cfg80211_remove_links(wdev);
 		wiphy_unlock(&rdev->wiphy);
 		break;
 	case NETDEV_DOWN:

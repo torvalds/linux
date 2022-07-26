@@ -359,7 +359,7 @@ static void iwl_mvm_power_build_cmd(struct iwl_mvm *mvm,
 
 	cmd->flags |= cpu_to_le16(POWER_FLAGS_POWER_SAVE_ENA_MSK);
 
-	if (!vif->bss_conf.ps || !mvmvif->pm_enabled)
+	if (!vif->cfg.ps || !mvmvif->pm_enabled)
 		return;
 
 	if (iwl_mvm_vif_low_latency(mvmvif) && vif->p2p &&
@@ -890,7 +890,7 @@ static int iwl_mvm_power_set_ba(struct iwl_mvm *mvm,
 
 	mvmvif->bf_data.ba_enabled = !(!mvmvif->pm_enabled ||
 				       mvm->ps_disabled ||
-				       !vif->bss_conf.ps ||
+				       !vif->cfg.ps ||
 				       iwl_mvm_vif_low_latency(mvmvif));
 
 	return _iwl_mvm_enable_beacon_filter(mvm, vif, &cmd, 0);

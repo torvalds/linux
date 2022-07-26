@@ -334,7 +334,6 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 		      struct sk_buff *skb)
 {
 	struct rsi_hw *adapter = common->priv;
-	struct ieee80211_bss_conf *bss;
 	struct ieee80211_hdr *wh;
 	struct ieee80211_tx_info *info;
 	struct skb_info *tx_params;
@@ -359,7 +358,6 @@ int rsi_send_mgmt_pkt(struct rsi_common *common,
 		return status;
 	}
 
-	bss = &info->control.vif->bss_conf;
 	wh = (struct ieee80211_hdr *)&skb->data[header_size];
 	mgmt_desc = (struct rsi_mgmt_desc *)skb->data;
 	xtend_desc = (struct rsi_xtended_desc *)&skb->data[FRAME_DESC_SZ];

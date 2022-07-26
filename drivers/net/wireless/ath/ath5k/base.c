@@ -1982,7 +1982,7 @@ ath5k_beacon_send(struct ath5k_hw *ah)
 
 	/*
 	 * Check if the previous beacon has gone out.  If
-	 * not, don't don't try to post another: skip this
+	 * not, don't try to post another: skip this
 	 * period and wait for the next.  Missed beacons
 	 * indicate a problem and should not occur.  If we
 	 * miss too many consecutive beacons reset the device.

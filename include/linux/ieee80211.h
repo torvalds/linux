@@ -1332,6 +1332,15 @@ struct ieee80211_mgmt {
 					u8 action_code;
 					u8 variable[];
 				} __packed s1g;
+				struct {
+					u8 action_code;
+					u8 dialog_token;
+					u8 follow_up;
+					u32 tod;
+					u32 toa;
+					u8 max_tod_error;
+					u8 max_toa_error;
+				} __packed wnm_timing_msr;
 			} u;
 		} __packed action;
 	} u;
@@ -2020,7 +2029,7 @@ struct ieee80211_eht_mcs_nss_supp_bw {
  * struct ieee80211_eht_cap_elem_fixed - EHT capabilities fixed data
  *
  * This structure is the "EHT Capabilities element" fixed fields as
- * described in P802.11be_D1.4 section 9.4.2.313.
+ * described in P802.11be_D2.0 section 9.4.2.313.
  *
  * @mac_cap_info: MAC capabilities, see IEEE80211_EHT_MAC_CAP*
  * @phy_cap_info: PHY capabilities, see IEEE80211_EHT_PHY_CAP*
@@ -2046,25 +2055,45 @@ struct ieee80211_eht_cap_elem {
 	u8 optional[];
 } __packed;
 
+#define IEEE80211_EHT_OPER_INFO_PRESENT	                        0x01
+#define IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT	0x02
+#define IEEE80211_EHT_OPER_EHT_DEF_PE_DURATION	                0x04
+#define IEEE80211_EHT_OPER_GROUP_ADDRESSED_BU_IND_LIMIT         0x08
+#define IEEE80211_EHT_OPER_GROUP_ADDRESSED_BU_IND_EXP_MASK      0x30
+
 /**
  * struct ieee80211_eht_operation - eht operation element
  *
  * This structure is the "EHT Operation Element" fields as
- * described in P802.11be_D1.4 section 9.4.2.311
+ * described in P802.11be_D2.0 section 9.4.2.311
  *
- * FIXME: The spec is unclear how big the fields are, and doesn't
- *	  indicate the "Disabled Subchannel Bitmap Present" in the
- *	  structure (Figure 9-1002a) at all ...
+ * @params: EHT operation element parameters. See &IEEE80211_EHT_OPER_*
+ * @basic_mcs_nss: indicates the EHT-MCSs for each number of spatial streams in
+ *     EHT PPDUs that are supported by all EHT STAs in the BSS in transmit and
+ *     receive.
+ * @optional: optional parts
  */
 struct ieee80211_eht_operation {
-	u8 chan_width;
-	u8 ccfs;
-	u8 present_bm;
-
-	u8 disable_subchannel_bitmap[];
+	u8 params;
+	__le32 basic_mcs_nss;
+	u8 optional[];
 } __packed;
 
-#define IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT	0x1
+/**
+ * struct ieee80211_eht_operation_info - eht operation information
+ *
+ * @control: EHT operation information control.
+ * @ccfs0: defines a channel center frequency for a 20, 40, 80, 160, or 320 MHz
+ *     EHT BSS.
+ * @ccfs1: defines a channel center frequency for a 160 or 320 MHz EHT BSS.
+ * @optional: optional parts
+ */
+struct ieee80211_eht_operation_info {
+	u8 control;
+	u8 ccfs0;
+	u8 ccfs1;
+	u8 optional[];
+} __packed;
 
 /* 802.11ac VHT Capabilities */
 #define IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_3895			0x00000000
@@ -2766,19 +2795,21 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 #define S1G_OPER_CH_WIDTH_PRIMARY_1MHZ	BIT(0)
 #define S1G_OPER_CH_WIDTH_OPER		GENMASK(4, 1)
 
-/* EHT MAC capabilities as defined in P802.11be_D1.4 section 9.4.2.313.2 */
-#define IEEE80211_EHT_MAC_CAP0_NSEP_PRIO_ACCESS			0x01
+/* EHT MAC capabilities as defined in P802.11be_D2.0 section 9.4.2.313.2 */
+#define IEEE80211_EHT_MAC_CAP0_EPCS_PRIO_ACCESS			0x01
 #define IEEE80211_EHT_MAC_CAP0_OM_CONTROL			0x02
 #define IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE1		0x04
 #define IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE2		0x08
 #define IEEE80211_EHT_MAC_CAP0_RESTRICTED_TWT			0x10
 #define IEEE80211_EHT_MAC_CAP0_SCS_TRAFFIC_DESC			0x20
-#define IEEE80211_EHT_MAC_CAP0_MAX_AMPDU_LEN_MASK		0xc0
-#define		IEEE80211_EHT_MAC_CAP0_MAX_AMPDU_LEN_3895	0
-#define		IEEE80211_EHT_MAC_CAP0_MAX_AMPDU_LEN_7991	1
-#define		IEEE80211_EHT_MAC_CAP0_MAX_AMPDU_LEN_11454	2
+#define IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_MASK		0xc0
+#define	IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_3895	        0
+#define	IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_7991	        1
+#define	IEEE80211_EHT_MAC_CAP0_MAX_MPDU_LEN_11454	        2
 
-/* EHT PHY capabilities as defined in P802.11be_D1.4 section 9.4.2.313.3 */
+#define IEEE80211_EHT_MAC_CAP1_MAX_AMPDU_LEN_MASK		0x01
+
+/* EHT PHY capabilities as defined in P802.11be_D2.0 section 9.4.2.313.3 */
 #define IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ			0x02
 #define IEEE80211_EHT_PHY_CAP0_242_TONE_RU_GT20MHZ		0x04
 #define IEEE80211_EHT_PHY_CAP0_NDP_4_EHT_LFT_32_GI		0x08
@@ -2843,7 +2874,7 @@ ieee80211_he_spr_size(const u8 *he_spr_ie)
 #define IEEE80211_EHT_PHY_CAP8_RX_4096QAM_WIDER_BW_DL_OFDMA	0x02
 
 /*
- * EHT operation channel width as defined in P802.11be_D1.4 section 9.4.2.311
+ * EHT operation channel width as defined in P802.11be_D2.0 section 9.4.2.311
  */
 #define IEEE80211_EHT_OPER_CHAN_WIDTH		0x7
 #define IEEE80211_EHT_OPER_CHAN_WIDTH_20MHZ	0
@@ -2949,8 +2980,13 @@ ieee80211_eht_oper_size_ok(const u8 *data, u8 len)
 	if (len < needed)
 		return false;
 
-	if (elem->present_bm & IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT)
-		needed += 2;
+	if (elem->params & IEEE80211_EHT_OPER_INFO_PRESENT) {
+		needed += 3;
+
+		if (elem->params &
+		    IEEE80211_EHT_OPER_DISABLED_SUBCHANNEL_BITMAP_PRESENT)
+			needed += 2;
+	}
 
 	return len >= needed;
 }
@@ -3493,6 +3529,17 @@ enum ieee80211_mesh_actioncode {
 	WLAN_MESH_ACTION_MCCA_TEARDOWN,
 	WLAN_MESH_ACTION_TBTT_ADJUSTMENT_REQUEST,
 	WLAN_MESH_ACTION_TBTT_ADJUSTMENT_RESPONSE,
+};
+
+/* Unprotected WNM action codes */
+enum ieee80211_unprotected_wnm_actioncode {
+	WLAN_UNPROTECTED_WNM_ACTION_TIM = 0,
+	WLAN_UNPROTECTED_WNM_ACTION_TIMING_MEASUREMENT_RESPONSE = 1,
+};
+
+/* Public action codes */
+enum ieee80211_public_actioncode {
+	WLAN_PUBLIC_ACTION_FTM_RESPONSE = 33,
 };
 
 /* Security key length */
@@ -4282,6 +4329,40 @@ static inline bool ieee80211_action_contains_tpc(struct sk_buff *skb)
 		return false;
 
 	return true;
+}
+
+static inline bool ieee80211_is_timing_measurement(struct sk_buff *skb)
+{
+	struct ieee80211_mgmt *mgmt = (void *)skb->data;
+
+	if (skb->len < IEEE80211_MIN_ACTION_SIZE)
+		return false;
+
+	if (!ieee80211_is_action(mgmt->frame_control))
+		return false;
+
+	if (mgmt->u.action.category == WLAN_CATEGORY_WNM_UNPROTECTED &&
+	    mgmt->u.action.u.wnm_timing_msr.action_code ==
+		WLAN_UNPROTECTED_WNM_ACTION_TIMING_MEASUREMENT_RESPONSE &&
+	    skb->len >= offsetofend(typeof(*mgmt), u.action.u.wnm_timing_msr))
+		return true;
+
+	return false;
+}
+
+static inline bool ieee80211_is_ftm(struct sk_buff *skb)
+{
+	struct ieee80211_mgmt *mgmt = (void *)skb->data;
+
+	if (!ieee80211_is_public_action((void *)mgmt, skb->len))
+		return false;
+
+	if (mgmt->u.action.u.ftm.action_code ==
+		WLAN_PUBLIC_ACTION_FTM_RESPONSE &&
+	    skb->len >= offsetofend(typeof(*mgmt), u.action.u.ftm))
+		return true;
+
+	return false;
 }
 
 struct element {

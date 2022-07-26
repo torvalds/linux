@@ -1861,7 +1861,7 @@ static bool rs_tpc_allowed(struct iwl_mvm *mvm, struct ieee80211_vif *vif,
 	int index = rate->index;
 	bool cam = (iwlmvm_mod_params.power_scheme == IWL_POWER_SCHEME_CAM);
 	bool sta_ps_disabled = (vif->type == NL80211_IFTYPE_STATION &&
-				!vif->bss_conf.ps);
+				!vif->cfg.ps);
 
 	IWL_DEBUG_RATE(mvm, "cam: %d sta_ps_disabled %d\n",
 		       cam, sta_ps_disabled);

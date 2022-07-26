@@ -615,8 +615,6 @@ struct link_sta_info {
  * @rcu_head: RCU head used for freeing this station struct
  * @cur_max_bandwidth: maximum bandwidth to use for TX to the station,
  *	taken from HT/VHT capabilities or VHT operating mode notification
- * @known_smps_mode: the smps_mode the client thinks we are in. Relevant for
- *	AP only.
  * @cparams: CoDel parameters for this station.
  * @reserved_tid: reserved TID (if any, otherwise IEEE80211_TID_UNRESERVED)
  * @fast_tx: TX fastpath information
@@ -698,8 +696,6 @@ struct sta_info {
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct dentry *debugfs_dir;
 #endif
-
-	enum ieee80211_smps_mode known_smps_mode;
 
 	struct codel_params cparams;
 
@@ -844,7 +840,12 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
  * until sta_info_insert().
  */
 struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
-				const u8 *addr, int link_id, gfp_t gfp);
+				const u8 *addr, gfp_t gfp);
+struct sta_info *sta_info_alloc_with_link(struct ieee80211_sub_if_data *sdata,
+					  const u8 *mld_addr,
+					  unsigned int link_id,
+					  const u8 *link_addr,
+					  gfp_t gfp);
 
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta);
 
@@ -904,6 +905,7 @@ void ieee80211_sta_expire(struct ieee80211_sub_if_data *sdata,
 			  unsigned long exp_time);
 
 int ieee80211_sta_allocate_link(struct sta_info *sta, unsigned int link_id);
+void ieee80211_sta_free_link(struct sta_info *sta, unsigned int link_id);
 int ieee80211_sta_activate_link(struct sta_info *sta, unsigned int link_id);
 void ieee80211_sta_remove_link(struct sta_info *sta, unsigned int link_id);
 
@@ -912,6 +914,10 @@ void ieee80211_sta_ps_deliver_poll_response(struct sta_info *sta);
 void ieee80211_sta_ps_deliver_uapsd(struct sta_info *sta);
 
 unsigned long ieee80211_sta_last_active(struct sta_info *sta);
+
+void ieee80211_sta_set_max_amsdu_subframes(struct sta_info *sta,
+					   const u8 *ext_capab,
+					   unsigned int ext_capab_len);
 
 enum sta_stats_type {
 	STA_STATS_RATE_TYPE_INVALID = 0,
