@@ -615,6 +615,12 @@ static int aspeed_i3c_master_sync_hw_dat(struct aspeed_i3c_master *master, u8 ad
 static void aspeed_i3c_master_wr_tx_fifo(struct aspeed_i3c_master *master,
 				     const u8 *bytes, int nbytes)
 {
+	/*
+	 * ensure all memory accesses are done before we move the data from
+	 * memory to the hardware FIFO
+	 */
+	wmb();
+
 	writesl(master->regs + RX_TX_DATA_PORT, bytes, nbytes / 4);
 	if (nbytes & 3) {
 		u32 tmp = 0;
