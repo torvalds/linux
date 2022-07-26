@@ -112,7 +112,8 @@ struct memlat_mon {
 	u32				fe_stall_floor;
 	u32				be_stall_floor;
 	u32				freq_scale_pct;
-	u32				freq_scale_limit_mhz;
+	u32				freq_scale_ceil_mhz;
+	u32				freq_scale_floor_mhz;
 	u32				wb_pct_thres;
 	u32				wb_filter_ipm;
 	u32				min_freq;
@@ -563,8 +564,10 @@ show_attr(wb_pct_thres);
 store_attr(wb_pct_thres, 0U, 100U);
 show_attr(wb_filter_ipm);
 store_attr(wb_filter_ipm, 0U, 50000U);
-store_attr(freq_scale_limit_mhz, 0U, 5000U);
-show_attr(freq_scale_limit_mhz);
+store_attr(freq_scale_ceil_mhz, 0U, 5000U);
+show_attr(freq_scale_ceil_mhz);
+store_attr(freq_scale_floor_mhz, 0U, 5000U);
+show_attr(freq_scale_floor_mhz);
 
 MEMLAT_ATTR_RW(sample_ms);
 MEMLAT_ATTR_RW(cpucp_sample_ms);
@@ -587,7 +590,8 @@ MEMLAT_ATTR_RW(be_stall_floor);
 MEMLAT_ATTR_RW(freq_scale_pct);
 MEMLAT_ATTR_RW(wb_pct_thres);
 MEMLAT_ATTR_RW(wb_filter_ipm);
-MEMLAT_ATTR_RW(freq_scale_limit_mhz);
+MEMLAT_ATTR_RW(freq_scale_ceil_mhz);
+MEMLAT_ATTR_RW(freq_scale_floor_mhz);
 
 static struct attribute *memlat_settings_attrs[] = {
 	&sample_ms.attr,
@@ -619,7 +623,8 @@ static struct attribute *memlat_mon_attrs[] = {
 	&freq_scale_pct.attr,
 	&wb_pct_thres.attr,
 	&wb_filter_ipm.attr,
-	&freq_scale_limit_mhz.attr,
+	&freq_scale_ceil_mhz.attr,
+	&freq_scale_floor_mhz.attr,
 	NULL,
 };
 ATTRIBUTE_GROUPS(memlat_mon);
@@ -859,13 +864,14 @@ static void calculate_mon_sampling_freq(struct memlat_mon *mon)
 		else if (stats->ipm[hw] <= mon->ipm_ceil) {
 			ipm_diff = mon->ipm_ceil - stats->ipm[hw];
 			max_cpufreq_scaled = stats->freq_mhz;
-			if (mon->freq_scale_pct && stats->freq_mhz &&
-			    (stats->freq_mhz < mon->freq_scale_limit_mhz) &&
+			if (mon->freq_scale_pct &&
+			    (stats->freq_mhz > mon->freq_scale_floor_mhz &&
+			     stats->freq_mhz < mon->freq_scale_ceil_mhz) &&
 			    (stats->fe_stall_pct >= mon->fe_stall_floor ||
 			     stats->be_stall_pct >= mon->be_stall_floor)) {
 				max_cpufreq_scaled += (stats->freq_mhz * ipm_diff *
 					mon->freq_scale_pct) / (mon->ipm_ceil * 100);
-				max_cpufreq_scaled = min(mon->freq_scale_limit_mhz,
+				max_cpufreq_scaled = min(mon->freq_scale_ceil_mhz,
 							 max_cpufreq_scaled);
 			}
 			set_higher_freq(&max_cpu, cpu, &max_cpufreq,
@@ -1383,10 +1389,17 @@ static int configure_cpucp_mon(struct memlat_mon *mon)
 		return ret;
 	}
 
-	ret = ops->freq_scale_limit_mhz(memlat_data->ph, grp->hw_type, mon->index,
-					mon->freq_scale_limit_mhz);
+	ret = ops->freq_scale_ceil_mhz(memlat_data->ph, grp->hw_type, mon->index,
+					mon->freq_scale_ceil_mhz);
 	if (ret < 0) {
-		pr_err("failed to set wb filter ipm for %s\n", of_node->name);
+		pr_err("failed to set freq_scale_ceil for %s\n", of_node->name);
+		return ret;
+	}
+
+	ret = ops->freq_scale_floor_mhz(memlat_data->ph, grp->hw_type, mon->index,
+					mon->freq_scale_floor_mhz);
+	if (ret < 0) {
+		pr_err("failed to set freq_scale_floor on %s\n", of_node->name);
 		return ret;
 	}
 
@@ -1790,7 +1803,8 @@ static int memlat_mon_probe(struct platform_device *pdev)
 	mon->freq_scale_pct = 0;
 	mon->wb_pct_thres = 100;
 	mon->wb_filter_ipm = 25000;
-	mon->freq_scale_limit_mhz = 5000;
+	mon->freq_scale_ceil_mhz = 5000;
+	mon->freq_scale_floor_mhz = 5000;
 
 	if (of_parse_phandle(of_node, COREDEV_TBL_PROP, 0))
 		of_node = of_parse_phandle(of_node, COREDEV_TBL_PROP, 0);

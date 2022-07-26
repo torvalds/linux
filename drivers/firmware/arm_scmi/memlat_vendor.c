@@ -31,7 +31,8 @@ enum scmi_memlat_protocol_cmd {
 	MEMLAT_WB_PCT,
 	MEMLAT_IPM_FILTER,
 	MEMLAT_FREQ_SCALE_PCT,
-	MEMLAT_FREQ_SCALE_LIMIT_MHZ,
+	MEMLAT_FREQ_SCALE_CEIL_MHZ,
+	MEMLAT_FREQ_SCALE_FLOOR_MHZ,
 	MEMLAT_SAMPLE_MS,
 	MEMLAT_MON_FREQ_MAP,
 	MEMLAT_SET_MIN_FREQ,
@@ -218,7 +219,8 @@ scmi_send_cmd(be_stall_floor, MEMLAT_BE_STALL_FLOOR);
 scmi_send_cmd(wb_pct_thres, MEMLAT_WB_PCT);
 scmi_send_cmd(wb_filter_ipm, MEMLAT_IPM_FILTER);
 scmi_send_cmd(freq_scale_pct, MEMLAT_FREQ_SCALE_PCT);
-scmi_send_cmd(freq_scale_limit_mhz, MEMLAT_FREQ_SCALE_LIMIT_MHZ);
+scmi_send_cmd(freq_scale_ceil_mhz, MEMLAT_FREQ_SCALE_CEIL_MHZ);
+scmi_send_cmd(freq_scale_floor_mhz, MEMLAT_FREQ_SCALE_FLOOR_MHZ);
 scmi_send_cmd(min_freq, MEMLAT_SET_MIN_FREQ);
 scmi_send_cmd(max_freq, MEMLAT_SET_MAX_FREQ);
 scmi_send_cmd(adaptive_low_freq, MEMLAT_ADAPTIVE_LOW_FREQ);
@@ -352,7 +354,8 @@ static struct scmi_memlat_vendor_ops memlat_proto_ops = {
 	.wb_filter_ipm = scmi_wb_filter_ipm,
 	.wb_pct_thres = scmi_wb_pct_thres,
 	.freq_scale_pct = scmi_freq_scale_pct,
-	.freq_scale_limit_mhz = scmi_freq_scale_limit_mhz,
+	.freq_scale_ceil_mhz = scmi_freq_scale_ceil_mhz,
+	.freq_scale_floor_mhz = scmi_freq_scale_floor_mhz,
 	.min_freq = scmi_min_freq,
 	.max_freq = scmi_max_freq,
 	.get_cur_freq = scmi_get_cur_freq,
