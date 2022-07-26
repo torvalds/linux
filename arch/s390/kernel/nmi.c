@@ -11,6 +11,7 @@
 #include <linux/kernel_stat.h>
 #include <linux/init.h>
 #include <linux/errno.h>
+#include <linux/entry-common.h>
 #include <linux/hardirq.h>
 #include <linux/log2.h>
 #include <linux/kprobes.h>
@@ -397,11 +398,12 @@ int notrace s390_do_machine_check(struct pt_regs *regs)
 	static unsigned long long last_ipd;
 	struct mcck_struct *mcck;
 	unsigned long long tmp;
+	irqentry_state_t irq_state;
 	union mci mci;
 	unsigned long mcck_dam_code;
 	int mcck_pending = 0;
 
-	nmi_enter();
+	irq_state = irqentry_nmi_enter(regs);
 
 	if (user_mode(regs))
 		update_timer_mcck();
@@ -504,14 +506,14 @@ int notrace s390_do_machine_check(struct pt_regs *regs)
 	clear_cpu_flag(CIF_MCCK_GUEST);
 
 	if (user_mode(regs) && mcck_pending) {
-		nmi_exit();
+		irqentry_nmi_exit(regs, irq_state);
 		return 1;
 	}
 
 	if (mcck_pending)
 		schedule_mcck_handler();
 
-	nmi_exit();
+	irqentry_nmi_exit(regs, irq_state);
 	return 0;
 }
 NOKPROBE_SYMBOL(s390_do_machine_check);
