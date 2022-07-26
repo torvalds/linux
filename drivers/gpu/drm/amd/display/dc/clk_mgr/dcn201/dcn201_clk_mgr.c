@@ -101,8 +101,8 @@ static void dcn201_update_clocks(struct clk_mgr *clk_mgr_base,
 		return;
 
 	if (clk_mgr_base->clks.dispclk_khz == 0 ||
-		dc->debug.force_clock_mode & 0x1) {
-			force_reset = true;
+	    dc->debug.force_clock_mode & 0x1) {
+		force_reset = true;
 
 		dcn2_read_clocks_from_hw_dentist(clk_mgr_base);
 	}
