@@ -743,11 +743,8 @@ struct umr_common {
 };
 
 struct mlx5_cache_ent {
+	struct xarray		mkeys;
 	struct list_head	head;
-	/* sync access to the cahce entry
-	 */
-	spinlock_t		lock;
-
 
 	char                    name[4];
 	u32                     order;
