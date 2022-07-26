@@ -32,7 +32,7 @@ config DEBUG_PINCTRL
 	  Say Y here to add some extra checks and diagnostics to PINCTRL calls.
 
 config PINCTRL_AMD
-	tristate "AMD GPIO pin control"
+	bool "AMD GPIO pin control"
 	depends on HAS_IOMEM
 	depends on ACPI || COMPILE_TEST
 	select GPIOLIB
