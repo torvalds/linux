@@ -3043,7 +3043,7 @@ static inline void wp_page_reuse(struct vm_fault *vmf)
 	pte_t entry;
 
 	VM_BUG_ON(!(vmf->flags & FAULT_FLAG_WRITE));
-	VM_BUG_ON(PageAnon(page) && !PageAnonExclusive(page));
+	VM_BUG_ON(page && PageAnon(page) && !PageAnonExclusive(page));
 
 	/*
 	 * Clear the pages cpupid information as the existing
