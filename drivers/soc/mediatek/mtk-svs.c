@@ -2306,8 +2306,7 @@ static struct svs_platform *svs_platform_probe(struct platform_device *pdev)
 static int svs_probe(struct platform_device *pdev)
 {
 	struct svs_platform *svsp;
-	unsigned int svsp_irq;
-	int ret;
+	int svsp_irq, ret;
 
 	svsp = svs_platform_probe(pdev);
 	if (IS_ERR(svsp))
@@ -2325,7 +2324,12 @@ static int svs_probe(struct platform_device *pdev)
 		goto svs_probe_free_resource;
 	}
 
-	svsp_irq = irq_of_parse_and_map(svsp->dev->of_node, 0);
+	svsp_irq = platform_get_irq(pdev, 0);
+	if (svsp_irq < 0) {
+		ret = svsp_irq;
+		goto svs_probe_free_resource;
+	}
+
 	ret = devm_request_threaded_irq(svsp->dev, svsp_irq, NULL, svs_isr,
 					svsp->irqflags | IRQF_ONESHOT,
 					svsp->name, svsp);
