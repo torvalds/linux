@@ -91,6 +91,13 @@ void btrfs_set_buffer_lockdep_class(u64 objectid, struct extent_buffer *eb, int 
 	lockdep_set_class_and_name(&eb->lock, &ks->keys[level], ks->names[level]);
 }
 
+void btrfs_maybe_reset_lockdep_class(struct btrfs_root *root, struct extent_buffer *eb)
+{
+	if (test_bit(BTRFS_ROOT_RESET_LOCKDEP_CLASS, &root->state))
+		btrfs_set_buffer_lockdep_class(root->root_key.objectid,
+					       eb, btrfs_header_level(eb));
+}
+
 #endif
 
 /*
@@ -244,6 +251,8 @@ struct extent_buffer *btrfs_lock_root_node(struct btrfs_root *root)
 
 	while (1) {
 		eb = btrfs_root_node(root);
+
+		btrfs_maybe_reset_lockdep_class(root, eb);
 		btrfs_tree_lock(eb);
 		if (eb == root->node)
 			break;
@@ -265,6 +274,8 @@ struct extent_buffer *btrfs_read_lock_root_node(struct btrfs_root *root)
 
 	while (1) {
 		eb = btrfs_root_node(root);
+
+		btrfs_maybe_reset_lockdep_class(root, eb);
 		btrfs_tree_read_lock(eb);
 		if (eb == root->node)
 			break;
