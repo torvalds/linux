@@ -58,6 +58,30 @@ The ``mlxsw`` driver reports the following versions
      - running
      - Three digit firmware version
 
+Line card auxiliary device info versions
+========================================
+
+The ``mlxsw`` driver reports the following versions for line card auxiliary device
+
+.. list-table:: devlink info versions implemented
+   :widths: 5 5 90
+
+   * - Name
+     - Type
+     - Description
+   * - ``hw.revision``
+     - fixed
+     - The hardware revision for this line card
+   * - ``ini.version``
+     - running
+     - Version of line card INI loaded
+   * - ``fw.psid``
+     - fixed
+     - Line card device PSID
+   * - ``fw.version``
+     - running
+     - Three digit firmware version of line card device
+
 Driver-specific Traps
 =====================
 
