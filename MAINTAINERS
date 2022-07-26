@@ -9548,6 +9548,7 @@ F:	drivers/input/misc/ideapad_slidebar.c
 
 IDMAPPED MOUNTS
 M:	Christian Brauner <brauner@kernel.org>
+M:	Seth Forshee <sforshee@kernel.org>
 L:	linux-fsdevel@vger.kernel.org
 S:	Maintained
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/brauner/linux.git
