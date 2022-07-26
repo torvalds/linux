@@ -25,7 +25,6 @@ MODULE_DESCRIPTION("Socket CAN driver for ETAS ES58X USB adapters");
 MODULE_VERSION(DRV_VERSION);
 MODULE_LICENSE("GPL v2");
 
-#define ES58X_MODULE_NAME "etas_es58x"
 #define ES58X_VENDOR_ID 0x108C
 #define ES581_4_PRODUCT_ID 0x0159
 #define ES582_1_PRODUCT_ID 0x0168
@@ -59,11 +58,11 @@ MODULE_DEVICE_TABLE(usb, es58x_id_table);
 
 #define es58x_print_hex_dump(buf, len)					\
 	print_hex_dump(KERN_DEBUG,					\
-		       ES58X_MODULE_NAME " " __stringify(buf) ": ",	\
+		       KBUILD_MODNAME " " __stringify(buf) ": ",	\
 		       DUMP_PREFIX_NONE, 16, 1, buf, len, false)
 
 #define es58x_print_hex_dump_debug(buf, len)				 \
-	print_hex_dump_debug(ES58X_MODULE_NAME " " __stringify(buf) ": ",\
+	print_hex_dump_debug(KBUILD_MODNAME " " __stringify(buf) ": ",\
 			     DUMP_PREFIX_NONE, 16, 1, buf, len, false)
 
 /* The last two bytes of an ES58X command is a CRC16. The first two
@@ -2280,7 +2279,7 @@ static void es58x_disconnect(struct usb_interface *intf)
 }
 
 static struct usb_driver es58x_driver = {
-	.name = ES58X_MODULE_NAME,
+	.name = KBUILD_MODNAME,
 	.probe = es58x_probe,
 	.disconnect = es58x_disconnect,
 	.id_table = es58x_id_table
