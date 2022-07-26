@@ -582,7 +582,10 @@ static void
 isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 {
 	struct isp32_isp_params_cfg *params_rec = params_vdev->isp32_params;
-	u32 val;
+	u32 val = isp3_param_read(params_vdev, ISP3X_LSC_CTRL);
+
+	if (en == !!(val & ISP_LSC_EN))
+		return;
 
 	if (en) {
 		val = ISP_LSC_EN | ISP32_SELF_FORCE_UPD;

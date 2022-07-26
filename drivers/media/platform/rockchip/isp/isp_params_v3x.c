@@ -662,10 +662,13 @@ static void
 isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en, u32 id)
 {
 	struct isp3x_isp_params_cfg *params_rec = params_vdev->isp3x_params + id;
-	u32 val = ISP_LSC_EN;
+	u32 val = isp3_param_read(params_vdev, ISP3X_LSC_CTRL, id);
+
+	if (en == !!(val & ISP_LSC_EN))
+		return;
 
 	if (en) {
-		isp3_param_set_bits(params_vdev, ISP3X_LSC_CTRL, val, id);
+		isp3_param_set_bits(params_vdev, ISP3X_LSC_CTRL, ISP_LSC_EN, id);
 		if (params_vdev->dev->hw_dev->is_single)
 			isp_lsc_matrix_cfg_sram(params_vdev,
 						&params_rec->others.lsc_cfg, false, id);
