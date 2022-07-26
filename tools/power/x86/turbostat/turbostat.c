@@ -2521,6 +2521,7 @@ int has_turbo_ratio_group_limits(int family, int model)
 	case INTEL_FAM6_ATOM_GOLDMONT:
 	case INTEL_FAM6_SKYLAKE_X:
 	case INTEL_FAM6_ICELAKE_X:
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:
 	case INTEL_FAM6_ATOM_GOLDMONT_D:
 	case INTEL_FAM6_ATOM_TREMONT_D:
 		return 1;
@@ -3737,6 +3738,7 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 		has_misc_feature_control = 1;
 		break;
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 		pkg_cstate_limits = icx_pkg_cstate_limits;
 		has_misc_feature_control = 1;
 		break;
@@ -3862,6 +3864,22 @@ int is_icx(unsigned int family, unsigned int model)
 	return 0;
 }
 
+int is_spr(unsigned int family, unsigned int model)
+{
+
+	if (!genuine_intel)
+		return 0;
+
+	if (family != 6)
+		return 0;
+
+	switch (model) {
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:
+		return 1;
+	}
+	return 0;
+}
+
 int is_ehl(unsigned int family, unsigned int model)
 {
 	if (!genuine_intel)
@@ -3979,6 +3997,7 @@ int has_glm_turbo_ratio_limit(unsigned int family, unsigned int model)
 	case INTEL_FAM6_ATOM_GOLDMONT:
 	case INTEL_FAM6_SKYLAKE_X:
 	case INTEL_FAM6_ICELAKE_X:
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:
 		return 1;
 	default:
 		return 0;
@@ -4006,7 +4025,7 @@ int has_config_tdp(unsigned int family, unsigned int model)
 	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
-
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 	case INTEL_FAM6_XEON_PHI_KNL:	/* Knights Landing */
 		return 1;
 	default:
@@ -4541,6 +4560,7 @@ static double rapl_dram_energy_units_probe(int model, double rapl_energy_units)
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_XEON_PHI_KNL:	/* KNL */
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 		return (rapl_dram_energy_units = 15.3 / 1000000);
 	default:
 		return (rapl_energy_units);
@@ -4630,6 +4650,7 @@ void rapl_probe_intel(unsigned int family, unsigned int model)
 	case INTEL_FAM6_BROADWELL_X:	/* BDX */
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 	case INTEL_FAM6_XEON_PHI_KNL:	/* KNL */
 		do_rapl =
 		    RAPL_PKG | RAPL_DRAM | RAPL_DRAM_POWER_INFO | RAPL_DRAM_PERF_STATUS | RAPL_PKG_PERF_STATUS |
@@ -4795,13 +4816,13 @@ void perf_limit_reasons_probe(unsigned int family, unsigned int model)
 
 void automatic_cstate_conversion_probe(unsigned int family, unsigned int model)
 {
-	if (is_skx(family, model) || is_bdx(family, model) || is_icx(family, model))
+	if (is_skx(family, model) || is_bdx(family, model) || is_icx(family, model) || is_spr(family, model))
 		has_automatic_cstate_conversion = 1;
 }
 
 void prewake_cstate_probe(unsigned int family, unsigned int model)
 {
-	if (is_icx(family, model))
+	if (is_icx(family, model) || is_spr(family, model))
 		dis_cstate_prewake = 1;
 }
 
@@ -5030,6 +5051,7 @@ int has_snb_msrs(unsigned int family, unsigned int model)
 	case INTEL_FAM6_CANNONLAKE_L:	/* CNL */
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 	case INTEL_FAM6_ATOM_GOLDMONT:	/* BXT */
 	case INTEL_FAM6_ATOM_GOLDMONT_PLUS:
 	case INTEL_FAM6_ATOM_GOLDMONT_D:	/* DNV */
@@ -5425,7 +5447,6 @@ unsigned int intel_model_duplicates(unsigned int model)
 		return INTEL_FAM6_ATOM_TREMONT;
 
 	case INTEL_FAM6_ICELAKE_D:
-	case INTEL_FAM6_SAPPHIRERAPIDS_X:
 		return INTEL_FAM6_ICELAKE_X;
 	}
 	return model;
@@ -5715,7 +5736,7 @@ void process_cpuid()
 		BIC_NOT_PRESENT(BIC_Pkgpc7);
 		use_c1_residency_msr = 1;
 	}
-	if (is_skx(family, model) || is_icx(family, model)) {
+	if (is_skx(family, model) || is_icx(family, model) || is_spr(family, model)) {
 		BIC_NOT_PRESENT(BIC_CPU_c3);
 		BIC_NOT_PRESENT(BIC_Pkgpc3);
 		BIC_NOT_PRESENT(BIC_CPU_c7);
