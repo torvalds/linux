@@ -129,9 +129,11 @@
 #define kbase_instr_hwcnt_wait_for_dump midgard_kbase_instr_hwcnt_wait_for_dump
 #define kbase_invoke_smc_fid midgard_kbase_invoke_smc_fid
 #define kbase_invoke_smc midgard_kbase_invoke_smc
+#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_NO_MALI)
 #define kbase_io_history_dump midgard_kbase_io_history_dump
 #define kbase_io_history_init midgard_kbase_io_history_init
 #define kbase_io_history_term midgard_kbase_io_history_term
+#endif /* CONFIG_DEBUG_FS */
 #define kbase_ipa_debugfs_init midgard_kbase_ipa_debugfs_init
 #define kbase_ipa_init midgard_kbase_ipa_init
 #define kbase_ipa_init_model midgard_kbase_ipa_init_model
@@ -321,7 +323,9 @@
 #define kbasep_platform_device_term midgard_kbasep_platform_device_term
 #define kbasep_pm_metrics_init midgard_kbasep_pm_metrics_init
 #define kbasep_pm_metrics_term midgard_kbasep_pm_metrics_term
+#if defined(CONFIG_DEBUG_FS) && !defined(CONFIG_MALI_NO_MALI)
 #define kbasep_regs_history_debugfs_init midgard_kbasep_regs_history_debugfs_init
+#endif /* CONFIG_DEBUG_FS */
 #define kbasep_remove_waiting_soft_job midgard_kbasep_remove_waiting_soft_job
 #define kbase_prepare_soft_job midgard_kbase_prepare_soft_job
 #define kbase_prepare_to_reset_gpu_locked midgard_kbase_prepare_to_reset_gpu_locked
