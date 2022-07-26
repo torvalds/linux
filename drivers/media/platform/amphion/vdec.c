@@ -808,14 +808,6 @@ static void vdec_init_fmt(struct vpu_inst *inst)
 		inst->cap_format.field = V4L2_FIELD_NONE;
 	else
 		inst->cap_format.field = V4L2_FIELD_SEQ_TB;
-	if (vdec->codec_info.color_primaries == V4L2_COLORSPACE_DEFAULT)
-		vdec->codec_info.color_primaries = V4L2_COLORSPACE_REC709;
-	if (vdec->codec_info.transfer_chars == V4L2_XFER_FUNC_DEFAULT)
-		vdec->codec_info.transfer_chars = V4L2_XFER_FUNC_709;
-	if (vdec->codec_info.matrix_coeffs == V4L2_YCBCR_ENC_DEFAULT)
-		vdec->codec_info.matrix_coeffs = V4L2_YCBCR_ENC_709;
-	if (vdec->codec_info.full_range == V4L2_QUANTIZATION_DEFAULT)
-		vdec->codec_info.full_range = V4L2_QUANTIZATION_LIM_RANGE;
 }
 
 static void vdec_init_crop(struct vpu_inst *inst)
@@ -1554,6 +1546,14 @@ static int vdec_get_debug_info(struct vpu_inst *inst, char *str, u32 size, u32 i
 		num = scnprintf(str, size, "fps = %d/%d\n",
 				vdec->codec_info.frame_rate.numerator,
 				vdec->codec_info.frame_rate.denominator);
+		break;
+	case 9:
+		num = scnprintf(str, size, "colorspace: %d, %d, %d, %d (%d)\n",
+				vdec->codec_info.color_primaries,
+				vdec->codec_info.transfer_chars,
+				vdec->codec_info.matrix_coeffs,
+				vdec->codec_info.full_range,
+				vdec->codec_info.vui_present);
 		break;
 	default:
 		break;
