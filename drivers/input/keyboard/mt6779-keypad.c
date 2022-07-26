@@ -31,6 +31,8 @@ struct mt6779_keypad {
 	struct clk *clk;
 	u32 n_rows;
 	u32 n_cols;
+	void (*calc_row_col)(unsigned int key,
+			     unsigned int *row, unsigned int *col);
 	DECLARE_BITMAP(keymap_state, MTK_KPD_NUM_BITS);
 };
 
@@ -67,8 +69,7 @@ static irqreturn_t mt6779_keypad_irq_handler(int irq, void *dev_id)
 			continue;
 
 		key = bit_nr / 32 * 16 + bit_nr % 32;
-		row = key / 9;
-		col = key % 9;
+		keypad->calc_row_col(key, &row, &col);
 
 		scancode = MATRIX_SCAN_CODE(row, col, row_shift);
 		/* 1: not pressed, 0: pressed */
@@ -92,6 +93,14 @@ static irqreturn_t mt6779_keypad_irq_handler(int irq, void *dev_id)
 static void mt6779_keypad_clk_disable(void *data)
 {
 	clk_disable_unprepare(data);
+}
+
+static void mt6779_keypad_calc_row_col_single(unsigned int key,
+					      unsigned int *row,
+					      unsigned int *col)
+{
+	*row = key / 9;
+	*col = key % 9;
 }
 
 static int mt6779_keypad_pdrv_probe(struct platform_device *pdev)
@@ -147,6 +156,8 @@ static int mt6779_keypad_pdrv_probe(struct platform_device *pdev)
 			MTK_KPD_DEBOUNCE_MAX_MS);
 		return -EINVAL;
 	}
+
+	keypad->calc_row_col = mt6779_keypad_calc_row_col_single;
 
 	wakeup = device_property_read_bool(&pdev->dev, "wakeup-source");
 
