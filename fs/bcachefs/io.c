@@ -2027,6 +2027,7 @@ static void bch2_read_endio(struct bio *bio)
 	}
 
 	if (rbio->narrow_crcs ||
+	    rbio->promote ||
 	    crc_is_compressed(rbio->pick.crc) ||
 	    bch2_csum_type_is_encryption(rbio->pick.crc.csum_type))
 		context = RBIO_CONTEXT_UNBOUND,	wq = system_unbound_wq;
