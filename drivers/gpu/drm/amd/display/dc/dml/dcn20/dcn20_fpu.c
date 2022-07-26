@@ -2341,7 +2341,7 @@ void dcn201_populate_dml_writeback_from_context_fpu(struct dc *dc,
 				dout_wb.wb_dst_width = wb_info->dwb_params.dest_width;
 				dout_wb.wb_dst_height = wb_info->dwb_params.dest_height;
 				dout_wb.wb_htaps_luma = wb_info->dwb_params.scaler_taps.h_taps;
-				dout_wb.wb_vtaps_luma = wb_info->dwb_params.scaler_taps.v_taps;;
+				dout_wb.wb_vtaps_luma = wb_info->dwb_params.scaler_taps.v_taps;
 				dout_wb.wb_htaps_chroma = wb_info->dwb_params.scaler_taps.h_taps_c;
 				dout_wb.wb_vtaps_chroma = wb_info->dwb_params.scaler_taps.v_taps_c;
 				dout_wb.wb_hratio = wb_info->dwb_params.cnv_params.crop_en ?
