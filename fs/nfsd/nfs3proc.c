@@ -388,7 +388,6 @@ nfsd3_proc_mkdir(struct svc_rqst *rqstp)
 	fh_init(&resp->fh, NFS3_FHSIZE);
 	resp->status = nfsd_create(rqstp, &resp->dirfh, argp->name, argp->len,
 				   &attrs, S_IFDIR, 0, &resp->fh);
-	fh_unlock(&resp->dirfh);
 	return rpc_success;
 }
 
@@ -469,7 +468,6 @@ nfsd3_proc_mknod(struct svc_rqst *rqstp)
 	type = nfs3_ftypes[argp->ftype];
 	resp->status = nfsd_create(rqstp, &resp->dirfh, argp->name, argp->len,
 				   &attrs, type, rdev, &resp->fh);
-	fh_unlock(&resp->dirfh);
 out:
 	return rpc_success;
 }
