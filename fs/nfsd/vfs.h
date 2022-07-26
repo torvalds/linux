@@ -44,6 +44,9 @@ typedef int (*nfsd_filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 /* nfsd/vfs.c */
 struct nfsd_attrs {
 	struct iattr		*na_iattr;	/* input */
+	struct xdr_netobj	*na_seclabel;	/* input */
+
+	int			na_labelerr;	/* output */
 };
 
 int		nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
@@ -57,8 +60,6 @@ __be32		nfsd_setattr(struct svc_rqst *, struct svc_fh *,
 				struct nfsd_attrs *, int, time64_t);
 int nfsd_mountpoint(struct dentry *, struct svc_export *);
 #ifdef CONFIG_NFSD_V4
-__be32          nfsd4_set_nfs4_label(struct svc_rqst *, struct svc_fh *,
-		    struct xdr_netobj *);
 __be32		nfsd4_vfs_fallocate(struct svc_rqst *, struct svc_fh *,
 				    struct file *, loff_t, loff_t, int);
 __be32		nfsd4_clone_file_range(struct svc_rqst *rqstp,
