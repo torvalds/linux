@@ -1027,7 +1027,8 @@ static int verity_parse_verity_mode(struct dm_verity *v, const char *arg_name)
 }
 
 static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
-				 struct dm_verity_sig_opts *verify_args)
+				 struct dm_verity_sig_opts *verify_args,
+				 bool only_modifier_opts)
 {
 	int r;
 	unsigned argc;
@@ -1050,6 +1051,8 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 		argc--;
 
 		if (verity_is_verity_mode(arg_name)) {
+			if (only_modifier_opts)
+				continue;
 			r = verity_parse_verity_mode(v, arg_name);
 			if (r) {
 				ti->error = "Conflicting error handling parameters";
@@ -1058,6 +1061,8 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 			continue;
 
 		} else if (!strcasecmp(arg_name, DM_VERITY_OPT_IGN_ZEROES)) {
+			if (only_modifier_opts)
+				continue;
 			r = verity_alloc_zero_digest(v);
 			if (r) {
 				ti->error = "Cannot allocate zero digest";
@@ -1066,6 +1071,8 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 			continue;
 
 		} else if (!strcasecmp(arg_name, DM_VERITY_OPT_AT_MOST_ONCE)) {
+			if (only_modifier_opts)
+				continue;
 			r = verity_alloc_most_once(v);
 			if (r)
 				return r;
@@ -1076,12 +1083,16 @@ static int verity_parse_opt_args(struct dm_arg_set *as, struct dm_verity *v,
 			continue;
 
 		} else if (verity_is_fec_opt_arg(arg_name)) {
+			if (only_modifier_opts)
+				continue;
 			r = verity_fec_parse_opt_args(as, v, &argc, arg_name);
 			if (r)
 				return r;
 			continue;
 
 		} else if (verity_verify_is_sig_opt_arg(arg_name)) {
+			if (only_modifier_opts)
+				continue;
 			r = verity_verify_sig_parse_opt_args(as, v,
 							     verify_args,
 							     &argc, arg_name);
@@ -1146,6 +1157,15 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		ti->error = "Not enough arguments";
 		r = -EINVAL;
 		goto bad;
+	}
+
+	/* Parse optional parameters that modify primary args */
+	if (argc > 10) {
+		as.argc = argc - 10;
+		as.argv = argv + 10;
+		r = verity_parse_opt_args(&as, v, &verify_args, true);
+		if (r < 0)
+			goto bad;
 	}
 
 	if (sscanf(argv[0], "%u%c", &num, &dummy) != 1 ||
@@ -1219,11 +1239,8 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 		goto bad;
 	}
 
-	/*
-	 * FIXME: CRYPTO_ALG_ASYNC should be conditional on v->use_tasklet
-	 * but verity_parse_opt_args() happens below and has data dep on tfm.
-	 */
-	v->tfm = crypto_alloc_ahash(v->alg_name, 0, CRYPTO_ALG_ASYNC);
+	v->tfm = crypto_alloc_ahash(v->alg_name, 0,
+				    v->use_tasklet ? CRYPTO_ALG_ASYNC : 0);
 	if (IS_ERR(v->tfm)) {
 		ti->error = "Cannot initialize hash function";
 		r = PTR_ERR(v->tfm);
@@ -1285,8 +1302,7 @@ static int verity_ctr(struct dm_target *ti, unsigned argc, char **argv)
 	if (argc) {
 		as.argc = argc;
 		as.argv = argv;
-
-		r = verity_parse_opt_args(&as, v, &verify_args);
+		r = verity_parse_opt_args(&as, v, &verify_args, false);
 		if (r < 0)
 			goto bad;
 	}
