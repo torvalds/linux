@@ -34,6 +34,10 @@ static void hyp_prepare_backtrace(unsigned long fp, unsigned long pc)
 	stacktrace_info->pc = pc;
 }
 
+#ifdef CONFIG_PROTECTED_NVHE_STACKTRACE
+DEFINE_PER_CPU(unsigned long [NVHE_STACKTRACE_SIZE/sizeof(long)], pkvm_stacktrace);
+#endif /* CONFIG_PROTECTED_NVHE_STACKTRACE */
+
 /*
  * kvm_nvhe_prepare_backtrace - prepare to dump the nVHE backtrace
  *
