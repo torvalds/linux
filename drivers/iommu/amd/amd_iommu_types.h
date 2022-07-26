@@ -103,6 +103,12 @@
 #define FEATURE_GLXVAL_SHIFT	14
 #define FEATURE_GLXVAL_MASK	(0x03ULL << FEATURE_GLXVAL_SHIFT)
 
+/* Extended Feature 2 Bits */
+#define FEATURE_SNPAVICSUP_SHIFT	5
+#define FEATURE_SNPAVICSUP_MASK		(0x07ULL << FEATURE_SNPAVICSUP_SHIFT)
+#define FEATURE_SNPAVICSUP_GAM(x) \
+	((x & FEATURE_SNPAVICSUP_MASK) >> FEATURE_SNPAVICSUP_SHIFT == 0x1)
+
 /* Note:
  * The current driver only support 16-bit PASID.
  * Currently, hardware only implement upto 16-bit PASID
@@ -165,6 +171,7 @@
 #define CONTROL_GAINT_EN	29
 #define CONTROL_XT_EN		50
 #define CONTROL_INTCAPXT_EN	51
+#define CONTROL_SNPAVIC_EN	61
 
 #define CTRL_INV_TO_MASK	(7 << CONTROL_INV_TIMEOUT)
 #define CTRL_INV_TO_NONE	0

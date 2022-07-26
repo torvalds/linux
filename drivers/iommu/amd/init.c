@@ -2794,13 +2794,22 @@ static void enable_iommus_vapic(void)
 		return;
 	}
 
-	/* Enabling GAM support */
+	if (amd_iommu_snp_en &&
+	    !FEATURE_SNPAVICSUP_GAM(amd_iommu_efr2)) {
+		pr_warn("Force to disable Virtual APIC due to SNP\n");
+		amd_iommu_guest_ir = AMD_IOMMU_GUEST_IR_LEGACY_GA;
+		return;
+	}
+
+	/* Enabling GAM and SNPAVIC support */
 	for_each_iommu(iommu) {
 		if (iommu_init_ga_log(iommu) ||
 		    iommu_ga_log_enable(iommu))
 			return;
 
 		iommu_feature_enable(iommu, CONTROL_GAM_EN);
+		if (amd_iommu_snp_en)
+			iommu_feature_enable(iommu, CONTROL_SNPAVIC_EN);
 	}
 
 	amd_iommu_irq_ops.capability |= (1 << IRQ_POSTING_CAP);
