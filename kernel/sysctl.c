@@ -1719,6 +1719,13 @@ static struct ctl_table kern_table[] = {
 	},
 #ifdef CONFIG_SMP
 	{
+		.procname	= "sched_pelt_period",
+		.data		= &sysctl_sched_pelt_period,
+		.maxlen		= sizeof(int),
+		.mode		= 0644,
+		.proc_handler	= sched_pelt_period_update_handler,
+	},
+	{
 		.procname	= "sched_tunable_scaling",
 		.data		= &sysctl_sched_tunable_scaling,
 		.maxlen		= sizeof(enum sched_tunable_scaling),
