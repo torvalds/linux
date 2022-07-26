@@ -3734,11 +3734,11 @@ int probe_nhm_msrs(unsigned int family, unsigned int model)
 		has_misc_feature_control = 1;
 		break;
 	case INTEL_FAM6_SKYLAKE_X:	/* SKX */
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 		pkg_cstate_limits = skx_pkg_cstate_limits;
 		has_misc_feature_control = 1;
 		break;
 	case INTEL_FAM6_ICELAKE_X:	/* ICX */
-	case INTEL_FAM6_SAPPHIRERAPIDS_X:	/* SPR */
 		pkg_cstate_limits = icx_pkg_cstate_limits;
 		has_misc_feature_control = 1;
 		break;
