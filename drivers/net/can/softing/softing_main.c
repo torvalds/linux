@@ -612,7 +612,7 @@ static const struct net_device_ops softing_netdev_ops = {
 };
 
 static const struct can_bittiming_const softing_btr_const = {
-	.name = "softing",
+	.name = KBUILD_MODNAME,
 	.tseg1_min = 1,
 	.tseg1_max = 16,
 	.tseg2_min = 1,
@@ -846,7 +846,7 @@ platform_resource_failed:
 
 static struct platform_driver softing_driver = {
 	.driver = {
-		.name = "softing",
+		.name = KBUILD_MODNAME,
 	},
 	.probe = softing_pdev_probe,
 	.remove = softing_pdev_remove,
