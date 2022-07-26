@@ -291,7 +291,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 		goto done;
 	}
 
-	fh_lock_nested(dirfhp, I_MUTEX_PARENT);
+	inode_lock_nested(dirfhp->fh_dentry->d_inode, I_MUTEX_PARENT);
 	dchild = lookup_one_len(argp->name, dirfhp->fh_dentry, argp->len);
 	if (IS_ERR(dchild)) {
 		resp->status = nfserrno(PTR_ERR(dchild));
@@ -407,8 +407,7 @@ nfsd_proc_create(struct svc_rqst *rqstp)
 	}
 
 out_unlock:
-	/* We don't really need to unlock, as fh_put does it. */
-	fh_unlock(dirfhp);
+	inode_unlock(dirfhp->fh_dentry->d_inode);
 	fh_drop_write(dirfhp);
 done:
 	fh_put(dirfhp);

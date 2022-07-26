@@ -1370,7 +1370,7 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (host_err)
 		return nfserrno(host_err);
 
-	fh_lock_nested(fhp, I_MUTEX_PARENT);
+	inode_lock_nested(dentry->d_inode, I_MUTEX_PARENT);
 	dchild = lookup_one_len(fname, dentry, flen);
 	host_err = PTR_ERR(dchild);
 	if (IS_ERR(dchild)) {
@@ -1385,10 +1385,12 @@ nfsd_create(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	dput(dchild);
 	if (err)
 		goto out_unlock;
+	fh_fill_pre_attrs(fhp);
 	err = nfsd_create_locked(rqstp, fhp, fname, flen, attrs, type,
 				 rdev, resfhp);
+	fh_fill_post_attrs(fhp);
 out_unlock:
-	fh_unlock(fhp);
+	inode_unlock(dentry->d_inode);
 	return err;
 }
 
@@ -1471,20 +1473,22 @@ nfsd_symlink(struct svc_rqst *rqstp, struct svc_fh *fhp,
 		goto out;
 	}
 
-	fh_lock(fhp);
 	dentry = fhp->fh_dentry;
+	inode_lock_nested(dentry->d_inode, I_MUTEX_PARENT);
 	dnew = lookup_one_len(fname, dentry, flen);
 	if (IS_ERR(dnew)) {
 		err = nfserrno(PTR_ERR(dnew));
-		fh_unlock(fhp);
+		inode_unlock(dentry->d_inode);
 		goto out_drop_write;
 	}
+	fh_fill_pre_attrs(fhp);
 	host_err = vfs_symlink(&init_user_ns, d_inode(dentry), dnew, path);
 	err = nfserrno(host_err);
 	cerr = fh_compose(resfhp, fhp->fh_export, dnew, fhp);
 	if (!err)
 		nfsd_create_setattr(rqstp, fhp, resfhp, attrs);
-	fh_unlock(fhp);
+	fh_fill_post_attrs(fhp);
+	inode_unlock(dentry->d_inode);
 	if (!err)
 		err = nfserrno(commit_metadata(fhp));
 	dput(dnew);
@@ -1530,9 +1534,9 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 		goto out;
 	}
 
-	fh_lock_nested(ffhp, I_MUTEX_PARENT);
 	ddir = ffhp->fh_dentry;
 	dirp = d_inode(ddir);
+	inode_lock_nested(dirp, I_MUTEX_PARENT);
 
 	dnew = lookup_one_len(name, ddir, len);
 	if (IS_ERR(dnew)) {
@@ -1545,8 +1549,10 @@ nfsd_link(struct svc_rqst *rqstp, struct svc_fh *ffhp,
 	err = nfserr_noent;
 	if (d_really_is_negative(dold))
 		goto out_dput;
+	fh_fill_pre_attrs(ffhp);
 	host_err = vfs_link(dold, &init_user_ns, dirp, dnew, NULL);
-	fh_unlock(ffhp);
+	fh_fill_post_attrs(ffhp);
+	inode_unlock(dirp);
 	if (!host_err) {
 		err = nfserrno(commit_metadata(ffhp));
 		if (!err)
@@ -1566,7 +1572,7 @@ out:
 out_dput:
 	dput(dnew);
 out_unlock:
-	fh_unlock(ffhp);
+	inode_unlock(dirp);
 	goto out_drop_write;
 }
 
@@ -1741,9 +1747,9 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	if (host_err)
 		goto out_nfserr;
 
-	fh_lock_nested(fhp, I_MUTEX_PARENT);
 	dentry = fhp->fh_dentry;
 	dirp = d_inode(dentry);
+	inode_lock_nested(dirp, I_MUTEX_PARENT);
 
 	rdentry = lookup_one_len(fname, dentry, flen);
 	host_err = PTR_ERR(rdentry);
@@ -1761,6 +1767,7 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	if (!type)
 		type = d_inode(rdentry)->i_mode & S_IFMT;
 
+	fh_fill_pre_attrs(fhp);
 	if (type != S_IFDIR) {
 		if (rdentry->d_sb->s_export_op->flags & EXPORT_OP_CLOSE_BEFORE_UNLINK)
 			nfsd_close_cached_files(rdentry);
@@ -1768,8 +1775,9 @@ nfsd_unlink(struct svc_rqst *rqstp, struct svc_fh *fhp, int type,
 	} else {
 		host_err = vfs_rmdir(&init_user_ns, dirp, rdentry);
 	}
+	fh_fill_post_attrs(fhp);
 
-	fh_unlock(fhp);
+	inode_unlock(dirp);
 	if (!host_err)
 		host_err = commit_metadata(fhp);
 	dput(rdentry);
@@ -1792,7 +1800,7 @@ out_nfserr:
 out:
 	return err;
 out_unlock:
-	fh_unlock(fhp);
+	inode_unlock(dirp);
 	goto out_drop_write;
 }
 
