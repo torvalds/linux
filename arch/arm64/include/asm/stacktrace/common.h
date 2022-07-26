@@ -124,11 +124,25 @@ static inline void unwind_init_common(struct unwind_state *state,
 	state->prev_type = STACK_TYPE_UNKNOWN;
 }
 
+/*
+ * stack_trace_translate_fp_fn() - Translates a non-kernel frame pointer to
+ * a kernel address.
+ *
+ * @fp:   the frame pointer to be updated to its kernel address.
+ * @type: the stack type associated with frame pointer @fp
+ *
+ * Returns true and success and @fp is updated to the corresponding
+ * kernel virtual address; otherwise returns false.
+ */
+typedef bool (*stack_trace_translate_fp_fn)(unsigned long *fp,
+					    enum stack_type type);
+
 static inline int unwind_next_common(struct unwind_state *state,
-				     struct stack_info *info)
+				     struct stack_info *info,
+				     stack_trace_translate_fp_fn translate_fp)
 {
+	unsigned long fp = state->fp, kern_fp = fp;
 	struct task_struct *tsk = state->task;
-	unsigned long fp = state->fp;
 
 	if (fp & 0x7)
 		return -EINVAL;
@@ -137,6 +151,13 @@ static inline int unwind_next_common(struct unwind_state *state,
 		return -EINVAL;
 
 	if (test_bit(info->type, state->stacks_done))
+		return -EINVAL;
+
+	/*
+	 * If fp is not from the current address space perform the necessary
+	 * translation before dereferencing it to get the next fp.
+	 */
+	if (translate_fp && !translate_fp(&kern_fp, info->type))
 		return -EINVAL;
 
 	/*
@@ -163,8 +184,8 @@ static inline int unwind_next_common(struct unwind_state *state,
 	 * Record this frame record's values and location. The prev_fp and
 	 * prev_type are only meaningful to the next unwind_next() invocation.
 	 */
-	state->fp = READ_ONCE(*(unsigned long *)(fp));
-	state->pc = READ_ONCE(*(unsigned long *)(fp + 8));
+	state->fp = READ_ONCE(*(unsigned long *)(kern_fp));
+	state->pc = READ_ONCE(*(unsigned long *)(kern_fp + 8));
 	state->prev_fp = fp;
 	state->prev_type = info->type;
 
