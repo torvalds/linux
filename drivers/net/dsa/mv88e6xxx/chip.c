@@ -3293,7 +3293,12 @@ static int mv88e6xxx_setup_port(struct mv88e6xxx_chip *chip, int port)
 	 * port and all DSA ports to their maximum bandwidth and full duplex.
 	 */
 	if (dsa_is_cpu_port(ds, port) || dsa_is_dsa_port(ds, port)) {
-		unsigned long caps = dp->pl_config.mac_capabilities;
+		struct phylink_config pl_config = {};
+		unsigned long caps;
+
+		mv88e6xxx_get_caps(ds, port, &pl_config);
+
+		caps = pl_config.mac_capabilities;
 
 		if (chip->info->ops->port_max_speed_mode)
 			mode = chip->info->ops->port_max_speed_mode(port);
