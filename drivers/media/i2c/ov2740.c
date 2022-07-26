@@ -991,9 +991,6 @@ static int ov2740_check_hwcfg(struct device *dev)
 	int ret;
 	unsigned int i, j;
 
-	if (!fwnode)
-		return -ENXIO;
-
 	ret = fwnode_property_read_u32(fwnode, "clock-frequency", &mclk);
 	if (ret)
 		return ret;
