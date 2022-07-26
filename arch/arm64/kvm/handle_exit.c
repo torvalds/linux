@@ -371,6 +371,39 @@ static void hyp_dump_backtrace(unsigned long hyp_offset)
 	kvm_nvhe_dump_backtrace_end();
 }
 
+#ifdef CONFIG_PROTECTED_NVHE_STACKTRACE
+DECLARE_KVM_NVHE_PER_CPU(unsigned long [NVHE_STACKTRACE_SIZE/sizeof(long)],
+			 pkvm_stacktrace);
+
+/*
+ * pkvm_dump_backtrace - Dump the protected nVHE HYP backtrace.
+ *
+ * @hyp_offset: hypervisor offset, used for address translation.
+ *
+ * Dumping of the pKVM HYP backtrace is done by reading the
+ * stack addresses from the shared stacktrace buffer, since the
+ * host cannot directly access hypervisor memory in protected
+ * mode.
+ */
+static void pkvm_dump_backtrace(unsigned long hyp_offset)
+{
+	unsigned long *stacktrace
+		= (unsigned long *) this_cpu_ptr_nvhe_sym(pkvm_stacktrace);
+	int i, size = NVHE_STACKTRACE_SIZE / sizeof(long);
+
+	kvm_nvhe_dump_backtrace_start();
+	/* The saved stacktrace is terminated by a null entry */
+	for (i = 0; i < size && stacktrace[i]; i++)
+		kvm_nvhe_dump_backtrace_entry((void *)hyp_offset, stacktrace[i]);
+	kvm_nvhe_dump_backtrace_end();
+}
+#else	/* !CONFIG_PROTECTED_NVHE_STACKTRACE */
+static void pkvm_dump_backtrace(unsigned long hyp_offset)
+{
+	kvm_err("Cannot dump pKVM nVHE stacktrace: !CONFIG_PROTECTED_NVHE_STACKTRACE\n");
+}
+#endif /* CONFIG_PROTECTED_NVHE_STACKTRACE */
+
 /*
  * kvm_nvhe_dump_backtrace - Dump KVM nVHE hypervisor backtrace.
  *
@@ -379,7 +412,7 @@ static void hyp_dump_backtrace(unsigned long hyp_offset)
 static void kvm_nvhe_dump_backtrace(unsigned long hyp_offset)
 {
 	if (is_protected_kvm_enabled())
-		return;
+		pkvm_dump_backtrace(hyp_offset);
 	else
 		hyp_dump_backtrace(hyp_offset);
 }
