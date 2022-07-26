@@ -306,9 +306,10 @@ static unsigned int rpmh_regulator_vrm_get_mode(struct regulator_dev *rdev)
 }
 
 /**
- * rpmh_regulator_vrm_set_load() - set the regulator mode based upon the load
- *		current requested
+ * rpmh_regulator_vrm_get_optimum_mode() - get the mode based on the  load
  * @rdev:		Regulator device pointer for the rpmh-regulator
+ * @input_uV:		Input voltage
+ * @output_uV:		Output voltage
  * @load_uA:		Aggregated load current in microamps
  *
  * This function is used in the regulator_ops for VRM type RPMh regulator
@@ -316,17 +317,15 @@ static unsigned int rpmh_regulator_vrm_get_mode(struct regulator_dev *rdev)
  *
  * Return: 0 on success, errno on failure
  */
-static int rpmh_regulator_vrm_set_load(struct regulator_dev *rdev, int load_uA)
+static unsigned int rpmh_regulator_vrm_get_optimum_mode(
+	struct regulator_dev *rdev, int input_uV, int output_uV, int load_uA)
 {
 	struct rpmh_vreg *vreg = rdev_get_drvdata(rdev);
-	unsigned int mode;
 
 	if (load_uA >= vreg->hw_data->hpm_min_load_uA)
-		mode = REGULATOR_MODE_NORMAL;
+		return REGULATOR_MODE_NORMAL;
 	else
-		mode = REGULATOR_MODE_IDLE;
-
-	return rpmh_regulator_vrm_set_mode(rdev, mode);
+		return REGULATOR_MODE_IDLE;
 }
 
 static int rpmh_regulator_vrm_set_bypass(struct regulator_dev *rdev,
@@ -375,7 +374,7 @@ static const struct regulator_ops rpmh_regulator_vrm_drms_ops = {
 	.list_voltage		= regulator_list_voltage_linear_range,
 	.set_mode		= rpmh_regulator_vrm_set_mode,
 	.get_mode		= rpmh_regulator_vrm_get_mode,
-	.set_load		= rpmh_regulator_vrm_set_load,
+	.get_optimum_mode	= rpmh_regulator_vrm_get_optimum_mode,
 };
 
 static const struct regulator_ops rpmh_regulator_vrm_bypass_ops = {
