@@ -23,13 +23,13 @@
 static __always_inline void prepare_frametrace(struct pt_regs *regs)
 {
 	__asm__ __volatile__(
-		/* Save $r1 */
+		/* Save $ra */
 		STORE_ONE_REG(1)
-		/* Use $r1 to save PC */
-		"pcaddi	$r1, 0\n\t"
-		STR_LONG_S " $r1, %0\n\t"
-		/* Restore $r1 */
-		STR_LONG_L " $r1, %1, "STR_LONGSIZE"\n\t"
+		/* Use $ra to save PC */
+		"pcaddi	$ra, 0\n\t"
+		STR_LONG_S " $ra, %0\n\t"
+		/* Restore $ra */
+		STR_LONG_L " $ra, %1, "STR_LONGSIZE"\n\t"
 		STORE_ONE_REG(2)
 		STORE_ONE_REG(3)
 		STORE_ONE_REG(4)

@@ -47,7 +47,7 @@ SYM_FUNC_START(handle_tlb_load)
 	 * The vmalloc handling is not in the hotpath.
 	 */
 	csrrd	t0, LOONGARCH_CSR_BADV
-	blt	t0, $r0, vmalloc_load
+	blt	t0, zero, vmalloc_load
 	csrrd	t1, LOONGARCH_CSR_PGDL
 
 vmalloc_done_load:
@@ -80,7 +80,7 @@ vmalloc_done_load:
 	 * see if we need to jump to huge tlb processing.
 	 */
 	andi	t0, ra, _PAGE_HUGE
-	bne	t0, $r0, tlb_huge_update_load
+	bne	t0, zero, tlb_huge_update_load
 
 	csrrd	t0, LOONGARCH_CSR_BADV
 	srli.d	t0, t0, (PAGE_SHIFT + PTE_ORDER)
@@ -100,12 +100,12 @@ smp_pgtable_change_load:
 
 	srli.d	ra, t0, _PAGE_PRESENT_SHIFT
 	andi	ra, ra, 1
-	beq	ra, $r0, nopage_tlb_load
+	beq	ra, zero, nopage_tlb_load
 
 	ori	t0, t0, _PAGE_VALID
 #ifdef CONFIG_SMP
 	sc.d	t0, t1, 0
-	beq	t0, $r0, smp_pgtable_change_load
+	beq	t0, zero, smp_pgtable_change_load
 #else
 	st.d	t0, t1, 0
 #endif
@@ -139,23 +139,23 @@ tlb_huge_update_load:
 #endif
 	srli.d	ra, t0, _PAGE_PRESENT_SHIFT
 	andi	ra, ra, 1
-	beq	ra, $r0, nopage_tlb_load
+	beq	ra, zero, nopage_tlb_load
 	tlbsrch
 
 	ori	t0, t0, _PAGE_VALID
 #ifdef CONFIG_SMP
 	sc.d	t0, t1, 0
-	beq	t0, $r0, tlb_huge_update_load
+	beq	t0, zero, tlb_huge_update_load
 	ld.d	t0, t1, 0
 #else
 	st.d	t0, t1, 0
 #endif
-	addu16i.d	t1, $r0, -(CSR_TLBIDX_EHINV >> 16)
+	addu16i.d	t1, zero, -(CSR_TLBIDX_EHINV >> 16)
 	addi.d	ra, t1, 0
 	csrxchg	ra, t1, LOONGARCH_CSR_TLBIDX
 	tlbwr
 
-	csrxchg	$r0, t1, LOONGARCH_CSR_TLBIDX
+	csrxchg	zero, t1, LOONGARCH_CSR_TLBIDX
 
 	/*
 	 * A huge PTE describes an area the size of the
@@ -178,27 +178,27 @@ tlb_huge_update_load:
 	addi.d	t0, ra, 0
 
 	/* Convert to entrylo1 */
-	addi.d	t1, $r0, 1
+	addi.d	t1, zero, 1
 	slli.d	t1, t1, (HPAGE_SHIFT - 1)
 	add.d	t0, t0, t1
 	csrwr	t0, LOONGARCH_CSR_TLBELO1
 
 	/* Set huge page tlb entry size */
-	addu16i.d	t0, $r0, (CSR_TLBIDX_PS >> 16)
-	addu16i.d	t1, $r0, (PS_HUGE_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
+	addu16i.d	t0, zero, (CSR_TLBIDX_PS >> 16)
+	addu16i.d	t1, zero, (PS_HUGE_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
 	csrxchg		t1, t0, LOONGARCH_CSR_TLBIDX
 
 	tlbfill
 
-	addu16i.d	t0, $r0, (CSR_TLBIDX_PS >> 16)
-	addu16i.d	t1, $r0, (PS_DEFAULT_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
+	addu16i.d	t0, zero, (CSR_TLBIDX_PS >> 16)
+	addu16i.d	t1, zero, (PS_DEFAULT_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
 	csrxchg		t1, t0, LOONGARCH_CSR_TLBIDX
 
 nopage_tlb_load:
 	dbar	0
 	csrrd	ra, EXCEPTION_KS2
 	la.abs	t0, tlb_do_page_fault_0
-	jirl	$r0, t0, 0
+	jirl	zero, t0, 0
 SYM_FUNC_END(handle_tlb_load)
 
 SYM_FUNC_START(handle_tlb_store)
@@ -210,7 +210,7 @@ SYM_FUNC_START(handle_tlb_store)
 	 * The vmalloc handling is not in the hotpath.
 	 */
 	csrrd	t0, LOONGARCH_CSR_BADV
-	blt	t0, $r0, vmalloc_store
+	blt	t0, zero, vmalloc_store
 	csrrd	t1, LOONGARCH_CSR_PGDL
 
 vmalloc_done_store:
@@ -244,7 +244,7 @@ vmalloc_done_store:
 	 * see if we need to jump to huge tlb processing.
 	 */
 	andi	t0, ra, _PAGE_HUGE
-	bne	t0, $r0, tlb_huge_update_store
+	bne	t0, zero, tlb_huge_update_store
 
 	csrrd	t0, LOONGARCH_CSR_BADV
 	srli.d	t0, t0, (PAGE_SHIFT + PTE_ORDER)
@@ -265,12 +265,12 @@ smp_pgtable_change_store:
 	srli.d	ra, t0, _PAGE_PRESENT_SHIFT
 	andi	ra, ra, ((_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT)
 	xori	ra, ra, ((_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT)
-	bne	ra, $r0, nopage_tlb_store
+	bne	ra, zero, nopage_tlb_store
 
 	ori	t0, t0, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 #ifdef CONFIG_SMP
 	sc.d	t0, t1, 0
-	beq	t0, $r0, smp_pgtable_change_store
+	beq	t0, zero, smp_pgtable_change_store
 #else
 	st.d	t0, t1, 0
 #endif
@@ -306,24 +306,24 @@ tlb_huge_update_store:
 	srli.d	ra, t0, _PAGE_PRESENT_SHIFT
 	andi	ra, ra, ((_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT)
 	xori	ra, ra, ((_PAGE_PRESENT | _PAGE_WRITE) >> _PAGE_PRESENT_SHIFT)
-	bne	ra, $r0, nopage_tlb_store
+	bne	ra, zero, nopage_tlb_store
 
 	tlbsrch
 	ori	t0, t0, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 
 #ifdef CONFIG_SMP
 	sc.d	t0, t1, 0
-	beq	t0, $r0, tlb_huge_update_store
+	beq	t0, zero, tlb_huge_update_store
 	ld.d	t0, t1, 0
 #else
 	st.d	t0, t1, 0
 #endif
-	addu16i.d	t1, $r0, -(CSR_TLBIDX_EHINV >> 16)
+	addu16i.d	t1, zero, -(CSR_TLBIDX_EHINV >> 16)
 	addi.d	ra, t1, 0
 	csrxchg	ra, t1, LOONGARCH_CSR_TLBIDX
 	tlbwr
 
-	csrxchg	$r0, t1, LOONGARCH_CSR_TLBIDX
+	csrxchg	zero, t1, LOONGARCH_CSR_TLBIDX
 	/*
 	 * A huge PTE describes an area the size of the
 	 * configured huge page size. This is twice the
@@ -345,28 +345,28 @@ tlb_huge_update_store:
 	addi.d	t0, ra, 0
 
 	/* Convert to entrylo1 */
-	addi.d	t1, $r0, 1
+	addi.d	t1, zero, 1
 	slli.d	t1, t1, (HPAGE_SHIFT - 1)
 	add.d	t0, t0, t1
 	csrwr	t0, LOONGARCH_CSR_TLBELO1
 
 	/* Set huge page tlb entry size */
-	addu16i.d	t0, $r0, (CSR_TLBIDX_PS >> 16)
-	addu16i.d	t1, $r0, (PS_HUGE_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
+	addu16i.d	t0, zero, (CSR_TLBIDX_PS >> 16)
+	addu16i.d	t1, zero, (PS_HUGE_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
 	csrxchg		t1, t0, LOONGARCH_CSR_TLBIDX
 
 	tlbfill
 
 	/* Reset default page size */
-	addu16i.d	t0, $r0, (CSR_TLBIDX_PS >> 16)
-	addu16i.d	t1, $r0, (PS_DEFAULT_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
+	addu16i.d	t0, zero, (CSR_TLBIDX_PS >> 16)
+	addu16i.d	t1, zero, (PS_DEFAULT_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
 	csrxchg		t1, t0, LOONGARCH_CSR_TLBIDX
 
 nopage_tlb_store:
 	dbar	0
 	csrrd	ra, EXCEPTION_KS2
 	la.abs	t0, tlb_do_page_fault_1
-	jirl	$r0, t0, 0
+	jirl	zero, t0, 0
 SYM_FUNC_END(handle_tlb_store)
 
 SYM_FUNC_START(handle_tlb_modify)
@@ -378,7 +378,7 @@ SYM_FUNC_START(handle_tlb_modify)
 	 * The vmalloc handling is not in the hotpath.
 	 */
 	csrrd	t0, LOONGARCH_CSR_BADV
-	blt	t0, $r0, vmalloc_modify
+	blt	t0, zero, vmalloc_modify
 	csrrd	t1, LOONGARCH_CSR_PGDL
 
 vmalloc_done_modify:
@@ -411,7 +411,7 @@ vmalloc_done_modify:
 	 * see if we need to jump to huge tlb processing.
 	 */
 	andi	t0, ra, _PAGE_HUGE
-	bne	t0, $r0, tlb_huge_update_modify
+	bne	t0, zero, tlb_huge_update_modify
 
 	csrrd	t0, LOONGARCH_CSR_BADV
 	srli.d	t0, t0, (PAGE_SHIFT + PTE_ORDER)
@@ -431,12 +431,12 @@ smp_pgtable_change_modify:
 
 	srli.d	ra, t0, _PAGE_WRITE_SHIFT
 	andi	ra, ra, 1
-	beq	ra, $r0, nopage_tlb_modify
+	beq	ra, zero, nopage_tlb_modify
 
 	ori	t0, t0, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 #ifdef CONFIG_SMP
 	sc.d	t0, t1, 0
-	beq	t0, $r0, smp_pgtable_change_modify
+	beq	t0, zero, smp_pgtable_change_modify
 #else
 	st.d	t0, t1, 0
 #endif
@@ -471,14 +471,14 @@ tlb_huge_update_modify:
 
 	srli.d	ra, t0, _PAGE_WRITE_SHIFT
 	andi	ra, ra, 1
-	beq	ra, $r0, nopage_tlb_modify
+	beq	ra, zero, nopage_tlb_modify
 
 	tlbsrch
 	ori	t0, t0, (_PAGE_VALID | _PAGE_DIRTY | _PAGE_MODIFIED)
 
 #ifdef CONFIG_SMP
 	sc.d	t0, t1, 0
-	beq	t0, $r0, tlb_huge_update_modify
+	beq	t0, zero, tlb_huge_update_modify
 	ld.d	t0, t1, 0
 #else
 	st.d	t0, t1, 0
@@ -504,28 +504,28 @@ tlb_huge_update_modify:
 	addi.d	t0, ra, 0
 
 	/* Convert to entrylo1 */
-	addi.d	t1, $r0, 1
+	addi.d	t1, zero, 1
 	slli.d	t1, t1, (HPAGE_SHIFT - 1)
 	add.d	t0, t0, t1
 	csrwr	t0, LOONGARCH_CSR_TLBELO1
 
 	/* Set huge page tlb entry size */
-	addu16i.d	t0, $r0, (CSR_TLBIDX_PS >> 16)
-	addu16i.d	t1, $r0, (PS_HUGE_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
+	addu16i.d	t0, zero, (CSR_TLBIDX_PS >> 16)
+	addu16i.d	t1, zero, (PS_HUGE_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
 	csrxchg	t1, t0, LOONGARCH_CSR_TLBIDX
 
 	tlbwr
 
 	/* Reset default page size */
-	addu16i.d	t0, $r0, (CSR_TLBIDX_PS >> 16)
-	addu16i.d	t1, $r0, (PS_DEFAULT_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
+	addu16i.d	t0, zero, (CSR_TLBIDX_PS >> 16)
+	addu16i.d	t1, zero, (PS_DEFAULT_SIZE << (CSR_TLBIDX_PS_SHIFT - 16))
 	csrxchg	t1, t0, LOONGARCH_CSR_TLBIDX
 
 nopage_tlb_modify:
 	dbar	0
 	csrrd	ra, EXCEPTION_KS2
 	la.abs	t0, tlb_do_page_fault_1
-	jirl	$r0, t0, 0
+	jirl	zero, t0, 0
 SYM_FUNC_END(handle_tlb_modify)
 
 SYM_FUNC_START(handle_tlb_refill)

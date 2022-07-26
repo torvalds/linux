@@ -162,7 +162,7 @@ do {									\
 	"2:							\n"	\
 	"	.section .fixup,\"ax\"				\n"	\
 	"3:	li.w	%0, %3					\n"	\
-	"	or	%1, $r0, $r0				\n"	\
+	"	or	%1, $zero, $zero			\n"	\
 	"	b	2b					\n"	\
 	"	.previous					\n"	\
 	"	.section __ex_table,\"a\"			\n"	\
