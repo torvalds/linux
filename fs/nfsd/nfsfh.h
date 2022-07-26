@@ -322,7 +322,7 @@ static inline u64 nfsd4_change_attribute(struct kstat *stat,
 
 extern void fh_fill_pre_attrs(struct svc_fh *fhp);
 extern void fh_fill_post_attrs(struct svc_fh *fhp);
-
+extern void fh_fill_both_attrs(struct svc_fh *fhp);
 
 /*
  * Lock a file handle/inode

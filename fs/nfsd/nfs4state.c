@@ -5304,9 +5304,6 @@ nfsd4_verify_deleg_dentry(struct nfsd4_open *open, struct nfs4_file *fp,
 	struct dentry *child;
 	__be32 err;
 
-	/* parent may already be locked, and it may get unlocked by
-	 * this call, but that is safe.
-	 */
 	err = nfsd_lookup_dentry(open->op_rqstp, parent,
 				 open->op_fname, open->op_fnamelen,
 				 &exp, &child);
