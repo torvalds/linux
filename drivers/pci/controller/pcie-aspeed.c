@@ -112,6 +112,7 @@ struct aspeed_pcie {
 	int hotplug_event;
 	struct gpio_desc *perst_ep_in;
 	struct gpio_desc *perst_rc_out;
+	struct gpio_desc *perst_owner;
 	struct delayed_work rst_dwork;
 	DECLARE_BITMAP(msi_irq_in_use, MAX_MSI_HOST_IRQS);
 };
@@ -936,6 +937,8 @@ static int aspeed_pcie_probe(struct platform_device *pdev)
 			INIT_DELAYED_WORK(&pcie->rst_dwork,
 					  aspeed_pcie_reset_work);
 		}
+		pcie->perst_owner = devm_gpiod_get_optional(
+			pcie->dev, "perst-owner", GPIOD_OUT_HIGH);
 	}
 
 	return pci_host_probe(host);
