@@ -6,6 +6,8 @@
 #ifndef LINUX_NFSD_VFS_H
 #define LINUX_NFSD_VFS_H
 
+#include <linux/fs.h>
+#include <linux/posix_acl.h>
 #include "nfsfh.h"
 #include "nfsd.h"
 
@@ -45,9 +47,18 @@ typedef int (*nfsd_filldir_t)(void *, const char *, int, loff_t, u64, unsigned);
 struct nfsd_attrs {
 	struct iattr		*na_iattr;	/* input */
 	struct xdr_netobj	*na_seclabel;	/* input */
+	struct posix_acl	*na_pacl;	/* input */
+	struct posix_acl	*na_dpacl;	/* input */
 
 	int			na_labelerr;	/* output */
+	int			na_aclerr;	/* output */
 };
+
+static inline void nfsd_attrs_free(struct nfsd_attrs *attrs)
+{
+	posix_acl_release(attrs->na_pacl);
+	posix_acl_release(attrs->na_dpacl);
+}
 
 int		nfsd_cross_mnt(struct svc_rqst *rqstp, struct dentry **dpp,
 		                struct svc_export **expp);

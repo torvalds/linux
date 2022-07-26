@@ -461,6 +461,15 @@ out_unlock:
 	if (attr->na_seclabel && attr->na_seclabel->len)
 		attr->na_labelerr = security_inode_setsecctx(dentry,
 			attr->na_seclabel->data, attr->na_seclabel->len);
+	if (IS_ENABLED(CONFIG_FS_POSIX_ACL) && attr->na_pacl)
+		attr->na_aclerr = set_posix_acl(&init_user_ns,
+						inode, ACL_TYPE_ACCESS,
+						attr->na_pacl);
+	if (IS_ENABLED(CONFIG_FS_POSIX_ACL) &&
+	    !attr->na_aclerr && attr->na_dpacl && S_ISDIR(inode->i_mode))
+		attr->na_aclerr = set_posix_acl(&init_user_ns,
+						inode, ACL_TYPE_DEFAULT,
+						attr->na_dpacl);
 	fh_unlock(fhp);
 	if (size_change)
 		put_write_access(inode);

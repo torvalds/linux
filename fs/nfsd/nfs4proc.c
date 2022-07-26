@@ -128,26 +128,6 @@ is_create_with_attrs(struct nfsd4_open *open)
 		    || open->op_createmode == NFS4_CREATE_EXCLUSIVE4_1);
 }
 
-/*
- * if error occurs when setting the acl, just clear the acl bit
- * in the returned attr bitmap.
- */
-static void
-do_set_nfs4_acl(struct svc_rqst *rqstp, struct svc_fh *fhp,
-		struct nfs4_acl *acl, u32 *bmval)
-{
-	__be32 status;
-
-	status = nfsd4_set_nfs4_acl(rqstp, fhp, acl);
-	if (status)
-		/*
-		 * We should probably fail the whole open at this point,
-		 * but we've already created the file, so it's too late;
-		 * So this seems the least of evils:
-		 */
-		bmval[0] &= ~FATTR4_WORD0_ACL;
-}
-
 static inline void
 fh_dup2(struct svc_fh *dst, struct svc_fh *src)
 {
@@ -281,6 +261,9 @@ nfsd4_create_file(struct svc_rqst *rqstp, struct svc_fh *fhp,
 	if (host_err)
 		return nfserrno(host_err);
 
+	if (is_create_with_attrs(open))
+		nfsd4_acl_to_attr(NF4REG, open->op_acl, &attrs);
+
 	fh_lock_nested(fhp, I_MUTEX_PARENT);
 
 	child = lookup_one_len(open->op_fname, parent, open->op_fnamelen);
@@ -382,8 +365,11 @@ set_attr:
 
 	if (attrs.na_labelerr)
 		open->op_bmval[2] &= ~FATTR4_WORD2_SECURITY_LABEL;
+	if (attrs.na_aclerr)
+		open->op_bmval[0] &= ~FATTR4_WORD0_ACL;
 out:
 	fh_unlock(fhp);
+	nfsd_attrs_free(&attrs);
 	if (child && !IS_ERR(child))
 		dput(child);
 	fh_drop_write(fhp);
@@ -445,9 +431,6 @@ do_open_lookup(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate, stru
 	status = nfsd_check_obj_isreg(*resfh);
 	if (status)
 		goto out;
-
-	if (is_create_with_attrs(open) && open->op_acl != NULL)
-		do_set_nfs4_acl(rqstp, *resfh, open->op_acl, open->op_bmval);
 
 	nfsd4_set_open_owner_reply_cache(cstate, open, *resfh);
 	accmode = NFSD_MAY_NOP;
@@ -779,6 +762,7 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (status)
 		return status;
 
+	status = nfsd4_acl_to_attr(create->cr_type, create->cr_acl, &attrs);
 	current->fs->umask = create->cr_umask;
 	switch (create->cr_type) {
 	case NF4LNK:
@@ -837,10 +821,8 @@ nfsd4_create(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 
 	if (attrs.na_labelerr)
 		create->cr_bmval[2] &= ~FATTR4_WORD2_SECURITY_LABEL;
-
-	if (create->cr_acl != NULL)
-		do_set_nfs4_acl(rqstp, &resfh, create->cr_acl,
-				create->cr_bmval);
+	if (attrs.na_aclerr)
+		create->cr_bmval[0] &= ~FATTR4_WORD0_ACL;
 
 	fh_unlock(&cstate->current_fh);
 	set_change_info(&create->cr_cinfo, &cstate->current_fh);
@@ -849,6 +831,7 @@ out:
 	fh_put(&resfh);
 out_umask:
 	current->fs->umask = 0;
+	nfsd_attrs_free(&attrs);
 	return status;
 }
 
@@ -1123,6 +1106,7 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 		.na_iattr	= &setattr->sa_iattr,
 		.na_seclabel	= &setattr->sa_label,
 	};
+	struct inode *inode;
 	__be32 status = nfs_ok;
 	int err;
 
@@ -1145,9 +1129,10 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (status)
 		goto out;
 
-	if (setattr->sa_acl != NULL)
-		status = nfsd4_set_nfs4_acl(rqstp, &cstate->current_fh,
-					    setattr->sa_acl);
+	inode = cstate->current_fh.fh_dentry->d_inode;
+	status = nfsd4_acl_to_attr(S_ISDIR(inode->i_mode) ? NF4DIR : NF4REG,
+				   setattr->sa_acl, &attrs);
+
 	if (status)
 		goto out;
 	status = nfsd_setattr(rqstp, &cstate->current_fh, &attrs,
@@ -1155,6 +1140,7 @@ nfsd4_setattr(struct svc_rqst *rqstp, struct nfsd4_compound_state *cstate,
 	if (!status)
 		status = nfserrno(attrs.na_labelerr);
 out:
+	nfsd_attrs_free(&attrs);
 	fh_drop_write(&cstate->current_fh);
 	return status;
 }
