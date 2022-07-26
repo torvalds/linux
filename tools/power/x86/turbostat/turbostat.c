@@ -4822,8 +4822,6 @@ void automatic_cstate_conversion_probe(unsigned int family, unsigned int model)
 	switch (model) {
 	case INTEL_FAM6_BROADWELL_X:
 	case INTEL_FAM6_SKYLAKE_X:
-	case INTEL_FAM6_ICELAKE_X:
-	case INTEL_FAM6_SAPPHIRERAPIDS_X:
 		has_automatic_cstate_conversion = 1;
 	}
 }
