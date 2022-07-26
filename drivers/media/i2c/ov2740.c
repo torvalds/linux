@@ -1092,7 +1092,6 @@ static int ov2740_register_nvmem(struct i2c_client *client,
 	struct nvmem_config nvmem_config = { };
 	struct regmap *regmap;
 	struct device *dev = &client->dev;
-	int ret;
 
 	nvm = devm_kzalloc(dev, sizeof(*nvm), GFP_KERNEL);
 	if (!nvm)
@@ -1122,12 +1121,11 @@ static int ov2740_register_nvmem(struct i2c_client *client,
 	nvmem_config.size = CUSTOMER_USE_OTP_SIZE;
 
 	nvm->nvmem = devm_nvmem_register(dev, &nvmem_config);
+	if (IS_ERR(nvm->nvmem))
+		return PTR_ERR(nvm->nvmem);
 
-	ret = PTR_ERR_OR_ZERO(nvm->nvmem);
-	if (!ret)
-		ov2740->nvm = nvm;
-
-	return ret;
+	ov2740->nvm = nvm;
+	return 0;
 }
 
 static int ov2740_probe(struct i2c_client *client)
