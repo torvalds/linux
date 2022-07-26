@@ -75,8 +75,7 @@ static struct mtk_afe_adda_priv *get_adda_priv_by_name(struct mtk_base_afe *afe,
 	struct mt8186_afe_private *afe_priv = afe->platform_priv;
 	int dai_id;
 
-	if (strncmp(name, "aud_dac_hires_clk", 7) == 0 ||
-	    strncmp(name, "aud_adc_hires_clk", 7) == 0)
+	if (strncmp(name, "aud_dac", 7) == 0 || strncmp(name, "aud_adc", 7) == 0)
 		dai_id = MT8186_DAI_ADDA;
 	else
 		return NULL;
