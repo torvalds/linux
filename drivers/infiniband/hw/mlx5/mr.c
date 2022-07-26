@@ -119,7 +119,7 @@ static int mlx5_ib_create_mkey_cb(struct mlx5r_async_create_mkey *async_create)
 				&async_create->cb_work);
 }
 
-static int mr_cache_max_order(struct mlx5_ib_dev *dev);
+static int mkey_cache_max_order(struct mlx5_ib_dev *dev);
 static void queue_adjust_cache_locked(struct mlx5_cache_ent *ent);
 
 static int destroy_mkey(struct mlx5_ib_dev *dev, struct mlx5_ib_mr *mr)
@@ -515,11 +515,11 @@ static const struct file_operations limit_fops = {
 	.read	= limit_read,
 };
 
-static bool someone_adding(struct mlx5_mr_cache *cache)
+static bool someone_adding(struct mlx5_mkey_cache *cache)
 {
 	unsigned int i;
 
-	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
+	for (i = 0; i < MAX_MKEY_CACHE_ENTRIES; i++) {
 		struct mlx5_cache_ent *ent = &cache->ent[i];
 		bool ret;
 
@@ -569,7 +569,7 @@ static void queue_adjust_cache_locked(struct mlx5_cache_ent *ent)
 static void __cache_work_func(struct mlx5_cache_ent *ent)
 {
 	struct mlx5_ib_dev *dev = ent->dev;
-	struct mlx5_mr_cache *cache = &dev->cache;
+	struct mlx5_mkey_cache *cache = &dev->cache;
 	int err;
 
 	xa_lock_irq(&ent->mkeys);
@@ -681,7 +681,7 @@ struct mlx5_ib_mr *mlx5_mr_cache_alloc(struct mlx5_ib_dev *dev,
 
 static void clean_keys(struct mlx5_ib_dev *dev, int c)
 {
-	struct mlx5_mr_cache *cache = &dev->cache;
+	struct mlx5_mkey_cache *cache = &dev->cache;
 	struct mlx5_cache_ent *ent = &cache->ent[c];
 	u32 mkey;
 
@@ -696,7 +696,7 @@ static void clean_keys(struct mlx5_ib_dev *dev, int c)
 	xa_unlock_irq(&ent->mkeys);
 }
 
-static void mlx5_mr_cache_debugfs_cleanup(struct mlx5_ib_dev *dev)
+static void mlx5_mkey_cache_debugfs_cleanup(struct mlx5_ib_dev *dev)
 {
 	if (!mlx5_debugfs_root || dev->is_rep)
 		return;
@@ -705,9 +705,9 @@ static void mlx5_mr_cache_debugfs_cleanup(struct mlx5_ib_dev *dev)
 	dev->cache.root = NULL;
 }
 
-static void mlx5_mr_cache_debugfs_init(struct mlx5_ib_dev *dev)
+static void mlx5_mkey_cache_debugfs_init(struct mlx5_ib_dev *dev)
 {
-	struct mlx5_mr_cache *cache = &dev->cache;
+	struct mlx5_mkey_cache *cache = &dev->cache;
 	struct mlx5_cache_ent *ent;
 	struct dentry *dir;
 	int i;
@@ -717,7 +717,7 @@ static void mlx5_mr_cache_debugfs_init(struct mlx5_ib_dev *dev)
 
 	cache->root = debugfs_create_dir("mr_cache", mlx5_debugfs_get_dev_root(dev->mdev));
 
-	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
+	for (i = 0; i < MAX_MKEY_CACHE_ENTRIES; i++) {
 		ent = &cache->ent[i];
 		sprintf(ent->name, "%d", ent->order);
 		dir = debugfs_create_dir(ent->name, cache->root);
@@ -735,9 +735,9 @@ static void delay_time_func(struct timer_list *t)
 	WRITE_ONCE(dev->fill_delay, 0);
 }
 
-int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
+int mlx5_mkey_cache_init(struct mlx5_ib_dev *dev)
 {
-	struct mlx5_mr_cache *cache = &dev->cache;
+	struct mlx5_mkey_cache *cache = &dev->cache;
 	struct mlx5_cache_ent *ent;
 	int i;
 
@@ -750,7 +750,7 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 
 	mlx5_cmd_init_async_ctx(dev->mdev, &dev->async_ctx);
 	timer_setup(&dev->delay_timer, delay_time_func, 0);
-	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
+	for (i = 0; i < MAX_MKEY_CACHE_ENTRIES; i++) {
 		ent = &cache->ent[i];
 		xa_init_flags(&ent->mkeys, XA_FLAGS_LOCK_IRQ);
 		ent->order = i + 2;
@@ -759,12 +759,12 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 
 		INIT_DELAYED_WORK(&ent->dwork, delayed_cache_work_func);
 
-		if (i > MR_CACHE_LAST_STD_ENTRY) {
-			mlx5_odp_init_mr_cache_entry(ent);
+		if (i > MKEY_CACHE_LAST_STD_ENTRY) {
+			mlx5_odp_init_mkey_cache_entry(ent);
 			continue;
 		}
 
-		if (ent->order > mr_cache_max_order(dev))
+		if (ent->order > mkey_cache_max_order(dev))
 			continue;
 
 		ent->page = PAGE_SHIFT;
@@ -781,19 +781,19 @@ int mlx5_mr_cache_init(struct mlx5_ib_dev *dev)
 		xa_unlock_irq(&ent->mkeys);
 	}
 
-	mlx5_mr_cache_debugfs_init(dev);
+	mlx5_mkey_cache_debugfs_init(dev);
 
 	return 0;
 }
 
-int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev)
+int mlx5_mkey_cache_cleanup(struct mlx5_ib_dev *dev)
 {
 	unsigned int i;
 
 	if (!dev->cache.wq)
 		return 0;
 
-	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++) {
+	for (i = 0; i < MAX_MKEY_CACHE_ENTRIES; i++) {
 		struct mlx5_cache_ent *ent = &dev->cache.ent[i];
 
 		xa_lock_irq(&ent->mkeys);
@@ -802,10 +802,10 @@ int mlx5_mr_cache_cleanup(struct mlx5_ib_dev *dev)
 		cancel_delayed_work_sync(&ent->dwork);
 	}
 
-	mlx5_mr_cache_debugfs_cleanup(dev);
+	mlx5_mkey_cache_debugfs_cleanup(dev);
 	mlx5_cmd_cleanup_async_ctx(&dev->async_ctx);
 
-	for (i = 0; i < MAX_MR_CACHE_ENTRIES; i++)
+	for (i = 0; i < MAX_MKEY_CACHE_ENTRIES; i++)
 		clean_keys(dev, i);
 
 	destroy_workqueue(dev->cache.wq);
@@ -872,22 +872,22 @@ static int get_octo_len(u64 addr, u64 len, int page_shift)
 	return (npages + 1) / 2;
 }
 
-static int mr_cache_max_order(struct mlx5_ib_dev *dev)
+static int mkey_cache_max_order(struct mlx5_ib_dev *dev)
 {
 	if (MLX5_CAP_GEN(dev->mdev, umr_extended_translation_offset))
-		return MR_CACHE_LAST_STD_ENTRY + 2;
+		return MKEY_CACHE_LAST_STD_ENTRY + 2;
 	return MLX5_MAX_UMR_SHIFT;
 }
 
-static struct mlx5_cache_ent *mr_cache_ent_from_order(struct mlx5_ib_dev *dev,
-						      unsigned int order)
+static struct mlx5_cache_ent *mkey_cache_ent_from_order(struct mlx5_ib_dev *dev,
+							unsigned int order)
 {
-	struct mlx5_mr_cache *cache = &dev->cache;
+	struct mlx5_mkey_cache *cache = &dev->cache;
 
 	if (order < cache->ent[0].order)
 		return &cache->ent[0];
 	order = order - cache->ent[0].order;
-	if (order > MR_CACHE_LAST_STD_ENTRY)
+	if (order > MKEY_CACHE_LAST_STD_ENTRY)
 		return NULL;
 	return &cache->ent[order];
 }
@@ -930,7 +930,7 @@ static struct mlx5_ib_mr *alloc_cacheable_mr(struct ib_pd *pd,
 						     0, iova);
 	if (WARN_ON(!page_size))
 		return ERR_PTR(-EINVAL);
-	ent = mr_cache_ent_from_order(
+	ent = mkey_cache_ent_from_order(
 		dev, order_base_2(ib_umem_num_dma_blocks(umem, page_size)));
 	/*
 	 * Matches access in alloc_cache_mr(). If the MR can't come from the
