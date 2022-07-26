@@ -1962,7 +1962,7 @@ static int profile_parse_metrics(int argc, char **argv)
 	int selected_cnt = 0;
 	unsigned int i;
 
-	metric_cnt = sizeof(metrics) / sizeof(struct profile_metric);
+	metric_cnt = ARRAY_SIZE(metrics);
 
 	while (argc > 0) {
 		for (i = 0; i < metric_cnt; i++) {
