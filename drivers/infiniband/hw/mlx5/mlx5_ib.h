@@ -619,6 +619,7 @@ struct mlx5_ib_mkey {
 	unsigned int ndescs;
 	struct wait_queue_head wait;
 	refcount_t usecount;
+	struct mlx5_cache_ent *cache_ent;
 };
 
 #define MLX5_IB_MTT_PRESENT (MLX5_IB_MTT_READ | MLX5_IB_MTT_WRITE)
@@ -641,18 +642,9 @@ struct mlx5_ib_mr {
 	struct ib_mr ibmr;
 	struct mlx5_ib_mkey mmkey;
 
-	/* User MR data */
-	struct mlx5_cache_ent *cache_ent;
-	/* Everything after cache_ent is zero'd when MR allocated */
 	struct ib_umem *umem;
 
 	union {
-		/* Used only while the MR is in the cache */
-		struct {
-			u32 out[MLX5_ST_SZ_DW(create_mkey_out)];
-			struct mlx5_async_work cb_work;
-		};
-
 		/* Used only by kernel MRs (umem == NULL) */
 		struct {
 			void *descs;
@@ -691,12 +683,6 @@ struct mlx5_ib_mr {
 		};
 	};
 };
-
-/* Zero the fields in the mr that are variant depending on usage */
-static inline void mlx5_clear_mr(struct mlx5_ib_mr *mr)
-{
-	memset_after(mr, 0, cache_ent);
-}
 
 static inline bool is_odp_mr(struct mlx5_ib_mr *mr)
 {
@@ -766,6 +752,16 @@ struct mlx5_cache_ent {
 
 	struct mlx5_ib_dev     *dev;
 	struct delayed_work	dwork;
+};
+
+struct mlx5r_async_create_mkey {
+	union {
+		u32 in[MLX5_ST_SZ_BYTES(create_mkey_in)];
+		u32 out[MLX5_ST_SZ_DW(create_mkey_out)];
+	};
+	struct mlx5_async_work cb_work;
+	struct mlx5_cache_ent *ent;
+	u32 mkey;
 };
 
 struct mlx5_mr_cache {
