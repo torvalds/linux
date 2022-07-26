@@ -378,7 +378,7 @@ static int ov2740_read_reg(struct ov2740 *ov2740, u16 reg, u16 len, u32 *val)
 	struct i2c_msg msgs[2];
 	u8 addr_buf[2];
 	u8 data_buf[4] = {0};
-	int ret = 0;
+	int ret;
 
 	if (len > sizeof(data_buf))
 		return -EINVAL;
@@ -406,7 +406,7 @@ static int ov2740_write_reg(struct ov2740 *ov2740, u16 reg, u16 len, u32 val)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov2740->sd);
 	u8 buf[6];
-	int ret = 0;
+	int ret;
 
 	if (len > 4)
 		return -EINVAL;
@@ -426,7 +426,7 @@ static int ov2740_write_reg_list(struct ov2740 *ov2740,
 {
 	struct i2c_client *client = v4l2_get_subdevdata(&ov2740->sd);
 	unsigned int i;
-	int ret = 0;
+	int ret;
 
 	for (i = 0; i < r_list->num_of_regs; i++) {
 		ret = ov2740_write_reg(ov2740, r_list->regs[i].address, 1,
@@ -468,7 +468,7 @@ static int ov2740_identify_module(struct ov2740 *ov2740)
 
 static int ov2740_update_digital_gain(struct ov2740 *ov2740, u32 d_gain)
 {
-	int ret = 0;
+	int ret;
 
 	ret = ov2740_write_reg(ov2740, OV2740_REG_GROUP_ACCESS, 1,
 			       OV2740_GROUP_HOLD_START);
@@ -512,7 +512,7 @@ static int ov2740_set_ctrl(struct v4l2_ctrl *ctrl)
 					     struct ov2740, ctrl_handler);
 	struct i2c_client *client = v4l2_get_subdevdata(&ov2740->sd);
 	s64 exposure_max;
-	int ret = 0;
+	int ret;
 
 	/* Propagate change of current control to all related controls */
 	if (ctrl->id == V4L2_CID_VBLANK) {
@@ -575,7 +575,7 @@ static int ov2740_init_controls(struct ov2740 *ov2740)
 	s64 exposure_max, h_blank, pixel_rate;
 	u32 vblank_min, vblank_max, vblank_default;
 	int size;
-	int ret = 0;
+	int ret;
 
 	ctrl_hdlr = &ov2740->ctrl_handler;
 	ret = v4l2_ctrl_handler_init(ctrl_hdlr, 8);
@@ -741,7 +741,7 @@ static int ov2740_start_streaming(struct ov2740 *ov2740)
 	struct i2c_client *client = v4l2_get_subdevdata(&ov2740->sd);
 	const struct ov2740_reg_list *reg_list;
 	int link_freq_index;
-	int ret = 0;
+	int ret;
 
 	ret = ov2740_identify_module(ov2740);
 	if (ret)
@@ -1134,8 +1134,8 @@ static int ov2740_register_nvmem(struct i2c_client *client,
 static int ov2740_probe(struct i2c_client *client)
 {
 	struct ov2740 *ov2740;
-	int ret = 0;
 	bool full_power;
+	int ret;
 
 	ret = ov2740_check_hwcfg(&client->dev);
 	if (ret) {
