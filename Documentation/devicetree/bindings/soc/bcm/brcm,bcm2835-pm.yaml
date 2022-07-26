@@ -14,7 +14,7 @@ maintainers:
   - Nicolas Saenz Julienne <nsaenz@kernel.org>
 
 allOf:
-  - $ref: ../../watchdog/watchdog.yaml#
+  - $ref: /schemas/watchdog/watchdog.yaml#
 
 properties:
   compatible:
