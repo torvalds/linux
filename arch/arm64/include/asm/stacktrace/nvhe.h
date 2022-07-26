@@ -9,6 +9,10 @@
  *      to allocate shared buffers for the host to read the unwinded
  *      stacktrace.
  *
+ *   2) pKVM (protected nVHE) mode - the host cannot directly access
+ *      the HYP memory. The stack is unwinded in EL2 and dumped to a shared
+ *      buffer where the host can read and print the stacktrace.
+ *
  * Copyright (C) 2022 Google LLC
  */
 #ifndef __ASM_STACKTRACE_NVHE_H
@@ -49,7 +53,34 @@ static inline bool on_accessible_stack(const struct task_struct *tsk,
 	return false;
 }
 
-#ifndef __KVM_NVHE_HYPERVISOR__
+#ifdef __KVM_NVHE_HYPERVISOR__
+/*
+ * Protected nVHE HYP stack unwinder
+ *
+ * In protected mode, the unwinding is done by the hypervisor in EL2.
+ */
+
+#ifdef CONFIG_PROTECTED_NVHE_STACKTRACE
+static inline bool on_overflow_stack(unsigned long sp, unsigned long size,
+				     struct stack_info *info)
+{
+	return false;
+}
+
+static inline bool on_hyp_stack(unsigned long sp, unsigned long size,
+				struct stack_info *info)
+{
+	return false;
+}
+
+static inline int notrace unwind_next(struct unwind_state *state)
+{
+	return 0;
+}
+NOKPROBE_SYMBOL(unwind_next);
+#endif	/* CONFIG_PROTECTED_NVHE_STACKTRACE */
+
+#else	/* !__KVM_NVHE_HYPERVISOR__ */
 /*
  * Conventional (non-protected) nVHE HYP stack unwinder
  *
@@ -132,5 +163,5 @@ static inline int notrace unwind_next(struct unwind_state *state)
 }
 NOKPROBE_SYMBOL(unwind_next);
 
-#endif	/* !__KVM_NVHE_HYPERVISOR__ */
+#endif	/* __KVM_NVHE_HYPERVISOR__ */
 #endif	/* __ASM_STACKTRACE_NVHE_H */
