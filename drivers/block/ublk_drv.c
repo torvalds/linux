@@ -127,8 +127,8 @@ struct ublk_device {
 	struct cdev		cdev;
 	struct device		cdev_dev;
 
-#define UB_STATE_OPEN		(1 << 0)
-#define UB_STATE_USED		(1 << 1)
+#define UB_STATE_OPEN		0
+#define UB_STATE_USED		1
 	unsigned long		state;
 	int			ub_number;
 
