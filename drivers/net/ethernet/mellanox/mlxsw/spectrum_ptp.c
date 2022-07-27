@@ -835,10 +835,44 @@ static int mlxsw_sp1_ptp_shaper_params_set(struct mlxsw_sp *mlxsw_sp)
 	return 0;
 }
 
+static int mlxsw_sp_ptp_traps_set(struct mlxsw_sp *mlxsw_sp)
+{
+	u16 event_message_type;
+	int err;
+
+	/* Deliver these message types as PTP0. */
+	event_message_type = BIT(PTP_MSGTYPE_SYNC) |
+			     BIT(PTP_MSGTYPE_DELAY_REQ) |
+			     BIT(PTP_MSGTYPE_PDELAY_REQ) |
+			     BIT(PTP_MSGTYPE_PDELAY_RESP);
+
+	err = mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP0,
+				      event_message_type);
+	if (err)
+		return err;
+
+	/* Everything else is PTP1. */
+	err = mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP1,
+				      ~event_message_type);
+	if (err)
+		goto err_mtptpt1_set;
+
+	return 0;
+
+err_mtptpt1_set:
+	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP0, 0);
+	return err;
+}
+
+static void mlxsw_sp_ptp_traps_unset(struct mlxsw_sp *mlxsw_sp)
+{
+	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP1, 0);
+	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP0, 0);
+}
+
 struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 {
 	struct mlxsw_sp1_ptp_state *ptp_state;
-	u16 message_type;
 	int err;
 
 	err = mlxsw_sp1_ptp_shaper_params_set(mlxsw_sp);
@@ -857,22 +891,9 @@ struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_hashtable_init;
 
-	/* Delive these message types as PTP0. */
-	message_type = BIT(PTP_MSGTYPE_SYNC) |
-		       BIT(PTP_MSGTYPE_DELAY_REQ) |
-		       BIT(PTP_MSGTYPE_PDELAY_REQ) |
-		       BIT(PTP_MSGTYPE_PDELAY_RESP);
-	err = mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP0,
-				      message_type);
+	err = mlxsw_sp_ptp_traps_set(mlxsw_sp);
 	if (err)
-		goto err_mtptpt_set;
-
-	/* Everything else is PTP1. */
-	message_type = ~message_type;
-	err = mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP1,
-				      message_type);
-	if (err)
-		goto err_mtptpt1_set;
+		goto err_ptp_traps_set;
 
 	err = mlxsw_sp1_ptp_set_fifo_clr_on_trap(mlxsw_sp, true);
 	if (err)
@@ -884,10 +905,8 @@ struct mlxsw_sp_ptp_state *mlxsw_sp1_ptp_init(struct mlxsw_sp *mlxsw_sp)
 	return &ptp_state->common;
 
 err_fifo_clr:
-	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP1, 0);
-err_mtptpt1_set:
-	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP0, 0);
-err_mtptpt_set:
+	mlxsw_sp_ptp_traps_unset(mlxsw_sp);
+err_ptp_traps_set:
 	rhltable_destroy(&ptp_state->unmatched_ht);
 err_hashtable_init:
 	kfree(ptp_state);
@@ -904,8 +923,7 @@ void mlxsw_sp1_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state_common)
 	cancel_delayed_work_sync(&ptp_state->ht_gc_dw);
 	mlxsw_sp1_ptp_mtpppc_set(mlxsw_sp, 0, 0);
 	mlxsw_sp1_ptp_set_fifo_clr_on_trap(mlxsw_sp, false);
-	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP1, 0);
-	mlxsw_sp_ptp_mtptpt_set(mlxsw_sp, MLXSW_REG_MTPTPT_TRAP_ID_PTP0, 0);
+	mlxsw_sp_ptp_traps_unset(mlxsw_sp);
 	rhltable_free_and_destroy(&ptp_state->unmatched_ht,
 				  &mlxsw_sp1_ptp_unmatched_free_fn, NULL);
 	kfree(ptp_state);
