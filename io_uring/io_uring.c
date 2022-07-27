@@ -852,18 +852,13 @@ static void io_flush_cached_locked_reqs(struct io_ring_ctx *ctx,
 	spin_unlock(&ctx->completion_lock);
 }
 
-static inline bool io_req_cache_empty(struct io_ring_ctx *ctx)
-{
-	return !ctx->submit_state.free_list.next;
-}
-
 /*
  * A request might get retired back into the request caches even before opcode
  * handlers and io_issue_sqe() are done with it, e.g. inline completion path.
  * Because of that, io_alloc_req() should be called only under ->uring_lock
  * and with extra caution to not get a request that is still worked on.
  */
-static __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
+__cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 	__must_hold(&ctx->uring_lock)
 {
 	gfp_t gfp = GFP_KERNEL | __GFP_NOWARN;
@@ -902,21 +897,6 @@ static __cold bool __io_alloc_req_refill(struct io_ring_ctx *ctx)
 		io_req_add_to_cache(req, ctx);
 	}
 	return true;
-}
-
-static inline bool io_alloc_req_refill(struct io_ring_ctx *ctx)
-{
-	if (unlikely(io_req_cache_empty(ctx)))
-		return __io_alloc_req_refill(ctx);
-	return true;
-}
-
-static inline struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
-{
-	struct io_wq_work_node *node;
-
-	node = wq_stack_extract(&ctx->submit_state.free_list);
-	return container_of(node, struct io_kiocb, comp_list);
 }
 
 static inline void io_dismantle_req(struct io_kiocb *req)
