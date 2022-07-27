@@ -12,7 +12,7 @@ if ! [ -x "$(command -v cc)" ]; then
 fi
 
 # skip the test if the hardware doesn't support branch stack sampling
-perf record -b -o- -e dummy -B true > /dev/null 2>&1 || exit 2
+perf record -b -o- -B true > /dev/null 2>&1 || exit 2
 
 TMPDIR=$(mktemp -d /tmp/__perf_test.program.XXXXX)
 
