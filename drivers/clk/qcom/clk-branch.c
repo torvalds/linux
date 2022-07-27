@@ -73,9 +73,25 @@ static bool clk_branch2_check_halt(const struct clk_branch *br, bool enabling)
 	}
 }
 
+static int get_branch_timeout(const struct clk_branch *br)
+{
+	int rate, period_us, timeout;
+
+	/*
+	 * The time it takes a clock branch to toggle is roughly 3 clock cycles.
+	 */
+	rate = clk_hw_get_rate(&br->clkr.hw);
+	period_us = 1000000 / rate;
+	timeout = 3 * period_us;
+
+	return max(timeout, 200);
+}
+
 static int clk_branch_wait(const struct clk_branch *br, bool enabling,
 		bool (check_halt)(const struct clk_branch *, bool))
 {
+	int timeout, count;
+
 	bool voted = br->halt_check & BRANCH_VOTED;
 	/*
 	 * Skip checking halt bit if we're explicitly ignoring the bit or the
@@ -89,15 +105,15 @@ static int clk_branch_wait(const struct clk_branch *br, bool enabling,
 	} else if (br->halt_check == BRANCH_HALT_ENABLE ||
 		   br->halt_check == BRANCH_HALT ||
 		   (enabling && voted)) {
-		int count = 200;
+		timeout = get_branch_timeout(br);
 
-		while (count-- > 0) {
+		for (count = timeout; count > 0; count--) {
 			if (check_halt(br, enabling))
 				return 0;
 			udelay(1);
 		}
-		WARN_CLK((struct clk_hw *)&br->clkr.hw, 1, "status stuck at 'o%s'",
-				enabling ? "ff" : "n");
+		WARN_CLK((struct clk_hw *)&br->clkr.hw, 1, "status stuck at 'o%s' after %d us",
+			 enabling ? "ff" : "n", timeout);
 		return -EBUSY;
 	}
 	return 0;

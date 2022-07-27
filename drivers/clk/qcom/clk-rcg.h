@@ -154,6 +154,7 @@ struct clk_rcg2 {
 	u8			safe_src_index;
 	const struct parent_map	*parent_map;
 	const struct freq_tbl	*freq_tbl;
+	unsigned long		configured_freq;
 	unsigned long		current_freq;
 	bool			enable_safe_config;
 	struct clk_regmap	clkr;
