@@ -1418,18 +1418,23 @@ vm_type_err:
 	return rc;
 }
 
-static int map_block(struct hl_device *hdev, u64 address, u64 *handle,
-			u32 *size)
+static int map_block(struct hl_device *hdev, u64 address, u64 *handle, u32 *size)
 {
-	u32 block_id = 0;
+	u32 block_id;
 	int rc;
 
+	*handle = 0;
+	if (size)
+		*size = 0;
+
 	rc = hdev->asic_funcs->get_hw_block_id(hdev, address, size, &block_id);
+	if (rc)
+		return rc;
 
 	*handle = block_id | HL_MMAP_TYPE_BLOCK;
 	*handle <<= PAGE_SHIFT;
 
-	return rc;
+	return 0;
 }
 
 static void hw_block_vm_close(struct vm_area_struct *vma)
