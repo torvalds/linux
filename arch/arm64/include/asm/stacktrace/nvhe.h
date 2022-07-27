@@ -172,5 +172,7 @@ static inline int notrace unwind_next(struct unwind_state *state)
 }
 NOKPROBE_SYMBOL(unwind_next);
 
+void kvm_nvhe_dump_backtrace(unsigned long hyp_offset);
+
 #endif	/* __KVM_NVHE_HYPERVISOR__ */
 #endif	/* __ASM_STACKTRACE_NVHE_H */
