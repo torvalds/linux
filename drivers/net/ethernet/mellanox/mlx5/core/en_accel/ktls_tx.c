@@ -39,16 +39,20 @@ u16 mlx5e_ktls_get_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *pa
 	return stop_room;
 }
 
+static void mlx5e_ktls_set_tisc(struct mlx5_core_dev *mdev, void *tisc)
+{
+	MLX5_SET(tisc, tisc, tls_en, 1);
+	MLX5_SET(tisc, tisc, pd, mdev->mlx5e_res.hw_objs.pdn);
+	MLX5_SET(tisc, tisc, transport_domain, mdev->mlx5e_res.hw_objs.td.tdn);
+}
+
 static int mlx5e_ktls_create_tis(struct mlx5_core_dev *mdev, u32 *tisn)
 {
 	u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {};
-	void *tisc;
 
-	tisc = MLX5_ADDR_OF(create_tis_in, in, ctx);
+	mlx5e_ktls_set_tisc(mdev, MLX5_ADDR_OF(create_tis_in, in, ctx));
 
-	MLX5_SET(tisc, tisc, tls_en, 1);
-
-	return mlx5e_create_tis(mdev, in, tisn);
+	return mlx5_core_create_tis(mdev, in, tisn);
 }
 
 struct mlx5e_ktls_offload_context_tx {
