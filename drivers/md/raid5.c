@@ -810,7 +810,6 @@ wait_for_stripe:
 	if (noblock)
 		goto out;
 
-	r5c_check_stripe_cache_usage(conf);
 	set_bit(R5_INACTIVE_BLOCKED, &conf->cache_state);
 	r5l_wake_reclaim(conf->log, 0);
 	wait_event_lock_irq(conf->wait_for_stripe,
