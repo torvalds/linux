@@ -1896,8 +1896,8 @@ static __be32 nfsd4_decode_nl4_server(struct nfsd4_compoundargs *argp,
 static __be32
 nfsd4_decode_copy(struct nfsd4_compoundargs *argp, struct nfsd4_copy *copy)
 {
+	u32 consecutive, i, count, sync;
 	struct nl4_server *ns_dummy;
-	u32 consecutive, i, count;
 	__be32 status;
 
 	status = nfsd4_decode_stateid4(argp, &copy->cp_src_stateid);
@@ -1915,17 +1915,17 @@ nfsd4_decode_copy(struct nfsd4_compoundargs *argp, struct nfsd4_copy *copy)
 	/* ca_consecutive: we always do consecutive copies */
 	if (xdr_stream_decode_u32(argp->xdr, &consecutive) < 0)
 		return nfserr_bad_xdr;
-	if (xdr_stream_decode_u32(argp->xdr, &copy->cp_synchronous) < 0)
+	if (xdr_stream_decode_bool(argp->xdr, &sync) < 0)
 		return nfserr_bad_xdr;
+	nfsd4_copy_set_sync(copy, sync);
 
 	if (xdr_stream_decode_u32(argp->xdr, &count) < 0)
 		return nfserr_bad_xdr;
 	copy->cp_src = svcxdr_tmpalloc(argp, sizeof(*copy->cp_src));
 	if (copy->cp_src == NULL)
 		return nfserr_jukebox;
-	copy->cp_intra = false;
 	if (count == 0) { /* intra-server copy */
-		copy->cp_intra = true;
+		__set_bit(NFSD4_COPY_F_INTRA, &copy->cp_flags);
 		return nfs_ok;
 	}
 
@@ -4704,13 +4704,13 @@ nfsd4_encode_copy(struct nfsd4_compoundres *resp, __be32 nfserr,
 	__be32 *p;
 
 	nfserr = nfsd42_encode_write_res(resp, &copy->cp_res,
-					 !!copy->cp_synchronous);
+					 nfsd4_copy_is_sync(copy));
 	if (nfserr)
 		return nfserr;
 
 	p = xdr_reserve_space(resp->xdr, 4 + 4);
 	*p++ = xdr_one; /* cr_consecutive */
-	*p++ = cpu_to_be32(copy->cp_synchronous);
+	*p = nfsd4_copy_is_sync(copy) ? xdr_one : xdr_zero;
 	return 0;
 }
 

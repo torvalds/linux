@@ -541,10 +541,12 @@ struct nfsd4_copy {
 	u64			cp_dst_pos;
 	u64			cp_count;
 	struct nl4_server	*cp_src;
-	bool			cp_intra;
 
-	/* both */
-	u32			cp_synchronous;
+	unsigned long		cp_flags;
+#define NFSD4_COPY_F_STOPPED		(0)
+#define NFSD4_COPY_F_INTRA		(1)
+#define NFSD4_COPY_F_SYNCHRONOUS	(2)
+#define NFSD4_COPY_F_COMMITTED		(3)
 
 	/* response */
 	struct nfsd42_write_res	cp_res;
@@ -564,13 +566,34 @@ struct nfsd4_copy {
 	struct list_head	copies;
 	struct task_struct	*copy_task;
 	refcount_t		refcount;
-	bool			stopped;
 
 	struct vfsmount		*ss_mnt;
 	struct nfs_fh		c_fh;
 	nfs4_stateid		stateid;
-	bool			committed;
 };
+
+static inline void nfsd4_copy_set_sync(struct nfsd4_copy *copy, bool sync)
+{
+	if (sync)
+		set_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+	else
+		clear_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+}
+
+static inline bool nfsd4_copy_is_sync(const struct nfsd4_copy *copy)
+{
+	return test_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+}
+
+static inline bool nfsd4_copy_is_async(const struct nfsd4_copy *copy)
+{
+	return !test_bit(NFSD4_COPY_F_SYNCHRONOUS, &copy->cp_flags);
+}
+
+static inline bool nfsd4_ssc_is_inter(const struct nfsd4_copy *copy)
+{
+	return !test_bit(NFSD4_COPY_F_INTRA, &copy->cp_flags);
+}
 
 struct nfsd4_seek {
 	/* request */
