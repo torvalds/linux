@@ -1001,7 +1001,7 @@ static int txd_to_idx(struct mtk_tx_ring *ring, void *dma, u32 txd_size)
 }
 
 static void mtk_tx_unmap(struct mtk_eth *eth, struct mtk_tx_buf *tx_buf,
-			 bool napi)
+			 struct xdp_frame_bulk *bq, bool napi)
 {
 	if (MTK_HAS_CAPS(eth->soc->caps, MTK_QDMA)) {
 		if (tx_buf->flags & MTK_TX_FLAGS_SINGLE0) {
@@ -1044,6 +1044,8 @@ static void mtk_tx_unmap(struct mtk_eth *eth, struct mtk_tx_buf *tx_buf,
 
 			if (napi && tx_buf->type == MTK_TYPE_XDP_TX)
 				xdp_return_frame_rx_napi(xdpf);
+			else if (bq)
+				xdp_return_frame_bulk(xdpf, bq);
 			else
 				xdp_return_frame(xdpf);
 		}
@@ -1296,7 +1298,7 @@ err_dma:
 		tx_buf = mtk_desc_to_tx_buf(ring, itxd, soc->txrx.txd_size);
 
 		/* unmap dma */
-		mtk_tx_unmap(eth, tx_buf, false);
+		mtk_tx_unmap(eth, tx_buf, NULL, false);
 
 		itxd->txd3 = TX_DMA_LS0 | TX_DMA_OWNER_CPU;
 		if (!MTK_HAS_CAPS(soc->caps, MTK_QDMA))
@@ -1660,7 +1662,7 @@ unmap:
 	while (htxd != txd) {
 		txd_pdma = qdma_to_pdma(ring, htxd);
 		tx_buf = mtk_desc_to_tx_buf(ring, htxd, soc->txrx.txd_size);
-		mtk_tx_unmap(eth, tx_buf, false);
+		mtk_tx_unmap(eth, tx_buf, NULL, false);
 
 		htxd->txd3 = TX_DMA_LS0 | TX_DMA_OWNER_CPU;
 		if (!MTK_HAS_CAPS(soc->caps, MTK_QDMA))
@@ -1973,6 +1975,7 @@ static int mtk_poll_tx_qdma(struct mtk_eth *eth, int budget,
 	const struct mtk_reg_map *reg_map = eth->soc->reg_map;
 	struct mtk_tx_ring *ring = &eth->tx_ring;
 	struct mtk_tx_buf *tx_buf;
+	struct xdp_frame_bulk bq;
 	struct mtk_tx_dma *desc;
 	u32 cpu, dma;
 
@@ -1980,6 +1983,7 @@ static int mtk_poll_tx_qdma(struct mtk_eth *eth, int budget,
 	dma = mtk_r32(eth, reg_map->qdma.drx_ptr);
 
 	desc = mtk_qdma_phys_to_virt(ring, cpu);
+	xdp_frame_bulk_init(&bq);
 
 	while ((cpu != dma) && budget) {
 		u32 next_cpu = desc->txd2;
@@ -2006,13 +2010,14 @@ static int mtk_poll_tx_qdma(struct mtk_eth *eth, int budget,
 			}
 			budget--;
 		}
-		mtk_tx_unmap(eth, tx_buf, true);
+		mtk_tx_unmap(eth, tx_buf, &bq, true);
 
 		ring->last_free = desc;
 		atomic_inc(&ring->free_count);
 
 		cpu = next_cpu;
 	}
+	xdp_flush_frame_bulk(&bq);
 
 	ring->last_free_ptr = cpu;
 	mtk_w32(eth, cpu, reg_map->qdma.crx_ptr);
@@ -2025,11 +2030,13 @@ static int mtk_poll_tx_pdma(struct mtk_eth *eth, int budget,
 {
 	struct mtk_tx_ring *ring = &eth->tx_ring;
 	struct mtk_tx_buf *tx_buf;
+	struct xdp_frame_bulk bq;
 	struct mtk_tx_dma *desc;
 	u32 cpu, dma;
 
 	cpu = ring->cpu_idx;
 	dma = mtk_r32(eth, MT7628_TX_DTX_IDX0);
+	xdp_frame_bulk_init(&bq);
 
 	while ((cpu != dma) && budget) {
 		tx_buf = &ring->buf[cpu];
@@ -2045,7 +2052,7 @@ static int mtk_poll_tx_pdma(struct mtk_eth *eth, int budget,
 			}
 			budget--;
 		}
-		mtk_tx_unmap(eth, tx_buf, true);
+		mtk_tx_unmap(eth, tx_buf, &bq, true);
 
 		desc = ring->dma + cpu * eth->soc->txrx.txd_size;
 		ring->last_free = desc;
@@ -2053,6 +2060,7 @@ static int mtk_poll_tx_pdma(struct mtk_eth *eth, int budget,
 
 		cpu = NEXT_DESP_IDX(cpu, ring->dma_size);
 	}
+	xdp_flush_frame_bulk(&bq);
 
 	ring->cpu_idx = cpu;
 
@@ -2262,7 +2270,7 @@ static void mtk_tx_clean(struct mtk_eth *eth)
 
 	if (ring->buf) {
 		for (i = 0; i < MTK_DMA_SIZE; i++)
-			mtk_tx_unmap(eth, &ring->buf[i], false);
+			mtk_tx_unmap(eth, &ring->buf[i], NULL, false);
 		kfree(ring->buf);
 		ring->buf = NULL;
 	}
