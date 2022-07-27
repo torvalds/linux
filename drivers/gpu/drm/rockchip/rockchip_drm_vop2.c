@@ -2883,9 +2883,9 @@ static void rk3568_crtc_load_lut(struct drm_crtc *crtc)
 	u8 vp_enable_gamma_nr = 0;
 
 	for (i = 0; i < vop2->data->nr_vps; i++) {
-		struct vop2_video_port *vp = &vop2->vps[i];
+		struct vop2_video_port *_vp = &vop2->vps[i];
 
-		if (vp->gamma_lut_active)
+		if (_vp->gamma_lut_active)
 			vp_enable_gamma_nr++;
 	}
 
@@ -6988,17 +6988,12 @@ static void vop2_setup_hdr10(struct vop2_video_port *vp, uint8_t win_phys_id)
 		}
 	}
 
-	if (have_sdr_layer && vp->hdr_out)
+	if (have_sdr_layer && vp->hdr_out) {
 		sdr2hdr_en = 1;
-	vp->sdr2hdr_en = sdr2hdr_en;
-
-	if (sdr2hdr_en) {
 		sdr2hdr_r2r_mode = BT709_TO_BT2020;
-		if (vp->hdr_out)
-			sdr2hdr_tf = SDR2HDR_FOR_HDR;
-		else
-			sdr2hdr_tf = SDR2HDR_FOR_BT2020;
+		sdr2hdr_tf = SDR2HDR_FOR_HDR;
 	}
+	vp->sdr2hdr_en = sdr2hdr_en;
 
 	VOP_MODULE_SET(vop2, vp, hdr10_en, hdr_en);
 
@@ -7511,7 +7506,7 @@ static void vop2_setup_dly_for_vp(struct vop2_video_port *vp)
 	}
 
 	if (!vp->hdr_in ||
-	    (vop2->version == VOP_VERSION_RK3588 && vp->hdr_in && vp->hdr_out))
+	    (vop2->version == VOP_VERSION_RK3588 && vp->hdr_out))
 		bg_dly -= vp->bg_ovl_dly;
 
 	/*
