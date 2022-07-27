@@ -40,6 +40,69 @@
         "UMask": "0x40"
     },
     {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IFWDFE",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_IFWDFE",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IFWDM",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_IFWDM",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IHITFSE",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_IHITFSE",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_IHITI",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_IHITI",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_SFWDFE",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_SFWDFE",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x40"
+    },
+    {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_SFWDM",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_SFWDM",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "CORE_SNOOP_RESPONSE.RSP_SHITFSE",
+        "Counter": "0,1,2,3",
+        "CounterHTOff": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xEF",
+        "EventName": "CORE_SNOOP_RESPONSE.RSP_SHITFSE",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x4"
+    },
+    {
         "BriefDescription": "Number of hardware interrupts received by the processor.",
         "Counter": "0,1,2,3",
         "CounterHTOff": "0,1,2,3,4,5,6,7",
