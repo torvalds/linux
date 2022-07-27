@@ -298,6 +298,7 @@
 				reg-names = "gpio", "pwm";
 				ngpios = <32>;
 				gpio-controller;
+				gpio-ranges = <&pinctrl 0 0 32>;
 				#gpio-cells = <2>;
 				#pwm-cells = <2>;
 				interrupt-controller;
@@ -316,6 +317,7 @@
 				reg-names = "gpio", "pwm";
 				ngpios = <28>;
 				gpio-controller;
+				gpio-ranges = <&pinctrl 0 32 28>;
 				#gpio-cells = <2>;
 				#pwm-cells = <2>;
 				interrupt-controller;
