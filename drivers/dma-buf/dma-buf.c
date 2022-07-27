@@ -27,6 +27,7 @@
 #include <linux/mm.h>
 #include <linux/mount.h>
 #include <linux/pseudo_fs.h>
+#include <trace/hooks/dmabuf.h>
 
 #include <uapi/linux/dma-buf.h>
 #include <uapi/linux/magic.h>
@@ -130,6 +131,7 @@ static struct file_system_type dma_buf_fs_type = {
 static int dma_buf_mmap_internal(struct file *file, struct vm_area_struct *vma)
 {
 	struct dma_buf *dmabuf;
+	bool ignore_bounds = false;
 
 	if (!is_dma_buf_file(file))
 		return -EINVAL;
@@ -140,9 +142,11 @@ static int dma_buf_mmap_internal(struct file *file, struct vm_area_struct *vma)
 	if (!dmabuf->ops->mmap)
 		return -EINVAL;
 
+	trace_android_vh_ignore_dmabuf_vmap_bounds(dmabuf, &ignore_bounds);
+
 	/* check for overflowing the buffer's size */
-	if (vma->vm_pgoff + vma_pages(vma) >
-	    dmabuf->size >> PAGE_SHIFT)
+	if ((vma->vm_pgoff + vma_pages(vma) >
+	    dmabuf->size >> PAGE_SHIFT) && !ignore_bounds)
 		return -EINVAL;
 
 	return dmabuf->ops->mmap(dmabuf, vma);
