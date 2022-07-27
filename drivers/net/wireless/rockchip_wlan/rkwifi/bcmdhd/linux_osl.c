@@ -1939,6 +1939,8 @@ osl_timer_del(osl_t *osh, osl_timer_t *t)
 int
 kernel_read_compat(struct file *file, loff_t offset, char *addr, unsigned long count)
 {
+	if (!IS_ENABLED(CONFIG_NO_GKI))
+		return -EPERM;
 	return (int)kernel_read(file, addr, (size_t)count, &offset);
 }
 #endif /* (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 14, 0)) */
