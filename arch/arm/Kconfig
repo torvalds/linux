@@ -274,7 +274,7 @@ config NEED_MACH_MEMORY_H
 
 config PHYS_OFFSET
 	hex "Physical address of main memory" if MMU
-	depends on !ARM_PATCH_PHYS_VIRT
+	depends on !ARM_PATCH_PHYS_VIRT || !AUTO_ZRELADDR
 	default DRAM_BASE if !MMU
 	default 0x00000000 if ARCH_FOOTBRIDGE
 	default 0x10000000 if ARCH_OMAP1 || ARCH_RPC

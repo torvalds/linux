@@ -310,7 +310,7 @@ bootpImage uImage: zImage
 zImage: Image
 
 $(BOOT_TARGETS): vmlinux
-	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/$@
+	$(Q)$(MAKE) $(build)=$(boot) $(boot)/$@
 	@$(kecho) '  Kernel: $(boot)/$@ is ready'
 
 $(INSTALL_TARGETS): KBUILD_IMAGE = $(boot)/$(patsubst %install,%Image,$@)
@@ -324,7 +324,7 @@ ifeq ($(CONFIG_VDSO),y)
 endif
 
 # My testing targets (bypasses dependencies)
-bp:;	$(Q)$(MAKE) $(build)=$(boot) MACHINE=$(MACHINE) $(boot)/bootpImage
+bp:;	$(Q)$(MAKE) $(build)=$(boot) $(boot)/bootpImage
 
 
 define archhelp
