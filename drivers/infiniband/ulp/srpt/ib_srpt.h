@@ -393,7 +393,7 @@ struct srpt_port_id {
 };
 
 /**
- * struct srpt_port - information associated by SRPT with a single IB port
+ * struct srpt_port - SRPT RDMA port information
  * @sdev:      backpointer to the HCA information.
  * @mad_agent: per-port management datagram processing information.
  * @enabled:   Whether or not this target port is enabled.
@@ -403,9 +403,9 @@ struct srpt_port_id {
  * @gid:       cached value of the port's gid.
  * @work:      work structure for refreshing the aforementioned cached values.
  * @guid_name: port name in GUID format.
- * @port_guid_id: LIO target port information for the port name in GUID format.
+ * @guid_id:   LIO target port information for the port name in GUID format.
  * @gid_name:  port name in GID format.
- * @port_gid_id: LIO target port information for the port name in GID format.
+ * @gid_id:    LIO target port information for the port name in GID format.
  * @port_attrib:   Port attributes that can be accessed through configfs.
  * @refcount:	   Number of objects associated with this port.
  * @freed_channels: Completion that will be signaled once @refcount becomes 0.
@@ -422,9 +422,9 @@ struct srpt_port {
 	union ib_gid		gid;
 	struct work_struct	work;
 	char			guid_name[64];
-	struct srpt_port_id	port_guid_id;
+	struct srpt_port_id	*guid_id;
 	char			gid_name[64];
-	struct srpt_port_id	port_gid_id;
+	struct srpt_port_id	*gid_id;
 	struct srpt_port_attrib port_attrib;
 	atomic_t		refcount;
 	struct completion	*freed_channels;
