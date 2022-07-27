@@ -320,15 +320,11 @@ int smc_tx_sendpage(struct smc_sock *smc, struct page *page, int offset,
 int smcd_tx_ism_write(struct smc_connection *conn, void *data, size_t len,
 		      u32 offset, int signal)
 {
-	struct smc_ism_position pos;
 	int rc;
 
-	memset(&pos, 0, sizeof(pos));
-	pos.token = conn->peer_token;
-	pos.index = conn->peer_rmbe_idx;
-	pos.offset = conn->tx_off + offset;
-	pos.signal = signal;
-	rc = smc_ism_write(conn->lgr->smcd, &pos, data, len);
+	rc = smc_ism_write(conn->lgr->smcd, conn->peer_token,
+			   conn->peer_rmbe_idx, signal, conn->tx_off + offset,
+			   data, len);
 	if (rc)
 		conn->local_tx_ctrl.conn_state_flags.peer_conn_abort = 1;
 	return rc;
