@@ -378,7 +378,7 @@ static inline void blk_throtl_bio_endio(struct bio *bio) { }
 static inline void blk_throtl_stat_add(struct request *rq, u64 time) { }
 #endif
 
-void __blk_queue_bounce(struct request_queue *q, struct bio **bio);
+struct bio *__blk_queue_bounce(struct bio *bio, struct request_queue *q);
 
 static inline bool blk_queue_may_bounce(struct request_queue *q)
 {
@@ -387,10 +387,12 @@ static inline bool blk_queue_may_bounce(struct request_queue *q)
 		max_low_pfn >= max_pfn;
 }
 
-static inline void blk_queue_bounce(struct request_queue *q, struct bio **bio)
+static inline struct bio *blk_queue_bounce(struct bio *bio,
+		struct request_queue *q)
 {
-	if (unlikely(blk_queue_may_bounce(q) && bio_has_data(*bio)))
-		__blk_queue_bounce(q, bio);	
+	if (unlikely(blk_queue_may_bounce(q) && bio_has_data(bio)))
+		return __blk_queue_bounce(bio, q);
+	return bio;
 }
 
 #ifdef CONFIG_BLK_CGROUP_IOLATENCY
