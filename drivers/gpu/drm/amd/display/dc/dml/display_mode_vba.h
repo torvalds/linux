@@ -214,39 +214,6 @@ struct dml32_CalculateVMRowAndSwath {
 	bool one_row_per_frame_fits_in_buffer[DC__NUM_DPP__MAX];
 };
 
-struct dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport {
-	unsigned int SurfaceWithMinActiveFCLKChangeMargin;
-	unsigned int DRAMClockChangeSupportNumber;
-	unsigned int LastSurfaceWithoutMargin;
-	unsigned int DRAMClockChangeMethod;
-	bool FoundFirstSurfaceWithMinActiveFCLKChangeMargin;
-	double MinActiveFCLKChangeMargin;
-	double SecondMinActiveFCLKChangeMarginOneDisplayInVBLank;
-	double ActiveClockChangeLatencyHidingY;
-	double ActiveClockChangeLatencyHidingC;
-	double ActiveClockChangeLatencyHiding;
-	double EffectiveDETBufferSizeY;
-	double ActiveFCLKChangeLatencyMargin[DC__NUM_DPP__MAX];
-	double USRRetrainingLatencyMargin[DC__NUM_DPP__MAX];
-	double TotalPixelBW;
-	bool SynchronizedSurfaces[DC__NUM_DPP__MAX][DC__NUM_DPP__MAX];
-	double EffectiveLBLatencyHidingY;
-	double EffectiveLBLatencyHidingC;
-	double LinesInDETY[DC__NUM_DPP__MAX];
-	double LinesInDETC[DC__NUM_DPP__MAX];
-	unsigned int LinesInDETYRoundedDownToSwath[DC__NUM_DPP__MAX];
-	unsigned int LinesInDETCRoundedDownToSwath[DC__NUM_DPP__MAX];
-	double FullDETBufferingTimeY;
-	double FullDETBufferingTimeC;
-	double WritebackDRAMClockChangeLatencyMargin;
-	double WritebackFCLKChangeLatencyMargin;
-	double WritebackLatencyHiding;
-	bool SameTimingForFCLKChange;
-	unsigned int TotalActiveWriteback;
-	unsigned int LBLatencyHidingSourceLinesY[DC__NUM_DPP__MAX];
-	unsigned int LBLatencyHidingSourceLinesC[DC__NUM_DPP__MAX];
-};
-
 struct DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation {
 	unsigned int dummy_integer_array[2][DC__NUM_DPP__MAX];
 	double dummy_single_array[2][DC__NUM_DPP__MAX];
@@ -320,7 +287,6 @@ struct dummy_vars {
 	struct dml32_ModeSupportAndSystemConfigurationFull dml32_ModeSupportAndSystemConfigurationFull;
 	struct dml32_CalculateSwathAndDETConfiguration dml32_CalculateSwathAndDETConfiguration;
 	struct dml32_CalculateVMRowAndSwath dml32_CalculateVMRowAndSwath;
-	struct dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport;
 };
 
 struct vba_vars_st {

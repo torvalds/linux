@@ -810,7 +810,6 @@ void dml32_CalculateFlipSchedule(
 		bool *ImmediateFlipSupportedForPipe);
 
 void dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport(
-		struct dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport *st_vars,
 		bool USRRetrainingRequiredFinal,
 		enum dm_use_mall_for_pstate_change_mode UseMALLForPStateChange[],
 		unsigned int PrefetchMode,
