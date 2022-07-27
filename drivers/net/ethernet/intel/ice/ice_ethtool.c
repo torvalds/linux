@@ -139,6 +139,8 @@ static const struct ice_stats ice_gstrings_pf_stats[] = {
 	ICE_PF_STAT("tx_hwtstamp_skipped", ptp.tx_hwtstamp_skipped),
 	ICE_PF_STAT("tx_hwtstamp_timeouts", ptp.tx_hwtstamp_timeouts),
 	ICE_PF_STAT("tx_hwtstamp_flushed", ptp.tx_hwtstamp_flushed),
+	ICE_PF_STAT("tx_hwtstamp_discarded", ptp.tx_hwtstamp_discarded),
+	ICE_PF_STAT("late_cached_phc_updates", ptp.late_cached_phc_updates),
 };
 
 static const u32 ice_regs_dump_list[] = {

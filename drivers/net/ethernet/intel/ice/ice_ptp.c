@@ -507,17 +507,30 @@ ice_ptp_read_src_clk_reg(struct ice_pf *pf, struct ptp_system_timestamp *sts)
  */
 static int ice_ptp_update_cached_phctime(struct ice_pf *pf)
 {
+	struct device *dev = ice_pf_to_dev(pf);
+	unsigned long update_before;
 	u64 systime;
 	int i;
 
 	if (test_and_set_bit(ICE_CFG_BUSY, pf->state))
 		return -EAGAIN;
 
+	update_before = pf->ptp.cached_phc_jiffies + msecs_to_jiffies(2000);
+	if (pf->ptp.cached_phc_time &&
+	    time_is_before_jiffies(update_before)) {
+		unsigned long time_taken = jiffies - pf->ptp.cached_phc_jiffies;
+
+		dev_warn(dev, "%u msecs passed between update to cached PHC time\n",
+			 jiffies_to_msecs(time_taken));
+		pf->ptp.late_cached_phc_updates++;
+	}
+
 	/* Read the current PHC time */
 	systime = ice_ptp_read_src_clk_reg(pf, NULL);
 
 	/* Update the cached PHC time stored in the PF structure */
 	WRITE_ONCE(pf->ptp.cached_phc_time, systime);
+	WRITE_ONCE(pf->ptp.cached_phc_jiffies, jiffies);
 
 	ice_for_each_vsi(pf, i) {
 		struct ice_vsi *vsi = pf->vsi[i];
@@ -636,6 +649,14 @@ static u64 ice_ptp_extend_32b_ts(u64 cached_phc_time, u32 in_tstamp)
 static u64 ice_ptp_extend_40b_ts(struct ice_pf *pf, u64 in_tstamp)
 {
 	const u64 mask = GENMASK_ULL(31, 0);
+	unsigned long discard_time;
+
+	/* Discard the hardware timestamp if the cached PHC time is too old */
+	discard_time = pf->ptp.cached_phc_jiffies + msecs_to_jiffies(2000);
+	if (time_is_before_jiffies(discard_time)) {
+		pf->ptp.tx_hwtstamp_discarded++;
+		return 0;
+	}
 
 	return ice_ptp_extend_32b_ts(pf->ptp.cached_phc_time,
 				     (in_tstamp >> 8) & mask);
@@ -2104,9 +2125,10 @@ static void ice_ptp_tx_tstamp_work(struct kthread_work *work)
 
 		/* Extend the timestamp using cached PHC time */
 		tstamp = ice_ptp_extend_40b_ts(pf, raw_tstamp);
-		shhwtstamps.hwtstamp = ns_to_ktime(tstamp);
-
-		ice_trace(tx_tstamp_complete, skb, idx);
+		if (tstamp) {
+			shhwtstamps.hwtstamp = ns_to_ktime(tstamp);
+			ice_trace(tx_tstamp_complete, skb, idx);
+		}
 
 		skb_tstamp_tx(skb, &shhwtstamps);
 		dev_kfree_skb_any(skb);
