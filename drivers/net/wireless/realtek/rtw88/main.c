@@ -353,7 +353,7 @@ struct rtw_fwcd_hdr {
 
 static int rtw_fwcd_prep(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_fwcd_desc *desc = &rtwdev->fw.fwcd_desc;
 	const struct rtw_fwcd_segs *segs = chip->fwcd_segs;
 	u32 prep_size = chip->fw_rxff_size + sizeof(struct rtw_fwcd_hdr);
@@ -756,9 +756,9 @@ void rtw_get_channel_params(struct cfg80211_chan_def *chandef,
 
 void rtw_set_channel(struct rtw_dev *rtwdev)
 {
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct ieee80211_hw *hw = rtwdev->hw;
 	struct rtw_hal *hal = &rtwdev->hal;
-	struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_channel_params ch_param;
 	u8 center_chan, bandwidth, primary_chan_idx;
 	u8 i;
@@ -821,7 +821,7 @@ void rtw_set_channel(struct rtw_dev *rtwdev)
 
 void rtw_chip_prepare_tx(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	if (rtwdev->need_rfk) {
 		rtwdev->need_rfk = false;
@@ -890,8 +890,8 @@ static u8 hw_bw_cap_to_bitamp(u8 bw_cap)
 
 static void rtw_hw_config_rf_ant_num(struct rtw_dev *rtwdev, u8 hw_ant_num)
 {
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_hal *hal = &rtwdev->hal;
-	struct rtw_chip_info *chip = rtwdev->chip;
 
 	if (hw_ant_num == EFUSE_HW_CAP_IGNORE ||
 	    hw_ant_num >= hal->rf_path_num)
@@ -1240,7 +1240,7 @@ void rtw_update_sta_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si,
 
 static int rtw_wait_firmware_completion(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_fw_state *fw;
 
 	fw = &rtwdev->fw;
@@ -1261,7 +1261,7 @@ static int rtw_wait_firmware_completion(struct rtw_dev *rtwdev)
 static enum rtw_lps_deep_mode rtw_update_lps_deep_mode(struct rtw_dev *rtwdev,
 						       struct rtw_fw_state *fw)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	if (rtw_disable_lps_deep_mode || !chip->lps_deep_mode_supported ||
 	    !fw->feature)
@@ -1280,7 +1280,7 @@ static enum rtw_lps_deep_mode rtw_update_lps_deep_mode(struct rtw_dev *rtwdev,
 
 static int rtw_power_on(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_fw_state *fw = &rtwdev->fw;
 	bool wifi_only;
 	int ret;
@@ -1469,8 +1469,8 @@ void rtw_core_stop(struct rtw_dev *rtwdev)
 static void rtw_init_ht_cap(struct rtw_dev *rtwdev,
 			    struct ieee80211_sta_ht_cap *ht_cap)
 {
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
-	struct rtw_chip_info *chip = rtwdev->chip;
 
 	ht_cap->ht_supported = true;
 	ht_cap->cap = 0;
@@ -1568,7 +1568,7 @@ static u16 rtw_get_max_scan_ie_len(struct rtw_dev *rtwdev)
 }
 
 static void rtw_set_supported_band(struct ieee80211_hw *hw,
-				   struct rtw_chip_info *chip)
+				   const struct rtw_chip_info *chip)
 {
 	struct rtw_dev *rtwdev = hw->priv;
 	struct ieee80211_supported_band *sband;
@@ -1600,7 +1600,7 @@ err_out:
 }
 
 static void rtw_unset_supported_band(struct ieee80211_hw *hw,
-				     struct rtw_chip_info *chip)
+				     const struct rtw_chip_info *chip)
 {
 	kfree(hw->wiphy->bands[NL80211_BAND_2GHZ]);
 	kfree(hw->wiphy->bands[NL80211_BAND_5GHZ]);
@@ -1622,7 +1622,7 @@ static void rtw_vif_smps_iter(void *data, u8 *mac,
 
 void rtw_set_txrx_1ss(struct rtw_dev *rtwdev, bool txrx_1ss)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_hal *hal = &rtwdev->hal;
 
 	if (!chip->ops->config_txrx_mode || rtwdev->hal.txrx_1ss == txrx_1ss)
@@ -1743,7 +1743,7 @@ static int rtw_load_firmware(struct rtw_dev *rtwdev, enum rtw_fw_type type)
 
 static int rtw_chip_parameter_setup(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_hal *hal = &rtwdev->hal;
 	struct rtw_efuse *efuse = &rtwdev->efuse;
 
@@ -2001,7 +2001,7 @@ static void rtw_stats_init(struct rtw_dev *rtwdev)
 
 int rtw_core_init(struct rtw_dev *rtwdev)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_coex *coex = &rtwdev->coex;
 	int ret;
 
@@ -2199,7 +2199,7 @@ EXPORT_SYMBOL(rtw_register_hw);
 
 void rtw_unregister_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	ieee80211_unregister_hw(hw);
 	rtw_unset_supported_band(hw, chip);

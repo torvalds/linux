@@ -437,7 +437,7 @@ static int rtw_ops_start_ap(struct ieee80211_hw *hw,
 			    struct ieee80211_bss_conf *link_conf)
 {
 	struct rtw_dev *rtwdev = hw->priv;
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 
 	mutex_lock(&rtwdev->mutex);
 	chip->ops->phy_calibration(rtwdev);
@@ -755,7 +755,7 @@ static int rtw_ops_set_antenna(struct ieee80211_hw *hw,
 			       u32 rx_antenna)
 {
 	struct rtw_dev *rtwdev = hw->priv;
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	int ret;
 
 	if (!chip->ops->set_antenna)

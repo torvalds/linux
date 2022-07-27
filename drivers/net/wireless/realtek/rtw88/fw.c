@@ -904,7 +904,7 @@ void rtw_send_rsvd_page_h2c(struct rtw_dev *rtwdev)
 static struct sk_buff *rtw_nlo_info_get(struct ieee80211_hw *hw)
 {
 	struct rtw_dev *rtwdev = hw->priv;
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_pno_request *pno_req = &rtwdev->wow.pno_req;
 	struct rtw_nlo_info_hdr *nlo_hdr;
 	struct cfg80211_ssid *ssid;
@@ -959,7 +959,7 @@ static struct sk_buff *rtw_nlo_info_get(struct ieee80211_hw *hw)
 static struct sk_buff *rtw_cs_channel_info_get(struct ieee80211_hw *hw)
 {
 	struct rtw_dev *rtwdev = hw->priv;
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_pno_request *pno_req = &rtwdev->wow.pno_req;
 	struct ieee80211_channel *channels = pno_req->channels;
 	struct sk_buff *skb;
@@ -993,7 +993,7 @@ static struct sk_buff *rtw_cs_channel_info_get(struct ieee80211_hw *hw)
 static struct sk_buff *rtw_lps_pg_dpk_get(struct ieee80211_hw *hw)
 {
 	struct rtw_dev *rtwdev = hw->priv;
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_dpk_info *dpk_info = &rtwdev->dm_info.dpk_info;
 	struct rtw_lps_pg_dpk_hdr *dpk_hdr;
 	struct sk_buff *skb;
@@ -1018,7 +1018,7 @@ static struct sk_buff *rtw_lps_pg_dpk_get(struct ieee80211_hw *hw)
 static struct sk_buff *rtw_lps_pg_info_get(struct ieee80211_hw *hw)
 {
 	struct rtw_dev *rtwdev = hw->priv;
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct rtw_lps_conf *conf = &rtwdev->lps_conf;
 	struct rtw_lps_pg_info_hdr *pg_info_hdr;
 	struct rtw_wow_param *rtw_wow = &rtwdev->wow;
@@ -1122,7 +1122,7 @@ static void rtw_fill_rsvd_page_desc(struct rtw_dev *rtwdev, struct sk_buff *skb,
 				    enum rtw_rsvd_packet_type type)
 {
 	struct rtw_tx_pkt_info pkt_info = {0};
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	u8 *pkt_desc;
 
 	rtw_tx_rsvd_page_pkt_info_update(rtwdev, &pkt_info, skb, type);
@@ -1433,7 +1433,7 @@ static int  __rtw_build_rsvd_page_from_vifs(struct rtw_dev *rtwdev)
 static u8 *rtw_build_rsvd_page(struct rtw_dev *rtwdev, u32 *size)
 {
 	struct ieee80211_hw *hw = rtwdev->hw;
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct sk_buff *iter;
 	struct rtw_rsvd_page *rsvd_pkt;
 	u32 page = 0;
@@ -1647,7 +1647,7 @@ out:
 static void rtw_fw_read_fifo(struct rtw_dev *rtwdev, enum rtw_fw_fifo_sel sel,
 			     u32 offset, u32 size, u32 *buf)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	u32 start_pg, residue;
 
 	if (sel >= RTW_FW_FIFO_MAX) {
@@ -1706,7 +1706,7 @@ int rtw_fw_dump_fifo(struct rtw_dev *rtwdev, u8 fifo_sel, u32 addr, u32 size,
 static void __rtw_fw_update_pkt(struct rtw_dev *rtwdev, u8 pkt_id, u16 size,
 				u8 location)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	u8 h2c_pkt[H2C_PKT_SIZE] = {0};
 	u16 total_size = H2C_PKT_HDR_SIZE + H2C_PKT_UPDATE_PKT_LEN;
 
@@ -1818,8 +1818,8 @@ static int rtw_append_probe_req_ie(struct rtw_dev *rtwdev, struct sk_buff *skb,
 				   struct sk_buff_head *list, u8 *bands,
 				   struct rtw_vif *rtwvif)
 {
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct ieee80211_scan_ies *ies = rtwvif->scan_ies;
-	struct rtw_chip_info *chip = rtwdev->chip;
 	struct sk_buff *new;
 	u8 idx;
 
@@ -1841,7 +1841,7 @@ static int rtw_append_probe_req_ie(struct rtw_dev *rtwdev, struct sk_buff *skb,
 static int _rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev, u8 num_probes,
 					 struct sk_buff_head *probe_req_list)
 {
-	struct rtw_chip_info *chip = rtwdev->chip;
+	const struct rtw_chip_info *chip = rtwdev->chip;
 	struct sk_buff *skb, *tmp;
 	u8 page_offset = 1, *buf, page_size = chip->page_size;
 	u16 pg_addr = rtwdev->fifo.rsvd_h2c_info_addr, loc;

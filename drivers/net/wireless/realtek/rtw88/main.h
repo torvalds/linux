@@ -1980,7 +1980,7 @@ struct rtw_dev {
 	struct rtw_hci hci;
 
 	struct rtw_hw_scan_info scan_info;
-	struct rtw_chip_info *chip;
+	const struct rtw_chip_info *chip;
 	struct rtw_hal hal;
 	struct rtw_fifo_conf fifo;
 	struct rtw_fw_state fw;
