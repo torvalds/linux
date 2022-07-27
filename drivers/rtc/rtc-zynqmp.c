@@ -203,7 +203,7 @@ static int xlnx_rtc_set_offset(struct device *dev, long offset)
 	struct xlnx_rtc_dev *xrtcdev = dev_get_drvdata(dev);
 	unsigned long long rtc_ppb = RTC_PPB;
 	unsigned int tick_mult = do_div(rtc_ppb, xrtcdev->freq);
-	unsigned char fract_tick;
+	unsigned char fract_tick = 0;
 	unsigned int calibval;
 	short int  max_tick;
 	int fract_offset;
