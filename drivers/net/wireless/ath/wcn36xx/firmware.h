@@ -78,5 +78,7 @@ int wcn36xx_firmware_get_feat_caps(u32 *bitmap,
 void wcn36xx_firmware_clear_feat_caps(u32 *bitmap,
 				      enum wcn36xx_firmware_feat_caps cap);
 
+const char *wcn36xx_firmware_get_cap_name(enum wcn36xx_firmware_feat_caps x);
+
 #endif /* _FIRMWARE_H_ */
 
