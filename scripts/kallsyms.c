@@ -32,8 +32,18 @@
 
 #define KSYM_NAME_LEN		128
 
-/* A substantially bigger size than the current maximum. */
-#define KSYM_NAME_LEN_BUFFER	499
+/*
+ * A substantially bigger size than the current maximum.
+ *
+ * It cannot be defined as an expression because it gets stringified
+ * for the fscanf() format string. Therefore, a _Static_assert() is
+ * used instead to maintain the relationship with KSYM_NAME_LEN.
+ */
+#define KSYM_NAME_LEN_BUFFER	512
+_Static_assert(
+	KSYM_NAME_LEN_BUFFER == KSYM_NAME_LEN * 4,
+	"Please keep KSYM_NAME_LEN_BUFFER in sync with KSYM_NAME_LEN"
+);
 
 struct sym_entry {
 	unsigned long long addr;
