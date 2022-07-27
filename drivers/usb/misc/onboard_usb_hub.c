@@ -7,6 +7,7 @@
 
 #include <linux/device.h>
 #include <linux/export.h>
+#include <linux/gpio/consumer.h>
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/list.h>
@@ -38,6 +39,8 @@ struct usbdev_node {
 struct onboard_hub {
 	struct regulator *vdd;
 	struct device *dev;
+	const struct onboard_hub_pdata *pdata;
+	struct gpio_desc *reset_gpio;
 	bool always_powered_in_suspend;
 	bool is_powered_on;
 	bool going_away;
@@ -56,6 +59,9 @@ static int onboard_hub_power_on(struct onboard_hub *hub)
 		return err;
 	}
 
+	fsleep(hub->pdata->reset_us);
+	gpiod_set_value_cansleep(hub->reset_gpio, 0);
+
 	hub->is_powered_on = true;
 
 	return 0;
@@ -64,6 +70,11 @@ static int onboard_hub_power_on(struct onboard_hub *hub)
 static int onboard_hub_power_off(struct onboard_hub *hub)
 {
 	int err;
+
+	if (hub->reset_gpio) {
+		gpiod_set_value_cansleep(hub->reset_gpio, 1);
+		fsleep(hub->pdata->reset_us);
+	}
 
 	err = regulator_disable(hub->vdd);
 	if (err) {
@@ -219,6 +230,7 @@ static void onboard_hub_attach_usb_driver(struct work_struct *work)
 
 static int onboard_hub_probe(struct platform_device *pdev)
 {
+	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct onboard_hub *hub;
 	int err;
@@ -227,9 +239,25 @@ static int onboard_hub_probe(struct platform_device *pdev)
 	if (!hub)
 		return -ENOMEM;
 
+	of_id = of_match_device(onboard_hub_match, &pdev->dev);
+	if (!of_id)
+		return -ENODEV;
+
+	hub->pdata = of_id->data;
+	if (!hub->pdata)
+		return -EINVAL;
+
 	hub->vdd = devm_regulator_get(dev, "vdd");
 	if (IS_ERR(hub->vdd))
 		return PTR_ERR(hub->vdd);
+
+	hub->reset_gpio = devm_gpiod_get_optional(dev, "reset",
+						  GPIOD_OUT_HIGH);
+	if (IS_ERR(hub->reset_gpio))
+		return dev_err_probe(dev, PTR_ERR(hub->reset_gpio), "failed to get reset GPIO\n");
+
+	if (hub->reset_gpio)
+		fsleep(hub->pdata->reset_us);
 
 	hub->dev = dev;
 	mutex_init(&hub->lock);
