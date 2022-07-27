@@ -2227,7 +2227,12 @@ void rtw_hw_scan_chan_switch(struct rtw_dev *rtwdev, struct sk_buff *skb)
 				chan_type = COEX_SWITCH_TO_24G_NOFORSCAN;
 			rtw_coex_switchband_notify(rtwdev, chan_type);
 		}
-		if (rtw_is_op_chan(rtwdev, chan))
+		/* The channel of C2H RTW_SCAN_NOTIFY_ID_PRESWITCH is next
+		 * channel that hardware will switch. We need to stop queue
+		 * if next channel is non-op channel.
+		 */
+		if (!rtw_is_op_chan(rtwdev, chan) &&
+		    rtw_is_op_chan(rtwdev, hal->current_channel))
 			ieee80211_stop_queues(rtwdev->hw);
 	}
 
