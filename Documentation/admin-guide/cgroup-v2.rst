@@ -177,14 +177,14 @@ disabling controllers in v1 and make them always available in v2.
 
 cgroup v2 currently supports the following mount options.
 
-  [no]nsdelegate
+  nsdelegate
 	Consider cgroup namespaces as delegation boundaries.  This
 	option is system wide and can only be set on mount or modified
 	through remount from the init namespace.  The mount option is
 	ignored on non-init namespace mounts.  Please refer to the
 	Delegation section for details.
 
-  [no]favordynmods
+  favordynmods
         Reduce the latencies of dynamic cgroup modifications such as
         task migrations and controller on/offs at the cost of making
         hot path operations such as forks and exits more expensive.
@@ -192,7 +192,7 @@ cgroup v2 currently supports the following mount options.
         controllers, and then seeding it with CLONE_INTO_CGROUP is
         not affected by this option.
 
-  memory_[no]localevents
+  memory_localevents
         Only populate memory.events with data for the current cgroup,
         and not any subtrees. This is legacy behaviour, the default
         behaviour without this option is to include subtree counts.
@@ -200,7 +200,7 @@ cgroup v2 currently supports the following mount options.
         modified through remount from the init namespace. The mount
         option is ignored on non-init namespace mounts.
 
-  memory_[no]recursiveprot
+  memory_recursiveprot
         Recursively apply memory.min and memory.low protection to
         entire subtrees, without requiring explicit downward
         propagation into leaf cgroups.  This allows protecting entire
