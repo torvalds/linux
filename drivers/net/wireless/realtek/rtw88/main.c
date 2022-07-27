@@ -1552,6 +1552,21 @@ static void rtw_init_vht_cap(struct rtw_dev *rtwdev,
 	vht_cap->vht_mcs.tx_highest = highest;
 }
 
+static u16 rtw_get_max_scan_ie_len(struct rtw_dev *rtwdev)
+{
+	u16 len;
+
+	len = rtwdev->chip->max_scan_ie_len;
+
+	if (!rtw_fw_feature_check(&rtwdev->fw, FW_FEATURE_SCAN_OFFLOAD) &&
+	    rtwdev->chip->id == RTW_CHIP_TYPE_8822C)
+		len = IEEE80211_MAX_DATA_LEN;
+	else if (rtw_fw_feature_ext_check(&rtwdev->fw, FW_FEATURE_EXT_OLD_PAGE_NUM))
+		len -= RTW_OLD_PROBE_PG_CNT * TX_PAGE_SIZE;
+
+	return len;
+}
+
 static void rtw_set_supported_band(struct ieee80211_hw *hw,
 				   struct rtw_chip_info *chip)
 {
@@ -1631,6 +1646,10 @@ static void __update_firmware_feature(struct rtw_dev *rtwdev,
 
 	feature = le32_to_cpu(fw_hdr->feature);
 	fw->feature = feature & FW_FEATURE_SIG ? feature : 0;
+
+	if (rtwdev->chip->id == RTW_CHIP_TYPE_8822C &&
+	    RTW_FW_SUIT_VER_CODE(rtwdev->fw) < RTW_FW_VER_CODE(9, 9, 13))
+		fw->feature_ext |= FW_FEATURE_EXT_OLD_PAGE_NUM;
 }
 
 static void __update_firmware_info(struct rtw_dev *rtwdev,
@@ -2136,7 +2155,7 @@ int rtw_register_hw(struct rtw_dev *rtwdev, struct ieee80211_hw *hw)
 
 	hw->wiphy->features |= NL80211_FEATURE_SCAN_RANDOM_MAC_ADDR;
 	hw->wiphy->max_scan_ssids = RTW_SCAN_MAX_SSIDS;
-	hw->wiphy->max_scan_ie_len = RTW_SCAN_MAX_IE_LEN;
+	hw->wiphy->max_scan_ie_len = rtw_get_max_scan_ie_len(rtwdev);
 
 	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_CAN_REPLACE_PTK0);
 	wiphy_ext_feature_set(hw->wiphy, NL80211_EXT_FEATURE_SCAN_RANDOM_SN);

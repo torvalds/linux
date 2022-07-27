@@ -1844,12 +1844,19 @@ static int _rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev, u8 num_probes,
 	struct rtw_chip_info *chip = rtwdev->chip;
 	struct sk_buff *skb, *tmp;
 	u8 page_offset = 1, *buf, page_size = chip->page_size;
-	u8 pages = page_offset + num_probes * RTW_PROBE_PG_CNT;
 	u16 pg_addr = rtwdev->fifo.rsvd_h2c_info_addr, loc;
 	u16 buf_offset = page_size * page_offset;
 	u8 tx_desc_sz = chip->tx_pkt_desc_sz;
+	u8 page_cnt, pages;
 	unsigned int pkt_len;
 	int ret;
+
+	if (rtw_fw_feature_ext_check(&rtwdev->fw, FW_FEATURE_EXT_OLD_PAGE_NUM))
+		page_cnt = RTW_OLD_PROBE_PG_CNT;
+	else
+		page_cnt = RTW_PROBE_PG_CNT;
+
+	pages = page_offset + num_probes * page_cnt;
 
 	buf = kzalloc(page_size * pages, GFP_KERNEL);
 	if (!buf)
@@ -1859,7 +1866,7 @@ static int _rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev, u8 num_probes,
 	skb_queue_walk_safe(probe_req_list, skb, tmp) {
 		skb_unlink(skb, probe_req_list);
 		rtw_fill_rsvd_page_desc(rtwdev, skb, RSVD_PROBE_REQ);
-		if (skb->len > page_size * RTW_PROBE_PG_CNT) {
+		if (skb->len > page_size * page_cnt) {
 			ret = -EINVAL;
 			goto out;
 		}
@@ -1869,8 +1876,8 @@ static int _rtw_hw_scan_update_probe_req(struct rtw_dev *rtwdev, u8 num_probes,
 		loc = pg_addr - rtwdev->fifo.rsvd_boundary + page_offset;
 		__rtw_fw_update_pkt(rtwdev, RTW_PACKET_PROBE_REQ, pkt_len, loc);
 
-		buf_offset += RTW_PROBE_PG_CNT * page_size;
-		page_offset += RTW_PROBE_PG_CNT;
+		buf_offset += page_cnt * page_size;
+		page_offset += page_cnt;
 		kfree_skb(skb);
 	}
 

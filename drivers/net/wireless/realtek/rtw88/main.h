@@ -22,7 +22,6 @@
 #define MAX_PG_CAM_BACKUP_NUM		8
 
 #define RTW_SCAN_MAX_SSIDS		4
-#define RTW_SCAN_MAX_IE_LEN		128
 
 #define RTW_MAX_PATTERN_NUM		12
 #define RTW_MAX_PATTERN_MASK_SIZE	16
@@ -33,6 +32,7 @@
 #define RFREG_MASK			0xfffff
 #define INV_RF_DATA			0xffffffff
 #define TX_PAGE_SIZE_SHIFT		7
+#define TX_PAGE_SIZE			(1 << TX_PAGE_SIZE_SHIFT)
 
 #define RTW_CHANNEL_WIDTH_MAX		3
 #define RTW_RF_PATH_MAX			4
@@ -1232,6 +1232,7 @@ struct rtw_chip_info {
 	const char *wow_fw_name;
 	const struct wiphy_wowlan_support *wowlan_stub;
 	const u8 max_sched_scan_ssids;
+	const u16 max_scan_ie_len;
 
 	/* coex paras */
 	u32 coex_para_ver;
@@ -1853,6 +1854,7 @@ struct rtw_fw_state {
 	u8 sub_index;
 	u16 h2c_version;
 	u32 feature;
+	u32 feature_ext;
 };
 
 enum rtw_sar_sources {
