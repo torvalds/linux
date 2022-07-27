@@ -2356,6 +2356,7 @@ int ceph_do_getvxattr(struct inode *inode, const char *name, void *value,
 		goto out;
 	}
 
+	req->r_feature_needed = CEPHFS_FEATURE_OP_GETVXATTR;
 	req->r_path2 = kstrdup(name, GFP_NOFS);
 	if (!req->r_path2) {
 		err = -ENOMEM;
