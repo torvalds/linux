@@ -28,9 +28,6 @@ properties:
     description: chip select of EEPROM
     maxItems: 1
 
-  spi-max-frequency: true
-  spi-cs-high: true
-
   read-only:
     description:
       parameter-less property which disables writes to the EEPROM
@@ -42,14 +39,16 @@ properties:
       of EEPROM (e.g. for SPI bus multiplexing)
     maxItems: 1
 
-
 required:
   - compatible
   - reg
   - data-size
   - spi-max-frequency
 
-additionalProperties: false
+allOf:
+  - $ref: /schemas/spi/spi-peripheral-props.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
