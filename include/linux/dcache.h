@@ -349,7 +349,7 @@ static inline void dont_mount(struct dentry *dentry)
 	spin_unlock(&dentry->d_lock);
 }
 
-extern void __d_lookup_done(struct dentry *);
+extern void __d_lookup_unhash_wake(struct dentry *dentry);
 
 static inline int d_in_lookup(const struct dentry *dentry)
 {
@@ -358,11 +358,8 @@ static inline int d_in_lookup(const struct dentry *dentry)
 
 static inline void d_lookup_done(struct dentry *dentry)
 {
-	if (unlikely(d_in_lookup(dentry))) {
-		spin_lock(&dentry->d_lock);
-		__d_lookup_done(dentry);
-		spin_unlock(&dentry->d_lock);
-	}
+	if (unlikely(d_in_lookup(dentry)))
+		__d_lookup_unhash_wake(dentry);
 }
 
 extern void dput(struct dentry *);
