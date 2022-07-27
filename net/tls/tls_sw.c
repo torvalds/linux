@@ -2026,7 +2026,7 @@ put_on_rx_list_err:
 			bool partially_consumed = chunk > len;
 			struct sk_buff *skb = darg.skb;
 
-			DEBUG_NET_WARN_ON_ONCE(darg.skb == tls_strp_msg(ctx));
+			DEBUG_NET_WARN_ON_ONCE(darg.skb == ctx->strp.anchor);
 
 			if (async) {
 				/* TLS 1.2-only, to_decrypt must be text len */
