@@ -456,9 +456,9 @@ static void mlxsw_pci_cq_pre_init(struct mlxsw_pci *mlxsw_pci,
 {
 	q->u.cq.v = mlxsw_pci->max_cqe_ver;
 
-	/* For SDQ it is pointless to use CQEv2, so use CQEv1 instead */
 	if (q->u.cq.v == MLXSW_PCI_CQE_V2 &&
-	    q->num < mlxsw_pci->num_sdq_cqs)
+	    q->num < mlxsw_pci->num_sdq_cqs &&
+	    !mlxsw_core_sdq_supports_cqe_v2(mlxsw_pci->core))
 		q->u.cq.v = MLXSW_PCI_CQE_V1;
 }
 

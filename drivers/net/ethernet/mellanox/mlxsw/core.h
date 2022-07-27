@@ -427,6 +427,7 @@ struct mlxsw_driver {
 
 	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
+	bool sdq_supports_cqe_v2;
 };
 
 int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
@@ -436,6 +437,8 @@ int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 
 u32 mlxsw_core_read_frc_h(struct mlxsw_core *mlxsw_core);
 u32 mlxsw_core_read_frc_l(struct mlxsw_core *mlxsw_core);
+
+bool mlxsw_core_sdq_supports_cqe_v2(struct mlxsw_core *mlxsw_core);
 
 void mlxsw_core_emad_string_tlv_enable(struct mlxsw_core *mlxsw_core);
 

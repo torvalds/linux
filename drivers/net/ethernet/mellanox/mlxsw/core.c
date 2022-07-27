@@ -3335,6 +3335,12 @@ u32 mlxsw_core_read_frc_l(struct mlxsw_core *mlxsw_core)
 }
 EXPORT_SYMBOL(mlxsw_core_read_frc_l);
 
+bool mlxsw_core_sdq_supports_cqe_v2(struct mlxsw_core *mlxsw_core)
+{
+	return mlxsw_core->driver->sdq_supports_cqe_v2;
+}
+EXPORT_SYMBOL(mlxsw_core_sdq_supports_cqe_v2);
+
 void mlxsw_core_emad_string_tlv_enable(struct mlxsw_core *mlxsw_core)
 {
 	mlxsw_core->emad.enable_string_tlv = true;

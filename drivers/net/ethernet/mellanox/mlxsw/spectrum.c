@@ -3831,6 +3831,7 @@ static struct mlxsw_driver mlxsw_sp1_driver = {
 	.ptp_transmitted		= mlxsw_sp_ptp_transmitted,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
 	.profile			= &mlxsw_sp1_config_profile,
+	.sdq_supports_cqe_v2		= false,
 };
 
 static struct mlxsw_driver mlxsw_sp2_driver = {
@@ -3869,6 +3870,7 @@ static struct mlxsw_driver mlxsw_sp2_driver = {
 	.ptp_transmitted		= mlxsw_sp_ptp_transmitted,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
 	.profile			= &mlxsw_sp2_config_profile,
+	.sdq_supports_cqe_v2		= true,
 };
 
 static struct mlxsw_driver mlxsw_sp3_driver = {
@@ -3907,6 +3909,7 @@ static struct mlxsw_driver mlxsw_sp3_driver = {
 	.ptp_transmitted		= mlxsw_sp_ptp_transmitted,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
 	.profile			= &mlxsw_sp2_config_profile,
+	.sdq_supports_cqe_v2		= true,
 };
 
 static struct mlxsw_driver mlxsw_sp4_driver = {
@@ -3943,6 +3946,7 @@ static struct mlxsw_driver mlxsw_sp4_driver = {
 	.ptp_transmitted		= mlxsw_sp_ptp_transmitted,
 	.txhdr_len			= MLXSW_TXHDR_LEN,
 	.profile			= &mlxsw_sp2_config_profile,
+	.sdq_supports_cqe_v2		= true,
 };
 
 bool mlxsw_sp_port_dev_check(const struct net_device *dev)
