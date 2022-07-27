@@ -1385,3 +1385,37 @@ void mlxsw_sp2_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state_common)
 	mlxsw_sp_ptp_traps_unset(mlxsw_sp);
 	kfree(ptp_state);
 }
+
+int mlxsw_sp_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
+				 struct mlxsw_sp_port *mlxsw_sp_port,
+				 struct sk_buff *skb,
+				 const struct mlxsw_tx_info *tx_info)
+{
+	mlxsw_sp_txhdr_construct(skb, tx_info);
+	return 0;
+}
+
+int mlxsw_sp2_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
+				  struct mlxsw_sp_port *mlxsw_sp_port,
+				  struct sk_buff *skb,
+				  const struct mlxsw_tx_info *tx_info)
+{
+	/* In Spectrum-2 and Spectrum-3, in order for PTP event packets to have
+	 * their correction field correctly set on the egress port they must be
+	 * transmitted as data packets. Such packets ingress the ASIC via the
+	 * CPU port and must have a VLAN tag, as the CPU port is not configured
+	 * with a PVID. Push the default VLAN (4095), which is configured as
+	 * egress untagged on all the ports.
+	 */
+	if (!skb_vlan_tagged(skb)) {
+		skb = vlan_insert_tag_set_proto(skb, htons(ETH_P_8021Q),
+						MLXSW_SP_DEFAULT_VID);
+		if (!skb) {
+			this_cpu_inc(mlxsw_sp_port->pcpu_stats->tx_dropped);
+			return -ENOMEM;
+		}
+	}
+
+	return mlxsw_sp_txhdr_ptp_data_construct(mlxsw_core, mlxsw_sp_port, skb,
+						 tx_info);
+}

@@ -243,6 +243,10 @@ struct mlxsw_sp_ptp_ops {
 	void (*get_stats_strings)(u8 **p);
 	void (*get_stats)(struct mlxsw_sp_port *mlxsw_sp_port,
 			  u64 *data, int data_index);
+	int (*txhdr_construct)(struct mlxsw_core *mlxsw_core,
+			       struct mlxsw_sp_port *mlxsw_sp_port,
+			       struct sk_buff *skb,
+			       const struct mlxsw_tx_info *tx_info);
 };
 
 static inline struct mlxsw_sp_upper *
@@ -700,6 +704,12 @@ int mlxsw_sp_flow_counter_alloc(struct mlxsw_sp *mlxsw_sp,
 				unsigned int *p_counter_index);
 void mlxsw_sp_flow_counter_free(struct mlxsw_sp *mlxsw_sp,
 				unsigned int counter_index);
+void mlxsw_sp_txhdr_construct(struct sk_buff *skb,
+			      const struct mlxsw_tx_info *tx_info);
+int mlxsw_sp_txhdr_ptp_data_construct(struct mlxsw_core *mlxsw_core,
+				      struct mlxsw_sp_port *mlxsw_sp_port,
+				      struct sk_buff *skb,
+				      const struct mlxsw_tx_info *tx_info);
 bool mlxsw_sp_port_dev_check(const struct net_device *dev);
 struct mlxsw_sp *mlxsw_sp_lower_get(struct net_device *dev);
 struct mlxsw_sp_port *mlxsw_sp_port_dev_lower_find(struct net_device *dev);

@@ -29,6 +29,7 @@
 #include <net/pkt_cls.h>
 #include <net/netevent.h>
 #include <net/addrconf.h>
+#include <linux/ptp_classify.h>
 
 #include "spectrum.h"
 #include "pci.h"
@@ -230,8 +231,8 @@ void mlxsw_sp_flow_counter_free(struct mlxsw_sp *mlxsw_sp,
 			       counter_index);
 }
 
-static void mlxsw_sp_txhdr_construct(struct sk_buff *skb,
-				     const struct mlxsw_tx_info *tx_info)
+void mlxsw_sp_txhdr_construct(struct sk_buff *skb,
+			      const struct mlxsw_tx_info *tx_info)
 {
 	char *txhdr = skb_push(skb, MLXSW_TXHDR_LEN);
 
@@ -244,6 +245,82 @@ static void mlxsw_sp_txhdr_construct(struct sk_buff *skb,
 	mlxsw_tx_hdr_control_tclass_set(txhdr, 1);
 	mlxsw_tx_hdr_port_mid_set(txhdr, tx_info->local_port);
 	mlxsw_tx_hdr_type_set(txhdr, MLXSW_TXHDR_TYPE_CONTROL);
+}
+
+int
+mlxsw_sp_txhdr_ptp_data_construct(struct mlxsw_core *mlxsw_core,
+				  struct mlxsw_sp_port *mlxsw_sp_port,
+				  struct sk_buff *skb,
+				  const struct mlxsw_tx_info *tx_info)
+{
+	char *txhdr;
+	u16 max_fid;
+	int err;
+
+	if (skb_cow_head(skb, MLXSW_TXHDR_LEN)) {
+		err = -ENOMEM;
+		goto err_skb_cow_head;
+	}
+
+	if (!MLXSW_CORE_RES_VALID(mlxsw_core, FID)) {
+		err = -EIO;
+		goto err_res_valid;
+	}
+	max_fid = MLXSW_CORE_RES_GET(mlxsw_core, FID);
+
+	txhdr = skb_push(skb, MLXSW_TXHDR_LEN);
+	memset(txhdr, 0, MLXSW_TXHDR_LEN);
+
+	mlxsw_tx_hdr_version_set(txhdr, MLXSW_TXHDR_VERSION_1);
+	mlxsw_tx_hdr_proto_set(txhdr, MLXSW_TXHDR_PROTO_ETH);
+	mlxsw_tx_hdr_rx_is_router_set(txhdr, true);
+	mlxsw_tx_hdr_fid_valid_set(txhdr, true);
+	mlxsw_tx_hdr_fid_set(txhdr, max_fid + tx_info->local_port - 1);
+	mlxsw_tx_hdr_type_set(txhdr, MLXSW_TXHDR_TYPE_DATA);
+	return 0;
+
+err_res_valid:
+err_skb_cow_head:
+	this_cpu_inc(mlxsw_sp_port->pcpu_stats->tx_dropped);
+	dev_kfree_skb_any(skb);
+	return err;
+}
+
+static bool mlxsw_sp_skb_requires_ts(struct sk_buff *skb)
+{
+	unsigned int type;
+
+	if (!(skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP))
+		return false;
+
+	type = ptp_classify_raw(skb);
+	return !!ptp_parse_header(skb, type);
+}
+
+static int mlxsw_sp_txhdr_handle(struct mlxsw_core *mlxsw_core,
+				 struct mlxsw_sp_port *mlxsw_sp_port,
+				 struct sk_buff *skb,
+				 const struct mlxsw_tx_info *tx_info)
+{
+	struct mlxsw_sp *mlxsw_sp = mlxsw_core_driver_priv(mlxsw_core);
+
+	/* In Spectrum-2 and Spectrum-3, PTP events that require a time stamp
+	 * need special handling and cannot be transmitted as regular control
+	 * packets.
+	 */
+	if (unlikely(mlxsw_sp_skb_requires_ts(skb)))
+		return mlxsw_sp->ptp_ops->txhdr_construct(mlxsw_core,
+							  mlxsw_sp_port, skb,
+							  tx_info);
+
+	if (skb_cow_head(skb, MLXSW_TXHDR_LEN)) {
+		this_cpu_inc(mlxsw_sp_port->pcpu_stats->tx_dropped);
+		dev_kfree_skb_any(skb);
+		return -ENOMEM;
+	}
+
+	mlxsw_sp_txhdr_construct(skb, tx_info);
+	return 0;
 }
 
 enum mlxsw_reg_spms_state mlxsw_sp_stp_spms_state(u8 state)
@@ -648,12 +725,6 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 	u64 len;
 	int err;
 
-	if (skb_cow_head(skb, MLXSW_TXHDR_LEN)) {
-		this_cpu_inc(mlxsw_sp_port->pcpu_stats->tx_dropped);
-		dev_kfree_skb_any(skb);
-		return NETDEV_TX_OK;
-	}
-
 	memset(skb->cb, 0, sizeof(struct mlxsw_skb_cb));
 
 	if (mlxsw_core_skb_transmit_busy(mlxsw_sp->core, &tx_info))
@@ -664,7 +735,11 @@ static netdev_tx_t mlxsw_sp_port_xmit(struct sk_buff *skb,
 		return NETDEV_TX_OK;
 	}
 
-	mlxsw_sp_txhdr_construct(skb, &tx_info);
+	err = mlxsw_sp_txhdr_handle(mlxsw_sp->core, mlxsw_sp_port, skb,
+				    &tx_info);
+	if (err)
+		return NETDEV_TX_OK;
+
 	/* TX header is consumed by HW on the way so we shouldn't count its
 	 * bytes as being sent.
 	 */
@@ -2666,6 +2741,7 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp1_ptp_ops = {
 	.get_stats_count = mlxsw_sp1_get_stats_count,
 	.get_stats_strings = mlxsw_sp1_get_stats_strings,
 	.get_stats	= mlxsw_sp1_get_stats,
+	.txhdr_construct = mlxsw_sp_ptp_txhdr_construct,
 };
 
 static const struct mlxsw_sp_ptp_ops mlxsw_sp2_ptp_ops = {
@@ -2682,6 +2758,24 @@ static const struct mlxsw_sp_ptp_ops mlxsw_sp2_ptp_ops = {
 	.get_stats_count = mlxsw_sp2_get_stats_count,
 	.get_stats_strings = mlxsw_sp2_get_stats_strings,
 	.get_stats	= mlxsw_sp2_get_stats,
+	.txhdr_construct = mlxsw_sp2_ptp_txhdr_construct,
+};
+
+static const struct mlxsw_sp_ptp_ops mlxsw_sp4_ptp_ops = {
+	.clock_init	= mlxsw_sp2_ptp_clock_init,
+	.clock_fini	= mlxsw_sp2_ptp_clock_fini,
+	.init		= mlxsw_sp2_ptp_init,
+	.fini		= mlxsw_sp2_ptp_fini,
+	.receive	= mlxsw_sp2_ptp_receive,
+	.transmitted	= mlxsw_sp2_ptp_transmitted,
+	.hwtstamp_get	= mlxsw_sp2_ptp_hwtstamp_get,
+	.hwtstamp_set	= mlxsw_sp2_ptp_hwtstamp_set,
+	.shaper_work	= mlxsw_sp2_ptp_shaper_work,
+	.get_ts_info	= mlxsw_sp2_ptp_get_ts_info,
+	.get_stats_count = mlxsw_sp2_get_stats_count,
+	.get_stats_strings = mlxsw_sp2_get_stats_strings,
+	.get_stats	= mlxsw_sp2_get_stats,
+	.txhdr_construct = mlxsw_sp_ptp_txhdr_construct,
 };
 
 struct mlxsw_sp_sample_trigger_node {
@@ -3327,7 +3421,7 @@ static int mlxsw_sp4_init(struct mlxsw_core *mlxsw_core,
 	mlxsw_sp->sb_vals = &mlxsw_sp2_sb_vals;
 	mlxsw_sp->sb_ops = &mlxsw_sp3_sb_ops;
 	mlxsw_sp->port_type_speed_ops = &mlxsw_sp2_port_type_speed_ops;
-	mlxsw_sp->ptp_ops = &mlxsw_sp2_ptp_ops;
+	mlxsw_sp->ptp_ops = &mlxsw_sp4_ptp_ops;
 	mlxsw_sp->span_ops = &mlxsw_sp3_span_ops;
 	mlxsw_sp->policer_core_ops = &mlxsw_sp2_policer_core_ops;
 	mlxsw_sp->trap_ops = &mlxsw_sp2_trap_ops;
