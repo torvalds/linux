@@ -126,13 +126,13 @@ smb2_add_credits(struct TCP_Server_Info *server,
 			 optype, scredits, add);
 	}
 
-	spin_lock(&cifs_tcp_ses_lock);
+	spin_lock(&server->srv_lock);
 	if (server->tcpStatus == CifsNeedReconnect
 	    || server->tcpStatus == CifsExiting) {
-		spin_unlock(&cifs_tcp_ses_lock);
+		spin_unlock(&server->srv_lock);
 		return;
 	}
-	spin_unlock(&cifs_tcp_ses_lock);
+	spin_unlock(&server->srv_lock);
 
 	switch (rc) {
 	case -1:
@@ -218,12 +218,12 @@ smb2_wait_mtu_credits(struct TCP_Server_Info *server, unsigned int size,
 			spin_lock(&server->req_lock);
 		} else {
 			spin_unlock(&server->req_lock);
-			spin_lock(&cifs_tcp_ses_lock);
+			spin_lock(&server->srv_lock);
 			if (server->tcpStatus == CifsExiting) {
-				spin_unlock(&cifs_tcp_ses_lock);
+				spin_unlock(&server->srv_lock);
 				return -ENOENT;
 			}
-			spin_unlock(&cifs_tcp_ses_lock);
+			spin_unlock(&server->srv_lock);
 
 			spin_lock(&server->req_lock);
 			scredits = server->credits;
@@ -319,19 +319,19 @@ smb2_get_next_mid(struct TCP_Server_Info *server)
 {
 	__u64 mid;
 	/* for SMB2 we need the current value */
-	spin_lock(&GlobalMid_Lock);
+	spin_lock(&server->mid_lock);
 	mid = server->CurrentMid++;
-	spin_unlock(&GlobalMid_Lock);
+	spin_unlock(&server->mid_lock);
 	return mid;
 }
 
 static void
 smb2_revert_current_mid(struct TCP_Server_Info *server, const unsigned int val)
 {
-	spin_lock(&GlobalMid_Lock);
+	spin_lock(&server->mid_lock);
 	if (server->CurrentMid >= val)
 		server->CurrentMid -= val;
-	spin_unlock(&GlobalMid_Lock);
+	spin_unlock(&server->mid_lock);
 }
 
 static struct mid_q_entry *
@@ -346,7 +346,7 @@ __smb2_find_mid(struct TCP_Server_Info *server, char *buf, bool dequeue)
 		return NULL;
 	}
 
-	spin_lock(&GlobalMid_Lock);
+	spin_lock(&server->mid_lock);
 	list_for_each_entry(mid, &server->pending_mid_q, qhead) {
 		if ((mid->mid == wire_mid) &&
 		    (mid->mid_state == MID_REQUEST_SUBMITTED) &&
@@ -356,11 +356,11 @@ __smb2_find_mid(struct TCP_Server_Info *server, char *buf, bool dequeue)
 				list_del_init(&mid->qhead);
 				mid->mid_flags |= MID_DELETED;
 			}
-			spin_unlock(&GlobalMid_Lock);
+			spin_unlock(&server->mid_lock);
 			return mid;
 		}
 	}
-	spin_unlock(&GlobalMid_Lock);
+	spin_unlock(&server->mid_lock);
 	return NULL;
 }
 
@@ -403,9 +403,9 @@ smb2_negotiate(const unsigned int xid,
 {
 	int rc;
 
-	spin_lock(&GlobalMid_Lock);
+	spin_lock(&server->mid_lock);
 	server->CurrentMid = 0;
-	spin_unlock(&GlobalMid_Lock);
+	spin_unlock(&server->mid_lock);
 	rc = SMB2_negotiate(xid, ses, server);
 	/* BB we probably don't need to retry with modern servers */
 	if (rc == -EAGAIN)
@@ -2585,7 +2585,9 @@ smb2_is_network_name_deleted(char *buf, struct TCP_Server_Info *server)
 	list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
 		list_for_each_entry(tcon, &ses->tcon_list, tcon_list) {
 			if (tcon->tid == le32_to_cpu(shdr->Id.SyncId.TreeId)) {
+				spin_lock(&tcon->tc_lock);
 				tcon->need_reconnect = true;
+				spin_unlock(&tcon->tc_lock);
 				spin_unlock(&cifs_tcp_ses_lock);
 				pr_warn_once("Server share %s deleted.\n",
 					     tcon->treeName);
@@ -4561,9 +4563,11 @@ smb2_get_enc_key(struct TCP_Server_Info *server, __u64 ses_id, int enc, u8 *key)
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
 		list_for_each_entry(ses, &server->smb_ses_list, smb_ses_list) {
 			if (ses->Suid == ses_id) {
+				spin_lock(&ses->ses_lock);
 				ses_enc_key = enc ? ses->smb3encryptionkey :
 					ses->smb3decryptionkey;
 				memcpy(key, ses_enc_key, SMB3_ENC_DEC_KEY_SIZE);
+				spin_unlock(&ses->ses_lock);
 				spin_unlock(&cifs_tcp_ses_lock);
 				return 0;
 			}
@@ -5078,20 +5082,21 @@ static void smb2_decrypt_offload(struct work_struct *work)
 
 			mid->callback(mid);
 		} else {
-			spin_lock(&cifs_tcp_ses_lock);
-			spin_lock(&GlobalMid_Lock);
+			spin_lock(&dw->server->srv_lock);
 			if (dw->server->tcpStatus == CifsNeedReconnect) {
+				spin_lock(&dw->server->mid_lock);
 				mid->mid_state = MID_RETRY_NEEDED;
-				spin_unlock(&GlobalMid_Lock);
-				spin_unlock(&cifs_tcp_ses_lock);
+				spin_unlock(&dw->server->mid_lock);
+				spin_unlock(&dw->server->srv_lock);
 				mid->callback(mid);
 			} else {
+				spin_lock(&dw->server->mid_lock);
 				mid->mid_state = MID_REQUEST_SUBMITTED;
 				mid->mid_flags &= ~(MID_DELETED);
 				list_add_tail(&mid->qhead,
 					&dw->server->pending_mid_q);
-				spin_unlock(&GlobalMid_Lock);
-				spin_unlock(&cifs_tcp_ses_lock);
+				spin_unlock(&dw->server->mid_lock);
+				spin_unlock(&dw->server->srv_lock);
 			}
 		}
 		cifs_mid_q_entry_release(mid);

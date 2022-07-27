@@ -55,7 +55,7 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 		return;
 
 	cifs_dbg(VFS, "Dump pending requests:\n");
-	spin_lock(&GlobalMid_Lock);
+	spin_lock(&server->mid_lock);
 	list_for_each_entry(mid_entry, &server->pending_mid_q, qhead) {
 		cifs_dbg(VFS, "State: %d Cmd: %d Pid: %d Cbdata: %p Mid %llu\n",
 			 mid_entry->mid_state,
@@ -78,7 +78,7 @@ void cifs_dump_mids(struct TCP_Server_Info *server)
 				mid_entry->resp_buf, 62);
 		}
 	}
-	spin_unlock(&GlobalMid_Lock);
+	spin_unlock(&server->mid_lock);
 #endif /* CONFIG_CIFS_DEBUG2 */
 }
 
@@ -463,7 +463,7 @@ skip_rdma:
 			seq_printf(m, "\n\t\t[NONE]");
 
 		seq_puts(m, "\n\n\tMIDs: ");
-		spin_lock(&GlobalMid_Lock);
+		spin_lock(&server->mid_lock);
 		list_for_each_entry(mid_entry, &server->pending_mid_q, qhead) {
 			seq_printf(m, "\n\tState: %d com: %d pid:"
 					" %d cbdata: %p mid %llu\n",
@@ -473,7 +473,7 @@ skip_rdma:
 					mid_entry->callback_data,
 					mid_entry->mid);
 		}
-		spin_unlock(&GlobalMid_Lock);
+		spin_unlock(&server->mid_lock);
 		seq_printf(m, "\n--\n");
 	}
 	if (c == 0)
