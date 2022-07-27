@@ -506,6 +506,18 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Cache lines that have been L2 hardware prefetched but not used by demand accesses",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x26",
+        "EventName": "L2_LINES_OUT.USELESS_HWPF",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "200003",
+        "Speculative": "1",
+        "UMask": "0x4",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "All accesses to L2 cache[This event is alias to L2_RQSTS.REFERENCES]",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
@@ -722,7 +734,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "LONGEST_LAT_CACHE.MISS",
+        "BriefDescription": "Core-originated cacheable requests that missed L3  (Except hardware prefetches to the L3)",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2e",
@@ -734,7 +746,19 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "All retired load instructions.",
+        "BriefDescription": "Core-originated cacheable requests that refer to L3 (Except hardware prefetches to the L3)",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x2e",
+        "EventName": "LONGEST_LAT_CACHE.REFERENCE",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "SampleAfterValue": "100003",
+        "Speculative": "1",
+        "UMask": "0x4f",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Retired load instructions.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "Data_LA": "1",
@@ -747,7 +771,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "All retired store instructions.",
+        "BriefDescription": "Retired store instructions.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "Data_LA": "1",
@@ -1140,6 +1164,7 @@
         "BriefDescription": "This event is deprecated. Refer to new event OFFCORE_REQUESTS_OUTSTANDING.DATA_RD",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
+        "Errata": "ADL038",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.ALL_DATA_RD",
         "PEBScounters": "0,1,2,3",
@@ -1153,6 +1178,7 @@
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "CounterMask": "1",
+        "Errata": "ADL038",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD",
         "PEBScounters": "0,1,2,3",
@@ -1178,6 +1204,7 @@
         "BriefDescription": "OFFCORE_REQUESTS_OUTSTANDING.DATA_RD",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
+        "Errata": "ADL038",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DATA_RD",
         "PEBScounters": "0,1,2,3",
