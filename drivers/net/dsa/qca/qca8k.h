@@ -431,6 +431,7 @@ struct qca8k_fdb {
 extern const struct qca8k_mib_desc ar8327_mib[];
 extern const struct regmap_access_table qca8k_readable_table;
 int qca8k_mib_init(struct qca8k_priv *priv);
+void qca8k_port_set_status(struct qca8k_priv *priv, int port, int enable);
 
 /* Common read/write/rmw function */
 int qca8k_read(struct qca8k_priv *priv, u32 reg, u32 *val);
@@ -442,5 +443,15 @@ int qca8k_bulk_write(struct qca8k_priv *priv, u32 reg, u32 *val, int len);
 
 /* Common ops function */
 int qca8k_busy_wait(struct qca8k_priv *priv, u32 reg, u32 mask);
+
+/* Common ethtool stats function */
+void qca8k_get_strings(struct dsa_switch *ds, int port, u32 stringset, uint8_t *data);
+void qca8k_get_ethtool_stats(struct dsa_switch *ds, int port,
+			     uint64_t *data);
+int qca8k_get_sset_count(struct dsa_switch *ds, int port, int sset);
+
+/* Common eee function */
+int qca8k_set_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *eee);
+int qca8k_get_mac_eee(struct dsa_switch *ds, int port, struct ethtool_eee *e);
 
 #endif /* __QCA8K_H */
