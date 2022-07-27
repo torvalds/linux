@@ -766,41 +766,46 @@ raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
 
 	spin_lock_irq(conf->hash_locks + hash);
 
-	do {
-		wait_event_lock_irq(conf->wait_for_quiescent,
-				    conf->quiesce == 0 || noquiesce,
-				    *(conf->hash_locks + hash));
-		sh = find_get_stripe(conf, sector, conf->generation - previous,
-				     hash);
-		if (sh)
-			break;
+retry:
+	wait_event_lock_irq(conf->wait_for_quiescent,
+			    conf->quiesce == 0 || noquiesce,
+			    *(conf->hash_locks + hash));
+	sh = find_get_stripe(conf, sector, conf->generation - previous, hash);
+	if (sh)
+		goto out;
 
-		if (!test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state)) {
-			sh = get_free_stripe(conf, hash);
-			if (!sh && !test_bit(R5_DID_ALLOC, &conf->cache_state))
-				set_bit(R5_ALLOC_MORE, &conf->cache_state);
-		}
-		if (noblock && !sh)
-			break;
+	if (test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state))
+		goto wait_for_stripe;
 
+	sh = get_free_stripe(conf, hash);
+	if (sh) {
 		r5c_check_stripe_cache_usage(conf);
-		if (!sh) {
-			set_bit(R5_INACTIVE_BLOCKED, &conf->cache_state);
-			r5l_wake_reclaim(conf->log, 0);
-			wait_event_lock_irq(conf->wait_for_stripe,
-					!list_empty(conf->inactive_list + hash) &&
-					(atomic_read(&conf->active_stripes)
-					 < (conf->max_nr_stripes * 3 / 4)
-					 || !test_bit(R5_INACTIVE_BLOCKED,
-						      &conf->cache_state)),
-					*(conf->hash_locks + hash));
-			clear_bit(R5_INACTIVE_BLOCKED, &conf->cache_state);
-		} else {
-			init_stripe(sh, sector, previous);
-			atomic_inc(&sh->count);
-		}
-	} while (sh == NULL);
+		init_stripe(sh, sector, previous);
+		atomic_inc(&sh->count);
+		goto out;
+	}
 
+	if (!test_bit(R5_DID_ALLOC, &conf->cache_state))
+		set_bit(R5_ALLOC_MORE, &conf->cache_state);
+
+wait_for_stripe:
+	if (noblock)
+		goto out;
+
+	r5c_check_stripe_cache_usage(conf);
+	set_bit(R5_INACTIVE_BLOCKED, &conf->cache_state);
+	r5l_wake_reclaim(conf->log, 0);
+	wait_event_lock_irq(conf->wait_for_stripe,
+			    !list_empty(conf->inactive_list + hash) &&
+			    (atomic_read(&conf->active_stripes)
+				  < (conf->max_nr_stripes * 3 / 4)
+				 || !test_bit(R5_INACTIVE_BLOCKED,
+					      &conf->cache_state)),
+			    *(conf->hash_locks + hash));
+	clear_bit(R5_INACTIVE_BLOCKED, &conf->cache_state);
+	goto retry;
+
+out:
 	spin_unlock_irq(conf->hash_locks + hash);
 	return sh;
 }
