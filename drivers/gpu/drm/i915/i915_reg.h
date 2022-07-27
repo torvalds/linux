@@ -1892,6 +1892,13 @@
 #define CLKGATE_DIS_PSL(pipe) \
 	_MMIO_PIPE(pipe, _CLKGATE_DIS_PSL_A, _CLKGATE_DIS_PSL_B)
 
+#define _CLKGATE_DIS_PSL_EXT_A		0x4654C
+#define _CLKGATE_DIS_PSL_EXT_B		0x46550
+#define   PIPEDMC_GATING_DIS		REG_BIT(12)
+
+#define CLKGATE_DIS_PSL_EXT(pipe) \
+	_MMIO_PIPE(pipe, _CLKGATE_DIS_PSL_EXT_A, _CLKGATE_DIS_PSL_EXT_B)
+
 /*
  * Display engine regs
  */

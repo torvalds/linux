@@ -1615,6 +1615,14 @@ static void icl_display_core_init(struct drm_i915_private *dev_priv,
 		intel_de_rmw(dev_priv, SOUTH_DSPCLK_GATE_D, 0,
 			     PCH_DPMGUNIT_CLOCK_GATE_DISABLE);
 
+	/* Wa_16015201720:adl-p,dg2 */
+	if (DISPLAY_VER(dev_priv) == 13) {
+		intel_de_rmw(dev_priv, CLKGATE_DIS_PSL_EXT(PIPE_A),
+			     0, PIPEDMC_GATING_DIS);
+		intel_de_rmw(dev_priv, CLKGATE_DIS_PSL_EXT(PIPE_B),
+			     0, PIPEDMC_GATING_DIS);
+	}
+
 	/* 1. Enable PCH reset handshake. */
 	intel_pch_reset_handshake(dev_priv, !HAS_PCH_NOP(dev_priv));
 
