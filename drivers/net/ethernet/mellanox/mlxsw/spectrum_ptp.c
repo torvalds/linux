@@ -339,6 +339,153 @@ void mlxsw_sp1_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock_common)
 	kfree(clock);
 }
 
+static u64 mlxsw_sp2_ptp_read_utc(struct mlxsw_sp_ptp_clock *clock,
+				  struct ptp_system_timestamp *sts)
+{
+	struct mlxsw_core *mlxsw_core = clock->core;
+	u32 utc_sec1, utc_sec2, utc_nsec;
+
+	utc_sec1 = mlxsw_core_read_utc_sec(mlxsw_core);
+	ptp_read_system_prets(sts);
+	utc_nsec = mlxsw_core_read_utc_nsec(mlxsw_core);
+	ptp_read_system_postts(sts);
+	utc_sec2 = mlxsw_core_read_utc_sec(mlxsw_core);
+
+	if (utc_sec1 != utc_sec2) {
+		/* Wrap around. */
+		ptp_read_system_prets(sts);
+		utc_nsec = mlxsw_core_read_utc_nsec(mlxsw_core);
+		ptp_read_system_postts(sts);
+	}
+
+	return (u64)utc_sec2 * NSEC_PER_SEC + utc_nsec;
+}
+
+static int
+mlxsw_sp2_ptp_phc_settime(struct mlxsw_sp_ptp_clock *clock, u64 nsec)
+{
+	struct mlxsw_core *mlxsw_core = clock->core;
+	char mtutc_pl[MLXSW_REG_MTUTC_LEN];
+	u32 sec, nsec_rem;
+
+	sec = div_u64_rem(nsec, NSEC_PER_SEC, &nsec_rem);
+	mlxsw_reg_mtutc_pack(mtutc_pl,
+			     MLXSW_REG_MTUTC_OPERATION_SET_TIME_IMMEDIATE,
+			     0, sec, nsec_rem, 0);
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(mtutc), mtutc_pl);
+}
+
+static int mlxsw_sp2_ptp_adjfine(struct ptp_clock_info *ptp, long scaled_ppm)
+{
+	struct mlxsw_sp_ptp_clock *clock =
+		container_of(ptp, struct mlxsw_sp_ptp_clock, ptp_info);
+	s32 ppb = scaled_ppm_to_ppb(scaled_ppm);
+
+	/* In Spectrum-2 and newer ASICs, the frequency adjustment in MTUTC is
+	 * reversed, positive values mean to decrease the frequency. Adjust the
+	 * sign of PPB to this behavior.
+	 */
+	return mlxsw_sp_ptp_phc_adjfreq(clock, -ppb);
+}
+
+static int mlxsw_sp2_ptp_adjtime(struct ptp_clock_info *ptp, s64 delta)
+{
+	struct mlxsw_sp_ptp_clock *clock =
+		container_of(ptp, struct mlxsw_sp_ptp_clock, ptp_info);
+	struct mlxsw_core *mlxsw_core = clock->core;
+	char mtutc_pl[MLXSW_REG_MTUTC_LEN];
+
+	/* HW time adjustment range is s16. If out of range, set time instead. */
+	if (delta < S16_MIN || delta > S16_MAX) {
+		u64 nsec;
+
+		nsec = mlxsw_sp2_ptp_read_utc(clock, NULL);
+		nsec += delta;
+
+		return mlxsw_sp2_ptp_phc_settime(clock, nsec);
+	}
+
+	mlxsw_reg_mtutc_pack(mtutc_pl,
+			     MLXSW_REG_MTUTC_OPERATION_ADJUST_TIME,
+			     0, 0, 0, delta);
+	return mlxsw_reg_write(mlxsw_core, MLXSW_REG(mtutc), mtutc_pl);
+}
+
+static int mlxsw_sp2_ptp_gettimex(struct ptp_clock_info *ptp,
+				  struct timespec64 *ts,
+				  struct ptp_system_timestamp *sts)
+{
+	struct mlxsw_sp_ptp_clock *clock =
+		container_of(ptp, struct mlxsw_sp_ptp_clock, ptp_info);
+	u64 nsec;
+
+	nsec = mlxsw_sp2_ptp_read_utc(clock, sts);
+	*ts = ns_to_timespec64(nsec);
+
+	return 0;
+}
+
+static int mlxsw_sp2_ptp_settime(struct ptp_clock_info *ptp,
+				 const struct timespec64 *ts)
+{
+	struct mlxsw_sp_ptp_clock *clock =
+		container_of(ptp, struct mlxsw_sp_ptp_clock, ptp_info);
+	u64 nsec = timespec64_to_ns(ts);
+
+	return mlxsw_sp2_ptp_phc_settime(clock, nsec);
+}
+
+static const struct ptp_clock_info mlxsw_sp2_ptp_clock_info = {
+	.owner		= THIS_MODULE,
+	.name		= "mlxsw_sp_clock",
+	.max_adj	= MLXSW_REG_MTUTC_MAX_FREQ_ADJ,
+	.adjfine	= mlxsw_sp2_ptp_adjfine,
+	.adjtime	= mlxsw_sp2_ptp_adjtime,
+	.gettimex64	= mlxsw_sp2_ptp_gettimex,
+	.settime64	= mlxsw_sp2_ptp_settime,
+};
+
+struct mlxsw_sp_ptp_clock *
+mlxsw_sp2_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
+{
+	struct mlxsw_sp_ptp_clock *clock;
+	int err;
+
+	clock = kzalloc(sizeof(*clock), GFP_KERNEL);
+	if (!clock)
+		return ERR_PTR(-ENOMEM);
+
+	clock->core = mlxsw_sp->core;
+
+	clock->ptp_info = mlxsw_sp2_ptp_clock_info;
+
+	err = mlxsw_sp2_ptp_phc_settime(clock, 0);
+	if (err) {
+		dev_err(dev, "setting UTC time failed %d\n", err);
+		goto err_ptp_phc_settime;
+	}
+
+	clock->ptp = ptp_clock_register(&clock->ptp_info, dev);
+	if (IS_ERR(clock->ptp)) {
+		err = PTR_ERR(clock->ptp);
+		dev_err(dev, "ptp_clock_register failed %d\n", err);
+		goto err_ptp_clock_register;
+	}
+
+	return clock;
+
+err_ptp_clock_register:
+err_ptp_phc_settime:
+	kfree(clock);
+	return ERR_PTR(err);
+}
+
+void mlxsw_sp2_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock)
+{
+	ptp_clock_unregister(clock->ptp);
+	kfree(clock);
+}
+
 static int mlxsw_sp_ptp_parse(struct sk_buff *skb,
 			      u8 *p_domain_number,
 			      u8 *p_message_type,
