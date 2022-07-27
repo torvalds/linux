@@ -188,6 +188,14 @@ config CORESIGHT_CTI_INTEGRATION_REGS
 	  registers are not used in normal operation and can leave devices in
 	  an inconsistent state.
 
+config CORESIGHT_DUMMY
+	tristate "Dummy driver support"
+	help
+	  Enables support for dummy driver. Dummy driver can be used for
+	  CoreSight sources/sinks that are owned and configured by some
+	  other subsystem and use Linux drivers to configure rest of trace
+	  path.
+
 config CORESIGHT_TRBE
 	tristate "Trace Buffer Extension (TRBE) driver"
 	depends on ARM64 && CORESIGHT_SOURCE_ETM4X
