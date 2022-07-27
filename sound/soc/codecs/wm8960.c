@@ -819,6 +819,7 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 	u16 audio_format = iface & 0x3;
 	int freq_out, freq_in;
 	int i, j, k;
+	u16 word_length = 0;
 
 	wm8960->bclk = snd_soc_params_to_bclk(params);
 	if (params_channels(params) == 1)
@@ -830,12 +831,15 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 		break;
 	case 20:
 		iface |= 0x0004;
+		word_length |= 0x0004;
 		break;
 	case 24:
 		iface |= 0x0008;
+		word_length |= 0x0008;
 		break;
 	case 32:
 		/* right justify mode does not support 32 word length */
+		word_length |= 0x000c;
 		if ((iface & 0x3) != 0) {
 			iface |= 0x000c;
 			break;
@@ -885,9 +889,10 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 			snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
 			snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
 			snd_soc_component_write(component, WM8960_IFACE1, 0x3);
-			snd_soc_component_write(component, WM8960_IFACE1, 0x43);
+			snd_soc_component_write(component, WM8960_IFACE1, 0x43 | word_length);
 			snd_soc_component_write(component, WM8960_POWER1, 0xd6);
 			snd_soc_component_write(component, WM8960_POWER1, 0xc6);
+			snd_soc_component_write(component, WM8960_ADDCTL2, 0x4);
 		} else {
 			snd_soc_component_write(component, WM8960_POWER3, 0x30);
 			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
@@ -898,7 +903,7 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
 			snd_soc_component_write(component, WM8960_ADDCTL2, 0x0);
 			snd_soc_component_write(component, WM8960_IFACE1, 0x3);
-			snd_soc_component_write(component, WM8960_IFACE1, 0x43);
+			snd_soc_component_write(component, WM8960_IFACE1, 0x43 | word_length);
 			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
 			snd_soc_component_write(component, WM8960_LINPATH, 0x108);
 			snd_soc_component_write(component, WM8960_POWER1, 0xfe);
@@ -922,6 +927,7 @@ static int wm8960_hw_params(struct snd_pcm_substream *substream,
 								alc_rates[i].val);
 		/* bclk inverted */
 		snd_soc_component_update_bits(component, WM8960_IFACE1, 0x80, 0x80);
+		snd_soc_component_write(component, WM8960_POWER2, 0x1f9);
 	} else if (audio_format == 0x2) {//I2S Format
 		if (!tx) {
 			snd_soc_component_update_bits(component, WM8960_LINVOL, 0x3<<7, 0x2<<7);
