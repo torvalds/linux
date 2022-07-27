@@ -422,4 +422,7 @@ struct qca8k_fdb {
 	u8 mac[6];
 };
 
+/* Common setup function */
+extern const struct qca8k_mib_desc ar8327_mib[];
+
 #endif /* __QCA8K_H */
