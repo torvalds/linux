@@ -843,8 +843,8 @@ static int iio_verify_update(struct iio_dev *indio_dev,
 	 * to verify.
 	 */
 	if (remove_buffer && !insert_buffer &&
-		list_is_singular(&iio_dev_opaque->buffer_list))
-			return 0;
+	    list_is_singular(&iio_dev_opaque->buffer_list))
+		return 0;
 
 	modes = indio_dev->modes;
 
