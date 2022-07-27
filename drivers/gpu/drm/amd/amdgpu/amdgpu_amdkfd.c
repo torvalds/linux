@@ -162,7 +162,7 @@ void amdgpu_amdkfd_device_init(struct amdgpu_device *adev)
 		 * clear
 		 */
 		bitmap_complement(gpu_resources.cp_queue_bitmap,
-				  adev->gfx.mec.queue_bitmap,
+				  adev->gfx.mec_bitmap[0].queue_bitmap,
 				  KGD_MAX_QUEUES);
 
 		/* According to linux/bitmap.h we shouldn't use bitmap_clear if

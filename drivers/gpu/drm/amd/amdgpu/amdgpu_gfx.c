@@ -63,10 +63,10 @@ void amdgpu_queue_mask_bit_to_mec_queue(struct amdgpu_device *adev, int bit,
 }
 
 bool amdgpu_gfx_is_mec_queue_enabled(struct amdgpu_device *adev,
-				     int mec, int pipe, int queue)
+				     int xcc_id, int mec, int pipe, int queue)
 {
 	return test_bit(amdgpu_gfx_mec_queue_to_bit(adev, mec, pipe, queue),
-			adev->gfx.mec.queue_bitmap);
+			adev->gfx.mec_bitmap[xcc_id].queue_bitmap);
 }
 
 int amdgpu_gfx_me_queue_to_bit(struct amdgpu_device *adev,
@@ -204,29 +204,38 @@ bool amdgpu_gfx_is_high_priority_compute_queue(struct amdgpu_device *adev,
 
 void amdgpu_gfx_compute_queue_acquire(struct amdgpu_device *adev)
 {
-	int i, queue, pipe;
+	int i, j, queue, pipe;
 	bool multipipe_policy = amdgpu_gfx_is_compute_multipipe_capable(adev);
 	int max_queues_per_mec = min(adev->gfx.mec.num_pipe_per_mec *
 				     adev->gfx.mec.num_queue_per_pipe,
 				     adev->gfx.num_compute_rings);
+	int num_xcd = (adev->gfx.num_xcd > 1) ? adev->gfx.num_xcd : 1;
 
 	if (multipipe_policy) {
-		/* policy: make queues evenly cross all pipes on MEC1 only */
-		for (i = 0; i < max_queues_per_mec; i++) {
-			pipe = i % adev->gfx.mec.num_pipe_per_mec;
-			queue = (i / adev->gfx.mec.num_pipe_per_mec) %
-				adev->gfx.mec.num_queue_per_pipe;
+		/* policy: make queues evenly cross all pipes on MEC1 only
+		 * for multiple xcc, just use the original policy for simplicity */
+		for (j = 0; j < num_xcd; j++) {
+			for (i = 0; i < max_queues_per_mec; i++) {
+				pipe = i % adev->gfx.mec.num_pipe_per_mec;
+				queue = (i / adev->gfx.mec.num_pipe_per_mec) %
+					 adev->gfx.mec.num_queue_per_pipe;
 
-			set_bit(pipe * adev->gfx.mec.num_queue_per_pipe + queue,
-					adev->gfx.mec.queue_bitmap);
+				set_bit(pipe * adev->gfx.mec.num_queue_per_pipe + queue,
+					adev->gfx.mec_bitmap[j].queue_bitmap);
+			}
 		}
 	} else {
 		/* policy: amdgpu owns all queues in the given pipe */
-		for (i = 0; i < max_queues_per_mec; ++i)
-			set_bit(i, adev->gfx.mec.queue_bitmap);
+		for (j = 0; j < num_xcd; j++) {
+			for (i = 0; i < max_queues_per_mec; ++i)
+				set_bit(i, adev->gfx.mec_bitmap[j].queue_bitmap);
+		}
 	}
 
-	dev_dbg(adev->dev, "mec queue bitmap weight=%d\n", bitmap_weight(adev->gfx.mec.queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES));
+	for (j = 0; j < num_xcd; j++) {
+		dev_dbg(adev->dev, "mec queue bitmap weight=%d\n",
+			bitmap_weight(adev->gfx.mec_bitmap[j].queue_bitmap, AMDGPU_MAX_COMPUTE_QUEUES));
+	}
 }
 
 void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev)
@@ -268,7 +277,7 @@ static int amdgpu_gfx_kiq_acquire(struct amdgpu_device *adev,
 		    * adev->gfx.mec.num_queue_per_pipe;
 
 	while (--queue_bit >= 0) {
-		if (test_bit(queue_bit, adev->gfx.mec.queue_bitmap))
+		if (test_bit(queue_bit, adev->gfx.mec_bitmap[0].queue_bitmap))
 			continue;
 
 		amdgpu_queue_mask_bit_to_mec_queue(adev, queue_bit, &mec, &pipe, &queue);
@@ -516,7 +525,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 		return -EINVAL;
 
 	for (i = 0; i < AMDGPU_MAX_COMPUTE_QUEUES; ++i) {
-		if (!test_bit(i, adev->gfx.mec.queue_bitmap))
+		if (!test_bit(i, adev->gfx.mec_bitmap[0].queue_bitmap))
 			continue;
 
 		/* This situation may be hit in the future if a new HW

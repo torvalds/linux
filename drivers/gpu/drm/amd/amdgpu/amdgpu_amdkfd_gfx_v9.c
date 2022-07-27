@@ -778,7 +778,7 @@ void kgd_gfx_v9_get_cu_occupancy(struct amdgpu_device *adev, int pasid,
 	 * Iterate through the shader engines and arrays of the device
 	 * to get number of waves in flight
 	 */
-	bitmap_complement(cp_queue_bitmap, adev->gfx.mec.queue_bitmap,
+	bitmap_complement(cp_queue_bitmap, adev->gfx.mec_bitmap[0].queue_bitmap,
 			  KGD_MAX_QUEUES);
 	max_queue_cnt = adev->gfx.mec.num_pipe_per_mec *
 			adev->gfx.mec.num_queue_per_pipe;
