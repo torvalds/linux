@@ -38,7 +38,7 @@ static inline bool __must_check arch_get_random_seed_int(unsigned int *v)
 #endif /* CONFIG_ARCH_RANDOM */
 
 #ifdef CONFIG_PPC_POWERNV
-int powernv_get_random_long(unsigned long *v);
+int pnv_get_random_long(unsigned long *v);
 #endif
 
 #endif /* _ASM_POWERPC_ARCHRANDOM_H */
