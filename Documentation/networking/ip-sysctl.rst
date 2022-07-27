@@ -636,6 +636,16 @@ tcp_recovery - INTEGER
 
 	Default: 0x1
 
+tcp_reflect_tos - BOOLEAN
+	For listening sockets, reuse the DSCP value of the initial SYN message
+	for outgoing packets. This allows to have both directions of a TCP
+	stream to use the same DSCP value, assuming DSCP remains unchanged for
+	the lifetime of the connection.
+
+	This options affects both IPv4 and IPv6.
+
+	Default: 0 (disabled)
+
 tcp_reordering - INTEGER
 	Initial reordering level of packets in a TCP stream.
 	TCP stack can then dynamically adjust flow reordering level
