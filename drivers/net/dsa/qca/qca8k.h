@@ -324,10 +324,15 @@ enum qca8k_mid_cmd {
 	QCA8K_MIB_CAST = 3,
 };
 
+struct qca8k_info_ops {
+	int (*autocast_mib)(struct dsa_switch *ds, int port, u64 *data);
+};
+
 struct qca8k_match_data {
 	u8 id;
 	bool reduced_package;
 	u8 mib_count;
+	const struct qca8k_info_ops *ops;
 };
 
 enum {
