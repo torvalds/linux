@@ -1554,7 +1554,7 @@ out:
 }
 
 static void
-nfsd4_cleanup_inter_ssc(struct vfsmount *ss_mnt, struct nfsd_file *src,
+nfsd4_cleanup_inter_ssc(struct vfsmount *ss_mnt, struct file *filp,
 			struct nfsd_file *dst)
 {
 	bool found = false;
@@ -1563,9 +1563,9 @@ nfsd4_cleanup_inter_ssc(struct vfsmount *ss_mnt, struct nfsd_file *src,
 	struct nfsd4_ssc_umount_item *ni = NULL;
 	struct nfsd_net *nn = net_generic(dst->nf_net, nfsd_net_id);
 
-	nfs42_ssc_close(src->nf_file);
+	nfs42_ssc_close(filp);
 	nfsd_file_put(dst);
-	fput(src->nf_file);
+	fput(filp);
 
 	if (!nn) {
 		mntput(ss_mnt);
@@ -1608,7 +1608,7 @@ nfsd4_setup_inter_ssc(struct svc_rqst *rqstp,
 }
 
 static void
-nfsd4_cleanup_inter_ssc(struct vfsmount *ss_mnt, struct nfsd_file *src,
+nfsd4_cleanup_inter_ssc(struct vfsmount *ss_mnt, struct file *filp,
 			struct nfsd_file *dst)
 {
 }
@@ -1726,7 +1726,7 @@ static __be32 nfsd4_do_copy(struct nfsd4_copy *copy, bool sync)
 	}
 
 	if (nfsd4_ssc_is_inter(copy))
-		nfsd4_cleanup_inter_ssc(copy->ss_mnt, copy->nf_src,
+		nfsd4_cleanup_inter_ssc(copy->ss_mnt, copy->nf_src->nf_file,
 					copy->nf_dst);
 	else
 		nfsd4_cleanup_intra_ssc(copy->nf_src, copy->nf_dst);
