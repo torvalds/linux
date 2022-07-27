@@ -2075,17 +2075,8 @@ vmxnet3_poll_rx_only(struct napi_struct *napi, int budget)
 	rxd_done = vmxnet3_rq_rx_complete(rq, adapter, budget);
 
 	if (rxd_done < budget) {
-		struct Vmxnet3_RxCompDesc *rcd;
-#ifdef __BIG_ENDIAN_BITFIELD
-		struct Vmxnet3_RxCompDesc rxComp;
-#endif
 		napi_complete_done(napi, rxd_done);
 		vmxnet3_enable_intr(adapter, rq->comp_ring.intr_idx);
-		/* after unmasking the interrupt, check if any descriptors were completed */
-		vmxnet3_getRxComp(rcd, &rq->comp_ring.base[rq->comp_ring.next2proc].rcd,
-				  &rxComp);
-		if (rcd->gen == rq->comp_ring.gen && napi_reschedule(napi))
-			vmxnet3_disable_intr(adapter, rq->comp_ring.intr_idx);
 	}
 	return rxd_done;
 }
