@@ -63,6 +63,8 @@ int powernv_get_random_real_mode(unsigned long *v)
 	struct powernv_rng *rng;
 
 	rng = raw_cpu_read(powernv_rng);
+	if (!rng)
+		return 0;
 
 	*v = rng_whiten(rng, __raw_rm_readq(rng->regs_real));
 
