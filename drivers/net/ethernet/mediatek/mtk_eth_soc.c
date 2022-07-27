@@ -1523,6 +1523,41 @@ static void mtk_rx_put_buff(struct mtk_rx_ring *ring, void *data, bool napi)
 		skb_free_frag(data);
 }
 
+static int mtk_xdp_frame_map(struct mtk_eth *eth, struct net_device *dev,
+			     struct mtk_tx_dma_desc_info *txd_info,
+			     struct mtk_tx_dma *txd, struct mtk_tx_buf *tx_buf,
+			     void *data, u16 headroom, int index, bool dma_map)
+{
+	struct mtk_tx_ring *ring = &eth->tx_ring;
+	struct mtk_mac *mac = netdev_priv(dev);
+	struct mtk_tx_dma *txd_pdma;
+
+	if (dma_map) {  /* ndo_xdp_xmit */
+		txd_info->addr = dma_map_single(eth->dma_dev, data,
+						txd_info->size, DMA_TO_DEVICE);
+		if (unlikely(dma_mapping_error(eth->dma_dev, txd_info->addr)))
+			return -ENOMEM;
+
+		tx_buf->flags |= MTK_TX_FLAGS_SINGLE0;
+	} else {
+		struct page *page = virt_to_head_page(data);
+
+		txd_info->addr = page_pool_get_dma_addr(page) +
+				 sizeof(struct xdp_frame) + headroom;
+		dma_sync_single_for_device(eth->dma_dev, txd_info->addr,
+					   txd_info->size, DMA_BIDIRECTIONAL);
+	}
+	mtk_tx_set_dma_desc(dev, txd, txd_info);
+
+	tx_buf->flags |= !mac->id ? MTK_TX_FLAGS_FPORT0 : MTK_TX_FLAGS_FPORT1;
+
+	txd_pdma = qdma_to_pdma(ring, txd);
+	setup_tx_buf(eth, tx_buf, txd_pdma, txd_info->addr, txd_info->size,
+		     index);
+
+	return 0;
+}
+
 static int mtk_xdp_submit_frame(struct mtk_eth *eth, struct xdp_frame *xdpf,
 				struct net_device *dev, bool dma_map)
 {
@@ -1533,9 +1568,8 @@ static int mtk_xdp_submit_frame(struct mtk_eth *eth, struct xdp_frame *xdpf,
 		.first	= true,
 		.last	= true,
 	};
-	struct mtk_mac *mac = netdev_priv(dev);
-	struct mtk_tx_dma *txd, *txd_pdma;
 	int err = 0, index = 0, n_desc = 1;
+	struct mtk_tx_dma *txd, *txd_pdma;
 	struct mtk_tx_buf *tx_buf;
 
 	if (unlikely(test_bit(MTK_RESETTING, &eth->state)))
@@ -1555,36 +1589,18 @@ static int mtk_xdp_submit_frame(struct mtk_eth *eth, struct xdp_frame *xdpf,
 	tx_buf = mtk_desc_to_tx_buf(ring, txd, soc->txrx.txd_size);
 	memset(tx_buf, 0, sizeof(*tx_buf));
 
-	if (dma_map) {  /* ndo_xdp_xmit */
-		txd_info.addr = dma_map_single(eth->dma_dev, xdpf->data,
-					       txd_info.size, DMA_TO_DEVICE);
-		if (unlikely(dma_mapping_error(eth->dma_dev, txd_info.addr))) {
-			err = -ENOMEM;
-			goto out;
-		}
-		tx_buf->flags |= MTK_TX_FLAGS_SINGLE0;
-	} else {
-		struct page *page = virt_to_head_page(xdpf->data);
-
-		txd_info.addr = page_pool_get_dma_addr(page) +
-				sizeof(*xdpf) + xdpf->headroom;
-		dma_sync_single_for_device(eth->dma_dev, txd_info.addr,
-					   txd_info.size,
-					   DMA_BIDIRECTIONAL);
-	}
-	mtk_tx_set_dma_desc(dev, txd, &txd_info);
-
-	tx_buf->flags |= !mac->id ? MTK_TX_FLAGS_FPORT0 : MTK_TX_FLAGS_FPORT1;
-
-	txd_pdma = qdma_to_pdma(ring, txd);
-	setup_tx_buf(eth, tx_buf, txd_pdma, txd_info.addr, txd_info.size,
-		     index++);
+	err = mtk_xdp_frame_map(eth, dev, &txd_info, txd, tx_buf,
+				xdpf->data, xdpf->headroom, index,
+				dma_map);
+	if (err < 0)
+		goto out;
 
 	/* store xdpf for cleanup */
 	tx_buf->type = dma_map ? MTK_TYPE_XDP_NDO : MTK_TYPE_XDP_TX;
 	tx_buf->data = xdpf;
 
 	if (!MTK_HAS_CAPS(soc->caps, MTK_QDMA)) {
+		txd_pdma = qdma_to_pdma(ring, txd);
 		if (index & 1)
 			txd_pdma->txd2 |= TX_DMA_LS0;
 		else
