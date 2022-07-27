@@ -205,6 +205,17 @@ config CORESIGHT_REMOTE_ETM
 	  tracing on remote processor via sysfs by configuring the required
 	  CoreSight components.
 
+config CORESIGHT_TGU
+	tristate "CoreSight Trigger Generation Unit driver"
+	help
+	  This driver provides support for Trigger Generation Unit that is
+	  used to detect patterns or sequences on a given set of signals.
+	  TGU is used to monitor a particular bus within a given region to
+	  detect illegal transaction sequences or slave responses. It is also
+	  used to monitor a data stream to detect protocol violations and to
+	  provide a trigger point for centering data around a specific event
+	  within the trace data buffer.
+
 config CORESIGHT_TRBE
 	tristate "Trace Buffer Extension (TRBE) driver"
 	depends on ARM64 && CORESIGHT_SOURCE_ETM4X
