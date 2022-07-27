@@ -3335,6 +3335,18 @@ u32 mlxsw_core_read_frc_l(struct mlxsw_core *mlxsw_core)
 }
 EXPORT_SYMBOL(mlxsw_core_read_frc_l);
 
+u32 mlxsw_core_read_utc_sec(struct mlxsw_core *mlxsw_core)
+{
+	return mlxsw_core->bus->read_utc_sec(mlxsw_core->bus_priv);
+}
+EXPORT_SYMBOL(mlxsw_core_read_utc_sec);
+
+u32 mlxsw_core_read_utc_nsec(struct mlxsw_core *mlxsw_core)
+{
+	return mlxsw_core->bus->read_utc_nsec(mlxsw_core->bus_priv);
+}
+EXPORT_SYMBOL(mlxsw_core_read_utc_nsec);
+
 bool mlxsw_core_sdq_supports_cqe_v2(struct mlxsw_core *mlxsw_core)
 {
 	return mlxsw_core->driver->sdq_supports_cqe_v2;

@@ -438,6 +438,9 @@ int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 u32 mlxsw_core_read_frc_h(struct mlxsw_core *mlxsw_core);
 u32 mlxsw_core_read_frc_l(struct mlxsw_core *mlxsw_core);
 
+u32 mlxsw_core_read_utc_sec(struct mlxsw_core *mlxsw_core);
+u32 mlxsw_core_read_utc_nsec(struct mlxsw_core *mlxsw_core);
+
 bool mlxsw_core_sdq_supports_cqe_v2(struct mlxsw_core *mlxsw_core);
 
 void mlxsw_core_emad_string_tlv_enable(struct mlxsw_core *mlxsw_core);
@@ -479,6 +482,8 @@ struct mlxsw_bus {
 			u8 *p_status);
 	u32 (*read_frc_h)(void *bus_priv);
 	u32 (*read_frc_l)(void *bus_priv);
+	u32 (*read_utc_sec)(void *bus_priv);
+	u32 (*read_utc_nsec)(void *bus_priv);
 	u8 features;
 };
 
