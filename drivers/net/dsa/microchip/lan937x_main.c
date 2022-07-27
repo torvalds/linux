@@ -234,6 +234,8 @@ int lan937x_reset_switch(struct ksz_device *dev)
 
 void lan937x_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
+	const u32 *masks = dev->info->masks;
+	const u16 *regs = dev->info->regs;
 	struct dsa_switch *ds = dev->ds;
 	u8 member;
 
@@ -254,8 +256,9 @@ void lan937x_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 	lan937x_port_cfg(dev, port, P_PRIO_CTRL, PORT_802_1P_PRIO_ENABLE, true);
 
 	if (!dev->info->internal_phy[port])
-		lan937x_port_cfg(dev, port, REG_PORT_XMII_CTRL_0,
-				 PORT_MII_TX_FLOW_CTRL | PORT_MII_RX_FLOW_CTRL,
+		lan937x_port_cfg(dev, port, regs[P_XMII_CTRL_0],
+				 masks[P_MII_TX_FLOW_CTRL] |
+				 masks[P_MII_RX_FLOW_CTRL],
 				 true);
 
 	if (cpu_port)
@@ -312,75 +315,43 @@ int lan937x_change_mtu(struct ksz_device *dev, int port, int new_mtu)
 	return 0;
 }
 
-static void lan937x_config_gbit(struct ksz_device *dev, bool gbit, u8 *data)
+static void lan937x_set_tune_adj(struct ksz_device *dev, int port,
+				 u16 reg, u8 val)
 {
-	if (gbit)
-		*data &= ~PORT_MII_NOT_1GBIT;
-	else
-		*data |= PORT_MII_NOT_1GBIT;
+	u16 data16;
+
+	ksz_pread16(dev, port, reg, &data16);
+
+	/* Update tune Adjust */
+	data16 |= FIELD_PREP(PORT_TUNE_ADJ, val);
+	ksz_pwrite16(dev, port, reg, data16);
+
+	/* write DLL reset to take effect */
+	data16 |= PORT_DLL_RESET;
+	ksz_pwrite16(dev, port, reg, data16);
 }
 
-static void lan937x_mac_config(struct ksz_device *dev, int port,
-			       phy_interface_t interface)
+static void lan937x_set_rgmii_tx_delay(struct ksz_device *dev, int port)
 {
-	u8 data8;
+	u8 val;
 
-	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &data8);
+	/* Apply different codes based on the ports as per characterization
+	 * results
+	 */
+	val = (port == LAN937X_RGMII_1_PORT) ? RGMII_1_TX_DELAY_2NS :
+		RGMII_2_TX_DELAY_2NS;
 
-	/* clear MII selection & set it based on interface later */
-	data8 &= ~PORT_MII_SEL_M;
-
-	/* configure MAC based on interface */
-	switch (interface) {
-	case PHY_INTERFACE_MODE_MII:
-		lan937x_config_gbit(dev, false, &data8);
-		data8 |= PORT_MII_SEL;
-		break;
-	case PHY_INTERFACE_MODE_RMII:
-		lan937x_config_gbit(dev, false, &data8);
-		data8 |= PORT_RMII_SEL;
-		break;
-	default:
-		dev_err(dev->dev, "Unsupported interface '%s' for port %d\n",
-			phy_modes(interface), port);
-		return;
-	}
-
-	/* Write the updated value */
-	ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_1, data8);
+	lan937x_set_tune_adj(dev, port, REG_PORT_XMII_CTRL_5, val);
 }
 
-static void lan937x_config_interface(struct ksz_device *dev, int port,
-				     int speed, int duplex,
-				     bool tx_pause, bool rx_pause)
+static void lan937x_set_rgmii_rx_delay(struct ksz_device *dev, int port)
 {
-	u8 xmii_ctrl0, xmii_ctrl1;
+	u8 val;
 
-	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_0, &xmii_ctrl0);
-	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &xmii_ctrl1);
+	val = (port == LAN937X_RGMII_1_PORT) ? RGMII_1_RX_DELAY_2NS :
+		RGMII_2_RX_DELAY_2NS;
 
-	xmii_ctrl0 &= ~(PORT_MII_100MBIT | PORT_MII_FULL_DUPLEX |
-			PORT_MII_TX_FLOW_CTRL | PORT_MII_RX_FLOW_CTRL);
-
-	if (speed == SPEED_1000)
-		lan937x_config_gbit(dev, true, &xmii_ctrl1);
-	else
-		lan937x_config_gbit(dev, false, &xmii_ctrl1);
-
-	if (speed == SPEED_100)
-		xmii_ctrl0 |= PORT_MII_100MBIT;
-
-	if (duplex)
-		xmii_ctrl0 |= PORT_MII_FULL_DUPLEX;
-
-	if (tx_pause)
-		xmii_ctrl0 |= PORT_MII_TX_FLOW_CTRL;
-
-	if (rx_pause)
-		xmii_ctrl0 |= PORT_MII_RX_FLOW_CTRL;
-
-	ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_0, xmii_ctrl0);
-	ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_1, xmii_ctrl1);
+	lan937x_set_tune_adj(dev, port, REG_PORT_XMII_CTRL_4, val);
 }
 
 void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
@@ -395,33 +366,21 @@ void lan937x_phylink_get_caps(struct ksz_device *dev, int port,
 	}
 }
 
-void lan937x_phylink_mac_link_up(struct ksz_device *dev, int port,
-				 unsigned int mode, phy_interface_t interface,
-				 struct phy_device *phydev, int speed,
-				 int duplex, bool tx_pause, bool rx_pause)
+void lan937x_setup_rgmii_delay(struct ksz_device *dev, int port)
 {
-	/* Internal PHYs */
-	if (dev->info->internal_phy[port])
-		return;
+	struct ksz_port *p = &dev->ports[port];
 
-	lan937x_config_interface(dev, port, speed, duplex,
-				 tx_pause, rx_pause);
-}
-
-void lan937x_phylink_mac_config(struct ksz_device *dev, int port,
-				unsigned int mode,
-				const struct phylink_link_state *state)
-{
-	/* Internal PHYs */
-	if (dev->info->internal_phy[port])
-		return;
-
-	if (phylink_autoneg_inband(mode)) {
-		dev_err(dev->dev, "In-band AN not supported!\n");
-		return;
+	if (p->rgmii_tx_val) {
+		lan937x_set_rgmii_tx_delay(dev, port);
+		dev_info(dev->dev, "Applied rgmii tx delay for the port %d\n",
+			 port);
 	}
 
-	lan937x_mac_config(dev, port, state->interface);
+	if (p->rgmii_rx_val) {
+		lan937x_set_rgmii_rx_delay(dev, port);
+		dev_info(dev->dev, "Applied rgmii rx delay for the port %d\n",
+			 port);
+	}
 }
 
 int lan937x_setup(struct dsa_switch *ds)

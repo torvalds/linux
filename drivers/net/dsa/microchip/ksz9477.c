@@ -19,11 +19,6 @@
 #include "ksz_common.h"
 #include "ksz9477.h"
 
-/* Used with variable features to indicate capabilities. */
-#define GBIT_SUPPORT			BIT(0)
-#define NEW_XMII			BIT(1)
-#define IS_9893				BIT(2)
-
 static void ksz_cfg(struct ksz_device *dev, u32 addr, u8 bits, bool set)
 {
 	regmap_update_bits(dev->regmap[0], addr, bits, set ? bits : 0);
@@ -866,142 +861,18 @@ void ksz9477_port_mirror_del(struct ksz_device *dev, int port,
 			     PORT_MIRROR_SNIFFER, false);
 }
 
-static bool ksz9477_get_gbit(struct ksz_device *dev, u8 data)
-{
-	bool gbit;
-
-	if (dev->features & NEW_XMII)
-		gbit = !(data & PORT_MII_NOT_1GBIT);
-	else
-		gbit = !!(data & PORT_MII_1000MBIT_S1);
-	return gbit;
-}
-
-static void ksz9477_set_gbit(struct ksz_device *dev, bool gbit, u8 *data)
-{
-	if (dev->features & NEW_XMII) {
-		if (gbit)
-			*data &= ~PORT_MII_NOT_1GBIT;
-		else
-			*data |= PORT_MII_NOT_1GBIT;
-	} else {
-		if (gbit)
-			*data |= PORT_MII_1000MBIT_S1;
-		else
-			*data &= ~PORT_MII_1000MBIT_S1;
-	}
-}
-
-static int ksz9477_get_xmii(struct ksz_device *dev, u8 data)
-{
-	int mode;
-
-	if (dev->features & NEW_XMII) {
-		switch (data & PORT_MII_SEL_M) {
-		case PORT_MII_SEL:
-			mode = 0;
-			break;
-		case PORT_RMII_SEL:
-			mode = 1;
-			break;
-		case PORT_GMII_SEL:
-			mode = 2;
-			break;
-		default:
-			mode = 3;
-		}
-	} else {
-		switch (data & PORT_MII_SEL_M) {
-		case PORT_MII_SEL_S1:
-			mode = 0;
-			break;
-		case PORT_RMII_SEL_S1:
-			mode = 1;
-			break;
-		case PORT_GMII_SEL_S1:
-			mode = 2;
-			break;
-		default:
-			mode = 3;
-		}
-	}
-	return mode;
-}
-
-static void ksz9477_set_xmii(struct ksz_device *dev, int mode, u8 *data)
-{
-	u8 xmii;
-
-	if (dev->features & NEW_XMII) {
-		switch (mode) {
-		case 0:
-			xmii = PORT_MII_SEL;
-			break;
-		case 1:
-			xmii = PORT_RMII_SEL;
-			break;
-		case 2:
-			xmii = PORT_GMII_SEL;
-			break;
-		default:
-			xmii = PORT_RGMII_SEL;
-			break;
-		}
-	} else {
-		switch (mode) {
-		case 0:
-			xmii = PORT_MII_SEL_S1;
-			break;
-		case 1:
-			xmii = PORT_RMII_SEL_S1;
-			break;
-		case 2:
-			xmii = PORT_GMII_SEL_S1;
-			break;
-		default:
-			xmii = PORT_RGMII_SEL_S1;
-			break;
-		}
-	}
-	*data &= ~PORT_MII_SEL_M;
-	*data |= xmii;
-}
-
 static phy_interface_t ksz9477_get_interface(struct ksz_device *dev, int port)
 {
 	phy_interface_t interface;
 	bool gbit;
-	int mode;
-	u8 data8;
 
 	if (port < dev->phy_port_cnt)
 		return PHY_INTERFACE_MODE_NA;
-	ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &data8);
-	gbit = ksz9477_get_gbit(dev, data8);
-	mode = ksz9477_get_xmii(dev, data8);
-	switch (mode) {
-	case 2:
-		interface = PHY_INTERFACE_MODE_GMII;
-		if (gbit)
-			break;
-		fallthrough;
-	case 0:
-		interface = PHY_INTERFACE_MODE_MII;
-		break;
-	case 1:
-		interface = PHY_INTERFACE_MODE_RMII;
-		break;
-	default:
-		interface = PHY_INTERFACE_MODE_RGMII;
-		if (data8 & PORT_RGMII_ID_EG_ENABLE)
-			interface = PHY_INTERFACE_MODE_RGMII_TXID;
-		if (data8 & PORT_RGMII_ID_IG_ENABLE) {
-			interface = PHY_INTERFACE_MODE_RGMII_RXID;
-			if (data8 & PORT_RGMII_ID_EG_ENABLE)
-				interface = PHY_INTERFACE_MODE_RGMII_ID;
-		}
-		break;
-	}
+
+	gbit = ksz_get_gbit(dev, port);
+
+	interface = ksz_get_xmii(dev, port, gbit);
+
 	return interface;
 }
 
@@ -1073,10 +944,9 @@ void ksz9477_get_caps(struct ksz_device *dev, int port,
 
 void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
-	struct ksz_port *p = &dev->ports[port];
 	struct dsa_switch *ds = dev->ds;
-	u8 data8, member;
 	u16 data16;
+	u8 member;
 
 	/* enable tag tail for host port */
 	if (cpu_port)
@@ -1116,44 +986,6 @@ void ksz9477_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 		ksz_port_cfg(dev, port, REG_PORT_CTRL_0,
 			     PORT_FORCE_TX_FLOW_CTRL | PORT_FORCE_RX_FLOW_CTRL,
 			     true);
-
-		/* configure MAC to 1G & RGMII mode */
-		ksz_pread8(dev, port, REG_PORT_XMII_CTRL_1, &data8);
-		switch (p->interface) {
-		case PHY_INTERFACE_MODE_MII:
-			ksz9477_set_xmii(dev, 0, &data8);
-			ksz9477_set_gbit(dev, false, &data8);
-			p->phydev.speed = SPEED_100;
-			break;
-		case PHY_INTERFACE_MODE_RMII:
-			ksz9477_set_xmii(dev, 1, &data8);
-			ksz9477_set_gbit(dev, false, &data8);
-			p->phydev.speed = SPEED_100;
-			break;
-		case PHY_INTERFACE_MODE_GMII:
-			ksz9477_set_xmii(dev, 2, &data8);
-			ksz9477_set_gbit(dev, true, &data8);
-			p->phydev.speed = SPEED_1000;
-			break;
-		default:
-			ksz9477_set_xmii(dev, 3, &data8);
-			ksz9477_set_gbit(dev, true, &data8);
-			data8 &= ~PORT_RGMII_ID_IG_ENABLE;
-			data8 &= ~PORT_RGMII_ID_EG_ENABLE;
-			if (p->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-			    p->interface == PHY_INTERFACE_MODE_RGMII_RXID)
-				data8 |= PORT_RGMII_ID_IG_ENABLE;
-			if (p->interface == PHY_INTERFACE_MODE_RGMII_ID ||
-			    p->interface == PHY_INTERFACE_MODE_RGMII_TXID)
-				data8 |= PORT_RGMII_ID_EG_ENABLE;
-			/* On KSZ9893, disable RGMII in-band status support */
-			if (dev->features & IS_9893)
-				data8 &= ~PORT_MII_MAC_MODE;
-			p->phydev.speed = SPEED_1000;
-			break;
-		}
-		ksz_pwrite8(dev, port, REG_PORT_XMII_CTRL_1, data8);
-		p->phydev.duplex = 1;
 	}
 
 	if (cpu_port)
@@ -1341,9 +1173,6 @@ int ksz9477_switch_init(struct ksz_device *dev)
 			dev->features &= ~GBIT_SUPPORT;
 		dev->phy_port_cnt = 2;
 	} else {
-		/* Chip uses new XMII register definitions. */
-		dev->features |= NEW_XMII;
-
 		/* Chip does not support gigabit. */
 		if (!(data8 & SW_GIGABIT_ABLE))
 			dev->features &= ~GBIT_SUPPORT;

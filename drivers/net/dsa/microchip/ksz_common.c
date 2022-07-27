@@ -222,8 +222,7 @@ static const struct ksz_dev_ops lan937x_dev_ops = {
 	.mirror_add = ksz9477_port_mirror_add,
 	.mirror_del = ksz9477_port_mirror_del,
 	.get_caps = lan937x_phylink_get_caps,
-	.phylink_mac_config = lan937x_phylink_mac_config,
-	.phylink_mac_link_up = lan937x_phylink_mac_link_up,
+	.setup_rgmii_delay = lan937x_setup_rgmii_delay,
 	.fdb_dump = ksz9477_fdb_dump,
 	.fdb_add = ksz9477_fdb_add,
 	.fdb_del = ksz9477_fdb_del,
@@ -257,6 +256,8 @@ static const u16 ksz8795_regs[] = {
 	[S_START_CTRL]			= 0x01,
 	[S_BROADCAST_CTRL]		= 0x06,
 	[S_MULTICAST_CTRL]		= 0x04,
+	[P_XMII_CTRL_0]			= 0x06,
+	[P_XMII_CTRL_1]			= 0x56,
 };
 
 static const u32 ksz8795_masks[] = {
@@ -279,6 +280,24 @@ static const u32 ksz8795_masks[] = {
 	[DYNAMIC_MAC_TABLE_FID]		= GENMASK(26, 20),
 	[DYNAMIC_MAC_TABLE_SRC_PORT]	= GENMASK(26, 24),
 	[DYNAMIC_MAC_TABLE_TIMESTAMP]	= GENMASK(28, 27),
+	[P_MII_TX_FLOW_CTRL]		= BIT(5),
+	[P_MII_RX_FLOW_CTRL]		= BIT(5),
+};
+
+static const u8 ksz8795_xmii_ctrl0[] = {
+	[P_MII_100MBIT]			= 0,
+	[P_MII_10MBIT]			= 1,
+	[P_MII_FULL_DUPLEX]		= 0,
+	[P_MII_HALF_DUPLEX]		= 1,
+};
+
+static const u8 ksz8795_xmii_ctrl1[] = {
+	[P_RGMII_SEL]			= 3,
+	[P_GMII_SEL]			= 2,
+	[P_RMII_SEL]			= 1,
+	[P_MII_SEL]			= 0,
+	[P_GMII_1GBIT]			= 1,
+	[P_GMII_NOT_1GBIT]		= 0,
 };
 
 static const u8 ksz8795_shifts[] = {
@@ -351,20 +370,42 @@ static const u16 ksz9477_regs[] = {
 	[S_START_CTRL]			= 0x0300,
 	[S_BROADCAST_CTRL]		= 0x0332,
 	[S_MULTICAST_CTRL]		= 0x0331,
+	[P_XMII_CTRL_0]			= 0x0300,
+	[P_XMII_CTRL_1]			= 0x0301,
 };
 
 static const u32 ksz9477_masks[] = {
 	[ALU_STAT_WRITE]		= 0,
 	[ALU_STAT_READ]			= 1,
+	[P_MII_TX_FLOW_CTRL]		= BIT(5),
+	[P_MII_RX_FLOW_CTRL]		= BIT(3),
 };
 
 static const u8 ksz9477_shifts[] = {
 	[ALU_STAT_INDEX]		= 16,
 };
 
+static const u8 ksz9477_xmii_ctrl0[] = {
+	[P_MII_100MBIT]			= 1,
+	[P_MII_10MBIT]			= 0,
+	[P_MII_FULL_DUPLEX]		= 1,
+	[P_MII_HALF_DUPLEX]		= 0,
+};
+
+static const u8 ksz9477_xmii_ctrl1[] = {
+	[P_RGMII_SEL]			= 0,
+	[P_RMII_SEL]			= 1,
+	[P_GMII_SEL]			= 2,
+	[P_MII_SEL]			= 3,
+	[P_GMII_1GBIT]			= 0,
+	[P_GMII_NOT_1GBIT]		= 1,
+};
+
 static const u32 lan937x_masks[] = {
 	[ALU_STAT_WRITE]		= 1,
 	[ALU_STAT_READ]			= 2,
+	[P_MII_TX_FLOW_CTRL]		= BIT(5),
+	[P_MII_RX_FLOW_CTRL]		= BIT(3),
 };
 
 static const u8 lan937x_shifts[] = {
@@ -388,6 +429,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz8795_regs,
 		.masks = ksz8795_masks,
 		.shifts = ksz8795_shifts,
+		.xmii_ctrl0 = ksz8795_xmii_ctrl0,
+		.xmii_ctrl1 = ksz8795_xmii_ctrl1,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
@@ -424,6 +467,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz8795_regs,
 		.masks = ksz8795_masks,
 		.shifts = ksz8795_shifts,
+		.xmii_ctrl0 = ksz8795_xmii_ctrl0,
+		.xmii_ctrl1 = ksz8795_xmii_ctrl1,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
@@ -446,6 +491,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz8795_regs,
 		.masks = ksz8795_masks,
 		.shifts = ksz8795_shifts,
+		.xmii_ctrl0 = ksz8795_xmii_ctrl0,
+		.xmii_ctrl1 = ksz8795_xmii_ctrl1,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
@@ -488,6 +535,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = ksz9477_masks,
 		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii	= {false, false, false, false,
 				   false, true, false},
 		.supports_rmii	= {false, false, false, false,
@@ -514,6 +563,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = ksz9477_masks,
 		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii	= {false, false, false, false,
 				   false, true, true},
 		.supports_rmii	= {false, false, false, false,
@@ -539,6 +590,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = ksz9477_masks,
 		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz8795_xmii_ctrl1, /* Same as ksz8795 */
 		.supports_mii = {false, false, true},
 		.supports_rmii = {false, false, true},
 		.supports_rgmii = {false, false, true},
@@ -561,6 +614,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = ksz9477_masks,
 		.shifts = ksz9477_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii	= {false, false, false, false,
 				   false, true, true},
 		.supports_rmii	= {false, false, false, false,
@@ -586,6 +641,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = lan937x_masks,
 		.shifts = lan937x_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii = {false, false, false, false, true},
 		.supports_rmii = {false, false, false, false, true},
 		.supports_rgmii = {false, false, false, false, true},
@@ -607,6 +664,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = lan937x_masks,
 		.shifts = lan937x_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii = {false, false, false, false, true, true},
 		.supports_rmii = {false, false, false, false, true, true},
 		.supports_rgmii = {false, false, false, false, true, true},
@@ -628,6 +687,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = lan937x_masks,
 		.shifts = lan937x_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii	= {false, false, false, false,
 				   true, true, false, false},
 		.supports_rmii	= {false, false, false, false,
@@ -653,6 +714,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = lan937x_masks,
 		.shifts = lan937x_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii	= {false, false, false, false,
 				   true, true, false, false},
 		.supports_rmii	= {false, false, false, false,
@@ -678,6 +741,8 @@ const struct ksz_chip_data ksz_switch_chips[] = {
 		.regs = ksz9477_regs,
 		.masks = lan937x_masks,
 		.shifts = lan937x_shifts,
+		.xmii_ctrl0 = ksz9477_xmii_ctrl0,
+		.xmii_ctrl1 = ksz9477_xmii_ctrl1,
 		.supports_mii	= {false, false, false, false,
 				   true, true, false, false},
 		.supports_rmii	= {false, false, false, false,
@@ -1343,14 +1408,205 @@ static int ksz_max_mtu(struct dsa_switch *ds, int port)
 	return dev->dev_ops->max_mtu(dev, port);
 }
 
+static void ksz_set_xmii(struct ksz_device *dev, int port,
+			 phy_interface_t interface)
+{
+	const u8 *bitval = dev->info->xmii_ctrl1;
+	struct ksz_port *p = &dev->ports[port];
+	const u16 *regs = dev->info->regs;
+	u8 data8;
+
+	ksz_pread8(dev, port, regs[P_XMII_CTRL_1], &data8);
+
+	data8 &= ~(P_MII_SEL_M | P_RGMII_ID_IG_ENABLE |
+		   P_RGMII_ID_EG_ENABLE);
+
+	switch (interface) {
+	case PHY_INTERFACE_MODE_MII:
+		data8 |= bitval[P_MII_SEL];
+		break;
+	case PHY_INTERFACE_MODE_RMII:
+		data8 |= bitval[P_RMII_SEL];
+		break;
+	case PHY_INTERFACE_MODE_GMII:
+		data8 |= bitval[P_GMII_SEL];
+		break;
+	case PHY_INTERFACE_MODE_RGMII:
+	case PHY_INTERFACE_MODE_RGMII_ID:
+	case PHY_INTERFACE_MODE_RGMII_TXID:
+	case PHY_INTERFACE_MODE_RGMII_RXID:
+		data8 |= bitval[P_RGMII_SEL];
+		/* On KSZ9893, disable RGMII in-band status support */
+		if (dev->features & IS_9893)
+			data8 &= ~P_MII_MAC_MODE;
+		break;
+	default:
+		dev_err(dev->dev, "Unsupported interface '%s' for port %d\n",
+			phy_modes(interface), port);
+		return;
+	}
+
+	if (p->rgmii_tx_val)
+		data8 |= P_RGMII_ID_EG_ENABLE;
+
+	if (p->rgmii_rx_val)
+		data8 |= P_RGMII_ID_IG_ENABLE;
+
+	/* Write the updated value */
+	ksz_pwrite8(dev, port, regs[P_XMII_CTRL_1], data8);
+}
+
+phy_interface_t ksz_get_xmii(struct ksz_device *dev, int port, bool gbit)
+{
+	const u8 *bitval = dev->info->xmii_ctrl1;
+	const u16 *regs = dev->info->regs;
+	phy_interface_t interface;
+	u8 data8;
+	u8 val;
+
+	ksz_pread8(dev, port, regs[P_XMII_CTRL_1], &data8);
+
+	val = FIELD_GET(P_MII_SEL_M, data8);
+
+	if (val == bitval[P_MII_SEL]) {
+		if (gbit)
+			interface = PHY_INTERFACE_MODE_GMII;
+		else
+			interface = PHY_INTERFACE_MODE_MII;
+	} else if (val == bitval[P_RMII_SEL]) {
+		interface = PHY_INTERFACE_MODE_RGMII;
+	} else {
+		interface = PHY_INTERFACE_MODE_RGMII;
+		if (data8 & P_RGMII_ID_EG_ENABLE)
+			interface = PHY_INTERFACE_MODE_RGMII_TXID;
+		if (data8 & P_RGMII_ID_IG_ENABLE) {
+			interface = PHY_INTERFACE_MODE_RGMII_RXID;
+			if (data8 & P_RGMII_ID_EG_ENABLE)
+				interface = PHY_INTERFACE_MODE_RGMII_ID;
+		}
+	}
+
+	return interface;
+}
+
 static void ksz_phylink_mac_config(struct dsa_switch *ds, int port,
 				   unsigned int mode,
 				   const struct phylink_link_state *state)
 {
 	struct ksz_device *dev = ds->priv;
 
+	if (ksz_is_ksz88x3(dev))
+		return;
+
+	/* Internal PHYs */
+	if (dev->info->internal_phy[port])
+		return;
+
+	if (phylink_autoneg_inband(mode)) {
+		dev_err(dev->dev, "In-band AN not supported!\n");
+		return;
+	}
+
+	ksz_set_xmii(dev, port, state->interface);
+
 	if (dev->dev_ops->phylink_mac_config)
 		dev->dev_ops->phylink_mac_config(dev, port, mode, state);
+
+	if (dev->dev_ops->setup_rgmii_delay)
+		dev->dev_ops->setup_rgmii_delay(dev, port);
+}
+
+bool ksz_get_gbit(struct ksz_device *dev, int port)
+{
+	const u8 *bitval = dev->info->xmii_ctrl1;
+	const u16 *regs = dev->info->regs;
+	bool gbit = false;
+	u8 data8;
+	bool val;
+
+	ksz_pread8(dev, port, regs[P_XMII_CTRL_1], &data8);
+
+	val = FIELD_GET(P_GMII_1GBIT_M, data8);
+
+	if (val == bitval[P_GMII_1GBIT])
+		gbit = true;
+
+	return gbit;
+}
+
+static void ksz_set_gbit(struct ksz_device *dev, int port, bool gbit)
+{
+	const u8 *bitval = dev->info->xmii_ctrl1;
+	const u16 *regs = dev->info->regs;
+	u8 data8;
+
+	ksz_pread8(dev, port, regs[P_XMII_CTRL_1], &data8);
+
+	data8 &= ~P_GMII_1GBIT_M;
+
+	if (gbit)
+		data8 |= FIELD_PREP(P_GMII_1GBIT_M, bitval[P_GMII_1GBIT]);
+	else
+		data8 |= FIELD_PREP(P_GMII_1GBIT_M, bitval[P_GMII_NOT_1GBIT]);
+
+	/* Write the updated value */
+	ksz_pwrite8(dev, port, regs[P_XMII_CTRL_1], data8);
+}
+
+static void ksz_set_100_10mbit(struct ksz_device *dev, int port, int speed)
+{
+	const u8 *bitval = dev->info->xmii_ctrl0;
+	const u16 *regs = dev->info->regs;
+	u8 data8;
+
+	ksz_pread8(dev, port, regs[P_XMII_CTRL_0], &data8);
+
+	data8 &= ~P_MII_100MBIT_M;
+
+	if (speed == SPEED_100)
+		data8 |= FIELD_PREP(P_MII_100MBIT_M, bitval[P_MII_100MBIT]);
+	else
+		data8 |= FIELD_PREP(P_MII_100MBIT_M, bitval[P_MII_10MBIT]);
+
+	/* Write the updated value */
+	ksz_pwrite8(dev, port, regs[P_XMII_CTRL_0], data8);
+}
+
+static void ksz_port_set_xmii_speed(struct ksz_device *dev, int port, int speed)
+{
+	if (speed == SPEED_1000)
+		ksz_set_gbit(dev, port, true);
+	else
+		ksz_set_gbit(dev, port, false);
+
+	if (speed == SPEED_100 || speed == SPEED_10)
+		ksz_set_100_10mbit(dev, port, speed);
+}
+
+static void ksz_duplex_flowctrl(struct ksz_device *dev, int port, int duplex,
+				bool tx_pause, bool rx_pause)
+{
+	const u8 *bitval = dev->info->xmii_ctrl0;
+	const u32 *masks = dev->info->masks;
+	const u16 *regs = dev->info->regs;
+	u8 mask;
+	u8 val;
+
+	mask = P_MII_DUPLEX_M | masks[P_MII_TX_FLOW_CTRL] |
+	       masks[P_MII_RX_FLOW_CTRL];
+
+	if (duplex == DUPLEX_FULL)
+		val = FIELD_PREP(P_MII_DUPLEX_M, bitval[P_MII_FULL_DUPLEX]);
+	else
+		val = FIELD_PREP(P_MII_DUPLEX_M, bitval[P_MII_HALF_DUPLEX]);
+
+	if (tx_pause)
+		val |= masks[P_MII_TX_FLOW_CTRL];
+
+	if (rx_pause)
+		val |= masks[P_MII_RX_FLOW_CTRL];
+
+	ksz_prmw8(dev, port, regs[P_XMII_CTRL_0], mask, val);
 }
 
 static void ksz_phylink_mac_link_up(struct dsa_switch *ds, int port,
@@ -1360,6 +1616,19 @@ static void ksz_phylink_mac_link_up(struct dsa_switch *ds, int port,
 				    int duplex, bool tx_pause, bool rx_pause)
 {
 	struct ksz_device *dev = ds->priv;
+	struct ksz_port *p;
+
+	p = &dev->ports[port];
+
+	/* Internal PHYs */
+	if (dev->info->internal_phy[port])
+		return;
+
+	p->phydev.speed = speed;
+
+	ksz_port_set_xmii_speed(dev, port, speed);
+
+	ksz_duplex_flowctrl(dev, port, duplex, tx_pause, rx_pause);
 
 	if (dev->dev_ops->phylink_mac_link_up)
 		dev->dev_ops->phylink_mac_link_up(dev, port, mode, interface,
@@ -1494,6 +1763,43 @@ struct ksz_device *ksz_switch_alloc(struct device *base, void *priv)
 }
 EXPORT_SYMBOL(ksz_switch_alloc);
 
+static void ksz_parse_rgmii_delay(struct ksz_device *dev, int port_num,
+				  struct device_node *port_dn)
+{
+	phy_interface_t phy_mode = dev->ports[port_num].interface;
+	int rx_delay = -1, tx_delay = -1;
+
+	if (!phy_interface_mode_is_rgmii(phy_mode))
+		return;
+
+	of_property_read_u32(port_dn, "rx-internal-delay-ps", &rx_delay);
+	of_property_read_u32(port_dn, "tx-internal-delay-ps", &tx_delay);
+
+	if (rx_delay == -1 && tx_delay == -1) {
+		dev_warn(dev->dev,
+			 "Port %d interpreting RGMII delay settings based on \"phy-mode\" property, "
+			 "please update device tree to specify \"rx-internal-delay-ps\" and "
+			 "\"tx-internal-delay-ps\"",
+			 port_num);
+
+		if (phy_mode == PHY_INTERFACE_MODE_RGMII_RXID ||
+		    phy_mode == PHY_INTERFACE_MODE_RGMII_ID)
+			rx_delay = 2000;
+
+		if (phy_mode == PHY_INTERFACE_MODE_RGMII_TXID ||
+		    phy_mode == PHY_INTERFACE_MODE_RGMII_ID)
+			tx_delay = 2000;
+	}
+
+	if (rx_delay < 0)
+		rx_delay = 0;
+	if (tx_delay < 0)
+		tx_delay = 0;
+
+	dev->ports[port_num].rgmii_rx_val = rx_delay;
+	dev->ports[port_num].rgmii_tx_val = tx_delay;
+}
+
 int ksz_switch_register(struct ksz_device *dev)
 {
 	const struct ksz_chip_data *info;
@@ -1591,6 +1897,8 @@ int ksz_switch_register(struct ksz_device *dev)
 				}
 				of_get_phy_mode(port,
 						&dev->ports[port_num].interface);
+
+				ksz_parse_rgmii_delay(dev, port_num, port);
 			}
 			of_node_put(ports);
 		}

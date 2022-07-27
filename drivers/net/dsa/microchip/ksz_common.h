@@ -51,6 +51,8 @@ struct ksz_chip_data {
 	const u16 *regs;
 	const u32 *masks;
 	const u8 *shifts;
+	const u8 *xmii_ctrl0;
+	const u8 *xmii_ctrl1;
 	int stp_ctrl_reg;
 	int broadcast_ctrl_reg;
 	int multicast_ctrl_reg;
@@ -77,6 +79,8 @@ struct ksz_port {
 	struct ksz_port_mib mib;
 	phy_interface_t interface;
 	u16 max_frame;
+	u32 rgmii_tx_val;
+	u32 rgmii_rx_val;
 };
 
 struct ksz_device {
@@ -169,6 +173,8 @@ enum ksz_regs {
 	S_START_CTRL,
 	S_BROADCAST_CTRL,
 	S_MULTICAST_CTRL,
+	P_XMII_CTRL_0,
+	P_XMII_CTRL_1,
 };
 
 enum ksz_masks {
@@ -193,6 +199,8 @@ enum ksz_masks {
 	DYNAMIC_MAC_TABLE_TIMESTAMP,
 	ALU_STAT_WRITE,
 	ALU_STAT_READ,
+	P_MII_TX_FLOW_CTRL,
+	P_MII_RX_FLOW_CTRL,
 };
 
 enum ksz_shifts {
@@ -206,6 +214,22 @@ enum ksz_shifts {
 	DYNAMIC_MAC_TIMESTAMP,
 	DYNAMIC_MAC_SRC_PORT,
 	ALU_STAT_INDEX,
+};
+
+enum ksz_xmii_ctrl0 {
+	P_MII_100MBIT,
+	P_MII_10MBIT,
+	P_MII_FULL_DUPLEX,
+	P_MII_HALF_DUPLEX,
+};
+
+enum ksz_xmii_ctrl1 {
+	P_RGMII_SEL,
+	P_RMII_SEL,
+	P_GMII_SEL,
+	P_MII_SEL,
+	P_GMII_1GBIT,
+	P_GMII_NOT_1GBIT,
 };
 
 struct alu_struct {
@@ -279,6 +303,7 @@ struct ksz_dev_ops {
 				    phy_interface_t interface,
 				    struct phy_device *phydev, int speed,
 				    int duplex, bool tx_pause, bool rx_pause);
+	void (*setup_rgmii_delay)(struct ksz_device *dev, int port);
 	void (*config_cpu_port)(struct dsa_switch *ds);
 	int (*enable_stp_addr)(struct ksz_device *dev);
 	int (*reset)(struct ksz_device *dev);
@@ -293,6 +318,8 @@ void ksz_switch_remove(struct ksz_device *dev);
 void ksz_init_mib_timer(struct ksz_device *dev);
 void ksz_r_mib_stats64(struct ksz_device *dev, int port);
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
+bool ksz_get_gbit(struct ksz_device *dev, int port);
+phy_interface_t ksz_get_xmii(struct ksz_device *dev, int port, bool gbit);
 extern const struct ksz_chip_data ksz_switch_chips[];
 
 /* Common register access functions */
@@ -399,6 +426,14 @@ static inline void ksz_pwrite32(struct ksz_device *dev, int port, int offset,
 	ksz_write32(dev, dev->dev_ops->get_port_addr(port, offset), data);
 }
 
+static inline void ksz_prmw8(struct ksz_device *dev, int port, int offset,
+			     u8 mask, u8 val)
+{
+	regmap_update_bits(dev->regmap[0],
+			   dev->dev_ops->get_port_addr(port, offset),
+			   mask, val);
+}
+
 static inline void ksz_regmap_lock(void *__mtx)
 {
 	struct mutex *mtx = __mtx;
@@ -409,6 +444,11 @@ static inline void ksz_regmap_unlock(void *__mtx)
 {
 	struct mutex *mtx = __mtx;
 	mutex_unlock(mtx);
+}
+
+static inline bool ksz_is_ksz88x3(struct ksz_device *dev)
+{
+	return dev->chip_id == KSZ8830_CHIP_ID;
 }
 
 static inline int is_lan937x(struct ksz_device *dev)
@@ -455,6 +495,20 @@ static inline int is_lan937x(struct ksz_device *dev)
 #define MULTICAST_STORM_DISABLE		BIT(6)
 
 #define SW_START			0x01
+
+/* Used with variable features to indicate capabilities. */
+#define GBIT_SUPPORT			BIT(0)
+#define IS_9893				BIT(2)
+
+/* xMII configuration */
+#define P_MII_DUPLEX_M			BIT(6)
+#define P_MII_100MBIT_M			BIT(4)
+
+#define P_GMII_1GBIT_M			BIT(6)
+#define P_RGMII_ID_IG_ENABLE		BIT(4)
+#define P_RGMII_ID_EG_ENABLE		BIT(3)
+#define P_MII_MAC_MODE			BIT(2)
+#define P_MII_SEL_M			0x3
 
 /* Regmap tables generation */
 #define KSZ_SPI_OP_RD		3

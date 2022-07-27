@@ -131,24 +131,16 @@
 #define REG_PORT_T1_PHY_CTRL_BASE	0x0100
 
 /* 3 - xMII */
-#define REG_PORT_XMII_CTRL_0		0x0300
 #define PORT_SGMII_SEL			BIT(7)
-#define PORT_MII_FULL_DUPLEX		BIT(6)
-#define PORT_MII_TX_FLOW_CTRL		BIT(5)
-#define PORT_MII_100MBIT		BIT(4)
-#define PORT_MII_RX_FLOW_CTRL		BIT(3)
 #define PORT_GRXC_ENABLE		BIT(0)
 
-#define REG_PORT_XMII_CTRL_1		0x0301
-#define PORT_MII_NOT_1GBIT		BIT(6)
 #define PORT_MII_SEL_EDGE		BIT(5)
-#define PORT_RGMII_ID_IG_ENABLE		BIT(4)
-#define PORT_RGMII_ID_EG_ENABLE		BIT(3)
-#define PORT_MII_MAC_MODE		BIT(2)
-#define PORT_MII_SEL_M			0x3
-#define PORT_RGMII_SEL			0x0
-#define PORT_RMII_SEL			0x1
-#define PORT_MII_SEL			0x2
+
+#define REG_PORT_XMII_CTRL_4		0x0304
+#define REG_PORT_XMII_CTRL_5		0x0306
+
+#define PORT_DLL_RESET			BIT(15)
+#define PORT_TUNE_ADJ			GENMASK(13, 7)
 
 /* 4 - MAC */
 #define REG_PORT_MAC_CTRL_0		0x0400
@@ -174,6 +166,18 @@
 #define PORT_ACL_PRIO_ENABLE		BIT(0)
 
 #define P_PRIO_CTRL			REG_PORT_MRI_PRIO_CTRL
+
+/* The port number as per the datasheet */
+#define RGMII_2_PORT_NUM		5
+#define RGMII_1_PORT_NUM		6
+
+#define LAN937X_RGMII_2_PORT		(RGMII_2_PORT_NUM - 1)
+#define LAN937X_RGMII_1_PORT		(RGMII_1_PORT_NUM - 1)
+
+#define RGMII_1_TX_DELAY_2NS		2
+#define RGMII_2_TX_DELAY_2NS		0
+#define RGMII_1_RX_DELAY_2NS		0x1B
+#define RGMII_2_RX_DELAY_2NS		0x14
 
 #define LAN937X_TAG_LEN			2
 
