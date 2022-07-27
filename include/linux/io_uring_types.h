@@ -249,9 +249,6 @@ struct io_ring_ctx {
 		struct xarray		io_bl_xa;
 		struct list_head	io_buffers_cache;
 
-		/* struct io_notif cache, protected by uring_lock */
-		struct list_head	notif_list;
-
 		struct io_hash_table	cancel_table_locked;
 		struct list_head	cq_overflow_list;
 		struct io_alloc_cache	apoll_cache;
@@ -261,10 +258,6 @@ struct io_ring_ctx {
 	/* IRQ completion list, under ->completion_lock */
 	struct io_wq_work_list	locked_free_list;
 	unsigned int		locked_free_nr;
-
-	/* struct io_notif cache protected by completion_lock */
-	struct list_head	notif_list_locked;
-	unsigned int		notif_locked_nr;
 
 	const struct cred	*sq_creds;	/* cred used for __io_sq_thread() */
 	struct io_sq_data	*sq_data;	/* if using sq thread polling */

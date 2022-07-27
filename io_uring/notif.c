@@ -9,140 +9,79 @@
 #include "notif.h"
 #include "rsrc.h"
 
-static void __io_notif_complete_tw(struct callback_head *cb)
+static void __io_notif_complete_tw(struct io_kiocb *notif, bool *locked)
 {
-	struct io_notif *notif = container_of(cb, struct io_notif, task_work);
-	struct io_rsrc_node *rsrc_node = notif->rsrc_node;
+	struct io_notif_data *nd = io_notif_to_data(notif);
 	struct io_ring_ctx *ctx = notif->ctx;
 
-	if (notif->account_pages && ctx->user) {
-		__io_unaccount_mem(ctx->user, notif->account_pages);
-		notif->account_pages = 0;
+	if (nd->account_pages && ctx->user) {
+		__io_unaccount_mem(ctx->user, nd->account_pages);
+		nd->account_pages = 0;
 	}
-	if (likely(notif->task)) {
-		io_put_task(notif->task, 1);
-		notif->task = NULL;
-	}
-
-	io_cq_lock(ctx);
-	io_fill_cqe_aux(ctx, notif->tag, 0, notif->seq, true);
-
-	list_add(&notif->cache_node, &ctx->notif_list_locked);
-	ctx->notif_locked_nr++;
-	io_cq_unlock_post(ctx);
-
-	io_rsrc_put_node(rsrc_node, 1);
-	percpu_ref_put(&ctx->refs);
+	io_req_task_complete(notif, locked);
 }
 
-static inline void io_notif_complete(struct io_notif *notif)
+static inline void io_notif_complete(struct io_kiocb *notif)
+	__must_hold(&notif->ctx->uring_lock)
 {
-	__io_notif_complete_tw(&notif->task_work);
-}
+	bool locked = true;
 
-static void io_notif_complete_wq(struct work_struct *work)
-{
-	struct io_notif *notif = container_of(work, struct io_notif, commit_work);
-
-	io_notif_complete(notif);
+	__io_notif_complete_tw(notif, &locked);
 }
 
 static void io_uring_tx_zerocopy_callback(struct sk_buff *skb,
 					  struct ubuf_info *uarg,
 					  bool success)
 {
-	struct io_notif *notif = container_of(uarg, struct io_notif, uarg);
+	struct io_notif_data *nd = container_of(uarg, struct io_notif_data, uarg);
+	struct io_kiocb *notif = cmd_to_io_kiocb(nd);
 
-	if (!refcount_dec_and_test(&uarg->refcnt))
-		return;
-
-	if (likely(notif->task)) {
-		init_task_work(&notif->task_work, __io_notif_complete_tw);
-		if (likely(!task_work_add(notif->task, &notif->task_work,
-					  TWA_SIGNAL)))
-			return;
-	}
-
-	INIT_WORK(&notif->commit_work, io_notif_complete_wq);
-	queue_work(system_unbound_wq, &notif->commit_work);
-}
-
-static void io_notif_splice_cached(struct io_ring_ctx *ctx)
-	__must_hold(&ctx->uring_lock)
-{
-	spin_lock(&ctx->completion_lock);
-	list_splice_init(&ctx->notif_list_locked, &ctx->notif_list);
-	ctx->notif_locked_nr = 0;
-	spin_unlock(&ctx->completion_lock);
-}
-
-void io_notif_cache_purge(struct io_ring_ctx *ctx)
-	__must_hold(&ctx->uring_lock)
-{
-	io_notif_splice_cached(ctx);
-
-	while (!list_empty(&ctx->notif_list)) {
-		struct io_notif *notif = list_first_entry(&ctx->notif_list,
-						struct io_notif, cache_node);
-
-		list_del(&notif->cache_node);
-		kfree(notif);
+	if (refcount_dec_and_test(&uarg->refcnt)) {
+		notif->io_task_work.func = __io_notif_complete_tw;
+		io_req_task_work_add(notif);
 	}
 }
 
-static inline bool io_notif_has_cached(struct io_ring_ctx *ctx)
-	__must_hold(&ctx->uring_lock)
-{
-	if (likely(!list_empty(&ctx->notif_list)))
-		return true;
-	if (data_race(READ_ONCE(ctx->notif_locked_nr) <= IO_NOTIF_SPLICE_BATCH))
-		return false;
-	io_notif_splice_cached(ctx);
-	return !list_empty(&ctx->notif_list);
-}
-
-struct io_notif *io_alloc_notif(struct io_ring_ctx *ctx,
+struct io_kiocb *io_alloc_notif(struct io_ring_ctx *ctx,
 				struct io_notif_slot *slot)
 	__must_hold(&ctx->uring_lock)
 {
-	struct io_notif *notif;
+	struct io_kiocb *notif;
+	struct io_notif_data *nd;
 
-	if (likely(io_notif_has_cached(ctx))) {
-		notif = list_first_entry(&ctx->notif_list,
-					 struct io_notif, cache_node);
-		list_del(&notif->cache_node);
-	} else {
-		notif = kzalloc(sizeof(*notif), GFP_ATOMIC | __GFP_ACCOUNT);
-		if (!notif)
-			return NULL;
-		/* pre-initialise some fields */
-		notif->ctx = ctx;
-		notif->uarg.flags = SKBFL_ZEROCOPY_FRAG | SKBFL_DONT_ORPHAN;
-		notif->uarg.callback = io_uring_tx_zerocopy_callback;
-		notif->account_pages = 0;
-	}
+	if (unlikely(!io_alloc_req_refill(ctx)))
+		return NULL;
+	notif = io_alloc_req(ctx);
+	notif->opcode = IORING_OP_NOP;
+	notif->flags = 0;
+	notif->file = NULL;
+	notif->task = current;
+	io_get_task_refs(1);
+	notif->rsrc_node = NULL;
+	io_req_set_rsrc_node(notif, ctx, 0);
+	notif->cqe.user_data = slot->tag;
+	notif->cqe.flags = slot->seq++;
+	notif->cqe.res = 0;
 
-	notif->seq = slot->seq++;
-	notif->tag = slot->tag;
+	nd = io_notif_to_data(notif);
+	nd->account_pages = 0;
+	nd->uarg.flags = SKBFL_ZEROCOPY_FRAG | SKBFL_DONT_ORPHAN;
+	nd->uarg.callback = io_uring_tx_zerocopy_callback;
 	/* master ref owned by io_notif_slot, will be dropped on flush */
-	refcount_set(&notif->uarg.refcnt, 1);
-	percpu_ref_get(&ctx->refs);
-	notif->rsrc_node = ctx->rsrc_node;
-	io_charge_rsrc_node(ctx);
+	refcount_set(&nd->uarg.refcnt, 1);
 	return notif;
 }
 
 void io_notif_slot_flush(struct io_notif_slot *slot)
 	__must_hold(&ctx->uring_lock)
 {
-	struct io_notif *notif = slot->notif;
+	struct io_kiocb *notif = slot->notif;
+	struct io_notif_data *nd = io_notif_to_data(notif);
 
 	slot->notif = NULL;
 
-	if (WARN_ON_ONCE(in_interrupt()))
-		return;
 	/* drop slot's master ref */
-	if (refcount_dec_and_test(&notif->uarg.refcnt))
+	if (refcount_dec_and_test(&nd->uarg.refcnt))
 		io_notif_complete(notif);
 }
 
@@ -156,18 +95,22 @@ __cold int io_notif_unregister(struct io_ring_ctx *ctx)
 
 	for (i = 0; i < ctx->nr_notif_slots; i++) {
 		struct io_notif_slot *slot = &ctx->notif_slots[i];
+		struct io_kiocb *notif = slot->notif;
+		struct io_notif_data *nd;
 
-		if (!slot->notif)
+		if (!notif)
 			continue;
-		if (WARN_ON_ONCE(slot->notif->task))
-			slot->notif->task = NULL;
-		io_notif_slot_flush(slot);
+		nd = io_kiocb_to_cmd(notif);
+		slot->notif = NULL;
+		if (!refcount_dec_and_test(&nd->uarg.refcnt))
+			continue;
+		notif->io_task_work.func = __io_notif_complete_tw;
+		io_req_task_work_add(notif);
 	}
 
 	kvfree(ctx->notif_slots);
 	ctx->notif_slots = NULL;
 	ctx->nr_notif_slots = 0;
-	io_notif_cache_purge(ctx);
 	return 0;
 }
 
@@ -179,6 +122,8 @@ __cold int io_notif_register(struct io_ring_ctx *ctx,
 	struct io_uring_notification_slot slot;
 	struct io_uring_notification_register reg;
 	unsigned i;
+
+	BUILD_BUG_ON(sizeof(struct io_notif_data) > 64);
 
 	if (ctx->nr_notif_slots)
 		return -EBUSY;
