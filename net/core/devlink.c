@@ -2642,8 +2642,7 @@ static int devlink_nl_cmd_sb_pool_get_dumpit(struct sk_buff *msg,
 
 	mutex_lock(&devlink_mutex);
 	devlinks_xa_for_each_registered_get(sock_net(msg->sk), index, devlink) {
-		if (!net_eq(devlink_net(devlink), sock_net(msg->sk)) ||
-		    !devlink->ops->sb_pool_get)
+		if (!devlink->ops->sb_pool_get)
 			goto retry;
 
 		devl_lock(devlink);
