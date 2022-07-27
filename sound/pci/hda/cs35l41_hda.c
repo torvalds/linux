@@ -1014,6 +1014,7 @@ static int cs35l41_hda_apply_properties(struct cs35l41_hda *cs35l41)
 			break;
 		case CS35L41_INTERRUPT:
 			using_irq = true;
+			hw_cfg->gpio2.func = CS35L41_GPIO2_INT_OPEN_DRAIN;
 			break;
 		default:
 			dev_err(cs35l41->dev, "Invalid GPIO2 function %d\n", hw_cfg->gpio2.func);
@@ -1273,7 +1274,7 @@ no_acpi_dsd:
 	cs35l41->reset_gpio = gpiod_get_index(physdev, NULL, 0, GPIOD_OUT_HIGH);
 	cs35l41->hw_cfg.bst_type = CS35L41_EXT_BOOST_NO_VSPK_SWITCH;
 	cs35l41->speaker_id = cs35l41_get_speaker_id(physdev, 0, 0, 2);
-	hw_cfg->gpio2.func = CS35L41_GPIO2_INT_OPEN_DRAIN;
+	hw_cfg->gpio2.func = CS35L41_INTERRUPT;
 	hw_cfg->gpio2.valid = true;
 	cs35l41->hw_cfg.valid = true;
 	put_device(physdev);
