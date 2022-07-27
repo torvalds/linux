@@ -850,6 +850,10 @@ static const struct net_device_ops can327_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops can327_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static bool can327_is_valid_rx_char(u8 c)
 {
 	static const bool lut_char_is_valid['z'] = {
@@ -1034,6 +1038,7 @@ static int can327_ldisc_open(struct tty_struct *tty)
 	/* Configure netdev interface */
 	elm->dev = dev;
 	dev->netdev_ops = &can327_netdev_ops;
+	dev->ethtool_ops = &can327_ethtool_ops;
 
 	/* Mark ldisc channel as alive */
 	elm->tty = tty;

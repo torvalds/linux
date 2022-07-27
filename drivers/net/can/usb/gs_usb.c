@@ -946,6 +946,7 @@ static int gs_usb_set_phys_id(struct net_device *dev,
 
 static const struct ethtool_ops gs_usb_ethtool_ops = {
 	.set_phys_id = gs_usb_set_phys_id,
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 static struct gs_can *gs_make_candev(unsigned int channel,
@@ -989,6 +990,7 @@ static struct gs_can *gs_make_candev(unsigned int channel,
 	dev = netdev_priv(netdev);
 
 	netdev->netdev_ops = &gs_usb_netdev_ops;
+	netdev->ethtool_ops = &gs_usb_ethtool_ops;
 
 	netdev->flags |= IFF_ECHO; /* we support full roundtrip echo */
 

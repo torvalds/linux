@@ -5,6 +5,7 @@
  * Copyright (C) 2010-2012 esd electronic system design gmbh, Matthias Fuchs <socketcan@esd.eu>
  * Copyright (C) 2022 esd electronics gmbh, Frank Jungclaus <frank.jungclaus@esd.eu>
  */
+#include <linux/ethtool.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -882,6 +883,10 @@ static const struct net_device_ops esd_usb_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops esd_usb_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static const struct can_bittiming_const esd_usb2_bittiming_const = {
 	.name = "esd_usb2",
 	.tseg1_min = ESD_USB2_TSEG1_MIN,
@@ -1015,6 +1020,7 @@ static int esd_usb_probe_one_net(struct usb_interface *intf, int index)
 	netdev->flags |= IFF_ECHO; /* we support local echo */
 
 	netdev->netdev_ops = &esd_usb_netdev_ops;
+	netdev->ethtool_ops = &esd_usb_ethtool_ops;
 
 	SET_NETDEV_DEV(netdev, &intf->dev);
 	netdev->dev_id = index;

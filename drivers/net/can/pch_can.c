@@ -6,6 +6,7 @@
 
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/ethtool.h>
 #include <linux/io.h>
 #include <linux/module.h>
 #include <linux/sched.h>
@@ -938,6 +939,10 @@ static const struct net_device_ops pch_can_netdev_ops = {
 	.ndo_change_mtu		= can_change_mtu,
 };
 
+static const struct ethtool_ops pch_can_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static void pch_can_remove(struct pci_dev *pdev)
 {
 	struct net_device *ndev = pci_get_drvdata(pdev);
@@ -1188,6 +1193,7 @@ static int pch_can_probe(struct pci_dev *pdev,
 	pci_set_drvdata(pdev, ndev);
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 	ndev->netdev_ops = &pch_can_netdev_ops;
+	ndev->ethtool_ops = &pch_can_ethtool_ops;
 	priv->can.clock.freq = PCH_CAN_CLK; /* Hz */
 
 	netif_napi_add_weight(ndev, &priv->napi, pch_can_poll, PCH_RX_OBJ_END);

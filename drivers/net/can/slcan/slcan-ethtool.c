@@ -57,4 +57,5 @@ const struct ethtool_ops slcan_ethtool_ops = {
 	.get_priv_flags = slcan_get_priv_flags,
 	.set_priv_flags = slcan_set_priv_flags,
 	.get_sset_count = slcan_get_sset_count,
+	.get_ts_info = ethtool_op_get_ts_info,
 };

@@ -26,4 +26,5 @@ static void c_can_get_ringparam(struct net_device *netdev,
 
 const struct ethtool_ops c_can_ethtool_ops = {
 	.get_ringparam = c_can_get_ringparam,
+	.get_ts_info = ethtool_op_get_ts_info,
 };

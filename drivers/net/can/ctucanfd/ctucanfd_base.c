@@ -19,6 +19,7 @@
 
 #include <linux/clk.h>
 #include <linux/errno.h>
+#include <linux/ethtool.h>
 #include <linux/init.h>
 #include <linux/bitfield.h>
 #include <linux/interrupt.h>
@@ -1301,6 +1302,10 @@ static const struct net_device_ops ctucan_netdev_ops = {
 	.ndo_change_mtu	= can_change_mtu,
 };
 
+static const struct ethtool_ops ctucan_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 int ctucan_suspend(struct device *dev)
 {
 	struct net_device *ndev = dev_get_drvdata(dev);
@@ -1377,6 +1382,7 @@ int ctucan_probe_common(struct device *dev, void __iomem *addr, int irq, unsigne
 		set_drvdata_fnc(dev, ndev);
 	SET_NETDEV_DEV(ndev, dev);
 	ndev->netdev_ops = &ctucan_netdev_ops;
+	ndev->ethtool_ops = &ctucan_ethtool_ops;
 
 	/* Getting the can_clk info */
 	if (!can_clk_rate) {

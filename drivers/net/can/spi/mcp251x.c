@@ -26,6 +26,7 @@
 #include <linux/completion.h>
 #include <linux/delay.h>
 #include <linux/device.h>
+#include <linux/ethtool.h>
 #include <linux/freezer.h>
 #include <linux/gpio.h>
 #include <linux/gpio/driver.h>
@@ -1248,6 +1249,10 @@ static const struct net_device_ops mcp251x_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops mcp251x_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static const struct of_device_id mcp251x_of_match[] = {
 	{
 		.compatible	= "microchip,mcp2510",
@@ -1313,6 +1318,7 @@ static int mcp251x_can_probe(struct spi_device *spi)
 		goto out_free;
 
 	net->netdev_ops = &mcp251x_netdev_ops;
+	net->ethtool_ops = &mcp251x_ethtool_ops;
 	net->flags |= IFF_ECHO;
 
 	priv = netdev_priv(net);

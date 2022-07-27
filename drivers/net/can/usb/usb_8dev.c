@@ -12,6 +12,7 @@
  * who were very cooperative and answered my questions.
  */
 
+#include <linux/ethtool.h>
 #include <linux/signal.h>
 #include <linux/slab.h>
 #include <linux/module.h>
@@ -870,6 +871,10 @@ static const struct net_device_ops usb_8dev_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops usb_8dev_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static const struct can_bittiming_const usb_8dev_bittiming_const = {
 	.name = KBUILD_MODNAME,
 	.tseg1_min = 1,
@@ -927,6 +932,7 @@ static int usb_8dev_probe(struct usb_interface *intf,
 				      CAN_CTRLMODE_CC_LEN8_DLC;
 
 	netdev->netdev_ops = &usb_8dev_netdev_ops;
+	netdev->ethtool_ops = &usb_8dev_ethtool_ops;
 
 	netdev->flags |= IFF_ECHO; /* we support local echo */
 

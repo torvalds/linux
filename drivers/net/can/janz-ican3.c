@@ -9,6 +9,7 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/delay.h>
+#include <linux/ethtool.h>
 #include <linux/platform_device.h>
 
 #include <linux/netdevice.h>
@@ -1754,6 +1755,10 @@ static const struct net_device_ops ican3_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops ican3_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 /*
  * Low-level CAN Device
  */
@@ -1925,6 +1930,7 @@ static int ican3_probe(struct platform_device *pdev)
 	mod->free_page = DPM_FREE_START;
 
 	ndev->netdev_ops = &ican3_netdev_ops;
+	ndev->ethtool_ops = &ican3_ethtool_ops;
 	ndev->flags |= IFF_ECHO;
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
