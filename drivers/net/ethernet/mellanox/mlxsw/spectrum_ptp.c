@@ -11,6 +11,7 @@
 #include <linux/if_ether.h>
 #include <linux/if_vlan.h>
 #include <linux/net_tstamp.h>
+#include <linux/refcount.h>
 
 #include "spectrum.h"
 #include "spectrum_ptp.h"
@@ -41,6 +42,10 @@ struct mlxsw_sp1_ptp_state {
 
 struct mlxsw_sp2_ptp_state {
 	struct mlxsw_sp_ptp_state common;
+	refcount_t ptp_port_enabled_ref; /* Number of ports with time stamping
+					  * enabled.
+					  */
+	struct hwtstamp_config config;
 };
 
 struct mlxsw_sp1_ptp_key {
@@ -1368,6 +1373,7 @@ struct mlxsw_sp_ptp_state *mlxsw_sp2_ptp_init(struct mlxsw_sp *mlxsw_sp)
 	if (err)
 		goto err_ptp_traps_set;
 
+	refcount_set(&ptp_state->ptp_port_enabled_ref, 0);
 	return &ptp_state->common;
 
 err_ptp_traps_set:
@@ -1446,6 +1452,208 @@ void mlxsw_sp2_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
 				    &hwtstamps);
 	skb_tstamp_tx(skb, &hwtstamps);
 	dev_kfree_skb_any(skb);
+}
+
+int mlxsw_sp2_ptp_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,
+			       struct hwtstamp_config *config)
+{
+	struct mlxsw_sp2_ptp_state *ptp_state;
+
+	ptp_state = mlxsw_sp2_ptp_state(mlxsw_sp_port->mlxsw_sp);
+
+	*config = ptp_state->config;
+	return 0;
+}
+
+static int
+mlxsw_sp2_ptp_get_message_types(const struct hwtstamp_config *config,
+				u16 *p_ing_types, u16 *p_egr_types,
+				enum hwtstamp_rx_filters *p_rx_filter)
+{
+	enum hwtstamp_rx_filters rx_filter = config->rx_filter;
+	enum hwtstamp_tx_types tx_type = config->tx_type;
+	u16 ing_types = 0x00;
+	u16 egr_types = 0x00;
+
+	*p_rx_filter = rx_filter;
+
+	switch (rx_filter) {
+	case HWTSTAMP_FILTER_NONE:
+		ing_types = 0x00;
+		break;
+	case HWTSTAMP_FILTER_PTP_V1_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L4_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_L2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V2_SYNC:
+	case HWTSTAMP_FILTER_PTP_V1_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L4_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_L2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V2_DELAY_REQ:
+	case HWTSTAMP_FILTER_PTP_V1_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L4_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_L2_EVENT:
+	case HWTSTAMP_FILTER_PTP_V2_EVENT:
+		/* In Spectrum-2 and above, all packets get time stamp by
+		 * default and the driver fill the time stamp only for event
+		 * packets. Return all event types even if only specific types
+		 * were required.
+		 */
+		ing_types = 0x0f;
+		*p_rx_filter = HWTSTAMP_FILTER_SOME;
+		break;
+	case HWTSTAMP_FILTER_ALL:
+	case HWTSTAMP_FILTER_SOME:
+	case HWTSTAMP_FILTER_NTP_ALL:
+		return -ERANGE;
+	default:
+		return -EINVAL;
+	}
+
+	switch (tx_type) {
+	case HWTSTAMP_TX_OFF:
+		egr_types = 0x00;
+		break;
+	case HWTSTAMP_TX_ON:
+		egr_types = 0x0f;
+		break;
+	case HWTSTAMP_TX_ONESTEP_SYNC:
+	case HWTSTAMP_TX_ONESTEP_P2P:
+		return -ERANGE;
+	default:
+		return -EINVAL;
+	}
+
+	*p_ing_types = ing_types;
+	*p_egr_types = egr_types;
+	return 0;
+}
+
+static int mlxsw_sp2_ptp_mtpcpc_set(struct mlxsw_sp *mlxsw_sp, bool ptp_trap_en,
+				    u16 ing_types, u16 egr_types)
+{
+	char mtpcpc_pl[MLXSW_REG_MTPCPC_LEN];
+
+	mlxsw_reg_mtpcpc_pack(mtpcpc_pl, false, 0, ptp_trap_en, ing_types,
+			      egr_types);
+	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(mtpcpc), mtpcpc_pl);
+}
+
+static int mlxsw_sp2_ptp_enable(struct mlxsw_sp *mlxsw_sp, u16 ing_types,
+				u16 egr_types,
+				struct hwtstamp_config new_config)
+{
+	struct mlxsw_sp2_ptp_state *ptp_state = mlxsw_sp2_ptp_state(mlxsw_sp);
+	int err;
+
+	err = mlxsw_sp2_ptp_mtpcpc_set(mlxsw_sp, true, ing_types, egr_types);
+	if (err)
+		return err;
+
+	ptp_state->config = new_config;
+	return 0;
+}
+
+static int mlxsw_sp2_ptp_disable(struct mlxsw_sp *mlxsw_sp,
+				 struct hwtstamp_config new_config)
+{
+	struct mlxsw_sp2_ptp_state *ptp_state = mlxsw_sp2_ptp_state(mlxsw_sp);
+	int err;
+
+	err = mlxsw_sp2_ptp_mtpcpc_set(mlxsw_sp, false, 0, 0);
+	if (err)
+		return err;
+
+	ptp_state->config = new_config;
+	return 0;
+}
+
+static int mlxsw_sp2_ptp_configure_port(struct mlxsw_sp_port *mlxsw_sp_port,
+					u16 ing_types, u16 egr_types,
+					struct hwtstamp_config new_config)
+{
+	struct mlxsw_sp2_ptp_state *ptp_state;
+	int err;
+
+	ASSERT_RTNL();
+
+	ptp_state = mlxsw_sp2_ptp_state(mlxsw_sp_port->mlxsw_sp);
+
+	if (refcount_inc_not_zero(&ptp_state->ptp_port_enabled_ref))
+		return 0;
+
+	err = mlxsw_sp2_ptp_enable(mlxsw_sp_port->mlxsw_sp, ing_types,
+				   egr_types, new_config);
+	if (err)
+		return err;
+
+	refcount_set(&ptp_state->ptp_port_enabled_ref, 1);
+
+	return 0;
+}
+
+static int mlxsw_sp2_ptp_deconfigure_port(struct mlxsw_sp_port *mlxsw_sp_port,
+					  struct hwtstamp_config new_config)
+{
+	struct mlxsw_sp2_ptp_state *ptp_state;
+	int err;
+
+	ASSERT_RTNL();
+
+	ptp_state = mlxsw_sp2_ptp_state(mlxsw_sp_port->mlxsw_sp);
+
+	if (!refcount_dec_and_test(&ptp_state->ptp_port_enabled_ref))
+		return 0;
+
+	err = mlxsw_sp2_ptp_disable(mlxsw_sp_port->mlxsw_sp, new_config);
+	if (err)
+		goto err_ptp_disable;
+
+	return 0;
+
+err_ptp_disable:
+	refcount_set(&ptp_state->ptp_port_enabled_ref, 1);
+	return err;
+}
+
+int mlxsw_sp2_ptp_hwtstamp_set(struct mlxsw_sp_port *mlxsw_sp_port,
+			       struct hwtstamp_config *config)
+{
+	enum hwtstamp_rx_filters rx_filter;
+	struct hwtstamp_config new_config;
+	u16 new_ing_types, new_egr_types;
+	bool ptp_enabled;
+	int err;
+
+	err = mlxsw_sp2_ptp_get_message_types(config, &new_ing_types,
+					      &new_egr_types, &rx_filter);
+	if (err)
+		return err;
+
+	new_config.flags = config->flags;
+	new_config.tx_type = config->tx_type;
+	new_config.rx_filter = rx_filter;
+
+	ptp_enabled = mlxsw_sp_port->ptp.ing_types ||
+		      mlxsw_sp_port->ptp.egr_types;
+
+	if ((new_ing_types || new_egr_types) && !ptp_enabled) {
+		err = mlxsw_sp2_ptp_configure_port(mlxsw_sp_port, new_ing_types,
+						   new_egr_types, new_config);
+		if (err)
+			return err;
+	} else if (!new_ing_types && !new_egr_types && ptp_enabled) {
+		err = mlxsw_sp2_ptp_deconfigure_port(mlxsw_sp_port, new_config);
+		if (err)
+			return err;
+	}
+
+	mlxsw_sp_port->ptp.ing_types = new_ing_types;
+	mlxsw_sp_port->ptp.egr_types = new_egr_types;
+
+	/* Notify the ioctl caller what we are actually timestamping. */
+	config->rx_filter = rx_filter;
+
+	return 0;
 }
 
 int mlxsw_sp_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
