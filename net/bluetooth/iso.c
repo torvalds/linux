@@ -1177,8 +1177,10 @@ static int iso_sock_setsockopt(struct socket *sock, int level, int optname,
 		}
 
 		len = min_t(unsigned int, sizeof(qos), optlen);
-		if (len != sizeof(qos))
-			return -EINVAL;
+		if (len != sizeof(qos)) {
+			err = -EINVAL;
+			break;
+		}
 
 		memset(&qos, 0, sizeof(qos));
 
