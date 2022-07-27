@@ -377,7 +377,6 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 			rtw_coex_media_status_notify(rtwdev, vif->cfg.assoc);
 			if (rtw_bf_support)
 				rtw_bf_assoc(rtwdev, vif, conf);
-			rtw_store_op_chan(rtwdev);
 		} else {
 			rtw_leave_lps(rtwdev);
 			rtw_bf_disassoc(rtwdev, vif, conf);
@@ -395,6 +394,10 @@ static void rtw_ops_bss_info_changed(struct ieee80211_hw *hw,
 	if (changed & BSS_CHANGED_BSSID) {
 		ether_addr_copy(rtwvif->bssid, conf->bssid);
 		config |= PORT_SET_BSSID;
+		if (is_zero_ether_addr(rtwvif->bssid))
+			rtw_clear_op_chan(rtwdev);
+		else
+			rtw_store_op_chan(rtwdev);
 	}
 
 	if (changed & BSS_CHANGED_BEACON_INT) {
