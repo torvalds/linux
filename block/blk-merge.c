@@ -331,18 +331,19 @@ split:
 struct bio *__bio_split_to_limits(struct bio *bio, struct request_queue *q,
 		       unsigned int *nr_segs)
 {
+	struct bio_set *bs = &bio->bi_bdev->bd_disk->bio_split;
 	struct bio *split;
 
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
 	case REQ_OP_SECURE_ERASE:
-		split = bio_split_discard(bio, q, nr_segs, &q->bio_split);
+		split = bio_split_discard(bio, q, nr_segs, bs);
 		break;
 	case REQ_OP_WRITE_ZEROES:
-		split = bio_split_write_zeroes(bio, q, nr_segs, &q->bio_split);
+		split = bio_split_write_zeroes(bio, q, nr_segs, bs);
 		break;
 	default:
-		split = bio_split_rw(bio, q, nr_segs, &q->bio_split);
+		split = bio_split_rw(bio, q, nr_segs, bs);
 		break;
 	}
 

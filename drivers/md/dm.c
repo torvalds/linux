@@ -1016,7 +1016,7 @@ static void dm_wq_requeue_work(struct work_struct *work)
 	while (io) {
 		struct dm_io *next = io->next;
 
-		dm_io_rewind(io, &md->queue->bio_split);
+		dm_io_rewind(io, &md->disk->bio_split);
 
 		io->next = NULL;
 		__dm_io_complete(io, false);
