@@ -23,7 +23,7 @@
 #include "core.h"
 #include "head.h"
 
-#include <nvif/cl507a.h>
+#include <nvif/if0014.h>
 #include <nvif/timer.h>
 
 #include <nvhw/class/cl507a.h>
@@ -150,8 +150,8 @@ curs507a_new_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
 	      int head, s32 oclass, u32 interlock_data,
 	      struct nv50_wndw **pwndw)
 {
-	struct nv50_disp_cursor_v0 args = {
-		.head = head,
+	struct nvif_disp_chan_v0 args = {
+		.id = head,
 	};
 	struct nv50_disp *disp = nv50_disp(drm->dev);
 	struct nv50_wndw *wndw;

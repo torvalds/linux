@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Red Hat Inc.
+ * Copyright 2021 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,34 +19,44 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "oimm.h"
+#include <nvif/outp.h>
+#include <nvif/disp.h>
+#include <nvif/printf.h>
 
-#include <nvif/if0014.h>
+#include <nvif/class.h>
+#include <nvif/if0012.h>
 
-static int
-oimm507b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
-	       s32 oclass, struct nv50_wndw *wndw)
+int
+nvif_outp_load_detect(struct nvif_outp *outp, u32 loadval)
 {
-	struct nvif_disp_chan_v0 args = {
-		.id = wndw->id,
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nvif_outp_load_detect_v0 args;
 	int ret;
 
-	ret = nvif_object_ctor(&disp->disp->object, "kmsOvim", 0, oclass,
-			       &args, sizeof(args), &wndw->wimm.base.user);
-	if (ret) {
-		NV_ERROR(drm, "oimm%04x allocation failed: %d\n", oclass, ret);
-		return ret;
-	}
+	args.version = 0;
+	args.data = loadval;
 
-	nvif_object_map(&wndw->wimm.base.user, NULL, 0);
-	wndw->immd = func;
-	return 0;
+	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_LOAD_DETECT, &args, sizeof(args));
+	NVIF_ERRON(ret, &outp->object, "[LOAD_DETECT data:%08x] load:%02x", args.data, args.load);
+	return ret < 0 ? ret : args.load;
+}
+
+void
+nvif_outp_dtor(struct nvif_outp *outp)
+{
+	nvif_object_dtor(&outp->object);
 }
 
 int
-oimm507b_init(struct nouveau_drm *drm, s32 oclass, struct nv50_wndw *wndw)
+nvif_outp_ctor(struct nvif_disp *disp, const char *name, int id, struct nvif_outp *outp)
 {
-	return oimm507b_init_(&curs507a, drm, oclass, wndw);
+	struct nvif_outp_v0 args;
+	int ret;
+
+	args.version = 0;
+	args.id = id;
+
+	ret = nvif_object_ctor(&disp->object, name ?: "nvifOutp", id, NVIF_CLASS_OUTP,
+			       &args, sizeof(args), &outp->object);
+	NVIF_ERRON(ret, &disp->object, "[NEW outp id:%d]", id);
+	return ret;
 }

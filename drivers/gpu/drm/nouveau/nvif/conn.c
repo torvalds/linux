@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Red Hat Inc.
+ * Copyright 2021 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -19,34 +19,44 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "oimm.h"
+#include <nvif/conn.h>
+#include <nvif/disp.h>
+#include <nvif/printf.h>
 
-#include <nvif/if0014.h>
+#include <nvif/class.h>
+#include <nvif/if0011.h>
 
-static int
-oimm507b_init_(const struct nv50_wimm_func *func, struct nouveau_drm *drm,
-	       s32 oclass, struct nv50_wndw *wndw)
+int
+nvif_conn_hpd_status(struct nvif_conn *conn)
 {
-	struct nvif_disp_chan_v0 args = {
-		.id = wndw->id,
-	};
-	struct nv50_disp *disp = nv50_disp(drm->dev);
+	struct nvif_conn_hpd_status_v0 args;
 	int ret;
 
-	ret = nvif_object_ctor(&disp->disp->object, "kmsOvim", 0, oclass,
-			       &args, sizeof(args), &wndw->wimm.base.user);
-	if (ret) {
-		NV_ERROR(drm, "oimm%04x allocation failed: %d\n", oclass, ret);
-		return ret;
-	}
+	args.version = 0;
 
-	nvif_object_map(&wndw->wimm.base.user, NULL, 0);
-	wndw->immd = func;
-	return 0;
+	ret = nvif_mthd(&conn->object, NVIF_CONN_V0_HPD_STATUS, &args, sizeof(args));
+	NVIF_ERRON(ret, &conn->object, "[HPD_STATUS] support:%d present:%d",
+		   args.support, args.present);
+	return ret ? ret : !!args.support + !!args.present;
+}
+
+void
+nvif_conn_dtor(struct nvif_conn *conn)
+{
+	nvif_object_dtor(&conn->object);
 }
 
 int
-oimm507b_init(struct nouveau_drm *drm, s32 oclass, struct nv50_wndw *wndw)
+nvif_conn_ctor(struct nvif_disp *disp, const char *name, int id, struct nvif_conn *conn)
 {
-	return oimm507b_init_(&curs507a, drm, oclass, wndw);
+	struct nvif_conn_v0 args;
+	int ret;
+
+	args.version = 0;
+	args.id = id;
+
+	ret = nvif_object_ctor(&disp->object, name ?: "nvifConn", id, NVIF_CLASS_CONN,
+			       &args, sizeof(args), &conn->object);
+	NVIF_ERRON(ret, &disp->object, "[NEW conn id:%d]", id);
+	return ret;
 }
