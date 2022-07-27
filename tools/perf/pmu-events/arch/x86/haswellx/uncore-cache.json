@@ -511,7 +511,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "AD",
+        "BriefDescription": "UNC_C_RING_SINK_STARVED.AD",
         "Counter": "0,1,2,3",
         "EventCode": "0x6",
         "EventName": "UNC_C_RING_SINK_STARVED.AD",
@@ -520,7 +520,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "AK",
+        "BriefDescription": "UNC_C_RING_SINK_STARVED.AK",
         "Counter": "0,1,2,3",
         "EventCode": "0x6",
         "EventName": "UNC_C_RING_SINK_STARVED.AK",
@@ -529,7 +529,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "IV",
+        "BriefDescription": "UNC_C_RING_SINK_STARVED.IV",
         "Counter": "0,1,2,3",
         "EventCode": "0x6",
         "EventName": "UNC_C_RING_SINK_STARVED.IV",
@@ -538,7 +538,7 @@
         "Unit": "CBO"
     },
     {
-        "BriefDescription": "BL",
+        "BriefDescription": "UNC_C_RING_SINK_STARVED.BL",
         "Counter": "0,1,2,3",
         "EventCode": "0x6",
         "EventName": "UNC_C_RING_SINK_STARVED.BL",
