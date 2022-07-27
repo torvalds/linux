@@ -288,7 +288,7 @@ ssize_t part_timeout_show(struct device *, struct device_attribute *, char *);
 ssize_t part_timeout_store(struct device *, struct device_attribute *,
 				const char *, size_t);
 
-static inline bool blk_may_split(struct request_queue *q, struct bio *bio)
+static inline bool bio_may_exceed_limits(struct bio *bio, struct request_queue *q)
 {
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
@@ -311,8 +311,8 @@ static inline bool blk_may_split(struct request_queue *q, struct bio *bio)
 		bio->bi_io_vec->bv_len + bio->bi_io_vec->bv_offset > PAGE_SIZE;
 }
 
-void __blk_queue_split(struct request_queue *q, struct bio **bio,
-			unsigned int *nr_segs);
+struct bio *__bio_split_to_limits(struct bio *bio, struct request_queue *q,
+		       unsigned int *nr_segs);
 int ll_back_merge_fn(struct request *req, struct bio *bio,
 		unsigned int nr_segs);
 bool blk_attempt_req_merge(struct request_queue *q, struct request *rq,
