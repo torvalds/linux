@@ -1,7 +1,6 @@
 Family-model,Version,Filename,EventType
 GenuineIntel-6-56,v5,broadwellde,core
-GenuineIntel-6-3D,v17,broadwell,core
-GenuineIntel-6-47,v17,broadwell,core
+GenuineIntel-6-(3D|47),v26,broadwell,core
 GenuineIntel-6-4F,v19,broadwellx,core
 GenuineIntel-6-1C,v4,bonnell,core
 GenuineIntel-6-26,v4,bonnell,core
