@@ -4760,7 +4760,7 @@ struct wcn36xx_hal_set_power_params_resp {
 
 /* Capability bitmap exchange definitions and macros starts */
 
-enum place_holder_in_cap_bitmap {
+enum wcn36xx_firmware_feat_caps {
 	MCC = 0,
 	P2P = 1,
 	DOT11AC = 2,

@@ -2431,7 +2431,7 @@ out:
 	return ret;
 }
 
-void set_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
+void set_feat_caps(u32 *bitmap, enum wcn36xx_firmware_feat_caps cap)
 {
 	int arr_idx, bit_idx;
 
@@ -2445,7 +2445,7 @@ void set_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
 	bitmap[arr_idx] |= (1 << bit_idx);
 }
 
-int get_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
+int get_feat_caps(u32 *bitmap, enum wcn36xx_firmware_feat_caps cap)
 {
 	int arr_idx, bit_idx;
 
@@ -2460,7 +2460,7 @@ int get_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
 	return (bitmap[arr_idx] & (1 << bit_idx)) ? 1 : 0;
 }
 
-void clear_feat_caps(u32 *bitmap, enum place_holder_in_cap_bitmap cap)
+void clear_feat_caps(u32 *bitmap, enum wcn36xx_firmware_feat_caps cap)
 {
 	int arr_idx, bit_idx;
 

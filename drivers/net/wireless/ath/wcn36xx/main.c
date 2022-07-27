@@ -260,7 +260,7 @@ static const char * const wcn36xx_caps_names[] = {
 
 #undef DEFINE
 
-static const char *wcn36xx_get_cap_name(enum place_holder_in_cap_bitmap x)
+static const char *wcn36xx_get_cap_name(enum wcn36xx_firmware_feat_caps x)
 {
 	if (x >= ARRAY_SIZE(wcn36xx_caps_names))
 		return "UNKNOWN";
