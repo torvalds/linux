@@ -57,7 +57,6 @@
         "EventCode": "0xb0",
         "EventName": "ARITH.IDIV_ACTIVE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
-        "PublicDescription": "ARITH.IDIV_ACTIVE",
         "SampleAfterValue": "1000003",
         "Speculative": "1",
         "UMask": "0x8"
@@ -229,7 +228,7 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "number of branch instructions retired that were mispredicted and taken. Non PEBS",
+        "BriefDescription": "number of branch instructions retired that were mispredicted and taken.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc5",
@@ -392,6 +391,18 @@
         "SampleAfterValue": "2000003",
         "Speculative": "1",
         "UMask": "0x3"
+    },
+    {
+        "BriefDescription": "Reference cycles when the core is not in halt state.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0x3c",
+        "EventName": "CPU_CLK_UNHALTED.REF_TSC_P",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. It is counted on a dedicated fixed counter, leaving the four (eight when Hyperthreading is disabled) programmable counters available for other events. Note: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
+        "SampleAfterValue": "2000003",
+        "Speculative": "1",
+        "UMask": "0x1"
     },
     {
         "BriefDescription": "Core cycles when the thread is not in halt state",
@@ -617,12 +628,13 @@
         "UMask": "0x10"
     },
     {
-        "BriefDescription": "Number of all retired NOP instructions.",
+        "BriefDescription": "Retired NOP instructions.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc0",
         "EventName": "INST_RETIRED.NOP",
         "PEBScounters": "1,2,3,4,5,6,7",
+        "PublicDescription": "Counts all retired NOP or ENDBR32/64 instructions",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
