@@ -558,11 +558,17 @@ enum mlxsw_devlink_param_id {
 	MLXSW_DEVLINK_PARAM_ID_ACL_REGION_REHASH_INTERVAL,
 };
 
+struct mlxsw_cqe_ts {
+	u8 sec;
+	u32 nsec;
+};
+
 struct mlxsw_skb_cb {
 	union {
 		struct mlxsw_tx_info tx_info;
 		struct mlxsw_rx_md_info rx_md_info;
 	};
+	struct mlxsw_cqe_ts cqe_ts;
 };
 
 static inline struct mlxsw_skb_cb *mlxsw_skb_cb(struct sk_buff *skb)

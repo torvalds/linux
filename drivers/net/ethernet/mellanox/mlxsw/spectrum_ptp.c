@@ -1386,6 +1386,68 @@ void mlxsw_sp2_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state_common)
 	kfree(ptp_state);
 }
 
+static u32 mlxsw_ptp_utc_time_stamp_sec_get(struct mlxsw_core *mlxsw_core,
+					    u8 cqe_ts_sec)
+{
+	u32 utc_sec = mlxsw_core_read_utc_sec(mlxsw_core);
+
+	if (cqe_ts_sec > (utc_sec & 0xff))
+		/* Time stamp above the last bits of UTC (UTC & 0xff) means the
+		 * latter has wrapped after the time stamp was collected.
+		 */
+		utc_sec -= 256;
+
+	utc_sec &= ~0xff;
+	utc_sec |= cqe_ts_sec;
+
+	return utc_sec;
+}
+
+static void mlxsw_sp2_ptp_hwtstamp_fill(struct mlxsw_core *mlxsw_core,
+					const struct mlxsw_skb_cb *cb,
+					struct skb_shared_hwtstamps *hwtstamps)
+{
+	u64 ts_sec, ts_nsec, nsec;
+
+	WARN_ON_ONCE(!cb->cqe_ts.sec && !cb->cqe_ts.nsec);
+
+	/* The time stamp in the CQE is represented by 38 bits, which is a short
+	 * representation of UTC time. Software should create the full time
+	 * stamp using the global UTC clock. The seconds have only 8 bits in the
+	 * CQE, to create the full time stamp, use the current UTC time and fix
+	 * the seconds according to the relation between UTC seconds and CQE
+	 * seconds.
+	 */
+	ts_sec = mlxsw_ptp_utc_time_stamp_sec_get(mlxsw_core, cb->cqe_ts.sec);
+	ts_nsec = cb->cqe_ts.nsec;
+
+	nsec = ts_sec * NSEC_PER_SEC + ts_nsec;
+
+	hwtstamps->hwtstamp = ns_to_ktime(nsec);
+}
+
+void mlxsw_sp2_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+			   u16 local_port)
+{
+	struct skb_shared_hwtstamps hwtstamps;
+
+	mlxsw_sp2_ptp_hwtstamp_fill(mlxsw_sp->core, mlxsw_skb_cb(skb),
+				    &hwtstamps);
+	*skb_hwtstamps(skb) = hwtstamps;
+	mlxsw_sp_rx_listener_no_mark_func(skb, local_port, mlxsw_sp);
+}
+
+void mlxsw_sp2_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
+			       struct sk_buff *skb, u16 local_port)
+{
+	struct skb_shared_hwtstamps hwtstamps;
+
+	mlxsw_sp2_ptp_hwtstamp_fill(mlxsw_sp->core, mlxsw_skb_cb(skb),
+				    &hwtstamps);
+	skb_tstamp_tx(skb, &hwtstamps);
+	dev_kfree_skb_any(skb);
+}
+
 int mlxsw_sp_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
 				 struct mlxsw_sp_port *mlxsw_sp_port,
 				 struct sk_buff *skb,

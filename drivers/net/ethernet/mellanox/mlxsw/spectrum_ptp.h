@@ -71,6 +71,12 @@ struct mlxsw_sp_ptp_state *mlxsw_sp2_ptp_init(struct mlxsw_sp *mlxsw_sp);
 
 void mlxsw_sp2_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state);
 
+void mlxsw_sp2_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
+			   u16 local_port);
+
+void mlxsw_sp2_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
+			       struct sk_buff *skb, u16 local_port);
+
 int mlxsw_sp2_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
 				  struct mlxsw_sp_port *mlxsw_sp_port,
 				  struct sk_buff *skb,
@@ -184,15 +190,6 @@ static inline void mlxsw_sp2_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 {
 }
 
-int mlxsw_sp2_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
-				  struct mlxsw_sp_port *mlxsw_sp_port,
-				  struct sk_buff *skb,
-				  const struct mlxsw_tx_info *tx_info)
-{
-	return -EOPNOTSUPP;
-}
-#endif
-
 static inline void mlxsw_sp2_ptp_receive(struct mlxsw_sp *mlxsw_sp,
 					 struct sk_buff *skb, u16 local_port)
 {
@@ -204,6 +201,15 @@ static inline void mlxsw_sp2_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
 {
 	dev_kfree_skb_any(skb);
 }
+
+int mlxsw_sp2_ptp_txhdr_construct(struct mlxsw_core *mlxsw_core,
+				  struct mlxsw_sp_port *mlxsw_sp_port,
+				  struct sk_buff *skb,
+				  const struct mlxsw_tx_info *tx_info)
+{
+	return -EOPNOTSUPP;
+}
+#endif
 
 static inline int
 mlxsw_sp2_ptp_hwtstamp_get(struct mlxsw_sp_port *mlxsw_sp_port,

@@ -513,9 +513,26 @@ static unsigned int mlxsw_pci_read32_off(struct mlxsw_pci *mlxsw_pci,
 	return ioread32be(mlxsw_pci->hw_addr + off);
 }
 
+static void mlxsw_pci_skb_cb_ts_set(struct mlxsw_pci *mlxsw_pci,
+				    struct sk_buff *skb,
+				    enum mlxsw_pci_cqe_v cqe_v, char *cqe)
+{
+	if (cqe_v != MLXSW_PCI_CQE_V2)
+		return;
+
+	if (mlxsw_pci_cqe2_time_stamp_type_get(cqe) !=
+	    MLXSW_PCI_CQE_TIME_STAMP_TYPE_UTC)
+		return;
+
+	mlxsw_skb_cb(skb)->cqe_ts.sec = mlxsw_pci_cqe2_time_stamp_sec_get(cqe);
+	mlxsw_skb_cb(skb)->cqe_ts.nsec =
+		mlxsw_pci_cqe2_time_stamp_nsec_get(cqe);
+}
+
 static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 				     struct mlxsw_pci_queue *q,
 				     u16 consumer_counter_limit,
+				     enum mlxsw_pci_cqe_v cqe_v,
 				     char *cqe)
 {
 	struct pci_dev *pdev = mlxsw_pci->pdev;
@@ -535,6 +552,7 @@ static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 
 	if (unlikely(!tx_info.is_emad &&
 		     skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		mlxsw_pci_skb_cb_ts_set(mlxsw_pci, skb, cqe_v, cqe);
 		mlxsw_core_ptp_transmitted(mlxsw_pci->core, skb,
 					   tx_info.local_port);
 		skb = NULL;
@@ -655,6 +673,8 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 		mlxsw_pci_cqe_rdq_md_tx_port_init(skb, cqe);
 	}
 
+	mlxsw_pci_skb_cb_ts_set(mlxsw_pci, skb, cqe_v, cqe);
+
 	byte_count = mlxsw_pci_cqe_byte_count_get(cqe);
 	if (mlxsw_pci_cqe_crc_get(cqe_v, cqe))
 		byte_count -= ETH_FCS_LEN;
@@ -706,7 +726,7 @@ static void mlxsw_pci_cq_tasklet(struct tasklet_struct *t)
 
 			sdq = mlxsw_pci_sdq_get(mlxsw_pci, dqn);
 			mlxsw_pci_cqe_sdq_handle(mlxsw_pci, sdq,
-						 wqe_counter, ncqe);
+						 wqe_counter, q->u.cq.v, ncqe);
 			q->u.cq.comp_sdq_count++;
 		} else {
 			struct mlxsw_pci_queue *rdq;
