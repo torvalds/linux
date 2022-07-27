@@ -106,7 +106,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_14_soc = {
 			.phyclk_mhz = 600.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 186.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 1,
@@ -115,7 +115,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_14_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 209.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 2,
@@ -124,7 +124,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_14_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 209.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 3,
@@ -133,7 +133,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_14_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 371.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 		{
 			.state = 4,
@@ -142,7 +142,7 @@ struct _vcs_dpi_soc_bounding_box_st dcn3_14_soc = {
 			.phyclk_mhz = 810.0,
 			.phyclk_d18_mhz = 667.0,
 			.dscclk_mhz = 417.0,
-			.dtbclk_mhz = 625.0,
+			.dtbclk_mhz = 600.0,
 		},
 	},
 	.num_states = 5,

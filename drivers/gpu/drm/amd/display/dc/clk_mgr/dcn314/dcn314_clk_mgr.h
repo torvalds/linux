@@ -42,7 +42,7 @@ struct clk_mgr_dcn314 {
 
 bool dcn314_are_clock_states_equal(struct dc_clocks *a,
 		struct dc_clocks *b);
-void dcn314_init_clocks(struct clk_mgr *clk_mgr);
+
 void dcn314_update_clocks(struct clk_mgr *clk_mgr_base,
 			struct dc_state *context,
 			bool safe_to_lower);

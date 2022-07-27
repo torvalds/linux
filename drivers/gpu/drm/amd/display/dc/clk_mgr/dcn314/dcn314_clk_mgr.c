@@ -307,16 +307,6 @@ static void dcn314_enable_pme_wa(struct clk_mgr *clk_mgr_base)
 	dcn314_smu_enable_pme_wa(clk_mgr);
 }
 
-void dcn314_init_clocks(struct clk_mgr *clk_mgr)
-{
-	memset(&(clk_mgr->clks), 0, sizeof(struct dc_clocks));
-	// Assumption is that boot state always supports pstate
-	clk_mgr->clks.p_state_change_support = true;
-	clk_mgr->clks.prev_p_state_change_support = true;
-	clk_mgr->clks.pwr_state = DCN_PWR_STATE_UNKNOWN;
-	clk_mgr->clks.zstate_support = DCN_ZSTATE_SUPPORT_UNKNOWN;
-}
-
 bool dcn314_are_clock_states_equal(struct dc_clocks *a,
 		struct dc_clocks *b)
 {
@@ -641,7 +631,7 @@ static struct clk_mgr_funcs dcn314_funcs = {
 	.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
 	.get_dtb_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
 	.update_clocks = dcn314_update_clocks,
-	.init_clocks = dcn314_init_clocks,
+	.init_clocks = dcn31_init_clocks,
 	.enable_pme_wa = dcn314_enable_pme_wa,
 	.are_clock_states_equal = dcn314_are_clock_states_equal,
 	.notify_wm_ranges = dcn314_notify_wm_ranges
