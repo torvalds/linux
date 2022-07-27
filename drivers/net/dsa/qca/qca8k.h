@@ -324,8 +324,13 @@ enum qca8k_mid_cmd {
 	QCA8K_MIB_CAST = 3,
 };
 
+struct qca8k_priv;
+
 struct qca8k_info_ops {
 	int (*autocast_mib)(struct dsa_switch *ds, int port, u64 *data);
+	/* TODO: remove these extra ops when we can support regmap bulk read/write */
+	int (*read_eth)(struct qca8k_priv *priv, u32 reg, u32 *val, int len);
+	int (*write_eth)(struct qca8k_priv *priv, u32 reg, u32 *val, int len);
 };
 
 struct qca8k_match_data {
@@ -430,5 +435,8 @@ extern const struct regmap_access_table qca8k_readable_table;
 int qca8k_read(struct qca8k_priv *priv, u32 reg, u32 *val);
 int qca8k_write(struct qca8k_priv *priv, u32 reg, u32 val);
 int qca8k_rmw(struct qca8k_priv *priv, u32 reg, u32 mask, u32 write_val);
+
+int qca8k_bulk_read(struct qca8k_priv *priv, u32 reg, u32 *val, int len);
+int qca8k_bulk_write(struct qca8k_priv *priv, u32 reg, u32 *val, int len);
 
 #endif /* __QCA8K_H */
