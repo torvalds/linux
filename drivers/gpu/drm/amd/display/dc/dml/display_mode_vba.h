@@ -247,43 +247,6 @@ struct dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport {
 	unsigned int LBLatencyHidingSourceLinesC[DC__NUM_DPP__MAX];
 };
 
-struct dml32_CalculatePrefetchSchedule {
-	unsigned int DPPCycles, DISPCLKCycles;
-	double DSTTotalPixelsAfterScaler;
-	double LineTime;
-	double dst_y_prefetch_equ;
-	double prefetch_bw_oto;
-	double Tvm_oto;
-	double Tr0_oto;
-	double Tvm_oto_lines;
-	double Tr0_oto_lines;
-	double dst_y_prefetch_oto;
-	double TimeForFetchingMetaPTE;
-	double TimeForFetchingRowInVBlank;
-	double LinesToRequestPrefetchPixelData;
-	unsigned int HostVMDynamicLevelsTrips;
-	double trip_to_mem;
-	double Tvm_trips;
-	double Tr0_trips;
-	double Tvm_trips_rounded;
-	double Tr0_trips_rounded;
-	double Lsw_oto;
-	double Tpre_rounded;
-	double prefetch_bw_equ;
-	double Tvm_equ;
-	double Tr0_equ;
-	double Tdmbf;
-	double Tdmec;
-	double Tdmsks;
-	double prefetch_sw_bytes;
-	double bytes_pp;
-	double dep_bytes;
-	unsigned int max_vratio_pre;
-	double min_Lsw;
-	double Tsw_est1;
-	double Tsw_est3;
-};
-
 struct DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation {
 	unsigned int dummy_integer_array[2][DC__NUM_DPP__MAX];
 	double dummy_single_array[2][DC__NUM_DPP__MAX];
@@ -358,7 +321,6 @@ struct dummy_vars {
 	struct dml32_CalculateSwathAndDETConfiguration dml32_CalculateSwathAndDETConfiguration;
 	struct dml32_CalculateVMRowAndSwath dml32_CalculateVMRowAndSwath;
 	struct dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport dml32_CalculateWatermarksMALLUseAndDRAMSpeedChangeSupport;
-	struct dml32_CalculatePrefetchSchedule dml32_CalculatePrefetchSchedule;
 };
 
 struct vba_vars_st {
