@@ -5,7 +5,6 @@
 #include <linux/module.h>
 #include <linux/err.h>
 #include <linux/types.h>
-#include <linux/err.h>
 #include <linux/auxiliary_bus.h>
 #include <linux/idr.h>
 #include <linux/gfp.h>
