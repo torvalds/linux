@@ -595,13 +595,13 @@ struct nfsd4_offload_status {
 struct nfsd4_copy_notify {
 	/* request */
 	stateid_t		cpn_src_stateid;
-	struct nl4_server	cpn_dst;
+	struct nl4_server	*cpn_dst;
 
 	/* response */
 	stateid_t		cpn_cnr_stateid;
 	u64			cpn_sec;
 	u32			cpn_nsec;
-	struct nl4_server	cpn_src;
+	struct nl4_server	*cpn_src;
 };
 
 struct nfsd4_op {
