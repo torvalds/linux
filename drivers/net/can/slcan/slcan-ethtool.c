@@ -52,14 +52,9 @@ static int slcan_get_sset_count(struct net_device *netdev, int sset)
 	}
 }
 
-static const struct ethtool_ops slcan_ethtool_ops = {
+const struct ethtool_ops slcan_ethtool_ops = {
 	.get_strings = slcan_get_strings,
 	.get_priv_flags = slcan_get_priv_flags,
 	.set_priv_flags = slcan_set_priv_flags,
 	.get_sset_count = slcan_get_sset_count,
 };
-
-void slcan_set_ethtool_ops(struct net_device *netdev)
-{
-	netdev->ethtool_ops = &slcan_ethtool_ops;
-}
