@@ -57,6 +57,9 @@ void mlxsw_sp1_get_stats_strings(u8 **p);
 void mlxsw_sp1_get_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 			 u64 *data, int data_index);
 
+struct mlxsw_sp_ptp_state *mlxsw_sp2_ptp_init(struct mlxsw_sp *mlxsw_sp);
+
+void mlxsw_sp2_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state);
 #else
 
 static inline struct mlxsw_sp_ptp_clock *
@@ -136,6 +139,16 @@ static inline void mlxsw_sp1_get_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 				       u64 *data, int data_index)
 {
 }
+
+static inline struct mlxsw_sp_ptp_state *
+mlxsw_sp2_ptp_init(struct mlxsw_sp *mlxsw_sp)
+{
+	return NULL;
+}
+
+static inline void mlxsw_sp2_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
+{
+}
 #endif
 
 static inline struct mlxsw_sp_ptp_clock *
@@ -145,16 +158,6 @@ mlxsw_sp2_ptp_clock_init(struct mlxsw_sp *mlxsw_sp, struct device *dev)
 }
 
 static inline void mlxsw_sp2_ptp_clock_fini(struct mlxsw_sp_ptp_clock *clock)
-{
-}
-
-static inline struct mlxsw_sp_ptp_state *
-mlxsw_sp2_ptp_init(struct mlxsw_sp *mlxsw_sp)
-{
-	return NULL;
-}
-
-static inline void mlxsw_sp2_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state)
 {
 }
 

@@ -39,6 +39,10 @@ struct mlxsw_sp1_ptp_state {
 	u32 gc_cycle;
 };
 
+struct mlxsw_sp2_ptp_state {
+	struct mlxsw_sp_ptp_state common;
+};
+
 struct mlxsw_sp1_ptp_key {
 	u16 local_port;
 	u8 message_type;
@@ -82,6 +86,13 @@ static struct mlxsw_sp1_ptp_state *
 mlxsw_sp1_ptp_state(struct mlxsw_sp *mlxsw_sp)
 {
 	return container_of(mlxsw_sp->ptp_state, struct mlxsw_sp1_ptp_state,
+			    common);
+}
+
+static struct mlxsw_sp2_ptp_state *
+mlxsw_sp2_ptp_state(struct mlxsw_sp *mlxsw_sp)
+{
+	return container_of(mlxsw_sp->ptp_state, struct mlxsw_sp2_ptp_state,
 			    common);
 }
 
@@ -1193,4 +1204,37 @@ void mlxsw_sp1_get_stats(struct mlxsw_sp_port *mlxsw_sp_port,
 		offset = mlxsw_sp_ptp_port_stats[i].offset;
 		*data++ = *(u64 *)(stats + offset);
 	}
+}
+
+struct mlxsw_sp_ptp_state *mlxsw_sp2_ptp_init(struct mlxsw_sp *mlxsw_sp)
+{
+	struct mlxsw_sp2_ptp_state *ptp_state;
+	int err;
+
+	ptp_state = kzalloc(sizeof(*ptp_state), GFP_KERNEL);
+	if (!ptp_state)
+		return ERR_PTR(-ENOMEM);
+
+	ptp_state->common.mlxsw_sp = mlxsw_sp;
+
+	err = mlxsw_sp_ptp_traps_set(mlxsw_sp);
+	if (err)
+		goto err_ptp_traps_set;
+
+	return &ptp_state->common;
+
+err_ptp_traps_set:
+	kfree(ptp_state);
+	return ERR_PTR(err);
+}
+
+void mlxsw_sp2_ptp_fini(struct mlxsw_sp_ptp_state *ptp_state_common)
+{
+	struct mlxsw_sp *mlxsw_sp = ptp_state_common->mlxsw_sp;
+	struct mlxsw_sp2_ptp_state *ptp_state;
+
+	ptp_state = mlxsw_sp2_ptp_state(mlxsw_sp);
+
+	mlxsw_sp_ptp_traps_unset(mlxsw_sp);
+	kfree(ptp_state);
 }
