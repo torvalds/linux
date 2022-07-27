@@ -187,11 +187,13 @@ static void pkvm_dump_backtrace(unsigned long hyp_offset)
 {
 	unsigned long *stacktrace
 		= (unsigned long *) this_cpu_ptr_nvhe_sym(pkvm_stacktrace);
-	int i, size = NVHE_STACKTRACE_SIZE / sizeof(long);
+	int i;
 
 	kvm_nvhe_dump_backtrace_start();
 	/* The saved stacktrace is terminated by a null entry */
-	for (i = 0; i < size && stacktrace[i]; i++)
+	for (i = 0;
+	     i < ARRAY_SIZE(kvm_nvhe_sym(pkvm_stacktrace)) && stacktrace[i];
+	     i++)
 		kvm_nvhe_dump_backtrace_entry((void *)hyp_offset, stacktrace[i]);
 	kvm_nvhe_dump_backtrace_end();
 }

@@ -103,14 +103,13 @@ static void notrace unwind(struct unwind_state *state,
 static bool pkvm_save_backtrace_entry(void *arg, unsigned long where)
 {
 	unsigned long *stacktrace = this_cpu_ptr(pkvm_stacktrace);
-	int size = NVHE_STACKTRACE_SIZE / sizeof(long);
 	int *idx = (int *)arg;
 
 	/*
 	 * Need 2 free slots: 1 for current entry and 1 for the
 	 * delimiter.
 	 */
-	if (*idx > size - 2)
+	if (*idx > ARRAY_SIZE(pkvm_stacktrace) - 2)
 		return false;
 
 	stacktrace[*idx] = where;
