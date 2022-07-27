@@ -21,6 +21,61 @@
 
 #include <asm/stacktrace/nvhe.h>
 
+static bool on_overflow_stack(unsigned long sp, unsigned long size,
+			      struct stack_info *info)
+{
+	struct kvm_nvhe_stacktrace_info *stacktrace_info
+				= this_cpu_ptr_nvhe_sym(kvm_stacktrace_info);
+	unsigned long low = (unsigned long)stacktrace_info->overflow_stack_base;
+	unsigned long high = low + OVERFLOW_STACK_SIZE;
+
+	return on_stack(sp, size, low, high, STACK_TYPE_OVERFLOW, info);
+}
+
+static bool on_hyp_stack(unsigned long sp, unsigned long size,
+			 struct stack_info *info)
+{
+	struct kvm_nvhe_stacktrace_info *stacktrace_info
+				= this_cpu_ptr_nvhe_sym(kvm_stacktrace_info);
+	unsigned long low = (unsigned long)stacktrace_info->stack_base;
+	unsigned long high = low + PAGE_SIZE;
+
+	return on_stack(sp, size, low, high, STACK_TYPE_HYP, info);
+}
+
+static bool on_accessible_stack(const struct task_struct *tsk,
+				unsigned long sp, unsigned long size,
+				struct stack_info *info)
+{
+	if (info)
+		info->type = STACK_TYPE_UNKNOWN;
+
+	return (on_overflow_stack(sp, size, info) ||
+		on_hyp_stack(sp, size, info));
+}
+
+static int unwind_next(struct unwind_state *state)
+{
+	struct stack_info info;
+
+	return unwind_next_common(state, &info, on_accessible_stack,
+				  kvm_nvhe_stack_kern_va);
+}
+
+static void unwind(struct unwind_state *state,
+		   stack_trace_consume_fn consume_entry, void *cookie)
+{
+	while (1) {
+		int ret;
+
+		if (!consume_entry(cookie, state->pc))
+			break;
+		ret = unwind_next(state);
+		if (ret < 0)
+			break;
+	}
+}
+
 /*
  * kvm_nvhe_dump_backtrace_entry - Symbolize and print an nVHE backtrace entry
  *

@@ -37,59 +37,7 @@ static inline void kvm_nvhe_unwind_init(struct unwind_state *state,
 	state->pc = pc;
 }
 
-static inline bool on_hyp_stack(unsigned long sp, unsigned long size,
-				struct stack_info *info);
-
-static inline bool on_accessible_stack(const struct task_struct *tsk,
-				       unsigned long sp, unsigned long size,
-				       struct stack_info *info)
-{
-	if (on_accessible_stack_common(tsk, sp, size, info))
-		return true;
-
-	if (on_hyp_stack(sp, size, info))
-		return true;
-
-	return false;
-}
-
-#ifdef __KVM_NVHE_HYPERVISOR__
-/*
- * Protected nVHE HYP stack unwinder
- *
- * In protected mode, the unwinding is done by the hypervisor in EL2.
- */
-
-#ifdef CONFIG_PROTECTED_NVHE_STACKTRACE
-static inline bool on_overflow_stack(unsigned long sp, unsigned long size,
-				     struct stack_info *info)
-{
-	unsigned long low = (unsigned long)this_cpu_ptr(overflow_stack);
-	unsigned long high = low + OVERFLOW_STACK_SIZE;
-
-	return on_stack(sp, size, low, high, STACK_TYPE_OVERFLOW, info);
-}
-
-static inline bool on_hyp_stack(unsigned long sp, unsigned long size,
-				struct stack_info *info)
-{
-	struct kvm_nvhe_init_params *params = this_cpu_ptr(&kvm_init_params);
-	unsigned long high = params->stack_hyp_va;
-	unsigned long low = high - PAGE_SIZE;
-
-	return on_stack(sp, size, low, high, STACK_TYPE_HYP, info);
-}
-
-static inline int notrace unwind_next(struct unwind_state *state)
-{
-	struct stack_info info;
-
-	return unwind_next_common(state, &info, NULL);
-}
-NOKPROBE_SYMBOL(unwind_next);
-#endif	/* CONFIG_PROTECTED_NVHE_STACKTRACE */
-
-#else	/* !__KVM_NVHE_HYPERVISOR__ */
+#ifndef __KVM_NVHE_HYPERVISOR__
 /*
  * Conventional (non-protected) nVHE HYP stack unwinder
  *
@@ -141,36 +89,6 @@ static inline bool kvm_nvhe_stack_kern_va(unsigned long *addr,
 
 	return true;
 }
-
-static inline bool on_overflow_stack(unsigned long sp, unsigned long size,
-				     struct stack_info *info)
-{
-	struct kvm_nvhe_stacktrace_info *stacktrace_info
-				= this_cpu_ptr_nvhe_sym(kvm_stacktrace_info);
-	unsigned long low = (unsigned long)stacktrace_info->overflow_stack_base;
-	unsigned long high = low + OVERFLOW_STACK_SIZE;
-
-	return on_stack(sp, size, low, high, STACK_TYPE_OVERFLOW, info);
-}
-
-static inline bool on_hyp_stack(unsigned long sp, unsigned long size,
-				struct stack_info *info)
-{
-	struct kvm_nvhe_stacktrace_info *stacktrace_info
-				= this_cpu_ptr_nvhe_sym(kvm_stacktrace_info);
-	unsigned long low = (unsigned long)stacktrace_info->stack_base;
-	unsigned long high = low + PAGE_SIZE;
-
-	return on_stack(sp, size, low, high, STACK_TYPE_HYP, info);
-}
-
-static inline int notrace unwind_next(struct unwind_state *state)
-{
-	struct stack_info info;
-
-	return unwind_next_common(state, &info, kvm_nvhe_stack_kern_va);
-}
-NOKPROBE_SYMBOL(unwind_next);
 
 void kvm_nvhe_dump_backtrace(unsigned long hyp_offset);
 

@@ -79,15 +79,6 @@ struct unwind_state {
 	struct task_struct *task;
 };
 
-static inline bool on_overflow_stack(unsigned long sp, unsigned long size,
-				     struct stack_info *info);
-
-static inline bool on_accessible_stack(const struct task_struct *tsk,
-				       unsigned long sp, unsigned long size,
-				       struct stack_info *info);
-
-static inline int unwind_next(struct unwind_state *state);
-
 static inline bool on_stack(unsigned long sp, unsigned long size,
 			    unsigned long low, unsigned long high,
 			    enum stack_type type, struct stack_info *info)
@@ -104,21 +95,6 @@ static inline bool on_stack(unsigned long sp, unsigned long size,
 		info->type = type;
 	}
 	return true;
-}
-
-static inline bool on_accessible_stack_common(const struct task_struct *tsk,
-					      unsigned long sp,
-					      unsigned long size,
-					      struct stack_info *info)
-{
-	if (info)
-		info->type = STACK_TYPE_UNKNOWN;
-
-	/*
-	 * Both the kernel and nvhe hypervisor make use of
-	 * an overflow_stack
-	 */
-	return on_overflow_stack(sp, size, info);
 }
 
 static inline void unwind_init_common(struct unwind_state *state,
@@ -156,8 +132,22 @@ static inline void unwind_init_common(struct unwind_state *state,
 typedef bool (*stack_trace_translate_fp_fn)(unsigned long *fp,
 					    enum stack_type type);
 
+/*
+ * on_accessible_stack_fn() - Check whether a stack range is on any
+ * of the possible stacks.
+ *
+ * @tsk:  task whose stack is being unwound
+ * @sp:   stack address being checked
+ * @size: size of the stack range being checked
+ * @info: stack unwinding context
+ */
+typedef bool (*on_accessible_stack_fn)(const struct task_struct *tsk,
+				       unsigned long sp, unsigned long size,
+				       struct stack_info *info);
+
 static inline int unwind_next_common(struct unwind_state *state,
 				     struct stack_info *info,
+				     on_accessible_stack_fn accessible,
 				     stack_trace_translate_fp_fn translate_fp)
 {
 	unsigned long fp = state->fp, kern_fp = fp;
@@ -166,7 +156,7 @@ static inline int unwind_next_common(struct unwind_state *state,
 	if (fp & 0x7)
 		return -EINVAL;
 
-	if (!on_accessible_stack(tsk, fp, 16, info))
+	if (!accessible(tsk, fp, 16, info))
 		return -EINVAL;
 
 	if (test_bit(info->type, state->stacks_done))
@@ -212,19 +202,4 @@ static inline int unwind_next_common(struct unwind_state *state,
 	return 0;
 }
 
-static inline void notrace unwind(struct unwind_state *state,
-				  stack_trace_consume_fn consume_entry,
-				  void *cookie)
-{
-	while (1) {
-		int ret;
-
-		if (!consume_entry(cookie, state->pc))
-			break;
-		ret = unwind_next(state);
-		if (ret < 0)
-			break;
-	}
-}
-NOKPROBE_SYMBOL(unwind);
 #endif	/* __ASM_STACKTRACE_COMMON_H */
