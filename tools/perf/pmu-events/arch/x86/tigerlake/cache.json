@@ -113,6 +113,17 @@
         "UMask": "0xe4"
     },
     {
+        "BriefDescription": "Demand Data Read access L2 cache",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "L2_RQSTS.ALL_DEMAND_DATA_RD",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts Demand Data Read requests accessing the L2 cache. These requests may hit or miss L2 cache. True-miss exclude misses that were merged with ongoing L2 misses. An access is counted once.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xe1"
+    },
+    {
         "BriefDescription": "RFO requests to L2 cache",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
@@ -157,15 +168,37 @@
         "UMask": "0xc1"
     },
     {
-        "BriefDescription": "All requests that miss L2 cache",
+        "BriefDescription": "Demand Data Read miss L2 cache",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "L2_RQSTS.DEMAND_DATA_RD_MISS",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts demand Data Read requests with true-miss in the L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. An access is counted once.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x21"
+    },
+    {
+        "BriefDescription": "Read requests with true-miss in L2 cache",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.MISS",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts all requests that miss L2 cache.",
+        "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses.",
         "SampleAfterValue": "200003",
         "UMask": "0x3f"
+    },
+    {
+        "BriefDescription": "All accesses to L2 cache",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "L2_RQSTS.REFERENCES",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses.",
+        "SampleAfterValue": "200003",
+        "UMask": "0xff"
     },
     {
         "BriefDescription": "RFO requests that hit L2 cache",
@@ -353,7 +386,7 @@
         "UMask": "0x12"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "Snoop hit a modified(HITM) or clean line(HIT_W_FWD) in another on-pkg core which forwarded the data back due to a retired load instruction.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "Data_LA": "1",
@@ -361,6 +394,7 @@
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_FWD",
         "PEBS": "1",
         "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts retired load instructions where a cross-core snoop hit in another cores caches on this socket, the data was forwarded back to the requesting core as the data was modified (SNOOP_HITM) or the L3 did not have the data(SNOOP_HIT_WITH_FWD).",
         "SampleAfterValue": "20011",
         "UMask": "0x4"
     },
@@ -391,7 +425,7 @@
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "Snoop hit without forwarding in another on-pkg core due to a retired load instruction, data was supplied by the L3.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "Data_LA": "1",
@@ -399,6 +433,7 @@
         "EventName": "MEM_LOAD_L3_HIT_RETIRED.XSNP_NO_FWD",
         "PEBS": "1",
         "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts retired load instructions in which the L3 supplied the data and a cross-core snoop hit in another cores caches on this socket but that other core did not forward the data back (SNOOP_HIT_NO_FWD).",
         "SampleAfterValue": "20011",
         "UMask": "0x2"
     },
@@ -503,7 +538,6 @@
         "MSRValue": "0x10003C0001",
         "Offcore": "1",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -517,7 +551,6 @@
         "MSRValue": "0x8003C0001",
         "Offcore": "1",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },
@@ -531,7 +564,6 @@
         "MSRValue": "0x10003C0002",
         "Offcore": "1",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     },

@@ -42,7 +42,6 @@
         "MSRValue": "0x10800",
         "Offcore": "1",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Offcore response can be programmed only with a specific pair of event select and counter MSR, and with specific event codes and predefine mask bit value in a dedicated MSR to specify attributes of the offcore transaction.",
         "SampleAfterValue": "100003",
         "UMask": "0x1"
     }
