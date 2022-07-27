@@ -249,15 +249,15 @@ EXPORT_SYMBOL(dma_map_sg_attrs);
  * Returns 0 on success or a negative error code on error. The following
  * error codes are supported with the given meaning:
  *
- *   -EINVAL	An invalid argument, unaligned access or other error
- *		in usage. Will not succeed if retried.
- *   -ENOMEM	Insufficient resources (like memory or IOVA space) to
- *		complete the mapping. Should succeed if retried later.
- *   -EIO	Legacy error code with an unknown meaning. eg. this is
- *		returned if a lower level call returned DMA_MAPPING_ERROR.
- *   -EREMOTEIO	The DMA device cannot access P2PDMA memory specified in
- *		the sg_table. This will not succeed if retried.
- *
+ *   -EINVAL		An invalid argument, unaligned access or other error
+ *			in usage. Will not succeed if retried.
+ *   -ENOMEM		Insufficient resources (like memory or IOVA space) to
+ *			complete the mapping. Should succeed if retried later.
+ *   -EIO		Legacy error code with an unknown meaning. eg. this is
+ *			returned if a lower level call returned
+ *			DMA_MAPPING_ERROR.
+ *   -EREMOTEIO		The DMA device cannot access P2PDMA memory specified
+ *			in the sg_table. This will not succeed if retried.
  */
 int dma_map_sgtable(struct device *dev, struct sg_table *sgt,
 		    enum dma_data_direction dir, unsigned long attrs)
