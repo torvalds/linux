@@ -800,9 +800,9 @@ static bool is_inactive_blocked(struct r5conf *conf, int hash)
 	return active < (conf->max_nr_stripes * 3 / 4);
 }
 
-struct stripe_head *
-raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
-			int previous, int noblock, int noquiesce)
+static struct stripe_head *__raid5_get_active_stripe(struct r5conf *conf,
+		struct stripe_request_ctx *ctx, sector_t sector,
+		bool previous, bool noblock, bool noquiesce)
 {
 	struct stripe_head *sh;
 	int hash = stripe_hash_locks_hash(conf, sector);
@@ -812,9 +812,22 @@ raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
 	spin_lock_irq(conf->hash_locks + hash);
 
 retry:
-	wait_event_lock_irq(conf->wait_for_quiescent,
-			    conf->quiesce == 0 || noquiesce,
-			    *(conf->hash_locks + hash));
+	if (!noquiesce && conf->quiesce) {
+		/*
+		 * Must release the reference to batch_last before waiting,
+		 * on quiesce, otherwise the batch_last will hold a reference
+		 * to a stripe and raid5_quiesce() will deadlock waiting for
+		 * active_stripes to go to zero.
+		 */
+		if (ctx && ctx->batch_last) {
+			raid5_release_stripe(ctx->batch_last);
+			ctx->batch_last = NULL;
+		}
+
+		wait_event_lock_irq(conf->wait_for_quiescent, !conf->quiesce,
+				    *(conf->hash_locks + hash));
+	}
+
 	sh = find_get_stripe(conf, sector, conf->generation - previous, hash);
 	if (sh)
 		goto out;
@@ -848,6 +861,13 @@ wait_for_stripe:
 out:
 	spin_unlock_irq(conf->hash_locks + hash);
 	return sh;
+}
+
+struct stripe_head *raid5_get_active_stripe(struct r5conf *conf,
+		sector_t sector, bool previous, bool noblock, bool noquiesce)
+{
+	return __raid5_get_active_stripe(conf, NULL, sector, previous, noblock,
+					 noquiesce);
 }
 
 static bool is_full_stripe_write(struct stripe_head *sh)
@@ -5992,8 +6012,8 @@ static enum stripe_result make_stripe_request(struct mddev *mddev,
 	pr_debug("raid456: %s, sector %llu logical %llu\n", __func__,
 		 new_sector, logical_sector);
 
-	sh = raid5_get_active_stripe(conf, new_sector, previous,
-				     (bi->bi_opf & REQ_RAHEAD), 0);
+	sh = __raid5_get_active_stripe(conf, ctx, new_sector, previous,
+				       (bi->bi_opf & REQ_RAHEAD), 0);
 	if (unlikely(!sh)) {
 		/* cannot get stripe, just give-up */
 		bi->bi_status = BLK_STS_IOERR;
