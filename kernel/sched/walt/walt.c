@@ -2457,6 +2457,7 @@ static void init_new_task_load(struct task_struct *p)
 	wts->mvp_prio = WALT_NOT_MVP;
 	wts->cidx = 0;
 	__sched_fork_init(p);
+	walt_flag_set(p, WALT_INIT, 1);
 }
 
 static void init_existing_task_load(struct task_struct *p)
@@ -4284,7 +4285,8 @@ static void android_rvh_dequeue_task(void *unused, struct rq *rq, struct task_st
 	 * therefore the check to ensure that prev_on_rq_cpu is needed to prevent
 	 * an invalid failure.
 	 */
-	if (wts->prev_on_rq_cpu >= 0 && wts->prev_on_rq_cpu != cpu_of(rq))
+	if (wts->prev_on_rq_cpu >= 0 && wts->prev_on_rq_cpu != cpu_of(rq) &&
+			walt_flag_test(p, WALT_INIT))
 		WALT_BUG(WALT_BUG_UPSTREAM, p, "dequeue cpu %d not same as enqueue %d\n",
 			 cpu_of(rq), wts->prev_on_rq_cpu);
 
