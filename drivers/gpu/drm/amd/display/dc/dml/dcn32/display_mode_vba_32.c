@@ -461,7 +461,6 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 	{
 
 		dml32_CalculateVMRowAndSwath(
-				&v->dummy_vars.dml32_CalculateVMRowAndSwath,
 				mode_lib->vba.NumberOfActiveSurfaces,
 				v->dummy_vars.DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation.SurfaceParameters,
 				v->SurfaceSizeInMALL,
@@ -2746,7 +2745,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 
 			{
 				dml32_CalculateVMRowAndSwath(
-						&v->dummy_vars.dml32_CalculateVMRowAndSwath,
 						mode_lib->vba.NumberOfActiveSurfaces,
 						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.SurfParameters,
 						mode_lib->vba.SurfaceSizeInMALL,

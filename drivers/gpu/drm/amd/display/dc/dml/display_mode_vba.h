@@ -196,24 +196,6 @@ struct dml32_CalculateSwathAndDETConfiguration {
 	unsigned int DETBufferSizeInKByteForSwathCalculation;
 };
 
-struct dml32_CalculateVMRowAndSwath {
-	unsigned int PTEBufferSizeInRequestsForLuma[DC__NUM_DPP__MAX];
-	unsigned int PTEBufferSizeInRequestsForChroma[DC__NUM_DPP__MAX];
-	unsigned int PDEAndMetaPTEBytesFrameY;
-	unsigned int PDEAndMetaPTEBytesFrameC;
-	unsigned int MetaRowByteY[DC__NUM_DPP__MAX];
-	unsigned int MetaRowByteC[DC__NUM_DPP__MAX];
-	unsigned int PixelPTEBytesPerRowY[DC__NUM_DPP__MAX];
-	unsigned int PixelPTEBytesPerRowC[DC__NUM_DPP__MAX];
-	unsigned int PixelPTEBytesPerRowY_one_row_per_frame[DC__NUM_DPP__MAX];
-	unsigned int PixelPTEBytesPerRowC_one_row_per_frame[DC__NUM_DPP__MAX];
-	unsigned int dpte_row_width_luma_ub_one_row_per_frame[DC__NUM_DPP__MAX];
-	unsigned int dpte_row_height_luma_one_row_per_frame[DC__NUM_DPP__MAX];
-	unsigned int dpte_row_width_chroma_ub_one_row_per_frame[DC__NUM_DPP__MAX];
-	unsigned int dpte_row_height_chroma_one_row_per_frame[DC__NUM_DPP__MAX];
-	bool one_row_per_frame_fits_in_buffer[DC__NUM_DPP__MAX];
-};
-
 struct DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation {
 	unsigned int dummy_integer_array[2][DC__NUM_DPP__MAX];
 	double dummy_single_array[2][DC__NUM_DPP__MAX];
@@ -286,7 +268,6 @@ struct dummy_vars {
 	DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation;
 	struct dml32_ModeSupportAndSystemConfigurationFull dml32_ModeSupportAndSystemConfigurationFull;
 	struct dml32_CalculateSwathAndDETConfiguration dml32_CalculateSwathAndDETConfiguration;
-	struct dml32_CalculateVMRowAndSwath dml32_CalculateVMRowAndSwath;
 };
 
 struct vba_vars_st {

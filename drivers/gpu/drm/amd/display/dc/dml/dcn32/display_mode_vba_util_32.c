@@ -1867,7 +1867,6 @@ void dml32_CalculateSurfaceSizeInMall(
 } // CalculateSurfaceSizeInMall
 
 void dml32_CalculateVMRowAndSwath(
-		struct dml32_CalculateVMRowAndSwath *st_vars,
 		unsigned int NumberOfActiveSurfaces,
 		DmlPipe myPipe[],
 		unsigned int SurfaceSizeInMALL[],
@@ -1933,6 +1932,21 @@ void dml32_CalculateVMRowAndSwath(
 		unsigned int BIGK_FRAGMENT_SIZE[])
 {
 	unsigned int k;
+	unsigned int PTEBufferSizeInRequestsForLuma[DC__NUM_DPP__MAX];
+	unsigned int PTEBufferSizeInRequestsForChroma[DC__NUM_DPP__MAX];
+	unsigned int PDEAndMetaPTEBytesFrameY;
+	unsigned int PDEAndMetaPTEBytesFrameC;
+	unsigned int MetaRowByteY[DC__NUM_DPP__MAX];
+	unsigned int MetaRowByteC[DC__NUM_DPP__MAX];
+	unsigned int PixelPTEBytesPerRowY[DC__NUM_DPP__MAX];
+	unsigned int PixelPTEBytesPerRowC[DC__NUM_DPP__MAX];
+	unsigned int PixelPTEBytesPerRowY_one_row_per_frame[DC__NUM_DPP__MAX];
+	unsigned int PixelPTEBytesPerRowC_one_row_per_frame[DC__NUM_DPP__MAX];
+	unsigned int dpte_row_width_luma_ub_one_row_per_frame[DC__NUM_DPP__MAX];
+	unsigned int dpte_row_height_luma_one_row_per_frame[DC__NUM_DPP__MAX];
+	unsigned int dpte_row_width_chroma_ub_one_row_per_frame[DC__NUM_DPP__MAX];
+	unsigned int dpte_row_height_chroma_one_row_per_frame[DC__NUM_DPP__MAX];
+	bool one_row_per_frame_fits_in_buffer[DC__NUM_DPP__MAX];
 
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
 		if (HostVMEnable == true) {
@@ -1954,15 +1968,15 @@ void dml32_CalculateVMRowAndSwath(
 				myPipe[k].SourcePixelFormat == dm_rgbe_alpha) {
 			if ((myPipe[k].SourcePixelFormat == dm_420_10 || myPipe[k].SourcePixelFormat == dm_420_12) &&
 					!IsVertical(myPipe[k].SourceRotation)) {
-				st_vars->PTEBufferSizeInRequestsForLuma[k] =
+				PTEBufferSizeInRequestsForLuma[k] =
 						(PTEBufferSizeInRequestsLuma + PTEBufferSizeInRequestsChroma) / 2;
-				st_vars->PTEBufferSizeInRequestsForChroma[k] = st_vars->PTEBufferSizeInRequestsForLuma[k];
+				PTEBufferSizeInRequestsForChroma[k] = PTEBufferSizeInRequestsForLuma[k];
 			} else {
-				st_vars->PTEBufferSizeInRequestsForLuma[k] = PTEBufferSizeInRequestsLuma;
-				st_vars->PTEBufferSizeInRequestsForChroma[k] = PTEBufferSizeInRequestsChroma;
+				PTEBufferSizeInRequestsForLuma[k] = PTEBufferSizeInRequestsLuma;
+				PTEBufferSizeInRequestsForChroma[k] = PTEBufferSizeInRequestsChroma;
 			}
 
-			st_vars->PDEAndMetaPTEBytesFrameC = dml32_CalculateVMAndRowBytes(
+			PDEAndMetaPTEBytesFrameC = dml32_CalculateVMAndRowBytes(
 					myPipe[k].ViewportStationary,
 					myPipe[k].DCCEnable,
 					myPipe[k].DPPPerSurface,
@@ -1982,21 +1996,21 @@ void dml32_CalculateVMRowAndSwath(
 					GPUVMMaxPageTableLevels,
 					GPUVMMinPageSizeKBytes[k],
 					HostVMMinPageSize,
-					st_vars->PTEBufferSizeInRequestsForChroma[k],
+					PTEBufferSizeInRequestsForChroma[k],
 					myPipe[k].PitchC,
 					myPipe[k].DCCMetaPitchC,
 					myPipe[k].BlockWidthC,
 					myPipe[k].BlockHeightC,
 
 					/* Output */
-					&st_vars->MetaRowByteC[k],
-					&st_vars->PixelPTEBytesPerRowC[k],
+					&MetaRowByteC[k],
+					&PixelPTEBytesPerRowC[k],
 					&dpte_row_width_chroma_ub[k],
 					&dpte_row_height_chroma[k],
 					&dpte_row_height_linear_chroma[k],
-					&st_vars->PixelPTEBytesPerRowC_one_row_per_frame[k],
-					&st_vars->dpte_row_width_chroma_ub_one_row_per_frame[k],
-					&st_vars->dpte_row_height_chroma_one_row_per_frame[k],
+					&PixelPTEBytesPerRowC_one_row_per_frame[k],
+					&dpte_row_width_chroma_ub_one_row_per_frame[k],
+					&dpte_row_height_chroma_one_row_per_frame[k],
 					&meta_req_width_chroma[k],
 					&meta_req_height_chroma[k],
 					&meta_row_width_chroma[k],
@@ -2024,19 +2038,19 @@ void dml32_CalculateVMRowAndSwath(
 					&VInitPreFillC[k],
 					&MaxNumSwathC[k]);
 		} else {
-			st_vars->PTEBufferSizeInRequestsForLuma[k] = PTEBufferSizeInRequestsLuma + PTEBufferSizeInRequestsChroma;
-			st_vars->PTEBufferSizeInRequestsForChroma[k] = 0;
-			st_vars->PixelPTEBytesPerRowC[k] = 0;
-			st_vars->PDEAndMetaPTEBytesFrameC = 0;
-			st_vars->MetaRowByteC[k] = 0;
+			PTEBufferSizeInRequestsForLuma[k] = PTEBufferSizeInRequestsLuma + PTEBufferSizeInRequestsChroma;
+			PTEBufferSizeInRequestsForChroma[k] = 0;
+			PixelPTEBytesPerRowC[k] = 0;
+			PDEAndMetaPTEBytesFrameC = 0;
+			MetaRowByteC[k] = 0;
 			MaxNumSwathC[k] = 0;
 			PrefetchSourceLinesC[k] = 0;
-			st_vars->dpte_row_height_chroma_one_row_per_frame[k] = 0;
-			st_vars->dpte_row_width_chroma_ub_one_row_per_frame[k] = 0;
-			st_vars->PixelPTEBytesPerRowC_one_row_per_frame[k] = 0;
+			dpte_row_height_chroma_one_row_per_frame[k] = 0;
+			dpte_row_width_chroma_ub_one_row_per_frame[k] = 0;
+			PixelPTEBytesPerRowC_one_row_per_frame[k] = 0;
 		}
 
-		st_vars->PDEAndMetaPTEBytesFrameY = dml32_CalculateVMAndRowBytes(
+		PDEAndMetaPTEBytesFrameY = dml32_CalculateVMAndRowBytes(
 				myPipe[k].ViewportStationary,
 				myPipe[k].DCCEnable,
 				myPipe[k].DPPPerSurface,
@@ -2056,21 +2070,21 @@ void dml32_CalculateVMRowAndSwath(
 				GPUVMMaxPageTableLevels,
 				GPUVMMinPageSizeKBytes[k],
 				HostVMMinPageSize,
-				st_vars->PTEBufferSizeInRequestsForLuma[k],
+				PTEBufferSizeInRequestsForLuma[k],
 				myPipe[k].PitchY,
 				myPipe[k].DCCMetaPitchY,
 				myPipe[k].BlockWidthY,
 				myPipe[k].BlockHeightY,
 
 				/* Output */
-				&st_vars->MetaRowByteY[k],
-				&st_vars->PixelPTEBytesPerRowY[k],
+				&MetaRowByteY[k],
+				&PixelPTEBytesPerRowY[k],
 				&dpte_row_width_luma_ub[k],
 				&dpte_row_height_luma[k],
 				&dpte_row_height_linear_luma[k],
-				&st_vars->PixelPTEBytesPerRowY_one_row_per_frame[k],
-				&st_vars->dpte_row_width_luma_ub_one_row_per_frame[k],
-				&st_vars->dpte_row_height_luma_one_row_per_frame[k],
+				&PixelPTEBytesPerRowY_one_row_per_frame[k],
+				&dpte_row_width_luma_ub_one_row_per_frame[k],
+				&dpte_row_height_luma_one_row_per_frame[k],
 				&meta_req_width[k],
 				&meta_req_height[k],
 				&meta_row_width[k],
@@ -2098,19 +2112,19 @@ void dml32_CalculateVMRowAndSwath(
 				&VInitPreFillY[k],
 				&MaxNumSwathY[k]);
 
-		PDEAndMetaPTEBytesFrame[k] = st_vars->PDEAndMetaPTEBytesFrameY + st_vars->PDEAndMetaPTEBytesFrameC;
-		MetaRowByte[k] = st_vars->MetaRowByteY[k] + st_vars->MetaRowByteC[k];
+		PDEAndMetaPTEBytesFrame[k] = PDEAndMetaPTEBytesFrameY + PDEAndMetaPTEBytesFrameC;
+		MetaRowByte[k] = MetaRowByteY[k] + MetaRowByteC[k];
 
-		if (st_vars->PixelPTEBytesPerRowY[k] <= 64 * st_vars->PTEBufferSizeInRequestsForLuma[k] &&
-				st_vars->PixelPTEBytesPerRowC[k] <= 64 * st_vars->PTEBufferSizeInRequestsForChroma[k]) {
+		if (PixelPTEBytesPerRowY[k] <= 64 * PTEBufferSizeInRequestsForLuma[k] &&
+				PixelPTEBytesPerRowC[k] <= 64 * PTEBufferSizeInRequestsForChroma[k]) {
 			PTEBufferSizeNotExceeded[k] = true;
 		} else {
 			PTEBufferSizeNotExceeded[k] = false;
 		}
 
-		st_vars->one_row_per_frame_fits_in_buffer[k] = (st_vars->PixelPTEBytesPerRowY_one_row_per_frame[k] <= 64 * 2 *
-			st_vars->PTEBufferSizeInRequestsForLuma[k] &&
-			st_vars->PixelPTEBytesPerRowC_one_row_per_frame[k] <= 64 * 2 * st_vars->PTEBufferSizeInRequestsForChroma[k]);
+		one_row_per_frame_fits_in_buffer[k] = (PixelPTEBytesPerRowY_one_row_per_frame[k] <= 64 * 2 *
+			PTEBufferSizeInRequestsForLuma[k] &&
+			PixelPTEBytesPerRowC_one_row_per_frame[k] <= 64 * 2 * PTEBufferSizeInRequestsForChroma[k]);
 	}
 
 	dml32_CalculateMALLUseForStaticScreen(
@@ -2118,7 +2132,7 @@ void dml32_CalculateVMRowAndSwath(
 			MALLAllocatedForDCN,
 			UseMALLForStaticScreen,   // mode
 			SurfaceSizeInMALL,
-			st_vars->one_row_per_frame_fits_in_buffer,
+			one_row_per_frame_fits_in_buffer,
 			/* Output */
 			UsesMALLForStaticScreen); // boolen
 
@@ -2144,13 +2158,13 @@ void dml32_CalculateVMRowAndSwath(
 				!(UseMALLForPStateChange[k] == dm_use_mall_pstate_change_full_frame);
 
 		if (use_one_row_for_frame[k]) {
-			dpte_row_height_luma[k] = st_vars->dpte_row_height_luma_one_row_per_frame[k];
-			dpte_row_width_luma_ub[k] = st_vars->dpte_row_width_luma_ub_one_row_per_frame[k];
-			st_vars->PixelPTEBytesPerRowY[k] = st_vars->PixelPTEBytesPerRowY_one_row_per_frame[k];
-			dpte_row_height_chroma[k] = st_vars->dpte_row_height_chroma_one_row_per_frame[k];
-			dpte_row_width_chroma_ub[k] = st_vars->dpte_row_width_chroma_ub_one_row_per_frame[k];
-			st_vars->PixelPTEBytesPerRowC[k] = st_vars->PixelPTEBytesPerRowC_one_row_per_frame[k];
-			PTEBufferSizeNotExceeded[k] = st_vars->one_row_per_frame_fits_in_buffer[k];
+			dpte_row_height_luma[k] = dpte_row_height_luma_one_row_per_frame[k];
+			dpte_row_width_luma_ub[k] = dpte_row_width_luma_ub_one_row_per_frame[k];
+			PixelPTEBytesPerRowY[k] = PixelPTEBytesPerRowY_one_row_per_frame[k];
+			dpte_row_height_chroma[k] = dpte_row_height_chroma_one_row_per_frame[k];
+			dpte_row_width_chroma_ub[k] = dpte_row_width_chroma_ub_one_row_per_frame[k];
+			PixelPTEBytesPerRowC[k] = PixelPTEBytesPerRowC_one_row_per_frame[k];
+			PTEBufferSizeNotExceeded[k] = one_row_per_frame_fits_in_buffer[k];
 		}
 
 		if (MetaRowByte[k] <= DCCMetaBufferSizeBytes)
@@ -2158,7 +2172,7 @@ void dml32_CalculateVMRowAndSwath(
 		else
 			DCCMetaBufferSizeNotExceeded[k] = false;
 
-		PixelPTEBytesPerRow[k] = st_vars->PixelPTEBytesPerRowY[k] + st_vars->PixelPTEBytesPerRowC[k];
+		PixelPTEBytesPerRow[k] = PixelPTEBytesPerRowY[k] + PixelPTEBytesPerRowC[k];
 		if (use_one_row_for_frame[k])
 			PixelPTEBytesPerRow[k] = PixelPTEBytesPerRow[k] / 2;
 
@@ -2169,11 +2183,11 @@ void dml32_CalculateVMRowAndSwath(
 				myPipe[k].VRatioChroma,
 				myPipe[k].DCCEnable,
 				myPipe[k].HTotal / myPipe[k].PixelClock,
-				st_vars->MetaRowByteY[k], st_vars->MetaRowByteC[k],
+				MetaRowByteY[k], MetaRowByteC[k],
 				meta_row_height[k],
 				meta_row_height_chroma[k],
-				st_vars->PixelPTEBytesPerRowY[k],
-				st_vars->PixelPTEBytesPerRowC[k],
+				PixelPTEBytesPerRowY[k],
+				PixelPTEBytesPerRowC[k],
 				dpte_row_height_luma[k],
 				dpte_row_height_chroma[k],
 
@@ -2189,12 +2203,12 @@ void dml32_CalculateVMRowAndSwath(
 		dml_print("DML::%s: k=%d, dpte_row_height_luma         = %d\n",  __func__, k, dpte_row_height_luma[k]);
 		dml_print("DML::%s: k=%d, dpte_row_width_luma_ub       = %d\n",
 				__func__, k, dpte_row_width_luma_ub[k]);
-		dml_print("DML::%s: k=%d, PixelPTEBytesPerRowY         = %d\n",  __func__, k, st_vars->PixelPTEBytesPerRowY[k]);
+		dml_print("DML::%s: k=%d, PixelPTEBytesPerRowY         = %d\n",  __func__, k, PixelPTEBytesPerRowY[k]);
 		dml_print("DML::%s: k=%d, dpte_row_height_chroma       = %d\n",
 				__func__, k, dpte_row_height_chroma[k]);
 		dml_print("DML::%s: k=%d, dpte_row_width_chroma_ub     = %d\n",
 				__func__, k, dpte_row_width_chroma_ub[k]);
-		dml_print("DML::%s: k=%d, PixelPTEBytesPerRowC         = %d\n",  __func__, k, st_vars->PixelPTEBytesPerRowC[k]);
+		dml_print("DML::%s: k=%d, PixelPTEBytesPerRowC         = %d\n",  __func__, k, PixelPTEBytesPerRowC[k]);
 		dml_print("DML::%s: k=%d, PixelPTEBytesPerRow          = %d\n",  __func__, k, PixelPTEBytesPerRow[k]);
 		dml_print("DML::%s: k=%d, PTEBufferSizeNotExceeded     = %d\n",
 				__func__, k, PTEBufferSizeNotExceeded[k]);

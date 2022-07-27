@@ -362,7 +362,6 @@ void dml32_CalculateSurfaceSizeInMall(
 		bool *ExceededMALLSize);
 
 void dml32_CalculateVMRowAndSwath(
-		struct dml32_CalculateVMRowAndSwath *st_vars,
 		unsigned int NumberOfActiveSurfaces,
 		DmlPipe myPipe[],
 		unsigned int SurfaceSizeInMALL[],
