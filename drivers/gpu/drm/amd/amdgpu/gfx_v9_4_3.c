@@ -1090,14 +1090,14 @@ static bool gfx_v9_4_3_is_rlc_enabled(struct amdgpu_device *adev)
 	return true;
 }
 
-static void gfx_v9_4_3_set_safe_mode(struct amdgpu_device *adev)
+static void gfx_v9_4_3_set_safe_mode(struct amdgpu_device *adev, int xcc_id)
 {
 	uint32_t data;
 	unsigned i;
 
 	data = RLC_SAFE_MODE__CMD_MASK;
 	data |= (1 << RLC_SAFE_MODE__MESSAGE__SHIFT);
-	WREG32_SOC15(GC, 0, regRLC_SAFE_MODE, data);
+	WREG32_SOC15(GC, xcc_id, regRLC_SAFE_MODE, data);
 
 	/* wait for RLC_SAFE_MODE */
 	for (i = 0; i < adev->usec_timeout; i++) {
@@ -1107,12 +1107,12 @@ static void gfx_v9_4_3_set_safe_mode(struct amdgpu_device *adev)
 	}
 }
 
-static void gfx_v9_4_3_unset_safe_mode(struct amdgpu_device *adev)
+static void gfx_v9_4_3_unset_safe_mode(struct amdgpu_device *adev, int xcc_id)
 {
 	uint32_t data;
 
 	data = RLC_SAFE_MODE__CMD_MASK;
-	WREG32_SOC15(GC, 0, regRLC_SAFE_MODE, data);
+	WREG32_SOC15(GC, xcc_id, regRLC_SAFE_MODE, data);
 }
 
 static int gfx_v9_4_3_rlc_init(struct amdgpu_device *adev)
@@ -2125,7 +2125,7 @@ static void gfx_v9_4_3_update_medium_grain_clock_gating(struct amdgpu_device *ad
 {
 	uint32_t data, def;
 
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, xcc_id);
 
 	/* It is disabled by HW by default */
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_MGCG)) {
@@ -2186,7 +2186,7 @@ static void gfx_v9_4_3_update_medium_grain_clock_gating(struct amdgpu_device *ad
 		}
 	}
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, xcc_id);
 }
 
 static void gfx_v9_4_3_update_coarse_grain_clock_gating(struct amdgpu_device *adev,
@@ -2194,7 +2194,7 @@ static void gfx_v9_4_3_update_coarse_grain_clock_gating(struct amdgpu_device *ad
 {
 	uint32_t def, data;
 
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, xcc_id);
 
 	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_GFX_CGCG)) {
 		def = data = RREG32_SOC15(GC, xcc_id, regRLC_CGTT_MGCG_OVERRIDE);
@@ -2238,7 +2238,7 @@ static void gfx_v9_4_3_update_coarse_grain_clock_gating(struct amdgpu_device *ad
 			WREG32_SOC15(GC, xcc_id, regRLC_CGCG_CGLS_CTRL, data);
 	}
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, xcc_id);
 }
 
 static int gfx_v9_4_3_update_gfx_clock_gating(struct amdgpu_device *adev,

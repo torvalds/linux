@@ -3362,7 +3362,7 @@ static bool gfx_v7_0_is_rlc_enabled(struct amdgpu_device *adev)
 	return true;
 }
 
-static void gfx_v7_0_set_safe_mode(struct amdgpu_device *adev)
+static void gfx_v7_0_set_safe_mode(struct amdgpu_device *adev, int xcc_id)
 {
 	u32 tmp, i, mask;
 
@@ -3384,7 +3384,7 @@ static void gfx_v7_0_set_safe_mode(struct amdgpu_device *adev)
 	}
 }
 
-static void gfx_v7_0_unset_safe_mode(struct amdgpu_device *adev)
+static void gfx_v7_0_unset_safe_mode(struct amdgpu_device *adev, int xcc_id)
 {
 	u32 tmp;
 

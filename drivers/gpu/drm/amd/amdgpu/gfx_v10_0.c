@@ -7571,7 +7571,7 @@ static bool gfx_v10_0_is_rlc_enabled(struct amdgpu_device *adev)
 	return (REG_GET_FIELD(rlc_cntl, RLC_CNTL, RLC_ENABLE_F32)) ? true : false;
 }
 
-static void gfx_v10_0_set_safe_mode(struct amdgpu_device *adev)
+static void gfx_v10_0_set_safe_mode(struct amdgpu_device *adev, int xcc_id)
 {
 	uint32_t data;
 	unsigned i;
@@ -7612,7 +7612,7 @@ static void gfx_v10_0_set_safe_mode(struct amdgpu_device *adev)
 	}
 }
 
-static void gfx_v10_0_unset_safe_mode(struct amdgpu_device *adev)
+static void gfx_v10_0_unset_safe_mode(struct amdgpu_device *adev, int xcc_id)
 {
 	uint32_t data;
 
@@ -7959,7 +7959,7 @@ static void gfx_v10_0_apply_medium_grain_clock_gating_workaround(struct amdgpu_d
 static int gfx_v10_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 					    bool enable)
 {
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	if (enable) {
 		/* enable FGCG firstly*/
@@ -7998,7 +7998,7 @@ static int gfx_v10_0_update_gfx_clock_gating(struct amdgpu_device *adev,
 	     AMD_CG_SUPPORT_GFX_3D_CGLS))
 		gfx_v10_0_enable_gui_idle_interrupt(adev, enable);
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 
 	return 0;
 }
@@ -8092,11 +8092,11 @@ static void gfx_v10_cntl_power_gating(struct amdgpu_device *adev, bool enable)
 
 static void gfx_v10_cntl_pg(struct amdgpu_device *adev, bool enable)
 {
-	amdgpu_gfx_rlc_enter_safe_mode(adev);
+	amdgpu_gfx_rlc_enter_safe_mode(adev, 0);
 
 	gfx_v10_cntl_power_gating(adev, enable);
 
-	amdgpu_gfx_rlc_exit_safe_mode(adev);
+	amdgpu_gfx_rlc_exit_safe_mode(adev, 0);
 }
 
 static const struct amdgpu_rlc_funcs gfx_v10_0_rlc_funcs = {
