@@ -511,10 +511,52 @@ static bool srcu_readers_active(struct srcu_struct *ssp)
 	return sum;
 }
 
-#define SRCU_INTERVAL		1	// Base delay if no expedited GPs pending.
-#define SRCU_MAX_INTERVAL	10	// Maximum incremental delay from slow readers.
-#define SRCU_MAX_NODELAY_PHASE	1	// Maximum per-GP-phase consecutive no-delay instances.
-#define SRCU_MAX_NODELAY	100	// Maximum consecutive no-delay instances.
+/*
+ * We use an adaptive strategy for synchronize_srcu() and especially for
+ * synchronize_srcu_expedited().  We spin for a fixed time period
+ * (defined below, boot time configurable) to allow SRCU readers to exit
+ * their read-side critical sections.  If there are still some readers
+ * after one jiffy, we repeatedly block for one jiffy time periods.
+ * The blocking time is increased as the grace-period age increases,
+ * with max blocking time capped at 10 jiffies.
+ */
+#define SRCU_DEFAULT_RETRY_CHECK_DELAY		5
+
+static ulong srcu_retry_check_delay = SRCU_DEFAULT_RETRY_CHECK_DELAY;
+module_param(srcu_retry_check_delay, ulong, 0444);
+
+#define SRCU_INTERVAL		1		// Base delay if no expedited GPs pending.
+#define SRCU_MAX_INTERVAL	10		// Maximum incremental delay from slow readers.
+
+#define SRCU_DEFAULT_MAX_NODELAY_PHASE_LO	3UL	// Lowmark on default per-GP-phase
+							// no-delay instances.
+#define SRCU_DEFAULT_MAX_NODELAY_PHASE_HI	1000UL	// Highmark on default per-GP-phase
+							// no-delay instances.
+
+#define SRCU_UL_CLAMP_LO(val, low)	((val) > (low) ? (val) : (low))
+#define SRCU_UL_CLAMP_HI(val, high)	((val) < (high) ? (val) : (high))
+#define SRCU_UL_CLAMP(val, low, high)	SRCU_UL_CLAMP_HI(SRCU_UL_CLAMP_LO((val), (low)), (high))
+// per-GP-phase no-delay instances adjusted to allow non-sleeping poll upto
+// one jiffies time duration. Mult by 2 is done to factor in the srcu_get_delay()
+// called from process_srcu().
+#define SRCU_DEFAULT_MAX_NODELAY_PHASE_ADJUSTED	\
+	(2UL * USEC_PER_SEC / HZ / SRCU_DEFAULT_RETRY_CHECK_DELAY)
+
+// Maximum per-GP-phase consecutive no-delay instances.
+#define SRCU_DEFAULT_MAX_NODELAY_PHASE	\
+	SRCU_UL_CLAMP(SRCU_DEFAULT_MAX_NODELAY_PHASE_ADJUSTED,	\
+		      SRCU_DEFAULT_MAX_NODELAY_PHASE_LO,	\
+		      SRCU_DEFAULT_MAX_NODELAY_PHASE_HI)
+
+static ulong srcu_max_nodelay_phase = SRCU_DEFAULT_MAX_NODELAY_PHASE;
+module_param(srcu_max_nodelay_phase, ulong, 0444);
+
+// Maximum consecutive no-delay instances.
+#define SRCU_DEFAULT_MAX_NODELAY	(SRCU_DEFAULT_MAX_NODELAY_PHASE > 100 ?	\
+					 SRCU_DEFAULT_MAX_NODELAY_PHASE : 100)
+
+static ulong srcu_max_nodelay = SRCU_DEFAULT_MAX_NODELAY;
+module_param(srcu_max_nodelay, ulong, 0444);
 
 /*
  * Return grace-period delay, zero if there are expedited grace
@@ -522,16 +564,22 @@ static bool srcu_readers_active(struct srcu_struct *ssp)
  */
 static unsigned long srcu_get_delay(struct srcu_struct *ssp)
 {
+	unsigned long gpstart;
+	unsigned long j;
 	unsigned long jbase = SRCU_INTERVAL;
 
 	if (ULONG_CMP_LT(READ_ONCE(ssp->srcu_gp_seq), READ_ONCE(ssp->srcu_gp_seq_needed_exp)))
 		jbase = 0;
-	if (rcu_seq_state(READ_ONCE(ssp->srcu_gp_seq)))
-		jbase += jiffies - READ_ONCE(ssp->srcu_gp_start);
-	if (!jbase) {
-		WRITE_ONCE(ssp->srcu_n_exp_nodelay, READ_ONCE(ssp->srcu_n_exp_nodelay) + 1);
-		if (READ_ONCE(ssp->srcu_n_exp_nodelay) > SRCU_MAX_NODELAY_PHASE)
-			jbase = 1;
+	if (rcu_seq_state(READ_ONCE(ssp->srcu_gp_seq))) {
+		j = jiffies - 1;
+		gpstart = READ_ONCE(ssp->srcu_gp_start);
+		if (time_after(j, gpstart))
+			jbase += j - gpstart;
+		if (!jbase) {
+			WRITE_ONCE(ssp->srcu_n_exp_nodelay, READ_ONCE(ssp->srcu_n_exp_nodelay) + 1);
+			if (READ_ONCE(ssp->srcu_n_exp_nodelay) > srcu_max_nodelay_phase)
+				jbase = 1;
+		}
 	}
 	return jbase > SRCU_MAX_INTERVAL ? SRCU_MAX_INTERVAL : jbase;
 }
@@ -605,15 +653,6 @@ void __srcu_read_unlock(struct srcu_struct *ssp, int idx)
 	this_cpu_inc(ssp->sda->srcu_unlock_count[idx]);
 }
 EXPORT_SYMBOL_GPL(__srcu_read_unlock);
-
-/*
- * We use an adaptive strategy for synchronize_srcu() and especially for
- * synchronize_srcu_expedited().  We spin for a fixed time period
- * (defined below) to allow SRCU readers to exit their read-side critical
- * sections.  If there are still some readers after a few microseconds,
- * we repeatedly block for 1-millisecond time periods.
- */
-#define SRCU_RETRY_CHECK_DELAY		5
 
 /*
  * Start an SRCU grace period.
@@ -700,7 +739,7 @@ static void srcu_schedule_cbs_snp(struct srcu_struct *ssp, struct srcu_node *snp
  */
 static void srcu_gp_end(struct srcu_struct *ssp)
 {
-	unsigned long cbdelay;
+	unsigned long cbdelay = 1;
 	bool cbs;
 	bool last_lvl;
 	int cpu;
@@ -720,7 +759,9 @@ static void srcu_gp_end(struct srcu_struct *ssp)
 	spin_lock_irq_rcu_node(ssp);
 	idx = rcu_seq_state(ssp->srcu_gp_seq);
 	WARN_ON_ONCE(idx != SRCU_STATE_SCAN2);
-	cbdelay = !!srcu_get_delay(ssp);
+	if (ULONG_CMP_LT(READ_ONCE(ssp->srcu_gp_seq), READ_ONCE(ssp->srcu_gp_seq_needed_exp)))
+		cbdelay = 0;
+
 	WRITE_ONCE(ssp->srcu_last_gp_end, ktime_get_mono_fast_ns());
 	rcu_seq_end(&ssp->srcu_gp_seq);
 	gpseq = rcu_seq_current(&ssp->srcu_gp_seq);
@@ -921,12 +962,16 @@ static void srcu_funnel_gp_start(struct srcu_struct *ssp, struct srcu_data *sdp,
  */
 static bool try_check_zero(struct srcu_struct *ssp, int idx, int trycount)
 {
+	unsigned long curdelay;
+
+	curdelay = !srcu_get_delay(ssp);
+
 	for (;;) {
 		if (srcu_readers_active_idx_check(ssp, idx))
 			return true;
-		if (--trycount + !srcu_get_delay(ssp) <= 0)
+		if ((--trycount + curdelay) <= 0)
 			return false;
-		udelay(SRCU_RETRY_CHECK_DELAY);
+		udelay(srcu_retry_check_delay);
 	}
 }
 
@@ -1582,7 +1627,7 @@ static void process_srcu(struct work_struct *work)
 		j = jiffies;
 		if (READ_ONCE(ssp->reschedule_jiffies) == j) {
 			WRITE_ONCE(ssp->reschedule_count, READ_ONCE(ssp->reschedule_count) + 1);
-			if (READ_ONCE(ssp->reschedule_count) > SRCU_MAX_NODELAY)
+			if (READ_ONCE(ssp->reschedule_count) > srcu_max_nodelay)
 				curdelay = 1;
 		} else {
 			WRITE_ONCE(ssp->reschedule_count, 1);
@@ -1674,6 +1719,11 @@ static int __init srcu_bootup_announce(void)
 	pr_info("Hierarchical SRCU implementation.\n");
 	if (exp_holdoff != DEFAULT_SRCU_EXP_HOLDOFF)
 		pr_info("\tNon-default auto-expedite holdoff of %lu ns.\n", exp_holdoff);
+	if (srcu_retry_check_delay != SRCU_DEFAULT_RETRY_CHECK_DELAY)
+		pr_info("\tNon-default retry check delay of %lu us.\n", srcu_retry_check_delay);
+	if (srcu_max_nodelay != SRCU_DEFAULT_MAX_NODELAY)
+		pr_info("\tNon-default max no-delay of %lu.\n", srcu_max_nodelay);
+	pr_info("\tMax phase no-delay instances is %lu.\n", srcu_max_nodelay_phase);
 	return 0;
 }
 early_initcall(srcu_bootup_announce);

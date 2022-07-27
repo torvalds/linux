@@ -1653,7 +1653,7 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 #if defined(CONFIG_DRM_AMD_SECURE_DISPLAY)
 	adev->dm.crc_rd_wrk = amdgpu_dm_crtc_secure_display_create_work();
 #endif
-	if (dc_enable_dmub_notifications(adev->dm.dc)) {
+	if (dc_is_dmub_outbox_supported(adev->dm.dc)) {
 		init_completion(&adev->dm.dmub_aux_transfer_done);
 		adev->dm.dmub_notify = kzalloc(sizeof(struct dmub_notification), GFP_KERNEL);
 		if (!adev->dm.dmub_notify) {
@@ -1688,6 +1688,13 @@ static int amdgpu_dm_init(struct amdgpu_device *adev)
 		"amdgpu: failed to initialize sw for display support.\n");
 		goto error;
 	}
+
+	/* Enable outbox notification only after IRQ handlers are registered and DMUB is alive.
+	 * It is expected that DMUB will resend any pending notifications at this point, for
+	 * example HPD from DPIA.
+	 */
+	if (dc_is_dmub_outbox_supported(adev->dm.dc))
+		dc_enable_dmub_outbox(adev->dm.dc);
 
 	/* create fake encoders for MST */
 	dm_dp_create_fake_mst_encoders(adev);
@@ -2678,9 +2685,6 @@ static int dm_resume(void *handle)
 		 */
 		link_enc_cfg_copy(adev->dm.dc->current_state, dc_state);
 
-		if (dc_enable_dmub_notifications(adev->dm.dc))
-			amdgpu_dm_outbox_init(adev);
-
 		r = dm_dmub_hw_init(adev);
 		if (r)
 			DRM_ERROR("DMUB interface failed to initialize: status=%d\n", r);
@@ -2696,6 +2700,11 @@ static int dm_resume(void *handle)
 				dc_state->stream_status[i].plane_states[j]->update_flags.raw
 					= 0xffffffff;
 			}
+		}
+
+		if (dc_is_dmub_outbox_supported(adev->dm.dc)) {
+			amdgpu_dm_outbox_init(adev);
+			dc_enable_dmub_outbox(adev->dm.dc);
 		}
 
 		WARN_ON(!dc_commit_state(dm->dc, dc_state));
@@ -2719,12 +2728,14 @@ static int dm_resume(void *handle)
 	/* TODO: Remove dc_state->dccg, use dc->dccg directly. */
 	dc_resource_state_construct(dm->dc, dm_state->context);
 
-	/* Re-enable outbox interrupts for DPIA. */
-	if (dc_enable_dmub_notifications(adev->dm.dc))
-		amdgpu_dm_outbox_init(adev);
-
 	/* Before powering on DC we need to re-initialize DMUB. */
 	dm_dmub_hw_resume(adev);
+
+	/* Re-enable outbox interrupts for DPIA. */
+	if (dc_is_dmub_outbox_supported(adev->dm.dc)) {
+		amdgpu_dm_outbox_init(adev);
+		dc_enable_dmub_outbox(adev->dm.dc);
+	}
 
 	/* power on hardware */
 	dc_set_power_state(dm->dc, DC_ACPI_CM_POWER_STATE_D0);

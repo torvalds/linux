@@ -1052,11 +1052,7 @@ udp_rmem_min - INTEGER
 	Default: 4K
 
 udp_wmem_min - INTEGER
-	Minimal size of send buffer used by UDP sockets in moderation.
-	Each UDP socket is able to use the size for sending data, even if
-	total pages of UDP sockets exceed udp_mem pressure. The unit is byte.
-
-	Default: 4K
+	UDP does not have tx memory accounting and this tunable has no effect.
 
 RAW variables
 =============

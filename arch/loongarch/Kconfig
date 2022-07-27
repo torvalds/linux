@@ -108,6 +108,7 @@ config LOONGARCH
 	select TRACE_IRQFLAGS_SUPPORT
 	select USE_PERCPU_NUMA_NODE_ID
 	select ZONE_DMA32
+	select MMU_GATHER_MERGE_VMAS if MMU
 
 config 32BIT
 	bool

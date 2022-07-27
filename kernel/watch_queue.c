@@ -227,7 +227,7 @@ void __post_watch_notification(struct watch_list *wlist,
 
 		if (lock_wqueue(wqueue)) {
 			post_one_notification(wqueue, n);
-			unlock_wqueue(wqueue);;
+			unlock_wqueue(wqueue);
 		}
 	}
 

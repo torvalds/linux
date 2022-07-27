@@ -1690,8 +1690,8 @@ static int mcp251xfd_register_chip_detect(struct mcp251xfd_priv *priv)
 	u32 osc;
 	int err;
 
-	/* The OSC_LPMEN is only supported on MCP2518FD, so use it to
-	 * autodetect the model.
+	/* The OSC_LPMEN is only supported on MCP2518FD and MCP251863,
+	 * so use it to autodetect the model.
 	 */
 	err = regmap_update_bits(priv->map_reg, MCP251XFD_REG_OSC,
 				 MCP251XFD_REG_OSC_LPMEN,
@@ -1703,10 +1703,18 @@ static int mcp251xfd_register_chip_detect(struct mcp251xfd_priv *priv)
 	if (err)
 		return err;
 
-	if (osc & MCP251XFD_REG_OSC_LPMEN)
-		devtype_data = &mcp251xfd_devtype_data_mcp2518fd;
-	else
+	if (osc & MCP251XFD_REG_OSC_LPMEN) {
+		/* We cannot distinguish between MCP2518FD and
+		 * MCP251863. If firmware specifies MCP251863, keep
+		 * it, otherwise set to MCP2518FD.
+		 */
+		if (mcp251xfd_is_251863(priv))
+			devtype_data = &mcp251xfd_devtype_data_mcp251863;
+		else
+			devtype_data = &mcp251xfd_devtype_data_mcp2518fd;
+	} else {
 		devtype_data = &mcp251xfd_devtype_data_mcp2517fd;
+	}
 
 	if (!mcp251xfd_is_251XFD(priv) &&
 	    priv->devtype_data.model != devtype_data->model) {
