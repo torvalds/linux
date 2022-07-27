@@ -30,7 +30,6 @@
 #include "os_types.h"
 #include "../dc_features.h"
 #include "../display_mode_structs.h"
-#include "dml/display_mode_vba.h"
 
 unsigned int dml32_dscceComputeDelay(
 		unsigned int bpc,
@@ -82,7 +81,6 @@ void dml32_CalculateSinglePipeDPPCLKAndSCLThroughput(
 		double *DPPCLKUsingSingleDPP);
 
 void dml32_CalculateSwathAndDETConfiguration(
-		struct dml32_CalculateSwathAndDETConfiguration *st_vars,
 		unsigned int DETSizeOverride[],
 		enum dm_use_mall_for_pstate_change_mode UseMALLForPStateChange[],
 		unsigned int ConfigReturnBufferSizeInKByte,

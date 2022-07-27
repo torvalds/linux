@@ -391,7 +391,6 @@ void dml32_CalculateBytePerPixelAndBlockSizes(
 } // CalculateBytePerPixelAndBlockSizes
 
 void dml32_CalculateSwathAndDETConfiguration(
-		struct dml32_CalculateSwathAndDETConfiguration *st_vars,
 		unsigned int DETSizeOverride[],
 		enum dm_use_mall_for_pstate_change_mode UseMALLForPStateChange[],
 		unsigned int ConfigReturnBufferSizeInKByte,
@@ -456,10 +455,18 @@ void dml32_CalculateSwathAndDETConfiguration(
 		bool ViewportSizeSupportPerSurface[],
 		bool *ViewportSizeSupport)
 {
+	unsigned int MaximumSwathHeightY[DC__NUM_DPP__MAX];
+	unsigned int MaximumSwathHeightC[DC__NUM_DPP__MAX];
+	unsigned int RoundedUpMaxSwathSizeBytesY[DC__NUM_DPP__MAX];
+	unsigned int RoundedUpMaxSwathSizeBytesC[DC__NUM_DPP__MAX];
+	unsigned int RoundedUpSwathSizeBytesY;
+	unsigned int RoundedUpSwathSizeBytesC;
+	double SwathWidthdoubleDPP[DC__NUM_DPP__MAX];
+	double SwathWidthdoubleDPPChroma[DC__NUM_DPP__MAX];
 	unsigned int k;
-
-	st_vars->TotalActiveDPP = 0;
-	st_vars->NoChromaSurfaces = true;
+	unsigned int TotalActiveDPP = 0;
+	bool NoChromaSurfaces = true;
+	unsigned int DETBufferSizeInKByteForSwathCalculation;
 
 #ifdef __DML_VBA_DEBUG__
 	dml_print("DML::%s: ForceSingleDPP = %d\n", __func__, ForceSingleDPP);
@@ -494,43 +501,43 @@ void dml32_CalculateSwathAndDETConfiguration(
 			DPPPerSurface,
 
 			/* Output */
-			st_vars->SwathWidthdoubleDPP,
-			st_vars->SwathWidthdoubleDPPChroma,
+			SwathWidthdoubleDPP,
+			SwathWidthdoubleDPPChroma,
 			SwathWidth,
 			SwathWidthChroma,
-			st_vars->MaximumSwathHeightY,
-			st_vars->MaximumSwathHeightC,
+			MaximumSwathHeightY,
+			MaximumSwathHeightC,
 			swath_width_luma_ub,
 			swath_width_chroma_ub);
 
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
-		st_vars->RoundedUpMaxSwathSizeBytesY[k] = swath_width_luma_ub[k] * BytePerPixDETY[k] * st_vars->MaximumSwathHeightY[k];
-		st_vars->RoundedUpMaxSwathSizeBytesC[k] = swath_width_chroma_ub[k] * BytePerPixDETC[k] * st_vars->MaximumSwathHeightC[k];
+		RoundedUpMaxSwathSizeBytesY[k] = swath_width_luma_ub[k] * BytePerPixDETY[k] * MaximumSwathHeightY[k];
+		RoundedUpMaxSwathSizeBytesC[k] = swath_width_chroma_ub[k] * BytePerPixDETC[k] * MaximumSwathHeightC[k];
 #ifdef __DML_VBA_DEBUG__
 		dml_print("DML::%s: k=%0d DPPPerSurface = %d\n", __func__, k, DPPPerSurface[k]);
 		dml_print("DML::%s: k=%0d swath_width_luma_ub = %d\n", __func__, k, swath_width_luma_ub[k]);
 		dml_print("DML::%s: k=%0d BytePerPixDETY = %f\n", __func__, k, BytePerPixDETY[k]);
-		dml_print("DML::%s: k=%0d MaximumSwathHeightY = %d\n", __func__, k, st_vars->MaximumSwathHeightY[k]);
+		dml_print("DML::%s: k=%0d MaximumSwathHeightY = %d\n", __func__, k, MaximumSwathHeightY[k]);
 		dml_print("DML::%s: k=%0d RoundedUpMaxSwathSizeBytesY = %d\n", __func__, k,
-				st_vars->RoundedUpMaxSwathSizeBytesY[k]);
+				RoundedUpMaxSwathSizeBytesY[k]);
 		dml_print("DML::%s: k=%0d swath_width_chroma_ub = %d\n", __func__, k, swath_width_chroma_ub[k]);
 		dml_print("DML::%s: k=%0d BytePerPixDETC = %f\n", __func__, k, BytePerPixDETC[k]);
-		dml_print("DML::%s: k=%0d MaximumSwathHeightC = %d\n", __func__, k, st_vars->MaximumSwathHeightC[k]);
+		dml_print("DML::%s: k=%0d MaximumSwathHeightC = %d\n", __func__, k, MaximumSwathHeightC[k]);
 		dml_print("DML::%s: k=%0d RoundedUpMaxSwathSizeBytesC = %d\n", __func__, k,
-				st_vars->RoundedUpMaxSwathSizeBytesC[k]);
+				RoundedUpMaxSwathSizeBytesC[k]);
 #endif
 
 		if (SourcePixelFormat[k] == dm_420_10) {
-			st_vars->RoundedUpMaxSwathSizeBytesY[k] = dml_ceil((unsigned int) st_vars->RoundedUpMaxSwathSizeBytesY[k], 256);
-			st_vars->RoundedUpMaxSwathSizeBytesC[k] = dml_ceil((unsigned int) st_vars->RoundedUpMaxSwathSizeBytesC[k], 256);
+			RoundedUpMaxSwathSizeBytesY[k] = dml_ceil((unsigned int) RoundedUpMaxSwathSizeBytesY[k], 256);
+			RoundedUpMaxSwathSizeBytesC[k] = dml_ceil((unsigned int) RoundedUpMaxSwathSizeBytesC[k], 256);
 		}
 	}
 
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
-		st_vars->TotalActiveDPP = st_vars->TotalActiveDPP + (ForceSingleDPP ? 1 : DPPPerSurface[k]);
+		TotalActiveDPP = TotalActiveDPP + (ForceSingleDPP ? 1 : DPPPerSurface[k]);
 		if (SourcePixelFormat[k] == dm_420_8 || SourcePixelFormat[k] == dm_420_10 ||
 				SourcePixelFormat[k] == dm_420_12 || SourcePixelFormat[k] == dm_rgbe_alpha) {
-			st_vars->NoChromaSurfaces = false;
+			NoChromaSurfaces = false;
 		}
 	}
 
@@ -540,10 +547,10 @@ void dml32_CalculateSwathAndDETConfiguration(
 	// if unbounded req is enabled, program reserved space such that the ROB will not hold more than 8 swaths worth of data
 	// - assume worst-case compression rate of 4. [ROB size - 8 * swath_size / max_compression ratio]
 	// - assume for "narrow" vp case in which the ROB can fit 8 swaths, the DET should be big enough to do full size req
-	*CompBufReservedSpaceNeedAdjustment = ((int) ROBSizeKBytes - (int) *CompBufReservedSpaceKBytes) > (int) (st_vars->RoundedUpMaxSwathSizeBytesY[0]/512);
+	*CompBufReservedSpaceNeedAdjustment = ((int) ROBSizeKBytes - (int) *CompBufReservedSpaceKBytes) > (int) (RoundedUpMaxSwathSizeBytesY[0]/512);
 
 	if (*CompBufReservedSpaceNeedAdjustment == 1) {
-		*CompBufReservedSpaceKBytes = ROBSizeKBytes - st_vars->RoundedUpMaxSwathSizeBytesY[0]/512;
+		*CompBufReservedSpaceKBytes = ROBSizeKBytes - RoundedUpMaxSwathSizeBytesY[0]/512;
 	}
 
 	#ifdef __DML_VBA_DEBUG__
@@ -551,7 +558,7 @@ void dml32_CalculateSwathAndDETConfiguration(
 		dml_print("DML::%s: CompBufReservedSpaceNeedAdjustment  = %d\n",  __func__, *CompBufReservedSpaceNeedAdjustment);
 	#endif
 
-	*UnboundedRequestEnabled = dml32_UnboundedRequest(UseUnboundedRequestingFinal, st_vars->TotalActiveDPP, st_vars->NoChromaSurfaces, Output[0], SurfaceTiling[0], *CompBufReservedSpaceNeedAdjustment, DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment);
+	*UnboundedRequestEnabled = dml32_UnboundedRequest(UseUnboundedRequestingFinal, TotalActiveDPP, NoChromaSurfaces, Output[0], SurfaceTiling[0], *CompBufReservedSpaceNeedAdjustment, DisableUnboundRequestIfCompBufReservedSpaceNeedAdjustment);
 
 	dml32_CalculateDETBufferSize(DETSizeOverride,
 			UseMALLForPStateChange,
@@ -566,8 +573,8 @@ void dml32_CalculateSwathAndDETConfiguration(
 			SourcePixelFormat,
 			ReadBandwidthLuma,
 			ReadBandwidthChroma,
-			st_vars->RoundedUpMaxSwathSizeBytesY,
-			st_vars->RoundedUpMaxSwathSizeBytesC,
+			RoundedUpMaxSwathSizeBytesY,
+			RoundedUpMaxSwathSizeBytesC,
 			DPPPerSurface,
 
 			/* Output */
@@ -575,7 +582,7 @@ void dml32_CalculateSwathAndDETConfiguration(
 			CompressedBufferSizeInkByte);
 
 #ifdef __DML_VBA_DEBUG__
-	dml_print("DML::%s: TotalActiveDPP = %d\n", __func__, st_vars->TotalActiveDPP);
+	dml_print("DML::%s: TotalActiveDPP = %d\n", __func__, TotalActiveDPP);
 	dml_print("DML::%s: nomDETInKByte = %d\n", __func__, nomDETInKByte);
 	dml_print("DML::%s: ConfigReturnBufferSizeInKByte = %d\n", __func__, ConfigReturnBufferSizeInKByte);
 	dml_print("DML::%s: UseUnboundedRequestingFinal = %d\n", __func__, UseUnboundedRequestingFinal);
@@ -586,42 +593,42 @@ void dml32_CalculateSwathAndDETConfiguration(
 	*ViewportSizeSupport = true;
 	for (k = 0; k < NumberOfActiveSurfaces; ++k) {
 
-		st_vars->DETBufferSizeInKByteForSwathCalculation = (UseMALLForPStateChange[k] ==
+		DETBufferSizeInKByteForSwathCalculation = (UseMALLForPStateChange[k] ==
 				dm_use_mall_pstate_change_phantom_pipe ? 1024 : DETBufferSizeInKByte[k]);
 #ifdef __DML_VBA_DEBUG__
 		dml_print("DML::%s: k=%0d DETBufferSizeInKByteForSwathCalculation = %d\n", __func__, k,
-				st_vars->DETBufferSizeInKByteForSwathCalculation);
+				DETBufferSizeInKByteForSwathCalculation);
 #endif
 
-		if (st_vars->RoundedUpMaxSwathSizeBytesY[k] + st_vars->RoundedUpMaxSwathSizeBytesC[k] <=
-				st_vars->DETBufferSizeInKByteForSwathCalculation * 1024 / 2) {
-			SwathHeightY[k] = st_vars->MaximumSwathHeightY[k];
-			SwathHeightC[k] = st_vars->MaximumSwathHeightC[k];
-			st_vars->RoundedUpSwathSizeBytesY = st_vars->RoundedUpMaxSwathSizeBytesY[k];
-			st_vars->RoundedUpSwathSizeBytesC = st_vars->RoundedUpMaxSwathSizeBytesC[k];
-		} else if (st_vars->RoundedUpMaxSwathSizeBytesY[k] >= 1.5 * st_vars->RoundedUpMaxSwathSizeBytesC[k] &&
-				st_vars->RoundedUpMaxSwathSizeBytesY[k] / 2 + st_vars->RoundedUpMaxSwathSizeBytesC[k] <=
-				st_vars->DETBufferSizeInKByteForSwathCalculation * 1024 / 2) {
-			SwathHeightY[k] = st_vars->MaximumSwathHeightY[k] / 2;
-			SwathHeightC[k] = st_vars->MaximumSwathHeightC[k];
-			st_vars->RoundedUpSwathSizeBytesY = st_vars->RoundedUpMaxSwathSizeBytesY[k] / 2;
-			st_vars->RoundedUpSwathSizeBytesC = st_vars->RoundedUpMaxSwathSizeBytesC[k];
-		} else if (st_vars->RoundedUpMaxSwathSizeBytesY[k] < 1.5 * st_vars->RoundedUpMaxSwathSizeBytesC[k] &&
-				st_vars->RoundedUpMaxSwathSizeBytesY[k] + st_vars->RoundedUpMaxSwathSizeBytesC[k] / 2 <=
-				st_vars->DETBufferSizeInKByteForSwathCalculation * 1024 / 2) {
-			SwathHeightY[k] = st_vars->MaximumSwathHeightY[k];
-			SwathHeightC[k] = st_vars->MaximumSwathHeightC[k] / 2;
-			st_vars->RoundedUpSwathSizeBytesY = st_vars->RoundedUpMaxSwathSizeBytesY[k];
-			st_vars->RoundedUpSwathSizeBytesC = st_vars->RoundedUpMaxSwathSizeBytesC[k] / 2;
+		if (RoundedUpMaxSwathSizeBytesY[k] + RoundedUpMaxSwathSizeBytesC[k] <=
+				DETBufferSizeInKByteForSwathCalculation * 1024 / 2) {
+			SwathHeightY[k] = MaximumSwathHeightY[k];
+			SwathHeightC[k] = MaximumSwathHeightC[k];
+			RoundedUpSwathSizeBytesY = RoundedUpMaxSwathSizeBytesY[k];
+			RoundedUpSwathSizeBytesC = RoundedUpMaxSwathSizeBytesC[k];
+		} else if (RoundedUpMaxSwathSizeBytesY[k] >= 1.5 * RoundedUpMaxSwathSizeBytesC[k] &&
+				RoundedUpMaxSwathSizeBytesY[k] / 2 + RoundedUpMaxSwathSizeBytesC[k] <=
+				DETBufferSizeInKByteForSwathCalculation * 1024 / 2) {
+			SwathHeightY[k] = MaximumSwathHeightY[k] / 2;
+			SwathHeightC[k] = MaximumSwathHeightC[k];
+			RoundedUpSwathSizeBytesY = RoundedUpMaxSwathSizeBytesY[k] / 2;
+			RoundedUpSwathSizeBytesC = RoundedUpMaxSwathSizeBytesC[k];
+		} else if (RoundedUpMaxSwathSizeBytesY[k] < 1.5 * RoundedUpMaxSwathSizeBytesC[k] &&
+				RoundedUpMaxSwathSizeBytesY[k] + RoundedUpMaxSwathSizeBytesC[k] / 2 <=
+				DETBufferSizeInKByteForSwathCalculation * 1024 / 2) {
+			SwathHeightY[k] = MaximumSwathHeightY[k];
+			SwathHeightC[k] = MaximumSwathHeightC[k] / 2;
+			RoundedUpSwathSizeBytesY = RoundedUpMaxSwathSizeBytesY[k];
+			RoundedUpSwathSizeBytesC = RoundedUpMaxSwathSizeBytesC[k] / 2;
 		} else {
-			SwathHeightY[k] = st_vars->MaximumSwathHeightY[k] / 2;
-			SwathHeightC[k] = st_vars->MaximumSwathHeightC[k] / 2;
-			st_vars->RoundedUpSwathSizeBytesY = st_vars->RoundedUpMaxSwathSizeBytesY[k] / 2;
-			st_vars->RoundedUpSwathSizeBytesC = st_vars->RoundedUpMaxSwathSizeBytesC[k] / 2;
+			SwathHeightY[k] = MaximumSwathHeightY[k] / 2;
+			SwathHeightC[k] = MaximumSwathHeightC[k] / 2;
+			RoundedUpSwathSizeBytesY = RoundedUpMaxSwathSizeBytesY[k] / 2;
+			RoundedUpSwathSizeBytesC = RoundedUpMaxSwathSizeBytesC[k] / 2;
 		}
 
-		if ((st_vars->RoundedUpMaxSwathSizeBytesY[k] / 2 + st_vars->RoundedUpMaxSwathSizeBytesC[k] / 2 >
-				st_vars->DETBufferSizeInKByteForSwathCalculation * 1024 / 2)
+		if ((RoundedUpMaxSwathSizeBytesY[k] / 2 + RoundedUpMaxSwathSizeBytesC[k] / 2 >
+				DETBufferSizeInKByteForSwathCalculation * 1024 / 2)
 				|| SwathWidth[k] > MaximumSwathWidthLuma[k] || (SwathHeightC[k] > 0 &&
 						SwathWidthChroma[k] > MaximumSwathWidthChroma[k])) {
 			*ViewportSizeSupport = false;
@@ -636,7 +643,7 @@ void dml32_CalculateSwathAndDETConfiguration(
 #endif
 			DETBufferSizeY[k] = DETBufferSizeInKByte[k] * 1024;
 			DETBufferSizeC[k] = 0;
-		} else if (st_vars->RoundedUpSwathSizeBytesY <= 1.5 * st_vars->RoundedUpSwathSizeBytesC) {
+		} else if (RoundedUpSwathSizeBytesY <= 1.5 * RoundedUpSwathSizeBytesC) {
 #ifdef __DML_VBA_DEBUG__
 			dml_print("DML::%s: k=%0d Half DET for plane0, half for plane1\n", __func__, k);
 #endif
@@ -654,11 +661,11 @@ void dml32_CalculateSwathAndDETConfiguration(
 		dml_print("DML::%s: k=%0d SwathHeightY = %d\n", __func__, k, SwathHeightY[k]);
 		dml_print("DML::%s: k=%0d SwathHeightC = %d\n", __func__, k, SwathHeightC[k]);
 		dml_print("DML::%s: k=%0d RoundedUpMaxSwathSizeBytesY = %d\n", __func__,
-				k, st_vars->RoundedUpMaxSwathSizeBytesY[k]);
+				k, RoundedUpMaxSwathSizeBytesY[k]);
 		dml_print("DML::%s: k=%0d RoundedUpMaxSwathSizeBytesC = %d\n", __func__,
-				k, st_vars->RoundedUpMaxSwathSizeBytesC[k]);
-		dml_print("DML::%s: k=%0d RoundedUpSwathSizeBytesY = %d\n", __func__, k, st_vars->RoundedUpSwathSizeBytesY);
-		dml_print("DML::%s: k=%0d RoundedUpSwathSizeBytesC = %d\n", __func__, k, st_vars->RoundedUpSwathSizeBytesC);
+				k, RoundedUpMaxSwathSizeBytesC[k]);
+		dml_print("DML::%s: k=%0d RoundedUpSwathSizeBytesY = %d\n", __func__, k, RoundedUpSwathSizeBytesY);
+		dml_print("DML::%s: k=%0d RoundedUpSwathSizeBytesC = %d\n", __func__, k, RoundedUpSwathSizeBytesC);
 		dml_print("DML::%s: k=%0d DETBufferSizeInKByte = %d\n", __func__, k, DETBufferSizeInKByte[k]);
 		dml_print("DML::%s: k=%0d DETBufferSizeY = %d\n", __func__, k, DETBufferSizeY[k]);
 		dml_print("DML::%s: k=%0d DETBufferSizeC = %d\n", __func__, k, DETBufferSizeC[k]);

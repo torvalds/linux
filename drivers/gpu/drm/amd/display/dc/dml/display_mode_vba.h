@@ -182,20 +182,6 @@ void Calculate256BBlockSizes(
 		unsigned int *BlockWidth256BytesY,
 		unsigned int *BlockWidth256BytesC);
 
-struct dml32_CalculateSwathAndDETConfiguration {
-	unsigned int MaximumSwathHeightY[DC__NUM_DPP__MAX];
-	unsigned int MaximumSwathHeightC[DC__NUM_DPP__MAX];
-	unsigned int RoundedUpMaxSwathSizeBytesY[DC__NUM_DPP__MAX];
-	unsigned int RoundedUpMaxSwathSizeBytesC[DC__NUM_DPP__MAX];
-	unsigned int RoundedUpSwathSizeBytesY;
-	unsigned int RoundedUpSwathSizeBytesC;
-	double SwathWidthdoubleDPP[DC__NUM_DPP__MAX];
-	double SwathWidthdoubleDPPChroma[DC__NUM_DPP__MAX];
-	unsigned int TotalActiveDPP;
-	bool NoChromaSurfaces;
-	unsigned int DETBufferSizeInKByteForSwathCalculation;
-};
-
 struct DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation {
 	unsigned int dummy_integer_array[2][DC__NUM_DPP__MAX];
 	double dummy_single_array[2][DC__NUM_DPP__MAX];
@@ -267,7 +253,6 @@ struct dummy_vars {
 	struct DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation
 	DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerformanceCalculation;
 	struct dml32_ModeSupportAndSystemConfigurationFull dml32_ModeSupportAndSystemConfigurationFull;
-	struct dml32_CalculateSwathAndDETConfiguration dml32_CalculateSwathAndDETConfiguration;
 };
 
 struct vba_vars_st {
