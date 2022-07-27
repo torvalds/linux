@@ -132,6 +132,17 @@
         "UMask": "0x7e"
     },
     {
+        "BriefDescription": "Counts the number of mispredicted near indirect JMP and near indirect CALL branch instructions retired.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xc5",
+        "EventName": "BR_MISP_RETIRED.NON_RETURN_IND",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "200003",
+        "UMask": "0xeb"
+    },
+    {
         "BriefDescription": "Counts the number of mispredicted near RET branch instructions retired.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
@@ -159,7 +170,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xe8",
         "EventName": "BTCLEAR.ANY",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the total number of BTCLEARS which occurs when the Branch Target Buffer (BTB) predicts a taken branch.",
         "SampleAfterValue": "200003"
@@ -169,9 +180,9 @@
         "CollectPEBSRecord": "2",
         "Counter": "Fixed counter 1",
         "EventName": "CPU_CLK_UNHALTED.CORE",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "33",
-        "PublicDescription": "Counts the number of core cycles while the core is not in a halt state.  The core enters the halt state when it is running the HLT instruction. The core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time. This event uses fixed counter 1.",
+        "PublicDescription": "Counts the number of core cycles while the core is not in a halt state. The core enters the halt state when it is running the HLT instruction. The core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time. This event uses fixed counter 1.",
         "SampleAfterValue": "2000003",
         "UMask": "0x2"
     },
@@ -181,9 +192,9 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x3c",
         "EventName": "CPU_CLK_UNHALTED.CORE_P",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts the number of core cycles while the core is not in a halt state.  The core enters the halt state when it is running the HLT instruction. The core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time. This event uses a programmable general purpose performance counter.",
+        "PublicDescription": "Counts the number of core cycles while the core is not in a halt state. The core enters the halt state when it is running the HLT instruction. The core frequency may change from time to time. For this reason this event may have a changing ratio with regards to time. This event uses a programmable general purpose performance counter.",
         "SampleAfterValue": "2000003"
     },
     {
@@ -192,7 +203,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x3c",
         "EventName": "CPU_CLK_UNHALTED.REF",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of reference cycles that the core is not in a halt state. The core enters the halt state when it is running the HLT instruction. This event is not affected by core frequency changes and increments at a fixed frequency that is also used for the Time Stamp Counter (TSC). This event uses fixed counter 2.",
         "SampleAfterValue": "2000003",
@@ -203,7 +214,7 @@
         "CollectPEBSRecord": "2",
         "Counter": "Fixed counter 2",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "34",
         "PublicDescription": "Counts the number of reference cycles that the core is not in a halt state. The core enters the halt state when it is running the HLT instruction. This event is not affected by core frequency changes and increments at a fixed frequency that is also used for the Time Stamp Counter (TSC). This event uses fixed counter 2.",
         "SampleAfterValue": "2000003",
@@ -216,7 +227,7 @@
         "EventCode": "0x3c",
         "EventName": "CPU_CLK_UNHALTED.REF_TSC_P",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts the number of reference cycles that the core is not in a halt state. The core enters the halt state when it is running the HLT instruction.  This event is not affected by core frequency changes and increments at a fixed frequency that is also used for the Time Stamp Counter (TSC). This event uses a programmable general purpose performance counter.",
+        "PublicDescription": "Counts the number of reference cycles that the core is not in a halt state. The core enters the halt state when it is running the HLT instruction. This event is not affected by core frequency changes and increments at a fixed frequency that is also used for the Time Stamp Counter (TSC). This event uses a programmable general purpose performance counter.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },
@@ -226,18 +237,19 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xcd",
         "EventName": "CYCLES_DIV_BUSY.ANY",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "2000003"
     },
     {
-        "BriefDescription": "Counts the number of cycles the integer divider is busy.  Does not imply a stall waiting for the divider.",
+        "BriefDescription": "Counts the number of cycles the integer divider is busy.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0xcd",
         "EventName": "CYCLES_DIV_BUSY.IDIV",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of cycles the integer divider is busy.  Does not imply a stall waiting for the divider.",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
     },
@@ -264,14 +276,91 @@
         "SampleAfterValue": "2000003"
     },
     {
-        "BriefDescription": "Counts the total number of machine clears including memory ordering, memory disambiguation, self-modifying code, page faults and floating point assist.",
+        "BriefDescription": "Counts the number of retired loads that are blocked because it initially appears to be store forward blocked, but subsequently is shown not to be blocked based on 4K alias check.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "LD_BLOCKS.4K_ALIAS",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x4"
+    },
+    {
+        "BriefDescription": "Counts the number of retired loads that are blocked for any of the following reasons:  DTLB miss, address alias, store forward or data unknown (includes memory disambiguation blocks and ESP consuming load blocks).",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "LD_BLOCKS.ALL",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x10"
+    },
+    {
+        "BriefDescription": "Counts the number of retired loads that are blocked because its address exactly matches an older store whose data is not ready.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "LD_BLOCKS.DATA_UNKNOWN",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of retired loads that are blocked because its address partially overlapped with an older store.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x03",
+        "EventName": "LD_BLOCKS.STORE_FORWARD",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "1000003",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Counts the total number of machine clears for any reason including, but not limited to, memory ordering, memory disambiguation, SMC, and FP assist.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.ANY",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "20003"
+    },
+    {
+        "BriefDescription": "Counts the number of machine clears due to memory ordering in which an internal load passes an older store within the same CPU.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xc3",
+        "EventName": "MACHINE_CLEARS.DISAMBIGUATION",
+        "PDIR_COUNTER": "NA",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "20003",
+        "UMask": "0x8"
+    },
+    {
+        "BriefDescription": "Counts the number of machine clears due to a page fault.  Counts both I-Side and D-Side (Loads/Stores) page faults.  A page fault occurs when either the page is not present, or an access violation occurs.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xc3",
+        "EventName": "MACHINE_CLEARS.PAGE_FAULT",
+        "PDIR_COUNTER": "NA",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "20003",
+        "UMask": "0x20"
+    },
+    {
+        "BriefDescription": "Counts the number of machine clears due to program modifying data (self modifying code) within 1K of a recently fetched code page.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xc3",
+        "EventName": "MACHINE_CLEARS.SMC",
+        "PDIR_COUNTER": "NA",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "20003",
+        "UMask": "0x1"
     },
     {
         "BriefDescription": "Counts the total number of issue slots that were not consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear.",
@@ -279,14 +368,15 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x73",
         "EventName": "TOPDOWN_BAD_SPECULATION.ALL",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts the total number of issue slots that were not consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear. Only issue slots wasted due to fast nukes such as memory ordering nukes are counted. Other nukes are not accounted for. Counts all issue slots blocked during this recovery window including relevant microcode flows and while uops are not yet available in the instruction queue (IQ). Also includes the issue slots that were consumed by the backend but were thrown away because they were younger than the mispredict or machine clear.",
+        "PublicDescription": "Counts the total number of issue slots that were not consumed by the backend because allocation is stalled due to a mispredicted jump or a machine clear. Only issue slots wasted due to fast nukes such as memory ordering nukes are counted. Other nukes are not accounted for. Counts all issue slots blocked during this recovery window including relevant microcode flows and while uops are not yet available in the instruction queue (IQ) even if an FE_bound event occurs during this period. Also includes the issue slots that were consumed by the backend but were thrown away because they were younger than the mispredict or machine clear.",
         "SampleAfterValue": "1000003",
         "UMask": "0x6"
     },
     {
         "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to fast nukes such as memory ordering and memory disambiguation machine clears.",
+        "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x73",
         "EventName": "TOPDOWN_BAD_SPECULATION.FASTNUKE",
@@ -297,6 +387,7 @@
     },
     {
         "BriefDescription": "Counts the total number of issue slots that were not consumed by the backend because allocation is stalled due to a machine clear (nuke) of any kind including memory ordering and memory disambiguation.",
+        "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x73",
         "EventName": "TOPDOWN_BAD_SPECULATION.MACHINE_CLEARS",
@@ -311,7 +402,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x73",
         "EventName": "TOPDOWN_BAD_SPECULATION.MISPREDICT",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
@@ -322,7 +413,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x73",
         "EventName": "TOPDOWN_BAD_SPECULATION.MONUKE",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
@@ -333,7 +424,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.ALL",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003"
     },
@@ -343,7 +434,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.ALLOC_RESTRICTIONS",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
@@ -354,7 +445,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.MEM_SCHEDULER",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x2"
@@ -365,7 +456,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.NON_MEM_SCHEDULER",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x8"
@@ -376,7 +467,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.REGISTER",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x20"
@@ -387,7 +478,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.REORDER_BUFFER",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x40"
@@ -398,7 +489,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.SERIALIZATION",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x10"
@@ -409,18 +500,18 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x74",
         "EventName": "TOPDOWN_BE_BOUND.STORE_BUFFER",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not consumed by the backend due to frontend stalls.",
+        "BriefDescription": "Counts the total number of issue slots every cycle that were not consumed by the backend due to frontend stalls.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.ALL",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003"
     },
@@ -430,7 +521,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.BRANCH_DETECT",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to BACLEARS, which occurs when the Branch Target Buffer (BTB) prediction or lack thereof, was corrected by a later branch predictor in the frontend. Includes BACLEARS due to all branch types including conditional and unconditional jumps, returns, and indirect branches.",
         "SampleAfterValue": "1000003",
@@ -442,7 +533,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.BRANCH_RESTEER",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to BTCLEARS, which occurs when the Branch Target Buffer (BTB) predicts a taken branch.",
         "SampleAfterValue": "1000003",
@@ -454,7 +545,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.CISC",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x1"
@@ -465,7 +556,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.DECODE",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x8"
@@ -476,7 +567,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.ITLB",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to Instruction Table Lookaside Buffer (ITLB) misses.",
         "SampleAfterValue": "1000003",
@@ -488,7 +579,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.OTHER",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x80"
@@ -499,7 +590,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.PREDECODE",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
         "UMask": "0x4"
@@ -515,16 +606,58 @@
         "SampleAfterValue": "1000003"
     },
     {
+        "BriefDescription": "Counts the number of uops issued by the front end every cycle.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x0e",
+        "EventName": "UOPS_ISSUED.ANY",
+        "PDIR_COUNTER": "NA",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of uops issued by the front end every cycle. When 4-uops are requested and only 2-uops are delivered, the event counts 2.  Uops_issued correlates to the number of ROB entries.  If uop takes 2 ROB slots it counts as 2 uops_issued.",
+        "SampleAfterValue": "200003"
+    },
+    {
+        "BriefDescription": "Counts the total number of uops retired.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xc2",
+        "EventName": "UOPS_RETIRED.ALL",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "2000003"
+    },
+    {
+        "BriefDescription": "Counts the number of integer divide uops retired.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xc2",
+        "EventName": "UOPS_RETIRED.IDIV",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x10"
+    },
+    {
         "BriefDescription": "Counts the number of uops that are from complex flows issued by the micro-sequencer (MS).",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.MS",
-        "PDIR_COUNTER": "na",
         "PEBS": "1",
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of uops that are from complex flows issued by the Microcode Sequencer (MS). This includes uops from flows due to complex instructions, faults, assists, and inserted flows.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Counts the number of x87 uops retired, includes those in MS flows.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xc2",
+        "EventName": "UOPS_RETIRED.X87",
+        "PEBS": "1",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "2000003",
+        "UMask": "0x2"
     }
 ]

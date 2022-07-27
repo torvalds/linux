@@ -1,11 +1,11 @@
 [
     {
-        "BriefDescription": "Counts the total number of BACLEARS.",
+        "BriefDescription": "Counts the total number of BACLEARS due to all branch types including conditional and unconditional jumps, returns, and indirect branches.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0xe6",
         "EventName": "BACLEARS.ANY",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the total number of BACLEARS, which occur when the Branch Target Buffer (BTB) prediction or lack thereof, was corrected by a later branch predictor in the frontend.  Includes BACLEARS due to all branch types including conditional and unconditional jumps, returns, and indirect branches.",
         "SampleAfterValue": "200003",
@@ -17,7 +17,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xe6",
         "EventName": "BACLEARS.COND",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
         "UMask": "0x10"
@@ -28,7 +28,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xe6",
         "EventName": "BACLEARS.INDIRECT",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
@@ -39,18 +39,18 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xe6",
         "EventName": "BACLEARS.RETURN",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
         "UMask": "0x8"
     },
     {
-        "BriefDescription": "Counts the number of BACLEARS due to a non-indirect, non-conditional jump.",
+        "BriefDescription": "Counts the number of BACLEARS due to a direct, unconditional jump.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0xe6",
         "EventName": "BACLEARS.UNCOND",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
         "UMask": "0x4"
@@ -61,7 +61,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xe9",
         "EventName": "DECODE_RESTRICTION.PREDECODE_WRONG",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
@@ -72,11 +72,23 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "ICACHE.ACCESSES",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the total number of requests to the instruction cache.  The event only counts new cache line accesses, so that multiple back to back fetches to the exact same cache line or byte chunk count as one.  Specifically, the event counts when accesses from sequential code crosses the cache line boundary, or when a branch target is moved to a new line or to a non-sequential byte chunk of the same line.",
         "SampleAfterValue": "200003",
         "UMask": "0x3"
+    },
+    {
+        "BriefDescription": "Counts the number of instruction cache hits.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x80",
+        "EventName": "ICACHE.HIT",
+        "PDIR_COUNTER": "NA",
+        "PEBScounters": "0,1,2,3",
+        "PublicDescription": "Counts the number of requests that hit in the instruction cache.  The event only counts new cache line accesses, so that multiple back to back fetches to the exact same cache line and byte chunk count as one.  Specifically, the event counts when accesses from sequential code crosses the cache line boundary, or when a branch target is moved to a new line or to a non-sequential byte chunk of the same line.",
+        "SampleAfterValue": "200003",
+        "UMask": "0x1"
     },
     {
         "BriefDescription": "Counts the number of instruction cache misses.",
@@ -84,7 +96,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x80",
         "EventName": "ICACHE.MISSES",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of missed requests to the instruction cache.  The event only counts new cache line accesses, so that multiple back to back fetches to the exact same cache line and byte chunk count as one.  Specifically, the event counts when accesses from sequential code crosses the cache line boundary, or when a branch target is moved to a new line or to a non-sequential byte chunk of the same line.",
         "SampleAfterValue": "200003",
