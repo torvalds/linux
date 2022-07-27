@@ -320,7 +320,19 @@ config ARCH_MMAP_RND_BITS_MAX
 	default 16
 
 config ARCH_MULTIPLATFORM
-	def_bool MMU && !(ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100)
+	bool "Require kernel to be portable to multiple machines" if EXPERT
+	depends on MMU && !(ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100)
+	default y
+	help
+	  In general, all Arm machines can be supported in a single
+	  kernel image, covering either Armv4/v5 or Armv6/v7.
+
+	  However, some configuration options require hardcoding machine
+	  specific physical addresses or enable errata workarounds that may
+	  break other machines.
+
+	  Selecting N here allows using those options, including
+	  DEBUG_UNCOMPRESS, XIP_KERNEL and ZBOOT_ROM. If unsure, say Y.
 
 menu "Platform selection"
 	depends on MMU
@@ -1609,6 +1621,7 @@ config CMDLINE_EXTEND
 
 config CMDLINE_FORCE
 	bool "Always use the default kernel command string"
+	depends on !ARCH_MULTIPLATFORM
 	help
 	  Always use the default kernel command string, even if the boot
 	  loader passes other arguments to the kernel.

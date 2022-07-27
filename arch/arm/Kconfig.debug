@@ -1904,6 +1904,7 @@ config DEBUG_UART_8250_PALMCHIP
 
 config DEBUG_UNCOMPRESS
 	bool "Enable decompressor debugging via DEBUG_LL output"
+	depends on !ARCH_MULTIPLATFORM
 	depends on !(ARCH_FOOTBRIDGE || ARCH_RPC || ARCH_SA1100)
 	depends on DEBUG_LL && !DEBUG_OMAP2PLUS_UART && \
 		     (!DEBUG_TEGRA_UART || !ZBOOT_ROM) && \
