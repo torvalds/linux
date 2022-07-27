@@ -517,8 +517,8 @@
 &i2c0 {
 	clock-frequency = <100000>;
 	i2c-sda-hold-time-ns = <300>;
-	i2c-sda-falling-time-ns = <3000>;
-	i2c-scl-falling-time-ns = <3000>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c0_pins>;
@@ -544,8 +544,8 @@
 &i2c2 {
 	clock-frequency = <100000>;
 	i2c-sda-hold-time-ns = <300>;
-	i2c-sda-falling-time-ns = <3000>;
-	i2c-scl-falling-time-ns = <3000>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
@@ -567,8 +567,8 @@
 &i2c5 {
 	clock-frequency = <100000>;
 	i2c-sda-hold-time-ns = <300>;
-	i2c-sda-falling-time-ns = <3000>;
-	i2c-scl-falling-time-ns = <3000>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c5_pins>;
@@ -628,8 +628,8 @@
 &i2c6 {
 	clock-frequency = <100000>;
 	i2c-sda-hold-time-ns = <300>;
-	i2c-sda-falling-time-ns = <3000>;
-	i2c-scl-falling-time-ns = <3000>;
+	i2c-sda-falling-time-ns = <510>;
+	i2c-scl-falling-time-ns = <510>;
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c6_pins>;
@@ -662,8 +662,8 @@
 };
 
 &sdio0 {
-	clock-frequency = <204800000>;
-	max-frequency = <200000000>;
+	clock-frequency = <102400000>;
+	max-frequency = <100000000>;
 	card-detect-delay = <300>;
 	bus-width = <8>;
 	cap-mmc-highspeed;
@@ -680,7 +680,7 @@
 
 &sdio1 {
 	clock-frequency = <102400000>;
-	max-frequency = <100000000>;
+	max-frequency = <200000000>;
 	card-detect-delay = <300>;
 	bus-width = <4>;
 	broken-cd;
@@ -700,8 +700,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		port@3 {
-			reg = <3>;
+		port@1 {
+			reg = <1>;
 			#address-cells = <1>;
 			#size-cells = <0>;
 
