@@ -880,8 +880,10 @@ static void ice_ptp_tx_tstamp_cleanup(struct ice_pf *pf, struct ice_ptp_tx *tx)
  * structure and the Rx rings.
  *
  * This function must be called periodically to ensure that the cached value
- * is never more than 2 seconds old. It must also be called whenever the PHC
- * time has been changed.
+ * is never more than 2 seconds old.
+ *
+ * Note that the cached copy in the PF PTP structure is always updated, even
+ * if we can't update the copy in the Rx rings.
  *
  * Return:
  * * 0 - OK, successfully updated
@@ -893,9 +895,6 @@ static int ice_ptp_update_cached_phctime(struct ice_pf *pf)
 	unsigned long update_before;
 	u64 systime;
 	int i;
-
-	if (test_and_set_bit(ICE_CFG_BUSY, pf->state))
-		return -EAGAIN;
 
 	update_before = pf->ptp.cached_phc_jiffies + msecs_to_jiffies(2000);
 	if (pf->ptp.cached_phc_time &&
@@ -913,6 +912,9 @@ static int ice_ptp_update_cached_phctime(struct ice_pf *pf)
 	/* Update the cached PHC time stored in the PF structure */
 	WRITE_ONCE(pf->ptp.cached_phc_time, systime);
 	WRITE_ONCE(pf->ptp.cached_phc_jiffies, jiffies);
+
+	if (test_and_set_bit(ICE_CFG_BUSY, pf->state))
+		return -EAGAIN;
 
 	ice_for_each_vsi(pf, i) {
 		struct ice_vsi *vsi = pf->vsi[i];
@@ -933,6 +935,52 @@ static int ice_ptp_update_cached_phctime(struct ice_pf *pf)
 	clear_bit(ICE_CFG_BUSY, pf->state);
 
 	return 0;
+}
+
+/**
+ * ice_ptp_reset_cached_phctime - Reset cached PHC time after an update
+ * @pf: Board specific private structure
+ *
+ * This function must be called when the cached PHC time is no longer valid,
+ * such as after a time adjustment. It discards any outstanding Tx timestamps,
+ * and updates the cached PHC time for both the PF and Rx rings. If updating
+ * the PHC time cannot be done immediately, a warning message is logged and
+ * the work item is scheduled.
+ *
+ * These steps are required in order to ensure that we do not accidentally
+ * report a timestamp extended by the wrong PHC cached copy. Note that we
+ * do not directly update the cached timestamp here because it is possible
+ * this might produce an error when ICE_CFG_BUSY is set. If this occurred, we
+ * would have to try again. During that time window, timestamps might be
+ * requested and returned with an invalid extension. Thus, on failure to
+ * immediately update the cached PHC time we would need to zero the value
+ * anyways. For this reason, we just zero the value immediately and queue the
+ * update work item.
+ */
+static void ice_ptp_reset_cached_phctime(struct ice_pf *pf)
+{
+	struct device *dev = ice_pf_to_dev(pf);
+	int err;
+
+	/* Update the cached PHC time immediately if possible, otherwise
+	 * schedule the work item to execute soon.
+	 */
+	err = ice_ptp_update_cached_phctime(pf);
+	if (err) {
+		/* If another thread is updating the Rx rings, we won't
+		 * properly reset them here. This could lead to reporting of
+		 * invalid timestamps, but there isn't much we can do.
+		 */
+		dev_warn(dev, "%s: ICE_CFG_BUSY, unable to immediately update cached PHC time\n",
+			 __func__);
+
+		/* Queue the work item to update the Rx rings when possible */
+		kthread_queue_delayed_work(pf->ptp.kworker, &pf->ptp.work,
+					   msecs_to_jiffies(10));
+	}
+
+	/* Flush any outstanding Tx timestamps */
+	ice_ptp_flush_tx_tracker(pf, &pf->ptp.port.tx);
 }
 
 /**
@@ -1803,7 +1851,7 @@ ice_ptp_settime64(struct ptp_clock_info *info, const struct timespec64 *ts)
 	ice_ptp_unlock(hw);
 
 	if (!err)
-		ice_ptp_update_cached_phctime(pf);
+		ice_ptp_reset_cached_phctime(pf);
 
 	/* Reenable periodic outputs */
 	ice_ptp_enable_all_clkout(pf);
@@ -1882,7 +1930,7 @@ static int ice_ptp_adjtime(struct ptp_clock_info *info, s64 delta)
 		return err;
 	}
 
-	ice_ptp_update_cached_phctime(pf);
+	ice_ptp_reset_cached_phctime(pf);
 
 	return 0;
 }
@@ -2090,26 +2138,31 @@ void
 ice_ptp_rx_hwtstamp(struct ice_rx_ring *rx_ring,
 		    union ice_32b_rx_flex_desc *rx_desc, struct sk_buff *skb)
 {
+	struct skb_shared_hwtstamps *hwtstamps;
+	u64 ts_ns, cached_time;
 	u32 ts_high;
-	u64 ts_ns;
 
-	/* Populate timesync data into skb */
-	if (rx_desc->wb.time_stamp_low & ICE_PTP_TS_VALID) {
-		struct skb_shared_hwtstamps *hwtstamps;
+	if (!(rx_desc->wb.time_stamp_low & ICE_PTP_TS_VALID))
+		return;
 
-		/* Use ice_ptp_extend_32b_ts directly, using the ring-specific
-		 * cached PHC value, rather than accessing the PF. This also
-		 * allows us to simply pass the upper 32bits of nanoseconds
-		 * directly. Calling ice_ptp_extend_40b_ts is unnecessary as
-		 * it would just discard these bits itself.
-		 */
-		ts_high = le32_to_cpu(rx_desc->wb.flex_ts.ts_high);
-		ts_ns = ice_ptp_extend_32b_ts(rx_ring->cached_phctime, ts_high);
+	cached_time = READ_ONCE(rx_ring->cached_phctime);
 
-		hwtstamps = skb_hwtstamps(skb);
-		memset(hwtstamps, 0, sizeof(*hwtstamps));
-		hwtstamps->hwtstamp = ns_to_ktime(ts_ns);
-	}
+	/* Do not report a timestamp if we don't have a cached PHC time */
+	if (!cached_time)
+		return;
+
+	/* Use ice_ptp_extend_32b_ts directly, using the ring-specific cached
+	 * PHC value, rather than accessing the PF. This also allows us to
+	 * simply pass the upper 32bits of nanoseconds directly. Calling
+	 * ice_ptp_extend_40b_ts is unnecessary as it would just discard these
+	 * bits itself.
+	 */
+	ts_high = le32_to_cpu(rx_desc->wb.flex_ts.ts_high);
+	ts_ns = ice_ptp_extend_32b_ts(cached_time, ts_high);
+
+	hwtstamps = skb_hwtstamps(skb);
+	memset(hwtstamps, 0, sizeof(*hwtstamps));
+	hwtstamps->hwtstamp = ns_to_ktime(ts_ns);
 }
 
 /**
