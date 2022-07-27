@@ -1645,9 +1645,10 @@ nfsd4_cleanup_intra_ssc(struct nfsd_file *src, struct nfsd_file *dst)
 
 static void nfsd4_cb_offload_release(struct nfsd4_callback *cb)
 {
-	struct nfsd4_copy *copy = container_of(cb, struct nfsd4_copy, cp_cb);
+	struct nfsd4_cb_offload *cbo =
+		container_of(cb, struct nfsd4_cb_offload, co_cb);
 
-	nfs4_put_copy(copy);
+	kfree(cbo);
 }
 
 static int nfsd4_cb_offload_done(struct nfsd4_callback *cb,
@@ -1763,25 +1764,23 @@ static void cleanup_async_copy(struct nfsd4_copy *copy)
 	nfs4_put_copy(copy);
 }
 
-static void nfsd4_send_cb_offload(struct nfsd4_copy *copy)
+static void nfsd4_send_cb_offload(struct nfsd4_copy *copy, __be32 nfserr)
 {
-	struct nfsd4_copy *cb_copy;
+	struct nfsd4_cb_offload *cbo;
 
-	cb_copy = kzalloc(sizeof(struct nfsd4_copy), GFP_KERNEL);
-	if (!cb_copy)
+	cbo = kzalloc(sizeof(*cbo), GFP_KERNEL);
+	if (!cbo)
 		return;
 
-	refcount_set(&cb_copy->refcount, 1);
-	memcpy(&cb_copy->cp_res, &copy->cp_res, sizeof(copy->cp_res));
-	cb_copy->cp_clp = copy->cp_clp;
-	cb_copy->nfserr = copy->nfserr;
-	memcpy(&cb_copy->fh, &copy->fh, sizeof(copy->fh));
+	memcpy(&cbo->co_res, &copy->cp_res, sizeof(copy->cp_res));
+	memcpy(&cbo->co_fh, &copy->fh, sizeof(copy->fh));
+	cbo->co_nfserr = nfserr;
 
-	nfsd4_init_cb(&cb_copy->cp_cb, cb_copy->cp_clp,
-			&nfsd4_cb_offload_ops, NFSPROC4_CLNT_CB_OFFLOAD);
-	trace_nfsd_cb_offload(copy->cp_clp, &copy->cp_res.cb_stateid,
-			      &copy->fh, copy->cp_count, copy->nfserr);
-	nfsd4_run_cb(&cb_copy->cp_cb);
+	nfsd4_init_cb(&cbo->co_cb, copy->cp_clp, &nfsd4_cb_offload_ops,
+		      NFSPROC4_CLNT_CB_OFFLOAD);
+	trace_nfsd_cb_offload(copy->cp_clp, &cbo->co_res.cb_stateid,
+			      &cbo->co_fh, copy->cp_count, nfserr);
+	nfsd4_run_cb(&cbo->co_cb);
 }
 
 /**
@@ -1794,6 +1793,7 @@ static void nfsd4_send_cb_offload(struct nfsd4_copy *copy)
 static int nfsd4_do_async_copy(void *data)
 {
 	struct nfsd4_copy *copy = (struct nfsd4_copy *)data;
+	__be32 nfserr;
 
 	if (nfsd4_ssc_is_inter(copy)) {
 		struct file *filp;
@@ -1801,21 +1801,21 @@ static int nfsd4_do_async_copy(void *data)
 		filp = nfs42_ssc_open(copy->ss_mnt, &copy->c_fh,
 				      &copy->stateid);
 		if (IS_ERR(filp)) {
-			copy->nfserr = nfserr_offload_denied;
+			nfserr = nfserr_offload_denied;
 			nfsd4_interssc_disconnect(copy->ss_mnt);
 			goto do_callback;
 		}
-		copy->nfserr = nfsd4_do_copy(copy, filp,
-					     copy->nf_dst->nf_file, false);
+		nfserr = nfsd4_do_copy(copy, filp, copy->nf_dst->nf_file,
+				       false);
 		nfsd4_cleanup_inter_ssc(copy->ss_mnt, filp, copy->nf_dst);
 	} else {
-		copy->nfserr = nfsd4_do_copy(copy, copy->nf_src->nf_file,
-					     copy->nf_dst->nf_file, false);
+		nfserr = nfsd4_do_copy(copy, copy->nf_src->nf_file,
+				       copy->nf_dst->nf_file, false);
 		nfsd4_cleanup_intra_ssc(copy->nf_src, copy->nf_dst);
 	}
 
 do_callback:
-	nfsd4_send_cb_offload(copy);
+	nfsd4_send_cb_offload(copy, nfserr);
 	cleanup_async_copy(copy);
 	return 0;
 }

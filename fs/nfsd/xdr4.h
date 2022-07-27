@@ -533,6 +533,13 @@ struct nfsd42_write_res {
 	stateid_t		cb_stateid;
 };
 
+struct nfsd4_cb_offload {
+	struct nfsd4_callback	co_cb;
+	struct nfsd42_write_res	co_res;
+	__be32			co_nfserr;
+	struct knfsd_fh		co_fh;
+};
+
 struct nfsd4_copy {
 	/* request */
 	stateid_t		cp_src_stateid;
@@ -550,10 +557,6 @@ struct nfsd4_copy {
 
 	/* response */
 	struct nfsd42_write_res	cp_res;
-
-	/* for cb_offload */
-	struct nfsd4_callback	cp_cb;
-	__be32			nfserr;
 	struct knfsd_fh		fh;
 
 	struct nfs4_client      *cp_clp;
