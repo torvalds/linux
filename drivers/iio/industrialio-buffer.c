@@ -940,6 +940,7 @@ struct iio_demux_table {
 static void iio_buffer_demux_free(struct iio_buffer *buffer)
 {
 	struct iio_demux_table *p, *q;
+
 	list_for_each_entry_safe(p, q, &buffer->demux_list, l) {
 		list_del(&p->l);
 		kfree(p);
