@@ -280,9 +280,9 @@ static struct dx_frame *dx_probe(struct ext4_filename *fname,
 				 struct dx_hash_info *hinfo,
 				 struct dx_frame *frame);
 static void dx_release(struct dx_frame *frames);
-static int dx_make_map(struct inode *dir, struct buffer_head *bh,
-		       struct dx_hash_info *hinfo,
-		       struct dx_map_entry *map_tail);
+static int dx_make_map(struct inode *dir, struct ext4_dir_entry_2 *de,
+		       unsigned blocksize, struct dx_hash_info *hinfo,
+		       struct dx_map_entry map[]);
 static void dx_sort_map(struct dx_map_entry *map, unsigned count);
 static struct ext4_dir_entry_2 *dx_move_dirents(struct inode *dir, char *from,
 					char *to, struct dx_map_entry *offsets,
@@ -1259,23 +1259,15 @@ static inline int search_dirblock(struct buffer_head *bh,
  * Create map of hash values, offsets, and sizes, stored at end of block.
  * Returns number of entries mapped.
  */
-static int dx_make_map(struct inode *dir, struct buffer_head *bh,
-		       struct dx_hash_info *hinfo,
+static int dx_make_map(struct inode *dir, struct ext4_dir_entry_2 *de,
+		       unsigned blocksize, struct dx_hash_info *hinfo,
 		       struct dx_map_entry *map_tail)
 {
 	int count = 0;
-	struct ext4_dir_entry_2 *de = (struct ext4_dir_entry_2 *)bh->b_data;
-	unsigned int buflen = bh->b_size;
-	char *base = bh->b_data;
+	char *base = (char *) de;
 	struct dx_hash_info h = *hinfo;
 
-	if (ext4_has_metadata_csum(dir->i_sb))
-		buflen -= sizeof(struct ext4_dir_entry_tail);
-
-	while ((char *) de < base + buflen) {
-		if (ext4_check_dir_entry(dir, NULL, de, bh, base, buflen,
-					 ((char *)de) - base))
-			return -EFSCORRUPTED;
+	while ((char *) de < base + blocksize) {
 		if (de->name_len && de->inode) {
 			if (ext4_hash_in_dirent(dir))
 				h.hash = EXT4_DIRENT_HASH(de);
@@ -1288,7 +1280,8 @@ static int dx_make_map(struct inode *dir, struct buffer_head *bh,
 			count++;
 			cond_resched();
 		}
-		de = ext4_next_entry(de, dir->i_sb->s_blocksize);
+		/* XXX: do we need to check rec_len == 0 case? -Chris */
+		de = ext4_next_entry(de, blocksize);
 	}
 	return count;
 }
@@ -1958,11 +1951,8 @@ static struct ext4_dir_entry_2 *do_split(handle_t *handle, struct inode *dir,
 
 	/* create map in the end of data2 block */
 	map = (struct dx_map_entry *) (data2 + blocksize);
-	count = dx_make_map(dir, *bh, hinfo, map);
-	if (count < 0) {
-		err = count;
-		goto journal_error;
-	}
+	count = dx_make_map(dir, (struct ext4_dir_entry_2 *) data1,
+			     blocksize, hinfo, map);
 	map -= count;
 	dx_sort_map(map, count);
 	/* Ensure that neither split block is over half full */
