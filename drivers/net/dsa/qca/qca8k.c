@@ -1462,8 +1462,8 @@ static int qca8k_find_cpu_port(struct dsa_switch *ds)
 static int
 qca8k_setup_of_pws_reg(struct qca8k_priv *priv)
 {
+	const struct qca8k_match_data *data = priv->info;
 	struct device_node *node = priv->dev->of_node;
-	const struct qca8k_match_data *data;
 	u32 val = 0;
 	int ret;
 
@@ -1472,8 +1472,6 @@ qca8k_setup_of_pws_reg(struct qca8k_priv *priv)
 	 * Should be applied by default but we set this just to make sure.
 	 */
 	if (priv->switch_id == QCA8K_ID_QCA8327) {
-		data = of_device_get_match_data(priv->dev);
-
 		/* Set the correct package of 148 pin for QCA8327 */
 		if (data->reduced_package)
 			val |= QCA8327_PWS_PACKAGE148_EN;
@@ -1996,23 +1994,19 @@ static void qca8k_setup_pcs(struct qca8k_priv *priv, struct qca8k_pcs *qpcs,
 static void
 qca8k_get_strings(struct dsa_switch *ds, int port, u32 stringset, uint8_t *data)
 {
-	const struct qca8k_match_data *match_data;
 	struct qca8k_priv *priv = ds->priv;
 	int i;
 
 	if (stringset != ETH_SS_STATS)
 		return;
 
-	match_data = of_device_get_match_data(priv->dev);
-
-	for (i = 0; i < match_data->mib_count; i++)
+	for (i = 0; i < priv->info->mib_count; i++)
 		strncpy(data + i * ETH_GSTRING_LEN, ar8327_mib[i].name,
 			ETH_GSTRING_LEN);
 }
 
 static void qca8k_mib_autocast_handler(struct dsa_switch *ds, struct sk_buff *skb)
 {
-	const struct qca8k_match_data *match_data;
 	struct qca8k_mib_eth_data *mib_eth_data;
 	struct qca8k_priv *priv = ds->priv;
 	const struct qca8k_mib_desc *mib;
@@ -2031,10 +2025,9 @@ static void qca8k_mib_autocast_handler(struct dsa_switch *ds, struct sk_buff *sk
 	if (port != mib_eth_data->req_port)
 		goto exit;
 
-	match_data = device_get_match_data(priv->dev);
 	data = mib_eth_data->data;
 
-	for (i = 0; i < match_data->mib_count; i++) {
+	for (i = 0; i < priv->info->mib_count; i++) {
 		mib = &ar8327_mib[i];
 
 		/* First 3 mib are present in the skb head */
@@ -2106,7 +2099,6 @@ qca8k_get_ethtool_stats(struct dsa_switch *ds, int port,
 			uint64_t *data)
 {
 	struct qca8k_priv *priv = (struct qca8k_priv *)ds->priv;
-	const struct qca8k_match_data *match_data;
 	const struct qca8k_mib_desc *mib;
 	u32 reg, i, val;
 	u32 hi = 0;
@@ -2116,9 +2108,7 @@ qca8k_get_ethtool_stats(struct dsa_switch *ds, int port,
 	    qca8k_get_ethtool_stats_eth(ds, port, data) > 0)
 		return;
 
-	match_data = of_device_get_match_data(priv->dev);
-
-	for (i = 0; i < match_data->mib_count; i++) {
+	for (i = 0; i < priv->info->mib_count; i++) {
 		mib = &ar8327_mib[i];
 		reg = QCA8K_PORT_MIB_COUNTER(port) + mib->offset;
 
@@ -2141,15 +2131,12 @@ qca8k_get_ethtool_stats(struct dsa_switch *ds, int port,
 static int
 qca8k_get_sset_count(struct dsa_switch *ds, int port, int sset)
 {
-	const struct qca8k_match_data *match_data;
 	struct qca8k_priv *priv = ds->priv;
 
 	if (sset != ETH_SS_STATS)
 		return 0;
 
-	match_data = of_device_get_match_data(priv->dev);
-
-	return match_data->mib_count;
+	return priv->info->mib_count;
 }
 
 static int
@@ -3093,14 +3080,11 @@ static const struct dsa_switch_ops qca8k_switch_ops = {
 
 static int qca8k_read_switch_id(struct qca8k_priv *priv)
 {
-	const struct qca8k_match_data *data;
 	u32 val;
 	u8 id;
 	int ret;
 
-	/* get the switches ID from the compatible */
-	data = of_device_get_match_data(priv->dev);
-	if (!data)
+	if (!priv->info)
 		return -ENODEV;
 
 	ret = qca8k_read(priv, QCA8K_REG_MASK_CTRL, &val);
@@ -3108,8 +3092,10 @@ static int qca8k_read_switch_id(struct qca8k_priv *priv)
 		return -ENODEV;
 
 	id = QCA8K_MASK_CTRL_DEVICE_ID(val);
-	if (id != data->id) {
-		dev_err(priv->dev, "Switch id detected %x but expected %x", id, data->id);
+	if (id != priv->info->id) {
+		dev_err(priv->dev,
+			"Switch id detected %x but expected %x",
+			id, priv->info->id);
 		return -ENODEV;
 	}
 
@@ -3134,6 +3120,7 @@ qca8k_sw_probe(struct mdio_device *mdiodev)
 	if (!priv)
 		return -ENOMEM;
 
+	priv->info = of_device_get_match_data(priv->dev);
 	priv->bus = mdiodev->bus;
 	priv->dev = &mdiodev->dev;
 
