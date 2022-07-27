@@ -1133,6 +1133,45 @@ static int cs35l41_get_speaker_id(struct device *dev, int amp_index,
 	return speaker_id;
 }
 
+/*
+ * Device CLSA010(0/1) doesn't have _DSD so a gpiod_get by the label reset won't work.
+ * And devices created by serial-multi-instantiate don't have their device struct
+ * pointing to the correct fwnode, so acpi_dev must be used here.
+ * And devm functions expect that the device requesting the resource has the correct
+ * fwnode.
+ */
+static int cs35l41_no_acpi_dsd(struct cs35l41_hda *cs35l41, struct device *physdev, int id,
+			       const char *hid)
+{
+	struct cs35l41_hw_cfg *hw_cfg = &cs35l41->hw_cfg;
+
+	/* check I2C address to assign the index */
+	cs35l41->index = id == 0x40 ? 0 : 1;
+	cs35l41->channel_index = 0;
+	cs35l41->reset_gpio = gpiod_get_index(physdev, NULL, 0, GPIOD_OUT_HIGH);
+	cs35l41->speaker_id = cs35l41_get_speaker_id(physdev, 0, 0, 2);
+	hw_cfg->spk_pos = cs35l41->index;
+	hw_cfg->gpio2.func = CS35L41_INTERRUPT;
+	hw_cfg->gpio2.valid = true;
+	hw_cfg->valid = true;
+	put_device(physdev);
+
+	if (strncmp(hid, "CLSA0100", 8) == 0) {
+		hw_cfg->bst_type = CS35L41_EXT_BOOST_NO_VSPK_SWITCH;
+	} else if (strncmp(hid, "CLSA0101", 8) == 0) {
+		hw_cfg->bst_type = CS35L41_EXT_BOOST;
+		hw_cfg->gpio1.func = CS35l41_VSPK_SWITCH;
+		hw_cfg->gpio1.valid = true;
+	} else {
+		hw_cfg->valid = false;
+		hw_cfg->gpio1.valid = false;
+		hw_cfg->gpio2.valid = false;
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, int id)
 {
 	struct cs35l41_hw_cfg *hw_cfg = &cs35l41->hw_cfg;
@@ -1161,7 +1200,7 @@ static int cs35l41_hda_read_acpi(struct cs35l41_hda *cs35l41, const char *hid, i
 	property = "cirrus,dev-index";
 	ret = device_property_count_u32(physdev, property);
 	if (ret <= 0)
-		goto no_acpi_dsd;
+		return cs35l41_no_acpi_dsd(cs35l41, physdev, id, hid);
 
 	if (ret > ARRAY_SIZE(values)) {
 		ret = -EINVAL;
@@ -1255,31 +1294,6 @@ err:
 	dev_err(cs35l41->dev, "Failed property %s: %d\n", property, ret);
 
 	return ret;
-
-no_acpi_dsd:
-	/*
-	 * Device CLSA0100 doesn't have _DSD so a gpiod_get by the label reset won't work.
-	 * And devices created by serial-multi-instantiate don't have their device struct
-	 * pointing to the correct fwnode, so acpi_dev must be used here.
-	 * And devm functions expect that the device requesting the resource has the correct
-	 * fwnode.
-	 */
-	if (strncmp(hid, "CLSA0100", 8) != 0)
-		return -EINVAL;
-
-	/* check I2C address to assign the index */
-	cs35l41->index = id == 0x40 ? 0 : 1;
-	cs35l41->hw_cfg.spk_pos = cs35l41->index;
-	cs35l41->channel_index = 0;
-	cs35l41->reset_gpio = gpiod_get_index(physdev, NULL, 0, GPIOD_OUT_HIGH);
-	cs35l41->hw_cfg.bst_type = CS35L41_EXT_BOOST_NO_VSPK_SWITCH;
-	cs35l41->speaker_id = cs35l41_get_speaker_id(physdev, 0, 0, 2);
-	hw_cfg->gpio2.func = CS35L41_INTERRUPT;
-	hw_cfg->gpio2.valid = true;
-	cs35l41->hw_cfg.valid = true;
-	put_device(physdev);
-
-	return 0;
 }
 
 int cs35l41_hda_probe(struct device *dev, const char *device_name, int id, int irq,
