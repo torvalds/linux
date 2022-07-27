@@ -75,6 +75,12 @@ static const struct sfp_quirk sfp_quirks[] = {
 		.part = "MA5671A",
 		.modes = sfp_quirk_2500basex,
 	}, {
+		// Lantech 8330-262D-E can operate at 2500base-X, but
+		// incorrectly report 2500MBd NRZ in their EEPROM
+		.vendor = "Lantech",
+		.part = "8330-262D-E",
+		.modes = sfp_quirk_2500basex,
+	}, {
 		.vendor = "UBNT",
 		.part = "UF-INSTANT",
 		.modes = sfp_quirk_ubnt_uf_instant,

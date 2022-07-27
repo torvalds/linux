@@ -717,7 +717,8 @@ static int gfs2_release(struct inode *inode, struct file *file)
 	file->private_data = NULL;
 
 	if (file->f_mode & FMODE_WRITE) {
-		gfs2_rs_delete(ip, &inode->i_writecount);
+		if (gfs2_rs_active(&ip->i_res))
+			gfs2_rs_delete(ip);
 		gfs2_qa_put(ip);
 	}
 	return 0;

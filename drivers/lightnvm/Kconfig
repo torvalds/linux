@@ -5,7 +5,7 @@
 
 menuconfig NVM
 	bool "Open-Channel SSD target support"
-	depends on BLOCK
+	depends on BLOCK && BROKEN
 	help
 	  Say Y here to get to enable Open-channel SSDs.
 

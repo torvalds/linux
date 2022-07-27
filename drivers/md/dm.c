@@ -609,16 +609,18 @@ static void start_io_acct(struct dm_io *io)
 }
 
 static void end_io_acct(struct mapped_device *md, struct bio *bio,
-		unsigned long start_time, struct dm_stats_aux *stats_aux)
+			unsigned long start_time, struct dm_stats_aux *stats_aux)
 {
 	unsigned long duration = jiffies - start_time;
-
-	bio_end_io_acct(bio, start_time);
 
 	if (unlikely(dm_stats_used(&md->stats)))
 		dm_stats_account_io(&md->stats, bio_data_dir(bio),
 				    bio->bi_iter.bi_sector, bio_sectors(bio),
 				    true, duration, stats_aux);
+
+	smp_wmb();
+
+	bio_end_io_acct(bio, start_time);
 
 	/* nudge anyone waiting on suspend queue */
 	if (unlikely(wq_has_sleeper(&md->wait)))
@@ -1696,15 +1698,10 @@ static blk_qc_t dm_submit_bio(struct bio *bio)
 	struct dm_table *map;
 
 	map = dm_get_live_table(md, &srcu_idx);
-	if (unlikely(!map)) {
-		DMERR_LIMIT("%s: mapping table unavailable, erroring io",
-			    dm_device_name(md));
-		bio_io_error(bio);
-		goto out;
-	}
 
-	/* If suspended, queue this IO for later */
-	if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags))) {
+	/* If suspended, or map not yet available, queue this IO for later */
+	if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) ||
+	    unlikely(!map)) {
 		if (bio->bi_opf & REQ_NOWAIT)
 			bio_wouldblock_error(bio);
 		else if (bio->bi_opf & REQ_RAHEAD)
@@ -2368,6 +2365,8 @@ static int dm_wait_for_bios_completion(struct mapped_device *md, long task_state
 		io_schedule();
 	}
 	finish_wait(&md->wait, &wait);
+
+	smp_rmb();
 
 	return r;
 }

@@ -1091,7 +1091,9 @@ static int svc_tcp_sendmsg(struct socket *sock, struct msghdr *msg,
 	int flags, ret;
 
 	*sentp = 0;
-	xdr_alloc_bvec(xdr, GFP_KERNEL);
+	ret = xdr_alloc_bvec(xdr, GFP_KERNEL);
+	if (ret < 0)
+		return ret;
 
 	msg->msg_flags = MSG_MORE;
 	ret = kernel_sendmsg(sock, msg, &rm, 1, rm.iov_len);

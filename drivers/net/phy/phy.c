@@ -124,10 +124,15 @@ EXPORT_SYMBOL(phy_print_status);
  */
 static int phy_clear_interrupt(struct phy_device *phydev)
 {
-	if (phydev->drv->ack_interrupt)
-		return phydev->drv->ack_interrupt(phydev);
+	int ret = 0;
 
-	return 0;
+	if (phydev->drv->ack_interrupt) {
+		mutex_lock(&phydev->lock);
+		ret = phydev->drv->ack_interrupt(phydev);
+		mutex_unlock(&phydev->lock);
+	}
+
+	return ret;
 }
 
 /**
@@ -982,6 +987,36 @@ int phy_disable_interrupts(struct phy_device *phydev)
 }
 
 /**
+ * phy_did_interrupt - Checks if the PHY generated an interrupt
+ * @phydev: target phy_device struct
+ */
+static int phy_did_interrupt(struct phy_device *phydev)
+{
+	int ret;
+
+	mutex_lock(&phydev->lock);
+	ret = phydev->drv->did_interrupt(phydev);
+	mutex_unlock(&phydev->lock);
+
+	return ret;
+}
+
+/**
+ * phy_handle_interrupt - Handle PHY interrupt
+ * @phydev: target phy_device struct
+ */
+static irqreturn_t phy_handle_interrupt(struct phy_device *phydev)
+{
+	irqreturn_t ret;
+
+	mutex_lock(&phydev->lock);
+	ret = phydev->drv->handle_interrupt(phydev);
+	mutex_unlock(&phydev->lock);
+
+	return ret;
+}
+
+/**
  * phy_interrupt - PHY interrupt handler
  * @irq: interrupt line
  * @phy_dat: phy_device pointer
@@ -994,9 +1029,9 @@ static irqreturn_t phy_interrupt(int irq, void *phy_dat)
 	struct phy_driver *drv = phydev->drv;
 
 	if (drv->handle_interrupt)
-		return drv->handle_interrupt(phydev);
+		return phy_handle_interrupt(phydev);
 
-	if (drv->did_interrupt && !drv->did_interrupt(phydev))
+	if (drv->did_interrupt && !phy_did_interrupt(phydev))
 		return IRQ_NONE;
 
 	/* reschedule state queue work to run as soon as possible */
