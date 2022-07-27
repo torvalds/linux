@@ -129,6 +129,12 @@ enum iommu_dma_cookie_type {
 	IOMMU_DMA_MSI_COOKIE,
 };
 
+enum rga_scheduler_status {
+	RGA_SCHEDULER_IDLE = 0,
+	RGA_SCHEDULER_WORKING,
+	RGA_SCHEDULER_ABORT,
+};
+
 struct rga_iommu_dma_cookie {
 	enum iommu_dma_cookie_type  type;
 
@@ -299,6 +305,7 @@ struct rga_scheduler_t {
 	struct clk *clks[RGA_MAX_BUS_CLK];
 	int num_clks;
 
+	enum rga_scheduler_status status;
 	int pd_refcount;
 
 	struct rga_job *running_job;

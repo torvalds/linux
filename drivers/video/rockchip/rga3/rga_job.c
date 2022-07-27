@@ -356,6 +356,7 @@ static void rga_job_scheduler_timeout_clean(struct rga_scheduler_t *scheduler)
 	job = scheduler->running_job;
 	if (ktime_ms_delta(ktime_get(), job->hw_running_time) >= RGA_JOB_TIMEOUT_DELAY) {
 		scheduler->running_job = NULL;
+		scheduler->status = RGA_SCHEDULER_ABORT;
 		scheduler->ops->soft_reset(scheduler);
 
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
@@ -640,6 +641,7 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 {
 	int i;
 	unsigned long flags;
+	enum rga_scheduler_status scheduler_status;
 	int running_abort_count = 0, todo_abort_count = 0;
 	struct rga_scheduler_t *scheduler = NULL;
 	struct rga_job *job, *job_q;
@@ -662,7 +664,9 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 		if (scheduler->running_job) {
 			if (request->id == scheduler->running_job->request_id) {
 				job = scheduler->running_job;
+				scheduler_status = scheduler->status;
 				scheduler->running_job = NULL;
+				scheduler->status = RGA_SCHEDULER_ABORT;
 
 				if (job->hw_running_time != 0) {
 					scheduler->timer.busy_time +=
@@ -687,7 +691,8 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 			job->ret = -EBUSY;
 			rga_job_cleanup(job);
 
-			rga_power_disable(scheduler);
+			if (scheduler_status == RGA_SCHEDULER_WORKING)
+				rga_power_disable(scheduler);
 
 			pr_err("reset core[%d] by request abort", scheduler->core);
 		}

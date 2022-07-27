@@ -401,9 +401,12 @@ int rga_power_enable(struct rga_scheduler_t *scheduler)
 				goto err_enable_clk;
 		}
 	}
+
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
 	scheduler->pd_refcount++;
+	if (scheduler->status == RGA_SCHEDULER_IDLE)
+		scheduler->status = RGA_SCHEDULER_WORKING;
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
@@ -425,18 +428,27 @@ int rga_power_disable(struct rga_scheduler_t *scheduler)
 	int i;
 	unsigned long flags;
 
+	spin_lock_irqsave(&scheduler->irq_lock, flags);
+
+	if (scheduler->status == RGA_SCHEDULER_IDLE ||
+	    scheduler->pd_refcount == 0) {
+		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+		WARN(true, "%s already idle!\n", dev_driver_string(scheduler->dev));
+		return -1;
+	}
+
+	scheduler->pd_refcount--;
+	if (scheduler->pd_refcount == 0)
+		scheduler->status = RGA_SCHEDULER_IDLE;
+
+	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+
 	for (i = scheduler->num_clks - 1; i >= 0; i--)
 		if (!IS_ERR(scheduler->clks[i]))
 			clk_disable_unprepare(scheduler->clks[i]);
 
 	pm_relax(scheduler->dev);
 	pm_runtime_put_sync_suspend(scheduler->dev);
-
-	spin_lock_irqsave(&scheduler->irq_lock, flags);
-
-	scheduler->pd_refcount--;
-
-	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
 	return 0;
 }
