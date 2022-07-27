@@ -381,26 +381,17 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 			 int datalen,
 			 u32 seq)
 {
-	struct mlx5e_sq_stats *stats = sq->stats;
 	enum mlx5e_ktls_sync_retval ret;
 	struct tx_sync_info info = {};
-	int i = 0;
+	int i;
 
 	ret = tx_sync_info_get(priv_tx, seq, datalen, &info);
-	if (unlikely(ret != MLX5E_KTLS_SYNC_DONE)) {
-		if (ret == MLX5E_KTLS_SYNC_SKIP_NO_DATA) {
-			stats->tls_skip_no_sync_data++;
-			return MLX5E_KTLS_SYNC_SKIP_NO_DATA;
-		}
-		/* We might get here if a retransmission reaches the driver
-		 * after the relevant record is acked.
+	if (unlikely(ret != MLX5E_KTLS_SYNC_DONE))
+		/* We might get here with ret == FAIL if a retransmission
+		 * reaches the driver after the relevant record is acked.
 		 * It should be safe to drop the packet in this case
 		 */
-		stats->tls_drop_no_sync_data++;
-		goto err_out;
-	}
-
-	stats->tls_ooo++;
+		return ret;
 
 	tx_post_resync_params(sq, priv_tx, info.rcd_sn);
 
@@ -412,7 +403,7 @@ mlx5e_ktls_tx_handle_ooo(struct mlx5e_ktls_offload_context_tx *priv_tx,
 		return MLX5E_KTLS_SYNC_DONE;
 	}
 
-	for (; i < info.nr_frags; i++) {
+	for (i = 0; i < info.nr_frags; i++) {
 		unsigned int orig_fsz, frag_offset = 0, n = 0;
 		skb_frag_t *f = &info.frags[i];
 
@@ -482,15 +473,19 @@ bool mlx5e_ktls_handle_tx_skb(struct net_device *netdev, struct mlx5e_txqsq *sq,
 		enum mlx5e_ktls_sync_retval ret =
 			mlx5e_ktls_tx_handle_ooo(priv_tx, sq, datalen, seq);
 
+		stats->tls_ooo++;
+
 		switch (ret) {
 		case MLX5E_KTLS_SYNC_DONE:
 			break;
 		case MLX5E_KTLS_SYNC_SKIP_NO_DATA:
+			stats->tls_skip_no_sync_data++;
 			if (likely(!skb->decrypted))
 				goto out;
 			WARN_ON_ONCE(1);
-			fallthrough;
+			goto err_out;
 		case MLX5E_KTLS_SYNC_FAIL:
+			stats->tls_drop_no_sync_data++;
 			goto err_out;
 		}
 	}
