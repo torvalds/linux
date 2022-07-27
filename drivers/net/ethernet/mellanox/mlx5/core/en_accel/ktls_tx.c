@@ -56,6 +56,36 @@ static int mlx5e_ktls_create_tis(struct mlx5_core_dev *mdev, u32 *tisn)
 	return mlx5_core_create_tis(mdev, in, tisn);
 }
 
+static int mlx5e_ktls_create_tis_cb(struct mlx5_core_dev *mdev,
+				    struct mlx5_async_ctx *async_ctx,
+				    u32 *out, int outlen,
+				    mlx5_async_cbk_t callback,
+				    struct mlx5_async_work *context)
+{
+	u32 in[MLX5_ST_SZ_DW(create_tis_in)] = {};
+
+	mlx5e_ktls_set_tisc(mdev, MLX5_ADDR_OF(create_tis_in, in, ctx));
+	MLX5_SET(create_tis_in, in, opcode, MLX5_CMD_OP_CREATE_TIS);
+
+	return mlx5_cmd_exec_cb(async_ctx, in, sizeof(in),
+				out, outlen, callback, context);
+}
+
+static int mlx5e_ktls_destroy_tis_cb(struct mlx5_core_dev *mdev, u32 tisn,
+				     struct mlx5_async_ctx *async_ctx,
+				     u32 *out, int outlen,
+				     mlx5_async_cbk_t callback,
+				     struct mlx5_async_work *context)
+{
+	u32 in[MLX5_ST_SZ_DW(destroy_tis_in)] = {};
+
+	MLX5_SET(destroy_tis_in, in, opcode, MLX5_CMD_OP_DESTROY_TIS);
+	MLX5_SET(destroy_tis_in, in, tisn, tisn);
+
+	return mlx5_cmd_exec_cb(async_ctx, in, sizeof(in),
+				out, outlen, callback, context);
+}
+
 struct mlx5e_ktls_offload_context_tx {
 	/* fast path */
 	u32 expected_seq;
@@ -68,6 +98,7 @@ struct mlx5e_ktls_offload_context_tx {
 	struct mlx5_core_dev *mdev;
 	struct mlx5e_tls_sw_stats *sw_stats;
 	u32 key_id;
+	u8 create_err : 1;
 };
 
 static void
@@ -91,8 +122,81 @@ mlx5e_get_ktls_tx_priv_ctx(struct tls_context *tls_ctx)
 	return *ctx;
 }
 
+/* struct for callback API management */
+struct mlx5e_async_ctx {
+	struct mlx5_async_work context;
+	struct mlx5_async_ctx async_ctx;
+	struct work_struct work;
+	struct mlx5e_ktls_offload_context_tx *priv_tx;
+	struct completion complete;
+	int err;
+	union {
+		u32 out_create[MLX5_ST_SZ_DW(create_tis_out)];
+		u32 out_destroy[MLX5_ST_SZ_DW(destroy_tis_out)];
+	};
+};
+
+static struct mlx5e_async_ctx *mlx5e_bulk_async_init(struct mlx5_core_dev *mdev, int n)
+{
+	struct mlx5e_async_ctx *bulk_async;
+	int i;
+
+	bulk_async = kvcalloc(n, sizeof(struct mlx5e_async_ctx), GFP_KERNEL);
+	if (!bulk_async)
+		return NULL;
+
+	for (i = 0; i < n; i++) {
+		struct mlx5e_async_ctx *async = &bulk_async[i];
+
+		mlx5_cmd_init_async_ctx(mdev, &async->async_ctx);
+		init_completion(&async->complete);
+	}
+
+	return bulk_async;
+}
+
+static void mlx5e_bulk_async_cleanup(struct mlx5e_async_ctx *bulk_async, int n)
+{
+	int i;
+
+	for (i = 0; i < n; i++) {
+		struct mlx5e_async_ctx *async = &bulk_async[i];
+
+		mlx5_cmd_cleanup_async_ctx(&async->async_ctx);
+	}
+	kvfree(bulk_async);
+}
+
+static void create_tis_callback(int status, struct mlx5_async_work *context)
+{
+	struct mlx5e_async_ctx *async =
+		container_of(context, struct mlx5e_async_ctx, context);
+	struct mlx5e_ktls_offload_context_tx *priv_tx = async->priv_tx;
+
+	if (status) {
+		async->err = status;
+		priv_tx->create_err = 1;
+		goto out;
+	}
+
+	priv_tx->tisn = MLX5_GET(create_tis_out, async->out_create, tisn);
+out:
+	complete(&async->complete);
+}
+
+static void destroy_tis_callback(int status, struct mlx5_async_work *context)
+{
+	struct mlx5e_async_ctx *async =
+		container_of(context, struct mlx5e_async_ctx, context);
+	struct mlx5e_ktls_offload_context_tx *priv_tx = async->priv_tx;
+
+	complete(&async->complete);
+	kfree(priv_tx);
+}
+
 static struct mlx5e_ktls_offload_context_tx *
-mlx5e_tls_priv_tx_init(struct mlx5_core_dev *mdev, struct mlx5e_tls_sw_stats *sw_stats)
+mlx5e_tls_priv_tx_init(struct mlx5_core_dev *mdev, struct mlx5e_tls_sw_stats *sw_stats,
+		       struct mlx5e_async_ctx *async)
 {
 	struct mlx5e_ktls_offload_context_tx *priv_tx;
 	int err;
@@ -104,76 +208,229 @@ mlx5e_tls_priv_tx_init(struct mlx5_core_dev *mdev, struct mlx5e_tls_sw_stats *sw
 	priv_tx->mdev = mdev;
 	priv_tx->sw_stats = sw_stats;
 
-	err = mlx5e_ktls_create_tis(mdev, &priv_tx->tisn);
-	if (err) {
-		kfree(priv_tx);
-		return ERR_PTR(err);
+	if (!async) {
+		err = mlx5e_ktls_create_tis(mdev, &priv_tx->tisn);
+		if (err)
+			goto err_out;
+	} else {
+		async->priv_tx = priv_tx;
+		err = mlx5e_ktls_create_tis_cb(mdev, &async->async_ctx,
+					       async->out_create, sizeof(async->out_create),
+					       create_tis_callback, &async->context);
+		if (err)
+			goto err_out;
 	}
 
 	return priv_tx;
-}
 
-static void mlx5e_tls_priv_tx_cleanup(struct mlx5e_ktls_offload_context_tx *priv_tx)
-{
-	mlx5e_destroy_tis(priv_tx->mdev, priv_tx->tisn);
+err_out:
 	kfree(priv_tx);
+	return ERR_PTR(err);
 }
 
-static void mlx5e_tls_priv_tx_list_cleanup(struct list_head *list)
+static void mlx5e_tls_priv_tx_cleanup(struct mlx5e_ktls_offload_context_tx *priv_tx,
+				      struct mlx5e_async_ctx *async)
+{
+	if (priv_tx->create_err) {
+		complete(&async->complete);
+		kfree(priv_tx);
+		return;
+	}
+	async->priv_tx = priv_tx;
+	mlx5e_ktls_destroy_tis_cb(priv_tx->mdev, priv_tx->tisn,
+				  &async->async_ctx,
+				  async->out_destroy, sizeof(async->out_destroy),
+				  destroy_tis_callback, &async->context);
+}
+
+static void mlx5e_tls_priv_tx_list_cleanup(struct mlx5_core_dev *mdev,
+					   struct list_head *list, int size)
 {
 	struct mlx5e_ktls_offload_context_tx *obj;
+	struct mlx5e_async_ctx *bulk_async;
+	int i;
 
-	list_for_each_entry(obj, list, list_node)
-		mlx5e_tls_priv_tx_cleanup(obj);
+	bulk_async = mlx5e_bulk_async_init(mdev, size);
+	if (!bulk_async)
+		return;
+
+	i = 0;
+	list_for_each_entry(obj, list, list_node) {
+		mlx5e_tls_priv_tx_cleanup(obj, &bulk_async[i]);
+		i++;
+	}
+
+	for (i = 0; i < size; i++) {
+		struct mlx5e_async_ctx *async = &bulk_async[i];
+
+		wait_for_completion(&async->complete);
+	}
+	mlx5e_bulk_async_cleanup(bulk_async, size);
 }
 
 /* Recycling pool API */
+
+#define MLX5E_TLS_TX_POOL_BULK (16)
+#define MLX5E_TLS_TX_POOL_HIGH (4 * 1024)
+#define MLX5E_TLS_TX_POOL_LOW (MLX5E_TLS_TX_POOL_HIGH / 4)
 
 struct mlx5e_tls_tx_pool {
 	struct mlx5_core_dev *mdev;
 	struct mlx5e_tls_sw_stats *sw_stats;
 	struct mutex lock; /* Protects access to the pool */
 	struct list_head list;
-#define MLX5E_TLS_TX_POOL_MAX_SIZE (256)
 	size_t size;
+
+	struct workqueue_struct *wq;
+	struct work_struct create_work;
+	struct work_struct destroy_work;
 };
+
+static void create_work(struct work_struct *work)
+{
+	struct mlx5e_tls_tx_pool *pool =
+		container_of(work, struct mlx5e_tls_tx_pool, create_work);
+	struct mlx5e_ktls_offload_context_tx *obj;
+	struct mlx5e_async_ctx *bulk_async;
+	LIST_HEAD(local_list);
+	int i, j, err = 0;
+
+	bulk_async = mlx5e_bulk_async_init(pool->mdev, MLX5E_TLS_TX_POOL_BULK);
+	if (!bulk_async)
+		return;
+
+	for (i = 0; i < MLX5E_TLS_TX_POOL_BULK; i++) {
+		obj = mlx5e_tls_priv_tx_init(pool->mdev, pool->sw_stats, &bulk_async[i]);
+		if (IS_ERR(obj)) {
+			err = PTR_ERR(obj);
+			break;
+		}
+		list_add(&obj->list_node, &local_list);
+	}
+
+	for (j = 0; j < i; j++) {
+		struct mlx5e_async_ctx *async = &bulk_async[j];
+
+		wait_for_completion(&async->complete);
+		if (!err && async->err)
+			err = async->err;
+	}
+	atomic64_add(i, &pool->sw_stats->tx_tls_pool_alloc);
+	mlx5e_bulk_async_cleanup(bulk_async, MLX5E_TLS_TX_POOL_BULK);
+	if (err)
+		goto err_out;
+
+	mutex_lock(&pool->lock);
+	if (pool->size + MLX5E_TLS_TX_POOL_BULK >= MLX5E_TLS_TX_POOL_HIGH) {
+		mutex_unlock(&pool->lock);
+		goto err_out;
+	}
+	list_splice(&local_list, &pool->list);
+	pool->size += MLX5E_TLS_TX_POOL_BULK;
+	if (pool->size <= MLX5E_TLS_TX_POOL_LOW)
+		queue_work(pool->wq, work);
+	mutex_unlock(&pool->lock);
+	return;
+
+err_out:
+	mlx5e_tls_priv_tx_list_cleanup(pool->mdev, &local_list, i);
+	atomic64_add(i, &pool->sw_stats->tx_tls_pool_free);
+}
+
+static void destroy_work(struct work_struct *work)
+{
+	struct mlx5e_tls_tx_pool *pool =
+		container_of(work, struct mlx5e_tls_tx_pool, destroy_work);
+	struct mlx5e_ktls_offload_context_tx *obj;
+	LIST_HEAD(local_list);
+	int i = 0;
+
+	mutex_lock(&pool->lock);
+	if (pool->size < MLX5E_TLS_TX_POOL_HIGH) {
+		mutex_unlock(&pool->lock);
+		return;
+	}
+
+	list_for_each_entry(obj, &pool->list, list_node)
+		if (++i == MLX5E_TLS_TX_POOL_BULK)
+			break;
+
+	list_cut_position(&local_list, &pool->list, &obj->list_node);
+	pool->size -= MLX5E_TLS_TX_POOL_BULK;
+	if (pool->size >= MLX5E_TLS_TX_POOL_HIGH)
+		queue_work(pool->wq, work);
+	mutex_unlock(&pool->lock);
+
+	mlx5e_tls_priv_tx_list_cleanup(pool->mdev, &local_list, MLX5E_TLS_TX_POOL_BULK);
+	atomic64_add(MLX5E_TLS_TX_POOL_BULK, &pool->sw_stats->tx_tls_pool_free);
+}
 
 static struct mlx5e_tls_tx_pool *mlx5e_tls_tx_pool_init(struct mlx5_core_dev *mdev,
 							struct mlx5e_tls_sw_stats *sw_stats)
 {
 	struct mlx5e_tls_tx_pool *pool;
 
+	BUILD_BUG_ON(MLX5E_TLS_TX_POOL_LOW + MLX5E_TLS_TX_POOL_BULK >= MLX5E_TLS_TX_POOL_HIGH);
+
 	pool = kvzalloc(sizeof(*pool), GFP_KERNEL);
 	if (!pool)
 		return NULL;
 
+	pool->wq = create_singlethread_workqueue("mlx5e_tls_tx_pool");
+	if (!pool->wq)
+		goto err_free;
+
 	INIT_LIST_HEAD(&pool->list);
 	mutex_init(&pool->lock);
+
+	INIT_WORK(&pool->create_work, create_work);
+	INIT_WORK(&pool->destroy_work, destroy_work);
 
 	pool->mdev = mdev;
 	pool->sw_stats = sw_stats;
 
 	return pool;
+
+err_free:
+	kvfree(pool);
+	return NULL;
+}
+
+static void mlx5e_tls_tx_pool_list_cleanup(struct mlx5e_tls_tx_pool *pool)
+{
+	while (pool->size > MLX5E_TLS_TX_POOL_BULK) {
+		struct mlx5e_ktls_offload_context_tx *obj;
+		LIST_HEAD(local_list);
+		int i = 0;
+
+		list_for_each_entry(obj, &pool->list, list_node)
+			if (++i == MLX5E_TLS_TX_POOL_BULK)
+				break;
+
+		list_cut_position(&local_list, &pool->list, &obj->list_node);
+		mlx5e_tls_priv_tx_list_cleanup(pool->mdev, &local_list, MLX5E_TLS_TX_POOL_BULK);
+		atomic64_add(MLX5E_TLS_TX_POOL_BULK, &pool->sw_stats->tx_tls_pool_free);
+		pool->size -= MLX5E_TLS_TX_POOL_BULK;
+	}
+	if (pool->size) {
+		mlx5e_tls_priv_tx_list_cleanup(pool->mdev, &pool->list, pool->size);
+		atomic64_add(pool->size, &pool->sw_stats->tx_tls_pool_free);
+	}
 }
 
 static void mlx5e_tls_tx_pool_cleanup(struct mlx5e_tls_tx_pool *pool)
 {
-	mlx5e_tls_priv_tx_list_cleanup(&pool->list);
-	atomic64_add(pool->size, &pool->sw_stats->tx_tls_pool_free);
+	mlx5e_tls_tx_pool_list_cleanup(pool);
+	destroy_workqueue(pool->wq);
 	kvfree(pool);
 }
 
 static void pool_push(struct mlx5e_tls_tx_pool *pool, struct mlx5e_ktls_offload_context_tx *obj)
 {
 	mutex_lock(&pool->lock);
-	if (pool->size >= MLX5E_TLS_TX_POOL_MAX_SIZE) {
-		mutex_unlock(&pool->lock);
-		mlx5e_tls_priv_tx_cleanup(obj);
-		atomic64_inc(&pool->sw_stats->tx_tls_pool_free);
-		return;
-	}
 	list_add(&obj->list_node, &pool->list);
-	pool->size++;
+	if (++pool->size == MLX5E_TLS_TX_POOL_HIGH)
+		queue_work(pool->wq, &pool->destroy_work);
 	mutex_unlock(&pool->lock);
 }
 
@@ -182,18 +439,24 @@ static struct mlx5e_ktls_offload_context_tx *pool_pop(struct mlx5e_tls_tx_pool *
 	struct mlx5e_ktls_offload_context_tx *obj;
 
 	mutex_lock(&pool->lock);
-	if (pool->size == 0) {
-		obj = mlx5e_tls_priv_tx_init(pool->mdev, pool->sw_stats);
+	if (unlikely(pool->size == 0)) {
+		/* pool is empty:
+		 * - trigger the populating work, and
+		 * - serve the current context via the regular blocking api.
+		 */
+		queue_work(pool->wq, &pool->create_work);
+		mutex_unlock(&pool->lock);
+		obj = mlx5e_tls_priv_tx_init(pool->mdev, pool->sw_stats, NULL);
 		if (!IS_ERR(obj))
 			atomic64_inc(&pool->sw_stats->tx_tls_pool_alloc);
-		goto out;
+		return obj;
 	}
 
 	obj = list_first_entry(&pool->list, struct mlx5e_ktls_offload_context_tx,
 			       list_node);
 	list_del(&obj->list_node);
-	pool->size--;
-out:
+	if (--pool->size == MLX5E_TLS_TX_POOL_LOW)
+		queue_work(pool->wq, &pool->create_work);
 	mutex_unlock(&pool->lock);
 	return obj;
 }
