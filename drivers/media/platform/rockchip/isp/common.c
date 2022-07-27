@@ -157,6 +157,15 @@ void rkisp_update_regs(struct rkisp_device *dev, u32 start, u32 end)
 		u32 *val = dev->sw_base_addr + i;
 		u32 *flag = dev->sw_base_addr + i + RKISP_ISP_SW_REG_SIZE;
 
+		if (dev->procfs.mode & RKISP_PROCFS_FIL_SW) {
+			if (!((i >= ISP3X_ISP_ACQ_H_OFFS && i <= ISP3X_ISP_ACQ_V_SIZE) ||
+			      (i >= ISP3X_ISP_OUT_H_OFFS && i <= ISP3X_ISP_OUT_V_SIZE) ||
+			      (i >= ISP3X_DUAL_CROP_BASE && i < ISP3X_DUAL_CROP_FBC_V_SIZE_SHD) ||
+			      (i >= ISP3X_MAIN_RESIZE_BASE && i < ISP3X_CSI2RX_VERSION) ||
+			      (i >= CIF_ISP_IS_BASE && i < CIF_ISP_IS_V_SIZE_SHD)))
+				continue;
+		}
+
 		if (*flag == SW_REG_CACHE) {
 			writel(*val, base + i);
 			if (hw->is_unite) {

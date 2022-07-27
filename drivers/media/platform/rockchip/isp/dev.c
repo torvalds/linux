@@ -1002,3 +1002,4 @@ struct platform_driver rkisp_plat_drv = {
 MODULE_AUTHOR("Rockchip Camera/ISP team");
 MODULE_DESCRIPTION("Rockchip ISP platform driver");
 MODULE_LICENSE("Dual BSD/GPL");
+MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);

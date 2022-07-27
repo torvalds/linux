@@ -3943,6 +3943,10 @@ vs_skip:
 			dev->isp_sdev.dbg.delay = dev->isp_sdev.dbg.timestamp - tmp;
 		}
 		rkisp_set_state(&dev->isp_state, ISP_FRAME_VS);
+		if (dev->procfs.is_fs_wait) {
+			dev->procfs.is_fs_wait = false;
+			wake_up(&dev->procfs.fs_wait);
+		}
 	}
 
 	if ((isp_mis & (CIF_ISP_FRAME | si3a_isr_mask)) ||
@@ -3969,6 +3973,10 @@ vs_skip:
 			struct rkisp_stream *s = &dev->cap_dev.stream[RKISP_STREAM_LUMA];
 
 			s->ops->frame_end(s);
+		}
+		if (dev->procfs.is_fe_wait) {
+			dev->procfs.is_fe_wait = false;
+			wake_up(&dev->procfs.fe_wait);
 		}
 	}
 

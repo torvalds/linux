@@ -10,6 +10,7 @@
 #include "version.h"
 #include "regs.h"
 #include "regs_v2x.h"
+#include "isp_params_v3x.h"
 #include "isp_params_v32.h"
 
 #ifdef CONFIG_PROC_FS
@@ -947,7 +948,157 @@ static int isp_show(struct seq_file *p, void *v)
 		   "Monitor",
 		   dev->hw_dev->monitor.is_en ? "ON" : "OFF",
 		   dev->hw_dev->monitor.retry);
+	seq_printf(p, "%-10s mode:0x%x\n",
+		   "Debug", dev->procfs.mode);
+	if (dev->procfs.mode & RKISP_PROCFS_DUMP_REG) {
+		int ret, i;
+
+		dev->procfs.is_fs_wait = true;
+		ret = wait_event_timeout(dev->procfs.fs_wait,
+					 !dev->procfs.is_fs_wait,
+					 msecs_to_jiffies(1000));
+		seq_printf(p, "****************HW REG*Ret:%d**************\n", ret);
+		for (i = 0; i < ISP3X_RAWAWB_RAM_DATA_BASE; i += 16)
+			seq_printf(p, "%04x:  %08x %08x %08x %08x\n", i,
+				   rkisp_read(dev, i, true),
+				   rkisp_read(dev, i + 4, true),
+				   rkisp_read(dev, i + 8, true),
+				   rkisp_read(dev, i + 12, true));
+	}
 	return 0;
+}
+
+static void rkisp_proc_dump_mem(struct rkisp_device *dev)
+{
+	const struct vb2_mem_ops *g_ops = dev->hw_dev->mem_ops;
+	void *iir_addr = NULL, *cur_addr = NULL, *ds_addr = NULL;
+	u32 iir_size, cur_size, ds_size;
+	struct file *fp = NULL;
+	char file[256];
+
+	if (!IS_ENABLED(CONFIG_NO_GKI))
+		return;
+
+	dev->procfs.is_fs_wait = true;
+	wait_event_timeout(dev->procfs.fe_wait,
+			   !dev->procfs.is_fe_wait,
+			   msecs_to_jiffies(1000));
+
+	if (dev->isp_ver == ISP_V30) {
+		struct rkisp_isp_params_val_v3x *p = dev->params_vdev.priv_val;
+
+		if (p->buf_3dnr_iir[0].mem_priv) {
+			if (!p->buf_3dnr_iir[0].is_need_vaddr)
+				p->buf_3dnr_iir[0].vaddr = g_ops->vaddr(p->buf_3dnr_iir[0].mem_priv);
+			iir_addr = p->buf_3dnr_iir[0].vaddr;
+			iir_size = p->buf_3dnr_iir[0].size;
+		}
+		if (p->buf_3dnr_cur[0].mem_priv) {
+			if (!p->buf_3dnr_cur[0].is_need_vaddr)
+				p->buf_3dnr_cur[0].vaddr = g_ops->vaddr(p->buf_3dnr_cur[0].mem_priv);
+			cur_addr = p->buf_3dnr_cur[0].vaddr;
+			cur_size = p->buf_3dnr_cur[0].size;
+		}
+		if (p->buf_3dnr_ds[0].mem_priv) {
+			if (!p->buf_3dnr_ds[0].is_need_vaddr)
+				p->buf_3dnr_ds[0].vaddr = g_ops->vaddr(p->buf_3dnr_ds[0].mem_priv);
+			ds_addr = p->buf_3dnr_ds[0].vaddr;
+			ds_size = p->buf_3dnr_ds[0].size;
+		}
+	}
+
+	if (iir_addr) {
+		snprintf(file, sizeof(file), "/tmp/%s_bay3d_iir", dev->name);
+		fp = filp_open(file, O_RDWR | O_CREAT, 0644);
+		if (IS_ERR(fp)) {
+			dev_err(dev->dev, "open %s fail\n", file);
+			return;
+		}
+		kernel_write(fp, iir_addr, iir_size, &fp->f_pos);
+		filp_close(fp, NULL);
+	}
+	if (cur_addr) {
+		snprintf(file, sizeof(file), "/tmp/%s_bay3d_cur", dev->name);
+		fp = filp_open(file, O_RDWR | O_CREAT, 0644);
+		if (IS_ERR(fp)) {
+			dev_err(dev->dev, "open %s fail\n", file);
+			return;
+		}
+		kernel_write(fp, cur_addr, cur_size, &fp->f_pos);
+		filp_close(fp, NULL);
+	}
+	if (ds_addr) {
+		snprintf(file, sizeof(file), "/tmp/%s_bay3d_ds", dev->name);
+		fp = filp_open(file, O_RDWR | O_CREAT, 0644);
+		if (IS_ERR(fp)) {
+			dev_err(dev->dev, "open %s fail\n", file);
+			return;
+		}
+		kernel_write(fp, ds_addr, ds_size, &fp->f_pos);
+		filp_close(fp, NULL);
+	}
+}
+
+static ssize_t rkisp_proc_write(struct file *file,
+				const char __user *user_buf,
+				size_t user_len, loff_t *pos)
+{
+	struct rkisp_device *dev = PDE_DATA(file_inode(file));
+	char *tmp, *buf = vmalloc(user_len + 1);
+	u32 val, reg;
+	int ret;
+
+	if (!buf)
+		return -ENOMEM;
+	if (copy_from_user(buf, user_buf, user_len) != 0) {
+		vfree(buf);
+		return -EFAULT;
+	}
+	if (buf[user_len - 1] == '\n')
+		buf[user_len - 1] = 0;
+	else
+		buf[user_len] = 0;
+	dev_info(dev->dev, "%s cnt:%zu %s\n", __func__, user_len, buf);
+	tmp = strstr(buf, "mode=");
+	if (tmp) {
+		tmp += 5;
+		ret = kstrtou32(tmp, 16, &val);
+		if (ret)
+			goto end;
+		dev->procfs.mode = val;
+		if (val & RKISP_PROCFS_DUMP_MEM)
+			rkisp_proc_dump_mem(dev);
+	} else if (dev->procfs.mode &
+		   (RKISP_PROCFS_FIL_AIQ | RKISP_PROCFS_FIL_SW)) {
+		char *p_reg, *p_val;
+
+		p_reg = buf;
+		tmp = strstr(p_reg, "=");
+		while (tmp) {
+			*tmp = '\0';
+			ret = kstrtou32(p_reg, 16, &reg);
+			if (ret)
+				goto end;
+			p_val = tmp + 1;
+			tmp = strstr(p_val, " ");
+			if (tmp) {
+				*tmp = '\0';
+				p_reg = tmp + 1;
+			}
+			ret = kstrtou32(p_val, 16, &val);
+			if (ret)
+				goto end;
+			if (dev->procfs.mode & RKISP_PROCFS_FIL_SW)
+				writel(val, dev->hw_dev->base_addr + reg);
+			else
+				rkisp_write(dev, reg, val, false);
+
+			tmp = strstr(p_reg, "=");
+		}
+	}
+end:
+	vfree(buf);
+	return user_len;
 }
 
 static int isp_open(struct inode *inode, struct file *file)
@@ -962,21 +1113,25 @@ static const struct proc_ops ops = {
 	.proc_read	= seq_read,
 	.proc_lseek	= seq_lseek,
 	.proc_release	= single_release,
+	.proc_write	= rkisp_proc_write,
 };
 
 int rkisp_proc_init(struct rkisp_device *dev)
 {
-	dev->procfs = proc_create_data(dev->name, 0, NULL, &ops, dev);
-	if (!dev->procfs)
+	memset(&dev->procfs, 0, sizeof(dev->procfs));
+	dev->procfs.procfs = proc_create_data(dev->name, 0, NULL, &ops, dev);
+	if (!dev->procfs.procfs)
 		return -EINVAL;
+	init_waitqueue_head(&dev->procfs.fs_wait);
+	init_waitqueue_head(&dev->procfs.fe_wait);
 	return 0;
 }
 
 void rkisp_proc_cleanup(struct rkisp_device *dev)
 {
-	if (dev->procfs)
+	if (dev->procfs.procfs)
 		remove_proc_entry(dev->name, NULL);
-	dev->procfs = NULL;
+	dev->procfs.procfs = NULL;
 }
 
 #endif /* CONFIG_PROC_FS */

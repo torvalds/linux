@@ -156,6 +156,12 @@ static void rkisp_params_vb2_buf_queue(struct vb2_buffer *vb)
 		return;
 	}
 
+	if (params_vdev->dev->procfs.mode &
+	    (RKISP_PROCFS_FIL_AIQ | RKISP_PROCFS_FIL_SW)) {
+		vb2_buffer_done(&params_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
+		return;
+	}
+
 	params_buf->vaddr[0] = vb2_plane_vaddr(vb, 0);
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	list_add_tail(&params_buf->queue, &params_vdev->params);
@@ -333,6 +339,9 @@ void rkisp_params_cfg(struct rkisp_isp_params_vdev *params_vdev, u32 frame_id)
 
 void rkisp_params_cfgsram(struct rkisp_isp_params_vdev *params_vdev)
 {
+	if (params_vdev->dev->procfs.mode & RKISP_PROCFS_FIL_SW)
+		return;
+
 	/* multi device to switch sram config */
 	if (params_vdev->dev->hw_dev->is_single)
 		return;

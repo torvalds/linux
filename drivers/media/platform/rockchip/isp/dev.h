@@ -193,7 +193,7 @@ struct rkisp_device {
 	struct rkisp_csi_device csi_dev;
 	struct rkisp_bridge_device br_dev;
 	struct rkisp_luma_vdev luma_vdev;
-	struct proc_dir_entry *procfs;
+	struct rkisp_procfs procfs;
 	struct rkisp_pipeline pipe;
 	enum rkisp_isp_ver isp_ver;
 	struct rkisp_emd_data emd_data_fifo[RKISP_EMDDATA_FIFO_MAX];
