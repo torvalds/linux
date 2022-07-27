@@ -1167,7 +1167,7 @@ static void rockchip_drm_set_property_default(struct drm_device *drm)
 	drm_modeset_lock_all(drm);
 
 	state = drm_atomic_helper_duplicate_state(drm, conf->acquire_ctx);
-	if (!state) {
+	if (IS_ERR(state)) {
 		DRM_ERROR("failed to alloc atomic state\n");
 		goto err_unlock;
 	}
