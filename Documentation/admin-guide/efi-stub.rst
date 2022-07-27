@@ -7,10 +7,10 @@ as a PE/COFF image, thereby convincing EFI firmware loaders to load
 it as an EFI executable. The code that modifies the bzImage header,
 along with the EFI-specific entry point that the firmware loader
 jumps to are collectively known as the "EFI boot stub", and live in
-arch/x86/boot/header.S and arch/x86/boot/compressed/eboot.c,
+arch/x86/boot/header.S and drivers/firmware/efi/libstub/x86-stub.c,
 respectively. For ARM the EFI stub is implemented in
 arch/arm/boot/compressed/efi-header.S and
-arch/arm/boot/compressed/efi-stub.c. EFI stub code that is shared
+drivers/firmware/efi/libstub/arm32-stub.c. EFI stub code that is shared
 between architectures is in drivers/firmware/efi/libstub.
 
 For arm64, there is no compressed kernel support, so the Image itself
