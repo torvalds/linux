@@ -178,6 +178,7 @@ static void __cxl_dpa_release(struct cxl_endpoint_decoder *cxled)
 		__release_region(&cxlds->dpa_res, skip_start, cxled->skip);
 	cxled->skip = 0;
 	cxled->dpa_res = NULL;
+	put_device(&cxled->cxld.dev);
 	port->hdm_end--;
 }
 
@@ -214,7 +215,7 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 	lockdep_assert_held_write(&cxl_dpa_rwsem);
 
 	if (!len)
-		return 0;
+		goto success;
 
 	if (cxled->dpa_res) {
 		dev_dbg(dev, "decoder%d.%d: existing allocation %pr assigned\n",
@@ -266,8 +267,10 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 			cxled->cxld.id, cxled->dpa_res);
 		cxled->mode = CXL_DECODER_MIXED;
 	}
-	port->hdm_end++;
 
+success:
+	port->hdm_end++;
+	get_device(&cxled->cxld.dev);
 	return 0;
 }
 
