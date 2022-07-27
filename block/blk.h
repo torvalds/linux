@@ -97,23 +97,23 @@ static inline bool biovec_phys_mergeable(struct request_queue *q,
 	return true;
 }
 
-static inline bool __bvec_gap_to_prev(struct request_queue *q,
+static inline bool __bvec_gap_to_prev(struct queue_limits *lim,
 		struct bio_vec *bprv, unsigned int offset)
 {
-	return (offset & queue_virt_boundary(q)) ||
-		((bprv->bv_offset + bprv->bv_len) & queue_virt_boundary(q));
+	return (offset & lim->virt_boundary_mask) ||
+		((bprv->bv_offset + bprv->bv_len) & lim->virt_boundary_mask);
 }
 
 /*
  * Check if adding a bio_vec after bprv with offset would create a gap in
  * the SG list. Most drivers don't care about this, but some do.
  */
-static inline bool bvec_gap_to_prev(struct request_queue *q,
+static inline bool bvec_gap_to_prev(struct queue_limits *lim,
 		struct bio_vec *bprv, unsigned int offset)
 {
-	if (!queue_virt_boundary(q))
+	if (!lim->virt_boundary_mask)
 		return false;
-	return __bvec_gap_to_prev(q, bprv, offset);
+	return __bvec_gap_to_prev(lim, bprv, offset);
 }
 
 static inline bool rq_mergeable(struct request *rq)
@@ -189,7 +189,8 @@ static inline bool integrity_req_gap_back_merge(struct request *req,
 	struct bio_integrity_payload *bip = bio_integrity(req->bio);
 	struct bio_integrity_payload *bip_next = bio_integrity(next);
 
-	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
+	return bvec_gap_to_prev(&req->q->limits,
+				&bip->bip_vec[bip->bip_vcnt - 1],
 				bip_next->bip_vec[0].bv_offset);
 }
 
@@ -199,7 +200,8 @@ static inline bool integrity_req_gap_front_merge(struct request *req,
 	struct bio_integrity_payload *bip = bio_integrity(bio);
 	struct bio_integrity_payload *bip_next = bio_integrity(req->bio);
 
-	return bvec_gap_to_prev(req->q, &bip->bip_vec[bip->bip_vcnt - 1],
+	return bvec_gap_to_prev(&req->q->limits,
+				&bip->bip_vec[bip->bip_vcnt - 1],
 				bip_next->bip_vec[0].bv_offset);
 }
 
@@ -288,7 +290,8 @@ ssize_t part_timeout_show(struct device *, struct device_attribute *, char *);
 ssize_t part_timeout_store(struct device *, struct device_attribute *,
 				const char *, size_t);
 
-static inline bool bio_may_exceed_limits(struct bio *bio, struct request_queue *q)
+static inline bool bio_may_exceed_limits(struct bio *bio,
+		struct queue_limits *lim)
 {
 	switch (bio_op(bio)) {
 	case REQ_OP_DISCARD:
@@ -307,11 +310,11 @@ static inline bool bio_may_exceed_limits(struct bio *bio, struct request_queue *
 	 * to the performance impact of cloned bios themselves the loop below
 	 * doesn't matter anyway.
 	 */
-	return q->limits.chunk_sectors || bio->bi_vcnt != 1 ||
+	return lim->chunk_sectors || bio->bi_vcnt != 1 ||
 		bio->bi_io_vec->bv_len + bio->bi_io_vec->bv_offset > PAGE_SIZE;
 }
 
-struct bio *__bio_split_to_limits(struct bio *bio, struct request_queue *q,
+struct bio *__bio_split_to_limits(struct bio *bio, struct queue_limits *lim,
 		       unsigned int *nr_segs);
 int ll_back_merge_fn(struct request *req, struct bio *bio,
 		unsigned int nr_segs);
