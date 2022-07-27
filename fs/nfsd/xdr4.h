@@ -540,7 +540,7 @@ struct nfsd4_copy {
 	u64			cp_src_pos;
 	u64			cp_dst_pos;
 	u64			cp_count;
-	struct nl4_server	cp_src;
+	struct nl4_server	*cp_src;
 	bool			cp_intra;
 
 	/* both */
