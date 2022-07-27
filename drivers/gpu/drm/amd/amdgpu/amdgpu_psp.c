@@ -37,6 +37,7 @@
 #include "psp_v11_0_8.h"
 #include "psp_v12_0.h"
 #include "psp_v13_0.h"
+#include "psp_v13_0_4.h"
 
 #include "amdgpu_ras.h"
 #include "amdgpu_securedisplay.h"
@@ -149,6 +150,10 @@ static int psp_early_init(void *handle)
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
 		psp_v13_0_set_psp_funcs(psp);
+		psp->autoload_supported = true;
+		break;
+	case IP_VERSION(13, 0, 4):
+		psp_v13_0_4_set_psp_funcs(psp);
 		psp->autoload_supported = true;
 		break;
 	default:
@@ -3692,5 +3697,13 @@ const struct amdgpu_ip_block_version psp_v13_0_ip_block = {
 	.major = 13,
 	.minor = 0,
 	.rev = 0,
+	.funcs = &psp_ip_funcs,
+};
+
+const struct amdgpu_ip_block_version psp_v13_0_4_ip_block = {
+	.type = AMD_IP_BLOCK_TYPE_PSP,
+	.major = 13,
+	.minor = 0,
+	.rev = 4,
 	.funcs = &psp_ip_funcs,
 };
