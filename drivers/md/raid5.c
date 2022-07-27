@@ -755,6 +755,33 @@ static bool has_failed(struct r5conf *conf)
 	return degraded > conf->max_degraded;
 }
 
+enum stripe_result {
+	STRIPE_SUCCESS = 0,
+	STRIPE_RETRY,
+	STRIPE_SCHEDULE_AND_RETRY,
+	STRIPE_FAIL,
+};
+
+struct stripe_request_ctx {
+	/* a reference to the last stripe_head for batching */
+	struct stripe_head *batch_last;
+
+	/* first sector in the request */
+	sector_t first_sector;
+
+	/* last sector in the request */
+	sector_t last_sector;
+
+	/*
+	 * bitmap to track stripe sectors that have been added to stripes
+	 * add one to account for unaligned requests
+	 */
+	DECLARE_BITMAP(sectors_to_do, RAID5_MAX_REQ_STRIPES + 1);
+
+	/* the request had REQ_PREFLUSH, cleared after the first stripe_head */
+	bool do_flush;
+};
+
 /*
  * Block until another thread clears R5_INACTIVE_BLOCKED or
  * there are fewer than 3/4 the maximum number of active stripes
@@ -5873,33 +5900,6 @@ static bool stripe_ahead_of_reshape(struct mddev *mddev, struct r5conf *conf,
 
 	return ret;
 }
-
-enum stripe_result {
-	STRIPE_SUCCESS = 0,
-	STRIPE_RETRY,
-	STRIPE_SCHEDULE_AND_RETRY,
-	STRIPE_FAIL,
-};
-
-struct stripe_request_ctx {
-	/* a reference to the last stripe_head for batching */
-	struct stripe_head *batch_last;
-
-	/* first sector in the request */
-	sector_t first_sector;
-
-	/* last sector in the request */
-	sector_t last_sector;
-
-	/*
-	 * bitmap to track stripe sectors that have been added to stripes
-	 * add one to account for unaligned requests
-	 */
-	DECLARE_BITMAP(sectors_to_do, RAID5_MAX_REQ_STRIPES + 1);
-
-	/* the request had REQ_PREFLUSH, cleared after the first stripe_head */
-	bool do_flush;
-};
 
 static int add_all_stripe_bios(struct r5conf *conf,
 		struct stripe_request_ctx *ctx, struct stripe_head *sh,
