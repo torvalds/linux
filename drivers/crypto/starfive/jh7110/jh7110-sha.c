@@ -117,7 +117,8 @@ static int jh7110_sha_hmac_key(struct jh7110_sec_ctx *ctx)
 	struct jh7110_sec_request_ctx *rctx = ctx->rctx;
 	struct jh7110_sec_dev *sdev = ctx->sdev;
 	int klen = ctx->keylen, loop;
-	unsigned int *key_tmp;
+	unsigned int *key = (unsigned int *)ctx->key;
+	unsigned char *cl;
 
 	jh7110_sec_write(sdev, JH7110_SHA_SHAWKLEN, ctx->keylen);
 
@@ -126,10 +127,14 @@ static int jh7110_sha_hmac_key(struct jh7110_sec_ctx *ctx)
 
 	jh7110_sec_write(sdev, JH7110_SHA_SHACSR, rctx->csr.sha_csr.v);
 
-	key_tmp = (unsigned int *)ctx->key;
+	for (loop = 0; loop < klen / sizeof(unsigned int); loop++, key++)
+		jh7110_sec_write(sdev, JH7110_SHA_SHAWKR, *key);
 
-	for (loop = 0; loop < klen / sizeof(unsigned int); loop++)
-		jh7110_sec_write(sdev, JH7110_SHA_SHAWKR, key_tmp[loop]);
+	if (klen & 0x3) {
+		cl = (unsigned char *)key;
+		for (loop = 0; loop < (klen & 0x3); loop++, cl++)
+			jh7110_sec_writeb(sdev, JH7110_SHA_SHAWKR, *cl);
+	}
 
 	if (jh7110_hash_wait_key_done(ctx)) {
 		dev_err(sdev->dev, " jh7110_hash_wait_key_done error\n");
@@ -317,7 +322,7 @@ static int jh7110_hash_xmit(struct jh7110_sec_ctx *ctx, int flags)
 	if (ret)
 		return ret;
 
-	if (ctx->sec_init && !rctx->csr.sha_csr.hmac) {
+	if (!rctx->csr.sha_csr.hmac) {
 		rctx->csr.sha_csr.start = 1;
 		rctx->csr.sha_csr.firstb = 1;
 		ctx->sec_init = 0;
@@ -1156,7 +1161,7 @@ static struct ahash_alg algs_sha0_sha512_sm3[] = {
 		.export   = jh7110_hash_export,
 		.import   = jh7110_hash_import,
 		.halg = {
-			.digestsize = SHA512_DIGEST_SIZE,
+			.digestsize = SM3_DIGEST_SIZE,
 			.statesize  = sizeof(struct jh7110_sec_request_ctx),
 			.base = {
 				.cra_name			= "sm3",
@@ -1164,7 +1169,7 @@ static struct ahash_alg algs_sha0_sha512_sm3[] = {
 				.cra_priority		= 200,
 				.cra_flags			= CRYPTO_ALG_ASYNC |
 										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SHA512_BLOCK_SIZE,
+				.cra_blocksize		= SM3_BLOCK_SIZE,
 				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
 				.cra_alignmask		= 3,
 				.cra_init			= jh7110_hash_cra_sm3_init,
@@ -1183,7 +1188,7 @@ static struct ahash_alg algs_sha0_sha512_sm3[] = {
 		.export		= jh7110_hash_export,
 		.import		= jh7110_hash_import,
 		.halg = {
-			.digestsize = SHA512_DIGEST_SIZE,
+			.digestsize = SM3_DIGEST_SIZE,
 			.statesize  = sizeof(struct jh7110_sec_request_ctx),
 			.base = {
 				.cra_name			= "hmac(sm3)",
@@ -1191,7 +1196,7 @@ static struct ahash_alg algs_sha0_sha512_sm3[] = {
 				.cra_priority		= 200,
 				.cra_flags			= CRYPTO_ALG_ASYNC |
 										CRYPTO_ALG_TYPE_AHASH,
-				.cra_blocksize		= SHA512_BLOCK_SIZE,
+				.cra_blocksize		= SM3_BLOCK_SIZE,
 				.cra_ctxsize		= sizeof(struct jh7110_sec_ctx),
 				.cra_alignmask		= 3,
 				.cra_init			= jh7110_hash_cra_hmac_sm3_init,
