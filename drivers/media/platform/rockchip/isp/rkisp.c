@@ -803,6 +803,8 @@ static void rkisp_rdbk_trigger_handle(struct rkisp_device *dev, u32 cmd)
 			isp->sw_rd_cnt = 1;
 			times = 0;
 		}
+		if (dev->is_pre_on && t.frame_id == 0)
+			dev->is_first_double = true;
 	}
 end:
 	spin_unlock_irqrestore(&hw->rdbk_lock, lock_flags);
@@ -859,6 +861,8 @@ void rkisp_check_idle(struct rkisp_device *dev, u32 irq)
 {
 	u32 val = 0;
 
+	if (dev->is_first_double)
+		return;
 	if (dev->hw_dev->is_multi_overflow &&
 	    dev->sw_rd_cnt &&
 	    irq & ISP_FRAME_END)
@@ -3260,7 +3264,7 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		rkisp_get_info(isp_dev, arg);
 		break;
 	case RKISP_CMD_GET_TB_HEAD_V32:
-		if (isp_dev->tb_head.complete != RKISP_TB_OK) {
+		if (isp_dev->tb_head.complete != RKISP_TB_OK || !isp_dev->is_pre_on) {
 			ret = -EINVAL;
 			break;
 		}
@@ -3269,7 +3273,6 @@ static long rkisp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		       sizeof(struct rkisp_thunderboot_resmem_head));
 		memcpy(&tb_head_v32->cfg, isp_dev->params_vdev.isp32_params,
 		       sizeof(struct isp32_isp_params_cfg));
-		isp_dev->tb_head.complete = 0;
 		break;
 	case RKISP_CMD_GET_SHARED_BUF:
 		if (!IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP)) {

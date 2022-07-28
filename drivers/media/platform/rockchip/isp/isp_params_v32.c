@@ -4395,6 +4395,9 @@ static void rkisp_save_first_param_v32(struct rkisp_isp_params_vdev *params_vdev
 		(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
 
 	memcpy(params_vdev->isp32_params, param, params_vdev->vdev_fmt.fmt.meta.buffersize);
+
+	if (!params_vdev->first_params)
+		return;
 	tasklet_enable(&priv_val->lsc_tasklet);
 	rkisp_alloc_internal_buf(params_vdev, params_vdev->isp32_params);
 }

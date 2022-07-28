@@ -1036,7 +1036,7 @@ static int mi_frame_start(struct rkisp_stream *stream, u32 mis)
 {
 	unsigned long lock_flags = 0;
 
-	if (mis && stream->streaming) {
+	if (stream->streaming) {
 		rkisp_rockit_buf_done(stream, ROCKIT_DVBM_START);
 		rkisp_rockit_ctrl_fps(stream);
 	}

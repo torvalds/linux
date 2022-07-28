@@ -640,9 +640,6 @@ rkisp_stats_isr_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 				 isp_mis_tmp, isp3a_ris);
 	}
 
-	if (!stats_vdev->streamon)
-		goto unlock;
-
 	if (isp_ris & ISP3X_FRAME) {
 		work.readout = RKISP_ISP_READOUT_MEAS;
 		work.frame_id = cur_frame_id;
@@ -652,7 +649,6 @@ rkisp_stats_isr_v32(struct rkisp_isp_stats_vdev *stats_vdev,
 		rkisp_stats_send_meas_v32(stats_vdev, &work);
 	}
 
-unlock:
 	spin_unlock(&stats_vdev->irq_lock);
 }
 
