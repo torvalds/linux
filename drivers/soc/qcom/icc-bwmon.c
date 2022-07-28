@@ -100,6 +100,9 @@
 
 #define BWMON_V4_ZONE_MAX(zone)			(0x2e0 + 4 * (zone))
 
+/* Quirks for specific BWMON types */
+#define BWMON_HAS_GLOBAL_IRQ			BIT(0)
+
 enum bwmon_fields {
 	F_GLOBAL_IRQ_CLEAR,
 	F_GLOBAL_IRQ_ENABLE,
@@ -136,6 +139,7 @@ struct icc_bwmon_data {
 	unsigned int default_lowbw_kbps;
 	u8 zone1_thres_count;
 	u8 zone3_thres_count;
+	unsigned int quirks;
 
 	const struct regmap_config *regmap_cfg;
 	const struct reg_field *regmap_fields;
@@ -270,14 +274,16 @@ static void bwmon_clear_irq(struct icc_bwmon *bwmon)
 	 * interrupt is cleared.
 	 */
 	regmap_field_force_write(bwmon->regs[F_IRQ_CLEAR], BWMON_IRQ_ENABLE_MASK);
-	regmap_field_force_write(bwmon->regs[F_GLOBAL_IRQ_CLEAR],
-				 BWMON_V4_GLOBAL_IRQ_ENABLE_ENABLE);
+	if (bwmon->data->quirks & BWMON_HAS_GLOBAL_IRQ)
+		regmap_field_force_write(bwmon->regs[F_GLOBAL_IRQ_CLEAR],
+					 BWMON_V4_GLOBAL_IRQ_ENABLE_ENABLE);
 }
 
 static void bwmon_disable(struct icc_bwmon *bwmon)
 {
 	/* Disable interrupts. Strict ordering, see bwmon_clear_irq(). */
-	regmap_field_write(bwmon->regs[F_GLOBAL_IRQ_ENABLE], 0x0);
+	if (bwmon->data->quirks & BWMON_HAS_GLOBAL_IRQ)
+		regmap_field_write(bwmon->regs[F_GLOBAL_IRQ_ENABLE], 0x0);
 	regmap_field_write(bwmon->regs[F_IRQ_ENABLE], 0x0);
 
 	/*
@@ -290,8 +296,9 @@ static void bwmon_disable(struct icc_bwmon *bwmon)
 static void bwmon_enable(struct icc_bwmon *bwmon, unsigned int irq_enable)
 {
 	/* Enable interrupts */
-	regmap_field_write(bwmon->regs[F_GLOBAL_IRQ_ENABLE],
-			   BWMON_V4_GLOBAL_IRQ_ENABLE_ENABLE);
+	if (bwmon->data->quirks & BWMON_HAS_GLOBAL_IRQ)
+		regmap_field_write(bwmon->regs[F_GLOBAL_IRQ_ENABLE],
+				   BWMON_V4_GLOBAL_IRQ_ENABLE_ENABLE);
 	regmap_field_write(bwmon->regs[F_IRQ_ENABLE], irq_enable);
 
 	/* Enable bwmon */
@@ -541,6 +548,7 @@ static const struct icc_bwmon_data msm8998_bwmon_data = {
 	.default_lowbw_kbps = 0,
 	.zone1_thres_count = 16,
 	.zone3_thres_count = 1,
+	.quirks = BWMON_HAS_GLOBAL_IRQ,
 	.regmap_fields = msm8998_bwmon_reg_fields,
 	.regmap_cfg = &msm8998_bwmon_regmap_cfg,
 };
