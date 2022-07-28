@@ -5,6 +5,7 @@
  * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X01 reduce vcm collision noise.
+ * V0.0X01.0X02 check dev connection before register.
  */
 
 //#define DEBUG
@@ -22,7 +23,7 @@
 
 #define OF_CAMERA_VCMDRV_EDLC_ENABLE	"rockchip,vcm-edlc-enable"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x1)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x2)
 #define CN3927V_NAME			"cn3927v"
 
 #define CN3927V_MAX_CURRENT		120U
@@ -933,6 +934,23 @@ unlock_and_return:
 	return ret;
 }
 
+static int cn3927v_check_i2c(struct cn3927v_device *cn3927v,
+				  struct i2c_client *client)
+{
+	struct device *dev = &client->dev;
+	int ret;
+
+	// need to wait 1ms after poweron
+	usleep_range(1000, 1200);
+	// Advanced Mode TEST set
+	ret = cn3927v_write_msg(client, 0xED, 0xAB);
+	if (!ret)
+		dev_info(dev, "Check cn3927v connection OK!\n");
+	else
+		dev_info(dev, "cn3927v not connect!\n");
+	return ret;
+}
+
 static int cn3927v_configure_regulator(struct cn3927v_device *cn3927v)
 {
 	struct i2c_client *client = cn3927v->client;
@@ -1143,13 +1161,18 @@ static int cn3927v_parse_dt_property(struct i2c_client *client,
 static int cn3927v_probe(struct i2c_client *client,
 			const struct i2c_device_id *id)
 {
+	struct device *dev = &client->dev;
 	struct cn3927v_device *cn3927v_dev;
 	struct v4l2_subdev *sd;
 	char facing[2];
 	int ret;
 
-	dev_info(&client->dev, "probing...\n");
-	cn3927v_dev = devm_kzalloc(&client->dev, sizeof(*cn3927v_dev),
+	dev_info(dev, "driver version: %02x.%02x.%02x, probing...",
+		DRIVER_VERSION >> 16,
+		(DRIVER_VERSION & 0xff00) >> 8,
+		DRIVER_VERSION & 0x00ff);
+
+	cn3927v_dev = devm_kzalloc(dev, sizeof(*cn3927v_dev),
 				  GFP_KERNEL);
 	if (cn3927v_dev == NULL)
 		return -ENOMEM;
@@ -1168,6 +1191,14 @@ static int cn3927v_probe(struct i2c_client *client,
 	ret = media_entity_pads_init(&cn3927v_dev->sd.entity, 0, NULL);
 	if (ret < 0)
 		goto err_cleanup;
+
+	ret = __cn3927v_set_power(cn3927v_dev, true);
+	if (ret)
+		goto err_cleanup;
+
+	ret = cn3927v_check_i2c(cn3927v_dev, client);
+	if (ret)
+		goto err_power_off;
 
 	sd = &cn3927v_dev->sd;
 	sd->entity.function = MEDIA_ENT_F_LENS;
@@ -1193,12 +1224,15 @@ static int cn3927v_probe(struct i2c_client *client,
 	cn3927v_dev->end_move_tv = ns_to_kernel_old_timeval(ktime_get_ns());
 	cn3927v_dev->vcm_movefull_t =
 		cn3927v_move_time(cn3927v_dev, CN3927V_MAX_REG);
-	pm_runtime_enable(&client->dev);
 
-	add_sysfs_interfaces(&client->dev);
-	dev_info(&client->dev, "probing successful\n");
+	pm_runtime_enable(dev);
+
+	add_sysfs_interfaces(dev);
+	dev_info(dev, "probing successful\n");
 
 	return 0;
+err_power_off:
+	__cn3927v_set_power(cn3927v_dev, false);
 
 err_cleanup:
 	cn3927v_subdev_cleanup(cn3927v_dev);
