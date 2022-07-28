@@ -136,6 +136,7 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 	unsigned int data_width;
 	unsigned int mclk_rate;
 	unsigned int dma_bus_width;
+	int channels;
 	int ret;
 
 	dev->samplerate = params_rate(params);
@@ -177,38 +178,30 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	data_width = params_width(params);
-
-	dev->pcmclk = 2 * dev->samplerate * data_width;
+	channels = params_channels(params);
+	dev->pcmclk = channels * dev->samplerate * data_width;
 
 	switch (params_format(params)) {
-/*
-	case SNDRV_PCM_FORMAT_S8:
-		chan_wl = TDM_8BIT_WORD_LEN;
-		chan_sl = TDM_8BIT_SLOT_LEN;
-		dma_bus_width = DMA_SLAVE_BUSWIDTH_1_BYTE;
-		break;
-*/
-
 	case SNDRV_PCM_FORMAT_S16_LE:
 		chan_wl = TDM_16BIT_WORD_LEN;
 		chan_sl = TDM_16BIT_SLOT_LEN;
 		dma_bus_width = DMA_SLAVE_BUSWIDTH_2_BYTES;
 		break;
 
-	/*  There is a issue with 24-bit  */
+	/*  There are some issue with 24-bit and 32-bit */
 /*
 	case SNDRV_PCM_FORMAT_S24_LE:
 		chan_wl = TDM_24BIT_WORD_LEN;
 		chan_sl = TDM_32BIT_SLOT_LEN;
 		dma_bus_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
-*/
 
 	case SNDRV_PCM_FORMAT_S32_LE:
 		chan_wl = TDM_32BIT_WORD_LEN;
 		chan_sl = TDM_32BIT_SLOT_LEN;
 		dma_bus_width = DMA_SLAVE_BUSWIDTH_4_BYTES;
 		break;
+*/
 
 	default:
 		dev_err(dev->dev, "tdm: unsupported PCM fmt");
@@ -217,6 +210,7 @@ static int sf_tdm_hw_params(struct snd_pcm_substream *substream,
 
 	chan_nr = params_channels(params);
 	switch (chan_nr) {
+	case ONE_CHANNEL_SUPPORT:
 	case TWO_CHANNEL_SUPPORT:
 	case FOUR_CHANNEL_SUPPORT:
 	case SIX_CHANNEL_SUPPORT:
@@ -356,17 +350,17 @@ static struct snd_soc_dai_driver sf_tdm_dai = {
 	.id = 0,
 	.playback = {
 		.stream_name    = "Playback",
-		.channels_min   = 2,
+		.channels_min   = 1,
 		.channels_max   = 8,
 		.rates          = SF_TDM_RATES,
-		.formats        = SF_TDM_FORMATS,
+		.formats        = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.capture = {
 		.stream_name    = "Capture",
-		.channels_min   = 2,
+		.channels_min   = 1,
 		.channels_max   = 8,
 		.rates          = SF_TDM_RATES,
-		.formats        = SF_TDM_FORMATS,
+		.formats        = SNDRV_PCM_FMTBIT_S16_LE,
 	},
 	.ops = &sf_tdm_dai_ops,
 	.probe = sf_tdm_dai_probe,
