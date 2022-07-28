@@ -912,17 +912,23 @@ bool is_swiotlb_active(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(is_swiotlb_active);
 
+static int io_tlb_used_get(void *data, u64 *val)
+{
+	*val = mem_used(&io_tlb_default_mem);
+	return 0;
+}
+DEFINE_DEBUGFS_ATTRIBUTE(fops_io_tlb_used, io_tlb_used_get, NULL, "%llu\n");
+
 static void swiotlb_create_debugfs_files(struct io_tlb_mem *mem,
 					 const char *dirname)
 {
-	unsigned long used = mem_used(mem);
-
 	mem->debugfs = debugfs_create_dir(dirname, io_tlb_default_mem.debugfs);
 	if (!mem->nslabs)
 		return;
 
 	debugfs_create_ulong("io_tlb_nslabs", 0400, mem->debugfs, &mem->nslabs);
-	debugfs_create_ulong("io_tlb_used", 0400, mem->debugfs, &used);
+	debugfs_create_file("io_tlb_used", 0400, mem->debugfs, NULL,
+			&fops_io_tlb_used);
 }
 
 static int __init __maybe_unused swiotlb_create_default_debugfs(void)
