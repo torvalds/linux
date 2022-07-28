@@ -94,31 +94,7 @@ Modem control lines via GPIO
 
 Some helpers are provided in order to set/get modem control lines via GPIO.
 
-mctrl_gpio_init(port, idx):
-	This will get the {cts,rts,...}-gpios from device tree if they are
-	present and request them, set direction etc, and return an
-	allocated structure. `devm_*` functions are used, so there's no need
-	to call mctrl_gpio_free().
-	As this sets up the irq handling make sure to not handle changes to the
-	gpio input lines in your driver, too.
-
-mctrl_gpio_free(dev, gpios):
-	This will free the requested gpios in mctrl_gpio_init().
-	As `devm_*` functions are used, there's generally no need to call
-	this function.
-
-mctrl_gpio_to_gpiod(gpios, gidx)
-	This returns the gpio_desc structure associated to the modem line
-	index.
-
-mctrl_gpio_set(gpios, mctrl):
-	This will sets the gpios according to the mctrl state.
-
-mctrl_gpio_get(gpios, mctrl):
-	This will update mctrl with the gpios values.
-
-mctrl_gpio_enable_ms(gpios):
-	Enables irqs and handling of changes to the ms lines.
-
-mctrl_gpio_disable_ms(gpios):
-	Disables irqs and handling of changes to the ms lines.
+.. kernel-doc:: drivers/tty/serial/serial_mctrl_gpio.c
+   :identifiers: mctrl_gpio_init mctrl_gpio_free mctrl_gpio_to_gpiod
+           mctrl_gpio_set mctrl_gpio_get mctrl_gpio_enable_ms
+           mctrl_gpio_disable_ms
