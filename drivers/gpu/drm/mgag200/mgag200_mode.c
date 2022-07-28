@@ -660,9 +660,8 @@ static int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = to_mga_device(dev);
+	const struct mgag200_device_funcs *funcs = mdev->funcs;
 	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
-	struct mgag200_pll *pixpll = &mdev->pixpll;
-	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(new_crtc_state);
 	struct drm_property_blob *new_gamma_lut = new_crtc_state->gamma_lut;
 	int ret;
 
@@ -674,10 +673,11 @@ static int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc,
 		return 0;
 
 	if (new_crtc_state->mode_changed) {
-		ret = pixpll->funcs->compute(pixpll, new_crtc_state->mode.clock,
-					     &mgag200_crtc_state->pixpllc);
-		if (ret)
-			return ret;
+		if (funcs->pixpllc_atomic_check) {
+			ret = funcs->pixpllc_atomic_check(crtc, new_state);
+			if (ret)
+				return ret;
+		}
 	}
 
 	if (new_crtc_state->color_mgmt_changed && new_gamma_lut) {
@@ -718,7 +718,6 @@ static void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
 	const struct drm_format_info *format = mgag200_crtc_state->format;
-	struct mgag200_pll *pixpll = &mdev->pixpll;
 
 	if (funcs->disable_vidrst)
 		funcs->disable_vidrst(mdev);
@@ -726,7 +725,8 @@ static void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 	mgag200_set_format_regs(mdev, format);
 	mgag200_set_mode_regs(mdev, adjusted_mode);
 
-	pixpll->funcs->update(pixpll, &mgag200_crtc_state->pixpllc);
+	if (funcs->pixpllc_atomic_update)
+		funcs->pixpllc_atomic_update(crtc, old_state);
 
 	if (mdev->type == G200_ER)
 		mgag200_g200er_reset_tagfifo(mdev);
@@ -975,10 +975,6 @@ static int mgag200_pipeline_init(struct mga_device *mdev)
 	struct mga_i2c_chan *i2c = &mdev->i2c;
 	struct drm_connector *connector = &mdev->connector;
 	int ret;
-
-	ret = mgag200_pixpll_init(&mdev->pixpll, mdev);
-	if (ret)
-		return ret;
 
 	ret = drm_universal_plane_init(dev, primary_plane, 0,
 				       &mgag200_primary_plane_funcs,

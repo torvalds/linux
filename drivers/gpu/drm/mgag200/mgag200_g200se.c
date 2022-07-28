@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/delay.h>
 #include <linux/pci.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_drv.h>
 
 #include "mgag200_drv.h"
@@ -57,6 +59,198 @@ static void mgag200_g200se_init_registers(struct mgag200_g200se_device *g200se)
 }
 
 /*
+ * PIXPLLC
+ */
+
+static int mgag200_g200se_00_pixpllc_atomic_check(struct drm_crtc *crtc,
+						  struct drm_atomic_state *new_state)
+{
+	static const unsigned int vcomax = 320000;
+	static const unsigned int vcomin = 160000;
+	static const unsigned int pllreffreq = 25000;
+
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
+	struct mgag200_crtc_state *new_mgag200_crtc_state = to_mgag200_crtc_state(new_crtc_state);
+	long clock = new_crtc_state->mode.clock;
+	struct mgag200_pll_values *pixpllc = &new_mgag200_crtc_state->pixpllc;
+	unsigned int delta, tmpdelta, permitteddelta;
+	unsigned int testp, testm, testn;
+	unsigned int p, m, n, s;
+	unsigned int computed;
+
+	m = n = p = s = 0;
+	delta = 0xffffffff;
+	permitteddelta = clock * 5 / 1000;
+
+	for (testp = 8; testp > 0; testp /= 2) {
+		if (clock * testp > vcomax)
+			continue;
+		if (clock * testp < vcomin)
+			continue;
+
+		for (testn = 17; testn < 256; testn++) {
+			for (testm = 1; testm < 32; testm++) {
+				computed = (pllreffreq * testn) / (testm * testp);
+				if (computed > clock)
+					tmpdelta = computed - clock;
+				else
+					tmpdelta = clock - computed;
+				if (tmpdelta < delta) {
+					delta = tmpdelta;
+					m = testm;
+					n = testn;
+					p = testp;
+				}
+			}
+		}
+	}
+
+	if (delta > permitteddelta) {
+		pr_warn("PLL delta too large\n");
+		return -EINVAL;
+	}
+
+	pixpllc->m = m;
+	pixpllc->n = n;
+	pixpllc->p = p;
+	pixpllc->s = s;
+
+	return 0;
+}
+
+static void mgag200_g200se_00_pixpllc_atomic_update(struct drm_crtc *crtc,
+						    struct drm_atomic_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct mga_device *mdev = to_mga_device(dev);
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
+	struct mgag200_pll_values *pixpllc = &mgag200_crtc_state->pixpllc;
+	unsigned int pixpllcm, pixpllcn, pixpllcp, pixpllcs;
+	u8 xpixpllcm, xpixpllcn, xpixpllcp;
+
+	pixpllcm = pixpllc->m - 1;
+	pixpllcn = pixpllc->n - 1;
+	pixpllcp = pixpllc->p - 1;
+	pixpllcs = pixpllc->s;
+
+	xpixpllcm = pixpllcm | ((pixpllcn & BIT(8)) >> 1);
+	xpixpllcn = pixpllcn;
+	xpixpllcp = (pixpllcs << 3) | pixpllcp;
+
+	WREG_MISC_MASKED(MGAREG_MISC_CLKSEL_MGA, MGAREG_MISC_CLKSEL_MASK);
+
+	WREG_DAC(MGA1064_PIX_PLLC_M, xpixpllcm);
+	WREG_DAC(MGA1064_PIX_PLLC_N, xpixpllcn);
+	WREG_DAC(MGA1064_PIX_PLLC_P, xpixpllcp);
+}
+
+static int mgag200_g200se_04_pixpllc_atomic_check(struct drm_crtc *crtc,
+						  struct drm_atomic_state *new_state)
+{
+	static const unsigned int vcomax = 1600000;
+	static const unsigned int vcomin = 800000;
+	static const unsigned int pllreffreq = 25000;
+	static const unsigned int pvalues_e4[] = {16, 14, 12, 10, 8, 6, 4, 2, 1};
+
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
+	struct mgag200_crtc_state *new_mgag200_crtc_state = to_mgag200_crtc_state(new_crtc_state);
+	long clock = new_crtc_state->mode.clock;
+	struct mgag200_pll_values *pixpllc = &new_mgag200_crtc_state->pixpllc;
+	unsigned int delta, tmpdelta, permitteddelta;
+	unsigned int testp, testm, testn;
+	unsigned int p, m, n, s;
+	unsigned int computed;
+	unsigned int fvv;
+	unsigned int i;
+
+	m = n = p = s = 0;
+	delta = 0xffffffff;
+
+	if (clock < 25000)
+		clock = 25000;
+	clock = clock * 2;
+
+	/* Permited delta is 0.5% as VESA Specification */
+	permitteddelta = clock * 5 / 1000;
+
+	for (i = 0 ; i < ARRAY_SIZE(pvalues_e4); i++) {
+		testp = pvalues_e4[i];
+
+		if ((clock * testp) > vcomax)
+			continue;
+		if ((clock * testp) < vcomin)
+			continue;
+
+		for (testn = 50; testn <= 256; testn++) {
+			for (testm = 1; testm <= 32; testm++) {
+				computed = (pllreffreq * testn) / (testm * testp);
+				if (computed > clock)
+					tmpdelta = computed - clock;
+				else
+					tmpdelta = clock - computed;
+
+				if (tmpdelta < delta) {
+					delta = tmpdelta;
+					m = testm;
+					n = testn;
+					p = testp;
+				}
+			}
+		}
+	}
+
+	fvv = pllreffreq * n / m;
+	fvv = (fvv - 800000) / 50000;
+	if (fvv > 15)
+		fvv = 15;
+	s = fvv << 1;
+
+	if (delta > permitteddelta) {
+		pr_warn("PLL delta too large\n");
+		return -EINVAL;
+	}
+
+	pixpllc->m = m;
+	pixpllc->n = n;
+	pixpllc->p = p;
+	pixpllc->s = s;
+
+	return 0;
+}
+
+static void mgag200_g200se_04_pixpllc_atomic_update(struct drm_crtc *crtc,
+						    struct drm_atomic_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct mga_device *mdev = to_mga_device(dev);
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
+	struct mgag200_pll_values *pixpllc = &mgag200_crtc_state->pixpllc;
+	unsigned int pixpllcm, pixpllcn, pixpllcp, pixpllcs;
+	u8 xpixpllcm, xpixpllcn, xpixpllcp;
+
+	pixpllcm = pixpllc->m - 1;
+	pixpllcn = pixpllc->n - 1;
+	pixpllcp = pixpllc->p - 1;
+	pixpllcs = pixpllc->s;
+
+	xpixpllcm = pixpllcm | ((pixpllcn & BIT(8)) >> 1);
+	xpixpllcn = pixpllcn;
+	xpixpllcp = (pixpllcs << 3) | pixpllcp;
+
+	WREG_MISC_MASKED(MGAREG_MISC_CLKSEL_MGA, MGAREG_MISC_CLKSEL_MASK);
+
+	WREG_DAC(MGA1064_PIX_PLLC_M, xpixpllcm);
+	WREG_DAC(MGA1064_PIX_PLLC_N, xpixpllcn);
+	WREG_DAC(MGA1064_PIX_PLLC_P, xpixpllcp);
+
+	WREG_DAC(0x1a, 0x09);
+	msleep(20);
+	WREG_DAC(0x1a, 0x01);
+}
+
+/*
  * DRM device
  */
 
@@ -93,7 +287,14 @@ static int mgag200_g200se_init_unique_rev_id(struct mgag200_g200se_device *g200s
 	return 0;
 }
 
-static const struct mgag200_device_funcs mgag200_g200se_device_funcs = {
+static const struct mgag200_device_funcs mgag200_g200se_00_device_funcs = {
+	.pixpllc_atomic_check = mgag200_g200se_00_pixpllc_atomic_check,
+	.pixpllc_atomic_update = mgag200_g200se_00_pixpllc_atomic_update,
+};
+
+static const struct mgag200_device_funcs mgag200_g200se_04_device_funcs = {
+	.pixpllc_atomic_check = mgag200_g200se_04_pixpllc_atomic_check,
+	.pixpllc_atomic_update = mgag200_g200se_04_pixpllc_atomic_update,
 };
 
 struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
@@ -101,6 +302,7 @@ struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const stru
 {
 	struct mgag200_g200se_device *g200se;
 	const struct mgag200_device_info *info;
+	const struct mgag200_device_funcs *funcs;
 	struct mga_device *mdev;
 	struct drm_device *dev;
 	resource_size_t vram_available;
@@ -147,7 +349,12 @@ struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const stru
 		return ERR_PTR(-EINVAL);
 	}
 
-	ret = mgag200_device_init(mdev, type, info, &mgag200_g200se_device_funcs);
+	if (g200se->unique_rev_id >= 0x04)
+		funcs = &mgag200_g200se_04_device_funcs;
+	else
+		funcs = &mgag200_g200se_00_device_funcs;
+
+	ret = mgag200_device_init(mdev, type, info, funcs);
 	if (ret)
 		return ERR_PTR(ret);
 

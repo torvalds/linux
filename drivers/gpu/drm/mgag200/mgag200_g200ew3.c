@@ -2,6 +2,7 @@
 
 #include <linux/pci.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_drv.h>
 
 #include "mgag200_drv.h"
@@ -14,6 +15,64 @@ static void mgag200_g200ew3_init_registers(struct mga_device *mdev)
 }
 
 /*
+ * PIXPLLC
+ */
+
+static int mgag200_g200ew3_pixpllc_atomic_check(struct drm_crtc *crtc,
+						struct drm_atomic_state *new_state)
+{
+	static const unsigned int vcomax = 800000;
+	static const unsigned int vcomin = 400000;
+	static const unsigned int pllreffreq = 25000;
+
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
+	struct mgag200_crtc_state *new_mgag200_crtc_state = to_mgag200_crtc_state(new_crtc_state);
+	long clock = new_crtc_state->mode.clock;
+	struct mgag200_pll_values *pixpllc = &new_mgag200_crtc_state->pixpllc;
+	unsigned int delta, tmpdelta;
+	unsigned int testp, testm, testn, testp2;
+	unsigned int p, m, n, s;
+	unsigned int computed;
+
+	m = n = p = s = 0;
+	delta = 0xffffffff;
+
+	for (testp = 1; testp < 8; testp++) {
+		for (testp2 = 1; testp2 < 8; testp2++) {
+			if (testp < testp2)
+				continue;
+			if ((clock * testp * testp2) > vcomax)
+				continue;
+			if ((clock * testp * testp2) < vcomin)
+				continue;
+			for (testm = 1; testm < 26; testm++) {
+				for (testn = 32; testn < 2048 ; testn++) {
+					computed = (pllreffreq * testn) / (testm * testp * testp2);
+					if (computed > clock)
+						tmpdelta = computed - clock;
+					else
+						tmpdelta = clock - computed;
+					if (tmpdelta < delta) {
+						delta = tmpdelta;
+						m = testm + 1;
+						n = testn + 1;
+						p = testp + 1;
+						s = testp2;
+					}
+				}
+			}
+		}
+	}
+
+	pixpllc->m = m;
+	pixpllc->n = n;
+	pixpllc->p = p;
+	pixpllc->s = s;
+
+	return 0;
+}
+
+/*
  * DRM device
  */
 
@@ -23,6 +82,8 @@ static const struct mgag200_device_info mgag200_g200ew3_device_info =
 static const struct mgag200_device_funcs mgag200_g200ew3_device_funcs = {
 	.disable_vidrst = mgag200_bmc_disable_vidrst,
 	.enable_vidrst = mgag200_bmc_enable_vidrst,
+	.pixpllc_atomic_check = mgag200_g200ew3_pixpllc_atomic_check,
+	.pixpllc_atomic_update = mgag200_g200wb_pixpllc_atomic_update, // same as G200WB
 };
 
 static resource_size_t mgag200_g200ew3_device_probe_vram(struct mga_device *mdev)

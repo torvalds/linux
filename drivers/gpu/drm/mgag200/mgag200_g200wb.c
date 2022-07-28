@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/delay.h>
 #include <linux/pci.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_drv.h>
 
 #include "mgag200_drv.h"
@@ -29,6 +31,182 @@ void mgag200_g200wb_init_registers(struct mga_device *mdev)
 }
 
 /*
+ * PIXPLLC
+ */
+
+static int mgag200_g200wb_pixpllc_atomic_check(struct drm_crtc *crtc,
+					       struct drm_atomic_state *new_state)
+{
+	static const unsigned int vcomax = 550000;
+	static const unsigned int vcomin = 150000;
+	static const unsigned int pllreffreq = 48000;
+
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
+	struct mgag200_crtc_state *new_mgag200_crtc_state = to_mgag200_crtc_state(new_crtc_state);
+	long clock = new_crtc_state->mode.clock;
+	struct mgag200_pll_values *pixpllc = &new_mgag200_crtc_state->pixpllc;
+	unsigned int delta, tmpdelta;
+	unsigned int testp, testm, testn;
+	unsigned int p, m, n, s;
+	unsigned int computed;
+
+	m = n = p = s = 0;
+	delta = 0xffffffff;
+
+	for (testp = 1; testp < 9; testp++) {
+		if (clock * testp > vcomax)
+			continue;
+		if (clock * testp < vcomin)
+			continue;
+
+		for (testm = 1; testm < 17; testm++) {
+			for (testn = 1; testn < 151; testn++) {
+				computed = (pllreffreq * testn) / (testm * testp);
+				if (computed > clock)
+					tmpdelta = computed - clock;
+				else
+					tmpdelta = clock - computed;
+				if (tmpdelta < delta) {
+					delta = tmpdelta;
+					n = testn;
+					m = testm;
+					p = testp;
+					s = 0;
+				}
+			}
+		}
+	}
+
+	pixpllc->m = m;
+	pixpllc->n = n;
+	pixpllc->p = p;
+	pixpllc->s = s;
+
+	return 0;
+}
+
+void mgag200_g200wb_pixpllc_atomic_update(struct drm_crtc *crtc,
+					  struct drm_atomic_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct mga_device *mdev = to_mga_device(dev);
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
+	struct mgag200_pll_values *pixpllc = &mgag200_crtc_state->pixpllc;
+	bool pll_locked = false;
+	unsigned int pixpllcm, pixpllcn, pixpllcp, pixpllcs;
+	u8 xpixpllcm, xpixpllcn, xpixpllcp, tmp;
+	int i, j, tmpcount, vcount;
+
+	pixpllcm = pixpllc->m - 1;
+	pixpllcn = pixpllc->n - 1;
+	pixpllcp = pixpllc->p - 1;
+	pixpllcs = pixpllc->s;
+
+	xpixpllcm = ((pixpllcn & BIT(8)) >> 1) | pixpllcm;
+	xpixpllcn = pixpllcn;
+	xpixpllcp = ((pixpllcn & GENMASK(10, 9)) >> 3) | (pixpllcs << 3) | pixpllcp;
+
+	WREG_MISC_MASKED(MGAREG_MISC_CLKSEL_MGA, MGAREG_MISC_CLKSEL_MASK);
+
+	for (i = 0; i <= 32 && pll_locked == false; i++) {
+		if (i > 0) {
+			WREG8(MGAREG_CRTC_INDEX, 0x1e);
+			tmp = RREG8(MGAREG_CRTC_DATA);
+			if (tmp < 0xff)
+				WREG8(MGAREG_CRTC_DATA, tmp+1);
+		}
+
+		/* set pixclkdis to 1 */
+		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
+		tmp = RREG8(DAC_DATA);
+		tmp |= MGA1064_PIX_CLK_CTL_CLK_DIS;
+		WREG8(DAC_DATA, tmp);
+
+		WREG8(DAC_INDEX, MGA1064_REMHEADCTL);
+		tmp = RREG8(DAC_DATA);
+		tmp |= MGA1064_REMHEADCTL_CLKDIS;
+		WREG8(DAC_DATA, tmp);
+
+		/* select PLL Set C */
+		tmp = RREG8(MGAREG_MEM_MISC_READ);
+		tmp |= 0x3 << 2;
+		WREG8(MGAREG_MEM_MISC_WRITE, tmp);
+
+		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
+		tmp = RREG8(DAC_DATA);
+		tmp |= MGA1064_PIX_CLK_CTL_CLK_POW_DOWN | 0x80;
+		WREG8(DAC_DATA, tmp);
+
+		udelay(500);
+
+		/* reset the PLL */
+		WREG8(DAC_INDEX, MGA1064_VREF_CTL);
+		tmp = RREG8(DAC_DATA);
+		tmp &= ~0x04;
+		WREG8(DAC_DATA, tmp);
+
+		udelay(50);
+
+		/* program pixel pll register */
+		WREG_DAC(MGA1064_WB_PIX_PLLC_N, xpixpllcn);
+		WREG_DAC(MGA1064_WB_PIX_PLLC_M, xpixpllcm);
+		WREG_DAC(MGA1064_WB_PIX_PLLC_P, xpixpllcp);
+
+		udelay(50);
+
+		/* turn pll on */
+		WREG8(DAC_INDEX, MGA1064_VREF_CTL);
+		tmp = RREG8(DAC_DATA);
+		tmp |= 0x04;
+		WREG_DAC(MGA1064_VREF_CTL, tmp);
+
+		udelay(500);
+
+		/* select the pixel pll */
+		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
+		tmp = RREG8(DAC_DATA);
+		tmp &= ~MGA1064_PIX_CLK_CTL_SEL_MSK;
+		tmp |= MGA1064_PIX_CLK_CTL_SEL_PLL;
+		WREG8(DAC_DATA, tmp);
+
+		WREG8(DAC_INDEX, MGA1064_REMHEADCTL);
+		tmp = RREG8(DAC_DATA);
+		tmp &= ~MGA1064_REMHEADCTL_CLKSL_MSK;
+		tmp |= MGA1064_REMHEADCTL_CLKSL_PLL;
+		WREG8(DAC_DATA, tmp);
+
+		/* reset dotclock rate bit */
+		WREG8(MGAREG_SEQ_INDEX, 1);
+		tmp = RREG8(MGAREG_SEQ_DATA);
+		tmp &= ~0x8;
+		WREG8(MGAREG_SEQ_DATA, tmp);
+
+		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
+		tmp = RREG8(DAC_DATA);
+		tmp &= ~MGA1064_PIX_CLK_CTL_CLK_DIS;
+		WREG8(DAC_DATA, tmp);
+
+		vcount = RREG8(MGAREG_VCOUNT);
+
+		for (j = 0; j < 30 && pll_locked == false; j++) {
+			tmpcount = RREG8(MGAREG_VCOUNT);
+			if (tmpcount < vcount)
+				vcount = 0;
+			if ((tmpcount - vcount) > 2)
+				pll_locked = true;
+			else
+				udelay(5);
+		}
+	}
+
+	WREG8(DAC_INDEX, MGA1064_REMHEADCTL);
+	tmp = RREG8(DAC_DATA);
+	tmp &= ~MGA1064_REMHEADCTL_CLKDIS;
+	WREG_DAC(MGA1064_REMHEADCTL, tmp);
+}
+
+/*
  * DRM device
  */
 
@@ -38,6 +216,8 @@ static const struct mgag200_device_info mgag200_g200wb_device_info =
 static const struct mgag200_device_funcs mgag200_g200wb_device_funcs = {
 	.disable_vidrst = mgag200_bmc_disable_vidrst,
 	.enable_vidrst = mgag200_bmc_enable_vidrst,
+	.pixpllc_atomic_check = mgag200_g200wb_pixpllc_atomic_check,
+	.pixpllc_atomic_update = mgag200_g200wb_pixpllc_atomic_update,
 };
 
 struct mga_device *mgag200_g200wb_device_create(struct pci_dev *pdev, const struct drm_driver *drv,

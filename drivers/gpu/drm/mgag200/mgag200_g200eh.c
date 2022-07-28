@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: GPL-2.0-only
 
+#include <linux/delay.h>
 #include <linux/pci.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_drv.h>
 
 #include "mgag200_drv.h"
@@ -31,6 +33,133 @@ void mgag200_g200eh_init_registers(struct mga_device *mdev)
 }
 
 /*
+ * PIXPLLC
+ */
+
+static int mgag200_g200eh_pixpllc_atomic_check(struct drm_crtc *crtc,
+					       struct drm_atomic_state *new_state)
+{
+	static const unsigned int vcomax = 800000;
+	static const unsigned int vcomin = 400000;
+	static const unsigned int pllreffreq = 33333;
+
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
+	struct mgag200_crtc_state *new_mgag200_crtc_state = to_mgag200_crtc_state(new_crtc_state);
+	long clock = new_crtc_state->mode.clock;
+	struct mgag200_pll_values *pixpllc = &new_mgag200_crtc_state->pixpllc;
+	unsigned int delta, tmpdelta;
+	unsigned int testp, testm, testn;
+	unsigned int p, m, n, s;
+	unsigned int computed;
+
+	m = n = p = s = 0;
+	delta = 0xffffffff;
+
+	for (testp = 16; testp > 0; testp >>= 1) {
+		if (clock * testp > vcomax)
+			continue;
+		if (clock * testp < vcomin)
+			continue;
+
+		for (testm = 1; testm < 33; testm++) {
+			for (testn = 17; testn < 257; testn++) {
+				computed = (pllreffreq * testn) / (testm * testp);
+				if (computed > clock)
+					tmpdelta = computed - clock;
+				else
+					tmpdelta = clock - computed;
+				if (tmpdelta < delta) {
+					delta = tmpdelta;
+					n = testn;
+					m = testm;
+					p = testp;
+				}
+			}
+		}
+	}
+
+	pixpllc->m = m;
+	pixpllc->n = n;
+	pixpllc->p = p;
+	pixpllc->s = s;
+
+	return 0;
+}
+
+void mgag200_g200eh_pixpllc_atomic_update(struct drm_crtc *crtc,
+					  struct drm_atomic_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct mga_device *mdev = to_mga_device(dev);
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
+	struct mgag200_pll_values *pixpllc = &mgag200_crtc_state->pixpllc;
+	unsigned int pixpllcm, pixpllcn, pixpllcp, pixpllcs;
+	u8 xpixpllcm, xpixpllcn, xpixpllcp, tmp;
+	int i, j, tmpcount, vcount;
+	bool pll_locked = false;
+
+	pixpllcm = pixpllc->m - 1;
+	pixpllcn = pixpllc->n - 1;
+	pixpllcp = pixpllc->p - 1;
+	pixpllcs = pixpllc->s;
+
+	xpixpllcm = ((pixpllcn & BIT(8)) >> 1) | pixpllcm;
+	xpixpllcn = pixpllcn;
+	xpixpllcp = (pixpllcs << 3) | pixpllcp;
+
+	WREG_MISC_MASKED(MGAREG_MISC_CLKSEL_MGA, MGAREG_MISC_CLKSEL_MASK);
+
+	for (i = 0; i <= 32 && pll_locked == false; i++) {
+		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
+		tmp = RREG8(DAC_DATA);
+		tmp |= MGA1064_PIX_CLK_CTL_CLK_DIS;
+		WREG8(DAC_DATA, tmp);
+
+		tmp = RREG8(MGAREG_MEM_MISC_READ);
+		tmp |= 0x3 << 2;
+		WREG8(MGAREG_MEM_MISC_WRITE, tmp);
+
+		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
+		tmp = RREG8(DAC_DATA);
+		tmp |= MGA1064_PIX_CLK_CTL_CLK_POW_DOWN;
+		WREG8(DAC_DATA, tmp);
+
+		udelay(500);
+
+		WREG_DAC(MGA1064_EH_PIX_PLLC_M, xpixpllcm);
+		WREG_DAC(MGA1064_EH_PIX_PLLC_N, xpixpllcn);
+		WREG_DAC(MGA1064_EH_PIX_PLLC_P, xpixpllcp);
+
+		udelay(500);
+
+		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
+		tmp = RREG8(DAC_DATA);
+		tmp &= ~MGA1064_PIX_CLK_CTL_SEL_MSK;
+		tmp |= MGA1064_PIX_CLK_CTL_SEL_PLL;
+		WREG8(DAC_DATA, tmp);
+
+		WREG8(DAC_INDEX, MGA1064_PIX_CLK_CTL);
+		tmp = RREG8(DAC_DATA);
+		tmp &= ~MGA1064_PIX_CLK_CTL_CLK_DIS;
+		tmp &= ~MGA1064_PIX_CLK_CTL_CLK_POW_DOWN;
+		WREG8(DAC_DATA, tmp);
+
+		vcount = RREG8(MGAREG_VCOUNT);
+
+		for (j = 0; j < 30 && pll_locked == false; j++) {
+			tmpcount = RREG8(MGAREG_VCOUNT);
+			if (tmpcount < vcount)
+				vcount = 0;
+			if ((tmpcount - vcount) > 2)
+				pll_locked = true;
+			else
+				udelay(5);
+		}
+	}
+}
+
+/*
  * DRM device
  */
 
@@ -38,6 +167,8 @@ static const struct mgag200_device_info mgag200_g200eh_device_info =
 	MGAG200_DEVICE_INFO_INIT(2048, 2048, 37500, false, 1, 0, false);
 
 static const struct mgag200_device_funcs mgag200_g200eh_device_funcs = {
+	.pixpllc_atomic_check = mgag200_g200eh_pixpllc_atomic_check,
+	.pixpllc_atomic_update = mgag200_g200eh_pixpllc_atomic_update,
 };
 
 struct mga_device *mgag200_g200eh_device_create(struct pci_dev *pdev, const struct drm_driver *drv,

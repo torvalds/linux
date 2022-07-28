@@ -3,6 +3,7 @@
 #include <linux/pci.h>
 #include <linux/vmalloc.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_drv.h>
 
 #include "mgag200_drv.h"
@@ -51,6 +52,112 @@ static void mgag200_g200_init_registers(struct mgag200_g200_device *g200)
 	}
 
 	mgag200_init_registers(mdev);
+}
+
+/*
+ * PIXPLLC
+ */
+
+static int mgag200_g200_pixpllc_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *new_state)
+{
+	static const int post_div_max = 7;
+	static const int in_div_min = 1;
+	static const int in_div_max = 6;
+	static const int feed_div_min = 7;
+	static const int feed_div_max = 127;
+
+	struct drm_device *dev = crtc->dev;
+	struct mgag200_g200_device *g200 = to_mgag200_g200_device(dev);
+	struct drm_crtc_state *new_crtc_state = drm_atomic_get_new_crtc_state(new_state, crtc);
+	struct mgag200_crtc_state *new_mgag200_crtc_state = to_mgag200_crtc_state(new_crtc_state);
+	long clock = new_crtc_state->mode.clock;
+	struct mgag200_pll_values *pixpllc = &new_mgag200_crtc_state->pixpllc;
+	u8 testp, testm, testn;
+	u8 n = 0, m = 0, p, s;
+	long f_vco;
+	long computed;
+	long delta, tmp_delta;
+	long ref_clk = g200->ref_clk;
+	long p_clk_min = g200->pclk_min;
+	long p_clk_max = g200->pclk_max;
+
+	if (clock > p_clk_max) {
+		drm_err(dev, "Pixel Clock %ld too high\n", clock);
+		return -EINVAL;
+	}
+
+	if (clock < p_clk_min >> 3)
+		clock = p_clk_min >> 3;
+
+	f_vco = clock;
+	for (testp = 0;
+	     testp <= post_div_max && f_vco < p_clk_min;
+	     testp = (testp << 1) + 1, f_vco <<= 1)
+		;
+	p = testp + 1;
+
+	delta = clock;
+
+	for (testm = in_div_min; testm <= in_div_max; testm++) {
+		for (testn = feed_div_min; testn <= feed_div_max; testn++) {
+			computed = ref_clk * (testn + 1) / (testm + 1);
+			if (computed < f_vco)
+				tmp_delta = f_vco - computed;
+			else
+				tmp_delta = computed - f_vco;
+			if (tmp_delta < delta) {
+				delta = tmp_delta;
+				m = testm + 1;
+				n = testn + 1;
+			}
+		}
+	}
+	f_vco = ref_clk * n / m;
+	if (f_vco < 100000)
+		s = 0;
+	else if (f_vco < 140000)
+		s = 1;
+	else if (f_vco < 180000)
+		s = 2;
+	else
+		s = 3;
+
+	drm_dbg_kms(dev, "clock: %ld vco: %ld m: %d n: %d p: %d s: %d\n",
+		    clock, f_vco, m, n, p, s);
+
+	pixpllc->m = m;
+	pixpllc->n = n;
+	pixpllc->p = p;
+	pixpllc->s = s;
+
+	return 0;
+}
+
+static void mgag200_g200_pixpllc_atomic_update(struct drm_crtc *crtc,
+					       struct drm_atomic_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct mga_device *mdev = to_mga_device(dev);
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
+	struct mgag200_pll_values *pixpllc = &mgag200_crtc_state->pixpllc;
+	unsigned int pixpllcm, pixpllcn, pixpllcp, pixpllcs;
+	u8 xpixpllcm, xpixpllcn, xpixpllcp;
+
+	pixpllcm = pixpllc->m - 1;
+	pixpllcn = pixpllc->n - 1;
+	pixpllcp = pixpllc->p - 1;
+	pixpllcs = pixpllc->s;
+
+	xpixpllcm = pixpllcm;
+	xpixpllcn = pixpllcn;
+	xpixpllcp = (pixpllcs << 3) | pixpllcp;
+
+	WREG_MISC_MASKED(MGAREG_MISC_CLKSEL_MGA, MGAREG_MISC_CLKSEL_MASK);
+
+	WREG_DAC(MGA1064_PIX_PLLC_M, xpixpllcm);
+	WREG_DAC(MGA1064_PIX_PLLC_N, xpixpllcn);
+	WREG_DAC(MGA1064_PIX_PLLC_P, xpixpllcp);
 }
 
 /*
@@ -184,6 +291,8 @@ out:
 }
 
 static const struct mgag200_device_funcs mgag200_g200_device_funcs = {
+	.pixpllc_atomic_check = mgag200_g200_pixpllc_atomic_check,
+	.pixpllc_atomic_update = mgag200_g200_pixpllc_atomic_update,
 };
 
 struct mga_device *mgag200_g200_device_create(struct pci_dev *pdev, const struct drm_driver *drv,

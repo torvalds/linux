@@ -156,7 +156,6 @@
 #define MGAG200_MAX_FB_WIDTH 4096
 
 struct mga_device;
-struct mgag200_pll;
 
 /*
  * Stores parameters for programming the PLLs
@@ -173,17 +172,6 @@ struct mgag200_pll_values {
 	unsigned int n;
 	unsigned int p;
 	unsigned int s;
-};
-
-struct mgag200_pll_funcs {
-	int (*compute)(struct mgag200_pll *pll, long clock, struct mgag200_pll_values *pllc);
-	void (*update)(struct mgag200_pll *pll, const struct mgag200_pll_values *pllc);
-};
-
-struct mgag200_pll {
-	struct mga_device *mdev;
-
-	const struct mgag200_pll_funcs *funcs;
 };
 
 struct mgag200_crtc_state {
@@ -274,6 +262,20 @@ struct mgag200_device_funcs {
 	 * a new display mode.
 	 */
 	void (*enable_vidrst)(struct mga_device *mdev);
+
+	/*
+	 * Validate that the given state can be programmed into PIXPLLC. On
+	 * success, the calculated parameters should be stored in the CRTC's
+	 * state in struct @mgag200_crtc_state.pixpllc.
+	 */
+	int (*pixpllc_atomic_check)(struct drm_crtc *crtc, struct drm_atomic_state *new_state);
+
+	/*
+	 * Program PIXPLLC from the CRTC state. The parameters should have been
+	 * stored in struct @mgag200_crtc_state.pixpllc by the corresponding
+	 * implementation of @pixpllc_atomic_check.
+	 */
+	void (*pixpllc_atomic_update)(struct drm_crtc *crtc, struct drm_atomic_state *old_state);
 };
 
 struct mga_device {
@@ -292,7 +294,6 @@ struct mga_device {
 
 	enum mga_type			type;
 
-	struct mgag200_pll pixpll;
 	struct drm_plane primary_plane;
 	struct drm_crtc crtc;
 	struct drm_encoder encoder;
@@ -346,11 +347,13 @@ struct mga_device *mgag200_g200_device_create(struct pci_dev *pdev, const struct
 struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 						enum mga_type type);
 void mgag200_g200wb_init_registers(struct mga_device *mdev);
+void mgag200_g200wb_pixpllc_atomic_update(struct drm_crtc *crtc, struct drm_atomic_state *old_state);
 struct mga_device *mgag200_g200wb_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 						enum mga_type type);
 struct mga_device *mgag200_g200ev_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 						enum mga_type type);
 void mgag200_g200eh_init_registers(struct mga_device *mdev);
+void mgag200_g200eh_pixpllc_atomic_update(struct drm_crtc *crtc, struct drm_atomic_state *old_state);
 struct mga_device *mgag200_g200eh_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 						enum mga_type type);
 struct mga_device *mgag200_g200eh3_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
@@ -371,8 +374,5 @@ void mgag200_bmc_enable_vidrst(struct mga_device *mdev);
 
 				/* mgag200_i2c.c */
 int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c);
-
-				/* mgag200_pll.c */
-int mgag200_pixpll_init(struct mgag200_pll *pixpll, struct mga_device *mdev);
 
 #endif				/* __MGAG200_DRV_H__ */
