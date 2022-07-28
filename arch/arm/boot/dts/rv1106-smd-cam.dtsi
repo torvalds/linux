@@ -82,7 +82,7 @@
 
 			dphy2_in: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&sc132gs_out>;
+				remote-endpoint = <&sc035gs_out>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -106,8 +106,8 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3m2_xfer>;
 
-	sc132gs: sc132gs@30 {
-		compatible = "smartsens,sc132gs";
+	sc035gs: sc035gs@30 {
+		compatible = "smartsens,sc035gs";
 		status = "okay";
 		reg = <0x30>;
 		clocks = <&cru MCLK_REF_MIPI1>;
@@ -125,7 +125,7 @@
 		rockchip,camera-module-lens-name = "default";
 
 		port {
-			sc132gs_out: endpoint {
+			sc035gs_out: endpoint {
 				remote-endpoint = <&dphy2_in>;
 				data-lanes = <1 2>;
 			};
