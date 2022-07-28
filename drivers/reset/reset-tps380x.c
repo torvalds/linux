@@ -122,5 +122,5 @@ static struct platform_driver tps380x_reset_driver = {
 module_platform_driver(tps380x_reset_driver);
 
 MODULE_AUTHOR("Marco Felsch <kernel@pengutronix.de>");
-MODULE_DESCRIPTION("TI TPS380x Supply Voltags Supervisor and Reset Driver");
+MODULE_DESCRIPTION("TI TPS380x Supply Voltage Supervisor and Reset Driver");
 MODULE_LICENSE("GPL v2");
