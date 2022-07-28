@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/iosys-map.h>
 
+#include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_state_helper.h>
 #include <drm/drm_crtc_helper.h>
@@ -702,14 +703,6 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 		.y2 = fb->height,
 	};
 
-	/*
-	 * Concurrent operations could possibly trigger a call to
-	 * drm_connector_helper_funcs.get_modes by trying to read the
-	 * display modes. Protect access to I/O registers by acquiring
-	 * the I/O-register lock.
-	 */
-	mutex_lock(&mdev->rmmio_lock);
-
 	if (mdev->type == G200_WB || mdev->type == G200_EW3)
 		mgag200_g200wb_hold_bmc(mdev);
 
@@ -741,8 +734,6 @@ mgag200_simple_display_pipe_enable(struct drm_simple_display_pipe *pipe,
 	/* Always scanout image at VRAM offset 0 */
 	mgag200_set_startadd(mdev, (u32)0);
 	mgag200_set_offset(mdev, fb);
-
-	mutex_unlock(&mdev->rmmio_lock);
 }
 
 static void
@@ -812,8 +803,6 @@ mgag200_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	if (!fb)
 		return;
 
-	mutex_lock(&mdev->rmmio_lock);
-
 	if (crtc->state->color_mgmt_changed && crtc->state->gamma_lut)
 		mgag200_crtc_set_gamma(mdev, fb->format, crtc->state->gamma_lut->data);
 
@@ -824,8 +813,6 @@ mgag200_simple_display_pipe_update(struct drm_simple_display_pipe *pipe,
 	/* Always scanout image at VRAM offset 0 */
 	mgag200_set_startadd(mdev, (u32)0);
 	mgag200_set_offset(mdev, fb);
-
-	mutex_unlock(&mdev->rmmio_lock);
 }
 
 static struct drm_crtc_state *
@@ -902,6 +889,25 @@ static const uint64_t mgag200_simple_display_pipe_fmtmods[] = {
 /*
  * Mode config
  */
+
+static void mgag200_mode_config_helper_atomic_commit_tail(struct drm_atomic_state *state)
+{
+	struct mga_device *mdev = to_mga_device(state->dev);
+
+	/*
+	 * Concurrent operations could possibly trigger a call to
+	 * drm_connector_helper_funcs.get_modes by trying to read the
+	 * display modes. Protect access to I/O registers by acquiring
+	 * the I/O-register lock.
+	 */
+	mutex_lock(&mdev->rmmio_lock);
+	drm_atomic_helper_commit_tail(state);
+	mutex_unlock(&mdev->rmmio_lock);
+}
+
+static const struct drm_mode_config_helper_funcs mgag200_mode_config_helper_funcs = {
+	.atomic_commit_tail = mgag200_mode_config_helper_atomic_commit_tail,
+};
 
 /* Calculates a mode's required memory bandwidth (in KiB/sec). */
 static uint32_t mgag200_calculate_mode_bandwidth(const struct drm_display_mode *mode,
@@ -983,6 +989,7 @@ static int mgag200_mode_config_init(struct mga_device *mdev, resource_size_t vra
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.fb_base = mdev->vram_res->start;
 	dev->mode_config.funcs = &mgag200_mode_config_funcs;
+	dev->mode_config.helper_private = &mgag200_mode_config_helper_funcs;
 
 	return 0;
 }
