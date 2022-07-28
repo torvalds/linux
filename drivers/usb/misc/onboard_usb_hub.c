@@ -256,9 +256,6 @@ static int onboard_hub_probe(struct platform_device *pdev)
 	if (IS_ERR(hub->reset_gpio))
 		return dev_err_probe(dev, PTR_ERR(hub->reset_gpio), "failed to get reset GPIO\n");
 
-	if (hub->reset_gpio)
-		fsleep(hub->pdata->reset_us);
-
 	hub->dev = dev;
 	mutex_init(&hub->lock);
 	INIT_LIST_HEAD(&hub->udev_list);
