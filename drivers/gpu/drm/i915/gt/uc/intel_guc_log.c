@@ -487,10 +487,6 @@ int intel_guc_log_create(struct intel_guc_log *log)
 
 	GEM_BUG_ON(log->vma);
 
-	if (intel_guc_capture_output_min_size_est(guc) > CAPTURE_BUFFER_SIZE)
-		DRM_WARN("GuC log buffer for state_capture maybe too small. %d < %d\n",
-			 CAPTURE_BUFFER_SIZE, intel_guc_capture_output_min_size_est(guc));
-
 	guc_log_size = intel_guc_log_size(log);
 
 	vma = intel_guc_allocate_vma(guc, guc_log_size);
