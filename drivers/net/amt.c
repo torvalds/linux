@@ -449,7 +449,7 @@ out:
 	dev_put(amt->dev);
 }
 
-/* Non-existant group is created as INCLUDE {empty}:
+/* Non-existent group is created as INCLUDE {empty}:
  *
  * RFC 3376 - 5.1. Action on Change of Interface State
  *
