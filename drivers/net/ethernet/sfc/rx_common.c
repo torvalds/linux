@@ -793,7 +793,6 @@ int efx_probe_filters(struct efx_nic *efx)
 	int rc;
 
 	mutex_lock(&efx->mac_lock);
-	down_write(&efx->filter_sem);
 	rc = efx->type->filter_table_probe(efx);
 	if (rc)
 		goto out_unlock;
@@ -830,7 +829,6 @@ int efx_probe_filters(struct efx_nic *efx)
 	}
 #endif
 out_unlock:
-	up_write(&efx->filter_sem);
 	mutex_unlock(&efx->mac_lock);
 	return rc;
 }
@@ -846,9 +844,7 @@ void efx_remove_filters(struct efx_nic *efx)
 		channel->rps_flow_id = NULL;
 	}
 #endif
-	down_write(&efx->filter_sem);
 	efx->type->filter_table_remove(efx);
-	up_write(&efx->filter_sem);
 }
 
 #ifdef CONFIG_RFS_ACCEL

@@ -375,26 +375,32 @@ static int ef100_filter_table_up(struct efx_nic *efx)
 {
 	int rc;
 
+	down_write(&efx->filter_sem);
 	rc = efx_mcdi_filter_add_vlan(efx, EFX_FILTER_VID_UNSPEC);
-	if (rc) {
-		efx_mcdi_filter_table_down(efx);
-		return rc;
-	}
+	if (rc)
+		goto fail_unspec;
 
 	rc = efx_mcdi_filter_add_vlan(efx, 0);
-	if (rc) {
-		efx_mcdi_filter_del_vlan(efx, EFX_FILTER_VID_UNSPEC);
-		efx_mcdi_filter_table_down(efx);
-	}
+	if (rc)
+		goto fail_vlan0;
+	up_write(&efx->filter_sem);
+	return 0;
 
+fail_vlan0:
+	efx_mcdi_filter_del_vlan(efx, EFX_FILTER_VID_UNSPEC);
+fail_unspec:
+	efx_mcdi_filter_table_down(efx);
+	up_write(&efx->filter_sem);
 	return rc;
 }
 
 static void ef100_filter_table_down(struct efx_nic *efx)
 {
+	down_write(&efx->filter_sem);
 	efx_mcdi_filter_del_vlan(efx, 0);
 	efx_mcdi_filter_del_vlan(efx, EFX_FILTER_VID_UNSPEC);
 	efx_mcdi_filter_table_down(efx);
+	up_write(&efx->filter_sem);
 }
 
 /*	Other
