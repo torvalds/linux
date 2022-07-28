@@ -40,17 +40,44 @@
  */
 #define MAX_PAGE_ORDER 0
 #define MAX_PAGES (1 << MAX_PAGE_ORDER)
-#define MAX_EVENTS (MAX_PAGES * PAGE_SIZE)
+#define MAX_BYTES (MAX_PAGES * PAGE_SIZE)
+#define MAX_EVENTS (MAX_BYTES * 8)
 
 /* Limit how long of an event name plus args within the subsystem. */
 #define MAX_EVENT_DESC 512
 #define EVENT_NAME(user_event) ((user_event)->tracepoint.name)
 #define MAX_FIELD_ARRAY_SIZE 1024
 
+/*
+ * The MAP_STATUS_* macros are used for taking a index and determining the
+ * appropriate byte and the bit in the byte to set/reset for an event.
+ *
+ * The lower 3 bits of the index decide which bit to set.
+ * The remaining upper bits of the index decide which byte to use for the bit.
+ *
+ * This is used when an event has a probe attached/removed to reflect live
+ * status of the event wanting tracing or not to user-programs via shared
+ * memory maps.
+ */
+#define MAP_STATUS_BYTE(index) ((index) >> 3)
+#define MAP_STATUS_MASK(index) BIT((index) & 7)
+
+/*
+ * Internal bits (kernel side only) to keep track of connected probes:
+ * These are used when status is requested in text form about an event. These
+ * bits are compared against an internal byte on the event to determine which
+ * probes to print out to the user.
+ *
+ * These do not reflect the mapped bytes between the user and kernel space.
+ */
+#define EVENT_STATUS_FTRACE BIT(0)
+#define EVENT_STATUS_PERF BIT(1)
+#define EVENT_STATUS_OTHER BIT(7)
+
 static char *register_page_data;
 
 static DEFINE_MUTEX(reg_mutex);
-static DEFINE_HASHTABLE(register_table, 4);
+static DEFINE_HASHTABLE(register_table, 8);
 static DECLARE_BITMAP(page_bitmap, MAX_EVENTS);
 
 /*
@@ -72,6 +99,7 @@ struct user_event {
 	int index;
 	int flags;
 	int min_size;
+	char status;
 };
 
 /*
@@ -104,6 +132,22 @@ static int user_event_parse(char *name, char *args, char *flags,
 static u32 user_event_key(char *name)
 {
 	return jhash(name, strlen(name), 0);
+}
+
+static __always_inline
+void user_event_register_set(struct user_event *user)
+{
+	int i = user->index;
+
+	register_page_data[MAP_STATUS_BYTE(i)] |= MAP_STATUS_MASK(i);
+}
+
+static __always_inline
+void user_event_register_clear(struct user_event *user)
+{
+	int i = user->index;
+
+	register_page_data[MAP_STATUS_BYTE(i)] &= ~MAP_STATUS_MASK(i);
 }
 
 static __always_inline __must_check
@@ -648,7 +692,7 @@ static int destroy_user_event(struct user_event *user)
 
 	dyn_event_remove(&user->devent);
 
-	register_page_data[user->index] = 0;
+	user_event_register_clear(user);
 	clear_bit(user->index, page_bitmap);
 	hash_del(&user->node);
 
@@ -827,7 +871,12 @@ static void update_reg_page_for(struct user_event *user)
 		rcu_read_unlock_sched();
 	}
 
-	register_page_data[user->index] = status;
+	if (status)
+		user_event_register_set(user);
+	else
+		user_event_register_clear(user);
+
+	user->status = status;
 }
 
 /*
@@ -1332,7 +1381,17 @@ static long user_reg_get(struct user_reg __user *ureg, struct user_reg *kreg)
 	if (size > PAGE_SIZE)
 		return -E2BIG;
 
-	return copy_struct_from_user(kreg, sizeof(*kreg), ureg, size);
+	if (size < offsetofend(struct user_reg, write_index))
+		return -EINVAL;
+
+	ret = copy_struct_from_user(kreg, sizeof(*kreg), ureg, size);
+
+	if (ret)
+		return ret;
+
+	kreg->size = size;
+
+	return 0;
 }
 
 /*
@@ -1376,7 +1435,7 @@ static long user_events_ioctl_reg(struct file *file, unsigned long uarg)
 		return ret;
 
 	put_user((u32)ret, &ureg->write_index);
-	put_user(user->index, &ureg->status_index);
+	put_user(user->index, &ureg->status_bit);
 
 	return 0;
 }
@@ -1485,7 +1544,7 @@ static int user_status_mmap(struct file *file, struct vm_area_struct *vma)
 {
 	unsigned long size = vma->vm_end - vma->vm_start;
 
-	if (size != MAX_EVENTS)
+	if (size != MAX_BYTES)
 		return -EINVAL;
 
 	return remap_pfn_range(vma, vma->vm_start,
@@ -1520,7 +1579,7 @@ static int user_seq_show(struct seq_file *m, void *p)
 	mutex_lock(&reg_mutex);
 
 	hash_for_each(register_table, i, user, node) {
-		status = register_page_data[user->index];
+		status = user->status;
 		flags = user->flags;
 
 		seq_printf(m, "%d:%s", user->index, EVENT_NAME(user));
