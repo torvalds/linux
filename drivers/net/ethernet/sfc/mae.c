@@ -13,6 +13,16 @@
 #include "mcdi.h"
 #include "mcdi_pcol.h"
 
+void efx_mae_mport_wire(struct efx_nic *efx, u32 *out)
+{
+	efx_dword_t mport;
+
+	EFX_POPULATE_DWORD_2(mport,
+			     MAE_MPORT_SELECTOR_TYPE, MAE_MPORT_SELECTOR_TYPE_PPORT,
+			     MAE_MPORT_SELECTOR_PPORT_ID, efx->port_num);
+	*out = EFX_DWORD_VAL(mport);
+}
+
 void efx_mae_mport_vf(struct efx_nic *efx __always_unused, u32 vf_id, u32 *out)
 {
 	efx_dword_t mport;
