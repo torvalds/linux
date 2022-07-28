@@ -1576,7 +1576,7 @@ enum {
 	Opt_bsd_df, Opt_minix_df, Opt_grpid, Opt_nogrpid,
 	Opt_resgid, Opt_resuid, Opt_sb,
 	Opt_nouid32, Opt_debug, Opt_removed,
-	Opt_user_xattr, Opt_nouser_xattr, Opt_acl, Opt_noacl,
+	Opt_user_xattr, Opt_acl,
 	Opt_auto_da_alloc, Opt_noauto_da_alloc, Opt_noload,
 	Opt_commit, Opt_min_batch_time, Opt_max_batch_time, Opt_journal_dev,
 	Opt_journal_path, Opt_journal_checksum, Opt_journal_async_commit,
@@ -1662,9 +1662,7 @@ static const struct fs_parameter_spec ext4_param_specs[] = {
 	fsparam_flag	("oldalloc",		Opt_removed),
 	fsparam_flag	("orlov",		Opt_removed),
 	fsparam_flag	("user_xattr",		Opt_user_xattr),
-	fsparam_flag	("nouser_xattr",	Opt_nouser_xattr),
 	fsparam_flag	("acl",			Opt_acl),
-	fsparam_flag	("noacl",		Opt_noacl),
 	fsparam_flag	("norecovery",		Opt_noload),
 	fsparam_flag	("noload",		Opt_noload),
 	fsparam_flag	("bh",			Opt_removed),
@@ -1814,13 +1812,10 @@ static const struct mount_opts {
 	{Opt_journal_ioprio, 0, MOPT_NO_EXT2},
 	{Opt_data, 0, MOPT_NO_EXT2},
 	{Opt_user_xattr, EXT4_MOUNT_XATTR_USER, MOPT_SET},
-	{Opt_nouser_xattr, EXT4_MOUNT_XATTR_USER, MOPT_CLEAR},
 #ifdef CONFIG_EXT4_FS_POSIX_ACL
 	{Opt_acl, EXT4_MOUNT_POSIX_ACL, MOPT_SET},
-	{Opt_noacl, EXT4_MOUNT_POSIX_ACL, MOPT_CLEAR},
 #else
 	{Opt_acl, 0, MOPT_NOSUPPORT},
-	{Opt_noacl, 0, MOPT_NOSUPPORT},
 #endif
 	{Opt_nouid32, EXT4_MOUNT_NO_UID32, MOPT_SET},
 	{Opt_debug, EXT4_MOUNT_DEBUG, MOPT_SET},
@@ -2120,10 +2115,6 @@ static int ext4_parse_param(struct fs_context *fc, struct fs_parameter *param)
 		else
 			return note_qf_name(fc, GRPQUOTA, param);
 #endif
-	case Opt_noacl:
-	case Opt_nouser_xattr:
-		ext4_msg(NULL, KERN_WARNING, deprecated_msg, param->key, "3.5");
-		break;
 	case Opt_sb:
 		if (fc->purpose == FS_CONTEXT_FOR_RECONFIGURE) {
 			ext4_msg(NULL, KERN_WARNING,
