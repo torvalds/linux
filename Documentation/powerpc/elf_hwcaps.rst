@@ -1,4 +1,4 @@
-.. _elf_hwcaps_index:
+.. _elf_hwcaps_powerpc:
 
 ==================
 POWERPC ELF HWCAPs
