@@ -79,10 +79,24 @@ static int efx_ef100_rep_get_phys_port_name(struct net_device *dev,
 	return 0;
 }
 
+static void efx_ef100_rep_get_stats64(struct net_device *dev,
+				      struct rtnl_link_stats64 *stats)
+{
+	struct efx_rep *efv = netdev_priv(dev);
+
+	stats->rx_packets = atomic64_read(&efv->stats.rx_packets);
+	stats->tx_packets = atomic64_read(&efv->stats.tx_packets);
+	stats->rx_bytes = atomic64_read(&efv->stats.rx_bytes);
+	stats->tx_bytes = atomic64_read(&efv->stats.tx_bytes);
+	stats->rx_dropped = atomic64_read(&efv->stats.rx_dropped);
+	stats->tx_errors = atomic64_read(&efv->stats.tx_errors);
+}
+
 static const struct net_device_ops efx_ef100_rep_netdev_ops = {
 	.ndo_start_xmit		= efx_ef100_rep_xmit,
 	.ndo_get_port_parent_id	= efx_ef100_rep_get_port_parent_id,
 	.ndo_get_phys_port_name	= efx_ef100_rep_get_phys_port_name,
+	.ndo_get_stats64	= efx_ef100_rep_get_stats64,
 };
 
 static void efx_ef100_rep_get_drvinfo(struct net_device *dev,
