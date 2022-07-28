@@ -16,16 +16,39 @@
 
 #define EFX_EF100_REP_DRIVER	"efx_ef100_rep"
 
+static int efx_ef100_rep_poll(struct napi_struct *napi, int weight);
+
 static int efx_ef100_rep_init_struct(struct efx_nic *efx, struct efx_rep *efv,
 				     unsigned int i)
 {
 	efv->parent = efx;
 	efv->idx = i;
 	INIT_LIST_HEAD(&efv->list);
+	INIT_LIST_HEAD(&efv->rx_list);
+	spin_lock_init(&efv->rx_lock);
 	efv->msg_enable = NETIF_MSG_DRV | NETIF_MSG_PROBE |
 			  NETIF_MSG_LINK | NETIF_MSG_IFDOWN |
 			  NETIF_MSG_IFUP | NETIF_MSG_RX_ERR |
 			  NETIF_MSG_TX_ERR | NETIF_MSG_HW;
+	return 0;
+}
+
+static int efx_ef100_rep_open(struct net_device *net_dev)
+{
+	struct efx_rep *efv = netdev_priv(net_dev);
+
+	netif_napi_add(net_dev, &efv->napi, efx_ef100_rep_poll,
+		       NAPI_POLL_WEIGHT);
+	napi_enable(&efv->napi);
+	return 0;
+}
+
+static int efx_ef100_rep_close(struct net_device *net_dev)
+{
+	struct efx_rep *efv = netdev_priv(net_dev);
+
+	napi_disable(&efv->napi);
+	netif_napi_del(&efv->napi);
 	return 0;
 }
 
@@ -93,6 +116,8 @@ static void efx_ef100_rep_get_stats64(struct net_device *dev,
 }
 
 static const struct net_device_ops efx_ef100_rep_netdev_ops = {
+	.ndo_open		= efx_ef100_rep_open,
+	.ndo_stop		= efx_ef100_rep_close,
 	.ndo_start_xmit		= efx_ef100_rep_xmit,
 	.ndo_get_port_parent_id	= efx_ef100_rep_get_port_parent_id,
 	.ndo_get_phys_port_name	= efx_ef100_rep_get_phys_port_name,
@@ -255,4 +280,43 @@ void efx_ef100_fini_vfreps(struct efx_nic *efx)
 
 	list_for_each_entry_safe(efv, next, &efx->vf_reps, list)
 		efx_ef100_vfrep_destroy(efx, efv);
+}
+
+static int efx_ef100_rep_poll(struct napi_struct *napi, int weight)
+{
+	struct efx_rep *efv = container_of(napi, struct efx_rep, napi);
+	unsigned int read_index;
+	struct list_head head;
+	struct sk_buff *skb;
+	bool need_resched;
+	int spent = 0;
+
+	INIT_LIST_HEAD(&head);
+	/* Grab up to 'weight' pending SKBs */
+	spin_lock_bh(&efv->rx_lock);
+	read_index = efv->write_index;
+	while (spent < weight && !list_empty(&efv->rx_list)) {
+		skb = list_first_entry(&efv->rx_list, struct sk_buff, list);
+		list_del(&skb->list);
+		list_add_tail(&skb->list, &head);
+		spent++;
+	}
+	spin_unlock_bh(&efv->rx_lock);
+	/* Receive them */
+	netif_receive_skb_list(&head);
+	if (spent < weight)
+		if (napi_complete_done(napi, spent)) {
+			spin_lock_bh(&efv->rx_lock);
+			efv->read_index = read_index;
+			/* If write_index advanced while we were doing the
+			 * RX, then storing our read_index won't re-prime the
+			 * fake-interrupt.  In that case, we need to schedule
+			 * NAPI again to consume the additional packet(s).
+			 */
+			need_resched = efv->write_index != read_index;
+			spin_unlock_bh(&efv->rx_lock);
+			if (need_resched)
+				napi_schedule(&efv->napi);
+		}
+	return spent;
 }

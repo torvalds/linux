@@ -29,7 +29,13 @@ struct efx_rep_sw_stats {
  * @msg_enable: log message enable flags
  * @mport: m-port ID of corresponding VF
  * @idx: VF index
+ * @write_index: number of packets enqueued to @rx_list
+ * @read_index: number of packets consumed from @rx_list
+ * @rx_pring_size: max length of RX list
  * @list: entry on efx->vf_reps
+ * @rx_list: list of SKBs queued for receive in NAPI poll
+ * @rx_lock: protects @rx_list
+ * @napi: NAPI control structure
  * @stats: software traffic counters for netdev stats
  */
 struct efx_rep {
@@ -38,7 +44,12 @@ struct efx_rep {
 	u32 msg_enable;
 	u32 mport;
 	unsigned int idx;
+	unsigned int write_index, read_index;
+	unsigned int rx_pring_size;
 	struct list_head list;
+	struct list_head rx_list;
+	spinlock_t rx_lock;
+	struct napi_struct napi;
 	struct efx_rep_sw_stats stats;
 };
 
