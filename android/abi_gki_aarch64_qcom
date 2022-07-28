@@ -160,6 +160,7 @@
   cond_synchronize_rcu
   config_ep_by_speed
   configfs_register_group
+  configfs_unregister_group
   configfs_register_subsystem
   configfs_unregister_subsystem
   config_group_init
@@ -301,6 +302,7 @@
   _dev_info
   devm_add_action
   devm_alloc_etherdev_mqs
+  devm_bitmap_zalloc
   devm_clk_bulk_get_all
   devm_clk_get
   devm_clk_get_optional
