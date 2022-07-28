@@ -765,6 +765,8 @@ static int stf_isp_clk_enable(struct stf_isp_dev *isp_dev)
 	struct stfcamss *stfcamss = isp_dev->stfcamss;
 
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_C].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_P].rstc);
 
 	return 0;
 }
@@ -773,6 +775,9 @@ static int stf_isp_clk_disable(struct stf_isp_dev *isp_dev)
 {
 	struct stfcamss *stfcamss = isp_dev->stfcamss;
 
+	//reset STFRST_WRAPPER_C would cause error
+	//reset_control_assert(stfcamss->sys_rst[STFRST_WRAPPER_C].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_WRAPPER_P].rstc);
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk);
 
 	return 0;
