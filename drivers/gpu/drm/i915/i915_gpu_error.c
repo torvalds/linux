@@ -678,6 +678,7 @@ static void err_print_uc(struct drm_i915_error_state_buf *m,
 
 	intel_uc_fw_dump(&error_uc->guc_fw, &p);
 	intel_uc_fw_dump(&error_uc->huc_fw, &p);
+	err_printf(m, "GuC timestamp: 0x%08x\n", error_uc->timestamp);
 	intel_gpu_error_print_vma(m, NULL, error_uc->guc_log);
 }
 
@@ -720,6 +721,8 @@ static void err_print_gt_global_nonguc(struct drm_i915_error_state_buf *m,
 	int i;
 
 	err_printf(m, "GT awake: %s\n", str_yes_no(gt->awake));
+	err_printf(m, "CS timestamp frequency: %u Hz, %d ns\n",
+		   gt->clock_frequency, gt->clock_period_ns);
 	err_printf(m, "EIR: 0x%08x\n", gt->eir);
 	err_printf(m, "PGTBL_ER: 0x%08x\n", gt->pgtbl_er);
 
@@ -1675,6 +1678,13 @@ gt_record_uc(struct intel_gt_coredump *gt,
 	 */
 	error_uc->guc_fw.path = kstrdup(uc->guc.fw.path, ALLOW_FAIL);
 	error_uc->huc_fw.path = kstrdup(uc->huc.fw.path, ALLOW_FAIL);
+
+	/*
+	 * Save the GuC log and include a timestamp reference for converting the
+	 * log times to system times (in conjunction with the error->boottime and
+	 * gt->clock_frequency fields saved elsewhere).
+	 */
+	error_uc->timestamp = intel_uncore_read(gt->_gt->uncore, GUCPMTIMESTAMP);
 	error_uc->guc_log = create_vma_coredump(gt->_gt, uc->guc.log.vma,
 						"GuC log buffer", compress);
 
@@ -1833,6 +1843,8 @@ static void gt_record_global_regs(struct intel_gt_coredump *gt)
 static void gt_record_info(struct intel_gt_coredump *gt)
 {
 	memcpy(&gt->info, &gt->_gt->info, sizeof(struct intel_gt_info));
+	gt->clock_frequency = gt->_gt->clock_frequency;
+	gt->clock_period_ns = gt->_gt->clock_period_ns;
 }
 
 /*
