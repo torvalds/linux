@@ -33,7 +33,7 @@ config ZSWAP
 	  pages that are in the process of being swapped out and attempts to
 	  compress them into a dynamically allocated RAM-based memory pool.
 	  This can result in a significant I/O reduction on swap device and,
-	  in the case where decompressing from RAM is faster that swap device
+	  in the case where decompressing from RAM is faster than swap device
 	  reads, can also improve workload performance.
 
 	  This is marked experimental because it is a new feature (as of
