@@ -130,8 +130,6 @@ static void vfio_ccw_mdev_remove(struct mdev_device *mdev)
 
 	vfio_unregister_group_dev(&private->vdev);
 
-	vfio_ccw_fsm_event(private, VFIO_CCW_EVENT_CLOSE);
-
 	vfio_uninit_group_dev(&private->vdev);
 	atomic_inc(&private->avail);
 }
