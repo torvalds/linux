@@ -39,7 +39,7 @@ Locking
 
 It is the responsibility of the low level hardware driver to perform the
 necessary locking using port->lock.  There are some exceptions (which
-are described in the uart_ops listing below.)
+are described in the struct uart_ops listing below.)
 
 There are two locks.  A per-port spinlock, and an overall semaphore.
 
