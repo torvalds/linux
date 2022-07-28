@@ -203,7 +203,15 @@ max96745_bridge_detect(struct drm_bridge *bridge)
 		return connector_status_disconnected;
 
 	if (connector->status == connector_status_connected) {
+		u32 dprx_trn_status2;
+
 		if (atomic_cmpxchg(&ser->lock.triggered, 1, 0))
+			return connector_status_disconnected;
+
+		if (regmap_read(ser->regmap, 0x641a, &dprx_trn_status2))
+			return connector_status_disconnected;
+
+		if ((dprx_trn_status2 & DPRX_TRAIN_STATE) != DPRX_TRAIN_STATE)
 			return connector_status_disconnected;
 	} else {
 		atomic_set(&ser->lock.triggered, 0);
@@ -268,13 +276,6 @@ static int max96745_bridge_probe(struct platform_device *pdev)
 	if (ret)
 		return dev_err_probe(dev, ret,
 				     "failed to register extcon device\n");
-
-	regmap_update_bits(ser->regmap, 0x7070, MAX_LANE_COUNT,
-			   FIELD_PREP(MAX_LANE_COUNT, 0x04));
-	regmap_update_bits(ser->regmap, 0x7074, MAX_LINK_RATE,
-			   FIELD_PREP(MAX_LINK_RATE, 0x14));
-	regmap_update_bits(ser->regmap, 0x7000, LINK_ENABLE,
-			   FIELD_PREP(LINK_ENABLE, 1));
 
 	ser->lock.irq = gpiod_to_irq(ser->lock.gpio);
 	if (ser->lock.irq < 0)

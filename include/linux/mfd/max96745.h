@@ -102,6 +102,9 @@
 /* 0752h */
 #define FRCDCMODE		GENMASK(1, 0)
 
+/* 641Ah */
+#define DPRX_TRAIN_STATE	GENMASK(7, 4)
+
 /* 7000h */
 #define LINK_ENABLE		BIT(0)
 
