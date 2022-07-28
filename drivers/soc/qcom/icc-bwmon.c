@@ -103,12 +103,11 @@
 #define BWMON_THRESHOLD_COUNT_ZONE0_DEFAULT	0xff
 #define BWMON_THRESHOLD_COUNT_ZONE2_DEFAULT	0xff
 
-/* BWMONv4 count registers use count unit of 64 kB */
-#define BWMON_COUNT_UNIT_KB			64
 #define BWMON_ZONE_MAX(zone)			(0x2e0 + 4 * (zone))
 
 struct icc_bwmon_data {
 	unsigned int sample_ms;
+	unsigned int count_unit_kb; /* kbytes */
 	unsigned int default_highbw_kbps;
 	unsigned int default_medbw_kbps;
 	unsigned int default_lowbw_kbps;
@@ -192,9 +191,10 @@ static void bwmon_enable(struct icc_bwmon *bwmon, unsigned int irq_enable)
 	writel(BWMON_ENABLE_ENABLE, bwmon->base + BWMON_ENABLE);
 }
 
-static unsigned int bwmon_kbps_to_count(unsigned int kbps)
+static unsigned int bwmon_kbps_to_count(struct icc_bwmon *bwmon,
+					unsigned int kbps)
 {
-	return kbps / BWMON_COUNT_UNIT_KB;
+	return kbps / bwmon->data->count_unit_kb;
 }
 
 static void bwmon_set_threshold(struct icc_bwmon *bwmon, unsigned int reg,
@@ -202,8 +202,8 @@ static void bwmon_set_threshold(struct icc_bwmon *bwmon, unsigned int reg,
 {
 	unsigned int thres;
 
-	thres = mult_frac(bwmon_kbps_to_count(kbps), bwmon->data->sample_ms,
-			  MSEC_PER_SEC);
+	thres = mult_frac(bwmon_kbps_to_count(bwmon, kbps),
+			  bwmon->data->sample_ms, MSEC_PER_SEC);
 	writel_relaxed(thres, bwmon->base + reg);
 }
 
@@ -269,7 +269,7 @@ static irqreturn_t bwmon_intr(int irq, void *dev_id)
 	 * downstream) always increments the max bytes count by one.
 	 */
 	max = readl(bwmon->base + BWMON_ZONE_MAX(zone)) + 1;
-	max *= BWMON_COUNT_UNIT_KB;
+	max *= bwmon->data->count_unit_kb;
 	bwmon->target_kbps = mult_frac(max, MSEC_PER_SEC, bwmon->data->sample_ms);
 
 	return IRQ_WAKE_THREAD;
@@ -391,6 +391,7 @@ static int bwmon_remove(struct platform_device *pdev)
 /* BWMON v4 */
 static const struct icc_bwmon_data msm8998_bwmon_data = {
 	.sample_ms = 4,
+	.count_unit_kb = 64,
 	.default_highbw_kbps = 4800 * 1024, /* 4.8 GBps */
 	.default_medbw_kbps = 512 * 1024, /* 512 MBps */
 	.default_lowbw_kbps = 0,
