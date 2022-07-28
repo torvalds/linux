@@ -549,7 +549,7 @@ static void mgag200_g200ev_set_hiprilvl(struct mga_device *mdev)
 
 static void mgag200_enable_display(struct mga_device *mdev)
 {
-	u8 seq0, seq1, crtcext1;
+	u8 seq0, crtcext1;
 
 	RREG_SEQ(0x00, seq0);
 	seq0 |= MGAREG_SEQ0_SYNCRST |
@@ -563,12 +563,6 @@ static void mgag200_enable_display(struct mga_device *mdev)
 	mga_wait_vsync(mdev);
 	mga_wait_busy(mdev);
 
-	RREG_SEQ(0x01, seq1);
-	seq1 &= ~MGAREG_SEQ1_SCROFF;
-	WREG_SEQ(0x01, seq1);
-
-	msleep(20);
-
 	RREG_ECRT(0x01, crtcext1);
 	crtcext1 &= ~MGAREG_CRTCEXT1_VSYNCOFF;
 	crtcext1 &= ~MGAREG_CRTCEXT1_HSYNCOFF;
@@ -577,7 +571,7 @@ static void mgag200_enable_display(struct mga_device *mdev)
 
 static void mgag200_disable_display(struct mga_device *mdev)
 {
-	u8 seq0, seq1, crtcext1;
+	u8 seq0, crtcext1;
 
 	RREG_SEQ(0x00, seq0);
 	seq0 &= ~MGAREG_SEQ0_SYNCRST;
@@ -589,12 +583,6 @@ static void mgag200_disable_display(struct mga_device *mdev)
 	 */
 	mga_wait_vsync(mdev);
 	mga_wait_busy(mdev);
-
-	RREG_SEQ(0x01, seq1);
-	seq1 |= MGAREG_SEQ1_SCROFF;
-	WREG_SEQ(0x01, seq1);
-
-	msleep(20);
 
 	RREG_ECRT(0x01, crtcext1);
 	crtcext1 |= MGAREG_CRTCEXT1_VSYNCOFF |
@@ -673,6 +661,7 @@ static void mgag200_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	struct drm_framebuffer *fb = plane_state->fb;
 	struct drm_atomic_helper_damage_iter iter;
 	struct drm_rect damage;
+	u8 seq1;
 
 	if (!fb)
 		return;
@@ -685,11 +674,27 @@ static void mgag200_primary_plane_helper_atomic_update(struct drm_plane *plane,
 	/* Always scanout image at VRAM offset 0 */
 	mgag200_set_startadd(mdev, (u32)0);
 	mgag200_set_offset(mdev, fb);
+
+	if (!old_plane_state->crtc && plane_state->crtc) { // enabling
+		RREG_SEQ(0x01, seq1);
+		seq1 &= ~MGAREG_SEQ1_SCROFF;
+		WREG_SEQ(0x01, seq1);
+		msleep(20);
+	}
 }
 
 static void mgag200_primary_plane_helper_atomic_disable(struct drm_plane *plane,
 							struct drm_atomic_state *old_state)
-{ }
+{
+	struct drm_device *dev = plane->dev;
+	struct mga_device *mdev = to_mga_device(dev);
+	u8 seq1;
+
+	RREG_SEQ(0x01, seq1);
+	seq1 |= MGAREG_SEQ1_SCROFF;
+	WREG_SEQ(0x01, seq1);
+	msleep(20);
+}
 
 static const struct drm_plane_helper_funcs mgag200_primary_plane_helper_funcs = {
 	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS,
