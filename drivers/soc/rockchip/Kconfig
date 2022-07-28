@@ -228,6 +228,13 @@ config ROCKCHIP_THUNDER_BOOT_SFC
 	help
 	  Say y if boot from SPI Flash from SFC controller.
 
+config ROCKCHIP_THUNDER_BOOT_SERVICE
+	bool "Rockchip Thunder Boot Service"
+	depends on ROCKCHIP_THUNDER_BOOT
+	depends on MAILBOX
+	help
+	  Say y if MCU need to notify AP.
+
 config ROCKCHIP_NPOR_POWERGOOD
 	bool "Rockchip NPOR Powergood"
 	help
