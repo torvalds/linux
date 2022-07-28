@@ -4723,7 +4723,6 @@ static int __add_adv_patterns_monitor(struct sock *sk, struct hci_dev *hdev,
 		else
 			status = MGMT_STATUS_FAILED;
 
-		mgmt_pending_remove(cmd);
 		goto unlock;
 	}
 
