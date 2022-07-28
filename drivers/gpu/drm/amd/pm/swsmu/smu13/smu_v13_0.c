@@ -229,6 +229,7 @@ int smu_v13_0_init_pptable_microcode(struct smu_context *smu)
 		/*
 		 * Temporary solution for SMU V13.0.0 with SCPM enabled:
 		 *   - use 36831 signed pptable when pp_table_id is 3683
+		 *   - use 37151 signed pptable when pp_table_id is 3715
 		 *   - use 36641 signed pptable when pp_table_id is 3664 or 0
 		 * TODO: drop these when the pptable carried in vbios is ready.
 		 */
@@ -240,6 +241,9 @@ int smu_v13_0_init_pptable_microcode(struct smu_context *smu)
 				break;
 			case 3683:
 				pptable_id = 36831;
+				break;
+			case 3715:
+				pptable_id = 37151;
 				break;
 			default:
 				dev_err(adev->dev, "Unsupported pptable id %d\n", pptable_id);
@@ -478,7 +482,7 @@ int smu_v13_0_setup_pptable(struct smu_context *smu)
 
 		/*
 		 * Temporary solution for SMU V13.0.0 with SCPM disabled:
-		 *   - use 3664 or 3683 on request
+		 *   - use 3664, 3683 or 3715 on request
 		 *   - use 3664 when pptable_id is 0
 		 * TODO: drop these when the pptable carried in vbios is ready.
 		 */
@@ -489,6 +493,7 @@ int smu_v13_0_setup_pptable(struct smu_context *smu)
 				break;
 			case 3664:
 			case 3683:
+			case 3715:
 				break;
 			default:
 				dev_err(adev->dev, "Unsupported pptable id %d\n", pptable_id);
