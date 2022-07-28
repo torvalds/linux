@@ -518,7 +518,7 @@ void MACvInitialize(struct vnt_private *priv)
 {
 	void __iomem *io_base = priv->port_offset;
 	/* clear sticky bits */
-	MACvClearStckDS(io_base);
+	vt6655_mac_clear_stck_ds(io_base);
 	/* disable force PME-enable */
 	iowrite8(PME_OVR, io_base + MAC_REG_PMC1);
 	/* only 3253 A */

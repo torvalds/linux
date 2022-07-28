@@ -577,7 +577,7 @@ do {									\
 		iowrite32(DMACTL_RUN, iobase + MAC_REG_AC0DMACTL);	\
 } while (0)
 
-#define MACvClearStckDS(iobase)					\
+#define vt6655_mac_clear_stck_ds(iobase)				\
 do {									\
 	unsigned char byOrgValue;					\
 	byOrgValue = ioread8(iobase + MAC_REG_STICKHW);			\
