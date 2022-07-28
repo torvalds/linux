@@ -622,14 +622,8 @@ mlx5_fw_fatal_reporter_recover(struct devlink_health_reporter *reporter,
 			       struct netlink_ext_ack *extack)
 {
 	struct mlx5_core_dev *dev = devlink_health_reporter_priv(reporter);
-	struct devlink *devlink = priv_to_devlink(dev);
-	int ret;
 
-	devl_lock(devlink);
-	ret = mlx5_health_try_recover(dev);
-	devl_unlock(devlink);
-
-	return ret;
+	return mlx5_health_try_recover(dev);
 }
 
 static int
