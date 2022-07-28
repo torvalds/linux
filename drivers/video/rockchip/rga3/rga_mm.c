@@ -1474,7 +1474,7 @@ static void rga_mm_put_channel_handle_info(struct rga_mm *mm,
 		free_pages((unsigned long)job_buf->page_table, job_buf->order);
 }
 
-int rga_mm_get_handle_info(struct rga_job *job)
+static int rga_mm_get_handle_info(struct rga_job *job)
 {
 	int ret = 0;
 	struct rga_req *req = NULL;
@@ -1531,7 +1531,7 @@ int rga_mm_get_handle_info(struct rga_job *job)
 	return 0;
 }
 
-void rga_mm_put_handle_info(struct rga_job *job)
+static void rga_mm_put_handle_info(struct rga_job *job)
 {
 	struct rga_mm *mm = rga_drvdata->mm;
 
@@ -1539,6 +1539,135 @@ void rga_mm_put_handle_info(struct rga_job *job)
 	rga_mm_put_channel_handle_info(mm, job, &job->dst_buffer, DMA_FROM_DEVICE);
 	rga_mm_put_channel_handle_info(mm, job, &job->src1_buffer, DMA_NONE);
 	rga_mm_put_channel_handle_info(mm, job, &job->els_buffer, DMA_NONE);
+}
+
+static void rga_mm_put_channel_external_buffer(struct rga_job_buffer *job_buffer)
+{
+	if (job_buffer->ex_addr->type == RGA_DMA_BUFFER_PTR)
+		dma_buf_put((struct dma_buf *)(unsigned long)job_buffer->ex_addr->memory);
+
+	kfree(job_buffer->ex_addr);
+	job_buffer->ex_addr = NULL;
+}
+
+static int rga_mm_get_channel_external_buffer(int mmu_flag,
+					      struct rga_img_info_t *img_info,
+					      struct rga_job_buffer *job_buffer)
+{
+	struct dma_buf *dma_buf = NULL;
+	struct rga_external_buffer *external_buffer = NULL;
+
+	/* Default unsupported multi-planar format */
+	external_buffer = kzalloc(sizeof(*external_buffer), GFP_KERNEL);
+	if (external_buffer == NULL) {
+		pr_err("Cannot alloc job_buffer!\n");
+		return -ENOMEM;
+	}
+
+	if (img_info->yrgb_addr) {
+		dma_buf = dma_buf_get(img_info->yrgb_addr);
+		if (IS_ERR(dma_buf)) {
+			pr_err("%s dma_buf_get fail fd[%lu]\n",
+			       __func__, (unsigned long)img_info->yrgb_addr);
+			kfree(external_buffer);
+			return -EINVAL;
+		}
+
+		external_buffer->memory = (unsigned long)dma_buf;
+		external_buffer->type = RGA_DMA_BUFFER_PTR;
+	} else if (mmu_flag && img_info->uv_addr) {
+		external_buffer->memory = (uint64_t)img_info->uv_addr;
+		external_buffer->type = RGA_VIRTUAL_ADDRESS;
+	} else if (img_info->uv_addr) {
+		external_buffer->memory = (uint64_t)img_info->uv_addr;
+		external_buffer->type = RGA_PHYSICAL_ADDRESS;
+	} else {
+		kfree(external_buffer);
+		return -EINVAL;
+	}
+
+	external_buffer->memory_parm.width = img_info->vir_w;
+	external_buffer->memory_parm.height = img_info->vir_h;
+	external_buffer->memory_parm.format = img_info->format;
+
+	job_buffer->ex_addr = external_buffer;
+
+	return 0;
+}
+
+static void rga_mm_put_external_buffer(struct rga_job *job)
+{
+	if (job->src_buffer.ex_addr)
+		rga_mm_put_channel_external_buffer(&job->src_buffer);
+	if (job->src1_buffer.ex_addr)
+		rga_mm_put_channel_external_buffer(&job->src1_buffer);
+	if (job->dst_buffer.ex_addr)
+		rga_mm_put_channel_external_buffer(&job->dst_buffer);
+	if (job->els_buffer.ex_addr)
+		rga_mm_put_channel_external_buffer(&job->els_buffer);
+}
+
+static int rga_mm_get_external_buffer(struct rga_job *job)
+{
+	int ret = -EINVAL;
+	int mmu_flag;
+
+	struct rga_img_info_t *src0 = NULL;
+	struct rga_img_info_t *src1 = NULL;
+	struct rga_img_info_t *dst = NULL;
+	struct rga_img_info_t *els = NULL;
+
+	if (job->rga_command_base.render_mode != COLOR_FILL_MODE)
+		src0 = &job->rga_command_base.src;
+
+	if (job->rga_command_base.render_mode != UPDATE_PALETTE_TABLE_MODE)
+		src1 = job->rga_command_base.bsfilter_flag ?
+		       &job->rga_command_base.pat : NULL;
+	else
+		els = &job->rga_command_base.pat;
+
+	dst = &job->rga_command_base.dst;
+
+	if (likely(src0)) {
+		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 8) & 1);
+		ret = rga_mm_get_channel_external_buffer(mmu_flag, src0, &job->src_buffer);
+		if (ret < 0) {
+			pr_err("Cannot get src0 channel buffer!\n");
+			return ret;
+		}
+	}
+
+	if (likely(dst)) {
+		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 10) & 1);
+		ret = rga_mm_get_channel_external_buffer(mmu_flag, dst, &job->dst_buffer);
+		if (ret < 0) {
+			pr_err("Cannot get dst channel buffer!\n");
+			goto error_put_buffer;
+		}
+	}
+
+	if (src1) {
+		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 9) & 1);
+		ret = rga_mm_get_channel_external_buffer(mmu_flag, src1, &job->src1_buffer);
+		if (ret < 0) {
+			pr_err("Cannot get src1 channel buffer!\n");
+			goto error_put_buffer;
+		}
+	}
+
+	if (els) {
+		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 11) & 1);
+		ret = rga_mm_get_channel_external_buffer(mmu_flag, els, &job->els_buffer);
+		if (ret < 0) {
+			pr_err("Cannot get els channel buffer!\n");
+			goto error_put_buffer;
+		}
+	}
+
+	return 0;
+error_put_buffer:
+	rga_mm_put_external_buffer(job);
+	return ret;
 }
 
 static void rga_mm_unmap_channel_job_buffer(struct rga_job *job,
@@ -1619,7 +1748,7 @@ error_free_buffer:
 	return ret;
 }
 
-void rga_mm_unmap_buffer_info(struct rga_job *job)
+static void rga_mm_unmap_buffer_info(struct rga_job *job)
 {
 	if (job->src_buffer.addr)
 		rga_mm_unmap_channel_job_buffer(job, &job->src_buffer, DMA_NONE);
@@ -1629,13 +1758,21 @@ void rga_mm_unmap_buffer_info(struct rga_job *job)
 		rga_mm_unmap_channel_job_buffer(job, &job->src1_buffer, DMA_NONE);
 	if (job->els_buffer.addr)
 		rga_mm_unmap_channel_job_buffer(job, &job->els_buffer, DMA_NONE);
+
+	rga_mm_put_external_buffer(job);
 }
 
-int rga_mm_map_buffer_info(struct rga_job *job)
+static int rga_mm_map_buffer_info(struct rga_job *job)
 {
 	int ret = 0;
 	struct rga_req *req = NULL;
 	enum dma_data_direction dir;
+
+	ret = rga_mm_get_external_buffer(job);
+	if (ret < 0) {
+		pr_err("failed to get external buffer from job_cmd!\n");
+		return ret;
+	}
 
 	req = &job->rga_command_base;
 
@@ -1645,7 +1782,7 @@ int rga_mm_map_buffer_info(struct rga_job *job)
 						    DMA_TO_DEVICE, false);
 		if (ret < 0) {
 			pr_err("src channel map job buffer failed!");
-			return ret;
+			goto error_unmap_buffer;
 		}
 	}
 
@@ -1693,133 +1830,33 @@ error_unmap_buffer:
 	return ret;
 }
 
-static void rga_mm_put_channel_external_buffer(struct rga_job_buffer *job_buffer)
+int rga_mm_map_job_info(struct rga_job *job)
 {
-	if (job_buffer->ex_addr->type == RGA_DMA_BUFFER_PTR)
-		dma_buf_put((struct dma_buf *)(unsigned long)job_buffer->ex_addr->memory);
+	int ret;
 
-	kfree(job_buffer->ex_addr);
-	job_buffer->ex_addr = NULL;
-}
-
-static int rga_mm_get_channel_external_buffer(int mmu_flag,
-					      struct rga_img_info_t *img_info,
-					      struct rga_job_buffer *job_buffer)
-{
-	struct dma_buf *dma_buf = NULL;
-	struct rga_external_buffer *external_buffer = NULL;
-
-	/* Default unsupported multi-planar format */
-	external_buffer = kzalloc(sizeof(*external_buffer), GFP_KERNEL);
-	if (external_buffer == NULL) {
-		pr_err("Cannot alloc job_buffer!\n");
-		return -ENOMEM;
-	}
-
-	if (img_info->yrgb_addr) {
-		dma_buf = dma_buf_get(img_info->yrgb_addr);
-		if (IS_ERR(dma_buf)) {
-			pr_err("%s dma_buf_get fail fd[%lu]\n",
-			       __func__, (unsigned long)img_info->yrgb_addr);
-			kfree(external_buffer);
-			return -EINVAL;
-		}
-
-		external_buffer->memory = (unsigned long)dma_buf;
-		external_buffer->type = RGA_DMA_BUFFER_PTR;
-	} else if (mmu_flag && img_info->uv_addr) {
-		external_buffer->memory = (uint64_t)img_info->uv_addr;
-		external_buffer->type = RGA_VIRTUAL_ADDRESS;
-	} else if (img_info->uv_addr) {
-		external_buffer->memory = (uint64_t)img_info->uv_addr;
-		external_buffer->type = RGA_PHYSICAL_ADDRESS;
-	} else {
-		kfree(external_buffer);
-		return -EINVAL;
-	}
-
-	external_buffer->memory_parm.width = img_info->vir_w;
-	external_buffer->memory_parm.height = img_info->vir_h;
-	external_buffer->memory_parm.format = img_info->format;
-
-	job_buffer->ex_addr = external_buffer;
-
-	return 0;
-}
-
-void rga_mm_put_external_buffer(struct rga_job *job)
-{
-	if (job->src_buffer.ex_addr)
-		rga_mm_put_channel_external_buffer(&job->src_buffer);
-	if (job->src1_buffer.ex_addr)
-		rga_mm_put_channel_external_buffer(&job->src1_buffer);
-	if (job->dst_buffer.ex_addr)
-		rga_mm_put_channel_external_buffer(&job->dst_buffer);
-	if (job->els_buffer.ex_addr)
-		rga_mm_put_channel_external_buffer(&job->els_buffer);
-}
-
-int rga_mm_get_external_buffer(struct rga_job *job)
-{
-	int ret = -EINVAL;
-	int mmu_flag;
-
-	struct rga_img_info_t *src0 = NULL;
-	struct rga_img_info_t *src1 = NULL;
-	struct rga_img_info_t *dst = NULL;
-	struct rga_img_info_t *els = NULL;
-
-	if (job->rga_command_base.render_mode != COLOR_FILL_MODE)
-		src0 = &job->rga_command_base.src;
-
-	if (job->rga_command_base.render_mode != UPDATE_PALETTE_TABLE_MODE)
-		src1 = job->rga_command_base.bsfilter_flag ?
-		       &job->rga_command_base.pat : NULL;
-	else
-		els = &job->rga_command_base.pat;
-
-	dst = &job->rga_command_base.dst;
-
-	if (likely(src0)) {
-		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 8) & 1);
-		ret = rga_mm_get_channel_external_buffer(mmu_flag, src0, &job->src_buffer);
+	if (job->flags & RGA_JOB_USE_HANDLE) {
+		ret = rga_mm_get_handle_info(job);
 		if (ret < 0) {
-			pr_err("Cannot get src0 channel buffer!\n");
+			pr_err("failed to get buffer from handle\n");
+			return ret;
+		}
+	} else {
+		ret = rga_mm_map_buffer_info(job);
+		if (ret < 0) {
+			pr_err("failed to map buffer\n");
 			return ret;
 		}
 	}
 
-	if (likely(dst)) {
-		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 10) & 1);
-		ret = rga_mm_get_channel_external_buffer(mmu_flag, dst, &job->dst_buffer);
-		if (ret < 0) {
-			pr_err("Cannot get dst channel buffer!\n");
-			goto error_put_buffer;
-		}
-	}
-
-	if (src1) {
-		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 9) & 1);
-		ret = rga_mm_get_channel_external_buffer(mmu_flag, src1, &job->src1_buffer);
-		if (ret < 0) {
-			pr_err("Cannot get src1 channel buffer!\n");
-			goto error_put_buffer;
-		}
-	}
-
-	if (els) {
-		mmu_flag = ((job->rga_command_base.mmu_info.mmu_flag >> 11) & 1);
-		ret = rga_mm_get_channel_external_buffer(mmu_flag, els, &job->els_buffer);
-		if (ret < 0) {
-			pr_err("Cannot get els channel buffer!\n");
-			goto error_put_buffer;
-		}
-	}
-
 	return 0;
-error_put_buffer:
-	rga_mm_put_external_buffer(job);
-	return ret;
+}
+
+void rga_mm_unmap_job_info(struct rga_job *job)
+{
+	if (job->flags & RGA_JOB_USE_HANDLE)
+		rga_mm_put_handle_info(job);
+	else
+		rga_mm_unmap_buffer_info(job);
 }
 
 uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,

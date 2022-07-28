@@ -225,30 +225,11 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 		return ret;
 	}
 
-	if (job->flags & RGA_JOB_USE_HANDLE) {
-		ret = rga_mm_get_handle_info(job);
-		if (ret < 0) {
-			pr_err("%s: failed to get buffer from handle\n", __func__);
-			goto failed;
-		}
-	} else {
-		ret = rga_mm_map_buffer_info(job);
-		if (ret < 0) {
-			pr_err("%s: failed to map buffer\n", __func__);
-			goto failed;
-		}
-	}
-
-	ret = scheduler->ops->init_reg(job);
-	if (ret < 0) {
-		pr_err("init reg failed");
-		goto err_put_buffer_info;
-	}
-
 	ret = scheduler->ops->set_reg(job, scheduler);
 	if (ret < 0) {
 		pr_err("set reg failed");
-		goto err_put_buffer_info;
+		rga_power_disable(scheduler);
+		return ret;
 	}
 
 	/* for debug */
@@ -257,18 +238,6 @@ static int rga_job_run(struct rga_job *job, struct rga_scheduler_t *scheduler)
 
 	return ret;
 
-err_put_buffer_info:
-	if (job->flags & RGA_JOB_USE_HANDLE) {
-		rga_mm_put_handle_info(job);
-	} else {
-		rga_mm_unmap_buffer_info(job);
-		rga_mm_put_external_buffer(job);
-	}
-
-failed:
-	rga_power_disable(scheduler);
-
-	return ret;
 }
 
 static void rga_job_next(struct rga_scheduler_t *scheduler)
@@ -327,12 +296,7 @@ static void rga_job_finish_and_next(struct rga_scheduler_t *scheduler,
 			ktime_us_delta(now, job->timestamp));
 	}
 
-	if (job->flags & RGA_JOB_USE_HANDLE) {
-		rga_mm_put_handle_info(job);
-	} else {
-		rga_mm_unmap_buffer_info(job);
-		rga_mm_put_external_buffer(job);
-	}
+	rga_mm_unmap_job_info(job);
 
 	rga_request_release_signal(scheduler, job);
 
@@ -382,12 +346,7 @@ static void rga_job_scheduler_timeout_clean(struct rga_scheduler_t *scheduler)
 
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
-		if (job->flags & RGA_JOB_USE_HANDLE) {
-			rga_mm_put_handle_info(job);
-		} else {
-			rga_mm_unmap_buffer_info(job);
-			rga_mm_put_external_buffer(job);
-		}
+		rga_mm_unmap_job_info(job);
 
 		job->ret = -EBUSY;
 		rga_request_release_signal(scheduler, job);
@@ -398,31 +357,12 @@ static void rga_job_scheduler_timeout_clean(struct rga_scheduler_t *scheduler)
 	}
 }
 
-static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
+static void rga_job_insert_todo_list(struct rga_job *job)
 {
-	unsigned long flags;
-	struct rga_scheduler_t *scheduler = NULL;
-	struct rga_job *job_pos;
 	bool first_match = 0;
-
-	if (rga_drvdata->num_of_scheduler > 1) {
-		job->core = rga_job_assign(job);
-		if (job->core <= 0) {
-			pr_err("job assign failed");
-			return NULL;
-		}
-	} else {
-		job->core = rga_drvdata->scheduler[0]->core;
-		job->scheduler = rga_drvdata->scheduler[0];
-	}
-
-	scheduler = rga_job_get_scheduler(job);
-	if (scheduler == NULL) {
-		pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
-		return NULL;
-	}
-
-	rga_job_scheduler_timeout_clean(scheduler);
+	unsigned long flags;
+	struct rga_job *job_pos;
+	struct rga_scheduler_t *scheduler = job->scheduler;
 
 	spin_lock_irqsave(&scheduler->irq_lock, flags);
 
@@ -453,12 +393,39 @@ static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
 	scheduler->job_count++;
 
 	spin_unlock_irqrestore(&scheduler->irq_lock, flags);
+}
+
+static struct rga_scheduler_t *rga_job_schedule(struct rga_job *job)
+{
+	struct rga_scheduler_t *scheduler = NULL;
+
+	if (rga_drvdata->num_of_scheduler > 1) {
+		job->core = rga_job_assign(job);
+		if (job->core <= 0) {
+			pr_err("job assign failed");
+			job->ret = -EINVAL;
+			return NULL;
+		}
+	} else {
+		job->core = rga_drvdata->scheduler[0]->core;
+		job->scheduler = rga_drvdata->scheduler[0];
+	}
+
+	scheduler = rga_job_get_scheduler(job);
+	if (scheduler == NULL) {
+		pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
+		job->ret = -EFAULT;
+		return NULL;
+	}
+
+	rga_job_scheduler_timeout_clean(scheduler);
 
 	return scheduler;
 }
 
 struct rga_job *rga_job_commit(struct rga_req *rga_command_base, struct rga_request *request)
 {
+	int ret;
 	struct rga_job *job = NULL;
 	struct rga_scheduler_t *scheduler = NULL;
 
@@ -473,28 +440,46 @@ struct rga_job *rga_job_commit(struct rga_req *rga_command_base, struct rga_requ
 	job->session = request->session;
 	job->mm = request->current_mm;
 
-	if (!(job->flags & RGA_JOB_USE_HANDLE)) {
-		job->ret = rga_mm_get_external_buffer(job);
-		if (job->ret < 0) {
-			pr_err("%s: failed to get external buffer from job_cmd!\n", __func__);
-			goto err_free_job;
-		}
-	}
-
 	scheduler = rga_job_schedule(job);
 	if (scheduler == NULL) {
 		pr_err("failed to get scheduler, %s(%d)\n", __func__, __LINE__);
-		job->ret = -EINVAL;
-		goto err_invalid_job;
+		goto err_free_job;
 	}
+
+	/* Memory mapping needs to keep pd enabled. */
+	if (rga_power_enable(scheduler) < 0) {
+		pr_err("power enable failed");
+		job->ret = -EFAULT;
+		goto err_free_job;
+	}
+
+	ret = rga_mm_map_job_info(job);
+	if (ret < 0) {
+		pr_err("%s: failed to map job info\n", __func__);
+		job->ret = ret;
+		goto err_power_disable;
+	}
+
+	ret = scheduler->ops->init_reg(job);
+	if (ret < 0) {
+		pr_err("%s: init reg failed", __func__);
+		job->ret = ret;
+		goto err_unmap_job_info;
+	}
+
+	rga_job_insert_todo_list(job);
 
 	rga_job_next(scheduler);
 
+	rga_power_disable(scheduler);
+
 	return job;
 
-err_invalid_job:
-	if (!(job->flags & RGA_JOB_USE_HANDLE))
-		rga_mm_put_external_buffer(job);
+err_unmap_job_info:
+	rga_mm_unmap_job_info(job);
+
+err_power_disable:
+	rga_power_disable(scheduler);
 
 err_free_job:
 	rga_request_release_signal(scheduler, job);
@@ -688,6 +673,7 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 				scheduler_status = scheduler->status;
 				scheduler->running_job = NULL;
 				scheduler->status = RGA_SCHEDULER_ABORT;
+				list_add_tail(&job->head, &list_to_free);
 
 				if (job->hw_running_time != 0) {
 					scheduler->timer.busy_time +=
@@ -695,34 +681,20 @@ static int rga_request_scheduler_job_abort(struct rga_request *request)
 					scheduler->ops->soft_reset(scheduler);
 				}
 
+				pr_err("reset core[%d] by request abort", scheduler->core);
 				running_abort_count++;
 			}
 		}
 
 		spin_unlock_irqrestore(&scheduler->irq_lock, flags);
 
-		if (job) {
-			if (job->flags & RGA_JOB_USE_HANDLE) {
-				rga_mm_put_handle_info(job);
-			} else {
-				rga_mm_unmap_buffer_info(job);
-				rga_mm_put_external_buffer(job);
-			}
-
-			job->ret = -EBUSY;
-			rga_job_cleanup(job);
-
-			if (scheduler_status == RGA_SCHEDULER_WORKING)
-				rga_power_disable(scheduler);
-
-			pr_err("reset core[%d] by request abort", scheduler->core);
-		}
+		if (job && scheduler_status == RGA_SCHEDULER_WORKING)
+			rga_power_disable(scheduler);
 	}
 
 	/* Clean up the jobs in the todo list that need to be free. */
 	list_for_each_entry_safe(job, job_q, &list_to_free, head) {
-		if (!(job->flags & RGA_JOB_USE_HANDLE))
-			rga_mm_put_external_buffer(job);
+		rga_mm_unmap_job_info(job);
 
 		job->ret = -EBUSY;
 		rga_job_cleanup(job);

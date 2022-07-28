@@ -51,14 +51,8 @@ struct sg_table *rga_mm_lookup_sgt(struct rga_internal_buffer *buffer);
 void rga_mm_dump_buffer(struct rga_internal_buffer *dump_buffer);
 void rga_mm_dump_info(struct rga_mm *session);
 
-int rga_mm_get_handle_info(struct rga_job *job);
-void rga_mm_put_handle_info(struct rga_job *job);
-
-int rga_mm_map_buffer_info(struct rga_job *job);
-void rga_mm_unmap_buffer_info(struct rga_job *job);
-
-int rga_mm_get_external_buffer(struct rga_job *job);
-void rga_mm_put_external_buffer(struct rga_job *job);
+int rga_mm_map_job_info(struct rga_job *job);
+void rga_mm_unmap_job_info(struct rga_job *job);
 
 uint32_t rga_mm_import_buffer(struct rga_external_buffer *external_buffer,
 			      struct rga_session *session);
