@@ -84,6 +84,11 @@ list shows them in order of preference of use.
   be absolutely sure to keep the use of the return address local to the
   thread which mapped it.
 
+  Most code can be designed to use thread local mappings. User should
+  therefore try to design their code to avoid the use of kmap() by mapping
+  pages in the same thread the address will be used and prefer
+  kmap_local_page().
+
   Nesting kmap_local_page() and kmap_atomic() mappings is allowed to a certain
   extent (up to KMAP_TYPE_NR) but their invocations have to be strictly ordered
   because the map implementation is stack based. See kmap_local_page() kdocs
