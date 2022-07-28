@@ -8798,7 +8798,8 @@ static int vop2_gamma_init(struct vop2 *vop2)
 }
 
 static int vop2_crtc_create_plane_mask_property(struct vop2 *vop2,
-						struct drm_crtc *crtc)
+						struct drm_crtc *crtc,
+						uint32_t plane_mask)
 {
 	struct drm_property *prop;
 	struct vop2_video_port *vp = to_vop2_video_port(crtc);
@@ -8826,7 +8827,7 @@ static int vop2_crtc_create_plane_mask_property(struct vop2 *vop2,
 	}
 
 	vp->plane_mask_prop = prop;
-	drm_object_attach_property(&crtc->base, vp->plane_mask_prop, vp->plane_mask);
+	drm_object_attach_property(&crtc->base, vp->plane_mask_prop, plane_mask);
 
 	return 0;
 }
@@ -8867,6 +8868,9 @@ static int vop2_crtc_create_feature_property(struct vop2 *vop2, struct drm_crtc 
 	return 0;
 }
 
+#define RK3566_MIRROR_PLANE_MASK (BIT(ROCKCHIP_VOP2_CLUSTER1) | BIT(ROCKCHIP_VOP2_ESMART1) | \
+				  BIT(ROCKCHIP_VOP2_SMART1))
+
 /*
  * Returns:
  * Registered crtc number on success, negative error code on failure.
@@ -8886,6 +8890,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 	uint32_t possible_crtcs;
 	uint64_t soc_id;
 	uint32_t registered_num_crtcs = 0;
+	uint32_t plane_mask = 0;
 	char clk_name[16];
 	int i = 0, j = 0, k = 0;
 	int ret = 0;
@@ -8968,6 +8973,14 @@ static int vop2_create_crtc(struct vop2 *vop2)
 		}
 		crtc->port = port;
 		of_property_read_u32(port, "cursor-win-id", &vp->cursor_win_id);
+
+		plane_mask = vp->plane_mask;
+		if (vop2_soc_is_rk3566()) {
+			if ((vp->plane_mask & RK3566_MIRROR_PLANE_MASK) &&
+			    (vp->plane_mask & ~RK3566_MIRROR_PLANE_MASK)) {
+				plane_mask &= ~RK3566_MIRROR_PLANE_MASK;
+			}
+		}
 
 		if (vp->primary_plane_phy_id >= 0) {
 			win = vop2_find_win_by_phys_id(vop2, vp->primary_plane_phy_id);
@@ -9060,7 +9073,7 @@ static int vop2_create_crtc(struct vop2 *vop2)
 			drm_object_attach_property(&crtc->base,
 						   drm_dev->mode_config.tv_bottom_margin_property, 100);
 		}
-		vop2_crtc_create_plane_mask_property(vop2, crtc);
+		vop2_crtc_create_plane_mask_property(vop2, crtc, plane_mask);
 		vop2_crtc_create_feature_property(vop2, crtc);
 
 		ret = drm_self_refresh_helper_init(crtc);
