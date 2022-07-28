@@ -323,25 +323,25 @@ get_framebuffer_by_node(struct drm_device *drm_dev, struct device_node *node)
 		return NULL;
 
 	if (of_property_read_u32(node, "logo,offset", &val)) {
-		pr_err("%s: failed to get logo,offset\n", __func__);
+		dev_err(drm_dev->dev, "%s: failed to get logo,offset\n", node->full_name);
 		return NULL;
 	}
 	mode_cmd.offsets[0] = val;
 
 	if (of_property_read_u32(node, "logo,width", &val)) {
-		pr_err("%s: failed to get logo,width\n", __func__);
+		dev_err(drm_dev->dev, "%s: failed to get logo,width\n", node->full_name);
 		return NULL;
 	}
 	mode_cmd.width = val;
 
 	if (of_property_read_u32(node, "logo,height", &val)) {
-		pr_err("%s: failed to get logo,height\n", __func__);
+		dev_err(drm_dev->dev, "%s: failed to get logo,height\n", node->full_name);
 		return NULL;
 	}
 	mode_cmd.height = val;
 
 	if (of_property_read_u32(node, "logo,bpp", &val)) {
-		pr_err("%s: failed to get logo,bpp\n", __func__);
+		dev_err(drm_dev->dev, "%s: failed to get logo,bpp\n", node->full_name);
 		return NULL;
 	}
 	bpp = val;
@@ -359,7 +359,7 @@ get_framebuffer_by_node(struct drm_device *drm_dev, struct device_node *node)
 		mode_cmd.pixel_format = DRM_FORMAT_XRGB8888;
 		break;
 	default:
-		pr_err("%s: unsupported to logo bpp %d\n", __func__, bpp);
+		dev_err(drm_dev->dev, "%s: unsupported to logo bpp %d\n", node->full_name, bpp);
 		return NULL;
 	}
 
