@@ -152,6 +152,8 @@
 	/* 0x40: */        0,    0,    0,    0,    0,    0,    0,    0,				\
 	/* 0x48: */        0,    0,    0,    0,    0,    0,    0,    0				\
 
+#define MGAG200_LUT_SIZE 256
+
 #define MGAG200_MAX_FB_HEIGHT 4096
 #define MGAG200_MAX_FB_WIDTH 4096
 
@@ -363,10 +365,82 @@ struct mga_device *mgag200_g200er_device_create(struct pci_dev *pdev, const stru
 struct mga_device *mgag200_g200ew3_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 						 enum mga_type type);
 
-				/* mgag200_mode.c */
+/*
+ * mgag200_mode.c
+ */
+
+struct drm_crtc;
+struct drm_crtc_state;
+struct drm_display_mode;
+struct drm_plane;
+struct drm_atomic_state;
+
+extern const uint32_t mgag200_primary_plane_formats[];
+extern const size_t   mgag200_primary_plane_formats_size;
+extern const uint64_t mgag200_primary_plane_fmtmods[];
+
+int mgag200_primary_plane_helper_atomic_check(struct drm_plane *plane,
+					      struct drm_atomic_state *new_state);
+void mgag200_primary_plane_helper_atomic_update(struct drm_plane *plane,
+						struct drm_atomic_state *old_state);
+void mgag200_primary_plane_helper_atomic_disable(struct drm_plane *plane,
+						 struct drm_atomic_state *old_state);
+#define MGAG200_PRIMARY_PLANE_HELPER_FUNCS \
+	DRM_GEM_SHADOW_PLANE_HELPER_FUNCS, \
+	.atomic_check = mgag200_primary_plane_helper_atomic_check, \
+	.atomic_update = mgag200_primary_plane_helper_atomic_update, \
+	.atomic_disable = mgag200_primary_plane_helper_atomic_disable
+
+#define MGAG200_PRIMARY_PLANE_FUNCS \
+	.update_plane = drm_atomic_helper_update_plane, \
+	.disable_plane = drm_atomic_helper_disable_plane, \
+	.destroy = drm_plane_cleanup, \
+	DRM_GEM_SHADOW_PLANE_FUNCS
+
+enum drm_mode_status mgag200_crtc_helper_mode_valid(struct drm_crtc *crtc,
+						    const struct drm_display_mode *mode);
+int mgag200_crtc_helper_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *new_state);
+void mgag200_crtc_helper_atomic_flush(struct drm_crtc *crtc, struct drm_atomic_state *old_state);
+void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_state *old_state);
+void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc, struct drm_atomic_state *old_state);
+
+#define MGAG200_CRTC_HELPER_FUNCS \
+	.mode_valid = mgag200_crtc_helper_mode_valid, \
+	.atomic_check = mgag200_crtc_helper_atomic_check, \
+	.atomic_flush = mgag200_crtc_helper_atomic_flush, \
+	.atomic_enable = mgag200_crtc_helper_atomic_enable, \
+	.atomic_disable = mgag200_crtc_helper_atomic_disable
+
+void mgag200_crtc_reset(struct drm_crtc *crtc);
+struct drm_crtc_state *mgag200_crtc_atomic_duplicate_state(struct drm_crtc *crtc);
+void mgag200_crtc_atomic_destroy_state(struct drm_crtc *crtc, struct drm_crtc_state *crtc_state);
+
+#define MGAG200_CRTC_FUNCS \
+	.reset = mgag200_crtc_reset, \
+	.destroy = drm_crtc_cleanup, \
+	.set_config = drm_atomic_helper_set_config, \
+	.page_flip = drm_atomic_helper_page_flip, \
+	.atomic_duplicate_state = mgag200_crtc_atomic_duplicate_state, \
+	.atomic_destroy_state = mgag200_crtc_atomic_destroy_state
+
+#define MGAG200_DAC_ENCODER_FUNCS \
+	.destroy = drm_encoder_cleanup
+
+int mgag200_vga_connector_helper_get_modes(struct drm_connector *connector);
+
+#define MGAG200_VGA_CONNECTOR_HELPER_FUNCS \
+	.get_modes  = mgag200_vga_connector_helper_get_modes
+
+#define MGAG200_VGA_CONNECTOR_FUNCS \
+	.reset                  = drm_atomic_helper_connector_reset, \
+	.fill_modes             = drm_helper_probe_single_connector_modes, \
+	.destroy                = drm_connector_cleanup, \
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state, \
+	.atomic_destroy_state   = drm_atomic_helper_connector_destroy_state
+
 resource_size_t mgag200_device_probe_vram(struct mga_device *mdev);
 void mgag200_init_registers(struct mga_device *mdev);
-int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_fb_available);
+int mgag200_mode_config_init(struct mga_device *mdev, resource_size_t vram_available);
 
 				/* mgag200_bmc.c */
 void mgag200_bmc_disable_vidrst(struct mga_device *mdev);
