@@ -47,7 +47,6 @@ struct io_uring_sqe {
 		__u32		unlink_flags;
 		__u32		hardlink_flags;
 		__u32		xattr_flags;
-		__u32		close_flags;
 	};
 	__u64	user_data;	/* data to be passed back at completion time */
 	/* pack this to avoid bogus arm OABI complaints */
@@ -258,11 +257,6 @@ enum io_uring_op {
  * accept flags stored in sqe->ioprio
  */
 #define IORING_ACCEPT_MULTISHOT	(1U << 0)
-
-/*
- * close flags, store in sqe->close_flags
- */
-#define IORING_CLOSE_FD_AND_FILE_SLOT	(1U << 0)
 
 /*
  * IO completion data structure (Completion Queue Entry)

@@ -192,7 +192,7 @@ static void hv_irq_compose_msi_msg(struct irq_data *data, struct msi_msg *msg)
 	struct pci_dev *dev;
 	struct hv_interrupt_entry out_entry, *stored_entry;
 	struct irq_cfg *cfg = irqd_cfg(data);
-	cpumask_t *affinity;
+	const cpumask_t *affinity;
 	int cpu;
 	u64 status;
 

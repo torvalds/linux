@@ -8,7 +8,9 @@
 #include <linux/smp.h>
 #include <linux/cpumask.h>
 #include <linux/printk.h>
+#include <linux/console.h>
 #include <linux/kprobes.h>
+#include <linux/delay.h>
 
 #include "internal.h"
 
@@ -50,3 +52,33 @@ asmlinkage int vprintk(const char *fmt, va_list args)
 	return vprintk_default(fmt, args);
 }
 EXPORT_SYMBOL(vprintk);
+
+/**
+ * try_block_console_kthreads() - Try to block console kthreads and
+ *	make the global console_lock() avaialble
+ *
+ * @timeout_ms:        The maximum time (in ms) to wait.
+ *
+ * Prevent console kthreads from starting processing new messages. Wait
+ * until the global console_lock() become available.
+ *
+ * Context: Can be called in any context.
+ */
+void try_block_console_kthreads(int timeout_ms)
+{
+	block_console_kthreads = true;
+
+	/* Do not wait when the console lock could not be safely taken. */
+	if (this_cpu_read(printk_context) || in_nmi())
+		return;
+
+	while (timeout_ms > 0) {
+		if (console_trylock()) {
+			console_unlock();
+			return;
+		}
+
+		udelay(1000);
+		timeout_ms -= 1;
+	}
+}

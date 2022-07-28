@@ -1230,6 +1230,9 @@ bool kvm_arch_timer_get_input_level(int vintid)
 	struct kvm_vcpu *vcpu = kvm_get_running_vcpu();
 	struct arch_timer_context *timer;
 
+	if (WARN(!vcpu, "No vcpu context!\n"))
+		return false;
+
 	if (vintid == vcpu_vtimer(vcpu)->irq.irq)
 		timer = vcpu_vtimer(vcpu);
 	else if (vintid == vcpu_ptimer(vcpu)->irq.irq)

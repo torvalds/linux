@@ -407,6 +407,8 @@ static void rts5261_init_from_hw(struct rtsx_pcr *pcr)
 		// default
 		setting_reg1 = PCR_SETTING_REG1;
 		setting_reg2 = PCR_SETTING_REG2;
+	} else {
+		return;
 	}
 
 	pci_read_config_dword(pdev, setting_reg2, &lval2);

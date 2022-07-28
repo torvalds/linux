@@ -158,7 +158,7 @@ static void *virt_get_pte(struct kvm_vm *vm, uint64_t pt_pfn, uint64_t vaddr,
 			  int level)
 {
 	uint64_t *page_table = addr_gpa2hva(vm, pt_pfn << vm->page_shift);
-	int index = vaddr >> (vm->page_shift + level * 9) & 0x1ffu;
+	int index = (vaddr >> PG_LEVEL_SHIFT(level)) & 0x1ffu;
 
 	return &page_table[index];
 }
@@ -167,14 +167,14 @@ static uint64_t *virt_create_upper_pte(struct kvm_vm *vm,
 				       uint64_t pt_pfn,
 				       uint64_t vaddr,
 				       uint64_t paddr,
-				       int level,
-				       enum x86_page_size page_size)
+				       int current_level,
+				       int target_level)
 {
-	uint64_t *pte = virt_get_pte(vm, pt_pfn, vaddr, level);
+	uint64_t *pte = virt_get_pte(vm, pt_pfn, vaddr, current_level);
 
 	if (!(*pte & PTE_PRESENT_MASK)) {
 		*pte = PTE_PRESENT_MASK | PTE_WRITABLE_MASK;
-		if (level == page_size)
+		if (current_level == target_level)
 			*pte |= PTE_LARGE_MASK | (paddr & PHYSICAL_PAGE_MASK);
 		else
 			*pte |= vm_alloc_page_table(vm) & PHYSICAL_PAGE_MASK;
@@ -184,20 +184,19 @@ static uint64_t *virt_create_upper_pte(struct kvm_vm *vm,
 		 * a hugepage at this level, and that there isn't a hugepage at
 		 * this level.
 		 */
-		TEST_ASSERT(level != page_size,
+		TEST_ASSERT(current_level != target_level,
 			    "Cannot create hugepage at level: %u, vaddr: 0x%lx\n",
-			    page_size, vaddr);
+			    current_level, vaddr);
 		TEST_ASSERT(!(*pte & PTE_LARGE_MASK),
 			    "Cannot create page table at level: %u, vaddr: 0x%lx\n",
-			    level, vaddr);
+			    current_level, vaddr);
 	}
 	return pte;
 }
 
-void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
-		   enum x86_page_size page_size)
+void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr, int level)
 {
-	const uint64_t pg_size = 1ull << ((page_size * 9) + 12);
+	const uint64_t pg_size = PG_LEVEL_SIZE(level);
 	uint64_t *pml4e, *pdpe, *pde;
 	uint64_t *pte;
 
@@ -222,20 +221,20 @@ void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 	 * early if a hugepage was created.
 	 */
 	pml4e = virt_create_upper_pte(vm, vm->pgd >> vm->page_shift,
-				      vaddr, paddr, 3, page_size);
+				      vaddr, paddr, PG_LEVEL_512G, level);
 	if (*pml4e & PTE_LARGE_MASK)
 		return;
 
-	pdpe = virt_create_upper_pte(vm, PTE_GET_PFN(*pml4e), vaddr, paddr, 2, page_size);
+	pdpe = virt_create_upper_pte(vm, PTE_GET_PFN(*pml4e), vaddr, paddr, PG_LEVEL_1G, level);
 	if (*pdpe & PTE_LARGE_MASK)
 		return;
 
-	pde = virt_create_upper_pte(vm, PTE_GET_PFN(*pdpe), vaddr, paddr, 1, page_size);
+	pde = virt_create_upper_pte(vm, PTE_GET_PFN(*pdpe), vaddr, paddr, PG_LEVEL_2M, level);
 	if (*pde & PTE_LARGE_MASK)
 		return;
 
 	/* Fill in page table entry. */
-	pte = virt_get_pte(vm, PTE_GET_PFN(*pde), vaddr, 0);
+	pte = virt_get_pte(vm, PTE_GET_PFN(*pde), vaddr, PG_LEVEL_4K);
 	TEST_ASSERT(!(*pte & PTE_PRESENT_MASK),
 		    "PTE already present for 4k page at vaddr: 0x%lx\n", vaddr);
 	*pte = PTE_PRESENT_MASK | PTE_WRITABLE_MASK | (paddr & PHYSICAL_PAGE_MASK);
@@ -243,7 +242,7 @@ void __virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr,
 
 void virt_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 {
-	__virt_pg_map(vm, vaddr, paddr, X86_PAGE_SIZE_4K);
+	__virt_pg_map(vm, vaddr, paddr, PG_LEVEL_4K);
 }
 
 static uint64_t *_vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid,

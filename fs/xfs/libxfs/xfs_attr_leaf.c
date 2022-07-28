@@ -1530,7 +1530,7 @@ xfs_attr3_leaf_add_work(
 	if (tmp)
 		entry->flags |= XFS_ATTR_LOCAL;
 	if (args->op_flags & XFS_DA_OP_REPLACE) {
-		if (!xfs_has_larp(mp))
+		if (!(args->op_flags & XFS_DA_OP_LOGGED))
 			entry->flags |= XFS_ATTR_INCOMPLETE;
 		if ((args->blkno2 == args->blkno) &&
 		    (args->index2 <= args->index)) {
