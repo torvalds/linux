@@ -13,8 +13,11 @@
 #include "ef100_netdev.h"
 #include "ef100_nic.h"
 #include "mae.h"
+#include "rx_common.h"
 
 #define EFX_EF100_REP_DRIVER	"efx_ef100_rep"
+
+#define EFX_REP_DEFAULT_PSEUDO_RING_SIZE	64
 
 static int efx_ef100_rep_poll(struct napi_struct *napi, int weight);
 
@@ -198,6 +201,7 @@ static int efx_ef100_configure_rep(struct efx_rep *efv)
 	u32 selector;
 	int rc;
 
+	efv->rx_pring_size = EFX_REP_DEFAULT_PSEUDO_RING_SIZE;
 	/* Construct mport selector for corresponding VF */
 	efx_mae_mport_vf(efx, efv->idx, &selector);
 	/* Look up actual mport ID */
@@ -319,4 +323,55 @@ static int efx_ef100_rep_poll(struct napi_struct *napi, int weight)
 				napi_schedule(&efv->napi);
 		}
 	return spent;
+}
+
+void efx_ef100_rep_rx_packet(struct efx_rep *efv, struct efx_rx_buffer *rx_buf)
+{
+	u8 *eh = efx_rx_buf_va(rx_buf);
+	struct sk_buff *skb;
+	bool primed;
+
+	/* Don't allow too many queued SKBs to build up, as they consume
+	 * GFP_ATOMIC memory.  If we overrun, just start dropping.
+	 */
+	if (efv->write_index - READ_ONCE(efv->read_index) > efv->rx_pring_size) {
+		atomic64_inc(&efv->stats.rx_dropped);
+		if (net_ratelimit())
+			netif_dbg(efv->parent, rx_err, efv->net_dev,
+				  "nodesc-dropped packet of length %u\n",
+				  rx_buf->len);
+		return;
+	}
+
+	skb = netdev_alloc_skb(efv->net_dev, rx_buf->len);
+	if (!skb) {
+		atomic64_inc(&efv->stats.rx_dropped);
+		if (net_ratelimit())
+			netif_dbg(efv->parent, rx_err, efv->net_dev,
+				  "noskb-dropped packet of length %u\n",
+				  rx_buf->len);
+		return;
+	}
+	memcpy(skb->data, eh, rx_buf->len);
+	__skb_put(skb, rx_buf->len);
+
+	skb_record_rx_queue(skb, 0); /* rep is single-queue */
+
+	/* Move past the ethernet header */
+	skb->protocol = eth_type_trans(skb, efv->net_dev);
+
+	skb_checksum_none_assert(skb);
+
+	atomic64_inc(&efv->stats.rx_packets);
+	atomic64_add(rx_buf->len, &efv->stats.rx_bytes);
+
+	/* Add it to the rx list */
+	spin_lock_bh(&efv->rx_lock);
+	primed = efv->read_index == efv->write_index;
+	list_add_tail(&skb->list, &efv->rx_list);
+	efv->write_index++;
+	spin_unlock_bh(&efv->rx_lock);
+	/* Trigger rx work */
+	if (primed)
+		napi_schedule(&efv->napi);
 }
