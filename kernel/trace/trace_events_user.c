@@ -14,6 +14,7 @@
 #include <linux/uio.h>
 #include <linux/ioctl.h>
 #include <linux/jhash.h>
+#include <linux/refcount.h>
 #include <linux/trace_events.h>
 #include <linux/tracefs.h>
 #include <linux/types.h>
@@ -57,7 +58,7 @@ static DECLARE_BITMAP(page_bitmap, MAX_EVENTS);
  * within a file a user_event might be created if it does not
  * already exist. These are globally used and their lifetime
  * is tied to the refcnt member. These cannot go away until the
- * refcnt reaches zero.
+ * refcnt reaches one.
  */
 struct user_event {
 	struct tracepoint tracepoint;
@@ -67,7 +68,7 @@ struct user_event {
 	struct hlist_node node;
 	struct list_head fields;
 	struct list_head validators;
-	atomic_t refcnt;
+	refcount_t refcnt;
 	int index;
 	int flags;
 	int min_size;
@@ -103,6 +104,12 @@ static int user_event_parse(char *name, char *args, char *flags,
 static u32 user_event_key(char *name)
 {
 	return jhash(name, strlen(name), 0);
+}
+
+static __always_inline __must_check
+bool user_event_last_ref(struct user_event *user)
+{
+	return refcount_read(&user->refcnt) == 1;
 }
 
 static __always_inline __must_check
@@ -662,7 +669,7 @@ static struct user_event *find_user_event(char *name, u32 *outkey)
 
 	hash_for_each_possible(register_table, user, node, key)
 		if (!strcmp(EVENT_NAME(user), name)) {
-			atomic_inc(&user->refcnt);
+			refcount_inc(&user->refcnt);
 			return user;
 		}
 
@@ -876,12 +883,12 @@ static int user_event_reg(struct trace_event_call *call,
 
 	return ret;
 inc:
-	atomic_inc(&user->refcnt);
+	refcount_inc(&user->refcnt);
 	update_reg_page_for(user);
 	return 0;
 dec:
 	update_reg_page_for(user);
-	atomic_dec(&user->refcnt);
+	refcount_dec(&user->refcnt);
 	return 0;
 }
 
@@ -907,7 +914,7 @@ static int user_event_create(const char *raw_command)
 	ret = user_event_parse_cmd(name, &user);
 
 	if (!ret)
-		atomic_dec(&user->refcnt);
+		refcount_dec(&user->refcnt);
 
 	mutex_unlock(&reg_mutex);
 
@@ -951,14 +958,14 @@ static bool user_event_is_busy(struct dyn_event *ev)
 {
 	struct user_event *user = container_of(ev, struct user_event, devent);
 
-	return atomic_read(&user->refcnt) != 0;
+	return !user_event_last_ref(user);
 }
 
 static int user_event_free(struct dyn_event *ev)
 {
 	struct user_event *user = container_of(ev, struct user_event, devent);
 
-	if (atomic_read(&user->refcnt) != 0)
+	if (!user_event_last_ref(user))
 		return -EBUSY;
 
 	return destroy_user_event(user);
@@ -1137,8 +1144,8 @@ static int user_event_parse(char *name, char *args, char *flags,
 
 	user->index = index;
 
-	/* Ensure we track ref */
-	atomic_inc(&user->refcnt);
+	/* Ensure we track self ref and caller ref (2) */
+	refcount_set(&user->refcnt, 2);
 
 	dyn_event_init(&user->devent, &user_event_dops);
 	dyn_event_add(&user->devent, &user->call);
@@ -1164,29 +1171,17 @@ put_user:
 static int delete_user_event(char *name)
 {
 	u32 key;
-	int ret;
 	struct user_event *user = find_user_event(name, &key);
 
 	if (!user)
 		return -ENOENT;
 
-	/* Ensure we are the last ref */
-	if (atomic_read(&user->refcnt) != 1) {
-		ret = -EBUSY;
-		goto put_ref;
-	}
+	refcount_dec(&user->refcnt);
 
-	ret = destroy_user_event(user);
+	if (!user_event_last_ref(user))
+		return -EBUSY;
 
-	if (ret)
-		goto put_ref;
-
-	return ret;
-put_ref:
-	/* No longer have this ref */
-	atomic_dec(&user->refcnt);
-
-	return ret;
+	return destroy_user_event(user);
 }
 
 /*
@@ -1314,7 +1309,7 @@ static int user_events_ref_add(struct file *file, struct user_event *user)
 
 	new_refs->events[i] = user;
 
-	atomic_inc(&user->refcnt);
+	refcount_inc(&user->refcnt);
 
 	rcu_assign_pointer(file->private_data, new_refs);
 
@@ -1374,7 +1369,7 @@ static long user_events_ioctl_reg(struct file *file, unsigned long uarg)
 	ret = user_events_ref_add(file, user);
 
 	/* No longer need parse ref, ref_add either worked or not */
-	atomic_dec(&user->refcnt);
+	refcount_dec(&user->refcnt);
 
 	/* Positive number is index and valid */
 	if (ret < 0)
@@ -1464,7 +1459,7 @@ static int user_events_release(struct inode *node, struct file *file)
 		user = refs->events[i];
 
 		if (user)
-			atomic_dec(&user->refcnt);
+			refcount_dec(&user->refcnt);
 	}
 out:
 	file->private_data = NULL;
