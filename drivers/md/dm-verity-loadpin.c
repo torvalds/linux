@@ -5,6 +5,7 @@
 #include <linux/dm-verity-loadpin.h>
 
 #include "dm.h"
+#include "dm-core.h"
 #include "dm-verity.h"
 
 #define DM_MSG_PREFIX	"verity-loadpin"
@@ -58,7 +59,7 @@ bool dm_verity_loadpin_is_bdev_trusted(struct block_device *bdev)
 
 	table = dm_get_live_table(md, &srcu_idx);
 
-	if (dm_table_get_num_targets(table) != 1)
+	if (table->num_targets != 1)
 		goto out;
 
 	ti = dm_table_get_target(table, 0);
