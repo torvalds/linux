@@ -454,13 +454,14 @@ ssize_t ovl_listxattr(struct dentry *dentry, char *list, size_t size)
 	return res;
 }
 
+#ifdef CONFIG_FS_POSIX_ACL
 struct posix_acl *ovl_get_acl(struct inode *inode, int type, bool rcu)
 {
 	struct inode *realinode = ovl_inode_real(inode);
 	const struct cred *old_cred;
 	struct posix_acl *acl;
 
-	if (!IS_ENABLED(CONFIG_FS_POSIX_ACL) || !IS_POSIXACL(realinode))
+	if (!IS_POSIXACL(realinode))
 		return NULL;
 
 	if (rcu)
@@ -472,6 +473,7 @@ struct posix_acl *ovl_get_acl(struct inode *inode, int type, bool rcu)
 
 	return acl;
 }
+#endif
 
 int ovl_update_time(struct inode *inode, struct timespec64 *ts, int flags)
 {
