@@ -381,7 +381,7 @@ int rtw_pwr_wakeup(struct adapter *padapter)
 	struct mlme_priv *pmlmepriv = &padapter->mlmepriv;
 	unsigned long timeout = jiffies + msecs_to_jiffies(3000);
 	unsigned long deny_time;
-	int ret = 0;
+	int ret;
 
 	while (pwrpriv->ps_processing && time_before(jiffies, timeout))
 		msleep(10);
