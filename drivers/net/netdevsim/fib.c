@@ -54,6 +54,7 @@ struct nsim_fib_data {
 	struct rhashtable nexthop_ht;
 	struct devlink *devlink;
 	struct work_struct fib_event_work;
+	struct work_struct fib_flush_work;
 	struct list_head fib_event_queue;
 	spinlock_t fib_event_queue_lock; /* Protects fib event queue list */
 	struct mutex nh_lock; /* Protects NH HT */
@@ -978,7 +979,7 @@ static int nsim_fib_event_schedule_work(struct nsim_fib_data *data,
 
 	fib_event = kzalloc(sizeof(*fib_event), GFP_ATOMIC);
 	if (!fib_event)
-		return NOTIFY_BAD;
+		goto err_fib_event_alloc;
 
 	fib_event->data = data;
 	fib_event->event = event;
@@ -1006,6 +1007,9 @@ static int nsim_fib_event_schedule_work(struct nsim_fib_data *data,
 
 err_fib_prepare_event:
 	kfree(fib_event);
+err_fib_event_alloc:
+	if (event == FIB_EVENT_ENTRY_DEL)
+		schedule_work(&data->fib_flush_work);
 	return NOTIFY_BAD;
 }
 
@@ -1483,6 +1487,24 @@ static void nsim_fib_event_work(struct work_struct *work)
 	mutex_unlock(&data->fib_lock);
 }
 
+static void nsim_fib_flush_work(struct work_struct *work)
+{
+	struct nsim_fib_data *data = container_of(work, struct nsim_fib_data,
+						  fib_flush_work);
+	struct nsim_fib_rt *fib_rt, *fib_rt_tmp;
+
+	/* Process pending work. */
+	flush_work(&data->fib_event_work);
+
+	mutex_lock(&data->fib_lock);
+	list_for_each_entry_safe(fib_rt, fib_rt_tmp, &data->fib_rt_list, list) {
+		rhashtable_remove_fast(&data->fib_rt_ht, &fib_rt->ht_node,
+				       nsim_fib_rt_ht_params);
+		nsim_fib_rt_free(fib_rt, data);
+	}
+	mutex_unlock(&data->fib_lock);
+}
+
 static int
 nsim_fib_debugfs_init(struct nsim_fib_data *data, struct nsim_dev *nsim_dev)
 {
@@ -1541,6 +1563,7 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 		goto err_rhashtable_nexthop_destroy;
 
 	INIT_WORK(&data->fib_event_work, nsim_fib_event_work);
+	INIT_WORK(&data->fib_flush_work, nsim_fib_flush_work);
 	INIT_LIST_HEAD(&data->fib_event_queue);
 	spin_lock_init(&data->fib_event_queue_lock);
 
@@ -1587,6 +1610,7 @@ struct nsim_fib_data *nsim_fib_create(struct devlink *devlink,
 err_nexthop_nb_unregister:
 	unregister_nexthop_notifier(devlink_net(devlink), &data->nexthop_nb);
 err_rhashtable_fib_destroy:
+	cancel_work_sync(&data->fib_flush_work);
 	flush_work(&data->fib_event_work);
 	rhashtable_free_and_destroy(&data->fib_rt_ht, nsim_fib_rt_free,
 				    data);
@@ -1616,6 +1640,7 @@ void nsim_fib_destroy(struct devlink *devlink, struct nsim_fib_data *data)
 					    NSIM_RESOURCE_IPV4_FIB);
 	unregister_fib_notifier(devlink_net(devlink), &data->fib_nb);
 	unregister_nexthop_notifier(devlink_net(devlink), &data->nexthop_nb);
+	cancel_work_sync(&data->fib_flush_work);
 	flush_work(&data->fib_event_work);
 	rhashtable_free_and_destroy(&data->fib_rt_ht, nsim_fib_rt_free,
 				    data);
