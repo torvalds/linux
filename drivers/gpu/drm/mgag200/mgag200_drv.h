@@ -262,10 +262,14 @@ struct mgag200_device_info {
 		.bug_no_startadd = (_bug_no_startadd), \
 	}
 
+struct mgag200_device_funcs {
+};
+
 struct mga_device {
 	struct drm_device base;
 
 	const struct mgag200_device_info *info;
+	const struct mgag200_device_funcs *funcs;
 
 	struct resource			*rmmio_res;
 	void __iomem			*rmmio;
@@ -322,7 +326,8 @@ resource_size_t mgag200_probe_vram(void __iomem *mem, resource_size_t size);
 resource_size_t mgag200_device_probe_vram(struct mga_device *mdev);
 int mgag200_device_preinit(struct mga_device *mdev);
 int mgag200_device_init(struct mga_device *mdev, enum mga_type type,
-			const struct mgag200_device_info *info);
+			const struct mgag200_device_info *info,
+			const struct mgag200_device_funcs *funcs);
 
 				/* mgag200_<device type>.c */
 struct mga_device *mgag200_g200_device_create(struct pci_dev *pdev, const struct drm_driver *drv,

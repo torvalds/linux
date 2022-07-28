@@ -93,6 +93,9 @@ static int mgag200_g200se_init_unique_rev_id(struct mgag200_g200se_device *g200s
 	return 0;
 }
 
+static const struct mgag200_device_funcs mgag200_g200se_device_funcs = {
+};
+
 struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 						enum mga_type type)
 {
@@ -144,7 +147,7 @@ struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const stru
 		return ERR_PTR(-EINVAL);
 	}
 
-	ret = mgag200_device_init(mdev, type, info);
+	ret = mgag200_device_init(mdev, type, info, &mgag200_g200se_device_funcs);
 	if (ret)
 		return ERR_PTR(ret);
 

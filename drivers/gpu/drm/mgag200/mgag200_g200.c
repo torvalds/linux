@@ -183,6 +183,9 @@ out:
 	pci_unmap_rom(pdev, rom);
 }
 
+static const struct mgag200_device_funcs mgag200_g200_device_funcs = {
+};
+
 struct mga_device *mgag200_g200_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 					      enum mga_type type)
 {
@@ -210,7 +213,8 @@ struct mga_device *mgag200_g200_device_create(struct pci_dev *pdev, const struct
 
 	mgag200_g200_init_refclk(g200);
 
-	ret = mgag200_device_init(mdev, type, &mgag200_g200_device_info);
+	ret = mgag200_device_init(mdev, type, &mgag200_g200_device_info,
+				  &mgag200_g200_device_funcs);
 	if (ret)
 		return ERR_PTR(ret);
 
