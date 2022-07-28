@@ -857,7 +857,7 @@ static void aspeed_pcie_reset_work(struct work_struct *work)
 	if (pcie->perst_rc_out)
 		gpiod_set_value(pcie->perst_rc_out, 0);
 	reset_control_assert(pcie->phy_rst);
-	ndelay(300);
+	mdelay(100);
 	if (pcie->perst_rc_out)
 		gpiod_set_value(pcie->perst_rc_out, 1);
 	reset_control_deassert(pcie->phy_rst);
