@@ -2092,10 +2092,15 @@ void uart_console_write(struct uart_port *port, const char *s,
 }
 EXPORT_SYMBOL_GPL(uart_console_write);
 
-/*
- *	Check whether an invalid uart number has been specified, and
- *	if so, search for the first available port that does have
- *	console support.
+/**
+ * uart_get_console - get uart port for console
+ * @ports: ports to search in
+ * @nr: number of @ports
+ * @co: console to search for
+ * Returns: uart_port for the console @co
+ *
+ * Check whether an invalid uart number has been specified (as @co->index), and
+ * if so, search for the first available port that does have console support.
  */
 struct uart_port * __init
 uart_get_console(struct uart_port *ports, int nr, struct console *co)

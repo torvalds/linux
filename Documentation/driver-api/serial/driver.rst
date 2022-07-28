@@ -76,7 +76,7 @@ Other functions
            uart_add_one_port uart_remove_one_port uart_console_write
            uart_parse_earlycon uart_parse_options uart_set_options
            uart_get_lsr_info uart_handle_dcd_change uart_handle_cts_change
-           uart_try_toggle_sysrq
+           uart_try_toggle_sysrq uart_get_console
 
 Other notes
 -----------
