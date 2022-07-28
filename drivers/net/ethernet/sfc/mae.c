@@ -13,6 +13,43 @@
 #include "mcdi.h"
 #include "mcdi_pcol_mae.h"
 
+int efx_mae_allocate_mport(struct efx_nic *efx, u32 *id, u32 *label)
+{
+	MCDI_DECLARE_BUF(outbuf, MC_CMD_MAE_MPORT_ALLOC_ALIAS_OUT_LEN);
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_MPORT_ALLOC_ALIAS_IN_LEN);
+	size_t outlen;
+	int rc;
+
+	if (WARN_ON_ONCE(!id))
+		return -EINVAL;
+	if (WARN_ON_ONCE(!label))
+		return -EINVAL;
+
+	MCDI_SET_DWORD(inbuf, MAE_MPORT_ALLOC_ALIAS_IN_TYPE,
+		       MC_CMD_MAE_MPORT_ALLOC_ALIAS_IN_MPORT_TYPE_ALIAS);
+	MCDI_SET_DWORD(inbuf, MAE_MPORT_ALLOC_ALIAS_IN_DELIVER_MPORT,
+		       MAE_MPORT_SELECTOR_ASSIGNED);
+	rc = efx_mcdi_rpc(efx, MC_CMD_MAE_MPORT_ALLOC, inbuf, sizeof(inbuf),
+			  outbuf, sizeof(outbuf), &outlen);
+	if (rc)
+		return rc;
+	if (outlen < sizeof(outbuf))
+		return -EIO;
+	*id = MCDI_DWORD(outbuf, MAE_MPORT_ALLOC_ALIAS_OUT_MPORT_ID);
+	*label = MCDI_DWORD(outbuf, MAE_MPORT_ALLOC_ALIAS_OUT_LABEL);
+	return 0;
+}
+
+int efx_mae_free_mport(struct efx_nic *efx, u32 id)
+{
+	MCDI_DECLARE_BUF(inbuf, MC_CMD_MAE_MPORT_FREE_IN_LEN);
+
+	BUILD_BUG_ON(MC_CMD_MAE_MPORT_FREE_OUT_LEN);
+	MCDI_SET_DWORD(inbuf, MAE_MPORT_FREE_IN_MPORT_ID, id);
+	return efx_mcdi_rpc(efx, MC_CMD_MAE_MPORT_FREE, inbuf, sizeof(inbuf),
+			    NULL, 0, NULL);
+}
+
 void efx_mae_mport_wire(struct efx_nic *efx, u32 *out)
 {
 	efx_dword_t mport;

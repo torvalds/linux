@@ -17,6 +17,9 @@
 #include "tc.h"
 #include "mcdi_pcol.h" /* needed for various MC_CMD_MAE_*_NULL defines */
 
+int efx_mae_allocate_mport(struct efx_nic *efx, u32 *id, u32 *label);
+int efx_mae_free_mport(struct efx_nic *efx, u32 id);
+
 void efx_mae_mport_wire(struct efx_nic *efx, u32 *out);
 void efx_mae_mport_uplink(struct efx_nic *efx, u32 *out);
 void efx_mae_mport_vf(struct efx_nic *efx, u32 vf_id, u32 *out);

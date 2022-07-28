@@ -49,12 +49,18 @@ enum efx_tc_rule_prios {
 /**
  * struct efx_tc_state - control plane data for TC offload
  *
+ * @reps_mport_id: MAE port allocated for representor RX
+ * @reps_filter_uc: VNIC filter for representor unicast RX (promisc)
+ * @reps_filter_mc: VNIC filter for representor multicast RX (allmulti)
+ * @reps_mport_vport_id: vport_id for representor RX filters
  * @dflt: Match-action rules for default switching; at priority
  *	%EFX_TC_PRIO_DFLT.  Named by *ingress* port
  * @dflt.pf: rule for traffic ingressing from PF (egresses to wire)
  * @dflt.wire: rule for traffic ingressing from wire (egresses to PF)
  */
 struct efx_tc_state {
+	u32 reps_mport_id, reps_mport_vport_id;
+	s32 reps_filter_uc, reps_filter_mc;
 	struct {
 		struct efx_tc_flow_rule pf;
 		struct efx_tc_flow_rule wire;
@@ -66,6 +72,9 @@ struct efx_rep;
 int efx_tc_configure_default_rule_rep(struct efx_rep *efv);
 void efx_tc_deconfigure_default_rule(struct efx_nic *efx,
 				     struct efx_tc_flow_rule *rule);
+
+int efx_tc_insert_rep_filters(struct efx_nic *efx);
+void efx_tc_remove_rep_filters(struct efx_nic *efx);
 
 int efx_init_tc(struct efx_nic *efx);
 void efx_fini_tc(struct efx_nic *efx);
