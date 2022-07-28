@@ -2885,14 +2885,15 @@ static void rk3568_crtc_load_lut(struct drm_crtc *crtc)
 	for (i = 0; i < vop2->data->nr_vps; i++) {
 		struct vop2_video_port *_vp = &vop2->vps[i];
 
-		if (_vp->gamma_lut_active)
+		if (VOP_MODULE_GET(vop2, _vp, dsp_lut_en))
 			vp_enable_gamma_nr++;
 	}
 
 	if (vop2->data->nr_gammas &&
 	    vp_enable_gamma_nr >= vop2->data->nr_gammas &&
-	    vp->gamma_lut_active == false) {
+	    VOP_MODULE_GET(vop2, vp, dsp_lut_en) == 0) {
 		DRM_INFO("only support %d gamma\n", vop2->data->nr_gammas);
+
 		return;
 	}
 
@@ -2950,7 +2951,7 @@ static void vop2_crtc_load_lut(struct drm_crtc *crtc)
 		return;
 
 	if (vop2->version == VOP_VERSION_RK3568) {
-		return rk3568_crtc_load_lut(crtc);
+		rk3568_crtc_load_lut(crtc);
 	} else if (vop2->version == VOP_VERSION_RK3588) {
 		struct rockchip_crtc_state *vcstate = to_rockchip_crtc_state(crtc->state);
 		const struct vop2_video_port_data *vp_data = &vop2->data->vp[vp->id];
