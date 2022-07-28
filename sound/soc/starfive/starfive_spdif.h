@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: GPL-2.0
+/* SPDX-License-Identifier: GPL-2.0 */
 /*
  * SPDIF driver for the StarFive JH7110 SoC
  *
@@ -79,7 +79,7 @@
 				 SPDIF_FIOF_AEMPTY | SPDIF_FIFO_FULL | \
 				 SPDIF_FIFO_AFULL | SPDIF_SYNCERR | \
 				 SPDIF_LOCK | SPDIF_BLOCK_BEGIN)
-						 
+
 #define SPDIF_ERROR_INT_STATUS	(SPDIF_PARITYO | \
 				 SPDIF_TDATA_UNDERR | SPDIF_RDATA_OVRERR)
 #define SPDIF_FIFO_INT_STATUS	(SPDIF_FIFO_EMPTY | SPDIF_FIOF_AEMPTY | \
@@ -114,7 +114,7 @@
 #define SPDIF_BEGIN_FLAG	(1<<30)	/* 1:start a new block */
 #define SPDIF_RIGHT_LEFT	(1<<31)	/* 1:left channel received and tx into FIFO; 0:right channel received and tx into FIFO */
 
-#define BIT8TO20MASK 	0x1FFF
+#define BIT8TO20MASK	0x1FFF
 #define ALLBITMASK		0xFFFFFFFF
 
 #define SPDIF_STAT		(SPDIF_PARITY_FLAG | SPDIF_UNDERR_FLAG | \
@@ -149,11 +149,11 @@ struct sf_spdif_dev {
 	bool channels;
 	unsigned int tx_ptr;
 	unsigned int rx_ptr;
-	struct clk* spdif_apb;
-	struct clk* spdif_core;
-	struct clk* apb0_clk;
-	struct clk* audio_root;
-	struct clk* mclk_inner;
+	struct clk *spdif_apb;
+	struct clk *spdif_core;
+	struct clk *apb0_clk;
+	struct clk *audio_root;
+	struct clk *mclk_inner;
 	struct reset_control *rst_apb;
 
 	struct snd_dmaengine_dai_dma_data dma_data;

@@ -1,4 +1,4 @@
-//SPDX-License-Identifier: GPL-2.0
+// SPDX-License-Identifier: GPL-2.0
 /*
  * SPDIF driver for the StarFive JH7110 SoC
  *
@@ -392,17 +392,8 @@ static struct snd_soc_dai_driver sf_spdif_dai = {
 		.channels_min = 1,
 		.channels_max = 2,
 		.rates = SF_PCM_RATE_8000_22050,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | \
-			   SNDRV_PCM_FMTBIT_S24_LE | \
-			   SNDRV_PCM_FMTBIT_S32_LE,
-	},
-	.capture =  {
-		.stream_name = "Capture",
-		.channels_min = 2,
-		.channels_max = 2,
-		.rates = SF_PCM_RATE_8000_22050,
-		.formats = SNDRV_PCM_FMTBIT_S16_LE | \
-			   SNDRV_PCM_FMTBIT_S24_LE | \
+		.formats = SNDRV_PCM_FMTBIT_S16_LE |
+			   SNDRV_PCM_FMTBIT_S24_LE |
 			   SNDRV_PCM_FMTBIT_S32_LE,
 	},
 	.ops = &sf_spdif_dai_ops,
