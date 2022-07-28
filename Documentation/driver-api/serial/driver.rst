@@ -69,85 +69,11 @@ uart_ops
 Other functions
 ---------------
 
-uart_update_timeout(port,cflag,baud)
-	Update the frame timing information according to the number of bits,
-	parity, stop bits and baud rate. The FIFO drain timeout is derived
-	from the frame timing information.
-
-	Locking: caller is expected to take port->lock
-
-	Interrupts: n/a
-
-uart_get_baud_rate(port,termios,old,min,max)
-	Return the numeric baud rate for the specified termios, taking
-	account of the special 38400 baud "kludge".  The B0 baud rate
-	is mapped to 9600 baud.
-
-	If the baud rate is not within min..max, then if old is non-NULL,
-	the original baud rate will be tried.  If that exceeds the
-	min..max constraint, 9600 baud will be returned.  termios will
-	be updated to the baud rate in use.
-
-	Note: min..max must always allow 9600 baud to be selected.
-
-	Locking: caller dependent.
-
-	Interrupts: n/a
-
-uart_get_divisor(port,baud)
-	Return the divisor (baud_base / baud) for the specified baud
-	rate, appropriately rounded.
-
-	If 38400 baud and custom divisor is selected, return the
-	custom divisor instead.
-
-	Locking: caller dependent.
-
-	Interrupts: n/a
-
-uart_match_port(port1,port2)
-	This utility function can be used to determine whether two
-	uart_port structures describe the same port.
-
-	Locking: n/a
-
-	Interrupts: n/a
-
-uart_write_wakeup(port)
-	A driver is expected to call this function when the number of
-	characters in the transmit buffer have dropped below a threshold.
-
-	Locking: port->lock should be held.
-
-	Interrupts: n/a
-
-uart_register_driver(drv)
-	Register a uart driver with the core driver.  We in turn register
-	with the tty layer, and initialise the core driver per-port state.
-
-	drv->port should be NULL, and the per-port structures should be
-	registered using uart_add_one_port after this call has succeeded.
-
-	Locking: none
-
-	Interrupts: enabled
-
-uart_unregister_driver()
-	Remove all references to a driver from the core driver.  The low
-	level driver must have removed all its ports via the
-	uart_remove_one_port() if it registered them with uart_add_one_port().
-
-	Locking: none
-
-	Interrupts: enabled
-
-**uart_suspend_port()**
-
-**uart_resume_port()**
-
-**uart_add_one_port()**
-
-**uart_remove_one_port()**
+.. kernel-doc:: drivers/tty/serial/serial_core.c
+   :identifiers: uart_update_timeout uart_get_baud_rate uart_get_divisor
+           uart_match_port uart_write_wakeup uart_register_driver
+           uart_unregister_driver uart_suspend_port uart_resume_port
+           uart_add_one_port uart_remove_one_port
 
 Other notes
 -----------

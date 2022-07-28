@@ -97,9 +97,16 @@ static inline struct uart_port *uart_port_check(struct uart_state *state)
 	return state->uart_port;
 }
 
-/*
- * This routine is used by the interrupt handler to schedule processing in
- * the software interrupt portion of the driver.
+/**
+ * uart_write_wakeup - schedule write processing
+ * @port: port to be processed
+ *
+ * This routine is used by the interrupt handler to schedule processing in the
+ * software interrupt portion of the driver. A driver is expected to call this
+ * function when the number of characters in the transmit buffer have dropped
+ * below a threshold.
+ *
+ * Locking: @port->lock should be held
  */
 void uart_write_wakeup(struct uart_port *port)
 {
@@ -327,14 +334,16 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 }
 
 /**
- *	uart_update_timeout - update per-port frame timing information.
- *	@port:  uart_port structure describing the port
- *	@cflag: termios cflag value
- *	@baud:  speed of the port
+ * uart_update_timeout - update per-port frame timing information
+ * @port: uart_port structure describing the port
+ * @cflag: termios cflag value
+ * @baud: speed of the port
  *
- *	Set the port frame timing information from which the FIFO timeout
- *	value is derived. The @cflag value should reflect the actual hardware
- *	settings.
+ * Set the @port frame timing information from which the FIFO timeout value is
+ * derived. The @cflag value should reflect the actual hardware settings as
+ * number of bits, parity, stop bits and baud rate is taken into account here.
+ *
+ * Locking: caller is expected to take @port->lock
  */
 void
 uart_update_timeout(struct uart_port *port, unsigned int cflag,
@@ -349,23 +358,25 @@ uart_update_timeout(struct uart_port *port, unsigned int cflag,
 EXPORT_SYMBOL(uart_update_timeout);
 
 /**
- *	uart_get_baud_rate - return baud rate for a particular port
- *	@port: uart_port structure describing the port in question.
- *	@termios: desired termios settings.
- *	@old: old termios (or NULL)
- *	@min: minimum acceptable baud rate
- *	@max: maximum acceptable baud rate
+ * uart_get_baud_rate - return baud rate for a particular port
+ * @port: uart_port structure describing the port in question.
+ * @termios: desired termios settings
+ * @old: old termios (or %NULL)
+ * @min: minimum acceptable baud rate
+ * @max: maximum acceptable baud rate
  *
- *	Decode the termios structure into a numeric baud rate,
- *	taking account of the magic 38400 baud rate (with spd_*
- *	flags), and mapping the %B0 rate to 9600 baud.
+ * Decode the termios structure into a numeric baud rate, taking account of the
+ * magic 38400 baud rate (with spd_* flags), and mapping the %B0 rate to 9600
+ * baud.
  *
- *	If the new baud rate is invalid, try the old termios setting.
- *	If it's still invalid, we try 9600 baud.
+ * If the new baud rate is invalid, try the @old termios setting. If it's still
+ * invalid, we try 9600 baud.
  *
- *	Update the @termios structure to reflect the baud rate
- *	we're actually going to be using. Don't do this for the case
- *	where B0 is requested ("hang up").
+ * The @termios structure is updated to reflect the baud rate we're actually
+ * going to be using. Don't do this for the case where B0 is requested ("hang
+ * up").
+ *
+ * Locking: caller dependent
  */
 unsigned int
 uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
@@ -450,11 +461,17 @@ uart_get_baud_rate(struct uart_port *port, struct ktermios *termios,
 EXPORT_SYMBOL(uart_get_baud_rate);
 
 /**
- *	uart_get_divisor - return uart clock divisor
- *	@port: uart_port structure describing the port.
- *	@baud: desired baud rate
+ * uart_get_divisor - return uart clock divisor
+ * @port: uart_port structure describing the port
+ * @baud: desired baud rate
  *
- *	Calculate the uart clock divisor for the port.
+ * Calculate the divisor (baud_base / baud) for the specified @baud,
+ * appropriately rounded.
+ *
+ * If 38400 baud and custom divisor is selected, return the custom divisor
+ * instead.
+ *
+ * Locking: caller dependent
  */
 unsigned int
 uart_get_divisor(struct uart_port *port, unsigned int baud)
@@ -2683,17 +2700,19 @@ static const struct tty_port_operations uart_port_ops = {
 };
 
 /**
- *	uart_register_driver - register a driver with the uart core layer
- *	@drv: low level driver structure
+ * uart_register_driver - register a driver with the uart core layer
+ * @drv: low level driver structure
  *
- *	Register a uart driver with the core driver.  We in turn register
- *	with the tty layer, and initialise the core driver per-port state.
+ * Register a uart driver with the core driver. We in turn register with the
+ * tty layer, and initialise the core driver per-port state.
  *
- *	We have a proc file in /proc/tty/driver which is named after the
- *	normal driver.
+ * We have a proc file in /proc/tty/driver which is named after the normal
+ * driver.
  *
- *	drv->port should be NULL, and the per-port structures should be
- *	registered using uart_add_one_port after this call has succeeded.
+ * @drv->port should be %NULL, and the per-port structures should be registered
+ * using uart_add_one_port() after this call has succeeded.
+ *
+ * Locking: none, Interrupts: enabled
  */
 int uart_register_driver(struct uart_driver *drv)
 {
@@ -2757,13 +2776,14 @@ out:
 EXPORT_SYMBOL(uart_register_driver);
 
 /**
- *	uart_unregister_driver - remove a driver from the uart core layer
- *	@drv: low level driver structure
+ * uart_unregister_driver - remove a driver from the uart core layer
+ * @drv: low level driver structure
  *
- *	Remove all references to a driver from the core driver.  The low
- *	level driver must have removed all its ports via the
- *	uart_remove_one_port() if it registered them with uart_add_one_port().
- *	(ie, drv->port == NULL)
+ * Remove all references to a driver from the core driver. The low level
+ * driver must have removed all its ports via the uart_remove_one_port() if it
+ * registered them with uart_add_one_port(). (I.e. @drv->port is %NULL.)
+ *
+ * Locking: none, Interrupts: enabled
  */
 void uart_unregister_driver(struct uart_driver *drv)
 {
@@ -3012,16 +3032,15 @@ static const struct attribute_group tty_dev_attr_group = {
 };
 
 /**
- *	uart_add_one_port - attach a driver-defined port structure
- *	@drv: pointer to the uart low level driver structure for this port
- *	@uport: uart port structure to use for this port.
+ * uart_add_one_port - attach a driver-defined port structure
+ * @drv: pointer to the uart low level driver structure for this port
+ * @uport: uart port structure to use for this port.
  *
- *	Context: task context, might sleep
+ * Context: task context, might sleep
  *
- *	This allows the driver to register its own uart_port structure
- *	with the core driver.  The main purpose is to allow the low
- *	level uart drivers to expand uart_port, rather than having yet
- *	more levels of structures.
+ * This allows the driver @drv to register its own uart_port structure with the
+ * core driver. The main purpose is to allow the low level uart drivers to
+ * expand uart_port, rather than having yet more levels of structures.
  */
 int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 {
@@ -3116,15 +3135,14 @@ int uart_add_one_port(struct uart_driver *drv, struct uart_port *uport)
 EXPORT_SYMBOL(uart_add_one_port);
 
 /**
- *	uart_remove_one_port - detach a driver defined port structure
- *	@drv: pointer to the uart low level driver structure for this port
- *	@uport: uart port structure for this port
+ * uart_remove_one_port - detach a driver defined port structure
+ * @drv: pointer to the uart low level driver structure for this port
+ * @uport: uart port structure for this port
  *
- *	Context: task context, might sleep
+ * Context: task context, might sleep
  *
- *	This unhooks (and hangs up) the specified port structure from the
- *	core driver.  No further calls will be made to the low-level code
- *	for this port.
+ * This unhooks (and hangs up) the specified port structure from the core
+ * driver. No further calls will be made to the low-level code for this port.
  */
 int uart_remove_one_port(struct uart_driver *drv, struct uart_port *uport)
 {
@@ -3196,8 +3214,13 @@ out:
 }
 EXPORT_SYMBOL(uart_remove_one_port);
 
-/*
- *	Are the two ports equivalent?
+/**
+ * uart_match_port - are the two ports equivalent?
+ * @port1: first port
+ * @port2: second port
+ *
+ * This utility function can be used to determine whether two uart_port
+ * structures describe the same port.
  */
 bool uart_match_port(const struct uart_port *port1,
 		const struct uart_port *port2)
