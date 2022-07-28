@@ -25,6 +25,7 @@
 #include <linux/math64.h>
 #include <linux/reboot.h>
 #include <linux/delay.h>
+#include <linux/soc/rockchip/rockchip_thunderboot_service.h>
 
 
 /* Register Map */
@@ -209,6 +210,7 @@ struct rk3x_i2c_soc_data {
  * @error: error code for i2c transfer
  * @i2c_restart_nb: make sure the i2c transfer to be finished
  * @system_restarting: true if system is restarting
+ * @tb_cl: client for rockchip thunder boot service
  */
 struct rk3x_i2c {
 	struct i2c_adapter adap;
@@ -244,6 +246,7 @@ struct rk3x_i2c {
 
 	struct notifier_block i2c_restart_nb;
 	bool system_restarting;
+	struct rk_tb_client tb_cl;
 };
 
 static void rk3x_i2c_prepare_read(struct rk3x_i2c *i2c);
@@ -1409,6 +1412,13 @@ static const struct of_device_id rk3x_i2c_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rk3x_i2c_match);
 
+static void rk3x_i2c_tb_cb(void *data)
+{
+	unsigned int irq = (unsigned long)data;
+
+	enable_irq(irq);
+}
+
 static int rk3x_i2c_probe(struct platform_device *pdev)
 {
 	struct device_node *np = pdev->dev.of_node;
@@ -1498,12 +1508,22 @@ static int rk3x_i2c_probe(struct platform_device *pdev)
 	if (irq < 0)
 		return irq;
 
+	if (IS_ENABLED(CONFIG_ROCKCHIP_THUNDER_BOOT_SERVICE) &&
+	    device_property_read_bool(&pdev->dev, "rockchip,amp-shared")) {
+		i2c->tb_cl.data = (void *)(unsigned long)irq;
+		i2c->tb_cl.cb = rk3x_i2c_tb_cb;
+		irq_set_status_flags(irq, IRQ_NOAUTOEN);
+	}
+
 	ret = devm_request_irq(&pdev->dev, irq, rk3x_i2c_irq,
 			       0, dev_name(&pdev->dev), i2c);
 	if (ret < 0) {
 		dev_err(&pdev->dev, "cannot request IRQ\n");
 		return ret;
 	}
+
+	if (IS_ENABLED(CONFIG_ROCKCHIP_THUNDER_BOOT_SERVICE) && i2c->tb_cl.cb)
+		rk_tb_client_register_cb(&i2c->tb_cl);
 
 	platform_set_drvdata(pdev, i2c);
 
