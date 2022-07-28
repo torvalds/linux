@@ -478,6 +478,9 @@ static void rga_power_disable_all(void)
 	}
 }
 
+#else
+static inline void rga_power_enable_all(void) {}
+static inline void rga_power_disable_all(void) {}
 #endif //CONFIG_ROCKCHIP_FPGA
 
 static int rga_session_manager_init(struct rga_session_manager **session_manager_ptr)
@@ -1373,8 +1376,11 @@ static int rga_drv_probe(struct platform_device *pdev)
 	const struct of_device_id *match = NULL;
 	struct device *dev = &pdev->dev;
 	const struct rga_match_data_t *match_data;
-	int i, irq;
+	int irq;
 	struct rga_scheduler_t *scheduler = NULL;
+#ifndef CONFIG_ROCKCHIP_FPGA
+	int i;
+#endif
 
 	if (!pdev->dev.of_node)
 		return -EINVAL;
@@ -1523,9 +1529,11 @@ static int rga_drv_probe(struct platform_device *pdev)
 
 	return 0;
 
+#ifndef CONFIG_ROCKCHIP_FPGA
 failed:
 	device_init_wakeup(dev, false);
 	pm_runtime_disable(dev);
+#endif //CONFIG_ROCKCHIP_FPGA
 
 	return ret;
 }
