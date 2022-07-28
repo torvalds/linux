@@ -270,6 +270,7 @@ static struct attribute_group power10_pmu_caps_group = {
 static const struct attribute_group *power10_pmu_attr_groups_dd1[] = {
 	&power10_pmu_format_group,
 	&power10_pmu_events_group_dd1,
+	&power10_pmu_caps_group,
 	NULL,
 };
 
