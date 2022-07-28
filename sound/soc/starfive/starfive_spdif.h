@@ -146,6 +146,7 @@ struct sf_spdif_dev {
 			bool *period_elapsed, snd_pcm_format_t format);
 
 	snd_pcm_format_t format;
+	bool channels;
 	unsigned int tx_ptr;
 	unsigned int rx_ptr;
 	struct clk* spdif_apb;

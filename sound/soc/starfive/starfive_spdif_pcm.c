@@ -32,35 +32,66 @@ static unsigned int sf_spdif_pcm_tx(struct sf_spdif_dev *dev,
 		struct snd_pcm_runtime *runtime, unsigned int tx_ptr, 
 		bool *period_elapsed, snd_pcm_format_t format) 
 { 
-	const u16 (*p16)[2] = (void *)runtime->dma_area; 
-	const u32 (*p32)[2] = (void *)runtime->dma_area; 
 	u32 data[2];
 	unsigned int period_pos = tx_ptr % runtime->period_size; 
 	int i;  
 
-	for (i = 0; i < dev->fifo_th; i++) { 
-		if (SNDRV_PCM_FORMAT_S16_LE == format) {
-			data[0] = p16[tx_ptr][0];
-			data[1] = p16[tx_ptr][1];
-			data[0] = data[0]<<8;
-			data[1] = data[1]<<8;
-		} else if (SNDRV_PCM_FORMAT_S24_LE == format) {
-			data[0] = p32[tx_ptr][0];
-			data[1] = p32[tx_ptr][1];
-		} else if (SNDRV_PCM_FORMAT_S32_LE == format) {
-			data[0] = p32[tx_ptr][0];
-			data[1] = p32[tx_ptr][1];
-			data[0] = data[0]>>8;
-			data[1] = data[1]>>8;
+	/* two- channel and signal-channel mode */
+	if (dev->channels) {
+		const u16 (*p16)[2] = (void *)runtime->dma_area;
+		const u32 (*p32)[2] = (void *)runtime->dma_area;
+
+		for (i = 0; i < dev->fifo_th; i++) {
+			if (SNDRV_PCM_FORMAT_S16_LE == format) {
+				data[0] = p16[tx_ptr][0];
+				data[0] = data[0]<<8;
+				data[0] &= 0x00ffff00;
+				data[1] = p16[tx_ptr][1];
+				data[1] = data[1]<<8;
+				data[1] &= 0x00ffff00;
+			} else if (SNDRV_PCM_FORMAT_S24_LE == format) {
+				data[0] = p32[tx_ptr][0];
+				data[0] &= 0x00ffffff;
+				data[1] = p32[tx_ptr][1];
+				data[1] &= 0x00ffffff;
+			} else if (SNDRV_PCM_FORMAT_S32_LE == format) {
+				data[0] = p32[tx_ptr][0];
+				data[0] = data[0]>>8;
+				data[1] = p32[tx_ptr][1];
+				data[1] = data[1]>>8;
+			}
+
+			iowrite32(data[0], dev->spdif_base + SPDIF_FIFO_ADDR);
+			iowrite32(data[1], dev->spdif_base + SPDIF_FIFO_ADDR);
+			period_pos++;
+			if (++tx_ptr >= runtime->buffer_size) {
+				tx_ptr = 0;
+			}
 		}
-		
-		iowrite32(data[0], dev->spdif_base + SPDIF_FIFO_ADDR); 
-		iowrite32(data[1], dev->spdif_base + SPDIF_FIFO_ADDR); 
-		period_pos++; 
-		if (++tx_ptr >= runtime->buffer_size) {
-			tx_ptr = 0; 
+	} else {
+		const u16 (*p16) = (void *)runtime->dma_area;
+		const u32 (*p32) = (void *)runtime->dma_area;
+
+		for (i = 0; i < dev->fifo_th; i++) {
+			if (SNDRV_PCM_FORMAT_S16_LE == format) {
+				data[0] = p16[tx_ptr];
+				data[0] = data[0]<<8;
+				data[0] &= 0x00ffff00;
+			} else if (SNDRV_PCM_FORMAT_S24_LE == format) {
+				data[0] = p32[tx_ptr];
+				data[0] &= 0x00ffffff;
+			} else if (SNDRV_PCM_FORMAT_S32_LE == format) {
+				data[0] = p32[tx_ptr];
+				data[0] = data[0]>>8;
+			}
+
+			iowrite32(data[0], dev->spdif_base + SPDIF_FIFO_ADDR);
+			period_pos++;
+			if (++tx_ptr >= runtime->buffer_size) {
+				tx_ptr = 0;
+			}
 		}
-	} 
+	}
 
 	*period_elapsed = period_pos >= runtime->period_size; 
 	return tx_ptr; 
@@ -116,7 +147,7 @@ static const struct snd_pcm_hardware sf_pcm_hardware = {
 	.formats = SNDRV_PCM_FMTBIT_S16_LE |
 		SNDRV_PCM_FMTBIT_S24_LE |
 		SNDRV_PCM_FMTBIT_S32_LE,
-	.channels_min = 2,
+	.channels_min = 1,
 	.channels_max = 2,
 	.buffer_bytes_max = BUFFER_BYTES_MAX,
 	.period_bytes_min = PERIOD_BYTES_MIN,
@@ -198,6 +229,7 @@ static int sf_pcm_hw_params(struct snd_soc_component *component,
 	struct sf_spdif_dev *dev = runtime->private_data;
 
 	switch (params_channels(hw_params)) {
+	case 1:
 	case 2:
 		break;
 	default:
