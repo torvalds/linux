@@ -302,8 +302,6 @@ struct timing_generator_funcs {
 			int group_idx,
 			uint32_t gsl_ready_signal);
 	void (*set_out_mux)(struct timing_generator *tg, enum otg_out_mux_dest dest);
-	void (*set_vrr_m_const)(struct timing_generator *optc,
-			double vtotal_avg);
 	void (*set_drr_trigger_window)(struct timing_generator *optc,
 			uint32_t window_start, uint32_t window_end);
 	void (*set_vtotal_change_limit)(struct timing_generator *optc,

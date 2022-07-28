@@ -281,7 +281,6 @@ static struct timing_generator_funcs dcn32_tg_funcs = {
 		.lock_doublebuffer_enable = optc3_lock_doublebuffer_enable,
 		.lock_doublebuffer_disable = optc3_lock_doublebuffer_disable,
 		.enable_optc_clock = optc1_enable_optc_clock,
-		.set_vrr_m_const = optc3_set_vrr_m_const,
 		.set_drr = optc31_set_drr, // TODO: Update to optc32_set_drr once FW headers are promoted
 		.get_last_used_drr_vtotal = optc2_get_last_used_drr_vtotal,
 		.set_vtotal_min_max = optc3_set_vtotal_min_max,
