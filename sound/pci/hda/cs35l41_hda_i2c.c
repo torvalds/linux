@@ -22,6 +22,8 @@ static int cs35l41_hda_i2c_probe(struct i2c_client *clt, const struct i2c_device
 	 */
 	if (strstr(dev_name(&clt->dev), "CLSA0100"))
 		device_name = "CLSA0100";
+	else if (strstr(dev_name(&clt->dev), "CLSA0101"))
+		device_name = "CLSA0101";
 	else if (strstr(dev_name(&clt->dev), "CSC3551"))
 		device_name = "CSC3551";
 	else
@@ -45,6 +47,7 @@ static const struct i2c_device_id cs35l41_hda_i2c_id[] = {
 
 static const struct acpi_device_id cs35l41_acpi_hda_match[] = {
 	{"CLSA0100", 0 },
+	{"CLSA0101", 0 },
 	{"CSC3551", 0 },
 	{}
 };
