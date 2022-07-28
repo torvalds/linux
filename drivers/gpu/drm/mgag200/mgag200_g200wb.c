@@ -6,6 +6,28 @@
 
 #include "mgag200_drv.h"
 
+void mgag200_g200wb_init_registers(struct mga_device *mdev)
+{
+	static const u8 dacvalue[] = {
+		MGAG200_DAC_DEFAULT(0x07, 0xc9, 0x1f, 0x00, 0x00, 0x00)
+	};
+
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(dacvalue); i++) {
+		if ((i <= 0x17) ||
+		    (i == 0x1b) ||
+		    (i == 0x1c) ||
+		    ((i >= 0x1f) && (i <= 0x29)) ||
+		    ((i >= 0x30) && (i <= 0x37)) ||
+		    ((i >= 0x44) && (i <= 0x4e)))
+			continue;
+		WREG_DAC(i, dacvalue[i]);
+	}
+
+	mgag200_init_registers(mdev);
+}
+
 /*
  * DRM device
  */
@@ -39,6 +61,8 @@ struct mga_device *mgag200_g200wb_device_create(struct pci_dev *pdev, const stru
 	ret = mgag200_device_init(mdev, type, &mgag200_g200wb_device_info);
 	if (ret)
 		return ERR_PTR(ret);
+
+	mgag200_g200wb_init_registers(mdev);
 
 	vram_available = mgag200_device_probe_vram(mdev);
 

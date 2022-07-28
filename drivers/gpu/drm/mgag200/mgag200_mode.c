@@ -266,85 +266,9 @@ static void mgag200_set_startadd(struct mga_device *mdev,
 	WREG_ECRT(0x00, crtcext0);
 }
 
-static void mgag200_set_dac_regs(struct mga_device *mdev)
-{
-	size_t i;
-	u8 dacvalue[] = {
-		/* 0x00: */        0,    0,    0,    0,    0,    0, 0x00,    0,
-		/* 0x08: */        0,    0,    0,    0,    0,    0,    0,    0,
-		/* 0x10: */        0,    0,    0,    0,    0,    0,    0,    0,
-		/* 0x18: */     0x00,    0, 0xC9, 0xFF, 0xBF, 0x20, 0x1F, 0x20,
-		/* 0x20: */     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,
-		/* 0x28: */     0x00, 0x00, 0x00, 0x00,    0,    0,    0, 0x40,
-		/* 0x30: */     0x00, 0xB0, 0x00, 0xC2, 0x34, 0x14, 0x02, 0x83,
-		/* 0x38: */     0x00, 0x93, 0x00, 0x77, 0x00, 0x00, 0x00, 0x3A,
-		/* 0x40: */        0,    0,    0,    0,    0,    0,    0,    0,
-		/* 0x48: */        0,    0,    0,    0,    0,    0,    0,    0
-	};
-
-	switch (mdev->type) {
-	case G200_PCI:
-	case G200_AGP:
-		dacvalue[MGA1064_SYS_PLL_M] = 0x04;
-		dacvalue[MGA1064_SYS_PLL_N] = 0x2D;
-		dacvalue[MGA1064_SYS_PLL_P] = 0x19;
-		break;
-	case G200_SE_A:
-	case G200_SE_B:
-		dacvalue[MGA1064_VREF_CTL] = 0x03;
-		dacvalue[MGA1064_PIX_CLK_CTL] = MGA1064_PIX_CLK_CTL_SEL_PLL;
-		dacvalue[MGA1064_MISC_CTL] = MGA1064_MISC_CTL_DAC_EN |
-					     MGA1064_MISC_CTL_VGA8 |
-					     MGA1064_MISC_CTL_DAC_RAM_CS;
-		break;
-	case G200_WB:
-	case G200_EW3:
-		dacvalue[MGA1064_VREF_CTL] = 0x07;
-		break;
-	case G200_EV:
-		dacvalue[MGA1064_PIX_CLK_CTL] = MGA1064_PIX_CLK_CTL_SEL_PLL;
-		dacvalue[MGA1064_MISC_CTL] = MGA1064_MISC_CTL_VGA8 |
-					     MGA1064_MISC_CTL_DAC_RAM_CS;
-		break;
-	case G200_EH:
-	case G200_EH3:
-		dacvalue[MGA1064_MISC_CTL] = MGA1064_MISC_CTL_VGA8 |
-					     MGA1064_MISC_CTL_DAC_RAM_CS;
-		break;
-	case G200_ER:
-		break;
-	}
-
-	for (i = 0; i < ARRAY_SIZE(dacvalue); i++) {
-		if ((i <= 0x17) ||
-		    (i == 0x1b) ||
-		    (i == 0x1c) ||
-		    ((i >= 0x1f) && (i <= 0x29)) ||
-		    ((i >= 0x30) && (i <= 0x37)))
-			continue;
-		if (IS_G200_SE(mdev) &&
-		    ((i == 0x2c) || (i == 0x2d) || (i == 0x2e)))
-			continue;
-		if ((mdev->type == G200_EV ||
-		    mdev->type == G200_WB ||
-		    mdev->type == G200_EH ||
-		    mdev->type == G200_EW3 ||
-		    mdev->type == G200_EH3) &&
-		    (i >= 0x44) && (i <= 0x4e))
-			continue;
-
-		WREG_DAC(i, dacvalue[i]);
-	}
-
-	if (mdev->type == G200_ER)
-		WREG_DAC(0x90, 0);
-}
-
-static void mgag200_init_regs(struct mga_device *mdev)
+void mgag200_init_registers(struct mga_device *mdev)
 {
 	u8 crtc11, misc;
-
-	mgag200_set_dac_regs(mdev);
 
 	WREG_SEQ(2, 0x0f);
 	WREG_SEQ(3, 0x00);
@@ -1125,8 +1049,6 @@ int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_available
 {
 	struct drm_device *dev = &mdev->base;
 	int ret;
-
-	mgag200_init_regs(mdev);
 
 	ret = mgag200_mode_config_init(mdev, vram_available);
 	if (ret)

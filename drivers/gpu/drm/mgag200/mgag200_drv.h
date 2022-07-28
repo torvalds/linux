@@ -123,6 +123,33 @@
 #define MGA_MISC_OUT 0x1fc2
 #define MGA_MISC_IN 0x1fcc
 
+/*
+ * TODO: This is a pretty large set of default values for all kinds of
+ *       settings. It should be split and set in the various DRM helpers,
+ *       such as the CRTC reset or atomic_enable helpers. The PLL values
+ *       probably belong to each model's PLL code.
+ */
+#define MGAG200_DAC_DEFAULT(xvrefctrl, xpixclkctrl, xmiscctrl, xsyspllm, xsysplln, xsyspllp)	\
+	/* 0x00: */        0,    0,    0,    0,    0,    0, 0x00,    0,				\
+	/* 0x08: */        0,    0,    0,    0,    0,    0,    0,    0,				\
+	/* 0x10: */        0,    0,    0,    0,    0,    0,    0,    0,				\
+	/* 0x18: */     (xvrefctrl),								\
+	/* 0x19: */        0,									\
+	/* 0x1a: */     (xpixclkctrl),								\
+	/* 0x1b: */     0xff, 0xbf, 0x20,							\
+	/* 0x1e: */	(xmiscctrl),								\
+	/* 0x1f: */	0x20,									\
+	/* 0x20: */     0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00,				\
+	/* 0x28: */     0x00, 0x00, 0x00, 0x00,							\
+	/* 0x2c: */     (xsyspllm),								\
+	/* 0x2d: */     (xsysplln),								\
+	/* 0x2e: */     (xsyspllp),								\
+	/* 0x2f: */     0x40,									\
+	/* 0x30: */     0x00, 0xb0, 0x00, 0xc2, 0x34, 0x14, 0x02, 0x83,				\
+	/* 0x38: */     0x00, 0x93, 0x00, 0x77, 0x00, 0x00, 0x00, 0x3a,				\
+	/* 0x40: */        0,    0,    0,    0,    0,    0,    0,    0,				\
+	/* 0x48: */        0,    0,    0,    0,    0,    0,    0,    0				\
+
 #define MGAG200_MAX_FB_HEIGHT 4096
 #define MGAG200_MAX_FB_WIDTH 4096
 
@@ -295,10 +322,12 @@ struct mga_device *mgag200_g200_device_create(struct pci_dev *pdev, const struct
 					      enum mga_type type);
 struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 						enum mga_type type);
+void mgag200_g200wb_init_registers(struct mga_device *mdev);
 struct mga_device *mgag200_g200wb_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 						enum mga_type type);
 struct mga_device *mgag200_g200ev_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 						enum mga_type type);
+void mgag200_g200eh_init_registers(struct mga_device *mdev);
 struct mga_device *mgag200_g200eh_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 						enum mga_type type);
 struct mga_device *mgag200_g200eh3_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
@@ -310,6 +339,7 @@ struct mga_device *mgag200_g200ew3_device_create(struct pci_dev *pdev, const str
 
 				/* mgag200_mode.c */
 resource_size_t mgag200_device_probe_vram(struct mga_device *mdev);
+void mgag200_init_registers(struct mga_device *mdev);
 int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_fb_available);
 
 				/* mgag200_i2c.c */

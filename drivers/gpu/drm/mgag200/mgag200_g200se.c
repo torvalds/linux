@@ -28,6 +28,34 @@ static int mgag200_g200se_init_pci_options(struct pci_dev *pdev)
 	return mgag200_init_pci_options(pdev, option, 0x00008000);
 }
 
+static void mgag200_g200se_init_registers(struct mgag200_g200se_device *g200se)
+{
+	static const u8 dacvalue[] = {
+		MGAG200_DAC_DEFAULT(0x03,
+				    MGA1064_PIX_CLK_CTL_SEL_PLL,
+				    MGA1064_MISC_CTL_DAC_EN |
+				    MGA1064_MISC_CTL_VGA8 |
+				    MGA1064_MISC_CTL_DAC_RAM_CS,
+				    0x00, 0x00, 0x00)
+	};
+
+	struct mga_device *mdev = &g200se->base;
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(dacvalue); i++) {
+		if ((i <= 0x17) ||
+		    (i == 0x1b) ||
+		    (i == 0x1c) ||
+		    ((i >= 0x1f) && (i <= 0x29)) ||
+		    ((i == 0x2c) || (i == 0x2d) || (i == 0x2e)) ||
+		    ((i >= 0x30) && (i <= 0x37)))
+			continue;
+		WREG_DAC(i, dacvalue[i]);
+	}
+
+	mgag200_init_registers(mdev);
+}
+
 /*
  * DRM device
  */
@@ -119,6 +147,8 @@ struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const stru
 	ret = mgag200_device_init(mdev, type, info);
 	if (ret)
 		return ERR_PTR(ret);
+
+	mgag200_g200se_init_registers(g200se);
 
 	vram_available = mgag200_device_probe_vram(mdev);
 

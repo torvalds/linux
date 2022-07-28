@@ -50,6 +50,8 @@ struct mga_device *mgag200_g200ew3_device_create(struct pci_dev *pdev,
 	if (ret)
 		return ERR_PTR(ret);
 
+	mgag200_g200wb_init_registers(mdev); // same as G200WB
+
 	vram_available = mgag200_g200ew3_device_probe_vram(mdev);
 
 	ret = mgag200_modeset_init(mdev, vram_available);
