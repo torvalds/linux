@@ -42,7 +42,10 @@ void call_rcu(struct rcu_head *head, rcu_callback_t func);
 void rcu_barrier_tasks(void);
 void rcu_barrier_tasks_rude(void);
 void synchronize_rcu(void);
+
+struct rcu_gp_oldstate;
 unsigned long get_completed_synchronize_rcu(void);
+void get_completed_synchronize_rcu_full(struct rcu_gp_oldstate *rgosp);
 
 #ifdef CONFIG_PREEMPT_RCU
 

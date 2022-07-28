@@ -336,8 +336,10 @@ struct rcu_torture_ops {
 	void (*cond_sync_exp)(unsigned long oldstate);
 	unsigned long (*get_gp_state)(void);
 	unsigned long (*get_gp_completed)(void);
+	void (*get_gp_completed_full)(struct rcu_gp_oldstate *rgosp);
 	unsigned long (*start_gp_poll)(void);
 	bool (*poll_gp_state)(unsigned long oldstate);
+	bool (*poll_gp_state_full)(struct rcu_gp_oldstate *rgosp);
 	void (*cond_sync)(unsigned long oldstate);
 	call_rcu_func_t call;
 	void (*cb_barrier)(void);
@@ -503,8 +505,10 @@ static struct rcu_torture_ops rcu_ops = {
 	.exp_sync		= synchronize_rcu_expedited,
 	.get_gp_state		= get_state_synchronize_rcu,
 	.get_gp_completed	= get_completed_synchronize_rcu,
+	.get_gp_completed_full	= get_completed_synchronize_rcu_full,
 	.start_gp_poll		= start_poll_synchronize_rcu,
 	.poll_gp_state		= poll_state_synchronize_rcu,
+	.poll_gp_state_full	= poll_state_synchronize_rcu_full,
 	.cond_sync		= cond_synchronize_rcu,
 	.get_gp_state_exp	= get_state_synchronize_rcu,
 	.start_gp_poll_exp	= start_poll_synchronize_rcu_expedited,
@@ -1212,6 +1216,7 @@ rcu_torture_writer(void *arg)
 	bool boot_ended;
 	bool can_expedite = !rcu_gp_is_expedited() && !rcu_gp_is_normal();
 	unsigned long cookie;
+	struct rcu_gp_oldstate cookie_full;
 	int expediting = 0;
 	unsigned long gp_snap;
 	int i;
@@ -1276,6 +1281,10 @@ rcu_torture_writer(void *arg)
 					WARN_ON_ONCE(!cur_ops->poll_gp_state(cookie));
 				}
 				cur_ops->readunlock(idx);
+			}
+			if (cur_ops->get_gp_completed_full && cur_ops->poll_gp_state_full) {
+				cur_ops->get_gp_completed_full(&cookie_full);
+				WARN_ON_ONCE(!cur_ops->poll_gp_state_full(&cookie_full));
 			}
 			switch (synctype[torture_random(&rand) % nsynctypes]) {
 			case RTWS_DEF_FREE:
