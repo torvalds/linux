@@ -70,6 +70,15 @@ void vt6655_mac_word_reg_bits_off(void __iomem *iobase, const u8 reg_offset, con
 	iowrite16(reg_value & ~(bit_mask), iobase + reg_offset);
 }
 
+static void vt6655_mac_clear_stck_ds(void __iomem *iobase)
+{
+	u8 reg_value;
+
+	reg_value = ioread8(iobase + MAC_REG_STICKHW);
+	reg_value = reg_value & 0xFC;
+	iowrite8(reg_value, iobase + MAC_REG_STICKHW);
+}
+
 /*
  * Description:
  *      Test if all test bits off

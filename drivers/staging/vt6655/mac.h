@@ -577,14 +577,6 @@ do {									\
 		iowrite32(DMACTL_RUN, iobase + MAC_REG_AC0DMACTL);	\
 } while (0)
 
-#define vt6655_mac_clear_stck_ds(iobase)				\
-do {									\
-	unsigned char byOrgValue;					\
-	byOrgValue = ioread8(iobase + MAC_REG_STICKHW);			\
-	byOrgValue = byOrgValue & 0xFC;					\
-	iowrite8(byOrgValue, iobase + MAC_REG_STICKHW);			\
-} while (0)
-
 #define MACvSelectPage0(iobase)				\
 	iowrite8(0, iobase + MAC_REG_PAGE1SEL)
 
