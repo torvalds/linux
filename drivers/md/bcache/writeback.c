@@ -901,6 +901,7 @@ void bch_sectors_dirty_init(struct bcache_device *d)
 		return;
 	}
 
+	memset(&state, 0, sizeof(struct bch_dirty_init_state));
 	state.c = c;
 	state.d = d;
 	state.total_threads = bch_btre_dirty_init_thread_nr();
