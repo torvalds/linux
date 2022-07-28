@@ -16,6 +16,7 @@ ALL_TESTS="
 	ipv4_replay
 	ipv4_flush
 	ipv4_error_path
+	ipv4_delete_fail
 	ipv6_add
 	ipv6_metric
 	ipv6_append_single
@@ -29,11 +30,13 @@ ALL_TESTS="
 	ipv6_replay_single
 	ipv6_replay_multipath
 	ipv6_error_path
+	ipv6_delete_fail
 "
 NETDEVSIM_PATH=/sys/bus/netdevsim/
 DEV_ADDR=1337
 DEV=netdevsim${DEV_ADDR}
 SYSFS_NET_DIR=/sys/bus/netdevsim/devices/$DEV/net/
+DEBUGFS_DIR=/sys/kernel/debug/netdevsim/$DEV/
 NUM_NETIFS=0
 source $lib_dir/lib.sh
 source $lib_dir/fib_offload_lib.sh
@@ -155,6 +158,27 @@ ipv4_error_path()
 	# of the "IPv4/fib" resource.
 	ipv4_error_path_add
 	ipv4_error_path_replay
+}
+
+ipv4_delete_fail()
+{
+	RET=0
+
+	echo "y" > $DEBUGFS_DIR/fib/fail_route_delete
+
+	ip -n testns1 link add name dummy1 type dummy
+	ip -n testns1 link set dev dummy1 up
+
+	ip -n testns1 route add 192.0.2.0/24 dev dummy1
+	ip -n testns1 route del 192.0.2.0/24 dev dummy1 &> /dev/null
+
+	# We should not be able to delete the netdev if we are leaking a
+	# reference.
+	ip -n testns1 link del dev dummy1
+
+	log_test "IPv4 route delete failure"
+
+	echo "n" > $DEBUGFS_DIR/fib/fail_route_delete
 }
 
 ipv6_add()
@@ -302,6 +326,27 @@ ipv6_error_path()
 	ipv6_error_path_add_single
 	ipv6_error_path_add_multipath
 	ipv6_error_path_replay
+}
+
+ipv6_delete_fail()
+{
+	RET=0
+
+	echo "y" > $DEBUGFS_DIR/fib/fail_route_delete
+
+	ip -n testns1 link add name dummy1 type dummy
+	ip -n testns1 link set dev dummy1 up
+
+	ip -n testns1 route add 2001:db8:1::/64 dev dummy1
+	ip -n testns1 route del 2001:db8:1::/64 dev dummy1 &> /dev/null
+
+	# We should not be able to delete the netdev if we are leaking a
+	# reference.
+	ip -n testns1 link del dev dummy1
+
+	log_test "IPv6 route delete failure"
+
+	echo "n" > $DEBUGFS_DIR/fib/fail_route_delete
 }
 
 fib_notify_on_flag_change_set()
