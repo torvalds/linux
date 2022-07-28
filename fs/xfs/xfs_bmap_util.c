@@ -439,29 +439,28 @@ xfs_getbmap(
 		whichfork = XFS_COW_FORK;
 	else
 		whichfork = XFS_DATA_FORK;
-	ifp = xfs_ifork_ptr(ip, whichfork);
 
 	xfs_ilock(ip, XFS_IOLOCK_SHARED);
 	switch (whichfork) {
 	case XFS_ATTR_FORK:
+		lock = xfs_ilock_attr_map_shared(ip);
 		if (!xfs_inode_has_attr_fork(ip))
-			goto out_unlock_iolock;
+			goto out_unlock_ilock;
 
 		max_len = 1LL << 32;
-		lock = xfs_ilock_attr_map_shared(ip);
 		break;
 	case XFS_COW_FORK:
+		lock = XFS_ILOCK_SHARED;
+		xfs_ilock(ip, lock);
+
 		/* No CoW fork? Just return */
-		if (!ifp)
-			goto out_unlock_iolock;
+		if (!xfs_ifork_ptr(ip, whichfork))
+			goto out_unlock_ilock;
 
 		if (xfs_get_cowextsz_hint(ip))
 			max_len = mp->m_super->s_maxbytes;
 		else
 			max_len = XFS_ISIZE(ip);
-
-		lock = XFS_ILOCK_SHARED;
-		xfs_ilock(ip, lock);
 		break;
 	case XFS_DATA_FORK:
 		if (!(iflags & BMV_IF_DELALLOC) &&
@@ -490,6 +489,8 @@ xfs_getbmap(
 		lock = xfs_ilock_data_map_shared(ip);
 		break;
 	}
+
+	ifp = xfs_ifork_ptr(ip, whichfork);
 
 	switch (ifp->if_format) {
 	case XFS_DINODE_FMT_EXTENTS:
