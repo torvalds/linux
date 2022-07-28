@@ -15,11 +15,13 @@
 
 #include <video/vga.h>
 
+#include <drm/drm_connector.h>
+#include <drm/drm_crtc.h>
 #include <drm/drm_encoder.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_gem.h>
 #include <drm/drm_gem_shmem_helper.h>
-#include <drm/drm_simple_kms_helper.h>
+#include <drm/drm_plane.h>
 
 #include "mgag200_reg.h"
 
@@ -276,9 +278,11 @@ struct mga_device {
 	enum mga_type			type;
 
 	struct mgag200_pll pixpll;
+	struct drm_plane primary_plane;
+	struct drm_crtc crtc;
+	struct drm_encoder encoder;
 	struct mga_i2c_chan i2c;
 	struct drm_connector connector;
-	struct drm_simple_display_pipe display_pipe;
 };
 
 static inline struct mga_device *to_mga_device(struct drm_device *dev)
