@@ -916,8 +916,6 @@ static int vidioc_try_fmt_vid_cap(struct file *file, void *priv,
 		return -EINVAL;
 	}
 
-	field = f->fmt.pix.field;
-
 	field = V4L2_FIELD_INTERLACED;
 
 	tm6000_get_std_res(dev);
