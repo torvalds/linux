@@ -78,8 +78,7 @@ PPC_FEATURE_64
 
 PPC_FEATURE_601_INSTR
     The processor is PowerPC 601.
-    Unused in the kernel since:
-      f0ed73f3fa2c ("powerpc: Remove PowerPC 601")
+    Unused in the kernel since f0ed73f3fa2c ("powerpc: Remove PowerPC 601")
 
 PPC_FEATURE_HAS_ALTIVEC
     Vector (aka Altivec, VMX) facility is available.
@@ -96,8 +95,7 @@ PPC_FEATURE_HAS_4xxMAC
 PPC_FEATURE_UNIFIED_CACHE
     The processor has a unified L1 cache for instructions and data, as
     found in NXP e200.
-    Unused in the kernel since:
-      39c8bf2b3cc1 ("powerpc: Retire e200 core (mpc555x processor)")
+    Unused in the kernel since 39c8bf2b3cc1 ("powerpc: Retire e200 core (mpc555x processor)")
 
 PPC_FEATURE_HAS_SPE
     Signal Processing Engine facility is available.
@@ -113,13 +111,11 @@ PPC_FEATURE_NO_TB
     This is a 601 specific HWCAP, so if it is known that the processor
     running is not a 601, via other HWCAPs or other means, it is not
     required to test this bit before using the timebase.
-    Unused in the kernel since:
-      f0ed73f3fa2c ("powerpc: Remove PowerPC 601")
+    Unused in the kernel since f0ed73f3fa2c ("powerpc: Remove PowerPC 601")
 
 PPC_FEATURE_POWER4
     The processor is POWER4 or PPC970/FX/MP.
-    POWER4 support dropped from the kernel since:
-      471d7ff8b51b ("powerpc/64s: Remove POWER4 support")
+    POWER4 support dropped from the kernel since 471d7ff8b51b ("powerpc/64s: Remove POWER4 support")
 
 PPC_FEATURE_POWER5
     The processor is POWER5.
@@ -140,7 +136,8 @@ PPC_FEATURE_ICACHE_SNOOP
     The processor icache is coherent with the dcache, and instruction storage
     can be made consistent with data storage for the purpose of executing
     instructions with the sequence (as described in, e.g., POWER9 Processor
-    User's Manual, 4.6.2.2 Instruction Cache Block Invalidate (icbi)):
+    User's Manual, 4.6.2.2 Instruction Cache Block Invalidate (icbi))::
+
         sync
         icbi (to any address)
         isync
