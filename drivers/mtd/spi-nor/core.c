@@ -2838,10 +2838,20 @@ static void spi_nor_put_device(struct mtd_info *mtd)
 
 void spi_nor_restore(struct spi_nor *nor)
 {
+	int ret;
+
 	/* restore the addressing mode */
 	if (nor->addr_nbytes == 4 && !(nor->flags & SNOR_F_4B_OPCODES) &&
-	    nor->flags & SNOR_F_BROKEN_RESET)
-		nor->params->set_4byte_addr_mode(nor, false);
+	    nor->flags & SNOR_F_BROKEN_RESET) {
+		ret = nor->params->set_4byte_addr_mode(nor, false);
+		if (ret)
+			/*
+			 * Do not stop the execution in the hope that the flash
+			 * will default to the 3-byte address mode after the
+			 * software reset.
+			 */
+			dev_err(nor->dev, "Failed to exit 4-byte address mode, err = %d\n", ret);
+	}
 
 	if (nor->flags & SNOR_F_SOFT_RESET)
 		spi_nor_soft_reset(nor);
