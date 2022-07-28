@@ -305,7 +305,8 @@ over a rather long period of time, but improvements are always welcome!
 		the machine.
 
 	d.	Periodically invoke synchronize_rcu(), permitting a limited
-		number of updates per grace period.
+		number of updates per grace period.  Better yet, periodically
+		invoke rcu_barrier() to wait for all outstanding callbacks.
 
 	The same cautions apply to call_srcu() and kfree_rcu().
 
