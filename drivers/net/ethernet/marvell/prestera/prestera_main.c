@@ -847,7 +847,7 @@ static void prestera_event_handlers_unregister(struct prestera_switch *sw)
 static int prestera_switch_set_base_mac_addr(struct prestera_switch *sw)
 {
 	struct device_node *base_mac_np;
-	int ret;
+	int ret = 0;
 
 	if (sw->np) {
 		base_mac_np = of_parse_phandle(sw->np, "base-mac-provider", 0);
