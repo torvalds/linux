@@ -117,11 +117,10 @@ struct icc_bwmon_data {
 
 struct icc_bwmon {
 	struct device *dev;
+	const struct icc_bwmon_data *data;
 	void __iomem *base;
 	int irq;
 
-	unsigned int default_lowbw_kbps;
-	unsigned int sample_ms;
 	unsigned int max_bw_kbps;
 	unsigned int min_bw_kbps;
 	unsigned int target_kbps;
@@ -198,20 +197,20 @@ static void bwmon_set_threshold(struct icc_bwmon *bwmon, unsigned int reg,
 {
 	unsigned int thres;
 
-	thres = mult_frac(bwmon_kbps_to_count(kbps), bwmon->sample_ms,
+	thres = mult_frac(bwmon_kbps_to_count(kbps), bwmon->data->sample_ms,
 			  MSEC_PER_SEC);
 	writel_relaxed(thres, bwmon->base + reg);
 }
 
-static void bwmon_start(struct icc_bwmon *bwmon,
-			const struct icc_bwmon_data *data)
+static void bwmon_start(struct icc_bwmon *bwmon)
 {
+	const struct icc_bwmon_data *data = bwmon->data;
 	unsigned int thres_count;
 	int window;
 
 	bwmon_clear_counters(bwmon);
 
-	window = mult_frac(bwmon->sample_ms, HW_TIMER_HZ, MSEC_PER_SEC);
+	window = mult_frac(bwmon->data->sample_ms, HW_TIMER_HZ, MSEC_PER_SEC);
 	/* Maximum sampling window: 0xfffff */
 	writel_relaxed(window, bwmon->base + BWMON_SAMPLE_WINDOW);
 
@@ -266,7 +265,7 @@ static irqreturn_t bwmon_intr(int irq, void *dev_id)
 	 */
 	max = readl(bwmon->base + BWMON_ZONE_MAX(zone)) + 1;
 	max *= BWMON_COUNT_UNIT_KB;
-	bwmon->target_kbps = mult_frac(max, MSEC_PER_SEC, bwmon->sample_ms);
+	bwmon->target_kbps = mult_frac(max, MSEC_PER_SEC, bwmon->data->sample_ms);
 
 	return IRQ_WAKE_THREAD;
 }
@@ -328,14 +327,13 @@ static int bwmon_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct dev_pm_opp *opp;
 	struct icc_bwmon *bwmon;
-	const struct icc_bwmon_data *data;
 	int ret;
 
 	bwmon = devm_kzalloc(dev, sizeof(*bwmon), GFP_KERNEL);
 	if (!bwmon)
 		return -ENOMEM;
 
-	data = of_device_get_match_data(dev);
+	bwmon->data = of_device_get_match_data(dev);
 
 	bwmon->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(bwmon->base)) {
@@ -361,8 +359,6 @@ static int bwmon_probe(struct platform_device *pdev)
 	if (IS_ERR(opp))
 		return dev_err_probe(dev, ret, "failed to find min peak bandwidth\n");
 
-	bwmon->sample_ms = data->sample_ms;
-	bwmon->default_lowbw_kbps = data->default_lowbw_kbps;
 	bwmon->dev = dev;
 
 	bwmon_disable(bwmon);
@@ -373,7 +369,7 @@ static int bwmon_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret, "failed to request IRQ\n");
 
 	platform_set_drvdata(pdev, bwmon);
-	bwmon_start(bwmon, data);
+	bwmon_start(bwmon);
 
 	return 0;
 }
