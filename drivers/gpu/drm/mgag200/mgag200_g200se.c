@@ -535,7 +535,7 @@ struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const stru
 	else
 		funcs = &mgag200_g200se_00_device_funcs;
 
-	ret = mgag200_device_init(mdev, type, info, funcs);
+	ret = mgag200_device_init(mdev, info, funcs);
 	if (ret)
 		return ERR_PTR(ret);
 

@@ -179,8 +179,7 @@ static const struct mgag200_device_funcs mgag200_g200eh3_device_funcs = {
 };
 
 struct mga_device *mgag200_g200eh3_device_create(struct pci_dev *pdev,
-						 const struct drm_driver *drv,
-						 enum mga_type type)
+						 const struct drm_driver *drv)
 {
 	struct mga_device *mdev;
 	struct drm_device *dev;
@@ -202,7 +201,7 @@ struct mga_device *mgag200_g200eh3_device_create(struct pci_dev *pdev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = mgag200_device_init(mdev, type, &mgag200_g200eh3_device_info,
+	ret = mgag200_device_init(mdev, &mgag200_g200eh3_device_info,
 				  &mgag200_g200eh3_device_funcs);
 	if (ret)
 		return ERR_PTR(ret);
