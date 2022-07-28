@@ -68,6 +68,13 @@
 			      "i2c", "pclk", "xvclk";
 		status = "okay";
 	};
+
+	thunder_boot_serivce: thunder-boot-service {
+		compatible = "rockchip,thunder-boot-service";
+		mbox-names = "amp-rx";
+		mboxes = <&mailbox 1>;
+		status = "disabled";
+	};
 };
 
 &hw_decompress {

@@ -149,10 +149,11 @@
 };
 
 &i2c4 {
-	status = "okay";
+	rockchip,amp-shared;
 	clock-frequency = <400000>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c4m2_xfer>;
+	status = "okay";
 
 	sc230ai: sc230ai@30 {
 		compatible = "smartsens,sc230ai";
@@ -178,6 +179,10 @@
 
 &i2s0_8ch {
 	#sound-dai-cells = <0>;
+	status = "okay";
+};
+
+&mailbox {
 	status = "okay";
 };
 
@@ -307,4 +312,8 @@
 		spi-rx-bus-width = <4>;
 		spi-tx-bus-width = <1>;
 	};
+};
+
+&thunder_boot_serivce {
+	status = "okay";
 };
