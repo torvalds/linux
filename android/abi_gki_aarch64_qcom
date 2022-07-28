@@ -1581,6 +1581,7 @@
   snprintf
   soc_device_register
   soc_device_unregister
+  sock_alloc_send_pskb
   sock_create_kern
   sock_gettstamp
   sock_init_data
@@ -1590,6 +1591,7 @@
   sock_no_sendpage
   sock_no_shutdown
   sock_no_socketpair
+  sock_queue_rcv_skb_reason
   sock_register
   sock_release
   sock_setsockopt
