@@ -28,6 +28,7 @@
 
 #define CSI2RX_STREAM_DATA_CFG_REG(n)		(CSI2RX_STREAM_BASE(n) + 0x008)
 #define CSI2RX_STREAM_DATA_CFG_EN_VC_SELECT	BIT(31)
+#define CSI2RX_STREAM_DATA_CFG_EN_DATA_TYPE_0 BIT(7)
 #define CSI2RX_STREAM_DATA_CFG_VC_SELECT(n)	BIT((n) + 16)
 
 #define CSI2RX_STREAM_CFG_REG(n)		(CSI2RX_STREAM_BASE(n) + 0x00c)
@@ -108,28 +109,6 @@ static int stf_csi_clk_disable(struct stf_csi_dev *csi_dev)
 	return 0;
 }
 
-static int stf_csi_set_format(struct stf_csi_dev *csi_dev,
-			u32 vsize, u8 bpp, int is_raw10)
-{
-	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
-
-	switch (csi_dev->s_type) {
-	case SENSOR_VIN:
-		st_err(ST_CSI, "%s, %d: need todo\n", __func__, __LINE__);
-		break;
-	case SENSOR_ISP:
-		if (is_raw10)
-			reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
-				BIT(12),
-				1 << 12);
-		break;
-	default:
-		break;
-	}
-
-	return 0;
-}
-
 static void csi2rx_reset(void *reg_base)
 {
 	writel(CSI2RX_SOFT_RESET_PROTOCOL | CSI2RX_SOFT_RESET_FRONT,
@@ -140,7 +119,7 @@ static void csi2rx_reset(void *reg_base)
 	writel(0, reg_base + CSI2RX_SOFT_RESET_REG);
 }
 
-static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
+static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base, u32 dt)
 {
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 	struct csi2phy_cfg *csiphy =
@@ -212,7 +191,8 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 		       reg_base + CSI2RX_STREAM_CFG_REG(i));
 
 		writel(CSI2RX_STREAM_DATA_CFG_EN_VC_SELECT |
-		       CSI2RX_STREAM_DATA_CFG_VC_SELECT(i),
+		       CSI2RX_STREAM_DATA_CFG_VC_SELECT(i) |
+		       CSI2RX_STREAM_DATA_CFG_EN_DATA_TYPE_0 | dt,
 		       reg_base + CSI2RX_STREAM_DATA_CFG_REG(i));
 
 		writel(CSI2RX_STREAM_CTRL_START,
@@ -230,7 +210,8 @@ static void csi2rx_stop(struct stf_csi_dev *csi_dev, void *reg_base)
 		writel(0, reg_base + CSI2RX_STREAM_CTRL_REG(i));
 }
 
-static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
+static int stf_csi_stream_set(struct stf_csi_dev *csi_dev,
+					int on, u32 dt, u32 width)
 {
 	struct stfcamss *stfcamss = csi_dev->stfcamss;
 	struct stf_vin_dev *vin = csi_dev->stfcamss->vin;
@@ -252,7 +233,7 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 			0<<15);		//u0_vin_cnfg_axiwr0_pixel_high_bit_sel
 		reg_set_bit(vin->sysctrl_base, SYSCONSAIF_SYSCFG_28,
 			BIT(12)|BIT(11)|BIT(10)|BIT(9)|BIT(8)|BIT(7)|BIT(6)|BIT(5)|BIT(4)|BIT(3)|BIT(2),
-			(1920 / 4 - 1)<<2);	//u0_vin_cnfg_axiwr0_pix_cnt_end
+			(width / 4 - 1)<<2);	//u0_vin_cnfg_axiwr0_pix_cnt_end
 		break;
 	case SENSOR_ISP:
 		clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
@@ -270,13 +251,18 @@ static int stf_csi_stream_set(struct stf_csi_dev *csi_dev, int on)
 		reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
 			BIT(16)|BIT(15)|BIT(14)|BIT(13),
 			0<<13);		//u0_vin_cnfg_pix_num
+
+		if (dt == 0x2b)
+			reg_set_bit(vin->sysctrl_base,	SYSCONSAIF_SYSCFG_36,
+				BIT(12),
+				1 << 12);
 		break;
 	default:
 		break;
 	}
 
 	if (on)
-		csi2rx_start(csi_dev, reg_base);
+		csi2rx_start(csi_dev, reg_base, dt);
 	else
 		csi2rx_stop(csi_dev, reg_base);
 
@@ -301,6 +287,5 @@ struct csi_hw_ops csi_ops = {
 	.csi_power_on          = stf_csi_power_on,
 	.csi_clk_enable        = stf_csi_clk_enable,
 	.csi_clk_disable       = stf_csi_clk_disable,
-	.csi_set_format        = stf_csi_set_format,
 	.csi_stream_set        = stf_csi_stream_set,
 };

@@ -64,17 +64,37 @@ __csi_get_format(struct stf_csi_dev *csi_dev,
 	return &csi_dev->fmt[pad];
 }
 
+static u32 code_to_data_type(int code)
+{
+	switch (code) {
+	case MEDIA_BUS_FMT_SRGGB10_1X10:
+	case MEDIA_BUS_FMT_SGRBG10_1X10:
+	case MEDIA_BUS_FMT_SGBRG10_1X10:
+	case MEDIA_BUS_FMT_SBGGR10_1X10:
+		return 0x2b;
+	case MEDIA_BUS_FMT_YUYV8_2X8:
+		return 0x1E;
+	case MEDIA_BUS_FMT_RGB565_2X8_LE:
+		return 0x22;
+	default:
+		return 0x2b;
+	}
+}
+
 static int csi_set_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct stf_csi_dev *csi_dev = v4l2_get_subdevdata(sd);
 	struct v4l2_mbus_framefmt *format;
-	int ret = 0, is_raw10 = 0;
-	u32 code;
+	int ret = 0;
+	u32 code, width, dt;
 
 	format = __csi_get_format(csi_dev, NULL, STF_CSI_PAD_SRC,
 				V4L2_SUBDEV_FORMAT_ACTIVE);
 	if (format == NULL)
 		return -EINVAL;
+
+	width = format->width;
+
 	ret = csi_find_format(format->code,
 				csi_dev->formats,
 				csi_dev->nformats);
@@ -82,27 +102,20 @@ static int csi_set_stream(struct v4l2_subdev *sd, int enable)
 		return ret;
 
 	code = csi_dev->formats[ret].code;
-	if (code == MEDIA_BUS_FMT_SBGGR10_1X10 ||
-		code == MEDIA_BUS_FMT_SGBRG10_1X10 ||
-		code == MEDIA_BUS_FMT_SGRBG10_1X10 ||
-		code == MEDIA_BUS_FMT_SRGGB10_1X10)
-		is_raw10 = 1;
+	dt = code_to_data_type(code);
 
 	mutex_lock(&csi_dev->stream_lock);
 	if (enable) {
 		if (csi_dev->stream_count == 0) {
 			csi_dev->hw_ops->csi_clk_enable(csi_dev);
-			csi_dev->hw_ops->csi_set_format(csi_dev,
-					format->height,
-					csi_dev->formats[ret].bpp, is_raw10);
-			csi_dev->hw_ops->csi_stream_set(csi_dev, enable);
+			csi_dev->hw_ops->csi_stream_set(csi_dev, enable, dt, width);
 		}
 		csi_dev->stream_count++;
 	} else {
 		if (csi_dev->stream_count == 0)
 			goto exit;
 		if (csi_dev->stream_count == 1) {
-			csi_dev->hw_ops->csi_stream_set(csi_dev, enable);
+			csi_dev->hw_ops->csi_stream_set(csi_dev, enable, dt, width);
 			csi_dev->hw_ops->csi_clk_disable(csi_dev);
 		}
 		csi_dev->stream_count--;
