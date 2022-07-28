@@ -287,12 +287,6 @@ void mgag200_init_registers(struct mga_device *mdev)
 		    MGAREG_CRTC11_VINTCLR);
 	WREG_CRT(0x11, crtc11);
 
-	if (mdev->type == G200_ER)
-		WREG_ECRT(0x24, 0x5);
-
-	if (mdev->type == G200_EW3)
-		WREG_ECRT(0x34, 0x5);
-
 	misc = RREG8(MGA_MISC_IN);
 	misc |= MGAREG_MISC_IOADSEL;
 	WREG8(MGA_MISC_OUT, misc);

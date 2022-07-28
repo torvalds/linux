@@ -27,6 +27,8 @@ static void mgag200_g200er_init_registers(struct mga_device *mdev)
 	WREG_DAC(0x90, 0); /* G200ER specific */
 
 	mgag200_init_registers(mdev);
+
+	WREG_ECRT(0x24, 0x5); /* G200ER specific */
 }
 
 /*
