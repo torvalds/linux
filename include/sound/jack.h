@@ -63,7 +63,6 @@ struct snd_jack {
 	const char *id;
 #ifdef CONFIG_SND_JACK_INPUT_DEV
 	struct input_dev *input_dev;
-	struct mutex input_dev_lock;
 	int registered;
 	int type;
 	char name[100];
