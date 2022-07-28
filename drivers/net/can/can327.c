@@ -836,6 +836,8 @@ static netdev_tx_t can327_netdev_start_xmit(struct sk_buff *skb,
 	dev->stats.tx_packets++;
 	dev->stats.tx_bytes += frame->can_id & CAN_RTR_FLAG ? 0 : frame->len;
 
+	skb_tx_timestamp(skb);
+
 out:
 	kfree_skb(skb);
 	return NETDEV_TX_OK;
@@ -846,6 +848,10 @@ static const struct net_device_ops can327_netdev_ops = {
 	.ndo_stop = can327_netdev_close,
 	.ndo_start_xmit = can327_netdev_start_xmit,
 	.ndo_change_mtu = can_change_mtu,
+};
+
+static const struct ethtool_ops can327_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
 };
 
 static bool can327_is_valid_rx_char(u8 c)
@@ -1032,6 +1038,7 @@ static int can327_ldisc_open(struct tty_struct *tty)
 	/* Configure netdev interface */
 	elm->dev = dev;
 	dev->netdev_ops = &can327_netdev_ops;
+	dev->ethtool_ops = &can327_ethtool_ops;
 
 	/* Mark ldisc channel as alive */
 	elm->tty = tty;

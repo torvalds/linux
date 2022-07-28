@@ -106,4 +106,5 @@ const struct ethtool_ops flexcan_ethtool_ops = {
 	.get_priv_flags = flexcan_get_priv_flags,
 	.set_priv_flags = flexcan_set_priv_flags,
 	.get_sset_count = flexcan_get_sset_count,
+	.get_ts_info = ethtool_op_get_ts_info,
 };

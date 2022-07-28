@@ -612,6 +612,8 @@ static netdev_tx_t slcan_netdev_xmit(struct sk_buff *skb,
 	slcan_encaps(sl, (struct can_frame *)skb->data); /* encaps & send */
 	spin_unlock(&sl->lock);
 
+	skb_tx_timestamp(skb);
+
 out:
 	kfree_skb(skb);
 	return NETDEV_TX_OK;

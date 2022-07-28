@@ -17,6 +17,7 @@
 #include <linux/ptrace.h>
 #include <linux/string.h>
 #include <linux/errno.h>
+#include <linux/ethtool.h>
 #include <linux/netdevice.h>
 #include <linux/if_arp.h>
 #include <linux/if_ether.h>
@@ -836,6 +837,10 @@ static const struct net_device_ops cc770_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops cc770_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 int register_cc770dev(struct net_device *dev)
 {
 	struct cc770_priv *priv = netdev_priv(dev);
@@ -846,6 +851,7 @@ int register_cc770dev(struct net_device *dev)
 		return err;
 
 	dev->netdev_ops = &cc770_netdev_ops;
+	dev->ethtool_ops = &cc770_ethtool_ops;
 
 	dev->flags |= IFF_ECHO;	/* we support local echo */
 

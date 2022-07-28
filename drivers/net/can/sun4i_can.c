@@ -53,6 +53,7 @@
 #include <linux/can/error.h>
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/ethtool.h>
 #include <linux/interrupt.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -761,6 +762,10 @@ static const struct net_device_ops sun4ican_netdev_ops = {
 	.ndo_start_xmit = sun4ican_start_xmit,
 };
 
+static const struct ethtool_ops sun4ican_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static const struct sun4ican_quirks sun4ican_quirks_a10 = {
 	.has_reset = false,
 };
@@ -851,6 +856,7 @@ static int sun4ican_probe(struct platform_device *pdev)
 	}
 
 	dev->netdev_ops = &sun4ican_netdev_ops;
+	dev->ethtool_ops = &sun4ican_ethtool_ops;
 	dev->irq = irq;
 	dev->flags |= IFF_ECHO;
 

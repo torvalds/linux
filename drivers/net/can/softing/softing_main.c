@@ -5,6 +5,7 @@
  * - Kurt Van Dijck, EIA Electronics
  */
 
+#include <linux/ethtool.h>
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <asm/io.h>
@@ -611,6 +612,10 @@ static const struct net_device_ops softing_netdev_ops = {
 	.ndo_change_mtu = can_change_mtu,
 };
 
+static const struct ethtool_ops softing_ethtool_ops = {
+	.get_ts_info = ethtool_op_get_ts_info,
+};
+
 static const struct can_bittiming_const softing_btr_const = {
 	.name = KBUILD_MODNAME,
 	.tseg1_min = 1,
@@ -649,6 +654,7 @@ static struct net_device *softing_netdev_create(struct softing *card,
 
 	netdev->flags |= IFF_ECHO;
 	netdev->netdev_ops = &softing_netdev_ops;
+	netdev->ethtool_ops = &softing_ethtool_ops;
 	priv->can.do_set_mode = softing_candev_set_mode;
 	priv->can.ctrlmode_supported = CAN_CTRLMODE_3_SAMPLES;
 
