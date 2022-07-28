@@ -4366,6 +4366,8 @@ static int io_sendmsg_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
 		return -EINVAL;
+	if (unlikely(sqe->addr2 || sqe->splice_fd_in || sqe->ioprio))
+		return -EINVAL;
 
 	sr->msg_flags = READ_ONCE(sqe->msg_flags);
 	sr->umsg = u64_to_user_ptr(READ_ONCE(sqe->addr));
@@ -4600,6 +4602,8 @@ static int io_recvmsg_prep(struct io_kiocb *req,
 	int ret;
 
 	if (unlikely(req->ctx->flags & IORING_SETUP_IOPOLL))
+		return -EINVAL;
+	if (unlikely(sqe->addr2 || sqe->splice_fd_in || sqe->ioprio))
 		return -EINVAL;
 
 	sr->msg_flags = READ_ONCE(sqe->msg_flags);

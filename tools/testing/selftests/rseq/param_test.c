@@ -161,7 +161,7 @@ unsigned int yield_mod_cnt, nr_abort;
 	"	cbnz	" INJECT_ASM_REG ", 222b\n"			\
 	"333:\n"
 
-#elif __PPC__
+#elif defined(__PPC__)
 
 #define RSEQ_INJECT_INPUT \
 	, [loop_cnt_1]"m"(loop_cnt[1]) \
@@ -368,9 +368,7 @@ void *test_percpu_spinlock_thread(void *arg)
 		abort();
 	reps = thread_data->reps;
 	for (i = 0; i < reps; i++) {
-		int cpu = rseq_cpu_start();
-
-		cpu = rseq_this_cpu_lock(&data->lock);
+		int cpu = rseq_this_cpu_lock(&data->lock);
 		data->c[cpu].count++;
 		rseq_percpu_unlock(&data->lock, cpu);
 #ifndef BENCHMARK
@@ -551,7 +549,7 @@ struct percpu_list_node *this_cpu_list_pop(struct percpu_list *list,
 	for (;;) {
 		struct percpu_list_node *head;
 		intptr_t *targetptr, expectnot, *load;
-		off_t offset;
+		long offset;
 		int ret;
 
 		cpu = rseq_cpu_start();

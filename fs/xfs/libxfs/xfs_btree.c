@@ -2811,7 +2811,7 @@ xfs_btree_split_worker(
 	struct xfs_btree_split_args	*args = container_of(work,
 						struct xfs_btree_split_args, work);
 	unsigned long		pflags;
-	unsigned long		new_pflags = PF_MEMALLOC_NOFS;
+	unsigned long		new_pflags = 0;
 
 	/*
 	 * we are in a transaction context here, but may also be doing work
@@ -2823,12 +2823,20 @@ xfs_btree_split_worker(
 		new_pflags |= PF_MEMALLOC | PF_SWAPWRITE | PF_KSWAPD;
 
 	current_set_flags_nested(&pflags, new_pflags);
+	xfs_trans_set_context(args->cur->bc_tp);
 
 	args->result = __xfs_btree_split(args->cur, args->level, args->ptrp,
 					 args->key, args->curp, args->stat);
+
+	xfs_trans_clear_context(args->cur->bc_tp);
+	current_restore_flags_nested(&pflags, new_pflags);
+
+	/*
+	 * Do not access args after complete() has run here. We don't own args
+	 * and the owner may run and free args before we return here.
+	 */
 	complete(args->done);
 
-	current_restore_flags_nested(&pflags, new_pflags);
 }
 
 /*
