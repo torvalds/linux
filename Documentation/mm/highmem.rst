@@ -71,6 +71,12 @@ list shows them in order of preference of use.
   kmap_local_page() always returns a valid virtual address and it is assumed
   that kunmap_local() will never fail.
 
+  On CONFIG_HIGHMEM=n kernels and for low memory pages this returns the
+  virtual address of the direct mapping. Only real highmem pages are
+  temporarily mapped. Therefore, users may call a plain page_address()
+  for pages which are known to not come from ZONE_HIGHMEM. However, it is
+  always safe to use kmap_local_page() / kunmap_local().
+
   Nesting kmap_local_page() and kmap_atomic() mappings is allowed to a certain
   extent (up to KMAP_TYPE_NR) but their invocations have to be strictly ordered
   because the map implementation is stack based. See kmap_local_page() kdocs
