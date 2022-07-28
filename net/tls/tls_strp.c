@@ -187,9 +187,10 @@ static int tls_strp_copyin(read_descriptor_t *desc, struct sk_buff *in_skb,
 			   unsigned int offset, size_t in_len)
 {
 	struct tls_strparser *strp = (struct tls_strparser *)desc->arg.data;
-	size_t sz, len, chunk;
 	struct sk_buff *skb;
 	skb_frag_t *frag;
+	size_t len, chunk;
+	int sz;
 
 	if (strp->msg_ready)
 		return 0;
