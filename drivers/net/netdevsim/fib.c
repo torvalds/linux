@@ -62,6 +62,7 @@ struct nsim_fib_data {
 	bool fail_route_offload;
 	bool fail_res_nexthop_group_replace;
 	bool fail_nexthop_bucket_replace;
+	bool fail_route_delete;
 };
 
 struct nsim_fib_rt_key {
@@ -915,6 +916,10 @@ static int nsim_fib4_prepare_event(struct fib_notifier_info *info,
 		}
 		break;
 	case FIB_EVENT_ENTRY_DEL:
+		if (data->fail_route_delete) {
+			NL_SET_ERR_MSG_MOD(extack, "Failed to process route deletion");
+			return -EINVAL;
+		}
 		nsim_fib_account(&data->ipv4.fib, false);
 		break;
 	}
@@ -953,6 +958,11 @@ static int nsim_fib6_prepare_event(struct fib_notifier_info *info,
 		}
 		break;
 	case FIB_EVENT_ENTRY_DEL:
+		if (data->fail_route_delete) {
+			err = -EINVAL;
+			NL_SET_ERR_MSG_MOD(extack, "Failed to process route deletion");
+			goto err_fib6_event_fini;
+		}
 		nsim_fib_account(&data->ipv6.fib, false);
 		break;
 	}
@@ -1526,6 +1536,10 @@ nsim_fib_debugfs_init(struct nsim_fib_data *data, struct nsim_dev *nsim_dev)
 
 	debugfs_create_file("nexthop_bucket_activity", 0200, data->ddir,
 			    data, &nsim_nexthop_bucket_activity_fops);
+
+	data->fail_route_delete = false;
+	debugfs_create_bool("fail_route_delete", 0600, data->ddir,
+			    &data->fail_route_delete);
 	return 0;
 }
 
