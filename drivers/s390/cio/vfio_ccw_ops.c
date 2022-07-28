@@ -39,7 +39,7 @@ static void vfio_ccw_dma_unmap(struct vfio_device *vdev, u64 iova, u64 length)
 		container_of(vdev, struct vfio_ccw_private, vdev);
 
 	/* Drivers MUST unpin pages in response to an invalidation. */
-	if (!cp_iova_pinned(&private->cp, iova))
+	if (!cp_iova_pinned(&private->cp, iova, length))
 		return;
 
 	vfio_ccw_mdev_reset(private);

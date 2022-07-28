@@ -170,13 +170,18 @@ static void page_array_unpin_free(struct page_array *pa, struct vfio_device *vde
 	kfree(pa->pa_iova);
 }
 
-static bool page_array_iova_pinned(struct page_array *pa, unsigned long iova)
+static bool page_array_iova_pinned(struct page_array *pa, u64 iova, u64 length)
 {
+	u64 iova_pfn_start = iova >> PAGE_SHIFT;
+	u64 iova_pfn_end = (iova + length - 1) >> PAGE_SHIFT;
+	u64 pfn;
 	int i;
 
-	for (i = 0; i < pa->pa_nr; i++)
-		if (pa->pa_iova[i] == iova)
+	for (i = 0; i < pa->pa_nr; i++) {
+		pfn = pa->pa_iova[i] >> PAGE_SHIFT;
+		if (pfn >= iova_pfn_start && pfn <= iova_pfn_end)
 			return true;
+	}
 
 	return false;
 }
@@ -899,11 +904,12 @@ void cp_update_scsw(struct channel_program *cp, union scsw *scsw)
  * cp_iova_pinned() - check if an iova is pinned for a ccw chain.
  * @cp: channel_program on which to perform the operation
  * @iova: the iova to check
+ * @length: the length to check from @iova
  *
  * If the @iova is currently pinned for the ccw chain, return true;
  * else return false.
  */
-bool cp_iova_pinned(struct channel_program *cp, u64 iova)
+bool cp_iova_pinned(struct channel_program *cp, u64 iova, u64 length)
 {
 	struct ccwchain *chain;
 	int i;
@@ -913,7 +919,7 @@ bool cp_iova_pinned(struct channel_program *cp, u64 iova)
 
 	list_for_each_entry(chain, &cp->ccwchain_list, next) {
 		for (i = 0; i < chain->ch_len; i++)
-			if (page_array_iova_pinned(chain->ch_pa + i, iova))
+			if (page_array_iova_pinned(chain->ch_pa + i, iova, length))
 				return true;
 	}
 
