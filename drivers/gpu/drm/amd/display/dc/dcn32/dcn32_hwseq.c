@@ -331,7 +331,9 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 {
 	union dmub_rb_cmd cmd;
-	uint8_t ways;
+	uint8_t ways, i, j;
+	bool stereo_in_use = false;
+	struct dc_plane_state *plane = NULL;
 
 	if (!dc->ctx->dmub_srv)
 		return false;
@@ -360,7 +362,23 @@ bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 			 * and configure HUBP's to fetch from MALL
 			 */
 			ways = dcn32_calculate_cab_allocation(dc, dc->current_state);
-			if (ways <= dc->caps.cache_num_ways) {
+
+			/* MALL not supported with Stereo3D. If any plane is using stereo,
+			 * don't try to enter MALL.
+			 */
+			for (i = 0; i < dc->current_state->stream_count; i++) {
+				for (j = 0; j < dc->current_state->stream_status[i].plane_count; j++) {
+					plane = dc->current_state->stream_status[i].plane_states[j];
+
+					if (plane->address.type == PLN_ADDR_TYPE_GRPH_STEREO) {
+						stereo_in_use = true;
+						break;
+					}
+				}
+				if (stereo_in_use)
+					break;
+			}
+			if (ways <= dc->caps.cache_num_ways && !stereo_in_use) {
 				memset(&cmd, 0, sizeof(cmd));
 				cmd.cab.header.type = DMUB_CMD__CAB_FOR_SS;
 				cmd.cab.header.sub_type = DMUB_CMD__CAB_DCN_SS_FIT_IN_CAB;
@@ -694,9 +712,11 @@ void dcn32_update_mall_sel(struct dc *dc, struct dc_state *context)
 			if (pipe->stream->mall_stream_config.type == SUBVP_PHANTOM) {
 					hubp->funcs->hubp_update_mall_sel(hubp, 1, false);
 			} else {
+				// MALL not supported with Stereo3D
 				hubp->funcs->hubp_update_mall_sel(hubp,
 					num_ways <= dc->caps.cache_num_ways &&
-					pipe->stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED ? 2 : 0,
+					pipe->stream->link->psr_settings.psr_version == DC_PSR_VERSION_UNSUPPORTED &&
+					pipe->plane_state->address.type !=  PLN_ADDR_TYPE_GRPH_STEREO ? 2 : 0,
 							cache_cursor);
 			}
 		}
