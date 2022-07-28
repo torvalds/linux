@@ -8,6 +8,7 @@
  *	   Jon Lin <Jon.lin@rock-chips.com>
  */
 
+#include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/clk.h>
 #include <linux/completion.h>
@@ -626,7 +627,7 @@ static int rockchip_sfc_exec_mem_op(struct spi_mem *mem, const struct spi_mem_op
 		return ret;
 	}
 
-	if (unlikely(mem->spi->max_speed_hz != sfc->frequency)) {
+	if (unlikely(mem->spi->max_speed_hz != sfc->frequency) && !has_acpi_companion(sfc->dev)) {
 		ret = clk_set_rate(sfc->clk, mem->spi->max_speed_hz);
 		if (ret)
 			goto out;
@@ -729,16 +730,26 @@ static int rockchip_sfc_probe(struct platform_device *pdev)
 	if (IS_ERR(sfc->regbase))
 		return PTR_ERR(sfc->regbase);
 
-	sfc->clk = devm_clk_get(&pdev->dev, "clk_sfc");
+	if (!has_acpi_companion(&pdev->dev))
+		sfc->clk = devm_clk_get(&pdev->dev, "clk_sfc");
 	if (IS_ERR(sfc->clk)) {
 		dev_err(&pdev->dev, "Failed to get sfc interface clk\n");
 		return PTR_ERR(sfc->clk);
 	}
 
-	sfc->hclk = devm_clk_get(&pdev->dev, "hclk_sfc");
+	if (!has_acpi_companion(&pdev->dev))
+		sfc->hclk = devm_clk_get(&pdev->dev, "hclk_sfc");
 	if (IS_ERR(sfc->hclk)) {
 		dev_err(&pdev->dev, "Failed to get sfc ahb clk\n");
 		return PTR_ERR(sfc->hclk);
+	}
+
+	if (has_acpi_companion(&pdev->dev)) {
+		ret = device_property_read_u32(&pdev->dev, "clock-frequency", &sfc->frequency);
+		if (ret) {
+			dev_err(&pdev->dev, "Failed to find clock-frequency in ACPI\n");
+			return ret;
+		}
 	}
 
 	sfc->use_dma = !of_property_read_bool(sfc->dev->of_node,
