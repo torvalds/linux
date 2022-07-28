@@ -187,6 +187,9 @@ struct mgag200_pll {
 struct mgag200_crtc_state {
 	struct drm_crtc_state base;
 
+	/* Primary-plane format; required for modesetting and color mgmt. */
+	const struct drm_format_info *format;
+
 	struct mgag200_pll_values pixpllc;
 };
 
