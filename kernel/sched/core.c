@@ -5738,6 +5738,14 @@ static int _sched_setscheduler(struct task_struct *p, int policy,
 		.sched_nice	= PRIO_TO_NICE(p->static_prio),
 	};
 
+	if (IS_ENABLED(CONFIG_ROCKCHIP_OPTIMIZE_RT_PRIO) &&
+	    ((policy == SCHED_FIFO) || (policy == SCHED_RR))) {
+		attr.sched_priority /= 2;
+		if (!check)
+			attr.sched_priority += MAX_RT_PRIO / 2;
+		if (!attr.sched_priority)
+			attr.sched_priority = 1;
+	}
 	/* Fixup the legacy SCHED_RESET_ON_FORK hack. */
 	if ((policy != SETPARAM_POLICY) && (policy & SCHED_RESET_ON_FORK)) {
 		attr.sched_flags |= SCHED_FLAG_RESET_ON_FORK;

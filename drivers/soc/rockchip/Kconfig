@@ -91,6 +91,16 @@ config ROCKCHIP_OPP
 	help
 	  Say y here to enable rockchip OPP support.
 
+config ROCKCHIP_OPTIMIZE_RT_PRIO
+	bool "Rockchip optimize prio for kernel RT thread and kworker"
+	depends on NO_GKI
+	help
+	  In some cases, there are too much userspace high priority RT threads, which
+	  cause kernel RT threads or kworkers block too long time. This config separate
+	  kernel and userspace RT threads into two priority regions, priority 0~49 for
+	  kernel and priority 50~99 for userspace, so that kernel RT threads is always
+	  higher priority than userspace. This config also set RT policy for kworkers.
+
 config ROCKCHIP_PERFORMANCE
 	bool "Rockchip performance configuration support"
 	depends on NO_GKI
