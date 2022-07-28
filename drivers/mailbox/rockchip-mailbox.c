@@ -12,6 +12,7 @@
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/spinlock.h>
+#include <soc/rockchip/rockchip-mailbox.h>
 
 #define MAILBOX_A2B_INTEN		0x00
 #define MAILBOX_A2B_STATUS		0x04
@@ -22,11 +23,6 @@
 #define MAILBOX_B2A_STATUS		0x2C
 #define MAILBOX_B2A_CMD(x)		(0x30 + (x) * 8)
 #define MAILBOX_B2A_DAT(x)		(0x34 + (x) * 8)
-
-struct rockchip_mbox_msg {
-	u32 cmd;
-	u32 data;
-};
 
 struct rockchip_mbox_data {
 	int num_chans;
@@ -42,6 +38,7 @@ struct rockchip_mbox {
 	struct clk *pclk;
 	void __iomem *mbox_base;
 	spinlock_t cfg_lock; /* Serialise access to the register */
+	struct rockchip_mbox_msg *msg;
 
 	struct rockchip_mbox_chan *chans;
 };
@@ -108,27 +105,47 @@ static const struct mbox_chan_ops rockchip_mbox_chan_ops = {
 	.shutdown	= rockchip_mbox_shutdown,
 };
 
+int rockchip_mbox_read_msg(struct mbox_chan *chan,
+			   struct rockchip_mbox_msg *msg)
+{
+	struct rockchip_mbox *mb;
+	struct rockchip_mbox_chan *chans;
+
+	if (!chan || !msg)
+		return -EINVAL;
+
+	mb = dev_get_drvdata(chan->mbox->dev);
+	chans = chan->con_priv;
+
+	msg->cmd  = mb->msg[chans->idx].cmd;
+	msg->data = mb->msg[chans->idx].data;
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(rockchip_mbox_read_msg);
+
 static irqreturn_t rockchip_mbox_irq(int irq, void *dev_id)
 {
 	int idx;
-	struct rockchip_mbox_msg msg;
+	struct rockchip_mbox_msg *msg;
 	struct rockchip_mbox *mb = (struct rockchip_mbox *)dev_id;
 	u32 status = readl_relaxed(mb->mbox_base + MAILBOX_B2A_STATUS);
 
 	for (idx = 0; idx < mb->mbox.num_chans; idx++) {
 		if ((status & (1U << idx)) && irq == mb->chans[idx].irq) {
 			/* Get cmd/data from the channel of B2A */
-			msg.cmd = readl_relaxed(mb->mbox_base +
-						MAILBOX_B2A_CMD(idx));
-			msg.data = readl_relaxed(mb->mbox_base +
-						 MAILBOX_B2A_DAT(idx));
+			msg = &mb->msg[idx];
+			msg->cmd = readl_relaxed(mb->mbox_base +
+						 MAILBOX_B2A_CMD(idx));
+			msg->data = readl_relaxed(mb->mbox_base +
+						  MAILBOX_B2A_DAT(idx));
 
 			dev_dbg(mb->mbox.dev, "Chan[%d]: B2A message, cmd 0x%08x, data 0x%08x\n",
-				idx, msg.cmd, msg.data);
+				idx, msg->cmd, msg->data);
 
 			if (mb->mbox.chans[idx].cl)
-				mbox_chan_received_data(&mb->mbox.chans[idx],
-							&msg);
+				mbox_chan_received_data(&mb->mbox.chans[idx], msg);
+
 			/* Clear mbox interrupt */
 			writel_relaxed(1U << idx,
 				       mb->mbox_base + MAILBOX_B2A_STATUS);
@@ -164,6 +181,11 @@ static int rockchip_mbox_probe(struct platform_device *pdev)
 
 	mb = devm_kzalloc(&pdev->dev, sizeof(*mb), GFP_KERNEL);
 	if (!mb)
+		return -ENOMEM;
+
+	mb->msg = devm_kcalloc(&pdev->dev, drv_data->num_chans,
+			       sizeof(*mb->msg), GFP_KERNEL);
+	if (!mb->msg)
 		return -ENOMEM;
 
 	mb->chans = devm_kcalloc(&pdev->dev, drv_data->num_chans,
