@@ -699,6 +699,10 @@ struct devlink_region {
 		const struct devlink_region_ops *ops;
 		const struct devlink_port_region_ops *port_ops;
 	};
+	struct mutex snapshot_lock; /* protects snapshot_list,
+				     * max_snapshots and cur_snapshots
+				     * consistency.
+				     */
 	struct list_head snapshot_list;
 	u32 max_snapshots;
 	u32 cur_snapshots;
@@ -6021,7 +6025,7 @@ static int __devlink_region_snapshot_id_get(struct devlink *devlink, u32 *id)
  *	Multiple snapshots can be created on a region.
  *	The @snapshot_id should be obtained using the getter function.
  *
- *	Must be called only while holding the devlink instance lock.
+ *	Must be called only while holding the region snapshot lock.
  *
  *	@region: devlink region of the snapshot
  *	@data: snapshot data
@@ -6035,7 +6039,7 @@ __devlink_region_snapshot_create(struct devlink_region *region,
 	struct devlink_snapshot *snapshot;
 	int err;
 
-	devl_assert_locked(devlink);
+	lockdep_assert_held(&region->snapshot_lock);
 
 	/* check if region can hold one more snapshot */
 	if (region->cur_snapshots == region->max_snapshots)
@@ -6073,7 +6077,7 @@ static void devlink_region_snapshot_del(struct devlink_region *region,
 {
 	struct devlink *devlink = region->devlink;
 
-	devl_assert_locked(devlink);
+	lockdep_assert_held(&region->snapshot_lock);
 
 	devlink_nl_region_notify(region, snapshot, DEVLINK_CMD_REGION_DEL);
 	region->cur_snapshots--;
@@ -6252,11 +6256,15 @@ static int devlink_nl_cmd_region_del(struct sk_buff *skb,
 	if (!region)
 		return -EINVAL;
 
+	mutex_lock(&region->snapshot_lock);
 	snapshot = devlink_region_snapshot_get_by_id(region, snapshot_id);
-	if (!snapshot)
+	if (!snapshot) {
+		mutex_unlock(&region->snapshot_lock);
 		return -EINVAL;
+	}
 
 	devlink_region_snapshot_del(region, snapshot);
+	mutex_unlock(&region->snapshot_lock);
 	return 0;
 }
 
@@ -6304,9 +6312,12 @@ devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 		return -EOPNOTSUPP;
 	}
 
+	mutex_lock(&region->snapshot_lock);
+
 	if (region->cur_snapshots == region->max_snapshots) {
 		NL_SET_ERR_MSG_MOD(info->extack, "The region has reached the maximum number of stored snapshots");
-		return -ENOSPC;
+		err = -ENOSPC;
+		goto unlock;
 	}
 
 	snapshot_id_attr = info->attrs[DEVLINK_ATTR_REGION_SNAPSHOT_ID];
@@ -6315,17 +6326,18 @@ devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 
 		if (devlink_region_snapshot_get_by_id(region, snapshot_id)) {
 			NL_SET_ERR_MSG_MOD(info->extack, "The requested snapshot id is already in use");
-			return -EEXIST;
+			err = -EEXIST;
+			goto unlock;
 		}
 
 		err = __devlink_snapshot_id_insert(devlink, snapshot_id);
 		if (err)
-			return err;
+			goto unlock;
 	} else {
 		err = __devlink_region_snapshot_id_get(devlink, &snapshot_id);
 		if (err) {
 			NL_SET_ERR_MSG_MOD(info->extack, "Failed to allocate a new snapshot id");
-			return err;
+			goto unlock;
 		}
 	}
 
@@ -6363,16 +6375,20 @@ devlink_nl_cmd_region_new(struct sk_buff *skb, struct genl_info *info)
 			goto err_notify;
 	}
 
+	mutex_unlock(&region->snapshot_lock);
 	return 0;
 
 err_snapshot_create:
 	region->ops->destructor(data);
 err_snapshot_capture:
 	__devlink_snapshot_id_decrement(devlink, snapshot_id);
+	mutex_unlock(&region->snapshot_lock);
 	return err;
 
 err_notify:
 	devlink_region_snapshot_del(region, snapshot);
+unlock:
+	mutex_unlock(&region->snapshot_lock);
 	return err;
 }
 
@@ -11310,6 +11326,7 @@ struct devlink_region *devl_region_create(struct devlink *devlink,
 	region->ops = ops;
 	region->size = region_size;
 	INIT_LIST_HEAD(&region->snapshot_list);
+	mutex_init(&region->snapshot_lock);
 	list_add_tail(&region->list, &devlink->region_list);
 	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
 
@@ -11383,6 +11400,7 @@ devlink_port_region_create(struct devlink_port *port,
 	region->port_ops = ops;
 	region->size = region_size;
 	INIT_LIST_HEAD(&region->snapshot_list);
+	mutex_init(&region->snapshot_lock);
 	list_add_tail(&region->list, &port->region_list);
 	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_NEW);
 
@@ -11412,6 +11430,7 @@ void devl_region_destroy(struct devlink_region *region)
 		devlink_region_snapshot_del(region, snapshot);
 
 	list_del(&region->list);
+	mutex_destroy(&region->snapshot_lock);
 
 	devlink_nl_region_notify(region, NULL, DEVLINK_CMD_REGION_DEL);
 	kfree(region);
@@ -11487,13 +11506,11 @@ EXPORT_SYMBOL_GPL(devlink_region_snapshot_id_put);
 int devlink_region_snapshot_create(struct devlink_region *region,
 				   u8 *data, u32 snapshot_id)
 {
-	struct devlink *devlink = region->devlink;
 	int err;
 
-	devl_lock(devlink);
+	mutex_lock(&region->snapshot_lock);
 	err = __devlink_region_snapshot_create(region, data, snapshot_id);
-	devl_unlock(devlink);
-
+	mutex_unlock(&region->snapshot_lock);
 	return err;
 }
 EXPORT_SYMBOL_GPL(devlink_region_snapshot_create);
