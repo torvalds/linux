@@ -151,7 +151,7 @@
 		vdd_l17_29-supply = <&vreg_vph_pwr>;
 		vdd_l20_21-supply = <&vreg_vph_pwr>;
 		vdd_l25-supply = <&pm8994_s5>;
-		vdd_lvs1_2 = <&pm8994_s4>;
+		vdd_lvs1_2-supply = <&pm8994_s4>;
 
 		pm8994_s1: s1 {
 			/* unused */
