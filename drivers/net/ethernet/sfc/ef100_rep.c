@@ -150,10 +150,37 @@ static void efx_ef100_rep_ethtool_set_msglevel(struct net_device *net_dev,
 	efv->msg_enable = msg_enable;
 }
 
+static void efx_ef100_rep_ethtool_get_ringparam(struct net_device *net_dev,
+						struct ethtool_ringparam *ring,
+						struct kernel_ethtool_ringparam *kring,
+						struct netlink_ext_ack *ext_ack)
+{
+	struct efx_rep *efv = netdev_priv(net_dev);
+
+	ring->rx_max_pending = U32_MAX;
+	ring->rx_pending = efv->rx_pring_size;
+}
+
+static int efx_ef100_rep_ethtool_set_ringparam(struct net_device *net_dev,
+					       struct ethtool_ringparam *ring,
+					       struct kernel_ethtool_ringparam *kring,
+					       struct netlink_ext_ack *ext_ack)
+{
+	struct efx_rep *efv = netdev_priv(net_dev);
+
+	if (ring->rx_mini_pending || ring->rx_jumbo_pending || ring->tx_pending)
+		return -EINVAL;
+
+	efv->rx_pring_size = ring->rx_pending;
+	return 0;
+}
+
 static const struct ethtool_ops efx_ef100_rep_ethtool_ops = {
 	.get_drvinfo		= efx_ef100_rep_get_drvinfo,
 	.get_msglevel		= efx_ef100_rep_ethtool_get_msglevel,
 	.set_msglevel		= efx_ef100_rep_ethtool_set_msglevel,
+	.get_ringparam		= efx_ef100_rep_ethtool_get_ringparam,
+	.set_ringparam		= efx_ef100_rep_ethtool_set_ringparam,
 };
 
 static struct efx_rep *efx_ef100_rep_create_netdev(struct efx_nic *efx,
