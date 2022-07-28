@@ -419,6 +419,7 @@ static struct rsnd_mod_ops rsnd_ssiu_ops_gen2 = {
 	.name		= SSIU_NAME,
 	.dma_req	= rsnd_ssiu_dma_req,
 	.init		= rsnd_ssiu_init_gen2,
+	.quit		= rsnd_ssiu_quit,
 	.start		= rsnd_ssiu_start_gen2,
 	.stop		= rsnd_ssiu_stop_gen2,
 	.get_status	= rsnd_ssiu_get_status,
