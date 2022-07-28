@@ -1034,10 +1034,10 @@ static int uart_set_info_user(struct tty_struct *tty, struct serial_struct *ss)
 }
 
 /**
- *	uart_get_lsr_info	-	get line status register info
- *	@tty: tty associated with the UART
- *	@state: UART being queried
- *	@value: returned modem value
+ * uart_get_lsr_info - get line status register info
+ * @tty: tty associated with the UART
+ * @state: UART being queried
+ * @value: returned modem value
  */
 static int uart_get_lsr_info(struct tty_struct *tty,
 			struct uart_state *state, unsigned int __user *value)
@@ -2072,11 +2072,11 @@ static void uart_port_spin_lock_init(struct uart_port *port)
 
 #if defined(CONFIG_SERIAL_CORE_CONSOLE) || defined(CONFIG_CONSOLE_POLL)
 /**
- *	uart_console_write - write a console message to a serial port
- *	@port: the port to write the message
- *	@s: array of characters
- *	@count: number of characters in string to write
- *	@putchar: function to write character to port
+ * uart_console_write - write a console message to a serial port
+ * @port: the port to write the message
+ * @s: array of characters
+ * @count: number of characters in string to write
+ * @putchar: function to write character to port
  */
 void uart_console_write(struct uart_port *port, const char *s,
 			unsigned int count,
@@ -2115,24 +2115,23 @@ uart_get_console(struct uart_port *ports, int nr, struct console *co)
 }
 
 /**
- *	uart_parse_earlycon - Parse earlycon options
- *	@p:	  ptr to 2nd field (ie., just beyond '<name>,')
- *	@iotype:  ptr for decoded iotype (out)
- *	@addr:    ptr for decoded mapbase/iobase (out)
- *	@options: ptr for <options> field; NULL if not present (out)
+ * uart_parse_earlycon - Parse earlycon options
+ * @p:	     ptr to 2nd field (ie., just beyond '<name>,')
+ * @iotype:  ptr for decoded iotype (out)
+ * @addr:    ptr for decoded mapbase/iobase (out)
+ * @options: ptr for <options> field; %NULL if not present (out)
  *
- *	Decodes earlycon kernel command line parameters of the form
- *	   earlycon=<name>,io|mmio|mmio16|mmio32|mmio32be|mmio32native,<addr>,<options>
- *	   console=<name>,io|mmio|mmio16|mmio32|mmio32be|mmio32native,<addr>,<options>
+ * Decodes earlycon kernel command line parameters of the form:
+ *  * earlycon=<name>,io|mmio|mmio16|mmio32|mmio32be|mmio32native,<addr>,<options>
+ *  * console=<name>,io|mmio|mmio16|mmio32|mmio32be|mmio32native,<addr>,<options>
  *
- *	The optional form
+ * The optional form:
+ *  * earlycon=<name>,0x<addr>,<options>
+ *  * console=<name>,0x<addr>,<options>
  *
- *	   earlycon=<name>,0x<addr>,<options>
- *	   console=<name>,0x<addr>,<options>
+ * is also accepted; the returned @iotype will be %UPIO_MEM.
  *
- *	is also accepted; the returned @iotype will be UPIO_MEM.
- *
- *	Returns 0 on success or -EINVAL on failure
+ * Returns: 0 on success or -%EINVAL on failure
  */
 int uart_parse_earlycon(char *p, unsigned char *iotype, resource_size_t *addr,
 			char **options)
@@ -2177,16 +2176,16 @@ int uart_parse_earlycon(char *p, unsigned char *iotype, resource_size_t *addr,
 EXPORT_SYMBOL_GPL(uart_parse_earlycon);
 
 /**
- *	uart_parse_options - Parse serial port baud/parity/bits/flow control.
- *	@options: pointer to option string
- *	@baud: pointer to an 'int' variable for the baud rate.
- *	@parity: pointer to an 'int' variable for the parity.
- *	@bits: pointer to an 'int' variable for the number of data bits.
- *	@flow: pointer to an 'int' variable for the flow control character.
+ * uart_parse_options - Parse serial port baud/parity/bits/flow control.
+ * @options: pointer to option string
+ * @baud: pointer to an 'int' variable for the baud rate.
+ * @parity: pointer to an 'int' variable for the parity.
+ * @bits: pointer to an 'int' variable for the number of data bits.
+ * @flow: pointer to an 'int' variable for the flow control character.
  *
- *	uart_parse_options decodes a string containing the serial console
- *	options.  The format of the string is <baud><parity><bits><flow>,
- *	eg: 115200n8r
+ * uart_parse_options() decodes a string containing the serial console
+ * options. The format of the string is <baud><parity><bits><flow>,
+ * eg: 115200n8r
  */
 void
 uart_parse_options(const char *options, int *baud, int *parity,
@@ -2207,13 +2206,13 @@ uart_parse_options(const char *options, int *baud, int *parity,
 EXPORT_SYMBOL_GPL(uart_parse_options);
 
 /**
- *	uart_set_options - setup the serial console parameters
- *	@port: pointer to the serial ports uart_port structure
- *	@co: console pointer
- *	@baud: baud rate
- *	@parity: parity character - 'n' (none), 'o' (odd), 'e' (even)
- *	@bits: number of data bits
- *	@flow: flow control character - 'r' (rts)
+ * uart_set_options - setup the serial console parameters
+ * @port: pointer to the serial ports uart_port structure
+ * @co: console pointer
+ * @baud: baud rate
+ * @parity: parity character - 'n' (none), 'o' (odd), 'e' (even)
+ * @bits: number of data bits
+ * @flow: flow control character - 'r' (rts)
  */
 int
 uart_set_options(struct uart_port *port, struct console *co,
@@ -3248,11 +3247,11 @@ bool uart_match_port(const struct uart_port *port1,
 EXPORT_SYMBOL(uart_match_port);
 
 /**
- *	uart_handle_dcd_change - handle a change of carrier detect state
- *	@uport: uart_port structure for the open port
- *	@status: new carrier detect status, nonzero if active
+ * uart_handle_dcd_change - handle a change of carrier detect state
+ * @uport: uart_port structure for the open port
+ * @status: new carrier detect status, nonzero if active
  *
- *	Caller must hold uport->lock
+ * Caller must hold uport->lock.
  */
 void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 {
@@ -3283,11 +3282,11 @@ void uart_handle_dcd_change(struct uart_port *uport, unsigned int status)
 EXPORT_SYMBOL_GPL(uart_handle_dcd_change);
 
 /**
- *	uart_handle_cts_change - handle a change of clear-to-send state
- *	@uport: uart_port structure for the open port
- *	@status: new clear to send status, nonzero if active
+ * uart_handle_cts_change - handle a change of clear-to-send state
+ * @uport: uart_port structure for the open port
+ * @status: new clear to send status, nonzero if active
  *
- *	Caller must hold uport->lock
+ * Caller must hold uport->lock.
  */
 void uart_handle_cts_change(struct uart_port *uport, unsigned int status)
 {
@@ -3358,15 +3357,15 @@ static void uart_sysrq_on(struct work_struct *w)
 static DECLARE_WORK(sysrq_enable_work, uart_sysrq_on);
 
 /**
- *	uart_try_toggle_sysrq - Enables SysRq from serial line
- *	@port: uart_port structure where char(s) after BREAK met
- *	@ch: new character in the sequence after received BREAK
+ * uart_try_toggle_sysrq - Enables SysRq from serial line
+ * @port: uart_port structure where char(s) after BREAK met
+ * @ch: new character in the sequence after received BREAK
  *
- *	Enables magic SysRq when the required sequence is met on port
- *	(see CONFIG_MAGIC_SYSRQ_SERIAL_SEQUENCE).
+ * Enables magic SysRq when the required sequence is met on port
+ * (see CONFIG_MAGIC_SYSRQ_SERIAL_SEQUENCE).
  *
- *	Returns false if @ch is out of enabling sequence and should be
- *	handled some other way, true if @ch was consumed.
+ * Returns: %false if @ch is out of enabling sequence and should be
+ * handled some other way, %true if @ch was consumed.
  */
 bool uart_try_toggle_sysrq(struct uart_port *port, unsigned int ch)
 {

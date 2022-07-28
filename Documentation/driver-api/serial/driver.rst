@@ -25,10 +25,10 @@ Console Support
 ---------------
 
 The serial core provides a few helper functions.  This includes identifing
-the correct port structure (via uart_get_console) and decoding command line
-arguments (uart_parse_options).
+the correct port structure (via uart_get_console()) and decoding command line
+arguments (uart_parse_options()).
 
-There is also a helper function (uart_console_write) which performs a
+There is also a helper function (uart_console_write()) which performs a
 character by character write, translating newlines to CRLF sequences.
 Driver writers are recommended to use this function rather than implementing
 their own version.
@@ -73,7 +73,10 @@ Other functions
    :identifiers: uart_update_timeout uart_get_baud_rate uart_get_divisor
            uart_match_port uart_write_wakeup uart_register_driver
            uart_unregister_driver uart_suspend_port uart_resume_port
-           uart_add_one_port uart_remove_one_port
+           uart_add_one_port uart_remove_one_port uart_console_write
+           uart_parse_earlycon uart_parse_options uart_set_options
+           uart_get_lsr_info uart_handle_dcd_change uart_handle_cts_change
+           uart_try_toggle_sysrq
 
 Other notes
 -----------
