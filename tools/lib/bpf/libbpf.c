@@ -9995,6 +9995,10 @@ static const char *arch_specific_syscall_pfx(void)
 	return "mips";
 #elif defined(__riscv)
 	return "riscv";
+#elif defined(__powerpc__)
+	return "powerpc";
+#elif defined(__powerpc64__)
+	return "powerpc64";
 #else
 	return NULL;
 #endif
@@ -10127,8 +10131,13 @@ struct bpf_link *bpf_program__attach_ksyscall(const struct bpf_program *prog,
 		return libbpf_err_ptr(-EINVAL);
 
 	if (kernel_supports(prog->obj, FEAT_SYSCALL_WRAPPER)) {
+		/* arch_specific_syscall_pfx() should never return NULL here
+		 * because it is guarded by kernel_supports(). However, since
+		 * compiler does not know that we have an explicit conditional
+		 * as well.
+		 */
 		snprintf(func_name, sizeof(func_name), "__%s_sys_%s",
-			 arch_specific_syscall_pfx(), syscall_name);
+			 arch_specific_syscall_pfx() ? : "", syscall_name);
 	} else {
 		snprintf(func_name, sizeof(func_name), "__se_sys_%s", syscall_name);
 	}
