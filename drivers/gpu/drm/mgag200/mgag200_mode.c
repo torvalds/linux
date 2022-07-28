@@ -131,95 +131,6 @@ static inline void mga_wait_busy(struct mga_device *mdev)
 	} while ((status & 0x01) && time_before(jiffies, timeout));
 }
 
-static void mgag200_g200wb_hold_bmc(struct mga_device *mdev)
-{
-	u8 tmp;
-	int iter_max;
-
-	/* 1- The first step is to warn the BMC of an upcoming mode change.
-	 * We are putting the misc<0> to output.*/
-
-	WREG8(DAC_INDEX, MGA1064_GEN_IO_CTL);
-	tmp = RREG8(DAC_DATA);
-	tmp |= 0x10;
-	WREG_DAC(MGA1064_GEN_IO_CTL, tmp);
-
-	/* we are putting a 1 on the misc<0> line */
-	WREG8(DAC_INDEX, MGA1064_GEN_IO_DATA);
-	tmp = RREG8(DAC_DATA);
-	tmp |= 0x10;
-	WREG_DAC(MGA1064_GEN_IO_DATA, tmp);
-
-	/* 2- Second step to mask and further scan request
-	 * This will be done by asserting the remfreqmsk bit (XSPAREREG<7>)
-	 */
-	WREG8(DAC_INDEX, MGA1064_SPAREREG);
-	tmp = RREG8(DAC_DATA);
-	tmp |= 0x80;
-	WREG_DAC(MGA1064_SPAREREG, tmp);
-
-	/* 3a- the third step is to verifu if there is an active scan
-	 * We are searching for a 0 on remhsyncsts <XSPAREREG<0>)
-	 */
-	iter_max = 300;
-	while (!(tmp & 0x1) && iter_max) {
-		WREG8(DAC_INDEX, MGA1064_SPAREREG);
-		tmp = RREG8(DAC_DATA);
-		udelay(1000);
-		iter_max--;
-	}
-
-	/* 3b- this step occurs only if the remove is actually scanning
-	 * we are waiting for the end of the frame which is a 1 on
-	 * remvsyncsts (XSPAREREG<1>)
-	 */
-	if (iter_max) {
-		iter_max = 300;
-		while ((tmp & 0x2) && iter_max) {
-			WREG8(DAC_INDEX, MGA1064_SPAREREG);
-			tmp = RREG8(DAC_DATA);
-			udelay(1000);
-			iter_max--;
-		}
-	}
-}
-
-static void mgag200_g200wb_release_bmc(struct mga_device *mdev)
-{
-	u8 tmp;
-
-	/* 1- The first step is to ensure that the vrsten and hrsten are set */
-	WREG8(MGAREG_CRTCEXT_INDEX, 1);
-	tmp = RREG8(MGAREG_CRTCEXT_DATA);
-	WREG8(MGAREG_CRTCEXT_DATA, tmp | 0x88);
-
-	/* 2- second step is to assert the rstlvl2 */
-	WREG8(DAC_INDEX, MGA1064_REMHEADCTL2);
-	tmp = RREG8(DAC_DATA);
-	tmp |= 0x8;
-	WREG8(DAC_DATA, tmp);
-
-	/* wait 10 us */
-	udelay(10);
-
-	/* 3- deassert rstlvl2 */
-	tmp &= ~0x08;
-	WREG8(DAC_INDEX, MGA1064_REMHEADCTL2);
-	WREG8(DAC_DATA, tmp);
-
-	/* 4- remove mask of scan request */
-	WREG8(DAC_INDEX, MGA1064_SPAREREG);
-	tmp = RREG8(DAC_DATA);
-	tmp &= ~0x80;
-	WREG8(DAC_DATA, tmp);
-
-	/* 5- put back a 0 on the misc<0> line */
-	WREG8(DAC_INDEX, MGA1064_GEN_IO_DATA);
-	tmp = RREG8(DAC_DATA);
-	tmp &= ~0x10;
-	WREG_DAC(MGA1064_GEN_IO_DATA, tmp);
-}
-
 /*
  * This is how the framebuffer base address is stored in g200 cards:
  *   * Assume @offset is the gpu_addr variable of the framebuffer object
@@ -802,14 +713,15 @@ static void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 {
 	struct drm_device *dev = crtc->dev;
 	struct mga_device *mdev = to_mga_device(dev);
+	const struct mgag200_device_funcs *funcs = mdev->funcs;
 	struct drm_crtc_state *crtc_state = crtc->state;
 	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
 	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
 	const struct drm_format_info *format = mgag200_crtc_state->format;
 	struct mgag200_pll *pixpll = &mdev->pixpll;
 
-	if (mdev->type == G200_WB || mdev->type == G200_EW3)
-		mgag200_g200wb_hold_bmc(mdev);
+	if (funcs->disable_vidrst)
+		funcs->disable_vidrst(mdev);
 
 	mgag200_set_format_regs(mdev, format);
 	mgag200_set_mode_regs(mdev, adjusted_mode);
@@ -826,22 +738,23 @@ static void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc,
 
 	mgag200_enable_display(mdev);
 
-	if (mdev->type == G200_WB || mdev->type == G200_EW3)
-		mgag200_g200wb_release_bmc(mdev);
+	if (funcs->enable_vidrst)
+		funcs->enable_vidrst(mdev);
 }
 
 static void mgag200_crtc_helper_atomic_disable(struct drm_crtc *crtc,
 					       struct drm_atomic_state *old_state)
 {
 	struct mga_device *mdev = to_mga_device(crtc->dev);
+	const struct mgag200_device_funcs *funcs = mdev->funcs;
 
-	if (mdev->type == G200_WB || mdev->type == G200_EW3)
-		mgag200_g200wb_hold_bmc(mdev);
+	if (funcs->disable_vidrst)
+		funcs->disable_vidrst(mdev);
 
 	mgag200_disable_display(mdev);
 
-	if (mdev->type == G200_WB || mdev->type == G200_EW3)
-		mgag200_g200wb_release_bmc(mdev);
+	if (funcs->enable_vidrst)
+		funcs->enable_vidrst(mdev);
 }
 
 static const struct drm_crtc_helper_funcs mgag200_crtc_helper_funcs = {

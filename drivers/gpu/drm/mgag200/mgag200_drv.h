@@ -263,6 +263,17 @@ struct mgag200_device_info {
 	}
 
 struct mgag200_device_funcs {
+	/*
+	 * Disables an external reset source (i.e., BMC) before programming
+	 * a new display mode.
+	 */
+	void (*disable_vidrst)(struct mga_device *mdev);
+
+	/*
+	 * Enables an external reset source (i.e., BMC) after programming
+	 * a new display mode.
+	 */
+	void (*enable_vidrst)(struct mga_device *mdev);
 };
 
 struct mga_device {
@@ -353,6 +364,10 @@ struct mga_device *mgag200_g200ew3_device_create(struct pci_dev *pdev, const str
 resource_size_t mgag200_device_probe_vram(struct mga_device *mdev);
 void mgag200_init_registers(struct mga_device *mdev);
 int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_fb_available);
+
+				/* mgag200_bmc.c */
+void mgag200_bmc_disable_vidrst(struct mga_device *mdev);
+void mgag200_bmc_enable_vidrst(struct mga_device *mdev);
 
 				/* mgag200_i2c.c */
 int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c);

@@ -1,5 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 mgag200-y := \
+	mgag200_bmc.o \
 	mgag200_drv.o \
 	mgag200_g200.o \
 	mgag200_g200eh.o \
