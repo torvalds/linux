@@ -49,6 +49,7 @@
 #include <linux/iommu.h>
 #include <linux/iova.h>
 #include <linux/dma-iommu.h>
+#include <linux/pagemap.h>
 
 #ifdef CONFIG_DMABUF_CACHE
 #include <linux/dma-buf-cache.h>
