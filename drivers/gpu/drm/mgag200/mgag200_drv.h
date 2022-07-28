@@ -210,8 +210,6 @@ enum mga_type {
 	G200_EW3,
 };
 
-#define IS_G200_SE(mdev) (mdev->type == G200_SE_A || mdev->type == G200_SE_B)
-
 struct mgag200_device_info {
 	u16 max_hdisplay;
 	u16 max_vdisplay;
@@ -438,7 +436,9 @@ int mgag200_vga_connector_helper_get_modes(struct drm_connector *connector);
 	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state, \
 	.atomic_destroy_state   = drm_atomic_helper_connector_destroy_state
 
-resource_size_t mgag200_device_probe_vram(struct mga_device *mdev);
+void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mode *mode);
+void mgag200_set_format_regs(struct mga_device *mdev, const struct drm_format_info *format);
+void mgag200_enable_display(struct mga_device *mdev);
 void mgag200_init_registers(struct mga_device *mdev);
 int mgag200_mode_config_init(struct mga_device *mdev, resource_size_t vram_available);
 

@@ -36,6 +36,22 @@ static void mgag200_g200er_init_registers(struct mga_device *mdev)
 	WREG_ECRT(0x24, 0x5); /* G200ER specific */
 }
 
+static void mgag200_g200er_reset_tagfifo(struct mga_device *mdev)
+{
+	static const uint32_t RESET_FLAG = 0x00200000; /* undocumented magic value */
+	u32 memctl;
+
+	memctl = RREG32(MGAREG_MEMCTL);
+
+	memctl |= RESET_FLAG;
+	WREG32(MGAREG_MEMCTL, memctl);
+
+	udelay(1000);
+
+	memctl &= ~RESET_FLAG;
+	WREG32(MGAREG_MEMCTL, memctl);
+}
+
 /*
  * PIXPLLC
  */
@@ -164,8 +180,40 @@ static const struct drm_plane_funcs mgag200_g200er_primary_plane_funcs = {
 	MGAG200_PRIMARY_PLANE_FUNCS,
 };
 
+static void mgag200_g200er_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+						     struct drm_atomic_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct mga_device *mdev = to_mga_device(dev);
+	const struct mgag200_device_funcs *funcs = mdev->funcs;
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
+	const struct drm_format_info *format = mgag200_crtc_state->format;
+
+	if (funcs->disable_vidrst)
+		funcs->disable_vidrst(mdev);
+
+	mgag200_set_format_regs(mdev, format);
+	mgag200_set_mode_regs(mdev, adjusted_mode);
+
+	if (funcs->pixpllc_atomic_update)
+		funcs->pixpllc_atomic_update(crtc, old_state);
+
+	mgag200_g200er_reset_tagfifo(mdev);
+
+	mgag200_enable_display(mdev);
+
+	if (funcs->enable_vidrst)
+		funcs->enable_vidrst(mdev);
+}
+
 static const struct drm_crtc_helper_funcs mgag200_g200er_crtc_helper_funcs = {
-	MGAG200_CRTC_HELPER_FUNCS,
+	.mode_valid = mgag200_crtc_helper_mode_valid,
+	.atomic_check = mgag200_crtc_helper_atomic_check,
+	.atomic_flush = mgag200_crtc_helper_atomic_flush,
+	.atomic_enable = mgag200_g200er_crtc_helper_atomic_enable,
+	.atomic_disable = mgag200_crtc_helper_atomic_disable
 };
 
 static const struct drm_crtc_funcs mgag200_g200er_crtc_funcs = {

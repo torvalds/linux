@@ -61,6 +61,52 @@ static void mgag200_g200se_init_registers(struct mgag200_g200se_device *g200se)
 	mgag200_init_registers(mdev);
 }
 
+static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
+					const struct drm_display_mode *mode,
+					const struct drm_format_info *format)
+{
+	struct mgag200_g200se_device *g200se = to_mgag200_g200se_device(&mdev->base);
+	unsigned int hiprilvl;
+	u8 crtcext6;
+
+	if  (g200se->unique_rev_id >= 0x04) {
+		hiprilvl = 0;
+	} else if (g200se->unique_rev_id >= 0x02) {
+		unsigned int bpp;
+		unsigned long mb;
+
+		if (format->cpp[0] * 8 > 16)
+			bpp = 32;
+		else if (format->cpp[0] * 8 > 8)
+			bpp = 16;
+		else
+			bpp = 8;
+
+		mb = (mode->clock * bpp) / 1000;
+		if (mb > 3100)
+			hiprilvl = 0;
+		else if (mb > 2600)
+			hiprilvl = 1;
+		else if (mb > 1900)
+			hiprilvl = 2;
+		else if (mb > 1160)
+			hiprilvl = 3;
+		else if (mb > 440)
+			hiprilvl = 4;
+		else
+			hiprilvl = 5;
+
+	} else if (g200se->unique_rev_id >= 0x01) {
+		hiprilvl = 3;
+	} else {
+		hiprilvl = 4;
+	}
+
+	crtcext6 = hiprilvl; /* implicitly sets maxhipri to 0 */
+
+	WREG_ECRT(0x06, crtcext6);
+}
+
 /*
  * PIXPLLC
  */
@@ -265,8 +311,40 @@ static const struct drm_plane_funcs mgag200_g200se_primary_plane_funcs = {
 	MGAG200_PRIMARY_PLANE_FUNCS,
 };
 
+static void mgag200_g200se_crtc_helper_atomic_enable(struct drm_crtc *crtc,
+						     struct drm_atomic_state *old_state)
+{
+	struct drm_device *dev = crtc->dev;
+	struct mga_device *mdev = to_mga_device(dev);
+	const struct mgag200_device_funcs *funcs = mdev->funcs;
+	struct drm_crtc_state *crtc_state = crtc->state;
+	struct drm_display_mode *adjusted_mode = &crtc_state->adjusted_mode;
+	struct mgag200_crtc_state *mgag200_crtc_state = to_mgag200_crtc_state(crtc_state);
+	const struct drm_format_info *format = mgag200_crtc_state->format;
+
+	if (funcs->disable_vidrst)
+		funcs->disable_vidrst(mdev);
+
+	mgag200_set_format_regs(mdev, format);
+	mgag200_set_mode_regs(mdev, adjusted_mode);
+
+	if (funcs->pixpllc_atomic_update)
+		funcs->pixpllc_atomic_update(crtc, old_state);
+
+	mgag200_g200se_set_hiprilvl(mdev, adjusted_mode, format);
+
+	mgag200_enable_display(mdev);
+
+	if (funcs->enable_vidrst)
+		funcs->enable_vidrst(mdev);
+}
+
 static const struct drm_crtc_helper_funcs mgag200_g200se_crtc_helper_funcs = {
-	MGAG200_CRTC_HELPER_FUNCS,
+	.mode_valid = mgag200_crtc_helper_mode_valid,
+	.atomic_check = mgag200_crtc_helper_atomic_check,
+	.atomic_flush = mgag200_crtc_helper_atomic_flush,
+	.atomic_enable = mgag200_g200se_crtc_helper_atomic_enable,
+	.atomic_disable = mgag200_crtc_helper_atomic_disable
 };
 
 static const struct drm_crtc_funcs mgag200_g200se_crtc_funcs = {

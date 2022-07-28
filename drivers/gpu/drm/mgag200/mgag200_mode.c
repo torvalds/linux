@@ -199,8 +199,7 @@ void mgag200_init_registers(struct mga_device *mdev)
 	WREG8(MGA_MISC_OUT, misc);
 }
 
-static void mgag200_set_mode_regs(struct mga_device *mdev,
-				  const struct drm_display_mode *mode)
+void mgag200_set_mode_regs(struct mga_device *mdev, const struct drm_display_mode *mode)
 {
 	const struct mgag200_device_info *info = mdev->info;
 	unsigned int hdisplay, hsyncstart, hsyncend, htotal;
@@ -324,7 +323,7 @@ static void mgag200_set_offset(struct mga_device *mdev,
 	WREG_ECRT(0x00, crtcext0);
 }
 
-static void mgag200_set_format_regs(struct mga_device *mdev, const struct drm_format_info *format)
+void mgag200_set_format_regs(struct mga_device *mdev, const struct drm_format_info *format)
 {
 	struct drm_device *dev = &mdev->base;
 	unsigned int bpp, bppshift, scale;
@@ -387,74 +386,7 @@ static void mgag200_set_format_regs(struct mga_device *mdev, const struct drm_fo
 	WREG_ECRT(3, crtcext3);
 }
 
-static void mgag200_g200er_reset_tagfifo(struct mga_device *mdev)
-{
-	static uint32_t RESET_FLAG = 0x00200000; /* undocumented magic value */
-	u32 memctl;
-
-	memctl = RREG32(MGAREG_MEMCTL);
-
-	memctl |= RESET_FLAG;
-	WREG32(MGAREG_MEMCTL, memctl);
-
-	udelay(1000);
-
-	memctl &= ~RESET_FLAG;
-	WREG32(MGAREG_MEMCTL, memctl);
-}
-
-static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
-					const struct drm_display_mode *mode,
-					const struct drm_format_info *format)
-{
-	struct mgag200_g200se_device *g200se = to_mgag200_g200se_device(&mdev->base);
-	unsigned int hiprilvl;
-	u8 crtcext6;
-
-	if  (g200se->unique_rev_id >= 0x04) {
-		hiprilvl = 0;
-	} else if (g200se->unique_rev_id >= 0x02) {
-		unsigned int bpp;
-		unsigned long mb;
-
-		if (format->cpp[0] * 8 > 16)
-			bpp = 32;
-		else if (format->cpp[0] * 8 > 8)
-			bpp = 16;
-		else
-			bpp = 8;
-
-		mb = (mode->clock * bpp) / 1000;
-		if (mb > 3100)
-			hiprilvl = 0;
-		else if (mb > 2600)
-			hiprilvl = 1;
-		else if (mb > 1900)
-			hiprilvl = 2;
-		else if (mb > 1160)
-			hiprilvl = 3;
-		else if (mb > 440)
-			hiprilvl = 4;
-		else
-			hiprilvl = 5;
-
-	} else if (g200se->unique_rev_id >= 0x01) {
-		hiprilvl = 3;
-	} else {
-		hiprilvl = 4;
-	}
-
-	crtcext6 = hiprilvl; /* implicitly sets maxhipri to 0 */
-
-	WREG_ECRT(0x06, crtcext6);
-}
-
-static void mgag200_g200ev_set_hiprilvl(struct mga_device *mdev)
-{
-	WREG_ECRT(0x06, 0x00);
-}
-
-static void mgag200_enable_display(struct mga_device *mdev)
+void mgag200_enable_display(struct mga_device *mdev)
 {
 	u8 seq0, crtcext1;
 
@@ -708,14 +640,6 @@ void mgag200_crtc_helper_atomic_enable(struct drm_crtc *crtc, struct drm_atomic_
 
 	if (funcs->pixpllc_atomic_update)
 		funcs->pixpllc_atomic_update(crtc, old_state);
-
-	if (mdev->type == G200_ER)
-		mgag200_g200er_reset_tagfifo(mdev);
-
-	if (IS_G200_SE(mdev))
-		mgag200_g200se_set_hiprilvl(mdev, adjusted_mode, format);
-	else if (mdev->type == G200_EV)
-		mgag200_g200ev_set_hiprilvl(mdev);
 
 	mgag200_enable_display(mdev);
 
