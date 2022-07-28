@@ -75,6 +75,8 @@ struct wl2868c {
 	struct regulator_dev *rdev;
 	struct gpio_desc *reset_gpio;
 	int min_dropout_uv;
+	int ldo_vout[7];
+	int ldo_en;
 };
 
 static const struct regulator_ops wl2868c_reg_ops = {
@@ -183,6 +185,16 @@ static const struct regmap_config wl2868c_regmap_config = {
 	.volatile_table = &wl2868c_volatile_table,
 };
 
+static void wl2868c_reset(struct wl2868c *wl2868c)
+{
+	gpiod_set_value_cansleep(wl2868c->reset_gpio, 0);
+	usleep_range(10000, 11000);
+	gpiod_set_value_cansleep(wl2868c->reset_gpio, 1);
+	usleep_range(10000, 11000);
+	gpiod_set_value_cansleep(wl2868c->reset_gpio, 0);
+	usleep_range(10000, 11000);
+}
+
 static int wl2868c_i2c_probe(struct i2c_client *client, const struct i2c_device_id *id)
 {
 	struct device *dev = &client->dev;
@@ -203,12 +215,7 @@ static int wl2868c_i2c_probe(struct i2c_client *client, const struct i2c_device_
 		return ret;
 	}
 
-	gpiod_set_value_cansleep(wl2868c->reset_gpio, 0);
-	usleep_range(10000, 11000);
-	gpiod_set_value_cansleep(wl2868c->reset_gpio, 1);
-	usleep_range(10000, 11000);
-	gpiod_set_value_cansleep(wl2868c->reset_gpio, 0);
-	usleep_range(10000, 11000);
+	wl2868c_reset(wl2868c);
 
 	i2c_set_clientdata(client, wl2868c);
 	wl2868c->dev = dev;
@@ -244,6 +251,37 @@ static void wl2868c_regulator_shutdown(struct i2c_client *client)
 		regmap_write(wl2868c->regmap, WL2868C_LDO_EN, 0x80);
 }
 
+static int __maybe_unused wl2868c_suspend(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct wl2868c *wl2868c = i2c_get_clientdata(client);
+	int i;
+
+	regmap_read(wl2868c->regmap, WL2868C_LDO_EN, &wl2868c->ldo_en);
+	for (i = 0; i < ARRAY_SIZE(wl2868c->ldo_vout); i++)
+		regmap_read(wl2868c->regmap, WL2868C_LDO1_VOUT + i,
+			    &wl2868c->ldo_vout[i]);
+
+	return 0;
+}
+
+static int __maybe_unused wl2868c_resume(struct device *dev)
+{
+	struct i2c_client *client = to_i2c_client(dev);
+	struct wl2868c *wl2868c = i2c_get_clientdata(client);
+	int i;
+
+	wl2868c_reset(wl2868c);
+	for (i = 0; i < ARRAY_SIZE(wl2868c->ldo_vout); i++)
+		regmap_write(wl2868c->regmap, WL2868C_LDO1_VOUT + i,
+			     wl2868c->ldo_vout[i]);
+	regmap_write(wl2868c->regmap, WL2868C_LDO_EN, wl2868c->ldo_en);
+
+	return 0;
+}
+
+static SIMPLE_DEV_PM_OPS(wl2868c_pm_ops, wl2868c_suspend, wl2868c_resume);
+
 static const struct i2c_device_id wl2868c_i2c_id[] = {
 	{ "wl2868c", 0 },
 	{ }
@@ -261,6 +299,7 @@ static struct i2c_driver wl2868c_i2c_driver = {
 	.driver = {
 		.name = "wl2868c",
 		.of_match_table = of_match_ptr(wl2868c_of_match),
+		.pm = &wl2868c_pm_ops,
 	},
 	.id_table = wl2868c_i2c_id,
 	.probe	= wl2868c_i2c_probe,
