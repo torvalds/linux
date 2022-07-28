@@ -407,7 +407,7 @@ static void fsm_close(struct vfio_ccw_private *private,
 
 	ret = cio_disable_subchannel(sch);
 	if (ret == -EBUSY)
-		vfio_ccw_sch_quiesce(sch);
+		ret = vfio_ccw_sch_quiesce(sch);
 	if (ret)
 		goto err_unlock;
 
