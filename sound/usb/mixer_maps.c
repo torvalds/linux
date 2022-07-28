@@ -442,7 +442,7 @@ static const struct usbmix_connector_map trx40_mobo_connector_map[] = {
 
 /* Rear panel + front mic on Gigabyte TRX40 Aorus Master with ALC1220-VB */
 static const struct usbmix_name_map aorus_master_alc1220vb_map[] = {
-	{ 17, NULL },			/* OT, IEC958?, disabled */
+	{ 18, NULL }, /* OT, IEC958 - broken response, disabled */
 	{ 19, NULL, 12 }, /* FU, Input Gain Pad - broken response, disabled */
 	{ 16, "Line Out" },		/* OT */
 	{ 22, "Line Out Playback" },	/* FU */
@@ -450,8 +450,17 @@ static const struct usbmix_name_map aorus_master_alc1220vb_map[] = {
 	{ 19, "Line Capture" },		/* FU */
 	{ 8, "Mic" },			/* IT */
 	{ 20, "Mic Capture" },		/* FU */
-	{ 9, "Front Mic" },		/* IT */
-	{ 21, "Front Mic Capture" },	/* FU */
+	{ 11, "Headphone" },		/* OT */
+	{ 23, "Headphone Playback" },	/* FU */
+	{}
+};
+
+static const struct usbmix_connector_map aorus_master_alc1220vb_connector_map[] = {
+	{ 10, 16 },	/* (Back) Speaker */
+	{ 11, 17 },	/* Front Headphone */
+	{ 13, 7 },	/* Line */
+	{ 14, 8 },	/* Mic */
+	{ 15, 9 },	/* Front Mic */
 	{}
 };
 
@@ -640,6 +649,7 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 	{	/* Gigabyte TRX40 Aorus Master (rear panel + front mic) */
 		.id = USB_ID(0x0414, 0xa001),
 		.map = aorus_master_alc1220vb_map,
+		.connector_map = aorus_master_alc1220vb_connector_map,
 	},
 	{	/* Gigabyte TRX40 Aorus Pro WiFi */
 		.id = USB_ID(0x0414, 0xa002),
