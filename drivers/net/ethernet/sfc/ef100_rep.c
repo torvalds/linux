@@ -27,6 +27,8 @@ static int efx_ef100_rep_init_struct(struct efx_nic *efx, struct efx_rep *efv,
 	efv->parent = efx;
 	efv->idx = i;
 	INIT_LIST_HEAD(&efv->list);
+	efv->dflt.fw_id = MC_CMD_MAE_ACTION_RULE_INSERT_OUT_ACTION_RULE_ID_NULL;
+	INIT_LIST_HEAD(&efv->dflt.acts.list);
 	INIT_LIST_HEAD(&efv->rx_list);
 	spin_lock_init(&efv->rx_lock);
 	efv->msg_enable = NETIF_MSG_DRV | NETIF_MSG_PROBE |
@@ -212,7 +214,14 @@ static int efx_ef100_configure_rep(struct efx_rep *efv)
 	/* mport label should fit in 16 bits */
 	WARN_ON(efv->mport >> 16);
 
-	return 0;
+	return efx_tc_configure_default_rule_rep(efv);
+}
+
+static void efx_ef100_deconfigure_rep(struct efx_rep *efv)
+{
+	struct efx_nic *efx = efv->parent;
+
+	efx_tc_deconfigure_default_rule(efx, &efv->dflt);
 }
 
 static void efx_ef100_rep_destroy_netdev(struct efx_rep *efv)
@@ -246,19 +255,21 @@ int efx_ef100_vfrep_create(struct efx_nic *efx, unsigned int i)
 		pci_err(efx->pci_dev,
 			"Failed to configure representor for VF %d, rc %d\n",
 			i, rc);
-		goto fail;
+		goto fail1;
 	}
 	rc = register_netdev(efv->net_dev);
 	if (rc) {
 		pci_err(efx->pci_dev,
 			"Failed to register representor for VF %d, rc %d\n",
 			i, rc);
-		goto fail;
+		goto fail2;
 	}
 	pci_dbg(efx->pci_dev, "Representor for VF %d is %s\n", i,
 		efv->net_dev->name);
 	return 0;
-fail:
+fail2:
+	efx_ef100_deconfigure_rep(efv);
+fail1:
 	efx_ef100_rep_destroy_netdev(efv);
 	return rc;
 }
@@ -272,6 +283,7 @@ void efx_ef100_vfrep_destroy(struct efx_nic *efx, struct efx_rep *efv)
 		return;
 	netif_dbg(efx, drv, rep_dev, "Removing VF representor\n");
 	unregister_netdev(rep_dev);
+	efx_ef100_deconfigure_rep(efv);
 	efx_ef100_rep_destroy_netdev(efv);
 }
 

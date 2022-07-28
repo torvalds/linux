@@ -14,6 +14,7 @@
 #define EF100_REP_H
 
 #include "net_driver.h"
+#include "tc.h"
 
 struct efx_rep_sw_stats {
 	atomic64_t rx_packets, tx_packets;
@@ -32,6 +33,7 @@ struct efx_rep_sw_stats {
  * @write_index: number of packets enqueued to @rx_list
  * @read_index: number of packets consumed from @rx_list
  * @rx_pring_size: max length of RX list
+ * @dflt: default-rule for MAE switching
  * @list: entry on efx->vf_reps
  * @rx_list: list of SKBs queued for receive in NAPI poll
  * @rx_lock: protects @rx_list
@@ -46,6 +48,7 @@ struct efx_rep {
 	unsigned int idx;
 	unsigned int write_index, read_index;
 	unsigned int rx_pring_size;
+	struct efx_tc_flow_rule dflt;
 	struct list_head list;
 	struct list_head rx_list;
 	spinlock_t rx_lock;

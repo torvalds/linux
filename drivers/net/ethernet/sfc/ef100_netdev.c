@@ -329,6 +329,10 @@ void ef100_remove_netdev(struct efx_probe_data *probe_data)
 
 	ef100_unregister_netdev(efx);
 
+#ifdef CONFIG_SFC_SRIOV
+	efx_fini_tc(efx);
+#endif
+
 	down_write(&efx->filter_sem);
 	efx_mcdi_filter_table_remove(efx);
 	up_write(&efx->filter_sem);

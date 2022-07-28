@@ -1094,10 +1094,27 @@ int ef100_probe_netdev_pf(struct efx_nic *efx)
 		return 0;
 
 #ifdef CONFIG_SFC_SRIOV
+	rc = efx_init_struct_tc(efx);
+	if (rc)
+		return rc;
+
 	rc = efx_ef100_get_base_mport(efx);
 	if (rc) {
 		netif_warn(efx, probe, net_dev,
 			   "Failed to probe base mport rc %d; representors will not function\n",
+			   rc);
+	}
+
+	rc = efx_init_tc(efx);
+	if (rc) {
+		/* Either we don't have an MAE at all (i.e. legacy v-switching),
+		 * or we do but we failed to probe it.  In the latter case, we
+		 * may not have set up default rules, in which case we won't be
+		 * able to pass any traffic.  However, we don't fail the probe,
+		 * because the user might need to use the netdevice to apply
+		 * configuration changes to fix whatever's wrong with the MAE.
+		 */
+		netif_warn(efx, probe, net_dev, "Failed to probe MAE rc %d\n",
 			   rc);
 	}
 #endif
