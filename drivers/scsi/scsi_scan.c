@@ -521,6 +521,8 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	starget->state = STARGET_CREATED;
 	starget->scsi_level = SCSI_2;
 	starget->max_target_blocked = SCSI_DEFAULT_TARGET_BLOCKED;
+	init_waitqueue_head(&starget->sdev_wq);
+
  retry:
 	spin_lock_irqsave(shost->host_lock, flags);
 

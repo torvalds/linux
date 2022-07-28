@@ -443,7 +443,9 @@ static void scsi_device_cls_release(struct device *class_dev)
 
 static void scsi_device_dev_release_usercontext(struct work_struct *work)
 {
-	struct scsi_device *sdev;
+	struct scsi_device *sdev = container_of(work, struct scsi_device,
+						ew.work);
+	struct scsi_target *starget = sdev->sdev_target;
 	struct device *parent;
 	struct list_head *this, *tmp;
 	struct scsi_vpd *vpd_pg80 = NULL, *vpd_pg83 = NULL;
@@ -451,8 +453,6 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 	struct scsi_vpd *vpd_pgb0 = NULL, *vpd_pgb1 = NULL, *vpd_pgb2 = NULL;
 	unsigned long flags;
 	struct module *mod;
-
-	sdev = container_of(work, struct scsi_device, ew.work);
 
 	mod = sdev->host->hostt->module;
 
@@ -515,6 +515,9 @@ static void scsi_device_dev_release_usercontext(struct work_struct *work)
 		kfree_rcu(vpd_pgb2, rcu);
 	kfree(sdev->inquiry);
 	kfree(sdev);
+
+	if (starget && atomic_dec_return(&starget->sdev_count) == 0)
+		wake_up(&starget->sdev_wq);
 
 	if (parent)
 		put_device(parent);
@@ -1535,6 +1538,14 @@ static void __scsi_remove_target(struct scsi_target *starget)
 		goto restart;
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	/*
+	 * After scsi_remove_target() returns its caller can remove resources
+	 * associated with @starget, e.g. an rport or session. Wait until all
+	 * devices associated with @starget have been removed to prevent that
+	 * a SCSI error handling callback function triggers a use-after-free.
+	 */
+	wait_event(starget->sdev_wq, atomic_read(&starget->sdev_count) == 0);
 }
 
 /**
@@ -1645,6 +1656,9 @@ void scsi_sysfs_device_initialize(struct scsi_device *sdev)
 	list_add_tail(&sdev->same_target_siblings, &starget->devices);
 	list_add_tail(&sdev->siblings, &shost->__devices);
 	spin_unlock_irqrestore(shost->host_lock, flags);
+
+	atomic_inc(&starget->sdev_count);
+
 	/*
 	 * device can now only be removed via __scsi_remove_device() so hold
 	 * the target.  Target will be held in CREATED state until something
