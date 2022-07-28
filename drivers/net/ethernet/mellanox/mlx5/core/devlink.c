@@ -104,7 +104,16 @@ static int mlx5_devlink_reload_fw_activate(struct devlink *devlink, struct netli
 	if (err)
 		return err;
 
-	return mlx5_fw_reset_wait_reset_done(dev);
+	err = mlx5_fw_reset_wait_reset_done(dev);
+	if (err)
+		return err;
+
+	mlx5_unload_one(dev);
+	err = mlx5_health_wait_pci_up(dev);
+	if (err)
+		NL_SET_ERR_MSG_MOD(extack, "FW activate aborted, PCI reads fail after reset");
+
+	return err;
 }
 
 static int mlx5_devlink_trigger_fw_live_patch(struct devlink *devlink,
