@@ -190,6 +190,9 @@ over a rather long period of time, but improvements are always welcome!
 
 5.	If call_rcu() or call_srcu() is used, the callback function will
 	be called from softirq context.  In particular, it cannot block.
+	If you need the callback to block, run that code in a workqueue
+	handler scheduled from the callback.  The queue_rcu_work()
+	function does this for you in the case of call_rcu().
 
 6.	Since synchronize_rcu() can block, it cannot be called
 	from any sort of irq context.  The same rule applies
