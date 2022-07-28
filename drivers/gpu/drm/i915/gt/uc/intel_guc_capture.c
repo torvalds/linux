@@ -656,16 +656,17 @@ static void check_guc_capture_size(struct intel_guc *guc)
 	struct drm_i915_private *i915 = guc_to_gt(guc)->i915;
 	int min_size = guc_capture_output_min_size_est(guc);
 	int spare_size = min_size * GUC_CAPTURE_OVERBUFFER_MULTIPLIER;
+	u32 buffer_size = intel_guc_log_section_size_capture(&guc->log);
 
 	if (min_size < 0)
 		drm_warn(&i915->drm, "Failed to calculate GuC error state capture buffer minimum size: %d!\n",
 			 min_size);
-	else if (min_size > CAPTURE_BUFFER_SIZE)
+	else if (min_size > buffer_size)
 		drm_warn(&i915->drm, "GuC error state capture buffer is too small: %d < %d\n",
-			 CAPTURE_BUFFER_SIZE, min_size);
-	else if (spare_size > CAPTURE_BUFFER_SIZE)
+			 buffer_size, min_size);
+	else if (spare_size > buffer_size)
 		drm_notice(&i915->drm, "GuC error state capture buffer maybe too small: %d < %d (min = %d)\n",
-			   CAPTURE_BUFFER_SIZE, spare_size, min_size);
+			   buffer_size, spare_size, min_size);
 }
 
 /*
@@ -1294,7 +1295,8 @@ static void __guc_capture_process_output(struct intel_guc *guc)
 
 	log_buf_state = guc->log.buf_addr +
 			(sizeof(struct guc_log_buffer_state) * GUC_CAPTURE_LOG_BUFFER);
-	src_data = guc->log.buf_addr + intel_guc_get_log_buffer_offset(GUC_CAPTURE_LOG_BUFFER);
+	src_data = guc->log.buf_addr +
+		   intel_guc_get_log_buffer_offset(&guc->log, GUC_CAPTURE_LOG_BUFFER);
 
 	/*
 	 * Make a copy of the state structure, inside GuC log buffer
@@ -1302,7 +1304,7 @@ static void __guc_capture_process_output(struct intel_guc *guc)
 	 * from it multiple times.
 	 */
 	memcpy(&log_buf_state_local, log_buf_state, sizeof(struct guc_log_buffer_state));
-	buffer_size = intel_guc_get_log_buffer_size(GUC_CAPTURE_LOG_BUFFER);
+	buffer_size = intel_guc_get_log_buffer_size(&guc->log, GUC_CAPTURE_LOG_BUFFER);
 	read_offset = log_buf_state_local.read_ptr;
 	write_offset = log_buf_state_local.sampled_write_ptr;
 	full_count = log_buf_state_local.buffer_full_cnt;
