@@ -130,7 +130,6 @@ config PREEMPTIRQ_TRACEPOINTS
 
 config IPC_LOGGING
 	tristate "Debug Logging for IPC Drivers"
-	select GENERIC_TRACER
 	depends on DEBUG_FS
 	help
 	  IPC Logging driver provides a logging option for IPC Drivers.
