@@ -1,0 +1,449 @@
+load("//build/bazel_common_rules/dist:dist.bzl", "copy_to_dist_dir")
+load(
+    "//build/kernel/kleaf:kernel.bzl",
+    "kernel_build_abi",
+    "kernel_build_abi_dist",
+    "kernel_build_config",
+    "kernel_compile_commands",
+    "kernel_images",
+    "kernel_modules_install",
+    "merged_kernel_uapi_headers",
+)
+load(
+    "//build/bazel_extensions:msm_kernel_extensions.bzl",
+    "define_extras",
+    "get_build_config_fragments",
+    "get_dtb_list",
+    "get_dtbo_list",
+    "get_dtstree",
+    "get_vendor_ramdisk_binaries",
+)
+load(":super_image.bzl", "super_image")
+
+def define_build_config(
+        msm_target,
+        target,
+        variant,
+        boot_image_header_version,
+        base_address,
+        page_size,
+        super_image_size,
+        lz4_ramdisk,
+        build_config_fragments = []):
+    """Creates a kernel_build_config for an MSM target
+
+    Creates a `kernel_build_config` for input to a `kernel_build` rule.
+
+    Args:
+      msm_target: name of target platform (e.g. "kalama")
+      variant: variant of kernel to build (e.g. "gki")
+    """
+
+    # Remove sourcing lines from build config since we're just concatenating fragments below
+    native.genrule(
+        name = "{}_build_config_common_without_source".format(target),
+        srcs = ["build.config.common"],
+        outs = ["{}_build.config.common.generated".format(target)],
+        cmd_bash = "sed -e '/^\\. /d' $(location build.config.common) > $@",
+    )
+
+    # Generate the build config
+    native.genrule(
+        name = "{}_build_config_bazel".format(target),
+        srcs = [],
+        outs = ["build.config.msm.{}.generated".format(target)],
+        cmd_bash = """
+            cat << 'EOF' > $@
+KERNEL_DIR="msm-kernel"
+VARIANTS=(consolidate gki)
+MSM_ARCH=%s
+VARIANT=%s
+ABL_SRC=bootable/bootloader/edk2
+BOOT_IMAGE_HEADER_VERSION=%d
+BASE_ADDRESS=0x%X
+PAGE_SIZE=%d
+BUILD_VENDOR_DLKM=1
+PREPARE_SYSTEM_DLKM=1
+SUPER_IMAGE_SIZE=0x%X
+TRIM_UNUSED_MODULES=1
+BUILD_INIT_BOOT_IMG=1
+LZ4_RAMDISK=%d
+[ -z "$$DT_OVERLAY_SUPPORT" ] && DT_OVERLAY_SUPPORT=1
+
+if [ "$$KERNEL_CMDLINE_CONSOLE_AUTO" != "0" ]; then
+    KERNEL_VENDOR_CMDLINE+=' console=ttyMSM0,115200n8 earlycon=qcom_geni,0x00a9C000 qcom_geni_serial.con_enabled=1 '
+fi
+
+KERNEL_VENDOR_CMDLINE+=' bootconfig '
+VENDOR_BOOTCONFIG+='androidboot.first_stage_console=1 androidboot.hardware=qcom_kp'
+EOF
+        """ % (
+            msm_target,
+            variant,
+            boot_image_header_version,
+            base_address,
+            page_size,
+            super_image_size,
+            int(lz4_ramdisk)
+        ),
+    )
+
+    # Concatenate build config fragments to form the final config
+    kernel_build_config(
+        name = "{}_build_config".format(target),
+        srcs = [
+            # do not sort
+            "build.config.constants",
+            ":{}_build_config_common_without_source".format(target),
+            "build.config.aarch64",
+            ":{}_build_config_bazel".format(target),
+        ] + [fragment for fragment in build_config_fragments] + [
+            "build.config.msm.common",
+            "build.config.msm.gki",
+        ],
+    )
+
+def define_kernel_build(
+        target,
+        base_kernel,
+        in_tree_module_list,
+        implicit_out_list,
+        dtb_list,
+        dtbo_list,
+        dtstree,
+        define_abi_targets,
+        define_compile_commands,
+        kmi_enforced):
+    """Creates a `kernel_build_abi` and other associated definitions
+
+    This is where the main kernel build target is created (e.g. `//msm-kernel:kalama_gki`).
+    Many other rules will take this `kernel_build_abi` as an input.
+
+    Args:
+      target: name of main Bazel target (e.g. `kalama_gki`)
+      base_kernel: base kernel to pass into `kernel_build` (e.g. `//common:kernel_aarch64`)
+      in_tree_module_list: list of in-tree modules
+      dtb_list: device tree blobs expected to be built
+      dtbo_list: device tree overlay blobs expected to be built
+      define_abi_targets: boolean determining if ABI targets should be defined
+      define_compile_commands: boolean determining if `compile_commands.json` should be generated
+      kmi_enforced: boolean determining if the KMI contract should be enforced
+    """
+    out_list = [".config", "Module.symvers"]
+    if dtb_list:
+        out_list += dtb_list
+    if dtbo_list:
+        out_list += dtbo_list
+
+    kernel_build_abi(
+        name = target,
+        module_outs = in_tree_module_list,
+        module_implicit_outs = implicit_out_list,
+        outs = out_list,
+        build_config = ":{}_build_config".format(target),
+        dtstree = dtstree,
+        base_kernel = base_kernel,
+        kmi_symbol_list = "//msm-kernel:android/abi_gki_aarch64_qcom" if define_abi_targets else None,
+        kmi_enforced = kmi_enforced,
+        additional_kmi_symbol_lists = ["{}_all_kmi_symbol_lists".format(base_kernel)] if define_abi_targets else None,
+        define_abi_targets = define_abi_targets,
+        abi_definition = "//msm-kernel:android/abi_gki_aarch64.xml" if define_abi_targets else None,
+        enable_interceptor = define_compile_commands,
+        visibility = ["//visibility:public"],
+    )
+
+    kernel_modules_install(
+        name = "{}_modules_install".format(target),
+        kernel_build = ":{}".format(target),
+    )
+
+    merged_kernel_uapi_headers(
+        name = "{}_merged_kernel_uapi_headers".format(target),
+        kernel_build = ":{}".format(target),
+    )
+
+    if define_compile_commands:
+        kernel_compile_commands(
+            name = "{}_compile_commands".format(target),
+            kernel_build = ":{}".format(target),
+        )
+
+def define_image_build(
+        target,
+        msm_target,
+        base_kernel,
+        build_boot = True,
+        build_dtbo = False,
+        build_initramfs = False,
+        build_vendor_boot = False,
+        build_vendor_kernel_boot = False,
+        build_vendor_dlkm = True,
+        build_system_dlkm = True,
+        boot_image_outs = None,
+        dtbo_list = [],
+        vendor_ramdisk_binaries = None):
+    """Creates a `kernel_images` target which will generate bootable device images
+
+    Args:
+      target: name of main Bazel target (e.g. `kalama_gki`)
+      msm_target: name of target platform (e.g. "kalama")
+      base_kernel: kernel_build base kernel
+      build_boot: whether to build a boot image
+      build_dtbo: whether to build a dtbo image
+      build_initramfs: whether to build an initramfs image
+      build_vendor_boot: whether to build a vendor boot image
+      build_vendor_kernel_boot: whether to build a vendor kernel boot image
+      build_vendor_dlkm: whether to build a vendor dlkm image
+      build_system_dlkm: whether to build a system dlkm image
+      boot_image_outs: boot image outputs,
+      dtbo_list: list of device tree overlay blobs to be built into `dtbo.img`
+      vendor_ramdisk_binaries: ramdisk binaries (cpio archives)
+    """
+    kernel_images(
+        name = "{}_images".format(target),
+        kernel_modules_install = ":{}_modules_install".format(target),
+        kernel_build = ":{}".format(target),
+        base_kernel_images = "{}_images".format(base_kernel),
+        build_boot = build_boot,
+        build_dtbo = build_dtbo,
+        build_initramfs = build_initramfs,
+        build_vendor_boot = build_vendor_boot,
+        build_vendor_kernel_boot = build_vendor_kernel_boot,
+        build_vendor_dlkm = build_vendor_dlkm,
+        build_system_dlkm = build_system_dlkm,
+        modules_list = "modules.list.msm.{}".format(msm_target),
+        vendor_dlkm_modules_blocklist = "modules.vendor_blocklist.msm.{}".format(msm_target),
+        dtbo_srcs = [":{}/".format(target) + d for d in dtbo_list] if dtbo_list else None,
+        vendor_ramdisk_binaries = vendor_ramdisk_binaries,
+        boot_image_outs = boot_image_outs,
+        deps = [
+            "modules.list.msm.{}".format(msm_target),
+            "modules.vendor_blocklist.msm.{}".format(msm_target),
+        ],
+    )
+
+    # Defined separately because `super.img` is not generated by upstream kleaf
+    super_image(
+        name = "{}_super_image".format(target),
+        kernel_modules_install = "{}_modules_install".format(target),
+        deps = [
+            ":{}_images_system_dlkm_image".format(target),
+            ":{}_images_vendor_dlkm_image".format(target),
+        ],
+    )
+
+def define_kernel_dist(target, base_kernel):
+    """Creates distribution targets for kernel builds
+
+    When Bazel builds everything, the outputs end up buried in `bazel-bin`.
+    These rules are used to copy the build artifacts to `out/msm-kernel-<target>/dist/`
+    with proper permissions, etc.
+
+    Args:
+      target: name of main Bazel target (e.g. `kalama_gki`)
+      base_kernel: base kernel to fetch artifacts from (e.g. `//common:kernel_aarch64`)
+    """
+    msm_dist_targets = [
+        # do not sort
+        base_kernel,
+        "{}_headers".format(base_kernel),
+        ":{}".format(target),
+        ":{}_images".format(target),
+        ":{}_super_image".format(target),
+        ":{}_merged_kernel_uapi_headers".format(target),
+        ":{}_build_config".format(target),
+    ]
+
+    kernel_build_abi_dist(
+        name = "{}_abi_dist".format(target),
+        kernel_build_abi = ":{}".format(target),
+        data = msm_dist_targets,
+        dist_dir = "out/{}/dist".format(target),
+        flat = True,
+        log = "info",
+    )
+
+    copy_to_dist_dir(
+        name = "{}_dist".format(target),
+        data = msm_dist_targets,
+        dist_dir = "out/msm-kernel-{}/dist".format(target.replace("_", "-")),
+        flat = True,
+        wipe_dist_dir = True,
+        allow_duplicate_filenames = True,
+        mode_overrides = {
+            # do not sort
+            "**/*.elf": "755",
+            "**/vmlinux": "755",
+            "**/Image": "755",
+            "**/*.dtb*": "755",
+            "**/LinuxLoader*": "755",
+            "**/*": "644",
+        },
+        log = "info",
+    )
+
+def define_dtc_dist(target):
+    """Create rules distribution target for device tree compiler and associated tools
+
+    Args:
+      target: name of main Bazel target (e.g. `kalama_gki`)
+    """
+    dtc_bin_targets = [
+        "@dtc//:dtc",
+        "@dtc//:fdtget",
+        "@dtc//:fdtput",
+        "@dtc//:fdtdump",
+        "@dtc//:fdtoverlay",
+        "@dtc//:fdtoverlaymerge",
+    ]
+    dtc_lib_targets = [
+        "@dtc//:dtc_gen",
+        "@dtc//:libfdt",
+    ]
+    dtc_inc_targets = [
+        "@dtc//:libfdt/fdt.h",
+        "@dtc//:libfdt/libfdt.h",
+        "@dtc//:libfdt/libfdt_env.h",
+    ]
+
+    dtc_tar_cmd = "mkdir -p bin lib include\n"
+    for label in dtc_bin_targets:
+        dtc_tar_cmd += "cp $(locations {}) bin/\n".format(label)
+    for label in dtc_lib_targets:
+        dtc_tar_cmd += "cp $(locations {}) lib/\n".format(label)
+    for label in dtc_inc_targets:
+        dtc_tar_cmd += "cp $(locations {}) include/\n".format(label)
+    dtc_tar_cmd += """
+      chmod 755 bin/* lib/*
+      chmod 644 include/*
+      tar -czf "$@" bin lib include
+    """
+
+    native.genrule(
+        name = "{}_dtc_tarball".format(target),
+        srcs = dtc_bin_targets + dtc_lib_targets + dtc_inc_targets,
+        outs = ["{}_dtc.tar.gz".format(target)],
+        cmd = dtc_tar_cmd,
+    )
+
+    native.alias(
+        name = "{}_dtc".format(target),
+        actual = ":{}_dtc_tarball".format(target),
+    )
+
+    copy_to_dist_dir(
+        name = "{}_dtc_dist".format(target),
+        archives = [":{}_dtc_tarball".format(target)],
+        dist_dir = "out/msm-kernel-{}/host".format(target.replace("_", "-")),
+        flat = True,
+        wipe_dist_dir = True,
+        log = "info",
+    )
+
+def define_abl_dist(target):
+    """Creates ABL distribution target
+
+    Args:
+      target: name of main Bazel target (e.g. `kalama_gki`)
+    """
+    native.alias(
+        name = "{}_abl".format(target),
+        actual = "//bootable/bootloader/edk2:{}_abl".format(target),
+    )
+
+    copy_to_dist_dir(
+        name = "{}_abl_dist".format(target),
+        archives = ["{}_abl".format(target)],
+        dist_dir = "out/msm-kernel-{}/dist".format(target.replace("_", "-")),
+        flat = True,
+        wipe_dist_dir = False,
+        log = "info",
+    )
+
+def define_msm(
+        msm_target,
+        variant,
+        in_tree_module_list,
+        implicit_out_list = [],
+        define_compile_commands = False,
+        kmi_enforced = True,
+        boot_image_header_version = 4,
+        base_address = 0x80000000,
+        page_size = 4096,
+        super_image_size = 0x10000000,
+        lz4_ramdisk = True):
+    """Top-level kernel build definition macro for an MSM platform
+
+    Args:
+      msm_target: name of target platform (e.g. "kalama")
+      variant: variant of kernel to build (e.g. "gki")
+      in_tree_module_list: list of in-tree modules
+      implicit_out_list: list of in-tree modules which are not copied to the dist directory
+      define_compile_commands: boolean determining if `compile_commands.json` should be generated
+      kmi_enforced: boolean determining if the KMI contract should be enforced
+      boot_image_header_version: boot image header version (for `boot.img`)
+      base_address: edk2 base address
+      page_size: kernel page size
+      super_image_size: size of super image partition
+      lz4_ramdisk: whether to use an lz4-compressed ramdisk
+    """
+    target = msm_target + "_" + variant
+
+    if variant == "consolidate":
+        base_kernel = "//common:kernel_aarch64_consolidate"
+        define_abi_targets = False
+    else:
+        base_kernel = "//common:kernel_aarch64"
+        define_abi_targets = True
+
+    dtb_list = get_dtb_list(msm_target)
+    dtbo_list = get_dtbo_list(msm_target)
+    dtstree = get_dtstree(msm_target)
+    vendor_ramdisk_binaries = get_vendor_ramdisk_binaries(msm_target)
+    build_config_fragments = get_build_config_fragments(msm_target)
+
+    define_build_config(
+        msm_target,
+        target,
+        variant,
+        boot_image_header_version,
+        base_address,
+        page_size,
+        super_image_size,
+        lz4_ramdisk,
+        build_config_fragments,
+    )
+
+    define_kernel_build(
+        target,
+        base_kernel,
+        in_tree_module_list,
+        implicit_out_list,
+        dtb_list,
+        dtbo_list,
+        dtstree,
+        define_abi_targets,
+        define_compile_commands,
+        kmi_enforced,
+    )
+
+    define_image_build(
+        target,
+        msm_target,
+        base_kernel,
+        build_boot = True,
+        build_dtbo = True if dtbo_list else False,
+        build_initramfs = True if vendor_ramdisk_binaries else False,
+        build_vendor_boot = True if dtbo_list else False,
+        dtbo_list = dtbo_list,
+        vendor_ramdisk_binaries = vendor_ramdisk_binaries,
+        boot_image_outs = None if dtb_list else ["boot.img"],
+    )
+
+    define_kernel_dist(target, base_kernel)
+
+    define_abl_dist(target)
+
+    define_dtc_dist(target)
+
+    define_extras(target)

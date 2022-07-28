@@ -17,9 +17,12 @@ package(
     ],
 )
 
-load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
+load(":msm_platforms.bzl", "define_msm_platforms")
+define_msm_platforms()
 
-define_common_kernels(target_configs = {
+load("//build/kernel/kleaf:common_kernels.bzl", "define_common_kernels", "define_db845c")
+load("@kernel_toolchain_info//:dict.bzl", "BRANCH")
+define_common_kernels(branch = BRANCH, target_configs = {
     "kernel_aarch64": {
         "module_implicit_outs": [
             "drivers/block/zram/zram.ko",

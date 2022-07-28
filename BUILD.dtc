@@ -1,0 +1,148 @@
+cc_library(
+    name = "libfdt",
+    copts = [
+        "-Werror",
+        "-Wno-macro-redefined",
+        "-Wno-sign-compare",
+    ],
+    includes = ["libfdt"],
+    srcs = glob([
+        "libfdt/*.h",
+        "libfdt/*.c",
+    ]),
+    visibility = ["//visibility:public"],
+)
+
+copts = [
+   "-Wall",
+   "-Werror",
+   "-Wno-sign-compare",
+   "-Wno-missing-field-initializers",
+   "-Wno-unused-parameter",
+]
+
+genrule(
+    name = "lexer",
+    srcs = ["dtc-lexer.l"],
+    outs = ["dtc-lexer.lex.c"],
+    cmd = "lex -o$@ $(location dtc-lexer.l)"
+)
+
+genrule(
+    name = "parser",
+    srcs = ["dtc-parser.y"],
+    outs = ["dtc-parser.tab.c", "dtc-parser.tab.h"],
+    cmd = """
+      bison -b dtc-parser -d $(location dtc-parser.y)
+      cp ./*.tab.c $(location dtc-parser.tab.c)
+      cp ./*.tab.h $(location dtc-parser.tab.h)
+    """,
+)
+
+cc_library(
+    name = "dtc_gen",
+    copts = copts,
+    srcs = [
+        ":lexer",
+        ":parser",
+    ] + glob(["*.h"]),
+    includes = ["."],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "dtc",
+    copts = copts,
+    defines = ["NO_YAML"],
+    srcs = [
+        "checks.c",
+        "data.c",
+        "dtc.c",
+        "flattree.c",
+        "fstree.c",
+        "livetree.c",
+        "srcpos.c",
+        "treesource.c",
+        "util.c",
+    ] + glob(["*.h"]),
+    includes = ["."],
+    deps = [":libfdt", ":dtc_gen"],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "fdtget",
+    copts = copts,
+    defines = ["NO_YAML"],
+    srcs = [
+        "fdtget.c",
+        "util.c",
+        "util.h",
+        "version_non_gen.h",
+    ],
+    deps = [":libfdt"],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "fdtput",
+    copts = copts,
+    defines = ["NO_YAML"],
+    srcs = [
+        "fdtput.c",
+        "util.c",
+        "util.h",
+        "version_non_gen.h",
+    ],
+    deps = [":libfdt"],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "fdtdump",
+    copts = copts,
+    defines = ["NO_YAML"],
+    srcs = [
+        "fdtdump.c",
+        "util.c",
+        "util.h",
+        "version_non_gen.h",
+    ],
+    deps = [":libfdt"],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "fdtoverlay",
+    copts = copts,
+    defines = ["NO_YAML"],
+    srcs = [
+        "fdtoverlay.c",
+        "util.c",
+        "util.h",
+        "version_non_gen.h",
+    ],
+    deps = [":libfdt"],
+    visibility = ["//visibility:public"],
+)
+
+cc_binary(
+    name = "fdtoverlaymerge",
+    copts = copts,
+    defines = ["NO_YAML"],
+    srcs = [
+        "fdtoverlaymerge.c",
+        "util.c",
+        "util.h",
+        "version_non_gen.h",
+    ],
+    deps = [":libfdt"],
+    visibility = ["//visibility:public"],
+)
+
+exports_files([
+    "libfdt/fdt.h",
+    "libfdt/libfdt.h",
+    "libfdt/libfdt_env.h",
+])
+
