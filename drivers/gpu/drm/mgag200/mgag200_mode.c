@@ -1047,23 +1047,16 @@ static const struct drm_mode_config_funcs mgag200_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_available)
+static int mgag200_mode_config_init(struct mga_device *mdev, resource_size_t vram_available)
 {
 	struct drm_device *dev = &mdev->base;
-	struct mga_i2c_chan *i2c = &mdev->i2c;
-	struct drm_connector *connector = &mdev->connector;
-	struct drm_simple_display_pipe *pipe = &mdev->display_pipe;
-	size_t format_count = ARRAY_SIZE(mgag200_simple_display_pipe_formats);
 	int ret;
-
-	mgag200_init_regs(mdev);
 
 	mdev->vram_available = vram_available;
 
 	ret = drmm_mode_config_init(dev);
 	if (ret) {
-		drm_err(dev, "drmm_mode_config_init() failed, error %d\n",
-			ret);
+		drm_err(dev, "drmm_mode_config_init() failed: %d\n", ret);
 		return ret;
 	}
 
@@ -1072,6 +1065,18 @@ int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_available
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.fb_base = mdev->vram_res->start;
 	dev->mode_config.funcs = &mgag200_mode_config_funcs;
+
+	return 0;
+}
+
+static int mgag200_pipeline_init(struct mga_device *mdev)
+{
+	struct drm_device *dev = &mdev->base;
+	struct mga_i2c_chan *i2c = &mdev->i2c;
+	struct drm_connector *connector = &mdev->connector;
+	struct drm_simple_display_pipe *pipe = &mdev->display_pipe;
+	size_t format_count = ARRAY_SIZE(mgag200_simple_display_pipe_formats);
+	int ret;
 
 	ret = mgag200_i2c_init(mdev, i2c);
 	if (ret) {
@@ -1112,6 +1117,24 @@ int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_available
 	drm_mode_crtc_set_gamma_size(&pipe->crtc, MGAG200_LUT_SIZE);
 
 	drm_crtc_enable_color_mgmt(&pipe->crtc, 0, false, MGAG200_LUT_SIZE);
+
+	return 0;
+}
+
+int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_available)
+{
+	struct drm_device *dev = &mdev->base;
+	int ret;
+
+	mgag200_init_regs(mdev);
+
+	ret = mgag200_mode_config_init(mdev, vram_available);
+	if (ret)
+		return ret;
+
+	ret = mgag200_pipeline_init(mdev);
+	if (ret)
+		return ret;
 
 	drm_mode_config_reset(dev);
 
