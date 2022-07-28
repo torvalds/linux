@@ -3033,7 +3033,7 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 	struct mlx4_port_info *info = &mlx4_priv(dev)->port[port];
 	int err;
 
-	err = devlink_port_register(devlink, &info->devlink_port, port);
+	err = devl_port_register(devlink, &info->devlink_port, port);
 	if (err)
 		return err;
 
@@ -3071,7 +3071,7 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 	err = device_create_file(&dev->persist->pdev->dev, &info->port_attr);
 	if (err) {
 		mlx4_err(dev, "Failed to create file for port %d\n", port);
-		devlink_port_unregister(&info->devlink_port);
+		devl_port_unregister(&info->devlink_port);
 		info->port = -1;
 		return err;
 	}
@@ -3093,7 +3093,7 @@ static int mlx4_init_port_info(struct mlx4_dev *dev, int port)
 		mlx4_err(dev, "Failed to create mtu file for port %d\n", port);
 		device_remove_file(&info->dev->persist->pdev->dev,
 				   &info->port_attr);
-		devlink_port_unregister(&info->devlink_port);
+		devl_port_unregister(&info->devlink_port);
 		info->port = -1;
 		return err;
 	}
@@ -3109,7 +3109,7 @@ static void mlx4_cleanup_port_info(struct mlx4_port_info *info)
 	device_remove_file(&info->dev->persist->pdev->dev, &info->port_attr);
 	device_remove_file(&info->dev->persist->pdev->dev,
 			   &info->port_mtu_attr);
-	devlink_port_unregister(&info->devlink_port);
+	devl_port_unregister(&info->devlink_port);
 
 #ifdef CONFIG_RFS_ACCEL
 	free_irq_cpu_rmap(info->rmap);
@@ -3333,6 +3333,7 @@ static int mlx4_load_one(struct pci_dev *pdev, int pci_dev_data,
 			 int total_vfs, int *nvfs, struct mlx4_priv *priv,
 			 int reset_flow)
 {
+	struct devlink *devlink = priv_to_devlink(priv);
 	struct mlx4_dev *dev;
 	unsigned sum = 0;
 	int err;
@@ -3629,6 +3630,7 @@ slave_start:
 		}
 	}
 
+	devl_lock(devlink);
 	for (port = 1; port <= dev->caps.num_ports; port++) {
 		err = mlx4_init_port_info(dev, port);
 		if (err)
@@ -3642,6 +3644,7 @@ slave_start:
 	if (err)
 		goto err_port;
 
+	devl_unlock(devlink);
 	mlx4_request_modules(dev);
 
 	mlx4_sense_init(dev);
@@ -3658,6 +3661,7 @@ slave_start:
 err_port:
 	for (--port; port >= 1; --port)
 		mlx4_cleanup_port_info(&priv->port[port]);
+	devl_unlock(devlink);
 
 	mlx4_cleanup_default_counters(dev);
 	if (!mlx4_is_slave(dev))
@@ -4061,8 +4065,10 @@ static void mlx4_unload_one(struct pci_dev *pdev)
 	struct mlx4_dev  *dev  = persist->dev;
 	struct mlx4_priv *priv = mlx4_priv(dev);
 	int               pci_dev_data;
+	struct devlink *devlink;
 	int p, i;
 
+	devlink = priv_to_devlink(priv);
 	if (priv->removed)
 		return;
 
@@ -4078,10 +4084,12 @@ static void mlx4_unload_one(struct pci_dev *pdev)
 	mlx4_stop_sense(dev);
 	mlx4_unregister_device(dev);
 
+	devl_lock(devlink);
 	for (p = 1; p <= dev->caps.num_ports; p++) {
 		mlx4_cleanup_port_info(&priv->port[p]);
 		mlx4_CLOSE_PORT(dev, p);
 	}
+	devl_unlock(devlink);
 
 	if (mlx4_is_master(dev))
 		mlx4_free_resource_tracker(dev,
