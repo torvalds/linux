@@ -85,6 +85,24 @@ void __ef100_rx_packet(struct efx_channel *channel)
 	nic_data = efx->nic_data;
 
 	if (nic_data->have_mport && ing_port != nic_data->base_mport) {
+#ifdef CONFIG_SFC_SRIOV
+		struct efx_rep *efv;
+
+		rcu_read_lock();
+		efv = efx_ef100_find_rep_by_mport(efx, ing_port);
+		if (efv) {
+			if (efv->net_dev->flags & IFF_UP)
+				efx_ef100_rep_rx_packet(efv, rx_buf);
+			rcu_read_unlock();
+			/* Representor Rx doesn't care about PF Rx buffer
+			 * ownership, it just makes a copy. So, we are done
+			 * with the Rx buffer from PF point of view and should
+			 * free it.
+			 */
+			goto free_rx_buffer;
+		}
+		rcu_read_unlock();
+#endif
 		if (net_ratelimit())
 			netif_warn(efx, drv, efx->net_dev,
 				   "Unrecognised ing_port %04x (base %04x), dropping\n",

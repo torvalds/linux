@@ -224,6 +224,7 @@ static void efx_ef100_rep_destroy_netdev(struct efx_rep *efv)
 	list_del(&efv->list);
 	spin_unlock_bh(&efx->vf_reps_lock);
 	rtnl_unlock();
+	synchronize_rcu();
 	free_netdev(efv->net_dev);
 }
 
@@ -374,4 +375,22 @@ void efx_ef100_rep_rx_packet(struct efx_rep *efv, struct efx_rx_buffer *rx_buf)
 	/* Trigger rx work */
 	if (primed)
 		napi_schedule(&efv->napi);
+}
+
+struct efx_rep *efx_ef100_find_rep_by_mport(struct efx_nic *efx, u16 mport)
+{
+	struct efx_rep *efv, *out = NULL;
+
+	/* spinlock guards against list mutation while we're walking it;
+	 * but caller must also hold rcu_read_lock() to ensure the netdev
+	 * isn't freed after we drop the spinlock.
+	 */
+	spin_lock_bh(&efx->vf_reps_lock);
+	list_for_each_entry(efv, &efx->vf_reps, list)
+		if (efv->mport == mport) {
+			out = efv;
+			break;
+		}
+	spin_unlock_bh(&efx->vf_reps_lock);
+	return out;
 }
