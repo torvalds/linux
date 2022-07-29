@@ -65,6 +65,8 @@ struct kvm_vcpu_stat {
 	u64 wfi_exit_stat;
 	u64 mmio_exit_user;
 	u64 mmio_exit_kernel;
+	u64 csr_exit_user;
+	u64 csr_exit_kernel;
 	u64 exits;
 };
 
@@ -209,6 +211,9 @@ struct kvm_vcpu_arch {
 
 	/* MMIO instruction details */
 	struct kvm_mmio_decode mmio_decode;
+
+	/* CSR instruction details */
+	struct kvm_csr_decode csr_decode;
 
 	/* SBI context */
 	struct kvm_sbi_context sbi_context;

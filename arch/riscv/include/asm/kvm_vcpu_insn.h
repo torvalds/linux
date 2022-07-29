@@ -18,6 +18,11 @@ struct kvm_mmio_decode {
 	int return_handled;
 };
 
+struct kvm_csr_decode {
+	unsigned long insn;
+	int return_handled;
+};
+
 /* Return values used by function emulating a particular instruction */
 enum kvm_insn_return {
 	KVM_INSN_EXIT_TO_USER_SPACE = 0,
@@ -28,6 +33,7 @@ enum kvm_insn_return {
 };
 
 void kvm_riscv_vcpu_wfi(struct kvm_vcpu *vcpu);
+int kvm_riscv_vcpu_csr_return(struct kvm_vcpu *vcpu, struct kvm_run *run);
 int kvm_riscv_vcpu_virtual_insn(struct kvm_vcpu *vcpu, struct kvm_run *run,
 				struct kvm_cpu_trap *trap);
 

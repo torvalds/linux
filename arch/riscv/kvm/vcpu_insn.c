@@ -14,6 +14,19 @@
 #define INSN_MASK_WFI		0xffffffff
 #define INSN_MATCH_WFI		0x10500073
 
+#define INSN_MATCH_CSRRW	0x1073
+#define INSN_MASK_CSRRW		0x707f
+#define INSN_MATCH_CSRRS	0x2073
+#define INSN_MASK_CSRRS		0x707f
+#define INSN_MATCH_CSRRC	0x3073
+#define INSN_MASK_CSRRC		0x707f
+#define INSN_MATCH_CSRRWI	0x5073
+#define INSN_MASK_CSRRWI	0x707f
+#define INSN_MATCH_CSRRSI	0x6073
+#define INSN_MASK_CSRRSI	0x707f
+#define INSN_MATCH_CSRRCI	0x7073
+#define INSN_MASK_CSRRCI	0x707f
+
 #define INSN_MATCH_LB		0x3
 #define INSN_MASK_LB		0x707f
 #define INSN_MATCH_LH		0x1003
@@ -71,6 +84,7 @@
 #define SH_RS1			15
 #define SH_RS2			20
 #define SH_RS2C			2
+#define MASK_RX			0x1f
 
 #define RV_X(x, s, n)		(((x) >> (s)) & ((1 << (n)) - 1))
 #define RVC_LW_IMM(x)		((RV_X(x, 6, 1) << 2) | \
@@ -104,7 +118,7 @@
 #define REG_PTR(insn, pos, regs)	\
 	((ulong *)((ulong)(regs) + REG_OFFSET(insn, pos)))
 
-#define GET_RM(insn)		(((insn) >> 12) & 7)
+#define GET_FUNCT3(insn)	(((insn) >> 12) & 7)
 
 #define GET_RS1(insn, regs)	(*REG_PTR(insn, SH_RS1, regs))
 #define GET_RS2(insn, regs)	(*REG_PTR(insn, SH_RS2, regs))
@@ -116,7 +130,6 @@
 #define IMM_I(insn)		((s32)(insn) >> 20)
 #define IMM_S(insn)		(((s32)(insn) >> 25 << 5) | \
 				 (s32)(((insn) >> 7) & 0x1f))
-#define MASK_FUNCT3		0x7000
 
 struct insn_func {
 	unsigned long mask;
@@ -189,7 +202,162 @@ static int wfi_insn(struct kvm_vcpu *vcpu, struct kvm_run *run, ulong insn)
 	return KVM_INSN_CONTINUE_NEXT_SEPC;
 }
 
+struct csr_func {
+	unsigned int base;
+	unsigned int count;
+	/*
+	 * Possible return values are as same as "func" callback in
+	 * "struct insn_func".
+	 */
+	int (*func)(struct kvm_vcpu *vcpu, unsigned int csr_num,
+		    unsigned long *val, unsigned long new_val,
+		    unsigned long wr_mask);
+};
+
+static const struct csr_func csr_funcs[] = { };
+
+/**
+ * kvm_riscv_vcpu_csr_return -- Handle CSR read/write after user space
+ *				emulation or in-kernel emulation
+ *
+ * @vcpu: The VCPU pointer
+ * @run:  The VCPU run struct containing the CSR data
+ *
+ * Returns > 0 upon failure and 0 upon success
+ */
+int kvm_riscv_vcpu_csr_return(struct kvm_vcpu *vcpu, struct kvm_run *run)
+{
+	ulong insn;
+
+	if (vcpu->arch.csr_decode.return_handled)
+		return 0;
+	vcpu->arch.csr_decode.return_handled = 1;
+
+	/* Update destination register for CSR reads */
+	insn = vcpu->arch.csr_decode.insn;
+	if ((insn >> SH_RD) & MASK_RX)
+		SET_RD(insn, &vcpu->arch.guest_context,
+		       run->riscv_csr.ret_value);
+
+	/* Move to next instruction */
+	vcpu->arch.guest_context.sepc += INSN_LEN(insn);
+
+	return 0;
+}
+
+static int csr_insn(struct kvm_vcpu *vcpu, struct kvm_run *run, ulong insn)
+{
+	int i, rc = KVM_INSN_ILLEGAL_TRAP;
+	unsigned int csr_num = insn >> SH_RS2;
+	unsigned int rs1_num = (insn >> SH_RS1) & MASK_RX;
+	ulong rs1_val = GET_RS1(insn, &vcpu->arch.guest_context);
+	const struct csr_func *tcfn, *cfn = NULL;
+	ulong val = 0, wr_mask = 0, new_val = 0;
+
+	/* Decode the CSR instruction */
+	switch (GET_FUNCT3(insn)) {
+	case GET_FUNCT3(INSN_MATCH_CSRRW):
+		wr_mask = -1UL;
+		new_val = rs1_val;
+		break;
+	case GET_FUNCT3(INSN_MATCH_CSRRS):
+		wr_mask = rs1_val;
+		new_val = -1UL;
+		break;
+	case GET_FUNCT3(INSN_MATCH_CSRRC):
+		wr_mask = rs1_val;
+		new_val = 0;
+		break;
+	case GET_FUNCT3(INSN_MATCH_CSRRWI):
+		wr_mask = -1UL;
+		new_val = rs1_num;
+		break;
+	case GET_FUNCT3(INSN_MATCH_CSRRSI):
+		wr_mask = rs1_num;
+		new_val = -1UL;
+		break;
+	case GET_FUNCT3(INSN_MATCH_CSRRCI):
+		wr_mask = rs1_num;
+		new_val = 0;
+		break;
+	default:
+		return rc;
+	}
+
+	/* Save instruction decode info */
+	vcpu->arch.csr_decode.insn = insn;
+	vcpu->arch.csr_decode.return_handled = 0;
+
+	/* Update CSR details in kvm_run struct */
+	run->riscv_csr.csr_num = csr_num;
+	run->riscv_csr.new_value = new_val;
+	run->riscv_csr.write_mask = wr_mask;
+	run->riscv_csr.ret_value = 0;
+
+	/* Find in-kernel CSR function */
+	for (i = 0; i < ARRAY_SIZE(csr_funcs); i++) {
+		tcfn = &csr_funcs[i];
+		if ((tcfn->base <= csr_num) &&
+		    (csr_num < (tcfn->base + tcfn->count))) {
+			cfn = tcfn;
+			break;
+		}
+	}
+
+	/* First try in-kernel CSR emulation */
+	if (cfn && cfn->func) {
+		rc = cfn->func(vcpu, csr_num, &val, new_val, wr_mask);
+		if (rc > KVM_INSN_EXIT_TO_USER_SPACE) {
+			if (rc == KVM_INSN_CONTINUE_NEXT_SEPC) {
+				run->riscv_csr.ret_value = val;
+				vcpu->stat.csr_exit_kernel++;
+				kvm_riscv_vcpu_csr_return(vcpu, run);
+				rc = KVM_INSN_CONTINUE_SAME_SEPC;
+			}
+			return rc;
+		}
+	}
+
+	/* Exit to user-space for CSR emulation */
+	if (rc <= KVM_INSN_EXIT_TO_USER_SPACE) {
+		vcpu->stat.csr_exit_user++;
+		run->exit_reason = KVM_EXIT_RISCV_CSR;
+	}
+
+	return rc;
+}
+
 static const struct insn_func system_opcode_funcs[] = {
+	{
+		.mask  = INSN_MASK_CSRRW,
+		.match = INSN_MATCH_CSRRW,
+		.func  = csr_insn,
+	},
+	{
+		.mask  = INSN_MASK_CSRRS,
+		.match = INSN_MATCH_CSRRS,
+		.func  = csr_insn,
+	},
+	{
+		.mask  = INSN_MASK_CSRRC,
+		.match = INSN_MATCH_CSRRC,
+		.func  = csr_insn,
+	},
+	{
+		.mask  = INSN_MASK_CSRRWI,
+		.match = INSN_MATCH_CSRRWI,
+		.func  = csr_insn,
+	},
+	{
+		.mask  = INSN_MASK_CSRRSI,
+		.match = INSN_MATCH_CSRRSI,
+		.func  = csr_insn,
+	},
+	{
+		.mask  = INSN_MASK_CSRRCI,
+		.match = INSN_MATCH_CSRRCI,
+		.func  = csr_insn,
+	},
 	{
 		.mask  = INSN_MASK_WFI,
 		.match = INSN_MATCH_WFI,
