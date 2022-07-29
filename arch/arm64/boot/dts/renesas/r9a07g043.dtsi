@@ -13,14 +13,14 @@
 	#address-cells = <2>;
 	#size-cells = <2>;
 
-	audio_clk1: audio-clk1 {
+	audio_clk1: audio1-clk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		/* This value must be overridden by boards that provide it */
 		clock-frequency = <0>;
 	};
 
-	audio_clk2: audio-clk2 {
+	audio_clk2: audio2-clk {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
 		/* This value must be overridden by boards that provide it */
