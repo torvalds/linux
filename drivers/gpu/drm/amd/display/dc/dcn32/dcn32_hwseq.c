@@ -331,7 +331,8 @@ static uint32_t dcn32_calculate_cab_allocation(struct dc *dc, struct dc_state *c
 bool dcn32_apply_idle_power_optimizations(struct dc *dc, bool enable)
 {
 	union dmub_rb_cmd cmd;
-	uint8_t ways, i, j;
+	uint8_t ways, i;
+	int j;
 	bool stereo_in_use = false;
 	struct dc_plane_state *plane = NULL;
 
