@@ -205,6 +205,17 @@ static void vt6655_mac_read_ether_addr(void __iomem *iobase, u8 *mac_addr)
 	iowrite8(0, iobase + MAC_REG_PAGE1SEL);
 }
 
+static void MACvReceive0(void __iomem *iobase)
+{
+	u32 reg_value;
+
+	reg_value = ioread32(iobase + MAC_REG_RXDMACTL0);
+	if (reg_value & DMACTL_RUN)
+		iowrite32(DMACTL_WAKE, iobase + MAC_REG_RXDMACTL0);
+	else
+		iowrite32(DMACTL_RUN, iobase + MAC_REG_RXDMACTL0);
+}
+
 /*
  * Initialisation of MAC & BBP registers
  */
