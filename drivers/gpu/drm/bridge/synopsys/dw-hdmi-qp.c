@@ -471,9 +471,38 @@ void dw_hdmi_qp_set_channel_status(struct dw_hdmi_qp *hdmi,
 		return;
 	}
 
-	/* Set channel status */
-	hdmi_writel(hdmi, channel_status[3] | (channel_status[4] << 8),
-		    AUDPKT_CHSTATUS_OVR1);
+	/*
+	 * AUDPKT_CHSTATUS_OVR0: { RSV, RSV, CS1, CS0 }
+	 * AUDPKT_CHSTATUS_OVR1: { CS6, CS5, CS4, CS3 }
+	 *
+	 *      |  7  |  6  |  5  |  4  |  3  |  2  |  1  |  0  |
+	 * CS0: |   Mode    |        d        |  c  |  b  |  a  |
+	 * CS1: |               Category Code                   |
+	 * CS2: |    Channel Number     |     Source Number     |
+	 * CS3: |    Clock Accuracy     |     Sample Freq       |
+	 * CS4: |    Ori Sample Freq    |     Word Length       |
+	 * CS5: |                                   |   CGMS-A  |
+	 * CS6~CS23: Reserved
+	 *
+	 * a: use of channel status block
+	 * b: linear PCM identification: 0 for lpcm, 1 for nlpcm
+	 * c: copyright information
+	 * d: additional format information
+	 */
+
+	if (ref2stream)
+		channel_status[0] |= IEC958_AES0_NONAUDIO;
+
+	if ((hdmi_readl(hdmi, AUDIO_INTERFACE_CONFIG0) & GENMASK(25, 24)) == AUD_HBR) {
+		/* fixup cs for HBR */
+		channel_status[3] = (channel_status[3] & 0xf0) | IEC958_AES3_CON_FS_768000;
+		channel_status[4] = (channel_status[4] & 0x0f) | IEC958_AES4_CON_ORIGFS_NOTID;
+	}
+
+	hdmi_writel(hdmi, channel_status[0] | (channel_status[1] << 8),
+		    AUDPKT_CHSTATUS_OVR0);
+
+	regmap_bulk_write(hdmi->regm, AUDPKT_CHSTATUS_OVR1, &channel_status[3], 1);
 
 	if (ref2stream)
 		hdmi_modb(hdmi, 0,

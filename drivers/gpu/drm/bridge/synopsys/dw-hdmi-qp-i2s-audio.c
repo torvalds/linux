@@ -69,6 +69,11 @@ static int dw_hdmi_qp_i2s_hw_params(struct device *dev, void *data,
 	/* Reset the audio data path of the AVP */
 	hdmi_write(audio, AVP_DATAPATH_PACKET_AUDIO_SWINIT_P, GLOBAL_SWRESET_REQUEST);
 
+	/* Disable AUDS, ACR, AUDI */
+	hdmi_mod(audio, 0,
+		 PKTSCHED_ACR_TX_EN | PKTSCHED_AUDS_TX_EN | PKTSCHED_AUDI_TX_EN,
+		 PKTSCHED_PKT_EN);
+
 	/* Clear the audio FIFO */
 	hdmi_write(audio, AUDIO_FIFO_CLR_P, AUDIO_INTERFACE_CONTROL0);
 
@@ -141,12 +146,22 @@ static int dw_hdmi_qp_i2s_audio_startup(struct device *dev, void *data)
 static void dw_hdmi_qp_i2s_audio_shutdown(struct device *dev, void *data)
 {
 	struct dw_hdmi_qp_i2s_audio_data *audio = data;
-	struct dw_hdmi_qp *hdmi = audio->hdmi;
 
 	if (is_dw_hdmi_qp_clk_off(audio))
 		return;
 
-	dw_hdmi_qp_audio_disable(hdmi);
+	/*
+	 * Keep ACR, AUDI, AUDS packet always on to make SINK device
+	 * active for better compatibility and user experience.
+	 *
+	 * This also fix POP sound on some SINK devices which wakeup
+	 * from suspend to active.
+	 */
+	hdmi_mod(audio, I2S_BPCUV_RCV_DIS, I2S_BPCUV_RCV_MSK,
+		 AUDIO_INTERFACE_CONFIG0);
+	hdmi_mod(audio, AUDPKT_PBIT_FORCE_EN | AUDPKT_CHSTATUS_OVR_EN,
+		 AUDPKT_PBIT_FORCE_EN_MASK | AUDPKT_CHSTATUS_OVR_EN_MASK,
+		 AUDPKT_CONTROL0);
 }
 
 static int dw_hdmi_qp_i2s_get_eld(struct device *dev, void *data, uint8_t *buf,
