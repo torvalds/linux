@@ -8,13 +8,13 @@
 #include <linux/rkispp-config.h>
 #include "common.h"
 
-/* rkispp parameters device
- * config_lock: lock to protect config
- * params: queued buffer list
- * cur_params: ispp params config
- * cur_params: current buf of parameters
- * first_params: the first params should take effect immediately
- */
+enum rkispp_paramvdev_id {
+	PARAM_VDEV_TNR = 0,
+	PARAM_VDEV_NR,
+	PARAM_VDEV_FEC,
+	PARAM_VDEV_MAX
+};
+
 #define ISPP_PACK_4BYTE(a, b, c, d) \
 	(((a) & 0xFF) << 0 | ((b) & 0xFF) << 8 | \
 	 ((c) & 0xFF) << 16 | ((d) & 0xFF) << 24)
@@ -34,6 +34,12 @@
 
 #define ISPP_NOBIG_OVERFLOW_SIZE	(2560 * 1440)
 
+/* rkispp parameters device
+ * config_lock: lock to protect config
+ * params: queued buffer list
+ * cur_buf: current buf of parameters
+ * first_params: the first params should take effect immediately
+ */
 struct rkispp_params_vdev {
 	struct rkispp_vdev_node vnode;
 	struct rkispp_device *dev;
@@ -41,8 +47,6 @@ struct rkispp_params_vdev {
 
 	spinlock_t config_lock;
 	struct list_head params;
-	struct rkispp_params_cfg *cur_params;
-	struct fec_params_cfg *fec_params;
 	struct rkispp_buffer *cur_buf;
 
 	struct v4l2_format vdev_fmt;
@@ -52,6 +56,8 @@ struct rkispp_params_vdev {
 
 	struct rkispp_dummy_buffer buf_fec[FEC_MESH_BUF_NUM];
 	u32 buf_fec_idx;
+
+	enum rkispp_paramvdev_id vdev_id;
 };
 
 struct rkispp_params_ops {
@@ -59,8 +65,8 @@ struct rkispp_params_ops {
 	void (*rkispp_params_vb2_buf_queue)(struct vb2_buffer *vb);
 };
 
-int rkispp_register_params_vdev(struct rkispp_device *dev);
-void rkispp_unregister_params_vdev(struct rkispp_device *dev);
+int rkispp_register_params_vdevs(struct rkispp_device *dev);
+void rkispp_unregister_params_vdevs(struct rkispp_device *dev);
 void rkispp_params_get_fecbuf_inf(struct rkispp_params_vdev *params_vdev,
 				  struct rkispp_fecbuf_info *fecbuf);
 void rkispp_params_set_fecbuf_size(struct rkispp_params_vdev *params_vdev,

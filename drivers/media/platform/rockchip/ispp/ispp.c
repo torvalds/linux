@@ -408,13 +408,18 @@ static long rkispp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		return -EINVAL;
 
 	switch (cmd) {
+	case RKISPP_CMD_SET_INIT_MODULE:
+		ispp_dev->stream_vdev.module_ens = *((int *)arg);
+		if (ispp_dev->hw_dev->is_fec_ext)
+			ispp_dev->stream_vdev.module_ens &= ~ISPP_MODULE_FEC_ST;
+		break;
 	case RKISPP_CMD_GET_FECBUF_INFO:
 		fecbuf = (struct rkispp_fecbuf_info *)arg;
-		rkispp_params_get_fecbuf_inf(&ispp_dev->params_vdev, fecbuf);
+		rkispp_params_get_fecbuf_inf(&ispp_dev->params_vdev[PARAM_VDEV_FEC], fecbuf);
 		break;
 	case RKISPP_CMD_SET_FECBUF_SIZE:
 		fecsize = (struct rkispp_fecbuf_size *)arg;
-		rkispp_params_set_fecbuf_size(&ispp_dev->params_vdev, fecsize);
+		rkispp_params_set_fecbuf_size(&ispp_dev->params_vdev[PARAM_VDEV_FEC], fecsize);
 		break;
 	case RKISP_ISPP_CMD_REQUEST_REGBUF:
 		reg_buf = (struct rkisp_ispp_reg **)arg;
@@ -425,9 +430,6 @@ static long rkispp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 		*rkispp_reg_withstream = rkispp_is_reg_withstream_global();
 		break;
 	#if IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_ISPP_VERSION_V10)
-	case RKISPP_CMD_TRIGGER_YNRRUN:
-		rkispp_sendbuf_to_nr(ispp_dev, (struct rkispp_tnr_inf *)arg);
-		break;
 	case RKISPP_CMD_GET_TNRBUF_FD:
 		ret = rkispp_get_tnrbuf_fd(ispp_dev, (struct rkispp_buf_idxfd *)arg);
 		break;
@@ -449,7 +451,6 @@ static long rkispp_compat_ioctl32(struct v4l2_subdev *sd,
 	void __user *up = compat_ptr(arg);
 	struct rkispp_fecbuf_info fecbuf;
 	struct rkispp_fecbuf_size fecsize;
-	struct rkispp_tnr_inf tnr_inf;
 	struct rkispp_buf_idxfd idxfd;
 	struct rkispp_trigger_mode t_mode;
 	long ret = 0;
@@ -467,11 +468,6 @@ static long rkispp_compat_ioctl32(struct v4l2_subdev *sd,
 		if (copy_from_user(&fecsize, up, sizeof(fecsize)))
 			return -EFAULT;
 		ret = rkispp_ioctl(sd, cmd, &fecsize);
-		break;
-	case RKISPP_CMD_TRIGGER_YNRRUN:
-		if (copy_from_user(&tnr_inf, up, sizeof(tnr_inf)))
-			return -EFAULT;
-		ret = rkispp_ioctl(sd, cmd, &tnr_inf);
 		break;
 	case RKISPP_CMD_GET_TNRBUF_FD:
 		ret = rkispp_ioctl(sd, cmd, &idxfd);

@@ -81,26 +81,27 @@
 #define FEC_MESH_XY_NUM			131072
 #define FEC_MESH_BUF_NUM		2
 
-#define TNR_BUF_IDXFD_NUM		64
+#define MAX_BUF_IDXFD_NUM		64
 
 /************VIDIOC_PRIVATE*************/
+#define RKISPP_CMD_SET_INIT_MODULE	\
+	_IOW('V', BASE_VIDIOC_PRIVATE + 0, int)
+
 #define RKISPP_CMD_GET_FECBUF_INFO	\
-	_IOR('V', BASE_VIDIOC_PRIVATE + 0, struct rkispp_fecbuf_info)
+	_IOR('V', BASE_VIDIOC_PRIVATE + 1, struct rkispp_fecbuf_info)
 
 #define RKISPP_CMD_SET_FECBUF_SIZE	\
-	_IOW('V', BASE_VIDIOC_PRIVATE + 1, struct rkispp_fecbuf_size)
-
-#define RKISPP_CMD_FEC_IN_OUT \
-	_IOW('V', BASE_VIDIOC_PRIVATE + 10, struct rkispp_fec_in_out)
-
-#define RKISPP_CMD_TRIGGER_YNRRUN       \
-	_IOW('V', BASE_VIDIOC_PRIVATE + 11, struct rkispp_tnr_inf)
-
-#define RKISPP_CMD_GET_TNRBUF_FD \
-	_IOR('V', BASE_VIDIOC_PRIVATE + 12, struct rkispp_buf_idxfd)
+	_IOW('V', BASE_VIDIOC_PRIVATE + 2, struct rkispp_fecbuf_size)
 
 #define RKISPP_CMD_TRIGGER_MODE		\
-	_IOW('V', BASE_VIDIOC_PRIVATE + 13, struct rkispp_trigger_mode)
+	_IOW('V', BASE_VIDIOC_PRIVATE + 3, struct rkispp_trigger_mode)
+
+#define RKISPP_CMD_GET_TNRBUF_FD	\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 4, struct rkispp_buf_idxfd)
+
+/**independent fec video**/
+#define RKISPP_CMD_FEC_IN_OUT \
+	_IOW('V', BASE_VIDIOC_PRIVATE + 10, struct rkispp_fec_in_out)
 
 /************EVENT_PRIVATE**************/
 #define RKISPP_V4L2_EVENT_TNR_COMPLETE  \
@@ -119,19 +120,10 @@ struct rkispp_fec_in_out {
 	int mesh_yfra_fd;
 };
 
-struct rkispp_tnr_inf {
-	u32 dev_id;
-	u32 frame_id;
-	u32 gainkg_idx;
-	u32 gainwr_idx;
-	u32 gainkg_size;
-	u32 gainwr_size;
-} __attribute__ ((packed));
-
 struct rkispp_buf_idxfd {
 	u32 buf_num;
-	u32 index[TNR_BUF_IDXFD_NUM];
-	s32 dmafd[TNR_BUF_IDXFD_NUM];
+	u32 index[MAX_BUF_IDXFD_NUM];
+	s32 dmafd[MAX_BUF_IDXFD_NUM];
 } __attribute__ ((packed));
 
 struct rkispp_trigger_mode {
@@ -321,27 +313,61 @@ struct rkispp_orb_config {
 	u32 max_feature __attribute__((aligned(4)));
 } __attribute__ ((packed));
 
+struct rkispp_buf_info {
+	//s32 fd;
+	u32 index;
+	u32 size;
+} __attribute__ ((packed));
+
 /**
- * struct rkispp_params_cfg - Rockchip ISPP Input Parameters Meta Data
+ * struct rkispp_params_cfghead - Rockchip ISPP Input Parameters Meta Data
  *
  * @module_en_update: mask the enable bits of which module  should be updated
  * @module_ens: mask the enable value of each module, only update the module
  * which correspond bit was set in module_en_update
  * @module_cfg_update: mask the config bits of which module  should be updated
- * @module_init_en: initial enable module function
  */
-struct rkispp_params_cfg {
+struct rkispp_params_cfghead {
 	u32 module_en_update;
 	u32 module_ens;
 	u32 module_cfg_update;
-	u32 module_init_ens;
 
 	u32 frame_id;
+} __attribute__ ((packed));
+
+/**
+ * struct rkispp_params_tnrcfg - Rockchip ISPP Input Parameters Meta Data
+ */
+struct rkispp_params_tnrcfg {
+	struct rkispp_params_cfghead head;
+
 	struct rkispp_tnr_config tnr_cfg;
+	//struct rkispp_buf_info gain;
+	//struct rkispp_buf_info image;
+} __attribute__ ((packed));
+
+/**
+ * struct rkispp_params_nrcfg - Rockchip ISPP Input Parameters Meta Data
+ */
+struct rkispp_params_nrcfg {
+	struct rkispp_params_cfghead head;
+
 	struct rkispp_nr_config nr_cfg;
 	struct rkispp_sharp_config shp_cfg;
-	struct rkispp_fec_config fec_cfg;
 	struct rkispp_orb_config orb_cfg;
+
+	struct rkispp_buf_info gain;
+	//struct rkispp_buf_info image;
+} __attribute__ ((packed));
+
+/**
+ * struct rkispp_params_feccfg - Rockchip ISPP Input Parameters Meta Data
+ */
+struct rkispp_params_feccfg {
+	struct rkispp_params_cfghead head;
+
+	struct rkispp_fec_config fec_cfg;
+	struct rkispp_buf_info image;
 } __attribute__ ((packed));
 
 struct rkispp_orb_data {
@@ -353,18 +379,35 @@ struct rkispp_orb_data {
 } __attribute__ ((packed));
 
 /**
- * struct rkispp_stats_buffer - Rockchip ISPP Statistics
+ * struct rkispp_stats_nrbuf - Rockchip ISPP Statistics
  *
  * @meas_type: measurement types
  * @frame_id: frame ID for sync
  * @data: statistics data
  */
-struct rkispp_stats_buffer {
+struct rkispp_stats_nrbuf {
 	struct rkispp_orb_data data[ORB_DATA_NUM];
 
 	u32 total_num __attribute__((aligned(4)));
 	u32 meas_type;
 	u32 frame_id;
+
+	struct rkispp_buf_info image;
+} __attribute__ ((packed));
+
+/**
+ * struct rkispp_stats_tnrbuf - Rockchip ISPP Statistics
+ *
+ * @meas_type: measurement types
+ * @frame_id: frame ID for sync
+ */
+struct rkispp_stats_tnrbuf {
+	u32 meas_type;
+	u32 frame_id;
+
+	struct rkispp_buf_info gain;
+	struct rkispp_buf_info gainkg;
+	//struct rkispp_buf_info image;
 } __attribute__ ((packed));
 
 #endif

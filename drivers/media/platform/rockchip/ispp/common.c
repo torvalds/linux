@@ -372,7 +372,6 @@ static void rkispp_queue_dmabuf(struct rkispp_hw_dev *hw, struct rkisp_ispp_buf 
 		vdev = &ispp->stream_vdev;
 		val = (vdev->module_ens & ISPP_MODULE_TNR) ? ISPP_MODULE_TNR :
 		((vdev->module_ens & ISPP_MODULE_NR) ? ISPP_MODULE_NR : ISPP_MODULE_FEC);
-		ispp->params_vdev.params_ops->rkispp_params_cfg(&ispp->params_vdev, buf->frame_id);
 		vdev->stream_ops->rkispp_module_work_event(ispp, buf, NULL, val, false);
 	}
 

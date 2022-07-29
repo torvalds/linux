@@ -57,6 +57,7 @@ static void update_mi(struct rkispp_stream *stream)
 
 static int config_fec(struct rkispp_device *dev)
 {
+	struct rkispp_params_vdev *params_vdev = &dev->params_vdev[PARAM_VDEV_FEC];
 	struct rkispp_stream_vdev *vdev;
 	struct rkispp_stream *stream = NULL;
 	struct rkispp_fec_head *fec_data;
@@ -101,17 +102,13 @@ static int config_fec(struct rkispp_device *dev)
 	rkispp_write(dev, RKISPP_FEC_RD_VIR_STRIDE, ALIGN(in_width * mult, 16) >> 2);
 	rkispp_write(dev, RKISPP_FEC_SRC_SIZE, in_height << 16 | in_width);
 
-	fec_data = (struct rkispp_fec_head *)dev->params_vdev.buf_fec[0].vaddr;
+	fec_data = (struct rkispp_fec_head *)params_vdev->buf_fec[0].vaddr;
 	if (fec_data) {
-		rkispp_prepare_buffer(dev, &dev->params_vdev.buf_fec[0]);
-		addrxf =
-			dev->params_vdev.buf_fec[0].dma_addr + fec_data->meshxf_oft;
-		addryf =
-			dev->params_vdev.buf_fec[0].dma_addr + fec_data->meshyf_oft;
-		addrxi =
-			dev->params_vdev.buf_fec[0].dma_addr + fec_data->meshxi_oft;
-		addryi =
-			dev->params_vdev.buf_fec[0].dma_addr + fec_data->meshyi_oft;
+		rkispp_prepare_buffer(dev, &params_vdev->buf_fec[0]);
+		addrxf = params_vdev->buf_fec[0].dma_addr + fec_data->meshxf_oft;
+		addryf = params_vdev->buf_fec[0].dma_addr + fec_data->meshyf_oft;
+		addrxi = params_vdev->buf_fec[0].dma_addr + fec_data->meshxi_oft;
+		addryi = params_vdev->buf_fec[0].dma_addr + fec_data->meshyi_oft;
 		rkispp_write(dev, RKISPP_FEC_MESH_XFRA_BASE, addrxf);
 		rkispp_write(dev, RKISPP_FEC_MESH_YFRA_BASE, addryf);
 		rkispp_write(dev, RKISPP_FEC_MESH_XINT_BASE, addrxi);
@@ -167,6 +164,7 @@ static void fec_free_buf(struct rkispp_device *dev)
 
 static int config_modules(struct rkispp_device *dev)
 {
+	struct rkispp_params_vdev *params_vdev;
 	int ret;
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
@@ -182,7 +180,8 @@ static int config_modules(struct rkispp_device *dev)
 		goto free_fec;
 
 	/* config default params */
-	dev->params_vdev.params_ops->rkispp_params_cfg(&dev->params_vdev, 0);
+	params_vdev = &dev->params_vdev[PARAM_VDEV_FEC];
+	params_vdev->params_ops->rkispp_params_cfg(params_vdev, 0);
 
 	return 0;
 free_fec:

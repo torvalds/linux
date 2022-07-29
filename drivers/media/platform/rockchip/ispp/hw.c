@@ -392,6 +392,9 @@ static int rkispp_hw_probe(struct platform_device *pdev)
 	INIT_LIST_HEAD(&hw_dev->list);
 	hw_dev->is_idle = true;
 	hw_dev->is_single = true;
+	/* for frame end reset and config reg */
+	if (hw_dev->ispp_ver == ISPP_V10)
+		hw_dev->is_single = false;
 	hw_dev->is_fec_ext = false;
 	hw_dev->is_dma_contig = true;
 	hw_dev->is_dma_sg_ops = true;

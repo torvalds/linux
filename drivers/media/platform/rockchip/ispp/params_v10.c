@@ -20,7 +20,6 @@ static inline size_t get_input_size(struct rkispp_params_vdev *params_vdev)
 	return isp_sdev->out_fmt.width * isp_sdev->out_fmt.height;
 }
 
-
 static void tnr_config(struct rkispp_params_vdev *params_vdev,
 		       struct rkispp_tnr_config *arg)
 {
@@ -558,22 +557,6 @@ static void fec_config(struct rkispp_params_vdev *params_vdev,
 	rkispp_write(params_vdev->dev, RKISPP_FEC_CROP, val);
 }
 
-static void fec_data_abandon(struct rkispp_params_vdev *vdev,
-			     struct rkispp_params_cfg *params)
-{
-	struct rkispp_fec_head *data;
-	int i;
-
-	for (i = 0; i < FEC_MESH_BUF_NUM; i++) {
-		if (params->fec_cfg.buf_fd == vdev->buf_fec[i].dma_fd) {
-			data = (struct rkispp_fec_head *)vdev->buf_fec[i].vaddr;
-			if (data)
-				data->stat = FEC_BUF_INIT;
-			break;
-		}
-	}
-}
-
 static void fec_enable(struct rkispp_params_vdev *params_vdev, bool en)
 {
 	struct rkispp_device *dev = params_vdev->dev;
@@ -604,9 +587,71 @@ static void orb_enable(struct rkispp_params_vdev *params_vdev, bool en)
 	rkispp_set_bits(params_vdev->dev, RKISPP_ORB_CORE_CTRL, SW_ORB_EN, en);
 }
 
+static void params_vb2_buf_queue(struct vb2_buffer *vb)
+{
+	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
+	struct rkispp_buffer *params_buf = to_rkispp_buffer(vbuf);
+	struct vb2_queue *vq = vb->vb2_queue;
+	struct rkispp_params_vdev *params_vdev = vq->drv_priv;
+	struct rkispp_device *dev = params_vdev->dev;
+	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
+	void *buf_rd = NULL;
+	unsigned long flags;
+	u32 module;
+
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
+	if (params_vdev->first_params) {
+		params_vdev->first_params = false;
+		if (params_vdev->vdev_id == PARAM_VDEV_NR)
+			wake_up(&params_vdev->dev->sync_onoff);
+	}
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
+
+	params_buf->vaddr[0] = vb2_plane_vaddr(vb, 0);
+	spin_lock_irqsave(&params_vdev->config_lock, flags);
+	list_add_tail(&params_buf->queue, &params_vdev->params);
+	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
+
+	switch (params_vdev->vdev_id) {
+	case PARAM_VDEV_TNR:
+		module = ISPP_MODULE_TNR;
+		break;
+	case PARAM_VDEV_NR:
+		module = ISPP_MODULE_NR;
+		spin_lock_irqsave(&vdev->tnr.buf_lock, flags);
+		if (!list_empty(&vdev->tnr.list_rpt)) {
+			buf_rd = list_first_entry(&vdev->tnr.list_rpt,
+					struct rkisp_ispp_buf, list);
+			list_del(&((struct rkisp_ispp_buf *)buf_rd)->list);
+		}
+		spin_unlock_irqrestore(&vdev->tnr.buf_lock, flags);
+		break;
+	case PARAM_VDEV_FEC:
+	default:
+		module = ISPP_MODULE_FEC;
+	}
+	 vdev->stream_ops->rkispp_module_work_event(dev, buf_rd, NULL, module, false);
+}
+
+static void fec_data_abandon(struct rkispp_params_vdev *vdev,
+			     struct rkispp_params_feccfg *params)
+{
+	struct rkispp_fec_head *data;
+	int i;
+
+	for (i = 0; i < FEC_MESH_BUF_NUM; i++) {
+		if (params->fec_cfg.buf_fd == vdev->buf_fec[i].dma_fd) {
+			data = (struct rkispp_fec_head *)vdev->buf_fec[i].vaddr;
+			if (data)
+				data->stat = FEC_BUF_INIT;
+			break;
+		}
+	}
+}
+
 static void rkispp_params_cfg(struct rkispp_params_vdev *params_vdev, u32 frame_id)
 {
-	struct rkispp_params_cfg *new_params = NULL;
+	struct rkispp_params_cfghead *param_head = NULL;
 	u32 module_en_update, module_cfg_update, module_ens;
 
 	spin_lock(&params_vdev->config_lock);
@@ -620,15 +665,18 @@ static void rkispp_params_cfg(struct rkispp_params_vdev *params_vdev, u32 frame_
 		params_vdev->cur_buf = list_first_entry(&params_vdev->params,
 				struct rkispp_buffer, queue);
 
-		new_params = (struct rkispp_params_cfg *)(params_vdev->cur_buf->vaddr[0]);
-		if (new_params->frame_id < frame_id) {
-			if (new_params->module_cfg_update & ISPP_MODULE_FEC)
-				fec_data_abandon(params_vdev, new_params);
+		param_head = (struct rkispp_params_cfghead *)(params_vdev->cur_buf->vaddr[0]);
+		if (param_head->frame_id < frame_id) {
 			list_del(&params_vdev->cur_buf->queue);
+			/* force to on/off module */
+			if (param_head->module_en_update)
+				break;
+			if (param_head->module_cfg_update & ISPP_MODULE_FEC)
+				fec_data_abandon(params_vdev, (struct rkispp_params_feccfg *)param_head);
 			vb2_buffer_done(&params_vdev->cur_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 			params_vdev->cur_buf = NULL;
 			continue;
-		} else if (new_params->frame_id == frame_id) {
+		} else if (param_head->frame_id == frame_id) {
 			list_del(&params_vdev->cur_buf->queue);
 		} else {
 			params_vdev->cur_buf = NULL;
@@ -641,91 +689,70 @@ static void rkispp_params_cfg(struct rkispp_params_vdev *params_vdev, u32 frame_
 		return;
 	}
 
-	new_params = (struct rkispp_params_cfg *)(params_vdev->cur_buf->vaddr[0]);
+	param_head = (struct rkispp_params_cfghead *)(params_vdev->cur_buf->vaddr[0]);
 
-	module_en_update = new_params->module_en_update;
-	module_cfg_update = new_params->module_cfg_update;
-	module_ens = new_params->module_ens;
+	module_en_update = param_head->module_en_update;
+	module_cfg_update = param_head->module_cfg_update;
+	module_ens = param_head->module_ens;
 	if (params_vdev->dev->hw_dev->is_fec_ext) {
 		module_en_update &= ~ISPP_MODULE_FEC;
 		module_cfg_update &= ~ISPP_MODULE_FEC;
 		module_ens &= ~ISPP_MODULE_FEC;
 	}
 
-	if (module_cfg_update & ISPP_MODULE_TNR)
-		tnr_config(params_vdev,
-			   &new_params->tnr_cfg);
-	if (module_en_update & ISPP_MODULE_TNR)
-		tnr_enable(params_vdev,
-			   !!(module_ens & ISPP_MODULE_TNR));
+	if (params_vdev->vdev_id == PARAM_VDEV_TNR) {
+		struct rkispp_params_tnrcfg *tnr_params;
 
-	if (module_cfg_update & ISPP_MODULE_NR)
-		nr_config(params_vdev,
-			  &new_params->nr_cfg);
-	if (module_en_update & ISPP_MODULE_NR)
-		nr_enable(params_vdev,
-			  !!(module_ens & ISPP_MODULE_NR),
-			  &new_params->nr_cfg);
+		tnr_params = (struct rkispp_params_tnrcfg *)param_head;
+		if (module_cfg_update & ISPP_MODULE_TNR)
+			tnr_config(params_vdev,
+				   &tnr_params->tnr_cfg);
+		if (module_en_update & ISPP_MODULE_TNR)
+			tnr_enable(params_vdev,
+				   !!(module_ens & ISPP_MODULE_TNR));
+	} else if (params_vdev->vdev_id == PARAM_VDEV_NR) {
+		struct rkispp_params_nrcfg *nr_params;
 
-	if (module_cfg_update & ISPP_MODULE_SHP)
-		shp_config(params_vdev,
-			   &new_params->shp_cfg);
-	if (module_en_update & ISPP_MODULE_SHP)
-		shp_enable(params_vdev,
-			   !!(module_ens & ISPP_MODULE_SHP),
-			   &new_params->shp_cfg);
+		nr_params = (struct rkispp_params_nrcfg *)param_head;
+		if (module_cfg_update & ISPP_MODULE_NR)
+			nr_config(params_vdev,
+				  &nr_params->nr_cfg);
+		if (module_en_update & ISPP_MODULE_NR)
+			nr_enable(params_vdev,
+				  !!(module_ens & ISPP_MODULE_NR),
+				  &nr_params->nr_cfg);
 
-	if (module_cfg_update & ISPP_MODULE_FEC)
-		fec_config(params_vdev,
-			   &new_params->fec_cfg);
-	if (module_en_update & ISPP_MODULE_FEC)
-		fec_enable(params_vdev,
-			   !!(module_ens & ISPP_MODULE_FEC));
+		if (module_cfg_update & ISPP_MODULE_SHP)
+			shp_config(params_vdev,
+				   &nr_params->shp_cfg);
+		if (module_en_update & ISPP_MODULE_SHP)
+			shp_enable(params_vdev,
+				   !!(module_ens & ISPP_MODULE_SHP),
+				   &nr_params->shp_cfg);
 
-	if (module_cfg_update & ISPP_MODULE_ORB)
-		orb_config(params_vdev,
-			   &new_params->orb_cfg);
-	if (module_en_update & ISPP_MODULE_ORB)
-		orb_enable(params_vdev,
-			   !!(module_ens & ISPP_MODULE_ORB));
+		if (module_cfg_update & ISPP_MODULE_ORB)
+			orb_config(params_vdev,
+				   &nr_params->orb_cfg);
+		if (module_en_update & ISPP_MODULE_ORB)
+			orb_enable(params_vdev,
+				   !!(module_ens & ISPP_MODULE_ORB));
+	} else {
+		struct rkispp_params_feccfg *fec_params;
+
+		fec_params = (struct rkispp_params_feccfg *)param_head;
+		if (module_cfg_update & ISPP_MODULE_FEC)
+			fec_config(params_vdev,
+				   &fec_params->fec_cfg);
+		if (module_en_update & ISPP_MODULE_FEC)
+			fec_enable(params_vdev,
+				   !!(module_ens & ISPP_MODULE_FEC));
+	}
 
 	vb2_buffer_done(&params_vdev->cur_buf->vb.vb2_buf,
 				VB2_BUF_STATE_DONE);
 	params_vdev->cur_buf = NULL;
 
 	spin_unlock(&params_vdev->config_lock);
-}
-
-
-static void params_vb2_buf_queue(struct vb2_buffer *vb)
-{
-	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-	struct rkispp_buffer *params_buf = to_rkispp_buffer(vbuf);
-	struct vb2_queue *vq = vb->vb2_queue;
-	struct rkispp_params_vdev *params_vdev = vq->drv_priv;
-	struct rkispp_stream_vdev *stream_vdev = &params_vdev->dev->stream_vdev;
-	struct rkispp_params_cfg *new_params;
-	unsigned long flags;
-
-	new_params = (struct rkispp_params_cfg *)vb2_plane_vaddr(vb, 0);
-	spin_lock_irqsave(&params_vdev->config_lock, flags);
-	if (params_vdev->first_params) {
-		params_vdev->first_params = false;
-		if (new_params->module_init_ens) {
-			if (params_vdev->dev->hw_dev->is_fec_ext)
-				new_params->module_init_ens &= ~ISPP_MODULE_FEC_ST;
-			stream_vdev->module_ens = new_params->module_init_ens;
-
-		}
-		wake_up(&params_vdev->dev->sync_onoff);
-	}
-	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
-
-	new_params->module_init_ens = stream_vdev->module_ens;
-	params_buf->vaddr[0] = new_params;
-	spin_lock_irqsave(&params_vdev->config_lock, flags);
-	list_add_tail(&params_buf->queue, &params_vdev->params);
-	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 }
 
 static struct rkispp_params_ops rkispp_params_ops = {

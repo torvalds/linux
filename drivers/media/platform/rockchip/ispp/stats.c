@@ -22,12 +22,12 @@ static void update_addr(struct rkispp_stats_vdev *stats_vdev)
 	struct rkispp_dummy_buffer *dummy_buf;
 	u32 addr;
 
-	if (stats_vdev->next_buf) {
-		addr = stats_vdev->next_buf->buff_addr[0];
+	if (stats_vdev->curr_buf) {
+		addr = stats_vdev->curr_buf->buff_addr[0];
 		rkispp_write(stats_vdev->dev, RKISPP_ORB_WR_BASE, addr);
 	}
 
-	if (!stats_vdev->next_buf) {
+	if (!stats_vdev->curr_buf) {
 		dummy_buf = &stats_vdev->dev->hw_dev->dummy_buf;
 		if (!dummy_buf->mem_priv)
 			return;
@@ -40,44 +40,59 @@ static int rkispp_stats_frame_end(struct rkispp_stats_vdev *stats_vdev)
 {
 	void __iomem *base = stats_vdev->dev->hw_dev->base_addr;
 	struct rkispp_device *dev = stats_vdev->dev;
-	struct rkispp_buffer *curr_buf;
-	struct rkispp_stats_buffer *cur_stat_buf;
+	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	unsigned long lock_flags = 0;
 
 	if (stats_vdev->curr_buf) {
+		u32 payload_size = 0;
 		u64 ns = ktime_get_ns();
-		u32 total_num = readl(base + RKISPP_ORB_TOTAL_NUM);
-		u32 cur_frame_id = dev->ispp_sdev.frm_sync_seq;
-		void *vaddr;
+		u32 cur_frame_id = stats_vdev->frame_id;
+		struct rkispp_buffer *curr_buf = stats_vdev->curr_buf;
+		void *vaddr = vb2_plane_vaddr(&curr_buf->vb.vb2_buf, 0);
 
-		curr_buf = stats_vdev->curr_buf;
-		vaddr = vb2_plane_vaddr(&curr_buf->vb.vb2_buf, 0);
-		cur_stat_buf = (struct rkispp_stats_buffer *)vaddr;
+		if (stats_vdev->vdev_id == STATS_VDEV_TNR) {
+			struct rkispp_stats_tnrbuf *tnrbuf = vaddr;
 
-		cur_stat_buf->total_num = total_num;
-		cur_stat_buf->meas_type = ISPP_MODULE_ORB;
-		cur_stat_buf->frame_id = cur_frame_id;
+			payload_size = sizeof(struct rkispp_stats_tnrbuf);
+			tnrbuf->frame_id = cur_frame_id;
+			tnrbuf->gain.index = -1;
+			tnrbuf->gainkg.index = -1;
+			if (vdev->tnr.cur_wr) {
+				tnrbuf->gain.index = vdev->tnr.cur_wr->didx[GROUP_BUF_GAIN];
+				tnrbuf->gain.size = vdev->tnr.cur_wr->dbuf[GROUP_BUF_GAIN]->size;
+				tnrbuf->gainkg.index = vdev->tnr.buf.gain_kg.index;
+				tnrbuf->gainkg.size = vdev->tnr.buf.gain_kg.size;
+			}
+		} else if (stats_vdev->vdev_id == STATS_VDEV_NR) {
+			struct rkispp_stats_nrbuf *nrbuf = vaddr;
+
+			payload_size = sizeof(struct rkispp_stats_nrbuf);
+			nrbuf->total_num = readl(base + RKISPP_ORB_TOTAL_NUM);
+			nrbuf->frame_id = cur_frame_id;
+			nrbuf->image.index = -1;
+			if (vdev->nr.cur_wr) {
+				nrbuf->image.index = vdev->nr.cur_wr->index;
+				nrbuf->image.size = vdev->nr.cur_wr->size;
+			}
+		}
+
 		curr_buf->vb.vb2_buf.timestamp = ns;
 		curr_buf->vb.sequence = cur_frame_id;
-		vb2_set_plane_payload(&curr_buf->vb.vb2_buf, 0,
-					      sizeof(struct rkispp_stats_buffer));
-
-		vb2_buffer_done(&curr_buf->vb.vb2_buf,
-				VB2_BUF_STATE_DONE);
+		vb2_set_plane_payload(&curr_buf->vb.vb2_buf, 0, payload_size);
+		vb2_buffer_done(&curr_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		stats_vdev->curr_buf = NULL;
 	}
 
-	stats_vdev->curr_buf = stats_vdev->next_buf;
-	stats_vdev->next_buf = NULL;
 	spin_lock_irqsave(&stats_vdev->irq_lock, lock_flags);
 	if (!list_empty(&stats_vdev->stat)) {
-		stats_vdev->next_buf = list_first_entry(&stats_vdev->stat,
+		stats_vdev->curr_buf = list_first_entry(&stats_vdev->stat,
 					struct rkispp_buffer, queue);
-		list_del(&stats_vdev->next_buf->queue);
+		list_del(&stats_vdev->curr_buf->queue);
 	}
 	spin_unlock_irqrestore(&stats_vdev->irq_lock, lock_flags);
 
-	update_addr(stats_vdev);
+	if (stats_vdev->vdev_id == STATS_VDEV_NR)
+		update_addr(stats_vdev);
 	return 0;
 }
 
@@ -195,8 +210,15 @@ static int rkispp_stats_vb2_queue_setup(struct vb2_queue *vq,
 	*num_buffers = clamp_t(u32, *num_buffers, RKISPP_STATS_REQ_BUFS_MIN,
 			       RKISPP_STATS_REQ_BUFS_MAX);
 
-	sizes[0] = sizeof(struct rkispp_stats_buffer);
-
+	switch (stats_vdev->vdev_id) {
+	case STATS_VDEV_TNR:
+		sizes[0] = sizeof(struct rkispp_stats_tnrbuf);
+		break;
+	case STATS_VDEV_NR:
+	default:
+		sizes[0] = sizeof(struct rkispp_stats_nrbuf);
+		break;
+	}
 	INIT_LIST_HEAD(&stats_vdev->stat);
 
 	return 0;
@@ -219,13 +241,7 @@ static void rkispp_stats_vb2_buf_queue(struct vb2_buffer *vb)
 		buf->buff_addr[0] = vb2_dma_contig_plane_dma_addr(vb, 0);
 	}
 	spin_lock_irqsave(&stats_dev->irq_lock, lock_flags);
-	if (stats_dev->streamon &&
-	    !stats_dev->next_buf) {
-		stats_dev->next_buf = buf;
-		update_addr(stats_dev);
-	} else {
-		list_add_tail(&buf->queue, &stats_dev->stat);
-	}
+	list_add_tail(&buf->queue, &stats_dev->stat);
 	spin_unlock_irqrestore(&stats_dev->irq_lock, lock_flags);
 }
 
@@ -237,10 +253,6 @@ static void destroy_buf_queue(struct rkispp_stats_vdev *stats_vdev,
 	if (stats_vdev->curr_buf) {
 		list_add_tail(&stats_vdev->curr_buf->queue, &stats_vdev->stat);
 		stats_vdev->curr_buf = NULL;
-	}
-	if (stats_vdev->next_buf) {
-		list_add_tail(&stats_vdev->next_buf->queue, &stats_vdev->stat);
-		stats_vdev->next_buf = NULL;
 	}
 	while (!list_empty(&stats_vdev->stat)) {
 		buf = list_first_entry(&stats_vdev->stat,
@@ -308,7 +320,7 @@ static int rkispp_stats_init_vb2_queue(struct vb2_queue *q,
 	return vb2_queue_init(q);
 }
 
-void rkispp_stats_isr(struct rkispp_stats_vdev *stats_vdev, u32 mis)
+void rkispp_stats_isr(struct rkispp_stats_vdev *stats_vdev)
 {
 	spin_lock(&stats_vdev->irq_lock);
 	if (!stats_vdev->streamon) {
@@ -317,30 +329,47 @@ void rkispp_stats_isr(struct rkispp_stats_vdev *stats_vdev, u32 mis)
 	}
 	spin_unlock(&stats_vdev->irq_lock);
 
-	if (mis & ORB_INT)
-		rkispp_stats_frame_end(stats_vdev);
+	rkispp_stats_frame_end(stats_vdev);
 }
 
 static void rkispp_init_stats_vdev(struct rkispp_stats_vdev *stats_vdev)
 {
-	stats_vdev->vdev_fmt.fmt.meta.dataformat =
-		V4L2_META_FMT_RK_ISPP_STAT;
-	stats_vdev->vdev_fmt.fmt.meta.buffersize =
-		sizeof(struct rkispp_stats_buffer);
+	stats_vdev->vdev_fmt.fmt.meta.dataformat = V4L2_META_FMT_RK_ISPP_STAT;
+	switch (stats_vdev->vdev_id) {
+	case STATS_VDEV_TNR:
+		stats_vdev->vdev_fmt.fmt.meta.buffersize =
+			sizeof(struct rkispp_stats_tnrbuf);
+		break;
+	case STATS_VDEV_NR:
+	default:
+		stats_vdev->vdev_fmt.fmt.meta.buffersize =
+			sizeof(struct rkispp_stats_nrbuf);
+		break;
+	}
 }
 
-int rkispp_register_stats_vdev(struct rkispp_device *dev)
+static int rkispp_register_stats_vdev(struct rkispp_device *dev,
+				      enum rkispp_statsvdev_id vdev_id)
 {
-	struct rkispp_stats_vdev *stats_vdev = &dev->stats_vdev;
+	struct rkispp_stats_vdev *stats_vdev = &dev->stats_vdev[vdev_id];
 	struct rkispp_vdev_node *node = &stats_vdev->vnode;
 	struct video_device *vdev = &node->vdev;
 	int ret;
 
 	stats_vdev->dev = dev;
+	stats_vdev->vdev_id = vdev_id;
 	INIT_LIST_HEAD(&stats_vdev->stat);
 	spin_lock_init(&stats_vdev->irq_lock);
 
-	strlcpy(vdev->name, "rkispp-stats", sizeof(vdev->name));
+	switch (vdev_id) {
+	case STATS_VDEV_TNR:
+		strncpy(vdev->name, "rkispp_tnr_stats", sizeof(vdev->name) - 1);
+		break;
+	case STATS_VDEV_NR:
+	default:
+		strncpy(vdev->name, "rkispp_nr_stats", sizeof(vdev->name) - 1);
+		break;
+	}
 
 	vdev->ioctl_ops = &rkispp_stats_ioctl;
 	vdev->fops = &rkispp_stats_fops;
@@ -375,9 +404,10 @@ err_release_queue:
 	return ret;
 }
 
-void rkispp_unregister_stats_vdev(struct rkispp_device *dev)
+static void rkispp_unregister_stats_vdev(struct rkispp_device *dev,
+					 enum rkispp_statsvdev_id vdev_id)
 {
-	struct rkispp_stats_vdev *stats_vdev = &dev->stats_vdev;
+	struct rkispp_stats_vdev *stats_vdev = &dev->stats_vdev[vdev_id];
 	struct rkispp_vdev_node *node = &stats_vdev->vnode;
 	struct video_device *vdev = &node->vdev;
 
@@ -386,3 +416,30 @@ void rkispp_unregister_stats_vdev(struct rkispp_device *dev)
 	vb2_queue_release(vdev->queue);
 }
 
+int rkispp_register_stats_vdevs(struct rkispp_device *dev)
+{
+	int ret = 0;
+
+	if (dev->ispp_ver != ISPP_V10)
+		return 0;
+
+	ret = rkispp_register_stats_vdev(dev, STATS_VDEV_TNR);
+	if (ret)
+		return ret;
+
+	ret = rkispp_register_stats_vdev(dev, STATS_VDEV_NR);
+	if (ret) {
+		rkispp_unregister_stats_vdev(dev, STATS_VDEV_TNR);
+		return ret;
+	}
+
+	return ret;
+}
+
+void rkispp_unregister_stats_vdevs(struct rkispp_device *dev)
+{
+	if (dev->ispp_ver != ISPP_V10)
+		return;
+	rkispp_unregister_stats_vdev(dev, STATS_VDEV_TNR);
+	rkispp_unregister_stats_vdev(dev, STATS_VDEV_NR);
+}

@@ -36,8 +36,8 @@ struct rkispp_device {
 	struct rkispp_hw_dev *hw_dev;
 	struct rkispp_subdev ispp_sdev;
 	struct rkispp_stream_vdev stream_vdev;
-	struct rkispp_params_vdev params_vdev;
-	struct rkispp_stats_vdev stats_vdev;
+	struct rkispp_params_vdev params_vdev[PARAM_VDEV_MAX];
+	struct rkispp_stats_vdev stats_vdev[STATS_VDEV_MAX];
 	struct proc_dir_entry *procfs;
 
 	struct work_struct irq_work;

@@ -247,8 +247,6 @@ struct rkispp_stream_vdev {
 };
 
 int rkispp_get_tnrbuf_fd(struct rkispp_device *dev, struct rkispp_buf_idxfd *idxfd);
-void rkispp_sendbuf_to_nr(struct rkispp_device *dev,
-			  struct rkispp_tnr_inf *tnr_inf);
 void rkispp_set_trigger_mode(struct rkispp_device *dev,
 			     struct rkispp_trigger_mode *mode);
 void rkispp_isr(u32 mis_val, struct rkispp_device *dev);

@@ -187,10 +187,22 @@ static int rkispp_params_vb2_queue_setup(struct vb2_queue *vq,
 			       RKISP1_ISP_PARAMS_REQ_BUFS_MAX);
 
 	*num_planes = 1;
-	if (dev->ispp_ver == ISPP_V10)
-		sizes[0] = sizeof(struct rkispp_params_cfg);
-	else if (dev->ispp_ver == ISPP_V20)
+	if (dev->ispp_ver == ISPP_V10) {
+		switch (params_vdev->vdev_id) {
+		case PARAM_VDEV_TNR:
+			sizes[0] = sizeof(struct rkispp_params_tnrcfg);
+			break;
+		case PARAM_VDEV_NR:
+			sizes[0] = sizeof(struct rkispp_params_nrcfg);
+			break;
+		case PARAM_VDEV_FEC:
+		default:
+			sizes[0] = sizeof(struct rkispp_params_feccfg);
+			break;
+		}
+	} else if (dev->ispp_ver == ISPP_V20) {
 		sizes[0] = sizeof(struct fec_params_cfg);
+	}
 
 	INIT_LIST_HEAD(&params_vdev->params);
 	params_vdev->first_params = true;
@@ -243,10 +255,6 @@ static void rkispp_params_vb2_stop_streaming(struct vb2_queue *vq)
 				VB2_BUF_STATE_ERROR);
 		params_vdev->cur_buf = NULL;
 	}
-
-	/* clean module params */
-	params_vdev->cur_params->module_cfg_update = 0;
-	params_vdev->cur_params->module_en_update = 0;
 }
 
 static int
@@ -309,7 +317,6 @@ static struct vb2_ops rkispp_params_vb2_ops = {
 	.buf_queue = rkispp_params_vb2_buf_queue,
 	.start_streaming = rkispp_params_vb2_start_streaming,
 	.stop_streaming = rkispp_params_vb2_stop_streaming,
-
 };
 
 struct v4l2_file_operations rkispp_params_fops = {
@@ -342,6 +349,9 @@ void rkispp_params_get_fecbuf_inf(struct rkispp_params_vdev *params_vdev,
 {
 	int i;
 
+	if (params_vdev->vdev_id != PARAM_VDEV_FEC)
+		return;
+
 	for (i = 0; i < FEC_MESH_BUF_NUM; i++) {
 		fecbuf->buf_fd[i] = params_vdev->buf_fec[i].dma_fd;
 		fecbuf->buf_size[i] = params_vdev->buf_fec[i].size;
@@ -351,31 +361,42 @@ void rkispp_params_get_fecbuf_inf(struct rkispp_params_vdev *params_vdev,
 void rkispp_params_set_fecbuf_size(struct rkispp_params_vdev *params_vdev,
 				   struct rkispp_fecbuf_size *fecsize)
 {
+	if (params_vdev->vdev_id != PARAM_VDEV_FEC)
+		return;
+
 	rkispp_param_deinit_fecbuf(params_vdev);
 	rkispp_param_init_fecbuf(params_vdev, fecsize);
 }
 
-int rkispp_register_params_vdev(struct rkispp_device *dev)
+static int rkispp_register_params_vdev(struct rkispp_device *dev,
+				       enum rkispp_paramvdev_id vdev_id)
 {
-	struct rkispp_params_vdev *params_vdev = &dev->params_vdev;
+	struct rkispp_params_vdev *params_vdev = &dev->params_vdev[vdev_id];
 	struct rkispp_vdev_node *node = &params_vdev->vnode;
 	struct video_device *vdev = &node->vdev;
 	int ret;
 
 	params_vdev->dev = dev;
 	params_vdev->is_subs_evt = false;
-	params_vdev->cur_params = vmalloc(sizeof(*params_vdev->cur_params));
-	if (!params_vdev->cur_params)
-		return -ENOMEM;
+	params_vdev->vdev_id = vdev_id;
 
-	params_vdev->cur_params->module_cfg_update = 0;
-	params_vdev->cur_params->module_en_update = 0;
 	if (dev->ispp_ver == ISPP_V10)
 		rkispp_params_init_ops_v10(params_vdev);
 	if (dev->ispp_ver == ISPP_V20)
 		rkispp_params_init_ops_v20(params_vdev);
 	spin_lock_init(&params_vdev->config_lock);
-	strlcpy(vdev->name, "rkispp_input_params", sizeof(vdev->name));
+	switch (vdev_id) {
+	case PARAM_VDEV_TNR:
+		strncpy(vdev->name, "rkispp_tnr_params", sizeof(vdev->name) - 1);
+		break;
+	case PARAM_VDEV_NR:
+		strncpy(vdev->name, "rkispp_nr_params", sizeof(vdev->name) - 1);
+		break;
+	case PARAM_VDEV_FEC:
+	default:
+		strncpy(vdev->name, "rkispp_fec_params", sizeof(vdev->name) - 1);
+		break;
+	}
 
 	video_set_drvdata(vdev, params_vdev);
 	vdev->ioctl_ops = &rkispp_params_ioctl;
@@ -414,14 +435,49 @@ err_release_queue:
 	return ret;
 }
 
-void rkispp_unregister_params_vdev(struct rkispp_device *dev)
+static void rkispp_unregister_params_vdev(struct rkispp_device *dev,
+					  enum rkispp_paramvdev_id vdev_id)
 {
-	struct rkispp_params_vdev *params_vdev = &dev->params_vdev;
+	struct rkispp_params_vdev *params_vdev = &dev->params_vdev[vdev_id];
 	struct rkispp_vdev_node *node = &params_vdev->vnode;
 	struct video_device *vdev = &node->vdev;
 
 	video_unregister_device(vdev);
 	media_entity_cleanup(&vdev->entity);
 	vb2_queue_release(vdev->queue);
-	vfree(params_vdev->cur_params);
+}
+
+int rkispp_register_params_vdevs(struct rkispp_device *dev)
+{
+	int ret = 0;
+
+	ret = rkispp_register_params_vdev(dev, PARAM_VDEV_FEC);
+	if (ret)
+		return ret;
+
+	if (dev->ispp_ver == ISPP_V10) {
+		ret = rkispp_register_params_vdev(dev, PARAM_VDEV_TNR);
+		if (ret) {
+			rkispp_unregister_params_vdev(dev, PARAM_VDEV_FEC);
+			return ret;
+		}
+
+		ret = rkispp_register_params_vdev(dev, PARAM_VDEV_NR);
+		if (ret) {
+			rkispp_unregister_params_vdev(dev, PARAM_VDEV_FEC);
+			rkispp_unregister_params_vdev(dev, PARAM_VDEV_TNR);
+			return ret;
+		}
+	}
+
+	return ret;
+}
+
+void rkispp_unregister_params_vdevs(struct rkispp_device *dev)
+{
+	rkispp_unregister_params_vdev(dev, PARAM_VDEV_FEC);
+	if (dev->ispp_ver == ISPP_V10) {
+		rkispp_unregister_params_vdev(dev, PARAM_VDEV_TNR);
+		rkispp_unregister_params_vdev(dev, PARAM_VDEV_NR);
+	}
 }

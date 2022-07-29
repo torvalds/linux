@@ -484,16 +484,20 @@ void *get_list_buf(struct list_head *list, bool is_isp_ispp)
 
 void rkispp_start_3a_run(struct rkispp_device *dev)
 {
-	struct rkispp_params_vdev *params_vdev = &dev->params_vdev;
-	struct video_device *vdev = &params_vdev->vnode.vdev;
+	struct rkispp_params_vdev *params_vdev;
+	struct video_device *vdev;
 	struct v4l2_event ev = {
 		.type = CIFISP_V4L2_EVENT_STREAM_START,
 	};
 	int ret;
 
+	if (dev->ispp_ver == ISPP_V10)
+		params_vdev = &dev->params_vdev[PARAM_VDEV_NR];
+	else
+		params_vdev = &dev->params_vdev[PARAM_VDEV_FEC];
 	if (!params_vdev->is_subs_evt)
 		return;
-
+	vdev = &params_vdev->vnode.vdev;
 	v4l2_event_queue(vdev, &ev);
 	ret = wait_event_timeout(dev->sync_onoff,
 			params_vdev->streamon && !params_vdev->first_params,
@@ -508,16 +512,20 @@ void rkispp_start_3a_run(struct rkispp_device *dev)
 
 static void rkispp_stop_3a_run(struct rkispp_device *dev)
 {
-	struct rkispp_params_vdev *params_vdev = &dev->params_vdev;
-	struct video_device *vdev = &params_vdev->vnode.vdev;
+	struct rkispp_params_vdev *params_vdev;
+	struct video_device *vdev;
 	struct v4l2_event ev = {
 		.type = CIFISP_V4L2_EVENT_STREAM_STOP,
 	};
 	int ret;
 
+	if (dev->ispp_ver == ISPP_V10)
+		params_vdev = &dev->params_vdev[PARAM_VDEV_NR];
+	else
+		params_vdev = &dev->params_vdev[PARAM_VDEV_FEC];
 	if (!params_vdev->is_subs_evt)
 		return;
-
+	vdev = &params_vdev->vnode.vdev;
 	v4l2_event_queue(vdev, &ev);
 	ret = wait_event_timeout(dev->sync_onoff, !params_vdev->streamon,
 				 msecs_to_jiffies(1000));
@@ -1092,10 +1100,10 @@ static int rkispp_start_streaming(struct vb2_queue *queue,
 		return ret;
 	}
 
-	if (dev->inp == INP_DDR &&
-	    !atomic_read(&hw->refcnt) &&
+	if (!atomic_read(&hw->refcnt) &&
 	    !atomic_read(&dev->stream_vdev.refcnt) &&
-	    clk_get_rate(hw->clks[0]) <= hw->core_clk_min) {
+	    clk_get_rate(hw->clks[0]) <= hw->core_clk_min &&
+	    (dev->inp == INP_DDR || dev->ispp_ver == ISPP_V20)) {
 		dev->hw_dev->is_first = false;
 		rkispp_set_clk_rate(hw->clks[0], hw->core_clk_max);
 	}
@@ -1868,11 +1876,13 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 	    (dev->isp_mode & ISP_ISPP_QUICK))
 		++dev->ispp_sdev.frm_sync_seq;
 
-	if (mis_val & TNR_INT)
+	if (mis_val & TNR_INT) {
 		if (rkispp_read(dev, RKISPP_TNR_CTRL) & SW_TNR_1ST_FRM)
 			rkispp_clear_bits(dev, RKISPP_TNR_CTRL, SW_TNR_1ST_FRM);
-
-	rkispp_stats_isr(&dev->stats_vdev, mis_val);
+		rkispp_stats_isr(&dev->stats_vdev[STATS_VDEV_TNR]);
+	}
+	if (mis_val & NR_INT)
+		rkispp_stats_isr(&dev->stats_vdev[STATS_VDEV_NR]);
 
 	for (i = 0; i <= STREAM_S2; i++) {
 		stream = &vdev->stream[i];
@@ -1893,7 +1903,7 @@ void rkispp_isr(u32 mis_val, struct rkispp_device *dev)
 		}
 	}
 
-	if ((mis_val & NR_INT || mis_val & FEC_INT) && dev->hw_dev->is_first) {
+	if (mis_val & NR_INT && dev->hw_dev->is_first) {
 		dev->mis_val = mis_val;
 		INIT_WORK(&dev->irq_work, irq_work);
 		schedule_work(&dev->irq_work);

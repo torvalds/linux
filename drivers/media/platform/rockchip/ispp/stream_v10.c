@@ -146,20 +146,6 @@ static bool is_en_done_early(struct rkispp_device *dev)
 	return en;
 }
 
-static void rkispp_tnr_complete(struct rkispp_device *dev, struct rkispp_tnr_inf *inf)
-{
-	struct rkispp_subdev *ispp_sdev = &dev->ispp_sdev;
-	struct v4l2_event ev = {
-		.type = RKISPP_V4L2_EVENT_TNR_COMPLETE,
-	};
-	struct rkispp_tnr_inf *tnr_inf;
-
-	tnr_inf = (struct rkispp_tnr_inf *)ev.u.data;
-	memcpy(tnr_inf, inf, sizeof(*tnr_inf));
-
-	v4l2_subdev_notify_event(&ispp_sdev->sd, &ev);
-}
-
 static void tnr_free_buf(struct rkispp_device *dev)
 {
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
@@ -663,6 +649,7 @@ static int config_fec(struct rkispp_device *dev)
 
 static int config_modules(struct rkispp_device *dev)
 {
+	struct rkispp_params_vdev *params_vdev;
 	int ret;
 
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
@@ -687,7 +674,12 @@ static int config_modules(struct rkispp_device *dev)
 		goto free_nr;
 
 	/* config default params */
-	dev->params_vdev.params_ops->rkispp_params_cfg(&dev->params_vdev, 0);
+	params_vdev = &dev->params_vdev[PARAM_VDEV_TNR];
+	params_vdev->params_ops->rkispp_params_cfg(params_vdev, 0);
+	params_vdev = &dev->params_vdev[PARAM_VDEV_NR];
+	params_vdev->params_ops->rkispp_params_cfg(params_vdev, 0);
+	params_vdev = &dev->params_vdev[PARAM_VDEV_FEC];
+	params_vdev->params_ops->rkispp_params_cfg(params_vdev, 0);
 	return 0;
 free_nr:
 	nr_free_buf(dev);
@@ -716,6 +708,7 @@ static void nr_work_event(struct rkispp_device *dev,
 			  struct rkispp_dummy_buffer *buf_wr,
 			  bool is_isr)
 {
+	struct rkispp_params_vdev *params_vdev = &dev->params_vdev[PARAM_VDEV_NR];
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	struct rkispp_stream *stream = &vdev->stream[STREAM_II];
 	struct rkispp_monitor *monitor = &vdev->monitor;
@@ -881,6 +874,8 @@ static void nr_work_event(struct rkispp_device *dev,
 				dev->ispp_sdev.frame_timestamp = timestamp;
 				dev->ispp_sdev.frm_sync_seq = seq;
 			}
+			dev->stats_vdev[STATS_VDEV_NR].frame_id = seq;
+			params_vdev->params_ops->rkispp_params_cfg(params_vdev, seq);
 		}
 
 		/* check MB config and output buf beforce start, when MB connect to SHARP
@@ -1032,6 +1027,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 			   struct rkisp_ispp_buf *buf_wr,
 			   bool is_isr)
 {
+	struct rkispp_params_vdev *params_vdev = &dev->params_vdev[PARAM_VDEV_TNR];
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	struct rkispp_stream *stream = &vdev->stream[STREAM_II];
 	struct rkispp_monitor *monitor = &vdev->monitor;
@@ -1043,8 +1039,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 	struct dma_buf *dbuf;
 	unsigned long lock_flags = 0, lock_flags1 = 0;
 	u32 val, size = sizeof(vdev->tnr.buf) / sizeof(*dummy);
-	bool is_3to1 = vdev->tnr.is_3to1, is_start = false;
-	bool is_en = rkispp_read(dev, RKISPP_TNR_CORE_CTRL) & SW_TNR_EN;
+	bool is_en, is_3to1 = vdev->tnr.is_3to1, is_start = false;
 	struct rkisp_ispp_reg *reg_buf = NULL;
 
 	if (!(vdev->module_ens & ISPP_MODULE_TNR) ||
@@ -1053,6 +1048,11 @@ static void tnr_work_event(struct rkispp_device *dev,
 
 	if (dev->inp == INP_ISP)
 		sd = dev->ispp_sdev.remote_sd;
+
+	if (buf_rd)
+		params_vdev->params_ops->rkispp_params_cfg(params_vdev, buf_rd->frame_id);
+
+	is_en = rkispp_read(dev, RKISPP_TNR_CORE_CTRL) & SW_TNR_EN;
 
 	spin_lock_irqsave(&vdev->tnr.buf_lock, lock_flags);
 
@@ -1074,24 +1074,15 @@ static void tnr_work_event(struct rkispp_device *dev,
 		}
 
 		if (vdev->tnr.cur_wr) {
-			struct rkispp_tnr_inf tnr_inf;
-
 			if (!vdev->tnr.cur_wr->is_move_judge || !vdev->tnr.is_trigger) {
 				/* tnr write buf to nr */
 				rkispp_module_work_event(dev, vdev->tnr.cur_wr, NULL,
 							 ISPP_MODULE_NR, is_isr);
 			} else {
-				tnr_inf.dev_id = dev->dev_id;
-				tnr_inf.frame_id = vdev->tnr.cur_wr->frame_id;
-				tnr_inf.gainkg_idx = vdev->tnr.buf.gain_kg.index;
-				tnr_inf.gainwr_idx = vdev->tnr.cur_wr->didx[GROUP_BUF_GAIN];
-				tnr_inf.gainkg_size = vdev->tnr.buf.gain_kg.size;
 				dbuf = vdev->tnr.cur_wr->dbuf[GROUP_BUF_GAIN];
 				dummy = dbuf_to_dummy(dbuf, &vdev->tnr.buf.iir, size);
-				tnr_inf.gainwr_size = dummy->size;
 				rkispp_finish_buffer(dev, dummy);
 				rkispp_finish_buffer(dev, &vdev->tnr.buf.gain_kg);
-				rkispp_tnr_complete(dev, &tnr_inf);
 				list_add_tail(&vdev->tnr.cur_wr->list, &vdev->tnr.list_rpt);
 			}
 			vdev->tnr.cur_wr = NULL;
@@ -1233,6 +1224,7 @@ static void tnr_work_event(struct rkispp_device *dev,
 				vdev->tnr.cur_wr->is_move_judge =
 					vdev->tnr.nxt_rd->is_move_judge;
 			}
+			dev->stats_vdev[STATS_VDEV_TNR].frame_id = seq;
 		}
 
 		if (!dev->hw_dev->is_single)
@@ -1294,6 +1286,7 @@ static void fec_work_event(struct rkispp_device *dev,
 			   void *buff_rd,
 			   bool is_isr, bool is_quick)
 {
+	struct rkispp_params_vdev *params_vdev = &dev->params_vdev[PARAM_VDEV_FEC];
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	struct rkispp_monitor *monitor = &vdev->monitor;
 	struct list_head *list = &vdev->fec.list_rd;
@@ -1362,6 +1355,7 @@ static void fec_work_event(struct rkispp_device *dev,
 			dev->ispp_sdev.frame_timestamp =
 				vdev->fec.dummy_cur_rd->timestamp;
 			dev->ispp_sdev.frm_sync_seq = seq;
+			params_vdev->params_ops->rkispp_params_cfg(params_vdev, seq);
 		} else {
 			seq = vdev->nr.buf.wr[0].id;
 			dev->ispp_sdev.frame_timestamp =
@@ -1452,41 +1446,6 @@ restart_unlock:
 	spin_unlock_irqrestore(&vdev->fec.buf_lock, lock_flags);
 }
 
-
-void rkispp_sendbuf_to_nr(struct rkispp_device *dev,
-			  struct rkispp_tnr_inf *tnr_inf)
-{
-	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
-	struct rkispp_dummy_buffer *dummy;
-	struct rkisp_ispp_buf *cur_buf;
-	unsigned long lock_flags = 0;
-	bool find_flg = false;
-	struct dma_buf *dbuf;
-	u32 size;
-
-	size = sizeof(vdev->tnr.buf) / sizeof(*dummy);
-	spin_lock_irqsave(&vdev->tnr.buf_lock, lock_flags);
-	list_for_each_entry(cur_buf, &vdev->tnr.list_rpt, list) {
-		if (cur_buf->index == tnr_inf->dev_id &&
-		    cur_buf->didx[GROUP_BUF_GAIN] == tnr_inf->gainwr_idx) {
-			find_flg = true;
-			break;
-		}
-	}
-
-	if (find_flg) {
-		list_del(&cur_buf->list);
-
-		dbuf = cur_buf->dbuf[GROUP_BUF_GAIN];
-		dummy = dbuf_to_dummy(dbuf, &vdev->tnr.buf.iir, size);
-		rkispp_prepare_buffer(dev, dummy);
-
-		/* tnr write buf to nr */
-		rkispp_module_work_event(dev, cur_buf, NULL,
-					 ISPP_MODULE_NR, false);
-	}
-	spin_unlock_irqrestore(&vdev->tnr.buf_lock, lock_flags);
-}
 
 void rkispp_set_trigger_mode(struct rkispp_device *dev,
 			     struct rkispp_trigger_mode *mode)

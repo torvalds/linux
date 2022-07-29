@@ -138,16 +138,29 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 
 	/* params links */
 	flags = MEDIA_LNK_FL_ENABLED;
-	source = &ispp_dev->params_vdev.vnode.vdev.entity;
+	source = &ispp_dev->params_vdev[PARAM_VDEV_FEC].vnode.vdev.entity;
 	ret = media_create_pad_link(source, 0, sink, RKISPP_PAD_SINK_PARAMS, flags);
 	if (ret < 0)
 		return ret;
 	ispp_dev->stream_vdev.module_ens = ISPP_MODULE_FEC;
 	if (ispp_dev->ispp_ver == ISPP_V10) {
+		/* params links */
+		source = &ispp_dev->params_vdev[PARAM_VDEV_TNR].vnode.vdev.entity;
+		ret = media_create_pad_link(source, 0, sink, RKISPP_PAD_SINK_PARAMS, flags);
+		if (ret < 0)
+			return ret;
+		source = &ispp_dev->params_vdev[PARAM_VDEV_NR].vnode.vdev.entity;
+		ret = media_create_pad_link(source, 0, sink, RKISPP_PAD_SINK_PARAMS, flags);
+		if (ret < 0)
+			return ret;
+
 		/* stats links */
-		flags = MEDIA_LNK_FL_ENABLED;
 		source = &ispp_dev->ispp_sdev.sd.entity;
-		sink = &ispp_dev->stats_vdev.vnode.vdev.entity;
+		sink = &ispp_dev->stats_vdev[STATS_VDEV_TNR].vnode.vdev.entity;
+		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE_STATS, sink, 0, flags);
+		if (ret < 0)
+			return ret;
+		sink = &ispp_dev->stats_vdev[STATS_VDEV_NR].vnode.vdev.entity;
 		ret = media_create_pad_link(source, RKISPP_PAD_SOURCE_STATS, sink, 0, flags);
 		if (ret < 0)
 			return ret;
@@ -193,7 +206,6 @@ static int rkispp_create_links(struct rkispp_device *ispp_dev)
 	if (ret < 0)
 		return ret;
 
-	/* default enable */
 	return 0;
 }
 
@@ -205,11 +217,11 @@ static int rkispp_register_platform_subdevs(struct rkispp_device *ispp_dev)
 	if (ret < 0)
 		return ret;
 
-	ret = rkispp_register_params_vdev(ispp_dev);
+	ret = rkispp_register_params_vdevs(ispp_dev);
 	if (ret < 0)
 		goto err_unreg_stream_vdevs;
 
-	ret = rkispp_register_stats_vdev(ispp_dev);
+	ret = rkispp_register_stats_vdevs(ispp_dev);
 	if (ret < 0)
 		goto err_unreg_params_vdev;
 
@@ -224,9 +236,9 @@ static int rkispp_register_platform_subdevs(struct rkispp_device *ispp_dev)
 err_unreg_ispp_subdev:
 	rkispp_unregister_subdev(ispp_dev);
 err_unreg_stats_vdev:
-	rkispp_unregister_stats_vdev(ispp_dev);
+	rkispp_unregister_stats_vdevs(ispp_dev);
 err_unreg_params_vdev:
-	rkispp_unregister_params_vdev(ispp_dev);
+	rkispp_unregister_params_vdevs(ispp_dev);
 err_unreg_stream_vdevs:
 	rkispp_unregister_stream_vdevs(ispp_dev);
 	return ret;
@@ -325,8 +337,8 @@ static int rkispp_plat_remove(struct platform_device *pdev)
 
 	rkispp_proc_cleanup(ispp_dev);
 	rkispp_unregister_subdev(ispp_dev);
-	rkispp_unregister_stats_vdev(ispp_dev);
-	rkispp_unregister_params_vdev(ispp_dev);
+	rkispp_unregister_stats_vdevs(ispp_dev);
+	rkispp_unregister_params_vdevs(ispp_dev);
 	rkispp_unregister_stream_vdevs(ispp_dev);
 
 	media_device_unregister(&ispp_dev->media_dev);
