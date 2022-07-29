@@ -2057,7 +2057,7 @@ static int ovl_fill_super(struct super_block *sb, void *data, int silent)
 	sb->s_stack_depth = 0;
 	sb->s_maxbytes = MAX_LFS_FILESIZE;
 	atomic_long_set(&ofs->last_ino, 1);
-	/* Assume underlaying fs uses 32bit inodes unless proven otherwise */
+	/* Assume underlying fs uses 32bit inodes unless proven otherwise */
 	if (ofs->config.xino != OVL_XINO_OFF) {
 		ofs->xino_mode = BITS_PER_LONG - 32;
 		if (!ofs->xino_mode) {
