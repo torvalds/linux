@@ -16,6 +16,7 @@
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
 #include "util/trace-event.h"
+#include "util/tracepoint.h"
 
 #include "util/debug.h"
 #include "util/session.h"
