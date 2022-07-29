@@ -595,6 +595,7 @@ static void hdmirx_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 	u32 val;
 
 	if (from_dma) {
+		hfp = 0;
 		val = hdmirx_readl(hdmirx_dev, DMA_STATUS2);
 		hact = (val >> 16) & 0xffff;
 		vact = val & 0xffff;
@@ -607,8 +608,6 @@ static void hdmirx_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 		val = hdmirx_readl(hdmirx_dev, DMA_STATUS5);
 		hbp = (val >> 16) & 0xffff;
 		vbp = val & 0xffff;
-		hfp = htotal - hact - hs - hbp;
-		vfp = vtotal - vact - vs - vbp;
 	} else {
 		val = hdmirx_readl(hdmirx_dev, VMON_STATUS1);
 		hs = (val >> 16) & 0xffff;
@@ -626,11 +625,22 @@ static void hdmirx_get_timings(struct rk_hdmirx_dev *hdmirx_dev,
 		val = hdmirx_readl(hdmirx_dev, VMON_STATUS6);
 		vtotal = (val >> 16) & 0xffff;
 		vact = val & 0xffff;
-		if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
+	}
+
+	if (hdmirx_dev->pix_fmt == HDMIRX_YUV420) {
+		htotal *= 2;
+		hfp *= 2;
+		hbp *= 2;
+		hs *= 2;
+		if (!from_dma)
 			hact *= 2;
 	}
-	if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
-		htotal *= 2;
+
+	if (from_dma) {
+		hfp = htotal - hact - hs - hbp;
+		vfp = vtotal - vact - vs - vbp;
+	}
+
 	fps = (bt->pixelclock + (htotal * vtotal) / 2) / (htotal * vtotal);
 	if (hdmirx_dev->pix_fmt == HDMIRX_YUV420)
 		fps *= 2;
