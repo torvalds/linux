@@ -14,6 +14,7 @@
 #include <linux/kvm_types.h>
 #include <linux/spinlock.h>
 #include <asm/csr.h>
+#include <asm/hwcap.h>
 #include <asm/kvm_vcpu_fp.h>
 #include <asm/kvm_vcpu_timer.h>
 
@@ -170,7 +171,7 @@ struct kvm_vcpu_arch {
 	int last_exit_cpu;
 
 	/* ISA feature bits (similar to MISA) */
-	unsigned long isa;
+	DECLARE_BITMAP(isa, RISCV_ISA_EXT_MAX);
 
 	/* SSCRATCH, STVEC, and SCOUNTEREN of Host */
 	unsigned long host_sscratch;
