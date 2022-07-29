@@ -671,7 +671,7 @@ static bool hdmirx_check_timing_valid(struct v4l2_bt_timings *bt)
 	    bt->height < 100 || bt->height > 5000)
 		return false;
 
-	if (bt->hsync == 0 || bt->hsync > 200 ||
+	if (bt->hsync == 0 || bt->hsync > 500 ||
 	    bt->vsync == 0 || bt->vsync > 100)
 		return false;
 
