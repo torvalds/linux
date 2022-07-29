@@ -432,7 +432,7 @@ static void device_init_registers(struct vnt_private *priv)
 
 	/* Turn On Rx DMA */
 	vt6655_mac_dma_ctl(priv->port_offset, MAC_REG_RXDMACTL0);
-	MACvReceive1(priv->port_offset);
+	vt6655_mac_dma_ctl(priv->port_offset, MAC_REG_RXDMACTL1);
 
 	/* start the adapter */
 	iowrite8(HOSTCR_MACEN | HOSTCR_RXON | HOSTCR_TXON, priv->port_offset + MAC_REG_HOSTCR);
@@ -1147,7 +1147,7 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 		isr = ioread32(priv->port_offset + MAC_REG_ISR);
 
 		vt6655_mac_dma_ctl(priv->port_offset, MAC_REG_RXDMACTL0);
-		MACvReceive1(priv->port_offset);
+		vt6655_mac_dma_ctl(priv->port_offset, MAC_REG_RXDMACTL1);
 
 		if (max_count > priv->opts.int_works)
 			break;
