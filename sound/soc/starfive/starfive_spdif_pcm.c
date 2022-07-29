@@ -52,8 +52,23 @@ static unsigned int sf_spdif_pcm_tx(struct sf_spdif_dev *dev,
 				data[1] &= 0x00ffff00;
 			} else if (format == SNDRV_PCM_FORMAT_S24_LE) {
 				data[0] = p32[tx_ptr][0];
-				data[0] &= 0x00ffffff;
 				data[1] = p32[tx_ptr][1];
+
+				/*
+				 * To adapt S24_3LE and ALSA pass parameter of S24_LE.
+				 * operation of S24_LE should be same to S24_3LE.
+				 * So it would wrong when playback S24_LE file.
+				 * when want to playback S24_LE file, should add in there:
+				 * data[0] = data[0]>>8;
+				 * data[1] = data[1]>>8;
+				 */
+
+				data[0] &= 0x00ffffff;
+				data[1] &= 0x00ffffff;
+			} else if (format == SNDRV_PCM_FORMAT_S24_3LE) {
+				data[0] = p32[tx_ptr][0];
+				data[1] = p32[tx_ptr][1];
+				data[0] &= 0x00ffffff;
 				data[1] &= 0x00ffffff;
 			} else if (format == SNDRV_PCM_FORMAT_S32_LE) {
 				data[0] = p32[tx_ptr][0];
@@ -77,7 +92,8 @@ static unsigned int sf_spdif_pcm_tx(struct sf_spdif_dev *dev,
 				data[0] = p16[tx_ptr];
 				data[0] = data[0]<<8;
 				data[0] &= 0x00ffff00;
-			} else if (format == SNDRV_PCM_FORMAT_S24_LE) {
+			} else if (format == SNDRV_PCM_FORMAT_S24_LE ||
+				format == SNDRV_PCM_FORMAT_S24_3LE) {
 				data[0] = p32[tx_ptr];
 				data[0] &= 0x00ffffff;
 			} else if (format == SNDRV_PCM_FORMAT_S32_LE) {
@@ -145,6 +161,7 @@ static const struct snd_pcm_hardware sf_pcm_hardware = {
 	.rate_max = 48000,
 	.formats = SNDRV_PCM_FMTBIT_S16_LE |
 		SNDRV_PCM_FMTBIT_S24_LE |
+		SNDRV_PCM_FMTBIT_S24_3LE |
 		SNDRV_PCM_FMTBIT_S32_LE,
 	.channels_min = 1,
 	.channels_max = 2,
@@ -240,6 +257,7 @@ static int sf_pcm_hw_params(struct snd_soc_component *component,
 	switch (dev->format) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S24_3LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		break;
 	default:

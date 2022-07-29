@@ -165,6 +165,7 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 	switch (format) {
 	case SNDRV_PCM_FORMAT_S16_LE:
 	case SNDRV_PCM_FORMAT_S24_LE:
+	case SNDRV_PCM_FORMAT_S24_3LE:
 	case SNDRV_PCM_FORMAT_S32_LE:
 		break;
 	default:
@@ -199,7 +200,6 @@ static int sf_spdif_hw_params(struct snd_pcm_substream *substream,
 	mclk = clk_get_rate(spdif->mclk_inner);
 	/* (FCLK)4096000/128=32000 */
 	tsamplerate = (mclk / 128 + rate / 2) / rate - 1;
-
 	if (tsamplerate < 3)
 		tsamplerate = 3;
 
@@ -394,6 +394,7 @@ static struct snd_soc_dai_driver sf_spdif_dai = {
 		.rates = SF_PCM_RATE_8000_22050,
 		.formats = SNDRV_PCM_FMTBIT_S16_LE |
 			   SNDRV_PCM_FMTBIT_S24_LE |
+			   SNDRV_PCM_FMTBIT_S24_3LE |
 			   SNDRV_PCM_FMTBIT_S32_LE,
 	},
 	.ops = &sf_spdif_dai_ops,
