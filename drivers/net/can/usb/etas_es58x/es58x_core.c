@@ -1460,10 +1460,6 @@ static void es58x_read_bulk_callback(struct urb *urb)
 	}
 
  resubmit_urb:
-	usb_fill_bulk_urb(urb, es58x_dev->udev, es58x_dev->rx_pipe,
-			  urb->transfer_buffer, urb->transfer_buffer_length,
-			  es58x_read_bulk_callback, es58x_dev);
-
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret == -ENODEV) {
 		for (i = 0; i < es58x_dev->num_can_ch; i++)
@@ -1597,7 +1593,8 @@ static struct urb *es58x_get_tx_urb(struct es58x_device *es58x_dev)
 			return NULL;
 
 		usb_fill_bulk_urb(urb, es58x_dev->udev, es58x_dev->tx_pipe,
-				  buf, tx_buf_len, NULL, NULL);
+				  buf, tx_buf_len, es58x_write_bulk_callback,
+				  NULL);
 		return urb;
 	}
 
@@ -1630,9 +1627,7 @@ static int es58x_submit_urb(struct es58x_device *es58x_dev, struct urb *urb,
 	int ret;
 
 	es58x_set_crc(urb->transfer_buffer, urb->transfer_buffer_length);
-	usb_fill_bulk_urb(urb, es58x_dev->udev, es58x_dev->tx_pipe,
-			  urb->transfer_buffer, urb->transfer_buffer_length,
-			  es58x_write_bulk_callback, netdev);
+	urb->context = netdev;
 	usb_anchor_urb(urb, &es58x_dev->tx_urbs_busy);
 	ret = usb_submit_urb(urb, GFP_ATOMIC);
 	if (ret) {
