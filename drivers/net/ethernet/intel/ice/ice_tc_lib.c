@@ -36,6 +36,10 @@ ice_tc_count_lkups(u32 flags, struct ice_tc_flower_lyr_2_4_hdrs *headers,
 		     ICE_TC_FLWR_FIELD_ENC_DEST_IPV6))
 		lkups_cnt++;
 
+	if (flags & (ICE_TC_FLWR_FIELD_ENC_IP_TOS |
+		     ICE_TC_FLWR_FIELD_ENC_IP_TTL))
+		lkups_cnt++;
+
 	if (flags & ICE_TC_FLWR_FIELD_ENC_DEST_L4_PORT)
 		lkups_cnt++;
 
@@ -62,6 +66,9 @@ ice_tc_count_lkups(u32 flags, struct ice_tc_flower_lyr_2_4_hdrs *headers,
 	/* are IPv[4|6] fields specified? */
 	if (flags & (ICE_TC_FLWR_FIELD_DEST_IPV4 | ICE_TC_FLWR_FIELD_SRC_IPV4 |
 		     ICE_TC_FLWR_FIELD_DEST_IPV6 | ICE_TC_FLWR_FIELD_SRC_IPV6))
+		lkups_cnt++;
+
+	if (flags & (ICE_TC_FLWR_FIELD_IP_TOS | ICE_TC_FLWR_FIELD_IP_TTL))
 		lkups_cnt++;
 
 	/* is L4 (TCP/UDP/any other L4 protocol fields) specified? */
@@ -257,6 +264,50 @@ ice_tc_fill_tunnel_outer(u32 flags, struct ice_tc_flower_fltr *fltr,
 		i++;
 	}
 
+	if (fltr->inner_headers.l2_key.n_proto == htons(ETH_P_IP) &&
+	    (flags & (ICE_TC_FLWR_FIELD_ENC_IP_TOS |
+		      ICE_TC_FLWR_FIELD_ENC_IP_TTL))) {
+		list[i].type = ice_proto_type_from_ipv4(false);
+
+		if (flags & ICE_TC_FLWR_FIELD_ENC_IP_TOS) {
+			list[i].h_u.ipv4_hdr.tos = hdr->l3_key.tos;
+			list[i].m_u.ipv4_hdr.tos = hdr->l3_mask.tos;
+		}
+
+		if (flags & ICE_TC_FLWR_FIELD_ENC_IP_TTL) {
+			list[i].h_u.ipv4_hdr.time_to_live = hdr->l3_key.ttl;
+			list[i].m_u.ipv4_hdr.time_to_live = hdr->l3_mask.ttl;
+		}
+
+		i++;
+	}
+
+	if (fltr->inner_headers.l2_key.n_proto == htons(ETH_P_IPV6) &&
+	    (flags & (ICE_TC_FLWR_FIELD_ENC_IP_TOS |
+		      ICE_TC_FLWR_FIELD_ENC_IP_TTL))) {
+		struct ice_ipv6_hdr *hdr_h, *hdr_m;
+
+		hdr_h = &list[i].h_u.ipv6_hdr;
+		hdr_m = &list[i].m_u.ipv6_hdr;
+		list[i].type = ice_proto_type_from_ipv6(false);
+
+		if (flags & ICE_TC_FLWR_FIELD_ENC_IP_TOS) {
+			be32p_replace_bits(&hdr_h->be_ver_tc_flow,
+					   hdr->l3_key.tos,
+					   ICE_IPV6_HDR_TC_MASK);
+			be32p_replace_bits(&hdr_m->be_ver_tc_flow,
+					   hdr->l3_mask.tos,
+					   ICE_IPV6_HDR_TC_MASK);
+		}
+
+		if (flags & ICE_TC_FLWR_FIELD_ENC_IP_TTL) {
+			hdr_h->hop_limit = hdr->l3_key.ttl;
+			hdr_m->hop_limit = hdr->l3_mask.ttl;
+		}
+
+		i++;
+	}
+
 	if ((flags & ICE_TC_FLWR_FIELD_ENC_DEST_L4_PORT) &&
 	    hdr->l3_key.ip_proto == IPPROTO_UDP) {
 		list[i].type = ICE_UDP_OF;
@@ -417,6 +468,50 @@ ice_tc_fill_rules(struct ice_hw *hw, u32 flags,
 			memcpy(&ipv6_mask->src_addr, &l3_mask->src_ipv6_addr,
 			       sizeof(l3_mask->src_ipv6_addr));
 		}
+		i++;
+	}
+
+	if (headers->l2_key.n_proto == htons(ETH_P_IP) &&
+	    (flags & (ICE_TC_FLWR_FIELD_IP_TOS | ICE_TC_FLWR_FIELD_IP_TTL))) {
+		list[i].type = ice_proto_type_from_ipv4(inner);
+
+		if (flags & ICE_TC_FLWR_FIELD_IP_TOS) {
+			list[i].h_u.ipv4_hdr.tos = headers->l3_key.tos;
+			list[i].m_u.ipv4_hdr.tos = headers->l3_mask.tos;
+		}
+
+		if (flags & ICE_TC_FLWR_FIELD_IP_TTL) {
+			list[i].h_u.ipv4_hdr.time_to_live =
+				headers->l3_key.ttl;
+			list[i].m_u.ipv4_hdr.time_to_live =
+				headers->l3_mask.ttl;
+		}
+
+		i++;
+	}
+
+	if (headers->l2_key.n_proto == htons(ETH_P_IPV6) &&
+	    (flags & (ICE_TC_FLWR_FIELD_IP_TOS | ICE_TC_FLWR_FIELD_IP_TTL))) {
+		struct ice_ipv6_hdr *hdr_h, *hdr_m;
+
+		hdr_h = &list[i].h_u.ipv6_hdr;
+		hdr_m = &list[i].m_u.ipv6_hdr;
+		list[i].type = ice_proto_type_from_ipv6(inner);
+
+		if (flags & ICE_TC_FLWR_FIELD_IP_TOS) {
+			be32p_replace_bits(&hdr_h->be_ver_tc_flow,
+					   headers->l3_key.tos,
+					   ICE_IPV6_HDR_TC_MASK);
+			be32p_replace_bits(&hdr_m->be_ver_tc_flow,
+					   headers->l3_mask.tos,
+					   ICE_IPV6_HDR_TC_MASK);
+		}
+
+		if (flags & ICE_TC_FLWR_FIELD_IP_TTL) {
+			hdr_h->hop_limit = headers->l3_key.ttl;
+			hdr_m->hop_limit = headers->l3_mask.ttl;
+		}
+
 		i++;
 	}
 
@@ -839,6 +934,40 @@ ice_tc_set_ipv6(struct flow_match_ipv6_addrs *match,
 }
 
 /**
+ * ice_tc_set_tos_ttl - Parse IP ToS/TTL from TC flower filter
+ * @match: Pointer to flow match structure
+ * @fltr: Pointer to filter structure
+ * @headers: inner or outer header fields
+ * @is_encap: set true for tunnel
+ */
+static void
+ice_tc_set_tos_ttl(struct flow_match_ip *match,
+		   struct ice_tc_flower_fltr *fltr,
+		   struct ice_tc_flower_lyr_2_4_hdrs *headers,
+		   bool is_encap)
+{
+	if (match->mask->tos) {
+		if (is_encap)
+			fltr->flags |= ICE_TC_FLWR_FIELD_ENC_IP_TOS;
+		else
+			fltr->flags |= ICE_TC_FLWR_FIELD_IP_TOS;
+
+		headers->l3_key.tos = match->key->tos;
+		headers->l3_mask.tos = match->mask->tos;
+	}
+
+	if (match->mask->ttl) {
+		if (is_encap)
+			fltr->flags |= ICE_TC_FLWR_FIELD_ENC_IP_TTL;
+		else
+			fltr->flags |= ICE_TC_FLWR_FIELD_IP_TTL;
+
+		headers->l3_key.ttl = match->key->ttl;
+		headers->l3_mask.ttl = match->mask->ttl;
+	}
+}
+
+/**
  * ice_tc_set_port - Parse ports from TC flower filter
  * @match: Flow match structure
  * @fltr: Pointer to filter structure
@@ -967,10 +1096,7 @@ ice_parse_tunnel_attr(struct net_device *dev, struct flow_rule *rule,
 		struct flow_match_ip match;
 
 		flow_rule_match_enc_ip(rule, &match);
-		headers->l3_key.tos = match.key->tos;
-		headers->l3_key.ttl = match.key->ttl;
-		headers->l3_mask.tos = match.mask->tos;
-		headers->l3_mask.ttl = match.mask->ttl;
+		ice_tc_set_tos_ttl(&match, fltr, headers, true);
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_ENC_PORTS) &&
@@ -1039,6 +1165,7 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 	      BIT(FLOW_DISSECTOR_KEY_ENC_IPV6_ADDRS) |
 	      BIT(FLOW_DISSECTOR_KEY_ENC_PORTS) |
 	      BIT(FLOW_DISSECTOR_KEY_ENC_OPTS) |
+	      BIT(FLOW_DISSECTOR_KEY_IP) |
 	      BIT(FLOW_DISSECTOR_KEY_ENC_IP) |
 	      BIT(FLOW_DISSECTOR_KEY_PORTS) |
 	      BIT(FLOW_DISSECTOR_KEY_PPPOE))) {
@@ -1215,6 +1342,13 @@ ice_parse_cls_flower(struct net_device *filter_dev, struct ice_vsi *vsi,
 		flow_rule_match_ipv6_addrs(rule, &match);
 		if (ice_tc_set_ipv6(&match, fltr, headers, false))
 			return -EINVAL;
+	}
+
+	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_IP)) {
+		struct flow_match_ip match;
+
+		flow_rule_match_ip(rule, &match);
+		ice_tc_set_tos_ttl(&match, fltr, headers, false);
 	}
 
 	if (flow_rule_match_key(rule, FLOW_DISSECTOR_KEY_PORTS)) {
