@@ -334,6 +334,11 @@ static void nvmet_bdev_execute_flush(struct nvmet_req *req)
 {
 	struct bio *bio = &req->b.inline_bio;
 
+	if (!bdev_write_cache(req->ns->bdev)) {
+		nvmet_req_complete(req, NVME_SC_SUCCESS);
+		return;
+	}
+
 	if (!nvmet_check_transfer_len(req, 0))
 		return;
 
@@ -347,6 +352,9 @@ static void nvmet_bdev_execute_flush(struct nvmet_req *req)
 
 u16 nvmet_bdev_flush(struct nvmet_req *req)
 {
+	if (!bdev_write_cache(req->ns->bdev))
+		return 0;
+
 	if (blkdev_issue_flush(req->ns->bdev))
 		return NVME_SC_INTERNAL | NVME_SC_DNR;
 	return 0;
