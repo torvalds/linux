@@ -514,21 +514,31 @@ static unsigned int fun_xdpq_clean(struct funeth_txq *q, unsigned int budget)
 
 bool fun_xdp_tx(struct funeth_txq *q, struct xdp_frame *xdpf)
 {
+	unsigned int idx, nfrags = 1, ndesc = 1, tot_len = xdpf->len;
 	const struct skb_shared_info *si = NULL;
+	unsigned int lens[MAX_SKB_FRAGS + 1];
+	dma_addr_t dma[MAX_SKB_FRAGS + 1];
 	struct fun_eth_tx_req *req;
-	unsigned int idx, len;
-	dma_addr_t dma;
 
 	if (fun_txq_avail(q) < FUN_XDP_CLEAN_THRES)
 		fun_xdpq_clean(q, FUN_XDP_CLEAN_BATCH);
 
-	if (!unlikely(fun_txq_avail(q))) {
+	if (unlikely(xdp_frame_has_frags(xdpf))) {
+		si = xdp_get_shared_info_from_frame(xdpf);
+		tot_len = xdp_get_frame_len(xdpf);
+		nfrags += si->nr_frags;
+		ndesc = DIV_ROUND_UP((sizeof(*req) + nfrags *
+				      sizeof(struct fun_dataop_gl)),
+				     FUNETH_SQE_SIZE);
+	}
+
+	if (unlikely(fun_txq_avail(q) < ndesc)) {
 		FUN_QSTAT_INC(q, tx_xdp_full);
 		return false;
 	}
 
-	if (unlikely(fun_map_pkt(q->dma_dev, si, xdpf->data, xdpf->len, &dma,
-				 &len))) {
+	if (unlikely(fun_map_pkt(q->dma_dev, si, xdpf->data, xdpf->len, dma,
+				 lens))) {
 		FUN_QSTAT_INC(q, tx_map_err);
 		return false;
 	}
@@ -542,19 +552,19 @@ bool fun_xdp_tx(struct funeth_txq *q, struct xdp_frame *xdpf)
 	req->repr_idn = 0;
 	req->encap_proto = 0;
 	fun_eth_offload_init(&req->offload, 0, 0, 0, 0, 0, 0, 0, 0);
-	req->dataop = FUN_DATAOP_HDR_INIT(1, 0, 1, 0, len);
+	req->dataop = FUN_DATAOP_HDR_INIT(nfrags, 0, nfrags, 0, tot_len);
 
-	fun_write_gl(q, req, &dma, &len, 1);
+	fun_write_gl(q, req, dma, lens, nfrags);
 
 	q->info[idx].xdpf = xdpf;
 
 	u64_stats_update_begin(&q->syncp);
-	q->stats.tx_bytes += len;
+	q->stats.tx_bytes += tot_len;
 	q->stats.tx_pkts++;
 	u64_stats_update_end(&q->syncp);
 
-	trace_funeth_tx(q, len, idx, 1);
-	q->prod_cnt++;
+	trace_funeth_tx(q, tot_len, idx, nfrags);
+	q->prod_cnt += ndesc;
 
 	return true;
 }
