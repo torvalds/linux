@@ -24,6 +24,14 @@
 union rv_task_monitor {
 };
 
+#ifdef CONFIG_RV_REACTORS
+struct rv_reactor {
+	const char		*name;
+	const char		*description;
+	void			(*react)(char *msg);
+};
+#endif
+
 struct rv_monitor {
 	const char		*name;
 	const char		*description;
@@ -31,6 +39,9 @@ struct rv_monitor {
 	int			(*enable)(void);
 	void			(*disable)(void);
 	void			(*reset)(void);
+#ifdef CONFIG_RV_REACTORS
+	void			(*react)(char *msg);
+#endif
 };
 
 bool rv_monitoring_on(void);
@@ -38,6 +49,12 @@ int rv_unregister_monitor(struct rv_monitor *monitor);
 int rv_register_monitor(struct rv_monitor *monitor);
 int rv_get_task_monitor_slot(void);
 void rv_put_task_monitor_slot(int slot);
+
+#ifdef CONFIG_RV_REACTORS
+bool rv_reacting_on(void);
+int rv_unregister_reactor(struct rv_reactor *reactor);
+int rv_register_reactor(struct rv_reactor *reactor);
+#endif /* CONFIG_RV_REACTORS */
 
 #endif /* CONFIG_RV */
 #endif /* _LINUX_RV_H */

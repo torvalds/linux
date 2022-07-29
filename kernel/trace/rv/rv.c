@@ -353,6 +353,10 @@ static int create_monitor_dir(struct rv_monitor_def *mdef)
 		goto out_remove_root;
 	}
 
+	retval = reactor_populate_monitor(mdef);
+	if (retval)
+		goto out_remove_root;
+
 	return 0;
 
 out_remove_root:
@@ -669,6 +673,7 @@ static const struct file_operations monitoring_on_fops = {
 
 static void destroy_monitor_dir(struct rv_monitor_def *mdef)
 {
+	reactor_cleanup_monitor(mdef);
 	rv_remove(mdef->root_d);
 }
 
@@ -747,6 +752,7 @@ int rv_unregister_monitor(struct rv_monitor *monitor)
 int __init rv_init_interface(void)
 {
 	struct dentry *tmp;
+	int retval;
 
 	rv_root.root_dir = rv_create_dir("rv", NULL);
 	if (!rv_root.root_dir)
@@ -769,6 +775,9 @@ int __init rv_init_interface(void)
 	tmp = rv_create_file("monitoring_on", RV_MODE_WRITE, rv_root.root_dir, NULL,
 			     &monitoring_on_fops);
 	if (!tmp)
+		goto out_err;
+	retval = init_rv_reactors(rv_root.root_dir);
+	if (retval)
 		goto out_err;
 
 	turn_monitoring_on();
