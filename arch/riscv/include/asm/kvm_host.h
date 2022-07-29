@@ -16,6 +16,7 @@
 #include <asm/csr.h>
 #include <asm/hwcap.h>
 #include <asm/kvm_vcpu_fp.h>
+#include <asm/kvm_vcpu_insn.h>
 #include <asm/kvm_vcpu_timer.h>
 
 #define KVM_MAX_VCPUS			1024
@@ -89,14 +90,6 @@ struct kvm_arch {
 
 	/* Guest Timer */
 	struct kvm_guest_timer timer;
-};
-
-struct kvm_mmio_decode {
-	unsigned long insn;
-	int insn_len;
-	int len;
-	int shift;
-	int return_handled;
 };
 
 struct kvm_sbi_context {
@@ -304,14 +297,12 @@ void kvm_riscv_gstage_vmid_update(struct kvm_vcpu *vcpu);
 
 void __kvm_riscv_unpriv_trap(void);
 
-void kvm_riscv_vcpu_wfi(struct kvm_vcpu *vcpu);
 unsigned long kvm_riscv_vcpu_unpriv_read(struct kvm_vcpu *vcpu,
 					 bool read_insn,
 					 unsigned long guest_addr,
 					 struct kvm_cpu_trap *trap);
 void kvm_riscv_vcpu_trap_redirect(struct kvm_vcpu *vcpu,
 				  struct kvm_cpu_trap *trap);
-int kvm_riscv_vcpu_mmio_return(struct kvm_vcpu *vcpu, struct kvm_run *run);
 int kvm_riscv_vcpu_exit(struct kvm_vcpu *vcpu, struct kvm_run *run,
 			struct kvm_cpu_trap *trap);
 
