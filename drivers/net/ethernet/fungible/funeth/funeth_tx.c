@@ -466,7 +466,7 @@ static unsigned int fun_xdpq_clean(struct funeth_txq *q, unsigned int budget)
 
 		do {
 			fun_xdp_unmap(q, reclaim_idx);
-			page_frag_free(q->info[reclaim_idx].vaddr);
+			xdp_return_frame(q->info[reclaim_idx].xdpf);
 
 			trace_funeth_tx_free(q, reclaim_idx, 1, head);
 
@@ -479,11 +479,11 @@ static unsigned int fun_xdpq_clean(struct funeth_txq *q, unsigned int budget)
 	return npkts;
 }
 
-bool fun_xdp_tx(struct funeth_txq *q, void *data, unsigned int len)
+bool fun_xdp_tx(struct funeth_txq *q, struct xdp_frame *xdpf)
 {
 	struct fun_eth_tx_req *req;
 	struct fun_dataop_gl *gle;
-	unsigned int idx;
+	unsigned int idx, len;
 	dma_addr_t dma;
 
 	if (fun_txq_avail(q) < FUN_XDP_CLEAN_THRES)
@@ -494,7 +494,8 @@ bool fun_xdp_tx(struct funeth_txq *q, void *data, unsigned int len)
 		return false;
 	}
 
-	dma = dma_map_single(q->dma_dev, data, len, DMA_TO_DEVICE);
+	len = xdpf->len;
+	dma = dma_map_single(q->dma_dev, xdpf->data, len, DMA_TO_DEVICE);
 	if (unlikely(dma_mapping_error(q->dma_dev, dma))) {
 		FUN_QSTAT_INC(q, tx_map_err);
 		return false;
@@ -514,7 +515,7 @@ bool fun_xdp_tx(struct funeth_txq *q, void *data, unsigned int len)
 	gle = (struct fun_dataop_gl *)req->dataop.imm;
 	fun_dataop_gl_init(gle, 0, 0, len, dma);
 
-	q->info[idx].vaddr = data;
+	q->info[idx].xdpf = xdpf;
 
 	u64_stats_update_begin(&q->syncp);
 	q->stats.tx_bytes += len;
@@ -545,12 +546,9 @@ int fun_xdp_xmit_frames(struct net_device *dev, int n,
 	if (unlikely(q_idx >= fp->num_xdpqs))
 		return -ENXIO;
 
-	for (q = xdpqs[q_idx], i = 0; i < n; i++) {
-		const struct xdp_frame *xdpf = frames[i];
-
-		if (!fun_xdp_tx(q, xdpf->data, xdpf->len))
+	for (q = xdpqs[q_idx], i = 0; i < n; i++)
+		if (!fun_xdp_tx(q, frames[i]))
 			break;
-	}
 
 	if (unlikely(flags & XDP_XMIT_FLUSH))
 		fun_txq_wr_db(q);
@@ -577,7 +575,7 @@ static void fun_xdpq_purge(struct funeth_txq *q)
 		unsigned int idx = q->cons_cnt & q->mask;
 
 		fun_xdp_unmap(q, idx);
-		page_frag_free(q->info[idx].vaddr);
+		xdp_return_frame(q->info[idx].xdpf);
 		q->cons_cnt++;
 	}
 }
