@@ -170,7 +170,11 @@ ENDPROC(_find_next_bit_be)
  * One or more bits in the LSB of r3 are assumed to be set.
  */
 .L_found:
-#if __LINUX_ARM_ARCH__ >= 5
+#if __LINUX_ARM_ARCH__ >= 7
+		rbit	r3, r3			@ reverse bits
+		clz	r3, r3			@ count high zero bits
+		add	r0, r2, r3		@ add offset of first set bit
+#elif __LINUX_ARM_ARCH__ >= 5
 		rsb	r0, r3, #0
 		and	r3, r3, r0		@ mask out lowest bit set
 		clz	r3, r3			@ count high zero bits
