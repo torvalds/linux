@@ -335,13 +335,12 @@ static void del_adev(struct auxiliary_device *adev)
 
 int mlx5_attach_device(struct mlx5_core_dev *dev)
 {
-	struct devlink *devlink = priv_to_devlink(dev);
 	struct mlx5_priv *priv = &dev->priv;
 	struct auxiliary_device *adev;
 	struct auxiliary_driver *adrv;
 	int ret = 0, i;
 
-	devl_lock(devlink);
+	devl_assert_locked(priv_to_devlink(dev));
 	mutex_lock(&mlx5_intf_mutex);
 	priv->flags &= ~MLX5_PRIV_FLAGS_DETACH;
 	priv->flags |= MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW;
@@ -394,20 +393,18 @@ int mlx5_attach_device(struct mlx5_core_dev *dev)
 	}
 	priv->flags &= ~MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW;
 	mutex_unlock(&mlx5_intf_mutex);
-	devl_unlock(devlink);
 	return ret;
 }
 
 void mlx5_detach_device(struct mlx5_core_dev *dev)
 {
-	struct devlink *devlink = priv_to_devlink(dev);
 	struct mlx5_priv *priv = &dev->priv;
 	struct auxiliary_device *adev;
 	struct auxiliary_driver *adrv;
 	pm_message_t pm = {};
 	int i;
 
-	devl_lock(devlink);
+	devl_assert_locked(priv_to_devlink(dev));
 	mutex_lock(&mlx5_intf_mutex);
 	priv->flags |= MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW;
 	for (i = ARRAY_SIZE(mlx5_adev_devices) - 1; i >= 0; i--) {
@@ -441,21 +438,17 @@ skip_suspend:
 	priv->flags &= ~MLX5_PRIV_FLAGS_MLX5E_LOCKED_FLOW;
 	priv->flags |= MLX5_PRIV_FLAGS_DETACH;
 	mutex_unlock(&mlx5_intf_mutex);
-	devl_unlock(devlink);
 }
 
 int mlx5_register_device(struct mlx5_core_dev *dev)
 {
-	struct devlink *devlink;
 	int ret;
 
-	devlink = priv_to_devlink(dev);
-	devl_lock(devlink);
+	devl_assert_locked(priv_to_devlink(dev));
 	mutex_lock(&mlx5_intf_mutex);
 	dev->priv.flags &= ~MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV;
 	ret = mlx5_rescan_drivers_locked(dev);
 	mutex_unlock(&mlx5_intf_mutex);
-	devl_unlock(devlink);
 	if (ret)
 		mlx5_unregister_device(dev);
 
@@ -464,15 +457,11 @@ int mlx5_register_device(struct mlx5_core_dev *dev)
 
 void mlx5_unregister_device(struct mlx5_core_dev *dev)
 {
-	struct devlink *devlink;
-
-	devlink = priv_to_devlink(dev);
-	devl_lock(devlink);
+	devl_assert_locked(priv_to_devlink(dev));
 	mutex_lock(&mlx5_intf_mutex);
 	dev->priv.flags = MLX5_PRIV_FLAGS_DISABLE_ALL_ADEV;
 	mlx5_rescan_drivers_locked(dev);
 	mutex_unlock(&mlx5_intf_mutex);
-	devl_unlock(devlink);
 }
 
 static int add_drivers(struct mlx5_core_dev *dev)
