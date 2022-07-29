@@ -172,10 +172,10 @@ ENDPROC(_find_next_bit_be)
 .L_found:
 #if __LINUX_ARM_ARCH__ >= 5
 		rsb	r0, r3, #0
-		and	r3, r3, r0
-		clz	r3, r3
-		rsb	r3, r3, #31
-		add	r0, r2, r3
+		and	r3, r3, r0		@ mask out lowest bit set
+		clz	r3, r3			@ count high zero bits
+		rsb	r3, r3, #31		@ offset of first set bit
+		add	r0, r2, r3		@ add offset of first set bit
 #else
 		tst	r3, #0x0f
 		addeq	r2, r2, #4
