@@ -9,6 +9,7 @@
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
+#include "util/target.h"
 #include "util/callchain.h"
 #include "util/lock-contention.h"
 
@@ -38,6 +39,7 @@
 #include <linux/stringify.h>
 
 static struct perf_session *session;
+static struct target target;
 
 /* based on kernel/lockdep.c */
 #define LOCKHASH_BITS		12
@@ -1578,7 +1580,7 @@ static void sighandler(int sig __maybe_unused)
 {
 }
 
-static int __cmd_contention(void)
+static int __cmd_contention(int argc, const char **argv)
 {
 	int err = -EINVAL;
 	struct perf_tool eops = {
@@ -1592,6 +1594,7 @@ static int __cmd_contention(void)
 		.mode  = PERF_DATA_MODE_READ,
 		.force = force,
 	};
+	struct evlist *evlist = NULL;
 
 	session = perf_session__new(use_bpf ? NULL : &data, &eops);
 	if (IS_ERR(session)) {
@@ -1604,14 +1607,40 @@ static int __cmd_contention(void)
 	symbol__init(&session->header.env);
 
 	if (use_bpf) {
-		if (lock_contention_prepare() < 0) {
-			pr_err("lock contention BPF setup failed\n");
-			return -1;
+		err = target__validate(&target);
+		if (err) {
+			char errbuf[512];
+
+			target__strerror(&target, err, errbuf, 512);
+			pr_err("%s\n", errbuf);
+			goto out_delete;
 		}
 
 		signal(SIGINT, sighandler);
 		signal(SIGCHLD, sighandler);
 		signal(SIGTERM, sighandler);
+
+		evlist = evlist__new();
+		if (evlist == NULL) {
+			err = -ENOMEM;
+			goto out_delete;
+		}
+
+		err = evlist__create_maps(evlist, &target);
+		if (err < 0)
+			goto out_delete;
+
+		if (argc) {
+			err = evlist__prepare_workload(evlist, &target,
+						       argv, false, NULL);
+			if (err < 0)
+				goto out_delete;
+		}
+
+		if (lock_contention_prepare(evlist, &target) < 0) {
+			pr_err("lock contention BPF setup failed\n");
+			goto out_delete;
+		}
 	} else {
 		if (!perf_session__has_traces(session, "lock record"))
 			goto out_delete;
@@ -1642,6 +1671,8 @@ static int __cmd_contention(void)
 
 	if (use_bpf) {
 		lock_contention_start();
+		if (argc)
+			evlist__start_workload(evlist);
 
 		/* wait for signal */
 		pause();
@@ -1660,6 +1691,7 @@ static int __cmd_contention(void)
 	print_contention_result();
 
 out_delete:
+	evlist__delete(evlist);
 	lock_contention_finish();
 	perf_session__delete(session);
 	return err;
@@ -1792,6 +1824,15 @@ int cmd_lock(int argc, const char **argv)
 	OPT_BOOLEAN('t', "threads", &show_thread_stats,
 		    "show per-thread lock stats"),
 	OPT_BOOLEAN('b', "use-bpf", &use_bpf, "use BPF program to collect lock contention stats"),
+	OPT_BOOLEAN('a', "all-cpus", &target.system_wide,
+		    "System-wide collection from all CPUs"),
+	OPT_STRING('C', "cpu", &target.cpu_list, "cpu",
+		    "List of cpus to monitor"),
+	OPT_STRING('p', "pid", &target.pid, "pid",
+		   "Trace on existing process id"),
+	/* TODO: Add short option -t after -t/--tracer can be removed. */
+	OPT_STRING(0, "tid", &target.tid, "tid",
+		   "Trace on existing thread id (exclusive to --pid)"),
 	OPT_PARENT(lock_options)
 	};
 
@@ -1861,12 +1902,8 @@ int cmd_lock(int argc, const char **argv)
 		if (argc) {
 			argc = parse_options(argc, argv, contention_options,
 					     contention_usage, 0);
-			if (argc) {
-				usage_with_options(contention_usage,
-						   contention_options);
-			}
 		}
-		rc = __cmd_contention();
+		rc = __cmd_contention(argc, argv);
 	} else {
 		usage_with_options(lock_usage, lock_options);
 	}

@@ -128,6 +128,23 @@ CONTENTION OPTIONS
 	Use BPF program to collect lock contention stats instead of
 	using the input data.
 
+-a::
+--all-cpus::
+        System-wide collection from all CPUs.
+
+-C::
+--cpu::
+	Collect samples only on the list of CPUs provided. Multiple CPUs can be
+	provided as a comma-separated list with no space: 0,1. Ranges of CPUs
+	are specified with -: 0-2.  Default is to monitor all CPUs.
+
+-p::
+--pid=::
+	Record events on existing process ID (comma separated list).
+
+--tid=::
+        Record events on existing thread ID (comma separated list).
+
 
 SEE ALSO
 --------

@@ -1,8 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0
 #include "util/debug.h"
+#include "util/evlist.h"
 #include "util/machine.h"
 #include "util/map.h"
 #include "util/symbol.h"
+#include "util/target.h"
+#include "util/thread_map.h"
 #include "util/lock-contention.h"
 #include <linux/zalloc.h>
 #include <bpf/bpf.h>
@@ -24,17 +27,63 @@ struct lock_contention_data {
 	u32 flags;
 };
 
-int lock_contention_prepare(void)
+int lock_contention_prepare(struct evlist *evlist, struct target *target)
 {
+	int i, fd;
+	int ncpus = 1, ntasks = 1;
+
 	skel = lock_contention_bpf__open();
 	if (!skel) {
 		pr_err("Failed to open lock-contention BPF skeleton\n");
 		return -1;
 	}
 
+	if (target__has_cpu(target))
+		ncpus = perf_cpu_map__nr(evlist->core.user_requested_cpus);
+	if (target__has_task(target))
+		ntasks = perf_thread_map__nr(evlist->core.threads);
+
+	bpf_map__set_max_entries(skel->maps.cpu_filter, ncpus);
+	bpf_map__set_max_entries(skel->maps.task_filter, ntasks);
+
 	if (lock_contention_bpf__load(skel) < 0) {
 		pr_err("Failed to load lock-contention BPF skeleton\n");
 		return -1;
+	}
+
+	if (target__has_cpu(target)) {
+		u32 cpu;
+		u8 val = 1;
+
+		skel->bss->has_cpu = 1;
+		fd = bpf_map__fd(skel->maps.cpu_filter);
+
+		for (i = 0; i < ncpus; i++) {
+			cpu = perf_cpu_map__cpu(evlist->core.user_requested_cpus, i).cpu;
+			bpf_map_update_elem(fd, &cpu, &val, BPF_ANY);
+		}
+	}
+
+	if (target__has_task(target)) {
+		u32 pid;
+		u8 val = 1;
+
+		skel->bss->has_task = 1;
+		fd = bpf_map__fd(skel->maps.task_filter);
+
+		for (i = 0; i < ntasks; i++) {
+			pid = perf_thread_map__pid(evlist->core.threads, i);
+			bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
+		}
+	}
+
+	if (target__none(target) && evlist->workload.pid > 0) {
+		u32 pid = evlist->workload.pid;
+		u8 val = 1;
+
+		skel->bss->has_task = 1;
+		fd = bpf_map__fd(skel->maps.task_filter);
+		bpf_map_update_elem(fd, &pid, &val, BPF_ANY);
 	}
 
 	lock_contention_bpf__attach(skel);

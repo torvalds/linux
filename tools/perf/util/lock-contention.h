@@ -103,11 +103,13 @@ struct thread_stat {
 #define LCB_F_PERCPU	(1U << 4)
 #define LCB_F_MUTEX	(1U << 5)
 
+struct evlist;
 struct machine;
+struct target;
 
 #ifdef HAVE_BPF_SKEL
 
-int lock_contention_prepare(void);
+int lock_contention_prepare(struct evlist *evlist, struct target *target);
 int lock_contention_start(void);
 int lock_contention_stop(void);
 int lock_contention_read(struct machine *machine, struct hlist_head *head);
@@ -115,7 +117,12 @@ int lock_contention_finish(void);
 
 #else  /* !HAVE_BPF_SKEL */
 
-static inline int lock_contention_prepare(void) { return 0; }
+static inline int lock_contention_prepare(struct evlist *evlist __maybe_unused,
+					  struct target *target __maybe_unused)
+{
+	return 0;
+}
+
 static inline int lock_contention_start(void) { return 0; }
 static inline int lock_contention_stop(void) { return 0; }
 static inline int lock_contention_finish(void) { return 0; }

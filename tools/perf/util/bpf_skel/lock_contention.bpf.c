@@ -54,8 +54,47 @@ struct {
 	__uint(max_entries, MAX_ENTRIES);
 } lock_stat SEC(".maps");
 
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(__u8));
+	__uint(max_entries, 1);
+} cpu_filter SEC(".maps");
+
+struct {
+	__uint(type, BPF_MAP_TYPE_HASH);
+	__uint(key_size, sizeof(__u32));
+	__uint(value_size, sizeof(__u8));
+	__uint(max_entries, 1);
+} task_filter SEC(".maps");
+
 /* control flags */
 int enabled;
+int has_cpu;
+int has_task;
+
+static inline int can_record(void)
+{
+	if (has_cpu) {
+		__u32 cpu = bpf_get_smp_processor_id();
+		__u8 *ok;
+
+		ok = bpf_map_lookup_elem(&cpu_filter, &cpu);
+		if (!ok)
+			return 0;
+	}
+
+	if (has_task) {
+		__u8 *ok;
+		__u32 pid = bpf_get_current_pid_tgid();
+
+		ok = bpf_map_lookup_elem(&task_filter, &pid);
+		if (!ok)
+			return 0;
+	}
+
+	return 1;
+}
 
 SEC("tp_btf/contention_begin")
 int contention_begin(u64 *ctx)
@@ -63,7 +102,7 @@ int contention_begin(u64 *ctx)
 	struct task_struct *curr;
 	struct tstamp_data *pelem;
 
-	if (!enabled)
+	if (!enabled || !can_record())
 		return 0;
 
 	curr = bpf_get_current_task_btf();
