@@ -25,6 +25,19 @@ menuconfig RV
 	  For further information, see:
 	    Documentation/trace/rv/runtime-verification.rst
 
+config RV_MON_WIP
+	depends on RV
+	depends on PREEMPT_TRACER
+	select DA_MON_EVENTS_IMPLICIT
+	bool "wip monitor"
+	help
+	  Enable wip (wakeup in preemptive) sample monitor that illustrates
+	  the usage of per-cpu monitors, and one limitation of the
+	  preempt_disable/enable events.
+
+	  For further information, see:
+	    Documentation/trace/rv/monitor_wip.rst
+
 config RV_REACTORS
 	bool "Runtime verification reactors"
 	default y

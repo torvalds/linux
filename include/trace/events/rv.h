@@ -56,6 +56,16 @@ DECLARE_EVENT_CLASS(error_da_monitor,
 		__entry->event,
 		__entry->state)
 );
+
+#ifdef CONFIG_RV_MON_WIP
+DEFINE_EVENT(event_da_monitor, event_wip,
+	    TP_PROTO(char *state, char *event, char *next_state, bool final_state),
+	    TP_ARGS(state, event, next_state, final_state));
+
+DEFINE_EVENT(error_da_monitor, error_wip,
+	     TP_PROTO(char *state, char *event),
+	     TP_ARGS(state, event));
+#endif /* CONFIG_RV_MON_WIP */
 #endif /* CONFIG_DA_MON_EVENTS_IMPLICIT */
 
 #ifdef CONFIG_DA_MON_EVENTS_ID
