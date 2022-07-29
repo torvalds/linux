@@ -389,6 +389,37 @@ void dc_dmub_srv_query_caps_cmd(struct dmub_srv *dmub)
 	}
 }
 
+void dc_dmub_srv_get_visual_confirm_color_cmd(struct dc *dc, struct pipe_ctx *pipe_ctx)
+{
+	union dmub_rb_cmd cmd = { 0 };
+	enum dmub_status status;
+	unsigned int panel_inst = 0;
+
+	dc_get_edp_link_panel_inst(dc, pipe_ctx->stream->link, &panel_inst);
+
+	memset(&cmd, 0, sizeof(cmd));
+
+	// Prepare fw command
+	cmd.visual_confirm_color.header.type = DMUB_CMD__GET_VISUAL_CONFIRM_COLOR;
+	cmd.visual_confirm_color.header.sub_type = 0;
+	cmd.visual_confirm_color.header.ret_status = 1;
+	cmd.visual_confirm_color.header.payload_bytes = sizeof(struct dmub_cmd_visual_confirm_color_data);
+	cmd.visual_confirm_color.visual_confirm_color_data.visual_confirm_color.panel_inst = panel_inst;
+
+	// Send command to fw
+	status = dmub_srv_cmd_with_reply_data(dc->ctx->dmub_srv->dmub, &cmd);
+
+	ASSERT(status == DMUB_STATUS_OK);
+
+	// If command was processed, copy feature caps to dmub srv
+	if (status == DMUB_STATUS_OK &&
+		cmd.visual_confirm_color.header.ret_status == 0) {
+		memcpy(&dc->ctx->dmub_srv->dmub->visual_confirm_color,
+			&cmd.visual_confirm_color.visual_confirm_color_data,
+			sizeof(struct dmub_visual_confirm_color));
+	}
+}
+
 #ifdef CONFIG_DRM_AMD_DC_DCN
 /**
  * ***********************************************************************************************

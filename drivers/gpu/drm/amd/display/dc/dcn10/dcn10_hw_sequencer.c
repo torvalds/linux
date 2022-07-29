@@ -2539,8 +2539,10 @@ void dcn10_update_visual_confirm_color(struct dc *dc, struct pipe_ctx *pipe_ctx,
 		color_space_to_black_color(
 				dc, pipe_ctx->stream->output_color_space, color);
 
-	if (mpc->funcs->set_bg_color)
+	if (mpc->funcs->set_bg_color) {
+		memcpy(&pipe_ctx->plane_state->visual_confirm_color, color, sizeof(struct tg_color));
 		mpc->funcs->set_bg_color(mpc, color, mpcc_id);
+	}
 }
 
 void dcn10_update_mpcc(struct dc *dc, struct pipe_ctx *pipe_ctx)
