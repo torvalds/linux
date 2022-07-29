@@ -1067,6 +1067,246 @@ static const struct samsung_cmu_info core_cmu_info __initconst = {
 	.clk_name		= "dout_clkcmu_core_bus",
 };
 
+/* ---- CMU_FSYS0 ---------------------------------------------------------- */
+
+/* Register Offset definitions for CMU_FSYS2 (0x17700000) */
+#define PLL_CON0_MUX_CLKCMU_FSYS0_BUS_USER	0x0600
+#define PLL_CON0_MUX_CLKCMU_FSYS0_PCIE_USER	0x0610
+#define CLK_CON_GAT_CLK_BLK_FSYS0_UID_FSYS0_CMU_FSYS0_IPCLKPORT_PCLK	0x2000
+
+#define CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_2L0_X1_PHY_REFCLK_IN	0x2004
+#define CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_PHY_REFCLK_IN	0x2008
+#define CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_2L1_X1_PHY_REFCLK_IN	0x200c
+#define CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_PHY_REFCLK_IN	0x2010
+#define CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_4L_X2_PHY_REFCLK_IN	0x2014
+#define CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_PHY_REFCLK_IN	0x2018
+
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X1_DBI_ACLK	0x205c
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X1_MSTR_ACLK	0x2060
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X1_SLV_ACLK	0x2064
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_DBI_ACLK	0x206c
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_MSTR_ACLK	0x2070
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_SLV_ACLK	0x2074
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_PIPE_CLK	0x207c
+
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X1_DBI_ACLK	0x2084
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X1_MSTR_ACLK	0x2088
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X1_SLV_ACLK	0x208c
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_DBI_ACLK	0x2094
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_MSTR_ACLK	0x2098
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_SLV_ACLK	0x209c
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_PIPE_CLK	0x20a4
+
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X2_DBI_ACLK		0x20ac
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X2_MSTR_ACLK	0x20b0
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X2_SLV_ACLK		0x20b4
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_DBI_ACLK		0x20bc
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_MSTR_ACLK	0x20c0
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_SLV_ACLK		0x20c4
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_PIPE_CLK		0x20cc
+
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3A_2L0_CLK		0x20d4
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3A_2L1_CLK		0x20d8
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3A_4L_CLK		0x20dc
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3B_2L0_CLK		0x20e0
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3B_2L1_CLK		0x20e4
+#define CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3B_4L_CLK		0x20e8
+
+
+static const unsigned long fsys0_clk_regs[] __initconst = {
+	PLL_CON0_MUX_CLKCMU_FSYS0_BUS_USER,
+	PLL_CON0_MUX_CLKCMU_FSYS0_PCIE_USER,
+	CLK_CON_GAT_CLK_BLK_FSYS0_UID_FSYS0_CMU_FSYS0_IPCLKPORT_PCLK,
+	CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_2L0_X1_PHY_REFCLK_IN,
+	CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_PHY_REFCLK_IN,
+	CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_2L1_X1_PHY_REFCLK_IN,
+	CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_PHY_REFCLK_IN,
+	CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_4L_X2_PHY_REFCLK_IN,
+	CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_PHY_REFCLK_IN,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X1_DBI_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X1_MSTR_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X1_SLV_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_DBI_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_MSTR_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_SLV_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_PIPE_CLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X1_DBI_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X1_MSTR_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X1_SLV_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_DBI_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_MSTR_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_SLV_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_PIPE_CLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X2_DBI_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X2_MSTR_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X2_SLV_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_DBI_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_MSTR_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_SLV_ACLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_PIPE_CLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3A_2L0_CLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3A_2L1_CLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3A_4L_CLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3B_2L0_CLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3B_2L1_CLK,
+	CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3B_4L_CLK,
+};
+
+/* List of parent clocks for Muxes in CMU_FSYS0 */
+PNAME(mout_fsys0_bus_user_p) = { "oscclk", "dout_clkcmu_fsys0_bus" };
+PNAME(mout_fsys0_pcie_user_p) = { "oscclk", "dout_clkcmu_fsys0_pcie" };
+
+static const struct samsung_mux_clock fsys0_mux_clks[] __initconst = {
+	MUX(CLK_MOUT_FSYS0_BUS_USER, "mout_fsys0_bus_user",
+	    mout_fsys0_bus_user_p, PLL_CON0_MUX_CLKCMU_FSYS0_BUS_USER, 4, 1),
+	MUX(CLK_MOUT_FSYS0_PCIE_USER, "mout_fsys0_pcie_user",
+	    mout_fsys0_pcie_user_p, PLL_CON0_MUX_CLKCMU_FSYS0_PCIE_USER, 4, 1),
+};
+
+static const struct samsung_gate_clock fsys0_gate_clks[] __initconst = {
+	GATE(CLK_GOUT_FSYS0_BUS_PCLK, "gout_fsys0_bus_pclk",
+	     "mout_fsys0_bus_user",
+	     CLK_CON_GAT_CLK_BLK_FSYS0_UID_FSYS0_CMU_FSYS0_IPCLKPORT_PCLK,
+	     21, CLK_IGNORE_UNUSED, 0),
+
+	/* Gen3 2L0 */
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L0_X1_REFCLK,
+	     "gout_fsys0_pcie_gen3_2l0_x1_refclk", "mout_fsys0_pcie_user",
+	     CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_2L0_X1_PHY_REFCLK_IN,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L0_X2_REFCLK,
+	     "gout_fsys0_pcie_gen3_2l0_x2_refclk", "mout_fsys0_pcie_user",
+	     CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_PHY_REFCLK_IN,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L0_X1_DBI_ACLK,
+	     "gout_fsys0_pcie_gen3_2l0_x1_dbi_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X1_DBI_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L0_X1_MSTR_ACLK,
+	     "gout_fsys0_pcie_gen3_2l0_x1_mstr_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X1_MSTR_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L0_X1_SLV_ACLK,
+	     "gout_fsys0_pcie_gen3_2l0_x1_slv_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X1_SLV_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L0_X2_DBI_ACLK,
+	     "gout_fsys0_pcie_gen3_2l0_x2_dbi_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_DBI_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L0_X2_MSTR_ACLK,
+	     "gout_fsys0_pcie_gen3_2l0_x2_mstr_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_MSTR_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L0_X2_SLV_ACLK,
+	     "gout_fsys0_pcie_gen3_2l0_x2_slv_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L0_X2_SLV_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3A_2L0_CLK,
+	     "gout_fsys0_pcie_gen3a_2l0_clk", "mout_fsys0_pcie_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3A_2L0_CLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3B_2L0_CLK,
+	     "gout_fsys0_pcie_gen3b_2l0_clk", "mout_fsys0_pcie_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3B_2L0_CLK,
+	     21, 0, 0),
+
+	/* Gen3 2L1 */
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L1_X1_REFCLK,
+	     "gout_fsys0_pcie_gen3_2l1_x1_refclk", "mout_fsys0_pcie_user",
+	     CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_2L1_X1_PHY_REFCLK_IN,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L1_X2_REFCLK,
+	     "gout_fsys0_pcie_gen3_2l1_x2_refclk", "mout_fsys0_pcie_user",
+	     CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_PHY_REFCLK_IN,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L1_X1_DBI_ACLK,
+	     "gout_fsys0_pcie_gen3_2l1_x1_dbi_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X1_DBI_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L1_X1_MSTR_ACLK,
+	     "gout_fsys0_pcie_gen3_2l1_x1_mstr_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X1_MSTR_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L1_X1_SLV_ACLK,
+	     "gout_fsys0_pcie_gen3_2l1_x1_slv_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X1_SLV_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L1_X2_DBI_ACLK,
+	     "gout_fsys0_pcie_gen3_2l1_x2_dbi_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_DBI_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L1_X2_MSTR_ACLK,
+	     "gout_fsys0_pcie_gen3_2l1_x2_mstr_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_MSTR_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_2L1_X2_SLV_ACLK,
+	     "gout_fsys0_pcie_gen3_2l1_x2_slv_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_2L1_X2_SLV_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3A_2L1_CLK,
+	     "gout_fsys0_pcie_gen3a_2l1_clk", "mout_fsys0_pcie_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3A_2L1_CLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3B_2L1_CLK,
+	     "gout_fsys0_pcie_gen3b_2l1_clk", "mout_fsys0_pcie_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3B_2L1_CLK,
+	     21, 0, 0),
+
+	/* Gen3 4L */
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_4L_X2_REFCLK,
+	     "gout_fsys0_pcie_gen3_4l_x2_refclk", "mout_fsys0_pcie_user",
+	     CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_4L_X2_PHY_REFCLK_IN,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_4L_X4_REFCLK,
+	     "gout_fsys0_pcie_gen3_4l_x4_refclk", "mout_fsys0_pcie_user",
+	     CLK_CON_GAT_CLK_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_PHY_REFCLK_IN,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_4L_X2_DBI_ACLK,
+	     "gout_fsys0_pcie_gen3_4l_x2_dbi_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X2_DBI_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_4L_X2_MSTR_ACLK,
+	     "gout_fsys0_pcie_gen3_4l_x2_mstr_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X2_MSTR_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_4L_X2_SLV_ACLK,
+	     "gout_fsys0_pcie_gen3_4l_x2_slv_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X2_SLV_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_4L_X4_DBI_ACLK,
+	     "gout_fsys0_pcie_gen3_4l_x4_dbi_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_DBI_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_4L_X4_MSTR_ACLK,
+	     "gout_fsys0_pcie_gen3_4l_x4_mstr_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_MSTR_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3_4L_X4_SLV_ACLK,
+	     "gout_fsys0_pcie_gen3_4l_x4_slv_aclk", "mout_fsys0_bus_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3_4L_X4_SLV_ACLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3A_4L_CLK,
+	     "gout_fsys0_pcie_gen3a_4l_clk", "mout_fsys0_pcie_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3A_4L_CLK,
+	     21, 0, 0),
+	GATE(CLK_GOUT_FSYS0_PCIE_GEN3B_4L_CLK,
+	     "gout_fsys0_pcie_gen3b_4l_clk", "mout_fsys0_pcie_user",
+	     CLK_CON_GAT_GOUT_BLK_FSYS0_UID_PCIE_GEN3B_4L_CLK,
+	     21, 0, 0),
+};
+
+static const struct samsung_cmu_info fsys0_cmu_info __initconst = {
+	.mux_clks		= fsys0_mux_clks,
+	.nr_mux_clks		= ARRAY_SIZE(fsys0_mux_clks),
+	.gate_clks		= fsys0_gate_clks,
+	.nr_gate_clks		= ARRAY_SIZE(fsys0_gate_clks),
+	.nr_clk_ids		= FSYS0_NR_CLK,
+	.clk_regs		= fsys0_clk_regs,
+	.nr_clk_regs		= ARRAY_SIZE(fsys0_clk_regs),
+	.clk_name		= "dout_clkcmu_fsys0_bus",
+};
+
 /* ---- CMU_FSYS2 ---------------------------------------------------------- */
 
 /* Register Offset definitions for CMU_FSYS2 (0x17c00000) */
@@ -1709,6 +1949,9 @@ static const struct of_device_id exynosautov9_cmu_of_match[] = {
 	}, {
 		.compatible = "samsung,exynosautov9-cmu-core",
 		.data = &core_cmu_info,
+	}, {
+		.compatible = "samsung,exynosautov9-cmu-fsys0",
+		.data = &fsys0_cmu_info,
 	}, {
 		.compatible = "samsung,exynosautov9-cmu-fsys2",
 		.data = &fsys2_cmu_info,
