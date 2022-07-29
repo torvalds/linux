@@ -487,7 +487,7 @@ asmlinkage void do_undefinstr(struct pt_regs *regs)
 die_sig:
 #ifdef CONFIG_DEBUG_USER
 	if (user_debug & UDBG_UNDEFINED) {
-		pr_info("%s (%d): undefined instruction: pc=%p\n",
+		pr_info("%s (%d): undefined instruction: pc=%px\n",
 			current->comm, task_pid_nr(current), pc);
 		__show_regs(regs);
 		dump_instr(KERN_INFO, regs);
