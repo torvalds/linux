@@ -16,23 +16,24 @@
 #define FUN_XDP_CLEAN_BATCH 16
 
 /* DMA-map a packet and return the (length, DMA_address) pairs for its
- * segments. If a mapping error occurs -ENOMEM is returned.
+ * segments. If a mapping error occurs -ENOMEM is returned. The packet
+ * consists of an skb_shared_info and one additional address/length pair.
  */
-static int map_skb(const struct sk_buff *skb, struct device *dev,
-		   dma_addr_t *addr, unsigned int *len)
+static int fun_map_pkt(struct device *dev, const struct skb_shared_info *si,
+		       void *data, unsigned int data_len,
+		       dma_addr_t *addr, unsigned int *len)
 {
-	const struct skb_shared_info *si;
 	const skb_frag_t *fp, *end;
 
-	*len = skb_headlen(skb);
-	*addr = dma_map_single(dev, skb->data, *len, DMA_TO_DEVICE);
+	*len = data_len;
+	*addr = dma_map_single(dev, data, *len, DMA_TO_DEVICE);
 	if (dma_mapping_error(dev, *addr))
 		return -ENOMEM;
 
-	si = skb_shinfo(skb);
-	end = &si->frags[si->nr_frags];
+	if (!si)
+		return 0;
 
-	for (fp = si->frags; fp < end; fp++) {
+	for (fp = si->frags, end = fp + si->nr_frags; fp < end; fp++) {
 		*++len = skb_frag_size(fp);
 		*++addr = skb_frag_dma_map(dev, fp, 0, *len, DMA_TO_DEVICE);
 		if (dma_mapping_error(dev, *addr))
@@ -44,7 +45,7 @@ unwind:
 	while (fp-- > si->frags)
 		dma_unmap_page(dev, *--addr, skb_frag_size(fp), DMA_TO_DEVICE);
 
-	dma_unmap_single(dev, addr[-1], skb_headlen(skb), DMA_TO_DEVICE);
+	dma_unmap_single(dev, addr[-1], data_len, DMA_TO_DEVICE);
 	return -ENOMEM;
 }
 
@@ -160,7 +161,9 @@ static unsigned int write_pkt_desc(struct sk_buff *skb, struct funeth_txq *q,
 	unsigned int ngle;
 	u16 flags;
 
-	if (unlikely(map_skb(skb, q->dma_dev, addrs, lens))) {
+	shinfo = skb_shinfo(skb);
+	if (unlikely(fun_map_pkt(q->dma_dev, shinfo, skb->data,
+				 skb_headlen(skb), addrs, lens))) {
 		FUN_QSTAT_INC(q, tx_map_err);
 		return 0;
 	}
@@ -173,7 +176,6 @@ static unsigned int write_pkt_desc(struct sk_buff *skb, struct funeth_txq *q,
 	req->repr_idn = 0;
 	req->encap_proto = 0;
 
-	shinfo = skb_shinfo(skb);
 	if (likely(shinfo->gso_size)) {
 		if (skb->encapsulation) {
 			u16 ol4_ofst;
@@ -512,6 +514,7 @@ static unsigned int fun_xdpq_clean(struct funeth_txq *q, unsigned int budget)
 
 bool fun_xdp_tx(struct funeth_txq *q, struct xdp_frame *xdpf)
 {
+	const struct skb_shared_info *si = NULL;
 	struct fun_eth_tx_req *req;
 	unsigned int idx, len;
 	dma_addr_t dma;
@@ -524,9 +527,8 @@ bool fun_xdp_tx(struct funeth_txq *q, struct xdp_frame *xdpf)
 		return false;
 	}
 
-	len = xdpf->len;
-	dma = dma_map_single(q->dma_dev, xdpf->data, len, DMA_TO_DEVICE);
-	if (unlikely(dma_mapping_error(q->dma_dev, dma))) {
+	if (unlikely(fun_map_pkt(q->dma_dev, si, xdpf->data, xdpf->len, &dma,
+				 &len))) {
 		FUN_QSTAT_INC(q, tx_map_err);
 		return false;
 	}
