@@ -77,6 +77,9 @@ static void __iomem *rockchip_cpu_debug[16];
 static void __iomem *rockchip_cs_pmu[16];
 static bool edpcsr_present;
 
+extern struct atomic_notifier_head hardlock_notifier_list;
+extern struct atomic_notifier_head rcu_stall_notifier_list;
+
 #if IS_ENABLED(CONFIG_FIQ_DEBUGGER)
 static int rockchip_debug_dump_edpcsr(struct fiq_debugger_output *output)
 {
@@ -479,7 +482,16 @@ static int __init rockchip_debug_init(void)
 		return -ENODEV;
 
 	atomic_notifier_chain_register(&panic_notifier_list,
-				&rockchip_panic_nb);
+				       &rockchip_panic_nb);
+	if (IS_ENABLED(CONFIG_NO_GKI)) {
+		if (IS_ENABLED(CONFIG_HARDLOCKUP_DETECTOR))
+			atomic_notifier_chain_register(&hardlock_notifier_list,
+						       &rockchip_panic_nb);
+
+		atomic_notifier_chain_register(&rcu_stall_notifier_list,
+					       &rockchip_panic_nb);
+	}
+
 	return 0;
 }
 arch_initcall(rockchip_debug_init);
@@ -490,6 +502,14 @@ static void __exit rockchip_debug_exit(void)
 
 	atomic_notifier_chain_unregister(&panic_notifier_list,
 					 &rockchip_panic_nb);
+	if (IS_ENABLED(CONFIG_NO_GKI)) {
+		if (IS_ENABLED(CONFIG_HARDLOCKUP_DETECTOR))
+			atomic_notifier_chain_unregister(&hardlock_notifier_list,
+							 &rockchip_panic_nb);
+
+		atomic_notifier_chain_unregister(&rcu_stall_notifier_list,
+						 &rockchip_panic_nb);
+	}
 
 	while (rockchip_cpu_debug[i])
 		iounmap(rockchip_cpu_debug[i++]);
