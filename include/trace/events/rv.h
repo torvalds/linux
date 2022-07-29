@@ -122,6 +122,18 @@ DECLARE_EVENT_CLASS(error_da_monitor_id,
 		__entry->event,
 		__entry->state)
 );
+
+#ifdef CONFIG_RV_MON_WWNR
+/* id is the pid of the task */
+DEFINE_EVENT(event_da_monitor_id, event_wwnr,
+	     TP_PROTO(int id, char *state, char *event, char *next_state, bool final_state),
+	     TP_ARGS(id, state, event, next_state, final_state));
+
+DEFINE_EVENT(error_da_monitor_id, error_wwnr,
+	     TP_PROTO(int id, char *state, char *event),
+	     TP_ARGS(id, state, event));
+#endif /* CONFIG_RV_MON_WWNR */
+
 #endif /* CONFIG_DA_MON_EVENTS_ID */
 #endif /* _TRACE_RV_H */
 
