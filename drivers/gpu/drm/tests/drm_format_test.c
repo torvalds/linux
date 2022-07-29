@@ -91,7 +91,7 @@ static void igt_check_drm_format_block_height(struct kunit *test)
 	KUNIT_EXPECT_FALSE(test, drm_format_info_block_height(info, -1));
 }
 
-static void igt_check_drm_format_min_pitch(struct kunit *test)
+static void igt_check_drm_format_min_pitch_for_single_plane(struct kunit *test)
 {
 	const struct drm_format_info *info = NULL;
 
@@ -175,6 +175,11 @@ static void igt_check_drm_format_min_pitch(struct kunit *test)
 			(uint64_t)UINT_MAX * 4);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 0, (UINT_MAX - 1)),
 			(uint64_t)(UINT_MAX - 1) * 4);
+}
+
+static void igt_check_drm_format_min_pitch_for_multi_planar(struct kunit *test)
+{
+	const struct drm_format_info *info = NULL;
 
 	/* Test 2 planes format */
 	info = drm_format_info(DRM_FORMAT_NV12);
@@ -249,6 +254,11 @@ static void igt_check_drm_format_min_pitch(struct kunit *test)
 			(uint64_t)(UINT_MAX - 1) / 2);
 	KUNIT_EXPECT_EQ(test, drm_format_info_min_pitch(info, 2, (UINT_MAX - 1) / 2),
 			(uint64_t)(UINT_MAX - 1) / 2);
+}
+
+static void igt_check_drm_format_min_pitch_for_tiled_format(struct kunit *test)
+{
+	const struct drm_format_info *info = NULL;
 
 	/* Test tiled format */
 	info = drm_format_info(DRM_FORMAT_X0L2);
@@ -273,7 +283,9 @@ static void igt_check_drm_format_min_pitch(struct kunit *test)
 static struct kunit_case drm_format_tests[] = {
 	KUNIT_CASE(igt_check_drm_format_block_width),
 	KUNIT_CASE(igt_check_drm_format_block_height),
-	KUNIT_CASE(igt_check_drm_format_min_pitch),
+	KUNIT_CASE(igt_check_drm_format_min_pitch_for_single_plane),
+	KUNIT_CASE(igt_check_drm_format_min_pitch_for_multi_planar),
+	KUNIT_CASE(igt_check_drm_format_min_pitch_for_tiled_format),
 	{ }
 };
 
