@@ -427,6 +427,7 @@ struct mlxsw_driver {
 
 	u8 txhdr_len;
 	const struct mlxsw_config_profile *profile;
+	bool sdq_supports_cqe_v2;
 };
 
 int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
@@ -436,6 +437,11 @@ int mlxsw_core_kvd_sizes_get(struct mlxsw_core *mlxsw_core,
 
 u32 mlxsw_core_read_frc_h(struct mlxsw_core *mlxsw_core);
 u32 mlxsw_core_read_frc_l(struct mlxsw_core *mlxsw_core);
+
+u32 mlxsw_core_read_utc_sec(struct mlxsw_core *mlxsw_core);
+u32 mlxsw_core_read_utc_nsec(struct mlxsw_core *mlxsw_core);
+
+bool mlxsw_core_sdq_supports_cqe_v2(struct mlxsw_core *mlxsw_core);
 
 void mlxsw_core_emad_string_tlv_enable(struct mlxsw_core *mlxsw_core);
 
@@ -476,6 +482,8 @@ struct mlxsw_bus {
 			u8 *p_status);
 	u32 (*read_frc_h)(void *bus_priv);
 	u32 (*read_frc_l)(void *bus_priv);
+	u32 (*read_utc_sec)(void *bus_priv);
+	u32 (*read_utc_nsec)(void *bus_priv);
 	u8 features;
 };
 
@@ -550,11 +558,17 @@ enum mlxsw_devlink_param_id {
 	MLXSW_DEVLINK_PARAM_ID_ACL_REGION_REHASH_INTERVAL,
 };
 
+struct mlxsw_cqe_ts {
+	u8 sec;
+	u32 nsec;
+};
+
 struct mlxsw_skb_cb {
 	union {
 		struct mlxsw_tx_info tx_info;
 		struct mlxsw_rx_md_info rx_md_info;
 	};
+	struct mlxsw_cqe_ts cqe_ts;
 };
 
 static inline struct mlxsw_skb_cb *mlxsw_skb_cb(struct sk_buff *skb)

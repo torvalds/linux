@@ -103,6 +103,8 @@ struct mlxsw_pci {
 	struct pci_dev *pdev;
 	u8 __iomem *hw_addr;
 	u64 free_running_clock_offset;
+	u64 utc_sec_offset;
+	u64 utc_nsec_offset;
 	struct mlxsw_pci_queue_type_group queues[MLXSW_PCI_QUEUE_TYPE_COUNT];
 	u32 doorbell_offset;
 	struct mlxsw_core *core;
@@ -456,9 +458,9 @@ static void mlxsw_pci_cq_pre_init(struct mlxsw_pci *mlxsw_pci,
 {
 	q->u.cq.v = mlxsw_pci->max_cqe_ver;
 
-	/* For SDQ it is pointless to use CQEv2, so use CQEv1 instead */
 	if (q->u.cq.v == MLXSW_PCI_CQE_V2 &&
-	    q->num < mlxsw_pci->num_sdq_cqs)
+	    q->num < mlxsw_pci->num_sdq_cqs &&
+	    !mlxsw_core_sdq_supports_cqe_v2(mlxsw_pci->core))
 		q->u.cq.v = MLXSW_PCI_CQE_V1;
 }
 
@@ -511,9 +513,26 @@ static unsigned int mlxsw_pci_read32_off(struct mlxsw_pci *mlxsw_pci,
 	return ioread32be(mlxsw_pci->hw_addr + off);
 }
 
+static void mlxsw_pci_skb_cb_ts_set(struct mlxsw_pci *mlxsw_pci,
+				    struct sk_buff *skb,
+				    enum mlxsw_pci_cqe_v cqe_v, char *cqe)
+{
+	if (cqe_v != MLXSW_PCI_CQE_V2)
+		return;
+
+	if (mlxsw_pci_cqe2_time_stamp_type_get(cqe) !=
+	    MLXSW_PCI_CQE_TIME_STAMP_TYPE_UTC)
+		return;
+
+	mlxsw_skb_cb(skb)->cqe_ts.sec = mlxsw_pci_cqe2_time_stamp_sec_get(cqe);
+	mlxsw_skb_cb(skb)->cqe_ts.nsec =
+		mlxsw_pci_cqe2_time_stamp_nsec_get(cqe);
+}
+
 static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 				     struct mlxsw_pci_queue *q,
 				     u16 consumer_counter_limit,
+				     enum mlxsw_pci_cqe_v cqe_v,
 				     char *cqe)
 {
 	struct pci_dev *pdev = mlxsw_pci->pdev;
@@ -533,6 +552,7 @@ static void mlxsw_pci_cqe_sdq_handle(struct mlxsw_pci *mlxsw_pci,
 
 	if (unlikely(!tx_info.is_emad &&
 		     skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP)) {
+		mlxsw_pci_skb_cb_ts_set(mlxsw_pci, skb, cqe_v, cqe);
 		mlxsw_core_ptp_transmitted(mlxsw_pci->core, skb,
 					   tx_info.local_port);
 		skb = NULL;
@@ -653,6 +673,8 @@ static void mlxsw_pci_cqe_rdq_handle(struct mlxsw_pci *mlxsw_pci,
 		mlxsw_pci_cqe_rdq_md_tx_port_init(skb, cqe);
 	}
 
+	mlxsw_pci_skb_cb_ts_set(mlxsw_pci, skb, cqe_v, cqe);
+
 	byte_count = mlxsw_pci_cqe_byte_count_get(cqe);
 	if (mlxsw_pci_cqe_crc_get(cqe_v, cqe))
 		byte_count -= ETH_FCS_LEN;
@@ -704,7 +726,7 @@ static void mlxsw_pci_cq_tasklet(struct tasklet_struct *t)
 
 			sdq = mlxsw_pci_sdq_get(mlxsw_pci, dqn);
 			mlxsw_pci_cqe_sdq_handle(mlxsw_pci, sdq,
-						 wqe_counter, ncqe);
+						 wqe_counter, q->u.cq.v, ncqe);
 			q->u.cq.comp_sdq_count++;
 		} else {
 			struct mlxsw_pci_queue *rdq;
@@ -1537,6 +1559,24 @@ static int mlxsw_pci_init(void *bus_priv, struct mlxsw_core *mlxsw_core,
 	mlxsw_pci->free_running_clock_offset =
 		mlxsw_cmd_mbox_query_fw_free_running_clock_offset_get(mbox);
 
+	if (mlxsw_cmd_mbox_query_fw_utc_sec_bar_get(mbox) != 0) {
+		dev_err(&pdev->dev, "Unsupported UTC sec BAR queried from hw\n");
+		err = -EINVAL;
+		goto err_utc_sec_bar;
+	}
+
+	mlxsw_pci->utc_sec_offset =
+		mlxsw_cmd_mbox_query_fw_utc_sec_offset_get(mbox);
+
+	if (mlxsw_cmd_mbox_query_fw_utc_nsec_bar_get(mbox) != 0) {
+		dev_err(&pdev->dev, "Unsupported UTC nsec BAR queried from hw\n");
+		err = -EINVAL;
+		goto err_utc_nsec_bar;
+	}
+
+	mlxsw_pci->utc_nsec_offset =
+		mlxsw_cmd_mbox_query_fw_utc_nsec_offset_get(mbox);
+
 	num_pages = mlxsw_cmd_mbox_query_fw_fw_pages_get(mbox);
 	err = mlxsw_pci_fw_area_init(mlxsw_pci, mbox, num_pages);
 	if (err)
@@ -1601,6 +1641,8 @@ err_query_resources:
 err_boardinfo:
 	mlxsw_pci_fw_area_fini(mlxsw_pci);
 err_fw_area_init:
+err_utc_nsec_bar:
+err_utc_sec_bar:
 err_fr_rn_clk_bar:
 err_doorbell_page_bar:
 err_iface_rev:
@@ -1830,6 +1872,20 @@ static u32 mlxsw_pci_read_frc_l(void *bus_priv)
 	return mlxsw_pci_read32_off(mlxsw_pci, frc_offset_l);
 }
 
+static u32 mlxsw_pci_read_utc_sec(void *bus_priv)
+{
+	struct mlxsw_pci *mlxsw_pci = bus_priv;
+
+	return mlxsw_pci_read32_off(mlxsw_pci, mlxsw_pci->utc_sec_offset);
+}
+
+static u32 mlxsw_pci_read_utc_nsec(void *bus_priv)
+{
+	struct mlxsw_pci *mlxsw_pci = bus_priv;
+
+	return mlxsw_pci_read32_off(mlxsw_pci, mlxsw_pci->utc_nsec_offset);
+}
+
 static const struct mlxsw_bus mlxsw_pci_bus = {
 	.kind			= "pci",
 	.init			= mlxsw_pci_init,
@@ -1839,6 +1895,8 @@ static const struct mlxsw_bus mlxsw_pci_bus = {
 	.cmd_exec		= mlxsw_pci_cmd_exec,
 	.read_frc_h		= mlxsw_pci_read_frc_h,
 	.read_frc_l		= mlxsw_pci_read_frc_l,
+	.read_utc_sec		= mlxsw_pci_read_utc_sec,
+	.read_utc_nsec		= mlxsw_pci_read_utc_nsec,
 	.features		= MLXSW_BUS_F_TXRX | MLXSW_BUS_F_RESET,
 };
 
