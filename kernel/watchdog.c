@@ -55,6 +55,8 @@ unsigned long *watchdog_cpumask_bits = cpumask_bits(&watchdog_cpumask);
 int __read_mostly sysctl_hardlockup_all_cpu_backtrace;
 # endif /* CONFIG_SMP */
 
+ATOMIC_NOTIFIER_HEAD(hardlock_notifier_list);
+
 /*
  * Should we panic when a soft-lockup or hard-lockup occurs:
  */
@@ -415,6 +417,7 @@ static void watchdog_check_hardlockup_other_cpu(void)
 		else
 			WARN(1, "Watchdog detected hard LOCKUP on cpu %u", next_cpu);
 
+		atomic_notifier_call_chain(&hardlock_notifier_list, 0, NULL);
 		per_cpu(hard_watchdog_warn, next_cpu) = true;
 	} else {
 		per_cpu(hard_watchdog_warn, next_cpu) = false;
