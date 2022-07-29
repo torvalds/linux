@@ -15,6 +15,7 @@
 
 /* panic() on RCU Stall sysctl. */
 int sysctl_panic_on_rcu_stall __read_mostly;
+ATOMIC_NOTIFIER_HEAD(rcu_stall_notifier_list);
 
 #ifdef CONFIG_PROVE_RCU
 #define RCU_STALL_DELAY_DELTA		(5 * HZ)
@@ -534,6 +535,8 @@ static void print_other_cpu_stall(unsigned long gp_seq, unsigned long gps)
 			   jiffies + 3 * rcu_jiffies_till_stall_check() + 3);
 
 	rcu_check_gp_kthread_starvation();
+
+	atomic_notifier_call_chain(&rcu_stall_notifier_list, 0, NULL);
 
 	panic_on_rcu_stall();
 
