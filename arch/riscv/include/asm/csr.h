@@ -156,6 +156,18 @@
 				 (_AC(1, UL) << IRQ_S_TIMER) | \
 				 (_AC(1, UL) << IRQ_S_EXT))
 
+/* xENVCFG flags */
+#define ENVCFG_STCE			(_AC(1, ULL) << 63)
+#define ENVCFG_PBMTE			(_AC(1, ULL) << 62)
+#define ENVCFG_CBZE			(_AC(1, UL) << 7)
+#define ENVCFG_CBCFE			(_AC(1, UL) << 6)
+#define ENVCFG_CBIE_SHIFT		4
+#define ENVCFG_CBIE			(_AC(0x3, UL) << ENVCFG_CBIE_SHIFT)
+#define ENVCFG_CBIE_ILL			_AC(0x0, UL)
+#define ENVCFG_CBIE_FLUSH		_AC(0x1, UL)
+#define ENVCFG_CBIE_INV			_AC(0x3, UL)
+#define ENVCFG_FIOM			_AC(0x1, UL)
+
 /* symbolic CSR names: */
 #define CSR_CYCLE		0xc00
 #define CSR_TIME		0xc01
@@ -252,7 +264,9 @@
 #define CSR_HTIMEDELTA		0x605
 #define CSR_HCOUNTEREN		0x606
 #define CSR_HGEIE		0x607
+#define CSR_HENVCFG		0x60a
 #define CSR_HTIMEDELTAH		0x615
+#define CSR_HENVCFGH		0x61a
 #define CSR_HTVAL		0x643
 #define CSR_HIP			0x644
 #define CSR_HVIP		0x645
@@ -264,6 +278,8 @@
 #define CSR_MISA		0x301
 #define CSR_MIE			0x304
 #define CSR_MTVEC		0x305
+#define CSR_MENVCFG		0x30a
+#define CSR_MENVCFGH		0x31a
 #define CSR_MSCRATCH		0x340
 #define CSR_MEPC		0x341
 #define CSR_MCAUSE		0x342
