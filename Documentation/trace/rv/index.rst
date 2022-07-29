@@ -8,3 +8,4 @@ Runtime Verification
 
    runtime-verification.rst
    deterministic_automata.rst
+   da_monitor_synthesis.rst

@@ -4,6 +4,9 @@
 # Copyright (C) 2019-2022 Red Hat, Inc. Daniel Bristot de Oliveira <bristot@kernel.org>
 #
 # dot2k: transform dot files into a monitor for the Linux kernel.
+#
+# For further information, see:
+#   Documentation/trace/rv/da_monitor_synthesis.rst
 
 from dot2.dot2c import Dot2c
 import platform
