@@ -947,10 +947,9 @@ end:
 	return 0;
 }
 
-static bool is_lock_function(u64 addr)
+static bool is_lock_function(struct machine *machine, u64 addr)
 {
 	if (!sched_text_start) {
-		struct machine *machine = &session->machines.host;
 		struct map *kmap;
 		struct symbol *sym;
 
@@ -1002,6 +1001,7 @@ static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sampl
 {
 	struct thread *thread;
 	struct callchain_cursor *cursor = &callchain_cursor;
+	struct machine *machine = &session->machines.host;
 	struct symbol *sym;
 	int skip = 0;
 	int ret;
@@ -1010,8 +1010,7 @@ static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sampl
 	if (show_thread_stats)
 		return -1;
 
-	thread = machine__findnew_thread(&session->machines.host,
-					 -1, sample->pid);
+	thread = machine__findnew_thread(machine, -1, sample->pid);
 	if (thread == NULL)
 		return -1;
 
@@ -1038,7 +1037,7 @@ static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sampl
 			goto next;
 
 		sym = node->ms.sym;
-		if (sym && !is_lock_function(node->ip)) {
+		if (sym && !is_lock_function(machine, node->ip)) {
 			struct map *map = node->ms.map;
 			u64 offset;
 
@@ -1060,13 +1059,13 @@ next:
 static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample)
 {
 	struct callchain_cursor *cursor = &callchain_cursor;
+	struct machine *machine = &session->machines.host;
 	struct thread *thread;
 	u64 hash = 0;
 	int skip = 0;
 	int ret;
 
-	thread = machine__findnew_thread(&session->machines.host,
-					 -1, sample->pid);
+	thread = machine__findnew_thread(machine, -1, sample->pid);
 	if (thread == NULL)
 		return -1;
 
@@ -1091,7 +1090,7 @@ static u64 callchain_id(struct evsel *evsel, struct perf_sample *sample)
 		if (++skip <= CONTENTION_STACK_SKIP)
 			goto next;
 
-		if (node->ms.sym && is_lock_function(node->ip))
+		if (node->ms.sym && is_lock_function(machine, node->ip))
 			goto next;
 
 		hash ^= hash_long((unsigned long)node->ip, 64);
