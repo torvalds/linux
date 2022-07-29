@@ -11,7 +11,7 @@
 static void tdp_iter_refresh_sptep(struct tdp_iter *iter)
 {
 	iter->sptep = iter->pt_path[iter->level - 1] +
-		SHADOW_PT_INDEX(iter->gfn << PAGE_SHIFT, iter->level);
+		SPTE_INDEX(iter->gfn << PAGE_SHIFT, iter->level);
 	iter->old_spte = kvm_tdp_mmu_read_spte(iter->sptep);
 }
 
@@ -116,8 +116,8 @@ static bool try_step_side(struct tdp_iter *iter)
 	 * Check if the iterator is already at the end of the current page
 	 * table.
 	 */
-	if (SHADOW_PT_INDEX(iter->gfn << PAGE_SHIFT, iter->level) ==
-            (PT64_ENT_PER_PAGE - 1))
+	if (SPTE_INDEX(iter->gfn << PAGE_SHIFT, iter->level) ==
+	    (SPTE_ENT_PER_PAGE - 1))
 		return false;
 
 	iter->gfn += KVM_PAGES_PER_HPAGE(iter->level);
@@ -143,15 +143,6 @@ static bool try_step_up(struct tdp_iter *iter)
 	tdp_iter_refresh_sptep(iter);
 
 	return true;
-}
-
-/*
- * Step the iterator back up a level in the paging structure. Should only be
- * used when the iterator is below the root level.
- */
-void tdp_iter_step_up(struct tdp_iter *iter)
-{
-	WARN_ON(!try_step_up(iter));
 }
 
 /*
