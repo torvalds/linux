@@ -527,7 +527,6 @@ struct mt76_usb {
 		struct mt76_reg_pair *rp;
 		int rp_len;
 		u32 base;
-		bool burst;
 	} mcu;
 };
 
