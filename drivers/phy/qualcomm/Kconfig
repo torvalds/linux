@@ -71,6 +71,12 @@ config PHY_QCOM_UFS
 
 if PHY_QCOM_UFS
 
+config PHY_QCOM_UFS_V4
+	tristate
+	default PHY_QCOM_UFS
+	help
+	  Support for 7nm UFS QMP phy present on QCOM chipsets.
+
 config PHY_QCOM_UFS_QRBTC_SDM845
 	tristate "Qualcomm Technologies, Inc. UFS Presil Phy Driver"
 	depends on PHY_QCOM_UFS && REGULATOR_STUB
