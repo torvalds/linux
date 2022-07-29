@@ -232,13 +232,14 @@ static void gfx_v9_4_3_wait_reg_mem(struct amdgpu_ring *ring, int eng_sel,
 
 static int gfx_v9_4_3_ring_test_ring(struct amdgpu_ring *ring)
 {
+	uint32_t scratch_reg0_offset, xcc_offset;
 	struct amdgpu_device *adev = ring->adev;
 	uint32_t tmp = 0;
 	unsigned i;
 	int r;
-	/* scratch_reg0_offset is 32bit even with full XCD config */
-	uint32_t scratch_reg0_offset;
 
+	/* Use register offset which is local to XCC in the packet */
+	xcc_offset = SOC15_REG_OFFSET(GC, 0, regSCRATCH_REG0);
 	scratch_reg0_offset = SOC15_REG_OFFSET(GC, GET_INST(GC, ring->xcc_id), regSCRATCH_REG0);
 	WREG32(scratch_reg0_offset, 0xCAFEDEAD);
 
@@ -247,7 +248,7 @@ static int gfx_v9_4_3_ring_test_ring(struct amdgpu_ring *ring)
 		return r;
 
 	amdgpu_ring_write(ring, PACKET3(PACKET3_SET_UCONFIG_REG, 1));
-	amdgpu_ring_write(ring, scratch_reg0_offset - PACKET3_SET_UCONFIG_REG_START);
+	amdgpu_ring_write(ring, xcc_offset - PACKET3_SET_UCONFIG_REG_START);
 	amdgpu_ring_write(ring, 0xDEADBEEF);
 	amdgpu_ring_commit(ring);
 
