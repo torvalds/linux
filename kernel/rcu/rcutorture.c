@@ -335,6 +335,7 @@ struct rcu_torture_ops {
 	bool (*poll_gp_state_exp)(unsigned long oldstate);
 	void (*cond_sync_exp)(unsigned long oldstate);
 	unsigned long (*get_gp_state)(void);
+	void (*get_gp_state_full)(struct rcu_gp_oldstate *rgosp);
 	unsigned long (*get_gp_completed)(void);
 	void (*get_gp_completed_full)(struct rcu_gp_oldstate *rgosp);
 	unsigned long (*start_gp_poll)(void);
@@ -504,6 +505,7 @@ static struct rcu_torture_ops rcu_ops = {
 	.sync			= synchronize_rcu,
 	.exp_sync		= synchronize_rcu_expedited,
 	.get_gp_state		= get_state_synchronize_rcu,
+	.get_gp_state_full	= get_state_synchronize_rcu_full,
 	.get_gp_completed	= get_completed_synchronize_rcu,
 	.get_gp_completed_full	= get_completed_synchronize_rcu_full,
 	.start_gp_poll		= start_poll_synchronize_rcu,
@@ -1293,12 +1295,12 @@ rcu_torture_writer(void *arg)
 				break;
 			case RTWS_EXP_SYNC:
 				rcu_torture_writer_state = RTWS_EXP_SYNC;
-				if (cur_ops->get_gp_state && cur_ops->poll_gp_state)
-					cookie = cur_ops->get_gp_state();
+				if (cur_ops->get_gp_state_full && cur_ops->poll_gp_state_full)
+					cur_ops->get_gp_state_full(&cookie_full);
 				cur_ops->exp_sync();
 				cur_ops->exp_sync();
-				if (cur_ops->get_gp_state && cur_ops->poll_gp_state)
-					WARN_ON_ONCE(!cur_ops->poll_gp_state(cookie));
+				if (cur_ops->get_gp_state_full && cur_ops->poll_gp_state_full)
+					WARN_ON_ONCE(!cur_ops->poll_gp_state_full(&cookie_full));
 				rcu_torture_pipe_update(old_rp);
 				break;
 			case RTWS_COND_GET:
