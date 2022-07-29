@@ -1509,6 +1509,27 @@ struct devlink_ops {
 				    struct devlink_rate *parent,
 				    void *priv_child, void *priv_parent,
 				    struct netlink_ext_ack *extack);
+	/**
+	 * selftests_check() - queries if selftest is supported
+	 * @devlink: devlink instance
+	 * @id: test index
+	 * @extack: extack for reporting error messages
+	 *
+	 * Return: true if test is supported by the driver
+	 */
+	bool (*selftest_check)(struct devlink *devlink, unsigned int id,
+			       struct netlink_ext_ack *extack);
+	/**
+	 * selftest_run() - Runs a selftest
+	 * @devlink: devlink instance
+	 * @id: test index
+	 * @extack: extack for reporting error messages
+	 *
+	 * Return: status of the test
+	 */
+	enum devlink_selftest_status
+	(*selftest_run)(struct devlink *devlink, unsigned int id,
+			struct netlink_ext_ack *extack);
 };
 
 void *devlink_priv(struct devlink *devlink);
