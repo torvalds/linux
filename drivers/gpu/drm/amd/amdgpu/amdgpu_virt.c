@@ -690,7 +690,6 @@ void amdgpu_virt_exchange_data(struct amdgpu_device *adev)
 	}
 }
 
-
 void amdgpu_detect_virtualization(struct amdgpu_device *adev)
 {
 	uint32_t reg;
@@ -811,31 +810,54 @@ enum amdgpu_sriov_vf_mode amdgpu_virt_get_sriov_vf_mode(struct amdgpu_device *ad
 
 bool amdgpu_virt_fw_load_skip_check(struct amdgpu_device *adev, uint32_t ucode_id)
 {
-	/* this version doesn't support sriov autoload */
-	if (adev->ip_versions[MP0_HWIP][0] == IP_VERSION(13, 0, 0)) {
+	switch (adev->ip_versions[MP0_HWIP][0]) {
+	case IP_VERSION(13, 0, 0):
+		/* no vf autoload, white list */
 		if (ucode_id == AMDGPU_UCODE_ID_VCN1 ||
 		    ucode_id == AMDGPU_UCODE_ID_VCN)
 			return false;
 		else
 			return true;
+	case IP_VERSION(13, 0, 10):
+		/* white list */
+		if (ucode_id == AMDGPU_UCODE_ID_CAP
+		|| ucode_id == AMDGPU_UCODE_ID_CP_RS64_PFP
+		|| ucode_id == AMDGPU_UCODE_ID_CP_RS64_ME
+		|| ucode_id == AMDGPU_UCODE_ID_CP_RS64_MEC
+		|| ucode_id == AMDGPU_UCODE_ID_CP_RS64_PFP_P0_STACK
+		|| ucode_id == AMDGPU_UCODE_ID_CP_RS64_PFP_P1_STACK
+		|| ucode_id == AMDGPU_UCODE_ID_CP_RS64_ME_P0_STACK
+		|| ucode_id == AMDGPU_UCODE_ID_CP_RS64_ME_P1_STACK
+		|| ucode_id == AMDGPU_UCODE_ID_CP_RS64_MEC_P0_STACK
+		|| ucode_id == AMDGPU_UCODE_ID_CP_RS64_MEC_P1_STACK
+		|| ucode_id == AMDGPU_UCODE_ID_CP_RS64_MEC_P2_STACK
+		|| ucode_id == AMDGPU_UCODE_ID_CP_RS64_MEC_P3_STACK
+		|| ucode_id == AMDGPU_UCODE_ID_CP_MES
+		|| ucode_id == AMDGPU_UCODE_ID_CP_MES_DATA
+		|| ucode_id == AMDGPU_UCODE_ID_CP_MES1
+		|| ucode_id == AMDGPU_UCODE_ID_CP_MES1_DATA)
+			return false;
+		else
+			return true;
+	default:
+		/* lagacy black list */
+		if (ucode_id == AMDGPU_UCODE_ID_SDMA0
+		    || ucode_id == AMDGPU_UCODE_ID_SDMA1
+		    || ucode_id == AMDGPU_UCODE_ID_SDMA2
+		    || ucode_id == AMDGPU_UCODE_ID_SDMA3
+		    || ucode_id == AMDGPU_UCODE_ID_SDMA4
+		    || ucode_id == AMDGPU_UCODE_ID_SDMA5
+		    || ucode_id == AMDGPU_UCODE_ID_SDMA6
+		    || ucode_id == AMDGPU_UCODE_ID_SDMA7
+		    || ucode_id == AMDGPU_UCODE_ID_RLC_G
+		    || ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL
+		    || ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM
+		    || ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM
+		    || ucode_id == AMDGPU_UCODE_ID_SMC)
+			return true;
+		else
+			return false;
 	}
-
-	if (ucode_id == AMDGPU_UCODE_ID_SDMA0
-	    || ucode_id == AMDGPU_UCODE_ID_SDMA1
-	    || ucode_id == AMDGPU_UCODE_ID_SDMA2
-	    || ucode_id == AMDGPU_UCODE_ID_SDMA3
-	    || ucode_id == AMDGPU_UCODE_ID_SDMA4
-	    || ucode_id == AMDGPU_UCODE_ID_SDMA5
-	    || ucode_id == AMDGPU_UCODE_ID_SDMA6
-	    || ucode_id == AMDGPU_UCODE_ID_SDMA7
-	    || ucode_id == AMDGPU_UCODE_ID_RLC_G
-	    || ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_CNTL
-	    || ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_GPM_MEM
-	    || ucode_id == AMDGPU_UCODE_ID_RLC_RESTORE_LIST_SRM_MEM
-	    || ucode_id == AMDGPU_UCODE_ID_SMC)
-		return true;
-
-	return false;
 }
 
 void amdgpu_virt_update_sriov_video_codec(struct amdgpu_device *adev,

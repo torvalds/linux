@@ -253,6 +253,9 @@ struct amdgpu_virt {
 	uint32_t decode_max_frame_pixels;
 	uint32_t encode_max_dimension_pixels;
 	uint32_t encode_max_frame_pixels;
+
+	/* the ucode id to signal the autoload */
+	uint32_t autoload_ucode_id;
 };
 
 struct amdgpu_video_codec_info;
