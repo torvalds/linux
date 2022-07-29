@@ -124,15 +124,12 @@ static inline int dl_bw_cpus(int i)
 	return cpus;
 }
 
-static inline unsigned long __dl_bw_capacity(int i)
+static inline unsigned long __dl_bw_capacity(const struct cpumask *mask)
 {
-	struct root_domain *rd = cpu_rq(i)->rd;
 	unsigned long cap = 0;
+	int i;
 
-	RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held(),
-			 "sched RCU must be held");
-
-	for_each_cpu_and(i, rd->span, cpu_active_mask)
+	for_each_cpu_and(i, mask, cpu_active_mask)
 		cap += capacity_orig_of(i);
 
 	return cap;
@@ -148,7 +145,10 @@ static inline unsigned long dl_bw_capacity(int i)
 	    capacity_orig_of(i) == SCHED_CAPACITY_SCALE) {
 		return dl_bw_cpus(i) << SCHED_CAPACITY_SHIFT;
 	} else {
-		return __dl_bw_capacity(i);
+		RCU_LOCKDEP_WARN(!rcu_read_lock_sched_held(),
+				 "sched RCU must be held");
+
+		return __dl_bw_capacity(cpu_rq(i)->rd->span);
 	}
 }
 
@@ -3007,17 +3007,15 @@ bool dl_param_changed(struct task_struct *p, const struct sched_attr *attr)
 int dl_cpuset_cpumask_can_shrink(const struct cpumask *cur,
 				 const struct cpumask *trial)
 {
-	int ret = 1, trial_cpus;
+	unsigned long flags, cap;
 	struct dl_bw *cur_dl_b;
-	unsigned long flags;
+	int ret = 1;
 
 	rcu_read_lock_sched();
 	cur_dl_b = dl_bw_of(cpumask_any(cur));
-	trial_cpus = cpumask_weight(trial);
-
+	cap = __dl_bw_capacity(trial);
 	raw_spin_lock_irqsave(&cur_dl_b->lock, flags);
-	if (cur_dl_b->bw != -1 &&
-	    cur_dl_b->bw * trial_cpus < cur_dl_b->total_bw)
+	if (__dl_overflow(cur_dl_b, cap, 0, 0))
 		ret = 0;
 	raw_spin_unlock_irqrestore(&cur_dl_b->lock, flags);
 	rcu_read_unlock_sched();
