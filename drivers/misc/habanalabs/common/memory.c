@@ -1492,22 +1492,21 @@ int hl_hw_block_mmap(struct hl_fpriv *hpriv, struct vm_area_struct *vma)
 	if (!lnode)
 		return -ENOMEM;
 
-	vma->vm_ops = &hw_block_vm_ops;
-	vma->vm_private_data = lnode;
-
-	hl_ctx_get(ctx);
-
 	rc = hdev->asic_funcs->hw_block_mmap(hdev, vma, block_id, block_size);
 	if (rc) {
-		hl_ctx_put(ctx);
 		kfree(lnode);
 		return rc;
 	}
+
+	hl_ctx_get(ctx);
 
 	lnode->ctx = ctx;
 	lnode->vaddr = vma->vm_start;
 	lnode->size = block_size;
 	lnode->id = block_id;
+
+	vma->vm_private_data = lnode;
+	vma->vm_ops = &hw_block_vm_ops;
 
 	mutex_lock(&ctx->hw_block_list_lock);
 	list_add_tail(&lnode->node, &ctx->hw_block_mem_list);
