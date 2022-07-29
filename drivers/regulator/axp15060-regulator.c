@@ -282,7 +282,7 @@ static const struct regulator_desc axp15060_regulators[] = {
 			AXP15060_VOL_CTRL_ALDO_5, AXP15060_ALDO5_V_OUT_MASK,
 			AXP15060_ON_OFF_CTRL_2, AXP15060_PWR_OUT_ALDO5_MASK),
 
-	AXP15060_DESC_RANGES(DCDC2, "cpu_vdd_0p9",
+	AXP15060_DESC_RANGES(DCDC2, "cpu_vdd",
 				axp15060_dcdc2_ranges, AXP15060_DCDC2_NUM_VOLTAGES,
 				AXP15060_VOL_CTRL_DCDC_2, AXP15060_DCDC2_V_OUT_MASK,
 				AXP15060_ON_OFF_CTRL_1, AXP15060_PWR_OUT_DCDC2_MASK),
@@ -293,7 +293,7 @@ static struct of_regulator_match axp15060_matches[] = {
 	{ .name = "hdmi_1p8", },
 	{ .name = "sdio_vdd", },
 	{ .name = "hdmi_0p9", },
-	{ .name = "cpu_vdd_0p9", },
+	{ .name = "cpu_vdd", },
 };
 
 static int axp15060_i2c_probe(struct i2c_client *i2c)

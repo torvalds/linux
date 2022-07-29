@@ -113,7 +113,7 @@ static int starfive_cpu_dvfs_info_init(struct platform_device *pdev,
 	int ret;
 	static int retry = 3;
 
-	info->vddcpu = regulator_get_optional(&pdev->dev, "cpu_vdd_0p9");
+	info->vddcpu = regulator_get_optional(&pdev->dev, "cpu_vdd");
 	if (IS_ERR(info->vddcpu)) {
 		if (PTR_ERR(info->vddcpu) == -EPROBE_DEFER)
 			dev_warn(&pdev->dev, "The cpu regulator is not ready, retry.\n");
