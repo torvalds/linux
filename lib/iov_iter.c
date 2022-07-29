@@ -738,13 +738,27 @@ EXPORT_SYMBOL(copy_page_to_iter);
 size_t copy_page_from_iter(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
 {
-	if (page_copy_sane(page, offset, bytes)) {
+	size_t res = 0;
+	if (!page_copy_sane(page, offset, bytes))
+		return 0;
+	page += offset / PAGE_SIZE; // first subpage
+	offset %= PAGE_SIZE;
+	while (1) {
 		void *kaddr = kmap_local_page(page);
-		size_t wanted = _copy_from_iter(kaddr + offset, bytes, i);
+		size_t n = min(bytes, (size_t)PAGE_SIZE - offset);
+		n = _copy_from_iter(kaddr + offset, n, i);
 		kunmap_local(kaddr);
-		return wanted;
+		res += n;
+		bytes -= n;
+		if (!bytes || !n)
+			break;
+		offset += n;
+		if (offset == PAGE_SIZE) {
+			page++;
+			offset = 0;
+		}
 	}
-	return 0;
+	return res;
 }
 EXPORT_SYMBOL(copy_page_from_iter);
 
