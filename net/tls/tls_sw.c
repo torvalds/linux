@@ -1283,11 +1283,14 @@ int tls_sw_sendpage(struct sock *sk, struct page *page,
 
 static int
 tls_rx_rec_wait(struct sock *sk, struct sk_psock *psock, bool nonblock,
-		bool released, long timeo)
+		bool released)
 {
 	struct tls_context *tls_ctx = tls_get_ctx(sk);
 	struct tls_sw_context_rx *ctx = tls_sw_ctx_rx(tls_ctx);
 	DEFINE_WAIT_FUNC(wait, woken_wake_function);
+	long timeo;
+
+	timeo = sock_rcvtimeo(sk, nonblock);
 
 	while (!tls_strp_msg_ready(ctx)) {
 		if (!sk_psock_queue_empty(psock))
@@ -1308,7 +1311,7 @@ tls_rx_rec_wait(struct sock *sk, struct sk_psock *psock, bool nonblock,
 		if (sock_flag(sk, SOCK_DONE))
 			return 0;
 
-		if (nonblock || !timeo)
+		if (!timeo)
 			return -EAGAIN;
 
 		released = true;
@@ -1842,8 +1845,8 @@ tls_read_flush_backlog(struct sock *sk, struct tls_prot_info *prot,
 	return sk_flush_backlog(sk);
 }
 
-static long tls_rx_reader_lock(struct sock *sk, struct tls_sw_context_rx *ctx,
-			       bool nonblock)
+static int tls_rx_reader_lock(struct sock *sk, struct tls_sw_context_rx *ctx,
+			      bool nonblock)
 {
 	long timeo;
 	int err;
@@ -1874,7 +1877,7 @@ static long tls_rx_reader_lock(struct sock *sk, struct tls_sw_context_rx *ctx,
 
 	WRITE_ONCE(ctx->reader_present, 1);
 
-	return timeo;
+	return 0;
 
 err_unlock:
 	release_sock(sk);
@@ -1913,8 +1916,7 @@ int tls_sw_recvmsg(struct sock *sk,
 	struct tls_msg *tlm;
 	ssize_t copied = 0;
 	bool async = false;
-	int target, err = 0;
-	long timeo;
+	int target, err;
 	bool is_kvec = iov_iter_is_kvec(&msg->msg_iter);
 	bool is_peek = flags & MSG_PEEK;
 	bool released = true;
@@ -1925,9 +1927,9 @@ int tls_sw_recvmsg(struct sock *sk,
 		return sock_recv_errqueue(sk, msg, len, SOL_IP, IP_RECVERR);
 
 	psock = sk_psock_get(sk);
-	timeo = tls_rx_reader_lock(sk, ctx, flags & MSG_DONTWAIT);
-	if (timeo < 0)
-		return timeo;
+	err = tls_rx_reader_lock(sk, ctx, flags & MSG_DONTWAIT);
+	if (err < 0)
+		return err;
 	bpf_strp_enabled = sk_psock_strp_enabled(psock);
 
 	/* If crypto failed the connection is broken */
@@ -1954,8 +1956,8 @@ int tls_sw_recvmsg(struct sock *sk,
 		struct tls_decrypt_arg darg;
 		int to_decrypt, chunk;
 
-		err = tls_rx_rec_wait(sk, psock, flags & MSG_DONTWAIT, released,
-				      timeo);
+		err = tls_rx_rec_wait(sk, psock, flags & MSG_DONTWAIT,
+				      released);
 		if (err <= 0) {
 			if (psock) {
 				chunk = sk_msg_recvmsg(sk, psock, msg, len,
@@ -2024,7 +2026,7 @@ put_on_rx_list_err:
 			bool partially_consumed = chunk > len;
 			struct sk_buff *skb = darg.skb;
 
-			DEBUG_NET_WARN_ON_ONCE(darg.skb == tls_strp_msg(ctx));
+			DEBUG_NET_WARN_ON_ONCE(darg.skb == ctx->strp.anchor);
 
 			if (async) {
 				/* TLS 1.2-only, to_decrypt must be text len */
@@ -2131,13 +2133,12 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 	struct tls_msg *tlm;
 	struct sk_buff *skb;
 	ssize_t copied = 0;
-	int err = 0;
-	long timeo;
 	int chunk;
+	int err;
 
-	timeo = tls_rx_reader_lock(sk, ctx, flags & SPLICE_F_NONBLOCK);
-	if (timeo < 0)
-		return timeo;
+	err = tls_rx_reader_lock(sk, ctx, flags & SPLICE_F_NONBLOCK);
+	if (err < 0)
+		return err;
 
 	if (!skb_queue_empty(&ctx->rx_list)) {
 		skb = __skb_dequeue(&ctx->rx_list);
@@ -2145,7 +2146,7 @@ ssize_t tls_sw_splice_read(struct socket *sock,  loff_t *ppos,
 		struct tls_decrypt_arg darg;
 
 		err = tls_rx_rec_wait(sk, NULL, flags & SPLICE_F_NONBLOCK,
-				      true, timeo);
+				      true);
 		if (err <= 0)
 			goto splice_read_end;
 

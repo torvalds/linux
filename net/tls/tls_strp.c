@@ -480,7 +480,7 @@ void tls_strp_done(struct tls_strparser *strp)
 
 int __init tls_strp_dev_init(void)
 {
-	tls_strp_wq = create_singlethread_workqueue("kstrp");
+	tls_strp_wq = create_workqueue("tls-strp");
 	if (unlikely(!tls_strp_wq))
 		return -ENOMEM;
 
