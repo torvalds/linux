@@ -3210,14 +3210,13 @@ out_error:
 }
 
 static int
-__xfs_log_force_lsn(
-	struct xfs_mount	*mp,
+xlog_force_lsn(
+	struct xlog		*log,
 	xfs_lsn_t		lsn,
 	uint			flags,
 	int			*log_flushed,
 	bool			already_slept)
 {
-	struct xlog		*log = mp->m_log;
 	struct xlog_in_core	*iclog;
 
 	spin_lock(&log->l_icloglock);
@@ -3250,8 +3249,6 @@ __xfs_log_force_lsn(
 		if (!already_slept &&
 		    (iclog->ic_prev->ic_state == XLOG_STATE_WANT_SYNC ||
 		     iclog->ic_prev->ic_state == XLOG_STATE_SYNCING)) {
-			XFS_STATS_INC(mp, xs_log_force_sleep);
-
 			xlog_wait(&iclog->ic_prev->ic_write_wait,
 					&log->l_icloglock);
 			return -EAGAIN;
@@ -3289,25 +3286,29 @@ out_error:
  * to disk, that thread will wake up all threads waiting on the queue.
  */
 int
-xfs_log_force_lsn(
+xfs_log_force_seq(
 	struct xfs_mount	*mp,
-	xfs_lsn_t		lsn,
+	xfs_csn_t		seq,
 	uint			flags,
 	int			*log_flushed)
 {
+	struct xlog		*log = mp->m_log;
+	xfs_lsn_t		lsn;
 	int			ret;
-	ASSERT(lsn != 0);
+	ASSERT(seq != 0);
 
 	XFS_STATS_INC(mp, xs_log_force);
-	trace_xfs_log_force(mp, lsn, _RET_IP_);
+	trace_xfs_log_force(mp, seq, _RET_IP_);
 
-	lsn = xlog_cil_force_lsn(mp->m_log, lsn);
+	lsn = xlog_cil_force_seq(log, seq);
 	if (lsn == NULLCOMMITLSN)
 		return 0;
 
-	ret = __xfs_log_force_lsn(mp, lsn, flags, log_flushed, false);
-	if (ret == -EAGAIN)
-		ret = __xfs_log_force_lsn(mp, lsn, flags, log_flushed, true);
+	ret = xlog_force_lsn(log, lsn, flags, log_flushed, false);
+	if (ret == -EAGAIN) {
+		XFS_STATS_INC(mp, xs_log_force_sleep);
+		ret = xlog_force_lsn(log, lsn, flags, log_flushed, true);
+	}
 	return ret;
 }
 

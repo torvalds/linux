@@ -118,8 +118,8 @@ xfs_dir_fsync(
 	return xfs_log_force_inode(ip);
 }
 
-static xfs_lsn_t
-xfs_fsync_lsn(
+static xfs_csn_t
+xfs_fsync_seq(
 	struct xfs_inode	*ip,
 	bool			datasync)
 {
@@ -127,7 +127,7 @@ xfs_fsync_lsn(
 		return 0;
 	if (datasync && !(ip->i_itemp->ili_fsync_fields & ~XFS_ILOG_TIMESTAMP))
 		return 0;
-	return ip->i_itemp->ili_last_lsn;
+	return ip->i_itemp->ili_commit_seq;
 }
 
 /*
@@ -150,12 +150,12 @@ xfs_fsync_flush_log(
 	int			*log_flushed)
 {
 	int			error = 0;
-	xfs_lsn_t		lsn;
+	xfs_csn_t		seq;
 
 	xfs_ilock(ip, XFS_ILOCK_SHARED);
-	lsn = xfs_fsync_lsn(ip, datasync);
-	if (lsn) {
-		error = xfs_log_force_lsn(ip->i_mount, lsn, XFS_LOG_SYNC,
+	seq = xfs_fsync_seq(ip, datasync);
+	if (seq) {
+		error = xfs_log_force_seq(ip->i_mount, seq, XFS_LOG_SYNC,
 					  log_flushed);
 
 		spin_lock(&ip->i_itemp->ili_lock);
