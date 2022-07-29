@@ -140,6 +140,11 @@
 #include <linux/init.h>
 #include <linux/slab.h>
 
+#ifdef CONFIG_DA_MON_EVENTS
+#define CREATE_TRACE_POINTS
+#include <trace/events/rv.h>
+#endif
+
 #include "rv.h"
 
 DEFINE_MUTEX(rv_interface_lock);

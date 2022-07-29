@@ -7,7 +7,16 @@
 #ifndef _LINUX_RV_H
 #define _LINUX_RV_H
 
+#define MAX_DA_NAME_LEN	24
+
 #ifdef CONFIG_RV
+/*
+ * Deterministic automaton per-object variables.
+ */
+struct da_monitor {
+	bool		monitoring;
+	unsigned int	curr_state;
+};
 
 /*
  * Per-task RV monitors count. Nowadays fixed in RV_PER_TASK_MONITORS.
@@ -22,6 +31,7 @@
  * Futher monitor types are expected, so make this a union.
  */
 union rv_task_monitor {
+	struct da_monitor da_mon;
 };
 
 #ifdef CONFIG_RV_REACTORS

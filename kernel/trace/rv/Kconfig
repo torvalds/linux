@@ -1,5 +1,16 @@
 # SPDX-License-Identifier: GPL-2.0-only
 #
+config DA_MON_EVENTS
+	bool
+
+config DA_MON_EVENTS_IMPLICIT
+	select DA_MON_EVENTS
+	bool
+
+config DA_MON_EVENTS_ID
+	select DA_MON_EVENTS
+	bool
+
 menuconfig RV
 	bool "Runtime Verification"
 	depends on TRACING
