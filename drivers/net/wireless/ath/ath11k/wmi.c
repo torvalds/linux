@@ -129,8 +129,6 @@ static const struct wmi_tlv_policy wmi_tlv_policies[] = {
 		= { .min_len = sizeof(struct wmi_peer_assoc_conf_event) },
 	[WMI_TAG_STATS_EVENT]
 		= { .min_len = sizeof(struct wmi_stats_event) },
-	[WMI_TAG_RFKILL_EVENT] = {
-		.min_len = sizeof(struct wmi_rfkill_state_change_ev) },
 	[WMI_TAG_PDEV_CTL_FAILSAFE_CHECK_EVENT]
 		= { .min_len = sizeof(struct wmi_pdev_ctl_failsafe_chk_event) },
 	[WMI_TAG_HOST_SWFDA_EVENT] = {
@@ -532,8 +530,6 @@ static int ath11k_pull_service_ready_tlv(struct ath11k_base *ab,
 	cap->txrx_chainmask = ev->txrx_chainmask;
 	cap->default_dbs_hw_mode_index = ev->default_dbs_hw_mode_index;
 	cap->num_msdu_desc = ev->num_msdu_desc;
-
-	ath11k_dbg(ab, ATH11K_DBG_WMI, "wmi sys cap info 0x%x\n", cap->sys_cap_info);
 
 	return 0;
 }
@@ -7566,40 +7562,6 @@ exit:
 	kfree(tb);
 }
 
-static void ath11k_rfkill_state_change_event(struct ath11k_base *ab,
-					     struct sk_buff *skb)
-{
-	const struct wmi_rfkill_state_change_ev *ev;
-	const void **tb;
-	int ret;
-
-	tb = ath11k_wmi_tlv_parse_alloc(ab, skb->data, skb->len, GFP_ATOMIC);
-	if (IS_ERR(tb)) {
-		ret = PTR_ERR(tb);
-		ath11k_warn(ab, "failed to parse tlv: %d\n", ret);
-		return;
-	}
-
-	ev = tb[WMI_TAG_RFKILL_EVENT];
-	if (!ev) {
-		kfree(tb);
-		return;
-	}
-
-	ath11k_dbg(ab, ATH11K_DBG_MAC,
-		   "wmi tlv rfkill state change gpio %d type %d radio_state %d\n",
-		   ev->gpio_pin_num,
-		   ev->int_type,
-		   ev->radio_state);
-
-	spin_lock_bh(&ab->base_lock);
-	ab->rfkill_radio_on = (ev->radio_state == WMI_RFKILL_RADIO_STATE_ON);
-	spin_unlock_bh(&ab->base_lock);
-
-	queue_work(ab->workqueue, &ab->rfkill_work);
-	kfree(tb);
-}
-
 static void
 ath11k_wmi_pdev_temperature_event(struct ath11k_base *ab,
 				  struct sk_buff *skb)
@@ -7994,9 +7956,6 @@ static void ath11k_wmi_tlv_op_rx(struct ath11k_base *ab, struct sk_buff *skb)
 		break;
 	case WMI_11D_NEW_COUNTRY_EVENTID:
 		ath11k_reg_11d_new_cc_event(ab, skb);
-		break;
-	case WMI_RFKILL_STATE_CHANGE_EVENTID:
-		ath11k_rfkill_state_change_event(ab, skb);
 		break;
 	case WMI_DIAG_EVENTID:
 		ath11k_wmi_diag_event(ab, skb);

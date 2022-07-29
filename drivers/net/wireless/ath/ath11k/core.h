@@ -929,10 +929,6 @@ struct ath11k_base {
 
 	struct ath11k_dbring_cap *db_caps;
 	u32 num_db_cap;
-	struct work_struct rfkill_work;
-
-	/* true means radio is on */
-	bool rfkill_radio_on;
 
 	/* To synchronize 11d scan vdev id */
 	struct mutex vdev_id_11d_lock;

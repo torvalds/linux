@@ -140,8 +140,53 @@ ath11k_ahb_get_msi_irq_wcn6750(struct ath11k_base *ab, unsigned int vector)
 	return ab->pci.msi.irqs[vector];
 }
 
+static inline u32
+ath11k_ahb_get_window_start_wcn6750(struct ath11k_base *ab, u32 offset)
+{
+	u32 window_start = 0;
+
+	/* If offset lies within DP register range, use 1st window */
+	if ((offset ^ HAL_SEQ_WCSS_UMAC_OFFSET) < ATH11K_PCI_WINDOW_RANGE_MASK)
+		window_start = ATH11K_PCI_WINDOW_START;
+	/* If offset lies within CE register range, use 2nd window */
+	else if ((offset ^ HAL_SEQ_WCSS_UMAC_CE0_SRC_REG(ab)) <
+		 ATH11K_PCI_WINDOW_RANGE_MASK)
+		window_start = 2 * ATH11K_PCI_WINDOW_START;
+
+	return window_start;
+}
+
+static void
+ath11k_ahb_window_write32_wcn6750(struct ath11k_base *ab, u32 offset, u32 value)
+{
+	u32 window_start;
+
+	/* WCN6750 uses static window based register access*/
+	window_start = ath11k_ahb_get_window_start_wcn6750(ab, offset);
+
+	iowrite32(value, ab->mem + window_start +
+		  (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
+}
+
+static u32 ath11k_ahb_window_read32_wcn6750(struct ath11k_base *ab, u32 offset)
+{
+	u32 window_start;
+	u32 val;
+
+	/* WCN6750 uses static window based register access */
+	window_start = ath11k_ahb_get_window_start_wcn6750(ab, offset);
+
+	val = ioread32(ab->mem + window_start +
+		       (offset & ATH11K_PCI_WINDOW_RANGE_MASK));
+	return val;
+}
+
 static const struct ath11k_pci_ops ath11k_ahb_pci_ops_wcn6750 = {
+	.wakeup = NULL,
+	.release = NULL,
 	.get_msi_irq = ath11k_ahb_get_msi_irq_wcn6750,
+	.window_write32 = ath11k_ahb_window_write32_wcn6750,
+	.window_read32 = ath11k_ahb_window_read32_wcn6750,
 };
 
 static inline u32 ath11k_ahb_read32(struct ath11k_base *ab, u32 offset)
@@ -971,10 +1016,15 @@ static int ath11k_ahb_probe(struct platform_device *pdev)
 	}
 
 	ab->hif.ops = hif_ops;
-	ab->pci.ops = pci_ops;
 	ab->pdev = pdev;
 	ab->hw_rev = hw_rev;
 	platform_set_drvdata(pdev, ab);
+
+	ret = ath11k_pcic_register_pci_ops(ab, pci_ops);
+	if (ret) {
+		ath11k_err(ab, "failed to register PCI ops: %d\n", ret);
+		goto err_core_free;
+	}
 
 	ret = ath11k_core_pre_init(ab);
 	if (ret)
