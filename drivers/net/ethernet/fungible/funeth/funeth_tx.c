@@ -71,6 +71,33 @@ static unsigned int tx_req_ndesc(const struct fun_eth_tx_req *req)
 	return DIV_ROUND_UP(req->len8, FUNETH_SQE_SIZE / 8);
 }
 
+/* Write a gather list to the Tx descriptor at @req from @ngle address/length
+ * pairs.
+ */
+static struct fun_dataop_gl *fun_write_gl(const struct funeth_txq *q,
+					  struct fun_eth_tx_req *req,
+					  const dma_addr_t *addrs,
+					  const unsigned int *lens,
+					  unsigned int ngle)
+{
+	struct fun_dataop_gl *gle;
+	unsigned int i;
+
+	req->len8 = (sizeof(*req) + ngle * sizeof(*gle)) / 8;
+
+	for (i = 0, gle = (struct fun_dataop_gl *)req->dataop.imm;
+	     i < ngle && txq_to_end(q, gle); i++, gle++)
+		fun_dataop_gl_init(gle, 0, 0, lens[i], addrs[i]);
+
+	if (txq_to_end(q, gle) == 0) {
+		gle = (struct fun_dataop_gl *)q->desc;
+		for ( ; i < ngle; i++, gle++)
+			fun_dataop_gl_init(gle, 0, 0, lens[i], addrs[i]);
+	}
+
+	return gle;
+}
+
 static __be16 tcp_hdr_doff_flags(const struct tcphdr *th)
 {
 	return *(__be16 *)&tcp_flag_word(th);
@@ -129,8 +156,8 @@ static unsigned int write_pkt_desc(struct sk_buff *skb, struct funeth_txq *q,
 	struct fun_eth_tx_req *req;
 	struct fun_dataop_gl *gle;
 	const struct tcphdr *th;
-	unsigned int ngle, i;
 	unsigned int l4_hlen;
+	unsigned int ngle;
 	u16 flags;
 
 	if (unlikely(map_skb(skb, q->dma_dev, addrs, lens))) {
@@ -243,18 +270,9 @@ static unsigned int write_pkt_desc(struct sk_buff *skb, struct funeth_txq *q,
 	}
 
 	ngle = shinfo->nr_frags + 1;
-	req->len8 = (sizeof(*req) + ngle * sizeof(*gle)) / 8;
 	req->dataop = FUN_DATAOP_HDR_INIT(ngle, 0, ngle, 0, skb->len);
 
-	for (i = 0, gle = (struct fun_dataop_gl *)req->dataop.imm;
-	     i < ngle && txq_to_end(q, gle); i++, gle++)
-		fun_dataop_gl_init(gle, 0, 0, lens[i], addrs[i]);
-
-	if (txq_to_end(q, gle) == 0) {
-		gle = (struct fun_dataop_gl *)q->desc;
-		for ( ; i < ngle; i++, gle++)
-			fun_dataop_gl_init(gle, 0, 0, lens[i], addrs[i]);
-	}
+	gle = fun_write_gl(q, req, addrs, lens, ngle);
 
 	if (IS_ENABLED(CONFIG_TLS_DEVICE) && unlikely(tls_len)) {
 		struct fun_eth_tls *tls = (struct fun_eth_tls *)gle;
@@ -495,7 +513,6 @@ static unsigned int fun_xdpq_clean(struct funeth_txq *q, unsigned int budget)
 bool fun_xdp_tx(struct funeth_txq *q, struct xdp_frame *xdpf)
 {
 	struct fun_eth_tx_req *req;
-	struct fun_dataop_gl *gle;
 	unsigned int idx, len;
 	dma_addr_t dma;
 
@@ -517,7 +534,7 @@ bool fun_xdp_tx(struct funeth_txq *q, struct xdp_frame *xdpf)
 	idx = q->prod_cnt & q->mask;
 	req = fun_tx_desc_addr(q, idx);
 	req->op = FUN_ETH_OP_TX;
-	req->len8 = (sizeof(*req) + sizeof(*gle)) / 8;
+	req->len8 = 0;
 	req->flags = 0;
 	req->suboff8 = offsetof(struct fun_eth_tx_req, dataop);
 	req->repr_idn = 0;
@@ -525,8 +542,7 @@ bool fun_xdp_tx(struct funeth_txq *q, struct xdp_frame *xdpf)
 	fun_eth_offload_init(&req->offload, 0, 0, 0, 0, 0, 0, 0, 0);
 	req->dataop = FUN_DATAOP_HDR_INIT(1, 0, 1, 0, len);
 
-	gle = (struct fun_dataop_gl *)req->dataop.imm;
-	fun_dataop_gl_init(gle, 0, 0, len, dma);
+	fun_write_gl(q, req, &dma, &len, 1);
 
 	q->info[idx].xdpf = xdpf;
 
