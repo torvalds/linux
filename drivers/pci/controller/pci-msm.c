@@ -4404,6 +4404,10 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 
 	PCIE_DBG(dev, "PCIe: RC%d: entry\n", dev->rc_idx);
 
+	ret = msm_pcie_get_reg(dev);
+	if (ret)
+		return ret;
+
 	dev->icc_path = of_icc_get(&pdev->dev, "icc_path");
 	if (IS_ERR_OR_NULL(dev->icc_path)) {
 		ret = dev->icc_path ? PTR_ERR(dev->icc_path) : -EINVAL;
@@ -4411,7 +4415,8 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 		PCIE_ERR(dev, "PCIe: RC%d: failed to get ICC path: %d\n",
 			dev->rc_idx, ret);
 
-		return ret;
+		if (!dev->rumi)
+			return ret;
 	}
 
 	for (i = 0; i < MSM_PCIE_MAX_IRQ; i++) {
@@ -4458,10 +4463,6 @@ static int msm_pcie_get_resources(struct msm_pcie_dev_t *dev,
 		return ret;
 
 	ret = msm_pcie_get_gpio(dev);
-	if (ret)
-		return ret;
-
-	ret = msm_pcie_get_reg(dev);
 	if (ret)
 		return ret;
 
