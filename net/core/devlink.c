@@ -207,6 +207,7 @@ static const struct nla_policy devlink_selftest_nl_policy[DEVLINK_ATTR_SELFTEST_
 
 static DEFINE_XARRAY_FLAGS(devlinks, XA_FLAGS_ALLOC);
 #define DEVLINK_REGISTERED XA_MARK_1
+#define DEVLINK_UNREGISTERING XA_MARK_2
 
 /* devlink instances are open to the access from the user space after
  * devlink_register() call. Such logical barrier allows us to have certain
@@ -305,6 +306,14 @@ retry:
 	devlink = xa_find_fn(&devlinks, indexp, ULONG_MAX, DEVLINK_REGISTERED);
 	if (!devlink)
 		goto unlock;
+
+	/* In case devlink_unregister() was already called and "unregistering"
+	 * mark was set, do not allow to get a devlink reference here.
+	 * This prevents live-lock of devlink_unregister() wait for completion.
+	 */
+	if (xa_get_mark(&devlinks, *indexp, DEVLINK_UNREGISTERING))
+		goto retry;
+
 	/* For a possible retry, the xa_find_after() should be always used */
 	xa_find_fn = xa_find_after;
 	if (!devlink_try_get(devlink))
@@ -9809,11 +9818,13 @@ void devlink_unregister(struct devlink *devlink)
 	ASSERT_DEVLINK_REGISTERED(devlink);
 	/* Make sure that we are in .remove() routine */
 
+	xa_set_mark(&devlinks, devlink->index, DEVLINK_UNREGISTERING);
 	devlink_put(devlink);
 	wait_for_completion(&devlink->comp);
 
 	devlink_notify_unregister(devlink);
 	xa_clear_mark(&devlinks, devlink->index, DEVLINK_REGISTERED);
+	xa_clear_mark(&devlinks, devlink->index, DEVLINK_UNREGISTERING);
 }
 EXPORT_SYMBOL_GPL(devlink_unregister);
 
