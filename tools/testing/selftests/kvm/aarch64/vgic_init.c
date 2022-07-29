@@ -663,7 +663,7 @@ int test_kvm_device(uint32_t gic_dev_type)
 
 	if (!__kvm_test_create_device(v.vm, other)) {
 		ret = __kvm_test_create_device(v.vm, other);
-		TEST_ASSERT(ret && errno == EINVAL,
+		TEST_ASSERT(ret && (errno == EINVAL || errno == EEXIST),
 				"create GIC device while other version exists");
 	}
 
@@ -691,6 +691,7 @@ int main(int ac, char **av)
 {
 	int ret;
 	int pa_bits;
+	int cnt_impl = 0;
 
 	pa_bits = vm_guest_mode_params[VM_MODE_DEFAULT].pa_bits;
 	max_phys_size = 1ULL << pa_bits;
@@ -699,13 +700,19 @@ int main(int ac, char **av)
 	if (!ret) {
 		pr_info("Running GIC_v3 tests.\n");
 		run_tests(KVM_DEV_TYPE_ARM_VGIC_V3);
-		return 0;
+		cnt_impl++;
 	}
 
 	ret = test_kvm_device(KVM_DEV_TYPE_ARM_VGIC_V2);
-	__TEST_REQUIRE(!ret, "No GICv2 nor GICv3 support");
+	if (!ret) {
+		pr_info("Running GIC_v2 tests.\n");
+		run_tests(KVM_DEV_TYPE_ARM_VGIC_V2);
+		cnt_impl++;
+	}
 
-	pr_info("Running GIC_v2 tests.\n");
-	run_tests(KVM_DEV_TYPE_ARM_VGIC_V2);
+	if (!cnt_impl) {
+		print_skip("No GICv2 nor GICv3 support");
+		exit(KSFT_SKIP);
+	}
 	return 0;
 }

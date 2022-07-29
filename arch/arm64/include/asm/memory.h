@@ -114,6 +114,14 @@
 #define OVERFLOW_STACK_SIZE	SZ_4K
 
 /*
+ * With the minimum frame size of [x29, x30], exactly half the combined
+ * sizes of the hyp and overflow stacks is the maximum size needed to
+ * save the unwinded stacktrace; plus an additional entry to delimit the
+ * end.
+ */
+#define NVHE_STACKTRACE_SIZE	((OVERFLOW_STACK_SIZE + PAGE_SIZE) / 2 + sizeof(long))
+
+/*
  * Alignment of kernel segments (e.g. .text, .data).
  *
  *  4 KB granule:  16 level 3 entries, with contiguous bit
