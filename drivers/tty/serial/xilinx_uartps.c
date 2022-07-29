@@ -1420,9 +1420,17 @@ static int __maybe_unused cdns_runtime_resume(struct device *dev)
 {
 	struct uart_port *port = dev_get_drvdata(dev);
 	struct cdns_uart *cdns_uart = port->private_data;
+	int ret;
 
-	clk_enable(cdns_uart->pclk);
-	clk_enable(cdns_uart->uartclk);
+	ret = clk_enable(cdns_uart->pclk);
+	if (ret)
+		return ret;
+
+	ret = clk_enable(cdns_uart->uartclk);
+	if (ret) {
+		clk_disable(cdns_uart->pclk);
+		return ret;
+	}
 	return 0;
 };
 
