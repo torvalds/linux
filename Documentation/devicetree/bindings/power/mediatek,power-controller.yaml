@@ -19,7 +19,7 @@ description: |
 
 properties:
   $nodename:
-    const: power-controller
+    pattern: '^power-controller(@[0-9a-f]+)?$'
 
   compatible:
     enum:
