@@ -214,12 +214,10 @@ void kvm_riscv_vcpu_timer_restore(struct kvm_vcpu *vcpu)
 #endif
 }
 
-int kvm_riscv_guest_timer_init(struct kvm *kvm)
+void kvm_riscv_guest_timer_init(struct kvm *kvm)
 {
 	struct kvm_guest_timer *gt = &kvm->arch.timer;
 
 	riscv_cs_get_mult_shift(&gt->nsec_mult, &gt->nsec_shift);
 	gt->time_delta = -get_cycles64();
-
-	return 0;
 }
