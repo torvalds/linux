@@ -1,0 +1,12 @@
+# SPDX-License-Identifier: GPL-2.0-only
+#
+menuconfig RV
+	bool "Runtime Verification"
+	depends on TRACING
+	help
+	  Enable the kernel runtime verification infrastructure. RV is a
+	  lightweight (yet rigorous) method that complements classical
+	  exhaustive verification techniques (such as model checking and
+	  theorem proving). RV works by analyzing the trace of the system's
+	  actual execution, comparing it against a formal specification of
+	  the system behavior.
