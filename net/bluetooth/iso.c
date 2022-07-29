@@ -44,6 +44,9 @@ static void iso_sock_kill(struct sock *sk);
 /* ----- ISO socket info ----- */
 #define iso_pi(sk) ((struct iso_pinfo *)sk)
 
+#define EIR_SERVICE_DATA_LENGTH 4
+#define BASE_MAX_LENGTH (HCI_MAX_PER_AD_LENGTH - EIR_SERVICE_DATA_LENGTH)
+
 struct iso_pinfo {
 	struct bt_sock		bt;
 	bdaddr_t		src;
@@ -57,7 +60,7 @@ struct iso_pinfo {
 	__u32			flags;
 	struct bt_iso_qos	qos;
 	__u8			base_len;
-	__u8			base[HCI_MAX_PER_AD_LENGTH];
+	__u8			base[BASE_MAX_LENGTH];
 	struct iso_conn		*conn;
 };
 
