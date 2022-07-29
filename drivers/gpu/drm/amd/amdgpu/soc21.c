@@ -598,6 +598,8 @@ static int soc21_common_early_init(void *handle)
 			AMD_CG_SUPPORT_GFX_PERF_CLK |
 			AMD_CG_SUPPORT_MC_MGCG |
 			AMD_CG_SUPPORT_MC_LS |
+			AMD_CG_SUPPORT_HDP_MGCG |
+			AMD_CG_SUPPORT_HDP_LS |
 			AMD_CG_SUPPORT_VCN_MGCG |
 			AMD_CG_SUPPORT_JPEG_MGCG;
 		adev->pg_flags =
@@ -701,6 +703,10 @@ static int soc21_common_set_clockgating_state(void *handle,
 				state == AMD_CG_STATE_GATE);
 		adev->nbio.funcs->update_medium_grain_light_sleep(adev,
 				state == AMD_CG_STATE_GATE);
+		adev->hdp.funcs->update_clock_gating(adev,
+				state == AMD_CG_STATE_GATE);
+		break;
+	case IP_VERSION(7, 7, 0):
 		adev->hdp.funcs->update_clock_gating(adev,
 				state == AMD_CG_STATE_GATE);
 		break;
