@@ -667,7 +667,7 @@ int thermal_zone_bind_cooling_device(struct thermal_zone_device *tz,
 	dev->target = THERMAL_NO_TARGET;
 	dev->weight = weight;
 
-	result = ida_simple_get(&tz->ida, 0, 0, GFP_KERNEL);
+	result = ida_alloc(&tz->ida, GFP_KERNEL);
 	if (result < 0)
 		goto free_mem;
 
@@ -721,7 +721,7 @@ remove_trip_file:
 remove_symbol_link:
 	sysfs_remove_link(&tz->device.kobj, dev->name);
 release_ida:
-	ida_simple_remove(&tz->ida, dev->id);
+	ida_free(&tz->ida, dev->id);
 free_mem:
 	kfree(dev);
 	return result;
@@ -768,7 +768,7 @@ unbind:
 	device_remove_file(&tz->device, &pos->weight_attr);
 	device_remove_file(&tz->device, &pos->attr);
 	sysfs_remove_link(&tz->device.kobj, pos->name);
-	ida_simple_remove(&tz->ida, pos->id);
+	ida_free(&tz->ida, pos->id);
 	kfree(pos);
 	return 0;
 }
@@ -901,7 +901,7 @@ __thermal_cooling_device_register(struct device_node *np,
 	if (!cdev)
 		return ERR_PTR(-ENOMEM);
 
-	ret = ida_simple_get(&thermal_cdev_ida, 0, 0, GFP_KERNEL);
+	ret = ida_alloc(&thermal_cdev_ida, GFP_KERNEL);
 	if (ret < 0)
 		goto out_kfree_cdev;
 	cdev->id = ret;
@@ -952,7 +952,7 @@ out_kfree_type:
 	put_device(&cdev->device);
 	cdev = NULL;
 out_ida_remove:
-	ida_simple_remove(&thermal_cdev_ida, id);
+	ida_free(&thermal_cdev_ida, id);
 out_kfree_cdev:
 	kfree(cdev);
 	return ERR_PTR(ret);
@@ -1111,7 +1111,7 @@ void thermal_cooling_device_unregister(struct thermal_cooling_device *cdev)
 
 	mutex_unlock(&thermal_list_lock);
 
-	ida_simple_remove(&thermal_cdev_ida, cdev->id);
+	ida_free(&thermal_cdev_ida, cdev->id);
 	device_del(&cdev->device);
 	thermal_cooling_device_destroy_sysfs(cdev);
 	kfree(cdev->type);
@@ -1228,7 +1228,7 @@ thermal_zone_device_register(const char *type, int trips, int mask,
 	INIT_LIST_HEAD(&tz->thermal_instances);
 	ida_init(&tz->ida);
 	mutex_init(&tz->lock);
-	id = ida_simple_get(&thermal_tz_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&thermal_tz_ida, GFP_KERNEL);
 	if (id < 0) {
 		result = id;
 		goto free_tz;
@@ -1319,7 +1319,7 @@ release_device:
 	put_device(&tz->device);
 	tz = NULL;
 remove_id:
-	ida_simple_remove(&thermal_tz_ida, id);
+	ida_free(&thermal_tz_ida, id);
 free_tz:
 	kfree(tz);
 	return ERR_PTR(result);
@@ -1379,7 +1379,7 @@ void thermal_zone_device_unregister(struct thermal_zone_device *tz)
 	thermal_set_governor(tz, NULL);
 
 	thermal_remove_hwmon_sysfs(tz);
-	ida_simple_remove(&thermal_tz_ida, tz->id);
+	ida_free(&thermal_tz_ida, tz->id);
 	ida_destroy(&tz->ida);
 	mutex_destroy(&tz->lock);
 	device_unregister(&tz->device);
