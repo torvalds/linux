@@ -123,6 +123,11 @@ CONTENTION OPTIONS
 --threads::
 	Show per-thread lock contention stat
 
+-b::
+--use-bpf::
+	Use BPF program to collect lock contention stats instead of
+	using the input data.
+
 
 SEE ALSO
 --------

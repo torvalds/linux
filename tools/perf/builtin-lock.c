@@ -10,6 +10,7 @@
 #include "util/thread.h"
 #include "util/header.h"
 #include "util/callchain.h"
+#include "util/lock-contention.h"
 
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
@@ -47,115 +48,17 @@ static struct hlist_head lockhash_table[LOCKHASH_SIZE];
 #define __lockhashfn(key)	hash_long((unsigned long)key, LOCKHASH_BITS)
 #define lockhashentry(key)	(lockhash_table + __lockhashfn((key)))
 
-struct lock_stat {
-	struct hlist_node	hash_entry;
-	struct rb_node		rb;		/* used for sorting */
-
-	u64			addr;		/* address of lockdep_map, used as ID */
-	char			*name;		/* for strcpy(), we cannot use const */
-
-	unsigned int		nr_acquire;
-	unsigned int		nr_acquired;
-	unsigned int		nr_contended;
-	unsigned int		nr_release;
-
-	union {
-		unsigned int	nr_readlock;
-		unsigned int	flags;
-	};
-	unsigned int		nr_trylock;
-
-	/* these times are in nano sec. */
-	u64                     avg_wait_time;
-	u64			wait_time_total;
-	u64			wait_time_min;
-	u64			wait_time_max;
-
-	int			broken; /* flag of blacklist */
-	int			combined;
-};
-
-/*
- * States of lock_seq_stat
- *
- * UNINITIALIZED is required for detecting first event of acquire.
- * As the nature of lock events, there is no guarantee
- * that the first event for the locks are acquire,
- * it can be acquired, contended or release.
- */
-#define SEQ_STATE_UNINITIALIZED      0	       /* initial state */
-#define SEQ_STATE_RELEASED	1
-#define SEQ_STATE_ACQUIRING	2
-#define SEQ_STATE_ACQUIRED	3
-#define SEQ_STATE_READ_ACQUIRED	4
-#define SEQ_STATE_CONTENDED	5
-
-/*
- * MAX_LOCK_DEPTH
- * Imported from include/linux/sched.h.
- * Should this be synchronized?
- */
-#define MAX_LOCK_DEPTH 48
-
-/*
- * struct lock_seq_stat:
- * Place to put on state of one lock sequence
- * 1) acquire -> acquired -> release
- * 2) acquire -> contended -> acquired -> release
- * 3) acquire (with read or try) -> release
- * 4) Are there other patterns?
- */
-struct lock_seq_stat {
-	struct list_head        list;
-	int			state;
-	u64			prev_event_time;
-	u64                     addr;
-
-	int                     read_count;
-};
-
-struct thread_stat {
-	struct rb_node		rb;
-
-	u32                     tid;
-	struct list_head        seq_list;
-};
-
 static struct rb_root		thread_stats;
 
 static bool combine_locks;
 static bool show_thread_stats;
+static bool use_bpf;
 
 static enum {
 	LOCK_AGGR_ADDR,
 	LOCK_AGGR_TASK,
 	LOCK_AGGR_CALLER,
 } aggr_mode = LOCK_AGGR_ADDR;
-
-/*
- * CONTENTION_STACK_DEPTH
- * Number of stack trace entries to find callers
- */
-#define CONTENTION_STACK_DEPTH  8
-
-/*
- * CONTENTION_STACK_SKIP
- * Number of stack trace entries to skip when finding callers.
- * The first few entries belong to the locking implementation itself.
- */
-#define CONTENTION_STACK_SKIP  3
-
-/*
- * flags for lock:contention_begin
- * Imported from include/trace/events/lock.h.
- */
-#define LCB_F_SPIN	(1U << 0)
-#define LCB_F_READ	(1U << 1)
-#define LCB_F_WRITE	(1U << 2)
-#define LCB_F_RT	(1U << 3)
-#define LCB_F_PERCPU	(1U << 4)
-#define LCB_F_MUTEX	(1U << 5)
-
 
 static u64 sched_text_start;
 static u64 sched_text_end;
@@ -947,7 +850,7 @@ end:
 	return 0;
 }
 
-static bool is_lock_function(struct machine *machine, u64 addr)
+bool is_lock_function(struct machine *machine, u64 addr)
 {
 	if (!sched_text_start) {
 		struct map *kmap;
@@ -1671,6 +1574,10 @@ out_delete:
 	return err;
 }
 
+static void sighandler(int sig __maybe_unused)
+{
+}
+
 static int __cmd_contention(void)
 {
 	int err = -EINVAL;
@@ -1686,7 +1593,7 @@ static int __cmd_contention(void)
 		.force = force,
 	};
 
-	session = perf_session__new(&data, &eops);
+	session = perf_session__new(use_bpf ? NULL : &data, &eops);
 	if (IS_ERR(session)) {
 		pr_err("Initializing perf session failed\n");
 		return PTR_ERR(session);
@@ -1696,17 +1603,30 @@ static int __cmd_contention(void)
 	symbol_conf.sort_by_name = true;
 	symbol__init(&session->header.env);
 
-	if (!perf_session__has_traces(session, "lock record"))
-		goto out_delete;
+	if (use_bpf) {
+		if (lock_contention_prepare() < 0) {
+			pr_err("lock contention BPF setup failed\n");
+			return -1;
+		}
 
-	if (!evlist__find_evsel_by_str(session->evlist, "lock:contention_begin")) {
-		pr_err("lock contention evsel not found\n");
-		goto out_delete;
-	}
+		signal(SIGINT, sighandler);
+		signal(SIGCHLD, sighandler);
+		signal(SIGTERM, sighandler);
+	} else {
+		if (!perf_session__has_traces(session, "lock record"))
+			goto out_delete;
 
-	if (perf_session__set_tracepoints_handlers(session, contention_tracepoints)) {
-		pr_err("Initializing perf session tracepoint handlers failed\n");
-		goto out_delete;
+		if (!evlist__find_evsel_by_str(session->evlist,
+					       "lock:contention_begin")) {
+			pr_err("lock contention evsel not found\n");
+			goto out_delete;
+		}
+
+		if (perf_session__set_tracepoints_handlers(session,
+						contention_tracepoints)) {
+			pr_err("Initializing perf session tracepoint handlers failed\n");
+			goto out_delete;
+		}
 	}
 
 	if (setup_output_field(true, output_fields))
@@ -1720,9 +1640,19 @@ static int __cmd_contention(void)
 	else
 		aggr_mode = LOCK_AGGR_CALLER;
 
-	err = perf_session__process_events(session);
-	if (err)
-		goto out_delete;
+	if (use_bpf) {
+		lock_contention_start();
+
+		/* wait for signal */
+		pause();
+
+		lock_contention_stop();
+		lock_contention_read(&session->machines.host, &lockhash_table[0]);
+	} else {
+		err = perf_session__process_events(session);
+		if (err)
+			goto out_delete;
+	}
 
 	setup_pager();
 
@@ -1730,6 +1660,7 @@ static int __cmd_contention(void)
 	print_contention_result();
 
 out_delete:
+	lock_contention_finish();
 	perf_session__delete(session);
 	return err;
 }
@@ -1853,13 +1784,14 @@ int cmd_lock(int argc, const char **argv)
 	OPT_PARENT(lock_options)
 	};
 
-	const struct option contention_options[] = {
+	struct option contention_options[] = {
 	OPT_STRING('k', "key", &sort_key, "wait_total",
 		    "key for sorting (contended / wait_total / wait_max / wait_min / avg_wait)"),
 	OPT_STRING('F', "field", &output_fields, "contended,wait_total,wait_max,avg_wait",
 		    "output fields (contended / wait_total / wait_max / wait_min / avg_wait)"),
 	OPT_BOOLEAN('t', "threads", &show_thread_stats,
 		    "show per-thread lock stats"),
+	OPT_BOOLEAN('b', "use-bpf", &use_bpf, "use BPF program to collect lock contention stats"),
 	OPT_PARENT(lock_options)
 	};
 
@@ -1922,6 +1854,10 @@ int cmd_lock(int argc, const char **argv)
 		sort_key = "wait_total";
 		output_fields = "contended,wait_total,wait_max,avg_wait";
 
+#ifndef HAVE_BPF_SKEL
+		set_option_nobuild(contention_options, 'b', "use-bpf",
+				   "no BUILD_BPF_SKEL=1", false);
+#endif
 		if (argc) {
 			argc = parse_options(argc, argv, contention_options,
 					     contention_usage, 0);
