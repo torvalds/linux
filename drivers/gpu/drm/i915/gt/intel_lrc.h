@@ -111,16 +111,6 @@ enum {
 #define XEHP_SW_COUNTER_SHIFT			58
 #define XEHP_SW_COUNTER_WIDTH			6
 
-static inline u32 lrc_desc_priority(int prio)
-{
-	if (prio > I915_PRIORITY_NORMAL)
-		return GEN12_CTX_PRIORITY_HIGH;
-	else if (prio < I915_PRIORITY_NORMAL)
-		return GEN12_CTX_PRIORITY_LOW;
-	else
-		return GEN12_CTX_PRIORITY_NORMAL;
-}
-
 static inline void lrc_runtime_start(struct intel_context *ce)
 {
 	struct intel_context_stats *stats = &ce->stats;

@@ -273,10 +273,17 @@ struct intel_context {
 		u8 child_index;
 		/** @guc: GuC specific members for parallel submission */
 		struct {
-			/** @wqi_head: head pointer in work queue */
+			/** @wqi_head: cached head pointer in work queue */
 			u16 wqi_head;
-			/** @wqi_tail: tail pointer in work queue */
+			/** @wqi_tail: cached tail pointer in work queue */
 			u16 wqi_tail;
+			/** @wq_head: pointer to the actual head in work queue */
+			u32 *wq_head;
+			/** @wq_tail: pointer to the actual head in work queue */
+			u32 *wq_tail;
+			/** @wq_status: pointer to the status in work queue */
+			u32 *wq_status;
+
 			/**
 			 * @parent_page: page in context state (ce->state) used
 			 * by parent for work queue, process descriptor
