@@ -1147,8 +1147,20 @@ static void cdns_uart_console_putchar(struct uart_port *port, unsigned char ch)
 		}
 		cpu_relax();
 	}
-	while (readl(port->membase + CDNS_UART_SR) & CDNS_UART_SR_TXFULL)
+
+	timeout = jiffies + msecs_to_jiffies(1000);
+	while (1) {
+		ctrl_reg = readl(port->membase + CDNS_UART_SR);
+
+		if (!(ctrl_reg & CDNS_UART_SR_TXFULL))
+			break;
+		if (time_after(jiffies, timeout)) {
+			dev_warn(port->dev,
+				 "timeout waiting for TX fifo\n");
+			return;
+		}
 		cpu_relax();
+	}
 	writel(ch, port->membase + CDNS_UART_FIFO);
 }
 
