@@ -971,9 +971,9 @@ static int imxfb_probe(struct platform_device *pdev)
 	}
 
 	fbi->regs = devm_ioremap_resource(&pdev->dev, res);
-	if (fbi->regs == NULL) {
+	if (IS_ERR(fbi->regs)) {
 		dev_err(&pdev->dev, "Cannot map frame buffer registers\n");
-		ret = -ENOMEM;
+		ret = PTR_ERR(fbi->regs);
 		goto failed_ioremap;
 	}
 
