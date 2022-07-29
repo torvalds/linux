@@ -125,6 +125,7 @@ struct walt_rq {
 	struct list_head	mvp_tasks;
 	int                     num_mvp_tasks;
 	u64			latest_clock;
+	u32			enqueue_counter;
 };
 
 struct walt_sched_cluster {
