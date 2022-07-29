@@ -4,6 +4,9 @@
 # Copyright (C) 2019-2022 Red Hat, Inc. Daniel Bristot de Oliveira <bristot@kernel.org>
 #
 # Automata object: parse an automata in dot file digraph format into a python object
+#
+# For further information, see:
+#   Documentation/trace/rv/deterministic_automata.rst
 
 import ntpath
 

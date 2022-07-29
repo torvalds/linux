@@ -7,3 +7,4 @@ Runtime Verification
    :glob:
 
    runtime-verification.rst
+   deterministic_automata.rst

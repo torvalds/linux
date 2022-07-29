@@ -9,6 +9,9 @@
 #  de Oliveira, D. B. and Cucinotta, T. and de Oliveira, R. S.
 #  "Efficient Formal Verification for the Linux Kernel." International
 #  Conference on Software Engineering and Formal Methods. Springer, Cham, 2019.
+#
+# For further information, see:
+#   Documentation/trace/rv/deterministic_automata.rst
 
 from dot2.automata import Automata
 
