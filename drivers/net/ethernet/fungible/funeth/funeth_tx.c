@@ -371,7 +371,7 @@ static u16 txq_hw_head(const struct funeth_txq *q)
 /* Unmap the Tx packet starting at the given descriptor index and
  * return the number of Tx descriptors it occupied.
  */
-static unsigned int unmap_skb(const struct funeth_txq *q, unsigned int idx)
+static unsigned int fun_unmap_pkt(const struct funeth_txq *q, unsigned int idx)
 {
 	const struct fun_eth_tx_req *req = fun_tx_desc_addr(q, idx);
 	unsigned int ngle = req->dataop.ngather;
@@ -419,7 +419,7 @@ static bool fun_txq_reclaim(struct funeth_txq *q, int budget)
 		rmb();
 
 		do {
-			unsigned int pkt_desc = unmap_skb(q, reclaim_idx);
+			unsigned int pkt_desc = fun_unmap_pkt(q, reclaim_idx);
 			struct sk_buff *skb = q->info[reclaim_idx].skb;
 
 			trace_funeth_tx_free(q, reclaim_idx, pkt_desc, head);
@@ -461,20 +461,10 @@ int fun_txq_napi_poll(struct napi_struct *napi, int budget)
 	return 0;
 }
 
-static void fun_xdp_unmap(const struct funeth_txq *q, unsigned int idx)
-{
-	const struct fun_eth_tx_req *req = fun_tx_desc_addr(q, idx);
-	const struct fun_dataop_gl *gle;
-
-	gle = (const struct fun_dataop_gl *)req->dataop.imm;
-	dma_unmap_single(q->dma_dev, be64_to_cpu(gle->sgl_data),
-			 be32_to_cpu(gle->sgl_len), DMA_TO_DEVICE);
-}
-
-/* Reclaim up to @budget completed Tx descriptors from a TX XDP queue. */
+/* Reclaim up to @budget completed Tx packets from a TX XDP queue. */
 static unsigned int fun_xdpq_clean(struct funeth_txq *q, unsigned int budget)
 {
-	unsigned int npkts = 0, head, reclaim_idx;
+	unsigned int npkts = 0, ndesc = 0, head, reclaim_idx;
 
 	for (head = txq_hw_head(q), reclaim_idx = q->cons_cnt & q->mask;
 	     head != reclaim_idx && npkts < budget; head = txq_hw_head(q)) {
@@ -486,17 +476,19 @@ static unsigned int fun_xdpq_clean(struct funeth_txq *q, unsigned int budget)
 		rmb();
 
 		do {
-			fun_xdp_unmap(q, reclaim_idx);
+			unsigned int pkt_desc = fun_unmap_pkt(q, reclaim_idx);
+
 			xdp_return_frame(q->info[reclaim_idx].xdpf);
 
-			trace_funeth_tx_free(q, reclaim_idx, 1, head);
+			trace_funeth_tx_free(q, reclaim_idx, pkt_desc, head);
 
-			reclaim_idx = (reclaim_idx + 1) & q->mask;
+			reclaim_idx = (reclaim_idx + pkt_desc) & q->mask;
+			ndesc += pkt_desc;
 			npkts++;
 		} while (reclaim_idx != head && npkts < budget);
 	}
 
-	q->cons_cnt += npkts;
+	q->cons_cnt += ndesc;
 	return npkts;
 }
 
@@ -584,7 +576,7 @@ static void fun_txq_purge(struct funeth_txq *q)
 	while (q->cons_cnt != q->prod_cnt) {
 		unsigned int idx = q->cons_cnt & q->mask;
 
-		q->cons_cnt += unmap_skb(q, idx);
+		q->cons_cnt += fun_unmap_pkt(q, idx);
 		dev_kfree_skb_any(q->info[idx].skb);
 	}
 	netdev_tx_reset_queue(q->ndq);
@@ -595,9 +587,8 @@ static void fun_xdpq_purge(struct funeth_txq *q)
 	while (q->cons_cnt != q->prod_cnt) {
 		unsigned int idx = q->cons_cnt & q->mask;
 
-		fun_xdp_unmap(q, idx);
+		q->cons_cnt += fun_unmap_pkt(q, idx);
 		xdp_return_frame(q->info[idx].xdpf);
-		q->cons_cnt++;
 	}
 }
 
