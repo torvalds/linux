@@ -7,6 +7,8 @@
 #include "common.h"
 #include "params.h"
 
+#define RKISPP_FEC_BUF_MAX 7
+
 struct rkispp_stream;
 
 /*
@@ -86,7 +88,7 @@ struct in_tnr_buf {
 
 struct in_nr_buf {
 	struct rkispp_dummy_buffer tmp_yuv;
-	struct rkispp_dummy_buffer wr[RKISPP_BUF_MAX];
+	struct rkispp_dummy_buffer wr[RKISPP_FEC_BUF_MAX];
 };
 
 struct tnr_module {
@@ -228,7 +230,6 @@ struct rkispp_vir_cpy {
 /* rkispp stream device */
 struct rkispp_stream_vdev {
 	struct rkispp_stream stream[STREAM_MAX];
-	struct rkispp_isp_buf_pool pool[RKISPP_BUF_POOL_MAX];
 	struct tnr_module tnr;
 	struct nr_module nr;
 	struct fec_module fec;

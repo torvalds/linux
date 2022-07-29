@@ -282,8 +282,8 @@ static int config_tnr(struct rkispp_device *dev)
 		fmt = dev->isp_mode & (FMT_YUV422 | FMT_FBC);
 	}
 
-	width = dev->ispp_sdev.out_fmt.width;
-	height = dev->ispp_sdev.out_fmt.height;
+	width = dev->ispp_sdev.in_fmt.width;
+	height = dev->ispp_sdev.in_fmt.height;
 	max_w = hw->max_in.w ? hw->max_in.w : width;
 	max_h = hw->max_in.h ? hw->max_in.h : height;
 	w = (fmt & FMT_FBC) ? ALIGN(max_w, 16) : max_w;
@@ -416,10 +416,18 @@ static int nr_init_buf(struct rkispp_device *dev, u32 size)
 {
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
 	struct rkispp_dummy_buffer *buf;
-	int i, ret, cnt = 0;
+	int i, ret, cnt;
 
-	if (vdev->module_ens & ISPP_MODULE_FEC)
-		cnt = vdev->is_done_early ? 1 : RKISPP_BUF_MAX;
+	switch (vdev->module_ens & ISPP_MODULE_FEC_ST) {
+	case ISPP_MODULE_FEC_ST:
+		cnt = RKISPP_FEC_BUF_MAX;
+		break;
+	case ISPP_MODULE_FEC:
+		cnt = RKISPP_BUF_MAX;
+		break;
+	default:
+		cnt = 0;
+	}
 
 	for (i = 0; i < cnt; i++) {
 		buf = &vdev->nr.buf.wr[i];
@@ -431,7 +439,7 @@ static int nr_init_buf(struct rkispp_device *dev, u32 size)
 	}
 
 	buf = &vdev->nr.buf.tmp_yuv;
-	cnt = DIV_ROUND_UP(dev->ispp_sdev.out_fmt.width, 32);
+	cnt = DIV_ROUND_UP(dev->ispp_sdev.in_fmt.width, 32);
 	buf->size = PAGE_ALIGN(cnt * 42 * 32);
 	ret = rkispp_allow_buffer(dev, buf);
 	if (ret)
@@ -468,8 +476,8 @@ static int config_nr_shp(struct rkispp_device *dev)
 		fmt = dev->isp_mode & (FMT_YUV422 | FMT_FBC);
 	}
 
-	width = dev->ispp_sdev.out_fmt.width;
-	height = dev->ispp_sdev.out_fmt.height;
+	width = dev->ispp_sdev.in_fmt.width;
+	height = dev->ispp_sdev.in_fmt.height;
 	w = width;
 	h = height;
 	max_w = hw->max_in.w ? hw->max_in.w : w;
@@ -598,7 +606,8 @@ static int config_fec(struct rkispp_device *dev)
 {
 	struct rkispp_stream_vdev *vdev;
 	struct rkispp_stream *stream = NULL;
-	u32 width, height, fmt, mult = 1;
+	u32 in_width, in_height, fmt, mult = 1;
+	u32 out_width, out_height;
 
 	vdev = &dev->stream_vdev;
 	vdev->fec.is_end = true;
@@ -612,8 +621,10 @@ static int config_fec(struct rkispp_device *dev)
 		fmt = dev->isp_mode & FMT_YUV422;
 	}
 
-	width = dev->ispp_sdev.out_fmt.width;
-	height = dev->ispp_sdev.out_fmt.height;
+	in_width = dev->ispp_sdev.in_fmt.width;
+	in_height = dev->ispp_sdev.in_fmt.height;
+	out_width = dev->ispp_sdev.out_fmt.width;
+	out_height = dev->ispp_sdev.out_fmt.height;
 
 	if (vdev->module_ens & (ISPP_MODULE_NR | ISPP_MODULE_SHP)) {
 		rkispp_write(dev, RKISPP_FEC_RD_Y_BASE,
@@ -631,8 +642,8 @@ static int config_fec(struct rkispp_device *dev)
 	if (fmt & FMT_YUYV)
 		mult = 2;
 	rkispp_set_bits(dev, RKISPP_FEC_CTRL, FMT_RD_MASK, fmt);
-	rkispp_write(dev, RKISPP_FEC_RD_VIR_STRIDE, ALIGN(width * mult, 16) >> 2);
-	rkispp_write(dev, RKISPP_FEC_DST_SIZE, height << 16 | width);
+	rkispp_write(dev, RKISPP_FEC_RD_VIR_STRIDE, ALIGN(in_width * mult, 16) >> 2);
+	rkispp_write(dev, RKISPP_FEC_PIC_SIZE, out_height << 16 | out_width);
 	rkispp_set_bits(dev, RKISPP_CTRL_QUICK, 0, GLB_FEC2SCL_EN);
 
 	if (vdev->monitor.is_en) {
@@ -640,8 +651,8 @@ static int config_fec(struct rkispp_device *dev)
 		schedule_work(&vdev->monitor.fec.work);
 	}
 	v4l2_dbg(1, rkispp_debug, &dev->v4l2_dev,
-		 "%s size:%dx%d ctrl:0x%x core_ctrl:0x%x\n",
-		 __func__, width, height,
+		 "%s size:%dx%d->%dx%d ctrl:0x%x core_ctrl:0x%x\n",
+		 __func__, in_width, in_height, out_width, out_height,
 		 rkispp_read(dev, RKISPP_FEC_CTRL),
 		 rkispp_read(dev, RKISPP_FEC_CORE_CTRL));
 	return 0;

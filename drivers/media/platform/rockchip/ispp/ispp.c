@@ -139,10 +139,15 @@ static int rkispp_sd_get_fmt(struct v4l2_subdev *sd,
 			ispp_fmt = find_fmt(fmt->format.code);
 			if (!ispp_fmt)
 				goto err;
+			if (ispp_sdev->in_fmt.width != mf->width ||
+			    ispp_sdev->in_fmt.height != mf->height) {
+				ispp_sdev->out_fmt = *ispp_fmt;
+				ispp_sdev->out_fmt.width = mf->width;
+				ispp_sdev->out_fmt.height = mf->height;
+			}
 			ispp_sdev->in_fmt = *mf;
-			ispp_sdev->out_fmt = *ispp_fmt;
 		}
-	} else if (fmt->pad == RKISPP_PAD_SOURCE) {
+	} else {
 		*mf = ispp_sdev->in_fmt;
 		mf->width = ispp_sdev->out_fmt.width;
 		mf->height = ispp_sdev->out_fmt.height;
@@ -181,87 +186,6 @@ static int rkispp_sd_set_fmt(struct v4l2_subdev *sd,
 	}
 
 	return 0;
-}
-
-static int rkispp_sd_get_selection(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
-				   struct v4l2_subdev_selection *sel)
-{
-	struct rkispp_subdev *ispp_sdev = v4l2_get_subdevdata(sd);
-	struct v4l2_rect *crop;
-	int ret = 0;
-
-	if (!sel)
-		goto err;
-	if (sel->pad != RKISPP_PAD_SINK)
-		goto err;
-
-	crop = &sel->r;
-	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (!cfg)
-			goto err;
-		crop = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
-	}
-
-	if (ispp_sdev->dev->inp != INP_ISP) {
-		crop->left = 0;
-		crop->top = 0;
-		crop->width = ispp_sdev->in_fmt.width;
-		crop->height = ispp_sdev->in_fmt.height;
-		return 0;
-	}
-
-	ret = v4l2_subdev_call(ispp_sdev->remote_sd,
-			pad, get_selection, cfg, sel);
-	if (!ret && sel->target == V4L2_SEL_TGT_CROP) {
-		ispp_sdev->out_fmt.width = crop->width;
-		ispp_sdev->out_fmt.height = crop->height;
-	}
-
-	return ret;
-err:
-	return -EINVAL;
-}
-
-static int rkispp_sd_set_selection(struct v4l2_subdev *sd,
-				   struct v4l2_subdev_pad_config *cfg,
-				   struct v4l2_subdev_selection *sel)
-{
-	struct rkispp_subdev *ispp_sdev = v4l2_get_subdevdata(sd);
-	struct v4l2_rect *crop;
-	int ret = 0;
-
-	if (!sel)
-		goto err;
-	if (sel->pad != RKISPP_PAD_SINK ||
-	    sel->target != V4L2_SEL_TGT_CROP)
-		goto err;
-
-	crop = &sel->r;
-	if (sel->which == V4L2_SUBDEV_FORMAT_TRY) {
-		if (!cfg)
-			goto err;
-		crop = v4l2_subdev_get_try_crop(sd, cfg, sel->pad);
-	}
-
-	if (ispp_sdev->dev->inp != INP_ISP) {
-		crop->left = 0;
-		crop->top = 0;
-		crop->width = ispp_sdev->in_fmt.width;
-		crop->height = ispp_sdev->in_fmt.height;
-		return 0;
-	}
-
-	ret = v4l2_subdev_call(ispp_sdev->remote_sd,
-			pad, set_selection, cfg, sel);
-	if (!ret) {
-		ispp_sdev->out_fmt.width = crop->width;
-		ispp_sdev->out_fmt.height = crop->height;
-	}
-
-	return ret;
-err:
-	return -EINVAL;
 }
 
 static int rkispp_sd_s_stream(struct v4l2_subdev *sd, int on)
@@ -338,7 +262,6 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 	if (on) {
 		if (ispp_dev->inp == INP_ISP) {
 			struct v4l2_subdev_format fmt;
-			struct v4l2_subdev_selection sel;
 
 			/* update format, if ispp input change */
 			fmt.pad = RKISPP_PAD_SINK;
@@ -347,17 +270,6 @@ static int rkispp_sd_s_power(struct v4l2_subdev *sd, int on)
 			if (ret) {
 				v4l2_err(&ispp_dev->v4l2_dev,
 					 "%s get format fail:%d\n",
-					 __func__, ret);
-				return ret;
-			}
-			sel.pad = RKISPP_PAD_SINK;
-			sel.target = V4L2_SEL_TGT_CROP;
-			sel.which = V4L2_SUBDEV_FORMAT_ACTIVE;
-			ret = v4l2_subdev_call(sd, pad,
-				get_selection, NULL, &sel);
-			if (ret) {
-				v4l2_err(&ispp_dev->v4l2_dev,
-					 "%s get crop fail:%d\n",
 					 __func__, ret);
 				return ret;
 			}
@@ -507,8 +419,6 @@ static const struct media_entity_operations rkispp_sd_media_ops = {
 static const struct v4l2_subdev_pad_ops rkispp_sd_pad_ops = {
 	.get_fmt = rkispp_sd_get_fmt,
 	.set_fmt = rkispp_sd_set_fmt,
-	.get_selection = rkispp_sd_get_selection,
-	.set_selection = rkispp_sd_set_selection,
 };
 
 static const struct v4l2_subdev_video_ops rkispp_sd_video_ops = {
