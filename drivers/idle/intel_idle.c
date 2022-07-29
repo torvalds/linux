@@ -911,16 +911,6 @@ static struct cpuidle_state adl_l_cstates[] __initdata = {
 		.enter = NULL }
 };
 
-/*
- * On Sapphire Rapids Xeon C1 has to be disabled if C1E is enabled, and vice
- * versa. On SPR C1E is enabled only if "C1E promotion" bit is set in
- * MSR_IA32_POWER_CTL. But in this case there effectively no C1, because C1
- * requests are promoted to C1E. If the "C1E promotion" bit is cleared, then
- * both C1 and C1E requests end up with C1, so there is effectively no C1E.
- *
- * By default we enable C1 and disable C1E by marking it with
- * 'CPUIDLE_FLAG_UNUSABLE'.
- */
 static struct cpuidle_state spr_cstates[] __initdata = {
 	{
 		.name = "C1",
@@ -933,8 +923,7 @@ static struct cpuidle_state spr_cstates[] __initdata = {
 	{
 		.name = "C1E",
 		.desc = "MWAIT 0x01",
-		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_ALWAYS_ENABLE |
-					   CPUIDLE_FLAG_UNUSABLE,
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_ALWAYS_ENABLE,
 		.exit_latency = 2,
 		.target_residency = 4,
 		.enter = &intel_idle,
@@ -1755,17 +1744,6 @@ static void __init adl_idle_state_table_update(void)
 static void __init spr_idle_state_table_update(void)
 {
 	unsigned long long msr;
-
-	/* Check if user prefers C1E over C1. */
-	if ((preferred_states_mask & BIT(2)) &&
-	    !(preferred_states_mask & BIT(1))) {
-		/* Disable C1 and enable C1E. */
-		spr_cstates[0].flags |= CPUIDLE_FLAG_UNUSABLE;
-		spr_cstates[1].flags &= ~CPUIDLE_FLAG_UNUSABLE;
-
-		/* Enable C1E using the "C1E promotion" bit. */
-		c1e_promotion = C1E_PROMOTION_ENABLE;
-	}
 
 	/*
 	 * By default, the C6 state assumes the worst-case scenario of package
