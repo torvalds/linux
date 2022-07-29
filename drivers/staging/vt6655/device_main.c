@@ -205,15 +205,15 @@ static void vt6655_mac_read_ether_addr(void __iomem *iobase, u8 *mac_addr)
 	iowrite8(0, iobase + MAC_REG_PAGE1SEL);
 }
 
-static void MACvReceive0(void __iomem *iobase)
+static void vt6655_mac_dma_ctl(void __iomem *iobase, u8 reg_index)
 {
 	u32 reg_value;
 
-	reg_value = ioread32(iobase + MAC_REG_RXDMACTL0);
+	reg_value = ioread32(iobase + reg_index);
 	if (reg_value & DMACTL_RUN)
-		iowrite32(DMACTL_WAKE, iobase + MAC_REG_RXDMACTL0);
+		iowrite32(DMACTL_WAKE, iobase + reg_index);
 	else
-		iowrite32(DMACTL_RUN, iobase + MAC_REG_RXDMACTL0);
+		iowrite32(DMACTL_RUN, iobase + reg_index);
 }
 
 /*
@@ -431,7 +431,7 @@ static void device_init_registers(struct vnt_private *priv)
 		vt6655_mac_reg_bits_on(priv->port_offset, MAC_REG_RCR, RCR_WPAERR);
 
 	/* Turn On Rx DMA */
-	MACvReceive0(priv->port_offset);
+	vt6655_mac_dma_ctl(priv->port_offset, MAC_REG_RXDMACTL0);
 	MACvReceive1(priv->port_offset);
 
 	/* start the adapter */
@@ -1146,7 +1146,7 @@ static void vnt_interrupt_process(struct vnt_private *priv)
 
 		isr = ioread32(priv->port_offset + MAC_REG_ISR);
 
-		MACvReceive0(priv->port_offset);
+		vt6655_mac_dma_ctl(priv->port_offset, MAC_REG_RXDMACTL0);
 		MACvReceive1(priv->port_offset);
 
 		if (max_count > priv->opts.int_works)
