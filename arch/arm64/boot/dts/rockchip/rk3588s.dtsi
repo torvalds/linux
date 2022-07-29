@@ -3907,6 +3907,8 @@
 		power-domains = <&power RK3588_PD_VO1>;
 		resets = <&cru SRST_M_I2S5_8CH_TX>;
 		reset-names = "tx-m";
+		rockchip,always-on;
+		rockchip,hdmi-path;
 		rockchip,playback-only;
 		#sound-dai-cells = <0>;
 		status = "disabled";
