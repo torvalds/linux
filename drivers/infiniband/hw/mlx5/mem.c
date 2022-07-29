@@ -152,6 +152,7 @@ static int post_send_nop(struct mlx5_ib_dev *dev, struct ib_qp *ibqp, u64 wr_id,
 	for (i = 0; i < 8; i++)
 		mlx5_write64(&mmio_wqe[i * 2],
 			     bf->bfreg->map + bf->offset + i * 8);
+	io_stop_wc();
 
 	bf->offset ^= bf->buf_size;
 
