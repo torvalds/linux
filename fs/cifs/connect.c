@@ -4583,7 +4583,7 @@ int cifs_tree_connect(const unsigned int xid, struct cifs_tcon *tcon, const stru
 	if (tcon->ses->ses_status != SES_GOOD ||
 	    (tcon->status != TID_NEW &&
 	    tcon->status != TID_NEED_TCON)) {
-		spin_unlock(&tcon->ses->ses_lock);
+		spin_unlock(&tcon->tc_lock);
 		return 0;
 	}
 	tcon->status = TID_IN_TCON;
