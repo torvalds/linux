@@ -10,7 +10,6 @@
 #include <linux/hpet.h>
 #include <linux/pci.h>
 #include <linux/irq.h>
-#include <linux/intel-iommu.h>
 #include <linux/acpi.h>
 #include <linux/irqdomain.h>
 #include <linux/crash_dump.h>
@@ -21,6 +20,7 @@
 #include <asm/irq_remapping.h>
 #include <asm/pci-direct.h>
 
+#include "iommu.h"
 #include "../irq_remapping.h"
 #include "cap_audit.h"
 

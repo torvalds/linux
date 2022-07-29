@@ -13,7 +13,8 @@
 #define _TRACE_INTEL_IOMMU_H
 
 #include <linux/tracepoint.h>
-#include <linux/intel-iommu.h>
+
+#include "iommu.h"
 
 #define MSG_MAX		256
 
@@ -91,4 +92,8 @@ TRACE_EVENT(prq_report,
 #endif /* _TRACE_INTEL_IOMMU_H */
 
 /* This part must be outside protection */
+#undef TRACE_INCLUDE_PATH
+#undef TRACE_INCLUDE_FILE
+#define TRACE_INCLUDE_PATH ../../drivers/iommu/intel/
+#define TRACE_INCLUDE_FILE trace
 #include <trace/define_trace.h>
