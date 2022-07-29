@@ -229,7 +229,7 @@ static void crng_reseed(void)
 
 /*
  * This generates a ChaCha block using the provided key, and then
- * immediately overwites that key with half the block. It returns
+ * immediately overwrites that key with half the block. It returns
  * the resultant ChaCha state to the user, along with the second
  * half of the block containing 32 bytes of random data that may
  * be used; random_data_len may not be greater than 32.
