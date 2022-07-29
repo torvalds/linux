@@ -47,11 +47,13 @@
 #include <linux/tick.h>
 #include <trace/events/power.h>
 #include <linux/sched.h>
+#include <linux/sched/smt.h>
 #include <linux/notifier.h>
 #include <linux/cpu.h>
 #include <linux/moduleparam.h>
 #include <asm/cpu_device_id.h>
 #include <asm/intel-family.h>
+#include <asm/nospec-branch.h>
 #include <asm/mwait.h>
 #include <asm/msr.h>
 
@@ -106,6 +108,12 @@ static unsigned int mwait_substates __initdata;
 #define CPUIDLE_FLAG_ALWAYS_ENABLE	BIT(15)
 
 /*
+ * Disable IBRS across idle (when KERNEL_IBRS), is exclusive vs IRQ_ENABLE
+ * above.
+ */
+#define CPUIDLE_FLAG_IBRS		BIT(16)
+
+/*
  * MWAIT takes an 8-bit "hint" in EAX "suggesting"
  * the C-state (top nibble) and sub-state (bottom nibble)
  * 0x00 means "MWAIT(C1)", 0x10 means "MWAIT(C2)" etc.
@@ -154,7 +162,31 @@ static __cpuidle int intel_idle_irq(struct cpuidle_device *dev,
 
 	raw_local_irq_enable();
 	ret = __intel_idle(dev, drv, index);
-	raw_local_irq_disable();
+
+	/*
+	 * The lockdep hardirqs state may be changed to 'on' with timer
+	 * tick interrupt followed by __do_softirq(). Use local_irq_disable()
+	 * to keep the hardirqs state correct.
+	 */
+	local_irq_disable();
+
+	return ret;
+}
+
+static __cpuidle int intel_idle_ibrs(struct cpuidle_device *dev,
+				     struct cpuidle_driver *drv, int index)
+{
+	bool smt_active = sched_smt_active();
+	u64 spec_ctrl = spec_ctrl_current();
+	int ret;
+
+	if (smt_active)
+		wrmsrl(MSR_IA32_SPEC_CTRL, 0);
+
+	ret = __intel_idle(dev, drv, index);
+
+	if (smt_active)
+		wrmsrl(MSR_IA32_SPEC_CTRL, spec_ctrl);
 
 	return ret;
 }
@@ -680,7 +712,7 @@ static struct cpuidle_state skl_cstates[] __initdata = {
 	{
 		.name = "C6",
 		.desc = "MWAIT 0x20",
-		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TLB_FLUSHED | CPUIDLE_FLAG_IBRS,
 		.exit_latency = 85,
 		.target_residency = 200,
 		.enter = &intel_idle,
@@ -688,7 +720,7 @@ static struct cpuidle_state skl_cstates[] __initdata = {
 	{
 		.name = "C7s",
 		.desc = "MWAIT 0x33",
-		.flags = MWAIT2flg(0x33) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.flags = MWAIT2flg(0x33) | CPUIDLE_FLAG_TLB_FLUSHED | CPUIDLE_FLAG_IBRS,
 		.exit_latency = 124,
 		.target_residency = 800,
 		.enter = &intel_idle,
@@ -696,7 +728,7 @@ static struct cpuidle_state skl_cstates[] __initdata = {
 	{
 		.name = "C8",
 		.desc = "MWAIT 0x40",
-		.flags = MWAIT2flg(0x40) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.flags = MWAIT2flg(0x40) | CPUIDLE_FLAG_TLB_FLUSHED | CPUIDLE_FLAG_IBRS,
 		.exit_latency = 200,
 		.target_residency = 800,
 		.enter = &intel_idle,
@@ -704,7 +736,7 @@ static struct cpuidle_state skl_cstates[] __initdata = {
 	{
 		.name = "C9",
 		.desc = "MWAIT 0x50",
-		.flags = MWAIT2flg(0x50) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.flags = MWAIT2flg(0x50) | CPUIDLE_FLAG_TLB_FLUSHED | CPUIDLE_FLAG_IBRS,
 		.exit_latency = 480,
 		.target_residency = 5000,
 		.enter = &intel_idle,
@@ -712,7 +744,7 @@ static struct cpuidle_state skl_cstates[] __initdata = {
 	{
 		.name = "C10",
 		.desc = "MWAIT 0x60",
-		.flags = MWAIT2flg(0x60) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.flags = MWAIT2flg(0x60) | CPUIDLE_FLAG_TLB_FLUSHED | CPUIDLE_FLAG_IBRS,
 		.exit_latency = 890,
 		.target_residency = 5000,
 		.enter = &intel_idle,
@@ -741,7 +773,7 @@ static struct cpuidle_state skx_cstates[] __initdata = {
 	{
 		.name = "C6",
 		.desc = "MWAIT 0x20",
-		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TLB_FLUSHED | CPUIDLE_FLAG_IBRS,
 		.exit_latency = 133,
 		.target_residency = 600,
 		.enter = &intel_idle,
@@ -879,16 +911,6 @@ static struct cpuidle_state adl_l_cstates[] __initdata = {
 		.enter = NULL }
 };
 
-/*
- * On Sapphire Rapids Xeon C1 has to be disabled if C1E is enabled, and vice
- * versa. On SPR C1E is enabled only if "C1E promotion" bit is set in
- * MSR_IA32_POWER_CTL. But in this case there effectively no C1, because C1
- * requests are promoted to C1E. If the "C1E promotion" bit is cleared, then
- * both C1 and C1E requests end up with C1, so there is effectively no C1E.
- *
- * By default we enable C1 and disable C1E by marking it with
- * 'CPUIDLE_FLAG_UNUSABLE'.
- */
 static struct cpuidle_state spr_cstates[] __initdata = {
 	{
 		.name = "C1",
@@ -901,8 +923,7 @@ static struct cpuidle_state spr_cstates[] __initdata = {
 	{
 		.name = "C1E",
 		.desc = "MWAIT 0x01",
-		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_ALWAYS_ENABLE |
-					   CPUIDLE_FLAG_UNUSABLE,
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_ALWAYS_ENABLE,
 		.exit_latency = 2,
 		.target_residency = 4,
 		.enter = &intel_idle,
@@ -1724,17 +1745,6 @@ static void __init spr_idle_state_table_update(void)
 {
 	unsigned long long msr;
 
-	/* Check if user prefers C1E over C1. */
-	if ((preferred_states_mask & BIT(2)) &&
-	    !(preferred_states_mask & BIT(1))) {
-		/* Disable C1 and enable C1E. */
-		spr_cstates[0].flags |= CPUIDLE_FLAG_UNUSABLE;
-		spr_cstates[1].flags &= ~CPUIDLE_FLAG_UNUSABLE;
-
-		/* Enable C1E using the "C1E promotion" bit. */
-		c1e_promotion = C1E_PROMOTION_ENABLE;
-	}
-
 	/*
 	 * By default, the C6 state assumes the worst-case scenario of package
 	 * C6. However, if PC6 is disabled, we update the numbers to match
@@ -1818,6 +1828,12 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 
 		if (cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_IRQ_ENABLE)
 			drv->states[drv->state_count].enter = intel_idle_irq;
+
+		if (cpu_feature_enabled(X86_FEATURE_KERNEL_IBRS) &&
+		    cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_IBRS) {
+			WARN_ON_ONCE(cpuidle_state_table[cstate].flags & CPUIDLE_FLAG_IRQ_ENABLE);
+			drv->states[drv->state_count].enter = intel_idle_ibrs;
+		}
 
 		if ((disabled_states_mask & BIT(drv->state_count)) ||
 		    ((icpu->use_acpi || force_use_acpi) &&

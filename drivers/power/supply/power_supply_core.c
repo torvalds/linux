@@ -846,17 +846,17 @@ int power_supply_temp2resist_simple(struct power_supply_resistance_temp_table *t
 {
 	int i, high, low;
 
-	/* Break loop at table_len - 1 because that is the highest index */
-	for (i = 0; i < table_len - 1; i++)
+	for (i = 0; i < table_len; i++)
 		if (temp > table[i].temp)
 			break;
 
 	/* The library function will deal with high == low */
-	if ((i == 0) || (i == (table_len - 1)))
-		high = i;
+	if (i == 0)
+		high = low = i;
+	else if (i == table_len)
+		high = low = i - 1;
 	else
-		high = i - 1;
-	low = i;
+		high = (low = i) - 1;
 
 	return fixp_linear_interpolate(table[low].temp,
 				       table[low].resistance,
@@ -958,17 +958,17 @@ int power_supply_ocv2cap_simple(struct power_supply_battery_ocv_table *table,
 {
 	int i, high, low;
 
-	/* Break loop at table_len - 1 because that is the highest index */
-	for (i = 0; i < table_len - 1; i++)
+	for (i = 0; i < table_len; i++)
 		if (ocv > table[i].ocv)
 			break;
 
 	/* The library function will deal with high == low */
-	if ((i == 0) || (i == (table_len - 1)))
-		high = i - 1;
+	if (i == 0)
+		high = low = i;
+	else if (i == table_len)
+		high = low = i - 1;
 	else
-		high = i; /* i.e. i == 0 */
-	low = i;
+		high = (low = i) - 1;
 
 	return fixp_linear_interpolate(table[low].ocv,
 				       table[low].capacity,

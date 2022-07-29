@@ -632,15 +632,18 @@ static int __init sev_guest_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct snp_guest_dev *snp_dev;
 	struct miscdevice *misc;
+	void __iomem *mapping;
 	int ret;
 
 	if (!dev->platform_data)
 		return -ENODEV;
 
 	data = (struct sev_guest_platform_data *)dev->platform_data;
-	layout = (__force void *)ioremap_encrypted(data->secrets_gpa, PAGE_SIZE);
-	if (!layout)
+	mapping = ioremap_encrypted(data->secrets_gpa, PAGE_SIZE);
+	if (!mapping)
 		return -ENODEV;
+
+	layout = (__force void *)mapping;
 
 	ret = -ENOMEM;
 	snp_dev = devm_kzalloc(&pdev->dev, sizeof(struct snp_guest_dev), GFP_KERNEL);
@@ -706,7 +709,7 @@ e_free_response:
 e_free_request:
 	free_shared_pages(snp_dev->request, sizeof(struct snp_guest_msg));
 e_unmap:
-	iounmap(layout);
+	iounmap(mapping);
 	return ret;
 }
 

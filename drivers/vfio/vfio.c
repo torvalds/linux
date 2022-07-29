@@ -549,6 +549,16 @@ static struct vfio_group *vfio_group_find_or_alloc(struct device *dev)
 	if (!iommu_group)
 		return ERR_PTR(-EINVAL);
 
+	/*
+	 * VFIO always sets IOMMU_CACHE because we offer no way for userspace to
+	 * restore cache coherency. It has to be checked here because it is only
+	 * valid for cases where we are using iommu groups.
+	 */
+	if (!iommu_capable(dev->bus, IOMMU_CAP_CACHE_COHERENCY)) {
+		iommu_group_put(iommu_group);
+		return ERR_PTR(-EINVAL);
+	}
+
 	group = vfio_group_get_from_iommu(iommu_group);
 	if (!group)
 		group = vfio_create_group(iommu_group, VFIO_IOMMU);
@@ -601,13 +611,6 @@ static int __vfio_register_dev(struct vfio_device *device,
 
 int vfio_register_group_dev(struct vfio_device *device)
 {
-	/*
-	 * VFIO always sets IOMMU_CACHE because we offer no way for userspace to
-	 * restore cache coherency.
-	 */
-	if (!iommu_capable(device->dev->bus, IOMMU_CAP_CACHE_COHERENCY))
-		return -EINVAL;
-
 	return __vfio_register_dev(device,
 		vfio_group_find_or_alloc(device->dev));
 }

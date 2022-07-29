@@ -343,7 +343,7 @@ void dma_resv_replace_fences(struct dma_resv *obj, uint64_t context,
 		if (old->context != context)
 			continue;
 
-		dma_resv_list_set(list, i, replacement, usage);
+		dma_resv_list_set(list, i, dma_fence_get(replacement), usage);
 		dma_fence_put(old);
 	}
 }
