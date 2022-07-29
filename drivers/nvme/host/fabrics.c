@@ -971,13 +971,17 @@ bool nvmf_ip_options_match(struct nvme_ctrl *ctrl,
 		return false;
 
 	/*
-	 * Checking the local address is rough. In most cases, none is specified
-	 * and the host port is selected by the stack.
+	 * Checking the local address or host interfaces is rough.
+	 *
+	 * In most cases, none is specified and the host port or
+	 * host interface is selected by the stack.
 	 *
 	 * Assume no match if:
-	 * -  local address is specified and address is not the same
-	 * -  local address is not specified but remote is, or vice versa
-	 *    (admin using specific host_traddr when it matters).
+	 * -  local address or host interface is specified and address
+	 *    or host interface is not the same
+	 * -  local address or host interface is not specified but
+	 *    remote is, or vice versa (admin using specific
+	 *    host_traddr/host_iface when it matters).
 	 */
 	if ((opts->mask & NVMF_OPT_HOST_TRADDR) &&
 	    (ctrl->opts->mask & NVMF_OPT_HOST_TRADDR)) {
@@ -985,6 +989,15 @@ bool nvmf_ip_options_match(struct nvme_ctrl *ctrl,
 			return false;
 	} else if ((opts->mask & NVMF_OPT_HOST_TRADDR) ||
 		   (ctrl->opts->mask & NVMF_OPT_HOST_TRADDR)) {
+		return false;
+	}
+
+	if ((opts->mask & NVMF_OPT_HOST_IFACE) &&
+	    (ctrl->opts->mask & NVMF_OPT_HOST_IFACE)) {
+		if (strcmp(opts->host_iface, ctrl->opts->host_iface))
+			return false;
+	} else if ((opts->mask & NVMF_OPT_HOST_IFACE) ||
+		   (ctrl->opts->mask & NVMF_OPT_HOST_IFACE)) {
 		return false;
 	}
 
