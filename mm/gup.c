@@ -1927,16 +1927,16 @@ struct page *get_dump_page(unsigned long addr)
 
 #ifdef CONFIG_MIGRATION
 /*
- * Check whether all pages are pinnable, if so return number of pages.  If some
- * pages are not pinnable, migrate them, and unpin all pages. Return zero if
- * pages were migrated, or if some pages were not successfully isolated.
- * Return negative error if migration fails.
+ * Check whether all pages are pinnable. If some pages are not pinnable migrate
+ * them and unpin all the pages. Returns -EAGAIN if pages were unpinned or zero
+ * if all pages are pinnable and in the right zone. Other errors indicate
+ * migration failure.
  */
 static long check_and_migrate_movable_pages(unsigned long nr_pages,
 					    struct page **pages,
 					    unsigned int gup_flags)
 {
-	unsigned long isolation_error_count = 0, i;
+	unsigned long i;
 	struct folio *prev_folio = NULL;
 	LIST_HEAD(movable_page_list);
 	bool drain_allow = true, coherent_pages = false;
@@ -1972,10 +1972,10 @@ static long check_and_migrate_movable_pages(unsigned long nr_pages,
 				unpin_user_page(&folio->page);
 			}
 
-			ret = migrate_device_coherent_page(&folio->page);
-			if (ret)
-				goto unpin_pages;
-
+			if (migrate_device_coherent_page(&folio->page)) {
+				ret = -EBUSY;
+				break;
+			}
 			continue;
 		}
 
@@ -1987,7 +1987,7 @@ static long check_and_migrate_movable_pages(unsigned long nr_pages,
 		if (folio_test_hugetlb(folio)) {
 			if (isolate_hugetlb(&folio->page,
 						&movable_page_list))
-				isolation_error_count++;
+				ret = -EBUSY;
 			continue;
 		}
 
@@ -1997,7 +1997,7 @@ static long check_and_migrate_movable_pages(unsigned long nr_pages,
 		}
 
 		if (folio_isolate_lru(folio)) {
-			isolation_error_count++;
+			ret = -EBUSY;
 			continue;
 		}
 		list_add_tail(&folio->lru, &movable_page_list);
@@ -2006,19 +2006,18 @@ static long check_and_migrate_movable_pages(unsigned long nr_pages,
 				    folio_nr_pages(folio));
 	}
 
-	if (!list_empty(&movable_page_list) || isolation_error_count ||
-	    coherent_pages)
-		goto unpin_pages;
-
 	/*
 	 * If list is empty, and no isolation errors, means that all pages are
-	 * in the correct zone.
+	 * in the correct zone. If there were device coherent pages some pages
+	 * have been unpinned.
 	 */
-	return nr_pages;
+	if (list_empty(&movable_page_list) && !ret && !coherent_pages)
+		return 0;
 
-unpin_pages:
 	/*
-	 * pages[i] might be NULL if any device coherent pages were found.
+	 * Unpin all pages. If device coherent pages were found
+	 * migrate_device_coherent_page() will have dropped the pin and set
+	 * pages[i] == NULL.
 	 */
 	for (i = 0; i < nr_pages; i++) {
 		if (!pages[i])
@@ -2045,14 +2044,15 @@ unpin_pages:
 
 	if (ret && !list_empty(&movable_page_list))
 		putback_movable_pages(&movable_page_list);
-	return ret;
+
+	return ret ? ret : -EAGAIN;
 }
 #else
 static long check_and_migrate_movable_pages(unsigned long nr_pages,
 					    struct page **pages,
 					    unsigned int gup_flags)
 {
-	return nr_pages;
+	return 0;
 }
 #endif /* CONFIG_MIGRATION */
 
@@ -2068,22 +2068,26 @@ static long __gup_longterm_locked(struct mm_struct *mm,
 				  unsigned int gup_flags)
 {
 	unsigned int flags;
-	long rc;
+	long rc, nr_pinned_pages;
 
 	if (!(gup_flags & FOLL_LONGTERM))
 		return __get_user_pages_locked(mm, start, nr_pages, pages, vmas,
 					       NULL, gup_flags);
 	flags = memalloc_pin_save();
 	do {
-		rc = __get_user_pages_locked(mm, start, nr_pages, pages, vmas,
-					     NULL, gup_flags);
-		if (rc <= 0)
+		nr_pinned_pages = __get_user_pages_locked(mm, start, nr_pages,
+							  pages, vmas, NULL,
+							  gup_flags);
+		if (nr_pinned_pages <= 0) {
+			rc = nr_pinned_pages;
 			break;
-		rc = check_and_migrate_movable_pages(rc, pages, gup_flags);
-	} while (!rc);
+		}
+		rc = check_and_migrate_movable_pages(nr_pinned_pages, pages,
+						     gup_flags);
+	} while (rc == -EAGAIN);
 	memalloc_pin_restore(flags);
 
-	return rc;
+	return rc ? rc : nr_pinned_pages;
 }
 
 static bool is_valid_gup_flags(unsigned int gup_flags)
