@@ -164,7 +164,6 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 		NL_SET_ERR_MSG_MOD(extack, "reload while VFs are present is unfavorable");
 	}
 
-	devl_lock(devlink);
 	switch (action) {
 	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
 		mlx5_unload_one_devl_locked(dev);
@@ -181,7 +180,6 @@ static int mlx5_devlink_reload_down(struct devlink *devlink, bool netns_change,
 		ret = -EOPNOTSUPP;
 	}
 
-	devl_unlock(devlink);
 	return ret;
 }
 
@@ -192,7 +190,6 @@ static int mlx5_devlink_reload_up(struct devlink *devlink, enum devlink_reload_a
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	int ret = 0;
 
-	devl_lock(devlink);
 	*actions_performed = BIT(action);
 	switch (action) {
 	case DEVLINK_RELOAD_ACTION_DRIVER_REINIT:
@@ -211,7 +208,6 @@ static int mlx5_devlink_reload_up(struct devlink *devlink, enum devlink_reload_a
 		ret = -EOPNOTSUPP;
 	}
 
-	devl_unlock(devlink);
 	return ret;
 }
 

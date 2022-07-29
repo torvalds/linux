@@ -1499,9 +1499,7 @@ mlxsw_devlink_core_bus_device_reload_down(struct devlink *devlink,
 	if (!(mlxsw_core->bus->features & MLXSW_BUS_F_RESET))
 		return -EOPNOTSUPP;
 
-	devl_lock(devlink);
 	mlxsw_core_bus_device_unregister(mlxsw_core, true);
-	devl_unlock(devlink);
 	return 0;
 }
 
@@ -1515,12 +1513,10 @@ mlxsw_devlink_core_bus_device_reload_up(struct devlink *devlink, enum devlink_re
 
 	*actions_performed = BIT(DEVLINK_RELOAD_ACTION_DRIVER_REINIT) |
 			     BIT(DEVLINK_RELOAD_ACTION_FW_ACTIVATE);
-	devl_lock(devlink);
 	err = mlxsw_core_bus_device_register(mlxsw_core->bus_info,
 					     mlxsw_core->bus,
 					     mlxsw_core->bus_priv, true,
 					     devlink, extack);
-	devl_unlock(devlink);
 	return err;
 }
 
