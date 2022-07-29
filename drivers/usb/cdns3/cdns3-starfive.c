@@ -54,6 +54,11 @@
 
 #define USB_125M_CLK_RATE		125000000
 
+#define USB3_PHY_RES_INDEX		0
+#define USB2_PHY_RES_INDEX		1
+#define USB_LS_KEEPALIVE_OFF		0x4
+#define USB_LS_KEEPALIVE_ENABLE		4
+
 struct cdns_starfive {
 	struct device *dev;
 	struct regmap *stg_syscon;
@@ -68,6 +73,7 @@ struct cdns_starfive {
 	u32 stg_offset_328;
 	u32 stg_offset_500;
 	bool usb2_only;
+	enum usb_dr_mode mode;
 };
 
 static int cdns_mode_init(struct platform_device *pdev,
@@ -84,7 +90,6 @@ static int cdns_mode_init(struct platform_device *pdev,
 		USB_REFCLK_MODE_MASK, BIT(USB_REFCLK_MODE_SHIFT));
 
 	if (data->usb2_only) {
-
 		/* Disconnect usb 3.0 phy mode */
 		regmap_update_bits(data->sys_syscon, data->sys_offset,
 			USB_PDRSTN_SPLIT_MASK, BIT(USB_PDRSTN_SPLIT_SHIFT));
@@ -110,6 +115,7 @@ static int cdns_mode_init(struct platform_device *pdev,
 			USB_PDRSTN_SPLIT_MASK, (0 << USB_PDRSTN_SPLIT_SHIFT));
 	}
 	mode = usb_get_dr_mode(&pdev->dev);
+	data->mode = mode;
 
 	switch (mode) {
 	case USB_DR_MODE_HOST:
@@ -188,13 +194,50 @@ exit:
 	return ret;
 }
 
+static int cdns_starfive_phy_init(struct platform_device *pdev,
+							struct cdns_starfive *data)
+{
+	struct device *dev = &pdev->dev;
+	void __iomem *phybase_20, *phybase_30;
+	unsigned int val;
+	int ret = 0;
+
+	phybase_20 = devm_platform_ioremap_resource(pdev, USB2_PHY_RES_INDEX);
+	if (IS_ERR(phybase_20)) {
+		dev_err(dev, "Can't map phybase_20 IOMEM resource\n");
+		ret = PTR_ERR(phybase_20);
+		goto get_res_err;
+	}
+
+	phybase_30 = devm_platform_ioremap_resource(pdev, USB3_PHY_RES_INDEX);
+	if (IS_ERR(phybase_30)) {
+		dev_err(dev, "Can't map phybase_30 IOMEM resource\n");
+		ret = PTR_ERR(phybase_30);
+		goto get_res_err;
+	}
+
+	if (data->mode != USB_DR_MODE_PERIPHERAL) {
+		/* Enable the LS speed keep-alive signal */
+		val = readl(phybase_20 + USB_LS_KEEPALIVE_OFF);
+		val |= BIT(USB_LS_KEEPALIVE_ENABLE);
+		writel(val, phybase_20 + USB_LS_KEEPALIVE_OFF);
+	}
+
+	if (!data->usb2_only) {
+		/* Configuare spread-spectrum mode: down-spread-spectrum */
+		writel(BIT(4), (phybase_30 + PCIE_USB3_PHY_PLL_CTL_OFF));
+	}
+
+get_res_err:
+	return ret;
+}
+
 static int cdns_starfive_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = pdev->dev.of_node;
 	struct cdns_starfive *data;
 	struct of_phandle_args args;
-	void __iomem *phybase;
 	int ret;
 
 	data = devm_kzalloc(dev, sizeof(*data), GFP_KERNEL);
@@ -243,14 +286,11 @@ static int cdns_starfive_probe(struct platform_device *pdev)
 		goto exit;
 	}
 
-	/* Configuare spread-spectrum mode: down-spread-Spectrum */
-	phybase = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(phybase)) {
-		dev_err(dev, "Can't map IOMEM resource\n");
-		ret = PTR_ERR(phybase);
+	ret = cdns_starfive_phy_init(pdev, data);
+	if (ret) {
+		dev_err(dev, "Failed to init sratfive usb phy: %d\n", ret);
 		goto exit;
 	}
-	writel(BIT(4), (phybase + PCIE_USB3_PHY_PLL_CTL_OFF));
 
 	ret = of_platform_populate(node, NULL, NULL, dev);
 	if (ret) {
