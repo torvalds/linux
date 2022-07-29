@@ -967,18 +967,18 @@ try_again_reset:
 			return err;
 	}
 
-	/*
-	 * Enable counters and exec the command:
-	 */
-	if (forks) {
-		err = enable_counters();
-		if (err)
-			return -1;
+	err = enable_counters();
+	if (err)
+		return -1;
+
+	/* Exec the command, if any */
+	if (forks)
 		evlist__start_workload(evsel_list);
 
-		t0 = rdclock();
-		clock_gettime(CLOCK_MONOTONIC, &ref_time);
+	t0 = rdclock();
+	clock_gettime(CLOCK_MONOTONIC, &ref_time);
 
+	if (forks) {
 		if (interval || timeout || evlist__ctlfd_initialized(evsel_list))
 			status = dispatch_events(forks, timeout, interval, &times);
 		if (child_pid != -1) {
@@ -996,13 +996,6 @@ try_again_reset:
 		if (WIFSIGNALED(status))
 			psignal(WTERMSIG(status), argv[0]);
 	} else {
-		err = enable_counters();
-		if (err)
-			return -1;
-
-		t0 = rdclock();
-		clock_gettime(CLOCK_MONOTONIC, &ref_time);
-
 		status = dispatch_events(forks, timeout, interval, &times);
 	}
 
