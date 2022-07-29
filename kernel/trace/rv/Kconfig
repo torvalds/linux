@@ -22,6 +22,9 @@ menuconfig RV
 	  actual execution, comparing it against a formal specification of
 	  the system behavior.
 
+	  For further information, see:
+	    Documentation/trace/rv/runtime-verification.rst
+
 config RV_REACTORS
 	bool "Runtime verification reactors"
 	default y

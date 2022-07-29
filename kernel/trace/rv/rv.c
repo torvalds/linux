@@ -133,6 +133,9 @@
  *      auto-generated wakeup in preemptive monitor.
  *      # cat enable
  *      0
+ *
+ *  For further information, see:
+ *   Documentation/trace/rv/runtime-verification.rst
  */
 
 #include <linux/kernel.h>
