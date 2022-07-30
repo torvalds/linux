@@ -15,6 +15,8 @@
 #define	UBLK_CMD_DEL_DEV		0x05
 #define	UBLK_CMD_START_DEV	0x06
 #define	UBLK_CMD_STOP_DEV	0x07
+#define	UBLK_CMD_SET_PARAMS	0x08
+#define	UBLK_CMD_GET_PARAMS	0x09
 
 /*
  * IO commands, issued by ublk server, and handled by ublk driver.
@@ -156,6 +158,51 @@ struct ublksrv_io_cmd {
 	 * FETCH* command only
 	 */
 	__u64	addr;
+};
+
+struct ublk_param_basic {
+#define UBLK_ATTR_READ_ONLY            (1 << 0)
+#define UBLK_ATTR_ROTATIONAL           (1 << 1)
+#define UBLK_ATTR_VOLATILE_CACHE       (1 << 2)
+#define UBLK_ATTR_FUA                  (1 << 3)
+	__u32	attrs;
+	__u8	logical_bs_shift;
+	__u8	physical_bs_shift;
+	__u8	io_opt_shift;
+	__u8	io_min_shift;
+
+	__u32	max_sectors;
+	__u32	chunk_sectors;
+
+	__u64   dev_sectors;
+	__u64   virt_boundary_mask;
+};
+
+struct ublk_param_discard {
+	__u32	discard_alignment;
+
+	__u32	discard_granularity;
+	__u32	max_discard_sectors;
+
+	__u32	max_write_zeroes_sectors;
+	__u16	max_discard_segments;
+	__u16	reserved0;
+};
+
+struct ublk_params {
+	/*
+	 * Total length of parameters, userspace has to set 'len' for both
+	 * SET_PARAMS and GET_PARAMS command, and driver may update len
+	 * if two sides use different version of 'ublk_params', same with
+	 * 'types' fields.
+	 */
+	__u32	len;
+#define UBLK_PARAM_TYPE_BASIC           (1 << 0)
+#define UBLK_PARAM_TYPE_DISCARD         (1 << 1)
+	__u32	types;			/* types of parameter included */
+
+	struct ublk_param_basic		basic;
+	struct ublk_param_discard	discard;
 };
 
 #endif
