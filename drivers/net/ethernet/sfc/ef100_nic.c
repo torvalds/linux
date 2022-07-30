@@ -24,6 +24,8 @@
 #include "ef100_tx.h"
 #include "ef100_sriov.h"
 #include "ef100_netdev.h"
+#include "tc.h"
+#include "mae.h"
 #include "rx_common.h"
 
 #define EF100_MAX_VIS 4096
@@ -374,26 +376,46 @@ static int ef100_filter_table_up(struct efx_nic *efx)
 {
 	int rc;
 
+	down_write(&efx->filter_sem);
 	rc = efx_mcdi_filter_add_vlan(efx, EFX_FILTER_VID_UNSPEC);
-	if (rc) {
-		efx_mcdi_filter_table_down(efx);
-		return rc;
-	}
+	if (rc)
+		goto fail_unspec;
 
 	rc = efx_mcdi_filter_add_vlan(efx, 0);
-	if (rc) {
-		efx_mcdi_filter_del_vlan(efx, EFX_FILTER_VID_UNSPEC);
-		efx_mcdi_filter_table_down(efx);
-	}
+	if (rc)
+		goto fail_vlan0;
+	/* Drop the lock: we've finished altering table existence, and
+	 * filter insertion will need to take the lock for read.
+	 */
+	up_write(&efx->filter_sem);
+#ifdef CONFIG_SFC_SRIOV
+	rc = efx_tc_insert_rep_filters(efx);
+	/* Rep filter failure is nonfatal */
+	if (rc)
+		netif_warn(efx, drv, efx->net_dev,
+			   "Failed to insert representor filters, rc %d\n",
+			   rc);
+#endif
+	return 0;
 
+fail_vlan0:
+	efx_mcdi_filter_del_vlan(efx, EFX_FILTER_VID_UNSPEC);
+fail_unspec:
+	efx_mcdi_filter_table_down(efx);
+	up_write(&efx->filter_sem);
 	return rc;
 }
 
 static void ef100_filter_table_down(struct efx_nic *efx)
 {
+#ifdef CONFIG_SFC_SRIOV
+	efx_tc_remove_rep_filters(efx);
+#endif
+	down_write(&efx->filter_sem);
 	efx_mcdi_filter_del_vlan(efx, 0);
 	efx_mcdi_filter_del_vlan(efx, EFX_FILTER_VID_UNSPEC);
 	efx_mcdi_filter_table_down(efx);
+	up_write(&efx->filter_sem);
 }
 
 /*	Other
@@ -703,6 +725,31 @@ static unsigned int efx_ef100_recycle_ring_size(const struct efx_nic *efx)
 	/* Maximum link speed for Riverhead is 100G */
 	return 10 * EFX_RECYCLE_RING_SIZE_10G;
 }
+
+#ifdef CONFIG_SFC_SRIOV
+static int efx_ef100_get_base_mport(struct efx_nic *efx)
+{
+	struct ef100_nic_data *nic_data = efx->nic_data;
+	u32 selector, id;
+	int rc;
+
+	/* Construct mport selector for "physical network port" */
+	efx_mae_mport_wire(efx, &selector);
+	/* Look up actual mport ID */
+	rc = efx_mae_lookup_mport(efx, selector, &id);
+	if (rc)
+		return rc;
+	/* The ID should always fit in 16 bits, because that's how wide the
+	 * corresponding fields in the RX prefix & TX override descriptor are
+	 */
+	if (id >> 16)
+		netif_warn(efx, probe, efx->net_dev, "Bad base m-port id %#x\n",
+			   id);
+	nic_data->base_mport = id;
+	nic_data->have_mport = true;
+	return 0;
+}
+#endif
 
 static int compare_versions(const char *a, const char *b)
 {
@@ -1064,6 +1111,34 @@ int ef100_probe_netdev_pf(struct efx_nic *efx)
 	eth_hw_addr_set(net_dev, net_dev->perm_addr);
 	memcpy(nic_data->port_id, net_dev->perm_addr, ETH_ALEN);
 
+	if (!nic_data->grp_mae)
+		return 0;
+
+#ifdef CONFIG_SFC_SRIOV
+	rc = efx_init_struct_tc(efx);
+	if (rc)
+		return rc;
+
+	rc = efx_ef100_get_base_mport(efx);
+	if (rc) {
+		netif_warn(efx, probe, net_dev,
+			   "Failed to probe base mport rc %d; representors will not function\n",
+			   rc);
+	}
+
+	rc = efx_init_tc(efx);
+	if (rc) {
+		/* Either we don't have an MAE at all (i.e. legacy v-switching),
+		 * or we do but we failed to probe it.  In the latter case, we
+		 * may not have set up default rules, in which case we won't be
+		 * able to pass any traffic.  However, we don't fail the probe,
+		 * because the user might need to use the netdevice to apply
+		 * configuration changes to fix whatever's wrong with the MAE.
+		 */
+		netif_warn(efx, probe, net_dev, "Failed to probe MAE rc %d\n",
+			   rc);
+	}
+#endif
 	return 0;
 
 fail:
