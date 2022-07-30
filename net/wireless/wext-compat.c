@@ -685,6 +685,13 @@ static int cfg80211_wext_siwencodeext(struct net_device *dev,
 	    !rdev->ops->set_default_key)
 		return -EOPNOTSUPP;
 
+	wdev_lock(wdev);
+	if (wdev->valid_links) {
+		wdev_unlock(wdev);
+		return -EOPNOTSUPP;
+	}
+	wdev_unlock(wdev);
+
 	switch (ext->alg) {
 	case IW_ENCODE_ALG_NONE:
 		remove = true;
