@@ -524,7 +524,7 @@ static int handle_hca_cap(struct mlx5_core_dev *dev, void *set_ctx)
 
 	/* Check log_max_qp from HCA caps to set in current profile */
 	if (prof->log_max_qp == LOG_MAX_SUPPORTED_QPS) {
-		prof->log_max_qp = min_t(u8, 17, MLX5_CAP_GEN_MAX(dev, log_max_qp));
+		prof->log_max_qp = min_t(u8, 18, MLX5_CAP_GEN_MAX(dev, log_max_qp));
 	} else if (MLX5_CAP_GEN_MAX(dev, log_max_qp) < prof->log_max_qp) {
 		mlx5_core_warn(dev, "log_max_qp value in current profile is %d, changing it to HCA capability limit (%d)\n",
 			       prof->log_max_qp,
@@ -1022,8 +1022,6 @@ static int mlx5_function_setup(struct mlx5_core_dev *dev, u64 timeout)
 	/* Only PFs hold the relevant PCIe information for this query */
 	if (mlx5_core_is_pf(dev))
 		pcie_print_link_status(dev->pdev);
-
-	mlx5_tout_set_def_val(dev);
 
 	/* wait for firmware to accept initialization segments configurations
 	 */
