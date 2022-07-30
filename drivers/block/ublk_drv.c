@@ -1190,6 +1190,11 @@ static int ublk_ctrl_start_dev(struct io_uring_cmd *cmd)
 	get_device(&ub->cdev_dev);
 	ret = add_disk(disk);
 	if (ret) {
+		/*
+		 * Has to drop the reference since ->free_disk won't be
+		 * called in case of add_disk failure.
+		 */
+		ublk_put_device(ub);
 		put_disk(disk);
 		goto out_unlock;
 	}
