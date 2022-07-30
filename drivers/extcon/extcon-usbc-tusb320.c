@@ -6,6 +6,7 @@
  * Author: Michael Auchter <michael.auchter@ni.com>
  */
 
+#include <linux/bitfield.h>
 #include <linux/extcon-provider.h>
 #include <linux/i2c.h>
 #include <linux/init.h>
@@ -13,6 +14,24 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
+#include <linux/usb/typec.h>
+
+#define TUSB320_REG8				0x8
+#define TUSB320_REG8_CURRENT_MODE_ADVERTISE	GENMASK(7, 6)
+#define TUSB320_REG8_CURRENT_MODE_ADVERTISE_USB	0x0
+#define TUSB320_REG8_CURRENT_MODE_ADVERTISE_15A	0x1
+#define TUSB320_REG8_CURRENT_MODE_ADVERTISE_30A	0x2
+#define TUSB320_REG8_CURRENT_MODE_DETECT	GENMASK(5, 4)
+#define TUSB320_REG8_CURRENT_MODE_DETECT_DEF	0x0
+#define TUSB320_REG8_CURRENT_MODE_DETECT_MED	0x1
+#define TUSB320_REG8_CURRENT_MODE_DETECT_ACC	0x2
+#define TUSB320_REG8_CURRENT_MODE_DETECT_HI	0x3
+#define TUSB320_REG8_ACCESSORY_CONNECTED	GENMASK(3, 2)
+#define TUSB320_REG8_ACCESSORY_CONNECTED_NONE	0x0
+#define TUSB320_REG8_ACCESSORY_CONNECTED_AUDIO	0x4
+#define TUSB320_REG8_ACCESSORY_CONNECTED_ACC	0x5
+#define TUSB320_REG8_ACCESSORY_CONNECTED_DEBUG	0x6
+#define TUSB320_REG8_ACTIVE_CABLE_DETECTION	BIT(0)
 
 #define TUSB320_REG9				0x9
 #define TUSB320_REG9_ATTACHED_STATE_SHIFT	6
@@ -55,6 +74,10 @@ struct tusb320_priv {
 	struct extcon_dev *edev;
 	struct tusb320_ops *ops;
 	enum tusb320_attached_state state;
+	struct typec_port *port;
+	struct typec_capability	cap;
+	enum typec_port_type port_type;
+	enum typec_pwr_opmode pwr_opmode;
 };
 
 static const char * const tusb_attached_states[] = {
@@ -184,6 +207,44 @@ static struct tusb320_ops tusb320l_ops = {
 	.get_revision = tusb320l_get_revision,
 };
 
+static int tusb320_set_adv_pwr_mode(struct tusb320_priv *priv)
+{
+	u8 mode;
+
+	if (priv->pwr_opmode == TYPEC_PWR_MODE_USB)
+		mode = TUSB320_REG8_CURRENT_MODE_ADVERTISE_USB;
+	else if (priv->pwr_opmode == TYPEC_PWR_MODE_1_5A)
+		mode = TUSB320_REG8_CURRENT_MODE_ADVERTISE_15A;
+	else if (priv->pwr_opmode == TYPEC_PWR_MODE_3_0A)
+		mode = TUSB320_REG8_CURRENT_MODE_ADVERTISE_30A;
+	else	/* No other mode is supported. */
+		return -EINVAL;
+
+	return regmap_write_bits(priv->regmap, TUSB320_REG8,
+				 TUSB320_REG8_CURRENT_MODE_ADVERTISE,
+				 FIELD_PREP(TUSB320_REG8_CURRENT_MODE_ADVERTISE,
+					    mode));
+}
+
+static int tusb320_port_type_set(struct typec_port *port,
+				 enum typec_port_type type)
+{
+	struct tusb320_priv *priv = typec_get_drvdata(port);
+
+	if (type == TYPEC_PORT_SRC)
+		return priv->ops->set_mode(priv, TUSB320_MODE_DFP);
+	else if (type == TYPEC_PORT_SNK)
+		return priv->ops->set_mode(priv, TUSB320_MODE_UFP);
+	else if (type == TYPEC_PORT_DRP)
+		return priv->ops->set_mode(priv, TUSB320_MODE_DRP);
+	else
+		return priv->ops->set_mode(priv, TUSB320_MODE_PORT);
+}
+
+static const struct typec_operations tusb320_typec_ops = {
+	.port_type_set	= tusb320_port_type_set,
+};
+
 static void tusb320_extcon_irq_handler(struct tusb320_priv *priv, u8 reg)
 {
 	int state, polarity;
@@ -211,6 +272,47 @@ static void tusb320_extcon_irq_handler(struct tusb320_priv *priv, u8 reg)
 	priv->state = state;
 }
 
+static void tusb320_typec_irq_handler(struct tusb320_priv *priv, u8 reg9)
+{
+	struct typec_port *port = priv->port;
+	struct device *dev = priv->dev;
+	u8 mode, role, state;
+	int ret, reg8;
+	bool ori;
+
+	ori = reg9 & TUSB320_REG9_CABLE_DIRECTION;
+	typec_set_orientation(port, ori ? TYPEC_ORIENTATION_REVERSE :
+					  TYPEC_ORIENTATION_NORMAL);
+
+	state = (reg9 >> TUSB320_REG9_ATTACHED_STATE_SHIFT) &
+		TUSB320_REG9_ATTACHED_STATE_MASK;
+	if (state == TUSB320_ATTACHED_STATE_DFP)
+		role = TYPEC_SOURCE;
+	else
+		role = TYPEC_SINK;
+
+	typec_set_vconn_role(port, role);
+	typec_set_pwr_role(port, role);
+	typec_set_data_role(port, role == TYPEC_SOURCE ?
+				  TYPEC_HOST : TYPEC_DEVICE);
+
+	ret = regmap_read(priv->regmap, TUSB320_REG8, &reg8);
+	if (ret) {
+		dev_err(dev, "error during reg8 i2c read, ret=%d!\n", ret);
+		return;
+	}
+
+	mode = FIELD_GET(TUSB320_REG8_CURRENT_MODE_DETECT, reg8);
+	if (mode == TUSB320_REG8_CURRENT_MODE_DETECT_DEF)
+		typec_set_pwr_opmode(port, TYPEC_PWR_MODE_USB);
+	else if (mode == TUSB320_REG8_CURRENT_MODE_DETECT_MED)
+		typec_set_pwr_opmode(port, TYPEC_PWR_MODE_1_5A);
+	else if (mode == TUSB320_REG8_CURRENT_MODE_DETECT_HI)
+		typec_set_pwr_opmode(port, TYPEC_PWR_MODE_3_0A);
+	else	/* Charge through accessory */
+		typec_set_pwr_opmode(port, TYPEC_PWR_MODE_USB);
+}
+
 static irqreturn_t tusb320_irq_handler(int irq, void *dev_id)
 {
 	struct tusb320_priv *priv = dev_id;
@@ -225,6 +327,7 @@ static irqreturn_t tusb320_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 
 	tusb320_extcon_irq_handler(priv, reg);
+	tusb320_typec_irq_handler(priv, reg);
 
 	regmap_write(priv->regmap, TUSB320_REG9, reg);
 
@@ -256,6 +359,58 @@ static int tusb320_extcon_probe(struct tusb320_priv *priv)
 				       EXTCON_PROP_USB_TYPEC_POLARITY);
 	extcon_set_property_capability(priv->edev, EXTCON_USB_HOST,
 				       EXTCON_PROP_USB_TYPEC_POLARITY);
+
+	return 0;
+}
+
+static int tusb320_typec_probe(struct i2c_client *client,
+			       struct tusb320_priv *priv)
+{
+	struct fwnode_handle *connector;
+	const char *cap_str;
+	int ret;
+
+	/* The Type-C connector is optional, for backward compatibility. */
+	connector = device_get_named_child_node(&client->dev, "connector");
+	if (!connector)
+		return 0;
+
+	/* Type-C connector found. */
+	ret = typec_get_fw_cap(&priv->cap, connector);
+	if (ret)
+		return ret;
+
+	priv->port_type = priv->cap.type;
+
+	/* This goes into register 0x8 field CURRENT_MODE_ADVERTISE */
+	ret = fwnode_property_read_string(connector, "typec-power-opmode", &cap_str);
+	if (ret)
+		return ret;
+
+	ret = typec_find_pwr_opmode(cap_str);
+	if (ret < 0)
+		return ret;
+	if (ret == TYPEC_PWR_MODE_PD)
+		return -EINVAL;
+
+	priv->pwr_opmode = ret;
+
+	/* Initialize the hardware with the devicetree settings. */
+	ret = tusb320_set_adv_pwr_mode(priv);
+	if (ret)
+		return ret;
+
+	priv->cap.revision		= USB_TYPEC_REV_1_1;
+	priv->cap.accessory[0]		= TYPEC_ACCESSORY_AUDIO;
+	priv->cap.accessory[1]		= TYPEC_ACCESSORY_DEBUG;
+	priv->cap.orientation_aware	= true;
+	priv->cap.driver_data		= priv;
+	priv->cap.ops			= &tusb320_typec_ops;
+	priv->cap.fwnode		= connector;
+
+	priv->port = typec_register_port(&client->dev, &priv->cap);
+	if (IS_ERR(priv->port))
+		return PTR_ERR(priv->port);
 
 	return 0;
 }
@@ -297,6 +452,10 @@ static int tusb320_probe(struct i2c_client *client,
 	}
 
 	ret = tusb320_extcon_probe(priv);
+	if (ret)
+		return ret;
+
+	ret = tusb320_typec_probe(client, priv);
 	if (ret)
 		return ret;
 
