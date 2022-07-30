@@ -1117,4 +1117,8 @@ void EnableHWSecurityConfig8192(struct net_device *dev);
 void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 	    const u8 *MacAddr, u8 DefaultKey, u32 *KeyContent);
 
+void rtl8192_proc_module_init(void);
+void rtl8192_proc_init_one(struct net_device *dev);
+void rtl8192_proc_remove_one(struct net_device *dev);
+
 #endif
