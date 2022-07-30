@@ -387,10 +387,10 @@ int rtw_pwr_wakeup(struct adapter *padapter)
 		msleep(10);
 
 	/* I think this should be check in IPS, LPS, autosuspend functions... */
-	if (check_fwstate(pmlmepriv, _FW_LINKED)) {
-		ret = 0;
+	/* Below goto is a success path taken for already linked devices */
+	ret = 0;
+	if (check_fwstate(pmlmepriv, _FW_LINKED))
 		goto exit;
-	}
 
 	if (pwrpriv->rf_pwrstate == rf_off && ips_leave(padapter) == _FAIL) {
 		ret = -ENOMEM;
