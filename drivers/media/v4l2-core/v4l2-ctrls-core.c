@@ -65,31 +65,27 @@ void send_event(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 changes)
 			v4l2_event_queue_fh(sev->fh, &ev);
 }
 
-static bool std_equal(const struct v4l2_ctrl *ctrl, u32 idx,
+static bool std_equal(const struct v4l2_ctrl *ctrl, u32 elems,
 		      union v4l2_ctrl_ptr ptr1,
 		      union v4l2_ctrl_ptr ptr2)
 {
+	unsigned int i;
+
 	switch (ctrl->type) {
 	case V4L2_CTRL_TYPE_BUTTON:
 		return false;
 	case V4L2_CTRL_TYPE_STRING:
-		idx *= ctrl->elem_size;
-		/* strings are always 0-terminated */
-		return !strcmp(ptr1.p_char + idx, ptr2.p_char + idx);
-	case V4L2_CTRL_TYPE_INTEGER64:
-		return ptr1.p_s64[idx] == ptr2.p_s64[idx];
-	case V4L2_CTRL_TYPE_U8:
-		return ptr1.p_u8[idx] == ptr2.p_u8[idx];
-	case V4L2_CTRL_TYPE_U16:
-		return ptr1.p_u16[idx] == ptr2.p_u16[idx];
-	case V4L2_CTRL_TYPE_U32:
-		return ptr1.p_u32[idx] == ptr2.p_u32[idx];
+		for (i = 0; i < elems; i++) {
+			unsigned int idx = i * ctrl->elem_size;
+
+			/* strings are always 0-terminated */
+			if (strcmp(ptr1.p_char + idx, ptr2.p_char + idx))
+				return false;
+		}
+		return true;
 	default:
-		if (ctrl->is_int)
-			return ptr1.p_s32[idx] == ptr2.p_s32[idx];
-		idx *= ctrl->elem_size;
-		return !memcmp(ptr1.p_const + idx, ptr2.p_const + idx,
-			       ctrl->elem_size);
+		return !memcmp(ptr1.p_const, ptr2.p_const,
+			       elems * ctrl->elem_size);
 	}
 }
 
@@ -181,40 +177,70 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 	}
 }
 
-static void std_init(const struct v4l2_ctrl *ctrl, u32 idx,
+static void std_init(const struct v4l2_ctrl *ctrl, u32 from_idx, u32 tot_elems,
 		     union v4l2_ctrl_ptr ptr)
 {
+	unsigned int i;
+	u32 elems = tot_elems - from_idx;
+
+	if (from_idx >= tot_elems)
+		return;
+
 	switch (ctrl->type) {
 	case V4L2_CTRL_TYPE_STRING:
-		idx *= ctrl->elem_size;
-		memset(ptr.p_char + idx, ' ', ctrl->minimum);
-		ptr.p_char[idx + ctrl->minimum] = '\0';
+		for (i = from_idx; i < tot_elems; i++) {
+			unsigned int offset = i * ctrl->elem_size;
+
+			memset(ptr.p_char + offset, ' ', ctrl->minimum);
+			ptr.p_char[offset + ctrl->minimum] = '\0';
+		}
 		break;
 	case V4L2_CTRL_TYPE_INTEGER64:
-		ptr.p_s64[idx] = ctrl->default_value;
+		if (ctrl->default_value) {
+			for (i = from_idx; i < tot_elems; i++)
+				ptr.p_s64[i] = ctrl->default_value;
+		} else {
+			memset(ptr.p_s64 + from_idx, 0, elems * sizeof(s64));
+		}
 		break;
 	case V4L2_CTRL_TYPE_INTEGER:
 	case V4L2_CTRL_TYPE_INTEGER_MENU:
 	case V4L2_CTRL_TYPE_MENU:
 	case V4L2_CTRL_TYPE_BITMASK:
 	case V4L2_CTRL_TYPE_BOOLEAN:
-		ptr.p_s32[idx] = ctrl->default_value;
+		if (ctrl->default_value) {
+			for (i = from_idx; i < tot_elems; i++)
+				ptr.p_s32[i] = ctrl->default_value;
+		} else {
+			memset(ptr.p_s32 + from_idx, 0, elems * sizeof(s32));
+		}
 		break;
 	case V4L2_CTRL_TYPE_BUTTON:
 	case V4L2_CTRL_TYPE_CTRL_CLASS:
-		ptr.p_s32[idx] = 0;
+		memset(ptr.p_s32 + from_idx, 0, elems * sizeof(s32));
 		break;
 	case V4L2_CTRL_TYPE_U8:
-		ptr.p_u8[idx] = ctrl->default_value;
+		memset(ptr.p_u8 + from_idx, ctrl->default_value, elems);
 		break;
 	case V4L2_CTRL_TYPE_U16:
-		ptr.p_u16[idx] = ctrl->default_value;
+		if (ctrl->default_value) {
+			for (i = from_idx; i < tot_elems; i++)
+				ptr.p_u16[i] = ctrl->default_value;
+		} else {
+			memset(ptr.p_u16 + from_idx, 0, elems * sizeof(u16));
+		}
 		break;
 	case V4L2_CTRL_TYPE_U32:
-		ptr.p_u32[idx] = ctrl->default_value;
+		if (ctrl->default_value) {
+			for (i = from_idx; i < tot_elems; i++)
+				ptr.p_u32[i] = ctrl->default_value;
+		} else {
+			memset(ptr.p_u32 + from_idx, 0, elems * sizeof(u32));
+		}
 		break;
 	default:
-		std_init_compound(ctrl, idx, ptr);
+		for (i = from_idx; i < tot_elems; i++)
+			std_init_compound(ctrl, i, ptr);
 		break;
 	}
 }
@@ -895,8 +921,8 @@ static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 	return 0;
 }
 
-static int std_validate(const struct v4l2_ctrl *ctrl, u32 idx,
-			union v4l2_ctrl_ptr ptr)
+static int std_validate_elem(const struct v4l2_ctrl *ctrl, u32 idx,
+			     union v4l2_ctrl_ptr ptr)
 {
 	size_t len;
 	u64 offset;
@@ -964,6 +990,37 @@ static int std_validate(const struct v4l2_ctrl *ctrl, u32 idx,
 	default:
 		return std_validate_compound(ctrl, idx, ptr);
 	}
+}
+
+static int std_validate(const struct v4l2_ctrl *ctrl, u32 elems,
+			union v4l2_ctrl_ptr ptr)
+{
+	unsigned int i;
+	int ret = 0;
+
+	switch ((u32)ctrl->type) {
+	case V4L2_CTRL_TYPE_U8:
+		if (ctrl->maximum == 0xff && ctrl->minimum == 0 && ctrl->step == 1)
+			return 0;
+		break;
+	case V4L2_CTRL_TYPE_U16:
+		if (ctrl->maximum == 0xffff && ctrl->minimum == 0 && ctrl->step == 1)
+			return 0;
+		break;
+	case V4L2_CTRL_TYPE_U32:
+		if (ctrl->maximum == 0xffffffff && ctrl->minimum == 0 && ctrl->step == 1)
+			return 0;
+		break;
+
+	case V4L2_CTRL_TYPE_BUTTON:
+	case V4L2_CTRL_TYPE_CTRL_CLASS:
+		memset(ptr.p_s32, 0, elems * sizeof(s32));
+		return 0;
+	}
+
+	for (i = 0; !ret && i < elems; i++)
+		ret = std_validate_elem(ctrl, i, ptr);
+	return ret;
 }
 
 static const struct v4l2_ctrl_type_ops std_type_ops = {
@@ -1449,7 +1506,6 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 	unsigned elems = 1;
 	bool is_array;
 	unsigned tot_ctrl_size;
-	unsigned idx;
 	void *data;
 	int err;
 
@@ -1664,10 +1720,8 @@ static struct v4l2_ctrl *v4l2_ctrl_new(struct v4l2_ctrl_handler *hdl,
 		memcpy(ctrl->p_def.p, p_def.p_const, elem_size);
 	}
 
-	for (idx = 0; idx < elems; idx++) {
-		ctrl->type_ops->init(ctrl, idx, ctrl->p_cur);
-		ctrl->type_ops->init(ctrl, idx, ctrl->p_new);
-	}
+	ctrl->type_ops->init(ctrl, 0, elems, ctrl->p_cur);
+	cur_to_new(ctrl);
 
 	if (handler_new_ref(hdl, ctrl, NULL, false, false)) {
 		kvfree(ctrl->p_array);
@@ -1984,7 +2038,6 @@ void update_from_auto_cluster(struct v4l2_ctrl *master)
 static int cluster_changed(struct v4l2_ctrl *master)
 {
 	bool changed = false;
-	unsigned int idx;
 	int i;
 
 	for (i = 0; i < master->ncontrols; i++) {
@@ -2010,10 +2063,9 @@ static int cluster_changed(struct v4l2_ctrl *master)
 
 		if (ctrl->elems != ctrl->new_elems)
 			ctrl_changed = true;
-
-		for (idx = 0; !ctrl_changed && idx < ctrl->elems; idx++)
-			ctrl_changed = !ctrl->type_ops->equal(ctrl, idx,
-				ctrl->p_cur, ctrl->p_new);
+		if (!ctrl_changed)
+			ctrl_changed = !ctrl->type_ops->equal(ctrl,
+				ctrl->elems, ctrl->p_cur, ctrl->p_new);
 		ctrl->has_changed = ctrl_changed;
 		changed |= ctrl->has_changed;
 	}

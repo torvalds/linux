@@ -128,13 +128,13 @@ struct v4l2_ctrl_ops {
  *	otherwise.
  */
 struct v4l2_ctrl_type_ops {
-	bool (*equal)(const struct v4l2_ctrl *ctrl, u32 idx,
+	bool (*equal)(const struct v4l2_ctrl *ctrl, u32 elems,
 		      union v4l2_ctrl_ptr ptr1,
 		      union v4l2_ctrl_ptr ptr2);
-	void (*init)(const struct v4l2_ctrl *ctrl, u32 idx,
+	void (*init)(const struct v4l2_ctrl *ctrl, u32 from_idx, u32 tot_elems,
 		     union v4l2_ctrl_ptr ptr);
 	void (*log)(const struct v4l2_ctrl *ctrl);
-	int (*validate)(const struct v4l2_ctrl *ctrl, u32 idx,
+	int (*validate)(const struct v4l2_ctrl *ctrl, u32 elems,
 			union v4l2_ctrl_ptr ptr);
 };
 
