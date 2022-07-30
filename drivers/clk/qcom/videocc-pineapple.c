@@ -27,7 +27,7 @@
 #include "vdd-level.h"
 
 static DEFINE_VDD_REGULATORS(vdd_mm, VDD_HIGH + 1, 1, vdd_corner);
-static DEFINE_VDD_REGULATORS(vdd_mxc, VDD_HIGH_L1 + 1, 1, vdd_corner);
+static DEFINE_VDD_REGULATORS(vdd_mxc, VDD_HIGH + 1, 1, vdd_corner);
 
 static struct clk_vdd_class *video_cc_pineapple_regulators[] = {
 	&vdd_mm,

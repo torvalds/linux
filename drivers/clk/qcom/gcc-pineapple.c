@@ -25,7 +25,7 @@
 #include "reset.h"
 #include "vdd-level.h"
 
-static DEFINE_VDD_REGULATORS(vdd_cx, VDD_HIGH_L1 + 1, 1, vdd_corner);
+static DEFINE_VDD_REGULATORS(vdd_cx, VDD_HIGH + 1, 1, vdd_corner);
 static DEFINE_VDD_REGULATORS(vdd_mxa, VDD_HIGH + 1, 1, vdd_corner);
 
 static struct clk_vdd_class *gcc_pineapple_regulators[] = {

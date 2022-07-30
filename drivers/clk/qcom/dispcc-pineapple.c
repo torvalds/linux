@@ -28,7 +28,7 @@
 
 #define DISP_CC_MISC_CMD	0xF000
 
-static DEFINE_VDD_REGULATORS(vdd_mm, VDD_HIGH_L1 + 1, 1, vdd_corner);
+static DEFINE_VDD_REGULATORS(vdd_mm, VDD_HIGH + 1, 1, vdd_corner);
 static DEFINE_VDD_REGULATORS(vdd_mxa, VDD_NOMINAL + 1, 1, vdd_corner);
 
 static struct clk_vdd_class *disp_cc_pineapple_regulators[] = {
