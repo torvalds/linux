@@ -10,7 +10,7 @@ static struct proc_dir_entry *rtl8192_proc;
 static int __maybe_unused proc_get_stats_ap(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(dev);
 	struct ieee80211_device *ieee = priv->ieee80211;
 	struct ieee80211_network *target;
 
@@ -70,7 +70,7 @@ static int __maybe_unused proc_get_registers(struct seq_file *m, void *v)
 static int __maybe_unused proc_get_stats_tx(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	seq_printf(m,
 		   "TX VI priority ok int: %lu\n"
@@ -129,7 +129,7 @@ static int __maybe_unused proc_get_stats_tx(struct seq_file *m, void *v)
 static int __maybe_unused proc_get_stats_rx(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
-	struct r8192_priv *priv = (struct r8192_priv *)ieee80211_priv(dev);
+	struct r8192_priv *priv = ieee80211_priv(dev);
 
 	seq_printf(m,
 		   "RX packets: %lu\n"
