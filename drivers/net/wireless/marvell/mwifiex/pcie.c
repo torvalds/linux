@@ -3373,7 +3373,7 @@ static void mwifiex_unregister_dev(struct mwifiex_adapter *adapter)
 	} else {
 		mwifiex_dbg(adapter, INFO,
 			    "%s(): calling free_irq()\n", __func__);
-	       free_irq(card->dev->irq, &card->share_irq_ctx);
+		free_irq(card->dev->irq, &card->share_irq_ctx);
 
 		if (card->msi_enable)
 			pci_disable_msi(pdev);

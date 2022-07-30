@@ -1481,9 +1481,12 @@ int wilc_wlan_init(struct net_device *dev)
 
 	wilc->quit = 0;
 
-	if (wilc->hif_func->hif_init(wilc, false)) {
-		ret = -EIO;
-		goto fail;
+	if (!wilc->hif_func->hif_is_init(wilc)) {
+		acquire_bus(wilc, WILC_BUS_ACQUIRE_ONLY);
+		ret = wilc->hif_func->hif_init(wilc, false);
+		release_bus(wilc, WILC_BUS_RELEASE_ONLY);
+		if (ret)
+			goto fail;
 	}
 
 	if (!wilc->tx_buffer)

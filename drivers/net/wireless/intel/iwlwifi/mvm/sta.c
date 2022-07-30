@@ -1861,6 +1861,7 @@ static void iwl_mvm_disable_sta_queues(struct iwl_mvm *mvm,
 			iwl_mvm_txq_from_mac80211(sta->txq[i]);
 
 		mvmtxq->txq_id = IWL_MVM_INVALID_QUEUE;
+		list_del_init(&mvmtxq->list);
 	}
 }
 

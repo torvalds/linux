@@ -177,7 +177,6 @@ struct wilc_vif {
 	u8 bssid[ETH_ALEN];
 	struct host_if_drv *hif_drv;
 	struct net_device *ndev;
-	u8 mode;
 	struct timer_list during_ip_timer;
 	struct timer_list periodic_rssi;
 	struct rf_info periodic_stat;
