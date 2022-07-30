@@ -1220,14 +1220,21 @@ static void ieee80211_assoc_add_ml_elem(struct ieee80211_sub_if_data *sdata,
 	ml_elem = skb_put(skb, sizeof(*ml_elem));
 	ml_elem->control =
 		cpu_to_le16(IEEE80211_ML_CONTROL_TYPE_BASIC |
-			    IEEE80211_MLC_BASIC_PRES_EML_CAPA |
 			    IEEE80211_MLC_BASIC_PRES_MLD_CAPA_OP);
 	common = skb_put(skb, sizeof(*common));
 	common->len = sizeof(*common) +
-		      2 + /* EML capabilities */
 		      2;  /* MLD capa/ops */
 	memcpy(common->mld_mac_addr, sdata->vif.addr, ETH_ALEN);
-	skb_put_data(skb, &eml_capa, sizeof(eml_capa));
+
+	/* add EML_CAPA only if needed, see Draft P802.11be_D2.1, 35.3.17 */
+	if (eml_capa &
+	    cpu_to_le16((IEEE80211_EML_CAP_EMLSR_SUPP |
+			 IEEE80211_EML_CAP_EMLMR_SUPPORT))) {
+		common->len += 2; /* EML capabilities */
+		ml_elem->control |=
+			cpu_to_le16(IEEE80211_MLC_BASIC_PRES_EML_CAPA);
+		skb_put_data(skb, &eml_capa, sizeof(eml_capa));
+	}
 	/* need indication from userspace to support this */
 	mld_capa_ops &= ~cpu_to_le16(IEEE80211_MLD_CAP_OP_TID_TO_LINK_MAP_NEG_SUPP);
 	skb_put_data(skb, &mld_capa_ops, sizeof(mld_capa_ops));
