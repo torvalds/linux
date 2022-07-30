@@ -1538,4 +1538,52 @@ int v4l2_ctrl_subdev_log_status(struct v4l2_subdev *sd);
 int v4l2_ctrl_new_fwnode_properties(struct v4l2_ctrl_handler *hdl,
 				    const struct v4l2_ctrl_ops *ctrl_ops,
 				    const struct v4l2_fwnode_device_properties *p);
+
+/**
+ * v4l2_ctrl_type_op_equal - Default v4l2_ctrl_type_ops equal callback.
+ *
+ * @ctrl: The v4l2_ctrl pointer.
+ * @elems: The number of elements to compare.
+ * @ptr1: A v4l2 control value.
+ * @ptr2: A v4l2 control value.
+ *
+ * Return: true if values are equal, otherwise false.
+ */
+bool v4l2_ctrl_type_op_equal(const struct v4l2_ctrl *ctrl, u32 elems,
+			     union v4l2_ctrl_ptr ptr1, union v4l2_ctrl_ptr ptr2);
+
+/**
+ * v4l2_ctrl_type_op_init - Default v4l2_ctrl_type_ops init callback.
+ *
+ * @ctrl: The v4l2_ctrl pointer.
+ * @from_idx: Starting element index.
+ * @elems: The number of elements to initialize.
+ * @ptr: The v4l2 control value.
+ *
+ * Return: void
+ */
+void v4l2_ctrl_type_op_init(const struct v4l2_ctrl *ctrl, u32 from_idx,
+			    u32 elems, union v4l2_ctrl_ptr ptr);
+
+/**
+ * v4l2_ctrl_type_op_log - Default v4l2_ctrl_type_ops log callback.
+ *
+ * @ctrl: The v4l2_ctrl pointer.
+ *
+ * Return: void
+ */
+void v4l2_ctrl_type_op_log(const struct v4l2_ctrl *ctrl);
+
+/**
+ * v4l2_ctrl_type_op_validate - Default v4l2_ctrl_type_ops validate callback.
+ *
+ * @ctrl: The v4l2_ctrl pointer.
+ * @elems: The number of elements in the control.
+ * @ptr: The v4l2 control value.
+ *
+ * Return: 0 on success, a negative error code on failure.
+ */
+int v4l2_ctrl_type_op_validate(const struct v4l2_ctrl *ctrl, u32 elems,
+			       union v4l2_ctrl_ptr ptr);
+
 #endif

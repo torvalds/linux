@@ -65,9 +65,8 @@ void send_event(struct v4l2_fh *fh, struct v4l2_ctrl *ctrl, u32 changes)
 			v4l2_event_queue_fh(sev->fh, &ev);
 }
 
-static bool std_equal(const struct v4l2_ctrl *ctrl, u32 elems,
-		      union v4l2_ctrl_ptr ptr1,
-		      union v4l2_ctrl_ptr ptr2)
+bool v4l2_ctrl_type_op_equal(const struct v4l2_ctrl *ctrl, u32 elems,
+			     union v4l2_ctrl_ptr ptr1, union v4l2_ctrl_ptr ptr2)
 {
 	unsigned int i;
 
@@ -88,6 +87,7 @@ static bool std_equal(const struct v4l2_ctrl *ctrl, u32 elems,
 			       elems * ctrl->elem_size);
 	}
 }
+EXPORT_SYMBOL(v4l2_ctrl_type_op_equal);
 
 /* Default intra MPEG-2 quantisation coefficients, from the specification. */
 static const u8 mpeg2_intra_quant_matrix[64] = {
@@ -177,8 +177,8 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 	}
 }
 
-static void std_init(const struct v4l2_ctrl *ctrl, u32 from_idx, u32 tot_elems,
-		     union v4l2_ctrl_ptr ptr)
+void v4l2_ctrl_type_op_init(const struct v4l2_ctrl *ctrl, u32 from_idx,
+			    u32 tot_elems, union v4l2_ctrl_ptr ptr)
 {
 	unsigned int i;
 	u32 elems = tot_elems - from_idx;
@@ -244,8 +244,9 @@ static void std_init(const struct v4l2_ctrl *ctrl, u32 from_idx, u32 tot_elems,
 		break;
 	}
 }
+EXPORT_SYMBOL(v4l2_ctrl_type_op_init);
 
-static void std_log(const struct v4l2_ctrl *ctrl)
+void v4l2_ctrl_type_op_log(const struct v4l2_ctrl *ctrl)
 {
 	union v4l2_ctrl_ptr ptr = ctrl->p_cur;
 
@@ -353,6 +354,7 @@ static void std_log(const struct v4l2_ctrl *ctrl)
 		break;
 	}
 }
+EXPORT_SYMBOL(v4l2_ctrl_type_op_log);
 
 /*
  * Round towards the closest legal value. Be careful when we are
@@ -546,7 +548,8 @@ validate_vp9_frame(struct v4l2_ctrl_vp9_frame *frame)
 
 /*
  * Compound controls validation requires setting unused fields/flags to zero
- * in order to properly detect unchanged controls with std_equal's memcmp.
+ * in order to properly detect unchanged controls with v4l2_ctrl_type_op_equal's
+ * memcmp.
  */
 static int std_validate_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 				 union v4l2_ctrl_ptr ptr)
@@ -992,8 +995,8 @@ static int std_validate_elem(const struct v4l2_ctrl *ctrl, u32 idx,
 	}
 }
 
-static int std_validate(const struct v4l2_ctrl *ctrl, u32 elems,
-			union v4l2_ctrl_ptr ptr)
+int v4l2_ctrl_type_op_validate(const struct v4l2_ctrl *ctrl, u32 elems,
+			       union v4l2_ctrl_ptr ptr)
 {
 	unsigned int i;
 	int ret = 0;
@@ -1022,12 +1025,13 @@ static int std_validate(const struct v4l2_ctrl *ctrl, u32 elems,
 		ret = std_validate_elem(ctrl, i, ptr);
 	return ret;
 }
+EXPORT_SYMBOL(v4l2_ctrl_type_op_validate);
 
 static const struct v4l2_ctrl_type_ops std_type_ops = {
-	.equal = std_equal,
-	.init = std_init,
-	.log = std_log,
-	.validate = std_validate,
+	.equal = v4l2_ctrl_type_op_equal,
+	.init = v4l2_ctrl_type_op_init,
+	.log = v4l2_ctrl_type_op_log,
+	.validate = v4l2_ctrl_type_op_validate,
 };
 
 void v4l2_ctrl_notify(struct v4l2_ctrl *ctrl, v4l2_ctrl_notify_fnc notify, void *priv)
