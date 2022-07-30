@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: GPL-2.0
 /****************************************************************************
- *   -----------------------------PROCFS STUFF-------------------------
+ *   -----------------------------DEGUGFS STUFF-------------------------
  ****************************************************************************/
-#include <linux/proc_fs.h>
+#include <linux/debugfs.h>
 #include <linux/seq_file.h>
 #include "r8192U.h"
 
-static struct proc_dir_entry *rtl8192_proc;
-static int __maybe_unused proc_get_stats_ap(struct seq_file *m, void *v)
+#define KBUILD_MODNAME "r8192u_usb"
+
+static int rtl8192_usb_stats_ap_show(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -26,7 +27,7 @@ static int __maybe_unused proc_get_stats_ap(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int __maybe_unused proc_get_registers(struct seq_file *m, void *v)
+static int rtl8192_usb_registers_show(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	int i, n, max = 0xff;
@@ -67,7 +68,7 @@ static int __maybe_unused proc_get_registers(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int __maybe_unused proc_get_stats_tx(struct seq_file *m, void *v)
+static int rtl8192_usb_stats_tx_show(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -126,7 +127,7 @@ static int __maybe_unused proc_get_stats_tx(struct seq_file *m, void *v)
 	return 0;
 }
 
-static int __maybe_unused proc_get_stats_rx(struct seq_file *m, void *v)
+static int rtl8192_usb_stats_rx_show(struct seq_file *m, void *v)
 {
 	struct net_device *dev = m->private;
 	struct r8192_priv *priv = ieee80211_priv(dev);
@@ -142,34 +143,38 @@ static int __maybe_unused proc_get_stats_rx(struct seq_file *m, void *v)
 	return 0;
 }
 
-void rtl8192_proc_module_init(void)
+DEFINE_SHOW_ATTRIBUTE(rtl8192_usb_stats_rx);
+DEFINE_SHOW_ATTRIBUTE(rtl8192_usb_stats_tx);
+DEFINE_SHOW_ATTRIBUTE(rtl8192_usb_stats_ap);
+DEFINE_SHOW_ATTRIBUTE(rtl8192_usb_registers);
+
+void rtl8192_debugfs_init_one(struct net_device *dev)
 {
-	RT_TRACE(COMP_INIT, "Initializing proc filesystem");
-	rtl8192_proc = proc_mkdir(RTL819XU_MODULE_NAME, init_net.proc_net);
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct dentry *parent_dir = debugfs_lookup(KBUILD_MODNAME, NULL);
+	struct dentry *dir = debugfs_create_dir(dev->name, parent_dir);
+
+	debugfs_create_file("stats-rx", 0444, dir, dev, &rtl8192_usb_stats_rx_fops);
+	debugfs_create_file("stats-tx", 0444, dir, dev, &rtl8192_usb_stats_tx_fops);
+	debugfs_create_file("stats-ap", 0444, dir, dev, &rtl8192_usb_stats_ap_fops);
+	debugfs_create_file("registers", 0444, dir, dev, &rtl8192_usb_registers_fops);
+
+	priv->debugfs_dir = dir;
 }
 
-void rtl8192_proc_init_one(struct net_device *dev)
+void rtl8192_debugfs_exit_one(struct net_device *dev)
 {
-	struct proc_dir_entry *dir;
+	struct r8192_priv *priv = ieee80211_priv(dev);
 
-	if (!rtl8192_proc)
-		return;
-
-	dir = proc_mkdir_data(dev->name, 0, rtl8192_proc, dev);
-	if (!dir)
-		return;
-
-	proc_create_single("stats-rx", S_IFREG | 0444, dir,
-			   proc_get_stats_rx);
-	proc_create_single("stats-tx", S_IFREG | 0444, dir,
-			   proc_get_stats_tx);
-	proc_create_single("stats-ap", S_IFREG | 0444, dir,
-			   proc_get_stats_ap);
-	proc_create_single("registers", S_IFREG | 0444, dir,
-			   proc_get_registers);
+	debugfs_remove_recursive(priv->debugfs_dir);
 }
 
-void rtl8192_proc_remove_one(struct net_device *dev)
+void rtl8192_debugfs_init(void)
 {
-	remove_proc_subtree(dev->name, rtl8192_proc);
+	debugfs_create_dir(KBUILD_MODNAME, NULL);
+}
+
+void rtl8192_debugfs_exit(void)
+{
+	debugfs_remove_recursive(debugfs_lookup(KBUILD_MODNAME, NULL));
 }
