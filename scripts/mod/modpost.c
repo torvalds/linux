@@ -1723,8 +1723,7 @@ static void section_rela(const char *modname, struct elf_info *elf,
 	Elf_Rela *start = (void *)elf->hdr + sechdr->sh_offset;
 	Elf_Rela *stop  = (void *)start + sechdr->sh_size;
 
-	fromsec = sech_name(elf, sechdr);
-	fromsec += strlen(".rela");
+	fromsec = sec_name(elf, sechdr->sh_info);
 	/* if from section (name) is know good then skip it */
 	if (match(fromsec, section_white_list))
 		return;
@@ -1776,8 +1775,7 @@ static void section_rel(const char *modname, struct elf_info *elf,
 	Elf_Rel *start = (void *)elf->hdr + sechdr->sh_offset;
 	Elf_Rel *stop  = (void *)start + sechdr->sh_size;
 
-	fromsec = sech_name(elf, sechdr);
-	fromsec += strlen(".rel");
+	fromsec = sec_name(elf, sechdr->sh_info);
 	/* if from section (name) is know good then skip it */
 	if (match(fromsec, section_white_list))
 		return;
