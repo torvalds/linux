@@ -1641,9 +1641,7 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 	/* Disable the right splice win */
 	if (win->splice_win && !skip_splice_win) {
 		vop2_win_disable(win->splice_win, false);
-		win->left_win = NULL;
 		win->splice_win = NULL;
-		win->splice_mode_right = false;
 	}
 
 	if (VOP_WIN_GET(vop2, win, enable)) {
@@ -1684,6 +1682,11 @@ static void vop2_win_disable(struct vop2_win *win, bool skip_splice_win)
 			vop2_power_domain_put(win->pd);
 			win->pd->vp_mask &= ~win->vp_mask;
 		}
+	}
+
+	if (win->left_win && win->splice_mode_right) {
+		win->left_win = NULL;
+		win->splice_mode_right = false;
 	}
 }
 
