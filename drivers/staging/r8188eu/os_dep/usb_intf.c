@@ -332,7 +332,8 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	rtl8188eu_interface_configure(padapter);
 
 	/* step read efuse/eeprom data and get mac_addr */
-	ReadAdapterInfo8188EU(padapter);
+	if (ReadAdapterInfo8188EU(padapter) < 0)
+		goto handle_dualmac;
 
 	/* step 5. */
 	if (rtw_init_drv_sw(padapter) == _FAIL)
