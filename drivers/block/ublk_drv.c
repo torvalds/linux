@@ -788,9 +788,17 @@ static void ublk_daemon_monitor_work(struct work_struct *work)
 				UBLK_DAEMON_MONITOR_PERIOD);
 }
 
+static inline bool ublk_queue_ready(struct ublk_queue *ubq)
+{
+	return ubq->nr_io_ready == ubq->q_depth;
+}
+
 static void ublk_cancel_queue(struct ublk_queue *ubq)
 {
 	int i;
+
+	if (!ublk_queue_ready(ubq))
+		return;
 
 	for (i = 0; i < ubq->q_depth; i++) {
 		struct ublk_io *io = &ubq->ios[i];
@@ -798,6 +806,9 @@ static void ublk_cancel_queue(struct ublk_queue *ubq)
 		if (io->flags & UBLK_IO_FLAG_ACTIVE)
 			io_uring_cmd_done(io->cmd, UBLK_IO_RES_ABORT, 0);
 	}
+
+	/* all io commands are canceled */
+	ubq->nr_io_ready = 0;
 }
 
 /* Cancel all pending commands, must be called after del_gendisk() returns */
@@ -818,17 +829,12 @@ static void ublk_stop_dev(struct ublk_device *ub)
 	del_gendisk(ub->ub_disk);
 	ub->dev_info.state = UBLK_S_DEV_DEAD;
 	ub->dev_info.ublksrv_pid = -1;
-	ublk_cancel_dev(ub);
 	put_disk(ub->ub_disk);
 	ub->ub_disk = NULL;
  unlock:
+	ublk_cancel_dev(ub);
 	mutex_unlock(&ub->mutex);
 	cancel_delayed_work_sync(&ub->monitor_work);
-}
-
-static inline bool ublk_queue_ready(struct ublk_queue *ubq)
-{
-	return ubq->nr_io_ready == ubq->q_depth;
 }
 
 /* device can only be started after all IOs are ready */
