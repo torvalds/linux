@@ -91,8 +91,8 @@ static struct aa_profile *alloc_unconfined(const char *name)
 	profile->label.flags |= FLAG_IX_ON_NAME_ERROR |
 		FLAG_IMMUTIBLE | FLAG_NS_COUNT | FLAG_UNCONFINED;
 	profile->mode = APPARMOR_UNCONFINED;
-	profile->file.dfa = aa_get_dfa(nulldfa);
-	profile->policy.dfa = aa_get_dfa(nulldfa);
+	profile->rules.file.dfa = aa_get_dfa(nulldfa);
+	profile->rules.policy.dfa = aa_get_dfa(nulldfa);
 
 	return profile;
 }

@@ -223,7 +223,7 @@ static void audit_ptrace_cb(struct audit_buffer *ab, void *va)
 			FLAGS_NONE, GFP_ATOMIC);
 }
 
-/* assumes check for PROFILE_MEDIATES is already done */
+/* assumes check for RULE_MEDIATES is already done */
 /* TODO: conditionals */
 static int profile_ptrace_perm(struct aa_profile *profile,
 			     struct aa_label *peer, u32 request,
@@ -232,8 +232,8 @@ static int profile_ptrace_perm(struct aa_profile *profile,
 	struct aa_perms perms = { };
 
 	aad(sa)->peer = peer;
-	aa_profile_match_label(profile, peer, AA_CLASS_PTRACE, request,
-			       &perms);
+	aa_profile_match_label(profile, &profile->rules, peer,
+			       AA_CLASS_PTRACE, request, &perms);
 	aa_apply_modes_to_perms(profile, &perms);
 	return aa_check_perms(profile, &perms, request, sa, audit_ptrace_cb);
 }
@@ -243,7 +243,7 @@ static int profile_tracee_perm(struct aa_profile *tracee,
 			       struct common_audit_data *sa)
 {
 	if (profile_unconfined(tracee) || unconfined(tracer) ||
-	    !PROFILE_MEDIATES(tracee, AA_CLASS_PTRACE))
+	    !RULE_MEDIATES(&tracee->rules, AA_CLASS_PTRACE))
 		return 0;
 
 	return profile_ptrace_perm(tracee, tracer, request, sa);
@@ -256,7 +256,7 @@ static int profile_tracer_perm(struct aa_profile *tracer,
 	if (profile_unconfined(tracer))
 		return 0;
 
-	if (PROFILE_MEDIATES(tracer, AA_CLASS_PTRACE))
+	if (RULE_MEDIATES(&tracer->rules, AA_CLASS_PTRACE))
 		return profile_ptrace_perm(tracer, tracee, request, sa);
 
 	/* profile uses the old style capability check for ptrace */

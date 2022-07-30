@@ -224,11 +224,12 @@ int __aa_path_perm(const char *op, struct aa_profile *profile, const char *name,
 		   u32 request, struct path_cond *cond, int flags,
 		   struct aa_perms *perms)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	int e = 0;
 
 	if (profile_unconfined(profile))
 		return 0;
-	aa_str_perms(&(profile->file), profile->file.start[AA_CLASS_FILE],
+	aa_str_perms(&(rules->file), rules->file.start[AA_CLASS_FILE],
 		     name, cond, perms);
 	if (request & ~perms->allow)
 		e = -EACCES;
@@ -316,6 +317,7 @@ static int profile_path_link(struct aa_profile *profile,
 			     const struct path *target, char *buffer2,
 			     struct path_cond *cond)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	const char *lname, *tname = NULL;
 	struct aa_perms lperms = {}, perms;
 	const char *info = NULL;
@@ -336,16 +338,16 @@ static int profile_path_link(struct aa_profile *profile,
 
 	error = -EACCES;
 	/* aa_str_perms - handles the case of the dfa being NULL */
-	state = aa_str_perms(&(profile->file),
-			     profile->file.start[AA_CLASS_FILE], lname,
+	state = aa_str_perms(&(rules->file),
+			     rules->file.start[AA_CLASS_FILE], lname,
 			     cond, &lperms);
 
 	if (!(lperms.allow & AA_MAY_LINK))
 		goto audit;
 
 	/* test to see if target can be paired with link */
-	state = aa_dfa_null_transition(profile->file.dfa, state);
-	aa_str_perms(&(profile->file), state, tname, cond, &perms);
+	state = aa_dfa_null_transition(rules->file.dfa, state);
+	aa_str_perms(&(rules->file), state, tname, cond, &perms);
 
 	/* force audit/quiet masks for link are stored in the second entry
 	 * in the link pair.
@@ -367,7 +369,7 @@ static int profile_path_link(struct aa_profile *profile,
 	/* Do link perm subset test requiring allowed permission on link are
 	 * a subset of the allowed permissions on target.
 	 */
-	aa_str_perms(&(profile->file), profile->file.start[AA_CLASS_FILE],
+	aa_str_perms(&(rules->file), rules->file.start[AA_CLASS_FILE],
 		     tname, cond, &perms);
 
 	/* AA_MAY_LINK is not considered in the subset test */

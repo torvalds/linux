@@ -81,19 +81,20 @@ static inline aa_state_t match_component(struct aa_profile *profile,
 					 struct aa_profile *tp,
 					 bool stack, aa_state_t state)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	const char *ns_name;
 
 	if (stack)
-		state = aa_dfa_match(profile->file.dfa, state, "&");
+		state = aa_dfa_match(rules->file.dfa, state, "&");
 	if (profile->ns == tp->ns)
-		return aa_dfa_match(profile->file.dfa, state, tp->base.hname);
+		return aa_dfa_match(rules->file.dfa, state, tp->base.hname);
 
 	/* try matching with namespace name and then profile */
 	ns_name = aa_ns_name(profile->ns, tp->ns, true);
-	state = aa_dfa_match_len(profile->file.dfa, state, ":", 1);
-	state = aa_dfa_match(profile->file.dfa, state, ns_name);
-	state = aa_dfa_match_len(profile->file.dfa, state, ":", 1);
-	return aa_dfa_match(profile->file.dfa, state, tp->base.hname);
+	state = aa_dfa_match_len(rules->file.dfa, state, ":", 1);
+	state = aa_dfa_match(rules->file.dfa, state, ns_name);
+	state = aa_dfa_match_len(rules->file.dfa, state, ":", 1);
+	return aa_dfa_match(rules->file.dfa, state, tp->base.hname);
 }
 
 /**
@@ -117,6 +118,7 @@ static int label_compound_match(struct aa_profile *profile,
 				aa_state_t state, bool subns, u32 request,
 				struct aa_perms *perms)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	struct aa_profile *tp;
 	struct label_it i;
 	struct path_cond cond = { };
@@ -139,12 +141,12 @@ next:
 	label_for_each_cont(i, label, tp) {
 		if (!aa_ns_visible(profile->ns, tp->ns, subns))
 			continue;
-		state = aa_dfa_match(profile->file.dfa, state, "//&");
+		state = aa_dfa_match(rules->file.dfa, state, "//&");
 		state = match_component(profile, tp, false, state);
 		if (!state)
 			goto fail;
 	}
-	*perms = *(aa_lookup_fperms(&(profile->file), state, &cond));
+	*perms = *(aa_lookup_fperms(&(rules->file), state, &cond));
 	aa_apply_modes_to_perms(profile, perms);
 	if ((perms->allow & request) != request)
 		return -EACCES;
@@ -177,6 +179,7 @@ static int label_components_match(struct aa_profile *profile,
 				  aa_state_t start, bool subns, u32 request,
 				  struct aa_perms *perms)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	struct aa_profile *tp;
 	struct label_it i;
 	struct aa_perms tmp;
@@ -197,7 +200,7 @@ static int label_components_match(struct aa_profile *profile,
 	return 0;
 
 next:
-	tmp = *(aa_lookup_fperms(&(profile->file), state, &cond));
+	tmp = *(aa_lookup_fperms(&(rules->file), state, &cond));
 	aa_apply_modes_to_perms(profile, &tmp);
 	aa_perms_accum(perms, &tmp);
 	label_for_each_cont(i, label, tp) {
@@ -206,7 +209,7 @@ next:
 		state = match_component(profile, tp, stack, start);
 		if (!state)
 			goto fail;
-		tmp = *(aa_lookup_fperms(&(profile->file), state, &cond));
+		tmp = *(aa_lookup_fperms(&(rules->file), state, &cond));
 		aa_apply_modes_to_perms(profile, &tmp);
 		aa_perms_accum(perms, &tmp);
 	}
@@ -296,18 +299,19 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 	ssize_t size;
 	struct dentry *d;
 	char *value = NULL;
-	int value_size = 0, ret = profile->xattr_count;
+	struct aa_attachment *attach = &profile->attach;
+	int value_size = 0, ret = attach->xattr_count;
 
-	if (!bprm || !profile->xattr_count)
+	if (!bprm || !attach->xattr_count)
 		return 0;
 	might_sleep();
 
 	/* transition from exec match to xattr set */
-	state = aa_dfa_outofband_transition(profile->xmatch.dfa, state);
+	state = aa_dfa_outofband_transition(attach->xmatch.dfa, state);
 	d = bprm->file->f_path.dentry;
 
-	for (i = 0; i < profile->xattr_count; i++) {
-		size = vfs_getxattr_alloc(&init_user_ns, d, profile->xattrs[i],
+	for (i = 0; i < attach->xattr_count; i++) {
+		size = vfs_getxattr_alloc(&init_user_ns, d, attach->xattrs[i],
 					  &value, value_size, GFP_KERNEL);
 		if (size >= 0) {
 			u32 index, perm;
@@ -317,20 +321,20 @@ static int aa_xattrs_match(const struct linux_binprm *bprm,
 			 * that not present xattr can be distinguished from a 0
 			 * length value or rule that matches any value
 			 */
-			state = aa_dfa_null_transition(profile->xmatch.dfa,
+			state = aa_dfa_null_transition(attach->xmatch.dfa,
 						       state);
 			/* Check xattr value */
-			state = aa_dfa_match_len(profile->xmatch.dfa, state,
+			state = aa_dfa_match_len(attach->xmatch.dfa, state,
 						 value, size);
-			index = ACCEPT_TABLE(profile->xmatch.dfa)[state];
-			perm = profile->xmatch.perms[index].allow;
+			index = ACCEPT_TABLE(attach->xmatch.dfa)[state];
+			perm = attach->xmatch.perms[index].allow;
 			if (!(perm & MAY_EXEC)) {
 				ret = -EINVAL;
 				goto out;
 			}
 		}
 		/* transition to next element */
-		state = aa_dfa_outofband_transition(profile->xmatch.dfa, state);
+		state = aa_dfa_outofband_transition(attach->xmatch.dfa, state);
 		if (size < 0) {
 			/*
 			 * No xattr match, so verify if transition to
@@ -382,6 +386,8 @@ static struct aa_label *find_attach(const struct linux_binprm *bprm,
 	rcu_read_lock();
 restart:
 	list_for_each_entry_rcu(profile, head, base.list) {
+		struct aa_attachment *attach = &profile->attach;
+
 		if (profile->label.flags & FLAG_NULL &&
 		    &profile->label == ns_unconfined(profile->ns))
 			continue;
@@ -397,16 +403,16 @@ restart:
 		 * as another profile, signal a conflict and refuse to
 		 * match.
 		 */
-		if (profile->xmatch.dfa) {
+		if (attach->xmatch.dfa) {
 			unsigned int count;
 			aa_state_t state;
 			u32 index, perm;
 
-			state = aa_dfa_leftmatch(profile->xmatch.dfa,
-					profile->xmatch.start[AA_CLASS_XMATCH],
+			state = aa_dfa_leftmatch(attach->xmatch.dfa,
+					attach->xmatch.start[AA_CLASS_XMATCH],
 					name, &count);
-			index = ACCEPT_TABLE(profile->xmatch.dfa)[state];
-			perm = profile->xmatch.perms[index].allow;
+			index = ACCEPT_TABLE(attach->xmatch.dfa)[state];
+			perm = attach->xmatch.perms[index].allow;
 			/* any accepting state means a valid match. */
 			if (perm & MAY_EXEC) {
 				int ret = 0;
@@ -414,7 +420,7 @@ restart:
 				if (count < candidate_len)
 					continue;
 
-				if (bprm && profile->xattr_count) {
+				if (bprm && attach->xattr_count) {
 					long rev = READ_ONCE(ns->revision);
 
 					if (!aa_get_profile_not0(profile))
@@ -453,7 +459,7 @@ restart:
 				 * xattrs, or a longer match
 				 */
 				candidate = profile;
-				candidate_len = max(count, profile->xmatch_len);
+				candidate_len = max(count, attach->xmatch_len);
 				candidate_xattrs = ret;
 				conflict = false;
 			}
@@ -497,6 +503,7 @@ static const char *next_name(int xtype, const char *name)
 struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
 				const char **name)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	struct aa_label *label = NULL;
 	u32 xtype = xindex & AA_X_TYPE_MASK;
 	int index = xindex & AA_X_INDEX_MASK;
@@ -507,7 +514,7 @@ struct aa_label *x_table_lookup(struct aa_profile *profile, u32 xindex,
 	/* TODO: move lookup parsing to unpack time so this is a straight
 	 *       index into the resultant label
 	 */
-	for (*name = profile->file.trans.table[index]; !label && *name;
+	for (*name = rules->file.trans.table[index]; !label && *name;
 	     *name = next_name(xtype, *name)) {
 		if (xindex & AA_X_CHILD) {
 			struct aa_profile *new_profile;
@@ -546,6 +553,7 @@ static struct aa_label *x_to_label(struct aa_profile *profile,
 				   const char **lookupname,
 				   const char **info)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	struct aa_label *new = NULL;
 	struct aa_ns *ns = profile->ns;
 	u32 xtype = xindex & AA_X_TYPE_MASK;
@@ -558,7 +566,7 @@ static struct aa_label *x_to_label(struct aa_profile *profile,
 		break;
 	case AA_X_TABLE:
 		/* TODO: fix when perm mapping done at unload */
-		stack = profile->file.trans.table[xindex & AA_X_INDEX_MASK];
+		stack = rules->file.trans.table[xindex & AA_X_INDEX_MASK];
 		if (*stack != '&') {
 			/* released by caller */
 			new = x_table_lookup(profile, xindex, lookupname);
@@ -612,9 +620,10 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 					   char *buffer, struct path_cond *cond,
 					   bool *secure_exec)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	struct aa_label *new = NULL;
 	const char *info = NULL, *name = NULL, *target = NULL;
-	aa_state_t state = profile->file.start[AA_CLASS_FILE];
+	aa_state_t state = rules->file.start[AA_CLASS_FILE];
 	struct aa_perms perms = {};
 	bool nonewprivs = false;
 	int error = 0;
@@ -648,7 +657,7 @@ static struct aa_label *profile_transition(struct aa_profile *profile,
 	}
 
 	/* find exec permissions for name */
-	state = aa_str_perms(&(profile->file), state, name, cond, &perms);
+	state = aa_str_perms(&(rules->file), state, name, cond, &perms);
 	if (perms.allow & MAY_EXEC) {
 		/* exec permission determine how to transition */
 		new = x_to_label(profile, bprm, name, perms.xindex, &target,
@@ -710,7 +719,8 @@ static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
 			  char *buffer, struct path_cond *cond,
 			  bool *secure_exec)
 {
-	aa_state_t state = profile->file.start[AA_CLASS_FILE];
+	struct aa_ruleset *rules = &profile->rules;
+	aa_state_t state = rules->file.start[AA_CLASS_FILE];
 	struct aa_perms perms = {};
 	const char *xname = NULL, *info = "change_profile onexec";
 	int error = -EACCES;
@@ -743,7 +753,7 @@ static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
 	}
 
 	/* find exec permissions for name */
-	state = aa_str_perms(&(profile->file), state, xname, cond, &perms);
+	state = aa_str_perms(&(rules->file), state, xname, cond, &perms);
 	if (!(perms.allow & AA_MAY_ONEXEC)) {
 		info = "no change_onexec valid for executable";
 		goto audit;
@@ -752,7 +762,7 @@ static int profile_onexec(struct aa_profile *profile, struct aa_label *onexec,
 	 * onexec permission is linked to exec with a standard pairing
 	 * exec\0change_profile
 	 */
-	state = aa_dfa_null_transition(profile->file.dfa, state);
+	state = aa_dfa_null_transition(rules->file.dfa, state);
 	error = change_profile_perms(profile, onexec, stack, AA_MAY_ONEXEC,
 				     state, &perms);
 	if (error) {
@@ -1249,12 +1259,13 @@ static int change_profile_perms_wrapper(const char *op, const char *name,
 					struct aa_label *target, bool stack,
 					u32 request, struct aa_perms *perms)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	const char *info = NULL;
 	int error = 0;
 
 	if (!error)
 		error = change_profile_perms(profile, target, stack, request,
-					     profile->file.start[AA_CLASS_FILE],
+					     rules->file.start[AA_CLASS_FILE],
 					     perms);
 	if (error)
 		error = aa_audit_file(profile, perms, op, request, name,

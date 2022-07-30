@@ -611,30 +611,29 @@ static const struct file_operations aa_fs_ns_revision_fops = {
 static void profile_query_cb(struct aa_profile *profile, struct aa_perms *perms,
 			     const char *match_str, size_t match_len)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	struct aa_perms tmp = { };
-	struct aa_dfa *dfa;
 	aa_state_t state = DFA_NOMATCH;
 
 	if (profile_unconfined(profile))
 		return;
-	if (profile->file.dfa && *match_str == AA_CLASS_FILE) {
-		dfa = profile->file.dfa;
-		state = aa_dfa_match_len(dfa,
-					 profile->file.start[AA_CLASS_FILE],
+	if (rules->file.dfa && *match_str == AA_CLASS_FILE) {
+		state = aa_dfa_match_len(rules->file.dfa,
+					 rules->file.start[AA_CLASS_FILE],
 					 match_str + 1, match_len - 1);
 		if (state) {
 			struct path_cond cond = { };
 
-			tmp = *(aa_lookup_fperms(&(profile->file), state, &cond));
+			tmp = *(aa_lookup_fperms(&(rules->file), state, &cond));
 		}
-	} else if (profile->policy.dfa) {
-		if (!PROFILE_MEDIATES(profile, *match_str))
+	} else if (rules->policy.dfa) {
+		if (!RULE_MEDIATES(rules, *match_str))
 			return;	/* no change to current perms */
-		dfa = profile->policy.dfa;
-		state = aa_dfa_match_len(dfa, profile->policy.start[0],
+		state = aa_dfa_match_len(rules->policy.dfa,
+					 rules->policy.start[0],
 					 match_str, match_len);
 		if (state)
-			tmp = *aa_lookup_perms(&profile->policy, state);
+			tmp = *aa_lookup_perms(&rules->policy, state);
 	}
 	aa_apply_modes_to_perms(profile, &tmp);
 	aa_perms_accum_raw(perms, &tmp);
@@ -1093,9 +1092,9 @@ static int seq_profile_attach_show(struct seq_file *seq, void *v)
 	struct aa_proxy *proxy = seq->private;
 	struct aa_label *label = aa_get_label_rcu(&proxy->label);
 	struct aa_profile *profile = labels_profile(label);
-	if (profile->attach)
-		seq_printf(seq, "%s\n", profile->attach);
-	else if (profile->xmatch.dfa)
+	if (profile->attach.xmatch_str)
+		seq_printf(seq, "%s\n", profile->attach.xmatch_str);
+	else if (profile->attach.xmatch.dfa)
 		seq_puts(seq, "<unknown>\n");
 	else
 		seq_printf(seq, "%s\n", profile->base.name);

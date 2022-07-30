@@ -123,6 +123,43 @@ struct aa_data {
 	struct rhash_head head;
 };
 
+/* struct aa_ruleset - data covering mediation rules
+ * @size: the memory consumed by this ruleset
+ * @policy: general match rules governing policy
+ * @file: The set of rules governing basic file access and domain transitions
+ * @caps: capabilities for the profile
+ * @rlimits: rlimits for the profile
+ * @secmark_count: number of secmark entries
+ * @secmark: secmark label match info
+ */
+struct aa_ruleset {
+	int size;
+
+	/* TODO: merge policy and file */
+	struct aa_policydb policy;
+	struct aa_policydb file;
+	struct aa_caps caps;
+
+	struct aa_rlimit rlimits;
+
+	int secmark_count;
+	struct aa_secmark *secmark;
+};
+
+/* struct aa_attachment - data and rules for a profiles attachment
+ * @xmatch_str: human readable attachment string
+ * @xmatch: optional extended matching for unconfined executables names
+ * @xmatch_len: xmatch prefix len, used to determine xmatch priority
+ * @xattr_count: number of xattrs in table
+ * @xattrs: table of xattrs
+ */
+struct aa_attachment {
+	const char *xmatch_str;
+	struct aa_policydb xmatch;
+	unsigned int xmatch_len;
+	int xattr_count;
+	char **xattrs;
+};
 
 /* struct aa_profile - basic confinement data
  * @base - base components of the profile (name, refcount, lists, lock ...)
@@ -130,18 +167,13 @@ struct aa_data {
  * @parent: parent of profile
  * @ns: namespace the profile is in
  * @rename: optional profile name that this profile renamed
- * @attach: human readable attachment string
- * @xmatch: optional extended matching for unconfined executables names
- * @xmatch_len: xmatch prefix len, used to determine xmatch priority
+ *
  * @audit: the auditing mode of the profile
  * @mode: the enforcement mode of the profile
  * @path_flags: flags controlling path generation behavior
  * @disconnected: what to prepend if attach_disconnected is specified
- * @size: the memory consumed by this profiles rules
- * @policy: general match rules governing policy
- * @file: The set of rules governing basic file access and domain transitions
- * @caps: capabilities for the profile
- * @rlimits: rlimits for the profile
+ * @attach: attachment rules for the profile
+ * @rules: rules to be enforced
  *
  * @dents: dentries for the profiles file entries in apparmorfs
  * @dirname: name of the profile dir in apparmorfs
@@ -166,27 +198,13 @@ struct aa_profile {
 	struct aa_ns *ns;
 	const char *rename;
 
-	const char *attach;
-	struct aa_policydb xmatch;
-	unsigned int xmatch_len;
-
 	enum audit_mode audit;
 	long mode;
 	u32 path_flags;
 	const char *disconnected;
-	int size;
 
-	struct aa_policydb policy;
-	struct aa_policydb file;
-	struct aa_caps caps;
-
-	int xattr_count;
-	char **xattrs;
-
-	struct aa_rlimit rlimits;
-
-	int secmark_count;
-	struct aa_secmark *secmark;
+	struct aa_attachment attach;
+	struct aa_ruleset rules;
 
 	struct aa_loaddata *rawdata;
 	unsigned char *hash;
@@ -247,24 +265,24 @@ static inline struct aa_profile *aa_get_newest_profile(struct aa_profile *p)
 	return labels_profile(aa_get_newest_label(&p->label));
 }
 
-static inline aa_state_t PROFILE_MEDIATES(struct aa_profile *profile,
-					    unsigned char class)
+static inline aa_state_t RULE_MEDIATES(struct aa_ruleset *rules,
+				       unsigned char class)
 {
 	if (class <= AA_CLASS_LAST)
-		return profile->policy.start[class];
+		return rules->policy.start[class];
 	else
-		return aa_dfa_match_len(profile->policy.dfa,
-					profile->policy.start[0], &class, 1);
+		return aa_dfa_match_len(rules->policy.dfa,
+					rules->policy.start[0], &class, 1);
 }
 
-static inline aa_state_t PROFILE_MEDIATES_AF(struct aa_profile *profile,
-					     u16 AF) {
-	aa_state_t state = PROFILE_MEDIATES(profile, AA_CLASS_NET);
+static inline aa_state_t RULE_MEDIATES_AF(struct aa_ruleset *rules, u16 AF)
+{
+	aa_state_t state = RULE_MEDIATES(rules, AA_CLASS_NET);
 	__be16 be_af = cpu_to_be16(AF);
 
 	if (!state)
 		return DFA_NOMATCH;
-	return aa_dfa_match_len(profile->policy.dfa, state, (char *) &be_af, 2);
+	return aa_dfa_match_len(rules->policy.dfa, state, (char *) &be_af, 2);
 }
 
 /**

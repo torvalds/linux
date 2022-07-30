@@ -331,16 +331,18 @@ void aa_apply_modes_to_perms(struct aa_profile *profile, struct aa_perms *perms)
 		perms->prompt = ALL_PERMS_MASK;
 }
 
-void aa_profile_match_label(struct aa_profile *profile, struct aa_label *label,
+void aa_profile_match_label(struct aa_profile *profile,
+			    struct aa_ruleset *rules,
+			    struct aa_label *label,
 			    int type, u32 request, struct aa_perms *perms)
 {
 	/* TODO: doesn't yet handle extended types */
 	aa_state_t state;
 
-	state = aa_dfa_next(profile->policy.dfa,
-			    profile->policy.start[AA_CLASS_LABEL],
+	state = aa_dfa_next(rules->policy.dfa,
+			    rules->policy.start[AA_CLASS_LABEL],
 			    type);
-	aa_label_match(profile, label, state, false, request, perms);
+	aa_label_match(profile, rules, label, state, false, request, perms);
 }
 
 
@@ -355,7 +357,8 @@ int aa_profile_label_perm(struct aa_profile *profile, struct aa_profile *target,
 	aad(sa)->peer = &target->label;
 	aad(sa)->request = request;
 
-	aa_profile_match_label(profile, &target->label, type, request, &perms);
+	aa_profile_match_label(profile, &profile->rules, &target->label, type,
+			       request, &perms);
 	aa_apply_modes_to_perms(profile, &perms);
 	*deny |= request & perms.deny;
 	return aa_check_perms(profile, &perms, request, sa, aa_audit_perms_cb);

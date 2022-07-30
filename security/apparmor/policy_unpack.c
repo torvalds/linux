@@ -556,12 +556,12 @@ static bool unpack_xattrs(struct aa_ext *e, struct aa_profile *profile)
 
 		if (unpack_array(e, NULL, &size) != TRI_TRUE)
 			goto fail;
-		profile->xattr_count = size;
-		profile->xattrs = kcalloc(size, sizeof(char *), GFP_KERNEL);
-		if (!profile->xattrs)
+		profile->attach.xattr_count = size;
+		profile->attach.xattrs = kcalloc(size, sizeof(char *), GFP_KERNEL);
+		if (!profile->attach.xattrs)
 			goto fail;
 		for (i = 0; i < size; i++) {
-			if (!unpack_strdup(e, &profile->xattrs[i], NULL))
+			if (!unpack_strdup(e, &profile->attach.xattrs[i], NULL))
 				goto fail;
 		}
 		if (!unpack_nameX(e, AA_ARRAYEND, NULL))
@@ -579,6 +579,7 @@ fail:
 
 static bool unpack_secmark(struct aa_ext *e, struct aa_profile *profile)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	void *pos = e->pos;
 	u16 size;
 	int i;
@@ -587,19 +588,19 @@ static bool unpack_secmark(struct aa_ext *e, struct aa_profile *profile)
 		if (unpack_array(e, NULL, &size) != TRI_TRUE)
 			goto fail;
 
-		profile->secmark = kcalloc(size, sizeof(struct aa_secmark),
+		rules->secmark = kcalloc(size, sizeof(struct aa_secmark),
 					   GFP_KERNEL);
-		if (!profile->secmark)
+		if (!rules->secmark)
 			goto fail;
 
-		profile->secmark_count = size;
+		rules->secmark_count = size;
 
 		for (i = 0; i < size; i++) {
-			if (!unpack_u8(e, &profile->secmark[i].audit, NULL))
+			if (!unpack_u8(e, &rules->secmark[i].audit, NULL))
 				goto fail;
-			if (!unpack_u8(e, &profile->secmark[i].deny, NULL))
+			if (!unpack_u8(e, &rules->secmark[i].deny, NULL))
 				goto fail;
-			if (!unpack_strdup(e, &profile->secmark[i].label, NULL))
+			if (!unpack_strdup(e, &rules->secmark[i].label, NULL))
 				goto fail;
 		}
 		if (!unpack_nameX(e, AA_ARRAYEND, NULL))
@@ -611,12 +612,12 @@ static bool unpack_secmark(struct aa_ext *e, struct aa_profile *profile)
 	return true;
 
 fail:
-	if (profile->secmark) {
+	if (rules->secmark) {
 		for (i = 0; i < size; i++)
-			kfree(profile->secmark[i].label);
-		kfree(profile->secmark);
-		profile->secmark_count = 0;
-		profile->secmark = NULL;
+			kfree(rules->secmark[i].label);
+		kfree(rules->secmark);
+		rules->secmark_count = 0;
+		rules->secmark = NULL;
 	}
 
 	e->pos = pos;
@@ -634,7 +635,7 @@ static bool unpack_rlimits(struct aa_ext *e, struct aa_profile *profile)
 		u32 tmp = 0;
 		if (!unpack_u32(e, &tmp, NULL))
 			goto fail;
-		profile->rlimits.mask = tmp;
+		profile->rules.rlimits.mask = tmp;
 
 		if (unpack_array(e, NULL, &size) != TRI_TRUE ||
 		    size > RLIM_NLIMITS)
@@ -644,7 +645,7 @@ static bool unpack_rlimits(struct aa_ext *e, struct aa_profile *profile)
 			int a = aa_map_resource(i);
 			if (!unpack_u64(e, &tmp2, NULL))
 				goto fail;
-			profile->rlimits.limits[a].rlim_max = tmp2;
+			profile->rules.rlimits.limits[a].rlim_max = tmp2;
 		}
 		if (!unpack_nameX(e, AA_ARRAYEND, NULL))
 			goto fail;
@@ -816,6 +817,7 @@ static int datacmp(struct rhashtable_compare_arg *arg, const void *obj)
  */
 static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 {
+	struct aa_ruleset *rules;
 	struct aa_profile *profile = NULL;
 	const char *tmpname, *tmpns = NULL, *name = NULL;
 	const char *info = "failed to unpack profile";
@@ -850,27 +852,30 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	profile = aa_alloc_profile(name, NULL, GFP_KERNEL);
 	if (!profile)
 		return ERR_PTR(-ENOMEM);
+	rules = &profile->rules;
 
 	/* profile renaming is optional */
 	(void) unpack_str(e, &profile->rename, "rename");
 
 	/* attachment string is optional */
-	(void) unpack_str(e, &profile->attach, "attach");
+	(void) unpack_str(e, &profile->attach.xmatch_str, "attach");
 
 	/* xmatch is optional and may be NULL */
-	error = unpack_pdb(e, &profile->xmatch, false, false, &info);
-	if (error)
+	error = unpack_pdb(e, &profile->attach.xmatch, false, false, &info);
+	if (error) {
+		info = "bad xmatch";
 		goto fail;
+	}
 
 	/* neither xmatch_len not xmatch_perms are optional if xmatch is set */
-	if (profile->xmatch.dfa) {
+	if (profile->attach.xmatch.dfa) {
 		if (!unpack_u32(e, &tmp, NULL)) {
 			info = "missing xmatch len";
 			goto fail;
 		}
-		profile->xmatch_len = tmp;
-		profile->xmatch.start[AA_CLASS_XMATCH] = DFA_START;
-		if (aa_compat_map_xmatch(&profile->xmatch)) {
+		profile->attach.xmatch_len = tmp;
+		profile->attach.xmatch.start[AA_CLASS_XMATCH] = DFA_START;
+		if (aa_compat_map_xmatch(&profile->attach.xmatch)) {
 			info = "failed to convert xmatch permission table";
 			goto fail;
 		}
@@ -926,11 +931,11 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 		profile->path_flags = PATH_MEDIATE_DELETED;
 
 	info = "failed to unpack profile capabilities";
-	if (!unpack_u32(e, &(profile->caps.allow.cap[0]), NULL))
+	if (!unpack_u32(e, &(rules->caps.allow.cap[0]), NULL))
 		goto fail;
-	if (!unpack_u32(e, &(profile->caps.audit.cap[0]), NULL))
+	if (!unpack_u32(e, &(rules->caps.audit.cap[0]), NULL))
 		goto fail;
-	if (!unpack_u32(e, &(profile->caps.quiet.cap[0]), NULL))
+	if (!unpack_u32(e, &(rules->caps.quiet.cap[0]), NULL))
 		goto fail;
 	if (!unpack_u32(e, &tmpcap.cap[0], NULL))
 		goto fail;
@@ -938,11 +943,11 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	info = "failed to unpack upper profile capabilities";
 	if (unpack_nameX(e, AA_STRUCT, "caps64")) {
 		/* optional upper half of 64 bit caps */
-		if (!unpack_u32(e, &(profile->caps.allow.cap[1]), NULL))
+		if (!unpack_u32(e, &(rules->caps.allow.cap[1]), NULL))
 			goto fail;
-		if (!unpack_u32(e, &(profile->caps.audit.cap[1]), NULL))
+		if (!unpack_u32(e, &(rules->caps.audit.cap[1]), NULL))
 			goto fail;
-		if (!unpack_u32(e, &(profile->caps.quiet.cap[1]), NULL))
+		if (!unpack_u32(e, &(rules->caps.quiet.cap[1]), NULL))
 			goto fail;
 		if (!unpack_u32(e, &(tmpcap.cap[1]), NULL))
 			goto fail;
@@ -953,9 +958,9 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	info = "failed to unpack extended profile capabilities";
 	if (unpack_nameX(e, AA_STRUCT, "capsx")) {
 		/* optional extended caps mediation mask */
-		if (!unpack_u32(e, &(profile->caps.extended.cap[0]), NULL))
+		if (!unpack_u32(e, &(rules->caps.extended.cap[0]), NULL))
 			goto fail;
-		if (!unpack_u32(e, &(profile->caps.extended.cap[1]), NULL))
+		if (!unpack_u32(e, &(rules->caps.extended.cap[1]), NULL))
 			goto fail;
 		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
 			goto fail;
@@ -979,40 +984,41 @@ static struct aa_profile *unpack_profile(struct aa_ext *e, char **ns_name)
 	if (unpack_nameX(e, AA_STRUCT, "policydb")) {
 		/* generic policy dfa - optional and may be NULL */
 		info = "failed to unpack policydb";
-		error = unpack_pdb(e, &profile->policy, true, false, &info);
+		error = unpack_pdb(e, &rules->policy, true, false,
+				   &info);
 		if (error)
 			goto fail;
 		/* Fixup: drop when we get rid of start array */
-		if (aa_dfa_next(profile->policy.dfa, profile->policy.start[0],
+		if (aa_dfa_next(rules->policy.dfa, rules->policy.start[0],
 				AA_CLASS_FILE))
-			profile->policy.start[AA_CLASS_FILE] =
-			  aa_dfa_next(profile->policy.dfa,
-				      profile->policy.start[0],
+			rules->policy.start[AA_CLASS_FILE] =
+			  aa_dfa_next(rules->policy.dfa,
+				      rules->policy.start[0],
 				      AA_CLASS_FILE);
 		if (!unpack_nameX(e, AA_STRUCTEND, NULL))
 			goto fail;
-		if (aa_compat_map_policy(&profile->policy, e->version)) {
+		if (aa_compat_map_policy(&rules->policy, e->version)) {
 			info = "failed to remap policydb permission table";
 			goto fail;
 		}
 	} else
-		profile->policy.dfa = aa_get_dfa(nulldfa);
+		rules->policy.dfa = aa_get_dfa(nulldfa);
 
 	/* get file rules */
-	error = unpack_pdb(e, &profile->file, false, true, &info);
+	error = unpack_pdb(e, &rules->file, false, true, &info);
 	if (error) {
 		goto fail;
-	} else if (profile->file.dfa) {
-		if (aa_compat_map_file(&profile->file)) {
+	} else if (rules->file.dfa) {
+		if (aa_compat_map_file(&rules->file)) {
 			info = "failed to remap file permission table";
 			goto fail;
 		}
-	} else if (profile->policy.dfa &&
-		   profile->policy.start[AA_CLASS_FILE]) {
-		profile->file.dfa = aa_get_dfa(profile->policy.dfa);
-		profile->file.start[AA_CLASS_FILE] = profile->policy.start[AA_CLASS_FILE];
+	} else if (rules->policy.dfa &&
+		   rules->policy.start[AA_CLASS_FILE]) {
+		rules->file.dfa = aa_get_dfa(rules->policy.dfa);
+		rules->file.start[AA_CLASS_FILE] = rules->policy.start[AA_CLASS_FILE];
 	} else
-		profile->file.dfa = aa_get_dfa(nulldfa);
+		rules->file.dfa = aa_get_dfa(nulldfa);
 
 	if (unpack_nameX(e, AA_STRUCT, "data")) {
 		info = "out of memory";
@@ -1202,28 +1208,28 @@ static bool verify_perms(struct aa_policydb *pdb)
  */
 static int verify_profile(struct aa_profile *profile)
 {
-	if ((profile->file.dfa &&
-	     !verify_dfa_xindex(profile->file.dfa,
-				profile->file.trans.size)) ||
-	    (profile->policy.dfa &&
-	     !verify_dfa_xindex(profile->policy.dfa,
-				profile->policy.trans.size))) {
+	if ((profile->rules.file.dfa &&
+	     !verify_dfa_xindex(profile->rules.file.dfa,
+				profile->rules.file.trans.size)) ||
+	    (profile->rules.policy.dfa &&
+	     !verify_dfa_xindex(profile->rules.policy.dfa,
+				profile->rules.policy.trans.size))) {
 		audit_iface(profile, NULL, NULL,
 			    "Unpack: Invalid named transition", NULL, -EPROTO);
 		return -EPROTO;
 	}
 
-	if (!verify_perms(&profile->file)) {
+	if (!verify_perms(&profile->rules.file)) {
 		audit_iface(profile, NULL, NULL,
 			    "Unpack: Invalid perm index", NULL, -EPROTO);
 		return -EPROTO;
 	}
-	if (!verify_perms(&profile->policy)) {
+	if (!verify_perms(&profile->rules.policy)) {
 		audit_iface(profile, NULL, NULL,
 			    "Unpack: Invalid perm index", NULL, -EPROTO);
 		return -EPROTO;
 	}
-	if (!verify_perms(&profile->xmatch)) {
+	if (!verify_perms(&profile->attach.xmatch)) {
 		audit_iface(profile, NULL, NULL,
 			    "Unpack: Invalid perm index", NULL, -EPROTO);
 		return -EPROTO;

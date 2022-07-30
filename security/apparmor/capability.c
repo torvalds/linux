@@ -64,6 +64,7 @@ static void audit_cb(struct audit_buffer *ab, void *va)
 static int audit_caps(struct common_audit_data *sa, struct aa_profile *profile,
 		      int cap, int error)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	struct audit_cache *ent;
 	int type = AUDIT_APPARMOR_AUTO;
 
@@ -72,13 +73,13 @@ static int audit_caps(struct common_audit_data *sa, struct aa_profile *profile,
 	if (likely(!error)) {
 		/* test if auditing is being forced */
 		if (likely((AUDIT_MODE(profile) != AUDIT_ALL) &&
-			   !cap_raised(profile->caps.audit, cap)))
+			   !cap_raised(rules->caps.audit, cap)))
 			return 0;
 		type = AUDIT_APPARMOR_AUDIT;
 	} else if (KILL_MODE(profile) ||
-		   cap_raised(profile->caps.kill, cap)) {
+		   cap_raised(rules->caps.kill, cap)) {
 		type = AUDIT_APPARMOR_KILL;
-	} else if (cap_raised(profile->caps.quiet, cap) &&
+	} else if (cap_raised(rules->caps.quiet, cap) &&
 		   AUDIT_MODE(profile) != AUDIT_NOQUIET &&
 		   AUDIT_MODE(profile) != AUDIT_ALL) {
 		/* quiet auditing */
@@ -114,10 +115,11 @@ static int audit_caps(struct common_audit_data *sa, struct aa_profile *profile,
 static int profile_capable(struct aa_profile *profile, int cap,
 			   unsigned int opts, struct common_audit_data *sa)
 {
+	struct aa_ruleset *rules = &profile->rules;
 	int error;
 
-	if (cap_raised(profile->caps.allow, cap) &&
-	    !cap_raised(profile->caps.denied, cap))
+	if (cap_raised(rules->caps.allow, cap) &&
+	    !cap_raised(rules->caps.denied, cap))
 		error = 0;
 	else
 		error = -EPERM;

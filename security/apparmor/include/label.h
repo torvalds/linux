@@ -261,7 +261,7 @@ for ((I).i = (I).j = 0;							\
 	struct label_it i;						\
 	int ret = 0;							\
 	label_for_each(i, (L), profile) {				\
-		if (PROFILE_MEDIATES(profile, (C))) {			\
+		if (RULE_MEDIATES(&profile->rules, (C))) {		\
 			ret = 1;					\
 			break;						\
 		}							\
@@ -357,9 +357,10 @@ static inline const char *aa_label_str_split(const char *str)
 
 
 struct aa_perms;
-int aa_label_match(struct aa_profile *profile, struct aa_label *label,
-		   aa_state_t state, bool subns, u32 request,
-		   struct aa_perms *perms);
+struct aa_ruleset;
+int aa_label_match(struct aa_profile *profile, struct aa_ruleset *rules,
+		   struct aa_label *label, aa_state_t state, bool subns,
+		   u32 request, struct aa_perms *perms);
 
 
 /**

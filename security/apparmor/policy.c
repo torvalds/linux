@@ -193,6 +193,30 @@ static void aa_free_data(void *ptr, void *arg)
 	kfree_sensitive(data);
 }
 
+static void free_attachment(struct aa_attachment *attach)
+{
+	int i;
+
+	for (i = 0; i < attach->xattr_count; i++)
+		kfree_sensitive(attach->xattrs[i]);
+	kfree_sensitive(attach->xattrs);
+	aa_destroy_policydb(&attach->xmatch);
+}
+
+static void free_ruleset(struct aa_ruleset *rules)
+{
+	int i;
+
+	aa_destroy_policydb(&rules->file);
+	aa_destroy_policydb(&rules->policy);
+	aa_free_cap_rules(&rules->caps);
+	aa_free_rlimit_rules(&rules->rlimits);
+
+	for (i = 0; i < rules->secmark_count; i++)
+		kfree_sensitive(rules->secmark[i].label);
+	kfree_sensitive(rules->secmark);
+}
+
 /**
  * aa_free_profile - free a profile
  * @profile: the profile to free  (MAYBE NULL)
@@ -206,7 +230,6 @@ static void aa_free_data(void *ptr, void *arg)
 void aa_free_profile(struct aa_profile *profile)
 {
 	struct rhashtable *rht;
-	int i;
 
 	AA_DEBUG("%s(%p)\n", __func__, profile);
 
@@ -220,19 +243,10 @@ void aa_free_profile(struct aa_profile *profile)
 	aa_put_ns(profile->ns);
 	kfree_sensitive(profile->rename);
 
-	aa_destroy_policydb(&profile->file);
-	aa_free_cap_rules(&profile->caps);
-	aa_free_rlimit_rules(&profile->rlimits);
-
-	for (i = 0; i < profile->xattr_count; i++)
-		kfree_sensitive(profile->xattrs[i]);
-	kfree_sensitive(profile->xattrs);
-	for (i = 0; i < profile->secmark_count; i++)
-		kfree_sensitive(profile->secmark[i].label);
-	kfree_sensitive(profile->secmark);
+	free_attachment(&profile->attach);
+	free_ruleset(&profile->rules);
 	kfree_sensitive(profile->dirname);
-	aa_destroy_policydb(&profile->xmatch);
-	aa_destroy_policydb(&profile->policy);
+
 	if (profile->data) {
 		rht = profile->data;
 		profile->data = NULL;
@@ -544,8 +558,8 @@ name:
 	/* released on free_profile */
 	rcu_assign_pointer(profile->parent, aa_get_profile(parent));
 	profile->ns = aa_get_ns(parent->ns);
-	profile->file.dfa = aa_get_dfa(nulldfa);
-	profile->policy.dfa = aa_get_dfa(nulldfa);
+	profile->rules.file.dfa = aa_get_dfa(nulldfa);
+	profile->rules.policy.dfa = aa_get_dfa(nulldfa);
 
 	mutex_lock_nested(&profile->ns->lock, profile->ns->level);
 	p = __find_child(&parent->base.profiles, bname);
