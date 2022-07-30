@@ -184,19 +184,9 @@ static struct tusb320_ops tusb320l_ops = {
 	.get_revision = tusb320l_get_revision,
 };
 
-static irqreturn_t tusb320_irq_handler(int irq, void *dev_id)
+static void tusb320_extcon_irq_handler(struct tusb320_priv *priv, u8 reg)
 {
-	struct tusb320_priv *priv = dev_id;
 	int state, polarity;
-	unsigned reg;
-
-	if (regmap_read(priv->regmap, TUSB320_REG9, &reg)) {
-		dev_err(priv->dev, "error during i2c read!\n");
-		return IRQ_NONE;
-	}
-
-	if (!(reg & TUSB320_REG9_INTERRUPT_STATUS))
-		return IRQ_NONE;
 
 	state = (reg >> TUSB320_REG9_ATTACHED_STATE_SHIFT) &
 		TUSB320_REG9_ATTACHED_STATE_MASK;
@@ -219,6 +209,22 @@ static irqreturn_t tusb320_irq_handler(int irq, void *dev_id)
 	extcon_sync(priv->edev, EXTCON_USB_HOST);
 
 	priv->state = state;
+}
+
+static irqreturn_t tusb320_irq_handler(int irq, void *dev_id)
+{
+	struct tusb320_priv *priv = dev_id;
+	unsigned int reg;
+
+	if (regmap_read(priv->regmap, TUSB320_REG9, &reg)) {
+		dev_err(priv->dev, "error during i2c read!\n");
+		return IRQ_NONE;
+	}
+
+	if (!(reg & TUSB320_REG9_INTERRUPT_STATUS))
+		return IRQ_NONE;
+
+	tusb320_extcon_irq_handler(priv, reg);
 
 	regmap_write(priv->regmap, TUSB320_REG9, reg);
 
@@ -230,8 +236,32 @@ static const struct regmap_config tusb320_regmap_config = {
 	.val_bits = 8,
 };
 
-static int tusb320_extcon_probe(struct i2c_client *client,
-				const struct i2c_device_id *id)
+static int tusb320_extcon_probe(struct tusb320_priv *priv)
+{
+	int ret;
+
+	priv->edev = devm_extcon_dev_allocate(priv->dev, tusb320_extcon_cable);
+	if (IS_ERR(priv->edev)) {
+		dev_err(priv->dev, "failed to allocate extcon device\n");
+		return PTR_ERR(priv->edev);
+	}
+
+	ret = devm_extcon_dev_register(priv->dev, priv->edev);
+	if (ret < 0) {
+		dev_err(priv->dev, "failed to register extcon device\n");
+		return ret;
+	}
+
+	extcon_set_property_capability(priv->edev, EXTCON_USB,
+				       EXTCON_PROP_USB_TYPEC_POLARITY);
+	extcon_set_property_capability(priv->edev, EXTCON_USB_HOST,
+				       EXTCON_PROP_USB_TYPEC_POLARITY);
+
+	return 0;
+}
+
+static int tusb320_probe(struct i2c_client *client,
+			 const struct i2c_device_id *id)
 {
 	struct tusb320_priv *priv;
 	const void *match_data;
@@ -257,12 +287,6 @@ static int tusb320_extcon_probe(struct i2c_client *client,
 
 	priv->ops = (struct tusb320_ops*)match_data;
 
-	priv->edev = devm_extcon_dev_allocate(priv->dev, tusb320_extcon_cable);
-	if (IS_ERR(priv->edev)) {
-		dev_err(priv->dev, "failed to allocate extcon device\n");
-		return PTR_ERR(priv->edev);
-	}
-
 	if (priv->ops->get_revision) {
 		ret = priv->ops->get_revision(priv, &revision);
 		if (ret)
@@ -272,16 +296,9 @@ static int tusb320_extcon_probe(struct i2c_client *client,
 			dev_info(priv->dev, "chip revision %d\n", revision);
 	}
 
-	ret = devm_extcon_dev_register(priv->dev, priv->edev);
-	if (ret < 0) {
-		dev_err(priv->dev, "failed to register extcon device\n");
+	ret = tusb320_extcon_probe(priv);
+	if (ret)
 		return ret;
-	}
-
-	extcon_set_property_capability(priv->edev, EXTCON_USB,
-				       EXTCON_PROP_USB_TYPEC_POLARITY);
-	extcon_set_property_capability(priv->edev, EXTCON_USB_HOST,
-				       EXTCON_PROP_USB_TYPEC_POLARITY);
 
 	/* update initial state */
 	tusb320_irq_handler(client->irq, priv);
@@ -313,7 +330,7 @@ static const struct of_device_id tusb320_extcon_dt_match[] = {
 MODULE_DEVICE_TABLE(of, tusb320_extcon_dt_match);
 
 static struct i2c_driver tusb320_extcon_driver = {
-	.probe		= tusb320_extcon_probe,
+	.probe		= tusb320_probe,
 	.driver		= {
 		.name	= "extcon-tusb320",
 		.of_match_table = tusb320_extcon_dt_match,
