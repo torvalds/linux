@@ -523,10 +523,17 @@ static __always_inline typeof(name(0)) ____##name(struct pt_regs *ctx, ##args)
  * Original struct pt_regs * context is preserved as 'ctx' argument. This might
  * be necessary when using BPF helpers like bpf_perf_event_output().
  *
- * At the moment BPF_KSYSCALL does not handle all the calling convention
- * quirks for mmap(), clone() and compat syscalls transparrently. This may or
- * may not change in the future. User needs to take extra measures to handle
- * such quirks explicitly, if necessary.
+ * At the moment BPF_KSYSCALL does not transparently handle all the calling
+ * convention quirks for the following syscalls:
+ *
+ * - mmap(): __ARCH_WANT_SYS_OLD_MMAP.
+ * - clone(): CONFIG_CLONE_BACKWARDS, CONFIG_CLONE_BACKWARDS2 and
+ *            CONFIG_CLONE_BACKWARDS3.
+ * - socket-related syscalls: __ARCH_WANT_SYS_SOCKETCALL.
+ * - compat syscalls.
+ *
+ * This may or may not change in the future. User needs to take extra measures
+ * to handle such quirks explicitly, if necessary.
  *
  * This macro relies on BPF CO-RE support and virtual __kconfig externs.
  */
