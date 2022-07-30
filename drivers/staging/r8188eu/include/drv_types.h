@@ -222,7 +222,7 @@ struct adapter {
 
 #define adapter_to_dvobj(adapter) (adapter->dvobj)
 
-int rtw_handle_dualmac(struct adapter *adapter, bool init);
+void rtw_handle_dualmac(struct adapter *adapter, bool init);
 
 static inline u8 *myid(struct eeprom_priv *peepriv)
 {

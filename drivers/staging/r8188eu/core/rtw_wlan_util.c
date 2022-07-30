@@ -1578,10 +1578,8 @@ void beacon_timing_control(struct adapter *padapter)
 
 static struct adapter *pbuddy_padapter;
 
-int rtw_handle_dualmac(struct adapter *adapter, bool init)
+void rtw_handle_dualmac(struct adapter *adapter, bool init)
 {
-	int status = _SUCCESS;
-
 	if (init) {
 		if (!pbuddy_padapter) {
 			pbuddy_padapter = adapter;
@@ -1594,5 +1592,4 @@ int rtw_handle_dualmac(struct adapter *adapter, bool init)
 	} else {
 		pbuddy_padapter = NULL;
 	}
-	return status;
 }

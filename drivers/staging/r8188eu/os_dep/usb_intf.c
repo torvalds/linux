@@ -306,8 +306,7 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 
 	padapter->hw_init_mutex = &usb_drv->hw_init_mutex;
 
-	if (rtw_handle_dualmac(padapter, 1) != _SUCCESS)
-		goto free_adapter;
+	rtw_handle_dualmac(padapter, 1);
 
 	pnetdev = rtw_init_netdev(padapter);
 	if (!pnetdev)
@@ -370,7 +369,6 @@ free_drv_sw:
 	rtw_free_drv_sw(padapter);
 handle_dualmac:
 	rtw_handle_dualmac(padapter, 0);
-free_adapter:
 	if (pnetdev)
 		rtw_free_netdev(pnetdev);
 	else
