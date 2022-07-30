@@ -526,8 +526,9 @@ void rtl8188e_ReadEFuse(struct adapter *Adapter, u16 _size_byte, u8 *pbuf)
 	Hal_EfuseReadEFuse88E(Adapter, 0, _size_byte, pbuf);
 }
 
-static void dump_chip_info(struct HAL_VERSION chip_vers)
+static void dump_chip_info(struct adapter *adapter, struct HAL_VERSION chip_vers)
 {
+	struct net_device *netdev = adapter->pnetdev;
 	uint cnt = 0;
 	char buf[128];
 
@@ -560,9 +561,9 @@ static void dump_chip_info(struct HAL_VERSION chip_vers)
 
 	cnt += sprintf((buf + cnt), "1T1R_");
 
-	cnt += sprintf((buf + cnt), "RomVer(%d)\n", 0);
+	cnt += sprintf((buf + cnt), "RomVer(%d)", 0);
 
-	pr_info("%s", buf);
+	netdev_dbg(netdev, "%s\n", buf);
 }
 
 void rtl8188e_read_chip_version(struct adapter *padapter)
@@ -581,7 +582,7 @@ void rtl8188e_read_chip_version(struct adapter *padapter)
 	ChipVersion.VendorType = ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : CHIP_VENDOR_TSMC);
 	ChipVersion.CUTVersion = (value32 & CHIP_VER_RTL_MASK) >> CHIP_VER_RTL_SHIFT; /*  IC version (CUT) */
 
-	dump_chip_info(ChipVersion);
+	dump_chip_info(padapter, ChipVersion);
 
 	pHalData->VersionID = ChipVersion;
 }
