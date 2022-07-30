@@ -624,7 +624,7 @@ static int mlx5e_ptp_set_state(struct mlx5e_ptp *c, struct mlx5e_params *params)
 
 static void mlx5e_ptp_rx_unset_fs(struct mlx5e_priv *priv)
 {
-	struct mlx5e_ptp_fs *ptp_fs = priv->fs.ptp_fs;
+	struct mlx5e_ptp_fs *ptp_fs = priv->fs->ptp_fs;
 
 	if (!ptp_fs->valid)
 		return;
@@ -641,7 +641,7 @@ static void mlx5e_ptp_rx_unset_fs(struct mlx5e_priv *priv)
 static int mlx5e_ptp_rx_set_fs(struct mlx5e_priv *priv)
 {
 	u32 tirn = mlx5e_rx_res_get_tirn_ptp(priv->rx_res);
-	struct mlx5e_ptp_fs *ptp_fs = priv->fs.ptp_fs;
+	struct mlx5e_ptp_fs *ptp_fs = priv->fs->ptp_fs;
 	struct mlx5_flow_handle *rule;
 	int err;
 
@@ -808,13 +808,13 @@ int mlx5e_ptp_alloc_rx_fs(struct mlx5e_priv *priv)
 	if (!ptp_fs)
 		return -ENOMEM;
 
-	priv->fs.ptp_fs = ptp_fs;
+	priv->fs->ptp_fs = ptp_fs;
 	return 0;
 }
 
 void mlx5e_ptp_free_rx_fs(struct mlx5e_priv *priv)
 {
-	struct mlx5e_ptp_fs *ptp_fs = priv->fs.ptp_fs;
+	struct mlx5e_ptp_fs *ptp_fs = priv->fs->ptp_fs;
 
 	if (!mlx5e_profile_feature_cap(priv->profile, PTP_RX))
 		return;

@@ -50,6 +50,16 @@ struct mlx5e_tc_act {
 	bool (*is_multi_table_act)(struct mlx5e_priv *priv,
 				   const struct flow_action_entry *act,
 				   struct mlx5_flow_attr *attr);
+
+	int (*offload_action)(struct mlx5e_priv *priv,
+			      struct flow_offload_action *fl_act,
+			      struct flow_action_entry *act);
+
+	int (*destroy_action)(struct mlx5e_priv *priv,
+			      struct flow_offload_action *fl_act);
+
+	int (*stats_action)(struct mlx5e_priv *priv,
+			    struct flow_offload_action *fl_act);
 };
 
 struct mlx5e_tc_flow_action {
