@@ -122,7 +122,6 @@ struct ublk_device {
 	char	*__queues;
 
 	unsigned short  queue_size;
-	unsigned short  bs_shift;
 	struct ublksrv_ctrl_dev_info	dev_info;
 
 	struct blk_mq_tag_set	tag_set;
@@ -223,8 +222,7 @@ static int ublk_validate_params(const struct ublk_device *ub)
 		if (p->logical_bs_shift > p->physical_bs_shift)
 			return -EINVAL;
 
-		if (p->max_sectors > (ub->dev_info.rq_max_blocks <<
-					(ub->bs_shift - 9)))
+		if (p->max_sectors > (ub->dev_info.max_io_buf_bytes >> 9))
 			return -EINVAL;
 	} else
 		return -EINVAL;
@@ -1185,13 +1183,13 @@ static void ublk_stop_work_fn(struct work_struct *work)
 	ublk_stop_dev(ub);
 }
 
-/* align maximum I/O size to PAGE_SIZE */
+/* align max io buffer size with PAGE_SIZE */
 static void ublk_align_max_io_size(struct ublk_device *ub)
 {
-	unsigned int max_rq_bytes = ub->dev_info.rq_max_blocks << ub->bs_shift;
+	unsigned int max_io_bytes = ub->dev_info.max_io_buf_bytes;
 
-	ub->dev_info.rq_max_blocks =
-		round_down(max_rq_bytes, PAGE_SIZE) >> ub->bs_shift;
+	ub->dev_info.max_io_buf_bytes =
+		round_down(max_io_bytes, PAGE_SIZE);
 }
 
 static int ublk_add_tag_set(struct ublk_device *ub)
@@ -1348,9 +1346,8 @@ static inline void ublk_dump_dev_info(struct ublksrv_ctrl_dev_info *info)
 {
 	pr_devel("%s: dev id %d flags %llx\n", __func__,
 			info->dev_id, info->flags);
-	pr_devel("\t nr_hw_queues %d queue_depth %d block size %d dev_capacity %lld\n",
-			info->nr_hw_queues, info->queue_depth,
-			info->block_size, info->dev_blocks);
+	pr_devel("\t nr_hw_queues %d queue_depth %d\n",
+			info->nr_hw_queues, info->queue_depth);
 }
 
 static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
@@ -1410,7 +1407,6 @@ static int ublk_ctrl_add_dev(struct io_uring_cmd *cmd)
 	/* We are not ready to support zero copy */
 	ub->dev_info.flags &= ~UBLK_F_SUPPORT_ZERO_COPY;
 
-	ub->bs_shift = ilog2(ub->dev_info.block_size);
 	ub->dev_info.nr_hw_queues = min_t(unsigned int,
 			ub->dev_info.nr_hw_queues, nr_cpu_ids);
 	ublk_align_max_io_size(ub);
