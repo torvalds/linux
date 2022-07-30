@@ -151,7 +151,6 @@ struct sf_spdif_dev {
 	unsigned int rx_ptr;
 	struct clk *spdif_apb;
 	struct clk *spdif_core;
-	struct clk *apb0_clk;
 	struct clk *audio_root;
 	struct clk *mclk_inner;
 	struct reset_control *rst_apb;
