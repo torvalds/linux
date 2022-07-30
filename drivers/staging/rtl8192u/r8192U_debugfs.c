@@ -169,6 +169,14 @@ void rtl8192_debugfs_exit_one(struct net_device *dev)
 	debugfs_remove_recursive(priv->debugfs_dir);
 }
 
+void rtl8192_debugfs_rename_one(struct net_device *dev)
+{
+	struct r8192_priv *priv = ieee80211_priv(dev);
+	struct dentry *parent_dir = debugfs_lookup(KBUILD_MODNAME, NULL);
+
+	debugfs_rename(parent_dir, priv->debugfs_dir, parent_dir, dev->name);
+}
+
 void rtl8192_debugfs_init(void)
 {
 	debugfs_create_dir(KBUILD_MODNAME, NULL);

@@ -1122,6 +1122,7 @@ void setKey(struct net_device *dev, u8 EntryNo, u8 KeyIndex, u16 KeyType,
 
 void rtl8192_debugfs_init_one(struct net_device *dev);
 void rtl8192_debugfs_exit_one(struct net_device *dev);
+void rtl8192_debugfs_rename_one(struct net_device *dev);
 void rtl8192_debugfs_init(void);
 void rtl8192_debugfs_exit(void);
 
