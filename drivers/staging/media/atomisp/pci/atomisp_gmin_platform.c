@@ -1048,6 +1048,38 @@ static int gmin_flisclk_ctrl(struct v4l2_subdev *subdev, int on)
 	return ret;
 }
 
+static int camera_sensor_csi_alloc(struct v4l2_subdev *sd, u32 port, u32 lanes,
+				   u32 format, u32 bayer_order)
+{
+	struct i2c_client *client = v4l2_get_subdevdata(sd);
+	struct camera_mipi_info *csi;
+
+	csi = kzalloc(sizeof(*csi), GFP_KERNEL);
+	if (!csi)
+		return -ENOMEM;
+
+	csi->port = port;
+	csi->num_lanes = lanes;
+	csi->input_format = format;
+	csi->raw_bayer_order = bayer_order;
+	v4l2_set_subdev_hostdata(sd, csi);
+	csi->metadata_format = ATOMISP_INPUT_FORMAT_EMBEDDED;
+	csi->metadata_effective_width = NULL;
+	dev_info(&client->dev,
+		 "camera pdata: port: %d lanes: %d order: %8.8x\n",
+		 port, lanes, bayer_order);
+
+	return 0;
+}
+
+static void camera_sensor_csi_free(struct v4l2_subdev *sd)
+{
+	struct camera_mipi_info *csi;
+
+	csi = v4l2_get_subdev_hostdata(sd);
+	kfree(csi);
+}
+
 static int gmin_csi_cfg(struct v4l2_subdev *sd, int flag)
 {
 	struct i2c_client *client = v4l2_get_subdevdata(sd);
@@ -1056,8 +1088,11 @@ static int gmin_csi_cfg(struct v4l2_subdev *sd, int flag)
 	if (!client || !gs)
 		return -ENODEV;
 
-	return camera_sensor_csi(sd, gs->csi_port, gs->csi_lanes,
-				 gs->csi_fmt, gs->csi_bayer, flag);
+	if (flag)
+		return camera_sensor_csi_alloc(sd, gs->csi_port, gs->csi_lanes,
+					       gs->csi_fmt, gs->csi_bayer);
+	camera_sensor_csi_free(sd);
+	return 0;
 }
 
 static struct camera_vcm_control *gmin_get_vcm_ctrl(struct v4l2_subdev *subdev,
@@ -1339,35 +1374,6 @@ int gmin_get_var_int(struct device *dev, bool is_gmin, const char *var, int def)
 	return ret ? def : result;
 }
 EXPORT_SYMBOL_GPL(gmin_get_var_int);
-
-int camera_sensor_csi(struct v4l2_subdev *sd, u32 port,
-		      u32 lanes, u32 format, u32 bayer_order, int flag)
-{
-	struct i2c_client *client = v4l2_get_subdevdata(sd);
-	struct camera_mipi_info *csi = NULL;
-
-	if (flag) {
-		csi = kzalloc(sizeof(*csi), GFP_KERNEL);
-		if (!csi)
-			return -ENOMEM;
-		csi->port = port;
-		csi->num_lanes = lanes;
-		csi->input_format = format;
-		csi->raw_bayer_order = bayer_order;
-		v4l2_set_subdev_hostdata(sd, (void *)csi);
-		csi->metadata_format = ATOMISP_INPUT_FORMAT_EMBEDDED;
-		csi->metadata_effective_width = NULL;
-		dev_info(&client->dev,
-			 "camera pdata: port: %d lanes: %d order: %8.8x\n",
-			 port, lanes, bayer_order);
-	} else {
-		csi = v4l2_get_subdev_hostdata(sd);
-		kfree(csi);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL_GPL(camera_sensor_csi);
 
 /* PCI quirk: The BYT ISP advertises PCI runtime PM but it doesn't
  * work.  Disable so the kernel framework doesn't hang the device
