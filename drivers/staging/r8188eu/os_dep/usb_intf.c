@@ -287,17 +287,17 @@ exit:
  *        We accept the new device by returning 0.
  */
 
-static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
-	struct usb_interface *pusb_intf)
+static int rtw_usb_if1_init(struct dvobj_priv *dvobj, struct usb_interface *pusb_intf)
 {
 	struct adapter *padapter = NULL;
 	struct net_device *pnetdev = NULL;
 	struct io_priv *piopriv;
 	struct intf_hdl *pintf;
+	int ret;
 
 	padapter = vzalloc(sizeof(*padapter));
 	if (!padapter)
-		return NULL;
+		return -ENOMEM;
 
 	padapter->dvobj = dvobj;
 	dvobj->if1 = padapter;
@@ -309,8 +309,10 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	rtw_handle_dualmac(padapter, 1);
 
 	pnetdev = rtw_init_netdev(padapter);
-	if (!pnetdev)
+	if (!pnetdev) {
+		ret = -ENODEV;
 		goto handle_dualmac;
+	}
 	SET_NETDEV_DEV(pnetdev, dvobj_to_dev(dvobj));
 	padapter = rtw_netdev_priv(pnetdev);
 
@@ -331,12 +333,15 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	rtl8188eu_interface_configure(padapter);
 
 	/* step read efuse/eeprom data and get mac_addr */
-	if (ReadAdapterInfo8188EU(padapter) < 0)
+	ret = ReadAdapterInfo8188EU(padapter);
+	if (ret)
 		goto handle_dualmac;
 
 	/* step 5. */
-	if (rtw_init_drv_sw(padapter) == _FAIL)
+	if (rtw_init_drv_sw(padapter) == _FAIL) {
+		ret = -ENODEV;
 		goto handle_dualmac;
+	}
 
 #ifdef CONFIG_PM
 	if (padapter->pwrctrlpriv.bSupportRemoteWakeup) {
@@ -351,7 +356,8 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	usb_autopm_get_interface(pusb_intf);
 
 	/*  alloc dev name after read efuse. */
-	if (rtw_init_netdev_name(pnetdev, padapter->registrypriv.ifname) < 0)
+	ret = rtw_init_netdev_name(pnetdev, padapter->registrypriv.ifname);
+	if (ret)
 		goto free_drv_sw;
 	rtw_macaddr_cfg(padapter->eeprompriv.mac_addr);
 	rtw_init_wifidirect_addrs(padapter, padapter->eeprompriv.mac_addr,
@@ -359,10 +365,11 @@ static struct adapter *rtw_usb_if1_init(struct dvobj_priv *dvobj,
 	eth_hw_addr_set(pnetdev, padapter->eeprompriv.mac_addr);
 
 	/* step 6. Tell the network stack we exist */
-	if (register_netdev(pnetdev) != 0)
+	ret = register_netdev(pnetdev);
+	if (ret)
 		goto free_drv_sw;
 
-	return padapter;
+	return 0;
 
 free_drv_sw:
 	rtw_cancel_all_timer(padapter);
@@ -374,7 +381,7 @@ handle_dualmac:
 	else
 		vfree(padapter);
 
-	return NULL;
+	return ret;
 }
 
 static void rtw_usb_if1_deinit(struct adapter *if1)
@@ -402,27 +409,24 @@ static void rtw_usb_if1_deinit(struct adapter *if1)
 
 static int rtw_drv_init(struct usb_interface *pusb_intf, const struct usb_device_id *pdid)
 {
-	struct adapter *if1 = NULL;
 	struct dvobj_priv *dvobj;
+	int ret;
 
 	/* Initialize dvobj_priv */
 	dvobj = usb_dvobj_init(pusb_intf);
 	if (!dvobj)
-		goto err;
+		return -ENODEV;
 
-	if1 = rtw_usb_if1_init(dvobj, pusb_intf);
-	if (!if1)
-		goto free_dvobj;
+	ret = rtw_usb_if1_init(dvobj, pusb_intf);
+	if (ret) {
+		usb_dvobj_deinit(pusb_intf);
+		return ret;
+	}
 
 	if (ui_pid[1] != 0)
 		rtw_signal_process(ui_pid[1], SIGUSR2);
 
 	return 0;
-
-free_dvobj:
-	usb_dvobj_deinit(pusb_intf);
-err:
-	return -ENODEV;
 }
 
 /*
