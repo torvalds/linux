@@ -39,7 +39,7 @@ struct stm32_dmamux_data {
 	u32 dma_requests; /* Number of DMA requests connected to DMAMUX */
 	u32 dmamux_requests; /* Number of DMA requests routed toward DMAs */
 	spinlock_t lock; /* Protects register access */
-	unsigned long *dma_inuse; /* Used DMA channel */
+	DECLARE_BITMAP(dma_inuse, STM32_DMAMUX_MAX_DMA_REQUESTS); /* Used DMA channel */
 	u32 ccr[STM32_DMAMUX_MAX_DMA_REQUESTS]; /* Used to backup CCR register
 						 * in suspend
 						 */
@@ -229,12 +229,6 @@ static int stm32_dmamux_probe(struct platform_device *pdev)
 
 	stm32_dmamux->dma_requests = dma_req;
 	stm32_dmamux->dma_reqs[0] = count;
-	stm32_dmamux->dma_inuse = devm_kcalloc(&pdev->dev,
-					       BITS_TO_LONGS(dma_req),
-					       sizeof(unsigned long),
-					       GFP_KERNEL);
-	if (!stm32_dmamux->dma_inuse)
-		return -ENOMEM;
 
 	if (device_property_read_u32(&pdev->dev, "dma-requests",
 				     &stm32_dmamux->dmamux_requests)) {
