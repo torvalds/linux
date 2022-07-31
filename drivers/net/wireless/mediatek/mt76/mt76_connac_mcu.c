@@ -2888,6 +2888,10 @@ int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
 		goto out;
 	}
 
+	snprintf(dev->hw->wiphy->fw_version,
+		 sizeof(dev->hw->wiphy->fw_version),
+		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
+
 	release_firmware(fw);
 
 	if (!fw_wa)
