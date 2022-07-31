@@ -841,10 +841,10 @@ bool f2fs_cluster_can_merge_page(struct compress_ctx *cc, pgoff_t index)
 	return is_page_in_cluster(cc, index);
 }
 
-bool f2fs_all_cluster_page_ready(struct compress_ctx *cc, struct pagevec *pvec,
+bool f2fs_all_cluster_page_ready(struct compress_ctx *cc, struct page **pages,
 				int index, int nr_pages, bool uptodate)
 {
-	unsigned long pgidx = pvec->pages[index]->index;
+	unsigned long pgidx = pages[index]->index;
 	int i = uptodate ? 0 : 1;
 
 	/*
@@ -858,9 +858,9 @@ bool f2fs_all_cluster_page_ready(struct compress_ctx *cc, struct pagevec *pvec,
 		return false;
 
 	for (; i < cc->cluster_size; i++) {
-		if (pvec->pages[index + i]->index != pgidx + i)
+		if (pages[index + i]->index != pgidx + i)
 			return false;
-		if (uptodate && !PageUptodate(pvec->pages[index + i]))
+		if (uptodate && !PageUptodate(pages[index + i]))
 			return false;
 	}
 
