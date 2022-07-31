@@ -354,9 +354,10 @@ static int iio_device_add_event(struct iio_dev *indio_dev,
 	enum iio_shared_by shared_by, const unsigned long *mask)
 {
 	struct iio_dev_opaque *iio_dev_opaque = to_iio_dev_opaque(indio_dev);
-	ssize_t (*show)(struct device *, struct device_attribute *, char *);
-	ssize_t (*store)(struct device *, struct device_attribute *,
-		const char *, size_t);
+	ssize_t (*show)(struct device *dev, struct device_attribute *attr,
+		char *buf);
+	ssize_t (*store)(struct device *dev, struct device_attribute *attr,
+		const char *buf, size_t len);
 	unsigned int attrcount = 0;
 	unsigned int i;
 	char *postfix;
