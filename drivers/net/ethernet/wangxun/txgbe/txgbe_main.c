@@ -123,6 +123,7 @@ static int txgbe_probe(struct pci_dev *pdev,
 	return 0;
 
 err_pci_release_regions:
+	pci_disable_pcie_error_reporting(pdev);
 	pci_release_selected_regions(pdev,
 				     pci_select_bars(pdev, IORESOURCE_MEM));
 err_pci_disable_dev:
