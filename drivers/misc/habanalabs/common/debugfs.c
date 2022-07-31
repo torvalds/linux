@@ -586,31 +586,6 @@ err:
 	return -EINVAL;
 }
 
-void hl_engine_data_sprintf(struct engines_data *e, const char *fmt, ...)
-{
-	va_list args;
-	int str_size;
-
-	va_start(args, fmt);
-	/* Calculate formatted string length. Assuming each string is null terminated, hence
-	 * increment result by 1
-	 */
-	str_size = vsnprintf(NULL, 0, fmt, args) + 1;
-	va_end(args);
-
-	if ((e->actual_size + str_size) < e->allocated_buf_size) {
-		va_start(args, fmt);
-		vsnprintf(e->buf + e->actual_size, str_size, fmt, args);
-		va_end(args);
-	}
-
-	/* Need to update the size even when not updating destination buffer to get the exact size
-	 * of all input strings
-	 */
-	e->actual_size += str_size;
-
-}
-
 static int engines_show(struct seq_file *s, void *data)
 {
 	struct hl_debugfs_entry *entry = s->private;
