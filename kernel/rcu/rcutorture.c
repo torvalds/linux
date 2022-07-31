@@ -2600,12 +2600,12 @@ static int rcutorture_oom_notify(struct notifier_block *self,
 	for (i = 0; i < fwd_progress; i++)
 		ncbs += rcu_torture_fwd_prog_cbfree(&rfp[i]);
 	pr_info("%s: Freed %lu RCU callbacks.\n", __func__, ncbs);
-	rcu_barrier();
+	cur_ops->cb_barrier();
 	ncbs = 0;
 	for (i = 0; i < fwd_progress; i++)
 		ncbs += rcu_torture_fwd_prog_cbfree(&rfp[i]);
 	pr_info("%s: Freed %lu RCU callbacks.\n", __func__, ncbs);
-	rcu_barrier();
+	cur_ops->cb_barrier();
 	ncbs = 0;
 	for (i = 0; i < fwd_progress; i++)
 		ncbs += rcu_torture_fwd_prog_cbfree(&rfp[i]);
