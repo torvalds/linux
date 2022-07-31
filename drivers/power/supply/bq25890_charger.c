@@ -946,6 +946,7 @@ static void bq25890_pump_express_work(struct work_struct *data)
 
 	return;
 error_print:
+	bq25890_field_write(bq, F_PUMPX_EN, 0);
 	dev_err(bq->dev, "Failed to request hi-voltage charging\n");
 }
 
