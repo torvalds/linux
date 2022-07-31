@@ -2004,7 +2004,7 @@ xlog_calc_iclog_size(
 }
 
 /*
- * Flush out the in-core log (iclog) to the on-disk log in an asynchronous 
+ * Flush out the in-core log (iclog) to the on-disk log in an asynchronous
  * fashion.  Previously, we should have moved the current iclog
  * ptr in the log to point to the next available iclog.  This allows further
  * write to continue while this code syncs out an iclog ready to go.
