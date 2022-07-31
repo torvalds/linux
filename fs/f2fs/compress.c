@@ -841,19 +841,26 @@ bool f2fs_cluster_can_merge_page(struct compress_ctx *cc, pgoff_t index)
 	return is_page_in_cluster(cc, index);
 }
 
-bool f2fs_all_cluster_page_loaded(struct compress_ctx *cc, struct pagevec *pvec,
-				int index, int nr_pages)
+bool f2fs_all_cluster_page_ready(struct compress_ctx *cc, struct pagevec *pvec,
+				int index, int nr_pages, bool uptodate)
 {
-	unsigned long pgidx;
-	int i;
+	unsigned long pgidx = pvec->pages[index]->index;
+	int i = uptodate ? 0 : 1;
+
+	/*
+	 * when uptodate set to true, try to check all pages in cluster is
+	 * uptodate or not.
+	 */
+	if (uptodate && (pgidx % cc->cluster_size))
+		return false;
 
 	if (nr_pages - index < cc->cluster_size)
 		return false;
 
-	pgidx = pvec->pages[index]->index;
-
-	for (i = 1; i < cc->cluster_size; i++) {
+	for (; i < cc->cluster_size; i++) {
 		if (pvec->pages[index + i]->index != pgidx + i)
+			return false;
+		if (uptodate && !PageUptodate(pvec->pages[index + i]))
 			return false;
 	}
 
