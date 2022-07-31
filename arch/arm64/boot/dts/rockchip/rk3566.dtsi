@@ -47,6 +47,7 @@
 	extcon = <&usb2phy0>;
 	maximum-speed = "high-speed";
 	snps,dis_u2_susphy_quirk;
+	snps,usb2-lpm-disable;
 };
 
 /delete-node/ &combphy0_us;
