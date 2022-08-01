@@ -70,9 +70,16 @@ static int rkispp_stats_frame_end(struct rkispp_stats_vdev *stats_vdev)
 			nrbuf->total_num = readl(base + RKISPP_ORB_TOTAL_NUM);
 			nrbuf->frame_id = cur_frame_id;
 			nrbuf->image.index = -1;
-			if (vdev->nr.cur_wr) {
+			if (vdev->nr.cur_wr &&
+			    (dev->stream_vdev.module_ens & ISPP_MODULE_FEC_ST) == ISPP_MODULE_FEC_ST) {
 				nrbuf->image.index = vdev->nr.cur_wr->index;
 				nrbuf->image.size = vdev->nr.cur_wr->size;
+				v4l2_dbg(3, rkispp_debug, &dev->v4l2_dev,
+					 "%s frame:%d nr output buf index:%d fd:%d dma:%pad\n",
+					 __func__, cur_frame_id,
+					 vdev->nr.cur_wr->index,
+					 vdev->nr.cur_wr->dma_fd,
+					 &vdev->nr.cur_wr->dma_addr);
 			}
 		}
 

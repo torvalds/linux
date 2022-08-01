@@ -189,7 +189,7 @@ static void tnr_free_buf(struct rkispp_device *dev)
 	     sizeof(struct rkispp_dummy_buffer); i++)
 		rkispp_free_buffer(dev, &vdev->tnr.buf.iir + i);
 
-	vdev->tnr.is_but_init = false;
+	vdev->tnr.is_buf_init = false;
 	vdev->tnr.is_trigger = false;
 }
 
@@ -247,7 +247,7 @@ static int tnr_init_buf(struct rkispp_device *dev,
 	if (ret < 0)
 		goto err;
 
-	vdev->tnr.is_but_init = true;
+	vdev->tnr.is_buf_init = true;
 	return 0;
 err:
 	tnr_free_buf(dev);
@@ -406,10 +406,15 @@ static void nr_free_buf(struct rkispp_device *dev)
 		vdev->nr.cur_wr = NULL;
 	while (!list_empty(list))
 		get_list_buf(list, false);
+	list = &vdev->nr.list_rpt;
+	while (!list_empty(list))
+		get_list_buf(list, false);
 
 	for (i = 0; i < sizeof(vdev->nr.buf) /
 	     sizeof(struct rkispp_dummy_buffer); i++)
 		rkispp_free_buffer(dev, &vdev->nr.buf.tmp_yuv + i);
+
+	vdev->nr.is_buf_init = false;
 }
 
 static int nr_init_buf(struct rkispp_device *dev, u32 size)
@@ -432,6 +437,10 @@ static int nr_init_buf(struct rkispp_device *dev, u32 size)
 	for (i = 0; i < cnt; i++) {
 		buf = &vdev->nr.buf.wr[i];
 		buf->size = size;
+		buf->index = i;
+		buf->is_need_dbuf = true;
+		buf->is_need_vaddr = true;
+		buf->is_need_dmafd = false;
 		ret = rkispp_allow_buffer(dev, buf);
 		if (ret)
 			goto err;
@@ -444,6 +453,8 @@ static int nr_init_buf(struct rkispp_device *dev, u32 size)
 	ret = rkispp_allow_buffer(dev, buf);
 	if (ret)
 		goto err;
+
+	vdev->nr.is_buf_init = true;
 	return 0;
 err:
 	nr_free_buf(dev);
@@ -731,7 +742,7 @@ static void nr_work_event(struct rkispp_device *dev,
 	struct list_head *list;
 	struct dma_buf *dbuf;
 	unsigned long lock_flags = 0, lock_flags1 = 0;
-	bool is_start = false, is_quick = false;
+	bool is_start = false, is_quick = false, is_fec_event = false;
 	bool is_fec_en = (vdev->module_ens & ISPP_MODULE_FEC);
 	struct rkisp_ispp_reg *reg_buf = NULL;
 	u32 val;
@@ -751,7 +762,7 @@ static void nr_work_event(struct rkispp_device *dev,
 	/* event from nr frame end */
 	if (!buf_rd && !buf_wr && is_isr) {
 		vdev->nr.is_end = true;
-
+		is_fec_event = true;
 		if (vdev->nr.cur_rd) {
 			/* nr read buf return to isp or tnr */
 			if (vdev->nr.cur_rd->is_isp && sd) {
@@ -1021,13 +1032,21 @@ end:
 	 * fec start working should after nr
 	 * for scl will update by OTHER_FORCE_UPD
 	 */
-	if (buf_to_fec)
-		rkispp_module_work_event(dev, buf_to_fec, NULL,
-					 ISPP_MODULE_FEC, is_isr);
+	if (buf_to_fec) {
+		if ((vdev->module_ens & ISPP_MODULE_FEC_ST) == ISPP_MODULE_FEC_ST) {
+			rkispp_finish_buffer(dev, buf_to_fec);
+			list_add_tail(&buf_to_fec->list, &dev->stream_vdev.nr.list_rpt);
+			buf_to_fec = NULL;
+		}
+		rkispp_module_work_event(dev, buf_to_fec, NULL, ISPP_MODULE_FEC, false);
+	} else if (!list_empty(&vdev->fec.list_rd) && is_fec_event) {
+		rkispp_module_work_event(dev, NULL, NULL, ISPP_MODULE_FEC, false);
+	}
 	spin_unlock_irqrestore(&vdev->nr.buf_lock, lock_flags);
 
 	if (is_fec_en && vdev->is_done_early &&
-	    is_start && !dev->hw_dev->is_first)
+	    is_start && !dev->hw_dev->is_first &&
+	    (vdev->module_ens & ISPP_MODULE_FEC_ST) != ISPP_MODULE_FEC_ST)
 		hrtimer_start(&vdev->fec_qst,
 			      ns_to_ktime(1000000),
 			      HRTIMER_MODE_REL);
@@ -1388,8 +1407,11 @@ static void fec_work_event(struct rkispp_device *dev,
 			}
 		}
 
-		if (!dev->hw_dev->is_single)
+		if (!dev->hw_dev->is_single) {
 			rkispp_update_regs(dev, RKISPP_FEC, RKISPP_FEC_CROP);
+			rkispp_update_regs(dev, RKISPP_SCL0, RKISPP_SCL2_FACTOR);
+		}
+
 		writel(FEC_FORCE_UPD, base + RKISPP_CTRL_UPDATE);
 		if (vdev->nr.is_end) {
 			if (!dev->hw_dev->is_single)
@@ -1476,7 +1498,7 @@ int rkispp_get_tnrbuf_fd(struct rkispp_device *dev, struct rkispp_buf_idxfd *idx
 	int j, buf_idx, ret = 0;
 
 	spin_lock_irqsave(&vdev->tnr.buf_lock, lock_flags);
-	if (!vdev->tnr.is_but_init) {
+	if (!vdev->tnr.is_buf_init) {
 		spin_unlock_irqrestore(&vdev->tnr.buf_lock, lock_flags);
 		ret = -EAGAIN;
 		return ret;
@@ -1526,6 +1548,34 @@ int rkispp_get_tnrbuf_fd(struct rkispp_device *dev, struct rkispp_buf_idxfd *idx
 	return ret;
 }
 
+int rkispp_get_nrbuf_fd(struct rkispp_device *dev, struct rkispp_buf_idxfd *idxfd)
+{
+	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
+	struct rkispp_dummy_buffer *buf;
+	unsigned long lock_flags = 0;
+	int i, ret = 0;
+
+	spin_lock_irqsave(&vdev->nr.buf_lock, lock_flags);
+	if (!vdev->nr.is_buf_init) {
+		spin_unlock_irqrestore(&vdev->nr.buf_lock, lock_flags);
+		ret = -EAGAIN;
+		return ret;
+	}
+	spin_unlock_irqrestore(&vdev->nr.buf_lock, lock_flags);
+
+	for (i = 0; i < RKISPP_FEC_BUF_MAX; i++) {
+		buf = &vdev->nr.buf.wr[i];
+		if (!buf->dbuf)
+			break;
+		buf->dma_fd = dma_buf_fd(buf->dbuf, O_CLOEXEC);
+		get_dma_buf(buf->dbuf);
+		idxfd->index[i] = i;
+		idxfd->dmafd[i] = buf->dma_fd;
+	}
+	idxfd->buf_num = i;
+	return ret;
+}
+
 static void rkispp_module_work_event(struct rkispp_device *dev,
 			      void *buf_rd, void *buf_wr,
 			      u32 module, bool is_isr)
@@ -1566,8 +1616,8 @@ static void rkispp_module_work_event(struct rkispp_device *dev,
 	if (is_isr && !buf_rd && !buf_wr &&
 	    ((!is_fec_en && module == ISPP_MODULE_NR) ||
 	     (is_fec_en &&
-	      ((module == ISPP_MODULE_NR && is_single) ||
-	       (module == ISPP_MODULE_FEC && !is_single))))) {
+	      ((module == ISPP_MODULE_NR && (is_single || vdev->fec.is_end)) ||
+	       (module == ISPP_MODULE_FEC && !is_single && vdev->fec.is_end))))) {
 		dev->stream_vdev.monitor.retry = 0;
 		rkispp_soft_reset(dev->hw_dev);
 		rkispp_event_handle(dev, CMD_QUEUE_DMABUF, NULL);

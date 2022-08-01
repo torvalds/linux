@@ -122,8 +122,15 @@ rkispp_param_init_fecbuf(struct rkispp_params_vdev *params,
 	buf_size = ALIGN(sizeof(struct rkispp_fec_head), 16);
 	buf_size += 2 * (ALIGN(mesh_size * 2, 16) + ALIGN(mesh_size, 16));
 
+	if (fecsize->buf_cnt > FEC_MESH_BUF_MAX)
+		params->buf_cnt = FEC_MESH_BUF_MAX;
+	else if (fecsize->buf_cnt > 0)
+		params->buf_cnt = fecsize->buf_cnt;
+	else
+		params->buf_cnt = FEC_MESH_BUF_NUM;
+
 	params->buf_fec_idx = 0;
-	for (i = 0; i < FEC_MESH_BUF_NUM; i++) {
+	for (i = 0; i < params->buf_cnt; i++) {
 		params->buf_fec[i].is_need_vaddr = true;
 		params->buf_fec[i].is_need_dbuf = true;
 		params->buf_fec[i].is_need_dmafd = true;
@@ -169,7 +176,7 @@ rkispp_param_deinit_fecbuf(struct rkispp_params_vdev *params)
 	int i;
 
 	params->buf_fec_idx = 0;
-	for (i = 0; i < FEC_MESH_BUF_NUM; i++)
+	for (i = 0; i < FEC_MESH_BUF_MAX; i++)
 		rkispp_free_buffer(params->dev, &params->buf_fec[i]);
 }
 
@@ -352,7 +359,12 @@ void rkispp_params_get_fecbuf_inf(struct rkispp_params_vdev *params_vdev,
 	if (params_vdev->vdev_id != PARAM_VDEV_FEC)
 		return;
 
-	for (i = 0; i < FEC_MESH_BUF_NUM; i++) {
+	for (i = 0; i < FEC_MESH_BUF_MAX; i++) {
+		fecbuf->buf_fd[i] = -1;
+		fecbuf->buf_size[i] = 0;
+	}
+
+	for (i = 0; i < params_vdev->buf_cnt; i++) {
 		fecbuf->buf_fd[i] = params_vdev->buf_fec[i].dma_fd;
 		fecbuf->buf_size[i] = params_vdev->buf_fec[i].size;
 	}
@@ -394,6 +406,7 @@ static int rkispp_register_params_vdev(struct rkispp_device *dev,
 		break;
 	case PARAM_VDEV_FEC:
 	default:
+		params_vdev->buf_cnt = FEC_MESH_BUF_NUM;
 		strncpy(vdev->name, "rkispp_fec_params", sizeof(vdev->name) - 1);
 		break;
 	}

@@ -77,8 +77,7 @@
 #define ORB_BRIEF_NUM			15
 #define ORB_DUMMY_NUM			13
 
-#define FEC_MESH_XY_POINT_SIZE		6
-#define FEC_MESH_XY_NUM			131072
+#define FEC_MESH_BUF_MAX		7
 #define FEC_MESH_BUF_NUM		2
 
 #define MAX_BUF_IDXFD_NUM		64
@@ -98,6 +97,9 @@
 
 #define RKISPP_CMD_GET_TNRBUF_FD	\
 	_IOR('V', BASE_VIDIOC_PRIVATE + 4, struct rkispp_buf_idxfd)
+
+#define RKISPP_CMD_GET_NRBUF_FD		\
+	_IOR('V', BASE_VIDIOC_PRIVATE + 5, struct rkispp_buf_idxfd)
 
 /**independent fec video**/
 #define RKISPP_CMD_FEC_IN_OUT \
@@ -281,14 +283,15 @@ enum rkispp_fecbuf_stat {
 };
 
 struct rkispp_fecbuf_info {
-	s32 buf_fd[FEC_MESH_BUF_NUM];
-	u32 buf_size[FEC_MESH_BUF_NUM];
+	s32 buf_fd[FEC_MESH_BUF_MAX];
+	u32 buf_size[FEC_MESH_BUF_MAX];
 } __attribute__ ((packed));
 
 struct rkispp_fecbuf_size {
 	u32 meas_width;
 	u32 meas_height;
 	u32 meas_mode;
+	int buf_cnt;
 } __attribute__ ((packed));
 
 struct rkispp_fec_head {

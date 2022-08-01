@@ -345,6 +345,9 @@ static long rkispp_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKISPP_CMD_GET_TNRBUF_FD:
 		ret = rkispp_get_tnrbuf_fd(ispp_dev, (struct rkispp_buf_idxfd *)arg);
 		break;
+	case RKISPP_CMD_GET_NRBUF_FD:
+		ret = rkispp_get_nrbuf_fd(ispp_dev, (struct rkispp_buf_idxfd *)arg);
+		break;
 	case RKISPP_CMD_TRIGGER_MODE:
 		rkispp_set_trigger_mode(ispp_dev, (struct rkispp_trigger_mode *)arg);
 		break;
@@ -382,6 +385,7 @@ static long rkispp_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = rkispp_ioctl(sd, cmd, &fecsize);
 		break;
 	case RKISPP_CMD_GET_TNRBUF_FD:
+	case RKISPP_CMD_GET_NRBUF_FD:
 		ret = rkispp_ioctl(sd, cmd, &idxfd);
 		if (!ret && copy_to_user(up, &idxfd, sizeof(idxfd)))
 			ret = -EFAULT;

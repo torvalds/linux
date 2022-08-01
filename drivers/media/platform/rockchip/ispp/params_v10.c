@@ -510,11 +510,11 @@ static void fec_config(struct rkispp_params_vdev *params_vdev,
 		return;
 	}
 
-	for (i = 0; i < FEC_MESH_BUF_NUM; i++) {
+	for (i = 0; i < params_vdev->buf_cnt; i++) {
 		if (arg->buf_fd == params_vdev->buf_fec[i].dma_fd)
 			break;
 	}
-	if (i == FEC_MESH_BUF_NUM) {
+	if (i == params_vdev->buf_cnt) {
 		dev_err(dev->dev, "cannot find fec buf fd(%d)\n", arg->buf_fd);
 		return;
 	}
@@ -595,9 +595,7 @@ static void params_vb2_buf_queue(struct vb2_buffer *vb)
 	struct rkispp_params_vdev *params_vdev = vq->drv_priv;
 	struct rkispp_device *dev = params_vdev->dev;
 	struct rkispp_stream_vdev *vdev = &dev->stream_vdev;
-	void *buf_rd = NULL;
 	unsigned long flags;
-	u32 module;
 
 	spin_lock_irqsave(&params_vdev->config_lock, flags);
 	if (params_vdev->first_params) {
@@ -612,25 +610,29 @@ static void params_vb2_buf_queue(struct vb2_buffer *vb)
 	list_add_tail(&params_buf->queue, &params_vdev->params);
 	spin_unlock_irqrestore(&params_vdev->config_lock, flags);
 
-	switch (params_vdev->vdev_id) {
-	case PARAM_VDEV_TNR:
-		module = ISPP_MODULE_TNR;
-		break;
-	case PARAM_VDEV_NR:
-		module = ISPP_MODULE_NR;
+	if (params_vdev->vdev_id == PARAM_VDEV_NR) {
+		struct rkisp_ispp_buf *buf_rd = NULL;
+
 		spin_lock_irqsave(&vdev->tnr.buf_lock, flags);
 		if (!list_empty(&vdev->tnr.list_rpt)) {
 			buf_rd = list_first_entry(&vdev->tnr.list_rpt,
 					struct rkisp_ispp_buf, list);
-			list_del(&((struct rkisp_ispp_buf *)buf_rd)->list);
+			list_del(&buf_rd->list);
 		}
 		spin_unlock_irqrestore(&vdev->tnr.buf_lock, flags);
-		break;
-	case PARAM_VDEV_FEC:
-	default:
-		module = ISPP_MODULE_FEC;
+		vdev->stream_ops->rkispp_module_work_event(dev, buf_rd, NULL, ISPP_MODULE_NR, false);
+	} else if (params_vdev->vdev_id == PARAM_VDEV_FEC) {
+		struct rkispp_dummy_buffer *buf_rd = NULL;
+
+		spin_lock_irqsave(&vdev->nr.buf_lock, flags);
+		if (!list_empty(&vdev->nr.list_rpt)) {
+			buf_rd = list_first_entry(&vdev->nr.list_rpt,
+					struct rkispp_dummy_buffer, list);
+			list_del(&buf_rd->list);
+			list_add_tail(&buf_rd->list, &vdev->fec.list_rd);
+		}
+		spin_unlock_irqrestore(&vdev->nr.buf_lock, flags);
 	}
-	 vdev->stream_ops->rkispp_module_work_event(dev, buf_rd, NULL, module, false);
 }
 
 static void fec_data_abandon(struct rkispp_params_vdev *vdev,
@@ -639,7 +641,7 @@ static void fec_data_abandon(struct rkispp_params_vdev *vdev,
 	struct rkispp_fec_head *data;
 	int i;
 
-	for (i = 0; i < FEC_MESH_BUF_NUM; i++) {
+	for (i = 0; i < vdev->buf_cnt; i++) {
 		if (params->fec_cfg.buf_fd == vdev->buf_fec[i].dma_fd) {
 			data = (struct rkispp_fec_head *)vdev->buf_fec[i].vaddr;
 			if (data)

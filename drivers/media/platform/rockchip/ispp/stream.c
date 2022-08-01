@@ -1928,11 +1928,13 @@ int rkispp_register_stream_vdevs(struct rkispp_device *dev)
 	INIT_LIST_HEAD(&stream_vdev->tnr.list_rpt);
 	INIT_LIST_HEAD(&stream_vdev->nr.list_rd);
 	INIT_LIST_HEAD(&stream_vdev->nr.list_wr);
+	INIT_LIST_HEAD(&stream_vdev->nr.list_rpt);
 	INIT_LIST_HEAD(&stream_vdev->fec.list_rd);
 	spin_lock_init(&stream_vdev->tnr.buf_lock);
 	spin_lock_init(&stream_vdev->nr.buf_lock);
 	spin_lock_init(&stream_vdev->fec.buf_lock);
-	stream_vdev->tnr.is_but_init = false;
+	stream_vdev->tnr.is_buf_init = false;
+	stream_vdev->nr.is_buf_init = false;
 
 	if (dev->ispp_ver == ISPP_V10) {
 		dev->stream_max = STREAM_MAX;

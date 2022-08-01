@@ -54,9 +54,9 @@ struct rkispp_params_vdev {
 	bool first_params;
 	bool is_subs_evt;
 
-	struct rkispp_dummy_buffer buf_fec[FEC_MESH_BUF_NUM];
+	struct rkispp_dummy_buffer buf_fec[FEC_MESH_BUF_MAX];
 	u32 buf_fec_idx;
-
+	u32 buf_cnt;
 	enum rkispp_paramvdev_id vdev_id;
 };
 
